@@ -1,4 +1,4 @@
-//! Backend-advertised ACP session controls; absence means unsupported or disconnected.
+//! Native ACP controls and non-secret client model-source state; reads never start a CLI.
 use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -29,6 +29,13 @@ pub struct AcpSessionOptions {
     pub acp_model_source: crate::acp_model_source::AcpModelSource,
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub model_source_capabilities: Vec<crate::acp_model_source::AcpModelSourceCapability>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub selected_model: Option<crate::acp_model_source::AcpSessionModelSelection>,
+    /// The exact release with real model-request evidence; other releases are unverified.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub verified_cli_release: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub verified_platform: Option<String>,
     pub connected: bool,
     pub options: Vec<AcpSessionOption>,
 }

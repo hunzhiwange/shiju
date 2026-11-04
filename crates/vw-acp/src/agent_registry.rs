@@ -164,6 +164,9 @@ fn resolve_installed_kiro_windows() -> Option<String> {
 }
 
 fn built_in_agent_command(definition: &BuiltInAgentDefinition) -> (String, Vec<String>) {
+    if let Ok(Some(command)) = crate::managed_runtime::reviewed_agent_command(definition.name) {
+        return command;
+    }
     if definition.name == "opencode" {
         if let Some(command) = resolve_opencode_command() {
             return (command, vec!["acp".to_string()]);

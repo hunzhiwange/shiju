@@ -1,8 +1,8 @@
 {
   "schema_version": 1,
   "observed_on": "2026-11-04",
-  "status": "version_contract_complete_runtime_unverified",
-  "scope": "Version contract and evidence inventory delivered; does not change install or launch behavior. No CLI model-source support is claimed.",
+  "status": "partial_model_source_support_release_and_platform_scoped",
+  "scope": "17 fixed CLI releases have real Darwin-arm64 two-source evidence. Five entries remain explicitly unsupported. Patched capabilities require the reviewed installer artifact; this is not a 22/22 claim.",
   "registry_source": "crates/vw-acp/src/agent_registry.rs::BUILT_IN_AGENT_DEFINITIONS",
   "install_source": "crates/vw-config-types/src/acp_install.rs::acp_install_command_for_platform",
   "evidence_policy": {
@@ -118,6 +118,10 @@
           }
         ],
         "executed": false
+      },
+      "model_source_verification": {
+        "status": "unsupported",
+        "reason": "Provider registration rejected by fixed upstream"
       }
     },
     {
@@ -167,9 +171,9 @@
       "config_root_candidate": "CLAUDE_CONFIG_DIR",
       "config_priority": "ANTHROPIC_BASE_URL、认证及模型环境；SDK 项目 settings 优先级尚待冲突验证",
       "auxiliary_model_routes": "ANTHROPIC_DEFAULT_{SONNET,OPUS,HAIKU}_MODEL、ANTHROPIC_SMALL_FAST_MODEL、CLAUDE_CODE_SUBAGENT_MODEL",
-      "config_isolation_verified": false,
-      "runtime_verified": false,
-      "runtime_evidence_reason": "No ACP model request executed; version-only probe is not model or isolation evidence.",
+      "config_isolation_verified": true,
+      "runtime_verified": true,
+      "runtime_evidence_reason": "Real fixed-release Darwin-arm64 two-source requests; see evidence/claude.md. Other versions/platforms remain unverified.",
       "installed": {
         "command": [
           "claude-agent-acp",
@@ -253,6 +257,14 @@
           },
           "upstream_protocol": "messages"
         }
+      },
+      "model_source_verification": {
+        "status": "verified_release_only",
+        "platform": "Darwin-arm64",
+        "release": "0.26.0",
+        "evidence": "evidence/claude.md",
+        "installation": "native-release",
+        "other_versions_and_platforms": "unverified"
       }
     },
     {
@@ -311,9 +323,9 @@
       "config_root_candidate": "CODEX_HOME",
       "config_priority": "适配器 CODEX_CONFIG / MODEL_PROVIDER 待固定版本源码核实；禁止假定透传原生 -c",
       "auxiliary_model_routes": "以所选模型实际窗口生成 Provider；辅助请求/审查模型待核实",
-      "config_isolation_verified": false,
-      "runtime_verified": false,
-      "runtime_evidence_reason": "No ACP model request executed; version-only probe is not model or isolation evidence.",
+      "config_isolation_verified": true,
+      "runtime_verified": true,
+      "runtime_evidence_reason": "Real fixed-release Darwin-arm64 two-source requests; see evidence/codex.md. Other versions/platforms remain unverified.",
       "installed": {
         "command": [
           "codex-acp",
@@ -373,6 +385,33 @@
           }
         ],
         "executed": false
+      },
+      "offline_acceptance": {
+        "session-model": {
+          "config_root_env": "CODEX_HOME",
+          "files": {
+            "config.toml": "model = \"{{model}}\"\nmodel_provider = \"offline\"\nreview_model = \"{{model}}\"\n[model_providers.offline]\nname = \"Offline Responses fixture\"\nbase_url = \"{{endpoint}}\"\nwire_api = \"responses\"\nrequires_openai_auth = false\nhttp_headers = { Authorization = \"Bearer {{key}}\" }\nrequest_max_retries = 0\nstream_max_retries = 0\n"
+          }
+        },
+        "cli-local": {
+          "config_root_env": "CODEX_HOME",
+          "files": {
+            "config.toml": "model = \"{{model}}\"\nmodel_provider = \"offline\"\nreview_model = \"{{model}}\"\n[model_providers.offline]\nname = \"Offline Responses fixture\"\nbase_url = \"{{endpoint}}\"\nwire_api = \"responses\"\nrequires_openai_auth = false\nhttp_headers = { Authorization = \"Bearer {{key}}\" }\nrequest_max_retries = 0\nstream_max_retries = 0\n"
+          }
+        }
+      },
+      "model_source_patch": {
+        "bundle_sha256": "b47dda5f2a998dab3aaf97f7f7e48dc499bebf9906cd5c2bb103756ae5974c37",
+        "marker": "codex-acp 2.5.0 shiju-model-source-v1"
+      },
+      "model_source_verification": {
+        "status": "verified_release_only",
+        "platform": "Darwin-arm64",
+        "release": "2.5.0",
+        "evidence": "evidence/codex.md",
+        "installation": "reviewed-patched-runtime",
+        "other_versions_and_platforms": "unverified",
+        "artifact_contract": "../../../crates/vw-acp/src/managed_runtime/contracts.json"
       }
     },
     {
@@ -419,9 +458,9 @@
       "config_root_candidate": null,
       "config_priority": "CODEBUDDY_BASE_URL/API_KEY/MODEL；models.json 使用完整请求 URL，与 BASE_URL 语义分别验证",
       "auxiliary_model_routes": "lite/reasoning/subagent 均需显式覆盖",
-      "config_isolation_verified": false,
-      "runtime_verified": false,
-      "runtime_evidence_reason": "No ACP model request executed; version-only probe is not model or isolation evidence.",
+      "config_isolation_verified": true,
+      "runtime_verified": true,
+      "runtime_evidence_reason": "Real fixed-release Darwin-arm64 two-source requests; see evidence/codebuddy.md. Other versions/platforms remain unverified.",
       "installed": {
         "command": [
           "codebuddy",
@@ -449,6 +488,30 @@
           "http_status": 200,
           "final_url": "https://www.codebuddy.ai/docs/cli/models"
         }
+      },
+      "offline_acceptance": {
+        "session-model": {
+          "config_root_env": "CODEBUDDY_CONFIG_DIR",
+          "files": {
+            "settings.json": "{\"env\": {\"CODEBUDDY_MODEL\": \"{{model}}\", \"CODEBUDDY_BASE_URL\": \"{{endpoint}}\", \"CODEBUDDY_API_KEY\": \"{{key}}\"}}",
+            "models.json": "{\"models\": [{\"id\": \"{{model}}\", \"name\": \"Fixture\", \"vendor\": \"OpenAI\", \"url\": \"{{endpoint}}/chat/completions\", \"apiKey\": \"{{key}}\", \"supportsToolCall\": true}]}"
+          }
+        },
+        "cli-local": {
+          "config_root_env": "CODEBUDDY_CONFIG_DIR",
+          "files": {
+            "settings.json": "{\"env\": {\"CODEBUDDY_MODEL\": \"{{model}}\", \"CODEBUDDY_BASE_URL\": \"{{endpoint}}\", \"CODEBUDDY_API_KEY\": \"{{key}}\"}}",
+            "models.json": "{\"models\": [{\"id\": \"{{model}}\", \"name\": \"Fixture\", \"vendor\": \"OpenAI\", \"url\": \"{{endpoint}}/chat/completions\", \"apiKey\": \"{{key}}\", \"supportsToolCall\": true}]}"
+          }
+        }
+      },
+      "model_source_verification": {
+        "status": "verified_release_only",
+        "platform": "Darwin-arm64",
+        "release": "2.179.3",
+        "evidence": "evidence/codebuddy.md",
+        "installation": "native-release",
+        "other_versions_and_platforms": "unverified"
       }
     },
     {
@@ -487,9 +550,9 @@
       "config_root_candidate": "GOOSE_PATH_ROOT",
       "config_priority": "GOOSE_PROVIDER / GOOSE_MODEL；recipe 覆盖环境的行为待验证",
       "auxiliary_model_routes": "子 Agent recipe 与辅助模型路线待验证",
-      "config_isolation_verified": false,
-      "runtime_verified": false,
-      "runtime_evidence_reason": "No ACP model request executed; version-only probe is not model or isolation evidence.",
+      "config_isolation_verified": true,
+      "runtime_verified": true,
+      "runtime_evidence_reason": "Real fixed-release Darwin-arm64 two-source requests; see evidence/goose.md. Other versions/platforms remain unverified.",
       "installed": {
         "command": [
           "goose",
@@ -524,6 +587,31 @@
         "release_manifest_sha256": "4407ef86d2059fc4bbd238cb1c5a63c89ad2544c2156601c361ce4d44cf741e3",
         "published_digest": "sha256:80d43c49b77302777e9d2fe32faf3c40c1028dafbea1e0a39b0378404a8a074b",
         "safe_alternative": "Official GOOSE_BIN_DIR and GOOSE_VERSION support an isolated pinned installation; CONFIGURE=false avoids setup. Not executed in this document task."
+      },
+      "offline_acceptance": {
+        "session-model": {
+          "config_root_env": "GOOSE_PATH_ROOT",
+          "files": {
+            "config/config.yaml": "{\"GOOSE_PROVIDER\":\"openai\",\"GOOSE_MODEL\":\"{{model}}\",\"OPENAI_BASE_URL\":\"{{endpoint}}\",\"GOOSE_DISABLE_KEYRING\":true}",
+            "config/secrets.yaml": "{\"OPENAI_API_KEY\":\"{{key}}\"}"
+          }
+        },
+        "cli-local": {
+          "config_root_env": "GOOSE_PATH_ROOT",
+          "files": {
+            "config/config.yaml": "{\"GOOSE_PROVIDER\":\"openai\",\"GOOSE_MODEL\":\"{{model}}\",\"OPENAI_BASE_URL\":\"{{endpoint}}\",\"GOOSE_DISABLE_KEYRING\":true}",
+            "config/secrets.yaml": "{\"OPENAI_API_KEY\":\"{{key}}\"}"
+          }
+        }
+      },
+      "model_source_verification": {
+        "status": "verified_release_only",
+        "platform": "Darwin-arm64",
+        "release": "v1.57.0",
+        "evidence": "evidence/goose.md",
+        "installation": "reviewed-patched-runtime",
+        "other_versions_and_platforms": "unverified",
+        "artifact_contract": "../../../crates/vw-acp/src/managed_runtime/contracts.json"
       }
     },
     {
@@ -568,9 +656,9 @@
       "config_root_candidate": "VIBE_HOME",
       "config_priority": "专属 TOML Provider api_base/api_key_env_var/api_style 及 model；优先级待固定版本确认",
       "auxiliary_model_routes": "所有 Agent active_model 均绑定会话模型",
-      "config_isolation_verified": false,
-      "runtime_verified": false,
-      "runtime_evidence_reason": "No ACP model request executed; version-only probe is not model or isolation evidence.",
+      "config_isolation_verified": true,
+      "runtime_verified": true,
+      "runtime_evidence_reason": "Real fixed-release Darwin-arm64 two-source requests; see evidence/vibe.md. Other versions/platforms remain unverified.",
       "installed": {
         "command": [
           "vibe-acp",
@@ -598,6 +686,31 @@
           "http_status": 200,
           "final_url": "https://docs.mistral.ai/vibe/code/cli/configuration-reference"
         }
+      },
+      "offline_acceptance": {
+        "session-model": {
+          "config_root_env": "VIBE_HOME",
+          "files": {
+            "config.toml": "enable_telemetry = false\nactive_model = \"fixture\"\nallowed_models = [\"{{model}}\"]\n[[providers]]\nname = \"fixture-provider\"\napi_base = \"{{endpoint}}\"\napi_key_env_var = \"VIBE_NATIVE_FIXTURE_KEY\"\napi_style = \"openai\"\n[[models]]\nname = \"{{model}}\"\nalias = \"fixture\"\nprovider = \"fixture-provider\"\nmax_output_tokens = 1024\n[compaction_model]\nname = \"{{model}}\"\nalias = \"fixture\"\nprovider = \"fixture-provider\"\nmax_output_tokens = 1024\n[utility_models]\ntitle = \"fixture\"\nsmart_approve = \"fixture\"\n",
+            ".env": "VIBE_NATIVE_FIXTURE_KEY={{key}}\n"
+          }
+        },
+        "cli-local": {
+          "config_root_env": "VIBE_HOME",
+          "files": {
+            "config.toml": "enable_telemetry = false\nactive_model = \"fixture\"\nallowed_models = [\"{{model}}\"]\n[[providers]]\nname = \"fixture-provider\"\napi_base = \"{{endpoint}}\"\napi_key_env_var = \"VIBE_NATIVE_FIXTURE_KEY\"\napi_style = \"openai\"\n[[models]]\nname = \"{{model}}\"\nalias = \"fixture\"\nprovider = \"fixture-provider\"\nmax_output_tokens = 1024\n[compaction_model]\nname = \"{{model}}\"\nalias = \"fixture\"\nprovider = \"fixture-provider\"\nmax_output_tokens = 1024\n[utility_models]\ntitle = \"fixture\"\nsmart_approve = \"fixture\"\n",
+            ".env": "VIBE_NATIVE_FIXTURE_KEY={{key}}\n"
+          }
+        }
+      },
+      "model_source_verification": {
+        "status": "verified_release_only",
+        "platform": "Darwin-arm64",
+        "release": "3.0.4",
+        "evidence": "evidence/vibe.md",
+        "installation": "reviewed-patched-runtime",
+        "other_versions_and_platforms": "unverified",
+        "artifact_contract": "../../../crates/vw-acp/src/managed_runtime/contracts.json"
       }
     },
     {
@@ -638,9 +751,9 @@
       "config_root_candidate": "HERMES_HOME",
       "config_priority": "专属 model.provider/base_url；运行时环境、配置优先级待验证",
       "auxiliary_model_routes": "auxiliary、delegation、fallback 均显式禁回退/绑定",
-      "config_isolation_verified": false,
-      "runtime_verified": false,
-      "runtime_evidence_reason": "No ACP model request executed; version-only probe is not model or isolation evidence.",
+      "config_isolation_verified": true,
+      "runtime_verified": true,
+      "runtime_evidence_reason": "Real fixed-release Darwin-arm64 two-source requests; see evidence/hermes.md. Other versions/platforms remain unverified.",
       "installed": {
         "command": [
           "hermes",
@@ -683,6 +796,37 @@
             "final_url": "https://hermes-agent.nousresearch.com/docs/user-guide/configuration"
           }
         }
+      },
+      "offline_acceptance": {
+        "session-model": {
+          "config_root_env": "HERMES_HOME",
+          "files": {
+            "config.yaml": "{\"model\": {\"provider\": \"custom\", \"base_url\": \"{{endpoint}}\", \"api_key\": \"{{key}}\", \"api_mode\": \"chat_completions\", \"default\": \"{{model}}\", \"max_tokens\": 1024, \"context_length\": 131072}, \"auxiliary\": {\"vision\": {\"provider\": \"custom\", \"model\": \"{{model}}\", \"base_url\": \"{{endpoint}}\", \"api_key\": \"{{key}}\", \"api_mode\": \"chat_completions\", \"fallback_chain\": [], \"context_length\": 131072}, \"web_extract\": {\"provider\": \"custom\", \"model\": \"{{model}}\", \"base_url\": \"{{endpoint}}\", \"api_key\": \"{{key}}\", \"api_mode\": \"chat_completions\", \"fallback_chain\": [], \"context_length\": 131072}, \"compression\": {\"provider\": \"custom\", \"model\": \"{{model}}\", \"base_url\": \"{{endpoint}}\", \"api_key\": \"{{key}}\", \"api_mode\": \"chat_completions\", \"fallback_chain\": [], \"context_length\": 131072}, \"skills_hub\": {\"provider\": \"custom\", \"model\": \"{{model}}\", \"base_url\": \"{{endpoint}}\", \"api_key\": \"{{key}}\", \"api_mode\": \"chat_completions\", \"fallback_chain\": [], \"context_length\": 131072}, \"approval\": {\"provider\": \"custom\", \"model\": \"{{model}}\", \"base_url\": \"{{endpoint}}\", \"api_key\": \"{{key}}\", \"api_mode\": \"chat_completions\", \"fallback_chain\": [], \"context_length\": 131072}, \"mcp\": {\"provider\": \"custom\", \"model\": \"{{model}}\", \"base_url\": \"{{endpoint}}\", \"api_key\": \"{{key}}\", \"api_mode\": \"chat_completions\", \"fallback_chain\": [], \"context_length\": 131072}, \"title_generation\": {\"provider\": \"custom\", \"model\": \"{{model}}\", \"base_url\": \"{{endpoint}}\", \"api_key\": \"{{key}}\", \"api_mode\": \"chat_completions\", \"fallback_chain\": [], \"context_length\": 131072}, \"memory_query_rewrite\": {\"provider\": \"custom\", \"model\": \"{{model}}\", \"base_url\": \"{{endpoint}}\", \"api_key\": \"{{key}}\", \"api_mode\": \"chat_completions\", \"fallback_chain\": [], \"context_length\": 131072}, \"tts_audio_tags\": {\"provider\": \"custom\", \"model\": \"{{model}}\", \"base_url\": \"{{endpoint}}\", \"api_key\": \"{{key}}\", \"api_mode\": \"chat_completions\", \"fallback_chain\": [], \"context_length\": 131072}, \"triage_specifier\": {\"provider\": \"custom\", \"model\": \"{{model}}\", \"base_url\": \"{{endpoint}}\", \"api_key\": \"{{key}}\", \"api_mode\": \"chat_completions\", \"fallback_chain\": [], \"context_length\": 131072}, \"kanban_decomposer\": {\"provider\": \"custom\", \"model\": \"{{model}}\", \"base_url\": \"{{endpoint}}\", \"api_key\": \"{{key}}\", \"api_mode\": \"chat_completions\", \"fallback_chain\": [], \"context_length\": 131072}, \"profile_describer\": {\"provider\": \"custom\", \"model\": \"{{model}}\", \"base_url\": \"{{endpoint}}\", \"api_key\": \"{{key}}\", \"api_mode\": \"chat_completions\", \"fallback_chain\": [], \"context_length\": 131072}, \"goal_judge\": {\"provider\": \"custom\", \"model\": \"{{model}}\", \"base_url\": \"{{endpoint}}\", \"api_key\": \"{{key}}\", \"api_mode\": \"chat_completions\", \"fallback_chain\": [], \"context_length\": 131072}, \"curator\": {\"provider\": \"custom\", \"model\": \"{{model}}\", \"base_url\": \"{{endpoint}}\", \"api_key\": \"{{key}}\", \"api_mode\": \"chat_completions\", \"fallback_chain\": [], \"context_length\": 131072}, \"monitor\": {\"provider\": \"custom\", \"model\": \"{{model}}\", \"base_url\": \"{{endpoint}}\", \"api_key\": \"{{key}}\", \"api_mode\": \"chat_completions\", \"fallback_chain\": [], \"context_length\": 131072}, \"background_review\": {\"provider\": \"custom\", \"model\": \"{{model}}\", \"base_url\": \"{{endpoint}}\", \"api_key\": \"{{key}}\", \"api_mode\": \"chat_completions\", \"fallback_chain\": [], \"context_length\": 131072}, \"moa_reference\": {\"provider\": \"custom\", \"model\": \"{{model}}\", \"base_url\": \"{{endpoint}}\", \"api_key\": \"{{key}}\", \"api_mode\": \"chat_completions\", \"fallback_chain\": [], \"context_length\": 131072}, \"moa_aggregator\": {\"provider\": \"custom\", \"model\": \"{{model}}\", \"base_url\": \"{{endpoint}}\", \"api_key\": \"{{key}}\", \"api_mode\": \"chat_completions\", \"fallback_chain\": [], \"context_length\": 131072}}, \"delegation\": {\"provider\": \"custom\", \"model\": \"{{model}}\", \"base_url\": \"{{endpoint}}\", \"api_key\": \"{{key}}\", \"api_mode\": \"chat_completions\"}, \"fallback_providers\": [], \"fallback_model\": null}",
+            ".env": ""
+          }
+        },
+        "cli-local": {
+          "config_root_env": "HERMES_HOME",
+          "files": {
+            "config.yaml": "{\"model\": {\"provider\": \"custom\", \"base_url\": \"{{endpoint}}\", \"api_key\": \"{{key}}\", \"api_mode\": \"chat_completions\", \"default\": \"{{model}}\", \"max_tokens\": 1024, \"context_length\": 131072}, \"auxiliary\": {\"vision\": {\"provider\": \"custom\", \"model\": \"{{model}}\", \"base_url\": \"{{endpoint}}\", \"api_key\": \"{{key}}\", \"api_mode\": \"chat_completions\", \"fallback_chain\": [], \"context_length\": 131072}, \"web_extract\": {\"provider\": \"custom\", \"model\": \"{{model}}\", \"base_url\": \"{{endpoint}}\", \"api_key\": \"{{key}}\", \"api_mode\": \"chat_completions\", \"fallback_chain\": [], \"context_length\": 131072}, \"compression\": {\"provider\": \"custom\", \"model\": \"{{model}}\", \"base_url\": \"{{endpoint}}\", \"api_key\": \"{{key}}\", \"api_mode\": \"chat_completions\", \"fallback_chain\": [], \"context_length\": 131072}, \"skills_hub\": {\"provider\": \"custom\", \"model\": \"{{model}}\", \"base_url\": \"{{endpoint}}\", \"api_key\": \"{{key}}\", \"api_mode\": \"chat_completions\", \"fallback_chain\": [], \"context_length\": 131072}, \"approval\": {\"provider\": \"custom\", \"model\": \"{{model}}\", \"base_url\": \"{{endpoint}}\", \"api_key\": \"{{key}}\", \"api_mode\": \"chat_completions\", \"fallback_chain\": [], \"context_length\": 131072}, \"mcp\": {\"provider\": \"custom\", \"model\": \"{{model}}\", \"base_url\": \"{{endpoint}}\", \"api_key\": \"{{key}}\", \"api_mode\": \"chat_completions\", \"fallback_chain\": [], \"context_length\": 131072}, \"title_generation\": {\"provider\": \"custom\", \"model\": \"{{model}}\", \"base_url\": \"{{endpoint}}\", \"api_key\": \"{{key}}\", \"api_mode\": \"chat_completions\", \"fallback_chain\": [], \"context_length\": 131072}, \"memory_query_rewrite\": {\"provider\": \"custom\", \"model\": \"{{model}}\", \"base_url\": \"{{endpoint}}\", \"api_key\": \"{{key}}\", \"api_mode\": \"chat_completions\", \"fallback_chain\": [], \"context_length\": 131072}, \"tts_audio_tags\": {\"provider\": \"custom\", \"model\": \"{{model}}\", \"base_url\": \"{{endpoint}}\", \"api_key\": \"{{key}}\", \"api_mode\": \"chat_completions\", \"fallback_chain\": [], \"context_length\": 131072}, \"triage_specifier\": {\"provider\": \"custom\", \"model\": \"{{model}}\", \"base_url\": \"{{endpoint}}\", \"api_key\": \"{{key}}\", \"api_mode\": \"chat_completions\", \"fallback_chain\": [], \"context_length\": 131072}, \"kanban_decomposer\": {\"provider\": \"custom\", \"model\": \"{{model}}\", \"base_url\": \"{{endpoint}}\", \"api_key\": \"{{key}}\", \"api_mode\": \"chat_completions\", \"fallback_chain\": [], \"context_length\": 131072}, \"profile_describer\": {\"provider\": \"custom\", \"model\": \"{{model}}\", \"base_url\": \"{{endpoint}}\", \"api_key\": \"{{key}}\", \"api_mode\": \"chat_completions\", \"fallback_chain\": [], \"context_length\": 131072}, \"goal_judge\": {\"provider\": \"custom\", \"model\": \"{{model}}\", \"base_url\": \"{{endpoint}}\", \"api_key\": \"{{key}}\", \"api_mode\": \"chat_completions\", \"fallback_chain\": [], \"context_length\": 131072}, \"curator\": {\"provider\": \"custom\", \"model\": \"{{model}}\", \"base_url\": \"{{endpoint}}\", \"api_key\": \"{{key}}\", \"api_mode\": \"chat_completions\", \"fallback_chain\": [], \"context_length\": 131072}, \"monitor\": {\"provider\": \"custom\", \"model\": \"{{model}}\", \"base_url\": \"{{endpoint}}\", \"api_key\": \"{{key}}\", \"api_mode\": \"chat_completions\", \"fallback_chain\": [], \"context_length\": 131072}, \"background_review\": {\"provider\": \"custom\", \"model\": \"{{model}}\", \"base_url\": \"{{endpoint}}\", \"api_key\": \"{{key}}\", \"api_mode\": \"chat_completions\", \"fallback_chain\": [], \"context_length\": 131072}, \"moa_reference\": {\"provider\": \"custom\", \"model\": \"{{model}}\", \"base_url\": \"{{endpoint}}\", \"api_key\": \"{{key}}\", \"api_mode\": \"chat_completions\", \"fallback_chain\": [], \"context_length\": 131072}, \"moa_aggregator\": {\"provider\": \"custom\", \"model\": \"{{model}}\", \"base_url\": \"{{endpoint}}\", \"api_key\": \"{{key}}\", \"api_mode\": \"chat_completions\", \"fallback_chain\": [], \"context_length\": 131072}}, \"delegation\": {\"provider\": \"custom\", \"model\": \"{{model}}\", \"base_url\": \"{{endpoint}}\", \"api_key\": \"{{key}}\", \"api_mode\": \"chat_completions\"}, \"fallback_providers\": [], \"fallback_model\": null}",
+            ".env": ""
+          }
+        }
+      },
+      "model_source_patch": {
+        "metadata": "patch.json",
+        "compatibility_flag": "--session-model-binding",
+        "sha256": "f6bb617ddd4404ba51f35e9b4f14d045c3217b24050c017e4dfa071d79620dc9",
+        "scope": "ACP history isolation and fail-closed current runtime model binding"
+      },
+      "model_source_verification": {
+        "status": "verified_release_only",
+        "platform": "Darwin-arm64",
+        "release": "0.19.0",
+        "evidence": "evidence/hermes.md",
+        "installation": "reviewed-patched-runtime",
+        "other_versions_and_platforms": "unverified",
+        "artifact_contract": "../../../crates/vw-acp/src/managed_runtime/contracts.json"
       }
     },
     {
@@ -728,9 +872,9 @@
       "config_root_candidate": "SNOW_CONFIG_DIR",
       "config_priority": "专属 JSON baseUrl/apiKey/requestMethod；固定源码提交已识别，但发行版一致性待验证",
       "auxiliary_model_routes": "advancedModel/basicModel 均覆盖",
-      "config_isolation_verified": false,
-      "runtime_verified": false,
-      "runtime_evidence_reason": "No ACP model request executed; version-only probe is not model or isolation evidence.",
+      "config_isolation_verified": true,
+      "runtime_verified": true,
+      "runtime_evidence_reason": "Real fixed-release Darwin-arm64 two-source requests; see evidence/snow.md. Other versions/platforms remain unverified.",
       "installed": {
         "command": [
           "snow",
@@ -758,6 +902,28 @@
           "http_status": 200,
           "final_url": "https://github.com/MayDay-wpf/snow-cli/blob/main/docs/usage/en/02.First%20Time%20Configuration.md"
         }
+      },
+      "offline_acceptance": {
+        "session-model": {
+          "config_root_env": "SNOW_CONFIG_DIR",
+          "files": {
+            "config.json": "{\"snowcfg\": {\"baseUrl\": \"{{endpoint}}\", \"apiKey\": \"{{key}}\", \"requestMethod\": \"chat\", \"advancedModel\": \"{{model}}\", \"basicModel\": \"{{model}}\", \"supportsVision\": true, \"enablePromptOptimization\": false, \"maxRetries\": 0}}"
+          }
+        },
+        "cli-local": {
+          "config_root_env": "SNOW_CONFIG_DIR",
+          "files": {
+            "config.json": "{\"snowcfg\": {\"baseUrl\": \"{{endpoint}}\", \"apiKey\": \"{{key}}\", \"requestMethod\": \"chat\", \"advancedModel\": \"{{model}}\", \"basicModel\": \"{{model}}\", \"supportsVision\": true, \"enablePromptOptimization\": false, \"maxRetries\": 0}}"
+          }
+        }
+      },
+      "model_source_verification": {
+        "status": "verified_release_only",
+        "platform": "Darwin-arm64",
+        "release": "0.9.14",
+        "evidence": "evidence/snow.md",
+        "installation": "native-release",
+        "other_versions_and_platforms": "unverified"
       }
     },
     {
@@ -804,9 +970,9 @@
       "config_root_candidate": "COPILOT_HOME / COPILOT_PROVIDER_CONFIG",
       "config_priority": "providers.json 声明优先于旧 COPILOT_PROVIDER_*；必须隔离文件与环境，不能复用 GitHub 登录为模型 key",
       "auxiliary_model_routes": "COPILOT_MODEL 与辅助路线待真实请求验证",
-      "config_isolation_verified": false,
-      "runtime_verified": false,
-      "runtime_evidence_reason": "No ACP model request executed; version-only probe is not model or isolation evidence.",
+      "config_isolation_verified": true,
+      "runtime_verified": true,
+      "runtime_evidence_reason": "Real fixed-release Darwin-arm64 two-source requests; see evidence/copilot.md. Other versions/platforms remain unverified.",
       "installed": {
         "command": [
           "copilot",
@@ -835,6 +1001,30 @@
           "http_status": 200,
           "final_url": "https://docs.github.com/en/copilot/reference/copilot-cli-reference/cli-config-dir-reference"
         }
+      },
+      "offline_acceptance": {
+        "session-model": {
+          "config_root_env": "COPILOT_HOME",
+          "files": {
+            "providers.json": "{\"providers\": [{\"name\": \"fixture\", \"type\": \"openai\", \"baseUrl\": \"{{endpoint}}\", \"apiKey\": \"{{key}}\"}], \"models\": [{\"id\": \"{{model}}\", \"provider\": \"fixture\", \"wireModel\": \"{{model}}\"}]}",
+            "settings.json": "{\"model\":\"fixture/{{model}}\",\"autoUpdate\":false}"
+          }
+        },
+        "cli-local": {
+          "config_root_env": "COPILOT_HOME",
+          "files": {
+            "providers.json": "{\"providers\": [{\"name\": \"fixture\", \"type\": \"openai\", \"baseUrl\": \"{{endpoint}}\", \"apiKey\": \"{{key}}\"}], \"models\": [{\"id\": \"{{model}}\", \"provider\": \"fixture\", \"wireModel\": \"{{model}}\"}]}",
+            "settings.json": "{\"model\":\"fixture/{{model}}\",\"autoUpdate\":false}"
+          }
+        }
+      },
+      "model_source_verification": {
+        "status": "verified_release_only",
+        "platform": "Darwin-arm64",
+        "release": "1.0.105",
+        "evidence": "evidence/copilot.md",
+        "installation": "native-release",
+        "other_versions_and_platforms": "unverified"
       }
     },
     {
@@ -924,6 +1114,10 @@
         "artifact_downloaded": false,
         "binary_executed": false,
         "release_binding": "Installer embeds identical version in download URL and final version directory."
+      },
+      "model_source_verification": {
+        "status": "unsupported",
+        "reason": "No verified arbitrary CLI Provider injection contract"
       }
     },
     {
@@ -1009,6 +1203,10 @@
         "published_sha256": "11790b88e3e47813e83089ed43a80ffe782982b62ecad2fd1bc6de2ec475a285",
         "checksum_url": "https://downloads.factory.ai/factory-cli/releases/1.3.0/darwin/arm64/droid.sha256",
         "safe_alternative": "Download checksum and binary directly to an isolated task directory; do not run installer (writes user bin and kills running droid)."
+      },
+      "model_source_verification": {
+        "status": "unsupported",
+        "reason": "ACP bidirectional transport/configuration isolation remain unverified"
       }
     },
     {
@@ -1058,9 +1256,9 @@
       "config_root_candidate": null,
       "config_priority": "GEMINI_API_KEY / GEMINI_MODEL / GOOGLE_GEMINI_BASE_URL；必须验证认证路径不回 OAuth/Vertex",
       "auxiliary_model_routes": "Gemini generateContent 与 streamGenerateContent，元数据、压缩及辅助模型",
-      "config_isolation_verified": false,
-      "runtime_verified": false,
-      "runtime_evidence_reason": "No ACP model request executed; version-only probe is not model or isolation evidence.",
+      "config_isolation_verified": true,
+      "runtime_verified": true,
+      "runtime_evidence_reason": "Real fixed-release Darwin-arm64 two-source requests; see evidence/gemini.md. Other versions/platforms remain unverified.",
       "installed": {
         "command": [
           "gemini",
@@ -1084,6 +1282,33 @@
           "http_status": 200,
           "final_url": "https://geminicli.com/docs/reference/configuration/"
         }
+      },
+      "offline_acceptance": {
+        "session-model": {
+          "config_root_env": "GEMINI_CLI_HOME",
+          "upstream_protocol": "chat",
+          "files": {
+            ".gemini/settings.json": "{\"model\": {\"name\": \"{{model}}\"}, \"security\": {\"auth\": {\"selectedType\": \"gateway\"}}, \"advanced\": {\"autoConfigureMemory\": false}, \"telemetry\": {\"enabled\": false}, \"modelConfigs\": {\"overrides\": [{\"match\": {}, \"modelConfig\": {\"model\": \"{{model}}\"}}], \"customOverrides\": [], \"aliases\": {}, \"customAliases\": {}}}",
+            ".gemini/.env": "GEMINI_API_KEY={{key}}\nGEMINI_MODEL={{model}}\nGOOGLE_GEMINI_BASE_URL={{origin}}\nGOOGLE_GENAI_USE_GCA=false\nGOOGLE_GENAI_USE_VERTEXAI=false\n"
+          }
+        },
+        "cli-local": {
+          "config_root_env": "GEMINI_CLI_HOME",
+          "upstream_protocol": "chat",
+          "files": {
+            ".gemini/settings.json": "{\"model\": {\"name\": \"{{model}}\"}, \"security\": {\"auth\": {\"selectedType\": \"gateway\"}}, \"advanced\": {\"autoConfigureMemory\": false}, \"telemetry\": {\"enabled\": false}, \"modelConfigs\": {\"overrides\": [{\"match\": {}, \"modelConfig\": {\"model\": \"{{model}}\"}}], \"customOverrides\": [], \"aliases\": {}, \"customAliases\": {}}}",
+            ".gemini/.env": "GEMINI_API_KEY={{key}}\nGEMINI_MODEL={{model}}\nGOOGLE_GEMINI_BASE_URL={{origin}}\nGOOGLE_GENAI_USE_GCA=false\nGOOGLE_GENAI_USE_VERTEXAI=false\n"
+          }
+        }
+      },
+      "model_source_verification": {
+        "status": "verified_release_only",
+        "platform": "Darwin-arm64",
+        "release": "0.66.0",
+        "evidence": "evidence/gemini.md",
+        "installation": "reviewed-patched-runtime",
+        "other_versions_and_platforms": "unverified",
+        "artifact_contract": "../../../crates/vw-acp/src/managed_runtime/contracts.json"
       }
     },
     {
@@ -1132,9 +1357,9 @@
       "config_root_candidate": null,
       "config_priority": "IFLOW_ 设置环境优先于系统/项目/用户；apiKey/baseUrl/modelName/selectedAuthType 按版本验证",
       "auxiliary_model_routes": "摘要、辅助模型与设置写回隔离未验证",
-      "config_isolation_verified": false,
-      "runtime_verified": false,
-      "runtime_evidence_reason": "No ACP model request executed; version-only probe is not model or isolation evidence.",
+      "config_isolation_verified": true,
+      "runtime_verified": true,
+      "runtime_evidence_reason": "Real fixed-release Darwin-arm64 two-source requests; see evidence/iflow.md. Other versions/platforms remain unverified.",
       "installed": {
         "command": [
           "iflow",
@@ -1162,6 +1387,29 @@
           "http_status": 200,
           "final_url": "https://github.com/iflow-ai/iflow-cli"
         }
+      },
+      "offline_acceptance": {
+        "session-model": {
+          "config_root_env": "IFLOW_HOME",
+          "files": {
+            "settings.json": "{\"apiKey\": \"{{key}}\", \"baseUrl\": \"{{endpoint}}\", \"modelName\": \"{{model}}\", \"selectedAuthType\": \"openai-compatible\", \"disableAutoUpdate\": true, \"usageStatisticsEnabled\": false}"
+          }
+        },
+        "cli-local": {
+          "config_root_env": "IFLOW_HOME",
+          "files": {
+            "settings.json": "{\"apiKey\": \"{{key}}\", \"baseUrl\": \"{{endpoint}}\", \"modelName\": \"{{model}}\", \"selectedAuthType\": \"openai-compatible\", \"disableAutoUpdate\": true, \"usageStatisticsEnabled\": false}"
+          }
+        }
+      },
+      "model_source_verification": {
+        "status": "verified_release_only",
+        "platform": "Darwin-arm64",
+        "release": "0.5.19",
+        "evidence": "evidence/iflow.md",
+        "installation": "reviewed-patched-runtime",
+        "other_versions_and_platforms": "unverified",
+        "artifact_contract": "../../../crates/vw-acp/src/managed_runtime/contracts.json"
       }
     },
     {
@@ -1208,9 +1456,9 @@
       "config_root_candidate": "KILO_CONFIG / KILO_CONFIG_CONTENT",
       "config_priority": "kilo 原生 Provider 配置；npm bin 同时含 kilo/kilocode，不能套用 OPENCODE_*",
       "auxiliary_model_routes": "small_model、Agent 覆盖待验证",
-      "config_isolation_verified": false,
-      "runtime_verified": false,
-      "runtime_evidence_reason": "No ACP model request executed; version-only probe is not model or isolation evidence.",
+      "config_isolation_verified": true,
+      "runtime_verified": true,
+      "runtime_evidence_reason": "Real fixed-release Darwin-arm64 two-source requests; see evidence/kilocode.md. Other versions/platforms remain unverified.",
       "installed": {
         "command": [
           "kilocode",
@@ -1238,6 +1486,30 @@
           "http_status": 200,
           "final_url": "https://kilo.ai/docs/code-with-ai/agents/custom-models"
         }
+      },
+      "offline_acceptance": {
+        "session-model": {
+          "config_root_env": "XDG_CONFIG_HOME",
+          "files": {
+            "kilo/kilo.json": "{\"model\": \"shiju/session\", \"small_model\": \"shiju/session\", \"subagent_model\": \"shiju/session\", \"memory_model\": \"shiju/session\", \"enabled_providers\": [\"shiju\"], \"provider\": {\"shiju\": {\"name\": \"Offline fixture\", \"npm\": \"@ai-sdk/openai-compatible\", \"options\": {\"baseURL\": \"{{endpoint}}\", \"apiKey\": \"{{key}}\"}, \"models\": {\"session\": {\"id\": \"{{model}}\", \"name\": \"Offline fixture\", \"tool_call\": true, \"limit\": {\"context\": 32000, \"output\": 4096}}}}}}"
+          },
+          "upstream_protocol": "chat"
+        },
+        "cli-local": {
+          "config_root_env": "XDG_CONFIG_HOME",
+          "files": {
+            "kilo/kilo.json": "{\"model\": \"shiju/session\", \"small_model\": \"shiju/session\", \"subagent_model\": \"shiju/session\", \"memory_model\": \"shiju/session\", \"enabled_providers\": [\"shiju\"], \"provider\": {\"shiju\": {\"name\": \"Offline fixture\", \"npm\": \"@ai-sdk/openai-compatible\", \"options\": {\"baseURL\": \"{{endpoint}}\", \"apiKey\": \"{{key}}\"}, \"models\": {\"session\": {\"id\": \"{{model}}\", \"name\": \"Offline fixture\", \"tool_call\": true, \"limit\": {\"context\": 32000, \"output\": 4096}}}}}}"
+          },
+          "upstream_protocol": "chat"
+        }
+      },
+      "model_source_verification": {
+        "status": "verified_release_only",
+        "platform": "Darwin-arm64",
+        "release": "7.8.18",
+        "evidence": "evidence/kilocode.md",
+        "installation": "native-release",
+        "other_versions_and_platforms": "unverified"
       }
     },
     {
@@ -1327,7 +1599,7 @@
       "auxiliary_model_routes": "Only session-selected alias is configured; native coder default and all primary requests use its Provider. Proven with real child model requests.",
       "config_isolation_verified": true,
       "runtime_verified": true,
-      "runtime_evidence_reason": "Official 2.5.0 Darwin-arm64 binary; session-model 11 requests with both selected models, cli-local 9 requests with native model; 3 real coder auxiliary requests per source; full lifecycle passed.",
+      "runtime_evidence_reason": "Real fixed-release Darwin-arm64 two-source requests; see evidence/kimi.md. Other versions/platforms remain unverified.",
       "installed": {
         "command": [
           "kimi",
@@ -1366,6 +1638,14 @@
         "session-model": "evidence/kimi/session-model.json",
         "cli-local": "evidence/kimi/cli-local.json",
         "negative": "evidence/kimi/native-boundaries.json"
+      },
+      "model_source_verification": {
+        "status": "verified_release_only",
+        "platform": "Darwin-arm64",
+        "release": "2.5.0",
+        "evidence": "evidence/kimi.md",
+        "installation": "native-release",
+        "other_versions_and_platforms": "unverified"
       }
     },
     {
@@ -1405,7 +1685,7 @@
       "auxiliary_model_routes": "Native invoke_sub_agent/general-task-execution uses the same bound catalog and Responses relay; 3 real auxiliary requests per source verified on Darwin-arm64",
       "config_isolation_verified": true,
       "runtime_verified": true,
-      "runtime_evidence_reason": "Official 3.0.0 Darwin-arm64 binary: session-model 11 requests with both selected models, cli-local 10 requests with native model; both sources include native auxiliary tools, cancellation, restart, restoration and switch proof.",
+      "runtime_evidence_reason": "Real fixed-release Darwin-arm64 two-source requests; see evidence/kiro.md. Other versions/platforms remain unverified.",
       "installed": {
         "command": [
           "kiro-cli",
@@ -1479,6 +1759,14 @@
             "settings/cli.json": "{\"chat.defaultModel\": \"{{model}}\", \"acp.agentEngine\": \"v3\", \"telemetry.enabled\": false, \"chat.enableAutoAgentUpgrade\": false}"
           }
         }
+      },
+      "model_source_verification": {
+        "status": "verified_release_only",
+        "platform": "Darwin-arm64",
+        "release": "3.0.0",
+        "evidence": "evidence/kiro.md",
+        "installation": "native-release",
+        "other_versions_and_platforms": "unverified"
       }
     },
     {
@@ -1521,9 +1809,9 @@
       "config_root_candidate": "OPENCODE_CONFIG_CONTENT / OPENCODE_CONFIG_DIR / XDG_*",
       "config_priority": "专属 Provider；项目配置与 Agent frontmatter 可能改变模型，必须冲突验证",
       "auxiliary_model_routes": "model/small_model/compaction/Agent 均覆盖",
-      "config_isolation_verified": false,
-      "runtime_verified": false,
-      "runtime_evidence_reason": "No ACP model request executed; version-only probe is not model or isolation evidence.",
+      "config_isolation_verified": true,
+      "runtime_verified": true,
+      "runtime_evidence_reason": "Real fixed-release Darwin-arm64 two-source requests; see evidence/opencode.md. Other versions/platforms remain unverified.",
       "installed": {
         "command": [
           "opencode",
@@ -1551,6 +1839,28 @@
           "http_status": 200,
           "final_url": "https://opencode.ai/docs/providers/"
         }
+      },
+      "offline_acceptance": {
+        "session-model": {
+          "config_root_env": "OPENCODE_CONFIG_DIR",
+          "files": {
+            "opencode.json": "{\"model\": \"session-provider/{{model}}\", \"small_model\": \"session-provider/{{model}}\", \"enabled_providers\": [\"session-provider\"], \"autoupdate\": false, \"share\": \"disabled\", \"provider\": {\"session-provider\": {\"npm\": \"@ai-sdk/openai-compatible\", \"models\": {\"{{model}}\": {\"name\": \"Native offline model\", \"tool_call\": true, \"limit\": {\"context\": 32000, \"output\": 4096}}}, \"options\": {\"baseURL\": \"{{endpoint}}\", \"apiKey\": \"{{key}}\"}}}, \"agent\": {\"build\": {\"model\": \"session-provider/{{model}}\"}, \"plan\": {\"model\": \"session-provider/{{model}}\"}, \"general\": {\"model\": \"session-provider/{{model}}\"}, \"explore\": {\"model\": \"session-provider/{{model}}\"}, \"title\": {\"model\": \"session-provider/{{model}}\"}, \"summary\": {\"model\": \"session-provider/{{model}}\"}, \"compaction\": {\"model\": \"session-provider/{{model}}\"}}}"
+          }
+        },
+        "cli-local": {
+          "config_root_env": "OPENCODE_CONFIG_DIR",
+          "files": {
+            "opencode.json": "{\"model\": \"session-provider/{{model}}\", \"small_model\": \"session-provider/{{model}}\", \"enabled_providers\": [\"session-provider\"], \"autoupdate\": false, \"share\": \"disabled\", \"provider\": {\"session-provider\": {\"npm\": \"@ai-sdk/openai-compatible\", \"models\": {\"{{model}}\": {\"name\": \"Native offline model\", \"tool_call\": true, \"limit\": {\"context\": 32000, \"output\": 4096}}}, \"options\": {\"baseURL\": \"{{endpoint}}\", \"apiKey\": \"{{key}}\"}}}, \"agent\": {\"build\": {\"model\": \"session-provider/{{model}}\"}, \"plan\": {\"model\": \"session-provider/{{model}}\"}, \"general\": {\"model\": \"session-provider/{{model}}\"}, \"explore\": {\"model\": \"session-provider/{{model}}\"}, \"title\": {\"model\": \"session-provider/{{model}}\"}, \"summary\": {\"model\": \"session-provider/{{model}}\"}, \"compaction\": {\"model\": \"session-provider/{{model}}\"}}}"
+          }
+        }
+      },
+      "model_source_verification": {
+        "status": "verified_release_only",
+        "platform": "Darwin-arm64",
+        "release": "1.19.5",
+        "evidence": "evidence/opencode.md",
+        "installation": "native-release",
+        "other_versions_and_platforms": "unverified"
       }
     },
     {
@@ -1598,7 +1908,7 @@
       "auxiliary_model_routes": "Gateway 各 Agent 默认、fallback、压缩路线均需绑定",
       "config_isolation_verified": true,
       "runtime_verified": true,
-      "runtime_evidence_reason": "Pinned real CLI passed both production model-source flows, including native subagent model requests; see evidence/openclaw.md.",
+      "runtime_evidence_reason": "Real fixed-release Darwin-arm64 two-source requests; see evidence/openclaw.md. Other versions/platforms remain unverified.",
       "installed": {
         "command": [
           "openclaw",
@@ -1641,6 +1951,14 @@
             "openclaw.json": "{\"gateway\": {\"mode\": \"local\", \"bind\": \"loopback\", \"auth\": {\"mode\": \"token\", \"token\": \"{{key}}\"}, \"controlUi\": {\"enabled\": false}}, \"discovery\": {\"mdns\": {\"mode\": \"off\"}}, \"browser\": {\"enabled\": false}, \"plugins\": {\"enabled\": false}, \"agents\": {\"defaults\": {\"workspace\": \"{{root}}\", \"model\": {\"primary\": \"fixture/{{model}}\", \"fallbacks\": []}, \"skipBootstrap\": true, \"heartbeat\": {\"every\": \"0m\"}}}, \"models\": {\"mode\": \"replace\", \"providers\": {\"fixture\": {\"baseUrl\": \"{{endpoint}}\", \"apiKey\": \"{{key}}\", \"api\": \"openai-completions\", \"models\": [{\"id\": \"{{model}}\", \"name\": \"Offline\", \"contextWindow\": 32000, \"maxTokens\": 2048}]}}}}"
           }
         }
+      },
+      "model_source_verification": {
+        "status": "verified_release_only",
+        "platform": "Darwin-arm64",
+        "release": "2026.10.10",
+        "evidence": "evidence/openclaw.md",
+        "installation": "native-release",
+        "other_versions_and_platforms": "unverified"
       }
     },
     {
@@ -1700,7 +2018,7 @@
       "auxiliary_model_routes": "原生 /compact 的历史与分轮总结已验证使用当前模型；不声明第三方扩展子代理支持",
       "config_isolation_verified": true,
       "runtime_verified": true,
-      "runtime_evidence_reason": "2026-11-05 Darwin arm64: production offline session_model 14 requests (3 compaction), cli_local 13 requests (4 compaction), both zero fixture errors; see evidence/pi.md. Registry/installer capability publication remains task 33.",
+      "runtime_evidence_reason": "Real fixed-release Darwin-arm64 two-source requests; see evidence/pi.md. Other versions/platforms remain unverified.",
       "installed": {
         "command": [
           "pi-acp",
@@ -1792,6 +2110,15 @@
             "settings.json": "{\"defaultProvider\": \"session-provider\", \"defaultModel\": \"{{model}}\", \"quietStartup\": true}"
           }
         }
+      },
+      "model_source_verification": {
+        "status": "verified_release_only",
+        "platform": "Darwin-arm64",
+        "release": "0.0.22",
+        "evidence": "evidence/pi.md",
+        "installation": "reviewed-patched-runtime",
+        "other_versions_and_platforms": "unverified",
+        "artifact_contract": "../../../crates/vw-acp/src/managed_runtime/contracts.json"
       }
     },
     {
@@ -1875,6 +2202,10 @@
           "http_status": 200,
           "final_url": "https://docs.qoder.com/cli/cli-reference"
         }
+      },
+      "model_source_verification": {
+        "status": "unsupported",
+        "reason": "Authorized personal-account login and Custom Provider entitlement required"
       }
     },
     {
@@ -1925,9 +2256,9 @@
       "config_root_candidate": "QWEN_HOME / QWEN_RUNTIME_DIR",
       "config_priority": "项目 modelProviders 可胜过参数；需会话唯一 Provider/model 别名避免冲突",
       "auxiliary_model_routes": "主/辅助模型、上下文及输出限制按版本核实",
-      "config_isolation_verified": false,
-      "runtime_verified": false,
-      "runtime_evidence_reason": "No ACP model request executed; version-only probe is not model or isolation evidence.",
+      "config_isolation_verified": true,
+      "runtime_verified": true,
+      "runtime_evidence_reason": "Real fixed-release Darwin-arm64 two-source requests; see evidence/qwen.md. Other versions/platforms remain unverified.",
       "installed": {
         "command": [
           "qwen",
@@ -1950,6 +2281,29 @@
           "http_status": 200,
           "final_url": "https://qwenlm.github.io/qwen-code-docs/en/users/configuration/model-providers/"
         }
+      },
+      "offline_acceptance": {
+        "session-model": {
+          "config_root_env": "QWEN_HOME",
+          "files": {
+            "settings.json": "{\"security\":{\"auth\":{\"selectedType\":\"openai\",\"apiKey\":\"{{key}}\",\"baseUrl\":\"{{endpoint}}\"}},\"model\":{\"name\":\"{{model}}\"},\"general\":{\"enableAutoUpdate\":false},\"telemetry\":{\"enabled\":false},\"advanced\":{\"runtimeOutputDir\":\"{{root}}/runtime\"}}"
+          }
+        },
+        "cli-local": {
+          "config_root_env": "QWEN_HOME",
+          "files": {
+            "settings.json": "{\"security\":{\"auth\":{\"selectedType\":\"openai\",\"apiKey\":\"{{key}}\",\"baseUrl\":\"{{endpoint}}\"}},\"model\":{\"name\":\"{{model}}\"},\"general\":{\"enableAutoUpdate\":false},\"telemetry\":{\"enabled\":false},\"advanced\":{\"runtimeOutputDir\":\"{{root}}/runtime\"}}"
+          }
+        }
+      },
+      "model_source_verification": {
+        "status": "verified_release_only",
+        "platform": "Darwin-arm64",
+        "release": "0.26.7",
+        "evidence": "evidence/qwen.md",
+        "installation": "reviewed-patched-runtime",
+        "other_versions_and_platforms": "unverified",
+        "artifact_contract": "../../../crates/vw-acp/src/managed_runtime/contracts.json"
       }
     },
     {
@@ -2043,6 +2397,10 @@
         "registered_bin_binding": "Installer links traecli to trae-cli; therefore it is a distribution candidate for the registry key, but ACP entry is not executed.",
         "compatibility_gap": "Installer currently resolves 0.121.3 while current ACP/config docs describe 2.0. Same-generation ACP contract remains unproved.",
         "safe_alternative": "Directly acquire versioned archive into task directory; do not run installer (removes previous installations, changes user XDG/bin and may edit shell profiles)."
+      },
+      "model_source_verification": {
+        "status": "unsupported",
+        "reason": "Authorized platform login and fixed-version runtime-root isolation required"
       }
     }
   ],

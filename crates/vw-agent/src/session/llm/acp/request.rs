@@ -58,6 +58,18 @@ pub(crate) async fn do_stream_request_acp(
         return Err(Error::Aborted);
     }
 
+    let cwd = merged_options
+        .get("cwd")
+        .and_then(Value::as_str)
+        .filter(|value| !value.trim().is_empty())
+        .map(std::path::PathBuf::from)
+        .or_else(|| std::env::current_dir().ok())
+        .ok_or_else(|| to_api_error("failed to resolve cwd for acp session"))?;
+    let cwd_text = cwd.to_string_lossy().into_owned();
+    let _session_guard = super::lifecycle::try_lock(session_id, &cwd_text).map_err(to_api_error)?;
+    let selection_store =
+        super::lifecycle::Store::open(session_id, &cwd_text).map_err(to_api_error)?;
+    let previous_selection = selection_store.read().map_err(to_api_error)?;
     let source =
         super::super::prompt::acp_model_source(merged_options).map_err(super::acp_option_error)?;
     if source == vw_api_types::acp_model_source::AcpModelSource::SessionModel {
@@ -79,6 +91,25 @@ pub(crate) async fn do_stream_request_acp(
                 message: format!("acp command not configured for model {}", model.api.id),
             })
         })?;
+    let selected_model = vw_api_types::acp_model_source::AcpSessionModelSelection {
+        source,
+        provider_id: (source == vw_api_types::acp_model_source::AcpModelSource::SessionModel)
+            .then(|| model.provider_id.clone()),
+        model: (source == vw_api_types::acp_model_source::AcpModelSource::SessionModel)
+            .then(|| model.id.clone()),
+    };
+    let source_changed = previous_selection
+        .as_ref()
+        .is_some_and(|old| old.model.source != source || old.agent != acp_agent_name);
+    let generation = previous_selection
+        .as_ref()
+        .map_or(0, |old| old.generation)
+        .checked_add(u64::from(source_changed))
+        .ok_or_else(|| to_api_error("ACP source generation exhausted"))?;
+    let scoped_session = format!(
+        "{session_id}:acp-source-{generation}:{}",
+        super::lifecycle::session_identity(session_id, &cwd_text)
+    );
     let normalized_acp_cfg = normalize_acp_agent_config(&acp_agent_name, &acp_cfg);
     // The profile owns the relay, token and private files for this request only.
     // CLI-local execution preserves the user's original configuration.
@@ -99,7 +130,7 @@ pub(crate) async fn do_stream_request_acp(
             };
             // Dropping preparation also drops its owned Gateway during startup.
             let profile = tokio::select! {
-                result = super::model_source::prepare(&acp_agent_name, &normalized_acp_cfg, model, session_id) => result.map_err(to_api_error)?,
+                result = super::model_source::prepare(&acp_agent_name, &normalized_acp_cfg, model, &scoped_session) => result.map_err(to_api_error)?,
                 () = cancellation => {
                     on_event(StreamEvent::Error(message::AssistantError::MessageAbortedError { message: "aborted".to_string() }));
                     return Err(Error::Aborted);
@@ -147,13 +178,6 @@ pub(crate) async fn do_stream_request_acp(
         "resolved ACP request configuration"
     );
     let acp_agent_name = acp_agent_name.to_string();
-    let cwd = merged_options
-        .get("cwd")
-        .and_then(Value::as_str)
-        .filter(|value| !value.trim().is_empty())
-        .map(std::path::PathBuf::from)
-        .or_else(|| std::env::current_dir().ok())
-        .ok_or_else(|| to_api_error("failed to resolve cwd for acp session"))?;
     let mut parsed_options =
         parse_acp_options(merged_options, &acp_agent_name, &normalized_acp_cfg)?;
     let mut cfg = cfg;
@@ -169,13 +193,25 @@ pub(crate) async fn do_stream_request_acp(
         chat_messages,
     )
     .await?;
+    parsed_options.runtime_identity = Some(scoped_session.clone());
     let close_client_after_request =
         parse_close_client_after_request(merged_options)? || launch_profile.is_some();
     let cwd_text = cwd.to_string_lossy().into_owned();
     let walk_boundary = vw_acp::find_git_repository_root(&cwd_text)
         .map(|path| path.to_string_lossy().into_owned())
         .unwrap_or_else(|| cwd_text.clone());
-    let session_name = acp_session_name(session_id);
+    let session_name = acp_session_name(&scoped_session);
+    if let Some(previous) = previous_selection.as_ref()
+        && (previous.model != selected_model || previous.agent != acp_agent_name)
+    {
+        super::session::stop_record_client(&previous.record_id).await?;
+    }
+    // Managed launches must never replay an advertised native model/config over the Provider.
+    if source == vw_api_types::acp_model_source::AcpModelSource::SessionModel {
+        if let Some(options) = parsed_options.session_options.as_mut() {
+            options.model = None;
+        }
+    }
     let mut force_new_session = requested_force_new_session;
     let mut recovered_session_change = false;
     loop {
@@ -200,6 +236,7 @@ pub(crate) async fn do_stream_request_acp(
 
         let cached_client_entry =
             get_cached_acp_client(&acp_agent_name, &normalized_acp_cfg, &cwd, &parsed_options);
+        let _request_cleanup = super::session::RequestClientCleanup::new(&cached_client_entry);
         let cached_client = &cached_client_entry.client;
         // 同一个 ACP 客户端可能被多个本地请求复用；串行化 prompt 可以避免代理端
         // 把并发输入混到同一会话流里。
@@ -254,10 +291,11 @@ pub(crate) async fn do_stream_request_acp(
             }
         }
         if (bound_model_id.is_some()
-            || !super::controls::has_saved_config_category(
-                &record,
-                agent_client_protocol::SessionConfigOptionCategory::Model,
-            ))
+            || (launch_profile.is_none()
+                && !super::controls::has_saved_config_category(
+                    &record,
+                    agent_client_protocol::SessionConfigOptionCategory::Model,
+                )))
             && let Some(model_id) =
                 vw_acp::get_desired_model_id(record.vwacp.as_ref()).or_else(|| {
                     parsed_options
@@ -292,6 +330,22 @@ pub(crate) async fn do_stream_request_acp(
             });
         }
         config_options.extend(vw_acp::get_desired_config_options(record.vwacp.as_ref()));
+        if launch_profile.is_some() {
+            let info = cached_client.client.session_capabilities(&acp_session_id);
+            config_options.retain(|id, _| {
+                !info.as_ref().and_then(|info| info.config_options.as_ref()).is_some_and(
+                    |options| {
+                        options.iter().any(|option| {
+                            option.id.0.as_ref() == id
+                                && option.category.as_ref()
+                                    == Some(
+                                        &agent_client_protocol::SessionConfigOptionCategory::Model,
+                                    )
+                        })
+                    },
+                )
+            });
+        }
         for (config_id, value) in config_options {
             if let Err(err) = cached_client
                 .client
@@ -318,6 +372,16 @@ pub(crate) async fn do_stream_request_acp(
                 .await;
             drop(prompt_guard);
             return Err(err);
+        }
+
+        if let Err(error) = selection_store.commit(&super::lifecycle::Selection {
+            agent: acp_agent_name.clone(),
+            model: selected_model.clone(),
+            generation,
+            record_id: record.vwacp_record_id.clone(),
+        }) {
+            close_client_after_request_if_needed(true, &cached_client_entry).await;
+            return Err(to_api_error(error));
         }
 
         let (acp_message_tx, mut acp_message_rx) = {

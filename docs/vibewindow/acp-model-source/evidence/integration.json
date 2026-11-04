@@ -1,0 +1,2470 @@
+{
+  "observed_on": "2026-11-05",
+  "scope": "17 verified releases; 5 explicit upstream refusals; Darwin arm64 only",
+  "real_cli_tests": [
+    {
+      "agent": "codex",
+      "mode": "session-model",
+      "platform": "Darwin-arm64",
+      "cargo_exit_code": 0,
+      "effective_tests": 1,
+      "command": [
+        "cargo",
+        "test",
+        "-p",
+        "vw-agent",
+        "--lib",
+        "--all-features",
+        "acp_model_source_codex_real_cli_session_model",
+        "--",
+        "--ignored",
+        "--nocapture",
+        "--test-threads=1"
+      ],
+      "flow": {
+        "new": true,
+        "second_turn": true,
+        "cancel": true,
+        "restart": true,
+        "switch": true,
+        "isolated": true,
+        "handshake": true,
+        "mode": "session-model",
+        "requires_auxiliary": false
+      },
+      "requests": [
+        {
+          "route": "/v1/responses",
+          "model": "acp-fixture-primary",
+          "authenticated": true,
+          "tool_results": 0,
+          "input_shapes": {
+            "message": [
+              "content",
+              "role",
+              "type"
+            ]
+          },
+          "input_has_ids": false,
+          "input_id_roles": [],
+          "input_reference_count": 0,
+          "has_previous_response": false,
+          "auxiliary": false,
+          "cancel_probe": false,
+          "keys": [
+            "client_metadata",
+            "include",
+            "input",
+            "model",
+            "parallel_tool_calls",
+            "prompt_cache_key",
+            "reasoning",
+            "store",
+            "stream",
+            "tool_choice",
+            "tools"
+          ],
+          "tool_types": [
+            "function",
+            "namespace",
+            "web_search"
+          ]
+        },
+        {
+          "route": "/v1/responses",
+          "model": "acp-fixture-primary",
+          "authenticated": true,
+          "tool_results": 1,
+          "input_shapes": {
+            "message": [
+              "content",
+              "role",
+              "type"
+            ],
+            "function_call": [
+              "arguments",
+              "call_id",
+              "name",
+              "type"
+            ],
+            "function_call_output": [
+              "call_id",
+              "output",
+              "type"
+            ]
+          },
+          "input_has_ids": false,
+          "input_id_roles": [],
+          "input_reference_count": 0,
+          "has_previous_response": false,
+          "auxiliary": false,
+          "cancel_probe": false,
+          "keys": [
+            "client_metadata",
+            "include",
+            "input",
+            "model",
+            "parallel_tool_calls",
+            "prompt_cache_key",
+            "reasoning",
+            "store",
+            "stream",
+            "tool_choice",
+            "tools"
+          ],
+          "tool_types": [
+            "function",
+            "namespace",
+            "web_search"
+          ]
+        },
+        {
+          "route": "/v1/responses",
+          "model": "acp-fixture-primary",
+          "authenticated": true,
+          "tool_results": 2,
+          "input_shapes": {
+            "message": [
+              "content",
+              "role",
+              "type"
+            ],
+            "function_call": [
+              "arguments",
+              "call_id",
+              "name",
+              "type"
+            ],
+            "function_call_output": [
+              "call_id",
+              "output",
+              "type"
+            ]
+          },
+          "input_has_ids": false,
+          "input_id_roles": [],
+          "input_reference_count": 0,
+          "has_previous_response": false,
+          "auxiliary": false,
+          "cancel_probe": false,
+          "keys": [
+            "client_metadata",
+            "include",
+            "input",
+            "model",
+            "parallel_tool_calls",
+            "prompt_cache_key",
+            "reasoning",
+            "store",
+            "stream",
+            "tool_choice",
+            "tools"
+          ],
+          "tool_types": [
+            "function",
+            "namespace",
+            "web_search"
+          ]
+        },
+        {
+          "route": "/v1/responses",
+          "model": "acp-fixture-primary",
+          "authenticated": true,
+          "tool_results": 2,
+          "input_shapes": {
+            "message": [
+              "content",
+              "role",
+              "status",
+              "type"
+            ],
+            "function_call": [
+              "arguments",
+              "call_id",
+              "name",
+              "type"
+            ],
+            "function_call_output": [
+              "call_id",
+              "output",
+              "type"
+            ]
+          },
+          "input_has_ids": false,
+          "input_id_roles": [],
+          "input_reference_count": 0,
+          "has_previous_response": false,
+          "auxiliary": false,
+          "cancel_probe": false,
+          "keys": [
+            "client_metadata",
+            "include",
+            "input",
+            "model",
+            "parallel_tool_calls",
+            "prompt_cache_key",
+            "reasoning",
+            "store",
+            "stream",
+            "tool_choice",
+            "tools"
+          ],
+          "tool_types": [
+            "function",
+            "namespace",
+            "web_search"
+          ]
+        },
+        {
+          "route": "/v1/responses",
+          "model": "acp-fixture-primary",
+          "authenticated": true,
+          "tool_results": 2,
+          "input_shapes": {
+            "message": [
+              "content",
+              "role",
+              "status",
+              "type"
+            ],
+            "function_call": [
+              "arguments",
+              "call_id",
+              "name",
+              "type"
+            ],
+            "function_call_output": [
+              "call_id",
+              "output",
+              "type"
+            ]
+          },
+          "input_has_ids": false,
+          "input_id_roles": [],
+          "input_reference_count": 0,
+          "has_previous_response": false,
+          "auxiliary": false,
+          "cancel_probe": true,
+          "keys": [
+            "client_metadata",
+            "include",
+            "input",
+            "model",
+            "parallel_tool_calls",
+            "prompt_cache_key",
+            "reasoning",
+            "store",
+            "stream",
+            "tool_choice",
+            "tools"
+          ],
+          "tool_types": [
+            "function",
+            "namespace",
+            "web_search"
+          ]
+        },
+        {
+          "route": "/v1/responses",
+          "model": "acp-fixture-primary",
+          "authenticated": true,
+          "tool_results": 2,
+          "input_shapes": {
+            "message": [
+              "content",
+              "role",
+              "status",
+              "type"
+            ],
+            "function_call": [
+              "arguments",
+              "call_id",
+              "name",
+              "type"
+            ],
+            "function_call_output": [
+              "call_id",
+              "output",
+              "type"
+            ]
+          },
+          "input_has_ids": false,
+          "input_id_roles": [],
+          "input_reference_count": 0,
+          "has_previous_response": false,
+          "auxiliary": false,
+          "cancel_probe": true,
+          "keys": [
+            "client_metadata",
+            "include",
+            "input",
+            "model",
+            "parallel_tool_calls",
+            "prompt_cache_key",
+            "reasoning",
+            "store",
+            "stream",
+            "tool_choice",
+            "tools"
+          ],
+          "tool_types": [
+            "function",
+            "namespace",
+            "web_search"
+          ]
+        },
+        {
+          "route": "/v1/responses",
+          "model": "acp-fixture-switched",
+          "authenticated": true,
+          "tool_results": 0,
+          "input_shapes": {
+            "message": [
+              "content",
+              "role",
+              "type"
+            ]
+          },
+          "input_has_ids": false,
+          "input_id_roles": [],
+          "input_reference_count": 0,
+          "has_previous_response": false,
+          "auxiliary": false,
+          "cancel_probe": false,
+          "keys": [
+            "client_metadata",
+            "include",
+            "input",
+            "model",
+            "parallel_tool_calls",
+            "prompt_cache_key",
+            "reasoning",
+            "store",
+            "stream",
+            "tool_choice",
+            "tools"
+          ],
+          "tool_types": [
+            "function",
+            "namespace",
+            "web_search"
+          ]
+        },
+        {
+          "route": "/v1/responses",
+          "model": "acp-fixture-switched",
+          "authenticated": true,
+          "tool_results": 1,
+          "input_shapes": {
+            "message": [
+              "content",
+              "role",
+              "type"
+            ],
+            "function_call": [
+              "arguments",
+              "call_id",
+              "name",
+              "type"
+            ],
+            "function_call_output": [
+              "call_id",
+              "output",
+              "type"
+            ]
+          },
+          "input_has_ids": false,
+          "input_id_roles": [],
+          "input_reference_count": 0,
+          "has_previous_response": false,
+          "auxiliary": false,
+          "cancel_probe": false,
+          "keys": [
+            "client_metadata",
+            "include",
+            "input",
+            "model",
+            "parallel_tool_calls",
+            "prompt_cache_key",
+            "reasoning",
+            "store",
+            "stream",
+            "tool_choice",
+            "tools"
+          ],
+          "tool_types": [
+            "function",
+            "namespace",
+            "web_search"
+          ]
+        },
+        {
+          "route": "/v1/responses",
+          "model": "acp-fixture-switched",
+          "authenticated": true,
+          "tool_results": 2,
+          "input_shapes": {
+            "message": [
+              "content",
+              "role",
+              "type"
+            ],
+            "function_call": [
+              "arguments",
+              "call_id",
+              "name",
+              "type"
+            ],
+            "function_call_output": [
+              "call_id",
+              "output",
+              "type"
+            ]
+          },
+          "input_has_ids": false,
+          "input_id_roles": [],
+          "input_reference_count": 0,
+          "has_previous_response": false,
+          "auxiliary": false,
+          "cancel_probe": false,
+          "keys": [
+            "client_metadata",
+            "include",
+            "input",
+            "model",
+            "parallel_tool_calls",
+            "prompt_cache_key",
+            "reasoning",
+            "store",
+            "stream",
+            "tool_choice",
+            "tools"
+          ],
+          "tool_types": [
+            "function",
+            "namespace",
+            "web_search"
+          ]
+        }
+      ],
+      "fixture_errors": 0,
+      "cargo_target_dir": "target/rust-slot-3"
+    },
+    {
+      "agent": "codex",
+      "mode": "cli-local",
+      "platform": "Darwin-arm64",
+      "cargo_exit_code": 0,
+      "effective_tests": 1,
+      "command": [
+        "cargo",
+        "test",
+        "-p",
+        "vw-agent",
+        "--lib",
+        "--all-features",
+        "acp_model_source_codex_real_cli_cli_local",
+        "--",
+        "--ignored",
+        "--nocapture",
+        "--test-threads=1"
+      ],
+      "flow": {
+        "new": true,
+        "second_turn": true,
+        "cancel": true,
+        "restart": true,
+        "switch": true,
+        "isolated": true,
+        "handshake": true,
+        "mode": "cli-local",
+        "requires_auxiliary": false
+      },
+      "requests": [
+        {
+          "route": "/v1/responses",
+          "model": "acp-fixture-primary",
+          "authenticated": true,
+          "tool_results": 0,
+          "input_shapes": {
+            "message": [
+              "content",
+              "id",
+              "role",
+              "type"
+            ]
+          },
+          "input_has_ids": true,
+          "input_id_roles": [
+            "developer",
+            "user"
+          ],
+          "input_reference_count": 0,
+          "has_previous_response": false,
+          "auxiliary": false,
+          "cancel_probe": false,
+          "keys": [
+            "client_metadata",
+            "include",
+            "input",
+            "model",
+            "parallel_tool_calls",
+            "prompt_cache_key",
+            "reasoning",
+            "store",
+            "stream",
+            "tool_choice",
+            "tools"
+          ],
+          "tool_types": [
+            "function",
+            "namespace",
+            "web_search"
+          ]
+        },
+        {
+          "route": "/v1/responses",
+          "model": "acp-fixture-primary",
+          "authenticated": true,
+          "tool_results": 1,
+          "input_shapes": {
+            "message": [
+              "content",
+              "id",
+              "role",
+              "type"
+            ],
+            "function_call": [
+              "arguments",
+              "call_id",
+              "id",
+              "name",
+              "type"
+            ],
+            "function_call_output": [
+              "call_id",
+              "id",
+              "output",
+              "type"
+            ]
+          },
+          "input_has_ids": true,
+          "input_id_roles": [
+            "developer",
+            "other",
+            "user"
+          ],
+          "input_reference_count": 0,
+          "has_previous_response": false,
+          "auxiliary": false,
+          "cancel_probe": false,
+          "keys": [
+            "client_metadata",
+            "include",
+            "input",
+            "model",
+            "parallel_tool_calls",
+            "prompt_cache_key",
+            "reasoning",
+            "store",
+            "stream",
+            "tool_choice",
+            "tools"
+          ],
+          "tool_types": [
+            "function",
+            "namespace",
+            "web_search"
+          ]
+        },
+        {
+          "route": "/v1/responses",
+          "model": "acp-fixture-primary",
+          "authenticated": true,
+          "tool_results": 2,
+          "input_shapes": {
+            "message": [
+              "content",
+              "id",
+              "role",
+              "type"
+            ],
+            "function_call": [
+              "arguments",
+              "call_id",
+              "id",
+              "name",
+              "type"
+            ],
+            "function_call_output": [
+              "call_id",
+              "id",
+              "output",
+              "type"
+            ]
+          },
+          "input_has_ids": true,
+          "input_id_roles": [
+            "developer",
+            "other",
+            "user"
+          ],
+          "input_reference_count": 0,
+          "has_previous_response": false,
+          "auxiliary": false,
+          "cancel_probe": false,
+          "keys": [
+            "client_metadata",
+            "include",
+            "input",
+            "model",
+            "parallel_tool_calls",
+            "prompt_cache_key",
+            "reasoning",
+            "store",
+            "stream",
+            "tool_choice",
+            "tools"
+          ],
+          "tool_types": [
+            "function",
+            "namespace",
+            "web_search"
+          ]
+        },
+        {
+          "route": "/v1/responses",
+          "model": "acp-fixture-primary",
+          "authenticated": true,
+          "tool_results": 2,
+          "input_shapes": {
+            "message": [
+              "content",
+              "id",
+              "role",
+              "status",
+              "type"
+            ],
+            "function_call": [
+              "arguments",
+              "call_id",
+              "id",
+              "name",
+              "type"
+            ],
+            "function_call_output": [
+              "call_id",
+              "id",
+              "output",
+              "type"
+            ]
+          },
+          "input_has_ids": true,
+          "input_id_roles": [
+            "assistant",
+            "developer",
+            "other",
+            "user"
+          ],
+          "input_reference_count": 0,
+          "has_previous_response": false,
+          "auxiliary": false,
+          "cancel_probe": false,
+          "keys": [
+            "client_metadata",
+            "include",
+            "input",
+            "model",
+            "parallel_tool_calls",
+            "prompt_cache_key",
+            "reasoning",
+            "store",
+            "stream",
+            "tool_choice",
+            "tools"
+          ],
+          "tool_types": [
+            "function",
+            "namespace",
+            "web_search"
+          ]
+        },
+        {
+          "route": "/v1/responses",
+          "model": "acp-fixture-primary",
+          "authenticated": true,
+          "tool_results": 2,
+          "input_shapes": {
+            "message": [
+              "content",
+              "id",
+              "role",
+              "status",
+              "type"
+            ],
+            "function_call": [
+              "arguments",
+              "call_id",
+              "id",
+              "name",
+              "type"
+            ],
+            "function_call_output": [
+              "call_id",
+              "id",
+              "output",
+              "type"
+            ]
+          },
+          "input_has_ids": true,
+          "input_id_roles": [
+            "assistant",
+            "developer",
+            "other",
+            "user"
+          ],
+          "input_reference_count": 0,
+          "has_previous_response": false,
+          "auxiliary": false,
+          "cancel_probe": true,
+          "keys": [
+            "client_metadata",
+            "include",
+            "input",
+            "model",
+            "parallel_tool_calls",
+            "prompt_cache_key",
+            "reasoning",
+            "store",
+            "stream",
+            "tool_choice",
+            "tools"
+          ],
+          "tool_types": [
+            "function",
+            "namespace",
+            "web_search"
+          ]
+        },
+        {
+          "route": "/v1/responses",
+          "model": "acp-fixture-primary",
+          "authenticated": true,
+          "tool_results": 2,
+          "input_shapes": {
+            "message": [
+              "content",
+              "id",
+              "role",
+              "status",
+              "type"
+            ],
+            "function_call": [
+              "arguments",
+              "call_id",
+              "id",
+              "name",
+              "type"
+            ],
+            "function_call_output": [
+              "call_id",
+              "id",
+              "output",
+              "type"
+            ]
+          },
+          "input_has_ids": true,
+          "input_id_roles": [
+            "assistant",
+            "developer",
+            "other",
+            "user"
+          ],
+          "input_reference_count": 0,
+          "has_previous_response": false,
+          "auxiliary": false,
+          "cancel_probe": true,
+          "keys": [
+            "client_metadata",
+            "include",
+            "input",
+            "model",
+            "parallel_tool_calls",
+            "prompt_cache_key",
+            "reasoning",
+            "store",
+            "stream",
+            "tool_choice",
+            "tools"
+          ],
+          "tool_types": [
+            "function",
+            "namespace",
+            "web_search"
+          ]
+        },
+        {
+          "route": "/v1/responses",
+          "model": "acp-fixture-primary",
+          "authenticated": true,
+          "tool_results": 2,
+          "input_shapes": {
+            "message": [
+              "content",
+              "id",
+              "role",
+              "status",
+              "type"
+            ],
+            "function_call": [
+              "arguments",
+              "call_id",
+              "id",
+              "name",
+              "type"
+            ],
+            "function_call_output": [
+              "call_id",
+              "id",
+              "output",
+              "type"
+            ]
+          },
+          "input_has_ids": true,
+          "input_id_roles": [
+            "assistant",
+            "developer",
+            "other",
+            "user"
+          ],
+          "input_reference_count": 0,
+          "has_previous_response": false,
+          "auxiliary": false,
+          "cancel_probe": true,
+          "keys": [
+            "client_metadata",
+            "include",
+            "input",
+            "model",
+            "parallel_tool_calls",
+            "prompt_cache_key",
+            "reasoning",
+            "store",
+            "stream",
+            "tool_choice",
+            "tools"
+          ],
+          "tool_types": [
+            "function",
+            "namespace",
+            "web_search"
+          ]
+        }
+      ],
+      "fixture_errors": 0,
+      "cargo_target_dir": "target/rust-slot-3"
+    },
+    {
+      "agent": "gemini",
+      "mode": "session-model",
+      "platform": "Darwin-arm64",
+      "cargo_exit_code": 0,
+      "effective_tests": 1,
+      "command": [
+        "cargo",
+        "test",
+        "-p",
+        "vw-agent",
+        "--lib",
+        "--all-features",
+        "acp_model_source_real_cli_session_model",
+        "--",
+        "--ignored",
+        "--nocapture",
+        "--test-threads=1"
+      ],
+      "flow": {
+        "new": true,
+        "second_turn": true,
+        "cancel": true,
+        "restart": true,
+        "switch": true,
+        "isolated": true,
+        "handshake": true,
+        "mode": "session-model",
+        "requires_auxiliary": false
+      },
+      "requests": [
+        {
+          "model": "acp-fixture-primary",
+          "authenticated": true,
+          "route": "/v1/chat/completions",
+          "tool_results": 0,
+          "auxiliary": false
+        },
+        {
+          "model": "acp-fixture-primary",
+          "authenticated": true,
+          "route": "/v1/chat/completions",
+          "tool_results": 1,
+          "auxiliary": false
+        },
+        {
+          "model": "acp-fixture-primary",
+          "authenticated": true,
+          "route": "/v1/chat/completions",
+          "tool_results": 2,
+          "auxiliary": false
+        },
+        {
+          "model": "acp-fixture-primary",
+          "authenticated": true,
+          "route": "/v1/chat/completions",
+          "tool_results": 2,
+          "auxiliary": false
+        },
+        {
+          "model": "acp-fixture-primary",
+          "authenticated": true,
+          "route": "/v1/chat/completions",
+          "tool_results": 2,
+          "auxiliary": false
+        },
+        {
+          "model": "acp-fixture-primary",
+          "authenticated": true,
+          "route": "/v1/chat/completions",
+          "tool_results": 2,
+          "auxiliary": false
+        },
+        {
+          "model": "acp-fixture-switched",
+          "authenticated": true,
+          "route": "/v1/chat/completions",
+          "tool_results": 0,
+          "auxiliary": false
+        },
+        {
+          "model": "acp-fixture-switched",
+          "authenticated": true,
+          "route": "/v1/chat/completions",
+          "tool_results": 1,
+          "auxiliary": false
+        },
+        {
+          "model": "acp-fixture-switched",
+          "authenticated": true,
+          "route": "/v1/chat/completions",
+          "tool_results": 2,
+          "auxiliary": false
+        }
+      ],
+      "fixture_errors": 0,
+      "cargo_target_dir": "target/rust-slot-3"
+    },
+    {
+      "agent": "gemini",
+      "mode": "cli-local",
+      "platform": "Darwin-arm64",
+      "cargo_exit_code": 0,
+      "effective_tests": 1,
+      "command": [
+        "cargo",
+        "test",
+        "-p",
+        "vw-agent",
+        "--lib",
+        "--all-features",
+        "acp_model_source_real_cli_cli_local",
+        "--",
+        "--ignored",
+        "--nocapture",
+        "--test-threads=1"
+      ],
+      "flow": {
+        "new": true,
+        "second_turn": true,
+        "cancel": true,
+        "restart": true,
+        "switch": true,
+        "isolated": true,
+        "handshake": true,
+        "mode": "cli-local",
+        "requires_auxiliary": false
+      },
+      "requests": [
+        {
+          "model": "acp-fixture-primary",
+          "authenticated": true,
+          "route": "/v1beta/models/acp-fixture-primary:streamGenerateContent",
+          "tool_results": 0,
+          "auxiliary": false
+        },
+        {
+          "model": "acp-fixture-primary",
+          "authenticated": true,
+          "route": "/v1beta/models/acp-fixture-primary:streamGenerateContent",
+          "tool_results": 1,
+          "auxiliary": false
+        },
+        {
+          "model": "acp-fixture-primary",
+          "authenticated": true,
+          "route": "/v1beta/models/acp-fixture-primary:streamGenerateContent",
+          "tool_results": 2,
+          "auxiliary": false
+        },
+        {
+          "model": "acp-fixture-primary",
+          "authenticated": true,
+          "route": "/v1beta/models/acp-fixture-primary:streamGenerateContent",
+          "tool_results": 2,
+          "auxiliary": false
+        },
+        {
+          "model": "acp-fixture-primary",
+          "authenticated": true,
+          "route": "/v1beta/models/acp-fixture-primary:streamGenerateContent",
+          "tool_results": 2,
+          "auxiliary": false
+        },
+        {
+          "model": "acp-fixture-primary",
+          "authenticated": true,
+          "route": "/v1beta/models/acp-fixture-primary:streamGenerateContent",
+          "tool_results": 2,
+          "auxiliary": false
+        },
+        {
+          "model": "acp-fixture-primary",
+          "authenticated": true,
+          "route": "/v1beta/models/acp-fixture-primary:streamGenerateContent",
+          "tool_results": 2,
+          "auxiliary": false
+        }
+      ],
+      "fixture_errors": 0,
+      "cargo_target_dir": "target/rust-slot-3"
+    },
+    {
+      "agent": "iflow",
+      "mode": "session-model",
+      "platform": "Darwin-arm64",
+      "cargo_exit_code": 0,
+      "effective_tests": 1,
+      "command": [
+        "cargo",
+        "test",
+        "-p",
+        "vw-agent",
+        "--lib",
+        "--all-features",
+        "acp_model_source_real_cli_session_model",
+        "--",
+        "--ignored",
+        "--nocapture",
+        "--test-threads=1"
+      ],
+      "flow": {
+        "new": true,
+        "second_turn": true,
+        "cancel": true,
+        "restart": true,
+        "switch": true,
+        "isolated": true,
+        "handshake": true,
+        "mode": "session-model",
+        "requires_auxiliary": false
+      },
+      "requests": [
+        {
+          "model": "acp-fixture-primary",
+          "authenticated": true,
+          "route": "/v1/chat/completions",
+          "tool_results": 0,
+          "auxiliary": false
+        },
+        {
+          "model": "acp-fixture-primary",
+          "authenticated": true,
+          "route": "/v1/chat/completions",
+          "tool_results": 1,
+          "auxiliary": false
+        },
+        {
+          "model": "acp-fixture-primary",
+          "authenticated": true,
+          "route": "/v1/chat/completions",
+          "tool_results": 2,
+          "auxiliary": false
+        },
+        {
+          "model": "acp-fixture-primary",
+          "authenticated": true,
+          "route": "/v1/chat/completions",
+          "tool_results": 2,
+          "auxiliary": false
+        },
+        {
+          "model": "acp-fixture-primary",
+          "authenticated": true,
+          "route": "/v1/chat/completions",
+          "tool_results": 2,
+          "auxiliary": false
+        },
+        {
+          "model": "acp-fixture-primary",
+          "authenticated": true,
+          "route": "/v1/chat/completions",
+          "tool_results": 2,
+          "auxiliary": false
+        },
+        {
+          "model": "acp-fixture-switched",
+          "authenticated": true,
+          "route": "/v1/chat/completions",
+          "tool_results": 0,
+          "auxiliary": false
+        },
+        {
+          "model": "acp-fixture-switched",
+          "authenticated": true,
+          "route": "/v1/chat/completions",
+          "tool_results": 1,
+          "auxiliary": false
+        },
+        {
+          "model": "acp-fixture-switched",
+          "authenticated": true,
+          "route": "/v1/chat/completions",
+          "tool_results": 2,
+          "auxiliary": false
+        }
+      ],
+      "fixture_errors": 0,
+      "cargo_target_dir": "target/rust-slot-3"
+    },
+    {
+      "agent": "iflow",
+      "mode": "cli-local",
+      "platform": "Darwin-arm64",
+      "cargo_exit_code": 0,
+      "effective_tests": 1,
+      "command": [
+        "cargo",
+        "test",
+        "-p",
+        "vw-agent",
+        "--lib",
+        "--all-features",
+        "acp_model_source_real_cli_cli_local",
+        "--",
+        "--ignored",
+        "--nocapture",
+        "--test-threads=1"
+      ],
+      "flow": {
+        "new": true,
+        "second_turn": true,
+        "cancel": true,
+        "restart": true,
+        "switch": true,
+        "isolated": true,
+        "handshake": true,
+        "mode": "cli-local",
+        "requires_auxiliary": false
+      },
+      "requests": [
+        {
+          "model": "acp-fixture-primary",
+          "authenticated": true,
+          "route": "/v1/chat/completions",
+          "tool_results": 0,
+          "auxiliary": false
+        },
+        {
+          "model": "acp-fixture-primary",
+          "authenticated": true,
+          "route": "/v1/chat/completions",
+          "tool_results": 1,
+          "auxiliary": false
+        },
+        {
+          "model": "acp-fixture-primary",
+          "authenticated": true,
+          "route": "/v1/chat/completions",
+          "tool_results": 2,
+          "auxiliary": false
+        },
+        {
+          "model": "acp-fixture-primary",
+          "authenticated": true,
+          "route": "/v1/chat/completions",
+          "tool_results": 2,
+          "auxiliary": false
+        },
+        {
+          "model": "acp-fixture-primary",
+          "authenticated": true,
+          "route": "/v1/chat/completions",
+          "tool_results": 2,
+          "auxiliary": false
+        },
+        {
+          "model": "acp-fixture-primary",
+          "authenticated": true,
+          "route": "/v1/chat/completions",
+          "tool_results": 2,
+          "auxiliary": false
+        },
+        {
+          "model": "acp-fixture-primary",
+          "authenticated": true,
+          "route": "/v1/chat/completions",
+          "tool_results": 2,
+          "auxiliary": false
+        }
+      ],
+      "fixture_errors": 0,
+      "cargo_target_dir": "target/rust-slot-3"
+    },
+    {
+      "agent": "qwen",
+      "mode": "session-model",
+      "platform": "Darwin-arm64",
+      "cargo_exit_code": 0,
+      "effective_tests": 1,
+      "command": [
+        "cargo",
+        "test",
+        "-p",
+        "vw-agent",
+        "--lib",
+        "--all-features",
+        "acp_model_source_real_cli_session_model",
+        "--",
+        "--ignored",
+        "--nocapture",
+        "--test-threads=1"
+      ],
+      "flow": {
+        "new": true,
+        "second_turn": true,
+        "cancel": true,
+        "restart": true,
+        "switch": true,
+        "isolated": true,
+        "handshake": true,
+        "mode": "session-model",
+        "requires_auxiliary": false
+      },
+      "requests": [
+        {
+          "model": "acp-fixture-primary",
+          "authenticated": true,
+          "route": "/v1/chat/completions",
+          "tool_results": 0,
+          "auxiliary": false
+        },
+        {
+          "model": "acp-fixture-primary",
+          "authenticated": true,
+          "route": "/v1/chat/completions",
+          "tool_results": 1,
+          "auxiliary": false
+        },
+        {
+          "model": "acp-fixture-primary",
+          "authenticated": true,
+          "route": "/v1/chat/completions",
+          "tool_results": 2,
+          "auxiliary": false
+        },
+        {
+          "model": "acp-fixture-primary",
+          "authenticated": true,
+          "route": "/v1/chat/completions",
+          "tool_results": 2,
+          "auxiliary": false
+        },
+        {
+          "model": "acp-fixture-primary",
+          "authenticated": true,
+          "route": "/v1/chat/completions",
+          "tool_results": 2,
+          "auxiliary": false
+        },
+        {
+          "model": "acp-fixture-primary",
+          "authenticated": true,
+          "route": "/v1/chat/completions",
+          "tool_results": 2,
+          "auxiliary": false
+        },
+        {
+          "model": "acp-fixture-switched",
+          "authenticated": true,
+          "route": "/v1/chat/completions",
+          "tool_results": 0,
+          "auxiliary": false
+        },
+        {
+          "model": "acp-fixture-switched",
+          "authenticated": true,
+          "route": "/v1/chat/completions",
+          "tool_results": 1,
+          "auxiliary": false
+        },
+        {
+          "model": "acp-fixture-switched",
+          "authenticated": true,
+          "route": "/v1/chat/completions",
+          "tool_results": 2,
+          "auxiliary": false
+        }
+      ],
+      "fixture_errors": 0,
+      "cargo_target_dir": "target/rust-slot-3"
+    },
+    {
+      "agent": "qwen",
+      "mode": "cli-local",
+      "platform": "Darwin-arm64",
+      "cargo_exit_code": 0,
+      "effective_tests": 1,
+      "command": [
+        "cargo",
+        "test",
+        "-p",
+        "vw-agent",
+        "--lib",
+        "--all-features",
+        "acp_model_source_real_cli_cli_local",
+        "--",
+        "--ignored",
+        "--nocapture",
+        "--test-threads=1"
+      ],
+      "flow": {
+        "new": true,
+        "second_turn": true,
+        "cancel": true,
+        "restart": true,
+        "switch": true,
+        "isolated": true,
+        "handshake": true,
+        "mode": "cli-local",
+        "requires_auxiliary": false
+      },
+      "requests": [
+        {
+          "model": "acp-fixture-primary",
+          "authenticated": true,
+          "route": "/v1/chat/completions",
+          "tool_results": 0,
+          "auxiliary": false
+        },
+        {
+          "model": "acp-fixture-primary",
+          "authenticated": true,
+          "route": "/v1/chat/completions",
+          "tool_results": 1,
+          "auxiliary": false
+        },
+        {
+          "model": "acp-fixture-primary",
+          "authenticated": true,
+          "route": "/v1/chat/completions",
+          "tool_results": 2,
+          "auxiliary": false
+        },
+        {
+          "model": "acp-fixture-primary",
+          "authenticated": true,
+          "route": "/v1/chat/completions",
+          "tool_results": 2,
+          "auxiliary": false
+        },
+        {
+          "model": "acp-fixture-primary",
+          "authenticated": true,
+          "route": "/v1/chat/completions",
+          "tool_results": 2,
+          "auxiliary": false
+        },
+        {
+          "model": "acp-fixture-primary",
+          "authenticated": true,
+          "route": "/v1/chat/completions",
+          "tool_results": 2,
+          "auxiliary": false
+        },
+        {
+          "model": "acp-fixture-primary",
+          "authenticated": true,
+          "route": "/v1/chat/completions",
+          "tool_results": 2,
+          "auxiliary": false
+        },
+        {
+          "model": "acp-fixture-primary",
+          "authenticated": true,
+          "route": "/v1/chat/completions",
+          "tool_results": 2,
+          "auxiliary": false
+        },
+        {
+          "model": "acp-fixture-primary",
+          "authenticated": true,
+          "route": "/v1/chat/completions",
+          "tool_results": 2,
+          "auxiliary": false
+        },
+        {
+          "model": "acp-fixture-primary",
+          "authenticated": true,
+          "route": "/v1/chat/completions",
+          "tool_results": 2,
+          "auxiliary": false
+        },
+        {
+          "model": "acp-fixture-primary",
+          "authenticated": true,
+          "route": "/v1/chat/completions",
+          "tool_results": 2,
+          "auxiliary": false
+        },
+        {
+          "model": "acp-fixture-primary",
+          "authenticated": true,
+          "route": "/v1/chat/completions",
+          "tool_results": 2,
+          "auxiliary": false
+        },
+        {
+          "model": "acp-fixture-primary",
+          "authenticated": true,
+          "route": "/v1/chat/completions",
+          "tool_results": 2,
+          "auxiliary": false
+        },
+        {
+          "model": "acp-fixture-primary",
+          "authenticated": true,
+          "route": "/v1/chat/completions",
+          "tool_results": 2,
+          "auxiliary": false
+        },
+        {
+          "model": "acp-fixture-primary",
+          "authenticated": true,
+          "route": "/v1/chat/completions",
+          "tool_results": 2,
+          "auxiliary": false
+        }
+      ],
+      "fixture_errors": 0,
+      "cargo_target_dir": "target/rust-slot-3"
+    },
+    {
+      "agent": "pi",
+      "mode": "session-model",
+      "platform": "Darwin-arm64",
+      "cargo_exit_code": 0,
+      "effective_tests": 1,
+      "command": [
+        "cargo",
+        "test",
+        "-p",
+        "vw-agent",
+        "--lib",
+        "--all-features",
+        "acp_model_source_real_cli_session_model",
+        "--",
+        "--ignored",
+        "--nocapture",
+        "--test-threads=1"
+      ],
+      "flow": {
+        "new": true,
+        "second_turn": true,
+        "cancel": true,
+        "restart": true,
+        "switch": true,
+        "isolated": true,
+        "handshake": true,
+        "mode": "session-model",
+        "requires_auxiliary": true,
+        "auxiliary": true,
+        "auxiliary_switched": true
+      },
+      "requests": [
+        {
+          "model": "acp-fixture-primary",
+          "authenticated": true,
+          "route": "/v1/chat/completions",
+          "tool_results": 0,
+          "auxiliary": false
+        },
+        {
+          "model": "acp-fixture-primary",
+          "authenticated": true,
+          "route": "/v1/chat/completions",
+          "tool_results": 1,
+          "auxiliary": false
+        },
+        {
+          "model": "acp-fixture-primary",
+          "authenticated": true,
+          "route": "/v1/chat/completions",
+          "tool_results": 2,
+          "auxiliary": false
+        },
+        {
+          "model": "acp-fixture-primary",
+          "authenticated": true,
+          "route": "/v1/chat/completions",
+          "tool_results": 2,
+          "auxiliary": false
+        },
+        {
+          "model": "acp-fixture-primary",
+          "authenticated": true,
+          "route": "/v1/chat/completions",
+          "tool_results": 0,
+          "auxiliary": true
+        },
+        {
+          "model": "acp-fixture-primary",
+          "authenticated": true,
+          "route": "/v1/chat/completions",
+          "tool_results": 0,
+          "auxiliary": true
+        },
+        {
+          "model": "acp-fixture-primary",
+          "authenticated": true,
+          "route": "/v1/chat/completions",
+          "tool_results": 0,
+          "auxiliary": false
+        },
+        {
+          "model": "acp-fixture-primary",
+          "authenticated": true,
+          "route": "/v1/chat/completions",
+          "tool_results": 0,
+          "auxiliary": false
+        },
+        {
+          "model": "acp-fixture-primary",
+          "authenticated": true,
+          "route": "/v1/chat/completions",
+          "tool_results": 1,
+          "auxiliary": false
+        },
+        {
+          "model": "acp-fixture-primary",
+          "authenticated": true,
+          "route": "/v1/chat/completions",
+          "tool_results": 2,
+          "auxiliary": false
+        },
+        {
+          "model": "acp-fixture-switched",
+          "authenticated": true,
+          "route": "/v1/chat/completions",
+          "tool_results": 0,
+          "auxiliary": false
+        },
+        {
+          "model": "acp-fixture-switched",
+          "authenticated": true,
+          "route": "/v1/chat/completions",
+          "tool_results": 1,
+          "auxiliary": false
+        },
+        {
+          "model": "acp-fixture-switched",
+          "authenticated": true,
+          "route": "/v1/chat/completions",
+          "tool_results": 2,
+          "auxiliary": false
+        },
+        {
+          "model": "acp-fixture-switched",
+          "authenticated": true,
+          "route": "/v1/chat/completions",
+          "tool_results": 0,
+          "auxiliary": true
+        }
+      ],
+      "fixture_errors": 0,
+      "cargo_target_dir": "target/rust-slot-3"
+    },
+    {
+      "agent": "pi",
+      "mode": "cli-local",
+      "platform": "Darwin-arm64",
+      "cargo_exit_code": 0,
+      "effective_tests": 1,
+      "command": [
+        "cargo",
+        "test",
+        "-p",
+        "vw-agent",
+        "--lib",
+        "--all-features",
+        "acp_model_source_real_cli_cli_local",
+        "--",
+        "--ignored",
+        "--nocapture",
+        "--test-threads=1"
+      ],
+      "flow": {
+        "new": true,
+        "second_turn": true,
+        "cancel": true,
+        "restart": true,
+        "switch": true,
+        "isolated": true,
+        "handshake": true,
+        "mode": "cli-local",
+        "requires_auxiliary": true,
+        "auxiliary": true,
+        "auxiliary_switched": true
+      },
+      "requests": [
+        {
+          "model": "acp-fixture-primary",
+          "authenticated": true,
+          "route": "/v1/chat/completions",
+          "tool_results": 0,
+          "auxiliary": false
+        },
+        {
+          "model": "acp-fixture-primary",
+          "authenticated": true,
+          "route": "/v1/chat/completions",
+          "tool_results": 1,
+          "auxiliary": false
+        },
+        {
+          "model": "acp-fixture-primary",
+          "authenticated": true,
+          "route": "/v1/chat/completions",
+          "tool_results": 2,
+          "auxiliary": false
+        },
+        {
+          "model": "acp-fixture-primary",
+          "authenticated": true,
+          "route": "/v1/chat/completions",
+          "tool_results": 2,
+          "auxiliary": false
+        },
+        {
+          "model": "acp-fixture-primary",
+          "authenticated": true,
+          "route": "/v1/chat/completions",
+          "tool_results": 0,
+          "auxiliary": true
+        },
+        {
+          "model": "acp-fixture-primary",
+          "authenticated": true,
+          "route": "/v1/chat/completions",
+          "tool_results": 0,
+          "auxiliary": true
+        },
+        {
+          "model": "acp-fixture-primary",
+          "authenticated": true,
+          "route": "/v1/chat/completions",
+          "tool_results": 0,
+          "auxiliary": false
+        },
+        {
+          "model": "acp-fixture-primary",
+          "authenticated": true,
+          "route": "/v1/chat/completions",
+          "tool_results": 0,
+          "auxiliary": false
+        },
+        {
+          "model": "acp-fixture-primary",
+          "authenticated": true,
+          "route": "/v1/chat/completions",
+          "tool_results": 1,
+          "auxiliary": false
+        },
+        {
+          "model": "acp-fixture-primary",
+          "authenticated": true,
+          "route": "/v1/chat/completions",
+          "tool_results": 2,
+          "auxiliary": false
+        },
+        {
+          "model": "acp-fixture-primary",
+          "authenticated": true,
+          "route": "/v1/chat/completions",
+          "tool_results": 2,
+          "auxiliary": false
+        },
+        {
+          "model": "acp-fixture-primary",
+          "authenticated": true,
+          "route": "/v1/chat/completions",
+          "tool_results": 0,
+          "auxiliary": true
+        },
+        {
+          "model": "acp-fixture-primary",
+          "authenticated": true,
+          "route": "/v1/chat/completions",
+          "tool_results": 0,
+          "auxiliary": true
+        }
+      ],
+      "fixture_errors": 0,
+      "cargo_target_dir": "target/rust-slot-3"
+    },
+    {
+      "agent": "vibe",
+      "mode": "session-model",
+      "platform": "Darwin-arm64",
+      "cargo_exit_code": 0,
+      "effective_tests": 1,
+      "command": [
+        "cargo",
+        "test",
+        "-p",
+        "vw-agent",
+        "--lib",
+        "--all-features",
+        "acp_model_source_real_cli_session_model",
+        "--",
+        "--ignored",
+        "--nocapture",
+        "--test-threads=1"
+      ],
+      "flow": {
+        "new": true,
+        "second_turn": true,
+        "cancel": true,
+        "restart": true,
+        "switch": true,
+        "isolated": true,
+        "handshake": true,
+        "mode": "session-model",
+        "requires_auxiliary": false
+      },
+      "requests": [
+        {
+          "model": "acp-fixture-primary",
+          "authenticated": true,
+          "route": "/v1/chat/completions",
+          "tool_results": 0,
+          "auxiliary": false
+        },
+        {
+          "model": "acp-fixture-primary",
+          "authenticated": true,
+          "route": "/v1/chat/completions",
+          "tool_results": 1,
+          "auxiliary": false
+        },
+        {
+          "model": "acp-fixture-primary",
+          "authenticated": true,
+          "route": "/v1/chat/completions",
+          "tool_results": 2,
+          "auxiliary": false
+        },
+        {
+          "model": "acp-fixture-primary",
+          "authenticated": true,
+          "route": "/v1/chat/completions",
+          "tool_results": 2,
+          "auxiliary": false
+        },
+        {
+          "model": "acp-fixture-primary",
+          "authenticated": true,
+          "route": "/v1/chat/completions",
+          "tool_results": 2,
+          "auxiliary": false
+        },
+        {
+          "model": "acp-fixture-primary",
+          "authenticated": true,
+          "route": "/v1/chat/completions",
+          "tool_results": 0,
+          "auxiliary": false
+        },
+        {
+          "model": "acp-fixture-primary",
+          "authenticated": true,
+          "route": "/v1/chat/completions",
+          "tool_results": 2,
+          "auxiliary": false
+        },
+        {
+          "model": "acp-fixture-primary",
+          "authenticated": true,
+          "route": "/v1/chat/completions",
+          "tool_results": 0,
+          "auxiliary": false
+        },
+        {
+          "model": "acp-fixture-switched",
+          "authenticated": true,
+          "route": "/v1/chat/completions",
+          "tool_results": 0,
+          "auxiliary": false
+        },
+        {
+          "model": "acp-fixture-switched",
+          "authenticated": true,
+          "route": "/v1/chat/completions",
+          "tool_results": 1,
+          "auxiliary": false
+        },
+        {
+          "model": "acp-fixture-switched",
+          "authenticated": true,
+          "route": "/v1/chat/completions",
+          "tool_results": 2,
+          "auxiliary": false
+        }
+      ],
+      "fixture_errors": 0,
+      "cargo_target_dir": "target/rust-slot-3"
+    },
+    {
+      "agent": "vibe",
+      "mode": "cli-local",
+      "platform": "Darwin-arm64",
+      "cargo_exit_code": 0,
+      "effective_tests": 1,
+      "command": [
+        "cargo",
+        "test",
+        "-p",
+        "vw-agent",
+        "--lib",
+        "--all-features",
+        "acp_model_source_real_cli_cli_local",
+        "--",
+        "--ignored",
+        "--nocapture",
+        "--test-threads=1"
+      ],
+      "flow": {
+        "new": true,
+        "second_turn": true,
+        "cancel": true,
+        "restart": true,
+        "switch": true,
+        "isolated": true,
+        "handshake": true,
+        "mode": "cli-local",
+        "requires_auxiliary": false
+      },
+      "requests": [
+        {
+          "model": "acp-fixture-primary",
+          "authenticated": true,
+          "route": "/v1/chat/completions",
+          "tool_results": 0,
+          "auxiliary": false
+        },
+        {
+          "model": "acp-fixture-primary",
+          "authenticated": true,
+          "route": "/v1/chat/completions",
+          "tool_results": 1,
+          "auxiliary": false
+        },
+        {
+          "model": "acp-fixture-primary",
+          "authenticated": true,
+          "route": "/v1/chat/completions",
+          "tool_results": 2,
+          "auxiliary": false
+        },
+        {
+          "model": "acp-fixture-primary",
+          "authenticated": true,
+          "route": "/v1/chat/completions",
+          "tool_results": 0,
+          "auxiliary": false
+        },
+        {
+          "model": "acp-fixture-primary",
+          "authenticated": true,
+          "route": "/v1/chat/completions",
+          "tool_results": 2,
+          "auxiliary": false
+        },
+        {
+          "model": "acp-fixture-primary",
+          "authenticated": true,
+          "route": "/v1/chat/completions",
+          "tool_results": 2,
+          "auxiliary": false
+        },
+        {
+          "model": "acp-fixture-primary",
+          "authenticated": true,
+          "route": "/v1/chat/completions",
+          "tool_results": 2,
+          "auxiliary": false
+        },
+        {
+          "model": "acp-fixture-primary",
+          "authenticated": true,
+          "route": "/v1/chat/completions",
+          "tool_results": 2,
+          "auxiliary": false
+        }
+      ],
+      "fixture_errors": 0,
+      "cargo_target_dir": "target/rust-slot-3"
+    },
+    {
+      "agent": "hermes",
+      "mode": "session-model",
+      "platform": "Darwin-arm64",
+      "cargo_exit_code": 0,
+      "effective_tests": 1,
+      "command": [
+        "cargo",
+        "test",
+        "-p",
+        "vw-agent",
+        "--lib",
+        "--all-features",
+        "acp_model_source_real_cli_session_model",
+        "--",
+        "--ignored",
+        "--nocapture",
+        "--test-threads=1"
+      ],
+      "flow": {
+        "new": true,
+        "second_turn": true,
+        "cancel": true,
+        "restart": true,
+        "switch": true,
+        "isolated": true,
+        "handshake": true,
+        "mode": "session-model",
+        "requires_auxiliary": false
+      },
+      "requests": [
+        {
+          "model": "acp-fixture-primary",
+          "authenticated": true,
+          "route": "/v1/chat/completions",
+          "tool_results": 0,
+          "auxiliary": false
+        },
+        {
+          "model": "acp-fixture-primary",
+          "authenticated": true,
+          "route": "/v1/chat/completions",
+          "tool_results": 1,
+          "auxiliary": false
+        },
+        {
+          "model": "acp-fixture-primary",
+          "authenticated": true,
+          "route": "/v1/chat/completions",
+          "tool_results": 2,
+          "auxiliary": false
+        },
+        {
+          "model": "acp-fixture-primary",
+          "authenticated": true,
+          "route": "/v1/chat/completions",
+          "tool_results": 0,
+          "auxiliary": false
+        },
+        {
+          "model": "acp-fixture-primary",
+          "authenticated": true,
+          "route": "/v1/chat/completions",
+          "tool_results": 2,
+          "auxiliary": false
+        },
+        {
+          "model": "acp-fixture-primary",
+          "authenticated": true,
+          "route": "/v1/chat/completions",
+          "tool_results": 2,
+          "auxiliary": false
+        },
+        {
+          "model": "acp-fixture-primary",
+          "authenticated": true,
+          "route": "/v1/chat/completions",
+          "tool_results": 2,
+          "auxiliary": false
+        },
+        {
+          "model": "acp-fixture-switched",
+          "authenticated": true,
+          "route": "/v1/chat/completions",
+          "tool_results": 0,
+          "auxiliary": false
+        },
+        {
+          "model": "acp-fixture-switched",
+          "authenticated": true,
+          "route": "/v1/chat/completions",
+          "tool_results": 1,
+          "auxiliary": false
+        },
+        {
+          "model": "acp-fixture-switched",
+          "authenticated": true,
+          "route": "/v1/chat/completions",
+          "tool_results": 2,
+          "auxiliary": false
+        },
+        {
+          "model": "acp-fixture-switched",
+          "authenticated": true,
+          "route": "/v1/chat/completions",
+          "tool_results": 0,
+          "auxiliary": false
+        }
+      ],
+      "fixture_errors": 0,
+      "cargo_target_dir": "target/rust-slot-3"
+    },
+    {
+      "agent": "hermes",
+      "mode": "cli-local",
+      "platform": "Darwin-arm64",
+      "cargo_exit_code": 0,
+      "effective_tests": 1,
+      "command": [
+        "cargo",
+        "test",
+        "-p",
+        "vw-agent",
+        "--lib",
+        "--all-features",
+        "acp_model_source_real_cli_cli_local",
+        "--",
+        "--ignored",
+        "--nocapture",
+        "--test-threads=1"
+      ],
+      "flow": {
+        "new": true,
+        "second_turn": true,
+        "cancel": true,
+        "restart": true,
+        "switch": true,
+        "isolated": true,
+        "handshake": true,
+        "mode": "cli-local",
+        "requires_auxiliary": false
+      },
+      "requests": [
+        {
+          "model": "acp-fixture-primary",
+          "authenticated": true,
+          "route": "/v1/chat/completions",
+          "tool_results": 0,
+          "auxiliary": false
+        },
+        {
+          "model": "acp-fixture-primary",
+          "authenticated": true,
+          "route": "/v1/chat/completions",
+          "tool_results": 1,
+          "auxiliary": false
+        },
+        {
+          "model": "acp-fixture-primary",
+          "authenticated": true,
+          "route": "/v1/chat/completions",
+          "tool_results": 2,
+          "auxiliary": false
+        },
+        {
+          "model": "acp-fixture-primary",
+          "authenticated": true,
+          "route": "/v1/chat/completions",
+          "tool_results": 0,
+          "auxiliary": false
+        },
+        {
+          "model": "acp-fixture-primary",
+          "authenticated": true,
+          "route": "/v1/chat/completions",
+          "tool_results": 2,
+          "auxiliary": false
+        },
+        {
+          "model": "acp-fixture-primary",
+          "authenticated": true,
+          "route": "/v1/chat/completions",
+          "tool_results": 2,
+          "auxiliary": false
+        },
+        {
+          "model": "acp-fixture-primary",
+          "authenticated": true,
+          "route": "/v1/chat/completions",
+          "tool_results": 2,
+          "auxiliary": false
+        },
+        {
+          "model": "acp-fixture-primary",
+          "authenticated": true,
+          "route": "/v1/chat/completions",
+          "tool_results": 2,
+          "auxiliary": false
+        }
+      ],
+      "fixture_errors": 0,
+      "cargo_target_dir": "target/rust-slot-3"
+    },
+    {
+      "agent": "goose",
+      "mode": "session-model",
+      "platform": "Darwin-arm64",
+      "cargo_exit_code": 0,
+      "effective_tests": 1,
+      "command": [
+        "cargo",
+        "test",
+        "-p",
+        "vw-agent",
+        "--lib",
+        "--all-features",
+        "acp_model_source_real_cli_session_model",
+        "--",
+        "--ignored",
+        "--nocapture",
+        "--test-threads=1"
+      ],
+      "flow": {
+        "new": true,
+        "second_turn": true,
+        "cancel": true,
+        "restart": true,
+        "switch": true,
+        "isolated": true,
+        "handshake": true,
+        "mode": "session-model",
+        "requires_auxiliary": false
+      },
+      "requests": [
+        {
+          "model": "acp-fixture-primary",
+          "path": "/v1/chat/completions",
+          "authenticated": true,
+          "tool_results": 0,
+          "auxiliary": false,
+          "route": "/v1/chat/completions"
+        },
+        {
+          "model": "acp-fixture-primary",
+          "path": "/v1/chat/completions",
+          "authenticated": true,
+          "tool_results": 0,
+          "auxiliary": false,
+          "route": "/v1/chat/completions"
+        },
+        {
+          "model": "acp-fixture-primary",
+          "path": "/v1/chat/completions",
+          "authenticated": true,
+          "tool_results": 1,
+          "auxiliary": false,
+          "route": "/v1/chat/completions"
+        },
+        {
+          "model": "acp-fixture-primary",
+          "path": "/v1/chat/completions",
+          "authenticated": true,
+          "tool_results": 2,
+          "auxiliary": false,
+          "route": "/v1/chat/completions"
+        },
+        {
+          "model": "acp-fixture-primary",
+          "path": "/v1/chat/completions",
+          "authenticated": true,
+          "tool_results": 2,
+          "auxiliary": false,
+          "route": "/v1/chat/completions"
+        },
+        {
+          "model": "acp-fixture-primary",
+          "path": "/v1/chat/completions",
+          "authenticated": true,
+          "tool_results": 2,
+          "auxiliary": false,
+          "route": "/v1/chat/completions"
+        },
+        {
+          "model": "acp-fixture-primary",
+          "path": "/v1/chat/completions",
+          "authenticated": true,
+          "tool_results": 2,
+          "auxiliary": false,
+          "route": "/v1/chat/completions"
+        },
+        {
+          "model": "acp-fixture-switched",
+          "path": "/v1/chat/completions",
+          "authenticated": true,
+          "tool_results": 0,
+          "auxiliary": false,
+          "route": "/v1/chat/completions"
+        },
+        {
+          "model": "acp-fixture-switched",
+          "path": "/v1/chat/completions",
+          "authenticated": true,
+          "tool_results": 0,
+          "auxiliary": false,
+          "route": "/v1/chat/completions"
+        },
+        {
+          "model": "acp-fixture-switched",
+          "path": "/v1/chat/completions",
+          "authenticated": true,
+          "tool_results": 1,
+          "auxiliary": false,
+          "route": "/v1/chat/completions"
+        },
+        {
+          "model": "acp-fixture-switched",
+          "path": "/v1/chat/completions",
+          "authenticated": true,
+          "tool_results": 2,
+          "auxiliary": false,
+          "route": "/v1/chat/completions"
+        }
+      ],
+      "fixture_errors": 0,
+      "cargo_target_dir": "target/rust-slot-3"
+    },
+    {
+      "agent": "goose",
+      "mode": "cli-local",
+      "platform": "Darwin-arm64",
+      "cargo_exit_code": 0,
+      "effective_tests": 1,
+      "command": [
+        "cargo",
+        "test",
+        "-p",
+        "vw-agent",
+        "--lib",
+        "--all-features",
+        "acp_model_source_real_cli_cli_local",
+        "--",
+        "--ignored",
+        "--nocapture",
+        "--test-threads=1"
+      ],
+      "flow": {
+        "new": true,
+        "second_turn": true,
+        "cancel": true,
+        "restart": true,
+        "switch": true,
+        "isolated": true,
+        "handshake": true,
+        "mode": "cli-local",
+        "requires_auxiliary": false
+      },
+      "requests": [
+        {
+          "model": "acp-fixture-primary",
+          "path": "/v1/chat/completions",
+          "authenticated": true,
+          "tool_results": 0,
+          "auxiliary": false,
+          "route": "/v1/chat/completions"
+        },
+        {
+          "model": "acp-fixture-primary",
+          "path": "/v1/chat/completions",
+          "authenticated": true,
+          "tool_results": 0,
+          "auxiliary": false,
+          "route": "/v1/chat/completions"
+        },
+        {
+          "model": "acp-fixture-primary",
+          "path": "/v1/chat/completions",
+          "authenticated": true,
+          "tool_results": 1,
+          "auxiliary": false,
+          "route": "/v1/chat/completions"
+        },
+        {
+          "model": "acp-fixture-primary",
+          "path": "/v1/chat/completions",
+          "authenticated": true,
+          "tool_results": 2,
+          "auxiliary": false,
+          "route": "/v1/chat/completions"
+        },
+        {
+          "model": "acp-fixture-primary",
+          "path": "/v1/chat/completions",
+          "authenticated": true,
+          "tool_results": 2,
+          "auxiliary": false,
+          "route": "/v1/chat/completions"
+        },
+        {
+          "model": "acp-fixture-primary",
+          "path": "/v1/chat/completions",
+          "authenticated": true,
+          "tool_results": 2,
+          "auxiliary": false,
+          "route": "/v1/chat/completions"
+        },
+        {
+          "model": "acp-fixture-primary",
+          "path": "/v1/chat/completions",
+          "authenticated": true,
+          "tool_results": 2,
+          "auxiliary": false,
+          "route": "/v1/chat/completions"
+        },
+        {
+          "model": "acp-fixture-primary",
+          "path": "/v1/chat/completions",
+          "authenticated": true,
+          "tool_results": 2,
+          "auxiliary": false,
+          "route": "/v1/chat/completions"
+        }
+      ],
+      "fixture_errors": 0,
+      "cargo_target_dir": "target/rust-slot-3"
+    }
+  ],
+  "real_model_requests": 156,
+  "checks": [
+    {
+      "command": [
+        "cargo",
+        "test",
+        "-p",
+        "vw-agent",
+        "-p",
+        "vw-acp",
+        "-p",
+        "vw-api-types",
+        "--lib",
+        "--all-features",
+        "acp_model_source_session_controls",
+        "--",
+        "--nocapture"
+      ],
+      "exit_code": 0,
+      "effective_tests": 7,
+      "cargo_target_dir": "target/rust-slot-3"
+    },
+    {
+      "command": [
+        "cargo",
+        "test",
+        "-p",
+        "vw-agent",
+        "--lib",
+        "--all-features",
+        "acp_model_source_launch_profile",
+        "--",
+        "--nocapture"
+      ],
+      "exit_code": 0,
+      "effective_tests": 6,
+      "cargo_target_dir": "target/rust-slot-3"
+    },
+    {
+      "command": [
+        "cargo",
+        "test",
+        "-p",
+        "vw-agent",
+        "--lib",
+        "--all-features",
+        "acp_session_options_follow_capabilities",
+        "--",
+        "--nocapture"
+      ],
+      "exit_code": 0,
+      "effective_tests": 3,
+      "cargo_target_dir": "target/rust-slot-3"
+    },
+    {
+      "command": [
+        "cargo",
+        "test",
+        "-p",
+        "vw-agent",
+        "--lib",
+        "--all-features",
+        "session::llm::acp::session::session_tests",
+        "--",
+        "--nocapture"
+      ],
+      "exit_code": 0,
+      "effective_tests": 22,
+      "cargo_target_dir": "target/rust-slot-3"
+    }
+  ],
+  "clippy": {
+    "command": [
+      "cargo",
+      "clippy",
+      "--all-targets",
+      "--all-features",
+      "--",
+      "-D",
+      "warnings"
+    ],
+    "exit_code": 0,
+    "cargo_target_dir": "target/rust-slot-2"
+  },
+  "native_goose_build_receipt": {
+    "version": "v1.57.0",
+    "source_sha256": "36fcab524e25ca563830757bf2da8a68716ea2a5d7ca2f055dec4647b78548d9",
+    "patch_sha256": "1fff003ed3f59eb99d5854f742b8c779a6efc07a3c6a57d7c0cd108b22c0db57",
+    "sha256": "fc578814494c42540ebd5ed24c79f9c058d6974b522ae46d5a45122d1d6bd57c"
+  },
+  "installation": {
+    "command": [
+      "cargo",
+      "test",
+      "-p",
+      "vw-acp",
+      "--lib",
+      "--all-features",
+      "acp_model_source_session_controls_real_reviewed_installer_and_registry",
+      "--",
+      "--ignored",
+      "--nocapture",
+      "--test-threads=1"
+    ],
+    "exit_code": 0,
+    "effective_tests": 1,
+    "actual_reviewed_runtimes": 8,
+    "cargo_target_dir": "target/rust-slot-2"
+  }
+}

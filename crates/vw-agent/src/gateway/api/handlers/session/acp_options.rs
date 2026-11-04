@@ -14,10 +14,19 @@ pub(super) async fn get(
     headers: HeaderMap,
 ) -> Result<Json<AcpSessionOptions>, ApiError> {
     let session = super::session_ops::ui_session_get(path, query, headers).await?.0;
-    read_acp_session_options(&session.id, &session.directory)
+    let mut options = read_acp_session_options(&session.id, &session.directory)
         .await
-        .map(Json)
-        .map_err(ApiError::bad_request)
+        .map_err(ApiError::bad_request)?;
+    if options.model_source_capabilities.is_empty()
+        && let Some(binding) =
+            crate::session::agent_binding::load_scoped(&session.project_id, &session.id)
+                .await
+                .map_err(|error| ApiError::bad_request(error.to_string()))?
+        && let Some(agent) = binding.identity().acp_agent
+    {
+        crate::session::llm::annotate_acp_model_source(&mut options, &agent);
+    }
+    Ok(Json(options))
 }
 
 pub(super) async fn set(

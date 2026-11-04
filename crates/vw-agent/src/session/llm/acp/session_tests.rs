@@ -27,6 +27,7 @@ fn acp_config(command: &str) -> config::schema::AcpAgentConfig {
 
 fn parsed_options() -> ParsedAcpOptions {
     ParsedAcpOptions {
+        runtime_identity: None,
         mcp_servers: Vec::new(),
         permission_mode: Some(PermissionMode::DenyAll),
         full_access: false,
@@ -452,4 +453,38 @@ for line in sys.stdin:
     let text = prompt["params"]["prompt"][0]["text"].as_str().unwrap();
     assert_eq!(text.matches("agent rule").count(), 1);
     assert_eq!(text.matches("skill content").count(), 1);
+}
+
+#[cfg(unix)]
+#[tokio::test]
+async fn acp_model_source_session_controls_managed_process_retires_with_readers() {
+    let _cache_guard = CACHE_LOCK.lock().await;
+    let root = tempfile::tempdir().unwrap();
+    let script = root.path().join("agent.py");
+    std::fs::write(&script, r#"
+import json,sys
+for line in sys.stdin:
+    req=json.loads(line)
+    if 'id' not in req: continue
+    if req['method']=='initialize': result={'protocolVersion':1,'agentCapabilities':{},'authMethods':[]}
+    elif req['method']=='session/new': result={'sessionId':'managed-retirement'}
+    else: result={}
+    print(json.dumps({'jsonrpc':'2.0','id':req['id'],'result':result}),flush=True)
+"#).unwrap();
+    let config = config::schema::AcpAgentConfig {
+        command: "python3".into(),
+        args: vec![script.to_string_lossy().into_owned()],
+        env: std::collections::HashMap::from([(
+            "VW_ACP_LAUNCH_REFERENCE".into(),
+            "vw-session-model:retirement".into(),
+        )]),
+    };
+    let entry =
+        get_cached_acp_client("retirement", &config, root.path(), &ParsedAcpOptions::default());
+    let info = entry.client.client.create_session(root.path()).await.unwrap();
+    let observer = entry.client.clone();
+    assert!(observer.client.session_capabilities(&info.session_id).is_some());
+    close_cached_acp_client_if_unshared(&entry).await;
+    assert!(!ACP_CLIENT_CACHE.lock().contains_key(&entry.key));
+    assert!(observer.client.session_capabilities(&info.session_id).is_none());
 }

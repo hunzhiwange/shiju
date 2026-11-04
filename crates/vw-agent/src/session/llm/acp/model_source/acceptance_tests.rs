@@ -116,6 +116,19 @@ async fn request(
             for _ in 0..1800 {
                 let count = evidence(&fixture).await["requests"].as_array().unwrap().len();
                 if count > before {
+                    let session =
+                        format!("real-cli-offline-{}", fixture["challenge"].as_str().unwrap());
+                    let busy = super::super::controls::select(
+                        &session,
+                        fixture["root"].as_str().unwrap(),
+                        vw_api_types::acp_session::AcpSessionSelection {
+                            kind: vw_api_types::acp_session::AcpOptionKind::Model,
+                            value: "must-not-be-applied-while-busy".into(),
+                        },
+                    )
+                    .await
+                    .expect_err("actual model request must exclude session controls");
+                    assert!(busy.contains("busy"), "unexpected control error: {busy}");
                     tx.send(true).unwrap();
                     return;
                 }
@@ -268,11 +281,33 @@ async fn run(mode: &str) {
         } else { prompt };
         flow["new"] = json!(request(&input, &model, &info, first_prompt, false).await);
         checkpoint(&flow);
+        let public = super::super::controls::read(
+            &format!("real-cli-offline-{}", input["challenge"].as_str().unwrap()),
+            &root.to_string_lossy(),
+        ).await.unwrap();
+        let selected = public.selected_model.expect("production selection must survive process retirement");
+        assert_eq!(selected.source, if mode == "session-model" { vw_api_types::acp_model_source::AcpModelSource::SessionModel } else { vw_api_types::acp_model_source::AcpModelSource::CliLocal });
+        if mode == "session-model" {
+            assert_eq!(selected.provider_id.as_deref(), Some("acp-offline-acceptance"));
+            assert_eq!(selected.model.as_deref(), Some("acp-fixture-primary"));
+            let store = super::super::lifecycle::Store::open(
+                &format!("real-cli-offline-{}", input["challenge"].as_str().unwrap()),
+                &root.to_string_lossy(),
+            ).unwrap();
+            let saved = serde_json::to_value(store.read().unwrap().unwrap()).unwrap();
+            let mut invalid = model.clone();
+            invalid.status = "disabled".into();
+            assert!(!request(&input, &invalid, &info, prompt, false).await,
+                "a disabled replacement must be rejected before touching the CLI");
+            assert_eq!(serde_json::to_value(store.read().unwrap().unwrap()).unwrap(), saved,
+                "failed replacement must preserve the committed model and recovery anchor");
+        }
         if agent == "pi" && mode == "session-model" {
-            let name = format!("vw-session:real-cli-offline-{}", input["challenge"].as_str().unwrap());
-            let mut record = vw_acp::list_sessions().await.unwrap().into_iter().find(|record|
-                record.cwd == root.to_string_lossy() && record.name.as_deref() == Some(name.as_str())
-            ).expect("managed Pi session must have a persisted record");
+            let saved = super::super::lifecycle::Store::open(
+                &format!("real-cli-offline-{}", input["challenge"].as_str().unwrap()),
+                &root.to_string_lossy(),
+            ).unwrap().read().unwrap().expect("managed Pi selection must be committed");
+            let mut record = vw_acp::resolve_session_record(&saved.record_id).await.unwrap();
             vw_acp::set_desired_model_id(&mut record, Some("session-provider/forbidden-native-model"));
             vw_acp::write_session_record(&record).await.unwrap();
         }

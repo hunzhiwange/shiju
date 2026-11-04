@@ -4,6 +4,9 @@ use vw_config_types::acp_install::acp_install_command;
 
 /// 按网关所在平台安装内置代理，不接收任意命令、包名或 URL。
 pub async fn install_builtin_agent(agent: &str) -> Result<(), String> {
+    if crate::managed_runtime::install(agent).await? {
+        return Ok(());
+    }
     let (program, args) = acp_install_command(agent)
         .ok_or_else(|| "该 ACP 暂无一键安装命令，请使用官方安装器".to_string())?;
     let deadline = tokio::time::Instant::now() + std::time::Duration::from_secs(300);
@@ -43,7 +46,25 @@ pub async fn install_builtin_agent(agent: &str) -> Result<(), String> {
     Ok(())
 }
 
-fn installed_uv() -> Option<String> {
+pub(super) async fn ensure_uv(deadline: tokio::time::Instant) -> Result<String, String> {
+    if let Some(path) = installed_uv().or_else(|| {
+        vw_shared::shell::resolve_executable("uv").map(|path| path.to_string_lossy().into_owned())
+    }) {
+        return Ok(path);
+    }
+    run_installer(
+        "bash",
+        &[
+            "-c",
+            "set -euo pipefail; curl -fsSL --proto '=https' https://astral.sh/uv/install.sh | sh",
+        ],
+        deadline,
+    )
+    .await?;
+    installed_uv().ok_or_else(|| "uv bootstrap did not install its executable".into())
+}
+
+pub(super) fn installed_uv() -> Option<String> {
     let home = std::env::var_os("HOME").or_else(|| std::env::var_os("USERPROFILE"))?;
     let bin = std::env::var_os("UV_INSTALL_DIR")
         .or_else(|| std::env::var_os("XDG_BIN_HOME"))
@@ -73,7 +94,7 @@ impl Drop for InstallerTree {
     }
 }
 
-async fn run_installer(
+pub(super) async fn run_installer(
     program: &str,
     args: &[&str],
     deadline: tokio::time::Instant,

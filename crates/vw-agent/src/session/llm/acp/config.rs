@@ -320,6 +320,7 @@ pub(crate) fn parse_acp_options(
     }
 
     Ok(ParsedAcpOptions {
+        runtime_identity: None,
         mcp_servers: Vec::new(),
         permission_mode,
         full_access,

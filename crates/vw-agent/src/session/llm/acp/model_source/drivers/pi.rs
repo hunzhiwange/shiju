@@ -15,9 +15,23 @@ pub(super) fn configure(profile: &mut AcpLaunchProfile, endpoint: &str) -> anyho
         hex::encode(Sha256::digest(bytes)) == PATCHED_ADAPTER_SHA256,
         "Pi adapter state-directory patch is missing or differs from the reviewed build"
     );
-    let engine = std::env::var_os("PATH")
-        .and_then(|paths| {
-            std::env::split_paths(&paths).map(|path| path.join("pi")).find(|path| path.is_file())
+    let installed_engine = command
+        .canonicalize()
+        .ok()
+        .and_then(|path| {
+            path.parent()?
+                .parent()?
+                .parent()
+                .map(|modules| modules.join("@mariozechner/pi-coding-agent/dist/cli.js"))
+        })
+        .filter(|path| path.is_file());
+    let engine = installed_engine
+        .or_else(|| {
+            std::env::var_os("PATH").and_then(|paths| {
+                std::env::split_paths(&paths)
+                    .map(|path| path.join("pi"))
+                    .find(|path| path.is_file())
+            })
         })
         .ok_or_else(|| anyhow::anyhow!("pinned native Pi executable is not installed"))?;
     let engine = engine.canonicalize()?;

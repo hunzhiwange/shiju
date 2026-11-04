@@ -286,6 +286,9 @@ fn acp_session_options_follow_capabilities_commit_only_acknowledged_values() {
         acp_model_source:
             vw_gateway_client::vw_api_types::acp_model_source::AcpModelSource::SessionModel,
         model_source_capabilities: Vec::new(),
+        selected_model: None,
+        verified_cli_release: None,
+        verified_platform: None,
         connected: true,
         options: vec![AcpSessionOption {
             kind: AcpOptionKind::Mode,

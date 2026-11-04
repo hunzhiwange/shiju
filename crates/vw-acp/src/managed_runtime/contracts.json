@@ -1,0 +1,108 @@
+{
+  "codex": {
+    "package": "@agentclientprotocol/codex-acp",
+    "version": "2.5.0",
+    "integrity": "sha512-7e/4OhJwpvSTqsjiokoVYRV7O1XGem1CAsQgO1opmGYbRD5LvmydwDlJrldzQYO5TcPWueGzQ2Jdvyvp6l3qDw==",
+    "bin": "dist/index.js",
+    "files": {
+      "dist/index.js": "b47dda5f2a998dab3aaf97f7f7e48dc499bebf9906cd5c2bb103756ae5974c37"
+    },
+    "engine": "@openai/codex",
+    "engine_version": "0.165.0",
+    "original": {
+      "dist/index.js": "15de6b2dd5203876a48b12861378bcf87040d623ab2159e05052dc9d54c32b16"
+    }
+  },
+  "gemini": {
+    "package": "@google/gemini-cli",
+    "version": "0.66.0",
+    "integrity": "sha512-EAtsJ9/JxiphHlduzvhoCkb7I0LdOxyugB5NpUtVqKVGZIWjV3JmurvK89ZrvMbV3kwk5SdWINz1M5ZN/2K/Lw==",
+    "bin": "bundle/gemini.js",
+    "files": {
+      "bundle/chunk-M44FJWED.js": "8ff40d866a5d0d163abe3ee5c566e954513a03388053c246218ef0ca246ecfc0",
+      "bundle/gemini-B5V54E2S.js": "6bd205f416a482703e310f37e28f754d24e826e6b65f0c102edf5953d4a9393b",
+      "bundle/chunk-HJ5KJXNZ.js": "4f8ab8a0beb23392425a2e1173d1db902ca2de26e53835a3a3f7b497421b769e",
+      "bundle/gemini-EOCRFAPZ.js": "ed0b9375d8b0219b3845a2fa97943e619b9b9914d73c4a61cd84f721320e3a33",
+      "bundle/gemini-22EOGL6O.js": "5a085a5ca45370e436b0cf2f867a51bc66a252a9f2ba210664a4a39cc0359f0d",
+      "bundle/chunk-RZ3ZVTZB.js": "178fbac9abcb2f8a7336e8f2e52855e4a5d41b245875fef92c049b59454b9b12"
+    },
+    "original": {
+      "bundle/chunk-M44FJWED.js": "4e9eba0566cec4de72d6a19515fb85eaeeb06b52f8be38dd129be6f7db7125bb",
+      "bundle/gemini-B5V54E2S.js": "5e0abc1aa8df60a3a48ea03a03bf3477c52c9b6fde5561d99aedab398c7a5a5b",
+      "bundle/chunk-HJ5KJXNZ.js": "99eabfd29caacdda55f956c99167ba8181a33c3597c5185c5f6f487ced0114a0",
+      "bundle/gemini-EOCRFAPZ.js": "6fb39e04f8e909efd5848ae9530487f91d9518bfc4d894b0d18c6a8b8c9c920b",
+      "bundle/gemini-22EOGL6O.js": "d4bc46e484a70153d229d0ce1d958ebe6d4914cfb4b96acd853fd332dd4d0f01",
+      "bundle/chunk-RZ3ZVTZB.js": "19ff9f53cf4dbe81755abc4f1d8576186ba9bcd9490015f07116db134da07398"
+    }
+  },
+  "iflow": {
+    "package": "@iflow-ai/iflow-cli",
+    "version": "0.5.19",
+    "integrity": "sha512-cOQNLXJAjqcKq6XQpx47EUV8ocY5sdLXiy7MfJm+b1miRlMJmrQvueT75w1h9UqzrlFPio2VluTxbLRBoR/QBA==",
+    "bin": "bundle/entry.js",
+    "files": {
+      "bundle/iflow.js": "23316454dc9d4a96fb93d95f589b3dc8e5734e6d5bc845082f20ba9566ae72c4",
+      "bundle/entry.js": "55710b7cfea2e5aefebfe0acec4eaf3e647d34538ee5835a3d724a49853d1fa6"
+    }
+  },
+  "qwen": {
+    "package": "@qwen-code/qwen-code",
+    "version": "0.26.7",
+    "integrity": "sha512-sRFWwmakpvF3bWBfG1M/ijoZG5h8Yxs0IC4cXZP3dJLyEbbTHItyhzMySG4o4CzLGFIfofArummQJo/xcggweQ==",
+    "bin": "cli-entry.js",
+    "files": {
+      "cli-entry.js": "89c392458627a27448ffaed32102554f0cb72a70f4ec1e60527fa56068afb387",
+      "chunks/chunk-VGW3ZY4O.js": "35026c0c49de4cb13cc793f09e69bf5a0f45a367cb4e66d63fa79f5ff7b41574",
+      "chunks/chunk-CW2OXNKS.js": "ea7ab39eb40dd00bd42ba18257ab9d4d1b97d85f99556e970434755efe372def",
+      "chunks/acpAgent-C3CM2WHA.js": "e81ff979d5633c2c7d4e5afb44e602f706aacac8e5a81e1ae58d0bd24e98e65d"
+    }
+  },
+  "pi": {
+    "package": "pi-acp",
+    "version": "0.0.22",
+    "integrity": "sha512-A9DFxi3dF/xFgf0vm5r5jvEtTszRXqK2MUYXWQN0aSSLeJW53efqFlueczZCj5J119s+FLlQVQYso71PDPL0sw==",
+    "bin": "dist/index.js",
+    "files": {
+      "dist/index.js": "a78e867c410e7b29c93196586a20b383ecd9f852d865c57af01f8970bc739e76"
+    },
+    "engine": "@mariozechner/pi-coding-agent",
+    "engine_version": "0.73.1"
+  },
+  "vibe": {
+    "layout": "python",
+    "package": "mistral-vibe",
+    "version": "3.0.4",
+    "bin": "vibe-acp",
+    "files": {
+      "vibe/core/config/builder.py": "f5af00e1a37bdbfaff3b3801ed76b2728fc47f41a181f83cee9cdd82bca2514f",
+      "vibe/acp/entrypoint.py": "b1c5cde955970b60bec336b0a31f2a460617f59dce0d74baa24e6dc698eed5aa",
+      "vibe/core/config/session_model_binding.py": "bc0d7c44ca16badcc25a8185d6eb0b8a23c63256a346c75176928a085d944ee3"
+    },
+    "wheel_url": "https://files.pythonhosted.org/packages/84/b8/68dffdf6294f59607935841c0c5494cb5a3594aeda6d056eef5a4231de5c/mistral_vibe-3.0.4-cp312-abi3-macosx_11_0_arm64.whl",
+    "wheel_sha256": "16ee71ef4481dd1b93bc47279b2c76124f6e654ad24d14c9415eea9095f0b0e9"
+  },
+  "hermes": {
+    "layout": "python",
+    "package": "hermes-agent",
+    "version": "0.19.0",
+    "bin": "hermes",
+    "files": {
+      "acp_adapter/session_model_state.py": "c3addec1baac1ae16bf70078edfb42efd479d7834afb0305e9dbc4575fba57ee",
+      "acp_adapter/session.py": "3e8d2e86ca33be43c1daf96b6a39001de97287bd1b96fbb4adaf0f3aa8a4d410",
+      "acp_adapter/entry.py": "611eab6b93ed0f97a9e079b5cbde771a0dc9223122cf2c9fb963af408106658b",
+      "hermes_cli/main.py": "7e1c678f2584928b863565f99d3bca1d9a530a716838d23766e1449ffa9bca67",
+      "hermes_cli/subcommands/acp.py": "83980efbd56f31d64f35df8615ba3a86beb96760a3f3cb3b2cc5996ed99626d4"
+    },
+    "wheel_sha256": "bd0bac012aee38a60894781f4597dc29ee7bedb3448540249921f10d3bef327f"
+  },
+  "goose": {
+    "layout": "native",
+    "package": "goose",
+    "version": "v1.57.0",
+    "bin": "goose",
+    "files": {},
+    "source_url": "https://codeload.github.com/aaif-goose/goose/tar.gz/refs/tags/v1.57.0",
+    "source_sha256": "36fcab524e25ca563830757bf2da8a68716ea2a5d7ca2f055dec4647b78548d9",
+    "patch_sha256": "1fff003ed3f59eb99d5854f742b8c779a6efc07a3c6a57d7c0cd108b22c0db57"
+  }
+}

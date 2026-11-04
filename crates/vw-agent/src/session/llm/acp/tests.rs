@@ -137,7 +137,11 @@ fn cached_acp_client_entry_keeps_key_and_shared_client() {
         },
     ));
     let cached = cached_client(client, None);
-    let entry = CachedAcpClientEntry { key: "unit-key".to_string(), client: cached.clone() };
+    let entry = CachedAcpClientEntry {
+        request_owned: false,
+        key: "unit-key".to_string(),
+        client: cached.clone(),
+    };
 
     assert_eq!(entry.key, "unit-key");
     assert!(Arc::ptr_eq(&entry.client, &cached));

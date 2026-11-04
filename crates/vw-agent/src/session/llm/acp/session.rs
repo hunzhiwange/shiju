@@ -68,6 +68,7 @@ fn acp_client_cache_key(
 
     let material = json!({
         "tenant": crate::session::ui_store::current_tenant_scope(),
+        "runtimeIdentity": parsed_options.runtime_identity,
         "agentName": acp_agent_name,
         "command": acp_cfg.command,
         "args": acp_cfg.args,
@@ -156,23 +157,28 @@ pub(super) fn get_cached_acp_client(
     let key = acp_client_cache_key(acp_agent_name, acp_cfg, cwd, parsed_options);
     let mut cache = ACP_CLIENT_CACHE.lock();
     if let Some(existing) = cache.get(&key) {
-        return CachedAcpClientEntry { key, client: existing.clone() };
+        return CachedAcpClientEntry {
+            request_owned: launch_reference(acp_cfg).is_some(),
+            key,
+            client: existing.clone(),
+        };
     }
 
     let client = build_cached_acp_client(acp_agent_name, acp_cfg, parsed_options);
     cache.insert(key.clone(), client.clone());
-    CachedAcpClientEntry { key, client }
+    CachedAcpClientEntry { request_owned: launch_reference(acp_cfg).is_some(), key, client }
 }
 
 /// 关闭一次性 ACP 客户端缓存项。
 ///
-/// 只有缓存中仍是同一个客户端且没有其他请求持有它时才会移除并关闭，避免误关正在
-/// 复用同一连接的交互会话。
+/// 托管启动由请求独占，选项读取方的临时引用不能阻止进程退出；原生共享连接则只在
+/// 没有其他请求持有时移除并关闭。
 pub(super) async fn close_cached_acp_client_if_unshared(entry: &CachedAcpClientEntry) {
     let removed = {
         let mut cache = ACP_CLIENT_CACHE.lock();
         let should_remove = cache.get(&entry.key).is_some_and(|existing| {
-            Arc::ptr_eq(existing, &entry.client) && Arc::strong_count(existing) <= 2
+            Arc::ptr_eq(existing, &entry.client)
+                && (entry.request_owned || Arc::strong_count(existing) <= 2)
         });
         if should_remove { cache.remove(&entry.key) } else { None }
     };
@@ -389,3 +395,60 @@ pub(crate) fn missing_session_error(
 #[cfg(test)]
 #[path = "session_tests.rs"]
 mod session_tests;
+
+/// Stop the previous process before opening a replacement. Saved anchors remain recoverable.
+pub(super) async fn stop_record_client(record_id: &str) -> Result<(), Error> {
+    let record = vw_acp::resolve_session_record(record_id).await.map_err(to_api_error)?;
+    let clients: Vec<_> = {
+        let mut cache = ACP_CLIENT_CACHE.lock();
+        let keys: Vec<_> = cache
+            .iter()
+            .filter(|(_, client)| {
+                client.tenant == crate::session::ui_store::current_tenant_scope()
+                    && record.pid.is_some()
+                    && client.client.get_agent_lifecycle_snapshot().pid == record.pid
+                    && client.client.session_capabilities(&record.acp_session_id).is_some()
+            })
+            .map(|(key, _)| key.clone())
+            .collect();
+        keys.into_iter().filter_map(|key| cache.remove(&key)).collect()
+    };
+    for client in clients {
+        client.client.close().await.map_err(to_api_error)?;
+    }
+    Ok(())
+}
+
+/// Cancelling the owning future must also retire a managed process/cache entry.
+pub(super) struct RequestClientCleanup {
+    key: String,
+    client: Option<Arc<CachedAcpClient>>,
+}
+impl RequestClientCleanup {
+    pub(super) fn new(entry: &CachedAcpClientEntry) -> Self {
+        Self { key: entry.key.clone(), client: entry.request_owned.then(|| entry.client.clone()) }
+    }
+}
+impl Drop for RequestClientCleanup {
+    fn drop(&mut self) {
+        let Some(owned_client) = self.client.as_ref() else {
+            return;
+        };
+        let removed = {
+            let mut cache = ACP_CLIENT_CACHE.lock();
+            if cache.get(&self.key).is_some_and(|client| Arc::ptr_eq(client, owned_client)) {
+                cache.remove(&self.key)
+            } else {
+                None
+            }
+        };
+        if let Some(client) = removed {
+            *client.output_tx.lock() = None;
+            if let Ok(runtime) = tokio::runtime::Handle::try_current() {
+                runtime.spawn(async move {
+                    let _ = client.client.close().await;
+                });
+            }
+        }
+    }
+}

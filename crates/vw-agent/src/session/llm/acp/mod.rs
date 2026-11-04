@@ -36,6 +36,7 @@ use super::types::{Error, StreamEvent, ToolCall};
 mod config;
 mod content;
 pub(crate) mod controls;
+mod lifecycle;
 mod model_source;
 mod replay;
 pub(super) mod request;
@@ -60,6 +61,7 @@ struct CachedAcpClient {
 ///
 /// `key` 用于在一次性请求结束后安全移除对应缓存项，`client` 是实际共享客户端。
 struct CachedAcpClientEntry {
+    request_owned: bool,
     key: String,
     client: Arc<CachedAcpClient>,
 }
@@ -70,6 +72,7 @@ struct CachedAcpClientEntry {
 #[derive(Clone, Default, PartialEq, Eq)]
 pub(super) struct ParsedAcpOptions {
     /// 已在网关按作用域解析的 MCP 配置，不接受请求中的原始凭据。
+    pub(super) runtime_identity: Option<String>,
     pub(super) mcp_servers: Vec<agent_client_protocol::McpServer>,
     /// ACP 权限模式；未设置时由客户端构造逻辑选择默认策略。
     pub(super) permission_mode: Option<PermissionMode>,

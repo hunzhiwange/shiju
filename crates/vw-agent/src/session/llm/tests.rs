@@ -129,6 +129,7 @@ fn parse_acp_options_maps_cli_style_runtime_overrides() {
     assert_eq!(
         parsed,
         ParsedAcpOptions {
+            runtime_identity: None,
             mcp_servers: Vec::new(),
             permission_mode: Some(PermissionMode::ApproveReads),
             full_access: false,

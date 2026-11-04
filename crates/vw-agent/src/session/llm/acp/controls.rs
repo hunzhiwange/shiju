@@ -8,7 +8,7 @@ use vw_api_types::acp_session::{
     AcpChoice, AcpOptionKind, AcpSessionOption, AcpSessionOptions, AcpSessionSelection,
 };
 
-fn advertised(info: vw_acp::SessionCapabilities) -> AcpSessionOptions {
+fn native_advertised(info: vw_acp::SessionCapabilities) -> AcpSessionOptions {
     let mut options = Vec::new();
     let config_options = info.config_options.unwrap_or_default();
     let has_category =
@@ -64,15 +64,63 @@ fn advertised(info: vw_acp::SessionCapabilities) -> AcpSessionOptions {
     AcpSessionOptions { connected: true, options, ..Default::default() }
 }
 
+fn advertised(mut info: vw_acp::SessionCapabilities) -> AcpSessionOptions {
+    info.models = None;
+    if let Some(options) = info.config_options.as_mut() {
+        options
+            .retain(|option| option.category.as_ref() != Some(&SessionConfigOptionCategory::Model));
+    }
+    native_advertised(info)
+}
+
+fn project_options(
+    info: Option<vw_acp::SessionCapabilities>,
+    selection: Option<&super::lifecycle::Selection>,
+) -> AcpSessionOptions {
+    use vw_api_types::acp_model_source::AcpModelSource;
+    let source = selection.map_or(
+        if info.is_some() { AcpModelSource::CliLocal } else { AcpModelSource::SessionModel },
+        |value| value.model.source,
+    );
+    let mut options = info
+        .map(|info| {
+            if source == AcpModelSource::SessionModel {
+                advertised(info)
+            } else {
+                native_advertised(info)
+            }
+        })
+        .unwrap_or_default();
+    options.acp_model_source = source;
+    options.selected_model = selection.map(|value| value.model.clone());
+    if let Some(selection) = selection {
+        annotate_model_source(&mut options, &selection.agent);
+    }
+    options
+}
+
+pub(crate) fn annotate_model_source(options: &mut AcpSessionOptions, agent: &str) {
+    options.verified_cli_release =
+        super::model_source::drivers::verified_release(agent).map(str::to_owned);
+    options.verified_platform =
+        options.verified_cli_release.as_ref().map(|_| "Darwin arm64".into());
+    options.model_source_capabilities = super::model_source::drivers::capabilities(agent);
+}
+
 async fn connected(
     session_id: &str,
     directory: &str,
+    saved: Option<&super::lifecycle::Selection>,
 ) -> Result<Option<(vw_acp::SessionRecord, Arc<CachedAcpClient>)>, String> {
     let name = super::session::acp_session_name(session_id);
     let records = vw_acp::list_sessions().await.map_err(|e| e.to_string())?;
     let cache = ACP_CLIENT_CACHE.lock();
     for record in records {
-        if record.name != name || record.cwd != directory || record.closed == Some(true) {
+        if saved
+            .map_or(record.name != name, |selection| record.vwacp_record_id != selection.record_id)
+            || record.cwd != directory
+            || record.closed == Some(true)
+        {
             continue;
         }
         if let Some(client) = cache.values().find(|c| {
@@ -88,14 +136,17 @@ async fn connected(
 }
 
 pub(crate) async fn read(session_id: &str, directory: &str) -> Result<AcpSessionOptions, String> {
-    let Some((record, client)) = connected(session_id, directory).await? else {
-        return Ok(AcpSessionOptions::default());
+    let selection = super::lifecycle::Store::open(session_id, directory)
+        .and_then(|store| store.read())
+        .map_err(|e| e.to_string())?;
+    let info = if let Some((record, client)) =
+        connected(session_id, directory, selection.as_ref()).await?
+    {
+        client.client.session_capabilities(&record.acp_session_id)
+    } else {
+        None
     };
-    Ok(client
-        .client
-        .session_capabilities(&record.acp_session_id)
-        .map(advertised)
-        .unwrap_or_default())
+    Ok(project_options(info, selection.as_ref()))
 }
 
 pub(crate) async fn select(
@@ -103,8 +154,13 @@ pub(crate) async fn select(
     directory: &str,
     selection: AcpSessionSelection,
 ) -> Result<AcpSessionOptions, String> {
-    let (record, client) =
-        connected(session_id, directory).await?.ok_or("ACP session is not connected")?;
+    let _session_guard = super::lifecycle::try_lock(session_id, directory)?;
+    let saved = super::lifecycle::Store::open(session_id, directory)
+        .and_then(|store| store.read())
+        .map_err(|e| e.to_string())?;
+    let (record, client) = connected(session_id, directory, saved.as_ref())
+        .await?
+        .ok_or("ACP session is not connected")?;
     let _guard = client
         .prompt_lock
         .try_lock()
@@ -113,10 +169,18 @@ pub(crate) async fn select(
     let mut record =
         vw_acp::resolve_session_record(&record.vwacp_record_id).await.map_err(|e| e.to_string())?;
     let original_record = record.clone();
+    let visible =
+        project_options(client.client.session_capabilities(&record.acp_session_id), saved.as_ref());
+    if !visible.options.iter().any(|option| {
+        option.kind == selection.kind
+            && option.choices.iter().any(|choice| choice.id == selection.value)
+    }) {
+        return Err("ACP option is unavailable for the current model source".into());
+    }
     let previous = client
         .client
         .session_capabilities(&record.acp_session_id)
-        .map(advertised)
+        .map(native_advertised)
         .and_then(|options| {
             options.options.into_iter().find(|option| option.kind == selection.kind)
         })
@@ -138,11 +202,7 @@ pub(crate) async fn select(
         }
         return Err(format!("Failed to save ACP selection: {error}"));
     }
-    Ok(client
-        .client
-        .session_capabilities(&record.acp_session_id)
-        .map(advertised)
-        .unwrap_or_default())
+    Ok(project_options(client.client.session_capabilities(&record.acp_session_id), saved.as_ref()))
 }
 
 async fn apply_selection(
@@ -153,7 +213,7 @@ async fn apply_selection(
     let directory = record.cwd.clone();
     let info =
         client.session_capabilities(&record.acp_session_id).ok_or("ACP session is disconnected")?;
-    let options = advertised(info);
+    let options = native_advertised(info);
     if !options
         .options
         .iter()

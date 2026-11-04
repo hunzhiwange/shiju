@@ -1,5 +1,5 @@
 //! Runtime-only CLI model launch boundary; local CLI configuration bypasses this module.
-mod drivers;
+pub(super) mod drivers;
 mod gateway;
 pub(crate) mod profile;
 use crate::{
@@ -26,6 +26,7 @@ pub(super) async fn prepare(
     model: &provider::Model,
     session: &str,
 ) -> anyhow::Result<AcpLaunchProfile> {
+    vw_acp::verify_reviewed_agent_executable(agent, &config.command).map_err(anyhow::Error::msg)?;
     let project = instance::project()
         .ok_or_else(|| anyhow::anyhow!("ACP launch requires project context"))?;
     let context = instance::Context {

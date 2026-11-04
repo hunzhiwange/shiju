@@ -37,6 +37,8 @@ struct SessionStepWithRaw {
 #[derive(Debug, Clone, Deserialize)]
 struct ChatSessionWithRaw {
     pub id: String,
+    #[serde(default)]
+    pub agent_binding: Option<vw_api_types::chat::SessionAgentIdentity>,
     pub title: String,
     #[serde(default)]
     pub messages: Vec<vw_shared::session::ui_types::ChatMessage>,
@@ -66,6 +68,7 @@ struct StreamStopResponse {
 #[derive(Debug, Clone)]
 pub struct SessionUiLoadResult {
     pub session: ChatSession,
+    pub agent_binding: Option<vw_api_types::chat::SessionAgentIdentity>,
     pub step_llm_raw: HashMap<(String, String, u32), Value>,
     pub llm_raw_step_indices: Vec<(String, String, u32)>,
 }
@@ -110,7 +113,7 @@ impl From<ChatSessionWithRaw> for SessionUiLoadResult {
             created_ms: value.created_ms,
             updated_ms: value.updated_ms,
         };
-        Self { session, step_llm_raw, llm_raw_step_indices }
+        Self { session, agent_binding: value.agent_binding, step_llm_raw, llm_raw_step_indices }
     }
 }
 

@@ -834,3 +834,19 @@ async fn acp_session_options_follow_capabilities_http_contract() {
     assert_eq!(requests[1].method, "PUT");
     assert_eq!(requests[1].body, json!({"kind":{"kind":"mode"},"value":"code"}));
 }
+
+#[tokio::test]
+async fn agent_session_identity_preserves_read_only_ui_projection() {
+    let mut payload = serde_json::to_value(chat_session()).unwrap();
+    payload["agent_binding"] =
+        json!({"agent":"acp-codex", "label":"Saved name", "acp_agent":"codex"});
+    let server = test_support::server(vec![(200, payload)]);
+    let result =
+        server.client().session_ui_get_with_raw("s1", Some("/repo")).await.unwrap().unwrap();
+    let identity = result.agent_binding.unwrap();
+    assert_eq!(identity.agent, "acp-codex");
+    assert_eq!(identity.acp_agent.as_deref(), Some("codex"));
+    assert_eq!(identity.label.as_deref(), Some("Saved name"));
+    let upload = serde_json::to_value(result.session).unwrap();
+    assert!(upload.get("agent_binding").is_none(), "UI saves must omit the trusted projection");
+}

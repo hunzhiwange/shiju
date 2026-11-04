@@ -1,5 +1,7 @@
 //! 会话领域模块入口，集中声明会话运行、提示词、状态同步和 UI 持久化相关子模块。
 
+/// Server-owned immutable session identity and defaults.
+pub(crate) mod agent_binding;
 /// 声明委托能力的纯策略解析器。
 pub(crate) mod capability_policy;
 #[cfg(test)]

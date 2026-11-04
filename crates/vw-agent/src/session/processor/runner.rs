@@ -506,13 +506,19 @@ fn run_in_project(
     let app_session_scope = req.app_session_scope.as_deref();
 
     let agent_key = req.options.get("agent").and_then(Value::as_str).map(ToOwned::to_owned);
-    let config = match prompt::block_on(config::get_current()) {
+    let mut config = match prompt::block_on(config::get_current()) {
         Ok(config) => config,
         Err(error) => {
             on_event(StreamEvent::Error(format!("Failed to load request config: {error}")));
             return;
         }
     };
+    if let Err(error) =
+        prompt::block_on(crate::session::agent_binding::apply_to_config(&req.session, &mut config))
+    {
+        on_event(StreamEvent::Error(error.to_string()));
+        return;
+    }
     let native_defaults = if !is_acp {
         match prompt::block_on(crate::session::capability_policy::native_agent_defaults(
             &config,

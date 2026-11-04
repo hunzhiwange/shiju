@@ -301,7 +301,7 @@ fn normalize_agent_mode(raw: &str) -> String {
 }
 
 pub async fn permission_rules(name: &str) -> Option<Ruleset> {
-    load_state().await.ok()?.agents.get(name).map(|agent| agent.permission.clone())
+    load_state_with_disabled().await.ok()?.agents.get(name).map(|agent| agent.permission.clone())
 }
 
 /// Interactive main tools use the runtime security pipeline; worker definitions
@@ -437,6 +437,12 @@ fn merge_json_value(target: &mut Value, source: &Value) {
 ///
 /// 返回初始化完成的 `State` 结构体
 async fn load_state() -> Result<State, String> {
+    let mut state = load_state_with_disabled().await?;
+    state.agents.retain(|_, agent| agent.definition.enabled);
+    Ok(state)
+}
+
+async fn load_state_with_disabled() -> Result<State, String> {
     let config = crate::config::get_current().await.map_err(|error| error.to_string())?;
     let tenant = crate::session::ui_store::current_tenant_scope();
     // 桌面偏好只提供兼容权限字段；代理定义必须来自租户/项目配置。
@@ -485,9 +491,6 @@ async fn load_state() -> Result<State, String> {
     let mut agents: HashMap<String, ResolvedAgentDefinition> = HashMap::new();
 
     for (key, config) in configured_agents {
-        if !config.enabled {
-            continue;
-        }
         agents.insert(key.clone(), build_resolved_agent(&key, config, &defaults, &user));
     }
 

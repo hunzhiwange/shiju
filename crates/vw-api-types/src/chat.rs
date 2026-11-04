@@ -347,3 +347,12 @@ pub enum ChatEvent {
     Error(ChatErrorEvent),
     Done(DoneEvent),
 }
+
+/// Read-only UI projection of a server-owned session agent binding.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct SessionAgentIdentity {
+    pub agent: String,
+    pub label: Option<String>,
+    /// Absent for the native engine; otherwise a stable ACP backend key.
+    pub acp_agent: Option<String>,
+}

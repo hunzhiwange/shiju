@@ -760,6 +760,7 @@ fn processor_event_from_prompt_event(
     }
 }
 
+#[cfg(test)]
 async fn resolve_delegate_request_overrides(
     agent_name: Option<String>,
     allowed_tools: Option<Vec<String>>,
@@ -780,16 +781,33 @@ async fn resolve_delegate_request_overrides(
         });
     };
 
-    let Some(mut config) = agent::get(&agent_name).await else {
+    let Some(config) = agent::get(&agent_name).await else {
         return Err(ApiError::bad_request(format!("unknown agent: {}", agent_name)));
     };
 
     let runtime_config = crate::config::get_current()
         .await
         .map_err(|error| ApiError::bad_request(error.to_string()))?;
+    resolve_delegate_overrides_from_config(
+        agent_name,
+        config,
+        &runtime_config,
+        explicit_allowed_tools,
+        explicit_model,
+    )
+    .await
+}
+
+async fn resolve_delegate_overrides_from_config(
+    agent_name: String,
+    mut config: vw_config_types::agent::AgentDefinitionConfig,
+    runtime_config: &crate::config::Config,
+    explicit_allowed_tools: Option<Vec<String>>,
+    explicit_model: Option<String>,
+) -> Result<DelegateRequestOverrides, ApiError> {
     let workspace = instance::directory();
     let defaults = crate::session::capability_policy::native_agent_defaults(
-        &runtime_config,
+        runtime_config,
         &agent_name,
         explicit_model.as_deref(),
         Path::new(&workspace),
@@ -801,11 +819,27 @@ async fn resolve_delegate_request_overrides(
     {
         config.allowed_skills = defaults.effective.skills.clone();
     }
+    if config.force_model_selection
+        && explicit_model.as_ref().is_some_and(|model| {
+            !model.trim().eq_ignore_ascii_case("auto")
+                && model != &format!("{}/{}", config.provider, config.model)
+        })
+    {
+        return Err(ApiError::bad_request(
+            "explicit model conflicts with forced agent model binding",
+        ));
+    }
+    let fixed_model = match &config.defaults.model {
+        vw_config_types::agent::AgentDefault::Fixed(model) => {
+            Some(format!("{}/{}", model.provider, model.model))
+        }
+        vw_config_types::agent::AgentDefault::Inherit => None,
+    };
     let model = defaults
         .as_ref()
         .and_then(|defaults| defaults.effective.model.as_ref())
         .map(|model| format!("{}/{}", model.provider, model.model))
-        .or_else(|| delegated_model_override(&config, explicit_model));
+        .or_else(|| delegated_model_override(&config, explicit_model.or(fixed_model)));
     let chat_system_prompt = config
         .system_prompt
         .as_deref()
@@ -939,35 +973,100 @@ async fn start_gateway_chat_stream(
     Ok(rx)
 }
 
+async fn prepare_gateway_agent_request(
+    body: &mut GatewayChatStreamRequest,
+) -> Result<DelegateRequestOverrides, ApiError> {
+    let options = body.options.as_ref();
+    if options.is_some_and(|options| options.get("agent_binding").is_some()) {
+        return Err(ApiError::bad_request("agent_binding is server-owned"));
+    }
+    let option_backend =
+        options.and_then(|options| options.get("acp_agent")).and_then(Value::as_str);
+    if body.acp_agent.as_deref().zip(option_backend).is_some_and(|(a, b)| a != b) {
+        return Err(ApiError::bad_request("conflicting ACP backend selections"));
+    }
+    let backend = body.acp_agent.as_deref().or(option_backend).map(ToOwned::to_owned);
+    let ephemeral =
+        options.and_then(|options| options.get("goal_evaluation")).and_then(Value::as_bool)
+            == Some(true)
+            && body.session_id.as_ref().is_none_or(|id| id.0.trim().is_empty());
+    if !ephemeral && body.session_id.as_ref().is_none_or(|id| id.0.trim().is_empty()) {
+        body.session_id = Some(
+            id::ascending(id::Prefix::Session, None)
+                .map_err(|error| ApiError::internal(error.to_string()))?
+                .into(),
+        );
+    }
+    let session = body.session_id.as_ref().map(|id| id.0.as_str()).unwrap_or_default();
+    let (binding, config) = crate::session::agent_binding::prepare(
+        session,
+        body.agent.as_deref(),
+        backend.as_deref(),
+        body.model.as_deref(),
+        Path::new(&instance::directory()),
+    )
+    .await
+    .map_err(|error| ApiError::bad_request(error.to_string()))?;
+    match &binding.runtime {
+        vw_config_types::agent::AgentRuntime::Native => {
+            if options.and_then(|options| options.get("acp_test")).and_then(Value::as_bool)
+                == Some(true)
+            {
+                return Err(ApiError::bad_request(
+                    "native agent conflicts with ACP runtime options",
+                ));
+            }
+            body.acp_agent = None;
+        }
+        vw_config_types::agent::AgentRuntime::Acp { backend } => {
+            body.acp_agent = Some(backend.clone())
+        }
+    }
+    body.agent = Some(binding.agent.clone());
+    let definition = config
+        .agents
+        .get(&binding.agent)
+        .cloned()
+        .ok_or_else(|| ApiError::internal("bound agent definition missing"))?;
+    resolve_delegate_overrides_from_config(
+        binding.agent,
+        definition,
+        &config,
+        body.allowed_tools.clone().map(|tools| normalize_tool_ids(tools).unwrap_or_default()),
+        body.model.clone(),
+    )
+    .await
+}
+
 type SharedPromptCancel = Arc<Mutex<Option<agent_session::runtime::PromptCancelHandle>>>;
 
 async fn start_gateway_chat_producer(
     tenant: TenantScope,
     dir: String,
-    body: GatewayChatStreamRequest,
+    mut body: GatewayChatStreamRequest,
     delegate_overrides: Option<DelegateRequestOverrides>,
     abort_token: Option<tokio_util::sync::CancellationToken>,
     prompt_cancel: Option<SharedPromptCancel>,
     send: impl FnMut(Value, bool) -> bool + Send + 'static,
 ) -> Result<(), ApiError> {
+    let delegate_overrides = match delegate_overrides {
+        Some(overrides) => overrides,
+        None => prepare_gateway_agent_request(&mut body).await?,
+    };
     let GatewayChatStreamRequest {
         acp_model_source: _,
         session_id,
         messages,
         system: _,
-        model,
+        model: _,
         reasoning_effort,
-        agent,
-        allowed_tools,
+        agent: _,
+        allowed_tools: _,
         acp_agent,
         acp_allowed_tools,
         options,
     } = body;
 
-    let delegate_overrides = match delegate_overrides {
-        Some(delegate_overrides) => delegate_overrides,
-        None => resolve_delegate_request_overrides(agent, allowed_tools, model).await?,
-    };
     let model = delegate_overrides.model.clone();
     let message_agent = delegate_overrides.agent.clone().unwrap_or_else(|| "gateway".to_string());
     let preserve_structured_prompt = acp_agent.is_some();
@@ -1415,7 +1514,7 @@ async fn collect_gateway_chat_stream_payloads(
 pub(super) async fn chat_stream(
     Query(query): Query<InstanceQuery>,
     headers: HeaderMap,
-    Json(body): Json<GatewayChatStreamRequest>,
+    Json(mut body): Json<GatewayChatStreamRequest>,
 ) -> Result<impl IntoResponse, ApiError> {
     let tenant = crate::session::ui_store::current_tenant_scope();
     let dir = resolve_directory(&query, &headers);
@@ -1427,12 +1526,7 @@ pub(super) async fn chat_stream(
     let tenant_for_stream = tenant.clone();
     let sse = with_tenant_instance(tenant, dir.clone(), move || {
         Box::pin(async move {
-            let delegate_overrides = resolve_delegate_request_overrides(
-                body.agent.clone(),
-                body.allowed_tools.clone(),
-                body.model.clone(),
-            )
-            .await?;
+            let delegate_overrides = prepare_gateway_agent_request(&mut body).await?;
             let mut opened = global_stream_store()
                 .open(
                     tenant_for_stream.clone(),

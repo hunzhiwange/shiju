@@ -194,6 +194,7 @@ fn trajectory_snapshot_refresh_populates_raw_without_opening_usage_modal() {
         super::ChatMessage::TrajectorySnapshotLoaded {
             session_id: session_id.clone(),
             result: Ok(Some(vw_gateway_client::SessionUiLoadResult {
+                agent_binding: None,
                 session: crate::app::models::ChatSession {
                     id: session_id,
                     title: "test".to_string(),
@@ -234,6 +235,7 @@ fn trajectory_snapshot_refresh_ignores_inactive_session() {
         super::ChatMessage::TrajectorySnapshotLoaded {
             session_id: "stale-session".to_string(),
             result: Ok(Some(vw_gateway_client::SessionUiLoadResult {
+                agent_binding: None,
                 session: crate::app::models::ChatSession {
                     id: "stale-session".to_string(),
                     title: "stale".to_string(),

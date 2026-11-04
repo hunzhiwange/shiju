@@ -36,7 +36,7 @@ use ui_ops::{
     session_archived_get, session_archived_put, session_path_get, session_scope_get,
     session_scope_put, session_step_llm_raw_get, session_ui_get, session_ui_get_any,
     session_ui_get_without_raw, session_ui_message_delta, session_ui_messages,
-    session_ui_preview_meta, session_ui_previews, session_ui_save, session_ui_summary,
+    session_ui_preview_meta, session_ui_previews, session_ui_save_request, session_ui_summary,
 };
 use vw_api_types::id::TenantScope;
 
@@ -76,7 +76,7 @@ pub(crate) fn router() -> Router<AppState> {
         .route("/session/ui-previews", get(session_ui_previews))
         .route("/session/archived", get(session_archived_get).put(session_archived_put))
         .route("/session/scope", get(session_scope_get).put(session_scope_put))
-        .route("/session/{session_id}/ui", get(session_ui_get).put(session_ui_save))
+        .route("/session/{session_id}/ui", get(session_ui_get).put(session_ui_save_request))
         .route("/session/{session_id}/ui/summary", get(session_ui_summary))
         .route(
             "/session/{session_id}/ui/messages",

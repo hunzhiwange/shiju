@@ -34,6 +34,8 @@ pub(super) struct SessionStepWithRaw {
 #[derive(Debug, Clone, Serialize)]
 pub(super) struct SessionWithRaw {
     pub id: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub agent_binding: Option<ui_models::SessionAgentIdentity>,
     pub title: String,
     #[serde(default)]
     pub messages: Vec<ui_models::ChatMessage>,
@@ -271,7 +273,13 @@ pub(super) async fn session_ui_get(
                 };
                 steps.push(SessionStepWithRaw { step, llm_raw });
             }
+            let agent_binding = ui_store::load_session_agent_identity_scoped_for_tenant(
+                &tenant,
+                &session.id,
+                scope.as_deref(),
+            )?;
             Ok(Some(SessionWithRaw {
+                agent_binding,
                 id: session.id,
                 title: session.title,
                 messages: session.messages,
@@ -314,7 +322,13 @@ pub(super) async fn session_ui_get_without_raw(
             .into_iter()
             .map(|step| SessionStepWithRaw { step, llm_raw: None })
             .collect();
+        let agent_binding = ui_store::load_session_agent_identity_scoped_for_tenant(
+            &tenant,
+            &session.id,
+            scope.as_deref(),
+        )?;
         Ok(Some(SessionWithRaw {
+            agent_binding,
             id: session.id,
             title: session.title,
             messages: session.messages,
@@ -362,6 +376,17 @@ pub(super) async fn session_step_llm_raw_get(
     .map_err(|error| ApiError::internal(error.to_string()))?;
     let raw = raw.map_err(|error| ApiError::internal(error.to_string()))?;
     Ok(Json(raw))
+}
+
+pub(super) async fn session_ui_save_request(
+    path: Path<String>,
+    query: Query<InstanceQuery>,
+    headers: HeaderMap,
+    Json(body): Json<Value>,
+) -> Result<Json<bool>, ApiError> {
+    let body = ui_models::decode_ui_session(body)
+        .map_err(|error| ApiError::bad_request(error.to_string()))?;
+    session_ui_save(path, query, headers, Json(body)).await
 }
 
 pub(super) async fn session_ui_save(

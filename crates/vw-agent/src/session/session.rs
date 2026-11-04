@@ -915,6 +915,8 @@ pub(crate) async fn fork_with_parent(
 ) -> Result<Info, Error> {
     // 读取原始会话信息
     let original = get(session_id).await?;
+    let binding =
+        crate::session::agent_binding::load_scoped(&original.project_id, session_id).await?;
     // 生成分支标题
     let title = forked_title(&original.title);
     let directory = instance_directory_opt().unwrap_or_else(|| original.directory.clone());
@@ -936,6 +938,10 @@ pub(crate) async fn fork_with_parent(
     })
     .await?;
 
+    if let Some(binding) = binding {
+        crate::session::agent_binding::save_scoped(&created.project_id, &created.id, &binding)
+            .await?;
+    }
     // 获取原始会话的所有消息，按时间正序复制，保证父消息映射可用。
     msgs.sort_by(|a, b| a.info.id().cmp(b.info.id()));
     // 建立旧消息 ID 到新消息 ID 的映射

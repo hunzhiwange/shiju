@@ -2324,3 +2324,187 @@ async fn agent_native_defaults_do_not_grant_disabled_mcp() {
     .await;
     assert!(result.is_err(), "a missing or disabled MCP default must reject admission");
 }
+
+#[tokio::test]
+async fn agent_session_identity_rejects_forged_ui_binding() {
+    let _env = crate::test_support::global_async_env_lock().lock().await;
+    let _fixture = crate::session::llm::recovery_test_support::RecoveryConfig::new(
+        "https://example.test/v1",
+        None,
+    )
+    .await;
+    let workspace = tempfile::tempdir().unwrap();
+    let result = chat_stream(
+        Query(InstanceQuery { directory: Some(workspace.path().to_string_lossy().into_owned()) }),
+        HeaderMap::new(),
+        Json(GatewayChatStreamRequest {
+            session_id: Some(format!("ses_binding_{}", uuid::Uuid::new_v4()).into()),
+            agent: Some("main".into()),
+            messages: vec![serde_json::json!({"role":"user", "content":"hello"})],
+            options: Some(serde_json::json!({"agent_binding": {
+                "agent":"main", "runtime":{"kind":"acp", "backend":"codex"},
+                "permission":{"*":"allow"}
+            }})),
+            ..Default::default()
+        }),
+    )
+    .await;
+    assert!(result.is_err(), "client UI JSON must not supply a trusted runtime binding");
+}
+
+#[test]
+fn agent_session_identity_survives_profile_edits() {
+    let runtime = tokio::runtime::Runtime::new().unwrap();
+    let _env = runtime.block_on(crate::test_support::global_async_env_lock().lock());
+    let _fixture =
+        runtime.block_on(crate::session::llm::recovery_test_support::RecoveryConfig::new(
+            "https://example.test/v1",
+            None,
+        ));
+    let _streams = agent_session::processor::test_llm_stream_guard();
+    let workspace = tempfile::tempdir().unwrap();
+    let session_id = format!("ses_binding_{}", uuid::Uuid::new_v4());
+    for rule in ["ORIGINAL_BINDING_RULE", "EDITED_PROFILE_RULE"] {
+        runtime.block_on(crate::config::update_project(workspace.path(), serde_json::json!({
+            "agents":{"main":{
+                "system_prompt":rule,
+                "defaults":{
+                    "model":{"mode":"fixed","value":{"provider":"model-recovery","model":"original"}},
+                    "skills":{"mode":"fixed","value":[]},
+                    "mcp":{"mode":"fixed","value":[]}
+                }
+            }}
+        }))).unwrap();
+        agent_session::processor::enqueue_test_llm_stream(vec![
+            agent_session::llm::StreamEvent::Delta("ready".into()),
+            agent_session::llm::StreamEvent::Done {
+                usage: Default::default(),
+                finish_reason: Some("stop".into()),
+            },
+        ]);
+        let request = GatewayChatStreamRequest {
+            session_id: Some(session_id.clone().into()),
+            agent: Some("main".into()),
+            messages: vec![serde_json::json!({"role":"user","content":"hello"})],
+            options: Some(serde_json::json!({"full_access":false})),
+            ..Default::default()
+        };
+        let directory = workspace.path().to_string_lossy().into_owned();
+        let tenant = crate::session::ui_store::current_tenant_scope();
+        runtime.block_on(async {
+            let mut receiver = with_tenant_instance(tenant.clone(), directory.clone(), move || {
+                Box::pin(async move { start_gateway_chat_stream(tenant, directory, request).await })
+            })
+            .await
+            .unwrap();
+            loop {
+                let payload =
+                    tokio::time::timeout(std::time::Duration::from_secs(20), receiver.recv())
+                        .await
+                        .unwrap()
+                        .expect("terminal gateway event");
+                assert_ne!(payload["type"], "chat.error", "{payload}");
+                if payload["type"] == "chat.done" {
+                    break;
+                }
+            }
+        });
+        let captured = agent_session::processor::take_test_llm_messages(&session_id);
+        assert_eq!(captured.len(), 1);
+        assert!(
+            captured[0].system.iter().any(|body| body.contains("ORIGINAL_BINDING_RULE")),
+            "resuming the same session must retain its original rules after profile edits"
+        );
+        assert!(!captured[0].system.iter().any(|body| body.contains("EDITED_PROFILE_RULE")));
+    }
+    let tenant = crate::session::ui_store::current_tenant_scope();
+    let directory = workspace.path().to_string_lossy().into_owned();
+    runtime
+        .block_on(with_tenant_instance(tenant.clone(), directory, move || {
+            Box::pin(async move {
+                let fork = agent_session::session::fork(&session_id, None).await.unwrap();
+                assert!(fork.parent_id.is_none(), "fork must retain existing parent semantics");
+                let fork_binding =
+                    crate::session::agent_binding::load(&fork.id).await.unwrap().unwrap();
+                assert_eq!(fork_binding.system_prompt.as_deref(), Some("ORIGINAL_BINDING_RULE"));
+                crate::session::ui_config::set_config_field_result(
+                    &tenant,
+                    "permission",
+                    serde_json::json!({"*":"deny"}),
+                )
+                .unwrap();
+                crate::config::update_project(
+                    workspace.path(),
+                    serde_json::json!({
+                        "agents":{"main":{"enabled":false}}
+                    }),
+                )
+                .await
+                .unwrap();
+                let mut resumed = GatewayChatStreamRequest {
+                    session_id: Some(session_id.clone().into()),
+                    agent: Some("main".into()),
+                    ..Default::default()
+                };
+                let overrides = prepare_gateway_agent_request(&mut resumed).await.unwrap();
+                assert_eq!(overrides.chat_system_prompt.as_deref(), Some("ORIGINAL_BINDING_RULE"));
+                let mut config = crate::config::get_current().await.unwrap();
+                crate::session::agent_binding::apply_to_config(&session_id, &mut config)
+                    .await
+                    .unwrap();
+                let defaults = crate::session::capability_policy::native_agent_defaults(
+                    &config,
+                    "main",
+                    None,
+                    workspace.path(),
+                )
+                .await
+                .unwrap()
+                .unwrap();
+                assert_eq!(
+                    defaults.effective.permission_action("shell", "*"),
+                    crate::permission::next::Action::Deny,
+                    "the latest security revocation must still apply to the stored snapshot"
+                );
+                let mut new_session =
+                    GatewayChatStreamRequest { agent: Some("main".into()), ..Default::default() };
+                assert!(
+                    prepare_gateway_agent_request(&mut new_session).await.is_err(),
+                    "disabled agents cannot start new sessions"
+                );
+                Ok(())
+            })
+        }))
+        .unwrap();
+}
+
+#[tokio::test]
+async fn agent_session_identity_derives_backend_and_rejects_conflicts() {
+    let _env = crate::test_support::global_async_env_lock().lock().await;
+    let _fixture = crate::session::llm::recovery_test_support::RecoveryConfig::new(
+        "https://example.test/v1",
+        None,
+    )
+    .await;
+    let workspace = tempfile::tempdir().unwrap();
+    let tenant = crate::session::ui_store::current_tenant_scope();
+    with_tenant_instance(tenant, workspace.path().to_string_lossy().into_owned(), || {
+        Box::pin(async {
+            let mut request =
+                GatewayChatStreamRequest { agent: Some("acp-codex".into()), ..Default::default() };
+            let overrides = prepare_gateway_agent_request(&mut request).await.unwrap();
+            assert_eq!(overrides.agent.as_deref(), Some("acp-codex"));
+            assert_eq!(request.acp_agent.as_deref(), Some("codex"));
+            let mut conflicting = request.clone();
+            conflicting.acp_agent = Some("claude".into());
+            conflicting.options = Some(serde_json::json!({"goal_evaluation":true}));
+            assert!(prepare_gateway_agent_request(&mut conflicting).await.is_err());
+            let mut conflicting = request;
+            conflicting.agent = Some("acp-claude".into());
+            assert!(prepare_gateway_agent_request(&mut conflicting).await.is_err());
+            Ok(())
+        })
+    })
+    .await
+    .unwrap();
+}

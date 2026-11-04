@@ -137,6 +137,10 @@ pub(crate) async fn do_stream_request_acp(
         .ok_or_else(|| to_api_error("failed to resolve cwd for acp session"))?;
     let mut parsed_options =
         parse_acp_options(merged_options, &acp_agent_name, &normalized_acp_cfg)?;
+    let mut cfg = cfg;
+    crate::session::agent_binding::apply_to_config(session_id, &mut cfg)
+        .await
+        .map_err(to_api_error)?;
     let chat_messages = super::config::apply_agent_defaults(
         &cfg,
         merged_options,

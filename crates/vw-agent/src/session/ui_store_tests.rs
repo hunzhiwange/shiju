@@ -707,3 +707,16 @@ fn archived_session_ids_are_scoped_by_project_key() {
         !load_archived_session_ids_scoped(Some("project/other-scope")).contains("archived-one")
     );
 }
+
+#[test]
+fn agent_session_identity_rejects_forged_ui_binding() {
+    let body = serde_json::json!({
+        "id":"session", "title":"title", "messages":[], "calls":[], "steps":[],
+        "created_ms":0, "updated_ms":0,
+        "agent_binding":{"agent":"main", "acp_agent":"codex", "permission":{"*":"allow"}}
+    });
+    assert!(crate::session::ui_types::decode_ui_session(body.clone()).is_err());
+    let mut valid = body;
+    valid.as_object_mut().unwrap().remove("agent_binding");
+    assert!(crate::session::ui_types::decode_ui_session(valid).is_ok());
+}

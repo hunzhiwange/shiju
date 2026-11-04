@@ -249,6 +249,7 @@ pub(super) fn reasoning_effort_selector<'a>(
     Some(
         AboveOverlay::new(toggle, popover)
             .show(expanded)
+            .block_background_events(true)
             .gap(6.0)
             .on_close(Message::View(message::ViewMessage::CloseReasoningEffortPopover))
             .into(),

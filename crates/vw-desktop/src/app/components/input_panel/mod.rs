@@ -335,6 +335,7 @@ pub(super) fn acp_selector_button<'a>(
     Some(
         AboveOverlay::new(toggle, popover)
             .show(app.show_acp_popover)
+            .block_background_events(true)
             .gap(6.0)
             .on_close(Message::View(message::ViewMessage::CloseAcpPopover))
             .into(),
@@ -604,6 +605,7 @@ pub fn view<'a>(app: &'a App) -> Element<'a, Message> {
     // 组合模型按钮和弹出框为覆盖层组件
     let model_btn: Element<'_, Message> = AboveOverlay::new(model_toggle, model_pop_content)
         .show(app.show_model_popover)
+        .block_background_events(true)
         .gap(6.0)
         .on_close(Message::View(message::ViewMessage::CloseModelPopover))
         .into();

@@ -380,6 +380,49 @@ fn above_overlay_element_update_closes_outside_and_captures_inside() {
 }
 
 #[test]
+fn above_overlay_blocks_hover_in_covered_regions_and_preserves_child_interaction() {
+    let renderer = RecordingRenderer::default();
+    let node = layout_for(Rectangle { x: 150.0, y: 64.0, width: 70.0, height: 40.0 });
+
+    for block_background_events in [false, true] {
+        for child_interaction in [mouse::Interaction::None, mouse::Interaction::Pointer] {
+            let mut overlay = overlay_content(70.0, 40.0, child_interaction);
+            let mut tree = widget::Tree::empty();
+            let element = AboveOverlayElement {
+                position: Point::new(170.0, 110.0),
+                target_bounds: Rectangle { x: 170.0, y: 110.0, width: 40.0, height: 20.0 },
+                viewport: Rectangle::with_size(Size::new(220.0, 160.0)),
+                gap: 6.0,
+                snap_within_viewport: true,
+                overlay: &mut overlay,
+                tree: &mut tree,
+                on_close: Some(TestMessage::Close),
+                block_background_events,
+            };
+
+            for (cursor, covered) in [
+                (mouse::Cursor::Available(Point::new(170.0, 80.0)), true),
+                (mouse::Cursor::Available(Point::new(20.0, 20.0)), block_background_events),
+                (mouse::Cursor::Unavailable, false),
+            ] {
+                let interaction = overlay::Overlay::mouse_interaction(
+                    &element,
+                    Layout::new(&node),
+                    cursor,
+                    &renderer,
+                );
+                let expected = if child_interaction == mouse::Interaction::None && covered {
+                    mouse::Interaction::Idle
+                } else {
+                    child_interaction
+                };
+                assert_eq!(interaction, expected);
+            }
+        }
+    }
+}
+
+#[test]
 fn blocking_above_overlay_captures_full_outside_click_before_closing() {
     let mut overlay = overlay_content(70.0, 40.0, mouse::Interaction::Pointer);
     let mut tree = widget::Tree::empty();

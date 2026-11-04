@@ -198,20 +198,32 @@ where
 
     /// 返回覆盖层的鼠标交互状态
     ///
-    /// 委托给覆盖层元素的 `mouse_interaction` 方法。
+    /// 保留内容的鼠标样式，并用 Idle 标记遮挡区域，阻止底层控件悬停。
     fn mouse_interaction(
         &self,
         layout: Layout<'_>,
         cursor: mouse::Cursor,
         renderer: &RendererT,
     ) -> mouse::Interaction {
-        self.overlay.as_widget().mouse_interaction(
+        let interaction = self.overlay.as_widget().mouse_interaction(
             self.tree,
             layout,
             cursor,
             &self.viewport,
             renderer,
-        )
+        );
+
+        if interaction == mouse::Interaction::None
+            && cursor.is_over(if self.block_background_events {
+                self.viewport
+            } else {
+                layout.bounds()
+            })
+        {
+            mouse::Interaction::Idle
+        } else {
+            interaction
+        }
     }
 
     /// 绘制覆盖层

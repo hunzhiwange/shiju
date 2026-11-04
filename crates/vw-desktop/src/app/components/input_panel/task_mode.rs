@@ -459,6 +459,7 @@ pub fn task_mode_form<'a>(
     let executor_btn: Element<'_, Message> =
         AboveOverlay::new(executor_toggle, executor_pop_content)
             .show(app.show_executor_popover)
+            .block_background_events(true)
             .gap(6.0)
             .on_close(Message::View(message::ViewMessage::CloseExecutorPopover))
             .into();

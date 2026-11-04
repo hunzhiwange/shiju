@@ -618,3 +618,38 @@ async fn local_import_client_rejects_remote_endpoint() {
         .expect_err("remote import must fail before sending");
     assert_eq!(error, "本机导入不支持远程网关");
 }
+
+#[tokio::test]
+async fn file_list_preserves_endpoint_tenant_and_empty_directory() {
+    let server = test_support::server_with_tenant_scope(
+        vec![
+            (
+                200,
+                json!({"project":{"id":"project","name":"Repo","directory":"/repo","display_path":"/repo","status":"ready","created_at_ms":1,"updated_at_ms":2,"git":{"is_repo":false,"has_uncommitted_changes":false}}}),
+            ),
+            (200, json!([{"path":"空目录","name":"空目录","type":"directory"}])),
+            (200, json!([])),
+        ],
+        vw_api_types::id::TenantScope::new("10001", "100010005").unwrap(),
+    );
+    let result = server
+        .client()
+        .file_list(&ListFilesRequest {
+            project_id: "project".into(),
+            worktree_id: None,
+            path: None,
+            depth: None,
+        })
+        .await
+        .expect("file list must use the endpoint tenant");
+    let children = result.root.children.unwrap();
+    assert_eq!(children.len(), 1);
+    assert_eq!(children[0].name, "空目录");
+    assert_eq!(children[0].children, Some(vec![]));
+    for _ in 0..3 {
+        let request = server.take_request();
+        assert_eq!(request.header("x-platform-id"), Some("10001"));
+        assert_eq!(request.header("x-company-id"), Some("100010005"));
+    }
+    server.join();
+}

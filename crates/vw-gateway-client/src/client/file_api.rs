@@ -265,7 +265,8 @@ impl GatewayClient {
         project_id: &T,
         worktree_id: Option<&U>,
     ) -> Result<String, String> {
-        let scope = vw_api_types::id::ProjectScope::for_default_tenant(
+        let scope = vw_api_types::id::ProjectScope::new(
+            self.endpoint().tenant_scope().clone(),
             vw_api_types::id::ProjectId::from(project_id.as_ref()),
         )
         .map_err(|error| error.to_string())?;

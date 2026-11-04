@@ -1,0 +1,55 @@
+{
+  "slot": 2,
+  "cargo_target_dir": "/Users/xiangmin/worker/code/shiju/target/rust-slot-2",
+  "checks": [
+    {
+      "name": "focused",
+      "command": [
+        "cargo",
+        "test",
+        "-p",
+        "vw-agent",
+        "--lib",
+        "--all-features",
+        "acp_model_source_snow",
+        "--",
+        "--nocapture"
+      ],
+      "exit_code": 0
+    },
+    {
+      "name": "session-model",
+      "command": [
+        "python3",
+        "scripts/verify_acp_model_source.py",
+        "--agent",
+        "snow",
+        "--mode",
+        "session-model",
+        "--manifest",
+        "docs/vibewindow/acp-model-source/evidence/snow/manifest.json",
+        "--output",
+        "target/acp-model-source-evidence/snow/session-model-formal-regression",
+        "--offline-fixture"
+      ],
+      "exit_code": 0
+    },
+    {
+      "name": "cli-local",
+      "command": [
+        "python3",
+        "scripts/verify_acp_model_source.py",
+        "--agent",
+        "snow",
+        "--mode",
+        "cli-local",
+        "--manifest",
+        "docs/vibewindow/acp-model-source/evidence/snow/manifest.json",
+        "--output",
+        "target/acp-model-source-evidence/snow/cli-local-formal-regression",
+        "--offline-fixture"
+      ],
+      "exit_code": 0
+    }
+  ]
+}

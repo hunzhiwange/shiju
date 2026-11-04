@@ -1,7 +1,7 @@
 # Snow 模型来源适配证据
 
-状态：实现完成，待统一 Cargo 回归。真实 CLI 能力已经取得证据；未把重编译失败或
-缓存二进制结果冒充正式 Cargo 验收通过。仅验证 Darwin arm64，其他系统未验证。
+状态：已完成。最新共享工作区上的正式 Cargo 回归已通过；仅验证 Darwin arm64，
+其他系统未验证。缓存生产二进制结果保留为历史诊断，正式验收以本次 Cargo 结果为准。
 
 固定发行包 `snow-ai@0.9.14`，源码基线 `a9eba5f9062afbf639829b4992e90a986924f519`。
 独立清单见 [snow/manifest.json](snow/manifest.json)，npm integrity 与基线一致。
@@ -49,7 +49,25 @@ argv 保持原样。不复制 OAuth、其他 profile 或视觉模型回退配置
 测试进程默认使用 32 MiB 线程栈。目录探测不计作生成请求，错误认证仍被拒绝。
 没有放宽生产中继能力检查，没有模拟 ACP CLI 或供应商工具执行。
 
-## 真实生产链与正式 Cargo 验收的区别
+## 正式 Cargo 回归（2026-11-04）
+
+使用原始 `scripts/verify_acp_model_source.py`，未替换 Cargo 执行器。阶段记录见
+[formal-regression.json](snow/formal-regression.json)。
+
+| 来源 | 脚本退出码 | Cargo 退出码 | 有效测试 | 真实生成请求 |
+| --- | --- | --- | --- | --- |
+| [session-model](snow/session-model.json) | 0 | 0 | 1 passed | 13 |
+| [cli-local](snow/cli-local.json) | 0 | 0 | 1 passed | 13 |
+
+两种来源均 `passed=true`、fixture 错误数 0，认证及模型正确、工具结果达到 2；
+新建、第二轮、取消、恢复、切换、隔离及握手均通过。session-model 从 primary
+切换到 switched，cli-local 始终使用 primary。正式运行前的聚焦预热也通过：3 passed，退出 0。
+
+本次动态领取槽位 **2**，`CARGO_TARGET_DIR` 与 `CARGO_BUILD_BUILD_DIR` 均为
+`/Users/xiangmin/worker/code/shiju/target/rust-slot-2`。全部相关进程结束后已释放自己的锁，
+保留缓存。此前已通过且未受改动影响的 Clippy、Python 合同测试和四协议探测不重复执行。
+
+## 历史诊断：缓存生产二进制与正式 Cargo 验收的区别
 
 使用槽位 3 中刚通过上述 3 项测试的**同一生产测试二进制**，调用任务 10 原有
 验收入口、原有判定及真实 Snow 子进程；只将 Cargo 启动替换为该二进制执行，避免
@@ -66,17 +84,17 @@ argv 保持原样。不复制 OAuth、其他 profile 或视觉模型回退配置
 错误凭据，真实请求没有使用它们。此前原始 Cargo cli-local 入口也取得过
 1 passed / 13 requests，但不能代替最新源码的统一回归。
 
-正式 Cargo 重跑遇到其他计划的 `stream.rs` 配置字段改动、Rust 增量编译错误，
-以及持续源码改动引起的重复重编译/验收器 300 秒超时。最后一次检测到再次重编译后，
+此前正式 Cargo 重跑遇到其他计划的 `stream.rs` 配置字段改动、Rust 增量编译错误，
+以及持续源码改动引起的重复重编译/验收器 300 秒超时。当时检测到再次重编译后，
 依调度指示停止该重复构建；没有改动无关文件，也没有把零测试记作通过。
 
-最终构建与二进制验证槽位为 **3**：
+前次实现与缓存二进制验证槽位为 **3**：
 `CARGO_TARGET_DIR=/Users/xiangmin/worker/code/shiju/target/rust-slot-3`，
 `CARGO_BUILD_BUILD_DIR` 使用相同绝对路径。此前使用过槽位 1、5、10，分别对应
 `/Users/xiangmin/worker/code/shiju/target/rust-slot-1`、`rust-slot-5`、`rust-slot-10`。
 所有槽位动态领取，自己的锁在所有相关进程结束后释放，缓存保留。
 
-## 统一回归
+## 正式验收复现命令
 
 冻结无关源码改动，按编号任务规则领取槽位并设置两个绝对构建目录；先预热聚焦测试，
 再执行以下原任务 10 验收器。公共版本清单仍保持只读，使用独立 Snow 清单：
@@ -89,5 +107,5 @@ python3 scripts/verify_acp_model_source.py --agent snow --mode cli-local --manif
 cargo clippy --all-targets --all-features -- -D warnings
 ```
 
-两种来源各取得正式 Cargo 的 1 passed 后，才能解除待回归并删除编号任务文件。
+本次两种来源均已取得正式 Cargo 的 1 passed，已解除待回归并删除编号任务文件。
 任务 33 集成时还需更新共享“所有 driver 未验收”基线测试，再发布能力。

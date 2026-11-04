@@ -1,0 +1,132 @@
+{
+  "agent": "snow",
+  "mode": "cli-local",
+  "evidence_kind": "real-cli",
+  "status": "passed",
+  "passed": true,
+  "platform": "Darwin-arm64",
+  "cargo_exit_code": 0,
+  "effective_tests": 1,
+  "failure_locations": [],
+  "requests": {
+    "requests": [
+      {
+        "model": "acp-fixture-primary",
+        "authenticated": true,
+        "route": "/v1/chat/completions",
+        "tool_results": 0,
+        "auxiliary": false
+      },
+      {
+        "model": "acp-fixture-primary",
+        "authenticated": true,
+        "route": "/v1/chat/completions",
+        "tool_results": 1,
+        "auxiliary": false
+      },
+      {
+        "model": "acp-fixture-primary",
+        "authenticated": true,
+        "route": "/v1/chat/completions",
+        "tool_results": 2,
+        "auxiliary": false
+      },
+      {
+        "model": "acp-fixture-primary",
+        "authenticated": true,
+        "route": "/v1/chat/completions",
+        "tool_results": 0,
+        "auxiliary": false
+      },
+      {
+        "model": "acp-fixture-primary",
+        "authenticated": true,
+        "route": "/v1/chat/completions",
+        "tool_results": 1,
+        "auxiliary": false
+      },
+      {
+        "model": "acp-fixture-primary",
+        "authenticated": true,
+        "route": "/v1/chat/completions",
+        "tool_results": 2,
+        "auxiliary": false
+      },
+      {
+        "model": "acp-fixture-primary",
+        "authenticated": true,
+        "route": "/v1/chat/completions",
+        "tool_results": 0,
+        "auxiliary": false
+      },
+      {
+        "model": "acp-fixture-primary",
+        "authenticated": true,
+        "route": "/v1/chat/completions",
+        "tool_results": 0,
+        "auxiliary": false
+      },
+      {
+        "model": "acp-fixture-primary",
+        "authenticated": true,
+        "route": "/v1/chat/completions",
+        "tool_results": 1,
+        "auxiliary": false
+      },
+      {
+        "model": "acp-fixture-primary",
+        "authenticated": true,
+        "route": "/v1/chat/completions",
+        "tool_results": 2,
+        "auxiliary": false
+      },
+      {
+        "model": "acp-fixture-primary",
+        "authenticated": true,
+        "route": "/v1/chat/completions",
+        "tool_results": 0,
+        "auxiliary": false
+      },
+      {
+        "model": "acp-fixture-primary",
+        "authenticated": true,
+        "route": "/v1/chat/completions",
+        "tool_results": 1,
+        "auxiliary": false
+      },
+      {
+        "model": "acp-fixture-primary",
+        "authenticated": true,
+        "route": "/v1/chat/completions",
+        "tool_results": 2,
+        "auxiliary": false
+      }
+    ],
+    "errors": 0
+  },
+  "flow": {
+    "new": true,
+    "second_turn": true,
+    "cancel": true,
+    "restart": true,
+    "switch": true,
+    "isolated": true,
+    "handshake": true,
+    "mode": "cli-local",
+    "requires_auxiliary": false
+  },
+  "command": [
+    "cargo",
+    "test",
+    "-p",
+    "vw-agent",
+    "--lib",
+    "--all-features",
+    "acp_model_source_real_cli_cli_local",
+    "--",
+    "--ignored",
+    "--nocapture",
+    "--test-threads=1"
+  ],
+  "cargo_target_dir": "/Users/xiangmin/worker/code/shiju/target/rust-slot-2"
+}

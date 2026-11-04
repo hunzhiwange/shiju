@@ -37,8 +37,14 @@ async fn codex_plugin_compat_t33_executes_only_matching_handlers() {
                 HookResult::Continue(_)
             ));
         }
-        assert_eq!(std::fs::read(root.path().join("result")).unwrap(), b"abbc");
-        std::fs::write(root.path().join("result"), b"").unwrap();
+        let outputs: Vec<_> = std::fs::read_dir(state.path().join("plugin-hook-data"))
+            .unwrap()
+            .map(|entry| entry.unwrap().path().join("result"))
+            .collect();
+        assert_eq!(outputs.len(), 1);
+        let result_path = &outputs[0];
+        assert_eq!(std::fs::read(result_path).unwrap(), b"abbc");
+        std::fs::write(result_path, b"").unwrap();
         let mut after = manifest.clone();
         let groups = after.hooks.remove(&E::PreToolUse).unwrap();
         after.hooks.insert(E::PostToolUse, groups);
@@ -53,7 +59,8 @@ async fn codex_plugin_compat_t33_executes_only_matching_handlers() {
             error: None,
         };
         runner.fire_after_tool_call("Write", &result, std::time::Duration::ZERO).await;
-        assert_eq!(std::fs::read(root.path().join("result")).unwrap(), b"abbc");
+        assert_eq!(std::fs::read(result_path).unwrap(), b"abbc");
+        assert_eq!(std::fs::read_dir(root.path()).unwrap().count(), 0);
     })
     .await;
 }

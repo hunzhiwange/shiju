@@ -1,6 +1,6 @@
 # 插件兼容报告与指南来源
 
-任务 65，2026-11-04。产物为 [用户指南](user-guide.md) 与本报告；本任务不改变运行行为，不运行 Cargo、不领取槽位。基线登记 **299 项**，不是 299 项通过。任务 64 的 macOS 授权范围已完成（提交 `c22fe02a`），其 Linux/Windows/OAuth 跳过与任务 63 的真实账号豁免均不计通过。任务 66 已按后续授权汇总证据，后端回归未通过；详见末节，不构成最终覆盖关闭。
+任务 65，2026-11-04。产物为 [用户指南](user-guide.md) 与本报告；本任务不改变运行行为，不运行 Cargo、不领取槽位。基线登记 **299 项**，不是 299 项通过。任务 64 的 macOS 授权范围已完成（提交 `c22fe02a`），其 Linux/Windows/OAuth 跳过与任务 63 的真实账号豁免均不计通过。任务66已完成获准范围的固定快照回归；严格完整覆盖仍未通过，详见末节。
 
 ## 来源更新授权与边界
 
@@ -52,7 +52,7 @@
 
 ## 逐项来源与任务索引
 
-每行对应 baseline.json 的一个稳定 ID；字段及精确预期以该 JSON 为准。以下来源索引可在 JSON 的 sources 找到完整路径及 SHA-256；登记后的源码证据不自动升级为执行通过。t65/t66 的当前记录分别见对应 evidence 文件；任务66保留待回归；其余链接只用于追溯记录，不表示其中没有限制、豁免或待验收。
+每行对应 baseline.json 的一个稳定 ID；字段及精确预期以该 JSON 为准。以下来源索引可在 JSON 的 sources 找到完整路径及 SHA-256；登记后的源码证据不自动升级为执行通过。t65/t66 的当前记录分别见对应 evidence 文件；任务66按获准范围收尾，未验收项继续保留；其余链接只用于追溯记录，不表示其中没有限制、豁免或待验收。
 
 | ID | 基线来源（symbol） | 负责任务与记录 |
 | --- | --- | --- |
@@ -356,9 +356,9 @@
 | `mcp.legacy.extra.tools.<name>.approval_mode` | `codex:codex-rs/config/src/mcp_types.rs` / `RawMcpServerConfig` | [t14](evidence/t14.json), [t17](evidence/t17.json) |
 | `mcp.legacy.extra.tools.<name>.output_token_limit` | `codex:codex-rs/config/src/mcp_types.rs` / `RawMcpServerConfig` | [t14](evidence/t14.json), [t17](evidence/t17.json) |
 
-## 任务66：本次授权范围与当前结果
+## 任务66：初轮记录（历史）
 
-2026-11-04 用户明确继续豁免 Windows、Linux 和真实 OAuth，要求先完成汇总、拒绝/隔离测试、macOS 回归及 clippy，并保留未验收项。此次不改变 baseline.json、plan.md、prompt.md，也不改严格检查器的任何要求。**不宣称完全兼容；任务66保留“已完成，待回归”。**
+2026-11-04 用户明确继续豁免 Windows、Linux 和真实 OAuth，要求先完成汇总、拒绝/隔离测试、macOS 回归及 clippy，并保留未验收项。此次不改变 baseline.json、plan.md、prompt.md，也不改严格检查器的任何要求。**当时未通过后端回归并保留待回归；最新固定快照结果见末节。不宣称完全兼容。**
 
 [汇总 evidence.json](evidence.json) 包含 299 个稳定 ID、66 份来源记录的路径/散列与逐项任务引用。它按完整基线标准显示 298 项 unverified、1 项 excluded；0 项严格完整 verified。这里的 unverified 不表示 298 项实现均失败：原始任务级通过记录仍保留，逐项完整证据、任务联合映射和三平台/真实外部验收没有被批量补成通过。`scope.hosted-apps` 是基线唯一 excluded 项，用户平台/账号豁免没有改写为 excluded 或 verified。任务65的文档核验另见 [t65](evidence/t65.json)。
 
@@ -387,3 +387,32 @@ python3 scripts/plugin_compat/check_evidence.py --baseline docs/plugin-compat/ba
 待回归事实：t27 取消测试在串行阶段通过，但并行失败原因未证实；不声称已修复。t32 测试仍期待解析阶段的“不支持执行”错误，实际为 `failed to resolve hook host directory`；已只读核对该断言与后续 Hook 执行入口，未修改安全断言或生产行为来获取绿灯。**TODO：独立复核 t32 测试的宿主目录前提与当前信任/执行契约，以及 t27 并行端口断言，再运行完整后端过滤集。** 当前 Mac 后端回归不能计通过，不能以 clippy 或目标三项通过替代。
 
 其他未验收项继续保留：Windows/Linux；真实公开 OAuth 完整宿主授权/调用/退出与服务端撤销；原始记录中未通过严格逐项覆盖的联合任务及安全差异审查。没有擅自新建补充任务或改写用户豁免。
+
+## 任务66收尾：固定快照与验证边界
+
+2026-11-04 按后续授权完成延后回归。最终验证固定为已提交源码 `07f349fecbb0449c0d604fae580a907ab37ebdd7` 加本任务修复；不追逐此后的无关提交。运行目录为受管理的隔离检出 `/Users/xiangmin/.codex/worktrees/plugin-compat-revalidation/shiju`；源码基点、任务补丁 SHA-256、文件散列、实际命令和日志摘要见 [t66.json](evidence/t66.json) 的 revalidation。该快照通过不等于对共享工作区全部未提交源码作出通过声明。
+
+本轮只修正仓库自编测试夹具，不改变生产权限或运行行为：
+
+- t18/t23：端口文件存在且可解析为非零端口才视为就绪；HTTP/SSE 会话复用及版本协商用例预先放置空文件，保留真实服务启动、工具调用、关闭/请求头断言与原等待上限。
+- t32：移除解析阶段遗留的“执行不受支持”前提，核对当前工厂的未信任不准入、显式审批后准入、内容变化后失效；保留包外信任状态与包字节断言。
+- t33：合成 matcher 夹具把输出写到宿主 `PLUGIN_DATA/result`，保留精确 `abbc` 顺序断言并验证包目录未被写入；没有修改公开原包或放松内容信任检查。
+
+最终当前快照结果：
+
+| 命令 | 退出码与有效结果 |
+| --- | --- |
+| `cargo fmt --all` | 0；排除隔离检出中无关的纯格式差异 |
+| `RUST_TEST_THREADS=1 cargo test -p vw-agent --lib --all-features codex_plugin_compat_ -- --nocapture` | 0；441 passed、0 failed、7 ignored |
+| `cargo test -p vw-desktop --bin shi-ju --all-features codex_plugin_compat_ -- --nocapture` | 0；18 passed、0 failed、3 ignored |
+| `cargo clippy --all-targets --all-features -- -D warnings` | 0 |
+
+该过滤集包括任务66三项拒绝/隔离测试。顺序运行没有跳过其他测试，也没有改变单个测试内部的并发、取消、超时或隔离断言。此前并行组合运行失败仍保留，不计为通过；其根因未被充分确认。未证实有效的 t27 端口隔离尝试已撤回，最终未修改生产 OAuth 或原 t27 测试。
+
+最终阶段领取槽位3：`CARGO_TARGET_DIR=/Users/xiangmin/worker/code/shiju/target/rust-slot-3`，`CARGO_BUILD_BUILD_DIR=/Users/xiangmin/worker/code/shiju/target/rust-slot-3/build`。此前阶段按实际领取了其他槽位，逐条见 t66.json；自有锁均释放、缓存保留，未另建任务构建目录。忽略项名单与原因保存在最新 revalidation，7个后端和3个桌面忽略项均不计通过，没有本轮手工 UI 或真实账号验收声明。
+
+共享工作区的 resume3 尝试因无关 `workflow/video_edit/assets.rs` 的摘要格式化/租户 ID 显示类型错误而编译失败；这次失败独立保留，未在本任务修改该模块，也没有用隔离通过覆盖它或宣称当前脏工作区整体通过。
+
+Windows、Linux、真实 OAuth 继续沿用用户豁免且不计通过。严格检查器未修改，完整检查仍退出1，汇总保留298个范围内 unverified 与1个原范围外 excluded；完整兼容没有成立。编号任务66仅按获准的证据汇总与固定 macOS 快照回归范围收尾；全平台、真实账号、opt-in 原包/公开服务、手工 UI 及严格逐项覆盖中尚缺的证据继续保留。
+
+临时验证检出的归档已尝试；应用拒绝移除本会话主检出，因此保留供复核。日志保留于原仓库，未删除共享构建缓存；该清理限制不计为兼容验收通过或失败。

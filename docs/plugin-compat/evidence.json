@@ -7530,7 +7530,7 @@
       "task_records": [
         {
           "path": "docs/plugin-compat/evidence/t66.json",
-          "sha256": "6a22ff662f41e0ee7563820f943d0cbf490484020857291d71fda57356363c12"
+          "sha256": "e9e0a9a925aa254d5e58cfe35bc8f5d5756b6ffddccafa8613e0e02f0c735e19"
         }
       ],
       "candidates": [],
@@ -10423,9 +10423,9 @@
     },
     {
       "path": "docs/plugin-compat/evidence/t66.json",
-      "sha256": "6a22ff662f41e0ee7563820f943d0cbf490484020857291d71fda57356363c12",
+      "sha256": "e9e0a9a925aa254d5e58cfe35bc8f5d5756b6ffddccafa8613e0e02f0c735e19",
       "task": 66,
-      "status": "completed_pending_regression",
+      "status": "completed_authorized_macos_snapshot_scope",
       "scope_adjustment": {
         "date": "2026-11-04",
         "authorization": "Continue Windows/Linux/real OAuth waivers; finish evidence aggregation, rejection/isolation tests, macOS regression and clippy; preserve unverified capabilities; no full compatibility claim.",

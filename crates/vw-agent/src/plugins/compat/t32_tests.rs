@@ -241,21 +241,45 @@ fn codex_plugin_compat_t32_loads_source_arrays_with_explicit_precedence() {
 }
 
 #[test]
-fn codex_plugin_compat_t32_runtime_reports_execution_as_unavailable() {
+fn codex_plugin_compat_t32_runtime_requires_explicit_content_trust() {
     use crate::app::agent::config::Config;
+    use crate::plugins::{
+        PluginHookTrustStore, plugin_hook_trust_file, trusted_plugin_hook_handlers,
+    };
     let temp = tempfile::tempdir().unwrap();
     let workspace = temp.path().join("workspace");
     let root = workspace.join(".vibewindow/plugins/hook-fixture");
-    package(&root, false, false, &fixture());
+    let declaration = json!({"hooks":{"PreToolUse":[{"hooks":[{
+        "type":"command", "command":"echo synthetic"
+    }]}]}});
+    package(&root, false, false, &declaration);
+    let config_dir = temp.path().join("config");
+    fs::create_dir(&config_dir).unwrap();
     let mut config = Config::default();
     config.workspace_dir = workspace;
-    config.config_path = temp.path().join("config/vibewindow.json");
+    config.config_path = config_dir.join("vibewindow.json");
     config.hooks.enabled = true;
     config.hooks.plugins.enabled = true;
-    let error = match crate::plugins::trusted_plugin_hook_handlers(&config) {
-        Ok(_) => panic!("parsing must not imply execution support or trust"),
-        Err(error) => error.to_string(),
+    let manifest_bytes = fs::read(root.join(".codex-plugin/plugin.json")).unwrap();
+    let hook_bytes = fs::read(root.join("hooks/hooks.json")).unwrap();
+
+    // Parsing must not grant execution authority, even though execution is now supported.
+    assert!(trusted_plugin_hook_handlers(&config).unwrap().is_empty());
+    assert_eq!(fs::read_dir(&config_dir).unwrap().count(), 0);
+    let plugin = load_plugin_manifest(&root).unwrap();
+    let PluginHooksManifest::Codex(parsed) =
+        load_plugin_hook_source(&plugin.hooks[0], &root, &config.workspace_dir).unwrap()
+    else {
+        panic!("expected Codex hook declarations")
     };
-    assert!(error.contains("Codex hook execution is not supported"), "{error}");
-    assert!(!temp.path().join("config").exists());
+    let mut trust =
+        PluginHookTrustStore::load_or_default(&plugin_hook_trust_file(&config_dir)).unwrap();
+    trust.trust_codex_hooks("hook-fixture", &root, &parsed).unwrap();
+    assert_eq!(trusted_plugin_hook_handlers(&config).unwrap().len(), 1);
+    assert!(!config_dir.join("plugin-hook-data").exists(), "admission must not execute hooks");
+    fs::write(root.join("payload"), b"changed package content").unwrap();
+    assert!(trusted_plugin_hook_handlers(&config).unwrap().is_empty());
+    assert_eq!(fs::read(root.join(".codex-plugin/plugin.json")).unwrap(), manifest_bytes);
+    assert_eq!(fs::read(root.join("hooks/hooks.json")).unwrap(), hook_bytes);
+    assert!(!root.join("plugin-hook-trust.json").exists());
 }

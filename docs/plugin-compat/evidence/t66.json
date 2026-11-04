@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
   "task": 66,
-  "status": "completed_pending_regression",
+  "status": "completed_authorized_macos_snapshot_scope",
   "platform": "macOS-27.0-arm64-arm-64bit",
   "full_compatibility_claimed": false,
   "scope_adjustment": {
@@ -192,9 +192,646 @@
     "crates/vw-agent/src/plugins/compat/closure_tests.rs": "e33a04358885c53e860c60cf1d43279aa9f1df574e7a43b68c8519ba12a43976",
     "crates/vw-agent/src/plugins/compat/t66_tests.rs": "4c96c3c614b17e15bebf83cc7938b94c08c879b919cbd5d2cb836ff87c8a19be",
     "crates/vw-agent/testdata/plugin_compat/t66/baseline.json": "0821d65bae4b90f6bdebc09455659f178417c20fc3f6f770c6b702091d0a2db7",
-    "crates/vw-agent/testdata/plugin_compat/t66/complete.json": "7176e3570cb081d0b15d84a5bb70eda66bb446b1c657dae377e416adb5a4ffb7"
+    "crates/vw-agent/testdata/plugin_compat/t66/complete.json": "7176e3570cb081d0b15d84a5bb70eda66bb446b1c657dae377e416adb5a4ffb7",
+    "crates/vw-agent/src/plugins/compat/t18_tests.rs": "4b0887ac9c9c03a4d4b2db92fbaf607b8aee865ae5d6d759de244f3828f2b239",
+    "crates/vw-agent/src/plugins/compat/t23_tests.rs": "b38650da23690bfbdd81e3efc916ef162841bec31b91e3e95c185e1c81e1b318",
+    "crates/vw-agent/src/plugins/compat/t32_tests.rs": "dd87bd687c4e584f40a410fef9bdc24606346b7a8313a8ba6096ff7f0d590a86",
+    "crates/vw-agent/src/plugins/compat/t33_tests.rs": "023d61ef9b4418eb3f5e4bf86db0aafcf874bac182762153a2fb1a2d3dbd3fdc",
+    "crates/vw-agent/testdata/plugin_compat/t33/hooks.json": "feb944e248d3848224532ff1a37d764030d750e996db2cee730066c0ac6c5ac1"
   },
   "cargo_locks_released": true,
   "cargo_caches_retained": true,
-  "artifact_note": "Raw logs stay local/ignored; their digests and actual commands are preserved here. No Windows/Linux/real OAuth acceptance or fresh interactive UI claim."
+  "artifact_note": "Raw logs stay local/ignored; their digests and actual commands are preserved here. No Windows/Linux/real OAuth acceptance or fresh interactive UI claim.",
+  "revalidation": {
+    "date": "2026-11-04",
+    "snapshot_base_commit": "07f349fecbb0449c0d604fae580a907ab37ebdd7",
+    "snapshot_worktree": "/Users/xiangmin/.codex/worktrees/plugin-compat-revalidation/shiju",
+    "task_patch_sha256": "df2f51c1e4b07051611e2a237caad290551b49eb25d6a535db2f14d8fb4d061e",
+    "snapshot_is_not_dirty_shared_workspace": true,
+    "latest_instruction": "Pin this submitted snapshot; do not restart for unrelated later commits. Preserve platform/OAuth waivers and strict checker.",
+    "checks": [
+      {
+        "phase": "resume",
+        "command": "cargo fmt --all",
+        "exit_code": 0,
+        "working_directory": "/Users/xiangmin/worker/code/shiju",
+        "record": "docs/plugin-compat/evidence/t66/resume-fmt.log",
+        "sha256": "c25787aa23b0a537f3f2fd48dbf921d0532a0c400d632b45132ea06bbfca75e3",
+        "slot": 10,
+        "CARGO_TARGET_DIR": "/Users/xiangmin/worker/code/shiju/target/rust-slot-10",
+        "CARGO_BUILD_BUILD_DIR": "/Users/xiangmin/worker/code/shiju/target/rust-slot-10/build",
+        "source_snapshot": "uncommitted shared workspace, not pinned"
+      },
+      {
+        "phase": "resume",
+        "command": "cargo test -p vw-agent --lib --all-features codex_plugin_compat_t32_ -- --nocapture",
+        "exit_code": 0,
+        "working_directory": "/Users/xiangmin/worker/code/shiju",
+        "record": "docs/plugin-compat/evidence/t66/resume-t32.log",
+        "sha256": "818bcf9803eba6759226ad102eee4ca80d89931617ff608a5d26cb3fcf82373c",
+        "slot": 10,
+        "CARGO_TARGET_DIR": "/Users/xiangmin/worker/code/shiju/target/rust-slot-10",
+        "CARGO_BUILD_BUILD_DIR": "/Users/xiangmin/worker/code/shiju/target/rust-slot-10/build",
+        "source_snapshot": "uncommitted shared workspace, not pinned",
+        "passed": 7,
+        "failed": 0,
+        "ignored": 0,
+        "effective_tests": 7
+      },
+      {
+        "phase": "resume",
+        "command": "cargo test -p vw-agent --lib --all-features codex_plugin_compat_ -- --nocapture",
+        "exit_code": 101,
+        "working_directory": "/Users/xiangmin/worker/code/shiju",
+        "record": "docs/plugin-compat/evidence/t66/resume-agent.log",
+        "sha256": "c8713a33a01b874fccdc3b61872ab8a711cbd80a5eaf090fb221764a53dd3d49",
+        "slot": 10,
+        "CARGO_TARGET_DIR": "/Users/xiangmin/worker/code/shiju/target/rust-slot-10",
+        "CARGO_BUILD_BUILD_DIR": "/Users/xiangmin/worker/code/shiju/target/rust-slot-10/build",
+        "source_snapshot": "uncommitted shared workspace, not pinned",
+        "summary_complete": false,
+        "observed_ok_lines": 242,
+        "assertion_failures": [
+          [
+            "plugins::compat::t27_flow_tests::codex_plugin_compat_t27_callback_exchanges_matching_pkce",
+            "crates/vw-agent/src/plugins/compat/t27_flow_tests.rs:265:5:"
+          ]
+        ]
+      },
+      {
+        "phase": "resume",
+        "command": "cargo test -p vw-desktop --bin shi-ju --all-features codex_plugin_compat_ -- --nocapture",
+        "exit_code": 0,
+        "working_directory": "/Users/xiangmin/worker/code/shiju",
+        "record": "docs/plugin-compat/evidence/t66/resume-desktop.log",
+        "sha256": "940e2808d8accc593b5aed8a6d70bd1878315c288e69609f7ba847604490fec1",
+        "slot": 10,
+        "CARGO_TARGET_DIR": "/Users/xiangmin/worker/code/shiju/target/rust-slot-10",
+        "CARGO_BUILD_BUILD_DIR": "/Users/xiangmin/worker/code/shiju/target/rust-slot-10/build",
+        "source_snapshot": "uncommitted shared workspace, not pinned",
+        "passed": 18,
+        "failed": 0,
+        "ignored": 3,
+        "effective_tests": 18
+      },
+      {
+        "phase": "resume",
+        "command": "cargo clippy --all-targets --all-features -- -D warnings",
+        "exit_code": 0,
+        "working_directory": "/Users/xiangmin/worker/code/shiju",
+        "record": "docs/plugin-compat/evidence/t66/resume-clippy.log",
+        "sha256": "37133cefccd161fcc2a2c17978b4423eedd45d8f8954aad3e1262c9352a67429",
+        "slot": 10,
+        "CARGO_TARGET_DIR": "/Users/xiangmin/worker/code/shiju/target/rust-slot-10",
+        "CARGO_BUILD_BUILD_DIR": "/Users/xiangmin/worker/code/shiju/target/rust-slot-10/build",
+        "source_snapshot": "uncommitted shared workspace, not pinned"
+      },
+      {
+        "phase": "resume2",
+        "command": "cargo fmt --all",
+        "exit_code": 0,
+        "working_directory": "/Users/xiangmin/worker/code/shiju",
+        "record": "docs/plugin-compat/evidence/t66/resume2-fmt.log",
+        "sha256": "c25787aa23b0a537f3f2fd48dbf921d0532a0c400d632b45132ea06bbfca75e3",
+        "slot": 10,
+        "CARGO_TARGET_DIR": "/Users/xiangmin/worker/code/shiju/target/rust-slot-10",
+        "CARGO_BUILD_BUILD_DIR": "/Users/xiangmin/worker/code/shiju/target/rust-slot-10/build",
+        "source_snapshot": "uncommitted shared workspace, not pinned"
+      },
+      {
+        "phase": "resume2",
+        "command": "cargo test -p vw-agent --lib --all-features codex_plugin_compat_t27_ -- --nocapture",
+        "exit_code": 0,
+        "working_directory": "/Users/xiangmin/worker/code/shiju",
+        "record": "docs/plugin-compat/evidence/t66/resume2-t27.log",
+        "sha256": "9eb6d7103d96e4f146243d01b1d09dc8cbe42199f1040e87811541da65b353ca",
+        "slot": 10,
+        "CARGO_TARGET_DIR": "/Users/xiangmin/worker/code/shiju/target/rust-slot-10",
+        "CARGO_BUILD_BUILD_DIR": "/Users/xiangmin/worker/code/shiju/target/rust-slot-10/build",
+        "source_snapshot": "uncommitted shared workspace, not pinned",
+        "passed": 22,
+        "failed": 0,
+        "ignored": 0,
+        "effective_tests": 22
+      },
+      {
+        "phase": "resume2",
+        "command": "cargo test -p vw-agent --lib --all-features codex_plugin_compat_ -- --nocapture",
+        "exit_code": 101,
+        "working_directory": "/Users/xiangmin/worker/code/shiju",
+        "record": "docs/plugin-compat/evidence/t66/resume2-agent.log",
+        "sha256": "9c99c53a65fb0372ec9915353da05c0afee49ee55e7e7cd457b0eb1aef62bdca",
+        "slot": 10,
+        "CARGO_TARGET_DIR": "/Users/xiangmin/worker/code/shiju/target/rust-slot-10",
+        "CARGO_BUILD_BUILD_DIR": "/Users/xiangmin/worker/code/shiju/target/rust-slot-10/build",
+        "source_snapshot": "uncommitted shared workspace, not pinned",
+        "summary_complete": false,
+        "observed_ok_lines": 209,
+        "assertion_failures": [
+          [
+            "plugins::compat::t18_tests::codex_plugin_compat_t18_reuses_streamable_http_and_legacy_sse_sessions",
+            "crates/vw-agent/src/plugins/compat/t18_tests.rs:280:47:"
+          ]
+        ]
+      },
+      {
+        "phase": "resume2",
+        "command": "cargo test -p vw-desktop --bin shi-ju --all-features codex_plugin_compat_ -- --nocapture",
+        "exit_code": 0,
+        "working_directory": "/Users/xiangmin/worker/code/shiju",
+        "record": "docs/plugin-compat/evidence/t66/resume2-desktop.log",
+        "sha256": "80afadf9412ccbf21d935198905d5a7fd465d159c2aca70ee568eaf65cafb0ba",
+        "slot": 10,
+        "CARGO_TARGET_DIR": "/Users/xiangmin/worker/code/shiju/target/rust-slot-10",
+        "CARGO_BUILD_BUILD_DIR": "/Users/xiangmin/worker/code/shiju/target/rust-slot-10/build",
+        "source_snapshot": "uncommitted shared workspace, not pinned",
+        "passed": 18,
+        "failed": 0,
+        "ignored": 3,
+        "effective_tests": 18
+      },
+      {
+        "phase": "resume2",
+        "command": "cargo clippy --all-targets --all-features -- -D warnings",
+        "exit_code": 0,
+        "working_directory": "/Users/xiangmin/worker/code/shiju",
+        "record": "docs/plugin-compat/evidence/t66/resume2-clippy.log",
+        "sha256": "5616be0c8eae1b927a330ed901e79b92a741843cfdcf79d87d3edb5fe3856a2d",
+        "slot": 10,
+        "CARGO_TARGET_DIR": "/Users/xiangmin/worker/code/shiju/target/rust-slot-10",
+        "CARGO_BUILD_BUILD_DIR": "/Users/xiangmin/worker/code/shiju/target/rust-slot-10/build",
+        "source_snapshot": "uncommitted shared workspace, not pinned"
+      },
+      {
+        "phase": "resume3",
+        "command": "cargo fmt --all",
+        "exit_code": 0,
+        "working_directory": "/Users/xiangmin/worker/code/shiju",
+        "record": "docs/plugin-compat/evidence/t66/resume3-fmt.log",
+        "sha256": "130af54d248a71e87e615e5e70252ef3a4703e555a95cf4db244fd6a9e1b6086",
+        "slot": 3,
+        "CARGO_TARGET_DIR": "/Users/xiangmin/worker/code/shiju/target/rust-slot-3",
+        "CARGO_BUILD_BUILD_DIR": "/Users/xiangmin/worker/code/shiju/target/rust-slot-3/build",
+        "source_snapshot": "uncommitted shared workspace, not pinned"
+      },
+      {
+        "phase": "resume3",
+        "command": "cargo test -p vw-agent --lib --all-features codex_plugin_compat_t18_ -- --nocapture",
+        "exit_code": 0,
+        "working_directory": "/Users/xiangmin/worker/code/shiju",
+        "record": "docs/plugin-compat/evidence/t66/resume3-t18.log",
+        "sha256": "f8684209ff6793f45bc5b45d8849b583dcacf17e21123e5ae69180913114e8a7",
+        "slot": 3,
+        "CARGO_TARGET_DIR": "/Users/xiangmin/worker/code/shiju/target/rust-slot-3",
+        "CARGO_BUILD_BUILD_DIR": "/Users/xiangmin/worker/code/shiju/target/rust-slot-3/build",
+        "source_snapshot": "uncommitted shared workspace, not pinned",
+        "passed": 14,
+        "failed": 0,
+        "ignored": 0,
+        "effective_tests": 14
+      },
+      {
+        "phase": "resume3",
+        "command": "cargo test -p vw-agent --lib --all-features codex_plugin_compat_ -- --nocapture",
+        "exit_code": 101,
+        "working_directory": "/Users/xiangmin/worker/code/shiju",
+        "record": "docs/plugin-compat/evidence/t66/resume3-agent.log",
+        "sha256": "c566af0f865ea2306f2caa8c1283b69f08fddfe88cd6d0f1e991daa162aaef00",
+        "slot": 3,
+        "CARGO_TARGET_DIR": "/Users/xiangmin/worker/code/shiju/target/rust-slot-3",
+        "CARGO_BUILD_BUILD_DIR": "/Users/xiangmin/worker/code/shiju/target/rust-slot-3/build",
+        "source_snapshot": "uncommitted shared workspace, not pinned",
+        "summary_complete": false,
+        "observed_ok_lines": 0,
+        "assertion_failures": [],
+        "execution_status": "not_run_compilation_failed"
+      },
+      {
+        "phase": "resume3",
+        "command": "cargo test -p vw-desktop --bin shi-ju --all-features codex_plugin_compat_ -- --nocapture",
+        "exit_code": 0,
+        "working_directory": "/Users/xiangmin/worker/code/shiju",
+        "record": "docs/plugin-compat/evidence/t66/resume3-desktop.log",
+        "sha256": "d37ec5ed93839b61a6883e70c3b868cccf75b24b0f7775e3906e381ac667430b",
+        "slot": 3,
+        "CARGO_TARGET_DIR": "/Users/xiangmin/worker/code/shiju/target/rust-slot-3",
+        "CARGO_BUILD_BUILD_DIR": "/Users/xiangmin/worker/code/shiju/target/rust-slot-3/build",
+        "source_snapshot": "uncommitted shared workspace, not pinned",
+        "passed": 18,
+        "failed": 0,
+        "ignored": 3,
+        "effective_tests": 18
+      },
+      {
+        "phase": "resume3",
+        "command": "cargo clippy --all-targets --all-features -- -D warnings",
+        "exit_code": 101,
+        "working_directory": "/Users/xiangmin/worker/code/shiju",
+        "record": "docs/plugin-compat/evidence/t66/resume3-clippy.log",
+        "sha256": "d770e096759caca526d1691b689342a4cf48eb4580e6bf2bee884fd6817945f9",
+        "slot": 3,
+        "CARGO_TARGET_DIR": "/Users/xiangmin/worker/code/shiju/target/rust-slot-3",
+        "CARGO_BUILD_BUILD_DIR": "/Users/xiangmin/worker/code/shiju/target/rust-slot-3/build",
+        "source_snapshot": "uncommitted shared workspace, not pinned"
+      },
+      {
+        "phase": "isolated",
+        "command": "cargo fmt --all",
+        "exit_code": 0,
+        "working_directory": "/Users/xiangmin/.codex/worktrees/plugin-compat-revalidation/shiju",
+        "record": "docs/plugin-compat/evidence/t66/isolated-fmt.log",
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "slot": 10,
+        "CARGO_TARGET_DIR": "/Users/xiangmin/worker/code/shiju/target/rust-slot-10",
+        "CARGO_BUILD_BUILD_DIR": "/Users/xiangmin/worker/code/shiju/target/rust-slot-10/build",
+        "source_snapshot": "bbb4a7d2fe683eb9298a5a5ace292b144532eb57"
+      },
+      {
+        "phase": "isolated",
+        "command": "cargo test -p vw-agent --lib --all-features codex_plugin_compat_ -- --nocapture",
+        "exit_code": 101,
+        "working_directory": "/Users/xiangmin/.codex/worktrees/plugin-compat-revalidation/shiju",
+        "record": "docs/plugin-compat/evidence/t66/isolated-agent.log",
+        "sha256": "9ca18d9dcfd2891e7a64d737d8d8e1a11d8f14c7d6fb5ab799cdada2fec1961b",
+        "slot": 10,
+        "CARGO_TARGET_DIR": "/Users/xiangmin/worker/code/shiju/target/rust-slot-10",
+        "CARGO_BUILD_BUILD_DIR": "/Users/xiangmin/worker/code/shiju/target/rust-slot-10/build",
+        "source_snapshot": "bbb4a7d2fe683eb9298a5a5ace292b144532eb57",
+        "summary_complete": false,
+        "observed_ok_lines": 245,
+        "assertion_failures": [
+          [
+            "plugins::compat::t27_flow_tests::codex_plugin_compat_t27_callback_rejects_wrong_issuer",
+            "crates/vw-agent/src/plugins/compat/t27_flow_tests.rs:173:13:"
+          ],
+          [
+            "plugins::compat::t27_flow_tests::codex_plugin_compat_t27_dcr_registers_public_loopback_client",
+            "crates/vw-agent/src/plugins/compat/t27_flow_tests.rs:282:5:"
+          ],
+          [
+            "plugins::compat::t27_flow_tests::codex_plugin_compat_t27_denial_never_exchanges_token",
+            "crates/vw-agent/src/plugins/compat/t27_flow_tests.rs:282:5:"
+          ]
+        ]
+      },
+      {
+        "phase": "isolated",
+        "command": "cargo test -p vw-desktop --bin shi-ju --all-features codex_plugin_compat_ -- --nocapture",
+        "exit_code": 0,
+        "working_directory": "/Users/xiangmin/.codex/worktrees/plugin-compat-revalidation/shiju",
+        "record": "docs/plugin-compat/evidence/t66/isolated-desktop.log",
+        "sha256": "915a562c3ab259301abe4094461943238cf3cfa202ea047f2667c22b6b4bbd97",
+        "slot": 10,
+        "CARGO_TARGET_DIR": "/Users/xiangmin/worker/code/shiju/target/rust-slot-10",
+        "CARGO_BUILD_BUILD_DIR": "/Users/xiangmin/worker/code/shiju/target/rust-slot-10/build",
+        "source_snapshot": "bbb4a7d2fe683eb9298a5a5ace292b144532eb57",
+        "passed": 18,
+        "failed": 0,
+        "ignored": 3,
+        "effective_tests": 18
+      },
+      {
+        "phase": "isolated",
+        "command": "cargo clippy --all-targets --all-features -- -D warnings",
+        "exit_code": 0,
+        "working_directory": "/Users/xiangmin/.codex/worktrees/plugin-compat-revalidation/shiju",
+        "record": "docs/plugin-compat/evidence/t66/isolated-clippy.log",
+        "sha256": "47ec41525d40a84e204c3f9b568dd39c68fb99963213d90c6396ad2df3b59b37",
+        "slot": 10,
+        "CARGO_TARGET_DIR": "/Users/xiangmin/worker/code/shiju/target/rust-slot-10",
+        "CARGO_BUILD_BUILD_DIR": "/Users/xiangmin/worker/code/shiju/target/rust-slot-10/build",
+        "source_snapshot": "bbb4a7d2fe683eb9298a5a5ace292b144532eb57"
+      },
+      {
+        "phase": "isolated-serial",
+        "command": "cargo fmt --all",
+        "exit_code": 0,
+        "working_directory": "/Users/xiangmin/.codex/worktrees/plugin-compat-revalidation/shiju",
+        "record": "docs/plugin-compat/evidence/t66/isolated-serial-fmt.log",
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "slot": 10,
+        "CARGO_TARGET_DIR": "/Users/xiangmin/worker/code/shiju/target/rust-slot-10",
+        "CARGO_BUILD_BUILD_DIR": "/Users/xiangmin/worker/code/shiju/target/rust-slot-10/build",
+        "source_snapshot": "bbb4a7d2fe683eb9298a5a5ace292b144532eb57"
+      },
+      {
+        "phase": "isolated-serial",
+        "command": "RUST_TEST_THREADS=1 cargo test -p vw-agent --lib --all-features codex_plugin_compat_ -- --nocapture",
+        "exit_code": 101,
+        "working_directory": "/Users/xiangmin/.codex/worktrees/plugin-compat-revalidation/shiju",
+        "record": "docs/plugin-compat/evidence/t66/isolated-serial-agent.log",
+        "sha256": "714bd158dc7d6d8a6655ad33e787624787945fbe641ebd868ca26828ab8bdea8",
+        "slot": 10,
+        "CARGO_TARGET_DIR": "/Users/xiangmin/worker/code/shiju/target/rust-slot-10",
+        "CARGO_BUILD_BUILD_DIR": "/Users/xiangmin/worker/code/shiju/target/rust-slot-10/build",
+        "source_snapshot": "bbb4a7d2fe683eb9298a5a5ace292b144532eb57",
+        "summary_complete": false,
+        "observed_ok_lines": 272,
+        "assertion_failures": [
+          [
+            "plugins::compat::t33_tests::codex_plugin_compat_t33_executes_only_matching_handlers",
+            "crates/vw-agent/src/plugins/compat/t33_tests.rs:35:13:"
+          ]
+        ]
+      },
+      {
+        "phase": "isolated-serial",
+        "command": "cargo test -p vw-desktop --bin shi-ju --all-features codex_plugin_compat_ -- --nocapture",
+        "exit_code": 0,
+        "working_directory": "/Users/xiangmin/.codex/worktrees/plugin-compat-revalidation/shiju",
+        "record": "docs/plugin-compat/evidence/t66/isolated-serial-desktop.log",
+        "sha256": "0cda038f4b366fc0481f1bf7498a9321d94fef3683e22c1d4470dfc1762cbf50",
+        "slot": 10,
+        "CARGO_TARGET_DIR": "/Users/xiangmin/worker/code/shiju/target/rust-slot-10",
+        "CARGO_BUILD_BUILD_DIR": "/Users/xiangmin/worker/code/shiju/target/rust-slot-10/build",
+        "source_snapshot": "bbb4a7d2fe683eb9298a5a5ace292b144532eb57",
+        "passed": 18,
+        "failed": 0,
+        "ignored": 3,
+        "effective_tests": 18
+      },
+      {
+        "phase": "isolated-serial",
+        "command": "cargo clippy --all-targets --all-features -- -D warnings",
+        "exit_code": 0,
+        "working_directory": "/Users/xiangmin/.codex/worktrees/plugin-compat-revalidation/shiju",
+        "record": "docs/plugin-compat/evidence/t66/isolated-serial-clippy.log",
+        "sha256": "efef4f05c80b7b376400e1e94a25ed288d15e50b01f1f597da8248fcb2339ef0",
+        "slot": 10,
+        "CARGO_TARGET_DIR": "/Users/xiangmin/worker/code/shiju/target/rust-slot-10",
+        "CARGO_BUILD_BUILD_DIR": "/Users/xiangmin/worker/code/shiju/target/rust-slot-10/build",
+        "source_snapshot": "bbb4a7d2fe683eb9298a5a5ace292b144532eb57"
+      },
+      {
+        "phase": "final-serial",
+        "command": "cargo fmt --all",
+        "exit_code": 0,
+        "working_directory": "/Users/xiangmin/.codex/worktrees/plugin-compat-revalidation/shiju",
+        "record": "docs/plugin-compat/evidence/t66/final-serial-fmt.log",
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "slot": 1,
+        "CARGO_TARGET_DIR": "/Users/xiangmin/worker/code/shiju/target/rust-slot-1",
+        "CARGO_BUILD_BUILD_DIR": "/Users/xiangmin/worker/code/shiju/target/rust-slot-1/build",
+        "source_snapshot": "bbb4a7d2fe683eb9298a5a5ace292b144532eb57"
+      },
+      {
+        "phase": "final-serial",
+        "command": "RUST_TEST_THREADS=1 cargo test -p vw-agent --lib --all-features codex_plugin_compat_ -- --nocapture",
+        "exit_code": 0,
+        "working_directory": "/Users/xiangmin/.codex/worktrees/plugin-compat-revalidation/shiju",
+        "record": "docs/plugin-compat/evidence/t66/final-serial-agent.log",
+        "sha256": "1413aebd7670162425fde93f3ca29c10bc9ed43ff8e5b3f8d2efc6e4af3aa64c",
+        "slot": 1,
+        "CARGO_TARGET_DIR": "/Users/xiangmin/worker/code/shiju/target/rust-slot-1",
+        "CARGO_BUILD_BUILD_DIR": "/Users/xiangmin/worker/code/shiju/target/rust-slot-1/build",
+        "source_snapshot": "bbb4a7d2fe683eb9298a5a5ace292b144532eb57",
+        "passed": 441,
+        "failed": 0,
+        "ignored": 7,
+        "effective_tests": 441
+      },
+      {
+        "phase": "final-serial",
+        "command": "cargo test -p vw-desktop --bin shi-ju --all-features codex_plugin_compat_ -- --nocapture",
+        "exit_code": 0,
+        "working_directory": "/Users/xiangmin/.codex/worktrees/plugin-compat-revalidation/shiju",
+        "record": "docs/plugin-compat/evidence/t66/final-serial-desktop.log",
+        "sha256": "7d6cae929a306bff2c9d7cf3345c50bc80f6742914f23224716f69787a0596c3",
+        "slot": 1,
+        "CARGO_TARGET_DIR": "/Users/xiangmin/worker/code/shiju/target/rust-slot-1",
+        "CARGO_BUILD_BUILD_DIR": "/Users/xiangmin/worker/code/shiju/target/rust-slot-1/build",
+        "source_snapshot": "bbb4a7d2fe683eb9298a5a5ace292b144532eb57",
+        "passed": 18,
+        "failed": 0,
+        "ignored": 3,
+        "effective_tests": 18
+      },
+      {
+        "phase": "final-serial",
+        "command": "cargo clippy --all-targets --all-features -- -D warnings",
+        "exit_code": 0,
+        "working_directory": "/Users/xiangmin/.codex/worktrees/plugin-compat-revalidation/shiju",
+        "record": "docs/plugin-compat/evidence/t66/final-serial-clippy.log",
+        "sha256": "a5c55d1b6cbdb1747cbd30a05df0bfc1692bbffd6ac0cfb8f7c66cc5e5871b2a",
+        "slot": 1,
+        "CARGO_TARGET_DIR": "/Users/xiangmin/worker/code/shiju/target/rust-slot-1",
+        "CARGO_BUILD_BUILD_DIR": "/Users/xiangmin/worker/code/shiju/target/rust-slot-1/build",
+        "source_snapshot": "bbb4a7d2fe683eb9298a5a5ace292b144532eb57"
+      },
+      {
+        "phase": "current-serial",
+        "command": "cargo fmt --all",
+        "exit_code": 0,
+        "working_directory": "/Users/xiangmin/.codex/worktrees/plugin-compat-revalidation/shiju",
+        "record": "docs/plugin-compat/evidence/t66/current-serial-fmt.log",
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "slot": 3,
+        "CARGO_TARGET_DIR": "/Users/xiangmin/worker/code/shiju/target/rust-slot-3",
+        "CARGO_BUILD_BUILD_DIR": "/Users/xiangmin/worker/code/shiju/target/rust-slot-3/build",
+        "source_snapshot": "07f349fecbb0449c0d604fae580a907ab37ebdd7"
+      },
+      {
+        "phase": "current-serial",
+        "command": "RUST_TEST_THREADS=1 cargo test -p vw-agent --lib --all-features codex_plugin_compat_ -- --nocapture",
+        "exit_code": 101,
+        "working_directory": "/Users/xiangmin/.codex/worktrees/plugin-compat-revalidation/shiju",
+        "record": "docs/plugin-compat/evidence/t66/current-serial-agent.log",
+        "sha256": "1239f78639451f7a2802f94bc78da6195e70aa3cd0cd534329ee8fa971462c58",
+        "slot": 3,
+        "CARGO_TARGET_DIR": "/Users/xiangmin/worker/code/shiju/target/rust-slot-3",
+        "CARGO_BUILD_BUILD_DIR": "/Users/xiangmin/worker/code/shiju/target/rust-slot-3/build",
+        "source_snapshot": "07f349fecbb0449c0d604fae580a907ab37ebdd7",
+        "summary_complete": false,
+        "observed_ok_lines": 237,
+        "assertion_failures": [
+          [
+            "plugins::compat::t23_tests::codex_plugin_compat_t23_sends_negotiated_http_version_on_each_request",
+            "crates/vw-agent/src/plugins/compat/t23_tests.rs:155:9:"
+          ]
+        ]
+      },
+      {
+        "phase": "current-serial",
+        "command": "cargo test -p vw-desktop --bin shi-ju --all-features codex_plugin_compat_ -- --nocapture",
+        "exit_code": 0,
+        "working_directory": "/Users/xiangmin/.codex/worktrees/plugin-compat-revalidation/shiju",
+        "record": "docs/plugin-compat/evidence/t66/current-serial-desktop.log",
+        "sha256": "71e60e7b42d7619cb14167b794bc88d4f43d6828a9ac5e0293cb286b7a343bf3",
+        "slot": 3,
+        "CARGO_TARGET_DIR": "/Users/xiangmin/worker/code/shiju/target/rust-slot-3",
+        "CARGO_BUILD_BUILD_DIR": "/Users/xiangmin/worker/code/shiju/target/rust-slot-3/build",
+        "source_snapshot": "07f349fecbb0449c0d604fae580a907ab37ebdd7",
+        "passed": 18,
+        "failed": 0,
+        "ignored": 3,
+        "effective_tests": 18
+      },
+      {
+        "phase": "current-serial",
+        "command": "cargo clippy --all-targets --all-features -- -D warnings",
+        "exit_code": 0,
+        "working_directory": "/Users/xiangmin/.codex/worktrees/plugin-compat-revalidation/shiju",
+        "record": "docs/plugin-compat/evidence/t66/current-serial-clippy.log",
+        "sha256": "94df1c3e97d9bd1887e5d82757779667441e8c98c08fdd538432ecf4b1fd722d",
+        "slot": 3,
+        "CARGO_TARGET_DIR": "/Users/xiangmin/worker/code/shiju/target/rust-slot-3",
+        "CARGO_BUILD_BUILD_DIR": "/Users/xiangmin/worker/code/shiju/target/rust-slot-3/build",
+        "source_snapshot": "07f349fecbb0449c0d604fae580a907ab37ebdd7"
+      },
+      {
+        "phase": "pinned-final",
+        "command": "cargo fmt --all",
+        "exit_code": 0,
+        "working_directory": "/Users/xiangmin/.codex/worktrees/plugin-compat-revalidation/shiju",
+        "record": "docs/plugin-compat/evidence/t66/pinned-final-fmt.log",
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "slot": 3,
+        "CARGO_TARGET_DIR": "/Users/xiangmin/worker/code/shiju/target/rust-slot-3",
+        "CARGO_BUILD_BUILD_DIR": "/Users/xiangmin/worker/code/shiju/target/rust-slot-3/build",
+        "source_snapshot": "07f349fecbb0449c0d604fae580a907ab37ebdd7"
+      },
+      {
+        "phase": "pinned-final",
+        "command": "RUST_TEST_THREADS=1 cargo test -p vw-agent --lib --all-features codex_plugin_compat_ -- --nocapture",
+        "exit_code": 0,
+        "working_directory": "/Users/xiangmin/.codex/worktrees/plugin-compat-revalidation/shiju",
+        "record": "docs/plugin-compat/evidence/t66/pinned-final-agent.log",
+        "sha256": "fbdc38c2aab8ec1575d9b45369730f0473f612231150a039a320c5be3f374dcc",
+        "slot": 3,
+        "CARGO_TARGET_DIR": "/Users/xiangmin/worker/code/shiju/target/rust-slot-3",
+        "CARGO_BUILD_BUILD_DIR": "/Users/xiangmin/worker/code/shiju/target/rust-slot-3/build",
+        "source_snapshot": "07f349fecbb0449c0d604fae580a907ab37ebdd7",
+        "passed": 441,
+        "failed": 0,
+        "ignored": 7,
+        "effective_tests": 441
+      },
+      {
+        "phase": "pinned-final",
+        "command": "cargo test -p vw-desktop --bin shi-ju --all-features codex_plugin_compat_ -- --nocapture",
+        "exit_code": 0,
+        "working_directory": "/Users/xiangmin/.codex/worktrees/plugin-compat-revalidation/shiju",
+        "record": "docs/plugin-compat/evidence/t66/pinned-final-desktop.log",
+        "sha256": "e715905e01aa5a3a729c5d8beea968c185cf2a489fbe29462bb6baf46ec90f8a",
+        "slot": 3,
+        "CARGO_TARGET_DIR": "/Users/xiangmin/worker/code/shiju/target/rust-slot-3",
+        "CARGO_BUILD_BUILD_DIR": "/Users/xiangmin/worker/code/shiju/target/rust-slot-3/build",
+        "source_snapshot": "07f349fecbb0449c0d604fae580a907ab37ebdd7",
+        "passed": 18,
+        "failed": 0,
+        "ignored": 3,
+        "effective_tests": 18
+      },
+      {
+        "phase": "pinned-final",
+        "command": "cargo clippy --all-targets --all-features -- -D warnings",
+        "exit_code": 0,
+        "working_directory": "/Users/xiangmin/.codex/worktrees/plugin-compat-revalidation/shiju",
+        "record": "docs/plugin-compat/evidence/t66/pinned-final-clippy.log",
+        "sha256": "b403719fae4f6efe4f33386071e36912d297214aefac312af364581e7dafb76d",
+        "slot": 3,
+        "CARGO_TARGET_DIR": "/Users/xiangmin/worker/code/shiju/target/rust-slot-3",
+        "CARGO_BUILD_BUILD_DIR": "/Users/xiangmin/worker/code/shiju/target/rust-slot-3/build",
+        "source_snapshot": "07f349fecbb0449c0d604fae580a907ab37ebdd7"
+      }
+    ],
+    "final_scope": "Full same macOS compatibility filter with one harness worker; assertions and internal concurrency unchanged. Parallel combined runs are not claimed passing.",
+    "fixture_repairs": [
+      "t18/t23: wait for a published nonzero port; seed empty files in real HTTP/SSE session/version cases",
+      "t32: test current explicit trust admission and content-change revocation, without automatic package/state writes",
+      "t33: retain exact abbc order while writing only to host PLUGIN_DATA; assert package directory remains unchanged"
+    ],
+    "discarded_experiment": "t27 callback port-range experiment did not establish a fix and was fully reverted; production OAuth and original t27 assertions are unchanged.",
+    "case_audit": {
+      "command": "Compiled snapshot test binary --exact <each codex_plugin_compat_ case> --nocapture --test-threads=1",
+      "cases": 448,
+      "passed": 440,
+      "ignored": 7,
+      "failed": [
+        "plugins::compat::t33_tests::codex_plugin_compat_t33_executes_only_matching_handlers"
+      ],
+      "record": "docs/plugin-compat/evidence/t66/case-audit.run.json",
+      "sha256": "a58fbc59f113316bfe5239161f658b138243ac542ce213981e875d9bcbf4c19a",
+      "meaning": "Diagnostic process isolation, before t33 fixture repair; not a full Cargo green result"
+    },
+    "shared_workspace_failure": {
+      "phase": "resume3",
+      "reason": "Unrelated uncommitted workflow/video_edit/assets.rs E0277 errors: digest LowerHex and tenant ID Display",
+      "modified_by_this_task": false,
+      "current_state_not_rechecked": true
+    },
+    "ignored_agent_cases": [
+      {
+        "test": "plugins::compat::t24_tests::codex_plugin_compat_t24_desktop_roundtrip",
+        "reason": "requires an unlocked desktop running the task24 UI harness"
+      },
+      {
+        "test": "plugins::compat::t28_tests::codex_plugin_compat_t28_public_oauth_refresh",
+        "reason": "real public OAuth playground; explicitly run with --ignored"
+      },
+      {
+        "test": "plugins::compat::t29_tests::codex_plugin_compat_t29_public_chess_resource",
+        "reason": "requires public Chess MCP network service"
+      },
+      {
+        "test": "plugins::compat::t61_tests::codex_plugin_compat_t61_original_reports_missing_dependency",
+        "reason": "run with PATH=/usr/bin:/bin so the unchanged original package lacks its npx dependency"
+      },
+      {
+        "test": "plugins::compat::t61_tests::codex_plugin_compat_t61_public_hook_original",
+        "reason": "requires dedicated XDG_CACHE_HOME and XDG_CONFIG_HOME to isolate original hook state"
+      },
+      {
+        "test": "plugins::compat::t61_tests::codex_plugin_compat_t61_public_http_original",
+        "reason": "real public Context7 network integration; no credential or mock"
+      },
+      {
+        "test": "plugins::compat::t61_tests::codex_plugin_compat_t61_public_stdio_original",
+        "reason": "live original npm dependency; set T61_EVERYTHING_DEPS to separately installed pinned dependencies"
+      }
+    ],
+    "waived_not_verified": [
+      "Windows",
+      "Linux",
+      "real public OAuth"
+    ],
+    "cargo_locks_released": true,
+    "cache_retained": true,
+    "fixture_revision": {
+      "path": "crates/vw-agent/testdata/plugin_compat/t33/hooks.json",
+      "previous_sha256": "46c625b8858d8fe202980564c21cfe48cdf6e9ce213b803037879d9a773a9203",
+      "sha256": "feb944e248d3848224532ff1a37d764030d750e996db2cee730066c0ac6c5ac1",
+      "basis": "Repository-authored synthetic matcher fixture; public original packages were not edited."
+    },
+    "ignored_desktop_cases": [
+      {
+        "test": "plugin_compat_t30_tests::codex_plugin_compat_t30_real_webview_roundtrip",
+        "reason": "requires a built WebView helper and a graphical desktop"
+      },
+      {
+        "test": "plugin_compat_t31_tests::codex_plugin_compat_t31_real_local_mcp_page",
+        "reason": "requires graphical desktop and VW_T31_HELPER; manual UI evidence"
+      },
+      {
+        "test": "plugin_compat_t64_tests::codex_plugin_compat_t64_real_macos_mcp_page",
+        "reason": "requires macOS graphical desktop, T64_UI_ROOT, and T64_UI_HELPER; explicit CUA acceptance"
+      }
+    ],
+    "worktree_cleanup": {
+      "archive_attempted": true,
+      "archived": false,
+      "reason": "Archive tool refused: The task's primary checkout cannot be removed.",
+      "source_checkout_attach_attempt": "Refused: checkout exists but is not a managed worktree.",
+      "retained_for_review": true
+    },
+    "document_audit": {
+      "source_artifacts": 66,
+      "baseline_items": 299,
+      "frozen_codex_hashes_verified": 55,
+      "relative_links_verified": 508,
+      "json_and_deterministic_summary": "passed",
+      "strict_complete_checker_exit_code": 1,
+      "strict_complete_checker_unchanged": true
+    }
+  }
 }

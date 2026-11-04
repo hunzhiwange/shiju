@@ -6,7 +6,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "printf a >> result"
+            "command": "printf a >> \"$PLUGIN_DATA/result\""
           }
         ]
       },
@@ -15,11 +15,11 @@
         "hooks": [
           {
             "type": "command",
-            "command": "printf b >> result"
+            "command": "printf b >> \"$PLUGIN_DATA/result\""
           },
           {
             "type": "command",
-            "command": "printf b >> result"
+            "command": "printf b >> \"$PLUGIN_DATA/result\""
           }
         ]
       },
@@ -28,7 +28,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "printf x >> result"
+            "command": "printf x >> \"$PLUGIN_DATA/result\""
           }
         ]
       },
@@ -37,7 +37,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "printf c >> result"
+            "command": "printf c >> \"$PLUGIN_DATA/result\""
           }
         ]
       }

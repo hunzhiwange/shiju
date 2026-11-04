@@ -257,7 +257,9 @@ async fn http_fixture(root: &Path, mode: &str) -> HttpFixture {
         .unwrap();
     let mut fixture = HttpFixture { child, url: String::new() };
     for _ in 0..100 {
-        if let Ok(port) = fs::read_to_string(root.join("port")) {
+        if let Ok(port) = fs::read_to_string(root.join("port"))
+            && let Ok(port) = port.trim().parse::<std::num::NonZeroU16>()
+        {
             fixture.url = format!("http://127.0.0.1:{port}/mcp");
             return fixture;
         }
@@ -270,6 +272,8 @@ async fn http_fixture(root: &Path, mode: &str) -> HttpFixture {
 async fn codex_plugin_compat_t18_reuses_streamable_http_and_legacy_sse_sessions() {
     for mode in ["http", "sse"] {
         let root = tempfile::tempdir().unwrap();
+        // File creation is not publication: require the actual server to fill its port.
+        fs::write(root.path().join("port"), b"").unwrap();
         let fixture = http_fixture(root.path(), mode).await;
         let server = if mode == "http" {
             McpServer::Http(agent_client_protocol::McpServerHttp::new("http", &fixture.url))

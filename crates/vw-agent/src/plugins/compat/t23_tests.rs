@@ -119,6 +119,8 @@ async fn codex_plugin_compat_t23_sends_negotiated_http_version_on_each_request()
         let root = tempfile::tempdir().unwrap();
         let script = root.path().join("http_server.py");
         let port = root.path().join("port");
+        // An existing empty file is not a published server address.
+        std::fs::write(&port, b"").unwrap();
         let log = root.path().join("requests.jsonl");
         std::fs::write(
             &script,
@@ -133,7 +135,9 @@ async fn codex_plugin_compat_t23_sends_negotiated_http_version_on_each_request()
             .unwrap();
         let port = tokio::time::timeout(Duration::from_secs(5), async {
             loop {
-                if let Ok(port) = std::fs::read_to_string(&port) {
+                if let Ok(port) = std::fs::read_to_string(&port)
+                    && let Ok(port) = port.trim().parse::<std::num::NonZeroU16>()
+                {
                     break port;
                 }
                 tokio::time::sleep(Duration::from_millis(10)).await;

@@ -1,6 +1,6 @@
 # Mistral Vibe 模型来源适配
 
-状态：实现与真实 CLI 能力验证完成，待最终统一正式 Cargo 回归。
+状态：已完成；2026-11-04 两种来源均已取得正式 Cargo 真实 CLI 验收证据。
 
 固定版本：官方 `mistral-vibe==3.0.4`，使用此任务的最小会话绑定补丁；仅验收
 Darwin arm64 / Python 3.12.16，未声称 Linux 或 Windows 通过。
@@ -118,9 +118,9 @@ cli-local 使用槽位 1。两者均是 all-features 的真实生产测试二进
 Python 进程持锁，所有相关子进程结束后释放自己的锁。历史另有槽位 2 的预检因二进制
 不匹配直接退出，零测试，未作为任何验证证据。
 
-因此本任务保留为“已完成，待回归”，不删除编号任务文件。共享“所有 driver 均未验收”
-的旧测试、能力发布和补丁的实际分发由任务 33 集成；本任务未修改共享分派、profile、
-fixture 或公共 manifest。冻结共享源码后领取动态槽位，设置绝对构建路径，正式执行：
+上述是实现阶段的待回归记录，已由下方正式结果解除。共享能力发布和补丁实际分发仍按
+整体计划集成；本任务未修改共享分派、profile、fixture 或公共 manifest。
+本轮对最新共享工作区动态领取槽位并设置绝对构建路径，实际执行以下正式入口：
 
 ```sh
 export PATH="$PWD/target/vibe-cli-env/bin:$PATH"
@@ -128,4 +128,26 @@ python3 scripts/verify_acp_model_source.py --agent vibe --mode session-model --m
 python3 scripts/verify_acp_model_source.py --agent vibe --mode cli-local --manifest docs/vibewindow/acp-model-source/evidence/vibe/manifest.json --output target/acp-model-source-evidence/vibe/cli-local-final.json --offline-fixture
 ```
 
-必须各取得 1 passed，才能解除待回归并删除编号任务文件。
+### 2026-11-04 正式 Cargo 回归完成
+
+[回归记录](vibe/formal-regression.json) 使用原 `verify_acp_model_source.py` 直接调用
+Cargo，没有替换 Cargo 启动函数，没有使用 cached-production-binary 结果充当通过。
+
+| 来源 | 正式有效测试 | Cargo 退出码 | 请求次数 | 模型 |
+| --- | --- | --- | --- | --- |
+| [session-model](vibe/session-model.json) | 1 passed / 0 failed | 0 | 10 | primary → switched |
+| [cli-local](vibe/cli-local.json) | 1 passed / 0 failed | 0 | 8 | 始终原生 primary |
+
+两种来源的所有请求均认证正确，fixture errors=0；实际文件读取工具回合、新建、第二轮、
+取消、重启恢复、切模/本地保持、隔离和握手检查全部为真。实际具名入口为 `acp_model_source_real_cli_session_model` 与
+`acp_model_source_real_cli_cli_local`；两者均由 `cargo test -p vw-agent --lib --all-features`
+执行，测试参数为 `-- --ignored --nocapture --test-threads=1`。完整 argv、有效数量和退出码
+保存在各自的正式报告中。
+
+本轮固定真实 CLI 仍为补丁后的 Mistral Vibe 3.0.4，Darwin arm64。
+实际动态槽位 **1**：`CARGO_TARGET_DIR=/Users/xiangmin/worker/code/shiju/target/rust-slot-1`，
+`CARGO_BUILD_BUILD_DIR` 使用同一绝对路径。两种入口及其子进程结束后，已释放自己的锁，
+编译缓存保留。未修改 Rust 或上游补丁；之前通过且未受影响的 5 项 Vibe 聚焦测试、
+7 项上游行为测试和 Clippy 不重复执行。没有为回归修改共享文件。
+
+正式证据已齐备，编号任务按契约标为完成并删除。

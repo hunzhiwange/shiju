@@ -1,0 +1,61 @@
+{
+  "evidence_kind": "formal-cargo-regression",
+  "date": "2026-11-04",
+  "platform": "Darwin-arm64",
+  "cli": "mistral-vibe",
+  "cli_version": "3.0.4",
+  "implementation_commit": "51f93378d",
+  "passed": true,
+  "slot": 1,
+  "cargo_target_dir": "/Users/xiangmin/worker/code/shiju/target/rust-slot-1",
+  "cargo_build_build_dir": "/Users/xiangmin/worker/code/shiju/target/rust-slot-1",
+  "results": [
+    {
+      "mode": "session-model",
+      "report": "session-model.json",
+      "cargo_exit_code": 0,
+      "effective_tests": 1,
+      "requests": 10,
+      "command": [
+        "cargo",
+        "test",
+        "-p",
+        "vw-agent",
+        "--lib",
+        "--all-features",
+        "acp_model_source_real_cli_session_model",
+        "--",
+        "--ignored",
+        "--nocapture",
+        "--test-threads=1"
+      ]
+    },
+    {
+      "mode": "cli-local",
+      "report": "cli-local.json",
+      "cargo_exit_code": 0,
+      "effective_tests": 1,
+      "requests": 8,
+      "command": [
+        "cargo",
+        "test",
+        "-p",
+        "vw-agent",
+        "--lib",
+        "--all-features",
+        "acp_model_source_real_cli_cli_local",
+        "--",
+        "--ignored",
+        "--nocapture",
+        "--test-threads=1"
+      ]
+    }
+  ],
+  "lock_released": true,
+  "rust_code_changed": false,
+  "previously_passed_checks_reused": [
+    "acp_model_source_vibe: 5 passed",
+    "cargo clippy --all-targets --all-features -- -D warnings: exit 0",
+    "upstream_tests.py: 7 passed"
+  ]
+}

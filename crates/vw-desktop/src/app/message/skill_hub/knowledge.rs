@@ -190,14 +190,17 @@ pub(crate) fn update(app: &mut App, msg: KnowledgeMessage) -> Task<Message> {
                 {
                     return load_documents(app);
                 }
+                Some(false) => return page_error(app, true),
                 _ => {}
             }
         }
         KnowledgeMessage::DocumentsLoaded(request, result) => {
-            if current(app, &request)
-                && app.expert_hub.knowledge.finish_documents(&request, result) == Some(true)
-            {
-                return load_documents(app);
+            if current(app, &request) {
+                match app.expert_hub.knowledge.finish_documents(&request, result) {
+                    Some(true) => return load_documents(app),
+                    Some(false) => return page_error(app, false),
+                    None => {}
+                }
             }
         }
         KnowledgeMessage::SearchLoaded(request, result) => {
@@ -257,6 +260,23 @@ pub(crate) fn update(app: &mut App, msg: KnowledgeMessage) -> Task<Message> {
                 _ => unreachable!("responses handled above"),
             }
         }
+    }
+    Task::none()
+}
+
+// 只在已接收的目录响应失败时反馈，旧响应不重复弹出错误。
+fn page_error(app: &mut App, bases: bool) -> Task<Message> {
+    let status = if bases {
+        &app.expert_hub.knowledge.bases.status
+    } else {
+        &app.expert_hub.knowledge.documents.status
+    };
+    if matches!(status, LoadState::Error(_)) {
+        return app.show_localized_toast(
+            crate::app::state::ToastKind::Error,
+            "资料加载失败，请重试",
+            vec![],
+        );
     }
     Task::none()
 }

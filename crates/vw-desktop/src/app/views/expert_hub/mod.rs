@@ -1,4 +1,4 @@
-//! 组合专家、连接器与技能三个专家中心分区的桌面视图。
+//! 组合专家、连接器、技能与资料知识库的专家中心桌面视图。
 
 use crate::app::message::{ShijuAppsMessage, SkillHubMessage};
 use crate::app::skill_hub::ExpertHubSection;
@@ -11,6 +11,7 @@ mod detail;
 mod experts;
 mod install_guide;
 mod installed_skills;
+mod knowledge;
 mod list;
 mod public_skill_detail;
 mod public_skills;
@@ -29,7 +30,7 @@ fn section_button(
         .into()
 }
 
-/// 在专家中心、识矩技能和识矩应用之间提供一致的顶部导航。
+/// 在专家中心各分区、识矩技能和识矩应用之间提供一致的顶部导航。
 fn section_tabs(app: &App) -> Element<'static, Message> {
     let mut tabs = row![].spacing(8);
     for (label, section) in [
@@ -39,6 +40,10 @@ fn section_tabs(app: &App) -> Element<'static, Message> {
             ExpertHubSection::Connectors,
         ),
         (crate::app::i18n::I18n::new(app.desktop_locale).__("技能"), ExpertHubSection::Skills),
+        (
+            crate::app::i18n::I18n::new(app.desktop_locale).__("资料和知识库"),
+            ExpertHubSection::Knowledge,
+        ),
     ] {
         tabs = tabs.push(section_button(
             crate::app::i18n::I18n::new(app.desktop_locale).__(label),
@@ -65,7 +70,7 @@ pub(crate) fn view(app: &App) -> Element<'_, Message> {
     let body: Element<'_, Message> = match app.expert_hub.section {
         ExpertHubSection::Experts => experts::view(app),
         ExpertHubSection::Connectors => connectors::view(app),
-        ExpertHubSection::Knowledge => iced::widget::Space::new().into(),
+        ExpertHubSection::Knowledge => knowledge::view(app),
         ExpertHubSection::Skills if app.expert_hub.public_market.installed_open => {
             installed_skills::view(app)
         }
@@ -116,3 +121,5 @@ mod public_skill_detail_tests;
 mod public_skills_tests;
 #[cfg(test)]
 mod shiju_apps_tests;
+#[cfg(test)]
+mod shiju_knowledge_view_tests;

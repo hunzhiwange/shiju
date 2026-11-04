@@ -1,0 +1,96 @@
+{
+  "entries": [
+    {
+      "key": "codebuddy",
+      "distribution": {
+        "kind": "native",
+        "package": "@tencent-ai/codebuddy-code",
+        "release": "2.179.3",
+        "release_status": "metadata_snapshot_not_runtime_pin",
+        "source_url": "https://registry.npmjs.org/%40tencent-ai%2Fcodebuddy-code/2.179.3",
+        "git_commit": null,
+        "integrity": "sha512-SQy1YDuITzH2MClXCrLBVIzW93syDE8VXWsyok8g3eGmahdBE7G+1aR4tBZvQHMwjPANLasTkINM26nUKstPHQ==",
+        "bin": {
+          "cbc": "./bin/codebuddy",
+          "codebuddy": "./bin/codebuddy",
+          "cbc-prewarm": "./bin/cbc-prewarm",
+          "codebuddy-code": "./bin/codebuddy",
+          "codebuddy-lowmem": "./bin/codebuddy-lowmem"
+        },
+        "repository": null,
+        "link_check": {
+          "http_status": 200,
+          "final_url": "https://registry.npmjs.org/%40tencent-ai%2Fcodebuddy-code/2.179.3"
+        }
+      },
+      "underlying": {
+        "kind": "same_distribution",
+        "release": "2.179.3"
+      },
+      "license": {
+        "declared": "SEE LICENSE IN README.md",
+        "source_url": "https://registry.npmjs.org/%40tencent-ai%2Fcodebuddy-code/2.179.3",
+        "review": "metadata_only; bundled component licenses not audited"
+      },
+      "acp_launch": [
+        "codebuddy",
+        "--acp"
+      ],
+      "registry_default_args": "&[\"--acp\"]",
+      "local_command_candidates": [
+        "codebuddy"
+      ],
+      "route": "native_config_candidate",
+      "config_root_candidate": null,
+      "config_priority": "CODEBUDDY_BASE_URL/API_KEY/MODEL；models.json 使用完整请求 URL，与 BASE_URL 语义分别验证",
+      "auxiliary_model_routes": "lite/reasoning/subagent 均需显式覆盖",
+      "config_isolation_verified": false,
+      "runtime_verified": false,
+      "runtime_evidence_reason": "No ACP model request executed; version-only probe is not model or isolation evidence.",
+      "installed": {
+        "command": [
+          "codebuddy",
+          "--version"
+        ],
+        "status": "not_found",
+        "exit_code": null
+      },
+      "platforms": {
+        "macos": "version-only discovery on current host; no ACP request",
+        "linux": "unverified; package/installer target and ACP must be checked",
+        "windows": "unverified; npm cmd/exe or PowerShell installer differs from Unix; target support not inferred"
+      },
+      "source_urls": [
+        "https://www.codebuddy.ai/docs/cli/env-vars",
+        "https://www.codebuddy.ai/docs/cli/models"
+      ],
+      "follow_up": "task 14: exact CLI model-source adaptation; task 9 isolation; task 10 real offline request proof",
+      "source_link_checks": {
+        "https://www.codebuddy.ai/docs/cli/env-vars": {
+          "http_status": 200,
+          "final_url": "https://www.codebuddy.ai/docs/cli/env-vars"
+        },
+        "https://www.codebuddy.ai/docs/cli/models": {
+          "http_status": 200,
+          "final_url": "https://www.codebuddy.ai/docs/cli/models"
+        }
+      },
+      "offline_acceptance": {
+        "session-model": {
+          "config_root_env": "CODEBUDDY_CONFIG_DIR",
+          "files": {
+            "settings.json": "{\"env\": {\"CODEBUDDY_MODEL\": \"{{model}}\", \"CODEBUDDY_BASE_URL\": \"{{endpoint}}\", \"CODEBUDDY_API_KEY\": \"{{key}}\"}}",
+            "models.json": "{\"models\": [{\"id\": \"{{model}}\", \"name\": \"Fixture\", \"vendor\": \"OpenAI\", \"url\": \"{{endpoint}}/chat/completions\", \"apiKey\": \"{{key}}\", \"supportsToolCall\": true}]}"
+          }
+        },
+        "cli-local": {
+          "config_root_env": "CODEBUDDY_CONFIG_DIR",
+          "files": {
+            "settings.json": "{\"env\": {\"CODEBUDDY_MODEL\": \"{{model}}\", \"CODEBUDDY_BASE_URL\": \"{{endpoint}}\", \"CODEBUDDY_API_KEY\": \"{{key}}\"}}",
+            "models.json": "{\"models\": [{\"id\": \"{{model}}\", \"name\": \"Fixture\", \"vendor\": \"OpenAI\", \"url\": \"{{endpoint}}/chat/completions\", \"apiKey\": \"{{key}}\", \"supportsToolCall\": true}]}"
+          }
+        }
+      }
+    }
+  ]
+}

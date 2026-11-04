@@ -688,6 +688,7 @@ fn cron_gateway_agent_request(
     let options = cron_gateway_options(config, job, acp_agent.as_deref());
 
     let request = vw_api_types::chat::GatewayChatStreamRequest {
+        acp_model_source: vw_api_types::acp_model_source::AcpModelSource::SessionModel,
         session_id: Some(session_id.clone().into()),
         messages: vec![json!({ "role": "user", "content": prompt })],
         system: None,

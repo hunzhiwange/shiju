@@ -111,6 +111,9 @@ pub struct InputMessageDto {
 /// 单次聊天调用的可选配置。
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Default)]
 pub struct ChatOptionsDto {
+    /// ACP model origin; independent of the selected CLI and tool permissions.
+    #[serde(default)]
+    pub acp_model_source: crate::acp_model_source::AcpModelSource,
     /// 指定模型。
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub model: Option<String>,
@@ -163,6 +166,9 @@ pub struct ChatStreamRequest {
 /// 与网关兼容的聊天流请求体。
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Default)]
 pub struct GatewayChatStreamRequest {
+    /// ACP model origin; missing values select the client session model.
+    #[serde(default)]
+    pub acp_model_source: crate::acp_model_source::AcpModelSource,
     /// 可选会话 ID。
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub session_id: Option<SessionId>,

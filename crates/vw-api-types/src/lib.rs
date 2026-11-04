@@ -35,6 +35,7 @@
 //! - 避免在 DTO 中引入隐式业务逻辑
 //! - 通过新类型包装 ID，降低字符串误用风险
 
+pub mod acp_model_source;
 pub mod acp_session;
 pub mod agent_scheduler;
 pub mod chat;
@@ -119,3 +120,6 @@ pub use chat::ReasoningEffortDto;
 pub use common::*;
 pub use error::*;
 pub use id::*;
+
+#[cfg(test)]
+mod acp_model_source_tests;

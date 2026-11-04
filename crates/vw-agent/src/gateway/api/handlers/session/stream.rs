@@ -930,6 +930,7 @@ async fn start_gateway_chat_producer(
     send: impl FnMut(Value, bool) -> bool + Send + 'static,
 ) -> Result<(), ApiError> {
     let GatewayChatStreamRequest {
+        acp_model_source: _,
         session_id,
         messages,
         system: _,

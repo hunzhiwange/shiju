@@ -373,6 +373,8 @@ fn gateway_task_stream_request(
         options.insert("acp_agent".to_string(), json!(acp_agent));
     }
     vw_gateway_client::GatewayChatStreamRequest {
+        acp_model_source:
+            vw_gateway_client::vw_api_types::acp_model_source::AcpModelSource::SessionModel,
         session_id: Some(session_id.into()),
         messages: vec![json!({ "role": "user", "content": prompt })],
         system: None,

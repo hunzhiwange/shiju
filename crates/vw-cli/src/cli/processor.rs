@@ -236,6 +236,8 @@ pub(crate) fn gateway_stream_request_from_processor_request(
     messages.push(gateway_message_value("user", req.query.as_str()));
 
     GatewayChatStreamRequest {
+        acp_model_source:
+            vw_gateway_client::vw_api_types::acp_model_source::AcpModelSource::SessionModel,
         session_id: normalize_optional_str_ref(Some(req.session.as_str())).map(SessionId::from),
         messages,
         system: None,

@@ -61,7 +61,7 @@ fn advertised(info: vw_acp::SessionCapabilities) -> AcpSessionOptions {
         });
     }
     options.retain(|option| !option.choices.is_empty());
-    AcpSessionOptions { connected: true, options }
+    AcpSessionOptions { connected: true, options, ..Default::default() }
 }
 
 async fn connected(

@@ -513,6 +513,7 @@ pub(crate) fn gateway_local_agent_stream_request(
     }
 
     GatewayChatStreamRequest {
+        acp_model_source: vw_api_types::acp_model_source::AcpModelSource::SessionModel,
         session_id: Some(
             format!("agent-scheduler-{}-{}", request.task_id.as_str(), request.run_id.as_str())
                 .into(),

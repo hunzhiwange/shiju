@@ -188,3 +188,64 @@ fn ui_config_public_wrappers_use_runtime_settings_store() {
         std::env::remove_var("VIBEWINDOW_TEST_HOME");
     }
 }
+
+#[test]
+fn acp_model_source_contract_persists_isolated_sessions_and_tenants_without_secrets() {
+    let home = tempfile::tempdir().unwrap();
+    let database = GlobalDatabase::for_home(home.path()).unwrap();
+    let store = GatewaySettingsStore::new(database.clone()).unwrap();
+    let a = TenantScope::new("platform", "a").unwrap();
+    let b = TenantScope::new("platform", "b").unwrap();
+    let selections = serde_json::json!({
+        "session-a": {"source": "cli_local", "provider_id": "provider-a", "model": "provider-a/model"},
+        "session-b": {"source": "session_model", "provider_id": "provider-b", "model": "provider-b/model"}
+    });
+    set_config_field_in_store(&store, &a, "acp_session_models", selections.clone()).unwrap();
+    set_config_field_in_store(
+        &store,
+        &b,
+        "acp_session_models",
+        serde_json::json!({
+            "session-a": {"source": "session_model", "model": "other/model"}
+        }),
+    )
+    .unwrap();
+    let reopened = GatewaySettingsStore::new(database).unwrap();
+    assert_eq!(
+        load_app_config_from_store(&reopened, &a).unwrap()["acp_session_models"],
+        selections
+    );
+    assert_eq!(
+        load_app_config_from_store(&reopened, &b).unwrap()["acp_session_models"]["session-a"]["model"],
+        "other/model"
+    );
+    for invalid in [
+        serde_json::json!({"session-a": {"source": "fallback"}}),
+        serde_json::json!({"session-a": {"source": "session_model", "api_key": "secret-marker"}}),
+        serde_json::json!({"session-a": {"source": "cli_local", "token": "secret-marker"}}),
+    ] {
+        assert!(set_config_field_in_store(&reopened, &a, "acp_session_models", invalid).is_err());
+    }
+    let stored = reopened.get(&a, UI_CONFIG_NAMESPACE, UI_CONFIG_KEY).unwrap().unwrap();
+    assert!(!stored.contains("secret-marker"));
+    assert_eq!(
+        load_app_config_from_store(&reopened, &a).unwrap()["acp_session_models"],
+        selections
+    );
+}
+
+#[test]
+fn acp_model_source_contract_rejects_invalid_persisted_source() {
+    let home = tempfile::tempdir().unwrap();
+    let store = GatewaySettingsStore::new(GlobalDatabase::for_home(home.path()).unwrap()).unwrap();
+    let tenant = TenantScope::default();
+    store
+        .upsert(
+            &tenant,
+            UI_CONFIG_NAMESPACE,
+            UI_CONFIG_KEY,
+            r#"{"acp_session_models":{"session":{"source":"fallback"}}}"#,
+        )
+        .unwrap();
+    assert!(load_app_config_from_store(&store, &tenant).is_err());
+}

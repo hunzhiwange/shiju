@@ -55,6 +55,9 @@ fn load_app_config_from_store(store: &GatewaySettingsStore, tenant: &TenantScope
         return Ok(serde_json::json!({}));
     };
     let cfg: Value = serde_json::from_str(&payload).context("decode desktop UI config")?;
+    if let Some(selections) = cfg.get("acp_session_models") {
+        validate_acp_session_models(selections)?;
+    }
     Ok(if cfg.is_object() { cfg } else { serde_json::json!({}) })
 }
 
@@ -64,6 +67,9 @@ fn set_config_field_in_store(
     key: &str,
     value: Value,
 ) -> Result<()> {
+    if key == "acp_session_models" {
+        validate_acp_session_models(&value)?;
+    }
     let mut cfg = load_app_config_from_store(store, tenant)?;
     if let Some(obj) = cfg.as_object_mut() {
         obj.insert(key.to_string(), value);
@@ -71,6 +77,18 @@ fn set_config_field_in_store(
 
     let payload = serde_json::to_string(&cfg).context("encode desktop UI config")?;
     store.upsert(tenant, UI_CONFIG_NAMESPACE, UI_CONFIG_KEY, &payload)
+}
+
+/// Reserved UI config field: session IDs map to non-secret model identities.
+fn validate_acp_session_models(value: &Value) -> Result<()> {
+    let selections: std::collections::HashMap<
+        vw_api_types::id::SessionId,
+        vw_api_types::acp_model_source::AcpSessionModelSelection,
+    > = serde_json::from_value(value.clone()).context("decode ACP session model selections")?;
+    if selections.keys().any(|id| id.as_ref().trim().is_empty()) {
+        anyhow::bail!("ACP model selection requires a nonempty session ID");
+    }
+    Ok(())
 }
 
 fn runtime_settings_store() -> Result<GatewaySettingsStore> {

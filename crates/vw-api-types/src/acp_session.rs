@@ -25,6 +25,10 @@ pub struct AcpSessionOption {
 
 #[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
 pub struct AcpSessionOptions {
+    #[serde(default)]
+    pub acp_model_source: crate::acp_model_source::AcpModelSource,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub model_source_capabilities: Vec<crate::acp_model_source::AcpModelSourceCapability>,
     pub connected: bool,
     pub options: Vec<AcpSessionOption>,
 }

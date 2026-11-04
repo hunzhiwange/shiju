@@ -111,6 +111,7 @@ impl SessionLlmProvider {
         model: &str,
     ) -> vw_gateway_client::GatewayChatStreamRequest {
         vw_gateway_client::GatewayChatStreamRequest {
+            acp_model_source: vw_api_types::acp_model_source::AcpModelSource::SessionModel,
             session_id: None,
             messages,
             system: None,

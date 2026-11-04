@@ -3769,6 +3769,8 @@ pub(crate) fn gateway_stream_request_from_state(
     }
 
     GatewayChatStreamRequest {
+        acp_model_source:
+            vw_gateway_client::vw_api_types::acp_model_source::AcpModelSource::SessionModel,
         session_id: normalize_optional_str_ref(submission.session_id.as_deref())
             .map(SessionId::from),
         messages,

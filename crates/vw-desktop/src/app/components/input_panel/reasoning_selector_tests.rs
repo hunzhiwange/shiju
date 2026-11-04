@@ -283,6 +283,9 @@ fn acp_session_options_follow_capabilities_commit_only_acknowledged_values() {
     let (mut app, _) = crate::app::App::new();
     app.active_session_id = Some("options-a".into());
     let options = AcpSessionOptions {
+        acp_model_source:
+            vw_gateway_client::vw_api_types::acp_model_source::AcpModelSource::SessionModel,
+        model_source_capabilities: Vec::new(),
         connected: true,
         options: vec![AcpSessionOption {
             kind: AcpOptionKind::Mode,

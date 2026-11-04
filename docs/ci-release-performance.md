@@ -334,3 +334,20 @@ GitHub 原表单将未加引号的 off 显示为 false，会使缓存模式判�
 新增默认分支保护是单独仓库治理决定，尚未执行；保持原有缓存权限限制。
 Release 的 push 仅匹配版本 tag，但所有 PR 会启动多平台验证，故未创建会触发
 Windows/Linux 的 PR。基线仍可独立完成；缓存冷热验收待治理决定后再安全安排。
+
+
+### 正常 PR 已合入，缓存对照跟进中
+
+用户完成GitHub认证后，shiju保护规则已成功创建。随后复核既有dist计划的
+pr_run_mode=plan：PR仅运行计划检查，平台构建与发布作业都跳过，前述“PR必然触发
+多平台验证”的判断不准确，已以真实运行结果纠正。
+[PR #2](https://github.com/hunzhiwange/shiju/pull/2) 在计划检查28秒通过后正常合入，
+无绕过保护；合并SHA e46d2b329b1bc8477aa3e1f4d2651eef0a863198，只改基准文件。
+
+[同SHA off基线 #3](https://github.com/hunzhiwange/shiju/actions/runs/41792556594)
+在2026-11-04 15:28上海手动触发，默认分支shiju、experiment=dist、cache=off，
+等待先前分支基线完成后串行运行。先前a5df08b运行仍在Intel CLI构建阶段，工具安装
+实际14m23s；该分支SHA不同，不和合并提交测量混算收益。
+完成后依次以同SHA运行两次restore，才能判断可信缓存保存、恢复与净收益。
+当前尚无成功打包或冷热净收益结论。已建立每10分钟的跟进，状态未变时保持安静，
+仅在进展、失败、完成或需用户操作时通知；任务全部验收后结束跟进。

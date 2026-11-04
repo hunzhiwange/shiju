@@ -641,3 +641,19 @@ fn command_detection_uses_basename_and_acp_flags() {
     );
     assert!(!client("claude", &["--print"]).is_claude_acp_command());
 }
+
+#[test]
+fn acp_model_source_codebuddy_boolean_session_options_preserve_select_and_toggle() {
+    // CodeBuddy 2.179.3 advertises this toggle even without client boolean opt-in.
+    let options = json!([
+        {"type":"select", "id":"model", "name":"Model", "currentValue":"selected",
+         "options":[{"value":"selected", "name":"Selected"}]},
+        {"type":"boolean", "id":"multitask", "name":"Multitask",
+         "category":"_codebuddy.ai/multitask", "currentValue":false}
+    ]);
+    let response = json!({"sessionId":"codebuddy-protocol-fixture", "configOptions":options});
+    let decoded = serde_json::from_value::<acp::NewSessionResponse>(response);
+    assert!(decoded.is_ok(), "real CodeBuddy session options must decode: {decoded:?}");
+    let encoded = serde_json::to_value(decoded.unwrap()).unwrap();
+    assert_eq!(encoded["configOptions"], options);
+}

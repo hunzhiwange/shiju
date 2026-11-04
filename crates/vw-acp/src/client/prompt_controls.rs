@@ -64,7 +64,7 @@ pub(super) fn control_future<'a>(
                         .set_session_config_option(acp::SetSessionConfigOptionRequest::new(
                             session_id,
                             option_name,
-                            value_id,
+                            acp::SessionConfigValueId::new(value_id),
                         ))
                         .await
                         .map_err(|error| AcpError::SetSessionConfigOption(error.to_string()))

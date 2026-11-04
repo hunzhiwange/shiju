@@ -365,7 +365,16 @@ where
         if args.config_id.0.as_ref() != "model" {
             return Err(protocol_error(Error::invalid_params(), "unknown session config option"));
         }
-        let options = self.select_model(args.session_id.0.as_ref(), args.value.0.as_ref()).await?;
+        let value = match args.value {
+            agent_client_protocol::SessionConfigOptionValue::ValueId { value } => value,
+            _ => {
+                return Err(protocol_error(
+                    Error::invalid_params(),
+                    "model session config requires a string value",
+                ));
+            }
+        };
+        let options = self.select_model(args.session_id.0.as_ref(), value.0.as_ref()).await?;
         Ok(SetSessionConfigOptionResponse::new(options))
     }
 

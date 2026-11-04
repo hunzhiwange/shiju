@@ -131,7 +131,12 @@ impl acp::Agent for TestAgent {
         state.calls.push(RecordedCall::SetConfig {
             session_id: args.session_id.0.to_string(),
             option_name: args.config_id.0.to_string(),
-            value_id: args.value.0.to_string(),
+            value_id: args
+                .value
+                .as_value_id()
+                .ok_or_else(acp::Error::invalid_params)?
+                .0
+                .to_string(),
         });
         if state.fail_set_config {
             return Err(acp::Error::invalid_params());

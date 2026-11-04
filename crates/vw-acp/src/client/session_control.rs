@@ -130,7 +130,7 @@ impl AcpClient {
             .set_session_config_option(acp::SetSessionConfigOptionRequest::new(
                 acp::SessionId::new(session_id.clone()),
                 option_name,
-                value_id,
+                acp::SessionConfigValueId::new(value_id),
             ))
             .await
             .map_err(|err| {

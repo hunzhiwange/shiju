@@ -14,7 +14,7 @@ test = false
 
 [dependencies]
 clap = { version = "4.5", features = ["derive"] }
-agent-client-protocol = { version = "0.10.4", features = ["unstable_session_usage", "unstable_session_resume", "unstable_session_model"] }
+agent-client-protocol = { version = "0.10.4", features = ["unstable_session_usage", "unstable_session_resume", "unstable_session_model", "unstable_boolean_config"] }
 async-trait = "0.1.89"
 libc = "0.2"
 parking_lot = "0.12"

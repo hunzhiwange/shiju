@@ -172,6 +172,11 @@ async fn model_selection_protocol_updates_prompt_and_load_state() {
                 json!({"sessionId":"session-1", "configId":"unknown", "value":"auto"}),
             ),
             (8, "session/set_model", json!({"sessionId":"unknown", "modelId":"auto"})),
+            (
+                11,
+                "session/set_config_option",
+                json!({"sessionId":"session-1", "configId":"model", "type":"boolean", "value":false}),
+            ),
         ] {
             write_frame(
                 reader.get_mut(),
@@ -180,6 +185,9 @@ async fn model_selection_protocol_updates_prompt_and_load_state() {
             .await;
             let (frame, updates) = response(&mut reader, id).await;
             assert!(frame.get("error").is_some(), "{frame}");
+            if id == 11 {
+                assert_eq!(frame["error"]["code"], -32602);
+            }
             assert!(updates.is_empty());
         }
         write_frame(reader.get_mut(), json!({"jsonrpc":"2.0", "id":9, "method":"session/prompt", "params":{"sessionId":"session-1", "prompt":[{"type":"text", "text":"hello"}]}})).await;

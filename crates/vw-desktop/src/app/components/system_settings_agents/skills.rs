@@ -4,15 +4,16 @@
 
 use super::shared::{is_dark_theme, section_card};
 use crate::app::components::system_settings_common::{
-    rounded_action_btn_style, settings_muted_text_style, settings_panel_style,
-    settings_segment_button_style, settings_value_badge,
+    SETTINGS_CONTROL_PADDING, SETTINGS_CONTROL_TEXT_SIZE, rounded_action_btn_style,
+    settings_muted_text_style, settings_panel_style, settings_pick_list_menu_style,
+    settings_pick_list_style, settings_segment_button_style, settings_value_badge,
 };
 use crate::app::i18n::settings_extensions::text as tr;
 use crate::app::message::settings::{AgentsMessage, SettingsMessage};
 use crate::app::state::{DelegateAgentSettingsEntry, SkillsCatalogItem, SkillsDirectoryScope};
 use crate::app::{App, Message};
 use iced::widget::tooltip::{Position as TooltipPosition, Tooltip};
-use iced::widget::{button, column, container, row, text};
+use iced::widget::{button, column, container, pick_list, row, text};
 use iced::{Alignment, Background, Border, Color, Element, Length, Theme};
 use vw_config_types::agent::DelegateCapabilityPolicy;
 use vw_config_types::ui::DesktopLocale;
@@ -156,7 +157,7 @@ pub(super) fn scope_description(scope: SkillsDirectoryScope) -> &'static str {
 }
 
 pub(super) fn discovery_order_text(app: &App) -> String {
-    if let Some(project_path) = &app.project_path {
+    if let Some(project_path) = &app.agents_settings.skill_directory {
         crate::__!(
             crate::app::i18n::I18n::new(app.desktop_locale),
             "发现顺序：%s/skills -> %s/.agents/skills -> 父级 skills、.agents/skills -> %s/skills",
@@ -180,8 +181,9 @@ fn scope_button(
     let mut button = button(text(label).size(12)).padding([8, 12]);
 
     if enabled {
-        button =
-            button.on_press(Message::Settings(SettingsMessage::SkillsDirectoryScopeChanged(scope)));
+        button = button.on_press(Message::Settings(SettingsMessage::Agents(
+            AgentsMessage::SkillDirectoryScopeChanged(scope),
+        )));
     }
 
     button
@@ -255,10 +257,10 @@ pub(super) fn view<'a>(
     app: &'a App,
     entry: &'a DelegateAgentSettingsEntry,
 ) -> Element<'a, Message> {
-    let active_scope = agent_skills_scope(app.skills_settings.directory_scope);
+    let active_scope = agent_skills_scope(app.agents_settings.skill_directory_scope);
     let skills = app
-        .skills_settings
-        .catalog
+        .agents_settings
+        .skill_catalog
         .iter()
         .filter(|skill| agent_skill_matches_scope(skill, active_scope))
         .collect::<Vec<_>>();
@@ -268,8 +270,32 @@ pub(super) fn view<'a>(
         .iter()
         .filter(|skill| enabled_skills.iter().any(|available| available == *skill))
         .count();
-    let project_open = app.project_path.is_some();
+    let project_open = app.agents_settings.skill_directory.is_some();
+    let mut directories = vec!["全局目录".to_string()];
+    directories.extend(super::agent_project_options(app));
+    if let Some(path) = &app.agents_settings.skill_directory {
+        if !directories.contains(path) {
+            directories.push(path.clone());
+        }
+    }
+    let selected = app.agents_settings.skill_directory.clone().unwrap_or_else(|| "全局目录".into());
+    let directory_picker = pick_list(directories, Some(selected), |value| {
+        Message::Settings(SettingsMessage::Agents(AgentsMessage::SkillDirectorySelected(
+            if value == "全局目录" { None } else { Some(value) },
+        )))
+    })
+    .padding(SETTINGS_CONTROL_PADDING)
+    .text_size(SETTINGS_CONTROL_TEXT_SIZE)
+    .style(settings_pick_list_style)
+    .menu_style(settings_pick_list_menu_style)
+    .width(Length::Fill);
     let scope_filter = column![
+        row![text(tr(app.desktop_locale, "技能目录")).size(13), directory_picker]
+            .spacing(10)
+            .align_y(Alignment::Center),
+        text(app.agents_settings.skill_catalog_error.as_deref().unwrap_or_default())
+            .size(12)
+            .style(settings_muted_text_style),
         row![
             scope_button(
                 tr(app.desktop_locale, "项目目录"),
@@ -311,7 +337,7 @@ pub(super) fn view<'a>(
 
     let skills_list: Element<'_, Message> = if skills.is_empty() {
         column![
-            text(if app.skills_settings.loading {
+            text(if app.agents_settings.skill_catalog_loading {
                 tr(app.desktop_locale, "正在刷新技能目录 ...")
             } else {
                 tr(app.desktop_locale, "当前筛选范围暂无可用技能")
@@ -320,7 +346,9 @@ pub(super) fn view<'a>(
             .style(settings_muted_text_style),
             button(text(tr(app.desktop_locale, "刷新技能")).size(12))
                 .padding([8, 14])
-                .on_press(Message::Settings(SettingsMessage::SkillsRefresh))
+                .on_press(Message::Settings(SettingsMessage::Agents(
+                    AgentsMessage::SkillCatalogRefresh
+                )))
                 .style(rounded_action_btn_style),
         ]
         .spacing(10)

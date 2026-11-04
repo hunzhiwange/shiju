@@ -13,11 +13,7 @@ pub(super) fn update(app: &mut App, message: AgentsMessage) -> Task<Message> {
             }
             if app.agents_settings.profile_modal.is_some() {
                 return Task::batch([
-                    if app.agents_settings.project_path == app.project_path {
-                        super::super::update(app, SettingsMessage::SkillsRefresh)
-                    } else {
-                        Task::none()
-                    },
+                    refresh_skill_catalog(app),
                     super::super::mcp::update(
                         app,
                         SettingsMessage::Mcp(
@@ -114,10 +110,9 @@ pub(super) fn update(app: &mut App, message: AgentsMessage) -> Task<Message> {
                 value["runtime"]["backend"] = serde_json::Value::Null;
             }
             let patch = serde_json::json!({"agents": {draft.key.clone(): value}});
-            let project = app.agents_settings.project_path.clone();
             app.agents_settings.profile_saving = true;
             app.agents_settings.profile_deleting = deleting;
-            Task::perform(persist_agents_patch(project, patch), |result| {
+            Task::perform(persist_agents_patch(patch), |result| {
                 Message::Settings(SettingsMessage::Agents(AgentsMessage::ProfileSaved(result)))
             })
         }

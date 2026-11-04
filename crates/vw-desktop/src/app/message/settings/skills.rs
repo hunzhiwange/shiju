@@ -157,7 +157,7 @@ fn map_skill_kind(kind: &str) -> SkillsCatalogKind {
     }
 }
 
-fn map_catalog_items(items: Vec<DesktopSkillCatalogEntryDto>) -> Vec<SkillsCatalogItem> {
+pub(super) fn map_catalog_items(items: Vec<DesktopSkillCatalogEntryDto>) -> Vec<SkillsCatalogItem> {
     items
         .into_iter()
         .map(|item| SkillsCatalogItem {

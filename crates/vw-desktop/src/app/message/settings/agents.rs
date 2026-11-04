@@ -95,26 +95,33 @@ fn refresh_task() -> Task<Message> {
     )
 }
 
-fn project_config_task(project_path: String) -> Task<Message> {
-    let response_project_path = project_path.clone();
-    Task::perform(
-        async move { load_catalog_config(Some(project_path)).await.map(Box::new) },
-        move |result| {
-            Message::Settings(SettingsMessage::Agents(AgentsMessage::ProjectConfigLoaded {
-                project_path: response_project_path.clone(),
-                result,
-            }))
-        },
-    )
+pub(super) fn config_task(_project_path: Option<String>) -> Task<Message> {
+    Task::perform(async { load_catalog_config().await.map(Box::new) }, |result| {
+        Message::Settings(SettingsMessage::Agents(AgentsMessage::ConfigLoaded {
+            project_path: None,
+            result,
+        }))
+    })
 }
 
-pub(super) fn config_task(project_path: Option<String>) -> Task<Message> {
-    let response_project_path = project_path.clone();
+fn refresh_skill_catalog(app: &mut App) -> Task<Message> {
+    let directory = app.agents_settings.skill_directory.clone();
+    app.agents_settings.skill_catalog_generation += 1;
+    let generation = app.agents_settings.skill_catalog_generation;
+    app.agents_settings.skill_catalog_loading = true;
+    app.agents_settings.skill_catalog_error = None;
+    app.agents_settings.skill_catalog.clear();
     Task::perform(
-        async move { load_catalog_config(project_path).await.map(Box::new) },
-        move |result| {
-            Message::Settings(SettingsMessage::Agents(AgentsMessage::ConfigLoaded {
-                project_path: response_project_path.clone(),
+        async move {
+            let result = crate::app::session_gateway::gateway_skills_async(directory.as_deref())
+                .await
+                .map(super::skills::map_catalog_items);
+            (directory, result)
+        },
+        move |(directory, result)| {
+            Message::Settings(SettingsMessage::Agents(AgentsMessage::SkillCatalogLoaded {
+                directory,
+                generation,
                 result,
             }))
         },
@@ -128,15 +135,11 @@ struct CatalogAgent {
     definition: vw_config_types::agent::DelegateAgentConfig,
 }
 
-async fn load_catalog_config(
-    project_path: Option<String>,
-) -> Result<vw_config_types::config::Config, String> {
-    let mut config = match project_path.as_deref() {
-        Some(path) => crate::app::config::load_project_agent_config_async(path).await?,
-        None => crate::app::config::load_full_agent_config_async().await?,
-    };
-    let value =
-        crate::app::config::gateway_client()?.agent_profiles(project_path.as_deref(), true).await?;
+async fn load_catalog_config() -> Result<vw_config_types::config::Config, String> {
+    let mut config: vw_config_types::config::Config =
+        serde_json::from_value(crate::app::config::load_global_config_value_async().await?)
+            .map_err(|error| error.to_string())?;
+    let value = crate::app::config::gateway_client()?.agent_profiles(None, true).await?;
     let catalog: Vec<CatalogAgent> =
         serde_json::from_value(value).map_err(|error| format!("智能体目录响应无效：{error}"))?;
     for mut agent in catalog {
@@ -594,16 +597,8 @@ fn build_agents_settings_patch(
     Ok(serde_json::Value::Object(patch))
 }
 
-async fn persist_agents_patch(
-    project_path: Option<String>,
-    patch: serde_json::Value,
-) -> Result<(), String> {
-    match project_path {
-        Some(project_path) => {
-            crate::app::config::patch_project_agent_config_async(&project_path, patch).await
-        }
-        None => crate::app::config::patch_full_agent_config_async(patch).await,
-    }
+async fn persist_agents_patch(patch: serde_json::Value) -> Result<(), String> {
+    crate::app::config::patch_full_agent_config_async(patch).await
 }
 
 fn persist_agents_settings(app: &mut App) -> Task<Message> {
@@ -621,10 +616,9 @@ fn persist_agents_settings(app: &mut App) -> Task<Message> {
     app.agents_settings.dirty = false;
     app.agents_settings.save_error = None;
     let entries = app.agents_settings.entries.clone();
-    let project_path = app.agents_settings.project_path.clone();
     let agents_task = crate::app::config::spawn_gateway_task("agent", async move {
         let patch = build_agents_settings_patch(&entries)?;
-        persist_agents_patch(project_path, patch).await
+        persist_agents_patch(patch).await
     });
 
     let compat_cleanup_task = crate::app::config::update_agents_compat_registry_async(|agents| {
@@ -741,9 +735,8 @@ pub fn update(app: &mut App, message: SettingsMessage) -> Task<Message> {
                 return Task::none();
             }
             app.agents_settings.catalog_busy = true;
-            let project = app.agents_settings.project_path.clone();
             let patch = serde_json::json!({"agents": {&key: {"enabled": enabled}}});
-            Task::perform(persist_agents_patch(project, patch), move |result| {
+            Task::perform(persist_agents_patch(patch), move |result| {
                 Message::Settings(SettingsMessage::Agents(AgentsMessage::CatalogToggled {
                     key: key.clone(),
                     enabled,
@@ -772,13 +765,10 @@ pub fn update(app: &mut App, message: SettingsMessage) -> Task<Message> {
             {
                 return Task::none();
             }
-            let project = app.agents_settings.project_path.clone();
             app.agents_settings.catalog_busy = true;
             Task::perform(
                 async move {
-                    crate::app::config::gateway_client()?
-                        .agent_profile_copy(project.as_deref(), &key)
-                        .await
+                    crate::app::config::gateway_client()?.agent_profile_copy(None, &key).await
                 },
                 |result| {
                     Message::Settings(SettingsMessage::Agents(AgentsMessage::CatalogCopied(result)))
@@ -829,9 +819,6 @@ pub fn update(app: &mut App, message: SettingsMessage) -> Task<Message> {
             else {
                 return catalog_error(app, "请先打开项目，再创建新会话".into());
             };
-            if app.agents_settings.project_path.as_deref() != Some(project.as_str()) {
-                return catalog_error(app, "请切换到当前项目的智能体配置再启动".into());
-            }
             app.agents_settings.catalog_busy = true;
             Task::perform(
                 crate::app::message::project::helpers::create_gateway_session_in_directory(project),
@@ -876,7 +863,7 @@ pub fn update(app: &mut App, message: SettingsMessage) -> Task<Message> {
             if app.agents_settings.dirty || app.agents_settings.save_in_flight {
                 return app.show_localized_toast(
                     crate::app::state::ToastKind::Warning,
-                    "请先保存或放弃智能体配置修改，再刷新或切换项目",
+                    "请先保存或放弃智能体配置修改，再刷新",
                     vec![],
                 );
             }
@@ -884,7 +871,7 @@ pub fn update(app: &mut App, message: SettingsMessage) -> Task<Message> {
             app.agents_settings.config_ready = false;
             app.agents_settings.registered_tools = None;
             app.agents_settings.save_error = None;
-            app.agents_settings.project_path = app.project_path.clone();
+            app.agents_settings.project_path = None;
             Task::batch(vec![refresh_task(), config_task(app.agents_settings.project_path.clone())])
         }
         AgentsMessage::Loaded(res) => {
@@ -928,7 +915,7 @@ pub fn update(app: &mut App, message: SettingsMessage) -> Task<Message> {
             if app.agents_settings.dirty || app.agents_settings.save_in_flight {
                 return Task::none();
             }
-            if app.agents_settings.project_path != project_path {
+            if project_path.is_some() {
                 return Task::none();
             }
 
@@ -945,55 +932,38 @@ pub fn update(app: &mut App, message: SettingsMessage) -> Task<Message> {
             }
             Task::none()
         }
-        AgentsMessage::ProjectSelected(project_path) => {
-            if app.agents_settings.dirty || app.agents_settings.save_in_flight {
-                return app.show_localized_toast(
-                    crate::app::state::ToastKind::Warning,
-                    "智能体配置草稿仍保留在原项目，请先保存或放弃修改",
-                    vec![],
-                );
-            }
-            if app.project_path.as_deref() == Some(project_path.as_str()) {
-                return crate::app::projects::project_settings_refresh_task(project_path);
-            }
-            app.open_project_and_index(project_path)
+        AgentsMessage::ProjectSelected(directory) => update(
+            app,
+            SettingsMessage::Agents(AgentsMessage::SkillDirectorySelected(Some(directory))),
+        ),
+        AgentsMessage::SkillDirectorySelected(directory) => {
+            app.agents_settings.skill_directory = directory;
+            refresh_skill_catalog(app)
         }
-        AgentsMessage::ProjectChanged(project_path) => {
-            if app.agents_settings.dirty || app.agents_settings.save_in_flight {
-                return app.show_localized_toast(
-                    crate::app::state::ToastKind::Warning,
-                    "智能体配置草稿仍保留在原项目，请先保存或放弃修改",
-                    vec![],
-                );
-            }
-            app.agents_settings.project_path = Some(project_path.clone());
-            app.agents_settings.loading = true;
-            app.agents_settings.config_ready = false;
-            app.agents_settings.save_error = None;
-            project_config_task(project_path)
+        AgentsMessage::SkillCatalogRefresh => refresh_skill_catalog(app),
+        AgentsMessage::SkillDirectoryScopeChanged(scope) => {
+            app.agents_settings.skill_directory_scope = scope;
+            Task::none()
         }
-        AgentsMessage::ProjectConfigLoaded { project_path, result } => {
-            if app.agents_settings.dirty || app.agents_settings.save_in_flight {
+        AgentsMessage::SkillCatalogLoaded { directory, generation, result } => {
+            if directory != app.agents_settings.skill_directory
+                || generation != app.agents_settings.skill_catalog_generation
+            {
                 return Task::none();
             }
-            if app.agents_settings.project_path.as_deref() != Some(project_path.as_str()) {
-                return Task::none();
-            }
-
-            app.agents_settings.loading = false;
+            app.agents_settings.skill_catalog_loading = false;
             match result {
-                Ok(config) => {
-                    apply_config(app, config.as_ref());
-                    app.agents_settings.config_ready = true;
-                    app.agents_settings.save_error = None;
-                }
-                Err(error) => {
-                    app.agents_settings.config_ready = false;
-                    app.agents_settings.save_error = Some(error);
-                }
+                Ok(catalog) => app.agents_settings.skill_catalog = catalog,
+                Err(error) => app.agents_settings.skill_catalog_error = Some(error),
             }
             Task::none()
         }
+        AgentsMessage::ProjectChanged(_) => {
+            // Application workspace changes never reload or retarget global definitions.
+            app.agents_settings.project_path = None;
+            Task::none()
+        }
+        AgentsMessage::ProjectConfigLoaded { .. } => Task::none(),
         AgentsMessage::SelectAgent(agent_key) => {
             app.agents_settings.selected_agent = agent_key.clone();
             app.agents_settings.save_error = None;
@@ -1038,7 +1008,7 @@ pub fn update(app: &mut App, message: SettingsMessage) -> Task<Message> {
             let selected_agent = app.agents_settings.selected_agent.clone();
             let active_prompt_tab = app.agents_settings.active_prompt_tab.clone();
 
-            let mut tasks = vec![mark_agents_settings_dirty(app)];
+            let mut tasks = vec![mark_agents_settings_dirty(app), refresh_skill_catalog(app)];
             if active_prompt_tab != AGENT_PROMPT_SYSTEM_TAB {
                 tasks.push(load_workspace_identity_file_task(selected_agent, active_prompt_tab));
             }
@@ -1376,8 +1346,8 @@ pub fn update(app: &mut App, message: SettingsMessage) -> Task<Message> {
         }
         AgentsMessage::AllowedSkillsSelectAll(agent_key, scope) => {
             let available_skills = app
-                .skills_settings
-                .catalog
+                .agents_settings
+                .skill_catalog
                 .iter()
                 .filter(|skill| match scope {
                     crate::app::state::SkillsDirectoryScope::Project => skill.source == "workspace",
@@ -1403,8 +1373,8 @@ pub fn update(app: &mut App, message: SettingsMessage) -> Task<Message> {
         }
         AgentsMessage::AllowedSkillsInvertSelection(agent_key, scope) => {
             let available_skills = app
-                .skills_settings
-                .catalog
+                .agents_settings
+                .skill_catalog
                 .iter()
                 .filter(|skill| match scope {
                     crate::app::state::SkillsDirectoryScope::Project => skill.source == "workspace",

@@ -93,10 +93,10 @@ fn catalogs(
         })
         .collect();
     let skills = app
-        .skills_settings
-        .catalog
+        .agents_settings
+        .skill_catalog
         .iter()
-        .filter(|skill| skill.enabled && app.agents_settings.project_path == app.project_path)
+        .filter(|skill| skill.enabled)
         .map(|skill| skill.id.clone())
         .collect();
     let mcp = app

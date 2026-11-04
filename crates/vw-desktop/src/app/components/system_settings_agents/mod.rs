@@ -39,7 +39,7 @@ use self::shared::{detail_tab_button, section_card, selected_entry};
 use crate::app::components::system_settings_common::{
     primary_action_btn_style, rounded_action_btn_style, settings_error_banner,
     settings_muted_text_style, settings_page_intro, settings_panel_style,
-    settings_pick_list_menu_style, settings_pick_list_style, settings_segment_button_style,
+    settings_segment_button_style,
     settings_text_input_style, settings_value_badge,
 };
 use crate::app::components::system_settings_search::SettingsTabDescriptor;
@@ -51,7 +51,7 @@ use crate::app::state::{
 };
 use crate::app::{App, Message};
 use iced::widget::{
-    button, column, container, pick_list, row, scrollable,
+    button, column, container, row, scrollable,
     scrollable::{Direction, Scrollbar},
     text, text_input,
 };
@@ -286,7 +286,7 @@ fn agents_view(app: &App) -> Element<'_, Message> {
                 tr(app.desktop_locale, "智能体配置"),
                 tr(
                     app.desktop_locale,
-                    "按项目分别管理内建与自定义智能体的模型、身份文件、工具、技能和运行参数。"
+                    "全局管理内建与自定义智能体的模型、身份文件、工具、技能和运行参数。"
                 ),
             ),
             section_card(
@@ -320,38 +320,9 @@ fn agents_view(app: &App) -> Element<'_, Message> {
         tr(app.desktop_locale, "智能体配置"),
         tr(
             app.desktop_locale,
-            "按项目分别管理内建与自定义智能体的模型、身份文件、工具、技能和运行参数。",
+            "全局管理内建与自定义智能体的模型、身份文件、工具、技能和运行参数。",
         ),
     );
-    let project_options = agent_project_options(app);
-    let selected_project = settings.project_path.clone();
-    let project_switcher: Element<'_, Message> = if project_options.is_empty() {
-        text(tr(app.desktop_locale, "尚未打开项目；当前编辑全局智能体配置。"))
-            .size(12)
-            .style(settings_muted_text_style)
-            .into()
-    } else {
-        row![
-            text(tr(app.desktop_locale, "项目目录")).size(13).width(Length::Fixed(84.0)),
-            pick_list(project_options, selected_project, |path| {
-                Message::Settings(SettingsMessage::Agents(AgentsMessage::ProjectSelected(path)))
-            })
-            .placeholder(tr(app.desktop_locale, "全局智能体配置"))
-            .padding([9, 12])
-            .text_size(12)
-            .width(Length::Fill)
-            .style(settings_pick_list_style)
-            .menu_style(settings_pick_list_menu_style),
-            settings_value_badge(if settings.loading {
-                tr(app.desktop_locale, "切换中")
-            } else {
-                tr(app.desktop_locale, "项目独立保存")
-            }),
-        ]
-        .spacing(10)
-        .align_y(Alignment::Center)
-        .into()
-    };
     let add_agent_bar = row![
         text_input(tr(app.desktop_locale, "新增智能体 key"), &settings.new_agent_key_input)
             .on_input(|value| {
@@ -427,7 +398,6 @@ fn agents_view(app: &App) -> Element<'_, Message> {
                 "修改后点击保存配置；切换项目之前请先保存或放弃修改。身份文件正文仍单独即时写入。"
             ),
         ),
-        project_switcher,
         row![
             text(if settings.save_in_flight {
                 tr(app.desktop_locale, "正在保存…")

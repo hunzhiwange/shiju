@@ -106,7 +106,7 @@ fn discovery_order_text_distinguishes_open_project_and_global_context() {
     assert!(!global_order.contains("内置技能"));
     assert!(!global_order.contains("父级 skills、.agents/skills"));
 
-    app.project_path = Some("/workspace/demo".to_string());
+    app.agents_settings.skill_directory = Some("/workspace/demo".to_string());
     let project_order = discovery_order_text(&app);
 
     assert!(project_order.starts_with("/workspace/demo/skills"));
@@ -119,20 +119,20 @@ fn discovery_order_text_distinguishes_open_project_and_global_context() {
 fn skills_view_renders_empty_loading_and_filtered_catalog_states() {
     let (mut app, _) = crate::app::App::new();
     let entry = app.agents_settings.entries[0].clone();
-    app.skills_settings.directory_scope = SkillsDirectoryScope::Project;
-    app.skills_settings.loading = true;
+    app.agents_settings.skill_directory_scope = SkillsDirectoryScope::Project;
+    app.agents_settings.skill_catalog_loading = true;
 
     let loading_tree = Tree::new(view(&app, &entry).as_widget());
     assert_eq!(loading_tree.children.len(), 4);
     assert_eq!(loading_tree.children[3].children.len(), 2);
 
-    app.skills_settings.loading = false;
-    app.skills_settings.catalog = vec![
+    app.agents_settings.skill_catalog_loading = false;
+    app.agents_settings.skill_catalog = vec![
         skill("project-enabled", true, "workspace"),
         skill("project-disabled", false, "workspace"),
         skill("global", true, "global"),
     ];
-    app.skills_settings.directory_scope = SkillsDirectoryScope::All;
+    app.agents_settings.skill_directory_scope = SkillsDirectoryScope::All;
 
     let catalog_tree = Tree::new(view(&app, &entry).as_widget());
     assert_eq!(catalog_tree.children.len(), 4);

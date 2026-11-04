@@ -599,6 +599,14 @@ pub enum AgentsMessage {
         result: Result<Box<vw_config_types::config::Config>, String>,
     },
     ProjectSelected(String),
+    SkillDirectorySelected(Option<String>),
+    SkillCatalogRefresh,
+    SkillDirectoryScopeChanged(crate::app::state::SkillsDirectoryScope),
+    SkillCatalogLoaded {
+        directory: Option<String>,
+        generation: u64,
+        result: Result<Vec<crate::app::state::SkillsCatalogItem>, String>,
+    },
     ProjectChanged(String),
     ProjectConfigLoaded {
         project_path: String,

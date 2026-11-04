@@ -629,9 +629,6 @@ impl App {
         self.project_path = Some(path.clone());
         if project_changed {
             self.project_is_git_repo = false;
-            self.agents_settings.project_path = Some(path.clone());
-            self.agents_settings.loading = true;
-            self.agents_settings.config_ready = false;
             self.reset_task_board_project_state();
         }
 

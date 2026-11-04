@@ -343,9 +343,16 @@ pub(crate) struct AgentsSettingsState {
     pub(crate) profile_saving: bool,
     pub(crate) profile_deleting: bool,
     pub(crate) loading: bool,
-    /// 只有从 Gateway 成功加载当前作用域后，界面状态才可作为保存来源。
+    /// 只有从 Gateway 成功加载全局配置后，界面状态才可作为保存来源。
     pub(crate) config_ready: bool,
+    /// 兼容旧刷新消息；智能体定义的读写始终使用租户全局端点。
     pub(crate) project_path: Option<String>,
+    pub(crate) skill_directory: Option<String>,
+    pub(crate) skill_catalog_generation: u64,
+    pub(crate) skill_catalog: Vec<SkillsCatalogItem>,
+    pub(crate) skill_catalog_loading: bool,
+    pub(crate) skill_catalog_error: Option<String>,
+    pub(crate) skill_directory_scope: SkillsDirectoryScope,
     pub(crate) providers: Vec<ProviderSummary>,
     pub(crate) provider_models: Vec<ProviderModelsSummary>,
     pub(crate) entries: Vec<DelegateAgentSettingsEntry>,
@@ -378,6 +385,12 @@ impl Default for AgentsSettingsState {
             loading: true,
             config_ready: false,
             project_path: None,
+            skill_directory: None,
+            skill_catalog_generation: 0,
+            skill_catalog: Vec::new(),
+            skill_catalog_loading: false,
+            skill_catalog_error: None,
+            skill_directory_scope: SkillsDirectoryScope::All,
             providers: Vec::new(),
             provider_models: Vec::new(),
             entries: builtin_agent_keys()

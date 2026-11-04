@@ -1,0 +1,13 @@
+diff --git a/src/acp/paths.ts b/src/acp/paths.ts
+index 4f55af3..1d2c7fb 100644
+--- a/src/acp/paths.ts
++++ b/src/acp/paths.ts
+@@ -2 +2 @@ import { homedir } from 'node:os'
+-import { join } from 'node:path'
++import { isAbsolute, join } from 'node:path'
+@@ -9,0 +10,5 @@ export function getPiAcpDir(): string {
++  const directory = process.env.PI_ACP_STATE_DIR
++  if (directory !== undefined) {
++    if (!isAbsolute(directory)) throw new Error('PI_ACP_STATE_DIR must be absolute')
++    return directory
++  }

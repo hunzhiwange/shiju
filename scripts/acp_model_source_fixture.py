@@ -25,6 +25,7 @@ class ModelFixture:
         self.read_path = "challenge.txt"
         self.second_read_path = None
         self.probe_auxiliary = False
+        self.pi_compaction = False
         self.kiro_controls = False
         self.auxiliary_profile = "general-purpose"
         self.auxiliary_model = "haiku"
@@ -168,12 +169,20 @@ class ModelFixture:
                     tool_results = [m for m in messages if m.get("role") == "tool"
                                     and fixture.challenge in json.dumps(m.get("content", ""))]
                     tools = body.get("tools", [])
+                    # Fixed Pi 0.73.1 uses this native summarizer for both history
+                    # and split-turn compaction; the latter omits custom focus text.
+                    pi_summary = (fixture.pi_compaction and not tools
+                        and "You are a context summarization assistant." in json.dumps([
+                            m.get("content") for m in messages if m.get("role") == "system"])
+                        and any("<conversation>" in json.dumps(m.get("content"))
+                            and "</conversation>" in json.dumps(m.get("content"))
+                            for m in messages if m.get("role") == "user"))
                     with fixture.lock:
                         delay_next_request = fixture.delay_next_request
                         fixture.delay_next_request = False
                         fixture.records.append({"model": model, "authenticated": True,
                                                 "route": self.path, "tool_results": len(tool_results),
-                                                "auxiliary": any("AUXILIARY_CHILD" in json.dumps(m.get("content")) for m in messages if m.get("role") == "user")
+                                                "auxiliary": pi_summary or any("AUXILIARY_CHILD" in json.dumps(m.get("content")) for m in messages if m.get("role") == "user")
                                                 and (fixture.auxiliary_profile != "openclaw" or not any("AUXILIARY_PROBE" in json.dumps(m.get("content")) for m in messages if m.get("role") == "user"))})
                     if delay_next_request or "CANCEL_PROBE" in json.dumps(next((m for m in reversed(messages) if m.get("role") == "user"), {})):
                         time.sleep(5)

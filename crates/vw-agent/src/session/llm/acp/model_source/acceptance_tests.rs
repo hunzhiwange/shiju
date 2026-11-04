@@ -94,7 +94,7 @@ async fn request(
     cancel: bool,
 ) -> bool {
     let (tx, rx) = tokio::sync::watch::channel(false);
-    if cancel && input["agent"] == "openclaw" {
+    if cancel && (input["agent"] == "openclaw" || input["agent"] == "pi") {
         // Native completion events may follow the user's prompt in model input.
         // Arm the owned fixture directly so cancellation cannot race a fast reply.
         reqwest::Client::new()
@@ -159,6 +159,7 @@ async fn request(
     } else {
         result.is_ok()
             && done
+            && (!prompt.starts_with("/compact ") || output.contains("Compaction completed."))
             && output.contains("FIXTURE_MODEL_REPLY")
             && output.contains(input["challenge"].as_str().unwrap())
             && evidence(input).await["requests"].as_array().unwrap().len() > before
@@ -267,8 +268,21 @@ async fn run(mode: &str) {
         } else { prompt };
         flow["new"] = json!(request(&input, &model, &info, first_prompt, false).await);
         checkpoint(&flow);
+        if agent == "pi" && mode == "session-model" {
+            let name = format!("vw-session:real-cli-offline-{}", input["challenge"].as_str().unwrap());
+            let mut record = vw_acp::list_sessions().await.unwrap().into_iter().find(|record|
+                record.cwd == root.to_string_lossy() && record.name.as_deref() == Some(name.as_str())
+            ).expect("managed Pi session must have a persisted record");
+            vw_acp::set_desired_model_id(&mut record, Some("session-provider/forbidden-native-model"));
+            vw_acp::write_session_record(&record).await.unwrap();
+        }
         flow["second_turn"] = json!(request(&input, &model, &info, prompt, false).await);
         checkpoint(&flow);
+        if agent == "pi" {
+            flow["auxiliary"] = json!(request(&input, &model, &info,
+                "/compact preserve the challenge", false).await);
+            checkpoint(&flow);
+        }
         flow["cancel"] =
             json!(request(&input, &model, &info, "CANCEL_PROBE: read challenge.txt", true).await);
         checkpoint(&flow);
@@ -276,6 +290,11 @@ async fn run(mode: &str) {
         checkpoint(&flow);
         flow["switch"] = json!(request(&input, &switched, &info, prompt, false).await);
         checkpoint(&flow);
+        if agent == "pi" {
+            flow["auxiliary_switched"] = json!(request(&input, &switched, &info,
+                "/compact preserve the challenge", false).await);
+            checkpoint(&flow);
+        }
         flow["handshake"] = json!(
             vw_acp::list_sessions()
                 .await
@@ -287,6 +306,26 @@ async fn run(mode: &str) {
         if matches!(agent, "claude" | "kimi" | "kiro" | "openclaw") {
             assert!(observed["requests"].as_array().unwrap().iter().any(|request| request["auxiliary"] == true),
                 "auxiliary model did not reach the fixture");
+        }
+        if agent == "pi" {
+            for expected in if mode == "session-model" {
+                vec!["acp-fixture-primary", "acp-fixture-switched"]
+            } else { vec!["acp-fixture-primary"] } {
+                assert!(observed["requests"].as_array().unwrap().iter().any(|request|
+                    request["auxiliary"] == true && request["model"] == expected),
+                    "native Pi compaction did not use the selected source model");
+            }
+            let path = std::env::var("VW_ACP_ACCEPTANCE_DIAGNOSTICS").unwrap();
+            let stats: Value = serde_json::from_slice(&std::fs::read(path).unwrap()).unwrap();
+            if mode == "session-model" {
+                assert!(stats["out_model_primary"].as_u64().unwrap_or(0) >= 5
+                    && stats["out_model_switched"].as_u64().unwrap_or(0) >= 2
+                    && stats["out_model_other"].as_u64().unwrap_or(0) == 0,
+                    "managed Pi must bind the exact provider/model by RPC before each prompt");
+            } else {
+                assert_eq!(stats["out_set_model"].as_u64().unwrap_or(0), 0,
+                    "cli_local must not receive a client model override");
+            }
         }
         let path = std::env::var("VW_ACP_ACCEPTANCE_FLOW").expect("flow output path required");
         std::fs::write(path, serde_json::to_vec(&flow).unwrap()).unwrap();
@@ -328,6 +367,7 @@ pub(in crate::session::llm::acp) fn observe_rpc(
         (true, Some("session/load")) => Some("out_load"),
         (true, Some("session/resume")) => Some("out_resume"),
         (true, Some("session/prompt")) => Some("out_prompt"),
+        (true, Some("session/set_model")) => Some("out_set_model"),
         (false, Some("fs/read_text_file")) => Some("in_read"),
         (false, Some("terminal/create")) => Some("in_terminal"),
         (false, Some("session/request_permission")) => Some("in_permission"),
@@ -338,6 +378,14 @@ pub(in crate::session::llm::acp) fn observe_rpc(
     if let Some(key) = key {
         let count = stats[key].as_u64().unwrap_or(0) + 1;
         stats[key] = json!(count);
+    }
+    if outbound && value["method"] == "session/set_model" {
+        let key = match value["params"]["modelId"].as_str() {
+            Some("session-provider/acp-fixture-primary") => "out_model_primary",
+            Some("session-provider/acp-fixture-switched") => "out_model_switched",
+            _ => "out_model_other",
+        };
+        stats[key] = json!(stats[key].as_u64().unwrap_or(0) + 1);
     }
     if outbound && value["method"] == "session/new" {
         let settings = &value["params"]["_meta"]["claudeCode"]["options"]["settings"];

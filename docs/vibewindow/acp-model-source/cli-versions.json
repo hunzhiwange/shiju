@@ -1668,14 +1668,18 @@
       "underlying": {
         "kind": "external_cli",
         "package": "@mariozechner/pi-coding-agent",
-        "release": null,
-        "reason": "Published adapter spawns params.piCommand or external pi and inherits process.env; no declared compatible engine release or installed pi was found. Task 29 must select and prove the real engine.",
+        "release": "0.73.1",
+        "reason": "Real 0.73.1 installed in an isolated runtime; native package identity and CLI digest verified separately from patched ACP adapter.",
         "identity_evidence": "pi-acp 0.0.22 published dist/index.js::PiRpcProcess.spawn",
         "launch": [
           "pi",
           "--mode",
           "rpc",
           "--no-themes"
+        ],
+        "command": [
+          "pi",
+          "--version"
         ]
       },
       "license": {
@@ -1691,22 +1695,25 @@
         "pi-acp"
       ],
       "route": "bridge_required",
-      "config_root_candidate": "PI_CODING_AGENT_DIR；ACP 根需补丁",
-      "config_priority": "0.0.22 getPiAcpDir 固定 homedir/.pi/pi-acp；models.json 与 RPC set_model 要同时验证",
-      "auxiliary_model_routes": "底层 pi 子进程继承、模型枚举和 RPC 选择待验证",
-      "config_isolation_verified": false,
-      "runtime_verified": false,
-      "runtime_evidence_reason": "No ACP model request executed; version-only probe is not model or isolation evidence.",
+      "config_root_candidate": "PI_CODING_AGENT_DIR; patched PI_ACP_STATE_DIR",
+      "config_priority": "独立 models.json 与 sessionDir；生产 session/set_model 在每轮提示前覆盖旧会话和项目默认模型",
+      "auxiliary_model_routes": "原生 /compact 的历史与分轮总结已验证使用当前模型；不声明第三方扩展子代理支持",
+      "config_isolation_verified": true,
+      "runtime_verified": true,
+      "runtime_evidence_reason": "2026-11-05 Darwin arm64: production offline session_model 14 requests (3 compaction), cli_local 13 requests (4 compaction), both zero fixture errors; see evidence/pi.md. Registry/installer capability publication remains task 33.",
       "installed": {
         "command": [
           "pi-acp",
           "--version"
         ],
-        "status": "not_found",
-        "exit_code": null
+        "status": "observed_in_isolated_task_runtime",
+        "exit_code": 0,
+        "output": "",
+        "package_version": "0.0.22",
+        "identity_source": "package metadata plus patched adapter SHA256; adapter has no version output; native Pi version separately verified"
       },
       "platforms": {
-        "macos": "version-only discovery on current host; no ACP request",
+        "macos": "Darwin arm64 verified with patched pi-acp 0.0.22 and native Pi 0.73.1; two-source offline requests, compaction, cancel, restart and model switch; macOS x86_64 unverified",
         "linux": "unverified; package/installer target and ACP must be checked",
         "windows": "unverified; npm cmd/exe or PowerShell installer differs from Unix; target support not inferred"
       },
@@ -1715,7 +1722,7 @@
         "https://github.com/svkozak/pi-acp/blob/v0.0.22/src/acp/paths.ts",
         "https://github.com/earendil-works/pi/blob/main/packages/coding-agent/docs/models.md"
       ],
-      "follow_up": "task 29: exact CLI model-source adaptation; task 9 isolation; task 10 real offline request proof",
+      "follow_up": "task 33: install the exact reviewed patched adapter/native engine and publish capabilities; task 35: full matrix regression",
       "source_link_checks": {
         "https://github.com/svkozak/pi-acp": {
           "http_status": 200,
@@ -1761,6 +1768,30 @@
           }
         ],
         "executed": false
+      },
+      "patched_adapter": {
+        "source_commit": "8be5f22769f71d759aa48d798416c56e8be101ef",
+        "sha256": "a78e867c410e7b29c93196586a20b383ecd9f852d865c57af01f8970bc739e76",
+        "native_cli_sha256": "e959f463b06ddd15ed882783ac02f39ecaeef950ef967da86380f39dda6595fa",
+        "patch": "patches/acp-model-source/pi/pi-acp-0.0.22-state-dir.patch",
+        "patch_sha256": "62e31924db85ab7b2844df605bb98dd24b71facf575db25cf5b078ebf788e71a",
+        "source_package_lock_sha256": "e257ee4cbe345ee0de44714d34401ed2ed14de41abc2c6ed7511b1a3d923c606"
+      },
+      "offline_acceptance": {
+        "session-model": {
+          "config_root_env": "PI_CODING_AGENT_DIR",
+          "files": {
+            "models.json": "{\"providers\": {\"session-provider\": {\"baseUrl\": \"{{endpoint}}\", \"api\": \"openai-completions\", \"apiKey\": \"{{key}}\", \"models\": [{\"id\": \"{{model}}\", \"contextWindow\": 128000, \"maxTokens\": 4096}]}}}",
+            "settings.json": "{\"defaultProvider\": \"session-provider\", \"defaultModel\": \"{{model}}\", \"quietStartup\": true}"
+          }
+        },
+        "cli-local": {
+          "config_root_env": "PI_CODING_AGENT_DIR",
+          "files": {
+            "models.json": "{\"providers\": {\"session-provider\": {\"baseUrl\": \"{{endpoint}}\", \"api\": \"openai-completions\", \"apiKey\": \"{{key}}\", \"models\": [{\"id\": \"{{model}}\", \"contextWindow\": 128000, \"maxTokens\": 4096}]}}}",
+            "settings.json": "{\"defaultProvider\": \"session-provider\", \"defaultModel\": \"{{model}}\", \"quietStartup\": true}"
+          }
+        }
       }
     },
     {

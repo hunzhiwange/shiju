@@ -32,6 +32,8 @@ pub(crate) struct AcpLaunchProfile {
     pub(crate) model_supports_tool_call: bool,
     pub(crate) state_root: Option<PathBuf>,
     pub(crate) model_api: Option<crate::provider::provider::ApiInfo>,
+    /// A selected native provider/model that must be applied by ACP RPC before prompt.
+    pub(crate) session_model_id: Option<String>,
 }
 impl AcpLaunchProfile {
     pub(crate) fn new(config: &AcpAgentConfig, identity: RelayIdentity) -> anyhow::Result<Self> {
@@ -81,6 +83,7 @@ impl AcpLaunchProfile {
                 model_supports_tool_call: false,
                 state_root: None,
                 model_api: None,
+                session_model_id: None,
             })
         }
     }

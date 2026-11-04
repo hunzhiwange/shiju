@@ -15,6 +15,7 @@ import subprocess
 import tempfile
 
 from acp_model_source_fixture import ModelFixture, successful
+from acp_model_source_pi import PiIdentityError, pi_identity
 
 ROOT = Path(__file__).resolve().parents[1]
 TESTS = {"session-model": "acp_model_source_real_cli_session_model",
@@ -105,6 +106,12 @@ def locate(entry, env):
             raise Unavailable("Claude manifest must identify the pinned adapter launch")
         claude_sdk_identity(executable, entry, env)
         return {"command": str(Path(executable).absolute()), "args": [], "env": {}}
+    if entry.get("key") == "pi":
+        try:
+            pi_identity(executable, entry, env)
+        except PiIdentityError as error:
+            raise VersionMismatch(str(error)) from error
+        return {"command": str(Path(executable).absolute()), "args": [], "env": {}}
     result = subprocess.run([executable, "--version"], env=env, capture_output=True, timeout=20)
     version = (result.stdout + result.stderr).decode(errors="replace")
     if result.returncode or not re.search(r"(?<![\w.])" + re.escape(release) + r"(?![\w.])", version):
@@ -170,6 +177,10 @@ def isolated_environment(entry, directory, fixture, mode):
                            KIRO_KAS_REGION="us-east-1", KIRO_API_KEY=values["key"],
                            KIRO_RUNTIME_DIR=str(directory / "runtime"), KIRO_NO_AUTO_UPDATE="1")
         fixture.kiro_controls = True
+    if entry.get("key") == "pi":
+        state = directory / "acp"
+        state.mkdir(mode=0o700)
+        environment["PI_ACP_STATE_DIR"] = str(state)
     return environment
 
 
@@ -282,6 +293,16 @@ def run(args):
                     "refreshToken": "offline-native-refresh-must-not-be-used", "expiresAt": 4102444800000}}))
                 os.chmod(credentials, 0o600)
             config = locate(entry, env)
+            if args.agent == "pi":
+                fixture.pi_compaction = True
+                report["identity"] = pi_identity(config["command"], entry, env)
+                project_settings = root / ".pi/settings.json"
+                project_settings.parent.mkdir(mode=0o700)
+                settings = {"compaction": {"keepRecentTokens": 1, "reserveTokens": 128}}
+                if args.mode == "session-model":
+                    settings.update(defaultProvider="session-provider", defaultModel="forbidden-native-model")
+                project_settings.write_text(json.dumps(settings))
+                os.chmod(project_settings, 0o600)
             if args.agent == "claude":
                 report["identity"] = claude_sdk_identity(config["command"], entry, env)
             if args.agent == "openclaw" and args.mode == "cli-local":
@@ -318,7 +339,7 @@ def run(args):
             flow_path = root / "flow.json"
             env.update(VW_ACP_ACCEPTANCE_MANIFEST=str(runtime), VW_ACP_ACCEPTANCE_FLOW=str(flow_path))
             diagnostic_path = root / "diagnostics.json"
-            if args.agent in ("claude", "kiro", "openclaw"):
+            if args.agent in ("claude", "kiro", "openclaw", "pi"):
                 diagnostic_path.write_text("{}")
                 os.chmod(diagnostic_path, 0o600)
                 env["VW_ACP_ACCEPTANCE_DIAGNOSTICS"] = str(diagnostic_path)
@@ -336,7 +357,8 @@ def run(args):
                            "in_read", "in_terminal", "in_permission", "in_update", "sdk_settings_sent",
                            "sdk_settings_exists", "initialize_returned", "new_returned", "out_error", "in_error",
                            "first_error_code", "error_session_missing", "error_process_exit", "error_auth",
-                           "error_forbidden", "error_unsupported", "error_validation"}
+                           "error_forbidden", "error_unsupported", "error_validation",
+                           "out_set_model", "out_model_primary", "out_model_switched", "out_model_other"}
                 report["diagnostics"] = {key: value for key, value in diagnostics.items()
                                          if key in allowed and isinstance(value, (bool, int))}
             relay_diagnostics = diagnostic_path.with_suffix(".relay.json")
@@ -351,7 +373,10 @@ def run(args):
             flow = {key: raw_flow.get(key) is True for key in
                     ("new", "second_turn", "cancel", "restart", "switch", "isolated", "handshake")}
             flow["mode"] = args.mode
-            flow["requires_auxiliary"] = args.agent in ("claude", "kimi", "kiro", "openclaw")
+            flow["requires_auxiliary"] = args.agent in ("claude", "kimi", "kiro", "openclaw", "pi")
+            if args.agent == "pi":
+                flow["auxiliary"] = raw_flow.get("auxiliary") is True
+                flow["auxiliary_switched"] = raw_flow.get("auxiliary_switched") is True
             passed = result.returncode == 0 and exactly_one and successful(evidence, flow)
             report.update(status="passed" if passed else ("handshake-only" if flow.get("handshake") and not evidence["requests"] else "failed"), passed=passed,
                           cargo_exit_code=result.returncode, effective_tests=1 if re.search(r"running 1 test\b", text) else 0,

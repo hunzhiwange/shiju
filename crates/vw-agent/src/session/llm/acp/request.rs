@@ -228,6 +228,12 @@ pub(crate) async fn do_stream_request_acp(
             }
         };
 
+        let bound_model_id =
+            launch_profile.as_ref().and_then(|profile| profile.session_model_id.as_deref());
+        if let Some(model_id) = bound_model_id {
+            // Managed launch identity takes precedence over a saved native selection.
+            vw_acp::set_desired_model_id(&mut record, Some(model_id));
+        }
         let acp_session_id = record.acp_session_id.clone();
         if !super::controls::has_saved_config_category(
             &record,
@@ -247,13 +253,18 @@ pub(crate) async fn do_stream_request_acp(
                 return Err(err);
             }
         }
-        if !super::controls::has_saved_config_category(
-            &record,
-            agent_client_protocol::SessionConfigOptionCategory::Model,
-        ) && let Some(model_id) =
-            vw_acp::get_desired_model_id(record.vwacp.as_ref()).or_else(|| {
-                parsed_options.session_options.as_ref().and_then(|options| options.model.clone())
-            })
+        if (bound_model_id.is_some()
+            || !super::controls::has_saved_config_category(
+                &record,
+                agent_client_protocol::SessionConfigOptionCategory::Model,
+            ))
+            && let Some(model_id) =
+                vw_acp::get_desired_model_id(record.vwacp.as_ref()).or_else(|| {
+                    parsed_options
+                        .session_options
+                        .as_ref()
+                        .and_then(|options| options.model.clone())
+                })
         {
             if let Err(err) = cached_client
                 .client

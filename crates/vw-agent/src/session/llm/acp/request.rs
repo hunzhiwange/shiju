@@ -83,11 +83,30 @@ pub(crate) async fn do_stream_request_acp(
     // The profile owns the relay, token and private files for this request only.
     // CLI-local execution preserves the user's original configuration.
     let launch_profile = match source {
-        vw_api_types::acp_model_source::AcpModelSource::SessionModel => Some(
-            super::model_source::prepare(&acp_agent_name, &normalized_acp_cfg, model, session_id)
-                .await
-                .map_err(to_api_error)?,
-        ),
+        vw_api_types::acp_model_source::AcpModelSource::SessionModel => {
+            let cancellation = async {
+                if let Some(mut receiver) = abort.cloned() {
+                    loop {
+                        if *receiver.borrow() {
+                            return;
+                        }
+                        if receiver.changed().await.is_err() {
+                            break;
+                        }
+                    }
+                }
+                std::future::pending::<()>().await;
+            };
+            // Dropping preparation also drops its owned Gateway during startup.
+            let profile = tokio::select! {
+                result = super::model_source::prepare(&acp_agent_name, &normalized_acp_cfg, model, session_id) => result.map_err(to_api_error)?,
+                () = cancellation => {
+                    on_event(StreamEvent::Error(message::AssistantError::MessageAbortedError { message: "aborted".to_string() }));
+                    return Err(Error::Aborted);
+                }
+            };
+            Some(profile)
+        }
         vw_api_types::acp_model_source::AcpModelSource::CliLocal => None,
     };
     let normalized_acp_cfg = launch_profile

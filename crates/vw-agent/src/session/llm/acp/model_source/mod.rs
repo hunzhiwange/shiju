@@ -1,5 +1,6 @@
 //! Runtime-only CLI model launch boundary; local CLI configuration bypasses this module.
 mod drivers;
+mod gateway;
 pub(crate) mod profile;
 use crate::{
     config::schema::AcpAgentConfig,
@@ -68,6 +69,9 @@ pub(super) async fn prepare(
     let endpoint = format!("http://{}", server.address());
     profile.attach_server(server);
     drivers::configure(agent, &mut profile, &endpoint)?;
+    if let Some(gateway) = profile.gateway.as_mut() {
+        gateway.start().await?;
+    }
     Ok(profile)
 }
 

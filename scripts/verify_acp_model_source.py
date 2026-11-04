@@ -1,6 +1,9 @@
 #!/usr/bin/env python3
 """Run a fixed production ACP acceptance entry against an owned loopback fixture."""
 import argparse
+from contextlib import ExitStack, contextmanager
+import socket
+import time
 import json
 import os
 import platform
@@ -170,6 +173,41 @@ def isolated_environment(entry, directory, fixture, mode):
     return environment
 
 
+@contextmanager
+def openclaw_native_gateway(config, env, native):
+    """Own the genuine foreground Gateway used only by cli-local acceptance."""
+    path = native / "openclaw.json"
+    settings = json.loads(path.read_text())
+    with socket.socket() as listener:
+        listener.bind(("127.0.0.1", 0))
+        port = listener.getsockname()[1]
+    settings["gateway"]["port"] = port
+    path.write_text(json.dumps(settings))
+    process = subprocess.Popen([config["command"], "gateway", "run", "--port", str(port),
+                                "--bind", "loopback"], env=env, stdin=subprocess.DEVNULL,
+                               stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
+                               start_new_session=True)
+    try:
+        deadline = time.monotonic() + 30
+        while True:
+            if process.poll() is not None:
+                raise Unavailable("native OpenClaw Gateway exited before readiness")
+            try:
+                with socket.create_connection(("127.0.0.1", port), timeout=0.2):
+                    break
+            except OSError:
+                if time.monotonic() >= deadline:
+                    raise Unavailable("native OpenClaw Gateway readiness timed out")
+                time.sleep(0.05)
+        yield
+    finally:
+        try:
+            os.killpg(process.pid, signal.SIGKILL)
+        except ProcessLookupError:
+            pass
+        process.wait()
+
+
 def execute_cargo(command, *, env, timeout=1800):
     """Own the process group, including agents left behind by a failed Rust test."""
     if os.name != "posix":
@@ -218,7 +256,7 @@ def run(args):
         upstream_protocol = entry.get("offline_acceptance", {}).get(args.mode, {}).get("upstream_protocol", "chat")
         if upstream_protocol not in ("chat", "messages"):
             raise Unavailable("unsupported offline fixture protocol")
-        with tempfile.TemporaryDirectory(prefix="acp-model-acceptance-") as temp, ModelFixture() as fixture:
+        with tempfile.TemporaryDirectory(prefix="acp-model-acceptance-") as temp, ModelFixture() as fixture, ExitStack() as owned:
             root = Path(temp)
             os.chmod(root, 0o700)
             native = root / "native"
@@ -246,6 +284,8 @@ def run(args):
             config = locate(entry, env)
             if args.agent == "claude":
                 report["identity"] = claude_sdk_identity(config["command"], entry, env)
+            if args.agent == "openclaw" and args.mode == "cli-local":
+                owned.enter_context(openclaw_native_gateway(config, env, native))
             config["env"] = native_env if args.mode == "cli-local" else {}
             (root / "challenge.txt").write_text(fixture.challenge)
             fixture.read_path = str(root / "challenge.txt")
@@ -263,6 +303,12 @@ def run(args):
                 fixture.probe_auxiliary = True
                 fixture.auxiliary_profile = "general-task-execution"
                 fixture.auxiliary_model = None
+            if args.agent == "openclaw":
+                (root / "challenge-second.txt").write_text(fixture.challenge)
+                fixture.second_read_path = str(root / "challenge-second.txt")
+                fixture.probe_auxiliary = True
+                fixture.auxiliary_profile = "openclaw"
+                fixture.auxiliary_model = None
             runtime = root / "entry.json"
             runtime.write_text(json.dumps({"agent": args.agent, "mode": args.mode, "upstream_protocol": upstream_protocol,
                                           "config": config, "isolation_env": native_env, "root": str(root),
@@ -272,7 +318,7 @@ def run(args):
             flow_path = root / "flow.json"
             env.update(VW_ACP_ACCEPTANCE_MANIFEST=str(runtime), VW_ACP_ACCEPTANCE_FLOW=str(flow_path))
             diagnostic_path = root / "diagnostics.json"
-            if args.agent in ("claude", "kiro"):
+            if args.agent in ("claude", "kiro", "openclaw"):
                 diagnostic_path.write_text("{}")
                 os.chmod(diagnostic_path, 0o600)
                 env["VW_ACP_ACCEPTANCE_DIAGNOSTICS"] = str(diagnostic_path)
@@ -305,7 +351,7 @@ def run(args):
             flow = {key: raw_flow.get(key) is True for key in
                     ("new", "second_turn", "cancel", "restart", "switch", "isolated", "handshake")}
             flow["mode"] = args.mode
-            flow["requires_auxiliary"] = args.agent in ("claude", "kimi", "kiro")
+            flow["requires_auxiliary"] = args.agent in ("claude", "kimi", "kiro", "openclaw")
             passed = result.returncode == 0 and exactly_one and successful(evidence, flow)
             report.update(status="passed" if passed else ("handshake-only" if flow.get("handshake") and not evidence["requests"] else "failed"), passed=passed,
                           cargo_exit_code=result.returncode, effective_tests=1 if re.search(r"running 1 test\b", text) else 0,

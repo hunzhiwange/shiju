@@ -22,6 +22,7 @@ pub(crate) struct AcpLaunchProfile {
     directory: tempfile::TempDir,
     pub(crate) binding: Arc<RelayBinding>,
     server: Option<RelayServer>,
+    pub(crate) gateway: Option<super::gateway::OwnedGateway>,
     #[allow(dead_code)] // Read by individual CLI drivers as they are verified.
     pub(crate) model_alias: String,
     pub(crate) model_output_limit: u64,
@@ -71,6 +72,7 @@ impl AcpLaunchProfile {
                 directory,
                 binding,
                 server: None,
+                gateway: None,
                 model_alias,
                 model_output_limit: vw_shared::provider::state::DEFAULT_MODEL_OUTPUT_LIMIT,
                 model_context_limit: vw_shared::provider::state::DEFAULT_MODEL_CONTEXT_LIMIT,
@@ -193,5 +195,7 @@ impl AcpLaunchProfile {
 impl Drop for AcpLaunchProfile {
     fn drop(&mut self) {
         self.binding.revoke();
+        // Reap the owned Gateway before its configuration and credentials disappear.
+        drop(self.gateway.take());
     }
 }

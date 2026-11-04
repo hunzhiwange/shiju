@@ -1559,7 +1559,7 @@
         "kind": "native",
         "package": "openclaw",
         "release": "2026.10.10",
-        "release_status": "metadata_snapshot_not_runtime_pin",
+        "release_status": "runtime_verified_fixed_release",
         "source_url": "https://registry.npmjs.org/openclaw/2026.10.10",
         "git_commit": null,
         "integrity": "sha512-9HZhzq/Yck3uH3M/iYP7szqoF5JXpXfz0+orhBOKalSH+dj0IC9uWPECkR1vH4lMCytxpHjJKHh9efXRYMJl6w==",
@@ -1593,22 +1593,23 @@
         "openclaw"
       ],
       "route": "bridge_required",
-      "config_root_candidate": "应用专属 Gateway（待实现）",
+      "config_root_candidate": "OPENCLAW_STATE_DIR + OPENCLAW_CONFIG_PATH; owned foreground Gateway",
       "config_priority": "stdio ACP 仅桥接 WebSocket Gateway；模型配置须进入执行推理的实例，不复用用户全局实例",
       "auxiliary_model_routes": "Gateway 各 Agent 默认、fallback、压缩路线均需绑定",
-      "config_isolation_verified": false,
-      "runtime_verified": false,
-      "runtime_evidence_reason": "No ACP model request executed; version-only probe is not model or isolation evidence.",
+      "config_isolation_verified": true,
+      "runtime_verified": true,
+      "runtime_evidence_reason": "Pinned real CLI passed both production model-source flows, including native subagent model requests; see evidence/openclaw.md.",
       "installed": {
         "command": [
           "openclaw",
           "--version"
         ],
-        "status": "not_found",
-        "exit_code": null
+        "status": "verified",
+        "exit_code": 0,
+        "version": "OpenClaw 2026.10.10 (7dc3350)"
       },
       "platforms": {
-        "macos": "version-only discovery on current host; no ACP request",
+        "macos": "Darwin arm64: both real production model-source flows passed on 2026-11-05",
         "linux": "unverified; package/installer target and ACP must be checked",
         "windows": "unverified; npm cmd/exe or PowerShell installer differs from Unix; target support not inferred"
       },
@@ -1625,6 +1626,20 @@
         "https://docs.openclaw.ai/concepts/model-providers": {
           "http_status": 200,
           "final_url": "https://docs.openclaw.ai/concepts/model-providers"
+        }
+      },
+      "offline_acceptance": {
+        "session-model": {
+          "config_root_env": "OPENCLAW_STATE_DIR",
+          "files": {
+            "openclaw.json": "{\"gateway\": {\"mode\": \"local\", \"bind\": \"loopback\", \"auth\": {\"mode\": \"token\", \"token\": \"{{key}}\"}, \"controlUi\": {\"enabled\": false}}, \"discovery\": {\"mdns\": {\"mode\": \"off\"}}, \"browser\": {\"enabled\": false}, \"plugins\": {\"enabled\": false}, \"agents\": {\"defaults\": {\"workspace\": \"{{root}}\", \"model\": {\"primary\": \"fixture/{{model}}\", \"fallbacks\": []}, \"skipBootstrap\": true, \"heartbeat\": {\"every\": \"0m\"}}}, \"models\": {\"mode\": \"replace\", \"providers\": {\"fixture\": {\"baseUrl\": \"{{endpoint}}\", \"apiKey\": \"{{key}}\", \"api\": \"openai-completions\", \"models\": [{\"id\": \"{{model}}\", \"name\": \"Offline\", \"contextWindow\": 32000, \"maxTokens\": 2048}]}}}}"
+          }
+        },
+        "cli-local": {
+          "config_root_env": "OPENCLAW_STATE_DIR",
+          "files": {
+            "openclaw.json": "{\"gateway\": {\"mode\": \"local\", \"bind\": \"loopback\", \"auth\": {\"mode\": \"token\", \"token\": \"{{key}}\"}, \"controlUi\": {\"enabled\": false}}, \"discovery\": {\"mdns\": {\"mode\": \"off\"}}, \"browser\": {\"enabled\": false}, \"plugins\": {\"enabled\": false}, \"agents\": {\"defaults\": {\"workspace\": \"{{root}}\", \"model\": {\"primary\": \"fixture/{{model}}\", \"fallbacks\": []}, \"skipBootstrap\": true, \"heartbeat\": {\"every\": \"0m\"}}}, \"models\": {\"mode\": \"replace\", \"providers\": {\"fixture\": {\"baseUrl\": \"{{endpoint}}\", \"apiKey\": \"{{key}}\", \"api\": \"openai-completions\", \"models\": [{\"id\": \"{{model}}\", \"name\": \"Offline\", \"contextWindow\": 32000, \"maxTokens\": 2048}]}}}}"
+          }
         }
       }
     },

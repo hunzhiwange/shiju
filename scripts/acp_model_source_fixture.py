@@ -28,6 +28,7 @@ class ModelFixture:
         self.kiro_controls = False
         self.auxiliary_profile = "general-purpose"
         self.auxiliary_model = "haiku"
+        self.delay_next_request = False
         self.models = ("acp-fixture-primary", "acp-fixture-switched")
         fixture = self
 
@@ -60,10 +61,19 @@ class ModelFixture:
             def auxiliary_call(self, body, messages):
                 if not fixture.probe_auxiliary or "AUXILIARY_PROBE" not in json.dumps([m.get("content") for m in messages if m.get("role") == "user"]):
                     return None
+                if fixture.auxiliary_profile == "openclaw" and any("AUXILIARY_CHILD" in json.dumps(m.get("content")) for m in messages if m.get("role") == "user"):
+                    return None
                 # The parent delegates once. The real child receives a different prompt
                 # and must execute its own file tools before producing the challenge.
                 if any("AUXILIARY_CHILD" in json.dumps(m) for m in messages if m.get("role") == "assistant"):
                     return None
+                if fixture.auxiliary_profile == "openclaw" and any(
+                        tool.get("function", {}).get("name") == "dispatch_action" for tool in body.get("tools", [])):
+                    # Fixed 2026.10.10 discovers native tools lazily. The action id was
+                    # confirmed through the genuine tool_search response, not an alias.
+                    return {"name": "dispatch_action", "input": {"id": "openclaw:core:sessions_spawn", "args": {
+                        "task": "AUXILIARY_CHILD: Read " + fixture.read_path + " and " + (fixture.second_read_path or fixture.read_path) + " using your read tool, then return their contents.",
+                        "runtime": "subagent", "mode": "run", "cleanup": "delete", "expectsCompletionMessage": False}}}
                 for raw in body.get("tools", []):
                     tool = raw.get("function", raw)
                     if tool.get("name", "").lower() not in ("agent", "task", "invoke_sub_agent"):
@@ -131,6 +141,10 @@ class ModelFixture:
                     if not 0 < length <= 2_000_000:
                         raise ValueError("body length")
                     body = json.loads(self.rfile.read(length))
+                    if self.path == "/_cancel-next" and self.headers.get("Authorization") == "Bearer " + fixture.control:
+                        with fixture.lock:
+                            fixture.delay_next_request = True
+                        return self.reply(200, {"armed": True})
                     if self.path.startswith("/v1beta/models/"):
                         return self.gemini_reply(body)
                     route = urlsplit(self.path).path
@@ -155,16 +169,27 @@ class ModelFixture:
                                     and fixture.challenge in json.dumps(m.get("content", ""))]
                     tools = body.get("tools", [])
                     with fixture.lock:
+                        delay_next_request = fixture.delay_next_request
+                        fixture.delay_next_request = False
                         fixture.records.append({"model": model, "authenticated": True,
                                                 "route": self.path, "tool_results": len(tool_results),
-                                                "auxiliary": any("AUXILIARY_CHILD" in json.dumps(m.get("content")) for m in messages if m.get("role") == "user")})
-                    if "CANCEL_PROBE" in json.dumps(next((m for m in reversed(messages) if m.get("role") == "user"), {})):
+                                                "auxiliary": any("AUXILIARY_CHILD" in json.dumps(m.get("content")) for m in messages if m.get("role") == "user")
+                                                and (fixture.auxiliary_profile != "openclaw" or not any("AUXILIARY_PROBE" in json.dumps(m.get("content")) for m in messages if m.get("role") == "user"))})
+                    if delay_next_request or "CANCEL_PROBE" in json.dumps(next((m for m in reversed(messages) if m.get("role") == "user"), {})):
                         time.sleep(5)
                     # Use the real agent's declared read tool; an actual file must be read.
                     read_tool = next((t.get("function", {}) for t in tools
                                       if t.get("function", {}).get("name", "").lower() in
                                       ("read", "read_file", "readfile", "filesystem-read")), None)
                     auxiliary = self.auxiliary_call(body, messages)
+                    if fixture.auxiliary_profile == "openclaw" and any("AUXILIARY_CHILD" in json.dumps(m) for m in messages if m.get("role") == "assistant"):
+                        deadline = time.monotonic() + 10
+                        while time.monotonic() < deadline:
+                            with fixture.lock:
+                                child_done = any(r.get("auxiliary") and r.get("tool_results", 0) >= 2 for r in fixture.records)
+                            if child_done:
+                                break
+                            time.sleep(0.05)
                     delegated = any("AUXILIARY_CHILD" in json.dumps(m) for m in messages if m.get("role") == "assistant")
                     if auxiliary:
                         call = {"id": "fixture-agent-" + str(len(fixture.records)), "type": "function",

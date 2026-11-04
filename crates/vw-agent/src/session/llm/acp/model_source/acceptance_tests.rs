@@ -94,6 +94,19 @@ async fn request(
     cancel: bool,
 ) -> bool {
     let (tx, rx) = tokio::sync::watch::channel(false);
+    if cancel && input["agent"] == "openclaw" {
+        // Native completion events may follow the user's prompt in model input.
+        // Arm the owned fixture directly so cancellation cannot race a fast reply.
+        reqwest::Client::new()
+            .post(format!("{}/_cancel-next", input["fixture"].as_str().unwrap()))
+            .bearer_auth(input["control"].as_str().unwrap())
+            .json(&json!({}))
+            .send()
+            .await
+            .unwrap()
+            .error_for_status()
+            .unwrap();
+    }
     let before = evidence(input).await["requests"].as_array().unwrap().len();
     let fixture = input.clone();
     let cancellation = async {
@@ -249,7 +262,7 @@ async fn run(mode: &str) {
         let mut flow = json!({"isolated":true});
         checkpoint(&flow);
         let prompt = "Read challenge.txt twice using your file read tool, then reply.";
-        let first_prompt = if matches!(agent, "claude" | "kimi" | "kiro") {
+        let first_prompt = if matches!(agent, "claude" | "kimi" | "kiro" | "openclaw") {
             "AUXILIARY_PROBE: Delegate reading challenge.txt twice to a general-purpose helper, then reply with its contents."
         } else { prompt };
         flow["new"] = json!(request(&input, &model, &info, first_prompt, false).await);
@@ -271,7 +284,7 @@ async fn run(mode: &str) {
                 .any(|r| { r.cwd == root.to_string_lossy() && !r.acp_session_id.is_empty() })
         );
         let observed = evidence(&input).await;
-        if matches!(agent, "claude" | "kimi" | "kiro") {
+        if matches!(agent, "claude" | "kimi" | "kiro" | "openclaw") {
             assert!(observed["requests"].as_array().unwrap().iter().any(|request| request["auxiliary"] == true),
                 "auxiliary model did not reach the fixture");
         }

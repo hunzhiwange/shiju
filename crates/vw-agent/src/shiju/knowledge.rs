@@ -166,3 +166,9 @@ async fn decode<T: DeserializeOwned>(response: reqwest::Response) -> Result<T, S
 #[cfg(test)]
 #[path = "knowledge_tests.rs"]
 mod shiju_knowledge_tests;
+
+#[path = "knowledge_content.rs"]
+mod knowledge_content;
+#[cfg(test)]
+#[path = "knowledge_content_tests.rs"]
+mod shiju_knowledge_content_tests;

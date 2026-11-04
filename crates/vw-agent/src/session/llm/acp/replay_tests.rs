@@ -39,7 +39,7 @@ fn build_request_prompt_extracts_latest_user_message_when_not_forcing_replay() {
         3,
     );
 
-    assert_eq!(prompt, "latest request");
+    assert_eq!(prompt, "latest\nrequest");
 }
 
 #[test]

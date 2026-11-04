@@ -157,11 +157,11 @@ async fn finalize_child_handles_missing_stderr_task() {
 }
 
 #[tokio::test]
-async fn finalize_child_ignores_failed_stderr_task() {
+async fn finalize_child_ignores_cancelled_stderr_task() {
     let client = shell_client(shell_args("exit 0", vec![]));
-    let stderr_task = tokio::spawn(async move {
-        panic!("stderr task failed");
-    });
+    // Cancellation supplies a real JoinError without depending on panic unwinding.
+    let stderr_task = tokio::spawn(std::future::pending::<String>());
+    stderr_task.abort();
 
     let ProcessHandles { child, stderr_task: _ } =
         client.spawn_child().expect("spawn should succeed");

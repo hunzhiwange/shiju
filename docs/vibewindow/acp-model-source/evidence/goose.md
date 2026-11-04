@@ -1,6 +1,6 @@
 # Goose 模型来源证据
 
-状态：实现完成，待统一正式 Cargo 回归。未把缓存二进制结果冒充正式 Cargo 验收通过。
+状态：正式 Cargo 回归已完成。下方保留实现阶段的失败/缓存记录，与最新正式通过证据分开。
 固定上游 aaif-goose/goose `v1.57.0`，入口保持 `goose acp`（stdio）。仅验证 Darwin arm64。
 
 ## 实现与固定补丁
@@ -101,9 +101,11 @@ python3 docs/vibewindow/acp-model-source/evidence/goose/native_probe.py --binary
 初轮仅预检用过槽位 5：`/Users/xiangmin/worker/code/shiju/target/rust-slot-5`。
 Cargo 阶段的 CARGO_BUILD_BUILD_DIR 与 CARGO_TARGET_DIR 相同。所有本任务锁均已释放，保留缓存。
 
-## 统一正式回归
+## 正式 Cargo 回归（已通过）
 
-冻结无关源码改动后领取共享槽位，设置两个绝对构建目录，准备真实补丁 CLI，再执行：
+2026-11-04 基于最新共享工作区动态领取槽位 **5**，
+`CARGO_TARGET_DIR=/Users/xiangmin/worker/code/shiju/target/rust-slot-5`，
+`CARGO_BUILD_BUILD_DIR` 为同一绝对路径。执行以下正式入口；没有使用 cached_verify.py：
 
 ```sh
 export PATH="$PWD/target/acp-cli/goose-v1.57.0-shiju:$PATH"
@@ -113,5 +115,18 @@ python3 docs/vibewindow/acp-model-source/evidence/goose/verify.py --agent goose 
 cargo clippy --all-targets --all-features -- -D warnings
 ```
 
-两种来源各获得正式 Cargo 1 passed 后再解除待回归、删除编号任务文件。
-任务 33 还需集成固定补丁安装，更新共享“所有 driver 未实现”基线测试，再发布能力。
+本轮聚焦命令退出 0，4 passed / 0 failed（构建 4m00s、执行 1.72s）。共享 macOS 链接器
+提示 __eh_frame 超过 compact unwind 索引体积上限；测试正常通过，没有修改该共享构建配置。
+本任务 Rust 实现未变，已通过且不受影响的 Clippy 不重复执行，先前退出 0 的证据保留在上文。
+
+| 正式来源 | 有效 Rust 验收测试 | cargo_exit_code | 实际模型请求 | 结果 |
+| --- | ---: | ---: | ---: | --- |
+| [session-model](goose/session-model-final.json) | 1 | 0 | 11 | primary → switched，全部通过 |
+| [cli-local](goose/cli-local-final.json) | 1 | 0 | 8 | 始终 primary，全部通过 |
+
+两份报告均由真正的 Cargo 命令运行原 Rust 生产验收入口，`passed=true`；认证全部正确，
+fixture 错误为 0，工具结果达到 2；新建、第二轮、取消、恢复、切换、隔离、握手全部为真。
+报告没有 binary_exit_code 或 cached-production-binary 标记。真实补丁 CLI 的 SHA-256 与上文一致。
+全部 Cargo、验收器及 CLI 子进程结束后已释放本任务槽位锁，缓存保留。
+
+已解除待回归并按契约删除编号任务文件。下一步由任务 33 集成固定补丁安装与共享能力发布。

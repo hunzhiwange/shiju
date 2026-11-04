@@ -13,6 +13,7 @@ pub struct VideoEditRunBudget {
     permits: Arc<Semaphore>,
     cancellation: CancellationToken,
     steps: Arc<AtomicU32>,
+    assets: Arc<std::sync::Mutex<std::collections::BTreeMap<String, OwnedSemaphorePermit>>>,
 }
 impl Default for VideoEditRunBudget {
     fn default() -> Self {
@@ -29,6 +30,7 @@ impl VideoEditRunBudget {
             permits: Arc::new(Semaphore::new(limit)),
             cancellation: CancellationToken::new(),
             steps: Arc::new(AtomicU32::new(10_000)),
+            assets: Default::default(),
         })
     }
     pub fn from_value(value: Option<&Value>) -> Result<Self, String> {
@@ -62,6 +64,40 @@ impl VideoEditRunBudget {
             biased;
             _ = self.cancelled() => Err("video edit run cancelled".into()),
             permit = self.permits.clone().acquire_owned() => permit.map_err(|_| "video edit budget closed".into()),
+        }
+    }
+    pub(crate) async fn reserve_asset(&self, key: &str) -> Result<(), String> {
+        if self.assets.lock().map_err(|_| "asset budget poisoned")?.contains_key(key) {
+            return Ok(());
+        }
+        let permit = self.acquire().await?;
+        self.assets
+            .lock()
+            .map_err(|_| "asset budget poisoned")?
+            .entry(key.into())
+            .or_insert(permit);
+        Ok(())
+    }
+    pub(crate) fn try_reserve_asset(&self, key: &str) -> Result<bool, String> {
+        if self.is_cancelled() {
+            return Err("video edit run cancelled".into());
+        }
+        let mut assets = self.assets.lock().map_err(|_| "asset budget poisoned")?;
+        if assets.contains_key(key) {
+            return Ok(true);
+        }
+        match self.permits.clone().try_acquire_owned() {
+            Ok(permit) => {
+                assets.insert(key.into(), permit);
+                Ok(true)
+            }
+            Err(tokio::sync::TryAcquireError::NoPermits) => Ok(false),
+            Err(_) => Err("video edit budget closed".into()),
+        }
+    }
+    pub(crate) fn release_asset(&self, key: &str) {
+        if let Ok(mut assets) = self.assets.lock() {
+            assets.remove(key);
         }
     }
     pub(crate) fn set_steps(&self, steps: u32) {

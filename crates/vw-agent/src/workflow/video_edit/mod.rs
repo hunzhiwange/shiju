@@ -27,6 +27,11 @@ mod transcript_tests;
 
 pub use super::budget;
 
+pub mod assets;
+#[cfg(test)]
+mod assets_tests;
+#[cfg(test)]
+mod cloud_assets_tests;
 pub mod merge;
 #[cfg(test)]
 mod merge_tests;

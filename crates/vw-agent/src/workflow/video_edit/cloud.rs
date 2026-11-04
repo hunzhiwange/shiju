@@ -478,6 +478,8 @@ impl WorkflowToolProvider for ShijuCloudVideoToolProvider {
     }
 }
 
+#[path = "cloud_assets.rs"]
+mod asset_transport;
 #[path = "cloud_memory.rs"]
 mod memory;
 #[path = "cloud_prepare.rs"]

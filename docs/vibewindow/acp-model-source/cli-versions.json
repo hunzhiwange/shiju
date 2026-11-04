@@ -1,8 +1,8 @@
 {
   "schema_version": 1,
   "observed_on": "2026-11-04",
-  "status": "blocked_unverified_upstream_entries",
-  "scope": "Evidence inventory only; does not change install or launch behavior. No entry is supported.",
+  "status": "version_contract_complete_runtime_unverified",
+  "scope": "Version contract and evidence inventory delivered; does not change install or launch behavior. No CLI model-source support is claimed.",
   "registry_source": "crates/vw-acp/src/agent_registry.rs::BUILT_IN_AGENT_DEFINITIONS",
   "install_source": "crates/vw-config-types/src/acp_install.rs::acp_install_command_for_platform",
   "evidence_policy": {
@@ -1939,7 +1939,7 @@
   "installer_sha256": "05097c63ef51ae92a38533513e547cae87918e425738e7afd7ff2036d1e4bb3e",
   "contract_delivery": {
     "version_inventory": "22 distribution release candidates now sourced from public package or installer metadata; does not pin runtime",
-    "actual_model_acceptance": "Separate later driver validation. No model request required for document structure validation; task completion prohibition for unproved CLI entries still applies.",
+    "actual_model_acceptance": "Separate later driver validation under task 10 and individual CLI adaptation tasks. Per updated task 1 scope, uninstalled or unverified CLI entries are recorded facts, not blockers to version inventory delivery.",
     "remaining_external_gap": "No verified supported arbitrary Provider entry for five C distributions. Isolated installation cannot create that upstream API.",
     "safe_acquisition_policy": "Published archives inspected as data only; no global installation, user config/auth read, login, paid call, vendor contact or issue submission."
   },

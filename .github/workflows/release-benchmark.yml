@@ -1,0 +1,58 @@
+name: Release benchmark
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: release-benchmark
+  cancel-in-progress: false
+
+jobs:
+  measure:
+    strategy:
+      fail-fast: false
+      max-parallel: 1
+      matrix:
+        include:
+          - runner: macos-15-intel
+            target: x86_64-apple-darwin
+          - runner: windows-2022
+            target: aarch64-pc-windows-msvc
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 360
+    env:
+      VIBEWINDOW_RELEASE_BUILD: '1'
+      CARGO_TERM_COLOR: never
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          ref: ${{ github.sha }}
+          persist-credentials: false
+          submodules: recursive
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install dist on macOS (same installer as Release)
+        if: runner.os == 'macOS'
+        shell: bash
+        run: curl --proto '=https' --tlsv1.2 -LsSf https://github.com/axodotdev/cargo-dist/releases/download/v0.30.1/cargo-dist-installer.sh | sh
+      - name: Install dist on Windows (same installer as Release)
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: irm https://github.com/axodotdev/cargo-dist/releases/download/v0.30.1/cargo-dist-installer.ps1 | iex
+      - name: Install target standard library
+        shell: bash
+        run: rustup target add '${{ matrix.target }}'
+      - name: Measure serial dist build in a shared Cargo slot
+        shell: bash
+        run: python scripts/summarize_release_build.py --run '${{ matrix.target }}' --output benchmark
+      - name: Upload evidence even after failure
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: release-benchmark-${{ matrix.target }}-${{ github.sha }}
+          path: benchmark/
+          if-no-files-found: error

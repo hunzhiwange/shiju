@@ -35,6 +35,7 @@ const LOOP_MAX_COUNT: u32 = 1_000;
 
 #[derive(Clone)]
 pub struct WorkflowRuntime {
+    pub video_edit_budget: crate::workflow::budget::VideoEditRunBudget,
     pub provider: Arc<dyn Provider>,
     pub knowledge_provider: Option<Arc<dyn WorkflowKnowledgeProvider>>,
     pub document_extractor: Option<Arc<dyn WorkflowDocumentExtractor>>,
@@ -248,7 +249,18 @@ pub struct WorkflowNodeDeltaEvent {
 }
 
 #[derive(Debug, Clone)]
+pub struct WorkflowChildContext {
+    pub run_id: String,
+    pub parent_node_id: String,
+    pub chunk_index: usize,
+    pub chunk_id: String,
+    pub node_id: String,
+    pub call_id: String,
+}
+
+#[derive(Debug, Clone)]
 pub enum WorkflowRunEvent {
+    Child { context: WorkflowChildContext, event: Box<WorkflowRunEvent> },
     WorkflowStarted { run_id: String },
     NodeStarted(WorkflowNodeStartedEvent),
     NodeDelta(WorkflowNodeDeltaEvent),
@@ -376,6 +388,7 @@ async fn continue_workflow<F>(
 where
     F: FnMut(WorkflowRunEvent) + Send,
 {
+    runtime.video_edit_budget.set_steps(max_steps);
     let mut executed_steps = 0_u32;
     while executed_steps < max_steps {
         let ready_node_ids = next_ready_nodes(
@@ -954,57 +967,77 @@ fn activate_outgoing_edges(
     }
 }
 
-async fn execute_node<F>(
-    runtime: &WorkflowRuntime,
-    graph: &WorkflowGraph,
-    node: &WorkflowNode,
-    pool: &mut VariablePool,
+fn execute_node<'a, F>(
+    runtime: &'a WorkflowRuntime,
+    graph: &'a WorkflowGraph,
+    node: &'a WorkflowNode,
+    pool: &'a mut VariablePool,
     node_index: u32,
-    on_event: &mut F,
-) -> NodeExecution
+    on_event: &'a mut F,
+) -> futures_util::future::BoxFuture<'a, NodeExecution>
 where
-    F: FnMut(WorkflowRunEvent) + Send,
+    F: FnMut(WorkflowRunEvent) + Send + 'a,
 {
-    let started = Instant::now();
-    let result = match node.node_type.as_str() {
-        "start" => Ok(execute_start_node(node, pool)),
-        "llm" => execute_llm_node(runtime, node, pool, node_index, on_event).await,
-        "if-else" => execute_if_else_node(node, pool),
-        "code" => execute_code_node(node, pool).await,
-        "answer" => Ok(execute_answer_node(node, pool)),
-        "template" | "template-transform" => execute_template_node(node, pool),
-        "output" | "end" => execute_output_node(node, pool),
-        "variable-aggregator" => execute_variable_aggregator_node(node, pool),
-        "list-operator" => execute_list_operator_node(node, pool),
-        "http-request" => execute_http_request_node(node, pool).await,
-        "parameter-extractor" => execute_parameter_extractor_node(runtime, node, pool).await,
-        "question-classifier" => execute_question_classifier_node(runtime, graph, node, pool).await,
-        "iteration" => execute_iteration_node(runtime, node, pool).await,
-        "loop" => execute_loop_node(runtime, node, pool).await,
-        "knowledge-retrieval" => execute_knowledge_retrieval_node(runtime, node, pool).await,
-        "document-extractor" => execute_document_extractor_node(runtime, node, pool).await,
-        "variable-assigner" => execute_variable_assigner_node(node, pool),
-        "tool" => execute_tool_node(runtime, node, pool).await,
-        "agent" => execute_agent_node(runtime, node, pool).await,
-        "human-input" => execute_human_input_node(node),
-        other => Err(format!("不支持的 workflow 节点类型: {other}")),
-    };
+    Box::pin(async move {
+        let started = Instant::now();
+        let result = async {
+            runtime.video_edit_budget.consume_step()?;
+            match node.node_type.as_str() {
+                "start" => Ok(execute_start_node(node, pool)),
+                "llm" => execute_llm_node(runtime, node, pool, node_index, on_event).await,
+                "if-else" => execute_if_else_node(node, pool),
+                "code" => execute_code_node(node, pool).await,
+                "answer" => Ok(execute_answer_node(node, pool)),
+                "template" | "template-transform" => execute_template_node(node, pool),
+                "output" | "end" => execute_output_node(node, pool),
+                "variable-aggregator" => execute_variable_aggregator_node(node, pool),
+                "list-operator" => execute_list_operator_node(node, pool),
+                "http-request" => execute_http_request_node(node, pool).await,
+                "parameter-extractor" => {
+                    execute_parameter_extractor_node(runtime, node, pool).await
+                }
+                "question-classifier" => {
+                    execute_question_classifier_node(runtime, graph, node, pool).await
+                }
+                "iteration" => execute_iteration_node(runtime, node, pool, on_event).await,
+                "loop" => execute_loop_node(runtime, node, pool).await,
+                "knowledge-retrieval" => {
+                    execute_knowledge_retrieval_node(runtime, node, pool).await
+                }
+                "document-extractor" => execute_document_extractor_node(runtime, node, pool).await,
+                "variable-assigner" => execute_variable_assigner_node(node, pool),
+                "tool" => execute_tool_node(runtime, node, pool).await,
+                "agent" => execute_agent_node(runtime, node, pool).await,
+                "human-input" => execute_human_input_node(node),
+                other => Err(format!("不支持的 workflow 节点类型: {other}")),
+            }
+        };
+        let result = if node.node_type == "iteration" {
+            result.await
+        } else {
+            tokio::select! {
+                biased;
+                _ = runtime.video_edit_budget.cancelled() => Err("video edit run cancelled".to_string()),
+                result = result => result,
+            }
+        };
 
-    match result {
-        Ok(mut execution) => {
-            execution.elapsed_ms = elapsed_ms(started);
-            execution
+        match result {
+            Ok(mut execution) => {
+                execution.elapsed_ms = elapsed_ms(started);
+                execution
+            }
+            Err(error) => NodeExecution {
+                status: WorkflowNodeRunStatus::Failed,
+                inputs: BTreeMap::new(),
+                outputs: BTreeMap::new(),
+                selected_handle: None,
+                answer: None,
+                error: Some(error),
+                elapsed_ms: elapsed_ms(started),
+            },
         }
-        Err(error) => NodeExecution {
-            status: WorkflowNodeRunStatus::Failed,
-            inputs: BTreeMap::new(),
-            outputs: BTreeMap::new(),
-            selected_handle: None,
-            answer: None,
-            error: Some(error),
-            elapsed_ms: elapsed_ms(started),
-        },
-    }
+    })
 }
 
 fn execute_start_node(node: &WorkflowNode, pool: &VariablePool) -> NodeExecution {
@@ -1030,6 +1063,7 @@ async fn execute_llm_node<F>(
 where
     F: FnMut(WorkflowRunEvent) + Send,
 {
+    let _permit = runtime.video_edit_budget.acquire().await?;
     let messages = build_llm_messages(node, pool);
     let requested_model = workflow_node_model(node, runtime.model.as_str());
     let mut retry_messages = messages.clone();
@@ -1182,6 +1216,7 @@ async fn run_llm_chat_with_model_fallback(
     messages: &[ChatMessage],
     requested_model: &str,
 ) -> Result<crate::providers::ChatResponse, String> {
+    let _permit = runtime.video_edit_budget.acquire().await?;
     let first = runtime
         .provider
         .chat(ChatRequest { messages, tools: None }, requested_model, runtime.temperature)
@@ -1641,12 +1676,16 @@ async fn execute_http_request_node(
     })
 }
 
-async fn execute_iteration_node(
+async fn execute_iteration_node<F>(
     runtime: &WorkflowRuntime,
     node: &WorkflowNode,
     pool: &VariablePool,
-) -> Result<NodeExecution, String> {
-    reject_parallel_iteration(node)?;
+    on_event: &mut F,
+) -> Result<NodeExecution, String>
+where
+    F: FnMut(WorkflowRunEvent) + Send,
+{
+    let parallel = iteration_parallel::parallel_limit(node)?.is_some();
     let selector = list_operator_input_selector(&node.data)
         .ok_or_else(|| "iteration 节点缺少 input_selector".to_string())?;
     let input = pool.get_selector(&selector).cloned().unwrap_or(Value::Null);
@@ -1662,24 +1701,31 @@ async fn execute_iteration_node(
     let subgraph = iteration_subgraph(node)?;
     let error_strategy = iteration_error_strategy(node);
 
-    let mut result = Vec::new();
-    for (index, item) in items.iter().enumerate() {
-        let mut local_pool = pool.clone();
-        local_pool.insert_node_output(&node.id, "item", item.clone());
-        local_pool.insert_node_output(&node.id, "index", Value::Number(index.into()));
+    let mut result = if parallel {
+        iteration_parallel::execute(runtime, node, pool, on_event).await?
+    } else {
+        Vec::new()
+    };
+    if !parallel {
+        for (index, item) in items.iter().enumerate() {
+            let mut local_pool = pool.clone();
+            local_pool.insert_node_output(&node.id, "item", item.clone());
+            local_pool.insert_node_output(&node.id, "index", Value::Number(index.into()));
 
-        match execute_workflow_subgraph(runtime, &subgraph, &mut local_pool, "iteration 子图").await
-        {
-            Ok(()) => result
-                .push(local_pool.get_selector(&output_selector).cloned().unwrap_or(Value::Null)),
-            Err(error) => match error_strategy {
-                "continue_on_error" => result.push(Value::Null),
-                "remove_failed" => {}
-                _ => return Err(format!("iteration 子图执行失败: {error}")),
-            },
+            match execute_workflow_subgraph(runtime, &subgraph, &mut local_pool, "iteration 子图")
+                .await
+            {
+                Ok(()) => result.push(
+                    local_pool.get_selector(&output_selector).cloned().unwrap_or(Value::Null),
+                ),
+                Err(error) => match error_strategy {
+                    "continue_on_error" => result.push(Value::Null),
+                    "remove_failed" => {}
+                    _ => return Err(format!("iteration 子图执行失败: {error}")),
+                },
+            }
         }
     }
-
     let value = Value::Array(result);
     Ok(NodeExecution {
         status: WorkflowNodeRunStatus::Succeeded,
@@ -2371,16 +2417,6 @@ fn knowledge_chunk_value(chunk: WorkflowKnowledgeChunk) -> Value {
             .unwrap_or(Value::Null),
     );
     Value::Object(value)
-}
-
-fn reject_parallel_iteration(node: &WorkflowNode) -> Result<(), String> {
-    let parallel_enabled = node.data.get("parallel").and_then(Value::as_bool).unwrap_or(false)
-        || string_field(&node.data, "mode")
-            .is_some_and(|mode| mode.eq_ignore_ascii_case("parallel"));
-    if parallel_enabled {
-        return Err("iteration 节点暂不支持并行模式".to_string());
-    }
-    Ok(())
 }
 
 fn iteration_subgraph(node: &WorkflowNode) -> Result<WorkflowGraph, String> {
@@ -3431,3 +3467,10 @@ fn is_sensitive_key(key: &str) -> bool {
 #[cfg(test)]
 #[path = "runner_tests.rs"]
 mod runner_tests;
+
+#[cfg(test)]
+#[path = "iteration_parallel_tests.rs"]
+mod iteration_parallel_tests;
+
+#[path = "iteration_parallel.rs"]
+mod iteration_parallel;

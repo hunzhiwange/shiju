@@ -130,6 +130,17 @@ fn bound_request(request: &Request) -> Result<Option<WorkflowRunRequest>, String
 }
 
 fn node_event(run_id: &str, event: WorkflowRunEvent) -> Option<StreamEvent> {
+    if let WorkflowRunEvent::Child { context, event } = event {
+        let mut result = node_event(run_id, *event)?;
+        if let StreamEvent::Tool(ref mut tool) = result {
+            tool.call_id = context.call_id;
+            tool.payload["parent_node_id"] = json!(context.parent_node_id);
+            tool.payload["chunk_index"] = json!(context.chunk_index);
+            tool.payload["chunk_id"] = json!(context.chunk_id);
+            tool.payload["node_id"] = json!(context.node_id);
+        }
+        return Some(result);
+    }
     let (node_id, title, kind, status, payload) = match event {
         WorkflowRunEvent::NodeStarted(event) => (
             event.node_id,
@@ -189,6 +200,8 @@ pub(crate) fn run_bound_command(
         allowed_tools: request.options.get("allowed_tools").cloned(),
     });
     let runtime = WorkflowRuntime {
+        video_edit_budget: crate::workflow::budget::VideoEditRunBudget::default()
+            .with_cancellation(cancellation.clone()),
         provider: Arc::new(crate::providers::session_llm::SessionLlmProvider::new()),
         model: request.model.clone().unwrap_or_default(),
         temperature: 0.2,

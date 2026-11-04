@@ -400,6 +400,7 @@ workflow:
         target: final
 "#;
     let runtime = WorkflowRuntime {
+        video_edit_budget: crate::workflow::budget::VideoEditRunBudget::default(),
         provider: Arc::new(WorkflowTestProvider),
         knowledge_provider: None,
         document_extractor: None,
@@ -491,6 +492,7 @@ workflow:
         target: answer
 "#;
     let runtime = WorkflowRuntime {
+        video_edit_budget: crate::workflow::budget::VideoEditRunBudget::default(),
         provider: Arc::new(WorkflowTestProvider),
         knowledge_provider: None,
         document_extractor: None,
@@ -595,6 +597,7 @@ workflow:
 "#;
     let provider = Arc::new(ModelFallbackProvider { calls: Mutex::new(Vec::new()) });
     let runtime = WorkflowRuntime {
+        video_edit_budget: crate::workflow::budget::VideoEditRunBudget::default(),
         provider: provider.clone(),
         knowledge_provider: None,
         document_extractor: None,
@@ -649,6 +652,7 @@ workflow:
         target: out
 "#;
     let runtime = WorkflowRuntime {
+        video_edit_budget: crate::workflow::budget::VideoEditRunBudget::default(),
         provider: Arc::new(WorkflowTestProvider),
         knowledge_provider: None,
         document_extractor: None,
@@ -701,6 +705,7 @@ workflow:
         target: done
 "#;
     let runtime = WorkflowRuntime {
+        video_edit_budget: crate::workflow::budget::VideoEditRunBudget::default(),
         provider: Arc::new(WorkflowTestProvider),
         knowledge_provider: None,
         document_extractor: None,
@@ -767,6 +772,7 @@ workflow:
         target: answer
 "#;
     let runtime = WorkflowRuntime {
+        video_edit_budget: crate::workflow::budget::VideoEditRunBudget::default(),
         provider: Arc::new(WorkflowTestProvider),
         knowledge_provider: None,
         document_extractor: None,
@@ -834,6 +840,7 @@ workflow:
         target: answer
 "#;
     let runtime = WorkflowRuntime {
+        video_edit_budget: crate::workflow::budget::VideoEditRunBudget::default(),
         provider: Arc::new(WorkflowTestProvider),
         knowledge_provider: None,
         document_extractor: None,
@@ -953,6 +960,7 @@ workflow:
         target: answer
 "#;
     let runtime = WorkflowRuntime {
+        video_edit_budget: crate::workflow::budget::VideoEditRunBudget::default(),
         provider: Arc::new(WorkflowTestProvider),
         knowledge_provider: None,
         document_extractor: None,
@@ -1023,6 +1031,7 @@ workflow:
         target: agg
 "#;
     let runtime = WorkflowRuntime {
+        video_edit_budget: crate::workflow::budget::VideoEditRunBudget::default(),
         provider: Arc::new(WorkflowTestProvider),
         knowledge_provider: None,
         document_extractor: None,
@@ -1084,6 +1093,7 @@ workflow:
         target: answer
 "#;
     let runtime = WorkflowRuntime {
+        video_edit_budget: crate::workflow::budget::VideoEditRunBudget::default(),
         provider: Arc::new(WorkflowTestProvider),
         knowledge_provider: None,
         document_extractor: None,
@@ -1152,6 +1162,7 @@ workflow:
         target: answer
 "#;
     let runtime = WorkflowRuntime {
+        video_edit_budget: crate::workflow::budget::VideoEditRunBudget::default(),
         provider: Arc::new(WorkflowTestProvider),
         knowledge_provider: None,
         document_extractor: None,
@@ -1205,6 +1216,7 @@ workflow:
         target: sorted
 "#;
     let runtime = WorkflowRuntime {
+        video_edit_budget: crate::workflow::budget::VideoEditRunBudget::default(),
         provider: Arc::new(WorkflowTestProvider),
         knowledge_provider: None,
         document_extractor: None,
@@ -1267,6 +1279,7 @@ workflow:
         target: docs
 "#;
     let runtime = WorkflowRuntime {
+        video_edit_budget: crate::workflow::budget::VideoEditRunBudget::default(),
         provider: Arc::new(WorkflowTestProvider),
         knowledge_provider: None,
         document_extractor: None,
@@ -1337,6 +1350,7 @@ workflow:
         target: answer
 "#;
     let runtime = WorkflowRuntime {
+        video_edit_budget: crate::workflow::budget::VideoEditRunBudget::default(),
         provider: Arc::new(WorkflowTestProvider),
         knowledge_provider: None,
         document_extractor: None,
@@ -1392,6 +1406,7 @@ workflow:
         target: http
 "#;
     let runtime = WorkflowRuntime {
+        video_edit_budget: crate::workflow::budget::VideoEditRunBudget::default(),
         provider: Arc::new(WorkflowTestProvider),
         knowledge_provider: None,
         document_extractor: None,
@@ -1445,6 +1460,7 @@ workflow:
         target: http
 "#;
     let runtime = WorkflowRuntime {
+        video_edit_budget: crate::workflow::budget::VideoEditRunBudget::default(),
         provider: Arc::new(WorkflowTestProvider),
         knowledge_provider: None,
         document_extractor: None,
@@ -1477,6 +1493,7 @@ async fn run_workflow_parameter_extractor_extracts_parameters() {
         calls: Mutex::new(Vec::new()),
     });
     let runtime = WorkflowRuntime {
+        video_edit_budget: crate::workflow::budget::VideoEditRunBudget::default(),
         provider,
         knowledge_provider: None,
         document_extractor: None,
@@ -1516,6 +1533,7 @@ async fn run_workflow_parameter_extractor_marks_missing_required_parameter() {
         calls: Mutex::new(Vec::new()),
     });
     let runtime = WorkflowRuntime {
+        video_edit_budget: crate::workflow::budget::VideoEditRunBudget::default(),
         provider,
         knowledge_provider: None,
         document_extractor: None,
@@ -1557,6 +1575,7 @@ async fn run_workflow_parameter_extractor_rejects_non_json_response() {
         calls: Mutex::new(Vec::new()),
     });
     let runtime = WorkflowRuntime {
+        video_edit_budget: crate::workflow::budget::VideoEditRunBudget::default(),
         provider,
         knowledge_provider: None,
         document_extractor: None,
@@ -1589,6 +1608,7 @@ async fn run_workflow_parameter_extractor_uses_model_fallback() {
         calls: Mutex::new(Vec::new()),
     });
     let runtime = WorkflowRuntime {
+        video_edit_budget: crate::workflow::budget::VideoEditRunBudget::default(),
         provider: provider.clone(),
         knowledge_provider: None,
         document_extractor: None,
@@ -1673,6 +1693,7 @@ async fn run_workflow_question_classifier_activates_matched_class_edge() {
         calls: Mutex::new(Vec::new()),
     });
     let runtime = WorkflowRuntime {
+        video_edit_budget: crate::workflow::budget::VideoEditRunBudget::default(),
         provider,
         knowledge_provider: None,
         document_extractor: None,
@@ -1711,6 +1732,7 @@ async fn run_workflow_question_classifier_uses_default_for_unknown_class() {
         calls: Mutex::new(Vec::new()),
     });
     let runtime = WorkflowRuntime {
+        video_edit_budget: crate::workflow::budget::VideoEditRunBudget::default(),
         provider,
         knowledge_provider: None,
         document_extractor: None,
@@ -1745,6 +1767,7 @@ async fn run_workflow_question_classifier_rejects_unknown_class_without_fallback
         calls: Mutex::new(Vec::new()),
     });
     let runtime = WorkflowRuntime {
+        video_edit_budget: crate::workflow::budget::VideoEditRunBudget::default(),
         provider,
         knowledge_provider: None,
         document_extractor: None,
@@ -1842,6 +1865,7 @@ workflow:
 async fn run_workflow_knowledge_retrieval_returns_provider_chunks() {
     let knowledge_provider = Arc::new(FakeKnowledgeProvider { requests: Mutex::new(Vec::new()) });
     let runtime = WorkflowRuntime {
+        video_edit_budget: crate::workflow::budget::VideoEditRunBudget::default(),
         provider: Arc::new(WorkflowTestProvider),
         knowledge_provider: Some(knowledge_provider.clone()),
         document_extractor: None,
@@ -1880,6 +1904,7 @@ async fn run_workflow_knowledge_retrieval_returns_provider_chunks() {
 #[tokio::test]
 async fn run_workflow_knowledge_retrieval_requires_provider() {
     let runtime = WorkflowRuntime {
+        video_edit_budget: crate::workflow::budget::VideoEditRunBudget::default(),
         provider: Arc::new(WorkflowTestProvider),
         knowledge_provider: None,
         document_extractor: None,
@@ -1944,6 +1969,7 @@ workflow:
 async fn run_workflow_knowledge_retrieval_reads_dify_native_fields() {
     let knowledge_provider = Arc::new(FakeKnowledgeProvider { requests: Mutex::new(Vec::new()) });
     let runtime = WorkflowRuntime {
+        video_edit_budget: crate::workflow::budget::VideoEditRunBudget::default(),
         provider: Arc::new(WorkflowTestProvider),
         knowledge_provider: Some(knowledge_provider.clone()),
         document_extractor: None,
@@ -2012,6 +2038,7 @@ workflow:
 async fn run_workflow_dhb_demo_yaml_runs_end_to_end() {
     let knowledge_provider = Arc::new(FakeKnowledgeProvider { requests: Mutex::new(Vec::new()) });
     let runtime = WorkflowRuntime {
+        video_edit_budget: crate::workflow::budget::VideoEditRunBudget::default(),
         provider: Arc::new(WorkflowTestProvider),
         knowledge_provider: Some(knowledge_provider.clone()),
         document_extractor: None,
@@ -2107,6 +2134,7 @@ workflow:
 #[tokio::test]
 async fn run_workflow_document_extractor_reads_inline_text_file() {
     let runtime = WorkflowRuntime {
+        video_edit_budget: crate::workflow::budget::VideoEditRunBudget::default(),
         provider: Arc::new(WorkflowTestProvider),
         knowledge_provider: None,
         document_extractor: None,
@@ -2146,6 +2174,7 @@ async fn run_workflow_document_extractor_reads_inline_text_file() {
 #[tokio::test]
 async fn run_workflow_document_extractor_rejects_unsupported_inline_format() {
     let runtime = WorkflowRuntime {
+        video_edit_budget: crate::workflow::budget::VideoEditRunBudget::default(),
         provider: Arc::new(WorkflowTestProvider),
         knowledge_provider: None,
         document_extractor: None,
@@ -2179,6 +2208,7 @@ async fn run_workflow_document_extractor_rejects_unsupported_inline_format() {
 #[tokio::test]
 async fn run_workflow_document_extractor_does_not_read_path_without_provider() {
     let runtime = WorkflowRuntime {
+        video_edit_budget: crate::workflow::budget::VideoEditRunBudget::default(),
         provider: Arc::new(WorkflowTestProvider),
         knowledge_provider: None,
         document_extractor: None,
@@ -2247,6 +2277,7 @@ workflow:
 #[tokio::test]
 async fn run_workflow_variable_assigner_appends_runtime_conversation_value() {
     let runtime = WorkflowRuntime {
+        video_edit_budget: crate::workflow::budget::VideoEditRunBudget::default(),
         provider: Arc::new(WorkflowTestProvider),
         knowledge_provider: None,
         document_extractor: None,
@@ -2275,6 +2306,7 @@ async fn run_workflow_variable_assigner_appends_runtime_conversation_value() {
 #[tokio::test]
 async fn run_workflow_variable_assigner_applies_number_assignment() {
     let runtime = WorkflowRuntime {
+        video_edit_budget: crate::workflow::budget::VideoEditRunBudget::default(),
         provider: Arc::new(WorkflowTestProvider),
         knowledge_provider: None,
         document_extractor: None,
@@ -2302,6 +2334,7 @@ async fn run_workflow_variable_assigner_applies_number_assignment() {
 #[tokio::test]
 async fn run_workflow_variable_assigner_rejects_persistent_conversation_value() {
     let runtime = WorkflowRuntime {
+        video_edit_budget: crate::workflow::budget::VideoEditRunBudget::default(),
         provider: Arc::new(WorkflowTestProvider),
         knowledge_provider: None,
         document_extractor: None,
@@ -2420,6 +2453,7 @@ workflow:
 async fn run_workflow_tool_node_returns_provider_text() {
     let tool_provider = Arc::new(FakeWorkflowToolProvider { requests: Mutex::new(Vec::new()) });
     let runtime = WorkflowRuntime {
+        video_edit_budget: crate::workflow::budget::VideoEditRunBudget::default(),
         provider: Arc::new(WorkflowTestProvider),
         knowledge_provider: None,
         document_extractor: None,
@@ -2453,6 +2487,7 @@ async fn run_workflow_tool_node_returns_provider_text() {
 #[tokio::test]
 async fn run_workflow_tool_node_rejects_unauthorized_tool_without_secret_leak() {
     let runtime = WorkflowRuntime {
+        video_edit_budget: crate::workflow::budget::VideoEditRunBudget::default(),
         provider: Arc::new(WorkflowTestProvider),
         knowledge_provider: None,
         document_extractor: None,
@@ -2481,6 +2516,7 @@ async fn run_workflow_tool_node_rejects_unauthorized_tool_without_secret_leak() 
 #[tokio::test]
 async fn run_workflow_tool_node_rejects_input_type_mismatch() {
     let runtime = WorkflowRuntime {
+        video_edit_budget: crate::workflow::budget::VideoEditRunBudget::default(),
         provider: Arc::new(WorkflowTestProvider),
         knowledge_provider: None,
         document_extractor: None,
@@ -2585,6 +2621,7 @@ async fn run_workflow_agent_node_calls_tool_and_returns_answer() {
     let agent_provider = Arc::new(FakeWorkflowAgentProvider { requests: Mutex::new(Vec::new()) });
     let tool_provider = Arc::new(FakeWorkflowToolProvider { requests: Mutex::new(Vec::new()) });
     let runtime = WorkflowRuntime {
+        video_edit_budget: crate::workflow::budget::VideoEditRunBudget::default(),
         provider: Arc::new(WorkflowTestProvider),
         knowledge_provider: None,
         document_extractor: None,
@@ -2618,6 +2655,7 @@ async fn run_workflow_agent_node_calls_tool_and_returns_answer() {
 #[tokio::test]
 async fn run_workflow_agent_node_fails_when_max_iterations_exceeded() {
     let runtime = WorkflowRuntime {
+        video_edit_budget: crate::workflow::budget::VideoEditRunBudget::default(),
         provider: Arc::new(WorkflowTestProvider),
         knowledge_provider: None,
         document_extractor: None,
@@ -2648,6 +2686,7 @@ async fn run_workflow_agent_node_fails_when_max_iterations_exceeded() {
 #[tokio::test]
 async fn run_workflow_agent_node_requires_tool_provider() {
     let runtime = WorkflowRuntime {
+        video_edit_budget: crate::workflow::budget::VideoEditRunBudget::default(),
         provider: Arc::new(WorkflowTestProvider),
         knowledge_provider: None,
         document_extractor: None,
@@ -2716,6 +2755,7 @@ workflow:
 #[tokio::test]
 async fn run_workflow_loop_node_runs_until_max_count() {
     let runtime = WorkflowRuntime {
+        video_edit_budget: crate::workflow::budget::VideoEditRunBudget::default(),
         provider: Arc::new(WorkflowTestProvider),
         knowledge_provider: None,
         document_extractor: None,
@@ -2745,6 +2785,7 @@ async fn run_workflow_loop_node_runs_until_max_count() {
 #[tokio::test]
 async fn run_workflow_loop_node_stops_on_condition() {
     let runtime = WorkflowRuntime {
+        video_edit_budget: crate::workflow::budget::VideoEditRunBudget::default(),
         provider: Arc::new(WorkflowTestProvider),
         knowledge_provider: None,
         document_extractor: None,
@@ -2774,6 +2815,7 @@ async fn run_workflow_loop_node_stops_on_condition() {
 #[tokio::test]
 async fn run_workflow_loop_node_fails_when_condition_never_stops() {
     let runtime = WorkflowRuntime {
+        video_edit_budget: crate::workflow::budget::VideoEditRunBudget::default(),
         provider: Arc::new(WorkflowTestProvider),
         knowledge_provider: None,
         document_extractor: None,
@@ -2865,6 +2907,7 @@ workflow:
 async fn run_workflow_human_input_pauses_with_form() {
     let pause_store = Arc::new(FakeWorkflowPauseStore { states: Mutex::new(BTreeMap::new()) });
     let runtime = WorkflowRuntime {
+        video_edit_budget: crate::workflow::budget::VideoEditRunBudget::default(),
         provider: Arc::new(WorkflowTestProvider),
         knowledge_provider: None,
         document_extractor: None,
@@ -2896,6 +2939,7 @@ async fn run_workflow_human_input_pauses_with_form() {
 async fn resume_workflow_human_input_activates_action_branch() {
     let pause_store = Arc::new(FakeWorkflowPauseStore { states: Mutex::new(BTreeMap::new()) });
     let runtime = WorkflowRuntime {
+        video_edit_budget: crate::workflow::budget::VideoEditRunBudget::default(),
         provider: Arc::new(WorkflowTestProvider),
         knowledge_provider: None,
         document_extractor: None,
@@ -2936,6 +2980,7 @@ async fn resume_workflow_human_input_activates_action_branch() {
 async fn resume_workflow_human_input_rejects_bad_token() {
     let pause_store = Arc::new(FakeWorkflowPauseStore { states: Mutex::new(BTreeMap::new()) });
     let runtime = WorkflowRuntime {
+        video_edit_budget: crate::workflow::budget::VideoEditRunBudget::default(),
         provider: Arc::new(WorkflowTestProvider),
         knowledge_provider: None,
         document_extractor: None,
@@ -2972,6 +3017,7 @@ async fn resume_workflow_human_input_rejects_bad_token() {
 #[tokio::test]
 async fn run_workflow_human_input_requires_pause_store() {
     let runtime = WorkflowRuntime {
+        video_edit_budget: crate::workflow::budget::VideoEditRunBudget::default(),
         provider: Arc::new(WorkflowTestProvider),
         knowledge_provider: None,
         document_extractor: None,
@@ -3046,6 +3092,7 @@ workflow:
 async fn run_workflow_iteration_node_collects_subgraph_results() {
     let workflow_yaml = iteration_workflow("terminate", false);
     let runtime = WorkflowRuntime {
+        video_edit_budget: crate::workflow::budget::VideoEditRunBudget::default(),
         provider: Arc::new(WorkflowTestProvider),
         knowledge_provider: None,
         document_extractor: None,
@@ -3075,6 +3122,7 @@ async fn run_workflow_iteration_node_collects_subgraph_results() {
 async fn run_workflow_iteration_node_returns_empty_result_for_empty_array() {
     let workflow_yaml = iteration_workflow("terminate", false);
     let runtime = WorkflowRuntime {
+        video_edit_budget: crate::workflow::budget::VideoEditRunBudget::default(),
         provider: Arc::new(WorkflowTestProvider),
         knowledge_provider: None,
         document_extractor: None,
@@ -3103,6 +3151,7 @@ async fn run_workflow_iteration_node_returns_empty_result_for_empty_array() {
 async fn run_workflow_iteration_node_continues_on_error_with_null() {
     let workflow_yaml = iteration_workflow("continue_on_error", true);
     let runtime = WorkflowRuntime {
+        video_edit_budget: crate::workflow::budget::VideoEditRunBudget::default(),
         provider: Arc::new(WorkflowTestProvider),
         knowledge_provider: None,
         document_extractor: None,
@@ -3128,9 +3177,10 @@ async fn run_workflow_iteration_node_continues_on_error_with_null() {
 }
 
 #[tokio::test]
-async fn run_workflow_iteration_node_rejects_parallel_mode() {
+async fn run_workflow_iteration_node_rejects_parallel_code() {
     let workflow_yaml = iteration_parallel_workflow();
     let runtime = WorkflowRuntime {
+        video_edit_budget: crate::workflow::budget::VideoEditRunBudget::default(),
         provider: Arc::new(WorkflowTestProvider),
         knowledge_provider: None,
         document_extractor: None,
@@ -3151,7 +3201,7 @@ async fn run_workflow_iteration_node_rejects_parallel_mode() {
     let response = run_workflow(runtime, request).await.expect("workflow response");
 
     assert_eq!(response.status, WorkflowRunStatus::Failed);
-    assert!(response.error.expect("error").contains("并行模式"));
+    assert!(response.error.expect("error").contains("rejects node double (code)"));
 }
 
 fn iteration_workflow(error_strategy: &str, fail_on_two: bool) -> String {
@@ -3327,6 +3377,7 @@ async fn talking_head_run(invalid: bool) {
         invalid,
     });
     let runtime = WorkflowRuntime {
+        video_edit_budget: crate::workflow::budget::VideoEditRunBudget::default(),
         provider: provider.clone(),
         knowledge_provider: None,
         document_extractor: None,

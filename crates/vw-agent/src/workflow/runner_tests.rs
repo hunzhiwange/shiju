@@ -543,7 +543,12 @@ fn loop_and_subgraph_helpers_cover_stop_conditions() {
         "continue"
     );
     assert!(
-        reject_parallel_iteration(&node("iter", "iteration", json!({"mode": "parallel"}))).is_err()
+        iteration_parallel::parallel_limit(&node(
+            "iter",
+            "iteration",
+            json!({"mode": "parallel", "max_parallel": 6})
+        ))
+        .is_err()
     );
 }
 
@@ -779,6 +784,7 @@ impl Provider for ExplicitModelStreamProvider {
 async fn workflow_explicit_model_streaming_error_does_not_fall_back() {
     let provider = Arc::new(ExplicitModelStreamProvider { calls: Default::default() });
     let runtime = WorkflowRuntime {
+        video_edit_budget: crate::workflow::budget::VideoEditRunBudget::default(),
         provider: provider.clone(),
         knowledge_provider: None,
         document_extractor: None,

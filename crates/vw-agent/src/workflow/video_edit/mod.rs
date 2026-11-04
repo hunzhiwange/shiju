@@ -24,3 +24,5 @@ mod segments_tests;
 pub mod transcript;
 #[cfg(test)]
 mod transcript_tests;
+
+pub use super::budget;

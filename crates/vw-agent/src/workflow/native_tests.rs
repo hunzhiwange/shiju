@@ -328,6 +328,7 @@ async fn native_workflow_cloud_graph_gates_execution_on_valid_plan_and_preview()
     for (invalid_assets, preview_ready) in [(false, true), (true, true), (false, false)] {
         let count = Arc::new(std::sync::atomic::AtomicUsize::new(0));
         let runtime = crate::workflow::WorkflowRuntime {
+            video_edit_budget: crate::workflow::budget::VideoEditRunBudget::default(),
             provider: Arc::new(CloudFixtureProvider { invalid_assets }),
             model: "unused-model".into(),
             temperature: 0.0,

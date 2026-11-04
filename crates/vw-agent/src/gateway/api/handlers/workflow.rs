@@ -489,6 +489,7 @@ fn workflow_runtime(
     request: &WorkflowRunRequest,
 ) -> Result<WorkflowRuntime, ApiError> {
     Ok(WorkflowRuntime {
+        video_edit_budget: crate::workflow::budget::VideoEditRunBudget::default(),
         provider: state.provider.clone(),
         knowledge_provider: Some(Arc::new(super::knowledge::knowledge_store(state, tenant)?)),
         document_extractor: None,
@@ -695,6 +696,16 @@ impl WorkflowSseContext {
 
     fn send_event(&mut self, tx: &mpsc::UnboundedSender<Event>, event: WorkflowRunEvent) {
         match event {
+            WorkflowRunEvent::Child { context, event } => {
+                let mut event = *event;
+                match &mut event {
+                    WorkflowRunEvent::NodeStarted(event) => event.node_id = context.call_id,
+                    WorkflowRunEvent::NodeFinished(event) => event.node.node_id = context.call_id,
+                    WorkflowRunEvent::NodeDelta(event) => event.node_id = context.call_id,
+                    _ => return,
+                }
+                self.send_event(tx, event);
+            }
             WorkflowRunEvent::WorkflowStarted { run_id } => {
                 self.run_id = Some(run_id.clone());
                 send_sse_payload(

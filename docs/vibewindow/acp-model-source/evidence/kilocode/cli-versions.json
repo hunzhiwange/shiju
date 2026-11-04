@@ -1,0 +1,97 @@
+{
+  "entries": [
+    {
+      "key": "kilocode",
+      "distribution": {
+        "kind": "native",
+        "package": "@kilocode/cli",
+        "release": "7.8.18",
+        "release_status": "runtime_pinned",
+        "source_url": "https://registry.npmjs.org/%40kilocode%2Fcli/7.8.18",
+        "git_commit": null,
+        "integrity": "sha512-/Ym2x0IK6drlX4eZK79JcAcKU90sxnqQlInUCiYtpekyMXeMGHLbr0WQpDrJGyTaAJQRhQ4WStADaaQtfQC/nQ==",
+        "bin": {
+          "kilo": "bin/kilo",
+          "kilocode": "bin/kilo"
+        },
+        "repository": {
+          "url": "git+https://github.com/Kilo-Org/kilocode.git",
+          "type": "git"
+        },
+        "link_check": {
+          "http_status": 200,
+          "final_url": "https://registry.npmjs.org/%40kilocode%2Fcli/7.8.18"
+        }
+      },
+      "underlying": {
+        "kind": "same_distribution",
+        "release": "7.8.18"
+      },
+      "license": {
+        "declared": "MIT",
+        "source_url": "https://registry.npmjs.org/%40kilocode%2Fcli/7.8.18",
+        "review": "metadata_only; bundled component licenses not audited"
+      },
+      "acp_launch": [
+        "kilocode",
+        "acp",
+        "--pure"
+      ],
+      "registry_default_args": "&[\"-y\", \"@kilocode/cli\", \"acp\"]",
+      "local_command_candidates": [
+        "kilocode"
+      ],
+      "route": "native_config_candidate",
+      "config_root_candidate": "KILO_CONFIG / KILO_CONFIG_CONTENT",
+      "config_priority": "kilo 原生 Provider 配置；npm bin 同时含 kilo/kilocode，不能套用 OPENCODE_*",
+      "auxiliary_model_routes": "small_model、Agent 覆盖待验证",
+      "config_isolation_verified": true,
+      "runtime_verified": true,
+      "runtime_evidence_reason": "Real production ACP acceptance passed in both modes on macOS arm64; see sibling session-model.json and cli-local.json. Other platforms unverified.",
+      "installed": {
+        "command": [
+          "kilocode",
+          "--version"
+        ],
+        "status": "version_verified",
+        "exit_code": 0
+      },
+      "platforms": {
+        "macos": "version-only discovery on current host; no ACP request",
+        "linux": "unverified; package/installer target and ACP must be checked",
+        "windows": "unverified; npm cmd/exe or PowerShell installer differs from Unix; target support not inferred"
+      },
+      "source_urls": [
+        "https://kilo.ai/docs/code-with-ai/platforms/cli",
+        "https://kilo.ai/docs/code-with-ai/agents/custom-models"
+      ],
+      "follow_up": "Task 33: integrate pinned native package, reviewed private recipe and multi-XDG fixture isolation; do not publish other platforms as verified.",
+      "source_link_checks": {
+        "https://kilo.ai/docs/code-with-ai/platforms/cli": {
+          "http_status": 200,
+          "final_url": "https://kilo.ai/docs/code-with-ai/platforms/cli"
+        },
+        "https://kilo.ai/docs/code-with-ai/agents/custom-models": {
+          "http_status": 200,
+          "final_url": "https://kilo.ai/docs/code-with-ai/agents/custom-models"
+        }
+      },
+      "offline_acceptance": {
+        "session-model": {
+          "config_root_env": "XDG_CONFIG_HOME",
+          "files": {
+            "kilo/kilo.json": "{\"model\": \"shiju/session\", \"small_model\": \"shiju/session\", \"subagent_model\": \"shiju/session\", \"memory_model\": \"shiju/session\", \"enabled_providers\": [\"shiju\"], \"provider\": {\"shiju\": {\"name\": \"Offline fixture\", \"npm\": \"@ai-sdk/openai-compatible\", \"options\": {\"baseURL\": \"{{endpoint}}\", \"apiKey\": \"{{key}}\"}, \"models\": {\"session\": {\"id\": \"{{model}}\", \"name\": \"Offline fixture\", \"tool_call\": true, \"limit\": {\"context\": 32000, \"output\": 4096}}}}}}"
+          },
+          "upstream_protocol": "chat"
+        },
+        "cli-local": {
+          "config_root_env": "XDG_CONFIG_HOME",
+          "files": {
+            "kilo/kilo.json": "{\"model\": \"shiju/session\", \"small_model\": \"shiju/session\", \"subagent_model\": \"shiju/session\", \"memory_model\": \"shiju/session\", \"enabled_providers\": [\"shiju\"], \"provider\": {\"shiju\": {\"name\": \"Offline fixture\", \"npm\": \"@ai-sdk/openai-compatible\", \"options\": {\"baseURL\": \"{{endpoint}}\", \"apiKey\": \"{{key}}\"}, \"models\": {\"session\": {\"id\": \"{{model}}\", \"name\": \"Offline fixture\", \"tool_call\": true, \"limit\": {\"context\": 32000, \"output\": 4096}}}}}}"
+          },
+          "upstream_protocol": "chat"
+        }
+      }
+    }
+  ]
+}

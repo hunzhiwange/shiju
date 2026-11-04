@@ -1,6 +1,6 @@
 # CodeBuddy 模型来源适配证据
 
-状态：实现完成，待统一 Cargo 回归。真实 CLI 能力已取得证据，缓存生产二进制结果未冒充正式 Cargo 验收通过。仅验证 Darwin arm64、Node v26.13.0。
+状态：正式 Cargo 双来源回归通过。两种来源各 1 项测试通过、Cargo 退出 0、各 13 次真实模型请求。仅验证 Darwin arm64、Node v26.13.0；早期缓存二进制证据保留为历史记录。
 
 固定官方包 `@tencent-ai/codebuddy-code@2.179.3`，安装于 target/acp-codebuddy-cli，实际 --version 为 2.179.3。独立 [manifest](codebuddy/manifest.json) 保留发行包 integrity、启动命令及原生离线配方；公共 manifest 未改动。模板仅含 fixture 占位符，未写真实用户配置或使用生产模型账号。
 
@@ -24,9 +24,9 @@
 
 - 红灯：槽位 1，cargo test -p vw-acp --lib acp_model_source_codebuddy_boolean_session_options -- --nocapture，退出 101，命中具名测试并因上述真实解码错误失败（随后 panic/SIGABRT，非通过）。
 - 绿灯：槽位 2，同命令退出 0，1 passed；model_selection_protocol_updates_prompt_and_load_state 退出 0，1 passed；client::session_control_tests 退出 0，7 passed。格式化退出 0。
-- 全仓 cargo clippy --all-targets --all-features -- -D warnings：槽位 6，boolean 修复和本驱动当前代码均在场，退出 0。源码此后未变，不重复构建。
+- 全仓 cargo clippy --all-targets --all-features -- -D warnings：槽位 6，boolean 修复和本驱动当前代码均在场，退出 0。该结果保留为历史检查记录；本轮无 Rust 变更，不重复执行已通过的驱动聚焦和 Clippy。
 
-七文件窗口已释放，工作区 Claude 原有 protocol_tests.rs 41 行未混入共享修复提交。
+七文件窗口已释放，当时 Claude 原有 protocol_tests.rs 41 行测试未混入共享修复提交。
 
 ## 驱动聚焦与真实生产二进制
 
@@ -49,18 +49,37 @@
 
 两份均 passed=true、认证正确、/v1/chat/completions、fixture 错误 0；新建、第二轮、取消、重启、切换、隔离、握手均 true。session-model 原生配方故意放置错误模型和凭据，实际请求未采用。未复现历史目录恢复问题，无需修改历史目录边界。
 
-主/辅助环境入口已核对固定源码并经子进程断言；不把字段断言描述为真实执行了全部辅助 Agent 分支。正式全体实现后的公共 Cargo 回归另由总计划安排。
+主/辅助环境入口已核对固定源码并经子进程断言；不把字段断言描述为真实执行了全部辅助 Agent 分支。延后的正式 Cargo 入口现已完成，见下节。
 
-## 可复现命令与槽位
+## 正式 Cargo 回归（2026-11-04）
 
-从仓库根动态领取槽位，设置 CARGO_TARGET_DIR 和 CARGO_BUILD_BUILD_DIR 为其绝对路径，设置 RUST_MIN_STACK=33554432，PATH 前置 target/acp-codebuddy-cli/node_modules/.bin。格式化及聚焦通过后，以日志中的同一二进制路径设置 CODEBUDDY_ACCEPTANCE_BINARY：
+基于实现阶段结束后的共享工作区运行原 scripts/verify_acp_model_source.py，未使用 run_cached.py、未替换 Cargo 启动。两份报告均 evidence_kind=real-cli，command 为实际 cargo test 命令，记录 cargo_exit_code=0。
+
+| 来源 | 有效测试 | Cargo 退出码 | 生成请求 | 实际模型 |
+| --- | --- | --- | --- | --- |
+| [session-model](codebuddy/session-model-formal.json) | 1 | 0 | 13 | primary、switched |
+| [cli-local](codebuddy/cli-local-formal.json) | 1 | 0 | 13 | 始终 primary |
+
+两种来源认证及 /v1/chat/completions 路由正确，fixture 错误 0，真实工具结果达到 2；新建、第二轮、取消、重启、切换、隔离、握手全部 true。固定真实 CLI 2.179.3 的版本检查由原验收脚本重新执行；不据此声明其他平台通过。
+
+为避免首次编译超过验收器时限，先执行 cargo test -p vw-agent --lib --all-features acp_model_source_real_cli --no-run，退出 0；该步骤只准备测试目标，不计作测试通过。预编译出现测试大二进制的 linker __eh_frame compact unwind 警告，无 Rust 源码变更，未为此修改共享构建配置。正式两入口随后各命中 1 个具名测试。
+
+从仓库根按任务规则动态领取槽位，设置 CARGO_TARGET_DIR 和 CARGO_BUILD_BUILD_DIR 为其绝对路径，设置 RUST_MIN_STACK=33554432，PATH 前置 target/acp-codebuddy-cli/node_modules/.bin，执行：
 
 ```bash
-cargo test -p vw-agent --lib --all-features acp_model_source_codebuddy -- --nocapture
-python3 docs/vibewindow/acp-model-source/evidence/codebuddy/run_cached.py --agent codebuddy --mode session-model --manifest docs/vibewindow/acp-model-source/evidence/codebuddy/manifest.json --output target/acp-model-source-evidence/codebuddy/session-model-cached --offline-fixture
-python3 docs/vibewindow/acp-model-source/evidence/codebuddy/run_cached.py --agent codebuddy --mode cli-local --manifest docs/vibewindow/acp-model-source/evidence/codebuddy/manifest.json --output target/acp-model-source-evidence/codebuddy/cli-local-cached --offline-fixture
+python3 scripts/verify_acp_model_source.py --agent codebuddy --mode session-model --manifest docs/vibewindow/acp-model-source/evidence/codebuddy/manifest.json --output target/acp-model-source-evidence/codebuddy/session-model-formal --offline-fixture
+python3 scripts/verify_acp_model_source.py --agent codebuddy --mode cli-local --manifest docs/vibewindow/acp-model-source/evidence/codebuddy/manifest.json --output target/acp-model-source-evidence/codebuddy/cli-local-formal --offline-fixture
 ```
 
-最终构建与真实二进制验证：**槽位 2**，CARGO_TARGET_DIR=/Users/xiangmin/worker/code/shiju/target/rust-slot-2，CARGO_BUILD_BUILD_DIR 同路径。共享修复 Clippy 为槽位 6：/Users/xiangmin/worker/code/shiju/target/rust-slot-6。红灯槽位 1：/Users/xiangmin/worker/code/shiju/target/rust-slot-1。此前阶段还使用过 5、10，全部动态领取；自己的锁在相关子进程退出后释放，缓存保留。
+两个实际 Cargo 入口为：
 
-修复前标准双来源 Cargo 验收与缓存二进制均在 boolean 解码处失败，不是当前支持证据。公共 manifest 原生配方尚待串行集成；正式 Cargo 回归应使用本独立 manifest 运行原 scripts/verify_acp_model_source.py 双模式。未把旧版失败或被中断的构建计作通过。
+```bash
+cargo test -p vw-agent --lib --all-features acp_model_source_real_cli_session_model -- --ignored --nocapture --test-threads=1
+cargo test -p vw-agent --lib --all-features acp_model_source_real_cli_cli_local -- --ignored --nocapture --test-threads=1
+```
+
+正式回归动态领取 **槽位 4**：CARGO_TARGET_DIR=/Users/xiangmin/worker/code/shiju/target/rust-slot-4，CARGO_BUILD_BUILD_DIR 同路径；所有相关 Cargo 和 CLI 子进程退出后自己的锁已释放，编译缓存保留。阶段日志 target/codebuddy-formal-stage.log、预编译日志 target/codebuddy-formal-build.log。
+
+此前驱动与缓存生产二进制验证使用槽位 2（/Users/xiangmin/worker/code/shiju/target/rust-slot-2），共享修复 Clippy 使用槽位 6（/Users/xiangmin/worker/code/shiju/target/rust-slot-6），红灯使用槽位 1、10，中断阶段使用过槽位 5；均为动态领取。
+
+公共 manifest 未改；本独立 manifest 已用于正式回归。修复前失败、被中断构建和早期 cached-production-binary 结果均未冒充本次正式通过。编号任务文件可按完成契约删除，总计划 plan.md 保持只读。

@@ -34,6 +34,7 @@ RELEASE_CHECK_PUBLISH ?= 0
 RELEASE_CHECK_WASM ?= 1
 TARGET_DIR := $(CARGO_TARGET_DIR)
 LOCAL_TARGET := $(shell rustc -vV 2>/dev/null | awk '/^host:/ { print $$2 }')
+CLOC ?= cloc
 CLOC_SOURCE_DIRS := $(sort $(wildcard crates/*))
 CLOC_EXCLUDE_DIRS := target,node_modules,dist,coverage,.turbo,.vite,.next
 CLOC_INCLUDE_EXT := rs,html,js,ts,tsx,jsx,mjs,cjs,css,scss,less
@@ -432,19 +433,40 @@ check-deps: ## 检查构建依赖
 	@echo -n "codesign (macOS): "; codesign --version 2>/dev/null || echo "$(YELLOW)not available$(RESET)"
 
 cloc: ## 用 cloc 按语言统计 crates 各库源代码行数
-	@command -v cloc >/dev/null || { echo "$(RED)cloc is required. Install it first.$(RESET)"; exit 1; }
-	@for crate in $(CLOC_SOURCE_DIRS); do \
+	@command -v "$(CLOC)" >/dev/null || { printf '%b\n' "$(RED)cloc is required. Install it first.$(RESET)"; exit 1; }
+	@set -e; \
+	help=$$("$(CLOC)" --help 2>&1); \
+	if [[ "$$help" == *--exclude-dir* ]]; then \
+		cloc_kind=standard; \
+	elif [[ "$$help" == *--ignore-file* ]]; then \
+		cloc_kind=rust; \
+		ignore_file=$$(mktemp); \
+		trap 'rm -f "$$ignore_file"' EXIT; \
+		exclude_dirs="$(CLOC_EXCLUDE_DIRS)"; exclude_args=( -false ); \
+		for dir in $${exclude_dirs//,/ }; do exclude_args+=( -o -name "$$dir" ); done; \
+		include_ext="$(CLOC_INCLUDE_EXT)"; include_args=( -false ); \
+		for ext in $${include_ext//,/ }; do include_args+=( -o -name "*.$$ext" ); done; \
+	else \
+		printf '%b\n' "$(RED)Unsupported cloc: expected --exclude-dir or --ignore-file support.$(RESET)"; \
+		exit 1; \
+	fi; \
+	for crate in $(CLOC_SOURCE_DIRS); do \
 		if [ ! -f "$$crate/Cargo.toml" ]; then \
 			continue; \
 		fi; \
-		echo ""; \
-		echo "$(CYAN)== $$crate ==$(RESET)"; \
-		cloc "$$crate" \
+		printf '\n%b\n' "$(CYAN)== $$crate ==$(RESET)"; \
+		if [ "$$cloc_kind" = rust ]; then \
+			find "$$crate" \( -type d \( "$${exclude_args[@]}" \) -print -prune \) \
+				-o \( -type f ! \( "$${include_args[@]}" \) -print \) > "$$ignore_file"; \
+			"$(CLOC)" "$$crate" --ignore-file "$$ignore_file"; \
+		else \
+			"$(CLOC)" "$$crate" \
 			--exclude-dir="$(CLOC_EXCLUDE_DIRS)" \
 			--include-ext="$(CLOC_INCLUDE_EXT)" \
 			--skip-uniqueness \
 			--timeout 0 \
 			--quiet; \
+		fi; \
 	done
 
 ## ============================================================================

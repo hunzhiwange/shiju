@@ -131,6 +131,37 @@ fn responses_url(model: &provider::Model) -> Result<reqwest::Url, StatusCode> {
     Ok(url)
 }
 
+fn gemini_url(model: &provider::Model, streaming: bool) -> Result<reqwest::Url, StatusCode> {
+    let mut url =
+        reqwest::Url::parse(model.api.url.trim()).map_err(|_| StatusCode::UNPROCESSABLE_ENTITY)?;
+    if !matches!(url.scheme(), "http" | "https")
+        || !url.username().is_empty()
+        || url.password().is_some()
+        || url.query().is_some()
+        || url.fragment().is_some()
+    {
+        return Err(StatusCode::UNPROCESSABLE_ENTITY);
+    }
+    let path = url.path().trim_end_matches('/');
+    let base = if let Some((base, _)) = path.split_once("/models/") { base } else { path };
+    if !(base.is_empty() || base.ends_with("/v1beta") || base.ends_with("/v1")) {
+        return Err(StatusCode::UNPROCESSABLE_ENTITY);
+    }
+    let base = if base.is_empty() { "/v1beta" } else { base };
+    let id = model.api.id.strip_prefix("models/").unwrap_or(&model.api.id);
+    if id.is_empty() || !id.bytes().all(|b| b.is_ascii_alphanumeric() || b"-_.".contains(&b)) {
+        return Err(StatusCode::UNPROCESSABLE_ENTITY);
+    }
+    url.set_path(&format!(
+        "{base}/models/{id}:{}",
+        if streaming { "streamGenerateContent" } else { "generateContent" }
+    ));
+    if streaming {
+        url.set_query(Some("alt=sse"));
+    }
+    Ok(url)
+}
+
 #[async_trait::async_trait]
 impl RelayBackend for ProviderRelayBackend {
     async fn execute(
@@ -144,7 +175,16 @@ impl RelayBackend for ProviderRelayBackend {
         {
             return Err(StatusCode::FORBIDDEN);
         }
-        if !matches!(request.path, "/v1/chat/completions" | "/v1/messages" | "/v1/responses") {
+        if !matches!(
+            request.path,
+            "/v1/chat/completions"
+                | "/v1/messages"
+                | "/v1/responses"
+                | "/v1beta/generateContent"
+                | "/v1beta/streamGenerateContent"
+                | "/v1beta/models"
+                | "/v1beta/model"
+        ) {
             return Err(StatusCode::UNPROCESSABLE_ENTITY);
         }
         let info = provider::get_provider(&identity.provider)
@@ -153,11 +193,43 @@ impl RelayBackend for ProviderRelayBackend {
             .ok_or(StatusCode::FORBIDDEN)?;
         // Exact catalog key required: API-id alias lookup must not authorize another model.
         let model = info.models.get(&identity.model).ok_or(StatusCode::FORBIDDEN)?;
+        let gemini_request = request.path.starts_with("/v1beta/");
+        let gemini_streaming = request.path == "/v1beta/streamGenerateContent";
+        let native_gemini = gemini_request && model.api.adapter == "google";
+        if matches!(request.path, "/v1beta/models" | "/v1beta/model") {
+            bearer(&info)?;
+            if !matches!(model.api.adapter.as_str(), "google" | "openai" | "openai-compatible") {
+                return Err(StatusCode::UNPROCESSABLE_ENTITY);
+            }
+            let metadata = serde_json::json!({"name":format!("models/{}",identity.model),"baseModelId":identity.model,"version":"relay","displayName":identity.model,"inputTokenLimit":model.limit.input.unwrap_or(model.limit.context),"outputTokenLimit":model.limit.output,"supportedGenerationMethods":["generateContent","streamGenerateContent"]});
+            let output = if request.path == "/v1beta/models" {
+                serde_json::json!({"models":[metadata]})
+            } else {
+                metadata
+            };
+            return Response::builder()
+                .header("content-type", "application/json")
+                .body(Body::from(output.to_string()))
+                .map_err(|_| StatusCode::BAD_GATEWAY);
+        }
         let messages_request = request.path == "/v1/messages";
         let responses_request = request.path == "/v1/responses";
         let native_responses = responses_request && super::responses::is_native(model);
         let native = messages_request && model.api.adapter == "anthropic";
-        let body = if native_responses {
+        let body = if gemini_request {
+            let input =
+                serde_json::from_slice(&request.body).map_err(|_| StatusCode::BAD_REQUEST)?;
+            if native_gemini {
+                super::gemini::native(&input, model)?
+            } else {
+                let converted = super::gemini::to_chat(&input)?;
+                chat::prepare(
+                    model,
+                    &identity.model,
+                    &serde_json::to_vec(&converted).map_err(|_| StatusCode::BAD_REQUEST)?,
+                )?
+            }
+        } else if native_responses {
             super::responses::native(model, identity, &request.body, &self.references)?
         } else if responses_request {
             let input =
@@ -182,8 +254,10 @@ impl RelayBackend for ProviderRelayBackend {
         } else {
             chat::prepare(model, &identity.model, &request.body)?
         };
-        let streaming = body["stream"] == true;
-        let url = if native_responses {
+        let streaming = if gemini_request { gemini_streaming } else { body["stream"] == true };
+        let url = if native_gemini {
+            gemini_url(model, streaming)?
+        } else if native_responses {
             responses_url(model)?
         } else if native {
             messages_url(model)?
@@ -197,6 +271,13 @@ impl RelayBackend for ProviderRelayBackend {
             header::HeaderValue::from_str(&format!("Bearer {key}"))
                 .map_err(|_| StatusCode::UNAUTHORIZED)?,
         );
+        if native_gemini {
+            headers.remove(header::AUTHORIZATION);
+            headers.insert(
+                "x-goog-api-key",
+                header::HeaderValue::from_str(&key).map_err(|_| StatusCode::UNAUTHORIZED)?,
+            );
+        }
         if native {
             headers.remove(header::AUTHORIZATION);
             headers.insert(
@@ -227,6 +308,16 @@ impl RelayBackend for ProviderRelayBackend {
         };
         if !response.status().is_success() {
             return Err(StatusCode::BAD_GATEWAY);
+        }
+        if gemini_request {
+            return super::gemini_stream::response(
+                response,
+                identity.model.clone(),
+                streaming,
+                native_gemini,
+                cancel,
+            )
+            .await;
         }
         if responses_request {
             return super::responses_stream::response(

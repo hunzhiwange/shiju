@@ -29,3 +29,9 @@ mod responses_stream;
 
 #[cfg(test)]
 mod responses_http_tests;
+
+#[cfg(test)]
+mod gemini_tests;
+
+mod gemini;
+mod gemini_stream;

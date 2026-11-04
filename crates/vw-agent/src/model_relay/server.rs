@@ -5,7 +5,7 @@ use axum::{
     extract::{Request, State},
     http::StatusCode,
     response::{IntoResponse, Response},
-    routing::post,
+    routing::{get, post},
 };
 use std::{
     net::{Ipv4Addr, SocketAddr},
@@ -83,6 +83,8 @@ impl RelayServer {
             .route("/v1/chat/completions", post(handle))
             .route("/v1/messages", post(handle_messages))
             .route("/v1/responses", post(handle_responses))
+            .route("/v1beta/models", get(handle_gemini))
+            .route("/v1beta/models/{*resource}", get(handle_gemini).post(handle_gemini))
             .with_state(state);
         let cancel = binding.cancelled.clone();
         let expires = binding.expires;
@@ -120,6 +122,11 @@ impl Drop for RequestGuard {
     }
 }
 
+async fn handle_gemini(state: State<Arc<ServerState>>, request: Request) -> Response {
+    let response = handle(state, request).await;
+    if response.status().is_success() { response } else { super::gemini::error(response.status()) }
+}
+
 async fn handle_responses(state: State<Arc<ServerState>>, request: Request) -> Response {
     let response = handle(state, request).await;
     if response.status().is_success() {
@@ -139,27 +146,64 @@ async fn handle_messages(state: State<Arc<ServerState>>, request: Request) -> Re
 }
 
 async fn handle(State(state): State<Arc<ServerState>>, request: Request) -> Response {
-    let Some(token) = request
+    let gemini = request.uri().path().starts_with("/v1beta/models");
+    let bearer = request
         .headers()
         .get("authorization")
         .and_then(|v| v.to_str().ok())
-        .and_then(|v| v.strip_prefix("Bearer "))
-    else {
+        .and_then(|v| v.strip_prefix("Bearer "));
+    if request.headers().contains_key("authorization") && bearer.is_none() {
         return StatusCode::UNAUTHORIZED.into_response();
+    }
+    let api_key = if gemini {
+        request.headers().get("x-goog-api-key").and_then(|v| v.to_str().ok())
+    } else {
+        None
+    };
+    let token = match (bearer, api_key) {
+        (Some(t), None) | (None, Some(t)) => t,
+        _ => return StatusCode::UNAUTHORIZED.into_response(),
     };
     if !state.binding.accepts(token, &state.binding.identity) {
         return StatusCode::UNAUTHORIZED.into_response();
     }
-    // Query strings and unexpected identity/auth headers are never forwarded.
-    if request.uri().query().is_some() {
+    let metadata = gemini && request.method() == axum::http::Method::GET;
+    let path = if gemini {
+        let resource = request.uri().path().strip_prefix("/v1beta/models/");
+        let (name, action) = match resource {
+            Some(r) => r.split_once(':').map_or((Some(r), None), |(n, a)| (Some(n), Some(a))),
+            None => (None, None),
+        };
+        if name.is_some_and(|n| n != state.binding.identity.model) {
+            return StatusCode::FORBIDDEN.into_response();
+        }
+        match (metadata, action, name) {
+            (true, None, _) => {
+                if name.is_some() {
+                    "/v1beta/model"
+                } else {
+                    "/v1beta/models"
+                }
+            }
+            (false, Some("generateContent"), Some(_)) => "/v1beta/generateContent",
+            (false, Some("streamGenerateContent"), Some(_)) => "/v1beta/streamGenerateContent",
+            _ => return StatusCode::NOT_FOUND.into_response(),
+        }
+    } else {
+        match request.uri().path() {
+            "/v1/chat/completions" => "/v1/chat/completions",
+            "/v1/messages" => "/v1/messages",
+            "/v1/responses" => "/v1/responses",
+            _ => return StatusCode::NOT_FOUND.into_response(),
+        }
+    };
+    if request
+        .uri()
+        .query()
+        .is_some_and(|q| !(path == "/v1beta/streamGenerateContent" && q == "alt=sse"))
+    {
         return StatusCode::BAD_REQUEST.into_response();
     }
-    let path = match request.uri().path() {
-        "/v1/chat/completions" => "/v1/chat/completions",
-        "/v1/messages" => "/v1/messages",
-        "/v1/responses" => "/v1/responses",
-        _ => return StatusCode::NOT_FOUND.into_response(),
-    };
     let Ok(permit) = state.capacity.clone().try_acquire_owned() else {
         return StatusCode::TOO_MANY_REQUESTS.into_response();
     };
@@ -180,8 +224,32 @@ async fn handle(State(state): State<Arc<ServerState>>, request: Request) -> Resp
         let body = to_bytes(request.into_body(), BODY_LIMIT)
             .await
             .map_err(|_| StatusCode::PAYLOAD_TOO_LARGE)?;
-        let json: serde_json::Value =
-            serde_json::from_slice(&body).map_err(|_| StatusCode::BAD_REQUEST)?;
+        let mut json: serde_json::Value = if metadata {
+            serde_json::json!({})
+        } else {
+            serde_json::from_slice(&body).map_err(|_| StatusCode::BAD_REQUEST)?
+        };
+        if gemini {
+            let object = json.as_object_mut().ok_or(StatusCode::BAD_REQUEST)?;
+            if object
+                .get("model")
+                .is_some_and(|v| v.as_str() != Some(state.binding.identity.model.as_str()))
+            {
+                return Err(StatusCode::FORBIDDEN);
+            }
+            object.insert("model".into(), state.binding.identity.model.clone().into());
+            if object.contains_key("stream") {
+                return Err(StatusCode::BAD_REQUEST);
+            }
+            if !metadata {
+                object.insert("stream".into(), (path == "/v1beta/streamGenerateContent").into());
+            }
+        }
+        let body = if gemini {
+            Bytes::from(serde_json::to_vec(&json).map_err(|_| StatusCode::BAD_REQUEST)?)
+        } else {
+            body
+        };
         // Address/auth/session override keys are not part of any accepted protocol.
         let Some(object) = json.as_object() else {
             return Err(StatusCode::BAD_REQUEST);

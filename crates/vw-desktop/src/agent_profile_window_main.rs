@@ -17,11 +17,15 @@ fn main() {
             app.agents_settings.config_ready = true;
             app.agents_settings.loading = false;
             app.agents_settings.entries = [
-                ("acp-codex", serde_json::json!({"label":"内置 Codex 验收", "description":"中文长描述，验证资料编辑与暗黑主题。".repeat(8), "runtime":{"kind":"acp","backend":"codex"}, "recommended_prompts":["检查代码", "解释变更"], "system_prompt":"规则：先阅读代码，明确说明验证结果。"})),
+                ("acp-codex", serde_json::json!({"label":"内置 Codex 验收", "description":"中文长描述，验证配置编辑与暗黑主题。\n第二行描述。\n".repeat(8), "runtime":{"kind":"acp","backend":"codex"}, "recommended_prompts":["检查代码", "解释变更"], "system_prompt":"规则：先阅读代码，明确说明验证结果。"})),
                 ("profile-fixture", serde_json::json!({"label":"自定义验收", "runtime":{"kind":"native"}})),
             ].into_iter().map(|(key, value)| app::state::DelegateAgentSettingsEntry::from_config(key, Some({ let mut full = serde_json::to_value(vw_config_types::agent::DelegateAgentConfig::default()).unwrap(); full.as_object_mut().unwrap().extend(value.as_object().unwrap().clone()); serde_json::from_value(full).unwrap() }))).collect();
             app.agents_settings.selected_agent = "acp-codex".into();
             app.acp_agents = vec!["codex".into()];
+            app.recent_projects = vec![
+                "/tmp/agent-acceptance-a".into(),
+                "/tmp/agent-acceptance-b".into(),
+            ];
             let _ = app::message::settings::update(
                 &mut app,
                 SettingsMessage::Agents(AgentsMessage::ProfileOpen("acp-codex".into())),

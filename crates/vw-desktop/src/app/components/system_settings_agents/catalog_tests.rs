@@ -208,3 +208,43 @@ fn agent_catalog_view_launch_preserves_selected_stable_identity_without_acp_pick
     assert!(!app.show_settings);
     assert!(!app.agents_settings.catalog_busy);
 }
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn agent_config_cleanup_catalog_keeps_three_columns_and_scrollbar_gutter() {
+    use iced::advanced::{layout, renderer::Headless, widget::Tree};
+    use iced::{Font, Pixels, Size};
+    let mut app = crate::app::App::new().0;
+    app.agents_settings.config_ready = true;
+    app.agents_settings.loading = false;
+    app.agents_settings.entries =
+        crate::app::state::agent_settings_entries_from_config(&catalog_config());
+    app.agents_settings.catalog_official = true;
+    app.agents_settings.entries.retain(|entry| entry.key != "acp-trae");
+    let renderer =
+        <iced::Renderer as Headless>::new(Font::DEFAULT, Pixels(16.0), Some("tiny-skia"))
+            .await
+            .unwrap();
+    for width in [1100.0, 760.0] {
+        let mut element = super::agents_view(&app);
+        let mut tree = Tree::new(element.as_widget());
+        let node = element.as_widget_mut().layout(
+            &mut tree,
+            &renderer,
+            &layout::Limits::new(Size::ZERO, Size::new(width, 5000.0)),
+        );
+        let scrollable = &node.children()[3];
+        let content = &scrollable.children()[0];
+        let grid = &content.children()[0];
+        assert_eq!(grid.bounds().x, 7.0);
+        assert_eq!(grid.bounds().width, width - 14.0);
+        let rows = grid.children();
+        assert!(rows.len() > 1);
+        let expected = rows[0].children()[0].bounds().width;
+        for row in rows {
+            assert_eq!(row.children().len(), 3, "last row must keep empty slots");
+            for card in row.children() {
+                assert!((card.bounds().width - expected).abs() < 0.01);
+            }
+        }
+    }
+}

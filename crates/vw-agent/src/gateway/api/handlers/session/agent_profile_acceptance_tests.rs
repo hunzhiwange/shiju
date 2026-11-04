@@ -340,3 +340,106 @@ async fn agent_profile_acceptance_catalog_uses_request_tenant() {
         );
     }
 }
+
+#[tokio::test]
+async fn agent_config_cleanup_global_profile_roundtrips_to_new_session() {
+    use axum::{body::Body, extract::Extension, http::Request};
+    use tower::ServiceExt;
+    let _env = crate::test_support::global_async_env_lock().lock().await;
+    let _fixture = crate::session::llm::recovery_test_support::RecoveryConfig::new(
+        "https://example.test/v1",
+        None,
+    )
+    .await;
+    let first = tempfile::tempdir().unwrap();
+    let second = tempfile::tempdir().unwrap();
+    for (key, runtime) in
+        [("main", json!({"kind":"native"})), ("acp-codex", json!({"kind":"acp","backend":"codex"}))]
+    {
+        let patch = json!({"agents":{key:{
+            "enabled":true,"runtime":runtime,"description":"中文描述\n第二行",
+            "system_prompt":"GLOBAL_PROFILE_RULE",
+            "defaults":{"full_access":true,"permission":{"mode":"fixed","value":{"*":"deny"}},
+                "model":{"mode":"fixed","value":{"provider":"model-recovery","model":"original"}},
+                "skills":{"mode":"fixed","value":[]},"mcp":{"mode":"fixed","value":[]}}
+        }}});
+        let response = super::super::config::router::<()>()
+            .layer(Extension(crate::session::ui_store::current_tenant_scope()))
+            .oneshot(
+                Request::builder()
+                    .method("PATCH")
+                    .uri("/config")
+                    .header("content-type", "application/json")
+                    .body(Body::from(serde_json::to_vec(&patch).unwrap()))
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+        assert_eq!(response.status(), axum::http::StatusCode::OK);
+        let saved: Value =
+            serde_json::from_slice(&to_bytes(response.into_body(), 2_000_000).await.unwrap())
+                .unwrap();
+        assert_eq!(saved["agents"][key]["defaults"]["full_access"], true);
+        for workspace in [first.path(), second.path()] {
+            let runtime = runtime.clone();
+            let directory = workspace.to_string_lossy().into_owned();
+            super::shared::with_tenant_instance(
+                crate::session::ui_store::current_tenant_scope(),
+                directory.clone(),
+                move || {
+                    Box::pin(async move {
+                        let config = crate::config::get_current().await.unwrap();
+                        let profile = &config.agents[key];
+                        assert_eq!(profile.description.as_deref(), Some("中文描述\n第二行"));
+                        let session = format!("ses_cleanup_{}", uuid::Uuid::new_v4());
+                        let (binding, _) = crate::session::agent_binding::prepare(
+                            &session,
+                            Some(key),
+                            None,
+                            None,
+                            std::path::Path::new(&directory),
+                        )
+                        .await
+                        .unwrap();
+                        assert_eq!(binding.system_prompt.as_deref(), Some("GLOBAL_PROFILE_RULE"));
+                        assert_eq!(serde_json::to_value(&binding.runtime).unwrap(), runtime);
+                        assert_eq!(
+                            serde_json::to_value(&binding.defaults).unwrap(),
+                            serde_json::to_value(&profile.defaults).unwrap()
+                        );
+                        assert!(
+                            crate::session::agent_binding::resolve_full_access_scoped(
+                                &directory,
+                                &session,
+                                None,
+                                binding.defaults.full_access,
+                            )
+                            .await
+                            .unwrap()
+                        );
+                        assert!(
+                            !crate::session::agent_binding::resolve_full_access_scoped(
+                                &directory,
+                                &session,
+                                Some(false),
+                                true,
+                            )
+                            .await
+                            .unwrap()
+                        );
+                        assert!(
+                            !crate::session::agent_binding::resolve_full_access_scoped(
+                                &directory, &session, None, true,
+                            )
+                            .await
+                            .unwrap()
+                        );
+                        Ok(())
+                    })
+                },
+            )
+            .await
+            .unwrap();
+        }
+    }
+}

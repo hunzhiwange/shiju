@@ -1,0 +1,85 @@
+# 智能体配置精简验收记录（2026-11-05）
+
+状态：已完成，待回归。三个指定行为用例已通过，既有失败和锁屏导致的原生交互缺口仍需回归；不宣称统一验收全绿。plan.md 保持只读。
+
+## 范围与依赖
+
+- 批次 6 已由 `d21adaa4d` 实现，编号任务文件已删除；批次 5 为 `422cff0f4`，保留待回归记录。
+- 本任务仅扩展五标签实际渲染测试、真实目录页布局测试、全局配置 HTTP 路由及新会话绑定测试，以及隔离原生窗口样例。
+- 工作区已有大量其他任务差异；不提交已有的取消/新建测试及其他模块修改。所有验证针对当前共享工作区，不代表仅本提交的干净检出结果。
+
+## 新增行为证据
+
+- `agent_config_cleanup_five_tabs_render_in_both_themes`：真实 tiny-skia layout/draw/screenshot，五个标签、两种主题、1100×900 与 760×520，共 20 张截图；断言唯一名称/描述/模型入口、身份页唯一编辑框、无旧资料/规则入口、标题及取消/保存按钮在窗口内。
+- `agent_config_cleanup_catalog_keeps_three_columns_and_scrollbar_gutter`：直接布局真实 agents_view；两种宽度下检查 7px 左右留白、三列等宽与末行补位。4px 轨道宽度来自真实页面的 Scrollbar 配置，并由目录截图复核。
+- `agent_config_cleanup_global_profile_roundtrips_to_new_session`：临时数据库及两个临时工作区，通过真实 Axum `/config` HTTP PATCH 保存并回读；Native/ACP 新绑定保持模型、固定空技能/MCP、系统提示词及完全访问初值；显式关闭后保持关闭，固定拒绝策略独立保留。
+- 既有端到端验收通过时，另覆盖本地隔离模型 HTTP 服务、ACP Python 协议对端、服务稳定 ID 注入、安全拒绝及子进程重启后的会话绑定。
+- 既有桌面 HTTP 测试及草稿测试覆盖多行描述保存、取消、失败保留及重试；本任务未将这些已有差异纳入提交。
+
+## 首次验证与夹具修正
+
+- 前六批已满足的场景不伪造功能缺失红灯。批次 5 原始红灯见其编号任务文件：缺少 MCP 模块及标签导致编译退出 101；本轮扩展现有真实渲染用例。
+- 新后端测试首次执行 16 通过/1 失败，退出 101，`/tmp/shiju-task7-red-global-profile.log`：继承 permission 在会话绑定时被解析为固定策略，不能与未解析配置整体比较。将夹具设为显式固定拒绝策略，保留完整比较并覆盖安全边界。
+- 真实目录页测试首次执行 24 通过/1 失败，退出 101，`/tmp/shiju-task7-final-vw-desktop-agent_config_cleanup_.log`：夹具 config_ready=false，读到只读等待页；修正夹具为加载完成后检查真实布局。
+- 编写期间一次 Rust 类型检查错误（Option<String> 与 &str）已修正；不作为功能红灯。
+
+## 既有失败基线
+
+本任务编辑前运行 `cargo test -p vw-desktop --lib system_settings_agents -- --test-threads=2`，87 通过/14 失败，退出 101。原始日志 `/tmp/shiju-task7-baseline-vw-desktop-system_settings_agents.log`。
+
+失败测试：
+
+- `app::components::system_settings_agents::basic_tests::basic_view_keeps_current_provider_and_model_even_when_missing_from_catalog`
+- `app::components::system_settings_agents::basic_tests::basic_view_main_hides_availability_and_shows_common_runtime_controls`
+- `app::components::system_settings_agents::basic_tests::basic_view_preserves_fields_for_blank_selections_and_numeric_boundaries`
+- `app::components::system_settings_agents::basic_tests::basic_view_renders_runtime_boolean_and_text_variants`
+- `app::components::system_settings_agents::basic_tests::basic_view_worker_shows_availability_and_common_runtime_controls`
+- `app::components::system_settings_agents::mod_tests::agents_view_builds_main_enabled_disabled_and_model_metadata`
+- `app::components::system_settings_agents::skills_tests::discovery_order_text_distinguishes_open_project_and_global_context`
+- `app::components::system_settings_agents::tests::agents_view_builds_cards_for_main_enabled_disabled_and_model_variants`
+- `app::components::system_settings_agents::tests::agents_view_loading_state_adds_status_row`
+- `app::components::system_settings_agents::tests::agents_view_missing_selection_uses_first_entry_and_unknown_tab_falls_back`
+- `app::components::system_settings_agents::tools_tests::builtin_tool_cards_are_locked_and_badged`
+- `app::components::system_settings_agents::tools_tests::tools_view_distinguishes_empty_and_all_grouped_tool_lists`
+- `app::components::system_settings_agents::tools_tests::tools_view_keeps_zero_match_presets_visible_without_grouping_them`
+- `app::components::system_settings_agents::tools_tests::tools_view_preserves_duplicate_available_tools_and_selection_state`
+
+原始错误：basic_tests.rs:22 的旧子节点数量断言 `>= 8`；mod_tests.rs:147 及 tests.rs 的根节点数量 `left: 5 / right: 6`；skills_tests.rs:112 的旧项目路径提示断言；tools_tests.rs:350 的 `left: 2 / right: 3` 及 380/398/491 的索引越界。basic_tests.rs、skills_tests.rs、tools_tests.rs 未由本任务修改；mod_tests.rs、tests.rs 进入本任务前已有其他会话差异，未修改或提交。最终回归不能通过 skip 隐藏这些失败。
+
+## 原生交互限制
+
+CUA 原生应用枚举明确返回：`The Mac is locked and automatic unlock could not unlock it`。因此无法操作原生窗口或取得其交互截图，不把 Headless 截图或窗口进程启动视为人工交互验收成功。不连接用户网关，隔离窗口始终使用端口 9。待解锁后完成基础参数/身份/工具/技能/MCP 的原生操作。
+
+## 截图
+
+- `/tmp/shiju-task7-{light,dark}-{basic,identity,tools,skills,mcp}-{1100x900,760x520}.png`（20 张真实绘制截图）。已查看基本参数、身份、工具、技能、MCP 的代表截图，中文正常，窄短窗口固定头尾可见。
+- `/tmp/shiju-agent-catalog-light.png`、`/tmp/shiju-agent-catalog-dark.png`：本轮目录回归重新生成，三列、滚动轨道及内容留白可见。页面测试使用透明根背景，背景色不作为原生窗口主题验收结论。
+
+## 最终命令结果
+
+所有 Cargo 阶段均从仓库根目录通过原子 mkdir 动态领取槽位，设置相同绝对路径的 `CARGO_TARGET_DIR` 与 `CARGO_BUILD_BUILD_DIR`（仓库另有 build-dir 配置），所有子进程继承；阶段退出清理自有 owner 和锁，保留编译缓存。
+
+- 基线：槽位 3，`CARGO_TARGET_DIR=/Users/xiangmin/worker/code/shiju/target/rust-slot-3`。
+- 首轮新增用例验证：槽位 4，`CARGO_TARGET_DIR=/Users/xiangmin/worker/code/shiju/target/rust-slot-4`，Clippy 退出 0。
+- 后端最终验证及原生窗口：槽位 3，`CARGO_TARGET_DIR=/Users/xiangmin/worker/code/shiju/target/rust-slot-3`。
+- 修正目录夹具后的最终回归：槽位 2，`CARGO_TARGET_DIR=/Users/xiangmin/worker/code/shiju/target/rust-slot-2`。
+
+| 确切命令 | 槽位 | 退出码 | 有效测试数量 | 原始日志 |
+| --- | --- | --- | --- | --- |
+| `cargo fmt --all` | 2 | 0 | 不适用 | `/tmp/shiju-task7-recheck-fmt.log` |
+| `cargo test -p vw-config-types --lib agent_profile_tests -- --test-threads=2` | 3 | 0 | 7 通过 | `/tmp/shiju-task7-final-vw-config-types-agent_profile_tests.log` |
+| `cargo test -p vw-desktop --lib agent_config_cleanup_ -- --test-threads=2` | 2 | 0 | 25 通过 | `/tmp/shiju-task7-recheck-vw-desktop-agent_config_cleanup_.log` |
+| `cargo test -p vw-desktop --lib system_settings_agents -- --test-threads=2` | 2 | 101 | 88 通过、14 既有失败 | `/tmp/shiju-task7-recheck-vw-desktop-system_settings_agents.log` |
+| `cargo test -p vw-desktop --lib app::message::settings::agents::tests -- --test-threads=2` | 3 | 0 | 63 通过 | `/tmp/shiju-task7-final-vw-desktop-app::message::settings::agents::tests.log` |
+| `cargo test -p vw-agent --lib agent_config_cleanup_ -- --test-threads=2` | 3 | 0 | 17 通过 | `/tmp/shiju-task7-final-vw-agent-agent_config_cleanup_.log` |
+| `cargo test -p vw-agent --lib agent_profile_acceptance_tests -- --test-threads=2` | 3 | 0 | 4 通过 | `/tmp/shiju-task7-final-vw-agent-agent_profile_acceptance_tests.log` |
+| `cargo clippy --all-targets --all-features -- -D warnings` | 3 | 0 | 不适用 | `/tmp/shiju-task7-final-clippy.log` |
+| `cargo test -p vw-desktop --test agent-profile-window` | 3 | 超时，180s 后发送 SIGTERM 并等待进程组结束；未记录数字退出码 | 非单元测试；编译并启动成功，原生交互未验收 | `/tmp/shiju-task7-native.log` |
+
+额外复验：`cargo test -p vw-agent --lib request_tests -- --test-threads=2`，槽位 2，退出 101，27 通过/1 既有失败。日志 `/tmp/shiju-task7-recheck-vw-agent-request_tests.log`。失败名称 `session::llm::acp::request::request_tests::acp_model_source_launch_profile_production_request_rejects_unverified_driver`，request_tests.rs:274 原始错误：`assertion failed: message.contains("ACP codex session_model launch has not been verified")`。与任务 5 留存记录一致，本任务未修改 request_tests.rs 或生产请求路径，未 skip。
+
+末轮 `cargo clippy --all-targets --all-features -- -D warnings`：槽位 2，退出 0，日志 `/tmp/shiju-task7-recheck-clippy.log`。本任务所有槽位占用记录和锁均已释放，编译缓存保留；复核无隔离窗口进程残留。
+
+格式化后核对差异，恢复本任务以外的纯格式变化；提交只选择本任务拥有的函数修改及新增文件，保留其他会话原有差异。正常测试链接器提示 `__eh_frame section too large` 属既有 macOS 链接信息；完整 Clippy 无 Rust 诊断失败。
+
+下一步：解锁 Mac 后执行隔离原生窗口交互，单独处理上述既有断言，再运行此表中的聚焦命令；任务 7 文件暂保留，验证齐全后才能删除。

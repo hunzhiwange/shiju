@@ -77,7 +77,7 @@ fn agent_profile_modal_prompts_preserve_user_order() {
 }
 
 #[tokio::test(flavor = "multi_thread")]
-async fn agent_profile_modal_renders_chinese_long_text_in_both_themes() {
+async fn agent_config_cleanup_five_tabs_render_in_both_themes() {
     use iced::advanced::renderer::Headless;
     use iced::advanced::{Layout, layout, mouse, renderer, widget::Tree};
     use iced::{Color, Font, Pixels, Rectangle, Size, Theme};
@@ -90,106 +90,127 @@ async fn agent_profile_modal_renders_chinese_long_text_in_both_themes() {
         (Theme::Dark, "dark", crate::app::state::AGENT_DETAIL_TOOLS_TAB),
         (Theme::Light, "light", crate::app::state::AGENT_DETAIL_SKILLS_TAB),
         (Theme::Dark, "dark", crate::app::state::AGENT_DETAIL_SKILLS_TAB),
+        (Theme::Light, "light", crate::app::state::AGENT_DETAIL_MCP_TAB),
+        (Theme::Dark, "dark", crate::app::state::AGENT_DETAIL_MCP_TAB),
     ] {
-        let mut app = App::new().0;
-        app.agents_settings.config_ready = true;
-        dispatch(&mut app, AgentsMessage::ProfileOpen("main".to_string()));
-        dispatch(&mut app, AgentsMessage::ProfileNameChanged("中文智能体资料与 English".repeat(8)));
-        dispatch(
-            &mut app,
-            AgentsMessage::ProfileDescriptionAction(iced::widget::text_editor::Action::Edit(
-                iced::widget::text_editor::Edit::Paste(std::sync::Arc::new(
-                    "中文长描述，用于验证字形整形和暗黑主题。\n多行描述。\n".repeat(10),
+        for (width, height) in [(1100, 900), (760, 520)] {
+            let mut app = App::new().0;
+            app.agents_settings.config_ready = true;
+            dispatch(&mut app, AgentsMessage::ProfileOpen("main".to_string()));
+            dispatch(
+                &mut app,
+                AgentsMessage::ProfileNameChanged("中文智能体资料与 English".repeat(8)),
+            );
+            dispatch(
+                &mut app,
+                AgentsMessage::ProfileDescriptionAction(iced::widget::text_editor::Action::Edit(
+                    iced::widget::text_editor::Edit::Paste(std::sync::Arc::new(
+                        "中文长描述，用于验证字形整形和暗黑主题。\n多行描述。\n".repeat(10),
+                    )),
                 )),
-            )),
-        );
-        dispatch(
-            &mut app,
-            AgentsMessage::SystemPromptAction(
-                "main".into(),
-                iced::widget::text_editor::Action::Edit(iced::widget::text_editor::Edit::Paste(
-                    std::sync::Arc::new("规则：审查代码并解释原因。\n".repeat(20)),
-                )),
-            ),
-        );
-        app.agents_settings.active_detail_tab = tab.to_string();
-        let mut element = super::profile_modal::overlay(
-            &app,
-            iced::widget::container(iced::widget::text("背景"))
-                .width(iced::Length::Fill)
-                .height(iced::Length::Fill)
-                .into(),
-        );
-        let mut renderer =
-            <iced::Renderer as Headless>::new(Font::DEFAULT, Pixels(16.0), Some("tiny-skia"))
-                .await
-                .unwrap();
-        let bounds = Size::new(1100.0, 900.0);
-        let mut tree = Tree::new(element.as_widget());
-        let node = element.as_widget_mut().layout(
-            &mut tree,
-            &renderer,
-            &layout::Limits::new(Size::ZERO, bounds),
-        );
-        #[derive(Default)]
-        struct Labels(Vec<String>, usize);
-        impl iced::advanced::widget::Operation for Labels {
-            fn traverse(
-                &mut self,
-                operate: &mut dyn FnMut(&mut dyn iced::advanced::widget::Operation),
-            ) {
-                operate(self);
+            );
+            dispatch(
+                &mut app,
+                AgentsMessage::SystemPromptAction(
+                    "main".into(),
+                    iced::widget::text_editor::Action::Edit(
+                        iced::widget::text_editor::Edit::Paste(std::sync::Arc::new(
+                            "规则：审查代码并解释原因。\n".repeat(20),
+                        )),
+                    ),
+                ),
+            );
+            app.agents_settings.active_detail_tab = tab.to_string();
+            let mut element = super::profile_modal::overlay(
+                &app,
+                iced::widget::container(iced::widget::text("背景"))
+                    .width(iced::Length::Fill)
+                    .height(iced::Length::Fill)
+                    .into(),
+            );
+            let mut renderer =
+                <iced::Renderer as Headless>::new(Font::DEFAULT, Pixels(16.0), Some("tiny-skia"))
+                    .await
+                    .unwrap();
+            let bounds = Size::new(width as f32, height as f32);
+            let mut tree = Tree::new(element.as_widget());
+            let node = element.as_widget_mut().layout(
+                &mut tree,
+                &renderer,
+                &layout::Limits::new(Size::ZERO, bounds),
+            );
+            #[derive(Default)]
+            struct Labels(Vec<String>, usize, Vec<(String, Rectangle)>);
+            impl iced::advanced::widget::Operation for Labels {
+                fn traverse(
+                    &mut self,
+                    operate: &mut dyn FnMut(&mut dyn iced::advanced::widget::Operation),
+                ) {
+                    operate(self);
+                }
+                fn focusable(
+                    &mut self,
+                    _id: Option<&iced::advanced::widget::Id>,
+                    _bounds: Rectangle,
+                    _state: &mut dyn iced::advanced::widget::operation::Focusable,
+                ) {
+                    self.1 += 1;
+                }
+                fn text(
+                    &mut self,
+                    _id: Option<&iced::advanced::widget::Id>,
+                    bounds: Rectangle,
+                    text: &str,
+                ) {
+                    self.0.push(text.to_owned());
+                    self.2.push((text.to_owned(), bounds));
+                }
             }
-            fn focusable(
-                &mut self,
-                _id: Option<&iced::advanced::widget::Id>,
-                _bounds: Rectangle,
-                _state: &mut dyn iced::advanced::widget::operation::Focusable,
-            ) {
-                self.1 += 1;
+            let mut labels = Labels::default();
+            element.as_widget_mut().operate(&mut tree, Layout::new(&node), &renderer, &mut labels);
+            assert!(!labels.0.iter().any(|text| text == "资料与默认参数" || text == "规则"));
+            for label in ["基础参数", "身份", "工具", "技能", "MCP", "取消", "保存配置"]
+            {
+                assert!(labels.0.iter().any(|text| text == label), "missing {label} on {tab}");
             }
-            fn text(
-                &mut self,
-                _id: Option<&iced::advanced::widget::Id>,
-                _bounds: Rectangle,
-                text: &str,
-            ) {
-                self.0.push(text.to_owned());
+            for label in ["智能体配置", "取消", "保存配置"] {
+                let bounds = labels.2.iter().find(|(text, _)| text == label).unwrap().1;
+                assert!(
+                    bounds.y >= 0.0 && bounds.y + bounds.height <= height as f32,
+                    "fixed header/footer clipped: {label} {bounds:?}"
+                );
             }
+            let count = |label: &str| labels.0.iter().filter(|text| text.as_str() == label).count();
+            if tab == crate::app::state::AGENT_DETAIL_BASIC_TAB {
+                assert_eq!(count("名称"), 1);
+                assert_eq!(count("描述"), 1);
+                assert_eq!(count("模型"), 1);
+                assert_eq!(count("系统提示词"), 0);
+            } else if tab == crate::app::state::AGENT_DETAIL_IDENTITY_TAB {
+                assert_eq!(count("系统提示词"), 2); // tab and field label
+                assert_eq!(labels.1, 1); // a single editable system prompt
+                assert_eq!(count("描述"), 0);
+            }
+            element.as_widget().draw(
+                &tree,
+                &mut renderer,
+                &theme,
+                &renderer::Style { text_color: theme.palette().text },
+                Layout::new(&node),
+                mouse::Cursor::Unavailable,
+                &Rectangle::with_size(bounds),
+            );
+            let pixels = renderer.screenshot(Size::new(width, height), 1.0, Color::TRANSPARENT);
+            assert!(pixels.chunks_exact(4).any(|pixel| pixel[3] > 0));
+            image::save_buffer(
+                format!("/tmp/shiju-task7-{name}-{tab}-{width}x{height}.png"),
+                &pixels,
+                width,
+                height,
+                image::ColorType::Rgba8,
+            )
+            .unwrap();
         }
-        let mut labels = Labels::default();
-        element.as_widget_mut().operate(&mut tree, Layout::new(&node), &renderer, &mut labels);
-        assert!(!labels.0.iter().any(|text| text == "资料与默认参数" || text == "规则"));
-        let count = |label: &str| labels.0.iter().filter(|text| text.as_str() == label).count();
-        if tab == crate::app::state::AGENT_DETAIL_BASIC_TAB {
-            assert_eq!(count("名称"), 1);
-            assert_eq!(count("描述"), 1);
-            assert_eq!(count("模型"), 1);
-            assert_eq!(count("系统提示词"), 0);
-        } else if tab == crate::app::state::AGENT_DETAIL_IDENTITY_TAB {
-            assert_eq!(count("系统提示词"), 2); // tab and field label
-            assert_eq!(labels.1, 1); // a single editable system prompt
-            assert_eq!(count("描述"), 0);
-        }
-        element.as_widget().draw(
-            &tree,
-            &mut renderer,
-            &theme,
-            &renderer::Style { text_color: theme.palette().text },
-            Layout::new(&node),
-            mouse::Cursor::Unavailable,
-            &Rectangle::with_size(bounds),
-        );
-        let pixels = renderer.screenshot(Size::new(1100, 900), 1.0, Color::TRANSPARENT);
-        assert!(pixels.chunks_exact(4).any(|pixel| pixel[3] > 0));
-        image::save_buffer(
-            format!("/tmp/shiju-profile-modal-{name}.png"),
-            &pixels,
-            1100,
-            900,
-            image::ColorType::Rgba8,
-        )
-        .unwrap();
     }
 }
 

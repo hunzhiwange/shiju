@@ -174,3 +174,35 @@ Release（含 PR）仅恢复，不写编译缓存。仅在受保护默认分支�
 
 目前只有本地接口测试、目录映射烟测及 clippy 证据；没有远端 run 链接、缓存下载/保存大小、
 冷热净收益、版本变化和 branch-to-tag 运行证据。槽位映射方案的真实性能仍待上述验证。
+
+## LTO 单变量入口（任务 4，待真实平台回归）
+
+手动选择 `experiment=lto`；默认 `dist` 保持原行为。LTO job 不恢复或保存 Actions
+编译缓存，不打包或发布；两个目标串行，各动态持有两个不同共享槽位，分别用于 thin/off。
+所有 Cargo 命令使用对应绝对 CARGO_TARGET_DIR，仅通过 CARGO_PROFILE_DIST_LTO
+改变优化配置。生产 profile 保留 thin，未采纳 off。
+
+同 SHA、all-features、相同 bin，按 thin/off/off/thin/thin/off 各测三次。实际命令：
+`cargo build --locked --profile dist --all-features --target TARGET -p vw-cli --bin shiju
+--bin vibe-agent -p vw-acp --bin acp --timings`。
+每次保存命令、退出码、墙钟时间、metadata、实际工具版本、runner image、槽位、三产物
+字节数及 SHA256、原始 stdout/stderr 和 Cargo timings HTML。缺少 timings 即失败。
+从 HTML unit timings 分别读取依赖、vw_cli 与二进制时间；并发 unit 时间不能相加视作
+墙钟耗时，末条 Compiling 后尾段不能视为纯链接时间。
+
+首轮为该模式首次构建，不保证冷缓存：两个槽位仍共享 target build-dir，registry 与 OS
+缓存也可能热。后续切换触发的重编译须单列；Fresh/no-op 只能说明重复命令耗时，不能
+作为稳定最终编译加速。不同 LTO 可能覆盖共享中间缓存，不假定双槽位完全隔离。
+不清理缓存、不新增 build-dir，异常时先终止进程树再释放自己的锁。
+
+Intel Mac 每次构建后原生执行三个 `--help`，以及 20 次 `shiju completions bash`，
+保存逐次耗时与输出散列。该确定性离线负载仅代表启动、参数处理、补全生成；比较输出
+一致性和耗时分布时须考虑启动噪声。它不足以证明代理核心 CPU 吞吐或全部发行功能一致。
+Windows x64 主机只构建 ARM64，报告明确标记原生验证 pending；需在 ARM64 Windows
+系统重建或转交产物执行三个 help 及相同离线负载。当前仅上传诊断材料，不上传可执行文件。
+
+回归报告须补齐两个目标 run 链接、原始 timings、首次/重复/切换重编译分类、依赖与最终
+crate 时间、净耗时、三产物体积、帮助输出差异和离线性能输入/次数/分布。六次构建的
+实验成本单列，不计作发行收益。只有两目标净收益、原生行为一致及代表性 CPU 负载无
+可测退化均有证据，才可采纳 off 并验证四发行 crate。目前未运行远端 A/B，无实测收益
+或代表性性能数字，保留 thin，不宣称 LTO 已提速。

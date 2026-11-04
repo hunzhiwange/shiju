@@ -3,6 +3,11 @@ name: Release benchmark
 on:
   workflow_dispatch:
     inputs:
+      experiment:
+        description: Measurement to run (LTO never changes production configuration)
+        type: choice
+        options: [dist, lto]
+        default: dist
       cache:
         description: 'Rust cache: off for baseline, restore for measured reuse'
         type: choice
@@ -18,6 +23,7 @@ concurrency:
 
 jobs:
   measure:
+    if: inputs.experiment != 'lto'
     strategy:
       fail-fast: false
       max-parallel: 1
@@ -219,5 +225,136 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: release-benchmark-${{ matrix.target }}-${{ github.sha }}
+          path: benchmark/
+          if-no-files-found: error
+
+  lto:
+    if: inputs.experiment == 'lto'
+    strategy:
+      fail-fast: false
+      max-parallel: 1
+      matrix:
+        include:
+          - runner: macos-15-intel
+            target: x86_64-apple-darwin
+          - runner: windows-2022
+            target: aarch64-pc-windows-msvc
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 360
+    env:
+      VIBEWINDOW_RELEASE_BUILD: '1'
+      CARGO_TERM_COLOR: never
+      BENCH_TARGET: ${{ matrix.target }}
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          ref: ${{ github.sha }}
+          persist-credentials: false
+          submodules: recursive
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install target standard library
+        shell: bash
+        run: rustup target add "$BENCH_TARGET"
+      - name: Alternate thin and off with independent held slots
+        shell: bash
+        run: |
+          python - <<'PYTHON'
+          import hashlib, json, os, pathlib, platform, shutil, signal, subprocess, time
+          root = pathlib.Path.cwd()
+          output = root / 'benchmark'
+          output.mkdir()
+          locks = root / 'target/rust-slot-locks'
+          locks.mkdir(parents=True, exist_ok=True)
+          held, slots, records = [], {}, []
+          def interrupted(signum, frame):
+              raise KeyboardInterrupt(f'signal {signum}')
+          signal.signal(signal.SIGTERM, interrupted)
+          def run(command, env, folder, name):
+              start = time.perf_counter()
+              with (folder / (name + '.stdout')).open('wb') as stdout, (folder / (name + '.stderr')).open('wb') as stderr:
+                  child = subprocess.Popen(command, env=env, stdout=stdout, stderr=stderr, start_new_session=os.name != 'nt')
+                  try:
+                      code = child.wait()
+                  except BaseException:
+                      # Stop the complete process tree before releasing either slot.
+                      if os.name == 'nt':
+                          subprocess.run(['taskkill', '/PID', str(child.pid), '/T', '/F'], check=False)
+                      else:
+                          os.killpg(child.pid, signal.SIGKILL)
+                      child.wait()
+                      raise
+              result = dict(command=command, exit_code=code, seconds=time.perf_counter()-start)
+              (folder / (name + '.json')).write_text(json.dumps(result, indent=2))
+              if code:
+                  raise RuntimeError(f'{command} exited {code}')
+              return result
+          try:
+              for mode in ['thin', 'off']:
+                  while mode not in slots:
+                      for number in range(1, 11):
+                          lock = locks / f'slot-{number}.lock'
+                          try:
+                              lock.mkdir()
+                          except FileExistsError:
+                              continue
+                          held.append(lock)
+                          (lock / 'owner').write_text(f'plan=release-performance task=4 session={os.environ["GITHUB_RUN_ID"]} pid={os.getpid()}')
+                          slots[mode] = root / 'target' / f'rust-slot-{number}'
+                          break
+                      else:
+                          time.sleep(5)
+              for index, mode in enumerate(['thin', 'off', 'off', 'thin', 'thin', 'off'], 1):
+                  folder = output / f'{index}-{mode}'
+                  folder.mkdir()
+                  env = dict(os.environ, CARGO_TARGET_DIR=str(slots[mode]), CARGO_PROFILE_DIST_LTO=mode)
+                  metadata = json.loads(subprocess.check_output(['cargo', 'metadata', '--no-deps', '--format-version=1'], env=env))
+                  assert pathlib.Path(metadata['target_directory']).resolve() == slots[mode].resolve()
+                  assert pathlib.Path(metadata['build_directory']).resolve() == (root / 'target').resolve()
+                  (folder / 'environment.json').write_text(json.dumps(dict(sha=os.environ['GITHUB_SHA'], mode=mode, slot=str(slots[mode]), metadata=metadata, host=platform.platform(), runner_image=os.environ.get('ImageVersion'), rust=subprocess.check_output(['rustc', '-Vv'], env=env).decode(), cargo=subprocess.check_output(['cargo', '-V'], env=env).decode(), cache='no Actions restore; shared build-dir may be warm'), indent=2))
+                  command = ['cargo', 'build', '--locked', '--profile', 'dist', '--all-features', '--target', os.environ['BENCH_TARGET'], '-p', 'vw-cli', '--bin', 'shiju', '--bin', 'vibe-agent', '-p', 'vw-acp', '--bin', 'acp', '--timings']
+                  started = time.time()
+                  result = run(command, env, folder, 'build')
+                  # Cargo's versioned HTML includes unit timings; copy before the next build overwrites it.
+                  reports = []
+                  for timings in [slots[mode] / 'cargo-timings', root / 'target/cargo-timings']:
+                      if timings.is_dir():
+                          for report in timings.glob('*.html'):
+                              if report.stat().st_mtime >= started - 1:
+                                  reports.append(report)
+                  if not reports:
+                      raise RuntimeError('Missing fresh raw Cargo timings')
+                  destination = folder / 'cargo-timings'
+                  destination.mkdir()
+                  for index_report, report in enumerate(reports):
+                      shutil.copy2(report, destination / f'{index_report}-{report.name}')
+                  binaries = slots[mode] / os.environ['BENCH_TARGET'] / 'dist'
+                  native = os.environ['BENCH_TARGET'] == 'x86_64-apple-darwin' and platform.machine() == 'x86_64'
+                  result.update(mode=mode, slot=str(slots[mode]), native_validation='executed' if native else 'pending: native ARM64 Windows system required', binaries={})
+                  for name in ['shiju', 'vibe-agent', 'acp']:
+                      binary = binaries / (name + ('.exe' if os.name == 'nt' else ''))
+                      result['binaries'][name] = dict(bytes=binary.stat().st_size, sha256=hashlib.sha256(binary.read_bytes()).hexdigest())
+                      if native:
+                          run([str(binary), '--help'], env, folder, name + '-help')
+                  if native:
+                      workload = []
+                      for repeat in range(20):
+                          item = run([str(binaries / 'shiju'), 'completions', 'bash'], env, folder, f'completion-{repeat}')
+                          item['output_sha256'] = hashlib.sha256((folder / f'completion-{repeat}.stdout').read_bytes()).hexdigest()
+                          workload.append(item)
+                      result['completion_workload'] = workload
+                  records.append(result)
+                  (output / 'summary.json').write_text(json.dumps(records, indent=2))
+          finally:
+              for lock in reversed(held):
+                  (lock / 'owner').unlink(missing_ok=True)
+                  lock.rmdir()
+          PYTHON
+      - name: Upload LTO evidence even after failure
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: release-lto-${{ matrix.target }}-${{ github.sha }}
           path: benchmark/
           if-no-files-found: error

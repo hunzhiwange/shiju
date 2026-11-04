@@ -34,9 +34,9 @@ fn app_system_settings_default_matches_desktop_contract() {
     assert_eq!(settings.terminal_font_size, 13.0);
     assert!(settings.editor_follow_system_theme);
     assert_eq!(settings.editor_theme, "Light");
-    assert_eq!(settings.editor_font_size, 14.0);
-    assert_eq!(settings.editor_line_height, 20.0);
-    assert!(settings.editor_auto_line_height);
+    assert_eq!(settings.editor_font_size, 16.0);
+    assert_eq!(settings.editor_line_height, 19.6);
+    assert!(!settings.editor_auto_line_height);
     assert!(!settings.lsp_enabled);
     assert!(!settings.dialogue_flow_show_reasoning_summary);
     assert!(!settings.dialogue_flow_expand_shell_tool_section);
@@ -310,6 +310,9 @@ fn serde_defaults_fill_nested_ui_config() {
     .unwrap();
 
     assert_eq!(config.system_settings, AppSystemSettingsConfig::default());
+    assert_eq!(settings.editor_font_size, 16.0);
+    assert_eq!(settings.editor_line_height, 19.6);
+    assert!(!settings.editor_auto_line_height);
     assert_eq!(settings.gateway_client.host, "10.0.0.8");
     assert_eq!(settings.gateway_client.port, crate::gateway::DEFAULT_GATEWAY_PORT);
     assert_eq!(settings.preview_auto_save, PreviewAutoSaveMode::AfterDelay);

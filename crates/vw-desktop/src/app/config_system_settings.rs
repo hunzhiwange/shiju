@@ -22,13 +22,13 @@ async fn patch_desktop_system_settings_via_gateway(
 
 fn normalize_system_settings_config(mut cfg: AppSystemSettingsConfig) -> AppSystemSettingsConfig {
     if !cfg.editor_font_size.is_finite() || cfg.editor_font_size <= 0.0 {
-        cfg.editor_font_size = 14.0;
+        cfg.editor_font_size = AppSystemSettingsConfig::default().editor_font_size;
     }
     if cfg.editor_auto_line_height {
         cfg.editor_line_height = cfg.editor_font_size * 1.4;
     }
     if !cfg.editor_line_height.is_finite() || cfg.editor_line_height <= 0.0 {
-        cfg.editor_line_height = 20.0;
+        cfg.editor_line_height = AppSystemSettingsConfig::default().editor_line_height;
     }
     cfg
 }

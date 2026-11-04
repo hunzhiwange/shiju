@@ -200,7 +200,7 @@ fn normalize_system_settings_config_replaces_invalid_font_size() {
 
     let normalized = super::normalize_system_settings_config(cfg);
 
-    assert_eq!(normalized.editor_font_size, 14.0);
+    assert_eq!(normalized.editor_font_size, 16.0);
     assert_eq!(normalized.editor_line_height, 99.0);
 }
 
@@ -216,7 +216,7 @@ fn normalize_system_settings_config_replaces_non_positive_and_infinite_font_size
 
         let normalized = super::normalize_system_settings_config(cfg);
 
-        assert_eq!(normalized.editor_font_size, 14.0);
+        assert_eq!(normalized.editor_font_size, 16.0);
         assert_eq!(normalized.editor_line_height, 24.0);
     }
 }
@@ -247,8 +247,8 @@ fn normalize_system_settings_config_auto_line_height_uses_repaired_font_size() {
 
     let normalized = super::normalize_system_settings_config(cfg);
 
-    assert_eq!(normalized.editor_font_size, 14.0);
-    assert_eq!(normalized.editor_line_height, 19.6);
+    assert_eq!(normalized.editor_font_size, 16.0);
+    assert_eq!(normalized.editor_line_height, 22.4);
 }
 
 #[test]
@@ -264,7 +264,7 @@ fn normalize_system_settings_config_replaces_invalid_manual_line_height() {
         let normalized = super::normalize_system_settings_config(cfg);
 
         assert_eq!(normalized.editor_font_size, 16.0);
-        assert_eq!(normalized.editor_line_height, 20.0);
+        assert_eq!(normalized.editor_line_height, 19.6);
     }
 }
 
@@ -280,7 +280,7 @@ fn normalize_system_settings_config_replaces_overflowing_auto_line_height() {
     let normalized = super::normalize_system_settings_config(cfg);
 
     assert_eq!(normalized.editor_font_size, f32::MAX);
-    assert_eq!(normalized.editor_line_height, 20.0);
+    assert_eq!(normalized.editor_line_height, 19.6);
 }
 
 #[test]
@@ -552,8 +552,11 @@ fn update_system_settings_config_result_async_normalizes_and_patches_settings() 
 
     assert!(get_request.starts_with("GET /v1/global/config "));
     assert!(patch_request.starts_with("PATCH /v1/global/config "));
-    assert_eq!(patch["app_ui"]["system_settings"]["editor_font_size"], 14.0);
-    assert_eq!(patch["app_ui"]["system_settings"]["editor_line_height"], 20.0);
+    assert_eq!(patch["app_ui"]["system_settings"]["editor_font_size"], 16.0);
+    assert_eq!(
+        patch["app_ui"]["system_settings"]["editor_line_height"],
+        serde_json::json!(19.6_f32)
+    );
     assert_eq!(super::load_gateway_client_bootstrap_config(), bootstrap);
 }
 

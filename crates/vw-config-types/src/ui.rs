@@ -220,7 +220,7 @@ pub struct AppSystemSettingsConfig {
     #[serde(default = "default_editor_line_height")]
     pub editor_line_height: f32,
     /// Whether line height follows font size.
-    #[serde(default = "default_true")]
+    #[serde(default = "default_false")]
     pub editor_auto_line_height: bool,
     /// Preview editor auto save mode.
     #[serde(default)]
@@ -382,11 +382,11 @@ fn default_terminal_font_size() -> f32 {
 }
 
 fn default_editor_font_size() -> f32 {
-    14.0
+    16.0
 }
 
 fn default_editor_line_height() -> f32 {
-    20.0
+    19.6
 }
 
 fn default_true() -> bool {
@@ -565,7 +565,7 @@ impl Default for AppSystemSettingsConfig {
             project_worktree_enabled: HashMap::new(),
             editor_font_size: default_editor_font_size(),
             editor_line_height: default_editor_line_height(),
-            editor_auto_line_height: default_true(),
+            editor_auto_line_height: default_false(),
             preview_auto_save: PreviewAutoSaveMode::default(),
             lsp_enabled: default_false(),
             dialogue_flow_show_reasoning_summary: default_false(),

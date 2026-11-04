@@ -112,7 +112,6 @@ export PATH="$PWD/target/acp-cli/goose-v1.57.0-shiju:$PATH"
 cargo test -p vw-agent --lib --all-features acp_model_source_goose -- --nocapture
 python3 docs/vibewindow/acp-model-source/evidence/goose/verify.py --agent goose --mode session-model --manifest docs/vibewindow/acp-model-source/evidence/goose/manifest.json --output target/acp-model-source-evidence/goose/session-model-final --offline-fixture
 python3 docs/vibewindow/acp-model-source/evidence/goose/verify.py --agent goose --mode cli-local --manifest docs/vibewindow/acp-model-source/evidence/goose/manifest.json --output target/acp-model-source-evidence/goose/cli-local-final --offline-fixture
-cargo clippy --all-targets --all-features -- -D warnings
 ```
 
 本轮聚焦命令退出 0，4 passed / 0 failed（构建 4m00s、执行 1.72s）。共享 macOS 链接器

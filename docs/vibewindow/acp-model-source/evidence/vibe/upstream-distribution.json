@@ -1,0 +1,16 @@
+{
+  "version": "3.0.4",
+  "requires_python": ">=3.12",
+  "artifacts": [
+    {
+      "filename": "mistral_vibe-3.0.4-cp312-abi3-macosx_11_0_arm64.whl",
+      "url": "https://files.pythonhosted.org/packages/84/b8/68dffdf6294f59607935841c0c5494cb5a3594aeda6d056eef5a4231de5c/mistral_vibe-3.0.4-cp312-abi3-macosx_11_0_arm64.whl",
+      "sha256": "16ee71ef4481dd1b93bc47279b2c76124f6e654ad24d14c9415eea9095f0b0e9"
+    },
+    {
+      "filename": "mistral_vibe-3.0.4.tar.gz",
+      "url": "https://files.pythonhosted.org/packages/7b/3a/f3bfc56eaf62b113cfe85b7b28ddbe22adbfe0d7132388535442fa5c5d92/mistral_vibe-3.0.4.tar.gz",
+      "sha256": "057293313217573d6138724586cbcff329e5e803b99ef59375db1c08438d4f9b"
+    }
+  ]
+}

@@ -1,0 +1,62 @@
+{
+  "entries": [
+    {
+      "key": "vibe",
+      "distribution": {
+        "kind": "native",
+        "package": "mistral-vibe",
+        "release": "3.0.4",
+        "release_status": "pinned_verified_with_reviewed_session_binding_patch",
+        "source_url": "https://pypi.org/pypi/mistral-vibe/3.0.4/json",
+        "git_commit": null,
+        "integrity": "sha256:16ee71ef4481dd1b93bc47279b2c76124f6e654ad24d14c9415eea9095f0b0e9",
+        "bin": null,
+        "repository": {
+          "Documentation": "https://github.com/mistralai/mistral-vibe#readme",
+          "Homepage": "https://github.com/mistralai/mistral-vibe",
+          "Issues": "https://github.com/mistralai/mistral-vibe/issues",
+          "Repository": "https://github.com/mistralai/mistral-vibe"
+        },
+        "link_check": {
+          "http_status": 200,
+          "final_url": "https://pypi.org/pypi/mistral-vibe/3.0.4/json"
+        }
+      },
+      "underlying": {
+        "kind": "same_distribution",
+        "release": "3.0.4"
+      },
+      "installed": {
+        "command": [
+          "vibe-acp",
+          "--version"
+        ],
+        "status": "verified_macos_arm64"
+      },
+      "acp_launch": [
+        "vibe-acp"
+      ],
+      "local_command_candidates": [
+        "vibe-acp"
+      ],
+      "offline_acceptance": {
+        "session-model": {
+          "config_root_env": "VIBE_HOME",
+          "files": {
+            "config.toml": "enable_telemetry = false\nactive_model = \"fixture\"\nallowed_models = [\"{{model}}\"]\n[[providers]]\nname = \"fixture-provider\"\napi_base = \"{{endpoint}}\"\napi_key_env_var = \"VIBE_NATIVE_FIXTURE_KEY\"\napi_style = \"openai\"\n[[models]]\nname = \"{{model}}\"\nalias = \"fixture\"\nprovider = \"fixture-provider\"\nmax_output_tokens = 1024\n[compaction_model]\nname = \"{{model}}\"\nalias = \"fixture\"\nprovider = \"fixture-provider\"\nmax_output_tokens = 1024\n[utility_models]\ntitle = \"fixture\"\nsmart_approve = \"fixture\"\n",
+            ".env": "VIBE_NATIVE_FIXTURE_KEY={{key}}\n"
+          }
+        },
+        "cli-local": {
+          "config_root_env": "VIBE_HOME",
+          "files": {
+            "config.toml": "enable_telemetry = false\nactive_model = \"fixture\"\nallowed_models = [\"{{model}}\"]\n[[providers]]\nname = \"fixture-provider\"\napi_base = \"{{endpoint}}\"\napi_key_env_var = \"VIBE_NATIVE_FIXTURE_KEY\"\napi_style = \"openai\"\n[[models]]\nname = \"{{model}}\"\nalias = \"fixture\"\nprovider = \"fixture-provider\"\nmax_output_tokens = 1024\n[compaction_model]\nname = \"{{model}}\"\nalias = \"fixture\"\nprovider = \"fixture-provider\"\nmax_output_tokens = 1024\n[utility_models]\ntitle = \"fixture\"\nsmart_approve = \"fixture\"\n",
+            ".env": "VIBE_NATIVE_FIXTURE_KEY={{key}}\n"
+          }
+        }
+      },
+      "patch": "mistral-vibe-3.0.4-session-binding.patch",
+      "patch_sha256": "e458b3e1750bc5331f57e71a7776338de9c970f70bdb99cffc5fa2a1112c0f75"
+    }
+  ]
+}

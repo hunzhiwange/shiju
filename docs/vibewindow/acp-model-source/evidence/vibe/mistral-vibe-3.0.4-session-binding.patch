@@ -1,0 +1,99 @@
+--- a/vibe/core/config/session_model_binding.py
++++ b/vibe/core/config/session_model_binding.py
+@@ -0,0 +1,76 @@
++"""Explicit ACP session binding. No changes when the launch flag is absent."""
++from __future__ import annotations
++
++import os
++from pathlib import Path
++import stat
++import tempfile
++import re
++import tomllib
++from urllib.parse import urlparse
++
++from vibe.core.config.layers._base import _internal_toml_document
++
++ENV = "_SHIJU_VIBE_SESSION_MODEL_CONFIG"
++KEYS = frozenset({"active_model", "providers", "models", "allowed_models",
++                  "compaction_model", "utility_models"})
++
++
++def bind_session_model(merged, origins):
++    filename = os.environ.get(ENV)
++    if filename is None:
++        return
++    path = Path(filename)
++    home = Path(os.environ.get("VIBE_HOME", ""))
++    if not path.is_absolute() or path.parent != home or path.is_symlink():
++        raise ValueError("invalid private session model binding path")
++    fd = os.open(path, os.O_RDONLY | os.O_NOFOLLOW)
++    with os.fdopen(fd, "rb") as file:
++        info = os.fstat(file.fileno())
++        if not stat.S_ISREG(info.st_mode) or info.st_uid != os.getuid() or info.st_mode & 0o077:
++            raise ValueError("insecure private session model binding")
++        data = tomllib.load(file)
++    if set(data) != KEYS:
++        raise ValueError("unexpected session model binding fields")
++    providers = data["providers"]
++    if len(providers) != 1:
++        raise ValueError("session model binding requires one provider")
++    provider = providers[0]
++    endpoint = urlparse(provider["api_base"])
++    if endpoint.scheme != "http" or endpoint.hostname != "127.0.0.1" or not endpoint.port:
++        raise ValueError("session model binding requires loopback relay")
++    if provider["api_key_env_var"] != "VW_VIBE_RELAY_TOKEN" or not os.environ.get("VW_VIBE_RELAY_TOKEN"):
++        raise ValueError("session model relay credential is missing")
++    if any(origins.get(key) == "admin" for key in KEYS | {"vision_model", "session_logging"}):
++        raise ValueError("organization model policy conflicts with session model binding")
++    binding = _internal_toml_document(data)
++    merged["vision_model"] = None
++    origins["vision_model"] = "session-model-binding"
++    for key in KEYS:
++        merged[key] = binding[key]
++        origins[key] = "session-model-binding"
++    reference = os.environ.get("VW_ACP_LAUNCH_REFERENCE")
++    if reference is not None:
++        match = re.fullmatch(r"vw-session-model:([0-9a-f]{64})", reference)
++        if match is None:
++            raise ValueError("invalid managed Vibe session reference")
++        # Credentials remain in the short-lived VIBE_HOME. Only the native
++        # transcript store survives per-request profile revocation, scoped by
++        # tenant/project/session/provider/model/generation's existing digest.
++        root = Path(tempfile.gettempdir()) / f"shiju-vibe-state-{os.getuid()}"
++        scope = root / match.group(1)
++        history = scope / "sessions"
++        for directory in (root, scope, history):
++            try:
++                directory.mkdir(mode=0o700)
++            except FileExistsError:
++                pass
++            info = directory.lstat()
++            if not stat.S_ISDIR(info.st_mode) or info.st_uid != os.getuid() or info.st_mode & 0o077:
++                raise ValueError("insecure managed Vibe transcript directory")
++        logging = dict(merged.get("session_logging", {}))
++        if logging.get("enabled") is False:
++            raise ValueError("managed Vibe restore requires session logging")
++        logging["save_dir"] = str(history)
++        merged["session_logging"] = logging
++        origins["session_logging"] = "session-model-binding"
+--- a/vibe/core/config/builder.py
++++ b/vibe/core/config/builder.py
+@@ -133,0 +134,4 @@
++            from vibe.core.config.session_model_binding import bind_session_model
++
++            if "active_model" in self._schema.model_fields:
++                bind_session_model(merged, origins)
+--- a/vibe/acp/entrypoint.py
++++ b/vibe/acp/entrypoint.py
+@@ -31,0 +32 @@
++    session_model_config: str | None
+@@ -39,0 +41 @@
++    parser.add_argument("--session-model-config", help="Private session model binding TOML")
+@@ -41 +43 @@
+-    return Arguments(setup=args.setup)
++    return Arguments(setup=args.setup, session_model_config=args.session_model_config)
+@@ -60,0 +63,3 @@
++    if args.session_model_config is not None:
++        from vibe.core.config.session_model_binding import ENV
++        os.environ[ENV] = args.session_model_config

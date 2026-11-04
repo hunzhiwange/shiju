@@ -1,0 +1,58 @@
+{
+  "agent": "vibe",
+  "mode": "session-model",
+  "evidence_kind": "cached-production-binary",
+  "status": "failed",
+  "passed": false,
+  "platform": "Darwin-arm64",
+  "effective_tests": 1,
+  "failure_locations": [
+    "crates/vw-agent/src/session/llm/acp/model_source/acceptance_tests.rs:90:13"
+  ],
+  "requests": {
+    "requests": [
+      {
+        "model": "acp-fixture-primary",
+        "authenticated": true,
+        "route": "/v1/chat/completions",
+        "tool_results": 0,
+        "auxiliary": false
+      },
+      {
+        "model": "acp-fixture-primary",
+        "authenticated": true,
+        "route": "/v1/chat/completions",
+        "tool_results": 1,
+        "auxiliary": false
+      },
+      {
+        "model": "acp-fixture-primary",
+        "authenticated": true,
+        "route": "/v1/chat/completions",
+        "tool_results": 2,
+        "auxiliary": false
+      }
+    ],
+    "errors": 0
+  },
+  "flow": {
+    "new": false,
+    "second_turn": false,
+    "cancel": false,
+    "restart": false,
+    "switch": false,
+    "isolated": false,
+    "handshake": false,
+    "mode": "session-model",
+    "requires_auxiliary": false
+  },
+  "command": [
+    "/Users/xiangmin/worker/code/shiju/target/rust-slot-1/debug/deps/vw_agent-e95bdfa5c12f14b0",
+    "acp_model_source_real_cli_session_model",
+    "--ignored",
+    "--nocapture",
+    "--test-threads=1"
+  ],
+  "cargo_target_dir": "/Users/xiangmin/worker/code/shiju/target/rust-slot-1",
+  "binary_exit_code": -6
+}

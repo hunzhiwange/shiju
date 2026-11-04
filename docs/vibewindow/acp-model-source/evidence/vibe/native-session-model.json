@@ -1,0 +1,65 @@
+[
+  {
+    "requestMethod": "chat",
+    "passed": true,
+    "requests": [
+      {
+        "path": "/v1/chat/completions",
+        "model": "probe-model",
+        "authenticated": true
+      },
+      {
+        "path": "/v1/chat/completions",
+        "model": "probe-model",
+        "authenticated": true
+      }
+    ],
+    "reply": null,
+    "text": null,
+    "version": "3.0.4",
+    "platform": "Darwin-arm64",
+    "mode": "session-model"
+  },
+  {
+    "requestMethod": "responses",
+    "passed": true,
+    "requests": [
+      {
+        "path": "/v1/responses",
+        "model": "probe-model",
+        "authenticated": true
+      },
+      {
+        "path": "/v1/responses",
+        "model": "probe-model",
+        "authenticated": true
+      }
+    ],
+    "reply": null,
+    "text": null,
+    "version": "3.0.4",
+    "platform": "Darwin-arm64",
+    "mode": "session-model"
+  },
+  {
+    "requestMethod": "anthropic",
+    "passed": true,
+    "requests": [
+      {
+        "path": "/v1/messages",
+        "model": "probe-model",
+        "authenticated": true
+      },
+      {
+        "path": "/v1/messages",
+        "model": "probe-model",
+        "authenticated": true
+      }
+    ],
+    "reply": null,
+    "text": null,
+    "version": "3.0.4",
+    "platform": "Darwin-arm64",
+    "mode": "session-model"
+  }
+]

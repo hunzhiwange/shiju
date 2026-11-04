@@ -180,6 +180,7 @@ impl ShijuVideoEntryProvider {
                         Err(e) => return Err(e),
                     }
                 };
+                self.reconcile_before_planning(&prepared).await?;
                 let transcript = loop {
                     match transcribe_cloud_video(
                         self.database.clone(),
@@ -372,6 +373,45 @@ impl ShijuVideoEntryProvider {
             files: vec![],
         })
     }
+    async fn reconcile_before_planning(&self, prepared: &PreparedCloudVideo) -> Result<()> {
+        if !prepared.manifest.asset_cancelled
+            && prepared.manifest.asset_jobs.iter().all(|job| job.state.is_terminal())
+        {
+            return Ok(());
+        }
+        // A fresh runtime must settle old accepted work before acquiring model permits.
+        // In particular, a cancelled run may reconcile, but must never plan or dispatch again.
+        let database = self.database.clone();
+        let candidate = prepared.manifest.clone();
+        let (store, run) = crate::global_database::run_isolated(move || {
+            let store = VideoEditManifestStore::new(database)?;
+            let run = store.claim(
+                candidate,
+                &uuid::Uuid::new_v4().to_string(),
+                super::prepare::now_ms(),
+            )?;
+            Ok::<_, anyhow::Error>((store, run))
+        })
+        .await??;
+        let mut lease = AssetLease { store: store.clone(), run, budget: self.budget.clone() };
+        let requests =
+            lease.run.asset_jobs.iter().map(|job| job.request.clone()).collect::<Vec<_>>();
+        loop {
+            if prepare_video_assets(
+                self.cloud.as_ref(),
+                &store,
+                &mut lease.run,
+                &requests,
+                &self.budget,
+            )
+            .await?
+            .is_some()
+            {
+                return Ok(());
+            }
+            self.poll_delay().await?;
+        }
+    }
     async fn poll_delay(&self) -> Result<()> {
         tokio::select! {
             _ = tokio::time::sleep(std::time::Duration::from_secs(10)) => Ok(()),
@@ -426,14 +466,14 @@ struct AssetLease {
 impl Drop for AssetLease {
     fn drop(&mut self) {
         let store = self.store.clone();
-        let mut run = self.run.clone();
+        let run = self.run.clone();
         let cancelled = self.budget.is_cancelled();
         if crate::global_database::run_sync_database(move || {
             if cancelled {
-                run.asset_cancelled = true;
-                store.save(&mut run, super::prepare::now_ms())?;
+                store.cancel_and_release(&run, super::prepare::now_ms())
+            } else {
+                store.release(&run)
             }
-            store.release(&run)
         })
         .is_err()
         {

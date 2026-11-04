@@ -197,6 +197,34 @@ impl VideoEditManifestStore {
         run.lease_until_ms = until;
         Ok(())
     }
+    /// Cancel the latest durable payload under the same live owner, even if an
+    /// aborted async save advanced its revision before returning to the caller.
+    pub(super) fn cancel_and_release(&self, run: &VideoEditRunManifest, now: i64) -> Result<()> {
+        let p = run.tenant.platform_id().as_ref();
+        let c = run.tenant.company_id().as_ref();
+        let suffix = " WHERE platform_id=$1 AND company_id=$2 AND run_key=$3 AND lease_owner=$4 AND lease_until_ms>$5";
+        let changed = match self.database.provider() {
+            DatabaseProvider::Sqlite => {
+                let sql = format!(
+                    "UPDATE workflow_video_edit_runs SET payload=json_set(payload,'$.asset_cancelled',json('true')),revision=revision+1,lease_owner='',lease_until_ms=0{suffix}"
+                );
+                self.database
+                    .connect_sqlite()?
+                    .execute(&sqlite_sql(&sql), params![p, c, run.run_key, run.lease_owner, now])?
+                    as u64
+            }
+            DatabaseProvider::Postgres => {
+                let sql = format!(
+                    "UPDATE workflow_video_edit_runs SET payload=jsonb_set(payload::jsonb,'{{asset_cancelled}}','true'::jsonb)::text,revision=revision+1,lease_owner='',lease_until_ms=0{suffix}"
+                );
+                self.database
+                    .connect_postgres()?
+                    .execute(&sql, &[&p, &c, &run.run_key, &run.lease_owner, &now])?
+            }
+        };
+        ensure!(changed == 1, "video cancellation lease lost");
+        Ok(())
+    }
     pub fn release(&self, run: &VideoEditRunManifest) -> Result<()> {
         let p = run.tenant.platform_id().as_ref();
         let c = run.tenant.company_id().as_ref();

@@ -14,11 +14,21 @@ use std::{
     collections::{BTreeMap, BTreeSet, HashSet},
     sync::{Arc, LazyLock, Mutex},
 };
+type External = (Arc<dyn VideoEntryCloud>, Arc<dyn Provider>);
+type ExternalFactory = Arc<dyn Fn(&ToolRuntimeContext) -> External + Send + Sync>;
+static EXTERNALS: LazyLock<Mutex<BTreeMap<String, ExternalFactory>>> =
+    LazyLock::new(Default::default);
+pub(super) fn install_external(session: &str, factory: ExternalFactory) -> TransportGuard {
+    let guard = install(session);
+    assert!(EXTERNALS.lock().unwrap().insert(session.into(), factory).is_none());
+    guard
+}
 static SESSIONS: LazyLock<Mutex<HashSet<String>>> = LazyLock::new(Default::default);
 pub(crate) struct TransportGuard(String);
 impl Drop for TransportGuard {
     fn drop(&mut self) {
         SESSIONS.lock().unwrap().remove(&self.0);
+        EXTERNALS.lock().unwrap().remove(&self.0);
     }
 }
 pub(crate) fn install(session: &str) -> TransportGuard {
@@ -29,6 +39,9 @@ pub(super) fn get(
     session: &str,
     context: &ToolRuntimeContext,
 ) -> Option<(Arc<dyn VideoEntryCloud>, Arc<dyn Provider>)> {
+    if let Some(factory) = EXTERNALS.lock().unwrap().get(session) {
+        return Some(factory(context));
+    }
     SESSIONS.lock().unwrap().contains(session).then(|| {
         (
             Arc::new(Cloud { context: context.clone(), writes: PROJECTS.clone() })

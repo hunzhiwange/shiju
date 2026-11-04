@@ -67,3 +67,9 @@ pub(crate) fn validate_entry_contract(source: &str) -> Result<(), String> {
 
 #[cfg(test)]
 pub(crate) mod entry_test_transport;
+
+#[cfg(test)]
+mod e2e_tests;
+
+#[cfg(test)]
+mod e2e_test_cloud;

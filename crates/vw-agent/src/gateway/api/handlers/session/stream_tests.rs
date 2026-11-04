@@ -2133,3 +2133,29 @@ async fn video_edit_entry_gateway_explicit_unavailable_model_does_not_start_grap
     assert!(!events.iter().any(|e| e["type"] == "chat.done"));
     assert!(!root.path().join(".shiju/workflow_commands.json").exists());
 }
+
+pub(crate) async fn collect_video_edit_test_stream(
+    dir: String,
+    body: GatewayChatStreamRequest,
+    cancel: tokio_util::sync::CancellationToken,
+    mut observe: impl FnMut(&Value),
+) -> Result<GatewayChatStreamCollected, ApiError> {
+    let tenant = crate::session::ui_store::current_tenant_scope();
+    let (tx, rx) = mpsc::unbounded_channel();
+    with_tenant_instance(tenant.clone(), dir.clone(), move || {
+        Box::pin(async move {
+            start_gateway_chat_producer(
+                tenant,
+                dir,
+                body,
+                None,
+                Some(cancel),
+                None,
+                move |payload, _| tx.send(payload).is_ok(),
+            )
+            .await
+        })
+    })
+    .await?;
+    collect_gateway_chat_stream_payloads(rx, |e| observe(e)).await
+}

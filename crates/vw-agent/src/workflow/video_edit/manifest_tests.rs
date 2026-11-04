@@ -111,3 +111,24 @@ fn video_edit_prepare_ledger_competing_connections_claim_once_and_restart() {
     assert_eq!(run.state, VideoPrepareState::Uploading);
     assert_eq!(run.upload_id.as_deref(), Some("upload-1"));
 }
+
+#[test]
+fn video_edit_e2e_cancel_stale_snapshot_preserves_latest_receipts_and_fences_owner() {
+    let root = tempfile::tempdir().unwrap();
+    let store =
+        VideoEditManifestStore::new(GlobalDatabase::new(root.path().join("db")).unwrap()).unwrap();
+    let mut current = store.claim(candidate(), "first", 100).unwrap();
+    let stale = current.clone();
+    current.upload_id = Some("accepted-upload".into());
+    current.asset_peak = 5;
+    store.save(&mut current, 101).unwrap();
+    store.cancel_and_release(&stale, 102).unwrap();
+    assert!(store.save(&mut current, 103).is_err(), "late save cannot undo cancellation");
+    let next = store.claim(candidate(), "next", 103).unwrap();
+    assert!(next.asset_cancelled);
+    assert_eq!(next.asset_peak, 5);
+    assert_eq!(next.upload_id.as_deref(), Some("accepted-upload"));
+    assert!(store.cancel_and_release(&stale, 104).is_err(), "old owner cannot cancel a new lease");
+    assert!(store.claim(candidate(), "third", 105).is_err());
+    store.release(&next).unwrap();
+}

@@ -25,6 +25,9 @@ const AUTHORIZATION_HOST: &str = "auth.shiju.cloud";
 #[path = "connectors.rs"]
 mod connectors;
 
+#[path = "knowledge.rs"]
+mod knowledge;
+
 #[path = "model_token.rs"]
 mod model_token;
 
@@ -103,6 +106,7 @@ pub(crate) enum ShijuAccountPoll {
 /// SHIJU Passport 与账户网关客户端。
 pub(crate) struct ShijuAccountClient {
     http: reqwest::Client,
+    knowledge_http: reqwest::Client,
     passport_base: Url,
     gateway_base: Url,
 }
@@ -129,6 +133,7 @@ impl ShijuAccountClient {
             .map_err(|_| ShijuAccountError::Message("failed to create SHIJU account client"))?;
         Ok(Self {
             http,
+            knowledge_http: knowledge::http_client()?,
             passport_base: parse_base_url(passport_base)?,
             gateway_base: parse_base_url(gateway_base)?,
         })

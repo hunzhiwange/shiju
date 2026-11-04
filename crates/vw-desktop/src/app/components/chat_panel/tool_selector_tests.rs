@@ -341,3 +341,21 @@ fn selector_popover_renders_skills_tab_loading_and_empty_scope_states() {
         .select_skill_directory_scope(SkillsDirectoryScope::All);
     let _ = session_tool_selector_popover(&app);
 }
+
+#[test]
+fn agent_unified_selection_lists_enabled_cli_without_promoting_delegate_roles() {
+    use crate::app::state::DelegateAgentSettingsEntry;
+    let cli = DelegateAgentSettingsEntry::from_config(
+        "acp-codex",
+        Some(vw_config_types::agent::AgentDefinitionConfig {
+            runtime: vw_config_types::agent::AgentRuntime::Acp { backend: "codex".into() },
+            ..Default::default()
+        }),
+    );
+    assert!(cli.can_start_session(), "CLI installation must not hide its profile");
+    let mut disabled = cli.clone();
+    disabled.enabled = false;
+    assert!(!disabled.can_start_session());
+    let delegate = DelegateAgentSettingsEntry::from_config("explore", None);
+    assert!(!delegate.can_start_session());
+}

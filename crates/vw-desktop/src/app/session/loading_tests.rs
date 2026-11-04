@@ -249,6 +249,7 @@ use vw_shared::session::ui_types::SessionMessageRecord;
 
 fn bounded_summary(message_count: usize) -> vw_gateway_client::GatewaySessionUiSummary {
     vw_gateway_client::GatewaySessionUiSummary {
+        agent_binding: None,
         id: "session-page".to_string(),
         title: "Paged".to_string(),
         updated_ms: 42,
@@ -305,4 +306,25 @@ fn session_open_page_becomes_ready_from_latest_page_without_heavy_state() {
     assert!(prepared.steps.is_empty());
     assert!(prepared.calls.is_empty());
     assert_eq!(prepared.updated_ms, 42);
+}
+
+#[test]
+fn agent_unified_selection_bounded_load_preserves_trusted_identity() {
+    let mut summary = bounded_summary(0);
+    summary.agent_binding = Some(vw_gateway_client::vw_api_types::chat::SessionAgentIdentity {
+        agent: "acp-codex".into(),
+        label: Some("编程助手".into()),
+        acp_agent: Some("codex".into()),
+    });
+    let prepared = super::prepare_bounded_session_open(
+        summary,
+        vw_gateway_client::GatewaySessionMessagePage {
+            items: vec![],
+            next_cursor: None,
+            previous_cursor: None,
+            total_count: 0,
+        },
+        false,
+    );
+    assert_eq!(prepared.agent_binding.unwrap().acp_agent.as_deref(), Some("codex"));
 }

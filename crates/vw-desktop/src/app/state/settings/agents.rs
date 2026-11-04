@@ -47,6 +47,10 @@ pub(crate) struct DelegateAgentSettingsEntry {
 }
 
 impl DelegateAgentSettingsEntry {
+    pub(crate) fn can_start_session(&self) -> bool {
+        self.enabled && !matches!(self.kind, AgentSettingsEntryKind::BuiltinWorker)
+    }
+
     /// 执行 from_config 对应的领域操作。
     ///
     /// 参数由调用方提供，函数在当前模块的状态边界内完成处理。

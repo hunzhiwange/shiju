@@ -331,6 +331,8 @@ pub struct GatewaySessionMessagePageQuery {
 /// 不包含消息、调用和步骤正文的 UI 会话摘要。
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct GatewaySessionUiSummary {
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub agent_binding: Option<crate::chat::SessionAgentIdentity>,
     pub id: String,
     pub title: String,
     pub updated_ms: u64,

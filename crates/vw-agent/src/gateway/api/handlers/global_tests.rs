@@ -666,3 +666,14 @@ async fn global_event_sse_streams_heartbeat_and_stops_after_receiver_closes() {
     tokio::time::advance(Duration::from_secs(31)).await;
     tokio::task::yield_now().await;
 }
+
+#[test]
+fn agent_unified_selection_install_status_uses_gateway_executable_without_download() {
+    let dir = TempDir::new().unwrap();
+    let command = dir.path().join("fixture-cli");
+    assert!(!acp_command_installed(command.to_str().unwrap()));
+    std::fs::write(&command, "fixture, never executed").unwrap();
+    assert!(acp_command_installed(command.to_str().unwrap()));
+    assert!(!acp_command_installed("npx"));
+    assert!(!acp_command_installed("C:\\tools\\npx.cmd"));
+}

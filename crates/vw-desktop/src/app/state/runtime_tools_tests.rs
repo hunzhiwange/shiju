@@ -439,7 +439,7 @@ fn tool_selector_toggles_group_collapse_and_manual_skill_off_again() {
 
 #[test]
 fn selector_tab_labels_and_tool_groups_cover_every_variant() {
-    assert_eq!(SessionToolSelectorTab::Agent.label(), "代理");
+    assert_eq!(SessionToolSelectorTab::Agent.label(), "智能体");
     assert_eq!(SessionToolSelectorTab::Tools.label(), "工具");
     assert_eq!(SessionToolSelectorTab::Skills.label(), "技能");
 

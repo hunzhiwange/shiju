@@ -96,6 +96,14 @@ impl GatewayClient {
     }
 
     /// 读取并反序列化 ACP 全局配置。
+    /// Gateway-host executable availability, independent of enabled and authentication state.
+    pub async fn global_acp_installed_get(
+        &self,
+    ) -> Result<std::collections::BTreeMap<String, bool>, String> {
+        let value = self.get_json("/v1/global/config/acp/installed", &[]).await?;
+        serde_json::from_value(value).map_err(|err| err.to_string())
+    }
+
     pub async fn global_acp_config_get<T>(&self) -> Result<T, String>
     where
         T: DeserializeOwned,

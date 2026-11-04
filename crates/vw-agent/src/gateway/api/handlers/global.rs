@@ -73,6 +73,7 @@ where
         .route("/global/event", get(global_event_sse))
         .route("/global/config", get(global_config_get).patch(global_config_patch))
         .route("/global/config/acp", get(global_config_acp_get))
+        .route("/global/config/acp/installed", get(global_acp_installed_get))
         .route("/global/dispose", post(global_dispose))
 }
 
@@ -82,6 +83,7 @@ pub(crate) fn stateful_router() -> Router<AppState> {
         .route("/global/event", get(global_event_sse))
         .route("/global/config", get(global_config_get).patch(global_config_patch_stateful))
         .route("/global/config/acp", get(global_config_acp_get))
+        .route("/global/config/acp/installed", get(global_acp_installed_get))
         .route("/global/dispose", post(global_dispose))
 }
 
@@ -189,3 +191,26 @@ async fn global_dispose() -> Result<Json<bool>, ApiError> {
 #[cfg(test)]
 #[path = "global_tests.rs"]
 mod global_tests;
+
+/// Check launch executables on the gateway; never starts or installs a CLI.
+async fn global_acp_installed_get() -> Json<std::collections::BTreeMap<String, bool>> {
+    Json(
+        merged_global_acp_config()
+            .await
+            .into_iter()
+            .map(|(key, config)| {
+                let installed = acp_command_installed(&config.command);
+                (key, installed)
+            })
+            .collect(),
+    )
+}
+
+fn acp_command_installed(command: &str) -> bool {
+    // npx is a downloader, not evidence that its ACP package is installed.
+    let name = command.trim().rsplit(['/', '\\']).next().unwrap_or_default().to_ascii_lowercase();
+    if matches!(name.as_str(), "npx" | "npx.cmd" | "npx.exe" | "npx.bat" | "uvx" | "uvx.exe") {
+        return false;
+    }
+    vw_shared::shell::resolve_executable(command).is_some()
+}

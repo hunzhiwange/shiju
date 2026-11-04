@@ -294,3 +294,13 @@ async fn agent_profile_api_preserves_catalog_query_and_patch_shape() {
     assert_eq!(server.take_request().path, "/v1/agent/acp-claude/copy");
     server.join();
 }
+
+#[tokio::test]
+async fn agent_unified_selection_install_status_reads_gateway_projection() {
+    let server = test_support::server(vec![(200, json!({"codex": false, "gemini": true}))]);
+    let statuses = server.client().global_acp_installed_get().await.unwrap();
+    assert_eq!(statuses.get("codex"), Some(&false));
+    assert_eq!(statuses.get("gemini"), Some(&true));
+    let request = server.take_request();
+    assert_eq!(request.path, "/v1/global/config/acp/installed");
+}

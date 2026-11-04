@@ -107,16 +107,14 @@ use crate::app::assets::Icon;
 use crate::app::components::chat_panel::{
     conversation_reading_column, tool_selector::session_tool_selector_popover,
 };
-use crate::app::components::input_panel::icons::acp_agent_icon;
 use crate::app::components::overlays::AboveOverlay;
 
 use crate::app::theme_catalog::with_panel_background;
 use crate::app::{App, Message, TodoPanelPlacement, message};
 use drop_area::DropArea;
 use file_references::{extract_file_mentions, render_file_references};
-use iced::widget::scrollable::{Direction, Scrollbar};
 use iced::widget::tooltip::{Position as TooltipPosition, Tooltip};
-use iced::widget::{Space, button, column, container, row, scrollable, text};
+use iced::widget::{Space, button, column, container, row, text};
 use iced::{Alignment, Color, Element, Length, Padding, Theme};
 use icons::icon_svg;
 use reasoning_selector::reasoning_effort_selector;
@@ -125,6 +123,7 @@ use send_controls::{
 };
 use task_mode::task_mode_form;
 
+#[cfg(test)]
 pub(super) fn popover_item_style(
     theme: &Theme,
     status: iced::widget::button::Status,
@@ -132,10 +131,6 @@ pub(super) fn popover_item_style(
 ) -> iced::widget::button::Style {
     styles::selectable_list_button_style(theme, status, selected)
 }
-
-const ACP_SELECTOR_MAX_HEIGHT: f32 = 240.0;
-const ACP_SELECTOR_SCROLLBAR_WIDTH: f32 = 4.0;
-const ACP_SELECTOR_LIST_RIGHT_PADDING: f32 = 7.0;
 
 pub(super) fn bottom_bar_round_toggle<'a>(
     icon: Element<'a, Message>,
@@ -216,138 +211,6 @@ pub(super) fn session_tool_tab_buttons<'a>(
         session_tool_tab_button(app, crate::app::state::SessionToolSelectorTab::Tools),
         session_tool_tab_button(app, crate::app::state::SessionToolSelectorTab::Skills),
     )
-}
-
-pub(super) fn acp_selector_button<'a>(
-    app: &'a App,
-    selected_acp_agent: Option<String>,
-    locked: bool,
-) -> Option<Element<'a, Message>> {
-    let label = selected_acp_agent
-        .as_deref()
-        .unwrap_or_else(|| crate::app::i18n::I18n::new(app.desktop_locale).__("ACP 智能体"))
-        .to_string();
-    let icon = acp_agent_icon(&label, styles::BOTTOM_BAR_ICON_SIZE);
-    if locked {
-        return Some(icon.into());
-    }
-
-    let toggle = bottom_bar_round_toggle(
-        icon,
-        acp_selector_tooltip(crate::app::i18n::I18n::new(app.desktop_locale), &label),
-        Message::View(message::ViewMessage::ToggleAcpPopover),
-    );
-
-    let selected_for_default = selected_acp_agent.is_none();
-    let default_check: Element<'_, Message> = if selected_for_default {
-        icon_svg(Icon::Check, 14.0).into()
-    } else {
-        Space::new().width(Length::Fixed(14.0)).into()
-    };
-
-    let default_button = button(
-        row![
-            acp_agent_icon("ACP 智能体", 14.0),
-            text(crate::app::i18n::I18n::new(app.desktop_locale).__("ACP 智能体")).size(13),
-            Space::new().width(Length::Fill),
-            default_check
-        ]
-        .spacing(8)
-        .align_y(Alignment::Center),
-    )
-    .padding([6, 10])
-    .width(Length::Fill)
-    .style(move |theme: &Theme, status| popover_item_style(theme, status, selected_for_default))
-    .on_press(Message::Chat(message::ChatMessage::AcpAgentSelected(None)));
-
-    let mut list = column![default_button].spacing(4);
-    for agent in app.acp_agents.iter().cloned() {
-        let selected = selected_acp_agent.as_ref() == Some(&agent);
-        let check: Element<'_, Message> = if selected {
-            icon_svg(Icon::Check, 14.0).into()
-        } else {
-            Space::new().width(Length::Fixed(14.0)).into()
-        };
-        let agent_for_press = agent.clone();
-        let select_btn = button(
-            row![
-                acp_agent_icon(&agent, 14.0),
-                text(agent).size(13),
-                Space::new().width(Length::Fill),
-                check
-            ]
-            .spacing(8)
-            .align_y(Alignment::Center),
-        )
-        .padding([6, 10])
-        .width(Length::Fill)
-        .style(move |theme: &Theme, status| popover_item_style(theme, status, selected))
-        .on_press(Message::Chat(message::ChatMessage::AcpAgentSelected(Some(agent_for_press))));
-        list = list.push(select_btn);
-    }
-
-    if app.acp_agents.is_empty() {
-        list = list.push(
-            container(
-                text(
-                    crate::app::i18n::I18n::new(app.desktop_locale)
-                        .__("正在加载 ACP 列表，稍后会自动显示。"),
-                )
-                .size(11)
-                .style(|theme: &Theme| iced::widget::text::Style {
-                    color: Some(theme.palette().text.scale_alpha(0.62)),
-                }),
-            )
-            .padding([4, 2]),
-        );
-    }
-
-    let settings_button =
-        button(text(crate::app::i18n::I18n::new(app.desktop_locale).__("ACP 配置")).size(13))
-            .padding([8, 10])
-            .width(Length::Fill)
-            .style(iced::widget::button::text)
-            .on_press(Message::View(message::ViewMessage::OpenAcpSettings));
-
-    let popover: Element<'_, Message> = container(
-        column![
-            settings_button,
-            scrollable(container(list).padding(iced::Padding {
-                top: 0.0,
-                right: ACP_SELECTOR_LIST_RIGHT_PADDING,
-                bottom: 0.0,
-                left: 7.0,
-            }))
-            .id(iced::widget::Id::new("input_panel_acp_selector_scroll"))
-            .direction(Direction::Vertical(
-                Scrollbar::new()
-                    .width(ACP_SELECTOR_SCROLLBAR_WIDTH)
-                    .scroller_width(ACP_SELECTOR_SCROLLBAR_WIDTH),
-            ))
-            .height(Length::Fixed(ACP_SELECTOR_MAX_HEIGHT))
-        ]
-        .spacing(3),
-    )
-    .style(styles::popover_style)
-    .padding(8)
-    .width(Length::Fixed(180.0))
-    .into();
-
-    Some(
-        AboveOverlay::new(toggle, popover)
-            .show(app.show_acp_popover)
-            .block_background_events(true)
-            .gap(6.0)
-            .on_close(Message::View(message::ViewMessage::CloseAcpPopover))
-            .into(),
-    )
-}
-
-pub(super) fn acp_selector_tooltip(
-    i18n: crate::app::i18n::I18n,
-    selected_acp_agent: &str,
-) -> String {
-    crate::__!(i18n, "切换 ACP 后端：%s", selected_acp_agent).expect("valid ACP tooltip template")
 }
 
 pub(super) fn dark_tooltip_content<'a>(label: impl Into<String>) -> Element<'a, Message> {
@@ -567,8 +430,7 @@ pub fn view<'a>(app: &'a App) -> Element<'a, Message> {
     let auto_model = runtime.map(|r| r.auto_model).unwrap_or(app.auto_model);
     let model = runtime.map(|r| r.model.clone()).unwrap_or_else(|| app.model.clone());
     let input_editor = runtime.map(|r| &r.input_editor).unwrap_or(&app.input_editor);
-    let selected_acp_agent =
-        runtime.and_then(|r| r.acp_agent.clone()).or_else(|| app.acp_agent.clone());
+    let selected_acp_agent = runtime.and_then(|r| r.acp_agent.clone());
     let reasoning_effort = runtime.map(|r| r.reasoning_effort).unwrap_or(app.reasoning_effort);
     let full_access_enabled = runtime.map(|r| r.full_access_enabled).unwrap_or(false);
     let workflow_mode_enabled = runtime.map(|r| r.workflow_mode_enabled).unwrap_or(false);
@@ -617,8 +479,7 @@ pub fn view<'a>(app: &'a App) -> Element<'a, Message> {
     // 构建附件按钮
     let attach_btn = attachment::attachment_button(app);
     let (agent_tab_btn, tools_tab_btn, skills_tab_btn) = session_tool_tab_buttons(app);
-    let acp_btn =
-        acp_selector_button(app, selected_acp_agent.clone(), app.current_session_has_started());
+
     let reasoning_btn = if selected_acp_agent.is_some() {
         Some(acp_options::button(app))
     } else {
@@ -676,7 +537,7 @@ pub fn view<'a>(app: &'a App) -> Element<'a, Message> {
         Some(agent_tab_btn),
         Some(tools_tab_btn),
         Some(skills_tab_btn),
-        acp_btn,
+        None,
         reasoning_btn,
         permission_btn,
         workflow_btn,

@@ -220,7 +220,7 @@ fn normalize_codex_args(args: &[String]) -> Vec<String> {
 
 fn normalize_agent_spec_for_name(name: &str, spec: &AgentCommandSpec) -> AgentCommandSpec {
     let normalized_name = normalize_agent_name(name);
-    AgentCommandSpec {
+    let mut normalized = AgentCommandSpec {
         display_name: spec.display_name.trim().to_string(),
         command: spec.command.trim().to_string(),
         args: if normalized_name == DEFAULT_AGENT_NAME {
@@ -229,7 +229,19 @@ fn normalize_agent_spec_for_name(name: &str, spec: &AgentCommandSpec) -> AgentCo
             spec.args.clone()
         },
         env: spec.env.clone(),
+    };
+    // Saved official fallbacks must discover a CLI installed after the profile was enabled.
+    // Only an unchanged official launcher may adopt local arguments; custom commands stay exact.
+    if let Some(definition) = built_in_agent_definitions().iter().find(|definition| {
+        definition.name == normalized_name
+            && normalized.command == definition.command
+            && normalized.args == definition.args
+    }) {
+        let (command, args) = built_in_agent_command(definition);
+        normalized.command = command;
+        normalized.args = args;
     }
+    normalized
 }
 
 const BUILT_IN_AGENT_DEFINITIONS: &[BuiltInAgentDefinition] = &[

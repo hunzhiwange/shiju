@@ -276,8 +276,16 @@ pub enum ChatMessage {
         result: Result<vw_gateway_client::vw_api_types::acp_session::AcpSessionOptions, String>,
     },
     ReasoningEffortSelected(Option<vw_gateway_client::vw_api_types::ReasoningEffortDto>),
-    AcpAgentSelected(Option<String>),
     SessionAgentSelected(Option<String>),
+    AgentRecommendedPromptSelected(usize),
+    AgentInstallationStatusesLoaded(Result<std::collections::BTreeMap<String, bool>, String>),
+    AgentInstallationChecked {
+        session_id: Option<String>,
+        agent: Option<String>,
+        backend: String,
+        query: Option<String>,
+        result: Result<std::collections::BTreeMap<String, bool>, String>,
+    },
     AcpHistoryModeSelected(crate::app::state::AcpHistoryReplayMode),
     AcpHistoryRecentCountChanged(String),
     /// 切换当前父会话的 AgentTool 子会话弹层。
@@ -1359,7 +1367,9 @@ pub fn update(app: &mut App, message: ChatMessage) -> Task<Message> {
         | ChatMessage::CancelPressed
         | ChatMessage::AutoModelToggled(_)
         | ChatMessage::ReasoningEffortSelected(_)
-        | ChatMessage::AcpAgentSelected(_)
+        | ChatMessage::AgentInstallationStatusesLoaded(_)
+        | ChatMessage::AgentRecommendedPromptSelected(_)
+        | ChatMessage::AgentInstallationChecked { .. }
         | ChatMessage::SessionAgentSelected(_)
         | ChatMessage::AcpHistoryModeSelected(_)
         | ChatMessage::AcpHistoryRecentCountChanged(_)

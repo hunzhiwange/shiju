@@ -70,7 +70,6 @@ impl App {
             );
             runtime.reasoning_effort =
                 self.session_reasoning_efforts.get(session_id).copied().flatten();
-            runtime.acp_agent = self.acp_agent.clone();
             runtime.acp_history_mode = self.acp_history_mode;
             runtime.acp_recent_count = self.acp_recent_count;
             runtime
@@ -88,7 +87,6 @@ impl App {
         let reasoning_effort = self.session_reasoning_efforts.get(session_id).copied().flatten();
         let model = self.default_session_model();
         let auto_model = self.default_session_auto_model();
-        let acp_agent = self.acp_agent.clone();
         let acp_history_mode = self.acp_history_mode;
         let acp_recent_count = self.acp_recent_count;
         let runtime =
@@ -98,9 +96,6 @@ impl App {
                 runtime.reasoning_effort = reasoning_effort;
                 runtime
             });
-        if runtime.acp_agent.is_none() {
-            runtime.acp_agent = acp_agent;
-        }
         runtime.acp_history_mode = acp_history_mode;
         runtime.acp_recent_count = acp_recent_count;
         runtime

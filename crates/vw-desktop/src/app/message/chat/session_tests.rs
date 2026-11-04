@@ -465,21 +465,6 @@ fn request_delegate_agent_defaults_to_main_agent() {
 }
 
 #[test]
-fn resolve_acp_agent_prefers_session_selection_then_app_default() {
-    let (mut app, _task) = crate::app::App::new();
-    app.acp_agent = Some("default-agent".to_string());
-
-    assert_eq!(
-        super::resolve_acp_agent(&app, Some("session-agent".to_string())),
-        Some("session-agent".to_string())
-    );
-    assert_eq!(super::resolve_acp_agent(&app, None), Some("default-agent".to_string()));
-
-    app.acp_agent = None;
-    assert_eq!(super::resolve_acp_agent(&app, None), None);
-}
-
-#[test]
 fn session_agent_selection_normalizes_value_and_resets_tool_context() {
     let (mut app, _task) = crate::app::App::new();
     {
@@ -489,6 +474,9 @@ fn session_agent_selection_normalizes_value_and_resets_tool_context() {
         selector.select_tab(crate::app::state::SessionToolSelectorTab::Skills);
     }
 
+    app.agents_settings
+        .entries
+        .push(crate::app::state::DelegateAgentSettingsEntry::from_config("worker", None));
     super::update(&mut app, super::ChatMessage::SessionAgentSelected(Some(" worker ".to_string())));
 
     let runtime = app.current_session_runtime();
@@ -512,11 +500,21 @@ fn session_agent_selection_normalizes_value_and_resets_tool_context() {
 #[test]
 fn session_agent_selection_switches_selectable_tools_to_selected_agent_range() {
     let (mut app, _task) = crate::app::App::new();
-    app.agents_settings.available_tools =
-        vec!["file_read".to_string(), "bash".to_string(), "grep".to_string()];
+    app.agents_settings.available_tools = vec![
+        "optional_read".to_string(),
+        "optional_shell".to_string(),
+        "optional_search".to_string(),
+    ];
+    app.agents_settings.registered_tools = Some(app.agents_settings.available_tools.clone());
+    app.agents_settings
+        .entries
+        .iter_mut()
+        .find(|entry| entry.key == "main")
+        .unwrap()
+        .allowed_tools = app.agents_settings.available_tools.clone();
     let mut worker =
         crate::app::state::DelegateAgentSettingsEntry::from_config("focused-worker", None);
-    worker.allowed_tools = vec!["bash".to_string()];
+    worker.allowed_tools = vec!["optional_shell".to_string()];
     app.agents_settings.entries.push(worker);
 
     super::update(
@@ -526,7 +524,7 @@ fn session_agent_selection_switches_selectable_tools_to_selected_agent_range() {
 
     assert_eq!(
         app.session_tool_inventory(&app.current_session_runtime()).base_tools,
-        vec!["bash".to_string()]
+        vec!["optional_shell".to_string()]
     );
 
     super::update(
@@ -538,7 +536,11 @@ fn session_agent_selection_switches_selectable_tools_to_selected_agent_range() {
 
     assert_eq!(
         app.session_tool_inventory(&app.current_session_runtime()).base_tools,
-        vec!["bash".to_string(), "file_read".to_string(), "grep".to_string()]
+        vec![
+            "optional_read".to_string(),
+            "optional_search".to_string(),
+            "optional_shell".to_string()
+        ]
     );
 }
 
@@ -1109,7 +1111,17 @@ fn preference_messages_update_runtime_and_global_chat_defaults() {
     assert!(app.auto_model);
     assert_eq!(app.current_session_runtime().task_mode_model, "auto");
 
-    super::update(&mut app, super::ChatMessage::AcpAgentSelected(Some("agent-a".to_string())));
+    app.agents_settings.entries.push(crate::app::state::DelegateAgentSettingsEntry::from_config(
+        "fixture-agent",
+        Some(vw_config_types::agent::AgentDefinitionConfig {
+            runtime: vw_config_types::agent::AgentRuntime::Acp { backend: "agent-a".into() },
+            ..Default::default()
+        }),
+    ));
+    super::update(
+        &mut app,
+        super::ChatMessage::SessionAgentSelected(Some("fixture-agent".to_string())),
+    );
     assert_eq!(app.acp_agent.as_deref(), Some("agent-a"));
     assert_eq!(app.current_session_runtime().acp_agent.as_deref(), Some("agent-a"));
     assert!(!app.show_acp_popover);
@@ -1128,7 +1140,7 @@ fn preference_messages_update_runtime_and_global_chat_defaults() {
 }
 
 #[test]
-fn acp_agent_selection_rejects_backend_switch_after_session_started() {
+fn agent_unified_selection_locks_chat_queue_and_active_request() {
     let cases = ["chat", "active_request", "queue"];
 
     for case in cases {
@@ -1152,7 +1164,7 @@ fn acp_agent_selection_rejects_backend_switch_after_session_started() {
 
         let _ = super::update(
             &mut app,
-            super::ChatMessage::AcpAgentSelected(Some("replacement-agent".to_string())),
+            super::ChatMessage::SessionAgentSelected(Some("replacement-agent".to_string())),
         );
 
         assert_eq!(app.acp_agent.as_deref(), Some("original-agent"), "case: {case}");
@@ -1164,7 +1176,7 @@ fn acp_agent_selection_rejects_backend_switch_after_session_started() {
         assert!(
             app.active_toast
                 .as_ref()
-                .is_some_and(|toast| toast.message.contains("会话开始后不能切换 ACP 后端")),
+                .is_some_and(|toast| toast.message.contains("会话开始后不能切换智能体")),
             "case: {case}"
         );
     }
@@ -1956,4 +1968,91 @@ fn new_session_project_resolution_failure_preserves_attachments() {
     );
     assert_eq!(app.files, vec!["/repo/file.txt"]);
     assert!(app.sessions.is_empty());
+}
+
+#[test]
+fn agent_unified_selection_dispatches_selected_runtime() {
+    let (mut app, _) = crate::app::App::new();
+    app.agents_settings.entries.push(crate::app::state::DelegateAgentSettingsEntry::from_config(
+        "acp-codex",
+        Some(vw_config_types::agent::AgentDefinitionConfig {
+            runtime: vw_config_types::agent::AgentRuntime::Acp { backend: "codex".into() },
+            ..Default::default()
+        }),
+    ));
+    let _ =
+        super::update(&mut app, super::ChatMessage::SessionAgentSelected(Some("acp-codex".into())));
+    assert_eq!(app.current_session_runtime().agent.as_deref(), Some("acp-codex"));
+    assert_eq!(app.current_session_runtime().acp_agent.as_deref(), Some("codex"));
+    let _ = super::update(&mut app, super::ChatMessage::SessionAgentSelected(None));
+    assert_eq!(app.current_session_runtime().acp_agent, None);
+}
+
+#[test]
+fn agent_unified_selection_rejects_disabled_and_started_sessions() {
+    let (mut app, _) = crate::app::App::new();
+    let mut entry = crate::app::state::DelegateAgentSettingsEntry::from_config("acp-codex", None);
+    entry.enabled = false;
+    app.agents_settings.entries.push(entry);
+    let _ =
+        super::update(&mut app, super::ChatMessage::SessionAgentSelected(Some("acp-codex".into())));
+    assert_eq!(app.current_session_runtime().agent, None);
+    app.agents_settings.entries.last_mut().unwrap().enabled = true;
+    app.chat.push(crate::app::models::ChatMessage {
+        role: crate::app::models::ChatRole::User,
+        content: "started".into(),
+        model: None,
+        think_timing: vec![],
+        processing_timing: None,
+    });
+    let _ =
+        super::update(&mut app, super::ChatMessage::SessionAgentSelected(Some("acp-codex".into())));
+    assert_eq!(app.current_session_runtime().agent, None);
+}
+
+#[test]
+fn agent_unified_selection_uninstalled_cli_preserves_draft() {
+    let (mut app, _) = crate::app::App::new();
+    app.current_session_runtime_mut().agent = Some("acp-codex".into());
+    app.current_session_runtime_mut().acp_agent = Some("codex".into());
+    app.current_session_runtime_mut().input_editor =
+        iced::widget::text_editor::Content::with_text("不要丢失");
+    let session_id = app.active_session_id.clone();
+    let _ = super::update(
+        &mut app,
+        super::ChatMessage::AgentInstallationChecked {
+            session_id,
+            agent: Some("acp-codex".into()),
+            backend: "codex".into(),
+            query: Some("不要丢失".into()),
+            result: Ok(std::collections::BTreeMap::from([("codex".into(), false)])),
+        },
+    );
+    assert_eq!(app.current_session_runtime().input_editor.text(), "不要丢失");
+    assert_eq!(app.current_session_runtime().agent.as_deref(), Some("acp-codex"));
+    assert!(app.chat.is_empty());
+    assert_eq!(app.acp_settings.installed.get("codex"), Some(&false));
+}
+
+#[test]
+fn agent_unified_selection_ignores_install_result_from_another_session() {
+    let (mut app, _) = crate::app::App::new();
+    app.active_session_id = Some("new-session".into());
+    app.current_session_runtime_mut().agent = Some("acp-codex".into());
+    app.current_session_runtime_mut().acp_agent = Some("codex".into());
+    app.current_session_runtime_mut().input_editor =
+        iced::widget::text_editor::Content::with_text("草稿");
+    let _ = super::update(
+        &mut app,
+        super::ChatMessage::AgentInstallationChecked {
+            session_id: Some("old-session".into()),
+            agent: Some("acp-codex".into()),
+            backend: "codex".into(),
+            query: Some("草稿".into()),
+            result: Ok(std::collections::BTreeMap::from([("codex".into(), true)])),
+        },
+    );
+    assert_eq!(app.current_session_runtime().input_editor.text(), "草稿");
+    assert!(app.chat.is_empty());
+    assert!(app.acp_settings.installed.is_empty());
 }

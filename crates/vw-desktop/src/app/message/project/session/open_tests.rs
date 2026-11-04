@@ -1385,6 +1385,7 @@ fn bounded_session_open_and_prepend_keep_save_sequence_base() {
     };
     let prepared = crate::app::session::prepare_bounded_session_open(
         vw_gateway_client::GatewaySessionUiSummary {
+            agent_binding: None,
             id: "paged".into(),
             title: "Session".into(),
             updated_ms: 42,

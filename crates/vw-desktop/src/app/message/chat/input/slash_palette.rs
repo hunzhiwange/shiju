@@ -290,22 +290,17 @@ pub(crate) fn collect_slash_palette_candidates(app: &App) -> SlashPaletteCandida
         }
     }
 
-    let mut acps = vec![SlashPaletteCandidate {
-        id: String::new(),
-        label: "默认智能体".to_string(),
-        description: Some("清除 ACP 选择".to_string()),
-    }];
-    for agent in &app.acp_agents {
-        let trimmed = agent.trim();
-        if trimmed.is_empty() {
-            continue;
-        }
-        acps.push(SlashPaletteCandidate {
-            id: trimmed.to_string(),
-            label: trimmed.to_string(),
-            description: None,
-        });
-    }
+    let acps = app
+        .agents_settings
+        .entries
+        .iter()
+        .filter(|entry| entry.can_start_session())
+        .map(|entry| SlashPaletteCandidate {
+            id: entry.key.clone(),
+            label: entry.label.clone(),
+            description: Some(entry.description.clone()),
+        })
+        .collect();
 
     SlashPaletteCandidates { skills, tools, mcps, models, acps }
 }
@@ -485,7 +480,7 @@ fn apply_slash_palette_entry(app: &mut App, entry: SlashPaletteEntry) -> Task<Me
             let agent = if entry.id.trim().is_empty() { None } else { Some(entry.id) };
             crate::app::message::chat::session::update(
                 app,
-                message::ChatMessage::AcpAgentSelected(agent),
+                message::ChatMessage::SessionAgentSelected(agent),
             )
         }
         SlashPaletteKind::Tool => crate::app::message::chat::session::update(

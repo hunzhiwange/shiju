@@ -785,8 +785,47 @@ pub(super) fn view(app: &App) -> Option<Element<'_, Message>> {
             }
         };
     }
+    let runtime = app.current_session_runtime();
+    let key = runtime.agent.as_deref().unwrap_or(crate::app::state::MAIN_AGENT_KEY);
+    if let Some(entry) = app.agents_settings.entries.iter().find(|entry| entry.key == key) {
+        controls = controls.push(
+            text(runtime.agent_label.clone().unwrap_or_else(|| entry.label.clone())).size(12),
+        );
+        for (index, prompt) in entry
+            .recommended_prompts
+            .iter()
+            .enumerate()
+            .filter(|(_, prompt)| !prompt.trim().is_empty())
+        {
+            controls = controls.push(
+                button(text(prompt).size(12))
+                    .padding([6, 10])
+                    .style(|theme, status| {
+                        styles::quick_message_group_button_style(theme, status, false)
+                    })
+                    .on_press(Message::Chat(message::ChatMessage::AgentRecommendedPromptSelected(
+                        index,
+                    ))),
+            );
+        }
+        if let Some(backend) = runtime.acp_agent.as_ref() {
+            let status = match app.acp_settings.installed.get(backend) {
+                Some(true) => "已安装",
+                Some(false) => "未安装",
+                None => "安装状态待检测",
+            };
+            controls = controls.push(
+                button(text(format!("{status} · 安装 / 运行设置")).size(12))
+                    .padding([6, 10])
+                    .style(|theme, status| {
+                        styles::quick_message_group_button_style(theme, status, false)
+                    })
+                    .on_press(Message::View(message::ViewMessage::OpenAcpSettings)),
+            );
+        }
+    }
     Some(
-        container(controls)
+        container(controls.wrap())
             .padding([0, 8])
             .width(Length::Fill)
             .align_x(iced::alignment::Horizontal::Left)

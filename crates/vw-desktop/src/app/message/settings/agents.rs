@@ -817,14 +817,11 @@ pub fn update(app: &mut App, message: SettingsMessage) -> Task<Message> {
         AgentsMessage::CatalogLaunch(key) => {
             if !catalog_can_write(app)
                 || app.new_session_creating
-                || !app.agents_settings.entries.iter().any(|entry| {
-                    entry.key == key
-                        && entry.enabled
-                        && !matches!(
-                            entry.kind,
-                            crate::app::state::AgentSettingsEntryKind::BuiltinWorker
-                        )
-                })
+                || !app
+                    .agents_settings
+                    .entries
+                    .iter()
+                    .any(|entry| entry.key == key && entry.can_start_session())
             {
                 return Task::none();
             }
@@ -856,7 +853,11 @@ pub fn update(app: &mut App, message: SettingsMessage) -> Task<Message> {
                         app,
                         crate::app::message::project::ProjectMessage::SessionCreated(info),
                     );
-                    app.current_session_runtime_mut().agent = Some(key);
+                    let selection = crate::app::message::chat::session::update(
+                        app,
+                        crate::app::message::chat::ChatMessage::SessionAgentSelected(Some(key)),
+                    );
+                    let task = Task::batch([task, selection]);
                     app.show_settings = false;
                     task
                 }

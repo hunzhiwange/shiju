@@ -451,3 +451,22 @@ fn local_agent_resolution_finds_fresh_user_installations_without_path_refresh() 
         Some(bin.join(name).to_string_lossy().into_owned())
     );
 }
+
+#[test]
+fn agent_unified_selection_saved_official_launcher_uses_installed_cli() {
+    let _lock = agent_registry_env_test_lock();
+    let directory = TestDir::new("unified-installed");
+    let binary = directory.path().join(if cfg!(windows) { "auggie.cmd" } else { "auggie" });
+    write_file(&binary);
+    let _path = EnvGuard::set_os("PATH", directory.path().as_os_str());
+    let definition =
+        built_in_agent_definitions().iter().find(|entry| entry.name == "auggie").unwrap();
+    let saved = test_spec(definition.command, definition.args);
+    let resolved = merge_agent_specs(Some(&HashMap::from([("auggie".into(), saved)])));
+    assert_eq!(PathBuf::from(&resolved["auggie"].command), binary);
+    assert_eq!(resolved["auggie"].args, definition.local_args);
+    let custom = test_spec("npx", &["my-unrelated-package"]);
+    let resolved = merge_agent_specs(Some(&HashMap::from([("auggie".into(), custom.clone())])));
+    assert_eq!(resolved["auggie"].command, custom.command);
+    assert_eq!(resolved["auggie"].args, custom.args);
+}

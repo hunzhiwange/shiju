@@ -23,7 +23,7 @@ impl SlashPaletteKind {
             Self::Tool => "Tools",
             Self::Mcp => "MCP",
             Self::Model => "Models",
-            Self::Acp => "ACP",
+            Self::Acp => "智能体",
         }
     }
 
@@ -125,7 +125,7 @@ impl SessionToolSelectorTab {
     /// 返回值表达处理结果；失败时保留错误信息给上层界面或调度逻辑。
     pub(crate) const fn label(self) -> &'static str {
         match self {
-            Self::Agent => "代理",
+            Self::Agent => "智能体",
             Self::Tools => "工具",
             Self::Skills => "技能",
         }

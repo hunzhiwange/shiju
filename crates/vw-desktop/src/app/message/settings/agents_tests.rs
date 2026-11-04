@@ -1668,3 +1668,29 @@ fn saved_config_stays_clean_after_discard_refresh_in_either_response_order() {
         }
     }
 }
+
+#[test]
+fn agent_unified_selection_catalog_launch_selects_profile_runtime() {
+    let (mut app, _) = crate::app::App::new();
+    app.agents_settings.catalog_busy = true;
+    app.agents_settings.entries.push(crate::app::state::DelegateAgentSettingsEntry::from_config(
+        "acp-codex",
+        Some(vw_config_types::agent::AgentDefinitionConfig {
+            runtime: vw_config_types::agent::AgentRuntime::Acp { backend: "codex".into() },
+            ..Default::default()
+        }),
+    ));
+    let info = serde_json::from_value(serde_json::json!({
+        "id":"catalog-launch-session", "slug":"fixture", "projectID":"fixture-project", "directory":"/tmp/unified-agent-fixture", "title":"New session", "version":"1", "time":{"created":1,"updated":1}
+    })).unwrap();
+    let _ = update(
+        &mut app,
+        SettingsMessage::Agents(AgentsMessage::CatalogSessionCreated {
+            key: "acp-codex".into(),
+            result: Ok(info),
+        }),
+    );
+    assert_eq!(app.active_session_id.as_deref(), Some("catalog-launch-session"));
+    assert_eq!(app.current_session_runtime().agent.as_deref(), Some("acp-codex"));
+    assert_eq!(app.current_session_runtime().acp_agent.as_deref(), Some("codex"));
+}

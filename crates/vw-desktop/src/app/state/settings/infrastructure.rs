@@ -52,6 +52,7 @@ impl Default for HttpRequestSettingsState {
 
 #[derive(Debug, Clone)]
 pub(crate) struct AcpSettingsState {
+    pub(crate) installed: std::collections::BTreeMap<String, bool>,
     pub(crate) installing_agent: Option<String>,
     pub(crate) diagnostic_id: Option<String>,
     pub(crate) diagnostic_status: Option<AcpDiagnosticStatus>,
@@ -79,6 +80,7 @@ pub(crate) struct AcpSettingsState {
 impl Default for AcpSettingsState {
     fn default() -> Self {
         Self {
+            installed: Default::default(),
             installing_agent: None,
             diagnostic_id: None,
             diagnostic_status: None,

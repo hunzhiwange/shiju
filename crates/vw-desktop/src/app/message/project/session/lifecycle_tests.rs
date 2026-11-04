@@ -1720,3 +1720,39 @@ fn reset_boundary_loaded_end_prefers_last_known_id_and_falls_back_to_bounded_len
     );
     assert_eq!(reset_boundary_loaded_end(&loaded_ids[..1], &[None, None, None]), 1);
 }
+
+#[test]
+fn agent_unified_selection_reopen_restores_gateway_identity() {
+    let (mut app, _) = crate::app::App::new();
+    let mut prepared = crate::app::session::prepare_session_open(
+        "unified-reopen".into(),
+        vec![],
+        vec![],
+        Default::default(),
+        vec![],
+        vec![],
+        0,
+        None,
+        false,
+    );
+    prepared.agent_binding = Some(vw_gateway_client::vw_api_types::chat::SessionAgentIdentity {
+        agent: "acp-codex".into(),
+        label: Some("固化助手名称".into()),
+        acp_agent: Some("codex".into()),
+    });
+    app.active_session_id = Some("unified-reopen".into());
+    let _ = super::lifecycle::handle(
+        &mut app,
+        crate::app::message::project::ProjectMessage::SessionOpenPrepared {
+            target_session_id: "unified-reopen".into(),
+            project_path: "/tmp/project".into(),
+            open_generation: 0,
+            source: crate::app::message::project::PreparedSessionOpenSource::RemoteHistory,
+            result: Ok(prepared),
+        },
+    );
+    let runtime = app.get_session_runtime("unified-reopen");
+    assert_eq!(runtime.agent.as_deref(), Some("acp-codex"));
+    assert_eq!(runtime.acp_agent.as_deref(), Some("codex"));
+    assert_eq!(runtime.agent_label.as_deref(), Some("固化助手名称"));
+}

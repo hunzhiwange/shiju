@@ -506,6 +506,7 @@ pub(crate) struct SessionRuntimeState {
     /// 子任务的编辑器内容列表
     pub(crate) task_mode_subtask_editors: Vec<text_editor::Content>,
     pub(crate) agent: Option<String>,
+    pub(crate) agent_label: Option<String>,
     pub(crate) acp_agent: Option<String>,
     pub(crate) acp_options: vw_gateway_client::vw_api_types::acp_session::AcpSessionOptions,
     pub(crate) acp_options_open: bool,
@@ -701,6 +702,7 @@ impl SessionRuntimeState {
             task_mode_subtasks,
             task_mode_subtask_editors,
             agent: None,
+            agent_label: None,
             acp_agent: None,
             acp_options: Default::default(),
             acp_options_open: false,

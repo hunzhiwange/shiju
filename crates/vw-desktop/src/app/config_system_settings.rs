@@ -35,6 +35,11 @@ fn normalize_system_settings_config(mut cfg: AppSystemSettingsConfig) -> AppSyst
 
 #[cfg(not(target_arch = "wasm32"))]
 fn gateway_client_bootstrap_cache_path() -> Option<std::path::PathBuf> {
+    if let Some(directory) =
+        std::env::var_os("VIBEWINDOW_CONFIG_DIR").filter(|value| !value.is_empty())
+    {
+        return Some(std::path::PathBuf::from(directory).join("gateway-client-bootstrap.json"));
+    }
     std::env::var_os("HOME").map(std::path::PathBuf::from).map(|home| {
         vw_config_types::paths::home_config_dir(home).join("gateway-client-bootstrap.json")
     })
@@ -42,6 +47,9 @@ fn gateway_client_bootstrap_cache_path() -> Option<std::path::PathBuf> {
 
 #[cfg(not(target_arch = "wasm32"))]
 fn legacy_gateway_client_bootstrap_cache_path() -> Option<std::path::PathBuf> {
+    if std::env::var_os("VIBEWINDOW_CONFIG_DIR").is_some_and(|value| !value.is_empty()) {
+        return None;
+    }
     crate::app::project_dirs().map(|d| d.config_dir().join("gateway-client-bootstrap.json"))
 }
 

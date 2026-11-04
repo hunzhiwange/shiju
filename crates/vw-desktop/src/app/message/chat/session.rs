@@ -126,14 +126,6 @@ fn current_session_directory(app: &App) -> Option<String> {
         .and_then(|id| app.sessions.iter().find(|s| &s.id == id).map(|s| s.directory.clone()))
 }
 
-fn default_acp_agent(app: &App) -> Option<String> {
-    app.acp_agent.clone()
-}
-
-fn resolve_acp_agent(app: &App, selected: Option<String>) -> Option<String> {
-    selected.or_else(|| default_acp_agent(app))
-}
-
 fn normalize_delegate_agent(selected: Option<String>) -> Option<String> {
     selected.and_then(|value| {
         let trimmed = value.trim();
@@ -1041,7 +1033,32 @@ fn active_session_is_plan_run_child(app: &App) -> bool {
     parent_id.is_some_and(|parent_id| !parent_id.trim().is_empty())
 }
 
+fn check_agent_installation(app: &App, backend: String, query: Option<String>) -> Task<Message> {
+    let session_id = app.active_session_id.clone();
+    let agent = app.current_session_runtime().agent.clone();
+    Task::perform(
+        async { crate::app::gateway_client()?.global_acp_installed_get().await },
+        move |result| {
+            Message::Chat(ChatMessage::AgentInstallationChecked {
+                session_id: session_id.clone(),
+                agent: agent.clone(),
+                backend: backend.clone(),
+                query: query.clone(),
+                result,
+            })
+        },
+    )
+}
+
 fn send_current_session_input(app: &mut App) -> Task<Message> {
+    let runtime = app.current_session_runtime();
+    if let Some(backend) = runtime.acp_agent.clone() {
+        return check_agent_installation(app, backend, Some(runtime.input_editor.text()));
+    }
+    send_current_session_input_checked(app)
+}
+
+fn send_current_session_input_checked(app: &mut App) -> Task<Message> {
     let runtime = app.current_session_runtime();
     let query = runtime.input_editor.text().to_string();
     let selected_tools = runtime.tool_selector.selected_manual_tools();
@@ -1095,7 +1112,7 @@ fn send_current_session_input(app: &mut App) -> Task<Message> {
         .or_else(|| app.project_path.clone());
     let model = if runtime.auto_model { None } else { Some(runtime.model.clone()) };
     let reasoning_effort = runtime.reasoning_effort;
-    let acp_agent = resolve_acp_agent(app, runtime.acp_agent.clone());
+    let acp_agent = runtime.acp_agent.clone();
     let allowed_tools = app.session_allowed_tools_for_request(&runtime);
     let agent = request_delegate_agent(runtime.agent.clone());
     let acp_test = acp_agent.is_some();
@@ -1279,47 +1296,116 @@ pub fn update(app: &mut App, message: ChatMessage) -> Task<Message> {
             app.reasoning_effort = reasoning_effort;
             persist_session_reasoning_effort(app)
         }
-        ChatMessage::AcpAgentSelected(agent) => {
-            if app.current_session_has_started() {
+        ChatMessage::AgentInstallationStatusesLoaded(result) => {
+            if let Ok(statuses) = result {
+                app.acp_settings.installed = statuses;
+            }
+            Task::none()
+        }
+        ChatMessage::AgentInstallationChecked { session_id, agent, backend, query, result } => {
+            if app.active_session_id != session_id || app.current_session_runtime().agent != agent {
+                return Task::none();
+            }
+            if app.current_session_runtime().acp_agent.as_deref() != Some(backend.as_str()) {
+                return Task::none();
+            }
+            let installed = match result {
+                Ok(statuses) => {
+                    let installed = statuses.get(&backend).copied();
+                    app.acp_settings.installed = statuses;
+                    installed
+                }
+                Err(error) => {
+                    return app.show_localized_toast(
+                        crate::app::state::ToastKind::Error,
+                        "检测运行环境失败：%s",
+                        vec![error.into()],
+                    );
+                }
+            };
+            if installed != Some(true) {
                 return app.show_localized_toast(
                     crate::app::state::ToastKind::Warning,
-                    "会话开始后不能切换 ACP 后端",
+                    if installed == Some(false) {
+                        "CLI 未安装，请通过输入区的安装 / 运行设置安装"
+                    } else {
+                        "网关未提供该智能体的安装状态，请检查运行设置"
+                    },
                     vec![],
                 );
             }
-            let (model, auto_model) = {
-                let runtime = app.current_session_runtime_mut();
-                runtime.acp_agent = agent.clone();
-                (runtime.model.clone(), runtime.auto_model)
-            };
-            app.acp_agent = agent.clone();
-            app.show_acp_popover = false;
-            app.show_reasoning_effort_popover = false;
-            info!(
-                target: "vw_desktop",
-                requested_acp_agent = ?agent,
-                selected_acp_agent = ?app.acp_agent,
-                is_default = app.acp_agent.is_none(),
-                "desktop ACP agent updated"
-            );
-            persist_chat_preferences(app, &model, auto_model, app.acp_agent.as_deref())
+            if query.is_some_and(|query| query == app.current_session_runtime().input_editor.text())
+            {
+                send_current_session_input_checked(app)
+            } else {
+                Task::none()
+            }
+        }
+        ChatMessage::AgentRecommendedPromptSelected(index) => {
+            let runtime = app.current_session_runtime();
+            if !runtime.input_editor.text().is_empty() {
+                return app.show_localized_toast(
+                    crate::app::state::ToastKind::Warning,
+                    "请先处理现有草稿",
+                    vec![],
+                );
+            }
+            let key = runtime.agent.as_deref().unwrap_or(MAIN_AGENT_KEY);
+            let prompt = app
+                .agents_settings
+                .entries
+                .iter()
+                .find(|entry| entry.key == key)
+                .and_then(|entry| entry.recommended_prompts.get(index))
+                .cloned();
+            if let Some(prompt) = prompt.filter(|prompt| !prompt.trim().is_empty()) {
+                app.current_session_runtime_mut().input_editor =
+                    iced::widget::text_editor::Content::with_text(&prompt);
+                app.input_text = prompt;
+            }
+            Task::none()
         }
         ChatMessage::SessionAgentSelected(agent) => {
+            if app.current_session_has_started() {
+                return app.show_localized_toast(
+                    crate::app::state::ToastKind::Warning,
+                    "会话开始后不能切换智能体",
+                    vec![],
+                );
+            }
             let normalized_agent = normalize_delegate_agent(agent);
+            let key = normalized_agent.as_deref().unwrap_or(MAIN_AGENT_KEY);
+            let Some(entry) = app
+                .agents_settings
+                .entries
+                .iter()
+                .find(|entry| entry.key == key && entry.can_start_session())
+            else {
+                return app.show_localized_toast(
+                    crate::app::state::ToastKind::Warning,
+                    "智能体未启用或不支持当前入口",
+                    vec![],
+                );
+            };
+            let agent_label = Some(entry.label.clone());
+            let acp_agent = match &entry.runtime {
+                vw_config_types::agent::AgentRuntime::Native => None,
+                vw_config_types::agent::AgentRuntime::Acp { backend } => Some(backend.clone()),
+            };
             {
                 let runtime = app.current_session_runtime_mut();
-                runtime.agent = normalized_agent.clone();
+                runtime.agent = normalized_agent;
+                runtime.agent_label = agent_label;
+                runtime.acp_agent = acp_agent.clone();
                 runtime.tool_selector.reset();
             }
-            let selectable_tool_count =
-                app.session_tool_inventory(&app.current_session_runtime()).base_tools.len();
-            info!(
-                target: "vw_desktop",
-                selected_agent = ?normalized_agent,
-                selectable_tool_count,
-                "desktop session delegate agent updated"
-            );
-            Task::none()
+            app.acp_agent = acp_agent.clone();
+            app.show_acp_popover = false;
+            app.show_reasoning_effort_popover = false;
+            app.show_session_tool_selector_popover = false;
+            acp_agent
+                .map(|backend| check_agent_installation(app, backend, None))
+                .unwrap_or_else(Task::none)
         }
         ChatMessage::AcpHistoryModeSelected(mode) => {
             let recent_count = {
@@ -1420,6 +1506,22 @@ pub fn update(app: &mut App, message: ChatMessage) -> Task<Message> {
                 let runtime = app.current_session_runtime_mut();
                 runtime.tool_selector.select_tab(tab);
             }
+            if tab == SessionToolSelectorTab::Agent {
+                let status = Task::perform(
+                    async { crate::app::gateway_client()?.global_acp_installed_get().await },
+                    |result| Message::Chat(ChatMessage::AgentInstallationStatusesLoaded(result)),
+                );
+                let profiles = if !app.agents_settings.dirty && !app.agents_settings.save_in_flight
+                {
+                    crate::app::message::settings::update(
+                        app,
+                        message::SettingsMessage::Agents(message::settings::AgentsMessage::Refresh),
+                    )
+                } else {
+                    Task::none()
+                };
+                return Task::batch([status, profiles]);
+            }
             if tab == SessionToolSelectorTab::Skills
                 && app.skills_settings.catalog.is_empty()
                 && !app.skills_settings.loading
@@ -1452,6 +1554,22 @@ pub fn update(app: &mut App, message: ChatMessage) -> Task<Message> {
             app.show_session_actions_popover = false;
             app.show_executor_popover = false;
 
+            if tab == SessionToolSelectorTab::Agent {
+                let status = Task::perform(
+                    async { crate::app::gateway_client()?.global_acp_installed_get().await },
+                    |result| Message::Chat(ChatMessage::AgentInstallationStatusesLoaded(result)),
+                );
+                let profiles = if !app.agents_settings.dirty && !app.agents_settings.save_in_flight
+                {
+                    crate::app::message::settings::update(
+                        app,
+                        message::SettingsMessage::Agents(message::settings::AgentsMessage::Refresh),
+                    )
+                } else {
+                    Task::none()
+                };
+                return Task::batch([status, profiles]);
+            }
             if tab == SessionToolSelectorTab::Skills
                 && app.skills_settings.catalog.is_empty()
                 && !app.skills_settings.loading

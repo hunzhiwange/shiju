@@ -20,7 +20,7 @@ use crate::app::{App, Message, message};
 
 pub(super) const SESSION_SELECTOR_SCROLLBAR_WIDTH: f32 = 4.0;
 pub(super) const SESSION_SELECTOR_LIST_MAX_HEIGHT: f32 = 300.0;
-const SESSION_SELECTOR_LIST_RIGHT_PADDING: f32 = 5.0;
+const SESSION_SELECTOR_LIST_RIGHT_PADDING: f32 = 7.0;
 pub(super) const SESSION_SELECTOR_SKILL_DESCRIPTION_CHARS: usize = 28;
 
 pub(super) fn count_badge<'a>(label: String, active: bool) -> Element<'a, Message> {
@@ -263,11 +263,7 @@ pub(crate) fn session_tool_selector_popover(app: &App) -> Element<'_, Message> {
         .agents_settings
         .entries
         .iter()
-        .filter(|entry| {
-            entry.key == MAIN_AGENT_KEY
-                || entry.enabled
-                || runtime.agent.as_deref() == Some(entry.key.as_str())
-        })
+        .filter(|entry| entry.can_start_session())
         .filter(|entry| {
             matches_query(&query, &[entry.key.as_str(), entry.label.as_str(), entry.model.as_str()])
         })
@@ -289,17 +285,17 @@ pub(crate) fn session_tool_selector_popover(app: &App) -> Element<'_, Message> {
     let selected_skill_count = runtime.tool_selector.selected_manual_skills().len();
     let summary = if manual_tools.is_empty() && app.agents_settings.available_tools.is_empty() {
         i18n.format(
-            "可切换 %u 个代理；工具清单等待网关返回；已选 %u 个技能。",
+            "可切换 %u 个智能体；工具清单等待网关返回；已选 %u 个技能。",
             &[available_agents.len().into(), selected_skill_count.into()],
         )
     } else if manual_tools.is_empty() {
         i18n.format(
-            "可切换 %u 个代理；当前代理未包含已注册工具；可选 %u 个技能。",
+            "可切换 %u 个智能体；当前智能体未包含已注册工具；可选 %u 个技能。",
             &[available_agents.len().into(), usable_skill_count.into()],
         )
     } else {
         i18n.format(
-            "可切换 %u 个代理；可选 %u 个工具 / %u 个技能；已选 %u 个工具 / %u 个技能。",
+            "可切换 %u 个智能体；可选 %u 个工具 / %u 个技能；已选 %u 个工具 / %u 个技能。",
             &[
                 available_agents.len().into(),
                 manual_tools.len().into(),
@@ -312,7 +308,7 @@ pub(crate) fn session_tool_selector_popover(app: &App) -> Element<'_, Message> {
     .expect("valid selector summary template");
     let scope_hint = match runtime.tool_selector.active_tab() {
         SessionToolSelectorTab::Agent => crate::app::i18n::I18n::new(app.desktop_locale)
-            .__("代理只决定本会话委托目标，不改写系统设置。"),
+            .__("智能体决定本会话运行引擎与默认配置，开始后不可切换。"),
         SessionToolSelectorTab::Tools => crate::app::i18n::I18n::new(app.desktop_locale)
             .__("只显示当前代理包含且已注册的工具；选择会随下一次发送写入提示词。"),
         SessionToolSelectorTab::Skills => crate::app::i18n::I18n::new(app.desktop_locale)
@@ -352,10 +348,21 @@ pub(crate) fn session_tool_selector_popover(app: &App) -> Element<'_, Message> {
                     i18n.format("工具范围 %u 项", &[entry.allowed_tools.len().into()])
                         .expect("valid tool scope template")
                 };
+                let engine = match &entry.runtime {
+                    vw_config_types::agent::AgentRuntime::Native => "识矩原生".to_string(),
+                    vw_config_types::agent::AgentRuntime::Acp { backend } => format!(
+                        "ACP · {backend} · {}",
+                        match app.acp_settings.installed.get(backend) {
+                            Some(true) => "已安装",
+                            Some(false) => "未安装",
+                            None => "安装状态待检测",
+                        }
+                    ),
+                };
                 let subtitle = if entry.model.trim().is_empty() {
-                    allowlist_text
+                    engine.clone()
                 } else {
-                    format!("{} / {}", entry.model, allowlist_text)
+                    format!("{} / {} / {}", engine, entry.model, allowlist_text)
                 };
                 let check: Element<'_, Message> = if selected {
                     icon_svg(Icon::Check)
@@ -393,17 +400,19 @@ pub(crate) fn session_tool_selector_popover(app: &App) -> Element<'_, Message> {
                     .style(move |theme: &Theme, status| {
                         selectable_list_button_style(theme, status, selected)
                     })
-                    .on_press(Message::Chat(
-                        message::ChatMessage::SessionAgentSelected(agent_for_press),
-                    )),
+                    .on_press_maybe(
+                        (!app.current_session_has_started()).then_some(Message::Chat(
+                            message::ChatMessage::SessionAgentSelected(agent_for_press),
+                        )),
+                    ),
                 );
             }
             if !has_agents {
                 let empty_message = if query.trim().is_empty() {
                     crate::app::i18n::I18n::new(app.desktop_locale)
-                        .__("当前没有可用于会话切换的 delegate agent。")
+                        .__("当前没有可用于新会话的已启用智能体。")
                 } else {
-                    crate::app::i18n::I18n::new(app.desktop_locale).__("没有匹配的代理。")
+                    crate::app::i18n::I18n::new(app.desktop_locale).__("没有匹配的智能体。")
                 };
                 list = list.push(
                     container(text(empty_message).size(11).style(|theme: &Theme| {

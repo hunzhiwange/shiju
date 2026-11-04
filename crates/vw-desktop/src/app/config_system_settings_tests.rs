@@ -711,3 +711,16 @@ fn load_gateway_client_bootstrap_config_does_not_read_legacy_system_settings() {
     assert_eq!(loaded, GatewayClientSystemSettingsConfig::default());
     drop(lock);
 }
+
+#[test]
+fn agent_unified_selection_config_override_isolates_window_bootstrap() {
+    let _lock = env_lock();
+    let root = TempDir::new().unwrap();
+    let _guard = EnvGuard::set_os("VIBEWINDOW_CONFIG_DIR", root.path().as_os_str());
+    assert_eq!(
+        super::gateway_client_bootstrap_cache_path().unwrap(),
+        root.path().join("gateway-client-bootstrap.json")
+    );
+    assert_eq!(super::legacy_gateway_client_bootstrap_cache_path(), None);
+    assert!(crate::app::project_dirs().unwrap().data_local_dir().starts_with(root.path()));
+}

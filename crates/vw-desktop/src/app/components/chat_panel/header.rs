@@ -497,7 +497,17 @@ pub(super) fn header_icon_button<'a>(
 /// - **使用率按钮**：显示环形进度条，悬停显示详细的 token 使用信息
 /// - **菜单按钮**：打开会话操作菜单（重命名、归档、删除）
 pub fn chat_header_view(app: &App) -> Element<'_, Message> {
-    let session_title = get_session_title(app);
+    let runtime = app.current_session_runtime();
+    let key = runtime.agent.as_deref().unwrap_or(crate::app::state::MAIN_AGENT_KEY);
+    let label = app
+        .agents_settings
+        .entries
+        .iter()
+        .find(|entry| entry.key == key)
+        .map(|entry| entry.label.as_str())
+        .unwrap_or(key);
+    let label = runtime.agent_label.as_deref().unwrap_or(label);
+    let session_title = format!("{} · {}", label, get_session_title(app));
     let usage_percent = get_usage_rate_percent(app);
     let (input_tokens, context_limit, estimated_cost, total_tokens) = get_usage_details(app);
     let input_limit = app.usage_model_info.as_ref().map(|info| info.input_limit).unwrap_or(0);

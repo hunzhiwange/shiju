@@ -1142,6 +1142,7 @@ pub(crate) fn load_prepared_session_open_from_ui_store_task(
                 .ok_or_else(|| "session UI store has no message history".to_string())?;
             let step_llm_raw = std::mem::take(&mut loaded.step_llm_raw);
             let llm_raw_step_indices = std::mem::take(&mut loaded.llm_raw_step_indices);
+            let agent_binding = loaded.agent_binding;
             let mut session = loaded.session;
 
             crate::app::session::backfill_message_models_from_steps(
@@ -1154,6 +1155,7 @@ pub(crate) fn load_prepared_session_open_from_ui_store_task(
                     session,
                     show_reasoning_summary,
                 );
+                prepared.agent_binding = agent_binding;
                 prepared.step_llm_raw = step_llm_raw;
                 prepared.llm_raw_step_indices = llm_raw_step_indices;
                 Some(prepared)

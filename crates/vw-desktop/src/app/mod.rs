@@ -73,6 +73,13 @@ pub(crate) static TEST_PROCESS_STATE_LOCK: std::sync::LazyLock<std::sync::Mutex<
 /// 参数由调用方提供，函数在当前模块的状态边界内完成处理。
 /// 返回值表达处理结果；失败时保留错误信息给上层界面或调度逻辑。
 pub(crate) fn project_dirs() -> Option<directories::ProjectDirs> {
+    if let Some(directory) =
+        std::env::var_os("VIBEWINDOW_CONFIG_DIR").filter(|value| !value.is_empty())
+    {
+        return directories::ProjectDirs::from_path(
+            std::path::PathBuf::from(directory).join("desktop"),
+        );
+    }
     #[cfg(debug_assertions)]
     const APP_NAME: &str = "vibe-window-dev";
     #[cfg(not(debug_assertions))]

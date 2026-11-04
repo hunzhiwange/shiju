@@ -1477,3 +1477,38 @@ async fn session_ui_save_returns_conflict_for_stale_content() {
     .expect_err("stale content must fail");
     assert_eq!(error.status, axum::http::StatusCode::CONFLICT);
 }
+
+#[tokio::test(flavor = "multi_thread")]
+async fn agent_unified_selection_summary_projects_server_owned_identity() {
+    let _guard = UI_OPS_TEST_LOCK.lock().await;
+    ensure_test_home();
+    let project = TempDir::new().unwrap();
+    let body = scoped_session("unified-summary", "Summary", "secret-body", 20);
+    let scope = save_runtime_session(project.path(), &body);
+    let definition = vw_config_types::agent::AgentDefinitionConfig {
+        label: Some("已固化的名称".into()),
+        runtime: vw_config_types::agent::AgentRuntime::Acp { backend: "codex".into() },
+        system_prompt: Some("DO_NOT_PROJECT_RULES".into()),
+        ..Default::default()
+    };
+    crate::session::agent_binding::save_scoped(
+        &scope,
+        &body.id,
+        &crate::session::agent_binding::AgentBinding::from_definition(
+            "acp-codex".into(),
+            &definition,
+        ),
+    )
+    .await
+    .unwrap();
+    let Json(summary) =
+        session_ui_summary(Path(body.id), Query(query_for(project.path())), HeaderMap::new())
+            .await
+            .unwrap();
+    let encoded = serde_json::to_value(summary).unwrap();
+    assert_eq!(encoded["agent_binding"]["agent"], "acp-codex");
+    assert_eq!(encoded["agent_binding"]["acp_agent"], "codex");
+    assert_eq!(encoded["agent_binding"]["label"], "已固化的名称");
+    assert!(!encoded.to_string().contains("DO_NOT_PROJECT_RULES"));
+    assert!(encoded.get("messages").is_none());
+}

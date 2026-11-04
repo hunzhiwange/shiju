@@ -2,9 +2,8 @@
 //! 入口测试还用无运行时会话和不同视口宽度守住聊天列对齐与安全回退。
 
 use super::{
-    acp_selector_button, acp_selector_tooltip, bottom_bar_round_toggle, popover_item_style,
-    reasoning_effort_selector, selected_context_card, selected_context_summary,
-    session_tool_tab_buttons, skill_title, summarize_names, view,
+    bottom_bar_round_toggle, popover_item_style, reasoning_effort_selector, selected_context_card,
+    selected_context_summary, session_tool_tab_buttons, skill_title, summarize_names, view,
 };
 use crate::app::assets::Icon;
 use crate::app::components::input_panel::icons::icon_svg;
@@ -111,73 +110,10 @@ fn bottom_bar_round_toggle_builds_tooltip_wrapped_icon_button() {
 }
 
 #[test]
-fn acp_selector_tooltip_includes_selected_backend() {
-    assert_eq!(
-        acp_selector_tooltip(
-            crate::app::i18n::I18n::new(vw_config_types::ui::DesktopLocale::SimplifiedChinese),
-            "Codex"
-        ),
-        "切换 ACP 后端：Codex"
-    );
-    assert_eq!(
-        acp_selector_tooltip(
-            crate::app::i18n::I18n::new(vw_config_types::ui::DesktopLocale::SimplifiedChinese),
-            "ACP 智能体"
-        ),
-        "切换 ACP 后端：ACP 智能体"
-    );
-}
-
-#[test]
 fn optional_selector_buttons_reflect_app_state() {
-    let mut app = crate::app::App::new().0;
-
-    {
-        let (agent, tools, skills) = session_tool_tab_buttons(&app);
-        assert_eq!(agent.as_widget().children().len(), 2);
-        assert_eq!(tools.as_widget().children().len(), 2);
-        assert_eq!(skills.as_widget().children().len(), 2);
-    }
-    assert!(acp_selector_button(&app, None, app.current_session_has_started()).is_some());
+    let app = crate::app::App::new().0;
+    let _ = session_tool_tab_buttons(&app);
     assert!(reasoning_effort_selector(&app, None, None).is_none());
-
-    app.acp_agents = vec!["Codex".to_string(), "Claude Code".to_string()];
-    app.show_acp_popover = true;
-    let acp =
-        acp_selector_button(&app, Some("Codex".to_string()), app.current_session_has_started());
-    assert!(acp.is_some());
-    let missing_acp = acp_selector_button(
-        &app,
-        Some("Missing Agent".to_string()),
-        app.current_session_has_started(),
-    );
-    assert!(missing_acp.is_some());
-    assert!(reasoning_effort_selector(&app, Some("codex"), None).is_some());
-}
-
-#[test]
-fn acp_selector_locks_after_session_started() {
-    let mut app = crate::app::App::new().0;
-    app.acp_agents = vec!["Codex".to_string()];
-
-    let unlocked =
-        acp_selector_button(&app, Some("Codex".to_string()), app.current_session_has_started())
-            .unwrap();
-    assert!(!unlocked.as_widget().children().is_empty());
-    drop(unlocked);
-
-    app.chat.push(crate::app::models::ChatMessage {
-        role: crate::app::models::ChatRole::User,
-        content: "started".to_string(),
-        model: None,
-        think_timing: Vec::new(),
-        processing_timing: None,
-    });
-
-    let locked =
-        acp_selector_button(&app, Some("Codex".to_string()), app.current_session_has_started())
-            .unwrap();
-    assert!(locked.as_widget().children().is_empty());
 }
 
 #[test]
@@ -552,4 +488,28 @@ fn input_panel_view_renders_agent_sessions_entry_only_for_running_children() {
     let with_running_child = view(&app);
     assert_eq!(with_running_child.as_widget().size().width, Length::Fill);
     assert!(!with_running_child.as_widget().children().is_empty());
+}
+
+#[test]
+fn agent_unified_selection_prompt_preserves_existing_draft() {
+    let (mut app, _) = crate::app::App::new();
+    app.agents_settings
+        .entries
+        .iter_mut()
+        .find(|entry| entry.key == "main")
+        .unwrap()
+        .recommended_prompts = vec!["检查项目结构".into()];
+    let _ = crate::app::message::chat::session::update(
+        &mut app,
+        message::ChatMessage::AgentRecommendedPromptSelected(0),
+    );
+    assert_eq!(app.current_session_runtime().input_editor.text(), "检查项目结构");
+    app.current_session_runtime_mut().input_editor =
+        iced::widget::text_editor::Content::with_text("我的草稿");
+    let _ = crate::app::message::chat::session::update(
+        &mut app,
+        message::ChatMessage::AgentRecommendedPromptSelected(0),
+    );
+    assert_eq!(app.current_session_runtime().input_editor.text(), "我的草稿");
+    assert!(app.chat.is_empty());
 }

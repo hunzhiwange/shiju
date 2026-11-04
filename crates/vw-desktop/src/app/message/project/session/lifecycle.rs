@@ -673,6 +673,7 @@ fn apply_prepared_session_open(
 ) {
     let crate::app::session::PreparedSessionOpen {
         session_id,
+        agent_binding: _,
         messages,
         message_ids,
         usage,
@@ -1176,6 +1177,13 @@ pub(crate) fn handle(app: &mut App, message: ProjectMessage) -> Option<iced::Tas
                 Err(_) => return Some(iced::Task::none()),
             };
 
+            if let Some(binding) = prepared.agent_binding.as_ref() {
+                let runtime = app.get_session_runtime_mut(&target_session_id);
+                runtime.agent = (binding.agent != crate::app::state::MAIN_AGENT_KEY)
+                    .then(|| binding.agent.clone());
+                runtime.acp_agent = binding.acp_agent.clone();
+                runtime.agent_label = binding.label.clone();
+            }
             let incomplete_remote_history = source == PreparedSessionOpenSource::RemoteHistory
                 && (remote_history_is_incomplete(&app.chat_message_ids, &prepared.message_ids)
                     || app.session_history_reset_boundary(&target_session_id).is_some_and(

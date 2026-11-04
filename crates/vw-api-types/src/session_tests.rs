@@ -37,6 +37,7 @@ fn session_message_page_query_defaults_to_bounded_older_page() {
 #[test]
 fn session_message_page_summary_omits_heavy_payloads() {
     let value = serde_json::to_value(GatewaySessionUiSummary {
+        agent_binding: None,
         id: "s1".into(),
         title: "title".into(),
         updated_ms: 7,

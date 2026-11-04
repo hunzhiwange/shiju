@@ -23,6 +23,7 @@ pub type SharedChatMessages = Arc<[ChatMessage]>;
 #[derive(Debug, Clone)]
 pub struct PreparedSessionOpen {
     pub session_id: String,
+    pub agent_binding: Option<vw_gateway_client::vw_api_types::chat::SessionAgentIdentity>,
     pub messages: Vec<ChatMessage>,
     pub message_ids: Vec<Option<String>>,
     pub usage: TokenUsage,
@@ -85,6 +86,7 @@ pub fn prepare_session_open(
 
     PreparedSessionOpen {
         session_id,
+        agent_binding: None,
         messages,
         message_ids,
         usage,
@@ -140,6 +142,7 @@ pub fn prepare_bounded_session_open(
         None,
         show_reasoning_summary,
     );
+    prepared.agent_binding = summary.agent_binding;
     prepared.timeline_page = Some(TimelinePage {
         entries,
         before_cursor: page.next_cursor,

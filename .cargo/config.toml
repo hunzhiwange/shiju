@@ -4,11 +4,9 @@ rustflags = ["-C", "link-arg=-static"]
 [target.aarch64-unknown-linux-musl]
 rustflags = ["-C", "link-arg=-static"]
 
+# Preserve default macOS unwind metadata so Rust panics can be caught.
 [target.aarch64-apple-darwin]
-rustflags = ["-Ctarget-cpu=apple-m1", "-C", "link-arg=-Wl,-no_compact_unwind"]
-
-[target.x86_64-apple-darwin]
-rustflags = ["-C", "link-arg=-Wl,-no_compact_unwind"]
+rustflags = ["-Ctarget-cpu=apple-m1"]
 
 # Android targets (NDK toolchain)
 [target.armv7-linux-androideabi]

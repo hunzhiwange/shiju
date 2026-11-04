@@ -70,6 +70,28 @@ where
     resolve_capabilities(aliases, defaults, trusted_user_selection, policy, hard_disabled)
 }
 
+/// Resolve the access boundary independently from the first-turn default injection.
+pub(crate) fn resolve_skill_defaults(
+    available: &[String],
+    boundary: &[String],
+    defaults: &[String],
+    policy: DelegateCapabilityPolicy,
+) -> CapabilityPolicyResolution {
+    let mut resolution = resolve_skill_capabilities(
+        available,
+        boundary,
+        std::iter::empty::<&str>(),
+        policy,
+        std::iter::empty::<&str>(),
+    );
+    resolution.default_injected_ids = defaults
+        .iter()
+        .filter_map(|id| normalize_capability_id(id))
+        .filter(|id| resolution.visible_ids.contains(id))
+        .collect();
+    resolution
+}
+
 fn resolve_capabilities<D, U, H, DS, US, HS>(
     aliases: BTreeMap<String, String>,
     defaults: D,
@@ -115,6 +137,7 @@ where
 pub(crate) struct NativeAgentDefaults {
     pub(crate) effective: std::sync::Arc<crate::agent::defaults::EffectiveDefaults>,
     pub(crate) skills_fixed: bool,
+    pub(crate) allowed_skills: Vec<String>,
     pub(crate) skill_policy: DelegateCapabilityPolicy,
     pub(crate) mcp_fixed: bool,
     pub(crate) permission_fixed: bool,
@@ -137,6 +160,8 @@ pub(crate) async fn native_agent_defaults(
     let mcp_fixed = matches!(agent.defaults.mcp, AgentDefault::Fixed(_));
     let permission_fixed = matches!(agent.defaults.permission, AgentDefault::Fixed(_));
     if !(skills_fixed
+        || !agent.allowed_skills.is_empty()
+        || agent.skill_policy == DelegateCapabilityPolicy::Strict
         || mcp_fixed
         || permission_fixed
         || matches!(agent.defaults.model, AgentDefault::Fixed(_)))
@@ -189,6 +214,7 @@ pub(crate) async fn native_agent_defaults(
     Ok(Some(NativeAgentDefaults {
         effective: std::sync::Arc::new(effective),
         skills_fixed,
+        allowed_skills: agent.allowed_skills.clone(),
         skill_policy: agent.skill_policy,
         mcp_fixed,
         permission_fixed,

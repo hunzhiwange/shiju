@@ -237,3 +237,116 @@ fn agent_native_defaults_mcp_respects_tenant_and_project_safety_scope() {
         Ok(_) => panic!("another tenant must not resolve the owner's global MCP server"),
     }
 }
+
+#[test]
+fn agent_config_cleanup_strict_skill_boundary_survives_fixed_selection() {
+    use crate::agent::defaults::{DefaultSelection, DefaultsContext, resolve};
+    use vw_config_types::agent::{AgentDefault, AgentDefinitionConfig};
+    let mut agent = AgentDefinitionConfig::default();
+    agent.skill_policy = DelegateCapabilityPolicy::Strict;
+    agent.allowed_skills = vec!["allowed".into()];
+    agent.defaults.skills = AgentDefault::Fixed(vec!["outside".into()]);
+    let context = DefaultsContext {
+        skills: [("allowed".into(), true), ("outside".into(), true)].into(),
+        ..Default::default()
+    };
+    assert!(
+        resolve(&agent, &DefaultSelection::default(), &DefaultSelection::default(), &context)
+            .is_err()
+    );
+    agent.defaults.skills = AgentDefault::Fixed(vec![]);
+    assert!(
+        resolve(&agent, &DefaultSelection::default(), &DefaultSelection::default(), &context)
+            .unwrap()
+            .skills
+            .is_empty()
+    );
+    agent.skill_policy = DelegateCapabilityPolicy::Unrestricted;
+    agent.defaults.skills = AgentDefault::Fixed(vec!["outside".into()]);
+    assert_eq!(
+        resolve(&agent, &DefaultSelection::default(), &DefaultSelection::default(), &context)
+            .unwrap()
+            .skills,
+        vec!["outside"]
+    );
+    for available in [None, Some(false)] {
+        let mut context = DefaultsContext::default();
+        if let Some(enabled) = available {
+            context.skills.insert("outside".into(), enabled);
+        }
+        assert!(
+            resolve(&agent, &DefaultSelection::default(), &DefaultSelection::default(), &context)
+                .is_err()
+        );
+    }
+}
+
+#[test]
+fn agent_config_cleanup_native_skill_inheritance_uses_allowed_source() {
+    use vw_config_types::agent::AgentDefault;
+    let runtime = tokio::runtime::Runtime::new().unwrap();
+    let _env = runtime.block_on(crate::test_support::global_async_env_lock().lock());
+    let _fixture =
+        runtime.block_on(crate::session::llm::recovery_test_support::RecoveryConfig::new(
+            "https://example.test/v1",
+            None,
+        ));
+    let workspace = tempfile::tempdir().unwrap();
+    let dir = workspace.path().join("skills/allowed");
+    std::fs::create_dir_all(&dir).unwrap();
+    std::fs::write(dir.join("SKILL.md"), "---\nname: allowed\ndescription: fixture\n---\n")
+        .unwrap();
+    let mut config = crate::config::Config::default();
+    config.agents.insert(
+        "main".into(),
+        serde_json::from_value(
+            serde_json::json!({"provider":"", "model":"", "allowed_skills":["allowed"], "skill_policy":"strict"}),
+        )
+        .unwrap(),
+    );
+    for (selection, expected) in [
+        (AgentDefault::Inherit, vec!["allowed"]),
+        (AgentDefault::Fixed(vec![]), vec![]),
+        (AgentDefault::Fixed(vec!["allowed".into()]), vec!["allowed"]),
+    ] {
+        config.agents.get_mut("main").unwrap().defaults.skills = selection;
+        let result = runtime
+            .block_on(super::capability_policy::native_agent_defaults(
+                &config,
+                "main",
+                None,
+                workspace.path(),
+            ))
+            .unwrap()
+            .unwrap();
+        assert_eq!(result.effective.skills, expected);
+    }
+    config.agents.get_mut("main").unwrap().defaults.skills =
+        AgentDefault::Fixed(vec!["missing".into()]);
+    assert!(
+        runtime
+            .block_on(super::capability_policy::native_agent_defaults(
+                &config,
+                "main",
+                None,
+                workspace.path()
+            ))
+            .is_err()
+    );
+}
+
+#[test]
+fn agent_config_cleanup_fixed_empty_keeps_visible_strict_boundary() {
+    let available = vec!["allowed".into(), "outside".into()];
+    let boundary = vec!["allowed".into()];
+    for defaults in [vec![], vec!["allowed".into()]] {
+        let result = super::capability_policy::resolve_skill_defaults(
+            &available,
+            &boundary,
+            &defaults,
+            DelegateCapabilityPolicy::Strict,
+        );
+        assert_eq!(result.visible_ids, ["allowed".to_string()].into());
+        assert_eq!(result.default_injected_ids, defaults.into_iter().collect());
+    }
+}

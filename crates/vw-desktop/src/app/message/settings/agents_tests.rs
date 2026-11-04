@@ -1511,7 +1511,8 @@ fn allowed_skill_messages_filter_by_scope_and_toggle_membership() {
         skill_item("global-a", "global", true),
         skill_item("bundled-a", "bundled", true),
     ];
-    entry_mut(&mut app, "main").allowed_skills = vec!["global-a".to_string()];
+    entry_mut(&mut app, "main").defaults.skills =
+        vw_config_types::agent::AgentDefault::Fixed(vec!["global-a".into()]);
 
     let _ = update(
         &mut app,
@@ -1520,7 +1521,10 @@ fn allowed_skill_messages_filter_by_scope_and_toggle_membership() {
             SkillsDirectoryScope::Project,
         )),
     );
-    assert_eq!(entry(&app, "main").allowed_skills, vec!["global-a", "project-a"]);
+    assert_eq!(
+        entry(&app, "main").defaults.skills,
+        vw_config_types::agent::AgentDefault::Fixed(vec!["global-a".into(), "project-a".into()])
+    );
 
     let _ = update(
         &mut app,
@@ -1529,7 +1533,10 @@ fn allowed_skill_messages_filter_by_scope_and_toggle_membership() {
             SkillsDirectoryScope::All,
         )),
     );
-    assert_eq!(entry(&app, "main").allowed_skills, vec!["bundled-a"]);
+    assert_eq!(
+        entry(&app, "main").defaults.skills,
+        vw_config_types::agent::AgentDefault::Fixed(vec!["bundled-a".into()])
+    );
 
     let _ = update(
         &mut app,
@@ -1547,7 +1554,10 @@ fn allowed_skill_messages_filter_by_scope_and_toggle_membership() {
             false,
         )),
     );
-    assert_eq!(entry(&app, "main").allowed_skills, vec!["project-a"]);
+    assert_eq!(
+        entry(&app, "main").defaults.skills,
+        vw_config_types::agent::AgentDefault::Fixed(vec!["project-a".into()])
+    );
 }
 
 #[test]
@@ -2032,4 +2042,62 @@ async fn agent_config_cleanup_profile_http_roundtrips_multiline_and_runtime() {
     assert_eq!(restored.description, "中文描述\n第二行\n");
     assert_eq!(restored.description_editor.text(), restored.description);
     assert_eq!(restored.temperature, 1.2);
+}
+
+#[test]
+fn agent_config_cleanup_skill_selection_writes_only_one_default() {
+    use vw_config_types::agent::AgentDefault;
+    let mut app = test_app();
+    app.agents_settings.skill_catalog = vec![skill_item("allowed", "global", true)];
+    let agent = entry_mut(&mut app, "main");
+    agent.allowed_skills = vec!["allowed".into()];
+    agent.defaults.skills = AgentDefault::Fixed(vec![]);
+    let _ = update(
+        &mut app,
+        SettingsMessage::Agents(AgentsMessage::AllowedSkillToggled(
+            "main".into(),
+            "allowed".into(),
+            true,
+        )),
+    );
+    let agent = entry(&app, "main");
+    assert_eq!(agent.allowed_skills, vec!["allowed"]);
+    assert_eq!(agent.defaults.skills, AgentDefault::Fixed(vec!["allowed".into()]));
+    let patch = crate::app::components::system_settings_agents::defaults::patch(&agent.defaults);
+    assert_eq!(patch["skills"]["value"], serde_json::json!(["allowed"]));
+}
+
+#[test]
+fn agent_config_cleanup_skill_selection_preserves_inherit_and_rejects_unavailable() {
+    use vw_config_types::agent::AgentDefault;
+    let mut app = test_app();
+    app.agents_settings.skill_catalog = vec![
+        skill_item("allowed", "global", true),
+        skill_item("outside", "global", true),
+        skill_item("disabled", "global", false),
+    ];
+    let agent = entry_mut(&mut app, "main");
+    agent.allowed_skills = vec!["allowed".into()];
+    agent.skill_policy = DelegateCapabilityPolicy::Strict;
+    agent.defaults.skills = AgentDefault::Inherit;
+    let toggle = |id: &str| {
+        SettingsMessage::Agents(AgentsMessage::AllowedSkillToggled("main".into(), id.into(), true))
+    };
+    let _ = update(&mut app, toggle("allowed"));
+    assert_eq!(entry(&app, "main").defaults.skills, AgentDefault::Inherit);
+    entry_mut(&mut app, "main").defaults.skills = AgentDefault::Fixed(vec![]);
+    for id in ["outside", "disabled", "unknown"] {
+        let _ = update(&mut app, toggle(id));
+        assert_eq!(entry(&app, "main").defaults.skills, AgentDefault::Fixed(vec![]));
+        assert!(app.active_toast.is_some());
+    }
+    let _ = update(
+        &mut app,
+        SettingsMessage::Agents(AgentsMessage::AllowedSkillsSelectAll(
+            "main".into(),
+            SkillsDirectoryScope::All,
+        )),
+    );
+    assert_eq!(entry(&app, "main").defaults.skills, AgentDefault::Fixed(vec!["allowed".into()]));
+    assert_eq!(entry(&app, "main").allowed_skills, vec!["allowed"]);
 }

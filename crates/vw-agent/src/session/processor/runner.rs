@@ -432,12 +432,17 @@ fn delegated_skill_policy_resolution(
     let policy = options.get("delegate_skill_policy").cloned().and_then(|value| {
         serde_json::from_value::<vw_config_types::agent::DelegateCapabilityPolicy>(value).ok()
     })?;
-    Some(crate::session::capability_policy::resolve_skill_capabilities(
-        skills.iter().map(|skill| skill.invocation_name()),
-        option_string_values(options, "delegate_default_allowed_skills"),
-        option_string_values(options, "delegate_trusted_user_selected_skills"),
+    let defaults = option_string_values(options, "delegate_default_allowed_skills");
+    let boundary = if options.get("delegate_allowed_skills").is_some() {
+        option_string_values(options, "delegate_allowed_skills")
+    } else {
+        defaults.clone()
+    };
+    Some(crate::session::capability_policy::resolve_skill_defaults(
+        &skills.iter().map(|skill| skill.invocation_name().to_string()).collect::<Vec<_>>(),
+        &boundary,
+        &defaults,
         policy,
-        std::iter::empty::<&str>(),
     ))
 }
 
@@ -539,18 +544,34 @@ fn run_in_project(
         if let Some(model) = &defaults.effective.model {
             req.model = Some(format!("{}/{}", model.provider, model.model));
         }
-        if defaults.skills_fixed {
+        if defaults.skills_fixed
+            || !defaults.effective.skills.is_empty()
+            || defaults.skill_policy == vw_config_types::agent::DelegateCapabilityPolicy::Strict
+        {
             let inherited_strict =
                 req.options.get("delegate_skill_policy").and_then(Value::as_str) == Some("strict");
-            let inherited = option_string_values(&req.options, "delegate_default_allowed_skills");
-            let selected = defaults
-                .effective
-                .skills
+            let inherited = if req.options.get("delegate_allowed_skills").is_some() {
+                option_string_values(&req.options, "delegate_allowed_skills")
+            } else {
+                option_string_values(&req.options, "delegate_default_allowed_skills")
+            };
+            let boundary = defaults
+                .allowed_skills
                 .iter()
                 .filter(|id| !inherited_strict || inherited.contains(id))
                 .cloned()
                 .collect::<Vec<_>>();
-            req.options["delegate_default_allowed_skills"] = serde_json::json!(selected);
+            req.options["delegate_allowed_skills"] = serde_json::json!(boundary);
+            if inherited_strict
+                && defaults.effective.skills.iter().any(|id| !inherited.contains(id))
+            {
+                on_event(StreamEvent::Error(
+                    "Default skill is outside the inherited strict boundary".into(),
+                ));
+                return;
+            }
+            req.options["delegate_default_allowed_skills"] =
+                serde_json::json!(defaults.effective.skills);
             if !inherited_strict {
                 req.options["delegate_skill_policy"] = serde_json::json!(defaults.skill_policy);
             }
@@ -652,7 +673,11 @@ fn run_in_project(
     if let Some(policy) = delegated_skill_policy {
         tool_use_context = tool_use_context.with_delegate_skill_policy(
             policy,
-            option_string_values(&req.options, "delegate_default_allowed_skills"),
+            if req.options.get("delegate_allowed_skills").is_some() {
+                option_string_values(&req.options, "delegate_allowed_skills")
+            } else {
+                option_string_values(&req.options, "delegate_default_allowed_skills")
+            },
         );
     }
     if let Some(runner) = plugin_turn.data.hooks.clone() {

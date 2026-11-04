@@ -15,7 +15,7 @@ use crate::app::{App, Message};
 use iced::widget::tooltip::{Position as TooltipPosition, Tooltip};
 use iced::widget::{button, column, container, pick_list, row, text};
 use iced::{Alignment, Background, Border, Color, Element, Length, Theme};
-use vw_config_types::agent::DelegateCapabilityPolicy;
+use vw_config_types::agent::{AgentDefault, DelegateCapabilityPolicy};
 use vw_config_types::ui::DesktopLocale;
 
 pub(super) fn capability_policy_label(policy: DelegateCapabilityPolicy) -> &'static str {
@@ -28,7 +28,7 @@ pub(super) fn capability_policy_label(policy: DelegateCapabilityPolicy) -> &'sta
 pub(super) fn capability_policy_tooltip(policy: DelegateCapabilityPolicy) -> &'static str {
     match policy {
         DelegateCapabilityPolicy::Strict => {
-            "仅允许下方已选且已启用的技能，不允许在会话中临时添加其他技能。"
+            "仅允许原有白名单中已启用的技能，不允许借默认选择扩大范围。"
         }
         DelegateCapabilityPolicy::Unrestricted => {
             "默认提示使用下方已选技能，同时允许在会话中临时选择其他已启用技能。"
@@ -195,12 +195,19 @@ pub(super) fn enabled_skill_ids(skills: &[&SkillsCatalogItem]) -> Vec<String> {
     skills.iter().filter(|skill| skill.enabled).map(|skill| skill.id.clone()).collect()
 }
 
+pub(super) fn selected_skill_ids(entry: &DelegateAgentSettingsEntry) -> &[String] {
+    match &entry.defaults.skills {
+        AgentDefault::Inherit => &entry.allowed_skills,
+        AgentDefault::Fixed(ids) => ids,
+    }
+}
+
 fn skill_card<'a>(
     locale: DesktopLocale,
     entry: &'a DelegateAgentSettingsEntry,
     skill: &'a SkillsCatalogItem,
 ) -> Element<'a, Message> {
-    let checked = entry.allowed_skills.iter().any(|selected| selected == &skill.id);
+    let checked = selected_skill_ids(entry).iter().any(|selected| selected == &skill.id);
     let agent_key = entry.key.clone();
     let skill_id = skill.id.clone();
     let source = tr(locale, skill_source_label(&skill.source));
@@ -211,6 +218,11 @@ fn skill_card<'a>(
             .expect("valid skill status template")
     };
 
+    let selectable = matches!(entry.defaults.skills, AgentDefault::Fixed(_))
+        && (checked
+            || (skill.enabled
+                && (entry.skill_policy == DelegateCapabilityPolicy::Unrestricted
+                    || entry.allowed_skills.contains(&skill.id))));
     button(
         column![
             row![
@@ -247,8 +259,8 @@ fn skill_card<'a>(
     .padding([10, 14])
     .width(Length::Fixed(260.0))
     .style(move |theme: &Theme, status| skill_card_button_style(theme, status, checked))
-    .on_press(Message::Settings(SettingsMessage::Agents(AgentsMessage::AllowedSkillToggled(
-        agent_key, skill_id, !checked,
+    .on_press_maybe(selectable.then_some(Message::Settings(SettingsMessage::Agents(
+        AgentsMessage::AllowedSkillToggled(agent_key, skill_id, !checked),
     ))))
     .into()
 }
@@ -265,11 +277,11 @@ pub(super) fn view<'a>(
         .filter(|skill| agent_skill_matches_scope(skill, active_scope))
         .collect::<Vec<_>>();
     let enabled_skills = enabled_skill_ids(&skills);
-    let selected_count = entry
-        .allowed_skills
+    let selected_count = selected_skill_ids(entry)
         .iter()
         .filter(|skill| enabled_skills.iter().any(|available| available == *skill))
         .count();
+    let fixed = matches!(entry.defaults.skills, AgentDefault::Fixed(_));
     let project_open = app.agents_settings.skill_directory.is_some();
     let mut directories = vec!["全局目录".to_string()];
     directories.extend(super::agent_project_options(app));
@@ -363,18 +375,18 @@ pub(super) fn view<'a>(
             row![
                 button(text(tr(app.desktop_locale, "全选可用")).size(12))
                     .padding([8, 14])
-                    .on_press(Message::Settings(SettingsMessage::Agents(
+                    .on_press_maybe(fixed.then_some(Message::Settings(SettingsMessage::Agents(
                         AgentsMessage::AllowedSkillsSelectAll(entry.key.clone(), active_scope),
-                    )))
+                    ))))
                     .style(rounded_action_btn_style),
                 button(text(tr(app.desktop_locale, "反选可用")).size(12))
                     .padding([8, 14])
-                    .on_press(Message::Settings(SettingsMessage::Agents(
+                    .on_press_maybe(fixed.then_some(Message::Settings(SettingsMessage::Agents(
                         AgentsMessage::AllowedSkillsInvertSelection(
                             entry.key.clone(),
                             active_scope
                         ),
-                    )))
+                    ))))
                     .style(rounded_action_btn_style),
                 settings_value_badge(
                     crate::__!(
@@ -393,6 +405,26 @@ pub(super) fn view<'a>(
         .spacing(12)
         .into()
     };
+    let original = entry.defaults.clone();
+    let mode = pick_list(
+        vec!["继承", "固定选择"],
+        Some(if fixed { "固定选择" } else { "继承" }),
+        move |mode| {
+            let mut defaults = original.clone();
+            defaults.skills = if mode == "固定选择" {
+                AgentDefault::Fixed(vec![])
+            } else {
+                AgentDefault::Inherit
+            };
+            Message::Settings(SettingsMessage::Agents(AgentsMessage::ProfileDefaultsChanged(
+                defaults,
+            )))
+        },
+    )
+    .padding(SETTINGS_CONTROL_PADDING)
+    .text_size(SETTINGS_CONTROL_TEXT_SIZE)
+    .style(settings_pick_list_style)
+    .menu_style(settings_pick_list_menu_style);
     let policy_controls = row![
         skill_policy_button(app.desktop_locale, entry, DelegateCapabilityPolicy::Strict),
         skill_policy_button(app.desktop_locale, entry, DelegateCapabilityPolicy::Unrestricted),
@@ -405,15 +437,24 @@ pub(super) fn view<'a>(
             tr(app.desktop_locale, "默认技能"),
             tr(
                 app.desktop_locale,
-                "选择会在委托代理首步默认提示的已安装技能；严格限制时它们同时构成技能白名单。"
+                "继承预览原有允许技能；固定空列表不预选技能。默认选择不会扩大严格访问范围。"
             ),
         ),
         column![
+            mode,
             text(tr(app.desktop_locale, "技能访问策略")).size(14),
-            text(tr(app.desktop_locale, "严格限制使用固定技能范围；不限制允许会话临时选择。"))
+            text(tr(app.desktop_locale, "严格限制保留原有允许范围；不限制允许会话临时选择。"))
                 .size(12)
                 .style(settings_muted_text_style),
             policy_controls,
+            button(text("前往技能库管理").size(12))
+                .padding([8, 14])
+                .style(rounded_action_btn_style)
+                .on_press(Message::Settings(SettingsMessage::AgentConfigTab(
+                    crate::app::message::settings::AgentConfigTabMessage::Selected(
+                        crate::app::state::AgentConfigTab::Skills,
+                    ),
+                ))),
         ]
         .spacing(8),
         scope_filter,

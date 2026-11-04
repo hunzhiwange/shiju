@@ -3038,3 +3038,17 @@ fn acp_model_source_routing_processor_freezes_real_model_for_step_events() {
     assert_eq!(context.provider(), Some("model-recovery"));
     assert_eq!(context.model(), Some("original"));
 }
+
+#[test]
+fn agent_config_cleanup_delegate_default_empty_keeps_allowed_catalog() {
+    let skills = vec![
+        crate::skills::Skill { name: "allowed".into(), ..Default::default() },
+        crate::skills::Skill { name: "outside".into(), ..Default::default() },
+    ];
+    for selected in [serde_json::json!([]), serde_json::json!(["allowed"])] {
+        let options = serde_json::json!({"delegate_skill_policy":"strict", "delegate_allowed_skills":["allowed"], "delegate_default_allowed_skills":selected});
+        let result = super::delegated_skill_policy_resolution(&skills, &options).unwrap();
+        assert_eq!(result.visible_ids, ["allowed".to_string()].into());
+        assert_eq!(result.default_injected_ids.len(), selected.as_array().unwrap().len());
+    }
+}

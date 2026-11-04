@@ -1026,3 +1026,32 @@ async fn codex_plugin_compat_t57_toolset_bridge_preserves_turn_and_tenant() {
     })
     .await;
 }
+
+#[test]
+fn agent_config_cleanup_delegate_fixed_selection_preserves_strict_boundary() {
+    use vw_config_types::agent::{AgentDefault, DelegateCapabilityPolicy};
+    let dir = tempfile::tempdir().unwrap();
+    let workspace = dir.path();
+    std::fs::create_dir_all(workspace.join(".git")).unwrap();
+    let skill_dir = workspace.join("skills/project-skill");
+    std::fs::create_dir_all(&skill_dir).unwrap();
+    std::fs::write(
+        skill_dir.join("SKILL.md"),
+        "---\nname: project-skill\ndescription: fixture\n---\n",
+    )
+    .unwrap();
+    let root = test_config(workspace);
+    for selection in [
+        AgentDefault::Inherit,
+        AgentDefault::Fixed(vec![]),
+        AgentDefault::Fixed(vec!["allowed".into()]),
+    ] {
+        let mut config = agent_config("all", true, vec!["allowed".into()]);
+        config.skill_policy = DelegateCapabilityPolicy::Strict;
+        config.defaults.skills = selection.clone();
+        let agents = HashMap::from([("worker".into(), config)]);
+        let result = enabled_delegate_agents_with_project_skills(&agents, workspace, &root);
+        assert_eq!(result["worker"].allowed_skills, vec!["allowed"]);
+        assert_eq!(result["worker"].defaults.skills, selection);
+    }
+}

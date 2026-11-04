@@ -122,18 +122,23 @@ impl CoreSkillSession {
     }
 
     pub(crate) async fn configure(&mut self, context: ToolUseContext) -> Result<ToolUseContext> {
-        let defaults = self
-            .definition
-            .allowed_skills
+        let selected = match &self.definition.defaults.skills {
+            vw_config_types::agent::AgentDefault::Inherit => &self.definition.allowed_skills,
+            vw_config_types::agent::AgentDefault::Fixed(ids) => ids,
+        };
+        let defaults = selected
             .iter()
             .filter_map(|name| crate::session::capability_policy::normalize_capability_id(name))
             .collect::<BTreeSet<_>>();
-        let resolution = crate::session::capability_policy::resolve_skill_capabilities(
-            self.skills.iter().map(|skill| skill.invocation_name()),
-            defaults.iter().map(String::as_str),
-            std::iter::empty::<&str>(),
+        let resolution = crate::session::capability_policy::resolve_skill_defaults(
+            &self
+                .skills
+                .iter()
+                .map(|skill| skill.invocation_name().to_string())
+                .collect::<Vec<_>>(),
+            &self.definition.allowed_skills,
+            &defaults.iter().cloned().collect::<Vec<_>>(),
             self.definition.skill_policy,
-            std::iter::empty::<&str>(),
         );
         if let Some(missing) = defaults.difference(&resolution.default_injected_ids).next() {
             bail!("默认技能不存在、已禁用或不在当前权限范围内：{missing}");

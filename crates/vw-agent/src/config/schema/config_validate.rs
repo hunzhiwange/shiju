@@ -375,6 +375,12 @@ fn validate_agent_profiles(config: &Config) -> Result<()> {
         if agent.force_model_selection && !agent.has_complete_model_binding() {
             anyhow::bail!("agent {key} forced model requires provider and model");
         }
+        if agent.skill_policy == vw_config_types::agent::DelegateCapabilityPolicy::Strict
+            && let AgentDefault::Fixed(ids) = &agent.defaults.skills
+            && ids.iter().any(|id| !agent.allowed_skills.contains(id))
+        {
+            anyhow::bail!("agent {key} default skill is outside the strict skill boundary");
+        }
         if let AgentDefault::Fixed(model) = &agent.defaults.model {
             if model.provider.trim().is_empty() || model.model.trim().is_empty() {
                 anyhow::bail!("agent {key} fixed model requires provider and model");

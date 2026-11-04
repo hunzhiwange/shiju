@@ -1050,6 +1050,12 @@ fn enabled_delegate_agents_with_project_skills(
             .collect::<Vec<_>>();
 
     for config in enabled.values_mut() {
+        // Defaults must never expand an explicitly strict access boundary.
+        if config.skill_policy == vw_config_types::agent::DelegateCapabilityPolicy::Strict
+            || matches!(config.defaults.skills, vw_config_types::agent::AgentDefault::Fixed(_))
+        {
+            continue;
+        }
         config.allowed_skills.extend(project_skill_names.iter().cloned());
         config.allowed_skills.sort();
         config.allowed_skills.dedup();

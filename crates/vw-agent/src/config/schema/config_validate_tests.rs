@@ -556,3 +556,11 @@ fn validate_config_rejects_proxy_errors() {
         "Proxy is enabled but no proxy URL is configured",
     );
 }
+
+#[test]
+fn agent_config_cleanup_save_rejects_strict_default_outside_boundary() {
+    let mut config = Config::default();
+    config.agents.insert("worker".into(), serde_json::from_value(serde_json::json!({"provider":"", "model":"", "allowed_skills":["allowed"], "skill_policy":"strict", "defaults":{"skills":{"mode":"fixed","value":["outside"]}}})).unwrap());
+    let error = validate_config(&config).unwrap_err();
+    assert!(error.to_string().contains("strict skill boundary"));
+}

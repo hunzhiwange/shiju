@@ -96,7 +96,7 @@ fn catalogs(
         .agents_settings
         .skill_catalog
         .iter()
-        .filter(|skill| skill.enabled)
+        .filter(|skill| skill.installed && skill.enabled)
         .map(|skill| skill.id.clone())
         .collect();
     let mcp = app
@@ -116,6 +116,12 @@ fn catalogs(
 }
 
 pub(crate) fn validation_error(app: &App, draft: &DelegateAgentSettingsEntry) -> Option<String> {
+    if draft.skill_policy == vw_config_types::agent::DelegateCapabilityPolicy::Strict
+        && let AgentDefault::Fixed(ids) = &draft.defaults.skills
+        && ids.iter().any(|id| !draft.allowed_skills.contains(id))
+    {
+        return Some("默认技能超出严格访问范围，请移除越界选择。".into());
+    }
     if draft.force_model_selection
         && !matches!(&draft.defaults.model,
         AgentDefault::Fixed(model) if model.provider == draft.provider && model.model == draft.model)
@@ -134,7 +140,7 @@ pub(super) fn view<'a>(
     app: &'a App,
     draft: &'a DelegateAgentSettingsEntry,
 ) -> Element<'a, Message> {
-    let (models, skills, mcp) = catalogs(app, &draft.runtime);
+    let (models, _, mcp) = catalogs(app, &draft.runtime);
     let defaults = &draft.defaults;
     let mut body = column![
         text("默认配置").size(16),
@@ -214,9 +220,10 @@ pub(super) fn view<'a>(
         .style(settings_pick_list_style)
         .menu_style(settings_pick_list_menu_style),
     );
-    for (is_skill, title, selection, available) in
-        [(true, "默认技能", &defaults.skills, skills), (false, "默认 MCP", &defaults.mcp, mcp)]
     {
+        let title = "默认 MCP";
+        let selection = &defaults.mcp;
+        let available = mcp;
         let fixed = matches!(selection, AgentDefault::Fixed(_));
         let original = defaults.clone();
         body = body.push(text(title)).push(
@@ -230,11 +237,7 @@ pub(super) fn view<'a>(
                     } else {
                         AgentDefault::Inherit
                     };
-                    if is_skill {
-                        next.skills = value;
-                    } else {
-                        next.mcp = value;
-                    }
+                    next.mcp = value;
                     changed(next)
                 },
             )
@@ -263,7 +266,7 @@ pub(super) fn view<'a>(
                         .label(label)
                         .on_toggle(move |checked| {
                             let mut next = original.clone();
-                            let target = if is_skill { &mut next.skills } else { &mut next.mcp };
+                            let target = &mut next.mcp;
                             if let AgentDefault::Fixed(ids) = target {
                                 ids.retain(|value| value != &id);
                                 if checked && enabled {

@@ -800,7 +800,7 @@ async fn resolve_delegate_request_overrides(
 
 async fn resolve_delegate_overrides_from_config(
     agent_name: String,
-    mut config: vw_config_types::agent::AgentDefinitionConfig,
+    config: vw_config_types::agent::AgentDefinitionConfig,
     runtime_config: &crate::config::Config,
     explicit_allowed_tools: Option<Vec<String>>,
     explicit_model: Option<String>,
@@ -814,11 +814,6 @@ async fn resolve_delegate_overrides_from_config(
     )
     .await
     .map_err(|error| ApiError::bad_request(error.to_string()))?;
-    if let Some(defaults) = &defaults
-        && defaults.skills_fixed
-    {
-        config.allowed_skills = defaults.effective.skills.clone();
-    }
     if config.force_model_selection
         && explicit_model.as_ref().is_some_and(|model| {
             !model.trim().eq_ignore_ascii_case("auto")

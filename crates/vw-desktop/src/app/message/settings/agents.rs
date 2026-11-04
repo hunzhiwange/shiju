@@ -719,6 +719,8 @@ pub fn update(app: &mut App, message: SettingsMessage) -> Task<Message> {
     {
         return Task::none();
     }
+    let invert_skill_selection =
+        matches!(&message, AgentsMessage::AllowedSkillsInvertSelection(_, _));
     match message {
         AgentsMessage::CatalogTabSelected(official) => {
             app.agents_settings.catalog_official = official;
@@ -1341,24 +1343,42 @@ pub fn update(app: &mut App, message: SettingsMessage) -> Task<Message> {
             mark_agents_settings_dirty(app)
         }
         AgentsMessage::AllowedSkillToggled(agent_key, skill_id, enabled) => {
-            if let Some(entry) = find_entry_mut(app, &agent_key) {
+            let available = app
+                .agents_settings
+                .skill_catalog
+                .iter()
+                .any(|skill| skill.id == skill_id && skill.installed && skill.enabled);
+            if let Some(entry) = find_entry_mut(app, &agent_key)
+                && let vw_config_types::agent::AgentDefault::Fixed(ids) = &mut entry.defaults.skills
+            {
+                if enabled
+                    && (!available
+                        || (entry.skill_policy
+                            == vw_config_types::agent::DelegateCapabilityPolicy::Strict
+                            && !entry.allowed_skills.contains(&skill_id)))
+                {
+                    return catalog_error(
+                        app,
+                        "Skill is unavailable or outside the strict skill boundary".into(),
+                    );
+                }
+                ids.retain(|id| id != &skill_id);
                 if enabled {
-                    if !entry.allowed_skills.iter().any(|skill| skill == &skill_id) {
-                        entry.allowed_skills.push(skill_id);
-                        entry.allowed_skills.sort();
-                    }
-                } else {
-                    entry.allowed_skills.retain(|skill| skill != &skill_id);
+                    ids.push(skill_id);
                 }
+                ids.sort();
             }
             app.agents_settings.save_error = None;
             mark_agents_settings_dirty(app)
         }
-        AgentsMessage::AllowedSkillsSelectAll(agent_key, scope) => {
-            let available_skills = app
+        AgentsMessage::AllowedSkillsSelectAll(agent_key, scope)
+        | AgentsMessage::AllowedSkillsInvertSelection(agent_key, scope) => {
+            let invert = invert_skill_selection;
+            let available = app
                 .agents_settings
                 .skill_catalog
                 .iter()
+                .filter(|skill| skill.installed && skill.enabled)
                 .filter(|skill| match scope {
                     crate::app::state::SkillsDirectoryScope::Project => skill.source == "workspace",
                     crate::app::state::SkillsDirectoryScope::Ancestor => skill.source == "ancestor",
@@ -1366,46 +1386,26 @@ pub fn update(app: &mut App, message: SettingsMessage) -> Task<Message> {
                     crate::app::state::SkillsDirectoryScope::Bundled => skill.source == "bundled",
                     crate::app::state::SkillsDirectoryScope::All => true,
                 })
-                .filter(|skill| skill.enabled)
                 .map(|skill| skill.id.clone())
                 .collect::<Vec<_>>();
-            if let Some(entry) = find_entry_mut(app, &agent_key) {
-                for skill in available_skills {
-                    if !entry.allowed_skills.iter().any(|selected| selected == &skill) {
-                        entry.allowed_skills.push(skill);
+            if let Some(entry) = find_entry_mut(app, &agent_key)
+                && let vw_config_types::agent::AgentDefault::Fixed(ids) = &mut entry.defaults.skills
+            {
+                for id in available {
+                    if entry.skill_policy
+                        == vw_config_types::agent::DelegateCapabilityPolicy::Strict
+                        && !entry.allowed_skills.contains(&id)
+                    {
+                        continue;
+                    }
+                    if invert && ids.contains(&id) {
+                        ids.retain(|selected| selected != &id);
+                    } else if !ids.contains(&id) {
+                        ids.push(id);
                     }
                 }
-                entry.allowed_skills.sort();
-                entry.allowed_skills.dedup();
-            }
-            app.agents_settings.save_error = None;
-            mark_agents_settings_dirty(app)
-        }
-        AgentsMessage::AllowedSkillsInvertSelection(agent_key, scope) => {
-            let available_skills = app
-                .agents_settings
-                .skill_catalog
-                .iter()
-                .filter(|skill| match scope {
-                    crate::app::state::SkillsDirectoryScope::Project => skill.source == "workspace",
-                    crate::app::state::SkillsDirectoryScope::Ancestor => skill.source == "ancestor",
-                    crate::app::state::SkillsDirectoryScope::Global => skill.source == "global",
-                    crate::app::state::SkillsDirectoryScope::Bundled => skill.source == "bundled",
-                    crate::app::state::SkillsDirectoryScope::All => true,
-                })
-                .filter(|skill| skill.enabled)
-                .map(|skill| skill.id.clone())
-                .collect::<Vec<_>>();
-            if let Some(entry) = find_entry_mut(app, &agent_key) {
-                for skill in available_skills {
-                    if entry.allowed_skills.iter().any(|selected| selected == &skill) {
-                        entry.allowed_skills.retain(|selected| selected != &skill);
-                    } else {
-                        entry.allowed_skills.push(skill);
-                    }
-                }
-                entry.allowed_skills.sort();
-                entry.allowed_skills.dedup();
+                ids.sort();
+                ids.dedup();
             }
             app.agents_settings.save_error = None;
             mark_agents_settings_dirty(app)

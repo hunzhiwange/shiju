@@ -2200,8 +2200,8 @@ fn agent_native_defaults_reach_registered_tools_and_prompt() {
     .unwrap();
     runtime.block_on(crate::config::update(serde_json::json!({
         "agents": {
-            "main": {"provider":"model-recovery","model":"unavailable-legacy","allowed_tools":["file_read"],"defaults":{"mcp":{"mode":"fixed","value":["selected"]},"model":{"mode":"fixed","value":{"provider":"model-recovery","model":"original"}},"skills":{"mode":"fixed","value":["review"]}},"system_prompt":"NATIVE_DEFAULT_RULE","skill_policy":"strict"},
-            "reviewer": {"provider":"model-recovery","model":"unavailable-legacy","allowed_tools":["skill","file_read"],"defaults":{"mcp":{"mode":"fixed","value":[]},"model":{"mode":"fixed","value":{"provider":"model-recovery","model":"original"}},"skills":{"mode":"fixed","value":["review"]}},"system_prompt":"NATIVE_DEFAULT_RULE","skill_policy":"strict"}
+            "main": {"provider":"model-recovery","model":"unavailable-legacy","allowed_tools":["file_read"],"defaults":{"mcp":{"mode":"fixed","value":["selected"]},"model":{"mode":"fixed","value":{"provider":"model-recovery","model":"original"}},"skills":{"mode":"fixed","value":["review"]}},"system_prompt":"NATIVE_DEFAULT_RULE","skill_policy":"strict", "allowed_skills":["review"]},
+            "reviewer": {"provider":"model-recovery","model":"unavailable-legacy","allowed_tools":["skill","file_read"],"defaults":{"mcp":{"mode":"fixed","value":[]},"model":{"mode":"fixed","value":{"provider":"model-recovery","model":"original"}},"skills":{"mode":"fixed","value":["review"]}},"system_prompt":"NATIVE_DEFAULT_RULE","skill_policy":"strict", "allowed_skills":["review"]}
         }
     }))).unwrap();
     for name in ["researcher", "coder", "explore"] {
@@ -2210,7 +2210,7 @@ fn agent_native_defaults_reach_registered_tools_and_prompt() {
                 "mcp":{"mode":"fixed","value":[]},
                 "model":{"mode":"fixed","value":{"provider":"model-recovery","model":"original"}},
                 "skills":{"mode":"fixed","value":["review"]}
-            }, "system_prompt":"NATIVE_DEFAULT_RULE", "skill_policy":"strict"}}
+            }, "system_prompt":"NATIVE_DEFAULT_RULE", "skill_policy":"strict", "allowed_skills":["review"]}}
         }))).unwrap();
     }
     for name in ["main", "reviewer", "researcher", "coder", "explore"] {

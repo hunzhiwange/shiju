@@ -128,3 +128,19 @@ fn agent_config_cleanup_single_model_group_prevents_conflict() {
     assert!(!draft.force_model_selection);
     assert!(draft.provider.is_empty() && draft.model.is_empty());
 }
+
+#[test]
+fn agent_config_cleanup_strict_skill_defaults_reject_save_outside_boundary() {
+    let app = crate::app::App::new().0;
+    let mut draft = app.agents_settings.entries[0].clone();
+    draft.skill_policy = vw_config_types::agent::DelegateCapabilityPolicy::Strict;
+    draft.allowed_skills = vec![];
+    draft.defaults.skills = AgentDefault::Fixed(vec!["outside".into()]);
+    assert!(super::defaults::validation_error(&app, &draft).is_some());
+    draft.defaults.skills = AgentDefault::Fixed(vec![]);
+    assert!(super::defaults::validation_error(&app, &draft).is_none());
+    let empty = super::defaults::patch(&draft.defaults);
+    assert_eq!(empty["skills"]["value"], serde_json::json!([]));
+    draft.defaults.skills = AgentDefault::Inherit;
+    assert_eq!(super::defaults::patch(&draft.defaults)["skills"]["value"], serde_json::Value::Null);
+}

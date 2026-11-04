@@ -138,6 +138,12 @@ pub fn resolve(
         select(&explicit.skills, &agent.defaults.skills, &inherited.skills).unwrap_or_default();
     let mcp = select(&explicit.mcp, &agent.defaults.mcp, &inherited.mcp).unwrap_or_default();
     validate_ids(&skills, &context.skills, "skill")?;
+    if agent.skill_policy == vw_config_types::agent::DelegateCapabilityPolicy::Strict
+        && skills.iter().any(|id| !agent.allowed_skills.contains(id))
+    {
+        bail!("default skill is outside the strict agent skill boundary");
+    }
+
     validate_ids(&mcp, &context.mcp, "MCP")?;
     let permission =
         select(&explicit.permission, &agent.defaults.permission, &inherited.permission)

@@ -2,7 +2,8 @@
 
 use serde_json::Value;
 
-const MAP_OBJECT_PATHS: &[&str] = &["request_token_usage", "messages.Agent.tool_results"];
+const MAP_OBJECT_PATHS: &[&str] =
+    &["request_token_usage", "messages.Agent.tool_results", "agent_config.env"];
 const OPAQUE_VALUE_PATHS: &[&str] =
     &["agent_capabilities", "messages.Agent.content.ToolUse.input", "vwacp.config_options"];
 const ZED_TAG_KEYS: &[&str] = &[

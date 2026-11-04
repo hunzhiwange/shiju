@@ -14,6 +14,7 @@ fn accepted(evidence: &Value, mode: &str) -> bool {
         && requests.iter().all(|r| {
             r["authenticated"] == true
                 && (r["route"] == "/v1/chat/completions"
+                    || r["route"] == "/v1/messages"
                     || r["model"].as_str().is_some_and(|model| {
                         r["route"] == format!("/v1beta/models/{model}:generateContent")
                             || r["route"] == format!("/v1beta/models/{model}:streamGenerateContent")
@@ -148,6 +149,11 @@ async fn request(
     }
 }
 
+fn checkpoint(flow: &Value) {
+    let path = std::env::var("VW_ACP_ACCEPTANCE_FLOW").expect("flow output path required");
+    std::fs::write(path, serde_json::to_vec(flow).unwrap()).unwrap();
+}
+
 async fn run(mode: &str) {
     let manifest = std::env::var("VW_ACP_ACCEPTANCE_MANIFEST")
         .expect("explicit offline manifest required; absence is a failure, never a skip");
@@ -185,11 +191,17 @@ async fn run(mode: &str) {
         project,
     };
     let agent = input["agent"].as_str().unwrap();
+    let (upstream_path, upstream_adapter) =
+        match input["upstream_protocol"].as_str().unwrap_or("chat") {
+            "chat" => ("/v1/chat/completions", "openai-compatible"),
+            "messages" => ("/v1/messages", "anthropic"),
+            _ => panic!("unsupported fixture protocol"),
+        };
     crate::config::update_project_for_tenant(&tenant, root, json!({
         "acp": {agent: config},
         "providers": {"acp-offline-acceptance": {
-            "api": format!("{}/v1/chat/completions", input["fixture"].as_str().unwrap()),
-            "adapter":"openai-compatible", "env":["VW_ACP_OFFLINE_FIXTURE_KEY"],
+            "api": format!("{}{upstream_path}", input["fixture"].as_str().unwrap()),
+            "adapter":upstream_adapter, "env":["VW_ACP_OFFLINE_FIXTURE_KEY"],
             "models": {
                 "acp-fixture-primary":{"id":"acp-fixture-primary","status":"active","tool_call":true,"temperature":true},
                 "acp-fixture-switched":{"id":"acp-fixture-switched","status":"active","tool_call":true,"temperature":true}
@@ -202,14 +214,32 @@ async fn run(mode: &str) {
             provider::get_model("acp-offline-acceptance", "acp-fixture-primary").await.unwrap();
         let switched =
             provider::get_model("acp-offline-acceptance", "acp-fixture-switched").await.unwrap();
+        let expected_launch: crate::config::schema::AcpAgentConfig =
+            serde_json::from_value(input["config"].clone()).unwrap();
+        let config = crate::config::get_current().await.expect("current project configuration");
+        let (_, resolved_launch) = super::super::config::lookup_acp_command(
+            &config, &model, &json!({"acp_agent":agent})
+        ).expect("offline pinned launch override must resolve");
+        assert!(resolved_launch.command == expected_launch.command
+            && resolved_launch.args == expected_launch.args,
+            "production did not select the pinned real CLI override");
         let mut flow = json!({"isolated":true});
+        checkpoint(&flow);
         let prompt = "Read challenge.txt twice using your file read tool, then reply.";
-        flow["new"] = json!(request(&input, &model, &info, prompt, false).await);
+        let first_prompt = if agent == "claude" {
+            "AUXILIARY_PROBE: Delegate reading challenge.txt twice to a general-purpose helper, then reply with its contents."
+        } else { prompt };
+        flow["new"] = json!(request(&input, &model, &info, first_prompt, false).await);
+        checkpoint(&flow);
         flow["second_turn"] = json!(request(&input, &model, &info, prompt, false).await);
+        checkpoint(&flow);
         flow["cancel"] =
             json!(request(&input, &model, &info, "CANCEL_PROBE: read challenge.txt", true).await);
+        checkpoint(&flow);
         flow["restart"] = json!(request(&input, &model, &info, prompt, false).await);
+        checkpoint(&flow);
         flow["switch"] = json!(request(&input, &switched, &info, prompt, false).await);
+        checkpoint(&flow);
         flow["handshake"] = json!(
             vw_acp::list_sessions()
                 .await
@@ -218,6 +248,10 @@ async fn run(mode: &str) {
                 .any(|r| { r.cwd == root.to_string_lossy() && !r.acp_session_id.is_empty() })
         );
         let observed = evidence(&input).await;
+        if agent == "claude" {
+            assert!(observed["requests"].as_array().unwrap().iter().any(|request| request["auxiliary"] == true),
+                "Claude auxiliary model did not reach the fixture");
+        }
         let path = std::env::var("VW_ACP_ACCEPTANCE_FLOW").expect("flow output path required");
         std::fs::write(path, serde_json::to_vec(&flow).unwrap()).unwrap();
         assert!(
@@ -239,4 +273,71 @@ async fn acp_model_source_real_cli_session_model() {
 #[ignore = "requires explicit pinned real CLI manifest and owned offline model fixture"]
 async fn acp_model_source_real_cli_cli_local() {
     run("cli-local").await;
+}
+
+/// Closed, non-payload diagnostics for a real acceptance process. Never persist
+/// messages, session identifiers, environment values, paths or credentials.
+pub(in crate::session::llm::acp) fn observe_rpc(
+    direction: vw_acp::AcpMessageDirection,
+    message: &vw_acp::AcpJsonRpcMessage,
+) {
+    let Some(path) = std::env::var_os("VW_ACP_ACCEPTANCE_DIAGNOSTICS") else { return };
+    let Ok(value) = serde_json::to_value(message) else { return };
+    static STATS: std::sync::LazyLock<parking_lot::Mutex<Value>> =
+        std::sync::LazyLock::new(|| parking_lot::Mutex::new(json!({})));
+    let outbound = direction == vw_acp::AcpMessageDirection::Outbound;
+    let key = match (outbound, value["method"].as_str()) {
+        (true, Some("initialize")) => Some("out_initialize"),
+        (true, Some("session/new")) => Some("out_new"),
+        (true, Some("session/load")) => Some("out_load"),
+        (true, Some("session/resume")) => Some("out_resume"),
+        (true, Some("session/prompt")) => Some("out_prompt"),
+        (false, Some("fs/read_text_file")) => Some("in_read"),
+        (false, Some("terminal/create")) => Some("in_terminal"),
+        (false, Some("session/request_permission")) => Some("in_permission"),
+        (false, Some("session/update")) => Some("in_update"),
+        _ => None,
+    };
+    let mut stats = STATS.lock();
+    if let Some(key) = key {
+        let count = stats[key].as_u64().unwrap_or(0) + 1;
+        stats[key] = json!(count);
+    }
+    if outbound && value["method"] == "session/new" {
+        let settings = &value["params"]["_meta"]["claudeCode"]["options"]["settings"];
+        stats["sdk_settings_sent"] = json!(settings.is_string());
+        stats["sdk_settings_exists"] =
+            json!(settings.as_str().is_some_and(|path| Path::new(path).is_file()));
+    }
+    if !outbound && value["result"].get("protocolVersion").is_some() {
+        stats["initialize_returned"] = json!(true);
+    }
+    if !outbound && value["result"].get("sessionId").is_some() {
+        stats["new_returned"] = json!(true);
+    }
+    if value.get("error").is_some_and(|error| !error.is_null()) {
+        stats[if outbound { "out_error" } else { "in_error" }] = json!(true);
+        if !outbound && stats.get("first_error_code").is_none() {
+            stats["first_error_code"] = json!(value["error"]["code"].as_i64().unwrap_or(0));
+            let message = value["error"]["message"].as_str().unwrap_or("").to_ascii_lowercase();
+            stats["error_session_missing"] = json!(
+                message.contains("no conversation found")
+                    || (message.contains("session")
+                        && (message.contains("not found")
+                            || message.contains("does not exist")
+                            || message.contains("unknown")))
+            );
+            stats["error_process_exit"] = json!(message.contains("process exited"));
+            stats["error_auth"] =
+                json!(message.contains("authentication") || message.contains("401"));
+            stats["error_forbidden"] = json!(message.contains("403"));
+            stats["error_unsupported"] =
+                json!(message.contains("422") || message.contains("unsupported"));
+            stats["error_validation"] =
+                json!(message.contains("invalid") || message.contains("validation"));
+        }
+    }
+    if let Ok(bytes) = serde_json::to_vec(&*stats) {
+        let _ = std::fs::write(path, bytes);
+    }
 }

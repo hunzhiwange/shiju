@@ -642,6 +642,47 @@ fn command_detection_uses_basename_and_acp_flags() {
     assert!(!client("claude", &["--print"]).is_claude_acp_command());
 }
 
+#[tokio::test]
+async fn acp_model_source_claude_sdk_settings_reach_new_load_and_resume_only_when_managed() {
+    for managed in [false, true] {
+        let mut config = AcpAgentConfig {
+            command: "claude-agent-acp".into(),
+            env: HashMap::from([
+                ("VW_ACP_CLAUDE_SETTINGS".into(), "/private/settings.json".into()),
+                ("ANTHROPIC_MODEL".into(), "selected-model".into()),
+            ]),
+            ..Default::default()
+        };
+        if managed {
+            config.env.insert("VW_ACP_LAUNCH_REFERENCE".into(), "vw-session-model:opaque".into());
+        }
+        let client = AcpClient::new("claude", config);
+        with_connection(TestAgent::new(), async |conn, agent| {
+            let cwd = Path::new("/tmp/claude-managed-protocol");
+            client.new_session_info(&conn, cwd).await.unwrap();
+            client.load_session_info(&conn, cwd, "restored".into()).await.unwrap();
+            client.resume_session_info(&conn, cwd, "restored".into()).await.unwrap();
+            let state = agent.state.lock();
+            let expected = managed.then(|| {
+                json!({"options": {
+                    "settings":"/private/settings.json", "model":"selected-model"
+                }})
+            });
+            for meta in [
+                &state.new_session_requests[0].meta,
+                &state.load_session_requests[0].meta,
+                &state.resume_session_requests[0].meta,
+            ] {
+                assert_eq!(
+                    meta.as_ref().and_then(|meta| meta.get("claudeCode")),
+                    expected.as_ref()
+                );
+            }
+        })
+        .await;
+    }
+}
+
 #[test]
 fn acp_model_source_codebuddy_boolean_session_options_preserve_select_and_toggle() {
     // CodeBuddy 2.179.3 advertises this toggle even without client boolean opt-in.

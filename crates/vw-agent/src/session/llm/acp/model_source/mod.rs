@@ -48,8 +48,16 @@ pub(super) async fn prepare(
         generation: 0,
     };
     let mut profile = AcpLaunchProfile::new(config, identity)?;
+    profile.state_root = Some(
+        std::env::var_os("VIBEWINDOW_CONFIG_DIR")
+            .map(std::path::PathBuf::from)
+            .unwrap_or_else(|| crate::global::paths().state.clone()),
+    );
     profile.model_output_limit = resolved.limit.output;
+    profile.model_context_limit = resolved.limit.context;
     profile.model_supports_temperature = resolved.capabilities.temperature;
+    profile.model_supports_reasoning = resolved.capabilities.reasoning;
+    profile.model_supports_tool_call = resolved.capabilities.toolcall;
     profile.model_api = Some(resolved.api.clone());
     let server = RelayServer::start(
         profile.binding.clone(),
@@ -68,4 +76,4 @@ pub(super) async fn prepare(
 mod tests;
 
 #[cfg(test)]
-mod acceptance_tests;
+pub(super) mod acceptance_tests;

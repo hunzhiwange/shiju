@@ -59,7 +59,6 @@ fn acp_model_source_launch_profile_all_drivers_fail_closed_without_secret_errors
     let mut profile = AcpLaunchProfile::new(&Default::default(), identity("one")).unwrap();
     for key in [
         "auggie",
-        "claude",
         "codex",
         "codebuddy",
         "goose",

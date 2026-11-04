@@ -136,7 +136,7 @@ impl AcpClient {
         cwd: &Path,
     ) -> Result<SessionInfo, AcpError> {
         let mut request = acp::NewSessionRequest::new(cwd).mcp_servers(self.mcp_servers.clone());
-        if let Some(meta) = build_session_options_meta(self.session_options.as_ref()) {
+        if let Some(meta) = build_launch_session_meta(self.session_options.as_ref(), &self.config) {
             request = request.meta(meta);
         }
         let session = if self.is_claude_acp_command() {
@@ -179,11 +179,16 @@ impl AcpClient {
         cwd: &Path,
         session_id: String,
     ) -> Result<SessionInfo, AcpError> {
+        let mut request = acp::LoadSessionRequest::new(session_id.clone(), cwd)
+            .mcp_servers(self.mcp_servers.clone());
+        if managed_claude_settings(&self.config).is_some()
+            && let Some(meta) =
+                build_launch_session_meta(self.session_options.as_ref(), &self.config)
+        {
+            request = request.meta(meta);
+        }
         let response = conn
-            .load_session(
-                acp::LoadSessionRequest::new(session_id.clone(), cwd)
-                    .mcp_servers(self.mcp_servers.clone()),
-            )
+            .load_session(request)
             .await
             .map_err(|err| AcpError::LoadSession(err.to_string()))?;
         self.actor_state.lock().session_capabilities = Some(crate::SessionCapabilities {
@@ -214,11 +219,16 @@ impl AcpClient {
         cwd: &Path,
         session_id: String,
     ) -> Result<SessionInfo, AcpError> {
+        let mut request = acp::ResumeSessionRequest::new(session_id.clone(), cwd)
+            .mcp_servers(self.mcp_servers.clone());
+        if managed_claude_settings(&self.config).is_some()
+            && let Some(meta) =
+                build_launch_session_meta(self.session_options.as_ref(), &self.config)
+        {
+            request = request.meta(meta);
+        }
         let response = conn
-            .resume_session(
-                acp::ResumeSessionRequest::new(session_id.clone(), cwd)
-                    .mcp_servers(self.mcp_servers.clone()),
-            )
+            .resume_session(request)
             .await
             .map_err(|err| AcpError::ResumeSession(err.to_string()))?;
         self.actor_state.lock().session_capabilities = Some(crate::SessionCapabilities {

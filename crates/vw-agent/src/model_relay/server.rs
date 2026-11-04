@@ -86,6 +86,20 @@ impl RelayServer {
             .route("/v1beta/models", get(handle_gemini))
             .route("/v1beta/models/{*resource}", get(handle_gemini).post(handle_gemini))
             .with_state(state);
+        #[cfg(test)]
+        let router = router.layer(axum::middleware::from_fn(
+            |request: axum::extract::Request, next: axum::middleware::Next| async move {
+                let route = match request.uri().path() {
+                    "/v1/messages" => "messages",
+                    "/v1/messages/count_tokens" => "count_tokens",
+                    "/v1/models" => "models",
+                    _ => "other",
+                };
+                let response = next.run(request).await;
+                record_acceptance_status(route, response.status().as_u16());
+                response
+            },
+        ));
         let cancel = binding.cancelled.clone();
         let expires = binding.expires;
         let task = tokio::spawn(async move {
@@ -197,11 +211,12 @@ async fn handle(State(state): State<Arc<ServerState>>, request: Request) -> Resp
             _ => return StatusCode::NOT_FOUND.into_response(),
         }
     };
-    if request
-        .uri()
-        .query()
-        .is_some_and(|q| !(path == "/v1beta/streamGenerateContent" && q == "alt=sse"))
-    {
+    if request.uri().query().is_some_and(|q| {
+        !matches!(
+            (path, q),
+            ("/v1beta/streamGenerateContent", "alt=sse") | ("/v1/messages", "beta=true")
+        )
+    }) {
         return StatusCode::BAD_REQUEST.into_response();
     }
     let Ok(permit) = state.capacity.clone().try_acquire_owned() else {
@@ -335,4 +350,19 @@ pub fn upstream_http_client() -> Result<reqwest::Client, reqwest::Error> {
         .connect_timeout(Duration::from_secs(10))
         .timeout(REQUEST_TIMEOUT)
         .build()
+}
+
+#[cfg(test)]
+fn record_acceptance_status(route: &'static str, status: u16) {
+    let Some(path) = std::env::var_os("VW_ACP_ACCEPTANCE_DIAGNOSTICS") else { return };
+    static STATUS: std::sync::LazyLock<parking_lot::Mutex<Vec<serde_json::Value>>> =
+        std::sync::LazyLock::new(|| parking_lot::Mutex::new(Vec::new()));
+    let mut observations = STATUS.lock();
+    if observations.len() < 128 {
+        observations.push(serde_json::json!({"route":route,"status":status}));
+    }
+    if let Ok(bytes) = serde_json::to_vec(&*observations) {
+        let path = std::path::PathBuf::from(path).with_extension("relay.json");
+        let _ = std::fs::write(path, bytes);
+    }
 }

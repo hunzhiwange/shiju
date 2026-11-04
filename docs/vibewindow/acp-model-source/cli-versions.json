@@ -237,6 +237,22 @@
           }
         ],
         "executed": false
+      },
+      "offline_acceptance": {
+        "session-model": {
+          "config_root_env": "CLAUDE_CONFIG_DIR",
+          "files": {
+            "settings.json": "{\"model\": \"{{model}}\", \"env\": {\"ANTHROPIC_BASE_URL\": \"{{origin}}\", \"ANTHROPIC_AUTH_TOKEN\": \"{{key}}\", \"ANTHROPIC_MODEL\": \"{{model}}\", \"ANTHROPIC_SMALL_FAST_MODEL\": \"{{model}}\", \"ANTHROPIC_DEFAULT_SONNET_MODEL\": \"{{model}}\", \"ANTHROPIC_DEFAULT_OPUS_MODEL\": \"{{model}}\", \"ANTHROPIC_DEFAULT_HAIKU_MODEL\": \"{{model}}\", \"CLAUDE_CODE_SUBAGENT_MODEL\": \"{{model}}\", \"CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC\": \"1\", \"CLAUDE_CODE_DISABLE_FEEDBACK_SURVEY\": \"1\", \"DISABLE_AUTOUPDATER\": \"1\"}}"
+          },
+          "upstream_protocol": "messages"
+        },
+        "cli-local": {
+          "config_root_env": "CLAUDE_CONFIG_DIR",
+          "files": {
+            "settings.json": "{\"model\": \"{{model}}\", \"env\": {\"ANTHROPIC_BASE_URL\": \"{{origin}}\", \"ANTHROPIC_AUTH_TOKEN\": \"{{key}}\", \"ANTHROPIC_MODEL\": \"{{model}}\", \"ANTHROPIC_SMALL_FAST_MODEL\": \"{{model}}\", \"ANTHROPIC_DEFAULT_SONNET_MODEL\": \"{{model}}\", \"ANTHROPIC_DEFAULT_OPUS_MODEL\": \"{{model}}\", \"ANTHROPIC_DEFAULT_HAIKU_MODEL\": \"{{model}}\", \"CLAUDE_CODE_SUBAGENT_MODEL\": \"{{model}}\", \"CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC\": \"1\", \"CLAUDE_CODE_DISABLE_FEEDBACK_SURVEY\": \"1\", \"DISABLE_AUTOUPDATER\": \"1\"}}"
+          },
+          "upstream_protocol": "messages"
+        }
       }
     },
     {

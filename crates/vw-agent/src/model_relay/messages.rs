@@ -13,6 +13,20 @@ pub(super) fn object_keys(value: &Value, keys: &[&str]) -> Result<(), StatusCode
 fn string<'a>(value: &'a Value, key: &str) -> Result<&'a str, StatusCode> {
     value[key].as_str().ok_or(StatusCode::BAD_REQUEST)
 }
+// Anthropic cache hints are optional performance annotations. Validate their
+// complete shape before dropping them on Chat; never drop inference state.
+fn cache_hint(block: &Value) -> Result<(), StatusCode> {
+    if let Some(cache) = block.get("cache_control") {
+        object_keys(cache, &["type", "ttl", "scope"])?;
+        if cache["type"] != "ephemeral"
+            || cache.get("ttl").is_some_and(|ttl| ttl != "5m" && ttl != "1h")
+            || cache.get("scope").is_some_and(|scope| scope != "global")
+        {
+            return Err(UNSUPPORTED);
+        }
+    }
+    Ok(())
+}
 fn text(value: &Value) -> Result<String, StatusCode> {
     if let Some(s) = value.as_str() {
         return Ok(s.into());
@@ -20,7 +34,8 @@ fn text(value: &Value) -> Result<String, StatusCode> {
     let blocks = value.as_array().ok_or(StatusCode::BAD_REQUEST)?;
     let mut result = String::new();
     for block in blocks {
-        object_keys(block, &["type", "text"])?;
+        object_keys(block, &["type", "text", "cache_control"])?;
+        cache_hint(block)?;
         if block["type"] != "text" {
             return Err(UNSUPPORTED);
         }
@@ -42,8 +57,17 @@ pub(super) fn to_chat(body: &Value) -> Result<Value, StatusCode> {
             "top_p",
             "tools",
             "tool_choice",
+            "metadata",
         ],
     )?;
+    if let Some(metadata) = body.get("metadata") {
+        object_keys(metadata, &["user_id"])?;
+        if metadata.get("user_id").is_some_and(|value| !value.is_string()) {
+            return Err(StatusCode::BAD_REQUEST);
+        }
+        // Do not disclose a native Claude account/device/session identifier to
+        // the selected provider. This analytics hint has no model semantics.
+    }
     let mut output = json!({"model":body["model"],"messages":[],"max_tokens":body["max_tokens"]});
     if body["max_tokens"].as_u64().is_none_or(|n| n == 0) {
         return Err(StatusCode::BAD_REQUEST);
@@ -79,23 +103,27 @@ pub(super) fn to_chat(body: &Value) -> Result<Value, StatusCode> {
         let mut content = String::new();
         let mut calls = Vec::new();
         for block in blocks {
+            cache_hint(block)?;
             match block["type"].as_str() {
                 Some("text") => {
-                    object_keys(block, &["type", "text"])?;
+                    object_keys(block, &["type", "text", "cache_control"])?;
                     if !calls.is_empty() {
                         return Err(UNSUPPORTED);
                     }
                     content.push_str(string(block, "text")?);
                 }
                 Some("tool_use") if role == "assistant" => {
-                    object_keys(block, &["type", "id", "name", "input"])?;
+                    object_keys(block, &["type", "id", "name", "input", "cache_control"])?;
                     if !block["input"].is_object() {
                         return Err(StatusCode::BAD_REQUEST);
                     }
                     calls.push(json!({"id":string(block,"id")?,"type":"function","function":{"name":string(block,"name")?,"arguments":block["input"].to_string()}}));
                 }
                 Some("tool_result") if role == "user" => {
-                    object_keys(block, &["type", "tool_use_id", "content", "is_error"])?;
+                    object_keys(
+                        block,
+                        &["type", "tool_use_id", "content", "is_error", "cache_control"],
+                    )?;
                     if block.get("is_error").is_some_and(|v| v != false) {
                         return Err(UNSUPPORTED);
                     }

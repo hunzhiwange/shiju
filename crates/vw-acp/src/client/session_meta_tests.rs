@@ -37,3 +37,29 @@ fn session_options_meta_includes_trimmed_tools_and_preserves_model() {
     assert_eq!(options["allowedTools"], serde_json::json!(["Read", "Bash"]));
     assert_eq!(options["maxTurns"], 0);
 }
+
+#[test]
+fn acp_model_source_claude_sdk_settings_override_model_without_exposing_credentials() {
+    use super::session_meta::build_launch_session_meta;
+    let mut config = crate::types::AcpAgentConfig::default();
+    config.env.extend([
+        ("VW_ACP_LAUNCH_REFERENCE".into(), "vw-session-model:opaque".into()),
+        ("VW_ACP_CLAUDE_SETTINGS".into(), "/private/settings.json".into()),
+        ("ANTHROPIC_MODEL".into(), "selected".into()),
+        ("ANTHROPIC_AUTH_TOKEN".into(), "never-in-meta".into()),
+    ]);
+    let options = AcpSessionOptions {
+        model: Some("local".into()),
+        allowed_tools: Some(vec!["Read".into()]),
+        max_turns: None,
+    };
+    let meta = build_launch_session_meta(Some(&options), &config).unwrap();
+    assert_eq!(meta["claudeCode"]["options"]["settings"], "/private/settings.json");
+    assert_eq!(meta["claudeCode"]["options"]["model"], "selected");
+    assert_eq!(meta["claudeCode"]["options"]["allowedTools"], serde_json::json!(["Read"]));
+    assert!(!serde_json::to_string(&meta).unwrap().contains("never-in-meta"));
+    config.env.remove("VW_ACP_LAUNCH_REFERENCE");
+    let local = build_launch_session_meta(Some(&options), &config).unwrap();
+    assert_eq!(local["claudeCode"]["options"]["model"], "local");
+    assert!(local["claudeCode"]["options"].get("settings").is_none());
+}

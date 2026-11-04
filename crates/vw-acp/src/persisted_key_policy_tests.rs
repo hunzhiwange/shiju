@@ -172,3 +172,15 @@ fn tool_result_field_path_helper_rejects_missing_marker_and_wrong_prefix() {
     assert!(!matches_tool_result_field_path(&wrong_prefix_path));
     assert!(!matches_tool_result_field_path(&extra_segment_path));
 }
+
+#[test]
+fn acp_model_source_claude_local_environment_map_preserves_native_keys_only() {
+    let record = serde_json::json!({"agent_config": {
+        "command": "claude-agent-acp", "args": [],
+        "env": {"CLAUDE_CONFIG_DIR": "/private/native", "LOCAL_SETTING": "value"}
+    }});
+    assert!(super::assert_persisted_key_policy(&record).is_ok());
+    let mut invalid = record;
+    invalid["agent_config"]["unexpectedField"] = serde_json::json!("invalid");
+    assert!(super::assert_persisted_key_policy(&invalid).is_err());
+}

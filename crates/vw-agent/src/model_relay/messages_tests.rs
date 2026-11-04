@@ -165,8 +165,17 @@ mod http {
         )
         .await
         .unwrap();
-        let url = format!("http://{}/v1/messages", server.address());
         let client = reqwest::Client::builder().no_proxy().build().unwrap();
+        // The fixed Claude SDK beta resource uses this exact query, including
+        // ordinary text/tool requests. It does not authorize routing overrides.
+        let url = format!("http://{}/v1/messages?beta=true", server.address());
+        for query in ["beta=false", "beta=true&model=other", "beta=true&beta=true"] {
+            let rejected = client.post(format!("http://{}/v1/messages?{query}",server.address()))
+                .bearer_auth(binding.bearer_token())
+                .json(&json!({"model":"selected","max_tokens":16,"messages":[{"role":"user","content":"hello"}]}))
+                .send().await.unwrap();
+            assert_eq!(rejected.status(), 400);
+        }
         let mut body = json!({"model":"selected","max_tokens":64,"messages":[{"role":"assistant","content":[{"type":"tool_use","id":"a","name":"one","input":{}}]},{"role":"user","content":[{"type":"tool_result","tool_use_id":"a","content":"result"}]}],"tools":[{"name":"one","input_schema":{"type":"object"}}]});
         let response =
             client.post(&url).bearer_auth(binding.bearer_token()).json(&body).send().await.unwrap();
@@ -360,4 +369,38 @@ fn acp_model_source_relay_messages_response_stop_usage_and_capability_errors() {
         request[field] = json!("unrepresentable state");
         assert_eq!(messages::to_chat(&request), Err(StatusCode::UNPROCESSABLE_ENTITY));
     }
+}
+
+#[test]
+fn acp_model_source_claude_messages_annotations_preserve_tools_without_native_identity() {
+    let body = json!({"model":"selected", "max_tokens":64,
+    "metadata":{"user_id":"native-user-must-not-be-forwarded"},
+    "system":[{"type":"text","text":"system", "cache_control":{"type":"ephemeral","ttl":"1h","scope":"global"}}],
+    "messages":[
+        {"role":"user","content":[{"type":"text","text":"read", "cache_control":{"type":"ephemeral"}}]},
+        {"role":"assistant","content":[{"type":"tool_use","id":"read-1","name":"Read","input":{"file_path":"challenge.txt"}}]},
+        {"role":"user","content":[{"type":"tool_result","tool_use_id":"read-1","content":"challenge", "cache_control":{"type":"ephemeral"}}]}
+    ]});
+    let converted = messages::to_chat(&body).unwrap();
+    assert_eq!(converted["messages"][0], json!({"role":"system","content":"system"}));
+    assert_eq!(
+        converted["messages"][3],
+        json!({"role":"tool","tool_call_id":"read-1","content":"challenge"})
+    );
+    let serialized = converted.to_string();
+    assert!(!serialized.contains("native-user-must-not-be-forwarded"));
+    assert!(!serialized.contains("cache_control"));
+    for invalid in [
+        json!({"type":"persistent"}),
+        json!({"type":"ephemeral","ttl":"forever"}),
+        json!({"type":"ephemeral","unknown":true}),
+        json!({"type":"ephemeral","scope":"unverified"}),
+    ] {
+        let mut invalid_body = body.clone();
+        invalid_body["system"][0]["cache_control"] = invalid;
+        assert!(messages::to_chat(&invalid_body).is_err());
+    }
+    let mut thinking = body;
+    thinking["thinking"] = json!({"type":"adaptive"});
+    assert_eq!(messages::to_chat(&thinking), Err(StatusCode::UNPROCESSABLE_ENTITY));
 }

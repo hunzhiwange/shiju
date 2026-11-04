@@ -8,6 +8,28 @@ from acp_model_source_fixture import ModelFixture, successful
 
 
 class HarnessContract(unittest.TestCase):
+    def test_chat_responses_have_distinct_ids_and_stream_chunks_share_one_id(self):
+        with ModelFixture() as fixture:
+            response_ids = []
+            for stream in (True, True, False):
+                request = urllib.request.Request(fixture.url + "/v1/chat/completions",
+                    data=json.dumps({"model": fixture.models[0], "stream": stream,
+                        "messages": [{"role": "user", "content": "reply"}]}).encode(),
+                    headers={"Authorization": "Bearer " + fixture.key, "Content-Type": "application/json"})
+                with urllib.request.urlopen(request) as reply:
+                    body = reply.read().decode()
+                if stream:
+                    chunks = [json.loads(line.removeprefix("data: ")) for line in body.splitlines()
+                        if line.startswith("data: ") and line != "data: [DONE]"]
+                    self.assertEqual(len(chunks), 2)
+                    self.assertEqual(chunks[0]["id"], chunks[1]["id"])
+                    response_ids.append(chunks[0]["id"])
+                else:
+                    response_ids.append(json.loads(body)["id"])
+            self.assertEqual(len(set(response_ids)), 3)
+            self.assertEqual(len(fixture.snapshot()["requests"]), 3)
+            self.assertEqual(fixture.snapshot()["errors"], 0)
+
     def test_zero_requests_cannot_pass(self):
         self.assertFalse(successful({"requests": [], "errors": 0}, {}))
 
@@ -24,7 +46,7 @@ class HarnessContract(unittest.TestCase):
             with self.assertRaises(urllib.error.HTTPError):
                 urllib.request.urlopen(req)
             evidence = fixture.snapshot()
-            self.assertEqual(evidence, {"requests": [], "errors": 1})
+            self.assertEqual(evidence, {"requests": [], "errors": 1, "error_kinds": {"auth": 1}})
             self.assertNotIn(fixture.key, json.dumps(evidence))
 
     def test_http_observations_are_independent_of_model_output(self):
@@ -42,7 +64,7 @@ class HarnessContract(unittest.TestCase):
 
     def test_catalog_requires_model_auth_and_is_not_generation(self):
         with ModelFixture() as fixture:
-            for path in ("/v1/models", "/v1/chat/completions/models"):
+            for path in ("/v1/models", "/v1/chat/completions/models", "/v1/messages/models"):
                 request = urllib.request.Request(fixture.url + path, headers={
                     "Authorization": "Bearer " + fixture.key})
                 with urllib.request.urlopen(request) as response:
@@ -52,7 +74,7 @@ class HarnessContract(unittest.TestCase):
                 with self.assertRaises(urllib.error.HTTPError):
                     urllib.request.urlopen(request)
             self.assertEqual(fixture.snapshot()["requests"], [])
-            self.assertEqual(fixture.snapshot()["errors"], 2)
+            self.assertEqual(fixture.snapshot()["errors"], 3)
 
     def test_snow_native_read_uses_owned_absolute_challenge(self):
         with ModelFixture() as fixture:
@@ -67,6 +89,48 @@ class HarnessContract(unittest.TestCase):
             self.assertEqual(call["function"]["name"], "filesystem-read")
             self.assertEqual(json.loads(call["function"]["arguments"]), {"filePath": fixture.read_path})
             self.assertEqual(fixture.snapshot()["requests"][0]["tool_results"], 0)
+
+
+class MessagesContract(unittest.TestCase):
+    def test_messages_stream_auth_and_two_real_tool_results(self):
+        with ModelFixture() as fixture:
+            messages = [{"role": "user", "content": "read twice"}]
+            for turn in range(3):
+                body = {"model": fixture.models[0], "stream": True, "messages": messages,
+                        "tools": [{"name": "Read", "input_schema": {"properties": {"file_path": {"type": "string"}}}}]}
+                request = urllib.request.Request(fixture.url + "/v1/messages?beta=true", json.dumps(body).encode(),
+                    {"x-api-key": fixture.key, "Content-Type": "application/json"})
+                with urllib.request.urlopen(request) as response:
+                    events = [json.loads(line[6:]) for line in response.read().decode().splitlines() if line.startswith("data: ")]
+                self.assertEqual(events[0]["type"], "message_start")
+                self.assertEqual(events[-1]["type"], "message_stop")
+                block = events[1]["content_block"]
+                if turn < 2:
+                    self.assertEqual(block["type"], "tool_use")
+                    arguments = json.loads(events[2]["delta"]["partial_json"])
+                    self.assertEqual(arguments["file_path"], fixture.read_path)
+                    messages.extend([{"role": "assistant", "content": [dict(block, input=arguments)]},
+                                     {"role": "user", "content": [{"type": "tool_result", "tool_use_id": block["id"], "content": fixture.challenge}]}])
+                else:
+                    self.assertIn(fixture.challenge, events[2]["delta"]["text"])
+            evidence = fixture.snapshot()
+            self.assertEqual([r["tool_results"] for r in evidence["requests"]], [0, 1, 2])
+            self.assertEqual(evidence["errors"], 0)
+            self.assertNotIn(fixture.key, json.dumps(evidence))
+
+    def test_messages_wrong_credentials_and_counting_are_not_generation(self):
+        with ModelFixture() as fixture:
+            body = json.dumps({"model": fixture.models[0]}).encode()
+            request = urllib.request.Request(fixture.url + "/v1/messages/count_tokens", body,
+                {"Authorization": "Bearer " + fixture.key, "Content-Type": "application/json"})
+            with urllib.request.urlopen(request) as response:
+                self.assertEqual(json.load(response), {"input_tokens": 1})
+            self.assertEqual(fixture.snapshot(), {"requests": [], "errors": 0})
+            request = urllib.request.Request(fixture.url + "/v1/messages", body,
+                {"Authorization": "Bearer wrong", "Content-Type": "application/json"})
+            with self.assertRaises(urllib.error.HTTPError):
+                urllib.request.urlopen(request)
+            self.assertEqual(fixture.snapshot(), {"requests": [], "errors": 1, "error_kinds": {"auth": 1}})
 
 
 class RunnerContract(unittest.TestCase):
@@ -194,6 +258,7 @@ class RunnerContract(unittest.TestCase):
         with self.assertRaises(subprocess.TimeoutExpired):
             execute_cargo([sys.executable, "-c", "import time; time.sleep(30)"], env=os.environ.copy(), timeout=0.05)
         self.assertEqual(signal.getsignal(signal.SIGTERM), previous)
+
 
 
 class GeminiContract(unittest.TestCase):

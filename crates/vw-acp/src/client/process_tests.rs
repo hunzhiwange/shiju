@@ -289,3 +289,30 @@ async fn acp_model_source_launch_profile_child_stderr_never_becomes_diagnostics(
     assert!(error.contains("reissued by its session owner"));
     assert!(!error.contains("stderr-secret-9"));
 }
+
+#[cfg(unix)]
+#[tokio::test]
+async fn acp_model_source_claude_managed_child_does_not_merge_account_credentials() {
+    let output_path = unique_test_path("claude-managed-env");
+    let config = AcpAgentConfig {
+        command: "sh".into(),
+        args: shell_args(
+            "test -n \"$PATH\" && test -z \"$CARGO_TARGET_DIR\" && test -z \"$ACCOUNT_SECRET\" && test -z \"$VW_AUTH_ACCOUNT_SECRET\" && test \"$ANTHROPIC_AUTH_TOKEN\" = relay-only && printf isolated > \"$1\"",
+            vec![output_path.to_string_lossy().into_owned()],
+        ),
+        env: HashMap::from([
+            ("VW_ACP_LAUNCH_REFERENCE".into(), "vw-session-model:opaque".into()),
+            ("VW_ACP_CLAUDE_SETTINGS".into(), "/private/settings.json".into()),
+            ("ANTHROPIC_AUTH_TOKEN".into(), "relay-only".into()),
+        ]),
+    };
+    let client = client_with_config(config).with_auth_credentials(HashMap::from([(
+        "account-secret".into(),
+        "account-must-not-leak".into(),
+    )]));
+    let ProcessHandles { child, stderr_task } = client.spawn_child().unwrap();
+    let finalized = client.finalize_child(child, stderr_task).await;
+    assert_eq!(finalized.summary.exit_code, Some(0));
+    assert_eq!(std::fs::read_to_string(&output_path).unwrap(), "isolated");
+    std::fs::remove_file(output_path).unwrap();
+}

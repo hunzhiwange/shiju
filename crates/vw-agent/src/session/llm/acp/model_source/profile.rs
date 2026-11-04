@@ -25,7 +25,11 @@ pub(crate) struct AcpLaunchProfile {
     #[allow(dead_code)] // Read by individual CLI drivers as they are verified.
     pub(crate) model_alias: String,
     pub(crate) model_output_limit: u64,
+    pub(crate) model_context_limit: u64,
     pub(crate) model_supports_temperature: bool,
+    pub(crate) model_supports_reasoning: bool,
+    pub(crate) model_supports_tool_call: bool,
+    pub(crate) state_root: Option<PathBuf>,
     pub(crate) model_api: Option<crate::provider::provider::ApiInfo>,
 }
 impl AcpLaunchProfile {
@@ -69,7 +73,11 @@ impl AcpLaunchProfile {
                 server: None,
                 model_alias,
                 model_output_limit: vw_shared::provider::state::DEFAULT_MODEL_OUTPUT_LIMIT,
+                model_context_limit: vw_shared::provider::state::DEFAULT_MODEL_CONTEXT_LIMIT,
                 model_supports_temperature: false,
+                model_supports_reasoning: false,
+                model_supports_tool_call: false,
+                state_root: None,
                 model_api: None,
             })
         }
@@ -80,6 +88,38 @@ impl AcpLaunchProfile {
     #[allow(dead_code)] // Shared boundary used by the subsequent CLI drivers.
     pub(crate) fn directory(&self) -> &Path {
         self.directory.path()
+    }
+    /// Persistent SDK history is separate from revocable request credentials.
+    pub(crate) fn claude_state_directory(&self) -> anyhow::Result<PathBuf> {
+        #[cfg(not(unix))]
+        anyhow::bail!("private ACP state directory ACL verification unavailable");
+        #[cfg(unix)]
+        {
+            use std::os::unix::fs::{DirBuilderExt, MetadataExt, PermissionsExt};
+            let root = self.state_root.as_deref().unwrap_or(self.directory.path());
+            anyhow::ensure!(root.is_absolute() && root.is_dir(), "invalid ACP state root");
+            let reference = self.config.env[REFERENCE_ENV]
+                .strip_prefix("vw-session-model:")
+                .ok_or_else(|| anyhow::anyhow!("invalid ACP state identity"))?;
+            let mut path = root.to_path_buf();
+            for component in ["acp-claude-state", reference] {
+                path.push(component);
+                match std::fs::DirBuilder::new().mode(0o700).create(&path) {
+                    Ok(()) => {}
+                    Err(error) if error.kind() == std::io::ErrorKind::AlreadyExists => {}
+                    Err(error) => return Err(error.into()),
+                }
+                let metadata = path.symlink_metadata()?;
+                anyhow::ensure!(
+                    metadata.is_dir()
+                        && !metadata.file_type().is_symlink()
+                        && metadata.permissions().mode() & 0o777 == 0o700
+                        && metadata.uid() == unsafe { libc::geteuid() },
+                    "insecure ACP state directory"
+                );
+            }
+            Ok(path)
+        }
     }
     pub(crate) fn attach_server(&mut self, server: RelayServer) {
         self.server = Some(server);

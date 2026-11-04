@@ -112,6 +112,8 @@ fn build_cached_acp_client(
         Arc::new(parking_lot::Mutex::new(None::<mpsc::UnboundedSender<AcpJsonRpcMessage>>));
     let callback_output_tx = output_tx.clone();
     let callback = Arc::new(move |_direction, message| {
+        #[cfg(test)]
+        super::model_source::acceptance_tests::observe_rpc(_direction, &message);
         if let Some(tx) = callback_output_tx.lock().as_ref() {
             let _ = tx.send(message);
         }

@@ -40,3 +40,28 @@ pub(super) fn build_session_options_meta(options: Option<&AcpSessionOptions>) ->
     );
     Some(meta)
 }
+
+/// Only a request-owned Claude launch may pass a private SDK settings file.
+/// cli_local has no launch reference and retains the original SDK options.
+pub(super) fn managed_claude_settings(config: &AcpAgentConfig) -> Option<&str> {
+    config.env.get("VW_ACP_LAUNCH_REFERENCE")?;
+    config.env.get("VW_ACP_CLAUDE_SETTINGS").map(String::as_str)
+}
+
+pub(super) fn build_launch_session_meta(
+    options: Option<&AcpSessionOptions>,
+    config: &AcpAgentConfig,
+) -> Option<acp::Meta> {
+    let mut meta = build_session_options_meta(options);
+    if let Some(path) = managed_claude_settings(config) {
+        let meta = meta.get_or_insert_with(Map::new);
+        let extension = meta.entry("claudeCode").or_insert_with(|| json!({"options": {}}));
+        let options = extension["options"].as_object_mut().expect("typed Claude SDK options");
+        options.insert("settings".into(), json!(path));
+        // The selected client model also wins over persisted/native SDK model options.
+        if let Some(model) = config.env.get("ANTHROPIC_MODEL") {
+            options.insert("model".into(), json!(model));
+        }
+    }
+    meta
+}

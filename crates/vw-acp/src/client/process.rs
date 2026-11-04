@@ -33,11 +33,33 @@ impl AcpClient {
         }
 
         let mut env = self.config.env.clone();
-        for (key, value) in build_agent_environment(&self.auth_credentials) {
-            insert_auth_env_if_missing(&mut env, key, value);
+        let managed_claude = managed_claude_settings(&self.config).is_some();
+        if !managed_claude {
+            for (key, value) in build_agent_environment(&self.auth_credentials) {
+                insert_auth_env_if_missing(&mut env, key, value);
+            }
         }
 
         let mut cmd = build_spawn_command(self.config.command.trim(), &env);
+        if managed_claude {
+            // Do not inherit OAuth, cloud backends, Node injection or proxy credentials.
+            // Keep the OS runtime paths; HOME is preserved, never substituted.
+            let runtime = [
+                "PATH",
+                "HOME",
+                "USERPROFILE",
+                "SystemRoot",
+                "TMPDIR",
+                "TMP",
+                "TEMP",
+                "LANG",
+                "LC_ALL",
+            ]
+            .into_iter()
+            .filter_map(|key| std::env::var_os(key).map(|value| (key, value)))
+            .collect::<Vec<_>>();
+            cmd.env_clear().envs(runtime).envs(&env);
+        }
         cmd.args(self.config.args.iter())
             .stdin(Stdio::piped())
             .stdout(Stdio::piped())

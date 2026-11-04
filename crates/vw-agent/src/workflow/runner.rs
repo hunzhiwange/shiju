@@ -8,6 +8,7 @@ use super::model::{
 };
 use super::template::{render_jinja_value_template, render_template, value_to_text};
 use super::variables::{VariablePool, selector_from_value};
+use crate::agent::loop_::parsing::contains_deepseek_dsml_markup;
 use crate::providers::traits::{StreamOptions, TokenUsage};
 use crate::providers::{ChatMessage, ChatRequest, Provider};
 use futures_util::StreamExt;
@@ -1031,24 +1032,72 @@ where
 {
     let messages = build_llm_messages(node, pool);
     let requested_model = workflow_node_model(node, runtime.model.as_str());
-    let (text, usage) = if runtime.provider.supports_streaming() {
-        run_llm_chat_streaming(runtime, node, node_index, &messages, &requested_model, on_event)
-            .await?
-    } else {
-        let response = runtime
-            .provider
-            .chat(
-                ChatRequest { messages: &messages, tools: None },
+    let mut retry_messages = messages.clone();
+    let mut retries = 0;
+    let mut total_usage = serde_json::Map::new();
+    let text = loop {
+        let (text, usage, has_tool_calls) = if runtime.provider.supports_streaming() {
+            let (text, usage) = run_llm_chat_streaming(
+                runtime,
+                node,
+                node_index,
+                &retry_messages,
                 &requested_model,
-                runtime.temperature,
+                on_event,
             )
-            .await
-            .map_err(|error| format!("LLM 节点模型 {requested_model} 调用失败: {error}"))?;
-        (response.text.unwrap_or_default(), workflow_token_usage(response.usage.as_ref()))
+            .await?;
+            (text, usage, false)
+        } else {
+            let response = runtime
+                .provider
+                .chat(
+                    ChatRequest { messages: &retry_messages, tools: None },
+                    &requested_model,
+                    runtime.temperature,
+                )
+                .await
+                .map_err(|error| format!("LLM 节点模型 {requested_model} 调用失败: {error}"))?;
+            (
+                response.text.unwrap_or_default(),
+                workflow_token_usage(response.usage.as_ref()),
+                !response.tool_calls.is_empty(),
+            )
+        };
+        if let Some(Value::Object(usage)) = usage {
+            for (key, value) in usage {
+                let previous = total_usage.get(&key).and_then(Value::as_u64).unwrap_or(0);
+                total_usage
+                    .insert(key, Value::from(previous.saturating_add(value.as_u64().unwrap_or(0))));
+            }
+        }
+        if !contains_deepseek_dsml_markup(&text) && !has_tool_calls {
+            break text;
+        }
+        // Remove invalid streamed previews before retrying or returning a terminal error.
+        if runtime.provider.supports_streaming() {
+            on_event(WorkflowRunEvent::NodeDelta(WorkflowNodeDeltaEvent {
+                node_id: node.id.clone(),
+                node_type: node.node_type.clone(),
+                title: node.title.clone(),
+                index: node_index,
+                text: String::new(),
+                replace: true,
+            }));
+        }
+        if retries == 2 {
+            return Err(format!(
+                "LLM 节点模型 {requested_model} 自动重试 2 次后仍返回 DSML 或工具调用，无法生成普通文本结果"
+            ));
+        }
+        // Keep the original task, but do not replay malformed tool payloads as history.
+        retries += 1;
+        retry_messages.push(ChatMessage::user(
+            "上一轮错误地返回了 DSML 或工具调用。本节点没有工具执行能力。请重新完成原始任务，直接返回要求的文本或 JSON；不要调用工具、不要输出 DSML、不要解释重试过程。",
+        ));
     };
     let mut outputs = llm_outputs(text);
-    if let Some(usage) = usage {
-        outputs.insert("usage".to_string(), usage);
+    if !total_usage.is_empty() {
+        outputs.insert("usage".to_string(), Value::Object(total_usage));
     }
     Ok(NodeExecution {
         status: WorkflowNodeRunStatus::Succeeded,

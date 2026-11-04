@@ -6,6 +6,97 @@
 use super::*;
 
 #[tokio::test]
+async fn run_tool_call_loop_executes_repaired_dsml_through_existing_permissions() {
+    for native in [false, true] {
+        for excluded in [false, true] {
+            let mut provider = ScriptedProvider::from_text_responses(vec![
+                "<｜｜DSML｜｜ calls><｜｜DSML｜｜ invoke name=\"count_tool\"><｜｜DSML｜｜ parameter name=\"value\" string=\"true\">repaired</｜｜DSML｜｜ parameter></｜｜DSML｜｜ invoke></｜｜DSML｜｜ calls>",
+                "done",
+            ]);
+            if native {
+                provider = provider.with_native_tool_support();
+            }
+            let invocations = Arc::new(AtomicUsize::new(0));
+            let tools: Vec<Box<dyn Tool>> =
+                vec![Box::new(CountingTool::new("count_tool", Arc::clone(&invocations)))];
+            let mut history = vec![ChatMessage::system("test-system"), ChatMessage::user("run")];
+            let excluded_tools = if excluded { vec!["count_tool".to_string()] } else { vec![] };
+            let result = run_tool_call_loop(
+                &provider,
+                &mut history,
+                &tools,
+                &NoopObserver,
+                "mock-provider",
+                "mock-model",
+                0.0,
+                true,
+                None,
+                "cli",
+                &crate::app::agent::config::MultimodalConfig::default(),
+                3,
+                None,
+                None,
+                None,
+                None,
+                &excluded_tools,
+            )
+            .await
+            .expect("repaired tool calls should use the normal execution path");
+            assert_eq!(result, "done");
+            assert_eq!(invocations.load(Ordering::SeqCst), usize::from(!excluded));
+            if excluded {
+                assert!(
+                    history.iter().any(|m| m.content.contains("not available in this channel"))
+                );
+            } else {
+                assert!(history.iter().any(|m| m.content.contains("counted:repaired")));
+                if native {
+                    assert!(history.iter().any(|m| m.content.contains("fallback_1_1")));
+                }
+            }
+        }
+    }
+}
+
+#[tokio::test]
+async fn run_tool_call_loop_rejects_malformed_dsml_without_final_text() {
+    let malformed = "<｜｜DSML｜｜ calls><｜｜DSML｜｜ invoke name=\"Bash\">";
+    for (with_tools, max_iterations) in [(false, 3), (true, 1), (true, 3)] {
+        let provider = ScriptedProvider::from_text_responses(vec![malformed, malformed]);
+        let invocations = Arc::new(AtomicUsize::new(0));
+        let tools: Vec<Box<dyn Tool>> = if with_tools {
+            vec![Box::new(CountingTool::new("count_tool", Arc::clone(&invocations)))]
+        } else {
+            vec![]
+        };
+        let mut history = vec![ChatMessage::system("test-system"), ChatMessage::user("run")];
+        let error = run_tool_call_loop(
+            &provider,
+            &mut history,
+            &tools,
+            &NoopObserver,
+            "mock-provider",
+            "mock-model",
+            0.0,
+            true,
+            None,
+            "cli",
+            &crate::app::agent::config::MultimodalConfig::default(),
+            max_iterations,
+            None,
+            None,
+            None,
+            None,
+            &[],
+        )
+        .await
+        .expect_err("malformed DSML must never become a final answer");
+        assert!(error.to_string().contains("unparseable tool call"), "{error}");
+        assert_eq!(invocations.load(Ordering::SeqCst), 0);
+    }
+}
+
+#[tokio::test]
 async fn run_tool_call_loop_deduplicates_repeated_tool_calls() {
     let provider = ScriptedProvider::from_text_responses(vec![
         r#"<tool_call>

@@ -369,6 +369,12 @@ pub(crate) async fn run_tool_call_loop_with_skills(
                 continue;
             }
 
+            // A malformed payload is never a final answer, including when no tools
+            // are available or the last iteration leaves no room for recovery.
+            if round.parse_issue_detected {
+                anyhow::bail!("Model emitted an unparseable tool call instead of a final response");
+            }
+
             if missing_tool_call_signal && missing_tool_call_retry_used {
                 runtime_trace::record_event(
                     "tool_call_followthrough_failed",

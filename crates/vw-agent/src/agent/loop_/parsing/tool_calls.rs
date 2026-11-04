@@ -18,6 +18,7 @@
 //! 可能模仿工具调用。工具调用必须显式地包装在认可的格式中，以确保只有
 //! LLM 有意发出的工具调用才会被执行。
 
+use super::deepseek_dsml::{contains_deepseek_dsml_markup, parse_deepseek_dsml_calls};
 use crate::app::agent::providers::ToolCall;
 use regex::Regex;
 use std::sync::LazyLock;
@@ -83,85 +84,6 @@ fn extract_tool_text_from_json_value(value: &serde_json::Value) -> Option<String
     None
 }
 
-const DEEPSEEK_DSML_OPEN_TAG: &str = "<｜DSML｜tool_calls>";
-const DEEPSEEK_DSML_CLOSE_TAG: &str = "</｜DSML｜tool_calls>";
-
-fn normalize_deepseek_dsml_body(body: &str) -> Option<String> {
-    static PARAMETER_RE: LazyLock<Regex> = LazyLock::new(|| {
-        Regex::new(r"(?is)<｜DSML｜parameter\b([^>]*)>(.*?)</｜DSML｜parameter>").unwrap()
-    });
-    static NAME_RE: LazyLock<Regex> =
-        LazyLock::new(|| Regex::new(r#"\bname\s*=\s*(?:"([^"]+)"|'([^']+)')"#).unwrap());
-    static STRING_TRUE_RE: LazyLock<Regex> =
-        LazyLock::new(|| Regex::new(r#"\bstring\s*=\s*(?:"true"|'true')"#).unwrap());
-
-    let mut normalized = String::with_capacity(body.len());
-    let mut last_end = 0;
-
-    for capture in PARAMETER_RE.captures_iter(body) {
-        let full_match = capture.get(0)?;
-        let attributes = capture.get(1)?.as_str();
-        let value = capture.get(2)?.as_str();
-        let name_capture = NAME_RE.captures(attributes)?;
-        let name = name_capture.get(1).or_else(|| name_capture.get(2))?.as_str().trim();
-        if name.is_empty() {
-            return None;
-        }
-
-        normalized.push_str(&body[last_end..full_match.start()]);
-        normalized.push_str("<parameter name=");
-        normalized.push_str(&serde_json::to_string(name).ok()?);
-        normalized.push('>');
-        if STRING_TRUE_RE.is_match(attributes) {
-            normalized.push_str(&serde_json::to_string(value).ok()?);
-        } else {
-            normalized.push_str(value);
-        }
-        normalized.push_str("</parameter>");
-        last_end = full_match.end();
-    }
-
-    normalized.push_str(&body[last_end..]);
-    let normalized =
-        normalized.replace("<｜DSML｜invoke", "<invoke").replace("</｜DSML｜invoke>", "</invoke>");
-
-    if normalized.contains("｜DSML｜") { None } else { Some(normalized) }
-}
-
-fn parse_deepseek_dsml_calls(response: &str) -> Option<(String, Vec<ParsedToolCall>)> {
-    let mut text_parts = Vec::new();
-    let mut calls = Vec::new();
-    let mut remaining = response;
-
-    while let Some(open_index) = remaining.find(DEEPSEEK_DSML_OPEN_TAG) {
-        let before = remaining[..open_index].trim();
-        if !before.is_empty() {
-            text_parts.push(before.to_string());
-        }
-
-        let after_open = &remaining[open_index + DEEPSEEK_DSML_OPEN_TAG.len()..];
-        let close_index = after_open.find(DEEPSEEK_DSML_CLOSE_TAG)?;
-        let normalized_body = normalize_deepseek_dsml_body(&after_open[..close_index])?;
-        let (unexpected_text, mut block_calls) =
-            super::minimax_xml::parse_minimax_invoke_calls(&normalized_body)?;
-        if !unexpected_text.trim().is_empty() || block_calls.is_empty() {
-            return None;
-        }
-        calls.append(&mut block_calls);
-        remaining = &after_open[close_index + DEEPSEEK_DSML_CLOSE_TAG.len()..];
-    }
-
-    if calls.is_empty() || remaining.contains("｜DSML｜") {
-        return None;
-    }
-    let after = remaining.trim();
-    if !after.is_empty() {
-        text_parts.push(after.to_string());
-    }
-
-    Some((text_parts.join("\n"), calls))
-}
-
 /// 从 LLM 响应中解析工具调用
 ///
 /// 这是对外的主要解析函数，尝试按照多种格式从响应文本中提取工具调用。
@@ -220,6 +142,14 @@ pub(crate) fn parse_tool_calls(response: &str) -> (String, Vec<ParsedToolCall>) 
         }
     }
 
+    // DSML must be parsed atomically; do not execute fragments via another parser.
+    if contains_deepseek_dsml_markup(response) {
+        return match parse_deepseek_dsml_calls(response) {
+            Some((text, calls)) => (text, canonicalize_calls(calls)),
+            None => (response.to_string(), Vec::new()),
+        };
+    }
+
     // 策略 2：尝试 Minimax 特有的 XML 格式
     if let Some((minimax_text, minimax_calls)) =
         super::minimax_xml::parse_minimax_invoke_calls(response)
@@ -227,11 +157,6 @@ pub(crate) fn parse_tool_calls(response: &str) -> (String, Vec<ParsedToolCall>) 
         if !minimax_calls.is_empty() {
             return (minimax_text, canonicalize_calls(minimax_calls));
         }
-    }
-
-    // 策略 3：尝试 DeepSeek DSML 文本工具调用格式
-    if let Some((dsml_text, dsml_calls)) = parse_deepseek_dsml_calls(response) {
-        return (dsml_text, canonicalize_calls(dsml_calls));
     }
 
     // 策略 4：回退到 XML 风格的工具调用标签解析
@@ -676,7 +601,7 @@ pub(crate) fn detect_tool_call_parse_issue(
     let looks_like_tool_payload = trimmed.contains("<tool_call")
         || trimmed.contains("<toolcall")
         || trimmed.contains("<tool-call")
-        || trimmed.contains(DEEPSEEK_DSML_OPEN_TAG)
+        || contains_deepseek_dsml_markup(trimmed)
         || trimmed.contains("```tool_call")
         || trimmed.contains("```toolcall")
         || trimmed.contains("```tool-call")

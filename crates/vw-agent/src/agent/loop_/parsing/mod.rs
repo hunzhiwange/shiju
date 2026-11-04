@@ -21,11 +21,14 @@
 //! - [`tool_calls`]：核心工具调用解析逻辑和结果类型
 //! - [`xml_helpers`]：XML 解析辅助函数
 
+mod deepseek_dsml;
 mod json;
 mod minimax_xml;
 mod tool_call_formats;
 mod tool_calls;
 mod xml_helpers;
+
+pub(crate) use deepseek_dsml::contains_deepseek_dsml_markup;
 
 // JSON 解析相关函数的重导出
 // 包括：JSON 值提取、工具调用签名计算、参数解析等

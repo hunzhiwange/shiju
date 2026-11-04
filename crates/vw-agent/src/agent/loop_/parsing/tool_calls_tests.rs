@@ -5,7 +5,10 @@ use serde_json::json;
 
 use crate::app::agent::providers::ToolCall;
 
-use super::{detect_tool_call_parse_issue, parse_structured_tool_calls, parse_tool_calls};
+use super::{
+    contains_deepseek_dsml_markup, detect_tool_call_parse_issue, parse_structured_tool_calls,
+    parse_tool_calls,
+};
 
 #[test]
 fn parse_tool_calls_extracts_openai_json_tool_calls() {
@@ -151,6 +154,52 @@ fn parse_tool_calls_rejects_incomplete_deepseek_dsml() {
     assert_eq!(text, response);
     assert!(calls.is_empty());
     assert!(detect_tool_call_parse_issue(response, &calls).is_some());
+}
+
+#[test]
+fn parse_tool_calls_repairs_deepseek_dsml_tag_variants() {
+    for marker in ["｜DSML｜", "｜｜DSML｜｜ ", "|DSML|", "||dsml|| "] {
+        for wrapper in ["calls", "tool_calls"] {
+            let response = format!(
+                "before<{marker}{wrapper}><{marker}invoke name=\"Bash\"><{marker}parameter name=\"command\" string=\"true\">pwd</{marker}parameter></{marker}invoke></{marker}{wrapper}>after"
+            );
+            let (text, calls) = parse_tool_calls(&response);
+            assert_eq!(text, "before\nafter");
+            assert_eq!(calls.len(), 1, "{response}");
+            assert_eq!(calls[0].name, "shell");
+            assert_eq!(calls[0].arguments["command"], "pwd");
+            assert!(detect_tool_call_parse_issue(&response, &calls).is_none());
+        }
+    }
+}
+
+#[test]
+fn parse_tool_calls_repairs_dsml_without_modifying_parameter_bytes_or_types() {
+    let value = "  中文\n<｜｜DSML｜｜ invoke name=\"example\">text</invoke>\n{\"keep\":true}  ";
+    let response = format!(
+        "<｜｜DSML｜｜ calls><｜｜DSML｜｜ invoke name=\"echo\"><｜｜DSML｜｜ parameter name=\"value\" string=\"true\">{value}</｜｜DSML｜｜ parameter><｜｜DSML｜｜ parameter name=\"options\" string=\"false\">{{\"enabled\":true,\"count\":2,\"items\":[null,1]}}</｜｜DSML｜｜ parameter></｜｜DSML｜｜ invoke><｜｜DSML｜｜ invoke name=\"other\"></｜｜DSML｜｜ invoke></｜｜DSML｜｜ calls>"
+    );
+    let (_, calls) = parse_tool_calls(&response);
+    assert_eq!(calls.len(), 2);
+    assert_eq!(calls[0].arguments["value"], value);
+    assert_eq!(calls[0].arguments["options"], json!({"enabled":true,"count":2,"items":[null,1]}));
+    assert_eq!(calls[1].arguments, json!({}));
+}
+
+#[test]
+fn parse_tool_calls_rejects_ambiguous_dsml_without_partial_execution() {
+    let valid = "<｜｜DSML｜｜ calls><｜｜DSML｜｜ invoke name=\"echo\"></｜｜DSML｜｜ invoke></｜｜DSML｜｜ calls>";
+    for body in [
+        "<｜｜DSML｜｜ invoke name=\"echo\">",
+        "<｜｜DSML｜｜ invoke name=\"echo\"><｜｜DSML｜｜ parameter name=\"v\" string=\"false\">not-json</｜｜DSML｜｜ parameter></｜｜DSML｜｜ invoke>",
+        "<｜｜DSML｜｜ invoke name=\"echo\"><｜｜DSML｜｜ parameter name=\"v\" string=\"true\">a</｜｜DSML｜｜ parameter><｜｜DSML｜｜ parameter name=\"v\" string=\"true\">b</｜｜DSML｜｜ parameter></｜｜DSML｜｜ invoke>",
+        "<｜｜DSML｜｜ invoke name=\"echo\">unexpected</｜｜DSML｜｜ invoke>",
+    ] {
+        let response = format!("{valid}<｜｜DSML｜｜ calls>{body}</｜｜DSML｜｜ calls>");
+        let (_, calls) = parse_tool_calls(&response);
+        assert!(calls.is_empty(), "{response}");
+        assert!(detect_tool_call_parse_issue(&response, &calls).is_some());
+    }
 }
 
 #[test]
@@ -345,6 +394,30 @@ fn detect_tool_call_parse_issue_reports_unclosed_tag() {
     let issue = detect_tool_call_parse_issue("<tool_call>{\"name\":\"shell\"", &[]);
 
     assert!(issue.is_some());
+}
+
+#[test]
+fn detect_tool_call_parse_issue_reports_malformed_deepseek_dsml() {
+    for response in [
+        "brief\n<｜DSML｜tool_calls>",
+        "<｜｜DSML｜｜ invoke",
+        "</｜DSML｜parameter>",
+        "<|DSML|tool_calls>",
+        "<｜dsml｜calls>",
+    ] {
+        let (_, calls) = parse_tool_calls(response);
+        assert!(calls.is_empty(), "malformed calls must not execute: {response}");
+        assert!(detect_tool_call_parse_issue(response, &calls).is_some(), "{response}");
+    }
+}
+
+#[test]
+fn contains_deepseek_dsml_markup_ignores_ordinary_text() {
+    for response in
+        ["DSML 工具调用格式说明", "普通简报", r#"[{"anchor":"客户","assets":["订单画面"]}]"#]
+    {
+        assert!(!contains_deepseek_dsml_markup(response), "{response}");
+    }
 }
 
 #[test]

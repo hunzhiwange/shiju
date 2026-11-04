@@ -172,3 +172,10 @@ pub use client::{
     ShijuConnectorBinding, ShijuConnectorChallenge, ShijuConnectorPoll, ShijuConnectorPollRequest,
     ShijuConnectorSaveRequest, ShijuConnectorVariable,
 };
+
+/// Read-only SHIJU knowledge pagination, retrieval and document transport contract.
+pub use client::{
+    ShijuKnowledgeBaseDto, ShijuKnowledgeDocumentDto, ShijuKnowledgePageDto,
+    ShijuKnowledgePageQuery, ShijuKnowledgeReadDto, ShijuKnowledgeReadRequest,
+    ShijuKnowledgeRecordDto, ShijuKnowledgeSearchDto, ShijuKnowledgeSearchRequest,
+};

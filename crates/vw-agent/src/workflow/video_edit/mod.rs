@@ -1,4 +1,5 @@
 mod cloud;
+pub(crate) mod cloud_failure;
 pub use cloud::ShijuCloudVideoToolProvider;
 mod command;
 mod types;

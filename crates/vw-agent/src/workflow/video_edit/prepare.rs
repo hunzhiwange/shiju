@@ -300,12 +300,24 @@ pub async fn prepare_cloud_video(
             VideoPrepareState::New => {
                 lease.run.state = VideoPrepareState::CreatingProject;
                 lease.save().await?;
-                lease.run.project_id = Some(
-                    cloud
-                        .create_project(&lease.run.run_id, &lease.run.cloud_scope)
-                        .await
-                        .context("project creation unknown; reconcile before retry")?,
-                );
+                match cloud.create_project(&lease.run.run_id, &lease.run.cloud_scope).await {
+                    Ok(project) => lease.run.project_id = Some(project),
+                    Err(error) => {
+                        if error
+                            .downcast_ref::<super::cloud_failure::CloudOperationFailure>()
+                            .is_some_and(|failure| failure.permits_resubmission())
+                        {
+                            lease.run.state = VideoPrepareState::New;
+                            lease.save().await?;
+                            return Err(error.context(
+                                "project creation had no effects; explicit retry allowed",
+                            ));
+                        }
+                        return Err(
+                            error.context("project creation unknown; reconcile before retry")
+                        );
+                    }
+                }
                 lease.run.state = VideoPrepareState::ProjectReady;
                 lease.save().await?;
             }
@@ -322,13 +334,27 @@ pub async fn prepare_cloud_video(
             VideoPrepareState::ProjectReady => {
                 lease.run.state = VideoPrepareState::CreatingUpload;
                 lease.save().await?;
-                let t = cloud
+                let t = match cloud
                     .create_upload(
                         lease.run.project_id.as_deref().context("missing project")?,
                         &lease.run.source,
                     )
                     .await
-                    .context("upload session unknown; refusing resubmission")?;
+                {
+                    Ok(ticket) => ticket,
+                    Err(error) => {
+                        if error
+                            .downcast_ref::<super::cloud_failure::CloudOperationFailure>()
+                            .is_some_and(|failure| failure.permits_resubmission())
+                        {
+                            lease.run.state = VideoPrepareState::ProjectReady;
+                            lease.save().await?;
+                            return Err(error
+                                .context("upload session had no effects; explicit retry allowed"));
+                        }
+                        return Err(error.context("upload session unknown; refusing resubmission"));
+                    }
+                };
                 lease.run.upload_id = Some(t.upload_id.clone());
                 ticket = Some(t);
                 lease.run.state = VideoPrepareState::UploadReady;

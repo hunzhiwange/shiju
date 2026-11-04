@@ -1,65 +1,70 @@
 //! Typed preparation operations; never exposed as arbitrary workflow tool names.
 use super::*;
+use crate::workflow::video_edit::cloud_failure::{CloudFailurePhase, CloudOperationFailure};
 use crate::workflow::video_edit::{manifest::*, prepare::*};
 use anyhow::{Context, Result, bail, ensure};
 
 impl ShijuCloudVideoToolProvider {
     pub(super) async fn prepare_call(&self, operation: &str, args: Value) -> Result<Value> {
-        // Reload the official schema before each operation, fail closed on drift.
-        ensure!(
-            [
-                "get_my_permissions",
-                "create_project",
-                "list_projects",
-                "import_media",
-                "media_probe",
-                "media_audio_extract",
-                "asr_transcribe"
-            ]
-            .contains(&operation),
-            "unsupported preparation operation"
-        );
-        let text = self
-            .occ_capture(&["schema".into(), operation.into()])
-            .await
-            .map_err(anyhow::Error::msg)?;
-        let schema: Value = serde_json::from_str(&text)?;
-        ensure!(
-            schema["name"] == operation && schema["inputSchema"]["type"] == "object",
-            "preparation schema identity changed"
-        );
-        let properties = schema["inputSchema"]["properties"]
-            .as_object()
-            .context("missing preparation schema properties")?;
-        for (key, value) in args.as_object().context("invalid typed arguments")? {
-            let property = properties.get(key).context("preparation schema field changed")?;
-            let valid = match property["type"].as_str() {
-                Some("string") => value.is_string(),
-                Some("number") => value.is_number(),
-                Some("integer") => value.is_i64(),
-                Some("boolean") => value.is_boolean(),
-                Some("array") => value.is_array(),
-                _ => false,
-            };
-            ensure!(valid, "preparation schema type changed");
-            if let Some(choices) = property["enum"].as_array() {
-                ensure!(choices.contains(value), "preparation schema enum changed");
+        let preflight = async {
+            // Reload the official schema before each operation, fail closed on drift.
+            ensure!(
+                [
+                    "get_my_permissions",
+                    "create_project",
+                    "list_projects",
+                    "import_media",
+                    "media_probe",
+                    "media_audio_extract",
+                    "asr_transcribe"
+                ]
+                .contains(&operation),
+                "unsupported preparation operation"
+            );
+            let text = self
+                .occ_capture(&["schema".into(), operation.into()])
+                .await
+                .map_err(anyhow::Error::msg)?;
+            let schema: Value = serde_json::from_str(&text)?;
+            ensure!(
+                schema["name"] == operation && schema["inputSchema"]["type"] == "object",
+                "preparation schema identity changed"
+            );
+            let properties = schema["inputSchema"]["properties"]
+                .as_object()
+                .context("missing preparation schema properties")?;
+            for (key, value) in args.as_object().context("invalid typed arguments")? {
+                let property = properties.get(key).context("preparation schema field changed")?;
+                let valid = match property["type"].as_str() {
+                    Some("string") => value.is_string(),
+                    Some("number") => value.is_number(),
+                    Some("integer") => value.is_i64(),
+                    Some("boolean") => value.is_boolean(),
+                    Some("array") => value.is_array(),
+                    _ => false,
+                };
+                ensure!(valid, "preparation schema type changed");
+                if let Some(choices) = property["enum"].as_array() {
+                    ensure!(choices.contains(value), "preparation schema enum changed");
+                }
             }
-        }
-        if let Some(required) = schema["inputSchema"]["required"].as_array() {
-            for key in required {
-                ensure!(
-                    args.get(key.as_str().context("invalid required field")?).is_some(),
-                    "preparation schema requires unsupported field"
-                );
+            if let Some(required) = schema["inputSchema"]["required"].as_array() {
+                for key in required {
+                    ensure!(
+                        args.get(key.as_str().context("invalid required field")?).is_some(),
+                        "preparation schema requires unsupported field"
+                    );
+                }
             }
+            Ok::<_, anyhow::Error>(())
         }
+        .await;
+        preflight.map_err(|_| CloudOperationFailure::not_sent(CloudFailurePhase::Preflight))?;
         let value =
             self.memory_exchange(json!({"kind":"call","operation":operation,"args":args})).await?;
-        ensure!(
-            value.is_object() && value.get("error").is_none(),
-            "cloud preparation returned an error"
-        );
+        if !value.is_object() || value.get("error").is_some() {
+            return Err(CloudOperationFailure::unknown_response(&value).into());
+        }
         Ok(value)
     }
 }
@@ -143,7 +148,9 @@ impl VideoPrepareCloud for ShijuCloudVideoToolProvider {
         if let Some(store) = &scope.store_id {
             args["storeId"] = json!(store);
         }
-        id(&self.prepare_call("create_project", args).await?, "projectId")
+        let response = self.prepare_call("create_project", args).await?;
+        id(&response, "projectId")
+            .map_err(|_| CloudOperationFailure::unknown_response(&response).into())
     }
     async fn find_project(&self, run_id: &str, scope: &CloudVideoScope) -> Result<Option<String>> {
         let name = format!("video-edit-{run_id}");

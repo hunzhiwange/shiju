@@ -31,7 +31,24 @@ impl VideoPrepareCloud for Cloud {
     }
     async fn create_project(&self, _run: &str, _scope: &CloudVideoScope) -> Result<String> {
         let mut r = self.remote.lock().unwrap();
+        if r.fail == "not-sent" || r.fail == "rejected" {
+            let mut error = cloud_failure::CloudOperationFailure::not_sent(
+                cloud_failure::CloudFailurePhase::Preflight,
+            );
+            if r.fail == "rejected" {
+                error.outcome = cloud_failure::CloudFailureOutcome::Rejected;
+            }
+            r.fail.clear();
+            return Err(error.into());
+        }
         r.projects += 1;
+        if r.fail == "unknown-no-project" {
+            r.fail.clear();
+            return Err(cloud_failure::CloudOperationFailure::unknown(
+                cloud_failure::CloudFailurePhase::Response,
+            )
+            .into());
+        }
         let id = format!("project-{}", r.projects);
         r.project = Some(id.clone());
         if r.fail == "project" {
@@ -49,6 +66,16 @@ impl VideoPrepareCloud for Cloud {
         _source: &VideoSourceIdentity,
     ) -> Result<VideoUploadTicket> {
         let mut r = self.remote.lock().unwrap();
+        if r.fail == "upload-not-sent" || r.fail == "upload-rejected" {
+            let mut failure = cloud_failure::CloudOperationFailure::not_sent(
+                cloud_failure::CloudFailurePhase::Preflight,
+            );
+            if r.fail == "upload-rejected" {
+                failure.outcome = cloud_failure::CloudFailureOutcome::Rejected;
+            }
+            r.fail.clear();
+            return Err(failure.into());
+        }
         r.sessions += 1;
         if let Some(path) = r.replace.take() {
             std::fs::write(path, b"replacement source").unwrap();
@@ -383,4 +410,37 @@ fn video_edit_prepare_source_replacement_with_same_bytes_changes_identity() {
     let second = identify_video_source(&req.video_path, &cloud.ctx).unwrap();
     assert_eq!(first.sha256, second.sha256);
     assert_ne!(first.file_id, second.file_id);
+}
+
+#[tokio::test]
+async fn video_edit_prepare_proven_non_submission_retries_same_ledger_without_duplicate_project() {
+    for failure in ["not-sent", "rejected", "upload-not-sent", "upload-rejected"] {
+        let (_root, db, cloud, req) = fixture();
+        cloud.remote.lock().unwrap().fail = failure.into();
+        assert!(prepare(db.clone(), &cloud, &req).await.is_err());
+        assert_eq!(
+            cloud.remote.lock().unwrap().projects,
+            usize::from(failure.starts_with("upload-"))
+        );
+        assert_eq!(cloud.remote.lock().unwrap().sessions, 0);
+        let result = prepare(db.clone(), &cloud, &req).await;
+        assert!(result.is_ok(), "proven {failure} must not remain CreatingProject: {result:?}");
+        assert_eq!(cloud.remote.lock().unwrap().projects, 1);
+        assert_eq!(
+            prepare(db, &cloud, &req).await.unwrap().manifest.run_id,
+            result.unwrap().manifest.run_id
+        );
+        assert_eq!(cloud.remote.lock().unwrap().projects, 1);
+    }
+}
+
+#[tokio::test]
+async fn video_edit_prepare_unknown_without_matching_project_never_reposts() {
+    let (_root, db, cloud, req) = fixture();
+    cloud.remote.lock().unwrap().fail = "unknown-no-project".into();
+    assert!(prepare(db.clone(), &cloud, &req).await.is_err());
+    assert!(
+        prepare(db, &cloud, &req).await.unwrap_err().to_string().contains("refusing resubmission")
+    );
+    assert_eq!(cloud.remote.lock().unwrap().projects, 1);
 }

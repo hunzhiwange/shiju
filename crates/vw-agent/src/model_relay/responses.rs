@@ -308,6 +308,71 @@ pub(super) fn is_native(model: &crate::provider::provider::Model) -> bool {
             && reqwest::Url::parse(&model.api.url)
                 .is_ok_and(|url| url.path().trim_end_matches('/').ends_with("/responses"))
 }
+// IDs on fully materialized inputs are client bookkeeping, not server-side lookups.
+// Opaque reasoning, citations, hosted items and item_reference still require ownership.
+fn is_inline_message_content(value: &Value, role: &str) -> bool {
+    if value.is_string() {
+        return true;
+    }
+    let Some(parts) = value.as_array() else { return false };
+    parts.iter().all(|part| {
+        if part["type"] == "input_image" {
+            object_keys(part, &["type", "image_url", "detail"]).is_ok()
+                && part["image_url"].as_str().is_some_and(|url| {
+                    reqwest::Url::parse(url)
+                        .is_ok_and(|url| matches!(url.scheme(), "data" | "http" | "https"))
+                })
+                && part.get("detail").is_none_or(|v| v.is_null() || v.is_string())
+        } else {
+            object_keys(part, &["type", "text", "annotations"]).is_ok()
+                && (part["type"] == "input_text"
+                    || (role == "assistant" && part["type"] == "output_text"))
+                && part["text"].is_string()
+                && part.get("annotations").is_none_or(|v| v.as_array().is_some_and(Vec::is_empty))
+        }
+    })
+}
+fn is_complete_inline_item(item: &Value) -> bool {
+    if ["status", "phase", "namespace"]
+        .iter()
+        .any(|key| item.get(*key).is_some_and(|v| !v.is_null() && !v.is_string()))
+    {
+        return false;
+    }
+    match item["type"].as_str() {
+        None | Some("message") => {
+            object_keys(item, &["type", "id", "role", "content", "status", "phase"]).is_ok()
+                && item["role"].as_str().is_some_and(|role| {
+                    matches!(role, "system" | "developer" | "user" | "assistant")
+                        && is_inline_message_content(&item["content"], role)
+                })
+        }
+        Some("function_call") => {
+            object_keys(
+                item,
+                &["type", "id", "call_id", "name", "arguments", "status", "namespace"],
+            )
+            .is_ok()
+                && string(item, "call_id").is_ok()
+                && string(item, "name").is_ok()
+                && arguments(item).is_ok()
+        }
+        Some("custom_tool_call") => {
+            object_keys(item, &["type", "id", "call_id", "name", "input", "status", "namespace"])
+                .is_ok()
+                && string(item, "call_id").is_ok()
+                && string(item, "name").is_ok()
+                && item["input"].is_string()
+        }
+        Some("function_call_output" | "custom_tool_call_output") => {
+            object_keys(item, &["type", "id", "call_id", "output", "status"]).is_ok()
+                && string(item, "call_id").is_ok()
+                && is_inline_message_content(&item["output"], "assistant")
+        }
+        _ => false,
+    }
+}
+
 pub(super) fn native(
     model: &crate::provider::provider::Model,
     identity: &RelayIdentity,
@@ -359,10 +424,15 @@ pub(super) fn native(
             return Err(UNSUPPORTED);
         }
     }
-    if let Some(items) = body["input"].as_array() {
+    if let Some(items) = body["input"].as_array_mut() {
         for item in items {
             if let Some(id) = item.get("id") {
-                references.check_item(identity, id.as_str().ok_or(StatusCode::BAD_REQUEST)?)?;
+                let id = id.as_str().ok_or(StatusCode::BAD_REQUEST)?;
+                if !id.is_empty() && is_complete_inline_item(item) {
+                    item.as_object_mut().ok_or(StatusCode::BAD_REQUEST)?.remove("id");
+                } else {
+                    references.check_item(identity, id)?;
+                }
             }
             match item["type"].as_str() {
                 Some("item_reference") if !item["id"].is_string() => {
@@ -370,7 +440,12 @@ pub(super) fn native(
                 }
                 None if !item["role"].is_string() => return Err(UNSUPPORTED),
                 Some("reasoning") if !model.capabilities.reasoning => return Err(UNSUPPORTED),
-                Some("function_call" | "function_call_output") if !model.capabilities.toolcall => {
+                Some(
+                    "function_call"
+                    | "function_call_output"
+                    | "custom_tool_call"
+                    | "custom_tool_call_output",
+                ) if !model.capabilities.toolcall => {
                     return Err(UNSUPPORTED);
                 }
                 _ => {}

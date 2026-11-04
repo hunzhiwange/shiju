@@ -1,0 +1,610 @@
+{
+  "mode": "managed",
+  "evidence_kind": "direct-real-acp-probe, not production acceptance",
+  "new": true,
+  "first_reply": {
+    "stopReason": "end_turn",
+    "usage": {
+      "totalTokens": 6,
+      "inputTokens": 3,
+      "cachedReadTokens": 0,
+      "cachedWriteTokens": 0,
+      "outputTokens": 3,
+      "thoughtTokens": 0
+    },
+    "_meta": {
+      "quota": {
+        "token_count": {
+          "totalTokens": 6,
+          "inputTokens": 3,
+          "cachedInputTokens": 0,
+          "cacheWriteInputTokens": 0,
+          "outputTokens": 3,
+          "reasoningOutputTokens": 0
+        },
+        "model_usage": [
+          {
+            "model": "acp-fixture-primary",
+            "token_count": {
+              "totalTokens": 6,
+              "inputTokens": 3,
+              "cachedInputTokens": 0,
+              "cacheWriteInputTokens": 0,
+              "outputTokens": 3,
+              "reasoningOutputTokens": 0
+            }
+          }
+        ]
+      }
+    }
+  },
+  "text_seen": true,
+  "second_turn": true,
+  "cancelled": true,
+  "lease_rotated": true,
+  "runtime_rotated": true,
+  "restored": true,
+  "model_switched": true,
+  "history_contains_no_token": true,
+  "requests": [
+    {
+      "route": "/v1/responses",
+      "model": "acp-fixture-primary",
+      "authenticated": true,
+      "tool_results": 0,
+      "input_shapes": {
+        "message": [
+          "content",
+          "id",
+          "role",
+          "type"
+        ]
+      },
+      "input_has_ids": true,
+      "input_id_roles": [
+        "developer",
+        "user"
+      ],
+      "input_reference_count": 0,
+      "has_previous_response": false,
+      "auxiliary": false,
+      "cancel_probe": false,
+      "keys": [
+        "client_metadata",
+        "include",
+        "input",
+        "model",
+        "parallel_tool_calls",
+        "prompt_cache_key",
+        "reasoning",
+        "store",
+        "stream",
+        "tool_choice",
+        "tools"
+      ],
+      "tool_types": [
+        "function",
+        "namespace",
+        "web_search"
+      ]
+    },
+    {
+      "route": "/v1/responses",
+      "model": "acp-fixture-primary",
+      "authenticated": true,
+      "tool_results": 1,
+      "input_shapes": {
+        "message": [
+          "content",
+          "id",
+          "role",
+          "type"
+        ],
+        "function_call": [
+          "arguments",
+          "call_id",
+          "id",
+          "name",
+          "type"
+        ],
+        "function_call_output": [
+          "call_id",
+          "id",
+          "output",
+          "type"
+        ]
+      },
+      "input_has_ids": true,
+      "input_id_roles": [
+        "developer",
+        "other",
+        "user"
+      ],
+      "input_reference_count": 0,
+      "has_previous_response": false,
+      "auxiliary": false,
+      "cancel_probe": false,
+      "keys": [
+        "client_metadata",
+        "include",
+        "input",
+        "model",
+        "parallel_tool_calls",
+        "prompt_cache_key",
+        "reasoning",
+        "store",
+        "stream",
+        "tool_choice",
+        "tools"
+      ],
+      "tool_types": [
+        "function",
+        "namespace",
+        "web_search"
+      ]
+    },
+    {
+      "route": "/v1/responses",
+      "model": "acp-fixture-primary",
+      "authenticated": true,
+      "tool_results": 2,
+      "input_shapes": {
+        "message": [
+          "content",
+          "id",
+          "role",
+          "type"
+        ],
+        "function_call": [
+          "arguments",
+          "call_id",
+          "id",
+          "name",
+          "type"
+        ],
+        "function_call_output": [
+          "call_id",
+          "id",
+          "output",
+          "type"
+        ]
+      },
+      "input_has_ids": true,
+      "input_id_roles": [
+        "developer",
+        "other",
+        "user"
+      ],
+      "input_reference_count": 0,
+      "has_previous_response": false,
+      "auxiliary": false,
+      "cancel_probe": false,
+      "keys": [
+        "client_metadata",
+        "include",
+        "input",
+        "model",
+        "parallel_tool_calls",
+        "prompt_cache_key",
+        "reasoning",
+        "store",
+        "stream",
+        "tool_choice",
+        "tools"
+      ],
+      "tool_types": [
+        "function",
+        "namespace",
+        "web_search"
+      ]
+    },
+    {
+      "route": "/v1/responses",
+      "model": "acp-fixture-primary",
+      "authenticated": true,
+      "tool_results": 2,
+      "input_shapes": {
+        "message": [
+          "content",
+          "id",
+          "role",
+          "status",
+          "type"
+        ],
+        "function_call": [
+          "arguments",
+          "call_id",
+          "id",
+          "name",
+          "type"
+        ],
+        "function_call_output": [
+          "call_id",
+          "id",
+          "output",
+          "type"
+        ]
+      },
+      "input_has_ids": true,
+      "input_id_roles": [
+        "assistant",
+        "developer",
+        "other",
+        "user"
+      ],
+      "input_reference_count": 0,
+      "has_previous_response": false,
+      "auxiliary": false,
+      "cancel_probe": false,
+      "keys": [
+        "client_metadata",
+        "include",
+        "input",
+        "model",
+        "parallel_tool_calls",
+        "prompt_cache_key",
+        "reasoning",
+        "store",
+        "stream",
+        "tool_choice",
+        "tools"
+      ],
+      "tool_types": [
+        "function",
+        "namespace",
+        "web_search"
+      ]
+    },
+    {
+      "route": "/v1/responses",
+      "model": "acp-fixture-primary",
+      "authenticated": true,
+      "tool_results": 0,
+      "input_shapes": {
+        "message": [
+          "content",
+          "id",
+          "role",
+          "type"
+        ]
+      },
+      "input_has_ids": true,
+      "input_id_roles": [
+        "developer",
+        "user"
+      ],
+      "input_reference_count": 0,
+      "has_previous_response": false,
+      "auxiliary": true,
+      "cancel_probe": false,
+      "keys": [
+        "client_metadata",
+        "include",
+        "input",
+        "model",
+        "parallel_tool_calls",
+        "prompt_cache_key",
+        "reasoning",
+        "store",
+        "stream",
+        "text",
+        "tool_choice",
+        "tools"
+      ],
+      "tool_types": [
+        "function",
+        "namespace",
+        "web_search"
+      ]
+    },
+    {
+      "route": "/v1/responses",
+      "model": "acp-fixture-primary",
+      "authenticated": true,
+      "tool_results": 2,
+      "input_shapes": {
+        "message": [
+          "content",
+          "id",
+          "role",
+          "status",
+          "type"
+        ],
+        "function_call": [
+          "arguments",
+          "call_id",
+          "id",
+          "name",
+          "type"
+        ],
+        "function_call_output": [
+          "call_id",
+          "id",
+          "output",
+          "type"
+        ]
+      },
+      "input_has_ids": true,
+      "input_id_roles": [
+        "assistant",
+        "developer",
+        "other",
+        "user"
+      ],
+      "input_reference_count": 0,
+      "has_previous_response": false,
+      "auxiliary": false,
+      "cancel_probe": true,
+      "keys": [
+        "client_metadata",
+        "include",
+        "input",
+        "model",
+        "parallel_tool_calls",
+        "prompt_cache_key",
+        "reasoning",
+        "store",
+        "stream",
+        "tool_choice",
+        "tools"
+      ],
+      "tool_types": [
+        "function",
+        "namespace",
+        "web_search"
+      ]
+    },
+    {
+      "route": "/v1/responses",
+      "model": "acp-fixture-primary",
+      "authenticated": true,
+      "tool_results": 2,
+      "input_shapes": {
+        "message": [
+          "content",
+          "id",
+          "role",
+          "status",
+          "type"
+        ],
+        "function_call": [
+          "arguments",
+          "call_id",
+          "id",
+          "name",
+          "type"
+        ],
+        "function_call_output": [
+          "call_id",
+          "id",
+          "output",
+          "type"
+        ]
+      },
+      "input_has_ids": true,
+      "input_id_roles": [
+        "assistant",
+        "developer",
+        "other",
+        "user"
+      ],
+      "input_reference_count": 0,
+      "has_previous_response": false,
+      "auxiliary": false,
+      "cancel_probe": true,
+      "keys": [
+        "client_metadata",
+        "include",
+        "input",
+        "model",
+        "parallel_tool_calls",
+        "prompt_cache_key",
+        "reasoning",
+        "store",
+        "stream",
+        "tool_choice",
+        "tools"
+      ],
+      "tool_types": [
+        "function",
+        "namespace",
+        "web_search"
+      ]
+    },
+    {
+      "route": "/v1/responses",
+      "model": "acp-fixture-switched",
+      "authenticated": true,
+      "tool_results": 0,
+      "input_shapes": {
+        "message": [
+          "content",
+          "id",
+          "role",
+          "type"
+        ]
+      },
+      "input_has_ids": true,
+      "input_id_roles": [
+        "developer",
+        "user"
+      ],
+      "input_reference_count": 0,
+      "has_previous_response": false,
+      "auxiliary": false,
+      "cancel_probe": false,
+      "keys": [
+        "client_metadata",
+        "include",
+        "input",
+        "model",
+        "parallel_tool_calls",
+        "prompt_cache_key",
+        "reasoning",
+        "store",
+        "stream",
+        "tool_choice",
+        "tools"
+      ],
+      "tool_types": [
+        "function",
+        "namespace",
+        "web_search"
+      ]
+    },
+    {
+      "route": "/v1/responses",
+      "model": "acp-fixture-switched",
+      "authenticated": true,
+      "tool_results": 1,
+      "input_shapes": {
+        "message": [
+          "content",
+          "id",
+          "role",
+          "type"
+        ],
+        "function_call": [
+          "arguments",
+          "call_id",
+          "id",
+          "name",
+          "type"
+        ],
+        "function_call_output": [
+          "call_id",
+          "id",
+          "output",
+          "type"
+        ]
+      },
+      "input_has_ids": true,
+      "input_id_roles": [
+        "developer",
+        "other",
+        "user"
+      ],
+      "input_reference_count": 0,
+      "has_previous_response": false,
+      "auxiliary": false,
+      "cancel_probe": false,
+      "keys": [
+        "client_metadata",
+        "include",
+        "input",
+        "model",
+        "parallel_tool_calls",
+        "prompt_cache_key",
+        "reasoning",
+        "store",
+        "stream",
+        "tool_choice",
+        "tools"
+      ],
+      "tool_types": [
+        "function",
+        "namespace",
+        "web_search"
+      ]
+    },
+    {
+      "route": "/v1/responses",
+      "model": "acp-fixture-switched",
+      "authenticated": true,
+      "tool_results": 2,
+      "input_shapes": {
+        "message": [
+          "content",
+          "id",
+          "role",
+          "type"
+        ],
+        "function_call": [
+          "arguments",
+          "call_id",
+          "id",
+          "name",
+          "type"
+        ],
+        "function_call_output": [
+          "call_id",
+          "id",
+          "output",
+          "type"
+        ]
+      },
+      "input_has_ids": true,
+      "input_id_roles": [
+        "developer",
+        "other",
+        "user"
+      ],
+      "input_reference_count": 0,
+      "has_previous_response": false,
+      "auxiliary": false,
+      "cancel_probe": false,
+      "keys": [
+        "client_metadata",
+        "include",
+        "input",
+        "model",
+        "parallel_tool_calls",
+        "prompt_cache_key",
+        "reasoning",
+        "store",
+        "stream",
+        "tool_choice",
+        "tools"
+      ],
+      "tool_types": [
+        "function",
+        "namespace",
+        "web_search"
+      ]
+    },
+    {
+      "route": "/v1/responses",
+      "model": "acp-fixture-switched",
+      "authenticated": true,
+      "tool_results": 0,
+      "input_shapes": {
+        "message": [
+          "content",
+          "id",
+          "role",
+          "type"
+        ]
+      },
+      "input_has_ids": true,
+      "input_id_roles": [
+        "developer",
+        "user"
+      ],
+      "input_reference_count": 0,
+      "has_previous_response": false,
+      "auxiliary": true,
+      "cancel_probe": false,
+      "keys": [
+        "client_metadata",
+        "include",
+        "input",
+        "model",
+        "parallel_tool_calls",
+        "prompt_cache_key",
+        "reasoning",
+        "store",
+        "stream",
+        "text",
+        "tool_choice",
+        "tools"
+      ],
+      "tool_types": [
+        "function",
+        "namespace",
+        "web_search"
+      ]
+    }
+  ],
+  "errors": 0,
+  "probe_passed": true
+}

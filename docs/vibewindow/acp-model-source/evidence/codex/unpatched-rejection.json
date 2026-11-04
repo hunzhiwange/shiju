@@ -1,0 +1,7 @@
+{
+  "evidence_kind": "unpatched-real-binary-negative-probe",
+  "adapter": "2.5.0",
+  "engine": "0.165.0",
+  "exit_code": 2,
+  "unknown_flag_rejected": true
+}

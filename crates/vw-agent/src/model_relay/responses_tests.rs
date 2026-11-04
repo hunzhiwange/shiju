@@ -79,3 +79,115 @@ fn acp_model_source_relay_responses_references_bind_every_identity_dimension() {
         assert_eq!(references.resolve(&other, "local"), Err(axum::http::StatusCode::FORBIDDEN));
     }
 }
+
+fn native_fixture() -> (crate::provider::provider::Model, RelayIdentity) {
+    let mut capabilities = vw_shared::provider::state::default_model_capabilities();
+    capabilities.reasoning = true;
+    capabilities.input.image = true;
+    let model = serde_json::from_value(json!({
+        "id":"model", "providerID":"provider", "name":"Model", "status":"active", "release_date":"",
+        "api":{"id":"wire-model","url":"http://127.0.0.1/v1/responses","adapter":"openai-responses"},
+        "capabilities":capabilities, "limit":{"context":4096,"output":1024},
+        "cost":{"input":0,"output":0,"cache":{"read":0,"write":0}}
+    })).unwrap();
+    let identity = RelayIdentity {
+        tenant: vw_api_types::id::TenantScope::new("responses", "inline").unwrap(),
+        project: "p".into(),
+        session: "s".into(),
+        provider: "provider".into(),
+        model: "model".into(),
+        generation: 1,
+    };
+    (model, identity)
+}
+
+#[test]
+fn acp_model_source_relay_responses_native_complete_inline_ids_are_not_lookups() {
+    let (model, identity) = native_fixture();
+    let input = json!([
+        {"type":"message","id":"client-developer","role":"developer","content":[{"type":"input_text","text":"policy"}]},
+        {"id":"client-user","role":"user","content":"question"},
+        {"type":"message","id":"prior-lease-assistant","role":"assistant","phase":"commentary","status":"completed","content":[{"type":"output_text","text":"checking","annotations":[]}]},
+        {"type":"function_call","id":"prior-lease-call","call_id":"call-a","name":"lookup","arguments":"{ \"n\": 1 }"},
+        {"type":"function_call_output","id":"client-output","call_id":"call-a","output":"found"},
+        {"type":"custom_tool_call","id":"prior-lease-custom","call_id":"call-b","name":"apply_patch","input":"patch text"},
+        {"type":"custom_tool_call_output","id":"client-custom-output","call_id":"call-b","output":"done"},
+        {"type":"message","id":"client-image","role":"user","content":[{"type":"input_image","image_url":"data:image/png;base64,AA==","detail":"auto"}]}
+    ]);
+    let bytes = serde_json::to_vec(&json!({"model":"model","input":input})).unwrap();
+    let result = super::responses::native(&model, &identity, &bytes, &Default::default()).unwrap();
+    let mut expected = input;
+    for item in expected.as_array_mut().unwrap() {
+        item.as_object_mut().unwrap().remove("id");
+    }
+    assert_eq!(result["input"], expected);
+    assert_eq!(result["model"], "wire-model");
+}
+
+#[test]
+fn acp_model_source_relay_responses_native_real_references_remain_identity_bound() {
+    use axum::http::StatusCode;
+    let (model, identity) = native_fixture();
+    let references = std::sync::Arc::new(super::responses::References::default());
+    super::responses::native_output(json!({"id":"upstream","object":"response","status":"completed",
+        "output":[{"type":"reasoning","id":"owned-item","encrypted_content":"opaque","summary":[]}]}),
+        &identity, "local", &references, true).unwrap();
+    let owned = json!({"model":"model","input":[{"type":"item_reference","id":"owned-item"}],"previous_response_id":"local"});
+    let result = super::responses::native(
+        &model,
+        &identity,
+        &serde_json::to_vec(&owned).unwrap(),
+        &references,
+    )
+    .unwrap();
+    assert_eq!(result["input"], owned["input"]);
+    assert_eq!(result["previous_response_id"], "upstream");
+    for dimension in 0..6 {
+        let mut other = identity.clone();
+        match dimension {
+            0 => other.tenant = vw_api_types::id::TenantScope::new("responses", "other").unwrap(),
+            1 => other.project = "other".into(),
+            2 => other.session = "other".into(),
+            3 => other.provider = "other".into(),
+            4 => other.model = "other".into(),
+            _ => other.generation = 2,
+        }
+        let mut request = owned.clone();
+        request["model"] = other.model.clone().into();
+        assert_eq!(
+            super::responses::native(
+                &model,
+                &other,
+                &serde_json::to_vec(&request).unwrap(),
+                &references
+            ),
+            Err(StatusCode::FORBIDDEN)
+        );
+    }
+    for item in [
+        json!({"type":"item_reference","id":"unknown","role":"user","content":"cannot disguise a reference"}),
+        json!({"type":"message","id":"unknown","role":"user"}),
+        json!({"type":"reasoning","id":"unknown","encrypted_content":"opaque","summary":[]}),
+        json!({"type":"message","id":"unknown","role":"assistant","content":"text","encrypted_content":"opaque"}),
+        json!({"type":"message","id":"unknown","role":"assistant","content":[{"type":"output_text","text":"citation","annotations":[{"type":"file_citation","file_id":"foreign"}]}]}),
+        json!({"type":"message","id":"unknown","role":"user","content":[{"type":"input_image","file_id":"foreign"}]}),
+        json!({"type":"function_call","id":"unknown","name":"lookup","call_id":"a"}),
+        json!({"type":"custom_tool_call","id":"unknown","name":"apply_patch","call_id":"b"}),
+    ] {
+        let bytes = serde_json::to_vec(&json!({"model":"model","input":[item]})).unwrap();
+        assert_eq!(
+            super::responses::native(&model, &identity, &bytes, &references),
+            Err(StatusCode::FORBIDDEN)
+        );
+    }
+    let forged = json!({"model":"model","input":[{"id":"client","role":"user","content":"hello"}],"previous_response_id":"upstream"});
+    assert_eq!(
+        super::responses::native(
+            &model,
+            &identity,
+            &serde_json::to_vec(&forged).unwrap(),
+            &references
+        ),
+        Err(StatusCode::FORBIDDEN)
+    );
+}

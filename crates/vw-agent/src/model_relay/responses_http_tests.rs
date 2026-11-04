@@ -244,7 +244,7 @@ async fn acp_model_source_relay_responses_http_roundtrip_stream_errors_cancel_an
         .unwrap();
     assert_eq!(parse_events(&wire).last().unwrap()["type"], "response.failed");
     // Same-protocol reasoning and extensions survive; upstream response references stay capability-local.
-    crate::config::update_project_for_tenant(&tenant,&root,json!({"providers":{"relay-responses":{"api":format!("http://{address}/v1/responses"),"adapter":"openai-responses","models":{"selected":{"reasoning":true}}}}})).await.unwrap();
+    crate::config::update_project_for_tenant(&tenant,&root,json!({"providers":{"relay-responses":{"api":format!("http://{address}/v1/responses"),"adapter":"openai-responses","models":{"selected":{"reasoning":true,"tool_call":true}}}}})).await.unwrap();
     body = json!({"model":"selected","input":"hello","store":true,"include":["reasoning.encrypted_content"]});
     let result: Value = client
         .post(&url)
@@ -259,6 +259,37 @@ async fn acp_model_source_relay_responses_http_roundtrip_stream_errors_cancel_an
     assert_eq!(result["output"][0]["encrypted_content"], "native-signature");
     assert_eq!(result["vendor_extension"]["kept"], true);
     assert_eq!(result["model"], "selected");
+    // Real Codex supplies IDs on full inline messages and carried local tool history.
+    let inline = json!({"model":"selected","input":[
+        {"type":"message","id":"client-developer","role":"developer","content":[{"type":"input_text","text":"policy"}]},
+        {"type":"message","id":"client-user","role":"user","content":[{"type":"input_text","text":"hello"}]},
+        {"type":"function_call","id":"prior-lease-call","call_id":"a","name":"read","arguments":"{}"},
+        {"type":"function_call_output","id":"client-output","call_id":"a","output":"contents"}
+    ]});
+    let response =
+        client.post(&url).bearer_auth(binding.bearer_token()).json(&inline).send().await.unwrap();
+    assert_eq!(response.status(), 200);
+    let sent = captured.lock().last().unwrap().1.clone();
+    let mut expected = inline["input"].clone();
+    for item in expected.as_array_mut().unwrap() {
+        item.as_object_mut().unwrap().remove("id");
+    }
+    assert_eq!(sent["input"], expected);
+    let before = captured.lock().len();
+    for item in [
+        json!({"type":"item_reference","id":"client-user","role":"user","content":"not an inline item"}),
+        json!({"type":"reasoning","id":"client-reasoning","encrypted_content":"opaque","summary":[]}),
+    ] {
+        let response = client
+            .post(&url)
+            .bearer_auth(binding.bearer_token())
+            .json(&json!({"model":"selected","input":[item]}))
+            .send()
+            .await
+            .unwrap();
+        assert_eq!(response.status(), 403);
+    }
+    assert_eq!(captured.lock().len(), before);
     let reference = result["id"].as_str().unwrap().to_owned();
     let item_request = json!({"model":"selected","input":[{"type":"item_reference","id":"rs-a"}]});
     assert_eq!(

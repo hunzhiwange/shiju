@@ -1,0 +1,129 @@
+--- a/dist/index.js
++++ b/dist/index.js
+@@ -27883,7 +27883,7 @@
+ var Logger = class {
+   logFilePath;
+   constructor() {
+-    const logDir = process.env["APP_SERVER_LOGS"];
++    const logDir = process.env["SHIJU_CODEX_MODEL_LOCK"] ? void 0 : process.env["APP_SERVER_LOGS"];
+     if (!logDir) {
+       this.logFilePath = null;
+       return;
+@@ -28095,7 +28095,37 @@
+ var require2 = createRequire(import.meta.url);
+ var DRAINED_MARKER_METHOD = "codex-acp/stdoutDrained";
+ function startCodexConnection(codexPath, env, appServerStartupArgs = ["app-server"], options = {}) {
+-  const spawnEnv = env ?? process.env;
++  const sourceEnv = env ?? process.env;
++  // Managed launches never inherit account, proxy, or Node injection credentials.
++  const spawnEnv = process.env["SHIJU_CODEX_MODEL_LOCK"] ? Object.fromEntries(
++    ["PATH", "HOME", "USERPROFILE", "SystemRoot", "TMPDIR", "TMP", "TEMP", "LANG", "LC_ALL",
++     "CODEX_HOME", "SHIJU_CODEX_RELAY_TOKEN"].filter((key) => sourceEnv[key] !== void 0)
++      .map((key) => [key, sourceEnv[key]])
++  ) : sourceEnv;
++  if (process.env["SHIJU_CODEX_MODEL_LOCK"]) {
++    const config = JSON.parse(process.env["CODEX_CONFIG"] ?? "null");
++    const provider = config?.model_provider;
++    const history = process.env["SHIJU_CODEX_HISTORY_HOME"];
++    if (history) {
++      if (!/^shiju_session_[a-f0-9]{64}$/.test(provider ?? "") || config.model !== process.env["SHIJU_CODEX_MODEL_LOCK"]) {
++        throw new Error("Invalid managed Codex history configuration");
++      }
++      const routing = config.model_providers?.[provider];
++      if (routing?.env_key !== "SHIJU_CODEX_RELAY_TOKEN" || routing.requires_openai_auth !== false || routing.wire_api !== "responses") {
++        throw new Error("Invalid managed Codex provider");
++      }
++      const values = [["model", config.model], ["review_model", config.review_model], ["model_context_window", config.model_context_window], ["model_provider", provider]];
++      for (const key of ["name", "base_url", "wire_api", "env_key", "requires_openai_auth", "request_max_retries", "stream_max_retries"]) {
++        values.push([`model_providers.${provider}.${key}`, routing[key]]);
++      }
++      const overrides = values.flatMap(([key, value]) => ["-c", `${key}=${JSON.stringify(value)}`]);
++      if (overrides.some((value) => value.includes(process.env["SHIJU_CODEX_RELAY_TOKEN"]))) {
++        throw new Error("Managed Codex credentials cannot appear in argv");
++      }
++      spawnEnv.CODEX_HOME = history;
++      appServerStartupArgs = [...overrides, ...appServerStartupArgs];
++    }
++  }
+   let codex;
+   if (codexPath) {
+     codex = process.platform === "win32" ? (0, import_cross_spawn.default)(codexPath, appServerStartupArgs, { env: spawnEnv }) : spawn(codexPath, appServerStartupArgs, { env: spawnEnv });
+@@ -43758,6 +43788,24 @@
+     return [...this.threadLoads.keys()];
+   }
+   async sendRequest(request) {
++    const lockedModel = process.env["SHIJU_CODEX_MODEL_LOCK"];
++    if (lockedModel) {
++      const config = JSON.parse(process.env["CODEX_CONFIG"] ?? "null");
++      if (!config || config.model !== lockedModel || config.model_provider !== process.env["MODEL_PROVIDER"]) {
++        throw new Error("Invalid managed Codex model configuration");
++      }
++      if (["thread/start", "thread/resume", "thread/fork"].includes(request.method)) {
++        request = { ...request, params: { ...request.params, model: lockedModel,
++          modelProvider: config.model_provider, config: { ...request.params?.config, ...config } } };
++      } else if (request.method === "turn/start") {
++        const params = { ...request.params, model: lockedModel };
++        if (params.collaborationMode?.settings) {
++          params.collaborationMode = { ...params.collaborationMode,
++            settings: { ...params.collaborationMode.settings, model: lockedModel } };
++        }
++        request = { ...request, params };
++      }
++    }
+     for (const callback of this.codexEventHandlers) {
+       callback({ eventType: "request", ...request });
+     }
+@@ -46625,7 +46673,6 @@
+ import { randomUUID as randomUUID5 } from "node:crypto";
+ 
+ // src/TitleGenerator.ts
+-var TITLE_MODEL = "gpt-5.6-luna";
+ var RENAME_ECHO_TIMEOUT_MS = 5e3;
+ var TITLE_SOURCE_MAX_CHARS = 4e3;
+ var TITLE_OUTPUT_SCHEMA = {
+@@ -46739,8 +46786,7 @@
+ ${titleSource(userPromptText)}`,
+         text_elements: []
+       }],
+-      outputSchema: TITLE_OUTPUT_SCHEMA,
+-      model: TITLE_MODEL
++      outputSchema: TITLE_OUTPUT_SCHEMA
+     });
+     const title = extractTitle(turnResult.turn);
+     if (!title) return;
+@@ -46858,8 +46904,7 @@
+ ${head(agentText)}`,
+         text_elements: []
+       }],
+-      outputSchema: OUTPUT_SCHEMA,
+-      model: TITLE_MODEL
++      outputSchema: OUTPUT_SCHEMA
+     });
+     if (generation !== this.generation) return;
+     await this.publishIfChanged(extractSuggestion(result.turn));
+@@ -54204,7 +54249,10 @@
+   console.log(`${package_default.name} ${package_default.version}`);
+   process.exit(0);
+ }
+-if (process.argv[2] === "login") {
++if (process.argv[2] === "cli" && process.argv[3] === "--shiju-model-source" && process.argv.length === 4) {
++  if (!process.env["SHIJU_CODEX_MODEL_LOCK"]) throw new Error("Managed Codex model required");
++  startAcpServer();
++} else if (process.argv[2] === "login") {
+   const args = process.argv.slice(3);
+   runLoginCommand(args).then((success2) => process.exit(success2 ? 0 : 1)).catch((error62) => {
+     console.error("Login error:", error62.message);
+@@ -54220,6 +54268,13 @@
+   startAcpServer();
+ }
+ function startAcpServer() {
++  if (process.argv.includes("--shiju-model-source-check")) {
++    console.log("codex-acp 2.5.0 shiju-model-source-v1");
++    return;
++  }
++  if (process.env["SHIJU_CODEX_MODEL_LOCK"] && !process.env["SHIJU_CODEX_RELAY_TOKEN"]) {
++    throw new Error("Managed Codex relay credential unavailable");
++  }
+   const codexPath = process.env["CODEX_PATH"];
+   const configString = process.env["CODEX_CONFIG"];
+   const authRequestString = process.env["DEFAULT_AUTH_REQUEST"];

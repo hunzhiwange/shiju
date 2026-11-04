@@ -1,0 +1,54 @@
+{
+  "entries": [
+    {
+      "key": "codex",
+      "distribution": {
+        "kind": "acp_adapter",
+        "package": "@agentclientprotocol/codex-acp",
+        "release": "2.5.0",
+        "git_commit": "34e08970aa324a2be985f5080674d5aa91d7666f",
+        "integrity": "sha512-7e/4OhJwpvSTqsjiokoVYRV7O1XGem1CAsQgO1opmGYbRD5LvmydwDlJrldzQYO5TcPWueGzQ2Jdvyvp6l3qDw=="
+      },
+      "underlying": {
+        "kind": "external_cli",
+        "package": "@openai/codex",
+        "release": "0.165.0",
+        "integrity": "sha512-aiwtQVp2KBhJld966CuU5bVfQ46VNB4mNTl6giX3WGZdt4euI3tv2RUqJpnupPNA8DXHg2z+RoQ0Zfw87dy8Lw==",
+        "command": [
+          "codex",
+          "--version"
+        ]
+      },
+      "installed": {
+        "command": [
+          "codex-acp",
+          "--version"
+        ]
+      },
+      "acp_launch": [
+        "codex-acp"
+      ],
+      "local_command_candidates": [
+        "codex-acp"
+      ],
+      "offline_acceptance": {
+        "session-model": {
+          "config_root_env": "CODEX_HOME",
+          "files": {
+            "config.toml": "model = \"{{model}}\"\nmodel_provider = \"offline\"\nreview_model = \"{{model}}\"\n[model_providers.offline]\nname = \"Offline Responses fixture\"\nbase_url = \"{{endpoint}}\"\nwire_api = \"responses\"\nrequires_openai_auth = false\nhttp_headers = { Authorization = \"Bearer {{key}}\" }\nrequest_max_retries = 0\nstream_max_retries = 0\n"
+          }
+        },
+        "cli-local": {
+          "config_root_env": "CODEX_HOME",
+          "files": {
+            "config.toml": "model = \"{{model}}\"\nmodel_provider = \"offline\"\nreview_model = \"{{model}}\"\n[model_providers.offline]\nname = \"Offline Responses fixture\"\nbase_url = \"{{endpoint}}\"\nwire_api = \"responses\"\nrequires_openai_auth = false\nhttp_headers = { Authorization = \"Bearer {{key}}\" }\nrequest_max_retries = 0\nstream_max_retries = 0\n"
+          }
+        }
+      },
+      "model_source_patch": {
+        "bundle_sha256": "b47dda5f2a998dab3aaf97f7f7e48dc499bebf9906cd5c2bb103756ae5974c37",
+        "marker": "codex-acp 2.5.0 shiju-model-source-v1"
+      }
+    }
+  ]
+}

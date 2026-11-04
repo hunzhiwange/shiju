@@ -1,0 +1,8 @@
+{
+  "adapter": "2.5.0",
+  "engine": "0.165.0",
+  "bundle_sha256": "b47dda5f2a998dab3aaf97f7f7e48dc499bebf9906cd5c2bb103756ae5974c37",
+  "platform": "Darwin-arm64",
+  "verification": "actual adapter bundle hash/marker and adapter-resolved engine version",
+  "wrong_patch_rejected": true
+}

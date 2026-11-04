@@ -1,0 +1,232 @@
+{
+  "mode": "cli-local",
+  "evidence_kind": "direct-real-acp-probe, not production acceptance",
+  "new": true,
+  "first_reply": {
+    "stopReason": "end_turn",
+    "usage": {
+      "totalTokens": 6,
+      "inputTokens": 3,
+      "cachedReadTokens": 0,
+      "cachedWriteTokens": 0,
+      "outputTokens": 3,
+      "thoughtTokens": 0
+    },
+    "_meta": {
+      "quota": {
+        "token_count": {
+          "totalTokens": 6,
+          "inputTokens": 3,
+          "cachedInputTokens": 0,
+          "cacheWriteInputTokens": 0,
+          "outputTokens": 3,
+          "reasoningOutputTokens": 0
+        },
+        "model_usage": [
+          {
+            "model": "acp-fixture-primary",
+            "token_count": {
+              "totalTokens": 6,
+              "inputTokens": 3,
+              "cachedInputTokens": 0,
+              "cacheWriteInputTokens": 0,
+              "outputTokens": 3,
+              "reasoningOutputTokens": 0
+            }
+          }
+        ]
+      }
+    }
+  },
+  "text_seen": true,
+  "second_turn": true,
+  "cancelled": true,
+  "restored": true,
+  "requests": [
+    {
+      "route": "/v1/responses",
+      "model": "acp-fixture-primary",
+      "authenticated": true,
+      "tool_results": 0,
+      "auxiliary": false,
+      "cancel_probe": false,
+      "keys": [
+        "client_metadata",
+        "include",
+        "input",
+        "model",
+        "parallel_tool_calls",
+        "prompt_cache_key",
+        "reasoning",
+        "store",
+        "stream",
+        "tool_choice",
+        "tools"
+      ],
+      "tool_types": [
+        "function",
+        "namespace",
+        "web_search"
+      ]
+    },
+    {
+      "route": "/v1/responses",
+      "model": "acp-fixture-primary",
+      "authenticated": true,
+      "tool_results": 1,
+      "auxiliary": false,
+      "cancel_probe": false,
+      "keys": [
+        "client_metadata",
+        "include",
+        "input",
+        "model",
+        "parallel_tool_calls",
+        "prompt_cache_key",
+        "reasoning",
+        "store",
+        "stream",
+        "tool_choice",
+        "tools"
+      ],
+      "tool_types": [
+        "function",
+        "namespace",
+        "web_search"
+      ]
+    },
+    {
+      "route": "/v1/responses",
+      "model": "acp-fixture-primary",
+      "authenticated": true,
+      "tool_results": 2,
+      "auxiliary": false,
+      "cancel_probe": false,
+      "keys": [
+        "client_metadata",
+        "include",
+        "input",
+        "model",
+        "parallel_tool_calls",
+        "prompt_cache_key",
+        "reasoning",
+        "store",
+        "stream",
+        "tool_choice",
+        "tools"
+      ],
+      "tool_types": [
+        "function",
+        "namespace",
+        "web_search"
+      ]
+    },
+    {
+      "route": "/v1/responses",
+      "model": "acp-fixture-primary",
+      "authenticated": true,
+      "tool_results": 0,
+      "auxiliary": true,
+      "cancel_probe": false,
+      "keys": [
+        "client_metadata",
+        "include",
+        "input",
+        "model",
+        "parallel_tool_calls",
+        "prompt_cache_key",
+        "reasoning",
+        "store",
+        "stream",
+        "text",
+        "tool_choice",
+        "tools"
+      ],
+      "tool_types": [
+        "function",
+        "namespace",
+        "web_search"
+      ]
+    },
+    {
+      "route": "/v1/responses",
+      "model": "acp-fixture-primary",
+      "authenticated": true,
+      "tool_results": 2,
+      "auxiliary": false,
+      "cancel_probe": false,
+      "keys": [
+        "client_metadata",
+        "include",
+        "input",
+        "model",
+        "parallel_tool_calls",
+        "prompt_cache_key",
+        "reasoning",
+        "store",
+        "stream",
+        "tool_choice",
+        "tools"
+      ],
+      "tool_types": [
+        "function",
+        "namespace",
+        "web_search"
+      ]
+    },
+    {
+      "route": "/v1/responses",
+      "model": "acp-fixture-primary",
+      "authenticated": true,
+      "tool_results": 2,
+      "auxiliary": false,
+      "cancel_probe": true,
+      "keys": [
+        "client_metadata",
+        "include",
+        "input",
+        "model",
+        "parallel_tool_calls",
+        "prompt_cache_key",
+        "reasoning",
+        "store",
+        "stream",
+        "tool_choice",
+        "tools"
+      ],
+      "tool_types": [
+        "function",
+        "namespace",
+        "web_search"
+      ]
+    },
+    {
+      "route": "/v1/responses",
+      "model": "acp-fixture-primary",
+      "authenticated": true,
+      "tool_results": 2,
+      "auxiliary": false,
+      "cancel_probe": true,
+      "keys": [
+        "client_metadata",
+        "include",
+        "input",
+        "model",
+        "parallel_tool_calls",
+        "prompt_cache_key",
+        "reasoning",
+        "store",
+        "stream",
+        "tool_choice",
+        "tools"
+      ],
+      "tool_types": [
+        "function",
+        "namespace",
+        "web_search"
+      ]
+    }
+  ],
+  "errors": 0,
+  "probe_passed": true
+}

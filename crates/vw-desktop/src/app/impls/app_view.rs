@@ -287,7 +287,8 @@ impl App {
             root_content
         };
 
-        let root_content: Element<'_, Message> = if self.active_toast.is_some() {
+        // 保留固定的 toast 宿主，避免提示显隐改变根树结构并重置页面滚动、焦点等状态。
+        let root_content: Element<'_, Message> = {
             let toast_layer: Element<'_, Message> = iced::widget::column![
                 iced::widget::Space::new().height(iced::Length::Fill),
                 iced::widget::container(
@@ -306,8 +307,6 @@ impl App {
             .into();
 
             iced::widget::stack![root_content, toast_layer].into()
-        } else {
-            root_content
         };
 
         // 自定义主题背景图：置于最底层；无背景时保持原视图。

@@ -82,6 +82,104 @@ fn view_builds_with_settings_notifications_error_and_toast_overlays() {
     let _element: iced::Element<'_, Message> = app.view();
 }
 
+#[tokio::test(flavor = "multi_thread")]
+async fn toast_show_replace_and_dismiss_preserve_acp_scroll_offsets_and_viewports() {
+    use iced::advanced::renderer::Headless;
+    use iced::advanced::widget::{Operation, Tree, operation};
+    use iced::advanced::{Layout, layout};
+    use iced::{Font, Pixels, Rectangle, Size, Vector};
+
+    #[derive(Default)]
+    struct ScrollPositions {
+        seed: bool,
+        positions: Vec<(Rectangle, Vector)>,
+    }
+
+    impl Operation for ScrollPositions {
+        fn traverse(&mut self, operate: &mut dyn FnMut(&mut dyn Operation)) {
+            operate(self);
+        }
+
+        fn scrollable(
+            &mut self,
+            _id: Option<&iced::widget::Id>,
+            bounds: Rectangle,
+            content_bounds: Rectangle,
+            translation: Vector,
+            state: &mut dyn operation::Scrollable,
+        ) {
+            if content_bounds.height > bounds.height {
+                if self.seed {
+                    state.scroll_to(operation::scrollable::AbsoluteOffset {
+                        x: None,
+                        y: Some(200.0),
+                    });
+                }
+                self.positions.push((bounds, translation));
+            }
+        }
+    }
+
+    let mut app = test_app();
+    app.show_system_settings = true;
+    app.system_settings_tab = components::system_settings::SystemTab::Agents;
+    app.agents_settings.active_config_tab = crate::app::state::AgentConfigTab::Acp;
+    for agent in ["claude", "gemini", "opencode", "codex", "openclaw", "copilot"] {
+        app.acp_settings.catalog.insert(agent.into(), Default::default());
+    }
+    let renderer =
+        <iced::Renderer as Headless>::new(Font::DEFAULT, Pixels(16.0), Some("tiny-skia"))
+            .await
+            .expect("headless renderer");
+    let mut tree = Tree::empty();
+    let mut expected = None;
+    for (step, kind) in [
+        None,
+        Some(crate::app::state::ToastKind::Success),
+        Some(crate::app::state::ToastKind::Error),
+        None,
+        Some(crate::app::state::ToastKind::Info),
+        None,
+        Some(crate::app::state::ToastKind::Warning),
+        None,
+    ]
+    .into_iter()
+    .enumerate()
+    {
+        app.active_toast = kind.map(|kind| crate::app::state::Toast {
+            id: step,
+            kind,
+            message: "连接测试结果".into(),
+            localized_message: None,
+        });
+        let mut element = app.view();
+        tree.diff(element.as_widget());
+        let node = element.as_widget_mut().layout(
+            &mut tree,
+            &renderer,
+            &layout::Limits::new(Size::ZERO, Size::new(1200.0, 700.0)),
+        );
+        if step == 0 {
+            let mut seed = ScrollPositions { seed: true, ..Default::default() };
+            element.as_widget_mut().operate(&mut tree, Layout::new(&node), &renderer, &mut seed);
+        }
+        let mut observed = ScrollPositions::default();
+        element.as_widget_mut().operate(&mut tree, Layout::new(&node), &renderer, &mut observed);
+        assert!(
+            observed.positions.iter().any(|(_, offset)| offset.y > 0.0),
+            "ACP must stay scrolled while toast changes at step {step}"
+        );
+        if let Some(expected) = &expected {
+            assert_eq!(
+                &observed.positions, expected,
+                "toast must preserve scroll offsets and viewport sizes at step {step}"
+            );
+        } else {
+            expected = Some(observed.positions);
+        }
+    }
+}
+
 #[test]
 fn view_builds_with_about_cli_search_and_rename_overlays() {
     let mut app = test_app();

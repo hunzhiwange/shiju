@@ -39,6 +39,9 @@ pub struct RightClickArea<'a, Message, ThemeT = Theme, RendererT = iced::Rendere
     on_left_press: Option<Message>,
     /// 左键释放时发送的消息（仅在之前触发了拖拽时发送）
     on_left_release: Option<Message>,
+    drop_messages: Option<(Message, Message)>,
+    surface_messages: Option<(Message, Message)>,
+    on_cancel: Option<Message>,
 }
 
 /// 右键点击区域的状态数据
@@ -53,6 +56,7 @@ struct RightClickAreaState {
     press_pos: Option<Point>,
     /// 是否已经开始拖拽（移动距离超过阈值）
     dragging_started: bool,
+    drop_consumed: bool,
 }
 
 impl<'a, Message, ThemeT, RendererT> RightClickArea<'a, Message, ThemeT, RendererT> {
@@ -85,7 +89,31 @@ impl<'a, Message, ThemeT, RendererT> RightClickArea<'a, Message, ThemeT, Rendere
         on_left_press: Option<Message>,
         on_left_release: Option<Message>,
     ) -> Self {
-        Self { content, on_right_click, on_left_press, on_left_release }
+        Self {
+            content,
+            on_right_click,
+            on_left_press,
+            on_left_release,
+            drop_messages: None,
+            surface_messages: None,
+            on_cancel: None,
+        }
+    }
+    /// 仅用于普通文件树的目录行；消息包含本次拖动的路径快照。
+    pub fn file_tree_drop(mut self, hover: Message, request: Message) -> Self {
+        self.drop_messages = Some((hover, request));
+        self
+    }
+
+    /// 文件树外围在子行命中前清空旧落点；取消覆盖窗口失焦和 Escape。
+    pub fn file_tree_surface(mut self, clear: Message, cancel: Message) -> Self {
+        self.surface_messages = Some((clear, cancel));
+        self
+    }
+
+    pub fn on_drag_cancel(mut self, message: Message) -> Self {
+        self.on_cancel = Some(message);
+        self
     }
 }
 
@@ -178,7 +206,7 @@ where
     ///    - 首次识别为拖拽时，发送 on_left_press 消息
     /// 3. **右键点击**：直接触发 on_right_click 回调，传递相对于组件的本地坐标
     /// 4. **左键释放**：如果之前开始了拖拽，发送 on_left_release 消息
-    /// 5. **事件转发**：所有事件都会转发给内部 content 元素
+    /// 5. **事件转发**：普通点击继续转发，拖动释放重置按钮，避免误触
     ///
     /// # 参数
     ///
@@ -201,13 +229,51 @@ where
         shell: &mut Shell<'_, Message>,
         viewport: &Rectangle,
     ) {
+        let cancelled = matches!(event, Event::Window(iced::window::Event::Unfocused))
+            || matches!(
+                event,
+                Event::Keyboard(iced::keyboard::Event::KeyPressed {
+                    key: iced::keyboard::Key::Named(iced::keyboard::key::Named::Escape),
+                    ..
+                })
+            );
+        if let Some((clear, cancel)) = &self.surface_messages {
+            if matches!(
+                event,
+                Event::Mouse(mouse::Event::CursorMoved { .. } | mouse::Event::WheelScrolled { .. })
+            ) {
+                shell.publish(clear.clone());
+            }
+            if cancelled {
+                shell.publish(cancel.clone());
+            }
+        }
         let state = tree.state.downcast_mut::<RightClickAreaState>();
+        if cancelled {
+            if state.dragging_started
+                && let Some(message) = &self.on_cancel
+            {
+                shell.publish(message.clone());
+            }
+            *state = RightClickAreaState::default();
+            // Reset a pressed source button without generating a click.
+            tree.children[0] = widget::Tree::new(&self.content);
+        }
+        if self.drop_messages.is_none()
+            || matches!(event, Event::Mouse(mouse::Event::ButtonPressed(mouse::Button::Left)))
+        {
+            state.drop_consumed = false;
+        }
+        let visible = layout.bounds().intersection(viewport);
+        let hit = cursor
+            .position()
+            .is_some_and(|point| visible.is_some_and(|bounds| bounds.contains(point)));
 
         // 处理左键按下：记录初始位置
         if let Event::Mouse(mouse::Event::ButtonPressed(button)) = event
             && matches!(button, mouse::Button::Left)
             && let Some(pos) = cursor.position()
-            && layout.bounds().contains(pos)
+            && hit
         {
             state.left_downinside = true;
             state.press_pos = Some(pos);
@@ -224,7 +290,7 @@ where
             let dx = position.x - anchor.x;
             let dy = position.y - anchor.y;
             let moved_enough = (dx * dx + dy * dy) >= 9.0;
-            if moved_enough {
+            if moved_enough && self.on_left_press.is_some() {
                 state.dragging_started = true;
                 // 首次识别为拖拽时，发送左键按下消息
                 if let Some(msg) = &self.on_left_press {
@@ -237,7 +303,7 @@ where
         if let Event::Mouse(mouse::Event::ButtonPressed(button)) = event
             && matches!(button, mouse::Button::Right)
             && let Some(pos) = cursor.position()
-            && layout.bounds().contains(pos)
+            && hit
         {
             let bounds = layout.bounds();
             // 转换为相对于组件左上角的本地坐标
@@ -245,6 +311,8 @@ where
             shell.publish((self.on_right_click)(local));
         }
 
+        let suppress_release = state.dragging_started
+            && matches!(event, Event::Mouse(mouse::Event::ButtonReleased(mouse::Button::Left)));
         // 处理左键释放：如果之前开始了拖拽，发送释放消息
         if let Event::Mouse(mouse::Event::ButtonReleased(button)) = event
             && matches!(button, mouse::Button::Left)
@@ -260,17 +328,41 @@ where
             state.dragging_started = false;
         }
 
-        // 将事件转发给内部 content 元素处理
-        self.content.as_widget_mut().update(
-            &mut tree.children[0],
-            event,
-            layout,
-            cursor,
-            renderer,
-            clipboard,
-            shell,
-            viewport,
-        );
+        if suppress_release {
+            // A drag must not release the pressed inner button as a click.
+            tree.children[0] = widget::Tree::new(&self.content);
+        } else {
+            self.content.as_widget_mut().update(
+                &mut tree.children[0],
+                event,
+                layout,
+                cursor,
+                renderer,
+                clipboard,
+                shell,
+                viewport,
+            );
+        }
+        // Children get first refusal, so nested targets cannot also activate a parent.
+        if !cancelled
+            && hit
+            && !state.drop_consumed
+            && !shell.is_event_captured()
+            && let Some((hover, request)) = &self.drop_messages
+        {
+            match event {
+                Event::Mouse(mouse::Event::CursorMoved { .. }) => {
+                    shell.publish(hover.clone());
+                    shell.capture_event();
+                }
+                Event::Mouse(mouse::Event::ButtonReleased(mouse::Button::Left)) => {
+                    state.drop_consumed = true;
+                    shell.publish(request.clone());
+                    shell.capture_event();
+                }
+                _ => {}
+            }
+        }
     }
 
     /// 返回鼠标交互状态

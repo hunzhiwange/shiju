@@ -164,8 +164,45 @@ pub(crate) fn handle(app: &mut App, message: ProjectMessage) -> Option<iced::Tas
             app.file_tree_rename_value.clear();
             Some(iced::Task::none())
         }
+        ProjectMessage::FileTreeInternalDragStart { project_path, source_path } => {
+            if app.file_tree_operation_in_progress
+                || app.project_path.as_ref() != Some(&project_path)
+            {
+                return Some(iced::Task::none());
+            }
+            // Preserve ordinary-tree dragging into chat, then mark its independent origin.
+            let task = handle(app, ProjectMessage::FileTreeDragStart(source_path.clone(), None));
+            app.file_tree_drag_source = Some((project_path, source_path));
+            task
+        }
+        ProjectMessage::FileTreeDropTargetChanged(target) => {
+            app.file_tree_drop_target = if app
+                .file_tree_drag_source
+                .as_ref()
+                .is_some_and(|(root, _)| app.project_path.as_ref() == Some(root))
+                && !app.file_tree_operation_in_progress
+            {
+                target
+            } else {
+                None
+            };
+            Some(iced::Task::none())
+        }
+        // This task only reports intent; gateway execution is wired in the next batch.
+        ProjectMessage::FileTreeDropRequested { .. } | ProjectMessage::FileTreeDragCancel => {
+            app.file_tree_drag_source = None;
+            app.file_tree_drop_target = None;
+            app.dragging_file_paths.clear();
+            app.dragging_file_position = None;
+            app.pending_drop_file_paths.clear();
+            app.pending_drop_file_position = None;
+            app.input_drop_hovered = false;
+            Some(iced::Task::none())
+        }
         // 开始拖拽：记录被拖拽的文件路径和位置，清空放置相关状态
         ProjectMessage::FileTreeDragStart(path, position) => {
+            app.file_tree_drag_source = None;
+            app.file_tree_drop_target = None;
             // 记录正在拖拽的文件路径
             app.dragging_file_paths = vec![path];
             // 记录拖拽起始位置
@@ -179,6 +216,8 @@ pub(crate) fn handle(app: &mut App, message: ProjectMessage) -> Option<iced::Tas
         }
         // 结束拖拽：将拖拽中的文件转移到待放置状态，清空拖拽状态
         ProjectMessage::FileTreeDragEnd => {
+            app.file_tree_drag_source = None;
+            app.file_tree_drop_target = None;
             // 将拖拽的文件转移到待放置状态
             app.pending_drop_file_paths = app.dragging_file_paths.clone();
             app.pending_drop_file_position = app.dragging_file_position;

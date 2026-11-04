@@ -99,7 +99,7 @@ pub fn view(app: &App) -> Element<'_, Message> {
     } else {
         let list_content = tree_list::build_file_tree_list(app);
         let list = column![list_content].spacing(2).width(Length::Fill);
-        scrollable(container(list).width(Length::Fill))
+        scrollable(container(list).padding([0, 7]).width(Length::Fill))
             .direction(Direction::Vertical(Scrollbar::new().width(4).scroller_width(4)))
             .height(Length::Fill)
             .into()
@@ -309,10 +309,12 @@ pub fn view_file_manager(app: &App) -> Element<'_, Message> {
             .into()
     } else {
         // 否则显示完整的文件树
-        scrollable(container(tree_list::build_file_tree_list(app)).width(Length::Fill))
-            .direction(Direction::Vertical(Scrollbar::new().width(4).scroller_width(4)))
-            .height(Length::Fill)
-            .into()
+        scrollable(
+            container(tree_list::build_file_tree_list(app)).padding([0, 7]).width(Length::Fill),
+        )
+        .direction(Direction::Vertical(Scrollbar::new().width(4).scroller_width(4)))
+        .height(Length::Fill)
+        .into()
     };
 
     let content = container(list_content).width(Length::Fill).height(Length::Fill);

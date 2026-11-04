@@ -142,6 +142,42 @@ pub(super) fn changes_file_button_style(
     button_style(theme, background)
 }
 
+/// 目录落点使用主题主色，明暗主题均保持文本对比度。
+pub(super) fn file_tree_drop_directory_style(
+    theme: &Theme,
+    status: iced::widget::button::Status,
+    targeted: bool,
+) -> iced::widget::button::Style {
+    if targeted {
+        button_style(theme, Some(primary_background(theme, 0.24)))
+    } else {
+        tree_directory_button_style(theme, status)
+    }
+}
+
+fn directory_drop_area<'a>(
+    app: &App,
+    content: Element<'a, Message>,
+    target: String,
+) -> Element<'a, Message> {
+    let area = RightClickArea::new(content, Box::new(|_| Message::None), None, None);
+    if !app.file_tree_operation_in_progress
+        && let Some((project_path, source_path)) = &app.file_tree_drag_source
+        && app.project_path.as_ref() == Some(project_path)
+    {
+        Element::new(area.file_tree_drop(
+            Message::Project(ProjectMessage::FileTreeDropTargetChanged(Some(target.clone()))),
+            Message::Project(ProjectMessage::FileTreeDropRequested {
+                project_path: project_path.clone(),
+                source_path: source_path.clone(),
+                target_directory: target,
+            }),
+        ))
+    } else {
+        Element::new(area)
+    }
+}
+
 /// 构建项目文件树列表
 ///
 /// 根据应用状态渲染项目目录的树形结构视图。支持：
@@ -212,7 +248,16 @@ pub fn build_file_tree_list(app: &App) -> Element<'_, Message> {
             // 构建可点击的目录按钮，点击时切换展开/折叠状态
             let header_btn = button(container(header_row).width(Length::Fill))
                 .on_press(Message::Project(message::ProjectMessage::ToggleTreeDir(full.clone())))
-                .style(tree_directory_button_style)
+                .style({
+                    let targeted = app.file_tree_drop_target.as_deref()
+                        == Some(
+                            std::path::Path::new(project_root)
+                                .join(&full)
+                                .to_string_lossy()
+                                .as_ref(),
+                        );
+                    move |theme, status| file_tree_drop_directory_style(theme, status, targeted)
+                })
                 .width(Length::Fill);
 
             // 构建目录的绝对路径
@@ -220,19 +265,27 @@ pub fn build_file_tree_list(app: &App) -> Element<'_, Message> {
                 std::path::Path::new(project_root).join(&full).to_string_lossy().to_string();
             let abs_path_for_click = abs_path.clone();
             // 包装为支持右键菜单和拖拽的区域
-            let right_click = Element::new(RightClickArea::new(
-                header_btn.into(),
-                Box::new(move |pos| {
-                    Message::Project(ProjectMessage::FileTreeRightClicked(
-                        abs_path_for_click.clone(),
-                        "tree-dir".to_string(),
-                        pos.x,
-                        pos.y,
-                    ))
-                }),
-                Some(Message::Project(ProjectMessage::FileTreeDragStart(abs_path.clone(), None))),
-                Some(Message::Project(ProjectMessage::FileTreeDragEnd)),
-            ));
+            let right_click = Element::new(
+                RightClickArea::new(
+                    header_btn.into(),
+                    Box::new(move |pos| {
+                        Message::Project(ProjectMessage::FileTreeRightClicked(
+                            abs_path_for_click.clone(),
+                            "tree-dir".to_string(),
+                            pos.x,
+                            pos.y,
+                        ))
+                    }),
+                    Some(Message::Project(ProjectMessage::FileTreeInternalDragStart {
+                        project_path: project_root.to_string(),
+                        source_path: abs_path.clone(),
+                    })),
+                    Some(Message::Project(ProjectMessage::FileTreeDragEnd)),
+                )
+                .on_drag_cancel(Message::Project(ProjectMessage::FileTreeDragCancel)),
+            );
+
+            let right_click = directory_drop_area(app, right_click, abs_path.clone());
 
             // 检查是否需要显示右键菜单（当前路径与菜单路径匹配）
             let item = if app.file_tree_menu_path.as_deref()
@@ -285,19 +338,25 @@ pub fn build_file_tree_list(app: &App) -> Element<'_, Message> {
 
             let abs_for_right_click = abs.clone();
             // 包装为支持右键菜单和拖拽的区域
-            let right_click = Element::new(RightClickArea::new(
-                btn.into(),
-                Box::new(move |pos| {
-                    Message::Project(ProjectMessage::FileTreeRightClicked(
-                        abs_for_right_click.clone(),
-                        "tree-file".to_string(),
-                        pos.x,
-                        pos.y,
-                    ))
-                }),
-                Some(Message::Project(ProjectMessage::FileTreeDragStart(abs.clone(), None))),
-                Some(Message::Project(ProjectMessage::FileTreeDragEnd)),
-            ));
+            let right_click = Element::new(
+                RightClickArea::new(
+                    btn.into(),
+                    Box::new(move |pos| {
+                        Message::Project(ProjectMessage::FileTreeRightClicked(
+                            abs_for_right_click.clone(),
+                            "tree-file".to_string(),
+                            pos.x,
+                            pos.y,
+                        ))
+                    }),
+                    Some(Message::Project(ProjectMessage::FileTreeInternalDragStart {
+                        project_path: project_root.to_string(),
+                        source_path: abs.clone(),
+                    })),
+                    Some(Message::Project(ProjectMessage::FileTreeDragEnd)),
+                )
+                .on_drag_cancel(Message::Project(ProjectMessage::FileTreeDragCancel)),
+            );
 
             // 检查是否需要显示右键菜单
             let item = if app.file_tree_menu_path.as_deref() == Some(&abs)
@@ -333,7 +392,7 @@ pub fn build_file_tree_list(app: &App) -> Element<'_, Message> {
         })
         .filter(|tree| tree.has_entries());
 
-    if let Some(tree) = tree {
+    let contents = if let Some(tree) = tree {
         render_dir(app, &tree, String::new(), 0, root)
     } else {
         column![
@@ -345,7 +404,25 @@ pub fn build_file_tree_list(app: &App) -> Element<'_, Message> {
         .padding(10)
         .align_x(iced::Alignment::Center)
         .into()
-    }
+    };
+    // Explicit root strip: it cannot overlap file rows, nested targets or the scrollbar.
+    let targeted = app.file_tree_drop_target.as_deref() == Some(root);
+    let root_row = button(text(root.to_string()).size(13))
+        .width(Length::Fill)
+        .style(move |theme, status| file_tree_drop_directory_style(theme, status, targeted));
+    let root_target = directory_drop_area(app, root_row.into(), root.to_string());
+    Element::new(
+        RightClickArea::new(
+            column![root_target, contents].width(Length::Fill).into(),
+            Box::new(|_| Message::None),
+            None,
+            None,
+        )
+        .file_tree_surface(
+            Message::Project(ProjectMessage::FileTreeDropTargetChanged(None)),
+            Message::Project(ProjectMessage::FileTreeDragCancel),
+        ),
+    )
 }
 
 /// 构建 Git 变更文件列表

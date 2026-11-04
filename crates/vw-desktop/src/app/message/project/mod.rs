@@ -196,6 +196,17 @@ pub enum ProjectMessage {
     FileTreeFindTabMenuCloseAll,
     FileTreeDragStart(String, Option<(usize, usize)>),
     FileTreeDragEnd,
+    FileTreeInternalDragStart {
+        project_path: String,
+        source_path: String,
+    },
+    FileTreeDropTargetChanged(Option<String>),
+    FileTreeDropRequested {
+        project_path: String,
+        source_path: String,
+        target_directory: String,
+    },
+    FileTreeDragCancel,
     FileTreePasteCompleted {
         clear_clipboard: bool,
         result: Result<(), String>,

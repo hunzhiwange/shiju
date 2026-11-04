@@ -257,3 +257,83 @@ fn tree_lists_build_collapsed_directories_and_ignore_mismatched_menu_sources() {
 
     let _collapsed_changes = build_changes_list(&app);
 }
+
+#[test]
+fn file_tree_drop_directory_highlight_supports_both_themes() {
+    for theme in [Theme::Light, Theme::Dark] {
+        let style =
+            super::tree_list::file_tree_drop_directory_style(&theme, button::Status::Active, true);
+        assert_eq!(style.text_color, theme.palette().text);
+        assert_eq!(background_color(style), Some(primary_with_alpha(&theme, 0.24)));
+        assert_eq!(
+            background_color(super::tree_list::file_tree_drop_directory_style(
+                &theme,
+                button::Status::Active,
+                false
+            )),
+            None
+        );
+    }
+}
+
+#[test]
+fn file_tree_drop_release_and_cleanup_orders_leave_no_stale_state() {
+    use crate::app::message::project::{self, ProjectMessage};
+    for release_first in [true, false] {
+        let mut app = App::new().0;
+        app.project_path = Some("/project".into());
+        let _ = project::update(
+            &mut app,
+            ProjectMessage::FileTreeInternalDragStart {
+                project_path: "/project".into(),
+                source_path: "/project/source".into(),
+            },
+        );
+        let _ = project::update(
+            &mut app,
+            ProjectMessage::FileTreeDropTargetChanged(Some("/project/target".into())),
+        );
+        assert_eq!(app.file_tree_drop_target.as_deref(), Some("/project/target"));
+        let request = ProjectMessage::FileTreeDropRequested {
+            project_path: "/project".into(),
+            source_path: "/project/source".into(),
+            target_directory: "/project/target".into(),
+        };
+        if release_first {
+            let _ = project::update(&mut app, ProjectMessage::FileTreeDragEnd);
+            let _ = project::update(&mut app, request);
+        } else {
+            let _ = project::update(&mut app, request);
+            let _ = project::update(&mut app, ProjectMessage::FileTreeDragEnd);
+        }
+        assert!(app.file_tree_drag_source.is_none());
+        assert!(app.file_tree_drop_target.is_none());
+        assert!(app.dragging_file_paths.is_empty());
+        assert!(app.pending_drop_file_paths.is_empty());
+        assert!(!app.file_tree_operation_in_progress);
+    }
+}
+
+#[test]
+fn file_tree_drop_chat_sources_and_busy_operations_do_not_enable_move_state() {
+    use crate::app::message::project::{self, ProjectMessage};
+    let mut app = App::new().0;
+    app.project_path = Some("/project".into());
+    let _ =
+        project::update(&mut app, ProjectMessage::FileTreeDragStart("/project/file".into(), None));
+    let _ = project::update(
+        &mut app,
+        ProjectMessage::FileTreeDropTargetChanged(Some("/project".into())),
+    );
+    assert!(app.file_tree_drag_source.is_none());
+    assert!(app.file_tree_drop_target.is_none());
+    app.file_tree_operation_in_progress = true;
+    let _ = project::update(
+        &mut app,
+        ProjectMessage::FileTreeInternalDragStart {
+            project_path: "/project".into(),
+            source_path: "/project/file".into(),
+        },
+    );
+    assert!(app.file_tree_drag_source.is_none());
+}

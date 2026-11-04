@@ -11,6 +11,9 @@ enum TestMessage {
     RightClicked(Point),
     DragStarted,
     DragEnded,
+    TargetChanged(u8),
+    Requested(u8),
+    Cancelled,
 }
 
 // 可观测子组件始终发布更新消息，便于区分包装器消费事件与继续向下传播。
@@ -344,7 +347,7 @@ fn drag_starts_at_threshold_once_and_release_ends_and_resets_it() {
     assert_eq!(pressed, vec![TestMessage::ChildUpdated]);
     assert_eq!(threshold, vec![TestMessage::DragStarted, TestMessage::ChildUpdated]);
     assert_eq!(continued, vec![TestMessage::ChildUpdated]);
-    assert_eq!(released, vec![TestMessage::DragEnded, TestMessage::ChildUpdated]);
+    assert_eq!(released, vec![TestMessage::DragEnded]);
     assert_eq!(after_release, vec![TestMessage::ChildUpdated]);
 }
 
@@ -449,4 +452,284 @@ fn missing_drag_callbacks_still_tracks_drag_without_extra_messages() {
 
     assert_eq!(moved, vec![TestMessage::ChildUpdated]);
     assert_eq!(released, vec![TestMessage::ChildUpdated]);
+}
+
+#[test]
+fn file_tree_drop_drag_release_does_not_reach_source_button() {
+    let mut area = area();
+    let mut tree = tree_for_area(&area);
+    let cursor = mouse::Cursor::Available(Point::new(12.0, 22.0));
+    update_area(
+        &mut area,
+        &mut tree,
+        Event::Mouse(mouse::Event::ButtonPressed(mouse::Button::Left)),
+        cursor,
+    );
+    update_area(
+        &mut area,
+        &mut tree,
+        Event::Mouse(mouse::Event::CursorMoved { position: Point::new(15.0, 22.0) }),
+        cursor,
+    );
+    assert_eq!(
+        update_area(
+            &mut area,
+            &mut tree,
+            Event::Mouse(mouse::Event::ButtonReleased(mouse::Button::Left)),
+            cursor
+        ),
+        vec![TestMessage::DragEnded]
+    );
+}
+
+fn drop_area(target: u8) -> TestArea<'static> {
+    RightClickArea::new(
+        TestContent::default().into(),
+        Box::new(TestMessage::RightClicked),
+        None,
+        None,
+    )
+    .file_tree_drop(TestMessage::TargetChanged(target), TestMessage::Requested(target))
+}
+
+fn update_drop(
+    area: &mut TestArea<'static>,
+    tree: &mut widget::Tree,
+    event: Event,
+    point: Point,
+    bounds: Rectangle,
+    viewport: Rectangle,
+) -> Vec<TestMessage> {
+    let renderer = RecordingRenderer::default();
+    let mut clipboard = iced::advanced::clipboard::Null;
+    let node = layout_for(bounds);
+    let mut messages = Vec::new();
+    area.update(
+        tree,
+        &event,
+        Layout::new(&node),
+        mouse::Cursor::Available(point),
+        &renderer,
+        &mut clipboard,
+        &mut Shell::new(&mut messages),
+        &viewport,
+    );
+    messages
+}
+
+#[test]
+fn file_tree_drop_scroll_viewport_clips_target_and_scrollbar() {
+    let mut area = drop_area(1);
+    let mut tree = tree_for_area(&area);
+    let bounds = Rectangle::new(Point::ORIGIN, Size::new(120.0, 40.0));
+    let viewport = Rectangle::new(Point::new(7.0, 20.0), Size::new(106.0, 20.0));
+    for point in [Point::new(10.0, 10.0), Point::new(116.0, 30.0)] {
+        let messages = update_drop(
+            &mut area,
+            &mut tree,
+            Event::Mouse(mouse::Event::ButtonReleased(mouse::Button::Left)),
+            point,
+            bounds,
+            viewport,
+        );
+        assert!(!messages.iter().any(|message| matches!(message, TestMessage::Requested(_))));
+    }
+    let messages = update_drop(
+        &mut area,
+        &mut tree,
+        Event::Mouse(mouse::Event::ButtonReleased(mouse::Button::Left)),
+        Point::new(10.0, 30.0),
+        bounds,
+        viewport,
+    );
+    assert_eq!(messages, vec![TestMessage::ChildUpdated, TestMessage::Requested(1)]);
+}
+
+#[test]
+fn file_tree_drop_nested_child_precedes_parent_on_release_and_hover() {
+    let child = drop_area(2);
+    let mut parent =
+        RightClickArea::new(Element::new(child), Box::new(TestMessage::RightClicked), None, None)
+            .file_tree_drop(TestMessage::TargetChanged(1), TestMessage::Requested(1));
+    let mut tree = tree_for_area(&parent);
+    let messages = update_area(
+        &mut parent,
+        &mut tree,
+        Event::Mouse(mouse::Event::CursorMoved { position: Point::new(20.0, 30.0) }),
+        mouse::Cursor::Available(Point::new(20.0, 30.0)),
+    );
+    assert_eq!(messages, vec![TestMessage::ChildUpdated, TestMessage::TargetChanged(2)]);
+    let messages = update_area(
+        &mut parent,
+        &mut tree,
+        Event::Mouse(mouse::Event::ButtonReleased(mouse::Button::Left)),
+        mouse::Cursor::Available(Point::new(20.0, 30.0)),
+    );
+    assert_eq!(messages, vec![TestMessage::ChildUpdated, TestMessage::Requested(2)]);
+}
+
+#[test]
+fn file_tree_drop_root_strip_does_not_accept_file_row_or_blank_below_it() {
+    let mut area = drop_area(0);
+    let mut tree = tree_for_area(&area);
+    let bounds = Rectangle::new(Point::new(7.0, 0.0), Size::new(106.0, 24.0));
+    let messages = update_drop(
+        &mut area,
+        &mut tree,
+        Event::Mouse(mouse::Event::ButtonReleased(mouse::Button::Left)),
+        Point::new(12.0, 25.0),
+        bounds,
+        Rectangle::INFINITE,
+    );
+    assert_eq!(messages, vec![TestMessage::ChildUpdated]);
+    let messages = update_drop(
+        &mut area,
+        &mut tree,
+        Event::Mouse(mouse::Event::ButtonReleased(mouse::Button::Left)),
+        Point::new(12.0, 12.0),
+        bounds,
+        Rectangle::INFINITE,
+    );
+    assert_eq!(messages, vec![TestMessage::ChildUpdated, TestMessage::Requested(0)]);
+}
+
+#[test]
+fn file_tree_drop_surface_clears_hover_before_child_hit() {
+    let mut area = RightClickArea::new(
+        Element::new(drop_area(2)),
+        Box::new(TestMessage::RightClicked),
+        None,
+        None,
+    )
+    .file_tree_surface(TestMessage::TargetChanged(0), TestMessage::Cancelled);
+    let mut tree = tree_for_area(&area);
+    assert_eq!(
+        update_area(
+            &mut area,
+            &mut tree,
+            Event::Mouse(mouse::Event::CursorMoved { position: Point::new(20.0, 30.0) }),
+            mouse::Cursor::Available(Point::new(20.0, 30.0))
+        ),
+        vec![
+            TestMessage::TargetChanged(0),
+            TestMessage::ChildUpdated,
+            TestMessage::TargetChanged(2)
+        ]
+    );
+}
+
+#[test]
+fn file_tree_drop_unfocus_cancels_drag_without_later_release() {
+    let mut area = area().on_drag_cancel(TestMessage::Cancelled);
+    let mut tree = tree_for_area(&area);
+    let cursor = mouse::Cursor::Available(Point::new(12.0, 22.0));
+    update_area(
+        &mut area,
+        &mut tree,
+        Event::Mouse(mouse::Event::ButtonPressed(mouse::Button::Left)),
+        cursor,
+    );
+    update_area(
+        &mut area,
+        &mut tree,
+        Event::Mouse(mouse::Event::CursorMoved { position: Point::new(15.0, 22.0) }),
+        cursor,
+    );
+    assert_eq!(
+        update_area(&mut area, &mut tree, Event::Window(iced::window::Event::Unfocused), cursor),
+        vec![TestMessage::Cancelled, TestMessage::ChildUpdated]
+    );
+    assert_eq!(
+        update_area(
+            &mut area,
+            &mut tree,
+            Event::Mouse(mouse::Event::ButtonReleased(mouse::Button::Left)),
+            cursor
+        ),
+        vec![TestMessage::ChildUpdated]
+    );
+}
+
+#[test]
+fn file_tree_drop_three_pixel_threshold_preserves_ordinary_click() {
+    let mut area = area();
+    let mut tree = tree_for_area(&area);
+    let cursor = mouse::Cursor::Available(Point::new(12.0, 22.0));
+    update_area(
+        &mut area,
+        &mut tree,
+        Event::Mouse(mouse::Event::ButtonPressed(mouse::Button::Left)),
+        cursor,
+    );
+    assert_eq!(
+        update_area(
+            &mut area,
+            &mut tree,
+            Event::Mouse(mouse::Event::CursorMoved { position: Point::new(14.9, 22.0) }),
+            cursor
+        ),
+        vec![TestMessage::ChildUpdated]
+    );
+    assert_eq!(
+        update_area(
+            &mut area,
+            &mut tree,
+            Event::Mouse(mouse::Event::ButtonReleased(mouse::Button::Left)),
+            cursor
+        ),
+        vec![TestMessage::ChildUpdated]
+    );
+    update_area(
+        &mut area,
+        &mut tree,
+        Event::Mouse(mouse::Event::ButtonPressed(mouse::Button::Left)),
+        cursor,
+    );
+    assert!(
+        update_area(
+            &mut area,
+            &mut tree,
+            Event::Mouse(mouse::Event::CursorMoved { position: Point::new(15.0, 22.0) }),
+            cursor
+        )
+        .contains(&TestMessage::DragStarted)
+    );
+}
+
+#[test]
+fn file_tree_drop_release_is_consumed_once() {
+    let mut area = drop_area(1);
+    let mut tree = tree_for_area(&area);
+    let cursor = mouse::Cursor::Available(Point::new(20.0, 30.0));
+    let release = Event::Mouse(mouse::Event::ButtonReleased(mouse::Button::Left));
+    assert!(
+        update_area(&mut area, &mut tree, release.clone(), cursor)
+            .contains(&TestMessage::Requested(1))
+    );
+    assert_eq!(update_area(&mut area, &mut tree, release, cursor), vec![TestMessage::ChildUpdated]);
+}
+
+#[test]
+fn file_tree_drop_offscreen_press_cannot_start_drag() {
+    let mut area = area();
+    let mut tree = tree_for_area(&area);
+    let bounds = Rectangle::new(Point::ORIGIN, Size::new(120.0, 40.0));
+    let viewport = Rectangle::new(Point::new(0.0, 20.0), Size::new(120.0, 20.0));
+    update_drop(
+        &mut area,
+        &mut tree,
+        Event::Mouse(mouse::Event::ButtonPressed(mouse::Button::Left)),
+        Point::new(10.0, 10.0),
+        bounds,
+        viewport,
+    );
+    let messages = update_drop(
+        &mut area,
+        &mut tree,
+        Event::Mouse(mouse::Event::CursorMoved { position: Point::new(20.0, 25.0) }),
+        Point::new(20.0, 25.0),
+        bounds,
+        viewport,
+    );
+    assert_eq!(messages, vec![TestMessage::ChildUpdated]);
 }

@@ -927,6 +927,10 @@ pub struct App {
     pub(crate) file_tree_clipboard: Option<FileTreeClipboard>,
     /// 正在拖动的文件路径列表
     pub(crate) dragging_file_paths: Vec<String>,
+    /// 普通树的移动来源，与搜索/变更列表的聊天拖入分离。
+    pub(crate) file_tree_drag_source: Option<(String, String)>,
+    pub(crate) file_tree_drop_target: Option<String>,
+    pub(crate) file_tree_operation_in_progress: bool,
     /// 正在拖动文件的插入位置（兄弟索引，子索引）
     pub(crate) dragging_file_position: Option<(usize, usize)>,
     /// 待放置的文件路径列表

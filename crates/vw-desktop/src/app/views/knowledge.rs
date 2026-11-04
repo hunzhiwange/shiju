@@ -687,7 +687,9 @@ fn build_embedding_model_section(app: &App) -> Element<'_, Message> {
         .spacing(6),
         row![
             button(
-                row![primary_action_icon(Icon::Search, 13.0), text(test_label).size(12)].spacing(6)
+                row![primary_action_icon(Icon::Search, 13.0), text(test_label).size(12)]
+                    .spacing(6)
+                    .align_y(Alignment::Center)
             )
             .on_press_maybe(
                 test_enabled.then_some(Message::Knowledge(KnowledgeToolMessage::RunEmbeddingTest))
@@ -696,14 +698,15 @@ fn build_embedding_model_section(app: &App) -> Element<'_, Message> {
             .style(primary_action_btn_style),
             button(
                 row![
-                    icon_svg(Icon::Gear, 13.0),
+                    primary_action_icon(Icon::Gear, 13.0),
                     text(crate::app::i18n::I18n::new(app.desktop_locale).__("记忆配置")).size(12)
                 ]
                 .spacing(6)
+                .align_y(Alignment::Center)
             )
             .on_press(Message::View(ViewMessage::OpenSystemSettingsTab(SystemTab::Memory)))
             .padding([8, 10])
-            .style(knowledge_toolbar_button_style),
+            .style(primary_action_btn_style),
         ]
         .spacing(8)
         .align_y(Alignment::Center),

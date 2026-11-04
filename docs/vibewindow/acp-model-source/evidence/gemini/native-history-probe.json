@@ -1,0 +1,46 @@
+{
+  "load_after_private_root_removal": {
+    "error_code": -32603,
+    "missing_native_history": true
+  },
+  "initialize": true,
+  "new": true,
+  "new_error": null,
+  "prompt": {
+    "jsonrpc": "2.0",
+    "id": 3,
+    "result": {
+      "stopReason": "end_turn",
+      "usage": {
+        "inputTokens": 1,
+        "outputTokens": 1,
+        "totalTokens": 2
+      },
+      "_meta": {
+        "quota": {
+          "token_count": {
+            "input_tokens": 1,
+            "output_tokens": 1
+          },
+          "model_usage": [
+            {
+              "model": "arbitrary-client-alias",
+              "token_count": {
+                "input_tokens": 1,
+                "output_tokens": 1
+              }
+            }
+          ]
+        }
+      }
+    }
+  },
+  "requests": [
+    {
+      "path": "/v1beta/models/arbitrary-client-alias:streamGenerateContent?alt=sse",
+      "authenticated": true,
+      "model": null,
+      "content": true
+    }
+  ]
+}

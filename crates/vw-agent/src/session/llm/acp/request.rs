@@ -63,7 +63,7 @@ pub(crate) async fn do_stream_request_acp(
     if source == vw_api_types::acp_model_source::AcpModelSource::SessionModel {
         validate_session_model(model, provider_info, auth_info)?;
     }
-    let cfg = config::get().await;
+    let cfg = config::get_current().await.map_err(to_api_error)?;
     let (acp_agent_name, acp_cfg) =
         lookup_acp_command(&cfg, model, merged_options).ok_or_else(|| {
             tracing::warn!(

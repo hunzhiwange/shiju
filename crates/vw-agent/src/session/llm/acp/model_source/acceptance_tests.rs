@@ -13,11 +13,28 @@ fn accepted(evidence: &Value, mode: &str) -> bool {
         && (mode == "cli-local" || switched)
         && requests.iter().all(|r| {
             r["authenticated"] == true
-                && r["route"] == "/v1/chat/completions"
+                && (r["route"] == "/v1/chat/completions"
+                    || r["model"].as_str().is_some_and(|model| {
+                        r["route"] == format!("/v1beta/models/{model}:generateContent")
+                            || r["route"] == format!("/v1beta/models/{model}:streamGenerateContent")
+                    }))
                 && (r["model"] == "acp-fixture-primary"
                     || (mode == "session-model" && r["model"] == "acp-fixture-switched"))
         })
         && requests.iter().any(|r| r["tool_results"].as_u64().unwrap_or(0) >= 2)
+}
+
+#[test]
+fn acp_model_source_gemini_harness_requires_exact_model_and_generation_path() {
+    let request = json!({"model":"acp-fixture-primary","authenticated":true,"route":"/v1beta/models/acp-fixture-primary:streamGenerateContent","tool_results":2});
+    let mut evidence =
+        json!({"errors":0,"requests":[request.clone(),request.clone(),request.clone(),request]});
+    assert!(accepted(&evidence, "cli-local"));
+    evidence["requests"][0]["route"] =
+        json!("/v1beta/models/forbidden-native-model:streamGenerateContent");
+    assert!(!accepted(&evidence, "cli-local"));
+    evidence["requests"][0]["route"] = json!("/v1beta/models/acp-fixture-primary:countTokens");
+    assert!(!accepted(&evidence, "cli-local"));
 }
 
 #[test]

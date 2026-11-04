@@ -196,5 +196,57 @@ class RunnerContract(unittest.TestCase):
         self.assertEqual(signal.getsignal(signal.SIGTERM), previous)
 
 
+class GeminiContract(unittest.TestCase):
+    def test_gemini_success_requires_exact_observed_model_path(self):
+        flow = {name: True for name in ("new", "second_turn", "cancel", "restart", "switch", "isolated")}
+        flow["mode"] = "cli-local"
+        record = {"model":"acp-fixture-primary", "authenticated":True,"route":"/v1beta/models/acp-fixture-primary:streamGenerateContent","tool_results":2}
+        evidence = {"errors":0,"requests":[dict(record) for _ in range(4)]}
+        self.assertTrue(successful(evidence, flow))
+        evidence["requests"][0]["route"] = "/v1beta/models/forbidden-native-model:streamGenerateContent"
+        self.assertFalse(successful(evidence, flow))
+        evidence["requests"][0]["route"] = "/v1beta/models/acp-fixture-primary:countTokens"
+        self.assertFalse(successful(evidence, flow))
+
+    def test_chat_gemini_read_uses_declared_absolute_path(self):
+        with ModelFixture() as fixture:
+            fixture.read_path = "/owned-gemini/challenge.txt"
+            body = {"model":fixture.models[0], "messages":[{"role":"user","content":"read twice"}], "tools":[{"type":"function","function":{"name":"read_file","parameters":{"properties":{"absolute_path":{"type":"string"}}}}}]}
+            request = urllib.request.Request(fixture.url + "/v1/chat/completions", json.dumps(body).encode(), {"Authorization":"Bearer "+fixture.key,"Content-Type":"application/json"})
+            with urllib.request.urlopen(request) as response:
+                call = json.load(response)["choices"][0]["message"]["tool_calls"][0]
+            self.assertEqual(json.loads(call["function"]["arguments"]), {"absolute_path":fixture.read_path})
+            self.assertEqual(fixture.snapshot()["requests"][0]["tool_results"], 0)
+
+    def test_gemini_stream_records_auth_model_and_actual_tool_results(self):
+        with ModelFixture() as fixture:
+            contents = [{"role": "user", "parts": [{"text": "read twice"}]}]
+            for turn in range(3):
+                body = {"contents": contents, "tools": [{"functionDeclarations": [{"name": "read_file", "parameters": {"properties": {"absolute_path": {"type": "string"}}}}]}]}
+                request = urllib.request.Request(fixture.url + "/v1beta/models/" + fixture.models[0] + ":streamGenerateContent?alt=sse", json.dumps(body).encode(), {"x-goog-api-key": fixture.key, "Content-Type": "application/json"})
+                with urllib.request.urlopen(request) as response:
+                    result = json.loads(response.read().decode().removeprefix("data: ").strip())
+                parts = result["candidates"][0]["content"]["parts"]
+                if turn < 2:
+                    call = parts[0]["functionCall"]
+                    self.assertEqual(call["args"], {"absolute_path": fixture.read_path})
+                    contents.extend([{"role": "model", "parts": parts}, {"role": "user", "parts": [{"functionResponse": {"name": call["name"], "response": {"output": fixture.challenge}}}]}])
+                else:
+                    self.assertIn(fixture.challenge, parts[0]["text"])
+            evidence = fixture.snapshot()
+            self.assertEqual([r["tool_results"] for r in evidence["requests"]], [0, 1, 2])
+            self.assertEqual(evidence["errors"], 0)
+            self.assertNotIn(fixture.key, json.dumps(evidence))
+
+    def test_gemini_rejects_bad_auth_and_model(self):
+        for model, key in [("acp-fixture-primary", "wrong"), ("forbidden-native-model", None)]:
+            with ModelFixture() as fixture:
+                request = urllib.request.Request(fixture.url + "/v1beta/models/" + model + ":generateContent", b'{"contents":[]}', {"x-goog-api-key": key or fixture.key, "Content-Type": "application/json"})
+                with self.assertRaises(urllib.error.HTTPError):
+                    urllib.request.urlopen(request)
+                self.assertEqual(fixture.snapshot()["errors"], 1)
+                self.assertEqual(fixture.snapshot()["requests"], [])
+
+
 if __name__ == "__main__":
     unittest.main()

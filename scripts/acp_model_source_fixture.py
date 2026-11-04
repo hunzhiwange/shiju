@@ -5,6 +5,7 @@ import json
 import secrets
 import threading
 import time
+import urllib.parse
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
 
@@ -45,12 +46,60 @@ class ModelFixture:
                     return self.reply(404, {})
                 self.reply(200, fixture.snapshot())
 
+            def gemini_reply(self, body):
+                path = urllib.parse.urlsplit(self.path).path
+                resource = urllib.parse.unquote(path.removeprefix("/v1beta/models/"))
+                model, separator, action = resource.rpartition(":")
+                if not separator or action not in ("generateContent", "streamGenerateContent", "countTokens"):
+                    raise ValueError("gemini route")
+                if self.headers.get("x-goog-api-key") != fixture.key:
+                    raise ValueError("gemini auth")
+                if model not in fixture.models:
+                    raise ValueError("gemini model")
+                contents = body.get("contents", [])
+                if not contents:
+                    raise ValueError("gemini prompt")
+                if action == "countTokens":
+                    return self.reply(200, {"totalTokens": 1})
+                results = [part["functionResponse"] for content in contents for part in content.get("parts", [])
+                           if "functionResponse" in part and fixture.challenge in json.dumps(part["functionResponse"].get("response", {}))]
+                with fixture.lock:
+                    fixture.records.append({"model": model, "authenticated": True, "route": path,
+                                            "tool_results": len(results), "auxiliary": False})
+                if "CANCEL_PROBE" in json.dumps(next((c for c in reversed(contents) if c.get("role") == "user"), {})):
+                    time.sleep(5)
+                tools = [tool for group in body.get("tools", []) for tool in group.get("functionDeclarations", [])]
+                read = next((tool for tool in tools if tool.get("name", "").lower() in ("read_file", "readfile", "read")), None)
+                if len(results) < 2 and read:
+                    properties = read.get("parameters", read.get("parametersJsonSchema", {})).get("properties", {})
+                    argument = next((key for key in ("absolute_path", "file_path", "path", "filePath") if key in properties), None)
+                    if not argument:
+                        raise ValueError("gemini read schema")
+                    parts = [{"functionCall": {"name": read["name"], "args": {argument: fixture.read_path}}}]
+                else:
+                    parts = [{"text": "FIXTURE_MODEL_REPLY " + fixture.challenge}]
+                response = {"candidates": [{"content": {"role": "model", "parts": parts}, "finishReason": "STOP", "index": 0}],
+                            "usageMetadata": {"promptTokenCount": 1, "candidatesTokenCount": 1, "totalTokenCount": 2}}
+                if action != "streamGenerateContent":
+                    return self.reply(200, response)
+                data = ("data: " + json.dumps(response) + "\n\n").encode()
+                self.send_response(200)
+                self.send_header("Content-Type", "text/event-stream")
+                self.send_header("Content-Length", str(len(data)))
+                self.end_headers()
+                try:
+                    self.wfile.write(data)
+                except (BrokenPipeError, ConnectionResetError):
+                    pass
+
             def do_POST(self):
                 try:
                     length = int(self.headers.get("Content-Length", "0"))
                     if not 0 < length <= 2_000_000:
                         raise ValueError("body length")
                     body = json.loads(self.rfile.read(length))
+                    if self.path.startswith("/v1beta/models/"):
+                        return self.gemini_reply(body)
                     model = body.get("model")
                     auth = self.headers.get("Authorization") == "Bearer " + fixture.key
                     if self.path != "/v1/chat/completions" or not auth or model not in fixture.models:
@@ -72,7 +121,7 @@ class ModelFixture:
                                       ("read", "read_file", "readfile", "filesystem-read")), None)
                     if len(tool_results) < 2 and read_tool:
                         props = read_tool.get("parameters", {}).get("properties", {})
-                        name = next((k for k in ("file_path", "path", "filePath") if k in props), None)
+                        name = next((k for k in ("absolute_path", "file_path", "path", "filePath") if k in props), None)
                         if name is None:
                             raise ValueError("unsupported read tool schema")
                         call = {"id": "fixture-read-" + str(len(tool_results)), "type": "function",
@@ -135,6 +184,8 @@ def successful(evidence, flow):
     models = {r.get("model") for r in records}
     return (evidence.get("errors") == 0 and len(records) >= 4
             and models == ({"acp-fixture-primary"} if flow.get("mode") == "cli-local" else {"acp-fixture-primary", "acp-fixture-switched"})
-            and all(r.get("authenticated") is True and r.get("route") == "/v1/chat/completions" for r in records)
+            and all(r.get("authenticated") is True and r.get("route") in ("/v1/chat/completions",
+                "/v1beta/models/" + str(r.get("model")) + ":generateContent",
+                "/v1beta/models/" + str(r.get("model")) + ":streamGenerateContent") for r in records)
             and any(r.get("tool_results", 0) >= 2 for r in records)
             and all(flow.get(k) is True for k in ("new", "second_turn", "cancel", "restart", "switch", "isolated")))

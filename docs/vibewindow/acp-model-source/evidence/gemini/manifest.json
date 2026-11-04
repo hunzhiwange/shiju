@@ -1,0 +1,97 @@
+{
+  "entries": [
+    {
+      "key": "gemini",
+      "distribution": {
+        "kind": "native",
+        "package": "@google/gemini-cli",
+        "release": "0.66.0",
+        "release_status": "metadata_snapshot_not_runtime_pin",
+        "source_url": "https://registry.npmjs.org/%40google%2Fgemini-cli/0.66.0",
+        "git_commit": null,
+        "integrity": "sha512-EAtsJ9/JxiphHlduzvhoCkb7I0LdOxyugB5NpUtVqKVGZIWjV3JmurvK89ZrvMbV3kwk5SdWINz1M5ZN/2K/Lw==",
+        "bin": {
+          "gemini": "bundle/gemini.js"
+        },
+        "repository": {
+          "url": "git+https://github.com/google-gemini/gemini-cli.git",
+          "type": "git"
+        },
+        "link_check": {
+          "http_status": 200,
+          "final_url": "https://registry.npmjs.org/%40google%2Fgemini-cli/0.66.0"
+        }
+      },
+      "underlying": {
+        "kind": "same_distribution",
+        "release": "0.66.0"
+      },
+      "license": {
+        "declared": "Apache-2.0",
+        "source_url": "https://registry.npmjs.org/%40google%2Fgemini-cli/0.66.0",
+        "review": "metadata_only; bundled component licenses not audited"
+      },
+      "acp_launch": [
+        "gemini",
+        "--experimental-acp",
+        "--approval-mode",
+        "yolo",
+        "--skip-trust"
+      ],
+      "registry_default_args": "GEMINI_ACP_ARGS",
+      "local_command_candidates": [
+        "gemini",
+        "gemini-cli"
+      ],
+      "route": "bridge_required",
+      "config_root_candidate": null,
+      "config_priority": "GEMINI_API_KEY / GEMINI_MODEL / GOOGLE_GEMINI_BASE_URL\uff1b\u5fc5\u987b\u9a8c\u8bc1\u8ba4\u8bc1\u8def\u5f84\u4e0d\u56de OAuth/Vertex",
+      "auxiliary_model_routes": "Gemini generateContent \u4e0e streamGenerateContent\uff0c\u5143\u6570\u636e\u3001\u538b\u7f29\u53ca\u8f85\u52a9\u6a21\u578b",
+      "config_isolation_verified": false,
+      "runtime_verified": false,
+      "runtime_evidence_reason": "No ACP model request executed; version-only probe is not model or isolation evidence.",
+      "installed": {
+        "command": [
+          "gemini",
+          "--version"
+        ],
+        "status": "observed",
+        "exit_code": 0,
+        "output": "0.66.0"
+      },
+      "platforms": {
+        "macos": "version-only discovery on current host; no ACP request",
+        "linux": "unverified; package/installer target and ACP must be checked",
+        "windows": "unverified; npm cmd/exe or PowerShell installer differs from Unix; target support not inferred"
+      },
+      "source_urls": [
+        "https://geminicli.com/docs/reference/configuration/"
+      ],
+      "follow_up": "task 22: exact CLI model-source adaptation; task 9 isolation; task 10 real offline request proof",
+      "source_link_checks": {
+        "https://geminicli.com/docs/reference/configuration/": {
+          "http_status": 200,
+          "final_url": "https://geminicli.com/docs/reference/configuration/"
+        }
+      },
+      "offline_acceptance": {
+        "session-model": {
+          "config_root_env": "GEMINI_CLI_HOME",
+          "upstream_protocol": "chat",
+          "files": {
+            ".gemini/settings.json": "{\"model\": {\"name\": \"{{model}}\"}, \"security\": {\"auth\": {\"selectedType\": \"gateway\"}}, \"advanced\": {\"autoConfigureMemory\": false}, \"telemetry\": {\"enabled\": false}, \"modelConfigs\": {\"overrides\": [{\"match\": {}, \"modelConfig\": {\"model\": \"{{model}}\"}}], \"customOverrides\": [], \"aliases\": {}, \"customAliases\": {}}}",
+            ".gemini/.env": "GEMINI_API_KEY={{key}}\nGEMINI_MODEL={{model}}\nGOOGLE_GEMINI_BASE_URL={{origin}}\nGOOGLE_GENAI_USE_GCA=false\nGOOGLE_GENAI_USE_VERTEXAI=false\n"
+          }
+        },
+        "cli-local": {
+          "config_root_env": "GEMINI_CLI_HOME",
+          "upstream_protocol": "chat",
+          "files": {
+            ".gemini/settings.json": "{\"model\": {\"name\": \"{{model}}\"}, \"security\": {\"auth\": {\"selectedType\": \"gateway\"}}, \"advanced\": {\"autoConfigureMemory\": false}, \"telemetry\": {\"enabled\": false}, \"modelConfigs\": {\"overrides\": [{\"match\": {}, \"modelConfig\": {\"model\": \"{{model}}\"}}], \"customOverrides\": [], \"aliases\": {}, \"customAliases\": {}}}",
+            ".gemini/.env": "GEMINI_API_KEY={{key}}\nGEMINI_MODEL={{model}}\nGOOGLE_GEMINI_BASE_URL={{origin}}\nGOOGLE_GENAI_USE_GCA=false\nGOOGLE_GENAI_USE_VERTEXAI=false\n"
+          }
+        }
+      }
+    }
+  ]
+}

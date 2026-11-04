@@ -1,0 +1,168 @@
+--- a/bundle/chunk-M44FJWED.js
++++ b/bundle/chunk-M44FJWED.js
+@@ -253361,6 +253361,11 @@
+     return path4.join(this.targetDir, AGENTS_DIR_NAME);
+   }
+   getProjectTempDir() {
++    if (process.argv.includes("--shiju-model-source")) {
++      const root = process.env["SHIJU_GEMINI_HISTORY_ROOT"];
++      if (!root || !path4.isAbsolute(root)) throw new Error("Managed Gemini history root is invalid");
++      return root;
++    }
+     const identifier = this.getProjectIdentifier();
+     const tempDir = _Storage.getGlobalTempDir();
+     return path4.join(tempDir, identifier);
+@@ -314533,6 +314538,17 @@
+     return this.wrapped.paidTier;
+   }
+   mapModel(req) {
++    if (process.argv.includes("--shiju-model-source")) {
++      const contents = Array.isArray(req.contents) ? req.contents.map((content) => ({
++        ...content,
++        parts: content.parts?.map((part) => {
++          if (part.thoughtSignature !== "skip_thought_signature_validator") return part;
++          const { thoughtSignature, ...original } = part;
++          return original;
++        })
++      })) : req.contents;
++      return { ...req, model: process.env["GEMINI_MODEL"], contents };
++    }
+     if (req.model) {
+       const activeMappings = typeof this.mappings === "function" ? this.mappings() : this.mappings;
+       const normalizedModel = normalizeModelId(req.model);
+--- a/bundle/gemini-B5V54E2S.js
++++ b/bundle/gemini-B5V54E2S.js
+@@ -8125,6 +8125,13 @@
+     }).option("acp", {
+       type: "boolean",
+       description: "Starts the agent in ACP mode"
++    }).option("shiju-model-source", {
++      type: "boolean",
++      hidden: true,
++      coerce: (value) => {
++        if (value && !process.env["SHIJU_GEMINI_HISTORY_ROOT"]) throw new Error("Managed Gemini history root is required");
++        return value;
++      }
+     }).option("experimental-acp", {
+       type: "boolean",
+       description: "Starts the agent in ACP mode (deprecated, use --acp instead)"
+--- a/bundle/chunk-HJ5KJXNZ.js
++++ b/bundle/chunk-HJ5KJXNZ.js
+@@ -253361,6 +253361,11 @@
+     return path4.join(this.targetDir, AGENTS_DIR_NAME);
+   }
+   getProjectTempDir() {
++    if (process.argv.includes("--shiju-model-source")) {
++      const root = process.env["SHIJU_GEMINI_HISTORY_ROOT"];
++      if (!root || !path4.isAbsolute(root)) throw new Error("Managed Gemini history root is invalid");
++      return root;
++    }
+     const identifier = this.getProjectIdentifier();
+     const tempDir = _Storage.getGlobalTempDir();
+     return path4.join(tempDir, identifier);
+@@ -314533,6 +314538,17 @@
+     return this.wrapped.paidTier;
+   }
+   mapModel(req) {
++    if (process.argv.includes("--shiju-model-source")) {
++      const contents = Array.isArray(req.contents) ? req.contents.map((content) => ({
++        ...content,
++        parts: content.parts?.map((part) => {
++          if (part.thoughtSignature !== "skip_thought_signature_validator") return part;
++          const { thoughtSignature, ...original } = part;
++          return original;
++        })
++      })) : req.contents;
++      return { ...req, model: process.env["GEMINI_MODEL"], contents };
++    }
+     if (req.model) {
+       const activeMappings = typeof this.mappings === "function" ? this.mappings() : this.mappings;
+       const normalizedModel = normalizeModelId(req.model);
+--- a/bundle/gemini-EOCRFAPZ.js
++++ b/bundle/gemini-EOCRFAPZ.js
+@@ -8125,6 +8125,13 @@
+     }).option("acp", {
+       type: "boolean",
+       description: "Starts the agent in ACP mode"
++    }).option("shiju-model-source", {
++      type: "boolean",
++      hidden: true,
++      coerce: (value) => {
++        if (value && !process.env["SHIJU_GEMINI_HISTORY_ROOT"]) throw new Error("Managed Gemini history root is required");
++        return value;
++      }
+     }).option("experimental-acp", {
+       type: "boolean",
+       description: "Starts the agent in ACP mode (deprecated, use --acp instead)"
+--- a/bundle/gemini-22EOGL6O.js
++++ b/bundle/gemini-22EOGL6O.js
+@@ -8141,6 +8141,13 @@
+     }).option("acp", {
+       type: "boolean",
+       description: "Starts the agent in ACP mode"
++    }).option("shiju-model-source", {
++      type: "boolean",
++      hidden: true,
++      coerce: (value) => {
++        if (value && !process.env["SHIJU_GEMINI_HISTORY_ROOT"]) throw new Error("Managed Gemini history root is required");
++        return value;
++      }
+     }).option("experimental-acp", {
+       type: "boolean",
+       description: "Starts the agent in ACP mode (deprecated, use --acp instead)"
+--- a/bundle/chunk-RZ3ZVTZB.js
++++ b/bundle/chunk-RZ3ZVTZB.js
+@@ -253323,6 +253323,11 @@
+     return path4.join(this.targetDir, AGENTS_DIR_NAME);
+   }
+   getProjectTempDir() {
++    if (process.argv.includes("--shiju-model-source")) {
++      const root = process.env["SHIJU_GEMINI_HISTORY_ROOT"];
++      if (!root || !path4.isAbsolute(root)) throw new Error("Managed Gemini history root is invalid");
++      return root;
++    }
+     const identifier = this.getProjectIdentifier();
+     const tempDir = _Storage.getGlobalTempDir();
+     return path4.join(tempDir, identifier);
+@@ -312977,6 +312982,17 @@
+     return this.wrapped.paidTier;
+   }
+   mapModel(req) {
++    if (process.argv.includes("--shiju-model-source")) {
++      const contents = Array.isArray(req.contents) ? req.contents.map((content) => ({
++        ...content,
++        parts: content.parts?.map((part) => {
++          if (part.thoughtSignature !== "skip_thought_signature_validator") return part;
++          const { thoughtSignature, ...original } = part;
++          return original;
++        })
++      })) : req.contents;
++      return { ...req, model: process.env["GEMINI_MODEL"], contents };
++    }
+     if (req.model) {
+       const activeMappings = typeof this.mappings === "function" ? this.mappings() : this.mappings;
+       const normalizedModel = normalizeModelId(req.model);
+@@ -342963,7 +342979,7 @@
+       currentConfig = _ModelConfigService.merge(currentConfig, match2.modelConfig);
+     }
+     return {
+-      model: currentConfig.model,
++      model: process.argv.includes("--shiju-model-source") ? process.env["GEMINI_MODEL"] : currentConfig.model,
+       generateContentConfig: currentConfig.generateContentConfig ?? {}
+     };
+   }
+@@ -381711,6 +381727,14 @@
+         modelIdResolutions: mergedModelIdResolutions,
+         classifierIdResolutions: mergedClassifierIdResolutions,
+         modelChains: mergedModelChains
++      };
++    }
++    if (process.argv.includes("--shiju-model-source")) {
++      const model = process.env["GEMINI_MODEL"];
++      if (!model) throw new Error("Managed Gemini model is required");
++      modelConfigServiceConfig = {
++        aliases: Object.fromEntries(Object.keys(DEFAULT_MODEL_CONFIGS.aliases).map((name) => [name, { modelConfig: { model } }])),
++        customAliases: {}, overrides: [], customOverrides: []
+       };
+     }
+     this.modelConfigService = new ModelConfigService(modelConfigServiceConfig ?? DEFAULT_MODEL_CONFIGS);

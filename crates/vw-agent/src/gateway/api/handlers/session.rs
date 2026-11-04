@@ -105,3 +105,7 @@ async fn session_tenant_scope(
 #[cfg(test)]
 #[path = "session_tests.rs"]
 mod tests;
+
+#[cfg(test)]
+#[path = "session/agent_profile_acceptance_tests.rs"]
+mod agent_profile_acceptance_tests;

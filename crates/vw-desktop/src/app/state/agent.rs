@@ -9,6 +9,7 @@ pub(crate) const AGENT_DETAIL_BASIC_TAB: &str = "basic";
 pub(crate) const AGENT_DETAIL_IDENTITY_TAB: &str = "identity";
 pub(crate) const AGENT_DETAIL_TOOLS_TAB: &str = "tools";
 pub(crate) const AGENT_DETAIL_SKILLS_TAB: &str = "skills";
+pub(crate) const AGENT_DETAIL_MCP_TAB: &str = "mcp";
 pub(crate) const AGENT_TOOLS_OPTIONAL_TAB: &str = "optional";
 pub(crate) const AGENT_TOOLS_BUILTIN_TAB: &str = "builtin";
 static GUIDE_HANDOFF_REQUEST_IDS: Lazy<Mutex<HashSet<u64>>> =

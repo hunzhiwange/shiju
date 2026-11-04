@@ -41,6 +41,11 @@ pub(super) fn overlay<'a>(app: &'a App, base: Element<'a, Message>) -> Element<'
             crate::app::state::AGENT_DETAIL_SKILLS_TAB,
             &settings.active_detail_tab
         ),
+        super::shared::detail_tab_button(
+            "MCP",
+            crate::app::state::AGENT_DETAIL_MCP_TAB,
+            &settings.active_detail_tab
+        ),
     ]
     .spacing(8)
     .wrap();
@@ -49,6 +54,7 @@ pub(super) fn overlay<'a>(app: &'a App, base: Element<'a, Message>) -> Element<'
         crate::app::state::AGENT_DETAIL_IDENTITY_TAB => super::identity::view(app, entry),
         crate::app::state::AGENT_DETAIL_TOOLS_TAB => super::tools::view(app, entry),
         crate::app::state::AGENT_DETAIL_SKILLS_TAB => super::skills::view(app, entry),
+        crate::app::state::AGENT_DETAIL_MCP_TAB => super::mcp::view(app, entry),
         _ => super::basic::view(app, entry, Vec::new()),
     };
     let body = scrollable(container(fields).padding([0, 7]))

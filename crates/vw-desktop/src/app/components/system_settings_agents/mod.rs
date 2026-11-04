@@ -10,6 +10,7 @@ mod catalog;
 mod catalog_tests;
 pub(crate) mod defaults;
 mod identity;
+mod mcp;
 mod profile_modal;
 mod shared;
 mod skills;
@@ -501,3 +502,6 @@ mod profile_modal_tests;
 
 #[cfg(test)]
 mod defaults_tests;
+
+#[cfg(test)]
+mod mcp_tests;

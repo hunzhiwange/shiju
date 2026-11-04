@@ -128,6 +128,14 @@ pub(crate) fn validation_error(app: &App, draft: &DelegateAgentSettingsEntry) ->
     {
         return Some("默认模型与强制模型绑定冲突，请在模型控件中重新选择。".into());
     }
+    if let AgentDefault::Fixed(ids) = &draft.defaults.mcp
+        && !ids.is_empty()
+        && (app.mcp_settings.inspect_loading
+            || app.mcp_settings.inspect_error.is_some()
+            || app.mcp_settings.inspect.is_none())
+    {
+        return Some("MCP 服务目录尚未就绪或加载失败，请刷新后再保存已有选择。".into());
+    }
     let (models, skills, mcp) = catalogs(app, &draft.runtime);
     validate(&draft.runtime, &draft.defaults, &models, &skills, &mcp).err()
 }
@@ -140,7 +148,7 @@ pub(super) fn view<'a>(
     app: &'a App,
     draft: &'a DelegateAgentSettingsEntry,
 ) -> Element<'a, Message> {
-    let (models, _, mcp) = catalogs(app, &draft.runtime);
+    let (models, _, _) = catalogs(app, &draft.runtime);
     let defaults = &draft.defaults;
     let mut body = column![
         text("默认配置").size(16),
@@ -220,66 +228,6 @@ pub(super) fn view<'a>(
         .style(settings_pick_list_style)
         .menu_style(settings_pick_list_menu_style),
     );
-    {
-        let title = "默认 MCP";
-        let selection = &defaults.mcp;
-        let available = mcp;
-        let fixed = matches!(selection, AgentDefault::Fixed(_));
-        let original = defaults.clone();
-        body = body.push(text(title)).push(
-            pick_list(
-                vec!["继承", "固定选择"],
-                Some(if fixed { "固定选择" } else { "继承" }),
-                move |mode| {
-                    let mut next = original.clone();
-                    let value = if mode == "固定选择" {
-                        AgentDefault::Fixed(vec![])
-                    } else {
-                        AgentDefault::Inherit
-                    };
-                    next.mcp = value;
-                    changed(next)
-                },
-            )
-            .padding(SETTINGS_CONTROL_PADDING)
-            .text_size(SETTINGS_CONTROL_TEXT_SIZE)
-            .style(settings_pick_list_style)
-            .menu_style(settings_pick_list_menu_style),
-        );
-        if let AgentDefault::Fixed(selected) = selection {
-            if available.is_empty() {
-                body = body.push(text("尚无可用候选；可保存固定空列表，或先加载当前作用域目录。"));
-            }
-            let mut ids = available.clone();
-            ids.extend(selected.iter().filter(|id| !available.contains(id)).cloned());
-            for id in ids {
-                let enabled = available.contains(&id);
-                let label = if enabled {
-                    id.clone()
-                } else {
-                    format!("{id}（不可用，取消选择后可保存）")
-                };
-                let checked = selected.contains(&id);
-                let original = defaults.clone();
-                body = body.push(
-                    checkbox(checked)
-                        .label(label)
-                        .on_toggle(move |checked| {
-                            let mut next = original.clone();
-                            let target = &mut next.mcp;
-                            if let AgentDefault::Fixed(ids) = target {
-                                ids.retain(|value| value != &id);
-                                if checked && enabled {
-                                    ids.push(id.clone());
-                                }
-                            }
-                            changed(next)
-                        })
-                        .style(settings_checkbox_style),
-                );
-            }
-        }
-    }
     if let Some(error) = validation_error(app, draft) {
         body = body.push(settings_error_banner(error));
     }

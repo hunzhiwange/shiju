@@ -1569,10 +1569,7 @@ async fn video_edit_template_uuid_hydration_reads_tenant_record_and_rejects_over
     let home = tempfile::tempdir().unwrap();
     let database = GlobalDatabase::for_home(home.path()).unwrap();
     let tenant = test_tenant("template-hydration");
-    let seed = VideoEditTemplateSeed::new(
-        "workflow:\n  graph:\n    nodes:\n      - id: start\n        data: {type: start}\n".into(),
-    )
-    .unwrap();
+    let seed = VideoEditTemplateSeed::production().unwrap();
     let snapshot = seed.load(database.clone(), tenant.clone()).await.unwrap();
     let mut request = WorkflowRunRequest {
         workflow_uuid: Some(VIDEO_EDIT_TEMPLATE_UUID.into()),

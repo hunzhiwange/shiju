@@ -1,0 +1,72 @@
+app:
+  name: 通用云端视频剪辑
+workflow:
+  video_edit:
+    max_parallel: 5
+  graph:
+    nodes:
+      - id: start
+        data: {type: start}
+      - id: prepare
+        data: {type: tool, provider: shiju_video, tool_name: prepare}
+      - id: segments
+        data: {type: tool, provider: shiju_video, tool_name: segments}
+      - id: brief
+        data:
+          type: llm
+          prompt_template:
+            - role: user
+              text: '给出简洁的全片编辑简报，保留原意和原声，不做最终导出。要求：{{#sys.query#}}。原片：{{#prepare.json#}}'
+      - id: planning
+        data:
+          type: iteration
+          parallel: true
+          max_parallel: 5
+          input_selector: [segments, json]
+          output_selector: [model, text]
+          graph:
+            nodes:
+              - id: model
+                data:
+                  type: llm
+                  prompt_template:
+                    - role: user
+                      text: '仅返回原始 JSON VideoChunkPlan: {"chunk_id":"给定ID","effects":[{"id":"稳定唯一ID","chunk_id":"给定ID","word_index":0,"end_word_index":0,"anchor":"首词原文","start":0.0,"end":1.0,"visual_type":"keyword|b_roll|motion_graphic","assets":["素材描述或精确动效模板名"]}]}。用原片绝对时间、稳定词索引。只在核心词上发布效果，上下文只读。三种视觉效果是全片要求，不必每段都有。简报：{{#brief.text#}}。片段：{{#planning.item#}}'
+            edges: []
+      - id: merge
+        data:
+          type: tool
+          provider: shiju_video
+          tool_name: merge
+          inputs:
+            plans: {value_selector: [planning, output]}
+      - id: recipes
+        data:
+          type: llm
+          prompt_template:
+            - role: user
+              text: '只为方案中 b_roll 素材返回原始 JSON 对象，key 为原样素材描述，value 为显式生成参数 {"prompt":"不超过2000字","kind":"environment|atmosphere|abstract|illustration","model":"wan3.0-video","duration_sec":5,"ratio":"16:9","resolution":"720P"}。无 b_roll 时返回 {}。方案：{{#merge.json#}}'
+      - id: assets
+        data:
+          type: tool
+          provider: shiju_video
+          tool_name: assets
+          inputs:
+            recipes: {value_selector: [recipes, text]}
+      - id: apply
+        data: {type: tool, provider: shiju_video, tool_name: apply}
+      - id: preview
+        data: {type: tool, provider: shiju_video, tool_name: preview}
+      - id: answer
+        data: {type: answer, answer: '{{#preview.text#}}'}
+    edges:
+      - {source: start, target: prepare}
+      - {source: prepare, target: segments}
+      - {source: segments, target: brief}
+      - {source: brief, target: planning}
+      - {source: planning, target: merge}
+      - {source: merge, target: recipes}
+      - {source: recipes, target: assets}
+      - {source: assets, target: apply}
+      - {source: apply, target: preview}
+      - {source: preview, target: answer}

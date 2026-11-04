@@ -181,13 +181,54 @@ pub(crate) fn run_bound_command(
     context: &ToolRuntimeContext,
     emit: &mut (impl FnMut(StreamEvent) -> bool + Send + 'static),
 ) -> bool {
-    let workflow_request = match bound_request(request) {
-        Ok(Some(request)) => request,
+    run_command(request, context, emit, None)
+}
+
+pub(crate) fn run_video_command(
+    request: &Request,
+    context: &ToolRuntimeContext,
+    skills: &[crate::skills::Skill],
+    emit: &mut (impl FnMut(StreamEvent) -> bool + Send + 'static),
+) -> bool {
+    let query = super::video_edit::entry::command_query(&request.query);
+    match super::video_edit::parse_video_edit_command(&query) {
         Ok(None) => return false,
         Err(error) => {
-            emit(StreamEvent::Error(error));
+            emit(StreamEvent::Error(format!("{error}。用法：/shiju 剪辑 \"视频路径\" [要求]")));
             return true;
         }
+        Ok(Some(_)) => {}
+    }
+    let prepared =
+        crate::session::prompt::block_on(super::video_edit::entry::build(request, context, skills));
+    match prepared {
+        Ok(prepared) => run_command(request, context, emit, Some(prepared)),
+        Err(error) => {
+            emit(StreamEvent::Error(format!("云端剪辑入口失败: {error:#}")));
+            true
+        }
+    }
+}
+
+fn run_command(
+    request: &Request,
+    context: &ToolRuntimeContext,
+    emit: &mut (impl FnMut(StreamEvent) -> bool + Send + 'static),
+    prepared: Option<(WorkflowRuntime, WorkflowRunRequest)>,
+) -> bool {
+    let (prepared_runtime, workflow_request) = match prepared {
+        Some((runtime, request)) => (Some(runtime), request),
+        None => (
+            None,
+            match bound_request(request) {
+                Ok(Some(request)) => request,
+                Ok(None) => return false,
+                Err(error) => {
+                    emit(StreamEvent::Error(error));
+                    return true;
+                }
+            },
+        ),
     };
     let cancellation = request.abort_token.clone().unwrap_or_default();
     if cancellation.is_cancelled() {
@@ -199,7 +240,7 @@ pub(crate) fn run_bound_command(
         context: context.clone(),
         allowed_tools: request.options.get("allowed_tools").cloned(),
     });
-    let runtime = WorkflowRuntime {
+    let runtime = prepared_runtime.unwrap_or_else(|| WorkflowRuntime {
         video_edit_budget: crate::workflow::budget::VideoEditRunBudget::default()
             .with_cancellation(cancellation.clone()),
         provider: Arc::new(crate::providers::session_llm::SessionLlmProvider::new()),
@@ -214,7 +255,7 @@ pub(crate) fn run_bound_command(
         knowledge_provider: None,
         document_extractor: None,
         pause_store: None,
-    };
+    });
     if !emit(StreamEvent::StepStart {
         step_index: 0,
         created_ms: crate::session::session::now_ms(),

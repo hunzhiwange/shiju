@@ -1233,7 +1233,7 @@ async fn native_workflow_gateway_persists_bound_graph_without_llm_artifacts() {
         serde_json::json!({
             "platform_id":tenant.platform_id().as_ref(),
             "company_id":tenant.company_id().as_ref(),
-            "commands":[{"command":"/shiju 剪辑","workflow_file":"preview.yaml"}]
+            "commands":[{"command":"/shiju 校验","workflow_file":"preview.yaml"}]
         })
         .to_string(),
     )
@@ -1256,7 +1256,7 @@ workflow:
     let session_id = format!("ses_workflow_gateway_{}", uuid::Uuid::new_v4());
     let request = GatewayChatStreamRequest {
         session_id: Some(session_id.clone().into()),
-        messages: vec![serde_json::json!({"role":"user","content":"/shiju 剪辑 sp7"})],
+        messages: vec![serde_json::json!({"role":"user","content":"/shiju 校验 sp7"})],
         model: Some("model-recovery/original".into()),
         ..Default::default()
     };
@@ -1941,4 +1941,160 @@ fn agcollab_delivery_reaches_next_model_request() {
         assert!(tool_ids[0].contains(&"skill".to_string()), "{name} must keep requested tools");
         assert!(tool_ids[0].contains(&"file_read".to_string()));
     }
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn video_edit_entry_gateway_unbound_projects_template_edit_menu_and_persistence() {
+    use crate::workflow::{templates::*, video_edit::entry_test_transport};
+    let _env = crate::test_support::global_async_env_lock().lock().await;
+    let _fixture = crate::session::llm::recovery_test_support::RecoveryConfig::new(
+        "https://example.test/v1",
+        None,
+    )
+    .await;
+    let home = tempfile::tempdir().unwrap();
+    let source = home.path().join("source");
+    std::fs::create_dir(&source).unwrap();
+    let a = source.join("first.mp4");
+    let b = source.join("second.mp4");
+    std::fs::write(&a, b"external video fixture one").unwrap();
+    std::fs::write(&b, b"external video fixture two").unwrap();
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::PermissionsExt;
+        std::fs::set_permissions(&source, std::fs::Permissions::from_mode(0o555)).unwrap();
+    }
+    let tenant = crate::session::ui_store::current_tenant_scope();
+    let database =
+        crate::global_database::GlobalDatabase::for_home(&crate::global::paths().home).unwrap();
+    let seed = VideoEditTemplateSeed::production().unwrap();
+    let initial = seed.load(database.clone(), tenant.clone()).await.unwrap();
+    for index in 0..3 {
+        let project = home.path().join(format!("unbound-{index}"));
+        std::fs::create_dir(&project).unwrap();
+        let path = if index == 2 { &b } else { &a };
+        let query = if index == 1 {
+            format!(
+                "剪辑 \"{}\"\n\n<session_control_selection>\n技能：shiju\n</session_control_selection>",
+                path.display()
+            )
+        } else {
+            format!("/shiju 剪辑 \"{}\"", path.display())
+        };
+        let session = format!("ses_video_entry_{}", uuid::Uuid::new_v4());
+        let _external = entry_test_transport::install(&session);
+        let request = GatewayChatStreamRequest {
+            session_id: Some(session.clone().into()),
+            messages: vec![serde_json::json!({"role":"user","content":query})],
+            model: Some("model-recovery/original".into()),
+            options: Some(serde_json::json!({"full_access":true})),
+            ..Default::default()
+        };
+        let directory = project.to_string_lossy().to_string();
+        let mut events = Vec::new();
+        let collected =
+            collect_gateway_chat_stream_with_observer(directory.clone(), request, |event| {
+                events.push(event.clone())
+            })
+            .await
+            .unwrap();
+        assert!(
+            collected.output.contains("https://external.invalid/s/test-preview"),
+            "{}",
+            collected.output
+        );
+        assert_eq!(events.last().unwrap()["type"], "chat.done");
+        assert!(!project.join(".shiju/workflow_commands.json").exists());
+        let scope = crate::session::ui_store::resolve_session_scope_id_for_tenant(
+            &tenant,
+            Some(&directory),
+            None,
+        )
+        .unwrap();
+        let stored = crate::session::ui_store::load_session_scoped_for_tenant(
+            &tenant,
+            &session,
+            Some(&scope),
+        )
+        .unwrap();
+        assert_eq!(stored.steps[0].finish_reason.as_deref(), Some("workflow"));
+        assert!(stored.steps[0].tool_timings.len() >= 10, "real graph nodes must be visible");
+        assert!(stored.messages.last().unwrap().content.contains("test-preview"));
+        if index == 1 {
+            let current = seed.load(database.clone(), tenant.clone()).await.unwrap();
+            assert_eq!(current.digest, initial.digest);
+            save_template(
+                database.clone(),
+                tenant.clone(),
+                vw_api_types::workflow::WorkflowRecordUpsertBody {
+                    uuid: Some(VIDEO_EDIT_TEMPLATE_UUID.into()),
+                    name: VIDEO_EDIT_TEMPLATE_NAME.into(),
+                    description: String::new(),
+                    workflow_yaml: current
+                        .record
+                        .workflow_yaml
+                        .replace("给出简洁的全片编辑简报", "EDITED_BRIEF"),
+                },
+                current.record.updated_at_ms,
+            )
+            .await
+            .unwrap();
+        }
+    }
+    let edited = seed.load(database.clone(), tenant.clone()).await.unwrap();
+    assert_ne!(initial.digest, edited.digest);
+    // The actual production preparation ledger proves path/template snapshots did not mix.
+    let conn = database.connect_sqlite().unwrap();
+    let rows = conn
+        .prepare("SELECT payload FROM workflow_video_edit_runs")
+        .unwrap()
+        .query_map([], |r| r.get::<_, String>(0))
+        .unwrap()
+        .collect::<Result<Vec<_>, _>>()
+        .unwrap();
+    let runs = rows
+        .iter()
+        .map(|r| serde_json::from_str::<serde_json::Value>(r).unwrap())
+        .collect::<Vec<_>>();
+    assert!(
+        runs.iter()
+            .any(|r| r["source"]["path"] == a.canonicalize().unwrap().to_string_lossy().as_ref()
+                && r["template_sha256"] == initial.digest)
+    );
+    assert!(
+        runs.iter()
+            .any(|r| r["source"]["path"] == b.canonicalize().unwrap().to_string_lossy().as_ref()
+                && r["template_sha256"] == edited.digest)
+    );
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::PermissionsExt;
+        std::fs::set_permissions(&source, std::fs::Permissions::from_mode(0o755)).unwrap();
+    }
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn video_edit_entry_gateway_explicit_unavailable_model_does_not_start_graph() {
+    let _env = crate::test_support::global_async_env_lock().lock().await;
+    let _fixture = crate::session::llm::recovery_test_support::RecoveryConfig::new(
+        "https://example.test/v1",
+        None,
+    )
+    .await;
+    let root = tempfile::tempdir().unwrap();
+    let request = GatewayChatStreamRequest {
+        messages: vec![serde_json::json!({"role":"user","content":"/shiju 剪辑 missing.mp4"})],
+        model: Some("missing-provider/missing-model".into()),
+        ..Default::default()
+    };
+    let mut events = Vec::new();
+    let result = collect_gateway_chat_stream_with_observer(
+        root.path().to_string_lossy().into(),
+        request,
+        |e| events.push(e.clone()),
+    )
+    .await;
+    assert!(result.is_err());
+    assert!(!events.iter().any(|e| e["type"] == "chat.done"));
+    assert!(!root.path().join(".shiju/workflow_commands.json").exists());
 }

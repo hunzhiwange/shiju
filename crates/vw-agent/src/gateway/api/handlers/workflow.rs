@@ -311,9 +311,11 @@ async fn workflow_applications_list(
     seed: Option<Extension<VideoEditTemplateSeed>>,
 ) -> Result<Json<Vec<WorkflowRecordSummary>>, ApiError> {
     let database = workflow_database()?;
-    if let Some(Extension(seed)) = seed {
-        seed.load(database.clone(), tenant.clone()).await?;
-    }
+    let seed = match seed {
+        Some(Extension(seed)) => seed,
+        None => VideoEditTemplateSeed::production()?,
+    };
+    seed.load(database.clone(), tenant.clone()).await?;
     let records = crate::workflow::store::list_records(database, tenant).await?;
     Ok(Json(records))
 }
@@ -325,9 +327,11 @@ async fn workflow_application_get(
 ) -> Result<Json<WorkflowRecord>, ApiError> {
     let database = workflow_database()?;
     if uuid == VIDEO_EDIT_TEMPLATE_UUID {
-        if let Some(Extension(seed)) = seed {
-            seed.load(database.clone(), tenant.clone()).await?;
-        }
+        let seed = match seed {
+            Some(Extension(seed)) => seed,
+            None => VideoEditTemplateSeed::production()?,
+        };
+        seed.load(database.clone(), tenant.clone()).await?;
     }
     let record = crate::workflow::store::get_record(database, tenant, uuid).await?;
     Ok(Json(record))
@@ -380,7 +384,7 @@ struct RestoreTemplateRequest {
 
 async fn workflow_template_restore(
     Extension(tenant): Extension<TenantScope>,
-    Extension(seed): Extension<VideoEditTemplateSeed>,
+    seed: Option<Extension<VideoEditTemplateSeed>>,
     Path(uuid): Path<String>,
     headers: HeaderMap,
     Json(body): Json<RestoreTemplateRequest>,
@@ -388,6 +392,10 @@ async fn workflow_template_restore(
     if uuid != VIDEO_EDIT_TEMPLATE_UUID {
         return Err(ApiError::bad_request("该工作流不是内置入口模板"));
     }
+    let seed = match seed {
+        Some(Extension(seed)) => seed,
+        None => VideoEditTemplateSeed::production()?,
+    };
     Ok(Json(
         seed.restore(
             workflow_database()?,

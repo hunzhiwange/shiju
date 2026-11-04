@@ -53,3 +53,17 @@ mod apply_test_cloud;
 pub use cloud::ShijuVideoProjectCloud;
 #[cfg(test)]
 mod cloud_delivery_tests;
+
+#[cfg(test)]
+mod entry_tests;
+
+pub(crate) mod entry;
+mod entry_contract;
+pub const DEFAULT_VIDEO_EDIT_YAML: &str = entry_contract::DEFAULT_YAML;
+
+pub(crate) fn validate_entry_contract(source: &str) -> Result<(), String> {
+    entry_contract::validate(source).map_err(|e| e.to_string())
+}
+
+#[cfg(test)]
+pub(crate) mod entry_test_transport;

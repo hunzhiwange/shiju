@@ -674,10 +674,6 @@ fn run_in_project(
         agent_key.as_deref().unwrap_or("main"),
         usize::try_from(selected_model.limit.context).unwrap_or(usize::MAX),
     );
-    #[cfg(not(target_arch = "wasm32"))]
-    if crate::workflow::native::run_bound_command(&req, &ctx, &mut on_event) {
-        return;
-    }
     if should_handle_docs_request_locally(&req.query) {
         handle_docs_request(&mut session, &ctx, &mut on_event);
         return;
@@ -722,6 +718,16 @@ fn run_in_project(
             std::mem::take(&mut session_protocol.skills),
             Some(ctx.tool_use_context().as_ref()),
         );
+    }
+    #[cfg(not(target_arch = "wasm32"))]
+    if crate::workflow::native::run_video_command(
+        &req,
+        &ctx,
+        &session_protocol.skills,
+        &mut on_event,
+    ) || crate::workflow::native::run_bound_command(&req, &ctx, &mut on_event)
+    {
+        return;
     }
     if let Err(error) = session_protocol.restore_checkpoint(&req.session, &checkpoint_source) {
         on_event(StreamEvent::Error(error));

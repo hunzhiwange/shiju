@@ -17,27 +17,9 @@ use vw_api_types::{
 };
 
 fn yaml(sentinel: &str, parallel: &str) -> String {
-    format!(
-        r#"app:
-  name: editable test workflow
-workflow:
-  video_edit:
-    max_parallel: {parallel}
-  graph:
-    nodes:
-      - id: start
-        data: {{type: start}}
-      - id: text
-        data:
-          type: template-transform
-          template: '{sentinel}'
-      - id: end
-        data: {{type: end}}
-    edges:
-      - {{source: start, target: text}}
-      - {{source: text, target: end}}
-"#
-    )
+    super::video_edit::DEFAULT_VIDEO_EDIT_YAML
+        .replace("max_parallel: 5", &format!("max_parallel: {parallel}"))
+        .replace("给出简洁的全片编辑简报", sentinel)
 }
 
 fn seed() -> VideoEditTemplateSeed {

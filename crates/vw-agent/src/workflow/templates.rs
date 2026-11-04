@@ -18,6 +18,10 @@ pub struct VideoEditTemplateSeed {
 }
 
 impl VideoEditTemplateSeed {
+    pub fn production() -> Result<Self, WorkflowStoreError> {
+        Self::new(super::video_edit::DEFAULT_VIDEO_EDIT_YAML.into())
+    }
+
     pub fn new(workflow_yaml: String) -> Result<Self, WorkflowStoreError> {
         validate_template_yaml(&workflow_yaml)?;
         Ok(Self {
@@ -88,6 +92,7 @@ pub(super) fn validate_template_yaml(
     source: &str,
 ) -> Result<VideoEditTemplateOptions, WorkflowStoreError> {
     super::model::parse_workflow_yaml(source).map_err(WorkflowStoreError::bad_request)?;
+    super::video_edit::validate_entry_contract(source).map_err(WorkflowStoreError::bad_request)?;
     let root: serde_json::Value = serde_yaml::from_str(source)
         .map_err(|error| WorkflowStoreError::bad_request(error.to_string()))?;
     let options = root.get("workflow").and_then(|workflow| workflow.get("video_edit"));

@@ -158,7 +158,7 @@ impl DesktopSessionProtocol {
             .iter()
             .enumerate()
             .filter(|(index, _)| !self.hidden_prefetch.contains(index))
-            .filter_map(|(_, message)| llm_messages::session_message_to_llm_message(message))
+            .flat_map(|(_, message)| llm_messages::session_message_to_llm_messages(message))
             .collect()
     }
 
@@ -760,6 +760,18 @@ fn run_in_project(
         agent_key.as_deref().unwrap_or("main"),
         usize::try_from(selected_model.limit.context).unwrap_or(usize::MAX),
     );
+    #[cfg(not(target_arch = "wasm32"))]
+    for message in &checkpoint_source {
+        if message["role"] == "native"
+            && let Some(content) = message["content"].as_str()
+            && let Ok(crate::session::llm::native_tools::NativeHistoryItem::ToolSearchCall(call)) =
+                serde_json::from_str(content)
+            && let Some(id) = call.call_id
+        {
+            session_protocol.native_call_ids.insert(id);
+        }
+    }
+
     if should_handle_docs_request_locally(&req.query) {
         handle_docs_request(&mut session, &ctx, &mut on_event);
         return;
@@ -1639,21 +1651,25 @@ fn handle_structured_tool_calls(
             #[cfg(not(target_arch = "wasm32"))]
             {
                 use crate::session::llm::native_tools::NativeHistoryItem;
+                if !session_protocol.native_call_ids.insert(call.id.clone()) {
+                    on_event(StreamEvent::Error(
+                        "native search call_id was already executed".into(),
+                    ));
+                    call_index += 1;
+                    continue;
+                }
                 let arguments = serde_json::from_str(&call.arguments)
                     .unwrap_or_else(|_| Value::String(call.arguments.clone()));
-                llm_messages.push(llm_messages::native_protocol_message(
-                    NativeHistoryItem::ToolSearchCall(aisdk::core::ToolSearchCall {
-                        id: None,
-                        call_id: Some(call.id.clone()),
-                        status: Some("completed".into()),
-                        execution: aisdk::core::ToolSearchExecution::Client,
-                        arguments,
-                        encrypted_content: None,
-                    }),
-                ));
-                let result = if !session_protocol.native_call_ids.insert(call.id.clone()) {
-                    Err(anyhow::anyhow!("native search call_id was already executed"))
-                } else if is_last_step || !allowed_tools.contains(&call.name) {
+                let history_call = NativeHistoryItem::ToolSearchCall(aisdk::core::ToolSearchCall {
+                    id: None,
+                    call_id: Some(call.id.clone()),
+                    status: Some("completed".into()),
+                    execution: aisdk::core::ToolSearchExecution::Client,
+                    arguments,
+                    encrypted_content: None,
+                });
+                llm_messages.push(llm_messages::native_protocol_message(history_call.clone()));
+                let result = if is_last_step || !allowed_tools.contains(&call.name) {
                     Err(anyhow::anyhow!("native search is not exposed for this request"))
                 } else {
                     tools_exec::run_native_search_and_record(
@@ -1677,6 +1693,12 @@ fn handle_structured_tool_calls(
                         })
                     }
                 };
+                tools_exec::record_native_history_pair(
+                    session,
+                    history_call,
+                    output.clone(),
+                    on_event,
+                );
                 llm_messages.push(llm_messages::native_protocol_message(output));
             }
             #[cfg(target_arch = "wasm32")]

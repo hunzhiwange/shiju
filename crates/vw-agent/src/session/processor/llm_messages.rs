@@ -107,9 +107,8 @@ pub(crate) fn extend_llm_messages_from_session_range(
     session: &Session,
     start_index: usize,
 ) {
-    llm_messages.extend(
-        session.messages.iter().skip(start_index).filter_map(session_message_to_llm_message),
-    )
+    llm_messages
+        .extend(session.messages.iter().skip(start_index).flat_map(session_message_to_llm_messages))
 }
 
 /// 将会话消息转换为 LLM API 格式的消息列表
@@ -161,10 +160,10 @@ pub(crate) fn extend_llm_messages_from_session_range(
 /// # 注意事项
 ///
 /// - `Tool` 角色的消息会被映射为 `assistant` 角色，这是因为工具执行结果通常作为助手回复的一部分传递给 LLM
-/// - 该函数使用 `filter_map`，如果未来需要过滤某些消息类型，可以通过返回 `None` 来实现
+/// - 新写入的原生搜索卡片展开为专用调用与结果，其余消息沿用原角色映射。
 pub(crate) fn session_messages_to_llm_messages(session: &Session) -> Vec<serde_json::Value> {
     // 遍历会话中的所有消息，根据角色进行转换
-    session.messages.iter().filter_map(session_message_to_llm_message).collect()
+    session.messages.iter().flat_map(session_message_to_llm_messages).collect()
 }
 
 /// 组装桌面会话单步请求的临时协议上下文。
@@ -247,6 +246,52 @@ pub(crate) fn native_protocol_message(
 ) -> Value {
     serde_json::json!({"role":"native", "content":serde_json::to_string(&item)
         .expect("typed native history must serialize")})
+}
+
+/// New native search cards retain both typed items in their persisted tool payload.
+/// Legacy cards remain ordinary text; they never acquire protocol identities.
+pub(crate) fn session_message_to_llm_messages(message: &Message) -> Vec<Value> {
+    #[cfg(not(target_arch = "wasm32"))]
+    if matches!(message.role, Role::Tool | Role::Assistant) {
+        let mut projected = Vec::new();
+        let mut consumed = 0;
+        for (start, marker) in message.content.match_indices("tool tool_search\n") {
+            if start < consumed || (start > 0 && !message.content[..start].ends_with('\n')) {
+                continue;
+            }
+            let mut stream =
+                serde_json::Deserializer::from_str(&message.content[start + marker.len()..])
+                    .into_iter::<Value>();
+            let Some(Ok(payload)) = stream.next() else { continue };
+            let Some(items) = payload.get("_vw_native_history").and_then(Value::as_array) else {
+                continue;
+            };
+            let text = &message.content[consumed..start];
+            if !text.trim().is_empty() {
+                projected.extend(session_message_to_llm_message(&Message {
+                    role: message.role,
+                    content: text.to_owned(),
+                }));
+            }
+            projected.extend(
+                items
+                    .iter()
+                    .map(|item| serde_json::json!({"role":"native", "content":item.to_string()})),
+            );
+            consumed = start + marker.len() + stream.byte_offset();
+        }
+        if consumed > 0 {
+            let text = &message.content[consumed..];
+            if !text.trim().is_empty() {
+                projected.extend(session_message_to_llm_message(&Message {
+                    role: message.role,
+                    content: text.to_owned(),
+                }));
+            }
+            return projected;
+        }
+    }
+    session_message_to_llm_message(message).into_iter().collect()
 }
 
 #[cfg(test)]

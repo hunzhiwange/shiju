@@ -421,16 +421,17 @@ fn snapshot_checkpoint_source(
     Some(
         snapshot.messages[..boundary]
             .iter()
-            .map(|message| {
+            .flat_map(|message| {
                 let role = match message.role {
-                    super::ui_types::ChatRole::User => "user",
-                    super::ui_types::ChatRole::Assistant | super::ui_types::ChatRole::Tool => {
-                        "assistant"
-                    }
-                    super::ui_types::ChatRole::System => "system",
-                    super::ui_types::ChatRole::Developer => "developer",
+                    super::ui_types::ChatRole::User => super::session::Role::User,
+                    super::ui_types::ChatRole::Assistant => super::session::Role::Assistant,
+                    super::ui_types::ChatRole::Tool => super::session::Role::Tool,
+                    super::ui_types::ChatRole::System => super::session::Role::System,
+                    super::ui_types::ChatRole::Developer => super::session::Role::Developer,
                 };
-                json!({"role": role, "content": message.content})
+                super::processor::llm_messages::session_message_to_llm_messages(
+                    &super::session::Message { role, content: message.content.clone() },
+                )
             })
             .collect(),
     )
@@ -705,6 +706,17 @@ pub async fn create(input: CreateInput) -> Result<(), crate::app::agent::session
 
     Ok(())
 }
+
+/// Checkpoint cuts must never replay a result without its original call.
+pub(crate) fn normalize_native_history(
+    history: &[serde_json::Value],
+) -> Result<Vec<serde_json::Value>, String> {
+    #[cfg(not(target_arch = "wasm32"))]
+    return super::llm::native_tools::normalize_history(history).map_err(|error| error.to_string());
+    #[cfg(target_arch = "wasm32")]
+    Ok(history.to_vec())
+}
+
 #[cfg(test)]
 #[path = "compaction_tests.rs"]
 pub(crate) mod compaction_tests;

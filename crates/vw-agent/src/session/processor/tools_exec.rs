@@ -1858,6 +1858,36 @@ pub(crate) fn run_native_search_and_record(
     Ok(crate::session::llm::native_tools::NativeHistoryItem::ToolSearchOutput(output))
 }
 
+/// Persist the native pair through the existing tool-card stream/storage path.
+#[cfg(not(target_arch = "wasm32"))]
+pub(crate) fn record_native_history_pair(
+    session: &mut super::Session,
+    call: crate::session::llm::native_tools::NativeHistoryItem,
+    output: crate::session::llm::native_tools::NativeHistoryItem,
+    on_event: &mut impl FnMut(StreamEvent) -> bool,
+) {
+    use crate::session::llm::native_tools::NativeHistoryItem;
+    let NativeHistoryItem::ToolSearchCall(search) = &call else {
+        unreachable!("expected search call")
+    };
+    let NativeHistoryItem::ToolSearchOutput(result) = &output else {
+        unreachable!("expected search output")
+    };
+    let payload = serde_json::json!({
+        "status":result.status,
+        "tool_call_id":search.call_id,
+        "input":search.arguments,
+        "output":serde_json::to_string(result).expect("typed native result must serialize"),
+        "_vw_native_history":[&call, &output],
+    });
+    on_event(tool_stream_event(
+        search.call_id.clone().expect("validated call_id"),
+        "tool_search",
+        payload.clone(),
+    ));
+    session.push(super::Role::Tool, format!("tool tool_search\n{payload}\n"));
+}
+
 #[cfg(test)]
 #[path = "tools_exec_tests.rs"]
 mod tools_exec_tests;

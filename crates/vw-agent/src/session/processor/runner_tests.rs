@@ -3368,3 +3368,63 @@ fn native_tool_search_desktop_replacement_revokes_loaded_tool() {
         }));
     });
 }
+
+#[test]
+fn native_tool_search_history_restored_card_does_not_execute_search_again() {
+    with_discovery_processor_test(|workspace, _| {
+        let req = discovery_request(workspace.path());
+        let session = req.session.clone();
+        native_desktop_stream("history-search", "alpha");
+        discovery_stream(&[]);
+        let card = std::sync::Arc::new(std::sync::Mutex::new(None));
+        let card_writer = card.clone();
+        super::run(req, move |event| {
+            if let super::StreamEvent::Tool(event) = event
+                && event.payload.get("_vw_native_history").is_some()
+            {
+                *card_writer.lock().unwrap() =
+                    Some(format!("tool tool_search\n{}\n", event.payload));
+            }
+            true
+        });
+        let _ = super::llm_runner::take_test_llm_messages(&session);
+        let _ = super::llm_runner::take_test_llm_stream_tool_ids();
+        let mut restored = discovery_request(workspace.path());
+        let restored_session = restored.session.clone();
+        restored.history.push(crate::session::ui_types::ChatMessage {
+            role: crate::session::ui_types::ChatRole::Assistant,
+            content: card.lock().unwrap().take().expect("new history stores the native identity"),
+            model: None,
+            think_timing: vec![],
+            processing_timing: None,
+        });
+        native_desktop_stream("history-search", "alpha");
+        discovery_stream(&[("stale-tool", DISCOVERY_ALPHA, serde_json::json!({}))]);
+        discovery_stream(&[]);
+        let search_events = std::sync::Arc::new(std::sync::atomic::AtomicUsize::new(0));
+        let search_counter = search_events.clone();
+        super::run(restored, move |event| {
+            if matches!(event, super::StreamEvent::Tool(ref event) if event.name == "tool_search") {
+                search_counter.fetch_add(1, std::sync::atomic::Ordering::SeqCst);
+            }
+            true
+        });
+        assert_eq!(
+            search_events.load(std::sync::atomic::Ordering::SeqCst),
+            0,
+            "restored ID must not repeat search side effects"
+        );
+        let requests = super::llm_runner::take_test_llm_messages(&restored_session);
+        assert_eq!(requests[0].messages.iter().filter(|m| m["role"] == "native").count(), 2);
+        assert_eq!(requests[1].messages.iter().filter(|m| m["role"] == "native").count(), 2);
+        assert!(
+            !workspace.path().join("alpha").exists(),
+            "old schema cannot authorize actual execution"
+        );
+        let ids = super::llm_runner::take_test_llm_stream_tool_ids();
+        assert!(
+            ids.iter().all(|ids| !ids.contains(&DISCOVERY_ALPHA.to_string())),
+            "history schemas cannot load a tool in a fresh catalog"
+        );
+    });
+}

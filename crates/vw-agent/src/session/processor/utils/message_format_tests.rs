@@ -170,3 +170,17 @@ fn assistant_message_with_reasoning_preserves_empty_content_and_multiline_reason
         })
     );
 }
+
+#[test]
+fn native_tool_search_history_function_namespace_survives_history_write() {
+    let call = llm::ToolCall {
+        kind: Default::default(),
+        namespace: Some("ledger".into()),
+        id: "read-id".into(),
+        name: "read".into(),
+        arguments: "{}".into(),
+    };
+    let message = super::tool_calls_to_assistant_message(&[call], "");
+    assert_eq!(message["tool_calls"][0]["namespace"], "ledger");
+    assert_eq!(message["tool_calls"][0]["id"], "read-id");
+}

@@ -19,11 +19,15 @@ pub(crate) fn tool_calls_to_assistant_message(
     let calls = tool_calls
         .iter()
         .map(|c| {
-            serde_json::json!({
+            let mut call = serde_json::json!({
                 "id": c.id,
                 "type": "function",
                 "function": { "name": c.name, "arguments": c.arguments }
-            })
+            });
+            if let Some(namespace) = &c.namespace {
+                call["namespace"] = serde_json::json!(namespace);
+            }
+            call
         })
         .collect::<Vec<_>>();
     serde_json::json!({

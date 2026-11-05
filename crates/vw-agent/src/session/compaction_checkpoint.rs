@@ -63,7 +63,7 @@ pub(crate) async fn restore(session: &str, history: &[Value]) -> Result<Vec<Valu
     let mut keys =
         storage::list(&["context_checkpoint", &scope, session]).await.map_err(|e| e.to_string())?;
     if keys.is_empty() {
-        return Ok(history.to_vec());
+        return super::compaction::normalize_native_history(history);
     }
     keys.sort();
     let hashes = history.iter().map(message_hash).collect::<Vec<_>>();
@@ -78,10 +78,10 @@ pub(crate) async fn restore(session: &str, history: &[Value]) -> Result<Vec<Valu
                 context.push(user);
             }
             context.extend_from_slice(&history[checkpoint.source_hashes.len()..]);
-            return Ok(context);
+            return super::compaction::normalize_native_history(&context);
         }
     }
-    Ok(history.to_vec())
+    super::compaction::normalize_native_history(history)
 }
 
 pub(crate) async fn copy(source: &str, target: &str) -> Result<(), String> {

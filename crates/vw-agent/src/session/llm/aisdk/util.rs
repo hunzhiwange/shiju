@@ -193,6 +193,12 @@ pub(crate) fn openai_messages_to_aisdk_messages(
     let Some(arr) = messages.as_array() else {
         return Ok(Vec::new());
     };
+    let normalized = super::super::native_tools::normalize_history(arr).map_err(|error| {
+        Error::Api(crate::session::message::AssistantError::Unknown {
+            message: format!("invalid native history: {error}"),
+        })
+    })?;
+    let arr = &normalized;
     let mut out: Vec<aisdk::core::Message> = Vec::with_capacity(arr.len());
     let mut tool_name_by_id: HashMap<String, String> = HashMap::new();
     let is_deepseek_reasoner = model.api.id.contains("deepseek-reasoner")
@@ -267,6 +273,8 @@ pub(crate) fn openai_messages_to_aisdk_messages(
                     tool_name_by_id.insert(id.clone(), name.clone());
                     let mut tool_info = AiToolCallInfo::new(name);
                     tool_info.id(id.clone());
+                    tool_info.tool.namespace =
+                        tc.get("namespace").and_then(Value::as_str).map(str::to_owned);
                     let input = serde_json::from_str::<Value>(&args_str)
                         .unwrap_or_else(|_| Value::Object(Map::new()));
                     tool_info.input(input);

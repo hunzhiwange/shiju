@@ -190,3 +190,24 @@ fn session_protocol_places_agents_immediately_before_current_user_turn() {
     assert_eq!(messages[4]["role"], "system");
     assert_eq!(messages[5], history[2]);
 }
+
+#[test]
+fn native_tool_search_history_embedded_card_preserves_text_and_excludes_user_input() {
+    let pair = json!([
+        {"type":"tool_search_call","call_id":"card-id","execution":"client","arguments":{"query":"ledger"}},
+        {"type":"tool_search_output","call_id":"card-id","execution":"client","status":"completed","tools":[]}
+    ]);
+    let card = format!("before\ntool tool_search\n{}\nafter", json!({"_vw_native_history":pair}));
+    let assistant = Message { role: Role::Assistant, content: card.clone() };
+    let projected = super::session_message_to_llm_messages(&assistant);
+    assert_eq!(projected.len(), 4);
+    assert_eq!(projected[0]["content"], "before\n");
+    assert_eq!(projected[1]["role"], "native");
+    assert_eq!(projected[2]["role"], "native");
+    assert_eq!(projected[3]["content"], "\nafter");
+    let user = Message { role: Role::User, content: card.clone() };
+    assert_eq!(
+        super::session_message_to_llm_messages(&user),
+        vec![json!({"role":"user", "content":card})]
+    );
+}

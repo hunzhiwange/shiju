@@ -990,3 +990,20 @@ async fn codex_skills_replay_real_session_fork_preserves_sources_and_respects_cu
     .await
     .unwrap();
 }
+
+#[tokio::test]
+async fn native_tool_search_history_compaction_keeps_call_output_pair() {
+    let _guard = COMPACTION_STORAGE_LOCK.lock().await;
+    let session = unique_session("native-history");
+    let call = json!({"role":"native","content":json!({"type":"tool_search_call","call_id":"search","status":"completed","execution":"client","arguments":{"query":"ledger"}}).to_string()});
+    let output = json!({"role":"native","content":json!({"type":"tool_search_output","call_id":"search","status":"completed","execution":"client","tools":[]}).to_string()});
+    let history = vec![call.clone(), output.clone()];
+    assert_eq!(
+        super::super::compaction_checkpoint::restore(&session, &history).await.unwrap(),
+        history
+    );
+    super::super::compaction_checkpoint::save(&session, &[call], "summary", None).await.unwrap();
+    let restored = super::super::compaction_checkpoint::restore(&session, &history).await.unwrap();
+    assert_eq!(restored.len(), 1, "a checkpoint cutting a pair must remove the orphaned output");
+    assert!(restored[0]["content"].as_str().unwrap().contains("summary"));
+}

@@ -1,8 +1,8 @@
 //! Authorized tool snapshots and per-turn exposure, independent of registration.
 
 use super::ToolSpec;
-use std::collections::{BTreeMap, BTreeSet};
-use std::sync::Arc;
+use std::collections::{BTreeMap, BTreeSet, VecDeque};
+use std::sync::{Arc, Mutex, OnceLock};
 
 pub(crate) const DEFAULT_SEARCH_LIMIT: usize = 8;
 pub(crate) const MAX_SEARCH_LIMIT: usize = 32;
@@ -15,10 +15,19 @@ pub(crate) struct ToolDiscoveryCatalog {
 }
 
 struct CatalogSnapshot {
-    specs: BTreeMap<String, ToolSpec>,
+    specs: BTreeMap<String, Arc<ToolSpec>>,
     documents: Vec<SearchDocument>,
     document_frequencies: BTreeMap<String, usize>,
     average_length: f64,
+}
+
+// Bounded process-local cache. Only immutable authorized specifications/indexes
+// are shared; loaded IDs remain owned by each user turn.
+#[derive(Default)]
+struct CatalogCache {
+    entries: VecDeque<(Vec<u8>, Arc<CatalogSnapshot>)>,
+    #[cfg(test)]
+    rebuilds: usize,
 }
 
 struct SearchDocument {
@@ -34,6 +43,39 @@ impl ToolDiscoveryCatalog {
             // Preserve the first authorized definition of a stable ID.
             specs.entry(spec.id.clone()).or_insert(spec);
         }
+        static CACHE: OnceLock<Mutex<CatalogCache>> = OnceLock::new();
+        let mut cache = CACHE
+            .get_or_init(|| Mutex::new(CatalogCache::default()))
+            .lock()
+            .unwrap_or_else(|error| error.into_inner());
+        Self::from_cache(specs, &mut cache)
+    }
+
+    fn from_cache(specs: BTreeMap<String, ToolSpec>, cache: &mut CatalogCache) -> Self {
+        // Exact serialized full specifications form the authorization-directory
+        // fingerprint: no hash collision or omitted schema/security field can reuse it.
+        let fingerprint = serde_json::to_vec(&specs).expect("tool specs serialize to JSON");
+        if let Some(index) = cache.entries.iter().position(|(key, _)| *key == fingerprint) {
+            let entry = cache.entries.remove(index).expect("matched cache entry");
+            let snapshot = Arc::clone(&entry.1);
+            cache.entries.push_back(entry);
+            return Self { snapshot };
+        }
+        let catalog = Self::build(specs);
+        #[cfg(test)]
+        {
+            cache.rebuilds += 1;
+        }
+        if cache.entries.len() == 8 {
+            cache.entries.pop_front();
+        }
+        cache.entries.push_back((fingerprint, Arc::clone(&catalog.snapshot)));
+        catalog
+    }
+
+    fn build(specs: BTreeMap<String, ToolSpec>) -> Self {
+        let specs: BTreeMap<_, _> =
+            specs.into_iter().map(|(id, spec)| (id, Arc::new(spec))).collect();
         let mut documents = Vec::new();
         let mut document_frequencies = BTreeMap::new();
         for spec in specs.values().filter(|spec| spec.exposure.is_deferred()) {
@@ -50,6 +92,16 @@ impl ToolDiscoveryCatalog {
                     *terms.entry(token).or_insert(0) += 1;
                 }
             }
+            let source = match spec.source {
+                vw_api_types::tools::ToolSource::Builtin => "builtin",
+                vw_api_types::tools::ToolSource::Mcp => "mcp",
+                vw_api_types::tools::ToolSource::Client => "client",
+            };
+            for token in tokenize(source) {
+                *terms.entry(token).or_insert(0) += 1;
+            }
+            let mut budget = 4096;
+            append_schema_terms(&spec.input_schema, 0, &mut budget, &mut terms);
             for term in terms.keys() {
                 *document_frequencies.entry(term.clone()).or_insert(0) += 1;
             }
@@ -124,7 +176,7 @@ impl ToolDiscoveryCatalog {
         Ok(ranked
             .into_iter()
             .take(limit)
-            .map(|(document, _, _)| self.snapshot.specs[&document.id].clone())
+            .map(|(document, _, _)| self.snapshot.specs[&document.id].as_ref().clone())
             .collect())
     }
 
@@ -163,7 +215,7 @@ impl ToolDiscoveryCatalog {
                     || (spec.exposure.is_deferred()
                         && (!search_enabled || state.loaded_ids.contains(&spec.id)))
             })
-            .cloned()
+            .map(|spec| spec.as_ref().clone())
             .collect()
     }
 }
@@ -195,6 +247,72 @@ impl ToolExposureState {
         self.loaded_ids.retain(|id| {
             catalog.snapshot.specs.get(id).is_some_and(|spec| spec.exposure.is_deferred())
         });
+    }
+}
+
+// Walk schema-bearing keywords only; never follow references or index defaults,
+// examples, arbitrary extension payloads, or an unbounded recursive structure.
+fn append_schema_terms(
+    schema: &serde_json::Value,
+    depth: usize,
+    budget: &mut usize,
+    terms: &mut BTreeMap<String, usize>,
+) {
+    if *budget == 0 {
+        return;
+    }
+    *budget -= 1;
+    if depth >= 16 {
+        return;
+    }
+    let mut add = |text: &str| {
+        // Bound text before tokenization, including non-ASCII descriptions.
+        let text: String = text.chars().take(4096).collect();
+        for token in tokenize(&text) {
+            *terms.entry(token).or_insert(0) += 1;
+        }
+    };
+    for key in ["title", "description"] {
+        if let Some(text) = schema.get(key).and_then(serde_json::Value::as_str) {
+            add(text);
+        }
+    }
+    for key in ["properties", "$defs", "definitions", "patternProperties"] {
+        if let Some(properties) = schema.get(key).and_then(serde_json::Value::as_object) {
+            for (name, child) in properties {
+                if *budget == 0 {
+                    break;
+                }
+                for token in tokenize(&name.chars().take(4096).collect::<String>()) {
+                    *terms.entry(token).or_insert(0) += 1;
+                }
+                append_schema_terms(child, depth + 1, budget, terms);
+            }
+        }
+    }
+    for key in ["items", "additionalProperties", "contains", "not", "if", "then", "else"] {
+        if let Some(child) = schema.get(key) {
+            if let Some(children) = child.as_array() {
+                for child in children {
+                    if *budget == 0 {
+                        break;
+                    }
+                    append_schema_terms(child, depth + 1, budget, terms);
+                }
+            } else {
+                append_schema_terms(child, depth + 1, budget, terms);
+            }
+        }
+    }
+    for key in ["anyOf", "allOf", "oneOf", "prefixItems"] {
+        if let Some(children) = schema.get(key).and_then(serde_json::Value::as_array) {
+            for child in children {
+                if *budget == 0 {
+                    break;
+                }
+                append_schema_terms(child, depth + 1, budget, terms);
+            }
+        }
     }
 }
 

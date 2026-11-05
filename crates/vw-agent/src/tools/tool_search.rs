@@ -95,7 +95,7 @@ impl ToolSearchTool {
     pub(crate) fn new(catalog: &ToolDiscoveryCatalog) -> Self {
         Self {
             description: format!(
-                "Search deferred tool metadata with BM25. First search for the required tool, \
+                "Search deferred tool names, descriptions, parameter schemas and sources with BM25. First search for the required tool, \
                  then invoke its returned stable ID in the next model call. Search only reads \
                  the authorized local catalog and never executes remote actions. \
                  Available tool namespaces: {}.",

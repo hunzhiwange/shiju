@@ -294,3 +294,63 @@ async fn dynamic_tools_exposure_non_mcp_deferred_is_discoverable() {
     assert!(discovery.exposed_specs().iter().any(|s| s.id == "client-stable"));
     assert!(!before.iter().any(|s| s.id == "client-stable"));
 }
+
+#[tokio::test]
+async fn dynamic_tools_search_schema_fields_are_searchable() {
+    let mut tool = deferred(ALPHA, "neutral");
+    tool.input_schema = json!({"properties":{"voucher":{"description":"报销凭证"}}});
+    let discovery = Arc::new(ToolDiscoverySession::new(vec![
+        tool,
+        ToolSpec::new(TOOL_SEARCH_ID, "Search", json!({})),
+    ]));
+    let tools: Vec<Box<dyn Tool>> = vec![Box::new(discovery.search_tool())];
+    let result = execute_tool_from_registry(
+        &tools,
+        TOOL_SEARCH_ID,
+        json!({"query":"凭证"}),
+        context(discovery.clone()),
+    )
+    .await
+    .unwrap();
+    let output: Value = serde_json::from_str(&result.result.model_text()).unwrap();
+    assert_eq!(output["tools"][0]["id"], ALPHA);
+    assert!(discovery.exposed_specs().iter().any(|tool| tool.id == ALPHA));
+}
+
+#[tokio::test]
+async fn dynamic_tools_search_tenants_and_loaded_state_remain_isolated() {
+    let make = |id: &str, keyword: &str| {
+        let mut tool = deferred(id, "neutral");
+        tool.input_schema = json!({"description":keyword});
+        Arc::new(ToolDiscoverySession::new(vec![
+            tool,
+            ToolSpec::new(TOOL_SEARCH_ID, "Search", json!({})),
+        ]))
+    };
+    let first = make(ALPHA, "tenantalpha");
+    let equivalent = make(ALPHA, "tenantalpha");
+    let second = make(BETA, "tenantbeta");
+    let tools: Vec<Box<dyn Tool>> = vec![Box::new(first.search_tool())];
+    for (discovery, query, expected) in [
+        (first.clone(), "tenantalpha", Some(ALPHA)),
+        (second.clone(), "tenantalpha", None),
+        (first.clone(), "tenantbeta", None),
+    ] {
+        let result = execute_tool_from_registry(
+            &tools,
+            TOOL_SEARCH_ID,
+            json!({"query":query}),
+            context(discovery),
+        )
+        .await
+        .unwrap();
+        let output: Value = serde_json::from_str(&result.result.model_text()).unwrap();
+        match expected {
+            Some(id) => assert_eq!(output["tools"][0]["id"], id),
+            None => assert_eq!(output["tools"], json!([])),
+        }
+    }
+    assert!(!equivalent.exposed_specs().iter().any(|tool| tool.id == ALPHA));
+    assert!(!second.authorizes(ALPHA));
+    assert!(!first.authorizes(BETA));
+}

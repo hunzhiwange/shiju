@@ -41,7 +41,7 @@ pub(super) fn validate(agent: &str, selected: bool) -> Result<(), Error> {
         "kilocode" => return Ok(()),
         "kimi" => kimi::rejection(),
         "kiro" => return Ok(()),
-        "opencode" => opencode::rejection(),
+        "opencode" => return Ok(()),
         "openclaw" => openclaw::rejection(),
         "pi" => pi::rejection(),
         "auggie" => auggie::rejection(),
@@ -133,7 +133,9 @@ pub(super) fn configure_native_scanner(
     config: &mut crate::config::schema::AcpAgentConfig,
     view: Option<&MountedSkills>,
 ) -> Result<(), Error> {
-    if agent == "kiro" {
+    if agent == "opencode" {
+        opencode::configure(config, view)?;
+    } else if agent == "kiro" {
         kiro::configure(config, view)?;
     } else if agent == "kilocode" {
         kilocode::configure(config, view)?;

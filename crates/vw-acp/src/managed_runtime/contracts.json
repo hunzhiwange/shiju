@@ -176,5 +176,15 @@
       "runtime/3.0.0-96d7248d901e42e1/node": "46d1713acc486d844a8b944fb0f606366aebc70d6601646b9807abc7cb1a2201",
       "runtime/3.0.0-96d7248d901e42e1/kas/node_modules/@kiro/agent/dist/server/acp-server.js": "26907b1f2895cf28a850d7720b340cb206965d8ffbc17cb62dd78276f2dbd02d"
     }
+  },
+  "opencode": {
+    "package": "opencode-ai",
+    "version": "1.19.5",
+    "integrity": "sha512-tEqMvQahfhdDj8vceYpXtoIrvjPXm5XRfetWnPN5YISueU7adNx9JcUA3zZ+2GKuDVgDpGdQe1ZLtCZDjqodvA==",
+    "bin": "reviewed/opencode",
+    "files": {
+      "reviewed/opencode": "1a1f10028d3edebddd6df10a465cfa79b58d710875173dbd32137a8b115daa2c"
+    },
+    "native_sha256": "feaafead8cd563af0c2dcb386b0757e4355e327ebb6bd1aaad5440fe2f83596c"
   }
 }

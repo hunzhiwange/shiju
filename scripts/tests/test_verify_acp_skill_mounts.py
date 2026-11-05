@@ -12,6 +12,17 @@ from verify_acp_skill_mounts import accepted, select_entry
 
 
 class SkillMountHarnessTests(unittest.TestCase):
+    def test_opencode_builtin_catalog_is_rejected_before_activation(self):
+        with tempfile.TemporaryDirectory() as directory:
+            fixture = SkillMountFixture(Path(directory))
+            fixture.opencode_native = True
+            with self.assertRaisesRegex(ValueError, "unselected native skill"):
+                fixture.response({"messages": [{"role": "system", "content":
+                    "<available_skills><skill><name>" + fixture.name +
+                    "</name></skill><skill><name>customize-opencode</name></skill></available_skills>"}],
+                    "tools": [{"function": {"name": "skill"}}]})
+            self.assertEqual(fixture.snapshot()["native_skill_invocations"], 0)
+
     def test_kiro_native_catalog_activates_disclose_context_with_name(self):
         with tempfile.TemporaryDirectory() as directory:
             fixture = SkillMountFixture(Path(directory))

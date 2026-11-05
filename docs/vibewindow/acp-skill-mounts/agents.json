@@ -1901,10 +1901,10 @@
     {
       "key": "opencode",
       "version": "1.19.5",
-      "status": "candidate",
+      "status": "verified",
       "platform": {
         "review_host": "Darwin-arm64",
-        "artifact_scope": "本机固定发行物静态审查；源码/通用 JS 的跨平台执行未验证",
+        "artifact_scope": "Darwin-arm64 固定 1.19.5 私有补丁发行物，两种模型来源完成生产 ACP 原生技能及完整生命周期验收；其他平台未验证。",
         "linux": "unverified",
         "windows": "unverified"
       },
@@ -1925,41 +1925,40 @@
           "acp"
         ],
         "binding": "crates/vw-acp/src/agent_registry.rs::BUILT_IN_AGENT_DEFINITIONS",
-        "runtime_executed": false,
-        "note": "固定发行物候选入口；注册器含 latest/range，不保证用户当前命令已固定到此版本。"
+        "runtime_executed": true,
+        "note": "固定私有补丁发行物由安装器校验完整散列；生产 ACP argv 保持 acp。"
       },
       "mount": {
         "candidate_paths": [
-          "config.skills.paths[]",
-          "config.skills.urls[]（网络入口，本计划不使用）"
+          "SHIJU_OPENCODE_SKILL_ROOT（受审私有补丁的会话视图）"
         ],
-        "discovery": "1.19.5 平台二进制内嵌 JS 读取 skills.paths 与 skills.urls；目录路径配置属于静态候选。ACP 发现/支持文件权限与完整替换需后续验证。",
-        "activation": "目录列表和技能工具按需读取的区别待实际回合确认。",
-        "session_isolation": "unverified：额外根/专属配置根不自动排除内建、用户、项目及插件技能；不得修改 HOME 或写用户全局目录。"
+        "discovery": "原生 scanner 只扫描准备好的会话技能视图，排除全局、项目、配置、网络与内建技能。",
+        "activation": "首次模型请求不含技能正文；真实 skill 工具按需加载，read/bash 实际读取随机附件并执行脚本。",
+        "session_isolation": "两来源均验证精确目录、未选中探针、移除、第二会话及权限拒绝；空根禁用全部技能，私有补丁缺少根变量时明确报错。"
       },
       "permissions": {
-        "status": "unverified",
+        "status": "verified for reviewed Darwin-arm64 1.19.5 runtime",
         "requirements": "执行端重新审核目录、租户/项目/会话权限、路径逃逸与符号链接；支持文件/脚本/MCP 仍受各自授权限制，不扩大 full_access。",
-        "agent_specific": "固定 ACP 的目录/工具授权条件须后续真实验证；未因模型来源受限推定技能不支持。"
+        "agent_specific": "复用执行端目录审核与 ACP 权限检查；拒绝未审发行物、冲突根变量和 deny-all；未扩大 full_access。"
       },
       "update": {
-        "native": "unverified：本任务未执行热更新或原子完整替换；静态刷新函数/文档 reload 不作成功承诺。",
-        "candidate": "在不打断运行请求的前提下评估空闲重建；尚未确认固定发行物原生更新入口。"
+        "native": "不承诺原生热更新；空闲更换视图后重建 CLI。",
+        "candidate": "两来源均完成添加、移除、V2 内容和空闲更新验收。"
       },
       "recovery": {
-        "status": "unverified",
-        "requirements": "重建 new/load/resume 后重新发布同 revision 目录并核实发现、删除和支持文件访问；不能把已有模型来源恢复证据当技能恢复证据。"
+        "status": "两来源真实关闭并重启 CLI，重新发现并读取当前视图。",
+        "requirements": "支持限本机受审固定发行物。"
       },
       "independent_sources": {
         "local_configuration": {
           "candidate": "OPENCODE_CONFIG_CONTENT / OPENCODE_CONFIG_DIR / XDG_*",
-          "static_review_only": true,
-          "runtime_verified_this_task": false
+          "static_review_only": false,
+          "runtime_verified_this_task": true
         },
         "client_model_source": {
           "prior_report_status": "verified_release_only",
           "reference": "../../shiju/acp-model-source/cli-versions.json#opencode",
-          "runtime_verified_this_task": false,
+          "runtime_verified_this_task": true,
           "note": "只保留旧报告定位；不复制其通过/不支持结论到技能能力。"
         }
       },
@@ -1986,10 +1985,27 @@
           "observations": [],
           "package": "opencode-darwin-arm64",
           "version": "1.19.5"
+        },
+        {
+          "path": "target/opencode-install-check/runtime/node_modules/opencode-ai/reviewed/opencode",
+          "sha256": "1a1f10028d3edebddd6df10a465cfa79b58d710875173dbd32137a8b115daa2c",
+          "kind": "reviewed_patched_binary",
+          "bytes": 180672544,
+          "observations": []
         }
       ],
       "supplemental_official_docs": [],
-      "next_validation": "固定版本真实 ACP：发现元数据 → 按需激活 → 支持文件/脚本工具回合 → 隔离/删除/更新失败保旧 → 跨进程恢复；只替代外部模型 HTTP。未安装/缺账号则保留 unverified。"
+      "next_validation": "继续后续 agent 任务及整体验收；其他平台和版本须独立验收。",
+      "acceptance": {
+        "status": "verified",
+        "production_gate": "reviewed executable required",
+        "evidence": "evidence/opencode.json",
+        "model_sources": [
+          "session_model",
+          "cli_local"
+        ],
+        "limitation": "Only the reviewed private patched OpenCode 1.19.5 on Darwin-arm64. Other versions/platforms and upstream binaries are unverified."
+      }
     },
     {
       "key": "openclaw",

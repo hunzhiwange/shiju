@@ -28,3 +28,6 @@ mod mount_update_tests;
 
 #[cfg(test)]
 mod mount_recovery_tests;
+
+#[cfg(test)]
+mod mount_acceptance_tests;

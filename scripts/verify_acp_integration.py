@@ -285,10 +285,15 @@ def main():
     parser.add_argument("--shiju", type=Path, default=ROOT / "target-dir/debug/shiju")
     parser.add_argument("--acp", type=Path, default=ROOT / "target-dir/debug/acp")
     parser.add_argument("--output", type=Path)
+    parser.add_argument("--mounts", action="store_true", help="Run production skill/MCP mount acceptance")
     args = parser.parse_args()
     shiju, acp = args.shiju.resolve(strict=True), args.acp.resolve(strict=True)
     output = args.output.resolve() if args.output else Path(tempfile.mkdtemp(prefix="vw-acp-integration-"))
     output.mkdir(parents=True, exist_ok=not args.output)
+    if args.mounts:
+        from acp_mount_integration import run
+        print(json.dumps({"mounts": run(shiju, output)}), flush=True)
+        return
     server = Provider(output)
     threading.Thread(target=server.serve_forever, daemon=True).start()
     env, cwd = prepare(output, server.server_port)

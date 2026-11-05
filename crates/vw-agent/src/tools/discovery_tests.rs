@@ -3,11 +3,19 @@ use crate::tools::ToolSpec;
 use serde_json::json;
 
 fn spec(id: &str, description: &str) -> ToolSpec {
-    ToolSpec::new(
+    let mut tool = ToolSpec::new(
         id,
         description,
         json!({"type":"object", "properties":{"query":{"type":"string"}}, "required":["query"]}),
-    )
+    );
+    if let Some((namespace, name)) = id.strip_prefix("mcp__").and_then(|rest| rest.split_once("__"))
+    {
+        tool.identity =
+            vw_api_types::tools::ToolIdentity::new(Some(namespace.into()), name).unwrap();
+        tool.source = vw_api_types::tools::ToolSource::Mcp;
+        tool.exposure = vw_api_types::tools::ToolExposure::Deferred;
+    }
+    tool
 }
 
 fn ids(specs: &[ToolSpec]) -> Vec<&str> {
@@ -89,16 +97,16 @@ fn codex_discovery_catalog_sources_and_search_include_only_deferred_tools() {
         spec("mcp__drive__lookup", "Find files"),
     ]);
     assert!(catalog.has_deferred_tools());
-    assert_eq!(catalog.deferred_server_names(), ["calendar", "drive"]);
+    assert_eq!(catalog.deferred_namespace_names(), ["calendar", "drive"]);
     assert!(catalog.search("builtin", None).unwrap().is_empty());
     let empty = ToolDiscoveryCatalog::new(vec![spec("skill", "Read skills")]);
     assert!(!empty.has_deferred_tools());
-    assert!(empty.deferred_server_names().is_empty());
+    assert!(empty.deferred_namespace_names().is_empty());
     assert!(empty.search("anything", None).unwrap().is_empty());
 }
 
 #[test]
-fn codex_discovery_catalog_defers_only_mcp_ids_and_preserves_builtin_names() {
+fn codex_discovery_catalog_uses_registered_exposure_and_preserves_builtin_names() {
     let mut builtin = spec("lookup", "Find records");
     builtin.display_name = "mcp__calendar__lookup".into();
     let catalog = ToolDiscoveryCatalog::new(vec![
@@ -132,4 +140,42 @@ fn codex_discovery_catalog_exposure_intersects_current_authorization_and_is_isol
     assert_eq!(ids(&rebuilt.exposed_specs(&state, true)), ["skill"]);
     state.retain_authorized(&rebuilt);
     assert_eq!(ids(&catalog.exposed_specs(&state, true)), ["skill"]);
+}
+
+#[test]
+fn dynamic_tools_exposure_non_mcp_deferred_is_discoverable() {
+    let mut tool = spec("client-stable", "Find invoices");
+    tool.source = vw_api_types::tools::ToolSource::Client;
+    tool.exposure = vw_api_types::tools::ToolExposure::Deferred;
+    let catalog = ToolDiscoveryCatalog::new(vec![tool]);
+    assert!(catalog.exposed_specs(&ToolExposureState::default(), true).is_empty());
+    assert_eq!(ids(&catalog.search("invoices", None).unwrap()), ["client-stable"]);
+    let mut state = ToolExposureState::default();
+    state.record_loaded(&catalog, ["client-stable", "unauthorized"]);
+    assert_eq!(ids(&catalog.exposed_specs(&state, true)), ["client-stable"]);
+}
+
+#[test]
+fn dynamic_tools_exposure_policies_control_search_and_fallback() {
+    use vw_api_types::tools::ToolExposure::*;
+    let policies = [Direct, Deferred, DirectModelOnly, DeferredModelOnly, CodeModeOnly, Hidden];
+    let tools = policies
+        .into_iter()
+        .enumerate()
+        .map(|(i, exposure)| {
+            let mut tool = spec(&format!("tool-{i}"), "invoice");
+            tool.exposure = exposure;
+            tool
+        })
+        .collect();
+    let catalog = ToolDiscoveryCatalog::new(tools);
+    let mut state = ToolExposureState::default();
+    assert_eq!(ids(&catalog.exposed_specs(&state, true)), ["tool-0", "tool-2"]);
+    assert_eq!(ids(&catalog.search("invoice", None).unwrap()), ["tool-1", "tool-3"]);
+    state.record_loaded(&catalog, ["tool-1", "tool-3", "tool-4", "tool-5"]);
+    assert_eq!(ids(&catalog.exposed_specs(&state, true)), ["tool-0", "tool-1", "tool-2", "tool-3"]);
+    assert_eq!(
+        ids(&catalog.exposed_specs(&ToolExposureState::default(), false)),
+        ["tool-0", "tool-1", "tool-2", "tool-3"]
+    );
 }

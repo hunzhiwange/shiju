@@ -299,6 +299,21 @@ struct DiscoveryReadTool(std::path::PathBuf);
 
 #[async_trait::async_trait]
 impl Tool for DiscoveryReadTool {
+    fn spec(&self) -> crate::tools::ToolSpec {
+        let mut spec =
+            crate::tools::ToolSpec::new(self.name(), self.description(), self.parameters_schema())
+                .with_read_only(self.is_read_only())
+                .with_concurrency_safe(self.is_concurrency_safe());
+        spec.exposure = vw_api_types::tools::ToolExposure::Deferred;
+        spec.source = vw_api_types::tools::ToolSource::Mcp;
+        spec.identity = vw_api_types::tools::ToolIdentity::new(
+            Some("fixture".into()),
+            self.name().rsplit("__").next().unwrap(),
+        )
+        .unwrap();
+        spec
+    }
+
     fn name(&self) -> &str {
         "mcp__fixture__ledger"
     }

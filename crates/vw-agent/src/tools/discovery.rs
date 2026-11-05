@@ -3,7 +3,6 @@
 use super::ToolSpec;
 use std::collections::{BTreeMap, BTreeSet};
 use std::sync::Arc;
-use vw_config_types::tools::is_mcp_dynamic_tool_id;
 
 pub(crate) const DEFAULT_SEARCH_LIMIT: usize = 8;
 pub(crate) const MAX_SEARCH_LIMIT: usize = 32;
@@ -37,9 +36,16 @@ impl ToolDiscoveryCatalog {
         }
         let mut documents = Vec::new();
         let mut document_frequencies = BTreeMap::new();
-        for spec in specs.values().filter(|spec| is_mcp_dynamic_tool_id(&spec.id)) {
+        for spec in specs.values().filter(|spec| spec.exposure.is_deferred()) {
             let mut terms = BTreeMap::new();
-            for field in [&spec.id, &spec.display_name, &spec.name, &spec.description] {
+            for field in [
+                spec.id.as_str(),
+                spec.display_name.as_str(),
+                spec.name.as_str(),
+                spec.description.as_str(),
+                spec.identity.name.as_str(),
+                spec.identity.namespace.as_deref().unwrap_or_default(),
+            ] {
                 for token in tokenize(field) {
                     *terms.entry(token).or_insert(0) += 1;
                 }
@@ -71,12 +77,12 @@ impl ToolDiscoveryCatalog {
         self.snapshot.specs.contains_key(id)
     }
 
-    /// Server names only: the search entry can describe sources without schemas.
-    pub(crate) fn deferred_server_names(&self) -> Vec<&str> {
+    /// Authorized namespaces only, without materializing tool schemas.
+    pub(crate) fn deferred_namespace_names(&self) -> Vec<&str> {
         self.snapshot
             .documents
             .iter()
-            .filter_map(|document| document.id.strip_prefix("mcp__")?.split("__").next())
+            .filter_map(|document| self.snapshot.specs[&document.id].identity.namespace.as_deref())
             .collect::<BTreeSet<_>>()
             .into_iter()
             .collect()
@@ -103,11 +109,7 @@ impl ToolDiscoveryCatalog {
             let exact_name = [&spec.id, &spec.name, &spec.display_name]
                 .into_iter()
                 .any(|name| name.to_lowercase() == query)
-                || spec
-                    .id
-                    .split_once("__")
-                    .and_then(|(_, rest)| rest.split_once("__"))
-                    .is_some_and(|(_, tool)| tool.to_lowercase() == query);
+                || spec.identity.name.to_lowercase() == query;
             let score = self.bm25_score(document, &terms);
             if exact_name || score > 0.0 {
                 ranked.push((document, exact_name, score));
@@ -147,7 +149,7 @@ impl ToolDiscoveryCatalog {
     }
 
     /// Intersect loaded IDs with this snapshot on every request. If search is
-    /// denied, expose authorized MCP tools directly so they remain reachable.
+    /// denied, expose only authorized tools that allow model calls.
     pub(crate) fn exposed_specs(
         &self,
         state: &ToolExposureState,
@@ -157,9 +159,9 @@ impl ToolDiscoveryCatalog {
             .specs
             .values()
             .filter(|spec| {
-                !search_enabled
-                    || !is_mcp_dynamic_tool_id(&spec.id)
-                    || state.loaded_ids.contains(&spec.id)
+                spec.exposure.is_direct()
+                    || (spec.exposure.is_deferred()
+                        && (!search_enabled || state.loaded_ids.contains(&spec.id)))
             })
             .cloned()
             .collect()
@@ -182,13 +184,17 @@ impl ToolExposureState {
         self.retain_authorized(catalog);
         self.loaded_ids.extend(
             ids.into_iter()
-                .filter(|id| is_mcp_dynamic_tool_id(id) && catalog.snapshot.specs.contains_key(*id))
+                .filter(|id| {
+                    catalog.snapshot.specs.get(*id).is_some_and(|spec| spec.exposure.is_deferred())
+                })
                 .map(str::to_owned),
         );
     }
 
     pub(crate) fn retain_authorized(&mut self, catalog: &ToolDiscoveryCatalog) {
-        self.loaded_ids.retain(|id| catalog.snapshot.specs.contains_key(id));
+        self.loaded_ids.retain(|id| {
+            catalog.snapshot.specs.get(id).is_some_and(|spec| spec.exposure.is_deferred())
+        });
     }
 }
 

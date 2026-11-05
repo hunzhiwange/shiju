@@ -331,7 +331,7 @@ fn execution_environment_for_config_inner(
         tools.retain(|tool| discovery.authorizes(&tool.spec().id));
         if discovery.authorizes(TOOL_SEARCH_ID) {
             // The description comes from the authorized snapshot, including
-            // deferred server names rather than the currently exposed subset.
+            // deferred tool namespaces rather than the currently exposed subset.
             tools.push(Box::new(discovery.search_tool()));
         }
     } else {

@@ -675,7 +675,7 @@ fn codex_discovery_tool_factory_registers_search_for_deferred_tools() {
     assert!(search.is_some(), "deferred MCP tools require a registered search entry");
     let search = search.unwrap();
     assert!(search.read_only && search.concurrency_safe);
-    assert!(search.description.contains("fixture_server"));
+    assert!(search.description.contains("Fixture Server"));
     assert!(!search.description.contains("inputSchema"));
 }
 

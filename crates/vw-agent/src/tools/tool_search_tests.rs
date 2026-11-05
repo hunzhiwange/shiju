@@ -7,14 +7,22 @@ const ALPHA: &str = "mcp__fixture__alpha";
 const BETA: &str = "mcp__fixture__beta";
 
 fn deferred(id: &str, description: &str) -> ToolSpec {
-    ToolSpec::new(
+    let mut tool = ToolSpec::new(
         id,
         description,
         json!({
             "type": "object", "properties": {"message": {"type": "string"}},
             "required": ["message"]
         }),
-    )
+    );
+    if let Some((namespace, name)) = id.strip_prefix("mcp__").and_then(|rest| rest.split_once("__"))
+    {
+        tool.identity =
+            vw_api_types::tools::ToolIdentity::new(Some(namespace.into()), name).unwrap();
+        tool.source = vw_api_types::tools::ToolSource::Mcp;
+        tool.exposure = vw_api_types::tools::ToolExposure::Deferred;
+    }
+    tool
 }
 
 fn session(search_allowed: bool) -> Arc<ToolDiscoverySession> {
@@ -254,4 +262,35 @@ async fn codex_discovery_tool_execution_uses_current_authorization_instead_of_re
     assert_eq!(output["tools"], json!([]));
     assert!(!restricted.authorizes(BETA));
     assert!(!restricted.exposed_specs().iter().any(|spec| spec.id == BETA));
+}
+
+#[tokio::test]
+async fn dynamic_tools_exposure_non_mcp_deferred_is_discoverable() {
+    let mut client = deferred("client-stable", "invoice");
+    client.exposure = vw_api_types::tools::ToolExposure::DeferredModelOnly;
+    let mut direct = deferred("mcp__fixture__direct", "invoice");
+    direct.exposure = vw_api_types::tools::ToolExposure::Direct;
+    let discovery = Arc::new(ToolDiscoverySession::new(vec![
+        client,
+        direct,
+        ToolSpec::new(TOOL_SEARCH_ID, "Search", json!({"type":"object"})),
+    ]));
+    assert!(discovery.exposed_specs().iter().any(|s| s.id == "mcp__fixture__direct"));
+    assert!(!discovery.exposed_specs().iter().any(|s| s.id == "client-stable"));
+    let before = discovery.exposed_specs();
+    let tools: Vec<Box<dyn Tool>> = vec![Box::new(discovery.search_tool())];
+    let result = execute_tool_from_registry(
+        &tools,
+        TOOL_SEARCH_ID,
+        json!({"query":"invoice"}),
+        context(discovery.clone()),
+    )
+    .await
+    .unwrap();
+    assert!(result.result.is_success());
+    let output: Value = serde_json::from_str(&result.result.model_text()).unwrap();
+    assert_eq!(output["tools"].as_array().unwrap().len(), 1);
+    assert_eq!(output["tools"][0]["id"], "client-stable");
+    assert!(discovery.exposed_specs().iter().any(|s| s.id == "client-stable"));
+    assert!(!before.iter().any(|s| s.id == "client-stable"));
 }

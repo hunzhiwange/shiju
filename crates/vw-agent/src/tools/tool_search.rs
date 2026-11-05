@@ -20,7 +20,9 @@ pub(crate) struct ToolDiscoverySession {
 
 impl ToolDiscoverySession {
     pub(crate) fn new(authorized_specs: Vec<ToolSpec>) -> Self {
-        let search_allowed = authorized_specs.iter().any(|spec| spec.id == TOOL_SEARCH_ID);
+        let search_allowed = authorized_specs
+            .iter()
+            .any(|spec| spec.id == TOOL_SEARCH_ID && spec.exposure.is_direct());
         let catalog = ToolDiscoveryCatalog::new(authorized_specs);
         let search_enabled = search_allowed && catalog.has_deferred_tools();
         Self { catalog, exposure: Mutex::new(ToolExposureState::default()), search_enabled }
@@ -93,11 +95,11 @@ impl ToolSearchTool {
     pub(crate) fn new(catalog: &ToolDiscoveryCatalog) -> Self {
         Self {
             description: format!(
-                "Search deferred MCP tool metadata with BM25. First search for the required tool, \
+                "Search deferred tool metadata with BM25. First search for the required tool, \
                  then invoke its returned stable ID in the next model call. Search only reads \
                  the authorized local catalog and never executes remote actions. \
-                 Available MCP servers: {}.",
-                catalog.deferred_server_names().join(", ")
+                 Available tool namespaces: {}.",
+                catalog.deferred_namespace_names().join(", ")
             ),
         }
     }

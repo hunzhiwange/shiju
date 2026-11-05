@@ -238,6 +238,13 @@ pub fn model_popover_content<'a>(
     let runtime = app.current_session_runtime();
     let cli_local =
         runtime.acp_agent.is_some() && runtime.acp_model_source == AcpModelSource::CliLocal;
+    if cli_local {
+        return container(super::acp_options::source_controls(app))
+            .style(popover_style)
+            .padding(12)
+            .width(Length::Fixed(popup_width))
+            .into();
+    }
     let can_select = !runtime.is_requesting
         && !runtime.acp_options_pending
         && runtime.acp_source_pending.is_none()
@@ -260,10 +267,6 @@ pub fn model_popover_content<'a>(
     // 模型列表容器
     let mut model_list = column![].spacing(8);
     let mut any_models = false;
-    if runtime.acp_agent.is_some() {
-        model_list = model_list.push(super::acp_options::source_controls(app));
-        model_list = model_list.push(text("客户端模型 · 供应商模型").size(12));
-    }
 
     // 处理加载状态和空列表情况
     if app.model_settings.loading && app.model_settings.providers.is_empty() {
@@ -428,7 +431,12 @@ pub fn model_popover_content<'a>(
     };
 
     // 主内容区域：模式切换 + 模型列表
-    let boxed_content = column![
+    let mut boxed_content = column![].spacing(6);
+    if is_acp {
+        boxed_content =
+            boxed_content.push(container(super::acp_options::source_controls(app)).padding(8));
+    }
+    let boxed_content = boxed_content.extend([
         // 模式切换区域
         container(
             row![
@@ -440,9 +448,10 @@ pub fn model_popover_content<'a>(
                         .then_some(|b| Message::Chat(message::ChatMessage::AutoModelToggled(b)))
                 )
             ]
-            .spacing(8)
+            .spacing(8),
         )
-        .padding([6, 8]),
+        .padding([6, 8])
+        .into(),
         container(
             column![
                 text(crate::app::i18n::I18n::new(app.desktop_locale).__("手工填写模型")).size(12),
@@ -484,9 +493,10 @@ pub fn model_popover_content<'a>(
                     }
                 },)
             ]
-            .spacing(6)
+            .spacing(6),
         )
-        .padding(iced::Padding { top: 2.0, right: 8.0, bottom: 6.0, left: 8.0 }),
+        .padding(iced::Padding { top: 2.0, right: 8.0, bottom: 6.0, left: 8.0 })
+        .into(),
         // 搜索和列表区域
         container(
             column![
@@ -505,11 +515,11 @@ pub fn model_popover_content<'a>(
                 .direction(Direction::Vertical(Scrollbar::new().width(4).scroller_width(4)))
                 .height(Length::Fixed(260.0)),
             ]
-            .spacing(8)
+            .spacing(8),
         )
-        .padding(iced::Padding { top: 2.0, right: 8.0, bottom: 8.0, left: 8.0 }),
-    ]
-    .spacing(6);
+        .padding(iced::Padding { top: 2.0, right: 8.0, bottom: 8.0, left: 8.0 })
+        .into(),
+    ]);
 
     let content =
         container(boxed_content).style(popover_style).padding(4).width(Length::Fixed(popup_width));

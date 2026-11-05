@@ -87,7 +87,7 @@ pub(super) fn source_controls(app: &App) -> Element<'_, Message> {
     let mut controls = column![text("模型来源").size(14)].spacing(6);
     for (source, label, description) in [
         (AcpModelSource::SessionModel, "客户端模型", "使用当前供应商与模型，无需重复填写密钥"),
-        (AcpModelSource::CliLocal, "CLI 本地配置", "使用执行主机上的配置与登录状态"),
+        (AcpModelSource::CliLocal, "智能体原生模型", "使用执行主机上的配置与登录状态"),
     ] {
         let capability =
             runtime.acp_options.model_source_capabilities.iter().find(
@@ -135,8 +135,10 @@ pub(super) fn source_controls(app: &App) -> Element<'_, Message> {
             controls = controls.push(text(reason).size(12));
         }
     }
-    let model = if runtime.auto_model { "自动选择".to_string() } else { runtime.model };
-    controls = controls.push(text(format!("当前客户端 Provider/model：{model}")).size(12));
+    if runtime.acp_model_source == AcpModelSource::SessionModel {
+        let model = if runtime.auto_model { "自动选择".to_string() } else { runtime.model };
+        controls = controls.push(text(format!("当前客户端 Provider/model：{model}")).size(12));
+    }
     controls = controls.push(
         text(if runtime.acp_source_pending.is_some() {
             "正在等待执行主机确认并保存…"

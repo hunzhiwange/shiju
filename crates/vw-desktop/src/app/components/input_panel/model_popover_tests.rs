@@ -223,6 +223,7 @@ fn model_popover_content_keeps_available_models_visible_while_refreshing() {
 
 #[tokio::test(flavor = "multi_thread")]
 async fn acp_model_source_ui_controls_render_chinese_labels_in_both_themes() {
+    use iced::advanced::Renderer as _;
     use iced::advanced::renderer::Headless;
     use iced::advanced::{Layout, layout, mouse, renderer, widget::Tree};
     use iced::{Color, Font, Pixels, Rectangle, Size, Theme};
@@ -245,54 +246,61 @@ async fn acp_model_source_ui_controls_render_chinese_labels_in_both_themes() {
     for theme in [Theme::Light, Theme::Dark] {
         for source in [AcpModelSource::SessionModel, AcpModelSource::CliLocal] {
             app.current_session_runtime_mut().acp_model_source = source;
-            app.current_session_runtime_mut().acp_options_open = true;
-            app.current_session_runtime_mut().acp_options.model_source_capabilities = vec![
-                vw_gateway_client::vw_api_types::acp_model_source::AcpModelSourceCapability::Unsupported {
-                    source: AcpModelSource::SessionModel,
-                    reason: vw_gateway_client::vw_api_types::acp_model_source::AcpModelSourceRejectionReason::UnsupportedCli,
-                },
-            ];
-            let mut element: iced::Element<'_, crate::app::Message> = iced::widget::container(
-                iced::widget::column![
-                    super::session_tool_tab_button(
-                        &app,
-                        crate::app::state::SessionToolSelectorTab::Agent
-                    ),
-                    model_toggle_button(&app, false, "custom/model", true),
-                    model_popover_content(&app, false, "custom/model"),
-                ]
-                .spacing(12),
-            )
-            .padding(16)
-            .style(|theme: &Theme| iced::widget::container::background(theme.palette().background))
-            .into();
-            let base =
-                iced::widget::container(element).width(Length::Fill).height(Length::Fill).into();
-            element = super::acp_options::with_modal(&app, base);
-            let bounds = Size::new(640.0, 780.0);
-            let mut tree = Tree::new(element.as_widget());
-            let node = element.as_widget_mut().layout(
-                &mut tree,
-                &renderer,
-                &layout::Limits::new(Size::ZERO, bounds),
-            );
-            element.as_widget().draw(
-                &tree,
-                &mut renderer,
-                &theme,
-                &renderer::Style { text_color: theme.palette().text },
-                Layout::new(&node),
-                mouse::Cursor::Unavailable,
-                &Rectangle::with_size(bounds),
-            );
-            let pixels = renderer.screenshot(Size::new(640, 780), 1.0, Color::TRANSPARENT);
-            assert!(pixels.chunks_exact(4).any(|pixel| pixel[3] > 0));
-            let directory = std::env::temp_dir().join("shiju-input-agent-model-render");
-            std::fs::create_dir_all(&directory).unwrap();
-            ::image::RgbaImage::from_raw(640, 780, pixels)
-                .unwrap()
-                .save(directory.join(format!("{theme:?}-{source:?}.png")))
-                .unwrap();
+            for modal in [false, true] {
+                app.current_session_runtime_mut().acp_options_open = modal;
+                app.current_session_runtime_mut().acp_options.model_source_capabilities = vec![
+                    vw_gateway_client::vw_api_types::acp_model_source::AcpModelSourceCapability::Unsupported {
+                        source: AcpModelSource::SessionModel,
+                        reason: vw_gateway_client::vw_api_types::acp_model_source::AcpModelSourceRejectionReason::UnsupportedCli,
+                    },
+                ];
+                let mut element: iced::Element<'_, crate::app::Message> = iced::widget::container(
+                    iced::widget::column![
+                        super::session_tool_tab_button(
+                            &app,
+                            crate::app::state::SessionToolSelectorTab::Agent
+                        ),
+                        model_toggle_button(&app, false, "custom/model", true),
+                        model_popover_content(&app, false, "custom/model"),
+                    ]
+                    .spacing(12),
+                )
+                .padding(16)
+                .style(|theme: &Theme| {
+                    iced::widget::container::background(theme.palette().background)
+                })
+                .into();
+                let base = iced::widget::container(element)
+                    .width(Length::Fill)
+                    .height(Length::Fill)
+                    .into();
+                element = super::acp_options::with_modal(&app, base);
+                let bounds = Size::new(640.0, 780.0);
+                renderer.reset(Rectangle::with_size(bounds));
+                let mut tree = Tree::new(element.as_widget());
+                let node = element.as_widget_mut().layout(
+                    &mut tree,
+                    &renderer,
+                    &layout::Limits::new(Size::ZERO, bounds),
+                );
+                element.as_widget().draw(
+                    &tree,
+                    &mut renderer,
+                    &theme,
+                    &renderer::Style { text_color: theme.palette().text },
+                    Layout::new(&node),
+                    mouse::Cursor::Unavailable,
+                    &Rectangle::with_size(bounds),
+                );
+                let pixels = renderer.screenshot(Size::new(640, 780), 1.0, Color::TRANSPARENT);
+                assert!(pixels.chunks_exact(4).any(|pixel| pixel[3] > 0));
+                let directory = std::env::temp_dir().join("shiju-input-agent-model-render");
+                std::fs::create_dir_all(&directory).unwrap();
+                ::image::RgbaImage::from_raw(640, 780, pixels)
+                    .unwrap()
+                    .save(directory.join(format!("{theme:?}-{source:?}-modal-{modal}.png")))
+                    .unwrap();
+            }
         }
     }
 }

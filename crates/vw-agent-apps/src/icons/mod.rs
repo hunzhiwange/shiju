@@ -8,3 +8,8 @@ mod validation_tests;
 
 #[cfg(test)]
 mod name_tests;
+
+pub mod library;
+
+#[cfg(test)]
+mod library_tests;

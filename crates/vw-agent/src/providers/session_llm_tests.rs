@@ -407,3 +407,48 @@ fn gateway_output_rejects_unclosed_reasoning_without_disclosing_it() {
     assert_eq!(error, "gateway reasoning block was not closed");
     assert!(!error.contains("PRIVATE_SENTINEL"));
 }
+
+#[test]
+fn native_tool_search_core_loop_gateway_preserves_kind_and_namespace() {
+    let mut calls = super::output::GatewayToolCalls::default();
+    let event = serde_json::json!({"type":"chat.tool_calls", "tool_calls":[
+        {"id":"search-id", "kind":"search", "name":"tool_search", "arguments":"{\"query\":\"ledger\"}"},
+        {"id":"function-id", "kind":"function", "namespace":"fixture", "name":"mcp__fixture__ledger", "arguments":"{}"}
+    ]});
+    calls.push(&event).unwrap();
+    calls.push(&event).unwrap();
+    let calls = calls.finish();
+    assert_eq!(calls.len(), 2);
+    assert_eq!(calls[0].kind, crate::providers::ToolCallKind::Search);
+    assert_eq!(calls[0].id, "search-id");
+    assert_eq!(calls[1].namespace.as_deref(), Some("fixture"));
+    assert_eq!(calls[1].kind, crate::providers::ToolCallKind::Function);
+}
+
+#[test]
+fn native_tool_search_core_loop_gateway_rejects_conflicts_and_invalid_calls() {
+    let mut calls = super::output::GatewayToolCalls::default();
+    let mut event = serde_json::json!({"type":"chat.tool_calls", "tool_calls":[
+        {"id":"id", "kind":"search", "name":"tool_search", "arguments":"{}"}
+    ]});
+    calls.push(&event).unwrap();
+    event["tool_calls"][0]["kind"] = serde_json::json!("function");
+    assert!(calls.push(&event).is_err());
+    event["tool_calls"][0]["kind"] = serde_json::json!("unsupported");
+    assert!(calls.push(&event).is_err());
+}
+
+#[test]
+fn native_tool_search_core_loop_gateway_keeps_typed_history() {
+    let item = serde_json::json!({"type":"tool_search_output", "call_id":"search-id", "status":"completed", "execution":"client", "tools":[]});
+    let projected = SessionLlmProvider::build_history_messages(&[ChatMessage {
+        role: "native".into(),
+        content: item.to_string(),
+    }]);
+    let request = SessionLlmProvider::gateway_chat_request(projected, "fixture-model");
+    let item: crate::session::llm::native_tools::NativeHistoryItem =
+        serde_json::from_str(request.messages[0]["content"].as_str().unwrap()).unwrap();
+    assert!(
+        matches!(item.into_message(), aisdk::core::Message::ToolSearchOutput(output) if output.call_id.as_deref() == Some("search-id") && output.tools.is_empty())
+    );
+}

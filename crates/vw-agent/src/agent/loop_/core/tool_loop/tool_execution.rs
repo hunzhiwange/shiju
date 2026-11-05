@@ -69,6 +69,52 @@ pub(super) async fn execute_tool_calls_and_update_history(
             .with_iteration(iteration)
             .with_messages_view(history.clone()),
     );
+    #[cfg(target_arch = "wasm32")]
+    anyhow::ensure!(
+        native_tool_calls.iter().all(|call| call.kind == crate::providers::ToolCallKind::Function),
+        "native tool search requires a non-wasm target"
+    );
+    #[cfg(not(target_arch = "wasm32"))]
+    let (mut native_outputs, native_calls) = {
+        // Validate and prepare dedicated output before the executor can load any hit.
+        let mut native_outputs = std::collections::HashMap::new();
+        let mut native_calls = Vec::new();
+        for call in native_tool_calls
+            .iter()
+            .filter(|call| call.kind == crate::providers::ToolCallKind::Search)
+        {
+            anyhow::ensure!(
+                !excluded_tools.contains(&call.name),
+                "native search is excluded in this channel"
+            );
+            let discovery = tool_use_context
+                .tool_discovery()
+                .ok_or_else(|| anyhow::anyhow!("native search requires runtime discovery"))?;
+            let typed_call = crate::session::llm::ToolCall {
+                kind: crate::session::llm::ToolCallKind::Search,
+                namespace: call.namespace.clone(),
+                id: call.id.clone(),
+                name: call.name.clone(),
+                arguments: call.arguments.clone(),
+            };
+            let aisdk::core::Message::ToolSearchOutput(output) =
+                discovery.native_output(&typed_call)?
+            else {
+                anyhow::bail!("expected dedicated native search output");
+            };
+            use crate::session::llm::native_tools::NativeHistoryItem;
+            native_outputs.insert(call.id.clone(), NativeHistoryItem::ToolSearchOutput(output));
+            native_calls.push(NativeHistoryItem::ToolSearchCall(aisdk::core::ToolSearchCall {
+                id: None,
+                call_id: Some(call.id.clone()),
+                status: Some("completed".into()),
+                execution: aisdk::core::ToolSearchExecution::Client,
+                arguments: serde_json::from_str(&call.arguments)?,
+                encrypted_content: None,
+            }));
+        }
+        (native_outputs, native_calls)
+    };
     let mut ordered_results: Vec<Option<(String, Option<String>, ToolExecutionOutcome)>> =
         (0..tool_calls.len()).map(|_| None).collect();
     let mut executable_indices = Vec::new();
@@ -253,6 +299,17 @@ pub(super) async fn execute_tool_calls_and_update_history(
             Some((outcome.tool_name.clone(), call.tool_call_id.clone(), outcome));
     }
 
+    #[cfg(not(target_arch = "wasm32"))]
+    for (_, id, outcome) in ordered_results.iter().flatten() {
+        if id.as_ref().is_some_and(|id| native_outputs.contains_key(id)) {
+            anyhow::ensure!(
+                outcome.success,
+                "native tool search execution failed: {}",
+                outcome.output
+            );
+        }
+    }
+
     // ordered_results 按原始工具调用顺序填充，确保写回历史的顺序与模型请求一致，
     // 即便中间批次可能并行完成。
     let history_entries: Vec<ToolResultHistoryEntry> = ordered_results
@@ -265,6 +322,53 @@ pub(super) async fn execute_tool_calls_and_update_history(
         })
         .collect();
 
+    #[cfg(not(target_arch = "wasm32"))]
+    if !native_calls.is_empty() {
+        let ordinary_calls: Vec<_> = native_tool_calls
+            .iter()
+            .filter(|call| call.kind == crate::providers::ToolCallKind::Function)
+            .cloned()
+            .collect();
+        let mut assistant: serde_json::Value = serde_json::from_str(&assistant_history_content)?;
+        if let Some(calls) = assistant["tool_calls"].as_array_mut() {
+            calls.retain(|call| {
+                !native_outputs.contains_key(call["id"].as_str().unwrap_or_default())
+            });
+        }
+        if !ordinary_calls.is_empty()
+            || assistant["content"].as_str().is_some_and(|text| !text.is_empty())
+        {
+            history.push(ChatMessage::assistant(assistant.to_string()));
+        }
+        for call in native_calls {
+            history.push(ChatMessage {
+                role: "native".into(),
+                content: serde_json::to_string(&call)?,
+            });
+        }
+        for entry in history_entries {
+            if let Some(output) =
+                entry.tool_call_id.as_ref().and_then(|id| native_outputs.remove(id))
+            {
+                history.push(ChatMessage {
+                    role: "native".into(),
+                    content: serde_json::to_string(&output)?,
+                });
+            } else {
+                let calls: Vec<_> = ordinary_calls
+                    .iter()
+                    .filter(|call| Some(&call.id) == entry.tool_call_id.as_ref())
+                    .cloned()
+                    .collect();
+                history.extend(build_tool_result_history_messages(
+                    &calls,
+                    &[entry],
+                    use_native_tools,
+                ));
+            }
+        }
+        return Ok(());
+    }
     history.push(ChatMessage::assistant(assistant_history_content));
     history.extend(build_tool_result_history_messages(
         native_tool_calls,

@@ -127,7 +127,7 @@ pub enum PromptStreamEvent {
 ///
 /// 该结构体表示 LLM 请求执行的工具调用，包含工具调用的所有必要信息。
 /// 在函数调用场景中，LLM 会返回此类结构以请求执行特定工具。
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, serde::Serialize)]
 pub struct ToolCall {
     pub kind: ToolCallKind,
     pub namespace: Option<String>,

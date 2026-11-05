@@ -103,7 +103,21 @@ pub fn native_search_output(
             && !call.id.trim().is_empty(),
         "expected native search call"
     );
-    let specs = catalog.specs();
+    native_search_output_from_specs(call, catalog.specs(), enforce_strict)
+}
+
+pub(crate) fn native_search_output_from_specs(
+    call: &ToolCall,
+    specs: Vec<crate::tools::ToolSpec>,
+    enforce_strict: bool,
+) -> anyhow::Result<Message> {
+    anyhow::ensure!(
+        call.kind == ToolCallKind::Search
+            && call.namespace.is_none()
+            && call.name == "tool_search"
+            && !call.id.trim().is_empty(),
+        "expected native search call"
+    );
     anyhow::ensure!(
         specs.iter().any(|spec| spec.id == "tool_search" && spec.exposure.is_direct()),
         "tool_search is not authorized for this catalog"
@@ -128,4 +142,27 @@ pub fn native_search_output(
         execution: ToolSearchExecution::Client,
         tools,
     }))
+}
+
+/// Typed request-local history. Decoding never changes runtime authorization.
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+#[serde(tag = "type", rename_all = "snake_case")]
+pub(crate) enum NativeHistoryItem {
+    ToolSearchCall(ToolSearchCall),
+    ToolSearchOutput(ToolSearchOutput),
+}
+
+impl NativeHistoryItem {
+    pub(crate) fn into_message(self) -> Message {
+        match self {
+            Self::ToolSearchCall(call) => Message::Assistant(aisdk::core::AssistantMessage {
+                content:
+                    aisdk::core::language_model::LanguageModelResponseContentType::ToolSearchCall(
+                        call,
+                    ),
+                usage: None,
+            }),
+            Self::ToolSearchOutput(output) => Message::ToolSearchOutput(output),
+        }
+    }
 }

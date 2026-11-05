@@ -61,6 +61,19 @@ impl ToolDiscoverySession {
             .collect()
     }
 
+    #[cfg(not(target_arch = "wasm32"))]
+    pub(crate) fn native_output(
+        &self,
+        call: &crate::session::llm::ToolCall,
+    ) -> anyhow::Result<aisdk::core::Message> {
+        anyhow::ensure!(self.search_enabled, "tool_search is not authorized for this request");
+        crate::session::llm::native_tools::native_search_output_from_specs(
+            call,
+            self.catalog.authorized_specs(),
+            false,
+        )
+    }
+
     fn search(&self, args: Args) -> anyhow::Result<String> {
         if !self.search_enabled {
             anyhow::bail!("tool_search is not authorized for this request");

@@ -61,7 +61,7 @@ impl SessionLlmProvider {
         messages
             .iter()
             .filter_map(|message| match message.role.as_str() {
-                "system" | "developer" | "user" | "assistant" => {
+                "system" | "developer" | "user" | "assistant" | "native" => {
                     Some(serde_json::json!({"role": message.role, "content": message.content}))
                 }
                 "tool" => {
@@ -139,6 +139,7 @@ impl SessionLlmProvider {
         let mut projection = output::GatewayOutput::default();
         let mut stream_error = None;
         let mut usage = None;
+        let mut calls = output::GatewayToolCalls::default();
 
         vw_gateway_client::GatewayClient::stream_chat_blocking(
             &endpoint,
@@ -161,9 +162,16 @@ impl SessionLlmProvider {
                         return false;
                     }
                     event @ vw_gateway_client::GatewayChatStreamEvent::Other(_) => {
+                        if let vw_gateway_client::GatewayChatStreamEvent::Other(payload) = &event
+                            && let Err(error) = calls.push(payload)
+                        {
+                            stream_error = Some(error.to_string());
+                            return false;
+                        }
                         if Self::is_tool_lifecycle_event(&event) {
                             // 嵌套 ACP 会话在工具前可能发送说明性文字；工具完成后只保留最终答复阶段。
                             output.clear();
+                            calls = output::GatewayToolCalls::default();
                             projection = output::GatewayOutput::default();
                         }
                     }
@@ -179,7 +187,12 @@ impl SessionLlmProvider {
 
         let (tail, reasoning_content) = projection.finish().map_err(anyhow::Error::msg)?;
         output.push_str(&tail);
-        Ok(ChatResponse { text: Some(output), tool_calls: Vec::new(), usage, reasoning_content })
+        Ok(ChatResponse {
+            text: Some(output),
+            tool_calls: calls.finish(),
+            usage,
+            reasoning_content,
+        })
     }
 }
 

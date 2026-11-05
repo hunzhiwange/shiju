@@ -227,6 +227,20 @@ pub(crate) fn openai_messages_to_aisdk_messages(
         };
         let role = obj.get("role").and_then(Value::as_str).unwrap_or_default();
 
+        if role == "native" {
+            let item: super::super::native_tools::NativeHistoryItem = serde_json::from_str(
+                obj.get("content").and_then(Value::as_str).unwrap_or_default(),
+            )
+            .map_err(|error| {
+                Error::Api(crate::session::message::AssistantError::Unknown {
+                    message: format!("invalid native history item: {error}"),
+                })
+            })?;
+            out.push(item.into_message());
+            message_index += 1;
+            continue;
+        }
+
         if role == "assistant" && !is_deepseek_reasoner {
             let text = openai_message_content_to_text(obj.get("content"));
             if !text.trim().is_empty() {

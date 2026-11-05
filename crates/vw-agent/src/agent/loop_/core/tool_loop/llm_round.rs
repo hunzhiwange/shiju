@@ -218,6 +218,33 @@ async fn run_llm_round_with_extractor(
                 reasoning_tokens: resp_reasoning_tokens,
             });
 
+            if resp
+                .tool_calls
+                .iter()
+                .any(|call| call.kind == crate::providers::ToolCallKind::Search)
+            {
+                let mut ids = std::collections::HashSet::new();
+                anyhow::ensure!(
+                    resp.tool_calls
+                        .iter()
+                        .all(|call| !call.id.trim().is_empty() && ids.insert(&call.id)),
+                    "native search batch requires unique nonempty call ids"
+                );
+            }
+            for call in &resp.tool_calls {
+                if call.kind == crate::providers::ToolCallKind::Search {
+                    anyhow::ensure!(
+                        use_native_tools && provider.capabilities().native_tool_search,
+                        "native tool search is not authorized for this provider request"
+                    );
+                    anyhow::ensure!(
+                        call.name == "tool_search"
+                            && call.namespace.is_none()
+                            && !call.id.trim().is_empty(),
+                        "invalid native search call identity"
+                    );
+                }
+            }
             let response_text = resp.text_or_empty().to_string();
             let mut tool_calls = parse_structured_tool_calls(&resp.tool_calls);
             let mut parsed_text = String::new();

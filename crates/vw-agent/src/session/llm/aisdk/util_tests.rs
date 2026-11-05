@@ -781,3 +781,26 @@ fn merge_tool_call_delta_ignores_blank_updates_and_keeps_fallback_id_stable() {
     assert_eq!(states[0].name, "lookup");
     assert_eq!(states[0].arguments, "{");
 }
+
+#[test]
+fn native_tool_search_core_loop_request_conversion_keeps_dedicated_items() {
+    let model = test_model("fixture", "fixture-model", "Fixture");
+    let call = json!({"type":"tool_search_call", "call_id":"search-id", "status":"completed", "execution":"client", "arguments":{"query":"ledger"}});
+    let output = json!({"type":"tool_search_output", "call_id":"search-id", "status":"completed", "execution":"client", "tools":[]});
+    let messages = json!([
+        {"role":"native", "content":call.to_string()},
+        {"role":"native", "content":output.to_string()}
+    ]);
+    let converted = openai_messages_to_aisdk_messages(&messages, &model).unwrap();
+    assert_eq!(converted.len(), 2);
+    assert!(
+        matches!(&converted[0], Message::Assistant(assistant) if matches!(&assistant.content, LanguageModelResponseContentType::ToolSearchCall(call) if call.call_id.as_deref() == Some("search-id")))
+    );
+    assert!(
+        matches!(&converted[1], Message::ToolSearchOutput(output) if output.call_id.as_deref() == Some("search-id") && output.tools.is_empty())
+    );
+    assert!(
+        openai_messages_to_aisdk_messages(&json!([{"role":"native", "content":"{}"}]), &model)
+            .is_err()
+    );
+}

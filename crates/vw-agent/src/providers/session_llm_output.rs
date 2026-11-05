@@ -47,3 +47,38 @@ impl GatewayOutput {
         Ok((std::mem::take(&mut self.pending), (!reasoning.is_empty()).then_some(reasoning)))
     }
 }
+
+/// Retain protocol identities from gateway model-call events separately from text.
+#[derive(Default)]
+pub(super) struct GatewayToolCalls {
+    calls: Vec<crate::providers::ToolCall>,
+}
+
+impl GatewayToolCalls {
+    pub(super) fn push(&mut self, payload: &serde_json::Value) -> anyhow::Result<()> {
+        if payload["type"] != "chat.tool_calls" {
+            return Ok(());
+        }
+        let calls: Vec<crate::providers::ToolCall> =
+            serde_json::from_value(payload["tool_calls"].clone())?;
+        for call in calls {
+            anyhow::ensure!(!call.id.trim().is_empty(), "gateway tool call requires id");
+            if let Some(previous) = self.calls.iter().find(|previous| previous.id == call.id) {
+                anyhow::ensure!(
+                    previous.kind == call.kind
+                        && previous.namespace == call.namespace
+                        && previous.name == call.name
+                        && previous.arguments == call.arguments,
+                    "conflicting gateway tool call identity"
+                );
+            } else {
+                self.calls.push(call);
+            }
+        }
+        Ok(())
+    }
+
+    pub(super) fn finish(self) -> Vec<crate::providers::ToolCall> {
+        self.calls
+    }
+}

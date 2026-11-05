@@ -2586,3 +2586,62 @@ async fn agent_config_cleanup_full_access_gateway_freezes_defaults_and_session_c
     .await
     .unwrap();
 }
+
+#[test]
+fn native_tool_search_core_loop_gateway_encodes_typed_model_calls() {
+    let call = crate::session::llm::ToolCall {
+        kind: crate::session::llm::ToolCallKind::Search,
+        namespace: None,
+        id: "search-id".into(),
+        name: "tool_search".into(),
+        arguments: "{\"query\":\"ledger\"}".into(),
+    };
+    let mut text = String::new();
+    let payload = stream_payload_for_non_done_event(
+        agent_session::processor::StreamEvent::ModelToolCalls(vec![call]),
+        &mut text,
+        &mut None,
+        &mut None,
+        &mut StreamPatchRecorder::default(),
+        "session-id",
+        None,
+        "/unused",
+    )
+    .unwrap();
+    assert_eq!(payload["type"], "chat.tool_calls");
+    assert_eq!(payload["tool_calls"][0]["kind"], "search");
+    assert_eq!(payload["tool_calls"][0]["id"], "search-id");
+    assert!(text.is_empty());
+}
+
+#[test]
+fn native_tool_search_core_loop_gateway_history_reaches_model_as_native_item() {
+    let item = serde_json::json!({"type":"tool_search_output", "call_id":"search-id", "status":"completed", "execution":"client", "tools":[]});
+    let history = prepare_stream_history(
+        vec![serde_json::json!({"role":"native", "content":item.to_string()})],
+        true,
+        true,
+    );
+    assert_eq!(history.history.len(), 1);
+    assert!(matches!(history.history[0].role, ui_models::ChatRole::Tool));
+    let message = crate::session::session::Message {
+        role: crate::session::session::Role::Tool,
+        content: history.history[0].content.clone(),
+    };
+    let converted =
+        crate::session::processor::llm_messages::session_message_to_llm_message(&message).unwrap();
+    assert_eq!(converted["role"], "native");
+    let restored: crate::session::llm::native_tools::NativeHistoryItem =
+        serde_json::from_str(converted["content"].as_str().unwrap()).unwrap();
+    assert!(
+        matches!(restored.into_message(), aisdk::core::Message::ToolSearchOutput(output) if output.call_id.as_deref() == Some("search-id"))
+    );
+    let user = crate::session::session::Message {
+        role: crate::session::session::Role::User,
+        content: item.to_string(),
+    };
+    assert_eq!(
+        crate::session::processor::llm_messages::session_message_to_llm_message(&user).unwrap()["role"],
+        "user"
+    );
+}

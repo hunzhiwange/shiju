@@ -186,6 +186,9 @@ pub enum StreamEvent {
     /// 增量文本事件，包含新生成的文本片段
     Delta(String),
 
+    /// Model calls before local execution, retaining their protocol identity.
+    ModelToolCalls(Vec<crate::session::llm::ToolCall>),
+
     /// 类型化工具生命周期事件。
     Tool(ToolEvent),
 

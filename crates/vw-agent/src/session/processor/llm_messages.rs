@@ -78,6 +78,17 @@ fn split_message_sources(mut messages: Vec<Value>) -> AssembledProtocolMessages 
 }
 
 pub(crate) fn session_message_to_llm_message(message: &Message) -> Option<serde_json::Value> {
+    // Native items arrive only on the tool/history channel. Their declarations
+    // are replay data; execution remains guarded by the runtime exposure snapshot.
+    #[cfg(not(target_arch = "wasm32"))]
+    if matches!(message.role, Role::Tool)
+        && serde_json::from_str::<crate::session::llm::native_tools::NativeHistoryItem>(
+            &message.content,
+        )
+        .is_ok()
+    {
+        return Some(serde_json::json!({ "role": "native", "content": message.content }));
+    }
     match message.role {
         Role::User => Some(serde_json::json!({ "role": "user", "content": message.content })),
         Role::Assistant => {

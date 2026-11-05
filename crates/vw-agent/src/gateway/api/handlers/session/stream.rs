@@ -522,7 +522,7 @@ fn prepare_stream_history(
             "assistant" => ui_models::ChatRole::Assistant,
             "system" => ui_models::ChatRole::System,
             "developer" => ui_models::ChatRole::Developer,
-            "tool" => ui_models::ChatRole::Tool,
+            "tool" | "native" => ui_models::ChatRole::Tool,
             _ => ui_models::ChatRole::User,
         };
 
@@ -597,6 +597,9 @@ fn stream_payload_for_non_done_event(
 ) -> Option<Value> {
     match ev {
         agent_session::processor::StreamEvent::LlmRawArtifact(_) => None,
+        agent_session::processor::StreamEvent::ModelToolCalls(calls) => Some(serde_json::json!({
+            "type": "chat.tool_calls", "tool_calls": calls,
+        })),
         agent_session::processor::StreamEvent::ModelRecovery(state) => {
             let phase = match state.phase {
                 agent_session::processor::RecoveryPhase::Waiting => "waiting",

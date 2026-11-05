@@ -154,11 +154,18 @@ pub(crate) fn build_native_assistant_history(
     let calls_json: Vec<serde_json::Value> = tool_calls
         .iter()
         .map(|tc| {
-            serde_json::json!({
+            let mut call = serde_json::json!({
                 "id": tc.id,
                 "name": tc.name,
                 "arguments": tc.arguments,
-            })
+            });
+            if tc.kind != crate::providers::ToolCallKind::Function {
+                call["kind"] = serde_json::json!(tc.kind);
+            }
+            if let Some(namespace) = &tc.namespace {
+                call["namespace"] = serde_json::json!(namespace);
+            }
+            call
         })
         .collect();
 

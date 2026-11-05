@@ -404,7 +404,9 @@ fn event_texts(events: &[super::StreamEvent]) -> Vec<String> {
     events
         .iter()
         .filter_map(|event| match event {
-            super::StreamEvent::LlmRawArtifact(_) | super::StreamEvent::ModelRecovery(_) => None,
+            super::StreamEvent::LlmRawArtifact(_)
+            | super::StreamEvent::ModelToolCalls(_)
+            | super::StreamEvent::ModelRecovery(_) => None,
             super::StreamEvent::Delta(text) => Some(format!("delta:{text}")),
             super::StreamEvent::Tool(event) => {
                 Some(format!("tool:{}:{}", event.name, event.payload))

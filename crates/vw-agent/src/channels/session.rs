@@ -310,7 +310,8 @@ pub(crate) async fn run_session_processor_for_channel(
             break Err(anyhow::anyhow!("session processor exited without terminal event"));
         };
         match ev {
-            crate::app::agent::session::processor::StreamEvent::LlmRawArtifact(_) => {}
+            crate::app::agent::session::processor::StreamEvent::LlmRawArtifact(_)
+            | crate::app::agent::session::processor::StreamEvent::ModelToolCalls(_) => {}
             crate::app::agent::session::processor::StreamEvent::Delta(delta) => {
                 output.push_str(&delta);
                 if let Some(tx) = delta_tx.as_ref() {

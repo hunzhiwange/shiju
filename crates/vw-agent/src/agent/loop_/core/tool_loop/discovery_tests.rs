@@ -82,6 +82,7 @@ struct DiscoveryProvider {
     responses: Arc<Mutex<VecDeque<crate::providers::ChatResponse>>>,
     requests: Arc<Mutex<Vec<DiscoveryRequest>>>,
     native: bool,
+    search: bool,
     on_request: Option<Arc<dyn Fn(usize) + Send + Sync>>,
 }
 
@@ -127,6 +128,7 @@ impl DiscoveryProvider {
             responses: Arc::new(Mutex::new(responses)),
             requests: Arc::default(),
             native,
+            search: false,
             on_request: None,
         }
     }
@@ -140,7 +142,7 @@ impl DiscoveryProvider {
 impl Provider for DiscoveryProvider {
     fn capabilities(&self) -> ProviderCapabilities {
         ProviderCapabilities {
-            native_tool_search: false,
+            native_tool_search: self.search,
             native_tool_calling: self.native,
             vision: false,
         }
@@ -635,4 +637,173 @@ async fn dynamic_tools_core_replacement_cannot_expand_child_authority() {
     assert!(provider.requests().iter().all(|(_, tools)| tools.is_empty()));
     assert!(!history.iter().any(|message| message.content.contains("child forbidden ledger")));
     assert!(history.iter().any(|message| message.content.contains("not exposed")));
+}
+
+fn native_search_provider(calls: Vec<Vec<(&str, &str, serde_json::Value)>>) -> DiscoveryProvider {
+    let mut provider = DiscoveryProvider::new(true, calls);
+    provider.search = true;
+    for response in provider.responses.lock().unwrap().iter_mut() {
+        for call in &mut response.tool_calls {
+            if call.name == "tool_search" {
+                call.kind = crate::providers::ToolCallKind::Search;
+            }
+        }
+    }
+    provider
+}
+
+#[tokio::test]
+async fn native_tool_search_core_loop_core_calls_discovered_tool_next_request() {
+    let workspace = tempfile::tempdir().unwrap();
+    std::fs::write(workspace.path().join("ledger"), "native-ledger-content").unwrap();
+    let provider = native_search_provider(vec![
+        vec![("native-search", "tool_search", serde_json::json!({"query":"ledger"}))],
+        vec![("read", DISCOVERY_LEDGER, serde_json::json!({}))],
+    ]);
+    let mut agent = crate::agent::Agent::builder()
+        .provider(Box::new(provider.clone()))
+        .tools(discovery_tools(workspace.path()))
+        .memory(Arc::new(crate::memory::NoneMemory))
+        .observer(Arc::new(crate::observability::NoopObserver))
+        .workspace_dir(workspace.path().to_path_buf())
+        .model_name("fixture/model".into())
+        .build()
+        .unwrap();
+    assert_eq!(agent.turn("inspect ledger").await.unwrap(), "final answer");
+    let requests = provider.requests();
+    assert_eq!(requests[0].1, ["tool_search"]);
+    assert_eq!(requests[1].1, [DISCOVERY_LEDGER, "tool_search"]);
+    let native: Vec<serde_json::Value> = requests[1]
+        .0
+        .iter()
+        .filter(|message| message.role == "native")
+        .map(|message| serde_json::from_str(&message.content).unwrap())
+        .collect();
+    assert_eq!(native[0]["type"], "tool_search_call");
+    assert_eq!(native[0]["call_id"], "native-search");
+    assert_eq!(native[1]["type"], "tool_search_output");
+    assert_eq!(native[1]["call_id"], "native-search");
+    assert!(!native[1]["tools"].as_array().unwrap().is_empty());
+    assert!(requests[2].0.iter().any(|message| message.content.contains("native-ledger-content")));
+}
+
+#[tokio::test]
+async fn native_tool_search_core_loop_same_batch_remains_denied() {
+    let workspace = tempfile::tempdir().unwrap();
+    std::fs::write(workspace.path().join("ledger"), "private-ledger").unwrap();
+    let provider = native_search_provider(vec![vec![
+        ("search", "tool_search", serde_json::json!({"query":"ledger"})),
+        ("read", DISCOVERY_LEDGER, serde_json::json!({})),
+    ]]);
+    let history = run_discovery_loop(&provider, discovery_tools(workspace.path()), &[]).await;
+    assert!(
+        history.iter().any(|message| message.content.contains("not exposed in this model request"))
+    );
+    assert!(!history.iter().any(|message| message.content.contains("private-ledger")));
+    assert!(history.iter().any(|message| message.role == "native"));
+}
+
+#[tokio::test]
+async fn native_tool_search_core_loop_empty_and_excluded_results_do_not_load_tools() {
+    let workspace = tempfile::tempdir().unwrap();
+    let provider = native_search_provider(vec![vec![(
+        "search",
+        "tool_search",
+        serde_json::json!({"query":"ledger"}),
+    )]]);
+    let history = run_discovery_loop(
+        &provider,
+        discovery_tools(workspace.path()),
+        &[DISCOVERY_LEDGER.into()],
+    )
+    .await;
+    let output = history
+        .iter()
+        .filter(|message| message.role == "native")
+        .map(|message| serde_json::from_str::<serde_json::Value>(&message.content).unwrap())
+        .find(|message| message["type"] == "tool_search_output")
+        .unwrap();
+    assert!(output["tools"].as_array().unwrap().is_empty());
+    assert_eq!(provider.requests()[1].1, ["tool_search"]);
+}
+
+#[tokio::test]
+async fn native_tool_search_core_loop_rejects_unadvertised_and_invalid_search() {
+    for (enabled, args) in [
+        (false, serde_json::json!({"query":"ledger"})),
+        (true, serde_json::json!({"query":"ledger", "tools":[DISCOVERY_LEDGER]})),
+        (true, serde_json::json!({"query":""})),
+    ] {
+        let workspace = tempfile::tempdir().unwrap();
+        let mut provider = native_search_provider(vec![vec![("search", "tool_search", args)]]);
+        provider.search = enabled;
+        let mut agent = crate::agent::Agent::builder()
+            .provider(Box::new(provider.clone()))
+            .tools(discovery_tools(workspace.path()))
+            .memory(Arc::new(crate::memory::NoneMemory))
+            .observer(Arc::new(crate::observability::NoopObserver))
+            .workspace_dir(workspace.path().to_path_buf())
+            .model_name("fixture/model".into())
+            .build()
+            .unwrap();
+        assert!(agent.turn("inspect ledger").await.is_err());
+        assert_eq!(provider.requests().len(), 1);
+    }
+}
+
+#[tokio::test]
+async fn native_tool_search_core_loop_ordinary_discovery_still_executes() {
+    let workspace = tempfile::tempdir().unwrap();
+    std::fs::write(workspace.path().join("ledger"), "ordinary-ledger").unwrap();
+    let provider = DiscoveryProvider::new(
+        true,
+        vec![
+            vec![("search", "tool_search", serde_json::json!({"query":"ledger"}))],
+            vec![("read", DISCOVERY_LEDGER, serde_json::json!({}))],
+        ],
+    );
+    let history = run_discovery_loop(&provider, discovery_tools(workspace.path()), &[]).await;
+    assert!(history.iter().any(|message| message.content.contains("ordinary-ledger")));
+    assert!(history.iter().all(|message| message.role != "native"));
+    assert_eq!(provider.requests()[1].1, [DISCOVERY_LEDGER, "tool_search"]);
+}
+
+#[tokio::test]
+async fn native_tool_search_core_loop_replayed_search_is_not_completed_again() {
+    let workspace = tempfile::tempdir().unwrap();
+    let provider = native_search_provider(vec![
+        vec![("search", "tool_search", serde_json::json!({"query":"ledger"}))],
+        vec![("search", "tool_search", serde_json::json!({"query":"ledger"}))],
+    ]);
+    let mut history = vec![ChatMessage::user("inspect ledger")];
+    let tools = discovery_tools(workspace.path());
+    let result = run_tool_call_loop(
+        &provider,
+        &mut history,
+        &tools,
+        &crate::observability::NoopObserver,
+        "fixture",
+        "fixture/model",
+        0.0,
+        true,
+        None,
+        "cli",
+        &crate::config::MultimodalConfig::default(),
+        8,
+        None,
+        None,
+        None,
+        None,
+        &[],
+    )
+    .await;
+    assert!(result.unwrap_err().to_string().contains("Skipped duplicate tool call"));
+    assert_eq!(
+        history
+            .iter()
+            .filter(|message| message.role == "native"
+                && message.content.contains("tool_search_output"))
+            .count(),
+        1
+    );
 }

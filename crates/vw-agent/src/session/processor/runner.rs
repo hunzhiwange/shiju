@@ -1424,6 +1424,9 @@ fn run_in_project(
         );
 
         if !step_out.tool_calls.is_empty() {
+            if !on_event(StreamEvent::ModelToolCalls(step_out.tool_calls.clone())) {
+                return;
+            }
             if super::should_execute_structured_tool_calls_locally(&req.options) {
                 empty_response_retries = 0;
                 let ran_todo_update = handle_structured_tool_calls(

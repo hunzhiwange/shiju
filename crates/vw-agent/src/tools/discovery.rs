@@ -121,6 +121,11 @@ impl ToolDiscoveryCatalog {
         }
     }
 
+    #[cfg(not(target_arch = "wasm32"))]
+    pub(crate) fn authorized_specs(&self) -> Vec<ToolSpec> {
+        self.snapshot.specs.values().map(|spec| spec.as_ref().clone()).collect()
+    }
+
     pub(crate) fn has_deferred_tools(&self) -> bool {
         !self.snapshot.documents.is_empty()
     }

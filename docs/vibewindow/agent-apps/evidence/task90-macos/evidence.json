@@ -1,0 +1,69 @@
+{
+  "task": 90,
+  "date": "2026-11-06",
+  "platform": "macOS aarch64",
+  "workspace_commit": "1f8f5496e15272ef9fc74f4ce670f32cdfde1564",
+  "implementation_commit": "20e504469",
+  "slot": 2,
+  "CARGO_TARGET_DIR": "/Users/xiangmin/worker/code/shiju/target/rust-slot-2",
+  "CARGO_BUILD_BUILD_DIR": "/Users/xiangmin/worker/code/shiju/target/rust-slot-2",
+  "commands": [
+    {
+      "command": "cargo fmt --all",
+      "exit": 0
+    },
+    {
+      "command": "cargo build -p vw-desktop --bin shi-ju",
+      "exit": 0
+    },
+    {
+      "command": "cargo test -p vw-desktop --lib cc_base_icon_desktop_list_ -- --nocapture",
+      "exit": 0,
+      "passed": 4,
+      "ignored": 0
+    },
+    {
+      "command": "cargo clippy --all-targets --all-features -- -D warnings",
+      "exit": 0
+    }
+  ],
+  "tests": [
+    "cc_base_icon_desktop_list_empty",
+    "cc_base_icon_desktop_list_loading",
+    "cc_base_icon_desktop_list_failure_retry",
+    "cc_base_icon_desktop_list_chinese_name"
+  ],
+  "window": {
+    "bundle_id": "com.shiju.task90.acceptance",
+    "production_binary": "target/rust-slot-2/debug/shi-ju",
+    "config": "isolated VIBEWINDOW_CONFIG_DIR and VIBEWINDOW_CONFIG",
+    "backend": "production Axum Router + native icon library + real temporary SQLite + SDK",
+    "tenant": [
+      "task90-platform",
+      "task90-company"
+    ],
+    "app_exit": 0,
+    "server_exit": 0,
+    "recovery_server_exit": 0,
+    "observed": [
+      "Light/Dark Chinese icon name and thumbnail",
+      "real DELETE 204 then empty list [] and refresh",
+      "actual server shutdown yields Connection refused, error banner and toast",
+      "retry button clicked under both themes",
+      "server restart and click retry recovers empty library"
+    ],
+    "screenshots": [
+      "dark-chinese.jpg",
+      "dark-empty.jpg",
+      "dark-failure.jpg",
+      "dark-retry.jpg",
+      "light-chinese.jpg",
+      "light-empty-recovered.jpg",
+      "light-failure.jpg",
+      "light-retry.jpg"
+    ]
+  },
+  "temporary_verification_helper": "Added ignored loopback fixture using existing Server; removed after both native sessions, no final Rust source changes",
+  "remaining_platforms": "Linux/Windows not claimed",
+  "slot_released": true
+}

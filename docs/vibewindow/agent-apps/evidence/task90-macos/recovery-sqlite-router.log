@@ -1,0 +1,6 @@
+
+running 1 test
+test gateway::api::handlers::agent_apps_acceptance_tests::cc_base_icon_task90_ui_server ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 11441 filtered out; finished in 31.09s
+

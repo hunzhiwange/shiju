@@ -1,0 +1,16 @@
+warning: linker stderr: ld: __eh_frame section too large (max 16MB) to encode dwarf unwind offsets in compact unwind table, performance of exception handling might be affected
+  |
+  = note: `#[warn(linker_messages)]` on by default
+
+warning: `vw-desktop` (lib test) generated 1 warning
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.76s
+     Running unittests src/lib.rs (target/rust-slot-2/debug/deps/vw_desktop-c3550d52c5fe1742)
+
+running 4 tests
+test app::components::system_settings_agent_apps_tests::cc_base_icon_desktop_list_loading ... ok
+test app::components::system_settings_agent_apps_tests::cc_base_icon_desktop_list_empty ... ok
+test app::components::system_settings_agent_apps_tests::cc_base_icon_desktop_list_failure_retry ... ok
+test app::components::system_settings_agent_apps_tests::cc_base_icon_desktop_list_chinese_name ... ok
+
+test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 8554 filtered out; finished in 0.01s
+

@@ -130,5 +130,14 @@
       "dist/codebuddy.js": "b87e0505e96589c978f4af4d529d3c5839992d30e4949e4b0283d13dff679056",
       "dist-server/codebuddy.js": "0d0da98e63e10cf6dbe7005b161fe42388439b8b7ea9ffae8ff22f2d5b45c51c"
     }
+  },
+  "snow": {
+    "package": "snow-ai",
+    "version": "0.9.14",
+    "integrity": "sha512-hVawSqfpwqSJgTAPVNp7Lw7gUoBpP89eKIC/lN5f6dvU8HWQtIo0M3BUhqByPmSUM8jZr1bbKF3CbQ9ur0pRaw==",
+    "bin": "bundle/cli.mjs",
+    "files": {
+      "bundle/cli.mjs": "dea7a6b9b28490a78c7c0f95d294b5c5203c7aa8f4a9f7cedc97720bbdd9d25e"
+    }
   }
 }

@@ -1,0 +1,14 @@
+{
+  "original": "bcc0a6cf468a245729605bcf75fd762fd13cb48553d342b31121cafc3153d905",
+  "patched": "dea7a6b9b28490a78c7c0f95d294b5c5203c7aa8f4a9f7cedc97720bbdd9d25e",
+  "changes": [
+    {
+      "old": "  const home = homedir();\n  const globalAgentsSkillsDir = join29(home, \".agents\", \"skills\");",
+      "new": "  if (Object.prototype.hasOwnProperty.call(process.env, \"SHIJU_SNOW_SKILL_ROOT\")) {\n    const root = process.env.SHIJU_SNOW_SKILL_ROOT;\n    if (root) {\n      await loadSkillsFromDirectory(skills, root, \"project\", \"snow\");\n    }\n    return skills;\n  }\n  const home = homedir();\n  const globalAgentsSkillsDir = join29(home, \".agents\", \"skills\");"
+    },
+    {
+      "old": "        if (entry.isDirectory()) {\n          if (entry.name === \"templates\"",
+      "new": "        if (entry.isDirectory() || (currentDir === baseSkillsDir && entry.isSymbolicLink() && process.env.SHIJU_SNOW_SKILL_ROOT === baseSkillsDir)) {\n          if (entry.name === \"templates\""
+    }
+  ]
+}

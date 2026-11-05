@@ -212,40 +212,36 @@ pub(super) async fn install(agent: &str) -> Result<bool, String> {
         ("iflow-lock.json", include_str!("managed_runtime/iflow-lock.json")),
         (
             "vibe/apply_patch.py",
-            include_str!("../../../docs/vibewindow/acp-model-source/evidence/vibe/apply_patch.py"),
+            include_str!("../../../docs/shiju/acp-model-source/evidence/vibe/apply_patch.py"),
         ),
         (
             "vibe/upstream-hashes.json",
-            include_str!(
-                "../../../docs/vibewindow/acp-model-source/evidence/vibe/upstream-hashes.json"
-            ),
+            include_str!("../../../docs/shiju/acp-model-source/evidence/vibe/upstream-hashes.json"),
         ),
         (
             "vibe/mistral-vibe-3.0.4-session-binding.patch",
             include_str!(
-                "../../../docs/vibewindow/acp-model-source/evidence/vibe/mistral-vibe-3.0.4-session-binding.patch"
+                "../../../docs/shiju/acp-model-source/evidence/vibe/mistral-vibe-3.0.4-session-binding.patch"
             ),
         ),
         (
             "hermes/apply_patch.py",
-            include_str!(
-                "../../../docs/vibewindow/acp-model-source/evidence/hermes/apply_patch.py"
-            ),
+            include_str!("../../../docs/shiju/acp-model-source/evidence/hermes/apply_patch.py"),
         ),
         (
             "hermes/patch.json",
-            include_str!("../../../docs/vibewindow/acp-model-source/evidence/hermes/patch.json"),
+            include_str!("../../../docs/shiju/acp-model-source/evidence/hermes/patch.json"),
         ),
         (
             "hermes/hermes-agent-0.19.0-session-state.patch",
             include_str!(
-                "../../../docs/vibewindow/acp-model-source/evidence/hermes/hermes-agent-0.19.0-session-state.patch"
+                "../../../docs/shiju/acp-model-source/evidence/hermes/hermes-agent-0.19.0-session-state.patch"
             ),
         ),
         (
             "goose.patch",
             include_str!(
-                "../../../docs/vibewindow/acp-model-source/evidence/goose/v1.57.0-model-lock.patch"
+                "../../../docs/shiju/acp-model-source/evidence/goose/v1.57.0-model-lock.patch"
             ),
         ),
         (

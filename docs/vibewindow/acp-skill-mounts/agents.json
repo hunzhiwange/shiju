@@ -1699,10 +1699,10 @@
     {
       "key": "kimi",
       "version": "2.5.0",
-      "status": "candidate",
+      "status": "unsupported",
       "platform": {
         "review_host": "Darwin-arm64",
-        "artifact_scope": "本机固定发行物静态审查；源码/通用 JS 的跨平台执行未验证",
+        "artifact_scope": "Darwin-arm64 native 2.5.0：源码与真实 ACP 负向探针确认不支持选中目录的独占挂载；不是缺安装/账号。其他平台未验证。",
         "linux": "unverified",
         "windows": "unverified"
       },
@@ -1723,8 +1723,8 @@
           "acp"
         ],
         "binding": "crates/vw-acp/src/agent_registry.rs::BUILT_IN_AGENT_DEFINITIONS",
-        "runtime_executed": false,
-        "note": "固定发行物候选入口；注册器含 latest/range，不保证用户当前命令已固定到此版本。"
+        "runtime_executed": true,
+        "note": "固定二进制真实 initialize 与 session/new 成功。--skills-dir 未转发到 ACP bootstrap；未选中项目技能仍被发现。此负向证据不是模型/工具验收。"
       },
       "mount": {
         "candidate_paths": [
@@ -1732,9 +1732,9 @@
           "<cwd>/.kimi-code/skills",
           ".agents/skills"
         ],
-        "discovery": "固定 native Kimi Code 2.5.0（不是旧 Python kimi-cli 1.52.0）。内嵌 JS 含 USER_BRAND_DIRS、PROJECT_BRAND_DIRS 和 SKILL.md parser，须证明 ACP 配置根与会话重建行为。",
+        "discovery": "原生默认目录扫描存在，但 ACP 不转发 --skills-dir。真实 --skills-dir <selected> acp 探针：选中 selected-probe 未发现，项目 unselected-probe 进入 available_commands_update。",
         "activation": "目录技能解析与默认选择、实际正文激活分开；未执行真实回合。",
-        "session_isolation": "unverified：额外根/专属配置根不自动排除内建、用户、项目及插件技能；不得修改 HOME 或写用户全局目录。"
+        "session_isolation": "unsupported for selected-only mount contract on reviewed Darwin-arm64 2.5.0：私有 KIMI_CODE_HOME 不排除项目与通用目录；extraSkillDirs 为合并来源；mergeAllAvailableSkills=false 仍保留首个品牌目录和通用目录。"
       },
       "permissions": {
         "status": "unverified",
@@ -1785,7 +1785,13 @@
         }
       ],
       "supplemental_official_docs": [],
-      "next_validation": "固定版本真实 ACP：发现元数据 → 按需激活 → 支持文件/脚本工具回合 → 隔离/删除/更新失败保旧 → 跨进程恢复；只替代外部模型 HTTP。未安装/缺账号则保留 unverified。"
+      "next_validation": "本固定版本按负向证据跳过，不计挂载成功；上游 ACP 提供可排除默认/插件来源的显式目录入口或有可审查构建补丁后，重新执行完整生命周期与两来源验收。",
+      "acceptance": {
+        "status": "unsupported",
+        "evidence": "evidence/kimi.json",
+        "scope": "Only exclusive selected-directory mounting through reviewed native ACP 2.5.0 on Darwin-arm64. Native default skill scanning exists. Not a positive lifecycle acceptance.",
+        "production_gate": "Existing unverified rejection retained; no prompt-body fallback."
+      }
     },
     {
       "key": "kiro",

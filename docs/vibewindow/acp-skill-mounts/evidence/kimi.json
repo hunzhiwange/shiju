@@ -1,0 +1,108 @@
+{
+  "schema_version": 1,
+  "agent": "kimi",
+  "version": "2.5.0",
+  "platform": "Darwin-arm64",
+  "status": "unsupported",
+  "scope": "Exclusive selected-directory ACP mounting only; native default discovery is present. No Linux/Windows or other-version inference.",
+  "dependencies": {
+    "task_9": "416cc6fc9",
+    "task_10": "341b9a8b3"
+  },
+  "identity": {
+    "path": "target/kimi-code-2.5.0/kimi",
+    "sha256": "d4dd02d40f18f3a784699fc37ae0c55d676a4704c37a3b91ab96541b0db673a1",
+    "version_command": [
+      "target/kimi-code-2.5.0/kimi",
+      "--version"
+    ],
+    "version_exit_code": 0,
+    "version_stdout": "2.5.0"
+  },
+  "native_negative_probe": {
+    "backend": "unmodified fixed native binary; no mocked ACP, discovery or filesystem",
+    "model_boundary": "Existing cli-local isolated loopback HTTP configuration; no model request needed or made for discovery",
+    "setup": [
+      "Temporary selected/selected-probe/SKILL.md with synthetic metadata",
+      "Temporary work/.kimi-code/skills/unselected-probe/SKILL.md with synthetic metadata",
+      "Private KIMI_CODE_HOME from existing reviewed isolated_environment recipe; HOME unchanged"
+    ],
+    "argv": [
+      "target/kimi-code-2.5.0/kimi",
+      "--skills-dir",
+      "<temporary-selected-directory>",
+      "acp"
+    ],
+    "protocol": [
+      {
+        "method": "initialize",
+        "protocolVersion": 1,
+        "clientCapabilities": {},
+        "result": true
+      },
+      {
+        "method": "session/new",
+        "cwd": "<temporary-work>",
+        "mcpServers": [],
+        "result": true
+      },
+      {
+        "method": "session/update",
+        "sessionUpdate": "available_commands_update",
+        "selected_probe_discovered": false,
+        "unselected_probe_discovered": true
+      }
+    ],
+    "exit_code": 0,
+    "cleanup": "Native subprocess terminated and reaped; temporary files removed. No account state changed."
+  },
+  "source_review": {
+    "container": "fixed binary embedded JavaScript",
+    "observations": [
+      "src/cli/sub/acp.ts::registerAcpCommand reads root options only for environment rejection, then runAcpServer with homeDir/agentInfo/terminal-auth options, without skillsDirs.",
+      "packages/acp-server/src/start.ts::runAcpServerWithStream bootstrap supplies no args.skillDirs.",
+      "UserFileSkillSource and workspace source suppress default discovery only when bootstrap.args.skillDirs has entries.",
+      "ExtraFileSkillSource uses extraSkillDirs as another contribution, not an exclusive selector.",
+      "userRoots/projectRoots always retain generic roots; mergeAllAvailableSkills=false selects first existing brand root rather than disabling roots.",
+      "Native --skills-dir reaches TUI/print SDK bootstrap, but that path is separate from native ACP.",
+      "Managed-runtime contracts have no reviewed Kimi source patch. Modifying embedded executable bytes would invalidate the reviewed native hash; no binary patch applied."
+    ]
+  },
+  "cargo": {
+    "slot": 2,
+    "CARGO_TARGET_DIR": "/Users/xiangmin/worker/code/shiju/target/rust-slot-2",
+    "lock_released": true,
+    "cache_retained": true,
+    "checks": [
+      {
+        "command": "cargo test -p vw-agent --lib acp_skill_mount_outbound_kimi_ -- --nocapture --test-threads=1",
+        "exit_code": 0,
+        "effective_tests": 1,
+        "passed": 1,
+        "kind": "existing fail-closed behavior, not mounting success"
+      },
+      {
+        "command": "python3 scripts/verify_acp_skill_mounts.py --agent kimi --manifest docs/vibewindow/acp-skill-mounts/agents.json --output \"$CARGO_TARGET_DIR/acp-skill-mount-evidence/kimi\"",
+        "exit_code": 1,
+        "effective_tests": 1,
+        "cargo_exit_code": 101,
+        "model_source": "session-model",
+        "model_requests": 0,
+        "tool_requests": 0,
+        "reason": "Existing unverified adapter gate rejected mounting before CLI launch. Not used as unsupported evidence."
+      },
+      {
+        "command": "python3 scripts/verify_acp_skill_mounts.py --agent kimi --mode cli-local --manifest docs/vibewindow/acp-skill-mounts/agents.json --output \"$CARGO_TARGET_DIR/acp-skill-mount-evidence/kimi-cli-local\"",
+        "exit_code": 1,
+        "effective_tests": 1,
+        "cargo_exit_code": 101,
+        "model_source": "cli-local",
+        "model_requests": 0,
+        "tool_requests": 0,
+        "reason": "Existing unverified adapter gate rejected mounting before CLI launch. Not used as unsupported evidence."
+      }
+    ]
+  },
+  "conclusion": "Fixed native ACP has no usable exclusive directory registration entry. Skip this version under unsupported handling; retain outbound rejection. This is not a skill lifecycle pass.",
+  "validation_limit": "No Rust or patch changes; cargo fmt/clippy not required for this documentation-only unsupported outcome. Full lifecycle, attachments, scripts, update, isolation, cancel and recovery have no positive acceptance."
+}

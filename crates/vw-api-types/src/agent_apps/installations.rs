@@ -55,6 +55,10 @@ pub enum AppInstallationRuntimeStatus {
 #[serde(rename_all = "snake_case")]
 pub enum AppInstallationProbeFailure {
     SpawnFailed,
+    Missing,
+    PermissionDenied,
+    DamagedInstallation,
+    OutputTooLarge,
     TimedOut,
     Cancelled,
     InvalidVersionOutput,

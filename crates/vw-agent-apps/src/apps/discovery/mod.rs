@@ -17,3 +17,8 @@ mod claude_desktop_tests;
 pub mod report;
 #[cfg(test)]
 mod report_tests;
+
+#[cfg(unix)]
+pub mod version;
+#[cfg(all(test, unix))]
+mod version_tests;

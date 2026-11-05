@@ -8,7 +8,9 @@
 
 `preserve_history`：仅将 session-state 链接到以会话身份摘要隔离、所有者和 0700 权限均验证的历史目录。每轮 Provider 文件和令牌随 profile 销毁；历史保持可恢复。来源/模型身份不同不会共享历史目录。独立真实探针扫描历史文件，未发现本次测试 Provider key；日志保留在短期目录中。
 
-Chat 已完成真实验收；Messages 配置分支尚无独立真实验收，不据此发布 Messages 能力。拒绝未经验证的推理模型、Responses 及其他协议；要求工具和 temperature 能力。专用 fixture 通过真实 task 工具启动 general-purpose 子代理并要求两次 view；主/辅助请求均受同一模型绑定约束，不允许回退 GitHub 账号。该证据不代表穷尽所有特殊 agent/模型选项。
+Chat 已完成真实验收；Messages 配置分支尚无独立真实验收，不据此发布 Messages 能力。模型的推理能力标记不单独阻止原生协议路由，实际推理参数由中继按模型能力校验；仍拒绝 Responses 及其他协议，要求工具和 temperature 能力。专用 fixture 通过真实 task 工具启动 general-purpose 子代理并要求两次 view；主/辅助请求均受同一模型绑定约束，不允许回退 GitHub 账号。该证据不代表穷尽所有特殊 agent/模型选项。
+
+2026-11-05 回归：生产验收 fixture 为 Copilot 两个模型均启用 `reasoning` 能力标记，真实 CLI 的 session-model 验收通过，覆盖多轮、取消、重启、切模、隔离及辅助请求。该回归验证模型路由，不代表已验收所有推理输出形式。
 
 ## 测试驱动与检查
 

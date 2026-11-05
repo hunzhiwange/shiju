@@ -416,6 +416,13 @@ async fn render_selector_icons(theme: Theme, click: bool) {
         (SessionToolSelectorTab::Tools, 1),
         (SessionToolSelectorTab::Skills, 1),
     ] {
+        // Selecting an agent resets context; seed each tab independently.
+        if !app.current_session_runtime().tool_selector.is_manual_tool_selected("memory_store") {
+            app.current_session_runtime_mut().tool_selector.toggle_manual_tool("memory_store");
+        }
+        if !app.current_session_runtime().tool_selector.is_manual_skill_selected("review") {
+            app.current_session_runtime_mut().tool_selector.toggle_manual_skill("review");
+        }
         app.current_session_runtime_mut().tool_selector.select_tab(tab);
         app.current_session_runtime_mut()
             .tool_selector
@@ -505,6 +512,21 @@ async fn render_selector_icons(theme: Theme, click: bool) {
                     SessionToolSelectorTab::Skills
                 )
             ));
+            drop(element);
+            let Message::Chat(selection) = messages.remove(0) else {
+                panic!("expected selector message");
+            };
+            let _ = message::chat::update(&mut app, selection);
+            let runtime = app.current_session_runtime();
+            match tab {
+                SessionToolSelectorTab::Agent => assert!(runtime.agent.is_none()),
+                SessionToolSelectorTab::Tools => {
+                    assert!(!runtime.tool_selector.is_manual_tool_selected("memory_store"));
+                }
+                SessionToolSelectorTab::Skills => {
+                    assert!(!runtime.tool_selector.is_manual_skill_selected("review"));
+                }
+            }
         }
     }
 }

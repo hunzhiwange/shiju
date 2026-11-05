@@ -114,3 +114,6 @@ pub(super) fn reject_expanded_invocations(
 #[cfg(test)]
 #[path = "outbound_tests.rs"]
 mod outbound_tests;
+
+#[cfg(test)]
+mod acceptance_tests;

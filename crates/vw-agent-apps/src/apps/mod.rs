@@ -5,3 +5,4 @@ mod acp_projection_tests;
 pub mod catalog;
 #[cfg(test)]
 mod catalog_tests;
+pub mod discovery;

@@ -41,7 +41,7 @@
     "integrity": "sha512-cOQNLXJAjqcKq6XQpx47EUV8ocY5sdLXiy7MfJm+b1miRlMJmrQvueT75w1h9UqzrlFPio2VluTxbLRBoR/QBA==",
     "bin": "bundle/entry.js",
     "files": {
-      "bundle/iflow.js": "23316454dc9d4a96fb93d95f589b3dc8e5734e6d5bc845082f20ba9566ae72c4",
+      "bundle/iflow.js": "3f485f9ca61edd2d1594cc6b5374a8108002ab0ee3488f03bdbcfc4bef89ef66",
       "bundle/entry.js": "55710b7cfea2e5aefebfe0acec4eaf3e647d34538ee5835a3d724a49853d1fa6"
     }
   },

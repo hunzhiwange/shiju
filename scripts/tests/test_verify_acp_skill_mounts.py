@@ -12,6 +12,29 @@ from verify_acp_skill_mounts import accepted, select_entry
 
 
 class SkillMountHarnessTests(unittest.TestCase):
+    def test_iflow_current_tool_catalog_rejects_unselected_skill(self):
+        with tempfile.TemporaryDirectory() as directory:
+            fixture = SkillMountFixture(Path(directory))
+            fixture.iflow_native = True
+            with self.assertRaisesRegex(ValueError, "iFlow native catalog"):
+                fixture.response({"messages": [{"role": "user", "content": fixture.prompt}],
+                    "tools": [{"function": {"name": "Skill", "description":
+                        "<available_skills><skill><name>" + fixture.name +
+                        "</name></skill><skill><name>unselected</name></skill></available_skills>",
+                        "parameters": {"properties": {"skill": {"type": "string"}}}}}]})
+            self.assertEqual(fixture.snapshot()["native_skill_invocations"], 0)
+
+    def test_iflow_empty_catalog_ignores_old_history(self):
+        with tempfile.TemporaryDirectory() as directory:
+            fixture = SkillMountFixture(Path(directory))
+            fixture.iflow_native = True
+            fixture.mode = "absent"
+            message, finish = fixture.response({"messages": [{"role": "user", "content":
+                "<available_skills><skill><name>" + fixture.name +
+                "</name></skill></available_skills>"}], "tools": []})
+            self.assertEqual((message["content"], finish), ("SKILL_ABSENT", "stop"))
+            self.assertEqual(fixture.snapshot()["discovery_events"], 0)
+
     def test_opencode_builtin_catalog_is_rejected_before_activation(self):
         with tempfile.TemporaryDirectory() as directory:
             fixture = SkillMountFixture(Path(directory))

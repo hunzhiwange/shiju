@@ -49,7 +49,7 @@ pub(super) fn validate(agent: &str, selected: bool) -> Result<(), Error> {
         "droid" => droid::rejection(),
         "qoder" => qoder::rejection(),
         "trae" => trae::rejection(),
-        "iflow" => iflow::rejection(),
+        "iflow" => return Ok(()),
         _ => "no verified skill directory mount branch",
     };
     Err(acp_option_error(format!("{agent}: {reason}")))
@@ -133,7 +133,9 @@ pub(super) fn configure_native_scanner(
     config: &mut crate::config::schema::AcpAgentConfig,
     view: Option<&MountedSkills>,
 ) -> Result<(), Error> {
-    if agent == "pi" {
+    if agent == "iflow" {
+        iflow::configure(config, view)?;
+    } else if agent == "pi" {
         pi::configure(config, view)?;
     } else if agent == "openclaw" {
         openclaw::configure(config, view)?;

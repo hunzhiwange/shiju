@@ -22,6 +22,19 @@ def replace(old, new, count=1):
         raise SystemExit('iFlow patch context count differs')
     s = s.replace(old, new)
 
+# Reuse the native parser and Skill tool, with a request-owned scanner root.
+# Presence with an empty value disables all levels; undefined preserves CLI behavior.
+replace('async scan(){let e=new Map;',
+        'async scan(){if(Object.prototype.hasOwnProperty.call(process.env,"SHIJU_IFLOW_SKILL_ROOT")){let root=process.env.SHIJU_IFLOW_SKILL_ROOT;return root?this.scanDirectory(root,!1):[]}let e=new Map;')
+replace('async ensureDirectories(){try{await L4e.mkdir',
+        'async ensureDirectories(){if(Object.prototype.hasOwnProperty.call(process.env,"SHIJU_IFLOW_SKILL_ROOT"))return;try{await L4e.mkdir')
+replace('await this.skillConfigCache.getSkill(e.skill)||KU.get(e.skill)',
+        'await this.skillConfigCache.getSkill(e.skill)||(process.env.SHIJU_IFLOW_SKILL_ROOT===undefined?KU.get(e.skill):undefined)', 2)
+replace('for(let o of KU.getAll())n.has(o.name)||r.push(o);',
+        'if(process.env.SHIJU_IFLOW_SKILL_ROOT===undefined)for(let o of KU.getAll())n.has(o.name)||r.push(o);')
+
+replace('r(U4e,this),', 'process.env.SHIJU_IFLOW_SKILL_ROOT!==""&&r(U4e,this),')
+
 # IFLOW_HOME already controls Storage, but upstream settings/plugins/hooks ignore it.
 replace('Ght=y5.join($ht(),SI)', 'Ght=Tn()')
 replace('function NMi(){return process.env.IFLOW_CLI_SYSTEM_SETTINGS_PATH?', 'function NMi(){if(process.env.IFLOW_HOME&&!process.env.IFLOW_CLI_SYSTEM_SETTINGS_PATH)return y5.join(Tn(),"system.json");return process.env.IFLOW_CLI_SYSTEM_SETTINGS_PATH?')

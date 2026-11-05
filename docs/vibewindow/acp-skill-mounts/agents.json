@@ -1493,10 +1493,10 @@
     {
       "key": "iflow",
       "version": "0.5.19",
-      "status": "candidate",
+      "status": "verified",
       "platform": {
         "review_host": "Darwin-arm64",
-        "artifact_scope": "本机固定发行物静态审查；源码/通用 JS 的跨平台执行未验证",
+        "artifact_scope": "Reviewed patched Darwin-arm64 only; original binaries, other releases and platforms remain unverified.",
         "linux": "unverified",
         "windows": "unverified"
       },
@@ -1517,41 +1517,41 @@
           "--experimental-acp"
         ],
         "binding": "crates/vw-acp/src/agent_registry.rs::BUILT_IN_AGENT_DEFINITIONS",
-        "runtime_executed": false,
-        "note": "固定发行物候选入口；注册器含 latest/range，不保证用户当前命令已固定到此版本。"
+        "runtime_executed": true,
+        "note": "Fixed private patched runtime; hash verification required before a selected mount."
       },
       "mount": {
         "candidate_paths": [
           "Tn()/skills（配置根）",
           "<cwd>/.iflow/skills"
         ],
-        "discovery": "0.5.19 scanner 先扫描全局再项目，重名时保留已有全局条目；存在 SKILL.md 解析及插件技能。必须核实选择正文是否在 ACP 中可用。",
-        "activation": "交互选择/配置技能与按需工具激活不同；本任务未证明后者。",
-        "session_isolation": "unverified：额外根/专属配置根不自动排除内建、用户、项目及插件技能；不得修改 HOME 或写用户全局目录。"
+        "discovery": "Reviewed scanner reads only SHIJU_IFLOW_SKILL_ROOT using native SKILL.md parser.",
+        "activation": "Native Skill(skill) discovers metadata and reads the body on demand; first prompt contains no body.",
+        "session_isolation": "Verified selected-only view; global/project decoys excluded; plugin registry fallback disabled; empty selection unregisters Skill."
       },
       "permissions": {
-        "status": "unverified",
+        "status": "verified",
         "requirements": "执行端重新审核目录、租户/项目/会话权限、路径逃逸与符号链接；支持文件/脚本/MCP 仍受各自授权限制，不扩大 full_access。",
-        "agent_specific": "固定 ACP 的目录/工具授权条件须后续真实验证；未因模型来源受限推定技能不支持。"
+        "agent_specific": "Native Skill, attachment read and script tools execute through real ACP; permission_denied lifecycle passes without widening full_access."
       },
       "update": {
-        "native": "unverified：本任务未执行热更新或原子完整替换；静态刷新函数/文档 reload 不作成功承诺。",
-        "candidate": "在不打断运行请求的前提下评估空闲重建；尚未确认固定发行物原生更新入口。"
+        "native": "No hot-update promise; idle client rebuild rebinds the reviewed view.",
+        "verified": "add/remove/V1-to-V2/idle_update lifecycle passed for both model sources."
       },
       "recovery": {
-        "status": "unverified",
-        "requirements": "重建 new/load/resume 后重新发布同 revision 目录并核实发现、删除和支持文件访问；不能把已有模型来源恢复证据当技能恢复证据。"
+        "status": "verified",
+        "requirements": "Both sources passed real cross-process restart and current view discovery."
       },
       "independent_sources": {
         "local_configuration": {
-          "candidate": "未有独立配置根证据；需审查项目/用户配置",
-          "static_review_only": true,
-          "runtime_verified_this_task": false
+          "candidate": "Reviewed IFLOW_HOME private native root; cli_local and session_model independently exercised.",
+          "static_review_only": false,
+          "runtime_verified_this_task": true
         },
         "client_model_source": {
           "prior_report_status": "verified_release_only",
           "reference": "../../shiju/acp-model-source/cli-versions.json#iflow",
-          "runtime_verified_this_task": false,
+          "runtime_verified_this_task": true,
           "note": "只保留旧报告定位；不复制其通过/不支持结论到技能能力。"
         }
       },
@@ -1584,10 +1584,24 @@
           "observations": [],
           "package": "@iflow-ai/iflow-cli",
           "version": "0.5.19"
+        },
+        {
+          "path": "reviewed iFlow 0.5.19 bundle/entry.js",
+          "sha256": "55710b7cfea2e5aefebfe0acec4eaf3e647d34538ee5835a3d724a49853d1fa6",
+          "kind": "reviewed_launch"
+        },
+        {
+          "path": "crates/vw-acp/src/managed_runtime/contracts.json#iflow",
+          "sha256": "3f485f9ca61edd2d1594cc6b5374a8108002ab0ee3488f03bdbcfc4bef89ef66",
+          "kind": "reviewed_engine"
+        },
+        {
+          "path": "evidence/iflow.json",
+          "kind": "real_production_skill_lifecycle"
         }
       ],
       "supplemental_official_docs": [],
-      "next_validation": "固定版本真实 ACP：发现元数据 → 按需激活 → 支持文件/脚本工具回合 → 隔离/删除/更新失败保旧 → 跨进程恢复；只替代外部模型 HTTP。未安装/缺账号则保留 unverified。"
+      "next_validation": "Other versions/platforms require independent real acceptance; do not infer compatibility."
     },
     {
       "key": "kilocode",

@@ -1,0 +1,141 @@
+{
+  "agent": "iflow",
+  "version": "0.5.19",
+  "date": "2026-11-05",
+  "status": "verified",
+  "scope": "Reviewed patched Darwin-arm64 only; original binaries, other releases and platforms remain unverified.",
+  "cargo_slot": 2,
+  "cargo_target_dir": "/Users/xiangmin/worker/code/shiju/target/rust-slot-2",
+  "validation": {
+    "red": {
+      "command": "cargo test -p vw-agent --lib acp_skill_mount_iflow_ -- --nocapture --test-threads=1",
+      "exit_code": 101,
+      "effective_tests": 1,
+      "passed": 0,
+      "failed": 1,
+      "reason": "Selected mount rejected by the original unverified branch"
+    },
+    "fmt": {
+      "command": "cargo fmt --all",
+      "exit_code": 0
+    },
+    "focused": {
+      "command": "cargo test -p vw-agent --lib acp_skill_mount_iflow_ -- --nocapture --test-threads=1",
+      "exit_code": 0,
+      "effective_tests": 3,
+      "passed": 3
+    },
+    "fixture": {
+      "command": "python3 -m unittest discover -s scripts/tests -p test_verify_acp_skill_mounts.py",
+      "exit_code": 0,
+      "effective_tests": 46,
+      "passed": 46
+    },
+    "clippy": {
+      "command": "cargo clippy --all-targets --all-features -- -D warnings",
+      "exit_code": 0
+    },
+    "patch_negative": {
+      "exit_code": 1,
+      "unknown_bundle_rejected": true,
+      "both_files_unchanged": true
+    }
+  },
+  "sources": {
+    "session-model": {
+      "status": "passed",
+      "passed": true,
+      "platform": "Darwin-arm64",
+      "version": "0.5.19",
+      "sha256": "55710b7cfea2e5aefebfe0acec4eaf3e647d34538ee5835a3d724a49853d1fa6",
+      "effective_tests": 1,
+      "cargo_exit_code": 0,
+      "command": [
+        "cargo",
+        "test",
+        "-p",
+        "vw-agent",
+        "--lib",
+        "acp_skill_mount_real_iflow",
+        "--",
+        "--ignored",
+        "--nocapture",
+        "--test-threads=1"
+      ],
+      "model_requests": 39,
+      "tool_requests": 30,
+      "tool_results": 29,
+      "discovery_events": 8,
+      "first_prompt_clean": true,
+      "attachment_read": true,
+      "script_executed": true,
+      "skill_body_read": true,
+      "native_skill_invocations": 9,
+      "errors": 0,
+      "lifecycle": {
+        "new": true,
+        "add": true,
+        "remove": true,
+        "v2": true,
+        "isolated": true,
+        "cancel": true,
+        "idle_update": true,
+        "restart": true,
+        "permission_denied": true
+      }
+    },
+    "cli-local": {
+      "status": "passed",
+      "passed": true,
+      "platform": "Darwin-arm64",
+      "version": "0.5.19",
+      "sha256": "55710b7cfea2e5aefebfe0acec4eaf3e647d34538ee5835a3d724a49853d1fa6",
+      "effective_tests": 1,
+      "cargo_exit_code": 0,
+      "command": [
+        "cargo",
+        "test",
+        "-p",
+        "vw-agent",
+        "--lib",
+        "acp_skill_mount_real_iflow",
+        "--",
+        "--ignored",
+        "--nocapture",
+        "--test-threads=1"
+      ],
+      "model_requests": 39,
+      "tool_requests": 30,
+      "tool_results": 29,
+      "discovery_events": 8,
+      "first_prompt_clean": true,
+      "attachment_read": true,
+      "script_executed": true,
+      "skill_body_read": true,
+      "native_skill_invocations": 9,
+      "errors": 0,
+      "lifecycle": {
+        "new": true,
+        "add": true,
+        "remove": true,
+        "v2": true,
+        "isolated": true,
+        "cancel": true,
+        "idle_update": true,
+        "restart": true,
+        "permission_denied": true
+      }
+    }
+  },
+  "commands": {
+    "session-model": "python3 scripts/verify_acp_skill_mounts.py --agent iflow --manifest docs/vibewindow/acp-skill-mounts/agents.json --output /Users/xiangmin/worker/code/shiju/target/rust-slot-2/acp-skill-mount-evidence/iflow-session.json",
+    "cli-local": "python3 scripts/verify_acp_skill_mounts.py --agent iflow --mode cli-local --manifest docs/vibewindow/acp-skill-mounts/agents.json --output /Users/xiangmin/worker/code/shiju/target/rust-slot-2/acp-skill-mount-evidence/iflow-local.json"
+  },
+  "notes": [
+    "Only external model HTTP is a fixture; native CLI, ACP backend, scanner, Skill activation, file reads and script execution are real.",
+    "Session-owned scanner bypasses global/project roots and plugin registry fallback. Empty selection unregisters Skill.",
+    "Actual added skill and V2 contents, removal, isolation, denied permission, cancellation, idle replacement and cross-process restart are asserted.",
+    "Existing linker unwind-table size warning occurred during test linking; required Clippy completed without warnings.",
+    "Slot owner was removed and lock released after all Cargo and production CLI processes ended; caches retained."
+  ]
+}

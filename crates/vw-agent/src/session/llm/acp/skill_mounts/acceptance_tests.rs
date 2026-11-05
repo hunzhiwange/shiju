@@ -318,7 +318,8 @@ async fn run(agent: &str) {
         assert!(accepted(&after), "real model/tool evidence incomplete");
         if matches!(
             agent,
-            "gemini"
+            "iflow"
+                | "gemini"
                 | "codebuddy"
                 | "goose"
                 | "vibe"

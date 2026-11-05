@@ -122,7 +122,7 @@ class SkillMountFixture:
         if ((getattr(self, "codebuddy_native", False) or getattr(self, "snow_native", False) or getattr(self, "copilot_native", False)) or ((getattr(self, "vibe_native", False) or (getattr(self, "kilocode_native", False) or getattr(self, "opencode_native", False))) or getattr(self, "hermes_native", False))) and not body.get("tools"):
             return {"role": "assistant", "content": "Ready"}, "stop"
         with self.lock:
-            native_mode = any(getattr(self, key, False) for key in ("claude_native", "qwen_native", "gemini_native", "codebuddy_native", "goose_native", "vibe_native", "hermes_native", "snow_native", "copilot_native", "kilocode_native", "opencode_native"))
+            native_mode = any(getattr(self, key, False) for key in ("iflow_native", "claude_native", "qwen_native", "gemini_native", "codebuddy_native", "goose_native", "vibe_native", "hermes_native", "snow_native", "copilot_native", "kilocode_native", "opencode_native"))
             qualified = self.name if ((getattr(self, "codebuddy_native", False) or getattr(self, "snow_native", False)) or (getattr(self, "qwen_native", False) or getattr(self, "copilot_native", False)) or getattr(self, "gemini_native", False) or (getattr(self, "goose_native", False) or ((getattr(self, "vibe_native", False) or (getattr(self, "kilocode_native", False) or getattr(self, "opencode_native", False))) or getattr(self, "hermes_native", False)))) else "shiju-session-skills:" + self.name
             messages = body["messages"]
             if (getattr(self, "qwen_native", False) or getattr(self, "copilot_native", False)) or getattr(self, "gemini_native", False) or (getattr(self, "goose_native", False) or ((getattr(self, "vibe_native", False) or (getattr(self, "kilocode_native", False) or getattr(self, "opencode_native", False))) or getattr(self, "hermes_native", False))):
@@ -159,8 +159,26 @@ class SkillMountFixture:
                         message = dict(message, content=str(message.get("content", "")) + "\n" + expansion)
                     normalized.append(message)
                 messages = normalized
+            if getattr(self, "iflow_native", False):
+                # Native ACP returns a correlated launch result followed by the
+                # on-disk expansion in a user message. Only join that real pair.
+                normalized = []
+                for index, message in enumerate(messages):
+                    kind = self.calls.get(message.get("tool_call_id"))
+                    target = self.name + ("-added" if kind == "added" else "")
+                    marker = "ADDED_SKILL_BODY" if kind == "added" else self.body_marker
+                    if (message.get("role") == "tool" and kind in ("skill", "added")
+                            and "Launching skill: " + target in str(message.get("content", ""))):
+                        expansion = next((str(later.get("content", "")) for later in messages[index + 1:]
+                            if later.get("role") == "user" and marker in str(later.get("content", ""))
+                            and "Base directory for this skill:" in str(later.get("content", ""))), "")
+                        message = dict(message, content=str(message.get("content", "")) + "\n" + expansion)
+                    normalized.append(message)
+                messages = normalized
             if not isinstance(messages, list):
                 raise ValueError("messages must be an array")
+            if getattr(self, "iflow_native", False):
+                qualified = self.name
             if body.get("claude_native") or getattr(self, "claude_native", False):
                 # SDK 0.2.96 returns a correlated launch result, then a separate user
                 # block containing the actual on-disk skill expansion and base path.
@@ -277,6 +295,17 @@ class SkillMountFixture:
                         if names != expected:
                             self.native_catalog = {"phase": self.mode, "observed_count": len(names), "expected_count": len(expected), "selected_present": self.name in names, "builtin_present": bool({"kilo-config", "customize-opencode"} & names)}
                             raise ValueError("unselected native skill leaked or selected skill missing")
+                    if getattr(self, "iflow_native", False):
+                        self.discovered_dir = None
+                        catalog = "\n".join(t.get("function", t).get("description", "") for t in body.get("tools", []) if t.get("function", t).get("name") == "Skill")
+                        sections = "\n".join(re.findall(r"<available_skills>(.*?)</available_skills>", catalog, re.S))
+                        names = set(re.findall(r"<name>\s*([^<\s]+)\s*</name>", sections))
+                        expected = set() if self.mode == "absent" else {self.name}
+                        if self.mode == "added":
+                            expected.add(self.name + "-added")
+                        if names != expected:
+                            raise ValueError("iFlow native catalog does not equal selected skills")
+                        catalog = sections
                     self.native_catalog = {"selected_name_in_metadata": self.name in metadata,
                         "selected_name_in_tools": self.name in json.dumps(body.get("tools", [])),
                         "tool_names": [t.get("function", t).get("name") for t in body.get("tools", [])]}
@@ -294,6 +323,9 @@ class SkillMountFixture:
                 if self.mode == "absent" and discovered and not native_mode:
                     raise ValueError("removed or other-session skill leaked")
             if self.mode == "absent":
+                if getattr(self, "iflow_native", False) and not self.native_skill and not any(t.get("function", t).get("name") == "Skill" for t in body.get("tools", [])):
+                    self.discovery_observations[-1]["native_activation_unregistered"] = True
+                    return {"role": "assistant", "content": "SKILL_ABSENT"}, "stop"
                 if getattr(self, "snow_native", False) and not any(t.get("function", t).get("name") == "skill-execute" for t in body.get("tools", [])):
                     self.discovery_observations[-1]["native_activation_unregistered"] = True
                     return {"role": "assistant", "content": "SKILL_ABSENT"}, "stop"

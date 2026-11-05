@@ -1352,7 +1352,7 @@
         "--experimental-acp"
       ],
       "registry_default_args": "&[\"--experimental-acp\"]",
-      "local_command_candidates": [],
+      "local_command_candidates": ["iflow"],
       "route": "native_config_candidate",
       "config_root_candidate": null,
       "config_priority": "IFLOW_ 设置环境优先于系统/项目/用户；apiKey/baseUrl/modelName/selectedAuthType 按版本验证",

@@ -1,10 +1,11 @@
 //! PDF 读取工具
 //!
-//! 从 PDF 文件中提取纯文本内容。需要启用 `rag-pdf` 功能标志编译。
+//! 从 PDF 文件中提取文本或将指定页面渲染为图片。文本提取需要 `rag-pdf`。
 //!
 //! # 功能特性
 //!
 //! - 从工作区 PDF 文件中提取可读文本
+//! - 按页渲染 PNG，沿用图片标记交给多模态模型
 //! - 支持自定义输出字符数限制
 //! - 完整的安全检查（路径访问控制、速率限制、文件大小限制）
 //! - 防止路径遍历攻击
@@ -19,26 +20,31 @@
 //! # 工具参数
 //!
 //! - `path`（必需）：PDF 文件路径，相对路径从工作区解析
+//! - `mode`（可选）：`text` 提取文本（默认），`image` 渲染图片
+//! - `page`（可选）：图片模式的页码，从 1 开始，默认 1
 //! - `max_chars`（可选）：返回的最大字符数，默认 50000，最大 200000
 //!
 //! # 安全限制
 //!
 //! - 文件大小上限：50 MB
-//! - 输出字符数上限：200000
+//! - 文本输出字符数上限：200000；图片最长边 1600 像素，最大 8 MiB
 //! - 路径访问受安全策略白名单限制
 //! - 受速率限制保护
 //!
 //! # 注意事项
 //!
-//! - 纯图像 PDF（需要 OCR）将返回空结果提示
+//! - 纯图像 PDF 可用 `mode: "image"` 查看页面
 //! - 加密的 PDF 无法提取文本
-//! - 未启用 `rag-pdf` 功能时，工具会返回明确的错误提示
+//! - 未启用 `rag-pdf` 时文本模式返回明确错误，原生运行时仍可使用图片模式
+//! - macOS 使用系统 sips，其他原生平台需安装 Poppler 并将 pdftoppm 加入 PATH
 
-use super::traits::{Tool, ToolResult};
+use super::traits::{Tool, ToolCallResult, ToolExtraMessage, ToolResult};
 use crate::app::agent::security::SecurityPolicy;
 use async_trait::async_trait;
 use serde_json::json;
 use std::sync::Arc;
+
+mod render;
 
 /// PDF 文件最大字节数限制（50 MB）。
 /// 超过此大小的 PDF 文件将被拒绝处理，防止内存耗尽或处理超时。
@@ -54,7 +60,7 @@ const MAX_OUTPUT_CHARS: usize = 200_000;
 
 /// PDF 文件读取工具。
 ///
-/// 从工作区中的 PDF 文件提取纯文本内容。该工具需要启用 `rag-pdf` 功能标志才能正常工作：
+/// 从工作区中的 PDF 文件提取文本或渲染页面。文本模式需要启用 `rag-pdf`：
 /// ```bash
 /// cargo build --features rag-pdf
 /// ```
@@ -86,6 +92,21 @@ impl PdfReadTool {
     pub fn new(security: Arc<SecurityPolicy>) -> Self {
         Self { security }
     }
+
+    fn call_result(result: ToolResult) -> ToolCallResult {
+        let mut result = ToolCallResult::from_legacy_result(result);
+        if result.is_success()
+            && let Some(output) = result.model_result.as_str()
+            && let Some((summary, marker)) = output.split_once("\n[IMAGE:data:image/png;base64,")
+            && let Some(encoded) = marker.strip_suffix(']')
+        {
+            // Image bytes must bypass text-result truncation and reach the provider as an image.
+            let image_message = format!("{summary}\n[IMAGE:data:image/png;base64,{encoded}]");
+            result.model_result = json!(summary);
+            result.extra_messages.push(ToolExtraMessage::meta_user_text(image_message));
+        }
+        result
+    }
 }
 
 /// 实现 Tool trait，使 PdfReadTool 可以被 Agent 调用。
@@ -111,15 +132,23 @@ impl Tool for PdfReadTool {
     ///
     /// 返回描述此工具功能的中文说明字符串
     fn description(&self) -> &str {
-        "Extract plain text from a PDF file in the workspace.\
-         Returns all readable text. Image-only or encrypted PDFs return an empty result.\
-         Requires the 'rag-pdf' build feature."
+        "Read a PDF as text (default), or render one page as a PNG image with mode='image' and a 1-based page number. \
+         Use image mode for scanned PDFs, invoices, charts, or when text extraction is empty. \
+         Image mode returns an inline image for visual inspection; repeat for other pages. \
+         Rendering uses macOS sips or an installed Poppler pdftoppm. \
+         If Poppler is missing and rendering is needed, use the command tool to download a trusted Poppler distribution \
+         matching the current OS and architecture into a workspace-local tool cache, verify its published checksum when available, \
+         and reuse it for later requests. Invoke the downloaded pdftoppm by its absolute path through the command tool, \
+         then read the generated PNG with file_read. Stay within existing network, command, and filesystem permissions; \
+         report download or rendering failures clearly. Text extraction requires 'rag-pdf'."
     }
 
     /// 返回工具参数的 JSON Schema 定义。
     ///
-    /// 定义了两个参数：
+    /// 参数：
     /// - `path`（必需）：PDF 文件路径
+    /// - `mode`（可选）：文本或图片模式
+    /// - `page`（可选）：图片模式的页码
     /// - `max_chars`（可选）：返回的最大字符数
     ///
     /// # 返回值
@@ -132,6 +161,16 @@ impl Tool for PdfReadTool {
                 "path": {
                     "type": "string",
                     "description": "PDF file path. Relative paths are resolved from the workspace; external paths require a policy allowlist entry."
+                },
+                "mode": {
+                    "type": "string",
+                    "enum": ["text", "image"],
+                    "description": "text extracts text; image renders one page as PNG for visual inspection. Default: text."
+                },
+                "page": {
+                    "type": "integer",
+                    "minimum": 1,
+                    "description": "1-based page to render in image mode. Default: 1."
                 },
                 "max_chars": {
                     "type": "integer",
@@ -180,6 +219,22 @@ impl Tool for PdfReadTool {
             .get("path")
             .and_then(|v| v.as_str())
             .ok_or_else(|| anyhow::anyhow!("Missing 'path' parameter"))?;
+
+        let mode = match args.get("mode") {
+            None => "text",
+            Some(value) => match value.as_str() {
+                Some(mode @ ("text" | "image")) => mode,
+                _ => anyhow::bail!("'mode' must be 'text' or 'image'"),
+            },
+        };
+        let page = match args.get("page") {
+            None => 1,
+            Some(value) => value
+                .as_u64()
+                .and_then(|n| u32::try_from(n).ok())
+                .filter(|n| *n > 0)
+                .ok_or_else(|| anyhow::anyhow!("'page' must be a positive 1-based integer"))?,
+        };
 
         // 解析可选的 max_chars 参数，确保在有效范围内
         // 如果提供的值超出限制，将被截断到 MAX_OUTPUT_CHARS
@@ -283,6 +338,17 @@ impl Tool for PdfReadTool {
             }
         };
 
+        if mode == "image" {
+            return Ok(match render::render_page(bytes, page).await {
+                Ok(output) => ToolResult { success: true, output, error: None },
+                Err(error) => ToolResult {
+                    success: false,
+                    output: String::new(),
+                    error: Some(format!("PDF rendering failed: {error:#}")),
+                },
+            });
+        }
+
         // 当启用 rag-pdf 功能时的处理逻辑
         // pdf_extract 是一个 CPU 密集型阻塞操作，使用 spawn_blocking 将其移出异步执行器
         // 以避免阻塞整个异步运行时
@@ -318,7 +384,7 @@ impl Tool for PdfReadTool {
                     success: true,
                     // 当前 Agent 调度器只在 success=false 时转发 error 字段
                     // 因此将警告信息放在 output 中，同时标记为成功执行
-                    output: "PDF contains no extractable text (may be image-only or encrypted)"
+                    output: "PDF has no extractable text. Use pdf_read mode='image', page=1."
                         .into(),
                     error: None,
                 });
@@ -356,6 +422,10 @@ impl Tool for PdfReadTool {
                 ),
             })
         }
+    }
+
+    async fn call(&self, input: serde_json::Value) -> anyhow::Result<ToolCallResult> {
+        Ok(Self::call_result(self.execute(input).await?))
     }
 }
 

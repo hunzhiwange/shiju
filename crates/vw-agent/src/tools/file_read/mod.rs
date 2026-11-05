@@ -840,6 +840,11 @@ impl FileReadTool {
         output.push_str(&content);
         output.push_str("\n\n");
         output.push_str(&slice.notice);
+        if pages.is_empty() {
+            output.push_str(
+                "\nUse pdf_read with mode='image' and page=1 to inspect this PDF visually.",
+            );
+        }
         output.push_str("\n</pdf>");
 
         let title = file.path.clone();

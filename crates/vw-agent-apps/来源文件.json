@@ -12513,6 +12513,69 @@
       "SHA256": "c2b8b19fff961ae7e54c0e4b81c97ceb9038ce91df1acdbab47b7252c2f06046",
       "Git模式": "100644",
       "类别": "后端快照"
+    },
+    {
+      "来源路径": "tests/config/claudeKeyFields.json",
+      "目标路径": "crates/vw-agent-apps/upstream/tests/config/claudeKeyFields.json",
+      "SHA256": "fc107056946a4290ef1fd12c9ce597329025906b5ffe7371d1a63b4b0ec76059",
+      "Git模式": "100644",
+      "类别": "测试夹具"
+    },
+    {
+      "来源路径": "tests/fixtures/copilot-endpoint-cases.json",
+      "目标路径": "crates/vw-agent-apps/upstream/tests/fixtures/copilot-endpoint-cases.json",
+      "SHA256": "c676f96702657caf0d25abf00a7f0e1130cff26db0256845763d716bed5cb1c5",
+      "Git模式": "100644",
+      "类别": "测试夹具"
+    },
+    {
+      "来源路径": "tests/fixtures/sessions/agy.jsonl",
+      "目标路径": "crates/vw-agent-apps/upstream/tests/fixtures/sessions/agy.jsonl",
+      "SHA256": "2c0bba593ba2d9b49231f139250508d9bee111c8fdae1ce1515a026ca1c53e33",
+      "Git模式": "100644",
+      "类别": "测试夹具"
+    },
+    {
+      "来源路径": "tests/fixtures/sessions/claude.messages.json",
+      "目标路径": "crates/vw-agent-apps/upstream/tests/fixtures/sessions/claude.messages.json",
+      "SHA256": "cf9240c3cd1c31f96fedbbd2780eafc67334e4f976a2498461e2e245da1e52cc",
+      "Git模式": "100644",
+      "类别": "测试夹具"
+    },
+    {
+      "来源路径": "tests/fixtures/sessions/codex.messages.json",
+      "目标路径": "crates/vw-agent-apps/upstream/tests/fixtures/sessions/codex.messages.json",
+      "SHA256": "e2fca29edd07001b7e22e0adf01d0604859427fd24c81c4b59776377299b0cf1",
+      "Git模式": "100644",
+      "类别": "测试夹具"
+    },
+    {
+      "来源路径": "tests/fixtures/sessions/gemini.messages.json",
+      "目标路径": "crates/vw-agent-apps/upstream/tests/fixtures/sessions/gemini.messages.json",
+      "SHA256": "9948abb9a0f5ccf17e295b19fcffac8ac3f3a137992064322e2aff4600bffec3",
+      "Git模式": "100644",
+      "类别": "测试夹具"
+    },
+    {
+      "来源路径": "tests/fixtures/sessions/generic.messages.json",
+      "目标路径": "crates/vw-agent-apps/upstream/tests/fixtures/sessions/generic.messages.json",
+      "SHA256": "3f77cc7f4699669d5e707c71853a2446b5bd66ce1adb6f69bc3225cc8cb5c320",
+      "Git模式": "100644",
+      "类别": "测试夹具"
+    },
+    {
+      "来源路径": "tests/fixtures/sessions/opencode.messages.json",
+      "目标路径": "crates/vw-agent-apps/upstream/tests/fixtures/sessions/opencode.messages.json",
+      "SHA256": "bd7b7bab05f0e767d513a2a09fee20594cf21dc655c6262597f528517c172f59",
+      "Git模式": "100644",
+      "类别": "测试夹具"
+    },
+    {
+      "来源路径": "tests/fixtures/sessions/pi.messages.json",
+      "目标路径": "crates/vw-agent-apps/upstream/tests/fixtures/sessions/pi.messages.json",
+      "SHA256": "1643cfca08ac59c2ac759cbb4808e4ddb73297501b80c88012c4fceab3ab96d6",
+      "Git模式": "100644",
+      "类别": "测试夹具"
     }
   ]
 }

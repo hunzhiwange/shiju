@@ -1,0 +1,198 @@
+{
+  "扫描范围": "upstream/src-tauri 下全部 Rust 文件；正则仅匹配字面量，结合 include/concat/env/CARGO_MANIFEST_DIR 原文审查，不宣称覆盖所有 Rust 语法",
+  "统计": {
+    "字面量include引用次数": 20,
+    "包外引用次数": 13,
+    "包外唯一目标数": 9
+  },
+  "人工审查": [
+    "全部 include_str!/include_bytes! 调用均为普通字符串字面量；未发现非字面量 include 或 include!。",
+    "concat! 用于内联测试数据及 CARGO_PKG_VERSION 用户代理字符串；env! 为 CARGO_PKG_VERSION 或 CARGO_MANIFEST_DIR，未发现动态构造的包外 include。",
+    "tests/golden/util.rs:16-18 从 CARGO_MANIFEST_DIR/tests/golden/snapshots 读取包内快照；目录及其基线文件保持可达。",
+    "src/services/mcp_connectivity/tests.rs:267 的 tests/fixtures/mcp_connectivity_server.rs 是包内运行时测试资源，已保留；未运行其 rustc 子进程。",
+    "src/mode/current.rs:177 的 CARGO_MANIFEST_DIR/src 是包内扫描目录；build.rs:17 的 common-controls.manifest 是包内 Windows 构建资源，保留原样，未验收 Windows。",
+    "运行时测试 HOME、临时目录与内联数据不作为来源夹具；未运行上游测试，也未写入用户配置。"
+  ],
+  "引用": [
+    {
+      "引用文件": "crates/vw-agent-apps/upstream/src-tauri/src/codex_config.rs",
+      "行": 1965,
+      "表达式": "include_str!(\"resources/gpt5_5_template.json\")",
+      "解析目标": "crates/vw-agent-apps/upstream/src-tauri/src/resources/gpt5_5_template.json",
+      "类型": "跟踪文件",
+      "处理": "按固定基线保留相对布局",
+      "证据": "来源文件.json 的源文件基线与文件映射：SHA256、Git模式核验一致"
+    },
+    {
+      "引用文件": "crates/vw-agent-apps/upstream/src-tauri/src/codex_config.rs",
+      "行": 1977,
+      "表达式": "include_str!(\"resources/codex_native_responses_template.json\")",
+      "解析目标": "crates/vw-agent-apps/upstream/src-tauri/src/resources/codex_native_responses_template.json",
+      "类型": "跟踪文件",
+      "处理": "按固定基线保留相对布局",
+      "证据": "来源文件.json 的源文件基线与文件映射：SHA256、Git模式核验一致"
+    },
+    {
+      "引用文件": "crates/vw-agent-apps/upstream/src-tauri/src/codex_config.rs",
+      "行": 1998,
+      "表达式": "include_str!(\"resources/codex_deepseek_catalog_template.json\")",
+      "解析目标": "crates/vw-agent-apps/upstream/src-tauri/src/resources/codex_deepseek_catalog_template.json",
+      "类型": "跟踪文件",
+      "处理": "按固定基线保留相对布局",
+      "证据": "来源文件.json 的源文件基线与文件映射：SHA256、Git模式核验一致"
+    },
+    {
+      "引用文件": "crates/vw-agent-apps/upstream/src-tauri/src/live/floor.rs",
+      "行": 299,
+      "表达式": "include_str!(\"../../../tests/config/claudeKeyFields.json\")",
+      "解析目标": "crates/vw-agent-apps/upstream/tests/config/claudeKeyFields.json",
+      "类型": "跟踪文件",
+      "处理": "按固定基线保留相对布局",
+      "证据": "来源文件.json 的源文件基线与文件映射：SHA256、Git模式核验一致"
+    },
+    {
+      "引用文件": "crates/vw-agent-apps/upstream/src-tauri/src/proxy/providers/copilot_model_map.rs",
+      "行": 957,
+      "表达式": "include_str!(\n            \"../../../../tests/fixtures/copilot-endpoint-cases.json\"\n        )",
+      "解析目标": "crates/vw-agent-apps/upstream/tests/fixtures/copilot-endpoint-cases.json",
+      "类型": "跟踪文件",
+      "处理": "按固定基线保留相对布局",
+      "证据": "来源文件.json 的源文件基线与文件映射：SHA256、Git模式核验一致"
+    },
+    {
+      "引用文件": "crates/vw-agent-apps/upstream/src-tauri/src/services/s3_auto_sync.rs",
+      "行": 256,
+      "表达式": "include_str!(\"s3_auto_sync.rs\")",
+      "解析目标": "crates/vw-agent-apps/upstream/src-tauri/src/services/s3_auto_sync.rs",
+      "类型": "跟踪文件",
+      "处理": "按固定基线保留相对布局",
+      "证据": "来源文件.json 的源文件基线与文件映射：SHA256、Git模式核验一致"
+    },
+    {
+      "引用文件": "crates/vw-agent-apps/upstream/src-tauri/src/services/session_usage_agy.rs",
+      "行": 551,
+      "表达式": "include_str!(\"../../../tests/fixtures/sessions/agy.jsonl\")",
+      "解析目标": "crates/vw-agent-apps/upstream/tests/fixtures/sessions/agy.jsonl",
+      "类型": "跟踪文件",
+      "处理": "按固定基线保留相对布局",
+      "证据": "来源文件.json 的源文件基线与文件映射：SHA256、Git模式核验一致"
+    },
+    {
+      "引用文件": "crates/vw-agent-apps/upstream/src-tauri/src/services/webdav_auto_sync.rs",
+      "行": 265,
+      "表达式": "include_str!(\"webdav_auto_sync.rs\")",
+      "解析目标": "crates/vw-agent-apps/upstream/src-tauri/src/services/webdav_auto_sync.rs",
+      "类型": "跟踪文件",
+      "处理": "按固定基线保留相对布局",
+      "证据": "来源文件.json 的源文件基线与文件映射：SHA256、Git模式核验一致"
+    },
+    {
+      "引用文件": "crates/vw-agent-apps/upstream/src-tauri/src/session_manager/hermes_wsl.rs",
+      "行": 9,
+      "表达式": "include_str!(\"hermes_wsl_reader.py\")",
+      "解析目标": "crates/vw-agent-apps/upstream/src-tauri/src/session_manager/hermes_wsl_reader.py",
+      "类型": "跟踪文件",
+      "处理": "按固定基线保留相对布局",
+      "证据": "来源文件.json 的源文件基线与文件映射：SHA256、Git模式核验一致"
+    },
+    {
+      "引用文件": "crates/vw-agent-apps/upstream/src-tauri/src/session_manager/model.rs",
+      "行": 612,
+      "表达式": "include_str!(\"../../../tests/fixtures/sessions/claude.messages.json\")",
+      "解析目标": "crates/vw-agent-apps/upstream/tests/fixtures/sessions/claude.messages.json",
+      "类型": "跟踪文件",
+      "处理": "按固定基线保留相对布局",
+      "证据": "来源文件.json 的源文件基线与文件映射：SHA256、Git模式核验一致"
+    },
+    {
+      "引用文件": "crates/vw-agent-apps/upstream/src-tauri/src/session_manager/model.rs",
+      "行": 616,
+      "表达式": "include_str!(\"../../../tests/fixtures/sessions/codex.messages.json\")",
+      "解析目标": "crates/vw-agent-apps/upstream/tests/fixtures/sessions/codex.messages.json",
+      "类型": "跟踪文件",
+      "处理": "按固定基线保留相对布局",
+      "证据": "来源文件.json 的源文件基线与文件映射：SHA256、Git模式核验一致"
+    },
+    {
+      "引用文件": "crates/vw-agent-apps/upstream/src-tauri/src/session_manager/model.rs",
+      "行": 620,
+      "表达式": "include_str!(\"../../../tests/fixtures/sessions/gemini.messages.json\")",
+      "解析目标": "crates/vw-agent-apps/upstream/tests/fixtures/sessions/gemini.messages.json",
+      "类型": "跟踪文件",
+      "处理": "按固定基线保留相对布局",
+      "证据": "来源文件.json 的源文件基线与文件映射：SHA256、Git模式核验一致"
+    },
+    {
+      "引用文件": "crates/vw-agent-apps/upstream/src-tauri/src/session_manager/model.rs",
+      "行": 624,
+      "表达式": "include_str!(\"../../../tests/fixtures/sessions/opencode.messages.json\")",
+      "解析目标": "crates/vw-agent-apps/upstream/tests/fixtures/sessions/opencode.messages.json",
+      "类型": "跟踪文件",
+      "处理": "按固定基线保留相对布局",
+      "证据": "来源文件.json 的源文件基线与文件映射：SHA256、Git模式核验一致"
+    },
+    {
+      "引用文件": "crates/vw-agent-apps/upstream/src-tauri/src/session_manager/model.rs",
+      "行": 628,
+      "表达式": "include_str!(\"../../../tests/fixtures/sessions/pi.messages.json\")",
+      "解析目标": "crates/vw-agent-apps/upstream/tests/fixtures/sessions/pi.messages.json",
+      "类型": "跟踪文件",
+      "处理": "按固定基线保留相对布局",
+      "证据": "来源文件.json 的源文件基线与文件映射：SHA256、Git模式核验一致"
+    },
+    {
+      "引用文件": "crates/vw-agent-apps/upstream/src-tauri/src/session_manager/model.rs",
+      "行": 632,
+      "表达式": "include_str!(\"../../../tests/fixtures/sessions/generic.messages.json\")",
+      "解析目标": "crates/vw-agent-apps/upstream/tests/fixtures/sessions/generic.messages.json",
+      "类型": "跟踪文件",
+      "处理": "按固定基线保留相对布局",
+      "证据": "来源文件.json 的源文件基线与文件映射：SHA256、Git模式核验一致"
+    },
+    {
+      "引用文件": "crates/vw-agent-apps/upstream/src-tauri/src/session_manager/providers/claude.rs",
+      "行": 2753,
+      "表达式": "include_str!(\n            \"../../../../tests/fixtures/sessions/claude.messages.json\"\n        )",
+      "解析目标": "crates/vw-agent-apps/upstream/tests/fixtures/sessions/claude.messages.json",
+      "类型": "跟踪文件",
+      "处理": "按固定基线保留相对布局",
+      "证据": "来源文件.json 的源文件基线与文件映射：SHA256、Git模式核验一致"
+    },
+    {
+      "引用文件": "crates/vw-agent-apps/upstream/src-tauri/src/session_manager/providers/codex.rs",
+      "行": 3621,
+      "表达式": "include_str!(\"../../../../tests/fixtures/sessions/codex.messages.json\")",
+      "解析目标": "crates/vw-agent-apps/upstream/tests/fixtures/sessions/codex.messages.json",
+      "类型": "跟踪文件",
+      "处理": "按固定基线保留相对布局",
+      "证据": "来源文件.json 的源文件基线与文件映射：SHA256、Git模式核验一致"
+    },
+    {
+      "引用文件": "crates/vw-agent-apps/upstream/src-tauri/src/session_manager/providers/codex.rs",
+      "行": 3622,
+      "表达式": "include_str!(\"../../../../tests/fixtures/sessions/claude.messages.json\")",
+      "解析目标": "crates/vw-agent-apps/upstream/tests/fixtures/sessions/claude.messages.json",
+      "类型": "跟踪文件",
+      "处理": "按固定基线保留相对布局",
+      "证据": "来源文件.json 的源文件基线与文件映射：SHA256、Git模式核验一致"
+    },
+    {
+      "引用文件": "crates/vw-agent-apps/upstream/src-tauri/src/session_manager/providers/codex.rs",
+      "行": 3623,
+      "表达式": "include_str!(\"../../../../tests/fixtures/sessions/opencode.messages.json\")",
+      "解析目标": "crates/vw-agent-apps/upstream/tests/fixtures/sessions/opencode.messages.json",
+      "类型": "跟踪文件",
+      "处理": "按固定基线保留相对布局",
+      "证据": "来源文件.json 的源文件基线与文件映射：SHA256、Git模式核验一致"
+    },
+    {
+      "引用文件": "crates/vw-agent-apps/upstream/src-tauri/src/tray.rs",
+      "行": 2502,
+      "表达式": "include_bytes!(\"../icons/tray/macos/statusbar_template_3x.png\")",
+      "解析目标": "crates/vw-agent-apps/upstream/src-tauri/icons/tray/macos/statusbar_template_3x.png",
+      "类型": "跟踪文件",
+      "处理": "按固定基线保留相对布局",
+      "证据": "来源文件.json 的源文件基线与文件映射：SHA256、Git模式核验一致"
+    }
+  ]
+}

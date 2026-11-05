@@ -2,3 +2,7 @@
 pub mod npm;
 #[cfg(test)]
 mod npm_tests;
+
+pub mod native_primary;
+#[cfg(test)]
+mod native_primary_tests;

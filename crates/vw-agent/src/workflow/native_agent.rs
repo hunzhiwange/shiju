@@ -68,10 +68,7 @@ impl WorkflowAgentProvider for NativeAgent {
     ) -> Result<WorkflowAgentResult, String> {
         let mut allowed = Vec::new();
         for tool in &request.tools {
-            if tool.provider != "shiju"
-                || tool.action.is_some()
-                || tool.credential_id.is_some()
-            {
+            if tool.provider != "shiju" || tool.action.is_some() || tool.credential_id.is_some() {
                 return Err("原生工作流 agent 仅支持当前会话的 shiju 工具".into());
             }
             check_allowed(&tool.tool_name, self.parent.options.get("allowed_tools"))?;

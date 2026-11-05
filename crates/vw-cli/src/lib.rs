@@ -94,12 +94,12 @@ use config::schema::ChannelsConfigExt;
 use config::schema::ConfigExt;
 
 mod acp;
-mod gateway_process;
 #[path = "cli.rs"]
 mod cli;
 #[cfg(test)]
 #[path = "cli_tests.rs"]
 mod cli_tests;
+mod gateway_process;
 mod handlers;
 
 pub(crate) mod session {

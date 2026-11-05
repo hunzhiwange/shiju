@@ -12233,6 +12233,10 @@ dependencies = [
 ]
 
 [[package]]
+name = "vw-agent-apps"
+version = "0.6.0"
+
+[[package]]
 name = "vw-api-types"
 version = "0.6.0"
 dependencies = [

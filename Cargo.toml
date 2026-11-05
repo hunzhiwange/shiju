@@ -6,6 +6,7 @@ members = [
   "crates/vw-gateway-client",
   "crates/vw-shared",
   "crates/vw-agent",
+  "crates/vw-agent-apps",
   "crates/vw-cli",
   "crates/vw-tui",
   "crates/vw-desktop",

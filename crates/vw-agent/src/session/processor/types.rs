@@ -66,7 +66,7 @@ pub struct Request {
     /// 当前提示轮次的显式取消令牌；模型与工具边界共享此令牌。
     pub abort_token: Option<CancellationToken>,
 
-    /// 仅在当前绑定会话中可见的动态工具。
+    /// 当前绑定会话的初始工具集合；宿主提供 live catalog 时，每次模型请求捕获其已发布版本。
     pub session_tools: SessionToolset,
 }
 

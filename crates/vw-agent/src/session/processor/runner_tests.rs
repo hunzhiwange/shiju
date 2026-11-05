@@ -3067,3 +3067,123 @@ fn agent_config_cleanup_delegate_default_empty_keeps_allowed_catalog() {
         assert_eq!(result.default_injected_ids.len(), selected.as_array().unwrap().len());
     }
 }
+
+#[test]
+fn dynamic_tools_processor_replacement_visible_next_step() {
+    with_discovery_processor_test(|workspace, _| {
+        let req = discovery_request(workspace.path());
+        let session = req.session.clone();
+        let catalog = std::sync::Arc::new(crate::tools::catalog::ToolCatalog::default());
+        catalog
+            .replace(
+                vec![std::sync::Arc::new(DiscoveryFileTool {
+                    id: DISCOVERY_ALPHA,
+                    path: workspace.path().join("old"),
+                })],
+                [DISCOVERY_ALPHA.into()],
+            )
+            .unwrap();
+        let context = std::sync::Arc::new(
+            crate::tools::ToolUseContext::new(session.clone(), req.root.clone())
+                .with_live_tool_catalog(catalog.clone()),
+        );
+        // Disable discovery so both versions expose their authorized tools directly.
+        let mut req = req;
+        req.options["allowed_tools"] = serde_json::json!([DISCOVERY_ALPHA, DISCOVERY_BETA]);
+        discovery_stream(&[("old-call", DISCOVERY_ALPHA, serde_json::json!({}))]);
+        discovery_stream(&[("new-call", DISCOVERY_BETA, serde_json::json!({}))]);
+        discovery_stream(&[]);
+        let new_path = workspace.path().join("new");
+        crate::tools::scope_tool_use_context_sync(context, || {
+            super::run(req, move |event| {
+                if matches!(event, super::StreamEvent::StepStart { step_index: 1, .. }) {
+                    catalog
+                        .replace(
+                            vec![std::sync::Arc::new(DiscoveryFileTool {
+                                id: DISCOVERY_BETA,
+                                path: new_path.clone(),
+                            })],
+                            [DISCOVERY_BETA.into()],
+                        )
+                        .unwrap();
+                }
+                true
+            })
+        });
+        let ids = super::llm_runner::take_test_llm_stream_tool_ids();
+        assert_eq!(ids.len(), 3);
+        assert_eq!(ids[0], vec![DISCOVERY_ALPHA]);
+        assert_eq!(ids[1], vec![DISCOVERY_BETA]);
+        assert!(workspace.path().join("old").exists());
+        assert!(workspace.path().join("new").exists());
+        assert!(!workspace.path().join("alpha").exists());
+        let requests = super::llm_runner::take_test_llm_messages(&session);
+        assert!(requests[1].messages.iter().any(|m| m["tool_call_id"] == "old-call"
+            && m["content"].as_str().is_some_and(|s| s.contains("local fixture completed"))));
+    });
+}
+
+#[test]
+fn dynamic_tools_processor_results_do_not_restore_authority() {
+    codex_discovery_processor_cancelled_turn_does_not_restore_loaded_tools_from_history();
+}
+
+#[test]
+fn dynamic_tools_processor_final_step_rejects_tools() {
+    codex_discovery_processor_final_step_omits_tools_even_after_loading();
+}
+
+#[test]
+fn dynamic_tools_processor_same_request_search_cannot_authorize_call() {
+    codex_discovery_processor_same_round_search_cannot_authorize_direct_call();
+    codex_discovery_processor_same_round_search_cannot_authorize_batch_inner_call();
+}
+
+#[test]
+fn dynamic_tools_processor_replacement_revokes_loaded_tool() {
+    with_discovery_processor_test(|workspace, _| {
+        let req = discovery_request(workspace.path());
+        let session = req.session.clone();
+        let tool: std::sync::Arc<dyn crate::tools::Tool> = std::sync::Arc::new(DiscoveryFileTool {
+            id: DISCOVERY_ALPHA,
+            path: workspace.path().join("revoked"),
+        });
+        let discovery = crate::tools::discovery::ToolDiscoveryCatalog::new(vec![tool.spec()]);
+        let search: std::sync::Arc<dyn crate::tools::Tool> =
+            std::sync::Arc::new(crate::tools::tool_search::ToolSearchTool::new(&discovery));
+        let catalog = std::sync::Arc::new(crate::tools::catalog::ToolCatalog::default());
+        catalog
+            .replace(
+                vec![tool.clone(), search.clone()],
+                [DISCOVERY_ALPHA.into(), "tool_search".into()],
+            )
+            .unwrap();
+        let context = std::sync::Arc::new(
+            crate::tools::ToolUseContext::new(session.clone(), req.root.clone())
+                .with_live_tool_catalog(catalog.clone()),
+        );
+        discovery_stream(&[("load", "tool_search", serde_json::json!({"query":"alpha"}))]);
+        discovery_stream(&[("revoked-call", DISCOVERY_ALPHA, serde_json::json!({}))]);
+        discovery_stream(&[]);
+        crate::tools::scope_tool_use_context_sync(context, || {
+            super::run(req, move |event| {
+                if matches!(event, super::StreamEvent::PostToolRound { step_index: 1 }) {
+                    catalog
+                        .replace(vec![tool.clone(), search.clone()], ["tool_search".into()])
+                        .unwrap();
+                }
+                true
+            })
+        });
+        let ids = super::llm_runner::take_test_llm_stream_tool_ids();
+        assert_eq!(ids.len(), 3);
+        assert!(ids.iter().all(|ids| !ids.contains(&DISCOVERY_ALPHA.to_string())));
+        assert!(!workspace.path().join("revoked").exists());
+        assert!(!workspace.path().join("alpha").exists());
+        let requests = super::llm_runner::take_test_llm_messages(&session);
+        assert!(requests[2].messages.iter().any(|m| {
+            m["tool_call_id"] == "revoked-call"
+                && m["content"].as_str().is_some_and(|s| s.contains("tool denied"))
+        }));
+    });
+}

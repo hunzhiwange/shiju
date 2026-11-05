@@ -844,15 +844,24 @@ fn run_in_project(
     // AGENTS.md 和用户显式点名的技能必须先进入可信工具上下文，再生成工具目录。
     // 否则 deny 规则会提前从 skill 工具描述中移除这些技能，模型只能看到一个
     // 无法执行的协议要求。
-    let available_tool_specs = crate::app::agent::tools::tool_specs_for_context(&ctx)
+    let live_catalog =
+        crate::tools::current_tool_use_context().and_then(|context| context.live_tool_catalog());
+    let mut catalog_snapshot = live_catalog.as_ref().map(|catalog| catalog.snapshot());
+    if let Some(snapshot) = &catalog_snapshot {
+        ctx = tools_exec::with_request_tool_catalog(&ctx, &req.session_tools, snapshot);
+    }
+    let available_tool_specs = catalog_snapshot
+        .as_ref()
+        .map(|snapshot| snapshot.specs())
+        .unwrap_or_else(|| crate::app::agent::tools::tool_specs_for_context(&ctx))
         .into_iter()
         // Exclude worker-ineligible tools before required-tool expansion.
         .filter(|spec| agent_key.as_deref().unwrap_or("main") == "main" || spec.id != "AgentTool")
         .filter(|spec| ctx.tool_use_context().delegated_tool_is_allowed(&spec.id))
         .collect::<Vec<_>>();
-    let allowed_tools =
+    let mut allowed_tools =
         allowed_tool_ids_for_request_from_specs(&available_tool_specs, &req.options);
-    let discovery = std::sync::Arc::new(crate::tools::tool_search::ToolDiscoverySession::new(
+    let mut discovery = std::sync::Arc::new(crate::tools::tool_search::ToolDiscoverySession::new(
         available_tool_specs.into_iter().filter(|spec| allowed_tools.contains(&spec.id)).collect(),
     ));
     ctx = ctx.clone().with_tool_use_context(
@@ -962,6 +971,28 @@ fn run_in_project(
             on_event(StreamEvent::Error(error.to_string()));
             return;
         }
+        // Definitions and executors change together, only before the next model request.
+        if let Some(catalog) = &live_catalog {
+            let snapshot = catalog.snapshot();
+            if catalog_snapshot
+                .as_ref()
+                .is_none_or(|previous| !std::sync::Arc::ptr_eq(previous, &snapshot))
+            {
+                let specs = snapshot
+                    .specs()
+                    .into_iter()
+                    .filter(|spec| {
+                        agent_key.as_deref().unwrap_or("main") == "main" || spec.id != "AgentTool"
+                    })
+                    .filter(|spec| ctx.tool_use_context().delegated_tool_is_allowed(&spec.id))
+                    .collect::<Vec<_>>();
+                allowed_tools = allowed_tool_ids_for_request_from_specs(&specs, &req.options);
+                discovery = std::sync::Arc::new(discovery.rebase(
+                    specs.into_iter().filter(|spec| allowed_tools.contains(&spec.id)).collect(),
+                ));
+                catalog_snapshot = Some(snapshot);
+            }
+        }
         let is_last_step = step >= turn_policy.max_iterations;
         let empty_tools = HashSet::<String>::new();
         let mut system = base_system.runtime_parts(primary_system_prompt.as_deref(), is_last_step);
@@ -1009,10 +1040,17 @@ fn run_in_project(
                 Some(ctx.tool_use_context().as_ref()),
             );
         }
-        let step_ctx = ctx.clone().with_tool_use_context(
-            ctx.tool_use_context()
+        let request_ctx = if let Some(snapshot) = &catalog_snapshot {
+            tools_exec::with_request_tool_catalog(&ctx, &req.session_tools, snapshot)
+        } else {
+            ctx.clone()
+        };
+        let step_ctx = request_ctx.clone().with_tool_use_context(
+            request_ctx
+                .tool_use_context()
                 .as_ref()
                 .clone()
+                .with_tool_discovery(discovery.clone())
                 .with_tool_exposure_snapshot(exposed_tools.iter().cloned()),
         );
 

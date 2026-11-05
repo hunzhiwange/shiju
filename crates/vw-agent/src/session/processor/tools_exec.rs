@@ -33,6 +33,19 @@ use crate::session::child_agent::coordinator::{
 use std::sync::Arc;
 use std::time::Duration;
 
+/// Retain the request's executors and catalog grants together through existing dispatch.
+pub(crate) fn with_request_tool_catalog(
+    ctx: &ToolRuntimeContext,
+    session_tools: &crate::session::runtime::SessionToolset,
+    snapshot: &Arc<crate::tools::catalog::ToolCatalogSnapshot>,
+) -> ToolRuntimeContext {
+    ctx.clone()
+        .with_session_tools(session_tools.clone().with_catalog(snapshot.clone()))
+        .with_tool_use_context(
+            ctx.tool_use_context().as_ref().clone().with_tool_catalog(snapshot.clone()),
+        )
+}
+
 const FULL_SESSION_OUTPUT_TOOLS: &[&str] = &["apply_patch", "write", "file_write", "file_edit"];
 
 /// 工具执行后仅供下一轮模型请求消费的协议数据。

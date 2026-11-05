@@ -1830,3 +1830,93 @@ fn codex_plugin_compat_t31_stream_preserves_app_without_content_blocks() {
     assert_eq!(payload["output"], "ready");
     assert!(payload.get("result").is_none());
 }
+
+#[test]
+fn dynamic_tools_processor_catalog_preserves_approval_and_hook_denials() {
+    struct DenyHook(Arc<AtomicUsize>);
+    #[async_trait::async_trait]
+    impl crate::hooks::HookHandler for DenyHook {
+        fn name(&self) -> &str {
+            "catalog-deny-fixture"
+        }
+        async fn before_tool_call(
+            &self,
+            _: String,
+            _: Value,
+        ) -> crate::hooks::HookResult<(String, Value)> {
+            self.0.fetch_add(1, Ordering::SeqCst);
+            crate::hooks::HookResult::Cancel("catalog hook denied".into())
+        }
+    }
+    let dir = tempfile::tempdir().unwrap();
+    let session_id = unique_session("catalog-security");
+    let ctx = ctx_requiring_shell_approval(&session_id, dir.path());
+    let mut config = crate::config::Config::default();
+    config.autonomy.level = crate::security::AutonomyLevel::Supervised;
+    config.autonomy.workspace_only = true;
+    config.autonomy.allowed_commands = vec!["touch".into()];
+    config.autonomy.require_approval_for_medium_risk = true;
+    let security = Arc::new(crate::security::SecurityPolicy::from_configs(
+        &config.autonomy,
+        &config.security,
+        dir.path(),
+    ));
+    let registry = crate::tools::default_tools(security);
+    let tools: Vec<Arc<dyn crate::tools::Tool>> = registry
+        .into_iter()
+        .filter(|tool| matches!(tool.spec().id.as_str(), "bash" | "file_read"))
+        .map(Arc::from)
+        .collect();
+    let ids = tools.iter().map(|tool| tool.spec().id).collect::<Vec<_>>();
+    let catalog = crate::tools::catalog::ToolCatalog::default();
+    let snapshot = catalog.replace(tools, ids.clone()).unwrap();
+    let ctx = super::with_request_tool_catalog(
+        &ctx,
+        &crate::session::runtime::SessionToolset::default(),
+        &snapshot,
+    );
+    let ctx = ctx.clone().with_tool_use_context(
+        ctx.tool_use_context().as_ref().clone().with_tool_exposure_snapshot(ids),
+    );
+    let mut session = Session::new(session_id);
+    let mut events = Vec::new();
+    let denied = super::run_tool_and_record(
+        &mut session,
+        "bash",
+        &json!({"command":"touch denied-by-approval"}).to_string(),
+        &ctx,
+        true,
+        &mut |event| {
+            events.push(event);
+            true
+        },
+        &mut new_state(),
+    )
+    .unwrap();
+    assert!(denied.contains("Approval required"), "{denied}");
+    assert!(!dir.path().join("denied-by-approval").exists());
+    assert!(events.iter().any(
+        |event| matches!(event, StreamEvent::Tool(tool) if tool.status == ToolCallStatus::Denied)
+    ));
+    let calls = Arc::new(AtomicUsize::new(0));
+    let mut hooks = crate::hooks::HookRunner::new();
+    hooks.register(Box::new(DenyHook(calls.clone())));
+    let ctx = ctx.clone().with_tool_use_context(
+        ctx.tool_use_context().as_ref().clone().with_hook_runner(Arc::new(hooks)),
+    );
+    let file = dir.path().join("read.txt");
+    std::fs::write(&file, "PRIVATE_READ_CONTENT").unwrap();
+    let denied = super::run_tool_and_record(
+        &mut session,
+        "file_read",
+        &json!({"path":file}).to_string(),
+        &ctx,
+        true,
+        &mut |_| true,
+        &mut new_state(),
+    )
+    .unwrap();
+    assert!(denied.contains("catalog hook denied"), "{denied}");
+    assert!(!denied.contains("PRIVATE_READ_CONTENT"));
+    assert_eq!(calls.load(Ordering::SeqCst), 1);
+}

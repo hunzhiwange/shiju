@@ -20,6 +20,7 @@ fn model(provider_id: &str, model_id: &str, name: &str) -> Model {
         name: name.to_string(),
         family: None,
         capabilities: Capabilities {
+            native_tool_search: false,
             temperature: true,
             reasoning: false,
             reasoning_options: None,

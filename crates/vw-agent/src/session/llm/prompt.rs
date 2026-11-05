@@ -256,6 +256,7 @@ fn acp_route_model(options: &Value) -> provider::Model {
         name: model_id,
         family: None,
         capabilities: provider::Capabilities {
+            native_tool_search: false,
             temperature: false,
             reasoning: false,
             reasoning_options: None,

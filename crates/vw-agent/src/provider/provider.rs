@@ -753,6 +753,23 @@ pub fn init() {
     let _ = instance_state();
 }
 
+/// Resolve native search from explicit model metadata and the actual selected request path.
+/// Callers must pass the transport path, rather than infer it from a model name.
+pub fn resolve_native_search_capabilities(
+    model: &Capabilities,
+    adapter: &str,
+    request_path: &str,
+) -> crate::providers::traits::ProviderCapabilities {
+    crate::providers::traits::ProviderCapabilities {
+        native_tool_calling: model.toolcall,
+        native_tool_search: model.toolcall
+            && model.native_tool_search
+            && matches!(adapter.trim(), "openai" | "openai-compatible" | "openai-responses")
+            && request_path == "responses",
+        vision: model.input.image,
+    }
+}
+
 #[cfg(test)]
 #[path = "provider_tests.rs"]
 mod provider_tests;

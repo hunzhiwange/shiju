@@ -24,6 +24,7 @@ pub(crate) fn model_with_limits(context: u64, input: Option<u64>, output: u64) -
         name: "Fixture Model".to_string(),
         family: None,
         capabilities: provider::Capabilities {
+            native_tool_search: false,
             temperature: true,
             reasoning: false,
             reasoning_options: None,

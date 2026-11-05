@@ -137,7 +137,11 @@ impl DiscoveryProvider {
 #[async_trait]
 impl Provider for DiscoveryProvider {
     fn capabilities(&self) -> ProviderCapabilities {
-        ProviderCapabilities { native_tool_calling: self.native, vision: false }
+        ProviderCapabilities {
+            native_tool_search: false,
+            native_tool_calling: self.native,
+            vision: false,
+        }
     }
 
     async fn chat_with_system(

@@ -35,7 +35,11 @@ mod tests {
         ///
         /// 始终返回 `native_tool_calling: true` 和 `vision: true` 的能力声明
         fn capabilities(&self) -> ProviderCapabilities {
-            ProviderCapabilities { native_tool_calling: true, vision: true }
+            ProviderCapabilities {
+                native_tool_search: false,
+                native_tool_calling: true,
+                vision: true,
+            }
         }
 
         /// 模拟聊天请求处理
@@ -192,9 +196,21 @@ mod tests {
     /// 不同字段值的能力声明不相等。
     #[test]
     fn provider_capabilities_equality() {
-        let caps1 = ProviderCapabilities { native_tool_calling: true, vision: false };
-        let caps2 = ProviderCapabilities { native_tool_calling: true, vision: false };
-        let caps3 = ProviderCapabilities { native_tool_calling: false, vision: false };
+        let caps1 = ProviderCapabilities {
+            native_tool_search: false,
+            native_tool_calling: true,
+            vision: false,
+        };
+        let caps2 = ProviderCapabilities {
+            native_tool_search: false,
+            native_tool_calling: true,
+            vision: false,
+        };
+        let caps3 = ProviderCapabilities {
+            native_tool_search: false,
+            native_tool_calling: false,
+            vision: false,
+        };
 
         assert_eq!(caps1, caps2);
         assert_ne!(caps1, caps3);

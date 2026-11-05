@@ -43,6 +43,9 @@ pub struct Capabilities {
     pub reasoning_options: Option<Vec<super::reasoning::ReasoningOption>>,
     pub attachment: bool,
     pub toolcall: bool,
+    /// Explicit model declaration; ordinary tool calling never implies native search.
+    #[serde(default)]
+    pub native_tool_search: bool,
     pub input: CapabilityIO,
     pub output: CapabilityIO,
     pub interleaved: InterleavedCapability,

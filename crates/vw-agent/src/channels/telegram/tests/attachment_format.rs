@@ -425,6 +425,7 @@ fn groq_provider_rejects_photo_with_vision_error() {
     impl crate::app::agent::providers::Provider for GroqLikeProvider {
         fn capabilities(&self) -> crate::app::agent::providers::traits::ProviderCapabilities {
             crate::app::agent::providers::traits::ProviderCapabilities {
+                native_tool_search: false,
                 native_tool_calling: true,
                 vision: false,
             }

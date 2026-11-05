@@ -681,3 +681,6 @@ pub fn create_routed_provider_with_options(
 #[cfg(test)]
 #[path = "tests.rs"]
 mod tests;
+
+#[cfg(test)]
+mod native_search_capability_tests;

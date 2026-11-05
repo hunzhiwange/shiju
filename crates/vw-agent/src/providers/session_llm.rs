@@ -187,7 +187,11 @@ impl SessionLlmProvider {
 #[cfg_attr(not(target_arch = "wasm32"), async_trait)]
 impl Provider for SessionLlmProvider {
     fn capabilities(&self) -> ProviderCapabilities {
-        ProviderCapabilities { native_tool_calling: false, vision: self.support_vision }
+        ProviderCapabilities {
+            native_tool_search: false,
+            native_tool_calling: false,
+            vision: self.support_vision,
+        }
     }
 
     async fn chat_with_system(

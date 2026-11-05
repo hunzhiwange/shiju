@@ -31,7 +31,11 @@ struct ParentModel {
 #[async_trait::async_trait]
 impl crate::providers::Provider for ParentModel {
     fn capabilities(&self) -> crate::providers::traits::ProviderCapabilities {
-        crate::providers::traits::ProviderCapabilities { native_tool_calling: true, vision: false }
+        crate::providers::traits::ProviderCapabilities {
+            native_tool_search: false,
+            native_tool_calling: true,
+            vision: false,
+        }
     }
     async fn chat_with_system(
         &self,

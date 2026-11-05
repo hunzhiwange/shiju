@@ -108,7 +108,11 @@ async fn run_llm_round_accepts_image_markers_for_vision_provider() {
             reasoning_content: None,
         }),
         None,
-        ProviderCapabilities { native_tool_calling: false, vision: true },
+        ProviderCapabilities {
+            native_tool_search: false,
+            native_tool_calling: false,
+            vision: true,
+        },
     );
     let observer = RecordingObserver::default();
     let history = vec![ChatMessage::user("inspect [IMAGE:data:image/png;base64,iVBORw0KGgo=]")];

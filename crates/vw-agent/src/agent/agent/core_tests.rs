@@ -40,7 +40,7 @@ struct NativeCoreTestProvider;
 #[cfg_attr(not(target_arch = "wasm32"), async_trait)]
 impl Provider for NativeCoreTestProvider {
     fn capabilities(&self) -> ProviderCapabilities {
-        ProviderCapabilities { native_tool_calling: true, vision: false }
+        ProviderCapabilities { native_tool_search: false, native_tool_calling: true, vision: false }
     }
 
     async fn chat_with_system(
@@ -106,6 +106,7 @@ fn selectable_model(provider_id: &str, id: &str) -> provider::Model {
         name: id.to_string(),
         family: None,
         capabilities: provider::Capabilities {
+            native_tool_search: false,
             temperature: true,
             reasoning: false,
             reasoning_options: None,

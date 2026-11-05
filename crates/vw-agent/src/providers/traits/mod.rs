@@ -210,6 +210,8 @@ pub struct ProviderCapabilities {
     ///
     /// When `false`, tools must be injected via system prompt as text.
     pub native_tool_calling: bool,
+    /// Verified model support on the current Responses transport. Defaults to false.
+    pub native_tool_search: bool,
     /// Whether the provider supports vision / image inputs.
     pub vision: bool,
 }

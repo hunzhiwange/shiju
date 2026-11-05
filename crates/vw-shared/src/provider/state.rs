@@ -94,6 +94,7 @@ pub fn is_default_model_limit(limit: &ModelLimit) -> bool {
 /// 未填写模型能力时的 OpenAI 兼容文本模型默认能力。
 pub fn default_model_capabilities() -> Capabilities {
     Capabilities {
+        native_tool_search: false,
         temperature: false,
         reasoning: false,
         reasoning_options: None,
@@ -138,6 +139,11 @@ pub fn resolve_model_capabilities(
         if let Some(value) = model_cfg.get(key).and_then(Value::as_bool) {
             *target = value;
         }
+    }
+
+    // An explicit malformed declaration disables inherited native search.
+    if let Some(value) = model_cfg.get("native_tool_search") {
+        capabilities.native_tool_search = value.as_bool().unwrap_or(false);
     }
 
     if let Some(options) = model_cfg.get("reasoning_options") {
@@ -269,6 +275,7 @@ pub fn from_models_dev_model(provider: &RawProvider, model: &RawModel) -> Model 
         name: model.name.clone(),
         family: model.family.clone(),
         capabilities: Capabilities {
+            native_tool_search: false,
             temperature: model.temperature,
             reasoning: model.reasoning,
             reasoning_options: model.reasoning_options.clone(),

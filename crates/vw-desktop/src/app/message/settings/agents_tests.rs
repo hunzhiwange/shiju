@@ -512,6 +512,7 @@ fn summarize_models_keeps_builtin_provider_models_even_when_all_disabled() {
         name: "GPT-4.1".to_string(),
         family: None,
         capabilities: Capabilities {
+            native_tool_search: false,
             temperature: true,
             reasoning: false,
             reasoning_options: None,
@@ -745,6 +746,7 @@ fn summarize_models_projects_active_capabilities_limits_and_detail() {
         name: "Vision Model".to_string(),
         family: None,
         capabilities: Capabilities {
+            native_tool_search: false,
             temperature: true,
             reasoning: true,
             reasoning_options: None,

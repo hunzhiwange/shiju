@@ -450,6 +450,7 @@ fn merge_custom_provider_draft_combines_config_and_settings_models() {
             name: name.to_string(),
             family: Some("gpt".to_string()),
             capabilities: Capabilities {
+                native_tool_search: false,
                 temperature: true,
                 reasoning: false,
                 reasoning_options: None,

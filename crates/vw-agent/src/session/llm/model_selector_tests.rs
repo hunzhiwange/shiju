@@ -31,6 +31,7 @@ fn model(
         name: id.to_string(),
         family: None,
         capabilities: provider::Capabilities {
+            native_tool_search: false,
             temperature: true,
             reasoning,
             reasoning_options: None,

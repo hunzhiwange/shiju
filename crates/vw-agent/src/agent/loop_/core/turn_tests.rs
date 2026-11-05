@@ -52,7 +52,7 @@ impl RecordingProvider {
 #[cfg_attr(not(target_arch = "wasm32"), async_trait)]
 impl Provider for RecordingProvider {
     fn capabilities(&self) -> ProviderCapabilities {
-        ProviderCapabilities { native_tool_calling: true, vision: false }
+        ProviderCapabilities { native_tool_search: false, native_tool_calling: true, vision: false }
     }
 
     async fn chat_with_system(

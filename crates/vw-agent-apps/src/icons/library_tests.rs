@@ -1,4 +1,4 @@
-use super::library::{add_icon, rename_icon};
+use super::library::{add_icon, delete_icon, rename_icon};
 use base64::Engine;
 use vw_api_types::agent_apps::{AgentAppsErrorCode, CustomIconEntry};
 
@@ -112,4 +112,38 @@ fn cc_base_icon_rename_accepts_64_chinese_characters() {
     let name = "图".repeat(64);
     let updated = rename_icon(&[entry()], "old", &format!(" {name} ")).unwrap();
     assert_eq!(updated[0].name, name);
+}
+
+#[test]
+fn cc_base_icon_delete_missing_entry_leaves_library_unchanged() {
+    let icons = vec![entry()];
+    assert_eq!(delete_icon(&icons, "missing"), None);
+    assert_eq!(delete_icon(&[], "old"), None);
+    assert_eq!(icons, vec![entry()]);
+}
+
+#[test]
+fn cc_base_icon_delete_repeated_deletion_is_unchanged() {
+    let updated = delete_icon(&[entry()], "old").unwrap();
+    assert!(updated.is_empty());
+    assert_eq!(delete_icon(&updated, "old"), None);
+}
+
+#[test]
+fn cc_base_icon_delete_preserves_other_entries_order_and_original_images() {
+    let mut first = entry();
+    first.id = "first".into();
+    let mut last = entry();
+    last.id = "last".into();
+    last.data = image(1);
+    let icons = vec![first.clone(), entry(), last.clone()];
+    let original = icons.clone();
+    assert_eq!(delete_icon(&icons, "old"), Some(vec![first, last]));
+    assert_eq!(icons, original);
+}
+
+#[test]
+fn cc_base_icon_delete_removes_all_matching_ids() {
+    let icons = vec![entry(), entry()];
+    assert_eq!(delete_icon(&icons, "old"), Some(vec![]));
 }

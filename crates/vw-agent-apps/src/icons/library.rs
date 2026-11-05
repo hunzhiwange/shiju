@@ -43,3 +43,13 @@ pub fn rename_icon(
     updated[index].name = name;
     Ok(updated)
 }
+
+/// Remove matching library entries, preserving the order and contents of all others.
+/// Missing IDs are a successful no-op. Callers own persistence; provider images
+/// are outside this mutation's scope.
+pub fn delete_icon(icons: &[CustomIconEntry], id: &str) -> Option<Vec<CustomIconEntry>> {
+    if !icons.iter().any(|icon| icon.id == id) {
+        return None;
+    }
+    Some(icons.iter().filter(|icon| icon.id != id).cloned().collect())
+}

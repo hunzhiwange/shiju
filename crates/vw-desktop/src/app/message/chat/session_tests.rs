@@ -2179,3 +2179,19 @@ fn confirm_pending_model_source(app: &mut crate::app::App) {
         },
     );
 }
+
+#[test]
+fn session_entry_recommendations_select_original_index() {
+    let mut app = crate::app::App::new().0;
+    app.agents_settings.entries.iter_mut().find(|e| e.key == "main").unwrap().recommended_prompts =
+        vec![" ".into(), "原始索引对应中文草稿".into()];
+    app.show_recommended_prompt_menu = true;
+    super::update(&mut app, super::ChatMessage::AgentRecommendedPromptSelected(1));
+    assert_eq!(app.current_session_runtime().input_editor.text(), "原始索引对应中文草稿");
+    assert!(!app.show_recommended_prompt_menu);
+    assert!(!app.current_session_runtime().is_requesting);
+    app.show_recommended_prompt_menu = true;
+    super::update(&mut app, super::ChatMessage::AgentRecommendedPromptSelected(0));
+    assert_eq!(app.current_session_runtime().input_editor.text(), "原始索引对应中文草稿");
+    assert!(!app.show_recommended_prompt_menu);
+}

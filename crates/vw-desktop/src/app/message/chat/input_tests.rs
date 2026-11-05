@@ -1025,3 +1025,38 @@ fn upward_scroll_near_tail_cancels_stream_follow_and_pending_followups() {
         assert!(app.chat_auto_scroll);
     }
 }
+
+#[test]
+fn session_entry_recommendations_close_and_switch() {
+    let mut app = crate::app::App::new().0;
+    let _ = super::update(&mut app, ChatMessage::RecommendedPromptMenuChanged(true));
+    assert!(app.show_recommended_prompt_menu);
+    let _ = super::update(
+        &mut app,
+        ChatMessage::QuickMessageGroupChanged(Some(vw_config_types::ui::QuickMessageGroup::Git)),
+    );
+    assert!(!app.show_recommended_prompt_menu);
+    let _ = super::update(&mut app, ChatMessage::RecommendedPromptMenuChanged(true));
+    assert!(app.quick_message_open_group.is_none());
+    let _ = super::update(&mut app, ChatMessage::ToggleShijuSkillMenu);
+    assert!(!app.show_recommended_prompt_menu);
+    let _ = super::update(&mut app, ChatMessage::RecommendedPromptMenuChanged(true));
+    assert!(!app.show_shiju_skill_menu);
+    let _ = super::update(&mut app, ChatMessage::RecommendedPromptMenuChanged(false));
+    assert!(!app.show_recommended_prompt_menu);
+    let _ = super::update(&mut app, ChatMessage::RecommendedPromptMenuChanged(true));
+    let _ = super::update(&mut app, ChatMessage::SessionAgentSelected(None));
+    assert!(!app.show_recommended_prompt_menu);
+    app.show_recommended_prompt_menu = true;
+    app.active_session_id = Some("previous-recommendation-session".into());
+    app.project_path = Some("/tmp/recommendation-fixture".into());
+    let _ = crate::app::message::project::update(
+        &mut app,
+        crate::app::message::project::ProjectMessage::OpenProjectSessionPressed(
+            "/tmp/recommendation-fixture".into(),
+            "next-recommendation-session".into(),
+        ),
+    );
+    assert_eq!(app.active_session_id.as_deref(), Some("next-recommendation-session"));
+    assert!(!app.show_recommended_prompt_menu);
+}

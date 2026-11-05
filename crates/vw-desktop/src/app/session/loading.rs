@@ -265,6 +265,7 @@ impl App {
         self.session_previews.clear();
         self.archived_session_ids.clear();
         self.sessions.clear();
+        self.show_recommended_prompt_menu = false;
         self.active_session_id = None;
         self.chat.clear();
         self.usage = TokenUsage::default();

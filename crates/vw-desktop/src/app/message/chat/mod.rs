@@ -215,6 +215,7 @@ pub enum ChatMessage {
 
     /// 切换输入框上方的识矩技能菜单
     ToggleShijuSkillMenu,
+    RecommendedPromptMenuChanged(bool),
 
     /// 选择或取消当前会话的识矩技能
     SelectShijuSkill(u64),
@@ -1195,6 +1196,7 @@ pub fn update(app: &mut App, message: ChatMessage) -> Task<Message> {
         ChatMessage::InputChanged(_)
         | ChatMessage::QuickMessageSelected(_)
         | ChatMessage::QuickMessageGroupChanged(_)
+        | ChatMessage::RecommendedPromptMenuChanged(_)
         | ChatMessage::ToggleShijuSkillMenu
         | ChatMessage::SelectShijuSkill(_)
         | ChatMessage::InputEditorAction(_)

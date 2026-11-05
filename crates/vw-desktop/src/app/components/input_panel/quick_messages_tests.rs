@@ -561,3 +561,210 @@ fn desktop_gettext_area_9_version_hint_preserves_raw_version() {
         assert_eq!(hint.detail, detail);
     }
 }
+
+#[test]
+fn session_entry_recommendations_collapse_to_one_trigger() {
+    let mut app = App::new().0;
+    app.workspace_mode = WorkspaceMode::Code;
+    app.quick_messages.clear();
+    app.agents_settings.entries.iter_mut().find(|e| e.key == "main").unwrap().recommended_prompts =
+        vec!["".into(), "第一条中文推荐会话".into(), "  ".into(), "第二条很长的中文推荐会话".into()];
+    assert_eq!(Tree::new(view(&app).unwrap().as_widget()).children.len(), 2);
+    assert_eq!(recommended_indices(&app), vec![1, 3]);
+    app.agents_settings.entries.iter_mut().find(|e| e.key == "main").unwrap().recommended_prompts =
+        vec![" ".into()];
+    assert_eq!(Tree::new(view(&app).unwrap().as_widget()).children.len(), 1);
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn session_entry_recommendations_render_both_themes() {
+    use iced::advanced::renderer::Headless;
+    use iced::advanced::{Layout, layout, mouse, renderer};
+    use iced::{Color, Font, Pixels, Rectangle, Size};
+    let mut app = App::new().0;
+    app.agents_settings.entries.iter_mut().find(|e| e.key == "main").unwrap().recommended_prompts =
+        (0..12)
+            .map(|i| {
+                format!("推荐会话{i}：请分析当前项目并解释架构，提供详细的中文建议和下一步实施步骤")
+            })
+            .collect();
+    for theme in [Theme::Dark, Theme::Light] {
+        let mut renderer =
+            <iced::Renderer as Headless>::new(Font::DEFAULT, Pixels(16.0), Some("tiny-skia"))
+                .await
+                .unwrap();
+        let mut element = recommendations_menu_view(&app, &recommended_indices(&app));
+        let bounds = Size::new(260.0, 300.0);
+        let mut tree = Tree::new(element.as_widget());
+        let node = element.as_widget_mut().layout(
+            &mut tree,
+            &renderer,
+            &layout::Limits::new(Size::ZERO, bounds),
+        );
+        assert!(node.bounds().width <= bounds.width);
+        assert!(node.bounds().height <= bounds.height);
+        element.as_widget().draw(
+            &tree,
+            &mut renderer,
+            &theme,
+            &renderer::Style { text_color: theme.palette().text },
+            Layout::new(&node),
+            mouse::Cursor::Unavailable,
+            &Rectangle::with_size(bounds),
+        );
+        let pixels = renderer.screenshot(Size::new(260, 300), 1.0, Color::TRANSPARENT);
+        assert!(pixels.chunks_exact(4).any(|p| p[3] > 0));
+        let mut messages = Vec::new();
+        element.as_widget_mut().update(
+            &mut tree,
+            &iced::Event::Mouse(mouse::Event::WheelScrolled {
+                delta: mouse::ScrollDelta::Lines { x: 0.0, y: -8.0 },
+            }),
+            Layout::new(&node),
+            mouse::Cursor::Available(iced::Point::new(100.0, 100.0)),
+            &renderer,
+            &mut iced::advanced::clipboard::Null,
+            &mut iced::advanced::Shell::new(&mut messages),
+            &Rectangle::with_size(bounds),
+        );
+        iced::advanced::Renderer::reset(&mut renderer, Rectangle::with_size(bounds));
+        element.as_widget().draw(
+            &tree,
+            &mut renderer,
+            &theme,
+            &renderer::Style { text_color: theme.palette().text },
+            Layout::new(&node),
+            mouse::Cursor::Unavailable,
+            &Rectangle::with_size(bounds),
+        );
+        let scrolled = renderer.screenshot(Size::new(260, 300), 1.0, Color::TRANSPARENT);
+        assert_ne!(pixels, scrolled, "the long recommendation list must scroll");
+        assert!(messages.is_empty(), "scrolling must not select a prompt");
+        let directory = std::env::temp_dir().join("shiju-recommendations-render");
+        std::fs::create_dir_all(&directory).unwrap();
+        ::image::RgbaImage::from_raw(260, 300, pixels)
+            .unwrap()
+            .save(directory.join(format!("{theme:?}.png")))
+            .unwrap();
+    }
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn session_entry_recommendations_click_select_and_close() {
+    use iced::advanced::renderer::Headless;
+    use iced::advanced::{Layout, Shell, layout, mouse};
+    use iced::{Event, Font, Pixels, Point, Rectangle, Size, Vector};
+    let mut app = App::new().0;
+    app.agents_settings.entries.iter_mut().find(|e| e.key == "main").unwrap().recommended_prompts =
+        vec![" ".into(), "点击后只填入草稿".into()];
+    let renderer =
+        <iced::Renderer as Headless>::new(Font::DEFAULT, Pixels(16.0), Some("tiny-skia"))
+            .await
+            .unwrap();
+    let bounds = Size::new(260.0, 400.0);
+    let viewport = Rectangle::with_size(bounds);
+    // Exercise the real trigger twice: open, then close.
+    for open in [true, false, true] {
+        let mut element = recommendations_menu(&app, &recommended_indices(&app));
+        let mut tree = Tree::new(element.as_widget());
+        let node = element.as_widget_mut().layout(
+            &mut tree,
+            &renderer,
+            &layout::Limits::new(Size::ZERO, bounds),
+        );
+        let mut messages = Vec::new();
+        for event in [
+            mouse::Event::ButtonPressed(mouse::Button::Left),
+            mouse::Event::ButtonReleased(mouse::Button::Left),
+        ] {
+            element.as_widget_mut().update(
+                &mut tree,
+                &Event::Mouse(event),
+                Layout::new(&node),
+                mouse::Cursor::Available(node.bounds().center()),
+                &renderer,
+                &mut iced::advanced::clipboard::Null,
+                &mut Shell::new(&mut messages),
+                &viewport,
+            );
+        }
+        drop(element);
+        assert_eq!(messages.len(), 1);
+        let Message::Chat(message) = messages.remove(0) else { panic!("expected chat message") };
+        assert!(
+            matches!(message, message::ChatMessage::RecommendedPromptMenuChanged(value) if value == open)
+        );
+        let _ = message::chat::update(&mut app, message);
+        assert_eq!(app.show_recommended_prompt_menu, open);
+    }
+    // Place the trigger at the bottom, as in the chat input strip.
+    let mut element = recommendations_menu(&app, &recommended_indices(&app));
+    let mut tree = Tree::new(element.as_widget());
+    let node = element
+        .as_widget_mut()
+        .layout(&mut tree, &renderer, &layout::Limits::new(Size::ZERO, bounds))
+        .move_to(Point::new(0.0, 360.0));
+    let mut overlay = element
+        .as_widget_mut()
+        .overlay(&mut tree, Layout::new(&node), &renderer, &viewport, Vector::ZERO)
+        .expect("open recommendation overlay");
+    let overlay_node = overlay.as_overlay_mut().layout(&renderer, bounds);
+    assert!(overlay_node.bounds().y >= 0.0);
+    assert!(overlay_node.bounds().x + overlay_node.bounds().width <= bounds.width);
+    let mut messages = Vec::new();
+    let position = Point::new(
+        overlay_node.children()[0].bounds().x + 25.0,
+        overlay_node.children()[0].bounds().y + 20.0,
+    );
+    for event in [
+        mouse::Event::ButtonPressed(mouse::Button::Left),
+        mouse::Event::ButtonReleased(mouse::Button::Left),
+    ] {
+        overlay.as_overlay_mut().update(
+            &Event::Mouse(event),
+            Layout::new(&overlay_node),
+            mouse::Cursor::Available(position),
+            &renderer,
+            &mut iced::advanced::clipboard::Null,
+            &mut Shell::new(&mut messages),
+        );
+    }
+    assert_eq!(messages.len(), 1);
+    assert!(matches!(
+        messages[0],
+        Message::Chat(message::ChatMessage::AgentRecommendedPromptSelected(1))
+    ));
+    drop(overlay);
+    drop(element);
+    let Message::Chat(message) = messages.remove(0) else { panic!("expected selection") };
+    let _ = message::chat::update(&mut app, message);
+    assert_eq!(app.current_session_runtime().input_editor.text(), "点击后只填入草稿");
+    assert!(!app.show_recommended_prompt_menu);
+    assert!(!app.current_session_runtime().is_requesting);
+
+    app.show_recommended_prompt_menu = true;
+    let mut element = recommendations_menu(&app, &recommended_indices(&app));
+    let mut tree = Tree::new(element.as_widget());
+    let node = element
+        .as_widget_mut()
+        .layout(&mut tree, &renderer, &layout::Limits::new(Size::ZERO, bounds))
+        .move_to(Point::new(0.0, 360.0));
+    let mut overlay = element
+        .as_widget_mut()
+        .overlay(&mut tree, Layout::new(&node), &renderer, &viewport, Vector::ZERO)
+        .unwrap();
+    let overlay_node = overlay.as_overlay_mut().layout(&renderer, bounds);
+    let mut messages = Vec::new();
+    overlay.as_overlay_mut().update(
+        &Event::Mouse(mouse::Event::ButtonPressed(mouse::Button::Left)),
+        Layout::new(&overlay_node),
+        mouse::Cursor::Available(Point::new(255.0, 395.0)),
+        &renderer,
+        &mut iced::advanced::clipboard::Null,
+        &mut Shell::new(&mut messages),
+    );
+    assert!(matches!(
+        messages.as_slice(),
+        [Message::Chat(message::ChatMessage::RecommendedPromptMenuChanged(false))]
+    ));
+}

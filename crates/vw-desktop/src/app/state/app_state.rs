@@ -912,6 +912,7 @@ pub struct App {
     pub(crate) quick_messages: Vec<vw_config_types::ui::QuickMessageConfig>,
     pub(crate) quick_message_open_group: Option<vw_config_types::ui::QuickMessageGroup>,
     pub(crate) show_shiju_skill_menu: bool,
+    pub(crate) show_recommended_prompt_menu: bool,
     pub(crate) quick_message_handoff: Option<QuickMessageHandoffState>,
     /// 对话流设置保存消息
     pub(crate) dialogue_flow_settings_save_message: Option<String>,

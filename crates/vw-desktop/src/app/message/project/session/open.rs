@@ -53,6 +53,7 @@ pub(crate) fn handle(app: &mut App, message: ProjectMessage) -> Option<iced::Tas
             Some(app.switch_work_space_preserving_chat(path))
         }
         ProjectMessage::OpenProjectSessionPressed(path, id) => {
+            app.show_recommended_prompt_menu = false;
             app.show_agent_sessions_popover = false;
             let resolved_path = app
                 .known_session_directory(&id)

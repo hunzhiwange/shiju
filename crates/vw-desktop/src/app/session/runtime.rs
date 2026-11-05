@@ -324,6 +324,7 @@ impl App {
     /// 参数由调用方提供，函数在当前模块的状态边界内完成处理。
     /// 返回值表达处理结果；失败时保留错误信息给上层界面或调度逻辑。
     pub fn sync_active_session_preferences(&mut self) {
+        self.show_recommended_prompt_menu = false;
         let Some(session_id) = self.active_session_id.clone() else {
             return;
         };

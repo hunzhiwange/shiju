@@ -217,8 +217,17 @@ pub fn update(app: &mut App, message: ChatMessage) -> Task<Message> {
                 }
             }
         }
+        ChatMessage::RecommendedPromptMenuChanged(open) => {
+            app.show_recommended_prompt_menu = open;
+            if open {
+                app.quick_message_open_group = None;
+                app.show_shiju_skill_menu = false;
+            }
+            Task::none()
+        }
         ChatMessage::QuickMessageGroupChanged(group) => {
             if group.is_some() {
+                app.show_recommended_prompt_menu = false;
                 app.show_shiju_skill_menu = false;
             }
             app.quick_message_open_group = group;
@@ -230,6 +239,7 @@ pub fn update(app: &mut App, message: ChatMessage) -> Task<Message> {
                 return Task::none();
             }
             app.quick_message_open_group = None;
+            app.show_recommended_prompt_menu = false;
             Task::batch([
                 Task::done(Message::SkillHub(
                     message::SkillHubMessage::EnsureInstalledSkillsLoaded,

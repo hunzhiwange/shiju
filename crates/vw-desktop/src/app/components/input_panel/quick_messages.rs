@@ -238,6 +238,88 @@ fn group_menu<'a>(
         .into()
 }
 
+fn recommended_indices(app: &App) -> Vec<usize> {
+    let runtime = app.current_session_runtime();
+    let key = runtime.agent.as_deref().unwrap_or(crate::app::state::MAIN_AGENT_KEY);
+    app.agents_settings
+        .entries
+        .iter()
+        .find(|entry| entry.key == key)
+        .map(|entry| {
+            entry
+                .recommended_prompts
+                .iter()
+                .enumerate()
+                .filter_map(|(index, prompt)| (!prompt.trim().is_empty()).then_some(index))
+                .collect()
+        })
+        .unwrap_or_default()
+}
+
+fn recommendations_menu_view<'a>(app: &'a App, indices: &[usize]) -> Element<'a, Message> {
+    let runtime = app.current_session_runtime();
+    let key = runtime.agent.as_deref().unwrap_or(crate::app::state::MAIN_AGENT_KEY);
+    let entry = app.agents_settings.entries.iter().find(|entry| entry.key == key);
+    let mut items = column![].spacing(3).width(Length::Fill);
+    if let Some(entry) = entry {
+        for &index in indices {
+            if let Some(prompt) = entry.recommended_prompts.get(index) {
+                items = items.push(
+                    button(
+                        text(prompt)
+                            .size(12)
+                            .width(Length::Fill)
+                            .wrapping(iced::widget::text::Wrapping::Word),
+                    )
+                    .on_press(Message::Chat(message::ChatMessage::AgentRecommendedPromptSelected(
+                        index,
+                    )))
+                    .padding([8, 10])
+                    .width(Length::Fill)
+                    .style(|theme, status| {
+                        styles::quick_message_button_style(theme, status, false)
+                    }),
+                );
+            }
+        }
+    }
+    let scrollbar = Scrollbar::new()
+        .width(QUICK_MESSAGE_MENU_SCROLLBAR_WIDTH)
+        .scroller_width(QUICK_MESSAGE_MENU_SCROLLBAR_WIDTH)
+        .spacing(QUICK_MESSAGE_MENU_SCROLLBAR_GAP);
+    // Wrapped recommendations can exceed the height limit even with fewer than eight rows.
+    let content =
+        scrollable(container(items).padding(iced::Padding { right: 10.0, ..Default::default() }))
+            .direction(Direction::Vertical(scrollbar));
+    container(content)
+        .max_height(QUICK_MESSAGE_MENU_MAX_HEIGHT)
+        .padding(6)
+        .width(Length::Fixed(300.0))
+        .style(styles::quick_message_menu_style)
+        .into()
+}
+
+fn recommendations_menu<'a>(app: &'a App, indices: &[usize]) -> Element<'a, Message> {
+    let active = app.show_recommended_prompt_menu;
+    let trigger = button(
+        row![
+            text("推荐会话").size(12),
+            text(format!("({})", indices.len())).size(11),
+            dropdown_icon()
+        ]
+        .spacing(5)
+        .align_y(iced::Alignment::Center),
+    )
+    .on_press(Message::Chat(message::ChatMessage::RecommendedPromptMenuChanged(!active)))
+    .padding([6, 10])
+    .style(move |theme, status| styles::quick_message_group_button_style(theme, status, active));
+    AboveOverlay::new(trigger, recommendations_menu_view(app, indices))
+        .show(active)
+        .gap(2.0)
+        .on_close(Message::Chat(message::ChatMessage::RecommendedPromptMenuChanged(false)))
+        .into()
+}
+
 fn shiju_trigger_label(state: &LoadState<Vec<InstalledSkill>>) -> String {
     match state {
         LoadState::Loaded(skills) => format!("识矩（{}）", skills.len()),
@@ -787,23 +869,10 @@ pub(super) fn view(app: &App) -> Option<Element<'_, Message>> {
     }
     let runtime = app.current_session_runtime();
     let key = runtime.agent.as_deref().unwrap_or(crate::app::state::MAIN_AGENT_KEY);
-    if let Some(entry) = app.agents_settings.entries.iter().find(|entry| entry.key == key) {
-        for (index, prompt) in entry
-            .recommended_prompts
-            .iter()
-            .enumerate()
-            .filter(|(_, prompt)| !prompt.trim().is_empty())
-        {
-            controls = controls.push(
-                button(text(prompt).size(12))
-                    .padding([6, 10])
-                    .style(|theme, status| {
-                        styles::quick_message_group_button_style(theme, status, false)
-                    })
-                    .on_press(Message::Chat(message::ChatMessage::AgentRecommendedPromptSelected(
-                        index,
-                    ))),
-            );
+    if app.agents_settings.entries.iter().any(|entry| entry.key == key) {
+        let indices = recommended_indices(app);
+        if !indices.is_empty() {
+            controls = controls.push(recommendations_menu(app, &indices));
         }
         if let Some(backend) = runtime.acp_agent.as_ref() {
             let status = match app.acp_settings.installed.get(backend) {

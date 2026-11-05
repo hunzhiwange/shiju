@@ -200,6 +200,7 @@ impl App {
 
     /// 会话切换不保留短暂交互，避免热恢复到已打开的菜单或悬浮状态。
     pub(crate) fn close_session_transient_ui(&mut self) {
+        self.show_recommended_prompt_menu = false;
         self.chat_think_hovered_idx = None;
         self.chat_tool_file_hovered = None;
         self.chat_tool_hovered_idx = None;

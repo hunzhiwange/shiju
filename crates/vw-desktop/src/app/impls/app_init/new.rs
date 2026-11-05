@@ -632,6 +632,7 @@ impl App {
             quick_messages: system_settings_cfg.quick_messages.clone(),
             quick_message_open_group: None,
             show_shiju_skill_menu: false,
+            show_recommended_prompt_menu: false,
             quick_message_handoff: None,
             chat_send_behavior: cfg_chat_send_behavior,
             dialogue_flow_settings_save_message: None,

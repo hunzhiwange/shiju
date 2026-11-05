@@ -1370,6 +1370,7 @@ pub fn update(app: &mut App, message: ChatMessage) -> Task<Message> {
             }
         }
         ChatMessage::AgentRecommendedPromptSelected(index) => {
+            app.show_recommended_prompt_menu = false;
             let runtime = app.current_session_runtime();
             if !runtime.input_editor.text().is_empty() {
                 return app.show_localized_toast(
@@ -1394,6 +1395,7 @@ pub fn update(app: &mut App, message: ChatMessage) -> Task<Message> {
             Task::none()
         }
         ChatMessage::SessionAgentSelected(agent) => {
+            app.show_recommended_prompt_menu = false;
             if app.current_session_has_started() {
                 return app.show_localized_toast(
                     crate::app::state::ToastKind::Warning,

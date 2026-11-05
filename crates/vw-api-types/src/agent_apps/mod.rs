@@ -65,3 +65,9 @@ pub use catalog::*;
 
 #[cfg(test)]
 mod catalog_tests;
+
+#[cfg(test)]
+mod installations_tests;
+
+mod installations;
+pub use installations::*;

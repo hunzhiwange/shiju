@@ -8,4 +8,5 @@ mod catalog_tests;
 pub mod discovery;
 
 pub mod lifecycle;
+pub mod uninstall;
 pub mod versions;

@@ -231,3 +231,7 @@ mod dynamic_tools_tests;
 
 #[cfg(not(target_arch = "wasm32"))]
 pub(crate) mod dynamic_tools;
+
+pub mod agent_apps_error;
+#[cfg(test)]
+mod agent_apps_error_tests;

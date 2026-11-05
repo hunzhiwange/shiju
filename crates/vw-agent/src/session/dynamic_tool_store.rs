@@ -72,3 +72,91 @@ impl SessionStore {
         })
     }
 }
+
+impl PersistedDynamicTools {
+    /// Recreate executability only from current host-owned executors and fresh grants.
+    /// Missing executors remain unavailable; saved metadata alone never grants a capability.
+    pub fn rebind(
+        &self,
+        executors: Vec<Arc<dyn Tool>>,
+        authorized: impl IntoIterator<Item = String>,
+    ) -> Result<ToolCatalog> {
+        let mut selected = Vec::new();
+        for executor in executors {
+            let current = executor.spec();
+            let Some(saved) = self.specs.iter().find(|saved| saved.id == current.id) else {
+                bail!(
+                    "executor is absent from restored dynamic tool specifications: {}",
+                    current.id
+                );
+            };
+            if serde_json::to_value(saved)? != serde_json::to_value(&current)? {
+                bail!("restored dynamic tool specification changed: {}", current.id);
+            }
+            selected.push(executor);
+        }
+        ToolCatalog::restored(self.version, selected, authorized)
+    }
+}
+
+/// Load only after the lifecycle boundary has checked session ownership.
+pub(crate) fn load_scoped(
+    project_id: &str,
+    session_id: &str,
+) -> Result<Option<PersistedDynamicTools>> {
+    super::ui_store::with_dynamic_tool_store(project_id, |store, scope| {
+        store.load_dynamic_tools(scope, session_id)
+    })
+}
+
+pub(crate) fn copy_scoped(
+    project_id: &str,
+    source: &str,
+    target: &super::session::Info,
+) -> Result<()> {
+    super::ui_store::with_dynamic_tool_store(project_id, |store, scope| {
+        if let Some(record) = store.load_dynamic_tools(scope, source)? {
+            // Native creation precedes the UI projection. Establish the new session's index
+            // before persisting its catalog; never copy the source's UI or live transport state.
+            store.save_session(
+                scope,
+                &super::ui_types::ChatSession {
+                    id: target.id.clone(),
+                    title: target.title.clone(),
+                    messages: vec![],
+                    message_ids: vec![],
+                    calls: vec![],
+                    steps: vec![],
+                    created_ms: target.time.created,
+                    updated_ms: target.time.updated,
+                },
+            )?;
+            // Only the typed specifications cross the fork boundary, including explicit empty.
+            store.write_dynamic_tools(
+                scope,
+                &target.id,
+                record.version,
+                &serde_json::to_string(&record)?,
+            )?;
+        }
+        Ok(())
+    })
+}
+
+/// Interrupted external effects must never become runnable calls on restore or fork.
+pub(crate) fn interrupt_part(part: &mut super::message::Part) -> bool {
+    use super::message::{Part, PartTime, ToolState, ToolStateError};
+    let Part::Tool(tool) = part else { return false };
+    let (input, start) = match &tool.state {
+        ToolState::Pending(state) => (state.input.clone(), vw_shared::time::now_ms()),
+        ToolState::Running(state) => (state.input.clone(), state.time.start),
+        ToolState::Completed(_) | ToolState::Error(_) => return false,
+    };
+    tool.state = ToolState::Error(ToolStateError {
+        input,
+        error: "tool call interrupted by session restore; external effects are not replayed".into(),
+        metadata: None,
+        time: PartTime { start, end: Some(vw_shared::time::now_ms()) },
+    });
+    true
+}

@@ -146,6 +146,9 @@ pub struct SessionSnapshot {
     pub info: session::Info,
     /// 校验归属后读取的完整原生消息历史。
     pub history: Vec<message::WithParts>,
+    /// Saved specifications only; current authenticated host must rebind executors and grants.
+    #[cfg(not(target_arch = "wasm32"))]
+    pub dynamic_tools: Option<crate::session::dynamic_tool_store::PersistedDynamicTools>,
 }
 
 /// 单轮提示结束原因。

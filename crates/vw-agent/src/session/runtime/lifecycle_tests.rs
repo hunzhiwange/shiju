@@ -127,3 +127,73 @@ async fn session_tool_create_marks_visible_parent_relation() {
     assert!(created.info.is_visible_task());
     crate::project::instance::dispose_all().await;
 }
+
+#[tokio::test]
+async fn dynamic_tools_restore_fork_copies_specs_without_capabilities() {
+    let _guard = LIFECYCLE_TEST_LOCK.lock().await;
+    let project = TempDir::new().unwrap();
+    let scope = scope(tenant("dynamic-restore", "dynamic-restore"), project.path());
+    let created = create_session(CreateSessionInput {
+        scope: scope.clone(),
+        parent_id: None,
+        title: None,
+        permission: None,
+    })
+    .await
+    .unwrap();
+    assert!(created.dynamic_tools.is_none());
+    let tenant = scope.tenant().clone();
+    let source = created.info.id.clone();
+    let source_id = source.clone();
+    let fork = crate::project::instance::provide(scope.directory().to_path_buf(), None, move || Box::pin(async move {
+        crate::session::ui_store::with_tenant_scope(tenant, async move {
+            crate::session::ui_store::with_dynamic_tool_store(&created.info.project_id, |store, project_scope| {
+                store.save_session(project_scope, &crate::session::ui_types::ChatSession {
+                    id: source.clone(), title: "source".into(), messages: vec![], message_ids: vec![],
+                    calls: vec![], steps: vec![], created_ms: 1, updated_ms: 1,
+                })?;
+                store.replace_dynamic_tools(project_scope, &source, &crate::tools::catalog::ToolCatalog::default(), crate::session::dynamic_tool_store_tests::tools("fork-spec"), ["persistent_tool".into()], crate::session::dynamic_tool_store::PersistentToolPolicy::trusted_host())?;
+                Ok(())
+            }).unwrap();
+            use crate::session::message;
+            let info: message::Info = serde_json::from_value(serde_json::json!({
+                "role":"user", "id":"msg-restore", "sessionID":source,
+                "time":{"created":1}, "agent":"test",
+                "model":{"providerID":"test","modelID":"test"}
+            })).unwrap();
+            message::update_message(&info).await.unwrap();
+            let part: message::Part = serde_json::from_value(serde_json::json!({
+                "type":"tool", "id":"part-restore", "sessionID":source,
+                "messageID":"msg-restore", "callID":"old-call", "tool":"persistent_tool",
+                "state":{"status":"pending","input":{},"raw":""}
+            })).unwrap();
+            message::update_part(&part).await.unwrap();
+            crate::session::session::fork(&source, None).await.unwrap()
+        }).await
+    })).await.unwrap();
+    let restored_source = load_session(scope.clone(), &source_id).await.unwrap();
+    assert_eq!(restored_source.dynamic_tools.as_ref().unwrap().specs.len(), 1);
+    assert!(
+        matches!(&restored_source.history[0].parts[0], crate::session::message::Part::Tool(tool) if matches!(tool.state, crate::session::message::ToolState::Error(_)))
+    );
+    let loaded = load_session(scope.clone(), &fork.id).await.unwrap();
+    assert_eq!(loaded.history.len(), 1);
+    assert!(
+        matches!(&loaded.history[0].parts[0], crate::session::message::Part::Tool(tool) if matches!(tool.state, crate::session::message::ToolState::Error(_)))
+    );
+    let saved = loaded.dynamic_tools.unwrap();
+    assert_eq!(saved.specs.len(), 1);
+    assert_eq!(saved.specs[0].description, "fork-spec");
+    let rebound = saved.rebind(vec![], Vec::<String>::new()).unwrap();
+    assert!(rebound.snapshot().specs().is_empty());
+    let fresh = create_session(CreateSessionInput {
+        scope,
+        parent_id: None,
+        title: None,
+        permission: None,
+    })
+    .await
+    .unwrap();
+    assert!(fresh.dynamic_tools.is_none());
+    crate::project::instance::dispose_all().await;
+}

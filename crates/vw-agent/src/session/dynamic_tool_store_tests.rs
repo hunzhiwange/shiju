@@ -27,7 +27,7 @@ impl Tool for VersionTool {
         Ok(ToolResult { success: true, output: self.0.into(), error: None })
     }
 }
-fn tools(value: &'static str) -> Vec<Arc<dyn Tool>> {
+pub(crate) fn tools(value: &'static str) -> Vec<Arc<dyn Tool>> {
     vec![Arc::new(VersionTool(value))]
 }
 
@@ -328,5 +328,111 @@ fn dynamic_tools_persistence_serialization_error_keeps_running_catalog() -> Resu
         .unwrap_err();
     assert!(error.downcast_ref::<serde_json::Error>().unwrap().is_io());
     assert!(Arc::ptr_eq(&old, &catalog.snapshot()));
+    Ok(())
+}
+
+#[test]
+fn dynamic_tools_restore_restore_requires_host_rebind() -> Result<()> {
+    let home = tempfile::tempdir()?;
+    let (store, scope) = fixture(GlobalDatabase::new(home.path().join("db.sqlite3"))?, "restore")?;
+    store.replace_dynamic_tools(
+        &scope,
+        "session",
+        &ToolCatalog::default(),
+        tools("saved"),
+        ["persistent_tool".into()],
+        PersistentToolPolicy::trusted_host(),
+    )?;
+    let record = store.load_dynamic_tools(&scope, "session")?.unwrap();
+    let restored = record.rebind(Vec::new(), Vec::<String>::new())?;
+    assert!(restored.snapshot().bind("persistent_tool").is_err());
+    let denied = record.rebind(tools("saved"), Vec::<String>::new())?;
+    assert!(denied.snapshot().bind("persistent_tool").is_err());
+    let bound = record.rebind(tools("saved"), ["persistent_tool".into()])?;
+    assert!(bound.snapshot().bind("persistent_tool").is_ok());
+    assert_eq!(bound.snapshot().version(), record.version);
+    store.replace_dynamic_tools(
+        &scope,
+        "session",
+        &bound,
+        tools("saved"),
+        ["persistent_tool".into()],
+        PersistentToolPolicy::trusted_host(),
+    )?;
+    assert_eq!(store.load_dynamic_tools(&scope, "session")?.unwrap().version, record.version + 1);
+    assert!(record.rebind(tools("changed"), ["persistent_tool".into()]).is_err());
+    Ok(())
+}
+
+#[test]
+fn dynamic_tools_restore_client_specs_do_not_restore_host_capabilities() -> Result<()> {
+    use crate::session::runtime::{
+        SessionScope,
+        dynamic_calls::{ClientToolHost, DynamicCallOwner},
+    };
+    use crate::tools::{ToolSpec, client_tool::ClientTool};
+    let home = tempfile::tempdir()?;
+    let (store, scope) =
+        fixture(GlobalDatabase::new(home.path().join("db.sqlite3"))?, "client-restore")?;
+    let runtime_scope = SessionScope::new(scope.tenant_scope().clone(), home.path())?;
+    let (host, _requests) = ClientToolHost::register(DynamicCallOwner::new(
+        runtime_scope.clone(),
+        "session",
+        "authenticated-host",
+    )?);
+    let mut spec = ToolSpec::new("client_echo", "Echo", json!({"type":"object"}));
+    spec.source = vw_api_types::tools::ToolSource::Client;
+    spec.exposure = vw_api_types::tools::ToolExposure::Deferred;
+    store.replace_dynamic_tools(
+        &scope,
+        "session",
+        &ToolCatalog::default(),
+        vec![Arc::new(ClientTool::new(spec.clone(), host)?)],
+        [spec.id.clone()],
+        PersistentToolPolicy::trusted_host(),
+    )?;
+    let saved = store.load_dynamic_tools(&scope, "session")?.unwrap();
+    assert!(saved.rebind(vec![], [spec.id.clone()]).is_err());
+    assert!(saved.rebind(vec![], Vec::<String>::new())?.snapshot().bind(&spec.id).is_err());
+    let (new_host, _new_requests) = ClientToolHost::register(DynamicCallOwner::new(
+        runtime_scope,
+        "session",
+        "new-authenticated-host",
+    )?);
+    let bound = saved
+        .rebind(vec![Arc::new(ClientTool::new(spec.clone(), new_host)?)], [spec.id.clone()])?;
+    assert!(bound.snapshot().bind(&spec.id).is_ok());
+    use crate::tools::discovery::{ToolDiscoveryCatalog, ToolExposureState};
+    let discovery = ToolDiscoveryCatalog::new(bound.snapshot().specs());
+    let mut old_loaded = ToolExposureState::default();
+    old_loaded.record_loaded(&discovery, [spec.id.as_str()]);
+    assert_eq!(discovery.exposed_specs(&old_loaded, true).len(), 1);
+    assert!(discovery.exposed_specs(&ToolExposureState::default(), true).is_empty());
+    Ok(())
+}
+
+#[test]
+fn dynamic_tools_restore_latest_empty_and_delete_remain_distinct() -> Result<()> {
+    let home = tempfile::tempdir()?;
+    success_and_empty(GlobalDatabase::new(home.path().join("db.sqlite3"))?)
+}
+
+#[test]
+fn dynamic_tools_restore_pending_and_running_are_interrupted_once() -> Result<()> {
+    use super::message::{Part, ToolState};
+    for state in [
+        json!({"status":"pending","input":{},"raw":""}),
+        json!({"status":"running","input":{},"time":{"start":1}}),
+    ] {
+        let mut part: Part = serde_json::from_value(
+            json!({"type":"tool","id":"part","sessionID":"session","messageID":"message","callID":"call","tool":"client_echo","state":state}),
+        )?;
+        assert!(super::dynamic_tool_store::interrupt_part(&mut part));
+        let Part::Tool(tool) = &part else { panic!("tool part") };
+        assert!(
+            matches!(&tool.state, ToolState::Error(error) if error.error.contains("not replayed") && error.time.end.is_some())
+        );
+        assert!(!super::dynamic_tool_store::interrupt_part(&mut part));
+    }
     Ok(())
 }

@@ -1390,3 +1390,17 @@ pub(crate) fn load_session_agent_identity_scoped_for_tenant(
             .map_err(std::io::Error::other)
     }))
 }
+
+/// Fallible access for lifecycle-owned dynamic tool persistence operations.
+#[cfg(not(target_arch = "wasm32"))]
+pub(crate) fn with_dynamic_tool_store<T>(
+    project_id: &str,
+    operation: impl FnOnce(&SessionStore, &ProjectScope) -> Result<T>,
+) -> Result<T> {
+    run_project_operation_fallible(
+        "dynamic tool lifecycle",
+        &current_tenant_scope(),
+        Some(project_id),
+        operation,
+    )
+}

@@ -68,6 +68,25 @@ pub struct ToolCatalog {
 }
 
 impl ToolCatalog {
+    /// Resume the persisted version without restoring any saved authorization or executor.
+    pub(crate) fn restored(
+        version: u64,
+        tools: Vec<Arc<dyn Tool>>,
+        authorized: impl IntoIterator<Item = String>,
+    ) -> anyhow::Result<Self> {
+        let previous = version
+            .checked_sub(1)
+            .ok_or_else(|| anyhow::anyhow!("invalid restored catalog version"))?;
+        let catalog = Self {
+            current: RwLock::new(Arc::new(ToolCatalogSnapshot {
+                version: previous,
+                ..ToolCatalogSnapshot::default()
+            })),
+        };
+        catalog.replace(tools, authorized)?;
+        Ok(catalog)
+    }
+
     pub fn snapshot(&self) -> Arc<ToolCatalogSnapshot> {
         self.current.read().unwrap_or_else(std::sync::PoisonError::into_inner).clone()
     }

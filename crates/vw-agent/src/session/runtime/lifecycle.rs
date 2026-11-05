@@ -74,7 +74,12 @@ pub async fn create_session(input: CreateSessionInput) -> Result<SessionSnapshot
                 })
                 .await
                 .map_err(LifecycleError::from)?;
-                Ok(SessionSnapshot { info, history: Vec::new() })
+                Ok(SessionSnapshot {
+                    info,
+                    history: Vec::new(),
+                    #[cfg(not(target_arch = "wasm32"))]
+                    dynamic_tools: None,
+                })
             })
             .await
         })
@@ -108,7 +113,12 @@ pub async fn create_visible_task_session(
     .await
     .map_err(LifecycleError::Project)??;
 
-    Ok(SessionSnapshot { info, history: Vec::new() })
+    Ok(SessionSnapshot {
+        info,
+        history: Vec::new(),
+        #[cfg(not(target_arch = "wasm32"))]
+        dynamic_tools: None,
+    })
 }
 
 /// 在已验证的项目与父任务内分叉一个可见任务。
@@ -194,9 +204,26 @@ pub async fn load_session(
         Box::pin(async move {
             ui_store::with_tenant_scope(tenant, async move {
                 let info = load_info_for_scope(&scope, &expected_project_id, &session_id).await?;
-                let history =
+                #[cfg(not(target_arch = "wasm32"))]
+                let dynamic_tools =
+                    crate::session::dynamic_tool_store::load_scoped(&info.project_id, &session_id)
+                        .map_err(|error| LifecycleError::Session(session::Error::Runtime(error)))?;
+                let mut history =
                     message::messages(&session_id, None).await.map_err(LifecycleError::from)?;
-                Ok(SessionSnapshot { info, history })
+                #[cfg(not(target_arch = "wasm32"))]
+                for entry in &mut history {
+                    for part in &mut entry.parts {
+                        if crate::session::dynamic_tool_store::interrupt_part(part) {
+                            message::update_part(part).await.map_err(LifecycleError::from)?;
+                        }
+                    }
+                }
+                Ok(SessionSnapshot {
+                    info,
+                    history,
+                    #[cfg(not(target_arch = "wasm32"))]
+                    dynamic_tools,
+                })
             })
             .await
         })

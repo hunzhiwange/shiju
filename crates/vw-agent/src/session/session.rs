@@ -942,6 +942,9 @@ pub(crate) async fn fork_with_parent(
         crate::session::agent_binding::save_scoped(&created.project_id, &created.id, &binding)
             .await?;
     }
+    #[cfg(not(target_arch = "wasm32"))]
+    super::dynamic_tool_store::copy_scoped(&original.project_id, session_id, &created)
+        .map_err(Error::Runtime)?;
     // 获取原始会话的所有消息，按时间正序复制，保证父消息映射可用。
     msgs.sort_by(|a, b| a.info.id().cmp(b.info.id()));
     // 建立旧消息 ID 到新消息 ID 的映射
@@ -973,6 +976,8 @@ pub(crate) async fn fork_with_parent(
         // 复制消息的所有部分
         for part in msg.parts {
             let mut new_part = part.clone();
+            #[cfg(not(target_arch = "wasm32"))]
+            super::dynamic_tool_store::interrupt_part(&mut new_part);
             new_part.set_session_id(&created.id);
             new_part.set_message_id(&new_id);
             new_part.set_id(&id::ascending(id::Prefix::Part, None)?);

@@ -1813,6 +1813,10 @@ impl AgentConfigCleanupGateway {
                     let body = if path.starts_with("/v1/skills") {
                         let id = if path.contains("directory-a") { "skill-a" } else { "skill-b" };
                         serde_json::json!([{"id":id,"title":"中文技能", "description":"目录候选", "kind":"personal", "resource_count":0,"installed":true,"enabled":true,"source":"workspace","source_path":null}])
+                    } else if path == "/v1/tools" {
+                        serde_json::json!({"items": [
+                            {"id":"file_read", "identity":{"namespace":null,"name":"file_read"}, "source":"builtin", "exposure":"direct", "display_name":"Read", "description":"Read a file", "input_schema":{"type":"object"}}
+                        ]})
                     } else if path.contains("/copy") {
                         {
                             let mut value = serde_json::to_value(
@@ -2172,4 +2176,40 @@ fn session_entry_catalog_launch_preserves_profile_runtime() {
         assert!(app.input_text.is_empty());
         assert!(!app.agents_settings.catalog_busy);
     }
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn agent_tool_catalog_async_survives_provider_failure() {
+    let _lock = AGENT_CONFIG_CLEANUP_HTTP_LOCK.lock().await;
+    let mut app = test_app();
+    let fixture = AgentConfigCleanupGateway::start().await;
+    app.agents_settings.available_tools.clear();
+    let messages = agent_config_cleanup_messages(super::refresh_task()).await;
+    assert!(messages.iter().any(|message| matches!(
+        message,
+        crate::app::Message::Settings(SettingsMessage::Agents(AgentsMessage::Loaded(Err(_))))
+    )));
+    for message in messages {
+        if let crate::app::Message::Settings(message) = message {
+            let _ = update(&mut app, message);
+        }
+    }
+    assert_eq!(app.agents_settings.available_tools, vec!["file_read"]);
+    assert!(fixture.requests.lock().unwrap().iter().any(|(_, path, _)| path == "/v1/tools"));
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn agent_tool_catalog_async_retries_on_profile_open() {
+    let _lock = AGENT_CONFIG_CLEANUP_HTTP_LOCK.lock().await;
+    let mut app = test_app();
+    let _fixture = AgentConfigCleanupGateway::start().await;
+    app.agents_settings.available_tools.clear();
+    let task = update(&mut app, SettingsMessage::Agents(AgentsMessage::ProfileOpen("main".into())));
+    for message in agent_config_cleanup_messages(task).await {
+        if let crate::app::Message::Settings(message) = message {
+            let _ = update(&mut app, message);
+        }
+    }
+    assert!(app.agents_settings.profile_modal.is_some());
+    assert_eq!(app.agents_settings.available_tools, vec!["file_read"]);
 }

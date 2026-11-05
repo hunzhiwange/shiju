@@ -17,6 +17,7 @@ pub(super) fn update(app: &mut App, message: AgentsMessage) -> Task<Message> {
                 app.agents_settings.active_detail_tab =
                     crate::app::state::AGENT_DETAIL_BASIC_TAB.to_string();
                 return Task::batch([
+                    refresh_tools_task(),
                     refresh_skill_catalog(app),
                     super::super::mcp::update(
                         app,

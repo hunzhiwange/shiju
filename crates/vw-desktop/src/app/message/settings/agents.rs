@@ -83,13 +83,24 @@ fn summarize_models(
 }
 
 fn refresh_task() -> Task<Message> {
+    Task::batch([refresh_providers_task(), refresh_tools_task()])
+}
+
+// Load independently: provider failures must not hide tools, and WASM cannot use
+// the legacy synchronous gateway shim (which returns an empty default).
+fn refresh_tools_task() -> Task<Message> {
+    Task::perform(async { crate::app::config::gateway_client()?.tools_list().await }, |result| {
+        Message::Settings(SettingsMessage::Agents(AgentsMessage::ToolsLoaded(result)))
+    })
+}
+
+fn refresh_providers_task() -> Task<Message> {
     Task::perform(
         async move {
             let providers = load_gateway_providers().await?;
             let provider_summaries = summarize_providers(providers.clone());
             let provider_models = summarize_models(providers);
-            let available_tools = crate::app::config::load_tools_list_via_gateway();
-            Ok((provider_summaries, provider_models, available_tools))
+            Ok((provider_summaries, provider_models, Vec::new()))
         },
         |res: AgentsLoaded| Message::Settings(SettingsMessage::Agents(AgentsMessage::Loaded(res))),
     )
@@ -901,6 +912,24 @@ pub fn update(app: &mut App, message: SettingsMessage) -> Task<Message> {
                     }
                     app.agents_settings.providers = providers;
                     app.agents_settings.provider_models = provider_models;
+                    if !available_tools.is_empty() {
+                        return update(
+                            app,
+                            SettingsMessage::Agents(AgentsMessage::ToolsLoaded(Ok(
+                                available_tools,
+                            ))),
+                        );
+                    }
+                }
+                Err(error) => {
+                    app.agents_settings.save_error = Some(error);
+                }
+            }
+            Task::none()
+        }
+        AgentsMessage::ToolsLoaded(result) => {
+            match result {
+                Ok(available_tools) => {
                     if available_tools.is_empty() {
                         return Task::none();
                     }
@@ -924,7 +953,11 @@ pub fn update(app: &mut App, message: SettingsMessage) -> Task<Message> {
                     app.agents_settings.registered_tools = Some(registered_tools);
                 }
                 Err(error) => {
-                    app.agents_settings.save_error = Some(error);
+                    return app.show_localized_toast(
+                        crate::app::state::ToastKind::Error,
+                        "加载工具列表失败：%s",
+                        vec![error.into()],
+                    );
                 }
             }
             Task::none()

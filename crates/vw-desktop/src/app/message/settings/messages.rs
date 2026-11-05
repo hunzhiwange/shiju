@@ -596,6 +596,7 @@ pub enum AgentsMessage {
     Save,
     DiscardChanges,
     Loaded(AgentsLoaded),
+    ToolsLoaded(Result<Vec<String>, String>),
     ConfigLoaded {
         project_path: Option<String>,
         result: Result<Box<vw_config_types::config::Config>, String>,

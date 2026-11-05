@@ -529,18 +529,27 @@ fn load_tools_list_via_gateway_returns_normalized_tools() {
                 json!({
                     "items": [
                         {
+                            "identity": {"namespace": null, "name": "shell"},
+                            "source": "builtin",
+                            "exposure": "direct",
                             "id": "shell",
                             "display_name": "Shell",
                             "description": "Run shell commands",
                             "input_schema": {}
                         },
                         {
+                            "identity": {"namespace": null, "name": "file_read"},
+                            "source": "builtin",
+                            "exposure": "direct",
                             "id": "file_read",
                             "display_name": "Read",
                             "description": "Read files",
                             "input_schema": {}
                         },
                         {
+                            "identity": {"namespace": null, "name": "shell"},
+                            "source": "builtin",
+                            "exposure": "direct",
                             "id": "shell",
                             "display_name": "Shell",
                             "description": "Run shell commands",

@@ -838,3 +838,6 @@ pub(super) fn stateful_handler_router() -> Router<AppState> {
 #[cfg(test)]
 #[path = "bootstrap_tests.rs"]
 mod bootstrap_tests;
+
+#[cfg(test)]
+pub(crate) use bootstrap_tests::dynamic_tools_acceptance_router;

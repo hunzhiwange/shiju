@@ -289,6 +289,21 @@ pub(super) struct PostgresSessionStore {
 }
 
 impl PostgresSessionStore {
+    pub(super) fn ensure_native_session_index(
+        &self,
+        scope: &ProjectScope,
+        info: &AgentSessionInfo,
+    ) -> Result<()> {
+        self.database.connect_postgres()?.execute(
+            "INSERT INTO session_index (platform_id, company_id, project_id, session_id, title, created_ms, updated_ms, message_count, call_count, last_content)
+             VALUES ($1, $2, $3, $4, $5, $6, $7, 0, 0, '')
+             ON CONFLICT (platform_id, company_id, project_id, session_id) DO NOTHING",
+            &[&scope.platform_id().as_ref(), &scope.company_id().as_ref(), &scope.project_id().as_ref(), &info.id, &info.title,
+                &to_i64(info.time.created, "agent session created_ms")?, &to_i64(info.time.updated, "agent session updated_ms")?],
+        )?;
+        Ok(())
+    }
+
     pub(super) fn write_dynamic_tools(
         &self,
         scope: &ProjectScope,

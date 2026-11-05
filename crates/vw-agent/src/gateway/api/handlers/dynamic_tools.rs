@@ -3,7 +3,12 @@ use crate::gateway::{
     ApiError,
     instance::{InstanceQuery, resolve_directory},
 };
-use crate::session::runtime::{SessionScope, dynamic_hosts::SessionHost, validate_session_scope};
+use crate::session::dynamic_tool_store::PersistentToolPolicy;
+use crate::session::runtime::{
+    SessionScope,
+    dynamic_hosts::{HostRegistrationConflict, SessionHost},
+    validate_session_scope,
+};
 use axum::{
     Extension, Json, Router,
     extract::{Path, Query},
@@ -39,13 +44,13 @@ async fn scope(
     query: InstanceQuery,
     headers: &HeaderMap,
     session: &str,
-) -> Result<SessionScope, ApiError> {
+) -> Result<(SessionScope, crate::session::session::Info), ApiError> {
     let scope = SessionScope::new(tenant, resolve_directory(&query, headers))
         .map_err(|error| ApiError::bad_request(error.to_string()))?;
-    validate_session_scope(scope.clone(), session)
+    let info = validate_session_scope(scope.clone(), session)
         .await
         .map_err(|_| ApiError::not_found("session not found in requested scope"))?;
-    Ok(scope)
+    Ok((scope, info))
 }
 fn host(
     scope: &SessionScope,
@@ -64,16 +69,21 @@ fn host(
     SessionHost::authenticate(scope, session, token).map_err(denied)
 }
 async fn register(
+    policy: Option<Extension<PersistentToolPolicy>>,
     Extension(tenant): Extension<TenantScope>,
     Path(session): Path<String>,
     Query(query): Query<InstanceQuery>,
     headers: HeaderMap,
 ) -> Result<Json<DynamicToolHostBinding>, ApiError> {
-    let scope = scope(tenant, query, &headers, &session).await?;
-    SessionHost::register(scope, &session).map(Json).map_err(|_| ApiError {
-        status: StatusCode::CONFLICT,
-        message: "session host already bound or capacity reached".into(),
-    })
+    let (scope, info) = scope(tenant, query, &headers, &session).await?;
+    SessionHost::register(scope, info, policy.map(|Extension(policy)| policy).unwrap_or_default())
+        .map(Json)
+        .map_err(|error| match error.downcast_ref::<HostRegistrationConflict>() {
+            Some(conflict) => {
+                ApiError { status: StatusCode::CONFLICT, message: conflict.to_string() }
+            }
+            None => ApiError::internal("failed to restore dynamic tool catalog"),
+        })
 }
 async fn replace(
     Extension(tenant): Extension<TenantScope>,
@@ -82,7 +92,7 @@ async fn replace(
     headers: HeaderMap,
     Json(request): Json<ReplaceDynamicToolsRequest>,
 ) -> Result<Json<ReplaceDynamicToolsResponse>, ApiError> {
-    let scope = scope(tenant, query, &headers, &session).await?;
+    let (scope, _) = scope(tenant, query, &headers, &session).await?;
     let entry = host(&scope, &session, &headers)?;
     let version =
         entry.replace(request).map_err(|error| ApiError::bad_request(error.to_string()))?;
@@ -94,7 +104,7 @@ async fn calls(
     Query(query): Query<InstanceQuery>,
     headers: HeaderMap,
 ) -> Result<Sse<impl futures_util::Stream<Item = Result<Event, Infallible>>>, ApiError> {
-    let scope = scope(tenant, query, &headers, &session).await?;
+    let (scope, _) = scope(tenant, query, &headers, &session).await?;
     let calls = host(&scope, &session, &headers)?.calls().map_err(denied)?;
     let stream = stream::unfold(calls, |mut calls| async move {
         let call = calls.recv().await?;
@@ -113,7 +123,7 @@ async fn respond(
     headers: HeaderMap,
     Json(response): Json<DynamicToolResponse>,
 ) -> Result<StatusCode, ApiError> {
-    let scope = scope(tenant, query, &headers, &session).await?;
+    let (scope, _) = scope(tenant, query, &headers, &session).await?;
     let entry = host(&scope, &session, &headers)?;
     entry.host.respond(entry.host.owner(), &call, response).map_err(denied)?;
     Ok(StatusCode::NO_CONTENT)

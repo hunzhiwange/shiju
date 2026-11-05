@@ -80,3 +80,6 @@ mod dynamic_tool_store_tests;
 /// Host-controlled durable dynamic tool replacement.
 #[cfg(not(target_arch = "wasm32"))]
 pub mod dynamic_tool_store;
+
+#[cfg(all(test, not(target_arch = "wasm32")))]
+mod dynamic_tool_acceptance_tests;

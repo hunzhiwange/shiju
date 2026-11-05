@@ -284,6 +284,34 @@ enum SessionStoreProvider {
 }
 
 impl SessionStore {
+    /// Create only the missing UI index for a validated native session. Conflict
+    /// handling is atomic so concurrent chat projection writes are never overwritten.
+    pub(crate) fn ensure_native_session_index(
+        &self,
+        scope: &ProjectScope,
+        info: &AgentSessionInfo,
+    ) -> Result<()> {
+        validate_id("agent session id", &info.id)?;
+        if info.project_id != scope.project_id().as_ref() {
+            bail!("agent session project id must match project scope");
+        }
+        match &self.provider {
+            SessionStoreProvider::Sqlite(database) => {
+                database.connect_sqlite()?.execute(
+                    "INSERT INTO session_index (platform_id, company_id, project_id, session_id, title, created_ms, updated_ms, message_count, call_count, last_content)
+                     VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, 0, 0, '')
+                     ON CONFLICT (platform_id, company_id, project_id, session_id) DO NOTHING",
+                    params![scope.platform_id().as_ref(), scope.company_id().as_ref(), scope.project_id().as_ref(), info.id, info.title,
+                        to_i64(info.time.created, "agent session created_ms")?, to_i64(info.time.updated, "agent session updated_ms")?],
+                )?;
+                Ok(())
+            }
+            SessionStoreProvider::Postgres(store) => {
+                run_sync_database(|| store.ensure_native_session_index(scope, info))
+            }
+        }
+    }
+
     pub(super) fn write_dynamic_tools(
         &self,
         scope: &ProjectScope,

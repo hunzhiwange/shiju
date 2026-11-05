@@ -17,6 +17,10 @@ pub struct PersistentToolPolicy {
 }
 
 impl PersistentToolPolicy {
+    pub(crate) fn allows_updates(self) -> bool {
+        self.allowed
+    }
+
     /// Only trusted host setup may opt into persistent updates; never derive this from a request.
     pub fn trusted_host() -> Self {
         Self { allowed: true }

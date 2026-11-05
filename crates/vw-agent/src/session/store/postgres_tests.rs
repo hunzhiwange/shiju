@@ -182,3 +182,31 @@ fn dynamic_tools_persistence_concurrent_replacements_follow_commit_order() -> Re
     crate::session::dynamic_tool_store_tests::concurrent(fixture.database().clone())?;
     fixture.cleanup()
 }
+
+#[test]
+fn dynamic_tools_persistence_native_index_preserves_existing_ui() -> Result<()> {
+    let fixture = crate::global_database::test_support::PostgresTestDatabase::from_environment()?;
+    let (store, scope) = crate::session::dynamic_tool_store_tests::fixture(
+        fixture.database().clone(),
+        "native-index",
+    )?;
+    let info: AgentSessionInfo = serde_json::from_value(serde_json::json!({
+        "id":"native-only", "slug":"native", "projectID":scope.project_id().as_ref(),
+        "directory":"/work/native-index/project", "title":"Native title", "version":"1",
+        "time":{"created":1,"updated":2}
+    }))?;
+    store.save_agent_session(&scope, &info)?;
+    assert!(store.load_session_meta(&scope, &info.id)?.is_none());
+    store.ensure_native_session_index(&scope, &info)?;
+    assert_eq!(store.load_session_meta(&scope, &info.id)?.unwrap().title, "Native title");
+    let mut ui = empty_session();
+    ui.id = info.id.clone();
+    ui.title = "UI title".into();
+    ui.updated_ms = 42;
+    store.save_session(&scope, &ui)?;
+    store.ensure_native_session_index(&scope, &info)?;
+    let meta = store.load_session_meta(&scope, &info.id)?.unwrap();
+    assert_eq!(meta.title, "UI title");
+    assert_eq!(meta.updated_ms, 42);
+    fixture.cleanup()
+}

@@ -32,6 +32,8 @@ mod options;
 #[cfg(test)]
 mod pairing;
 mod router;
+#[cfg(test)]
+pub(crate) use bootstrap::dynamic_tools_acceptance_router;
 mod runtime;
 pub(crate) mod settings_store;
 #[cfg(test)]

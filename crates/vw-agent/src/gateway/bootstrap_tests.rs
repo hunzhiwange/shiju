@@ -310,3 +310,10 @@ async fn dynamic_tools_gateway_bootstrap_mounts_authenticated_host_routes() {
     unauthenticated.headers_mut().remove("Authorization");
     assert_eq!(app.oneshot(unauthenticated).await.unwrap().status(), StatusCode::UNAUTHORIZED);
 }
+
+// Reuse the production authenticated route assembly for cross-module acceptance.
+pub(crate) fn dynamic_tools_acceptance_router() -> Router {
+    let mut state = state();
+    state.pairing = Arc::new(PairingGuard::new(true, &["dynamic-acceptance-skey".into()]));
+    client_router(state.clone(), Router::new(), Router::new()).with_state(state)
+}

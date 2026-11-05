@@ -870,6 +870,8 @@ pub struct App {
     pub(crate) http_request_settings: HttpRequestSettingsState,
     /// 网关设置状态
     pub(crate) gateway_settings: GatewaySettingsState,
+    /// 当前网关作用域的图标列表加载状态
+    pub(crate) agent_apps: AgentAppsState,
     /// 客户端网关连接设置状态
     pub(crate) gateway_client_settings: GatewayClientSettingsState,
     /// 委托代理设置状态

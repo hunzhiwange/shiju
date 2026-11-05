@@ -1118,6 +1118,7 @@ impl App {
                 save_error: None,
             },
 
+            agent_apps: super::state::AgentAppsState::default(),
             gateway_client_settings: super::state::GatewayClientSettingsState {
                 selected_server_id: gateway_client_cfg.active_server().id.clone(),
                 name_input: gateway_client_cfg.active_server().name.clone(),

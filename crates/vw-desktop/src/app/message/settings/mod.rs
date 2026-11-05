@@ -1,6 +1,7 @@
 //! 处理系统设置页面中对应功能区的消息、校验和配置持久化。
 
 mod acp;
+mod agent_apps;
 mod agents;
 mod autonomy;
 mod browser;
@@ -43,6 +44,7 @@ mod web_search;
 
 use crate::app::config::server_config_unreachable_error;
 use crate::app::{App, Message};
+pub use agent_apps::AgentAppsMessage;
 use iced::Task;
 
 pub(crate) use messages::{
@@ -106,6 +108,7 @@ fn apply_agent_config_saved(app: &mut App, tag: &'static str, result: Result<(),
 /// 返回的 `Task` 用于继续执行异步保存、加载或通知清理；没有后续动作时返回空任务。
 pub fn update(app: &mut App, message: SettingsMessage) -> Task<Message> {
     match message {
+        SettingsMessage::AgentApps(message) => agent_apps::update(app, message),
         SettingsMessage::TabSelected(_)
         | SettingsMessage::SystemTabSelected(_)
         | SettingsMessage::SystemSearchTargetSelected(_)

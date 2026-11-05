@@ -81,3 +81,60 @@ pub(crate) use workspace::*;
 
 mod plugin_install;
 pub use plugin_install::{PluginInstallForm, PluginInstallPhase};
+
+/// 图标列表所属上下文；不保留认证凭证或读取本机业务路径。
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct AgentAppsContext {
+    pub(crate) gateway: String,
+    pub(crate) tenant: vw_gateway_client::vw_api_types::id::TenantScope,
+    pub(crate) project: Option<String>,
+}
+
+#[derive(Debug, Clone, Default)]
+pub(crate) struct AgentAppsState {
+    pub(crate) icons: Vec<vw_gateway_client::vw_api_types::agent_apps::CustomIconEntry>,
+    pub(crate) loading: bool,
+    pub(crate) error: Option<String>,
+    context: Option<AgentAppsContext>,
+    generation: u64,
+}
+
+impl AgentAppsState {
+    pub(crate) fn begin(&mut self, context: AgentAppsContext) -> u64 {
+        if self.context.as_ref() != Some(&context) {
+            self.icons.clear();
+        }
+        self.context = Some(context);
+        self.generation = self.generation.wrapping_add(1);
+        self.loading = true;
+        self.error = None;
+        self.generation
+    }
+
+    pub(crate) fn finish(
+        &mut self,
+        current: &AgentAppsContext,
+        requested: &AgentAppsContext,
+        generation: u64,
+        result: Result<Vec<vw_gateway_client::vw_api_types::agent_apps::CustomIconEntry>, String>,
+    ) -> bool {
+        if current != requested
+            || self.context.as_ref() != Some(requested)
+            || self.generation != generation
+        {
+            return false;
+        }
+        self.loading = false;
+        match result {
+            Ok(icons) => {
+                self.icons = icons;
+                self.error = None;
+            }
+            Err(error) => {
+                self.icons.clear();
+                self.error = Some(error);
+            }
+        }
+        true
+    }
+}

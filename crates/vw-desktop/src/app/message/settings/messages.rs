@@ -710,6 +710,7 @@ pub enum GeneralSettingsMessage {
 /// 系统设置页顶层消息。
 #[derive(Debug, Clone)]
 pub enum SettingsMessage {
+    AgentApps(super::AgentAppsMessage),
     TabSelected(SettingsTab),
     SystemTabSelected(SystemTab),
     SystemSearchTargetSelected(SystemSettingsSearchTarget),

@@ -8,3 +8,8 @@ mod store_tests;
 mod sqlite_tests;
 
 mod sqlite;
+
+#[cfg(test)]
+mod postgres_tests;
+
+mod postgres;

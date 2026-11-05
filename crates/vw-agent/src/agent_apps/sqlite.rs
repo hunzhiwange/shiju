@@ -1,60 +1,20 @@
 //! Fixed icon mutations within one SQLite immediate transaction.
 use super::store::{ICON_KEY, ICON_NAMESPACE, IconLibraryStore, parse_icons};
-use crate::global_database::config::DatabaseProvider;
 use anyhow::bail;
 use rusqlite::{OptionalExtension, TransactionBehavior, params};
-use vw_agent_apps::icons::library;
 use vw_api_types::{
-    agent_apps::{AddCustomIconResult, AgentAppsErrorCode, CustomIconEntry},
+    agent_apps::{AgentAppsErrorCode, CustomIconEntry},
     id::TenantScope,
 };
 
 impl IconLibraryStore {
-    /// Add or deduplicate an image. IDs and timestamps are supplied by the caller.
-    pub fn add_icon(
-        &self,
-        tenant: &TenantScope,
-        name: &str,
-        data: &str,
-        id: &str,
-        created_at: i64,
-    ) -> Result<AddCustomIconResult, AgentAppsErrorCode> {
-        self.mutate_sqlite(tenant, |icons| library::add_icon(icons, name, data, id, created_at))
-    }
-
-    /// Rename an existing icon while preserving its image and identity.
-    pub fn rename_icon(
-        &self,
-        tenant: &TenantScope,
-        id: &str,
-        name: &str,
-    ) -> Result<CustomIconEntry, AgentAppsErrorCode> {
-        self.mutate_sqlite(tenant, |icons| {
-            let updated = library::rename_icon(icons, id, name)?;
-            let icon = updated
-                .iter()
-                .find(|icon| icon.id == id)
-                .cloned()
-                .ok_or(AgentAppsErrorCode::NotFound)?;
-            Ok((icon, Some(updated)))
-        })
-    }
-
-    /// Delete matching entries; missing IDs are successful no-ops.
-    pub fn delete_icon(&self, tenant: &TenantScope, id: &str) -> Result<(), AgentAppsErrorCode> {
-        self.mutate_sqlite(tenant, |icons| Ok(((), library::delete_icon(icons, id))))
-    }
-
-    fn mutate_sqlite<T>(
+    pub(super) fn mutate_sqlite<T>(
         &self,
         tenant: &TenantScope,
         operation: impl FnOnce(
             &[CustomIconEntry],
         ) -> Result<(T, Option<Vec<CustomIconEntry>>), AgentAppsErrorCode>,
     ) -> Result<T, AgentAppsErrorCode> {
-        if self.database.provider() != DatabaseProvider::Sqlite {
-            return Err(AgentAppsErrorCode::StorageUnavailable);
-        }
         let mut business_error = None;
         self.database.with_sqlite_transaction(TransactionBehavior::Immediate, |transaction| {
             let raw: Option<String> = transaction.query_row(

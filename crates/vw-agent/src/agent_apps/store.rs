@@ -1,6 +1,9 @@
 //! Tenant-scoped icon library storage through the shared gateway settings backend.
 
+use crate::global_database::config::DatabaseProvider;
 use anyhow::Result;
+use vw_agent_apps::icons::library;
+use vw_api_types::agent_apps::{AddCustomIconResult, AgentAppsErrorCode};
 use vw_api_types::{agent_apps::CustomIconEntry, id::TenantScope};
 
 use crate::{gateway::settings_store::GatewaySettingsStore, global_database::GlobalDatabase};
@@ -19,6 +22,54 @@ impl IconLibraryStore {
     /// Open the configured SQLite or PostgreSQL gateway settings backend.
     pub fn new(database: GlobalDatabase) -> Result<Self> {
         Ok(Self { settings: GatewaySettingsStore::new(database.clone())?, database })
+    }
+
+    /// Add or deduplicate an image. IDs and timestamps are supplied by the caller.
+    pub fn add_icon(
+        &self,
+        tenant: &TenantScope,
+        name: &str,
+        data: &str,
+        id: &str,
+        created_at: i64,
+    ) -> Result<AddCustomIconResult, AgentAppsErrorCode> {
+        self.mutate(tenant, |icons| library::add_icon(icons, name, data, id, created_at))
+    }
+
+    /// Rename an existing icon while preserving its image and identity.
+    pub fn rename_icon(
+        &self,
+        tenant: &TenantScope,
+        id: &str,
+        name: &str,
+    ) -> Result<CustomIconEntry, AgentAppsErrorCode> {
+        self.mutate(tenant, |icons| {
+            let updated = library::rename_icon(icons, id, name)?;
+            let icon = updated
+                .iter()
+                .find(|icon| icon.id == id)
+                .cloned()
+                .ok_or(AgentAppsErrorCode::NotFound)?;
+            Ok((icon, Some(updated)))
+        })
+    }
+
+    /// Delete matching entries; missing IDs are successful no-ops.
+    pub fn delete_icon(&self, tenant: &TenantScope, id: &str) -> Result<(), AgentAppsErrorCode> {
+        self.mutate(tenant, |icons| Ok(((), library::delete_icon(icons, id))))
+    }
+
+    fn mutate<T>(
+        &self,
+        tenant: &TenantScope,
+        operation: impl FnOnce(
+            &[CustomIconEntry],
+        ) -> Result<(T, Option<Vec<CustomIconEntry>>), AgentAppsErrorCode>,
+    ) -> Result<T, AgentAppsErrorCode> {
+        match self.database.provider() {
+            DatabaseProvider::Sqlite => self.mutate_sqlite(tenant, operation),
+            DatabaseProvider::Postgres => self.mutate_postgres(tenant, operation),
+        }
     }
 
     /// Read in stored order, tolerating malformed arrays and individual entries.

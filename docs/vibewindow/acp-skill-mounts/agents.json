@@ -1,0 +1,2238 @@
+{
+  "schema_version": 1,
+  "reviewed_on": "2026-11-05",
+  "scope": "22 固定发行物技能目录入口审查；不是实际验收，不产生 verified。",
+  "status_definitions": {
+    "candidate": "固定发行物内有可定位的目录/配置发现实现；会话隔离、ACP工具回合、更新恢复未验证。",
+    "unverified": "仅符号、文档、环境线索或调用链不全；未安装/缺账号/不可执行也属于此类。",
+    "unsupported": "必须有固定版本明确拒绝或缺失入口的负向证据；本次没有此类结论。",
+    "verified": "本任务禁止；保留给后续固定 CLI、真实 ACP 及工具回合验收。"
+  },
+  "provenance": {
+    "inventory": {
+      "path": "docs/shiju/acp-model-source/cli-versions.json",
+      "sha256": "3adf85453f134129dc29b92fe0b0d6adf6aa357852316e26aed17a283d71318c"
+    },
+    "managed_contracts": {
+      "path": "crates/vw-acp/src/managed_runtime/contracts.json",
+      "sha256": "2675a8d3d0628f8f75f26b318913784d40ec748b500d1154e55374c85559e2f4"
+    },
+    "registry": {
+      "path": "crates/vw-acp/src/agent_registry.rs",
+      "sha256": "938893e98645a6927b60e7b9e797156de603d8405dbe6a644e585b31cc503373"
+    },
+    "policy": "只读取发行物代码和包元数据；不安装、不读账号配置、不执行CLI/Cargo、不使用旧运行报告替代当前技能验收。相对路径以仓库根为准；GLOBAL_NODE_MODULES 与 REVIEW_CACHE 为审查环境占位符。"
+  },
+  "entries": [
+    {
+      "key": "auggie",
+      "version": "0.36.0",
+      "status": "candidate",
+      "platform": {
+        "review_host": "Darwin-arm64",
+        "artifact_scope": "本机固定发行物静态审查；源码/通用 JS 的跨平台执行未验证",
+        "linux": "unverified",
+        "windows": "unverified"
+      },
+      "distribution": {
+        "package": "@augmentcode/auggie",
+        "version": "0.36.0",
+        "upstream_url": "https://registry.npmjs.org/%40augmentcode%2Fauggie/0.36.0",
+        "upstream_integrity": "sha512-jb4kq97pGzG0i5UyISc//LjTVlFzIywwD+VfPemiSIl58KjLfxry3KDgxWYnr1vmV8yUkySVzjLnj4ewUEbT/Q==",
+        "engine": {
+          "kind": "same_distribution",
+          "release": "0.36.0"
+        },
+        "local_identity": "package.json 固定版本匹配；执行文件另有 SHA-256。"
+      },
+      "acp_entry": {
+        "argv": [
+          "auggie",
+          "--acp"
+        ],
+        "binding": "crates/vw-acp/src/agent_registry.rs::BUILT_IN_AGENT_DEFINITIONS",
+        "runtime_executed": false,
+        "note": "固定发行物候选入口；注册器含 latest/range，不保证用户当前命令已固定到此版本。"
+      },
+      "mount": {
+        "candidate_paths": [
+          "<cwd>/.augment/skills",
+          "~/.augment/skills"
+        ],
+        "discovery": "固定包 Ppi 生成用户/项目 skills 路径，SkillsService 解析 SKILL.md；ACP 下的发现链路与会话专属覆盖尚未证明。",
+        "activation": "存在目录发现及按相关性加载线索；skillModes/禁用列表不是按需激活验收。",
+        "session_isolation": "unverified：额外根/专属配置根不自动排除内建、用户、项目及插件技能；不得修改 HOME 或写用户全局目录。"
+      },
+      "permissions": {
+        "status": "unverified",
+        "requirements": "执行端重新审核目录、租户/项目/会话权限、路径逃逸与符号链接；支持文件/脚本/MCP 仍受各自授权限制，不扩大 full_access。",
+        "agent_specific": "固定 ACP 的目录/工具授权条件须后续真实验证；未因模型来源受限推定技能不支持。"
+      },
+      "update": {
+        "native": "unverified：本任务未执行热更新或原子完整替换；静态刷新函数/文档 reload 不作成功承诺。",
+        "candidate": "在不打断运行请求的前提下评估空闲重建；尚未确认固定发行物原生更新入口。"
+      },
+      "recovery": {
+        "status": "unverified",
+        "requirements": "重建 new/load/resume 后重新发布同 revision 目录并核实发现、删除和支持文件访问；不能把已有模型来源恢复证据当技能恢复证据。"
+      },
+      "independent_sources": {
+        "local_configuration": {
+          "candidate": "--augment-cache-dir",
+          "static_review_only": true,
+          "runtime_verified_this_task": false
+        },
+        "client_model_source": {
+          "prior_report_status": "unsupported",
+          "reference": "../../shiju/acp-model-source/cli-versions.json#auggie",
+          "runtime_verified_this_task": false,
+          "note": "只保留旧报告定位；不复制其通过/不支持结论到技能能力。"
+        }
+      },
+      "evidence": [
+        {
+          "path": "target/auggie-inspection/package/augment.mjs",
+          "sha256": "6229e1685a5c4f9305ad333d76cd1a05c4315e6a9c8af3bbc75170b524005306",
+          "kind": "source",
+          "bytes": 13256802,
+          "observations": [
+            {
+              "pattern": "function Ppi\\(",
+              "byte_offset": 5583021,
+              "line": 482,
+              "excerpt": "for ${t}\n---\n\n# ${t}\n\nWrite your skill instructions here.\n`}function Ppi(t,e){if(t===\"user\"){let n;try{n=_u()}catch{return null}return eS.join(n,\".augment\",\"skills\")}else return e?eS.join(e,\".augment\",\"skills\"):null}function Lpi(t,e){let n=eS.resolve(t),r=jy({workspaceRoot"
+            },
+            {
+              "pattern": "function mhn\\(",
+              "byte_offset": 5569145,
+              "line": 462,
+              "excerpt": "illsService\")),knt}function tP(t,e){try{phn()[t](e)}catch{}}function mhn(t){return ile.basename(t.fullPath)===Fnt}function ghn(t){return ile.basename(ile.dirname(t))}function xpi(t){let e=QB.parseSkillFile(t.fileContent,t.fullPath,t.source),n=ghn(t.fullPath);return e.name!"
+            }
+          ]
+        },
+        {
+          "path": "target/auggie-inspection/package/package.json",
+          "sha256": "0800a1c082237d4b497bc8e7c01fade746553b9f29e8ac1c5dbede45a7108b03",
+          "kind": "package_identity",
+          "bytes": 492,
+          "observations": [],
+          "package": "@augmentcode/auggie",
+          "version": "0.36.0"
+        }
+      ],
+      "supplemental_official_docs": [],
+      "next_validation": "固定版本真实 ACP：发现元数据 → 按需激活 → 支持文件/脚本工具回合 → 隔离/删除/更新失败保旧 → 跨进程恢复；只替代外部模型 HTTP。未安装/缺账号则保留 unverified。"
+    },
+    {
+      "key": "claude",
+      "version": "0.26.0",
+      "status": "candidate",
+      "platform": {
+        "review_host": "Darwin-arm64",
+        "artifact_scope": "本机固定发行物静态审查；源码/通用 JS 的跨平台执行未验证",
+        "linux": "unverified",
+        "windows": "unverified"
+      },
+      "distribution": {
+        "package": "@agentclientprotocol/claude-agent-acp",
+        "version": "0.26.0",
+        "upstream_url": "https://registry.npmjs.org/%40agentclientprotocol%2Fclaude-agent-acp/0.26.0",
+        "upstream_integrity": "sha512-eNbunIaVwvm+CS7x51cLuosPi8iCrcfUrJLr7zIR6NIlpeXvE3hg/1VY+mRIcHHGmYQtsqPUQaeSqP1w19/fFg==",
+        "engine": {
+          "kind": "agent_sdk",
+          "package": "@anthropic-ai/claude-agent-sdk",
+          "declared_version": "0.2.96",
+          "source_url": "https://registry.npmjs.org/%40anthropic-ai%2Fclaude-agent-sdk/0.2.96",
+          "embedded_cli_release": "2.1.96",
+          "reason": "Published SDK declares bundled engine 2.1.96; installed ACP engine path and model request remain unverified",
+          "identity_evidence": "Official SDK archive package/package.json::claudeCodeVersion"
+        },
+        "local_identity": "package.json 固定版本匹配；执行文件另有 SHA-256。"
+      },
+      "acp_entry": {
+        "argv": [
+          "claude-agent-acp"
+        ],
+        "binding": "crates/vw-acp/src/agent_registry.rs::BUILT_IN_AGENT_DEFINITIONS",
+        "runtime_executed": false,
+        "note": "固定发行物候选入口；注册器含 latest/range，不保证用户当前命令已固定到此版本。"
+      },
+      "mount": {
+        "candidate_paths": [
+          "<cwd>/.claude/skills",
+          "CLAUDE_CONFIG_DIR/skills",
+          "_meta.claudeCode.options.plugins（待 SDK 契约验证）"
+        ],
+        "discovery": "实际入口是 claude-agent-acp 0.26.0 → SDK 0.2.96（内嵌 2.1.96），不是裸 claude。adapter 读取 _meta.claudeCode.options，设置 settingSources，并合并 additionalRoots 到 SDK additionalDirectories；额外工作目录并不自动证明额外技能目录。",
+        "activation": "SDK 技能发现与 Skill 工具须实际回合证明；默认加载配置来源不等于正文已激活。",
+        "session_isolation": "unverified：额外根/专属配置根不自动排除内建、用户、项目及插件技能；不得修改 HOME 或写用户全局目录。"
+      },
+      "permissions": {
+        "status": "unverified",
+        "requirements": "执行端重新审核目录、租户/项目/会话权限、路径逃逸与符号链接；支持文件/脚本/MCP 仍受各自授权限制，不扩大 full_access。",
+        "agent_specific": "SDK allowed/disallowedTools、settingSources 与目录读取权限需单独验证。"
+      },
+      "update": {
+        "native": "unverified：本任务未执行热更新或原子完整替换；静态刷新函数/文档 reload 不作成功承诺。",
+        "candidate": "在不打断运行请求的前提下评估空闲重建；尚未确认固定发行物原生更新入口。"
+      },
+      "recovery": {
+        "status": "unverified",
+        "requirements": "重建 new/load/resume 后重新发布同 revision 目录并核实发现、删除和支持文件访问；不能把已有模型来源恢复证据当技能恢复证据。"
+      },
+      "independent_sources": {
+        "local_configuration": {
+          "candidate": "CLAUDE_CONFIG_DIR",
+          "static_review_only": true,
+          "runtime_verified_this_task": false
+        },
+        "client_model_source": {
+          "prior_report_status": "verified_release_only",
+          "reference": "../../shiju/acp-model-source/cli-versions.json#claude",
+          "runtime_verified_this_task": false,
+          "note": "只保留旧报告定位；不复制其通过/不支持结论到技能能力。"
+        }
+      },
+      "evidence": [
+        {
+          "path": "${GLOBAL_NODE_MODULES}/@agentclientprotocol/claude-agent-acp/dist/acp-agent.js",
+          "sha256": "00e66a056cc39ba087dffe63da3b62d27fcff6694e6eee5fe3b25961e6218ddd",
+          "kind": "source",
+          "bytes": 76481,
+          "observations": [
+            {
+              "pattern": "const userProvidedOptions =",
+              "byte_offset": 47356,
+              "line": 1022,
+              "excerpt": " provided\n        const sessionMeta = params._meta;\n        const userProvidedOptions = sessionMeta?.claudeCode?.options;\n        // Configure thinking tokens from environment variable\n        const maxThinkingTokens = process.env.MAX_THINKING_TOKENS\n            ? parseInt(process.env.M"
+            },
+            {
+              "pattern": "settingSources:",
+              "byte_offset": 48415,
+              "line": 1038,
+              "excerpt": "    const options = {\n            systemPrompt,\n            settingSources: [\"user\", \"project\", \"local\"],\n            ...(maxThinkingTokens !== undefined && { maxThinkingTokens }),\n            ...userProvidedOptions,\n            env: {\n                ...process.env,\n       "
+            },
+            {
+              "pattern": "options.additionalDirectories =",
+              "byte_offset": 51252,
+              "line": 1096,
+              "excerpt": "eationOpts,\n            abortController,\n        };\n        options.additionalDirectories = [\n            ...(userProvidedOptions?.additionalDirectories ?? []),\n            ...(sessionMeta?.additionalRoots ?? []),\n        ];\n        if (creationOpts?.resume === undefined || creationOpts?.fo"
+            }
+          ]
+        },
+        {
+          "path": "${GLOBAL_NODE_MODULES}/@agentclientprotocol/claude-agent-acp/node_modules/@anthropic-ai/claude-agent-sdk/cli.js",
+          "sha256": "d4d06b148b05d3d21ad250a9900b7c8c47780088712299acd9892a8777f76ab4",
+          "kind": "source",
+          "bytes": 13308470,
+          "observations": [
+            {
+              "pattern": "\".claude\",\"skills\"",
+              "byte_offset": 4415116,
+              "line": 810,
+              "excerpt": "ush(yw6(j,\".claude\",\"settings.local.json\"));if(O.push(yw6(H,\".claude\",\"skills\")),j!==H)O.push(yw6(j,\".claude\",\"skills\"));bN8.length=0;let J=[\"HEAD\",\"objects\",\"refs\",\"hooks\",\"config\"];for(let f of j===H?[H]:[H,j])for(let G of J){let Z=yw6(f,G);try{zB_(Z),O.push(Z)}catch{bN8.push"
+            }
+          ]
+        },
+        {
+          "path": "${GLOBAL_NODE_MODULES}/@agentclientprotocol/claude-agent-acp/package.json",
+          "sha256": "822baae8c24189370708779ece72fef22a741de2981a861bd4bc7ee034ed783d",
+          "kind": "package_identity",
+          "bytes": 2120,
+          "observations": [],
+          "package": "@agentclientprotocol/claude-agent-acp",
+          "version": "0.26.0"
+        }
+      ],
+      "supplemental_official_docs": [],
+      "next_validation": "固定版本真实 ACP：发现元数据 → 按需激活 → 支持文件/脚本工具回合 → 隔离/删除/更新失败保旧 → 跨进程恢复；只替代外部模型 HTTP。未安装/缺账号则保留 unverified。"
+    },
+    {
+      "key": "codex",
+      "version": "2.5.0",
+      "status": "candidate",
+      "platform": {
+        "review_host": "Darwin-arm64",
+        "artifact_scope": "本机固定发行物静态审查；源码/通用 JS 的跨平台执行未验证",
+        "linux": "unverified",
+        "windows": "unverified"
+      },
+      "distribution": {
+        "package": "@agentclientprotocol/codex-acp",
+        "version": "2.5.0",
+        "upstream_url": "https://registry.npmjs.org/%40agentclientprotocol%2Fcodex-acp/2.5.0",
+        "upstream_integrity": "sha512-7e/4OhJwpvSTqsjiokoVYRV7O1XGem1CAsQgO1opmGYbRD5LvmydwDlJrldzQYO5TcPWueGzQ2Jdvyvp6l3qDw==",
+        "engine": {
+          "kind": "external_cli",
+          "package": "@openai/codex",
+          "declared_version": "^0.165.0",
+          "release": "0.165.0",
+          "reason": "Exact candidate resolved from published stable 0.165.x versions; CODEX_PATH/local binary can still select another engine",
+          "release_status": "npm_range_resolved_not_executed",
+          "source_url": "https://registry.npmjs.org/%40openai%2Fcodex/0.165.0",
+          "integrity": "sha512-aiwtQVp2KBhJld966CuU5bVfQ46VNB4mNTl6giX3WGZdt4euI3tv2RUqJpnupPNA8DXHg2z+RoQ0Zfw87dy8Lw==",
+          "platform_packages": {
+            "@openai/codex-linux-x64": "npm:@openai/codex@0.165.0-linux-x64",
+            "@openai/codex-win32-x64": "npm:@openai/codex@0.165.0-win32-x64",
+            "@openai/codex-darwin-x64": "npm:@openai/codex@0.165.0-darwin-x64",
+            "@openai/codex-linux-arm64": "npm:@openai/codex@0.165.0-linux-arm64",
+            "@openai/codex-win32-arm64": "npm:@openai/codex@0.165.0-win32-arm64",
+            "@openai/codex-darwin-arm64": "npm:@openai/codex@0.165.0-darwin-arm64"
+          }
+        },
+        "local_identity": "package.json 固定版本匹配；执行文件另有 SHA-256。"
+      },
+      "acp_entry": {
+        "argv": [
+          "codex-acp"
+        ],
+        "binding": "crates/vw-acp/src/agent_registry.rs::BUILT_IN_AGENT_DEFINITIONS",
+        "runtime_executed": false,
+        "note": "固定发行物候选入口；注册器含 latest/range，不保证用户当前命令已固定到此版本。"
+      },
+      "mount": {
+        "candidate_paths": [
+          "additionalDirectories[i]/.agents/skills",
+          "<cwd>/.agents/skills（engine 默认发现待验证）"
+        ],
+        "discovery": "实际入口 codex-acp 2.5.0 → Codex 0.165.0 app-server。refreshSkills 将 additionalDirectories 映射为 .agents/skills 后调用 skillsExtraRootsSet；不是将任意裸 CLI -c 直接透传。当前 Rust NewSessionRequest 只显式传 cwd/mcpServers/meta，尚未连上该目录入口。",
+        "activation": "engine 技能清单和读取 SKILL.md 是不同阶段；adapter 的过滤/命令清单不代表激活。",
+        "session_isolation": "unverified：额外根/专属配置根不自动排除内建、用户、项目及插件技能；不得修改 HOME 或写用户全局目录。"
+      },
+      "permissions": {
+        "status": "unverified",
+        "requirements": "执行端重新审核目录、租户/项目/会话权限、路径逃逸与符号链接；支持文件/脚本/MCP 仍受各自授权限制，不扩大 full_access。",
+        "agent_specific": "固定 ACP 的目录/工具授权条件须后续真实验证；未因模型来源受限推定技能不支持。"
+      },
+      "update": {
+        "native": "unverified：本任务未执行热更新或原子完整替换；静态刷新函数/文档 reload 不作成功承诺。",
+        "candidate": "refreshSkills 比较 extra roots 后调用 skillsExtraRootsSet；空闲更新、删除、缓存与多会话影响待验收。"
+      },
+      "recovery": {
+        "status": "unverified",
+        "requirements": "重建 new/load/resume 后重新发布同 revision 目录并核实发现、删除和支持文件访问；不能把已有模型来源恢复证据当技能恢复证据。"
+      },
+      "independent_sources": {
+        "local_configuration": {
+          "candidate": "CODEX_HOME",
+          "static_review_only": true,
+          "runtime_verified_this_task": false
+        },
+        "client_model_source": {
+          "prior_report_status": "verified_release_only",
+          "reference": "../../shiju/acp-model-source/cli-versions.json#codex",
+          "runtime_verified_this_task": false,
+          "note": "只保留旧报告定位；不复制其通过/不支持结论到技能能力。"
+        }
+      },
+      "evidence": [
+        {
+          "path": "${REVIEW_CACHE}/codex-acp-2.5.0/package_dist_index.js",
+          "sha256": "15de6b2dd5203876a48b12861378bcf87040d623ab2159e05052dc9d54c32b16",
+          "kind": "source",
+          "bytes": 2080199,
+          "observations": [
+            {
+              "pattern": "async refreshSkills\\(cwd, additionalRoots\\)",
+              "byte_offset": 1580824,
+              "line": 41970,
+              "excerpt": "urn await this.getCurrentModelProvider() ?? \"openai\";\n  }\n  async refreshSkills(cwd, additionalRoots) {\n    if (!cwd) {\n      return;\n    }\n    const skillExtraRoots = additionalRoots.map((root) => path10.join(root, \".agents\", \"skills\"));\n    if (!arraysEqual(this.skillExtraRoots, skillExtraRoots)) {"
+            },
+            {
+              "pattern": "skillsExtraRootsSet\\(",
+              "byte_offset": 1581095,
+              "line": 41976,
+              "excerpt": "xtraRoots, skillExtraRoots)) {\n      await this.codexClient.skillsExtraRootsSet({ extraRoots: skillExtraRoots });\n      this.skillExtraRoots = skillExtraRoots;\n    }\n  }\n  /**\n   * Resolves a ModelId using the provided ID and reasoning effort.\n   * Falls back to model defaults if"
+            },
+            {
+              "pattern": "async listSkills\\(",
+              "byte_offset": 1586353,
+              "line": 42104,
+              "excerpt": "Client.markTurnStale(params.threadId, params.turnId);\n  }\n  async listSkills(params) {\n    return withoutUnsupportedSkills(await this.codexClient.listSkills(params ?? {}));\n  }\n  async awaitNextLoginCompleted() {\n    if (this.pendingLoginCompleted !== null) {\n      return awai"
+            }
+          ]
+        },
+        {
+          "path": "${REVIEW_CACHE}/codex-acp-2.5.0/package_package.json",
+          "sha256": "64d3735ebe0d4865bf5615070ad80da93bf3e6a38a5f7c8823b95e92b8d822a1",
+          "kind": "package_identity",
+          "bytes": 4122,
+          "observations": [],
+          "package": "@agentclientprotocol/codex-acp",
+          "version": "2.5.0"
+        }
+      ],
+      "supplemental_official_docs": [],
+      "next_validation": "固定版本真实 ACP：发现元数据 → 按需激活 → 支持文件/脚本工具回合 → 隔离/删除/更新失败保旧 → 跨进程恢复；只替代外部模型 HTTP。未安装/缺账号则保留 unverified。"
+    },
+    {
+      "key": "codebuddy",
+      "version": "2.179.3",
+      "status": "unverified",
+      "platform": {
+        "review_host": "Darwin-arm64",
+        "artifact_scope": "本机固定发行物静态审查；源码/通用 JS 的跨平台执行未验证",
+        "linux": "unverified",
+        "windows": "unverified"
+      },
+      "distribution": {
+        "package": "@tencent-ai/codebuddy-code",
+        "version": "2.179.3",
+        "upstream_url": "https://registry.npmjs.org/%40tencent-ai%2Fcodebuddy-code/2.179.3",
+        "upstream_integrity": "sha512-SQy1YDuITzH2MClXCrLBVIzW93syDE8VXWsyok8g3eGmahdBE7G+1aR4tBZvQHMwjPANLasTkINM26nUKstPHQ==",
+        "engine": {
+          "kind": "same_distribution",
+          "release": "2.179.3"
+        },
+        "local_identity": "package.json 固定版本匹配；执行文件另有 SHA-256。"
+      },
+      "acp_entry": {
+        "argv": [
+          "codebuddy",
+          "--acp"
+        ],
+        "binding": "crates/vw-acp/src/agent_registry.rs::BUILT_IN_AGENT_DEFINITIONS",
+        "runtime_executed": false,
+        "note": "固定发行物候选入口；注册器含 latest/range，不保证用户当前命令已固定到此版本。"
+      },
+      "mount": {
+        "candidate_paths": [
+          "~/.codebuddy/skills（固定包路径线索）"
+        ],
+        "discovery": "固定包存在技能路径及插件 skills 组件，尚未定位足以确认会话专属目录的 ACP 发现调用链；不得按旧模型结论跳过。",
+        "activation": "插件组件计数/路径比较与真实按需加载不同；激活机制未核实。",
+        "session_isolation": "unverified：额外根/专属配置根不自动排除内建、用户、项目及插件技能；不得修改 HOME 或写用户全局目录。"
+      },
+      "permissions": {
+        "status": "unverified",
+        "requirements": "执行端重新审核目录、租户/项目/会话权限、路径逃逸与符号链接；支持文件/脚本/MCP 仍受各自授权限制，不扩大 full_access。",
+        "agent_specific": "固定 ACP 的目录/工具授权条件须后续真实验证；未因模型来源受限推定技能不支持。"
+      },
+      "update": {
+        "native": "unverified：本任务未执行热更新或原子完整替换；静态刷新函数/文档 reload 不作成功承诺。",
+        "candidate": "在不打断运行请求的前提下评估空闲重建；尚未确认固定发行物原生更新入口。"
+      },
+      "recovery": {
+        "status": "unverified",
+        "requirements": "重建 new/load/resume 后重新发布同 revision 目录并核实发现、删除和支持文件访问；不能把已有模型来源恢复证据当技能恢复证据。"
+      },
+      "independent_sources": {
+        "local_configuration": {
+          "candidate": "未有独立配置根证据；需审查项目/用户配置",
+          "static_review_only": true,
+          "runtime_verified_this_task": false
+        },
+        "client_model_source": {
+          "prior_report_status": "verified_release_only",
+          "reference": "../../shiju/acp-model-source/cli-versions.json#codebuddy",
+          "runtime_verified_this_task": false,
+          "note": "只保留旧报告定位；不复制其通过/不支持结论到技能能力。"
+        }
+      },
+      "evidence": [
+        {
+          "path": "target/acp-codebuddy-cli/node_modules/@tencent-ai/codebuddy-code/dist-server/codebuddy.js",
+          "sha256": "0d0da98e63e10cf6dbe7005b161fe42388439b8b7ea9ffae8ff22f2d5b45c51c",
+          "kind": "source",
+          "bytes": 11707339,
+          "observations": [
+            {
+              "pattern": "~/.codebuddy/skills",
+              "byte_offset": 2188565,
+              "line": 1276,
+              "excerpt": "t I=i.homeDir??process.env.HOME??\"\";if(\"compare\"===S)return\"~/.codebuddy/skills\"===c||c.startsWith(\"~/.codebuddy/skills/\")?E().join(I,c.slice(1)):\"~/.codebuddy\"===c||c.startsWith(\"~/.codebuddy/\")?E().join(n??I,c.slice(12)):void 0;let O=(i.platform??process.platform)===\"win32\"?E("
+            },
+            {
+              "pattern": "components:n",
+              "byte_offset": 168739,
+              "line": 1,
+              "excerpt": "atusAggregator.aggregate(Object.values(n).map(i=>i.status)),components:n}}};n.HealthExecutorImpl=$,S([(0,I.Autowired)(N.HealthIndicator),E(\"design:type\",Array)],$.prototype,\"healthIndicators\",void 0),S([(0,I.Autowired)(N.HealthStatusAggregator),E(\"design:type\",Object)],$."
+            }
+          ]
+        },
+        {
+          "path": "target/acp-codebuddy-cli/node_modules/@tencent-ai/codebuddy-code/package.json",
+          "sha256": "4bd6406882d5f995f00df9962be3799d8f1a49cfd19cb6c2e574c79a18fe67f5",
+          "kind": "package_identity",
+          "bytes": 2970,
+          "observations": [],
+          "package": "@tencent-ai/codebuddy-code",
+          "version": "2.179.3"
+        }
+      ],
+      "supplemental_official_docs": [],
+      "next_validation": "固定版本真实 ACP：发现元数据 → 按需激活 → 支持文件/脚本工具回合 → 隔离/删除/更新失败保旧 → 跨进程恢复；只替代外部模型 HTTP。未安装/缺账号则保留 unverified。"
+    },
+    {
+      "key": "goose",
+      "version": "v1.57.0",
+      "status": "candidate",
+      "platform": {
+        "review_host": "Darwin-arm64",
+        "artifact_scope": "本机固定发行物静态审查；源码/通用 JS 的跨平台执行未验证",
+        "linux": "unverified",
+        "windows": "unverified"
+      },
+      "distribution": {
+        "package": "goose",
+        "version": "v1.57.0",
+        "upstream_url": "https://github.com/aaif-goose/goose/releases/download/v1.57.0/goose-aarch64-apple-darwin.tar.gz",
+        "upstream_integrity": "见本项 evidence 文件 SHA-256；不得将其等同完整发行物签名",
+        "engine": {
+          "kind": "same_distribution",
+          "release": "v1.57.0"
+        },
+        "local_identity": "固定版本来自版本清单/本机隔离发行物路径；仅记录静态文件散列，不把路径命名当作运行身份验证。"
+      },
+      "acp_entry": {
+        "argv": [
+          "goose",
+          "acp"
+        ],
+        "binding": "crates/vw-acp/src/agent_registry.rs::BUILT_IN_AGENT_DEFINITIONS",
+        "runtime_executed": false,
+        "note": "固定发行物候选入口；注册器含 latest/range，不保证用户当前命令已固定到此版本。"
+      },
+      "mount": {
+        "candidate_paths": [
+          "<cwd>/.agents/skills",
+          "~/.agents/skills",
+          "Paths::config_dir()/skills"
+        ],
+        "discovery": "固定 v1.57.0 源码有 global/project_skills_dir、discover_skills 与 ACP skills 场景；config root 不会自动屏蔽 home 的共享目录。",
+        "activation": "具备技能发现及生命周期实现；默认清单、提示激活与支持文件调用须分别验收。",
+        "session_isolation": "unverified：额外根/专属配置根不自动排除内建、用户、项目及插件技能；不得修改 HOME 或写用户全局目录。"
+      },
+      "permissions": {
+        "status": "unverified",
+        "requirements": "执行端重新审核目录、租户/项目/会话权限、路径逃逸与符号链接；支持文件/脚本/MCP 仍受各自授权限制，不扩大 full_access。",
+        "agent_specific": "可发现目录约束需覆盖额外根及支持文件。"
+      },
+      "update": {
+        "native": "unverified：本任务未执行热更新或原子完整替换；静态刷新函数/文档 reload 不作成功承诺。",
+        "candidate": "在不打断运行请求的前提下评估空闲重建；尚未确认固定发行物原生更新入口。"
+      },
+      "recovery": {
+        "status": "unverified",
+        "requirements": "重建 new/load/resume 后重新发布同 revision 目录并核实发现、删除和支持文件访问；不能把已有模型来源恢复证据当技能恢复证据。"
+      },
+      "independent_sources": {
+        "local_configuration": {
+          "candidate": "GOOSE_PATH_ROOT",
+          "static_review_only": true,
+          "runtime_verified_this_task": false
+        },
+        "client_model_source": {
+          "prior_report_status": "verified_release_only",
+          "reference": "../../shiju/acp-model-source/cli-versions.json#goose",
+          "runtime_verified_this_task": false,
+          "note": "只保留旧报告定位；不复制其通过/不支持结论到技能能力。"
+        }
+      },
+      "evidence": [
+        {
+          "path": "target/acp-cli/goose-source/goose-1.57.0/crates/goose/src/skills/mod.rs",
+          "sha256": "dc2da97c06760216c094c883f055e8dbc3e91036c03f02a721be68551b69008a",
+          "kind": "source",
+          "bytes": 36943,
+          "observations": [
+            {
+              "pattern": "pub fn global_skills_dir",
+              "byte_offset": 1578,
+              "line": 46,
+              "excerpt": "itable location for global user skills: `~/.agents/skills`.\npub fn global_skills_dir() -> Option<PathBuf> {\n    dirs::home_dir().map(|h| h.join(\".agents\").join(\"skills\"))\n}\n\n/// Canonical writable location for project-scoped skills:\n/// `<project>/.agents/skills`.\npub fn project_skil"
+            },
+            {
+              "pattern": "pub fn project_skills_dir",
+              "byte_offset": 1783,
+              "line": 52,
+              "excerpt": " for project-scoped skills:\n/// `<project>/.agents/skills`.\npub fn project_skills_dir(project_dir: &Path) -> PathBuf {\n    project_dir.join(\".agents\").join(\"skills\")\n}\n\npub(crate) fn skills_dir_global_or_err() -> Result<PathBuf, Error> {\n    global_skills_dir()\n        .ok_or_else(|| "
+            }
+          ]
+        }
+      ],
+      "supplemental_official_docs": [],
+      "next_validation": "固定版本真实 ACP：发现元数据 → 按需激活 → 支持文件/脚本工具回合 → 隔离/删除/更新失败保旧 → 跨进程恢复；只替代外部模型 HTTP。未安装/缺账号则保留 unverified。"
+    },
+    {
+      "key": "vibe",
+      "version": "3.0.4",
+      "status": "candidate",
+      "platform": {
+        "review_host": "Darwin-arm64",
+        "artifact_scope": "本机固定发行物静态审查；源码/通用 JS 的跨平台执行未验证",
+        "linux": "unverified",
+        "windows": "unverified"
+      },
+      "distribution": {
+        "package": "mistral-vibe",
+        "version": "3.0.4",
+        "upstream_url": "https://pypi.org/pypi/mistral-vibe/3.0.4/json",
+        "upstream_integrity": "见本项 evidence 文件 SHA-256；不得将其等同完整发行物签名",
+        "engine": {
+          "kind": "same_distribution",
+          "release": "3.0.4"
+        },
+        "local_identity": "固定版本来自版本清单/本机隔离发行物路径；仅记录静态文件散列，不把路径命名当作运行身份验证。"
+      },
+      "acp_entry": {
+        "argv": [
+          "vibe-acp"
+        ],
+        "binding": "crates/vw-acp/src/agent_registry.rs::BUILT_IN_AGENT_DEFINITIONS",
+        "runtime_executed": false,
+        "note": "固定发行物候选入口；注册器含 latest/range，不保证用户当前命令已固定到此版本。"
+      },
+      "mount": {
+        "candidate_paths": [
+          "config.skill_paths[]",
+          "harness project_skills_dirs",
+          "harness user_skills_dirs"
+        ],
+        "discovery": "3.0.4 SkillManager 遍历 skill_paths 与 harness 项目/用户根，解析去重；配置合并为追加列表，单独设置 skill_paths 并不证明完整替换。",
+        "activation": "有 skill 工具与发现缓存；enabled_skills/disabled_skills 只控制选择过滤，不是实际激活证据。",
+        "session_isolation": "unverified：额外根/专属配置根不自动排除内建、用户、项目及插件技能；不得修改 HOME 或写用户全局目录。"
+      },
+      "permissions": {
+        "status": "unverified",
+        "requirements": "执行端重新审核目录、租户/项目/会话权限、路径逃逸与符号链接；支持文件/脚本/MCP 仍受各自授权限制，不扩大 full_access。",
+        "agent_specific": "固定 ACP 的目录/工具授权条件须后续真实验证；未因模型来源受限推定技能不支持。"
+      },
+      "update": {
+        "native": "unverified：本任务未执行热更新或原子完整替换；静态刷新函数/文档 reload 不作成功承诺。",
+        "candidate": "SkillManager 每次派生 session 重新发现，缓存按文件 stat 失效；不证明运行中会话完整替换。"
+      },
+      "recovery": {
+        "status": "unverified",
+        "requirements": "重建 new/load/resume 后重新发布同 revision 目录并核实发现、删除和支持文件访问；不能把已有模型来源恢复证据当技能恢复证据。"
+      },
+      "independent_sources": {
+        "local_configuration": {
+          "candidate": "VIBE_HOME",
+          "static_review_only": true,
+          "runtime_verified_this_task": false
+        },
+        "client_model_source": {
+          "prior_report_status": "verified_release_only",
+          "reference": "../../shiju/acp-model-source/cli-versions.json#vibe",
+          "runtime_verified_this_task": false,
+          "note": "只保留旧报告定位；不复制其通过/不支持结论到技能能力。"
+        }
+      },
+      "evidence": [
+        {
+          "path": "target/vibe-cli-env/lib/python3.12/site-packages/vibe/core/skills/manager.py",
+          "sha256": "1f59f873111250553af9f94341a51b3e9fbbd365b521476a9aa8015544f585e7",
+          "kind": "source",
+          "bytes": 14369,
+          "observations": [
+            {
+              "pattern": "for path in config.skill_paths",
+              "byte_offset": 5262,
+              "line": 167,
+              "excerpt": "\n        paths: list[tuple[Path, SkillScope]] = []\n\n        for path in config.skill_paths:\n            if path.is_dir():\n                paths.append((path, SkillScope.GLOBAL))\n\n        mgr = self._harness_files\n        paths.extend((p, SkillScope.PROJECT) for p in mgr.project_skills_dirs"
+            },
+            {
+              "pattern": "def _discover_skills\\(",
+              "byte_offset": 6149,
+              "line": 193,
+              "excerpt": "     unique.append((rp, scope))\n\n        return unique\n\n    def _discover_skills(self) -> dict[str, SkillInfo]:\n        skills: dict[str, SkillInfo] = {}\n        for base, scope in self._search_paths:\n            if not base.is_dir():\n                continue\n            for name,"
+            }
+          ]
+        },
+        {
+          "path": "target/vibe-cli-env/lib/python3.12/site-packages/vibe/core/config/vibe_schema.py",
+          "sha256": "cebdadcd77bab5bc3d20ebdefa085a76b1af364e5dae0816a4e6c3d6f6995e80",
+          "kind": "source",
+          "bytes": 66979,
+          "observations": [
+            {
+              "pattern": "skill_paths:",
+              "byte_offset": 29461,
+              "line": 776,
+              "excerpt": "o-approving tool calls.\"\n        ),\n    )\n\n    # Skills\n    skill_paths: Annotated[\n        list[Path], WithConcatMerge(), BeforeValidator(_expand_paths)\n    ] = Field(\n        default_factory=list,\n        description=(\n            \"Additional directories to search for s"
+            }
+          ]
+        }
+      ],
+      "supplemental_official_docs": [],
+      "next_validation": "固定版本真实 ACP：发现元数据 → 按需激活 → 支持文件/脚本工具回合 → 隔离/删除/更新失败保旧 → 跨进程恢复；只替代外部模型 HTTP。未安装/缺账号则保留 unverified。"
+    },
+    {
+      "key": "hermes",
+      "version": "0.19.0",
+      "status": "candidate",
+      "platform": {
+        "review_host": "Darwin-arm64",
+        "artifact_scope": "本机固定发行物静态审查；源码/通用 JS 的跨平台执行未验证",
+        "linux": "unverified",
+        "windows": "unverified"
+      },
+      "distribution": {
+        "package": "hermes-agent",
+        "version": "0.19.0",
+        "upstream_url": "https://pypi.org/pypi/hermes-agent/0.19.0/json",
+        "upstream_integrity": "见本项 evidence 文件 SHA-256；不得将其等同完整发行物签名",
+        "engine": {
+          "kind": "same_distribution",
+          "release": "0.19.0"
+        },
+        "local_identity": "固定版本来自版本清单/本机隔离发行物路径；仅记录静态文件散列，不把路径命名当作运行身份验证。"
+      },
+      "acp_entry": {
+        "argv": [
+          "hermes",
+          "acp"
+        ],
+        "binding": "crates/vw-acp/src/agent_registry.rs::BUILT_IN_AGENT_DEFINITIONS",
+        "runtime_executed": false,
+        "note": "固定发行物候选入口；注册器含 latest/range，不保证用户当前命令已固定到此版本。"
+      },
+      "mount": {
+        "candidate_paths": [
+          "HERMES_HOME/skills（活动 profile）"
+        ],
+        "discovery": "0.19.0 skills_tool 动态解析活动 profile 的 HERMES_HOME；acp_adapter/tools.py 映射 skills_list/skill_view。仍须核实 session 绑定及共享进程并发隔离。",
+        "activation": "skills_list 清单与 skill_view 正文读取分别验证；不是默认把全部正文拼入 prompt。",
+        "session_isolation": "unverified：额外根/专属配置根不自动排除内建、用户、项目及插件技能；不得修改 HOME 或写用户全局目录。"
+      },
+      "permissions": {
+        "status": "unverified",
+        "requirements": "执行端重新审核目录、租户/项目/会话权限、路径逃逸与符号链接；支持文件/脚本/MCP 仍受各自授权限制，不扩大 full_access。",
+        "agent_specific": "固定 ACP 的目录/工具授权条件须后续真实验证；未因模型来源受限推定技能不支持。"
+      },
+      "update": {
+        "native": "unverified：本任务未执行热更新或原子完整替换；静态刷新函数/文档 reload 不作成功承诺。",
+        "candidate": "在不打断运行请求的前提下评估空闲重建；尚未确认固定发行物原生更新入口。"
+      },
+      "recovery": {
+        "status": "unverified",
+        "requirements": "重建 new/load/resume 后重新发布同 revision 目录并核实发现、删除和支持文件访问；不能把已有模型来源恢复证据当技能恢复证据。"
+      },
+      "independent_sources": {
+        "local_configuration": {
+          "candidate": "HERMES_HOME",
+          "static_review_only": true,
+          "runtime_verified_this_task": false
+        },
+        "client_model_source": {
+          "prior_report_status": "verified_release_only",
+          "reference": "../../shiju/acp-model-source/cli-versions.json#hermes",
+          "runtime_verified_this_task": false,
+          "note": "只保留旧报告定位；不复制其通过/不支持结论到技能能力。"
+        }
+      },
+      "evidence": [
+        {
+          "path": "target/hermes-0.19.0-inspect/tools/skills_tool.py",
+          "sha256": "87ccba357a171a53c4cacd3b2d83043354c112148641e7dce593531ce58c2112",
+          "kind": "source",
+          "bytes": 66889,
+          "observations": [
+            {
+              "pattern": "SKILLS_DIR = HERMES_HOME / \"skills\"",
+              "byte_offset": 5766,
+              "line": 143,
+              "excerpt": "out polluting the git repo.\nHERMES_HOME = get_hermes_home()\nSKILLS_DIR = HERMES_HOME / \"skills\"\n_SKILLS_DIR_AT_IMPORT = SKILLS_DIR\n\n\ndef _skills_dir() -> Path:\n    \"\"\"Return the active profile's skills directory at call time.\n\n    Some long-lived runtimes import this module before the active pr"
+            },
+            {
+              "pattern": "def _skills_dir\\(",
+              "byte_offset": 5839,
+              "line": 147,
+              "excerpt": "HERMES_HOME / \"skills\"\n_SKILLS_DIR_AT_IMPORT = SKILLS_DIR\n\n\ndef _skills_dir() -> Path:\n    \"\"\"Return the active profile's skills directory at call time.\n\n    Some long-lived runtimes import this module before the active profile has\n    set HERMES_HOME. Keep the legacy SKILLS_"
+            }
+          ]
+        },
+        {
+          "path": "target/hermes-0.19.0-inspect/acp_adapter/tools.py",
+          "sha256": "f69a9174bc2e03077a5a5edb9baece59f7d4941e17a7363a1eceaeec1faf1b67",
+          "kind": "source",
+          "bytes": 56066,
+          "observations": [
+            {
+              "pattern": "\"skill_view\": \"read\"",
+              "byte_offset": 888,
+              "line": 36,
+              "excerpt": "execute\",\n    # Session/meta tools\n    \"todo\": \"other\",\n    \"skill_view\": \"read\",\n    \"skills_list\": \"read\",\n    \"skill_manage\": \"edit\",\n    # Web / fetch\n    \"web_search\": \"fetch\",\n    \"web_extract\": \"fetch\",\n    # Browser\n    \"browser_navigate\": \"fetch\",\n    \"browser_click\": \"e"
+            }
+          ]
+        }
+      ],
+      "supplemental_official_docs": [],
+      "next_validation": "固定版本真实 ACP：发现元数据 → 按需激活 → 支持文件/脚本工具回合 → 隔离/删除/更新失败保旧 → 跨进程恢复；只替代外部模型 HTTP。未安装/缺账号则保留 unverified。"
+    },
+    {
+      "key": "snow",
+      "version": "0.9.14",
+      "status": "candidate",
+      "platform": {
+        "review_host": "Darwin-arm64",
+        "artifact_scope": "本机固定发行物静态审查；源码/通用 JS 的跨平台执行未验证",
+        "linux": "unverified",
+        "windows": "unverified"
+      },
+      "distribution": {
+        "package": "snow-ai",
+        "version": "0.9.14",
+        "upstream_url": "https://registry.npmjs.org/snow-ai/0.9.14",
+        "upstream_integrity": "sha512-hVawSqfpwqSJgTAPVNp7Lw7gUoBpP89eKIC/lN5f6dvU8HWQtIo0M3BUhqByPmSUM8jZr1bbKF3CbQ9ur0pRaw==",
+        "engine": {
+          "kind": "same_distribution",
+          "release": "0.9.14"
+        },
+        "local_identity": "package.json 固定版本匹配；执行文件另有 SHA-256。"
+      },
+      "acp_entry": {
+        "argv": [
+          "snow",
+          "--acp"
+        ],
+        "binding": "crates/vw-acp/src/agent_registry.rs::BUILT_IN_AGENT_DEFINITIONS",
+        "runtime_executed": false,
+        "note": "固定发行物候选入口；注册器含 latest/range，不保证用户当前命令已固定到此版本。"
+      },
+      "mount": {
+        "candidate_paths": [
+          "<cwd>/.agents/skills",
+          "<cwd>/.snow/skills",
+          "~/.agents/skills",
+          "~/.snow/skills",
+          "发行物 builtin skills"
+        ],
+        "discovery": "0.9.14 loadAvailableSkills 扫描 builtins、用户与项目目录；generateSkillToolDescription 列举元数据，executeSkillTool 处理技能执行。",
+        "activation": "disabledSkills 为选择开关；skill 工具按 id 加载正文，须实际工具回合证明。",
+        "session_isolation": "unverified：额外根/专属配置根不自动排除内建、用户、项目及插件技能；不得修改 HOME 或写用户全局目录。"
+      },
+      "permissions": {
+        "status": "unverified",
+        "requirements": "执行端重新审核目录、租户/项目/会话权限、路径逃逸与符号链接；支持文件/脚本/MCP 仍受各自授权限制，不扩大 full_access。",
+        "agent_specific": "固定 ACP 的目录/工具授权条件须后续真实验证；未因模型来源受限推定技能不支持。"
+      },
+      "update": {
+        "native": "unverified：本任务未执行热更新或原子完整替换；静态刷新函数/文档 reload 不作成功承诺。",
+        "candidate": "在不打断运行请求的前提下评估空闲重建；尚未确认固定发行物原生更新入口。"
+      },
+      "recovery": {
+        "status": "unverified",
+        "requirements": "重建 new/load/resume 后重新发布同 revision 目录并核实发现、删除和支持文件访问；不能把已有模型来源恢复证据当技能恢复证据。"
+      },
+      "independent_sources": {
+        "local_configuration": {
+          "candidate": "SNOW_CONFIG_DIR",
+          "static_review_only": true,
+          "runtime_verified_this_task": false
+        },
+        "client_model_source": {
+          "prior_report_status": "verified_release_only",
+          "reference": "../../shiju/acp-model-source/cli-versions.json#snow",
+          "runtime_verified_this_task": false,
+          "note": "只保留旧报告定位；不复制其通过/不支持结论到技能能力。"
+        }
+      },
+      "evidence": [
+        {
+          "path": "target/snow-cli-0.9.14/node_modules/snow-ai/bundle/cli.mjs",
+          "sha256": "bcc0a6cf468a245729605bcf75fd762fd13cb48553d342b31121cafc3153d905",
+          "kind": "source",
+          "bytes": 33007655,
+          "observations": [
+            {
+              "pattern": "async function loadAvailableSkills\\(",
+              "byte_offset": 25313066,
+              "line": 538554,
+              "excerpt": "error(`Failed to load ${location} skills:`, error44);\n  }\n}\nasync function loadAvailableSkills(projectRoot) {\n  const skills = /* @__PURE__ */ new Map();\n  const home = homedir();\n  const globalAgentsSkillsDir = join29(home, \".agents\", \"skills\");\n  const globalSnowSkillsDir = join29(home, \".sno"
+            },
+            {
+              "pattern": "function generateSkillToolDescription\\(",
+              "byte_offset": 25314097,
+              "line": 538575,
+              "excerpt": "ctSnowSkillsDir, \"project\", \"snow\");\n  }\n  return skills;\n}\nfunction generateSkillToolDescription(skills) {\n  const skillsList = Array.from(skills.values()).map((skill) => `<skill>\n<name>\n${skill.id}\n</name>\n<description>\n${skill.description}\n</description>\n<location>\n${skill.location}\n</location>"
+            }
+          ]
+        },
+        {
+          "path": "target/snow-cli-0.9.14/node_modules/snow-ai/package.json",
+          "sha256": "4b59a358a33cc9c374ddf13e103e62039eaebe4b68ea9610fd1db094e34b01ab",
+          "kind": "package_identity",
+          "bytes": 5217,
+          "observations": [],
+          "package": "snow-ai",
+          "version": "0.9.14"
+        }
+      ],
+      "supplemental_official_docs": [],
+      "next_validation": "固定版本真实 ACP：发现元数据 → 按需激活 → 支持文件/脚本工具回合 → 隔离/删除/更新失败保旧 → 跨进程恢复；只替代外部模型 HTTP。未安装/缺账号则保留 unverified。"
+    },
+    {
+      "key": "copilot",
+      "version": "1.0.105",
+      "status": "unverified",
+      "platform": {
+        "review_host": "Darwin-arm64",
+        "artifact_scope": "本机固定发行物静态审查；源码/通用 JS 的跨平台执行未验证",
+        "linux": "unverified",
+        "windows": "unverified"
+      },
+      "distribution": {
+        "package": "@github/copilot",
+        "version": "1.0.105",
+        "upstream_url": "https://registry.npmjs.org/%40github%2Fcopilot/1.0.105",
+        "upstream_integrity": "sha512-k5JPVZrc0Ms4YdAmYS80OGxDvwjDZNVqDS3dxphIFUVSTFJRwcHkbHh3yUKk7MEyBjKqQYKLKNAKSF+dVmjl7A==",
+        "engine": {
+          "kind": "same_distribution",
+          "release": "1.0.105"
+        },
+        "local_identity": "package.json 固定版本匹配；执行文件另有 SHA-256。"
+      },
+      "acp_entry": {
+        "argv": [
+          "copilot",
+          "--acp",
+          "--stdio"
+        ],
+        "binding": "crates/vw-acp/src/agent_registry.rs::BUILT_IN_AGENT_DEFINITIONS",
+        "runtime_executed": false,
+        "note": "固定发行物候选入口；注册器含 latest/range，不保证用户当前命令已固定到此版本。"
+      },
+      "mount": {
+        "candidate_paths": [
+          "~/.copilot/skills（当前官方文档线索）",
+          "<repo>/.github/skills（当前官方文档线索）"
+        ],
+        "discovery": "1.0.105 本机平台二进制为不透明发行物；未在可读载荷定位技能 loader。当前文档说明目录技能，但没有将该契约绑定到固定版本 ACP 会话。",
+        "activation": "当前文档描述按相关任务使用；固定版本 ACP 默认选择与按需激活均未核实。",
+        "session_isolation": "unverified：额外根/专属配置根不自动排除内建、用户、项目及插件技能；不得修改 HOME 或写用户全局目录。"
+      },
+      "permissions": {
+        "status": "unverified",
+        "requirements": "执行端重新审核目录、租户/项目/会话权限、路径逃逸与符号链接；支持文件/脚本/MCP 仍受各自授权限制，不扩大 full_access。",
+        "agent_specific": "固定 ACP 的目录/工具授权条件须后续真实验证；未因模型来源受限推定技能不支持。"
+      },
+      "update": {
+        "native": "unverified：本任务未执行热更新或原子完整替换；静态刷新函数/文档 reload 不作成功承诺。",
+        "candidate": "在不打断运行请求的前提下评估空闲重建；尚未确认固定发行物原生更新入口。"
+      },
+      "recovery": {
+        "status": "unverified",
+        "requirements": "重建 new/load/resume 后重新发布同 revision 目录并核实发现、删除和支持文件访问；不能把已有模型来源恢复证据当技能恢复证据。"
+      },
+      "independent_sources": {
+        "local_configuration": {
+          "candidate": "COPILOT_HOME / COPILOT_PROVIDER_CONFIG",
+          "static_review_only": true,
+          "runtime_verified_this_task": false
+        },
+        "client_model_source": {
+          "prior_report_status": "verified_release_only",
+          "reference": "../../shiju/acp-model-source/cli-versions.json#copilot",
+          "runtime_verified_this_task": false,
+          "note": "只保留旧报告定位；不复制其通过/不支持结论到技能能力。"
+        }
+      },
+      "evidence": [
+        {
+          "path": "${GLOBAL_NODE_MODULES}/@github/copilot/node_modules/@github/copilot-darwin-arm64/copilot",
+          "sha256": "5fd7d15ff02deb08a58593b1b488015bb52c1686014b80b5509e28263cb3ad70",
+          "kind": "binary_static",
+          "bytes": 181873376,
+          "observations": []
+        },
+        {
+          "path": "${GLOBAL_NODE_MODULES}/@github/copilot/package.json",
+          "sha256": "1fc97e7220cb6c13cc4639d64f124d9b3d3c5e6fd3fd828b58d8cdc63e4cd318",
+          "kind": "package_identity",
+          "bytes": 1100,
+          "observations": [],
+          "package": "@github/copilot",
+          "version": "1.0.105"
+        }
+      ],
+      "supplemental_official_docs": [
+        {
+          "url": "https://docs.github.com/en/copilot/how-tos/copilot-cli/customize-copilot/add-skills",
+          "reviewed_on": "2026-11-05",
+          "scope": "当前文档补充线索；未绑定固定发行物/ACP；不用于提升支持状态。"
+        }
+      ],
+      "next_validation": "固定版本真实 ACP：发现元数据 → 按需激活 → 支持文件/脚本工具回合 → 隔离/删除/更新失败保旧 → 跨进程恢复；只替代外部模型 HTTP。未安装/缺账号则保留 unverified。"
+    },
+    {
+      "key": "cursor",
+      "version": "2026.10.22-27dcf5f",
+      "status": "candidate",
+      "platform": {
+        "review_host": "Darwin-arm64",
+        "artifact_scope": "本机固定发行物静态审查；源码/通用 JS 的跨平台执行未验证",
+        "linux": "unverified",
+        "windows": "unverified"
+      },
+      "distribution": {
+        "package": "cursor",
+        "version": "2026.10.22-27dcf5f",
+        "upstream_url": "https://downloads.cursor.com/lab/2026.10.22-27dcf5f/darwin/arm64/agent-cli-package.tar.gz",
+        "upstream_integrity": "见本项 evidence 文件 SHA-256；不得将其等同完整发行物签名",
+        "engine": {
+          "kind": "same_distribution",
+          "release": "2026.10.22-27dcf5f"
+        },
+        "local_identity": "固定版本来自版本清单/本机隔离发行物路径；仅记录静态文件散列，不把路径命名当作运行身份验证。"
+      },
+      "acp_entry": {
+        "argv": [
+          "cursor-agent",
+          "acp"
+        ],
+        "binding": "crates/vw-acp/src/agent_registry.rs::BUILT_IN_AGENT_DEFINITIONS",
+        "runtime_executed": false,
+        "note": "固定发行物候选入口；注册器含 latest/range，不保证用户当前命令已固定到此版本。"
+      },
+      "mount": {
+        "candidate_paths": [
+          ".cursor/skills（固定包路径分类）",
+          ".agents/skills（固定包路径分类）"
+        ],
+        "discovery": "固定 2026.10.22-27dcf5f bundle 存在扫描子目录 SKILL.md 的实现与技能路径工具；隔离额外根、忽略全局和 ACP 路径仍未验证。",
+        "activation": "扫描与路径分类只是发现线索；未证明 ACP 内按需激活。",
+        "session_isolation": "unverified：额外根/专属配置根不自动排除内建、用户、项目及插件技能；不得修改 HOME 或写用户全局目录。"
+      },
+      "permissions": {
+        "status": "unverified",
+        "requirements": "执行端重新审核目录、租户/项目/会话权限、路径逃逸与符号链接；支持文件/脚本/MCP 仍受各自授权限制，不扩大 full_access。",
+        "agent_specific": "固定 ACP 的目录/工具授权条件须后续真实验证；未因模型来源受限推定技能不支持。"
+      },
+      "update": {
+        "native": "unverified：本任务未执行热更新或原子完整替换；静态刷新函数/文档 reload 不作成功承诺。",
+        "candidate": "在不打断运行请求的前提下评估空闲重建；尚未确认固定发行物原生更新入口。"
+      },
+      "recovery": {
+        "status": "unverified",
+        "requirements": "重建 new/load/resume 后重新发布同 revision 目录并核实发现、删除和支持文件访问；不能把已有模型来源恢复证据当技能恢复证据。"
+      },
+      "independent_sources": {
+        "local_configuration": {
+          "candidate": "CURSOR_CONFIG_DIR",
+          "static_review_only": true,
+          "runtime_verified_this_task": false
+        },
+        "client_model_source": {
+          "prior_report_status": "unsupported",
+          "reference": "../../shiju/acp-model-source/cli-versions.json#cursor",
+          "runtime_verified_this_task": false,
+          "note": "只保留旧报告定位；不复制其通过/不支持结论到技能能力。"
+        }
+      },
+      "evidence": [
+        {
+          "path": "target/acp-model-source-tools/cursor-2026.10.22-27dcf5f/dist-package/8008.index.js",
+          "sha256": "448a22d3908279dbfd7ac47c014979643add4d73b63f2bd880dce6501abec678",
+          "kind": "source",
+          "bytes": 1020941,
+          "observations": [
+            {
+              "pattern": "\\.cursor/skills/",
+              "byte_offset": 973870,
+              "line": 1,
+              "excerpt": "ils/skill-path-utils.ts\"(e,t,n){n.d(t,{BN:()=>o});const r=[\".cursor/skills/\",\".cursor/skills-cursor/\",\".cursor/cloud-skills/\",\".cursor/plugins/\",\".claude/skills/\",\".claude/plugins/\",\".codex/skills/\",\".grok/skills/\",\".agents/skills/\"];function s(e){return e.replace(/\\\\/g,\"/\")"
+            },
+            {
+              "pattern": "const r=\\(0,a.join\\)\\(e,s.name,\"SKILL.md\"\\)",
+              "byte_offset": 165834,
+              "line": 1,
+              "excerpt": "c)((0,a.join)(e,s.name)).isDirectory()}catch{continue}if(r){const r=(0,a.join)(e,s.name,\"SKILL.md\");(0,o.existsSync)(r)&&!(0,l.hCu)(r)&&t.push({id:r,name:s.name,path:r,scope:n})}}}catch{}};for(const t of(0,l.x7$)(e,!0))s(t.dirPath,t.scope);for(const e of(0,l.Dct)(n,!0))s(e.dirPath,e.scope);return s"
+            }
+          ]
+        }
+      ],
+      "supplemental_official_docs": [],
+      "next_validation": "固定版本真实 ACP：发现元数据 → 按需激活 → 支持文件/脚本工具回合 → 隔离/删除/更新失败保旧 → 跨进程恢复；只替代外部模型 HTTP。未安装/缺账号则保留 unverified。"
+    },
+    {
+      "key": "droid",
+      "version": "1.3.0",
+      "status": "unverified",
+      "platform": {
+        "review_host": "Darwin-arm64",
+        "artifact_scope": "本机固定发行物静态审查；源码/通用 JS 的跨平台执行未验证",
+        "linux": "unverified",
+        "windows": "unverified"
+      },
+      "distribution": {
+        "package": "droid",
+        "version": "1.3.0",
+        "upstream_url": "https://downloads.factory.ai/factory-cli/releases/1.3.0/darwin/arm64/droid",
+        "upstream_integrity": "见本项 evidence 文件 SHA-256；不得将其等同完整发行物签名",
+        "engine": {
+          "kind": "same_distribution",
+          "release": "1.3.0"
+        },
+        "local_identity": "固定版本来自版本清单/本机隔离发行物路径；仅记录静态文件散列，不把路径命名当作运行身份验证。",
+        "published_checksum_matches": true
+      },
+      "acp_entry": {
+        "argv": [
+          "droid",
+          "exec",
+          "--output-format",
+          "acp"
+        ],
+        "binding": "crates/vw-acp/src/agent_registry.rs::BUILT_IN_AGENT_DEFINITIONS",
+        "runtime_executed": false,
+        "note": "固定发行物候选入口；注册器含 latest/range，不保证用户当前命令已固定到此版本。"
+      },
+      "mount": {
+        "candidate_paths": [
+          "~/.factory/skills（当前官方文档）",
+          "<repo>/.factory/skills（当前官方文档）"
+        ],
+        "discovery": "1.3.0 二进制有 SKILL.md 与技能导入字符串，但无可审查 ACP loader；当前文档不能直接覆盖固定包。",
+        "activation": "技能导入/创建 UI 字符串不能证明 ACP 默认发现或激活。",
+        "session_isolation": "unverified：额外根/专属配置根不自动排除内建、用户、项目及插件技能；不得修改 HOME 或写用户全局目录。"
+      },
+      "permissions": {
+        "status": "unverified",
+        "requirements": "执行端重新审核目录、租户/项目/会话权限、路径逃逸与符号链接；支持文件/脚本/MCP 仍受各自授权限制，不扩大 full_access。",
+        "agent_specific": "固定 ACP 的目录/工具授权条件须后续真实验证；未因模型来源受限推定技能不支持。"
+      },
+      "update": {
+        "native": "unverified：本任务未执行热更新或原子完整替换；静态刷新函数/文档 reload 不作成功承诺。",
+        "candidate": "在不打断运行请求的前提下评估空闲重建；尚未确认固定发行物原生更新入口。"
+      },
+      "recovery": {
+        "status": "unverified",
+        "requirements": "重建 new/load/resume 后重新发布同 revision 目录并核实发现、删除和支持文件访问；不能把已有模型来源恢复证据当技能恢复证据。"
+      },
+      "independent_sources": {
+        "local_configuration": {
+          "candidate": "未有独立配置根证据；需审查项目/用户配置",
+          "static_review_only": true,
+          "runtime_verified_this_task": false
+        },
+        "client_model_source": {
+          "prior_report_status": "unsupported",
+          "reference": "../../shiju/acp-model-source/cli-versions.json#droid",
+          "runtime_verified_this_task": false,
+          "note": "只保留旧报告定位；不复制其通过/不支持结论到技能能力。"
+        }
+      },
+      "evidence": [
+        {
+          "path": "target/acp-model-source-tools/droid/droid",
+          "sha256": "11790b88e3e47813e83089ed43a80ffe782982b62ecad2fd1bc6de2ec475a285",
+          "kind": "binary_static",
+          "bytes": 309614384,
+          "observations": [
+            {
+              "pattern": "SKILL\\.md",
+              "byte_offset": 92168988,
+              "line": null,
+              "excerpt": "openFiles      �=� connectionStatus   �!�� builtin:   ��r� SKILL.md   ��x� .md \t  �� � reference      �B�� asset      �AZH withFileTypes   /  ��L� [Daemon] JSON-RPC fatal error in streaming exec @  ���! Cannot destructure property 'limit' from null or undefined value"
+            }
+          ]
+        }
+      ],
+      "supplemental_official_docs": [
+        {
+          "url": "https://docs.factory.com/harness/skills",
+          "reviewed_on": "2026-11-05",
+          "scope": "当前文档补充线索；未绑定固定发行物/ACP；不用于提升支持状态。"
+        }
+      ],
+      "next_validation": "固定版本真实 ACP：发现元数据 → 按需激活 → 支持文件/脚本工具回合 → 隔离/删除/更新失败保旧 → 跨进程恢复；只替代外部模型 HTTP。未安装/缺账号则保留 unverified。"
+    },
+    {
+      "key": "gemini",
+      "version": "0.66.0",
+      "status": "candidate",
+      "platform": {
+        "review_host": "Darwin-arm64",
+        "artifact_scope": "本机固定发行物静态审查；源码/通用 JS 的跨平台执行未验证",
+        "linux": "unverified",
+        "windows": "unverified"
+      },
+      "distribution": {
+        "package": "@google/gemini-cli",
+        "version": "0.66.0",
+        "upstream_url": "https://registry.npmjs.org/%40google%2Fgemini-cli/0.66.0",
+        "upstream_integrity": "sha512-EAtsJ9/JxiphHlduzvhoCkb7I0LdOxyugB5NpUtVqKVGZIWjV3JmurvK89ZrvMbV3kwk5SdWINz1M5ZN/2K/Lw==",
+        "engine": {
+          "kind": "same_distribution",
+          "release": "0.66.0"
+        },
+        "local_identity": "package.json 固定版本匹配；执行文件另有 SHA-256。"
+      },
+      "acp_entry": {
+        "argv": [
+          "gemini",
+          "--experimental-acp",
+          "--approval-mode",
+          "yolo",
+          "--skip-trust"
+        ],
+        "binding": "crates/vw-acp/src/agent_registry.rs::BUILT_IN_AGENT_DEFINITIONS",
+        "runtime_executed": false,
+        "note": "固定发行物候选入口；注册器含 latest/range，不保证用户当前命令已固定到此版本。"
+      },
+      "mount": {
+        "candidate_paths": [
+          "user .gemini/skills",
+          "user .agents/skills",
+          "<cwd>/.gemini/skills",
+          "<cwd>/.agents/skills"
+        ],
+        "discovery": "0.66.0 Storage 与 loader 显式分开用户/项目技能目录；项目加载有 isTrusted 门禁。现有启动参数的权限模式不是技能隔离证明。",
+        "activation": "activate_skill 为按需加载线索；目录可发现不等于成功激活及支持文件可读。",
+        "session_isolation": "unverified：额外根/专属配置根不自动排除内建、用户、项目及插件技能；不得修改 HOME 或写用户全局目录。"
+      },
+      "permissions": {
+        "status": "unverified",
+        "requirements": "执行端重新审核目录、租户/项目/会话权限、路径逃逸与符号链接；支持文件/脚本/MCP 仍受各自授权限制，不扩大 full_access。",
+        "agent_specific": "源码 isTrusted 阻止不受信项目技能加载。"
+      },
+      "update": {
+        "native": "unverified：本任务未执行热更新或原子完整替换；静态刷新函数/文档 reload 不作成功承诺。",
+        "candidate": "在不打断运行请求的前提下评估空闲重建；尚未确认固定发行物原生更新入口。"
+      },
+      "recovery": {
+        "status": "unverified",
+        "requirements": "重建 new/load/resume 后重新发布同 revision 目录并核实发现、删除和支持文件访问；不能把已有模型来源恢复证据当技能恢复证据。"
+      },
+      "independent_sources": {
+        "local_configuration": {
+          "candidate": "未有独立配置根证据；需审查项目/用户配置",
+          "static_review_only": true,
+          "runtime_verified_this_task": false
+        },
+        "client_model_source": {
+          "prior_report_status": "verified_release_only",
+          "reference": "../../shiju/acp-model-source/cli-versions.json#gemini",
+          "runtime_verified_this_task": false,
+          "note": "只保留旧报告定位；不复制其通过/不支持结论到技能能力。"
+        }
+      },
+      "evidence": [
+        {
+          "path": "target/acp-gemini-runtime/node_modules/@google/gemini-cli/bundle/chunk-M44FJWED.js",
+          "sha256": "8ff40d866a5d0d163abe3ee5c566e954513a03388053c246218ef0ca246ecfc0",
+          "kind": "source",
+          "bytes": 16785365,
+          "observations": [
+            {
+              "pattern": "static getUserSkillsDir\\(\\)",
+              "byte_offset": 11339270,
+              "line": 253290,
+              "excerpt": "ath4.join(_Storage.getGlobalGeminiDir(), \"commands\");\n  }\n  static getUserSkillsDir() {\n    return path4.join(_Storage.getGlobalGeminiDir(), \"skills\");\n  }\n  static getUserAgentSkillsDir() {\n    return path4.join(_Storage.getGlobalAgentsDir(), \"skills\");\n  }\n  static getUserPoliciesDi"
+            },
+            {
+              "pattern": "const projectSkills = await loadSkillsFromDir",
+              "byte_offset": 15578927,
+              "line": 372567,
+              "excerpt": "se folder is not trusted.\"\n      );\n      return;\n    }\n    const projectSkills = await loadSkillsFromDir(\n      storage2.getProjectSkillsDir()\n    );\n    this.addSkillsWithPrecedence(projectSkills);\n    const projectAgentSkills = await loadSkillsFromDir(\n      storage2.getProjectAgentSkillsDir()\n    );\n"
+            }
+          ]
+        },
+        {
+          "path": "target/acp-gemini-runtime/node_modules/@google/gemini-cli/package.json",
+          "sha256": "dfd44e39afc070f5fb28e26b870f980ea41bb4f3ab124a97b977d62b81e36662",
+          "kind": "package_identity",
+          "bytes": 705,
+          "observations": [],
+          "package": "@google/gemini-cli",
+          "version": "0.66.0"
+        }
+      ],
+      "supplemental_official_docs": [],
+      "next_validation": "固定版本真实 ACP：发现元数据 → 按需激活 → 支持文件/脚本工具回合 → 隔离/删除/更新失败保旧 → 跨进程恢复；只替代外部模型 HTTP。未安装/缺账号则保留 unverified。"
+    },
+    {
+      "key": "iflow",
+      "version": "0.5.19",
+      "status": "candidate",
+      "platform": {
+        "review_host": "Darwin-arm64",
+        "artifact_scope": "本机固定发行物静态审查；源码/通用 JS 的跨平台执行未验证",
+        "linux": "unverified",
+        "windows": "unverified"
+      },
+      "distribution": {
+        "package": "@iflow-ai/iflow-cli",
+        "version": "0.5.19",
+        "upstream_url": "https://registry.npmjs.org/%40iflow-ai%2Fiflow-cli/0.5.19",
+        "upstream_integrity": "sha512-cOQNLXJAjqcKq6XQpx47EUV8ocY5sdLXiy7MfJm+b1miRlMJmrQvueT75w1h9UqzrlFPio2VluTxbLRBoR/QBA==",
+        "engine": {
+          "kind": "same_distribution",
+          "release": "0.5.19"
+        },
+        "local_identity": "package.json 固定版本匹配；执行文件另有 SHA-256。"
+      },
+      "acp_entry": {
+        "argv": [
+          "iflow",
+          "--experimental-acp"
+        ],
+        "binding": "crates/vw-acp/src/agent_registry.rs::BUILT_IN_AGENT_DEFINITIONS",
+        "runtime_executed": false,
+        "note": "固定发行物候选入口；注册器含 latest/range，不保证用户当前命令已固定到此版本。"
+      },
+      "mount": {
+        "candidate_paths": [
+          "Tn()/skills（配置根）",
+          "<cwd>/.iflow/skills"
+        ],
+        "discovery": "0.5.19 scanner 先扫描全局再项目，重名时保留已有全局条目；存在 SKILL.md 解析及插件技能。必须核实选择正文是否在 ACP 中可用。",
+        "activation": "交互选择/配置技能与按需工具激活不同；本任务未证明后者。",
+        "session_isolation": "unverified：额外根/专属配置根不自动排除内建、用户、项目及插件技能；不得修改 HOME 或写用户全局目录。"
+      },
+      "permissions": {
+        "status": "unverified",
+        "requirements": "执行端重新审核目录、租户/项目/会话权限、路径逃逸与符号链接；支持文件/脚本/MCP 仍受各自授权限制，不扩大 full_access。",
+        "agent_specific": "固定 ACP 的目录/工具授权条件须后续真实验证；未因模型来源受限推定技能不支持。"
+      },
+      "update": {
+        "native": "unverified：本任务未执行热更新或原子完整替换；静态刷新函数/文档 reload 不作成功承诺。",
+        "candidate": "在不打断运行请求的前提下评估空闲重建；尚未确认固定发行物原生更新入口。"
+      },
+      "recovery": {
+        "status": "unverified",
+        "requirements": "重建 new/load/resume 后重新发布同 revision 目录并核实发现、删除和支持文件访问；不能把已有模型来源恢复证据当技能恢复证据。"
+      },
+      "independent_sources": {
+        "local_configuration": {
+          "candidate": "未有独立配置根证据；需审查项目/用户配置",
+          "static_review_only": true,
+          "runtime_verified_this_task": false
+        },
+        "client_model_source": {
+          "prior_report_status": "verified_release_only",
+          "reference": "../../shiju/acp-model-source/cli-versions.json#iflow",
+          "runtime_verified_this_task": false,
+          "note": "只保留旧报告定位；不复制其通过/不支持结论到技能能力。"
+        }
+      },
+      "evidence": [
+        {
+          "path": "target/iflow-inspect/package/bundle/iflow.js",
+          "sha256": "3bc5c8873d4e5691322de7fac1b5cd530c2f797107c3c9beb11afd8e99cedddc",
+          "kind": "source",
+          "bytes": 14197390,
+          "observations": [
+            {
+              "pattern": "globalSkillsDir;projectSkillsDir;constructor",
+              "byte_offset": 10674736,
+              "line": 4509,
+              "excerpt": "th\";var FY,qut=j(()=>{\"use strict\";Pa();dS();Out();FY=class{globalSkillsDir;projectSkillsDir;constructor(e){this.globalSkillsDir=G0e.join(Tn(),\"skills\"),this.projectSkillsDir=e?G0e.join(e,ui(),\"skills\"):G0e.join(process.cwd(),ui(),\"skills\")}async scan(){let e=new Map;try{let r=await this.scanDirectory(t"
+            },
+            {
+              "pattern": "async parseSkillFile\\(",
+              "byte_offset": 10675600,
+              "line": 4509,
+              "excerpt": "it this.parseSkillFile(u,a,r);c&&n.push(c)}catch{}}return n}async parseSkillFile(e,r,n){try{let o=await L4e.readFile(e,\"utf-8\"),{frontmatter:s,content:a}=LY(o),u=s.name||s.Name;if(!u)return console.warn(`Skill file ${e} missing 'name' field in frontmatter`),null;let c=s.descriptio"
+            }
+          ]
+        },
+        {
+          "path": "target/iflow-inspect/package/package.json",
+          "sha256": "6a85d1aecda0eeb88709d164c3261ba88099582be2622c8abed74c8b7e23be22",
+          "kind": "package_identity",
+          "bytes": 4897,
+          "observations": [],
+          "package": "@iflow-ai/iflow-cli",
+          "version": "0.5.19"
+        }
+      ],
+      "supplemental_official_docs": [],
+      "next_validation": "固定版本真实 ACP：发现元数据 → 按需激活 → 支持文件/脚本工具回合 → 隔离/删除/更新失败保旧 → 跨进程恢复；只替代外部模型 HTTP。未安装/缺账号则保留 unverified。"
+    },
+    {
+      "key": "kilocode",
+      "version": "7.8.18",
+      "status": "unverified",
+      "platform": {
+        "review_host": "Darwin-arm64",
+        "artifact_scope": "本机固定发行物静态审查；源码/通用 JS 的跨平台执行未验证",
+        "linux": "unverified",
+        "windows": "unverified"
+      },
+      "distribution": {
+        "package": "@kilocode/cli",
+        "version": "7.8.18",
+        "upstream_url": "https://registry.npmjs.org/%40kilocode%2Fcli/7.8.18",
+        "upstream_integrity": "sha512-/Ym2x0IK6drlX4eZK79JcAcKU90sxnqQlInUCiYtpekyMXeMGHLbr0WQpDrJGyTaAJQRhQ4WStADaaQtfQC/nQ==",
+        "engine": {
+          "kind": "same_distribution",
+          "release": "7.8.18"
+        },
+        "local_identity": "package.json 固定版本匹配；执行文件另有 SHA-256。"
+      },
+      "acp_entry": {
+        "argv": [
+          "kilocode",
+          "acp"
+        ],
+        "binding": "crates/vw-acp/src/agent_registry.rs::BUILT_IN_AGENT_DEFINITIONS",
+        "runtime_executed": false,
+        "note": "固定发行物候选入口；注册器含 latest/range，不保证用户当前命令已固定到此版本。"
+      },
+      "mount": {
+        "candidate_paths": [
+          ".kilo/skills（当前官方文档）"
+        ],
+        "discovery": "7.8.18 平台包可定位但二进制载荷不透明；当前官方文档说明 CLI 元数据扫描，不等于该固定 ACP 版本的目录注入契约。",
+        "activation": "文档中发现元数据与按需加载分阶段；固定 ACP 工具回合未执行。",
+        "session_isolation": "unverified：额外根/专属配置根不自动排除内建、用户、项目及插件技能；不得修改 HOME 或写用户全局目录。"
+      },
+      "permissions": {
+        "status": "unverified",
+        "requirements": "执行端重新审核目录、租户/项目/会话权限、路径逃逸与符号链接；支持文件/脚本/MCP 仍受各自授权限制，不扩大 full_access。",
+        "agent_specific": "固定 ACP 的目录/工具授权条件须后续真实验证；未因模型来源受限推定技能不支持。"
+      },
+      "update": {
+        "native": "unverified：本任务未执行热更新或原子完整替换；静态刷新函数/文档 reload 不作成功承诺。",
+        "candidate": "在不打断运行请求的前提下评估空闲重建；尚未确认固定发行物原生更新入口。"
+      },
+      "recovery": {
+        "status": "unverified",
+        "requirements": "重建 new/load/resume 后重新发布同 revision 目录并核实发现、删除和支持文件访问；不能把已有模型来源恢复证据当技能恢复证据。"
+      },
+      "independent_sources": {
+        "local_configuration": {
+          "candidate": "KILO_CONFIG / KILO_CONFIG_CONTENT",
+          "static_review_only": true,
+          "runtime_verified_this_task": false
+        },
+        "client_model_source": {
+          "prior_report_status": "verified_release_only",
+          "reference": "../../shiju/acp-model-source/cli-versions.json#kilocode",
+          "runtime_verified_this_task": false,
+          "note": "只保留旧报告定位；不复制其通过/不支持结论到技能能力。"
+        }
+      },
+      "evidence": [
+        {
+          "path": "target/kilocode-inspection/node_modules/@kilocode/cli-darwin-arm64/bin/kilo",
+          "sha256": "73e6626784cb314308e035f11b8cb8ab251624a593c2a110abeb94869514a237",
+          "kind": "binary_static",
+          "bytes": 238593506,
+          "observations": []
+        },
+        {
+          "path": "target/kilocode-inspection/node_modules/@kilocode/cli-darwin-arm64/package.json",
+          "sha256": "595bd6246965128b12f5fd762bee8d78d059603068b522b11f0c2b92c7fdb502",
+          "kind": "package_identity",
+          "bytes": 525,
+          "observations": [],
+          "package": "@kilocode/cli-darwin-arm64",
+          "version": "7.8.18"
+        }
+      ],
+      "supplemental_official_docs": [
+        {
+          "url": "https://kilo.ai/docs/customize/skills",
+          "reviewed_on": "2026-11-05",
+          "scope": "当前文档补充线索；未绑定固定发行物/ACP；不用于提升支持状态。"
+        }
+      ],
+      "next_validation": "固定版本真实 ACP：发现元数据 → 按需激活 → 支持文件/脚本工具回合 → 隔离/删除/更新失败保旧 → 跨进程恢复；只替代外部模型 HTTP。未安装/缺账号则保留 unverified。"
+    },
+    {
+      "key": "kimi",
+      "version": "2.5.0",
+      "status": "candidate",
+      "platform": {
+        "review_host": "Darwin-arm64",
+        "artifact_scope": "本机固定发行物静态审查；源码/通用 JS 的跨平台执行未验证",
+        "linux": "unverified",
+        "windows": "unverified"
+      },
+      "distribution": {
+        "package": "@moonshot-ai/kimi-code",
+        "version": "2.5.0",
+        "upstream_url": "https://code.kimi.com/kimi-code/binaries/2.5.0/manifest.json",
+        "upstream_integrity": "sha512-AYuT4fW7pzZAqxIIDjx+ypLJNoAL07NZCUyPDlf/JrgyKri35eVq9mDuhoe/xRX7wNHL+1fX+H0Dj/rB3H04Yg==",
+        "engine": {
+          "kind": "same_distribution",
+          "release": "2.5.0"
+        },
+        "local_identity": "native manifest Darwin-arm64 checksum 与本机二进制 SHA-256 一致。"
+      },
+      "acp_entry": {
+        "argv": [
+          "kimi",
+          "acp"
+        ],
+        "binding": "crates/vw-acp/src/agent_registry.rs::BUILT_IN_AGENT_DEFINITIONS",
+        "runtime_executed": false,
+        "note": "固定发行物候选入口；注册器含 latest/range，不保证用户当前命令已固定到此版本。"
+      },
+      "mount": {
+        "candidate_paths": [
+          "KIMI_CODE_HOME/skills（根绑定待验证）",
+          "<cwd>/.kimi-code/skills",
+          ".agents/skills"
+        ],
+        "discovery": "固定 native Kimi Code 2.5.0（不是旧 Python kimi-cli 1.52.0）。内嵌 JS 含 USER_BRAND_DIRS、PROJECT_BRAND_DIRS 和 SKILL.md parser，须证明 ACP 配置根与会话重建行为。",
+        "activation": "目录技能解析与默认选择、实际正文激活分开；未执行真实回合。",
+        "session_isolation": "unverified：额外根/专属配置根不自动排除内建、用户、项目及插件技能；不得修改 HOME 或写用户全局目录。"
+      },
+      "permissions": {
+        "status": "unverified",
+        "requirements": "执行端重新审核目录、租户/项目/会话权限、路径逃逸与符号链接；支持文件/脚本/MCP 仍受各自授权限制，不扩大 full_access。",
+        "agent_specific": "固定 ACP 的目录/工具授权条件须后续真实验证；未因模型来源受限推定技能不支持。"
+      },
+      "update": {
+        "native": "unverified：本任务未执行热更新或原子完整替换；静态刷新函数/文档 reload 不作成功承诺。",
+        "candidate": "在不打断运行请求的前提下评估空闲重建；尚未确认固定发行物原生更新入口。"
+      },
+      "recovery": {
+        "status": "unverified",
+        "requirements": "重建 new/load/resume 后重新发布同 revision 目录并核实发现、删除和支持文件访问；不能把已有模型来源恢复证据当技能恢复证据。"
+      },
+      "independent_sources": {
+        "local_configuration": {
+          "candidate": "KIMI_CODE_HOME",
+          "static_review_only": true,
+          "runtime_verified_this_task": false
+        },
+        "client_model_source": {
+          "prior_report_status": "verified_release_only",
+          "reference": "../../shiju/acp-model-source/cli-versions.json#kimi",
+          "runtime_verified_this_task": false,
+          "note": "只保留旧报告定位；不复制其通过/不支持结论到技能能力。"
+        }
+      },
+      "evidence": [
+        {
+          "path": "target/kimi-code-2.5.0/kimi",
+          "sha256": "d4dd02d40f18f3a784699fc37ae0c55d676a4704c37a3b91ab96541b0db673a1",
+          "kind": "binary_static",
+          "bytes": 182574400,
+          "observations": [
+            {
+              "pattern": "USER_BRAND_DIRS\\$1 =",
+              "byte_offset": 93763913,
+              "line": null,
+              "excerpt": "Roots = __esmMin((() => {\n\tinit_dist$9();\n\tinit_paths$4();\n\tUSER_BRAND_DIRS$1 = [\"skills\"];\n\tUSER_GENERIC_DIRS$1 = [\".agents/skills\"];\n\tPROJECT_BRAND_DIRS$1 = [\".kimi-code/skills\"];\n\tPROJECT_GENERIC_DIRS$1 = [\".agents/skills\"];\n\tnodeFs$1 = {\n\t\tstat: async (p) => {\n\t\t\tconst s = a"
+            },
+            {
+              "pattern": "PROJECT_BRAND_DIRS\\$1 =",
+              "byte_offset": 93763989,
+              "line": null,
+              "excerpt": "1 = [\"skills\"];\n\tUSER_GENERIC_DIRS$1 = [\".agents/skills\"];\n\tPROJECT_BRAND_DIRS$1 = [\".kimi-code/skills\"];\n\tPROJECT_GENERIC_DIRS$1 = [\".agents/skills\"];\n\tnodeFs$1 = {\n\t\tstat: async (p) => {\n\t\t\tconst s = await node_fs.promises.stat(p);\n\t\t\treturn {\n\t\t\t\tisFile: s.isFile(),\n\t\t\t\tisDirect"
+            }
+          ]
+        }
+      ],
+      "supplemental_official_docs": [],
+      "next_validation": "固定版本真实 ACP：发现元数据 → 按需激活 → 支持文件/脚本工具回合 → 隔离/删除/更新失败保旧 → 跨进程恢复；只替代外部模型 HTTP。未安装/缺账号则保留 unverified。"
+    },
+    {
+      "key": "kiro",
+      "version": "3.0.0",
+      "status": "unverified",
+      "platform": {
+        "review_host": "Darwin-arm64",
+        "artifact_scope": "本机固定发行物静态审查；源码/通用 JS 的跨平台执行未验证",
+        "linux": "unverified",
+        "windows": "unverified"
+      },
+      "distribution": {
+        "package": "kiro",
+        "version": "3.0.0",
+        "upstream_url": "https://prod.download.cli.kiro.dev/stable/3.0.0/kirocli-universal-darwin.zip",
+        "upstream_integrity": "见本项 evidence 文件 SHA-256；不得将其等同完整发行物签名",
+        "engine": {
+          "kind": "same_distribution",
+          "release": "3.0.0"
+        },
+        "local_identity": "固定版本来自版本清单/本机隔离发行物路径；仅记录静态文件散列，不把路径命名当作运行身份验证。"
+      },
+      "acp_entry": {
+        "argv": [
+          "kiro-cli",
+          "acp"
+        ],
+        "binding": "crates/vw-acp/src/agent_registry.rs::BUILT_IN_AGENT_DEFINITIONS",
+        "runtime_executed": false,
+        "note": "固定发行物候选入口；注册器含 latest/range，不保证用户当前命令已固定到此版本。"
+      },
+      "mount": {
+        "candidate_paths": [
+          "skill://.kiro/skills/*/SKILL.md（固定二进制字符串）",
+          "agent resources 的 skill:// glob（当前文档）"
+        ],
+        "discovery": "3.0.0 有 skill:// 解析与 glob 错误字符串，当前文档有 resources 入口；尚未核实固定版本 ACP 资源配置及动态更新。",
+        "activation": "file:// 直接正文资源与 skill:// 元数据按需加载不得混为一谈；实际行为未验证。",
+        "session_isolation": "unverified：额外根/专属配置根不自动排除内建、用户、项目及插件技能；不得修改 HOME 或写用户全局目录。"
+      },
+      "permissions": {
+        "status": "unverified",
+        "requirements": "执行端重新审核目录、租户/项目/会话权限、路径逃逸与符号链接；支持文件/脚本/MCP 仍受各自授权限制，不扩大 full_access。",
+        "agent_specific": "固定 ACP 的目录/工具授权条件须后续真实验证；未因模型来源受限推定技能不支持。"
+      },
+      "update": {
+        "native": "unverified：本任务未执行热更新或原子完整替换；静态刷新函数/文档 reload 不作成功承诺。",
+        "candidate": "在不打断运行请求的前提下评估空闲重建；尚未确认固定发行物原生更新入口。"
+      },
+      "recovery": {
+        "status": "unverified",
+        "requirements": "重建 new/load/resume 后重新发布同 revision 目录并核实发现、删除和支持文件访问；不能把已有模型来源恢复证据当技能恢复证据。"
+      },
+      "independent_sources": {
+        "local_configuration": {
+          "candidate": "KIRO_HOME",
+          "static_review_only": true,
+          "runtime_verified_this_task": false
+        },
+        "client_model_source": {
+          "prior_report_status": "verified_release_only",
+          "reference": "../../shiju/acp-model-source/cli-versions.json#kiro",
+          "runtime_verified_this_task": false,
+          "note": "只保留旧报告定位；不复制其通过/不支持结论到技能能力。"
+        }
+      },
+      "evidence": [
+        {
+          "path": "target/acp-model-source-evidence/kiro/official-3.0.0/extracted/kirocli/bin/kiro-cli",
+          "sha256": "4e4b2ee6b5021624d23c6ef78b18624c438ee898596a683f5a55889c512965bc",
+          "kind": "binary_static",
+          "bytes": 436717936,
+          "observations": [
+            {
+              "pattern": "skill://\\.kiro/skills/",
+              "byte_offset": 88905811,
+              "line": null,
+              "excerpt": "xcludedToolsKIRO_TEST_AGENTS_DIRagentsamazonqcli-agents.kiroskill://.kiro/skills/*/SKILL.mdAmazonQ.mdfile://AmazonQ.mdfile://.amazonq/rules/**/*.mdskill         webinternally tagged enum ComplexResourceSkillComplexweb_searchknowledgetodo_listkiroUpgradefingerprint       //**./   *"
+            }
+          ]
+        }
+      ],
+      "supplemental_official_docs": [
+        {
+          "url": "https://kiro.dev/docs/cli/skills/",
+          "reviewed_on": "2026-11-05",
+          "scope": "当前文档补充线索；未绑定固定发行物/ACP；不用于提升支持状态。"
+        }
+      ],
+      "next_validation": "固定版本真实 ACP：发现元数据 → 按需激活 → 支持文件/脚本工具回合 → 隔离/删除/更新失败保旧 → 跨进程恢复；只替代外部模型 HTTP。未安装/缺账号则保留 unverified。"
+    },
+    {
+      "key": "opencode",
+      "version": "1.19.5",
+      "status": "candidate",
+      "platform": {
+        "review_host": "Darwin-arm64",
+        "artifact_scope": "本机固定发行物静态审查；源码/通用 JS 的跨平台执行未验证",
+        "linux": "unverified",
+        "windows": "unverified"
+      },
+      "distribution": {
+        "package": "opencode-ai",
+        "version": "1.19.5",
+        "upstream_url": "https://registry.npmjs.org/opencode-ai/1.19.5",
+        "upstream_integrity": "sha512-tEqMvQahfhdDj8vceYpXtoIrvjPXm5XRfetWnPN5YISueU7adNx9JcUA3zZ+2GKuDVgDpGdQe1ZLtCZDjqodvA==",
+        "engine": {
+          "kind": "same_distribution",
+          "release": "1.19.5"
+        },
+        "local_identity": "package.json 固定版本匹配；执行文件另有 SHA-256。"
+      },
+      "acp_entry": {
+        "argv": [
+          "opencode",
+          "acp"
+        ],
+        "binding": "crates/vw-acp/src/agent_registry.rs::BUILT_IN_AGENT_DEFINITIONS",
+        "runtime_executed": false,
+        "note": "固定发行物候选入口；注册器含 latest/range，不保证用户当前命令已固定到此版本。"
+      },
+      "mount": {
+        "candidate_paths": [
+          "config.skills.paths[]",
+          "config.skills.urls[]（网络入口，本计划不使用）"
+        ],
+        "discovery": "1.19.5 平台二进制内嵌 JS 读取 skills.paths 与 skills.urls；目录路径配置属于静态候选。ACP 发现/支持文件权限与完整替换需后续验证。",
+        "activation": "目录列表和技能工具按需读取的区别待实际回合确认。",
+        "session_isolation": "unverified：额外根/专属配置根不自动排除内建、用户、项目及插件技能；不得修改 HOME 或写用户全局目录。"
+      },
+      "permissions": {
+        "status": "unverified",
+        "requirements": "执行端重新审核目录、租户/项目/会话权限、路径逃逸与符号链接；支持文件/脚本/MCP 仍受各自授权限制，不扩大 full_access。",
+        "agent_specific": "固定 ACP 的目录/工具授权条件须后续真实验证；未因模型来源受限推定技能不支持。"
+      },
+      "update": {
+        "native": "unverified：本任务未执行热更新或原子完整替换；静态刷新函数/文档 reload 不作成功承诺。",
+        "candidate": "在不打断运行请求的前提下评估空闲重建；尚未确认固定发行物原生更新入口。"
+      },
+      "recovery": {
+        "status": "unverified",
+        "requirements": "重建 new/load/resume 后重新发布同 revision 目录并核实发现、删除和支持文件访问；不能把已有模型来源恢复证据当技能恢复证据。"
+      },
+      "independent_sources": {
+        "local_configuration": {
+          "candidate": "OPENCODE_CONFIG_CONTENT / OPENCODE_CONFIG_DIR / XDG_*",
+          "static_review_only": true,
+          "runtime_verified_this_task": false
+        },
+        "client_model_source": {
+          "prior_report_status": "verified_release_only",
+          "reference": "../../shiju/acp-model-source/cli-versions.json#opencode",
+          "runtime_verified_this_task": false,
+          "note": "只保留旧报告定位；不复制其通过/不支持结论到技能能力。"
+        }
+      },
+      "evidence": [
+        {
+          "path": "target/task27-opencode/package/bin/opencode",
+          "sha256": "feaafead8cd563af0c2dcb386b0757e4355e327ebb6bd1aaad5440fe2f83596c",
+          "kind": "binary_static",
+          "bytes": 180672544,
+          "observations": [
+            {
+              "pattern": "skills:e.skills&&",
+              "byte_offset": 101222498,
+              "line": null,
+              "excerpt": "ction.preserve_recent_tokens},buffer:e.compaction.reserved},skills:e.skills&&[...e.skills.paths??[],...e.skills.urls??[]],commands:e.command,instructions:e.instructions,references:e.references??e.reference,plugins:e.plugin?.map((t)=>typeof t===\"string\"?t:{package:t[0],options:"
+            }
+          ]
+        },
+        {
+          "path": "target/task27-opencode/package/package.json",
+          "sha256": "572a647cf34d4b1decda0087d885a45841515762120359b45352155cbdf8d13b",
+          "kind": "package_identity",
+          "bytes": 143,
+          "observations": [],
+          "package": "opencode-darwin-arm64",
+          "version": "1.19.5"
+        }
+      ],
+      "supplemental_official_docs": [],
+      "next_validation": "固定版本真实 ACP：发现元数据 → 按需激活 → 支持文件/脚本工具回合 → 隔离/删除/更新失败保旧 → 跨进程恢复；只替代外部模型 HTTP。未安装/缺账号则保留 unverified。"
+    },
+    {
+      "key": "openclaw",
+      "version": "2026.10.10",
+      "status": "candidate",
+      "platform": {
+        "review_host": "Darwin-arm64",
+        "artifact_scope": "本机固定发行物静态审查；源码/通用 JS 的跨平台执行未验证",
+        "linux": "unverified",
+        "windows": "unverified"
+      },
+      "distribution": {
+        "package": "openclaw",
+        "version": "2026.10.10",
+        "upstream_url": "https://registry.npmjs.org/openclaw/2026.10.10",
+        "upstream_integrity": "sha512-9HZhzq/Yck3uH3M/iYP7szqoF5JXpXfz0+orhBOKalSH+dj0IC9uWPECkR1vH4lMCytxpHjJKHh9efXRYMJl6w==",
+        "engine": {
+          "kind": "same_distribution",
+          "release": "2026.10.10"
+        },
+        "local_identity": "package.json 固定版本匹配；执行文件另有 SHA-256。"
+      },
+      "acp_entry": {
+        "argv": [
+          "openclaw",
+          "acp"
+        ],
+        "binding": "crates/vw-acp/src/agent_registry.rs::BUILT_IN_AGENT_DEFINITIONS",
+        "runtime_executed": false,
+        "note": "固定发行物候选入口；注册器含 latest/range，不保证用户当前命令已固定到此版本。"
+      },
+      "mount": {
+        "candidate_paths": [
+          "config.skills.load.extraDirs[]",
+          "workspace/skills",
+          "managed/plugin skills（优先级需验收）"
+        ],
+        "discovery": "2026.10.10 workspace-skill-sources 将 extraDirs 作为低优先级额外根；ACP 是 Gateway 桥接，不能仅改桥接子进程环境便声称 Gateway 已更新。",
+        "activation": "额外根、技能选择、正文读取分开；配置存在不等于 Gateway 回合已使用。",
+        "session_isolation": "unverified：额外根/专属配置根不自动排除内建、用户、项目及插件技能；不得修改 HOME 或写用户全局目录。"
+      },
+      "permissions": {
+        "status": "unverified",
+        "requirements": "执行端重新审核目录、租户/项目/会话权限、路径逃逸与符号链接；支持文件/脚本/MCP 仍受各自授权限制，不扩大 full_access。",
+        "agent_specific": "Gateway 进程必须看到目录且经过相同边界审核。"
+      },
+      "update": {
+        "native": "unverified：本任务未执行热更新或原子完整替换；静态刷新函数/文档 reload 不作成功承诺。",
+        "candidate": "当前 schema 有 watch 线索；Gateway 与桥接进程的配置生效边界待验收。"
+      },
+      "recovery": {
+        "status": "unverified",
+        "requirements": "重建 new/load/resume 后重新发布同 revision 目录并核实发现、删除和支持文件访问；不能把已有模型来源恢复证据当技能恢复证据。"
+      },
+      "independent_sources": {
+        "local_configuration": {
+          "candidate": "OPENCLAW_STATE_DIR + OPENCLAW_CONFIG_PATH; owned foreground Gateway",
+          "static_review_only": true,
+          "runtime_verified_this_task": false
+        },
+        "client_model_source": {
+          "prior_report_status": "verified_release_only",
+          "reference": "../../shiju/acp-model-source/cli-versions.json#openclaw",
+          "runtime_verified_this_task": false,
+          "note": "只保留旧报告定位；不复制其通过/不支持结论到技能能力。"
+        }
+      },
+      "evidence": [
+        {
+          "path": "target/acp-model-source-tools/openclaw-2026.10.10/node_modules/openclaw/dist/workspace-skill-sources-DqAcMM_z.mjs",
+          "sha256": "e6e10026a85afc294f3abe0bf2ce34731f2d9fe56ab84df5b568e6e7b75d56da",
+          "kind": "source",
+          "bytes": 5380,
+          "observations": [
+            {
+              "pattern": "skills\\?\\.load\\?\\.extraDirs",
+              "byte_offset": 3607,
+              "line": 68,
+              "excerpt": " {\n\t\troots.push(...normalizeTrimmedStringList(opts?.config?.skills?.load?.extraDirs ?? []).map((dir) => ({\n\t\t\tdir: resolveUserPath(dir),\n\t\t\tsource: \"openclaw-extra\",\n\t\t\ttier: \"extra\"\n\t\t})));\n\t\troots.push(...pluginSkillRoots.map((root) => ({\n\t\t\t...root,\n\t\t\tsource: \"openclaw-extra\",\n\t"
+            }
+          ]
+        },
+        {
+          "path": "target/acp-model-source-tools/openclaw-2026.10.10/node_modules/openclaw/package.json",
+          "sha256": "24211af07f7be872b714cd2181008b8bc9981a07608e531c3d70fddd3672c28b",
+          "kind": "package_identity",
+          "bytes": 152524,
+          "observations": [],
+          "package": "openclaw",
+          "version": "2026.10.10"
+        }
+      ],
+      "supplemental_official_docs": [],
+      "next_validation": "固定版本真实 ACP：发现元数据 → 按需激活 → 支持文件/脚本工具回合 → 隔离/删除/更新失败保旧 → 跨进程恢复；只替代外部模型 HTTP。未安装/缺账号则保留 unverified。"
+    },
+    {
+      "key": "pi",
+      "version": "0.0.22",
+      "status": "candidate",
+      "platform": {
+        "review_host": "Darwin-arm64",
+        "artifact_scope": "本机固定发行物静态审查；源码/通用 JS 的跨平台执行未验证",
+        "linux": "unverified",
+        "windows": "unverified"
+      },
+      "distribution": {
+        "package": "pi-acp",
+        "version": "0.0.22",
+        "upstream_url": "https://registry.npmjs.org/pi-acp/0.0.22",
+        "upstream_integrity": "sha512-A9DFxi3dF/xFgf0vm5r5jvEtTszRXqK2MUYXWQN0aSSLeJW53efqFlueczZCj5J119s+FLlQVQYso71PDPL0sw==",
+        "engine": {
+          "kind": "external_cli",
+          "package": "@mariozechner/pi-coding-agent",
+          "release": "0.73.1",
+          "reason": "Real 0.73.1 installed in an isolated runtime; native package identity and CLI digest verified separately from patched ACP adapter.",
+          "identity_evidence": "pi-acp 0.0.22 published dist/index.js::PiRpcProcess.spawn",
+          "launch": [
+            "pi",
+            "--mode",
+            "rpc",
+            "--no-themes"
+          ],
+          "command": [
+            "pi",
+            "--version"
+          ]
+        },
+        "local_identity": "package.json 固定版本匹配；执行文件另有 SHA-256。"
+      },
+      "acp_entry": {
+        "argv": [
+          "pi-acp"
+        ],
+        "binding": "crates/vw-acp/src/agent_registry.rs::BUILT_IN_AGENT_DEFINITIONS",
+        "runtime_executed": false,
+        "note": "固定发行物候选入口；注册器含 latest/range，不保证用户当前命令已固定到此版本。"
+      },
+      "mount": {
+        "candidate_paths": [
+          "PI_CODING_AGENT_DIR/skills",
+          "<cwd>/.pi/skills",
+          "~/.agents/skills"
+        ],
+        "discovery": "pi-acp 0.0.22 的资源清单扫描上述目录；实际 Pi 0.73.1 loadSkills 接受显式 skillPaths/includeDefaults。adapter 清单与 engine loader 两条链必须同时验证。",
+        "activation": "adapter 列出的 Skills 资源不是 engine 实际激活证据；默认目录包含全局技能，需排除。",
+        "session_isolation": "unverified：额外根/专属配置根不自动排除内建、用户、项目及插件技能；不得修改 HOME 或写用户全局目录。"
+      },
+      "permissions": {
+        "status": "unverified",
+        "requirements": "执行端重新审核目录、租户/项目/会话权限、路径逃逸与符号链接；支持文件/脚本/MCP 仍受各自授权限制，不扩大 full_access。",
+        "agent_specific": "固定 ACP 的目录/工具授权条件须后续真实验证；未因模型来源受限推定技能不支持。"
+      },
+      "update": {
+        "native": "unverified：本任务未执行热更新或原子完整替换；静态刷新函数/文档 reload 不作成功承诺。",
+        "candidate": "在不打断运行请求的前提下评估空闲重建；尚未确认固定发行物原生更新入口。"
+      },
+      "recovery": {
+        "status": "unverified",
+        "requirements": "重建 new/load/resume 后重新发布同 revision 目录并核实发现、删除和支持文件访问；不能把已有模型来源恢复证据当技能恢复证据。"
+      },
+      "independent_sources": {
+        "local_configuration": {
+          "candidate": "PI_CODING_AGENT_DIR; patched PI_ACP_STATE_DIR",
+          "static_review_only": true,
+          "runtime_verified_this_task": false
+        },
+        "client_model_source": {
+          "prior_report_status": "verified_release_only",
+          "reference": "../../shiju/acp-model-source/cli-versions.json#pi",
+          "runtime_verified_this_task": false,
+          "note": "只保留旧报告定位；不复制其通过/不支持结论到技能能力。"
+        }
+      },
+      "evidence": [
+        {
+          "path": "${REVIEW_CACHE}/pi-acp-0.0.22/package_dist_index.js",
+          "sha256": "f9a00a801269ecaabbfb977cdabac6dae9dacd1f8f27e39905217cf84b4b87d5",
+          "kind": "source",
+          "bytes": 81710,
+          "observations": [
+            {
+              "pattern": "const globalSkillsDir =",
+              "byte_offset": 77950,
+              "line": 2338,
+              "excerpt": ");\n          }\n        }\n      }\n    } catch {\n    }\n  };\n  const globalSkillsDir = join6(getAgentDir(), \"skills\");\n  pushSkillFromRoot(globalSkillsDir);\n  const legacyAgentsSkillsDir = join6(process.env.HOME ?? \"\", \".agents\", \"skills\");\n  pushSkillFromRoot(legacyAgentsSkillsDir);\n "
+            },
+            {
+              "pattern": "const projectSkillsDir =",
+              "byte_offset": 78174,
+              "line": 2342,
+              "excerpt": "\", \"skills\");\n  pushSkillFromRoot(legacyAgentsSkillsDir);\n  const projectSkillsDir = join6(opts.cwd, \".pi\", \"skills\");\n  pushSkillFromRoot(projectSkillsDir);\n  addSection(\"Skills\", skillsItems);\n  const promptsItems = [];\n  const promptsDir = join6(process.env.HOME ?? \"\", \".pi\", \"age"
+            }
+          ]
+        },
+        {
+          "path": "target/acp-model-source-evidence/pi/runtime/node_modules/@mariozechner/pi-coding-agent/dist/core/skills.js",
+          "sha256": "f364536443482f171bb255b0ff5b871e56e14588fa50178c759d95ad7ef700d3",
+          "kind": "source",
+          "bytes": 15253,
+          "observations": [
+            {
+              "pattern": "export function loadSkills\\(",
+              "byte_offset": 11298,
+              "line": 309,
+              "excerpt": "ions.\n * Returns skills and any validation diagnostics.\n */\nexport function loadSkills(options) {\n    const { cwd, agentDir, skillPaths, includeDefaults } = options;\n    // Resolve agentDir - if not provided, use default from config\n    const resolvedAgentDir = agentDir ?? getAgentDir()"
+            }
+          ]
+        },
+        {
+          "path": "${REVIEW_CACHE}/pi-acp-0.0.22/package_package.json",
+          "sha256": "3e6012027c3d6a723a4ebb639e9c0c2033e0bf00d3d31657f4ea19b0e420830b",
+          "kind": "package_identity",
+          "bytes": 1405,
+          "observations": [],
+          "package": "pi-acp",
+          "version": "0.0.22"
+        }
+      ],
+      "supplemental_official_docs": [],
+      "next_validation": "固定版本真实 ACP：发现元数据 → 按需激活 → 支持文件/脚本工具回合 → 隔离/删除/更新失败保旧 → 跨进程恢复；只替代外部模型 HTTP。未安装/缺账号则保留 unverified。"
+    },
+    {
+      "key": "qoder",
+      "version": "1.1.82",
+      "status": "unverified",
+      "platform": {
+        "review_host": "Darwin-arm64",
+        "artifact_scope": "本机固定发行物静态审查；源码/通用 JS 的跨平台执行未验证",
+        "linux": "unverified",
+        "windows": "unverified"
+      },
+      "distribution": {
+        "package": "@qoder-ai/qodercli",
+        "version": "1.1.82",
+        "upstream_url": "https://registry.npmjs.org/%40qoder-ai%2Fqodercli/1.1.82",
+        "upstream_integrity": "sha512-Vac4oHtL4F5oUbn51e3OD+CnHFQbMbqqO4a1cy0AnGGzELzvfHXCExgfhqwXUlTUatZbbKq45oMt8Od/GPPtBw==",
+        "engine": {
+          "kind": "same_distribution",
+          "release": "1.1.82"
+        },
+        "local_identity": "package.json 固定版本匹配；执行文件另有 SHA-256。"
+      },
+      "acp_entry": {
+        "argv": [
+          "qodercli",
+          "--acp",
+          "--permission-mode",
+          "bypass_permissions"
+        ],
+        "binding": "crates/vw-acp/src/agent_registry.rs::BUILT_IN_AGENT_DEFINITIONS",
+        "runtime_executed": false,
+        "note": "固定发行物候选入口；注册器含 latest/range，不保证用户当前命令已固定到此版本。"
+      },
+      "mount": {
+        "candidate_paths": [
+          ".agents/skills（固定包可读字符串）",
+          ".qoder/skills（当前官方文档线索）"
+        ],
+        "discovery": "1.1.82 bundle 有 SKILL.md scanner，但路径解码与 ACP 传参契约未完全核实；不能从 SDK 或 TUI 文档推定 ACP 支持。",
+        "activation": "当前 SDK selected_skills/CLI reload 的语义与 ACP 激活不同，均待版本绑定验收。",
+        "session_isolation": "unverified：额外根/专属配置根不自动排除内建、用户、项目及插件技能；不得修改 HOME 或写用户全局目录。"
+      },
+      "permissions": {
+        "status": "unverified",
+        "requirements": "执行端重新审核目录、租户/项目/会话权限、路径逃逸与符号链接；支持文件/脚本/MCP 仍受各自授权限制，不扩大 full_access。",
+        "agent_specific": "固定 ACP 的目录/工具授权条件须后续真实验证；未因模型来源受限推定技能不支持。"
+      },
+      "update": {
+        "native": "unverified：本任务未执行热更新或原子完整替换；静态刷新函数/文档 reload 不作成功承诺。",
+        "candidate": "在不打断运行请求的前提下评估空闲重建；尚未确认固定发行物原生更新入口。"
+      },
+      "recovery": {
+        "status": "unverified",
+        "requirements": "重建 new/load/resume 后重新发布同 revision 目录并核实发现、删除和支持文件访问；不能把已有模型来源恢复证据当技能恢复证据。"
+      },
+      "independent_sources": {
+        "local_configuration": {
+          "candidate": "未有独立配置根证据；需审查项目/用户配置",
+          "static_review_only": true,
+          "runtime_verified_this_task": false
+        },
+        "client_model_source": {
+          "prior_report_status": "unsupported",
+          "reference": "../../shiju/acp-model-source/cli-versions.json#qoder",
+          "runtime_verified_this_task": false,
+          "note": "只保留旧报告定位；不复制其通过/不支持结论到技能能力。"
+        }
+      },
+      "evidence": [
+        {
+          "path": "target/qoder-investigation/package/bundle/qodercli.js",
+          "sha256": "723550e7f3d746b2074140e995083f6646b721f4f870b00a31e82d0af0e26eaf",
+          "kind": "source",
+          "bytes": 35168647,
+          "observations": [
+            {
+              "pattern": "\\.agents/skills",
+              "byte_offset": 30772802,
+              "line": 427,
+              "excerpt": "kF6FF4AHCoESgYuCFYSFVoEMSESCh4yLVsmAlYdHzQOSgYgC1c4\")]:\"从 .agents/skills 加载技能\",[_$d1(\"AyMDEAMvDkF6FF4AHCoESgYuCFYSFVoEMSESCh4yLVsmAlYdHzQOSg4kGlEmDkUdGSkZ\")]:_$d1(\"lP35gv3mjrvcRxsIFyMZEBluGlk9C1kaUKPy2I/v0NXPydDU5aP9xIL81NTe593qzanL/47+x9TA3tD5/q/r5IPG5NfEyBUqPA+U"
+            },
+            {
+              "pattern": "\"SKILL.md\"",
+              "byte_offset": 197248,
+              "line": 2,
+              "excerpt": "sDirectory())return[];let r=TLa(i,e.scanLimits),o=g0.join(t,\"SKILL.md\");try{if(!(await r.limit(()=>My.stat(o))).isFile())throw new Error(_$d1(\"NC8FAQk1SUE/DlkFUDYWEAJhAEF0CVodUCdXAgMtDA==\"));if(e.allowDirectSkill){let A=g0.basename(t),{skill:i,reportedLoadFailure:n}=awa"
+            }
+          ]
+        },
+        {
+          "path": "target/qoder-investigation/package/package.json",
+          "sha256": "84f5bf3900ae4316410b5c9e25dbac2f8cdfcd4f87c22f306ef81675c010974c",
+          "kind": "package_identity",
+          "bytes": 1177,
+          "observations": [],
+          "package": "@qoder-ai/qodercli",
+          "version": "1.1.82"
+        }
+      ],
+      "supplemental_official_docs": [
+        {
+          "url": "https://docs.qoder.com/cli/Skills",
+          "reviewed_on": "2026-11-05",
+          "scope": "当前文档补充线索；未绑定固定发行物/ACP；不用于提升支持状态。"
+        }
+      ],
+      "next_validation": "固定版本真实 ACP：发现元数据 → 按需激活 → 支持文件/脚本工具回合 → 隔离/删除/更新失败保旧 → 跨进程恢复；只替代外部模型 HTTP。未安装/缺账号则保留 unverified。"
+    },
+    {
+      "key": "qwen",
+      "version": "0.26.7",
+      "status": "candidate",
+      "platform": {
+        "review_host": "Darwin-arm64",
+        "artifact_scope": "本机固定发行物静态审查；源码/通用 JS 的跨平台执行未验证",
+        "linux": "unverified",
+        "windows": "unverified"
+      },
+      "distribution": {
+        "package": "@qwen-code/qwen-code",
+        "version": "0.26.7",
+        "upstream_url": "https://registry.npmjs.org/%40qwen-code%2Fqwen-code/0.26.7",
+        "upstream_integrity": "sha512-sRFWwmakpvF3bWBfG1M/ijoZG5h8Yxs0IC4cXZP3dJLyEbbTHItyhzMySG4o4CzLGFIfofArummQJo/xcggweQ==",
+        "engine": {
+          "kind": "same_distribution",
+          "release": "0.26.7"
+        },
+        "local_identity": "package.json 固定版本匹配；执行文件另有 SHA-256。"
+      },
+      "acp_entry": {
+        "argv": [
+          "qwen",
+          "--acp",
+          "--experimental-skills",
+          "--approval-mode",
+          "yolo"
+        ],
+        "binding": "crates/vw-acp/src/agent_registry.rs::BUILT_IN_AGENT_DEFINITIONS",
+        "runtime_executed": false,
+        "note": "固定发行物候选入口；注册器含 latest/range，不保证用户当前命令已固定到此版本。"
+      },
+      "mount": {
+        "candidate_paths": [
+          "Storage.getGlobalQwenDir()/skills",
+          "其他 SKILL_PROVIDER_CONFIG_DIRS 下的 skills"
+        ],
+        "discovery": "0.26.7 getUserSkillsDirs 遍历多个品牌目录；ACP 本地读根包含技能目录。experimental-skills 在固定 CLI 被标注已默认启用且忽略该标志，不能以 --help 参数认定支持。",
+        "activation": "默认启用技能功能不是所有正文已激活；选择与真实 Skill 工具读取需分别验收。",
+        "session_isolation": "unverified：额外根/专属配置根不自动排除内建、用户、项目及插件技能；不得修改 HOME 或写用户全局目录。"
+      },
+      "permissions": {
+        "status": "unverified",
+        "requirements": "执行端重新审核目录、租户/项目/会话权限、路径逃逸与符号链接；支持文件/脚本/MCP 仍受各自授权限制，不扩大 full_access。",
+        "agent_specific": "ACP 本地读根包含 getUserSkillsDirs；不是脚本执行授权。"
+      },
+      "update": {
+        "native": "unverified：本任务未执行热更新或原子完整替换；静态刷新函数/文档 reload 不作成功承诺。",
+        "candidate": "在不打断运行请求的前提下评估空闲重建；尚未确认固定发行物原生更新入口。"
+      },
+      "recovery": {
+        "status": "unverified",
+        "requirements": "重建 new/load/resume 后重新发布同 revision 目录并核实发现、删除和支持文件访问；不能把已有模型来源恢复证据当技能恢复证据。"
+      },
+      "independent_sources": {
+        "local_configuration": {
+          "candidate": "QWEN_HOME / QWEN_RUNTIME_DIR",
+          "static_review_only": true,
+          "runtime_verified_this_task": false
+        },
+        "client_model_source": {
+          "prior_report_status": "verified_release_only",
+          "reference": "../../shiju/acp-model-source/cli-versions.json#qwen",
+          "runtime_verified_this_task": false,
+          "note": "只保留旧报告定位；不复制其通过/不支持结论到技能能力。"
+        }
+      },
+      "evidence": [
+        {
+          "path": "target/qwen-source-review/package/chunks/chunk-EPODBRBP.js",
+          "sha256": "8fe6c68b997e56c3dcdec5e76f4771e9a84a4b8d8a477d3d1f9e8f47322d2690",
+          "kind": "source",
+          "bytes": 12101,
+          "observations": [
+            {
+              "pattern": "getUserSkillsDirs\\(\\)\\{",
+              "byte_offset": 11563,
+              "line": 3,
+              "excerpt": "rn path.join(this.getExtensionsDir(),\"qwen-extension.json\")}getUserSkillsDirs(){const homeDir=os.homedir()||os.tmpdir();return SKILL_PROVIDER_CONFIG_DIRS.map(dir=>dir===QWEN_DIR?path.join(_Storage.getGlobalQwenDir(),\"skills\"):path.join(homeDir,dir,\"skills\"))}static getUserExtensi"
+            }
+          ]
+        },
+        {
+          "path": "target/qwen-source-review/package/chunks/chunk-ISFJXLXM.js",
+          "sha256": "a6f66ba00183370b2ab0984a5489ad8d207373282828514349fe3ef9d15cce76",
+          "kind": "source",
+          "bytes": 305393,
+          "observations": [
+            {
+              "pattern": "\"experimental-skills\"",
+              "byte_offset": 251659,
+              "line": 41,
+              "excerpt": "e execution engine this ACP host runs\",hidden:true}).option(\"experimental-skills\",{type:\"boolean\",description:\"Deprecated: Skills are now enabled by default. This flag is ignored.\",hidden:true}).option(\"experimental-lsp\",DEFAULT_COMMAND_OPTIONS[\"experimental-lsp\"]).option(\"restore"
+            }
+          ]
+        },
+        {
+          "path": "target/qwen-source-review/package/package.json",
+          "sha256": "060c3d68437df8df04505e52a0a1c9116781c1c0ed43e7025014ee644e793fcf",
+          "kind": "package_identity",
+          "bytes": 2151,
+          "observations": [],
+          "package": "@qwen-code/qwen-code",
+          "version": "0.26.7"
+        }
+      ],
+      "supplemental_official_docs": [],
+      "next_validation": "固定版本真实 ACP：发现元数据 → 按需激活 → 支持文件/脚本工具回合 → 隔离/删除/更新失败保旧 → 跨进程恢复；只替代外部模型 HTTP。未安装/缺账号则保留 unverified。"
+    },
+    {
+      "key": "trae",
+      "version": "0.121.3",
+      "status": "unverified",
+      "platform": {
+        "review_host": "Darwin-arm64",
+        "artifact_scope": "本机固定发行物静态审查；源码/通用 JS 的跨平台执行未验证",
+        "linux": "unverified",
+        "windows": "unverified"
+      },
+      "distribution": {
+        "package": "trae",
+        "version": "0.121.3",
+        "upstream_url": "https://lf-cdn.trae.com.cn/obj/trae-com-cn/trae-cli/trae-cli_0.121.3_darwin_arm64.tar.gz",
+        "upstream_integrity": "见本项 evidence 文件 SHA-256；不得将其等同完整发行物签名",
+        "engine": {
+          "kind": "same_distribution",
+          "release": "0.121.3"
+        },
+        "local_identity": "固定版本来自版本清单/本机隔离发行物路径；仅记录静态文件散列，不把路径命名当作运行身份验证。"
+      },
+      "acp_entry": {
+        "argv": [
+          "traecli",
+          "acp",
+          "serve"
+        ],
+        "binding": "crates/vw-acp/src/agent_registry.rs::BUILT_IN_AGENT_DEFINITIONS",
+        "runtime_executed": false,
+        "note": "固定发行物候选入口；注册器含 latest/range，不保证用户当前命令已固定到此版本。"
+      },
+      "mount": {
+        "candidate_paths": [
+          "未核实：固定 0.121.3 CLI 的技能目录入口"
+        ],
+        "discovery": "0.121.3 二进制仅有 SKILL.md/docs/skills.md 等符号，无法据此确认目录契约。当前 CLI/IDE 文档与固定发行物代际和产品面不一致，禁止据 IDE 路径推断。",
+        "activation": "目录发现、默认选择与按需激活全部未核实；非 unsupported。",
+        "session_isolation": "unverified：额外根/专属配置根不自动排除内建、用户、项目及插件技能；不得修改 HOME 或写用户全局目录。"
+      },
+      "permissions": {
+        "status": "unverified",
+        "requirements": "执行端重新审核目录、租户/项目/会话权限、路径逃逸与符号链接；支持文件/脚本/MCP 仍受各自授权限制，不扩大 full_access。",
+        "agent_specific": "固定 ACP 的目录/工具授权条件须后续真实验证；未因模型来源受限推定技能不支持。"
+      },
+      "update": {
+        "native": "unverified：本任务未执行热更新或原子完整替换；静态刷新函数/文档 reload 不作成功承诺。",
+        "candidate": "在不打断运行请求的前提下评估空闲重建；尚未确认固定发行物原生更新入口。"
+      },
+      "recovery": {
+        "status": "unverified",
+        "requirements": "重建 new/load/resume 后重新发布同 revision 目录并核实发现、删除和支持文件访问；不能把已有模型来源恢复证据当技能恢复证据。"
+      },
+      "independent_sources": {
+        "local_configuration": {
+          "candidate": "TRAE_HOME",
+          "static_review_only": true,
+          "runtime_verified_this_task": false
+        },
+        "client_model_source": {
+          "prior_report_status": "unsupported",
+          "reference": "../../shiju/acp-model-source/cli-versions.json#trae",
+          "runtime_verified_this_task": false,
+          "note": "只保留旧报告定位；不复制其通过/不支持结论到技能能力。"
+        }
+      },
+      "evidence": [
+        {
+          "path": "target/trae-investigation/0.121.3/trae-cli",
+          "sha256": "7648c66ffb535e83e4b1f5bbd820f0384d77234763cfb32700b1be3289358758",
+          "kind": "binary_static",
+          "bytes": 74929330,
+          "observations": [
+            {
+              "pattern": "SKILL\\.md",
+              "byte_offset": 22955603,
+              "line": null,
+              "excerpt": "ednil contextmodel_retry__pycache__pre_compact<id>%s</id>**/SKILL.mdHTTP %d: %s %s Submit Plan saved. [2J [3J [Hswitch modeswitch_modestream_tickstatus_tickplaceholderThinking...for newlinechat_detailtest-value-http-serverhttp2serverhttp2clientEND_HEADERSENABLE_PUSHCo"
+            }
+          ]
+        }
+      ],
+      "supplemental_official_docs": [
+        {
+          "url": "https://docs.trae.cn/ide_skills?lang=zh",
+          "reviewed_on": "2026-11-05",
+          "scope": "当前文档补充线索；未绑定固定发行物/ACP；不用于提升支持状态。"
+        }
+      ],
+      "next_validation": "固定版本真实 ACP：发现元数据 → 按需激活 → 支持文件/脚本工具回合 → 隔离/删除/更新失败保旧 → 跨进程恢复；只替代外部模型 HTTP。未安装/缺账号则保留 unverified。"
+    }
+  ]
+}

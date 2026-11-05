@@ -165,13 +165,7 @@ pub fn tool_todowrite_compact_view<'a>(
         .and_then(|vv| vv.get("merge").and_then(|m| m.as_bool()))
         .unwrap_or(false);
 
-    let todos = v
-        .get("input")
-        .and_then(|i| i.as_str())
-        .and_then(|s| serde_json::from_str::<serde_json::Value>(s.trim()).ok())
-        .and_then(|vv| vv.get("todos").cloned())
-        .and_then(|vv| vv.as_array().cloned())
-        .unwrap_or_default();
+    let todos = super::todowrite_display_todos(&v);
 
     let todos_list: Vec<(String, String)> = todos
         .iter()

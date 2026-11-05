@@ -573,10 +573,8 @@ fn collect_tool_texts(
             if is_error && !err_text.is_empty() {
                 tool_texts.push(err_text.to_string());
             }
-            if let Some(input) = value.get("input").and_then(|item| item.as_str())
-                && let Ok(input_json) = serde_json::from_str::<serde_json::Value>(input.trim())
-                && let Some(todos) = input_json.get("todos").and_then(|item| item.as_array())
             {
+                let todos = super::super::tools::todowrite_display_todos(value);
                 let lines = todos
                     .iter()
                     .map(|todo| {

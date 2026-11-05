@@ -63,6 +63,19 @@ fn tool_card_text_blocks_cover_todo_and_browser_previews() {
 }
 
 #[test]
+fn todowrite_card_text_resolves_status_only_update() {
+    let texts = tool_card(
+        "todowrite",
+        serde_json::json!({
+            "status": "completed",
+            "input": serde_json::json!({"merge": true, "todos": [{"id": "1", "status": "completed"}]}).to_string(),
+            "result": {"data": {"newTodos": [{"id": "1", "content": "检查任务显示", "status": "completed"}]}}
+        }),
+    );
+    assert_eq!(texts, vec!["✓ 检查任务显示"]);
+}
+
+#[test]
 fn normalized_visible_text_strips_internal_traces() {
     assert_eq!(
         normalized_visible_text("tool bash({\"command\":\"pwd\"})\nfinal"),

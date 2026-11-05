@@ -62,6 +62,7 @@ mod question_view;
 mod read_view;
 mod skill_view;
 mod text_view;
+mod todo_parse;
 mod todo_views;
 mod tool_detail_dialog;
 mod tool_meta;
@@ -100,6 +101,8 @@ mod read_view_tests;
 mod skill_view_tests;
 #[cfg(test)]
 mod text_view_tests;
+#[cfg(test)]
+mod todo_parse_tests;
 #[cfg(test)]
 mod todo_views_tests;
 #[cfg(test)]
@@ -142,6 +145,7 @@ pub use question_view::tool_question_view;
 pub use read_view::{tool_read_compact_view, tool_read_view};
 pub use skill_view::tool_skill_view;
 pub use text_view::tool_text_view;
+pub(crate) use todo_parse::todowrite_display_todos;
 pub use todo_views::{tool_todos_view, tool_todowrite_compact_view};
 pub use tool_detail_dialog::tool_detail_dialog_view;
 pub use tool_meta::tool_header_label;

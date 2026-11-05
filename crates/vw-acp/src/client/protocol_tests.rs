@@ -765,3 +765,36 @@ async fn acp_skill_mount_codex_rejects_adapter_without_native_capability() {
     })
     .await;
 }
+
+#[tokio::test]
+async fn acp_skill_mount_lifecycle_failed_restore_never_creates_replacement() {
+    for strategy in [
+        SessionStrategy::ResumeLoadOrNew("saved-history".into()),
+        SessionStrategy::LoadOrNew("saved-history".into()),
+    ] {
+        with_connection(
+            TestAgent::with_session_results([false], [false], ["replacement"]),
+            async |conn, agent| {
+                let client = client("agent", &[]).with_skill_mounts(
+                    Some(crate::SessionMountSelection { version: 1, skills: vec![] }),
+                    None,
+                );
+                let expected = Arc::new(Mutex::new(None));
+                assert!(
+                    client
+                        .resolve_session(
+                            &conn,
+                            Path::new("/tmp/lifecycle-restore"),
+                            &strategy,
+                            &expected
+                        )
+                        .await
+                        .is_err()
+                );
+                assert!(expected.lock().is_none());
+                assert!(agent.state.lock().new_session_requests.is_empty());
+            },
+        )
+        .await;
+    }
+}

@@ -118,7 +118,7 @@ class ModelHandler(ProviderHandler):
             if spec.get('source'):
                 source = Path(spec['source'])
                 plan += [('file_read', {'path': str(source / 'references/probe.txt')}),
-                         ('exec_command', {'cmd': 'sh ' + shlex.quote(str(source / 'scripts/probe.sh'))})]
+                         ('bash', {'command': 'sh ' + shlex.quote(str(source / 'scripts/probe.sh'))})]
             if spec.get('mcp'):
                 plan += [('tool_search', {'query': 'read_probe', 'limit': 10})]
             plan += [(name, {}) for name in spec.get('mcp', [])]
@@ -276,6 +276,8 @@ def run(shiju, output):
             result, events = client.request('session/prompt', {'sessionId': session, 'prompt': [{'type': 'text', 'text': prompt}]})
             text = ''.join(text_updates(events))
             require(result['stopReason'] == 'end_turn', 'probe stop reason')
+            if source and text.startswith('TOOL_UNAVAILABLE:'):
+                raise AssertionError(text.splitlines()[0])
             for value in expected:
                 if value.startswith('BODY_'):
                     require(value[5:] in model.skill_bodies, 'skill body did not reach model after native invocation')

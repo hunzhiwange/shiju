@@ -164,3 +164,6 @@ pub(super) fn configure_native_scanner(
     }
     Ok(())
 }
+
+#[cfg(test)]
+mod lifecycle_tests;

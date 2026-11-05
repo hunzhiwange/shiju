@@ -81,6 +81,17 @@ impl AcpClient {
                     .await?;
                 session_id.clone()
             }
+            // A mount selection (including explicit revocation) must restore the
+            // original history. A failed restore is never permission to create
+            // a replacement session with a different native skill collection.
+            SessionStrategy::ResumeLoadOrNew(session_id) if self.skill_mounts.is_some() => {
+                self.resolve_existing_session(conn, cwd, session_id.clone(), expected_session_id)
+                    .await?;
+                session_id.clone()
+            }
+            SessionStrategy::LoadOrNew(session_id) if self.skill_mounts.is_some() => {
+                self.load_session_id(conn, cwd, session_id.clone()).await?
+            }
             SessionStrategy::ResumeLoadOrNew(session_id) => {
                 match self.resume_session_id(conn, cwd, session_id.clone()).await {
                     Ok(session_id) => session_id,

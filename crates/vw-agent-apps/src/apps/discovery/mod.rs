@@ -6,3 +6,6 @@ mod posix_tests;
 pub mod windows;
 #[cfg(test)]
 mod windows_tests;
+pub mod wsl;
+#[cfg(test)]
+mod wsl_tests;

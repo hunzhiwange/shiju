@@ -114,7 +114,8 @@ def locate(entry, env):
         return {"command": str(Path(executable).absolute()), "args": [], "env": {}}
     result = subprocess.run([executable, "--version"], env=env, capture_output=True, timeout=20)
     version = (result.stdout + result.stderr).decode(errors="replace")
-    if result.returncode or not re.search(r"(?<![\w.])" + re.escape(release) + r"(?![\w.])", version):
+    version_prefix = r"v?" if entry.get("key") == "hermes" else ""
+    if result.returncode or not re.search(r"(?<![\w.])" + version_prefix + re.escape(release) + r"(?![\w.])", version):
         raise VersionMismatch("installed CLI version differs from manifest")
     launch = entry.get("acp_launch", [])
     if not launch or Path(launch[0]).name != Path(candidate).name or any("latest" in x for x in launch):

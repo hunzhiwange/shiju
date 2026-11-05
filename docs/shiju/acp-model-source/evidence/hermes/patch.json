@@ -22,7 +22,23 @@
     "hermes_cli/subcommands/acp.py": {
       "original_sha256": "fd93ac27465c5aa50613509cd1cd80da54e6075de6044a10753a3ef26e6125a0",
       "patched_sha256": "83980efbd56f31d64f35df8615ba3a86beb96760a3f3cb3b2cc5996ed99626d4"
+    },
+    "agent/skill_utils.py": {
+      "original_sha256": "c8c0928d3ff00b47b3be04126393c5b7a67c86bab262eba1df4bf4c8fad00c95",
+      "patched_sha256": "6c5712130d1c9a25c962e002092e2fc3e99f678a35d8b93828ea4b28cdb6bf68"
+    },
+    "agent/prompt_builder.py": {
+      "original_sha256": "d338e874e24eb0b4213c0f81864043b1ef476a151ca7d20e48d687a588ea2b57",
+      "patched_sha256": "0ddb00ebb67bf61b11446227a97059a0f425879963f45e0736801d117b473d8e"
+    },
+    "tools/skills_tool.py": {
+      "original_sha256": "87ccba357a171a53c4cacd3b2d83043354c112148641e7dce593531ce58c2112",
+      "patched_sha256": "dd94beff43de5c28af79505a55aa728c95875651225e7bec68674576c2c8ee2e"
+    },
+    "agent/conversation_loop.py": {
+      "original_sha256": "c9111ed90d038299f31848e97de1501ad06915c9459b4437934c79956119231b",
+      "patched_sha256": "70d332baabc102c69d30a7416986e29cf320449b6714611640fb6a1ff70768fd"
     }
   },
-  "patch_sha256": "f6bb617ddd4404ba51f35e9b4f14d045c3217b24050c017e4dfa071d79620dc9"
+  "patch_sha256": "b1dca66d15c693d9154034e76b6f94b1148e8f7986139688438e34e6a7168ce0"
 }

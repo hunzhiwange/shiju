@@ -95,7 +95,11 @@
       "acp_adapter/session.py": "3e8d2e86ca33be43c1daf96b6a39001de97287bd1b96fbb4adaf0f3aa8a4d410",
       "acp_adapter/entry.py": "611eab6b93ed0f97a9e079b5cbde771a0dc9223122cf2c9fb963af408106658b",
       "hermes_cli/main.py": "7e1c678f2584928b863565f99d3bca1d9a530a716838d23766e1449ffa9bca67",
-      "hermes_cli/subcommands/acp.py": "83980efbd56f31d64f35df8615ba3a86beb96760a3f3cb3b2cc5996ed99626d4"
+      "hermes_cli/subcommands/acp.py": "83980efbd56f31d64f35df8615ba3a86beb96760a3f3cb3b2cc5996ed99626d4",
+      "agent/skill_utils.py": "6c5712130d1c9a25c962e002092e2fc3e99f678a35d8b93828ea4b28cdb6bf68",
+      "agent/prompt_builder.py": "0ddb00ebb67bf61b11446227a97059a0f425879963f45e0736801d117b473d8e",
+      "tools/skills_tool.py": "dd94beff43de5c28af79505a55aa728c95875651225e7bec68674576c2c8ee2e",
+      "agent/conversation_loop.py": "70d332baabc102c69d30a7416986e29cf320449b6714611640fb6a1ff70768fd"
     },
     "wheel_sha256": "bd0bac012aee38a60894781f4597dc29ee7bedb3448540249921f10d3bef327f"
   },

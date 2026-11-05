@@ -823,10 +823,10 @@
     {
       "key": "hermes",
       "version": "0.19.0",
-      "status": "candidate",
+      "status": "verified",
       "platform": {
         "review_host": "Darwin-arm64",
-        "artifact_scope": "本机固定发行物静态审查；源码/通用 JS 的跨平台执行未验证",
+        "artifact_scope": "Reviewed patched Hermes 0.19.0 real ACP on Darwin-arm64 only; other versions/platforms unverified.",
         "linux": "unverified",
         "windows": "unverified"
       },
@@ -839,7 +839,7 @@
           "kind": "same_distribution",
           "release": "0.19.0"
         },
-        "local_identity": "固定版本来自版本清单/本机隔离发行物路径；仅记录静态文件散列，不把路径命名当作运行身份验证。"
+        "local_identity": "Actual fixed --version and executable digest checked; patched scanner and adapter files match managed contracts."
       },
       "acp_entry": {
         "argv": [
@@ -847,41 +847,41 @@
           "acp"
         ],
         "binding": "crates/vw-acp/src/agent_registry.rs::BUILT_IN_AGENT_DEFINITIONS",
-        "runtime_executed": false,
-        "note": "固定发行物候选入口；注册器含 latest/range，不保证用户当前命令已固定到此版本。"
+        "runtime_executed": true,
+        "note": "Verified reviewed patched 0.19.0 only; plain global Hermes is not proof of mounted support."
       },
       "mount": {
         "candidate_paths": [
-          "HERMES_HOME/skills（活动 profile）"
+          "SHIJU_HERMES_SKILL_ROOT (reviewed patch, process-owned session directory)"
         ],
-        "discovery": "0.19.0 skills_tool 动态解析活动 profile 的 HERMES_HOME；acp_adapter/tools.py 映射 skills_list/skill_view。仍须核实 session 绑定及共享进程并发隔离。",
-        "activation": "skills_list 清单与 skill_view 正文读取分别验证；不是默认把全部正文拼入 prompt。",
-        "session_isolation": "unverified：额外根/专属配置根不自动排除内建、用户、项目及插件技能；不得修改 HOME 或写用户全局目录。"
+        "discovery": "Actual Hermes native system catalog contains exactly selected names; native skill_view supplies body and mounted directory; real read_file/terminal tools read a newly randomized attachment and execute the script.",
+        "activation": "Native skill_view reads the body on demand; initial model prompt has no body or random attachment.",
+        "session_isolation": "External directories and namespaced plugin activation are excluded. Owned project/user decoys never appear. Invalid roots fail closed."
       },
       "permissions": {
-        "status": "unverified",
+        "status": "verified on Darwin-arm64: audited view, executable hash guard and default-skill permission denial before model request",
         "requirements": "执行端重新审核目录、租户/项目/会话权限、路径逃逸与符号链接；支持文件/脚本/MCP 仍受各自授权限制，不扩大 full_access。",
         "agent_specific": "固定 ACP 的目录/工具授权条件须后续真实验证；未因模型来源受限推定技能不支持。"
       },
       "update": {
-        "native": "unverified：本任务未执行热更新或原子完整替换；静态刷新函数/文档 reload 不作成功承诺。",
-        "candidate": "在不打断运行请求的前提下评估空闲重建；尚未确认固定发行物原生更新入口。"
+        "native": "No native hot-update claim.",
+        "candidate": "Verified idle reconstruction uses the current complete selected directory set; add/remove and V1/V2 checks pass."
       },
       "recovery": {
-        "status": "unverified",
-        "requirements": "重建 new/load/resume 后重新发布同 revision 目录并核实发现、删除和支持文件访问；不能把已有模型来源恢复证据当技能恢复证据。"
+        "status": "verified on Darwin-arm64 for both model sources",
+        "requirements": "Idle process rebuild with current mount revision; mounted sessions rebuild the native system prompt instead of reusing an obsolete stored catalog. Conversation history remains restored."
       },
       "independent_sources": {
         "local_configuration": {
           "candidate": "HERMES_HOME",
-          "static_review_only": true,
-          "runtime_verified_this_task": false
+          "static_review_only": false,
+          "runtime_verified_this_task": true
         },
         "client_model_source": {
           "prior_report_status": "verified_release_only",
           "reference": "../../shiju/acp-model-source/cli-versions.json#hermes",
-          "runtime_verified_this_task": false,
-          "note": "只保留旧报告定位；不复制其通过/不支持结论到技能能力。"
+          "runtime_verified_this_task": true,
+          "note": "Current skill-specific acceptance is recorded in evidence/hermes.json; prior model reports are not used as acceptance."
         }
       },
       "evidence": [
@@ -918,10 +918,34 @@
               "excerpt": "execute\",\n    # Session/meta tools\n    \"todo\": \"other\",\n    \"skill_view\": \"read\",\n    \"skills_list\": \"read\",\n    \"skill_manage\": \"edit\",\n    # Web / fetch\n    \"web_search\": \"fetch\",\n    \"web_extract\": \"fetch\",\n    # Browser\n    \"browser_navigate\": \"fetch\",\n    \"browser_click\": \"e"
             }
           ]
+        },
+        {
+          "path": "target/task18-hermes-runtime/bin/hermes",
+          "sha256": "592da67248b539e05cb9c8f4b8fbec257641394109f175571a48d6bcd4fd552b",
+          "kind": "executable",
+          "bytes": 354,
+          "observations": []
         }
       ],
       "supplemental_official_docs": [],
-      "next_validation": "固定版本真实 ACP：发现元数据 → 按需激活 → 支持文件/脚本工具回合 → 隔离/删除/更新失败保旧 → 跨进程恢复；只替代外部模型 HTTP。未安装/缺账号则保留 unverified。"
+      "next_validation": "Re-run the two real source entries after any reviewed package/patch/scanner change; other platforms need independent acceptance.",
+      "runtime_acceptance": {
+        "evidence": "evidence/hermes.json",
+        "model_sources": {
+          "session-model": {
+            "status": "passed",
+            "effective_tests": 1,
+            "model_requests": 34,
+            "tool_results": 24
+          },
+          "cli-local": {
+            "status": "passed",
+            "effective_tests": 1,
+            "model_requests": 34,
+            "tool_results": 24
+          }
+        }
+      }
     },
     {
       "key": "snow",

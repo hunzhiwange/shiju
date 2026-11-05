@@ -105,3 +105,77 @@
 +        "--session-model-binding", action="store_true",
 +        help="Require managed ACP model-source history support",
 +    )
+--- a/agent/skill_utils.py
++++ b/agent/skill_utils.py
+@@ -431,0 +432,11 @@
++def session_skill_root() -> Optional[Path]:
++    """Resolve the reviewed process-owned root without changing model configuration."""
++    raw = os.environ.get("SHIJU_HERMES_SKILL_ROOT")
++    if raw is None or raw == "":
++        return None
++    root = Path(raw)
++    if not root.is_absolute() or not root.is_dir() or root.is_symlink():
++        raise ValueError("Invalid session skill directory")
++    return root
++
++
+@@ -443,0 +455,3 @@
++    if "SHIJU_HERMES_SKILL_ROOT" in os.environ:
++        session_skill_root()
++        return []
+--- a/agent/prompt_builder.py
++++ b/agent/prompt_builder.py
+@@ -1526,2 +1526,10 @@
+-    skills_dir = get_skills_dir()
+-    external_dirs = get_all_skills_dirs()[1:]  # skip local (index 0)
++    scoped = "SHIJU_HERMES_SKILL_ROOT" in os.environ
++    if scoped:
++        from agent.skill_utils import session_skill_root
++        skills_dir = session_skill_root()
++        if skills_dir is None:
++            return ""
++        external_dirs = []
++    else:
++        skills_dir = get_skills_dir()
++        external_dirs = get_all_skills_dirs()[1:]  # skip local (index 0)
+@@ -1553 +1561 @@
+-    snapshot = _load_skills_snapshot(skills_dir)
++    snapshot = None if scoped else _load_skills_snapshot(skills_dir)
+@@ -1620,6 +1628,7 @@
+-        _write_skills_snapshot(
+-            skills_dir,
+-            _build_skills_manifest(skills_dir),
+-            skill_entries,
+-            category_descriptions,
+-        )
++        if not scoped:
++            _write_skills_snapshot(
++                skills_dir,
++                _build_skills_manifest(skills_dir),
++                skill_entries,
++                category_descriptions,
++            )
+--- a/tools/skills_tool.py
++++ b/tools/skills_tool.py
+@@ -154,0 +155,6 @@
++    if "SHIJU_HERMES_SKILL_ROOT" in os.environ:
++        from agent.skill_utils import session_skill_root
++        root = session_skill_root()
++        if root is None:
++            raise ValueError("No session skills selected")
++        return root
+@@ -685,0 +692,2 @@
++    if os.environ.get("SHIJU_HERMES_SKILL_ROOT") == "":
++        return []
+@@ -982,0 +991,4 @@
++        if "SHIJU_HERMES_SKILL_ROOT" in os.environ:
++            from agent.skill_utils import session_skill_root
++            if session_skill_root() is None or ":" in name:
++                return json.dumps({"success": False, "error": f"Skill '{name}' not found in session directory."})
+--- a/agent/conversation_loop.py
++++ b/agent/conversation_loop.py
+@@ -353 +353,3 @@
+-    if stored_prompt and _stored_prompt_matches_runtime(agent, stored_prompt):
++    # Mounted catalogs belong to this process/revision, never the persisted prompt.
++    if (stored_prompt and "SHIJU_HERMES_SKILL_ROOT" not in os.environ
++            and _stored_prompt_matches_runtime(agent, stored_prompt)):

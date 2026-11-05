@@ -35,7 +35,7 @@ pub(super) fn validate(agent: &str, selected: bool) -> Result<(), Error> {
         "codebuddy" => return Ok(()),
         "goose" => return Ok(()),
         "vibe" => return Ok(()),
-        "hermes" => hermes::rejection(),
+        "hermes" => return Ok(()),
         "snow" => snow::rejection(),
         "copilot" => copilot::rejection(),
         "kilocode" => kilocode::rejection(),
@@ -133,7 +133,9 @@ pub(super) fn configure_native_scanner(
     config: &mut crate::config::schema::AcpAgentConfig,
     view: Option<&MountedSkills>,
 ) -> Result<(), Error> {
-    if agent == "vibe" {
+    if agent == "hermes" {
+        hermes::configure(config, view)?;
+    } else if agent == "vibe" {
         vibe::configure(config, view)?;
     } else if agent == "goose" {
         goose::configure(config, view)?;

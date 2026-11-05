@@ -145,3 +145,40 @@ fn stale_ui_content_save_preserves_newer_messages() -> Result<()> {
     postgres_fixture.cleanup()?;
     Ok(())
 }
+
+#[test]
+fn dynamic_tools_persistence_failed_write_keeps_running_catalog() -> Result<()> {
+    let fixture = crate::global_database::test_support::PostgresTestDatabase::from_environment()?;
+    crate::session::dynamic_tool_store_tests::failed_write(fixture.database().clone())?;
+    fixture.cleanup()
+}
+
+#[test]
+fn dynamic_tools_persistence_success_and_explicit_empty() -> Result<()> {
+    let fixture = crate::global_database::test_support::PostgresTestDatabase::from_environment()?;
+    crate::session::dynamic_tool_store_tests::success_and_empty(fixture.database().clone())?;
+    fixture.cleanup()
+}
+
+#[test]
+fn dynamic_tools_persistence_rejects_untrusted_and_invalid() -> Result<()> {
+    let fixture = crate::global_database::test_support::PostgresTestDatabase::from_environment()?;
+    crate::session::dynamic_tool_store_tests::rejects_untrusted_and_invalid(
+        fixture.database().clone(),
+    )?;
+    fixture.cleanup()
+}
+
+#[test]
+fn dynamic_tools_persistence_scopes_and_stale_versions_are_isolated() -> Result<()> {
+    let fixture = crate::global_database::test_support::PostgresTestDatabase::from_environment()?;
+    crate::session::dynamic_tool_store_tests::isolation_and_stale(fixture.database().clone())?;
+    fixture.cleanup()
+}
+
+#[test]
+fn dynamic_tools_persistence_concurrent_replacements_follow_commit_order() -> Result<()> {
+    let fixture = crate::global_database::test_support::PostgresTestDatabase::from_environment()?;
+    crate::session::dynamic_tool_store_tests::concurrent(fixture.database().clone())?;
+    fixture.cleanup()
+}

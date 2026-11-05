@@ -284,6 +284,58 @@ enum SessionStoreProvider {
 }
 
 impl SessionStore {
+    pub(super) fn write_dynamic_tools(
+        &self,
+        scope: &ProjectScope,
+        session_id: &str,
+        version: u64,
+        payload: &str,
+    ) -> Result<()> {
+        validate_id("session id", session_id)?;
+        let version = to_i64(version, "dynamic tool catalog version")?;
+        match &self.provider {
+            SessionStoreProvider::Sqlite(database) => {
+                database.with_sqlite_transaction(TransactionBehavior::Immediate, |transaction| {
+                    let changed = transaction.execute(
+                        "INSERT INTO session_dynamic_tools (platform_id, company_id, project_id, session_id, version, specs_json)
+                         VALUES (?1, ?2, ?3, ?4, ?5, ?6)
+                         ON CONFLICT (platform_id, company_id, project_id, session_id)
+                         DO UPDATE SET version=excluded.version, specs_json=excluded.specs_json
+                         WHERE session_dynamic_tools.version < excluded.version",
+                        params![scope.platform_id().as_ref(), scope.company_id().as_ref(), scope.project_id().as_ref(), session_id, version, payload],
+                    )?;
+                    if changed != 1 { bail!("stale persistent dynamic tool catalog version"); }
+                    Ok(())
+                })
+            }
+            SessionStoreProvider::Postgres(store) => {
+                run_sync_database(|| store.write_dynamic_tools(scope, session_id, version, payload))
+            }
+        }
+    }
+
+    /// Missing and explicit empty records are distinct. Reading never restores authorization.
+    pub fn load_dynamic_tools(
+        &self,
+        scope: &ProjectScope,
+        session_id: &str,
+    ) -> Result<Option<super::dynamic_tool_store::PersistedDynamicTools>> {
+        validate_id("session id", session_id)?;
+        let payload: Option<String> = match &self.provider {
+            SessionStoreProvider::Sqlite(database) => database.connect_sqlite()?.query_row(
+                "SELECT specs_json FROM session_dynamic_tools WHERE platform_id=?1 AND company_id=?2 AND project_id=?3 AND session_id=?4",
+                params![scope.platform_id().as_ref(), scope.company_id().as_ref(), scope.project_id().as_ref(), session_id],
+                |row| row.get(0),
+            ).optional()?,
+            SessionStoreProvider::Postgres(store) => run_sync_database(|| store.load_dynamic_tools(scope, session_id))?,
+        };
+        payload
+            .map(|payload| {
+                serde_json::from_str(&payload).context("decode persisted dynamic tool catalog")
+            })
+            .transpose()
+    }
+
     pub fn new(database: GlobalDatabase) -> Result<Self> {
         let provider = match database.provider() {
             DatabaseProvider::Sqlite => {
@@ -291,6 +343,7 @@ impl SessionStore {
                     connection
                         .execute_batch(SESSION_SCHEMA)
                         .context("initialize SQLite session schema")?;
+                    connection.execute_batch(super::dynamic_tool_store::SCHEMA)?;
                     ensure_sqlite_message_model_column(connection)?;
                     ensure_sqlite_message_processing_timing_columns(connection)?;
                     ensure_sqlite_step_tool_timings_column(connection)?;

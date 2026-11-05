@@ -28,9 +28,10 @@ macro_rules! assert_json_eq {
     };
 }
 
-const SESSION_TABLES: [&str; 9] = [
+const SESSION_TABLES: [&str; 10] = [
     "session_agent_sessions",
     "session_calls",
+    "session_dynamic_tools",
     "session_index",
     "session_llm_raw_rounds",
     "session_llm_raw_turns",
@@ -266,7 +267,13 @@ fn session_store_schema_uses_project_scoped_session_tables() -> Result<()> {
         assert_scope_columns(&connection, table)?;
         assert_project_foreign_key(&connection, table)?;
     }
-    for table in ["session_messages", "session_calls", "session_steps", "session_todos"] {
+    for table in [
+        "session_messages",
+        "session_calls",
+        "session_steps",
+        "session_todos",
+        "session_dynamic_tools",
+    ] {
         assert_session_cascade_foreign_key(&connection, table)?;
     }
     Ok(())

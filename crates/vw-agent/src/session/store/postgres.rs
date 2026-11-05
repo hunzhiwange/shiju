@@ -289,12 +289,49 @@ pub(super) struct PostgresSessionStore {
 }
 
 impl PostgresSessionStore {
+    pub(super) fn write_dynamic_tools(
+        &self,
+        scope: &ProjectScope,
+        session_id: &str,
+        version: i64,
+        payload: &str,
+    ) -> Result<()> {
+        let mut connection = self.database.connect_postgres()?;
+        let mut transaction = connection.transaction()?;
+        let changed = transaction.execute(
+            "INSERT INTO session_dynamic_tools (platform_id, company_id, project_id, session_id, version, specs_json)
+             VALUES ($1, $2, $3, $4, $5, $6)
+             ON CONFLICT (platform_id, company_id, project_id, session_id)
+             DO UPDATE SET version=excluded.version, specs_json=excluded.specs_json
+             WHERE session_dynamic_tools.version < excluded.version",
+            &[&scope.platform_id().as_ref(), &scope.company_id().as_ref(), &scope.project_id().as_ref(), &session_id, &version, &payload],
+        )?;
+        if changed != 1 {
+            bail!("stale persistent dynamic tool catalog version");
+        }
+        transaction.commit()?;
+        Ok(())
+    }
+
+    pub(super) fn load_dynamic_tools(
+        &self,
+        scope: &ProjectScope,
+        session_id: &str,
+    ) -> Result<Option<String>> {
+        let mut connection = self.database.connect_postgres()?;
+        Ok(connection.query_opt(
+            "SELECT specs_json FROM session_dynamic_tools WHERE platform_id=$1 AND company_id=$2 AND project_id=$3 AND session_id=$4",
+            scoped_id_params!(scope, session_id),
+        )?.map(|row| row.get(0)))
+    }
+
     /// 初始化会话、消息、步骤、待办和代理会话表。
     pub(super) fn new(database: GlobalDatabase) -> Result<Self> {
         database.initialize_postgres_schema(|transaction| {
             transaction
                 .batch_execute(SESSION_SCHEMA)
                 .context("initialize PostgreSQL session schema")?;
+            transaction.batch_execute(crate::session::dynamic_tool_store::SCHEMA)?;
             Ok(())
         })?;
         Ok(Self { database })

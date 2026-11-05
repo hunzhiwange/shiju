@@ -73,3 +73,10 @@ pub mod ui_config;
 pub mod ui_store;
 /// 声明 ui_types 子模块，保持当前领域的职责拆分清晰。
 pub mod ui_types;
+
+#[cfg(all(test, not(target_arch = "wasm32")))]
+mod dynamic_tool_store_tests;
+
+/// Host-controlled durable dynamic tool replacement.
+#[cfg(not(target_arch = "wasm32"))]
+pub mod dynamic_tool_store;

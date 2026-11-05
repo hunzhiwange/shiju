@@ -77,7 +77,7 @@ impl ToolCatalog {
         tools: Vec<Arc<dyn Tool>>,
         authorized: impl IntoIterator<Item = String>,
     ) -> anyhow::Result<Arc<ToolCatalogSnapshot>> {
-        self.replace_inner(None, tools, authorized)
+        self.replace_inner(None, tools, authorized, |_| Ok(()))
     }
 
     pub(crate) fn replace_if_current(
@@ -86,7 +86,17 @@ impl ToolCatalog {
         tools: Vec<Arc<dyn Tool>>,
         authorized: impl IntoIterator<Item = String>,
     ) -> anyhow::Result<Arc<ToolCatalogSnapshot>> {
-        self.replace_inner(Some(expected), tools, authorized)
+        self.replace_inner(Some(expected), tools, authorized, |_| Ok(()))
+    }
+
+    /// Hold the publication lock across persistence; failure leaves the old snapshot intact.
+    pub(crate) fn replace_persisted(
+        &self,
+        tools: Vec<Arc<dyn Tool>>,
+        authorized: impl IntoIterator<Item = String>,
+        persist: impl FnOnce(&ToolCatalogSnapshot) -> anyhow::Result<()>,
+    ) -> anyhow::Result<Arc<ToolCatalogSnapshot>> {
+        self.replace_inner(None, tools, authorized, persist)
     }
 
     fn replace_inner(
@@ -94,6 +104,7 @@ impl ToolCatalog {
         expected: Option<&Arc<ToolCatalogSnapshot>>,
         tools: Vec<Arc<dyn Tool>>,
         authorized: impl IntoIterator<Item = String>,
+        persist: impl FnOnce(&ToolCatalogSnapshot) -> anyhow::Result<()>,
     ) -> anyhow::Result<Arc<ToolCatalogSnapshot>> {
         let specs: Vec<_> = tools.iter().map(|tool| tool.spec()).collect();
         let mut ids = BTreeSet::new();
@@ -152,6 +163,7 @@ impl ToolCatalog {
             .checked_add(1)
             .ok_or_else(|| anyhow::anyhow!("tool catalog version exhausted"))?;
         let snapshot = Arc::new(ToolCatalogSnapshot { version, tools, specs, authorized });
+        persist(&snapshot)?;
         *current = snapshot.clone();
         Ok(snapshot)
     }

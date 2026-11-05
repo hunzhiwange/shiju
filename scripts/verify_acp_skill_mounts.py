@@ -61,6 +61,7 @@ def run(args):
             env.update(CARGO_TARGET_DIR=slot, CARGO_BUILD_BUILD_DIR=slot,
                        RUST_MIN_STACK="33554432", VIBEWINDOW_CONFIG_DIR=str(root / "config"))
             with SkillMountFixture(root) as fixture:
+                fixture.openclaw_native = args.agent == "openclaw"
                 fixture.kiro_native = args.agent == "kiro"
                 fixture.kilocode_native = args.agent == "kilocode"
                 fixture.opencode_native = args.agent == "opencode"
@@ -148,7 +149,7 @@ def run(args):
                 flow = json.loads(flow_file.read_text()) if flow_file.exists() else {}
                 evidence = fixture.snapshot()
                 passed = (one_passed and accepted(evidence, flow, tests, result.returncode)
-                          and (args.agent not in ("claude", "qwen", "gemini", "codebuddy", "goose", "vibe", "hermes", "snow", "copilot", "kilocode", "kiro", "opencode") or evidence.get("native_skill_invocations", 0) > 0))
+                          and (args.agent not in ("claude", "qwen", "gemini", "codebuddy", "goose", "vibe", "hermes", "snow", "copilot", "kilocode", "kiro", "opencode", "openclaw") or evidence.get("native_skill_invocations", 0) > 0))
                 report.update(evidence, passed=passed, status="passed" if passed else "failed",
                               reason="all skill assertions passed" if passed else "production skill lifecycle or observations incomplete",
                               effective_tests=tests, cargo_exit_code=result.returncode, command=command, diagnostics=diagnostics, build_errors=build_errors,

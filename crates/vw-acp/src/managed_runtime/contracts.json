@@ -186,5 +186,18 @@
       "reviewed/opencode": "1a1f10028d3edebddd6df10a465cfa79b58d710875173dbd32137a8b115daa2c"
     },
     "native_sha256": "feaafead8cd563af0c2dcb386b0757e4355e327ebb6bd1aaad5440fe2f83596c"
+  },
+  "openclaw": {
+    "package": "openclaw",
+    "version": "2026.10.10",
+    "integrity": "sha512-9HZhzq/Yck3uH3M/iYP7szqoF5JXpXfz0+orhBOKalSH+dj0IC9uWPECkR1vH4lMCytxpHjJKHh9efXRYMJl6w==",
+    "bin": "openclaw.mjs",
+    "files": {
+      "openclaw.mjs": "469e60c9f60b615ff71c985a54238ee532a8f949866d76aebe7d6e4bc7219902",
+      "dist/workspace-skill-sources-DqAcMM_z.mjs": "db073f36c9ac2d94a9a51b5076bbe6e3ae780c67ec820e81ef000bef1bb83459"
+    },
+    "original": {
+      "dist/workspace-skill-sources-DqAcMM_z.mjs": "e6e10026a85afc294f3abe0bf2ce34731f2d9fe56ab84df5b568e6e7b75d56da"
+    }
   }
 }

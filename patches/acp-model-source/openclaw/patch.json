@@ -1,0 +1,16 @@
+{
+  "version": "2026.10.10",
+  "file": "dist/workspace-skill-sources-DqAcMM_z.mjs",
+  "original": "e6e10026a85afc294f3abe0bf2ce34731f2d9fe56ab84df5b568e6e7b75d56da",
+  "patched": "db073f36c9ac2d94a9a51b5076bbe6e3ae780c67ec820e81ef000bef1bb83459",
+  "changes": [
+    {
+      "old": "import path from \"node:path\";",
+      "new": "import path from \"node:path\";\nimport fs from \"node:fs\";"
+    },
+    {
+      "old": "function resolveWorkspaceSkillSourcePlan(workspaceDir, opts) {\n",
+      "new": "function resolveWorkspaceSkillSourcePlan(workspaceDir, opts) {\n\tconst selected = process.env.SHIJU_OPENCLAW_SKILL_ROOT;\n\tif (selected !== undefined) {\n\t\tif (selected && (!path.isAbsolute(selected) || !fs.statSync(selected).isDirectory())) throw new Error(\"Invalid session skill directory\");\n\t\tconst roots = selected ? [{dir: selected, source: \"openclaw-extra\", tier: \"extra\"}] : [];\n\t\treturn {roots, allowSymlinkTargets: selected ? fs.readdirSync(selected).map(name => fs.realpathSync(path.join(selected, name))) : [], pluginSkillRoots: [], managedSkillsDir: selected || path.join(workspaceDir, \"skills\"), workspaceDir};\n\t}\n"
+    }
+  ]
+}

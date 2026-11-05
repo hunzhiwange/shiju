@@ -99,6 +99,7 @@ pub(super) fn configure(profile: &mut AcpLaunchProfile, endpoint: &str) -> anyho
     command.envs(profile.config().env.iter().filter(|(key, _)| {
         key.starts_with("OPENCLAW_")
             || key.starts_with("VW_OPENCLAW_")
+            || key.as_str() == "SHIJU_OPENCLAW_SKILL_ROOT"
             || key.as_str() == "NODE_OPTIONS"
     }));
     drop(listener); // OpenClaw does not accept an inherited listening socket.

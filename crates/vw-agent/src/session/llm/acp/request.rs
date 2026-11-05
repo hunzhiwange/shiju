@@ -22,7 +22,10 @@ use super::session::{
     get_cached_acp_client, should_abort,
 };
 use super::updates::forward_acp_message;
-use super::{CachedAcpClientEntry, Error, StreamEvent, is_acp_session_changed_error, to_api_error};
+use super::{
+    CachedAcpClientEntry, Error, StreamEvent, acp_option_error, is_acp_session_changed_error,
+    to_api_error,
+};
 
 /// 执行一次 ACP 流式请求并把结果转发给上层事件消费者。
 ///
@@ -111,7 +114,46 @@ pub(crate) async fn do_stream_request_acp(
         "{session_id}:acp-source-{generation}:{}",
         super::lifecycle::session_identity(session_id, &cwd_text)
     );
-    let normalized_acp_cfg = normalize_acp_agent_config(&acp_agent_name, &acp_cfg);
+    let mut normalized_acp_cfg = normalize_acp_agent_config(&acp_agent_name, &acp_cfg);
+    let mut parsed_options =
+        parse_acp_options(merged_options, &acp_agent_name, &normalized_acp_cfg)?;
+    let mut cfg = cfg;
+    crate::session::agent_binding::apply_to_config(session_id, &mut cfg)
+        .await
+        .map_err(to_api_error)?;
+    let chat_messages = super::config::apply_agent_defaults(
+        &cfg,
+        merged_options,
+        &acp_agent_name,
+        &cwd,
+        &mut parsed_options,
+        chat_messages,
+    )
+    .await?;
+    parsed_options.runtime_identity = Some(scoped_session.clone());
+    parsed_options.skill_view = super::skill_mounts::MountedSkills::prepare(
+        &parsed_options.skill_mounts,
+        &cwd,
+        &scoped_session,
+        &cfg.skills.security,
+    )?;
+    if acp_agent_name == "openclaw" {
+        super::skill_mounts::configure_native_scanner(
+            &acp_agent_name,
+            &mut normalized_acp_cfg,
+            parsed_options.skill_view.as_ref(),
+        )?;
+        if source == vw_api_types::acp_model_source::AcpModelSource::CliLocal
+            && parsed_options.skill_view.is_some()
+        {
+            return Err(acp_option_error(
+                "OpenClaw skill mounts require an owned session-model Gateway; cli_local Gateway isolation is unverified",
+            ));
+        }
+    }
+    super::skill_mounts::prepare_supplier(&acp_agent_name, parsed_options.skill_view.as_ref())?;
+    super::skill_mounts::validate(&acp_agent_name, !parsed_options.skill_mounts.is_empty())?;
+
     // The profile owns the relay, token and private files for this request only.
     // CLI-local execution preserves the user's original configuration.
     let launch_profile = match source {
@@ -163,7 +205,7 @@ pub(crate) async fn do_stream_request_acp(
     let replay_strategy = parse_replay_strategy(merged_options);
     let replay_recent_count = parse_recent_count(merged_options);
     let initial_prompt_len = build_request_prompt(
-        chat_messages,
+        &chat_messages,
         requested_force_new_session,
         replay_strategy,
         replay_recent_count,
@@ -179,35 +221,13 @@ pub(crate) async fn do_stream_request_acp(
         "resolved ACP request configuration"
     );
     let acp_agent_name = acp_agent_name.to_string();
-    let mut parsed_options =
-        parse_acp_options(merged_options, &acp_agent_name, &normalized_acp_cfg)?;
-    let mut cfg = cfg;
-    crate::session::agent_binding::apply_to_config(session_id, &mut cfg)
-        .await
-        .map_err(to_api_error)?;
-    let chat_messages = super::config::apply_agent_defaults(
-        &cfg,
-        merged_options,
-        &acp_agent_name,
-        &cwd,
-        &mut parsed_options,
-        chat_messages,
-    )
-    .await?;
-    parsed_options.runtime_identity = Some(scoped_session.clone());
-    parsed_options.skill_view = super::skill_mounts::MountedSkills::prepare(
-        &parsed_options.skill_mounts,
-        &cwd,
-        &scoped_session,
-        &cfg.skills.security,
-    )?;
-    super::skill_mounts::configure_native_scanner(
-        &acp_agent_name,
-        &mut normalized_acp_cfg,
-        parsed_options.skill_view.as_ref(),
-    )?;
-    super::skill_mounts::prepare_supplier(&acp_agent_name, parsed_options.skill_view.as_ref())?;
-    super::skill_mounts::validate(&acp_agent_name, !parsed_options.skill_mounts.is_empty())?;
+    if acp_agent_name != "openclaw" {
+        super::skill_mounts::configure_native_scanner(
+            &acp_agent_name,
+            &mut normalized_acp_cfg,
+            parsed_options.skill_view.as_ref(),
+        )?;
+    }
     let close_client_after_request =
         parse_close_client_after_request(merged_options)? || launch_profile.is_some();
     let cwd_text = cwd.to_string_lossy().into_owned();

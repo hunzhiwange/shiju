@@ -2010,10 +2010,10 @@
     {
       "key": "openclaw",
       "version": "2026.10.10",
-      "status": "candidate",
+      "status": "verified",
       "platform": {
         "review_host": "Darwin-arm64",
-        "artifact_scope": "本机固定发行物静态审查；源码/通用 JS 的跨平台执行未验证",
+        "artifact_scope": "Darwin-arm64 受审固定 2026.10.10 补丁发行物的 owned Gateway/session_model 真实技能全生命周期通过；cli_local、其他版本及平台未验证。",
         "linux": "unverified",
         "windows": "unverified"
       },
@@ -2034,43 +2034,43 @@
           "acp"
         ],
         "binding": "crates/vw-acp/src/agent_registry.rs::BUILT_IN_AGENT_DEFINITIONS",
-        "runtime_executed": false,
-        "note": "固定发行物候选入口；注册器含 latest/range，不保证用户当前命令已固定到此版本。"
+        "runtime_executed": true,
+        "note": "真实执行原生 ACP 桥接与应用所有的前台 Gateway；在 Gateway 启动前传入会话视图，运行前核对受审文件散列。"
       },
       "mount": {
         "candidate_paths": [
-          "config.skills.load.extraDirs[]",
-          "workspace/skills",
-          "managed/plugin skills（优先级需验收）"
+          "SHIJU_OPENCLAW_SKILL_ROOT（受审 Gateway 扫描补丁）",
+          "上游 config.skills.load.extraDirs[]（仅追加目录，不能单独实现隔离）"
         ],
-        "discovery": "2026.10.10 workspace-skill-sources 将 extraDirs 作为低优先级额外根；ACP 是 Gateway 桥接，不能仅改桥接子进程环境便声称 Gateway 已更新。",
-        "activation": "额外根、技能选择、正文读取分开；配置存在不等于 Gateway 回合已使用。",
-        "session_isolation": "unverified：额外根/专属配置根不自动排除内建、用户、项目及插件技能；不得修改 HOME 或写用户全局目录。"
+        "discovery": "真实 Gateway 原生扫描器只发现选中视图；原生 read 工具按目录元数据读取正文和随机附件，原生 exec 执行技能脚本。首次模型请求没有技能正文。",
+        "activation": "保留上游目录元数据与按需 read 工具，不拼接正文、不替代原生文件/执行工具。",
+        "session_isolation": "session_model 使用 owned Gateway 的受审扫描补丁排除 bundled/managed/personal/workspace/plugin 根；空视图禁用全部根；移除、第二会话及完整目录清单断言已通过。cli_local 外部 Gateway 挂载明确拒绝。"
       },
       "permissions": {
-        "status": "unverified",
+        "status": "verified for reviewed Darwin-arm64 session_model runtime",
         "requirements": "执行端重新审核目录、租户/项目/会话权限、路径逃逸与符号链接；支持文件/脚本/MCP 仍受各自授权限制，不扩大 full_access。",
-        "agent_specific": "Gateway 进程必须看到目录且经过相同边界审核。"
+        "agent_specific": "会话源沿用审核与符号链接校验；deny-all 在启动 Gateway 前拒绝技能，真实验收未发生模型请求。不增加 full_access。"
       },
       "update": {
-        "native": "unverified：本任务未执行热更新或原子完整替换；静态刷新函数/文档 reload 不作成功承诺。",
-        "candidate": "当前 schema 有 watch 线索；Gateway 与桥接进程的配置生效边界待验收。"
+        "native": "无原生热更新承诺；空闲时准备新视图并重建 owned Gateway/ACP bridge。",
+        "candidate": "真实新增、移除、V2 内容、空闲更新通过；不打断正在运行的请求。"
       },
       "recovery": {
-        "status": "unverified",
-        "requirements": "重建 new/load/resume 后重新发布同 revision 目录并核实发现、删除和支持文件访问；不能把已有模型来源恢复证据当技能恢复证据。"
+        "status": "session_model 的真实 Gateway/CLI 关闭后重新启动，重新发现并读取当前视图；通过。",
+        "requirements": "仅限本机受审固定发行物；其他来源、平台和版本须分别验收。"
       },
       "independent_sources": {
         "local_configuration": {
           "candidate": "OPENCLAW_STATE_DIR + OPENCLAW_CONFIG_PATH; owned foreground Gateway",
-          "static_review_only": true,
-          "runtime_verified_this_task": false
+          "static_review_only": false,
+          "runtime_verified_this_task": false,
+          "reason": "cli_local 连接既有 Gateway，不能把桥接进程环境伪作服务端技能更新；生产挂载明确拒绝，负向运行 1 项，0 次模型/工具请求。"
         },
         "client_model_source": {
           "prior_report_status": "verified_release_only",
           "reference": "../../shiju/acp-model-source/cli-versions.json#openclaw",
-          "runtime_verified_this_task": false,
-          "note": "只保留旧报告定位；不复制其通过/不支持结论到技能能力。"
+          "runtime_verified_this_task": true,
+          "note": "本任务新增独立技能实测；不是从旧模型来源报告推导。"
         }
       },
       "evidence": [
@@ -2096,10 +2096,36 @@
           "observations": [],
           "package": "openclaw",
           "version": "2026.10.10"
+        },
+        {
+          "path": "target/openclaw-install-check/runtime/node_modules/openclaw/openclaw.mjs",
+          "kind": "reviewed_patched_source",
+          "sha256": "469e60c9f60b615ff71c985a54238ee532a8f949866d76aebe7d6e4bc7219902",
+          "observations": [],
+          "bytes": 23906
+        },
+        {
+          "path": "target/openclaw-install-check/runtime/node_modules/openclaw/dist/workspace-skill-sources-DqAcMM_z.mjs",
+          "kind": "reviewed_patched_source",
+          "sha256": "db073f36c9ac2d94a9a51b5076bbe6e3ae780c67ec820e81ef000bef1bb83459",
+          "observations": [],
+          "bytes": 5967
         }
       ],
       "supplemental_official_docs": [],
-      "next_validation": "固定版本真实 ACP：发现元数据 → 按需激活 → 支持文件/脚本工具回合 → 隔离/删除/更新失败保旧 → 跨进程恢复；只替代外部模型 HTTP。未安装/缺账号则保留 unverified。"
+      "next_validation": "本项 session_model 验收完成；cli_local 需独立的 owned Gateway 配置与生命周期契约后重新验收，不修改用户 Gateway/账号。后续继续其他 agent 任务。",
+      "acceptance": {
+        "status": "verified",
+        "production_gate": "reviewed executable and owned session_model Gateway required",
+        "evidence": "evidence/openclaw.json",
+        "model_sources": [
+          "session_model"
+        ],
+        "unverified_model_sources": [
+          "cli_local"
+        ],
+        "limitation": "Only reviewed patched OpenClaw 2026.10.10 on Darwin-arm64 with an owned Gateway. cli_local mounting is rejected; no other-platform/version support inferred."
+      }
     },
     {
       "key": "pi",

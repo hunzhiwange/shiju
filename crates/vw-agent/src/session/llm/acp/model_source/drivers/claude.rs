@@ -53,10 +53,6 @@ pub(super) fn configure(profile: &mut AcpLaunchProfile, endpoint: &str) -> anyho
         profile.model_supports_temperature && profile.model_supports_tool_call,
         "Claude requires a selected model supporting temperature and tools"
     );
-    anyhow::ensure!(
-        !profile.model_supports_reasoning || native_messages,
-        "Claude reasoning requires a native Messages model; thinking signatures cannot be converted"
-    );
     let model = profile.model_alias.clone();
     let mut env = HashMap::from([
         // SDK 0.2.96 filters provider/model settings overrides while preserving
@@ -84,9 +80,10 @@ pub(super) fn configure(profile: &mut AcpLaunchProfile, endpoint: &str) -> anyho
             profile.model_output_limit.to_string()
         },
     );
-    if !profile.model_supports_reasoning {
+    if !native_messages || !profile.model_supports_reasoning {
         // SDK 0.2.96 honors zero by omitting adaptive thinking/context edits and
-        // choosing its non-thinking request path. Do not fabricate thought state.
+        // choosing its non-thinking request path. Model capability alone does not
+        // require Claude thinking; signed thinking needs native Messages transport.
         env.insert("MAX_THINKING_TOKENS".into(), "0".into());
     }
     for key in [

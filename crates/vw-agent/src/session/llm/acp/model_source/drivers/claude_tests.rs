@@ -177,10 +177,9 @@ fn acp_model_source_claude_rejects_credentials_in_existing_arguments() {
 
 #[test]
 fn acp_model_source_claude_rejects_unrepresentable_capabilities_before_publication() {
-    for mode in ["reasoning", "temperature", "tools", "protocol", "responses"] {
+    for mode in ["temperature", "tools", "protocol", "responses"] {
         let mut launch = profile(&Default::default());
         match mode {
-            "reasoning" => launch.model_supports_reasoning = true,
             "temperature" => launch.model_supports_temperature = false,
             "tools" => launch.model_supports_tool_call = false,
             "protocol" => launch.model_api.as_mut().unwrap().adapter = "google".into(),
@@ -198,6 +197,23 @@ fn acp_model_source_claude_rejects_unrepresentable_capabilities_before_publicati
     native.model_supports_reasoning = true;
     configure(&mut native, "http://127.0.0.1:12345").unwrap();
     assert!(!native.config().env.contains_key("MAX_THINKING_TOKENS"));
+}
+
+#[test]
+fn acp_model_source_claude_chat_reasoning_model_disables_signed_thinking() {
+    for adapter in ["openai", "openai-compatible"] {
+        let mut launch = profile(&Default::default());
+        launch.model_api.as_mut().unwrap().adapter = adapter.into();
+        launch.model_supports_reasoning = true;
+        configure(&mut launch, "http://127.0.0.1:12345").unwrap();
+        assert_eq!(launch.config().env["MAX_THINKING_TOKENS"], "0");
+        let settings: serde_json::Value = serde_json::from_slice(
+            &std::fs::read(&launch.config().env["VW_ACP_CLAUDE_SETTINGS"]).unwrap(),
+        )
+        .unwrap();
+        assert_eq!(settings["env"]["MAX_THINKING_TOKENS"], "0");
+        assert_eq!(settings["model"], "selected-model");
+    }
 }
 
 #[test]

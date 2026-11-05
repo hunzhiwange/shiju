@@ -492,7 +492,7 @@ fn acp_model_source_routing_preserves_qualified_provider_identity() {
         provider::invalidate_cache().await;
         let model = resolve_model_for_options(
             Some(format!("{provider_id}/same")),
-            &json!({"acp_agent": "codex"}),
+            &json!({"acp_agent": "codex", "acp_model_source": "session_model"}),
         )
         .await
         .unwrap();
@@ -507,17 +507,17 @@ fn acp_model_source_routing_preserves_qualified_provider_identity() {
     assert!(
         resolve_model_for_options(
             Some("routing-beta/disabled".into()),
-            &json!({"acp_agent": "codex"})
+            &json!({"acp_agent": "codex", "acp_model_source": "session_model"})
         )
         .await
         .is_err()
     );
     assert!(
-        resolve_model_for_options(Some("acp/cheap".into()), &json!({"acp_agent": "codex"}))
+        resolve_model_for_options(Some("acp/cheap".into()), &json!({"acp_agent": "codex", "acp_model_source": "session_model"}))
             .await
             .is_err()
     );
-    let snapshot = resolve_model_for_options(Some("auto".into()), &json!({"acp_agent": "codex"}))
+    let snapshot = resolve_model_for_options(Some("auto".into()), &json!({"acp_agent": "codex", "acp_model_source": "session_model"}))
         .await
         .unwrap();
     assert!(!is_acp_model(&snapshot));
@@ -537,10 +537,28 @@ fn acp_model_source_routing_preserves_qualified_provider_identity() {
 }
 
 #[tokio::test]
+async fn acp_model_source_routing_unsupported_cli_defaults_to_native_without_client_model() {
+    let model = resolve_model_for_options(
+        Some("__missing__/missing".into()),
+        &json!({"acp_agent": "cursor"}),
+    )
+    .await
+    .unwrap();
+    assert_eq!(model.provider_id, "acp");
+    assert_eq!(model.id, "cursor");
+    assert_eq!(acp_model_source(&json!({})).unwrap(), Default::default());
+    assert_eq!(
+        acp_model_source(&json!({"acp_agent":"cursor","acp_model_source":"session_model"}))
+            .unwrap(),
+        vw_api_types::acp_model_source::AcpModelSource::SessionModel,
+    );
+}
+
+#[tokio::test]
 async fn acp_model_source_routing_rejects_missing_client_model() {
     let result = resolve_model_for_options(
         Some("__missing_acp_source__/missing".into()),
-        &json!({"acp_agent": "codex"}),
+        &json!({"acp_agent": "codex", "acp_model_source": "session_model"}),
     )
     .await;
     assert!(result.is_err(), "client source must never fall back to CLI account");

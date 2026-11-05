@@ -3017,7 +3017,7 @@ fn image_routing_text_only_request_does_not_require_model_capabilities() {
 #[test]
 fn acp_model_source_routing_processor_rejects_missing_client_model() {
     let mut req = request_with_session("routing-processor");
-    req.options = serde_json::json!({"acp_agent": "codex"});
+    req.options = serde_json::json!({"acp_agent": "codex", "acp_model_source": "session_model"});
     req.model = Some("__missing_acp_source__/missing".into());
     assert!(super::resolve_request_model(&req, &crate::config::Config::default()).is_err());
 }
@@ -3042,7 +3042,7 @@ fn acp_model_source_routing_processor_freezes_real_model_for_step_events() {
         ));
     let mut req = request_with_session("routing-processor-snapshot");
     req.model = Some("model-recovery/original".into());
-    req.options = serde_json::json!({"acp_agent": "codex"});
+    req.options = serde_json::json!({"acp_agent": "codex", "acp_model_source": "session_model"});
     let selected = super::resolve_request_model(&req, &crate::config::Config::default()).unwrap();
     assert_eq!(selected.model, "model-recovery/original");
     assert_eq!(selected.step_event_model(), Some("model-recovery/original"));

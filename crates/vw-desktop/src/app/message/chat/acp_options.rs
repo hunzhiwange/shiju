@@ -37,6 +37,9 @@ pub(super) fn update(app: &mut App, message: ChatMessage) -> Task<Message> {
                         };
                         if options.model_source_capabilities.is_empty() {
                             let capabilities = client.acp_model_source_capabilities(&agent).await?;
+                            if options.selected_model.is_none() && !options.connected {
+                                options.acp_model_source = capabilities.acp_model_source;
+                            }
                             options.model_source_capabilities =
                                 capabilities.model_source_capabilities;
                             options.verified_cli_release = capabilities.verified_cli_release;
@@ -61,6 +64,7 @@ pub(super) fn update(app: &mut App, message: ChatMessage) -> Task<Message> {
             match result {
                 Ok(options) => {
                     if runtime.acp_source_pending.is_none() && !runtime.is_requesting {
+                        runtime.acp_model_source = options.acp_model_source;
                         if let Some(selection) = &options.selected_model {
                             runtime.acp_model_source = selection.source;
                             if let Some(model) = &selection.model {
@@ -144,9 +148,6 @@ pub(super) fn update(app: &mut App, message: ChatMessage) -> Task<Message> {
                         app.session_runtime_states.remove("__empty__");
                     }
                     app.sync_active_session_preferences();
-                    if active {
-                        app.show_model_popover = false;
-                    }
                     if boundary && active {
                         app.show_info_toast(
                             "模型来源已保存；下一轮创建新的 ACP 会话，不继承原生会话上下文",
@@ -256,6 +257,11 @@ pub(super) fn select_source(
     if runtime.is_requesting || runtime.acp_options_pending || runtime.acp_source_pending.is_some()
     {
         return app.show_error_toast("请等待当前请求结束后切换模型来源");
+    }
+    if runtime.acp_options.model_source_capabilities.iter().any(|capability| {
+        matches!(capability, vw_gateway_client::vw_api_types::acp_model_source::AcpModelSourceCapability::Unsupported { source: rejected, .. } if *rejected == source)
+    }) {
+        return app.show_error_toast("此智能体不支持所选模型来源");
     }
     let model = model
         .unwrap_or_else(|| if runtime.auto_model { "auto".into() } else { runtime.model.clone() });

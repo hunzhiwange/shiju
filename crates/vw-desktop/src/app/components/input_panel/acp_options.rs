@@ -123,7 +123,7 @@ pub(super) fn source_controls(app: &App) -> Element<'_, Message> {
             .padding([8, 10])
             .style(if selected { primary_action_btn_style } else { rounded_action_btn_style })
             .on_press_maybe(
-                (reason.is_none()
+                (matches!(capability, Some(AcpModelSourceCapability::Supported { .. }))
                     && !selected
                     && !runtime.is_requesting
                     && !runtime.acp_options_pending

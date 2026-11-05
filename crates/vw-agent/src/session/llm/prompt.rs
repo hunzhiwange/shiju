@@ -168,7 +168,15 @@ pub(crate) fn acp_model_source(
     options: &Value,
 ) -> Result<vw_api_types::acp_model_source::AcpModelSource, String> {
     options.get("acp_model_source").map_or_else(
-        || Ok(vw_api_types::acp_model_source::AcpModelSource::SessionModel),
+        || {
+            #[cfg(not(target_arch = "wasm32"))]
+            if let Some(agent) = options.get("acp_agent").and_then(Value::as_str) {
+                let mut defaults = vw_api_types::acp_session::AcpSessionOptions::default();
+                super::acp::controls::annotate_model_source(&mut defaults, agent.trim());
+                return Ok(defaults.acp_model_source);
+            }
+            Ok(vw_api_types::acp_model_source::AcpModelSource::SessionModel)
+        },
         |value| {
             serde_json::from_value(value.clone())
                 .map_err(|_| "invalid acp_model_source".to_string())

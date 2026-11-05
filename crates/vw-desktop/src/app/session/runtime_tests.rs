@@ -710,6 +710,82 @@ fn acp_model_source_ui_selection_waits_for_backend_confirmation() {
 }
 
 #[test]
+fn acp_model_source_ui_round_trip_preserves_model_and_open_popover() {
+    use crate::app::message::{ChatMessage, chat};
+    use vw_gateway_client::vw_api_types::{
+        acp_model_source::AcpModelSource, acp_session::AcpSessionOptions,
+    };
+    let (mut app, _) = crate::app::App::new();
+    app.active_session_id = Some("source-round-trip".into());
+    app.show_model_popover = true;
+    let runtime = app.current_session_runtime_mut();
+    runtime.acp_agent = Some("claude".into());
+    runtime.model = "provider/selected-model".into();
+    runtime.auto_model = false;
+    assert_eq!(runtime.acp_model_source, AcpModelSource::SessionModel);
+    for source in [AcpModelSource::CliLocal, AcpModelSource::SessionModel] {
+        let _ = chat::update(&mut app, ChatMessage::AcpModelSourceSelected(source));
+        let runtime = app.current_session_runtime();
+        let update = runtime.acp_source_pending.clone().unwrap();
+        let request_id = runtime.acp_source_request_id.unwrap();
+        let _ = chat::update(
+            &mut app,
+            ChatMessage::AcpModelSourceSaved {
+                session_id: "source-round-trip".into(),
+                request_id,
+                project_path: None,
+                update: update.clone(),
+                created: None,
+                result: Ok(AcpSessionOptions {
+                    acp_model_source: source,
+                    selected_model: Some(update.selection),
+                    ..Default::default()
+                }),
+            },
+        );
+        assert_eq!(app.current_session_runtime().acp_model_source, source);
+        assert_eq!(app.current_session_runtime().model, "provider/selected-model");
+        assert!(app.show_model_popover);
+    }
+}
+
+#[test]
+fn acp_model_source_ui_unsupported_cli_uses_native_and_rejects_client_switch() {
+    use crate::app::message::{ChatMessage, chat};
+    use vw_gateway_client::vw_api_types::{
+        acp_model_source::{
+            AcpModelSource, AcpModelSourceCapability, AcpModelSourceRejectionReason,
+        },
+        acp_session::AcpSessionOptions,
+    };
+    let (mut app, _) = crate::app::App::new();
+    app.active_session_id = Some("source-unsupported".into());
+    app.current_session_runtime_mut().acp_agent = Some("cursor".into());
+    let _ = chat::update(
+        &mut app,
+        ChatMessage::AcpSourceLoaded {
+            session_id: "source-unsupported".into(),
+            agent: "cursor".into(),
+            result: Ok(AcpSessionOptions {
+                acp_model_source: AcpModelSource::CliLocal,
+                model_source_capabilities: vec![
+                    AcpModelSourceCapability::Unsupported {
+                        source: AcpModelSource::SessionModel,
+                        reason: AcpModelSourceRejectionReason::UnsupportedCli,
+                    },
+                    AcpModelSourceCapability::Supported { source: AcpModelSource::CliLocal },
+                ],
+                ..Default::default()
+            }),
+        },
+    );
+    let _ =
+        chat::update(&mut app, ChatMessage::AcpModelSourceSelected(AcpModelSource::SessionModel));
+    assert_eq!(app.current_session_runtime().acp_model_source, AcpModelSource::CliLocal);
+    assert!(app.current_session_runtime().acp_source_pending.is_none());
+}
+
+#[test]
 fn acp_model_source_ui_late_options_do_not_recreate_deleted_session() {
     use crate::app::message::{ChatMessage, chat};
     let (mut app, _) = crate::app::App::new();

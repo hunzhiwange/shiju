@@ -1,5 +1,8 @@
 # ACP model-source integration
 
+Current source defaults, unsupported drivers and comparison baseline:
+[模型来源切换支持状态（2026-11-05）](support-status.md).
+
 Only the fixed releases below have real model-request evidence on Darwin arm64. Other platforms and releases remain unverified. Five upstream entries remain unsupported; this is not a 22/22 delivery.
 
 | Driver | Evidence release | Managed launch | Evidence |

@@ -1,7 +1,7 @@
 //! ACP execution chooses its model independently of the CLI key and tool permissions.
 use serde::{Deserialize, Serialize};
 
-/// Missing source on a new session always means the client's selected model.
+/// Wire default; new sessions choose the client model only when the CLI supports it.
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum AcpModelSource {

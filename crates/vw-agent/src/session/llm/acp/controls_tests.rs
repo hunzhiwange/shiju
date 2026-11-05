@@ -2,6 +2,28 @@
 use super::*;
 use serde_json::json;
 
+#[test]
+fn acp_model_source_defaults_follow_verified_cli_capabilities() {
+    use vw_api_types::acp_model_source::{AcpModelSource, AcpModelSourceCapability};
+    for agent in ["cursor", "trae", "unknown-custom-driver", "claude", "codex"] {
+        let mut options = AcpSessionOptions::default();
+        annotate_model_source(&mut options, agent);
+        let supports_client = options.model_source_capabilities.iter().any(|capability| {
+            matches!(
+                capability,
+                AcpModelSourceCapability::Supported { source: AcpModelSource::SessionModel }
+            )
+        });
+        assert_eq!(
+            options.acp_model_source,
+            if supports_client { AcpModelSource::SessionModel } else { AcpModelSource::CliLocal }
+        );
+        if matches!(agent, "cursor" | "trae" | "unknown-custom-driver") {
+            assert!(!supports_client);
+        }
+    }
+}
+
 #[cfg(unix)]
 #[tokio::test]
 async fn acp_session_options_follow_capabilities_protocol_and_persistence() {

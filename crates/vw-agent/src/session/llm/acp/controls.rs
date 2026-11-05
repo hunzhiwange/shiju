@@ -105,6 +105,19 @@ pub(crate) fn annotate_model_source(options: &mut AcpSessionOptions, agent: &str
     options.verified_platform =
         options.verified_cli_release.as_ref().map(|_| "Darwin arm64".into());
     options.model_source_capabilities = super::model_source::drivers::capabilities(agent);
+    if options.selected_model.is_none() && !options.connected {
+        use vw_api_types::acp_model_source::{AcpModelSource, AcpModelSourceCapability};
+        options.acp_model_source = if options.model_source_capabilities.iter().any(|capability| {
+            matches!(
+                capability,
+                AcpModelSourceCapability::Supported { source: AcpModelSource::SessionModel }
+            )
+        }) {
+            AcpModelSource::SessionModel
+        } else {
+            AcpModelSource::CliLocal
+        };
+    }
 }
 
 async fn connected(

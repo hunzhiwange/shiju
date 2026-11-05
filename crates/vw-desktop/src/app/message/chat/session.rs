@@ -1432,15 +1432,23 @@ pub fn update(app: &mut App, message: ChatMessage) -> Task<Message> {
                 runtime.agent = normalized_agent;
                 runtime.agent_label = agent_label;
                 runtime.acp_agent = acp_agent.clone();
+                runtime.acp_options = Default::default();
+                runtime.acp_options_pending = false;
+                runtime.acp_model_source = Default::default();
                 runtime.tool_selector.reset();
             }
             app.acp_agent = acp_agent.clone();
             app.show_acp_popover = false;
             app.show_reasoning_effort_popover = false;
             app.show_session_tool_selector_popover = false;
-            acp_agent
-                .map(|backend| check_agent_installation(app, backend, None))
-                .unwrap_or_else(Task::none)
+            if let Some(backend) = acp_agent {
+                Task::batch([
+                    check_agent_installation(app, backend, None),
+                    super::acp_options::update(app, ChatMessage::AcpSourceRefresh),
+                ])
+            } else {
+                Task::none()
+            }
         }
         ChatMessage::AcpHistoryModeSelected(mode) => {
             let recent_count = {

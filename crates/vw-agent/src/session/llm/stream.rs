@@ -334,14 +334,14 @@ async fn stream_inner(
         }
     }
 
-    // 模型来源只能由请求决定，Provider/model/variant 默认值不能切换到 CLI 账号。
+    // 保留请求来源及按 CLI 能力解析的默认值，Provider/model/variant 不能覆盖它。
     if request_options_value_enable_acp(&merged_options)
         || super::prompt::is_acp_model(&input.model)
     {
         merged_options["acp_model_source"] = input_options
             .get("acp_model_source")
             .cloned()
-            .unwrap_or_else(|| json!("session_model"));
+            .unwrap_or_else(|| json!(if cli_local { "cli_local" } else { "session_model" }));
     }
 
     // Codex 模式特殊处理：移除 instructions 选项

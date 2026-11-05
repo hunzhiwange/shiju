@@ -28,7 +28,7 @@ pub(super) fn validate(agent: &str, selected: bool) -> Result<(), Error> {
         return Ok(());
     }
     let reason = match agent.trim().to_ascii_lowercase().as_str() {
-        "codex" => codex::rejection(),
+        "codex" => return codex::validate(),
         "claude" | "claude code" => claude::rejection(),
         "qwen" => qwen::rejection(),
         "gemini" => gemini::rejection(),

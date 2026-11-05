@@ -33,9 +33,10 @@ def accepted(evidence, flow, tests, exit_code):
 
 
 def run(args):
+    mode = getattr(args, "mode", "session-model")
     report = {"agent": args.agent, "status": "unverified", "passed": False,
               "platform": platform.system() + "-" + platform.machine(),
-              "mount_source_mode": "session-directory", "effective_tests": 0, "version": None, "sha256": None,
+              "mount_source_mode": "session-directory", "model_source": mode, "effective_tests": 0, "version": None, "sha256": None,
               "model_requests": 0, "tool_requests": 0, "tool_results": 0,
               "lifecycle": {key: False for key in LIFECYCLE}}
     try:
@@ -56,9 +57,14 @@ def run(args):
             with SkillMountFixture(root) as fixture:
                 native = root / "native"
                 native.mkdir(mode=0o700)
-                isolation = isolated_environment(identity, native, fixture, "session-model")
+                isolation = isolated_environment(identity, native, fixture, mode)
                 env.update(isolation)
-                config = locate(identity, env)
+                if args.agent == "codex":
+                    from acp_skill_mount_codex import locate_codex
+                    config = locate_codex(identity, env)
+                    report["engine_version"] = identity["underlying"]["release"]
+                else:
+                    config = locate(identity, env)
                 binary = Path(config["command"]).resolve()
                 digest = hashlib.sha256(binary.read_bytes()).hexdigest()
                 known = {row.get("sha256") for row in entry.get("evidence", [])}
@@ -68,7 +74,7 @@ def run(args):
                 runtime = root / "entry.json"
                 runtime.write_text(json.dumps({"agent": args.agent, "config": config,
                     "root": str(root), "fixture": fixture.url, "key": fixture.key,
-                    "skill": fixture.name, "prompt": fixture.prompt}))
+                    "skill": fixture.name, "prompt": fixture.prompt, "mode": mode}))
                 runtime.chmod(0o600)
                 flow_file = root / "flow.json"
                 env.update(VW_ACP_SKILL_ACCEPTANCE_MANIFEST=str(runtime),
@@ -77,6 +83,11 @@ def run(args):
                            "--", "--ignored", "--nocapture", "--test-threads=1"]
                 result = execute_cargo(command, env=env)
                 log = result.stdout.decode(errors="replace")
+                diagnostics = [line.split("SKILL_FAILURE: ", 1)[1] for line in result.stderr.decode(errors="replace").splitlines() if "SKILL_FAILURE: " in line]
+                stderr_lines = result.stderr.decode(errors="replace").splitlines()
+                for index, line in enumerate(stderr_lines):
+                    if "panicked at" in line and index + 1 < len(stderr_lines):
+                        diagnostics.append(re.sub(r'https?://[^\s"]+|/[^\s"]+|[A-Za-z0-9_=-]{24,}', '[redacted]', stderr_lines[index + 1])[:400])
                 tests = 1 if re.search(r"running 1 test\b", log) else 0
                 one_passed = bool(re.search(r"test result: ok\. 1 passed; 0 failed; 0 ignored;", log))
                 flow = json.loads(flow_file.read_text()) if flow_file.exists() else {}
@@ -84,7 +95,7 @@ def run(args):
                 passed = one_passed and accepted(evidence, flow, tests, result.returncode)
                 report.update(evidence, passed=passed, status="passed" if passed else "failed",
                               reason="all skill assertions passed" if passed else "production skill lifecycle or observations incomplete",
-                              effective_tests=tests, cargo_exit_code=result.returncode, command=command,
+                              effective_tests=tests, cargo_exit_code=result.returncode, command=command, diagnostics=diagnostics,
                               lifecycle={key: flow.get(key) is True for key in LIFECYCLE})
     except Unavailable as error:
         report["reason"] = str(error)
@@ -98,6 +109,7 @@ def run(args):
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--agent", required=True)
+    parser.add_argument("--mode", choices=("session-model", "cli-local"), default="session-model")
     parser.add_argument("--manifest", type=Path, required=True)
     parser.add_argument("--output", type=Path, required=True)
     return run(parser.parse_args())

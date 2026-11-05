@@ -1,12 +1,12 @@
 {
   "schema_version": 1,
   "reviewed_on": "2026-11-05",
-  "scope": "22 固定发行物技能目录入口审查；不是实际验收，不产生 verified。",
+  "scope": "22 固定发行物技能目录入口审查及逐项真实验收；仅对应 evidence 的固定版本/平台可标记 verified。",
   "status_definitions": {
     "candidate": "固定发行物内有可定位的目录/配置发现实现；会话隔离、ACP工具回合、更新恢复未验证。",
     "unverified": "仅符号、文档、环境线索或调用链不全；未安装/缺账号/不可执行也属于此类。",
     "unsupported": "必须有固定版本明确拒绝或缺失入口的负向证据；本次没有此类结论。",
-    "verified": "本任务禁止；保留给后续固定 CLI、真实 ACP 及工具回合验收。"
+    "verified": "固定 CLI、生产 ACP 和真实原生发现/工具/完整生命周期验收通过；支持范围限对应证据的平台与版本。"
   },
   "provenance": {
     "inventory": {
@@ -21,7 +21,8 @@
       "path": "crates/vw-acp/src/agent_registry.rs",
       "sha256": "938893e98645a6927b60e7b9e797156de603d8405dbe6a644e585b31cc503373"
     },
-    "policy": "只读取发行物代码和包元数据；不安装、不读账号配置、不执行CLI/Cargo、不使用旧运行报告替代当前技能验收。相对路径以仓库根为准；GLOBAL_NODE_MODULES 与 REVIEW_CACHE 为审查环境占位符。"
+    "policy": "初次清单只做静态发行物审查，不使用旧报告替代技能验收；后续独立任务的真实运行见各 entry.runtime_acceptance。",
+    "scope": "Initial static-review snapshot; its hashes identify the original review inputs. Subsequent reviewed patches and runtime checks are recorded per entry."
   },
   "entries": [
     {
@@ -250,12 +251,13 @@
     {
       "key": "codex",
       "version": "2.5.0",
-      "status": "candidate",
+      "status": "verified",
       "platform": {
         "review_host": "Darwin-arm64",
-        "artifact_scope": "本机固定发行物静态审查；源码/通用 JS 的跨平台执行未验证",
+        "artifact_scope": "codex-acp 2.5.0 reviewed skill patch + adapter-resolved Codex 0.165.0, current macOS arm64 only",
         "linux": "unverified",
-        "windows": "unverified"
+        "windows": "unverified",
+        "macos_arm64": "verified: macOS 27.0 build 26A428"
       },
       "distribution": {
         "package": "@agentclientprotocol/codex-acp",
@@ -287,42 +289,45 @@
           "codex-acp"
         ],
         "binding": "crates/vw-acp/src/agent_registry.rs::BUILT_IN_AGENT_DEFINITIONS",
-        "runtime_executed": false,
-        "note": "固定发行物候选入口；注册器含 latest/range，不保证用户当前命令已固定到此版本。"
+        "runtime_executed": true,
+        "note": "实际执行固定版本仓库隔离发行物；不改全局 CLI。原生挂载需版本化能力确认。"
       },
       "mount": {
         "candidate_paths": [
           "additionalDirectories[i]/.agents/skills",
           "<cwd>/.agents/skills（engine 默认发现待验证）"
         ],
-        "discovery": "实际入口 codex-acp 2.5.0 → Codex 0.165.0 app-server。refreshSkills 将 additionalDirectories 映射为 .agents/skills 后调用 skillsExtraRootsSet；不是将任意裸 CLI -c 直接透传。当前 Rust NewSessionRequest 只显式传 cwd/mcpServers/meta，尚未连上该目录入口。",
-        "activation": "engine 技能清单和读取 SKILL.md 是不同阶段；adapter 的过滤/命令清单不代表激活。",
-        "session_isolation": "unverified：额外根/专属配置根不自动排除内建、用户、项目及插件技能；不得修改 HOME 或写用户全局目录。"
+        "discovery": "选中 SessionSkillView 的根经真实生产桥接注册并等待响应；核实原生发现的每个名称和文件身份，仅传递发现元数据，正文与附件由原生工具读取。",
+        "activation": "首次模型请求无技能全文或随机附件；每个工具结果关联真实原生调用后才允许回复随机值。",
+        "session_isolation": "verified on current macOS: tenant/project/logical-session/revision owns process and view; obsolete own process exits before restore; empty selection clears roots; no cross-session selected-skill leakage.",
+        "verified_entry": "shiju.skillMounts version 1 → skills/extraRoots/set → skills/list → native file/script tools"
       },
       "permissions": {
-        "status": "unverified",
+        "status": "verified on current macOS",
         "requirements": "执行端重新审核目录、租户/项目/会话权限、路径逃逸与符号链接；支持文件/脚本/MCP 仍受各自授权限制，不扩大 full_access。",
-        "agent_specific": "固定 ACP 的目录/工具授权条件须后续真实验证；未因模型来源受限推定技能不支持。"
+        "agent_specific": "挂载根不进入可写工作区；不修改 full_access。禁止全部工具时仍选中技能会在模型请求前明确拒绝。"
       },
       "update": {
-        "native": "unverified：本任务未执行热更新或原子完整替换；静态刷新函数/文档 reload 不作成功承诺。",
-        "candidate": "refreshSkills 比较 extra roots 后调用 skillsExtraRootsSet；空闲更新、删除、缓存与多会话影响待验收。"
+        "native": "不宣称原地热更新；进程级根使用空闲重建并恢复。",
+        "verified": "macOS 两来源添加/移除、V1/V2 内容和 idle_update 全部实际通过。"
       },
       "recovery": {
-        "status": "unverified",
+        "status": "verified on current macOS, both model sources; real cancel then process restart/restore",
         "requirements": "重建 new/load/resume 后重新发布同 revision 目录并核实发现、删除和支持文件访问；不能把已有模型来源恢复证据当技能恢复证据。"
       },
       "independent_sources": {
         "local_configuration": {
           "candidate": "CODEX_HOME",
-          "static_review_only": true,
-          "runtime_verified_this_task": false
+          "static_review_only": false,
+          "runtime_verified_this_task": true,
+          "skill_evidence": "evidence/codex.json"
         },
         "client_model_source": {
           "prior_report_status": "verified_release_only",
           "reference": "../../shiju/acp-model-source/cli-versions.json#codex",
-          "runtime_verified_this_task": false,
-          "note": "只保留旧报告定位；不复制其通过/不支持结论到技能能力。"
+          "runtime_verified_this_task": true,
+          "note": "旧模型来源报告仅保留定位；本任务重新完成两种来源的技能验收，见 skill_evidence。",
+          "skill_evidence": "evidence/codex.json"
         }
       },
       "evidence": [
@@ -360,10 +365,33 @@
           "observations": [],
           "package": "@agentclientprotocol/codex-acp",
           "version": "2.5.0"
+        },
+        {
+          "path": "target/acp-codex-inspection/runtime/node_modules/@agentclientprotocol/codex-acp/dist/index.js",
+          "sha256": "730bff93eddd77ad1ea1c3ff941ee5fa4fe2b9cb940449e6ee82712295846136",
+          "kind": "reviewed_skill_mount_patch",
+          "observations": [
+            "shiju.skillMounts registers exact native roots without writableRoots; initialization capability version 1; process scoped selection"
+          ],
+          "contract": "crates/vw-acp/src/managed_runtime/contracts.json#codex"
         }
       ],
       "supplemental_official_docs": [],
-      "next_validation": "固定版本真实 ACP：发现元数据 → 按需激活 → 支持文件/脚本工具回合 → 隔离/删除/更新失败保旧 → 跨进程恢复；只替代外部模型 HTTP。未安装/缺账号则保留 unverified。"
+      "next_validation": "本任务当前 macOS 两来源已验收；只在固定发行物或挂载逻辑变更后重跑同一真实验收。其他平台不推断。",
+      "runtime_acceptance": {
+        "path": "evidence/codex.json",
+        "sha256": "58fe78a097108553f2ee73848bb24f99ec111ab7331257017cfb5dffa2ba288b",
+        "platform": "macOS 27.0 arm64",
+        "sources": [
+          "session-model",
+          "cli-local"
+        ],
+        "effective_tests": 2,
+        "model_requests_per_source": 31,
+        "tool_results_per_source": 21,
+        "lifecycle": "all required flags true",
+        "other_platforms": "unverified"
+      }
     },
     {
       "key": "codebuddy",

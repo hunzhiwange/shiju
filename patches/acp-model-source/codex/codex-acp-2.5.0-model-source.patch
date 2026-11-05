@@ -48,7 +48,107 @@
    let codex;
    if (codexPath) {
      codex = process.platform === "win32" ? (0, import_cross_spawn.default)(codexPath, appServerStartupArgs, { env: spawnEnv }) : spawn(codexPath, appServerStartupArgs, { env: spawnEnv });
-@@ -43758,6 +43788,24 @@
+@@ -41576,7 +41606,7 @@
+   async resumeSession(request, onSubscribed, previousInstructions) {
+     const instructions = await this.resolveSessionInstructions(request, previousInstructions);
+     const additionalDirectories = readAdditionalDirectories(request.cwd, request.additionalDirectories, request._meta);
+-    await this.refreshSkills(request.cwd, additionalDirectories);
++    await this.refreshSkills(request.cwd, additionalDirectories, request._meta);
+     const sessionConfig = await this.createSessionConfig(request.cwd, additionalDirectories, request.mcpServers ?? []);
+     const response = await this.resumeThreadWithInstructions({
+       excludeTurns: true,
+@@ -41609,7 +41639,7 @@
+     const additionalDirectories = readAdditionalDirectories(request.cwd, request.additionalDirectories, request._meta);
+     return await forkSession(request, additionalDirectories, {
+       codexClient: this.codexClient,
+-      refreshSkills: (cwd, directories) => this.refreshSkills(cwd, directories),
++      refreshSkills: (cwd, directories) => this.refreshSkills(cwd, directories, request._meta),
+       createSessionConfig: (cwd, directories, mcpServers) => this.createSessionConfig(cwd, directories, mcpServers),
+       getResumeModelProvider: () => this.getResumeModelProvider(),
+       fetchAvailableModels: () => this.fetchAvailableModels(),
+@@ -41622,7 +41652,7 @@
+   async loadSession(request, onSubscribed, previousInstructions) {
+     const instructions = await this.resolveSessionInstructions(request, previousInstructions);
+     const additionalDirectories = readAdditionalDirectories(request.cwd, request.additionalDirectories, request._meta);
+-    await this.refreshSkills(request.cwd, additionalDirectories);
++    await this.refreshSkills(request.cwd, additionalDirectories, request._meta);
+     const sessionConfig = await this.createSessionConfig(request.cwd, additionalDirectories, request.mcpServers ?? []);
+     const response = await this.resumeThreadWithInstructions({
+       excludeTurns: true,
+@@ -41713,7 +41743,7 @@
+     const instructions = await this.resolveSessionInstructions(request, void 0, true);
+     const additionalDirectories = readAdditionalDirectories(request.cwd, request.additionalDirectories, request._meta);
+     const developerInstructions = instructions?.developerInstructions;
+-    await this.refreshSkills(request.cwd, additionalDirectories);
++    await this.refreshSkills(request.cwd, additionalDirectories, request._meta);
+     const sessionConfig = await this.createSessionConfig(request.cwd, additionalDirectories, request.mcpServers ?? []);
+     const response = await this.codexClient.threadStart({
+       config: sessionConfig.config,
+@@ -41967,14 +41997,51 @@
+   async getResumeModelProvider() {
+     return await this.getCurrentModelProvider() ?? "openai";
+   }
+-  async refreshSkills(cwd, additionalRoots) {
++  async refreshSkills(cwd, additionalRoots, meta) {
++    const selection = meta?.["shiju.skillMounts"];
++    if (selection !== void 0) {
++      if (selection.version !== 1 || !Array.isArray(selection.skills)) {
++        throw RequestError.invalidParams(void 0, "Invalid native skill mount selection");
++      }
++      const roots = [];
++      const names = new Set();
++      for (const skill of selection.skills) {
++        if (typeof skill.name !== "string" || !/^[A-Za-z0-9][A-Za-z0-9_-]*$/.test(skill.name) ||
++            typeof skill.path !== "string" || !path10.isAbsolute(skill.path) ||
++            path10.basename(skill.path) !== skill.name || names.has(skill.name.toLowerCase())) {
++          throw RequestError.invalidParams(void 0, "Invalid native skill mount path");
++        }
++        names.add(skill.name.toLowerCase());
++        roots.push(path10.dirname(skill.path));
++      }
++      const selectedRoots = uniqueStrings(roots);
++      if (selectedRoots.length > 1 || (this.shijuSkillRoots && !arraysEqual(this.shijuSkillRoots, selectedRoots))) {
++        throw RequestError.invalidParams(void 0, "Native skill roots require a dedicated process");
++      }
++      this.shijuSkillRoots = selectedRoots;
++      this.shijuSkillSelection = selection.skills;
++    }
+     if (!cwd) {
+       return;
+     }
+-    const skillExtraRoots = additionalRoots.map((root) => path10.join(root, ".agents", "skills"));
++    // Register only native discovery roots; never add mounts to writableRoots.
++    const skillExtraRoots = this.shijuSkillRoots ?? additionalRoots.map((root) => path10.join(root, ".agents", "skills"));
+     if (!arraysEqual(this.skillExtraRoots, skillExtraRoots)) {
+       await this.codexClient.skillsExtraRootsSet({ extraRoots: skillExtraRoots });
+       this.skillExtraRoots = skillExtraRoots;
++    }
++    if (this.shijuSkillSelection && selection !== void 0) {
++      const listed = await this.codexClient.listSkills({ cwds: [cwd], forceReload: true });
++      const discovered = (listed.data ?? []).flatMap((entry) => entry.skills ?? []);
++      const catalog = this.shijuSkillSelection.map((mount) => {
++        const file = path10.join(mount.path, "SKILL.md");
++        const skill = discovered.find((candidate) => candidate.enabled !== false && candidate.name === mount.name &&
++          fs2.realpathSync.native(candidate.path) === fs2.realpathSync.native(file));
++        if (!skill) throw RequestError.invalidParams(void 0, "Selected native skill was not discovered");
++        return `- ${skill.name}: ${skill.shortDescription ?? skill.description ?? ""} (file: ${file})`;
++      });
++      // Metadata comes from the engine's successful native discovery. Bodies stay on disk.
++      this.shijuSkillCatalog = "## Available mounted skills\n" + catalog.join("\n");
+     }
+   }
+   /**
+@@ -42068,6 +42135,9 @@
+   }
+   async sendPrompt(request, agentMode, modelId, serviceTier, disableSummary, cwd, additionalDirectories, onTurnStarted, shouldCancel, clientUserMessageId) {
+     const input2 = buildPromptItems(request.prompt);
++    if (this.shijuSkillCatalog) {
++      input2.unshift({ type: "text", text: this.shijuSkillCatalog, text_elements: [] });
++    }
+     const effort = modelId.effort;
+     await this.refreshSkills(cwd, additionalDirectories);
+     if (shouldCancel?.()) {
+@@ -43758,6 +43828,24 @@
      return [...this.threadLoads.keys()];
    }
    async sendRequest(request) {
@@ -73,7 +173,7 @@
      for (const callback of this.codexEventHandlers) {
        callback({ eventType: "request", ...request });
      }
-@@ -46625,7 +46673,6 @@
+@@ -46625,7 +46713,6 @@
  import { randomUUID as randomUUID5 } from "node:crypto";
  
  // src/TitleGenerator.ts
@@ -81,7 +181,7 @@
  var RENAME_ECHO_TIMEOUT_MS = 5e3;
  var TITLE_SOURCE_MAX_CHARS = 4e3;
  var TITLE_OUTPUT_SCHEMA = {
-@@ -46739,8 +46786,7 @@
+@@ -46739,8 +46826,7 @@
  ${titleSource(userPromptText)}`,
          text_elements: []
        }],
@@ -91,7 +191,7 @@
      });
      const title = extractTitle(turnResult.turn);
      if (!title) return;
-@@ -46858,8 +46904,7 @@
+@@ -46858,8 +46944,7 @@
  ${head(agentText)}`,
          text_elements: []
        }],
@@ -101,7 +201,27 @@
      });
      if (generation !== this.generation) return;
      await this.publishIfChanged(extractSuggestion(result.turn));
-@@ -54204,7 +54249,10 @@
+@@ -49742,7 +49827,8 @@
+         _meta: {
+           // Presence means "this agent pushes `_auth/status_update`". It
+           // never carries a payload, and the client never asks for one.
+-          [AUTH_STATUS_META_KEY]: authStatusCapability()
++          [AUTH_STATUS_META_KEY]: authStatusCapability(),
++          "shiju.skillMounts": { version: 1, processScoped: true }
+         }
+       },
+       authMethods: getCodexAuthMethods(_params.clientCapabilities),
+@@ -49775,7 +49861,8 @@
+         auth: {
+           _meta: {
+             // Presence means "this agent pushes `_auth/status_update`".
+-            [AUTH_STATUS_META_KEY]: authStatusCapability()
++            [AUTH_STATUS_META_KEY]: authStatusCapability(),
++          "shiju.skillMounts": { version: 1, processScoped: true }
+           }
+         },
+         providers: {},
+@@ -54204,7 +54291,10 @@
    console.log(`${package_default.name} ${package_default.version}`);
    process.exit(0);
  }
@@ -113,7 +233,7 @@
    const args = process.argv.slice(3);
    runLoginCommand(args).then((success2) => process.exit(success2 ? 0 : 1)).catch((error62) => {
      console.error("Login error:", error62.message);
-@@ -54220,6 +54268,13 @@
+@@ -54220,6 +54310,13 @@
    startAcpServer();
  }
  function startAcpServer() {

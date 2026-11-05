@@ -120,7 +120,7 @@ async fn request(input: &Value, session: &str, mode: &str, close: bool) -> bool 
     let info = provider::get_provider("skill-acceptance").await.unwrap().unwrap();
     let model = provider::get_model("skill-acceptance", "acp-fixture-primary").await.unwrap();
     let options = json!({"acp_agent":input["agent"], "agent":if mode == "isolated" { "skill-isolation".to_string() } else { format!("acp-{}",input["agent"].as_str().unwrap()) },
-        "acp_model_source":"session_model", "cwd":input["root"], "acp_close_client_after_request":close});
+        "acp_model_source":if input["mode"] == "cli-local" { "cli_local" } else { "session_model" }, "cwd":input["root"], "acp_close_client_after_request":close});
     let messages = json!([{"role":"user","content":input["prompt"]}]);
     let expected = std::fs::read_to_string(
         std::path::Path::new(input["root"].as_str().unwrap())
@@ -131,9 +131,11 @@ async fn request(input: &Value, session: &str, mode: &str, close: bool) -> bool 
     .unwrap();
     let mut output = String::new();
     let mut done = false;
+    let mut event_errors = Vec::new();
     let mut on_event = |event| match event {
         StreamEvent::Delta(text) => output.push_str(&text),
         StreamEvent::Done { .. } => done = true,
+        StreamEvent::Error(error) => event_errors.push(format!("{error:?}")),
         _ => {}
     };
     let (tx, rx) = tokio::sync::watch::channel(false);
@@ -166,6 +168,20 @@ async fn request(input: &Value, session: &str, mode: &str, close: bool) -> bool 
     })
     .await
     .expect("real CLI skill request timed out");
+    if let Err(error) = &result {
+        let reason = error.to_string();
+        let reason = regex::Regex::new(r#"https?://[^\s"]+|/[^\s"]+|[A-Za-z0-9_=-]{24,}"#)
+            .unwrap()
+            .replace_all(&reason, "[redacted]");
+        eprintln!("SKILL_FAILURE: {}", reason.chars().take(400).collect::<String>());
+    }
+    if mode != "cancel" && (!event_errors.is_empty() || !done || !output.contains("SKILL_")) {
+        let reason = format!("done={done}; output={output}; events={event_errors:?}");
+        let reason = regex::Regex::new(r#"https?://[^\s"]+|/[^\s"]+|[A-Za-z0-9_=-]{24,}"#)
+            .unwrap()
+            .replace_all(&reason, "[redacted]");
+        eprintln!("SKILL_FAILURE: {}", reason.chars().take(500).collect::<String>());
+    }
     if mode == "cancel" {
         return matches!(result, Err(crate::session::llm::Error::Aborted));
     }
@@ -228,10 +244,10 @@ async fn run(agent: &str) {
         worktree: project.worktree.clone(),
         project,
     };
-    crate::config::update_project_for_tenant(&tenant, root, json!({"acp":{agent:config}, "agents":{"skill-isolation":{"provider":"","model":"","runtime":{"kind":"acp","backend":agent}, "defaults":{"skills":{"mode":"fixed","value":[]},"mcp":{"mode":"fixed","value":[]}}}},
-        "providers":{"skill-acceptance":{"api":format!("{}/v1/chat/completions",input["fixture"].as_str().unwrap()),
-        "adapter":"openai-compatible", "env":["VW_ACP_SKILL_FIXTURE_KEY"], "models":{
-        "acp-fixture-primary":{"id":"acp-fixture-primary", "status":"active","tool_call":true}}}}})).await.unwrap();
+    crate::config::update(json!({"agents":{"skill-isolation":{"provider":"","model":"","runtime":{"kind":"acp","backend":agent}, "defaults":{"skills":{"mode":"fixed","value":[]},"mcp":{"mode":"fixed","value":[]}}}}})).await.unwrap();
+    crate::config::update_project_for_tenant(&tenant, root, json!({"acp":{agent:config}, "providers":{"skill-acceptance":{"api":format!("{}/v1/{}",input["fixture"].as_str().unwrap(), if agent == "codex" { "responses" } else { "chat/completions" }),
+        "adapter":if agent == "codex" { "openai-responses" } else { "openai-compatible" }, "env":["VW_ACP_SKILL_FIXTURE_KEY"], "models":{
+        "acp-fixture-primary":{"id":"acp-fixture-primary", "status":"active","tool_call":true,"temperature":true,"reasoning":agent == "codex"}}}}})).await.unwrap();
     instance::provide_context(context, async {
         let name = input["skill"].as_str().unwrap();
         let session = format!("skill-acceptance-{name}");
@@ -276,8 +292,10 @@ async fn run(agent: &str) {
         flow["restart"] = json!(request(&input, &session, "present", true).await);
         checkpoint(&flow);
         defaults(&input, &[name], true).await;
+        let deny_config = crate::config::get_current().await.unwrap();
+        assert_eq!(deny_config.agents[&format!("acp-{agent}")].permission, json!({"*":"deny"}));
         let before = fixture(&input, None).await;
-        let denied = request(&input, &session, "denied", true).await;
+        let denied = request(&input, &format!("{session}-denied"), "denied", true).await;
         let after = fixture(&input, None).await;
         flow["permission_denied"] =
             json!(denied && before["model_requests"] == after["model_requests"]);

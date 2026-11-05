@@ -20,6 +20,33 @@ class SkillMountHarnessTests(unittest.TestCase):
         view.symlink_to(fixture.directory, target_is_directory=True)
         return [{"role": "user", "content": fixture.prompt + " " + str(view / "SKILL.md")}]
 
+    def test_responses_requires_native_discovery_and_correlated_file_tools(self):
+        import subprocess
+        from acp_skill_mount_codex import responses_message, responses_wire
+        with tempfile.TemporaryDirectory() as directory:
+            fixture = SkillMountFixture(Path(directory))
+            metadata = self.advertised(fixture)[0]["content"]
+            body = {"model": "acp-fixture-primary", "input": [{"role":"developer", "content": metadata}],
+                    "tools": [{"type":"function", "name":"exec_command", "parameters": {
+                        "properties":{"cmd":{"type":"string"}}, "required":["cmd"]}}]}
+            for kind in ("skill", "read", "execute"):
+                message, finish = responses_message(fixture, body)
+                self.assertEqual(finish, "tool_calls")
+                call = message["tool_calls"][0]
+                self.assertEqual(fixture.calls[call["id"]], kind)
+                response, stream = responses_wire(message, body["model"])
+                self.assertEqual(response["output"][0]["call_id"], call["id"])
+                self.assertIn(b"response.completed", stream)
+                result = subprocess.run(["/bin/sh", "-c", json.loads(call["function"]["arguments"])["cmd"]],
+                                        capture_output=True, text=True, check=True).stdout
+                body["input"].append({"type":"function_call_output", "call_id":call["id"], "output":result})
+            message, finish = responses_message(fixture, body)
+            self.assertEqual(finish, "stop")
+            self.assertIn(fixture.secret, message["content"])
+            self.assertTrue(fixture.snapshot()["first_prompt_clean"])
+            self.assertEqual(fixture.snapshot()["tool_results"], 3)
+
+
     def test_unknown_and_duplicate_agents_fail(self):
         for entries in ([], [{"key": "codex"}, {"key": "codex"}]):
             with self.assertRaises(ValueError):

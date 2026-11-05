@@ -5,7 +5,7 @@
     "integrity": "sha512-7e/4OhJwpvSTqsjiokoVYRV7O1XGem1CAsQgO1opmGYbRD5LvmydwDlJrldzQYO5TcPWueGzQ2Jdvyvp6l3qDw==",
     "bin": "dist/index.js",
     "files": {
-      "dist/index.js": "b47dda5f2a998dab3aaf97f7f7e48dc499bebf9906cd5c2bb103756ae5974c37"
+      "dist/index.js": "730bff93eddd77ad1ea1c3ff941ee5fa4fe2b9cb940449e6ee82712295846136"
     },
     "engine": "@openai/codex",
     "engine_version": "0.165.0",

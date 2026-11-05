@@ -53,6 +53,7 @@ static ACP_CLIENT_CACHE: LazyLock<Mutex<HashMap<String, Arc<CachedAcpClient>>>> 
 /// `output_tx` 则在请求运行期间临时接收 ACP JSON-RPC 输出回调。
 struct CachedAcpClient {
     tenant: vw_api_types::id::TenantScope,
+    runtime_identity: Option<String>,
     client: Arc<AcpClient>,
     prompt_lock: Arc<tokio::sync::Mutex<()>>,
     output_tx: Arc<Mutex<Option<mpsc::UnboundedSender<AcpJsonRpcMessage>>>>,

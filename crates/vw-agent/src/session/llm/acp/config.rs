@@ -434,6 +434,9 @@ pub(super) async fn apply_agent_defaults(
             return Err(acp_option_error("ACP cannot enforce selective host permission denials"));
         }
     }
+    if parsed.permission_mode == Some(PermissionMode::DenyAll) && !effective.skills.is_empty() {
+        return Err(acp_option_error("default skill is denied by permission policy"));
+    }
     parsed.mcp_servers = mcp
         .mcp_servers
         .into_iter()

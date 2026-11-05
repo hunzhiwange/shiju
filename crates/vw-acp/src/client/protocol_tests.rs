@@ -737,3 +737,31 @@ async fn acp_skill_mount_outbound_json_rpc_empty_selection_adds_no_meta() {
     })
     .await;
 }
+
+#[tokio::test]
+async fn acp_skill_mount_codex_rejects_adapter_without_native_capability() {
+    with_connection(TestAgent::new(), async |conn, agent| {
+        let error = AcpClient::new("codex", client("codex-acp", &[]).config)
+            .with_skill_mounts(
+                Some(crate::SessionMountSelection {
+                    version: 1,
+                    skills: vec![crate::SessionSkillMount {
+                        name: "example".into(),
+                        path: "/private/session-view/example".into(),
+                    }],
+                }),
+                None,
+            )
+            .initialize_connection(&conn)
+            .await
+            .unwrap_err();
+        assert!(error.to_string().contains("no confirmed native skill mount capability"));
+        assert!(agent.state.lock().new_session_requests.is_empty());
+        // Empty selection keeps existing native CLI sessions usable.
+        AcpClient::new("codex", client("codex-acp", &[]).config)
+            .initialize_connection(&conn)
+            .await
+            .unwrap();
+    })
+    .await;
+}

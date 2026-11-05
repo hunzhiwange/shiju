@@ -61,3 +61,15 @@ They also verify that history contains neither token's bytes. Title requests are
 observed separately; suggestions use the same gate but are not individually
 triggered. See the [evidence](../../../docs/vibewindow/acp-model-source/evidence/codex.md)
 for actual production-path requests and coordinated regression instructions.
+
+
+Native skill mounts use the versioned `shiju.skillMounts` ACP metadata. The
+reviewed bridge validates a single session view root, awaits the engine's
+`skillsExtraRootsSet`, and retains that root across prompt refreshes. It does not
+add skill roots to `additionalDirectories` or workspace writable roots. The
+client requires the bridge capability before creating a mounted session; older
+adapters fail closed. Production client cache identity includes the tenant,
+project, logical session and skill revision, so process-scoped roots cannot be
+shared between logical sessions. Replacements use a fresh process and restore
+history. The exact bundle hash is pinned in `managed_runtime/contracts.json`;
+the model-source marker remains unchanged because its routing contract persists.

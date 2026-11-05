@@ -26,6 +26,7 @@ fn cached_client(
 ) -> Arc<CachedAcpClient> {
     Arc::new(CachedAcpClient {
         tenant: vw_api_types::id::TenantScope::default(),
+        runtime_identity: None,
         client,
         prompt_lock: Arc::new(tokio::sync::Mutex::new(())),
         output_tx: Arc::new(Mutex::new(output_tx)),

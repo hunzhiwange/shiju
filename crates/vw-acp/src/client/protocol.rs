@@ -33,6 +33,20 @@ impl AcpClient {
         } else {
             response.await.map_err(|err| AcpError::Initialize(err.to_string()))?
         };
+        if self.agent_name.eq_ignore_ascii_case("codex")
+            && self.skill_mounts.as_ref().is_some_and(|selection| !selection.skills.is_empty())
+        {
+            let capabilities = serde_json::to_value(&response.agent_capabilities)
+                .map_err(|error| AcpError::Initialize(error.to_string()))?;
+            if capabilities["_meta"][crate::SESSION_SKILL_MOUNTS_META_KEY]["version"] != 1
+                || capabilities["_meta"][crate::SESSION_SKILL_MOUNTS_META_KEY]["processScoped"]
+                    != true
+            {
+                return Err(AcpError::Initialize(
+                    "Codex adapter has no confirmed native skill mount capability".into(),
+                ));
+            }
+        }
         self.authenticate_if_required(conn, &response.auth_methods).await?;
         Ok(())
     }

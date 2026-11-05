@@ -182,7 +182,7 @@ class SkillMountFixture:
                     self.end_headers()
                     return
                 try:
-                    if self.path != "/v1/chat/completions" or self.headers.get("Authorization") != "Bearer " + fixture.key:
+                    if self.path not in ("/v1/chat/completions", "/v1/responses") or self.headers.get("Authorization") != "Bearer " + fixture.key:
                         raise ValueError("route or authentication")
                     size = int(self.headers.get("Content-Length", "0"))
                     if not 0 < size <= 8 * 1024 * 1024:
@@ -190,7 +190,11 @@ class SkillMountFixture:
                     body = json.loads(self.rfile.read(size))
                     if body.get("model") not in fixture.models:
                         raise ValueError("unexpected model")
-                    message, finish = fixture.response(body)
+                    if self.path == "/v1/responses":
+                        from acp_skill_mount_codex import responses_message
+                        message, finish = responses_message(fixture, body)
+                    else:
+                        message, finish = fixture.response(body)
                     if fixture.mode == "cancel":
                         time.sleep(2)
                     value = {"id": "owned-skill-fixture", "object": "chat.completion", "model": fixture.models[0],
@@ -207,6 +211,11 @@ class SkillMountFixture:
                     else:
                         data = json.dumps(value).encode()
                         content_type = "application/json"
+                    if self.path == "/v1/responses":
+                        from acp_skill_mount_codex import responses_wire
+                        response, stream = responses_wire(message, body["model"])
+                        data = stream if body.get("stream") else json.dumps(response).encode()
+                        content_type = "text/event-stream" if body.get("stream") else "application/json"
                     self.send_response(200)
                 except (ValueError, KeyError, TypeError, AttributeError):
                     with fixture.lock:

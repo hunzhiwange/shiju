@@ -131,20 +131,24 @@ fn build_cached_acp_client(
         },
     )
     .with_skill_mounts(
-        (!parsed_options.skill_mounts.is_empty()).then(|| vw_acp::SessionMountSelection {
-            version: 1,
-            skills: parsed_options
-                .skill_mounts
-                .iter()
-                .map(|mount| vw_acp::SessionSkillMount {
-                    name: mount.name.clone(),
-                    path: parsed_options
-                        .skill_view
-                        .as_ref()
-                        .map(|view| view.0.root().join(&mount.name).to_string_lossy().into_owned())
-                        .unwrap_or_else(|| mount.path.clone()),
-                })
-                .collect(),
+        (!parsed_options.skill_mounts.is_empty() || acp_agent_name == "codex").then(|| {
+            vw_acp::SessionMountSelection {
+                version: 1,
+                skills: parsed_options
+                    .skill_mounts
+                    .iter()
+                    .map(|mount| vw_acp::SessionSkillMount {
+                        name: mount.name.clone(),
+                        path: parsed_options
+                            .skill_view
+                            .as_ref()
+                            .map(|view| {
+                                view.0.root().join(&mount.name).to_string_lossy().into_owned()
+                            })
+                            .unwrap_or_else(|| mount.path.clone()),
+                    })
+                    .collect(),
+            }
         }),
         parsed_options
             .skill_view
@@ -162,6 +166,7 @@ fn build_cached_acp_client(
 
     Arc::new(CachedAcpClient {
         tenant: crate::session::ui_store::current_tenant_scope(),
+        runtime_identity: parsed_options.runtime_identity.clone(),
         client: Arc::new(client),
         prompt_lock: Arc::new(tokio::sync::Mutex::new(())),
         output_tx,
@@ -190,6 +195,36 @@ pub(super) fn get_cached_acp_client(
     let client = build_cached_acp_client(acp_agent_name, acp_cfg, parsed_options);
     cache.insert(key.clone(), client.clone());
     CachedAcpClientEntry { request_owned: launch_reference(acp_cfg).is_some(), key, client }
+}
+
+/// The logical session lease is held by the caller. Retire its old process before
+/// restoring that same native thread with a different process-scoped skill view.
+pub(super) async fn stop_incompatible_cached_clients(
+    agent: &str,
+    config: &config::schema::AcpAgentConfig,
+    cwd: &Path,
+    options: &ParsedAcpOptions,
+) -> Result<(), Error> {
+    let Some(owner) = &options.runtime_identity else { return Ok(()) };
+    let key = acp_client_cache_key(agent, config, cwd, options);
+    let tenant = crate::session::ui_store::current_tenant_scope();
+    let retired: Vec<_> = {
+        let mut cache = ACP_CLIENT_CACHE.lock();
+        let keys: Vec<_> = cache
+            .iter()
+            .filter(|(candidate, client)| {
+                **candidate != key
+                    && client.tenant == tenant
+                    && client.runtime_identity.as_ref() == Some(owner)
+            })
+            .map(|(key, _)| key.clone())
+            .collect();
+        keys.into_iter().filter_map(|key| cache.remove(&key)).collect()
+    };
+    for client in retired {
+        client.client.close().await.map_err(to_api_error)?;
+    }
+    Ok(())
 }
 
 /// 关闭一次性 ACP 客户端缓存项。

@@ -1,6 +1,7 @@
-//! codex directory contract awaits its dedicated adapter acceptance.
-pub(super) fn rejection() -> &'static str {
-    "skill directory mounting is unverified; adapter acceptance required"
+//! Native roots use the reviewed codex-acp bridge, never workspace writable roots.
+//! The ACP client requires its versioned capability before creating a mounted session.
+pub(super) fn validate() -> Result<(), super::Error> {
+    Ok(())
 }
 #[cfg(test)]
 #[path = "codex_tests.rs"]

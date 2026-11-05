@@ -81,3 +81,157 @@ fn agents_view_missing_selection_uses_first_entry_and_unknown_tab_falls_back() {
     assert_eq!(selected.key, first_key);
     assert_eq!(root_child_count(&app), 5);
 }
+
+#[derive(Default)]
+struct CatalogText(Vec<(String, iced::Rectangle)>);
+impl iced::advanced::widget::Operation for CatalogText {
+    fn traverse(&mut self, operate: &mut dyn FnMut(&mut dyn iced::advanced::widget::Operation)) {
+        operate(self);
+    }
+    fn text(
+        &mut self,
+        _: Option<&iced::advanced::widget::Id>,
+        bounds: iced::Rectangle,
+        text: &str,
+    ) {
+        self.0.push((text.into(), bounds));
+    }
+}
+
+async fn render_catalog(theme: iced::Theme, click: bool) {
+    use crate::app::{
+        Message,
+        message::settings::{AgentsMessage, SettingsMessage},
+    };
+    use iced::advanced::renderer::Headless;
+    use iced::advanced::{Layout, Shell, layout, mouse, renderer, widget::Tree};
+    use iced::{Color, Event, Font, Pixels, Rectangle, Size};
+    use vw_config_types::agent::{AgentDefinitionConfig, AgentRuntime};
+    let mut app = App::new().0;
+    app.agents_settings.entries = [
+        AgentRuntime::Native,
+        AgentRuntime::Acp { backend: "codex".into() },
+        AgentRuntime::Acp { backend: "unknown-fixture".into() },
+    ]
+    .into_iter()
+    .enumerate()
+    .map(|(i, runtime)| {
+        let mut entry = crate::app::state::DelegateAgentSettingsEntry::from_config(
+            &format!("fixture-{i}"),
+            Some(AgentDefinitionConfig { runtime, ..Default::default() }),
+        );
+        entry.builtin = true;
+        entry.enabled = true;
+        entry.label = "中文长名称检查卡片换行与运行引擎图标".into();
+        entry
+    })
+    .collect();
+    let mut renderer =
+        <iced::Renderer as Headless>::new(Font::DEFAULT, Pixels(16.0), Some("tiny-skia"))
+            .await
+            .unwrap();
+    for official in [false, true] {
+        for scenario in ["ready", "busy", "creating", "disabled", "worker"] {
+            let busy = scenario == "busy";
+            let blocked = busy || scenario == "creating";
+            let available = !matches!(scenario, "disabled" | "worker");
+            app.new_session_creating = scenario == "creating";
+            for entry in &mut app.agents_settings.entries {
+                entry.enabled = scenario != "disabled";
+                entry.builtin = official || available;
+                entry.kind = if scenario == "worker" {
+                    AgentSettingsEntryKind::BuiltinWorker
+                } else {
+                    AgentSettingsEntryKind::Custom
+                };
+            }
+            app.agents_settings.catalog_official = official;
+            app.agents_settings.catalog_busy = busy;
+            let mut element = super::catalog::grid(&app);
+            let mut tree = Tree::new(element.as_widget());
+            let width = if click { 840 } else { 660 };
+            let bounds = Size::new(width as f32, 800.0);
+            let node = element.as_widget_mut().layout(
+                &mut tree,
+                &renderer,
+                &layout::Limits::new(Size::ZERO, bounds),
+            );
+            let mut texts = CatalogText::default();
+            element.as_widget_mut().operate(&mut tree, Layout::new(&node), &renderer, &mut texts);
+            let starts = texts.0.iter().filter(|(text, _)| text == "开始会话").collect::<Vec<_>>();
+            assert_eq!(
+                starts.len(),
+                if available { 3 } else { 0 },
+                "only eligible cards expose 开始会话"
+            );
+            let cards =
+                Layout::new(&node).children().next().unwrap().children().collect::<Vec<_>>();
+            assert_eq!(cards.len(), 3);
+            for card in cards {
+                let title = card.children().next().unwrap().children().next().unwrap();
+                let header = title.children().next().unwrap();
+                let icon = header.children().next().unwrap().bounds();
+                assert_eq!(icon.size(), Size::new(20.0, 20.0), "engine identity icon");
+            }
+            element.as_widget().draw(
+                &tree,
+                &mut renderer,
+                &theme,
+                &renderer::Style { text_color: theme.palette().text },
+                Layout::new(&node),
+                mouse::Cursor::Unavailable,
+                &Rectangle::with_size(bounds),
+            );
+            let pixels = renderer.screenshot(Size::new(width, 800), 1.0, Color::TRANSPARENT);
+            let directory = std::env::temp_dir().join("shiju-session-catalog");
+            std::fs::create_dir_all(&directory).unwrap();
+            image::save_buffer(
+                directory.join(format!("{theme:?}-{official}-{scenario}-{width}.png")),
+                &pixels,
+                width,
+                800,
+                image::ColorType::Rgba8,
+            )
+            .unwrap();
+            if click {
+                for (index, (_, bounds)) in starts.iter().enumerate() {
+                    let mut messages = Vec::new();
+                    for event in [
+                        mouse::Event::ButtonPressed(mouse::Button::Left),
+                        mouse::Event::ButtonReleased(mouse::Button::Left),
+                    ] {
+                        element.as_widget_mut().update(
+                            &mut tree,
+                            &Event::Mouse(event),
+                            Layout::new(&node),
+                            mouse::Cursor::Available(bounds.center()),
+                            &renderer,
+                            &mut iced::advanced::clipboard::Null,
+                            &mut Shell::new(&mut messages),
+                            &Rectangle::with_size(Size::new(840.0, 800.0)),
+                        );
+                    }
+                    if blocked {
+                        assert!(messages.is_empty());
+                    } else {
+                        assert_eq!(messages.len(), 1);
+                        assert!(
+                            matches!(&messages[0], Message::Settings(SettingsMessage::Agents(AgentsMessage::CatalogLaunch(key))) if key == &format!("fixture-{index}"))
+                        );
+                    }
+                }
+            }
+        }
+    }
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn session_entry_catalog_cards_show_icons_and_start_session() {
+    render_catalog(iced::Theme::Light, true).await;
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn session_entry_catalog_cards_render_both_themes() {
+    render_catalog(iced::Theme::Light, false).await;
+    render_catalog(iced::Theme::Dark, false).await;
+}

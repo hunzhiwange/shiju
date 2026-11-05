@@ -1,10 +1,12 @@
 //! 两个目录共用网关配置快照；停用的自定义项仍可管理。
+use crate::app::assets::Icon;
+use crate::app::components::input_panel::icons::acp_agent_icon;
 use crate::app::components::system_settings_common::*;
 use crate::app::message::settings::{AgentsMessage, SettingsMessage};
 use crate::app::state::{AgentsSettingsState, DelegateAgentSettingsEntry};
 use crate::app::{App, Message};
 use iced::widget::{button, column, container, row, text, text_input};
-use iced::{Element, Length};
+use iced::{Element, Length, Theme};
 use vw_config_types::agent::AgentRuntime;
 
 pub(super) fn entries<'a>(
@@ -100,17 +102,38 @@ pub(super) fn cards(app: &App) -> Vec<Element<'_, Message>> {
                     AgentsMessage::CatalogToggle(entry.key.clone(), !entry.enabled),
                 ));
             }
-            if entry.enabled
-                && !matches!(entry.kind, crate::app::state::AgentSettingsEntryKind::BuiltinWorker)
-            {
-                actions =
-                    actions.push(action("启动", AgentsMessage::CatalogLaunch(entry.key.clone())));
+            if entry.can_start_session() {
+                actions = actions.push(
+                    button(text("开始会话").size(12))
+                        .padding([8, 10])
+                        .style(primary_action_btn_style)
+                        .on_press_maybe(
+                            (!busy && !app.new_session_creating)
+                                .then(|| message(AgentsMessage::CatalogLaunch(entry.key.clone()))),
+                        ),
+                );
             }
+            let identity_icon: Element<'_, Message> = match &entry.runtime {
+                AgentRuntime::Native => icon_svg(Icon::Hexagon, 20.0)
+                    .width(Length::Fixed(20.0))
+                    .height(Length::Fixed(20.0))
+                    .style(|theme: &Theme, _| iced::widget::svg::Style {
+                        color: Some(theme.palette().text),
+                    })
+                    .into(),
+                AgentRuntime::Acp { backend } => acp_agent_icon(backend, 20.0),
+            };
             let mut body = column![
                 button(
-                    column![text(&entry.label).size(14), text(&entry.key).size(12)]
-                        .spacing(4)
-                        .width(Length::Fill)
+                    row![
+                        identity_icon,
+                        column![text(&entry.label).size(14), text(&entry.key).size(12)]
+                            .spacing(4)
+                            .width(Length::Fill)
+                    ]
+                    .spacing(8)
+                    .align_y(iced::Alignment::Center)
+                    .width(Length::Fill)
                 )
                 .padding([8, 10])
                 .width(Length::Fill)

@@ -6,7 +6,7 @@ use crate::app::{
     state::DelegateAgentSettingsEntry,
 };
 use iced::{
-    Element,
+    Alignment, Element, Length,
     widget::{button, column, pick_list, row, text, text_editor, text_input},
 };
 use vw_config_types::agent::{AgentRuntime, builtin_agent_spec};
@@ -25,10 +25,14 @@ pub(super) fn view<'a>(
             .size(SETTINGS_CONTROL_TEXT_SIZE)
             .style(settings_text_input_style)
     };
-    let mut fields = column![
-        text("名称"),
-        input("智能体名称", &draft.label, AgentsMessage::ProfileNameChanged),
-        text("描述"),
+    let name = row![
+        text("名称").width(Length::Fixed(SETTINGS_LABEL_WIDTH)),
+        input("智能体名称", &draft.label, AgentsMessage::ProfileNameChanged).width(Length::Fill),
+    ]
+    .spacing(16)
+    .align_y(Alignment::Center);
+    let description = row![
+        text("描述").width(Length::Fixed(SETTINGS_LABEL_WIDTH)),
         text_editor(&draft.description_editor)
             .on_action(|action| message(AgentsMessage::ProfileDescriptionAction(action)))
             .font(iced::Font::DEFAULT)
@@ -36,11 +40,12 @@ pub(super) fn view<'a>(
             .size(SETTINGS_CONTROL_TEXT_SIZE)
             .height(120)
             .style(settings_text_editor_style),
-        text("推荐提示词").size(16),
     ]
-    .spacing(10);
+    .spacing(16)
+    .align_y(Alignment::Start);
+    let mut prompts = column![].spacing(10).width(Length::Fill);
     for (index, prompt) in draft.recommended_prompts.iter().enumerate() {
-        fields = fields.push(
+        prompts = prompts.push(
             row![
                 text_input("推荐提示词", prompt)
                     .on_input(move |value| message(AgentsMessage::ProfilePromptChanged(
@@ -66,29 +71,36 @@ pub(super) fn view<'a>(
             .spacing(8),
         );
     }
-    fields = fields
-        .push(action("添加提示词", Some(AgentsMessage::ProfilePromptAdd)))
-        .push(text("运行智能体").size(16));
+    prompts = prompts.push(action("添加提示词", Some(AgentsMessage::ProfilePromptAdd)));
+    let prompts = row![text("推荐提示词").width(Length::Fixed(SETTINGS_LABEL_WIDTH)), prompts]
+        .spacing(16)
+        .align_y(Alignment::Start);
     let runtime = match &draft.runtime {
         AgentRuntime::Native => "native".to_string(),
         AgentRuntime::Acp { backend } => backend.clone(),
     };
-    if fixed {
-        fields = fields.push(text(format!("固定运行引擎：{runtime}")));
+    let runtime_control: Element<'_, Message> = if fixed {
+        text(format!("固定运行引擎：{runtime}")).into()
     } else {
         let mut options = vec!["native".to_string()];
         options.extend(app.acp_agents.clone());
-        fields = fields.push(
-            pick_list(options, Some(runtime), |value| {
-                message(AgentsMessage::ProfileRuntimeChanged(value))
-            })
-            .padding(SETTINGS_CONTROL_PADDING)
-            .text_size(SETTINGS_CONTROL_TEXT_SIZE)
-            .style(settings_pick_list_style)
-            .menu_style(settings_pick_list_menu_style),
-        );
-    }
-    fields.push(text("引擎和系统提示词修改只影响新会话。").style(settings_muted_text_style)).into()
+        pick_list(options, Some(runtime), |value| {
+            message(AgentsMessage::ProfileRuntimeChanged(value))
+        })
+        .padding(SETTINGS_CONTROL_PADDING)
+        .text_size(SETTINGS_CONTROL_TEXT_SIZE)
+        .style(settings_pick_list_style)
+        .menu_style(settings_pick_list_menu_style)
+        .width(Length::Fill)
+        .into()
+    };
+    let runtime = row![
+        text("运行智能体").width(Length::Fixed(SETTINGS_LABEL_WIDTH)),
+        settings_control_with_hint(runtime_control, "引擎和系统提示词修改只影响新会话。"),
+    ]
+    .spacing(16)
+    .align_y(Alignment::Start);
+    column![name, description, prompts, runtime].spacing(14).into()
 }
 fn action(label: &'static str, value: Option<AgentsMessage>) -> Element<'static, Message> {
     button(text(label))

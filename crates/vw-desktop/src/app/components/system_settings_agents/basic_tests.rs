@@ -18,8 +18,8 @@ fn assert_common_field_structure(tree: &Tree, has_registration: bool) {
     let offset = usize::from(has_registration);
     assert_eq!(tree.children.len(), 10 + offset);
     // Profile fields and the single defaults/model group precede runtime controls.
-    assert!(tree.children[0].children.len() >= 7);
-    assert!(tree.children[1].children.len() >= 6);
+    assert_eq!(tree.children[0].children.len(), 4);
+    assert!(tree.children[1].children.len() >= 4);
     for row_index in (3 + offset)..=(6 + offset) {
         assert_eq!(tree.children[row_index].children.len(), 2);
     }

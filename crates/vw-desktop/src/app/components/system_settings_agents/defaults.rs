@@ -3,8 +3,8 @@ use crate::app::components::system_settings_common::*;
 use crate::app::message::settings::{AgentsMessage, SettingsMessage};
 use crate::app::{App, Message, state::DelegateAgentSettingsEntry};
 use iced::{
-    Element,
-    widget::{checkbox, column, pick_list, text},
+    Alignment, Element, Length,
+    widget::{checkbox, column, pick_list, row, text},
 };
 use vw_config_types::agent::{AgentDefault, AgentDefaults, AgentModelReference, AgentRuntime};
 
@@ -163,7 +163,7 @@ pub(super) fn view<'a>(
         AgentDefault::Inherit => "继承".into(),
         AgentDefault::Fixed(model) => format!("{}/{}", model.provider, model.model),
     };
-    body = body.push(text("模型")).push(
+    let mut model_controls = column![
         pick_list(model_options, Some(selected), move |value| {
             let model = models
                 .iter()
@@ -176,9 +176,12 @@ pub(super) fn view<'a>(
         .padding(SETTINGS_CONTROL_PADDING)
         .text_size(SETTINGS_CONTROL_TEXT_SIZE)
         .style(settings_pick_list_style)
-        .menu_style(settings_pick_list_menu_style),
-    );
-    body = body.push(
+        .menu_style(settings_pick_list_menu_style)
+        .width(Length::Fill),
+    ]
+    .spacing(10)
+    .width(Length::Fill);
+    model_controls = model_controls.push(
         checkbox(draft.force_model_selection)
             .label("强制使用所选模型")
             .on_toggle_maybe(matches!(defaults.model, AgentDefault::Fixed(_)).then(|| {
@@ -192,21 +195,31 @@ pub(super) fn view<'a>(
             .style(settings_checkbox_style),
     );
     if matches!(draft.runtime, AgentRuntime::Acp { .. }) {
-        body = body.push(
+        model_controls = model_controls.push(
             text("ACP 模型仅在该引擎已声明会话模型来源能力时可选；未连接时请使用继承。")
                 .style(settings_muted_text_style),
         );
     }
+    body = body.push(
+        row![text("模型").width(Length::Fixed(SETTINGS_LABEL_WIDTH)), model_controls]
+            .spacing(16)
+            .align_y(Alignment::Start),
+    );
     let original = defaults.clone();
     body = body.push(
-        checkbox(defaults.full_access)
-            .label("完全访问权限")
-            .on_toggle(move |enabled| {
-                let mut next = original.clone();
-                next.full_access = enabled;
-                changed(next)
-            })
-            .style(settings_checkbox_style),
+        row![
+            text("权限").width(Length::Fixed(SETTINGS_LABEL_WIDTH)),
+            checkbox(defaults.full_access)
+                .label("完全访问权限")
+                .on_toggle(move |enabled| {
+                    let mut next = original.clone();
+                    next.full_access = enabled;
+                    changed(next)
+                })
+                .style(settings_checkbox_style),
+        ]
+        .spacing(16)
+        .align_y(Alignment::Center),
     );
     if let Some(error) = validation_error(app, draft) {
         body = body.push(settings_error_banner(error));

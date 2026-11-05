@@ -44,6 +44,7 @@ mod loader;
 pub(crate) mod marketplace;
 mod policy;
 mod prompt;
+pub mod session_mounts;
 mod session_state;
 pub(crate) mod shiju;
 mod source;
@@ -570,3 +571,6 @@ mod invoked_tests;
 #[cfg(test)]
 #[path = "session_state_tests.rs"]
 mod session_state_tests;
+
+#[cfg(test)]
+mod session_mounts_tests;

@@ -378,8 +378,8 @@ fn quick_message_group_click_opens_and_closes_dropdown_state() {
     assert_eq!(app.quick_message_open_group, None);
 }
 
-#[test]
-fn shiju_skill_selection_validates_catalog_and_toggles_multiple_items() {
+#[tokio::test(flavor = "multi_thread")]
+async fn shiju_skill_selection_validates_catalog_and_toggles_multiple_items() {
     let (mut app, _) = crate::app::App::new();
     app.expert_hub.installed = LoadState::Loaded(vec![
         InstalledSkill {
@@ -408,7 +408,16 @@ fn shiju_skill_selection_validates_catalog_and_toggles_multiple_items() {
     let load_task = super::update(&mut app, ChatMessage::ToggleShijuSkillMenu);
     assert!(app.show_shiju_skill_menu);
     assert_eq!(app.quick_message_open_group, None);
-    assert_eq!(load_task.units(), 1);
+    let messages = collect_task_messages(load_task).await;
+    assert_eq!(messages.len(), 2);
+    assert!(messages.iter().any(|message| matches!(
+        message,
+        Message::SkillHub(message::SkillHubMessage::EnsureInstalledSkillsLoaded)
+    )));
+    assert!(messages.iter().any(|message| matches!(
+        message,
+        Message::Account(message::AccountMessage::PrepareNativeShijuSkill)
+    )));
 
     let _ = super::update(&mut app, ChatMessage::SelectShijuSkill(999));
     assert!(app.current_session_runtime().tool_selector.selected_shiju_skills().is_empty());

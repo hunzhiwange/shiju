@@ -1,0 +1,7 @@
+sandbox_extension_issue_file_to_process failed for /var/folders/rg/zr19lb_s5w32q6d2qkd6p0n80000gp/T/shiju-task91-ui-nln33m5o/ShiJuTask91.app: 1 (Operation not permitted)
+2026-11-05T22:02:46.309531Z  WARN vw_gateway_client: gateway request returned non-success status method="GET" endpoint=127.0.0.1:54546 path="/v1/session/archived" status=404 Not Found response_body=
+2026-11-05T22:02:47.939652Z  WARN vw_gateway_client: gateway request returned non-success status method="GET" endpoint=127.0.0.1:54546 path="/v1/tools" status=404 Not Found response_body=
+2026-11-05T22:02:47.940371Z  WARN vw_desktop: failed to load tools list via gateway error=gateway request failed: 404 Not Found
+2026-11-05T22:02:48.898728Z  WARN vw_gateway_client: gateway request returned non-success status method="PUT" endpoint=127.0.0.1:54546 path="/v1/session/scope" status=404 Not Found response_body=
+2026-11-06 06:03:00.958 shi-ju[90263:33496525] Warning: Window move completed without beginning
+2026-11-05T22:04:57.446807Z  WARN vw_gateway_client: gateway request returned non-success status method="PATCH" endpoint=127.0.0.1:54546 path="/v1/agent-apps/custom-icons/9a2f5fcd-fd93-4de4-98fc-52945671882f" status=400 Bad Request response_body={"code":"invalid_input","message":"Invalid icon input"}

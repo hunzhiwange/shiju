@@ -1,0 +1,188 @@
+{
+  "task": 91,
+  "date": "2026-11-06",
+  "platform": "macOS 27.0 (26A428) arm64",
+  "version": "0.6.0",
+  "workspace_commit": "1f8f5496e15272ef9fc74f4ce670f32cdfde1564",
+  "implementation_commit": "81d38ee4a",
+  "slot": 2,
+  "CARGO_TARGET_DIR": "/Users/xiangmin/worker/code/shiju/target/rust-slot-2",
+  "CARGO_BUILD_BUILD_DIR": "/Users/xiangmin/worker/code/shiju/target/rust-slot-2",
+  "binary_sha256": "9eb829cc1b63ca3b6e13699247e23e303727fdd358d61633b30656bf3b8a7a75",
+  "backend": "Production Axum Router + native icon library + real isolated SQLite + SDK; temporary transport control only",
+  "tenant": [
+    "task91-platform",
+    "task91-company"
+  ],
+  "scenarios": [
+    {
+      "scenario": "cancel",
+      "expected": "取消关闭弹窗且无 PATCH，原名不变",
+      "actual": "取消后 API 仍为工作图标·中文验收，patch-count 文件尚不存在",
+      "screenshots": [
+        "light-cancel-draft.jpg",
+        "light-cancel-result.jpg"
+      ]
+    },
+    {
+      "scenario": "duplicate",
+      "expected": "保存期间重复点击或回车不再次提交，取消不关闭",
+      "actual": "真实传输门闩暂停 PATCH 后反复保存/回车/取消，PATCH 计数保持1且弹窗仍显示保存中",
+      "screenshots": [
+        "light-saving-duplicate-blocked.jpg"
+      ]
+    },
+    {
+      "scenario": "focus-chinese",
+      "expected": "打开后可直接输入中文，保存后自动重读",
+      "actual": "未额外点击输入框即可全选粘贴；保存后弹窗关闭，列表显示中文改名成功，API重读一致",
+      "screenshots": [
+        "light-modal-focused.jpg",
+        "light-chinese-draft.jpg",
+        "light-chinese-success.jpg"
+      ]
+    },
+    {
+      "scenario": "boundary",
+      "expected": "64中文字符保存成功，65字符后端400且保留草稿，数据库不变",
+      "actual": "64字符 API重读成功；65字符真实返回400 invalid_input，表单与toast显示错误，API仍是64字符",
+      "screenshots": [
+        "light-64-draft.jpg",
+        "light-64-success.jpg",
+        "light-65-server-error.jpg"
+      ]
+    },
+    {
+      "scenario": "dark-theme",
+      "expected": "暗色弹窗中文、输入焦点、按钮及保存结果可读",
+      "actual": "暗色中文图标保存成功，真实列表及API一致，无字形整形panic",
+      "screenshots": [
+        "dark-chinese-draft.jpg",
+        "dark-chinese-success.jpg"
+      ]
+    },
+    {
+      "scenario": "offline",
+      "expected": "服务停止时提交失败，草稿保留、表单解锁，toast显示错误",
+      "actual": "停止真实监听并确认TCP拒绝连接后点击保存，窗口显示Connection refused(os error 61)，草稿断网后保留草稿仍在",
+      "screenshots": [
+        "dark-offline-draft.jpg",
+        "dark-disconnected-error.jpg"
+      ]
+    },
+    {
+      "scenario": "reconnect",
+      "expected": "同地址恢复后重试保留草稿成功，自动重读且可刷新",
+      "actual": "服务恢复先重读仍是暗色中文图标；点击原弹窗保存后自动显示断网后保留草稿，随后刷新与API一致，未重启桌面",
+      "screenshots": [
+        "dark-reconnected-success.jpg",
+        "dark-reconnected-refresh.jpg"
+      ]
+    },
+    {
+      "scenario": "list-offline-retry",
+      "expected": "断网刷新报错并出现重试；恢复后同窗口点击重试恢复列表",
+      "actual": "真实停止监听后刷新显示连接拒绝及重试；恢复后点击重试读取既有中文名称，窗口未重启",
+      "screenshots": [
+        "dark-list-offline-error.jpg",
+        "dark-list-retry-recovered.jpg"
+      ]
+    },
+    {
+      "scenario": "close",
+      "expected": "关闭按钮只丢弃草稿，不提交",
+      "actual": "输入关闭按钮不保存后点击X，API仍为断网后保留草稿，总PATCH计数5未增加",
+      "screenshots": [
+        "dark-close-no-submit.jpg"
+      ]
+    }
+  ],
+  "app_exit": 0,
+  "server_exit": 0,
+  "patch_requests": 5,
+  "screenshots": [
+    "dark-chinese-draft.jpg",
+    "dark-chinese-success.jpg",
+    "dark-close-no-submit.jpg",
+    "dark-disconnected-error.jpg",
+    "dark-list-offline-error.jpg",
+    "dark-list-retry-recovered.jpg",
+    "dark-offline-draft.jpg",
+    "dark-reconnected-refresh.jpg",
+    "dark-reconnected-success.jpg",
+    "light-64-draft.jpg",
+    "light-64-success.jpg",
+    "light-65-server-error.jpg",
+    "light-cancel-draft.jpg",
+    "light-cancel-result.jpg",
+    "light-chinese-draft.jpg",
+    "light-chinese-success.jpg",
+    "light-list-original.jpg",
+    "light-modal-focused.jpg",
+    "light-saving-duplicate-blocked.jpg"
+  ],
+  "panic_observed": false,
+  "source_fixture_removed": true,
+  "commands": [
+    {
+      "command": "cargo fmt --all",
+      "exit": 0
+    },
+    {
+      "command": "cargo build -p vw-desktop --bin shi-ju",
+      "exit": 0
+    },
+    {
+      "command": "cargo test -p vw-agent --lib cc_base_icon_task91_ui_server -- --ignored --nocapture",
+      "exit": 0,
+      "passed": 1,
+      "explicit_ignored_fixture": true
+    },
+    {
+      "command": "VIBEWINDOW_CONFIG_DIR=<isolated> VIBEWINDOW_CONFIG=<isolated>/vibewindow.json <isolated>/ShiJuTask91.app/Contents/MacOS/shi-ju",
+      "exit": 0
+    },
+    {
+      "command": "cargo test -p vw-desktop --lib cc_base_icon_desktop_rename_ -- --nocapture",
+      "exit": 0,
+      "passed": 6,
+      "failed": 0,
+      "ignored": 0
+    },
+    {
+      "command": "cargo clippy --all-targets --all-features -- -D warnings",
+      "exit": 0
+    }
+  ],
+  "tests": [
+    "app::components::system_settings_agent_apps::rename_modal_tests::cc_base_icon_desktop_rename_modal_chinese_input",
+    "app::message::settings::agent_apps::tests::cc_base_icon_desktop_rename_sdk_chinese_64_65_and_reread",
+    "app::message::settings::agent_apps::tests::cc_base_icon_desktop_rename_failure_preserves_input_and_blocks_duplicate",
+    "app::message::settings::agent_apps::tests::cc_base_icon_desktop_rename_context_change_never_writes_or_applies",
+    "app::message::settings::agent_apps::tests::cc_base_icon_desktop_rename_success_rereads_and_stale_response_is_ignored",
+    "app::message::settings::agent_apps::tests::cc_base_icon_desktop_rename_close_does_not_submit"
+  ],
+  "api_consistency_assertions": "PASS: cancellation unchanged; Chinese success; exactly64 stored;65 rejected unchanged; offline unchanged; reconnect persisted; close unchanged; id/data/createdAt preserved",
+  "slot_released": true,
+  "screenshot_sha256": {
+    "light-65-server-error.jpg": "42a907b0deb960ca16e21bc5e342e4943aed3475e330c81f53533b5eaa2a6067",
+    "light-64-success.jpg": "92d3b59f24e86579dd857edca8f86c4b2cb5bc65ea34923ce64bf84c89ce6a54",
+    "dark-disconnected-error.jpg": "0d8e4da9ca123e3258b4a8134f3adbd9e7dafa9044adad1ec838b29189fcdb52",
+    "light-chinese-draft.jpg": "16f1fd91be12ca7fbf1cc7be8f1395c7e61172112886ddb6c04a53d3aeeb690c",
+    "dark-chinese-success.jpg": "6b32100d4e197a0671348fb911d5d51c69a46dc51cdccd91f3fb4d2edc5f37b6",
+    "dark-list-retry-recovered.jpg": "ac61c0d3206fcbc434ad8ebeafcf2d388db5b9ec2fc57a9c6536c7a2f622a13c",
+    "light-cancel-result.jpg": "d97a43f92089997c5b0f54131444a7f75f988c0cd42e6afa5a37509dc4b2f5a1",
+    "light-list-original.jpg": "21062db298ee21ac344fac935cd11a121d1b2e47e95aa17b77b630373f9ae7e2",
+    "dark-close-no-submit.jpg": "3a6915fbe6d7ee2dc22602d6616418036595e29997d1bef9ceb08685b339bc79",
+    "light-modal-focused.jpg": "6d6a53e67fe177c35eaa8b767b134dc79320452d68a552f1889c0898ba9b5c3b",
+    "light-chinese-success.jpg": "8bf3a1ecdb0a94649cc14aa12b15e38a7b106f78a4ebbd6c49743a1e00e1010d",
+    "dark-reconnected-refresh.jpg": "2f9577ab7099c7cf736db0520ff109d1d0b8aa6e872b778602fced0257dbdee8",
+    "dark-offline-draft.jpg": "43ca06f6b6ca924f8e99bc412d6b088ee019cd6d5b60e8ea85b9244504708534",
+    "light-saving-duplicate-blocked.jpg": "39b75d97cff66d67f518d991b6dad51abc6c68626a30d95af07923f6353ca1d3",
+    "light-64-draft.jpg": "155ff3deacf9fe135482b0972adc38bf3101da1573088ef35e41e49ce62db9fc",
+    "light-cancel-draft.jpg": "144b2969d7217540a37e7b7e018b547c1ac89934a8addbe56b1ad0e785ca65bc",
+    "dark-chinese-draft.jpg": "46e16dd0abdcd4a14c50c6f54393c68db87303e294e7c72ee1748d4f3425b4dd",
+    "dark-list-offline-error.jpg": "be8efce337309cb875ac7b6b964b48de502d0914956213cf6c353bd423239646",
+    "dark-reconnected-success.jpg": "c061e701d94d1cff8f179ce6bdc0c19e82f58fa0db64dd4a3566d1af3ba30d0d"
+  }
+}

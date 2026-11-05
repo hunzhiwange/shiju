@@ -1,0 +1,18 @@
+warning: linker stderr: ld: __eh_frame section too large (max 16MB) to encode dwarf unwind offsets in compact unwind table, performance of exception handling might be affected
+  |
+  = note: `#[warn(linker_messages)]` on by default
+
+warning: `vw-desktop` (lib test) generated 1 warning
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.80s
+     Running unittests src/lib.rs (target/rust-slot-2/debug/deps/vw_desktop-c3550d52c5fe1742)
+
+running 6 tests
+test app::components::system_settings_agent_apps::rename_modal_tests::cc_base_icon_desktop_rename_modal_chinese_input ... ok
+test app::message::settings::agent_apps::tests::cc_base_icon_desktop_rename_sdk_chinese_64_65_and_reread ... ok
+test app::message::settings::agent_apps::tests::cc_base_icon_desktop_rename_failure_preserves_input_and_blocks_duplicate ... ok
+test app::message::settings::agent_apps::tests::cc_base_icon_desktop_rename_context_change_never_writes_or_applies ... ok
+test app::message::settings::agent_apps::tests::cc_base_icon_desktop_rename_success_rereads_and_stale_response_is_ignored ... ok
+test app::message::settings::agent_apps::tests::cc_base_icon_desktop_rename_close_does_not_submit ... ok
+
+test result: ok. 6 passed; 0 failed; 0 ignored; 0 measured; 8552 filtered out; finished in 0.76s
+

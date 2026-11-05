@@ -142,6 +142,7 @@ pub struct ToolUseContext {
     tool_discovery: Option<Arc<super::tool_search::ToolDiscoverySession>>,
     tool_exposure_snapshot: Option<Arc<BTreeSet<String>>>,
     tool_catalog: Option<Arc<super::catalog::ToolCatalogSnapshot>>,
+    live_tool_catalog: Option<Arc<super::catalog::ToolCatalog>>,
     invoked_skills: Arc<Mutex<Vec<crate::skills::InvokedSkillRecord>>>,
 }
 
@@ -235,6 +236,7 @@ impl ToolUseContext {
             tool_discovery: None,
             tool_exposure_snapshot: None,
             tool_catalog: None,
+            live_tool_catalog: None,
             invoked_skills: Arc::new(Mutex::new(Vec::new())),
         }
     }
@@ -402,6 +404,22 @@ impl ToolUseContext {
     ) -> Self {
         self.tool_exposure_snapshot = Some(Arc::new(ids.into_iter().collect()));
         self
+    }
+
+    /// Supply the session catalog; loops capture it only at model request boundaries.
+    pub fn with_live_tool_catalog(mut self, catalog: Arc<super::catalog::ToolCatalog>) -> Self {
+        self.live_tool_catalog = Some(catalog);
+        self
+    }
+
+    pub(crate) fn live_tool_catalog(&self) -> Option<Arc<super::catalog::ToolCatalog>> {
+        self.live_tool_catalog.clone()
+    }
+
+    pub(crate) fn catalog_registry(&self) -> Option<Vec<Box<dyn super::Tool>>> {
+        self.tool_catalog
+            .as_ref()
+            .map(|catalog| super::toolset::boxed_registry_from_arcs(catalog.tools().to_vec()))
     }
 
     /// Pin the executable catalog captured for this model request.

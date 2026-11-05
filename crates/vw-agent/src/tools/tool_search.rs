@@ -28,6 +28,15 @@ impl ToolDiscoverySession {
         Self { catalog, exposure: Mutex::new(ToolExposureState::default()), search_enabled }
     }
 
+    /// Preserve loaded IDs only while the replacement still authorizes them.
+    pub(crate) fn rebase(&self, authorized_specs: Vec<ToolSpec>) -> Self {
+        let next = Self::new(authorized_specs);
+        let mut exposure = self.exposure.lock().unwrap_or_else(|error| error.into_inner()).clone();
+        exposure.retain_authorized(&next.catalog);
+        *next.exposure.lock().unwrap_or_else(|error| error.into_inner()) = exposure;
+        next
+    }
+
     pub(crate) fn authorizes(&self, id: &str) -> bool {
         self.catalog.contains(id) && (id != TOOL_SEARCH_ID || self.search_enabled)
     }

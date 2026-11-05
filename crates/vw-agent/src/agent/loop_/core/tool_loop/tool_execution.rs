@@ -58,6 +58,8 @@ pub(super) async fn execute_tool_calls_and_update_history(
     seen_tool_signatures: &mut HashSet<(String, String)>,
     use_native_tools: bool,
 ) -> Result<()> {
+    let catalog_registry = tool_use_context.catalog_registry();
+    let tools_registry = catalog_registry.as_deref().unwrap_or(tools_registry);
     // 每轮工具执行都携带当前历史快照，工具可以基于一致视图读取上下文，而不会
     // 观察到本轮尚未写回的部分结果。
     let iteration_tool_use_context = Arc::new(

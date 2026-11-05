@@ -129,7 +129,6 @@ pub(crate) async fn run_tool_call_loop_with_skills(
         })
         .map(|tool| tool.spec())
         .collect();
-    let use_native_tools = provider.supports_native_tools() && !authorized_specs.is_empty();
     let turn_id = Uuid::new_v4().to_string();
     let mut seen_tool_signatures: HashSet<(String, String)> = HashSet::new();
     let mut missing_tool_call_retry_used = false;
@@ -207,7 +206,9 @@ pub(crate) async fn run_tool_call_loop_with_skills(
         tool_use_context = Box::pin(skills.configure(tool_use_context)).await?;
         skills.refresh_skill_spec(&mut authorized_specs);
     }
-    let discovery = Arc::new(ToolDiscoverySession::new(authorized_specs));
+    let live_catalog = inherited.as_ref().and_then(|context| context.live_tool_catalog());
+    let mut catalog_snapshot = None;
+    let mut discovery = Arc::new(ToolDiscoverySession::new(authorized_specs));
     tool_use_context = tool_use_context.with_tool_discovery(discovery.clone());
     let mut image_turn = prepare_legacy_image_turn(history, model, multimodal_config).await?;
     if let Some(ctx) = image_turn.as_mut() {
@@ -230,12 +231,27 @@ pub(crate) async fn run_tool_call_loop_with_skills(
         collaboration::consume(&tool_use_context, history)?;
         update_thinking_progress(on_delta.as_ref(), iteration).await;
 
+        // Capture specifications and executors together, before the model can wait.
+        if let Some(catalog) = &live_catalog {
+            let snapshot = catalog.snapshot();
+            if catalog_snapshot.as_ref().is_none_or(|previous| !Arc::ptr_eq(previous, &snapshot)) {
+                let specs = snapshot.specs().into_iter().filter(|spec| {
+                    !excluded_tools.contains(&spec.id)
+                        && tool_use_context.delegated_tool_is_allowed(&spec.id)
+                }).collect();
+                discovery = Arc::new(discovery.rebase(specs));
+                catalog_snapshot = Some(snapshot);
+            }
+        }
         // Search can change the next request, never another call in this round.
         let tool_specs = discovery.exposed_specs();
+        let use_native_tools = provider.supports_native_tools() && !tool_specs.is_empty();
+        let mut request_context = tool_use_context.as_ref().clone().with_tool_discovery(discovery.clone());
+        if let Some(snapshot) = &catalog_snapshot {
+            request_context = request_context.with_tool_catalog(snapshot.clone());
+        }
         let round_tool_use_context = Arc::new(
-            tool_use_context
-                .as_ref()
-                .clone()
+            request_context
                 .with_tool_exposure_snapshot(tool_specs.iter().map(|spec| spec.id.clone())),
         );
 

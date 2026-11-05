@@ -82,6 +82,7 @@ struct DiscoveryProvider {
     responses: Arc<Mutex<VecDeque<crate::providers::ChatResponse>>>,
     requests: Arc<Mutex<Vec<DiscoveryRequest>>>,
     native: bool,
+    on_request: Option<Arc<dyn Fn(usize) + Send + Sync>>,
 }
 
 impl DiscoveryProvider {
@@ -120,7 +121,12 @@ impl DiscoveryProvider {
             usage: None,
             reasoning_content: None,
         });
-        Self { responses: Arc::new(Mutex::new(responses)), requests: Arc::default(), native }
+        Self {
+            responses: Arc::new(Mutex::new(responses)),
+            requests: Arc::default(),
+            native,
+            on_request: None,
+        }
     }
 
     fn requests(&self) -> Vec<DiscoveryRequest> {
@@ -154,6 +160,9 @@ impl Provider for DiscoveryProvider {
             request.messages.to_vec(),
             request.tools.unwrap_or_default().iter().map(|spec| spec.id.clone()).collect(),
         ));
+        if let Some(on_request) = &self.on_request {
+            on_request(self.requests.lock().unwrap().len());
+        }
         self.responses
             .lock()
             .unwrap()
@@ -416,4 +425,208 @@ async fn codex_discovery_core_loaded_batch_calls_preserve_inner_permission_check
     assert!(results[1]["content"].as_str().unwrap().contains("permitted-batch-content"));
     assert!(results[2]["content"].as_str().unwrap().contains("ledger access denied"));
     assert!(!results[2]["content"].as_str().unwrap().contains("permitted-batch-content"));
+}
+
+struct PendingCatalogTool {
+    started: Arc<tokio::sync::Notify>,
+    release: Arc<tokio::sync::Notify>,
+}
+
+#[async_trait]
+impl Tool for PendingCatalogTool {
+    fn name(&self) -> &str {
+        "old_tool"
+    }
+    fn description(&self) -> &str {
+        "pending old executor"
+    }
+    fn parameters_schema(&self) -> serde_json::Value {
+        serde_json::json!({"type":"object"})
+    }
+    async fn execute(&self, _: serde_json::Value) -> anyhow::Result<crate::tools::ToolResult> {
+        self.started.notify_one();
+        self.release.notified().await;
+        Ok(crate::tools::ToolResult {
+            success: true,
+            output: "old executor completed".into(),
+            error: None,
+        })
+    }
+}
+
+#[tokio::test]
+async fn dynamic_tools_core_replacement_visible_next_request() {
+    let workspace = tempfile::tempdir().unwrap();
+    std::fs::write(workspace.path().join("ledger"), "new executor completed").unwrap();
+    let catalog = Arc::new(crate::tools::catalog::ToolCatalog::default());
+    let started = Arc::new(tokio::sync::Notify::new());
+    let release = Arc::new(tokio::sync::Notify::new());
+    catalog
+        .replace(
+            vec![Arc::new(PendingCatalogTool {
+                started: started.clone(),
+                release: release.clone(),
+            })],
+            ["old_tool".into()],
+        )
+        .unwrap();
+    let provider = DiscoveryProvider::new(
+        true,
+        vec![
+            vec![("old", "old_tool", serde_json::json!({}))],
+            vec![("new", DISCOVERY_LEDGER, serde_json::json!({}))],
+        ],
+    );
+    let context = Arc::new(
+        ToolUseContext::new("dynamic-core", Some(workspace.path().to_string_lossy().into_owned()))
+            .with_live_tool_catalog(catalog.clone()),
+    );
+    let mut agent = crate::agent::Agent::builder()
+        .provider(Box::new(provider.clone()))
+        .tools(Vec::new())
+        .memory(Arc::new(crate::memory::NoneMemory))
+        .observer(Arc::new(crate::observability::NoopObserver))
+        .workspace_dir(workspace.path().to_path_buf())
+        .model_name("fixture/model".into())
+        .build()
+        .unwrap();
+    let run = crate::tools::scope_tool_use_context(context, async {
+        assert_eq!(agent.turn("inspect tools").await.unwrap(), "final answer");
+    });
+    let replace = async {
+        started.notified().await;
+        catalog
+            .replace(
+                vec![Arc::new(DiscoveryFileTool {
+                    id: DISCOVERY_LEDGER,
+                    path: workspace.path().join("ledger"),
+                })],
+                [DISCOVERY_LEDGER.into()],
+            )
+            .unwrap();
+        release.notify_one();
+    };
+    let ((), ()) = tokio::time::timeout(std::time::Duration::from_secs(10), async {
+        tokio::join!(run, replace)
+    })
+    .await
+    .unwrap();
+    assert_eq!(provider.requests()[0].1, ["old_tool"]);
+    assert_eq!(provider.requests()[1].1, [DISCOVERY_LEDGER]);
+    assert!(
+        provider.requests()[1]
+            .0
+            .iter()
+            .any(|message| message.content.contains("old executor completed"))
+    );
+    assert!(
+        provider.requests()[2]
+            .0
+            .iter()
+            .any(|message| message.content.contains("new executor completed"))
+    );
+}
+
+#[tokio::test]
+async fn dynamic_tools_core_replacement_preserves_same_batch_rejection() {
+    let workspace = tempfile::tempdir().unwrap();
+    std::fs::write(workspace.path().join("ledger"), "private ledger").unwrap();
+    let catalog = Arc::new(crate::tools::catalog::ToolCatalog::default());
+    let tools = discovery_tools(workspace.path());
+    let specs = tools.iter().map(|tool| tool.spec().id).collect::<Vec<_>>();
+    catalog.replace(tools.into_iter().map(Arc::from).collect(), specs).unwrap();
+    let provider = DiscoveryProvider::new(
+        true,
+        vec![vec![
+            ("search", "tool_search", serde_json::json!({"query":"ledger"})),
+            ("read", DISCOVERY_LEDGER, serde_json::json!({})),
+        ]],
+    );
+    let context =
+        Arc::new(ToolUseContext::new("dynamic-core", None).with_live_tool_catalog(catalog));
+    let history = crate::tools::scope_tool_use_context(
+        context,
+        run_discovery_loop(&provider, Vec::new(), &[]),
+    )
+    .await;
+    assert!(
+        history.iter().any(|message| message.content.contains("not exposed in this model request"))
+    );
+    assert!(!history.iter().any(|message| message.content.contains("private ledger")));
+}
+
+#[tokio::test]
+async fn dynamic_tools_core_replacement_intersects_loaded_authorization() {
+    let workspace = tempfile::tempdir().unwrap();
+    std::fs::write(workspace.path().join("ledger"), "authorized old ledger").unwrap();
+    let catalog = Arc::new(crate::tools::catalog::ToolCatalog::default());
+    let tools = discovery_tools(workspace.path());
+    let ids = tools.iter().map(|tool| tool.spec().id).collect::<Vec<_>>();
+    catalog.replace(tools.into_iter().map(Arc::from).collect(), ids).unwrap();
+    let mut provider = DiscoveryProvider::new(
+        true,
+        vec![
+            vec![("search", "tool_search", serde_json::json!({"query":"ledger"}))],
+            vec![("old", DISCOVERY_LEDGER, serde_json::json!({}))],
+            vec![("denied", DISCOVERY_LEDGER, serde_json::json!({}))],
+        ],
+    );
+    let replacement = catalog.clone();
+    provider.on_request = Some(Arc::new(move |index| {
+        if index == 2 {
+            replacement.replace(Vec::new(), Vec::new()).unwrap();
+        }
+    }));
+    let context =
+        Arc::new(ToolUseContext::new("dynamic-core", None).with_live_tool_catalog(catalog));
+    let history = crate::tools::scope_tool_use_context(
+        context,
+        run_discovery_loop(&provider, Vec::new(), &[]),
+    )
+    .await;
+    assert!(provider.requests()[1].1.contains(&DISCOVERY_LEDGER.into()));
+    assert!(provider.requests()[2].1.is_empty());
+    assert!(
+        provider.requests()[2]
+            .0
+            .iter()
+            .any(|message| message.content.contains("authorized old ledger"))
+    );
+    let denied = history
+        .iter()
+        .find(|message| message.role == "tool" && message.content.contains("denied"))
+        .unwrap();
+    assert!(!denied.content.contains("authorized old ledger"));
+    assert!(denied.content.contains("Unknown tool: mcp__fixture__ledger"));
+}
+
+#[tokio::test]
+async fn dynamic_tools_core_replacement_cannot_expand_child_authority() {
+    let workspace = tempfile::tempdir().unwrap();
+    std::fs::write(workspace.path().join("ledger"), "child forbidden ledger").unwrap();
+    let catalog = Arc::new(crate::tools::catalog::ToolCatalog::default());
+    let tool =
+        Arc::new(DiscoveryFileTool { id: DISCOVERY_LEDGER, path: workspace.path().join("ledger") });
+    catalog.replace(vec![tool.clone()], [DISCOVERY_LEDGER.into()]).unwrap();
+    let mut provider = DiscoveryProvider::new(
+        true,
+        vec![vec![("denied", DISCOVERY_LEDGER, serde_json::json!({}))]],
+    );
+    let replacement = catalog.clone();
+    provider.on_request = Some(Arc::new(move |_| {
+        replacement.replace(vec![tool.clone()], [DISCOVERY_LEDGER.into()]).unwrap();
+    }));
+    let context = Arc::new(
+        ToolUseContext::new("parent", None)
+            .with_live_tool_catalog(catalog)
+            .for_child("child".into(), Vec::new()),
+    );
+    let history = crate::tools::scope_tool_use_context(
+        context,
+        run_discovery_loop(&provider, Vec::new(), &[]),
+    )
+    .await;
+    assert!(provider.requests().iter().all(|(_, tools)| tools.is_empty()));
+    assert!(!history.iter().any(|message| message.content.contains("child forbidden ledger")));
+    assert!(history.iter().any(|message| message.content.contains("not exposed")));
 }

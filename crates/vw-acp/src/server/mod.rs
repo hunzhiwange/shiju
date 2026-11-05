@@ -42,3 +42,6 @@ mod transport_tests;
 mod mounts_tests;
 
 pub use mounts::BackendMountRequest;
+
+#[cfg(test)]
+mod mount_update_tests;

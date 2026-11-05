@@ -66,12 +66,15 @@ pub(super) fn response_meta(response: &SetSessionMountsResponse) -> Result<Meta>
     Ok(meta)
 }
 
-pub(super) fn capabilities_meta(skills: bool) -> Meta {
+pub(super) fn capabilities_meta(skills: bool, updates: bool) -> Meta {
     let mut meta = Meta::new();
-    // Updates remain disabled until atomic replacement is implemented.
     meta.insert(
         SESSION_MOUNTS_META_KEY.into(),
-        serde_json::json!(SessionMountCapabilities { skills, ..Default::default() }),
+        serde_json::json!(SessionMountCapabilities {
+            skills,
+            set_mounts: updates,
+            ..Default::default()
+        }),
     );
     meta
 }

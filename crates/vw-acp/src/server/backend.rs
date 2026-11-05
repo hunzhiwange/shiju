@@ -144,6 +144,19 @@ pub trait SessionBackend: Send + Sync + 'static {
         false
     }
 
+    /// Whether atomic complete mount replacement is available.
+    fn supports_mount_updates(&self) -> bool {
+        false
+    }
+
+    /// Replace only an owned idle session; failures retain the previous revision.
+    async fn set_session_mounts(
+        &self,
+        _request: crate::SetSessionMountsRequest,
+    ) -> Result<crate::SetSessionMountsResponse, BackendError> {
+        Err(BackendError::InvalidRequest("mount updates are not supported by this backend".into()))
+    }
+
     /// 返回会话实际使用的模型及可选目录；不支持选择时返回 `None`。
     async fn session_models(
         &self,

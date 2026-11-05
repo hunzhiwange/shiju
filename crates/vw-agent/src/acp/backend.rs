@@ -37,6 +37,8 @@ struct BoundSession {
     scope: SessionScope,
     tools: SessionToolset,
     skills: super::mounts::SessionSkillSources,
+    revision: vw_acp::SessionMountRevision,
+    operation: Arc<tokio::sync::Mutex<()>>,
     model: Arc<tokio::sync::Mutex<String>>,
 }
 
@@ -69,7 +71,18 @@ impl VibeWindowBackend {
             .get(session_id)
             .map(|bound| bound.model.clone())
             .unwrap_or_else(|| Arc::new(tokio::sync::Mutex::new(stored_model)));
-        sessions.insert(session_id.to_string(), BoundSession { scope, tools, skills, model });
+        let operation = sessions.get(session_id).map(|b| b.operation.clone()).unwrap_or_default();
+        let revision =
+            sessions.get(session_id).map(|b| b.revision).unwrap_or(vw_acp::SessionMountRevision(0));
+        if let Some(old) = sessions.insert(
+            session_id.to_string(),
+            BoundSession { scope, tools, skills, model, revision, operation },
+        ) {
+            old.skills.revoke();
+            if let Some(connections) = old.tools.mcp_connections() {
+                connections.shutdown();
+            }
+        }
         Ok(())
     }
 
@@ -453,6 +466,7 @@ async fn persist_turn(
 
 fn bridge_prompt(
     runtime: PromptTurn,
+    operation: tokio::sync::OwnedMutexGuard<()>,
     runtime_handle: tokio::runtime::Handle,
     scope: SessionScope,
     session_id: String,
@@ -475,6 +489,7 @@ fn bridge_prompt(
         .run(),
     );
     std::thread::spawn(move || {
+        let _operation = operation;
         let mut assistant_text = String::new();
         while let Ok(event) = runtime.events.recv() {
             if let PromptEvent::Text(text) = &event {
@@ -548,7 +563,12 @@ async fn start_prompt_core(
     prompt: Vec<PromptContent>,
     starter: impl FnOnce(Request) -> PromptTurn,
 ) -> Result<BackendPrompt, BackendError> {
-    let BoundSession { scope, tools, skills, model } = backend.bound_session(session_id)?;
+    let operation = backend
+        .bound_session(session_id)?
+        .operation
+        .try_lock_owned()
+        .map_err(|_| BackendError::InvalidRequest("session is busy".into()))?;
+    let BoundSession { scope, tools, skills, model, .. } = backend.bound_session(session_id)?;
     let model = model.lock().await.clone();
     let snapshot = load_session(scope.clone(), session_id).await.map_err(lifecycle_error)?;
     let history = backend_history(snapshot.history);
@@ -580,6 +600,7 @@ async fn start_prompt_core(
     .await;
     Ok(bridge_prompt(
         runtime,
+        operation,
         tokio::runtime::Handle::current(),
         scope,
         session_id.to_string(),
@@ -606,6 +627,64 @@ where
 
 #[async_trait]
 impl SessionBackend for VibeWindowBackend {
+    fn supports_mount_updates(&self) -> bool {
+        true
+    }
+
+    async fn set_session_mounts(
+        &self,
+        request: vw_acp::SetSessionMountsRequest,
+    ) -> Result<vw_acp::SetSessionMountsResponse, BackendError> {
+        let id = request.session_id.to_string();
+        let bound = self.bound_session(&id)?;
+        let operation = bound.operation.clone();
+        let _operation = operation
+            .try_lock()
+            .map_err(|_| BackendError::InvalidRequest("session is busy".into()))?;
+        let bound = self.bound_session(&id)?;
+        let revision = bound
+            .revision
+            .next(request.expected_revision)
+            .map_err(|e| BackendError::InvalidRequest(e.to_string()))?;
+        load_session(bound.scope.clone(), &id).await.map_err(lifecycle_error)?;
+        let mut prepared = super::mounts::prepare_revision(
+            &bound.scope,
+            &id,
+            vw_acp::server::BackendMountRequest {
+                skills: Some(vw_acp::SessionMountSelection { version: 1, skills: request.skills }),
+                mcp_servers: request.mcp_servers,
+            },
+            &[],
+            revision,
+        )
+        .await?;
+        // Inbound prompt history retains text only; invocation replay is checkpointed
+        // separately and must not restore a removed skill into the next turn.
+        crate::session::ui_store::with_tenant_scope(
+            bound.scope.tenant().clone(),
+            crate::session::skill_checkpoint::remove(
+                &id,
+                &bound.scope.directory().to_string_lossy(),
+            ),
+        )
+        .await
+        .map_err(BackendError::Internal)?;
+        prepared.response.revision = revision;
+        let mut sessions = self.sessions.lock().unwrap_or_else(std::sync::PoisonError::into_inner);
+        let current = sessions.get_mut(&id).ok_or_else(|| BackendError::NotFound(id.clone()))?;
+        if current.revision != bound.revision {
+            return Err(BackendError::InvalidRequest("session mounts revision conflict".into()));
+        }
+        let old_tools = std::mem::replace(&mut current.tools, prepared.tools);
+        current.skills.revoke();
+        current.skills = prepared.skills;
+        current.revision = revision;
+        if let Some(connections) = old_tools.mcp_connections() {
+            connections.shutdown();
+        }
+        Ok(prepared.response)
+    }
+
     fn supports_skill_mounts(&self) -> bool {
         cfg!(unix)
     }
@@ -637,12 +716,23 @@ impl SessionBackend for VibeWindowBackend {
     ) -> Result<vw_acp::server::BackendMountedSession, BackendError> {
         let scope = self.scope(cwd)?;
         let snapshot = load_session(scope.clone(), session_id).await.map_err(lifecycle_error)?;
-        let saved = self.bound_session(session_id).ok().map(|bound| bound.skills);
-        let prepared = super::mounts::prepare(
+        let existing = self.bound_session(session_id).ok();
+        let _operation = existing
+            .as_ref()
+            .map(|bound| bound.operation.try_lock())
+            .transpose()
+            .map_err(|_| BackendError::InvalidRequest("session is busy".into()))?;
+        let saved = existing.as_ref().map(|bound| bound.skills.clone());
+        let revision = self
+            .bound_session(session_id)
+            .map(|b| b.revision)
+            .unwrap_or(vw_acp::SessionMountRevision(0));
+        let prepared = super::mounts::prepare_revision(
             &scope,
             session_id,
             request,
             saved.as_ref().map(|s| s.mounts()).unwrap_or_default(),
+            revision,
         )
         .await?;
         let session = backend_session(snapshot, &scope);
@@ -711,6 +801,12 @@ impl SessionBackend for VibeWindowBackend {
         mcp_servers: Vec<McpServer>,
     ) -> Result<BackendSession, BackendError> {
         let scope = self.scope(cwd)?;
+        let existing = self.bound_session(session_id).ok();
+        let _operation = existing
+            .as_ref()
+            .map(|bound| bound.operation.try_lock())
+            .transpose()
+            .map_err(|_| BackendError::InvalidRequest("session is busy".into()))?;
         let snapshot = load_session(scope.clone(), session_id).await.map_err(lifecycle_error)?;
         let tools = prepare_session_tools(&mcp_servers).await?;
         let session = backend_session(snapshot, &scope);

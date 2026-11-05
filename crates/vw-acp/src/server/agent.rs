@@ -282,7 +282,10 @@ where
             ));
         }
         Ok(InitializeResponse::new(ProtocolVersion::V1)
-            .meta(capabilities_meta(self.backend.supports_skill_mounts()))
+            .meta(capabilities_meta(
+                self.backend.supports_skill_mounts(),
+                self.backend.supports_mount_updates(),
+            ))
             .agent_capabilities(
                 AgentCapabilities::new()
                     .load_session(true)
@@ -444,6 +447,33 @@ where
                 }
             }
         }
+    }
+
+    async fn ext_method(
+        &self,
+        args: agent_client_protocol::ExtRequest,
+    ) -> Result<agent_client_protocol::ExtResponse> {
+        self.ensure_initialized()?;
+        if args.method.as_ref() != crate::session_mounts::SET_SESSION_MOUNTS_METHOD {
+            return Err(Error::method_not_found());
+        }
+        let request: crate::SetSessionMountsRequest = serde_json::from_str(args.params.get())
+            .map_err(|_| protocol_error(Error::invalid_params(), "invalid mount replacement"))?;
+        let id = request.session_id.to_string();
+        {
+            let mut state = self.state.lock();
+            if state.binding(&id).is_none() {
+                return Err(Error::resource_not_found(Some(id)));
+            }
+            if !state.reserve_prompt(&id) {
+                return Err(protocol_error(Error::invalid_request(), "session is busy"));
+            }
+        }
+        let _scope = PromptScope { state: &self.state, session_id: id, completed: true };
+        let response = self.backend.set_session_mounts(request).await.map_err(map_backend_error)?;
+        let raw =
+            serde_json::value::to_raw_value(&response).map_err(|_| Error::internal_error())?;
+        Ok(agent_client_protocol::ExtResponse::new(raw.into()))
     }
 
     async fn cancel(&self, args: CancelNotification) -> Result<()> {

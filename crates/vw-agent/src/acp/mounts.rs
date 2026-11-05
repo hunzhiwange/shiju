@@ -17,6 +17,7 @@ use vw_acp::{SessionMountRevision, SessionSkillMount, SetSessionMountsResponse};
 pub struct SessionSkillSources {
     view: Option<Arc<SessionSkillView>>,
     mounts: Arc<Vec<SessionSkillMount>>,
+    revoked: Arc<std::sync::atomic::AtomicBool>,
 }
 impl std::fmt::Debug for SessionSkillSources {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
@@ -24,7 +25,14 @@ impl std::fmt::Debug for SessionSkillSources {
     }
 }
 impl SessionSkillSources {
+    pub(super) fn revoke(&self) {
+        self.revoked.store(true, std::sync::atomic::Ordering::Release);
+    }
     pub(crate) fn validate(&self) -> Result<()> {
+        ensure!(
+            !self.revoked.load(std::sync::atomic::Ordering::Acquire),
+            "session skill mounts revoked"
+        );
         if let Some(view) = &self.view {
             view.validate()?;
         }
@@ -86,6 +94,16 @@ pub(super) async fn prepare(
     request: BackendMountRequest,
     saved: &[SessionSkillMount],
 ) -> Result<PreparedMounts, BackendError> {
+    prepare_revision(scope, session, request, saved, SessionMountRevision(0)).await
+}
+
+pub(super) async fn prepare_revision(
+    scope: &SessionScope,
+    session: &str,
+    request: BackendMountRequest,
+    saved: &[SessionSkillMount],
+    revision: SessionMountRevision,
+) -> Result<PreparedMounts, BackendError> {
     let prepare_error = |error: anyhow::Error| BackendError::InvalidRequest(error.to_string());
     if request.skills.as_ref().is_some_and(|selection| selection.version != 1) {
         return Err(BackendError::InvalidRequest("unsupported session mounts version".into()));
@@ -106,13 +124,17 @@ pub(super) async fn prepare(
                 .to_string(),
                 project: scope.directory().to_path_buf(),
                 session: session.into(),
-                revision: 0,
+                revision: revision.0,
             },
             &mounts,
             &config.skills.security,
         )
         .map_err(prepare_error)?;
-        SessionSkillSources { view: Some(Arc::new(view)), mounts: Arc::new(mounts.clone()) }
+        SessionSkillSources {
+            view: Some(Arc::new(view)),
+            mounts: Arc::new(mounts.clone()),
+            revoked: Default::default(),
+        }
     };
     skills
         .extend(crate::skills::load_skills_with_config(scope.directory(), &config), &config, false)
@@ -128,7 +150,7 @@ pub(super) async fn prepare(
         skills,
         tools,
         response: SetSessionMountsResponse {
-            revision: SessionMountRevision(0),
+            revision,
             skills: mounts.iter().map(|m| m.name.clone()).collect(),
             mcp_servers: names,
         },

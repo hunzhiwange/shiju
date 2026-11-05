@@ -21,3 +21,6 @@ mod mcp_tests;
 
 #[cfg(test)]
 mod mounts_tests;
+
+#[cfg(test)]
+mod mount_update_tests;

@@ -44,6 +44,7 @@ pub(crate) async fn prepare_session_tools(
 ) -> Result<SessionToolset, BackendError> {
     validate_server_names(servers)?;
     let connections = Arc::new(crate::plugins::McpSessionConnections::default());
+    let lease = SessionToolset::default().with_mcp_connections(connections.clone());
     connections
         .synchronize(servers)
         .map_err(|error| BackendError::InvalidRequest(error.to_string()))?;
@@ -72,5 +73,7 @@ pub(crate) async fn prepare_session_tools(
         }
     }
 
-    Ok(SessionToolset::new(tools).with_mcp_connections(connections))
+    Ok(lease.with_catalog(Arc::new(
+        crate::tools::catalog::ToolCatalogSnapshot::from_runtime_tools(tools),
+    )))
 }

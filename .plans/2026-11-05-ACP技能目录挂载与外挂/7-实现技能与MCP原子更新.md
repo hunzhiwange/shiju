@@ -2,7 +2,7 @@
 
 批次：【批次 7】 依赖批次 6；依赖任务 6。
 
-状态：未开始
+状态：已完成，待回归验证
 
 目的：在空闲会话中完整替换外挂集合，失败保留旧集合。
 
@@ -69,3 +69,17 @@
 - 只有本任务行为证据齐全后，才能标记“已完成”。实现完成但被无关验证问题挡住则“已完成，待回归”；本任务自身需求/环境无法突破则“已阻塞”，在本文件记录原因、已做尝试和下一步。
 - 有实际代码、测试、配置或文档变更，使用 `$git-commit` 分析并提交本任务变更，排除其他任务及用户改动；只改本任务状态或删除任务文件时，不调用提交技能。
 - 完成后最终回复报告证据并删除本任务文件；待回归/阻塞则保留。不要修改plan.md或prompt.md来记录进度。新发现若超出已授权范围，先向用户说明并确认是否记录到来源产物，不自行加入新需求。
+
+## 本次实施与验证记录（2026-11-05）
+
+- 依赖任务 6 已提交：`45a5423c4`，原生技能目录发现、调用与 MCP 准备入口已具备。
+- 实现命名空间 set_mounts、独立更新能力声明、连接及后端两层 prompt/load/update 租约、expectedRevision 检查、完整候选准备后发布、旧技能句柄撤销、旧 MCP 连接关闭及调用 checkpoint 清理。load 保留当前 revision；MCP 部分准备失败通过租约销毁候选连接。
+- 新增独立测试覆盖真实 stdio MCP 文件工具调用、第二个 MCP 失败回滚及候选 PID 退出、技能路径失败、旧句柄撤销、空集合清理、revision 冲突和双写竞争；生产 Agent/后端测试在真实 MCP 准备窗口检查 prompt/load/第二次更新立即 busy。
+- Cargo 实际动态领取槽位 **2**，`CARGO_TARGET_DIR=/Users/xiangmin/worker/code/shiju/target/rust-slot-2`；不删除编译缓存，阶段进程结束后释放本任务锁。
+- `cargo fmt --all`：退出 0；`git diff --check`：退出 0。
+- 红灯：`cargo test -p vw-agent -p vw-acp --lib acp_mount_update_ -- --nocapture --test-threads=1`，退出 101，实际 1 项测试失败，断言 setMounts=false 与预期 true 不符（非零测试）。
+- 中间版本同一聚焦命令：退出 0，vw-acp 2 项、vw-agent 3 项，共 5 项通过、无 ignored；真实 old/new 工具调用、候选及旧 MCP PID 退出、busy 竞争均实际观察。此后补强了后端租约、load revision 保留、checkpoint 清理和同名技能源替换测试，不能用中间版本报告替代最终版本验收。
+- 最终聚焦命令退出 101，执行行为测试 0 项（编译阻塞，不能算通过）；另有与 Clippy 相同的 E0599。无关并发修改的 E0308：`crates/vw-agent/src/session/processor/runner.rs:878,1020` 的 `request_catalog` 需要 `&ToolUseContext`，实传 `Arc<ToolUseContext>`。未修改该无关文件；最终 vw-agent 行为验证未通过，不宣称验收完成。
+- `cargo clippy --all-targets --all-features -- -D warnings`：退出 101，除上述 E0308，`crates/vw-agent/src/gateway/api/handlers/dynamic_tools_tests.rs:63,64,276,277` 对 PlatformId/CompanyId 调用不存在的 as_str，报 E0599；均在本任务范围外，未处理。
+- 恢复条件：相关并发任务修复上述编译错误后，按共享槽位规则重跑最终聚焦命令及要求的 Clippy。通过后才能改为已完成并删除本任务文件；本次保留供回归。
+- 最终独立协议验证：`cargo test -p vw-acp --lib acp_mount_update_ -- --nocapture --test-threads=1`，退出 0，2 项通过、0 ignored；不替代 vw-agent 的最终回归。

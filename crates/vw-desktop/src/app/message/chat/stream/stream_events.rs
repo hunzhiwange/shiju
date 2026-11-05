@@ -707,11 +707,14 @@ pub(super) fn handle_agent_stream_session_delta_saved(
         Err(error) => {
             runtime.stream_save_failures = runtime.stream_save_failures.saturating_add(1);
             let mut recoverable = true;
+            let mut recovery_progress = false;
             match &error {
                 crate::app::session_gateway::SessionMessageDeltaSaveError::Stale {
                     stored_updated_ms,
                     stored_message_count,
                 } => {
+                    recovery_progress =
+                        runtime.stream_save_expected_updated_ms != *stored_updated_ms;
                     runtime.stream_save_expected_updated_ms = *stored_updated_ms;
                     // A snapshot save can fail independently of this queue. Rebuild the
                     // missing append range from local messages, never invent empty rows.
@@ -751,6 +754,7 @@ pub(super) fn handle_agent_stream_session_delta_saved(
                                 recoverable = false;
                                 break;
                             }
+                            recovery_progress = true;
                         }
                     }
                 }
@@ -760,6 +764,12 @@ pub(super) fn handle_agent_stream_session_delta_saved(
                 crate::app::session_gateway::SessionMessageDeltaSaveError::Other(_) => {}
             }
             let runtime = app.get_session_runtime_mut(&session_id);
+            // Concurrent snapshot/trajectory writes legitimately advance the version.
+            // Rebasing or repairing a missing row makes progress, so it must not
+            // exhaust the outage budget or increase the next retry delay.
+            if recoverable && recovery_progress {
+                runtime.stream_save_failures = 0;
+            }
             if !recoverable || runtime.stream_save_failures >= STREAM_SESSION_SAVE_MAX_FAILURES {
                 runtime.stream_save_failures = STREAM_SESSION_SAVE_MAX_FAILURES;
                 runtime.stream_save_flush_scheduled = false;

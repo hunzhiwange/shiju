@@ -102,6 +102,14 @@ pub(super) fn cards(app: &App) -> Vec<Element<'_, Message>> {
                     AgentsMessage::CatalogToggle(entry.key.clone(), !entry.enabled),
                 ));
             }
+            if let AgentRuntime::Acp { backend } = &entry.runtime {
+                actions = actions.push(
+                    button(text("运行设置").size(12))
+                        .padding([8, 10])
+                        .style(rounded_action_btn_style)
+                        .on_press(message(AgentsMessage::CatalogRuntimeSettings(backend.clone()))),
+                );
+            }
             if entry.can_start_session() {
                 actions = actions.push(
                     button(text("开始会话").size(12))
@@ -123,7 +131,7 @@ pub(super) fn cards(app: &App) -> Vec<Element<'_, Message>> {
                     .into(),
                 AgentRuntime::Acp { backend } => acp_agent_icon(backend, 20.0),
             };
-            let mut body = column![
+            let body = column![
                 button(
                     row![
                         identity_icon,
@@ -154,14 +162,6 @@ pub(super) fn cards(app: &App) -> Vec<Element<'_, Message>> {
                 actions.wrap(),
             ]
             .spacing(8);
-            if let AgentRuntime::Acp { backend } = &entry.runtime {
-                body = body.push(
-                    button(text("运行设置 / 安装 / 网关诊断").size(12))
-                        .padding([8, 10])
-                        .style(rounded_action_btn_style)
-                        .on_press(message(AgentsMessage::CatalogRuntimeSettings(backend.clone()))),
-                );
-            }
             container(body).padding(12).width(Length::Fill).style(settings_panel_style).into()
         })
         .collect()

@@ -10,7 +10,7 @@
 //!
 //! [`GatewayClient`] 本身只保存两类状态：
 //! - 目标网关端点配置
-//! - 复用的 `reqwest::Client`
+//! - 复用的 `reqwest::Client`，宿主请求额外禁用重定向与重试
 
 mod agent_scheduler_api;
 #[cfg(test)]
@@ -27,6 +27,11 @@ mod control_api;
 mod control_api_tests;
 mod cron_api;
 pub mod desktop_settings_api;
+#[cfg(not(target_arch = "wasm32"))]
+mod dynamic_tools_api;
+#[cfg(all(test, not(target_arch = "wasm32")))]
+#[path = "dynamic_tools_api_tests.rs"]
+mod dynamic_tools_api_tests;
 mod file_api;
 mod git_api;
 mod inference_api;
@@ -142,6 +147,8 @@ pub use provider_api::{
 pub struct GatewayClient {
     endpoint: GatewayEndpoint,
     client: reqwest::Client,
+    #[cfg(not(target_arch = "wasm32"))]
+    dynamic_host_client: reqwest::Client,
 }
 
 impl GatewayClient {
@@ -152,14 +159,26 @@ impl GatewayClient {
     /// 当底层 `reqwest::Client` 构建失败时，返回字符串化后的错误信息。
     pub fn new(endpoint: GatewayEndpoint) -> Result<Self, String> {
         #[cfg(not(target_arch = "wasm32"))]
-        let builder = reqwest::Client::builder()
-            .timeout(std::time::Duration::from_secs(REQUEST_TIMEOUT_SECS));
+        let builder = || {
+            let builder = reqwest::Client::builder()
+                .timeout(std::time::Duration::from_secs(REQUEST_TIMEOUT_SECS));
+            if endpoint.is_loopback() { builder.no_proxy() } else { builder }
+        };
         #[cfg(target_arch = "wasm32")]
-        let builder = reqwest::Client::builder();
+        let builder = reqwest::Client::builder;
         #[cfg(not(target_arch = "wasm32"))]
-        let builder = if endpoint.is_loopback() { builder.no_proxy() } else { builder };
-        let client = builder.build().map_err(|err| err.to_string())?;
-        Ok(Self { endpoint, client })
+        let dynamic_host_client = builder()
+            .redirect(reqwest::redirect::Policy::none())
+            .retry(reqwest::retry::never())
+            .build()
+            .map_err(|err| err.to_string())?;
+        let client = builder().build().map_err(|err| err.to_string())?;
+        Ok(Self {
+            endpoint,
+            client,
+            #[cfg(not(target_arch = "wasm32"))]
+            dynamic_host_client,
+        })
     }
 
     /// 返回当前客户端绑定的网关端点。

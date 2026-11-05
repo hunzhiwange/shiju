@@ -321,3 +321,24 @@ pub struct ToolResultDto {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub telemetry: Option<Value>,
 }
+
+/// Native session host binding. Send the token in x-vibewindow-tool-host, never in URLs.
+/// Deliberately does not implement Debug: the token is a live capability.
+#[derive(Clone, Serialize, Deserialize)]
+pub struct DynamicToolHostBinding {
+    pub host_id: String,
+    pub binding_token: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct ReplaceDynamicToolsRequest {
+    pub tools: Vec<DynamicToolRegistration>,
+    #[serde(default)]
+    pub persist: bool,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ReplaceDynamicToolsResponse {
+    pub version: u64,
+}

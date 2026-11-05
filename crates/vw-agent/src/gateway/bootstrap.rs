@@ -594,6 +594,26 @@ fn client_route_entries() -> Vec<GatewayRouteEntry> {
         client_route("GET", "/v1/session", "sessions"),
         client_route("POST", "/v1/session", "create session"),
         client_route("GET", "/v1/session/status", "session status"),
+        client_route(
+            "POST",
+            "/v1/session/{session_id}/dynamic-tools/hosts",
+            "bind dynamic tool host",
+        ),
+        client_route(
+            "PUT",
+            "/v1/session/{session_id}/dynamic-tools",
+            "replace session dynamic tools",
+        ),
+        client_route(
+            "GET",
+            "/v1/session/{session_id}/dynamic-tools/calls",
+            "host dynamic tool call stream",
+        ),
+        client_route(
+            "POST",
+            "/v1/session/{session_id}/dynamic-tools/calls/{call_id}/response",
+            "respond to host tool call",
+        ),
         client_route("GET", "/v1/session/{session_id}", "session"),
         client_route("PATCH", "/v1/session/{session_id}", "update session"),
         client_route("DELETE", "/v1/session/{session_id}", "delete session"),
@@ -802,6 +822,7 @@ pub(super) fn stateful_handler_router() -> Router<AppState> {
         .merge(api::handlers::task_plan_run::router())
         .merge(api::handlers::workflow::router())
         .merge(api::handlers::session::router())
+        .merge(api::handlers::dynamic_tools::router())
         .merge(api::handlers::config::stateful_router())
         .merge(api::handlers::shiju_account::router())
         .merge(api::handlers::shiju_apps::router())

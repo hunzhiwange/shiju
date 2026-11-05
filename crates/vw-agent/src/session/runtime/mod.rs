@@ -25,3 +25,7 @@ mod prompt_tests;
 pub mod dynamic_calls;
 #[cfg(test)]
 mod dynamic_calls_tests;
+
+#[cfg(not(target_arch = "wasm32"))]
+pub(crate) mod dynamic_hosts;
+pub(crate) use lifecycle::validate_session_scope;

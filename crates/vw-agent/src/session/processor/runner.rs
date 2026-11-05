@@ -872,6 +872,19 @@ fn run_in_project(
     };
     let mcp_connections = crate::tools::mcp_connections_for_context(&ctx);
     let mut catalog_snapshot = live_catalog.as_ref().map(|catalog| catalog.snapshot());
+    #[cfg(not(target_arch = "wasm32"))]
+    if let Some(snapshot) = catalog_snapshot.take() {
+        match crate::session::runtime::dynamic_hosts::request_catalog(
+            &ctx.tool_use_context(),
+            snapshot,
+        ) {
+            Ok(snapshot) => catalog_snapshot = Some(snapshot),
+            Err(error) => {
+                on_event(StreamEvent::Error(error.to_string()));
+                return;
+            }
+        }
+    }
     if let Some(snapshot) = &catalog_snapshot {
         ctx = tools_exec::with_request_tool_catalog(&ctx, &req.session_tools, snapshot);
     }
@@ -1002,6 +1015,17 @@ fn run_in_project(
                 tracing::warn!("MCP catalog refresh remains pending: {error}");
             }
             let snapshot = catalog.snapshot();
+            #[cfg(not(target_arch = "wasm32"))]
+            let snapshot = match crate::session::runtime::dynamic_hosts::request_catalog(
+                &ctx.tool_use_context(),
+                snapshot,
+            ) {
+                Ok(snapshot) => snapshot,
+                Err(error) => {
+                    on_event(StreamEvent::Error(error.to_string()));
+                    return;
+                }
+            };
             if catalog_snapshot
                 .as_ref()
                 .is_none_or(|previous| !std::sync::Arc::ptr_eq(previous, &snapshot))

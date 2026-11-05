@@ -225,3 +225,9 @@ pub use tools::{handle_api_doctor, handle_api_tools};
 
 #[cfg(test)]
 mod tests;
+
+#[cfg(test)]
+mod dynamic_tools_tests;
+
+#[cfg(not(target_arch = "wasm32"))]
+pub(crate) mod dynamic_tools;

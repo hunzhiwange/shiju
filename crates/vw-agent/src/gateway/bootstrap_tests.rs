@@ -153,7 +153,19 @@ fn gateway_route_summary_lists_tenant_policy_and_client_api_entries() {
 #[test]
 fn gateway_route_summary_lists_all_documented_routes() {
     let routes = documented_gateway_routes();
-    assert_eq!(routes.len(), 234);
+    assert_eq!(routes.len(), 240);
+    for (method, path) in [
+        ("POST", "/v1/session/{session_id}/dynamic-tools/hosts"),
+        ("PUT", "/v1/session/{session_id}/dynamic-tools"),
+        ("GET", "/v1/session/{session_id}/dynamic-tools/calls"),
+        ("POST", "/v1/session/{session_id}/dynamic-tools/calls/{call_id}/response"),
+    ] {
+        assert!(
+            routes
+                .iter()
+                .any(|route| route.method == method && route.path == path && route.requires_tenant)
+        );
+    }
     let unique = routes
         .iter()
         .map(|route| (route.method, route.path))
@@ -242,4 +254,59 @@ async fn supported_default_provider_is_initialized_normally() {
     let config = Config { default_provider: Some("openai".into()), ..Config::default() };
     let provider = gateway_provider(&config);
     assert!(provider.supports_streaming());
+}
+
+#[tokio::test]
+async fn dynamic_tools_gateway_bootstrap_mounts_authenticated_host_routes() {
+    let _env = crate::test_support::global_async_env_lock().lock().await;
+    let _config = crate::session::llm::recovery_test_support::RecoveryConfig::new(
+        "https://example.test/v1",
+        None,
+    )
+    .await;
+    let directory = tempfile::tempdir().unwrap();
+    let scope = crate::session::runtime::SessionScope::new(
+        vw_api_types::id::TenantScope::new("gateway-host-bootstrap", "validation").unwrap(),
+        directory.path(),
+    )
+    .unwrap();
+    let session =
+        crate::session::runtime::create_session(crate::session::runtime::CreateSessionInput {
+            scope: scope.clone(),
+            parent_id: None,
+            title: None,
+            permission: None,
+        })
+        .await
+        .unwrap();
+    let mut state = state();
+    state.pairing = Arc::new(PairingGuard::new(true, &["dynamic-host-test-skey".into()]));
+    let app = client_router(state.clone(), Router::new(), Router::new()).with_state(state.clone());
+    let request = |suffix: &str, token: Option<&str>| {
+        let mut request = Request::builder()
+            .method(if suffix == "/hosts" { "POST" } else { "GET" })
+            .uri(format!("/v1/session/{}/dynamic-tools{suffix}", session.info.id))
+            .header("Authorization", "Bearer dynamic-host-test-skey")
+            .header("X-Platform-ID", "gateway-host-bootstrap")
+            .header("X-Company-ID", "validation")
+            .header("x-vibewindow-directory", directory.path().to_str().unwrap());
+        if let Some(token) = token {
+            request = request.header("x-vibewindow-tool-host", token);
+        }
+        request.body(Body::empty()).unwrap()
+    };
+    let response = app.clone().oneshot(request("/hosts", None)).await.unwrap();
+    assert_eq!(response.status(), StatusCode::OK);
+    let binding: vw_api_types::tools::DynamicToolHostBinding =
+        serde_json::from_slice(&axum::body::to_bytes(response.into_body(), 4096).await.unwrap())
+            .unwrap();
+    let stream = app.oneshot(request("/calls", Some(&binding.binding_token))).await.unwrap();
+    assert_eq!(stream.status(), StatusCode::OK);
+    drop(stream);
+    let mut protected = state;
+    protected.pairing = Arc::new(PairingGuard::new(true, &[]));
+    let app = client_router(protected.clone(), Router::new(), Router::new()).with_state(protected);
+    let mut unauthenticated = request("/hosts", None);
+    unauthenticated.headers_mut().remove("Authorization");
+    assert_eq!(app.oneshot(unauthenticated).await.unwrap().status(), StatusCode::UNAUTHORIZED);
 }

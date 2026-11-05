@@ -130,6 +130,7 @@ fn handler_router() -> Router {
     Router::new()
         // 全局路由：健康检查、系统状态等
         .merge(handlers::global::router())
+        .merge(handlers::dynamic_tools::router())
         // 认证路由：登录、令牌管理等
         .merge(handlers::auth::router())
         // 杂项路由：工具类接口

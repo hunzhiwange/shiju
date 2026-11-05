@@ -231,3 +231,24 @@ pub async fn load_session(
     .await
     .map_err(LifecycleError::Project)?
 }
+
+/// Check access without loading history, restoring tools or interrupting active calls.
+pub(crate) async fn validate_session_scope(
+    scope: SessionScope,
+    session_id: &str,
+) -> Result<session::Info, LifecycleError> {
+    let (project, _) = resolve_project(&scope).await?;
+    let tenant = scope.tenant().clone();
+    let directory = scope.directory().to_path_buf();
+    let session_id = session_id.to_string();
+    project::instance::provide(directory, None, move || {
+        Box::pin(async move {
+            ui_store::with_tenant_scope(tenant, async move {
+                load_info_for_scope(&scope, &project.id, &session_id).await
+            })
+            .await
+        })
+    })
+    .await
+    .map_err(LifecycleError::Project)?
+}

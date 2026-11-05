@@ -201,7 +201,7 @@ pub(crate) async fn do_stream_request_acp(
         &scoped_session,
         &cfg.skills.security,
     )?;
-    super::skill_mounts::configure_qwen(
+    super::skill_mounts::configure_native_scanner(
         &acp_agent_name,
         &mut normalized_acp_cfg,
         parsed_options.skill_view.as_ref(),

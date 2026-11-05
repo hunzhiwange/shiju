@@ -53,6 +53,7 @@ class SkillMountFixture:
         self.native_catalog = {}
         self.native_skill_invocations = 0
         self.added_confirmed = False
+        self.gemini_calls = {}
 
     def snapshot(self):
         with self.lock:
@@ -91,22 +92,24 @@ class SkillMountFixture:
     def native_skill_call(self, body, qualified, kind):
         for raw in body.get("tools", []):
             tool = raw.get("function", raw)
-            if tool.get("name") == ("skill" if getattr(self, "qwen_native", False) else "Skill") and "skill" in tool.get("parameters", {}).get("properties", {}):
+            field = "name" if getattr(self, "gemini_native", False) else "skill"
+            expected = "activate_skill" if getattr(self, "gemini_native", False) else ("skill" if getattr(self, "qwen_native", False) else "Skill")
+            if tool.get("name") == expected and field in tool.get("parameters", {}).get("properties", {}):
                 call_id = "mount_" + secrets.token_hex(12)
                 self.calls[call_id] = kind
                 self.native_skill_invocations += 1
                 self.call_events[call_id] = {"phase":self.mode, "kind":kind, "result_received":False, "matched":False}
                 self.total_calls += 1
-                return {"role":"assistant", "content":None, "tool_calls":[{"id":call_id, "type":"function", "function":{"name":tool["name"], "arguments":json.dumps({"skill":qualified})}}]}, "tool_calls"
+                return {"role":"assistant", "content":None, "tool_calls":[{"id":call_id, "type":"function", "function":{"name":tool["name"], "arguments":json.dumps({field:qualified})}}]}, "tool_calls"
         raise ValueError("fixed CLI has no reviewed compatible tool schema")
 
     def response(self, body):
         with self.lock:
-            native_mode = getattr(self, "claude_native", False) or getattr(self, "qwen_native", False)
-            qualified = self.name if getattr(self, "qwen_native", False) else "shiju-session-skills:" + self.name
+            native_mode = any(getattr(self, key, False) for key in ("claude_native", "qwen_native", "gemini_native"))
+            qualified = self.name if (getattr(self, "qwen_native", False) or getattr(self, "gemini_native", False)) else "shiju-session-skills:" + self.name
             messages = body["messages"]
-            if getattr(self, "qwen_native", False):
-                # Qwen serializes native function responses as JSON objects/arrays.
+            if getattr(self, "qwen_native", False) or getattr(self, "gemini_native", False):
+                # Qwen and Gemini serialize native function responses as JSON objects/arrays.
                 # Decode the actual correlated result instead of comparing JSON escapes.
                 def result_text(value):
                     if isinstance(value, str):
@@ -156,15 +159,19 @@ class SkillMountFixture:
                 self.native_skill = None
                 if body.get("claude_native") or native_mode:
                     catalog = metadata + json.dumps(body.get("tools", []))
-                    if getattr(self, "qwen_native", False):
+                    if getattr(self, "qwen_native", False) or getattr(self, "gemini_native", False):
                         catalog = "\n".join(re.findall(r"<available_skills>(.*?)</available_skills>", metadata, re.S))
-                    if getattr(self, "qwen_native", False) and getattr(self, "forbidden_skill", "") and self.forbidden_skill in catalog:
+                    if (getattr(self, "qwen_native", False) or getattr(self, "gemini_native", False)) and getattr(self, "forbidden_skill", "") and self.forbidden_skill in catalog:
                         raise ValueError("unselected native skill leaked")
                     self.native_catalog = {"selected_name_in_metadata": self.name in metadata,
                         "selected_name_in_tools": self.name in json.dumps(body.get("tools", [])),
                         "tool_names": [t.get("function", t).get("name") for t in body.get("tools", [])]}
                     if qualified in catalog:
                         self.native_skill = qualified
+                        if getattr(self, "gemini_native", False):
+                            # Gemini advertises a location, but acceptance still requires
+                            # its real activate_skill result before reading resources.
+                            self.discovered_dir = None
                 discovered = self.discovered_dir is not None or self.native_skill is not None
                 self.discovery += int(discovered and not (native_mode and self.mode == "absent"))
                 self.discovery_observations.append({"phase": self.mode, "mounted_view": discovered})
@@ -174,11 +181,15 @@ class SkillMountFixture:
                 if self.mode == "absent" and discovered and not native_mode:
                     raise ValueError("removed or other-session skill leaked")
             if self.mode == "absent":
+                if (getattr(self, "gemini_native", False) and not self.native_skill
+                        and not any(t.get("function", t).get("name") == "activate_skill" for t in body.get("tools", []))):
+                    self.discovery_observations[-1]["native_activation_unregistered"] = True
+                    return {"role": "assistant", "content": "SKILL_ABSENT"}, "stop"
                 if native_mode:
                     for message in messages:
                         if message.get("role") == "tool" and self.calls.get(message.get("tool_call_id")) == "missing":
                             content = str(message.get("content", ""))
-                            if not (("Unknown skill: " + qualified in content) or (getattr(self, "qwen_native", False) and qualified in content and "not found" in content)):
+                            if not (("Unknown skill: " + qualified in content) or ((getattr(self, "qwen_native", False) or getattr(self, "gemini_native", False)) and qualified in content and "not found" in content)):
                                 raise ValueError("removed or other-session skill leaked")
                             event = self.call_events[message["tool_call_id"]]
                             if not event["result_received"]:
@@ -292,17 +303,36 @@ class SkillMountFixture:
                     return
                 try:
                     route = self.path.split("?", 1)[0]
+                    gemini = route.startswith("/v1beta/models/") and getattr(fixture, "gemini_native", False)
                     authenticated = (self.headers.get("Authorization") == "Bearer " + fixture.key
-                                     or route == "/v1/messages" and self.headers.get("x-api-key") == fixture.key)
-                    if route not in ("/v1/chat/completions", "/v1/responses", "/v1/messages") or not authenticated:
+                                     or route == "/v1/messages" and self.headers.get("x-api-key") == fixture.key
+                                     or gemini and self.headers.get("x-goog-api-key") == fixture.key)
+                    if (not gemini and route not in ("/v1/chat/completions", "/v1/responses", "/v1/messages")) or not authenticated:
                         raise ValueError("route or authentication")
                     size = int(self.headers.get("Content-Length", "0"))
                     if not 0 < size <= 8 * 1024 * 1024:
                         raise ValueError("request size")
                     body = json.loads(self.rfile.read(size))
+                    if gemini:
+                        from urllib.parse import unquote
+                        model, _, action = unquote(route.removeprefix("/v1beta/models/")).rpartition(":")
+                        if action not in ("generateContent", "streamGenerateContent", "countTokens"):
+                            raise ValueError("route or authentication")
+                        body["model"] = model
                     if body.get("model") not in fixture.models:
                         raise ValueError("unexpected model")
-                    if route == "/v1/messages":
+                    if gemini and action == "countTokens":
+                        data = b'{"totalTokens":1}'
+                        self.send_response(200)
+                        self.send_header("Content-Type", "application/json")
+                        self.send_header("Content-Length", str(len(data)))
+                        self.end_headers()
+                        self.wfile.write(data)
+                        return
+                    if gemini:
+                        from acp_skill_mount_gemini import generate_message
+                        message, finish = generate_message(fixture, body)
+                    elif route == "/v1/messages":
                         from acp_skill_mount_claude import messages_message
                         message, finish = messages_message(fixture, body)
                     elif route == "/v1/responses":
@@ -336,6 +366,11 @@ class SkillMountFixture:
                         response, stream = messages_wire(message, body["model"])
                         data = stream if body.get("stream") else json.dumps(response).encode()
                         content_type = "text/event-stream" if body.get("stream") else "application/json"
+                    if gemini:
+                        from acp_skill_mount_gemini import generate_wire
+                        response, stream = generate_wire(message)
+                        data = stream if action == "streamGenerateContent" else json.dumps(response).encode()
+                        content_type = "text/event-stream" if action == "streamGenerateContent" else "application/json"
                     self.send_response(200)
                 except (ValueError, KeyError, TypeError, AttributeError) as error:
                     with fixture.lock:

@@ -12,6 +12,44 @@ from verify_acp_skill_mounts import accepted, select_entry
 
 
 class SkillMountHarnessTests(unittest.TestCase):
+    def test_gemini_wire_requires_correlated_native_activation(self):
+        from acp_skill_mount_gemini import generate_message, generate_wire
+        with tempfile.TemporaryDirectory() as directory:
+            fixture = SkillMountFixture(Path(directory))
+            fixture.gemini_native = True
+            view = fixture.root / "view" / fixture.name
+            view.parent.mkdir()
+            view.symlink_to(fixture.directory, target_is_directory=True)
+            body = {"systemInstruction": {"parts": [{"text": "<available_skills>" + fixture.name + "<location>" + str(view / "SKILL.md") + "</location></available_skills>"}]},
+                    "contents": [{"role": "user", "parts": [{"text": fixture.prompt}]}],
+                    "tools": [{"functionDeclarations": [
+                        {"name": "activate_skill", "parameters": {"properties": {"name": {"type": "string"}}, "required": ["name"]}},
+                        {"name": "read_file", "parameters": {"properties": {"file_path": {"type": "string"}}, "required": ["file_path"]}}]}]}
+            message, _ = generate_message(fixture, body)
+            wire, _ = generate_wire(message)
+            call = wire["candidates"][0]["content"]
+            self.assertEqual(call["parts"][0]["functionCall"]["name"], "activate_skill")
+            body["contents"] += [call, {"role": "user", "parts": [{"functionResponse": {
+                "id": message["tool_calls"][0]["id"], "name": "activate_skill", "response": {
+                    "output": fixture.skill.read_text() + "\n" + str(view)}}}]}]
+            message, _ = generate_message(fixture, body)
+            self.assertEqual(message["tool_calls"][0]["function"]["name"], "read_file")
+            self.assertTrue(fixture.snapshot()["skill_body_read"])
+            self.assertTrue(fixture.snapshot()["first_prompt_clean"])
+            self.assertFalse(fixture.snapshot()["attachment_read"])
+
+    def test_gemini_empty_native_catalog_requires_activation_unregistered(self):
+        with tempfile.TemporaryDirectory() as directory:
+            fixture = SkillMountFixture(Path(directory))
+            fixture.gemini_native = True
+            fixture.mode = "absent"
+            message, finish = fixture.response({"messages": [{"role": "user", "content": fixture.prompt}], "tools": []})
+            self.assertEqual(message["content"], "SKILL_ABSENT")
+            self.assertEqual(finish, "stop")
+            self.assertTrue(fixture.discovery_observations[-1]["native_activation_unregistered"])
+            self.assertEqual(fixture.snapshot()["discovery_events"], 0)
+            self.assertEqual(fixture.snapshot()["tool_results"], 0)
+
     def advertised(self, fixture):
         # A real symlink view is used only to test the HTTP fixture state machine.
         # This is never an agent acceptance report.

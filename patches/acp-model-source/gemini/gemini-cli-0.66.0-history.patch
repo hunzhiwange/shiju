@@ -166,3 +166,57 @@
        };
      }
      this.modelConfigService = new ModelConfigService(modelConfigServiceConfig ?? DEFAULT_MODEL_CONFIGS);
+--- a/bundle/chunk-M44FJWED.js
++++ b/bundle/chunk-M44FJWED.js
+@@ -372549,6 +372549,15 @@
+    */
+   async discoverSkills(storage2, extensions = [], isTrusted = false) {
+     this.clearSkills();
++    // A managed selection replaces every native discovery level, including empty selections.
++    if (Object.prototype.hasOwnProperty.call(process.env, "SHIJU_GEMINI_SKILL_ROOT")) {
++      const root = process.env["SHIJU_GEMINI_SKILL_ROOT"];
++      if (root) {
++        if (!path86.isAbsolute(root)) throw new Error("Managed Gemini skill root is invalid");
++        this.addSkillsWithPrecedence(await loadSkillsFromDir(root));
++      }
++      return;
++    }
+     await this.discoverBuiltinSkills();
+     for (const extension of extensions) {
+       if (extension.isActive && extension.skills) {
+--- a/bundle/chunk-HJ5KJXNZ.js
++++ b/bundle/chunk-HJ5KJXNZ.js
+@@ -372549,6 +372549,15 @@
+    */
+   async discoverSkills(storage2, extensions = [], isTrusted = false) {
+     this.clearSkills();
++    // A managed selection replaces every native discovery level, including empty selections.
++    if (Object.prototype.hasOwnProperty.call(process.env, "SHIJU_GEMINI_SKILL_ROOT")) {
++      const root = process.env["SHIJU_GEMINI_SKILL_ROOT"];
++      if (root) {
++        if (!path86.isAbsolute(root)) throw new Error("Managed Gemini skill root is invalid");
++        this.addSkillsWithPrecedence(await loadSkillsFromDir(root));
++      }
++      return;
++    }
+     await this.discoverBuiltinSkills();
+     for (const extension of extensions) {
+       if (extension.isActive && extension.skills) {
+--- a/bundle/chunk-RZ3ZVTZB.js
++++ b/bundle/chunk-RZ3ZVTZB.js
+@@ -367197,6 +367197,15 @@
+    */
+   async discoverSkills(storage2, extensions = [], isTrusted = false) {
+     this.clearSkills();
++    // A managed selection replaces every native discovery level, including empty selections.
++    if (Object.prototype.hasOwnProperty.call(process.env, "SHIJU_GEMINI_SKILL_ROOT")) {
++      const root = process.env["SHIJU_GEMINI_SKILL_ROOT"];
++      if (root) {
++        if (!path86.isAbsolute(root)) throw new Error("Managed Gemini skill root is invalid");
++        this.addSkillsWithPrecedence(await loadSkillsFromDir(root));
++      }
++      return;
++    }
+     await this.discoverBuiltinSkills();
+     for (const extension of extensions) {
+       if (extension.isActive && extension.skills) {

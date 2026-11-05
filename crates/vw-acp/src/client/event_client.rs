@@ -50,7 +50,8 @@ impl AcpClient {
                 confirm_write: None,
             })
             .with_skill_read_roots(
-                if matches!(self.agent_name.as_str(), "claude" | "claude code" | "qwen") {
+                if matches!(self.agent_name.as_str(), "claude" | "claude code" | "qwen" | "gemini")
+                {
                     self.skill_mounts
                         .as_ref()
                         .into_iter()

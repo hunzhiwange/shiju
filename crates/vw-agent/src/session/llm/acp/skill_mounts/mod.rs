@@ -31,7 +31,7 @@ pub(super) fn validate(agent: &str, selected: bool) -> Result<(), Error> {
         "codex" => return codex::validate(),
         "claude" | "claude code" => return Ok(()),
         "qwen" => return Ok(()),
-        "gemini" => gemini::rejection(),
+        "gemini" => return Ok(()),
         "codebuddy" => codebuddy::rejection(),
         "goose" => goose::rejection(),
         "vibe" => vibe::rejection(),
@@ -127,14 +127,16 @@ pub(super) fn prepare_supplier(agent: &str, view: Option<&MountedSkills>) -> Res
     Ok(())
 }
 
-/// Apply only the Qwen scanner contract; model and credential settings stay independent.
-pub(super) fn configure_qwen(
+/// Apply reviewed scanner contracts; model and credential settings stay independent.
+pub(super) fn configure_native_scanner(
     agent: &str,
     config: &mut crate::config::schema::AcpAgentConfig,
     view: Option<&MountedSkills>,
 ) -> Result<(), Error> {
     if agent == "qwen" {
         qwen::configure(config, view)?;
+    } else if agent == "gemini" {
+        gemini::configure(config, view)?;
     }
     Ok(())
 }

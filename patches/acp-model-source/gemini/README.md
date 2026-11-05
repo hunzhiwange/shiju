@@ -30,3 +30,10 @@ Verify each file against `hashes.json` before/after applying. Use that
 installation's `node_modules/.bin` on PATH for offline acceptance. Task 33 must
 verify and distribute this artifact before advertising managed Gemini support;
 this task does not modify the shared installer or capability manifest.
+
+The skill mount adapter sets `SHIJU_GEMINI_SKILL_ROOT` independently of the
+model source. When present, the reviewed native SkillManager scans only that
+absolute request-owned directory, or no directories for an empty selection.
+Builtin, extension, user and project skills are excluded in both model modes.
+Without that environment variable, upstream discovery is unchanged. The
+existing model lock, thought signatures and history root behavior are unchanged.

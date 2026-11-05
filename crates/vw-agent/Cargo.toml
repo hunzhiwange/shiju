@@ -78,6 +78,7 @@ webpki-roots = "1.0"
 web-time = "1.1.0"
 vw-config-types = { path = "../vw-config-types", version = "0.6.0" }
 vw-gateway-client = { path = "../vw-gateway-client", version = "0.6.0" }
+vw-agent-apps = { path = "../vw-agent-apps", version = "0.6.0" }
 vw-api-types = { path = "../vw-api-types", version = "0.6.0" }
 vw-acp = { path = "../vw-acp", version = "0.6.0" }
 vw-provider-resolver = { path = "../vw-provider-resolver", version = "0.6.0" }

@@ -128,6 +128,9 @@ where
                                 );
                                 false
                             }
+                            // Internal model calls are observed by the processor only.
+                            // Ignoring them must keep the tool-executing consumer alive.
+                            StreamEvent::ModelToolCalls(_) => true,
                             event => map_non_terminal(event)
                                 .is_some_and(|event| callback_events.send(event).is_ok()),
                         }

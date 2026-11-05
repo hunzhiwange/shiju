@@ -462,7 +462,7 @@ async fn stream_inner(
 
     // ========== Adapter 兼容性检查 ==========
 
-    // 验证 adapter 类型：aisdk 流式请求仅支持 OpenAI 和 OpenAI-compatible adapter
+    // 验证 adapter 类型：Responses 与 Chat Completions 共用 AI SDK 请求入口。
     // 特例：zai-coding-plan 和 zhipuai-coding-plan 提供商不受此限制
     let adapter = input.model.api.adapter.trim();
     let force_acp = request_options_value_enable_acp(&merged_options);
@@ -486,7 +486,12 @@ async fn stream_inner(
     }
     let is_openai_compatible_adapter = matches!(
         adapter,
-        "openai" | "openai-compatible" | "acp" | "agent-client-protocol" | "agent_client_protocol"
+        "openai"
+            | "openai-compatible"
+            | "openai-responses"
+            | "acp"
+            | "agent-client-protocol"
+            | "agent_client_protocol"
     ) || is_acp_adapter;
     if !is_openai_compatible_adapter
         && input.model.provider_id != "zai-coding-plan"
@@ -494,7 +499,7 @@ async fn stream_inner(
     {
         let err = message::AssistantError::Unknown {
             message: format!(
-                "aisdk streaming 仅支持 openai/openai-compatible/acp adapter：{adapter}"
+                "aisdk streaming 仅支持 openai/openai-compatible/openai-responses/acp adapter：{adapter}"
             ),
         };
         on_event(StreamEvent::Error(err.clone()));

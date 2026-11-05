@@ -40,10 +40,28 @@ SSE 发送类型化 `dynamic_tool.call`，包括调用 ID、轮次 ID、工具�
 
 延迟工具由 `tool_search` 搜索，命中的工具在下一模型请求出现。同一请求里的搜索不能给同批直接调用或 batch 内调用补授权。替换和撤销清除旧发现权限，工具结果不能恢复权限。普通 MCP 工具继续走原有缓存、通知刷新与执行通道；通知不授予新权限。文本工具协议沿现有实现处理。
 
-这里实现的是识矩原生 HTTP/SSE 接口，不是完整 Codex app-server JSON-RPC，也不兼容其全部操作、事件或旧持久协议。Code Mode、原生模型搜索协议及新增配置界面不属于本功能。
+这里实现的是识矩原生 HTTP/SSE 接口，不是完整 Codex app-server JSON-RPC，也不兼容其全部操作、事件或旧持久协议。Code Mode 及新增配置界面不属于此宿主接口；模型原生搜索协议的范围见下文。
 
 ## 验证范围
 
 `session/dynamic_tool_acceptance_tests.rs` 使用真实回环网关、Rust 客户端、SQLite、目录和执行器；只在模型输出边界脚本化。覆盖持久替换后重新注册/重绑定、搜索后调用、调用中替换、取消、撤销及跨租户/会话/分叉拒绝。既有 `codex_discovery_` 与 MCP 安全测试继续保留。
 
 本次执行平台为原生 macOS arm64。完整网关闭环使用 SQLite；PostgreSQL 通过专用本地临时服务验证持久化及原子索引补建，未覆盖完整网关闭环。其他发行平台、WASM 与完整 Codex 协议未验证。确切运行结果以任务交付时的测试与 clippy 日志为准。
+
+## 模型原生搜索与普通函数发现
+
+仅显式声明 `native_tool_search: true`、支持工具调用且实际使用 Responses 端点的模型启用原生路径。能力未知、关闭或端点不匹配时，`tool_search` 保持普通函数，完成同样的“搜索、下一请求加载、执行”任务。主循环与桌面处理器共用目录授权和执行器，协议解析不授予权限。
+
+原生路径使用类型化 `tool_search_call`、`tool_search_output` 和 `namespace`，不把搜索结果伪装成普通函数结果。以下是离线测试保存的净化 fixture 形状；无真实凭据或业务数据：
+
+```json
+{"type":"tool_search_call","call_id":"search-call","execution":"client","status":"completed","arguments":{"query":"ledger"}}
+{"type":"tool_search_output","call_id":"search-call","execution":"client","status":"completed","tools":[{"type":"namespace","name":"fixture","description":"","tools":[{"type":"function","name":"ledger","description":"Read ledger","parameters":{"type":"object","properties":{},"additionalProperties":false}}]}]}
+{"type":"function_call","call_id":"read-call","namespace":"fixture","name":"ledger","arguments":"{}"}
+```
+
+搜索结果只来自当前授权目录；同批调用、未知身份、伪造搜索参数、服务端执行模式和未声明的原生搜索均不能扩大权限。搜索历史保留成对调用与专用结果及命名空间，用于回放和压缩；恢复历史不会恢复已加载工具权限。目录撤销后，旧 schema 仍是历史记录，不能进入新请求的工具声明或授权执行。
+
+`session/llm/aisdk/native_search_acceptance_tests.rs` 使用真实回环 Responses HTTP/SSE、请求转换、临时文件和实际主循环/桌面执行器，覆盖两条发现路径、拒绝调用、历史恢复及撤销。仅模型输出由确定性 fixture 提供，不需要真实 API key。`native_tool_search_`、`dynamic_tools_`、`codex_discovery_` 与 SDK 原生协议过滤测试提供相邻回归证据。
+
+协议依据本地 Codex 参考源码和已锁定 SDK 类型实现，不代表任意线上 provider 已支持该协议。此次验收只针对原生 macOS；未验证线上 provider、Linux、Windows、WASM 或完整 Codex app-server 兼容性。

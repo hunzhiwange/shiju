@@ -385,3 +385,29 @@ fn recovery_notice_runtime_forwards_progress_without_closing_consumer() {
         PromptEvent::Terminated(PromptTermination::Completed(_))
     ));
 }
+
+#[test]
+fn native_tool_search_acceptance_runtime_internal_calls_keep_consumer_open() {
+    let turn = start_prompt_with_runner(request(), |_, mut emit| {
+        for kind in
+            [crate::session::llm::ToolCallKind::Search, crate::session::llm::ToolCallKind::Function]
+        {
+            assert!(emit(StreamEvent::ModelToolCalls(vec![crate::session::llm::ToolCall {
+                kind,
+                namespace: None,
+                id: "internal-call".into(),
+                name: "fixture".into(),
+                arguments: "{}".into(),
+            }])));
+        }
+        assert!(emit(StreamEvent::Delta("completed after calls".into())));
+        emit(StreamEvent::Done(TokenUsage::default()));
+    });
+    assert!(
+        matches!(turn.events.recv_timeout(Duration::from_secs(2)).unwrap(), PromptEvent::Text(text) if text == "completed after calls")
+    );
+    assert!(matches!(
+        turn.events.recv_timeout(Duration::from_secs(2)).unwrap(),
+        PromptEvent::Terminated(PromptTermination::Completed(_))
+    ));
+}

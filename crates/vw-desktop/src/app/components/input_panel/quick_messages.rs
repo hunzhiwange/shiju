@@ -874,21 +874,6 @@ pub(super) fn view(app: &App) -> Option<Element<'_, Message>> {
         if !indices.is_empty() {
             controls = controls.push(recommendations_menu(app, &indices));
         }
-        if let Some(backend) = runtime.acp_agent.as_ref() {
-            let status = match app.acp_settings.installed.get(backend) {
-                Some(true) => "已安装",
-                Some(false) => "未安装",
-                None => "安装状态待检测",
-            };
-            controls = controls.push(
-                button(text(format!("{status} · 安装 / 运行设置")).size(12))
-                    .padding([6, 10])
-                    .style(|theme, status| {
-                        styles::quick_message_group_button_style(theme, status, false)
-                    })
-                    .on_press(Message::View(message::ViewMessage::OpenAcpSettings)),
-            );
-        }
     }
     Some(
         container(controls.wrap())

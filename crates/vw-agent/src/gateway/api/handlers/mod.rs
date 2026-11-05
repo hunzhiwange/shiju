@@ -249,3 +249,6 @@ mod agent_apps_rename_tests;
 
 #[cfg(test)]
 mod agent_apps_delete_tests;
+
+#[cfg(all(test, target_os = "macos"))]
+mod agent_apps_acceptance_tests;

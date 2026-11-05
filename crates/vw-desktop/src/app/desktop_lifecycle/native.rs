@@ -108,10 +108,16 @@ fn preference_path() -> Result<PathBuf, String> {
         .ok_or_else(|| "无法定位本机配置目录".into())
 }
 
-#[derive(Default, serde::Serialize, serde::Deserialize)]
+#[derive(serde::Serialize, serde::Deserialize)]
+#[serde(default)]
 struct Preferences {
-    #[serde(default)]
     close_to_tray: bool,
+}
+
+impl Default for Preferences {
+    fn default() -> Self {
+        Self { close_to_tray: true }
+    }
 }
 
 pub(crate) fn close_to_tray_enabled() -> bool {
@@ -125,7 +131,9 @@ pub(crate) fn close_to_tray_enabled() -> bool {
 fn read_close_to_tray(path: &std::path::Path) -> Result<bool, String> {
     let bytes = match std::fs::read(path) {
         Ok(bytes) => bytes,
-        Err(error) if error.kind() == std::io::ErrorKind::NotFound => return Ok(false),
+        Err(error) if error.kind() == std::io::ErrorKind::NotFound => {
+            return Ok(Preferences::default().close_to_tray);
+        }
         Err(error) => return Err(error.to_string()),
     };
     serde_json::from_slice::<Preferences>(&bytes)

@@ -5,11 +5,19 @@ use super::*;
 fn close_preference_survives_reload_and_can_be_disabled() {
     let dir = tempfile::tempdir().unwrap();
     let path = dir.path().join("nested/preferences.json");
-    assert!(!read_close_to_tray(&path).unwrap());
+    assert!(read_close_to_tray(&path).unwrap());
     write_close_to_tray(&path, true).unwrap();
     assert!(read_close_to_tray(&path).unwrap());
     write_close_to_tray(&path, false).unwrap();
     assert!(!read_close_to_tray(&path).unwrap());
+}
+
+#[test]
+fn close_preference_missing_field_defaults_to_enabled() {
+    let dir = tempfile::tempdir().unwrap();
+    let path = dir.path().join("preferences.json");
+    std::fs::write(&path, b"{}").unwrap();
+    assert!(read_close_to_tray(&path).unwrap());
 }
 
 #[test]

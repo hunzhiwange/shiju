@@ -207,7 +207,7 @@ fn required_tenant_header<'a>(
     Ok(value)
 }
 
-async fn basic_auth_middleware_with_credentials(
+pub(crate) async fn basic_auth_middleware_with_credentials(
     req: Request<axum::body::Body>,
     next: Next,
     password: Option<&str>,

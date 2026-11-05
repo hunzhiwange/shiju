@@ -126,10 +126,11 @@ pub(crate) fn build_router(cors_whitelist: Vec<String>) -> Router {
         .layer(cors)
 }
 
-fn handler_router() -> Router {
+pub(crate) fn handler_router() -> Router {
     Router::new()
         // 全局路由：健康检查、系统状态等
         .merge(handlers::global::router())
+        .merge(handlers::agent_apps::router())
         .merge(handlers::dynamic_tools::router())
         // 认证路由：登录、令牌管理等
         .merge(handlers::auth::router())

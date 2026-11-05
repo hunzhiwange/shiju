@@ -235,3 +235,8 @@ pub(crate) mod dynamic_tools;
 pub mod agent_apps_error;
 #[cfg(test)]
 mod agent_apps_error_tests;
+
+#[cfg(test)]
+mod agent_apps_read_tests;
+
+pub(crate) mod agent_apps;

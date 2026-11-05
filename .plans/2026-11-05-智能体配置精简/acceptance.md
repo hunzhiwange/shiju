@@ -1,6 +1,6 @@
 # 智能体配置精简验收记录（2026-11-05）
 
-状态：已阻塞。延后回归的全部代码检查已通过，仅原生交互受 Mac 锁屏阻碍；详细结果见末尾回归记录。plan.md 保持只读。
+状态：已完成。原生五标签交互、取消/失败重试与窄短窗口证据已补齐；此前所有聚焦回归和 Clippy 已通过。plan.md 保持只读。
 
 ## 范围与依赖
 
@@ -46,7 +46,7 @@
 
 原始错误：basic_tests.rs:22 的旧子节点数量断言 `>= 8`；mod_tests.rs:147 及 tests.rs 的根节点数量 `left: 5 / right: 6`；skills_tests.rs:112 的旧项目路径提示断言；tools_tests.rs:350 的 `left: 2 / right: 3` 及 380/398/491 的索引越界。basic_tests.rs、skills_tests.rs、tools_tests.rs 未由本任务修改；mod_tests.rs、tests.rs 进入本任务前已有其他会话差异，未修改或提交。最终回归不能通过 skip 隐藏这些失败。
 
-## 原生交互限制
+## 原生交互限制（历史，现已解除）
 
 CUA 原生应用枚举明确返回：`The Mac is locked and automatic unlock could not unlock it`。因此无法操作原生窗口或取得其交互截图，不把 Headless 截图或窗口进程启动视为人工交互验收成功。不连接用户网关，隔离窗口始终使用端口 9。待解锁后完成基础参数/身份/工具/技能/MCP 的原生操作。
 
@@ -108,3 +108,34 @@ CUA 原生应用枚举明确返回：`The Mac is locked and automatic unlock cou
 唯一阻塞：本轮 CUA `getState` 再次明确返回 `The Mac is locked and automatic unlock could not unlock it. Ask the user to unlock the Mac manually before continuing.`。原生应用清单为空，无法进行原生五页点击及取得交互截图。未绕过锁屏，也未把 Headless 绘制当作原生操作。首次原生窗口命令成功启动的历史记录保留，本轮因相同外部状态不重复空跑窗口。
 
 下一步：用户解锁 Mac 后，在共享槽位内运行 `cargo test -p vw-desktop --test agent-profile-window`，实际操作五个标签并检查取消/失败重试及布局；取得原生证据后将任务 7 标记已完成并删除编号任务文件。当前按最新调度要求明确标记已阻塞并保留任务文件。
+
+
+## 解锁后的原生验收完成（2026-11-05）
+
+本次只补原生证据及文档，未修改 Rust 代码；复用上轮已通过的六组必需聚焦回归、额外 request_tests 与完整 Clippy，无重复运行无关检查。
+
+- 动态领取槽位 2，`CARGO_TARGET_DIR=/Users/xiangmin/worker/code/shiju/target/rust-slot-2`，`CARGO_BUILD_BUILD_DIR` 同路径。
+- 确切命令：`cargo test -p vw-desktop --test agent-profile-window`，日志 `/tmp/shiju-task7-native-final.log`；成功编译并启动固定端口 9 的窗口。本目标 harness=false，结果来自下列 10 个真实交互场景，不以零单元测试或编译成功代替验收。
+- CUA 无法绑定无 bundle 的 Cargo 可执行文件（返回 Invalid app）。在自有槽位中添加 `AgentProfileAcceptance.app` 元数据，复制同一个编译产物，SHA-256 比较相同，未修改二进制或应用逻辑；独立 bundle ID 为 `com.rsung.shiju.profile-acceptance`。实际交互窗口标题明确为 `Agent Profile Acceptance — isolated gateway port 9`，不操作用户业务应用。
+- 通过 CUA 原生坐标点击、键盘输入、滚动及拖拽完成以下场景。所有截图由原生窗口直接捕获，原始分辨率 2560×1944，缩小后 1560×1144；不是 Headless 图。
+
+| 场景 | 实际观察 | 截图后缀（均带 shiju-task7-native- 前缀） |
+| --- | --- | --- |
+| 基础参数 | 修改名称和中文两行描述，跨页保留；运行迭代次数可改为 123 | `basic.png`、`basic-edited.png` |
+| 身份 | 唯一系统提示词输入框可输入中文换行，字形绘制无 panic | `identity.png` |
+| 工具 | 标签可切换，隔离 fixture 无可用工具时明确显示空态 | `tools.png` |
+| 技能 | 继承改固定选择，依次选目录 a、b；原智能体草稿不变，端口 9 目录请求失败明确显示 | `skills-directory-a.png`、`skills-directory-b.png` |
+| MCP | 继承改固定空选择，可点击刷新目录；不出现凭据配置表单 | `mcp.png` |
+| 模型/权限 | 滚动至唯一模型组和完全访问开关，未连接 ACP 的能力说明可见，权限初值为关闭 | `model-permission.png` |
+| 保存/重试 | 点击保存及再次重试，Toast 明确显示 `/v1/global/config` 端口 9 连接被拒绝；弹窗保留，身份草稿仍为新文本 | `save-failure.png`、`retry-preserves-identity.png` |
+| 取消回滚 | 取消后列表保持原名称/描述；重新打开恢复原系统提示词，技能/MCP 模式恢复继承 | `cancel-catalog.png`、`cancel-reopen-basic.png`、`cancel-restores-identity.png`、`cancel-restores-skills.png`、`cancel-restores-mcp.png` |
+| 新建/取消 | 新建 native-ui-fixture 默认进入基础参数，默认引擎 native；取消后仍只有原两张卡片 | `new-basic.png`、`new-cancel.png` |
+| 窄短窗口 | 拖动真实窗口缩小至 1560×1144 截图尺寸，五标签、标题和底部取消/保存区保持可见，内容单独滚动 | `narrow-short.png` |
+
+18 张原生截图及 SHA-256/尺寸清单已保存在：
+
+`/Users/xiangmin/.codex/visualizations/2026/11/04/01a1a7ad-8390-7df1-93e7-0b4b69a0507f/task7-native/`
+
+清单为该目录的 `manifest.json`。端口 9 的保存失败是预期负向场景；保存成功、全局配置回读以及 Native/ACP 新会话选择的正向证据仍由上轮临时数据库和隔离 HTTP/协议验收提供，不将连接失败声称为保存成功。
+
+完成后通过原生关闭按钮退出 bundle 窗口，CUA 清单确认 `isRunning=false`；再发送 SIGTERM 清理原始未封装的 Cargo 窗口进程组，命令受控退出码为 -15（日志值，非测试断言失败），记录 `/tmp/shiju-task7-native-final-exit`。确认两个验收进程均结束后释放槽位 2，自有锁已删除，编译缓存保留。原有锁屏阻塞已解除，任务 7 及整个顺序计划验收完成；编号任务文件按要求删除。

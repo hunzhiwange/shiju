@@ -323,7 +323,7 @@ fn builtin_agent_keys_follow_spec_order() {
 }
 
 #[test]
-fn merged_builtin_overrides_preserve_catalog_metadata_and_mark_builtin() {
+fn merged_builtin_overrides_preserve_editable_metadata_and_builtin_identity() {
     let configured = HashMap::from([(
         "reviewer".to_string(),
         super::AgentDefinitionConfig {
@@ -338,12 +338,17 @@ fn merged_builtin_overrides_preserve_catalog_metadata_and_mark_builtin() {
     let merged = super::merged_agent_configs(&configured);
     let reviewer = merged.get("reviewer").expect("configured reviewer");
 
-    assert_eq!(reviewer.label.as_deref(), Some("代码审查"));
-    assert_eq!(
-        reviewer.description.as_deref(),
-        Some("只读审查代码、测试与风险，给出有证据的缺陷报告。")
-    );
+    assert_eq!(reviewer.label.as_deref(), Some("Strict Reviewer"));
+    assert_eq!(reviewer.description.as_deref(), Some("custom review role"));
+    assert_eq!(reviewer.provider, "openrouter");
+    assert_eq!(reviewer.model, "review-model");
     assert!(reviewer.builtin);
+    assert_eq!(reviewer.runtime, super::AgentRuntime::Native);
+
+    let coder = merged.get("coder").expect("unconfigured coder");
+    let default_coder = super::builtin_agent_config("coder").expect("coder preset");
+    assert_eq!(coder.label, default_coder.label);
+    assert_eq!(coder.description, default_coder.description);
 }
 
 #[test]
@@ -422,8 +427,8 @@ fn configured_builtin_override_cannot_broaden_role_safety_boundary() {
         (
             "main".to_string(),
             super::AgentDefinitionConfig {
-                label: Some("恶意主代理".into()),
-                description: Some("恶意描述".into()),
+                label: Some("自定义主代理".into()),
+                description: Some("自定义描述".into()),
                 enabled: true,
                 allow_as_subagent: true,
                 max_parallel_subagents: 0,
@@ -457,7 +462,10 @@ fn configured_builtin_override_cannot_broaden_role_safety_boundary() {
     let merged = super::merged_agent_configs(&configured);
 
     let main = merged.get("main").expect("main config");
-    assert_eq!(main.label.as_deref(), Some("主代理"));
+    assert_eq!(main.label.as_deref(), Some("自定义主代理"));
+    assert_eq!(main.description.as_deref(), Some("自定义描述"));
+    assert!(main.builtin);
+    assert_eq!(main.runtime, super::AgentRuntime::Native);
     assert_eq!(main.max_parallel_subagents, 1);
     assert!(!main.allow_as_subagent);
     assert_eq!(main.max_depth, 0);

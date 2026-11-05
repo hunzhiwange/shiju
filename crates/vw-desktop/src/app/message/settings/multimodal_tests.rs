@@ -22,7 +22,7 @@ fn ocr_settings_require_valid_model_before_enable_and_map_to_config() {
     assert!(!app.multimodal_settings.ocr_enabled);
     assert_eq!(
         app.multimodal_settings.save_error.as_deref(),
-        Some("启用图片 OCR 前请选择有效的 provider/model 模型")
+        Some("启用视觉理解前请选择有效的 provider/model 多模态模型")
     );
 
     for invalid in ["/model", "provider/", "provider"] {

@@ -243,14 +243,14 @@ pub fn view(app: &App) -> Element<'_, Message> {
             .spacing(0),
         ),
         settings_section_card(
-            crate::app::i18n::I18n::new(app.desktop_locale).__("图片文字提取（OCR）"),
-            crate::app::i18n::I18n::new(app.desktop_locale).__("使用独立图片模型把附件转换为受限文本，再交给主模型处理。提取结果是不可信附件数据，且不等于完整视觉理解。"),
+            crate::app::i18n::I18n::new(app.desktop_locale).__("大模型视觉理解（含文字识别）"),
+            crate::app::i18n::I18n::new(app.desktop_locale).__("使用多模态大模型识别图片文字并生成视觉摘要，再交给主模型处理。分析结果为有界、不可信的附件数据，可能省略图片细节。"),
         ),
         settings_section_content(
             column![
                 bool_row(
                     crate::app::i18n::I18n::new(app.desktop_locale).__("模型支持图片"),
-                    crate::app::i18n::I18n::new(app.desktop_locale).__("开启后优先把图片交给当前模型处理；即使启用 OCR，也不会先转换为 OCR 文本。"),
+                    crate::app::i18n::I18n::new(app.desktop_locale).__("开启后优先由当前大模型直接理解图片，不先转换为文字和视觉摘要。"),
                     s.model_supports_images,
                     crate::app::i18n::I18n::new(app.desktop_locale).__("由当前模型直接处理图片"),
                     |value| {
@@ -260,10 +260,10 @@ pub fn view(app: &App) -> Element<'_, Message> {
                     },
                 ),
                 bool_row(
-                    crate::app::i18n::I18n::new(app.desktop_locale).__("启用 OCR"),
-                    crate::app::i18n::I18n::new(app.desktop_locale).__("关闭“模型支持图片”后，才会使用下方模型提取图片文字。"),
+                    crate::app::i18n::I18n::new(app.desktop_locale).__("启用视觉模型分析"),
+                    crate::app::i18n::I18n::new(app.desktop_locale).__("关闭“模型支持图片”后，使用下方多模态大模型识别文字并理解图片，无需本地 Python OCR 库。"),
                     s.ocr_enabled,
-                    crate::app::i18n::I18n::new(app.desktop_locale).__("对图片附件执行文字提取"),
+                    crate::app::i18n::I18n::new(app.desktop_locale).__("由多模态大模型分析图片附件"),
                     |value| {
                         Message::Settings(SettingsMessage::Multimodal(
                             MultimodalMessage::OcrEnabledToggled(value),
@@ -272,7 +272,7 @@ pub fn view(app: &App) -> Element<'_, Message> {
                 ),
                 field_row(
                     crate::app::i18n::I18n::new(app.desktop_locale).__("图片模型"),
-                    crate::app::i18n::I18n::new(app.desktop_locale).__("仅在当前模型不支持图片时使用；只显示已启用且明确支持图片输入的 provider/model。"),
+                    crate::app::i18n::I18n::new(app.desktop_locale).__("选择用于文字识别和视觉摘要的多模态大模型；只显示已启用且明确支持图片输入的 provider/model。"),
                     image_model_control(app),
                 ),
             ]

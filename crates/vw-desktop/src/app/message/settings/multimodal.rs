@@ -6,7 +6,7 @@ use vw_config_types::tools::{MultimodalConfig, MultimodalOcrConfig};
 
 use super::messages::{MultimodalMessage, SettingsMessage};
 
-const INVALID_OCR_MODEL_ERROR: &str = "启用图片 OCR 前请选择有效的 provider/model 模型";
+const INVALID_OCR_MODEL_ERROR: &str = "启用视觉理解前请选择有效的 provider/model 多模态模型";
 
 fn valid_ocr_model(model: &str) -> Option<&str> {
     let model = model.trim();

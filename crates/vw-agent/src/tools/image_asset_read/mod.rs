@@ -41,7 +41,9 @@ impl Tool for ImageAssetReadTool {
 
     fn description(&self) -> &str {
         "Request a one-shot reload of a previously stored image by image_id for the next model step. \
-Does not return image bytes."
+Use this to inspect image details or recognize text with the model when the visual summary is insufficient. \
+Prefer this vision path over local Python OCR. The next model step receives the image; \
+the tool response itself does not return image bytes."
     }
 
     fn parameters_schema(&self) -> Value {

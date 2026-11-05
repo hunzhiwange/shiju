@@ -1,0 +1,890 @@
+{
+  "agent": "kilocode",
+  "status": "verified_release_only",
+  "reviewed_on": "2026-11-05",
+  "version": "7.8.18",
+  "platform": "Darwin-arm64",
+  "scope": "Only the privately installed, hash-verified patched native release. Other releases/platforms and unpatched executables remain unverified.",
+  "original_sha256": "73e6626784cb314308e035f11b8cb8ab251624a593c2a110abeb94869514a237",
+  "patched_sha256": "19cc66a17aead6565b60dda07f7f7a47a1b73f72e0d91a9456fd94a483cfa7ff",
+  "source": {
+    "entry_sha256": "112761e0c8099966ff26ee2dd626a6d854d429952933378642fbdd4236202a33",
+    "patched_entry_sha256": "739db26e4a347aee87b292a5553f7a82287b6983f2a4302f2387c5e720eccdeb",
+    "patch": "../../../../patches/acp-model-source/kilocode/patch.json",
+    "description": "Two exact embedded JavaScript edits: exclusive native scanner and builtin registration. Existing ACP skill command projection consumes this same collection. No native code, provider, permission or tool implementation replaced. Other embedded modules byte-identical.",
+    "fixed_tag": "https://github.com/Kilo-Org/kilocode/tree/v7.8.18",
+    "archive_sha256": "05a640377d8de1dba008992ea3f3b54d558de3f7eda91ceb1fe8879eb27c96e7"
+  },
+  "cargo": {
+    "slot": 2,
+    "CARGO_TARGET_DIR": "/Users/xiangmin/worker/code/shiju/target/rust-slot-2",
+    "CARGO_BUILD_BUILD_DIR": "/Users/xiangmin/worker/code/shiju/target/rust-slot-2",
+    "lock_released": true,
+    "cache_preserved": true
+  },
+  "checks": [
+    {
+      "command": "cargo test -p vw-agent --lib acp_skill_mount_kilocode_ -- --nocapture --test-threads=1",
+      "phase": "red before implementation",
+      "exit_code": 101,
+      "effective_tests": 1,
+      "passed": 0,
+      "failed": 1,
+      "reason": "Selected directory contract remained explicitly unverified."
+    },
+    {
+      "command": "cargo fmt --all",
+      "exit_code": 0
+    },
+    {
+      "command": "cargo test -p vw-agent --lib acp_skill_mount_kilocode_ -- --nocapture --test-threads=1",
+      "phase": "final",
+      "exit_code": 0,
+      "effective_tests": 4,
+      "passed": 4,
+      "failed": 0
+    },
+    {
+      "command": "cargo test -p vw-acp --lib acp_model_source_session_controls_artifact_tampering_is_rejected -- --nocapture",
+      "exit_code": 0,
+      "effective_tests": 1,
+      "passed": 1,
+      "scope": "Shared artifact-verification regression; not Kilocode native acceptance."
+    },
+    {
+      "command": "python3 -m unittest discover -s scripts/tests -p 'test_verify_acp_skill_mounts.py'",
+      "exit_code": 0,
+      "effective_tests": 40,
+      "passed": 40,
+      "scope": "Harness regression only; not supplier acceptance."
+    },
+    {
+      "command": "cargo clippy --all-targets --all-features -- -D warnings",
+      "exit_code": 0
+    },
+    {
+      "command": "python3 target/kilocode-build/assets/install.py target/kilocode-build/assets target/kilocode-skill-runtime kilocode",
+      "exit_code": 0,
+      "scope": "Actual fixed npm private installation, original identity/hash verification, source patch, deterministic ad-hoc signing and patched output hash verification."
+    },
+    {
+      "command": "codesign --verify --strict target/kilocode-skill-runtime/node_modules/@kilocode/cli/reviewed/kilocode",
+      "exit_code": 0
+    }
+  ],
+  "real_commands": [
+    "python3 scripts/verify_acp_skill_mounts.py --agent kilocode --manifest docs/vibewindow/acp-skill-mounts/agents.json --output \"$CARGO_TARGET_DIR/acp-skill-mount-evidence/kilocode-session.json\"",
+    "python3 scripts/verify_acp_skill_mounts.py --agent kilocode --mode cli-local --manifest docs/vibewindow/acp-skill-mounts/agents.json --output \"$CARGO_TARGET_DIR/acp-skill-mount-evidence/kilocode-local.json\""
+  ],
+  "reports": [
+    {
+      "agent": "kilocode",
+      "status": "passed",
+      "passed": true,
+      "platform": "Darwin-arm64",
+      "mount_source_mode": "session-directory",
+      "model_source": "session-model",
+      "effective_tests": 1,
+      "version": "7.8.18",
+      "sha256": "19cc66a17aead6565b60dda07f7f7a47a1b73f72e0d91a9456fd94a483cfa7ff",
+      "model_requests": 34,
+      "tool_requests": 25,
+      "tool_results": 24,
+      "lifecycle": {
+        "new": true,
+        "add": true,
+        "remove": true,
+        "v2": true,
+        "isolated": true,
+        "cancel": true,
+        "idle_update": true,
+        "restart": true,
+        "permission_denied": true
+      },
+      "cargo_target_dir": "/Users/xiangmin/worker/code/shiju/target/rust-slot-2",
+      "discovery_events": 8,
+      "first_prompt_clean": true,
+      "errors": 0,
+      "native_catalog": {
+        "selected_name_in_metadata": true,
+        "selected_name_in_tools": false,
+        "tool_names": [
+          "agent_manager_models",
+          "bash",
+          "board_post",
+          "board_read",
+          "edit",
+          "glob",
+          "goal_report",
+          "grep",
+          "kilo_local_recall",
+          "question",
+          "read",
+          "skill",
+          "suggest",
+          "task",
+          "todowrite",
+          "webfetch",
+          "write"
+        ]
+      },
+      "error_categories": [],
+      "native_skill_invocations": 11,
+      "tool_events": [
+        {
+          "phase": "present",
+          "kind": "skill",
+          "result_received": true,
+          "matched": true
+        },
+        {
+          "phase": "present",
+          "kind": "read",
+          "result_received": true,
+          "matched": true
+        },
+        {
+          "phase": "present",
+          "kind": "execute",
+          "result_received": true,
+          "matched": true
+        },
+        {
+          "phase": "added",
+          "kind": "added",
+          "result_received": true,
+          "matched": true
+        },
+        {
+          "phase": "added",
+          "kind": "skill",
+          "result_received": true,
+          "matched": true
+        },
+        {
+          "phase": "added",
+          "kind": "read",
+          "result_received": true,
+          "matched": true
+        },
+        {
+          "phase": "added",
+          "kind": "execute",
+          "result_received": true,
+          "matched": true
+        },
+        {
+          "phase": "absent",
+          "kind": "missing",
+          "result_received": true,
+          "matched": true
+        },
+        {
+          "phase": "present",
+          "kind": "skill",
+          "result_received": true,
+          "matched": true
+        },
+        {
+          "phase": "present",
+          "kind": "read",
+          "result_received": true,
+          "matched": true
+        },
+        {
+          "phase": "present",
+          "kind": "execute",
+          "result_received": true,
+          "matched": true
+        },
+        {
+          "phase": "absent",
+          "kind": "missing",
+          "result_received": true,
+          "matched": true
+        },
+        {
+          "phase": "present",
+          "kind": "skill",
+          "result_received": true,
+          "matched": true
+        },
+        {
+          "phase": "present",
+          "kind": "read",
+          "result_received": true,
+          "matched": true
+        },
+        {
+          "phase": "present",
+          "kind": "execute",
+          "result_received": true,
+          "matched": true
+        },
+        {
+          "phase": "present",
+          "kind": "skill",
+          "result_received": true,
+          "matched": true
+        },
+        {
+          "phase": "present",
+          "kind": "read",
+          "result_received": true,
+          "matched": true
+        },
+        {
+          "phase": "present",
+          "kind": "execute",
+          "result_received": true,
+          "matched": true
+        },
+        {
+          "phase": "cancel",
+          "kind": "skill",
+          "result_received": false,
+          "matched": false
+        },
+        {
+          "phase": "present",
+          "kind": "skill",
+          "result_received": true,
+          "matched": true
+        },
+        {
+          "phase": "present",
+          "kind": "read",
+          "result_received": true,
+          "matched": true
+        },
+        {
+          "phase": "present",
+          "kind": "execute",
+          "result_received": true,
+          "matched": true
+        },
+        {
+          "phase": "present",
+          "kind": "skill",
+          "result_received": true,
+          "matched": true
+        },
+        {
+          "phase": "present",
+          "kind": "read",
+          "result_received": true,
+          "matched": true
+        },
+        {
+          "phase": "present",
+          "kind": "execute",
+          "result_received": true,
+          "matched": true
+        }
+      ],
+      "discovery_observations": [
+        {
+          "phase": "present",
+          "mounted_view": true
+        },
+        {
+          "phase": "added",
+          "mounted_view": true,
+          "added_native_verified": true
+        },
+        {
+          "phase": "absent",
+          "mounted_view": false,
+          "native_rejection_verified": true
+        },
+        {
+          "phase": "present",
+          "mounted_view": true
+        },
+        {
+          "phase": "absent",
+          "mounted_view": false,
+          "native_rejection_verified": true
+        },
+        {
+          "phase": "present",
+          "mounted_view": true
+        },
+        {
+          "phase": "present",
+          "mounted_view": true
+        },
+        {
+          "phase": "cancel",
+          "mounted_view": true
+        },
+        {
+          "phase": "present",
+          "mounted_view": true
+        },
+        {
+          "phase": "present",
+          "mounted_view": true
+        }
+      ],
+      "skill_body_read": true,
+      "attachment_read": true,
+      "script_executed": true,
+      "reason": "all skill assertions passed",
+      "cargo_exit_code": 0,
+      "command": [
+        "cargo",
+        "test",
+        "-p",
+        "vw-agent",
+        "--lib",
+        "acp_skill_mount_real_kilocode",
+        "--",
+        "--ignored",
+        "--nocapture",
+        "--test-threads=1"
+      ],
+      "diagnostics": [
+        "aborted",
+        "acp option error: default skill is denied by permission policy",
+        "done=false; output=; events=[]"
+      ],
+      "build_errors": []
+    },
+    {
+      "agent": "kilocode",
+      "status": "passed",
+      "passed": true,
+      "platform": "Darwin-arm64",
+      "mount_source_mode": "session-directory",
+      "model_source": "cli-local",
+      "effective_tests": 1,
+      "version": "7.8.18",
+      "sha256": "19cc66a17aead6565b60dda07f7f7a47a1b73f72e0d91a9456fd94a483cfa7ff",
+      "model_requests": 34,
+      "tool_requests": 25,
+      "tool_results": 24,
+      "lifecycle": {
+        "new": true,
+        "add": true,
+        "remove": true,
+        "v2": true,
+        "isolated": true,
+        "cancel": true,
+        "idle_update": true,
+        "restart": true,
+        "permission_denied": true
+      },
+      "cargo_target_dir": "/Users/xiangmin/worker/code/shiju/target/rust-slot-2",
+      "discovery_events": 8,
+      "first_prompt_clean": true,
+      "errors": 0,
+      "native_catalog": {
+        "selected_name_in_metadata": true,
+        "selected_name_in_tools": false,
+        "tool_names": [
+          "agent_manager_models",
+          "bash",
+          "board_post",
+          "board_read",
+          "edit",
+          "glob",
+          "goal_report",
+          "grep",
+          "kilo_local_recall",
+          "question",
+          "read",
+          "skill",
+          "suggest",
+          "task",
+          "todowrite",
+          "webfetch",
+          "write"
+        ]
+      },
+      "error_categories": [],
+      "native_skill_invocations": 11,
+      "tool_events": [
+        {
+          "phase": "present",
+          "kind": "skill",
+          "result_received": true,
+          "matched": true
+        },
+        {
+          "phase": "present",
+          "kind": "read",
+          "result_received": true,
+          "matched": true
+        },
+        {
+          "phase": "present",
+          "kind": "execute",
+          "result_received": true,
+          "matched": true
+        },
+        {
+          "phase": "added",
+          "kind": "added",
+          "result_received": true,
+          "matched": true
+        },
+        {
+          "phase": "added",
+          "kind": "skill",
+          "result_received": true,
+          "matched": true
+        },
+        {
+          "phase": "added",
+          "kind": "read",
+          "result_received": true,
+          "matched": true
+        },
+        {
+          "phase": "added",
+          "kind": "execute",
+          "result_received": true,
+          "matched": true
+        },
+        {
+          "phase": "absent",
+          "kind": "missing",
+          "result_received": true,
+          "matched": true
+        },
+        {
+          "phase": "present",
+          "kind": "skill",
+          "result_received": true,
+          "matched": true
+        },
+        {
+          "phase": "present",
+          "kind": "read",
+          "result_received": true,
+          "matched": true
+        },
+        {
+          "phase": "present",
+          "kind": "execute",
+          "result_received": true,
+          "matched": true
+        },
+        {
+          "phase": "absent",
+          "kind": "missing",
+          "result_received": true,
+          "matched": true
+        },
+        {
+          "phase": "present",
+          "kind": "skill",
+          "result_received": true,
+          "matched": true
+        },
+        {
+          "phase": "present",
+          "kind": "read",
+          "result_received": true,
+          "matched": true
+        },
+        {
+          "phase": "present",
+          "kind": "execute",
+          "result_received": true,
+          "matched": true
+        },
+        {
+          "phase": "present",
+          "kind": "skill",
+          "result_received": true,
+          "matched": true
+        },
+        {
+          "phase": "present",
+          "kind": "read",
+          "result_received": true,
+          "matched": true
+        },
+        {
+          "phase": "present",
+          "kind": "execute",
+          "result_received": true,
+          "matched": true
+        },
+        {
+          "phase": "cancel",
+          "kind": "skill",
+          "result_received": false,
+          "matched": false
+        },
+        {
+          "phase": "present",
+          "kind": "skill",
+          "result_received": true,
+          "matched": true
+        },
+        {
+          "phase": "present",
+          "kind": "read",
+          "result_received": true,
+          "matched": true
+        },
+        {
+          "phase": "present",
+          "kind": "execute",
+          "result_received": true,
+          "matched": true
+        },
+        {
+          "phase": "present",
+          "kind": "skill",
+          "result_received": true,
+          "matched": true
+        },
+        {
+          "phase": "present",
+          "kind": "read",
+          "result_received": true,
+          "matched": true
+        },
+        {
+          "phase": "present",
+          "kind": "execute",
+          "result_received": true,
+          "matched": true
+        }
+      ],
+      "discovery_observations": [
+        {
+          "phase": "present",
+          "mounted_view": true
+        },
+        {
+          "phase": "added",
+          "mounted_view": true,
+          "added_native_verified": true
+        },
+        {
+          "phase": "absent",
+          "mounted_view": false,
+          "native_rejection_verified": true
+        },
+        {
+          "phase": "present",
+          "mounted_view": true
+        },
+        {
+          "phase": "absent",
+          "mounted_view": false,
+          "native_rejection_verified": true
+        },
+        {
+          "phase": "present",
+          "mounted_view": true
+        },
+        {
+          "phase": "present",
+          "mounted_view": true
+        },
+        {
+          "phase": "cancel",
+          "mounted_view": true
+        },
+        {
+          "phase": "present",
+          "mounted_view": true
+        },
+        {
+          "phase": "present",
+          "mounted_view": true
+        }
+      ],
+      "skill_body_read": true,
+      "attachment_read": true,
+      "script_executed": true,
+      "reason": "all skill assertions passed",
+      "cargo_exit_code": 0,
+      "command": [
+        "cargo",
+        "test",
+        "-p",
+        "vw-agent",
+        "--lib",
+        "acp_skill_mount_real_kilocode",
+        "--",
+        "--ignored",
+        "--nocapture",
+        "--test-threads=1"
+      ],
+      "diagnostics": [
+        "aborted",
+        "acp option error: default skill is denied by permission policy",
+        "done=false; output=; events=[]"
+      ],
+      "build_errors": []
+    }
+  ],
+  "isolation_regression": {
+    "original-isolation": {
+      "command": "python3 scripts/verify_kilocode_skill_isolation.py <original-native-binary> ",
+      "exit_code": 0,
+      "effective_cases": 2,
+      "report": {
+        "binary_sha256": "73e6626784cb314308e035f11b8cb8ab251624a593c2a110abeb94869514a237",
+        "cases": [
+          {
+            "permission_filter": false,
+            "selected_advertised": true,
+            "unselected_advertised": false,
+            "session_created": true,
+            "body_advertised": false,
+            "commands": [
+              "goal",
+              "init",
+              "kilo-config",
+              "resume-claude",
+              "resume-codex",
+              "review",
+              "selected-probe"
+            ],
+            "identity": {
+              "name": "Kilo",
+              "version": "7.8.18"
+            },
+            "prompt_completed": true,
+            "model_observations": [
+              {
+                "selected_in_model_request": true,
+                "builtin_in_model_request": true,
+                "builtin_config_body_expanded": true,
+                "skill_body_in_request": false,
+                "tool_count": 17,
+                "outside_scope_leaked": false,
+                "native_body_result": false
+              },
+              {
+                "selected_in_model_request": false,
+                "builtin_in_model_request": false,
+                "builtin_config_body_expanded": true,
+                "skill_body_in_request": false,
+                "tool_count": 0,
+                "outside_scope_leaked": false,
+                "native_body_result": false
+              }
+            ]
+          },
+          {
+            "permission_filter": true,
+            "selected_advertised": true,
+            "unselected_advertised": false,
+            "session_created": true,
+            "body_advertised": false,
+            "commands": [
+              "goal",
+              "init",
+              "kilo-config",
+              "resume-claude",
+              "resume-codex",
+              "review",
+              "selected-probe"
+            ],
+            "identity": {
+              "name": "Kilo",
+              "version": "7.8.18"
+            },
+            "prompt_completed": true,
+            "model_observations": [
+              {
+                "selected_in_model_request": true,
+                "builtin_in_model_request": false,
+                "builtin_config_body_expanded": true,
+                "skill_body_in_request": false,
+                "tool_count": 17,
+                "outside_scope_leaked": false,
+                "native_body_result": false
+              },
+              {
+                "selected_in_model_request": false,
+                "builtin_in_model_request": false,
+                "builtin_config_body_expanded": true,
+                "skill_body_in_request": false,
+                "tool_count": 0,
+                "outside_scope_leaked": false,
+                "native_body_result": false
+              }
+            ]
+          }
+        ]
+      }
+    },
+    "patched-isolation": {
+      "command": "python3 scripts/verify_kilocode_skill_isolation.py <patched-native-binary> --mounted",
+      "exit_code": 0,
+      "effective_cases": 2,
+      "report": {
+        "binary_sha256": "19cc66a17aead6565b60dda07f7f7a47a1b73f72e0d91a9456fd94a483cfa7ff",
+        "cases": [
+          {
+            "permission_filter": false,
+            "selected_advertised": true,
+            "unselected_advertised": false,
+            "session_created": true,
+            "body_advertised": false,
+            "commands": [
+              "goal",
+              "init",
+              "resume-claude",
+              "resume-codex",
+              "review",
+              "selected-probe"
+            ],
+            "identity": {
+              "name": "Kilo",
+              "version": "7.8.18"
+            },
+            "prompt_completed": true,
+            "model_observations": []
+          },
+          {
+            "permission_filter": true,
+            "selected_advertised": true,
+            "unselected_advertised": false,
+            "session_created": true,
+            "body_advertised": false,
+            "commands": [
+              "goal",
+              "init",
+              "resume-claude",
+              "resume-codex",
+              "review",
+              "selected-probe"
+            ],
+            "identity": {
+              "name": "Kilo",
+              "version": "7.8.18"
+            },
+            "prompt_completed": true,
+            "model_observations": []
+          }
+        ]
+      }
+    },
+    "source-escape-isolation": {
+      "command": "python3 scripts/verify_kilocode_skill_isolation.py <patched-native-binary> --mounted --escape",
+      "exit_code": 0,
+      "effective_cases": 2,
+      "report": {
+        "binary_sha256": "19cc66a17aead6565b60dda07f7f7a47a1b73f72e0d91a9456fd94a483cfa7ff",
+        "cases": [
+          {
+            "permission_filter": false,
+            "selected_advertised": true,
+            "unselected_advertised": false,
+            "session_created": true,
+            "body_advertised": false,
+            "commands": [
+              "goal",
+              "init",
+              "resume-claude",
+              "resume-codex",
+              "review",
+              "selected-probe"
+            ],
+            "identity": {
+              "name": "Kilo",
+              "version": "7.8.18"
+            },
+            "prompt_completed": true,
+            "model_observations": [
+              {
+                "selected_in_model_request": true,
+                "builtin_in_model_request": false,
+                "builtin_config_body_expanded": false,
+                "skill_body_in_request": false,
+                "tool_count": 17,
+                "outside_scope_leaked": false,
+                "native_body_result": false
+              },
+              {
+                "selected_in_model_request": true,
+                "builtin_in_model_request": false,
+                "builtin_config_body_expanded": false,
+                "skill_body_in_request": true,
+                "tool_count": 17,
+                "outside_scope_leaked": false,
+                "native_body_result": true
+              },
+              {
+                "selected_in_model_request": true,
+                "builtin_in_model_request": false,
+                "builtin_config_body_expanded": false,
+                "skill_body_in_request": true,
+                "tool_count": 0,
+                "outside_scope_leaked": false,
+                "native_body_result": false
+              }
+            ]
+          },
+          {
+            "permission_filter": true,
+            "selected_advertised": true,
+            "unselected_advertised": false,
+            "session_created": true,
+            "body_advertised": false,
+            "commands": [
+              "goal",
+              "init",
+              "resume-claude",
+              "resume-codex",
+              "review",
+              "selected-probe"
+            ],
+            "identity": {
+              "name": "Kilo",
+              "version": "7.8.18"
+            },
+            "prompt_completed": true,
+            "model_observations": [
+              {
+                "selected_in_model_request": true,
+                "builtin_in_model_request": false,
+                "builtin_config_body_expanded": false,
+                "skill_body_in_request": false,
+                "tool_count": 17,
+                "outside_scope_leaked": false,
+                "native_body_result": false
+              },
+              {
+                "selected_in_model_request": true,
+                "builtin_in_model_request": false,
+                "builtin_config_body_expanded": false,
+                "skill_body_in_request": true,
+                "tool_count": 17,
+                "outside_scope_leaked": false,
+                "native_body_result": true
+              },
+              {
+                "selected_in_model_request": true,
+                "builtin_in_model_request": false,
+                "builtin_config_body_expanded": false,
+                "skill_body_in_request": true,
+                "tool_count": 0,
+                "outside_scope_leaked": false,
+                "native_body_result": false
+              }
+            ]
+          }
+        ]
+      }
+    }
+  },
+  "limitations": [
+    "Only external model HTTP was replaced; native CLI, ACP backend, scanner, filesystem and tools ran for real.",
+    "Each source has one outstanding canceled native tool invocation; canceled calls are not counted as completed tool results.",
+    "No hot-update support is claimed; existing idle rebuild/recovery implements revision changes.",
+    "Existing macOS linker __eh_frame warning remains; final full Clippy passed.",
+    "No global CLI, HOME, account or project permission policy was modified."
+  ]
+}

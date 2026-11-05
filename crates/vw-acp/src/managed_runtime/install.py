@@ -103,6 +103,21 @@ root = runtime / 'node_modules' / contract['package']
 package = json.loads((root / 'package.json').read_text())
 if (package['name'], package['version']) != (contract['package'], contract['version']):
     raise RuntimeError('Supplier package identity mismatch')
+if agent == 'kilocode':
+    import platform
+    if platform.system() != 'Darwin' or platform.machine() != 'arm64':
+        raise RuntimeError('Kilocode reviewed skill runtime is Darwin-arm64 only')
+    native = runtime / 'node_modules/@kilocode/cli-darwin-arm64/bin/kilo'
+    if digest(native) != contract['native_sha256']:
+        raise RuntimeError('Kilocode fixed executable checksum mismatch')
+    reviewed = root / 'reviewed/kilocode'
+    reviewed.parent.mkdir()
+    shutil.copy2(native, reviewed)
+    run([sys.executable, str(assets / 'kilocode/apply.py'), str(reviewed)])
+    for name in ('kilo', 'kilocode'):
+        link = runtime / 'node_modules/.bin' / name
+        link.unlink()
+        link.symlink_to(Path('../@kilocode/cli/reviewed/kilocode'))
 if agent == 'copilot':
     # The fixed SEA exposes its bundled JS through the vendor's extraction mode.
     # Extract only into this disposable installation, never the user's CLI cache.

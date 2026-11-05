@@ -58,6 +58,7 @@ def run(args):
             env.update(CARGO_TARGET_DIR=slot, CARGO_BUILD_BUILD_DIR=slot,
                        RUST_MIN_STACK="33554432", VIBEWINDOW_CONFIG_DIR=str(root / "config"))
             with SkillMountFixture(root) as fixture:
+                fixture.kilocode_native = args.agent == "kilocode"
                 fixture.copilot_native = args.agent == "copilot"
                 fixture.snow_native = args.agent == "snow"
                 fixture.hermes_native = args.agent == "hermes"
@@ -69,9 +70,9 @@ def run(args):
                 fixture.codebuddy_native = args.agent == "codebuddy"
                 native = root / "native"
                 native.mkdir(mode=0o700)
-                if args.agent in ("qwen", "gemini", "codebuddy", "goose", "vibe", "hermes", "snow", "copilot"):
+                if args.agent in ("qwen", "gemini", "codebuddy", "goose", "vibe", "hermes", "snow", "copilot", "kilocode"):
                     fixture.forbidden_skill = "unselected-" + fixture.name
-                    for base in (root / (".github" if args.agent == "copilot" else "." + args.agent) / "skills", native / (".gemini/skills" if args.agent == "gemini" else "config/skills" if args.agent == "goose" else "skills")):
+                    for base in (root / (".github" if args.agent == "copilot" else ".kilo" if args.agent == "kilocode" else "." + args.agent) / "skills", native / (".gemini/skills" if args.agent == "gemini" else "config/skills" if args.agent == "goose" else "kilo/skills" if args.agent == "kilocode" else "skills")):
                         decoy = base / fixture.forbidden_skill
                         decoy.mkdir(parents=True)
                         (decoy / "SKILL.md").write_text(
@@ -80,6 +81,12 @@ def run(args):
                 if args.agent == "goose":
                     # Keep native background session titles out of the skill protocol fixture.
                     isolation["GOOSE_DISABLE_SESSION_NAMING"] = "true"
+                if args.agent == "kilocode":
+                    for key in ("XDG_DATA_HOME", "XDG_STATE_HOME", "XDG_CACHE_HOME"):
+                        directory = native / key
+                        directory.mkdir(mode=0o700)
+                        isolation[key] = str(directory)
+                    isolation.update(KILO_DISABLE_MODELS_FETCH="1", KILO_DISABLE_AUTOUPDATE="1")
                 env.update(isolation)
                 if args.agent == "codebuddy":
                     env.update(CODEBUDDY_REPL_ENABLED="0", CODEBUDDY_DEFER_TOOL_LOADING="false")
@@ -90,7 +97,7 @@ def run(args):
                     report["engine_version"] = identity["underlying"]["release"]
                 else:
                     config = locate(identity, env)
-                if args.agent in ("claude", "qwen", "gemini", "codebuddy", "goose", "vibe", "hermes", "snow", "copilot") and mode == "cli-local":
+                if args.agent in ("claude", "qwen", "gemini", "codebuddy", "goose", "vibe", "hermes", "snow", "copilot", "kilocode") and mode == "cli-local":
                     config["env"] = isolation
                 if args.agent == "goose":
                     config["env"]["GOOSE_DISABLE_SESSION_NAMING"] = "true"
@@ -103,6 +110,8 @@ def run(args):
                     (decoy / "SKILL.md").write_text("---\nname: " + fixture.forbidden_skill + "\ndescription: Must remain isolated\n---\nUNSELECTED_PLUGIN_BODY\n")
                     if mode == "cli-local":
                         config["args"] += ["--plugin-dir", str(plugin)]
+                if args.agent == "kilocode":
+                    config["args"] = ["acp", "--pure"]
                 binary = Path(config["command"]).resolve()
                 digest = hashlib.sha256(binary.read_bytes()).hexdigest()
                 known = {row.get("sha256") for row in entry.get("evidence", [])}
@@ -133,7 +142,7 @@ def run(args):
                 flow = json.loads(flow_file.read_text()) if flow_file.exists() else {}
                 evidence = fixture.snapshot()
                 passed = (one_passed and accepted(evidence, flow, tests, result.returncode)
-                          and (args.agent not in ("claude", "qwen", "gemini", "codebuddy", "goose", "vibe", "hermes", "snow", "copilot") or evidence.get("native_skill_invocations", 0) > 0))
+                          and (args.agent not in ("claude", "qwen", "gemini", "codebuddy", "goose", "vibe", "hermes", "snow", "copilot", "kilocode") or evidence.get("native_skill_invocations", 0) > 0))
                 report.update(evidence, passed=passed, status="passed" if passed else "failed",
                               reason="all skill assertions passed" if passed else "production skill lifecycle or observations incomplete",
                               effective_tests=tests, cargo_exit_code=result.returncode, command=command, diagnostics=diagnostics, build_errors=build_errors,

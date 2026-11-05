@@ -152,5 +152,15 @@
       "embedded/cli-main.js": "1f8978f33a7a54105087ab9e66313a4b973dd852e198ab85b39c3de44959b502",
       "embedded/prebuilds/darwin-arm64/runtime.node": "423ba722d1fa544ba352fd6e702d5b67f78419995a0247580185aa030bcbc1fb"
     }
+  },
+  "kilocode": {
+    "package": "@kilocode/cli",
+    "version": "7.8.18",
+    "integrity": "sha512-/Ym2x0IK6drlX4eZK79JcAcKU90sxnqQlInUCiYtpekyMXeMGHLbr0WQpDrJGyTaAJQRhQ4WStADaaQtfQC/nQ==",
+    "bin": "reviewed/kilocode",
+    "files": {
+      "reviewed/kilocode": "19cc66a17aead6565b60dda07f7f7a47a1b73f72e0d91a9456fd94a483cfa7ff"
+    },
+    "native_sha256": "73e6626784cb314308e035f11b8cb8ab251624a593c2a110abeb94869514a237"
   }
 }

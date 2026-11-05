@@ -121,6 +121,7 @@ pub fn reviewed_agent_command(agent: &str) -> Result<Option<(String, Vec<String>
         "iflow" => vec!["--experimental-acp".into()],
         "qwen" | "snow" => vec!["--acp".into()],
         "copilot" => vec!["--acp".into(), "--stdio".into()],
+        "kilocode" => vec!["acp".into(), "--pure".into()],
         _ => vec![],
     };
     // Drivers validate the supplier's executable basename, while npm owns the symlink.
@@ -209,6 +210,11 @@ pub(super) async fn install(agent: &str) -> Result<bool, String> {
     let assets = stage.0.join("assets");
     for (name, text) in [
         ("install.py", include_str!("managed_runtime/install.py")),
+        ("kilocode/apply.py", include_str!("../../../patches/acp-model-source/kilocode/apply.py")),
+        (
+            "kilocode/patch.json",
+            include_str!("../../../patches/acp-model-source/kilocode/patch.json"),
+        ),
         ("snow/apply.py", include_str!("../../../patches/acp-model-source/snow/apply.py")),
         ("snow/patch.json", include_str!("../../../patches/acp-model-source/snow/patch.json")),
         ("copilot/apply.py", include_str!("../../../patches/acp-model-source/copilot/apply.py")),

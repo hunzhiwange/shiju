@@ -12,6 +12,38 @@ from verify_acp_skill_mounts import accepted, select_entry
 
 
 class SkillMountHarnessTests(unittest.TestCase):
+    def test_kilocode_exact_system_catalog_activates_native_name_argument(self):
+        with tempfile.TemporaryDirectory() as directory:
+            fixture = SkillMountFixture(Path(directory))
+            fixture.kilocode_native = True
+            body = {"messages": [{"role": "system", "content": "<available_skills><skill><name>" + fixture.name + "</name></skill></available_skills>"}],
+                    "tools": [{"function": {"name": "skill",
+                        "parameters": {"properties": {"name": {"type": "string"}}}}}]}
+            message, finish = fixture.response(body)
+            self.assertEqual(finish, "tool_calls")
+            self.assertEqual(json.loads(message["tool_calls"][0]["function"]["arguments"]), {"name": fixture.name})
+            self.assertFalse(fixture.snapshot()["skill_body_read"])
+            self.assertFalse(fixture.snapshot()["attachment_read"])
+
+    def test_kilocode_builtin_catalog_is_rejected_before_native_activation(self):
+        with tempfile.TemporaryDirectory() as directory:
+            fixture = SkillMountFixture(Path(directory))
+            fixture.kilocode_native = True
+            with self.assertRaisesRegex(ValueError, "unselected native skill"):
+                fixture.response({"messages": [{"role": "system", "content":
+                    "<available_skills><skill><name>" + fixture.name + "</name></skill><skill><name>kilo-config</name></skill></available_skills>"}], "tools": [{"function": {"name": "skill"}}]})
+            self.assertEqual(fixture.snapshot()["native_skill_invocations"], 0)
+
+    def test_kilocode_empty_catalog_cannot_reuse_history_as_discovery(self):
+        with tempfile.TemporaryDirectory() as directory:
+            fixture = SkillMountFixture(Path(directory))
+            fixture.kilocode_native = True
+            fixture.mode = "absent"
+            message, finish = fixture.response({"messages": [{"role": "user", "content": "<available_skills><skill><name>" + fixture.name + "</name></skill></available_skills>"}],
+                "tools": [{"function": {"name": "read"}}]})
+            self.assertEqual((message["content"], finish), ("SKILL_ABSENT", "stop"))
+            self.assertEqual(fixture.snapshot()["discovery_events"], 0)
+
     def test_copilot_exact_native_catalog_activates_with_skill_argument(self):
         with tempfile.TemporaryDirectory() as directory:
             fixture = SkillMountFixture(Path(directory))

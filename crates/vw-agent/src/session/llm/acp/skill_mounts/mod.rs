@@ -38,7 +38,7 @@ pub(super) fn validate(agent: &str, selected: bool) -> Result<(), Error> {
         "hermes" => return Ok(()),
         "snow" => return Ok(()),
         "copilot" => return Ok(()),
-        "kilocode" => kilocode::rejection(),
+        "kilocode" => return Ok(()),
         "kimi" => kimi::rejection(),
         "kiro" => kiro::rejection(),
         "opencode" => opencode::rejection(),
@@ -133,7 +133,9 @@ pub(super) fn configure_native_scanner(
     config: &mut crate::config::schema::AcpAgentConfig,
     view: Option<&MountedSkills>,
 ) -> Result<(), Error> {
-    if agent == "copilot" {
+    if agent == "kilocode" {
+        kilocode::configure(config, view)?;
+    } else if agent == "copilot" {
         copilot::configure(config, view)?;
     } else if agent == "snow" {
         snow::configure(config, view)?;

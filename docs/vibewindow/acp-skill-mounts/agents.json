@@ -1592,10 +1592,10 @@
     {
       "key": "kilocode",
       "version": "7.8.18",
-      "status": "unverified",
+      "status": "verified",
       "platform": {
         "review_host": "Darwin-arm64",
-        "artifact_scope": "本机固定发行物静态审查；源码/通用 JS 的跨平台执行未验证",
+        "artifact_scope": "Darwin-arm64 7.8.18 reviewed private patched artifact only; other platforms and original installations remain unverified.",
         "linux": "unverified",
         "windows": "unverified"
       },
@@ -1613,44 +1613,45 @@
       "acp_entry": {
         "argv": [
           "kilocode",
-          "acp"
+          "acp",
+          "--pure"
         ],
         "binding": "crates/vw-acp/src/agent_registry.rs::BUILT_IN_AGENT_DEFINITIONS",
-        "runtime_executed": false,
-        "note": "固定发行物候选入口；注册器含 latest/range，不保证用户当前命令已固定到此版本。"
+        "runtime_executed": true,
+        "note": "Real production ACP lifecycle and native tools passed for both model sources; see evidence/kilocode.json."
       },
       "mount": {
         "candidate_paths": [
           ".kilo/skills（当前官方文档）"
         ],
-        "discovery": "7.8.18 平台包可定位但二进制载荷不透明；当前官方文档说明 CLI 元数据扫描，不等于该固定 ACP 版本的目录注入契约。",
-        "activation": "文档中发现元数据与按需加载分阶段；固定 ACP 工具回合未执行。",
-        "session_isolation": "unverified：额外根/专属配置根不自动排除内建、用户、项目及插件技能；不得修改 HOME 或写用户全局目录。"
+        "discovery": "SHIJU_KILO_SKILL_ROOT replaces all scanner roots and builtin registration; empty value means empty selection.",
+        "activation": "Native skill(name) loads on demand; actual read/bash tools read random attachment and execute script; initial prompt excludes body.",
+        "session_isolation": "Verified empty selection, separate session, ambient/project decoys and builtin exclusion. ACP skill commands project the same exclusive collection."
       },
       "permissions": {
-        "status": "unverified",
+        "status": "verified",
         "requirements": "执行端重新审核目录、租户/项目/会话权限、路径逃逸与符号链接；支持文件/脚本/MCP 仍受各自授权限制，不扩大 full_access。",
-        "agent_specific": "固定 ACP 的目录/工具授权条件须后续真实验证；未因模型来源受限推定技能不支持。"
+        "agent_specific": "Preserve model source and permission policy. Validate session view; keep markdown untrusted with per-selected-skill canonical source/file boundary. Native source escape regression passed."
       },
       "update": {
-        "native": "unverified：本任务未执行热更新或原子完整替换；静态刷新函数/文档 reload 不作成功承诺。",
-        "candidate": "在不打断运行请求的前提下评估空闲重建；尚未确认固定发行物原生更新入口。"
+        "native": "No hot-update claim. Existing idle rebuild and session restoration publish only complete updates.",
+        "candidate": "Verified add/remove/V2/idle_update in both sources."
       },
       "recovery": {
-        "status": "unverified",
-        "requirements": "重建 new/load/resume 后重新发布同 revision 目录并核实发现、删除和支持文件访问；不能把已有模型来源恢复证据当技能恢复证据。"
+        "status": "verified",
+        "requirements": "Both sources rediscover and invoke the same revision after actual CLI restart; see evidence/kilocode.json."
       },
       "independent_sources": {
         "local_configuration": {
           "candidate": "KILO_CONFIG / KILO_CONFIG_CONTENT",
-          "static_review_only": true,
-          "runtime_verified_this_task": false
+          "static_review_only": false,
+          "runtime_verified_this_task": true
         },
         "client_model_source": {
           "prior_report_status": "verified_release_only",
           "reference": "../../shiju/acp-model-source/cli-versions.json#kilocode",
-          "runtime_verified_this_task": false,
-          "note": "只保留旧报告定位；不复制其通过/不支持结论到技能能力。"
+          "runtime_verified_this_task": true,
+          "note": "Fresh session-model and cli-local native skill/tool lifecycle evidence; old model reports are not acceptance."
         }
       },
       "evidence": [
@@ -1669,6 +1670,12 @@
           "observations": [],
           "package": "@kilocode/cli-darwin-arm64",
           "version": "7.8.18"
+        },
+        {
+          "path": "reviewed/kilocode",
+          "sha256": "19cc66a17aead6565b60dda07f7f7a47a1b73f72e0d91a9456fd94a483cfa7ff",
+          "kind": "reviewed_embedded_source_patch",
+          "platform": "Darwin-arm64"
         }
       ],
       "supplemental_official_docs": [
@@ -1678,7 +1685,16 @@
           "scope": "当前文档补充线索；未绑定固定发行物/ACP；不用于提升支持状态。"
         }
       ],
-      "next_validation": "固定版本真实 ACP：发现元数据 → 按需激活 → 支持文件/脚本工具回合 → 隔离/删除/更新失败保旧 → 跨进程恢复；只替代外部模型 HTTP。未安装/缺账号则保留 unverified。"
+      "next_validation": "Other versions/platforms require independent acceptance; original or modified unreviewed executables still fail closed.",
+      "skill_verification": {
+        "status": "verified_release_only",
+        "evidence": "evidence/kilocode.json",
+        "model_sources": [
+          "session-model",
+          "cli-local"
+        ],
+        "patched_sha256": "19cc66a17aead6565b60dda07f7f7a47a1b73f72e0d91a9456fd94a483cfa7ff"
+      }
     },
     {
       "key": "kimi",

@@ -1,9 +1,8 @@
 {
-  "需从打包后的 .app 启用，可在系统设置「通用 → 登录项」查看。": "Enable from the packaged .app; check System Settings → General → Login Items.",
   "点击红色关闭按钮后继续运行；从屏幕顶部菜单栏的识矩图标显示窗口或退出。": "Keep running after clicking the red close button. Use the ShiJu icon in the menu bar at the top of the screen to show the window or quit.",
-  "开机启动": "Launch at login",
+  "开机启动": "Start automatically",
   "关闭到托盘": "Close to tray",
-  "登录系统后自动启动识矩，仅对当前设备生效。": "Start ShiJu automatically when you log in on this device.",
+  "随系统自动启动识矩，仅对当前设备生效。": "Start ShiJu automatically with the system on this device.",
   "关闭主窗口后在后台运行，可从托盘显示窗口或退出。": "Keep running after closing the main window. Use the tray to show it or quit.",
   "显示主窗口": "Show main window",
   "语言": "Language",

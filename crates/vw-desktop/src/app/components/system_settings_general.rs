@@ -304,11 +304,7 @@ pub fn view(app: &App) -> Element<'_, Message> {
                 column![
                     setting_row(
                         i18n.__("开机启动"),
-                        i18n.__(if cfg!(target_os = "macos") {
-                            "需从打包后的 .app 启用，可在系统设置「通用 → 登录项」查看。"
-                        } else {
-                            "登录系统后自动启动识矩，仅对当前设备生效。"
-                        }),
+                        i18n.__("随系统自动启动识矩，仅对当前设备生效。"),
                         launch_toggle,
                     ),
                     settings_divider(),

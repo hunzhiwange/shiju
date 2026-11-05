@@ -6,3 +6,5 @@ pub mod catalog;
 #[cfg(test)]
 mod catalog_tests;
 pub mod discovery;
+
+pub mod versions;

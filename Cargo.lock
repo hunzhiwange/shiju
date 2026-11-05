@@ -12240,7 +12240,11 @@ dependencies = [
  "base64 0.23.1",
  "libc",
  "png 0.18.1",
+ "reqwest 0.13.4",
+ "semver",
+ "serde_json",
  "tempfile",
+ "tokio",
  "vw-acp",
  "vw-api-types",
 ]

@@ -14,3 +14,7 @@ mod native_grok_mcode_tests;
 pub mod native_hermes_agy;
 #[cfg(test)]
 mod native_hermes_agy_tests;
+
+pub mod native_kimi_omp;
+#[cfg(test)]
+mod native_kimi_omp_tests;

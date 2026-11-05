@@ -6,6 +6,7 @@ mod agent;
 mod backend;
 mod content;
 mod events;
+mod mounts;
 mod state;
 
 #[cfg(test)]
@@ -14,9 +15,9 @@ mod model_tests;
 pub use agent::VibeWindowAgent;
 pub use agent::serve_with_io;
 pub use backend::{
-    BackendCancelHandle, BackendError, BackendHistoryEntry, BackendPermissionOption,
-    BackendPermissionOptionKind, BackendPermissionRequest, BackendPrompt, BackendRole,
-    BackendSession, SessionBackend,
+    BackendCancelHandle, BackendError, BackendHistoryEntry, BackendMountedSession,
+    BackendPermissionOption, BackendPermissionOptionKind, BackendPermissionRequest, BackendPrompt,
+    BackendRole, BackendSession, SessionBackend,
 };
 pub use content::{PromptContent, prompt_content};
 pub use events::{
@@ -36,3 +37,8 @@ mod prompt_tests;
 #[cfg(test)]
 #[path = "transport_tests.rs"]
 mod transport_tests;
+
+#[cfg(test)]
+mod mounts_tests;
+
+pub use mounts::BackendMountRequest;

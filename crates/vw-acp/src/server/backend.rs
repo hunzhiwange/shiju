@@ -75,6 +75,13 @@ pub struct BackendSession {
     pub history: Vec<BackendHistoryEntry>,
 }
 
+/// Session plus the mount state actually activated by the backend.
+#[derive(Debug, Clone)]
+pub struct BackendMountedSession {
+    pub session: BackendSession,
+    pub mounts: crate::session_mounts::SetSessionMountsResponse,
+}
+
 /// 会话后端的分类错误。
 #[derive(Debug, thiserror::Error)]
 pub enum BackendError {
@@ -186,6 +193,33 @@ pub trait SessionBackend: Send + Sync + 'static {
             ));
         }
         self.load_session(session_id, cwd).await
+    }
+
+    /// Create within the backend's fixed tenant; audit directories before activating mounts.
+    async fn create_session_with_mounts(
+        &self,
+        cwd: PathBuf,
+        request: super::mounts::BackendMountRequest,
+    ) -> Result<BackendMountedSession, BackendError> {
+        request.reject_unsupported_skills()?;
+        let mounts = request.legacy_response()?;
+        let session = self.create_session_with_mcp(cwd, request.mcp_servers).await?;
+        Ok(BackendMountedSession { session, mounts })
+    }
+
+    /// Load within the backend's tenant and directory scope. Implementations must check
+    /// ownership before reading skill directories or connecting MCP servers, and return
+    /// the actual restored selection when `request.skills` is absent.
+    async fn load_session_with_mounts(
+        &self,
+        session_id: &str,
+        cwd: PathBuf,
+        request: super::mounts::BackendMountRequest,
+    ) -> Result<BackendMountedSession, BackendError> {
+        request.reject_unsupported_skills()?;
+        let mounts = request.legacy_response()?;
+        let session = self.load_session_with_mcp(session_id, cwd, request.mcp_servers).await?;
+        Ok(BackendMountedSession { session, mounts })
     }
 
     /// 启动一次提示轮次。

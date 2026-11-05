@@ -29,6 +29,7 @@ use super::content::prompt_content;
 use super::events::{
     BackendEvent, BackendTermination, NoopUpdateSink, SessionUpdateSink, session_update,
 };
+use super::mounts::{BackendMountRequest, capabilities_meta, response_meta};
 use super::state::{ConnectionState, SessionBinding};
 
 /// 可注入宿主后端的 ACP Agent。
@@ -280,11 +281,13 @@ where
                 "ACP connection is already initialized",
             ));
         }
-        Ok(InitializeResponse::new(ProtocolVersion::V1).agent_capabilities(
-            AgentCapabilities::new()
-                .load_session(true)
-                .mcp_capabilities(McpCapabilities::new().http(true).sse(true)),
-        ))
+        Ok(InitializeResponse::new(ProtocolVersion::V1)
+            .meta(capabilities_meta())
+            .agent_capabilities(
+                AgentCapabilities::new()
+                    .load_session(true)
+                    .mcp_capabilities(McpCapabilities::new().http(true).sse(true)),
+            ))
     }
 
     async fn authenticate(&self, _args: AuthenticateRequest) -> Result<AuthenticateResponse> {
@@ -294,15 +297,18 @@ where
     async fn new_session(&self, args: NewSessionRequest) -> Result<NewSessionResponse> {
         self.ensure_initialized()?;
         let cwd = canonical_directory(&args.cwd)?;
-        let session = self
+        let request = BackendMountRequest::parse(args.meta.as_ref(), args.mcp_servers)?;
+        let mounted = self
             .backend
-            .create_session_with_mcp(cwd.clone(), args.mcp_servers)
+            .create_session_with_mounts(cwd.clone(), request)
             .await
             .map_err(map_backend_error)?;
+        let meta = response_meta(&mounted.mounts)?;
+        let session = mounted.session;
         let models = self.backend.session_models(&session.id).await.map_err(map_backend_error)?;
         let options = model_config_options(models.as_ref());
         let session_id = self.register_session(session, &cwd, false)?;
-        Ok(NewSessionResponse::new(session_id).models(models).config_options(options))
+        Ok(NewSessionResponse::new(session_id).models(models).config_options(options).meta(meta))
     }
 
     async fn load_session(&self, args: LoadSessionRequest) -> Result<LoadSessionResponse> {
@@ -323,11 +329,14 @@ where
         }
         let _scope =
             PromptScope { state: &self.state, session_id: session_id.to_string(), completed: true };
-        let session = self
+        let request = BackendMountRequest::parse(args.meta.as_ref(), args.mcp_servers)?;
+        let mounted = self
             .backend
-            .load_session_with_mcp(session_id, cwd.clone(), args.mcp_servers)
+            .load_session_with_mounts(session_id, cwd.clone(), request)
             .await
             .map_err(map_backend_error)?;
+        let meta = response_meta(&mounted.mounts)?;
+        let session = mounted.session;
         let history = session.history.clone();
         if session.id != session_id {
             return Err(protocol_error(
@@ -346,7 +355,7 @@ where
             };
             self.send_update(session_id, update).await?;
         }
-        Ok(LoadSessionResponse::new().models(models).config_options(options))
+        Ok(LoadSessionResponse::new().models(models).config_options(options).meta(meta))
     }
 
     async fn set_session_model(

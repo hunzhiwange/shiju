@@ -2111,6 +2111,8 @@ fn session_entry_catalog_launch_preserves_profile_runtime() {
     for runtime in [AgentRuntime::Native, AgentRuntime::Acp { backend: "codex".into() }] {
         let mut app = test_app();
         app.show_settings = true;
+        app.show_system_settings = true;
+        app.screen = crate::app::Screen::Usage;
         app.active_session_id = Some("catalog-old-session".into());
         app.current_session_runtime_mut().agent = Some("old-profile".into());
         let old_id = app.active_session_id.clone();
@@ -2138,6 +2140,8 @@ fn session_entry_catalog_launch_preserves_profile_runtime() {
         );
         assert!(app.active_toast.as_ref().unwrap().message.contains("fixture failure"));
         assert!(app.show_settings);
+        assert!(app.show_system_settings);
+        assert_eq!(app.screen, crate::app::Screen::Usage);
         assert_eq!(app.active_session_id, old_id);
         assert_eq!(app.current_session_runtime().agent, old_runtime.agent);
         app.agents_settings.catalog_busy = true;
@@ -2159,6 +2163,8 @@ fn session_entry_catalog_launch_preserves_profile_runtime() {
             }
         );
         assert!(!app.show_settings);
+        assert!(!app.show_system_settings);
+        assert_eq!(app.screen, crate::app::Screen::Project);
         assert_eq!(
             app.session_runtime_states.get("catalog-old-session").unwrap().agent,
             old_runtime.agent

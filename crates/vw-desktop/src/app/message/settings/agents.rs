@@ -861,7 +861,9 @@ pub fn update(app: &mut App, message: SettingsMessage) -> Task<Message> {
                         crate::app::message::chat::ChatMessage::SessionAgentSelected(Some(key)),
                     );
                     let task = Task::batch([task, selection]);
+                    app.show_system_settings = false;
                     app.show_settings = false;
+                    app.screen = crate::app::Screen::Project;
                     task
                 }
                 Err(error) => catalog_error(app, error),

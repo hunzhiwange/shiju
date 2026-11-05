@@ -5,3 +5,5 @@
 //! and is not part of this library's module tree or build.
 
 pub mod icons;
+
+pub mod apps;

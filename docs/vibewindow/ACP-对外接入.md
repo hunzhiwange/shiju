@@ -73,3 +73,23 @@ full_access，也不修改用户配置。独立 Rust 测试补充同目录会话
 `cargo clippy --all-targets --all-features -- -D warnings` 退出 0。最终使用共享槽位 3，
 报告保存在 `target/rust-slot-3/acp-mount-server-evidence/`；`validation.json` 记录
 确切命令、退出码和测试数量，`mount-results.json` 记录逐项行为结果。
+
+## 加载、清空与关闭示例
+
+先从 initialize 响应读取能力；缺少声明或版本未知即拒绝扩展调用。`session/load` 省略技能命名空间以恢复目录描述，同时重新传输 MCP：
+
+```json
+{"sessionId":"returned-session-id","cwd":"/absolute/project","mcpServers":[{"name":"local-tools","command":"/absolute/bin/mcp-server","args":[],"env":[]}]}
+```
+
+明确清空两集合时发送：
+
+```json
+{"sessionId":"returned-session-id","expectedRevision":1,"skills":[],"mcpServers":[]}
+```
+
+使用最近一次成功响应的 revision；冲突后先确认生效状态再重试。SDK ext_method 输入不带 wire 前导下划线。目录不存在、来源审核失败、未知能力、忙碌或 MCP 连接失败均不得退回文本注入或忽略技能。
+
+关闭客户端时结束 stdio 子进程并关闭管道；服务端释放会话目录视图和 MCP 连接，远端 MCP 服务由其所有者管理。恢复仍需执行端目录可访问以及有效的客户端 MCP 凭据。
+
+2026-11-06 同轮生产复验仍为 19/19，工具调用 3/1/1；本次文档发布审查原始报告与源码散列，没有再次启动进程。固定发行物和 5 项用户豁免的准确边界见 [交付验收](acp-skill-mounts/acceptance.md)，确切命令与槽位见 [回归证据](acp-skill-mounts/evidence/regression.json)。

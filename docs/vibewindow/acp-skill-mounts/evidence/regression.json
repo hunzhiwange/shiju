@@ -1,0 +1,306 @@
+{
+  "schema_version": 1,
+  "task": 34,
+  "reviewed_on": "2026-11-06",
+  "status": "accepted_with_explicit_user_waivers",
+  "platform": "Darwin-arm64",
+  "evidence_policy": "Task 33 same-round production reruns reviewed against current source hashes and raw reports; no task-34 CLI rerun claimed. Documentation-only closure; no Cargo invoked or slot acquired in task 34.",
+  "dependency_commit": "87d22d4c6",
+  "dependency_evaluation": {
+    "verified": [
+      "claude",
+      "codex",
+      "codebuddy",
+      "goose",
+      "vibe",
+      "hermes",
+      "snow",
+      "copilot",
+      "gemini",
+      "iflow",
+      "kilocode",
+      "kiro",
+      "opencode",
+      "openclaw",
+      "pi",
+      "qwen"
+    ],
+    "confirmed_unsupported": [
+      "kimi"
+    ],
+    "user_accepted_without_validation": [
+      "auggie",
+      "cursor",
+      "droid",
+      "qoder",
+      "trae"
+    ],
+    "policy": "Waivers do not publish skill support or convert candidates to verified."
+  },
+  "source_sha256": {
+    "crates/vw-agent/src/skills/session_mounts.rs": "16225f37be159e02d90e7da70089bf81b14900db8d28a26694e1cd2011b5f004",
+    "crates/vw-agent/src/session/llm/acp/session.rs": "908d13a8561c5e948c38e48792edf1de9c470aba9a94649f48ba4b11d3adc52e",
+    "crates/vw-agent/src/session/llm/acp/lifecycle.rs": "9d3e7eadcaca22a2579a8b67d1ae8ea18149120fa8ce78b6ede35411cb16c3a9",
+    "crates/vw-acp/src/client/protocol.rs": "acb52192c527858c4bcb75d9ace4e9ff9b97d4b26ba3f6b147e8af48c47f7e1f",
+    "crates/vw-acp/src/client/protocol_tests.rs": "e651dbb363885ae3ac87845f3c1b0a7fbb7603ef6ab4551f592024a1dcddb7bf",
+    "crates/vw-agent/src/session/llm/acp/skill_mounts/mod.rs": "623036d674ba9dde04108a06236859da31d79864d55460763dcfb1d22ce976d5",
+    "crates/vw-agent/src/session/llm/acp/request.rs": "d39f96cb368857deaa53ffb20db2f151bee9633a95118397cd86315a5a87cdce",
+    "crates/vw-agent/src/session/llm/acp/skill_mounts/lifecycle_tests.rs": "87d761e8479dd185677cd1c271dcf412d7d9280b4e06985e470ffda49d30d698",
+    "scripts/acp_mount_integration.py": "790208afb39a47545a876eba976ec9e471909b02c266ce413be2b2e7a2acd5b4"
+  },
+  "lifecycle_evidence_sha256": "92dfa6c1852d4df97af753accce41a6c91c3c54b1539a1f7cc63bbeb1548e841",
+  "raw_reports": [
+    {
+      "path": "target/rust-slot-2/task33-validation/claude-session-model.json",
+      "sha256": "5c491425cae3f2c5694d37aa9e5e3b1fa70f10b400b3413add670fa1e2f0ee00"
+    },
+    {
+      "path": "target/rust-slot-2/task33-validation/claude-cli-local.json",
+      "sha256": "57bc4b3b503fb7921e476fc117a22c24c9238c93b8ec7d3108ccb538cf8f9f4f"
+    },
+    {
+      "path": "target/rust-slot-2/task33-rerun/codex-session-model.json",
+      "sha256": "cf700fbf06edf63af7d6b3b803198ce20366e246428f8f8c2a70ca53cba2e9e4"
+    },
+    {
+      "path": "target/rust-slot-2/task33-rerun/codex-cli-local.json",
+      "sha256": "0396e07f467616c25cbab2d60bec7042b2a8a776577e504b75247da64500ba18"
+    },
+    {
+      "path": "target/rust-slot-2/task33-rerun/codebuddy-session-model.json",
+      "sha256": "5dfcca636ee9e410c91ba1d9d6ee8f3fed776a2ad5a935be0cb50c94a3f708e2"
+    },
+    {
+      "path": "target/rust-slot-2/task33-rerun/codebuddy-cli-local.json",
+      "sha256": "79c3fa47211d9163806f95230e9504283b9e23b814d36081ebc6fc9131a5f0ac"
+    },
+    {
+      "path": "target/rust-slot-2/task33-rerun/goose-session-model.json",
+      "sha256": "59529d819581c54e386af0b52dd47c8580aa278bae193a10cf21860cb9754afe"
+    },
+    {
+      "path": "target/rust-slot-2/task33-rerun/goose-cli-local.json",
+      "sha256": "dcde57eb3a93e1e2cd7a5176986310b29fb6c5912a2e39966eab1b1112b35bc2"
+    },
+    {
+      "path": "target/rust-slot-2/task33-rerun/vibe-session-model.json",
+      "sha256": "d1396fdffa09dffc418ccf59b18fc6856e3427357d5ad0e7a80dbc22ae979b17"
+    },
+    {
+      "path": "target/rust-slot-2/task33-rerun/vibe-cli-local.json",
+      "sha256": "dd712c8ecd10b5f13e5b476ae180c4011e7a250755329bed17ca0a16ea788d64"
+    },
+    {
+      "path": "target/rust-slot-2/task33-rerun/hermes-session-model.json",
+      "sha256": "0a9b87251846034cac97beb1d6ca69e7c509cf312aa725676d14169eb706b2f8"
+    },
+    {
+      "path": "target/rust-slot-2/task33-rerun/hermes-cli-local.json",
+      "sha256": "1c0b110f999bba0e4919ca338418cb41d85fabb0622df854a50dfab87dea856e"
+    },
+    {
+      "path": "target/rust-slot-2/task33-rerun/snow-session-model.json",
+      "sha256": "d1de623749b6bf637675988337d491e77936228765ad122dbb723ac1191a0d6a"
+    },
+    {
+      "path": "target/rust-slot-2/task33-rerun/snow-cli-local.json",
+      "sha256": "07af57bb554c359af573461729922f4055d234bfe6349c10e3c1b41d97217975"
+    },
+    {
+      "path": "target/rust-slot-2/task33-rerun/copilot-session-model.json",
+      "sha256": "fafb5db26b37b6e9f23462bfacdc7f492ee15977ae70c8431fce973fb7554ce9"
+    },
+    {
+      "path": "target/rust-slot-2/task33-rerun/copilot-cli-local.json",
+      "sha256": "0007c0e55614fcef5431b433989041769e39b049ef4d83b9933c0b0571f1ece8"
+    },
+    {
+      "path": "target/rust-slot-2/task33-rerun/gemini-session-model.json",
+      "sha256": "43b330671f36058b4f16c89fb0a9e60ef4bd4e6dedae18d6c3b9ca29b8b0fa36"
+    },
+    {
+      "path": "target/rust-slot-2/task33-rerun/gemini-cli-local.json",
+      "sha256": "6d8e6c414a92a25a08ff49f8067560d7115935f26b3056508ed4a5a866ec5b41"
+    },
+    {
+      "path": "target/rust-slot-2/task33-rerun/iflow-session-model.json",
+      "sha256": "cf27d669ec343774da68dadc8fd8611588875a093cd9c2cee05a15b87b91276c"
+    },
+    {
+      "path": "target/rust-slot-2/task33-rerun/iflow-cli-local.json",
+      "sha256": "9bebc226c18a397b48fca1be032e896b41d03433708b1b0b4bb0a1225c186b76"
+    },
+    {
+      "path": "target/rust-slot-2/task33-rerun/kilocode-session-model.json",
+      "sha256": "131c9b6ce250ee9d2d1f7416af88d3d610cb2ffe6eb937dfe22b14ac8fb8876b"
+    },
+    {
+      "path": "target/rust-slot-2/task33-rerun/kilocode-cli-local.json",
+      "sha256": "64c5ac117460d530e75c42479ebcc1b2113987dbd6454f3e9d8e32c4f1580fd3"
+    },
+    {
+      "path": "target/rust-slot-2/task33-rerun/kiro-session-model.json",
+      "sha256": "000d1137b1f4c062b4909aa957e15223080f83b903114afafef3a6e9f1f14dbb"
+    },
+    {
+      "path": "target/rust-slot-2/task33-rerun/kiro-cli-local.json",
+      "sha256": "29ac89cad6c320f879a8b1c89ae5a2e6db470632fdf4c0b50afaed1a2a7810a3"
+    },
+    {
+      "path": "target/rust-slot-2/task33-rerun/opencode-session-model.json",
+      "sha256": "d6dfbc976a0d876f827a171b6bc729cb0d3a5ab3e8505c6b7a73e85d5b28cb08"
+    },
+    {
+      "path": "target/rust-slot-2/task33-rerun/opencode-cli-local.json",
+      "sha256": "7b7e54baf473c3451377f84234003d4044d9bf980423fc85447e7dca00f91088"
+    },
+    {
+      "path": "target/rust-slot-2/task33-rerun/openclaw-session-model.json",
+      "sha256": "9f8c2bb98d2ccea9521ea7f5f2c8c6e20938e754af28841d209522e43ab9b286"
+    },
+    {
+      "path": "target/rust-slot-2/task33-rerun/pi-session-model.json",
+      "sha256": "86ef957cd152421cc510828b583a9ff9b1bcfdd6d0cf3002d86c01fb866649d3"
+    },
+    {
+      "path": "target/rust-slot-2/task33-rerun/pi-cli-local.json",
+      "sha256": "f98ee4a5a2b973d9b97f2d95426e4c2e14194d9deaba8ca461de905c3030074e"
+    },
+    {
+      "path": "target/rust-slot-2/task33-rerun/qwen-session-model.json",
+      "sha256": "1c70016d26f5724102fe7add8c8b9d5ff166729bb60748d0ce6123bb04af3a44"
+    },
+    {
+      "path": "target/rust-slot-2/task33-rerun/qwen-cli-local.json",
+      "sha256": "4fabb0a6bb6083fcff376fb2430916bec6788731366d0c2555cf83cab183530b"
+    },
+    {
+      "path": "target/rust-slot-3/task33-self-final/self-mounts/mount-results.json",
+      "sha256": "711e60d6f1696f9314c307f8d4d16d06ee1a25590f0ce1969fea7f4e48276944"
+    }
+  ],
+  "real_cli_effective_tests": 31,
+  "real_self_protocol": {
+    "production_starts": 2,
+    "checks": {
+      "initialize": {
+        "passed": true
+      },
+      "new_skill_and_three_mcp": {
+        "passed": true
+      },
+      "missing_mount_negative": {
+        "passed": true
+      },
+      "native_skill_reference_script_three_transports": {
+        "passed": true
+      },
+      "update_v2": {
+        "passed": true
+      },
+      "v2_native_execution": {
+        "passed": true
+      },
+      "failed_update": {
+        "passed": true
+      },
+      "failed_mcp_update": {
+        "passed": true
+      },
+      "rollback_keeps_v2": {
+        "passed": true
+      },
+      "revision_conflict": {
+        "passed": true
+      },
+      "remove_all": {
+        "passed": true
+      },
+      "remount_v2": {
+        "passed": true
+      },
+      "busy_reject_and_cancel": {
+        "passed": true
+      },
+      "update_after_cancel": {
+        "passed": true
+      },
+      "restart_real_process": {
+        "passed": true
+      },
+      "load_does_not_restore_mcp_credentials": {
+        "passed": true
+      },
+      "load_without_skills_retransmit_mcp": {
+        "passed": true
+      },
+      "explicit_empty_clears": {
+        "passed": true
+      },
+      "credentials_not_persisted": {
+        "passed": true
+      }
+    },
+    "passed": true,
+    "mcp_calls": {
+      "stdio": 3,
+      "http": 1,
+      "sse": 1
+    },
+    "executed_checks": 19,
+    "passed_checks": 19,
+    "report": "target/rust-slot-3/task33-self-final/self-mounts/mount-results.json"
+  },
+  "cargo_slots": [
+    {
+      "slot": 2,
+      "CARGO_TARGET_DIR": "/Users/xiangmin/worker/code/shiju/target/rust-slot-2",
+      "CARGO_BUILD_BUILD_DIR": "/Users/xiangmin/worker/code/shiju/target/rust-slot-2",
+      "released": true
+    },
+    {
+      "slot": 3,
+      "CARGO_TARGET_DIR": "/Users/xiangmin/worker/code/shiju/target/rust-slot-3",
+      "CARGO_BUILD_BUILD_DIR": "/Users/xiangmin/worker/code/shiju/target/rust-slot-3",
+      "released": true
+    },
+    {
+      "slot": 4,
+      "CARGO_TARGET_DIR": "/Users/xiangmin/worker/code/shiju/target/rust-slot-4",
+      "CARGO_BUILD_BUILD_DIR": "/Users/xiangmin/worker/code/shiju/target/rust-slot-4",
+      "released": true
+    }
+  ],
+  "commands_and_counts_reference": "lifecycle.json: real_cli[].validation_command, real_cli[].command, focused, final_checks_after_concurrent_build, self_protocol_command",
+  "clippy": {
+    "name": "clippy-after-concurrent-build",
+    "command": [
+      "cargo",
+      "clippy",
+      "--all-targets",
+      "--all-features",
+      "--",
+      "-D",
+      "warnings"
+    ],
+    "exit_code": 0,
+    "slot": 3,
+    "cargo_target_dir": "/Users/xiangmin/worker/code/shiju/target/rust-slot-3"
+  },
+  "limitations": [
+    "Five explicitly user-waived agents are accepted administratively, without runtime support claims.",
+    "OpenClaw cli_local remains unverified; only session-model is supported.",
+    "Reviewed fixed artifacts on Darwin-arm64 only; no other platform/version guarantees."
+  ],
+  "document_validation": {
+    "source_hashes": 9,
+    "raw_cli_reports": 31,
+    "self_protocol_checks": 19,
+    "exit_code": 0,
+    "python_unittest": {
+      "command": "python3 -m unittest discover -s scripts/tests -p test_verify_acp_skill_mounts.py",
+      "exit_code": 0,
+      "effective_tests": 46
+    }
+  }
+}

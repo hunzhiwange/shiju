@@ -5,7 +5,7 @@
   "status_definitions": {
     "candidate": "固定发行物内有可定位的目录/配置发现实现；会话隔离、ACP工具回合、更新恢复未验证。",
     "unverified": "仅符号、文档、环境线索或调用链不全；未安装/缺账号/不可执行也属于此类。",
-    "unsupported": "必须有固定版本明确拒绝或缺失入口的负向证据；本次没有此类结论。",
+    "unsupported": "固定版本明确拒绝或缺失入口的负向证据；Kimi 见 evidence/kimi.json。",
     "verified": "固定 CLI、生产 ACP 和真实原生发现/工具/完整生命周期验收通过；支持范围限对应证据的平台与版本。"
   },
   "provenance": {
@@ -122,7 +122,12 @@
         }
       ],
       "supplemental_official_docs": [],
-      "next_validation": "固定版本真实 ACP：发现元数据 → 按需激活 → 支持文件/脚本工具回合 → 隔离/删除/更新失败保旧 → 跨进程恢复；只替代外部模型 HTTP。未安装/缺账号则保留 unverified。"
+      "next_validation": "固定版本真实 ACP：发现元数据 → 按需激活 → 支持文件/脚本工具回合 → 隔离/删除/更新失败保旧 → 跨进程恢复；只替代外部模型 HTTP。未安装/缺账号则保留 unverified。",
+      "delivery_acceptance": {
+        "status": "user_waived",
+        "reason": "用户明确决定免登录、免验证并接受本项；未实际运行，不计实测 verified。",
+        "evidence": "evidence/regression.json"
+      }
     },
     {
       "key": "claude",
@@ -261,6 +266,11 @@
           "cli_local with isolated native configuration"
         ],
         "limitation": "Messages-to-Chat conversion passed initial mount/tools but rejected a later history capability; no full Chat conversion lifecycle support is claimed."
+      },
+      "delivery_acceptance": {
+        "status": "verified",
+        "evidence": "evidence/lifecycle.json",
+        "regression": "evidence/regression.json"
       }
     },
     {
@@ -406,6 +416,11 @@
         "tool_results_per_source": 21,
         "lifecycle": "all required flags true",
         "other_platforms": "unverified"
+      },
+      "delivery_acceptance": {
+        "status": "verified",
+        "evidence": "evidence/lifecycle.json",
+        "regression": "evidence/regression.json"
       }
     },
     {
@@ -550,6 +565,11 @@
           "cli_local"
         ],
         "limitation": "Reviewed patched CodeBuddy 2.179.3 only. Other versions/platforms and REPL tool presentation remain unverified; real acceptance used native direct tools with CODEBUDDY_REPL_ENABLED=0 and CODEBUDDY_DEFER_TOOL_LOADING=false."
+      },
+      "delivery_acceptance": {
+        "status": "verified",
+        "evidence": "evidence/lifecycle.json",
+        "regression": "evidence/regression.json"
       }
     },
     {
@@ -664,6 +684,11 @@
           "cli_local"
         ],
         "limitation": "Only the reviewed native Darwin-arm64 v1.57.0 patch build. Other platforms/versions require separate acceptance."
+      },
+      "delivery_acceptance": {
+        "status": "verified",
+        "evidence": "evidence/lifecycle.json",
+        "regression": "evidence/regression.json"
       }
     },
     {
@@ -818,6 +843,11 @@
           "cli_local"
         ],
         "limitation": "Only reviewed patched mistral-vibe 3.0.4 on Darwin-arm64."
+      },
+      "delivery_acceptance": {
+        "status": "verified",
+        "evidence": "evidence/lifecycle.json",
+        "regression": "evidence/regression.json"
       }
     },
     {
@@ -945,6 +975,11 @@
             "tool_results": 24
           }
         }
+      },
+      "delivery_acceptance": {
+        "status": "verified",
+        "evidence": "evidence/lifecycle.json",
+        "regression": "evidence/regression.json"
       }
     },
     {
@@ -1058,6 +1093,11 @@
           "cli_local"
         ],
         "limitation": "Only reviewed patched Snow 0.9.14 on Darwin-arm64."
+      },
+      "delivery_acceptance": {
+        "status": "verified",
+        "evidence": "evidence/lifecycle.json",
+        "regression": "evidence/regression.json"
       }
     },
     {
@@ -1186,6 +1226,11 @@
           "cli_local"
         ],
         "limitation": "Only reviewed managed Copilot 1.0.105 on Darwin-arm64."
+      },
+      "delivery_acceptance": {
+        "status": "verified",
+        "evidence": "evidence/lifecycle.json",
+        "regression": "evidence/regression.json"
       }
     },
     {
@@ -1276,7 +1321,12 @@
         }
       ],
       "supplemental_official_docs": [],
-      "next_validation": "固定版本真实 ACP：发现元数据 → 按需激活 → 支持文件/脚本工具回合 → 隔离/删除/更新失败保旧 → 跨进程恢复；只替代外部模型 HTTP。未安装/缺账号则保留 unverified。"
+      "next_validation": "固定版本真实 ACP：发现元数据 → 按需激活 → 支持文件/脚本工具回合 → 隔离/删除/更新失败保旧 → 跨进程恢复；只替代外部模型 HTTP。未安装/缺账号则保留 unverified。",
+      "delivery_acceptance": {
+        "status": "user_waived",
+        "reason": "用户明确决定免登录、免验证并接受本项；未实际运行，不计实测 verified。",
+        "evidence": "evidence/regression.json"
+      }
     },
     {
       "key": "droid",
@@ -1369,7 +1419,12 @@
           "scope": "当前文档补充线索；未绑定固定发行物/ACP；不用于提升支持状态。"
         }
       ],
-      "next_validation": "固定版本真实 ACP：发现元数据 → 按需激活 → 支持文件/脚本工具回合 → 隔离/删除/更新失败保旧 → 跨进程恢复；只替代外部模型 HTTP。未安装/缺账号则保留 unverified。"
+      "next_validation": "固定版本真实 ACP：发现元数据 → 按需激活 → 支持文件/脚本工具回合 → 隔离/删除/更新失败保旧 → 跨进程恢复；只替代外部模型 HTTP。未安装/缺账号则保留 unverified。",
+      "delivery_acceptance": {
+        "status": "user_waived",
+        "reason": "用户明确决定免登录、免验证并接受本项；未实际运行，不计实测 verified。",
+        "evidence": "evidence/regression.json"
+      }
     },
     {
       "key": "gemini",
@@ -1488,6 +1543,11 @@
           "cli_local"
         ],
         "limitation": "Only reviewed patched Gemini 0.66.0 on Darwin-arm64. Other versions/platforms and unpatched binaries remain unverified."
+      },
+      "delivery_acceptance": {
+        "status": "verified",
+        "evidence": "evidence/lifecycle.json",
+        "regression": "evidence/regression.json"
       }
     },
     {
@@ -1601,7 +1661,12 @@
         }
       ],
       "supplemental_official_docs": [],
-      "next_validation": "Other versions/platforms require independent real acceptance; do not infer compatibility."
+      "next_validation": "Other versions/platforms require independent real acceptance; do not infer compatibility.",
+      "delivery_acceptance": {
+        "status": "verified",
+        "evidence": "evidence/lifecycle.json",
+        "regression": "evidence/regression.json"
+      }
     },
     {
       "key": "kilocode",
@@ -1708,6 +1773,11 @@
           "cli-local"
         ],
         "patched_sha256": "19cc66a17aead6565b60dda07f7f7a47a1b73f72e0d91a9456fd94a483cfa7ff"
+      },
+      "delivery_acceptance": {
+        "status": "verified",
+        "evidence": "evidence/lifecycle.json",
+        "regression": "evidence/regression.json"
       }
     },
     {
@@ -1805,6 +1875,10 @@
         "evidence": "evidence/kimi.json",
         "scope": "Only exclusive selected-directory mounting through reviewed native ACP 2.5.0 on Darwin-arm64. Native default skill scanning exists. Not a positive lifecycle acceptance.",
         "production_gate": "Existing unverified rejection retained; no prompt-body fallback."
+      },
+      "delivery_acceptance": {
+        "status": "unsupported",
+        "evidence": "evidence/kimi.json"
       }
     },
     {
@@ -1910,6 +1984,11 @@
           "cli-local"
         ],
         "scope": "Only fixed privately patched 3.0.0 on Darwin-arm64. Unpatched executables and other versions/platforms remain unverified."
+      },
+      "delivery_acceptance": {
+        "status": "verified",
+        "evidence": "evidence/lifecycle.json",
+        "regression": "evidence/regression.json"
       }
     },
     {
@@ -2019,6 +2098,11 @@
           "cli_local"
         ],
         "limitation": "Only the reviewed private patched OpenCode 1.19.5 on Darwin-arm64. Other versions/platforms and upstream binaries are unverified."
+      },
+      "delivery_acceptance": {
+        "status": "verified",
+        "evidence": "evidence/lifecycle.json",
+        "regression": "evidence/regression.json"
       }
     },
     {
@@ -2139,6 +2223,11 @@
           "cli_local"
         ],
         "limitation": "Only reviewed patched OpenClaw 2026.10.10 on Darwin-arm64 with an owned Gateway. cli_local mounting is rejected; no other-platform/version support inferred."
+      },
+      "delivery_acceptance": {
+        "status": "verified",
+        "evidence": "evidence/lifecycle.json",
+        "regression": "evidence/regression.json"
       }
     },
     {
@@ -2278,6 +2367,11 @@
           "cli_local"
         ],
         "limitation": "仅本机受审固定发行物；没有其他平台或版本的支持承诺。"
+      },
+      "delivery_acceptance": {
+        "status": "verified",
+        "evidence": "evidence/lifecycle.json",
+        "regression": "evidence/regression.json"
       }
     },
     {
@@ -2385,7 +2479,12 @@
           "scope": "当前文档补充线索；未绑定固定发行物/ACP；不用于提升支持状态。"
         }
       ],
-      "next_validation": "固定版本真实 ACP：发现元数据 → 按需激活 → 支持文件/脚本工具回合 → 隔离/删除/更新失败保旧 → 跨进程恢复；只替代外部模型 HTTP。未安装/缺账号则保留 unverified。"
+      "next_validation": "固定版本真实 ACP：发现元数据 → 按需激活 → 支持文件/脚本工具回合 → 隔离/删除/更新失败保旧 → 跨进程恢复；只替代外部模型 HTTP。未安装/缺账号则保留 unverified。",
+      "delivery_acceptance": {
+        "status": "user_waived",
+        "reason": "用户明确决定免登录、免验证并接受本项；未实际运行，不计实测 verified。",
+        "evidence": "evidence/regression.json"
+      }
     },
     {
       "key": "qwen",
@@ -2527,6 +2626,11 @@
           "cli_local"
         ],
         "limitation": "Only reviewed patched Qwen 0.26.7 on Darwin-arm64. No Linux, Windows, unpatched binary or other-version support is inferred."
+      },
+      "delivery_acceptance": {
+        "status": "verified",
+        "evidence": "evidence/lifecycle.json",
+        "regression": "evidence/regression.json"
       }
     },
     {
@@ -2617,7 +2721,20 @@
           "scope": "当前文档补充线索；未绑定固定发行物/ACP；不用于提升支持状态。"
         }
       ],
-      "next_validation": "固定版本真实 ACP：发现元数据 → 按需激活 → 支持文件/脚本工具回合 → 隔离/删除/更新失败保旧 → 跨进程恢复；只替代外部模型 HTTP。未安装/缺账号则保留 unverified。"
+      "next_validation": "固定版本真实 ACP：发现元数据 → 按需激活 → 支持文件/脚本工具回合 → 隔离/删除/更新失败保旧 → 跨进程恢复；只替代外部模型 HTTP。未安装/缺账号则保留 unverified。",
+      "delivery_acceptance": {
+        "status": "user_waived",
+        "reason": "用户明确决定免登录、免验证并接受本项；未实际运行，不计实测 verified。",
+        "evidence": "evidence/regression.json"
+      }
     }
-  ]
+  ],
+  "delivery_acceptance": {
+    "reviewed_on": "2026-11-06",
+    "evidence": "evidence/regression.json",
+    "verified": 16,
+    "unsupported": 1,
+    "user_waived": 5,
+    "policy": "用户豁免仅完成交付验收，不提升实测状态，也不承诺对应运行时支持。"
+  }
 }

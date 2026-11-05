@@ -18,7 +18,7 @@ use crate::session::{message, session};
 /// 只属于单个原生会话的运行时工具集合。
 #[derive(Clone, Default)]
 pub struct SessionToolset {
-    tools: Arc<Vec<Arc<dyn Tool>>>,
+    catalog: Arc<crate::tools::catalog::ToolCatalogSnapshot>,
     mcp_lease: Option<Arc<McpSessionLease>>,
 }
 
@@ -31,14 +31,19 @@ impl Drop for McpSessionLease {
 
 impl fmt::Debug for SessionToolset {
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
-        formatter.debug_struct("SessionToolset").field("len", &self.tools.len()).finish()
+        formatter.debug_struct("SessionToolset").field("len", &self.catalog.tools().len()).finish()
     }
 }
 
 impl SessionToolset {
     /// 从已完成启动和发现的工具构造会话级集合。
     pub(crate) fn new(tools: Vec<Arc<dyn Tool>>) -> Self {
-        Self { tools: Arc::new(tools), mcp_lease: None }
+        Self {
+            catalog: Arc::new(crate::tools::catalog::ToolCatalogSnapshot::from_runtime_tools(
+                tools,
+            )),
+            mcp_lease: None,
+        }
     }
 
     pub(crate) fn with_mcp_connections(
@@ -51,17 +56,30 @@ impl SessionToolset {
 
     /// 返回本会话的运行时工具。
     pub(crate) fn tools(&self) -> &[Arc<dyn Tool>] {
-        self.tools.as_slice()
+        self.catalog.tools()
+    }
+
+    /// Retain a validated catalog version, including its executor ownership.
+    pub fn with_catalog(
+        mut self,
+        catalog: Arc<crate::tools::catalog::ToolCatalogSnapshot>,
+    ) -> Self {
+        self.catalog = catalog;
+        self
+    }
+
+    pub fn catalog(&self) -> &Arc<crate::tools::catalog::ToolCatalogSnapshot> {
+        &self.catalog
     }
 
     /// 返回会话级工具数量。
     pub fn len(&self) -> usize {
-        self.tools.len()
+        self.catalog.tools().len()
     }
 
     /// 返回集合是否为空。
     pub fn is_empty(&self) -> bool {
-        self.tools.is_empty()
+        self.catalog.tools().is_empty()
     }
 }
 

@@ -141,6 +141,7 @@ pub struct ToolUseContext {
     pending_image_reloads: Arc<Mutex<PendingImageReloadQueue>>,
     tool_discovery: Option<Arc<super::tool_search::ToolDiscoverySession>>,
     tool_exposure_snapshot: Option<Arc<BTreeSet<String>>>,
+    tool_catalog: Option<Arc<super::catalog::ToolCatalogSnapshot>>,
     invoked_skills: Arc<Mutex<Vec<crate::skills::InvokedSkillRecord>>>,
 }
 
@@ -233,6 +234,7 @@ impl ToolUseContext {
             pending_image_reloads: Arc::new(Mutex::new(PendingImageReloadQueue::default())),
             tool_discovery: None,
             tool_exposure_snapshot: None,
+            tool_catalog: None,
             invoked_skills: Arc::new(Mutex::new(Vec::new())),
         }
     }
@@ -402,8 +404,19 @@ impl ToolUseContext {
         self
     }
 
+    /// Pin the executable catalog captured for this model request.
+    pub fn with_tool_catalog(mut self, catalog: Arc<super::catalog::ToolCatalogSnapshot>) -> Self {
+        self.tool_catalog = Some(catalog);
+        self
+    }
+
+    pub fn tool_catalog(&self) -> Option<&Arc<super::catalog::ToolCatalogSnapshot>> {
+        self.tool_catalog.as_ref()
+    }
+
     pub(crate) fn tool_is_exposed(&self, id: &str) -> bool {
         self.delegated_tool_is_allowed(id)
+            && self.tool_catalog.as_ref().is_none_or(|catalog| catalog.authorizes(id))
             && self.tool_discovery.as_ref().is_none_or(|discovery| discovery.authorizes(id))
             && self.tool_exposure_snapshot.as_ref().is_none_or(|ids| ids.contains(id))
     }

@@ -33,6 +33,7 @@ pub mod batch;
 #[cfg(not(target_arch = "wasm32"))]
 pub mod browser;
 pub mod browser_open;
+pub mod catalog;
 #[cfg(not(target_arch = "wasm32"))]
 pub mod codesearch;
 pub mod config;
@@ -275,3 +276,6 @@ mod tests;
 pub(crate) use delegate::DelegateTool;
 
 pub(crate) use toolset::execute_bound_app_tool;
+
+#[cfg(test)]
+mod catalog_tests;

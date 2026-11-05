@@ -78,6 +78,9 @@ impl SessionSkillSources {
                 })
             })
     }
+    pub(super) fn fingerprint(&self) -> Option<&str> {
+        self.view.as_ref().map(|view| view.fingerprint())
+    }
     pub(crate) fn mounts(&self) -> &[SessionSkillMount] {
         &self.mounts
     }
@@ -155,4 +158,19 @@ pub(super) async fn prepare_revision(
             mcp_servers: names,
         },
     })
+}
+
+/// Checkpoints from an earlier committed mount generation must never replay.
+pub(crate) async fn checkpoint_revision(session: &str) -> Result<Option<u64>, String> {
+    let directory = crate::project::instance::directory();
+    // Native checkpoint callers without a project context have no inbound mounts.
+    if directory.is_empty() {
+        return Ok(None);
+    }
+    let scope = SessionScope::new(crate::session::ui_store::current_tenant_scope(), directory)
+        .map_err(|error| error.to_string())?;
+    super::mount_store::load(&scope, session)
+        .await
+        .map(|record| record.map(|record| record.revision.0))
+        .map_err(|_| "cannot validate skill checkpoint mount revision".into())
 }

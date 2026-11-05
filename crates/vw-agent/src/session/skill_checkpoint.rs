@@ -9,6 +9,8 @@ use sha2::{Digest, Sha256};
 
 #[derive(Debug, Serialize, Deserialize)]
 struct Checkpoint {
+    #[serde(default)]
+    mount_revision: Option<u64>,
     source_hashes: Vec<String>,
     records: Vec<InvokedSkillRecord>,
 }
@@ -34,6 +36,7 @@ pub(crate) async fn save(
     let agent = agent_key(agent);
     let id = crate::id::ascending(crate::id::Prefix::Message, None).map_err(|e| e.to_string())?;
     let checkpoint = Checkpoint {
+        mount_revision: crate::acp::mounts::checkpoint_revision(session).await?,
         source_hashes: history.iter().map(message_hash).collect(),
         records: records.to_vec(),
     };
@@ -57,12 +60,16 @@ pub(crate) async fn restore(
         .map_err(|e| e.to_string())?;
     keys.sort();
     let hashes = history.iter().map(message_hash).collect::<Vec<_>>();
+    let mount_revision = crate::acp::mounts::checkpoint_revision(session).await?;
     for key in keys.into_iter().rev() {
         let checkpoint: Checkpoint =
             storage::read(&key.iter().map(String::as_str).collect::<Vec<_>>())
                 .await
                 .map_err(|e| e.to_string())?;
-        if !checkpoint.source_hashes.is_empty() && hashes.starts_with(&checkpoint.source_hashes) {
+        if checkpoint.mount_revision == mount_revision
+            && !checkpoint.source_hashes.is_empty()
+            && hashes.starts_with(&checkpoint.source_hashes)
+        {
             return Ok(checkpoint.records);
         }
     }

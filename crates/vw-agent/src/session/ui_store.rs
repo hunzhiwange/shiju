@@ -227,8 +227,12 @@ fn runtime_session_store() -> Result<SessionStore> {
 
     #[cfg(test)]
     let database = GlobalDatabase::new(
-        std::env::temp_dir()
-            .join(format!("vw-agent-test-global-store-{}.sqlite3", std::process::id())),
+        std::env::var_os("VW_ACP_MOUNT_RECOVERY_DB_ROOT")
+            .map(|root| PathBuf::from(root).join("global.sqlite3"))
+            .unwrap_or_else(|| {
+                std::env::temp_dir()
+                    .join(format!("vw-agent-test-global-store-{}.sqlite3", std::process::id()))
+            }),
     )
     .context("open isolated test session database")?;
 

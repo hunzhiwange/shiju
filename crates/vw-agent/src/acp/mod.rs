@@ -3,6 +3,7 @@
 mod approval;
 mod backend;
 mod mcp;
+mod mount_store;
 pub mod mounts;
 
 pub use backend::VibeWindowBackend;
@@ -24,3 +25,6 @@ mod mounts_tests;
 
 #[cfg(test)]
 mod mount_update_tests;
+
+#[cfg(test)]
+mod mount_recovery_tests;

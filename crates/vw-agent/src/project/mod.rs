@@ -141,8 +141,12 @@ pub(crate) fn runtime_store() -> Result<store::ProjectStore, Error> {
 
     #[cfg(test)]
     let store = store::ProjectStore::new(GlobalDatabase::new(
-        std::env::temp_dir()
-            .join(format!("vw-agent-test-global-store-{}.sqlite3", std::process::id())),
+        std::env::var_os("VW_ACP_MOUNT_RECOVERY_DB_ROOT")
+            .map(|root| std::path::PathBuf::from(root).join("global.sqlite3"))
+            .unwrap_or_else(|| {
+                std::env::temp_dir()
+                    .join(format!("vw-agent-test-global-store-{}.sqlite3", std::process::id()))
+            }),
     )?)?;
 
     #[cfg(not(test))]

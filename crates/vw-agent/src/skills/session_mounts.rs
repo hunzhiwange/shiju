@@ -81,7 +81,7 @@ impl SessionSkillView {
         // Length-prefixed structured encoding keeps collection and binding boundaries unambiguous.
         let entries: Vec<_> = sources
             .iter()
-            .map(|source| (&source.mount.name, &source.canonical, &source.digest))
+            .map(|source| (&source.mount.name, &source.canonical, source.identity, &source.digest))
             .collect();
         let fingerprint = hex::encode(Sha256::digest(serde_json::to_vec(&(
             &binding.tenant,

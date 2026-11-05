@@ -1,6 +1,5 @@
 [workspace]
 members = [
-  ".",
   "crates/vw-api-types",
   "crates/vw-acp",
   "crates/vw-config-types",
@@ -13,7 +12,7 @@ members = [
   "crates/vw-webview",
   "crates/vw-provider-resolver",
 ]
-exclude = ["vendor/block", "vendor/block/test_utils"]
+exclude = ["vendor/block", "vendor/block/test_utils", "crates/vw-agent-apps/upstream/src-tauri"]
 resolver = "3"
 
 [profile.dev]

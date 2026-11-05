@@ -243,3 +243,6 @@ pub(crate) mod agent_apps;
 
 #[cfg(test)]
 mod agent_apps_add_tests;
+
+#[cfg(test)]
+mod agent_apps_rename_tests;

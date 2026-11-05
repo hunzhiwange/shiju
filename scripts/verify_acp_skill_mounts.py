@@ -48,6 +48,9 @@ def run(args):
         identity = select_entry(json.loads((ROOT / "docs/shiju/acp-model-source/cli-versions.json").read_text()), args.agent)
         if identity["distribution"].get("release") != entry["version"]:
             raise Unavailable("skill and launch manifests pin different adapter releases")
+        if args.agent == "goose":
+            # The release tag has v; the fixed native --version prints 1.57.0.
+            identity["distribution"]["release"] = entry["version"].removeprefix("v")
         with tempfile.TemporaryDirectory(prefix="acp-skill-mount-") as directory:
             root = Path(directory)
             root.chmod(0o700)
@@ -55,20 +58,24 @@ def run(args):
             env.update(CARGO_TARGET_DIR=slot, CARGO_BUILD_BUILD_DIR=slot,
                        RUST_MIN_STACK="33554432", VIBEWINDOW_CONFIG_DIR=str(root / "config"))
             with SkillMountFixture(root) as fixture:
+                fixture.goose_native = args.agent == "goose"
                 fixture.claude_native = args.agent == "claude"
                 fixture.qwen_native = args.agent == "qwen"
                 fixture.gemini_native = args.agent == "gemini"
                 fixture.codebuddy_native = args.agent == "codebuddy"
                 native = root / "native"
                 native.mkdir(mode=0o700)
-                if args.agent in ("qwen", "gemini", "codebuddy"):
+                if args.agent in ("qwen", "gemini", "codebuddy", "goose"):
                     fixture.forbidden_skill = "unselected-" + fixture.name
-                    for base in (root / ("." + args.agent) / "skills", native / (".gemini/skills" if args.agent == "gemini" else "skills")):
+                    for base in (root / ("." + args.agent) / "skills", native / (".gemini/skills" if args.agent == "gemini" else "config/skills" if args.agent == "goose" else "skills")):
                         decoy = base / fixture.forbidden_skill
                         decoy.mkdir(parents=True)
                         (decoy / "SKILL.md").write_text(
                             "---\nname: " + fixture.forbidden_skill + "\ndescription: Must remain isolated\n---\nUNSELECTED_BODY\n")
                 isolation = isolated_environment(identity, native, fixture, mode)
+                if args.agent == "goose":
+                    # Keep native background session titles out of the skill protocol fixture.
+                    isolation["GOOSE_DISABLE_SESSION_NAMING"] = "true"
                 env.update(isolation)
                 if args.agent == "codebuddy":
                     env.update(CODEBUDDY_REPL_ENABLED="0", CODEBUDDY_DEFER_TOOL_LOADING="false")
@@ -79,8 +86,10 @@ def run(args):
                     report["engine_version"] = identity["underlying"]["release"]
                 else:
                     config = locate(identity, env)
-                if args.agent in ("claude", "qwen", "gemini", "codebuddy") and mode == "cli-local":
+                if args.agent in ("claude", "qwen", "gemini", "codebuddy", "goose") and mode == "cli-local":
                     config["env"] = isolation
+                if args.agent == "goose":
+                    config["env"]["GOOSE_DISABLE_SESSION_NAMING"] = "true"
                 if args.agent == "codebuddy":
                     plugin = root / "unselected-plugin"
                     (plugin / ".codebuddy-plugin").mkdir(parents=True)
@@ -120,7 +129,7 @@ def run(args):
                 flow = json.loads(flow_file.read_text()) if flow_file.exists() else {}
                 evidence = fixture.snapshot()
                 passed = (one_passed and accepted(evidence, flow, tests, result.returncode)
-                          and (args.agent not in ("claude", "qwen", "gemini", "codebuddy") or evidence.get("native_skill_invocations", 0) > 0))
+                          and (args.agent not in ("claude", "qwen", "gemini", "codebuddy", "goose") or evidence.get("native_skill_invocations", 0) > 0))
                 report.update(evidence, passed=passed, status="passed" if passed else "failed",
                               reason="all skill assertions passed" if passed else "production skill lifecycle or observations incomplete",
                               effective_tests=tests, cargo_exit_code=result.returncode, command=command, diagnostics=diagnostics, build_errors=build_errors,

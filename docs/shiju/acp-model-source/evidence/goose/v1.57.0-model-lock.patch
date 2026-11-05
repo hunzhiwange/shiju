@@ -126,3 +126,20 @@
 +        }
 +        #[cfg(not(unix))]
 +        anyhow::bail!("managed Goose transcript ACL verification unavailable")
+--- a/crates/goose/src/skills/mod.rs
++++ b/crates/goose/src/skills/mod.rs
+@@ -317,0 +318,10 @@
++    // The reviewed ACP launcher supplies a request-owned, audited directory view.
++    // Presence (including empty) replaces every ambient source; never mutate HOME.
++    if let Some(root) = std::env::var_os("SHIJU_GOOSE_SKILL_ROOT") {
++        return if root.is_empty() { Vec::new() } else { vec![SkillDirectory {
++            path: PathBuf::from(root),
++            is_global: false,
++            writable: false,
++            preserve_path: true,
++        }] };
++    }
+@@ -453,0 +464,3 @@
++    if std::env::var_os("SHIJU_GOOSE_SKILL_ROOT").is_some() {
++        return sources;
++    }

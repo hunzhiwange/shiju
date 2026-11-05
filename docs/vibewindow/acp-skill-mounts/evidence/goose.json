@@ -1,0 +1,601 @@
+{
+  "schema_version": 1,
+  "agent": "goose",
+  "status": "verified",
+  "verified_on": "2026-11-05",
+  "platform": "Darwin-arm64",
+  "scope": "Only the reviewed patched native v1.57.0 build on Darwin-arm64. Other versions, unpatched binaries, Linux and Windows remain unverified.",
+  "identity": {
+    "version": "v1.57.0",
+    "source_sha256": "36fcab524e25ca563830757bf2da8a68716ea2a5d7ca2f055dec4647b78548d9",
+    "patch_sha256": "3a47bbbdcf861d680ff051879d81d23ef872d035a01a0549f9cedecd65b54e06",
+    "sha256": "74b96011a6241a28e5a67b9840fa481ae010b0b54ae73c878ce2922f27169d2e",
+    "upstream": "https://codeload.github.com/aaif-goose/goose/tar.gz/refs/tags/v1.57.0",
+    "patch": "docs/shiju/acp-model-source/evidence/goose/v1.57.0-model-lock.patch",
+    "provenance": "Downloaded the official archive, checked its SHA-256, extracted regular files/directories, applied the complete reviewed patch, and built that clean source tree with --locked. Compared all 2496 archive files: exactly the six patched files differ. Earlier builds from the old formatted source tree are excluded from final acceptance.",
+    "build_command": "cargo build -p goose-cli --bin goose --no-default-features --features rustls-tls,bundled-mcp --locked",
+    "build_cwd": "target/goose-skill-source-check/goose-1.57.0",
+    "build_exit_code": 0,
+    "build_warning": "macOS linker __eh_frame compact unwind size warning; native CLI execution succeeded."
+  },
+  "native_contract": {
+    "entry": "SHIJU_GOOSE_SKILL_ROOT replaces every ambient project/home/config/plugin root in all_skill_dirs_with_config; an empty value disables all sources. discover_skills_with_config omits builtins when the override is present.",
+    "gate": "Selected mounts require both verify_reviewed_agent_executable and the exact new patch receipt; legacy model-source-only Goose binaries cannot mount skills. Conflicting explicit root environment is rejected.",
+    "activation": "Production SkillOperation in crates/goose/src/agents/state_machine/ops_skills.rs advertises the # Skills system catalog and unprefixed load_skill(name). The real correlated activation result identifies the mounted view; neither the prompt nor the fixture supplies the view path.",
+    "filesystem": "Reuse the audited SessionSkillView. Project and private config decoys are excluded; the observed native catalog must exactly equal the selected names. No HOME rewrite or global CLI replacement.",
+    "permissions": "Existing host skill selection authorization and source audit remain in force; deny-all is rejected before any model request. Native shell script execution retains the existing runtime authorization.",
+    "update_recovery": "Idle replacement/rebuild is verified for add/remove/V2 and process restart. No native hot-update claim."
+  },
+  "verification": {
+    "red": {
+      "command": "cargo test -p vw-agent --lib acp_skill_mount_goose_ -- --nocapture --test-threads=1",
+      "exit_code": 101,
+      "effective_tests": 1,
+      "failed": 1,
+      "reason": "selected Goose directory contract was rejected before implementation"
+    },
+    "focused": {
+      "command": "cargo test -p vw-agent --lib acp_skill_mount_goose_ -- --nocapture --test-threads=1",
+      "exit_code": 0,
+      "passed": 3
+    },
+    "python": {
+      "command": "python3 -m unittest discover -s scripts/tests -p test_verify_acp_skill_mounts.py",
+      "exit_code": 0,
+      "passed": 30
+    },
+    "clippy": {
+      "command": "cargo clippy --all-targets --all-features -- -D warnings",
+      "exit_code": 0
+    },
+    "format": {
+      "command": "cargo fmt --all",
+      "exit_code": 0,
+      "note": "Ran before final compilation and rechecked at handoff; only task changes are committed."
+    }
+  },
+  "model_boundary": "Only external model HTTP is a fixture. The pinned native CLI, production ACP backend, skill catalog/activation, filesystem and shell tools execute for real. GOOSE_DISABLE_SESSION_NAMING is set only in the acceptance environment so background title requests do not enter the skill fixture.",
+  "sources": {
+    "session_model": {
+      "agent": "goose",
+      "status": "passed",
+      "passed": true,
+      "platform": "Darwin-arm64",
+      "mount_source_mode": "session-directory",
+      "model_source": "session-model",
+      "effective_tests": 1,
+      "version": "v1.57.0",
+      "sha256": "74b96011a6241a28e5a67b9840fa481ae010b0b54ae73c878ce2922f27169d2e",
+      "model_requests": 34,
+      "tool_requests": 25,
+      "tool_results": 24,
+      "lifecycle": {
+        "new": true,
+        "add": true,
+        "remove": true,
+        "v2": true,
+        "isolated": true,
+        "cancel": true,
+        "idle_update": true,
+        "restart": true,
+        "permission_denied": true
+      },
+      "cargo_target_dir": "/Users/xiangmin/worker/code/shiju/target/rust-slot-2",
+      "discovery_events": 8,
+      "first_prompt_clean": true,
+      "errors": 0,
+      "native_catalog": {
+        "selected_name_in_metadata": true,
+        "selected_name_in_tools": false,
+        "tool_names": [
+          "delegate",
+          "edit",
+          "extensionmanager__manage_extensions",
+          "extensionmanager__search_available_extensions",
+          "load",
+          "load_skill",
+          "read_image",
+          "shell",
+          "tree",
+          "write"
+        ]
+      },
+      "error_categories": [],
+      "native_skill_invocations": 11,
+      "tool_events": [
+        {
+          "phase": "present",
+          "kind": "skill",
+          "result_received": true,
+          "matched": true
+        },
+        {
+          "phase": "present",
+          "kind": "read",
+          "result_received": true,
+          "matched": true
+        },
+        {
+          "phase": "present",
+          "kind": "execute",
+          "result_received": true,
+          "matched": true
+        },
+        {
+          "phase": "added",
+          "kind": "added",
+          "result_received": true,
+          "matched": true
+        },
+        {
+          "phase": "added",
+          "kind": "skill",
+          "result_received": true,
+          "matched": true
+        },
+        {
+          "phase": "added",
+          "kind": "read",
+          "result_received": true,
+          "matched": true
+        },
+        {
+          "phase": "added",
+          "kind": "execute",
+          "result_received": true,
+          "matched": true
+        },
+        {
+          "phase": "absent",
+          "kind": "missing",
+          "result_received": true,
+          "matched": true
+        },
+        {
+          "phase": "present",
+          "kind": "skill",
+          "result_received": true,
+          "matched": true
+        },
+        {
+          "phase": "present",
+          "kind": "read",
+          "result_received": true,
+          "matched": true
+        },
+        {
+          "phase": "present",
+          "kind": "execute",
+          "result_received": true,
+          "matched": true
+        },
+        {
+          "phase": "absent",
+          "kind": "missing",
+          "result_received": true,
+          "matched": true
+        },
+        {
+          "phase": "present",
+          "kind": "skill",
+          "result_received": true,
+          "matched": true
+        },
+        {
+          "phase": "present",
+          "kind": "read",
+          "result_received": true,
+          "matched": true
+        },
+        {
+          "phase": "present",
+          "kind": "execute",
+          "result_received": true,
+          "matched": true
+        },
+        {
+          "phase": "present",
+          "kind": "skill",
+          "result_received": true,
+          "matched": true
+        },
+        {
+          "phase": "present",
+          "kind": "read",
+          "result_received": true,
+          "matched": true
+        },
+        {
+          "phase": "present",
+          "kind": "execute",
+          "result_received": true,
+          "matched": true
+        },
+        {
+          "phase": "cancel",
+          "kind": "skill",
+          "result_received": false,
+          "matched": false
+        },
+        {
+          "phase": "present",
+          "kind": "skill",
+          "result_received": true,
+          "matched": true
+        },
+        {
+          "phase": "present",
+          "kind": "read",
+          "result_received": true,
+          "matched": true
+        },
+        {
+          "phase": "present",
+          "kind": "execute",
+          "result_received": true,
+          "matched": true
+        },
+        {
+          "phase": "present",
+          "kind": "skill",
+          "result_received": true,
+          "matched": true
+        },
+        {
+          "phase": "present",
+          "kind": "read",
+          "result_received": true,
+          "matched": true
+        },
+        {
+          "phase": "present",
+          "kind": "execute",
+          "result_received": true,
+          "matched": true
+        }
+      ],
+      "discovery_observations": [
+        {
+          "phase": "present",
+          "mounted_view": true
+        },
+        {
+          "phase": "added",
+          "mounted_view": true,
+          "added_native_verified": true
+        },
+        {
+          "phase": "absent",
+          "mounted_view": false,
+          "native_rejection_verified": true
+        },
+        {
+          "phase": "present",
+          "mounted_view": true
+        },
+        {
+          "phase": "absent",
+          "mounted_view": false,
+          "native_rejection_verified": true
+        },
+        {
+          "phase": "present",
+          "mounted_view": true
+        },
+        {
+          "phase": "present",
+          "mounted_view": true
+        },
+        {
+          "phase": "cancel",
+          "mounted_view": true
+        },
+        {
+          "phase": "present",
+          "mounted_view": true
+        },
+        {
+          "phase": "present",
+          "mounted_view": true
+        }
+      ],
+      "skill_body_read": true,
+      "attachment_read": true,
+      "script_executed": true,
+      "reason": "all skill assertions passed",
+      "cargo_exit_code": 0,
+      "command": [
+        "cargo",
+        "test",
+        "-p",
+        "vw-agent",
+        "--lib",
+        "acp_skill_mount_real_goose",
+        "--",
+        "--ignored",
+        "--nocapture",
+        "--test-threads=1"
+      ],
+      "diagnostics": [
+        "aborted",
+        "acp option error: default skill is denied by permission policy",
+        "done=false; output=; events=[]"
+      ],
+      "build_errors": []
+    },
+    "cli_local": {
+      "agent": "goose",
+      "status": "passed",
+      "passed": true,
+      "platform": "Darwin-arm64",
+      "mount_source_mode": "session-directory",
+      "model_source": "cli-local",
+      "effective_tests": 1,
+      "version": "v1.57.0",
+      "sha256": "74b96011a6241a28e5a67b9840fa481ae010b0b54ae73c878ce2922f27169d2e",
+      "model_requests": 34,
+      "tool_requests": 25,
+      "tool_results": 24,
+      "lifecycle": {
+        "new": true,
+        "add": true,
+        "remove": true,
+        "v2": true,
+        "isolated": true,
+        "cancel": true,
+        "idle_update": true,
+        "restart": true,
+        "permission_denied": true
+      },
+      "cargo_target_dir": "/Users/xiangmin/worker/code/shiju/target/rust-slot-2",
+      "discovery_events": 8,
+      "first_prompt_clean": true,
+      "errors": 0,
+      "native_catalog": {
+        "selected_name_in_metadata": true,
+        "selected_name_in_tools": false,
+        "tool_names": [
+          "delegate",
+          "edit",
+          "extensionmanager__manage_extensions",
+          "extensionmanager__search_available_extensions",
+          "load",
+          "load_skill",
+          "read_image",
+          "shell",
+          "tree",
+          "write"
+        ]
+      },
+      "error_categories": [],
+      "native_skill_invocations": 11,
+      "tool_events": [
+        {
+          "phase": "present",
+          "kind": "skill",
+          "result_received": true,
+          "matched": true
+        },
+        {
+          "phase": "present",
+          "kind": "read",
+          "result_received": true,
+          "matched": true
+        },
+        {
+          "phase": "present",
+          "kind": "execute",
+          "result_received": true,
+          "matched": true
+        },
+        {
+          "phase": "added",
+          "kind": "added",
+          "result_received": true,
+          "matched": true
+        },
+        {
+          "phase": "added",
+          "kind": "skill",
+          "result_received": true,
+          "matched": true
+        },
+        {
+          "phase": "added",
+          "kind": "read",
+          "result_received": true,
+          "matched": true
+        },
+        {
+          "phase": "added",
+          "kind": "execute",
+          "result_received": true,
+          "matched": true
+        },
+        {
+          "phase": "absent",
+          "kind": "missing",
+          "result_received": true,
+          "matched": true
+        },
+        {
+          "phase": "present",
+          "kind": "skill",
+          "result_received": true,
+          "matched": true
+        },
+        {
+          "phase": "present",
+          "kind": "read",
+          "result_received": true,
+          "matched": true
+        },
+        {
+          "phase": "present",
+          "kind": "execute",
+          "result_received": true,
+          "matched": true
+        },
+        {
+          "phase": "absent",
+          "kind": "missing",
+          "result_received": true,
+          "matched": true
+        },
+        {
+          "phase": "present",
+          "kind": "skill",
+          "result_received": true,
+          "matched": true
+        },
+        {
+          "phase": "present",
+          "kind": "read",
+          "result_received": true,
+          "matched": true
+        },
+        {
+          "phase": "present",
+          "kind": "execute",
+          "result_received": true,
+          "matched": true
+        },
+        {
+          "phase": "present",
+          "kind": "skill",
+          "result_received": true,
+          "matched": true
+        },
+        {
+          "phase": "present",
+          "kind": "read",
+          "result_received": true,
+          "matched": true
+        },
+        {
+          "phase": "present",
+          "kind": "execute",
+          "result_received": true,
+          "matched": true
+        },
+        {
+          "phase": "cancel",
+          "kind": "skill",
+          "result_received": false,
+          "matched": false
+        },
+        {
+          "phase": "present",
+          "kind": "skill",
+          "result_received": true,
+          "matched": true
+        },
+        {
+          "phase": "present",
+          "kind": "read",
+          "result_received": true,
+          "matched": true
+        },
+        {
+          "phase": "present",
+          "kind": "execute",
+          "result_received": true,
+          "matched": true
+        },
+        {
+          "phase": "present",
+          "kind": "skill",
+          "result_received": true,
+          "matched": true
+        },
+        {
+          "phase": "present",
+          "kind": "read",
+          "result_received": true,
+          "matched": true
+        },
+        {
+          "phase": "present",
+          "kind": "execute",
+          "result_received": true,
+          "matched": true
+        }
+      ],
+      "discovery_observations": [
+        {
+          "phase": "present",
+          "mounted_view": true
+        },
+        {
+          "phase": "added",
+          "mounted_view": true,
+          "added_native_verified": true
+        },
+        {
+          "phase": "absent",
+          "mounted_view": false,
+          "native_rejection_verified": true
+        },
+        {
+          "phase": "present",
+          "mounted_view": true
+        },
+        {
+          "phase": "absent",
+          "mounted_view": false,
+          "native_rejection_verified": true
+        },
+        {
+          "phase": "present",
+          "mounted_view": true
+        },
+        {
+          "phase": "present",
+          "mounted_view": true
+        },
+        {
+          "phase": "cancel",
+          "mounted_view": true
+        },
+        {
+          "phase": "present",
+          "mounted_view": true
+        },
+        {
+          "phase": "present",
+          "mounted_view": true
+        }
+      ],
+      "skill_body_read": true,
+      "attachment_read": true,
+      "script_executed": true,
+      "reason": "all skill assertions passed",
+      "cargo_exit_code": 0,
+      "command": [
+        "cargo",
+        "test",
+        "-p",
+        "vw-agent",
+        "--lib",
+        "acp_skill_mount_real_goose",
+        "--",
+        "--ignored",
+        "--nocapture",
+        "--test-threads=1"
+      ],
+      "diagnostics": [
+        "aborted",
+        "acp option error: default skill is denied by permission policy",
+        "done=false; output=; events=[]"
+      ],
+      "build_errors": []
+    }
+  },
+  "cargo": {
+    "slot": 2,
+    "CARGO_TARGET_DIR": "/Users/xiangmin/worker/code/shiju/target/rust-slot-2",
+    "CARGO_BUILD_BUILD_DIR": "/Users/xiangmin/worker/code/shiju/target/rust-slot-2",
+    "lock_released": true,
+    "cache_retained": true
+  }
+}

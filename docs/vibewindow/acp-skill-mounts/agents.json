@@ -555,10 +555,10 @@
     {
       "key": "goose",
       "version": "v1.57.0",
-      "status": "candidate",
+      "status": "verified",
       "platform": {
         "review_host": "Darwin-arm64",
-        "artifact_scope": "本机固定发行物静态审查；源码/通用 JS 的跨平台执行未验证",
+        "artifact_scope": "Darwin-arm64 official v1.57.0 source plus reviewed patch; real production ACP and both model sources verified. Linux/Windows remain unverified.",
         "linux": "unverified",
         "windows": "unverified"
       },
@@ -571,7 +571,7 @@
           "kind": "same_distribution",
           "release": "v1.57.0"
         },
-        "local_identity": "固定版本来自版本清单/本机隔离发行物路径；仅记录静态文件散列，不把路径命名当作运行身份验证。"
+        "local_identity": "Official source archive SHA-256, full reviewed patch SHA-256, clean build receipt and actual CLI SHA-256 checked; see evidence/goose.json."
       },
       "acp_entry": {
         "argv": [
@@ -579,69 +579,92 @@
           "acp"
         ],
         "binding": "crates/vw-acp/src/agent_registry.rs::BUILT_IN_AGENT_DEFINITIONS",
-        "runtime_executed": false,
-        "note": "固定发行物候选入口；注册器含 latest/range，不保证用户当前命令已固定到此版本。"
+        "runtime_executed": true,
+        "note": "Fixed native v1.57.0 reviewed build exercised through production ACP in both model sources on Darwin-arm64."
       },
       "mount": {
         "candidate_paths": [
-          "<cwd>/.agents/skills",
-          "~/.agents/skills",
-          "Paths::config_dir()/skills"
+          "SHIJU_GOOSE_SKILL_ROOT -> audited SessionSkillView"
         ],
-        "discovery": "固定 v1.57.0 源码有 global/project_skills_dir、discover_skills 与 ACP skills 场景；config root 不会自动屏蔽 home 的共享目录。",
-        "activation": "具备技能发现及生命周期实现；默认清单、提示激活与支持文件调用须分别验收。",
-        "session_isolation": "unverified：额外根/专属配置根不自动排除内建、用户、项目及插件技能；不得修改 HOME 或写用户全局目录。"
+        "discovery": "Exclusive native directory scan; no project/home/config/plugin/builtin union. Empty root disables all native skill sources in the reviewed build.",
+        "activation": "Actual unprefixed load_skill(name), random attachment shell read and script execution verified. First model prompt contains metadata but no skill body.",
+        "session_isolation": "Both model sources verify exact selected native catalog, removal and second-session native not-found rejection. Project and private config decoys are excluded."
       },
       "permissions": {
-        "status": "unverified",
+        "status": "verified for tested Darwin-arm64 patched v1.57.0",
         "requirements": "执行端重新审核目录、租户/项目/会话权限、路径逃逸与符号链接；支持文件/脚本/MCP 仍受各自授权限制，不扩大 full_access。",
-        "agent_specific": "可发现目录约束需覆盖额外根及支持文件。"
+        "agent_specific": "Audited session view and existing authorization retained; deny-all stops before model requests. Native shell tools retain existing runtime permission boundaries."
       },
       "update": {
-        "native": "unverified：本任务未执行热更新或原子完整替换；静态刷新函数/文档 reload 不作成功承诺。",
-        "candidate": "在不打断运行请求的前提下评估空闲重建；尚未确认固定发行物原生更新入口。"
+        "native": "No native hot-update claim; replace view and rebuild when idle.",
+        "candidate": "Both model sources verified add/remove/V2/idle replacement; see evidence/goose.json."
       },
       "recovery": {
-        "status": "unverified",
+        "status": "Both model sources verified actual CLI shutdown/restart and current view rediscovery.",
         "requirements": "重建 new/load/resume 后重新发布同 revision 目录并核实发现、删除和支持文件访问；不能把已有模型来源恢复证据当技能恢复证据。"
       },
       "independent_sources": {
         "local_configuration": {
           "candidate": "GOOSE_PATH_ROOT",
-          "static_review_only": true,
-          "runtime_verified_this_task": false
+          "static_review_only": false,
+          "runtime_verified_this_task": true
         },
         "client_model_source": {
           "prior_report_status": "verified_release_only",
           "reference": "../../shiju/acp-model-source/cli-versions.json#goose",
-          "runtime_verified_this_task": false,
+          "runtime_verified_this_task": true,
           "note": "只保留旧报告定位；不复制其通过/不支持结论到技能能力。"
         }
       },
       "evidence": [
         {
-          "path": "target/acp-cli/goose-source/goose-1.57.0/crates/goose/src/skills/mod.rs",
-          "sha256": "dc2da97c06760216c094c883f055e8dbc3e91036c03f02a721be68551b69008a",
-          "kind": "source",
-          "bytes": 36943,
+          "path": "target/goose-skill-source-check/goose-1.57.0/crates/goose/src/skills/mod.rs",
+          "sha256": "96882077b756ad7d6a3c363e0eccbf78168b8ceba32e946cceea8330a3363c4a",
+          "kind": "reviewed_patched_source",
+          "bytes": 38303,
           "observations": [
             {
               "pattern": "pub fn global_skills_dir",
               "byte_offset": 1578,
               "line": 46,
-              "excerpt": "itable location for global user skills: `~/.agents/skills`.\npub fn global_skills_dir() -> Option<PathBuf> {\n    dirs::home_dir().map(|h| h.join(\".agents\").join(\"skills\"))\n}\n\n/// Canonical writable location for project-scoped skills:\n/// `<project>/.agents/skills`.\npub fn project_skil"
+              "excerpt": "l user skills: `~/.agents/skills`.\npub fn global_skills_dir() -> Option<PathBuf> {\n    dirs::home_dir().map(|h| h.join(\".agents\").join(\"skills\"))\n}\n\n/// Canonical writable location for project-sc"
             },
             {
               "pattern": "pub fn project_skills_dir",
               "byte_offset": 1783,
               "line": 52,
-              "excerpt": " for project-scoped skills:\n/// `<project>/.agents/skills`.\npub fn project_skills_dir(project_dir: &Path) -> PathBuf {\n    project_dir.join(\".agents\").join(\"skills\")\n}\n\npub(crate) fn skills_dir_global_or_err() -> Result<PathBuf, Error> {\n    global_skills_dir()\n        .ok_or_else(|| "
+              "excerpt": "s:\n/// `<project>/.agents/skills`.\npub fn project_skills_dir(project_dir: &Path) -> PathBuf {\n    project_dir.join(\".agents\").join(\"skills\")\n}\n\npub(crate) fn skills_dir_global_or_err() -> Result<"
+            },
+            {
+              "pattern": "SHIJU_GOOSE_SKILL_ROOT",
+              "byte_offset": 11143,
+              "line": 320,
+              "excerpt": "let Some(root) = std::env::var_os(\"SHIJU_GOOSE_SKILL_ROOT\") {\n        return if root.is_empty() { Vec::new() } else { vec![SkillDirectory {\n            path: PathBuf::from(root),\n            is_g"
             }
-          ]
+          ],
+          "previous_review_sha256": "dc2da97c06760216c094c883f055e8dbc3e91036c03f02a721be68551b69008a",
+          "upstream_source_sha256": "7cec5bff188f90eb717b34072a1dfb58a0b0a5e52acef6d17aa016ab13687e50"
+        },
+        {
+          "path": "target/goose-skill-runtime/goose",
+          "sha256": "74b96011a6241a28e5a67b9840fa481ae010b0b54ae73c878ce2922f27169d2e",
+          "kind": "reviewed_patched_native_binary",
+          "bytes": 286361944,
+          "observations": []
         }
       ],
       "supplemental_official_docs": [],
-      "next_validation": "固定版本真实 ACP：发现元数据 → 按需激活 → 支持文件/脚本工具回合 → 隔离/删除/更新失败保旧 → 跨进程恢复；只替代外部模型 HTTP。未安装/缺账号则保留 unverified。"
+      "next_validation": "Continue remaining independent agents and overall regression; do not infer cross-platform support.",
+      "acceptance": {
+        "status": "verified",
+        "production_gate": "reviewed executable and skill patch receipt required",
+        "evidence": "evidence/goose.json",
+        "model_sources": [
+          "session_model",
+          "cli_local"
+        ],
+        "limitation": "Only the reviewed native Darwin-arm64 v1.57.0 patch build. Other platforms/versions require separate acceptance."
+      }
     },
     {
       "key": "vibe",

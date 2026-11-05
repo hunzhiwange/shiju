@@ -105,7 +105,7 @@
     "files": {},
     "source_url": "https://codeload.github.com/aaif-goose/goose/tar.gz/refs/tags/v1.57.0",
     "source_sha256": "36fcab524e25ca563830757bf2da8a68716ea2a5d7ca2f055dec4647b78548d9",
-    "patch_sha256": "1fff003ed3f59eb99d5854f742b8c779a6efc07a3c6a57d7c0cd108b22c0db57"
+    "patch_sha256": "3a47bbbdcf861d680ff051879d81d23ef872d035a01a0549f9cedecd65b54e06"
   },
   "codebuddy": {
     "package": "@tencent-ai/codebuddy-code",

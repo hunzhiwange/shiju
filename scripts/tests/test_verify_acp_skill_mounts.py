@@ -12,6 +12,25 @@ from verify_acp_skill_mounts import accepted, select_entry
 
 
 class SkillMountHarnessTests(unittest.TestCase):
+    def test_goose_requires_native_catalog_and_exact_activation_schema(self):
+        with tempfile.TemporaryDirectory() as directory:
+            fixture = SkillMountFixture(Path(directory))
+            fixture.goose_native = True
+            tools = [{"type": "function", "function": {"name": "load_skill",
+                      "parameters": {"properties": {"name": {"type": "string"}}}}}]
+            with self.assertRaises(ValueError):
+                fixture.response({"messages": [{"role": "user", "content": fixture.prompt}], "tools": tools})
+            fixture.phase_first = True
+            message, finish = fixture.response({"messages": [
+                {"role": "system", "content": "# Skills\n\nYou have these skills at your disposal.\n- " + fixture.name + ": fixture"},
+                {"role": "user", "content": fixture.prompt}], "tools": tools})
+            self.assertEqual(finish, "tool_calls")
+            call = message["tool_calls"][0]["function"]
+            self.assertEqual(call["name"], "load_skill")
+            self.assertEqual(json.loads(call["arguments"]), {"name": fixture.name})
+            self.assertEqual(fixture.snapshot()["native_skill_invocations"], 1)
+            self.assertFalse(fixture.snapshot()["attachment_read"])
+
     def test_codebuddy_preflight_does_not_count_as_skill_evidence(self):
         with tempfile.TemporaryDirectory() as directory:
             fixture = SkillMountFixture(Path(directory))

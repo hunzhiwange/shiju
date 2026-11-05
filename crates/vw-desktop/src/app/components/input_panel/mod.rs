@@ -491,7 +491,7 @@ pub fn view<'a>(app: &'a App) -> Element<'a, Message> {
 
     // 构建模型选择弹出框内容
     let model_pop_content: Element<'_, Message> =
-        model_popover::model_popover_content(app, auto_model, &model, task_mode_enabled);
+        model_popover::model_popover_content(app, auto_model, &model);
 
     // 组合模型按钮和弹出框为覆盖层组件
     let model_btn: Element<'_, Message> = AboveOverlay::new(model_toggle, model_pop_content)

@@ -160,12 +160,12 @@ fn model_popover_content_renders_loading_empty_and_filtered_states() {
     let mut app = crate::app::App::new().0;
 
     app.model_settings.loading = true;
-    let loading = model_popover_content(&app, true, "auto", false);
+    let loading = model_popover_content(&app, true, "auto");
     assert_eq!(loading.as_widget().size().width, Length::Fixed(320.0));
     drop(loading);
 
     app.model_settings.loading = false;
-    let empty = model_popover_content(&app, false, "missing", true);
+    let empty = model_popover_content(&app, false, "missing");
     assert_eq!(empty.as_widget().size().width, Length::Fixed(320.0));
     drop(empty);
 
@@ -186,26 +186,26 @@ fn model_popover_content_renders_loading_empty_and_filtered_states() {
         provider("disabled", "Disabled", vec![model("hidden", "Hidden", false)]),
     ];
     app.model_settings.query = String::new();
-    let unfiltered = model_popover_content(&app, true, "gpt-4.1", true);
+    let unfiltered = model_popover_content(&app, true, "gpt-4.1");
     assert_eq!(unfiltered.as_widget().size().width, Length::Fixed(320.0));
     drop(unfiltered);
 
     app.model_settings.query = "gpt".to_string();
-    let filtered = model_popover_content(&app, false, "openai/gpt-4.1", false);
+    let filtered = model_popover_content(&app, false, "openai/gpt-4.1");
     assert_eq!(filtered.as_widget().size().width, Length::Fixed(320.0));
     drop(filtered);
 
     app.model_settings.query = "vision".to_string();
-    let capability_flags = model_popover_content(&app, false, "openai/vision", false);
+    let capability_flags = model_popover_content(&app, false, "openai/vision");
     assert_eq!(capability_flags.as_widget().size().width, Length::Fixed(320.0));
     drop(capability_flags);
 
-    let bare_selected = model_popover_content(&app, false, "gpt-4.1", true);
+    let bare_selected = model_popover_content(&app, false, "gpt-4.1");
     assert_eq!(bare_selected.as_widget().size().width, Length::Fixed(320.0));
     drop(bare_selected);
 
     app.model_settings.query = "no-match".to_string();
-    let no_match = model_popover_content(&app, false, "openai/gpt-4.1", false);
+    let no_match = model_popover_content(&app, false, "openai/gpt-4.1");
     assert_eq!(no_match.as_widget().size().width, Length::Fixed(320.0));
 }
 
@@ -216,7 +216,7 @@ fn model_popover_content_keeps_available_models_visible_while_refreshing() {
     app.model_settings.providers =
         vec![provider("openai", "OpenAI", vec![model("gpt-4.1", "GPT 4.1", true)])];
 
-    let content = model_popover_content(&app, false, "openai/gpt-4.1", false);
+    let content = model_popover_content(&app, false, "openai/gpt-4.1");
 
     assert_eq!(content.as_widget().size().width, Length::Fixed(320.0));
 }
@@ -259,7 +259,7 @@ async fn acp_model_source_ui_controls_render_chinese_labels_in_both_themes() {
                         crate::app::state::SessionToolSelectorTab::Agent
                     ),
                     model_toggle_button(&app, false, "custom/model", true),
-                    model_popover_content(&app, false, "custom/model", false),
+                    model_popover_content(&app, false, "custom/model"),
                 ]
                 .spacing(12),
             )

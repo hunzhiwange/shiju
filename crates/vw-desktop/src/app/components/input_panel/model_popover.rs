@@ -10,7 +10,6 @@
 //! - **模型搜索**：支持按 provider 或 model 的 id/name 搜索
 //! - **模型切换**：点击模型项切换当前使用的模型
 //! - **自动模型**：启用后由系统自动选择最佳模型
-//! - **任务模式**：启用后可将消息加入任务池
 
 use iced::widget::scrollable::{Direction, Scrollbar};
 use iced::widget::svg;
@@ -195,7 +194,7 @@ pub fn model_toggle_button(
 /// 创建模型弹出框内容
 ///
 /// 该组件包含完整的模型选择界面，包括：
-/// - 自动模型/任务模式的切换开关
+/// - 自动模型切换开关
 /// - 模型搜索框
 /// - 按 provider 分组的模型列表
 /// - 管理模型和添加供应商的快捷按钮
@@ -206,7 +205,6 @@ pub fn model_toggle_button(
 /// - `app`: 应用状态引用，包含模型配置、搜索查询等
 /// - `auto_model`: 是否启用了自动模型选择模式
 /// - `model`: 当前选中的模型标识符
-/// - `task_mode_enabled`: 是否启用了任务模式
 ///
 /// # 返回值
 ///
@@ -217,7 +215,6 @@ pub fn model_toggle_button(
 /// ```text
 /// ┌────────────────────────────────┐
 /// │ ○ 自动模型 [开关]              │
-/// │ ○ 任务模式  [开关]             │
 /// ├────────────────────────────────┤
 /// │ [搜索框] [+] [⚙]               │
 /// │ ┌──────────────────────────┐  │
@@ -233,7 +230,6 @@ pub fn model_popover_content<'a>(
     app: &'a App,
     auto_model: bool,
     model: &str,
-    task_mode_enabled: bool,
 ) -> Element<'a, Message> {
     // 弹出框宽度
     let popup_width = 320.0;
@@ -435,30 +431,16 @@ pub fn model_popover_content<'a>(
     let boxed_content = column![
         // 模式切换区域
         container(
-            column![
-                // 自动模型开关
-                row![
-                    themed_svg_handle(auto_icon(), 18.0),
-                    text(crate::app::i18n::I18n::new(app.desktop_locale).__("自动模型")),
-                    container(text("")).width(Length::Fill),
-                    toggler(auto_model && !cli_local).on_toggle_maybe(
-                        can_select.then_some(|b| Message::Chat(
-                            message::ChatMessage::AutoModelToggled(b)
-                        ))
-                    )
-                ]
-                .spacing(8),
-                // 任务模式开关
-                row![
-                    icon_svg(Icon::Grid1x2, 18.0),
-                    text(crate::app::i18n::I18n::new(app.desktop_locale).__("任务模式")),
-                    container(text("")).width(Length::Fill),
-                    toggler(task_mode_enabled)
-                        .on_toggle(|b| Message::Chat(message::ChatMessage::TaskModeToggled(b)))
-                ]
-                .spacing(8),
+            row![
+                themed_svg_handle(auto_icon(), 18.0),
+                text(crate::app::i18n::I18n::new(app.desktop_locale).__("自动模型")),
+                container(text("")).width(Length::Fill),
+                toggler(auto_model && !cli_local).on_toggle_maybe(
+                    can_select
+                        .then_some(|b| Message::Chat(message::ChatMessage::AutoModelToggled(b)))
+                )
             ]
-            .spacing(10)
+            .spacing(8)
         )
         .padding([6, 8]),
         container(

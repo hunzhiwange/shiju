@@ -240,3 +240,6 @@ mod agent_apps_error_tests;
 mod agent_apps_read_tests;
 
 pub(crate) mod agent_apps;
+
+#[cfg(test)]
+mod agent_apps_add_tests;

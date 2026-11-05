@@ -3,6 +3,15 @@ use crate::model_relay::RelayIdentity;
 
 #[test]
 fn acp_model_source_copilot_private_byok_launch_and_revocation() {
+    verify_private_byok_launch(false);
+}
+
+#[test]
+fn acp_model_source_copilot_reasoning_capability_preserves_native_model_routing() {
+    verify_private_byok_launch(true);
+}
+
+fn verify_private_byok_launch(reasoning: bool) {
     let config = crate::config::schema::AcpAgentConfig {
         command: "copilot".into(),
         args: vec!["--acp".into(), "--stdio".into()],
@@ -13,7 +22,7 @@ fn acp_model_source_copilot_private_byok_launch_and_revocation() {
         RelayIdentity {
             tenant: crate::session::ui_store::current_tenant_scope(),
             project: "p".into(),
-            session: "s".into(),
+            session: format!("copilot-reasoning-{reasoning}"),
             provider: "provider".into(),
             model: "chosen".into(),
             generation: 0,
@@ -22,6 +31,7 @@ fn acp_model_source_copilot_private_byok_launch_and_revocation() {
     .unwrap();
     profile.model_supports_tool_call = true;
     profile.model_supports_temperature = true;
+    profile.model_supports_reasoning = reasoning;
     profile.model_api = Some(crate::provider::provider::ApiInfo {
         id: "chosen".into(),
         adapter: "openai-compatible".into(),

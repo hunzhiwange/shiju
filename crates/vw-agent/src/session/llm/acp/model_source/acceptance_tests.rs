@@ -253,8 +253,8 @@ async fn run(mode: &str) {
             "api": format!("{}{upstream_path}", input["fixture"].as_str().unwrap()),
             "adapter":upstream_adapter, "env":["VW_ACP_OFFLINE_FIXTURE_KEY"],
             "models": {
-                "acp-fixture-primary":{"id":"acp-fixture-primary","status":"active","tool_call":true,"temperature":true},
-                "acp-fixture-switched":{"id":"acp-fixture-switched","status":"active","tool_call":true,"temperature":true}
+                "acp-fixture-primary":{"id":"acp-fixture-primary","status":"active","tool_call":true,"temperature":true,"reasoning":agent == "copilot"},
+                "acp-fixture-switched":{"id":"acp-fixture-switched","status":"active","tool_call":true,"temperature":true,"reasoning":agent == "copilot"}
             }
         }}
     })).await.unwrap();

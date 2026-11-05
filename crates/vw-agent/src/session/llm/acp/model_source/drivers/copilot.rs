@@ -60,10 +60,9 @@ pub(super) fn configure(profile: &mut AcpLaunchProfile, endpoint: &str) -> anyho
         profile.model_supports_tool_call && profile.model_supports_temperature,
         "Copilot requires a selected model supporting tools and temperature"
     );
-    anyhow::ensure!(
-        !profile.model_supports_reasoning,
-        "Copilot reasoning model routing has not been verified"
-    );
+    // Both provider routes use their native wire protocol. Reasoning support is
+    // a model capability, not a request to convert or enable reasoning; the relay
+    // validates the actual request parameters against the selected model.
     let model = &profile.model_alias;
     let content = serde_json::to_vec(&serde_json::json!({
         "providers": [{"name": "vibewindow", "type": provider_type, "baseUrl": base_url,

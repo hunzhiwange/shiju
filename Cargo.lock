@@ -12079,7 +12079,7 @@ dependencies = [
 
 [[package]]
 name = "vw-acp"
-version = "0.5.19"
+version = "0.6.0"
 dependencies = [
  "agent-client-protocol",
  "async-trait",
@@ -12103,7 +12103,7 @@ dependencies = [
 
 [[package]]
 name = "vw-agent"
-version = "0.5.19"
+version = "0.6.0"
 dependencies = [
  "agent-client-protocol",
  "anyhow",
@@ -12234,7 +12234,7 @@ dependencies = [
 
 [[package]]
 name = "vw-api-types"
-version = "0.5.19"
+version = "0.6.0"
 dependencies = [
  "serde",
  "serde_json",
@@ -12242,7 +12242,7 @@ dependencies = [
 
 [[package]]
 name = "vw-cli"
-version = "0.5.19"
+version = "0.6.0"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -12277,7 +12277,7 @@ dependencies = [
 
 [[package]]
 name = "vw-config-types"
-version = "0.5.19"
+version = "0.6.0"
 dependencies = [
  "chrono-tz 0.10.4",
  "directories",
@@ -12290,7 +12290,7 @@ dependencies = [
 
 [[package]]
 name = "vw-desktop"
-version = "0.5.19"
+version = "0.6.0"
 dependencies = [
  "anyhow",
  "arboard",
@@ -12362,7 +12362,7 @@ dependencies = [
 
 [[package]]
 name = "vw-gateway-client"
-version = "0.5.19"
+version = "0.6.0"
 dependencies = [
  "futures-util",
  "reqwest 0.13.4",
@@ -12377,7 +12377,7 @@ dependencies = [
 
 [[package]]
 name = "vw-provider-resolver"
-version = "0.5.19"
+version = "0.6.0"
 dependencies = [
  "anyhow",
  "directories",
@@ -12396,7 +12396,7 @@ dependencies = [
 
 [[package]]
 name = "vw-shared"
-version = "0.5.19"
+version = "0.6.0"
 dependencies = [
  "anyhow",
  "chrono",
@@ -12422,7 +12422,7 @@ dependencies = [
 
 [[package]]
 name = "vw-tui"
-version = "0.5.19"
+version = "0.6.0"
 dependencies = [
  "arboard",
  "base64 0.23.1",
@@ -12454,7 +12454,7 @@ dependencies = [
 
 [[package]]
 name = "vw-webview"
-version = "0.5.19"
+version = "0.6.0"
 dependencies = [
  "directories",
  "mime_guess",

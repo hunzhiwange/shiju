@@ -69,6 +69,8 @@ fn acp_client_cache_key(
     let material = json!({
         "tenant": crate::session::ui_store::current_tenant_scope(),
         "runtimeIdentity": parsed_options.runtime_identity,
+        "skillMounts": parsed_options.skill_mounts,
+        "skillRevision": parsed_options.skill_view.as_ref().map(|view| view.0.fingerprint()),
         "agentName": acp_agent_name,
         "command": acp_cfg.command,
         "args": acp_cfg.args,
@@ -127,6 +129,27 @@ fn build_cached_acp_client(
             args: acp_cfg.args.clone(),
             env: acp_cfg.env.clone(),
         },
+    )
+    .with_skill_mounts(
+        (!parsed_options.skill_mounts.is_empty()).then(|| vw_acp::SessionMountSelection {
+            version: 1,
+            skills: parsed_options
+                .skill_mounts
+                .iter()
+                .map(|mount| vw_acp::SessionSkillMount {
+                    name: mount.name.clone(),
+                    path: parsed_options
+                        .skill_view
+                        .as_ref()
+                        .map(|view| view.0.root().join(&mount.name).to_string_lossy().into_owned())
+                        .unwrap_or_else(|| mount.path.clone()),
+                })
+                .collect(),
+        }),
+        parsed_options
+            .skill_view
+            .as_ref()
+            .map(|view| view.0.clone() as Arc<dyn std::any::Any + Send + Sync>),
     )
     .with_mcp_servers(parsed_options.mcp_servers.clone())
     .with_permission_mode(parsed_options.permission_mode.unwrap_or(PermissionMode::ApproveAll))

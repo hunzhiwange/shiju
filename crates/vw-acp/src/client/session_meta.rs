@@ -65,3 +65,16 @@ pub(super) fn build_launch_session_meta(
     }
     meta
 }
+
+impl AcpClient {
+    pub(super) fn mounted_session_meta(&self) -> Option<acp::Meta> {
+        let mut meta = build_launch_session_meta(self.session_options.as_ref(), &self.config);
+        if let Some(selection) = &self.skill_mounts {
+            meta.get_or_insert_with(Map::new).insert(
+                crate::SESSION_SKILL_MOUNTS_META_KEY.into(),
+                serde_json::to_value(selection).expect("typed skill mount selection"),
+            );
+        }
+        meta
+    }
+}

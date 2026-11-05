@@ -698,3 +698,42 @@ fn acp_model_source_codebuddy_boolean_session_options_preserve_select_and_toggle
     let encoded = serde_json::to_value(decoded.unwrap()).unwrap();
     assert_eq!(encoded["configOptions"], options);
 }
+
+#[tokio::test]
+async fn acp_skill_mount_outbound_json_rpc_carries_directories_on_new_load_resume() {
+    let selection = crate::SessionMountSelection {
+        version: 1,
+        skills: vec![crate::SessionSkillMount {
+            name: "selected".into(),
+            path: "/tmp/selected".into(),
+        }],
+    };
+    with_connection(TestAgent::new(), async |conn, agent| {
+        let client = client("agent", &[]).with_skill_mounts(Some(selection.clone()), None);
+        let cwd = Path::new("/tmp");
+        client.new_session_id(&conn, cwd).await.unwrap();
+        client.load_session_info(&conn, cwd, "existing".into()).await.unwrap();
+        client.resume_session_info(&conn, cwd, "existing".into()).await.unwrap();
+        let state = agent.state.lock();
+        for meta in [
+            state.new_session_requests[0].meta.as_ref(),
+            state.load_session_requests[0].meta.as_ref(),
+            state.resume_session_requests[0].meta.as_ref(),
+        ] {
+            assert_eq!(
+                crate::SessionMountSelection::from_meta(meta).unwrap(),
+                Some(selection.clone())
+            );
+        }
+    })
+    .await;
+}
+
+#[tokio::test]
+async fn acp_skill_mount_outbound_json_rpc_empty_selection_adds_no_meta() {
+    with_connection(TestAgent::new(), async |conn, agent| {
+        client("agent", &[]).new_session_id(&conn, Path::new("/tmp")).await.unwrap();
+        assert!(agent.state.lock().new_session_requests[0].meta.is_none());
+    })
+    .await;
+}

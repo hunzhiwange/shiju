@@ -41,6 +41,7 @@ mod model_source;
 mod replay;
 pub(super) mod request;
 mod session;
+mod skill_mounts;
 mod updates;
 
 static ACP_CLIENT_CACHE: LazyLock<Mutex<HashMap<String, Arc<CachedAcpClient>>>> =
@@ -73,6 +74,8 @@ struct CachedAcpClientEntry {
 pub(super) struct ParsedAcpOptions {
     /// 已在网关按作用域解析的 MCP 配置，不接受请求中的原始凭据。
     pub(super) runtime_identity: Option<String>,
+    pub(super) skill_mounts: Vec<vw_acp::SessionSkillMount>,
+    pub(super) skill_view: Option<skill_mounts::MountedSkills>,
     pub(super) mcp_servers: Vec<agent_client_protocol::McpServer>,
     /// ACP 权限模式；未设置时由客户端构造逻辑选择默认策略。
     pub(super) permission_mode: Option<PermissionMode>,

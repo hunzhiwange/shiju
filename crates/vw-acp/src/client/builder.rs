@@ -20,6 +20,8 @@ impl AcpClient {
             auth_credentials: HashMap::new(),
             auth_policy: AuthPolicy::Skip,
             session_options: None,
+            skill_mounts: None,
+            skill_mount_lease: None,
             verbose: false,
             on_acp_message: None,
             on_acp_output_message: None,
@@ -50,6 +52,18 @@ impl AcpClient {
     /// 设置创建、加载或恢复会话时传递给代理的 MCP 服务器列表。
     pub fn with_mcp_servers(mut self, mcp_servers: Vec<acp::McpServer>) -> Self {
         self.mcp_servers = mcp_servers;
+        self
+    }
+
+    /// Attach a verified supplier mount description and retain its directory lease.
+    /// The caller must verify the supplier contract before launching the client.
+    pub fn with_skill_mounts(
+        mut self,
+        selection: Option<crate::SessionMountSelection>,
+        lease: Option<Arc<dyn std::any::Any + Send + Sync>>,
+    ) -> Self {
+        self.skill_mounts = selection;
+        self.skill_mount_lease = lease;
         self
     }
 

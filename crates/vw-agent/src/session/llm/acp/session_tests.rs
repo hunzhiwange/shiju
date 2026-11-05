@@ -28,6 +28,8 @@ fn acp_config(command: &str) -> config::schema::AcpAgentConfig {
 fn parsed_options() -> ParsedAcpOptions {
     ParsedAcpOptions {
         runtime_identity: None,
+        skill_mounts: Vec::new(),
+        skill_view: None,
         mcp_servers: Vec::new(),
         permission_mode: Some(PermissionMode::DenyAll),
         full_access: false,
@@ -487,4 +489,43 @@ for line in sys.stdin:
     close_cached_acp_client_if_unshared(&entry).await;
     assert!(!ACP_CLIENT_CACHE.lock().contains_key(&entry.key));
     assert!(observer.client.session_capabilities(&info.session_id).is_none());
+}
+
+#[test]
+fn acp_skill_mount_outbound_cache_tracks_content_and_client_retains_view() {
+    use super::super::skill_mounts::MountedSkills;
+    let temp = tempfile::tempdir().unwrap();
+    let directory = temp.path().join("selected");
+    std::fs::create_dir(&directory).unwrap();
+    let source = directory.join("SKILL.md");
+    std::fs::write(&source, "---\nname: selected\ndescription: fixture\n---\nfirst\n").unwrap();
+    let mut options = ParsedAcpOptions {
+        skill_mounts: vec![vw_acp::SessionSkillMount {
+            name: "selected".into(),
+            path: directory.to_str().unwrap().into(),
+        }],
+        ..Default::default()
+    };
+    options.skill_view =
+        MountedSkills::prepare(&options.skill_mounts, temp.path(), "session", &Default::default())
+            .unwrap();
+    let cfg = acp_config("unused");
+    let first = acp_client_cache_key("codex", &cfg, temp.path(), &options);
+    let view = options.skill_view.as_ref().unwrap().0.clone();
+    let root = view.root().to_path_buf();
+    let weak = Arc::downgrade(&view);
+    let client = build_cached_acp_client("codex", &cfg, &options);
+    drop(view);
+    std::fs::write(&source, "---\nname: selected\ndescription: fixture\n---\nsecond\n").unwrap();
+    options.skill_view =
+        MountedSkills::prepare(&options.skill_mounts, temp.path(), "session", &Default::default())
+            .unwrap();
+    assert_ne!(first, acp_client_cache_key("codex", &cfg, temp.path(), &options));
+    drop(options);
+    assert!(weak.upgrade().is_some());
+    assert!(root.exists());
+    drop(client);
+    assert!(weak.upgrade().is_none());
+    assert!(!root.exists());
+    assert!(source.exists());
 }

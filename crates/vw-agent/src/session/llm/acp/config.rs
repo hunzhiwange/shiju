@@ -321,6 +321,8 @@ pub(crate) fn parse_acp_options(
 
     Ok(ParsedAcpOptions {
         runtime_identity: None,
+        skill_mounts: Vec::new(),
+        skill_view: None,
         mcp_servers: Vec::new(),
         permission_mode,
         full_access,
@@ -454,6 +456,7 @@ pub(super) async fn apply_agent_defaults(
     if let Some(rule) = effective.system_prompt.as_ref().filter(|rule| !rule.trim().is_empty()) {
         append_system(rule.clone());
     }
+    parsed.skill_mounts.clear();
     for id in &effective.skills {
         if effective.permission_action("skill", id) == crate::permission::next::Action::Deny {
             return Err(acp_option_error("default skill is denied by permission policy"));
@@ -479,7 +482,13 @@ pub(super) async fn apply_agent_defaults(
                 "ACP default skill requires unsupported invocation options",
             ));
         }
-        append_system(replay.content);
+        let directory = std::path::Path::new(source)
+            .parent()
+            .ok_or_else(|| acp_option_error("default skill has no directory"))?;
+        parsed.skill_mounts.push(vw_acp::SessionSkillMount {
+            name: id.clone(),
+            path: directory.to_string_lossy().into_owned(),
+        });
     }
     Ok(Value::Array(messages))
 }

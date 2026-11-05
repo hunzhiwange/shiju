@@ -91,6 +91,7 @@ pub(crate) async fn do_stream_request_acp(
                 message: format!("acp command not configured for model {}", model.api.id),
             })
         })?;
+    super::skill_mounts::reject_expanded_invocations(&acp_agent_name, chat_messages)?;
     let selected_model = vw_api_types::acp_model_source::AcpSessionModelSelection {
         source,
         provider_id: (source == vw_api_types::acp_model_source::AcpModelSource::SessionModel)
@@ -194,6 +195,13 @@ pub(crate) async fn do_stream_request_acp(
     )
     .await?;
     parsed_options.runtime_identity = Some(scoped_session.clone());
+    parsed_options.skill_view = super::skill_mounts::MountedSkills::prepare(
+        &parsed_options.skill_mounts,
+        &cwd,
+        &scoped_session,
+        &cfg.skills.security,
+    )?;
+    super::skill_mounts::validate(&acp_agent_name, !parsed_options.skill_mounts.is_empty())?;
     let close_client_after_request =
         parse_close_client_after_request(merged_options)? || launch_profile.is_some();
     let cwd_text = cwd.to_string_lossy().into_owned();
@@ -234,6 +242,9 @@ pub(crate) async fn do_stream_request_acp(
             }));
         }
 
+        if let Some(view) = &parsed_options.skill_view {
+            view.0.validate().map_err(to_api_error)?;
+        }
         let cached_client_entry =
             get_cached_acp_client(&acp_agent_name, &normalized_acp_cfg, &cwd, &parsed_options);
         let _request_cleanup = super::session::RequestClientCleanup::new(&cached_client_entry);

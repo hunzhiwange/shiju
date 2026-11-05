@@ -175,6 +175,8 @@ pub struct AcpClient {
     auth_credentials: HashMap<String, String>,
     auth_policy: AuthPolicy,
     session_options: Option<AcpSessionOptions>,
+    skill_mounts: Option<crate::SessionMountSelection>,
+    skill_mount_lease: Option<Arc<dyn std::any::Any + Send + Sync>>,
     verbose: bool,
     on_acp_message: Option<AcpMessageCallback>,
     on_acp_output_message: Option<AcpMessageCallback>,

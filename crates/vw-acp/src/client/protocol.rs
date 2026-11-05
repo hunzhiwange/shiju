@@ -136,7 +136,7 @@ impl AcpClient {
         cwd: &Path,
     ) -> Result<SessionInfo, AcpError> {
         let mut request = acp::NewSessionRequest::new(cwd).mcp_servers(self.mcp_servers.clone());
-        if let Some(meta) = build_launch_session_meta(self.session_options.as_ref(), &self.config) {
+        if let Some(meta) = self.mounted_session_meta() {
             request = request.meta(meta);
         }
         let session = if self.is_claude_acp_command() {
@@ -181,9 +181,8 @@ impl AcpClient {
     ) -> Result<SessionInfo, AcpError> {
         let mut request = acp::LoadSessionRequest::new(session_id.clone(), cwd)
             .mcp_servers(self.mcp_servers.clone());
-        if managed_claude_settings(&self.config).is_some()
-            && let Some(meta) =
-                build_launch_session_meta(self.session_options.as_ref(), &self.config)
+        if (managed_claude_settings(&self.config).is_some() || self.skill_mounts.is_some())
+            && let Some(meta) = self.mounted_session_meta()
         {
             request = request.meta(meta);
         }
@@ -221,9 +220,8 @@ impl AcpClient {
     ) -> Result<SessionInfo, AcpError> {
         let mut request = acp::ResumeSessionRequest::new(session_id.clone(), cwd)
             .mcp_servers(self.mcp_servers.clone());
-        if managed_claude_settings(&self.config).is_some()
-            && let Some(meta) =
-                build_launch_session_meta(self.session_options.as_ref(), &self.config)
+        if (managed_claude_settings(&self.config).is_some() || self.skill_mounts.is_some())
+            && let Some(meta) = self.mounted_session_meta()
         {
             request = request.meta(meta);
         }

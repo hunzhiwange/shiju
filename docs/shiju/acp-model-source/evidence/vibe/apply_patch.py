@@ -24,7 +24,7 @@ def main():
     command = ["patch", "--batch", "--forward", "-p1", "-d", str(site), "-i", str(patch)]
     subprocess.run(command + ["--dry-run"], check=True)
     subprocess.run(command, check=True)
-    print("Applied session binding to isolated mistral-vibe 3.0.4")
+    print("Applied session binding and isolated skill scanner to mistral-vibe 3.0.4")
 
 if __name__ == "__main__":
     main()

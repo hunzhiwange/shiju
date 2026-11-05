@@ -78,7 +78,9 @@
     "files": {
       "vibe/core/config/builder.py": "f5af00e1a37bdbfaff3b3801ed76b2728fc47f41a181f83cee9cdd82bca2514f",
       "vibe/acp/entrypoint.py": "b1c5cde955970b60bec336b0a31f2a460617f59dce0d74baa24e6dc698eed5aa",
-      "vibe/core/config/session_model_binding.py": "bc0d7c44ca16badcc25a8185d6eb0b8a23c63256a346c75176928a085d944ee3"
+      "vibe/core/config/session_model_binding.py": "bc0d7c44ca16badcc25a8185d6eb0b8a23c63256a346c75176928a085d944ee3",
+      "vibe/core/skills/manager.py": "183ab1f5bc297977d20c89401f18de526ba732fa830464f87ff7420af47dc900",
+      "vibe/app_server/_skills.py": "d7894986bec3b12183f1df4d4e6a7be192a86b01077e9ea7e27a001ae84fc02e"
     },
     "wheel_url": "https://files.pythonhosted.org/packages/84/b8/68dffdf6294f59607935841c0c5494cb5a3594aeda6d056eef5a4231de5c/mistral_vibe-3.0.4-cp312-abi3-macosx_11_0_arm64.whl",
     "wheel_sha256": "16ee71ef4481dd1b93bc47279b2c76124f6e654ad24d14c9415eea9095f0b0e9"

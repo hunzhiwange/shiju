@@ -12,6 +12,45 @@ from verify_acp_skill_mounts import accepted, select_entry
 
 
 class SkillMountHarnessTests(unittest.TestCase):
+    def test_vibe_requires_exact_native_catalog_and_name_argument(self):
+        with tempfile.TemporaryDirectory() as directory:
+            fixture = SkillMountFixture(Path(directory))
+            fixture.vibe_native = True
+            tools = [{"function": {"name": "skill", "parameters": {"properties": {"name": {"type": "string"}}}}}]
+            body = {"messages": [{"role": "user", "content": fixture.prompt}], "tools": tools}
+            with self.assertRaisesRegex(ValueError, "Vibe native catalog"):
+                fixture.response(body)
+            fixture.phase_first = True
+            body["messages"].insert(0, {"role": "system", "content": "<skill><name>" + fixture.name + "</name></skill>"})
+            message, finish = fixture.response(body)
+            self.assertEqual(finish, "tool_calls")
+            self.assertEqual(message["tool_calls"][0]["function"]["name"], "skill")
+            self.assertEqual(json.loads(message["tool_calls"][0]["function"]["arguments"]), {"name": fixture.name})
+            self.assertFalse(fixture.snapshot()["attachment_read"])
+
+    def test_vibe_rejects_ambient_catalog_and_ignores_utility_requests(self):
+        with tempfile.TemporaryDirectory() as directory:
+            fixture = SkillMountFixture(Path(directory))
+            fixture.vibe_native = True
+            fixture.response({"messages": [], "tools": []})
+            self.assertEqual(fixture.snapshot()["model_requests"], 0)
+            self.assertTrue(fixture.phase_first)
+            with self.assertRaisesRegex(ValueError, "Vibe native catalog"):
+                fixture.response({"messages": [{"role": "system", "content": "<skill><name>unselected</name></skill>"}],
+                                  "tools": [{"function": {"name": "skill"}}]})
+            self.assertEqual(fixture.snapshot()["native_skill_invocations"], 0)
+
+    def test_vibe_removed_skill_is_absent_despite_old_user_history(self):
+        with tempfile.TemporaryDirectory() as directory:
+            fixture = SkillMountFixture(Path(directory))
+            fixture.vibe_native = True
+            fixture.mode = "absent"
+            message, finish = fixture.response({"messages": self.advertised(fixture),
+                "tools": [{"function": {"name": "read_file"}}]})
+            self.assertEqual((message["content"], finish), ("SKILL_ABSENT", "stop"))
+            self.assertTrue(fixture.discovery_observations[-1]["native_activation_unregistered"])
+            self.assertEqual(fixture.snapshot()["discovery_events"], 0)
+
     def test_goose_requires_native_catalog_and_exact_activation_schema(self):
         with tempfile.TemporaryDirectory() as directory:
             fixture = SkillMountFixture(Path(directory))

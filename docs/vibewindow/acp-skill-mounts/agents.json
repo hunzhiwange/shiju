@@ -669,10 +669,10 @@
     {
       "key": "vibe",
       "version": "3.0.4",
-      "status": "candidate",
+      "status": "verified",
       "platform": {
         "review_host": "Darwin-arm64",
-        "artifact_scope": "本机固定发行物静态审查；源码/通用 JS 的跨平台执行未验证",
+        "artifact_scope": "Darwin-arm64 受审固定 3.0.4 补丁发行物：两种模型来源完整原生技能生命周期通过；其他平台未验证。",
         "linux": "unverified",
         "windows": "unverified"
       },
@@ -692,48 +692,47 @@
           "vibe-acp"
         ],
         "binding": "crates/vw-acp/src/agent_registry.rs::BUILT_IN_AGENT_DEFINITIONS",
-        "runtime_executed": false,
-        "note": "固定发行物候选入口；注册器含 latest/range，不保证用户当前命令已固定到此版本。"
+        "runtime_executed": true,
+        "note": "受审固定发行物两种模型来源真实运行，选中挂载前验证五个受审文件散列。"
       },
       "mount": {
         "candidate_paths": [
-          "config.skill_paths[]",
-          "harness project_skills_dirs",
-          "harness user_skills_dirs"
+          "SHIJU_VIBE_SKILL_ROOT（受审补丁中的会话专属视图）"
         ],
-        "discovery": "3.0.4 SkillManager 遍历 skill_paths 与 harness 项目/用户根，解析去重；配置合并为追加列表，单独设置 skill_paths 并不证明完整替换。",
-        "activation": "有 skill 工具与发现缓存；enabled_skills/disabled_skills 只控制选择过滤，不是实际激活证据。",
-        "session_isolation": "unverified：额外根/专属配置根不自动排除内建、用户、项目及插件技能；不得修改 HOME 或写用户全局目录。"
+        "discovery": "SkillManager 独占扫描选中目录，禁用环境中的项目、用户及注册表技能；原生插件注册与载荷投影同时隔离。",
+        "activation": "实际原生 skill(name) 返回挂载视图目录，随后真实 read_file/bash 完成随机附件读取与脚本执行；首次模型请求无技能正文。",
+        "session_isolation": "两来源原生目录均严格等于选中集合；项目/VIBE_HOME 未选中探针、内置插件、空选择、移除及第二会话隔离均通过。"
       },
       "permissions": {
-        "status": "unverified",
+        "status": "verified for reviewed Darwin-arm64 3.0.4 runtime",
         "requirements": "执行端重新审核目录、租户/项目/会话权限、路径逃逸与符号链接；支持文件/脚本/MCP 仍受各自授权限制，不扩大 full_access。",
-        "agent_specific": "固定 ACP 的目录/工具授权条件须后续真实验证；未因模型来源受限推定技能不支持。"
+        "agent_specific": "复用已审核目录视图及原权限策略；deny-all 在模型请求前拒绝，不扩大 full_access。原生文件/脚本工具保持既有授权。"
       },
       "update": {
-        "native": "unverified：本任务未执行热更新或原子完整替换；静态刷新函数/文档 reload 不作成功承诺。",
-        "candidate": "SkillManager 每次派生 session 重新发现，缓存按文件 stat 失效；不证明运行中会话完整替换。"
+        "native": "无原生热更新承诺，空闲时完整替换视图并退休旧进程后重建。",
+        "candidate": "两种来源的添加、移除、V2 内容和空闲更新已真实验证，见 evidence/vibe.json。"
       },
       "recovery": {
-        "status": "unverified",
+        "status": "两来源真实进程关闭/重启后重新发现当前目录并读取正文、附件及脚本；cli_local 原生会话锁通过复用现有串行退休逻辑解决。",
         "requirements": "重建 new/load/resume 后重新发布同 revision 目录并核实发现、删除和支持文件访问；不能把已有模型来源恢复证据当技能恢复证据。"
       },
       "independent_sources": {
         "local_configuration": {
           "candidate": "VIBE_HOME",
-          "static_review_only": true,
-          "runtime_verified_this_task": false
+          "static_review_only": false,
+          "runtime_verified_this_task": true
         },
         "client_model_source": {
           "prior_report_status": "verified_release_only",
           "reference": "../../shiju/acp-model-source/cli-versions.json#vibe",
-          "runtime_verified_this_task": false,
-          "note": "只保留旧报告定位；不复制其通过/不支持结论到技能能力。"
+          "runtime_verified_this_task": true,
+          "note": "只保留旧报告定位；不复制其通过/不支持结论到技能能力。",
+          "static_review_only": false
         }
       },
       "evidence": [
         {
-          "path": "target/vibe-cli-env/lib/python3.12/site-packages/vibe/core/skills/manager.py",
+          "path": "target/vibe-upstream/mistral_vibe-3.0.4/vibe/core/skills/manager.py",
           "sha256": "1f59f873111250553af9f94341a51b3e9fbbd365b521476a9aa8015544f585e7",
           "kind": "source",
           "bytes": 14369,
@@ -753,7 +752,7 @@
           ]
         },
         {
-          "path": "target/vibe-cli-env/lib/python3.12/site-packages/vibe/core/config/vibe_schema.py",
+          "path": "target/vibe-upstream/mistral_vibe-3.0.4/vibe/core/config/vibe_schema.py",
           "sha256": "cebdadcd77bab5bc3d20ebdefa085a76b1af364e5dae0816a4e6c3d6f6995e80",
           "kind": "source",
           "bytes": 66979,
@@ -765,10 +764,61 @@
               "excerpt": "o-approving tool calls.\"\n        ),\n    )\n\n    # Skills\n    skill_paths: Annotated[\n        list[Path], WithConcatMerge(), BeforeValidator(_expand_paths)\n    ] = Field(\n        default_factory=list,\n        description=(\n            \"Additional directories to search for s"
             }
           ]
+        },
+        {
+          "path": "target/vibe-cli-env/bin/vibe-acp",
+          "sha256": "045bd94e93e9bd26e7d2c99954ee06893465976cbb352aa57fbdc2fa5b733d43",
+          "kind": "fixed_python_entry",
+          "bytes": 349,
+          "observations": []
+        },
+        {
+          "path": "target/vibe-cli-env/lib/python3.12/site-packages/vibe/core/config/builder.py",
+          "sha256": "f5af00e1a37bdbfaff3b3801ed76b2728fc47f41a181f83cee9cdd82bca2514f",
+          "kind": "reviewed_patched_source",
+          "bytes": 11272,
+          "observations": []
+        },
+        {
+          "path": "target/vibe-cli-env/lib/python3.12/site-packages/vibe/acp/entrypoint.py",
+          "sha256": "b1c5cde955970b60bec336b0a31f2a460617f59dce0d74baa24e6dc698eed5aa",
+          "kind": "reviewed_patched_source",
+          "bytes": 4652,
+          "observations": []
+        },
+        {
+          "path": "target/vibe-cli-env/lib/python3.12/site-packages/vibe/core/config/session_model_binding.py",
+          "sha256": "bc0d7c44ca16badcc25a8185d6eb0b8a23c63256a346c75176928a085d944ee3",
+          "kind": "reviewed_patched_source",
+          "bytes": 3570,
+          "observations": []
+        },
+        {
+          "path": "target/vibe-cli-env/lib/python3.12/site-packages/vibe/core/skills/manager.py",
+          "sha256": "183ab1f5bc297977d20c89401f18de526ba732fa830464f87ff7420af47dc900",
+          "kind": "reviewed_patched_source",
+          "bytes": 14836,
+          "observations": []
+        },
+        {
+          "path": "target/vibe-cli-env/lib/python3.12/site-packages/vibe/app_server/_skills.py",
+          "sha256": "d7894986bec3b12183f1df4d4e6a7be192a86b01077e9ea7e27a001ae84fc02e",
+          "kind": "reviewed_patched_source",
+          "bytes": 11649,
+          "observations": []
         }
       ],
       "supplemental_official_docs": [],
-      "next_validation": "固定版本真实 ACP：发现元数据 → 按需激活 → 支持文件/脚本工具回合 → 隔离/删除/更新失败保旧 → 跨进程恢复；只替代外部模型 HTTP。未安装/缺账号则保留 unverified。"
+      "next_validation": "本机固定发行物已完成；继续后续 agent 及整体回归，其他平台/版本单独验收。",
+      "acceptance": {
+        "status": "verified",
+        "evidence": "evidence/vibe.json",
+        "model_sources": [
+          "session_model",
+          "cli_local"
+        ],
+        "limitation": "Only reviewed patched mistral-vibe 3.0.4 on Darwin-arm64."
+      }
     },
     {
       "key": "hermes",

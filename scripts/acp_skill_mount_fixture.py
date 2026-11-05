@@ -92,10 +92,10 @@ class SkillMountFixture:
     def native_skill_call(self, body, qualified, kind):
         for raw in body.get("tools", []):
             tool = raw.get("function", raw)
-            field = "name" if (getattr(self, "gemini_native", False) or getattr(self, "goose_native", False)) else "skill"
+            field = "name" if (getattr(self, "gemini_native", False) or (getattr(self, "goose_native", False) or getattr(self, "vibe_native", False))) else "skill"
             expected = "activate_skill" if getattr(self, "gemini_native", False) else ("skill" if getattr(self, "qwen_native", False) else "Skill")
-            if getattr(self, "goose_native", False):
-                expected = "load_skill"
+            if (getattr(self, "goose_native", False) or getattr(self, "vibe_native", False)):
+                expected = "skill" if getattr(self, "vibe_native", False) else "load_skill"
             if tool.get("name") == expected and field in tool.get("parameters", {}).get("properties", {}):
                 call_id = "mount_" + secrets.token_hex(12)
                 self.calls[call_id] = kind
@@ -106,15 +106,15 @@ class SkillMountFixture:
         raise ValueError("fixed CLI has no reviewed compatible tool schema")
 
     def response(self, body):
-        # CodeBuddy also sends a tool-free preflight request. It supplies no
+        # Native clients also send tool-free utility requests. These supply no
         # discovery/tool evidence and must not advance the acceptance phase.
-        if getattr(self, "codebuddy_native", False) and not body.get("tools"):
+        if (getattr(self, "codebuddy_native", False) or getattr(self, "vibe_native", False)) and not body.get("tools"):
             return {"role": "assistant", "content": "Ready"}, "stop"
         with self.lock:
-            native_mode = any(getattr(self, key, False) for key in ("claude_native", "qwen_native", "gemini_native", "codebuddy_native", "goose_native"))
-            qualified = self.name if (getattr(self, "codebuddy_native", False) or getattr(self, "qwen_native", False) or getattr(self, "gemini_native", False) or getattr(self, "goose_native", False)) else "shiju-session-skills:" + self.name
+            native_mode = any(getattr(self, key, False) for key in ("claude_native", "qwen_native", "gemini_native", "codebuddy_native", "goose_native", "vibe_native"))
+            qualified = self.name if (getattr(self, "codebuddy_native", False) or getattr(self, "qwen_native", False) or getattr(self, "gemini_native", False) or (getattr(self, "goose_native", False) or getattr(self, "vibe_native", False))) else "shiju-session-skills:" + self.name
             messages = body["messages"]
-            if getattr(self, "qwen_native", False) or getattr(self, "gemini_native", False) or getattr(self, "goose_native", False):
+            if getattr(self, "qwen_native", False) or getattr(self, "gemini_native", False) or (getattr(self, "goose_native", False) or getattr(self, "vibe_native", False)):
                 # Native clients can serialize function responses as JSON objects/arrays.
                 # Decode the actual correlated result instead of comparing JSON escapes.
                 def result_text(value):
@@ -167,7 +167,7 @@ class SkillMountFixture:
                     catalog = metadata + json.dumps(body.get("tools", []))
                     if getattr(self, "qwen_native", False) or getattr(self, "gemini_native", False):
                         catalog = "\n".join(re.findall(r"<available_skills>(.*?)</available_skills>", metadata, re.S))
-                    if (getattr(self, "codebuddy_native", False) or getattr(self, "qwen_native", False) or getattr(self, "gemini_native", False) or getattr(self, "goose_native", False)) and getattr(self, "forbidden_skill", "") and self.forbidden_skill in catalog:
+                    if (getattr(self, "codebuddy_native", False) or getattr(self, "qwen_native", False) or getattr(self, "gemini_native", False) or (getattr(self, "goose_native", False) or getattr(self, "vibe_native", False))) and getattr(self, "forbidden_skill", "") and self.forbidden_skill in catalog:
                         raise ValueError("unselected native skill leaked")
                     if getattr(self, "goose_native", False):
                         # Only Goose's native system catalog is discovery evidence.
@@ -182,6 +182,18 @@ class SkillMountFixture:
                                 "selected_present": self.name in names,
                                 "tool_names": [t.get("function", t).get("name") for t in body.get("tools", [])]}
                             raise ValueError("Goose native catalog does not equal selected skills")
+                    if getattr(self, "vibe_native", False):
+                        self.discovered_dir = None
+                        catalog = "\n".join(str(m.get("content", "")) for m in messages if m.get("role") == "system")
+                        names = set(re.findall(r"<skill>\s*<name>([^<]+)</name>", catalog))
+                        expected = set() if self.mode == "absent" else {self.name}
+                        if self.mode == "added":
+                            expected.add(self.name + "-added")
+                        if names != expected:
+                            self.native_catalog = {"phase": self.mode, "observed_count": len(names), "expected_count": len(expected),
+                                "selected_present": self.name in names, "observed_names": sorted(names),
+                                "tool_names": [t.get("function", t).get("name") for t in body.get("tools", [])]}
+                            raise ValueError("Vibe native catalog does not equal selected skills")
                     if getattr(self, "codebuddy_native", False):
                         tool_catalog = "\n".join(t.get("function", t).get("description", "") for t in body.get("tools", []) if t.get("function", t).get("name") == "Skill")
                         sections = "\n".join(re.findall(r"<available_skills>(.*?)</available_skills>", tool_catalog, re.S))
@@ -201,7 +213,7 @@ class SkillMountFixture:
                         "tool_names": [t.get("function", t).get("name") for t in body.get("tools", [])]}
                     if qualified in catalog:
                         self.native_skill = qualified
-                        if getattr(self, "gemini_native", False) or getattr(self, "goose_native", False):
+                        if getattr(self, "gemini_native", False) or (getattr(self, "goose_native", False) or getattr(self, "vibe_native", False)):
                             # Require the actual activation result before reading resources.
                             self.discovered_dir = None
                 discovered = self.discovered_dir is not None or self.native_skill is not None
@@ -213,6 +225,10 @@ class SkillMountFixture:
                 if self.mode == "absent" and discovered and not native_mode:
                     raise ValueError("removed or other-session skill leaked")
             if self.mode == "absent":
+                if (getattr(self, "vibe_native", False) and not self.native_skill
+                        and not any(t.get("function", t).get("name") == "skill" for t in body.get("tools", []))):
+                    self.discovery_observations[-1]["native_activation_unregistered"] = True
+                    return {"role": "assistant", "content": "SKILL_ABSENT"}, "stop"
                 if ((getattr(self, "gemini_native", False) or getattr(self, "codebuddy_native", False)) and not self.native_skill
                         and not any(t.get("function", t).get("name") == ("Skill" if getattr(self, "codebuddy_native", False) else "activate_skill") for t in body.get("tools", []))):
                     self.discovery_observations[-1]["native_activation_unregistered"] = True
@@ -221,7 +237,7 @@ class SkillMountFixture:
                     for message in messages:
                         if message.get("role") == "tool" and self.calls.get(message.get("tool_call_id")) == "missing":
                             content = str(message.get("content", ""))
-                            if not (("Unknown skill: " + qualified in content) or ((getattr(self, "codebuddy_native", False) or getattr(self, "qwen_native", False) or getattr(self, "gemini_native", False) or getattr(self, "goose_native", False)) and qualified in content and "not found" in content)):
+                            if not (("Unknown skill: " + qualified in content) or ((getattr(self, "codebuddy_native", False) or getattr(self, "qwen_native", False) or getattr(self, "gemini_native", False) or (getattr(self, "goose_native", False) or getattr(self, "vibe_native", False))) and qualified in content and ("not found" in content or "not available to this runtime" in content))):
                                 raise ValueError("removed or other-session skill leaked")
                             event = self.call_events[message["tool_call_id"]]
                             if not event["result_received"]:

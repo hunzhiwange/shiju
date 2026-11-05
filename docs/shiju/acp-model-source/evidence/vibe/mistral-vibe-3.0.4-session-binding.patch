@@ -97,3 +97,37 @@
 +    if args.session_model_config is not None:
 +        from vibe.core.config.session_model_binding import ENV
 +        os.environ[ENV] = args.session_model_config
+--- a/vibe/core/skills/manager.py
++++ b/vibe/core/skills/manager.py
+@@ -164,0 +165,11 @@
++        import os
++
++        override = os.environ.get("SHIJU_VIBE_SKILL_ROOT")
++        if override is not None:
++            if not override:
++                return []
++            root = Path(override)
++            if not root.is_absolute() or not root.is_dir():
++                raise ValueError("invalid private skill directory")
++            return [(root, SkillScope.GLOBAL)]
++
+@@ -241,0 +253,4 @@
++        import os
++
++        if "SHIJU_VIBE_SKILL_ROOT" in os.environ:
++            return []
+--- a/vibe/app_server/_skills.py
++++ b/vibe/app_server/_skills.py
+@@ -162,0 +163,5 @@
++    import os
++
++    if "SHIJU_VIBE_SKILL_ROOT" in os.environ:
++        return tuple(_without_skills(context) for context in contexts)
++
+@@ -205,0 +211,6 @@
++    import os
++
++    if "SHIJU_VIBE_SKILL_ROOT" in os.environ:
++        plugin_skills = {}
++        plugin_contexts = tuple(_without_skills(context) for context in plugin_contexts)
++

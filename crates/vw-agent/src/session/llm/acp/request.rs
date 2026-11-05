@@ -251,7 +251,7 @@ pub(crate) async fn do_stream_request_acp(
         if let Some(view) = &parsed_options.skill_view {
             view.0.validate().map_err(to_api_error)?;
         }
-        if matches!(acp_agent_name.as_str(), "codex" | "claude" | "qwen") {
+        if matches!(acp_agent_name.as_str(), "codex" | "claude" | "qwen" | "vibe") {
             super::session::stop_incompatible_cached_clients(
                 &acp_agent_name,
                 &normalized_acp_cfg,

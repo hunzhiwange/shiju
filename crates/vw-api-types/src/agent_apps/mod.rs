@@ -59,3 +59,9 @@ pub struct AgentAppsErrorResponse {
     pub code: AgentAppsErrorCode,
     pub message: String,
 }
+
+mod catalog;
+pub use catalog::*;
+
+#[cfg(test)]
+mod catalog_tests;

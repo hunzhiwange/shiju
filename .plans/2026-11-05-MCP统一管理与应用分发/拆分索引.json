@@ -1,0 +1,1082 @@
+[
+  {
+    "title": "核对后端来源与应用能力",
+    "kind": "doc",
+    "module": "后端来源与能力.md",
+    "behavior": "固定全部后端命令、传输和十四应用的支持边界",
+    "source": "services/mcp.rs、commands/mcp.rs、mcp/、claude_mcp.rs、gemini_mcp.rs、services/mcp_connectivity.rs、tests/mcp_commands.rs、tests/golden/mcp_bytes.rs",
+    "detail": "逐函数登记导入、CRUD、toggle、resync、原生状态/配置读写、命令验证与连接取消；旧命令只映射等价行为，不建设兼容 IPC。逐个核对十二适配器内联测试及 live_sync_apps；Claude Desktop/OpenClaw 返回不支持。对来源清单主责11全部文件和命令逐项归档，不静默排除交叉项。",
+    "id": 1,
+    "file": "1-核对后端来源与应用能力.md",
+    "paths": [
+      "docs/vibewindow/agent-apps/mcp/后端来源与能力.md"
+    ],
+    "command": ""
+  },
+  {
+    "title": "核对前端规则与接口边界",
+    "kind": "doc",
+    "module": "接口与规则.md",
+    "behavior": "固定前端规则的 Rust 所有权与 API 操作表",
+    "source": "src/components/mcp/、src/config/mcpPresets.ts、src/hooks/useMcp.ts、src/hooks/useMcpConnectivity.ts、src/lib/api/mcp.ts、src/components/deeplink/McpConfirmation.tsx",
+    "detail": "逐项登记草稿/JSON转换、凭据遮罩、唯一名称、应用可见性、批量串行、失败后刷新、结果代次、取消竞态、预设与深链确认。定义每个操作的请求/响应/权限/状态/主机/取消语义，复用底座任务/事件合同；原生文件只读预览必须脱敏。来源主责交叉项保留唯一所有者和等价入口。",
+    "id": 2,
+    "file": "2-核对前端规则与接口边界.md",
+    "paths": [
+      "docs/vibewindow/agent-apps/mcp/接口与规则.md"
+    ],
+    "command": ""
+  },
+  {
+    "title": "定义MCP管理数据契约",
+    "kind": "vw-api-types",
+    "module": "management",
+    "behavior": "管理契约能区分目录记录、CLI绑定、运行时选择、ACP挂载与逐项结果",
+    "source": "app_config.rs、services/mcp.rs",
+    "detail": "新建 crates/vw-api-types/src/mcp_management.rs 并由 lib.rs 导出；保留现有 inspect DTO。定义三种传输、参数/env/headers/cwd、凭据引用、修订号、作用域、应用能力、分发与连接结果；错误不含秘密，枚举明确区分不支持/未验证/部分成功。",
+    "id": 3,
+    "file": "3-定义MCP管理数据契约.md",
+    "paths": [
+      "crates/vw-api-types/src/mcp_management.rs",
+      "crates/vw-api-types/src/mcp_management_tests.rs",
+      "docs/vibewindow/agent-apps/mcp/evidence/任务03.md"
+    ],
+    "command": "cargo test -p vw-api-types --lib cc_mcp_t03_ -- --nocapture"
+  },
+  {
+    "title": "校验连接定义与名称",
+    "kind": "vw-agent-apps",
+    "module": "validation",
+    "behavior": "非法连接和重名在任何文件或进程副作用前被拒绝",
+    "source": "mcp/validation.rs、src/components/mcp/mcpDraft.ts",
+    "detail": "stdio缺省、命令/args/env类型、HTTP/SSE URL协议和headers、空白/重名逐项校验；JSON遮罩不能成为真实凭据。命令可执行性只检查目标主机解析结果，不执行任意shell字符串。",
+    "id": 4,
+    "file": "4-校验连接定义与名称.md",
+    "paths": [
+      "crates/vw-agent-apps/src/mcp/validation.rs",
+      "crates/vw-agent-apps/src/mcp/validation_tests.rs",
+      "docs/vibewindow/agent-apps/mcp/evidence/任务04.md"
+    ],
+    "command": "cargo test -p vw-agent-apps --lib cc_mcp_t04_ -- --nocapture"
+  },
+  {
+    "title": "原生化五项预设",
+    "kind": "vw-agent-apps",
+    "module": "presets",
+    "behavior": "五项预设可列出并生成未启用的合法草稿",
+    "source": "src/config/mcpPresets.ts",
+    "detail": "保留 fetch/time/memory/sequential-thinking/context7 的id、参数、标签与文档链接；macOS 使用直接 uvx/npx，读取预设不下载、不启动服务，不自动覆盖同名记录。",
+    "id": 5,
+    "file": "5-原生化五项预设.md",
+    "paths": [
+      "crates/vw-agent-apps/src/mcp/presets.rs",
+      "crates/vw-agent-apps/src/mcp/presets_tests.rs",
+      "docs/vibewindow/agent-apps/mcp/evidence/任务05.md"
+    ],
+    "command": "cargo test -p vw-agent-apps --lib cc_mcp_t05_ -- --nocapture"
+  },
+  {
+    "title": "新增作用域目录记录",
+    "kind": "vw-agent",
+    "module": "catalog_create",
+    "behavior": "新增记录仅写入请求授权作用域且默认不分发",
+    "source": "services/mcp.rs::upsert_server",
+    "detail": "业务规则放 vw-agent-apps；agent通过底座存储适配保存元数据，使用底座已选后端，不创建第二数据库。验证重名与跨租户隔离；同名原生配置处理留分发预检。",
+    "id": 6,
+    "file": "6-新增作用域目录记录.md",
+    "paths": [
+      "crates/vw-agent/src/agent_apps/mcp/catalog_create.rs",
+      "crates/vw-agent/src/agent_apps/mcp/catalog_create_tests.rs",
+      "docs/vibewindow/agent-apps/mcp/evidence/任务06.md"
+    ],
+    "command": "cargo test -p vw-agent --lib cc_mcp_t06_ -- --nocapture"
+  },
+  {
+    "title": "更新记录并检测旧修订",
+    "kind": "vw-agent",
+    "module": "catalog_update",
+    "behavior": "更新连接定义会推进修订且拒绝陈旧编辑",
+    "source": "services/mcp.rs::upsert_server",
+    "detail": "保留未编辑元数据与凭据引用；旧修订保存明确失败，不覆盖他人更新。此任务只更新目录，后续分发任务负责投影与结果；不得伪报应用已同步。",
+    "id": 7,
+    "file": "7-更新记录并检测旧修订.md",
+    "paths": [
+      "crates/vw-agent/src/agent_apps/mcp/catalog_update.rs",
+      "crates/vw-agent/src/agent_apps/mcp/catalog_update_tests.rs",
+      "docs/vibewindow/agent-apps/mcp/evidence/任务07.md"
+    ],
+    "command": "cargo test -p vw-agent --lib cc_mcp_t07_ -- --nocapture"
+  },
+  {
+    "title": "删除目录并保存撤销目标",
+    "kind": "vw-agent",
+    "module": "catalog_delete",
+    "behavior": "删除后记录不可查询且待清理的既有绑定不会丢失",
+    "source": "services/mcp.rs::delete_server",
+    "detail": "先保留实际目标与撤销结果，再删除可见记录；清理失败可重试并可见，不因目录已删而无法撤销。实际原生文件清理由绑定任务接通。",
+    "id": 8,
+    "file": "8-删除目录并保存撤销目标.md",
+    "paths": [
+      "crates/vw-agent/src/agent_apps/mcp/catalog_delete.rs",
+      "crates/vw-agent/src/agent_apps/mcp/catalog_delete_tests.rs",
+      "docs/vibewindow/agent-apps/mcp/evidence/任务08.md"
+    ],
+    "command": "cargo test -p vw-agent --lib cc_mcp_t08_ -- --nocapture"
+  },
+  {
+    "title": "解析凭据引用与脱敏",
+    "kind": "vw-agent",
+    "module": "credentials",
+    "behavior": "秘密仅在目标主机执行边界解析且不会返回客户端",
+    "source": "src/components/mcp/mcpDraft.ts、services/mcp_connectivity.rs",
+    "detail": "接母任务6凭据引用合同，不新建密钥库。env/headers遮罩往返保留原引用，未知遮罩拒绝；无权限/跨主机引用拒绝；持久化目录、API、日志、失败信息不保存原始令牌。",
+    "id": 9,
+    "file": "9-解析凭据引用与脱敏.md",
+    "paths": [
+      "crates/vw-agent/src/agent_apps/mcp/credentials.rs",
+      "crates/vw-agent/src/agent_apps/mcp/credentials_tests.rs",
+      "docs/vibewindow/agent-apps/mcp/evidence/任务09.md"
+    ],
+    "command": "cargo test -p vw-agent --lib cc_mcp_t09_ -- --nocapture"
+  },
+  {
+    "title": "实现原生文件安全写入",
+    "kind": "vw-agent-apps",
+    "module": "native_file",
+    "behavior": "原生配置并发或解析失败时不会覆盖用户文件",
+    "source": "mcp/mcode.rs、mcp/agy.rs、mcp/dsh.rs、mcode_config.rs",
+    "detail": "复用母任务4执行主机路径与写锁机制；路径不能由客户端任意指定。真实临时目录测试同文件锁、修订预检、原子替换、坏文件保持原字节、符号链接越界拒绝、存储提交失败恢复；仅替换受管字段，保留用户字段和未受管服务。",
+    "id": 10,
+    "file": "10-实现原生文件安全写入.md",
+    "paths": [
+      "crates/vw-agent-apps/src/mcp/native_file.rs",
+      "crates/vw-agent-apps/src/mcp/native_file_tests.rs",
+      "docs/vibewindow/agent-apps/mcp/evidence/任务10.md"
+    ],
+    "command": "cargo test -p vw-agent-apps --lib cc_mcp_t10_ -- --nocapture"
+  },
+  {
+    "title": "实现Claude配置适配",
+    "kind": "vw-agent-apps",
+    "module": "adapters/claude",
+    "behavior": "仅对Claude完成一次受管配置投影及反向读取",
+    "source": "mcp/claude.rs",
+    "detail": "claude_mcp.rs；只改受管 mcpServers，保留 projects 与未知字段；接账号共享镜像的既有服务，隔离账号目录，不操作桌面本机HOME。 同一适配器内验证新增→更新→禁用→删除生命周期及导入等价，不连接真实CLI；遇到不支持传输返回结构化结果。",
+    "id": 11,
+    "file": "11-实现Claude配置适配.md",
+    "paths": [
+      "crates/vw-agent-apps/src/mcp/adapters/claude.rs",
+      "crates/vw-agent-apps/src/mcp/adapters/claude_tests.rs",
+      "docs/vibewindow/agent-apps/mcp/evidence/任务11.md"
+    ],
+    "command": "cargo test -p vw-agent-apps --lib cc_mcp_t11_ -- --nocapture"
+  },
+  {
+    "title": "实现Codex配置适配",
+    "kind": "vw-agent-apps",
+    "module": "adapters/codex",
+    "behavior": "仅对Codex完成一次受管配置投影及反向读取",
+    "source": "mcp/codex.rs",
+    "detail": "保留TOML其他段落；对照 golden/mcp_bytes 的字段投影，HTTP/SSE能力按源实现，不静默丢headers/env。 同一适配器内验证新增→更新→禁用→删除生命周期及导入等价，不连接真实CLI；遇到不支持传输返回结构化结果。",
+    "id": 12,
+    "file": "12-实现Codex配置适配.md",
+    "paths": [
+      "crates/vw-agent-apps/src/mcp/adapters/codex.rs",
+      "crates/vw-agent-apps/src/mcp/adapters/codex_tests.rs",
+      "docs/vibewindow/agent-apps/mcp/evidence/任务12.md"
+    ],
+    "command": "cargo test -p vw-agent-apps --lib cc_mcp_t12_ -- --nocapture"
+  },
+  {
+    "title": "实现Gemini配置适配",
+    "kind": "vw-agent-apps",
+    "module": "adapters/gemini",
+    "behavior": "仅对Gemini完成一次受管配置投影及反向读取",
+    "source": "mcp/gemini.rs",
+    "detail": "HTTP映射httpUrl，SSE映射url；导入补回type，保留settings非MCP字段。 同一适配器内验证新增→更新→禁用→删除生命周期及导入等价，不连接真实CLI；遇到不支持传输返回结构化结果。",
+    "id": 13,
+    "file": "13-实现Gemini配置适配.md",
+    "paths": [
+      "crates/vw-agent-apps/src/mcp/adapters/gemini.rs",
+      "crates/vw-agent-apps/src/mcp/adapters/gemini_tests.rs",
+      "docs/vibewindow/agent-apps/mcp/evidence/任务13.md"
+    ],
+    "command": "cargo test -p vw-agent-apps --lib cc_mcp_t13_ -- --nocapture"
+  },
+  {
+    "title": "实现GrokBuild配置适配",
+    "kind": "vw-agent-apps",
+    "module": "adapters/grokbuild",
+    "behavior": "仅对GrokBuild完成一次受管配置投影及反向读取",
+    "source": "mcp/grokbuild.rs",
+    "detail": "按来源用户配置路径与字段转换；保留非MCP字段，错误不影响其他应用。 同一适配器内验证新增→更新→禁用→删除生命周期及导入等价，不连接真实CLI；遇到不支持传输返回结构化结果。",
+    "id": 14,
+    "file": "14-实现GrokBuild配置适配.md",
+    "paths": [
+      "crates/vw-agent-apps/src/mcp/adapters/grokbuild.rs",
+      "crates/vw-agent-apps/src/mcp/adapters/grokbuild_tests.rs",
+      "docs/vibewindow/agent-apps/mcp/evidence/任务14.md"
+    ],
+    "command": "cargo test -p vw-agent-apps --lib cc_mcp_t14_ -- --nocapture"
+  },
+  {
+    "title": "实现OpenCode配置适配",
+    "kind": "vw-agent-apps",
+    "module": "adapters/opencode",
+    "behavior": "仅对OpenCode完成一次受管配置投影及反向读取",
+    "source": "mcp/opencode.rs",
+    "detail": "统一stdio与local、远程与remote的转换按来源；不把不能无损表达的字段标为成功。 同一适配器内验证新增→更新→禁用→删除生命周期及导入等价，不连接真实CLI；遇到不支持传输返回结构化结果。",
+    "id": 15,
+    "file": "15-实现OpenCode配置适配.md",
+    "paths": [
+      "crates/vw-agent-apps/src/mcp/adapters/opencode.rs",
+      "crates/vw-agent-apps/src/mcp/adapters/opencode_tests.rs",
+      "docs/vibewindow/agent-apps/mcp/evidence/任务15.md"
+    ],
+    "command": "cargo test -p vw-agent-apps --lib cc_mcp_t15_ -- --nocapture"
+  },
+  {
+    "title": "实现Hermes配置适配",
+    "kind": "vw-agent-apps",
+    "module": "adapters/hermes",
+    "behavior": "仅对Hermes完成一次受管配置投影及反向读取",
+    "source": "mcp/hermes.rs",
+    "detail": "沿用源配置格式与路径，保留不受管字段，明确各传输的支持结果。 同一适配器内验证新增→更新→禁用→删除生命周期及导入等价，不连接真实CLI；遇到不支持传输返回结构化结果。",
+    "id": 16,
+    "file": "16-实现Hermes配置适配.md",
+    "paths": [
+      "crates/vw-agent-apps/src/mcp/adapters/hermes.rs",
+      "crates/vw-agent-apps/src/mcp/adapters/hermes_tests.rs",
+      "docs/vibewindow/agent-apps/mcp/evidence/任务16.md"
+    ],
+    "command": "cargo test -p vw-agent-apps --lib cc_mcp_t16_ -- --nocapture"
+  },
+  {
+    "title": "实现Pi配置适配",
+    "kind": "vw-agent-apps",
+    "module": "adapters/pi",
+    "behavior": "仅对Pi完成一次受管配置投影及反向读取",
+    "source": "mcp/pi.rs",
+    "detail": "复用来源transport_spec/unified_spec字段规则和禁用语义，不因发现项目或外部配置重新激活受管禁用项。 同一适配器内验证新增→更新→禁用→删除生命周期及导入等价，不连接真实CLI；遇到不支持传输返回结构化结果。",
+    "id": 17,
+    "file": "17-实现Pi配置适配.md",
+    "paths": [
+      "crates/vw-agent-apps/src/mcp/adapters/pi.rs",
+      "crates/vw-agent-apps/src/mcp/adapters/pi_tests.rs",
+      "docs/vibewindow/agent-apps/mcp/evidence/任务17.md"
+    ],
+    "command": "cargo test -p vw-agent-apps --lib cc_mcp_t17_ -- --nocapture"
+  },
+  {
+    "title": "实现Mcode配置适配",
+    "kind": "vw-agent-apps",
+    "module": "adapters/mcode",
+    "behavior": "仅对Mcode完成一次受管配置投影及反向读取",
+    "source": "mcp/mcode.rs",
+    "detail": "保留逐服务选项；文件写入与目录提交失败的恢复按来源write_and_commit语义。 同一适配器内验证新增→更新→禁用→删除生命周期及导入等价，不连接真实CLI；遇到不支持传输返回结构化结果。",
+    "id": 18,
+    "file": "18-实现Mcode配置适配.md",
+    "paths": [
+      "crates/vw-agent-apps/src/mcp/adapters/mcode.rs",
+      "crates/vw-agent-apps/src/mcp/adapters/mcode_tests.rs",
+      "docs/vibewindow/agent-apps/mcp/evidence/任务18.md"
+    ],
+    "command": "cargo test -p vw-agent-apps --lib cc_mcp_t18_ -- --nocapture"
+  },
+  {
+    "title": "实现Kimi配置适配",
+    "kind": "vw-agent-apps",
+    "module": "adapters/kimi",
+    "behavior": "仅对Kimi完成一次受管配置投影及反向读取",
+    "source": "mcp/kimi.rs",
+    "detail": "SSE转transport字段，导入恢复统一type；保留其他属性并拒绝坏mcpServers结构。 同一适配器内验证新增→更新→禁用→删除生命周期及导入等价，不连接真实CLI；遇到不支持传输返回结构化结果。",
+    "id": 19,
+    "file": "19-实现Kimi配置适配.md",
+    "paths": [
+      "crates/vw-agent-apps/src/mcp/adapters/kimi.rs",
+      "crates/vw-agent-apps/src/mcp/adapters/kimi_tests.rs",
+      "docs/vibewindow/agent-apps/mcp/evidence/任务19.md"
+    ],
+    "command": "cargo test -p vw-agent-apps --lib cc_mcp_t19_ -- --nocapture"
+  },
+  {
+    "title": "实现DSH配置适配",
+    "kind": "vw-agent-apps",
+    "module": "adapters/dsh",
+    "behavior": "仅对DSH完成一次受管配置投影及反向读取",
+    "source": "mcp/dsh.rs",
+    "detail": "沿用源原生字段/传输和sync_and_commit行为，坏配置拒绝，目录提交失败恢复原文件。 同一适配器内验证新增→更新→禁用→删除生命周期及导入等价，不连接真实CLI；遇到不支持传输返回结构化结果。",
+    "id": 20,
+    "file": "20-实现DSH配置适配.md",
+    "paths": [
+      "crates/vw-agent-apps/src/mcp/adapters/dsh.rs",
+      "crates/vw-agent-apps/src/mcp/adapters/dsh_tests.rs",
+      "docs/vibewindow/agent-apps/mcp/evidence/任务20.md"
+    ],
+    "command": "cargo test -p vw-agent-apps --lib cc_mcp_t20_ -- --nocapture"
+  },
+  {
+    "title": "实现AGY配置适配",
+    "kind": "vw-agent-apps",
+    "module": "adapters/agy",
+    "behavior": "仅对AGY完成一次受管配置投影及反向读取",
+    "source": "mcp/agy.rs",
+    "detail": "HTTP转serverUrl，保留timeout等选项；禁用设置disabled，删除才移除；SSE明确拒绝且不写文件。 同一适配器内验证新增→更新→禁用→删除生命周期及导入等价，不连接真实CLI；遇到不支持传输返回结构化结果。",
+    "id": 21,
+    "file": "21-实现AGY配置适配.md",
+    "paths": [
+      "crates/vw-agent-apps/src/mcp/adapters/agy.rs",
+      "crates/vw-agent-apps/src/mcp/adapters/agy_tests.rs",
+      "docs/vibewindow/agent-apps/mcp/evidence/任务21.md"
+    ],
+    "command": "cargo test -p vw-agent-apps --lib cc_mcp_t21_ -- --nocapture"
+  },
+  {
+    "title": "实现OhMyPi配置适配",
+    "kind": "vw-agent-apps",
+    "module": "adapters/omp",
+    "behavior": "仅对OhMyPi完成一次受管配置投影及反向读取",
+    "source": "mcp/omp.rs",
+    "detail": "复用Pi转换规则；禁用更新用户denylist阻止项目/外部发现重新激活，删除清理受管项，保留其它白/黑名单与选项。 同一适配器内验证新增→更新→禁用→删除生命周期及导入等价，不连接真实CLI；遇到不支持传输返回结构化结果。",
+    "id": 22,
+    "file": "22-实现OhMyPi配置适配.md",
+    "paths": [
+      "crates/vw-agent-apps/src/mcp/adapters/omp.rs",
+      "crates/vw-agent-apps/src/mcp/adapters/omp_tests.rs",
+      "docs/vibewindow/agent-apps/mcp/evidence/任务22.md"
+    ],
+    "command": "cargo test -p vw-agent-apps --lib cc_mcp_t22_ -- --nocapture"
+  },
+  {
+    "title": "聚合导入并报告冲突",
+    "kind": "vw-agent",
+    "module": "import",
+    "behavior": "多应用导入保留成功项并逐项返回坏文件和同名冲突",
+    "source": "services/mcp.rs::import_from_all_apps",
+    "detail": "复用十二适配器反向读取；同名相同定义合并绑定，不同定义显式冲突，不覆盖已有目录；重复导入幂等。导入只登记配置，不执行命令或连接；返回源应用与目标主机。",
+    "id": 23,
+    "file": "23-聚合导入并报告冲突.md",
+    "paths": [
+      "crates/vw-agent/src/agent_apps/mcp/import.rs",
+      "crates/vw-agent/src/agent_apps/mcp/import_tests.rs",
+      "docs/vibewindow/agent-apps/mcp/evidence/任务23.md"
+    ],
+    "command": "cargo test -p vw-agent --lib cc_mcp_t23_ -- --nocapture"
+  },
+  {
+    "title": "接通单应用绑定与撤销",
+    "kind": "vw-agent",
+    "module": "binding",
+    "behavior": "单应用绑定变更会真实投影且失败时保留明确可重试状态",
+    "source": "services/mcp.rs::toggle_app_locked",
+    "detail": "授权绑定目标后解析凭据和主机路径，使用应用写锁；新增/更新/禁用/删除调用适配器；实际状态与期望状态分别返回，不能将落库成功当分发成功。接通删除任务保留的撤销目标。",
+    "id": 24,
+    "file": "24-接通单应用绑定与撤销.md",
+    "paths": [
+      "crates/vw-agent/src/agent_apps/mcp/binding.rs",
+      "crates/vw-agent/src/agent_apps/mcp/binding_tests.rs",
+      "docs/vibewindow/agent-apps/mcp/evidence/任务24.md"
+    ],
+    "command": "cargo test -p vw-agent --lib cc_mcp_t24_ -- --nocapture"
+  },
+  {
+    "title": "实现同应用批量启停",
+    "kind": "vw-agent",
+    "module": "bulk",
+    "behavior": "同应用多服务批量启停不会丢失整文件更新",
+    "source": "src/hooks/useMcp.ts::useBulkToggleMcpApp",
+    "detail": "对同目标配置串行处理，逐项报告成功/失败；一项失败不回滚其它已完成项目，不从UI并发发起整文件覆盖；重复请求不重复副作用。",
+    "id": 25,
+    "file": "25-实现同应用批量启停.md",
+    "paths": [
+      "crates/vw-agent/src/agent_apps/mcp/bulk.rs",
+      "crates/vw-agent/src/agent_apps/mcp/bulk_tests.rs",
+      "docs/vibewindow/agent-apps/mcp/evidence/任务25.md"
+    ],
+    "command": "cargo test -p vw-agent --lib cc_mcp_t25_ -- --nocapture"
+  },
+  {
+    "title": "实现定向重新同步",
+    "kind": "vw-agent",
+    "module": "resync",
+    "behavior": "指定应用重同步可修复漂移且单应用失败不阻断其他目标",
+    "source": "services/mcp.rs::resync_targets、resync_app、project_servers_to_app",
+    "detail": "空目标采用全部受管应用，去重，未知/不支持应用显式错误；仅改受管项，保留外部用户项；只把所选应用纳入执行，输出逐目标结果，复用底座任务进度/取消，取消不宣称回滚已写项。",
+    "id": 26,
+    "file": "26-实现定向重新同步.md",
+    "paths": [
+      "crates/vw-agent/src/agent_apps/mcp/resync.rs",
+      "crates/vw-agent/src/agent_apps/mcp/resync_tests.rs",
+      "docs/vibewindow/agent-apps/mcp/evidence/任务26.md"
+    ],
+    "command": "cargo test -p vw-agent --lib cc_mcp_t26_ -- --nocapture"
+  },
+  {
+    "title": "接入运行时目录选择",
+    "kind": "vw-agent",
+    "module": "runtime",
+    "behavior": "选择受管MCP后通过现有发现链路暴露真实工具",
+    "source": "tools/mcp_common/mod.rs、plugins/mcp.rs",
+    "detail": "接现有load_resolved_acp_config_from和merge_runtime_mcp_servers；不复制连接池；明确全局/项目/插件同名优先级与冲突，目录中的CLI应用绑定不能自动启用识矩运行时。",
+    "id": 27,
+    "file": "27-接入运行时目录选择.md",
+    "paths": [
+      "crates/vw-agent/src/agent_apps/mcp/runtime.rs",
+      "crates/vw-agent/src/agent_apps/mcp/runtime_tests.rs",
+      "docs/vibewindow/agent-apps/mcp/evidence/任务27.md"
+    ],
+    "command": "cargo test -p vw-agent --lib cc_mcp_t27_ -- --nocapture"
+  },
+  {
+    "title": "撤销运行时旧工具",
+    "kind": "vw-agent",
+    "module": "revocation",
+    "behavior": "更新禁用删除后新请求无法再调用旧修订工具",
+    "source": "plugins/compat/mcp_catalog_refresh.rs、plugins/compat/mcp_connections.rs",
+    "detail": "复用目录修订、连接租约、会话工具刷新与既有权限；真实服务测试旧工具缓存失效、新工具可用、禁用后发现/调用拒绝；在途已授权调用按既有语义处理，不扩大权限。",
+    "id": 28,
+    "file": "28-撤销运行时旧工具.md",
+    "paths": [
+      "crates/vw-agent/src/agent_apps/mcp/revocation.rs",
+      "crates/vw-agent/src/agent_apps/mcp/revocation_tests.rs",
+      "docs/vibewindow/agent-apps/mcp/evidence/任务28.md"
+    ],
+    "command": "cargo test -p vw-agent --lib cc_mcp_t28_ -- --nocapture"
+  },
+  {
+    "title": "接入ACP会话外挂选择",
+    "kind": "vw-agent",
+    "module": "acp_mount",
+    "behavior": "ACP会话外挂仅收到会话选择和授权范围内的MCP",
+    "source": "acp/mcp.rs、acp/mounts.rs、session/llm/acp/skill_mounts/",
+    "detail": "复用既有ACP挂载合同；母任务及动态工具/ACP计划拥有底层会话机制，本任务只接管理目录选择与修订；刷新/恢复后撤销不复活，不复建会话客户端池；原生CLI配置绑定与外挂独立。",
+    "id": 29,
+    "file": "29-接入ACP会话外挂选择.md",
+    "paths": [
+      "crates/vw-agent/src/agent_apps/mcp/acp_mount.rs",
+      "crates/vw-agent/src/agent_apps/mcp/acp_mount_tests.rs",
+      "docs/vibewindow/agent-apps/mcp/evidence/任务29.md"
+    ],
+    "command": "cargo test -p vw-agent --lib cc_mcp_t29_ -- --nocapture"
+  },
+  {
+    "title": "复用连接执行并返回诊断",
+    "kind": "vw-agent",
+    "module": "connectivity",
+    "behavior": "显式连接测试能完成握手和工具发现并输出脱敏结果",
+    "source": "services/mcp_connectivity.rs、tools/mcp_inspect.rs",
+    "detail": "复用现有MCP连接基础设施，在目标主机运行；使用真实stdio进程和loopback HTTP/SSE夹具；参数/env/headers/cwd验证，连接/发现错误分开，超时有界；读取目录和进入页面不得启动连接。",
+    "id": 30,
+    "file": "30-复用连接执行并返回诊断.md",
+    "paths": [
+      "crates/vw-agent/src/agent_apps/mcp/connectivity.rs",
+      "crates/vw-agent/src/agent_apps/mcp/connectivity_tests.rs",
+      "docs/vibewindow/agent-apps/mcp/evidence/任务30.md"
+    ],
+    "command": "cargo test -p vw-agent --lib cc_mcp_t30_ -- --nocapture"
+  },
+  {
+    "title": "实现连接批次取消与代次",
+    "kind": "vw-agent",
+    "module": "probe_jobs",
+    "behavior": "取消连接批次会终止排队和所属子进程且旧代次结果不能覆盖新配置",
+    "source": "services/mcp_connectivity.rs、src/hooks/useMcpConnectivity.ts",
+    "detail": "复用底座任务/事件服务；最多3个活动探测且跨批次共享限额，单服务30秒上限不含排队；取消只能影响所属任务，处理注册晚于取消竞态；配置修订与请求代次绑定结果，无后台轮询或自动重试。",
+    "id": 31,
+    "file": "31-实现连接批次取消与代次.md",
+    "paths": [
+      "crates/vw-agent/src/agent_apps/mcp/probe_jobs.rs",
+      "crates/vw-agent/src/agent_apps/mcp/probe_jobs_tests.rs",
+      "docs/vibewindow/agent-apps/mcp/evidence/任务31.md"
+    ],
+    "command": "cargo test -p vw-agent --lib cc_mcp_t31_ -- --nocapture"
+  },
+  {
+    "title": "接通目录读取与原生预览API",
+    "kind": "vw-agent",
+    "module": "api_read",
+    "behavior": "目录/能力/预设读取与脱敏原生状态预览不触发连接；仅允许受管应用路径，未知应用或越权返回明确错误",
+    "source": "commands/mcp.rs、gateway/api/handlers/mcp.rs",
+    "detail": "GET /v1/agent-apps/mcp；GET /v1/agent-apps/mcp/presets；GET /v1/agent-apps/mcp/native。本计划新增路由，沿用底座认证/成员授权/执行主机解析，不按Tauri命令名动态调用；集成测试经过真实router与认证中间件，覆盖未认证/跨租户拒绝。",
+    "id": 32,
+    "file": "32-接通目录读取与原生预览API.md",
+    "paths": [
+      "crates/vw-agent/src/gateway/api/handlers/mcp_management_read.rs",
+      "crates/vw-agent/src/gateway/api/handlers/mcp_management_read_tests.rs",
+      "docs/vibewindow/agent-apps/mcp/evidence/任务32.md"
+    ],
+    "command": "cargo test -p vw-agent --lib cc_mcp_t32_ -- --nocapture"
+  },
+  {
+    "title": "接通新增目录API",
+    "kind": "vw-agent",
+    "module": "api_create",
+    "behavior": "新增调用校验与作用域存储，成功/重名/非法定义结果可区分",
+    "source": "commands/mcp.rs、gateway/api/handlers/mcp.rs",
+    "detail": "POST /v1/agent-apps/mcp。本计划新增路由，沿用底座认证/成员授权/执行主机解析，不按Tauri命令名动态调用；集成测试经过真实router与认证中间件，覆盖未认证/跨租户拒绝。",
+    "id": 33,
+    "file": "33-接通新增目录API.md",
+    "paths": [
+      "crates/vw-agent/src/gateway/api/handlers/mcp_management_create.rs",
+      "crates/vw-agent/src/gateway/api/handlers/mcp_management_create_tests.rs",
+      "docs/vibewindow/agent-apps/mcp/evidence/任务33.md"
+    ],
+    "command": "cargo test -p vw-agent --lib cc_mcp_t33_ -- --nocapture"
+  },
+  {
+    "title": "接通更新目录API",
+    "kind": "vw-agent",
+    "module": "api_update",
+    "behavior": "更新校验修订，陈旧请求拒绝，不误报同步成功",
+    "source": "commands/mcp.rs、gateway/api/handlers/mcp.rs",
+    "detail": "PUT /v1/agent-apps/mcp/{id}。本计划新增路由，沿用底座认证/成员授权/执行主机解析，不按Tauri命令名动态调用；集成测试经过真实router与认证中间件，覆盖未认证/跨租户拒绝。",
+    "id": 34,
+    "file": "34-接通更新目录API.md",
+    "paths": [
+      "crates/vw-agent/src/gateway/api/handlers/mcp_management_update.rs",
+      "crates/vw-agent/src/gateway/api/handlers/mcp_management_update_tests.rs",
+      "docs/vibewindow/agent-apps/mcp/evidence/任务34.md"
+    ],
+    "command": "cargo test -p vw-agent --lib cc_mcp_t34_ -- --nocapture"
+  },
+  {
+    "title": "接通删除目录API",
+    "kind": "vw-agent",
+    "module": "api_delete",
+    "behavior": "删除调用撤销服务，部分清理失败返回逐目标结果",
+    "source": "commands/mcp.rs、gateway/api/handlers/mcp.rs",
+    "detail": "DELETE /v1/agent-apps/mcp/{id}。本计划新增路由，沿用底座认证/成员授权/执行主机解析，不按Tauri命令名动态调用；集成测试经过真实router与认证中间件，覆盖未认证/跨租户拒绝。",
+    "id": 35,
+    "file": "35-接通删除目录API.md",
+    "paths": [
+      "crates/vw-agent/src/gateway/api/handlers/mcp_management_delete.rs",
+      "crates/vw-agent/src/gateway/api/handlers/mcp_management_delete_tests.rs",
+      "docs/vibewindow/agent-apps/mcp/evidence/任务35.md"
+    ],
+    "command": "cargo test -p vw-agent --lib cc_mcp_t35_ -- --nocapture"
+  },
+  {
+    "title": "接通应用绑定与批量启停API",
+    "kind": "vw-agent",
+    "module": "api_bindings",
+    "behavior": "绑定与同应用批量启停返回实际分发结果，未知应用/作用域越权无文件副作用",
+    "source": "commands/mcp.rs、gateway/api/handlers/mcp.rs",
+    "detail": "PUT /v1/agent-apps/mcp/{id}/bindings；POST /v1/agent-apps/mcp/bulk。本计划新增路由，沿用底座认证/成员授权/执行主机解析，不按Tauri命令名动态调用；集成测试经过真实router与认证中间件，覆盖未认证/跨租户拒绝。",
+    "id": 36,
+    "file": "36-接通应用绑定与批量启停API.md",
+    "paths": [
+      "crates/vw-agent/src/gateway/api/handlers/mcp_management_bindings.rs",
+      "crates/vw-agent/src/gateway/api/handlers/mcp_management_bindings_tests.rs",
+      "docs/vibewindow/agent-apps/mcp/evidence/任务36.md"
+    ],
+    "command": "cargo test -p vw-agent --lib cc_mcp_t36_ -- --nocapture"
+  },
+  {
+    "title": "接通应用导入API",
+    "kind": "vw-agent",
+    "module": "api_import",
+    "behavior": "导入返回新增/合并/冲突/失败项，部分成功不丢失落库结果",
+    "source": "commands/mcp.rs、gateway/api/handlers/mcp.rs",
+    "detail": "POST /v1/agent-apps/mcp/import。本计划新增路由，沿用底座认证/成员授权/执行主机解析，不按Tauri命令名动态调用；集成测试经过真实router与认证中间件，覆盖未认证/跨租户拒绝。",
+    "id": 37,
+    "file": "37-接通应用导入API.md",
+    "paths": [
+      "crates/vw-agent/src/gateway/api/handlers/mcp_management_import.rs",
+      "crates/vw-agent/src/gateway/api/handlers/mcp_management_import_tests.rs",
+      "docs/vibewindow/agent-apps/mcp/evidence/任务37.md"
+    ],
+    "command": "cargo test -p vw-agent --lib cc_mcp_t37_ -- --nocapture"
+  },
+  {
+    "title": "接通重新同步API",
+    "kind": "vw-agent",
+    "module": "api_resync",
+    "behavior": "返回底座作业引用和逐应用结果，复用底座查询/取消入口",
+    "source": "commands/mcp.rs、gateway/api/handlers/mcp.rs",
+    "detail": "POST /v1/agent-apps/mcp/resync。本计划新增路由，沿用底座认证/成员授权/执行主机解析，不按Tauri命令名动态调用；集成测试经过真实router与认证中间件，覆盖未认证/跨租户拒绝。",
+    "id": 38,
+    "file": "38-接通重新同步API.md",
+    "paths": [
+      "crates/vw-agent/src/gateway/api/handlers/mcp_management_resync.rs",
+      "crates/vw-agent/src/gateway/api/handlers/mcp_management_resync_tests.rs",
+      "docs/vibewindow/agent-apps/mcp/evidence/任务38.md"
+    ],
+    "command": "cargo test -p vw-agent --lib cc_mcp_t38_ -- --nocapture"
+  },
+  {
+    "title": "接通连接测试与取消API",
+    "kind": "vw-agent",
+    "module": "api_probe",
+    "behavior": "启动返回作业标识；状态、事件、取消复用底座合同且只能访问所属批次",
+    "source": "commands/mcp.rs、gateway/api/handlers/mcp.rs",
+    "detail": "POST /v1/agent-apps/mcp/checks。本计划新增路由，沿用底座认证/成员授权/执行主机解析，不按Tauri命令名动态调用；集成测试经过真实router与认证中间件，覆盖未认证/跨租户拒绝。",
+    "id": 39,
+    "file": "39-接通连接测试与取消API.md",
+    "paths": [
+      "crates/vw-agent/src/gateway/api/handlers/mcp_management_probe.rs",
+      "crates/vw-agent/src/gateway/api/handlers/mcp_management_probe_tests.rs",
+      "docs/vibewindow/agent-apps/mcp/evidence/任务39.md"
+    ],
+    "command": "cargo test -p vw-agent --lib cc_mcp_t39_ -- --nocapture"
+  },
+  {
+    "title": "提供目录读取SDK",
+    "kind": "vw-gateway-client",
+    "module": "sdk_read",
+    "behavior": "SDK能类型化传递目录、预设、应用能力、脱敏原生状态/配置预览",
+    "source": "src/lib/api/mcp.ts、client/mcp_api.rs",
+    "detail": "复用GatewayClient传输、认证、目标上下文和错误合同；通过真实loopback测试服务器记录路径/方法/JSON/响应解码，既有mcp_inspect/mcp_app_call不退化。",
+    "id": 40,
+    "file": "40-提供目录读取SDK.md",
+    "paths": [
+      "crates/vw-gateway-client/src/client/mcp_management_read.rs",
+      "crates/vw-gateway-client/src/client/mcp_management_read_tests.rs",
+      "docs/vibewindow/agent-apps/mcp/evidence/任务40.md"
+    ],
+    "command": "cargo test -p vw-gateway-client --lib cc_mcp_t40_ -- --nocapture"
+  },
+  {
+    "title": "提供目录写入SDK",
+    "kind": "vw-gateway-client",
+    "module": "sdk_write",
+    "behavior": "SDK能类型化传递新增、更新、删除及修订/部分失败结果",
+    "source": "src/lib/api/mcp.ts、client/mcp_api.rs",
+    "detail": "复用GatewayClient传输、认证、目标上下文和错误合同；通过真实loopback测试服务器记录路径/方法/JSON/响应解码，既有mcp_inspect/mcp_app_call不退化。",
+    "id": 41,
+    "file": "41-提供目录写入SDK.md",
+    "paths": [
+      "crates/vw-gateway-client/src/client/mcp_management_write.rs",
+      "crates/vw-gateway-client/src/client/mcp_management_write_tests.rs",
+      "docs/vibewindow/agent-apps/mcp/evidence/任务41.md"
+    ],
+    "command": "cargo test -p vw-gateway-client --lib cc_mcp_t41_ -- --nocapture"
+  },
+  {
+    "title": "提供应用分发SDK",
+    "kind": "vw-gateway-client",
+    "module": "sdk_distribution",
+    "behavior": "SDK能类型化传递导入、绑定、批量启停、重新同步及底座任务引用",
+    "source": "src/lib/api/mcp.ts、client/mcp_api.rs",
+    "detail": "复用GatewayClient传输、认证、目标上下文和错误合同；通过真实loopback测试服务器记录路径/方法/JSON/响应解码，既有mcp_inspect/mcp_app_call不退化。",
+    "id": 42,
+    "file": "42-提供应用分发SDK.md",
+    "paths": [
+      "crates/vw-gateway-client/src/client/mcp_management_distribution.rs",
+      "crates/vw-gateway-client/src/client/mcp_management_distribution_tests.rs",
+      "docs/vibewindow/agent-apps/mcp/evidence/任务42.md"
+    ],
+    "command": "cargo test -p vw-gateway-client --lib cc_mcp_t42_ -- --nocapture"
+  },
+  {
+    "title": "提供连接作业SDK",
+    "kind": "vw-gateway-client",
+    "module": "sdk_probe",
+    "behavior": "SDK能类型化传递主动检查、状态事件及取消，连接结果绑定服务修订",
+    "source": "src/lib/api/mcp.ts、client/mcp_api.rs",
+    "detail": "复用GatewayClient传输、认证、目标上下文和错误合同；通过真实loopback测试服务器记录路径/方法/JSON/响应解码，既有mcp_inspect/mcp_app_call不退化。",
+    "id": 43,
+    "file": "43-提供连接作业SDK.md",
+    "paths": [
+      "crates/vw-gateway-client/src/client/mcp_management_probe.rs",
+      "crates/vw-gateway-client/src/client/mcp_management_probe_tests.rs",
+      "docs/vibewindow/agent-apps/mcp/evidence/任务43.md"
+    ],
+    "command": "cargo test -p vw-gateway-client --lib cc_mcp_t43_ -- --nocapture"
+  },
+  {
+    "title": "实现桌面目录列表",
+    "kind": "vw-desktop",
+    "module": "ui_list",
+    "behavior": "列表显示目录、三种使用范围和真实分发状态",
+    "source": "src/components/mcp/、src/hooks/useMcp.ts、src/hooks/useMcpConnectivity.ts",
+    "detail": "读取仅调用SDK；显示错误/空态/不支持，切换网关或租户丢弃旧响应；复用现有system_settings_mcp入口。",
+    "id": 44,
+    "file": "44-实现桌面目录列表.md",
+    "paths": [
+      "crates/vw-desktop/src/app/message/settings/mcp_management_list.rs",
+      "crates/vw-desktop/src/app/message/settings/mcp_management_list_tests.rs",
+      "docs/vibewindow/agent-apps/mcp/evidence/任务44.md"
+    ],
+    "command": "cargo test -p vw-desktop --lib cc_mcp_t44_ -- --nocapture"
+  },
+  {
+    "title": "实现桌面连接编辑弹窗",
+    "kind": "vw-desktop",
+    "module": "ui_form",
+    "behavior": "图形与JSON编辑保存同一Rust校验后的定义",
+    "source": "src/components/mcp/、src/hooks/useMcp.ts、src/hooks/useMcpConnectivity.ts",
+    "detail": "预设进入未启用草稿；参数/env/headers/凭据引用编辑及JSON错误定位；未知遮罩拒绝，保存失败不丢草稿，成功/失败后均重新读取目录状态。",
+    "id": 45,
+    "file": "45-实现桌面连接编辑弹窗.md",
+    "paths": [
+      "crates/vw-desktop/src/app/message/settings/mcp_management_form.rs",
+      "crates/vw-desktop/src/app/message/settings/mcp_management_form_tests.rs",
+      "docs/vibewindow/agent-apps/mcp/evidence/任务45.md"
+    ],
+    "command": "cargo test -p vw-desktop --lib cc_mcp_t45_ -- --nocapture"
+  },
+  {
+    "title": "实现桌面应用绑定矩阵",
+    "kind": "vw-desktop",
+    "module": "ui_bindings",
+    "behavior": "矩阵可单项及批量启停并展示逐项目标结果",
+    "source": "src/components/mcp/、src/hooks/useMcp.ts、src/hooks/useMcpConnectivity.ts",
+    "detail": "十四应用均可识别；两个不支持应用给原因；运行时与ACP选择独立，部分失败不显示全成功。",
+    "id": 46,
+    "file": "46-实现桌面应用绑定矩阵.md",
+    "paths": [
+      "crates/vw-desktop/src/app/message/settings/mcp_management_bindings.rs",
+      "crates/vw-desktop/src/app/message/settings/mcp_management_bindings_tests.rs",
+      "docs/vibewindow/agent-apps/mcp/evidence/任务46.md"
+    ],
+    "command": "cargo test -p vw-desktop --lib cc_mcp_t46_ -- --nocapture"
+  },
+  {
+    "title": "实现桌面导入确认",
+    "kind": "vw-desktop",
+    "module": "ui_import",
+    "behavior": "导入确认展示冲突和已导入项",
+    "source": "src/components/mcp/、src/hooks/useMcp.ts、src/hooks/useMcpConnectivity.ts",
+    "detail": "支持脱敏原生预览、导入和深链草稿确认入口；浏览器/剪贴板为本机操作，文件读取在目标主机；取消确认不写入。",
+    "id": 47,
+    "file": "47-实现桌面导入确认.md",
+    "paths": [
+      "crates/vw-desktop/src/app/message/settings/mcp_management_import.rs",
+      "crates/vw-desktop/src/app/message/settings/mcp_management_import_tests.rs",
+      "docs/vibewindow/agent-apps/mcp/evidence/任务47.md"
+    ],
+    "command": "cargo test -p vw-desktop --lib cc_mcp_t47_ -- --nocapture"
+  },
+  {
+    "title": "实现桌面重新同步进度",
+    "kind": "vw-desktop",
+    "module": "ui_resync",
+    "behavior": "选定应用重同步后可见进度取消和逐目标失败",
+    "source": "src/components/mcp/、src/hooks/useMcp.ts、src/hooks/useMcpConnectivity.ts",
+    "detail": "失败后重新拉取实际目录/目标状态，允许仅重试失败目标；保存/取消/刷新/重试按钮统一样式。",
+    "id": 48,
+    "file": "48-实现桌面重新同步进度.md",
+    "paths": [
+      "crates/vw-desktop/src/app/message/settings/mcp_management_resync.rs",
+      "crates/vw-desktop/src/app/message/settings/mcp_management_resync_tests.rs",
+      "docs/vibewindow/agent-apps/mcp/evidence/任务48.md"
+    ],
+    "command": "cargo test -p vw-desktop --lib cc_mcp_t48_ -- --nocapture"
+  },
+  {
+    "title": "实现桌面连接检查状态",
+    "kind": "vw-desktop",
+    "module": "ui_probe",
+    "behavior": "用户点击才探测且过期结果不覆盖新定义",
+    "source": "src/components/mcp/、src/hooks/useMcp.ts、src/hooks/useMcpConnectivity.ts",
+    "detail": "离页取消，注册晚于取消仍执行撤销；更新/禁用/删除清除旧结果；不在加载/焦点/定时器触发，显示unchecked/checking/connected/error/cancelled。",
+    "id": 49,
+    "file": "49-实现桌面连接检查状态.md",
+    "paths": [
+      "crates/vw-desktop/src/app/message/settings/mcp_management_probe.rs",
+      "crates/vw-desktop/src/app/message/settings/mcp_management_probe_tests.rs",
+      "docs/vibewindow/agent-apps/mcp/evidence/任务49.md"
+    ],
+    "command": "cargo test -p vw-desktop --lib cc_mcp_t49_ -- --nocapture"
+  },
+  {
+    "title": "实现桌面工具详情与使用范围",
+    "kind": "vw-desktop",
+    "module": "ui_tools",
+    "behavior": "详情显示实际发现工具与运行时ACP选择结果",
+    "source": "src/components/mcp/、src/hooks/useMcp.ts、src/hooks/useMcpConnectivity.ts",
+    "detail": "复用inspect工具规格与权限视图；错误分项呈现，不把连接成功当已授权可调用；列表不能暴露原始凭据。",
+    "id": 50,
+    "file": "50-实现桌面工具详情与使用范围.md",
+    "paths": [
+      "crates/vw-desktop/src/app/message/settings/mcp_management_tools.rs",
+      "crates/vw-desktop/src/app/message/settings/mcp_management_tools_tests.rs",
+      "docs/vibewindow/agent-apps/mcp/evidence/任务50.md"
+    ],
+    "command": "cargo test -p vw-desktop --lib cc_mcp_t50_ -- --nocapture"
+  },
+  {
+    "title": "回归权限与凭据边界",
+    "kind": "vw-agent",
+    "module": "security",
+    "behavior": "跨租户跨账号请求在存储文件和进程副作用前被拒绝",
+    "source": "gateway/middleware.rs、gateway/api/auth.rs",
+    "detail": "用两个租户/账号和两套临时目录经真实API验证读取、写入、分发、连接、查询/取消作业；结果和日志对植入的env/header令牌无匹配，不使用只验证mock调用次数的测试。",
+    "id": 51,
+    "file": "51-回归权限与凭据边界.md",
+    "paths": [
+      "crates/vw-agent/src/agent_apps/mcp/security.rs",
+      "crates/vw-agent/src/agent_apps/mcp/security_tests.rs",
+      "docs/vibewindow/agent-apps/mcp/evidence/任务51.md"
+    ],
+    "command": "cargo test -p vw-agent --lib cc_mcp_t51_ -- --nocapture"
+  },
+  {
+    "title": "回归执行主机隔离",
+    "kind": "vw-agent",
+    "module": "host_scope",
+    "behavior": "不可达目标不会回退桌面本机或错误HOME路径",
+    "source": "gateway/api/handlers/、config/",
+    "detail": "同机不同用户根目录与可信目标主机合同验证；未交付远程执行通道必须显式拒绝，不能为验收新建WSS；不同主机同名服务互不污染。",
+    "id": 52,
+    "file": "52-回归执行主机隔离.md",
+    "paths": [
+      "crates/vw-agent/src/agent_apps/mcp/host_scope.rs",
+      "crates/vw-agent/src/agent_apps/mcp/host_scope_tests.rs",
+      "docs/vibewindow/agent-apps/mcp/evidence/任务52.md"
+    ],
+    "command": "cargo test -p vw-agent --lib cc_mcp_t52_ -- --nocapture"
+  },
+  {
+    "title": "验收macOS的Claude分发",
+    "kind": "accept",
+    "module": "claude",
+    "behavior": "macOS上Claude真实消费受管MCP并完成撤销",
+    "source": "mcp/claude.rs",
+    "detail": "只验收这一应用；记录macOS架构/版本、应用版本、隔离用户目录及目标主机。通过API→SDK对应操作完成新增/更新/禁用/删除/重新同步/导入；用本地无秘密MCP夹具验证工具可发现/调用、撤销后新请求不可调用；各传输按来源能力表，失败不得伪造通过。应用未安装、无法隔离或缺账号必须记录未验证并保留任务，不操作用户真实配置。claude_mcp.rs；只改受管 mcpServers，保留 projects 与未知字段；接账号共享镜像的既有服务，隔离账号目录，不操作桌面本机HOME。",
+    "id": 53,
+    "file": "53-验收macOS的Claude分发.md",
+    "paths": [
+      "docs/vibewindow/agent-apps/mcp/evidence/claude.md"
+    ],
+    "command": ""
+  },
+  {
+    "title": "验收macOS的Codex分发",
+    "kind": "accept",
+    "module": "codex",
+    "behavior": "macOS上Codex真实消费受管MCP并完成撤销",
+    "source": "mcp/codex.rs",
+    "detail": "只验收这一应用；记录macOS架构/版本、应用版本、隔离用户目录及目标主机。通过API→SDK对应操作完成新增/更新/禁用/删除/重新同步/导入；用本地无秘密MCP夹具验证工具可发现/调用、撤销后新请求不可调用；各传输按来源能力表，失败不得伪造通过。应用未安装、无法隔离或缺账号必须记录未验证并保留任务，不操作用户真实配置。保留TOML其他段落；对照 golden/mcp_bytes 的字段投影，HTTP/SSE能力按源实现，不静默丢headers/env。",
+    "id": 54,
+    "file": "54-验收macOS的Codex分发.md",
+    "paths": [
+      "docs/vibewindow/agent-apps/mcp/evidence/codex.md"
+    ],
+    "command": ""
+  },
+  {
+    "title": "验收macOS的Gemini分发",
+    "kind": "accept",
+    "module": "gemini",
+    "behavior": "macOS上Gemini真实消费受管MCP并完成撤销",
+    "source": "mcp/gemini.rs",
+    "detail": "只验收这一应用；记录macOS架构/版本、应用版本、隔离用户目录及目标主机。通过API→SDK对应操作完成新增/更新/禁用/删除/重新同步/导入；用本地无秘密MCP夹具验证工具可发现/调用、撤销后新请求不可调用；各传输按来源能力表，失败不得伪造通过。应用未安装、无法隔离或缺账号必须记录未验证并保留任务，不操作用户真实配置。HTTP映射httpUrl，SSE映射url；导入补回type，保留settings非MCP字段。",
+    "id": 55,
+    "file": "55-验收macOS的Gemini分发.md",
+    "paths": [
+      "docs/vibewindow/agent-apps/mcp/evidence/gemini.md"
+    ],
+    "command": ""
+  },
+  {
+    "title": "验收macOS的GrokBuild分发",
+    "kind": "accept",
+    "module": "grokbuild",
+    "behavior": "macOS上GrokBuild真实消费受管MCP并完成撤销",
+    "source": "mcp/grokbuild.rs",
+    "detail": "只验收这一应用；记录macOS架构/版本、应用版本、隔离用户目录及目标主机。通过API→SDK对应操作完成新增/更新/禁用/删除/重新同步/导入；用本地无秘密MCP夹具验证工具可发现/调用、撤销后新请求不可调用；各传输按来源能力表，失败不得伪造通过。应用未安装、无法隔离或缺账号必须记录未验证并保留任务，不操作用户真实配置。按来源用户配置路径与字段转换；保留非MCP字段，错误不影响其他应用。",
+    "id": 56,
+    "file": "56-验收macOS的GrokBuild分发.md",
+    "paths": [
+      "docs/vibewindow/agent-apps/mcp/evidence/grokbuild.md"
+    ],
+    "command": ""
+  },
+  {
+    "title": "验收macOS的OpenCode分发",
+    "kind": "accept",
+    "module": "opencode",
+    "behavior": "macOS上OpenCode真实消费受管MCP并完成撤销",
+    "source": "mcp/opencode.rs",
+    "detail": "只验收这一应用；记录macOS架构/版本、应用版本、隔离用户目录及目标主机。通过API→SDK对应操作完成新增/更新/禁用/删除/重新同步/导入；用本地无秘密MCP夹具验证工具可发现/调用、撤销后新请求不可调用；各传输按来源能力表，失败不得伪造通过。应用未安装、无法隔离或缺账号必须记录未验证并保留任务，不操作用户真实配置。统一stdio与local、远程与remote的转换按来源；不把不能无损表达的字段标为成功。",
+    "id": 57,
+    "file": "57-验收macOS的OpenCode分发.md",
+    "paths": [
+      "docs/vibewindow/agent-apps/mcp/evidence/opencode.md"
+    ],
+    "command": ""
+  },
+  {
+    "title": "验收macOS的Hermes分发",
+    "kind": "accept",
+    "module": "hermes",
+    "behavior": "macOS上Hermes真实消费受管MCP并完成撤销",
+    "source": "mcp/hermes.rs",
+    "detail": "只验收这一应用；记录macOS架构/版本、应用版本、隔离用户目录及目标主机。通过API→SDK对应操作完成新增/更新/禁用/删除/重新同步/导入；用本地无秘密MCP夹具验证工具可发现/调用、撤销后新请求不可调用；各传输按来源能力表，失败不得伪造通过。应用未安装、无法隔离或缺账号必须记录未验证并保留任务，不操作用户真实配置。沿用源配置格式与路径，保留不受管字段，明确各传输的支持结果。",
+    "id": 58,
+    "file": "58-验收macOS的Hermes分发.md",
+    "paths": [
+      "docs/vibewindow/agent-apps/mcp/evidence/hermes.md"
+    ],
+    "command": ""
+  },
+  {
+    "title": "验收macOS的Pi分发",
+    "kind": "accept",
+    "module": "pi",
+    "behavior": "macOS上Pi真实消费受管MCP并完成撤销",
+    "source": "mcp/pi.rs",
+    "detail": "只验收这一应用；记录macOS架构/版本、应用版本、隔离用户目录及目标主机。通过API→SDK对应操作完成新增/更新/禁用/删除/重新同步/导入；用本地无秘密MCP夹具验证工具可发现/调用、撤销后新请求不可调用；各传输按来源能力表，失败不得伪造通过。应用未安装、无法隔离或缺账号必须记录未验证并保留任务，不操作用户真实配置。复用来源transport_spec/unified_spec字段规则和禁用语义，不因发现项目或外部配置重新激活受管禁用项。",
+    "id": 59,
+    "file": "59-验收macOS的Pi分发.md",
+    "paths": [
+      "docs/vibewindow/agent-apps/mcp/evidence/pi.md"
+    ],
+    "command": ""
+  },
+  {
+    "title": "验收macOS的Mcode分发",
+    "kind": "accept",
+    "module": "mcode",
+    "behavior": "macOS上Mcode真实消费受管MCP并完成撤销",
+    "source": "mcp/mcode.rs",
+    "detail": "只验收这一应用；记录macOS架构/版本、应用版本、隔离用户目录及目标主机。通过API→SDK对应操作完成新增/更新/禁用/删除/重新同步/导入；用本地无秘密MCP夹具验证工具可发现/调用、撤销后新请求不可调用；各传输按来源能力表，失败不得伪造通过。应用未安装、无法隔离或缺账号必须记录未验证并保留任务，不操作用户真实配置。保留逐服务选项；文件写入与目录提交失败的恢复按来源write_and_commit语义。",
+    "id": 60,
+    "file": "60-验收macOS的Mcode分发.md",
+    "paths": [
+      "docs/vibewindow/agent-apps/mcp/evidence/mcode.md"
+    ],
+    "command": ""
+  },
+  {
+    "title": "验收macOS的Kimi分发",
+    "kind": "accept",
+    "module": "kimi",
+    "behavior": "macOS上Kimi真实消费受管MCP并完成撤销",
+    "source": "mcp/kimi.rs",
+    "detail": "只验收这一应用；记录macOS架构/版本、应用版本、隔离用户目录及目标主机。通过API→SDK对应操作完成新增/更新/禁用/删除/重新同步/导入；用本地无秘密MCP夹具验证工具可发现/调用、撤销后新请求不可调用；各传输按来源能力表，失败不得伪造通过。应用未安装、无法隔离或缺账号必须记录未验证并保留任务，不操作用户真实配置。SSE转transport字段，导入恢复统一type；保留其他属性并拒绝坏mcpServers结构。",
+    "id": 61,
+    "file": "61-验收macOS的Kimi分发.md",
+    "paths": [
+      "docs/vibewindow/agent-apps/mcp/evidence/kimi.md"
+    ],
+    "command": ""
+  },
+  {
+    "title": "验收macOS的DSH分发",
+    "kind": "accept",
+    "module": "dsh",
+    "behavior": "macOS上DSH真实消费受管MCP并完成撤销",
+    "source": "mcp/dsh.rs",
+    "detail": "只验收这一应用；记录macOS架构/版本、应用版本、隔离用户目录及目标主机。通过API→SDK对应操作完成新增/更新/禁用/删除/重新同步/导入；用本地无秘密MCP夹具验证工具可发现/调用、撤销后新请求不可调用；各传输按来源能力表，失败不得伪造通过。应用未安装、无法隔离或缺账号必须记录未验证并保留任务，不操作用户真实配置。沿用源原生字段/传输和sync_and_commit行为，坏配置拒绝，目录提交失败恢复原文件。",
+    "id": 62,
+    "file": "62-验收macOS的DSH分发.md",
+    "paths": [
+      "docs/vibewindow/agent-apps/mcp/evidence/dsh.md"
+    ],
+    "command": ""
+  },
+  {
+    "title": "验收macOS的AGY分发",
+    "kind": "accept",
+    "module": "agy",
+    "behavior": "macOS上AGY真实消费受管MCP并完成撤销",
+    "source": "mcp/agy.rs",
+    "detail": "只验收这一应用；记录macOS架构/版本、应用版本、隔离用户目录及目标主机。通过API→SDK对应操作完成新增/更新/禁用/删除/重新同步/导入；用本地无秘密MCP夹具验证工具可发现/调用、撤销后新请求不可调用；各传输按来源能力表，失败不得伪造通过。应用未安装、无法隔离或缺账号必须记录未验证并保留任务，不操作用户真实配置。HTTP转serverUrl，保留timeout等选项；禁用设置disabled，删除才移除；SSE明确拒绝且不写文件。",
+    "id": 63,
+    "file": "63-验收macOS的AGY分发.md",
+    "paths": [
+      "docs/vibewindow/agent-apps/mcp/evidence/agy.md"
+    ],
+    "command": ""
+  },
+  {
+    "title": "验收macOS的OhMyPi分发",
+    "kind": "accept",
+    "module": "omp",
+    "behavior": "macOS上OhMyPi真实消费受管MCP并完成撤销",
+    "source": "mcp/omp.rs",
+    "detail": "只验收这一应用；记录macOS架构/版本、应用版本、隔离用户目录及目标主机。通过API→SDK对应操作完成新增/更新/禁用/删除/重新同步/导入；用本地无秘密MCP夹具验证工具可发现/调用、撤销后新请求不可调用；各传输按来源能力表，失败不得伪造通过。应用未安装、无法隔离或缺账号必须记录未验证并保留任务，不操作用户真实配置。复用Pi转换规则；禁用更新用户denylist阻止项目/外部发现重新激活，删除清理受管项，保留其它白/黑名单与选项。",
+    "id": 64,
+    "file": "64-验收macOS的OhMyPi分发.md",
+    "paths": [
+      "docs/vibewindow/agent-apps/mcp/evidence/omp.md"
+    ],
+    "command": ""
+  },
+  {
+    "title": "验收macOS的stdio链路",
+    "kind": "accept",
+    "module": "stdio",
+    "behavior": "macOS真实stdio链路达到当前行为证据",
+    "source": "tools/mcp_common/、acp/mcp.rs",
+    "detail": "真实Python子进程握手、发现、调用，验证args/env/cwd与退出回收；启动失败和30秒超时有诊断。 仅使用已有任务交付产物，不在验收会话补建新功能；失败回归到唯一实现所有者，保持本任务证据。",
+    "id": 65,
+    "file": "65-验收macOS的stdio链路.md",
+    "paths": [
+      "docs/vibewindow/agent-apps/mcp/evidence/stdio.md"
+    ],
+    "command": ""
+  },
+  {
+    "title": "验收macOS的HTTP链路",
+    "kind": "accept",
+    "module": "http",
+    "behavior": "macOS真实HTTP链路达到当前行为证据",
+    "source": "tools/mcp_common/、acp/mcp.rs",
+    "detail": "本地Streamable HTTP MCP服务，验证headers、凭据引用、发现/调用与非200失败，调用命中执行主机。 仅使用已有任务交付产物，不在验收会话补建新功能；失败回归到唯一实现所有者，保持本任务证据。",
+    "id": 66,
+    "file": "66-验收macOS的HTTP链路.md",
+    "paths": [
+      "docs/vibewindow/agent-apps/mcp/evidence/http.md"
+    ],
+    "command": ""
+  },
+  {
+    "title": "验收macOS的SSE链路",
+    "kind": "accept",
+    "module": "sse",
+    "behavior": "macOS真实SSE链路达到当前行为证据",
+    "source": "tools/mcp_common/、acp/mcp.rs",
+    "detail": "本地SSE MCP服务，验证headers、握手、发现/调用与断连；只在支持SSE应用上声明支持。 仅使用已有任务交付产物，不在验收会话补建新功能；失败回归到唯一实现所有者，保持本任务证据。",
+    "id": 67,
+    "file": "67-验收macOS的SSE链路.md",
+    "paths": [
+      "docs/vibewindow/agent-apps/mcp/evidence/sse.md"
+    ],
+    "command": ""
+  },
+  {
+    "title": "验收macOS的ACP外挂链路",
+    "kind": "accept",
+    "module": "acp",
+    "behavior": "macOS真实ACP外挂链路达到当前行为证据",
+    "source": "tools/mcp_common/、acp/mcp.rs",
+    "detail": "真实既有ACP挂载验收入口完成选择→挂载→发现调用→撤销→恢复，原生CLI绑定互不串用，不执行整套ACP平台矩阵。 仅使用已有任务交付产物，不在验收会话补建新功能；失败回归到唯一实现所有者，保持本任务证据。",
+    "id": 68,
+    "file": "68-验收macOS的ACP外挂链路.md",
+    "paths": [
+      "docs/vibewindow/agent-apps/mcp/evidence/acp.md"
+    ],
+    "command": ""
+  },
+  {
+    "title": "验收macOS桌面实际渲染",
+    "kind": "accept",
+    "module": "desktop",
+    "behavior": "真实macOS窗口中全部MCP交互可用且中文渲染无panic",
+    "source": "components/system_settings_mcp.rs、components/system_settings_common/",
+    "detail": "逐项操作列表/编辑/JSON/绑定/导入/同步/连接取消/工具详情；明暗主题、中文与长路径、长表单固定头尾、滚动条4px与两侧7px留白；中文不得MONOSPACE。截图和操作结果记录，不能只用Element构建测试替代字形整形路径。",
+    "id": 69,
+    "file": "69-验收macOS桌面实际渲染.md",
+    "paths": [
+      "docs/vibewindow/agent-apps/mcp/evidence/desktop.md"
+    ],
+    "command": ""
+  },
+  {
+    "title": "核对能力覆盖并交接母任务",
+    "kind": "doc",
+    "module": "交付索引.md",
+    "behavior": "所有来源行为都有实现与当前macOS证据或明确阻塞",
+    "source": "母任务11、来源清单.json、命令与事件覆盖.md",
+    "detail": "汇总每项来源→任务→实现符号→API/SDK/UI→当前证据。只有全部必要小任务通过后才更新母任务11状态；本次规划不能更新母任务。未验证不能当不支持，跨平台验收不在本次要求内。",
+    "id": 70,
+    "file": "70-核对能力覆盖并交接母任务.md",
+    "paths": [
+      "docs/vibewindow/agent-apps/mcp/交付索引.md"
+    ],
+    "command": ""
+  }
+]

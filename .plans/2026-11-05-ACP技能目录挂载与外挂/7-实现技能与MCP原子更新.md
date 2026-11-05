@@ -2,7 +2,7 @@
 
 批次：【批次 7】 依赖批次 6；依赖任务 6。
 
-状态：已完成，待回归验证
+状态：已完成，待回归
 
 目的：在空闲会话中完整替换外挂集合，失败保留旧集合。
 
@@ -83,3 +83,12 @@
 - `cargo clippy --all-targets --all-features -- -D warnings`：退出 101，除上述 E0308，`crates/vw-agent/src/gateway/api/handlers/dynamic_tools_tests.rs:63,64,276,277` 对 PlatformId/CompanyId 调用不存在的 as_str，报 E0599；均在本任务范围外，未处理。
 - 恢复条件：相关并发任务修复上述编译错误后，按共享槽位规则重跑最终聚焦命令及要求的 Clippy。通过后才能改为已完成并删除本任务文件；本次保留供回归。
 - 最终独立协议验证：`cargo test -p vw-acp --lib acp_mount_update_ -- --nocapture --test-threads=1`，退出 0，2 项通过、0 ignored；不替代 vw-agent 的最终回归。
+
+## 即时回归（2026-11-05，用户要求立即执行）
+
+- 继续使用执行计划技能，未修改其他任务源码，状态保持 `已完成，待回归`，保留本任务文件。
+- 动态领取槽位 **4**，`CARGO_TARGET_DIR=/Users/xiangmin/worker/code/shiju/target/rust-slot-4`；另设置 `CARGO_BUILD_BUILD_DIR` 为同一绝对路径，确保中间产物及测试进程也使用共享槽位目录。
+- `cargo test -p vw-agent -p vw-acp --lib acp_mount_update_ -- --nocapture --test-threads=1`：退出 **101**，实际执行测试 **0** 项（编译阶段失败，不计通过）。
+- 本轮新阻塞：`crates/vw-agent/src/session/llm/native_tools_tests.rs:46,111` 引用 `aisdk::providers::openai::client::types::InputItem`，但当前固定 SDK 中 `types` 为 `pub(crate)`，编译报 **E0603**。该未跟踪文件来自本任务外的并发改动，未修改或绕过它。
+- 下一步：对应任务修复私有 SDK 类型引用后，再运行本任务聚焦验证及 Clippy。不得将本轮编译失败记为真实行为验收通过。
+- `cargo clippy --all-targets --all-features -- -D warnings`：退出 **101**，同样因上述两处 E0603 失败，无本任务新错误。所有验证进程结束后已释放槽位 4，保留缓存；本轮仅更新任务证据，未提交。

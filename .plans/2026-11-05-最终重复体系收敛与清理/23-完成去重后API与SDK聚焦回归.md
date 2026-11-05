@@ -1,0 +1,55 @@
+# 任务 23: 完成去重后API与SDK聚焦回归
+
+批次：【批次 23】依赖批次 22（及其前置）；母批次 20 已验收。线性顺序 1 → 2 → … → 28；每批一项，无可并行任务。
+
+状态：未开始
+
+目的：只运行已有的逐域 API/SDK 验证，不扩大实现。
+
+来源任务：`.plans/2026-11-05-CC能力完整融合/21-最终重复体系收敛与清理.md`。仅 macOS 验收，来源母任务及母 plan.md 本轮不修改。
+
+预计会话范围：一个窄领域或一个清理门槛，预计 20–40 分钟有效操作，构建等待另计；不补齐前置业务。
+
+## 文件
+
+- 操作范围：`crates/vw-agent/tests/cc_convergence_*.rs；crates/vw-gateway-client/src/client/*_api_tests.rs`。
+- 新建正式证据：`docs/shiju/cc-convergence/api-sdk-regression.md`。
+
+## 上下文
+
+- 前批通过后执行；只操作本任务指定清理面。前置运行细节以实际已交付证据为准，不使用猜测配置启动用户环境。
+
+## Cargo 共享槽位规则
+
+1. 同一仓库的所有计划和任务共用仓库根目录下的 `target/rust-slot-1` 至 `target/rust-slot-10`，不得为任务、会话或计划另建构建目录，也不得按任务编号取模固定分配。
+2. 每次构建/验证阶段开始前，创建仓库根目录下的 `target/rust-slot-locks`；依次用原子命令 `mkdir target/rust-slot-locks/slot-N.lock` 尝试领取槽位，`N` 为 1–10。仅 `mkdir` 成功者获得该槽位；这些相对路径命令从仓库根目录执行。
+3. 领取成功后，在自己的锁目录中记录计划、任务、会话标识和持有进程 PID。同一槽位同时只允许一个持有者；已占用时尝试下一个，仅全部 10 个槽位都占用时等待并重试。
+4. 将 `CARGO_TARGET_DIR` 设置为领取槽位的绝对路径，例如领取槽位 3 后，从仓库根目录执行 `export CARGO_TARGET_DIR="$PWD/target/rust-slot-3"`。示例编号不代表固定分配。
+5. 所有 Cargo 构建、检查、测试以及调用 Cargo 的脚本和子进程均继承该设置，不得通过 `--target-dir` 或其他配置绕过槽位；生成的二进制也从该槽位定位。
+6. 该阶段的 Cargo、脚本以及使用槽位产物的子进程全部结束后，删除自己写入的占用记录，并用 `rmdir` 释放自己的锁目录；保留槽位编译缓存供后续任务复用。
+7. 正常结束、失败和中断均须清理自己的锁；在后台进程或其他使用槽位产物的进程仍运行时不得提前释放。规划清理步骤时覆盖这三种退出路径。
+8. 遗留锁须先核实持有会话及相关进程已结束；无法确认则保持占用，不得删除其他活跃任务的锁、进程或缓存。
+9. 生成或更新计划时，统一移除与这些规则冲突的单一 Rust 共享构建空间、逐任务独立目录和 Cargo 缓存全局独占窗口要求；仍须遵守源码文件占用、真实业务依赖和其他共享验证资源的互斥，不能仅因缓存分槽就把任务判定为可并行。
+10. 最终验证记录包含实际槽位、绝对路径 `CARGO_TARGET_DIR`、确切命令、退出码和有效测试数量；Rust 代码修改后先运行 `cargo fmt --all`，再运行相应验证。编译成功或零测试不能替代行为验收证据。
+
+- 本计划所有源码变更、`cargo fmt --all` 和 workspace Clippy 串行执行，不能与其他会话争写；槽位仅隔离构建缓存。锁记录须覆盖正常、失败、中断退出清理。
+
+## 验证计划与步骤
+
+这是当前版本回归，不新增生产行为，测试驱动开发不适用。
+
+1. 审阅前批单域测试确实通过 SDK/真实网关而非复制生产实现；核对每个域记录的生产 API 与 SDK 映射。
+2. 逐项原样运行各域证据中的精确 Cargo 测试命令，不使用无过滤 `cargo test`；不存在的测试文件只能凭该域已确认零删除与当前替代行为测试证据跳过，并明确记录原因。
+3. SDK 现有覆盖补充运行 `cargo test -p vw-gateway-client --lib --all-features provider_api_tests -- --nocapture`、`cargo test -p vw-gateway-client --lib --all-features desktop_settings_api_tests -- --nocapture`、`cargo test -p vw-gateway-client --lib --all-features mcp_api_tests -- --nocapture`、`cargo test -p vw-gateway-client --lib --all-features session_api_tests -- --nocapture`。
+4. 核对错误码、租户/项目/主机隔离、取消与进度保持原契约；每条命令记录测试数量和退出码，零条不算成功。
+5. `cargo clippy --all-targets --all-features -- -D warnings`。本项不修复无关故障；发现本计划回归则在本任务记录并交由对应领域任务修正后复验。
+
+预期：所有适用域的当前测试与上述四组 SDK 测试均通过，无来源树依赖。
+
+所需证据：确切命令、退出码、有效测试数（非行为检查注明不适用）、实际槽位、绝对 `CARGO_TARGET_DIR` 和本批要求的图/操作记录；任何 Rust 修改先 `cargo fmt --all` 再聚焦验证和 `cargo clippy --all-targets --all-features -- -D warnings`。
+
+## 完成
+
+- 证据文件保留实际文件/符号、替代路径、调用者清零查询结果、数据对照、恢复点、命令/退出码/有效测试数、macOS 版本与架构；测试不能是零条或静默跳过。敏感数据只保留脱敏摘要。
+- 新增代码无警告；无关既有错误只记录，不顺手修复。没有足够证据不得标已完成。
+- 状态只使用未开始、已完成、已阻塞、已完成，待回归。完成后有实际变更使用 `$git-commit`，排除无关变更；仅任务状态或任务文件删除不提交。完成并报告证据后删除本编号文件；待回归或阻塞保留。

@@ -1,0 +1,73 @@
+# 任务 35: 桌面OpenClaw模型白名单
+
+批次：【批次 35】 依赖批次 34；累计继承此前批次及母任务 1–14 的实际交付合同
+
+状态：未开始
+
+目的：完成“桌面OpenClaw模型白名单”的单一交付与本文件规定的当前验证证据。
+
+来源任务：母任务 15；逐命令/文件归属见来源映射.md。
+
+预计会话范围：只实现本文件描述的单一行为；不同时搬迁其他应用、不重构共享基础设施。建议一个聚焦会话完成，先用过滤测试取得反馈。
+
+## 文件
+
+- 新建或补充：`crates/vw-desktop/src/app/components/agent_apps/openclaw_catalog.rs`。
+- 独立测试：`crates/vw-desktop/src/app/components/agent_apps/openclaw_catalog_tests.rs`。
+- 注册入口：`crates/vw-desktop/src/app/components/mod.rs`；仅登记本模块及测试，不搬入业务逻辑。
+- 消息连线：`crates/vw-desktop/src/app/message/settings/mod.rs`；状态和导航沿用母任务 3 已验收的应用详情入口，由任务 1 记录确切路径。
+- 正式证据：`docs/shiju/agent-apps/workspace-macos-acceptance.md`，仅追加本任务条目。
+
+## 上下文
+
+- 先读：`src/components/openclaw/AgentsDefaultsPanel.tsx；hooks/useOpenClawModelOptions.ts；OpenClawHealthBanner.tsx`（源根 `/Users/xiangmin/worker/code/cc-switch/`，`src/` 前缀文件保持原路径；Rust 简写位于 `src-tauri/src/`）。
+- 阅读接口边界.md、来源映射.md 与任务 1 正式合同。上述新建路径是本计划定义的落点；前置已有同职责模块则直接扩展并记录真实路径，禁止复制永久业务所有者。
+- 只验收 macOS 原生目标，不添加 features；源码索引可用时先读仓库 rustcodegraph 技能。缺依赖不伪造通过，不修改其他计划或会话的改动。
+
+## 实现边界
+
+模型目录弹窗可读取/编辑 alias 与额外字段，空目录明确保存，失败保留草稿，绝不覆盖默认模型；复用同应用详情导航。
+
+## Cargo 共享槽位规则
+
+1. 同一仓库的所有计划和任务共用仓库根目录下的 `target/rust-slot-1` 至 `target/rust-slot-10`，不得为任务、会话或计划另建构建目录，也不得按任务编号取模固定分配。
+2. 每次构建/验证阶段开始前，创建仓库根目录下的 `target/rust-slot-locks`；依次用原子命令 `mkdir target/rust-slot-locks/slot-N.lock` 尝试领取槽位，`N` 为 1–10。仅 `mkdir` 成功者获得该槽位；这些相对路径命令从仓库根目录执行。
+3. 领取成功后，在自己的锁目录中记录计划、任务、会话标识和持有进程 PID。同一槽位同时只允许一个持有者；已占用时尝试下一个，仅全部 10 个槽位都占用时等待并重试。
+4. 将 `CARGO_TARGET_DIR` 设置为领取槽位的绝对路径，例如领取槽位 3 后，从仓库根目录执行 `export CARGO_TARGET_DIR="$PWD/target/rust-slot-3"`。示例编号不代表固定分配。
+5. 所有 Cargo 构建、检查、测试以及调用 Cargo 的脚本和子进程均继承该设置，不得通过 `--target-dir` 或其他配置绕过槽位；生成的二进制也从该槽位定位。
+6. 该阶段的 Cargo、脚本以及使用槽位产物的子进程全部结束后，删除自己写入的占用记录，并用 `rmdir` 释放自己的锁目录；保留槽位编译缓存供后续任务复用。
+7. 正常结束、失败和中断均须清理自己的锁；在后台进程或其他使用槽位产物的进程仍运行时不得提前释放。规划清理步骤时覆盖这三种退出路径。
+8. 遗留锁须先核实持有会话及相关进程已结束；无法确认则保持占用，不得删除其他活跃任务的锁、进程或缓存。
+9. 生成或更新计划时，统一移除与这些规则冲突的单一 Rust 共享构建空间、逐任务独立目录和 Cargo 缓存全局独占窗口要求；仍须遵守源码文件占用、真实业务依赖和其他共享验证资源的互斥，不能仅因缓存分槽就把任务判定为可并行。
+10. 最终验证记录包含实际槽位、绝对路径 `CARGO_TARGET_DIR`、确切命令、退出码和有效测试数量；Rust 代码修改后先运行 `cargo fmt --all`，再运行相应验证。编译成功或零测试不能替代行为验收证据。
+
+## 测试计划
+
+- 行为：本任务目的对应的真实输入/结果，不验证模拟调用次数。
+- 失败验证测试：`crates/vw-desktop/src/app/components/agent_apps/openclaw_catalog_tests.rs` 中新增 `openclaw_catalog_editor_preserves_aliases`（必要场景以该名字为前缀拆成独立测试）。先注册测试模块，再运行，不能以零测试或拼写错误作为失败证据。
+- 失败验证命令：`cargo test -p vw-desktop --bin shi-ju openclaw_catalog_editor_preserves_aliases -- --nocapture`。
+- 预期失败原因：当前尚无本任务完整行为，新增场景在对应输出、拒绝或文件副作用断言处失败；缺待实现符号导致编译失败时记录原因，实现后还须证明行为断言有效。已有等价能力则先构造来源中的缺失边界场景，不制造人为失败。
+- 通过验证命令：同上；使用 crate 默认 features，macOS 本机目标；不使用 --all-features 跑测试。
+- 模拟策略：消息状态测试仅替代慢速 SDK 响应并控制乱序/错误；另开真实 Iced 窗口实际操作，覆盖真实字体整形；不把 Element 构造成功当渲染通过。
+
+## 步骤
+
+1. 先读本任务来源函数、调用者、相邻测试和前置真实合同，确认修改范围。
+2. 编写并运行上述失败测试，记录确切失败和有效测试数。
+3. 只实现本任务最小行为；接口/模块定义以本计划合同为准，不另造通用命令后门。
+4. Rust 修改后先 `cargo fmt --all`，审查并撤除仅由本次格式化造成的无关差异（不得覆盖他人改动），再运行聚焦通过验证。
+5. 执行仓库 Clippy；记录正式证据、槽位和失败/通过输出，只有必要时局部重构。
+
+## 验证
+
+- 聚焦：`cargo test -p vw-desktop --bin shi-ju openclaw_catalog_editor_preserves_aliases -- --nocapture`，退出码 0 且有效测试至少 1，所有前缀场景均实际执行。
+- 必须：`cargo clippy --all-targets --all-features -- -D warnings`。本任务引入的问题必须修复；无关既有错误只记录，不顺手修复。
+- 原生窗口：`cargo build -p vw-desktop --bin shi-ju`，从 `$CARGO_TARGET_DIR/debug/shi-ju` 启动；按任务 1 已验证的隔离启动合同使用测试应用目录和测试网关，不默认连接用户数据。实际操作本任务表单/页面，中文、emoji、长文本、明暗主题均验证；4px 滚动条及两侧 7px 留白、固定标题/按钮、toast、统一 settings_* 样式与按钮样式合规。非 ASCII 使用默认字体，等宽只用于独立纯 ASCII 控件。记录截图、操作和无 panic 的日志，缺隔离启动合同即阻塞。
+- 所需证据：失败与通过命令、退出码、有效测试数量、相关文件/符号、真实行为结果、实际槽位及绝对 CARGO_TARGET_DIR；有 API 的提供请求/响应与权限拒绝，有 UI 的提供真实窗口证据。
+
+## 完成
+
+- 本任务新证据齐备才标为 `已完成`；把结果追加到正式证据文档的本任务条目，不以修改 prompt.md 或 plan.md 记录进度。
+- 真正缺依赖时尽可能在本任务边界内排障，无法解决则只在本任务标为 `已阻塞`，写明原因、已运行检查与恢复条件。无关既有错误导致无法回归时可用 `已完成，待回归` 并保留本文件，不伪称验收通过。
+- 不扩大到其他子任务；发现新需求/设计或范围变化先询问是否记录回来源，不改只读 plan.md 和母任务状态。
+- 有实际代码/测试/配置/文档变更时使用 `$git-commit` 审查并仅提交本任务变更；只有编号任务状态更新/删除时不提交。报告完成证据后删除已完成任务文件；阻塞/待回归文件保留。正式交付证据文档保留。

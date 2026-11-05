@@ -788,9 +788,6 @@ pub(super) fn view(app: &App) -> Option<Element<'_, Message>> {
     let runtime = app.current_session_runtime();
     let key = runtime.agent.as_deref().unwrap_or(crate::app::state::MAIN_AGENT_KEY);
     if let Some(entry) = app.agents_settings.entries.iter().find(|entry| entry.key == key) {
-        controls = controls.push(
-            text(runtime.agent_label.clone().unwrap_or_else(|| entry.label.clone())).size(12),
-        );
         for (index, prompt) in entry
             .recommended_prompts
             .iter()

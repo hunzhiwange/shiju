@@ -9,9 +9,12 @@ use iced::{Alignment, Background, Border, Color, Element, Length, Theme};
 
 use super::utils::icon_svg;
 use crate::app::assets::Icon;
+use crate::app::components::input_panel::icons::acp_agent_icon;
 use crate::app::components::input_panel::styles::{
     popover_style, selectable_list_button_style, tooltip_dark_style,
 };
+use crate::app::components::system_settings::SystemTab;
+use crate::app::components::system_settings_common::rounded_action_btn_style;
 use crate::app::state::{
     MAIN_AGENT_KEY, SessionToolGroup, SessionToolSelectorTab, SkillsDirectoryScope,
     tool_display_name, tool_group,
@@ -375,11 +378,22 @@ pub(crate) fn session_tool_selector_popover(app: &App) -> Element<'_, Message> {
                 } else {
                     Space::new().width(Length::Fixed(14.0)).into()
                 };
+                let identity_icon: Element<'_, Message> = match &entry.runtime {
+                    vw_config_types::agent::AgentRuntime::Native => icon_svg(Icon::Hexagon)
+                        .width(Length::Fixed(16.0))
+                        .height(Length::Fixed(16.0))
+                        .style(|theme: &Theme, _| svg::Style { color: Some(theme.palette().text) })
+                        .into(),
+                    vw_config_types::agent::AgentRuntime::Acp { backend } => {
+                        acp_agent_icon(backend, 16.0)
+                    }
+                };
                 let agent_for_press =
                     if entry.key == MAIN_AGENT_KEY { None } else { Some(entry.key.clone()) };
                 list = list.push(
                     button(
                         row![
+                            identity_icon,
                             column![
                                 text(entry.label.clone()).size(13),
                                 text(subtitle).size(11).style(|theme: &Theme| {
@@ -545,6 +559,12 @@ pub(crate) fn session_tool_selector_popover(app: &App) -> Element<'_, Message> {
                             rows = rows.push(
                                 button(
                                     row![
+                                        icon_svg(Icon::Terminal)
+                                            .width(Length::Fixed(16.0))
+                                            .height(Length::Fixed(16.0))
+                                            .style(|theme: &Theme, _| svg::Style {
+                                                color: Some(theme.palette().text),
+                                            }),
                                         text(tool_label)
                                             .size(12)
                                             .width(Length::Fill)
@@ -676,6 +696,12 @@ pub(crate) fn session_tool_selector_popover(app: &App) -> Element<'_, Message> {
                     };
                     let skill_button = button(
                         row![
+                            icon_svg(Icon::Star)
+                                .width(Length::Fixed(16.0))
+                                .height(Length::Fixed(16.0))
+                                .style(|theme: &Theme, _| svg::Style {
+                                    color: Some(theme.palette().text),
+                                }),
                             column![
                                 text(ellipsize_text(&skill.title, 34))
                                     .size(13)
@@ -758,7 +784,17 @@ pub(crate) fn session_tool_selector_popover(app: &App) -> Element<'_, Message> {
 
     container(
         column![
-            text(crate::app::i18n::I18n::new(app.desktop_locale).__("会话控制")).size(13),
+            row![
+                text(i18n.__("会话控制")).size(13),
+                Space::new().width(Length::Fill),
+                button(text(i18n.__("配置智能体")).size(11))
+                    .padding([4, 8])
+                    .style(rounded_action_btn_style)
+                    .on_press(Message::View(message::ViewMessage::OpenSystemSettingsTab(
+                        SystemTab::Agents,
+                    ))),
+            ]
+            .align_y(Alignment::Center),
             text(summary).size(11).style(|theme: &Theme| iced::widget::text::Style {
                 color: Some(theme.palette().text.scale_alpha(0.84)),
             }),

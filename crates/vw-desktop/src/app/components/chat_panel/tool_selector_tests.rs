@@ -359,3 +359,163 @@ fn agent_unified_selection_lists_enabled_cli_without_promoting_delegate_roles() 
     let delegate = DelegateAgentSettingsEntry::from_config("explore", None);
     assert!(!delegate.can_start_session());
 }
+
+fn selector_icon_rows(layout: iced::advanced::Layout<'_>) -> Vec<iced::Rectangle> {
+    let children = layout.children().collect::<Vec<_>>();
+    let mut rows = Vec::new();
+    if children.len() == 3
+        && (children[0].bounds().width - 16.0).abs() < EPSILON
+        && (children[2].bounds().width - 14.0).abs() < EPSILON
+    {
+        let icon = children[0].bounds();
+        let title = children[1].bounds();
+        let check = children[2].bounds();
+        assert!(icon.x + icon.width <= title.x);
+        assert!(title.x + title.width <= check.x);
+        assert!((icon.center_y() - check.center_y()).abs() < EPSILON);
+        rows.push(icon);
+    }
+    for child in children {
+        rows.extend(selector_icon_rows(child));
+    }
+    rows
+}
+
+async fn render_selector_icons(theme: Theme, click: bool) {
+    use crate::app::{Message, message};
+    use iced::advanced::renderer::Headless;
+    use iced::advanced::{Layout, Shell, layout, mouse, renderer};
+    use iced::{Event, Font, Pixels, Rectangle, Size};
+    use vw_config_types::agent::{AgentDefinitionConfig, AgentRuntime};
+
+    let mut app = App::new().0;
+    app.agents_settings.entries = [
+        ("main", AgentRuntime::Native),
+        ("known", AgentRuntime::Acp { backend: "codex".into() }),
+        ("unknown", AgentRuntime::Acp { backend: "unknown-fixture".into() }),
+    ]
+    .into_iter()
+    .map(|(key, runtime)| {
+        let mut entry = DelegateAgentSettingsEntry::from_config(
+            key,
+            Some(AgentDefinitionConfig { runtime, ..Default::default() }),
+        );
+        entry.enabled = true;
+        entry.label = "中文长标题用于检查窄窗口图文布局与选中标记".into();
+        entry.allowed_tools = vec!["memory_store".into()];
+        entry
+    })
+    .collect();
+    app.agents_settings.available_tools = vec!["memory_store".into()];
+    app.skills_settings.catalog =
+        vec![skill("review", "中文长标题用于检查技能图标", "说明", "global", None, true, true)];
+    app.current_session_runtime_mut().tool_selector.toggle_manual_tool("memory_store");
+    app.current_session_runtime_mut().tool_selector.toggle_manual_skill("review");
+    for (tab, expected) in [
+        (SessionToolSelectorTab::Agent, 3),
+        (SessionToolSelectorTab::Tools, 1),
+        (SessionToolSelectorTab::Skills, 1),
+    ] {
+        app.current_session_runtime_mut().tool_selector.select_tab(tab);
+        app.current_session_runtime_mut()
+            .tool_selector
+            .select_skill_directory_scope(SkillsDirectoryScope::All);
+        app.current_session_runtime_mut().tool_selector.set_query(
+            match tab {
+                SessionToolSelectorTab::Tools => "memory_store",
+                SessionToolSelectorTab::Skills => "review",
+                SessionToolSelectorTab::Agent => "中文",
+            }
+            .into(),
+        );
+        let mut renderer =
+            <iced::Renderer as Headless>::new(Font::DEFAULT, Pixels(16.0), Some("tiny-skia"))
+                .await
+                .expect("headless renderer");
+        let mut element = session_tool_selector_popover(&app);
+        let mut tree = Tree::new(element.as_widget());
+        let bounds = Size::new(360.0, 700.0);
+        let node = element.as_widget_mut().layout(
+            &mut tree,
+            &renderer,
+            &layout::Limits::new(Size::ZERO, bounds),
+        );
+        element.as_widget().draw(
+            &tree,
+            &mut renderer,
+            &theme,
+            &renderer::Style { text_color: theme.palette().text },
+            Layout::new(&node),
+            mouse::Cursor::Unavailable,
+            &Rectangle::with_size(bounds),
+        );
+        let pixels = renderer.screenshot(Size::new(360, 700), 1.0, Color::TRANSPARENT);
+        let rows = selector_icon_rows(Layout::new(&node));
+        assert_eq!(rows.len(), expected, "missing identity icons for {tab:?}");
+        for icon in &rows {
+            assert!(
+                (icon.y as u32..(icon.y + icon.height) as u32).any(|y| (icon.x as u32
+                    ..(icon.x + icon.width) as u32)
+                    .any(|x| pixels
+                        [((y * 360 + x) * 4) as usize..((y * 360 + x) * 4 + 3) as usize]
+                        != pixels[((y * 360 + icon.x as u32 - 2) * 4) as usize
+                            ..((y * 360 + icon.x as u32 - 2) * 4 + 3) as usize])),
+                "icon must draw pixels"
+            );
+        }
+        let directory = std::env::temp_dir().join("shiju-session-selector-icons");
+        std::fs::create_dir_all(&directory).unwrap();
+        image::save_buffer(
+            directory.join(format!("{theme:?}-{tab:?}.png")),
+            &pixels,
+            360,
+            700,
+            image::ColorType::Rgba8,
+        )
+        .unwrap();
+        if click {
+            let position = rows[0].center();
+            let mut messages = Vec::new();
+            for event in [
+                mouse::Event::ButtonPressed(mouse::Button::Left),
+                mouse::Event::ButtonReleased(mouse::Button::Left),
+            ] {
+                element.as_widget_mut().update(
+                    &mut tree,
+                    &Event::Mouse(event),
+                    Layout::new(&node),
+                    mouse::Cursor::Available(position),
+                    &renderer,
+                    &mut iced::advanced::clipboard::Null,
+                    &mut Shell::new(&mut messages),
+                    &Rectangle::with_size(bounds),
+                );
+            }
+            assert_eq!(messages.len(), 1);
+            assert!(matches!(
+                (&messages[0], tab),
+                (
+                    Message::Chat(message::ChatMessage::SessionAgentSelected(None)),
+                    SessionToolSelectorTab::Agent
+                ) | (
+                    Message::Chat(message::ChatMessage::SessionManualToolSelected(_)),
+                    SessionToolSelectorTab::Tools
+                ) | (
+                    Message::Chat(message::ChatMessage::SessionSkillSelected(_)),
+                    SessionToolSelectorTab::Skills
+                )
+            ));
+        }
+    }
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn session_entry_selector_icons_preserve_selection() {
+    render_selector_icons(Theme::Light, true).await;
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn session_entry_selector_icons_render_both_themes() {
+    render_selector_icons(Theme::Light, false).await;
+    render_selector_icons(Theme::Dark, false).await;
+}

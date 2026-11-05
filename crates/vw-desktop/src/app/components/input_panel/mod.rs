@@ -185,11 +185,39 @@ pub(super) fn session_tool_tab_button<'a>(
                 color: Some(styles::selector_text_color(theme, highlight)),
             })
             .into();
-    let toggle = bottom_bar_round_toggle(
-        icon,
-        tab.label(),
-        Message::Chat(message::ChatMessage::OpenSessionToolSelectorTab(tab)),
-    );
+    let on_press = Message::Chat(message::ChatMessage::OpenSessionToolSelectorTab(tab));
+    let toggle = if tab == crate::app::state::SessionToolSelectorTab::Agent {
+        let key = runtime.agent.as_deref().unwrap_or(crate::app::state::MAIN_AGENT_KEY);
+        let label = runtime
+            .agent_label
+            .clone()
+            .or_else(|| {
+                app.agents_settings
+                    .entries
+                    .iter()
+                    .find(|entry| entry.key == key)
+                    .map(|entry| entry.label.clone())
+            })
+            .unwrap_or_else(|| key.to_string());
+        let icon = runtime
+            .acp_agent
+            .as_deref()
+            .map(|backend| icons::acp_agent_icon(backend, styles::BOTTOM_BAR_ICON_SIZE))
+            .unwrap_or(icon);
+        button(
+            row![icon, text(label).size(styles::BOTTOM_BAR_LABEL_SIZE)]
+                .spacing(6)
+                .align_y(Alignment::Center),
+        )
+        .padding([4, 10])
+        .style(move |theme: &Theme, status| {
+            styles::selector_pill_button_style(theme, status, highlight)
+        })
+        .on_press(on_press)
+        .into()
+    } else {
+        bottom_bar_round_toggle(icon, tab.label(), on_press)
+    };
 
     if popover_open && active_tab == tab {
         AboveOverlay::new(toggle, session_tool_selector_popover(app))

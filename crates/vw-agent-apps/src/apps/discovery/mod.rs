@@ -13,3 +13,7 @@ mod wsl_tests;
 pub mod claude_desktop;
 #[cfg(all(test, unix))]
 mod claude_desktop_tests;
+
+pub mod report;
+#[cfg(test)]
+mod report_tests;

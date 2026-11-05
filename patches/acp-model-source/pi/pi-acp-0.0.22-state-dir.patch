@@ -1,3 +1,39 @@
+diff --git a/src/acp/agent.ts b/src/acp/agent.ts
+index 8f4e8b8..6ca7fd1 100644
+--- a/src/acp/agent.ts
++++ b/src/acp/agent.ts
+@@ -1270,12 +1270,19 @@ function buildStartupInfo(opts: {
+-  // Global skills
+-  // Use getAgentDir() so this respects PI_CODING_AGENT_DIR overrides.
+-  const globalSkillsDir = join(getAgentDir(), 'skills')
+-  pushSkillFromRoot(globalSkillsDir)
+-
+-  // Also support ~/.agents/skills (pi skill discovery)
+-  const legacyAgentsSkillsDir = join(process.env.HOME ?? '', '.agents', 'skills')
+-  pushSkillFromRoot(legacyAgentsSkillsDir)
+-
+-  // Project skills (.pi/skills)
+-  const projectSkillsDir = join(opts.cwd, '.pi', 'skills')
+-  pushSkillFromRoot(projectSkillsDir)
++  const skillRoot = process.env.SHIJU_PI_SKILL_ROOT
++  if (skillRoot !== undefined) {
++    if (skillRoot && !isAbsolute(skillRoot)) throw new Error('SHIJU_PI_SKILL_ROOT must be absolute')
++    if (skillRoot) pushSkillFromRoot(skillRoot)
++  } else {
++    // Global skills
++    // Use getAgentDir() so this respects PI_CODING_AGENT_DIR overrides.
++    const globalSkillsDir = join(getAgentDir(), 'skills')
++    pushSkillFromRoot(globalSkillsDir)
++
++    // Also support ~/.agents/skills (pi skill discovery)
++    const legacyAgentsSkillsDir = join(process.env.HOME ?? '', '.agents', 'skills')
++    pushSkillFromRoot(legacyAgentsSkillsDir)
++
++    // Project skills (.pi/skills)
++    const projectSkillsDir = join(opts.cwd, '.pi', 'skills')
++    pushSkillFromRoot(projectSkillsDir)
++
++  }
 diff --git a/src/acp/paths.ts b/src/acp/paths.ts
 index 4f55af3..1d2c7fb 100644
 --- a/src/acp/paths.ts
@@ -11,3 +47,16 @@ index 4f55af3..1d2c7fb 100644
 +    if (!isAbsolute(directory)) throw new Error('PI_ACP_STATE_DIR must be absolute')
 +    return directory
 +  }
+diff --git a/src/pi-rpc/process.ts b/src/pi-rpc/process.ts
+index d62018d..5434d69 100644
+--- a/src/pi-rpc/process.ts
++++ b/src/pi-rpc/process.ts
+@@ -0,0 +1 @@
++import { isAbsolute } from 'node:path'
+@@ -130,0 +132,6 @@ export class PiRpcProcess {
++    const skillRoot = process.env.SHIJU_PI_SKILL_ROOT
++    if (skillRoot !== undefined) {
++      if (skillRoot && !isAbsolute(skillRoot)) throw new Error('SHIJU_PI_SKILL_ROOT must be absolute')
++      args.push('--no-skills', '--no-extensions')
++      if (skillRoot) args.push('--skill', skillRoot)
++    }

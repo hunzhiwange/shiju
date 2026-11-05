@@ -2130,10 +2130,10 @@
     {
       "key": "pi",
       "version": "0.0.22",
-      "status": "candidate",
+      "status": "verified",
       "platform": {
         "review_host": "Darwin-arm64",
-        "artifact_scope": "本机固定发行物静态审查；源码/通用 JS 的跨平台执行未验证",
+        "artifact_scope": "仅 Darwin-arm64、受审 pi-acp 0.0.22 补丁及 Pi 0.73.1；session_model/cli_local 实测，其他平台和版本未验证。",
         "linux": "unverified",
         "windows": "unverified"
       },
@@ -2166,43 +2166,41 @@
           "pi-acp"
         ],
         "binding": "crates/vw-acp/src/agent_registry.rs::BUILT_IN_AGENT_DEFINITIONS",
-        "runtime_executed": false,
-        "note": "固定发行物候选入口；注册器含 latest/range，不保证用户当前命令已固定到此版本。"
+        "runtime_executed": true,
+        "note": "固定版本与补丁散列校验后执行真实 ACP/RPC；原有 state-dir 和模型来源隔离保留。"
       },
       "mount": {
         "candidate_paths": [
-          "PI_CODING_AGENT_DIR/skills",
-          "<cwd>/.pi/skills",
-          "~/.agents/skills"
+          "SHIJU_PI_SKILL_ROOT（受审 adapter 传入原生 --no-skills --no-extensions --skill）"
         ],
-        "discovery": "pi-acp 0.0.22 的资源清单扫描上述目录；实际 Pi 0.73.1 loadSkills 接受显式 skillPaths/includeDefaults。adapter 清单与 engine loader 两条链必须同时验证。",
-        "activation": "adapter 列出的 Skills 资源不是 engine 实际激活证据；默认目录包含全局技能，需排除。",
-        "session_isolation": "unverified：额外根/专属配置根不自动排除内建、用户、项目及插件技能；不得修改 HOME 或写用户全局目录。"
+        "discovery": "ACP 清单与原生 Pi 共用会话视图；模型只收到原生目录元数据，read 按需读取正文及随机附件，bash 执行脚本。",
+        "activation": "首次 prompt 无技能全文；不拼接正文，不替代原生工具。",
+        "session_isolation": "两种来源均排除用户/项目/扩展默认技能；完整原生清单与选中集合精确相等；空选择禁用技能。"
       },
       "permissions": {
-        "status": "unverified",
+        "status": "verified on Darwin-arm64 for both model sources",
         "requirements": "执行端重新审核目录、租户/项目/会话权限、路径逃逸与符号链接；支持文件/脚本/MCP 仍受各自授权限制，不扩大 full_access。",
-        "agent_specific": "固定 ACP 的目录/工具授权条件须后续真实验证；未因模型来源受限推定技能不支持。"
+        "agent_specific": "保持既有会话目录审核；deny-all 在模型调用前拒绝，不扩大 full_access。"
       },
       "update": {
-        "native": "unverified：本任务未执行热更新或原子完整替换；静态刷新函数/文档 reload 不作成功承诺。",
-        "candidate": "在不打断运行请求的前提下评估空闲重建；尚未确认固定发行物原生更新入口。"
+        "native": "不承诺运行中热更新；空闲视图替换后重建 ACP/Pi 进程。",
+        "candidate": "两种来源真实添加、移除、V1/V2 和空闲更新均通过。"
       },
       "recovery": {
-        "status": "unverified",
+        "status": "两种来源的真实进程关闭/重新启动后重新发现当前视图并读取随机附件；通过。",
         "requirements": "重建 new/load/resume 后重新发布同 revision 目录并核实发现、删除和支持文件访问；不能把已有模型来源恢复证据当技能恢复证据。"
       },
       "independent_sources": {
         "local_configuration": {
           "candidate": "PI_CODING_AGENT_DIR; patched PI_ACP_STATE_DIR",
-          "static_review_only": true,
-          "runtime_verified_this_task": false
+          "static_review_only": false,
+          "runtime_verified_this_task": true
         },
         "client_model_source": {
           "prior_report_status": "verified_release_only",
           "reference": "../../shiju/acp-model-source/cli-versions.json#pi",
-          "runtime_verified_this_task": false,
-          "note": "只保留旧报告定位；不复制其通过/不支持结论到技能能力。"
+          "runtime_verified_this_task": true,
+          "note": "本任务独立真实技能验收通过；不复用旧模型报告结论。"
         }
       },
       "evidence": [
@@ -2248,10 +2246,25 @@
           "observations": [],
           "package": "pi-acp",
           "version": "0.0.22"
+        },
+        {
+          "path": "crates/vw-acp/src/managed_runtime/contracts.json#pi",
+          "sha256": "5132b90b8244ef8ab8ddbda77a812b5e477501baafb25862d1c0c0d1623f9dc6",
+          "kind": "reviewed_patched_adapter",
+          "version": "0.0.22"
         }
       ],
       "supplemental_official_docs": [],
-      "next_validation": "固定版本真实 ACP：发现元数据 → 按需激活 → 支持文件/脚本工具回合 → 隔离/删除/更新失败保旧 → 跨进程恢复；只替代外部模型 HTTP。未安装/缺账号则保留 unverified。"
+      "next_validation": "继续下一个独立 agent；整体回归使用此固定补丁发行物。",
+      "acceptance": {
+        "status": "verified",
+        "evidence": "evidence/pi.json",
+        "model_sources": [
+          "session_model",
+          "cli_local"
+        ],
+        "limitation": "仅本机受审固定发行物；没有其他平台或版本的支持承诺。"
+      }
     },
     {
       "key": "qoder",

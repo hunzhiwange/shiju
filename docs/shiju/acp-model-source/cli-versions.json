@@ -2089,10 +2089,10 @@
       },
       "patched_adapter": {
         "source_commit": "8be5f22769f71d759aa48d798416c56e8be101ef",
-        "sha256": "a78e867c410e7b29c93196586a20b383ecd9f852d865c57af01f8970bc739e76",
+        "sha256": "5132b90b8244ef8ab8ddbda77a812b5e477501baafb25862d1c0c0d1623f9dc6",
         "native_cli_sha256": "e959f463b06ddd15ed882783ac02f39ecaeef950ef967da86380f39dda6595fa",
         "patch": "patches/acp-model-source/pi/pi-acp-0.0.22-state-dir.patch",
-        "patch_sha256": "62e31924db85ab7b2844df605bb98dd24b71facf575db25cf5b078ebf788e71a",
+        "patch_sha256": "88c36304e8d2b510fb684477c53f9f712de2b02616064093b36dfa78e5a4ac2d",
         "source_package_lock_sha256": "e257ee4cbe345ee0de44714d34401ed2ed14de41abc2c6ed7511b1a3d923c606"
       },
       "offline_acceptance": {

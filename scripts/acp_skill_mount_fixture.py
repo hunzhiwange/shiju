@@ -108,6 +108,9 @@ class SkillMountFixture:
         raise ValueError("fixed CLI has no reviewed compatible tool schema")
 
     def response(self, body):
+        if getattr(self, "pi_native", False):
+            from acp_skill_mount_pi import response
+            return response(self, body)
         if getattr(self, "openclaw_native", False):
             from acp_skill_mount_openclaw import response
             return response(self, body)

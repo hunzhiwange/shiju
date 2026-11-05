@@ -65,7 +65,7 @@
     "integrity": "sha512-A9DFxi3dF/xFgf0vm5r5jvEtTszRXqK2MUYXWQN0aSSLeJW53efqFlueczZCj5J119s+FLlQVQYso71PDPL0sw==",
     "bin": "dist/index.js",
     "files": {
-      "dist/index.js": "a78e867c410e7b29c93196586a20b383ecd9f852d865c57af01f8970bc739e76"
+      "dist/index.js": "5132b90b8244ef8ab8ddbda77a812b5e477501baafb25862d1c0c0d1623f9dc6"
     },
     "engine": "@mariozechner/pi-coding-agent",
     "engine_version": "0.73.1"

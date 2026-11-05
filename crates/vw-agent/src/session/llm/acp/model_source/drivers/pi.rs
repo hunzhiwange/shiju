@@ -4,7 +4,7 @@ use sha2::{Digest, Sha256};
 use std::{collections::HashMap, io::Write, path::Path};
 
 pub(super) const PATCHED_ADAPTER_SHA256: &str =
-    "a78e867c410e7b29c93196586a20b383ecd9f852d865c57af01f8970bc739e76";
+    "5132b90b8244ef8ab8ddbda77a812b5e477501baafb25862d1c0c0d1623f9dc6";
 
 pub(super) fn configure(profile: &mut AcpLaunchProfile, endpoint: &str) -> anyhow::Result<()> {
     let command = Path::new(&profile.config().command);

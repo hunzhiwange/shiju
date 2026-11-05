@@ -2,9 +2,13 @@
 
 Upstream: https://github.com/svkozak/pi-acp commit
 `8be5f22769f71d759aa48d798416c56e8be101ef` (v0.0.22, MIT).
-The patch only adds absolute `PI_ACP_STATE_DIR` to `getPiAcpDir()`.
-Unset preserves the original `homedir()/.pi/pi-acp` path, including cli_local.
-Relative or empty overrides fail explicitly. Pi itself is unchanged.
+The patch adds absolute `PI_ACP_STATE_DIR` to `getPiAcpDir()` and an owned
+`SHIJU_PI_SKILL_ROOT` directory contract shared by the ACP catalog and native RPC spawn.
+An empty skill root disables skills; an absolute root is passed through native
+`--no-skills --no-extensions --skill <root>` so defaults and extension skills cannot leak.
+An unset skill root preserves upstream skill discovery.
+An unset `PI_ACP_STATE_DIR` preserves `homedir()/.pi/pi-acp`, including cli_local;
+relative or empty state-directory overrides fail explicitly. Pi itself is unchanged.
 
 Apply and build in a private checkout of that exact commit:
 
@@ -17,9 +21,9 @@ npm run build
 Pinned upstream package-lock SHA256:
 `e257ee4cbe345ee0de44714d34401ed2ed14de41abc2c6ed7511b1a3d923c606`.
 Patch SHA256:
-`62e31924db85ab7b2844df605bb98dd24b71facf575db25cf5b078ebf788e71a`.
+`88c36304e8d2b510fb684477c53f9f712de2b02616064093b36dfa78e5a4ac2d`.
 Built dist/index.js SHA256 (Node 26.13.0 / npm 11.20.0, Darwin arm64):
-`a78e867c410e7b29c93196586a20b383ecd9f852d865c57af01f8970bc739e76`.
+`5132b90b8244ef8ab8ddbda77a812b5e477501baafb25862d1c0c0d1623f9dc6`.
 The session_model driver rejects any other adapter artifact before launching it;
 launch the executable dist/index.js directly (no npx wrapper or extra arguments).
 The native engine used for acceptance is the real published
@@ -48,6 +52,5 @@ Published npm inputs (registry.npmjs.org, npm verified integrity on installation
 - `@mariozechner/pi-coding-agent/-/pi-coding-agent-0.73.1.tgz`:
   `sha512-gXQh3SaZmWTfVMc4Ao5+LGbVeKvzyO7tolok0nLsZgq9nGjZx/EEU3NM8C+qUnB4Nvs2rswG5qOVgLzQkq0fHQ==`.
 
-The zero-context patch requires `--unidiff-zero` against the exact pinned commit.
-Applying it to a pristine paths.ts was checked to produce byte-identical source
-to the reviewed build; the adapter executable digest is unchanged.
+Apply the patch against the exact pinned commit; the original state-directory
+isolation remains intact. Skills are read by the unchanged native engine, on demand.

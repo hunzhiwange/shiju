@@ -328,6 +328,7 @@ async fn run(agent: &str) {
                 | "kiro"
                 | "opencode"
                 | "openclaw"
+                | "pi"
         ) {
             assert!(after["native_skill_invocations"].as_u64().unwrap_or(0) > 0);
             assert_eq!(after["skill_body_read"], true);

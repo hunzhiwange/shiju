@@ -313,6 +313,8 @@ fn collect_llm_step_from_stream(
     let mut text = String::new(); // 普通文本内容缓冲区
     let mut usage = models::TokenUsage::default(); // 令牌使用统计
     let mut finish_reason: Option<String> = None; // 完成原因
+    #[cfg(not(target_arch = "wasm32"))]
+    let mut call_collector = crate::session::llm::native_tools::NativeCallCollector::default();
     let mut tool_calls: Vec<llm::ToolCall> = Vec::new(); // 工具调用列表
     let mut full_messages: Vec<serde_json::Value> = Vec::new(); // 完整消息历史
 
@@ -441,7 +443,12 @@ fn collect_llm_step_from_stream(
             }
             // 处理工具调用
             llm::StreamEvent::ToolCalls(calls) => {
-                tool_calls = calls;
+                #[cfg(not(target_arch = "wasm32"))]
+                for call in &calls {
+                    call_collector.record(call.clone()).map_err(|error| error.to_string())?;
+                }
+                let mut ids = std::collections::HashSet::new();
+                tool_calls = calls.into_iter().filter(|call| ids.insert(call.id.clone())).collect();
             }
             // ACP 工具已在远端执行；只转成类型化展示事件，不能混入最终答复或再次执行。
             llm::StreamEvent::RemoteToolUpdate { call_id, name, is_initial, payload } => {

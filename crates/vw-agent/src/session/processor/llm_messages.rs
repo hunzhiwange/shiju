@@ -240,6 +240,15 @@ pub(crate) fn apply_image_turn_context(
     context.rewrite_json_messages(llm_messages);
 }
 
+/// Internal search items belong only to the provider history, never the chat body.
+#[cfg(not(target_arch = "wasm32"))]
+pub(crate) fn native_protocol_message(
+    item: crate::session::llm::native_tools::NativeHistoryItem,
+) -> Value {
+    serde_json::json!({"role":"native", "content":serde_json::to_string(&item)
+        .expect("typed native history must serialize")})
+}
+
 #[cfg(test)]
 #[path = "llm_messages_tests.rs"]
 mod llm_messages_tests;

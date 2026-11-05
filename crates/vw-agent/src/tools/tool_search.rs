@@ -16,6 +16,8 @@ pub(crate) struct ToolDiscoverySession {
     catalog: ToolDiscoveryCatalog,
     exposure: Mutex<ToolExposureState>,
     search_enabled: bool,
+    #[cfg(not(target_arch = "wasm32"))]
+    last_search: Mutex<Option<(String, Value)>>,
 }
 
 impl ToolDiscoverySession {
@@ -25,7 +27,13 @@ impl ToolDiscoverySession {
             .any(|spec| spec.id == TOOL_SEARCH_ID && spec.exposure.is_direct());
         let catalog = ToolDiscoveryCatalog::new(authorized_specs);
         let search_enabled = search_allowed && catalog.has_deferred_tools();
-        Self { catalog, exposure: Mutex::new(ToolExposureState::default()), search_enabled }
+        Self {
+            catalog,
+            exposure: Mutex::new(ToolExposureState::default()),
+            search_enabled,
+            #[cfg(not(target_arch = "wasm32"))]
+            last_search: Mutex::new(None),
+        }
     }
 
     /// Preserve loaded IDs only while the replacement still authorizes them.
@@ -72,6 +80,33 @@ impl ToolDiscoverySession {
             self.catalog.authorized_specs(),
             false,
         )
+    }
+
+    #[cfg(not(target_arch = "wasm32"))]
+    pub(crate) fn prepare_native_search(
+        &self,
+        call: &crate::session::llm::ToolCall,
+    ) -> anyhow::Result<()> {
+        self.native_output(call)?;
+        // A previous ordinary call cannot supply this invocation's receipt.
+        self.last_search.lock().unwrap_or_else(|error| error.into_inner()).take();
+        Ok(())
+    }
+
+    /// The receipt is written by the real tool executor, never by model or Hook output text.
+    #[cfg(not(target_arch = "wasm32"))]
+    pub(crate) fn take_native_output(
+        &self,
+        call: &crate::session::llm::ToolCall,
+    ) -> anyhow::Result<aisdk::core::Message> {
+        let (id, arguments) =
+            self.last_search.lock().unwrap_or_else(|error| error.into_inner()).take().ok_or_else(
+                || anyhow::anyhow!("native search has no successful runtime receipt"),
+            )?;
+        anyhow::ensure!(id == call.id, "native search receipt call_id mismatch");
+        let mut executed = call.clone();
+        executed.arguments = arguments.to_string();
+        self.native_output(&executed)
     }
 
     fn search(&self, args: Args) -> anyhow::Result<String> {
@@ -165,13 +200,19 @@ impl Tool for ToolSearchTool {
     }
 
     async fn execute(&self, input: Value) -> anyhow::Result<ToolResult> {
-        let args = parse_args(input)?;
+        let args = parse_args(input.clone())?;
         let context = current_tool_use_context()
             .ok_or_else(|| anyhow::anyhow!("tool_search requires an authorized runtime catalog"))?;
         let discovery = context
             .tool_discovery()
             .ok_or_else(|| anyhow::anyhow!("tool_search requires an authorized runtime catalog"))?;
-        Ok(ToolResult { success: true, output: discovery.search(args)?, error: None })
+        let output = discovery.search(args)?;
+        #[cfg(not(target_arch = "wasm32"))]
+        if let Some(id) = context.tool_call_id() {
+            *discovery.last_search.lock().unwrap_or_else(|error| error.into_inner()) =
+                Some((id.to_string(), input));
+        }
+        Ok(ToolResult { success: true, output, error: None })
     }
 }
 

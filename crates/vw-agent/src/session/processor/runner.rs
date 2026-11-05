@@ -41,6 +41,7 @@ struct DesktopSessionProtocol {
     agent_id: String,
     context_window_tokens: usize,
     hidden_prefetch: std::ops::Range<usize>,
+    native_call_ids: HashSet<String>,
 }
 
 impl DesktopSessionProtocol {
@@ -1596,10 +1597,18 @@ fn handle_structured_tool_calls(
     step_index: u32,
 ) -> bool {
     let structured_tool_call_count = step_out.tool_calls.len();
-    llm_messages.push(utils::tool_calls_to_assistant_message(
-        &step_out.tool_calls,
-        &step_out.reasoning_content,
-    ));
+    let ordinary_calls = step_out
+        .tool_calls
+        .iter()
+        .filter(|call| call.kind == crate::session::llm::ToolCallKind::Function)
+        .cloned()
+        .collect::<Vec<_>>();
+    if !ordinary_calls.is_empty() {
+        llm_messages.push(utils::tool_calls_to_assistant_message(
+            &ordinary_calls,
+            &step_out.reasoning_content,
+        ));
+    }
     todos::maybe_mark_todo_in_progress(session, ctx, tool_state);
 
     let step_has_todowrite = step_out
@@ -1626,6 +1635,55 @@ fn handle_structured_tool_calls(
     let mut call_index = 0;
     while call_index < step_out.tool_calls.len() {
         let call = &step_out.tool_calls[call_index];
+        if call.kind == crate::session::llm::ToolCallKind::Search {
+            #[cfg(not(target_arch = "wasm32"))]
+            {
+                use crate::session::llm::native_tools::NativeHistoryItem;
+                let arguments = serde_json::from_str(&call.arguments)
+                    .unwrap_or_else(|_| Value::String(call.arguments.clone()));
+                llm_messages.push(llm_messages::native_protocol_message(
+                    NativeHistoryItem::ToolSearchCall(aisdk::core::ToolSearchCall {
+                        id: None,
+                        call_id: Some(call.id.clone()),
+                        status: Some("completed".into()),
+                        execution: aisdk::core::ToolSearchExecution::Client,
+                        arguments,
+                        encrypted_content: None,
+                    }),
+                ));
+                let result = if !session_protocol.native_call_ids.insert(call.id.clone()) {
+                    Err(anyhow::anyhow!("native search call_id was already executed"))
+                } else if is_last_step || !allowed_tools.contains(&call.name) {
+                    Err(anyhow::anyhow!("native search is not exposed for this request"))
+                } else {
+                    tools_exec::run_native_search_and_record(
+                        session,
+                        call,
+                        &tool_context(&call.id),
+                        on_event,
+                        tool_state,
+                    )
+                };
+                let output = match result {
+                    Ok(output) => output,
+                    Err(error) => {
+                        on_event(StreamEvent::Error(error.to_string()));
+                        NativeHistoryItem::ToolSearchOutput(aisdk::core::ToolSearchOutput {
+                            id: None,
+                            call_id: Some(call.id.clone()),
+                            status: "failed".into(),
+                            execution: aisdk::core::ToolSearchExecution::Client,
+                            tools: Vec::new(),
+                        })
+                    }
+                };
+                llm_messages.push(llm_messages::native_protocol_message(output));
+            }
+            #[cfg(target_arch = "wasm32")]
+            on_event(StreamEvent::Error("native search requires a non-wasm target".into()));
+            call_index += 1;
+            continue;
+        }
         let content = if is_last_step {
             format!(
                 "tool unavailable: maximum tool iteration budget reached; \

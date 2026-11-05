@@ -1920,3 +1920,90 @@ fn dynamic_tools_processor_catalog_preserves_approval_and_hook_denials() {
     assert!(!denied.contains("PRIVATE_READ_CONTENT"));
     assert_eq!(calls.load(Ordering::SeqCst), 1);
 }
+
+#[test]
+fn native_tool_search_desktop_executor_requires_real_success_and_preserves_hooks() {
+    struct SearchHook(bool);
+    #[async_trait::async_trait]
+    impl crate::hooks::HookHandler for SearchHook {
+        fn name(&self) -> &str {
+            "native-search-fixture"
+        }
+        async fn before_tool_call(
+            &self,
+            name: String,
+            _: Value,
+        ) -> crate::hooks::HookResult<(String, Value)> {
+            if self.0 {
+                crate::hooks::HookResult::Cancel("search denied by hook".into())
+            } else {
+                crate::hooks::HookResult::Continue((name, json!({"query":"beta"})))
+            }
+        }
+    }
+    for deny in [true, false] {
+        let dir = tempfile::tempdir().unwrap();
+        let session_id = unique_session("native-search-executor");
+        let mut specs = ["alpha", "beta"]
+            .into_iter()
+            .map(|name| {
+                let mut spec = crate::tools::ToolSpec::new(
+                    name,
+                    name,
+                    json!({"type":"object","properties":{}}),
+                );
+                spec.exposure = vw_api_types::tools::ToolExposure::Deferred;
+                spec
+            })
+            .collect::<Vec<_>>();
+        let catalog = crate::tools::discovery::ToolDiscoveryCatalog::new(specs.clone());
+        use crate::tools::Tool;
+        specs.push(crate::tools::tool_search::ToolSearchTool::new(&catalog).spec());
+        let discovery = Arc::new(crate::tools::tool_search::ToolDiscoverySession::new(specs));
+        let mut hooks = crate::hooks::HookRunner::new();
+        hooks.register(Box::new(SearchHook(deny)));
+        let ctx = ctx_with_root(&session_id, dir.path())
+            .with_test_config(crate::config::Config::default());
+        let ctx = ctx.clone().with_tool_use_context(
+            ctx.tool_use_context()
+                .as_ref()
+                .clone()
+                .with_tool_discovery(discovery.clone())
+                .with_tool_call_id("search-id")
+                .with_tool_exposure_snapshot(["tool_search".into()])
+                .with_hook_runner(Arc::new(hooks)),
+        );
+        let call = crate::session::llm::ToolCall {
+            kind: crate::session::llm::ToolCallKind::Search,
+            namespace: None,
+            id: "search-id".into(),
+            name: "tool_search".into(),
+            arguments: json!({"query":"alpha"}).to_string(),
+        };
+        let result = super::run_native_search_and_record(
+            &mut Session::new(session_id),
+            &call,
+            &ctx,
+            &mut |_| true,
+            &mut new_state(),
+        );
+        let ids = discovery.exposed_specs().into_iter().map(|spec| spec.id).collect::<Vec<_>>();
+        if deny {
+            assert!(result.unwrap_err().to_string().contains("search denied by hook"));
+            assert_eq!(ids, vec!["tool_search"]);
+            assert!(discovery.take_native_output(&call).is_err());
+        } else {
+            let value = serde_json::to_value(result.unwrap()).unwrap();
+            assert_eq!(value["call_id"], "search-id");
+            assert!(value["tools"].to_string().contains("beta"));
+            assert!(!value["tools"].to_string().contains("alpha"));
+            assert!(ids.contains(&"beta".into()));
+            assert!(!ids.contains(&"alpha".into()));
+        }
+    }
+}
+
+#[test]
+fn native_tool_search_desktop_ordinary_approval_and_hooks_still_deny() {
+    dynamic_tools_processor_catalog_preserves_approval_and_hook_denials();
+}

@@ -51,6 +51,7 @@ const FULL_SESSION_OUTPUT_TOOLS: &[&str] = &["apply_patch", "write", "file_write
 /// 工具执行后仅供下一轮模型请求消费的协议数据。
 #[derive(Debug, Clone, Default)]
 pub(crate) struct ToolProtocolOutput {
+    pub(crate) success: bool,
     pub(crate) content_for_model: String,
     pub(crate) extra_messages: Vec<ToolExtraMessage>,
 }
@@ -1183,6 +1184,7 @@ pub(crate) fn run_tool_and_record_with_protocol(
         emit_ui,
         on_event,
     );
+    let success = execution.result.as_ref().is_ok_and(|result| result.is_success());
     let agent_child_created = execution.created;
     if let Some(created) = agent_child_created.as_ref() {
         track_background_agent_child(tool_state, &input_effective, created);
@@ -1284,7 +1286,11 @@ pub(crate) fn run_tool_and_record_with_protocol(
         tool_state.non_todo_tool_runs = tool_state.non_todo_tool_runs.saturating_add(1);
     }
 
-    Some(ToolProtocolOutput { content_for_model, extra_messages: extra_messages_for_model })
+    Some(ToolProtocolOutput {
+        success,
+        content_for_model,
+        extra_messages: extra_messages_for_model,
+    })
 }
 
 /// 执行批量工具调用并记录到会话
@@ -1819,6 +1825,39 @@ fn run_batch_error_and_record(
         session.push(super::Role::Tool, session_message);
     }
 }
+
+/// Preserve the ordinary permission and Hook pipeline, then consume only a runtime search receipt.
+#[cfg(not(target_arch = "wasm32"))]
+pub(crate) fn run_native_search_and_record(
+    session: &mut super::Session,
+    call: &crate::session::llm::ToolCall,
+    ctx: &ToolRuntimeContext,
+    on_event: &mut impl FnMut(StreamEvent) -> bool,
+    tool_state: &mut super::ToolSessionState,
+) -> anyhow::Result<crate::session::llm::native_tools::NativeHistoryItem> {
+    let discovery = ctx
+        .tool_use_context()
+        .tool_discovery()
+        .ok_or_else(|| anyhow::anyhow!("native search requires runtime discovery"))?;
+    // Validate the original protocol before any execution or exposure mutation.
+    discovery.prepare_native_search(call)?;
+    let output = run_tool_and_record_with_protocol(
+        session,
+        &call.name,
+        &call.arguments,
+        ctx,
+        true,
+        on_event,
+        tool_state,
+    )
+    .ok_or_else(|| anyhow::anyhow!("native search produced no execution result"))?;
+    anyhow::ensure!(output.success, "native search failed: {}", output.content_for_model);
+    let aisdk::core::Message::ToolSearchOutput(output) = discovery.take_native_output(call)? else {
+        anyhow::bail!("expected dedicated native search output");
+    };
+    Ok(crate::session::llm::native_tools::NativeHistoryItem::ToolSearchOutput(output))
+}
+
 #[cfg(test)]
 #[path = "tools_exec_tests.rs"]
 mod tools_exec_tests;

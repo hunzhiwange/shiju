@@ -3199,3 +3199,172 @@ fn dynamic_tools_processor_replacement_revokes_loaded_tool() {
 
 #[path = "mcp_catalog_refresh_tests.rs"]
 mod mcp_catalog_refresh_tests;
+
+fn native_desktop_stream(id: &str, query: &str) {
+    use crate::session::llm::{StreamEvent, ToolCall, ToolCallKind};
+    super::llm_runner::enqueue_test_llm_stream(vec![
+        StreamEvent::ToolCalls(vec![ToolCall {
+            kind: ToolCallKind::Search,
+            namespace: None,
+            id: id.into(),
+            name: "tool_search".into(),
+            arguments: serde_json::json!({"query":query}).to_string(),
+        }]),
+        StreamEvent::Done { usage: Default::default(), finish_reason: Some("stop".into()) },
+    ]);
+}
+
+#[test]
+fn native_tool_search_desktop_desktop_returns_specialized_search_output() {
+    with_discovery_processor_test(|workspace, _| {
+        let req = discovery_request(workspace.path());
+        let session = req.session.clone();
+        native_desktop_stream("native-search", "alpha");
+        discovery_stream(&[("invoke", DISCOVERY_ALPHA, serde_json::json!({}))]);
+        discovery_stream(&[]);
+        super::run(req, |_| true);
+        let requests = super::llm_runner::take_test_llm_messages(&session);
+        let native: Vec<serde_json::Value> = requests[1]
+            .messages
+            .iter()
+            .filter(|m| m["role"] == "native")
+            .map(|m| serde_json::from_str(m["content"].as_str().unwrap()).unwrap())
+            .collect();
+        assert_eq!(native.len(), 2, "dedicated call and output required");
+        assert_eq!(native[0]["type"], "tool_search_call");
+        assert_eq!(native[1]["type"], "tool_search_output");
+        assert_eq!(native[1]["call_id"], "native-search");
+        assert_eq!(native[1]["status"], "completed");
+        assert!(!native[1]["tools"].as_array().unwrap().is_empty());
+        assert!(!requests[1].messages.iter().any(|m| m["tool_call_id"] == "native-search"));
+        let ids = super::llm_runner::take_test_llm_stream_tool_ids();
+        assert!(!ids[0].contains(&DISCOVERY_ALPHA.into()));
+        assert!(ids[1].contains(&DISCOVERY_ALPHA.into()));
+        assert!(!ids[1].contains(&DISCOVERY_BETA.into()));
+        assert!(workspace.path().join("alpha").exists());
+    });
+}
+
+#[test]
+fn native_tool_search_desktop_no_hits_and_invalid_query_do_not_load() {
+    for query in ["nonexistentuniquefixture", "beta", " "] {
+        with_discovery_processor_test(|workspace, _| {
+            let mut req = discovery_request(workspace.path());
+            req.options["allowed_tools"] = serde_json::json!(["tool_search", DISCOVERY_ALPHA]);
+            let session = req.session.clone();
+            native_desktop_stream("empty-search", query);
+            discovery_stream(&[]);
+            let events = std::sync::Arc::new(std::sync::Mutex::new(Vec::new()));
+            let captured = events.clone();
+            super::run(req, move |event| {
+                captured.lock().unwrap().push(event);
+                true
+            });
+            let ids = super::llm_runner::take_test_llm_stream_tool_ids();
+            assert!(ids.iter().all(|ids| !ids.contains(&DISCOVERY_ALPHA.into())));
+            let requests = super::llm_runner::take_test_llm_messages(&session);
+            let output = requests[1]
+                .messages
+                .iter()
+                .find_map(|m| {
+                    let v: serde_json::Value = serde_json::from_str(m["content"].as_str()?).ok()?;
+                    (m["role"] == "native" && v["type"] == "tool_search_output").then_some(v)
+                })
+                .expect("specialized empty/failed result");
+            assert_eq!(output["call_id"], "empty-search");
+            assert!(output["tools"].as_array().unwrap().is_empty());
+            assert_eq!(
+                output["status"],
+                if query.trim().is_empty() { "failed" } else { "completed" }
+            );
+            if query.trim().is_empty() {
+                assert!(
+                    events
+                        .lock()
+                        .unwrap()
+                        .iter()
+                        .any(|e| matches!(e, super::StreamEvent::Error(_)))
+                );
+            }
+        });
+    }
+}
+
+#[test]
+fn native_tool_search_desktop_same_batch_does_not_authorize_function() {
+    with_discovery_processor_test(|workspace, _| {
+        let req = discovery_request(workspace.path());
+        use crate::session::llm::{StreamEvent, ToolCall, ToolCallKind};
+        super::llm_runner::enqueue_test_llm_stream(vec![
+            StreamEvent::ToolCalls(vec![
+                ToolCall {
+                    kind: ToolCallKind::Search,
+                    namespace: None,
+                    id: "search".into(),
+                    name: "tool_search".into(),
+                    arguments: r#"{"query":"alpha"}"#.into(),
+                },
+                ToolCall {
+                    kind: ToolCallKind::Function,
+                    namespace: Some("fixture".into()),
+                    id: "invoke".into(),
+                    name: DISCOVERY_ALPHA.into(),
+                    arguments: "{}".into(),
+                },
+            ]),
+            StreamEvent::Done { usage: Default::default(), finish_reason: None },
+        ]);
+        discovery_stream(&[]);
+        super::run(req, |_| true);
+        assert!(!workspace.path().join("alpha").exists());
+    });
+}
+
+#[test]
+fn native_tool_search_desktop_replacement_revokes_loaded_tool() {
+    with_discovery_processor_test(|workspace, _| {
+        let req = discovery_request(workspace.path());
+        let session = req.session.clone();
+        let tool: std::sync::Arc<dyn crate::tools::Tool> = std::sync::Arc::new(DiscoveryFileTool {
+            id: DISCOVERY_ALPHA,
+            path: workspace.path().join("revoked"),
+        });
+        let discovery = crate::tools::discovery::ToolDiscoveryCatalog::new(vec![tool.spec()]);
+        let search: std::sync::Arc<dyn crate::tools::Tool> =
+            std::sync::Arc::new(crate::tools::tool_search::ToolSearchTool::new(&discovery));
+        let catalog = std::sync::Arc::new(crate::tools::catalog::ToolCatalog::default());
+        catalog
+            .replace(
+                vec![tool.clone(), search.clone()],
+                [DISCOVERY_ALPHA.into(), "tool_search".into()],
+            )
+            .unwrap();
+        let context = std::sync::Arc::new(
+            crate::tools::ToolUseContext::new(session.clone(), req.root.clone())
+                .with_live_tool_catalog(catalog.clone()),
+        );
+        native_desktop_stream("load", "alpha");
+        discovery_stream(&[("revoked-call", DISCOVERY_ALPHA, serde_json::json!({}))]);
+        discovery_stream(&[]);
+        crate::tools::scope_tool_use_context_sync(context, || {
+            super::run(req, move |event| {
+                if matches!(event, super::StreamEvent::PostToolRound { step_index: 1 }) {
+                    catalog
+                        .replace(vec![tool.clone(), search.clone()], ["tool_search".into()])
+                        .unwrap();
+                }
+                true
+            })
+        });
+        let ids = super::llm_runner::take_test_llm_stream_tool_ids();
+        assert_eq!(ids.len(), 3);
+        assert!(ids.iter().all(|ids| !ids.contains(&DISCOVERY_ALPHA.to_string())));
+        assert!(!workspace.path().join("revoked").exists());
+        assert!(!workspace.path().join("alpha").exists());
+        let requests = super::llm_runner::take_test_llm_messages(&session);
+        assert!(requests[2].messages.iter().any(|m| {
+            m["tool_call_id"] == "revoked-call"
+                && m["content"].as_str().is_some_and(|s| s.contains("tool denied"))
+        }));
+    });
+}

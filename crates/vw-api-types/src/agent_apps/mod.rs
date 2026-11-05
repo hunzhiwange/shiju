@@ -71,3 +71,8 @@ mod installations_tests;
 
 mod installations;
 pub use installations::*;
+
+mod actions;
+pub use actions::*;
+#[cfg(test)]
+mod actions_tests;

@@ -237,7 +237,9 @@ pub(super) fn system_tab_keywords(tab: SystemTab) -> &'static [&'static str] {
         SystemTab::Runtime => &["runtime", "native", "docker", "wasm", "运行时"],
         SystemTab::Autonomy => &["autonomy", "agent run", "自治"],
         SystemTab::Security => &["security", "policy", "安全"],
-        SystemTab::GatewayClient => &["gateway client", "connection", "客户端"],
+        SystemTab::GatewayClient => {
+            &["gateway client", "connection", "客户端", "我的图标", "图标库"]
+        }
         SystemTab::Gateway => &["gateway server", "api", "服务端"],
         SystemTab::Observability => &["observability", "log", "monitor", "OTel", "trace"],
         SystemTab::Proxy => &["proxy", "代理", "HTTP", "HTTPS", "ALL_PROXY", "NO_PROXY"],
@@ -722,9 +724,12 @@ pub fn view(app: &App) -> Element<'_, Message> {
         SystemTab::Runtime => crate::app::components::system_settings_runtime::view(app),
         SystemTab::Autonomy => crate::app::components::system_settings_autonomy::view(app),
         SystemTab::Security => crate::app::components::system_settings_security::view(app),
-        SystemTab::GatewayClient => {
-            crate::app::components::system_settings_gateway_client::view(app)
-        }
+        SystemTab::GatewayClient => column![
+            super::system_settings_agent_apps::view(&app.agent_apps),
+            crate::app::components::system_settings_gateway_client::view(app),
+        ]
+        .spacing(16)
+        .into(),
         SystemTab::Gateway => crate::app::components::system_settings_gateway::view(app),
         SystemTab::Observability => {
             crate::app::components::system_settings_observability::view(app)

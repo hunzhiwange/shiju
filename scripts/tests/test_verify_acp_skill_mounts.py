@@ -12,6 +12,63 @@ from verify_acp_skill_mounts import accepted, select_entry
 
 
 class SkillMountHarnessTests(unittest.TestCase):
+    def test_copilot_exact_native_catalog_activates_with_skill_argument(self):
+        with tempfile.TemporaryDirectory() as directory:
+            fixture = SkillMountFixture(Path(directory))
+            fixture.copilot_native = True
+            body = {"messages": [{"role": "system", "content": "<available_skills><skill><name>" + fixture.name + "</name></skill></available_skills>"}],
+                    "tools": [{"function": {"name": "skill", "parameters": {"properties": {"skill": {"type": "string"}}}}}]}
+            message, finish = fixture.response(body)
+            self.assertEqual(finish, "tool_calls")
+            call = message["tool_calls"][0]["function"]
+            self.assertEqual(call["name"], "skill")
+            self.assertEqual(json.loads(call["arguments"]), {"skill": fixture.name})
+            self.assertFalse(fixture.snapshot()["skill_body_read"])
+            self.assertFalse(fixture.snapshot()["attachment_read"])
+
+    def test_copilot_native_acknowledgement_and_disk_expansion_are_both_required(self):
+        with tempfile.TemporaryDirectory() as directory:
+            fixture = SkillMountFixture(Path(directory))
+            fixture.copilot_native = True
+            view = Path(self.advertised(fixture)[0]["content"].split()[-1]).parent
+            messages = [{"role": "system", "content": "<available_skills><skill><name>" + fixture.name + "</name></skill></available_skills>"}]
+            tools = [{"function": {"name": name, "parameters": {"properties": {field: {"type": "string"}}, "required": [field]}}}
+                     for name, field in (("skill", "skill"), ("view", "path"))]
+            message, _ = fixture.response({"messages": messages, "tools": tools})
+            call = message["tool_calls"][0]
+            expansion = {"role": "user", "content": "Base directory for this skill: " + str(view) + "\n" + fixture.skill.read_text()}
+            with self.assertRaisesRegex(ValueError, "mounted view"):
+                fixture.response({"messages": messages + [expansion], "tools": tools})
+            messages += [{"role": "tool", "tool_call_id": call["id"], "content": 'Skill "' + fixture.name + '" loaded successfully. Follow the instructions in the skill context.'}, expansion]
+            message, _ = fixture.response({"messages": messages, "tools": tools})
+            read = message["tool_calls"][0]["function"]
+            self.assertEqual(read["name"], "view")
+            self.assertEqual(Path(json.loads(read["arguments"])["path"]), view / "references/value.txt")
+            self.assertTrue(fixture.snapshot()["skill_body_read"])
+            self.assertFalse(fixture.snapshot()["attachment_read"])
+
+    def test_copilot_ambient_or_builtin_skill_never_passes_catalog_gate(self):
+        with tempfile.TemporaryDirectory() as directory:
+            fixture = SkillMountFixture(Path(directory))
+            fixture.copilot_native = True
+            with self.assertRaisesRegex(ValueError, "Copilot native catalog"):
+                fixture.response({"messages": [{"role": "system", "content":
+                    "<available_skills><skill><name>" + fixture.name + "</name></skill><skill><name>ambient</name></skill></available_skills>"}],
+                    "tools": [{"function": {"name": "skill"}}]})
+            self.assertEqual(fixture.snapshot()["native_skill_invocations"], 0)
+
+    def test_copilot_disabled_catalog_and_utility_requests_do_not_forge_discovery(self):
+        with tempfile.TemporaryDirectory() as directory:
+            fixture = SkillMountFixture(Path(directory))
+            fixture.copilot_native = True
+            fixture.response({"messages": [], "tools": []})
+            self.assertEqual(fixture.snapshot()["model_requests"], 0)
+            fixture.mode = "absent"
+            message, finish = fixture.response({"messages": [{"role": "system", "content": "No skills"}],
+                                               "tools": [{"function": {"name": "view"}}]})
+            self.assertEqual((message["content"], finish), ("SKILL_ABSENT", "stop"))
+            self.assertEqual(fixture.snapshot()["discovery_events"], 0)
+
     def test_vibe_requires_exact_native_catalog_and_name_argument(self):
         with tempfile.TemporaryDirectory() as directory:
             fixture = SkillMountFixture(Path(directory))

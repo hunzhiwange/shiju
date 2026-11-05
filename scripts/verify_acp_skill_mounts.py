@@ -58,6 +58,7 @@ def run(args):
             env.update(CARGO_TARGET_DIR=slot, CARGO_BUILD_BUILD_DIR=slot,
                        RUST_MIN_STACK="33554432", VIBEWINDOW_CONFIG_DIR=str(root / "config"))
             with SkillMountFixture(root) as fixture:
+                fixture.copilot_native = args.agent == "copilot"
                 fixture.snow_native = args.agent == "snow"
                 fixture.hermes_native = args.agent == "hermes"
                 fixture.vibe_native = args.agent == "vibe"
@@ -68,9 +69,9 @@ def run(args):
                 fixture.codebuddy_native = args.agent == "codebuddy"
                 native = root / "native"
                 native.mkdir(mode=0o700)
-                if args.agent in ("qwen", "gemini", "codebuddy", "goose", "vibe", "hermes", "snow"):
+                if args.agent in ("qwen", "gemini", "codebuddy", "goose", "vibe", "hermes", "snow", "copilot"):
                     fixture.forbidden_skill = "unselected-" + fixture.name
-                    for base in (root / ("." + args.agent) / "skills", native / (".gemini/skills" if args.agent == "gemini" else "config/skills" if args.agent == "goose" else "skills")):
+                    for base in (root / (".github" if args.agent == "copilot" else "." + args.agent) / "skills", native / (".gemini/skills" if args.agent == "gemini" else "config/skills" if args.agent == "goose" else "skills")):
                         decoy = base / fixture.forbidden_skill
                         decoy.mkdir(parents=True)
                         (decoy / "SKILL.md").write_text(
@@ -89,7 +90,7 @@ def run(args):
                     report["engine_version"] = identity["underlying"]["release"]
                 else:
                     config = locate(identity, env)
-                if args.agent in ("claude", "qwen", "gemini", "codebuddy", "goose", "vibe", "hermes", "snow") and mode == "cli-local":
+                if args.agent in ("claude", "qwen", "gemini", "codebuddy", "goose", "vibe", "hermes", "snow", "copilot") and mode == "cli-local":
                     config["env"] = isolation
                 if args.agent == "goose":
                     config["env"]["GOOSE_DISABLE_SESSION_NAMING"] = "true"
@@ -132,7 +133,7 @@ def run(args):
                 flow = json.loads(flow_file.read_text()) if flow_file.exists() else {}
                 evidence = fixture.snapshot()
                 passed = (one_passed and accepted(evidence, flow, tests, result.returncode)
-                          and (args.agent not in ("claude", "qwen", "gemini", "codebuddy", "goose", "vibe", "hermes", "snow") or evidence.get("native_skill_invocations", 0) > 0))
+                          and (args.agent not in ("claude", "qwen", "gemini", "codebuddy", "goose", "vibe", "hermes", "snow", "copilot") or evidence.get("native_skill_invocations", 0) > 0))
                 report.update(evidence, passed=passed, status="passed" if passed else "failed",
                               reason="all skill assertions passed" if passed else "production skill lifecycle or observations incomplete",
                               effective_tests=tests, cargo_exit_code=result.returncode, command=command, diagnostics=diagnostics, build_errors=build_errors,

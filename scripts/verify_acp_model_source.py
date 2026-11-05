@@ -84,6 +84,50 @@ def claude_sdk_identity(executable, entry, env):
             "engine": underlying["embedded_cli_release"]}
 
 
+def copilot_native_executable(executable, release, env):
+    """Resolve a fixed native or reviewed managed entry without changing its installation."""
+    if (platform.system(), platform.machine()) != ("Darwin", "arm64"):
+        raise Unavailable("Copilot native package identity is unverified on this platform")
+    path = Path(executable).resolve()
+    native_name = "@github/copilot-darwin-arm64"
+    metadata_path = path.parent / "package.json"
+    try:
+        metadata = json.loads(metadata_path.read_text())
+    except (OSError, ValueError) as error:
+        raise Unavailable("Copilot installed package identity is unavailable") from error
+    if metadata.get("version") != release:
+        raise VersionMismatch("Copilot installed package version differs from manifest")
+    if path.name == "index.js" and path.parent.name == "embedded":
+        # Managed installation: the entry and all reviewed executable inputs are
+        # checked against the repository contract, not its self-reported version.
+        contract = json.loads((ROOT / "crates/vw-acp/src/managed_runtime/contracts.json").read_text())["copilot"]
+        package = path.parent.parent
+        metadata = json.loads((package / "package.json").read_text())
+        if (metadata.get("name"), metadata.get("version")) != (contract["package"], release) or contract["version"] != release:
+            raise VersionMismatch("Copilot managed package identity differs")
+        import hashlib
+        for name, expected in contract["files"].items():
+            if hashlib.sha256((package / name).read_bytes()).hexdigest() != expected:
+                raise VersionMismatch("Copilot managed artifact checksum differs")
+        return str(Path(executable).absolute())
+    if metadata.get("name") == "@github/copilot" and path.name == "npm-loader.js":
+        node = shutil.which("node", path=env.get("PATH"))
+        if not node:
+            raise Unavailable("Copilot npm package resolution requires installed Node")
+        probe = "const {createRequire}=require('node:module'); console.log(createRequire(process.argv[1]).resolve('@github/copilot-darwin-arm64'));"
+        result = subprocess.run([node, "-e", probe, str(path)], env=env, capture_output=True, timeout=20)
+        if result.returncode:
+            raise Unavailable("Copilot installed native package resolution failed")
+        path = Path(result.stdout.decode().strip()).resolve()
+        try:
+            metadata = json.loads((path.parent / "package.json").read_text())
+        except (OSError, ValueError) as error:
+            raise Unavailable("Copilot native package metadata is unavailable") from error
+    if (metadata.get("name"), metadata.get("version"), path.name) != (native_name, release, "copilot") or not path.is_file():
+        raise VersionMismatch("Copilot native package identity differs from manifest")
+    return str(path)
+
+
 def locate(entry, env):
     # Never use npm/npx discovery: it can install or silently change a version.
     candidates = entry.get("local_command_candidates", [])
@@ -115,7 +159,13 @@ def locate(entry, env):
     result = subprocess.run([executable, "--version"], env=env, capture_output=True, timeout=20)
     version = (result.stdout + result.stderr).decode(errors="replace")
     version_prefix = r"v?" if entry.get("key") == "hermes" else ""
-    if result.returncode or not re.search(r"(?<![\w.])" + version_prefix + re.escape(release) + r"(?![\w.])", version):
+    if entry.get("key") == "copilot":
+        # The fixed CLI prints a sentence-ending period. Keep this product-specific
+        # and exact: a fourth component or prerelease must never match the pin.
+        matches_version = version.splitlines()[:1] == ["GitHub Copilot CLI " + release + "."]
+    else:
+        matches_version = re.search(r"(?<![\w.])" + version_prefix + re.escape(release) + r"(?![\w.])", version)
+    if result.returncode or not matches_version:
         raise VersionMismatch("installed CLI version differs from manifest")
     launch = entry.get("acp_launch", [])
     if not launch or Path(launch[0]).name != Path(candidate).name or any("latest" in x for x in launch):
@@ -133,6 +183,10 @@ def locate(entry, env):
         result = subprocess.run([binary, "--version"], env=env, capture_output=True, timeout=20)
         if result.returncode or not re.search(r"(?<![\w.])" + re.escape(expected) + r"(?![\w.])", (result.stdout + result.stderr).decode(errors="replace")):
             raise VersionMismatch("underlying CLI version differs from manifest")
+    if entry.get("key") == "copilot":
+        if underlying != {"kind": "same_distribution", "release": release}:
+            raise VersionMismatch("Copilot native distribution differs from manifest")
+        executable = copilot_native_executable(executable, release, env)
     return {"command": str(Path(executable).absolute()), "args": launch[1:], "env": {}}
 
 

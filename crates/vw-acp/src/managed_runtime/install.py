@@ -103,6 +103,22 @@ root = runtime / 'node_modules' / contract['package']
 package = json.loads((root / 'package.json').read_text())
 if (package['name'], package['version']) != (contract['package'], contract['version']):
     raise RuntimeError('Supplier package identity mismatch')
+if agent == 'copilot':
+    # The fixed SEA exposes its bundled JS through the vendor's extraction mode.
+    # Extract only into this disposable installation, never the user's CLI cache.
+    program = "console.log(require('node:module').createRequire(process.argv[1]).resolve('@github/copilot-darwin-arm64'))"
+    native = Path(subprocess.check_output(['node', '-e', program, str(root / 'npm-loader.js')], text=True).strip())
+    if digest(native) != contract['native_sha256']:
+        raise RuntimeError('Copilot fixed SEA checksum mismatch')
+    cache = runtime / 'sea-cache'
+    extraction_env = dict(os.environ, COPILOT_SEA_EXTRACT_ONLY='1', COPILOT_PKG_CACHE_HOME=str(cache))
+    subprocess.run([str(native), '--binary-version'], env=extraction_env, check=True, stdin=subprocess.DEVNULL)
+    extracted = cache / 'pkg/darwin-arm64' / contract['version']
+    shutil.move(str(extracted), root / 'embedded')
+    run([sys.executable, str(assets / 'copilot/apply.py'), str(root / 'embedded')])
+    link = runtime / 'node_modules/.bin/copilot'
+    link.unlink()
+    link.symlink_to(Path('../@github/copilot/embedded/index.js'))
 if agent in ('codex', 'gemini'):
     check_files(root, contract['original'])
     run(['patch', '--batch', '--forward', '-p1', '-d', str(root), '-i', str(assets / (agent + '.patch'))])

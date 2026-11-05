@@ -139,5 +139,18 @@
     "files": {
       "bundle/cli.mjs": "dea7a6b9b28490a78c7c0f95d294b5c5203c7aa8f4a9f7cedc97720bbdd9d25e"
     }
+  },
+  "copilot": {
+    "package": "@github/copilot",
+    "version": "1.0.105",
+    "integrity": "sha512-k5JPVZrc0Ms4YdAmYS80OGxDvwjDZNVqDS3dxphIFUVSTFJRwcHkbHh3yUKk7MEyBjKqQYKLKNAKSF+dVmjl7A==",
+    "bin": "embedded/index.js",
+    "native_sha256": "5fd7d15ff02deb08a58593b1b488015bb52c1686014b80b5509e28263cb3ad70",
+    "files": {
+      "embedded/index.js": "19f4cb854302397bdd880f5cde12ed069d373a630dce3f09a60e62b8ac8fcc4c",
+      "embedded/app.js": "cb69bda81260cb16dcf740cc968c52da9e6c7bc80b7fb8eafa47fb986726e3ac",
+      "embedded/cli-main.js": "1f8978f33a7a54105087ab9e66313a4b973dd852e198ab85b39c3de44959b502",
+      "embedded/prebuilds/darwin-arm64/runtime.node": "423ba722d1fa544ba352fd6e702d5b67f78419995a0247580185aa030bcbc1fb"
+    }
   }
 }

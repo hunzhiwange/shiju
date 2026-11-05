@@ -1063,10 +1063,10 @@
     {
       "key": "copilot",
       "version": "1.0.105",
-      "status": "unverified",
+      "status": "verified",
       "platform": {
         "review_host": "Darwin-arm64",
-        "artifact_scope": "本机固定发行物静态审查；源码/通用 JS 的跨平台执行未验证",
+        "artifact_scope": "固定 1.0.105 私有托管补丁发行物；Darwin-arm64 真实生产 ACP 两种模型来源全生命周期验收",
         "linux": "unverified",
         "windows": "unverified"
       },
@@ -1088,41 +1088,41 @@
           "--stdio"
         ],
         "binding": "crates/vw-acp/src/agent_registry.rs::BUILT_IN_AGENT_DEFINITIONS",
-        "runtime_executed": false,
-        "note": "固定发行物候选入口；注册器含 latest/range，不保证用户当前命令已固定到此版本。"
+        "runtime_executed": true,
+        "note": "托管 .bin/copilot 指向经散列核实的 extracted embedded/index.js；原生 npm 全局安装未修改。"
       },
       "mount": {
         "candidate_paths": [
-          "~/.copilot/skills（当前官方文档线索）",
-          "<repo>/.github/skills（当前官方文档线索）"
+          "SHIJU_COPILOT_SKILL_ROOT -> native ACP boot skillDirectories"
         ],
-        "discovery": "1.0.105 本机平台二进制为不透明发行物；未在可读载荷定位技能 loader。当前文档说明目录技能，但没有将该契约绑定到固定版本 ACP 会话。",
-        "activation": "当前文档描述按相关任务使用；固定版本 ACP 默认选择与按需激活均未核实。",
-        "session_isolation": "unverified：额外根/专属配置根不自动排除内建、用户、项目及插件技能；不得修改 HOME 或写用户全局目录。"
+        "discovery": "固定 SEA 私有解包后，仅补齐 ACP boot options；原生 SDK skillsLoad 和 skill 工具实际发现选中会话目录。",
+        "activation": "原生 skill(skill=name) 成功回执与单独的正文/目录上下文均须存在；随后真实 view/bash 读取随机附件与执行脚本。首次 prompt 没有技能正文。",
+        "session_isolation": "verified on reviewed Darwin-arm64 build：enableConfigDiscovery=false、includedBuiltinSkills=[]、installedPlugins=[]、pluginDirectories=[]；空选择关闭技能，独立会话和项目/用户 decoy 未泄漏，环境列表被清空。"
       },
       "permissions": {
-        "status": "unverified",
+        "status": "verified_release_only",
         "requirements": "执行端重新审核目录、租户/项目/会话权限、路径逃逸与符号链接；支持文件/脚本/MCP 仍受各自授权限制，不扩大 full_access。",
-        "agent_specific": "固定 ACP 的目录/工具授权条件须后续真实验证；未因模型来源受限推定技能不支持。"
+        "agent_specific": "会话视图及权限仍在生产侧审核；未设置 allow-all、未改 sandbox 或凭据，默认技能被拒绝场景通过。"
       },
       "update": {
-        "native": "unverified：本任务未执行热更新或原子完整替换；静态刷新函数/文档 reload 不作成功承诺。",
-        "candidate": "在不打断运行请求的前提下评估空闲重建；尚未确认固定发行物原生更新入口。"
+        "native": "不声明热更新；空闲重建后添加、移除和 V1/V2 实测通过。",
+        "candidate": "复用现有不打断运行请求的生命周期与完整集合替换。"
       },
       "recovery": {
-        "status": "unverified",
-        "requirements": "重建 new/load/resume 后重新发布同 revision 目录并核实发现、删除和支持文件访问；不能把已有模型来源恢复证据当技能恢复证据。"
+        "status": "verified_release_only",
+        "requirements": "重建 new/load/resume 后重新发布同 revision 目录并核实发现、删除和支持文件访问；不能把已有模型来源恢复证据当技能恢复证据。",
+        "evidence": "evidence/copilot.json 两种来源的 restart/idle_update/new/add/remove/v2 全部 true。"
       },
       "independent_sources": {
         "local_configuration": {
-          "candidate": "COPILOT_HOME / COPILOT_PROVIDER_CONFIG",
-          "static_review_only": true,
-          "runtime_verified_this_task": false
+          "candidate": "COPILOT_HOME / COPILOT_PROVIDERS_CONFIG",
+          "static_review_only": false,
+          "runtime_verified_this_task": true
         },
         "client_model_source": {
           "prior_report_status": "verified_release_only",
           "reference": "../../shiju/acp-model-source/cli-versions.json#copilot",
-          "runtime_verified_this_task": false,
+          "runtime_verified_this_task": true,
           "note": "只保留旧报告定位；不复制其通过/不支持结论到技能能力。"
         }
       },
@@ -1142,6 +1142,31 @@
           "observations": [],
           "package": "@github/copilot",
           "version": "1.0.105"
+        },
+        {
+          "path": "${MANAGED_COPILOT}/node_modules/@github/copilot/embedded/index.js",
+          "sha256": "19f4cb854302397bdd880f5cde12ed069d373a630dce3f09a60e62b8ac8fcc4c",
+          "kind": "reviewed_managed_artifact"
+        },
+        {
+          "path": "${MANAGED_COPILOT}/node_modules/@github/copilot/embedded/app.js",
+          "sha256": "cb69bda81260cb16dcf740cc968c52da9e6c7bc80b7fb8eafa47fb986726e3ac",
+          "kind": "reviewed_managed_artifact"
+        },
+        {
+          "path": "${MANAGED_COPILOT}/node_modules/@github/copilot/embedded/cli-main.js",
+          "sha256": "1f8978f33a7a54105087ab9e66313a4b973dd852e198ab85b39c3de44959b502",
+          "kind": "reviewed_managed_artifact"
+        },
+        {
+          "path": "${MANAGED_COPILOT}/node_modules/@github/copilot/embedded/prebuilds/darwin-arm64/runtime.node",
+          "sha256": "423ba722d1fa544ba352fd6e702d5b67f78419995a0247580185aa030bcbc1fb",
+          "kind": "reviewed_managed_artifact"
+        },
+        {
+          "path": "evidence/copilot.json",
+          "sha256": "d5e2c86b0ef6ee777ec40aa7d0f3bd78f15540abda8e610c555628f7d0eb1fc8",
+          "kind": "real_production_skill_acceptance"
         }
       ],
       "supplemental_official_docs": [
@@ -1151,7 +1176,17 @@
           "scope": "当前文档补充线索；未绑定固定发行物/ACP；不用于提升支持状态。"
         }
       ],
-      "next_validation": "固定版本真实 ACP：发现元数据 → 按需激活 → 支持文件/脚本工具回合 → 隔离/删除/更新失败保旧 → 跨进程恢复；只替代外部模型 HTTP。未安装/缺账号则保留 unverified。"
+      "next_validation": "Continue remaining agents and final regression. Validate other platforms and releases independently.",
+      "acceptance": {
+        "status": "verified",
+        "production_gate": "reviewed executable and native addon required",
+        "evidence": "evidence/copilot.json",
+        "model_sources": [
+          "session_model",
+          "cli_local"
+        ],
+        "limitation": "Only reviewed managed Copilot 1.0.105 on Darwin-arm64."
+      }
     },
     {
       "key": "cursor",

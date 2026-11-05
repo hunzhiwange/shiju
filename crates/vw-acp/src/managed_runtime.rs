@@ -120,6 +120,7 @@ pub fn reviewed_agent_command(agent: &str) -> Result<Option<(String, Vec<String>
         "gemini" => vec!["--experimental-acp".into()],
         "iflow" => vec!["--experimental-acp".into()],
         "qwen" | "snow" => vec!["--acp".into()],
+        "copilot" => vec!["--acp".into(), "--stdio".into()],
         _ => vec![],
     };
     // Drivers validate the supplier's executable basename, while npm owns the symlink.
@@ -210,6 +211,11 @@ pub(super) async fn install(agent: &str) -> Result<bool, String> {
         ("install.py", include_str!("managed_runtime/install.py")),
         ("snow/apply.py", include_str!("../../../patches/acp-model-source/snow/apply.py")),
         ("snow/patch.json", include_str!("../../../patches/acp-model-source/snow/patch.json")),
+        ("copilot/apply.py", include_str!("../../../patches/acp-model-source/copilot/apply.py")),
+        (
+            "copilot/patch.json",
+            include_str!("../../../patches/acp-model-source/copilot/patch.json"),
+        ),
         ("contracts.json", CONTRACTS),
         ("iflow-lock.json", include_str!("managed_runtime/iflow-lock.json")),
         (

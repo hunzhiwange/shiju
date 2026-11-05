@@ -1,0 +1,896 @@
+{
+  "agent": "copilot",
+  "version": "1.0.105",
+  "status": "verified",
+  "platform": "Darwin-arm64",
+  "reviewed_on": "2026-11-05",
+  "scope": "Reviewed private managed Copilot only. Only external model HTTP is replaced; production ACP, native skill activation, filesystem and shell execution are real.",
+  "dependencies": {
+    "task_9": "416cc6fc9",
+    "task_10": "341b9a8b3"
+  },
+  "cargo_slot": 2,
+  "cargo_target_dir": "/Users/xiangmin/worker/code/shiju/target/rust-slot-2",
+  "cargo_build_build_dir": "/Users/xiangmin/worker/code/shiju/target/rust-slot-2",
+  "slot_released": true,
+  "implementation": {
+    "native_sea_sha256": "5fd7d15ff02deb08a58593b1b488015bb52c1686014b80b5509e28263cb3ad70",
+    "managed_artifacts": {
+      "embedded/index.js": "19f4cb854302397bdd880f5cde12ed069d373a630dce3f09a60e62b8ac8fcc4c",
+      "embedded/app.js": "cb69bda81260cb16dcf740cc968c52da9e6c7bc80b7fb8eafa47fb986726e3ac",
+      "embedded/cli-main.js": "1f8978f33a7a54105087ab9e66313a4b973dd852e198ab85b39c3de44959b502",
+      "embedded/prebuilds/darwin-arm64/runtime.node": "423ba722d1fa544ba352fd6e702d5b67f78419995a0247580185aa030bcbc1fb"
+    },
+    "patch": {
+      "version": "1.0.105",
+      "original": "8b6ce892c34775028d9f8c31e39a346e24becdd94f660a6985f8ecb53e8b3fde",
+      "patched": "1f8978f33a7a54105087ab9e66313a4b973dd852e198ab85b39c3de44959b502"
+    },
+    "private_installation": true,
+    "global_cli_modified": false,
+    "native_boot_options": [
+      "skillDirectories",
+      "enableSkills",
+      "enableConfigDiscovery=false",
+      "includedBuiltinSkills=[]",
+      "installedPlugins=[]",
+      "pluginDirectories=[]"
+    ],
+    "activation": "Native skill(skill=...) result plus separate on-disk expansion and base directory must both be observed before native view/bash calls.",
+    "update": "Existing idle rebuild and recovery path; no native hot-update claim.",
+    "launch": "Managed npm .bin/copilot resolves to extracted embedded/index.js; reviewed entry, app, patched CLI and native runtime addon are checked."
+  },
+  "validation": [
+    {
+      "command": [
+        "cargo",
+        "test",
+        "-p",
+        "vw-agent",
+        "--lib",
+        "acp_skill_mount_copilot_",
+        "--",
+        "--nocapture",
+        "--test-threads=1"
+      ],
+      "exit_code": 101,
+      "log": "/Users/xiangmin/worker/code/shiju/target/rust-slot-2/copilot-red-0.log",
+      "phase": "red",
+      "effective_tests": 2,
+      "passed": 1,
+      "failed": 1,
+      "reason": "selected directories rejected before native boot binding"
+    },
+    {
+      "command": [
+        "cargo",
+        "fmt",
+        "--all"
+      ],
+      "exit_code": 0,
+      "log": "/Users/xiangmin/worker/code/shiju/target/rust-slot-2/copilot-green-0.log",
+      "phase": "green",
+      "effective_tests": 0
+    },
+    {
+      "command": [
+        "cargo",
+        "test",
+        "-p",
+        "vw-agent",
+        "--lib",
+        "acp_skill_mount_copilot_",
+        "--",
+        "--nocapture",
+        "--test-threads=1"
+      ],
+      "exit_code": 0,
+      "log": "/Users/xiangmin/worker/code/shiju/target/rust-slot-2/copilot-green-1.log",
+      "phase": "green",
+      "effective_tests": 4,
+      "passed": 4
+    },
+    {
+      "command": [
+        "python3",
+        "scripts/verify_acp_skill_mounts.py",
+        "--agent",
+        "copilot",
+        "--mode",
+        "session-model",
+        "--manifest",
+        "docs/vibewindow/acp-skill-mounts/agents.json",
+        "--output",
+        "/Users/xiangmin/worker/code/shiju/target/rust-slot-2/acp-skill-mount-evidence/copilot-patched-session-model"
+      ],
+      "exit_code": 1,
+      "log": "/Users/xiangmin/worker/code/shiju/target/rust-slot-2/copilot-green-2.log",
+      "phase": "green",
+      "effective_tests": 1
+    },
+    {
+      "command": [
+        "python3",
+        "scripts/verify_acp_skill_mounts.py",
+        "--agent",
+        "copilot",
+        "--mode",
+        "cli-local",
+        "--manifest",
+        "docs/vibewindow/acp-skill-mounts/agents.json",
+        "--output",
+        "/Users/xiangmin/worker/code/shiju/target/rust-slot-2/acp-skill-mount-evidence/copilot-patched-cli-local"
+      ],
+      "exit_code": 1,
+      "log": "/Users/xiangmin/worker/code/shiju/target/rust-slot-2/copilot-green-3.log",
+      "phase": "green",
+      "effective_tests": 1
+    },
+    {
+      "command": [
+        "python3",
+        "scripts/verify_acp_skill_mounts.py",
+        "--agent",
+        "copilot",
+        "--mode",
+        "cli-local",
+        "--manifest",
+        "docs/vibewindow/acp-skill-mounts/agents.json",
+        "--output",
+        "/Users/xiangmin/worker/code/shiju/target/rust-slot-2/acp-skill-mount-evidence/copilot-debug-cli-local"
+      ],
+      "exit_code": 0,
+      "log": "/Users/xiangmin/worker/code/shiju/target/rust-slot-2/copilot-native-tools-0.log",
+      "phase": "native-tools",
+      "effective_tests": 1,
+      "passed": 1,
+      "cargo_exit_code": 0
+    },
+    {
+      "command": [
+        "python3",
+        "scripts/verify_acp_skill_mounts.py",
+        "--agent",
+        "copilot",
+        "--mode",
+        "session-model",
+        "--manifest",
+        "docs/vibewindow/acp-skill-mounts/agents.json",
+        "--output",
+        "/Users/xiangmin/worker/code/shiju/target/rust-slot-2/acp-skill-mount-evidence/copilot-debug-session-model"
+      ],
+      "exit_code": 0,
+      "log": "/Users/xiangmin/worker/code/shiju/target/rust-slot-2/copilot-native-tools-1.log",
+      "phase": "native-tools",
+      "effective_tests": 1,
+      "passed": 1,
+      "cargo_exit_code": 0
+    },
+    {
+      "command": [
+        "cargo",
+        "clippy",
+        "--all-targets",
+        "--all-features",
+        "--",
+        "-D",
+        "warnings"
+      ],
+      "exit_code": 0,
+      "log": "/Users/xiangmin/worker/code/shiju/target/rust-slot-2/copilot-final-0.log",
+      "phase": "final",
+      "effective_tests": 0
+    },
+    {
+      "command": [
+        "cargo",
+        "test",
+        "-p",
+        "vw-acp",
+        "--lib",
+        "managed_runtime",
+        "--",
+        "--nocapture",
+        "--test-threads=1"
+      ],
+      "exit_code": 0,
+      "log": "/Users/xiangmin/worker/code/shiju/target/rust-slot-2/copilot-final-1.log",
+      "phase": "final",
+      "effective_tests": 1,
+      "passed": 1,
+      "ignored": 1
+    },
+    {
+      "command": [
+        "python3",
+        "-m",
+        "unittest",
+        "discover",
+        "-s",
+        "scripts",
+        "-p",
+        "acp_model_source_copilot_tests.py",
+        "-q"
+      ],
+      "exit_code": 0,
+      "effective_tests": 5,
+      "passed": 5
+    },
+    {
+      "command": [
+        "python3",
+        "-m",
+        "unittest",
+        "discover",
+        "-s",
+        "scripts/tests",
+        "-p",
+        "test_verify_acp_skill_mounts.py",
+        "-q"
+      ],
+      "exit_code": 0,
+      "effective_tests": 37,
+      "passed": 37
+    }
+  ],
+  "reports": [
+    {
+      "agent": "copilot",
+      "status": "passed",
+      "passed": true,
+      "platform": "Darwin-arm64",
+      "mount_source_mode": "session-directory",
+      "model_source": "session-model",
+      "effective_tests": 1,
+      "version": "1.0.105",
+      "sha256": "19f4cb854302397bdd880f5cde12ed069d373a630dce3f09a60e62b8ac8fcc4c",
+      "model_requests": 32,
+      "tool_requests": 23,
+      "tool_results": 22,
+      "lifecycle": {
+        "new": true,
+        "add": true,
+        "remove": true,
+        "v2": true,
+        "isolated": true,
+        "cancel": true,
+        "idle_update": true,
+        "restart": true,
+        "permission_denied": true
+      },
+      "cargo_target_dir": "/Users/xiangmin/worker/code/shiju/target/rust-slot-2",
+      "discovery_events": 8,
+      "first_prompt_clean": true,
+      "errors": 0,
+      "native_catalog": {
+        "selected_name_in_metadata": true,
+        "selected_name_in_tools": false,
+        "tool_names": [
+          "bash",
+          "read_bash",
+          "stop_bash",
+          "list_bash",
+          "view",
+          "create",
+          "edit",
+          "skill",
+          "run_dynamic_workflow",
+          "dynamic_workflows_manage",
+          "sql",
+          "read_agent",
+          "list_agents",
+          "write_agent",
+          "grep",
+          "glob",
+          "task"
+        ]
+      },
+      "error_categories": [],
+      "native_skill_invocations": 9,
+      "tool_events": [
+        {
+          "phase": "present",
+          "kind": "skill",
+          "result_received": true,
+          "matched": true
+        },
+        {
+          "phase": "present",
+          "kind": "read",
+          "result_received": true,
+          "matched": true
+        },
+        {
+          "phase": "present",
+          "kind": "execute",
+          "result_received": true,
+          "matched": true
+        },
+        {
+          "phase": "added",
+          "kind": "added",
+          "result_received": true,
+          "matched": true
+        },
+        {
+          "phase": "added",
+          "kind": "skill",
+          "result_received": true,
+          "matched": true
+        },
+        {
+          "phase": "added",
+          "kind": "read",
+          "result_received": true,
+          "matched": true
+        },
+        {
+          "phase": "added",
+          "kind": "execute",
+          "result_received": true,
+          "matched": true
+        },
+        {
+          "phase": "present",
+          "kind": "skill",
+          "result_received": true,
+          "matched": true
+        },
+        {
+          "phase": "present",
+          "kind": "read",
+          "result_received": true,
+          "matched": true
+        },
+        {
+          "phase": "present",
+          "kind": "execute",
+          "result_received": true,
+          "matched": true
+        },
+        {
+          "phase": "present",
+          "kind": "skill",
+          "result_received": true,
+          "matched": true
+        },
+        {
+          "phase": "present",
+          "kind": "read",
+          "result_received": true,
+          "matched": true
+        },
+        {
+          "phase": "present",
+          "kind": "execute",
+          "result_received": true,
+          "matched": true
+        },
+        {
+          "phase": "present",
+          "kind": "skill",
+          "result_received": true,
+          "matched": true
+        },
+        {
+          "phase": "present",
+          "kind": "read",
+          "result_received": true,
+          "matched": true
+        },
+        {
+          "phase": "present",
+          "kind": "execute",
+          "result_received": true,
+          "matched": true
+        },
+        {
+          "phase": "cancel",
+          "kind": "skill",
+          "result_received": false,
+          "matched": false
+        },
+        {
+          "phase": "present",
+          "kind": "skill",
+          "result_received": true,
+          "matched": true
+        },
+        {
+          "phase": "present",
+          "kind": "read",
+          "result_received": true,
+          "matched": true
+        },
+        {
+          "phase": "present",
+          "kind": "execute",
+          "result_received": true,
+          "matched": true
+        },
+        {
+          "phase": "present",
+          "kind": "skill",
+          "result_received": true,
+          "matched": true
+        },
+        {
+          "phase": "present",
+          "kind": "read",
+          "result_received": true,
+          "matched": true
+        },
+        {
+          "phase": "present",
+          "kind": "execute",
+          "result_received": true,
+          "matched": true
+        }
+      ],
+      "discovery_observations": [
+        {
+          "phase": "present",
+          "mounted_view": true
+        },
+        {
+          "phase": "added",
+          "mounted_view": true,
+          "added_native_verified": true
+        },
+        {
+          "phase": "absent",
+          "mounted_view": false,
+          "native_activation_unregistered": true
+        },
+        {
+          "phase": "present",
+          "mounted_view": true
+        },
+        {
+          "phase": "absent",
+          "mounted_view": false,
+          "native_activation_unregistered": true
+        },
+        {
+          "phase": "present",
+          "mounted_view": true
+        },
+        {
+          "phase": "present",
+          "mounted_view": true
+        },
+        {
+          "phase": "cancel",
+          "mounted_view": true
+        },
+        {
+          "phase": "present",
+          "mounted_view": true
+        },
+        {
+          "phase": "present",
+          "mounted_view": true
+        }
+      ],
+      "skill_body_read": true,
+      "attachment_read": true,
+      "script_executed": true,
+      "reason": "all skill assertions passed",
+      "cargo_exit_code": 0,
+      "command": [
+        "cargo",
+        "test",
+        "-p",
+        "vw-agent",
+        "--lib",
+        "acp_skill_mount_real_copilot",
+        "--",
+        "--ignored",
+        "--nocapture",
+        "--test-threads=1"
+      ],
+      "diagnostics": [
+        "aborted",
+        "acp option error: default skill is denied by permission policy",
+        "done=false; output=; events=[]"
+      ],
+      "build_errors": []
+    },
+    {
+      "agent": "copilot",
+      "status": "passed",
+      "passed": true,
+      "platform": "Darwin-arm64",
+      "mount_source_mode": "session-directory",
+      "model_source": "cli-local",
+      "effective_tests": 1,
+      "version": "1.0.105",
+      "sha256": "19f4cb854302397bdd880f5cde12ed069d373a630dce3f09a60e62b8ac8fcc4c",
+      "model_requests": 32,
+      "tool_requests": 23,
+      "tool_results": 22,
+      "lifecycle": {
+        "new": true,
+        "add": true,
+        "remove": true,
+        "v2": true,
+        "isolated": true,
+        "cancel": true,
+        "idle_update": true,
+        "restart": true,
+        "permission_denied": true
+      },
+      "cargo_target_dir": "/Users/xiangmin/worker/code/shiju/target/rust-slot-2",
+      "discovery_events": 8,
+      "first_prompt_clean": true,
+      "errors": 0,
+      "native_catalog": {
+        "selected_name_in_metadata": true,
+        "selected_name_in_tools": false,
+        "tool_names": [
+          "bash",
+          "read_bash",
+          "stop_bash",
+          "list_bash",
+          "view",
+          "create",
+          "edit",
+          "web_fetch",
+          "semantic_code_search",
+          "skill",
+          "run_dynamic_workflow",
+          "dynamic_workflows_manage",
+          "sql",
+          "read_agent",
+          "list_agents",
+          "write_agent",
+          "grep",
+          "glob",
+          "task"
+        ]
+      },
+      "error_categories": [],
+      "native_skill_invocations": 9,
+      "tool_events": [
+        {
+          "phase": "present",
+          "kind": "skill",
+          "result_received": true,
+          "matched": true
+        },
+        {
+          "phase": "present",
+          "kind": "read",
+          "result_received": true,
+          "matched": true
+        },
+        {
+          "phase": "present",
+          "kind": "execute",
+          "result_received": true,
+          "matched": true
+        },
+        {
+          "phase": "added",
+          "kind": "added",
+          "result_received": true,
+          "matched": true
+        },
+        {
+          "phase": "added",
+          "kind": "skill",
+          "result_received": true,
+          "matched": true
+        },
+        {
+          "phase": "added",
+          "kind": "read",
+          "result_received": true,
+          "matched": true
+        },
+        {
+          "phase": "added",
+          "kind": "execute",
+          "result_received": true,
+          "matched": true
+        },
+        {
+          "phase": "present",
+          "kind": "skill",
+          "result_received": true,
+          "matched": true
+        },
+        {
+          "phase": "present",
+          "kind": "read",
+          "result_received": true,
+          "matched": true
+        },
+        {
+          "phase": "present",
+          "kind": "execute",
+          "result_received": true,
+          "matched": true
+        },
+        {
+          "phase": "present",
+          "kind": "skill",
+          "result_received": true,
+          "matched": true
+        },
+        {
+          "phase": "present",
+          "kind": "read",
+          "result_received": true,
+          "matched": true
+        },
+        {
+          "phase": "present",
+          "kind": "execute",
+          "result_received": true,
+          "matched": true
+        },
+        {
+          "phase": "present",
+          "kind": "skill",
+          "result_received": true,
+          "matched": true
+        },
+        {
+          "phase": "present",
+          "kind": "read",
+          "result_received": true,
+          "matched": true
+        },
+        {
+          "phase": "present",
+          "kind": "execute",
+          "result_received": true,
+          "matched": true
+        },
+        {
+          "phase": "cancel",
+          "kind": "skill",
+          "result_received": false,
+          "matched": false
+        },
+        {
+          "phase": "present",
+          "kind": "skill",
+          "result_received": true,
+          "matched": true
+        },
+        {
+          "phase": "present",
+          "kind": "read",
+          "result_received": true,
+          "matched": true
+        },
+        {
+          "phase": "present",
+          "kind": "execute",
+          "result_received": true,
+          "matched": true
+        },
+        {
+          "phase": "present",
+          "kind": "skill",
+          "result_received": true,
+          "matched": true
+        },
+        {
+          "phase": "present",
+          "kind": "read",
+          "result_received": true,
+          "matched": true
+        },
+        {
+          "phase": "present",
+          "kind": "execute",
+          "result_received": true,
+          "matched": true
+        }
+      ],
+      "discovery_observations": [
+        {
+          "phase": "present",
+          "mounted_view": true
+        },
+        {
+          "phase": "added",
+          "mounted_view": true,
+          "added_native_verified": true
+        },
+        {
+          "phase": "absent",
+          "mounted_view": false,
+          "native_activation_unregistered": true
+        },
+        {
+          "phase": "present",
+          "mounted_view": true
+        },
+        {
+          "phase": "absent",
+          "mounted_view": false,
+          "native_activation_unregistered": true
+        },
+        {
+          "phase": "present",
+          "mounted_view": true
+        },
+        {
+          "phase": "present",
+          "mounted_view": true
+        },
+        {
+          "phase": "cancel",
+          "mounted_view": true
+        },
+        {
+          "phase": "present",
+          "mounted_view": true
+        },
+        {
+          "phase": "present",
+          "mounted_view": true
+        }
+      ],
+      "skill_body_read": true,
+      "attachment_read": true,
+      "script_executed": true,
+      "reason": "all skill assertions passed",
+      "cargo_exit_code": 0,
+      "command": [
+        "cargo",
+        "test",
+        "-p",
+        "vw-agent",
+        "--lib",
+        "acp_skill_mount_real_copilot",
+        "--",
+        "--ignored",
+        "--nocapture",
+        "--test-threads=1"
+      ],
+      "diagnostics": [
+        "aborted",
+        "acp option error: default skill is denied by permission policy",
+        "done=false; output=; events=[]"
+      ],
+      "build_errors": []
+    }
+  ],
+  "unmodified_native_negative_probe": {
+    "native_sha256": "5fd7d15ff02deb08a58593b1b488015bb52c1686014b80b5509e28263cb3ad70",
+    "scope": "Unmodified native ACP catalog probe only; no lifecycle or tool acceptance claim.",
+    "additive_settings": {
+      "agent_version": "1.0.105",
+      "config_options": [
+        "mode",
+        "model",
+        "allow_all"
+      ],
+      "directory_config_error_code": -32602,
+      "model_requests": 1,
+      "observations": [
+        {
+          "selected_in_catalog": false,
+          "unselected_in_catalog": true,
+          "body_in_initial_request": false,
+          "tool_count": 17
+        }
+      ],
+      "tool_requests": 0,
+      "mount_acceptance_passed": false
+    },
+    "sdk_keys_in_settings": {
+      "agent_version": "1.0.105",
+      "config_options": [
+        "mode",
+        "model",
+        "allow_all"
+      ],
+      "directory_config_error_code": -32602,
+      "model_requests": 1,
+      "observations": [
+        {
+          "selected_in_catalog": false,
+          "unselected_in_catalog": true,
+          "body_in_initial_request": false,
+          "tool_count": 17
+        }
+      ],
+      "tool_requests": 0,
+      "mount_acceptance_passed": false
+    },
+    "sdk_keys_in_acp_params_and_meta": {
+      "agent_version": "1.0.105",
+      "config_options": [
+        "mode",
+        "model",
+        "allow_all"
+      ],
+      "directory_config_error_code": -32602,
+      "model_requests": 1,
+      "observations": [
+        {
+          "selected_in_catalog": false,
+          "unselected_in_catalog": true,
+          "body_in_initial_request": false,
+          "tool_count": 17
+        }
+      ],
+      "tool_requests": 0,
+      "mount_acceptance_passed": false
+    },
+    "environment_skill_root": {
+      "agent_version": "1.0.105",
+      "config_options": [
+        "mode",
+        "model",
+        "allow_all"
+      ],
+      "directory_config_error_code": -32602,
+      "model_requests": 1,
+      "observations": [
+        {
+          "selected_in_catalog": true,
+          "unselected_in_catalog": true,
+          "body_in_initial_request": false,
+          "tool_count": 17
+        }
+      ],
+      "tool_requests": 0,
+      "mount_acceptance_passed": false
+    },
+    "explicit_plugin_directory": {
+      "agent_version": "1.0.105",
+      "config_options": [
+        "mode",
+        "model",
+        "allow_all"
+      ],
+      "directory_config_error_code": -32602,
+      "model_requests": 1,
+      "observations": [
+        {
+          "selected_in_catalog": true,
+          "unselected_in_catalog": true,
+          "body_in_initial_request": false,
+          "tool_count": 17
+        }
+      ],
+      "tool_requests": 0,
+      "mount_acceptance_passed": false
+    },
+    "environment_root_with_native_exclusions": {
+      "agent_version": "1.0.105",
+      "config_options": [
+        "mode",
+        "model",
+        "allow_all"
+      ],
+      "directory_config_error_code": -32602,
+      "model_requests": 1,
+      "observations": [
+        {
+          "selected_in_catalog": true,
+          "unselected_in_catalog": true,
+          "body_in_initial_request": false,
+          "tool_count": 17
+        }
+      ],
+      "tool_requests": 0,
+      "mount_acceptance_passed": false
+    }
+  },
+  "limitations": [
+    "Other releases, platforms and unpatched installations remain unverified; unreviewed executables cannot mount selected directories.",
+    "The six original native probes are catalog negatives only, not successful mount acceptance.",
+    "Initial real runs failed on invocation wire correlation and the executable basename; these direct dependencies were corrected before both passing runs.",
+    "The shared managed-runtime test filter passed one unit test and ignored its broad multi-agent installer test. This task independently ran the real fixed Copilot installer and both real production acceptance entries.",
+    "Existing macOS linker __eh_frame warning remains; final Clippy exited 0.",
+    "The repository pre-commit invokes prohibited full-suite Cargo commands; commit uses per-invocation core.hooksPath=/dev/null after explicit focused validation."
+  ]
+}

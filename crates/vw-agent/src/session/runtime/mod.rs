@@ -21,3 +21,7 @@ mod lifecycle_tests;
 #[cfg(test)]
 #[path = "prompt_tests.rs"]
 mod prompt_tests;
+
+pub mod dynamic_calls;
+#[cfg(test)]
+mod dynamic_calls_tests;

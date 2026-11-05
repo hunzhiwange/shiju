@@ -279,3 +279,7 @@ pub(crate) use toolset::execute_bound_app_tool;
 
 #[cfg(test)]
 mod catalog_tests;
+
+pub mod client_tool;
+#[cfg(test)]
+mod client_tool_tests;

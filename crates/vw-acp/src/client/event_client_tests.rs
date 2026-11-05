@@ -761,3 +761,66 @@ async fn acp_skill_mount_codebuddy_scoped_sources_allow_reads_but_not_writes_or_
     }
     assert_eq!(fs::read_to_string(attachment).unwrap(), "selected attachment");
 }
+
+#[tokio::test]
+async fn acp_skill_mount_kiro_scoped_sources_allow_reads_but_not_writes_or_unselected_files() {
+    let workspace = tempfile::tempdir().unwrap();
+    let source = tempfile::tempdir().unwrap();
+    let foreign = tempfile::tempdir().unwrap();
+    let attachment = source.path().join("value.txt");
+    let outside = foreign.path().join("value.txt");
+    fs::write(&attachment, "selected attachment").unwrap();
+    fs::write(&outside, "unselected attachment").unwrap();
+    #[cfg(unix)]
+    std::os::unix::fs::symlink(&outside, source.path().join("escape.txt")).unwrap();
+    for mode in [PermissionMode::ApproveReads, PermissionMode::DenyAll] {
+        let (tx, _rx) = mpsc::unbounded_channel();
+        let client = super::AcpClient::new("kiro", AcpAgentConfig::default())
+            .with_permission_mode(mode)
+            .with_skill_mounts(
+                Some(crate::SessionMountSelection {
+                    version: 1,
+                    skills: vec![crate::SessionSkillMount {
+                        name: "selected".into(),
+                        path: source.path().to_string_lossy().into(),
+                    }],
+                }),
+                None,
+            );
+        let events = client.build_event_client(workspace.path(), Arc::new(Mutex::new(None)), tx);
+        let read =
+            events.read_text_file(acp::ReadTextFileRequest::new("fixture", &attachment)).await;
+        if mode == PermissionMode::DenyAll {
+            assert!(read.is_err());
+        } else {
+            assert_eq!(read.unwrap().content, "selected attachment");
+        }
+        assert!(
+            events
+                .read_text_file(acp::ReadTextFileRequest::new("fixture", &outside))
+                .await
+                .is_err()
+        );
+        #[cfg(unix)]
+        assert!(
+            events
+                .read_text_file(acp::ReadTextFileRequest::new(
+                    "fixture",
+                    source.path().join("escape.txt")
+                ))
+                .await
+                .is_err()
+        );
+        assert!(
+            events
+                .write_text_file(acp::WriteTextFileRequest::new(
+                    "fixture",
+                    &attachment,
+                    "overwrite"
+                ))
+                .await
+                .is_err()
+        );
+    }
+    assert_eq!(fs::read_to_string(attachment).unwrap(), "selected attachment");
+}

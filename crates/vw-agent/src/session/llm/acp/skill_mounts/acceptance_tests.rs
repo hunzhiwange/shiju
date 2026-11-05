@@ -318,7 +318,7 @@ async fn run(agent: &str) {
         assert!(accepted(&after), "real model/tool evidence incomplete");
         if matches!(
             agent,
-            "gemini" | "codebuddy" | "goose" | "vibe" | "hermes" | "snow" | "kilocode"
+            "gemini" | "codebuddy" | "goose" | "vibe" | "hermes" | "snow" | "kilocode" | "kiro"
         ) {
             assert!(after["native_skill_invocations"].as_u64().unwrap_or(0) > 0);
             assert_eq!(after["skill_body_read"], true);

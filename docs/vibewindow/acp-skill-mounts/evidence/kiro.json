@@ -1,0 +1,207 @@
+{
+  "agent": "kiro",
+  "version": "3.0.0",
+  "platform": "Darwin-arm64",
+  "reviewed_on": "2026-11-05",
+  "status": "verified_release_only",
+  "scope": "Only the private hash-verified fixed native binary plus reviewed extracted V3 engine. Unpatched releases and other platforms remain unverified.",
+  "distribution": {
+    "url": "https://prod.download.cli.kiro.dev/stable/3.0.0/kirocli-universal-darwin.zip",
+    "archive_sha256": "0a8f067c4fe6a23a231aa3a18e3e4332120ef9ed3d2d7b6eea907beb8b4cdd8b",
+    "files": {
+      "kiro-cli": "5728781bd5d77735d912467b15ba37c67220830952c17cf2e3066005044ee8e6",
+      "native/kiro-cli": "4e4b2ee6b5021624d23c6ef78b18624c438ee898596a683f5a55889c512965bc",
+      "runtime/3.0.0-96d7248d901e42e1/node": "46d1713acc486d844a8b944fb0f606366aebc70d6601646b9807abc7cb1a2201",
+      "runtime/3.0.0-96d7248d901e42e1/kas/node_modules/@kiro/agent/dist/server/acp-server.js": "26907b1f2895cf28a850d7720b340cb206965d8ffbc17cb62dd78276f2dbd02d"
+    }
+  },
+  "source": {
+    "embedded_entry": "kas/node_modules/@kiro/agent/dist/server/acp-server.js",
+    "original_sha256": "bf79b2b0fa7ae68653abdf117b4a4dbf064fec6fa7ca49500115f3f2f67581b1",
+    "patched_sha256": "26907b1f2895cf28a850d7720b340cb206965d8ffbc17cb62dd78276f2dbd02d",
+    "patch": "patches/acp-model-source/kiro/apply.py",
+    "changes": [
+      "Use native skill resource parser to project the request-owned view into the session item registry.",
+      "Suppress ambient user/cloud/workspace discovery only when the explicit selection is present; filter all native skill catalog contributions to that root.",
+      "Translate raw shell commands with native QHe shell/env construction before standard ACP terminal/create. No tool implementation or permission branch replaced.",
+      "Add Kiro to existing scoped read-only ACP source roots; deny-all, writes, foreign files and escaping symlinks remain rejected."
+    ]
+  },
+  "diagnosis": {
+    "v3_default_resources": "The documented inheritance setting did not exclude native V3 ambient skills; custom mode alone was insufficient.",
+    "v3_shared_registry": "External view roots projected as global entries are dropped by native shared layer rules; session declarations are the correct existing registry boundary.",
+    "legacy_v2": "Real V2 ignored KIRO_KAS_ENDPOINT and AWS_ENDPOINT_URL and attempted runtime.us-east-1.kiro.dev; trace classified ConnectError/dns error/failed to lookup inside the loopback-only sandbox. It is not a directory unsupported verdict or an external prerequisite: this implementation preserves the existing reviewed V3 Responses model path.",
+    "acp_reads": "Real read_file returned Caught error reading: Internal error; new failing callback test exposed Path is outside allowed cwd subtree for selected mounts before adding Kiro to the existing scoped read list.",
+    "acp_shell": "Native V3 projected complete shell text as command with no args; standard executable spawning failed. Patched wire projection uses native shell selection and original terminal approval."
+  },
+  "boundaries": {
+    "native_binary_unmodified": true,
+    "home_unchanged": true,
+    "global_install_untouched": true,
+    "model_source_drivers_unchanged": true,
+    "no_text_fallback": true,
+    "no_full_access_expansion": true,
+    "fixture_scope": "Only external model HTTP/control plane replaced. CLI, ACP production backend, discovery, filesystem reads and script execution are real."
+  },
+  "checks": [
+    {
+      "command": "cargo test -p vw-agent --lib acp_skill_mount_kiro_ -- --nocapture --test-threads=1",
+      "phase": "red before adapter implementation",
+      "exit_code": 101,
+      "effective_tests": 2,
+      "passed": 1,
+      "failed": 1,
+      "reason": "Selected mount validation still returned the unverified rejection."
+    },
+    {
+      "command": "cargo test -p vw-acp --lib acp_skill_mount_kiro_ -- --nocapture --test-threads=1",
+      "phase": "red before scoped read callback wiring",
+      "exit_code": 101,
+      "effective_tests": 1,
+      "passed": 0,
+      "failed": 1,
+      "reason": "Selected source read failed: Path is outside allowed cwd subtree. Existing deny/write/escape restrictions were retained in the test."
+    },
+    {
+      "command": "python3 -m unittest discover -s scripts/tests -p test_verify_acp_skill_mounts.py",
+      "exit_code": 0,
+      "effective_tests": 43,
+      "passed": 43,
+      "scope": "Model fixture/harness only; not supplier success evidence."
+    },
+    {
+      "command": "node --check <private-extracted-reviewed-acp-server.js>",
+      "exit_code": 0
+    },
+    {
+      "command": "python3 patches/acp-model-source/kiro/apply.py <fixed-original-entry>",
+      "exit_code": 0,
+      "reapplication_exit_code": 1,
+      "reason": "Original and final patched checksums match their pins; already-patched/tampered input is rejected."
+    },
+    {
+      "command": "cargo fmt --all",
+      "exit_code": 0
+    },
+    {
+      "command": "cargo test -p vw-agent --lib acp_skill_mount_kiro_ -- --nocapture --test-threads=1",
+      "exit_code": 0,
+      "effective_tests": 4,
+      "passed": 4
+    },
+    {
+      "command": "cargo test -p vw-acp --lib acp_skill_mount_kiro_ -- --nocapture --test-threads=1",
+      "exit_code": 0,
+      "effective_tests": 1,
+      "passed": 1
+    },
+    {
+      "command": "python3 scripts/verify_acp_skill_mounts.py --agent kiro --mode session-model --manifest docs/vibewindow/acp-skill-mounts/agents.json --output /Users/xiangmin/worker/code/shiju/target/rust-slot-2/acp-skill-mount-evidence/kiro-session-model",
+      "exit_code": 0,
+      "effective_tests": 1,
+      "passed": 1
+    },
+    {
+      "command": "python3 scripts/verify_acp_skill_mounts.py --agent kiro --mode cli-local --manifest docs/vibewindow/acp-skill-mounts/agents.json --output /Users/xiangmin/worker/code/shiju/target/rust-slot-2/acp-skill-mount-evidence/kiro-cli-local",
+      "exit_code": 0,
+      "effective_tests": 1,
+      "passed": 1
+    },
+    {
+      "command": "cargo clippy --all-targets --all-features -- -D warnings",
+      "exit_code": 0
+    }
+  ],
+  "cargo": {
+    "slot": 2,
+    "CARGO_TARGET_DIR": "/Users/xiangmin/worker/code/shiju/target/rust-slot-2",
+    "lock_released": true,
+    "cache_preserved": true
+  },
+  "sources": {
+    "session-model": {
+      "status": "passed",
+      "passed": true,
+      "effective_tests": 1,
+      "version": "3.0.0",
+      "sha256": "5728781bd5d77735d912467b15ba37c67220830952c17cf2e3066005044ee8e6",
+      "cargo_exit_code": 0,
+      "model_requests": 32,
+      "tool_requests": 23,
+      "tool_results": 22,
+      "native_skill_invocations": 9,
+      "discovery_events": 8,
+      "first_prompt_clean": true,
+      "skill_body_read": true,
+      "attachment_read": true,
+      "script_executed": true,
+      "errors": 0,
+      "lifecycle": {
+        "new": true,
+        "add": true,
+        "remove": true,
+        "v2": true,
+        "isolated": true,
+        "cancel": true,
+        "idle_update": true,
+        "restart": true,
+        "permission_denied": true
+      }
+    },
+    "cli-local": {
+      "status": "passed",
+      "passed": true,
+      "effective_tests": 1,
+      "version": "3.0.0",
+      "sha256": "5728781bd5d77735d912467b15ba37c67220830952c17cf2e3066005044ee8e6",
+      "cargo_exit_code": 0,
+      "model_requests": 32,
+      "tool_requests": 23,
+      "tool_results": 22,
+      "native_skill_invocations": 9,
+      "discovery_events": 8,
+      "first_prompt_clean": true,
+      "skill_body_read": true,
+      "attachment_read": true,
+      "script_executed": true,
+      "errors": 0,
+      "lifecycle": {
+        "new": true,
+        "add": true,
+        "remove": true,
+        "v2": true,
+        "isolated": true,
+        "cancel": true,
+        "idle_update": true,
+        "restart": true,
+        "permission_denied": true
+      }
+    }
+  },
+  "cancellation_note": "One issued model tool call per source was cancelled before execution; 22 completed tool results are observed, not inferred from 23 issued tool calls.",
+  "installation": {
+    "command": "python3 <private-assets>/install.py <private-assets> <private-runtime> kiro",
+    "exit_code": 0,
+    "source": "Final installer consumed the previously downloaded official ZIP via file:// in the test-only copied manifest. Production URL and all archive/native/engine/launcher hash pins remain unchanged. Extraction, final patch application and installed file verification executed for real.",
+    "initial_https_install_exit_code": 0,
+    "duplicate_https_download": "A redundant second download was interrupted before extraction (130); final cached-archive installation succeeded. No CLI or discovery fixture substituted.",
+    "runtime_checks": [
+      {
+        "case": "installed_fixed_identity",
+        "exit_code": 0,
+        "stdout": "kiro-cli 3.0.0"
+      },
+      {
+        "case": "conflicting_engine_override",
+        "exit_code": 1,
+        "rejected": true
+      },
+      {
+        "case": "tampered_engine",
+        "exit_code": 1,
+        "rejected": true
+      }
+    ]
+  },
+  "completion": "Darwin-arm64 fixed private V3 runtime verified in both existing model sources. No native hot-update or other-platform claim."
+}

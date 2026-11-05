@@ -24,6 +24,31 @@ def check_files(root, files):
         if digest(root / name) != expected:
             raise RuntimeError('Reviewed artifact checksum mismatch: ' + name)
 
+if contract.get('layout') == 'standalone':
+    import platform
+    import zipfile
+    if agent != 'kiro' or platform.system() != 'Darwin' or platform.machine() != 'arm64':
+        raise RuntimeError('Kiro reviewed runtime is Darwin-arm64 only')
+    archive = assets / 'kiro.zip'
+    with urllib.request.urlopen(contract['artifact_url'], timeout=120) as response, archive.open('wb') as output:
+        shutil.copyfileobj(response, output)
+    if digest(archive) != contract['archive_sha256']:
+        raise RuntimeError('Kiro fixed archive checksum mismatch')
+    runtime.mkdir()
+    native = runtime / 'native/kiro-cli'
+    native.parent.mkdir()
+    with zipfile.ZipFile(archive) as package:
+        native.write_bytes(package.read('kirocli/bin/kiro-cli'))
+    native.chmod(0o700)
+    if digest(native) != contract['files']['native/kiro-cli']:
+        raise RuntimeError('Kiro fixed executable checksum mismatch')
+    run([str(native), '_', 'extract-runtime', '--dir', str(runtime / 'runtime')])
+    server = runtime / 'runtime/3.0.0-96d7248d901e42e1/kas/node_modules/@kiro/agent/dist/server/acp-server.js'
+    run([sys.executable, str(assets / 'kiro/apply.py'), str(server)])
+    shutil.copy2(assets / 'kiro/launcher.py', runtime / 'kiro-cli')
+    (runtime / 'kiro-cli').chmod(0o700)
+    check_files(runtime, contract['files'])
+    raise SystemExit(0)
 if contract.get('layout') == 'python':
     uv = sys.argv[4] if len(sys.argv) > 4 and sys.argv[4] else shutil.which('uv') or str(Path.home() / '.local/bin/uv')
     run([uv, 'venv', '--python', '3.12', '--relocatable', str(runtime)])

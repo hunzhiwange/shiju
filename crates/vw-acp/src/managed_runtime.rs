@@ -34,6 +34,18 @@ fn installed_directory(agent: &str, contract: &Contract) -> Result<PathBuf, Stri
     Ok(root()?.join(format!("{agent}-{}-model-source-v1", contract.version)))
 }
 fn verify(directory: &Path, contract: &Contract) -> Result<PathBuf, String> {
+    if contract.layout == "standalone" {
+        for (name, digest) in &contract.files {
+            if hex::encode(Sha256::digest(
+                std::fs::read(directory.join(name))
+                    .map_err(|_| "Missing reviewed Kiro artifact")?,
+            )) != *digest
+            {
+                return Err("Kiro artifact checksum mismatch".into());
+            }
+        }
+        return Ok(directory.join(&contract.bin));
+    }
     if contract.layout == "native" {
         let receipt: serde_json::Value = serde_json::from_slice(
             &std::fs::read(directory.join("build-receipt.json"))
@@ -222,6 +234,9 @@ pub(super) async fn install(agent: &str) -> Result<bool, String> {
             "copilot/patch.json",
             include_str!("../../../patches/acp-model-source/copilot/patch.json"),
         ),
+        ("kiro/apply.py", include_str!("../../../patches/acp-model-source/kiro/apply.py")),
+        ("kiro/patch.json", include_str!("../../../patches/acp-model-source/kiro/patch.json")),
+        ("kiro/launcher.py", include_str!("../../../patches/acp-model-source/kiro/launcher.py")),
         ("contracts.json", CONTRACTS),
         ("iflow-lock.json", include_str!("managed_runtime/iflow-lock.json")),
         (

@@ -1796,10 +1796,10 @@
     {
       "key": "kiro",
       "version": "3.0.0",
-      "status": "unverified",
+      "status": "verified",
       "platform": {
         "review_host": "Darwin-arm64",
-        "artifact_scope": "本机固定发行物静态审查；源码/通用 JS 的跨平台执行未验证",
+        "artifact_scope": "Darwin-arm64 fixed native 3.0.0 plus hash-verified private V3 source patch; two-source real ACP lifecycle passed. Other platforms remain unverified.",
         "linux": "unverified",
         "windows": "unverified"
       },
@@ -1812,7 +1812,7 @@
           "kind": "same_distribution",
           "release": "3.0.0"
         },
-        "local_identity": "固定版本来自版本清单/本机隔离发行物路径；仅记录静态文件散列，不把路径命名当作运行身份验证。"
+        "local_identity": "Official ZIP, unchanged universal native binary, extracted ARM64 engine, bundled Node and private launcher hashes are pinned in managed_runtime/contracts.json; see evidence/kiro.json."
       },
       "acp_entry": {
         "argv": [
@@ -1820,41 +1820,41 @@
           "acp"
         ],
         "binding": "crates/vw-acp/src/agent_registry.rs::BUILT_IN_AGENT_DEFINITIONS",
-        "runtime_executed": false,
-        "note": "固定发行物候选入口；注册器含 latest/range，不保证用户当前命令已固定到此版本。"
+        "runtime_executed": true,
+        "note": "Private reviewed launcher retains native ACP and existing V3 model drivers; no global CLI replacement."
       },
       "mount": {
         "candidate_paths": [
-          "skill://.kiro/skills/*/SKILL.md（固定二进制字符串）",
-          "agent resources 的 skill:// glob（当前文档）"
+          "SHIJU_KIRO_SKILL_ROOT (internal reviewed adapter; absolute request-owned SessionSkillView)",
+          "Native skill resource parser over the selected view SKILL.md glob, projected into the session registry"
         ],
-        "discovery": "3.0.0 有 skill:// 解析与 glob 错误字符串，当前文档有 resources 入口；尚未核实固定版本 ACP 资源配置及动态更新。",
-        "activation": "file:// 直接正文资源与 skill:// 元数据按需加载不得混为一谈；实际行为未验证。",
-        "session_isolation": "unverified：额外根/专属配置根不自动排除内建、用户、项目及插件技能；不得修改 HOME 或写用户全局目录。"
+        "discovery": "Reviewed private V3 patch suppresses default user/cloud/project scanning and filters all skill catalog contributions to the selected view. Empty selection yields no native skills.",
+        "activation": "Native disclose_context(name) loads the body on demand. Actual read_file and execute_bash read a random attachment and execute its script; first prompt contains no skill body.",
+        "session_isolation": "Verified project/native decoys, empty selection, separate session, selected-directory read-only callbacks and no foreign-file/symlink escape access; HOME/cwd/full_access unchanged."
       },
       "permissions": {
-        "status": "unverified",
+        "status": "verified_release_only",
         "requirements": "执行端重新审核目录、租户/项目/会话权限、路径逃逸与符号链接；支持文件/脚本/MCP 仍受各自授权限制，不扩大 full_access。",
-        "agent_specific": "固定 ACP 的目录/工具授权条件须后续真实验证；未因模型来源受限推定技能不支持。"
+        "agent_specific": "Kiro joins existing selected-source read-only callback roots. DenyAll, writes, foreign files and escaping symlinks remain denied. Shell commands use the native shell/env constructor and original ACP terminal approval; no permission widening."
       },
       "update": {
-        "native": "unverified：本任务未执行热更新或原子完整替换；静态刷新函数/文档 reload 不作成功承诺。",
-        "candidate": "在不打断运行请求的前提下评估空闲重建；尚未确认固定发行物原生更新入口。"
+        "native": "No hot-update claim. Existing idle rebuild and session restoration publish complete selections.",
+        "candidate": "Verified add/remove/V2-content/idle_update in both existing model sources."
       },
       "recovery": {
-        "status": "unverified",
-        "requirements": "重建 new/load/resume 后重新发布同 revision 目录并核实发现、删除和支持文件访问；不能把已有模型来源恢复证据当技能恢复证据。"
+        "status": "verified",
+        "requirements": "Both sources rediscover and invoke the same revision after actual CLI restart; see evidence/kiro.json."
       },
       "independent_sources": {
         "local_configuration": {
           "candidate": "KIRO_HOME",
           "static_review_only": true,
-          "runtime_verified_this_task": false
+          "runtime_verified_this_task": true
         },
         "client_model_source": {
           "prior_report_status": "verified_release_only",
           "reference": "../../shiju/acp-model-source/cli-versions.json#kiro",
-          "runtime_verified_this_task": false,
+          "runtime_verified_this_task": true,
           "note": "只保留旧报告定位；不复制其通过/不支持结论到技能能力。"
         }
       },
@@ -1872,6 +1872,12 @@
               "excerpt": "xcludedToolsKIRO_TEST_AGENTS_DIRagentsamazonqcli-agents.kiroskill://.kiro/skills/*/SKILL.mdAmazonQ.mdfile://AmazonQ.mdfile://.amazonq/rules/**/*.mdskill         webinternally tagged enum ComplexResourceSkillComplexweb_searchknowledgetodo_listkiroUpgradefingerprint       //**./   *"
             }
           ]
+        },
+        {
+          "path": "patches/acp-model-source/kiro/launcher.py",
+          "sha256": "5728781bd5d77735d912467b15ba37c67220830952c17cf2e3066005044ee8e6",
+          "kind": "reviewed_private_launcher",
+          "scope": "Private reviewed launcher verified with complete native V3 lifecycles in both model sources; engine/source pins in managed_runtime/contracts.json."
         }
       ],
       "supplemental_official_docs": [
@@ -1881,7 +1887,16 @@
           "scope": "当前文档补充线索；未绑定固定发行物/ACP；不用于提升支持状态。"
         }
       ],
-      "next_validation": "固定版本真实 ACP：发现元数据 → 按需激活 → 支持文件/脚本工具回合 → 隔离/删除/更新失败保旧 → 跨进程恢复；只替代外部模型 HTTP。未安装/缺账号则保留 unverified。"
+      "next_validation": "Other versions/platforms require independent verification; retain reviewed executable/hash gates. Shared outbound update/recovery regression remains in later plan tasks.",
+      "acceptance": {
+        "status": "verified_release_only",
+        "evidence": "evidence/kiro.json",
+        "model_sources": [
+          "session-model",
+          "cli-local"
+        ],
+        "scope": "Only fixed privately patched 3.0.0 on Darwin-arm64. Unpatched executables and other versions/platforms remain unverified."
+      }
     },
     {
       "key": "opencode",

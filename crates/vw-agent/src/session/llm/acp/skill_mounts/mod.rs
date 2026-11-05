@@ -40,7 +40,7 @@ pub(super) fn validate(agent: &str, selected: bool) -> Result<(), Error> {
         "copilot" => return Ok(()),
         "kilocode" => return Ok(()),
         "kimi" => kimi::rejection(),
-        "kiro" => kiro::rejection(),
+        "kiro" => return Ok(()),
         "opencode" => opencode::rejection(),
         "openclaw" => openclaw::rejection(),
         "pi" => pi::rejection(),
@@ -133,7 +133,9 @@ pub(super) fn configure_native_scanner(
     config: &mut crate::config::schema::AcpAgentConfig,
     view: Option<&MountedSkills>,
 ) -> Result<(), Error> {
-    if agent == "kilocode" {
+    if agent == "kiro" {
+        kiro::configure(config, view)?;
+    } else if agent == "kilocode" {
         kilocode::configure(config, view)?;
     } else if agent == "copilot" {
         copilot::configure(config, view)?;

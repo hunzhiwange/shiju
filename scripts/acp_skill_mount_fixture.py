@@ -108,6 +108,9 @@ class SkillMountFixture:
         raise ValueError("fixed CLI has no reviewed compatible tool schema")
 
     def response(self, body):
+        if getattr(self, "kiro_native", False):
+            from acp_skill_mount_kiro import response
+            return response(self, body)
         # Native clients also send tool-free utility requests. These supply no
         # discovery/tool evidence and must not advance the acceptance phase.
         if ((getattr(self, "codebuddy_native", False) or getattr(self, "snow_native", False) or getattr(self, "copilot_native", False)) or ((getattr(self, "vibe_native", False) or getattr(self, "kilocode_native", False)) or getattr(self, "hermes_native", False))) and not body.get("tools"):
@@ -382,7 +385,18 @@ class SkillMountFixture:
     def __enter__(self):
         fixture = self
 
-        class Handler(BaseHTTPRequestHandler):
+        from acp_model_source_kiro_fixture import KiroFixtureMixin
+
+        class Handler(KiroFixtureMixin, BaseHTTPRequestHandler):
+            model_fixture = fixture
+
+            def reply(self, status, value):
+                data = json.dumps(value).encode()
+                self.send_response(status)
+                self.send_header("Content-Type", "application/json")
+                self.send_header("Content-Length", str(len(data)))
+                self.end_headers()
+                self.wfile.write(data)
             def log_message(self, *_args):
                 pass
 
@@ -414,6 +428,9 @@ class SkillMountFixture:
                     pass
 
             def do_POST(self):
+                if getattr(fixture, "kiro_native", False) and self.headers.get("x-amz-target"):
+                    body = json.loads(self.rfile.read(int(self.headers.get("Content-Length", "0"))))
+                    return self.kiro_control(body)
                 if self.path == "/_begin" and self.headers.get("Authorization") == "Bearer " + fixture.key:
                     body = json.loads(self.rfile.read(int(self.headers.get("Content-Length", "0"))))
                     if body.get("mode") not in ("present", "added", "absent", "cancel"):
@@ -465,8 +482,12 @@ class SkillMountFixture:
                         from acp_skill_mount_claude import messages_message
                         message, finish = messages_message(fixture, body)
                     elif route == "/v1/responses":
-                        from acp_skill_mount_codex import responses_message
-                        message, finish = responses_message(fixture, body)
+                        if getattr(fixture, "kiro_native", False):
+                            from acp_skill_mount_kiro import response
+                            message, finish = response(fixture, body)
+                        else:
+                            from acp_skill_mount_codex import responses_message
+                            message, finish = responses_message(fixture, body)
                     else:
                         message, finish = fixture.response(body)
                     if fixture.mode == "cancel":

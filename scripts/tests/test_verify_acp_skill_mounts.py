@@ -12,6 +12,40 @@ from verify_acp_skill_mounts import accepted, select_entry
 
 
 class SkillMountHarnessTests(unittest.TestCase):
+    def test_kiro_native_catalog_activates_disclose_context_with_name(self):
+        with tempfile.TemporaryDirectory() as directory:
+            fixture = SkillMountFixture(Path(directory))
+            fixture.kiro_native = True
+            body = {"messages": [{"role": "user", "content": "Use selected skill"}],
+                    "tools": [{"function": {"name": "disclose_context",
+                        "description": 'name: "' + fixture.name + '" - fixture',
+                        "parameters": {"required": ["name"]}}}]}
+            message, finish = fixture.response(body)
+            call = message["tool_calls"][0]["function"]
+            self.assertEqual((call["name"], finish), ("disclose_context", "tool_calls"))
+            self.assertEqual(json.loads(call["arguments"]), {"name": fixture.name})
+            self.assertEqual(fixture.snapshot()["native_skill_invocations"], 1)
+            self.assertFalse(fixture.snapshot()["skill_body_read"])
+
+    def test_kiro_unselected_catalog_is_rejected_before_activation(self):
+        with tempfile.TemporaryDirectory() as directory:
+            fixture = SkillMountFixture(Path(directory))
+            fixture.kiro_native = True
+            with self.assertRaisesRegex(ValueError, "catalog differs"):
+                fixture.response({"messages": [], "tools": [{"name": "disclose_context",
+                    "description": 'name: "' + fixture.name + '" - selected\nname: "unselected" - forbidden'}]})
+            self.assertEqual(fixture.snapshot()["native_skill_invocations"], 0)
+
+    def test_kiro_empty_catalog_does_not_reuse_old_prompt_as_discovery(self):
+        with tempfile.TemporaryDirectory() as directory:
+            fixture = SkillMountFixture(Path(directory))
+            fixture.kiro_native = True
+            fixture.mode = "absent"
+            message, finish = fixture.response({"messages": [{"role": "user",
+                "content": 'name: "' + fixture.name + '" - old history'}], "tools": []})
+            self.assertEqual((message["content"], finish), ("SKILL_ABSENT", "stop"))
+            self.assertEqual(fixture.snapshot()["discovery_events"], 0)
+
     def test_kilocode_exact_system_catalog_activates_native_name_argument(self):
         with tempfile.TemporaryDirectory() as directory:
             fixture = SkillMountFixture(Path(directory))

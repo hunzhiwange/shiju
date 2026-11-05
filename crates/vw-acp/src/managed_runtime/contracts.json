@@ -162,5 +162,19 @@
       "reviewed/kilocode": "19cc66a17aead6565b60dda07f7f7a47a1b73f72e0d91a9456fd94a483cfa7ff"
     },
     "native_sha256": "73e6626784cb314308e035f11b8cb8ab251624a593c2a110abeb94869514a237"
+  },
+  "kiro": {
+    "layout": "standalone",
+    "package": "kiro",
+    "version": "3.0.0",
+    "bin": "kiro-cli",
+    "artifact_url": "https://prod.download.cli.kiro.dev/stable/3.0.0/kirocli-universal-darwin.zip",
+    "archive_sha256": "0a8f067c4fe6a23a231aa3a18e3e4332120ef9ed3d2d7b6eea907beb8b4cdd8b",
+    "files": {
+      "kiro-cli": "5728781bd5d77735d912467b15ba37c67220830952c17cf2e3066005044ee8e6",
+      "native/kiro-cli": "4e4b2ee6b5021624d23c6ef78b18624c438ee898596a683f5a55889c512965bc",
+      "runtime/3.0.0-96d7248d901e42e1/node": "46d1713acc486d844a8b944fb0f606366aebc70d6601646b9807abc7cb1a2201",
+      "runtime/3.0.0-96d7248d901e42e1/kas/node_modules/@kiro/agent/dist/server/acp-server.js": "26907b1f2895cf28a850d7720b340cb206965d8ffbc17cb62dd78276f2dbd02d"
+    }
   }
 }

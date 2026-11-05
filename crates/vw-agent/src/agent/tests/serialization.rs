@@ -56,6 +56,8 @@ fn conversation_message_serialization_roundtrip() {
         ConversationMessage::AssistantToolCalls {
             text: Some("checking".into()),
             tool_calls: vec![ToolCall {
+                kind: Default::default(),
+                namespace: None,
                 id: "tc1".into(),
                 name: "shell".into(),
                 arguments: "{}".into(),

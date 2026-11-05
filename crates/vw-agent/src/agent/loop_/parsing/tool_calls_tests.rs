@@ -358,6 +358,8 @@ fn parse_tool_calls_does_not_extract_bare_json_without_wrapper() {
 #[test]
 fn parse_structured_tool_calls_ignores_non_tool_payloads() {
     let calls = parse_structured_tool_calls(&[ToolCall {
+        kind: Default::default(),
+        namespace: None,
         id: "call-2".to_string(),
         name: "shell".to_string(),
         arguments: "not-json".to_string(),
@@ -371,11 +373,15 @@ fn parse_structured_tool_calls_ignores_non_tool_payloads() {
 fn parse_structured_tool_calls_normalizes_tool_aliases_and_raw_string_hints() {
     let calls = parse_structured_tool_calls(&[
         ToolCall {
+            kind: Default::default(),
+            namespace: None,
             id: "call-shell".to_string(),
             name: "bash".to_string(),
             arguments: "echo hi there".to_string(),
         },
         ToolCall {
+            kind: Default::default(),
+            namespace: None,
             id: "call-grep".to_string(),
             name: "grep".to_string(),
             arguments: r#"{"query":"needle"}"#.to_string(),

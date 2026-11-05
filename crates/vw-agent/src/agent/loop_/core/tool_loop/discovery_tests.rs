@@ -92,6 +92,8 @@ impl DiscoveryProvider {
             let calls: Vec<_> = calls
                 .into_iter()
                 .map(|(id, name, input)| crate::providers::ToolCall {
+                    kind: Default::default(),
+                    namespace: None,
                     id: id.to_string(),
                     name: name.to_string(),
                     arguments: input.to_string(),

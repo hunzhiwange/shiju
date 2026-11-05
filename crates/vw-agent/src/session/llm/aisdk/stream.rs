@@ -33,7 +33,7 @@ use futures_util::StreamExt;
 #[cfg(not(target_arch = "wasm32"))]
 use serde_json::{Map, Value};
 #[cfg(not(target_arch = "wasm32"))]
-use std::collections::{HashMap, HashSet};
+use std::collections::HashMap;
 
 #[cfg(not(target_arch = "wasm32"))]
 use crate::app::agent::session::llm::logging::LOGGER;
@@ -369,7 +369,7 @@ pub(crate) async fn do_stream_request_aisdk_with_model<
 
     // 初始化流处理状态变量
     let mut tool_calls: Vec<ToolCall> = Vec::new(); // 收集工具调用
-    let mut tool_call_ids: HashSet<String> = HashSet::new(); // 去重，兼容 Available + Done 双路径
+    let mut call_collector = super::super::native_tools::NativeCallCollector::default();
     // OpenAI 兼容接口在缺失 provider call id 时，AI SDK 只用请求内的工具索引兜底。
     // 为该兜底 ID 加上请求命名空间，避免多轮请求都生成 `openai-tool-call-0`。
     let tool_call_request_namespace = uuid::Uuid::new_v4().simple().to_string();
@@ -455,21 +455,23 @@ pub(crate) async fn do_stream_request_aisdk_with_model<
                     LanguageModelStreamChunkType::ToolCallAvailable(info) => {
                         let call_id =
                             normalize_tool_call_id(&info.tool.id, &tool_call_request_namespace);
-                        if tool_call_ids.insert(call_id.clone()) {
-                            tool_calls.push(ToolCall {
-                                id: call_id,
-                                name: if native_tool_search {
-                                    super::convert::native_tool_id(
-                                        tools,
-                                        info.tool.namespace.as_deref(),
-                                        &info.tool.name,
-                                    )?
-                                } else {
-                                    info.tool.name.clone()
-                                },
-                                arguments: serde_json::to_string(&info.input)
-                                    .unwrap_or_else(|_| "{}".to_string()),
-                            });
+                        if let Some(call) = call_collector.record(ToolCall {
+                            kind: Default::default(),
+                            namespace: info.tool.namespace.clone(),
+                            id: call_id,
+                            name: if native_tool_search {
+                                super::convert::native_tool_id(
+                                    tools,
+                                    info.tool.namespace.as_deref(),
+                                    &info.tool.name,
+                                )?
+                            } else {
+                                info.tool.name.clone()
+                            },
+                            arguments: serde_json::to_string(&info.input)
+                                .unwrap_or_else(|_| "{}".to_string()),
+                        })? {
+                            tool_calls.push(call);
                         }
                     }
 
@@ -534,21 +536,32 @@ pub(crate) async fn do_stream_request_aisdk_with_model<
                         AiContent::ToolCall(info) => {
                             let call_id =
                                 normalize_tool_call_id(&info.tool.id, &tool_call_request_namespace);
-                            if tool_call_ids.insert(call_id.clone()) {
-                                tool_calls.push(ToolCall {
-                                    id: call_id,
-                                    name: if native_tool_search {
-                                        super::convert::native_tool_id(
-                                            tools,
-                                            info.tool.namespace.as_deref(),
-                                            &info.tool.name,
-                                        )?
-                                    } else {
-                                        info.tool.name.clone()
-                                    },
-                                    arguments: serde_json::to_string(&info.input)
-                                        .unwrap_or_else(|_| "{}".to_string()),
+                            if let Some(call) = call_collector.record(ToolCall {
+                                kind: Default::default(),
+                                namespace: info.tool.namespace.clone(),
+                                id: call_id,
+                                name: if native_tool_search {
+                                    super::convert::native_tool_id(
+                                        tools,
+                                        info.tool.namespace.as_deref(),
+                                        &info.tool.name,
+                                    )?
+                                } else {
+                                    info.tool.name.clone()
+                                },
+                                arguments: serde_json::to_string(&info.input)
+                                    .unwrap_or_else(|_| "{}".to_string()),
+                            })? {
+                                tool_calls.push(call);
+                            }
+                        }
+                        AiContent::ToolSearchCall(call) => {
+                            let authorized = native_tool_search
+                                && tools.values().any(|spec| {
+                                    spec.id == "tool_search" && spec.exposure.is_direct()
                                 });
+                            if let Some(call) = call_collector.search(call, authorized)? {
+                                tool_calls.push(call);
                             }
                         }
 

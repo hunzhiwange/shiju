@@ -106,6 +106,8 @@ async fn codex_skills_core_query_engine_restores_tool_sources_and_rewind_drops_f
         ProviderStep::Response(ChatResponse {
             text: None,
             tool_calls: vec![crate::providers::ToolCall {
+                kind: Default::default(),
+                namespace: None,
                 id: "query-skill-call".into(),
                 name: "skill".into(),
                 arguments: serde_json::json!({"skill":"fixture-review","args":"RESTORED_ARGS"})

@@ -57,6 +57,8 @@ use super::helpers::{
 async fn turn_executes_single_tool_then_returns() {
     let provider = Box::new(ScriptedProvider::new(vec![
         tool_response(vec![ToolCall {
+            kind: Default::default(),
+            namespace: None,
             id: "tc1".into(),
             name: "echo".into(),
             arguments: r#"{"message": "hello from tool"}"#.into(),
@@ -92,16 +94,22 @@ async fn turn_handles_multi_step_tool_chain() {
 
     let provider = Box::new(ScriptedProvider::new(vec![
         tool_response(vec![ToolCall {
+            kind: Default::default(),
+            namespace: None,
             id: "tc1".into(),
             name: "counter".into(),
             arguments: "{}".into(),
         }]),
         tool_response(vec![ToolCall {
+            kind: Default::default(),
+            namespace: None,
             id: "tc2".into(),
             name: "counter".into(),
             arguments: "{}".into(),
         }]),
         tool_response(vec![ToolCall {
+            kind: Default::default(),
+            namespace: None,
             id: "tc3".into(),
             name: "counter".into(),
             arguments: "{}".into(),
@@ -139,6 +147,8 @@ async fn turn_bails_out_at_max_iterations() {
     let mut responses = Vec::new();
     for i in 0..max_iters + 5 {
         responses.push(tool_response(vec![ToolCall {
+            kind: Default::default(),
+            namespace: None,
             id: format!("tc{i}"),
             name: "echo".into(),
             arguments: r#"{"message": "loop"}"#.into(),
@@ -179,6 +189,8 @@ async fn turn_bails_out_at_max_iterations() {
 async fn turn_handles_unknown_tool_gracefully() {
     let provider = Box::new(ScriptedProvider::new(vec![
         tool_response(vec![ToolCall {
+            kind: Default::default(),
+            namespace: None,
             id: "tc1".into(),
             name: "nonexistent_tool".into(),
             arguments: "{}".into(),
@@ -218,6 +230,8 @@ async fn turn_handles_unknown_tool_gracefully() {
 async fn turn_recovers_from_tool_failure() {
     let provider = Box::new(ScriptedProvider::new(vec![
         tool_response(vec![ToolCall {
+            kind: Default::default(),
+            namespace: None,
             id: "tc1".into(),
             name: "fail".into(),
             arguments: "{}".into(),
@@ -251,6 +265,8 @@ async fn turn_recovers_from_tool_failure() {
 async fn turn_recovers_from_tool_error() {
     let provider = Box::new(ScriptedProvider::new(vec![
         tool_response(vec![ToolCall {
+            kind: Default::default(),
+            namespace: None,
             id: "tc1".into(),
             name: "panicker".into(),
             arguments: "{}".into(),
@@ -309,6 +325,8 @@ async fn turn_preserves_text_alongside_tool_calls() {
         ChatResponse {
             text: Some("Let me check...".into()),
             tool_calls: vec![ToolCall {
+                kind: Default::default(),
+                namespace: None,
                 id: "tc1".into(),
                 name: "echo".into(),
                 arguments: r#"{"message": "hi"}"#.into(),
@@ -354,9 +372,27 @@ async fn turn_handles_multiple_tools_in_one_response() {
 
     let provider = Box::new(ScriptedProvider::new(vec![
         tool_response(vec![
-            ToolCall { id: "tc1".into(), name: "counter".into(), arguments: "{}".into() },
-            ToolCall { id: "tc2".into(), name: "counter".into(), arguments: "{}".into() },
-            ToolCall { id: "tc3".into(), name: "counter".into(), arguments: "{}".into() },
+            ToolCall {
+                kind: Default::default(),
+                namespace: None,
+                id: "tc1".into(),
+                name: "counter".into(),
+                arguments: "{}".into(),
+            },
+            ToolCall {
+                kind: Default::default(),
+                namespace: None,
+                id: "tc2".into(),
+                name: "counter".into(),
+                arguments: "{}".into(),
+            },
+            ToolCall {
+                kind: Default::default(),
+                namespace: None,
+                id: "tc3".into(),
+                name: "counter".into(),
+                arguments: "{}".into(),
+            },
         ]),
         text_response("All 3 done"),
     ]));

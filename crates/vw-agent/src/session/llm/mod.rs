@@ -65,7 +65,9 @@ pub use prompt::{
     stream_prompt_with_tools,
 };
 pub use stream::stream;
-pub use types::{AgentInfo, Error, PromptStreamEvent, StreamEvent, StreamInput, ToolCall};
+pub use types::{
+    AgentInfo, Error, PromptStreamEvent, StreamEvent, StreamInput, ToolCall, ToolCallKind,
+};
 
 pub(crate) use types::{catalog_error_string, prevent_error_replay};
 
@@ -73,3 +75,9 @@ pub(crate) use types::{catalog_error_string, prevent_error_replay};
 pub(crate) mod recovery_test_support;
 
 pub(crate) use acp::source_selection::select as select_acp_model_source;
+
+#[cfg(all(test, not(target_arch = "wasm32")))]
+mod native_tools_tests;
+
+#[cfg(not(target_arch = "wasm32"))]
+pub mod native_tools;

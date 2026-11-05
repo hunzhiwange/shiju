@@ -24,11 +24,15 @@ fn now_ms_is_close_to_system_time() {
 fn tool_calls_to_assistant_message_preserves_call_shape_and_reasoning() {
     let calls = vec![
         llm::ToolCall {
+            kind: Default::default(),
+            namespace: None,
             id: "call-1".to_string(),
             name: "file_read".to_string(),
             arguments: r#"{"path":"src/lib.rs"}"#.to_string(),
         },
         llm::ToolCall {
+            kind: Default::default(),
+            namespace: None,
             id: "call-2".to_string(),
             name: "bash".to_string(),
             arguments: r#"{"command":"echo ok"}"#.to_string(),
@@ -81,6 +85,8 @@ fn tool_calls_to_assistant_message_handles_empty_calls() {
 #[test]
 fn tool_calls_to_assistant_message_keeps_arguments_as_opaque_text() {
     let calls = vec![llm::ToolCall {
+        kind: Default::default(),
+        namespace: None,
         id: "调用-\"1\"".to_string(),
         name: "自定义工具".to_string(),
         arguments: "not json\n{\"value\":\"雪\"}".to_string(),

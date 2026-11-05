@@ -1151,6 +1151,8 @@ mod tests {
             ChatResponse {
                 text: Some(String::new()),
                 tool_calls: vec![ToolCall {
+                    kind: Default::default(),
+                    namespace: None,
                     id: "tc1".into(),
                     name: "file_read".into(),
                     arguments: r#"{"path": "report.pdf"}"#.into(),
@@ -1240,6 +1242,8 @@ mod tests {
             ChatResponse {
                 text: Some(String::new()),
                 tool_calls: vec![ToolCall {
+                    kind: Default::default(),
+                    namespace: None,
                     id: "tc1".into(),
                     name: "file_read".into(),
                     arguments: r#"{"path": "data.bin"}"#.into(),

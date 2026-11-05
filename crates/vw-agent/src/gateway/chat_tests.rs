@@ -83,6 +83,8 @@ fn tool_call_response(id: &str) -> ChatResponse {
     ChatResponse {
         text: None,
         tool_calls: vec![ToolCall {
+            kind: Default::default(),
+            namespace: None,
             id: id.to_string(),
             name: "Sleep".to_string(),
             arguments: r#"{"duration_ms":0}"#.to_string(),

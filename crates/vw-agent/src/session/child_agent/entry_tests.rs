@@ -56,6 +56,8 @@ impl crate::providers::Provider for ParentModel {
         let tasks = crate::session::child_agent::coordinator::global_child_agent_coordinator()
             .snapshots(&self.root, &[])?;
         let call = |id: &str, args: Value| crate::providers::ToolCall {
+            kind: Default::default(),
+            namespace: None,
             id: id.into(),
             name: "AgentTool".into(),
             arguments: args.to_string(),

@@ -1049,3 +1049,85 @@ async fn native_tool_search_request_namespace_calls_resolve_stable_ids_and_rejec
         }
     }
 }
+
+#[tokio::test]
+async fn native_tool_search_event_stream_deduplicates_and_preserves_function_namespace() {
+    use crate::providers::traits::ToolCallKind;
+    use aisdk::core::{ToolSearchCall, ToolSearchExecution};
+    let search = ToolSearchCall {
+        id: Some("search-item".into()),
+        call_id: Some("search-call".into()),
+        status: Some("completed".into()),
+        execution: ToolSearchExecution::Client,
+        arguments: json!({"query":"read"}),
+        encrypted_content: None,
+    };
+    let mut function = tool_call("function-call", "read", json!({}));
+    function.tool.namespace = Some("files".into());
+    let (model, _) = FakeModel::with_items(vec![Ok(vec![
+        AiStreamChunk::Delta(LanguageModelStreamChunkType::ToolCallAvailable(function.clone())),
+        done(AiContent::ToolCall(function), None),
+        done(AiContent::ToolSearchCall(search.clone()), None),
+        done(AiContent::ToolSearchCall(search), None),
+    ])]);
+    let mut spec = tools::ToolSpec::new("stable_read", "Read", json!({"type":"object"}));
+    spec.identity.name = "read".into();
+    spec.identity.namespace = Some("files".into());
+    let search_spec = tools::ToolSpec::new("tool_search", "search", json!({"type":"object"}));
+    let specs = HashMap::from([(spec.id.clone(), spec), (search_spec.id.clone(), search_spec)]);
+    let mut calls = Vec::new();
+    let mut finish_reason = None;
+    do_stream_request_aisdk_with_model(
+        "fixture".into(),
+        model,
+        "http://fixture/v1/responses".into(),
+        false,
+        true,
+        vec![Message::User("read".into())],
+        None,
+        &specs,
+        None,
+        None,
+        None,
+        &json!({}),
+        0,
+        None,
+        &mut |event| match event {
+            StreamEvent::ToolCalls(found) => calls.extend(found),
+            StreamEvent::Done { finish_reason: reason, .. } => finish_reason = reason,
+            _ => {}
+        },
+    )
+    .await
+    .unwrap();
+    assert_eq!(calls.len(), 2);
+    assert_eq!(calls[0].id, "function-call");
+    assert_eq!(calls[0].kind, ToolCallKind::Function);
+    assert_eq!(calls[0].namespace.as_deref(), Some("files"));
+    assert_eq!(calls[0].name, "stable_read");
+    assert_eq!(calls[1].id, "search-call");
+    assert_eq!(calls[1].kind, ToolCallKind::Search);
+    assert_eq!(finish_reason.as_deref(), Some("tool_calls"));
+}
+
+#[tokio::test]
+async fn native_tool_search_event_stream_rejects_unadvertised_search() {
+    let call = aisdk::core::ToolSearchCall {
+        id: None,
+        call_id: Some("call".into()),
+        status: Some("completed".into()),
+        execution: aisdk::core::ToolSearchExecution::Client,
+        arguments: json!({"query":"read"}),
+        encrypted_content: None,
+    };
+    let (model, _) =
+        FakeModel::with_items(vec![Ok(vec![done(AiContent::ToolSearchCall(call), None)])]);
+    let (result, events) =
+        run_fake_stream("fixture", "http://fixture", model, &json!({}), None).await;
+    assert!(result.unwrap_err().to_string().contains("not authorized"));
+    assert!(
+        !events
+            .iter()
+            .any(|event| matches!(event, StreamEvent::ToolCalls(_) | StreamEvent::Done { .. }))
+    );
+}

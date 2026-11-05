@@ -180,6 +180,8 @@ async fn run_llm_round_detects_malformed_tool_call_parse_issue() {
 #[tokio::test]
 async fn run_llm_round_native_tool_calls_skip_text_fallback() {
     let native_call = ToolCall {
+        kind: Default::default(),
+        namespace: None,
         id: "native-call-testcov-0088".to_string(),
         name: "shell".to_string(),
         arguments: "{\"command\":\"date\"}".to_string(),

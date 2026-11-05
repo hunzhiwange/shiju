@@ -4,7 +4,7 @@
 //! 运行时能够理解的请求与事件。子模块按职责拆分：请求执行、流式解析、错误映射和
 //! 通用转换工具分别维护，避免把传输与消息转换混在一个文件中。
 
-mod convert;
+pub(super) mod convert;
 mod driver;
 mod error;
 #[cfg(not(target_arch = "wasm32"))]

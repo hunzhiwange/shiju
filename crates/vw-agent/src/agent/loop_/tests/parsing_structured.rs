@@ -74,6 +74,8 @@ fn parse_tool_calls_from_json_value_handles_top_level_array() {
 #[test]
 fn parse_structured_tool_calls_recovers_bash_command_from_string_payload() {
     let calls = vec![ToolCall {
+        kind: Default::default(),
+        namespace: None,
         id: "call_1".to_string(),
         name: "bash".to_string(),
         arguments: "ls -la".to_string(),

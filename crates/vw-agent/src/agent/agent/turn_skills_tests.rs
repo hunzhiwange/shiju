@@ -149,6 +149,8 @@ async fn codex_skills_core_agent_successful_skill_replays_after_trim_and_clear_d
         Ok(ChatResponse {
             text: None,
             tool_calls: vec![ToolCall {
+                kind: Default::default(),
+                namespace: None,
                 id: "core-skill-call".into(),
                 name: "skill".into(),
                 arguments: serde_json::json!({"skill":"fixture-review","args":"LATEST_ARGS"})

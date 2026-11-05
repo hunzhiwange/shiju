@@ -37,7 +37,7 @@ pub mod traits;
 #[allow(unused_imports)]
 pub use traits::{
     ChatMessage, ChatRequest, ChatResponse, ConversationMessage, Provider, ProviderCapabilityError,
-    ToolCall, ToolResultMessage,
+    ToolCall, ToolCallKind, ToolResultMessage,
 };
 
 use std::path::PathBuf;

@@ -928,6 +928,8 @@ fn handle_structured_tool_calls_records_denied_result_for_unallowed_tool() {
     let mut events = Vec::new();
     let step_out = super::llm_runner::LlmStep {
         tool_calls: vec![llm::ToolCall {
+            kind: Default::default(),
+            namespace: None,
             id: "call-denied".to_string(),
             name: "not_allowed".to_string(),
             arguments: "{}".to_string(),
@@ -980,6 +982,8 @@ fn handle_structured_tool_calls_denies_allowed_tool_on_last_step() {
     allowed_tools.insert("otherwise_allowed".to_string());
     let step_out = super::llm_runner::LlmStep {
         tool_calls: vec![llm::ToolCall {
+            kind: Default::default(),
+            namespace: None,
             id: "call-last-step".to_string(),
             name: "otherwise_allowed".to_string(),
             arguments: "{}".to_string(),
@@ -1785,6 +1789,8 @@ fn discovery_stream(calls: &[(&str, &str, serde_json::Value)]) {
             calls
                 .iter()
                 .map(|(id, name, args)| ToolCall {
+                    kind: Default::default(),
+                    namespace: None,
                     id: (*id).into(),
                     name: (*name).into(),
                     arguments: args.to_string(),

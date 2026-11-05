@@ -78,6 +78,8 @@ fn tools_to_openai_format_returns_empty_for_empty_registry() {
 #[test]
 fn native_assistant_history_trims_content_and_keeps_tool_arguments() {
     let calls = vec![ToolCall {
+        kind: Default::default(),
+        namespace: None,
         id: "call-testcov-0084".to_string(),
         name: "shell".to_string(),
         arguments: r#"{"command":"pwd"}"#.to_string(),

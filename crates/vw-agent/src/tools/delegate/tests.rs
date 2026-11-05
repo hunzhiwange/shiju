@@ -225,6 +225,8 @@ impl Provider for OneToolThenFinalProvider {
             Ok(ChatResponse {
                 text: None,
                 tool_calls: vec![ToolCall {
+                    kind: Default::default(),
+                    namespace: None,
                     id: "call_1".to_string(),
                     name: "echo_tool".to_string(),
                     arguments: "{\"value\":\"ping\"}".to_string(),
@@ -268,6 +270,8 @@ impl Provider for InfiniteToolCallProvider {
         Ok(ChatResponse {
             text: None,
             tool_calls: vec![ToolCall {
+                kind: Default::default(),
+                namespace: None,
                 id: "loop".to_string(),
                 name: "echo_tool".to_string(),
                 arguments: "{\"value\":\"x\"}".to_string(),

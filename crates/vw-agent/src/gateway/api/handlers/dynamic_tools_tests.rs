@@ -362,6 +362,8 @@ fn dynamic_tools_gateway_production_chat_emits_tool_events_and_keeps_runtime_too
     use crate::session::llm::{StreamEvent, ToolCall};
     crate::session::processor::enqueue_test_llm_stream(vec![
         StreamEvent::ToolCalls(vec![ToolCall {
+            kind: Default::default(),
+            namespace: None,
             id: "model-call".into(),
             name: "host_echo".into(),
             arguments: "{}".into(),

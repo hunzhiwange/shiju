@@ -37,9 +37,22 @@ impl ChatMessage {
     }
 }
 
+/// Protocol identity is independent of the executable stable tool ID.
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum ToolCallKind {
+    #[default]
+    Function,
+    Search,
+}
+
 /// 模型请求执行的结构化工具调用。
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ToolCall {
+    #[serde(default)]
+    pub kind: ToolCallKind,
+    #[serde(default)]
+    pub namespace: Option<String>,
     pub id: String,
     pub name: String,
     pub arguments: String,

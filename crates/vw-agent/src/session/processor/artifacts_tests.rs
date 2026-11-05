@@ -79,6 +79,8 @@ fn llm_step() -> LlmStep {
         reasoning_content: "reasoning".to_string(),
         text: "step answer".to_string(),
         tool_calls: vec![ToolCall {
+            kind: Default::default(),
+            namespace: None,
             id: "call-1".to_string(),
             name: "test_tool".to_string(),
             arguments: "{\"ok\":true}".to_string(),

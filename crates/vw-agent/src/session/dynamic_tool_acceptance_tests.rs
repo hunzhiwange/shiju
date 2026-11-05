@@ -445,6 +445,8 @@ fn dynamic_tools_acceptance_search_then_call_uses_gateway_model_boundary() {
     {
         super::processor::enqueue_test_llm_stream(vec![
             StreamEvent::ToolCalls(vec![ToolCall {
+                kind: Default::default(),
+                namespace: None,
                 id: id.into(),
                 name: name.into(),
                 arguments: arguments.to_string(),

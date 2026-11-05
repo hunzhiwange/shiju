@@ -361,7 +361,13 @@ pub(crate) fn extract_tool_call_from_acp_message(message: &AcpJsonRpcMessage) ->
         .and_then(|value| serde_json::to_string(value).ok())
         .unwrap_or_else(|| "{}".to_string());
 
-    Some(ToolCall { id: id.to_string(), name, arguments })
+    Some(ToolCall {
+        kind: Default::default(),
+        namespace: None,
+        id: id.to_string(),
+        name,
+        arguments,
+    })
 }
 
 /// 从 ACP usage update 中提取 token 用量。

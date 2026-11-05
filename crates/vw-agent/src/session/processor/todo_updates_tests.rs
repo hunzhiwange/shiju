@@ -66,7 +66,13 @@ fn llm_step(
 }
 
 fn tool_call(id: &str, name: &str, arguments: &str) -> llm::ToolCall {
-    llm::ToolCall { id: id.to_string(), name: name.to_string(), arguments: arguments.to_string() }
+    llm::ToolCall {
+        kind: Default::default(),
+        namespace: None,
+        id: id.to_string(),
+        name: name.to_string(),
+        arguments: arguments.to_string(),
+    }
 }
 
 #[test]

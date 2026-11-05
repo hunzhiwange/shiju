@@ -38,6 +38,8 @@ fn build_tool_result_history_messages_covers_empty_prompt_and_native_paths() {
     assert!(prompt_messages[0].content.contains("<tool_result name=\"file_read\">"));
 
     let native_calls = vec![ToolCall {
+        kind: Default::default(),
+        namespace: None,
         id: "native-1".to_string(),
         name: "file_read".to_string(),
         arguments: "{}".to_string(),

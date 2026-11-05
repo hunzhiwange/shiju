@@ -148,6 +148,8 @@ fn xml_to_provider_messages_converts_supported_history_variants() {
         ConversationMessage::AssistantToolCalls {
             text: None,
             tool_calls: vec![ToolCall {
+                kind: Default::default(),
+                namespace: None,
                 id: "tc-ignored".to_string(),
                 name: "shell".to_string(),
                 arguments: "{}".to_string(),
@@ -179,6 +181,8 @@ fn native_parse_response_preserves_text_ids_and_arguments() {
     let (text, calls) = dispatcher.parse_response(&response(
         Some("answer"),
         vec![ToolCall {
+            kind: Default::default(),
+            namespace: None,
             id: "tc-1".to_string(),
             name: "shell".to_string(),
             arguments: "{\"command\":\"ls\"}".to_string(),
@@ -199,6 +203,8 @@ fn native_parse_response_defaults_empty_text_and_bad_arguments() {
     let (text, calls) = dispatcher.parse_response(&response(
         None,
         vec![ToolCall {
+            kind: Default::default(),
+            namespace: None,
             id: "tc-bad".to_string(),
             name: "broken".to_string(),
             arguments: "{bad json".to_string(),
@@ -240,6 +246,8 @@ fn native_to_provider_messages_serializes_tool_calls_and_tool_results() {
         ConversationMessage::AssistantToolCalls {
             text: Some("need tool".to_string()),
             tool_calls: vec![ToolCall {
+                kind: Default::default(),
+                namespace: None,
                 id: "tc-1".to_string(),
                 name: "shell".to_string(),
                 arguments: "{}".to_string(),

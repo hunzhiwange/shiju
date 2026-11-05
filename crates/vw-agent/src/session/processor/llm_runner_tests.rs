@@ -286,6 +286,8 @@ fn llm_step_idle_timeout_uses_long_window_for_one_shot_acp_requests() {
 #[test]
 fn collect_stream_returns_text_tool_calls_usage_and_full_messages() {
     let tool_call = llm::ToolCall {
+        kind: Default::default(),
+        namespace: None,
         id: "call-1".to_string(),
         name: "file_read".to_string(),
         arguments: r#"{"path":"README.md"}"#.to_string(),
@@ -449,6 +451,8 @@ fn collect_stream_rejects_done_without_text_or_tools() {
 fn collect_stream_allows_tool_only_steps() {
     let (result, deltas) = collect_events([
         llm::StreamEvent::ToolCalls(vec![llm::ToolCall {
+            kind: Default::default(),
+            namespace: None,
             id: "call-1".to_string(),
             name: "TodoWrite".to_string(),
             arguments: "{}".to_string(),
@@ -658,11 +662,15 @@ fn collect_stream_flushes_reasoning_by_character_threshold() {
 #[test]
 fn collect_stream_overwrites_tool_calls_on_repeated_events() {
     let first = llm::ToolCall {
+        kind: Default::default(),
+        namespace: None,
         id: "call-1".to_string(),
         name: "read_file".to_string(),
         arguments: "{}".to_string(),
     };
     let second = llm::ToolCall {
+        kind: Default::default(),
+        namespace: None,
         id: "call-2".to_string(),
         name: "write_file".to_string(),
         arguments: r#"{"path":"/tmp/x"}"#.to_string(),
@@ -1638,6 +1646,8 @@ fn model_recovery_tool_calls_and_remote_side_effects_are_not_replayed() {
     let _guard = test_llm_stream_guard();
     for tool_event in [
         llm::StreamEvent::ToolCalls(vec![llm::ToolCall {
+            kind: Default::default(),
+            namespace: None,
             id: "call-1".into(),
             name: "shell".into(),
             arguments: "{}".into(),

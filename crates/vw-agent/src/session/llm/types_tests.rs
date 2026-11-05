@@ -177,6 +177,8 @@ fn stream_input_clone_preserves_empty_options_and_observes_abort_updates() {
 #[test]
 fn stream_event_variants_clone_with_payloads() {
     let tool_call = ToolCall {
+        kind: Default::default(),
+        namespace: None,
         id: "call-1".to_string(),
         name: "tool".to_string(),
         arguments: "{}".to_string(),

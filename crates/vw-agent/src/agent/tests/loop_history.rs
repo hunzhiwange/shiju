@@ -83,6 +83,8 @@ async fn history_trims_after_max_messages() {
 async fn history_contains_all_expected_entries_after_tool_loop() {
     let provider = Box::new(ScriptedProvider::new(vec![
         tool_response(vec![ToolCall {
+            kind: Default::default(),
+            namespace: None,
             id: "tc1".into(),
             name: "echo".into(),
             arguments: r#"{"message": "tool-out"}"#.into(),

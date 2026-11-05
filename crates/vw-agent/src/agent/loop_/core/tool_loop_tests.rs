@@ -218,6 +218,8 @@ async fn run_tool_call_loop_reports_exhausted_after_last_tool_iteration() {
         vec![crate::app::agent::providers::ChatResponse {
             text: Some("calling tool".to_string()),
             tool_calls: vec![crate::app::agent::providers::ToolCall {
+                kind: Default::default(),
+                namespace: None,
                 id: "call-1".to_string(),
                 name: "echo_tool".to_string(),
                 arguments: r#"{"value":"once"}"#.to_string(),

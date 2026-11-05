@@ -17,6 +17,8 @@ fn stream(calls: &[(&str, &str, Value)]) {
             calls
                 .iter()
                 .map(|(id, name, args)| ToolCall {
+                    kind: Default::default(),
+                    namespace: None,
                     id: (*id).into(),
                     name: (*name).into(),
                     arguments: args.to_string(),

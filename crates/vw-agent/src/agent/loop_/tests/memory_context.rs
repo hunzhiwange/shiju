@@ -353,8 +353,13 @@ fn trim_history_with_only_system_prompt() {
 #[test]
 fn build_native_assistant_history_includes_reasoning_content() {
     // 构造工具调用
-    let calls =
-        vec![ToolCall { id: "call_1".into(), name: "shell".into(), arguments: "{}".into() }];
+    let calls = vec![ToolCall {
+        kind: Default::default(),
+        namespace: None,
+        id: "call_1".into(),
+        name: "shell".into(),
+        arguments: "{}".into(),
+    }];
 
     // 构建包含推理内容的助手历史
     let result = build_native_assistant_history("answer", &calls, Some("thinking step"));
@@ -373,8 +378,13 @@ fn build_native_assistant_history_includes_reasoning_content() {
 /// 这确保了消息格式的简洁性。
 #[test]
 fn build_native_assistant_history_omits_reasoning_content_when_none() {
-    let calls =
-        vec![ToolCall { id: "call_1".into(), name: "shell".into(), arguments: "{}".into() }];
+    let calls = vec![ToolCall {
+        kind: Default::default(),
+        namespace: None,
+        id: "call_1".into(),
+        name: "shell".into(),
+        arguments: "{}".into(),
+    }];
     let result = build_native_assistant_history("answer", &calls, None);
 
     let parsed: serde_json::Value = serde_json::from_str(&result).unwrap();

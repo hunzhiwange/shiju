@@ -78,7 +78,7 @@ mod tests {
     ///         // 第一轮：触发工具调用
     ///         ChatResponse {
     ///             text: None,
-    ///             tool_calls: vec![ToolCall { name: "echo", ... }],
+    ///             tool_calls: vec![ToolCall { kind: Default::default(), namespace: None, name: "echo", ... }],
     ///             ...
     ///         },
     ///         // 第二轮：返回最终结果
@@ -526,7 +526,7 @@ mod tests {
     /// 1. 创建返回两个响应的 MockProvider：
     ///    - **第一个响应**：包含 echo 工具调用
     ///      - `text`: 空字符串
-    ///      - `tool_calls`: [ToolCall { id: "tc1", name: "echo", arguments: "{}" }]
+    ///      - `tool_calls`: [ToolCall { kind: Default::default(), namespace: None, id: "tc1", name: "echo", arguments: "{}" }]
     ///    - **第二个响应**：纯文本最终结果
     ///      - `text`: "done"
     ///      - `tool_calls`: 空向量
@@ -570,6 +570,8 @@ mod tests {
                 crate::app::agent::providers::ChatResponse {
                     text: Some(String::new()), // 文本为空，表示需要工具调用
                     tool_calls: vec![crate::app::agent::providers::ToolCall {
+                        kind: Default::default(),
+                        namespace: None,
                         id: "tc1".into(),
                         name: "echo".into(),    // 与 MockTool::name() 匹配
                         arguments: "{}".into(), // 空参数，与 MockTool 的 schema 兼容

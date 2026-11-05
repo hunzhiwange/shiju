@@ -186,6 +186,8 @@ async fn run_tool_call_loop_with_non_cli_approval_context_scopes_approval_and_re
             crate::app::agent::providers::ChatResponse {
                 text: Some("capture approval context".to_string()),
                 tool_calls: vec![crate::app::agent::providers::ToolCall {
+                    kind: Default::default(),
+                    namespace: None,
                     id: "call-1".to_string(),
                     name: "testcov_0091_context_capture".to_string(),
                     arguments: "{}".to_string(),
@@ -256,6 +258,8 @@ async fn run_tool_call_loop_with_non_cli_approval_context_scopes_none_when_conte
             crate::app::agent::providers::ChatResponse {
                 text: Some("capture absent approval context".to_string()),
                 tool_calls: vec![crate::app::agent::providers::ToolCall {
+                    kind: Default::default(),
+                    namespace: None,
                     id: "call-1".to_string(),
                     name: "testcov_0091_context_capture".to_string(),
                     arguments: "{}".to_string(),

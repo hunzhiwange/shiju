@@ -225,6 +225,8 @@ fn chat_tool_call(id: &str) -> ChatResponse {
     ChatResponse {
         text: None,
         tool_calls: vec![crate::app::agent::providers::ToolCall {
+            kind: Default::default(),
+            namespace: None,
             id: id.to_string(),
             name: "hook_probe".to_string(),
             arguments: "{}".to_string(),
@@ -340,6 +342,8 @@ async fn codex_discovery_core_query_engine_loads_and_resets_tools_between_user_t
         ProviderStep::Response(ChatResponse {
             text: None,
             tool_calls: vec![crate::providers::ToolCall {
+                kind: Default::default(),
+                namespace: None,
                 id: id.into(),
                 name: name.into(),
                 arguments: input.to_string(),

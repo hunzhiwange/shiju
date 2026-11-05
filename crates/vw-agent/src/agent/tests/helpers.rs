@@ -568,7 +568,7 @@ pub(super) fn build_agent_with_config(
 /// # 示例
 ///
 /// ```ignore
-/// let call = ToolCall { id: "1".into(), name: "echo".into(), arguments: "{}".into() };
+/// let call = ToolCall { kind: Default::default(), namespace: None, id: "1".into(), name: "echo".into(), arguments: "{}".into() };
 /// let response = tool_response(vec![call]);
 /// ```
 pub(super) fn tool_response(calls: Vec<ToolCall>) -> ChatResponse {

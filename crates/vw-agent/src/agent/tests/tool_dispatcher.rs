@@ -82,6 +82,8 @@ async fn native_dispatcher_handles_stringified_arguments() {
     let response = ChatResponse {
         text: Some(String::new()),
         tool_calls: vec![ToolCall {
+            kind: Default::default(),
+            namespace: None,
             id: "tc1".into(),
             name: "echo".into(),
             arguments: r#"{"message": "hello"}"#.into(), // 参数为 JSON 字符串
@@ -235,6 +237,8 @@ fn xml_dispatcher_converts_history_to_provider_messages() {
         ConversationMessage::AssistantToolCalls {
             text: Some("checking".into()),
             tool_calls: vec![ToolCall {
+                kind: Default::default(),
+                namespace: None,
                 id: "tc1".into(),
                 name: "shell".into(),
                 arguments: "{}".into(),

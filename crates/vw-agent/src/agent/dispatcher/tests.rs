@@ -83,6 +83,8 @@ mod tests {
             text: Some("ok".into()),
             // 模拟 Provider 返回的工具调用结构
             tool_calls: vec![crate::app::agent::providers::ToolCall {
+                kind: Default::default(),
+                namespace: None,
                 id: "tc1".into(),
                 name: "file_read".into(),
                 arguments: "{\"path\":\"a.txt\"}".into(),
@@ -187,6 +189,8 @@ mod tests {
         let history = vec![ConversationMessage::AssistantToolCalls {
             text: Some("answer".into()),
             tool_calls: vec![crate::app::agent::providers::ToolCall {
+                kind: Default::default(),
+                namespace: None,
                 id: "tc_1".into(),
                 name: "shell".into(),
                 arguments: "{}".into(),
@@ -237,6 +241,8 @@ mod tests {
         let history = vec![ConversationMessage::AssistantToolCalls {
             text: Some("answer".into()),
             tool_calls: vec![crate::app::agent::providers::ToolCall {
+                kind: Default::default(),
+                namespace: None,
                 id: "tc_1".into(),
                 name: "shell".into(),
                 arguments: "{}".into(),
@@ -280,6 +286,8 @@ mod tests {
         let history = vec![ConversationMessage::AssistantToolCalls {
             text: Some("answer".into()),
             tool_calls: vec![crate::app::agent::providers::ToolCall {
+                kind: Default::default(),
+                namespace: None,
                 id: "tc_1".into(),
                 name: "shell".into(),
                 arguments: "{}".into(),

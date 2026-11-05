@@ -218,6 +218,8 @@ fn tool_response() -> ChatResponse {
     ChatResponse {
         text: Some(String::new()),
         tool_calls: vec![ToolCall {
+            kind: Default::default(),
+            namespace: None,
             id: "tc1".to_string(),
             name: "echo".to_string(),
             arguments: "{}".to_string(),

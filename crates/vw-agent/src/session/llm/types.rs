@@ -14,6 +14,7 @@ use crate::app::agent::permission::next as permission_next;
 use crate::app::agent::provider::provider;
 use crate::app::agent::session::message;
 use crate::app::agent::tools;
+pub use crate::providers::traits::ToolCallKind;
 use crate::session::ui_types as models;
 use serde_json::Value;
 use std::collections::HashMap;
@@ -128,6 +129,8 @@ pub enum PromptStreamEvent {
 /// 在函数调用场景中，LLM 会返回此类结构以请求执行特定工具。
 #[derive(Debug, Clone)]
 pub struct ToolCall {
+    pub kind: ToolCallKind,
+    pub namespace: Option<String>,
     /// 工具调用的唯一标识符，用于关联调用和结果
     pub id: String,
     /// 要调用的工具名称

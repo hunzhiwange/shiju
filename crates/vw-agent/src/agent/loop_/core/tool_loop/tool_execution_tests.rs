@@ -406,11 +406,15 @@ async fn native_tool_ids_keep_same_arguments_distinct_and_write_tool_messages() 
     ];
     let native_tool_calls = vec![
         ToolCall {
+            kind: Default::default(),
+            namespace: None,
             id: "call-a".to_string(),
             name: "testcov_0090_echo".to_string(),
             arguments: r#"{"value":"native"}"#.to_string(),
         },
         ToolCall {
+            kind: Default::default(),
+            namespace: None,
             id: "call-b".to_string(),
             name: "testcov_0090_echo".to_string(),
             arguments: r#"{"value":"native"}"#.to_string(),

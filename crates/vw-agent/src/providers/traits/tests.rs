@@ -100,6 +100,8 @@ mod tests {
         let with_tools = ChatResponse {
             text: Some("Let me check".into()),
             tool_calls: vec![ToolCall {
+                kind: Default::default(),
+                namespace: None,
                 id: "1".into(),
                 name: "shell".into(),
                 arguments: "{}".into(),
@@ -153,6 +155,8 @@ mod tests {
     #[test]
     fn tool_call_serialization() {
         let tc = ToolCall {
+            kind: Default::default(),
+            namespace: None,
             id: "call_123".into(),
             name: "file_read".into(),
             arguments: r#"{"path":"test.txt"}"#.into(),
@@ -863,6 +867,8 @@ fn conversation_messages_round_trip_all_tagged_variants() {
         ConversationMessage::AssistantToolCalls {
             text: Some("calling".to_string()),
             tool_calls: vec![ToolCall {
+                kind: Default::default(),
+                namespace: None,
                 id: "call-1".to_string(),
                 name: "lookup".to_string(),
                 arguments: r#"{"query":"rust"}"#.to_string(),

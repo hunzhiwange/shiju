@@ -36,6 +36,9 @@ impl Tool for Testcov0095Tool {
 
 fn tool_spec(id: &str) -> ToolSpec {
     ToolSpec {
+        identity: vw_api_types::tools::ToolIdentity { namespace: None, name: id.into() },
+        source: vw_api_types::tools::ToolSource::Builtin,
+        exposure: vw_api_types::tools::ToolExposure::Direct,
         id: id.to_string(),
         display_name: id.to_string(),
         description: "desc".to_string(),
@@ -77,6 +80,9 @@ fn tool_instructions_can_be_built_from_registry_and_empty_specs() {
 #[test]
 fn tool_instructions_emit_protocol_before_tool_specs() {
     let instructions = build_tool_instructions_from_specs(&[ToolSpec {
+        identity: vw_api_types::tools::ToolIdentity::new(None, "search").unwrap(),
+        source: vw_api_types::tools::ToolSource::Builtin,
+        exposure: vw_api_types::tools::ToolExposure::Direct,
         id: "search".to_string(),
         display_name: "Search".to_string(),
         description: "find matching content".to_string(),

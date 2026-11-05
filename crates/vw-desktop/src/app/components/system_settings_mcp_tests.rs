@@ -16,11 +16,14 @@ use serde_json::json;
 use vw_gateway_client::vw_api_types::mcp::{
     McpConnectionStatusDto, McpInspectResponse, McpServerInspectDto,
 };
-use vw_gateway_client::vw_api_types::tools::ToolSpecDto;
+use vw_gateway_client::vw_api_types::tools::{ToolExposure, ToolIdentity, ToolSource, ToolSpecDto};
 
 // MCP fixture 只填充展示与状态匹配所需字段，连接行为不在 UI 单测中模拟。
 fn tool_spec(id: &str) -> ToolSpecDto {
     ToolSpecDto {
+        identity: ToolIdentity { namespace: None, name: id.into() },
+        source: ToolSource::Builtin,
+        exposure: ToolExposure::Direct,
         id: id.into(),
         display_name: format!("Tool {id}"),
         description: "A very useful MCP tool".to_string(),

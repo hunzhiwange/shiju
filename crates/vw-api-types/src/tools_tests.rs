@@ -9,6 +9,9 @@ use serde_json::json;
 fn tool_specs_default_to_strict_and_skip_empty_fields() {
     let spec: ToolSpecDto = serde_json::from_value(json!({
         "id": "shell",
+        "identity": {"name": "shell"},
+        "source": "builtin",
+        "exposure": "direct",
         "display_name": "Shell",
         "description": "Run command",
         "input_schema": { "type": "object" }

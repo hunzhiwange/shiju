@@ -275,15 +275,21 @@ pub fn mcp_tools_to_specs(
             value.read_only_hint == Some(true) || value.idempotent_hint == Some(true)
         });
 
-        specs.push(
-            ToolSpec::new(id, description, input_schema)
-                .with_display_name(display_name)
-                .with_read_only(read_only)
-                .with_destructive(destructive)
-                .with_concurrency_safe(concurrency_safe)
-                .with_requires_user_interaction(false)
-                .with_strict(true),
-        );
+        let mut spec = ToolSpec::new(id, description, input_schema)
+            .with_display_name(display_name)
+            .with_read_only(read_only)
+            .with_destructive(destructive)
+            .with_concurrency_safe(concurrency_safe)
+            .with_requires_user_interaction(false)
+            .with_strict(true);
+        spec.identity = vw_api_types::tools::ToolIdentity::new(
+            Some(server_name.to_owned()),
+            tool.name.to_string(),
+        )
+        .map_err(anyhow::Error::msg)?;
+        spec.source = vw_api_types::tools::ToolSource::Mcp;
+        spec.exposure = vw_api_types::tools::ToolExposure::Deferred;
+        specs.push(spec);
     }
 
     Ok(specs)

@@ -326,11 +326,15 @@ fn security_decision(
         return PermissionDecision::allow(input);
     };
 
-    if let Some(command) = command_input(spec.id.as_str(), &input) {
+    if spec.source == vw_api_types::tools::ToolSource::Builtin
+        && let Some(command) = command_input(spec.id.as_str(), &input)
+    {
         return shell_security_decision(spec.id.as_str(), input, security, &command, approved);
     }
 
-    if !spec.read_only && !security.can_act() {
+    // 客户端声明的只读属性仅供展示，不授予绕过宿主安全策略的能力。
+    let read_only = spec.read_only && spec.source != vw_api_types::tools::ToolSource::Client;
+    if !read_only && !security.can_act() {
         return PermissionDecision::deny(format!(
             "Security policy: read-only mode, cannot perform '{}'",
             spec.id
@@ -338,7 +342,7 @@ fn security_decision(
         .with_updated_input(input);
     }
 
-    if !spec.read_only && security.is_rate_limited() {
+    if !read_only && security.is_rate_limited() {
         return PermissionDecision::deny("Rate limit exceeded: action budget exhausted")
             .with_updated_input(input);
     }

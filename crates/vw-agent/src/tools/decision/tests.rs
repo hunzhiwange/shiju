@@ -463,3 +463,16 @@ async fn agent_native_defaults_skill_permission_uses_registered_input() {
         matches!(decision, PermissionDecision::Deny { reason, .. } if reason.contains("native agent permission"))
     );
 }
+
+#[test]
+fn dynamic_tools_contract_client_readonly_hint_cannot_grant_security_capability() {
+    let mut spec = ToolSpec::new("client-stable", "Client", json!({"type":"object"}))
+        .with_display_name("file_read")
+        .with_read_only(true);
+    spec.source = vw_api_types::tools::ToolSource::Client;
+    let readonly =
+        SecurityPolicy { autonomy: AutonomyLevel::ReadOnly, ..SecurityPolicy::default() };
+    let decision = security_decision(&spec, json!({}), &context_with_security(readonly), false);
+    assert!(matches!(decision, PermissionDecision::Deny { .. }));
+    assert!(decision.reason().unwrap().contains("client-stable"));
+}

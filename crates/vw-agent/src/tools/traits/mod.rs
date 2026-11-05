@@ -14,7 +14,8 @@ use serde::{Deserialize, Serialize};
 use serde_json::{Value, json};
 use std::collections::BTreeMap;
 use vw_api_types::tools::{
-    PermissionRequestDto, RenderHintDto, ToolResultContentDto, ToolResultDto, ToolSpecDto,
+    PermissionRequestDto, RenderHintDto, ToolExposure, ToolIdentity, ToolResultContentDto,
+    ToolResultDto, ToolSource, ToolSpecDto,
 };
 
 /// 旧工具执行结果。
@@ -37,6 +38,9 @@ pub struct ToolResult {
 /// 用于本阶段平滑切换 provider、prompt 与测试代码，后续协议切换阶段会统一收口。
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ToolSpec {
+    pub identity: ToolIdentity,
+    pub source: ToolSource,
+    pub exposure: ToolExposure,
     /// 稳定工具 ID。
     pub id: String,
     /// 用于 UI 或审计展示的名称。
@@ -78,6 +82,9 @@ fn default_strict_tool_schema() -> bool {
 impl Default for ToolSpec {
     fn default() -> Self {
         Self {
+            identity: ToolIdentity { namespace: None, name: String::new() },
+            source: ToolSource::Builtin,
+            exposure: ToolExposure::Direct,
             id: String::new(),
             display_name: String::new(),
             description: String::new(),
@@ -100,6 +107,7 @@ impl ToolSpec {
         let id = id.into();
         let input_schema_clone = input_schema.clone();
         Self {
+            identity: ToolIdentity { namespace: None, name: id.clone() },
             name: id.clone(),
             parameters: input_schema_clone,
             display_name: id.clone(),
@@ -113,6 +121,9 @@ impl ToolSpec {
     /// 转换为跨模块共享的工具规格 DTO。
     pub fn to_dto(&self) -> ToolSpecDto {
         ToolSpecDto {
+            identity: self.identity.clone(),
+            source: self.source,
+            exposure: self.exposure,
             id: self.id.clone().into(),
             display_name: self.display_name.clone(),
             description: self.description.clone(),
@@ -640,3 +651,6 @@ mod mod_tests;
 #[cfg(test)]
 #[path = "tests.rs"]
 mod tests;
+
+#[cfg(test)]
+mod dynamic_tools_tests;

@@ -18,3 +18,7 @@ mod native_hermes_agy_tests;
 pub mod native_kimi_omp;
 #[cfg(test)]
 mod native_kimi_omp_tests;
+
+pub mod update;
+#[cfg(test)]
+mod update_tests;

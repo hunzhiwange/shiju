@@ -1,4 +1,5 @@
-//! SDK 图标库的最小只读设置入口。
+//! SDK 图标库与改名入口。
+mod rename_modal;
 use super::system_settings_common::{
     rounded_action_btn_style, settings_error_banner, settings_muted_text_style,
     settings_section_card, settings_section_content,
@@ -58,8 +59,30 @@ pub(super) fn view(state: &AgentAppsState) -> Element<'_, Message> {
             {
                 entry = entry.push(image(image::Handle::from_bytes(bytes)).width(32).height(32));
             }
-            content = content.push(settings_section_content(entry.push(text(&icon.name).size(14))));
+            let rename = button(text("改名"))
+                .padding([8, 14])
+                .style(rounded_action_btn_style)
+                .on_press(Message::Settings(SettingsMessage::AgentApps(
+                    AgentAppsMessage::RenameOpen(icon.id.clone()),
+                )));
+            content = content.push(settings_section_content(
+                entry.push(container(text(&icon.name).size(14)).width(Length::Fill)).push(rename),
+            ));
         }
     }
     container(content).padding([0, 7]).width(Length::Fill).into()
+}
+
+#[cfg(test)]
+#[path = "system_settings_agent_apps/rename_modal_tests.rs"]
+mod rename_modal_tests;
+
+pub(super) fn view_overlays<'a>(
+    state: &'a AgentAppsState,
+    base: Element<'a, Message>,
+) -> Element<'a, Message> {
+    match &state.rename {
+        Some(form) => rename_modal::view(form, base),
+        None => base,
+    }
 }

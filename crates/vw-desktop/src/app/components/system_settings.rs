@@ -978,6 +978,7 @@ pub fn view(app: &App) -> Element<'_, Message> {
 
     if app.system_settings_tab == SystemTab::GatewayClient {
         dialog = crate::app::components::system_settings_gateway_client::view_overlays(app, dialog);
+        dialog = super::system_settings_agent_apps::view_overlays(&app.agent_apps, dialog);
     }
 
     if app.system_settings_tab == SystemTab::Gateway {

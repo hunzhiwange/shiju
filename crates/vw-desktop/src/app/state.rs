@@ -90,8 +90,21 @@ pub struct AgentAppsContext {
     pub(crate) project: Option<String>,
 }
 
+/// 当前弹窗的输入与请求状态；不缓存业务写入结果。
+#[derive(Debug, Clone)]
+pub(crate) struct IconRenameState {
+    pub(crate) id: String,
+    pub(crate) name: String,
+    pub(crate) saving: bool,
+    pub(crate) error: Option<String>,
+    pub(crate) context: AgentAppsContext,
+    pub(crate) generation: u64,
+}
+
 #[derive(Debug, Clone, Default)]
 pub(crate) struct AgentAppsState {
+    pub(crate) rename: Option<IconRenameState>,
+    pub(crate) rename_generation: u64,
     pub(crate) icons: Vec<vw_gateway_client::vw_api_types::agent_apps::CustomIconEntry>,
     pub(crate) loading: bool,
     pub(crate) error: Option<String>,
@@ -100,8 +113,13 @@ pub(crate) struct AgentAppsState {
 }
 
 impl AgentAppsState {
+    pub(crate) fn belongs_to(&self, context: &AgentAppsContext) -> bool {
+        self.context.as_ref() == Some(context)
+    }
+
     pub(crate) fn begin(&mut self, context: AgentAppsContext) -> u64 {
         if self.context.as_ref() != Some(&context) {
+            self.rename = None;
             self.icons.clear();
         }
         self.context = Some(context);

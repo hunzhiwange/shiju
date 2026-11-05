@@ -131,3 +131,185 @@ fn cc_base_icon_desktop_state_message_routes_loading_error_toast_and_retry() {
     assert!(app.agent_apps.error.is_none());
     assert_eq!(app.active_toast.as_ref().unwrap().message, "图标服务不可用");
 }
+
+fn rename_app() -> App {
+    let mut app = App::new().0;
+    let client = crate::app::config::gateway_client().unwrap();
+    let requested = context(&client, app.project_path.clone());
+    let generation = app.agent_apps.begin(requested.clone());
+    app.agent_apps.finish(
+        &requested,
+        &requested,
+        generation,
+        Ok(vec![CustomIconEntry {
+            id: "icon".into(),
+            name: "工作".into(),
+            data: String::new(),
+            created_at: 0,
+        }]),
+    );
+    let _ = update(&mut app, AgentAppsMessage::RenameOpen("icon".into()));
+    app
+}
+
+#[test]
+fn cc_base_icon_desktop_rename_close_does_not_submit() {
+    let mut app = rename_app();
+    assert_eq!(app.agent_apps.rename.as_ref().unwrap().name, "工作");
+    assert_eq!(update(&mut app, AgentAppsMessage::RenameClose).units(), 0);
+    assert!(app.agent_apps.rename.is_none());
+    assert!(!app.agent_apps.loading);
+    assert_eq!(app.agent_apps.icons[0].name, "工作");
+}
+
+#[test]
+fn cc_base_icon_desktop_rename_failure_preserves_input_and_blocks_duplicate() {
+    let mut app = rename_app();
+    let name = "中".repeat(65);
+    let _ = update(&mut app, AgentAppsMessage::RenameInput(name.clone()));
+    assert_eq!(update(&mut app, AgentAppsMessage::RenameSubmit).units(), 1);
+    let pending = app.agent_apps.rename.clone().unwrap();
+    assert!(pending.saving);
+    assert_eq!(update(&mut app, AgentAppsMessage::RenameSubmit).units(), 0);
+    assert_eq!(update(&mut app, AgentAppsMessage::RenameClose).units(), 0);
+    assert!(app.agent_apps.rename.is_some());
+    let _ = update(&mut app, AgentAppsMessage::RenameInput("changed".into()));
+    assert_eq!(app.agent_apps.rename.as_ref().unwrap().name, name);
+    let _ = update(
+        &mut app,
+        AgentAppsMessage::Renamed {
+            context: pending.context,
+            generation: pending.generation,
+            result: Err("网络错误".into()),
+        },
+    );
+    let form = app.agent_apps.rename.as_ref().unwrap();
+    assert!(!form.saving);
+    assert_eq!(form.name, name);
+    assert_eq!(form.error.as_deref(), Some("网络错误"));
+    assert_eq!(app.active_toast.as_ref().unwrap().message, "网络错误");
+}
+
+#[test]
+fn cc_base_icon_desktop_rename_success_rereads_and_stale_response_is_ignored() {
+    let mut app = rename_app();
+    let _ = update(&mut app, AgentAppsMessage::RenameInput("中".repeat(64)));
+    let _ = update(&mut app, AgentAppsMessage::RenameSubmit);
+    let pending = app.agent_apps.rename.clone().unwrap();
+    let mut stale = pending.context.clone();
+    stale.project = Some("/other".into());
+    let _ = update(
+        &mut app,
+        AgentAppsMessage::Renamed {
+            context: stale,
+            generation: pending.generation,
+            result: Ok(()),
+        },
+    );
+    assert!(app.agent_apps.rename.as_ref().unwrap().saving);
+    let _ = update(
+        &mut app,
+        AgentAppsMessage::Renamed {
+            context: pending.context,
+            generation: pending.generation,
+            result: Ok(()),
+        },
+    );
+    assert!(app.agent_apps.rename.is_none());
+    assert!(app.agent_apps.loading);
+    assert_eq!(app.agent_apps.icons[0].name, "工作");
+}
+
+/// Only the remote HTTP transport is substituted; verify SDK serialization and re-read.
+#[tokio::test]
+async fn cc_base_icon_desktop_rename_sdk_chinese_64_65_and_reread() {
+    use std::io::{Read, Write};
+    let listener = std::net::TcpListener::bind("127.0.0.1:0").unwrap();
+    let port = listener.local_addr().unwrap().port();
+    listener.set_nonblocking(true).unwrap();
+    let server = std::thread::spawn(move || {
+        let entry =
+            serde_json::json!({"id":"icon", "name":"中".repeat(64), "data":"", "createdAt":0});
+        for index in 0..3 {
+            let deadline = std::time::Instant::now() + std::time::Duration::from_secs(15);
+            let mut stream = loop {
+                match listener.accept() {
+                    Ok((stream, _)) => break stream,
+                    Err(error) if error.kind() == std::io::ErrorKind::WouldBlock => {
+                        assert!(std::time::Instant::now() < deadline, "SDK request timed out");
+                        std::thread::sleep(std::time::Duration::from_millis(5));
+                    }
+                    Err(error) => panic!("{error}"),
+                }
+            };
+            stream.set_read_timeout(Some(std::time::Duration::from_secs(10))).unwrap();
+            let mut headers = Vec::new();
+            while !headers.ends_with(b"\r\n\r\n") {
+                let mut byte = [0];
+                assert_eq!(stream.read(&mut byte).unwrap(), 1);
+                headers.push(byte[0]);
+            }
+            let headers = String::from_utf8(headers).unwrap().to_lowercase();
+            assert!(headers.contains("x-company-id: company"));
+            let length: usize = headers
+                .lines()
+                .find_map(|line| line.strip_prefix("content-length:").map(str::trim))
+                .unwrap_or("0")
+                .parse()
+                .unwrap();
+            let mut body = vec![0; length];
+            stream.read_exact(&mut body).unwrap();
+            let (status, response) = if index == 1 {
+                assert!(headers.starts_with("get /v1/agent-apps/custom-icons "));
+                ("200 OK", serde_json::json!([entry]).to_string())
+            } else {
+                assert!(headers.starts_with("patch /v1/agent-apps/custom-icons/icon "));
+                let body: serde_json::Value = serde_json::from_slice(&body).unwrap();
+                assert_eq!(body["name"], "中".repeat(if index == 0 { 64 } else { 65 }));
+                if index == 0 {
+                    ("200 OK", entry.to_string())
+                } else {
+                    ("400 Bad Request", r#"{"error":"名称过长"}"#.into())
+                }
+            };
+            write!(stream, "HTTP/1.1 {status}\r\nContent-Type: application/json\r\nContent-Length: {}\r\nConnection: close\r\n\r\n{response}", response.len()).unwrap();
+        }
+    });
+    let client = GatewayClient::new(
+        GatewayEndpoint::new("127.0.0.1", port)
+            .with_tenant_scope(TenantScope::new("platform", "company").unwrap()),
+    )
+    .unwrap();
+    let mut form = IconRenameState {
+        id: "icon".into(),
+        name: "中".repeat(64),
+        saving: true,
+        error: None,
+        context: context(&client, None),
+        generation: 1,
+    };
+    rename(client.clone(), form.clone()).await.unwrap();
+    assert_eq!(load(Ok(client.clone())).await.unwrap()[0].name, form.name);
+    form.name.push('中');
+    assert!(rename(client, form).await.is_err());
+    server.join().unwrap();
+}
+
+#[test]
+fn cc_base_icon_desktop_rename_context_change_never_writes_or_applies() {
+    let mut app = rename_app();
+    let pending = app.agent_apps.rename.clone().unwrap();
+    app.project_path = Some("/different-project".into());
+    let _ = update(&mut app, AgentAppsMessage::RenameSubmit);
+    assert!(app.agent_apps.rename.is_none());
+    assert!(app.agent_apps.loading);
+    let _ = update(
+        &mut app,
+        AgentAppsMessage::Renamed {
+            context: pending.context,
+            generation: pending.generation,
+            result: Err("stale".into()),
+        },
+    );
+    assert!(app.agent_apps.error.is_none());
+}

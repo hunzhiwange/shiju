@@ -651,7 +651,9 @@ pub(crate) fn tool_bucket(tool_id: &str) -> SessionToolBucket {
         }
         "write" | "file_write" | "apply_patch" | "edit" | "edit_file" | "editfile"
         | "file_edit" | "notebook_edit" => SessionToolBucket::Edit,
-        "bash" | "shell" | "process" | "git_operations" => SessionToolBucket::Execution,
+        "bash" | "shell" | "bash_wait" | "bash_cancel" | "process" | "git_operations" => {
+            SessionToolBucket::Execution
+        }
         "browser" | "browser_open" | "http_request" | "web_fetch" | "fetch_webpage"
         | "web_search" | "websearch" | "web_search_tool" | "screenshot" => {
             SessionToolBucket::Browser
@@ -700,7 +702,9 @@ pub(crate) fn tool_group(tool_id: &str) -> SessionToolGroup {
         "grep" | "content_search" | "glob" | "glob_search" | "code_search" | "codesearch"
         | "lsp" => SessionToolGroup::Search,
         "apply_patch" | "edit" | "edit_file" | "editfile" | "file_edit" | "notebook_edit"
-        | "bash" | "shell" | "process" | "git_operations" => SessionToolGroup::Execute,
+        | "bash" | "shell" | "bash_wait" | "bash_cancel" | "process" | "git_operations" => {
+            SessionToolGroup::Execute
+        }
         "browser" | "browser_open" | "http_request" | "web_fetch" | "fetch_webpage"
         | "web_search" | "websearch" | "web_search_tool" | "screenshot" => SessionToolGroup::Web,
         "AgentTool"
@@ -752,6 +756,8 @@ pub(crate) fn tool_display_name(tool_id: &str) -> String {
         "glob_search" => "组合搜索".to_string(),
         "code_search" | "codesearch" => "代码检索".to_string(),
         "bash" | "shell" => "命令行".to_string(),
+        "bash_wait" => "等待命令".to_string(),
+        "bash_cancel" => "停止命令".to_string(),
         "process" => "后台进程".to_string(),
         "git_operations" => "Git 操作".to_string(),
         "browser" => "浏览器交互".to_string(),

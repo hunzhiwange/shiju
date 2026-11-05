@@ -296,17 +296,7 @@ const RESEARCHER_TOOLS: &[&str] =
     &["file_read", "ls", "glob", "grep", "web_fetch", "web_search_tool", "pdf_read"];
 const CODER_TOOLS: &[&str] =
     &["file_read", "file_write", "file_edit", "apply_patch", "bash", "ls", "glob", "grep"];
-const MAIN_TOOLS: &[&str] = &[
-    "AgentTool",
-    "file_read",
-    "file_write",
-    "file_edit",
-    "apply_patch",
-    "bash",
-    "ls",
-    "glob",
-    "grep",
-];
+const MAIN_TOOLS: &[&str] = crate::tools::DEFAULT_ENABLED_TOOL_IDS;
 
 const READONLY_PERMISSION: &str = r#"{
     "*": "deny",
@@ -486,6 +476,9 @@ pub fn merged_agent_configs(
                 builtin.allowed_tools.retain(|tool| value.allowed_tools.contains(tool));
             }
             if key == "main" {
+                if !value.allowed_tools.is_empty() {
+                    builtin.allowed_tools = value.allowed_tools.clone();
+                }
                 builtin.max_parallel_subagents = value.max_parallel_subagents.max(1);
             }
             builtin.provider = value.provider.clone();

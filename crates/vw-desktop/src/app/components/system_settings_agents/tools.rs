@@ -358,6 +358,16 @@ pub(super) fn tool_meta(tool_id: &str) -> ToolMeta {
             description: "在受限工作目录执行 Bash 命令，支持超时、审批和风险控制。",
             group: ToolGroup::Execute,
         },
+        "bash_wait" => ToolMeta {
+            name: "等待命令",
+            description: "等待正在运行的命令，并读取后续输出。",
+            group: ToolGroup::Execute,
+        },
+        "bash_cancel" => ToolMeta {
+            name: "停止命令",
+            description: "停止当前会话中正在运行的命令及其子进程。",
+            group: ToolGroup::Execute,
+        },
         "PowerShell" | "powershell" => ToolMeta {
             name: "PowerShell",
             description: "在 Windows 上执行 PowerShell 命令，受工作区与安全策略约束。",

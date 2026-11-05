@@ -38,7 +38,7 @@ fn allowed_tool_ids_include_aliases_and_request_filter_intersects_base_set() {
 }
 
 #[test]
-fn request_filter_only_retains_requested_tools_and_dynamic_skill_loader() {
+fn request_filter_keeps_required_tools_and_excludes_unselected_optional_tools() {
     let specs = vec![
         crate::app::agent::tools::ToolSpec::new(
             crate::app::agent::tools::TODO_WRITE_TOOL_ID,
@@ -78,10 +78,20 @@ fn request_filter_only_retains_requested_tools_and_dynamic_skill_loader() {
     let allowed =
         allowed_tool_ids_for_request_from_specs(&specs, &json!({"allowed_tools": ["file_read"]}));
 
-    assert_eq!(allowed, HashSet::from(["file_read".to_string(), "skill".to_string(),]));
+    assert_eq!(
+        allowed,
+        HashSet::from([
+            "file_read".to_string(),
+            "skill".to_string(),
+            crate::app::agent::tools::TODO_WRITE_TOOL_ID.to_string(),
+            crate::app::agent::tools::TODO_WRITE_TOOL_ALIAS.to_string(),
+            "AskUserQuestion".to_string(),
+            "question".to_string(),
+        ])
+    );
     assert!(!allowed.contains("web_fetch"));
-    assert!(!allowed.contains(crate::app::agent::tools::TODO_WRITE_TOOL_ID));
-    assert!(!allowed.contains("AskUserQuestion"));
+    assert!(allowed.contains(crate::app::agent::tools::TODO_WRITE_TOOL_ID));
+    assert!(allowed.contains("AskUserQuestion"));
     assert!(!allowed.contains("mcp__rustcodegraph__search"));
     assert!(!allowed.contains("mcp_alias"));
     assert!(!allowed.contains("missing-tool"));
@@ -211,7 +221,10 @@ fn request_filter_trims_names_accepts_aliases_and_discards_unknown_tools() {
         &json!({"allowed_tools": [" read ", "file_write", "missing", "read"]}),
     );
 
-    assert_eq!(allowed, HashSet::from(["read".to_string(), "file_write".to_string()]));
+    assert_eq!(
+        allowed,
+        HashSet::from(["file_read".to_string(), "read".to_string(), "file_write".to_string()])
+    );
 }
 
 #[test]
@@ -241,14 +254,7 @@ fn request_tool_list_keeps_registered_builtins_without_expanding_custom_tools() 
     let options = json!({"allowed_tools": ["custom_tool"]});
 
     let allowed = allowed_tool_ids_for_request_from_specs(&specs, &options);
-    assert_eq!(
-        allowed,
-        HashSet::from([
-            "file_read".to_string(),
-            "memory_store".to_string(),
-            "custom_tool".to_string(),
-        ]),
-    );
+    assert_eq!(allowed, HashSet::from(["file_read".to_string(), "custom_tool".to_string()]));
 }
 
 #[test]
@@ -323,4 +329,23 @@ fn structured_tool_calls_run_locally_only_outside_acp() {
     assert!(!should_execute_structured_tool_calls_locally(&json!({"acp_agent": "copilot"})));
     assert!(should_execute_structured_tool_calls_locally(&json!({"acp_test": false})));
     assert!(should_execute_structured_tool_calls_locally(&json!({"acp_agent": "  "})));
+}
+
+#[test]
+fn request_filter_keeps_shell_lifecycle_but_does_not_restore_optional_tools() {
+    let ids =
+        ["bash", "bash_wait", "bash_cancel", "pdf_read", "memory_store", "Browser", "AgentTool"];
+    let specs = ids
+        .iter()
+        .map(|id| tools::ToolSpec::new(*id, "test", json!({"type":"object"})))
+        .collect::<Vec<_>>();
+    let allowed = allowed_tool_ids_for_request_from_specs(&specs, &json!({"allowed_tools":[]}));
+    assert_eq!(
+        allowed,
+        ["bash", "bash_wait", "bash_cancel"].into_iter().map(String::from).collect()
+    );
+    let selected =
+        allowed_tool_ids_for_request_from_specs(&specs, &json!({"allowed_tools":["pdf_read"]}));
+    assert!(selected.contains("pdf_read"));
+    assert!(!selected.contains("memory_store"));
 }

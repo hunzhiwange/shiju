@@ -14,41 +14,18 @@ fn builtin_required_tool_catalog_matches_expected_ids_and_aliases() {
     let expected_primary = [
         "file_read",
         "file_write",
+        "file_edit",
         "ls",
         "glob",
         "grep",
         "apply_patch",
         "bash",
-        "http_request",
-        "screenshot",
-        "AgentTool",
-        "create_thread",
-        "fork_thread",
-        "list_threads",
-        "read_thread",
-        "send_message_to_thread",
-        "handoff_thread",
-        "set_thread_title",
-        "set_thread_pinned",
-        "set_thread_archived",
-        "wait_threads",
+        "bash_wait",
+        "bash_cancel",
         "skill",
-        "schedule",
-        "memory_forget",
-        "memory_recall",
-        "memory_store",
-        "batch",
         "AskUserQuestion",
-        "Browser",
-        "BrowserOpen",
-        "Config",
         "TodoRead",
         "TodoWrite",
-        "WebSearch",
-        "file_edit",
-        "image_asset_read",
-        "Sleep",
-        "McpStatus",
     ];
     assert_eq!(super::BUILTIN_REQUIRED_TOOL_IDS, expected_primary);
 
@@ -57,18 +34,13 @@ fn builtin_required_tool_catalog_matches_expected_ids_and_aliases() {
     }
 
     for (alias, primary) in [
+        ("read", "file_read"),
+        ("write", "file_write"),
+        ("edit", "file_edit"),
         ("shell", "bash"),
         ("question", "AskUserQuestion"),
-        ("browser", "Browser"),
-        ("browser_open", "BrowserOpen"),
         ("todoread", "TodoRead"),
         ("todowrite", "TodoWrite"),
-        ("web_search", "WebSearch"),
-        ("websearch", "WebSearch"),
-        ("web_search_tool", "WebSearch"),
-        ("edit", "file_edit"),
-        ("sleep", "Sleep"),
-        ("mcp_status", "McpStatus"),
     ] {
         assert!(
             super::is_builtin_required_tool_id(alias),
@@ -79,6 +51,44 @@ fn builtin_required_tool_catalog_matches_expected_ids_and_aliases() {
     assert!(!super::is_builtin_required_tool_id("mcp__rustcodegraph__search"));
     assert!(!super::is_builtin_required_tool_id("web_fetch"));
     assert!(!super::is_builtin_required_tool_id(""));
+    assert!(!super::is_builtin_required_tool_id("exec_command"));
+}
+
+#[test]
+fn optional_tools_default_enabled_without_becoming_required() {
+    assert_eq!(super::BUILTIN_REQUIRED_TOOL_IDS.len(), 14);
+    for id in [
+        "schedule",
+        "cron_add",
+        "cron_list",
+        "cron_remove",
+        "cron_update",
+        "cron_run",
+        "cron_runs",
+        "exec_command",
+    ] {
+        assert!(!super::DEFAULT_ENABLED_TOOL_IDS.contains(&id), "{id}");
+    }
+    for id in super::BUILTIN_REQUIRED_TOOL_IDS {
+        assert!(super::DEFAULT_ENABLED_TOOL_IDS.contains(id), "{id}");
+    }
+    for id in [
+        "pdf_read",
+        "http_request",
+        "AgentTool",
+        "create_thread",
+        "memory_store",
+        "batch",
+        "Browser",
+        "Config",
+        "image_asset_read",
+        "screenshot",
+        "Sleep",
+        "McpStatus",
+    ] {
+        assert!(super::DEFAULT_ENABLED_TOOL_IDS.contains(&id), "{id}");
+        assert!(!super::is_builtin_required_tool_id(id), "{id}");
+    }
 }
 
 // MCP 动态工具只按受控前缀识别，普通工具名不能被误归类。

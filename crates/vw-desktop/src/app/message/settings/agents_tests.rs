@@ -1327,9 +1327,9 @@ fn allowed_tool_messages_keep_builtin_required_tools() {
     );
     let inverted = &entry(&app, "main").allowed_tools;
     assert!(inverted.iter().any(|tool| tool == "bash"));
-    assert!(inverted.iter().any(|tool| tool == "web_search_tool"));
+    assert!(!inverted.iter().any(|tool| tool == "web_search_tool"));
     assert!(inverted.iter().any(|tool| tool == "write"));
-    assert!(!inverted.iter().any(|tool| tool == "read"));
+    assert!(inverted.iter().any(|tool| tool == "read"));
 
     let _ = update(
         &mut app,
@@ -1342,7 +1342,7 @@ fn allowed_tool_messages_keep_builtin_required_tools() {
     assert!(preset.iter().any(|tool| tool == "bash"));
     assert!(preset.iter().any(|tool| tool == "web_search_tool"));
     assert!(preset.iter().any(|tool| tool == "read"));
-    assert!(!preset.iter().any(|tool| tool == "write"));
+    assert!(preset.iter().any(|tool| tool == "write"));
 }
 
 #[test]
@@ -1382,11 +1382,8 @@ fn allowed_tool_messages_sort_select_invert_and_apply_presets() {
             false,
         )),
     );
-    // 关闭可选工具时仍强制并回 available 中的内置必选。
-    assert_eq!(
-        entry(&app, "main").allowed_tools,
-        vec!["bash".to_string(), "web_search_tool".to_string()]
-    );
+    // 读取文件属于必需能力，不能取消。
+    assert_eq!(entry(&app, "main").allowed_tools, vec!["bash".to_string(), "read".to_string()]);
 
     let _ = update(
         &mut app,
@@ -1400,10 +1397,10 @@ fn allowed_tool_messages_sort_select_invert_and_apply_presets() {
         &mut app,
         SettingsMessage::Agents(AgentsMessage::AllowedToolsInvertSelection("main".to_string())),
     );
-    // 内置必选（bash / web_search_tool）不可被反选清掉。
+    // 反选后只保留必需能力及兼容入口。
     assert_eq!(
         entry(&app, "main").allowed_tools,
-        vec!["bash".to_string(), "web_search_tool".to_string()]
+        vec!["bash".to_string(), "read".to_string(), "write".to_string()]
     );
 
     let _ = update(
@@ -1415,7 +1412,12 @@ fn allowed_tool_messages_sort_select_invert_and_apply_presets() {
     );
     assert_eq!(
         entry(&app, "main").allowed_tools,
-        vec!["bash".to_string(), "read".to_string(), "web_search_tool".to_string()]
+        vec![
+            "bash".to_string(),
+            "read".to_string(),
+            "web_search_tool".to_string(),
+            "write".to_string()
+        ]
     );
 }
 
@@ -1494,16 +1496,36 @@ fn agent_config_draft_survives_refresh_scope_change_and_stale_load() {
 }
 
 #[test]
-fn add_agent_defaults_to_all_loaded_tools() {
+fn add_agent_defaults_exclude_scheduled_tasks() {
     let mut app = test_app();
-    app.agents_settings.available_tools = vec!["bash".to_string(), "read".to_string()];
+    app.agents_settings.available_tools = vec![
+        "bash".to_string(),
+        "read".to_string(),
+        "schedule".to_string(),
+        "cron_list".to_string(),
+        "pdf_read".to_string(),
+        "memory_recall".to_string(),
+        "Config".to_string(),
+        "screenshot".to_string(),
+        "image_asset_read".to_string(),
+        "create_thread".to_string(),
+    ];
     app.agents_settings.new_agent_key_input = "worker_2".to_string();
 
     let _ = update(&mut app, SettingsMessage::Agents(AgentsMessage::AddAgentRequested));
 
     assert_eq!(
         app.agents_settings.profile_modal.as_ref().unwrap().allowed_tools,
-        vec!["bash", "read"]
+        vec![
+            "Config",
+            "bash",
+            "create_thread",
+            "image_asset_read",
+            "memory_recall",
+            "pdf_read",
+            "read",
+            "screenshot"
+        ]
     );
 }
 
@@ -2214,4 +2236,38 @@ async fn agent_tool_catalog_async_retries_on_profile_open() {
     }
     assert!(app.agents_settings.profile_modal.is_some());
     assert_eq!(app.agents_settings.available_tools, vec!["file_read"]);
+}
+
+#[test]
+fn optional_tools_can_be_cancelled_and_remain_cancelled_after_reload() {
+    let mut app = test_app();
+    let ids = ["bash", "bash_wait", "bash_cancel", "pdf_read", "memory_store", "AgentTool"];
+    app.agents_settings.available_tools = ids.iter().map(|id| (*id).to_string()).collect();
+    entry_mut(&mut app, "main").allowed_tools = app.agents_settings.available_tools.clone();
+    for id in ["pdf_read", "memory_store", "AgentTool", "bash_wait", "bash_cancel"] {
+        let _ = update(
+            &mut app,
+            SettingsMessage::Agents(AgentsMessage::AllowedToolToggled(
+                "main".into(),
+                id.into(),
+                false,
+            )),
+        );
+    }
+    let selected = &entry(&app, "main").allowed_tools;
+    assert_eq!(selected, &["bash", "bash_cancel", "bash_wait"]);
+    let patch = build_agents_settings_patch(&app.agents_settings.entries).unwrap();
+    let main = serde_json::from_value(patch["agents"]["main"].clone()).unwrap();
+    let configured = std::collections::HashMap::from([("main".to_string(), main)]);
+    let merged = vw_config_types::agent::merged_agent_configs(&configured);
+    assert_eq!(&merged["main"].allowed_tools, selected);
+    let mut restored = crate::app::state::DelegateAgentSettingsEntry::from_config(
+        "main",
+        Some(merged["main"].clone()),
+    );
+    crate::app::state::apply_default_allowed_tools(
+        std::slice::from_mut(&mut restored),
+        &app.agents_settings.available_tools,
+    );
+    assert_eq!(&restored.allowed_tools, selected);
 }

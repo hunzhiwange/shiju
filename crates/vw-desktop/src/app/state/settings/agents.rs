@@ -234,7 +234,14 @@ pub(crate) fn apply_default_allowed_tools(
 
     for entry in entries {
         if !entry.role_controls_locked && entry.allowed_tools.is_empty() {
-            entry.allowed_tools = merge_builtin_required_tools(available_tools, available_tools);
+            let defaults = available_tools
+                .iter()
+                .filter(|tool| {
+                    vw_config_types::tools::DEFAULT_ENABLED_TOOL_IDS.contains(&tool.as_str())
+                })
+                .cloned()
+                .collect::<Vec<_>>();
+            entry.allowed_tools = merge_builtin_required_tools(&defaults, available_tools);
         }
     }
 }

@@ -512,3 +512,30 @@ fn merged_builtin_subagent_opt_out_preserves_other_roles() {
     assert!(merged["reviewer"].allow_as_subagent);
     assert!(merged["reviewer"].enabled);
 }
+
+#[test]
+fn main_tool_defaults_include_optional_capabilities_and_preserve_cancellations() {
+    let main = super::builtin_agent_config("main").unwrap();
+    for id in [
+        "pdf_read",
+        "AgentTool",
+        "memory_store",
+        "bash_wait",
+        "bash_cancel",
+        "file_edit",
+        "image_asset_read",
+        "screenshot",
+    ] {
+        assert!(main.allowed_tools.iter().any(|tool| tool == id), "{id}");
+    }
+    assert!(!main.allowed_tools.iter().any(|tool| tool == "schedule" || tool == "exec_command"));
+    let mut selected = main;
+    selected
+        .allowed_tools
+        .retain(|tool| !["pdf_read", "AgentTool", "memory_store"].contains(&tool.as_str()));
+    let persisted = serde_json::to_value(&selected).unwrap();
+    let restored = serde_json::from_value(persisted).unwrap();
+    let merged =
+        super::merged_agent_configs(&std::collections::HashMap::from([("main".into(), restored)]));
+    assert_eq!(merged["main"].allowed_tools, selected.allowed_tools);
+}

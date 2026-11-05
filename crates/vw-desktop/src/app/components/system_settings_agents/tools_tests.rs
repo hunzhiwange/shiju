@@ -365,8 +365,8 @@ fn tools_view_distinguishes_empty_and_all_grouped_tool_lists() {
     assert_eq!(tools_list.children[0].children.len(), 2);
     assert_eq!(tools_list.children[1].children.len(), 3);
     assert_eq!(tools_list.children[3].children.len(), 5);
-    // optional only: read(Files), custom_tool(Other)
-    assert_eq!(tools_list.children[4].children.len(), 2);
+    // 可选项分别归入联网、协作、记忆和其他分组。
+    assert_eq!(tools_list.children[4].children.len(), 4);
 }
 
 #[test]
@@ -390,8 +390,8 @@ fn tools_view_preserves_duplicate_available_tools_and_selection_state() {
     let (mut app, _) = crate::app::App::new();
     let mut entry = app.agents_settings.entries[0].clone();
     app.agents_settings.available_tools =
-        vec!["read".to_string(), "read".to_string(), "write".to_string()];
-    entry.allowed_tools = vec!["read".to_string(), "ghost_tool".to_string()];
+        vec!["pdf_read".to_string(), "pdf_read".to_string(), "notebook_edit".to_string()];
+    entry.allowed_tools = vec!["pdf_read".to_string(), "ghost_tool".to_string()];
 
     let view = super::tools::view(&app, &entry);
     let tree = Tree::new(view.as_widget());
@@ -422,7 +422,7 @@ fn tools_view_splits_optional_and_builtin_tabs() {
         &app.agents_settings.available_tools,
         &app.agents_settings.active_tools_list_tab,
     );
-    assert_eq!(optional_ids, vec!["custom_optional"]);
+    assert_eq!(optional_ids, vec!["custom_optional", "AgentTool", "create_thread"]);
     assert!(optional_ids.iter().all(|id| !is_builtin_required_tool_id(id)));
 
     {
@@ -439,7 +439,7 @@ fn tools_view_splits_optional_and_builtin_tabs() {
         &app.agents_settings.available_tools,
         &app.agents_settings.active_tools_list_tab,
     );
-    assert_eq!(builtin_ids, vec!["bash", "AgentTool", "create_thread"]);
+    assert_eq!(builtin_ids, vec!["bash"]);
     assert!(builtin_ids.iter().all(|id| is_builtin_required_tool_id(id)));
 
     let builtin_view = super::tools::view(&app, &entry);
@@ -496,4 +496,21 @@ fn builtin_tool_cards_are_locked_and_badged() {
     let card_content = &first_group_cards.children[0].children[0];
     let title_row = &card_content.children[0];
     assert_eq!(title_row.children.len(), 2, "builtin card title should include name + 内置 badge");
+}
+
+#[test]
+fn shell_companions_are_builtin_and_optional_capabilities_can_be_cancelled() {
+    for id in ["bash", "bash_wait", "bash_cancel", "file_edit", "edit"] {
+        assert!(super::tools::tool_card_is_locked(id));
+        assert!(matches!(
+            super::tools::tool_meta(id).group,
+            super::tools::ToolGroup::Execute | super::tools::ToolGroup::Files
+        ));
+    }
+    for id in ["pdf_read", "AgentTool", "create_thread", "memory_store", "browser"] {
+        assert!(!super::tools::tool_card_is_locked(id));
+        assert!(
+            super::tools::tool_card_press_message("main".into(), id.into(), true, false).is_some()
+        );
+    }
 }

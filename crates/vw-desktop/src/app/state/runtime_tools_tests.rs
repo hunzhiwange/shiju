@@ -528,6 +528,8 @@ fn tool_display_names_cover_known_runtime_surfaces() {
         ("glob_search", "组合搜索"),
         ("codesearch", "代码检索"),
         ("shell", "命令行"),
+        ("bash_wait", "等待命令"),
+        ("bash_cancel", "停止命令"),
         ("process", "后台进程"),
         ("git_operations", "Git 操作"),
         ("browser", "浏览器交互"),

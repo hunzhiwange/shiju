@@ -382,11 +382,26 @@ fn default_user_agent() -> String {
     resolve_user_agent("")
 }
 
-/// 委托代理内置必选工具主 ID 目录。
-///
-/// 匹配时还需覆盖既有别名（见 [`is_builtin_required_tool_id`]）；本切片仅列主 ID，
-/// 供 UI 展示与白名单合并使用。
+/// Agent 基础闭环必需的主工具；权限策略仍可拒绝具体操作。
 pub const BUILTIN_REQUIRED_TOOL_IDS: &[&str] = &[
+    "file_read",
+    "file_write",
+    "file_edit",
+    "ls",
+    "glob",
+    "grep",
+    "apply_patch",
+    "bash",
+    "bash_wait",
+    "bash_cancel",
+    "skill",
+    "AskUserQuestion",
+    "TodoRead",
+    "TodoWrite",
+];
+
+/// 新智能体的初始工具选择；定时任务默认关闭，已保存的可选选择不得自动补回。
+pub const DEFAULT_ENABLED_TOOL_IDS: &[&str] = &[
     "file_read",
     "file_write",
     "ls",
@@ -394,6 +409,9 @@ pub const BUILTIN_REQUIRED_TOOL_IDS: &[&str] = &[
     "grep",
     "apply_patch",
     "bash",
+    "bash_wait",
+    "bash_cancel",
+    "pdf_read",
     "http_request",
     "screenshot",
     "AgentTool",
@@ -408,7 +426,6 @@ pub const BUILTIN_REQUIRED_TOOL_IDS: &[&str] = &[
     "set_thread_archived",
     "wait_threads",
     "skill",
-    "schedule",
     "memory_forget",
     "memory_recall",
     "memory_store",
@@ -424,16 +441,8 @@ pub const BUILTIN_REQUIRED_TOOL_IDS: &[&str] = &[
     "image_asset_read",
     "Sleep",
     "McpStatus",
-];
-
-/// 主 ID 之外、仍视为同一内置必选工具的既有别名。
-const BUILTIN_REQUIRED_TOOL_ALIASES: &[&str] = &[
-    "shell",
-    "question",
     "browser",
     "browser_open",
-    "todoread",
-    "todowrite",
     "web_search",
     "websearch",
     "web_search_tool",
@@ -442,7 +451,11 @@ const BUILTIN_REQUIRED_TOOL_ALIASES: &[&str] = &[
     "mcp_status",
 ];
 
-/// 判断工具 ID 是否属于内置必选目录（含主 ID 与既有别名）。
+/// 同一必需能力的兼容入口，不计为新增主工具。
+const BUILTIN_REQUIRED_TOOL_ALIASES: &[&str] =
+    &["read", "write", "edit", "shell", "question", "todoread", "todowrite"];
+
+/// 判断工具是否为必需能力或其兼容入口。
 pub fn is_builtin_required_tool_id(tool_id: &str) -> bool {
     BUILTIN_REQUIRED_TOOL_IDS.contains(&tool_id) || BUILTIN_REQUIRED_TOOL_ALIASES.contains(&tool_id)
 }

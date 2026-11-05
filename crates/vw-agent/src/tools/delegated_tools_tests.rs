@@ -154,3 +154,19 @@ async fn filtered_skill_tool_delegates_missing_and_blank_names() {
     assert!(blank.success);
     assert_eq!(blank.output, "skill");
 }
+
+#[test]
+fn delegated_tools_keep_command_lifecycle_without_restoring_optional_capabilities() {
+    let ids = ["bash", "bash_wait", "bash_cancel", "pdf_read", "memory_store", "Browser"];
+    let parent_tools: Vec<Arc<dyn Tool>> =
+        ids.iter().map(|name| Arc::new(NamedTool { name }) as Arc<dyn Tool>).collect();
+    let tools = build_agentic_tools(&parent_tools, &DelegateAgentConfig::default(), &[]);
+    assert_eq!(
+        tools.iter().map(|tool| tool.name()).collect::<Vec<_>>(),
+        ["bash", "bash_wait", "bash_cancel"]
+    );
+    let config = delegated_config(&["pdf_read"], DelegateCapabilityPolicy::Unrestricted, &[]);
+    let tools = build_agentic_tools(&parent_tools, &config, &[]);
+    assert!(tools.iter().any(|tool| tool.name() == "pdf_read"));
+    assert!(!tools.iter().any(|tool| tool.name() == "memory_store"));
+}

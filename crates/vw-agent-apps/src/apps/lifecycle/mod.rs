@@ -22,3 +22,7 @@ mod native_kimi_omp_tests;
 pub mod update;
 #[cfg(test)]
 mod update_tests;
+
+pub mod coordinator;
+#[cfg(test)]
+mod coordinator_tests;

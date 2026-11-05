@@ -22,7 +22,7 @@ pub(crate) fn router() -> Router {
         )
         .route(
             "/agent-apps/custom-icons/{id}",
-            patch(rename_icon).layer(DefaultBodyLimit::max(128 * 1024)),
+            patch(rename_icon).delete(delete_icon).layer(DefaultBodyLimit::max(128 * 1024)),
         )
 }
 
@@ -108,4 +108,24 @@ async fn rename_icon(
     .await
     .map_err(|error| AgentAppsApiError::storage_unavailable(error.into()).into_response())?
     .map_err(IntoResponse::into_response)
+}
+
+async fn delete_icon(
+    Extension(tenant): Extension<TenantScope>,
+    database: Option<Extension<GlobalDatabase>>,
+    Path(id): Path<String>,
+) -> Result<axum::http::StatusCode, AgentAppsApiError> {
+    tokio::task::spawn_blocking(move || {
+        let database = match database {
+            Some(Extension(database)) => database,
+            None => GlobalDatabase::for_home(&crate::global::paths().home)
+                .map_err(AgentAppsApiError::storage_unavailable)?,
+        };
+        let store =
+            IconLibraryStore::new(database).map_err(AgentAppsApiError::storage_unavailable)?;
+        store.delete_icon(&tenant, &id).map_err(AgentAppsApiError::from)?;
+        Ok(axum::http::StatusCode::NO_CONTENT)
+    })
+    .await
+    .map_err(|error| AgentAppsApiError::storage_unavailable(error.into()))?
 }

@@ -246,3 +246,6 @@ mod agent_apps_add_tests;
 
 #[cfg(test)]
 mod agent_apps_rename_tests;
+
+#[cfg(test)]
+mod agent_apps_delete_tests;

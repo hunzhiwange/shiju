@@ -3187,3 +3187,6 @@ fn dynamic_tools_processor_replacement_revokes_loaded_tool() {
         }));
     });
 }
+
+#[path = "mcp_catalog_refresh_tests.rs"]
+mod mcp_catalog_refresh_tests;

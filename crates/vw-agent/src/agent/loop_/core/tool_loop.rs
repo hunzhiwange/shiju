@@ -233,6 +233,10 @@ pub(crate) async fn run_tool_call_loop_with_skills(
 
         // Capture specifications and executors together, before the model can wait.
         if let Some(catalog) = &live_catalog {
+            let pool = crate::plugins::mcp_session_connections(tool_use_context.session(), &workspace_dir);
+            if let Err(error) = pool.refresh_tool_catalog(catalog).await {
+                tracing::warn!("MCP catalog refresh remains pending: {error}");
+            }
             let snapshot = catalog.snapshot();
             if catalog_snapshot.as_ref().is_none_or(|previous| !Arc::ptr_eq(previous, &snapshot)) {
                 let specs = snapshot.specs().into_iter().filter(|spec| {

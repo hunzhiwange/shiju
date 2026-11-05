@@ -109,6 +109,19 @@ impl ToolRuntimeContext {
     }
 }
 
+/// Resolve the session-owned refresh source; ACP leases remain isolated from native chats.
+pub(crate) fn mcp_connections_for_context(
+    ctx: &ToolRuntimeContext,
+) -> Arc<crate::plugins::McpSessionConnections> {
+    ctx.session_tools.mcp_connections().unwrap_or_else(|| {
+        let root = ctx
+            .tool_use_context()
+            .workspace_root()
+            .unwrap_or_else(|| std::path::PathBuf::from("."));
+        crate::plugins::mcp_session_connections(&ctx.session, &root)
+    })
+}
+
 pub use super::executor::{ExecutedToolCall, ToolCallError};
 
 #[derive(Clone)]
@@ -1113,6 +1126,7 @@ fn register_dynamic_mcp_tools(
             connections.clone(),
         )) {
             Ok(discovered) => {
+                connections.register_tool_source(server.clone(), management.clone());
                 has_resources_or_prompts |= discovered.has_resources_or_prompts;
                 for tool in discovered.tools {
                     tracing::debug!(
@@ -1147,12 +1161,12 @@ fn register_dynamic_mcp_tools(
     }
 }
 
-struct DiscoveredMcpTools {
-    tools: Vec<super::mcp_tool::McpTool>,
-    has_resources_or_prompts: bool,
+pub(crate) struct DiscoveredMcpTools {
+    pub(crate) tools: Vec<super::mcp_tool::McpTool>,
+    pub(crate) has_resources_or_prompts: bool,
 }
 
-async fn discover_dynamic_mcp_tools(
+pub(crate) async fn discover_dynamic_mcp_tools(
     server: agent_client_protocol::McpServer,
     management: vw_acp::McpServerManagement,
     existing_tool_ids: &[&str],

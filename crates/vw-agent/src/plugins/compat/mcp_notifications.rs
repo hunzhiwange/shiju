@@ -32,12 +32,12 @@ impl<T> Catalog<T> {
     fn invalidate(&self) {
         self.revision.fetch_add(1, Ordering::AcqRel);
     }
-    fn snapshot(&self) -> Option<Arc<Vec<T>>> {
+    fn snapshot(&self) -> Option<(u64, Arc<Vec<T>>)> {
         self.listed
             .lock()
             .unwrap_or_else(std::sync::PoisonError::into_inner)
             .as_ref()
-            .map(|listed| listed.value.clone())
+            .map(|listed| (listed.revision, listed.value.clone()))
     }
     async fn list<F, Fut>(
         &self,
@@ -69,6 +69,9 @@ impl<T> Catalog<T> {
                     _ = closed.cancelled() => bail!("MCP catalog connection is closed"),
                     value = fetch() => value?,
                 };
+                if closed.is_cancelled() {
+                    bail!("MCP catalog connection is closed");
+                }
                 if self.revision.load(Ordering::Acquire) != revision {
                     continue;
                 }
@@ -103,6 +106,10 @@ impl McpCatalogs {
             templates: Catalog::default(),
             prompts: Catalog::default(),
         }
+    }
+    #[cfg(test)]
+    pub(crate) fn tools_revision(&self) -> u64 {
+        self.tools.revision.load(Ordering::Acquire)
     }
     pub(crate) fn tools_changed(&self) {
         if !self.closed.is_cancelled() {
@@ -181,16 +188,23 @@ impl McpCatalogs {
             .await
     }
     pub(crate) fn binding(self: &Arc<Self>) -> Option<ToolCatalogBinding> {
-        Some(ToolCatalogBinding { catalog: self.clone(), tools: self.tools.snapshot()? })
+        let (revision, tools) = self.tools.snapshot()?;
+        Some(ToolCatalogBinding { catalog: self.clone(), revision, tools })
     }
 }
 
 #[derive(Clone)]
 pub(crate) struct ToolCatalogBinding {
     catalog: Arc<McpCatalogs>,
+    revision: u64,
     tools: Arc<Vec<Tool>>,
 }
 impl ToolCatalogBinding {
+    pub(crate) fn same_catalog(&self, other: &Self) -> bool {
+        self.revision == other.revision
+            && other.revision == other.catalog.tools.revision.load(Ordering::Acquire)
+            && self.matches(&other.catalog, &other.tools)
+    }
     pub(crate) fn matches(&self, current: &Arc<McpCatalogs>, tools: &[Tool]) -> bool {
         if !Arc::ptr_eq(&self.catalog, current)
             || self.catalog.closed.is_cancelled()

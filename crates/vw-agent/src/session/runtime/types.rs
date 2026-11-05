@@ -54,6 +54,10 @@ impl SessionToolset {
         self
     }
 
+    pub(crate) fn mcp_connections(&self) -> Option<Arc<crate::plugins::McpSessionConnections>> {
+        self.mcp_lease.as_ref().map(|lease| lease.0.clone())
+    }
+
     /// 返回本会话的运行时工具。
     pub(crate) fn tools(&self) -> &[Arc<dyn Tool>] {
         self.catalog.tools()

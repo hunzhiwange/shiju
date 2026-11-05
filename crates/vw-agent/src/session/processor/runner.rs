@@ -846,6 +846,23 @@ fn run_in_project(
     // 无法执行的协议要求。
     let live_catalog =
         crate::tools::current_tool_use_context().and_then(|context| context.live_tool_catalog());
+    let live_catalog = if let Some(catalog) = live_catalog {
+        Some(catalog)
+    } else {
+        let tools = crate::tools::execution_tools_for_context(&ctx);
+        let catalog = std::sync::Arc::new(crate::tools::catalog::ToolCatalog::default());
+        let ids = tools.iter().map(|tool| tool.spec().id).collect::<Vec<_>>();
+        if let Err(error) =
+            catalog.replace(tools.into_iter().map(std::sync::Arc::from).collect(), ids)
+        {
+            on_event(StreamEvent::Error(format!(
+                "failed to initialize request tool catalog: {error}"
+            )));
+            return;
+        }
+        Some(catalog)
+    };
+    let mcp_connections = crate::tools::mcp_connections_for_context(&ctx);
     let mut catalog_snapshot = live_catalog.as_ref().map(|catalog| catalog.snapshot());
     if let Some(snapshot) = &catalog_snapshot {
         ctx = tools_exec::with_request_tool_catalog(&ctx, &req.session_tools, snapshot);
@@ -973,6 +990,9 @@ fn run_in_project(
         }
         // Definitions and executors change together, only before the next model request.
         if let Some(catalog) = &live_catalog {
+            if let Err(error) = prompt::block_on(mcp_connections.refresh_tool_catalog(catalog)) {
+                tracing::warn!("MCP catalog refresh remains pending: {error}");
+            }
             let snapshot = catalog.snapshot();
             if catalog_snapshot
                 .as_ref()

@@ -77,6 +77,24 @@ impl ToolCatalog {
         tools: Vec<Arc<dyn Tool>>,
         authorized: impl IntoIterator<Item = String>,
     ) -> anyhow::Result<Arc<ToolCatalogSnapshot>> {
+        self.replace_inner(None, tools, authorized)
+    }
+
+    pub(crate) fn replace_if_current(
+        &self,
+        expected: &Arc<ToolCatalogSnapshot>,
+        tools: Vec<Arc<dyn Tool>>,
+        authorized: impl IntoIterator<Item = String>,
+    ) -> anyhow::Result<Arc<ToolCatalogSnapshot>> {
+        self.replace_inner(Some(expected), tools, authorized)
+    }
+
+    fn replace_inner(
+        &self,
+        expected: Option<&Arc<ToolCatalogSnapshot>>,
+        tools: Vec<Arc<dyn Tool>>,
+        authorized: impl IntoIterator<Item = String>,
+    ) -> anyhow::Result<Arc<ToolCatalogSnapshot>> {
         let specs: Vec<_> = tools.iter().map(|tool| tool.spec()).collect();
         let mut ids = BTreeSet::new();
         let mut identities = BTreeSet::new();
@@ -126,6 +144,9 @@ impl ToolCatalog {
             .collect();
         let specs = specs.into_iter().filter(|spec| authorized.contains(&spec.id)).collect();
         let mut current = self.current.write().unwrap_or_else(std::sync::PoisonError::into_inner);
+        if expected.is_some_and(|expected| !Arc::ptr_eq(expected, &current)) {
+            anyhow::bail!("tool catalog changed during MCP refresh; retry at the next request");
+        }
         let version = current
             .version
             .checked_add(1)

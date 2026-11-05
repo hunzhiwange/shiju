@@ -283,3 +283,12 @@ mod catalog_tests;
 pub mod client_tool;
 #[cfg(test)]
 mod client_tool_tests;
+
+#[cfg(test)]
+pub(crate) mod mcp_catalog_refresh_tests;
+
+pub(crate) use toolset::discover_dynamic_mcp_tools;
+
+pub(crate) use toolset::mcp_connections_for_context;
+
+pub(crate) use toolset::execution_tools_for_context;

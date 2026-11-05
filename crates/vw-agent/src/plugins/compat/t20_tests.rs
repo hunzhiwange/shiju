@@ -496,3 +496,21 @@ async fn codex_plugin_compat_t20_shutdown_cancels_inflight_resource_refresh() {
     assert_eq!(fixture.service.resource_lists.load(Ordering::SeqCst), 1);
     assert!(pool.list_tools(&fixture.server, None).await.is_err());
 }
+
+#[tokio::test]
+async fn dynamic_tools_mcp_refresh_notification_marks_only_connection_revision() {
+    let fixture = Fixture::start().await;
+    let pool = Arc::new(McpSessionConnections::default());
+    let _ = bound(&pool, &fixture.server).await;
+    let before = pool.tool_revision(&fixture.server).unwrap();
+    fixture.peer.lock().await.as_ref().unwrap().notify_tool_list_changed().await.unwrap();
+    tokio::time::timeout(std::time::Duration::from_secs(5), async {
+        while pool.tool_revision(&fixture.server) == Some(before) {
+            tokio::task::yield_now().await;
+        }
+    })
+    .await
+    .unwrap();
+    assert_eq!(pool.tool_revision(&fixture.server), Some(before + 1));
+    pool.shutdown();
+}

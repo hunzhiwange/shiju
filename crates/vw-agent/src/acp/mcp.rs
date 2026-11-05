@@ -8,7 +8,6 @@ use agent_client_protocol::McpServer;
 use crate::app::agent::tools::Tool;
 use crate::session::runtime::SessionToolset;
 use crate::tools::mcp_common::server_name;
-use crate::tools::mcp_tool::{McpTool, mcp_tools_to_specs};
 use vw_acp::server::BackendError;
 
 fn supported_server_name(server: &McpServer) -> Result<&str, BackendError> {
@@ -52,41 +51,13 @@ pub(crate) async fn prepare_session_tools(
     let mut existing_ids = HashSet::new();
 
     for server in servers {
-        let safe_name = supported_server_name(server)?.to_string();
-        let configured_server = server.clone();
-        let reserved = existing_ids.iter().cloned().collect::<Vec<String>>();
-        let tool_connections = connections.clone();
+        let reserved = existing_ids.iter().map(String::as_str).collect::<Vec<_>>();
         let discovered = connections
-            .with_peer(server, None, move |peer| {
-                let configured_server = configured_server.clone();
-                let safe_name = safe_name.clone();
-                let reserved = reserved.clone();
-                Box::pin(async move {
-                    let remote_tools = peer.list_all_tools().await?;
-                    let reserved_refs = reserved.iter().map(String::as_str).collect::<Vec<_>>();
-                    let instructions =
-                        peer.peer_info().and_then(|info| info.instructions.as_deref());
-                    let specs = mcp_tools_to_specs(
-                        &safe_name,
-                        instructions,
-                        &remote_tools,
-                        &reserved_refs,
-                    )?;
-                    Ok(remote_tools
-                        .into_iter()
-                        .zip(specs)
-                        .map(|(tool, spec)| {
-                            McpTool::from_session_server(
-                                configured_server.clone(),
-                                tool.name.to_string(),
-                                spec,
-                                tool_connections.clone(),
-                                None,
-                            )
-                        })
-                        .collect::<Vec<_>>())
-                })
-            })
+            .discover_catalog_tools(
+                server,
+                vw_acp::McpServerManagement::default_for_server(server_name(server)),
+                &reserved,
+            )
             .await
             .map_err(|_| {
                 BackendError::InvalidRequest(format!(
@@ -97,7 +68,7 @@ pub(crate) async fn prepare_session_tools(
 
         for tool in discovered {
             existing_ids.insert(tool.name().to_string());
-            tools.push(Arc::new(tool));
+            tools.push(tool);
         }
     }
 

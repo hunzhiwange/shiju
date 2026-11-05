@@ -105,6 +105,7 @@ mod t18_tests;
 mod t19_tests;
 
 pub(crate) mod mcp_catalog;
+mod mcp_catalog_refresh;
 pub(crate) mod mcp_notifications;
 pub(crate) mod mcp_resources;
 

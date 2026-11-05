@@ -31,15 +31,17 @@ impl Drop for Entry {
     }
 }
 #[derive(Default)]
-struct State {
-    closed: bool,
-    allowed: Option<HashMap<String, String>>,
+pub(super) struct State {
+    pub(super) closed: bool,
+    pub(super) allowed: Option<HashMap<String, String>>,
     entries: HashMap<String, Arc<Entry>>,
     required_failure: Option<String>,
+    pub(super) tool_sources: HashMap<String, super::mcp_catalog_refresh::Source>,
 }
 #[derive(Default)]
 pub(crate) struct McpSessionConnections {
-    state: Mutex<State>,
+    pub(super) state: Mutex<State>,
+    pub(super) tool_refresh: AsyncMutex<()>,
     pub(crate) form_owner: Option<super::mcp_elicitation::FormOwner>,
 }
 
@@ -103,7 +105,11 @@ fn connection_key(server: &McpServer, configuration: &str, oauth: Option<&str>) 
 }
 impl McpSessionConnections {
     pub(crate) fn for_form_owner(owner: super::mcp_elicitation::FormOwner) -> Self {
-        Self { form_owner: Some(owner), state: Mutex::new(State::default()) }
+        Self {
+            form_owner: Some(owner),
+            state: Mutex::new(State::default()),
+            tool_refresh: AsyncMutex::new(()),
+        }
     }
 
     #[cfg(test)]
@@ -118,6 +124,14 @@ impl McpSessionConnections {
             })
         })
         .await
+    }
+    #[cfg(test)]
+    pub(crate) fn tool_revision(&self, server: &McpServer) -> Option<u64> {
+        let state = self.state.lock().unwrap_or_else(std::sync::PoisonError::into_inner);
+        let entry = state.entries.get(crate::tools::mcp_common::server_name(server))?;
+        let catalogs =
+            entry.catalogs.lock().unwrap_or_else(std::sync::PoisonError::into_inner).upgrade()?;
+        Some(catalogs.tools_revision())
     }
     pub(crate) fn tool_binding(
         &self,

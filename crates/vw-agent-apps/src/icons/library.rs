@@ -29,3 +29,17 @@ pub fn add_icon(
     updated.extend_from_slice(icons);
     Ok((AddCustomIconResult { icon, existed: false }, Some(updated)))
 }
+
+/// Rename the matching icon without changing its image, ID or creation time.
+/// Return a replacement collection; callers own persistence and authorization.
+pub fn rename_icon(
+    icons: &[CustomIconEntry],
+    id: &str,
+    name: &str,
+) -> Result<Vec<CustomIconEntry>, AgentAppsErrorCode> {
+    let name = normalize_icon_name(name)?;
+    let index = icons.iter().position(|icon| icon.id == id).ok_or(AgentAppsErrorCode::NotFound)?;
+    let mut updated = icons.to_vec();
+    updated[index].name = name;
+    Ok(updated)
+}

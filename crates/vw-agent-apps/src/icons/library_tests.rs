@@ -1,4 +1,4 @@
-use super::library::add_icon;
+use super::library::{add_icon, rename_icon};
 use base64::Engine;
 use vw_api_types::agent_apps::{AgentAppsErrorCode, CustomIconEntry};
 
@@ -80,4 +80,36 @@ fn cc_base_icon_add_rejects_invalid_image_before_deduplication() {
         add_icon(&[invalid], "图", "invalid", "new", 20),
         Err(AgentAppsErrorCode::InvalidInput)
     );
+}
+
+#[test]
+fn cc_base_icon_rename_changes_only_matching_name() {
+    let mut other = entry();
+    other.id = "other".into();
+    let icons = vec![other.clone(), entry()];
+    let updated = rename_icon(&icons, "old", " 新名称 ").unwrap();
+    let mut renamed = entry();
+    renamed.name = "新名称".into();
+    assert_eq!(updated, vec![other, renamed]);
+    assert_eq!(icons[1], entry());
+}
+
+#[test]
+fn cc_base_icon_rename_missing_id_returns_not_found() {
+    assert_eq!(rename_icon(&[entry()], "missing", "名称"), Err(AgentAppsErrorCode::NotFound));
+    assert_eq!(rename_icon(&[], "old", "名称"), Err(AgentAppsErrorCode::NotFound));
+}
+
+#[test]
+fn cc_base_icon_rename_rejects_invalid_names() {
+    for name in ["".to_owned(), " \t　".to_owned(), "图".repeat(65)] {
+        assert_eq!(rename_icon(&[entry()], "old", &name), Err(AgentAppsErrorCode::InvalidInput));
+    }
+}
+
+#[test]
+fn cc_base_icon_rename_accepts_64_chinese_characters() {
+    let name = "图".repeat(64);
+    let updated = rename_icon(&[entry()], "old", &format!(" {name} ")).unwrap();
+    assert_eq!(updated[0].name, name);
 }

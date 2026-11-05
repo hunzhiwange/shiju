@@ -1,0 +1,69 @@
+# 任务 10: 验收自身ACP服务端外挂全链路
+
+批次：【批次 9】 依赖批次 8；依赖任务 8。
+
+状态：未开始
+
+目的：以真实shiju ACP服务端和真实MCP服务验证挂载、更新、恢复。
+
+来源任务：本次用户确认的“技能目录挂载、支持agent逐个适配、ACP服务端外挂/更新/恢复及实际验收”。
+
+预计会话范围：围绕本任务唯一行为完成代码、独立测试和证据；先读取现有实现、调用者与相邻测试。禁止顺手重构模型来源、桌面表单、品牌或其他并发改动。
+
+## 文件
+
+- 修改：scripts/verify_acp_integration.py
+- 新建：scripts/acp_mount_integration.py
+- 新建：crates/vw-agent/src/acp/mount_acceptance_tests.rs
+- 修改：crates/vw-agent/src/acp/mod.rs
+- 修改：docs/vibewindow/ACP-对外接入.md
+
+本文件列出的“新建”均是拟实现产物；测试前缀同样是本任务要求新增的行为测试，并非宣称当前仓库已有。若执行时已存在，先读实际内容后做最小修改。
+
+## 上下文
+
+已有verify_acp_integration.py只验证基础协议，需要增加本次挂载场景；任务9不修改这些文件，可并行。
+
+仓库根目录 `/Users/xiangmin/worker/code/shiju`。先读根AGENTS.md与 `./skills/rustcodegraph/SKILL.md`，通过代码图及必要原始读取核实调用链；只读 `.plans/2026-11-05-ACP技能目录挂载与外挂/plan.md`。目标crate为vw-acp和/或vw-agent（脚本生产进程验收还涉及vw-cli），具体命令如下。
+
+## Cargo 共享槽位规则
+
+1. 同一仓库的所有计划和任务共用仓库根目录下的 `target/rust-slot-1` 至 `target/rust-slot-10`，不得为任务、会话或计划另建构建目录，也不得按任务编号取模固定分配。
+2. 每次构建/验证阶段开始前，创建仓库根目录下的 `target/rust-slot-locks`；依次用原子命令 `mkdir target/rust-slot-locks/slot-N.lock` 尝试领取槽位，`N` 为 1–10。仅 `mkdir` 成功者获得该槽位；这些相对路径命令从仓库根目录执行。
+3. 领取成功后，在自己的锁目录中记录计划、任务、会话标识和持有进程 PID。同一槽位同时只允许一个持有者；已占用时尝试下一个，仅全部 10 个槽位都占用时等待并重试。
+4. 将 `CARGO_TARGET_DIR` 设置为领取槽位的绝对路径，例如领取槽位 3 后，从仓库根目录执行 `export CARGO_TARGET_DIR="$PWD/target/rust-slot-3"`。示例编号不代表固定分配。
+5. 所有 Cargo 构建、检查、测试以及调用 Cargo 的脚本和子进程均继承该设置，不得通过 `--target-dir` 或其他配置绕过槽位；生成的二进制也从该槽位定位。
+6. 该阶段的 Cargo、脚本以及使用槽位产物的子进程全部结束后，删除自己写入的占用记录，并用 `rmdir` 释放自己的锁目录；保留槽位编译缓存供后续任务复用。
+7. 正常结束、失败和中断均须清理自己的锁；在后台进程或其他使用槽位产物的进程仍运行时不得提前释放。规划清理步骤时覆盖这三种退出路径。
+8. 遗留锁须先核实持有会话及相关进程已结束；无法确认则保持占用，不得删除其他活跃任务的锁、进程或缓存。
+9. 生成或更新计划时，统一移除与这些规则冲突的单一 Rust 共享构建空间、逐任务独立目录和 Cargo 缓存全局独占窗口要求；仍须遵守源码文件占用、真实业务依赖和其他共享验证资源的互斥，不能仅因缓存分槽就把任务判定为可并行。
+10. 最终验证记录包含实际槽位、绝对路径 `CARGO_TARGET_DIR`、确切命令、退出码和有效测试数量；Rust 代码修改后先运行 `cargo fmt --all`，再运行相应验证。编译成功或零测试不能替代行为验收证据。
+
+## 测试计划
+
+- 行为：真正的服务端stdio请求引起真实Skill、文件/脚本和MCP工具执行；更新、清空、失败回滚与进程恢复均有证据。
+- 失败验证测试：acp_server_mount_acceptance_：先编写缺少外挂时必失败的随机附件和MCP工具场景，再补齐生产连线。
+- 失败验证命令：`cargo test -p vw-agent --lib acp_server_mount_acceptance_ -- --nocapture --test-threads=1`。
+- 预期失败：新增行为尚未实现，或当前实现提前拼接/忽略目录/无法更新恢复；断言应失败而非零测试。首先验证失败原因对应本任务。
+- 通过验证命令：同上，使用默认features及`--lib`聚焦过滤，不执行全量测试。真实CLI命令另列于本任务步骤。
+- 模拟边界：只有外部模型HTTP及明确的协议错误对端可用fixture；标为真实验收时，不mock技能发现、文件系统、ACP生产后端、真实CLI或MCP工具执行。
+
+## 步骤
+
+1. 编译实际vw-cli shiju和vw-acp acp；独立临时租户/项目启动真实服务端，不用SessionBackend fixture替代生产后端。
+2. 提供真实stdio、HTTP、SSE MCP fixture，均走实际握手和工具调用；本地模型HTTP fixture只生成基于工具返回的回答。
+3. 执行new挂载技能+MCP→调用Skill读取随机references/执行无害脚本→调用MCP→更新V2→移除→失败更新保留旧集→busy拒绝→取消后更新。
+4. 真正停止进程并重新启动，load不传技能恢复描述、重传MCP后再次调用；另测显式空集合及第二租户/同目录第二会话隔离。
+5. 脚本增加 --mounts 开关作为明确验收入口；文档给出协议请求、更新revision、执行端目录语义和恢复时MCP重传要求。
+
+额外确切命令：`cargo build -p vw-cli --bin shiju`；`cargo build -p vw-acp --bin acp`；`python3 scripts/verify_acp_integration.py --shiju "$CARGO_TARGET_DIR/debug/shiju" --acp "$CARGO_TARGET_DIR/debug/acp" --mounts --output "$CARGO_TARGET_DIR/acp-mount-server-evidence"`。不得使用原脚本默认target-dir路径。
+
+## 验证与完成证据
+
+- 所需证据：生产服务端两次进程启动、三种MCP传输和真实工具回合均通过，脱敏报告列出每项结果；失败项不得从汇总隐藏。
+- Rust修改后先按槽位规则运行 `cargo fmt --all`，审阅差异，只保留本任务相关格式变化；不得提交无关修改。然后运行本任务聚焦验证，以及 `cargo clippy --all-targets --all-features -- -D warnings`。
+- 文档独立任务不运行Cargo；其他AI或既有改动导致构建失败时记录确切错误，不处理无关问题。因该原因未能验证，最多标记“已完成，待回归”，不宣称通过。
+- 测试必须位于独立文件，记录真实执行次数；编译成功、零测试、跳过或ignored数量不算通过。不得暴露凭据、完整MCP载荷、用户真实文件或生产模型日志。
+- 只有本任务行为证据齐全后，才能标记“已完成”。实现完成但被无关验证问题挡住则“已完成，待回归”；本任务自身需求/环境无法突破则“已阻塞”，在本文件记录原因、已做尝试和下一步。
+- 有实际代码、测试、配置或文档变更，使用 `$git-commit` 分析并提交本任务变更，排除其他任务及用户改动；只改本任务状态或删除任务文件时，不调用提交技能。
+- 完成后最终回复报告证据并删除本任务文件；待回归/阻塞则保留。不要修改plan.md或prompt.md来记录进度。新发现若超出已授权范围，先向用户说明并确认是否记录到来源产物，不自行加入新需求。

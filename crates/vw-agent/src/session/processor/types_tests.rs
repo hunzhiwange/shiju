@@ -48,6 +48,7 @@ fn request_keeps_strongly_typed_reliability_snapshot() {
         app_session_scope: None,
         abort_token: None,
         session_tools: crate::session::runtime::SessionToolset::default(),
+        session_skills: Default::default(),
     };
     request.reliability.provider_retries = 9;
     request.reliability.provider_backoff_ms = 2_500;

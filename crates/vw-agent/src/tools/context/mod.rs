@@ -102,6 +102,7 @@ impl PendingImageReloadQueue {
 #[derive(Clone)]
 pub struct ToolUseContext {
     session: String,
+    session_skills: crate::acp::mounts::SessionSkillSources,
     tenant_scope: vw_api_types::id::TenantScope,
     hook_input: Option<serde_json::Value>,
     hook_contexts: Arc<Mutex<Vec<String>>>,
@@ -183,6 +184,17 @@ impl fmt::Debug for ToolUseContext {
 }
 
 impl ToolUseContext {
+    pub(crate) fn with_session_skills(
+        mut self,
+        sources: crate::acp::mounts::SessionSkillSources,
+    ) -> Self {
+        self.session_skills = sources;
+        self
+    }
+    pub(crate) fn session_skills(&self) -> &crate::acp::mounts::SessionSkillSources {
+        &self.session_skills
+    }
+
     /// Only the real skill tool writes this typed, request-local provenance.
     pub(crate) fn record_invoked_skill(&self, record: crate::skills::InvokedSkillRecord) {
         self.invoked_skills.lock().unwrap_or_else(|error| error.into_inner()).push(record);
@@ -237,6 +249,7 @@ impl ToolUseContext {
             tool_exposure_snapshot: None,
             tool_catalog: None,
             live_tool_catalog: None,
+            session_skills: Default::default(),
             invoked_skills: Arc::new(Mutex::new(Vec::new())),
         }
     }

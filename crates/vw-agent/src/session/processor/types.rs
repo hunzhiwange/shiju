@@ -68,6 +68,8 @@ pub struct Request {
 
     /// 当前绑定会话的初始工具集合；宿主提供 live catalog 时，每次模型请求捕获其已发布版本。
     pub session_tools: SessionToolset,
+    /// Validated inbound skill directory lease for this session only.
+    pub session_skills: crate::acp::mounts::SessionSkillSources,
 }
 
 /// A complete model reference chosen once for a processor request.

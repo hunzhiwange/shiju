@@ -28,6 +28,7 @@ fn request() -> Request {
         app_session_scope: None,
         abort_token: None,
         session_tools: super::SessionToolset::default(),
+        session_skills: Default::default(),
     }
 }
 

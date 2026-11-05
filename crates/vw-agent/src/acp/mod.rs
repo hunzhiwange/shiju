@@ -3,6 +3,7 @@
 mod approval;
 mod backend;
 mod mcp;
+pub mod mounts;
 
 pub use backend::VibeWindowBackend;
 
@@ -17,3 +18,6 @@ mod approval_tests;
 #[cfg(test)]
 #[path = "mcp_tests.rs"]
 mod mcp_tests;
+
+#[cfg(test)]
+mod mounts_tests;

@@ -139,6 +139,11 @@ impl BackendPrompt {
 /// `vw-acp` Agent 侧依赖的最小宿主接口。
 #[async_trait]
 pub trait SessionBackend: Send + Sync + 'static {
+    /// Whether this backend prepares native session skill directories.
+    fn supports_skill_mounts(&self) -> bool {
+        false
+    }
+
     /// 返回会话实际使用的模型及可选目录；不支持选择时返回 `None`。
     async fn session_models(
         &self,

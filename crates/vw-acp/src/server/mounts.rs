@@ -66,12 +66,12 @@ pub(super) fn response_meta(response: &SetSessionMountsResponse) -> Result<Meta>
     Ok(meta)
 }
 
-pub(super) fn capabilities_meta() -> Meta {
+pub(super) fn capabilities_meta(skills: bool) -> Meta {
     let mut meta = Meta::new();
-    // Native skill discovery and updates are wired by subsequent tasks.
+    // Updates remain disabled until atomic replacement is implemented.
     meta.insert(
         SESSION_MOUNTS_META_KEY.into(),
-        serde_json::json!(SessionMountCapabilities::default()),
+        serde_json::json!(SessionMountCapabilities { skills, ..Default::default() }),
     );
     meta
 }

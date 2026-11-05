@@ -20,6 +20,7 @@ fn request(root: &std::path::Path, query: &str) -> Request {
         app_session_scope: None,
         abort_token: None,
         session_tools: Default::default(),
+        session_skills: Default::default(),
     }
 }
 

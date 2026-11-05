@@ -46,6 +46,7 @@ fn sample_request() -> legacy_processor::Request {
         app_session_scope: None,
         abort_token: None,
         session_tools: vw_agent::session::runtime::SessionToolset::default(),
+        session_skills: vw_agent::acp::mounts::SessionSkillSources::default(),
     }
 }
 

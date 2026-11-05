@@ -92,6 +92,7 @@ fn processor_request(root: &std::path::Path) -> crate::app::agent::session::proc
         app_session_scope: None,
         abort_token: None,
         session_tools: crate::session::runtime::SessionToolset::default(),
+        session_skills: Default::default(),
     }
 }
 

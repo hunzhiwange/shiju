@@ -282,7 +282,7 @@ where
             ));
         }
         Ok(InitializeResponse::new(ProtocolVersion::V1)
-            .meta(capabilities_meta())
+            .meta(capabilities_meta(self.backend.supports_skill_mounts()))
             .agent_capabilities(
                 AgentCapabilities::new()
                     .load_session(true)

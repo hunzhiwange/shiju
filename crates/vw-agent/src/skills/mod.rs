@@ -574,3 +574,21 @@ mod session_state_tests;
 
 #[cfg(test)]
 mod session_mounts_tests;
+
+/// Load the same inbound session sources for catalog refresh and native invocation.
+pub(crate) fn load_session_skills(
+    workspace: &Path,
+    config: &crate::config::Config,
+    sources: &crate::acp::mounts::SessionSkillSources,
+    full: bool,
+) -> anyhow::Result<Vec<Skill>> {
+    sources.extend(
+        if full {
+            load_skills_full_with_config(workspace, config)
+        } else {
+            load_skills_with_config(workspace, config)
+        },
+        config,
+        full,
+    )
+}

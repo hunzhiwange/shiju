@@ -36,6 +36,7 @@ mod models;
 struct BoundSession {
     scope: SessionScope,
     tools: SessionToolset,
+    skills: super::mounts::SessionSkillSources,
     model: Arc<tokio::sync::Mutex<String>>,
 }
 
@@ -60,6 +61,7 @@ impl VibeWindowBackend {
         session_id: &str,
         scope: SessionScope,
         tools: SessionToolset,
+        skills: super::mounts::SessionSkillSources,
     ) -> Result<(), BackendError> {
         let stored_model = models::load_selection(&scope, session_id).await?;
         let mut sessions = self.sessions.lock().unwrap_or_else(std::sync::PoisonError::into_inner);
@@ -67,7 +69,7 @@ impl VibeWindowBackend {
             .get(session_id)
             .map(|bound| bound.model.clone())
             .unwrap_or_else(|| Arc::new(tokio::sync::Mutex::new(stored_model)));
-        sessions.insert(session_id.to_string(), BoundSession { scope, tools, model });
+        sessions.insert(session_id.to_string(), BoundSession { scope, tools, skills, model });
         Ok(())
     }
 
@@ -78,6 +80,15 @@ impl VibeWindowBackend {
             .get(session_id)
             .cloned()
             .ok_or_else(|| BackendError::NotFound(session_id.to_string()))
+    }
+
+    #[cfg(test)]
+    pub(super) fn mounted_runtime(
+        &self,
+        session_id: &str,
+    ) -> (super::mounts::SessionSkillSources, SessionToolset) {
+        let bound = self.bound_session(session_id).expect("bound session");
+        (bound.skills, bound.tools)
     }
 
     #[cfg(test)]
@@ -225,6 +236,7 @@ fn runtime_request(
         app_session_scope: None,
         abort_token: None,
         session_tools,
+        session_skills: Default::default(),
     }
 }
 
@@ -536,7 +548,7 @@ async fn start_prompt_core(
     prompt: Vec<PromptContent>,
     starter: impl FnOnce(Request) -> PromptTurn,
 ) -> Result<BackendPrompt, BackendError> {
-    let BoundSession { scope, tools, model } = backend.bound_session(session_id)?;
+    let BoundSession { scope, tools, skills, model } = backend.bound_session(session_id)?;
     let model = model.lock().await.clone();
     let snapshot = load_session(scope.clone(), session_id).await.map_err(lifecycle_error)?;
     let history = backend_history(snapshot.history);
@@ -561,6 +573,7 @@ async fn start_prompt_core(
         config.reliability,
     );
     request.model = Some(model);
+    request.session_skills = skills;
     let runtime = crate::session::ui_store::with_tenant_scope(scope.tenant().clone(), async move {
         starter(request)
     })
@@ -593,6 +606,50 @@ where
 
 #[async_trait]
 impl SessionBackend for VibeWindowBackend {
+    fn supports_skill_mounts(&self) -> bool {
+        cfg!(unix)
+    }
+    async fn create_session_with_mounts(
+        &self,
+        cwd: PathBuf,
+        request: vw_acp::server::BackendMountRequest,
+    ) -> Result<vw_acp::server::BackendMountedSession, BackendError> {
+        let scope = self.scope(cwd)?;
+        let snapshot = create_session(CreateSessionInput {
+            scope: scope.clone(),
+            parent_id: None,
+            title: None,
+            permission: None,
+        })
+        .await
+        .map_err(lifecycle_error)?;
+        let session = backend_session(snapshot, &scope);
+        let prepared = super::mounts::prepare(&scope, &session.id, request, &[]).await?;
+        self.remember_scope(&session.id, scope, prepared.tools, prepared.skills).await?;
+        Ok(vw_acp::server::BackendMountedSession { session, mounts: prepared.response })
+    }
+
+    async fn load_session_with_mounts(
+        &self,
+        session_id: &str,
+        cwd: PathBuf,
+        request: vw_acp::server::BackendMountRequest,
+    ) -> Result<vw_acp::server::BackendMountedSession, BackendError> {
+        let scope = self.scope(cwd)?;
+        let snapshot = load_session(scope.clone(), session_id).await.map_err(lifecycle_error)?;
+        let saved = self.bound_session(session_id).ok().map(|bound| bound.skills);
+        let prepared = super::mounts::prepare(
+            &scope,
+            session_id,
+            request,
+            saved.as_ref().map(|s| s.mounts()).unwrap_or_default(),
+        )
+        .await?;
+        let session = backend_session(snapshot, &scope);
+        self.remember_scope(session_id, scope, prepared.tools, prepared.skills).await?;
+        Ok(vw_acp::server::BackendMountedSession { session, mounts: prepared.response })
+    }
+
     async fn session_models(
         &self,
         session_id: &str,
@@ -635,7 +692,7 @@ impl SessionBackend for VibeWindowBackend {
         .await
         .map_err(lifecycle_error)?;
         let session = backend_session(snapshot, &scope);
-        self.remember_scope(&session.id, scope, tools).await?;
+        self.remember_scope(&session.id, scope, tools, Default::default()).await?;
         Ok(session)
     }
 
@@ -657,7 +714,7 @@ impl SessionBackend for VibeWindowBackend {
         let snapshot = load_session(scope.clone(), session_id).await.map_err(lifecycle_error)?;
         let tools = prepare_session_tools(&mcp_servers).await?;
         let session = backend_session(snapshot, &scope);
-        self.remember_scope(&session.id, scope, tools).await?;
+        self.remember_scope(&session.id, scope, tools, Default::default()).await?;
         Ok(session)
     }
 

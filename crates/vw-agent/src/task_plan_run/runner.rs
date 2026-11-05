@@ -134,6 +134,7 @@ impl SessionRunner for GatewaySessionRunner {
             app_session_scope: None,
             abort_token: None,
             session_tools: crate::session::runtime::SessionToolset::default(),
+            session_skills: Default::default(),
         };
 
         crate::channels::session::run_session_processor_for_channel(processor_request, delta_tx)

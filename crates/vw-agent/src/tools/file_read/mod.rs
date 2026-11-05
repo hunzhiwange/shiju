@@ -1088,7 +1088,11 @@ impl FileReadTool {
             }));
         }
 
-        if !self.security.is_path_allowed(path) {
+        let session_skill_read =
+            super::context::current_tool_use_context().is_some_and(|context| {
+                context.session_skills().allows_read(&self.resolve_full_path(path))
+            });
+        if !session_skill_read && !self.security.is_path_allowed(path) {
             return Ok(Err(ToolResult {
                 success: false,
                 output: String::new(),
@@ -1110,7 +1114,7 @@ impl FileReadTool {
             &self.security,
             Some(&full_str),
             Some(external_directory::Options {
-                bypass: false,
+                bypass: session_skill_read,
                 kind: external_directory::Kind::File,
             }),
         )
@@ -1149,7 +1153,7 @@ impl FileReadTool {
             &self.security,
             Some(&resolved_str),
             Some(external_directory::Options {
-                bypass: false,
+                bypass: session_skill_read,
                 kind: external_directory::Kind::File,
             }),
         )

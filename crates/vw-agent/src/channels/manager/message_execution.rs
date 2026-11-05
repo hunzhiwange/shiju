@@ -164,6 +164,7 @@ pub(crate) async fn run_message_execution(
                         app_session_scope: Some(snapshot.scope.project.clone()),
                         abort_token: Some(processor_abort.clone()),
                         session_tools: crate::session::runtime::SessionToolset::default(),
+                        session_skills: Default::default(),
                     },
                     // 传入增量文本通道，用于流式输出
                     delta_tx,

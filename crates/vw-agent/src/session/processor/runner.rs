@@ -639,6 +639,7 @@ fn run_in_project(
         ToolUseContext::new(req.session.clone(), req.root.clone()).inherit_delegated_authority(),
         selected_model.step_event_model(),
     )
+    .with_session_skills(req.session_skills.clone())
     .with_auto_model_selection(model_selected_by_auto)
     .with_turn_id(
         req.assistant_message_id.clone().unwrap_or_else(|| uuid::Uuid::new_v4().to_string()),
@@ -733,8 +734,15 @@ fn run_in_project(
     let _interrupt = InterruptGuard(ctx.tool_use_context().clone());
     let mut tool_state = ToolSessionState::default();
     let skills = crate::tools::scope_tool_use_context_sync(ctx.tool_use_context().clone(), || {
-        crate::app::agent::skills::load_skills_with_config(&skill_workspace, &config)
+        crate::skills::load_session_skills(&skill_workspace, &config, &req.session_skills, false)
     });
+    let skills = match skills {
+        Ok(skills) => skills,
+        Err(error) => {
+            on_event(StreamEvent::Error(format!("Session skill sources unavailable: {error}")));
+            return;
+        }
+    };
     let skill_policy_resolution = delegated_skill_policy_resolution(&skills, &req.options);
     let skills = if let Some(resolution) = skill_policy_resolution.as_ref() {
         skills
@@ -1036,8 +1044,21 @@ fn run_in_project(
                     .is_empty())
         {
             // 工具可能修改技能元数据；每个请求重新经过加载器和同一能力策略。
-            let skills =
-                crate::app::agent::skills::load_skills_with_config(&skill_workspace, &config);
+            let skills = crate::skills::load_session_skills(
+                &skill_workspace,
+                &config,
+                &req.session_skills,
+                false,
+            );
+            let skills = match skills {
+                Ok(skills) => skills,
+                Err(error) => {
+                    on_event(StreamEvent::Error(format!(
+                        "Session skill sources unavailable: {error}"
+                    )));
+                    return;
+                }
+            };
             session_protocol.skills = if let Some(resolution) =
                 delegated_skill_policy_resolution(&skills, &req.options)
             {

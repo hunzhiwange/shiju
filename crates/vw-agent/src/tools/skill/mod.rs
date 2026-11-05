@@ -159,10 +159,20 @@ impl SkillTool {
 
     /// 用请求边界已确定的策略刷新模型可见的技能目录。
     pub(crate) fn with_skill_directory_context(mut self, context: &ToolUseContext) -> Self {
-        let skills = filter_delegate_skills_for_context(
-            skills::load_skills_with_config(&self.workspace_dir, self.root_config.as_ref()),
-            context,
-        );
+        let skills = match skills::load_session_skills(
+            &self.workspace_dir,
+            self.root_config.as_ref(),
+            context.session_skills(),
+            false,
+        ) {
+            Ok(skills) => skills,
+            Err(error) => {
+                self.description_text =
+                    Arc::from(format!("Session skill sources unavailable: {error}"));
+                return self;
+            }
+        };
+        let skills = filter_delegate_skills_for_context(skills, context);
         #[cfg(not(target_arch = "wasm32"))]
         let skills = accessible_skills(skills, Some(context));
         self.description_text = Arc::<str>::from(prompt::build_description_text_for_skills(
@@ -367,10 +377,20 @@ impl SkillTool {
                     return failure_result(format!("Missing or invalid parameters: {error}"));
                 }
             };
-            let skills = skills::load_skills_full_with_config(
+            let sources = current_tool_use_context()
+                .map(|context| context.session_skills().clone())
+                .unwrap_or_default();
+            let skills = match skills::load_session_skills(
                 &self.workspace_dir,
                 self.root_config.as_ref(),
-            );
+                &sources,
+                true,
+            ) {
+                Ok(skills) => skills,
+                Err(error) => {
+                    return failure_result(format!("Session skill sources unavailable: {error}"));
+                }
+            };
             // Resolve namespace ambiguity before delegation hides other identities.
             if skills.iter().filter(|skill| skill_matches_name(skill, &args.skill)).take(2).count()
                 > 1

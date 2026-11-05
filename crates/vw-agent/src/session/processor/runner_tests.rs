@@ -283,6 +283,7 @@ fn request_with_session(session: &str) -> super::Request {
         app_session_scope: None,
         abort_token: None,
         session_tools: crate::session::runtime::SessionToolset::default(),
+        session_skills: Default::default(),
         reliability: crate::app::agent::config::ReliabilityConfig::default(),
     }
 }

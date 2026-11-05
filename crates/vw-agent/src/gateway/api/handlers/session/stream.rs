@@ -1236,6 +1236,7 @@ async fn start_gateway_chat_producer(
                         app_session_scope: app_session_scope.clone(),
                         abort_token,
                         session_tools: crate::session::runtime::SessionToolset::default(),
+                        session_skills: Default::default(),
                     })
                 };
                 match delegated_context {

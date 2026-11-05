@@ -1,0 +1,45 @@
+{
+  "evidence_kind": "real-cli-upstream-gate",
+  "platform": "Darwin",
+  "architecture": "arm64",
+  "model_source_verified": false,
+  "cases": [
+    {
+      "version": "0.37.0",
+      "case": "acp-extension",
+      "exit_code": 1,
+      "extension_api": null,
+      "error": "unknown option '--extension'",
+      "fixture_requests": 0
+    },
+    {
+      "version": "1.2.0-prerelease.202611041545",
+      "case": "acp-extension",
+      "exit_code": 1,
+      "extension_api": {
+        "registerProvider": "function"
+      },
+      "error": "Extension provider registration is not supported",
+      "fixture_requests": 0
+    },
+    {
+      "version": "1.2.0-prerelease.202611041545",
+      "case": "print-extension",
+      "exit_code": 1,
+      "extension_api": {
+        "registerProvider": "function"
+      },
+      "error": "Extension provider registration is not supported",
+      "fixture_requests": 0
+    },
+    {
+      "version": "1.2.0-prerelease.202611041545",
+      "case": "pi-models-json-alternative",
+      "exit_code": 1,
+      "error": "No models available",
+      "fixture_requests": 0
+    }
+  ],
+  "fixture_requests": [],
+  "probe_completed": true
+}

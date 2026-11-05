@@ -1,6 +1,6 @@
 {
   "observed_on": "2026-11-05",
-  "status": "blocked_not_22_of_22",
+  "status": "closed_by_explicit_user_waiver",
   "scope": "Darwin arm64 fixed-release offline model fixture; no other platform claim",
   "checks": [
     {
@@ -213,7 +213,8 @@
       "slot": 2,
       "cargo_target_dir": "$REPO/target/rust-slot-2",
       "reason": "driver has no reviewed offline native configuration recipe",
-      "local_report_sha256": "cf3ee8641568e0c0368c14b94642afe4a47abb2f75230cf70931cf1398d9811f"
+      "local_report_sha256": "cf3ee8641568e0c0368c14b94642afe4a47abb2f75230cf70931cf1398d9811f",
+      "current_disposition": "user-waived-unverified"
     },
     {
       "agent": "auggie",
@@ -235,7 +236,8 @@
       "slot": 2,
       "cargo_target_dir": "$REPO/target/rust-slot-2",
       "reason": "driver has no reviewed offline native configuration recipe",
-      "local_report_sha256": "03bf461450b22e515a64672d957882cea7f990b272d93122843da0236d53e2a1"
+      "local_report_sha256": "03bf461450b22e515a64672d957882cea7f990b272d93122843da0236d53e2a1",
+      "current_disposition": "user-waived-unverified"
     },
     {
       "agent": "claude",
@@ -281,7 +283,8 @@
       ],
       "slot": 2,
       "cargo_target_dir": "$REPO/target/rust-slot-2",
-      "local_report_sha256": "6750969c3094576ddd4546080f8c2db60c9b2283e674d79df1395d49d1325912"
+      "local_report_sha256": "6750969c3094576ddd4546080f8c2db60c9b2283e674d79df1395d49d1325912",
+      "current_disposition": "passed"
     },
     {
       "agent": "claude",
@@ -326,7 +329,8 @@
       ],
       "slot": 2,
       "cargo_target_dir": "$REPO/target/rust-slot-2",
-      "local_report_sha256": "0f435ac5ecd99d1e973e1154095d322c74c7ed8cf3a761d5a24841ce6b6b5b73"
+      "local_report_sha256": "0f435ac5ecd99d1e973e1154095d322c74c7ed8cf3a761d5a24841ce6b6b5b73",
+      "current_disposition": "passed"
     },
     {
       "agent": "codex",
@@ -372,7 +376,8 @@
       ],
       "slot": 2,
       "cargo_target_dir": "$REPO/target/rust-slot-2",
-      "local_report_sha256": "5d65160ee87afd1991e800e12e7d59e69cbb7f2358f270d8a638c248abe39e55"
+      "local_report_sha256": "5d65160ee87afd1991e800e12e7d59e69cbb7f2358f270d8a638c248abe39e55",
+      "current_disposition": "passed"
     },
     {
       "agent": "codex",
@@ -417,7 +422,8 @@
       ],
       "slot": 2,
       "cargo_target_dir": "$REPO/target/rust-slot-2",
-      "local_report_sha256": "7984a0dcf7e79b41985bb3ee6177b6797b20b0642af34e41d2a7ea7a282c10a3"
+      "local_report_sha256": "7984a0dcf7e79b41985bb3ee6177b6797b20b0642af34e41d2a7ea7a282c10a3",
+      "current_disposition": "passed"
     },
     {
       "agent": "codebuddy",
@@ -463,7 +469,8 @@
       ],
       "slot": 2,
       "cargo_target_dir": "$REPO/target/rust-slot-2",
-      "local_report_sha256": "d6a5257abbb1a1f0d894824e563ff79c03be7ebd2411e7a5dd90368e7e90a432"
+      "local_report_sha256": "d6a5257abbb1a1f0d894824e563ff79c03be7ebd2411e7a5dd90368e7e90a432",
+      "current_disposition": "passed"
     },
     {
       "agent": "codebuddy",
@@ -508,7 +515,8 @@
       ],
       "slot": 2,
       "cargo_target_dir": "$REPO/target/rust-slot-2",
-      "local_report_sha256": "5602a80d52d245c215504fad8c75b63c1ce6bd8a95300ac7a12496cc326fd03e"
+      "local_report_sha256": "5602a80d52d245c215504fad8c75b63c1ce6bd8a95300ac7a12496cc326fd03e",
+      "current_disposition": "passed"
     },
     {
       "agent": "goose",
@@ -554,7 +562,8 @@
       ],
       "slot": 2,
       "cargo_target_dir": "$REPO/target/rust-slot-2",
-      "local_report_sha256": "512bcebaca04926f34b288812f5882778d0f2b416c7f953311b215898f77aa0a"
+      "local_report_sha256": "512bcebaca04926f34b288812f5882778d0f2b416c7f953311b215898f77aa0a",
+      "current_disposition": "passed"
     },
     {
       "agent": "goose",
@@ -599,7 +608,8 @@
       ],
       "slot": 2,
       "cargo_target_dir": "$REPO/target/rust-slot-2",
-      "local_report_sha256": "d56be229214682341c11414b01c39b95edeb998eaa9690cefeb5c9910f02ec13"
+      "local_report_sha256": "d56be229214682341c11414b01c39b95edeb998eaa9690cefeb5c9910f02ec13",
+      "current_disposition": "passed"
     },
     {
       "agent": "vibe",
@@ -645,7 +655,8 @@
       ],
       "slot": 2,
       "cargo_target_dir": "$REPO/target/rust-slot-2",
-      "local_report_sha256": "ddc2ea250ef5a8c7180aef60a8a14ef747431745cc413b75ff96289abd3a0466"
+      "local_report_sha256": "ddc2ea250ef5a8c7180aef60a8a14ef747431745cc413b75ff96289abd3a0466",
+      "current_disposition": "passed"
     },
     {
       "agent": "vibe",
@@ -690,7 +701,8 @@
       ],
       "slot": 2,
       "cargo_target_dir": "$REPO/target/rust-slot-2",
-      "local_report_sha256": "56af338acc71fe5070471196d07c67bf0de0a8beae48ec3ed9431838ffa8e226"
+      "local_report_sha256": "56af338acc71fe5070471196d07c67bf0de0a8beae48ec3ed9431838ffa8e226",
+      "current_disposition": "passed"
     },
     {
       "agent": "hermes",
@@ -736,7 +748,8 @@
       ],
       "slot": 2,
       "cargo_target_dir": "$REPO/target/rust-slot-2",
-      "local_report_sha256": "42e58016d7d06d4b8e97dc6335f12768298adba7c0e52d67be6a5db266baf1e7"
+      "local_report_sha256": "42e58016d7d06d4b8e97dc6335f12768298adba7c0e52d67be6a5db266baf1e7",
+      "current_disposition": "passed"
     },
     {
       "agent": "hermes",
@@ -781,7 +794,8 @@
       ],
       "slot": 2,
       "cargo_target_dir": "$REPO/target/rust-slot-2",
-      "local_report_sha256": "bb0b5ecfccfa592b771aa076f91456e5117ea83994da806003fb5c51bde5c73a"
+      "local_report_sha256": "bb0b5ecfccfa592b771aa076f91456e5117ea83994da806003fb5c51bde5c73a",
+      "current_disposition": "passed"
     },
     {
       "agent": "snow",
@@ -827,7 +841,8 @@
       ],
       "slot": 2,
       "cargo_target_dir": "$REPO/target/rust-slot-2",
-      "local_report_sha256": "b16c645d42f8ec130e945713cfd0339321f3a882a82b160c580b8047200e75b5"
+      "local_report_sha256": "b16c645d42f8ec130e945713cfd0339321f3a882a82b160c580b8047200e75b5",
+      "current_disposition": "passed"
     },
     {
       "agent": "snow",
@@ -872,7 +887,8 @@
       ],
       "slot": 2,
       "cargo_target_dir": "$REPO/target/rust-slot-2",
-      "local_report_sha256": "def96241f54ea60ec8ee4c3ec446b4456b9ecfede39394b8589bf1655f76d268"
+      "local_report_sha256": "def96241f54ea60ec8ee4c3ec446b4456b9ecfede39394b8589bf1655f76d268",
+      "current_disposition": "passed"
     },
     {
       "agent": "copilot",
@@ -918,7 +934,8 @@
       ],
       "slot": 2,
       "cargo_target_dir": "$REPO/target/rust-slot-2",
-      "local_report_sha256": "09c6a8b5838cc3f1eaf84ce5b2325539176691e3bcf189f3f814aa59061112ab"
+      "local_report_sha256": "09c6a8b5838cc3f1eaf84ce5b2325539176691e3bcf189f3f814aa59061112ab",
+      "current_disposition": "passed"
     },
     {
       "agent": "copilot",
@@ -963,7 +980,8 @@
       ],
       "slot": 2,
       "cargo_target_dir": "$REPO/target/rust-slot-2",
-      "local_report_sha256": "e92dc496ca7fee30300353b0e565e916c9513a1d872d3231e1abfe70457fcea5"
+      "local_report_sha256": "e92dc496ca7fee30300353b0e565e916c9513a1d872d3231e1abfe70457fcea5",
+      "current_disposition": "passed"
     },
     {
       "agent": "cursor",
@@ -985,7 +1003,8 @@
       "slot": 2,
       "cargo_target_dir": "$REPO/target/rust-slot-2",
       "reason": "driver has no reviewed offline native configuration recipe",
-      "local_report_sha256": "8b3af86f9651f4a7cf0370663a66c2c3651470e6acd16b957451871451f147b8"
+      "local_report_sha256": "8b3af86f9651f4a7cf0370663a66c2c3651470e6acd16b957451871451f147b8",
+      "current_disposition": "user-waived-unverified"
     },
     {
       "agent": "cursor",
@@ -1007,7 +1026,8 @@
       "slot": 2,
       "cargo_target_dir": "$REPO/target/rust-slot-2",
       "reason": "driver has no reviewed offline native configuration recipe",
-      "local_report_sha256": "597d7dd76959015d58f1d3ba0ec952b3b098d03c1a913a6839a9ff5661e62a9d"
+      "local_report_sha256": "597d7dd76959015d58f1d3ba0ec952b3b098d03c1a913a6839a9ff5661e62a9d",
+      "current_disposition": "user-waived-unverified"
     },
     {
       "agent": "droid",
@@ -1029,7 +1049,8 @@
       "slot": 2,
       "cargo_target_dir": "$REPO/target/rust-slot-2",
       "reason": "driver has no reviewed offline native configuration recipe",
-      "local_report_sha256": "498646c38eff7da86bf351b54b66aae50a00f0df0b8901948ec7396330d50edf"
+      "local_report_sha256": "498646c38eff7da86bf351b54b66aae50a00f0df0b8901948ec7396330d50edf",
+      "current_disposition": "user-waived-unverified"
     },
     {
       "agent": "droid",
@@ -1051,7 +1072,8 @@
       "slot": 2,
       "cargo_target_dir": "$REPO/target/rust-slot-2",
       "reason": "driver has no reviewed offline native configuration recipe",
-      "local_report_sha256": "53fe8a0a898a47ebb08db84c3f390fe4fe40a3bced97eac0f3fe421456797dae"
+      "local_report_sha256": "53fe8a0a898a47ebb08db84c3f390fe4fe40a3bced97eac0f3fe421456797dae",
+      "current_disposition": "user-waived-unverified"
     },
     {
       "agent": "gemini",
@@ -1097,7 +1119,8 @@
       ],
       "slot": 2,
       "cargo_target_dir": "$REPO/target/rust-slot-2",
-      "local_report_sha256": "2402f2553939078b77f1c05bcb7e05b6d2da4a1096b606fcc909a99ef53ca112"
+      "local_report_sha256": "2402f2553939078b77f1c05bcb7e05b6d2da4a1096b606fcc909a99ef53ca112",
+      "current_disposition": "passed"
     },
     {
       "agent": "gemini",
@@ -1142,7 +1165,8 @@
       ],
       "slot": 2,
       "cargo_target_dir": "$REPO/target/rust-slot-2",
-      "local_report_sha256": "bf50536c3eded2098b18710426b88ab33a74445df90211daa8a8f546874bb2b9"
+      "local_report_sha256": "bf50536c3eded2098b18710426b88ab33a74445df90211daa8a8f546874bb2b9",
+      "current_disposition": "passed"
     },
     {
       "agent": "iflow",
@@ -1188,7 +1212,8 @@
       ],
       "slot": 2,
       "cargo_target_dir": "$REPO/target/rust-slot-2",
-      "local_report_sha256": "22e4072ce97689ab2290211111fdad2c33679e8914d267d8af91ea494eb2be45"
+      "local_report_sha256": "22e4072ce97689ab2290211111fdad2c33679e8914d267d8af91ea494eb2be45",
+      "current_disposition": "passed"
     },
     {
       "agent": "iflow",
@@ -1233,7 +1258,8 @@
       ],
       "slot": 2,
       "cargo_target_dir": "$REPO/target/rust-slot-2",
-      "local_report_sha256": "627cde5d775eb0ddfc4d445293415dc19ac11bbe33b6b3f4320ca0f99ca63df6"
+      "local_report_sha256": "627cde5d775eb0ddfc4d445293415dc19ac11bbe33b6b3f4320ca0f99ca63df6",
+      "current_disposition": "passed"
     },
     {
       "agent": "kilocode",
@@ -1279,7 +1305,8 @@
       ],
       "slot": 2,
       "cargo_target_dir": "$REPO/target/rust-slot-2",
-      "local_report_sha256": "64055295df69b4bc120f7dfd2f9e6be567f72277dcf31176e6d44282099bb4aa"
+      "local_report_sha256": "64055295df69b4bc120f7dfd2f9e6be567f72277dcf31176e6d44282099bb4aa",
+      "current_disposition": "passed"
     },
     {
       "agent": "kilocode",
@@ -1324,7 +1351,8 @@
       ],
       "slot": 2,
       "cargo_target_dir": "$REPO/target/rust-slot-2",
-      "local_report_sha256": "9fe536f8382163db726990e317a87b0a3603798f6f37a85a0e14b4629bdd3aaa"
+      "local_report_sha256": "9fe536f8382163db726990e317a87b0a3603798f6f37a85a0e14b4629bdd3aaa",
+      "current_disposition": "passed"
     },
     {
       "agent": "kimi",
@@ -1370,7 +1398,8 @@
       ],
       "slot": 2,
       "cargo_target_dir": "$REPO/target/rust-slot-2",
-      "local_report_sha256": "aa67cd22ee202e1701dded168ff5caa20dbb7b89426d9f74c2d4d1f17f1b41d6"
+      "local_report_sha256": "aa67cd22ee202e1701dded168ff5caa20dbb7b89426d9f74c2d4d1f17f1b41d6",
+      "current_disposition": "passed"
     },
     {
       "agent": "kimi",
@@ -1415,7 +1444,8 @@
       ],
       "slot": 2,
       "cargo_target_dir": "$REPO/target/rust-slot-2",
-      "local_report_sha256": "87cf74146b9a2e1829c817dc1a96de8cde1667483bba273fcf69639587917eb3"
+      "local_report_sha256": "87cf74146b9a2e1829c817dc1a96de8cde1667483bba273fcf69639587917eb3",
+      "current_disposition": "passed"
     },
     {
       "agent": "kiro",
@@ -1461,7 +1491,8 @@
       ],
       "slot": 2,
       "cargo_target_dir": "$REPO/target/rust-slot-2",
-      "local_report_sha256": "af0a57eebd9d27f6052f1e03294f37c478dff29124a82dbcba2219c3d12a3c45"
+      "local_report_sha256": "af0a57eebd9d27f6052f1e03294f37c478dff29124a82dbcba2219c3d12a3c45",
+      "current_disposition": "passed"
     },
     {
       "agent": "kiro",
@@ -1506,7 +1537,8 @@
       ],
       "slot": 2,
       "cargo_target_dir": "$REPO/target/rust-slot-2",
-      "local_report_sha256": "bfbb91aa895513427990cc4824b301a14d037c37fe24220f6f2203ac2779a227"
+      "local_report_sha256": "bfbb91aa895513427990cc4824b301a14d037c37fe24220f6f2203ac2779a227",
+      "current_disposition": "passed"
     },
     {
       "agent": "opencode",
@@ -1552,7 +1584,8 @@
       ],
       "slot": 2,
       "cargo_target_dir": "$REPO/target/rust-slot-2",
-      "local_report_sha256": "1a5b6cdfc0b42ae32b39cc3d8ec2fbcbdc0f5e45a7461f7025da444ec835c889"
+      "local_report_sha256": "1a5b6cdfc0b42ae32b39cc3d8ec2fbcbdc0f5e45a7461f7025da444ec835c889",
+      "current_disposition": "passed"
     },
     {
       "agent": "opencode",
@@ -1597,7 +1630,8 @@
       ],
       "slot": 2,
       "cargo_target_dir": "$REPO/target/rust-slot-2",
-      "local_report_sha256": "978ca72b69dfd78909e2f636621c204a9f4bea3041b2d88e2d5b24211a25a42b"
+      "local_report_sha256": "978ca72b69dfd78909e2f636621c204a9f4bea3041b2d88e2d5b24211a25a42b",
+      "current_disposition": "passed"
     },
     {
       "agent": "openclaw",
@@ -1643,7 +1677,8 @@
       ],
       "slot": 2,
       "cargo_target_dir": "$REPO/target/rust-slot-2",
-      "local_report_sha256": "f930735619cf2276fa3f5f1863a334e76af664c72ccc7e6339f2f3aa3af5ab91"
+      "local_report_sha256": "f930735619cf2276fa3f5f1863a334e76af664c72ccc7e6339f2f3aa3af5ab91",
+      "current_disposition": "passed"
     },
     {
       "agent": "openclaw",
@@ -1688,7 +1723,8 @@
       ],
       "slot": 2,
       "cargo_target_dir": "$REPO/target/rust-slot-2",
-      "local_report_sha256": "4b6df2d1c45d0ac871bca53c9e7d50bb6c76941cef504be8e7e1fe4298f4efe4"
+      "local_report_sha256": "4b6df2d1c45d0ac871bca53c9e7d50bb6c76941cef504be8e7e1fe4298f4efe4",
+      "current_disposition": "passed"
     },
     {
       "agent": "pi",
@@ -1736,7 +1772,8 @@
       ],
       "slot": 2,
       "cargo_target_dir": "$REPO/target/rust-slot-2",
-      "local_report_sha256": "5e336078f4b3916632381efb5effc265577b1d0dfd66e62d31098e2c72177972"
+      "local_report_sha256": "5e336078f4b3916632381efb5effc265577b1d0dfd66e62d31098e2c72177972",
+      "current_disposition": "passed"
     },
     {
       "agent": "pi",
@@ -1783,7 +1820,8 @@
       ],
       "slot": 2,
       "cargo_target_dir": "$REPO/target/rust-slot-2",
-      "local_report_sha256": "ce58793a6b5bc82cbb9b368dc09acf073fdbcb83aac94b484b134633a32f7d01"
+      "local_report_sha256": "ce58793a6b5bc82cbb9b368dc09acf073fdbcb83aac94b484b134633a32f7d01",
+      "current_disposition": "passed"
     },
     {
       "agent": "qoder",
@@ -1805,7 +1843,8 @@
       "slot": 2,
       "cargo_target_dir": "$REPO/target/rust-slot-2",
       "reason": "driver has no reviewed offline native configuration recipe",
-      "local_report_sha256": "9a3755b00fdfb03417c8f58c2959af507d43c81d1a7ca8f1a67e2baf4d4f37b0"
+      "local_report_sha256": "9a3755b00fdfb03417c8f58c2959af507d43c81d1a7ca8f1a67e2baf4d4f37b0",
+      "current_disposition": "user-waived-unverified"
     },
     {
       "agent": "qoder",
@@ -1827,7 +1866,8 @@
       "slot": 2,
       "cargo_target_dir": "$REPO/target/rust-slot-2",
       "reason": "driver has no reviewed offline native configuration recipe",
-      "local_report_sha256": "7b419f14dc97f7b9cc3eedf7655415dc12fbd6f994b14d7d3544b3fddde6707d"
+      "local_report_sha256": "7b419f14dc97f7b9cc3eedf7655415dc12fbd6f994b14d7d3544b3fddde6707d",
+      "current_disposition": "user-waived-unverified"
     },
     {
       "agent": "qwen",
@@ -1873,7 +1913,8 @@
       ],
       "slot": 2,
       "cargo_target_dir": "$REPO/target/rust-slot-2",
-      "local_report_sha256": "fb3bfd44847c1b16ef6bbcd9d196a013a2f08f9bcb8c6220f99c36dd4d1c1c9d"
+      "local_report_sha256": "fb3bfd44847c1b16ef6bbcd9d196a013a2f08f9bcb8c6220f99c36dd4d1c1c9d",
+      "current_disposition": "passed"
     },
     {
       "agent": "qwen",
@@ -1918,7 +1959,8 @@
       ],
       "slot": 2,
       "cargo_target_dir": "$REPO/target/rust-slot-2",
-      "local_report_sha256": "f2a9187126d5165aca2e55baa0fd1ef459531888d16cb85dd517912ff95fae83"
+      "local_report_sha256": "f2a9187126d5165aca2e55baa0fd1ef459531888d16cb85dd517912ff95fae83",
+      "current_disposition": "passed"
     },
     {
       "agent": "trae",
@@ -1940,7 +1982,8 @@
       "slot": 2,
       "cargo_target_dir": "$REPO/target/rust-slot-2",
       "reason": "driver has no reviewed offline native configuration recipe",
-      "local_report_sha256": "5b48740e7891877cca46eb39003db23d87120d7727c97f86e00e1286eff88681"
+      "local_report_sha256": "5b48740e7891877cca46eb39003db23d87120d7727c97f86e00e1286eff88681",
+      "current_disposition": "user-waived-unverified"
     },
     {
       "agent": "trae",
@@ -1962,23 +2005,40 @@
       "slot": 2,
       "cargo_target_dir": "$REPO/target/rust-slot-2",
       "reason": "driver has no reviewed offline native configuration recipe",
-      "local_report_sha256": "96c30e169e8cffea132df12319e326cec2ea6ad2865619a419b54b2b06a85626"
+      "local_report_sha256": "96c30e169e8cffea132df12319e326cec2ea6ad2865619a419b54b2b06a85626",
+      "current_disposition": "user-waived-unverified"
     }
   ],
   "passed_paths": 34,
   "total_paths": 44,
   "upstream_gate_evidence": "upstream-gates-35.md",
-  "upstream_blockers": {
+  "notes": [
+    "Historical 17-release evidence remains separate from this current regression.",
+    "Only model upstream is simulated. Generic unavailable reports do not supersede deeper vendor authentication investigations.",
+    "Named regression failures established the red light: disabled-model validation was masked by missing reviewed executable; missing-key tests coupled relay checks to CLI installation. Catalog validation now precedes executable verification, and the two relay tests use the production HTTP boundary directly. No executable identity check was removed. The initial stack abort and parallel HTTP environment interference are retained as failed invocations.",
+    "$REPO is the repository absolute path; local logs/reports remain under target/task35 and target/task35-native.",
+    "Closed by explicit user waiver: 34 actual passed paths plus 10 waived/unverified paths. Original unavailable observations remain intact for future recovery; no 22/22 real-support claim."
+  ],
+  "waived_paths": 10,
+  "blocked_paths": 0,
+  "disposition": {
+    "real_cli_two_source_passed": 17,
+    "user_waived_cli": [
+      "auggie",
+      "cursor",
+      "droid",
+      "qoder",
+      "trae"
+    ],
+    "real_cli_total": 22,
+    "all_22_real_cli_passed": false,
+    "reason": "User explicitly requested skipping all remaining account/upstream gates and closing the plan; no remaining CLI path was verified by this waiver."
+  },
+  "recovery_preconditions": {
     "auggie": "Fixed upstream Provider extension/ACP contract unresolved",
     "cursor": "Endpoint override calls platform API-key exchange and aiserver RPC; no verified arbitrary model Provider contract",
     "droid": "Real bidirectional ACP works; session/new requires Factory authentication; full source isolation still unverified",
     "qoder": "Custom Provider SDK exists; authorized personal login/entitlement required",
     "trae": "Custom models discovered; platform authentication and fixed-version runtime isolation unresolved"
-  },
-  "notes": [
-    "Historical 17-release evidence remains separate from this current regression.",
-    "Only model upstream is simulated. Generic unavailable reports do not supersede deeper vendor authentication investigations.",
-    "Named regression failures established the red light: disabled-model validation was masked by missing reviewed executable; missing-key tests coupled relay checks to CLI installation. Catalog validation now precedes executable verification, and the two relay tests use the production HTTP boundary directly. No executable identity check was removed. The initial stack abort and parallel HTTP environment interference are retained as failed invocations.",
-    "$REPO is the repository absolute path; local logs/reports remain under target/task35 and target/task35-native."
-  ]
+  }
 }

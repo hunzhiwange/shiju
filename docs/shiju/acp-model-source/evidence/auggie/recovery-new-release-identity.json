@@ -1,0 +1,16 @@
+[
+  {
+    "version": "0.37.0",
+    "archive_sha256": "bae4f1f08934e3045db1fdc2f39704af53b18760510cb05daff9a531833aa6ee",
+    "npm_integrity_verified": true,
+    "cli_sha256": "2daf75b3ac4d716eae78b2bf4abe7269c3931f0687d0aacbffb261bece085e02",
+    "license_sha256": "d14e5a4378863850862ff8ada00b727a35d2fb65fc986851d42bd788da365be4"
+  },
+  {
+    "version": "1.2.0-prerelease.202611041545",
+    "archive_sha256": "84e7ef5feb61bb5ff140d0677029775d27d25c941866dee80a21081e1d857672",
+    "npm_integrity_verified": true,
+    "cli_sha256": "6dc486c8d2d36ba7873020c59320f2adefe9188a04d2a55e33919f435bf9eeab",
+    "license_sha256": "07a44dc1ca1b6926b432c4b868c8219e914e223b778057ce558e4e25bf638156"
+  }
+]

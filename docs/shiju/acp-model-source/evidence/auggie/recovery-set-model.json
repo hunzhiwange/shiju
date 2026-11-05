@@ -1,0 +1,32 @@
+[
+  {
+    "event": "factory",
+    "exit_code": 1,
+    "marker": {
+      "called": true,
+      "result": false
+    },
+    "no_models_available": false,
+    "not_supported": false,
+    "requests": 0
+  },
+  {
+    "event": "session_start",
+    "exit_code": 1,
+    "marker": {
+      "called": true,
+      "result": false
+    },
+    "no_models_available": false,
+    "not_supported": false,
+    "requests": 0
+  },
+  {
+    "event": "before_agent_start",
+    "exit_code": 1,
+    "marker": null,
+    "no_models_available": false,
+    "not_supported": false,
+    "requests": 0
+  }
+]

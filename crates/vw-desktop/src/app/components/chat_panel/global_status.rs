@@ -163,9 +163,10 @@ pub(crate) fn chat_global_status_view(app: &App) -> Element<'_, Message> {
 
     // 时间、token 紧跟图标，进行内容放到最后。
     let mut meta_parts = Vec::new();
+    // 底部展示整个请求的处理耗时，工具执行期间模型调用计时器会暂停。
     let elapsed_ms = app
         .current_session_runtime_ref()
-        .map(|runtime| runtime.llm_timer.elapsed_ms_at(web_time::Instant::now()))
+        .map(|runtime| runtime.processing_timer.elapsed_ms_at(web_time::Instant::now()))
         .unwrap_or(0);
     meta_parts.push(crate::app::i18n::chat::elapsed(
         crate::app::i18n::I18n::new(app.desktop_locale),

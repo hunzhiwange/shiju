@@ -130,6 +130,7 @@ async fn run_fake_stream(
         model,
         request_url.to_string(),
         true,
+        false,
         vec![Message::User("hello".into())],
         None,
         &tools,
@@ -229,6 +230,7 @@ async fn run_openai_compatible_stream(
         provider_id.to_string(),
         model,
         format!("{base_url}/chat/completions"),
+        false,
         false,
         vec![Message::User("hello".into())],
         None,
@@ -384,6 +386,7 @@ async fn stream_sends_deltas_tool_calls_usage_and_clamped_request_options() {
         model,
         "https://api.openai.com/v1/chat/completions".to_string(),
         true,
+        false,
         vec![Message::User("hello".into())],
         None,
         &tools,
@@ -454,6 +457,7 @@ async fn request_options_scale_values_use_stop_fallback_and_ignore_wrong_types()
         model,
         "https://api.openai.com/v1/chat/completions".to_string(),
         false,
+        false,
         vec![Message::User("hello".into())],
         None,
         &HashMap::new(),
@@ -493,6 +497,7 @@ async fn stop_sequences_field_prevents_fallback_to_stop_when_empty() {
         "openai".to_string(),
         model,
         "https://api.openai.com/v1/chat/completions".to_string(),
+        false,
         false,
         vec![Message::User("hello".into())],
         None,
@@ -534,6 +539,7 @@ async fn tool_definitions_are_added_in_sorted_key_order() {
         model,
         "https://api.openai.com/v1/chat/completions".to_string(),
         false,
+        false,
         vec![Message::User("hello".into())],
         None,
         &tools,
@@ -565,6 +571,7 @@ async fn dashscope_reasoning_option_is_sent_in_extra_body() {
         "alibaba-cn".to_string(),
         model,
         "https://dashscope.aliyuncs.com/compatible-mode/v1/chat/completions".to_string(),
+        false,
         false,
         vec![Message::User("hello".into())],
         None,
@@ -838,6 +845,7 @@ async fn dynamic_provider_stream_open_failures_execute_stream_setup() {
         openai_model,
         "http://127.0.0.1:9/v1/chat/completions".to_string(),
         false,
+        false,
         vec![Message::User("hello".into())],
         None,
         &HashMap::new(),
@@ -856,6 +864,7 @@ async fn dynamic_provider_stream_open_failures_execute_stream_setup() {
         "alibaba-cn".to_string(),
         alibaba_model,
         "http://127.0.0.1:9/compatible-mode/v1/chat/completions".to_string(),
+        false,
         false,
         vec![Message::User("hello".into())],
         None,
@@ -988,4 +997,55 @@ async fn abort_change_interrupts_a_pending_stream() {
     assert!(send_result.is_ok());
     assert!(matches!(result, Err(Error::Aborted)));
     assert!(events.is_empty());
+}
+
+#[tokio::test]
+async fn native_tool_search_request_namespace_calls_resolve_stable_ids_and_reject_unknown() {
+    for namespace in ["alpha", "beta", "unknown"] {
+        let mut call = tool_call("call_fixture", "read", json!({}));
+        call.tool.namespace = Some(namespace.into());
+        let (model, _) =
+            FakeModel::with_items(vec![Ok(vec![done(AiContent::ToolCall(call), None)])]);
+        let specs = ["alpha", "beta"]
+            .into_iter()
+            .map(|namespace| {
+                let id = format!("stable_{namespace}");
+                let mut spec = tools::ToolSpec::new(&id, "Read", json!({"type":"object"}));
+                spec.identity.name = "read".into();
+                spec.identity.namespace = Some(namespace.into());
+                (id, spec)
+            })
+            .collect();
+        let mut calls = Vec::new();
+        let result = do_stream_request_aisdk_with_model(
+            "fixture".into(),
+            model,
+            "http://fixture/v1/responses".into(),
+            false,
+            true,
+            vec![Message::User("read".into())],
+            None,
+            &specs,
+            None,
+            None,
+            None,
+            &json!({}),
+            0,
+            None,
+            &mut |event| {
+                if let StreamEvent::ToolCalls(found) = event {
+                    calls.extend(found);
+                }
+            },
+        )
+        .await;
+        if namespace == "unknown" {
+            assert!(result.unwrap_err().to_string().contains("unauthorized tool identity"));
+            assert!(calls.is_empty());
+        } else {
+            assert!(result.is_ok(), "{result:?}");
+            assert_eq!(calls.len(), 1);
+            assert_eq!(calls[0].name, format!("stable_{namespace}"));
+        }
+    }
 }

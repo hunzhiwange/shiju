@@ -274,6 +274,87 @@ pub(crate) fn compute_request_info(
         wire_messages,
     })
 }
+
+/// Convert only the current authorized, visible snapshot; never the registry.
+pub(crate) fn native_request_tools(
+    tools: &std::collections::HashMap<String, crate::tools::ToolSpec>,
+    enforce_strict: bool,
+) -> Result<Vec<aisdk::core::NativeToolSpec>, Error> {
+    use aisdk::core::{FunctionToolSpec, NamespaceToolSpec, NativeToolSpec, ToolSearchExecution};
+    let mut result = Vec::new();
+    let mut namespaces = std::collections::BTreeMap::<String, Vec<FunctionToolSpec>>::new();
+    let mut identities = std::collections::BTreeSet::new();
+    let mut specs = tools.values().collect::<Vec<_>>();
+    specs.sort_by(|a, b| a.id.cmp(&b.id));
+    for spec in specs {
+        if !spec.exposure.is_direct() && !spec.exposure.is_deferred() {
+            continue;
+        }
+        spec.identity.validate().map_err(tool_request_error)?;
+        if !identities.insert((spec.identity.namespace.clone(), spec.identity.name.clone())) {
+            return Err(tool_request_error("duplicate tool identity"));
+        }
+        let mut parameters = spec.input_schema.clone();
+        if enforce_strict && spec.strict {
+            super::util::normalize_strict_object_required(&mut parameters);
+        }
+        let parameters = serde_json::from_value(parameters)
+            .map_err(|_| tool_request_error(format!("invalid schema for tool {}", spec.id)))?;
+        if spec.id == "tool_search" && spec.identity.namespace.is_none() {
+            result.push(NativeToolSpec::ToolSearch {
+                execution: ToolSearchExecution::Client,
+                description: spec.description.clone(),
+                parameters,
+            });
+            continue;
+        }
+        let function = FunctionToolSpec {
+            name: spec.identity.name.clone(),
+            description: spec.description.clone(),
+            parameters,
+            strict: Some(enforce_strict && spec.strict),
+            // Already visible tools must remain callable without another search.
+            defer_loading: None,
+        };
+        match &spec.identity.namespace {
+            Some(namespace) => namespaces.entry(namespace.clone()).or_default().push(function),
+            None => result.push(NativeToolSpec::Function(function)),
+        }
+    }
+    for (name, tools) in namespaces {
+        result.push(NativeToolSpec::Namespace(NamespaceToolSpec {
+            name,
+            description: String::new(),
+            tools,
+        }));
+    }
+    Ok(result)
+}
+
+fn tool_request_error(message: impl Into<String>) -> Error {
+    Error::Api(crate::session::message::AssistantError::Unknown { message: message.into() })
+}
+
+/// Resolve protocol identity back to a stable authorization ID in this snapshot.
+pub(crate) fn native_tool_id(
+    tools: &std::collections::HashMap<String, crate::tools::ToolSpec>,
+    namespace: Option<&str>,
+    name: &str,
+) -> Result<String, Error> {
+    let mut matches = tools.values().filter(|spec| {
+        (spec.exposure.is_direct() || spec.exposure.is_deferred())
+            && spec.identity.namespace.as_deref() == namespace
+            && spec.identity.name == name
+    });
+    let spec = matches
+        .next()
+        .ok_or_else(|| tool_request_error("unknown or unauthorized tool identity"))?;
+    if matches.next().is_some() {
+        return Err(tool_request_error("duplicate tool identity"));
+    }
+    Ok(spec.id.clone())
+}
+
 #[cfg(test)]
 #[path = "convert_tests.rs"]
 mod convert_tests;

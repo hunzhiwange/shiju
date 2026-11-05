@@ -168,7 +168,8 @@ pub(crate) async fn do_stream_request_aisdk_with_model<
     model: M,
     request_url: String,
     enforce_strict_tool_schema: bool,
-    messages: Vec<aisdk::core::Message>,
+    native_tool_search: bool,
+    mut messages: Vec<aisdk::core::Message>,
     wire_messages: Option<Value>,
     tools: &HashMap<String, tools::ToolSpec>,
     temperature: Option<f64>,
@@ -193,6 +194,17 @@ pub(crate) async fn do_stream_request_aisdk_with_model<
                 metadata: None,
             })
         })?;
+    if native_tool_search {
+        for message in &mut messages {
+            if let aisdk::core::Message::Assistant(assistant) = message
+                && let AiContent::ToolCall(call) = &mut assistant.content
+                && let Some(spec) = tools.values().find(|spec| spec.id == call.tool.name)
+            {
+                call.tool.name = spec.identity.name.clone();
+                call.tool.namespace = spec.identity.namespace.clone();
+            }
+        }
+    }
     let mut builder = LanguageModelRequest::<M>::builder().model(model).messages(messages);
 
     // 设置重试次数，限制在 u32 范围内
@@ -201,13 +213,19 @@ pub(crate) async fn do_stream_request_aisdk_with_model<
     builder.max_retries = Some(if guarded { 0 } else { retries.min(u64::from(u32::MAX)) as u32 });
 
     // 处理工具定义
-    if !tools.is_empty() {
+    if native_tool_search {
+        builder.native_tools =
+            Some(super::convert::native_request_tools(tools, enforce_strict_tool_schema)?);
+    } else if !tools.is_empty() {
         // 对工具键进行排序，确保一致的顺序（便于测试和调试）
         let mut keys = tools.keys().cloned().collect::<Vec<_>>();
         keys.sort();
 
         for k in keys {
             let Some(spec) = tools.get(&k) else { continue };
+            if !spec.exposure.is_direct() && !spec.exposure.is_deferred() {
+                continue;
+            }
 
             // 克隆参数 schema，必要时进行严格模式规范化
             let mut parameters = spec.input_schema.clone();
@@ -216,9 +234,14 @@ pub(crate) async fn do_stream_request_aisdk_with_model<
             }
 
             // 将 JSON schema 转换为 aisdk 的 Schema 类型
-            let input_schema =
-                serde_json::from_value::<aisdk::__private::schemars::Schema>(parameters)
-                    .unwrap_or_default();
+            let input_schema = serde_json::from_value::<aisdk::__private::schemars::Schema>(
+                parameters,
+            )
+            .map_err(|_| {
+                Error::Api(crate::session::message::AssistantError::Unknown {
+                    message: format!("invalid schema for tool {}", spec.id),
+                })
+            })?;
 
             // 构建工具定义，execute 函数返回空字符串（实际执行由调用方处理）
             let tool = AiTool {
@@ -435,7 +458,15 @@ pub(crate) async fn do_stream_request_aisdk_with_model<
                         if tool_call_ids.insert(call_id.clone()) {
                             tool_calls.push(ToolCall {
                                 id: call_id,
-                                name: info.tool.name.clone(),
+                                name: if native_tool_search {
+                                    super::convert::native_tool_id(
+                                        tools,
+                                        info.tool.namespace.as_deref(),
+                                        &info.tool.name,
+                                    )?
+                                } else {
+                                    info.tool.name.clone()
+                                },
                                 arguments: serde_json::to_string(&info.input)
                                     .unwrap_or_else(|_| "{}".to_string()),
                             });
@@ -506,7 +537,15 @@ pub(crate) async fn do_stream_request_aisdk_with_model<
                             if tool_call_ids.insert(call_id.clone()) {
                                 tool_calls.push(ToolCall {
                                     id: call_id,
-                                    name: info.tool.name.clone(),
+                                    name: if native_tool_search {
+                                        super::convert::native_tool_id(
+                                            tools,
+                                            info.tool.namespace.as_deref(),
+                                            &info.tool.name,
+                                        )?
+                                    } else {
+                                        info.tool.name.clone()
+                                    },
                                     arguments: serde_json::to_string(&info.input)
                                         .unwrap_or_else(|_| "{}".to_string()),
                                 });

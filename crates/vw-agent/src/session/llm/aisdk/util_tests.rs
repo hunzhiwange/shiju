@@ -325,7 +325,8 @@ fn assistant_text_with_reasoning_combines_content_and_reasoning_labels() {
 
 #[test]
 fn openai_messages_to_aisdk_messages_converts_roles_and_tool_chain() {
-    let model = test_model("openai", "gpt-test", "GPT Test");
+    let mut model = test_model("openai", "gpt-test", "GPT Test");
+    model.api.adapter = "openai-responses".into();
     let messages = json!([
         { "role": "system", "content": "system text" },
         {

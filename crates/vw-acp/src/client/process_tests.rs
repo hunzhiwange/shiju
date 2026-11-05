@@ -316,3 +316,68 @@ async fn acp_model_source_claude_managed_child_does_not_merge_account_credential
     assert_eq!(std::fs::read_to_string(&output_path).unwrap(), "isolated");
     std::fs::remove_file(output_path).unwrap();
 }
+
+#[cfg(unix)]
+#[test]
+fn claude_managed_child_resolves_shebang_with_augmented_path() {
+    const CHILD: &str = "VW_ACP_TEST_MANAGED_PATH_CHILD";
+    if std::env::var_os(CHILD).is_some() {
+        let runtime = tokio::runtime::Builder::new_current_thread().enable_all().build().unwrap();
+        runtime.block_on(async {
+            use tokio::io::AsyncReadExt;
+
+            let client = client_with_config(AcpAgentConfig {
+                command: "vw-acp-adapter-fixture".into(),
+                args: vec![],
+                env: HashMap::from([
+                    ("VW_ACP_LAUNCH_REFERENCE".into(), "vw-session-model:opaque".into()),
+                    ("VW_ACP_CLAUDE_SETTINGS".into(), "/private/settings.json".into()),
+                ]),
+            });
+            let ProcessHandles { mut child, stderr_task } = client.spawn_child().unwrap();
+            let mut output = String::new();
+            child.stdout.take().unwrap().read_to_string(&mut output).await.unwrap();
+            let finalized = client.finalize_child(child, stderr_task).await;
+            assert_eq!(finalized.summary.exit_code, Some(0));
+            assert_eq!(output, "runtime-found");
+        });
+        return;
+    }
+
+    use std::os::unix::fs::PermissionsExt;
+    let home = tempfile::tempdir().unwrap();
+    let bin = home.path().join("profile-bin");
+    std::fs::create_dir(&bin).unwrap();
+    for (name, source) in [
+        ("vw-acp-adapter-fixture", "#!/usr/bin/env vw-acp-runtime-fixture\n"),
+        ("vw-acp-runtime-fixture", "#!/bin/sh\nprintf runtime-found\n"),
+    ] {
+        let path = bin.join(name);
+        std::fs::write(&path, source).unwrap();
+        std::fs::set_permissions(path, std::fs::Permissions::from_mode(0o755)).unwrap();
+    }
+    std::fs::write(
+        home.path().join(".profile"),
+        format!("export PATH=\"{}:$PATH\"\n", bin.display()),
+    )
+    .unwrap();
+    // A separate process gives the PATH cache a fresh desktop-like environment
+    // without changing global environment variables in the test runner.
+    let output = std::process::Command::new(std::env::current_exe().unwrap())
+        .args([
+            "--exact",
+            "client::process_tests::claude_managed_child_resolves_shebang_with_augmented_path",
+            "--nocapture",
+        ])
+        .env(CHILD, "1")
+        .env("HOME", home.path())
+        .env("PATH", "/usr/bin:/bin")
+        .output()
+        .unwrap();
+    assert!(
+        output.status.success(),
+        "isolated PATH regression failed: {}{}",
+        String::from_utf8_lossy(&output.stdout),
+        String::from_utf8_lossy(&output.stderr)
+    );
+}

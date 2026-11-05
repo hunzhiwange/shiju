@@ -2,12 +2,12 @@ use super::*;
 use crate::{config::schema::AcpAgentConfig, model_relay::RelayIdentity};
 
 fn profile() -> AcpLaunchProfile {
+    profile_with_command("/not-installed/openclaw")
+}
+
+fn profile_with_command(command: &str) -> AcpLaunchProfile {
     AcpLaunchProfile::new(
-        &AcpAgentConfig {
-            command: "/not-installed/openclaw".into(),
-            args: vec!["acp".into()],
-            ..Default::default()
-        },
+        &AcpAgentConfig { command: command.into(), args: vec!["acp".into()], ..Default::default() },
         RelayIdentity {
             tenant: crate::session::ui_store::current_tenant_scope(),
             project: "project".into(),
@@ -97,4 +97,72 @@ fn acp_model_source_openclaw_reissue_preserves_history_without_persisting_creden
         "session-provider/switched-model"
     );
     assert!(!second_config.to_string().contains(&old_token));
+}
+
+#[cfg(unix)]
+#[test]
+fn openclaw_gateway_resolves_cli_and_interpreter_with_desktop_path() {
+    const CHILD: &str = "VW_ACP_TEST_OPENCLAW_PATH_CHILD";
+    if std::env::var_os(CHILD).is_some() {
+        let runtime = tokio::runtime::Builder::new_current_thread().enable_all().build().unwrap();
+        runtime.block_on(async {
+            let absolute = std::path::PathBuf::from(std::env::var_os("HOME").unwrap())
+                .join("profile-bin/openclaw");
+            for command in ["openclaw", absolute.to_str().unwrap()] {
+                let mut launch = profile_with_command(command);
+                configure(&mut launch, "http://127.0.0.1:32123").unwrap();
+                tokio::time::timeout(
+                    std::time::Duration::from_secs(5),
+                    launch.gateway.as_mut().unwrap().start(),
+                )
+                .await
+                .expect("Gateway readiness timed out")
+                .expect("Gateway should resolve both its CLI and interpreter");
+            }
+        });
+        return;
+    }
+
+    use std::os::unix::fs::PermissionsExt;
+    let home = tempfile::tempdir().unwrap();
+    let bin = home.path().join("profile-bin");
+    std::fs::create_dir(&bin).unwrap();
+    let python = vw_shared::shell::resolve_executable("python3").expect("Python fixture runtime");
+    for (name, source) in [
+        ("openclaw", "#!/usr/bin/env vw-openclaw-runtime-fixture\n".to_owned()),
+        (
+            "vw-openclaw-runtime-fixture",
+            format!(
+                "#!{}\nimport socket,sys,time\nassert sys.argv[2:4] == ['gateway','run']\ns=socket.socket()\ns.bind(('127.0.0.1',int(sys.argv[sys.argv.index('--port')+1])))\ns.listen()\ntime.sleep(60)\n",
+                python.display()
+            ),
+        ),
+    ] {
+        let path = bin.join(name);
+        std::fs::write(&path, source).unwrap();
+        std::fs::set_permissions(path, std::fs::Permissions::from_mode(0o755)).unwrap();
+    }
+    std::fs::write(
+        home.path().join(".profile"),
+        format!("export PATH=\"{}:$PATH\"\n", bin.display()),
+    )
+    .unwrap();
+    // Keep the desktop PATH and shell cache isolated from other tests.
+    let output = std::process::Command::new(std::env::current_exe().unwrap())
+        .args([
+            "--exact",
+            "session::llm::acp::model_source::drivers::openclaw::tests::openclaw_gateway_resolves_cli_and_interpreter_with_desktop_path",
+            "--nocapture",
+        ])
+        .env(CHILD, "1")
+        .env("HOME", home.path())
+        .env("PATH", "/usr/bin:/bin")
+        .output()
+        .unwrap();
+    assert!(
+        output.status.success(),
+        "isolated OpenClaw regression failed: {}{}",
+        String::from_utf8_lossy(&output.stdout),
+        String::from_utf8_lossy(&output.stderr)
+    );
 }

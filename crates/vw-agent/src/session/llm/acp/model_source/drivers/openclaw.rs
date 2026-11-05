@@ -85,7 +85,7 @@ pub(super) fn configure(profile: &mut AcpLaunchProfile, endpoint: &str) -> anyho
         "--session".into(),
         format!("agent:main:acp-{}", state.file_name().unwrap().to_string_lossy()),
     ])?;
-    let mut command = std::process::Command::new(&profile.config().command);
+    let mut command = vw_shared::shell::std_command(&profile.config().command);
     command.args(["gateway", "run", "--port", &address.port().to_string(), "--bind", "loopback"]);
     command.env_clear();
     for key in ["PATH", "HOME", "TMPDIR", "SystemRoot"] {
@@ -93,6 +93,9 @@ pub(super) fn configure(profile: &mut AcpLaunchProfile, endpoint: &str) -> anyho
             command.env(key, value);
         }
     }
+    // The Gateway uses the same runtime PATH as the ACP bridge, including
+    // interpreters required by native CLI launch scripts in desktop sessions.
+    vw_shared::shell::apply_augmented_path_std_command(&mut command);
     command.envs(profile.config().env.iter().filter(|(key, _)| {
         key.starts_with("OPENCLAW_")
             || key.starts_with("VW_OPENCLAW_")

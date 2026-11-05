@@ -32,7 +32,7 @@ pub(super) fn validate(agent: &str, selected: bool) -> Result<(), Error> {
         "claude" | "claude code" => return Ok(()),
         "qwen" => return Ok(()),
         "gemini" => return Ok(()),
-        "codebuddy" => codebuddy::rejection(),
+        "codebuddy" => return Ok(()),
         "goose" => goose::rejection(),
         "vibe" => vibe::rejection(),
         "hermes" => hermes::rejection(),
@@ -135,6 +135,8 @@ pub(super) fn configure_native_scanner(
 ) -> Result<(), Error> {
     if agent == "qwen" {
         qwen::configure(config, view)?;
+    } else if agent == "codebuddy" {
+        codebuddy::configure(config, view)?;
     } else if agent == "gemini" {
         gemini::configure(config, view)?;
     }

@@ -411,10 +411,10 @@
     {
       "key": "codebuddy",
       "version": "2.179.3",
-      "status": "unverified",
+      "status": "verified",
       "platform": {
         "review_host": "Darwin-arm64",
-        "artifact_scope": "本机固定发行物静态审查；源码/通用 JS 的跨平台执行未验证",
+        "artifact_scope": "Darwin-arm64 fixed reviewed 2.179.3: production ACP, native Skill/Read/Bash and both model-source lifecycles verified. Other platforms and versions remain unverified.",
         "linux": "unverified",
         "windows": "unverified"
       },
@@ -435,41 +435,42 @@
           "--acp"
         ],
         "binding": "crates/vw-acp/src/agent_registry.rs::BUILT_IN_AGENT_DEFINITIONS",
-        "runtime_executed": false,
-        "note": "固定发行物候选入口；注册器含 latest/range，不保证用户当前命令已固定到此版本。"
+        "runtime_executed": true,
+        "note": "Fixed reviewed repository-private runtime; five file hashes checked before selected mounts. Both sources exercised real ACP and native tools."
       },
       "mount": {
         "candidate_paths": [
-          "~/.codebuddy/skills（固定包路径线索）"
+          "SHIJU_CODEBUDDY_SKILL_ROOT (reviewed owned session view)"
         ],
-        "discovery": "固定包存在技能路径及插件 skills 组件，尚未定位足以确认会话专属目录的 ACP 发现调用链；不得按旧模型结论跳过。",
-        "activation": "插件组件计数/路径比较与真实按需加载不同；激活机制未核实。",
-        "session_isolation": "unverified：额外根/专属配置根不自动排除内建、用户、项目及插件技能；不得修改 HOME 或写用户全局目录。"
+        "discovery": "Reviewed scanner and final configuration/session merge filters expose exactly selected skills; implicit builtin, plugin, user and project roots are excluded.",
+        "activation": "First model prompt is body-free; actual native Skill result reads the body and identifies the resource directory before Read/Bash.",
+        "session_isolation": "Both-source empty selection, removal and independent session probes passed. cli_local also excludes a real loaded plugin; source default roots are not written."
       },
       "permissions": {
-        "status": "unverified",
+        "status": "verified for reviewed Darwin-arm64 2.179.3 runtime",
         "requirements": "执行端重新审核目录、租户/项目/会话权限、路径逃逸与符号链接；支持文件/脚本/MCP 仍受各自授权限制，不扩大 full_access。",
-        "agent_specific": "固定 ACP 的目录/工具授权条件须后续真实验证；未因模型来源受限推定技能不支持。"
+        "agent_specific": "Selected canonical source reads only; foreign paths, symlink escape, writes and deny-all remain rejected. Terminal permissions and full_access are unchanged."
       },
       "update": {
-        "native": "unverified：本任务未执行热更新或原子完整替换；静态刷新函数/文档 reload 不作成功承诺。",
-        "candidate": "在不打断运行请求的前提下评估空闲重建；尚未确认固定发行物原生更新入口。"
+        "native": "No native hot-reload claim; replace the owned view and rebuild the idle CLI.",
+        "candidate": "Both-source add/remove/V2/idle update passed; see evidence/codebuddy.json."
       },
       "recovery": {
-        "status": "unverified",
+        "status": "Both sources shut down and restart the real CLI, then rediscover and read the current view; see evidence/codebuddy.json.",
         "requirements": "重建 new/load/resume 后重新发布同 revision 目录并核实发现、删除和支持文件访问；不能把已有模型来源恢复证据当技能恢复证据。"
       },
       "independent_sources": {
         "local_configuration": {
-          "candidate": "未有独立配置根证据；需审查项目/用户配置",
-          "static_review_only": true,
-          "runtime_verified_this_task": false
+          "candidate": "CODEBUDDY_CONFIG_DIR / WORKBUDDY_CONFIG_DIR (private per-request roots)",
+          "static_review_only": false,
+          "runtime_verified_this_task": true
         },
         "client_model_source": {
           "prior_report_status": "verified_release_only",
           "reference": "../../shiju/acp-model-source/cli-versions.json#codebuddy",
-          "runtime_verified_this_task": false,
-          "note": "只保留旧报告定位；不复制其通过/不支持结论到技能能力。"
+          "runtime_verified_this_task": true,
+          "note": "只保留旧报告定位；不复制其通过/不支持结论到技能能力。",
+          "static_review_only": false
         }
       },
       "evidence": [
@@ -501,10 +502,55 @@
           "observations": [],
           "package": "@tencent-ai/codebuddy-code",
           "version": "2.179.3"
+        },
+        {
+          "path": "target/codebuddy-skill-runtime/node_modules/@tencent-ai/codebuddy-code/dist/codebuddy-headless.js",
+          "sha256": "ed13e21d8ba4f629c11887c5cdc0a4c4fb19dcd1e3d291c92b8a1edc01f25322",
+          "kind": "reviewed_patched_source",
+          "bytes": 28347308,
+          "observations": []
+        },
+        {
+          "path": "target/codebuddy-skill-runtime/node_modules/@tencent-ai/codebuddy-code/dist/codebuddy.js",
+          "sha256": "e0da6bd95a4c9dae0bc3aca159a296c4c20540f0125740f12b4eaf6bd2836880",
+          "kind": "reviewed_patched_source",
+          "bytes": 32793602,
+          "observations": []
+        },
+        {
+          "path": "target/codebuddy-skill-runtime/node_modules/@tencent-ai/codebuddy-code/dist-server/codebuddy.js",
+          "sha256": "51fac8c2ae74c580e3eb4d281da9fd7762b88654c99df649cc8807fec7d25a6c",
+          "kind": "reviewed_patched_source",
+          "bytes": 11708335,
+          "observations": []
+        },
+        {
+          "path": "target/codebuddy-skill-runtime/node_modules/@tencent-ai/codebuddy-code/bin/codebuddy",
+          "sha256": "c8f736a33584a55d9d4c4cf5ac9785f582c5025e384034c73fb4a840901f2907",
+          "kind": "reviewed_runtime_identity",
+          "bytes": 17645,
+          "observations": []
+        },
+        {
+          "path": "target/codebuddy-skill-runtime/node_modules/@tencent-ai/codebuddy-code/package.json",
+          "sha256": "4bd6406882d5f995f00df9962be3799d8f1a49cfd19cb6c2e574c79a18fe67f5",
+          "kind": "reviewed_runtime_identity",
+          "bytes": 2970,
+          "observations": []
         }
       ],
       "supplemental_official_docs": [],
-      "next_validation": "固定版本真实 ACP：发现元数据 → 按需激活 → 支持文件/脚本工具回合 → 隔离/删除/更新失败保旧 → 跨进程恢复；只替代外部模型 HTTP。未安装/缺账号则保留 unverified。"
+      "next_validation": "Continue remaining agents and final regression; other releases/platforms and REPL tool presentation need their own real acceptance.",
+      "acceptance": {
+        "status": "verified",
+        "production_gate": "reviewed executable required",
+        "evidence": "evidence/codebuddy.json",
+        "model_sources": [
+          "session_model",
+          "cli_local"
+        ],
+        "limitation": "Reviewed patched CodeBuddy 2.179.3 only. Other versions/platforms and REPL tool presentation remain unverified; real acceptance used native direct tools with CODEBUDDY_REPL_ENABLED=0 and CODEBUDDY_DEFER_TOOL_LOADING=false."
+      }
     },
     {
       "key": "goose",

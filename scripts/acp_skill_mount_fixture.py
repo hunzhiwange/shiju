@@ -104,9 +104,13 @@ class SkillMountFixture:
         raise ValueError("fixed CLI has no reviewed compatible tool schema")
 
     def response(self, body):
+        # CodeBuddy also sends a tool-free preflight request. It supplies no
+        # discovery/tool evidence and must not advance the acceptance phase.
+        if getattr(self, "codebuddy_native", False) and not body.get("tools"):
+            return {"role": "assistant", "content": "Ready"}, "stop"
         with self.lock:
-            native_mode = any(getattr(self, key, False) for key in ("claude_native", "qwen_native", "gemini_native"))
-            qualified = self.name if (getattr(self, "qwen_native", False) or getattr(self, "gemini_native", False)) else "shiju-session-skills:" + self.name
+            native_mode = any(getattr(self, key, False) for key in ("claude_native", "qwen_native", "gemini_native", "codebuddy_native"))
+            qualified = self.name if (getattr(self, "codebuddy_native", False) or getattr(self, "qwen_native", False) or getattr(self, "gemini_native", False)) else "shiju-session-skills:" + self.name
             messages = body["messages"]
             if getattr(self, "qwen_native", False) or getattr(self, "gemini_native", False):
                 # Qwen and Gemini serialize native function responses as JSON objects/arrays.
@@ -161,8 +165,22 @@ class SkillMountFixture:
                     catalog = metadata + json.dumps(body.get("tools", []))
                     if getattr(self, "qwen_native", False) or getattr(self, "gemini_native", False):
                         catalog = "\n".join(re.findall(r"<available_skills>(.*?)</available_skills>", metadata, re.S))
-                    if (getattr(self, "qwen_native", False) or getattr(self, "gemini_native", False)) and getattr(self, "forbidden_skill", "") and self.forbidden_skill in catalog:
+                    if (getattr(self, "codebuddy_native", False) or getattr(self, "qwen_native", False) or getattr(self, "gemini_native", False)) and getattr(self, "forbidden_skill", "") and self.forbidden_skill in catalog:
                         raise ValueError("unselected native skill leaked")
+                    if getattr(self, "codebuddy_native", False):
+                        tool_catalog = "\n".join(t.get("function", t).get("description", "") for t in body.get("tools", []) if t.get("function", t).get("name") == "Skill")
+                        sections = "\n".join(re.findall(r"<available_skills>(.*?)</available_skills>", tool_catalog, re.S))
+                        names = set(re.findall(r"^- (\S+?):\s", sections, re.M))
+                        expected = set() if self.mode == "absent" else {self.name}
+                        if self.mode == "added":
+                            expected.add(self.name + "-added")
+                        if names != expected:
+                            self.native_catalog = {"phase": self.mode, "observed_count": len(names), "expected_count": len(expected),
+                                "selected_present": self.name in names, "added_present": self.name + "-added" in names, "builtin_loop_present": "loop" in names, "tool_names": [t.get("function",t).get("name") for t in body.get("tools",[])]}
+                            raise ValueError("unselected native skill leaked or selected skill missing")
+                        # Only the current tool descriptor is an authoritative catalog;
+                        # resumed user/system history can contain older skill overviews.
+                        catalog = sections
                     self.native_catalog = {"selected_name_in_metadata": self.name in metadata,
                         "selected_name_in_tools": self.name in json.dumps(body.get("tools", [])),
                         "tool_names": [t.get("function", t).get("name") for t in body.get("tools", [])]}
@@ -181,15 +199,15 @@ class SkillMountFixture:
                 if self.mode == "absent" and discovered and not native_mode:
                     raise ValueError("removed or other-session skill leaked")
             if self.mode == "absent":
-                if (getattr(self, "gemini_native", False) and not self.native_skill
-                        and not any(t.get("function", t).get("name") == "activate_skill" for t in body.get("tools", []))):
+                if ((getattr(self, "gemini_native", False) or getattr(self, "codebuddy_native", False)) and not self.native_skill
+                        and not any(t.get("function", t).get("name") == ("Skill" if getattr(self, "codebuddy_native", False) else "activate_skill") for t in body.get("tools", []))):
                     self.discovery_observations[-1]["native_activation_unregistered"] = True
                     return {"role": "assistant", "content": "SKILL_ABSENT"}, "stop"
                 if native_mode:
                     for message in messages:
                         if message.get("role") == "tool" and self.calls.get(message.get("tool_call_id")) == "missing":
                             content = str(message.get("content", ""))
-                            if not (("Unknown skill: " + qualified in content) or ((getattr(self, "qwen_native", False) or getattr(self, "gemini_native", False)) and qualified in content and "not found" in content)):
+                            if not (("Unknown skill: " + qualified in content) or ((getattr(self, "codebuddy_native", False) or getattr(self, "qwen_native", False) or getattr(self, "gemini_native", False)) and qualified in content and "not found" in content)):
                                 raise ValueError("removed or other-session skill leaked")
                             event = self.call_events[message["tool_call_id"]]
                             if not event["result_received"]:
@@ -378,6 +396,7 @@ class SkillMountFixture:
                         known = {"route or authentication", "unexpected model", "request size", "native catalog has no accessible mounted view of the skill",
                                  "native Skill result did not identify the mounted view",
                                  "fixed CLI has no reviewed compatible tool schema",
+                                 "unselected native skill leaked or selected skill missing",
                                  "added skill was not discovered", "removed or other-session skill leaked"}
                         category = str(error) if str(error) in known else "wire or request validation"
                         if category not in fixture.error_categories:

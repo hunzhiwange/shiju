@@ -1,0 +1,79 @@
+{
+  "version": "2.179.3",
+  "files": [
+    {
+      "path": "dist/codebuddy-headless.js",
+      "sha256": "abe2d02f74f208b4ea7a0c8621fb7c7cf5822ef6d88af7cf413a6de820a987a4",
+      "replacements": [
+        [
+          "};for(let el of((",
+          "};if(process.env.SHIJU_CODEBUDDY_SKILL_ROOT!==void 0){if(process.env.SHIJU_CODEBUDDY_SKILL_ROOT)await scanRoot(process.env.SHIJU_CODEBUDDY_SKILL_ROOT,\"project\");return ed}for(let el of(("
+        ],
+        [
+          "function mergeSkillLists(eA,el){",
+          "function mergeSkillLists(eA,el){if(process.env.SHIJU_CODEBUDDY_SKILL_ROOT!==void 0){let root=process.env.SHIJU_CODEBUDDY_SKILL_ROOT,path=require(\"node:path\"),include=skill=>!!root&&typeof skill.baseDirectory===\"string\"&&path.resolve(skill.baseDirectory).startsWith(path.resolve(root)+path.sep);eA=eA?.filter(include);el=el?.filter(include)}"
+        ],
+        [
+          "{command:eA.command,sessionId:eu,outputByteLimit:32e3}",
+          "{command:\"/bin/sh\",args:[\"-c\",eA.command],sessionId:eu,outputByteLimit:32e3}"
+        ],
+        [
+          "async waitConfiguration(eA=!1){let el=this.executionConfiguration?.get();if(el)return el;if(this.disposed)throw Error(\"ProductManager has been disposed\");let ec=eA?(0,ey.from)(this.operationTail).pipe((0,eE.switchMap)(()=>this.configuration)):this.configuration,ed=this.configuration.pipe((0,eE.ignoreElements)(),(0,eE.endWith)(void 0)),eu=await ec.pipe((0,eE.takeUntil)(ed),(0,eE.filter)(eA=>void 0!==eA),(0,eE.take)(1)).toPromise();if(void 0===eu)throw Error(\"ProductManager has been disposed\");return eu}",
+          "async waitConfiguration(eA=!1){let el=this.executionConfiguration?.get();if(el)return this.filterSessionSkillConfiguration(el);if(this.disposed)throw Error(\"ProductManager has been disposed\");let ec=eA?(0,ey.from)(this.operationTail).pipe((0,eE.switchMap)(()=>this.configuration)):this.configuration,ed=this.configuration.pipe((0,eE.ignoreElements)(),(0,eE.endWith)(void 0)),eu=await ec.pipe((0,eE.takeUntil)(ed),(0,eE.filter)(eA=>void 0!==eA),(0,eE.take)(1)).toPromise();if(void 0===eu)throw Error(\"ProductManager has been disposed\");return this.filterSessionSkillConfiguration(eu)}filterSessionSkillConfiguration(configuration){if(process.env.SHIJU_CODEBUDDY_SKILL_ROOT===void 0)return configuration;let root=process.env.SHIJU_CODEBUDDY_SKILL_ROOT,path=require(\"node:path\");return{...configuration,skills:(configuration.skills??[]).filter(skill=>!!root&&typeof skill.baseDirectory===\"string\"&&path.resolve(skill.baseDirectory).startsWith(path.resolve(root)+path.sep))}}"
+        ],
+        [
+          "getModelDrivableBuiltinCommands(){return[",
+          "getModelDrivableBuiltinCommands(){if(process.env.SHIJU_CODEBUDDY_SKILL_ROOT!==void 0)return[];return["
+        ]
+      ]
+    },
+    {
+      "path": "dist/codebuddy.js",
+      "sha256": "b87e0505e96589c978f4af4d529d3c5839992d30e4949e4b0283d13dff679056",
+      "replacements": [
+        [
+          "};for(let el of((",
+          "};if(process.env.SHIJU_CODEBUDDY_SKILL_ROOT!==void 0){if(process.env.SHIJU_CODEBUDDY_SKILL_ROOT)await scanRoot(process.env.SHIJU_CODEBUDDY_SKILL_ROOT,\"project\");return eu}for(let el of(("
+        ],
+        [
+          "function mergeSkillLists(eA,el){",
+          "function mergeSkillLists(eA,el){if(process.env.SHIJU_CODEBUDDY_SKILL_ROOT!==void 0){let root=process.env.SHIJU_CODEBUDDY_SKILL_ROOT,path=require(\"node:path\"),include=skill=>!!root&&typeof skill.baseDirectory===\"string\"&&path.resolve(skill.baseDirectory).startsWith(path.resolve(root)+path.sep);eA=eA?.filter(include);el=el?.filter(include)}"
+        ],
+        [
+          "{command:eA.command,sessionId:ed,outputByteLimit:32e3}",
+          "{command:\"/bin/sh\",args:[\"-c\",eA.command],sessionId:ed,outputByteLimit:32e3}"
+        ],
+        [
+          "async waitConfiguration(eA=!1){let el=this.executionConfiguration?.get();if(el)return el;if(this.disposed)throw Error(\"ProductManager has been disposed\");let ec=eA?(0,ey.from)(this.operationTail).pipe((0,eE.switchMap)(()=>this.configuration)):this.configuration,eu=this.configuration.pipe((0,eE.ignoreElements)(),(0,eE.endWith)(void 0)),ed=await ec.pipe((0,eE.takeUntil)(eu),(0,eE.filter)(eA=>void 0!==eA),(0,eE.take)(1)).toPromise();if(void 0===ed)throw Error(\"ProductManager has been disposed\");return ed}",
+          "async waitConfiguration(eA=!1){let el=this.executionConfiguration?.get();if(el)return this.filterSessionSkillConfiguration(el);if(this.disposed)throw Error(\"ProductManager has been disposed\");let ec=eA?(0,ey.from)(this.operationTail).pipe((0,eE.switchMap)(()=>this.configuration)):this.configuration,eu=this.configuration.pipe((0,eE.ignoreElements)(),(0,eE.endWith)(void 0)),ed=await ec.pipe((0,eE.takeUntil)(eu),(0,eE.filter)(eA=>void 0!==eA),(0,eE.take)(1)).toPromise();if(void 0===ed)throw Error(\"ProductManager has been disposed\");return this.filterSessionSkillConfiguration(ed)}filterSessionSkillConfiguration(configuration){if(process.env.SHIJU_CODEBUDDY_SKILL_ROOT===void 0)return configuration;let root=process.env.SHIJU_CODEBUDDY_SKILL_ROOT,path=require(\"node:path\");return{...configuration,skills:(configuration.skills??[]).filter(skill=>!!root&&typeof skill.baseDirectory===\"string\"&&path.resolve(skill.baseDirectory).startsWith(path.resolve(root)+path.sep))}}"
+        ],
+        [
+          "getModelDrivableBuiltinCommands(){return[",
+          "getModelDrivableBuiltinCommands(){if(process.env.SHIJU_CODEBUDDY_SKILL_ROOT!==void 0)return[];return["
+        ]
+      ]
+    },
+    {
+      "path": "dist-server/codebuddy.js",
+      "sha256": "0d0da98e63e10cf6dbe7005b161fe42388439b8b7ea9ffae8ff22f2d5b45c51c",
+      "replacements": [
+        [
+          "};for(let n of((",
+          "};if(process.env.SHIJU_CODEBUDDY_SKILL_ROOT!==void 0){if(process.env.SHIJU_CODEBUDDY_SKILL_ROOT)await scanRoot(process.env.SHIJU_CODEBUDDY_SKILL_ROOT,\"project\");return S}for(let n of(("
+        ],
+        [
+          "function mergeSkillLists(i,n){",
+          "function mergeSkillLists(i,n){if(process.env.SHIJU_CODEBUDDY_SKILL_ROOT!==void 0){let root=process.env.SHIJU_CODEBUDDY_SKILL_ROOT,path=require(\"node:path\"),include=skill=>!!root&&typeof skill.baseDirectory===\"string\"&&path.resolve(skill.baseDirectory).startsWith(path.resolve(root)+path.sep);i=i?.filter(include);n=n?.filter(include)}"
+        ],
+        [
+          "async waitConfiguration(i=!1){let n=this.executionConfiguration?.get();if(n)return n;if(this.disposed)throw Error(\"ProductManager has been disposed\");let c=i?(0,W.from)(this.operationTail).pipe((0,q.switchMap)(()=>this.configuration)):this.configuration,S=this.configuration.pipe((0,q.ignoreElements)(),(0,q.endWith)(void 0)),E=await c.pipe((0,q.takeUntil)(S),(0,q.filter)(i=>void 0!==i),(0,q.take)(1)).toPromise();if(void 0===E)throw Error(\"ProductManager has been disposed\");return E}",
+          "async waitConfiguration(i=!1){let n=this.executionConfiguration?.get();if(n)return this.filterSessionSkillConfiguration(n);if(this.disposed)throw Error(\"ProductManager has been disposed\");let c=i?(0,W.from)(this.operationTail).pipe((0,q.switchMap)(()=>this.configuration)):this.configuration,S=this.configuration.pipe((0,q.ignoreElements)(),(0,q.endWith)(void 0)),E=await c.pipe((0,q.takeUntil)(S),(0,q.filter)(i=>void 0!==i),(0,q.take)(1)).toPromise();if(void 0===E)throw Error(\"ProductManager has been disposed\");return this.filterSessionSkillConfiguration(E)}filterSessionSkillConfiguration(configuration){if(process.env.SHIJU_CODEBUDDY_SKILL_ROOT===void 0)return configuration;let root=process.env.SHIJU_CODEBUDDY_SKILL_ROOT,path=require(\"node:path\");return{...configuration,skills:(configuration.skills??[]).filter(skill=>!!root&&typeof skill.baseDirectory===\"string\"&&path.resolve(skill.baseDirectory).startsWith(path.resolve(root)+path.sep))}}"
+        ],
+        [
+          "getModelDrivableBuiltinCommands(){return[",
+          "getModelDrivableBuiltinCommands(){if(process.env.SHIJU_CODEBUDDY_SKILL_ROOT!==void 0)return[];return["
+        ]
+      ]
+    }
+  ]
+}

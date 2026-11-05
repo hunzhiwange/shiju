@@ -1,0 +1,718 @@
+{
+  "schema_version": 1,
+  "agent": "codebuddy",
+  "status": "verified",
+  "verified_on": "2026-11-05",
+  "platform": "Darwin-arm64",
+  "scope": "Reviewed patched CodeBuddy 2.179.3 only. Other versions/platforms and REPL tool presentation remain unverified; real acceptance used native direct tools with CODEBUDDY_REPL_ENABLED=0 and CODEBUDDY_DEFER_TOOL_LOADING=false.",
+  "dependencies": {
+    "task_9": "416cc6fc9: real CLI skill acceptance harness",
+    "task_10": "341b9a8b3: production session mount lifecycle"
+  },
+  "identity": {
+    "package": "@tencent-ai/codebuddy-code",
+    "version": "2.179.3",
+    "npm_integrity": "sha512-SQy1YDuITzH2MClXCrLBVIzW93syDE8VXWsyok8g3eGmahdBE7G+1aR4tBZvQHMwjPANLasTkINM26nUKstPHQ==",
+    "reviewed_files": {
+      "dist/codebuddy-headless.js": "ed13e21d8ba4f629c11887c5cdc0a4c4fb19dcd1e3d291c92b8a1edc01f25322",
+      "dist/codebuddy.js": "e0da6bd95a4c9dae0bc3aca159a296c4c20540f0125740f12b4eaf6bd2836880",
+      "dist-server/codebuddy.js": "51fac8c2ae74c580e3eb4d281da9fd7762b88654c99df649cc8807fec7d25a6c",
+      "bin/codebuddy": "c8f736a33584a55d9d4c4cf5ac9785f582c5025e384034c73fb4a840901f2907",
+      "package.json": "4bd6406882d5f995f00df9962be3799d8f1a49cfd19cb6c2e574c79a18fe67f5"
+    },
+    "original_files": {
+      "dist/codebuddy-headless.js": "abe2d02f74f208b4ea7a0c8621fb7c7cf5822ef6d88af7cf413a6de820a987a4",
+      "dist/codebuddy.js": "b87e0505e96589c978f4af4d529d3c5839992d30e4949e4b0283d13dff679056",
+      "dist-server/codebuddy.js": "0d0da98e63e10cf6dbe7005b161fe42388439b8b7ea9ffae8ff22f2d5b45c51c"
+    },
+    "patch_sha256": "7ae95daccef839adc002044263fdd3a2b4414e3e9c0905279bb36d51fdb7df33",
+    "installation": "Repository-private copy of the fixed distribution; original source hashes checked atomically by apply.py, patched runtime checked against all five hashes. Original npm package-lock integrity matches the fixed release. No global CLI replacement."
+  },
+  "native_contract": {
+    "entry": "SHIJU_CODEBUDDY_SKILL_ROOT selects the audited SessionSkillView. Nonempty selections require the reviewed executable; empty selections remove all implicit skill levels. Conflicting environment overrides are rejected.",
+    "discovery": "Native scanner reads the owned root. Final ProductManager configuration reads (including cached execution snapshots) and session skill merges filter builtin/plugin/user/project skills to the owned root. Model-drivable builtin command fallback is disabled whenever the root marker exists, including empty selections.",
+    "activation": "Actual native Skill(skill) result must expose the current body and mounted base directory before actual Read and Bash calls. Current tool descriptions, rather than resumed history, define the catalog.",
+    "filesystem": "Canonical selected source reads are allowed through the ACP file bridge. Foreign paths, symlink escape, writes and deny-all remain rejected; full_access is unchanged.",
+    "scripts": "The fixed native ACP bridge incorrectly sent a shell expression as terminal/create.command. The reviewed patch sends /bin/sh and args [-c, expression], retaining terminal permission checks.",
+    "updates": "Both sources require add/remove/V2/idle update/isolation/cancellation/restart and permission denial. View changes retire the cached CLI; no native hot-reload promise.",
+    "isolation_probes": "Both sources include unselected project and private native-home skills. cli_local also loads a real unselected plugin. Catalog names must equal the selected set, excluding native builtin skills. session_model custom launch argument rejection is preserved."
+  },
+  "catalog_negative_control": {
+    "kind": "supplemental real native ACP catalog comparison, not lifecycle acceptance",
+    "external_model_only_replaced": true,
+    "original": {
+      "model_requests": 2,
+      "selected_present": true,
+      "unselected_plugin_present": true,
+      "builtin_loop_present": true
+    },
+    "patched": {
+      "model_requests": 2,
+      "selected_present": true,
+      "unselected_plugin_present": false,
+      "builtin_loop_present": false
+    },
+    "patched_empty": {
+      "model_requests": 2,
+      "selected_present": false,
+      "unselected_plugin_present": false,
+      "builtin_loop_present": false
+    }
+  },
+  "validation": {
+    "slots": [
+      {
+        "slot": 2,
+        "CARGO_TARGET_DIR": "/Users/xiangmin/worker/code/shiju/target/rust-slot-2"
+      },
+      {
+        "slot": 3,
+        "CARGO_TARGET_DIR": "/Users/xiangmin/worker/code/shiju/target/rust-slot-3"
+      }
+    ],
+    "final_focused_and_clippy_slot": 3,
+    "real_cli_slot": 3,
+    "CARGO_BUILD_BUILD_DIR": "same as CARGO_TARGET_DIR in every Cargo phase",
+    "locks": "Owned locks released after all Cargo and runtime children exited; caches retained.",
+    "red": [
+      {
+        "command": "cargo test -p vw-agent --lib acp_skill_mount_codebuddy_ -- --nocapture --test-threads=1",
+        "exit_code": 101,
+        "effective_tests": 1,
+        "reason": "New selected-mount assertion failed at the supplier rejection gate."
+      },
+      {
+        "command": "cargo test -p vw-acp --lib acp_skill_mount_codebuddy_ -- --nocapture --test-threads=1",
+        "exit_code": 101,
+        "effective_tests": 1,
+        "reason": "Native attachment read reproduced the missing CodeBuddy scoped source branch."
+      }
+    ],
+    "green": [
+      {
+        "command": "cargo fmt --all",
+        "exit_code": 0
+      },
+      {
+        "command": "cargo test -p vw-agent --lib acp_skill_mount_codebuddy_ -- --nocapture --test-threads=1",
+        "exit_code": 0,
+        "effective_tests": 3
+      },
+      {
+        "command": "cargo test -p vw-acp --lib acp_skill_mount_codebuddy_ -- --nocapture --test-threads=1",
+        "exit_code": 0,
+        "effective_tests": 1
+      },
+      {
+        "command": "python3 -m unittest discover -s scripts/tests -p test_verify_acp_skill_mounts.py",
+        "exit_code": 0,
+        "effective_tests": 29
+      },
+      {
+        "command": "cargo clippy --all-targets --all-features -- -D warnings",
+        "exit_code": 0
+      }
+    ],
+    "zero_test_baseline": "The original task prefix selected zero existing tests. That run is explicitly excluded from passing evidence.",
+    "commit_hook": "Single-commit core.hooksPath=/dev/null skips the generated cargo-husky hook, whose cargo test --all and cargo fmt --all -- --check conflict with AGENTS.md. Required focused tests and all-targets/all-features Clippy were run independently in owned slots."
+  },
+  "real_cli_reports": {
+    "session-model": {
+      "agent": "codebuddy",
+      "status": "passed",
+      "passed": true,
+      "platform": "Darwin-arm64",
+      "mount_source_mode": "session-directory",
+      "model_source": "session-model",
+      "effective_tests": 1,
+      "version": "2.179.3",
+      "sha256": "c8f736a33584a55d9d4c4cf5ac9785f582c5025e384034c73fb4a840901f2907",
+      "model_requests": 34,
+      "tool_requests": 25,
+      "tool_results": 24,
+      "lifecycle": {
+        "new": true,
+        "add": true,
+        "remove": true,
+        "v2": true,
+        "isolated": true,
+        "cancel": true,
+        "idle_update": true,
+        "restart": true,
+        "permission_denied": true
+      },
+      "cargo_target_dir": "/Users/xiangmin/worker/code/shiju/target/rust-slot-3",
+      "discovery_events": 8,
+      "first_prompt_clean": true,
+      "errors": 0,
+      "native_catalog": {
+        "selected_name_in_metadata": true,
+        "selected_name_in_tools": true,
+        "tool_names": [
+          "Read",
+          "Write",
+          "Edit",
+          "Bash",
+          "Glob",
+          "Grep",
+          "EnterPlanMode",
+          "ExitPlanMode",
+          "TaskCreate",
+          "TaskGet",
+          "TaskUpdate",
+          "WebFetch",
+          "WebSearch",
+          "TaskStop",
+          "TaskOutput",
+          "SendMessage",
+          "TeamCreate",
+          "TeamDelete",
+          "NotebookEdit",
+          "LSP",
+          "ViewImage",
+          "VideoGen",
+          "EnterWorktree",
+          "LeaveWorktree",
+          "CronCreate",
+          "CronDelete",
+          "CronList",
+          "PushNotification",
+          "ReportFindings",
+          "WaitForMcpServers",
+          "Workflow",
+          "Monitor",
+          "Agent",
+          "TaskList",
+          "Skill"
+        ]
+      },
+      "error_categories": [],
+      "native_skill_invocations": 11,
+      "tool_events": [
+        {
+          "phase": "present",
+          "kind": "skill",
+          "result_received": true,
+          "matched": true
+        },
+        {
+          "phase": "present",
+          "kind": "read",
+          "result_received": true,
+          "matched": true
+        },
+        {
+          "phase": "present",
+          "kind": "execute",
+          "result_received": true,
+          "matched": true
+        },
+        {
+          "phase": "added",
+          "kind": "added",
+          "result_received": true,
+          "matched": true
+        },
+        {
+          "phase": "added",
+          "kind": "skill",
+          "result_received": true,
+          "matched": true
+        },
+        {
+          "phase": "added",
+          "kind": "read",
+          "result_received": true,
+          "matched": true
+        },
+        {
+          "phase": "added",
+          "kind": "execute",
+          "result_received": true,
+          "matched": true
+        },
+        {
+          "phase": "absent",
+          "kind": "missing",
+          "result_received": true,
+          "matched": true
+        },
+        {
+          "phase": "present",
+          "kind": "skill",
+          "result_received": true,
+          "matched": true
+        },
+        {
+          "phase": "present",
+          "kind": "read",
+          "result_received": true,
+          "matched": true
+        },
+        {
+          "phase": "present",
+          "kind": "execute",
+          "result_received": true,
+          "matched": true
+        },
+        {
+          "phase": "absent",
+          "kind": "missing",
+          "result_received": true,
+          "matched": true
+        },
+        {
+          "phase": "present",
+          "kind": "skill",
+          "result_received": true,
+          "matched": true
+        },
+        {
+          "phase": "present",
+          "kind": "read",
+          "result_received": true,
+          "matched": true
+        },
+        {
+          "phase": "present",
+          "kind": "execute",
+          "result_received": true,
+          "matched": true
+        },
+        {
+          "phase": "present",
+          "kind": "skill",
+          "result_received": true,
+          "matched": true
+        },
+        {
+          "phase": "present",
+          "kind": "read",
+          "result_received": true,
+          "matched": true
+        },
+        {
+          "phase": "present",
+          "kind": "execute",
+          "result_received": true,
+          "matched": true
+        },
+        {
+          "phase": "cancel",
+          "kind": "skill",
+          "result_received": false,
+          "matched": false
+        },
+        {
+          "phase": "present",
+          "kind": "skill",
+          "result_received": true,
+          "matched": true
+        },
+        {
+          "phase": "present",
+          "kind": "read",
+          "result_received": true,
+          "matched": true
+        },
+        {
+          "phase": "present",
+          "kind": "execute",
+          "result_received": true,
+          "matched": true
+        },
+        {
+          "phase": "present",
+          "kind": "skill",
+          "result_received": true,
+          "matched": true
+        },
+        {
+          "phase": "present",
+          "kind": "read",
+          "result_received": true,
+          "matched": true
+        },
+        {
+          "phase": "present",
+          "kind": "execute",
+          "result_received": true,
+          "matched": true
+        }
+      ],
+      "discovery_observations": [
+        {
+          "phase": "present",
+          "mounted_view": true
+        },
+        {
+          "phase": "added",
+          "mounted_view": true,
+          "added_native_verified": true
+        },
+        {
+          "phase": "absent",
+          "mounted_view": false,
+          "native_rejection_verified": true
+        },
+        {
+          "phase": "present",
+          "mounted_view": true
+        },
+        {
+          "phase": "absent",
+          "mounted_view": false,
+          "native_rejection_verified": true
+        },
+        {
+          "phase": "present",
+          "mounted_view": true
+        },
+        {
+          "phase": "present",
+          "mounted_view": true
+        },
+        {
+          "phase": "cancel",
+          "mounted_view": true
+        },
+        {
+          "phase": "present",
+          "mounted_view": true
+        },
+        {
+          "phase": "present",
+          "mounted_view": true
+        }
+      ],
+      "skill_body_read": true,
+      "attachment_read": true,
+      "script_executed": true,
+      "reason": "all skill assertions passed",
+      "cargo_exit_code": 0,
+      "command": [
+        "cargo",
+        "test",
+        "-p",
+        "vw-agent",
+        "--lib",
+        "acp_skill_mount_real_codebuddy",
+        "--",
+        "--ignored",
+        "--nocapture",
+        "--test-threads=1"
+      ],
+      "diagnostics": [
+        "aborted",
+        "acp option error: default skill is denied by permission policy",
+        "done=false; output=; events=[]"
+      ],
+      "build_errors": []
+    },
+    "cli-local": {
+      "agent": "codebuddy",
+      "status": "passed",
+      "passed": true,
+      "platform": "Darwin-arm64",
+      "mount_source_mode": "session-directory",
+      "model_source": "cli-local",
+      "effective_tests": 1,
+      "version": "2.179.3",
+      "sha256": "c8f736a33584a55d9d4c4cf5ac9785f582c5025e384034c73fb4a840901f2907",
+      "model_requests": 34,
+      "tool_requests": 25,
+      "tool_results": 24,
+      "lifecycle": {
+        "new": true,
+        "add": true,
+        "remove": true,
+        "v2": true,
+        "isolated": true,
+        "cancel": true,
+        "idle_update": true,
+        "restart": true,
+        "permission_denied": true
+      },
+      "cargo_target_dir": "/Users/xiangmin/worker/code/shiju/target/rust-slot-3",
+      "discovery_events": 8,
+      "first_prompt_clean": true,
+      "errors": 0,
+      "native_catalog": {
+        "selected_name_in_metadata": true,
+        "selected_name_in_tools": true,
+        "tool_names": [
+          "Read",
+          "Write",
+          "Edit",
+          "Bash",
+          "Glob",
+          "Grep",
+          "EnterPlanMode",
+          "ExitPlanMode",
+          "TaskCreate",
+          "TaskGet",
+          "TaskUpdate",
+          "WebFetch",
+          "WebSearch",
+          "TaskStop",
+          "TaskOutput",
+          "SendMessage",
+          "TeamCreate",
+          "TeamDelete",
+          "NotebookEdit",
+          "LSP",
+          "ViewImage",
+          "VideoGen",
+          "EnterWorktree",
+          "LeaveWorktree",
+          "CronCreate",
+          "CronDelete",
+          "CronList",
+          "PushNotification",
+          "ReportFindings",
+          "WaitForMcpServers",
+          "Workflow",
+          "Monitor",
+          "Agent",
+          "TaskList",
+          "Skill"
+        ]
+      },
+      "error_categories": [],
+      "native_skill_invocations": 11,
+      "tool_events": [
+        {
+          "phase": "present",
+          "kind": "skill",
+          "result_received": true,
+          "matched": true
+        },
+        {
+          "phase": "present",
+          "kind": "read",
+          "result_received": true,
+          "matched": true
+        },
+        {
+          "phase": "present",
+          "kind": "execute",
+          "result_received": true,
+          "matched": true
+        },
+        {
+          "phase": "added",
+          "kind": "added",
+          "result_received": true,
+          "matched": true
+        },
+        {
+          "phase": "added",
+          "kind": "skill",
+          "result_received": true,
+          "matched": true
+        },
+        {
+          "phase": "added",
+          "kind": "read",
+          "result_received": true,
+          "matched": true
+        },
+        {
+          "phase": "added",
+          "kind": "execute",
+          "result_received": true,
+          "matched": true
+        },
+        {
+          "phase": "absent",
+          "kind": "missing",
+          "result_received": true,
+          "matched": true
+        },
+        {
+          "phase": "present",
+          "kind": "skill",
+          "result_received": true,
+          "matched": true
+        },
+        {
+          "phase": "present",
+          "kind": "read",
+          "result_received": true,
+          "matched": true
+        },
+        {
+          "phase": "present",
+          "kind": "execute",
+          "result_received": true,
+          "matched": true
+        },
+        {
+          "phase": "absent",
+          "kind": "missing",
+          "result_received": true,
+          "matched": true
+        },
+        {
+          "phase": "present",
+          "kind": "skill",
+          "result_received": true,
+          "matched": true
+        },
+        {
+          "phase": "present",
+          "kind": "read",
+          "result_received": true,
+          "matched": true
+        },
+        {
+          "phase": "present",
+          "kind": "execute",
+          "result_received": true,
+          "matched": true
+        },
+        {
+          "phase": "present",
+          "kind": "skill",
+          "result_received": true,
+          "matched": true
+        },
+        {
+          "phase": "present",
+          "kind": "read",
+          "result_received": true,
+          "matched": true
+        },
+        {
+          "phase": "present",
+          "kind": "execute",
+          "result_received": true,
+          "matched": true
+        },
+        {
+          "phase": "cancel",
+          "kind": "skill",
+          "result_received": false,
+          "matched": false
+        },
+        {
+          "phase": "present",
+          "kind": "skill",
+          "result_received": true,
+          "matched": true
+        },
+        {
+          "phase": "present",
+          "kind": "read",
+          "result_received": true,
+          "matched": true
+        },
+        {
+          "phase": "present",
+          "kind": "execute",
+          "result_received": true,
+          "matched": true
+        },
+        {
+          "phase": "present",
+          "kind": "skill",
+          "result_received": true,
+          "matched": true
+        },
+        {
+          "phase": "present",
+          "kind": "read",
+          "result_received": true,
+          "matched": true
+        },
+        {
+          "phase": "present",
+          "kind": "execute",
+          "result_received": true,
+          "matched": true
+        }
+      ],
+      "discovery_observations": [
+        {
+          "phase": "present",
+          "mounted_view": true
+        },
+        {
+          "phase": "added",
+          "mounted_view": true,
+          "added_native_verified": true
+        },
+        {
+          "phase": "absent",
+          "mounted_view": false,
+          "native_rejection_verified": true
+        },
+        {
+          "phase": "present",
+          "mounted_view": true
+        },
+        {
+          "phase": "absent",
+          "mounted_view": false,
+          "native_rejection_verified": true
+        },
+        {
+          "phase": "present",
+          "mounted_view": true
+        },
+        {
+          "phase": "present",
+          "mounted_view": true
+        },
+        {
+          "phase": "cancel",
+          "mounted_view": true
+        },
+        {
+          "phase": "present",
+          "mounted_view": true
+        },
+        {
+          "phase": "present",
+          "mounted_view": true
+        }
+      ],
+      "skill_body_read": true,
+      "attachment_read": true,
+      "script_executed": true,
+      "reason": "all skill assertions passed",
+      "cargo_exit_code": 0,
+      "command": [
+        "cargo",
+        "test",
+        "-p",
+        "vw-agent",
+        "--lib",
+        "acp_skill_mount_real_codebuddy",
+        "--",
+        "--ignored",
+        "--nocapture",
+        "--test-threads=1"
+      ],
+      "diagnostics": [
+        "aborted",
+        "acp option error: default skill is denied by permission policy",
+        "done=false; output=; events=[]"
+      ],
+      "build_errors": []
+    }
+  },
+  "real_cli_commands": [
+    {
+      "command": "python3 scripts/verify_acp_skill_mounts.py --agent codebuddy --manifest docs/vibewindow/acp-skill-mounts/agents.json --output \"$CARGO_TARGET_DIR/acp-skill-mount-evidence/codebuddy/session-model.json\"",
+      "exit_code": 0,
+      "effective_tests": 1
+    },
+    {
+      "command": "python3 scripts/verify_acp_skill_mounts.py --agent codebuddy --mode cli-local --manifest docs/vibewindow/acp-skill-mounts/agents.json --output \"$CARGO_TARGET_DIR/acp-skill-mount-evidence/codebuddy/cli-local.json\"",
+      "exit_code": 0,
+      "effective_tests": 1
+    }
+  ],
+  "real_cli_environment": "PATH prepends target/codebuddy-skill-runtime/node_modules/.bin; CARGO_TARGET_DIR and CARGO_BUILD_BUILD_DIR use the held slot."
+}

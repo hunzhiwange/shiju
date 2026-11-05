@@ -261,6 +261,14 @@ pub(super) async fn install(agent: &str) -> Result<bool, String> {
             include_str!("../../../patches/acp-model-source/pi/pi-acp-0.0.22-state-dir.patch"),
         ),
         ("iflow/apply.py", include_str!("../../../patches/acp-model-source/iflow/apply.py")),
+        (
+            "codebuddy/apply.py",
+            include_str!("../../../patches/acp-model-source/codebuddy/apply.py"),
+        ),
+        (
+            "codebuddy/patch.json",
+            include_str!("../../../patches/acp-model-source/codebuddy/patch.json"),
+        ),
         ("qwen/apply.py", include_str!("../../../patches/acp-model-source/qwen/apply.py")),
         ("qwen/patch.json", include_str!("../../../patches/acp-model-source/qwen/patch.json")),
     ] {

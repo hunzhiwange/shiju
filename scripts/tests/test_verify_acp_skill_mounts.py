@@ -12,6 +12,55 @@ from verify_acp_skill_mounts import accepted, select_entry
 
 
 class SkillMountHarnessTests(unittest.TestCase):
+    def test_codebuddy_preflight_does_not_count_as_skill_evidence(self):
+        with tempfile.TemporaryDirectory() as directory:
+            fixture = SkillMountFixture(Path(directory))
+            fixture.codebuddy_native = True
+            fixture.response({"messages": [{"role": "user", "content": "preflight"}], "tools": []})
+            self.assertEqual(fixture.snapshot()["model_requests"], 0)
+            self.assertEqual(fixture.snapshot()["discovery_events"], 0)
+            self.assertTrue(fixture.phase_first)
+
+    def test_codebuddy_tool_catalog_activates_unqualified_native_skill(self):
+        with tempfile.TemporaryDirectory() as directory:
+            fixture = SkillMountFixture(Path(directory))
+            fixture.codebuddy_native = True
+            body = {"messages": [{"role": "user", "content": fixture.prompt}], "tools": [
+                {"type": "function", "function": {"name": "Skill", "description": "<available_skills>\n- " + fixture.name + ": fixture\n</available_skills>",
+                    "parameters": {"properties": {"skill": {"type": "string"}}}}}]}
+            message, finish = fixture.response(body)
+            self.assertEqual(finish, "tool_calls")
+            call = message["tool_calls"][0]["function"]
+            self.assertEqual(call["name"], "Skill")
+            self.assertEqual(json.loads(call["arguments"]), {"skill": fixture.name})
+            self.assertTrue(fixture.snapshot()["first_prompt_clean"])
+            self.assertFalse(fixture.snapshot()["attachment_read"])
+
+    def test_codebuddy_catalog_rejects_unselected_builtin_or_plugin(self):
+        with tempfile.TemporaryDirectory() as directory:
+            fixture = SkillMountFixture(Path(directory))
+            fixture.codebuddy_native = True
+            body = {"messages": [{"role": "user", "content": fixture.prompt}], "tools": [
+                {"function": {"name": "Skill", "description": "<available_skills>\n- " + fixture.name + ": selected\n- loop: unselected builtin\n</available_skills>",
+                    "parameters": {"properties": {"skill": {"type": "string"}}}}}]}
+            with self.assertRaisesRegex(ValueError, "unselected native skill leaked"):
+                fixture.response(body)
+            self.assertEqual(fixture.snapshot()["native_skill_invocations"], 0)
+            self.assertEqual(fixture.snapshot()["discovery_events"], 0)
+
+    def test_codebuddy_empty_selection_uses_only_native_skill_descriptor(self):
+        with tempfile.TemporaryDirectory() as directory:
+            fixture = SkillMountFixture(Path(directory))
+            fixture.codebuddy_native = True
+            fixture.mode = "absent"
+            body = {"messages": [{"role": "user", "content": fixture.prompt}], "tools": [
+                {"function": {"name": "Read", "description": "Example: <available_skills>\n- parameter: unrelated documentation\n</available_skills>",
+                    "parameters": {"properties": {"file_path": {"type": "string"}}}}}]}
+            message, finish = fixture.response(body)
+            self.assertEqual((message["content"], finish), ("SKILL_ABSENT", "stop"))
+            self.assertTrue(fixture.discovery_observations[-1]["native_activation_unregistered"])
+            self.assertEqual(fixture.snapshot()["native_skill_invocations"], 0)
+
     def test_gemini_wire_requires_correlated_native_activation(self):
         from acp_skill_mount_gemini import generate_message, generate_wire
         with tempfile.TemporaryDirectory() as directory:

@@ -58,9 +58,10 @@ def run(args):
                 fixture.claude_native = args.agent == "claude"
                 fixture.qwen_native = args.agent == "qwen"
                 fixture.gemini_native = args.agent == "gemini"
+                fixture.codebuddy_native = args.agent == "codebuddy"
                 native = root / "native"
                 native.mkdir(mode=0o700)
-                if args.agent in ("qwen", "gemini"):
+                if args.agent in ("qwen", "gemini", "codebuddy"):
                     fixture.forbidden_skill = "unselected-" + fixture.name
                     for base in (root / ("." + args.agent) / "skills", native / (".gemini/skills" if args.agent == "gemini" else "skills")):
                         decoy = base / fixture.forbidden_skill
@@ -69,14 +70,26 @@ def run(args):
                             "---\nname: " + fixture.forbidden_skill + "\ndescription: Must remain isolated\n---\nUNSELECTED_BODY\n")
                 isolation = isolated_environment(identity, native, fixture, mode)
                 env.update(isolation)
+                if args.agent == "codebuddy":
+                    env.update(CODEBUDDY_REPL_ENABLED="0", CODEBUDDY_DEFER_TOOL_LOADING="false")
+                    isolation.update(CODEBUDDY_REPL_ENABLED="0", CODEBUDDY_DEFER_TOOL_LOADING="false")
                 if args.agent == "codex":
                     from acp_skill_mount_codex import locate_codex
                     config = locate_codex(identity, env)
                     report["engine_version"] = identity["underlying"]["release"]
                 else:
                     config = locate(identity, env)
-                if args.agent in ("claude", "qwen", "gemini") and mode == "cli-local":
+                if args.agent in ("claude", "qwen", "gemini", "codebuddy") and mode == "cli-local":
                     config["env"] = isolation
+                if args.agent == "codebuddy":
+                    plugin = root / "unselected-plugin"
+                    (plugin / ".codebuddy-plugin").mkdir(parents=True)
+                    (plugin / ".codebuddy-plugin/plugin.json").write_text(json.dumps({"name": "unselected-plugin", "version": "1.0.0", "skills": "./skills/"}))
+                    decoy = plugin / "skills" / fixture.forbidden_skill
+                    decoy.mkdir(parents=True)
+                    (decoy / "SKILL.md").write_text("---\nname: " + fixture.forbidden_skill + "\ndescription: Must remain isolated\n---\nUNSELECTED_PLUGIN_BODY\n")
+                    if mode == "cli-local":
+                        config["args"] += ["--plugin-dir", str(plugin)]
                 binary = Path(config["command"]).resolve()
                 digest = hashlib.sha256(binary.read_bytes()).hexdigest()
                 known = {row.get("sha256") for row in entry.get("evidence", [])}
@@ -107,7 +120,7 @@ def run(args):
                 flow = json.loads(flow_file.read_text()) if flow_file.exists() else {}
                 evidence = fixture.snapshot()
                 passed = (one_passed and accepted(evidence, flow, tests, result.returncode)
-                          and (args.agent not in ("claude", "qwen", "gemini") or evidence.get("native_skill_invocations", 0) > 0))
+                          and (args.agent not in ("claude", "qwen", "gemini", "codebuddy") or evidence.get("native_skill_invocations", 0) > 0))
                 report.update(evidence, passed=passed, status="passed" if passed else "failed",
                               reason="all skill assertions passed" if passed else "production skill lifecycle or observations incomplete",
                               effective_tests=tests, cargo_exit_code=result.returncode, command=command, diagnostics=diagnostics, build_errors=build_errors,

@@ -106,5 +106,23 @@
     "source_url": "https://codeload.github.com/aaif-goose/goose/tar.gz/refs/tags/v1.57.0",
     "source_sha256": "36fcab524e25ca563830757bf2da8a68716ea2a5d7ca2f055dec4647b78548d9",
     "patch_sha256": "1fff003ed3f59eb99d5854f742b8c779a6efc07a3c6a57d7c0cd108b22c0db57"
+  },
+  "codebuddy": {
+    "package": "@tencent-ai/codebuddy-code",
+    "version": "2.179.3",
+    "integrity": "sha512-SQy1YDuITzH2MClXCrLBVIzW93syDE8VXWsyok8g3eGmahdBE7G+1aR4tBZvQHMwjPANLasTkINM26nUKstPHQ==",
+    "bin": "bin/codebuddy",
+    "files": {
+      "dist/codebuddy-headless.js": "ed13e21d8ba4f629c11887c5cdc0a4c4fb19dcd1e3d291c92b8a1edc01f25322",
+      "dist/codebuddy.js": "e0da6bd95a4c9dae0bc3aca159a296c4c20540f0125740f12b4eaf6bd2836880",
+      "dist-server/codebuddy.js": "51fac8c2ae74c580e3eb4d281da9fd7762b88654c99df649cc8807fec7d25a6c",
+      "bin/codebuddy": "c8f736a33584a55d9d4c4cf5ac9785f582c5025e384034c73fb4a840901f2907",
+      "package.json": "4bd6406882d5f995f00df9962be3799d8f1a49cfd19cb6c2e574c79a18fe67f5"
+    },
+    "original": {
+      "dist/codebuddy-headless.js": "abe2d02f74f208b4ea7a0c8621fb7c7cf5822ef6d88af7cf413a6de820a987a4",
+      "dist/codebuddy.js": "b87e0505e96589c978f4af4d529d3c5839992d30e4949e4b0283d13dff679056",
+      "dist-server/codebuddy.js": "0d0da98e63e10cf6dbe7005b161fe42388439b8b7ea9ffae8ff22f2d5b45c51c"
+    }
   }
 }

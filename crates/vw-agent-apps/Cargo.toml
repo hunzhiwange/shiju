@@ -10,3 +10,4 @@ license = "MIT"
 [dependencies]
 base64 = "0.23"
 png = "0.18"
+vw-api-types = { path = "../vw-api-types" }

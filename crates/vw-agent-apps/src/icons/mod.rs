@@ -1,6 +1,10 @@
-//! Custom icon image safety validation.
+//! Custom icon name and image validation.
 
+pub mod name;
 pub mod validation;
 
 #[cfg(test)]
 mod validation_tests;
+
+#[cfg(test)]
+mod name_tests;

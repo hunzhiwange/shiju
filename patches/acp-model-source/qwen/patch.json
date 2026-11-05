@@ -48,6 +48,30 @@
           "async authenticate({methodId}){if(process.env.SHIJU_QWEN_MANAGED===\"1\"&&methodId!==\"openai\")throw new Error(\"Managed Qwen authentication is locked\");"
         ]
       ]
+    },
+    {
+      "path": "chunks/chunk-BLIIEKZX.js",
+      "sha256": "364b5a2270fb796dc446c7debc5bc07fb1d2873deaf3985b6d8c826965911baf",
+      "replacements": [
+        [
+          "getSkillsBaseDirs(level){switch(level){",
+          "getSkillsBaseDirs(level){if(process.env.SHIJU_QWEN_SKILL_ROOT!==undefined){return level===\"user\"&&process.env.SHIJU_QWEN_SKILL_ROOT?[process.env.SHIJU_QWEN_SKILL_ROOT]:[]}switch(level){"
+        ],
+        [
+          "async listSkillsAtLevel(level,onDiscoveryError){if(this.config.getBareMode())",
+          "async listSkillsAtLevel(level,onDiscoveryError){if(process.env.SHIJU_QWEN_SKILL_ROOT!==undefined&&level!==\"user\"){return[]}if(this.config.getBareMode())"
+        ]
+      ]
+    },
+    {
+      "path": "chunks/chunk-EPODBRBP.js",
+      "sha256": "8fe6c68b997e56c3dcdec5e76f4771e9a84a4b8d8a477d3d1f9e8f47322d2690",
+      "replacements": [
+        [
+          "getUserSkillsDirs(){const homeDir=",
+          "getUserSkillsDirs(){if(process.env.SHIJU_QWEN_SKILL_ROOT!==undefined){return process.env.SHIJU_QWEN_SKILL_ROOT?[process.env.SHIJU_QWEN_SKILL_ROOT]:[]}const homeDir="
+        ]
+      ]
     }
   ]
 }

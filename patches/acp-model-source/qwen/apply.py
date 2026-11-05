@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Apply reviewed model routing changes to the exact Qwen 0.26.7 archive."""
+"""Apply reviewed model routing and skill scanner changes to exact Qwen 0.26.7."""
 import hashlib
 import json
 from pathlib import Path

@@ -30,7 +30,7 @@ pub(super) fn validate(agent: &str, selected: bool) -> Result<(), Error> {
     let reason = match agent.trim().to_ascii_lowercase().as_str() {
         "codex" => return codex::validate(),
         "claude" | "claude code" => return Ok(()),
-        "qwen" => qwen::rejection(),
+        "qwen" => return Ok(()),
         "gemini" => gemini::rejection(),
         "codebuddy" => codebuddy::rejection(),
         "goose" => goose::rejection(),
@@ -123,6 +123,18 @@ pub(super) fn prepare_supplier(agent: &str, view: Option<&MountedSkills>) -> Res
         && let Some(view) = view
     {
         claude::prepare(&view.0)?;
+    }
+    Ok(())
+}
+
+/// Apply only the Qwen scanner contract; model and credential settings stay independent.
+pub(super) fn configure_qwen(
+    agent: &str,
+    config: &mut crate::config::schema::AcpAgentConfig,
+    view: Option<&MountedSkills>,
+) -> Result<(), Error> {
+    if agent == "qwen" {
+        qwen::configure(config, view)?;
     }
     Ok(())
 }

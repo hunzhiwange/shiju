@@ -141,7 +141,7 @@ pub(crate) async fn do_stream_request_acp(
         }
         vw_api_types::acp_model_source::AcpModelSource::CliLocal => None,
     };
-    let normalized_acp_cfg = launch_profile
+    let mut normalized_acp_cfg = launch_profile
         .as_ref()
         .map(|profile| profile.config().clone())
         .unwrap_or(normalized_acp_cfg);
@@ -201,6 +201,11 @@ pub(crate) async fn do_stream_request_acp(
         &scoped_session,
         &cfg.skills.security,
     )?;
+    super::skill_mounts::configure_qwen(
+        &acp_agent_name,
+        &mut normalized_acp_cfg,
+        parsed_options.skill_view.as_ref(),
+    )?;
     super::skill_mounts::prepare_supplier(&acp_agent_name, parsed_options.skill_view.as_ref())?;
     super::skill_mounts::validate(&acp_agent_name, !parsed_options.skill_mounts.is_empty())?;
     let close_client_after_request =
@@ -246,7 +251,7 @@ pub(crate) async fn do_stream_request_acp(
         if let Some(view) = &parsed_options.skill_view {
             view.0.validate().map_err(to_api_error)?;
         }
-        if matches!(acp_agent_name.as_str(), "codex" | "claude") {
+        if matches!(acp_agent_name.as_str(), "codex" | "claude" | "qwen") {
             super::session::stop_incompatible_cached_clients(
                 &acp_agent_name,
                 &normalized_acp_cfg,

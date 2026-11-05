@@ -56,8 +56,16 @@ def run(args):
                        RUST_MIN_STACK="33554432", VIBEWINDOW_CONFIG_DIR=str(root / "config"))
             with SkillMountFixture(root) as fixture:
                 fixture.claude_native = args.agent == "claude"
+                fixture.qwen_native = args.agent == "qwen"
                 native = root / "native"
                 native.mkdir(mode=0o700)
+                if args.agent == "qwen":
+                    fixture.forbidden_skill = "unselected-" + fixture.name
+                    for base in (root / ".qwen" / "skills", native / "skills"):
+                        decoy = base / fixture.forbidden_skill
+                        decoy.mkdir(parents=True)
+                        (decoy / "SKILL.md").write_text(
+                            "---\nname: " + fixture.forbidden_skill + "\ndescription: Must remain isolated\n---\nUNSELECTED_BODY\n")
                 isolation = isolated_environment(identity, native, fixture, mode)
                 env.update(isolation)
                 if args.agent == "codex":
@@ -66,7 +74,7 @@ def run(args):
                     report["engine_version"] = identity["underlying"]["release"]
                 else:
                     config = locate(identity, env)
-                if args.agent == "claude" and mode == "cli-local":
+                if args.agent in ("claude", "qwen") and mode == "cli-local":
                     config["env"] = isolation
                 binary = Path(config["command"]).resolve()
                 digest = hashlib.sha256(binary.read_bytes()).hexdigest()
@@ -98,7 +106,7 @@ def run(args):
                 flow = json.loads(flow_file.read_text()) if flow_file.exists() else {}
                 evidence = fixture.snapshot()
                 passed = (one_passed and accepted(evidence, flow, tests, result.returncode)
-                          and (args.agent != "claude" or evidence.get("native_skill_invocations", 0) > 0))
+                          and (args.agent not in ("claude", "qwen") or evidence.get("native_skill_invocations", 0) > 0))
                 report.update(evidence, passed=passed, status="passed" if passed else "failed",
                               reason="all skill assertions passed" if passed else "production skill lifecycle or observations incomplete",
                               effective_tests=tests, cargo_exit_code=result.returncode, command=command, diagnostics=diagnostics, build_errors=build_errors,

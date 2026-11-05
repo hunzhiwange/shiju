@@ -91,18 +91,38 @@ class SkillMountFixture:
     def native_skill_call(self, body, qualified, kind):
         for raw in body.get("tools", []):
             tool = raw.get("function", raw)
-            if tool.get("name") == "Skill" and "skill" in tool.get("parameters", {}).get("properties", {}):
+            if tool.get("name") == ("skill" if getattr(self, "qwen_native", False) else "Skill") and "skill" in tool.get("parameters", {}).get("properties", {}):
                 call_id = "mount_" + secrets.token_hex(12)
                 self.calls[call_id] = kind
                 self.native_skill_invocations += 1
                 self.call_events[call_id] = {"phase":self.mode, "kind":kind, "result_received":False, "matched":False}
                 self.total_calls += 1
-                return {"role":"assistant", "content":None, "tool_calls":[{"id":call_id, "type":"function", "function":{"name":"Skill", "arguments":json.dumps({"skill":qualified})}}]}, "tool_calls"
+                return {"role":"assistant", "content":None, "tool_calls":[{"id":call_id, "type":"function", "function":{"name":tool["name"], "arguments":json.dumps({"skill":qualified})}}]}, "tool_calls"
         raise ValueError("fixed CLI has no reviewed compatible tool schema")
 
     def response(self, body):
         with self.lock:
+            native_mode = getattr(self, "claude_native", False) or getattr(self, "qwen_native", False)
+            qualified = self.name if getattr(self, "qwen_native", False) else "shiju-session-skills:" + self.name
             messages = body["messages"]
+            if getattr(self, "qwen_native", False):
+                # Qwen serializes native function responses as JSON objects/arrays.
+                # Decode the actual correlated result instead of comparing JSON escapes.
+                def result_text(value):
+                    if isinstance(value, str):
+                        if value.lstrip().startswith(("[", "{")):
+                            try:
+                                return result_text(json.loads(value))
+                            except ValueError:
+                                pass
+                        return value
+                    if isinstance(value, list):
+                        return "\n".join(result_text(item) for item in value)
+                    if isinstance(value, dict):
+                        return "\n".join(result_text(item) for item in value.values())
+                    return ""
+                messages = [dict(message, content=result_text(message.get("content")))
+                            if message.get("role") == "tool" else message for message in messages]
             if not isinstance(messages, list):
                 raise ValueError("messages must be an array")
             if body.get("claude_native") or getattr(self, "claude_native", False):
@@ -134,28 +154,31 @@ class SkillMountFixture:
                     if Path(path) != self.skill and Path(path).is_file()
                     and Path(path).read_bytes() == self.skill.read_bytes()), None)
                 self.native_skill = None
-                if body.get("claude_native") or getattr(self, "claude_native", False):
+                if body.get("claude_native") or native_mode:
                     catalog = metadata + json.dumps(body.get("tools", []))
-                    qualified = "shiju-session-skills:" + self.name
+                    if getattr(self, "qwen_native", False):
+                        catalog = "\n".join(re.findall(r"<available_skills>(.*?)</available_skills>", metadata, re.S))
+                    if getattr(self, "qwen_native", False) and getattr(self, "forbidden_skill", "") and self.forbidden_skill in catalog:
+                        raise ValueError("unselected native skill leaked")
                     self.native_catalog = {"selected_name_in_metadata": self.name in metadata,
                         "selected_name_in_tools": self.name in json.dumps(body.get("tools", [])),
                         "tool_names": [t.get("function", t).get("name") for t in body.get("tools", [])]}
                     if qualified in catalog:
                         self.native_skill = qualified
                 discovered = self.discovered_dir is not None or self.native_skill is not None
-                self.discovery += int(discovered and not (getattr(self, "claude_native", False) and self.mode == "absent"))
+                self.discovery += int(discovered and not (native_mode and self.mode == "absent"))
                 self.discovery_observations.append({"phase": self.mode, "mounted_view": discovered})
                 self.phase_first = False
-                if self.mode == "added" and not getattr(self, "claude_native", False) and self.name + "-added" not in metadata:
+                if self.mode == "added" and not native_mode and self.name + "-added" not in metadata:
                     raise ValueError("added skill was not discovered")
-                if self.mode == "absent" and discovered and not getattr(self, "claude_native", False):
+                if self.mode == "absent" and discovered and not native_mode:
                     raise ValueError("removed or other-session skill leaked")
             if self.mode == "absent":
-                if getattr(self, "claude_native", False):
+                if native_mode:
                     for message in messages:
                         if message.get("role") == "tool" and self.calls.get(message.get("tool_call_id")) == "missing":
                             content = str(message.get("content", ""))
-                            if "Unknown skill: shiju-session-skills:" + self.name not in content:
+                            if not (("Unknown skill: " + qualified in content) or (getattr(self, "qwen_native", False) and qualified in content and "not found" in content)):
                                 raise ValueError("removed or other-session skill leaked")
                             event = self.call_events[message["tool_call_id"]]
                             if not event["result_received"]:
@@ -164,9 +187,9 @@ class SkillMountFixture:
                             self.discovery_observations[-1]["mounted_view"] = False
                             self.discovery_observations[-1]["native_rejection_verified"] = True
                             return {"role":"assistant", "content":"SKILL_ABSENT"}, "stop"
-                    return self.native_skill_call(body, "shiju-session-skills:" + self.name, "missing")
+                    return self.native_skill_call(body, qualified, "missing")
                 return {"role": "assistant", "content": "SKILL_ABSENT"}, "stop"
-            if self.mode == "added" and getattr(self, "claude_native", False) and not self.added_confirmed:
+            if self.mode == "added" and native_mode and not self.added_confirmed:
                 for message in messages:
                     if message.get("role") == "tool" and self.calls.get(message.get("tool_call_id")) == "added":
                         if "ADDED_SKILL_BODY" not in str(message.get("content", "")):
@@ -178,7 +201,7 @@ class SkillMountFixture:
                         self.added_confirmed = True
                         self.discovery_observations[-1]["added_native_verified"] = True
                 if not self.added_confirmed:
-                    return self.native_skill_call(body, "shiju-session-skills:" + self.name + "-added", "added")
+                    return self.native_skill_call(body, qualified + "-added", "added")
             if self.native_skill and not self.discovered_dir:
                 # Learn the view path from the actual native Skill result, never the fixture source.
                 for message in messages:

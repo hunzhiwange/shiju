@@ -220,7 +220,7 @@ fn checkpoint(flow: &Value) {
 
 async fn defaults(input: &Value, skills: &[&str], deny: bool) {
     let agent = format!("acp-{}", input["agent"].as_str().unwrap());
-    crate::config::update(json!({"agents":{agent:{"provider":"", "model":"",
+    crate::config::update(json!({"agents":{agent:{"enabled":true,"provider":"", "model":"",
         "permission":if deny { json!({"*":"deny"}) } else { json!({}) },
         "defaults":{"skills":{"mode":"fixed","value":skills}, "mcp":{"mode":"fixed","value":[]}}}}}))
         .await.unwrap();

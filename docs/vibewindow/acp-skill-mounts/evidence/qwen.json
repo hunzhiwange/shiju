@@ -1,0 +1,642 @@
+{
+  "schema_version": 1,
+  "agent": "qwen",
+  "status": "verified",
+  "verified_on": "2026-11-05",
+  "platform": "Darwin-arm64",
+  "scope": "Only the reviewed patched Qwen 0.26.7 distribution on Darwin-arm64. Linux, Windows, unpatched releases and other versions remain unverified.",
+  "identity": {
+    "package": "@qwen-code/qwen-code",
+    "version": "0.26.7",
+    "npm_integrity": "sha512-sRFWwmakpvF3bWBfG1M/ijoZG5h8Yxs0IC4cXZP3dJLyEbbTHItyhzMySG4o4CzLGFIfofArummQJo/xcggweQ==",
+    "reviewed_files": {
+      "cli-entry.js": "89c392458627a27448ffaed32102554f0cb72a70f4ec1e60527fa56068afb387",
+      "chunks/chunk-VGW3ZY4O.js": "35026c0c49de4cb13cc793f09e69bf5a0f45a367cb4e66d63fa79f5ff7b41574",
+      "chunks/chunk-CW2OXNKS.js": "ea7ab39eb40dd00bd42ba18257ab9d4d1b97d85f99556e970434755efe372def",
+      "chunks/acpAgent-C3CM2WHA.js": "e81ff979d5633c2c7d4e5afb44e602f706aacac8e5a81e1ae58d0bd24e98e65d",
+      "chunks/chunk-BLIIEKZX.js": "8bbf8e32778ce66b7b40c22e45044c07c2004aa7702b5127b5a0a0d4abe04352",
+      "chunks/chunk-EPODBRBP.js": "ce69d9bebae89ff20290903aa3ec1101c42b0dfdce8c5fc594f6f5991e9454dc"
+    },
+    "patch_sha256": "42391f21774e7d4a824725063f702fc52b7be1b7136334ef42134c4e0f62a135",
+    "applier_sha256": "2938f92d04d93d6c3e35a4e374edb4fb0ffc5e293369c428f8bb9113b13f4fdd",
+    "installation": "Verified official archive extracted into target/qwen-skill-runtime; strict original-file/context checks applied; no global CLI replacement."
+  },
+  "native_contract": {
+    "entry": "SHIJU_QWEN_SKILL_ROOT points at the audited request-owned SessionSkillView; selected mounts require verify_reviewed_agent_executable.",
+    "discovery": "The real native SkillManager scans only the user level at the owned root; project, bundled and extension levels are excluded. Empty root disables native skill levels in the reviewed scanner.",
+    "activation": "Real qwen skill tool loads the manifest on demand and returns its mounted base directory; the model fixture learns that path from the correlated native result.",
+    "experimental_flag": "The upstream experimental-skills flag is deprecated and ignored; it is not discovery or registration evidence.",
+    "filesystem": "ACP canonical read roots include only selected mount sources for qwen. Unselected files, escaped symlinks, writes and deny-all remain rejected; full_access is unchanged.",
+    "updates": "Changed owner-scoped view retires the cached native CLI; real new/add/remove/V2/idle update/isolation/cancellation/restart and permission-denial assertions were observed.",
+    "isolation_probes": "Unselected SKILL.md fixtures planted in private project .qwen/skills and cli_local QWEN_HOME/skills must not appear in the native available_skills catalog."
+  },
+  "verification": {
+    "red_gate": {
+      "command": "cargo test -p vw-agent --lib acp_skill_mount_qwen_ -- --nocapture --test-threads=1",
+      "exit_code": 101,
+      "effective_tests": 1,
+      "failed": 1,
+      "reason": "Existing unverified gate rejected selected qwen mounts.",
+      "slot": 3
+    },
+    "red_read_boundary": {
+      "command": "cargo test -p vw-acp --lib acp_skill_mount_qwen_ -- --nocapture --test-threads=1",
+      "exit_code": 101,
+      "effective_tests": 1,
+      "failed": 1,
+      "reason": "Selected source read rejected as outside cwd before adding qwen to existing scoped-read bridge.",
+      "slot": 2
+    },
+    "focused": {
+      "command": "cargo test -p vw-acp -p vw-agent --lib acp_skill_mount_qwen_ -- --nocapture --test-threads=1",
+      "exit_code": 0,
+      "passed": 4,
+      "ignored": 0,
+      "slot": 2
+    },
+    "framework": {
+      "command": "python3 -m unittest discover -s scripts/tests -p test_verify_acp_skill_mounts.py",
+      "exit_code": 0,
+      "passed": 23
+    },
+    "format": {
+      "command": "cargo fmt --all",
+      "exit_code": 0
+    },
+    "clippy": {
+      "command": "cargo clippy --all-targets --all-features -- -D warnings",
+      "exit_code": 0,
+      "regression": "The concurrent runner.rs E0425 was repaired by its owning task; the required full Clippy was then rerun successfully without changing that module.",
+      "previous_exit_code": 101
+    },
+    "supplier_commands": [
+      "python3 scripts/verify_acp_skill_mounts.py --agent qwen --manifest docs/vibewindow/acp-skill-mounts/agents.json --output \"$CARGO_TARGET_DIR/acp-skill-mount-evidence/qwen/session-model.json\"",
+      "python3 scripts/verify_acp_skill_mounts.py --agent qwen --mode cli-local --manifest docs/vibewindow/acp-skill-mounts/agents.json --output \"$CARGO_TARGET_DIR/acp-skill-mount-evidence/qwen/cli-local.json\""
+    ],
+    "supplier_exit_codes": [
+      0,
+      0
+    ],
+    "expected_diagnostics": "Cancellation and permission-denial diagnostics are intentional lifecycle assertions. One cancelled request has no tool result; fixture errors are zero.",
+    "prior_attempts": "The disabled stock qwen test preset was explicitly enabled only in isolated acceptance configuration. Native JSON function responses were decoded for matching; a real fs/read_text_file failure was fixed in the scoped ACP bridge. Earlier zero-request, timed-out or interrupted attempts are not counted as passing evidence.",
+    "commit_hook": "The repository cargo-husky hook unconditionally runs cargo test --all and cargo fmt --all -- --check, forbidden by this task. Disable hooks for this commit only, without modifying repository configuration."
+  },
+  "model_boundary": "Only external model HTTP is a fixture. Actual fixed CLI, production ACP backend, native catalog/skill invocation, filesystem reads, script subprocesses and CLI restarts are real.",
+  "sources": {
+    "session-model": {
+      "agent": "qwen",
+      "status": "passed",
+      "passed": true,
+      "platform": "Darwin-arm64",
+      "mount_source_mode": "session-directory",
+      "model_source": "session-model",
+      "effective_tests": 1,
+      "version": "0.26.7",
+      "sha256": "89c392458627a27448ffaed32102554f0cb72a70f4ec1e60527fa56068afb387",
+      "model_requests": 35,
+      "tool_requests": 25,
+      "tool_results": 24,
+      "lifecycle": {
+        "new": true,
+        "add": true,
+        "remove": true,
+        "v2": true,
+        "isolated": true,
+        "cancel": true,
+        "idle_update": true,
+        "restart": true,
+        "permission_denied": true
+      },
+      "cargo_target_dir": "/Users/xiangmin/worker/code/shiju/target/rust-slot-2",
+      "discovery_events": 8,
+      "first_prompt_clean": true,
+      "errors": 0,
+      "native_catalog": {
+        "selected_name_in_metadata": true,
+        "selected_name_in_tools": false,
+        "tool_names": [
+          "ask_user_question",
+          "edit",
+          "enter_plan_mode",
+          "exit_plan_mode",
+          "glob",
+          "grep_search",
+          "notebook_edit",
+          "read_file",
+          "run_shell_command",
+          "skill",
+          "tool_call",
+          "tool_search",
+          "write_file"
+        ]
+      },
+      "error_categories": [],
+      "native_skill_invocations": 11,
+      "tool_events": [
+        {
+          "phase": "present",
+          "kind": "skill",
+          "result_received": true,
+          "matched": true
+        },
+        {
+          "phase": "present",
+          "kind": "read",
+          "result_received": true,
+          "matched": true
+        },
+        {
+          "phase": "present",
+          "kind": "execute",
+          "result_received": true,
+          "matched": true
+        },
+        {
+          "phase": "added",
+          "kind": "added",
+          "result_received": true,
+          "matched": true
+        },
+        {
+          "phase": "added",
+          "kind": "skill",
+          "result_received": true,
+          "matched": true
+        },
+        {
+          "phase": "added",
+          "kind": "read",
+          "result_received": true,
+          "matched": true
+        },
+        {
+          "phase": "added",
+          "kind": "execute",
+          "result_received": true,
+          "matched": true
+        },
+        {
+          "phase": "absent",
+          "kind": "missing",
+          "result_received": true,
+          "matched": true
+        },
+        {
+          "phase": "present",
+          "kind": "skill",
+          "result_received": true,
+          "matched": true
+        },
+        {
+          "phase": "present",
+          "kind": "read",
+          "result_received": true,
+          "matched": true
+        },
+        {
+          "phase": "present",
+          "kind": "execute",
+          "result_received": true,
+          "matched": true
+        },
+        {
+          "phase": "absent",
+          "kind": "missing",
+          "result_received": true,
+          "matched": true
+        },
+        {
+          "phase": "present",
+          "kind": "skill",
+          "result_received": true,
+          "matched": true
+        },
+        {
+          "phase": "present",
+          "kind": "read",
+          "result_received": true,
+          "matched": true
+        },
+        {
+          "phase": "present",
+          "kind": "execute",
+          "result_received": true,
+          "matched": true
+        },
+        {
+          "phase": "present",
+          "kind": "skill",
+          "result_received": true,
+          "matched": true
+        },
+        {
+          "phase": "present",
+          "kind": "read",
+          "result_received": true,
+          "matched": true
+        },
+        {
+          "phase": "present",
+          "kind": "execute",
+          "result_received": true,
+          "matched": true
+        },
+        {
+          "phase": "cancel",
+          "kind": "skill",
+          "result_received": false,
+          "matched": false
+        },
+        {
+          "phase": "present",
+          "kind": "skill",
+          "result_received": true,
+          "matched": true
+        },
+        {
+          "phase": "present",
+          "kind": "read",
+          "result_received": true,
+          "matched": true
+        },
+        {
+          "phase": "present",
+          "kind": "execute",
+          "result_received": true,
+          "matched": true
+        },
+        {
+          "phase": "present",
+          "kind": "skill",
+          "result_received": true,
+          "matched": true
+        },
+        {
+          "phase": "present",
+          "kind": "read",
+          "result_received": true,
+          "matched": true
+        },
+        {
+          "phase": "present",
+          "kind": "execute",
+          "result_received": true,
+          "matched": true
+        }
+      ],
+      "discovery_observations": [
+        {
+          "phase": "present",
+          "mounted_view": true
+        },
+        {
+          "phase": "added",
+          "mounted_view": true,
+          "added_native_verified": true
+        },
+        {
+          "phase": "absent",
+          "mounted_view": false,
+          "native_rejection_verified": true
+        },
+        {
+          "phase": "present",
+          "mounted_view": true
+        },
+        {
+          "phase": "absent",
+          "mounted_view": false,
+          "native_rejection_verified": true
+        },
+        {
+          "phase": "present",
+          "mounted_view": true
+        },
+        {
+          "phase": "present",
+          "mounted_view": true
+        },
+        {
+          "phase": "cancel",
+          "mounted_view": true
+        },
+        {
+          "phase": "present",
+          "mounted_view": true
+        },
+        {
+          "phase": "present",
+          "mounted_view": true
+        }
+      ],
+      "skill_body_read": true,
+      "attachment_read": true,
+      "script_executed": true,
+      "reason": "all skill assertions passed",
+      "cargo_exit_code": 0,
+      "command": [
+        "cargo",
+        "test",
+        "-p",
+        "vw-agent",
+        "--lib",
+        "acp_skill_mount_real_qwen",
+        "--",
+        "--ignored",
+        "--nocapture",
+        "--test-threads=1"
+      ],
+      "diagnostics": [
+        "aborted",
+        "acp option error: default skill is denied by permission policy",
+        "done=false; output=; events=[]"
+      ],
+      "build_errors": []
+    },
+    "cli-local": {
+      "agent": "qwen",
+      "status": "passed",
+      "passed": true,
+      "platform": "Darwin-arm64",
+      "mount_source_mode": "session-directory",
+      "model_source": "cli-local",
+      "effective_tests": 1,
+      "version": "0.26.7",
+      "sha256": "89c392458627a27448ffaed32102554f0cb72a70f4ec1e60527fa56068afb387",
+      "model_requests": 52,
+      "tool_requests": 25,
+      "tool_results": 24,
+      "lifecycle": {
+        "new": true,
+        "add": true,
+        "remove": true,
+        "v2": true,
+        "isolated": true,
+        "cancel": true,
+        "idle_update": true,
+        "restart": true,
+        "permission_denied": true
+      },
+      "cargo_target_dir": "/Users/xiangmin/worker/code/shiju/target/rust-slot-2",
+      "discovery_events": 8,
+      "first_prompt_clean": true,
+      "errors": 0,
+      "native_catalog": {
+        "selected_name_in_metadata": true,
+        "selected_name_in_tools": false,
+        "tool_names": [
+          "ask_user_question",
+          "edit",
+          "enter_plan_mode",
+          "exit_plan_mode",
+          "glob",
+          "grep_search",
+          "notebook_edit",
+          "read_file",
+          "run_shell_command",
+          "skill",
+          "tool_call",
+          "tool_search",
+          "write_file"
+        ]
+      },
+      "error_categories": [],
+      "native_skill_invocations": 11,
+      "tool_events": [
+        {
+          "phase": "present",
+          "kind": "skill",
+          "result_received": true,
+          "matched": true
+        },
+        {
+          "phase": "present",
+          "kind": "read",
+          "result_received": true,
+          "matched": true
+        },
+        {
+          "phase": "present",
+          "kind": "execute",
+          "result_received": true,
+          "matched": true
+        },
+        {
+          "phase": "added",
+          "kind": "added",
+          "result_received": true,
+          "matched": true
+        },
+        {
+          "phase": "added",
+          "kind": "skill",
+          "result_received": true,
+          "matched": true
+        },
+        {
+          "phase": "added",
+          "kind": "read",
+          "result_received": true,
+          "matched": true
+        },
+        {
+          "phase": "added",
+          "kind": "execute",
+          "result_received": true,
+          "matched": true
+        },
+        {
+          "phase": "absent",
+          "kind": "missing",
+          "result_received": true,
+          "matched": true
+        },
+        {
+          "phase": "present",
+          "kind": "skill",
+          "result_received": true,
+          "matched": true
+        },
+        {
+          "phase": "present",
+          "kind": "read",
+          "result_received": true,
+          "matched": true
+        },
+        {
+          "phase": "present",
+          "kind": "execute",
+          "result_received": true,
+          "matched": true
+        },
+        {
+          "phase": "absent",
+          "kind": "missing",
+          "result_received": true,
+          "matched": true
+        },
+        {
+          "phase": "present",
+          "kind": "skill",
+          "result_received": true,
+          "matched": true
+        },
+        {
+          "phase": "present",
+          "kind": "read",
+          "result_received": true,
+          "matched": true
+        },
+        {
+          "phase": "present",
+          "kind": "execute",
+          "result_received": true,
+          "matched": true
+        },
+        {
+          "phase": "present",
+          "kind": "skill",
+          "result_received": true,
+          "matched": true
+        },
+        {
+          "phase": "present",
+          "kind": "read",
+          "result_received": true,
+          "matched": true
+        },
+        {
+          "phase": "present",
+          "kind": "execute",
+          "result_received": true,
+          "matched": true
+        },
+        {
+          "phase": "cancel",
+          "kind": "skill",
+          "result_received": false,
+          "matched": false
+        },
+        {
+          "phase": "present",
+          "kind": "skill",
+          "result_received": true,
+          "matched": true
+        },
+        {
+          "phase": "present",
+          "kind": "read",
+          "result_received": true,
+          "matched": true
+        },
+        {
+          "phase": "present",
+          "kind": "execute",
+          "result_received": true,
+          "matched": true
+        },
+        {
+          "phase": "present",
+          "kind": "skill",
+          "result_received": true,
+          "matched": true
+        },
+        {
+          "phase": "present",
+          "kind": "read",
+          "result_received": true,
+          "matched": true
+        },
+        {
+          "phase": "present",
+          "kind": "execute",
+          "result_received": true,
+          "matched": true
+        }
+      ],
+      "discovery_observations": [
+        {
+          "phase": "present",
+          "mounted_view": true
+        },
+        {
+          "phase": "added",
+          "mounted_view": true,
+          "added_native_verified": true
+        },
+        {
+          "phase": "absent",
+          "mounted_view": false,
+          "native_rejection_verified": true
+        },
+        {
+          "phase": "present",
+          "mounted_view": true
+        },
+        {
+          "phase": "absent",
+          "mounted_view": false,
+          "native_rejection_verified": true
+        },
+        {
+          "phase": "present",
+          "mounted_view": true
+        },
+        {
+          "phase": "present",
+          "mounted_view": true
+        },
+        {
+          "phase": "cancel",
+          "mounted_view": true
+        },
+        {
+          "phase": "present",
+          "mounted_view": true
+        },
+        {
+          "phase": "present",
+          "mounted_view": true
+        }
+      ],
+      "skill_body_read": true,
+      "attachment_read": true,
+      "script_executed": true,
+      "reason": "all skill assertions passed",
+      "cargo_exit_code": 0,
+      "command": [
+        "cargo",
+        "test",
+        "-p",
+        "vw-agent",
+        "--lib",
+        "acp_skill_mount_real_qwen",
+        "--",
+        "--ignored",
+        "--nocapture",
+        "--test-threads=1"
+      ],
+      "diagnostics": [
+        "aborted",
+        "acp option error: default skill is denied by permission policy",
+        "done=false; output=; events=[]"
+      ],
+      "build_errors": []
+    }
+  },
+  "cargo": {
+    "slots": [
+      3,
+      2
+    ],
+    "CARGO_TARGET_DIR": [
+      "/Users/xiangmin/worker/code/shiju/target/rust-slot-3",
+      "/Users/xiangmin/worker/code/shiju/target/rust-slot-2"
+    ],
+    "final_validation_slot": 2,
+    "final_CARGO_TARGET_DIR": "/Users/xiangmin/worker/code/shiju/target/rust-slot-2",
+    "acquisition": "Atomic mkdir per phase with task/session/PID owner record; absolute CARGO_TARGET_DIR and CARGO_BUILD_BUILD_DIR inherited by scripts.",
+    "lock_released": true,
+    "cache_preserved": true
+  }
+}

@@ -301,5 +301,51 @@ class SkillMountHarnessTests(unittest.TestCase):
             self.assertEqual(fixture.snapshot()["model_requests"], 1)
 
 
+    def test_qwen_user_prompt_name_is_not_native_discovery(self):
+        with tempfile.TemporaryDirectory() as directory:
+            fixture = SkillMountFixture(Path(directory))
+            fixture.qwen_native = True
+            with self.assertRaisesRegex(ValueError, "mounted view"):
+                fixture.response({"messages": [{"role": "user", "content": fixture.prompt}], "tools": []})
+            self.assertEqual(fixture.snapshot()["discovery_events"], 0)
+
+    def test_qwen_native_catalog_requires_real_skill_result_with_view_path(self):
+        with tempfile.TemporaryDirectory() as directory:
+            fixture = SkillMountFixture(Path(directory))
+            fixture.qwen_native = True
+            body = {"messages": [{"role": "user", "content": "<available_skills>" + fixture.name + "</available_skills>"}],
+                    "tools": [{"type": "function", "function": {"name": "skill", "parameters": {
+                        "properties": {"skill": {"type": "string"}}, "required": ["skill"]}}}]}
+            message, finish = fixture.response(body)
+            self.assertEqual(finish, "tool_calls")
+            call = message["tool_calls"][0]
+            self.assertEqual(call["function"]["name"], "skill")
+            self.assertEqual(json.loads(call["function"]["arguments"]), {"skill": fixture.name})
+            body["messages"].append({"role": "tool", "tool_call_id": call["id"], "content": "unregistered"})
+            with self.assertRaisesRegex(ValueError, "mounted view"):
+                fixture.response(body)
+            self.assertFalse(accepted(fixture.snapshot(), {}, 1, 0))
+
+
+    def test_qwen_json_native_result_is_decoded_before_requesting_attachment(self):
+        with tempfile.TemporaryDirectory() as directory:
+            fixture = SkillMountFixture(Path(directory))
+            fixture.qwen_native = True
+            view = Path(self.advertised(fixture)[0]["content"].split()[-1]).parent
+            body = {"messages": [{"role": "user", "content": "<available_skills>" + fixture.name + "</available_skills>"}],
+                    "tools": [{"type": "function", "function": {"name": "skill", "parameters": {
+                        "properties": {"skill": {"type": "string"}}, "required": ["skill"]}}},
+                        {"type": "function", "function": {"name": "read_file", "parameters": {
+                        "properties": {"absolute_path": {"type": "string"}}, "required": ["absolute_path"]}}}]}
+            message, _ = fixture.response(body)
+            call = message["tool_calls"][0]
+            content = "Base directory for this skill: " + str(view) + "\n" + fixture.skill.read_text().split("---\n")[-1]
+            body["messages"].append({"role": "tool", "tool_call_id": call["id"],
+                                     "content": json.dumps({"output": [{"text": content}]})})
+            message, _ = fixture.response(body)
+            self.assertEqual(message["tool_calls"][0]["function"]["name"], "read_file")
+            self.assertTrue(fixture.snapshot()["skill_body_read"])
+
+
 if __name__ == "__main__":
     unittest.main()

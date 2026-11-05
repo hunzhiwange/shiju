@@ -201,6 +201,7 @@ pub(crate) async fn do_stream_request_acp(
         &scoped_session,
         &cfg.skills.security,
     )?;
+    super::skill_mounts::prepare_supplier(&acp_agent_name, parsed_options.skill_view.as_ref())?;
     super::skill_mounts::validate(&acp_agent_name, !parsed_options.skill_mounts.is_empty())?;
     let close_client_after_request =
         parse_close_client_after_request(merged_options)? || launch_profile.is_some();
@@ -245,7 +246,7 @@ pub(crate) async fn do_stream_request_acp(
         if let Some(view) = &parsed_options.skill_view {
             view.0.validate().map_err(to_api_error)?;
         }
-        if acp_agent_name == "codex" {
+        if matches!(acp_agent_name.as_str(), "codex" | "claude") {
             super::session::stop_incompatible_cached_clients(
                 &acp_agent_name,
                 &normalized_acp_cfg,

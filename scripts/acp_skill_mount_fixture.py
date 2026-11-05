@@ -38,6 +38,7 @@ class SkillMountFixture:
         self.results = set()
         self.records = []
         self.errors = 0
+        self.error_categories = []
         self.discovery = 0
         self.first_prompt_clean = None
         self.lock = threading.RLock()
@@ -48,12 +49,18 @@ class SkillMountFixture:
         self.completed_kinds = set()
         self.phase_first = True
         self.discovered_dir = None
+        self.native_skill = None
+        self.native_catalog = {}
+        self.native_skill_invocations = 0
+        self.added_confirmed = False
 
     def snapshot(self):
         with self.lock:
             return {"model_requests": len(self.records), "tool_requests": self.total_calls,
                     "tool_results": self.total_results, "discovery_events": self.discovery,
                     "first_prompt_clean": self.first_prompt_clean is True, "errors": self.errors,
+                    "native_catalog": self.native_catalog, "error_categories": list(self.error_categories),
+                    "native_skill_invocations": self.native_skill_invocations,
                     "tool_events": [dict(event) for event in self.call_events.values()],
                     "discovery_observations": list(self.discovery_observations),
                     "skill_body_read": "skill" in self.completed_kinds, "attachment_read": "read" in self.completed_kinds, "script_executed": "execute" in self.completed_kinds}
@@ -70,8 +77,9 @@ class SkillMountFixture:
             if not event["result_received"]:
                 self.total_results += 1
                 event["result_received"] = True
-            matched = ((kind == "skill" and self.skill.read_text().split("---\n")[-1].strip() in str(message.get("content", "")))
-                       or (kind != "skill" and self.secret in str(message.get("content", ""))))
+            matched = ((kind == "added" and "ADDED_SKILL_BODY" in str(message.get("content", "")))
+                       or (kind == "skill" and self.skill.read_text().split("---\n")[-1].strip() in str(message.get("content", "")))
+                       or (kind not in ("skill", "added") and self.secret in str(message.get("content", ""))))
             event["matched"] = matched
             if matched:
                 self.results.add(kind)
@@ -80,11 +88,39 @@ class SkillMountFixture:
             raise ValueError("attachment read and script execution are required")
         return "SKILL_MOUNT_REPLY " + self.secret
 
+    def native_skill_call(self, body, qualified, kind):
+        for raw in body.get("tools", []):
+            tool = raw.get("function", raw)
+            if tool.get("name") == "Skill" and "skill" in tool.get("parameters", {}).get("properties", {}):
+                call_id = "mount_" + secrets.token_hex(12)
+                self.calls[call_id] = kind
+                self.native_skill_invocations += 1
+                self.call_events[call_id] = {"phase":self.mode, "kind":kind, "result_received":False, "matched":False}
+                self.total_calls += 1
+                return {"role":"assistant", "content":None, "tool_calls":[{"id":call_id, "type":"function", "function":{"name":"Skill", "arguments":json.dumps({"skill":qualified})}}]}, "tool_calls"
+        raise ValueError("fixed CLI has no reviewed compatible tool schema")
+
     def response(self, body):
         with self.lock:
             messages = body["messages"]
             if not isinstance(messages, list):
                 raise ValueError("messages must be an array")
+            if body.get("claude_native") or getattr(self, "claude_native", False):
+                # SDK 0.2.96 returns a correlated launch result, then a separate user
+                # block containing the actual on-disk skill expansion and base path.
+                normalized = []
+                for index, message in enumerate(messages):
+                    kind = self.calls.get(message.get("tool_call_id"))
+                    target = "shiju-session-skills:" + self.name + ("-added" if kind == "added" else "")
+                    marker = "ADDED_SKILL_BODY" if kind == "added" else self.body_marker
+                    if (message.get("role") == "tool" and kind in ("skill", "added")
+                            and "Launching skill: " + target in str(message.get("content", ""))):
+                        expansion = next((str(later.get("content", "")) for later in messages[index + 1:]
+                            if later.get("role") == "user" and marker in str(later.get("content", ""))
+                            and "Base directory for this skill:" in str(later.get("content", ""))), "")
+                        message = dict(message, content=str(message.get("content", "")) + "\n" + expansion)
+                    normalized.append(message)
+                messages = normalized
             first_request = not self.records
             self.records.append(True)
             if self.phase_first:
@@ -97,16 +133,65 @@ class SkillMountFixture:
                 self.discovered_dir = next((Path(path).parent for path in candidates
                     if Path(path) != self.skill and Path(path).is_file()
                     and Path(path).read_bytes() == self.skill.read_bytes()), None)
-                discovered = self.discovered_dir is not None
-                self.discovery += int(discovered)
+                self.native_skill = None
+                if body.get("claude_native") or getattr(self, "claude_native", False):
+                    catalog = metadata + json.dumps(body.get("tools", []))
+                    qualified = "shiju-session-skills:" + self.name
+                    self.native_catalog = {"selected_name_in_metadata": self.name in metadata,
+                        "selected_name_in_tools": self.name in json.dumps(body.get("tools", [])),
+                        "tool_names": [t.get("function", t).get("name") for t in body.get("tools", [])]}
+                    if qualified in catalog:
+                        self.native_skill = qualified
+                discovered = self.discovered_dir is not None or self.native_skill is not None
+                self.discovery += int(discovered and not (getattr(self, "claude_native", False) and self.mode == "absent"))
                 self.discovery_observations.append({"phase": self.mode, "mounted_view": discovered})
                 self.phase_first = False
-                if self.mode == "added" and self.name + "-added" not in metadata:
+                if self.mode == "added" and not getattr(self, "claude_native", False) and self.name + "-added" not in metadata:
                     raise ValueError("added skill was not discovered")
-                if self.mode == "absent" and discovered:
+                if self.mode == "absent" and discovered and not getattr(self, "claude_native", False):
                     raise ValueError("removed or other-session skill leaked")
             if self.mode == "absent":
+                if getattr(self, "claude_native", False):
+                    for message in messages:
+                        if message.get("role") == "tool" and self.calls.get(message.get("tool_call_id")) == "missing":
+                            content = str(message.get("content", ""))
+                            if "Unknown skill: shiju-session-skills:" + self.name not in content:
+                                raise ValueError("removed or other-session skill leaked")
+                            event = self.call_events[message["tool_call_id"]]
+                            if not event["result_received"]:
+                                self.total_results += 1
+                            event.update(result_received=True, matched=True)
+                            self.discovery_observations[-1]["mounted_view"] = False
+                            self.discovery_observations[-1]["native_rejection_verified"] = True
+                            return {"role":"assistant", "content":"SKILL_ABSENT"}, "stop"
+                    return self.native_skill_call(body, "shiju-session-skills:" + self.name, "missing")
                 return {"role": "assistant", "content": "SKILL_ABSENT"}, "stop"
+            if self.mode == "added" and getattr(self, "claude_native", False) and not self.added_confirmed:
+                for message in messages:
+                    if message.get("role") == "tool" and self.calls.get(message.get("tool_call_id")) == "added":
+                        if "ADDED_SKILL_BODY" not in str(message.get("content", "")):
+                            raise ValueError("added skill was not discovered")
+                        event = self.call_events[message["tool_call_id"]]
+                        if not event["result_received"]:
+                            self.total_results += 1
+                        event.update(result_received=True, matched=True)
+                        self.added_confirmed = True
+                        self.discovery_observations[-1]["added_native_verified"] = True
+                if not self.added_confirmed:
+                    return self.native_skill_call(body, "shiju-session-skills:" + self.name + "-added", "added")
+            if self.native_skill and not self.discovered_dir:
+                # Learn the view path from the actual native Skill result, never the fixture source.
+                for message in messages:
+                    if message.get("role") != "tool" or self.calls.get(message.get("tool_call_id")) != "skill":
+                        continue
+                    paths = re.findall(r"(/[^\s<>\"'`\\]*" + re.escape("/" + self.name) + r")", str(message.get("content", "")))
+                    self.discovered_dir = next((Path(path) for path in paths
+                        if Path(path) != self.directory and (Path(path) / "SKILL.md").is_file()
+                        and (Path(path) / "SKILL.md").read_bytes() == self.skill.read_bytes()), None)
+                if not self.discovered_dir:
+                    if any(kind == "skill" for kind in self.calls.values()):
+                        raise ValueError("native Skill result did not identify the mounted view")
+                    return self.native_skill_call(body, self.native_skill, "skill")
             if not self.discovered_dir:
                 raise ValueError("native catalog has no accessible mounted view of the skill")
             try:
@@ -174,6 +259,7 @@ class SkillMountFixture:
                     with fixture.lock:
                         fixture.mode = body["mode"]
                         fixture.results.clear()
+                        fixture.added_confirmed = False
                         fixture.calls.clear()
                         fixture.phase_first = True
                         fixture.secret = secrets.token_hex(24)
@@ -182,7 +268,10 @@ class SkillMountFixture:
                     self.end_headers()
                     return
                 try:
-                    if self.path not in ("/v1/chat/completions", "/v1/responses") or self.headers.get("Authorization") != "Bearer " + fixture.key:
+                    route = self.path.split("?", 1)[0]
+                    authenticated = (self.headers.get("Authorization") == "Bearer " + fixture.key
+                                     or route == "/v1/messages" and self.headers.get("x-api-key") == fixture.key)
+                    if route not in ("/v1/chat/completions", "/v1/responses", "/v1/messages") or not authenticated:
                         raise ValueError("route or authentication")
                     size = int(self.headers.get("Content-Length", "0"))
                     if not 0 < size <= 8 * 1024 * 1024:
@@ -190,7 +279,10 @@ class SkillMountFixture:
                     body = json.loads(self.rfile.read(size))
                     if body.get("model") not in fixture.models:
                         raise ValueError("unexpected model")
-                    if self.path == "/v1/responses":
+                    if route == "/v1/messages":
+                        from acp_skill_mount_claude import messages_message
+                        message, finish = messages_message(fixture, body)
+                    elif route == "/v1/responses":
                         from acp_skill_mount_codex import responses_message
                         message, finish = responses_message(fixture, body)
                     else:
@@ -211,15 +303,27 @@ class SkillMountFixture:
                     else:
                         data = json.dumps(value).encode()
                         content_type = "application/json"
-                    if self.path == "/v1/responses":
+                    if route == "/v1/responses":
                         from acp_skill_mount_codex import responses_wire
                         response, stream = responses_wire(message, body["model"])
                         data = stream if body.get("stream") else json.dumps(response).encode()
                         content_type = "text/event-stream" if body.get("stream") else "application/json"
+                    if route == "/v1/messages":
+                        from acp_skill_mount_claude import messages_wire
+                        response, stream = messages_wire(message, body["model"])
+                        data = stream if body.get("stream") else json.dumps(response).encode()
+                        content_type = "text/event-stream" if body.get("stream") else "application/json"
                     self.send_response(200)
-                except (ValueError, KeyError, TypeError, AttributeError):
+                except (ValueError, KeyError, TypeError, AttributeError) as error:
                     with fixture.lock:
                         fixture.errors += 1
+                        known = {"route or authentication", "unexpected model", "request size", "native catalog has no accessible mounted view of the skill",
+                                 "native Skill result did not identify the mounted view",
+                                 "fixed CLI has no reviewed compatible tool schema",
+                                 "added skill was not discovered", "removed or other-session skill leaked"}
+                        category = str(error) if str(error) in known else "wire or request validation"
+                        if category not in fixture.error_categories:
+                            fixture.error_categories.append(category)
                     self.send_response(422)
                     data, content_type = b'{"error":"skill fixture rejected request"}', "application/json"
                 self.send_header("Content-Type", content_type)

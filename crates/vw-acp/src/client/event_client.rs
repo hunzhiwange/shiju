@@ -48,7 +48,19 @@ impl AcpClient {
                 non_interactive_permissions: self.non_interactive_permissions,
                 on_operation: on_operation.clone(),
                 confirm_write: None,
-            }),
+            })
+            .with_skill_read_roots(
+                if matches!(self.agent_name.as_str(), "claude" | "claude code") {
+                    self.skill_mounts
+                        .as_ref()
+                        .into_iter()
+                        .flat_map(|selection| &selection.skills)
+                        .filter_map(|skill| Path::new(&skill.path).canonicalize().ok())
+                        .collect()
+                } else {
+                    Vec::new()
+                },
+            ),
             terminal_manager: TerminalManager::new(TerminalManagerOptions {
                 cwd: cwd.to_path_buf(),
                 permission_mode: self.permission_mode,

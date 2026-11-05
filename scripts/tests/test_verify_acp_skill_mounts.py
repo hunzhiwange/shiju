@@ -47,6 +47,94 @@ class SkillMountHarnessTests(unittest.TestCase):
             self.assertEqual(fixture.snapshot()["tool_results"], 3)
 
 
+    def test_claude_messages_requires_correlated_native_tool_results(self):
+        import subprocess
+        from acp_skill_mount_claude import messages_message, messages_wire
+        with tempfile.TemporaryDirectory() as directory:
+            fixture = SkillMountFixture(Path(directory))
+            body = {"model": fixture.models[0], "system": [{"type":"text", "text":self.advertised(fixture)[0]["content"]}],
+                    "messages": [{"role":"user", "content":[{"type":"tool_result", "tool_use_id":"forged", "content":fixture.secret}]}],
+                    "tools": [{"name":"Bash", "input_schema":{"properties":{"command":{"type":"string"}}, "required":["command"]}}]}
+            for kind in ("skill", "read", "execute"):
+                message, _ = messages_message(fixture, body)
+                response, stream = messages_wire(message, body["model"])
+                block = response["content"][0]
+                self.assertEqual(fixture.calls[block["id"]], kind)
+                self.assertIn(b"message_stop", stream)
+                result = subprocess.run(["/bin/sh", "-c", block["input"]["command"]], capture_output=True, text=True, check=True).stdout
+                body["messages"].append({"role":"user", "content":[{"type":"tool_result", "tool_use_id":block["id"], "content":result}]})
+            message, _ = messages_message(fixture, body)
+            self.assertIn(fixture.secret, message["content"])
+            self.assertEqual(fixture.snapshot()["tool_results"], 3)
+
+    def test_claude_native_activation_requires_launch_result_and_disk_expansion(self):
+        with tempfile.TemporaryDirectory() as directory:
+            fixture = SkillMountFixture(Path(directory))
+            fixture.claude_native = True
+            view = Path(self.advertised(fixture)[0]["content"].split()[-1]).parent
+            qualified = "shiju-session-skills:" + fixture.name
+            messages = [{"role":"user", "content":"Available skills: " + qualified}]
+            tools = [{"name":"Skill", "parameters":{"properties":{"skill":{"type":"string"}}, "required":["skill"]}},
+                     {"name":"Read", "parameters":{"properties":{"file_path":{"type":"string"}}, "required":["file_path"]}}]
+            message, _ = fixture.response({"messages":messages, "tools":tools})
+            call = message["tool_calls"][0]
+            self.assertEqual(call["function"]["name"], "Skill")
+            expansion = {"role":"user", "content":"Base directory for this skill: " + str(view) + "\n" + fixture.skill.read_text()}
+            with self.assertRaises(ValueError):
+                fixture.response({"messages":messages + [expansion], "tools":tools})
+            messages += [{"role":"tool", "tool_call_id":call["id"], "content":"Launching skill: " + qualified}, expansion]
+            message, _ = fixture.response({"messages":messages, "tools":tools})
+            self.assertEqual(message["tool_calls"][0]["function"]["name"], "Read")
+            self.assertTrue(fixture.snapshot()["skill_body_read"])
+
+    def test_claude_messages_http_accepts_native_auth_and_beta_query(self):
+        from urllib.request import Request, urlopen
+        with tempfile.TemporaryDirectory() as directory, SkillMountFixture(Path(directory)) as fixture:
+            body = {"model":fixture.models[0], "messages":self.advertised(fixture), "tools":[
+                {"name":"Read", "input_schema":{"properties":{"file_path":{"type":"string"}}, "required":["file_path"]}}]}
+            request = Request(fixture.url + "/v1/messages?beta=true", data=json.dumps(body).encode(),
+                              headers={"x-api-key":fixture.key, "Content-Type":"application/json"})
+            with urlopen(request) as response:
+                message = json.load(response)
+            self.assertEqual(message["content"][0]["type"], "tool_use")
+            self.assertEqual(fixture.snapshot()["model_requests"], 1)
+            self.assertEqual(fixture.snapshot()["errors"], 0)
+
+    def test_claude_removed_skill_requires_native_rejection_despite_historical_catalog(self):
+        with tempfile.TemporaryDirectory() as directory:
+            fixture = SkillMountFixture(Path(directory))
+            fixture.claude_native = True
+            fixture.mode = "absent"
+            qualified = "shiju-session-skills:" + fixture.name
+            messages = [{"role":"user", "content":"Historical available skills: " + qualified}]
+            tools = [{"name":"Skill", "parameters":{"properties":{"skill":{}}, "required":["skill"]}}]
+            message, _ = fixture.response({"messages":messages, "tools":tools})
+            call = message["tool_calls"][0]
+            with self.assertRaises(ValueError):
+                fixture.response({"messages":messages + [{"role":"tool", "tool_call_id":call["id"], "content":"Launching skill: " + qualified}], "tools":tools})
+            message, finish = fixture.response({"messages":messages + [{"role":"tool", "tool_call_id":call["id"], "content":"Unknown skill: " + qualified}], "tools":tools})
+            self.assertEqual(finish, "stop")
+            self.assertEqual(message["content"], "SKILL_ABSENT")
+            self.assertTrue(fixture.snapshot()["discovery_observations"][-1]["native_rejection_verified"])
+
+    def test_claude_added_skill_requires_actual_native_expansion(self):
+        with tempfile.TemporaryDirectory() as directory:
+            fixture = SkillMountFixture(Path(directory))
+            fixture.claude_native = True
+            fixture.mode = "added"
+            qualified = "shiju-session-skills:" + fixture.name
+            messages = [{"role":"user", "content":"Historical available skills: " + qualified}]
+            tools = [{"name":"Skill", "parameters":{"properties":{"skill":{}}, "required":["skill"]}}]
+            message, _ = fixture.response({"messages":messages, "tools":tools})
+            call = message["tool_calls"][0]
+            self.assertEqual(json.loads(call["function"]["arguments"])["skill"], qualified + "-added")
+            with self.assertRaises(ValueError):
+                fixture.response({"messages":messages + [{"role":"tool", "tool_call_id":call["id"], "content":"Launching skill: " + qualified + "-added"}], "tools":tools})
+            expansion = {"role":"user", "content":"Base directory for this skill: /owned/view/added\nADDED_SKILL_BODY"}
+            message, _ = fixture.response({"messages":messages + [{"role":"tool", "tool_call_id":call["id"], "content":"Launching skill: " + qualified + "-added"}, expansion], "tools":tools})
+            self.assertEqual(json.loads(message["tool_calls"][0]["function"]["arguments"])["skill"], qualified)
+            self.assertTrue(fixture.snapshot()["discovery_observations"][-1]["added_native_verified"])
+
     def test_unknown_and_duplicate_agents_fail(self):
         for entries in ([], [{"key": "codex"}, {"key": "codex"}]):
             with self.assertRaises(ValueError):

@@ -127,7 +127,7 @@
     {
       "key": "claude",
       "version": "0.26.0",
-      "status": "candidate",
+      "status": "verified",
       "platform": {
         "review_host": "Darwin-arm64",
         "artifact_scope": "本机固定发行物静态审查；源码/通用 JS 的跨平台执行未验证",
@@ -145,7 +145,7 @@
           "declared_version": "0.2.96",
           "source_url": "https://registry.npmjs.org/%40anthropic-ai%2Fclaude-agent-sdk/0.2.96",
           "embedded_cli_release": "2.1.96",
-          "reason": "Published SDK declares bundled engine 2.1.96; installed ACP engine path and model request remain unverified",
+          "reason": "Adapter-relative SDK package identity and actual embedded CLI --version matched 0.2.96 / 2.1.96 in both real acceptance runs; reviewed source hashes were rechecked.",
           "identity_evidence": "Official SDK archive package/package.json::claudeCodeVersion"
         },
         "local_identity": "package.json 固定版本匹配；执行文件另有 SHA-256。"
@@ -155,43 +155,41 @@
           "claude-agent-acp"
         ],
         "binding": "crates/vw-acp/src/agent_registry.rs::BUILT_IN_AGENT_DEFINITIONS",
-        "runtime_executed": false,
-        "note": "固定发行物候选入口；注册器含 latest/range，不保证用户当前命令已固定到此版本。"
+        "runtime_executed": true,
+        "note": "Fixed 0.26.0 adapter and SDK 0.2.96 / embedded 2.1.96 executed through production ACP; macOS arm64 only."
       },
       "mount": {
         "candidate_paths": [
-          "<cwd>/.claude/skills",
-          "CLAUDE_CONFIG_DIR/skills",
-          "_meta.claudeCode.options.plugins（待 SDK 契约验证）"
+          "_meta.claudeCode.options.plugins: local plugin over an owned SessionSkillView"
         ],
-        "discovery": "实际入口是 claude-agent-acp 0.26.0 → SDK 0.2.96（内嵌 2.1.96），不是裸 claude。adapter 读取 _meta.claudeCode.options，设置 settingSources，并合并 additionalRoots 到 SDK additionalDirectories；额外工作目录并不自动证明额外技能目录。",
-        "activation": "SDK 技能发现与 Skill 工具须实际回合证明；默认加载配置来源不等于正文已激活。",
-        "session_isolation": "unverified：额外根/专属配置根不自动排除内建、用户、项目及插件技能；不得修改 HOME 或写用户全局目录。"
+        "discovery": "Verified native catalog plus actual Skill activation, random attachment read and shell script result. Only plugin metadata enters the initial model request; skill bodies are activated natively.",
+        "activation": "Actual native Skill invocation is mandatory in acceptance. SDK launch result is correlated with its separate user expansion block.",
+        "session_isolation": "Verified selected-session isolation and real native Unknown skill rejection after removal / in another session. Global native permission/settings sources remain unchanged."
       },
       "permissions": {
-        "status": "unverified",
+        "status": "verified on tested macOS arm64 host",
         "requirements": "执行端重新审核目录、租户/项目/会话权限、路径逃逸与符号链接；支持文件/脚本/MCP 仍受各自授权限制，不扩大 full_access。",
         "agent_specific": "SDK allowed/disallowedTools、settingSources 与目录读取权限需单独验证。"
       },
       "update": {
-        "native": "unverified：本任务未执行热更新或原子完整替换；静态刷新函数/文档 reload 不作成功承诺。",
+        "native": "No hot-update claim; verified idle client retirement and SDK session restore, including additions, empty plugins:[] and V1/V2 source content.",
         "candidate": "在不打断运行请求的前提下评估空闲重建；尚未确认固定发行物原生更新入口。"
       },
       "recovery": {
-        "status": "unverified",
+        "status": "verified for both tested native Messages session_model and cli_local recipes on macOS arm64",
         "requirements": "重建 new/load/resume 后重新发布同 revision 目录并核实发现、删除和支持文件访问；不能把已有模型来源恢复证据当技能恢复证据。"
       },
       "independent_sources": {
         "local_configuration": {
           "candidate": "CLAUDE_CONFIG_DIR",
-          "static_review_only": true,
-          "runtime_verified_this_task": false
+          "static_review_only": false,
+          "runtime_verified_this_task": true
         },
         "client_model_source": {
           "prior_report_status": "verified_release_only",
           "reference": "../../shiju/acp-model-source/cli-versions.json#claude",
-          "runtime_verified_this_task": false,
-          "note": "只保留旧报告定位；不复制其通过/不支持结论到技能能力。"
+          "runtime_verified_this_task": true,
+          "note": "This task independently verified native Anthropic Messages selected-model routing with skill tools. The prior model report remains a reference, not skill evidence; full Chat conversion lifecycle is not claimed."
         }
       },
       "evidence": [
@@ -243,10 +241,27 @@
           "observations": [],
           "package": "@agentclientprotocol/claude-agent-acp",
           "version": "0.26.0"
+        },
+        {
+          "path": "${GLOBAL_NODE_MODULES}/@agentclientprotocol/claude-agent-acp/dist/index.js",
+          "sha256": "2859ccaa5ba91ed27b80614eae47399370015acbcbc7d01d1408c71f7964565d",
+          "kind": "source",
+          "bytes": 991,
+          "observations": []
         }
       ],
       "supplemental_official_docs": [],
-      "next_validation": "固定版本真实 ACP：发现元数据 → 按需激活 → 支持文件/脚本工具回合 → 隔离/删除/更新失败保旧 → 跨进程恢复；只替代外部模型 HTTP。未安装/缺账号则保留 unverified。"
+      "next_validation": "Revalidate other platforms, versions and the separate Chat conversion history boundary; do not extrapolate the tested native-source scope.",
+      "acceptance": {
+        "status": "verified",
+        "production_gate": "open",
+        "evidence": "evidence/claude.json",
+        "model_sources": [
+          "session_model with native Anthropic Messages",
+          "cli_local with isolated native configuration"
+        ],
+        "limitation": "Messages-to-Chat conversion passed initial mount/tools but rejected a later history capability; no full Chat conversion lifecycle support is claimed."
+      }
     },
     {
       "key": "codex",

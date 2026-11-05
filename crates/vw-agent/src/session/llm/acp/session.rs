@@ -131,8 +131,8 @@ fn build_cached_acp_client(
         },
     )
     .with_skill_mounts(
-        (!parsed_options.skill_mounts.is_empty() || acp_agent_name == "codex").then(|| {
-            vw_acp::SessionMountSelection {
+        (!parsed_options.skill_mounts.is_empty() || matches!(acp_agent_name, "codex" | "claude"))
+            .then(|| vw_acp::SessionMountSelection {
                 version: 1,
                 skills: parsed_options
                     .skill_mounts
@@ -148,8 +148,7 @@ fn build_cached_acp_client(
                             .unwrap_or_else(|| mount.path.clone()),
                     })
                     .collect(),
-            }
-        }),
+            }),
         parsed_options
             .skill_view
             .as_ref()

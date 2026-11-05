@@ -55,6 +55,7 @@ def run(args):
             env.update(CARGO_TARGET_DIR=slot, CARGO_BUILD_BUILD_DIR=slot,
                        RUST_MIN_STACK="33554432", VIBEWINDOW_CONFIG_DIR=str(root / "config"))
             with SkillMountFixture(root) as fixture:
+                fixture.claude_native = args.agent == "claude"
                 native = root / "native"
                 native.mkdir(mode=0o700)
                 isolation = isolated_environment(identity, native, fixture, mode)
@@ -65,6 +66,8 @@ def run(args):
                     report["engine_version"] = identity["underlying"]["release"]
                 else:
                     config = locate(identity, env)
+                if args.agent == "claude" and mode == "cli-local":
+                    config["env"] = isolation
                 binary = Path(config["command"]).resolve()
                 digest = hashlib.sha256(binary.read_bytes()).hexdigest()
                 known = {row.get("sha256") for row in entry.get("evidence", [])}
@@ -85,6 +88,8 @@ def run(args):
                 log = result.stdout.decode(errors="replace")
                 diagnostics = [line.split("SKILL_FAILURE: ", 1)[1] for line in result.stderr.decode(errors="replace").splitlines() if "SKILL_FAILURE: " in line]
                 stderr_lines = result.stderr.decode(errors="replace").splitlines()
+                build_errors = [re.sub(r'https?://[^\s"]+|/[^\s"]+|[A-Za-z0-9_=-]{24,}', '[redacted]', line)[:400]
+                                for line in stderr_lines if line.startswith("error")][:8]
                 for index, line in enumerate(stderr_lines):
                     if "panicked at" in line and index + 1 < len(stderr_lines):
                         diagnostics.append(re.sub(r'https?://[^\s"]+|/[^\s"]+|[A-Za-z0-9_=-]{24,}', '[redacted]', stderr_lines[index + 1])[:400])
@@ -92,10 +97,11 @@ def run(args):
                 one_passed = bool(re.search(r"test result: ok\. 1 passed; 0 failed; 0 ignored;", log))
                 flow = json.loads(flow_file.read_text()) if flow_file.exists() else {}
                 evidence = fixture.snapshot()
-                passed = one_passed and accepted(evidence, flow, tests, result.returncode)
+                passed = (one_passed and accepted(evidence, flow, tests, result.returncode)
+                          and (args.agent != "claude" or evidence.get("native_skill_invocations", 0) > 0))
                 report.update(evidence, passed=passed, status="passed" if passed else "failed",
                               reason="all skill assertions passed" if passed else "production skill lifecycle or observations incomplete",
-                              effective_tests=tests, cargo_exit_code=result.returncode, command=command, diagnostics=diagnostics,
+                              effective_tests=tests, cargo_exit_code=result.returncode, command=command, diagnostics=diagnostics, build_errors=build_errors,
                               lifecycle={key: flow.get(key) is True for key in LIFECYCLE})
     except Unavailable as error:
         report["reason"] = str(error)

@@ -43,6 +43,7 @@ pub struct FileSystemHandlersOptions {
 #[derive(Clone)]
 pub struct FileSystemHandlers {
     root_dir: PathBuf,
+    skill_read_roots: Vec<PathBuf>,
     permission_mode: PermissionMode,
     full_access: bool,
     on_operation: Option<FileSystemOperationCallback>,
@@ -54,11 +55,18 @@ impl FileSystemHandlers {
         let root_dir = normalize_absolute_path(&options.cwd);
         Self {
             root_dir,
+            skill_read_roots: Vec::new(),
             permission_mode: options.permission_mode,
             full_access: options.full_access,
             on_operation: options.on_operation,
             confirm_write: options.confirm_write,
         }
+    }
+
+    /// Scoped mount sources permit reads only; writes and terminal policy stay unchanged.
+    pub(crate) fn with_skill_read_roots(mut self, roots: Vec<PathBuf>) -> Self {
+        self.skill_read_roots = roots;
+        self
     }
 
     pub fn update_permission_policy(
@@ -73,7 +81,19 @@ impl FileSystemHandlers {
         &self,
         params: &ReadTextFileRequest,
     ) -> Result<ReadTextFileResponse, ErrorSource> {
-        let file_path = self.resolve_path_within_root(&params.path)?;
+        let file_path = match self.resolve_path_within_root(&params.path) {
+            Ok(path) => path,
+            Err(error) => {
+                if !params.path.is_absolute() || self.skill_read_roots.is_empty() {
+                    return Err(error);
+                }
+                let Ok(path) = params.path.canonicalize() else { return Err(error) };
+                if !self.skill_read_roots.iter().any(|root| path.starts_with(root)) {
+                    return Err(error);
+                }
+                path
+            }
+        };
         let summary = format!("read_text_file: {}", file_path.display());
         self.emit_operation(ClientOperation {
             method: ClientOperationMethod::FsReadTextFile,

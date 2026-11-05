@@ -29,7 +29,7 @@ pub(super) fn validate(agent: &str, selected: bool) -> Result<(), Error> {
     }
     let reason = match agent.trim().to_ascii_lowercase().as_str() {
         "codex" => return codex::validate(),
-        "claude" | "claude code" => claude::rejection(),
+        "claude" | "claude code" => return Ok(()),
         "qwen" => qwen::rejection(),
         "gemini" => gemini::rejection(),
         "codebuddy" => codebuddy::rejection(),
@@ -117,3 +117,12 @@ mod outbound_tests;
 
 #[cfg(test)]
 mod acceptance_tests;
+
+pub(super) fn prepare_supplier(agent: &str, view: Option<&MountedSkills>) -> Result<(), Error> {
+    if matches!(agent, "claude" | "claude code")
+        && let Some(view) = view
+    {
+        claude::prepare(&view.0)?;
+    }
+    Ok(())
+}

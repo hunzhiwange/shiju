@@ -163,11 +163,22 @@ async fn request(input: &Value, session: &str, mode: &str, close: bool) -> bool 
         Some(&rx),
         &mut on_event,
     );
-    let (result, ()) = tokio::time::timeout(std::time::Duration::from_secs(90), async {
+    let result = tokio::time::timeout(std::time::Duration::from_secs(90), async {
         tokio::join!(production, cancellation)
     })
-    .await
-    .expect("real CLI skill request timed out");
+    .await;
+    let (result, ()) = match result {
+        Ok(result) => result,
+        Err(error) => {
+            // This explicitly filtered real-CLI test owns the cache in its process.
+            let clients: Vec<_> =
+                super::super::ACP_CLIENT_CACHE.lock().drain().map(|(_, client)| client).collect();
+            for client in clients {
+                let _ = client.client.close().await;
+            }
+            panic!("real CLI skill request timed out: {error}");
+        }
+    };
     if let Err(error) = &result {
         let reason = error.to_string();
         let reason = regex::Regex::new(r#"https?://[^\s"]+|/[^\s"]+|[A-Za-z0-9_=-]{24,}"#)
@@ -245,8 +256,8 @@ async fn run(agent: &str) {
         project,
     };
     crate::config::update(json!({"agents":{"skill-isolation":{"provider":"","model":"","runtime":{"kind":"acp","backend":agent}, "defaults":{"skills":{"mode":"fixed","value":[]},"mcp":{"mode":"fixed","value":[]}}}}})).await.unwrap();
-    crate::config::update_project_for_tenant(&tenant, root, json!({"acp":{agent:config}, "providers":{"skill-acceptance":{"api":format!("{}/v1/{}",input["fixture"].as_str().unwrap(), if agent == "codex" { "responses" } else { "chat/completions" }),
-        "adapter":if agent == "codex" { "openai-responses" } else { "openai-compatible" }, "env":["VW_ACP_SKILL_FIXTURE_KEY"], "models":{
+    crate::config::update_project_for_tenant(&tenant, root, json!({"acp":{agent:config}, "providers":{"skill-acceptance":{"api":format!("{}/v1/{}",input["fixture"].as_str().unwrap(), match agent { "codex" => "responses", "claude" => "messages", _ => "chat/completions" }),
+        "adapter":match agent { "codex" => "openai-responses", "claude" => "anthropic", _ => "openai-compatible" }, "env":["VW_ACP_SKILL_FIXTURE_KEY"], "models":{
         "acp-fixture-primary":{"id":"acp-fixture-primary", "status":"active","tool_call":true,"temperature":true,"reasoning":agent == "codex"}}}}})).await.unwrap();
     instance::provide_context(context, async {
         let name = input["skill"].as_str().unwrap();

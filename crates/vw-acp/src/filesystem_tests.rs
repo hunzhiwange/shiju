@@ -651,3 +651,37 @@ async fn approve_reads_uses_confirmation_for_writes() {
 
     assert_eq!(std::fs::read_to_string(target).expect("read file"), "content");
 }
+
+#[tokio::test]
+async fn acp_skill_mount_claude_reads_only_selected_source_and_preserves_write_denial() {
+    let cwd = tempfile::tempdir().unwrap();
+    let source = tempfile::tempdir().unwrap();
+    let foreign = tempfile::tempdir().unwrap();
+    let file = source.path().join("value.txt");
+    let other = foreign.path().join("value.txt");
+    std::fs::write(&file, "selected").unwrap();
+    std::fs::write(&other, "foreign").unwrap();
+    let handlers = FileSystemHandlers::new(FileSystemHandlersOptions {
+        cwd: cwd.path().to_path_buf(),
+        ..Default::default()
+    })
+    .with_skill_read_roots(vec![source.path().canonicalize().unwrap()]);
+    assert!(handlers.read_text_file(&ReadTextFileRequest::new("s", &file)).await.is_ok());
+    assert!(handlers.read_text_file(&ReadTextFileRequest::new("s", &other)).await.is_err());
+    assert!(
+        handlers.write_text_file(&WriteTextFileRequest::new("s", &file, "changed")).await.is_err()
+    );
+    #[cfg(unix)]
+    {
+        let escape = source.path().join("escape");
+        std::os::unix::fs::symlink(&other, &escape).unwrap();
+        assert!(handlers.read_text_file(&ReadTextFileRequest::new("s", &escape)).await.is_err());
+    }
+    let denied = FileSystemHandlers::new(FileSystemHandlersOptions {
+        cwd: cwd.path().to_path_buf(),
+        permission_mode: PermissionMode::DenyAll,
+        ..Default::default()
+    })
+    .with_skill_read_roots(vec![source.path().canonicalize().unwrap()]);
+    assert!(denied.read_text_file(&ReadTextFileRequest::new("s", &file)).await.is_err());
+}

@@ -63,3 +63,30 @@ fn acp_model_source_claude_sdk_settings_override_model_without_exposing_credenti
     assert_eq!(local["claudeCode"]["options"]["model"], "local");
     assert!(local["claudeCode"]["options"].get("settings").is_none());
 }
+
+#[test]
+fn acp_skill_mount_claude_uses_sdk_plugin_options_without_cli_or_permission_overrides() {
+    let client = super::AcpClient::new("claude", Default::default()).with_skill_mounts(
+        Some(crate::SessionMountSelection {
+            version: 1,
+            skills: vec![crate::SessionSkillMount {
+                name: "example".into(),
+                path: "/private/view/skills/example".into(),
+            }],
+        }),
+        None,
+    );
+    let meta = client.mounted_session_meta().unwrap();
+    assert_eq!(
+        meta["claudeCode"]["options"],
+        serde_json::json!({"plugins":[{"type":"local", "path":"/private/view"}]})
+    );
+    assert!(!client.full_access);
+    assert!(client.config.args.is_empty());
+    let empty = client
+        .with_skill_mounts(Some(crate::SessionMountSelection { version: 1, skills: vec![] }), None);
+    assert_eq!(
+        empty.mounted_session_meta().unwrap()["claudeCode"]["options"]["plugins"],
+        serde_json::json!([])
+    );
+}

@@ -1,0 +1,773 @@
+{
+  "schema_version": 1,
+  "agent": "claude",
+  "status": "verified",
+  "verified_on": "2026-11-05",
+  "platform": {
+    "os": "macOS",
+    "architecture": "arm64",
+    "report_platform": "Darwin-arm64"
+  },
+  "scope": "Only fixed adapter 0.26.0 / SDK 0.2.96 / embedded CLI 2.1.96 on this macOS arm64 host. Session-model acceptance uses native Anthropic Messages; cli_local uses its private native configuration. Other platforms and the Chat conversion update path are not verified.",
+  "identity": {
+    "adapter": "@agentclientprotocol/claude-agent-acp",
+    "adapter_version": "0.26.0",
+    "sdk_version": "0.2.96",
+    "engine_version": "2.1.96",
+    "sha256": {
+      "${GLOBAL_NODE_MODULES}/@agentclientprotocol/claude-agent-acp/dist/acp-agent.js": "00e66a056cc39ba087dffe63da3b62d27fcff6694e6eee5fe3b25961e6218ddd",
+      "${GLOBAL_NODE_MODULES}/@agentclientprotocol/claude-agent-acp/node_modules/@anthropic-ai/claude-agent-sdk/cli.js": "d4d06b148b05d3d21ad250a9900b7c8c47780088712299acd9892a8777f76ab4",
+      "${GLOBAL_NODE_MODULES}/@agentclientprotocol/claude-agent-acp/package.json": "822baae8c24189370708779ece72fef22a741de2981a861bd4bc7ee034ed783d",
+      "${GLOBAL_NODE_MODULES}/@agentclientprotocol/claude-agent-acp/dist/index.js": "2859ccaa5ba91ed27b80614eae47399370015acbcbc7d01d1408c71f7964565d"
+    }
+  },
+  "native_contract": {
+    "registration": "_meta.claudeCode.options.plugins [{type:local,path:<owned SessionSkillView parent>}]; legal .claude-plugin/plugin.json points at ./skills/. Native catalog and actual Skill activation confirm discovery; no CLI plugin flags are appended to the ACP adapter and no skill body is placed in the initial prompt.",
+    "permissions": "ACP reads extend only to canonical selected source directories. Foreign directories, symlink escapes and selected-source writes are rejected; DenyAll remains effective. Native write/terminal permission policy and full_access are preserved.",
+    "updates": "Logical session ownership retires stale clients before idle native session restore. Empty selections explicitly send plugins:[] for new/load/resume. No native hot-update claim.",
+    "discovery_validation": "SDK launch tool result is correlated with its subsequent actual user skill-expansion block. Added skills must return their real native body. Historical skill listings are not current availability evidence: removal and isolation require actual native Unknown skill tool results.",
+    "recovery": "Real cancellation and subsequent requests, explicit CLI close and session restore all pass for both tested model-source recipes."
+  },
+  "verification": {
+    "red": {
+      "command": "cargo test -p vw-agent --lib acp_skill_mount_claude_ -- --nocapture --test-threads=1",
+      "exit_code": 101,
+      "effective_tests": 1,
+      "failed": 1
+    },
+    "focused_agent": {
+      "command": "cargo test -p vw-agent --lib acp_skill_mount_claude_ -- --nocapture --test-threads=1",
+      "exit_code": 0,
+      "passed": 3,
+      "ignored": 0
+    },
+    "focused_acp": {
+      "command": "cargo test -p vw-acp --lib acp_skill_mount_claude_ -- --nocapture --test-threads=1",
+      "exit_code": 0,
+      "passed": 2
+    },
+    "filesystem_regression": {
+      "command": "cargo test -p vw-acp --lib filesystem_tests -- --test-threads=1",
+      "exit_code": 0,
+      "passed": 28
+    },
+    "framework": {
+      "command": "python3 -m unittest discover -s scripts/tests -p test_verify_acp_skill_mounts.py",
+      "exit_code": 0,
+      "passed": 20
+    },
+    "format": {
+      "command": "cargo fmt --all",
+      "exit_code": 0
+    },
+    "clippy": {
+      "command": "cargo clippy --all-targets --all-features -- -D warnings",
+      "exit_code": 0
+    },
+    "supplier_commands": [
+      "python3 scripts/verify_acp_skill_mounts.py --agent claude --mode cli-local --manifest docs/vibewindow/acp-skill-mounts/agents.json --output \"$CARGO_TARGET_DIR/acp-skill-mount-evidence/claude-cli-local\"",
+      "python3 scripts/verify_acp_skill_mounts.py --agent claude --manifest docs/vibewindow/acp-skill-mounts/agents.json --output \"$CARGO_TARGET_DIR/acp-skill-mount-evidence/claude\""
+    ],
+    "supplier_command_exit_codes": [
+      0,
+      0
+    ],
+    "linker_note": "Focused test linking emits the existing macOS large __eh_frame note; final Clippy passes with warnings denied.",
+    "cleanup": "After reports completed, the remaining SDK tree in this task-owned temporary fixture directory was explicitly terminated; task locks are released and caches preserved. Cleanup is not counted as a lifecycle assertion.",
+    "commit_hook": {
+      "skipped_for_commit": true,
+      "reason": "The generated cargo-husky hook unconditionally starts cargo test --all and cargo fmt --all -- --check, contrary to this task scope. Its initial unfiltered Cargo attempt had no task slot and was terminated while compiling. No full-suite result is claimed. The required scoped tests, real native CLI assertions and Clippy already passed. core.hooksPath is overridden for this commit only; repository hook configuration is unchanged."
+    }
+  },
+  "model_boundary": "Only owned loopback model HTTP is substituted. Fixed CLI, production Rust ACP path, native discovery/Skill execution, filesystem reads, shell execution and lifecycle recovery are real. No account mutation or paid model traffic.",
+  "chat_conversion_limitation": {
+    "agent": "claude",
+    "status": "failed",
+    "passed": false,
+    "platform": "Darwin-arm64",
+    "mount_source_mode": "session-directory",
+    "model_source": "session-model",
+    "effective_tests": 1,
+    "version": "0.26.0",
+    "sha256": "2859ccaa5ba91ed27b80614eae47399370015acbcbc7d01d1408c71f7964565d",
+    "model_requests": 4,
+    "tool_requests": 3,
+    "tool_results": 3,
+    "lifecycle": {
+      "new": true,
+      "add": false,
+      "remove": false,
+      "v2": false,
+      "isolated": false,
+      "cancel": false,
+      "idle_update": false,
+      "restart": false,
+      "permission_denied": false
+    },
+    "cargo_target_dir": "/Users/xiangmin/worker/code/shiju/target/rust-slot-3",
+    "discovery_events": 1,
+    "first_prompt_clean": true,
+    "errors": 0,
+    "native_catalog": {
+      "selected_name_in_metadata": true,
+      "selected_name_in_tools": false,
+      "tool_names": [
+        "Agent",
+        "Bash",
+        "CronCreate",
+        "CronDelete",
+        "CronList",
+        "Edit",
+        "EnterPlanMode",
+        "EnterWorktree",
+        "ExitPlanMode",
+        "ExitWorktree",
+        "Glob",
+        "Grep",
+        "NotebookEdit",
+        "Read",
+        "Skill",
+        "TaskOutput",
+        "TaskStop",
+        "TodoWrite",
+        "WebFetch",
+        "WebSearch",
+        "Write"
+      ]
+    },
+    "error_categories": [],
+    "tool_events": [
+      {
+        "phase": "present",
+        "kind": "skill",
+        "result_received": true,
+        "matched": true
+      },
+      {
+        "phase": "present",
+        "kind": "read",
+        "result_received": true,
+        "matched": true
+      },
+      {
+        "phase": "present",
+        "kind": "execute",
+        "result_received": true,
+        "matched": true
+      }
+    ],
+    "discovery_observations": [
+      {
+        "phase": "present",
+        "mounted_view": true
+      }
+    ],
+    "skill_body_read": true,
+    "attachment_read": true,
+    "script_executed": true,
+    "reason": "production skill lifecycle or observations incomplete",
+    "cargo_exit_code": 101,
+    "command": [
+      "cargo",
+      "test",
+      "-p",
+      "vw-agent",
+      "--lib",
+      "acp_skill_mount_real_claude",
+      "--",
+      "--ignored",
+      "--nocapture",
+      "--test-threads=1"
+    ],
+    "diagnostics": [
+      "acp prompt failed: Internal error: API Error: 422 {\"type\":\"error\",\"error\":{\"type\":\"invalid_request_error\",\"message\":\"Unsupported Messages capability\"}}",
+      "done=false; output=; events=[]",
+      "acp prompt failed: Internal error: API Error: 422 {\"type\":\"error\",\"error\":{\"type\":\"invalid_request_error\",\"message\":\"Unsupported Messages capability\"}}",
+      "done=false; output=; events=[]",
+      "acp prompt failed: Internal error: API Error: 422 {\"type\":\"error\",\"error\":{\"type\":\"invalid_request_error\",\"message\":\"Unsupported Messages capability\"}}",
+      "done=false; output=; events=[]",
+      "assertion failed: request(&input, &session, \"present\", false).await"
+    ],
+    "build_errors": [
+      "error: test failed, to rerun pass `-p vw-agent --lib`"
+    ],
+    "scope": "OpenAI-compatible selected model: initial mount and tools worked; later restored histories rejected by the existing fail-closed Messages-to-Chat boundary. Native Messages and cli_local acceptance are separate."
+  },
+  "sources": {
+    "session-model": {
+      "agent": "claude",
+      "status": "passed",
+      "passed": true,
+      "platform": "Darwin-arm64",
+      "mount_source_mode": "session-directory",
+      "model_source": "session-model",
+      "effective_tests": 1,
+      "version": "0.26.0",
+      "sha256": "2859ccaa5ba91ed27b80614eae47399370015acbcbc7d01d1408c71f7964565d",
+      "model_requests": 34,
+      "tool_requests": 25,
+      "tool_results": 24,
+      "lifecycle": {
+        "new": true,
+        "add": true,
+        "remove": true,
+        "v2": true,
+        "isolated": true,
+        "cancel": true,
+        "idle_update": true,
+        "restart": true,
+        "permission_denied": true
+      },
+      "cargo_target_dir": "/Users/xiangmin/worker/code/shiju/target/rust-slot-5",
+      "discovery_events": 8,
+      "first_prompt_clean": true,
+      "errors": 0,
+      "native_catalog": {
+        "selected_name_in_metadata": true,
+        "selected_name_in_tools": false,
+        "tool_names": [
+          "Agent",
+          "Bash",
+          "CronCreate",
+          "CronDelete",
+          "CronList",
+          "Edit",
+          "EnterPlanMode",
+          "EnterWorktree",
+          "ExitPlanMode",
+          "ExitWorktree",
+          "Glob",
+          "Grep",
+          "NotebookEdit",
+          "Read",
+          "Skill",
+          "TaskOutput",
+          "TaskStop",
+          "TodoWrite",
+          "WebFetch",
+          "WebSearch",
+          "Write"
+        ]
+      },
+      "error_categories": [],
+      "native_skill_invocations": 11,
+      "tool_events": [
+        {
+          "phase": "present",
+          "kind": "skill",
+          "result_received": true,
+          "matched": true
+        },
+        {
+          "phase": "present",
+          "kind": "read",
+          "result_received": true,
+          "matched": true
+        },
+        {
+          "phase": "present",
+          "kind": "execute",
+          "result_received": true,
+          "matched": true
+        },
+        {
+          "phase": "added",
+          "kind": "added",
+          "result_received": true,
+          "matched": true
+        },
+        {
+          "phase": "added",
+          "kind": "skill",
+          "result_received": true,
+          "matched": true
+        },
+        {
+          "phase": "added",
+          "kind": "read",
+          "result_received": true,
+          "matched": true
+        },
+        {
+          "phase": "added",
+          "kind": "execute",
+          "result_received": true,
+          "matched": true
+        },
+        {
+          "phase": "absent",
+          "kind": "missing",
+          "result_received": true,
+          "matched": true
+        },
+        {
+          "phase": "present",
+          "kind": "skill",
+          "result_received": true,
+          "matched": true
+        },
+        {
+          "phase": "present",
+          "kind": "read",
+          "result_received": true,
+          "matched": true
+        },
+        {
+          "phase": "present",
+          "kind": "execute",
+          "result_received": true,
+          "matched": true
+        },
+        {
+          "phase": "absent",
+          "kind": "missing",
+          "result_received": true,
+          "matched": true
+        },
+        {
+          "phase": "present",
+          "kind": "skill",
+          "result_received": true,
+          "matched": true
+        },
+        {
+          "phase": "present",
+          "kind": "read",
+          "result_received": true,
+          "matched": true
+        },
+        {
+          "phase": "present",
+          "kind": "execute",
+          "result_received": true,
+          "matched": true
+        },
+        {
+          "phase": "present",
+          "kind": "skill",
+          "result_received": true,
+          "matched": true
+        },
+        {
+          "phase": "present",
+          "kind": "read",
+          "result_received": true,
+          "matched": true
+        },
+        {
+          "phase": "present",
+          "kind": "execute",
+          "result_received": true,
+          "matched": true
+        },
+        {
+          "phase": "cancel",
+          "kind": "skill",
+          "result_received": false,
+          "matched": false
+        },
+        {
+          "phase": "present",
+          "kind": "skill",
+          "result_received": true,
+          "matched": true
+        },
+        {
+          "phase": "present",
+          "kind": "read",
+          "result_received": true,
+          "matched": true
+        },
+        {
+          "phase": "present",
+          "kind": "execute",
+          "result_received": true,
+          "matched": true
+        },
+        {
+          "phase": "present",
+          "kind": "skill",
+          "result_received": true,
+          "matched": true
+        },
+        {
+          "phase": "present",
+          "kind": "read",
+          "result_received": true,
+          "matched": true
+        },
+        {
+          "phase": "present",
+          "kind": "execute",
+          "result_received": true,
+          "matched": true
+        }
+      ],
+      "discovery_observations": [
+        {
+          "phase": "present",
+          "mounted_view": true
+        },
+        {
+          "phase": "added",
+          "mounted_view": true,
+          "added_native_verified": true
+        },
+        {
+          "phase": "absent",
+          "mounted_view": false,
+          "native_rejection_verified": true
+        },
+        {
+          "phase": "present",
+          "mounted_view": true
+        },
+        {
+          "phase": "absent",
+          "mounted_view": false,
+          "native_rejection_verified": true
+        },
+        {
+          "phase": "present",
+          "mounted_view": true
+        },
+        {
+          "phase": "present",
+          "mounted_view": true
+        },
+        {
+          "phase": "cancel",
+          "mounted_view": true
+        },
+        {
+          "phase": "present",
+          "mounted_view": true
+        },
+        {
+          "phase": "present",
+          "mounted_view": true
+        }
+      ],
+      "skill_body_read": true,
+      "attachment_read": true,
+      "script_executed": true,
+      "reason": "all skill assertions passed",
+      "cargo_exit_code": 0,
+      "command": [
+        "cargo",
+        "test",
+        "-p",
+        "vw-agent",
+        "--lib",
+        "acp_skill_mount_real_claude",
+        "--",
+        "--ignored",
+        "--nocapture",
+        "--test-threads=1"
+      ],
+      "diagnostics": [
+        "aborted",
+        "acp option error: default skill is denied by permission policy",
+        "done=false; output=; events=[]"
+      ],
+      "build_errors": []
+    },
+    "cli-local": {
+      "agent": "claude",
+      "status": "passed",
+      "passed": true,
+      "platform": "Darwin-arm64",
+      "mount_source_mode": "session-directory",
+      "model_source": "cli-local",
+      "effective_tests": 1,
+      "version": "0.26.0",
+      "sha256": "2859ccaa5ba91ed27b80614eae47399370015acbcbc7d01d1408c71f7964565d",
+      "model_requests": 34,
+      "tool_requests": 25,
+      "tool_results": 24,
+      "lifecycle": {
+        "new": true,
+        "add": true,
+        "remove": true,
+        "v2": true,
+        "isolated": true,
+        "cancel": true,
+        "idle_update": true,
+        "restart": true,
+        "permission_denied": true
+      },
+      "cargo_target_dir": "/Users/xiangmin/worker/code/shiju/target/rust-slot-5",
+      "discovery_events": 8,
+      "first_prompt_clean": true,
+      "errors": 0,
+      "native_catalog": {
+        "selected_name_in_metadata": true,
+        "selected_name_in_tools": false,
+        "tool_names": [
+          "Agent",
+          "Bash",
+          "CronCreate",
+          "CronDelete",
+          "CronList",
+          "Edit",
+          "EnterPlanMode",
+          "EnterWorktree",
+          "ExitPlanMode",
+          "ExitWorktree",
+          "Glob",
+          "Grep",
+          "NotebookEdit",
+          "Read",
+          "Skill",
+          "TaskOutput",
+          "TaskStop",
+          "TodoWrite",
+          "WebFetch",
+          "WebSearch",
+          "Write"
+        ]
+      },
+      "error_categories": [],
+      "native_skill_invocations": 11,
+      "tool_events": [
+        {
+          "phase": "present",
+          "kind": "skill",
+          "result_received": true,
+          "matched": true
+        },
+        {
+          "phase": "present",
+          "kind": "read",
+          "result_received": true,
+          "matched": true
+        },
+        {
+          "phase": "present",
+          "kind": "execute",
+          "result_received": true,
+          "matched": true
+        },
+        {
+          "phase": "added",
+          "kind": "added",
+          "result_received": true,
+          "matched": true
+        },
+        {
+          "phase": "added",
+          "kind": "skill",
+          "result_received": true,
+          "matched": true
+        },
+        {
+          "phase": "added",
+          "kind": "read",
+          "result_received": true,
+          "matched": true
+        },
+        {
+          "phase": "added",
+          "kind": "execute",
+          "result_received": true,
+          "matched": true
+        },
+        {
+          "phase": "absent",
+          "kind": "missing",
+          "result_received": true,
+          "matched": true
+        },
+        {
+          "phase": "present",
+          "kind": "skill",
+          "result_received": true,
+          "matched": true
+        },
+        {
+          "phase": "present",
+          "kind": "read",
+          "result_received": true,
+          "matched": true
+        },
+        {
+          "phase": "present",
+          "kind": "execute",
+          "result_received": true,
+          "matched": true
+        },
+        {
+          "phase": "absent",
+          "kind": "missing",
+          "result_received": true,
+          "matched": true
+        },
+        {
+          "phase": "present",
+          "kind": "skill",
+          "result_received": true,
+          "matched": true
+        },
+        {
+          "phase": "present",
+          "kind": "read",
+          "result_received": true,
+          "matched": true
+        },
+        {
+          "phase": "present",
+          "kind": "execute",
+          "result_received": true,
+          "matched": true
+        },
+        {
+          "phase": "present",
+          "kind": "skill",
+          "result_received": true,
+          "matched": true
+        },
+        {
+          "phase": "present",
+          "kind": "read",
+          "result_received": true,
+          "matched": true
+        },
+        {
+          "phase": "present",
+          "kind": "execute",
+          "result_received": true,
+          "matched": true
+        },
+        {
+          "phase": "cancel",
+          "kind": "skill",
+          "result_received": false,
+          "matched": false
+        },
+        {
+          "phase": "present",
+          "kind": "skill",
+          "result_received": true,
+          "matched": true
+        },
+        {
+          "phase": "present",
+          "kind": "read",
+          "result_received": true,
+          "matched": true
+        },
+        {
+          "phase": "present",
+          "kind": "execute",
+          "result_received": true,
+          "matched": true
+        },
+        {
+          "phase": "present",
+          "kind": "skill",
+          "result_received": true,
+          "matched": true
+        },
+        {
+          "phase": "present",
+          "kind": "read",
+          "result_received": true,
+          "matched": true
+        },
+        {
+          "phase": "present",
+          "kind": "execute",
+          "result_received": true,
+          "matched": true
+        }
+      ],
+      "discovery_observations": [
+        {
+          "phase": "present",
+          "mounted_view": true
+        },
+        {
+          "phase": "added",
+          "mounted_view": true,
+          "added_native_verified": true
+        },
+        {
+          "phase": "absent",
+          "mounted_view": false,
+          "native_rejection_verified": true
+        },
+        {
+          "phase": "present",
+          "mounted_view": true
+        },
+        {
+          "phase": "absent",
+          "mounted_view": false,
+          "native_rejection_verified": true
+        },
+        {
+          "phase": "present",
+          "mounted_view": true
+        },
+        {
+          "phase": "present",
+          "mounted_view": true
+        },
+        {
+          "phase": "cancel",
+          "mounted_view": true
+        },
+        {
+          "phase": "present",
+          "mounted_view": true
+        },
+        {
+          "phase": "present",
+          "mounted_view": true
+        }
+      ],
+      "skill_body_read": true,
+      "attachment_read": true,
+      "script_executed": true,
+      "reason": "all skill assertions passed",
+      "cargo_exit_code": 0,
+      "command": [
+        "cargo",
+        "test",
+        "-p",
+        "vw-agent",
+        "--lib",
+        "acp_skill_mount_real_claude",
+        "--",
+        "--ignored",
+        "--nocapture",
+        "--test-threads=1"
+      ],
+      "diagnostics": [
+        "aborted",
+        "acp option error: default skill is denied by permission policy",
+        "done=false; output=; events=[]"
+      ],
+      "build_errors": []
+    }
+  },
+  "cargo": {
+    "slots": [
+      2,
+      3,
+      4,
+      5
+    ],
+    "CARGO_TARGET_DIR": [
+      "/Users/xiangmin/worker/code/shiju/target/rust-slot-2",
+      "/Users/xiangmin/worker/code/shiju/target/rust-slot-3",
+      "/Users/xiangmin/worker/code/shiju/target/rust-slot-4",
+      "/Users/xiangmin/worker/code/shiju/target/rust-slot-5"
+    ],
+    "final_validation_slot": 5,
+    "final_CARGO_TARGET_DIR": "/Users/xiangmin/worker/code/shiju/target/rust-slot-5",
+    "acquisition": "Atomic mkdir per phase; task/session/PID owner record; absolute CARGO_TARGET_DIR and CARGO_BUILD_BUILD_DIR inherited by scripts.",
+    "lock_released": true,
+    "cache_preserved": true
+  }
+}

@@ -70,6 +70,26 @@ impl AcpClient {
     pub(super) fn mounted_session_meta(&self) -> Option<acp::Meta> {
         let mut meta = build_launch_session_meta(self.session_options.as_ref(), &self.config);
         if let Some(selection) = &self.skill_mounts {
+            if matches!(self.agent_name.as_str(), "claude" | "claude code") {
+                let options = meta
+                    .get_or_insert_with(Map::new)
+                    .entry("claudeCode")
+                    .or_insert_with(|| json!({"options": {}}))["options"]
+                    .as_object_mut()
+                    .expect("typed Claude options");
+                let plugins: Vec<_> = selection
+                    .skills
+                    .first()
+                    .into_iter()
+                    .filter_map(|skill| {
+                        Path::new(&skill.path)
+                            .parent()?
+                            .parent()
+                            .map(|root| json!({"type":"local", "path":root}))
+                    })
+                    .collect();
+                options.insert("plugins".into(), json!(plugins));
+            }
             meta.get_or_insert_with(Map::new).insert(
                 crate::SESSION_SKILL_MOUNTS_META_KEY.into(),
                 serde_json::to_value(selection).expect("typed skill mount selection"),

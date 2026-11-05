@@ -162,6 +162,7 @@ mod cli_commands_tests;
 // 核心编排与执行
 pub mod acp;
 pub mod agent;
+pub mod agent_apps;
 
 // 应用兼容层（为拆分期保留旧路径）
 pub(crate) mod app;

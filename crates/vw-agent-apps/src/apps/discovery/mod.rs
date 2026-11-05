@@ -9,3 +9,7 @@ mod windows_tests;
 pub mod wsl;
 #[cfg(test)]
 mod wsl_tests;
+
+pub mod claude_desktop;
+#[cfg(all(test, unix))]
+mod claude_desktop_tests;

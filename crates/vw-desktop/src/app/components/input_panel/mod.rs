@@ -506,7 +506,7 @@ pub fn view<'a>(app: &'a App) -> Element<'a, Message> {
     let (agent_tab_btn, tools_tab_btn, skills_tab_btn) = session_tool_tab_buttons(app);
 
     let reasoning_btn = if selected_acp_agent.is_some() {
-        Some(acp_options::button(app))
+        None
     } else {
         reasoning_effort_selector(app, None, reasoning_effort)
     };

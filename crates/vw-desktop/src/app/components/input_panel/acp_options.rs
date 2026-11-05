@@ -9,16 +9,6 @@ use iced::widget::{Space, button as action, column, container, row, scrollable, 
 use iced::{Alignment, Element, Length};
 use vw_gateway_client::vw_api_types::acp_session::AcpSessionSelection;
 
-pub(super) fn button(app: &App) -> Element<'_, Message> {
-    action(text("会话选项").size(12))
-        .padding([4, 10])
-        .style(rounded_action_btn_style)
-        .on_press_maybe(
-            app.active_session_id.as_ref().map(|_| Message::Chat(ChatMessage::AcpOptionsOpen)),
-        )
-        .into()
-}
-
 pub(crate) fn with_modal<'a>(app: &'a App, base: Element<'a, Message>) -> Element<'a, Message> {
     let Some(runtime) =
         app.current_session_runtime_ref().filter(|r| r.acp_options_open && r.acp_agent.is_some())

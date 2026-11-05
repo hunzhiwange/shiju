@@ -62,6 +62,8 @@ mod session_conversation_model;
 mod session_event_log;
 mod session_events;
 mod session_mode_preference;
+mod session_mounts;
+pub use session_mounts::*;
 mod session_persistence;
 mod session_runtime;
 mod session_runtime_helpers;

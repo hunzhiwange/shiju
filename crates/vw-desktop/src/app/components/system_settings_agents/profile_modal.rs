@@ -49,7 +49,7 @@ pub(super) fn overlay<'a>(app: &'a App, base: Element<'a, Message>) -> Element<'
     ]
     .spacing(8)
     .wrap();
-    let entry = draft;
+    let entry = super::shared::selected_entry(app).unwrap_or(draft);
     let fields: Element<'_, Message> = match settings.active_detail_tab.as_str() {
         crate::app::state::AGENT_DETAIL_IDENTITY_TAB => super::identity::view(app, entry),
         crate::app::state::AGENT_DETAIL_TOOLS_TAB => super::tools::view(app, entry),
@@ -66,7 +66,7 @@ pub(super) fn overlay<'a>(app: &'a App, base: Element<'a, Message>) -> Element<'
         footer = footer.push(action("删除智能体", (!busy).then_some(AgentsMessage::ProfileDelete)));
     }
     footer = footer.push(
-        button(text(if busy { "保存中…" } else { "保存资料" }))
+        button(text(if busy { "保存中…" } else { "保存配置" }))
             .on_press_maybe((!busy).then_some(message(AgentsMessage::ProfileSave)))
             .padding([8, 14])
             .style(primary_action_btn_style),
@@ -74,17 +74,22 @@ pub(super) fn overlay<'a>(app: &'a App, base: Element<'a, Message>) -> Element<'
     let card = settings_modal_card(
         column![
             row![
-                text("智能体资料").size(20),
+                text("智能体配置").size(20),
+                iced::widget::Space::new().width(Length::Fill),
                 settings_close_button(message(AgentsMessage::ProfileCancel))
             ]
-            .spacing(20),
+            .spacing(20)
+            .align_y(iced::Alignment::Center),
             tabs,
+            text("身份文件正文即时保存；其余配置点击保存后生效。")
+                .size(12)
+                .style(settings_muted_text_style),
             body,
             footer,
         ]
         .spacing(16),
     )
-    .width(Length::Fixed(760.0))
+    .width(Length::Fixed(1000.0))
     .height(Length::Fill)
     .max_height(820);
     settings_modal_overlay(Some(base), message(AgentsMessage::ProfileCancel), card)

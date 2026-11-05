@@ -719,6 +719,9 @@ pub fn update(app: &mut App, message: SettingsMessage) -> Task<Message> {
     {
         return Task::none();
     }
+    if app.agents_settings.profile_saving && !matches!(message, AgentsMessage::ProfileSaved(_)) {
+        return Task::none();
+    }
     let invert_skill_selection =
         matches!(&message, AgentsMessage::AllowedSkillsInvertSelection(_, _));
     match message {
@@ -735,6 +738,12 @@ pub fn update(app: &mut App, message: SettingsMessage) -> Task<Message> {
             super::acp::update(app, SettingsMessage::Acp(super::AcpMessage::EditAgent(backend)))
         }
         AgentsMessage::CatalogToggle(key, enabled) => {
+            if let Some(draft) = app.agents_settings.profile_modal.as_mut() {
+                if draft.key == key && draft.can_disable {
+                    draft.enabled = enabled;
+                }
+                return Task::none();
+            }
             if !catalog_can_write(app)
                 || key == MAIN_AGENT_KEY
                 || !app.agents_settings.entries.iter().any(|entry| entry.key == key)

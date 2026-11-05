@@ -5,7 +5,7 @@ use crate::app::App;
 use crate::app::state::{AgentSettingsEntryKind, ProviderSummary};
 
 fn root_child_count(app: &App) -> usize {
-    super::view(app).as_widget().children().len()
+    super::agents_view(app).as_widget().children().len()
 }
 
 #[test]
@@ -21,7 +21,7 @@ fn agents_view_loading_state_adds_status_row() {
 }
 
 #[test]
-fn agents_view_builds_sidebar_for_main_enabled_disabled_and_model_variants() {
+fn agents_view_builds_cards_for_main_enabled_disabled_and_model_variants() {
     let (mut app, _) = App::new();
     app.agents_settings.config_ready = true;
     let mut main = app

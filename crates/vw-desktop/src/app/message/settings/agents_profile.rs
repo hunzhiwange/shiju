@@ -4,15 +4,15 @@ use super::*;
 pub(super) fn update(app: &mut App, message: AgentsMessage) -> Task<Message> {
     match message {
         AgentsMessage::ProfileOpen(key) => {
-            if app.agents_settings.config_ready
-                && !app.agents_settings.save_in_flight
-                && !app.agents_settings.profile_saving
-            {
-                app.agents_settings.profile_modal =
-                    app.agents_settings.entries.iter().find(|entry| entry.key == key).cloned();
+            if !catalog_can_write(app) {
+                return Task::none();
             }
+            app.agents_settings.profile_modal =
+                app.agents_settings.entries.iter().find(|entry| entry.key == key).cloned();
             if let Some(draft) = app.agents_settings.profile_modal.as_mut() {
                 draft.description_editor = text_editor::Content::with_text(&draft.description);
+                app.agents_settings.active_prompt_tab = AGENT_PROMPT_SYSTEM_TAB.to_string();
+                app.agents_settings.workspace_identity_root_path = None;
                 app.agents_settings.selected_agent = key;
                 app.agents_settings.active_detail_tab =
                     crate::app::state::AGENT_DETAIL_BASIC_TAB.to_string();
@@ -47,6 +47,8 @@ pub(super) fn update(app: &mut App, message: AgentsMessage) -> Task<Message> {
                             app.agents_settings.selected_agent = MAIN_AGENT_KEY.to_string();
                         } else if let Some(entry) = find_entry_mut(app, &draft.key) {
                             *entry = draft;
+                        } else {
+                            app.agents_settings.entries.push(draft);
                         }
                     }
                     app.agents_settings.profile_deleting = false;

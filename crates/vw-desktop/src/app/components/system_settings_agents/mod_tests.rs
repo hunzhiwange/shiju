@@ -37,8 +37,8 @@ fn agent_config_tabs_render_each_existing_settings_page() {
 }
 
 #[test]
-fn acp_tab_reserves_space_between_content_and_scrollbar() {
-    assert!(SOURCE.contains("Padding::default().right(12.0)"));
+fn agent_catalog_reserves_space_between_content_and_scrollbar() {
+    assert!(SOURCE.contains("container(catalog::grid(app)).padding([0, 7])"));
 }
 
 #[test]

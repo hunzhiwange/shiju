@@ -90,11 +90,11 @@ pub(super) fn cards(app: &App) -> Vec<Element<'_, Message>> {
                     .on_press_maybe((!busy).then_some(message(value)))
             };
             let mut actions = row![
-                action("编辑资料", AgentsMessage::ProfileOpen(entry.key.clone())),
+                action("编辑配置", AgentsMessage::ProfileOpen(entry.key.clone())),
                 action("复制", AgentsMessage::CatalogCopy(entry.key.clone())),
             ]
             .spacing(6);
-            if entry.key != "main" {
+            if entry.can_disable {
                 actions = actions.push(action(
                     if entry.enabled { "停用" } else { "启用" },
                     AgentsMessage::CatalogToggle(entry.key.clone(), !entry.enabled),
@@ -119,7 +119,7 @@ pub(super) fn cards(app: &App) -> Vec<Element<'_, Message>> {
                     status,
                     settings.selected_agent == entry.key
                 ))
-                .on_press(message(AgentsMessage::SelectAgent(entry.key.clone()))),
+                .on_press(message(AgentsMessage::ProfileOpen(entry.key.clone()))),
                 text(&entry.description).size(12).style(settings_muted_text_style),
                 text(format!(
                     "{engine} · {} · {}",
@@ -142,4 +142,28 @@ pub(super) fn cards(app: &App) -> Vec<Element<'_, Message>> {
             container(body).padding(12).width(Length::Fill).style(settings_panel_style).into()
         })
         .collect()
+}
+
+/// 每行固定三列；末行补齐空位，避免卡片被拉伸。
+pub(super) fn grid(app: &App) -> Element<'_, Message> {
+    let cards = cards(app);
+    if cards.is_empty() {
+        return container(text("没有匹配的智能体").style(settings_muted_text_style))
+            .padding(24)
+            .width(Length::Fill)
+            .center_x(Length::Fill)
+            .into();
+    }
+    let mut rows = column![].spacing(12);
+    let mut cards = cards.into_iter().peekable();
+    while cards.peek().is_some() {
+        let mut line = row![].spacing(12);
+        for _ in 0..3 {
+            line = line.push(cards.next().unwrap_or_else(|| {
+                container(iced::widget::Space::new()).width(Length::Fill).into()
+            }));
+        }
+        rows = rows.push(line);
+    }
+    rows.width(Length::Fill).into()
 }

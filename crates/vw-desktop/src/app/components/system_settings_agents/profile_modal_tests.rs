@@ -214,6 +214,41 @@ async fn agent_config_cleanup_five_tabs_render_in_both_themes() {
     }
 }
 
+#[test]
+fn agent_config_cancel_discards_parameters_and_profile_together() {
+    let mut app = App::new().0;
+    app.agents_settings.config_ready = true;
+    let original = app.agents_settings.entries[0].clone();
+    dispatch(&mut app, AgentsMessage::ProfileOpen(original.key.clone()));
+    dispatch(&mut app, AgentsMessage::TemperatureChanged(original.key.clone(), 1.5));
+    dispatch(&mut app, AgentsMessage::MaxIterationsChanged(original.key.clone(), 123));
+    dispatch(&mut app, AgentsMessage::ProfileNameChanged("修改名称".into()));
+    assert_eq!(app.agents_settings.profile_modal.as_ref().unwrap().max_iterations, 123);
+    dispatch(&mut app, AgentsMessage::ProfileCancel);
+    assert_eq!(app.agents_settings.entries[0].temperature, original.temperature);
+    assert_eq!(app.agents_settings.entries[0].max_iterations, original.max_iterations);
+    assert_eq!(app.agents_settings.entries[0].label, original.label);
+    assert!(!app.agents_settings.dirty);
+}
+
+#[test]
+fn agent_config_create_commits_only_after_successful_save() {
+    let mut app = App::new().0;
+    app.agents_settings.config_ready = true;
+    dispatch(&mut app, AgentsMessage::AddAgentKeyChanged("custom-agent".into()));
+    dispatch(&mut app, AgentsMessage::AddAgentRequested);
+    assert!(!app.agents_settings.entries.iter().any(|e| e.key == "custom-agent"));
+    dispatch(&mut app, AgentsMessage::MaxIterationsChanged("custom-agent".into(), 123));
+    dispatch(&mut app, AgentsMessage::ProfileNameChanged("新智能体".into()));
+    dispatch(&mut app, AgentsMessage::ProfileSave);
+    assert!(app.agents_settings.profile_saving);
+    dispatch(&mut app, AgentsMessage::ProfileSaved(Ok(())));
+    let entry = app.agents_settings.entries.iter().find(|e| e.key == "custom-agent").unwrap();
+    assert_eq!(entry.label, "新智能体");
+    assert_eq!(entry.max_iterations, 123);
+    assert!(app.agents_settings.profile_modal.is_none());
+}
+
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn agent_config_cleanup_skill_directory_renders_chinese_in_both_themes() {
     use iced::advanced::renderer::Headless;

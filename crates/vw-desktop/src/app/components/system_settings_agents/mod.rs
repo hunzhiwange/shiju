@@ -37,20 +37,16 @@ mod tests;
 #[path = "tools_tests.rs"]
 mod tools_tests;
 
-use self::shared::{detail_tab_button, section_card, selected_entry};
+use self::shared::section_card;
 use crate::app::components::system_settings_common::{
-    primary_action_btn_style, rounded_action_btn_style, settings_error_banner,
-    settings_muted_text_style, settings_page_intro, settings_panel_style,
-    settings_segment_button_style,
-    settings_text_input_style, settings_value_badge,
+    SETTINGS_CONTROL_PADDING, SETTINGS_CONTROL_TEXT_SIZE, rounded_action_btn_style,
+    settings_error_banner, settings_muted_text_style, settings_page_intro,
+    settings_segment_button_style, settings_text_input_style,
 };
 use crate::app::components::system_settings_search::SettingsTabDescriptor;
 use crate::app::i18n::settings_extensions::text as tr;
 use crate::app::message::settings::{AgentConfigTabMessage, AgentsMessage, SettingsMessage};
-use crate::app::state::{
-    AGENT_DETAIL_BASIC_TAB, AGENT_DETAIL_IDENTITY_TAB, AGENT_DETAIL_SKILLS_TAB,
-    AGENT_DETAIL_TOOLS_TAB, AgentConfigTab,
-};
+use crate::app::state::AgentConfigTab;
 use crate::app::{App, Message};
 use iced::widget::{
     button, column, container, row, scrollable,
@@ -314,10 +310,6 @@ fn agents_view(app: &App) -> Element<'_, Message> {
         .into();
     }
 
-    let provider_options =
-        settings.providers.iter().map(|provider| provider.id.clone()).collect::<Vec<_>>();
-    let sidebar_items = catalog::cards(app);
-
     let title = settings_page_intro(
         tr(app.desktop_locale, "智能体配置"),
         tr(
@@ -330,11 +322,11 @@ fn agents_view(app: &App) -> Element<'_, Message> {
             .on_input(|value| {
                 Message::Settings(SettingsMessage::Agents(AgentsMessage::AddAgentKeyChanged(value)))
             })
-            .padding([10, 12])
-            .size(13)
+            .padding(SETTINGS_CONTROL_PADDING)
+            .size(SETTINGS_CONTROL_TEXT_SIZE)
             .style(settings_text_input_style)
             .width(Length::Fill),
-        button(text(tr(app.desktop_locale, "新增")).size(12))
+        button(text(tr(app.desktop_locale, "新建智能体")).size(12))
             .padding([8, 14])
             .on_press(Message::Settings(SettingsMessage::Agents(AgentsMessage::AddAgentRequested,)))
             .style(rounded_action_btn_style),
@@ -342,145 +334,13 @@ fn agents_view(app: &App) -> Element<'_, Message> {
     .spacing(10)
     .align_y(Alignment::Center);
 
-    let detail: Element<'_, Message> = if let Some(entry) = selected_entry(app) {
-        let detail_tabs = row![
-            detail_tab_button(
-                tr(app.desktop_locale, "基础"),
-                AGENT_DETAIL_BASIC_TAB,
-                &settings.active_detail_tab
-            ),
-            detail_tab_button(
-                tr(app.desktop_locale, "身份"),
-                AGENT_DETAIL_IDENTITY_TAB,
-                &settings.active_detail_tab
-            ),
-            detail_tab_button(
-                tr(app.desktop_locale, "工具"),
-                AGENT_DETAIL_TOOLS_TAB,
-                &settings.active_detail_tab
-            ),
-            detail_tab_button(
-                tr(app.desktop_locale, "技能"),
-                AGENT_DETAIL_SKILLS_TAB,
-                &settings.active_detail_tab
-            ),
-        ]
-        .spacing(10)
-        .wrap();
-
-        let detail_content: Element<'_, Message> = match settings.active_detail_tab.as_str() {
-            AGENT_DETAIL_IDENTITY_TAB => identity::view(app, entry),
-            AGENT_DETAIL_TOOLS_TAB => tools::view(app, entry),
-            AGENT_DETAIL_SKILLS_TAB => skills::view(app, entry),
-            _ => basic::view(app, entry, provider_options.clone()),
-        };
-
-        column![
-            button(text("编辑智能体资料"))
-                .padding([8, 14])
-                .style(rounded_action_btn_style)
-                .on_press(Message::Settings(SettingsMessage::Agents(AgentsMessage::ProfileOpen(
-                    entry.key.clone()
-                )))),
-            detail_tabs,
-            detail_content
-        ]
-        .spacing(14)
-        .into()
-    } else {
-        container(text(tr(app.desktop_locale, "未找到代理配置"))).into()
-    };
-
     let mut content = column![
         title,
-        section_card(
-            tr(app.desktop_locale, "项目配置作用域"),
-            tr(
-                app.desktop_locale,
-                "修改后点击保存配置；切换项目之前请先保存或放弃修改。身份文件正文仍单独即时写入。"
-            ),
-        ),
-        row![
-            text(if settings.save_in_flight {
-                tr(app.desktop_locale, "正在保存…")
-            } else if settings.dirty {
-                tr(app.desktop_locale, "有未保存的修改")
-            } else {
-                tr(app.desktop_locale, "无未保存的修改")
-            })
-            .size(12)
-            .style(settings_muted_text_style),
-            button(
-                text(if settings.save_in_flight {
-                    tr(app.desktop_locale, "保存中…")
-                } else {
-                    tr(app.desktop_locale, "保存配置")
-                })
-                .size(13)
-            )
-            .on_press_maybe(
-                (!settings.save_in_flight)
-                    .then_some(Message::Settings(SettingsMessage::Agents(AgentsMessage::Save)))
-            )
-            .padding([8, 14])
-            .style(primary_action_btn_style),
-            button(text(tr(app.desktop_locale, "放弃修改并刷新")).size(13))
-                .on_press_maybe((!settings.save_in_flight).then_some(Message::Settings(
-                    SettingsMessage::Agents(AgentsMessage::DiscardChanges)
-                )))
-                .padding([8, 14])
-                .style(rounded_action_btn_style),
-        ]
-        .spacing(12)
-        .align_y(Alignment::Center),
-        row![
-            container(
-                scrollable(container(detail).padding(iced::Padding::default().right(12.0)))
-                    .direction(Direction::Vertical(Scrollbar::new().width(4).scroller_width(4)))
-                    .height(Length::Fill)
-            )
-            .padding([18, 20])
-            .width(Length::Fill)
-            .height(Length::Fill)
-            .style(settings_panel_style),
-            container(
-                column![
-                    catalog::controls(app),
-                    add_agent_bar,
-                    row![
-                        settings_value_badge(
-                            crate::__!(
-                                crate::app::i18n::I18n::new(app.desktop_locale),
-                                "%u 个代理",
-                                settings.entries.len()
-                            )
-                            .expect("valid agent count template")
-                        ),
-                        settings_value_badge(if settings.loading {
-                            tr(app.desktop_locale, "同步中")
-                        } else {
-                            tr(app.desktop_locale, "已就绪")
-                        }),
-                    ]
-                    .spacing(10)
-                    .wrap(),
-                    scrollable(
-                        container(column(sidebar_items).spacing(8))
-                            .padding(iced::Padding::default().right(10.0))
-                    )
-                    .direction(Direction::Vertical(Scrollbar::new().width(4).scroller_width(4)))
-                    .height(Length::Fill),
-                ]
-                .spacing(12)
-                .height(Length::Fill)
-            )
-            .padding([18, 18])
-            .width(Length::Fixed(456.0))
-            .height(Length::Fill)
-            .style(settings_panel_style),
-        ]
-        .spacing(20)
-        .height(Length::Fill),
+        catalog::controls(app),
+        add_agent_bar,
+        scrollable(container(catalog::grid(app)).padding([0, 7]))
+            .direction(Direction::Vertical(Scrollbar::new().width(4).scroller_width(4)))
+            .height(Length::Fill),
     ]
     .spacing(14)
     .width(Length::Fill)

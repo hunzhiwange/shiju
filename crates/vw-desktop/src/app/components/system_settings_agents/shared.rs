@@ -171,11 +171,13 @@ pub(super) fn agent_sidebar_button_style(
 ///
 /// 本函数不直接返回错误；无法交互或缺省状态会在控件状态中显式表达。
 pub(super) fn selected_entry(app: &App) -> Option<&DelegateAgentSettingsEntry> {
-    app.agents_settings
-        .entries
-        .iter()
-        .find(|entry| entry.key == app.agents_settings.selected_agent)
-        .or_else(|| app.agents_settings.entries.first())
+    app.agents_settings.profile_modal.as_ref().or_else(|| {
+        app.agents_settings
+            .entries
+            .iter()
+            .find(|entry| entry.key == app.agents_settings.selected_agent)
+            .or_else(|| app.agents_settings.entries.first())
+    })
 }
 
 /// 构建或处理 `entry_kind_label` 对应的界面片段与交互数据。

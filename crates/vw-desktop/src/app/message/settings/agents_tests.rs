@@ -1499,7 +1499,10 @@ fn add_agent_defaults_to_all_loaded_tools() {
 
     let _ = update(&mut app, SettingsMessage::Agents(AgentsMessage::AddAgentRequested));
 
-    assert_eq!(entry(&app, "worker_2").allowed_tools, vec!["bash", "read"]);
+    assert_eq!(
+        app.agents_settings.profile_modal.as_ref().unwrap().allowed_tools,
+        vec!["bash", "read"]
+    );
 }
 
 #[test]

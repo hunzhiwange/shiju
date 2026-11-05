@@ -172,6 +172,7 @@ pub fn update(app: &mut App, message: ViewMessage) -> Task<Message> {
             app.show_mode_popover = false;
             app.show_file_popover = false;
             app.show_usage_popover = false;
+            app.show_session_tool_selector_popover = false;
             Task::done(Message::Settings(SettingsMessage::SystemTabSelected(tab)))
         }
         ViewMessage::OpenSystemSettingsModelDetail(provider_id, model_id) => {

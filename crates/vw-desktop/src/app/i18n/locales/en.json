@@ -2375,6 +2375,7 @@
   "当前目录筛选下没有已安装且启用的技能。": "No installed and enabled skills match this directory filter.",
   "没有匹配的技能。": "No matching skills.",
   "会话控制": "Chat controls",
+  "配置智能体": "Configure agents",
   "跳转到底部": "Jump to bottom",
   "复制消息": "Copy message",
   "分叉到新会话": "Fork into a new chat",

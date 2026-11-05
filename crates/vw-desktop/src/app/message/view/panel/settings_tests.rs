@@ -162,6 +162,7 @@ fn opening_system_settings_tab_closes_transient_popovers() {
     app.show_mode_popover = true;
     app.show_file_popover = true;
     app.show_usage_popover = true;
+    app.show_session_tool_selector_popover = true;
 
     let _ = super::update(&mut app, ViewMessage::OpenSystemSettingsTab(SystemTab::General));
 
@@ -172,6 +173,7 @@ fn opening_system_settings_tab_closes_transient_popovers() {
     assert!(!app.show_mode_popover);
     assert!(!app.show_file_popover);
     assert!(!app.show_usage_popover);
+    assert!(!app.show_session_tool_selector_popover);
 }
 
 #[test]

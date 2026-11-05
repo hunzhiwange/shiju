@@ -334,6 +334,7 @@ async fn stream_sends_deltas_tool_calls_usage_and_clamped_request_options() {
         AiStreamChunk::Delta(LanguageModelStreamChunkType::ToolCallStart(ToolDetails {
             id: "call-1".to_string(),
             name: "lookup".to_string(),
+            namespace: None,
         })),
         AiStreamChunk::Delta(LanguageModelStreamChunkType::ToolCallDelta {
             id: "call-1".to_string(),

@@ -19,17 +19,20 @@ async fn codex_plugin_compat_t59_preserves_exec_arguments_and_cancellation() {
         ..SecurityPolicy::default()
     });
     let tools = crate::tools::default_tools_with_runtime(policy, Arc::new(NativeRuntime::new()));
+    assert!(!tools.iter().any(|tool| tool.spec().id == "exec_command"));
+    assert_eq!(tools.iter().filter(|tool| tool.spec().id == "bash").count(), 1);
     let ctx =
         Arc::new(ToolUseContext::new("t59-owner", Some(dir.path().to_string_lossy().into_owned())));
-    let mut started = crate::tools::execute_tool_from_registry(
+    let executed = crate::tools::execute_tool_from_registry(
         &tools,
-        "exec_command",
-        json!({"cmd":"printf ready; sleep 60","workdir":dir.path(),"yield_time_ms":250}),
+        "bash",
+        json!({"command":"printf ready; sleep 60","workdir":dir.path(),"yield_time_ms":250}),
         ctx.clone(),
     )
     .await
-    .unwrap()
-    .result;
+    .unwrap();
+    assert_eq!(executed.tool_name, "bash");
+    let mut started = executed.result;
     let deadline = tokio::time::Instant::now() + std::time::Duration::from_secs(10);
     while started.data["output"] != "ready"
         && started.data["state"] == "running"
@@ -72,25 +75,25 @@ async fn codex_plugin_compat_t59_preserves_exec_arguments_and_cancellation() {
 }
 
 #[tokio::test]
-async fn codex_plugin_compat_t59_rejects_invalid_input() {
-    let tool = super::host_exec::HostExecTool(crate::tools::ShellTool::new(
-        Arc::new(SecurityPolicy::default()),
-        Arc::new(NativeRuntime::new()),
-    ));
-    for input in
-        [json!({}), json!({"cmd":"echo x","approved":true}), json!({"cmd":"echo x","tty":true})]
-    {
-        assert!(tool.check_permissions(&input).await.is_err());
-    }
+async fn codex_plugin_compat_t59_rejects_removed_exec_command() {
+    let tools = crate::tools::default_tools(Arc::new(SecurityPolicy::default()));
+    let result = crate::tools::execute_tool_from_registry(
+        &tools,
+        "exec_command",
+        json!({"cmd": "echo removed"}),
+        Arc::new(ToolUseContext::new("removed-exec", None)),
+    )
+    .await;
+    assert!(result.unwrap_err().to_string().contains("Unknown tool: exec_command"));
 }
 
 #[tokio::test]
 async fn codex_plugin_compat_t59_preserves_isolation() {
-    let tool = super::host_exec::HostExecTool(crate::tools::ShellTool::new(
+    let tool = crate::tools::ShellTool::new(
         Arc::new(SecurityPolicy::default()),
         Arc::new(NativeRuntime::new()),
-    ));
-    assert!(tool.call(json!({"cmd":"printf isolated"})).await.is_err());
+    );
+    assert!(tool.call(json!({"command":"printf isolated"})).await.is_err());
 }
 
 #[tokio::test]
@@ -115,8 +118,8 @@ async fn codex_plugin_compat_t59_preserves_workdir_and_package_bytes() {
     ));
     let result = crate::tools::execute_tool_from_registry(
         &tools,
-        "exec_command",
-        json!({"cmd":"sh harmless.sh","workdir":package,"yield_time_ms":1000}),
+        "bash",
+        json!({"command":"sh harmless.sh","workdir":package,"yield_time_ms":1000}),
         ctx,
     )
     .await

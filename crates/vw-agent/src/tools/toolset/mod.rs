@@ -531,10 +531,8 @@ fn finish_tool_call(executed: ExecutedToolCall) -> Result<ToolCallResult, ToolCa
     // A managed process terminal snapshot is protocol data even when the command
     // failed or was cancelled. Flattening it would discard its handle and stderr.
     let shell_snapshot =
-        matches!(
-            executed.tool_name.as_str(),
-            "bash" | "bash_wait" | "bash_cancel" | "exec_command"
-        ) && executed.result.data.get("process_id").and_then(Value::as_str).is_some()
+        matches!(executed.tool_name.as_str(), "bash" | "bash_wait" | "bash_cancel")
+            && executed.result.data.get("process_id").and_then(Value::as_str).is_some()
             && matches!(
                 executed.result.data.get("state").and_then(Value::as_str),
                 Some("running" | "exited" | "cancelled" | "timed_out")
@@ -703,10 +701,6 @@ pub fn default_tools_with_runtime(
     #[cfg(not(target_arch = "wasm32"))]
     if has_shell_access {
         tool_arcs.push(Arc::new(ShellTool::new(security.clone(), runtime.clone())));
-        tool_arcs.push(Arc::new(crate::plugins::HostExecTool(ShellTool::new(
-            security.clone(),
-            runtime.clone(),
-        ))));
         tool_arcs.push(Arc::new(BashWaitTool::new(security.clone())));
         tool_arcs.push(Arc::new(BashCancelTool::new(security.clone())));
     }
@@ -822,13 +816,6 @@ pub fn all_tools_with_runtime(
             security.clone(),
             runtime.clone(),
             Some(syscall_detector.clone()),
-        )));
-        tool_arcs.push(Arc::new(crate::plugins::HostExecTool(
-            ShellTool::new_with_syscall_detector(
-                security.clone(),
-                runtime.clone(),
-                Some(syscall_detector.clone()),
-            ),
         )));
         tool_arcs.push(Arc::new(BashWaitTool::new(security.clone())));
         tool_arcs.push(Arc::new(BashCancelTool::new(security.clone())));

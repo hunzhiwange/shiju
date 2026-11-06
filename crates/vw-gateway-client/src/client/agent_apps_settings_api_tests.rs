@@ -164,3 +164,44 @@ async fn cc_apps_settings_launch_sdk_roundtrip_dropped_reply_and_redirect_never_
         assert_eq!(handle.join().unwrap(), 1, "write must reach the server exactly once");
     }
 }
+
+#[tokio::test]
+async fn cc_apps_settings_launch_sdk_roundtrip_authorized_preferences() {
+    let server = test_support::server(vec![
+        (200, preferences()),
+        (200, preferences()),
+        (403, json!({"code":"denied"})),
+    ]);
+    let client = server.client();
+    let saved = client
+        .agent_apps_preferences_authorized("host /?中文", "separate-app-grant")
+        .await
+        .unwrap();
+    let patch = AppPreferencesPatch::User(saved.user.clone());
+    assert_eq!(
+        client
+            .agent_apps_preferences_update_authorized("host /?中文", &patch, "separate-app-grant")
+            .await
+            .unwrap(),
+        saved
+    );
+    assert!(matches!(
+        client
+            .agent_apps_preferences_update_authorized("host /?中文", &patch, "separate-app-grant")
+            .await,
+        Err(AgentAppsSettingsError::Http { status: 403, .. })
+    ));
+    for method in ["GET", "PATCH", "PATCH"] {
+        let request = server.take_request();
+        assert_eq!(request.method, method);
+        assert_eq!(request.header("x-agent-apps-token"), Some("separate-app-grant"));
+        assert!(request.header("x-platform-id").is_some());
+        assert!(request.header("x-company-id").is_some());
+        assert!(request.path.contains("targetHostId=host+%2F%3F%E4%B8%AD%E6%96%87"));
+        if method == "PATCH" {
+            assert_eq!(request.body, serde_json::to_value(&patch).unwrap());
+        }
+        assert!(request.body.get("token").is_none());
+    }
+    server.join();
+}

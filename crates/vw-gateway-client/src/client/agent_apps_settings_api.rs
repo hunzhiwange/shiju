@@ -28,8 +28,14 @@ impl GatewayClient {
         &self,
         host: &str,
     ) -> Result<AppPreferencesResult, AgentAppsSettingsError> {
-        self.agent_apps_settings_request::<(), _>(reqwest::Method::GET, "preferences", host, None)
-            .await
+        self.agent_apps_settings_request::<(), _>(
+            reqwest::Method::GET,
+            "preferences",
+            host,
+            None,
+            None,
+        )
+        .await
     }
     /// Update one preferences domain without restarting applications.
     pub async fn agent_apps_preferences_update(
@@ -37,8 +43,45 @@ impl GatewayClient {
         host: &str,
         request: &AppPreferencesPatch,
     ) -> Result<AppPreferencesResult, AgentAppsSettingsError> {
-        self.agent_apps_settings_request(reqwest::Method::PATCH, "preferences", host, Some(request))
-            .await
+        self.agent_apps_settings_request(
+            reqwest::Method::PATCH,
+            "preferences",
+            host,
+            Some(request),
+            None,
+        )
+        .await
+    }
+    /// Read using the independently granted application credential.
+    pub async fn agent_apps_preferences_authorized(
+        &self,
+        host: &str,
+        token: &str,
+    ) -> Result<AppPreferencesResult, AgentAppsSettingsError> {
+        self.agent_apps_settings_request::<(), _>(
+            reqwest::Method::GET,
+            "preferences",
+            host,
+            None,
+            Some(token),
+        )
+        .await
+    }
+    /// Save one domain with no retries or implicit restart.
+    pub async fn agent_apps_preferences_update_authorized(
+        &self,
+        host: &str,
+        request: &AppPreferencesPatch,
+        token: &str,
+    ) -> Result<AppPreferencesResult, AgentAppsSettingsError> {
+        self.agent_apps_settings_request(
+            reqwest::Method::PATCH,
+            "preferences",
+            host,
+            Some(request),
+            Some(token),
+        )
+        .await
     }
     /// Launch once on the execution host. Paths and argv remain opaque to this client.
     /// Provider/account identities are resolved by the gateway; unsupported selections stay errors.
@@ -64,6 +107,7 @@ impl GatewayClient {
             "launch",
             host,
             Some(&Request { launch: request, provider_id, account_id }),
+            None,
         )
         .await
     }
@@ -73,10 +117,11 @@ impl GatewayClient {
         resource: &str,
         host: &str,
         body: Option<&B>,
+        token: Option<&str>,
     ) -> Result<T, AgentAppsSettingsError> {
         #[cfg(target_arch = "wasm32")]
         {
-            let _ = (method, resource, host, body);
+            let _ = (method, resource, host, body, token);
             Err(AgentAppsSettingsError::Transport(
                 "settings/launch requests require a native transport with redirects and retries disabled"
                     .into(),
@@ -89,6 +134,9 @@ impl GatewayClient {
                 .dynamic_host_client
                 .request(method, format!("{}/v1/agent-apps/{resource}", self.endpoint.base_url()))
                 .query(&[("targetHostId", host)]);
+            if let Some(token) = token {
+                request = request.header("x-agent-apps-token", token);
+            }
             if let Some(body) = body {
                 request = request.json(body);
             }

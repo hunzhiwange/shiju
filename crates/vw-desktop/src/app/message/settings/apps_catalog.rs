@@ -6,6 +6,7 @@ use iced::Task;
 
 #[derive(Clone)]
 pub enum AppsCatalogMessage {
+    Preferences(crate::app::components::system_settings_apps::preferences::PreferencesMessage),
     Lifecycle(super::apps_lifecycle::LifecycleMessage),
     ConnectionOpen,
     ConnectionClose,
@@ -26,6 +27,9 @@ impl std::fmt::Debug for AppsCatalogMessage {
 }
 pub(super) fn update(app: &mut App, message: AppsCatalogMessage) -> Task<Message> {
     match message {
+        AppsCatalogMessage::Preferences(message) => {
+            return crate::app::components::system_settings_apps::preferences::update(app, message);
+        }
         AppsCatalogMessage::Lifecycle(message) => {
             return super::apps_lifecycle::update(app, message);
         }
@@ -33,6 +37,7 @@ pub(super) fn update(app: &mut App, message: AppsCatalogMessage) -> Task<Message
         AppsCatalogMessage::ConnectionClose => app.apps_catalog.connection_open = false,
         AppsCatalogMessage::HostInput(host) => {
             app.apps_catalog.lifecycle.invalidate();
+            app.apps_catalog.preferences.invalidate();
             app.apps_catalog.host = host;
             app.apps_catalog.generation = app.apps_catalog.generation.wrapping_add(1);
             app.apps_catalog.loading = false;
@@ -47,6 +52,7 @@ pub(super) fn update(app: &mut App, message: AppsCatalogMessage) -> Task<Message
                     project: app.project_path.clone(),
                 });
             app.apps_catalog.lifecycle.invalidate();
+            app.apps_catalog.preferences.invalidate();
             app.apps_catalog.token = token;
             app.apps_catalog.generation = app.apps_catalog.generation.wrapping_add(1);
             app.apps_catalog.loading = false;
@@ -102,10 +108,13 @@ pub(super) fn update(app: &mut App, message: AppsCatalogMessage) -> Task<Message
             if current.as_ref() != Some(&context) || host != app.apps_catalog.host {
                 return Task::none();
             }
-            if app.apps_catalog.finish(&context, generation, result)
-                && let Some(error) = app.apps_catalog.error.clone()
-            {
-                return app.show_error_toast(error);
+            if app.apps_catalog.finish(&context, generation, result) {
+                if let Some(error) = app.apps_catalog.error.clone() {
+                    return app.show_error_toast(error);
+                }
+                return crate::app::components::system_settings_apps::preferences::update(
+                    app, crate::app::components::system_settings_apps::preferences::PreferencesMessage::Load,
+                );
             }
         }
     }

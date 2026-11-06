@@ -33,7 +33,17 @@ pub(crate) fn view(state: &AppsCatalogState) -> Element<'_, Message> {
             "应用列表",
             "读取所选网关执行主机的应用；各运行形态分别展示观察结果。"
         ),
-        row![connection, refresh].spacing(10),
+        row![
+            connection,
+            refresh,
+            button(text("应用设置"))
+                .padding([8, 16])
+                .style(rounded_action_btn_style)
+                .on_press_maybe((!state.loading && !state.rows.is_empty()).then_some(message(
+                    AppsCatalogMessage::Preferences(preferences::PreferencesMessage::Open)
+                )))
+        ]
+        .spacing(10),
         text(format!("执行主机：{}", if state.host.is_empty() { "尚未选择" } else { &state.host }))
             .size(13),
     ]
@@ -49,7 +59,7 @@ pub(crate) fn view(state: &AppsCatalogState) -> Element<'_, Message> {
             .push(text("选择已授权的执行主机后刷新应用列表。").style(settings_muted_text_style));
     }
     content = content.push(lifecycle::progress(&state.lifecycle));
-    for app in &state.rows {
+    for app in preferences::visible_rows(state) {
         let mut details = column![text(&app.entry.name).size(18)].spacing(8);
         for kind in &app.entry.runtime_kinds {
             details = details.push(
@@ -149,7 +159,10 @@ pub(crate) fn view_overlays<'a>(
     base: Element<'a, Message>,
 ) -> Element<'a, Message> {
     if !state.connection_open {
-        return lifecycle::overlay(&state.lifecycle, &state.host, base);
+        return preferences::overlay(
+            state,
+            lifecycle::overlay(&state.lifecycle, &state.host, base),
+        );
     }
     let close = message(AppsCatalogMessage::ConnectionClose);
     let host = text_input("管理员登记的主机 ID", &state.host)
@@ -195,3 +208,7 @@ pub(crate) fn view_overlays<'a>(
 
 #[cfg(test)]
 mod uninstall_tests;
+
+pub(crate) mod preferences;
+#[cfg(test)]
+mod preferences_tests;

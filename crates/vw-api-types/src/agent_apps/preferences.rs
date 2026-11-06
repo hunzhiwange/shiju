@@ -35,6 +35,9 @@ pub struct AppPreferencesResult {
     pub user: AppUserPreferences,
     pub host: AppHostPreferences,
     pub restart_required: bool,
+    /// Execution-host rules, never inferred from the desktop OS.
+    #[serde(default)]
+    pub capabilities: Option<AppPreferencesCapabilities>,
 }
 
 /// Replace one complete preferences domain per PATCH. Other domains are preserved.
@@ -43,4 +46,11 @@ pub struct AppPreferencesResult {
 pub enum AppPreferencesPatch {
     User(AppUserPreferences),
     Host(AppHostPreferences),
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct AppPreferencesCapabilities {
+    pub terminals: Vec<String>,
+    pub wsl_preferences: bool,
 }

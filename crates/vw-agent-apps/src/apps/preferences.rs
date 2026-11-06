@@ -70,7 +70,15 @@ pub fn normalize_preferences(
     let host = normalize_host(host, platform)?;
     let previous = normalize_host(previous_host.clone(), platform)?;
     let restart_required = host != previous;
-    Ok(AppPreferencesResult { user, host, restart_required })
+    Ok(AppPreferencesResult {
+        user,
+        host,
+        restart_required,
+        capabilities: Some(vw_api_types::agent_apps::AppPreferencesCapabilities {
+            terminals: terminals(platform).iter().map(|s| (*s).into()).collect(),
+            wsl_preferences: platform == HostPlatform::Windows,
+        }),
+    })
 }
 
 fn invalid(message: &str) -> io::Error {
@@ -81,23 +89,7 @@ fn normalize_host(
     mut host: AppHostPreferences,
     platform: HostPlatform,
 ) -> io::Result<AppHostPreferences> {
-    let terminals: &[&str] = match platform {
-        HostPlatform::MacOs => &[
-            "terminal",
-            "iterm2",
-            "warp",
-            "alacritty",
-            "kitty",
-            "ghostty",
-            "otty",
-            "wezterm",
-            "kaku",
-        ],
-        HostPlatform::Windows => &["cmd", "powershell", "wt"],
-        HostPlatform::Linux => {
-            &["gnome-terminal", "konsole", "xfce4-terminal", "alacritty", "kitty", "ghostty"]
-        }
-    };
+    let terminals = terminals(platform);
     if host.preferred_terminal.as_deref().is_some_and(|value| !terminals.contains(&value)) {
         return Err(invalid("terminal is not supported on the execution host platform"));
     }
@@ -132,4 +124,24 @@ fn normalize_host(
     let ids = default_user_preferences().visible_apps;
     host.wsl_shells.sort_by_key(|entry| ids.iter().position(|id| *id == entry.app_id));
     Ok(host)
+}
+
+fn terminals(platform: HostPlatform) -> &'static [&'static str] {
+    match platform {
+        HostPlatform::MacOs => &[
+            "terminal",
+            "iterm2",
+            "warp",
+            "alacritty",
+            "kitty",
+            "ghostty",
+            "otty",
+            "wezterm",
+            "kaku",
+        ],
+        HostPlatform::Windows => &["cmd", "powershell", "wt"],
+        HostPlatform::Linux => {
+            &["gnome-terminal", "konsole", "xfce4-terminal", "alacritty", "kitty", "ghostty"]
+        }
+    }
 }

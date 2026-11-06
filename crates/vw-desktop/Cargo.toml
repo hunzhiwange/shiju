@@ -178,3 +178,9 @@ name = "apps-uninstall-window"
 path = "src/apps_uninstall_window_main.rs"
 harness = false
 test = false
+
+[[test]]
+name = "apps-preferences-window"
+path = "src/apps_preferences_window_main.rs"
+harness = false
+test = false

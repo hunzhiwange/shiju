@@ -191,3 +191,23 @@ fn cc_apps_preferences_normalization_wsl_boundaries_and_idempotence() {
     assert_eq!(defaults.user.app_order[0], "claude");
     assert_eq!(defaults.user.app_order[13], "omp");
 }
+
+#[test]
+fn cc_apps_preferences_normalization_capabilities_follow_execution_platform() {
+    for (platform, terminal, wsl) in [
+        (HostPlatform::MacOs, "terminal", false),
+        (HostPlatform::Windows, "wt", true),
+        (HostPlatform::Linux, "konsole", false),
+    ] {
+        let result = normalize_preferences(
+            default_user_preferences(),
+            AppHostPreferences::default(),
+            &AppHostPreferences::default(),
+            platform,
+        )
+        .unwrap();
+        let capabilities = result.capabilities.unwrap();
+        assert!(capabilities.terminals.contains(&terminal.to_string()));
+        assert_eq!(capabilities.wsl_preferences, wsl);
+    }
+}

@@ -56,6 +56,7 @@ impl AcpClient {
                     | "kilocode"
                     | "openclaw"
                     | "pi"
+                    | "trae"
             ),
             reject_untyped_workflow_permissions: matches!(
                 self.agent_name.as_str(),

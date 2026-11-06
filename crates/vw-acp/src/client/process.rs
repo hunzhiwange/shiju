@@ -153,7 +153,9 @@ impl AcpClient {
             .and_then(|s| s.to_str())
             .unwrap_or_default();
         let bypass = self.config.args.iter().any(|arg| {
-            (arg == "-y" && matches!(command, "gemini" | "gemini-cli" | "qwen" | "qwen-code"))
+            (arg == "-y"
+                && (self.agent_name == "trae"
+                    || matches!(command, "gemini" | "gemini-cli" | "qwen" | "qwen-code")))
                 || matches!(
                     arg.as_str(),
                     "--yolo"

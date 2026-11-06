@@ -109,6 +109,7 @@ impl AcpClient {
                 | "droid"
                 | "kilocode"
                 | "openclaw"
+                | "trae"
         ) {
             // OpenCode modes select agents. Copilot and Auggie have no confirmed
             // native session permission control here. Goose auto skips tool denies.
@@ -117,6 +118,7 @@ impl AcpClient {
             // Droid autonomy tiers are not a confirmed ACP permission switch.
             // Kilocode modes also select agents; pure still loads permission config.
             // OpenClaw relays Gateway exec approvals; elevated controls change host execution.
+            // TRAE startup bypass also disables its sandbox; do not infer session controls.
             // Keep client approvals.
             return crate::AccessPolicy::resolve(
                 self.full_access,

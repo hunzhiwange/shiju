@@ -51,7 +51,7 @@ Kilocode 已接入逐次客户端批准与当前 host deny 拦截；pure 保留�
 | [pi](evidence/pi.md) / E1、E2 | 0.0.22 | 0.0.34（基线查询） | 部分支持：本地 Pi 工具不经过 ACP 审批；保持访问，不注入权限参数；host deny 拒绝 prompt | 用户要求跳过测试；关闭仅撤销客户端授权，不能限制原生文件/终端；实际效果未验收 |
 | [qoder](evidence/qoder.md) / E1、协议字段采集 | 1.1.82 | 1.1.83 | 部分支持：已接入 mode default↔yolo 与客户端审批；实机效果未测，不宣称已验证原生支持；session_model 原有账号权益门控保留 | 用户要求跳过测试；后续可补工具执行、恢复、deny 与跨平台实机验收 |
 | [qwen](evidence/qwen.md) / E2、E3 | 0.26.7 | 0.26.8 | 原生免审批：macOS arm64 固定 npm/现有托管补丁、当前授权和 config 确认后；未知入口降级，无法确认撤销则拒绝；计划独立交互 | 补齐其他平台、原生沙箱、企业策略与完整网关中继验收 |
-| [trae](evidence/README.md#trae) / E1 | 0.121.3 | v0.121.3 | 部分支持：客户端自动批准有源码、原生未知；session_model 不可用：需要平台认证，隔离根未核验 | 固定真实 CLI，采集 initialize/权限选项并验证开启→关闭→恢复 |
+| [trae](evidence/trae.md) / E1、官方文档 | 0.121.3 | v0.121.3（基线查询） | 客户端自动批准：仅 allow_once，当前 host deny 拦截；显式 yolo/bypass 要求当前完全访问，不自动关闭原生沙箱；session_model 原有门控保留 | 用户要求跳过测试；开启、关闭、恢复及跨平台工具效果未实机验收 |
 
 初始对话线索 Codex 2.5.0、Claude 0.26.0、Gemini 0.66.0、Qwen 0.26.7、Vibe 3.0.4 已与仓库基线比对。Codex 指适配器 2.5.0，底层 Codex 基线为 0.165.0；Claude 为适配器 0.26.0、SDK 0.2.96、内嵌 CLI 2.1.96。其他适配器/引擎身份见证据条目。
 
@@ -82,7 +82,7 @@ U = 未获取该后端真实权限协议/结果；C = 仅共享客户端源码�
 | pi | E2：stdio→Pi RPC；未实测 | E2：new/load；resume 走既有回退，未实测 | E2：无权限配置 | E2：仅思考级别，保留原值 | E2：0.0.22 不调用；未来回调仅逐次批准 | E2：不委托，本地执行 | E2：不委托，本地执行 | 无原生权限撤销开关；host deny 拒绝 prompt，未实测 |
 | qoder | 1.1.83 字段已采集 | new 字段已采集；load/resume 仅代码接入 | mode default↔yolo 已接入，未测执行效果 | 公布 default/acceptEdits/auto/dontAsk/yolo | C；未实机计数 | C；未实机执行 | C；未实机执行 | U |
 | qwen | E3 | E3/E3/E3 | E3：mode default↔yolo | E2/E3；以 config 回读确认 | E3：普通工具 1→0→1；deny 保留 | C；本例原生 write_file | C；本例原生 shell | 未验收；不等同解除 OS 隔离 |
-| trae | U | U/U/U | U | U | C | C | C | U |
+| trae | U | 现有 new/load/resume；未实测 | 不推断原生权限配置 | 无已确认会话权限 ID，不自动切换 | 代码接入 allow_once；未实机计数 | C；未实测 | C；未实测 | U；不自动注入关闭沙箱的 yolo |
 
 | 边界 | 后续验收所需证据 |
 | --- | --- |

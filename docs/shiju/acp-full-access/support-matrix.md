@@ -1,6 +1,6 @@
 # ACP 完全访问支持矩阵
 
-审计日期：2026-11-06（Asia/Shanghai）；审计平台：macOS / Darwin arm64。状态：静态基线已完成；Codex 与 Claude 固定制品的 macOS arm64 原生权限与撤销已验收，具体入口与边界见 [Codex 证据](evidence/codex.md)、[Claude 证据](evidence/claude.md)。Gemini 已核验为客户端自动批准，原生自动提权因确认及工具/提示词副作用不接入，见 [Gemini 证据](evidence/gemini.md)。Qwen 固定 npm 与现有托管补丁入口已核验原生免审批与撤销，见 [Qwen 证据](evidence/qwen.md)。其他后端原生能力仍未知。
+审计日期：2026-11-06（Asia/Shanghai）；审计平台：macOS / Darwin arm64。状态：静态基线已完成；Codex 与 Claude 固定制品的 macOS arm64 原生权限与撤销已验收，具体入口与边界见 [Codex 证据](evidence/codex.md)、[Claude 证据](evidence/claude.md)。Gemini 已核验为客户端自动批准，原生自动提权因确认及工具/提示词副作用不接入，见 [Gemini 证据](evidence/gemini.md)。Qwen 固定 npm 与现有托管补丁入口已核验原生免审批与撤销，见 [Qwen 证据](evidence/qwen.md)。Qoder 已接入公布的会话 mode 配置，权限工具效果未实机验收，见 [Qoder 接入说明](evidence/qoder.md)。其他后端原生能力仍未知。
 
 范围为 `BUILT_IN_AGENT_DEFINITIONS` 的 22 个稳定 key；别名和 `claude-legacy` 不另计。注册表、启动快照、哈希及逐项官方版本来源见 [证据清单](evidence/README.md)。初始静态审计仅修改文档；后续后端适配与验证按各独立证据文件记账。
 
@@ -43,7 +43,7 @@
 | [opencode](evidence/README.md#opencode) / E1 | 1.19.5 | 1.19.5 | 部分支持：客户端自动批准有源码、原生未知；session_model 有驱动和版本门控 | 固定真实 CLI，采集 initialize/权限选项并验证开启→关闭→恢复 |
 | [openclaw](evidence/README.md#openclaw) / E1 | 2026.10.10 | 2026.11.1 | 部分支持：客户端自动批准有源码、原生未知；session_model 有驱动和版本门控 | 核对 gateway exec 审批与 ACP 客户端回调边界 |
 | [pi](evidence/README.md#pi) / E1 | 0.0.22 | 0.0.34 | 部分支持：客户端自动批准有源码、原生未知；session_model 有驱动和版本门控 | 核对 ACP adapter 与 Pi RPC 原生工具审批边界 |
-| [qoder](evidence/README.md#qoder) / E1 | 1.1.82 | 1.1.83 | 部分支持：客户端自动批准有源码、原生未知；session_model 不可用：需要账号授权及权益 | 核对 bypass_permissions 的 ACP 实际语义与关闭路径 |
+| [qoder](evidence/qoder.md) / E1、协议字段采集 | 1.1.82 | 1.1.83 | 部分支持：已接入 mode default↔yolo 与客户端审批；实机效果未测，不宣称已验证原生支持；session_model 原有账号权益门控保留 | 用户要求跳过测试；后续可补工具执行、恢复、deny 与跨平台实机验收 |
 | [qwen](evidence/qwen.md) / E2、E3 | 0.26.7 | 0.26.8 | 原生免审批：macOS arm64 固定 npm/现有托管补丁、当前授权和 config 确认后；未知入口降级，无法确认撤销则拒绝；计划独立交互 | 补齐其他平台、原生沙箱、企业策略与完整网关中继验收 |
 | [trae](evidence/README.md#trae) / E1 | 0.121.3 | v0.121.3 | 部分支持：客户端自动批准有源码、原生未知；session_model 不可用：需要平台认证，隔离根未核验 | 固定真实 CLI，采集 initialize/权限选项并验证开启→关闭→恢复 |
 
@@ -74,7 +74,7 @@ U = 未获取该后端真实权限协议/结果；C = 仅共享客户端源码�
 | opencode | U | U/U/U | U | U | C | C | C | U |
 | openclaw | U | U/U/U | U | U | C | C | C | U |
 | pi | U | U/U/U | U | U | C | C | C | U |
-| qoder | U | U/U/U | U | U | C | C | C | U |
+| qoder | 1.1.83 字段已采集 | new 字段已采集；load/resume 仅代码接入 | mode default↔yolo 已接入，未测执行效果 | 公布 default/acceptEdits/auto/dontAsk/yolo | C；未实机计数 | C；未实机执行 | C；未实机执行 | U |
 | qwen | E3 | E3/E3/E3 | E3：mode default↔yolo | E2/E3；以 config 回读确认 | E3：普通工具 1→0→1；deny 保留 | C；本例原生 write_file | C；本例原生 shell | 未验收；不等同解除 OS 隔离 |
 | trae | U | U/U/U | U | U | C | C | C | U |
 
@@ -91,7 +91,7 @@ U = 未获取该后端真实权限协议/结果；C = 仅共享客户端源码�
 
 1. `built_in_agent_command` 优先返回通过校验的托管命令；缺失或校验错误会因 `if let Ok(Some(..))` 继续本地/默认回退。用户覆盖还可改变命令。不能把契约存在当作实际使用托管制品的证明。
 
-2. 初始基线的普通 Gemini 曾带 `--approval-mode yolo --skip-trust`；任务 4 改为按授权材料化，任务 7 的固定版本验收后停止自动注入并显式拒绝该参数组合。任务 8 停止为 Qwen 自动注入 `--approval-mode yolo`，改为固定制品会话 config 同步；显式启动 bypass 拒绝。Qoder 带 `--permission-mode bypass_permissions`；托管 Gemini/Qwen 初始 argv 不带这些宽松参数。Qoder 仍为启动源码事实，尚未证明与会话开关联动。
+2. 初始基线的普通 Gemini 曾带 `--approval-mode yolo --skip-trust`；任务 4 改为按授权材料化，任务 7 的固定版本验收后停止自动注入并显式拒绝该参数组合。任务 8 停止为 Qwen 自动注入 `--approval-mode yolo`，改为固定制品会话 config 同步；显式启动 bypass 拒绝。Qoder 初始曾带 `--permission-mode bypass_permissions`，任务 9 已停止自动注入，改为会话 `mode=default/yolo` 同步当前授权，并拒绝显式启动 bypass；工具效果尚未实机验收。托管 Gemini/Qwen 初始 argv 不带这些宽松参数。
 
 3. `AcpClient::with_full_access` 设置独立布尔值；`build_event_client` 将它传给文件处理器，终端处理器及标准审批使用 `permission_mode` 等字段。`resolve_permission_request_with_prompt` 的 ApproveAll 选择允许选项，缺少允许选项时退到第一个选项；取消中的会话直接取消。后续需验证没有允许项和拒绝项优先级，不能据此声称所有请求均批准。
 

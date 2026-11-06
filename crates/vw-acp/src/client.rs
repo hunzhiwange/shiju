@@ -80,6 +80,8 @@ mod prompt_loop;
 mod prompt_mapping;
 #[path = "client/protocol.rs"]
 mod protocol;
+#[path = "client/qoder_access.rs"]
+mod qoder_access;
 #[path = "client/runtime.rs"]
 mod runtime;
 #[path = "client/session_control.rs"]

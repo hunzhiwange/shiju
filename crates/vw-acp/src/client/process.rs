@@ -125,7 +125,6 @@ impl AcpClient {
             .file_stem()
             .and_then(|s| s.to_str())
             .unwrap_or_default();
-        let npx = command == "npx";
         let bypass = self.config.args.iter().any(|arg| {
             (arg == "-y" && matches!(command, "gemini" | "gemini-cli" | "qwen" | "qwen-code"))
                 || matches!(
@@ -162,66 +161,13 @@ impl AcpClient {
             }
             return Ok(self.config.args.clone());
         }
+        if self.agent_name == "qoder" && bypass {
+            return Err(AcpError::Initialize("Qoder startup bypass cannot follow session permission changes; remove bypass arguments and use session access controls".into()));
+        }
         if bypass && !unrestricted {
             return Err(AcpError::Initialize("launch arguments conflict with current full access authorization; remove explicit bypass arguments".into()));
         }
-        let mut args = self.config.args.clone();
-        if !unrestricted || bypass {
-            return Ok(args);
-        }
-        let shape: Vec<&str> = args.iter().map(String::as_str).collect();
-        // Session-model drivers append routing material before reaching this boundary.
-        // Recognize their exact suffix without removing or rewriting any of it.
-        let managed = self
-            .config
-            .env
-            .get("VW_ACP_LAUNCH_REFERENCE")
-            .is_some_and(|value| value.starts_with("vw-session-model:"));
-        let shape = if managed
-            && self.agent_name == "gemini"
-            && shape.last() == Some(&"--shiju-model-source")
-        {
-            &shape[..shape.len() - 1]
-        } else if managed && self.agent_name == "qwen" && shape.len() >= 7 {
-            let suffix = &shape[shape.len() - 7..];
-            if suffix[0] == "--shiju-model-source"
-                && suffix[1] == "--auth-type"
-                && suffix[2] == "openai"
-                && suffix[3] == "--model"
-                && self.config.env.get("OPENAI_MODEL").map(String::as_str) == Some(suffix[4])
-                && suffix[5] == "--openai-base-url"
-                && self.config.env.get("OPENAI_BASE_URL").map(String::as_str) == Some(suffix[6])
-            {
-                &shape[..shape.len() - 7]
-            } else {
-                &shape[..]
-            }
-        } else {
-            &shape[..]
-        };
-        let known = match self.agent_name.as_str() {
-            "qwen" => {
-                (matches!(command, "qwen" | "qwen-code")
-                    && (shape == ["--acp"] || shape == ["--acp", "--experimental-skills"]))
-                    || (npx
-                        && shape
-                            == ["@qwen-code/qwen-code@latest", "--acp", "--experimental-skills"])
-            }
-            "qoder" => {
-                (command == "qodercli" && shape == ["--acp"])
-                    || (npx && shape == ["@qoder-ai/qodercli@latest", "--acp"])
-            }
-            _ => false,
-        };
-        if known {
-            let permission = if self.agent_name == "qoder" {
-                ["--permission-mode", "bypass_permissions"]
-            } else {
-                ["--approval-mode", "yolo"]
-            };
-            args.extend(permission.map(String::from));
-        }
-        Ok(args)
+        Ok(self.config.args.clone())
     }
 
     /// 收尾 ACP 代理子进程并收集退出摘要。

@@ -73,7 +73,7 @@ impl AcpClient {
         self
     }
 
-    /// 设置会话完全访问意图，包括根外文件访问及已核验后端的原生权限同步。
+    /// 设置会话完全访问意图，包括根外文件访问及已接入后端的原生权限同步。
     pub fn with_full_access(mut self, full_access: bool) -> Self {
         self.full_access = full_access;
         self
@@ -94,6 +94,17 @@ impl AcpClient {
             modes,
             config_options,
         );
+        if self.agent_name == "qoder"
+            && self.full_access
+            && self.permission_mode == PermissionMode::ApproveAll
+            && crate::access_policy::qoder::current_mode(config_options)
+                == Some(crate::access_policy::qoder::FULL_MODE)
+        {
+            // Acknowledged protocol configuration is not a verified tool-execution claim.
+            policy.support = crate::FullAccessSupport::Partial;
+            policy.reason = crate::AccessPolicyReason::UnverifiedControls;
+            return policy;
+        }
         if !matches!(self.agent_name.as_str(), "codex" | "claude" | "qwen")
             || !self.full_access
             || self.permission_mode != PermissionMode::ApproveAll

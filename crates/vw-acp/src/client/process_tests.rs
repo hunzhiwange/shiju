@@ -424,7 +424,7 @@ fn acp_full_access_launch_official_and_managed_shapes_follow_current_grant() {
         ("gemini", "npx", vec!["@google/gemini-cli@latest", "--experimental-acp"], vec![]),
         ("qwen", "qwen", vec!["--acp"], vec![]),
         ("qwen", "qwen", vec!["--acp", "--experimental-skills"], vec![]),
-        ("qoder", "qodercli", vec!["--acp"], vec!["--permission-mode", "bypass_permissions"]),
+        ("qoder", "qodercli", vec!["--acp"], Vec::<&str>::new()),
     ] {
         let config = AcpAgentConfig {
             command: command.into(),

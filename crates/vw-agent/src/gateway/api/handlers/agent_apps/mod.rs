@@ -231,3 +231,18 @@ pub(super) fn provider_editor_context(
     };
     Ok((host.home, host.credential_root.ok_or(axum::http::StatusCode::SERVICE_UNAVAILABLE)?))
 }
+
+/// Frozen snippet storage requires an independent configuration grant but no private file root.
+pub(super) fn authorize_provider_snippet(
+    path: Option<&std::path::Path>,
+    headers: &axum::http::HeaderMap,
+    tenant: &TenantScope,
+    target: &str,
+    write: bool,
+) -> Result<(), axum::http::StatusCode> {
+    if write {
+        access::authorize_provider_write(path, headers, tenant, target).map(|_| ())
+    } else {
+        access::authorize_provider_config(path, headers, tenant, target).map(|_| ())
+    }
+}

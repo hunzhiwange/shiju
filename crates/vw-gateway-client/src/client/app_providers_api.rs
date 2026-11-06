@@ -128,3 +128,9 @@ mod editor_merge;
 #[cfg(test)]
 #[path = "app_providers/editor_merge_tests.rs"]
 mod editor_merge_tests;
+
+#[path = "app_providers/snippets.rs"]
+mod snippets;
+#[cfg(all(test, target_os = "macos"))]
+#[path = "app_providers/snippets_tests.rs"]
+mod snippets_tests;

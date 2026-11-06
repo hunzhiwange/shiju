@@ -1106,3 +1106,47 @@ SDK transport 测试替代 HTTP 对端，仅检查传输形状、固定状态错
 实际运行平台 `sw_vers`：macOS **27.0 (26A428)**；`uname -m`：**arm64**。本机原生文件/数据库/SDK/API 行为已验证；没有启动或查询已安装 Claude 版本，没有真实账号、真实 CLI 消费配置、Iced 渲染或其他应用适配证据，这些明确未验证，不能把 fixture 指针/档案视为真实应用激活成功。
 
 定向 diff 与暂存审查仅包含本任务 DTO、业务合并/最小适配、必要存储与授权工厂、Gateway/SDK 注册、独立测试及本条证据；未纳入母任务状态、其他编号任务删除或终端计划变更。只读 plan.md 无差异。未执行全量 cargo test、fmt check、wasm 或 Makefile。任务标记完成后删除编号任务文件且不提交其删除，正式证据保留。
+
+## 任务 25：通用配置片段维护
+
+2026-11-07；状态：已完成（冻结片段存取/提取与内存编辑保留语义，不代表 live 切换或 Iced 已验收）。
+
+### 依赖、来源与语义裁定
+
+核对批次 24 提交 `0d3ce72ba` 及正式证据；母任务 1、3 已完成，母任务 2 沿用任务 1 的底座子计划 1–93 开工裁定，完整领域迁移仍未收口。最初因“仅迁移现有产品”与“应用片段”的含义不明登记阻塞；继续执行指令明确沿用冻结来源：片段存取/提取剔除关键字段，保存片段不改 live，不新增显式 live 应用；以现有内存预览和显式差异编辑保留当前用户值、保存后真实文件字节不变验收，依此解除阻塞。只读 plan.md 未修改。
+
+来源 `/Users/xiangmin/worker/code/cc-switch` HEAD `ca58c0313360eae7c851fbd7553c1614c7af03e7`。已阅读 `commands/config.rs::{validate_common_config_snippet,get_common_config_snippet,set_common_config_snippet,extract_common_config_snippet}`、`services/provider/mod.rs::{extract_common_config_snippet,extract_common_config_snippet_from_settings,extract_claude_common_config,extract_codex_common_config,extract_gemini_common_config,extract_opencode_common_config,extract_openclaw_common_config,is_sensitive_config_key}` 及相邻字段剔除测试、`services/provider/live.rs::{provider_uses_common_config,remove_common_config_from_settings}` 及旧片段移除测试；核对 `CommonConfigEditor.tsx` 和直接调用者 `ProviderForm.tsx`：新版编辑全局 settingsConfig，三应用片段只存库，不依旧片段重写 live。未运行来源测试，也不迁入来源的历史清理/启动自动迁移。RustCodeGraph status/explore 已执行，冻结 upstream 命中与当前原生模块分开核对；新增文件定向读取审查。
+
+### 实现与支持边界
+
+- `vw-agent-apps/src/providers/snippets.rs::{normalize,extract}` 是片段唯一业务所有者；Claude/Codex/Gemini 复用既有 `projection::fields` 关键字段分类。Claude 剥离关键顶层/env、协议元数据和来源规定的上游窗口字段，保留用户功能开关；Codex 剥离关键顶层/嵌套键、model_providers、MCP 及旧 mcp.servers、web_search=disabled 注入哨兵，保留其它偏好；Gemini 提取 env，去掉关键字段，仅保留非空字符串。OpenCode 剥离 options/settings 中 apiKey/baseURL，OpenClaw 剥离顶层 apiKey/baseUrl，沿用来源片段形状，不创建应用切换适配。其它应用明确拒绝。
+- 采用来源凭据命名规则并递归清洗嵌套对象/数组，补充 camelCase accessKey/accessToken/privateKey 等形式；不把所有复数 TOKENS 或普通遥测开关当密钥。非法结构、超出 64 KiB 的输入/规范化结果、超过 64 层结构和遮蔽占位值明确拒绝。JSON 规范化为对象文本；Codex 解析后重编码 TOML，原注释不保留，避免注释带入凭据；空白及无配置项的纯注释 Codex 规范化为空片段，回读稳定。
+- `vw-agent/src/app_providers/snippets.rs` 复用同一 GlobalDatabase/GatewaySettingsStore，固定租户命名空间 `app_providers.snippets`，每应用一条原子 upsert 记录；配置片段不按主机另存副本，不另建数据库。写入前清洗，读取时再次清洗，损坏记录返回 503；读取清洗不回写旧数据，不做历史结构迁移。Saved 提取复用同一存储的 preview_record 与租户键，只取已有 settingsConfig；Draft 提取不写存储。
+- 内存编辑保留语义复用任务 22 `preview::read` / `projection` 和任务 24 `editor_merge::merge`，没有第二套 merge/apply 所有者。真实预览中旧片段的 hooks/theme/用户 env 不覆盖当前 live 用户字段；显式编辑时未改的旧值被跳过，只提交用户差异。本项没有 live apply API、事务发布、供应商激活、旧快照回填或 UI 入口，不能把只读投影声称为切换成功。
+
+### API、SDK 与权限
+
+- 强类型 DTO 位于 `vw-api-types/src/app_providers/snippets.rs`：SnippetRead/Write/Extract、带标签的 Draft/Saved 来源及 ConfigSnippet。未知字段、路径/命令/force/客户端租户字段和 null 写入拒绝；所有 DTO Debug 遮蔽载荷。
+- `GET /v1/app-providers/{app}/config/snippet?targetHostId=...` 读取；`PUT` 同路径保存/清空；`POST .../config/snippet/extract` 提取。128 KiB HTTP 体限制，沿用既有分域 router、Gateway 身份认证和 TenantScope。独立读授权用于读取/提取，独立写授权用于保存；每次在阻塞执行任务内先按管理员策略核对令牌、租户、主机及能力，再访问数据库。写授权不由读授权推导，缺授权默认拒绝。复用已有 access 授权，不要求或创建配置私有事务根，接口不打开 native 配置。
+- SDK `GatewayClient::{app_provider_snippet_get,app_provider_snippet_save,app_provider_snippet_extract}` 使用原生 transport 和租户上下文，x-agent-apps-token 标为敏感，错误响应体丢弃；WASM 明确拒绝。保存成功仅代表片段已存储，不表示 live 已变更。非法输入/不支持应用返回 400、档案缺失 404、未认证/未授权 401/403、存储损坏 503。
+
+### 红绿证据、平台与审查
+
+各构建/验证阶段均从仓库根原子 mkdir 动态领取槽位 **1**：`CARGO_TARGET_DIR=/Users/xiangmin/worker/code/shiju/target/rust-slot-1`，`CARGO_BUILD_BUILD_DIR` 同样设置为该绝对路径，避免仓库 build-dir 配置绕过槽位。每阶段记录计划/任务/会话/PID，全部 Cargo 和产物子进程结束后 shell trap 清理自己的 owner/rmdir 锁，缓存保留。
+
+红阶段 `cargo fmt --all` 退出 0；以下四条聚焦命令退出码为 **101 / 0 / 101 / 0**，有效测试数 **2 / 1 / 2 / 1**。业务包提取结果仍含模型/协议/密钥而失败，Gateway 的真实 SDK/HTTP 提取与脏片段回读同样在未剔除关键字段的业务断言处失败；不是缺类型或零测试。既有内存投影行为已通过，不伪造该行为的失败。首次绿阶段发现本次 Codex 嵌套路径解构的 Borrow<&str> 编译错误，已修复后重新格式化、完整聚焦验证及 Clippy；最终补测空 Codex 回读一致性与 camelCase 凭据，最终结果：
+
+| 确切命令 | 退出码 | 有效通过数量 |
+| --- | --- | --- |
+| `cargo fmt --all` | 0 | 非行为测试 |
+| `cargo test -p vw-agent-apps --lib cc04_snippets_ -- --nocapture` | 0 | 5 |
+| `cargo test -p vw-api-types --lib cc04_snippets_ -- --nocapture` | 0 | 1 |
+| `cargo test -p vw-agent --lib cc04_snippets_ -- --nocapture` | 0 | 3 |
+| `cargo test -p vw-gateway-client --lib cc04_snippets_ -- --nocapture` | 0 | 1 |
+| `cargo clippy --all-targets --all-features -- -D warnings` | 0 | 非行为测试 |
+
+共 **10** 项有效测试，无忽略。两项指定测试 `cc04_snippets_extract_excludes_provider_keys`、`cc04_snippets_apply_preserves_live_user_fields` 均通过；另验显式差异不会恢复未改快照、非法形状/大小/占位值、嵌套凭据、Codex 用户 web_search/MCP 邻键保留与空片段回读。Gateway 使用隔离真实 SQLite、真实管理员策略、macOS 临时 `.claude/settings.json` 和回环 HTTP，经 SDK→API→存储回读证明：Draft/Saved 提取清洗、存储不含已剔除的凭据、重开数据库后读取一致、平台/公司隔离、读取脏记录时清洗且损坏拒绝、空白清空、非法输入及未知路径字段无写入副作用、读权限不能保存、无授权作用域拒绝、正式 Gateway Basic 未认证拒绝；整个链路 live 文件字节不变且无额外配置文件。SDK 另验证方法/路径/请求体与错误载荷不泄漏。均为假凭据，未替代上游网络、钥匙串或应用进程，不触碰真实用户配置。
+
+实际平台 macOS **27.0 (26A428)**、**arm64**；本仓库 crate 版本 **0.6.0**。已验证本机原生临时文件/数据库/SDK/API 行为；未启动或查询已安装 Claude/Codex/Gemini/OpenCode/OpenClaw 版本，没有真实账号、CLI 消费配置或 Iced 渲染证据，这些明确未验证。Agent lib test 链接仍有既有 `__eh_frame section too large` 提示（此前任务 10/11/12/20/23 已记录），测试退出 0；未改变链接设置，最终强制 Clippy 退出 0。
+
+定向 diff/暂存审查仅包含本任务业务/存储、DTO、SDK、权限 handler 与必要父注册、独立测试及本条正式证据；未纳入母任务状态、此前编号文件删除和其他计划变更。plan.md 无差异，自身槽位锁释放、缓存保留。未执行全量 cargo test、fmt check、wasm 或 Makefile。任务标记完成后删除编号文件且不提交其删除，正式证据保留。

@@ -15,6 +15,7 @@ pub(crate) fn router() -> Router {
         .merge(paths::router())
         .merge(preview::router())
         .merge(editor_merge::router())
+        .merge(snippets::router())
         .merge(delete::router())
         .merge(duplicate::router())
         .merge(presentation::router())
@@ -171,3 +172,9 @@ mod validation_tests;
 mod editor_merge;
 #[cfg(all(test, target_os = "macos"))]
 mod editor_merge_tests;
+
+#[path = "app_providers/snippets.rs"]
+mod snippets;
+#[cfg(all(test, target_os = "macos"))]
+#[path = "app_providers/snippets_tests.rs"]
+mod snippets_tests;

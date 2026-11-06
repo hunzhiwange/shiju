@@ -461,3 +461,5 @@ impl AppProviderStore {
         Ok(())
     }
 }
+
+mod snippets;

@@ -114,3 +114,7 @@ mod validation_tests;
 pub mod editor_merge;
 #[cfg(test)]
 mod editor_merge_tests;
+
+pub mod snippets;
+#[cfg(test)]
+mod snippets_tests;

@@ -21,3 +21,8 @@ mod write_guard_tests;
 pub mod stage;
 #[cfg(all(test, target_os = "macos"))]
 mod stage_tests;
+
+#[cfg(target_os = "macos")]
+pub mod commit;
+#[cfg(all(test, target_os = "macos"))]
+mod commit_tests;

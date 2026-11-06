@@ -819,3 +819,49 @@ RustCodeGraph status/explore 退出 0，索引含 6443 文件；运行时代码�
 `sw_vers`、`uname -m` 退出 0：macOS 27.0（26A428）、arm64。应用版本、个人账号、CLI/Iced 运行与 SDK→API→执行端全链未验证；Windows/Linux、其他架构、跨进程锁和跨目录批次未验收。
 
 定向差异和暂存检查退出 0，只提交本任务 stage 实现、独立测试、write_guard 必要底层连线、父注册及本条证据。母任务状态、其他编号文件删除和其他会话桌面改动均排除。只读 plan.md 无差异；红绿阶段自身槽位 1 锁已释放、缓存保留。未执行全量 cargo test、fmt check、wasm 或 Makefile；任务 18 标记完成后删除，不纳入提交，正式证据保留。
+
+## 任务 19：pending 提交与状态落定
+
+2026-11-07；状态：已完成（授权的内部事务边界，公共请求与应用适配尚未接通）。
+
+### 依赖、来源与边界裁定
+
+已核对批次 18 提交 `5c88e0e0f` 及本文件任务 1–18 的验收证据。母任务 1、3 已完成；母任务 2 沿用任务 1 的底座子计划 1–93 开工裁定，完整领域迁移仍未收口。本任务首次因缺原生主机状态所有者和调用者登记阻塞；继续指令明确授权本任务建立唯一供应商主机事务状态所有者、按内部事务边界验证，解除阻塞。不修改只读 plan.md，不提前实现应用适配、公共任意文件 API 或任务 20 的恢复算法。
+
+来源 `/Users/xiangmin/worker/code/cc-switch` HEAD `ca58c0313360eae7c851fbd7553c1614c7af03e7`，来源工作区干净。已读 `mode/operation.rs::{run,AppWrite::begin,AppWrite::run,commit_target}`、`mode/state.rs::{Pending,PendingFile,PendingTarget,set_pending,update}`、直接消费者 `services/provider/claude_direct.rs` 和相邻 clean-run/intent/crash/target 测试。来源测试未运行。RustCodeGraph status/explore 与原生 src 定向搜索确认此前仅有 write_guard/stage，没有供应商 pending 或指针/模式持久化所有者，冻结 upstream 不是原生运行链。
+
+### 实现与实际连线
+
+- 唯一所有者为 `vw-agent-apps/src/providers/live/commit.rs::ProviderTransactions`，macOS 条件下经现有 live 父模块注册。初始化工厂 `new(private_root, ExecutionHostId)` 只接受显式绝对、当前执行用户持有且无组/其他权限的现有私有目录；末级 symlink 拒绝。根来源沿用实际执行主机 `Host.credential_root`（`gateway/api/handlers/agent_apps/access.rs`）与 `CredentialFileStore::new` 的受信初始化契约，没有新增配置、HOME/客户端路径回退或凭据账号命名空间复用。该内部工厂尚无公共 handler 调用者，不宣称已把真实请求接到工厂。
+- 在受信根下以 mkdirat/openat(O_DIRECTORY|O_NOFOLLOW) 打开 `provider-live/<base64url(host)>`，目录 0700 且检查 uid；之后所有操作锚定保留描述符。按强类型 AppId 生成文件名，每个主机/应用只有一份 pending 和状态文件，不按租户另建物理状态。ExecutionHostId 显式校验；TenantScope 随 pending 和已落定指针/模式归属持久化，避免把同名租户供应商误作另一租户。原生租户档案 AppProviderStore/GlobalDatabase 不承担主机状态，没有复制数据库。
+- `commit(tenant, &mut AppWriteGuard, changes, target)` 是真实内部事务入口：复用现有物理应用/目录锁进行读取、补丁、全部暂存；新增 per-app flock 串行同一主机状态根的提交，文件描述符 Drop 释放。只要有未完成 pending，任何租户的新提交均拒绝，留给任务 20 恢复，不会覆盖旧意图。状态损坏、symlink、非法身份和不安全根均明确报错，不当成缺省状态。
+- `stage.rs` 在真实预演时捕获修改前/后的 SHA-256（base64url，无 padding），不重复读取或记录原始配置载荷。pending 包含版本、主机、应用、租户、目录 dev/ino、目标名、暂存名、前后摘要及目标状态。复用 write_guard 的描述符读取/准备/rename 唯一所有者，最小提取内部 `read_from/prepare`，没有另写一套文件替换逻辑；已有 write/stage 仍走同一底层。
+- 顺序为：fsync 全部暂存和所在目录 → 原子私有写 pending(published=false) 并同步状态目录 → 原子写 published=true 并同步目录 → 逐文件 rename/fsync 目录 → 原子写指针/模式并同步状态目录 → unlink pending/fsync。published 在第一个 rename 之前持久化。无实际文件变更时沿用来源的直接落定状态路径，不制造一次文件发布。
+- 指针持有租户与供应商 ID；模式整体替换 mode/attached/proxy_route/contract 及其租户归属。缺省部分保持原值，代理路由独立于直连指针。重复提交同一目标得到相同持久状态。新主机状态文件是当前唯一供应商状态，不镜像不存在的代理配置/数据库旧列，不冒充代理运行成功。
+- pending 持久化成功后，暂存所有权转交持久事务；错误及 unwind 不删除未发布暂存，部分发布失败保留 pending/剩余暂存，状态失败保留 published pending；状态已落定而清理前中断也保留意图。恢复、外部写冲突重算、备份、跨目录适配和跨文件系统原子回滚不在本项实现范围。flock 仅保护此状态根，不能声称跨进程客户端配置锁已完整交付。
+- 无新增 API/SDK/UI，故 SDK→API→执行端公共请求证据不适用；后续应用适配和最终交叉验收负责真实编辑、首次激活与 live 切换。本项只证明内部入口对真实临时目录、状态和 stage 的行为，不以纯 trait/闭包 mock 代替存储落定。新增 serde derive 使用仓库已有版本，仅增加直接依赖登记，没有重型依赖。
+
+### 红绿、槽位与平台证据
+
+每一阶段均原子 mkdir 从 1–10 动态领取槽位，记录任务/计划/会话/PID；设置绝对 CARGO_TARGET_DIR，并以同值 CARGO_BUILD_BUILD_DIR 覆盖仓库 build-dir。各阶段全部 Cargo/子进程退出后清理自身 owner/锁，保留缓存。默认 features，无额外开关；测试二进制位于对应槽位 debug/deps。
+
+- 首次接线阶段槽位 **2**，`CARGO_TARGET_DIR=/Users/xiangmin/worker/code/shiju/target/rust-slot-2`：`cargo fmt --all` 退出 0；聚焦测试退出 101，AppId 无 as_str 和 sha2 0.11 摘要不实现 LowerHex，未运行有效测试。修正为既有 serde 枚举值和 base64url 摘要。
+- 下一接线阶段槽位 **1**，`CARGO_TARGET_DIR=/Users/xiangmin/worker/code/shiju/target/rust-slot-1`：格式化 0；聚焦测试 101，两个测试因临时根未设 0700 而在 fixture 初始化失败，不计业务红证据。修正隔离 fixture 权限，不削弱生产检查。
+- 有效红阶段动态领取槽位 **1**，同一绝对路径：格式化 0；聚焦测试 101，0 passed / 2 failed。基线可以编译，但在 `durable intent must exist before publication` 和 `failed settlement retains durable intent` 两个业务断言失败；不是缺类型、零测试或初始化失败。
+- 首次绿阶段槽位 **3**，`CARGO_TARGET_DIR=/Users/xiangmin/worker/code/shiju/target/rust-slot-3`：格式化 0；事务 6/6、暂存 5/5、写锁 5/5 通过；强制 Clippy 101，只报本次测试钩子类型过于复杂。已提取 cfg(test) 类型别名，并补齐暂存目录 fsync，然后重新验证最终代码。
+
+最终阶段实际槽位 **2**，`CARGO_TARGET_DIR=/Users/xiangmin/worker/code/shiju/target/rust-slot-2`，`CARGO_BUILD_BUILD_DIR` 同值。
+
+| 最终确切命令 | 退出码 / 有效结果 |
+| --- | --- |
+| `cargo fmt --all` | 0 |
+| `cargo test -p vw-agent-apps --lib cc04_commit_ -- --nocapture` | 0；6 passed / 0 ignored |
+| `cargo test -p vw-agent-apps --lib cc04_stage_ -- --nocapture` | 0；5 passed / 0 ignored |
+| `cargo test -p vw-agent-apps --lib cc04_write_guard_ -- --nocapture` | 0；5 passed / 0 ignored |
+| `cargo clippy --all-targets --all-features -- -D warnings` | 0；全部 targets/features 通过，不计行为测试 |
+
+6 项事务测试覆盖首次发布前真实磁盘 pending/标记、目标文件仍旧值、发布后状态持久化并清理、真实状态路径被外部目录占据导致落定失败而保留 pending(0600)、意图/标记/落定后中断的真实持久状态、剩余暂存字节与已发布文件、同租户/跨租户 pending 拒绝、部分发布失败保留第二文件暂存、重复/noop 落定、指针/代理路由独立和应用/主机隔离、非私有/相对/符号链接根及非法 ID 拒绝。中断由 cfg(test) 阶段钩子返回固定错误模拟进程边界；全部文件发布、目录冲突、状态存储及读取均为真实文件系统，无通用业务 mock，无网络/钥匙串替代，不触碰真实用户配置。写锁回归中的 panic 由既有 catch_unwind 捕获，属于预期验证，5 项全部通过。
+
+`sw_vers`、`uname -m` 退出 0：macOS 27.0（26A428）、arm64。应用版本、个人账号、CLI/Iced 实际运行与公共 SDK/API 请求链未验证；Windows/Linux、其他架构、真实应用激活、跨进程配置写入和崩溃后自动恢复未验收。
+
+最终定向 diff 检查与暂存检查通过；只提交本任务 commit/独立测试、必要 stage/write_guard 底层连线、父注册、Cargo 依赖/锁文件及本条正式证据。排除其他任务状态/删除和桌面并行改动。只读 plan.md 无差异；最终自身槽位锁释放、缓存保留。未执行全量 cargo test、fmt check、wasm 或 Makefile。任务19状态标记完成后删除编号文件，不纳入提交；正式证据保留。

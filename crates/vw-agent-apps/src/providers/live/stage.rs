@@ -1,6 +1,16 @@
 //! Multi-file preparation only. Transactions must persist pending before publishing.
 use super::write_guard::{AppWriteGuard, FilePrivacy, PreparedWrite, WriteError};
+use base64::{Engine as _, engine::general_purpose::URL_SAFE_NO_PAD};
+use sha2::{Digest, Sha256};
 use std::{collections::HashSet, ffi::OsStr};
+
+pub(super) struct FileRevision {
+    pub before: Option<String>,
+    pub after: String,
+}
+fn digest(bytes: &[u8]) -> String {
+    URL_SAFE_NO_PAD.encode(Sha256::digest(bytes))
+}
 
 pub type Patch<'a> = &'a dyn Fn(Option<&[u8]>) -> Result<Vec<u8>, WriteError>;
 
@@ -15,6 +25,7 @@ pub struct FileChange<'a> {
 /// unpublished temporary files. No pointer, backup or pending writes happen here.
 pub struct StagedBatch<'a> {
     pub(super) writes: Vec<PreparedWrite<'a>>,
+    pub(super) revisions: Vec<FileRevision>,
 }
 impl StagedBatch<'_> {
     pub fn len(&self) -> usize {
@@ -53,14 +64,18 @@ impl AppWriteGuard {
                 return Err(WriteError::InvalidResource);
             }
             if before.as_deref() != Some(after.as_slice()) {
-                plans.push((change, after));
+                let revision =
+                    FileRevision { before: before.as_deref().map(digest), after: digest(&after) };
+                plans.push((change, after, revision));
             }
         }
         // RAII discards every earlier temporary if any subsequent staging fails.
         let mut writes = Vec::with_capacity(plans.len());
-        for (change, bytes) in plans {
+        let mut revisions = Vec::with_capacity(plans.len());
+        for (change, bytes, revision) in plans {
             writes.push(self.stage_one(change.name, &bytes, change.privacy)?);
+            revisions.push(revision);
         }
-        Ok(StagedBatch { writes })
+        Ok(StagedBatch { writes, revisions })
     }
 }

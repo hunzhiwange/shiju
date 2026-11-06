@@ -118,6 +118,70 @@ impl AppProviderStore {
         }
         Ok(Self::summary(app, id, &profile))
     }
+    /// Replace presentation fields on the existing row using the same scoped conditional write.
+    pub fn set_presentation(
+        &self,
+        tenant: &TenantScope,
+        app: AppId,
+        id: &str,
+        request: &vw_api_types::app_providers::presentation::AppProviderPresentation,
+    ) -> Result<vw_api_types::app_providers::presentation::AppProviderPresentation, String> {
+        let key = Self::key(app, id)?;
+        let before = self
+            .settings
+            .get(tenant, NAMESPACE, &key)
+            .map_err(|_| "application provider storage unavailable")?
+            .ok_or("application provider not found")?;
+        let stored = serde_json::from_str(&before)
+            .map_err(|_| "invalid stored application provider profile")?;
+        let updated = vw_agent_apps::providers::presentation::update(&stored, request)?;
+        let after = serde_json::to_string(&updated)
+            .map_err(|_| "invalid stored application provider profile")?;
+        if !self
+            .settings
+            .compare_exchange(tenant, NAMESPACE, &key, &before, &after)
+            .map_err(|_| "application provider storage unavailable")?
+        {
+            return Err("application provider changed during update".into());
+        }
+        vw_agent_apps::providers::presentation::read(&updated)
+    }
+    /// Read category/grouping and notes without exposing the stored profile or credentials.
+    pub fn list_presentation(
+        &self,
+        tenant: &TenantScope,
+        app: AppId,
+    ) -> Result<Vec<vw_api_types::app_providers::presentation::AppProviderPresentationEntry>, String>
+    {
+        use vw_api_types::app_providers::presentation::AppProviderPresentationEntry;
+        let prefix = format!("{}:", serde_json::to_string(&app).expect("AppId serialization"));
+        let mut rows = Vec::new();
+        for entry in self
+            .settings
+            .list(tenant, NAMESPACE)
+            .map_err(|_| "application provider storage unavailable")?
+        {
+            let Some(id) = entry.config_key.strip_prefix(&prefix) else {
+                continue;
+            };
+            validate_identity(id)?;
+            let stored = serde_json::from_str(&entry.payload_json)
+                .map_err(|_| "invalid stored application provider profile")?;
+            rows.push(AppProviderPresentationEntry {
+                id: id.into(),
+                presentation: vw_agent_apps::providers::presentation::read(&stored)?,
+            });
+        }
+        rows.sort_by(|a, b| {
+            (a.presentation.sort_index.is_none(), a.presentation.sort_index.unwrap_or_default())
+                .cmp(&(
+                    b.presentation.sort_index.is_none(),
+                    b.presentation.sort_index.unwrap_or_default(),
+                ))
+                .then_with(|| a.id.cmp(&b.id))
+        });
+        Ok(rows)
+    }
     /// Delete only a scoped catalog row after checking the authorized host's native references.
     pub fn delete(
         &self,

@@ -10,14 +10,19 @@ use axum::{
 use vw_api_types::{agent_apps::AppId, app_providers::AppProviderWrite, id::TenantScope};
 
 pub(crate) fn router() -> Router {
-    Router::new().merge(catalog::router()).merge(delete::router()).merge(duplicate::router()).route(
-        "/app-providers/{app}/{id}",
-        get(read)
-            .put(save)
-            .post(create::create)
-            .patch(update::update)
-            .layer(DefaultBodyLimit::max(16 * 1024)),
-    )
+    Router::new()
+        .merge(catalog::router())
+        .merge(delete::router())
+        .merge(duplicate::router())
+        .merge(presentation::router())
+        .route(
+            "/app-providers/{app}/{id}",
+            get(read)
+                .put(save)
+                .post(create::create)
+                .patch(update::update)
+                .layer(DefaultBodyLimit::max(16 * 1024)),
+        )
 }
 fn error(message: &str) -> Response {
     let (status, safe) = match message {
@@ -111,3 +116,9 @@ mod duplicate;
 #[cfg(test)]
 #[path = "app_providers/duplicate_tests.rs"]
 mod duplicate_tests;
+
+#[path = "app_providers/presentation.rs"]
+mod presentation;
+#[cfg(test)]
+#[path = "app_providers/presentation_tests.rs"]
+mod presentation_tests;

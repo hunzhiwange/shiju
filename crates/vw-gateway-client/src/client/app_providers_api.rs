@@ -65,3 +65,9 @@ mod duplicate;
 #[cfg(test)]
 #[path = "app_providers/duplicate_tests.rs"]
 mod duplicate_tests;
+
+#[path = "app_providers/presentation.rs"]
+mod presentation;
+#[cfg(test)]
+#[path = "app_providers/presentation_tests.rs"]
+mod presentation_tests;

@@ -326,3 +326,44 @@ SDK → 本地回环 HTTP → 正式 handler → 真实 SQLite → 201 脱敏摘
 `sw_vers`、`uname -m` 均退出 0：macOS 27.0（26A428）、arm64。应用版本未验证：本任务为目录复制，没有读取或启动真实应用。Iced、live 切换/运行、其他应用适配、Windows/Linux、其他架构与 PostgreSQL 实际服务均未验收；PostgreSQL 复用既有原子新增适配并参与编译/Clippy，不宣称运行验收。
 
 最终定向 `git diff --check` 与 `git diff --cached --check` 退出 0，审查本任务全部代码/测试/文档；plan.md 无差异，自身槽位锁已释放。只提交本任务变更，不纳入母任务状态或其他编号文件删除；本任务完成后删除编号文件且不纳入提交。未执行全量 cargo test、fmt check、wasm 检查或 Makefile。
+
+## 任务 7：排序分类与备注
+
+2026-11-06；状态：已完成。
+
+### 依赖、来源与实现
+
+已核对批次 6 提交 `5235bae51` 和本文件任务 1–6 证据；母任务 1、3 已完成，母任务 2 沿用任务 1 已记录的底座开工裁定，完整领域迁移仍未收口。没有修改只读 plan.md。
+
+来源 `/Users/xiangmin/worker/code/cc-switch` HEAD `ca58c0313360eae7c851fbd7553c1614c7af03e7`，工作区干净（rev-parse/status 均退出 0）。读取 `provider.rs::Provider` 的 sortIndex/category/notes、`ProviderService::update_sort_order/update`、`database/dao/providers.rs::get_all_providers/update_provider_sort_indexes`、commands/provider.rs 的排序调用，以及 ProviderList/presentation.ts 和相邻 providerPresentation.test.ts 的排序并列用例。来源队列移动涉及路由队列，不在本任务迁入；本任务提供目录展示字段的持久化读写。
+
+- `vw-agent-apps/src/providers/presentation.rs::read/update` 是字段投影与校验实现：仅替换 sortIndex/category/notes，保留凭据、配置、绑定、创建时间及其他未知元数据。category 作为分类/分组键，最长 128 字节且拒绝控制字符；notes 最长 8192 字节，允许换行、回车、制表，拒绝其他控制字符；排序为非负 u32。非对象存储、错误字段类型明确失败。
+- `vw-api-types/src/app_providers/presentation.rs` 提供强类型 AppProviderPresentation/Entry。PUT 为完整替换这三个展示字段，null 或遗漏清空该字段，空字符串作为空串保存；拒绝未知字段、秘密、租户、路径、绑定、current/addToLive 等运行意图，不接受任意档案补丁。
+- `AppProviderStore::set_presentation/list_presentation` 复用 `app_providers.records`、TenantScope/AppId/ID 复合键与既有 compare_exchange。不存在返回 404，并发旧快照返回 409，不新增记录或覆盖新配置。列表从同一真实存储读取，显式索引升序、同索引按 ID、无索引最后；最大 u32 与无索引严格区分。分类仅作本接口展示数据，不赋予官方账号身份或任何运行权限。没有新建存储、数据库迁移或整表排序事务接口。
+- API `PUT /v1/app-providers/{app}/{id}/presentation` 返回保存后的三字段；`GET /v1/app-providers/{app}/presentation/entries` 返回按顺序的 `{id,presentation}` 列表，不返回 profile 或凭据。使用独立 entries 后缀避免遮蔽既有 ID 为 presentation 的供应商 GET，并有真实路由回归断言。沿用分域 router、Basic 认证、TenantScope 和 16 KiB 写入限制；非法 400、缺失 404、冲突 409、存储不可用 503。公司头仅表示存储作用域，不证明成员身份；没有授予或调用主机 live-config 权限。
+- SDK `app_provider_presentation_set/list` 经既有请求上下文发送 PUT/GET；失败只报告 HTTP 状态，传输/解析错误固定文案，不回显服务器正文或凭据。四层独立 presentation_tests.rs 已接直接父模块；bootstrap/handler_router 沿用已有分域注册。
+- UI 归任务 53，本轮未新增或验收 Iced。没有调用 native writer、修改 current/路由/队列状态、切换应用或同步 live 配置；目录排序不代表路由优先级切换成功。
+
+### 红/绿、平台与审查证据
+
+红阶段与两轮绿阶段均用原子 mkdir 动态领取共享槽位 **1**，`CARGO_TARGET_DIR=/Users/xiangmin/worker/code/shiju/target/rust-slot-1`；`CARGO_BUILD_BUILD_DIR` 同一绝对路径，覆盖仓库 build-dir。owner 记录本计划、任务、会话及 shell PID，EXIT/INT/TERM trap 清理自身 owner/锁，全部子进程结束后释放，保留编译缓存；未创建其他 target 目录。最终槽位 1 锁不存在。
+
+各阶段先执行 `cargo fmt --all`（退出 0），默认 features 使用以下完全相同的过滤命令：
+
+| 确切命令 | 红阶段退出码 / 有效结果 | 最终绿阶段退出码 / 有效结果 |
+| --- | --- | --- |
+| `cargo test -p vw-agent-apps --lib cc04_presentation_ -- --nocapture` | 101；2 failed：排序仍为旧值，分类/备注未保存 | 0；3 passed |
+| `cargo test -p vw-api-types --lib cc04_presentation_ -- --nocapture` | 0；1 passed | 0；1 passed |
+| `cargo test -p vw-agent --lib cc04_presentation_ -- --nocapture` | 101；1 passed/1 failed：SDK→API 返回未保存的空展示字段 | 0；3 passed |
+| `cargo test -p vw-gateway-client --lib cc04_presentation_ -- --nocapture` | 0；1 passed | 0；1 passed |
+| `cargo clippy --all-targets --all-features -- -D warnings` | 不适用 | 0；全部 targets/features 通过 |
+
+红阶段成功编译，失败发生在业务断言；不是缺模块/类型或零测试。最终 **8** 项有效测试，无忽略。首轮绿阶段 8 项通过，Clippy 退出 101 指出本次两个嵌套 if 可合并；修正为 let 条件链后，重新 fmt、上述四条聚焦命令及完整 Clippy 全通过。Agent 链接有既有 `__eh_frame section too large` 提示，测试退出 0，未改链接设置隐藏提示。
+
+业务测试通过真实临时 JSON 文件保存/重读证明 `cc04_presentation_order_survives_reload`；`cc04_presentation_metadata_does_not_change_live` 证明元数据正确、其他字段保持、清空语义和 native fixture 字节不变。额外覆盖非法文本/损坏存储。Gateway 用真实隔离 SQLite 和正式路由，断言 Basic 401、缺失 404、运行态字段 400，拒绝后原记录及时间戳不变；最大索引、并列和清空顺序确定。
+
+SDK→回环 HTTP→正式 handler→SQLite→强类型响应/GET→重开数据库闭环证明排序、中文分类和备注可持久化；同 ID 的跨 platform/company/application 档案不变，其他原记录、凭据和绑定保留，隔离 native fixture 字节不变。数据库及文件均为临时目录，凭据全为 fixture，无真实用户配置访问。此本地服务只替代远端部署传输，未开启 Basic（SDK 当前支持 Bearer），Basic 拒绝由独立正式中间件测试覆盖；独立 SDK HTTP fixture 仅替代远端响应，验证方法/URL/公司头/请求体及 403/409 正文脱敏。未将该测试称作真实外部部署或公司成员认证验收。
+
+`sw_vers`、`uname -m` 均退出 0：macOS 27.0（26A428）、arm64。应用版本未验证：本任务只读写隔离目录档案，没有启动实际应用。Iced、live 切换/应用运行、Windows/Linux、其他架构、PostgreSQL 实际服务未验收；PostgreSQL 复用已有条件写入适配并参与 Clippy，不宣称运行验收。
+
+定向 `git diff --check`、`git diff --cached --check` 退出 0，本任务实现/测试/正式证据已审查；plan.md 无差异。仅提交本任务变更，不纳入原有母任务状态和任务 1–6 删除。完成后的任务 7 文件删除不纳入提交。未运行全量 cargo test、fmt check、wasm 检查或 Makefile。

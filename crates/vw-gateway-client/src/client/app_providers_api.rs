@@ -213,3 +213,9 @@ mod mcode;
 #[cfg(test)]
 #[path = "app_providers/mcode_tests.rs"]
 mod mcode_tests;
+
+#[path = "app_providers/kimi.rs"]
+mod kimi;
+#[cfg(test)]
+#[path = "app_providers/kimi_tests.rs"]
+mod kimi_tests;

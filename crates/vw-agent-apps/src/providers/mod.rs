@@ -192,3 +192,8 @@ mod omp_tests;
 pub mod mcode;
 #[cfg(all(test, target_os = "macos"))]
 mod mcode_tests;
+
+#[cfg(target_os = "macos")]
+pub mod kimi;
+#[cfg(all(test, target_os = "macos"))]
+mod kimi_tests;

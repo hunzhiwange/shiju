@@ -514,6 +514,21 @@ impl AppProviderStore {
                 }
             }
         }
+        if app == AppId::Kimi {
+            if let Some(row) = self.kimi_record(tenant, id)? {
+                if let Some(profile) = row.get("kimi") {
+                    let profile: vw_api_types::app_providers::kimi::KimiProfile =
+                        serde_json::from_value(profile.clone())
+                            .map_err(|_| "invalid provider record")?;
+                    return Ok(AppProviderSummary {
+                        id: id.into(),
+                        app_id: app,
+                        name: profile.name,
+                        configured: true,
+                    });
+                }
+            }
+        }
         if app == AppId::GrokBuild {
             if let Some(row) = self.grok_record(tenant, id)? {
                 if let Some(profile) = row.get("grok") {
@@ -650,3 +665,5 @@ mod pi;
 
 mod mcode;
 mod omp;
+
+mod kimi;

@@ -1912,3 +1912,56 @@ Gateway 使用真实回环 HTTP、原生 SDK、SQLite、临时 HOME 和现有管
 平台：macOS **27.0 (26A428)**、**arm64**，crate **0.6.0**。`command -v mcode` 无结果，`mcode --version` 退出 **127**；实际 Mcode 版本/消费、真实账号/Keychain、网络上游、Iced 渲染和非 macOS **未验证**。
 
 定向差异/暂存审查与只读 plan.md 检查通过；仅提交本任务实现、独立测试、必要接线和本条证据，排除母任务状态、其它计划与此前编号文件删除。自身槽位锁释放、缓存保留；未运行无过滤全量 cargo test、fmt check、wasm 或 Makefile。验收后删除本编号文件，不提交该删除；下一步批次 41。
+
+## 任务 41：Kimi 供应商配置
+
+2026-11-07；状态：已完成。核对批次 40 提交 `0f609699c` 与上节验收。母任务 1、3 已完成；母任务 2 整体领域迁移尚未收口，沿用任务 1/provider-contracts.md 已记录的底座子计划 1–93 开工裁定，不误报母任务 2 完整完成。未修改任何 plan.md。
+
+来源快照 `ca58c0313360eae7c851fbd7553c1614c7af03e7`，来源工作区干净。阅读 `kimi_config::{read,get_providers,validate_provider,apply_provider,apply_provider_unchecked,write,current_provider_in,add_and_commit,switch_and_commit}`、相邻内联测试、`tests/kimi_commands.rs`、`services/provider/mod.rs` 的原生读写/官方连接调用者，及 `helpers/kimiToml.ts::{kimiConfigToToml,kimiConfigFromToml}`、`KimiProviderForm.tsx` 调用和 `kimiConfigSchema`。先使用 RustCodeGraph 检查既有适配/事务/调用者，新增文件与来源配置用直接读取。
+
+### 实现与边界
+
+- 唯一运行时所有者为 `vw-agent-apps/src/providers/kimi.rs`，不调用冻结上游。配置按 `{provider, models}` 保存，写入 `[providers.<id>]` 和点名模型表。通过 toml_edit 只替换这一家的节点，保留其它供应商、模型、根字段、登录引用、服务表与周围注释；目录观察复用相同读取/引用检查。
+- 服务端验证类型、HTTP(S) 端点、凭据/环境变量/OAuth 引用形状、正数上下文长度、模型别名及归属、能力/overrides/headers 类型和 TOML 可表示性；拒绝掩码和不存在的供应商/模型引用。编辑入口仅接受同一个供应商及其模型的原生 TOML，禁止全局默认、其它供应商、服务表或改名。
+- 模型别名不按分隔符猜供应商。默认/次级模型引用不允许悬空，跨供应商别名碰撞拒绝；首次 Add 在没有默认时选定首个模型，已有默认与次级选择保留。Add 不覆盖已存在的原生节点；IfMember 对非成员只存目录。
+- 只消费已有官方登录节点：导入和编辑支持 `managed:kimi-code` 一类原生键，SDK 将键作为 URL segment 编码；编辑官方节点时固定原生连接、端点和 OAuth 引用，仅允许模型变化；禁止伪造新的官方连接，不读取、创建或删除 credentials。官方节点移除明确拒绝，服务/账号关联维护留给登录管理领域。没有实现 OAuth，也没有验收真实登录或上游可用性。
+- 使用授权执行 HOME 下 `.kimi-code/config.toml`；保留非空 `KIMI_CODE_HOME` 明确不支持的既有边界，不接受客户端路径、环境或命令参数。目录与文件符号链接拒绝。保留目录描述符和 AppWriteGuard，复用 ProviderTransactions 的物理锁、私有文件、前像检查、目录 CAS、pending 及恢复；保留目录元数据，移除前归档最新原生节点。
+- API/SDK/存储按相邻模块接线，沿用既有主机读写权限、租户作用域、敏感 header、Debug 脱敏和无响应载荷的错误。只证明 TOML 原生成员和默认引用；不创建托管唯一 current 指针，不声称代理/模式切换或 Iced 闭环通过。UI 留给所属桌面表单任务。
+
+前缀 `/v1/app-providers/kimi`：
+
+| API | SDK |
+| --- | --- |
+| `PUT /{id}/config` | `kimi_provider_save`：catalog_only/add/if_member |
+| `PUT /{id}/editor` | `kimi_provider_editor_save`：服务端 TOML 范围与 schema 检查 |
+| `POST /{id}/add` | `kimi_provider_add` |
+| `POST /{id}/remove-live` | `kimi_provider_remove_live` |
+| `POST /config/state` | `kimi_state`：仅成员标识 |
+| `POST /config/import` | `kimi_import`：原生文件只读，仅新增缺失目录行 |
+
+### 红绿验证
+
+红阶段四条默认 features 的 `cc04_kimi_` 过滤命令：执行端 **0 通过/2 业务断言失败，退出 101**，即任务指定两项；DTO **2 通过，退出 0**；Gateway **2 通过/1 业务断言失败，退出 101**（实际原生文件未写入编辑后的假凭据）；SDK **2 通过，退出 0**。编译错误和零测试未作为红测证据。
+
+首轮绿测执行端 7、DTO 2、Gateway 6、SDK 2 通过。随后补充官方节点接收非对象声明的拒绝断言，并在格式化后重跑最终检查。各阶段均由原子 mkdir 动态领取槽位 **1**；`CARGO_TARGET_DIR=/Users/xiangmin/worker/code/shiju/target/rust-slot-1`，`CARGO_BUILD_BUILD_DIR` 同值以覆盖仓库 build-dir。owner 记录计划/任务/会话/PID，阶段结束 trap 删除自身记录、释放锁，缓存保留。
+
+最终默认 features：
+
+| 确切命令 | 退出码 | 有效数量 |
+| --- | --- | --- |
+| `cargo fmt --all` | 0 | 格式化 |
+| `cargo test -p vw-agent-apps --lib cc04_kimi_ -- --nocapture` | 0 | 7 passed |
+| `cargo test -p vw-api-types --lib cc04_kimi_ -- --nocapture` | 0 | 2 passed |
+| `cargo test -p vw-agent --lib cc04_kimi_ -- --nocapture` | 0 | 6 passed |
+| `cargo test -p vw-gateway-client --lib cc04_kimi_ -- --nocapture` | 0 | 2 passed |
+| `cargo test -p vw-agent-apps --lib cc04_catalog_ -- --nocapture` | 0 | 7 passed |
+| `cargo test -p vw-agent-apps --lib cc04_delete_ -- --nocapture` | 0 | 3 passed |
+| `cargo clippy --all-targets --all-features -- -D warnings` | 0 | 非行为测试 |
+
+本任务 **17 项**、相邻回归 **10 项**去重通过，无忽略。执行端包括指定两项、默认/次级引用与别名碰撞、官方连接保护、编辑范围和 schema、0600/符号链接、外部文件/目录修订冲突，以及 Intent/Marked/FilePublished/Published/Settled 五处故障后重建事务执行器恢复，未生成唯一 current 指针。
+
+Gateway 测试使用真实回环 HTTP、正式 SDK、SQLite、临时 HOME 和管理员 policy：SDK save/editor/add/if_member → API applied → 执行端 TOML 假凭据实际更新；首次激活自动补模型归属/默认引用；默认删除、异租户/主机/假 token/无写权限、错误模型归属和伪造官方连接拒绝且无文件/目录记录副作用。官方导入与编辑保留端点/OAuth 引用且不创建凭据文件；导入不写原文件、不覆盖目录；移除保留可复用目录行，live 成员受删除守卫保护。仅替代远端 HTTP 传输，未替代文件系统、存储、鉴权或事务，不读取/写入真实用户配置；所有密钥均为 fixture。
+
+平台 macOS **27.0 (26A428)**、**arm64**，crate **0.6.0**。`command -v kimi` 无结果，`kimi --version` 退出 **127**；实际 Kimi 应用版本/消费、真实账号/Keychain、网络上游、Iced 渲染和非 macOS **未验证**。Gateway 链接器有既有 `__eh_frame section too large` 提示，测试退出 0，未修改链接配置。
+
+定向差异/暂存检查通过，plan.md 无差异；只提交本任务实现、独立测试、必要接线和本条证据，排除其它计划、母任务状态和既有编号文件删除。自身槽位锁已释放、缓存保留；未执行无过滤全量 cargo test、fmt check、wasm 或 Makefile。验收后删除本编号文件且不提交其删除；下一步批次 42。

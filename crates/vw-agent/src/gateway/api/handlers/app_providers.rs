@@ -26,6 +26,7 @@ pub(crate) fn router() -> Router {
         .merge(pi::router())
         .merge(omp::router())
         .merge(mcode::router())
+        .merge(kimi::router())
         .merge(claude_desktop::router())
         .merge(desktop_mapping::router())
         .merge(delete::router())
@@ -262,3 +263,7 @@ mod omp_tests;
 mod mcode;
 #[cfg(all(test, target_os = "macos"))]
 mod mcode_tests;
+
+mod kimi;
+#[cfg(all(test, target_os = "macos"))]
+mod kimi_tests;

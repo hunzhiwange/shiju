@@ -156,58 +156,22 @@ pub(super) fn observe(
             ProviderSelection::NotApplicable,
         ));
     }
-    let components = match app {
-        AppId::Kimi => {
-            if std::env::var_os("KIMI_CODE_HOME").is_some_and(|v| !v.is_empty()) {
-                return Err(CustomPathNotSupported);
-            }
-            vec![".kimi-code", "config.toml"]
-        }
-        _ => return Err(NotImplemented),
-    };
-    let Some(bytes) = read_file(home, &components)? else {
-        return Ok((Members::new(), ProviderSelection::Unconfigured));
-    };
-    let value: serde_json::Value =
-        toml::from_str(std::str::from_utf8(&bytes).map_err(|_| InvalidConfiguration)?)
-            .map_err(|_| InvalidConfiguration)?;
-    if !value.is_object() {
-        return Err(InvalidConfiguration);
+    if app != AppId::Kimi {
+        return Err(NotImplemented);
     }
-    let mut members = Members::new();
-    if let Some(providers) = value.get("providers") {
-        let providers = providers.as_object().ok_or(InvalidConfiguration)?;
-        for (id, config) in providers {
-            if id.trim().is_empty()
-                || id.len() > 128
-                || id.chars().any(char::is_control)
-                || !config.is_object()
-            {
-                return Err(InvalidConfiguration);
-            }
-            members.insert(id.clone(), ());
+    #[cfg(target_os = "macos")]
+    {
+        if std::env::var_os("KIMI_CODE_HOME").is_some_and(|v| !v.is_empty()) {
+            return Err(CustomPathNotSupported);
         }
+        let bytes = super::kimi::read(home).map_err(|_| Unreadable)?;
+        let rows = super::kimi::declarations(bytes.as_deref()).map_err(|_| InvalidConfiguration)?;
+        let selection =
+            super::kimi::selection(bytes.as_deref()).map_err(|_| InvalidConfiguration)?;
+        Ok((rows.into_keys().map(|id| (id, ())).collect(), selection))
     }
-    if value.get("models").is_some_and(|v| !v.is_object()) {
-        return Err(InvalidConfiguration);
-    }
-    let selection = match value.get("default_model") {
-        None => ProviderSelection::Unconfigured,
-        Some(selected) => {
-            let alias = selected.as_str().ok_or(InvalidConfiguration)?;
-            let id = value
-                .get("models")
-                .and_then(|m| m.get(alias))
-                .and_then(|m| m.get("provider"))
-                .and_then(|id| id.as_str())
-                .ok_or(InvalidConfiguration)?;
-            if !members.contains_key(id) {
-                return Err(InvalidConfiguration);
-            }
-            ProviderSelection::Selected { id: id.into() }
-        }
-    };
-    Ok((members, selection))
+    #[cfg(not(target_os = "macos"))]
+    Err(UnsupportedPlatform)
 }
 
 #[cfg(unix)]

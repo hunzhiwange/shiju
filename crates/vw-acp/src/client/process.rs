@@ -132,6 +132,9 @@ impl AcpClient {
         if self.agent_name == "copilot" {
             crate::access_policy::copilot::validate_launch(&self.config.args, unrestricted)?;
         }
+        if self.agent_name == "cursor" {
+            crate::access_policy::cursor::validate_launch(&self.config.args, unrestricted)?;
+        }
         if self.agent_name == "kiro"
             && self.config.args.iter().any(|arg| {
                 arg == "--trust-all-tools"

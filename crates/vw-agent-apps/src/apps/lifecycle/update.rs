@@ -45,6 +45,21 @@ pub fn plan(
 }
 
 impl UpdatePlan {
+    pub fn app_id(&self) -> vw_api_types::agent_apps::AppId {
+        self.installation.app_id
+    }
+
+    pub(super) fn verify_result(&self, report: &AppInstallationReport) -> bool {
+        report.installations.iter().any(|i| {
+            i.id == self.installation.id
+                && i.app_id == self.installation.app_id
+                && i.target_host_id == self.installation.target_host_id
+                && i.environment == self.installation.environment
+                && i.runtime_status
+                    == vw_api_types::agent_apps::AppInstallationRuntimeStatus::Runnable
+        })
+    }
+
     /// Invoke with fresh host discoveries while holding the application write lock.
     /// PATH-default changes alone do not change the selected installation.
     pub fn revalidate(

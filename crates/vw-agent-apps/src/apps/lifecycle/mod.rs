@@ -26,3 +26,7 @@ mod update_tests;
 pub mod coordinator;
 #[cfg(test)]
 mod coordinator_tests;
+
+pub mod process;
+#[cfg(test)]
+mod process_tests;

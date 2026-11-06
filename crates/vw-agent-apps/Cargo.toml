@@ -13,13 +13,13 @@ reqwest = { version = "0.13", default-features = false, features = ["json", "rus
 serde_json = "1"
 semver = "1"
 base64 = "0.23"
+tempfile = "3"
 png = "0.18"
 vw-api-types = { path = "../vw-api-types" }
 vw-acp = { path = "../vw-acp" }
 
 [target.'cfg(unix)'.dependencies]
 libc = "0.2"
-tempfile = "3"
 
 [dev-dependencies]
 tokio = { version = "1", features = ["macros", "rt", "time"] }

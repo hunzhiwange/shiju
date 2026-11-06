@@ -808,6 +808,9 @@ async fn resolve_delegate_overrides_from_config(
     explicit_allowed_tools: Option<Vec<String>>,
     explicit_model: Option<String>,
 ) -> Result<DelegateRequestOverrides, ApiError> {
+    // Auto/blank delegates to agent defaults before the prompt's environment fallback.
+    let explicit_model = explicit_model
+        .filter(|model| !model.trim().is_empty() && !model.trim().eq_ignore_ascii_case("auto"));
     let workspace = instance::directory();
     let defaults = crate::session::capability_policy::native_agent_defaults(
         runtime_config,

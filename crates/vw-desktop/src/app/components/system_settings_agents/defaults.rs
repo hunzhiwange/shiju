@@ -72,7 +72,7 @@ fn catalogs(
     let model_source_available = match runtime {
         AgentRuntime::Native => true,
         AgentRuntime::Acp { backend } => app.session_runtime_states.values().any(|state|
-            state.acp_agent.as_ref() == Some(backend) && state.acp_options.connected &&
+            state.acp_agent.as_ref() == Some(backend) &&
             state.acp_options.model_source_capabilities.iter().any(|capability| matches!(capability,
                 vw_gateway_client::vw_api_types::acp_model_source::AcpModelSourceCapability::Supported {
                     source: vw_gateway_client::vw_api_types::acp_model_source::AcpModelSource::SessionModel
@@ -153,14 +153,14 @@ pub(super) fn view<'a>(
     let defaults = &draft.defaults;
     let mut body = column![
         text("默认配置").size(16),
-        text("固定空列表表示不选择任何条目；继承使用当前环境默认。权限始终受安全上限约束。")
+        text("固定空列表表示不选择任何条目。权限始终受安全上限约束。")
             .style(settings_muted_text_style)
     ]
     .spacing(10);
-    let mut model_options = vec!["继承".to_string()];
+    let mut model_options = vec!["继承会话模型".to_string()];
     model_options.extend(models.iter().map(|model| format!("{}/{}", model.provider, model.model)));
     let selected = match &defaults.model {
-        AgentDefault::Inherit => "继承".into(),
+        AgentDefault::Inherit => "继承会话模型".into(),
         AgentDefault::Fixed(model) => format!("{}/{}", model.provider, model.model),
     };
     let mut model_controls = column![
@@ -196,7 +196,7 @@ pub(super) fn view<'a>(
     );
     if matches!(draft.runtime, AgentRuntime::Acp { .. }) {
         model_controls = model_controls.push(
-            text("ACP 模型仅在该引擎已声明会话模型来源能力时可选；未连接时请使用继承。")
+            text("会话模型来源下，显式选择优先于智能体默认；继承会话模型在无选择时使用环境默认。CLI 本地配置是独立来源，由会话单独选择。仅已声明会话模型能力的引擎可固定模型。")
                 .style(settings_muted_text_style),
         );
     }

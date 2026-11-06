@@ -174,7 +174,7 @@ async fn stream_request_reports_abort_before_config_lookup() {
 }
 
 #[tokio::test]
-async fn acp_model_source_routing_rejects_missing_credentials_before_launch() {
+async fn agent_model_inheritance_rejects_missing_credentials_before_launch() {
     let result = do_stream_request_acp(
         &test_model("github-copilot"),
         &test_provider(None),
@@ -193,7 +193,7 @@ async fn acp_model_source_routing_rejects_missing_credentials_before_launch() {
 }
 
 #[test]
-fn acp_model_source_routing_validates_credentials_and_model_snapshot() {
+fn agent_model_inheritance_validates_credentials_and_model_snapshot() {
     let mut model = test_model("github-copilot");
     let info = test_provider(Some("fixture-provider-key"));
     assert!(super::validate_session_model(&model, &info, None).is_ok());

@@ -2504,7 +2504,7 @@ async fn agent_session_identity_derives_backend_and_rejects_conflicts() {
 }
 
 #[test]
-fn acp_model_source_reaches_processor_options_and_preserves_legacy_selection() {
+fn agent_model_inheritance_preserves_explicit_source_in_processor_options() {
     use vw_api_types::acp_model_source::AcpModelSource;
     for (source, options, expected) in [
         (AcpModelSource::CliLocal, None, "cli_local"),
@@ -2644,4 +2644,88 @@ fn native_tool_search_core_loop_gateway_history_reaches_model_as_native_item() {
         crate::session::processor::llm_messages::session_message_to_llm_message(&user).unwrap()["role"],
         "user"
     );
+}
+
+#[tokio::test]
+async fn agent_model_inheritance_acp_new_and_reopened_sessions_preserve_priority() {
+    let _env = crate::test_support::global_async_env_lock().lock().await;
+    let _fixture = crate::session::llm::recovery_test_support::RecoveryConfig::new(
+        "https://example.test/v1",
+        None,
+    )
+    .await;
+    crate::config::update(serde_json::json!({"agents":{
+        "custom-model": {"runtime":{"kind":"acp","backend":"codex"},
+            "defaults":{"model":{"mode":"fixed","value":{"provider":"model-recovery","model":"original"}}}},
+        "custom-inherit": {"runtime":{"kind":"acp","backend":"codex"}},
+        "custom-forced": {"runtime":{"kind":"acp","backend":"codex"},
+            "provider":"model-recovery","model":"original","force_model_selection":true}
+    }})).await.unwrap();
+    let workspace = tempfile::tempdir().unwrap();
+    with_tenant_instance(
+        crate::session::ui_store::current_tenant_scope(),
+        workspace.path().to_string_lossy().into_owned(),
+        || {
+            Box::pin(async {
+                for explicit in [
+                    None,
+                    Some("auto"),
+                    Some("  AuTo  "),
+                    Some("   "),
+                    Some("model-recovery/selected"),
+                ] {
+                    let mut request = GatewayChatStreamRequest {
+                        agent: Some("custom-model".into()),
+                        model: explicit.map(str::to_owned),
+                        ..Default::default()
+                    };
+                    let expected = explicit
+                        .filter(|value| {
+                            !value.trim().is_empty() && !value.trim().eq_ignore_ascii_case("auto")
+                        })
+                        .unwrap_or("model-recovery/original");
+                    for _ in 0..2 {
+                        let resolved = prepare_gateway_agent_request(&mut request).await.unwrap();
+                        assert_eq!(
+                            resolved.model.as_deref(),
+                            Some(expected),
+                            "new/reopened {explicit:?}"
+                        );
+                        assert_eq!(request.acp_agent.as_deref(), Some("codex"));
+                    }
+                }
+                let mut inherited = GatewayChatStreamRequest {
+                    agent: Some("custom-inherit".into()),
+                    ..Default::default()
+                };
+                assert!(
+                    prepare_gateway_agent_request(&mut inherited).await.unwrap().model.is_none(),
+                    "prompt retains responsibility for global/Auto resolution"
+                );
+                inherited.model = Some("model-recovery/selected".into());
+                assert_eq!(
+                    prepare_gateway_agent_request(&mut inherited).await.unwrap().model.as_deref(),
+                    Some("model-recovery/selected")
+                );
+                let mut forced = GatewayChatStreamRequest {
+                    agent: Some("custom-forced".into()),
+                    ..Default::default()
+                };
+                assert_eq!(
+                    prepare_gateway_agent_request(&mut forced).await.unwrap().model.as_deref(),
+                    Some("model-recovery/original")
+                );
+                forced.model = Some("  AuTo  ".into());
+                assert_eq!(
+                    prepare_gateway_agent_request(&mut forced).await.unwrap().model.as_deref(),
+                    Some("model-recovery/original")
+                );
+                forced.model = Some("model-recovery/conflict".into());
+                assert!(prepare_gateway_agent_request(&mut forced).await.is_err());
+                Ok(())
+            })
+        },
+    )
+    .await
+    .unwrap();
 }

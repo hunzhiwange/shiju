@@ -449,7 +449,7 @@ fn send_prompt_returns_parse_errors_without_streaming() {
 }
 
 #[test]
-fn acp_model_source_routing_preserves_qualified_provider_identity() {
+fn agent_model_inheritance_preserves_provider_and_auto_resolution() {
     let runtime = tokio::runtime::Runtime::new().unwrap();
     let _lock = runtime.block_on(crate::test_support::global_async_env_lock().lock());
     let home = tempfile::TempDir::new().unwrap();
@@ -555,7 +555,7 @@ async fn acp_model_source_routing_unsupported_cli_defaults_to_native_without_cli
 }
 
 #[tokio::test]
-async fn acp_model_source_routing_rejects_missing_client_model() {
+async fn agent_model_inheritance_rejects_missing_client_model() {
     let result = resolve_model_for_options(
         Some("__missing_acp_source__/missing".into()),
         &json!({"acp_agent": "codex", "acp_model_source": "session_model"}),
@@ -565,7 +565,7 @@ async fn acp_model_source_routing_rejects_missing_client_model() {
 }
 
 #[tokio::test]
-async fn acp_model_source_routing_local_ignores_missing_model_and_invalid_source_fails() {
+async fn agent_model_inheritance_cli_local_ignores_global_and_invalid_model() {
     let model = resolve_model_for_options(
         Some("__missing__/missing".into()),
         &json!({"acp_agent": "codex", "acp_model_source": "cli_local"}),

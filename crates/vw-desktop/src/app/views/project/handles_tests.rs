@@ -200,7 +200,7 @@ fn vertical_resize_handle_mouse_interaction_tracks_cursor_bounds() {
     let handle = VResizeHandle;
     let state = tree();
     let renderer = RecordingRenderer::default();
-    let node = layout_for(Rectangle { x: 10.0, y: 20.0, width: 160.0, height: 1.0 });
+    let node = layout_for(Rectangle { x: 10.0, y: 20.0, width: 160.0, height: 8.0 });
     let layout = Layout::new(&node);
 
     let over = <VResizeHandle as Widget<(), Theme, RecordingRenderer>>::mouse_interaction(
@@ -225,24 +225,42 @@ fn vertical_resize_handle_mouse_interaction_tracks_cursor_bounds() {
 }
 
 #[test]
-fn vertical_resize_handle_draw_is_empty() {
+fn terminal_resize_draws_thin_centered_line_and_highlights_hover_in_both_themes() {
     let handle = VResizeHandle;
-    let state = tree();
+    let mut state = tree();
     let mut renderer = RecordingRenderer::default();
-    let node = layout_for(Rectangle { x: 0.0, y: 0.0, width: 160.0, height: 1.0 });
-
-    <VResizeHandle as Widget<(), Theme, RecordingRenderer>>::draw(
-        &handle,
-        &state,
-        &mut renderer,
-        &Theme::Dark,
-        &renderer::Style::default(),
-        Layout::new(&node),
-        mouse::Cursor::Unavailable,
-        &Rectangle::INFINITE,
+    let node = <VResizeHandle as Widget<(), Theme, RecordingRenderer>>::layout(
+        &mut VResizeHandle,
+        &mut state,
+        &renderer,
+        &limits(160.0, 80.0),
     );
-
-    assert!(renderer.fills.is_empty());
+    for theme in [Theme::Dark, Theme::Light] {
+        let mut colors = Vec::new();
+        for cursor in [mouse::Cursor::Unavailable, mouse::Cursor::Available(Point::new(20.0, 4.0))]
+        {
+            renderer.fills.clear();
+            <VResizeHandle as Widget<(), Theme, RecordingRenderer>>::draw(
+                &handle,
+                &state,
+                &mut renderer,
+                &theme,
+                &renderer::Style::default(),
+                Layout::new(&node),
+                cursor,
+                &Rectangle::INFINITE,
+            );
+            assert_eq!(renderer.fills.len(), 1);
+            assert_eq!(
+                renderer.fills[0].bounds,
+                Rectangle { x: 0.0, y: 3.5, width: 160.0, height: 1.0 }
+            );
+            colors.push(color_background(&renderer.fills[0]));
+        }
+        assert_eq!(colors[0], divider_line_color(&theme));
+        assert_eq!(colors[1], theme.extended_palette().primary.base.color);
+        assert_ne!(colors[0], colors[1]);
+    }
 }
 
 #[test]

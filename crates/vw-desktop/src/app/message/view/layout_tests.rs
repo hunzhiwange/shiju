@@ -513,3 +513,34 @@ fn file_tree_external_drop_hover_left_and_release_never_import_or_leave_chat_pat
     assert!(app.dragging_file_paths.is_empty());
     assert!(!app.file_tree_operation_in_progress);
 }
+
+#[test]
+fn terminal_resize_drag_continues_outside_handle_and_release_stops_updates() {
+    use crate::app::message::{TerminalMessage, ViewMessage};
+    let mut app = test_app();
+    app.window_size = (800.0, 500.0);
+    app.terminal.height = 240.0;
+    app.cursor_position = iced::Point::new(100.0, 260.0);
+    let _ = crate::app::message::terminal::update(&mut app, TerminalMessage::DragStarted);
+    assert!(app.terminal.is_dragging);
+    for (y, expected) in [(200.0, 300.0), (-100.0, 400.0), (1000.0, 120.0)] {
+        let _ = super::update(&mut app, ViewMessage::PointerMoved(100.0, y));
+        assert_eq!(app.terminal.height, expected);
+    }
+    let _ = super::update(&mut app, ViewMessage::GlobalMouseReleased);
+    assert!(!app.terminal.is_dragging);
+    assert_eq!(app.terminal.drag_anchor_y, None);
+    let _ = super::update(&mut app, ViewMessage::PointerMoved(100.0, -200.0));
+    assert_eq!(app.terminal.height, 120.0);
+}
+
+#[test]
+fn terminal_resize_tiny_window_keeps_height_within_window_limit() {
+    let mut app = test_app();
+    app.window_size = (640.0, 100.0);
+    app.terminal.is_dragging = true;
+    app.terminal.drag_anchor_y = Some(50.0);
+    app.terminal.drag_start_height = 120.0;
+    let _ = super::update(&mut app, super::ViewMessage::PointerMoved(10.0, -100.0));
+    assert_eq!(app.terminal.height, 80.0);
+}

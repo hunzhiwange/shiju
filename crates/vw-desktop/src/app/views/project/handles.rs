@@ -202,8 +202,8 @@ where
 ///
 /// # 特性
 ///
-/// - 视觉高度: 0.5 像素（细线）
-/// - 交互高度: 6.0 像素（便于点击和拖拽）
+/// - 视觉高度: 1.0 像素（细线）
+/// - 交互高度: 8.0 像素（便于点击和拖拽）
 /// - 鼠标悬停时显示垂直调整光标
 /// - 自动适应主题颜色
 ///
@@ -221,9 +221,8 @@ pub(crate) struct VResizeHandle;
 impl VResizeHandle {
     /// 交互区域的高度（像素）
     ///
-    /// 使用 1.0 像素命中高度，让分割线本身就是拖拽区域，
-    /// 避免终端顶部额外出现可见间隙。
-    pub(crate) const HIT_HEIGHT: f32 = 1.0;
+    /// 使用 8.0 像素命中高度，分隔细线居中绘制，便于从两侧抓取。
+    pub(crate) const HIT_HEIGHT: f32 = 8.0;
 }
 
 impl<Message, Renderer> Widget<Message, Theme, Renderer> for VResizeHandle
@@ -267,8 +266,7 @@ where
     /// 绘制组件
     ///
     /// 绘制调整手柄的视觉效果，包括：
-    /// 1. 背景填充（使用主题背景色）
-    /// 2. 底部分割线
+    /// 在命中区中央绘制 1px 分割线，悬停时使用主题强调色。
     ///
     /// # 参数
     ///
@@ -277,18 +275,36 @@ where
     /// * `theme` - 当前主题，用于获取颜色
     /// * `_style` - 渲染样式（未使用）
     /// * `layout` - 布局信息
-    /// * `_cursor` - 鼠标光标位置（未使用）
+    /// * `cursor` - 鼠标光标位置
     /// * `_viewport` - 视口区域（未使用）
     fn draw(
         &self,
         _state: &Tree,
-        _renderer: &mut Renderer,
-        _theme: &Theme,
+        renderer: &mut Renderer,
+        theme: &Theme,
         _style: &renderer::Style,
-        _layout: Layout<'_>,
-        _cursor: mouse::Cursor,
+        layout: Layout<'_>,
+        cursor: mouse::Cursor,
         _viewport: &Rectangle,
     ) {
+        let bounds = layout.bounds();
+        let color = if cursor.is_over(bounds) {
+            theme.extended_palette().primary.base.color
+        } else {
+            divider_line_color(theme)
+        };
+        renderer.fill_quad(
+            renderer::Quad {
+                bounds: Rectangle {
+                    x: bounds.x,
+                    y: bounds.y + (bounds.height - 1.0).max(0.0) / 2.0,
+                    width: bounds.width,
+                    height: bounds.height.min(1.0),
+                },
+                ..Default::default()
+            },
+            color,
+        );
     }
 
     /// 处理鼠标交互

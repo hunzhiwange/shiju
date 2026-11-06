@@ -187,7 +187,8 @@ pub fn update(app: &mut App, message: ViewMessage) -> Task<Message> {
                 let delta = anchor - y;
                 let mut th = (app.terminal.drag_start_height + delta).max(0.0);
                 let h = app.window_size.1.max(1.0);
-                th = th.clamp(120.0, h * 0.8);
+                let max_height = h * 0.8;
+                th = th.clamp(120.0_f32.min(max_height), max_height);
                 app.terminal.height = th;
             }
             if let Some((task_id, from_status, press_pos)) = &app.task_board_drag_pending {

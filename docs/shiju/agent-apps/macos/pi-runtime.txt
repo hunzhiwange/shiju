@@ -1,0 +1,51 @@
+rustc 0
+200 {"apps": [{"id": "pi", "name": "Pi", "cliCommand": "pi", "runtimeKinds": ["native_cli"]}]}
+200 []
+200 {"installations": [{"id": "NDpob3N0OjI6cGk6OTI6L3ByaXZhdGUvdmFyL2ZvbGRlcnMvcmcvenIxOWxiX3M1dzMycTZkMnFrZDZwMG44MDAwMGdwL1Qvc2hpanUtdGFzazU0LWhua2xldGs1L3ByZWZpeC9iaW4vcGk", "appId": "pi", "targetHostId": "host", "environment": {"kind": "macos"}, "path": "<isolated-root>/prefix/bin/pi", "realPath": "<isolated-root>/prefix/lib/node_modules/@earendil-works/pi-coding-agent/dist/bundle/cli.js", "source": "unknown", "isPathDefault": true, "version": "1.4.0", "runtimeStatus": {"status": "runnable"}}]}
+OLD 0
+200 {"installations": [{"id": "NDpob3N0OjI6cGk6OTI6L3ByaXZhdGUvdmFyL2ZvbGRlcnMvcmcvenIxOWxiX3M1dzMycTZkMnFrZDZwMG44MDAwMGdwL1Qvc2hpanUtdGFzazU0LWhua2xldGs1L3ByZWZpeC9iaW4vcGk", "appId": "pi", "targetHostId": "host", "environment": {"kind": "macos"}, "path": "<isolated-root>/prefix/bin/pi", "realPath": "<isolated-root>/prefix/lib/node_modules/@earendil-works/pi-coding-agent/dist/bundle/cli.js", "source": "unknown", "isPathDefault": true, "version": "1.4.0", "runtimeStatus": {"status": "runnable"}}]}
+200 {"previewId": "5fc8af4b-6d96-42c3-ae99-8308df1df7d2", "request": {"appId": "pi", "action": "update", "target": {"kind": "installation", "installationId": "NDpob3N0OjI6cGk6OTI6L3ByaXZhdGUvdmFyL2ZvbGRlcnMvcmcvenIxOWxiX3M1dzMycTZkMnFrZDZwMG44MDAwMGdwL1Qvc2hpanUtdGFzazU0LWhua2xldGs1L3ByZWZpeC9iaW4vcGk"}}, "source": "system", "confirmationRequired": true, "summary": "Review the selected application action in the administrator-approved prefix", "displayCommand": null}
+202 {"operationId": "7d299cac-6480-46fa-a10d-e0ecbbb4b98a", "status": "queued"}
+200 {"operationId": "7d299cac-6480-46fa-a10d-e0ecbbb4b98a", "status": "running", "phase": "preflight"}
+200 {"operationId": "7d299cac-6480-46fa-a10d-e0ecbbb4b98a", "status": "running", "phase": "executing"}
+200 {"operationId": "7d299cac-6480-46fa-a10d-e0ecbbb4b98a", "status": "running", "phase": "executing"}
+200 {"operationId": "7d299cac-6480-46fa-a10d-e0ecbbb4b98a", "status": "running", "phase": "executing"}
+200 {"operationId": "7d299cac-6480-46fa-a10d-e0ecbbb4b98a", "status": "running", "phase": "executing"}
+200 {"operationId": "7d299cac-6480-46fa-a10d-e0ecbbb4b98a", "status": "running", "phase": "executing"}
+200 {"operationId": "7d299cac-6480-46fa-a10d-e0ecbbb4b98a", "status": "running", "phase": "executing"}
+200 {"operationId": "7d299cac-6480-46fa-a10d-e0ecbbb4b98a", "status": "running", "phase": "executing"}
+200 {"operationId": "7d299cac-6480-46fa-a10d-e0ecbbb4b98a", "status": "running", "phase": "executing"}
+200 {"operationId": "7d299cac-6480-46fa-a10d-e0ecbbb4b98a", "status": "running", "phase": "executing"}
+200 {"operationId": "7d299cac-6480-46fa-a10d-e0ecbbb4b98a", "status": "running", "phase": "executing"}
+200 {"operationId": "7d299cac-6480-46fa-a10d-e0ecbbb4b98a", "status": "running", "phase": "executing"}
+200 {"operationId": "7d299cac-6480-46fa-a10d-e0ecbbb4b98a", "status": "running", "phase": "executing"}
+200 {"operationId": "7d299cac-6480-46fa-a10d-e0ecbbb4b98a", "status": "running", "phase": "executing"}
+200 {"operationId": "7d299cac-6480-46fa-a10d-e0ecbbb4b98a", "status": "running", "phase": "executing"}
+200 {"operationId": "7d299cac-6480-46fa-a10d-e0ecbbb4b98a", "status": "running", "phase": "executing"}
+200 {"operationId": "7d299cac-6480-46fa-a10d-e0ecbbb4b98a", "status": "running", "phase": "executing"}
+200 {"operationId": "7d299cac-6480-46fa-a10d-e0ecbbb4b98a", "status": "running", "phase": "executing"}
+200 {"operationId": "7d299cac-6480-46fa-a10d-e0ecbbb4b98a", "status": "running", "phase": "executing"}
+200 {"operationId": "7d299cac-6480-46fa-a10d-e0ecbbb4b98a", "status": "running", "phase": "executing"}
+200 {"operationId": "7d299cac-6480-46fa-a10d-e0ecbbb4b98a", "status": "completed", "phase": "terminal"}
+200 {"operationId": "7d299cac-6480-46fa-a10d-e0ecbbb4b98a", "status": "completed", "phase": "terminal"}
+UPGRADED 0
+1.5.0
+
+SECOND 0
+200 {"installations": [{"id": "NDpob3N0OjI6cGk6OTI6L3ByaXZhdGUvdmFyL2ZvbGRlcnMvcmcvenIxOWxiX3M1dzMycTZkMnFrZDZwMG44MDAwMGdwL1Qvc2hpanUtdGFzazU0LWhua2xldGs1L3ByZWZpeC9iaW4vcGk", "appId": "pi", "targetHostId": "host", "environment": {"kind": "macos"}, "path": "<isolated-root>/prefix/bin/pi", "realPath": "<isolated-root>/prefix/lib/node_modules/@earendil-works/pi-coding-agent/dist/bundle/cli.js", "source": "unknown", "isPathDefault": true, "version": "1.5.0", "runtimeStatus": {"status": "runnable"}}, {"id": "NDpob3N0OjI6cGk6OTc6L3ByaXZhdGUvdmFyL2ZvbGRlcnMvcmcvenIxOWxiX3M1dzMycTZkMnFrZDZwMG44MDAwMGdwL1Qvc2hpanUtdGFzazU0LWhua2xldGs1L2hvbWUvLmxvY2FsL2Jpbi9waQ", "appId": "pi", "targetHostId": "host", "environment": {"kind": "macos"}, "path": "<isolated-root>/home/.local/bin/pi", "realPath": "<isolated-root>/home/.local/lib/node_modules/@earendil-works/pi-coding-agent/dist/bundle/cli.js", "source": "unknown", "isPathDefault": false, "version": "1.4.0", "runtimeStatus": {"status": "runnable"}}]}
+200 {"previewId": "24c00d6c-f43d-4077-b934-685e11b2ee94", "request": {"appId": "pi", "action": "uninstall", "target": {"kind": "installation", "installationId": "NDpob3N0OjI6cGk6OTI6L3ByaXZhdGUvdmFyL2ZvbGRlcnMvcmcvenIxOWxiX3M1dzMycTZkMnFrZDZwMG44MDAwMGdwL1Qvc2hpanUtdGFzazU0LWhua2xldGs1L3ByZWZpeC9iaW4vcGk"}}, "source": "system", "confirmationRequired": true, "summary": "Review the selected application action in the administrator-approved prefix", "displayCommand": null}
+202 {"operationId": "67904d41-ea06-4e7a-b367-91692f875560", "status": "queued"}
+200 {"operationId": "67904d41-ea06-4e7a-b367-91692f875560", "status": "running", "phase": "executing"}
+200 {"operationId": "67904d41-ea06-4e7a-b367-91692f875560", "status": "completed", "phase": "terminal"}
+200 {"operationId": "67904d41-ea06-4e7a-b367-91692f875560", "status": "completed", "phase": "terminal"}
+422 ""
+200 {"installations": [{"id": "NDpob3N0OjI6cGk6OTc6L3ByaXZhdGUvdmFyL2ZvbGRlcnMvcmcvenIxOWxiX3M1dzMycTZkMnFrZDZwMG44MDAwMGdwL1Qvc2hpanUtdGFzazU0LWhua2xldGs1L2hvbWUvLmxvY2FsL2Jpbi9waQ", "appId": "pi", "targetHostId": "host", "environment": {"kind": "macos"}, "path": "<isolated-root>/home/.local/bin/pi", "realPath": "<isolated-root>/home/.local/lib/node_modules/@earendil-works/pi-coding-agent/dist/bundle/cli.js", "source": "unknown", "isPathDefault": true, "version": "1.4.0", "runtimeStatus": {"status": "runnable"}}]}
+REMAINING 0
+EMPTY 0
+200 {"previewId": "3ada18a1-8f44-48ce-8290-c533cdd1b8ae", "request": {"appId": "pi", "action": "install", "target": {"kind": "environment", "environment": {"kind": "macos"}}}, "source": "system", "confirmationRequired": true, "summary": "Review the selected application action in the administrator-approved prefix", "displayCommand": null}
+202 {"operationId": "318fe191-e741-4ec5-87c1-026b4fd39470", "status": "queued"}
+200 {"operationId": "318fe191-e741-4ec5-87c1-026b4fd39470", "status": "running", "phase": "executing"}
+200 {"operationId": "318fe191-e741-4ec5-87c1-026b4fd39470", "status": "completed", "phase": "terminal"}
+200 {"operationId": "318fe191-e741-4ec5-87c1-026b4fd39470", "status": "completed", "phase": "terminal"}
+200 {"installations": [{"id": "NDpob3N0OjI6cGk6OTI6L3ByaXZhdGUvdmFyL2ZvbGRlcnMvcmcvenIxOWxiX3M1dzMycTZkMnFrZDZwMG44MDAwMGdwL1Qvc2hpanUtdGFzazU0LWhua2xldGs1L3ByZWZpeC9iaW4vcGk", "appId": "pi", "targetHostId": "host", "environment": {"kind": "macos"}, "path": "<isolated-root>/prefix/bin/pi", "realPath": "<isolated-root>/prefix/lib/node_modules/@earendil-works/pi-coding-agent/dist/bundle/cli.js", "source": "unknown", "isPathDefault": true, "version": "1.5.0", "runtimeStatus": {"status": "runnable"}}]}
+API INSTALL 0

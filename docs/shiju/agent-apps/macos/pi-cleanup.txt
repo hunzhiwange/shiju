@@ -1,0 +1,23 @@
+200 {"installations": [{"id": "NDpob3N0OjI6cGk6OTI6L3ByaXZhdGUvdmFyL2ZvbGRlcnMvcmcvenIxOWxiX3M1dzMycTZkMnFrZDZwMG44MDAwMGdwL1Qvc2hpanUtdGFzazU0LWhua2xldGs1L3ByZWZpeC9iaW4vcGk", "appId": "pi", "targetHostId": "host", "environment": {"kind": "macos"}, "path": "<isolated-root>/prefix/bin/pi", "realPath": "<isolated-root>/prefix/lib/node_modules/@earendil-works/pi-coding-agent/dist/bundle/cli.js", "source": "unknown", "isPathDefault": true, "version": "1.5.0", "runtimeStatus": {"status": "runnable"}}]}
+200 {"previewId": "ecba95f5-f438-4a3a-ad65-cbda3decebd9", "request": {"appId": "pi", "action": "uninstall", "target": {"kind": "installation", "installationId": "NDpob3N0OjI6cGk6OTI6L3ByaXZhdGUvdmFyL2ZvbGRlcnMvcmcvenIxOWxiX3M1dzMycTZkMnFrZDZwMG44MDAwMGdwL1Qvc2hpanUtdGFzazU0LWhua2xldGs1L3ByZWZpeC9iaW4vcGk"}}, "source": "system", "confirmationRequired": true, "summary": "Review the selected application action in the administrator-approved prefix", "displayCommand": null}
+202 {"operationId": "eb32dc1a-ff70-43a0-aa31-498e2106460d", "status": "queued"}
+200 {"operationId": "eb32dc1a-ff70-43a0-aa31-498e2106460d", "status": "completed", "phase": "terminal"}
+200 {"operationId": "eb32dc1a-ff70-43a0-aa31-498e2106460d", "status": "completed", "phase": "terminal"}
+200 {"previewId": "3cb46354-34d5-43c8-a7d3-a79f09da25cd", "request": {"appId": "pi", "action": "install", "target": {"kind": "environment", "environment": {"kind": "macos"}}}, "source": "system", "confirmationRequired": true, "summary": "Review the selected application action in the administrator-approved prefix", "displayCommand": null}
+202 {"operationId": "a462b297-88dc-49f1-bb86-2a3186ab9383", "status": "queued"}
+200 {"operationId": "a462b297-88dc-49f1-bb86-2a3186ab9383", "status": "cancelled", "phase": "terminal"}
+200 {"operationId": "a462b297-88dc-49f1-bb86-2a3186ab9383", "status": "cancelled", "phase": "terminal"}
+200 {"operationId": "a462b297-88dc-49f1-bb86-2a3186ab9383", "status": "cancelled", "phase": "terminal"}
+200 {"installations": []}
+200 {"previewId": "3b61a685-1988-46c5-83a6-74a7afb3b133", "request": {"appId": "pi", "action": "install", "target": {"kind": "environment", "environment": {"kind": "macos"}}}, "source": "system", "confirmationRequired": true, "summary": "Review the selected application action in the administrator-approved prefix", "displayCommand": null}
+202 {"operationId": "cdafef34-6d3e-4af5-8790-8717e2530c7d", "status": "queued"}
+200 {"operationId": "cdafef34-6d3e-4af5-8790-8717e2530c7d", "status": "running", "phase": "executing"}
+200 {"operationId": "cdafef34-6d3e-4af5-8790-8717e2530c7d", "status": "cancelled", "phase": "terminal"}
+200 {"operationId": "cdafef34-6d3e-4af5-8790-8717e2530c7d", "status": "cancelled", "phase": "terminal"}
+200 {"operationId": "cdafef34-6d3e-4af5-8790-8717e2530c7d", "status": "cancelled", "phase": "terminal"}
+200 {"installations": []}
+200 {"installations": []}
+200 {"installations": [{"id": "NDpob3N0OjI6cGk6OTI6L3ByaXZhdGUvdmFyL2ZvbGRlcnMvcmcvenIxOWxiX3M1dzMycTZkMnFrZDZwMG44MDAwMGdwL1Qvc2hpanUtdGFzazU0LWhua2xldGs1L3ByZWZpeC9iaW4vcGk", "appId": "pi", "targetHostId": "host", "environment": {"kind": "macos"}, "path": "<isolated-root>/prefix/bin/pi", "realPath": null, "source": "unknown", "isPathDefault": true, "version": null, "runtimeStatus": {"status": "probe_failed", "reason": "damaged_installation"}}]}
+422 ""
+SECOND CLEAN 0
+200 {"installations": []}

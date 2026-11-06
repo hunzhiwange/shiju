@@ -1,0 +1,28 @@
+{
+  "latest": "1.5.0",
+  "old": "1.4.0",
+  "dist": {
+    "shasum": "7f5dd2a4f7fa46ed252465ac4d341831896b1fc2",
+    "tarball": "https://registry.npmjs.org/@earendil-works/pi-coding-agent/-/pi-coding-agent-1.4.0.tgz",
+    "fileCount": 1279,
+    "integrity": "sha512-Z41LpZ3yYHSC/UUps6Mr39UMFPwH8elhJBG9DY1P7kuzsE5qSK/6eMj2EHzO5evJRQWLbKSqUMw+4nCNtIyiQg==",
+    "signatures": [
+      {
+        "sig": "MEUCIQCeljVNkioq68WeCEiX3QMAsCqwcySLp+OWOEgrHEOL5wIgCbtXlv2AGwUsBlysDy6MRPVMVYreLyz0wtKukcMcYus=",
+        "keyid": "SHA256:DhQ8wR5APBvFHLF/+Tc+AYvPOdTpcIDqOhxsBHRwC7U"
+      },
+      {
+        "sig": "MEUCIFm1XzIHUPsTactKNE6nut3hWvmibfk7uMd0h30X/+xhAiEAuttaPXeZ183GoAIdzcYMV2TxS9YZ5+B/pX/Y/Tjdp8g=",
+        "keyid": "SHA256:DhQ8wR5APBvFHLF/+Tc+AYvPOdTpcIDqOhxsBHRwC7U"
+      }
+    ],
+    "attestations": {
+      "url": "https://registry.npmjs.org/-/npm/v1/attestations/@earendil-works%2fpi-coding-agent@1.4.0",
+      "provenance": {
+        "predicateType": "https://slsa.dev/provenance/v1"
+      }
+    },
+    "unpackedSize": 23419059
+  },
+  "homepage": "https://github.com/earendil-works/pi#readme"
+}

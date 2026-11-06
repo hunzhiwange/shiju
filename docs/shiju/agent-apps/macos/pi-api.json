@@ -1,0 +1,1023 @@
+[
+  {
+    "method": "GET",
+    "path": "catalog",
+    "body": null,
+    "status": 200,
+    "response": {
+      "apps": [
+        {
+          "id": "pi",
+          "name": "Pi",
+          "cliCommand": "pi",
+          "runtimeKinds": [
+            "native_cli"
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "method": "GET",
+    "path": "installations?appId=pi",
+    "body": null,
+    "status": 200,
+    "response": {
+      "installations": []
+    }
+  },
+  {
+    "method": "GET",
+    "path": "launch-identities?appId=pi",
+    "body": null,
+    "status": 200,
+    "response": []
+  },
+  {
+    "method": "GET",
+    "path": "catalog",
+    "body": null,
+    "status": 200,
+    "response": {
+      "apps": [
+        {
+          "id": "pi",
+          "name": "Pi",
+          "cliCommand": "pi",
+          "runtimeKinds": [
+            "native_cli"
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "method": "GET",
+    "path": "launch-identities?appId=pi",
+    "body": null,
+    "status": 200,
+    "response": []
+  },
+  {
+    "method": "GET",
+    "path": "installations?appId=pi",
+    "body": null,
+    "status": 200,
+    "response": {
+      "installations": []
+    }
+  },
+  {
+    "method": "GET",
+    "path": "catalog",
+    "body": null,
+    "status": 200,
+    "response": {
+      "apps": [
+        {
+          "id": "pi",
+          "name": "Pi",
+          "cliCommand": "pi",
+          "runtimeKinds": [
+            "native_cli"
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "method": "GET",
+    "path": "launch-identities?appId=pi",
+    "body": null,
+    "status": 200,
+    "response": []
+  },
+  {
+    "method": "GET",
+    "path": "installations?appId=pi",
+    "body": null,
+    "status": 200,
+    "response": {
+      "installations": [
+        {
+          "id": "NDpob3N0OjI6cGk6OTI6L3ByaXZhdGUvdmFyL2ZvbGRlcnMvcmcvenIxOWxiX3M1dzMycTZkMnFrZDZwMG44MDAwMGdwL1Qvc2hpanUtdGFzazU0LWhua2xldGs1L3ByZWZpeC9iaW4vcGk",
+          "appId": "pi",
+          "targetHostId": "host",
+          "environment": {
+            "kind": "macos"
+          },
+          "path": "<isolated-root>/prefix/bin/pi",
+          "realPath": "<isolated-root>/prefix/lib/node_modules/@earendil-works/pi-coding-agent/dist/bundle/cli.js",
+          "source": "unknown",
+          "isPathDefault": true,
+          "version": "1.4.0",
+          "runtimeStatus": {
+            "status": "runnable"
+          }
+        }
+      ]
+    }
+  },
+  {
+    "method": "GET",
+    "path": "installations?appId=pi",
+    "body": null,
+    "status": 200,
+    "response": {
+      "installations": [
+        {
+          "id": "NDpob3N0OjI6cGk6OTI6L3ByaXZhdGUvdmFyL2ZvbGRlcnMvcmcvenIxOWxiX3M1dzMycTZkMnFrZDZwMG44MDAwMGdwL1Qvc2hpanUtdGFzazU0LWhua2xldGs1L3ByZWZpeC9iaW4vcGk",
+          "appId": "pi",
+          "targetHostId": "host",
+          "environment": {
+            "kind": "macos"
+          },
+          "path": "<isolated-root>/prefix/bin/pi",
+          "realPath": "<isolated-root>/prefix/lib/node_modules/@earendil-works/pi-coding-agent/dist/bundle/cli.js",
+          "source": "unknown",
+          "isPathDefault": true,
+          "version": "1.4.0",
+          "runtimeStatus": {
+            "status": "runnable"
+          }
+        }
+      ]
+    }
+  },
+  {
+    "method": "POST",
+    "path": "actions/preview",
+    "body": {
+      "appId": "pi",
+      "action": "update",
+      "target": {
+        "kind": "installation",
+        "installationId": "NDpob3N0OjI6cGk6OTI6L3ByaXZhdGUvdmFyL2ZvbGRlcnMvcmcvenIxOWxiX3M1dzMycTZkMnFrZDZwMG44MDAwMGdwL1Qvc2hpanUtdGFzazU0LWhua2xldGs1L3ByZWZpeC9iaW4vcGk"
+      }
+    },
+    "status": 200,
+    "response": {
+      "previewId": "5fc8af4b-6d96-42c3-ae99-8308df1df7d2",
+      "request": {
+        "appId": "pi",
+        "action": "update",
+        "target": {
+          "kind": "installation",
+          "installationId": "NDpob3N0OjI6cGk6OTI6L3ByaXZhdGUvdmFyL2ZvbGRlcnMvcmcvenIxOWxiX3M1dzMycTZkMnFrZDZwMG44MDAwMGdwL1Qvc2hpanUtdGFzazU0LWhua2xldGs1L3ByZWZpeC9iaW4vcGk"
+        }
+      },
+      "source": "system",
+      "confirmationRequired": true,
+      "summary": "Review the selected application action in the administrator-approved prefix",
+      "displayCommand": null
+    }
+  },
+  {
+    "method": "POST",
+    "path": "actions",
+    "body": {
+      "previewId": "5fc8af4b-6d96-42c3-ae99-8308df1df7d2",
+      "confirmed": true
+    },
+    "status": 202,
+    "response": {
+      "operationId": "7d299cac-6480-46fa-a10d-e0ecbbb4b98a",
+      "status": "queued"
+    }
+  },
+  {
+    "method": "GET",
+    "path": "operations/7d299cac-6480-46fa-a10d-e0ecbbb4b98a",
+    "body": null,
+    "status": 200,
+    "response": {
+      "operationId": "7d299cac-6480-46fa-a10d-e0ecbbb4b98a",
+      "status": "running",
+      "phase": "preflight"
+    }
+  },
+  {
+    "method": "GET",
+    "path": "operations/7d299cac-6480-46fa-a10d-e0ecbbb4b98a",
+    "body": null,
+    "status": 200,
+    "response": {
+      "operationId": "7d299cac-6480-46fa-a10d-e0ecbbb4b98a",
+      "status": "running",
+      "phase": "executing"
+    }
+  },
+  {
+    "method": "GET",
+    "path": "operations/7d299cac-6480-46fa-a10d-e0ecbbb4b98a",
+    "body": null,
+    "status": 200,
+    "response": {
+      "operationId": "7d299cac-6480-46fa-a10d-e0ecbbb4b98a",
+      "status": "running",
+      "phase": "executing"
+    }
+  },
+  {
+    "method": "GET",
+    "path": "operations/7d299cac-6480-46fa-a10d-e0ecbbb4b98a",
+    "body": null,
+    "status": 200,
+    "response": {
+      "operationId": "7d299cac-6480-46fa-a10d-e0ecbbb4b98a",
+      "status": "running",
+      "phase": "executing"
+    }
+  },
+  {
+    "method": "GET",
+    "path": "operations/7d299cac-6480-46fa-a10d-e0ecbbb4b98a",
+    "body": null,
+    "status": 200,
+    "response": {
+      "operationId": "7d299cac-6480-46fa-a10d-e0ecbbb4b98a",
+      "status": "running",
+      "phase": "executing"
+    }
+  },
+  {
+    "method": "GET",
+    "path": "operations/7d299cac-6480-46fa-a10d-e0ecbbb4b98a",
+    "body": null,
+    "status": 200,
+    "response": {
+      "operationId": "7d299cac-6480-46fa-a10d-e0ecbbb4b98a",
+      "status": "running",
+      "phase": "executing"
+    }
+  },
+  {
+    "method": "GET",
+    "path": "operations/7d299cac-6480-46fa-a10d-e0ecbbb4b98a",
+    "body": null,
+    "status": 200,
+    "response": {
+      "operationId": "7d299cac-6480-46fa-a10d-e0ecbbb4b98a",
+      "status": "running",
+      "phase": "executing"
+    }
+  },
+  {
+    "method": "GET",
+    "path": "operations/7d299cac-6480-46fa-a10d-e0ecbbb4b98a",
+    "body": null,
+    "status": 200,
+    "response": {
+      "operationId": "7d299cac-6480-46fa-a10d-e0ecbbb4b98a",
+      "status": "running",
+      "phase": "executing"
+    }
+  },
+  {
+    "method": "GET",
+    "path": "operations/7d299cac-6480-46fa-a10d-e0ecbbb4b98a",
+    "body": null,
+    "status": 200,
+    "response": {
+      "operationId": "7d299cac-6480-46fa-a10d-e0ecbbb4b98a",
+      "status": "running",
+      "phase": "executing"
+    }
+  },
+  {
+    "method": "GET",
+    "path": "operations/7d299cac-6480-46fa-a10d-e0ecbbb4b98a",
+    "body": null,
+    "status": 200,
+    "response": {
+      "operationId": "7d299cac-6480-46fa-a10d-e0ecbbb4b98a",
+      "status": "running",
+      "phase": "executing"
+    }
+  },
+  {
+    "method": "GET",
+    "path": "operations/7d299cac-6480-46fa-a10d-e0ecbbb4b98a",
+    "body": null,
+    "status": 200,
+    "response": {
+      "operationId": "7d299cac-6480-46fa-a10d-e0ecbbb4b98a",
+      "status": "running",
+      "phase": "executing"
+    }
+  },
+  {
+    "method": "GET",
+    "path": "operations/7d299cac-6480-46fa-a10d-e0ecbbb4b98a",
+    "body": null,
+    "status": 200,
+    "response": {
+      "operationId": "7d299cac-6480-46fa-a10d-e0ecbbb4b98a",
+      "status": "running",
+      "phase": "executing"
+    }
+  },
+  {
+    "method": "GET",
+    "path": "operations/7d299cac-6480-46fa-a10d-e0ecbbb4b98a",
+    "body": null,
+    "status": 200,
+    "response": {
+      "operationId": "7d299cac-6480-46fa-a10d-e0ecbbb4b98a",
+      "status": "running",
+      "phase": "executing"
+    }
+  },
+  {
+    "method": "GET",
+    "path": "operations/7d299cac-6480-46fa-a10d-e0ecbbb4b98a",
+    "body": null,
+    "status": 200,
+    "response": {
+      "operationId": "7d299cac-6480-46fa-a10d-e0ecbbb4b98a",
+      "status": "running",
+      "phase": "executing"
+    }
+  },
+  {
+    "method": "GET",
+    "path": "operations/7d299cac-6480-46fa-a10d-e0ecbbb4b98a",
+    "body": null,
+    "status": 200,
+    "response": {
+      "operationId": "7d299cac-6480-46fa-a10d-e0ecbbb4b98a",
+      "status": "running",
+      "phase": "executing"
+    }
+  },
+  {
+    "method": "GET",
+    "path": "operations/7d299cac-6480-46fa-a10d-e0ecbbb4b98a",
+    "body": null,
+    "status": 200,
+    "response": {
+      "operationId": "7d299cac-6480-46fa-a10d-e0ecbbb4b98a",
+      "status": "running",
+      "phase": "executing"
+    }
+  },
+  {
+    "method": "GET",
+    "path": "operations/7d299cac-6480-46fa-a10d-e0ecbbb4b98a",
+    "body": null,
+    "status": 200,
+    "response": {
+      "operationId": "7d299cac-6480-46fa-a10d-e0ecbbb4b98a",
+      "status": "running",
+      "phase": "executing"
+    }
+  },
+  {
+    "method": "GET",
+    "path": "operations/7d299cac-6480-46fa-a10d-e0ecbbb4b98a",
+    "body": null,
+    "status": 200,
+    "response": {
+      "operationId": "7d299cac-6480-46fa-a10d-e0ecbbb4b98a",
+      "status": "running",
+      "phase": "executing"
+    }
+  },
+  {
+    "method": "GET",
+    "path": "operations/7d299cac-6480-46fa-a10d-e0ecbbb4b98a",
+    "body": null,
+    "status": 200,
+    "response": {
+      "operationId": "7d299cac-6480-46fa-a10d-e0ecbbb4b98a",
+      "status": "running",
+      "phase": "executing"
+    }
+  },
+  {
+    "method": "GET",
+    "path": "operations/7d299cac-6480-46fa-a10d-e0ecbbb4b98a",
+    "body": null,
+    "status": 200,
+    "response": {
+      "operationId": "7d299cac-6480-46fa-a10d-e0ecbbb4b98a",
+      "status": "running",
+      "phase": "executing"
+    }
+  },
+  {
+    "method": "GET",
+    "path": "operations/7d299cac-6480-46fa-a10d-e0ecbbb4b98a",
+    "body": null,
+    "status": 200,
+    "response": {
+      "operationId": "7d299cac-6480-46fa-a10d-e0ecbbb4b98a",
+      "status": "completed",
+      "phase": "terminal"
+    }
+  },
+  {
+    "method": "GET",
+    "path": "operations/7d299cac-6480-46fa-a10d-e0ecbbb4b98a/events",
+    "body": null,
+    "status": 200,
+    "response": {
+      "operationId": "7d299cac-6480-46fa-a10d-e0ecbbb4b98a",
+      "status": "completed",
+      "phase": "terminal"
+    }
+  },
+  {
+    "method": "GET",
+    "path": "installations?appId=pi",
+    "body": null,
+    "status": 200,
+    "response": {
+      "installations": [
+        {
+          "id": "NDpob3N0OjI6cGk6OTI6L3ByaXZhdGUvdmFyL2ZvbGRlcnMvcmcvenIxOWxiX3M1dzMycTZkMnFrZDZwMG44MDAwMGdwL1Qvc2hpanUtdGFzazU0LWhua2xldGs1L3ByZWZpeC9iaW4vcGk",
+          "appId": "pi",
+          "targetHostId": "host",
+          "environment": {
+            "kind": "macos"
+          },
+          "path": "<isolated-root>/prefix/bin/pi",
+          "realPath": "<isolated-root>/prefix/lib/node_modules/@earendil-works/pi-coding-agent/dist/bundle/cli.js",
+          "source": "unknown",
+          "isPathDefault": true,
+          "version": "1.5.0",
+          "runtimeStatus": {
+            "status": "runnable"
+          }
+        },
+        {
+          "id": "NDpob3N0OjI6cGk6OTc6L3ByaXZhdGUvdmFyL2ZvbGRlcnMvcmcvenIxOWxiX3M1dzMycTZkMnFrZDZwMG44MDAwMGdwL1Qvc2hpanUtdGFzazU0LWhua2xldGs1L2hvbWUvLmxvY2FsL2Jpbi9waQ",
+          "appId": "pi",
+          "targetHostId": "host",
+          "environment": {
+            "kind": "macos"
+          },
+          "path": "<isolated-root>/home/.local/bin/pi",
+          "realPath": "<isolated-root>/home/.local/lib/node_modules/@earendil-works/pi-coding-agent/dist/bundle/cli.js",
+          "source": "unknown",
+          "isPathDefault": false,
+          "version": "1.4.0",
+          "runtimeStatus": {
+            "status": "runnable"
+          }
+        }
+      ]
+    }
+  },
+  {
+    "method": "POST",
+    "path": "actions/preview",
+    "body": {
+      "appId": "pi",
+      "action": "uninstall",
+      "target": {
+        "kind": "installation",
+        "installationId": "NDpob3N0OjI6cGk6OTI6L3ByaXZhdGUvdmFyL2ZvbGRlcnMvcmcvenIxOWxiX3M1dzMycTZkMnFrZDZwMG44MDAwMGdwL1Qvc2hpanUtdGFzazU0LWhua2xldGs1L3ByZWZpeC9iaW4vcGk"
+      }
+    },
+    "status": 200,
+    "response": {
+      "previewId": "24c00d6c-f43d-4077-b934-685e11b2ee94",
+      "request": {
+        "appId": "pi",
+        "action": "uninstall",
+        "target": {
+          "kind": "installation",
+          "installationId": "NDpob3N0OjI6cGk6OTI6L3ByaXZhdGUvdmFyL2ZvbGRlcnMvcmcvenIxOWxiX3M1dzMycTZkMnFrZDZwMG44MDAwMGdwL1Qvc2hpanUtdGFzazU0LWhua2xldGs1L3ByZWZpeC9iaW4vcGk"
+        }
+      },
+      "source": "system",
+      "confirmationRequired": true,
+      "summary": "Review the selected application action in the administrator-approved prefix",
+      "displayCommand": null
+    }
+  },
+  {
+    "method": "POST",
+    "path": "actions",
+    "body": {
+      "previewId": "24c00d6c-f43d-4077-b934-685e11b2ee94",
+      "confirmed": true
+    },
+    "status": 202,
+    "response": {
+      "operationId": "67904d41-ea06-4e7a-b367-91692f875560",
+      "status": "queued"
+    }
+  },
+  {
+    "method": "GET",
+    "path": "operations/67904d41-ea06-4e7a-b367-91692f875560",
+    "body": null,
+    "status": 200,
+    "response": {
+      "operationId": "67904d41-ea06-4e7a-b367-91692f875560",
+      "status": "running",
+      "phase": "executing"
+    }
+  },
+  {
+    "method": "GET",
+    "path": "operations/67904d41-ea06-4e7a-b367-91692f875560",
+    "body": null,
+    "status": 200,
+    "response": {
+      "operationId": "67904d41-ea06-4e7a-b367-91692f875560",
+      "status": "completed",
+      "phase": "terminal"
+    }
+  },
+  {
+    "method": "GET",
+    "path": "operations/67904d41-ea06-4e7a-b367-91692f875560/events",
+    "body": null,
+    "status": 200,
+    "response": {
+      "operationId": "67904d41-ea06-4e7a-b367-91692f875560",
+      "status": "completed",
+      "phase": "terminal"
+    }
+  },
+  {
+    "method": "POST",
+    "path": "actions/preview",
+    "body": {
+      "appId": "pi",
+      "action": "uninstall",
+      "target": {
+        "kind": "installation",
+        "installationId": "NDpob3N0OjI6cGk6OTI6L3ByaXZhdGUvdmFyL2ZvbGRlcnMvcmcvenIxOWxiX3M1dzMycTZkMnFrZDZwMG44MDAwMGdwL1Qvc2hpanUtdGFzazU0LWhua2xldGs1L3ByZWZpeC9iaW4vcGk"
+      }
+    },
+    "status": 422,
+    "response": ""
+  },
+  {
+    "method": "GET",
+    "path": "installations?appId=pi",
+    "body": null,
+    "status": 200,
+    "response": {
+      "installations": [
+        {
+          "id": "NDpob3N0OjI6cGk6OTc6L3ByaXZhdGUvdmFyL2ZvbGRlcnMvcmcvenIxOWxiX3M1dzMycTZkMnFrZDZwMG44MDAwMGdwL1Qvc2hpanUtdGFzazU0LWhua2xldGs1L2hvbWUvLmxvY2FsL2Jpbi9waQ",
+          "appId": "pi",
+          "targetHostId": "host",
+          "environment": {
+            "kind": "macos"
+          },
+          "path": "<isolated-root>/home/.local/bin/pi",
+          "realPath": "<isolated-root>/home/.local/lib/node_modules/@earendil-works/pi-coding-agent/dist/bundle/cli.js",
+          "source": "unknown",
+          "isPathDefault": true,
+          "version": "1.4.0",
+          "runtimeStatus": {
+            "status": "runnable"
+          }
+        }
+      ]
+    }
+  },
+  {
+    "method": "POST",
+    "path": "actions/preview",
+    "body": {
+      "appId": "pi",
+      "action": "install",
+      "target": {
+        "kind": "environment",
+        "environment": {
+          "kind": "macos"
+        }
+      }
+    },
+    "status": 200,
+    "response": {
+      "previewId": "3ada18a1-8f44-48ce-8290-c533cdd1b8ae",
+      "request": {
+        "appId": "pi",
+        "action": "install",
+        "target": {
+          "kind": "environment",
+          "environment": {
+            "kind": "macos"
+          }
+        }
+      },
+      "source": "system",
+      "confirmationRequired": true,
+      "summary": "Review the selected application action in the administrator-approved prefix",
+      "displayCommand": null
+    }
+  },
+  {
+    "method": "POST",
+    "path": "actions",
+    "body": {
+      "previewId": "3ada18a1-8f44-48ce-8290-c533cdd1b8ae",
+      "confirmed": true
+    },
+    "status": 202,
+    "response": {
+      "operationId": "318fe191-e741-4ec5-87c1-026b4fd39470",
+      "status": "queued"
+    }
+  },
+  {
+    "method": "GET",
+    "path": "operations/318fe191-e741-4ec5-87c1-026b4fd39470",
+    "body": null,
+    "status": 200,
+    "response": {
+      "operationId": "318fe191-e741-4ec5-87c1-026b4fd39470",
+      "status": "running",
+      "phase": "executing"
+    }
+  },
+  {
+    "method": "GET",
+    "path": "operations/318fe191-e741-4ec5-87c1-026b4fd39470",
+    "body": null,
+    "status": 200,
+    "response": {
+      "operationId": "318fe191-e741-4ec5-87c1-026b4fd39470",
+      "status": "completed",
+      "phase": "terminal"
+    }
+  },
+  {
+    "method": "GET",
+    "path": "operations/318fe191-e741-4ec5-87c1-026b4fd39470/events",
+    "body": null,
+    "status": 200,
+    "response": {
+      "operationId": "318fe191-e741-4ec5-87c1-026b4fd39470",
+      "status": "completed",
+      "phase": "terminal"
+    }
+  },
+  {
+    "method": "GET",
+    "path": "installations?appId=pi",
+    "body": null,
+    "status": 200,
+    "response": {
+      "installations": [
+        {
+          "id": "NDpob3N0OjI6cGk6OTI6L3ByaXZhdGUvdmFyL2ZvbGRlcnMvcmcvenIxOWxiX3M1dzMycTZkMnFrZDZwMG44MDAwMGdwL1Qvc2hpanUtdGFzazU0LWhua2xldGs1L3ByZWZpeC9iaW4vcGk",
+          "appId": "pi",
+          "targetHostId": "host",
+          "environment": {
+            "kind": "macos"
+          },
+          "path": "<isolated-root>/prefix/bin/pi",
+          "realPath": "<isolated-root>/prefix/lib/node_modules/@earendil-works/pi-coding-agent/dist/bundle/cli.js",
+          "source": "unknown",
+          "isPathDefault": true,
+          "version": "1.5.0",
+          "runtimeStatus": {
+            "status": "runnable"
+          }
+        }
+      ]
+    }
+  },
+  {
+    "method": "GET",
+    "path": "installations?appId=pi",
+    "body": null,
+    "status": 200,
+    "response": {
+      "installations": [
+        {
+          "id": "NDpob3N0OjI6cGk6OTI6L3ByaXZhdGUvdmFyL2ZvbGRlcnMvcmcvenIxOWxiX3M1dzMycTZkMnFrZDZwMG44MDAwMGdwL1Qvc2hpanUtdGFzazU0LWhua2xldGs1L3ByZWZpeC9iaW4vcGk",
+          "appId": "pi",
+          "targetHostId": "host",
+          "environment": {
+            "kind": "macos"
+          },
+          "path": "<isolated-root>/prefix/bin/pi",
+          "realPath": "<isolated-root>/prefix/lib/node_modules/@earendil-works/pi-coding-agent/dist/bundle/cli.js",
+          "source": "unknown",
+          "isPathDefault": true,
+          "version": "1.5.0",
+          "runtimeStatus": {
+            "status": "runnable"
+          }
+        }
+      ]
+    }
+  },
+  {
+    "method": "POST",
+    "path": "actions/preview",
+    "body": {
+      "appId": "pi",
+      "action": "uninstall",
+      "target": {
+        "kind": "installation",
+        "installationId": "NDpob3N0OjI6cGk6OTI6L3ByaXZhdGUvdmFyL2ZvbGRlcnMvcmcvenIxOWxiX3M1dzMycTZkMnFrZDZwMG44MDAwMGdwL1Qvc2hpanUtdGFzazU0LWhua2xldGs1L3ByZWZpeC9iaW4vcGk"
+      }
+    },
+    "status": 200,
+    "response": {
+      "previewId": "ecba95f5-f438-4a3a-ad65-cbda3decebd9",
+      "request": {
+        "appId": "pi",
+        "action": "uninstall",
+        "target": {
+          "kind": "installation",
+          "installationId": "NDpob3N0OjI6cGk6OTI6L3ByaXZhdGUvdmFyL2ZvbGRlcnMvcmcvenIxOWxiX3M1dzMycTZkMnFrZDZwMG44MDAwMGdwL1Qvc2hpanUtdGFzazU0LWhua2xldGs1L3ByZWZpeC9iaW4vcGk"
+        }
+      },
+      "source": "system",
+      "confirmationRequired": true,
+      "summary": "Review the selected application action in the administrator-approved prefix",
+      "displayCommand": null
+    }
+  },
+  {
+    "method": "POST",
+    "path": "actions",
+    "body": {
+      "previewId": "ecba95f5-f438-4a3a-ad65-cbda3decebd9",
+      "confirmed": true
+    },
+    "status": 202,
+    "response": {
+      "operationId": "eb32dc1a-ff70-43a0-aa31-498e2106460d",
+      "status": "queued"
+    }
+  },
+  {
+    "method": "GET",
+    "path": "operations/eb32dc1a-ff70-43a0-aa31-498e2106460d",
+    "body": null,
+    "status": 200,
+    "response": {
+      "operationId": "eb32dc1a-ff70-43a0-aa31-498e2106460d",
+      "status": "completed",
+      "phase": "terminal"
+    }
+  },
+  {
+    "method": "GET",
+    "path": "operations/eb32dc1a-ff70-43a0-aa31-498e2106460d/events",
+    "body": null,
+    "status": 200,
+    "response": {
+      "operationId": "eb32dc1a-ff70-43a0-aa31-498e2106460d",
+      "status": "completed",
+      "phase": "terminal"
+    }
+  },
+  {
+    "method": "POST",
+    "path": "actions/preview",
+    "body": {
+      "appId": "pi",
+      "action": "install",
+      "target": {
+        "kind": "environment",
+        "environment": {
+          "kind": "macos"
+        }
+      }
+    },
+    "status": 200,
+    "response": {
+      "previewId": "3cb46354-34d5-43c8-a7d3-a79f09da25cd",
+      "request": {
+        "appId": "pi",
+        "action": "install",
+        "target": {
+          "kind": "environment",
+          "environment": {
+            "kind": "macos"
+          }
+        }
+      },
+      "source": "system",
+      "confirmationRequired": true,
+      "summary": "Review the selected application action in the administrator-approved prefix",
+      "displayCommand": null
+    }
+  },
+  {
+    "method": "POST",
+    "path": "actions",
+    "body": {
+      "previewId": "3cb46354-34d5-43c8-a7d3-a79f09da25cd",
+      "confirmed": true
+    },
+    "status": 202,
+    "response": {
+      "operationId": "a462b297-88dc-49f1-bb86-2a3186ab9383",
+      "status": "queued"
+    }
+  },
+  {
+    "method": "DELETE",
+    "path": "operations/a462b297-88dc-49f1-bb86-2a3186ab9383",
+    "body": null,
+    "status": 200,
+    "response": {
+      "operationId": "a462b297-88dc-49f1-bb86-2a3186ab9383",
+      "status": "cancelled",
+      "phase": "terminal"
+    }
+  },
+  {
+    "method": "GET",
+    "path": "operations/a462b297-88dc-49f1-bb86-2a3186ab9383",
+    "body": null,
+    "status": 200,
+    "response": {
+      "operationId": "a462b297-88dc-49f1-bb86-2a3186ab9383",
+      "status": "cancelled",
+      "phase": "terminal"
+    }
+  },
+  {
+    "method": "GET",
+    "path": "operations/a462b297-88dc-49f1-bb86-2a3186ab9383/events",
+    "body": null,
+    "status": 200,
+    "response": {
+      "operationId": "a462b297-88dc-49f1-bb86-2a3186ab9383",
+      "status": "cancelled",
+      "phase": "terminal"
+    }
+  },
+  {
+    "method": "GET",
+    "path": "installations?appId=pi",
+    "body": null,
+    "status": 200,
+    "response": {
+      "installations": []
+    }
+  },
+  {
+    "method": "POST",
+    "path": "actions/preview",
+    "body": {
+      "appId": "pi",
+      "action": "install",
+      "target": {
+        "kind": "environment",
+        "environment": {
+          "kind": "macos"
+        }
+      }
+    },
+    "status": 200,
+    "response": {
+      "previewId": "3b61a685-1988-46c5-83a6-74a7afb3b133",
+      "request": {
+        "appId": "pi",
+        "action": "install",
+        "target": {
+          "kind": "environment",
+          "environment": {
+            "kind": "macos"
+          }
+        }
+      },
+      "source": "system",
+      "confirmationRequired": true,
+      "summary": "Review the selected application action in the administrator-approved prefix",
+      "displayCommand": null
+    }
+  },
+  {
+    "method": "POST",
+    "path": "actions",
+    "body": {
+      "previewId": "3b61a685-1988-46c5-83a6-74a7afb3b133",
+      "confirmed": true
+    },
+    "status": 202,
+    "response": {
+      "operationId": "cdafef34-6d3e-4af5-8790-8717e2530c7d",
+      "status": "queued"
+    }
+  },
+  {
+    "method": "GET",
+    "path": "operations/cdafef34-6d3e-4af5-8790-8717e2530c7d",
+    "body": null,
+    "status": 200,
+    "response": {
+      "operationId": "cdafef34-6d3e-4af5-8790-8717e2530c7d",
+      "status": "running",
+      "phase": "executing"
+    }
+  },
+  {
+    "method": "DELETE",
+    "path": "operations/cdafef34-6d3e-4af5-8790-8717e2530c7d",
+    "body": null,
+    "status": 200,
+    "response": {
+      "operationId": "cdafef34-6d3e-4af5-8790-8717e2530c7d",
+      "status": "cancelled",
+      "phase": "terminal"
+    }
+  },
+  {
+    "method": "GET",
+    "path": "operations/cdafef34-6d3e-4af5-8790-8717e2530c7d",
+    "body": null,
+    "status": 200,
+    "response": {
+      "operationId": "cdafef34-6d3e-4af5-8790-8717e2530c7d",
+      "status": "cancelled",
+      "phase": "terminal"
+    }
+  },
+  {
+    "method": "GET",
+    "path": "operations/cdafef34-6d3e-4af5-8790-8717e2530c7d/events",
+    "body": null,
+    "status": 200,
+    "response": {
+      "operationId": "cdafef34-6d3e-4af5-8790-8717e2530c7d",
+      "status": "cancelled",
+      "phase": "terminal"
+    }
+  },
+  {
+    "method": "GET",
+    "path": "installations?appId=pi",
+    "body": null,
+    "status": 200,
+    "response": {
+      "installations": []
+    }
+  },
+  {
+    "method": "GET",
+    "path": "installations?appId=pi",
+    "body": null,
+    "status": 200,
+    "response": {
+      "installations": []
+    }
+  },
+  {
+    "method": "GET",
+    "path": "diagnostics?appId=pi",
+    "body": null,
+    "status": 200,
+    "response": {
+      "installations": [
+        {
+          "id": "NDpob3N0OjI6cGk6OTI6L3ByaXZhdGUvdmFyL2ZvbGRlcnMvcmcvenIxOWxiX3M1dzMycTZkMnFrZDZwMG44MDAwMGdwL1Qvc2hpanUtdGFzazU0LWhua2xldGs1L3ByZWZpeC9iaW4vcGk",
+          "appId": "pi",
+          "targetHostId": "host",
+          "environment": {
+            "kind": "macos"
+          },
+          "path": "<isolated-root>/prefix/bin/pi",
+          "realPath": null,
+          "source": "unknown",
+          "isPathDefault": true,
+          "version": null,
+          "runtimeStatus": {
+            "status": "probe_failed",
+            "reason": "damaged_installation"
+          }
+        }
+      ]
+    }
+  },
+  {
+    "method": "POST",
+    "path": "actions/preview",
+    "body": {
+      "appId": "pi",
+      "action": "uninstall",
+      "target": {
+        "kind": "installation",
+        "installationId": "NDpob3N0OjI6cGk6OTI6L3ByaXZhdGUvdmFyL2ZvbGRlcnMvcmcvenIxOWxiX3M1dzMycTZkMnFrZDZwMG44MDAwMGdwL1Qvc2hpanUtdGFzazU0LWhua2xldGs1L3ByZWZpeC9iaW4vcGk"
+      }
+    },
+    "status": 422,
+    "response": ""
+  },
+  {
+    "method": "GET",
+    "path": "installations?appId=pi",
+    "body": null,
+    "status": 200,
+    "response": {
+      "installations": []
+    }
+  }
+]

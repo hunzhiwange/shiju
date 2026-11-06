@@ -1,0 +1,21 @@
+BASELINE exit=0
+CAT Some(AppCatalogEntry { id: Pi, name: "Pi", cli_command: Some("pi"), runtime_kinds: [NativeCli] })
+INSTALLATIONS AppReadResponse { installations: [], desktop: None }
+OLD exit=0
+CAT Some(AppCatalogEntry { id: Pi, name: "Pi", cli_command: Some("pi"), runtime_kinds: [NativeCli] })
+INSTALLATIONS AppReadResponse { installations: [AppInstallation { id: AppInstallationId("NDpob3N0OjI6cGk6OTI6L3ByaXZhdGUvdmFyL2ZvbGRlcnMvcmcvenIxOWxiX3M1dzMycTZkMnFrZDZwMG44MDAwMGdwL1Qvc2hpanUtdGFzazU0LWhua2xldGs1L3ByZWZpeC9iaW4vcGk"), app_id: Pi, target_host_id: "host", environment: Macos, path: "<isolated-root>/prefix/bin/pi", real_path: Some("<isolated-root>/prefix/lib/node_modules/@earendil-works/pi-coding-agent/dist/bundle/cli.js"), source: Unknown, is_path_default: true, version: Some("1.4.0"), runtime_status: Runnable }], desktop: None }
+UPGRADED exit=0
+CAT Some(AppCatalogEntry { id: Pi, name: "Pi", cli_command: Some("pi"), runtime_kinds: [NativeCli] })
+INSTALLATIONS AppReadResponse { installations: [AppInstallation { id: AppInstallationId("NDpob3N0OjI6cGk6OTI6L3ByaXZhdGUvdmFyL2ZvbGRlcnMvcmcvenIxOWxiX3M1dzMycTZkMnFrZDZwMG44MDAwMGdwL1Qvc2hpanUtdGFzazU0LWhua2xldGs1L3ByZWZpeC9iaW4vcGk"), app_id: Pi, target_host_id: "host", environment: Macos, path: "<isolated-root>/prefix/bin/pi", real_path: Some("<isolated-root>/prefix/lib/node_modules/@earendil-works/pi-coding-agent/dist/bundle/cli.js"), source: Unknown, is_path_default: true, version: Some("1.5.0"), runtime_status: Runnable }], desktop: None }
+REMAINING exit=0
+CAT Some(AppCatalogEntry { id: Pi, name: "Pi", cli_command: Some("pi"), runtime_kinds: [NativeCli] })
+INSTALLATIONS AppReadResponse { installations: [AppInstallation { id: AppInstallationId("NDpob3N0OjI6cGk6OTc6L3ByaXZhdGUvdmFyL2ZvbGRlcnMvcmcvenIxOWxiX3M1dzMycTZkMnFrZDZwMG44MDAwMGdwL1Qvc2hpanUtdGFzazU0LWhua2xldGs1L2hvbWUvLmxvY2FsL2Jpbi9waQ"), app_id: Pi, target_host_id: "host", environment: Macos, path: "<isolated-root>/home/.local/bin/pi", real_path: Some("<isolated-root>/home/.local/lib/node_modules/@earendil-works/pi-coding-agent/dist/bundle/cli.js"), source: Unknown, is_path_default: true, version: Some("1.4.0"), runtime_status: Runnable }], desktop: None }
+EMPTY exit=0
+CAT Some(AppCatalogEntry { id: Pi, name: "Pi", cli_command: Some("pi"), runtime_kinds: [NativeCli] })
+INSTALLATIONS AppReadResponse { installations: [], desktop: None }
+API INSTALL exit=0
+CAT Some(AppCatalogEntry { id: Pi, name: "Pi", cli_command: Some("pi"), runtime_kinds: [NativeCli] })
+INSTALLATIONS AppReadResponse { installations: [AppInstallation { id: AppInstallationId("NDpob3N0OjI6cGk6OTI6L3ByaXZhdGUvdmFyL2ZvbGRlcnMvcmcvenIxOWxiX3M1dzMycTZkMnFrZDZwMG44MDAwMGdwL1Qvc2hpanUtdGFzazU0LWhua2xldGs1L3ByZWZpeC9iaW4vcGk"), app_id: Pi, target_host_id: "host", environment: Macos, path: "<isolated-root>/prefix/bin/pi", real_path: Some("<isolated-root>/prefix/lib/node_modules/@earendil-works/pi-coding-agent/dist/bundle/cli.js"), source: Unknown, is_path_default: true, version: Some("1.5.0"), runtime_status: Runnable }], desktop: None }
+FINAL EMPTY exit=0
+CAT Some(AppCatalogEntry { id: Pi, name: "Pi", cli_command: Some("pi"), runtime_kinds: [NativeCli] })
+INSTALLATIONS AppReadResponse { installations: [], desktop: None }

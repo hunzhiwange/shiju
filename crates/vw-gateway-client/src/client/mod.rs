@@ -287,3 +287,8 @@ mod tests;
 mod app_providers_api;
 #[cfg(test)]
 mod app_providers_api_tests;
+
+mod agent_apps_settings_api;
+pub use agent_apps_settings_api::AgentAppsSettingsError;
+#[cfg(test)]
+mod agent_apps_settings_api_tests;

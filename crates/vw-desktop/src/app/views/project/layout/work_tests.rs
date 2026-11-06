@@ -32,7 +32,6 @@ async fn work_layout_keeps_single_chat_surface_when_code_panels_are_enabled() {
 
     app.show_diff = true;
     app.show_file_manager = true;
-    app.terminal.is_visible = true;
     app.chat_panel_fullscreen = true;
     app.git_diff_fullscreen = true;
 
@@ -342,4 +341,83 @@ fn press_at(
         &Rectangle::with_size(VIEWPORT),
     );
     messages
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn terminal_modes_layout_allocates_one_bottom_panel_in_both_themes_and_modes() {
+    let mut renderer =
+        <iced::Renderer as Headless>::new(Font::DEFAULT, Pixels(16.0), Some("tiny-skia"))
+            .await
+            .expect("headless renderer");
+    let mut app = App::new().0;
+    app.terminal.is_visible = true;
+    app.terminal.height = 240.0;
+    for theme in [Theme::Dark, Theme::Light] {
+        for work in [false, true] {
+            let mut element = if work {
+                super::build_work_layout(&app, 476.0, 56.0, 0.6, 12.0, 0.0, 0.0)
+            } else {
+                super::build_base_layout(&app, 476.0, 56.0, 0.6, 12.0, 0.0, 0.0, 0.0)
+            };
+            let signature = layout_signature(&mut element, &renderer);
+            assert_eq!(
+                signature
+                    .iter()
+                    .filter(|(depth, _, y, _, h)| *depth == 1 && *y == 560 && *h == 240)
+                    .count(),
+                1,
+                "exactly one terminal must occupy the bottom 240px, work={work}"
+            );
+            assert!(
+                signature
+                    .iter()
+                    .all(|(_, x, y, w, h)| *x >= 0 && *y >= 0 && x + w <= 1200 && y + h <= 800)
+            );
+            draw_element(&mut element, &mut renderer, &theme);
+        }
+    }
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn terminal_modes_work_fullscreen_temporarily_hides_terminal_and_restores_layout() {
+    let renderer =
+        <iced::Renderer as Headless>::new(Font::DEFAULT, Pixels(16.0), Some("tiny-skia"))
+            .await
+            .expect("headless renderer");
+    let mut app = App::new().0;
+    app.terminal.is_visible = false;
+    let hidden = layout_signature(
+        &mut super::build_work_layout(&app, 476.0, 56.0, 0.6, 12.0, 0.0, 0.0),
+        &renderer,
+    );
+    app.terminal.is_visible = true;
+    let shown = layout_signature(
+        &mut super::build_work_layout(&app, 476.0, 56.0, 0.6, 12.0, 0.0, 0.0),
+        &renderer,
+    );
+    assert_ne!(hidden, shown);
+    for chat in [false, true] {
+        app.work_chat_fullscreen = chat;
+        app.work_resource_fullscreen = !chat;
+        let visible = layout_signature(
+            &mut super::build_work_layout(&app, 476.0, 56.0, 0.6, 12.0, 0.0, 0.0),
+            &renderer,
+        );
+        app.terminal.is_visible = false;
+        let hidden = layout_signature(
+            &mut super::build_work_layout(&app, 476.0, 56.0, 0.6, 12.0, 0.0, 0.0),
+            &renderer,
+        );
+        assert_eq!(visible, hidden);
+        app.terminal.is_visible = true;
+    }
+    app.work_chat_fullscreen = false;
+    app.work_resource_fullscreen = false;
+    assert_eq!(
+        shown,
+        layout_signature(
+            &mut super::build_work_layout(&app, 476.0, 56.0, 0.6, 12.0, 0.0, 0.0),
+            &renderer
+        )
+    );
 }

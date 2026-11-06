@@ -60,13 +60,6 @@ pub(super) fn project_view_tools(app: &App) -> Element<'_, Message> {
                         Message::View(message::ViewMessage::ToggleSettingsPanel),
                     ))
                     .push(icon_toggle_button(
-                        Icon::Terminal,
-                        crate::app::i18n::I18n::new(app.desktop_locale).__("切换终端"),
-                        TooltipPosition::Bottom,
-                        app.terminal.is_visible,
-                        Message::View(message::ViewMessage::ToggleTerminalPanel),
-                    ))
-                    .push(icon_toggle_button(
                         Icon::Columns,
                         crate::app::i18n::I18n::new(app.desktop_locale).__("切换审查"),
                         TooltipPosition::Bottom,
@@ -101,6 +94,14 @@ pub(super) fn project_view_tools(app: &App) -> Element<'_, Message> {
                     ));
             }
         }
+
+        let tools = tools.push(icon_toggle_button(
+            Icon::Terminal,
+            crate::app::i18n::I18n::new(app.desktop_locale).__("切换终端"),
+            TooltipPosition::Bottom,
+            app.terminal.is_visible,
+            Message::View(message::ViewMessage::ToggleTerminalPanel),
+        ));
 
         let tools = tools.push(icon_button(
             Icon::Search,

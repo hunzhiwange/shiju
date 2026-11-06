@@ -12,7 +12,7 @@ use super::chat::chat_area;
 use super::chrome::right_column_chrome;
 use super::{work_resources, work_sidebar};
 
-/// 构建不受代码面板开关影响的工作模式布局。
+/// 构建工作模式布局，复用共享底部终端。
 pub fn build_work_layout(
     app: &App,
     settings_panel_width: f32,
@@ -62,13 +62,30 @@ pub fn build_work_layout(
     let right_column = right_column_chrome(right_column.into(), corner_radius);
 
     let _ = (settings_panel_width, left_rail_width, session_panel_width_scale);
-    if app.work_chat_fullscreen || app.work_resource_fullscreen {
-        right_column
-    } else if app.work_sidebar_collapsed {
-        iced::widget::row![left_sidebar, right_column].spacing(spacing).into()
+    let workspace: Element<'_, Message> =
+        if app.work_chat_fullscreen || app.work_resource_fullscreen {
+            return right_column;
+        } else if app.work_sidebar_collapsed {
+            iced::widget::row![left_sidebar, right_column].spacing(spacing).into()
+        } else {
+            let sidebar_divider = mouse_area(HResizeHandle)
+                .on_press(Message::View(ViewMessage::WorkSidebarDragStarted));
+            iced::widget::row![left_sidebar, sidebar_divider, right_column].spacing(spacing).into()
+        };
+
+    if !app.terminal.is_visible {
+        workspace
     } else {
-        let sidebar_divider =
-            mouse_area(HResizeHandle).on_press(Message::View(ViewMessage::WorkSidebarDragStarted));
-        iced::widget::row![left_sidebar, sidebar_divider, right_column].spacing(spacing).into()
+        iced::widget::column![
+            container(workspace)
+                .width(Length::Fill)
+                .height(Length::Fill)
+                .padding(iced::Padding::default().bottom(super::WORKSPACE_BOTTOM_GAP)),
+            super::bottom::bottom_panel(app)
+        ]
+        .spacing(0)
+        .width(Length::Fill)
+        .height(Length::Fill)
+        .into()
     }
 }

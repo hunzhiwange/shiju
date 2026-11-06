@@ -277,7 +277,7 @@ fn panel_visibility_and_menu_actions_update_only_local_state() {
 }
 
 #[test]
-fn work_mode_ignores_code_only_terminal_and_review_toggles() {
+fn work_mode_ignores_code_only_review_toggle() {
     use crate::app::message::view::ViewMessage;
     use crate::app::state::WorkspaceMode;
 
@@ -287,7 +287,6 @@ fn work_mode_ignores_code_only_terminal_and_review_toggles() {
     app.terminal.is_visible = false;
 
     let _ = super::update(&mut app, ViewMessage::ToggleDiffPanel);
-    let _ = super::update(&mut app, ViewMessage::ToggleTerminalPanel);
 
     assert!(!app.show_diff);
     assert!(!app.terminal.is_visible);
@@ -883,4 +882,35 @@ fn cli_update_ignores_result_after_source_switch() {
     assert_eq!(app.cli_install_modal_server_version, "未检测");
     assert!(!app.desktop_update.checking);
     assert_eq!(app.desktop_update.source, Some(UpdateSource::Github));
+}
+
+#[test]
+fn terminal_modes_toggle_preserves_session_and_height_across_mode_roundtrip() {
+    use crate::app::message::ViewMessage;
+    use crate::app::state::WorkspaceMode;
+    let tmp = tempfile::tempdir().expect("temporary project");
+    let mut app = crate::app::App::new().0;
+    app.project_path = Some(tmp.path().to_string_lossy().into_owned());
+    app.terminal.is_visible = false;
+    app.terminal.height = 260.0;
+    let _ = crate::app::message::view::update(
+        &mut app,
+        ViewMessage::WorkspaceModeSelected(WorkspaceMode::Work),
+    );
+    let _ = super::update(&mut app, ViewMessage::ToggleTerminalPanel);
+    assert!(app.terminal.is_visible);
+    assert_eq!(app.terminal.tabs.len(), 1);
+    let id = app.terminal.tabs[0].id;
+    for mode in [WorkspaceMode::Code, WorkspaceMode::Work] {
+        let _ =
+            crate::app::message::view::update(&mut app, ViewMessage::WorkspaceModeSelected(mode));
+        let _ = super::update(&mut app, ViewMessage::ToggleTerminalPanel);
+        assert!(!app.terminal.is_visible);
+        assert_eq!(app.terminal.tabs[0].id, id);
+        let _ = super::update(&mut app, ViewMessage::ToggleTerminalPanel);
+        assert!(app.terminal.is_visible);
+        assert_eq!(app.terminal.tabs.len(), 1);
+        assert_eq!(app.terminal.active_id, Some(id));
+        assert_eq!(app.terminal.height, 260.0);
+    }
 }

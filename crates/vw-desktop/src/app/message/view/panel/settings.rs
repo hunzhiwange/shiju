@@ -604,9 +604,6 @@ pub fn update(app: &mut App, message: ViewMessage) -> Task<Message> {
             Task::none()
         }
         ViewMessage::ToggleTerminalPanel => {
-            if app.workspace_mode == WorkspaceMode::Work {
-                return Task::none();
-            }
             app.terminal.is_visible = !app.terminal.is_visible;
             if app.terminal.is_visible && app.terminal.height < 160.0 {
                 app.terminal.height = 200.0;

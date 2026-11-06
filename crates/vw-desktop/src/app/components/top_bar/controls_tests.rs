@@ -12,9 +12,9 @@ const PROJECT_CONTROL_COUNT: usize = 6;
 #[cfg(target_arch = "wasm32")]
 const PROJECT_CONTROL_COUNT: usize = 5;
 #[cfg(not(target_arch = "wasm32"))]
-const WORK_PROJECT_CONTROL_COUNT: usize = 4;
+const WORK_PROJECT_CONTROL_COUNT: usize = 5;
 #[cfg(target_arch = "wasm32")]
-const WORK_PROJECT_CONTROL_COUNT: usize = 3;
+const WORK_PROJECT_CONTROL_COUNT: usize = 4;
 
 fn test_app() -> App {
     let (app, _task) = App::new();
@@ -74,6 +74,7 @@ fn project_view_tools_returns_empty_space_for_every_non_project_screen() {
 fn project_view_tools_builds_project_controls_when_panels_are_hidden() {
     let mut app = test_app();
     app.screen = Screen::Project;
+    app.workspace_mode = WorkspaceMode::Code;
     app.show_settings = false;
     app.terminal.is_visible = false;
     app.show_diff = false;
@@ -88,6 +89,7 @@ fn project_view_tools_builds_project_controls_when_panels_are_hidden() {
 fn project_view_tools_builds_project_controls_when_panels_are_visible() {
     let mut app = test_app();
     app.screen = Screen::Project;
+    app.workspace_mode = WorkspaceMode::Code;
     app.show_settings = true;
     app.terminal.is_visible = true;
     app.show_diff = true;
@@ -103,7 +105,7 @@ fn project_view_tools_builds_project_controls_when_panels_are_visible() {
 }
 
 #[test]
-fn work_project_tools_hide_code_only_terminal_and_review_controls() {
+fn work_project_tools_include_terminal_without_review_controls() {
     let mut app = test_app();
     app.screen = Screen::Project;
     app.workspace_mode = WorkspaceMode::Work;
@@ -113,4 +115,58 @@ fn work_project_tools_hide_code_only_terminal_and_review_controls() {
     let element = controls::project_view_tools(&app);
 
     assert_work_project_toolbar_shape(&element);
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn terminal_modes_toolbar_click_emits_toggle_in_both_modes() {
+    use iced::advanced::renderer::Headless;
+    use iced::advanced::{Layout, Shell, clipboard, layout, mouse, widget::Tree};
+    use iced::{Event, Font, Pixels, Point, Rectangle};
+    let renderer =
+        <iced::Renderer as Headless>::new(Font::DEFAULT, Pixels(16.0), Some("tiny-skia"))
+            .await
+            .expect("headless renderer");
+    let mut app = test_app();
+    app.screen = Screen::Project;
+    for mode in [WorkspaceMode::Code, WorkspaceMode::Work] {
+        app.workspace_mode = mode;
+        let mut element = controls::project_view_tools(&app);
+        let mut tree = Tree::new(element.as_widget());
+        let node = element.as_widget_mut().layout(
+            &mut tree,
+            &renderer,
+            &layout::Limits::new(Size::ZERO, Size::new(600.0, 40.0)),
+        );
+        let mut toggles = 0;
+        for child in Layout::new(&node).children() {
+            let point = child.bounds().center();
+            let mut messages = Vec::new();
+            for event in [
+                mouse::Event::ButtonPressed(mouse::Button::Left),
+                mouse::Event::ButtonReleased(mouse::Button::Left),
+            ] {
+                let mut shell = Shell::new(&mut messages);
+                element.as_widget_mut().update(
+                    &mut tree,
+                    &Event::Mouse(event),
+                    Layout::new(&node),
+                    mouse::Cursor::Available(Point::new(point.x, point.y)),
+                    &renderer,
+                    &mut clipboard::Null,
+                    &mut shell,
+                    &Rectangle::with_size(Size::new(600.0, 40.0)),
+                );
+            }
+            toggles += messages
+                .iter()
+                .filter(|message| {
+                    matches!(
+                        message,
+                        Message::View(crate::app::message::ViewMessage::ToggleTerminalPanel)
+                    )
+                })
+                .count();
+        }
+        assert_eq!(toggles, 1, "{mode:?} must expose exactly one terminal button");
+    }
 }

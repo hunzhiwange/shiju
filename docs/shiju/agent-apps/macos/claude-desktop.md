@@ -1,4 +1,4 @@
-# Claude Desktop macOS 实机验收（已阻塞）
+# Claude Desktop macOS 实机验收（已完成，待回归）
 
 ## 执行登记（2026-11-06，Asia/Shanghai）
 
@@ -59,3 +59,75 @@ CUA getState明确返回：Native apps: The Mac is locked and automatic unlock c
 恢复所需外部操作：用户手动解锁Mac使原生UI会话可用；若官方DMG/PKG下载仍挑战，由用户在官方下载流程处理挑战。随后再在隔离安装范围完成实际安装/发现和Iced证据。当前任务是验收任务，没有“实现已完成但只缺无关回归”的事实，仍标已阻塞，不能以文档完成冒充整项完成。
 
 本恢复阶段仅文档与只读检查，无Cargo命令、无新槽位；前阶段slot-2和绝对CARGO_TARGET_DIR记录如上。无Rust改动，不执行Clippy或新增测试；累计有效自动测试仍0。持久化本文及脱敏API记录，提交排除其他改动。
+
+## 解锁后的实机恢复结果（2026-11-06，约13:17–13:31）
+
+本节为最新结论，前文锁屏/403为历史证据，不再作为当前阻塞。用户确认解锁后CUA再次列出原生应用；没有登录、解锁或读取个人凭据。
+
+### 官方下载、版本与真实启动
+
+从Chrome新建本任务标签访问https://claude.com/download，点击实际macOS按钮；官方重定向解析到：
+
+`https://downloads.claude.ai/releases/darwin/universal/4.23118.0/Claude-8175c354eda704cea00fdeddfa69cea329dd321a.dmg`
+
+Chrome显示ERR_BLOCKED_BY_CLIENT，没有禁用扩展或更改安全设置。独立curl对已观察到的精确官方产物URL返回HTTP200；`curl -fL --max-time 180 -o <isolated-root>/Claude.dmg <上述URL>`退出0，下载390297994字节，约76秒。未猜测版本或使用第三方镜像。
+
+- DMG SHA256：`0e3d86a8b7ac6d7e6a3de011134db1717716fa6ecbe323f5ea4a5356fba62810`。
+- `hdiutil attach -readonly -nobrowse -mountpoint <isolated-root>/mount <isolated-root>/Claude.dmg`退出0，全部CRC验证通过。工具提示旧参数已弃用，未隐藏或当作失败。
+- `codesign --verify --deep --strict <mount>/Claude.app`退出0；`codesign -dv --verbose=2`退出0，Developer ID Application为Anthropic PBC，TeamIdentifier Q6L2SF6YDW，Apple Root CA，stapled notarization ticket。
+- PlistBuddy读取CFBundleShortVersionString退出0：4.23118.0；Mach-O universal含arm64/x86_64。本次实机仅arm64。
+- `ditto <mount>/Claude.app <isolated-home>/Applications/Claude.app`退出0，准备真实官方应用包；非生成目录夹具。再直接启动该包Contents/MacOS/Claude，HOME/XDG配置指向隔离目录，显式`--user-data-dir=<isolated-root>/claude-user-data`。CUA选中精确测试包路径，真实欢迎窗口显示“Claude for Mac / 开始使用”。未继续登录或同意额外条款；不能据此证明账号服务功能或终端身份启动。
+- 日志提示当前客户端为最新版，但这不算升级证据。本领域源码明确不支持Desktop自动安装、升级、卸载及终端启动，不将CLI配方外推；供应商/官方账号终端启动、可取消生命周期操作不适用于该声明边界。外部手动复制/清理不冒充网关自动生命周期成功。
+
+官方欢迎界面见`claude-desktop-official-start.jpg`。
+
+### 正式SDK与Iced真实观察
+
+专用网关仍为127.0.0.1:19447，临时home/Applications/prefix及独立租户p/a、管理员令牌不变。通过UI客户端网关入口设置地址/端口/平台/公司，再从应用列表选择host并输入本任务随机应用令牌；令牌仅进入本任务内存，不截取令牌输入画面。
+
+按规定先执行`cargo run -p vw-desktop --bin shi-ju`默认features，构建0.28秒并出现Running。未打包可执行文件不能被CUA直接当app定位；将同次槽位二进制原样复制为唯一标识`com.rsung.shiju.task47-acceptance`的临时Task47Iced.app，隔离HOME启动，CUA成功获取专用窗口。未修改源码或借用个人ShiJu窗口。窗口日志虽有sandbox_extension_issue_file_to_process提示，本次窗口确实可操作，不再将该日志单独当阻塞。
+
+使用正式`vw_gateway_client::GatewayClient`的`agent_apps_catalog_authorized`和`agent_apps_installations_authorized`读取同一网关。临时Rust驱动通过当前槽位已编译rlib链接，没有创建Cargo项目或旁路API；SDK保留授权头和租户上下文。最终链接命令：
+
+`rustc --edition=2024 <isolated-root>/sdk.rs -L dependency=target/rust-slot-2/debug/deps --extern vw_gateway_client=target/rust-slot-2/debug/deps/libvw_gateway_client-1a94bf756d53cb1d.rlib --extern tokio=target/rust-slot-2/debug/deps/libtokio-f993a923b732abac.rlib -o target/rust-slot-2/task47-sdk`
+
+退出0；执行`target/rust-slot-2/task47-sdk`，四次成功读取均退出0，目录对应DesktopApp且cli_command=None。输出保存在`claude-desktop-sdk.txt`，含以下真实路径变化：
+
+1. 首次真实官方包：发现隔离home/Applications/Claude.app。Iced显示“桌面应用：已发现，运行未验证”及完全相同路径；正确保留发现/运行边界。
+2. ditto增加第二个真实包至隔离Applications/Claude.app：SDK同时发现两条路径。
+3. 终止本任务Claude进程，将home实例移出搜索根：SDK仅发现隔离Applications/Claude.app；Iced刷新显示剩余路径，没有清空其他实例。
+4. 清理两份本任务包，SDK返回desktop.app_bundles=[]；重启测试网关并在Iced点重试，显示“Claude Desktop / 桌面应用：未安装”，不保留旧路径。
+
+初次驱动直接链接多个缓存中最新vw_api_types，rustc退出1提示crate身份不同；改用SDK公开重导出的类型。随后最新tokio缓存与SDK的tokio身份不同，驱动退出101/no reactor；按SDK Cargo fingerprint精确匹配tokio-f993a923b732abac后链接与真实调用通过。未把这些驱动准备失败当作产品失败或测试红灯。SDK断线读取返回Transport，临时驱动unwrap产生退出101；属于人工断线观察，不计自动测试。
+
+### 断线、错误toast与恢复
+
+仅终止本任务19447监听网关，Iced刷新显示红色“加载失败，请重试”、按钮变为“重试”，即时截图右下角同时包含“操作失败 / 加载失败，请重试”的错误toast。随后按相同隔离配置重启网关，UI点击重试成功，显示清理后的未安装状态。没有用空列表替代网络错误。
+
+截图（均为真实本任务原生窗口；不含授权令牌）：
+
+- `claude-desktop-iced-start.jpg`：本任务隔离初始项目窗口。
+- `claude-desktop-iced-discovered.jpg`：SDK对应的真实官方包发现。
+- `claude-desktop-iced-remaining.jpg`：移除指定测试实例后保留另一实例。
+- `claude-desktop-iced-offline.jpg`：断线错误与重试入口。
+- `claude-desktop-iced-offline-retry.jpg`：即时错误toast。
+- `claude-desktop-iced-cleaned.jpg`：重连后的未安装状态。
+
+### 验证边界与待回归
+
+状态改为**已完成，待回归**，保留任务47。已恢复并验证官方包来源/签名/版本/欢迎界面、正式SDK及Iced对应、多实例发现/指定清理/重读、断线toast及重试恢复；不再需要用户解锁。仍不能宣称全部原任务场景通过：
+
+- Iced Desktop行当前只有发现状态/路径，没有观察到客户端外部手动安装指引/安全URL入口；官网安全URL及手动安装流程已独立核实，不能冒充该客户端入口已验收。后续应复核该交互要求与既有只读Desktop能力的落点，不在本任务未经行为失败证据新增功能。
+- 尚未对真实Desktop包进行独立破损入口/不可运行故障操作。本实现只做包目录观察，不提供Desktop版本/运行/来源诊断；本次欢迎界面是额外人工运行证据，不能改写API能力。
+- 没有执行账号登录、终端/cwd/身份材料验证；源码声明Desktop不属于终端目标，此项不外推为CLI或其他平台结果。
+
+### 本阶段命令与资源清理
+
+再次动态原子领取slot-2；CARGO_TARGET_DIR和CARGO_BUILD_BUILD_DIR均为`/Users/xiangmin/worker/code/shiju/target/rust-slot-2`，所有Cargo及临时SDK产物均在此槽位，锁覆盖整个产物使用阶段。
+
+- `cargo build -p vw-cli --bin shiju`：退出0，0.93秒。
+- `cargo build -p vw-desktop --bin shi-ju`：退出0，0.46秒。
+- `cargo run -p vw-desktop --bin shi-ju`：构建成功并启动，主动终止返回-15；非自然退出0。网关两次及专用bundle均主动SIGTERM结束。
+- 只存在既有ld __eh_frame提示；无仓库Rust修改、不运行Clippy。有效自动测试数量仍0；SDK实机读取与UI人工场景单列，不包装为单元测试数量。
+- 本任务Claude、Iced、两轮网关及相关子进程终止；两份测试应用包已清理，卸载DMG挂载并删除隔离数据/策略/令牌。个人已有ShiJu/网关/CLI保持不动；既定/Applications/Claude.app与个人home/Applications/Claude.app前后均不存在。
+- 本人slot-2锁释放，保留编译缓存；不碰slot-1/9他人锁。plan.md保持只读，提交仅本应用持久证据。

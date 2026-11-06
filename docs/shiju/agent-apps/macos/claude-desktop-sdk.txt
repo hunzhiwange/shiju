@@ -1,0 +1,23 @@
+
+sdk-after
+catalog=[AppCatalogEntry { id: ClaudeDesktop, name: "Claude Desktop", cli_command: None, runtime_kinds: [DesktopApp] }]
+installations=AppReadResponse { installations: [], desktop: Some(AppDesktopObservation { supported: true, app_bundles: Some(["<isolated-root>/home/Applications/Claude.app"]), config_directories: [] }) }
+
+sdk-two
+catalog=[AppCatalogEntry { id: ClaudeDesktop, name: "Claude Desktop", cli_command: None, runtime_kinds: [DesktopApp] }]
+installations=AppReadResponse { installations: [], desktop: Some(AppDesktopObservation { supported: true, app_bundles: Some(["<isolated-root>/Applications/Claude.app", "<isolated-root>/home/Applications/Claude.app"]), config_directories: [] }) }
+
+sdk-one
+catalog=[AppCatalogEntry { id: ClaudeDesktop, name: "Claude Desktop", cli_command: None, runtime_kinds: [DesktopApp] }]
+installations=AppReadResponse { installations: [], desktop: Some(AppDesktopObservation { supported: true, app_bundles: Some(["<isolated-root>/Applications/Claude.app"]), config_directories: [] }) }
+
+sdk-empty
+catalog=[AppCatalogEntry { id: ClaudeDesktop, name: "Claude Desktop", cli_command: None, runtime_kinds: [DesktopApp] }]
+installations=AppReadResponse { installations: [], desktop: Some(AppDesktopObservation { supported: true, app_bundles: Some([]), config_directories: [] }) }
+
+sdk-offline
+exit=101
+
+thread 'main' (35401447) panicked at <isolated-root>/sdk.rs:3:351:
+called `Result::unwrap()` on an `Err` value: Transport("error sending request for url (http://127.0.0.1:19447/v1/agent-apps/catalog?targetHostId=host)")
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace

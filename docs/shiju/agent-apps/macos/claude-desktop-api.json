@@ -104,5 +104,46 @@
       "status": 422,
       "response": ""
     }
+  ],
+  "resumeCleanupRecords": [
+    {
+      "method": "GET",
+      "path": "/v1/agent-apps/installations?targetHostId=host&appId=claude-desktop",
+      "status": 200,
+      "response": {
+        "installations": [],
+        "desktop": {
+          "supported": true,
+          "appBundles": [],
+          "configDirectories": []
+        }
+      }
+    },
+    {
+      "method": "GET",
+      "path": "/v1/agent-apps/diagnostics?targetHostId=host&appId=claude-desktop",
+      "status": 200,
+      "response": {
+        "installations": [],
+        "desktop": {
+          "supported": true,
+          "appBundles": [],
+          "configDirectories": []
+        }
+      }
+    },
+    {
+      "method": "GET",
+      "path": "/v1/agent-apps/versions?targetHostId=host&appId=claude-desktop",
+      "status": 200,
+      "response": {
+        "installations": [],
+        "desktop": {
+          "supported": true,
+          "appBundles": [],
+          "configDirectories": []
+        }
+      }
+    }
   ]
 }

@@ -47,6 +47,7 @@ impl AcpClient {
                 | "kimi"
                 | "auggie"
                 | "codebuddy"
+                | "goose"
         ) && self.permission_mode == PermissionMode::DenyAll
         {
             return Err(AcpError::Prompt("Host deny forbids native tool execution".into()));

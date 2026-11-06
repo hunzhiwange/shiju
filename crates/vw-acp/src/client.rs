@@ -64,6 +64,8 @@ mod commands;
 mod error_context;
 #[path = "client/event_client.rs"]
 mod event_client;
+#[path = "client/goose_access.rs"]
+mod goose_access;
 #[path = "client/helpers.rs"]
 mod helpers;
 #[path = "client/hermes_access.rs"]

@@ -9,6 +9,7 @@ pub(crate) mod codebuddy;
 pub(crate) mod codex;
 pub(crate) mod copilot;
 pub(crate) mod gemini;
+pub(crate) mod goose;
 pub(crate) mod hermes;
 pub(crate) mod iflow;
 pub(crate) mod kimi;

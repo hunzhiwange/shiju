@@ -2,6 +2,8 @@
 
 审计日期：2026-11-06（Asia/Shanghai）；审计平台：macOS / Darwin arm64。状态：静态基线已完成；Codex 与 Claude 固定制品的 macOS arm64 原生权限与撤销已验收，具体入口与边界见 [Codex 证据](evidence/codex.md)、[Claude 证据](evidence/claude.md)。Gemini 已核验为客户端自动批准，原生自动提权因确认及工具/提示词副作用不接入，见 [Gemini 证据](evidence/gemini.md)。Qwen 固定 npm 与现有托管补丁入口已核验原生免审批与撤销，见 [Qwen 证据](evidence/qwen.md)。Qoder 已接入公布的会话 mode 配置，权限工具效果未实机验收，见 [Qoder 接入说明](evidence/qoder.md)。Vibe 保留客户端自动批准，并为显式 auto-approve agent 加入授权及撤销保护，未实机验收，见 [Vibe 接入说明](evidence/vibe.md)。Kiro 已接入 V3 会话 policyPreset，效果未实机验收，见 [Kiro 接入说明](evidence/kiro.md)。OpenCode 使用逐次客户端自动批准，避免写入会话永久授权，见 [OpenCode 接入说明](evidence/opencode.md)。Hermes 已接入会话编辑审批 default↔dont_ask，终端继续客户端批准，未实机验收，见 [Hermes 接入说明](evidence/hermes.md)。iFlow 已接入会话 default↔yolo 并兼容 load 缺少 modes，未实机验收，见 [iFlow 接入说明](evidence/iflow.md)。Copilot 已接入逐次客户端批准，见 [Copilot 说明](evidence/copilot.md)。Kimi 已接入新版 ACP default↔yolo 与逐次客户端批准，未实机验收，见 [Kimi 接入说明](evidence/kimi.md)。CodeBuddy 已接入公布的会话 default↔bypassPermissions 与逐次客户端批准，未实机验收，见 [CodeBuddy 接入说明](evidence/codebuddy.md)。其他后端原生能力仍未知。
 
+Goose 已接入会话 approve 与逐次客户端批准，避免 auto 跳过用户 deny；未实机验收，见 [Goose 接入说明](evidence/goose.md)。
+
 Auggie 已接入逐次客户端批准与当前 host deny 拦截；原生权限与工具执行未实测，见 [Auggie 接入说明](evidence/auggie.md)。
 
 范围为 `BUILT_IN_AGENT_DEFINITIONS` 的 22 个稳定 key；别名和 `claude-legacy` 不另计。注册表、启动快照、哈希及逐项官方版本来源见 [证据清单](evidence/README.md)。初始静态审计仅修改文档；后续后端适配与验证按各独立证据文件记账。
@@ -30,7 +32,7 @@ Auggie 已接入逐次客户端批准与当前 host deny 拦截；原生权限�
 | [claude](evidence/claude.md) / E2、E3 | 0.26.0 / SDK 0.2.96 / CLI 2.1.96 | 0.101.0 | 原生免审批：macOS arm64 固定 npm 入口、当前授权及配置确认后；未知入口降级、无法撤销时拒绝。计划确认需独立交互 | 补齐企业托管 deny、其他平台和 Bun 制品；保持计划确认独立 |
 | [codex](evidence/codex.md) / E2、E3 | 2.5.0 / Codex 0.165.0 | 2.5.0 | 原生免审批：macOS arm64 已核验制品、当前授权与配置确认后；cli_local/session_model 均验收。未知入口/平台降级，无法确认撤销时拒绝；活动 turn 必须先取消 | 补齐其他平台、独立文件编辑工具、网络及企业策略验收 |
 | [codebuddy](evidence/codebuddy.md) / E1、E2 | 2.179.3 | 2.180.0（基线查询） | 部分支持：按公布配置同步 default↔bypassPermissions，客户端仅逐次批准，问答及计划确认独立；session_model 原有门控保留 | 用户要求跳过测试；开启、关闭、恢复与跨平台工具效果未实机验收 |
-| [goose](evidence/README.md#goose) / E1 | v1.57.0 | v1.57.0 | 部分支持：客户端自动批准有源码、原生未知；session_model 有驱动和版本门控 | 固定真实 CLI，采集 initialize/权限选项并验证开启→关闭→恢复 |
+| [goose](evidence/goose.md) / E1、E2 | v1.57.0 | v1.57.0（基线查询） | 客户端自动批准：同步会话 approve，仅逐次批准；auto 跳过用户 deny，不自动接入；session_model 原有门控保留 | 用户要求跳过测试；开启、关闭、恢复及跨平台工具效果未实机验收 |
 | [vibe](evidence/vibe.md) / E1、E2 | 3.0.4 | 3.1.0 | 部分支持：客户端自动批准；原生 mode 切换整个 agent，仅允许当前授权下显式选择 auto-approve，撤销未完成则拒绝继续；session_model 保持现有门控 | 用户要求跳过测试；原生执行、恢复、deny 和跨平台效果未实机验收 |
 | [hermes](evidence/hermes.md) / E1、E2 | 0.19.0 | 0.19.0 | 部分支持：按当前授权同步 default↔dont_ask 编辑审批，敏感路径及终端仍用客户端审批；保留 session_model 门控 | 用户要求跳过测试；开启、关闭、恢复及跨平台工具效果未实机验收 |
 | [snow](evidence/README.md#snow) / E1 | 0.9.14 | 0.9.15 | 部分支持：客户端自动批准有源码、原生未知；session_model 有驱动和版本门控 | 固定真实 CLI，采集 initialize/权限选项并验证开启→关闭→恢复 |
@@ -61,7 +63,7 @@ U = 未获取该后端真实权限协议/结果；C = 仅共享客户端源码�
 | claude | E3 | E3/E3/E3 | E3：default↔bypassPermissions | E2/E3；以 config 同步 | E3：普通工具 1→0→1；计划另行确认 | C；本例为原生 Write | C；本例为原生 Bash | 不等同沙箱解除；项目 deny 保留 |
 | codex | E3 | E3/E3/E3 | E3 | E2；以 config 同步 | E3：本例 0 | C；本例未调用 | C；本例未调用 | E3：readOnly↔dangerFullAccess |
 | codebuddy | U | new/load/resume 与 prompt 前已接入；未实测 | E2：mode default↔bypassPermissions，设置响应确认 | E2：公布 default/acceptEdits/plan/auto/dontAsk/bypassPermissions/fullAccess；不自动退出 plan | E2：allow/allow_always/reject；仅逐次批准，问答/计划不自动答复 | C；未实测 | C；未实测 | U；不选择跳过危险检查的 fullAccess |
-| goose | U | U/U/U | U | U | C | C | C | U |
+| goose | U | new/load/resume 与 prompt 前已接入；未实测 | E2：mode=approve，响应确认；不改模型/provider | E2：auto/approve/smart_approve/chat；保留 chat，legacy 回退 approve | E2：allow_always/allow_once/reject_once/reject_always；客户端仅逐次批准，未实测 | C；未实测 | C；未实测 | U；auto 跳过用户 deny，生产不自动选择 |
 | vibe | U | 代码接入；未实测 | E2：mode 为 agent 名称，不自动切换 | E2：auto-approve 显式授权保护 | C；未实机计数 | C | C | U |
 | hermes | U | new/load/resume 与 prompt 已接入；未实测 | E2：未公布，隐藏编辑配置不主动发送 | E2：default/accept_edits/dont_ask；已接入，无回读确认 | E2：终端和敏感编辑仍回调；未计数 | C；未实测 | C；未实测 | U；不覆盖原生 deny |
 | snow | U | U/U/U | U | U | C | C | C | U |

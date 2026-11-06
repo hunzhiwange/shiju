@@ -151,6 +151,7 @@ impl AcpClient {
 
 impl AcpClient {
     async fn guard_native_mode(&self, session_id: &str, mode_id: &str) -> Result<(), AcpError> {
+        self.guard_goose_mode(session_id, mode_id).await?;
         self.guard_hermes_mode(session_id, mode_id).await?;
         self.guard_iflow_mode(session_id, mode_id).await?;
         self.guard_kimi_mode(session_id, mode_id).await?;
@@ -220,6 +221,7 @@ impl AcpClient {
         self.sync_iflow_access(conn, session_id).await?;
         self.sync_kimi_access(conn, session_id).await?;
         self.sync_codebuddy_access(conn, session_id).await?;
+        self.sync_goose_access(conn, session_id).await?;
         self.ensure_vibe_access(session_id)?;
         if self.agent_name == "gemini" {
             let state = self.actor_state.lock();

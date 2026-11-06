@@ -34,6 +34,22 @@ impl AcpClient {
 
         let args = self.launch_args()?;
         let mut env = self.config.env.clone();
+        if self.agent_name == "qwen"
+            && crate::access_policy::qwen::verified_entry(&self.config.command, &self.config.args)
+        {
+            let entry = Path::new(&self.config.command).canonicalize().map_err(AcpError::Spawn)?;
+            // The npm wrapper can redirect to an independently updated cli.js.
+            // Pin this process to the exact package that will pass identity checks.
+            env.insert(
+                "QWEN_CODE_MANAGED_NPM_PIN".into(),
+                json!({
+                    "bootstrap": entry,
+                    "version": null,
+                    "updateRoot": entry.parent().unwrap()
+                })
+                .to_string(),
+            );
+        }
         let managed_claude = managed_claude_settings(&self.config).is_some();
         if !managed_claude {
             for (key, value) in build_agent_environment(&self.auth_credentials) {
@@ -138,6 +154,12 @@ impl AcpClient {
             }
             // Do not turn a session grant into workspace trust or a native mode
             // that rewrites the model tools and system instruction.
+            return Ok(self.config.args.clone());
+        }
+        if self.agent_name == "qwen" {
+            if bypass {
+                return Err(AcpError::Initialize("Qwen startup bypass cannot be safely revoked before session verification; remove bypass arguments".into()));
+            }
             return Ok(self.config.args.clone());
         }
         if bypass && !unrestricted {

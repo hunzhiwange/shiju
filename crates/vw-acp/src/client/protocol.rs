@@ -78,6 +78,28 @@ impl AcpClient {
                 &self.config.args,
             );
         self.actor_state.lock().claude_confirmed_session = None;
+        self.actor_state.lock().qwen_runtime_verified = self.agent_name == "qwen"
+            && cfg!(all(target_os = "macos", target_arch = "aarch64"))
+            && response
+                .agent_info
+                .as_ref()
+                .is_some_and(|info| info.name == "qwen-code" && info.version == "0.26.7")
+            && [
+                "QWEN_CODE_RELAUNCH_ARGS",
+                "QWEN_CODE_LAUNCHER_PATH",
+                "QWEN_CODE_STARTUP_VERSION",
+                "NODE_OPTIONS",
+                "NODE_PATH",
+            ]
+            .into_iter()
+            .all(|key| {
+                self.config.env.get(key).map_or_else(
+                    || std::env::var_os(key).is_none_or(|value| value.is_empty()),
+                    |value| value.is_empty(),
+                )
+            })
+            && crate::access_policy::qwen::verified_entry(&self.config.command, &self.config.args);
+        self.actor_state.lock().qwen_confirmed_session = None;
         self.authenticate_if_required(conn, &response.auth_methods).await?;
         Ok(())
     }

@@ -12,6 +12,8 @@ impl AcpClient {
         state.handle = None;
         state.reusable_session_id = None;
         state.lifecycle.pid = None;
+        state.qwen_runtime_verified = false;
+        state.qwen_confirmed_session = None;
         state.claude_runtime_verified = false;
         state.claude_confirmed_session = None;
         state.codex_runtime_verified = false;
@@ -57,6 +59,8 @@ impl AcpClient {
     ) {
         let mut state = self.actor_state.lock();
         state.lifecycle.pid = None;
+        state.qwen_runtime_verified = false;
+        state.qwen_confirmed_session = None;
         state.claude_runtime_verified = false;
         state.claude_confirmed_session = None;
         state.codex_runtime_verified = false;

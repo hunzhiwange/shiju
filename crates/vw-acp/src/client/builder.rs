@@ -94,7 +94,7 @@ impl AcpClient {
             modes,
             config_options,
         );
-        if !matches!(self.agent_name.as_str(), "codex" | "claude")
+        if !matches!(self.agent_name.as_str(), "codex" | "claude" | "qwen")
             || !self.full_access
             || self.permission_mode != PermissionMode::ApproveAll
         {
@@ -108,6 +108,20 @@ impl AcpClient {
                         && info.config_options.as_deref() == config_options
                         && crate::access_policy::claude::current_mode(config_options)
                             == Some(crate::access_policy::claude::FULL_MODE)
+                })
+            {
+                policy.support = crate::FullAccessSupport::Native;
+                policy.reason = crate::AccessPolicyReason::VerifiedNativeControl;
+            }
+            return policy;
+        }
+        if self.agent_name == "qwen" {
+            if state.qwen_runtime_verified
+                && state.session_capabilities.as_ref().is_some_and(|info| {
+                    state.qwen_confirmed_session.as_deref() == Some(info.session_id.as_str())
+                        && info.config_options.as_deref() == config_options
+                        && crate::access_policy::qwen::current_mode(config_options)
+                            == Some(crate::access_policy::qwen::FULL_MODE)
                 })
             {
                 policy.support = crate::FullAccessSupport::Native;

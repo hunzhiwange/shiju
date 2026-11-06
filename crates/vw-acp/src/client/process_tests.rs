@@ -422,8 +422,8 @@ fn acp_full_access_launch_official_and_managed_shapes_follow_current_grant() {
     for (agent, command, base, expected) in [
         ("gemini", "gemini", vec!["--experimental-acp"], vec![]),
         ("gemini", "npx", vec!["@google/gemini-cli@latest", "--experimental-acp"], vec![]),
-        ("qwen", "qwen", vec!["--acp"], vec!["--approval-mode", "yolo"]),
-        ("qwen", "qwen", vec!["--acp", "--experimental-skills"], vec!["--approval-mode", "yolo"]),
+        ("qwen", "qwen", vec!["--acp"], vec![]),
+        ("qwen", "qwen", vec!["--acp", "--experimental-skills"], vec![]),
         ("qoder", "qodercli", vec!["--acp"], vec!["--permission-mode", "bypass_permissions"]),
     ] {
         let config = AcpAgentConfig {
@@ -519,7 +519,7 @@ fn acp_full_access_launch_managed_routing_suffix_is_preserved_with_current_grant
             let client = AcpClient::new(agent, config.clone()).with_full_access(full);
             let actual = client.launch_args().unwrap();
             assert_eq!(&actual[..args.len()], &args);
-            assert_eq!(actual.iter().any(|arg| arg == "yolo"), full && agent != "gemini");
+            assert!(!actual.iter().any(|arg| arg == "yolo"));
             assert_eq!(client.config.env, config.env);
         }
     }

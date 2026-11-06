@@ -25,7 +25,7 @@ pub(super) struct ActivePromptControl {
 
 pub(super) struct AcpEventClient {
     pub(super) claude_permissions: bool,
-    pub(super) gemini_permissions: bool,
+    pub(super) reject_untyped_workflow_permissions: bool,
     pub(super) expected_session_id: Arc<Mutex<Option<String>>>,
     pub(super) event_tx: mpsc::UnboundedSender<InternalEvent>,
     pub(super) filesystem: FileSystemHandlers,
@@ -52,6 +52,8 @@ pub(super) struct AcpClientActorState {
     pub(super) reusable_session_id: Option<String>,
     pub(super) lifecycle: AgentLifecycleSnapshot,
     pub(super) session_capabilities: Option<crate::SessionCapabilities>,
+    pub(super) qwen_runtime_verified: bool,
+    pub(super) qwen_confirmed_session: Option<String>,
     pub(super) claude_runtime_verified: bool,
     pub(super) claude_confirmed_session: Option<String>,
     pub(super) codex_runtime_verified: bool,

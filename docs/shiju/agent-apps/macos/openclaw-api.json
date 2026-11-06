@@ -1,0 +1,894 @@
+[
+  {
+    "method": "GET",
+    "path": "catalog",
+    "body": null,
+    "status": 200,
+    "response": {
+      "apps": [
+        {
+          "id": "openclaw",
+          "name": "OpenClaw",
+          "cliCommand": "openclaw",
+          "runtimeKinds": [
+            "native_cli"
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "method": "GET",
+    "path": "installations?appId=openclaw",
+    "body": null,
+    "status": 200,
+    "response": {
+      "installations": []
+    }
+  },
+  {
+    "method": "GET",
+    "path": "launch-identities?appId=openclaw",
+    "body": null,
+    "status": 200,
+    "response": []
+  },
+  {
+    "method": "GET",
+    "path": "installations?appId=openclaw",
+    "body": null,
+    "status": 200,
+    "response": {
+      "installations": [
+        {
+          "id": "NDpob3N0Ojg6b3BlbmNsYXc6OTg6L3ByaXZhdGUvdmFyL2ZvbGRlcnMvcmcvenIxOWxiX3M1dzMycTZkMnFrZDZwMG44MDAwMGdwL1Qvc2hpanUtdGFzazUyLWZzcnI2Y2dpL3ByZWZpeC9iaW4vb3BlbmNsYXc",
+          "appId": "openclaw",
+          "targetHostId": "host",
+          "environment": {
+            "kind": "macos"
+          },
+          "path": "<isolated-root>/prefix/bin/openclaw",
+          "realPath": "<isolated-root>/prefix/lib/node_modules/openclaw/openclaw.mjs",
+          "source": "unknown",
+          "isPathDefault": true,
+          "version": "2026.10.10",
+          "runtimeStatus": {
+            "status": "runnable"
+          }
+        }
+      ]
+    }
+  },
+  {
+    "method": "POST",
+    "path": "actions/preview",
+    "body": {
+      "appId": "openclaw",
+      "action": "update",
+      "target": {
+        "kind": "installation",
+        "installationId": "NDpob3N0Ojg6b3BlbmNsYXc6OTg6L3ByaXZhdGUvdmFyL2ZvbGRlcnMvcmcvenIxOWxiX3M1dzMycTZkMnFrZDZwMG44MDAwMGdwL1Qvc2hpanUtdGFzazUyLWZzcnI2Y2dpL3ByZWZpeC9iaW4vb3BlbmNsYXc"
+      }
+    },
+    "status": 200,
+    "response": {
+      "previewId": "adc72239-e55f-4066-a769-d4c561b6520f",
+      "request": {
+        "appId": "openclaw",
+        "action": "update",
+        "target": {
+          "kind": "installation",
+          "installationId": "NDpob3N0Ojg6b3BlbmNsYXc6OTg6L3ByaXZhdGUvdmFyL2ZvbGRlcnMvcmcvenIxOWxiX3M1dzMycTZkMnFrZDZwMG44MDAwMGdwL1Qvc2hpanUtdGFzazUyLWZzcnI2Y2dpL3ByZWZpeC9iaW4vb3BlbmNsYXc"
+        }
+      },
+      "source": "system",
+      "confirmationRequired": true,
+      "summary": "Review the selected application action in the administrator-approved prefix",
+      "displayCommand": null
+    }
+  },
+  {
+    "method": "POST",
+    "path": "actions",
+    "body": {
+      "previewId": "adc72239-e55f-4066-a769-d4c561b6520f",
+      "confirmed": true
+    },
+    "status": 202,
+    "response": {
+      "operationId": "ec33324d-b7fb-48fb-97b7-40691d7a2eca",
+      "status": "queued"
+    }
+  },
+  {
+    "method": "GET",
+    "path": "operations/ec33324d-b7fb-48fb-97b7-40691d7a2eca",
+    "body": null,
+    "status": 200,
+    "response": {
+      "operationId": "ec33324d-b7fb-48fb-97b7-40691d7a2eca",
+      "status": "running",
+      "phase": "executing"
+    }
+  },
+  {
+    "method": "GET",
+    "path": "operations/ec33324d-b7fb-48fb-97b7-40691d7a2eca",
+    "body": null,
+    "status": 200,
+    "response": {
+      "operationId": "ec33324d-b7fb-48fb-97b7-40691d7a2eca",
+      "status": "running",
+      "phase": "executing"
+    }
+  },
+  {
+    "method": "GET",
+    "path": "operations/ec33324d-b7fb-48fb-97b7-40691d7a2eca",
+    "body": null,
+    "status": 200,
+    "response": {
+      "operationId": "ec33324d-b7fb-48fb-97b7-40691d7a2eca",
+      "status": "running",
+      "phase": "executing"
+    }
+  },
+  {
+    "method": "GET",
+    "path": "operations/ec33324d-b7fb-48fb-97b7-40691d7a2eca",
+    "body": null,
+    "status": 200,
+    "response": {
+      "operationId": "ec33324d-b7fb-48fb-97b7-40691d7a2eca",
+      "status": "running",
+      "phase": "executing"
+    }
+  },
+  {
+    "method": "GET",
+    "path": "operations/ec33324d-b7fb-48fb-97b7-40691d7a2eca",
+    "body": null,
+    "status": 200,
+    "response": {
+      "operationId": "ec33324d-b7fb-48fb-97b7-40691d7a2eca",
+      "status": "running",
+      "phase": "executing"
+    }
+  },
+  {
+    "method": "GET",
+    "path": "operations/ec33324d-b7fb-48fb-97b7-40691d7a2eca",
+    "body": null,
+    "status": 200,
+    "response": {
+      "operationId": "ec33324d-b7fb-48fb-97b7-40691d7a2eca",
+      "status": "running",
+      "phase": "executing"
+    }
+  },
+  {
+    "method": "GET",
+    "path": "operations/ec33324d-b7fb-48fb-97b7-40691d7a2eca",
+    "body": null,
+    "status": 200,
+    "response": {
+      "operationId": "ec33324d-b7fb-48fb-97b7-40691d7a2eca",
+      "status": "running",
+      "phase": "executing"
+    }
+  },
+  {
+    "method": "GET",
+    "path": "installations?appId=openclaw",
+    "body": null,
+    "status": 200,
+    "response": {
+      "installations": [
+        {
+          "id": "NDpob3N0Ojg6b3BlbmNsYXc6OTg6L3ByaXZhdGUvdmFyL2ZvbGRlcnMvcmcvenIxOWxiX3M1dzMycTZkMnFrZDZwMG44MDAwMGdwL1Qvc2hpanUtdGFzazUyLWZzcnI2Y2dpL3ByZWZpeC9iaW4vb3BlbmNsYXc",
+          "appId": "openclaw",
+          "targetHostId": "host",
+          "environment": {
+            "kind": "macos"
+          },
+          "path": "<isolated-root>/prefix/bin/openclaw",
+          "realPath": "<isolated-root>/prefix/lib/node_modules/openclaw/openclaw.mjs",
+          "source": "unknown",
+          "isPathDefault": true,
+          "version": "2026.11.1",
+          "runtimeStatus": {
+            "status": "runnable"
+          }
+        },
+        {
+          "id": "NDpob3N0Ojg6b3BlbmNsYXc6MTAzOi9wcml2YXRlL3Zhci9mb2xkZXJzL3JnL3pyMTlsYl9zNXczMnE2ZDJxa2Q2cDBuODAwMDBncC9UL3NoaWp1LXRhc2s1Mi1mc3JyNmNnaS9ob21lLy5sb2NhbC9iaW4vb3BlbmNsYXc",
+          "appId": "openclaw",
+          "targetHostId": "host",
+          "environment": {
+            "kind": "macos"
+          },
+          "path": "<isolated-root>/home/.local/bin/openclaw",
+          "realPath": "<isolated-root>/home/.local/lib/node_modules/openclaw/openclaw.mjs",
+          "source": "unknown",
+          "isPathDefault": false,
+          "version": "2026.10.10",
+          "runtimeStatus": {
+            "status": "runnable"
+          }
+        }
+      ]
+    }
+  },
+  {
+    "method": "POST",
+    "path": "actions/preview",
+    "body": {
+      "appId": "openclaw",
+      "action": "uninstall",
+      "target": {
+        "kind": "installation",
+        "installationId": "NDpob3N0Ojg6b3BlbmNsYXc6OTg6L3ByaXZhdGUvdmFyL2ZvbGRlcnMvcmcvenIxOWxiX3M1dzMycTZkMnFrZDZwMG44MDAwMGdwL1Qvc2hpanUtdGFzazUyLWZzcnI2Y2dpL3ByZWZpeC9iaW4vb3BlbmNsYXc"
+      }
+    },
+    "status": 200,
+    "response": {
+      "previewId": "25bb3fb7-c7eb-44de-8846-c0d4ea132ae3",
+      "request": {
+        "appId": "openclaw",
+        "action": "uninstall",
+        "target": {
+          "kind": "installation",
+          "installationId": "NDpob3N0Ojg6b3BlbmNsYXc6OTg6L3ByaXZhdGUvdmFyL2ZvbGRlcnMvcmcvenIxOWxiX3M1dzMycTZkMnFrZDZwMG44MDAwMGdwL1Qvc2hpanUtdGFzazUyLWZzcnI2Y2dpL3ByZWZpeC9iaW4vb3BlbmNsYXc"
+        }
+      },
+      "source": "system",
+      "confirmationRequired": true,
+      "summary": "Review the selected application action in the administrator-approved prefix",
+      "displayCommand": null
+    }
+  },
+  {
+    "method": "POST",
+    "path": "actions",
+    "body": {
+      "previewId": "25bb3fb7-c7eb-44de-8846-c0d4ea132ae3",
+      "confirmed": true
+    },
+    "status": 202,
+    "response": {
+      "operationId": "b37b974d-6738-4d46-9935-cf598a5dc66a",
+      "status": "queued"
+    }
+  },
+  {
+    "method": "GET",
+    "path": "operations/b37b974d-6738-4d46-9935-cf598a5dc66a",
+    "body": null,
+    "status": 200,
+    "response": {
+      "operationId": "b37b974d-6738-4d46-9935-cf598a5dc66a",
+      "status": "running",
+      "phase": "executing"
+    }
+  },
+  {
+    "method": "GET",
+    "path": "operations/b37b974d-6738-4d46-9935-cf598a5dc66a",
+    "body": null,
+    "status": 200,
+    "response": {
+      "operationId": "b37b974d-6738-4d46-9935-cf598a5dc66a",
+      "status": "completed",
+      "phase": "terminal"
+    }
+  },
+  {
+    "method": "GET",
+    "path": "operations/b37b974d-6738-4d46-9935-cf598a5dc66a/events",
+    "body": null,
+    "status": 200,
+    "response": {
+      "operationId": "b37b974d-6738-4d46-9935-cf598a5dc66a",
+      "status": "completed",
+      "phase": "terminal"
+    }
+  },
+  {
+    "method": "POST",
+    "path": "actions/preview",
+    "body": {
+      "appId": "openclaw",
+      "action": "uninstall",
+      "target": {
+        "kind": "installation",
+        "installationId": "NDpob3N0Ojg6b3BlbmNsYXc6OTg6L3ByaXZhdGUvdmFyL2ZvbGRlcnMvcmcvenIxOWxiX3M1dzMycTZkMnFrZDZwMG44MDAwMGdwL1Qvc2hpanUtdGFzazUyLWZzcnI2Y2dpL3ByZWZpeC9iaW4vb3BlbmNsYXc"
+      }
+    },
+    "status": 422,
+    "response": ""
+  },
+  {
+    "method": "GET",
+    "path": "installations?appId=openclaw",
+    "body": null,
+    "status": 200,
+    "response": {
+      "installations": [
+        {
+          "id": "NDpob3N0Ojg6b3BlbmNsYXc6MTAzOi9wcml2YXRlL3Zhci9mb2xkZXJzL3JnL3pyMTlsYl9zNXczMnE2ZDJxa2Q2cDBuODAwMDBncC9UL3NoaWp1LXRhc2s1Mi1mc3JyNmNnaS9ob21lLy5sb2NhbC9iaW4vb3BlbmNsYXc",
+          "appId": "openclaw",
+          "targetHostId": "host",
+          "environment": {
+            "kind": "macos"
+          },
+          "path": "<isolated-root>/home/.local/bin/openclaw",
+          "realPath": "<isolated-root>/home/.local/lib/node_modules/openclaw/openclaw.mjs",
+          "source": "unknown",
+          "isPathDefault": true,
+          "version": "2026.10.10",
+          "runtimeStatus": {
+            "status": "runnable"
+          }
+        }
+      ]
+    }
+  },
+  {
+    "method": "POST",
+    "path": "actions/preview",
+    "body": {
+      "appId": "openclaw",
+      "action": "install",
+      "target": {
+        "kind": "environment",
+        "environment": {
+          "kind": "macos"
+        }
+      }
+    },
+    "status": 200,
+    "response": {
+      "previewId": "1279baa4-b149-4916-ad5f-0d4abe570d4f",
+      "request": {
+        "appId": "openclaw",
+        "action": "install",
+        "target": {
+          "kind": "environment",
+          "environment": {
+            "kind": "macos"
+          }
+        }
+      },
+      "source": "system",
+      "confirmationRequired": true,
+      "summary": "Review the selected application action in the administrator-approved prefix",
+      "displayCommand": null
+    }
+  },
+  {
+    "method": "POST",
+    "path": "actions",
+    "body": {
+      "previewId": "1279baa4-b149-4916-ad5f-0d4abe570d4f",
+      "confirmed": true
+    },
+    "status": 202,
+    "response": {
+      "operationId": "81734cfb-a955-4642-874e-c262c5047da7",
+      "status": "queued"
+    }
+  },
+  {
+    "method": "GET",
+    "path": "operations/81734cfb-a955-4642-874e-c262c5047da7",
+    "body": null,
+    "status": 200,
+    "response": {
+      "operationId": "81734cfb-a955-4642-874e-c262c5047da7",
+      "status": "running",
+      "phase": "executing"
+    }
+  },
+  {
+    "method": "GET",
+    "path": "operations/81734cfb-a955-4642-874e-c262c5047da7",
+    "body": null,
+    "status": 200,
+    "response": {
+      "operationId": "81734cfb-a955-4642-874e-c262c5047da7",
+      "status": "running",
+      "phase": "executing"
+    }
+  },
+  {
+    "method": "GET",
+    "path": "operations/81734cfb-a955-4642-874e-c262c5047da7",
+    "body": null,
+    "status": 200,
+    "response": {
+      "operationId": "81734cfb-a955-4642-874e-c262c5047da7",
+      "status": "running",
+      "phase": "executing"
+    }
+  },
+  {
+    "method": "GET",
+    "path": "operations/81734cfb-a955-4642-874e-c262c5047da7",
+    "body": null,
+    "status": 200,
+    "response": {
+      "operationId": "81734cfb-a955-4642-874e-c262c5047da7",
+      "status": "running",
+      "phase": "executing"
+    }
+  },
+  {
+    "method": "GET",
+    "path": "operations/81734cfb-a955-4642-874e-c262c5047da7",
+    "body": null,
+    "status": 200,
+    "response": {
+      "operationId": "81734cfb-a955-4642-874e-c262c5047da7",
+      "status": "running",
+      "phase": "executing"
+    }
+  },
+  {
+    "method": "GET",
+    "path": "operations/81734cfb-a955-4642-874e-c262c5047da7",
+    "body": null,
+    "status": 200,
+    "response": {
+      "operationId": "81734cfb-a955-4642-874e-c262c5047da7",
+      "status": "running",
+      "phase": "executing"
+    }
+  },
+  {
+    "method": "GET",
+    "path": "operations/81734cfb-a955-4642-874e-c262c5047da7",
+    "body": null,
+    "status": 200,
+    "response": {
+      "operationId": "81734cfb-a955-4642-874e-c262c5047da7",
+      "status": "running",
+      "phase": "executing"
+    }
+  },
+  {
+    "method": "GET",
+    "path": "operations/81734cfb-a955-4642-874e-c262c5047da7",
+    "body": null,
+    "status": 200,
+    "response": {
+      "operationId": "81734cfb-a955-4642-874e-c262c5047da7",
+      "status": "running",
+      "phase": "executing"
+    }
+  },
+  {
+    "method": "GET",
+    "path": "operations/81734cfb-a955-4642-874e-c262c5047da7",
+    "body": null,
+    "status": 200,
+    "response": {
+      "operationId": "81734cfb-a955-4642-874e-c262c5047da7",
+      "status": "running",
+      "phase": "executing"
+    }
+  },
+  {
+    "method": "GET",
+    "path": "operations/81734cfb-a955-4642-874e-c262c5047da7",
+    "body": null,
+    "status": 200,
+    "response": {
+      "operationId": "81734cfb-a955-4642-874e-c262c5047da7",
+      "status": "completed",
+      "phase": "terminal"
+    }
+  },
+  {
+    "method": "GET",
+    "path": "operations/81734cfb-a955-4642-874e-c262c5047da7/events",
+    "body": null,
+    "status": 200,
+    "response": {
+      "operationId": "81734cfb-a955-4642-874e-c262c5047da7",
+      "status": "completed",
+      "phase": "terminal"
+    }
+  },
+  {
+    "method": "GET",
+    "path": "installations?appId=openclaw",
+    "body": null,
+    "status": 200,
+    "response": {
+      "installations": [
+        {
+          "id": "NDpob3N0Ojg6b3BlbmNsYXc6OTg6L3ByaXZhdGUvdmFyL2ZvbGRlcnMvcmcvenIxOWxiX3M1dzMycTZkMnFrZDZwMG44MDAwMGdwL1Qvc2hpanUtdGFzazUyLWZzcnI2Y2dpL3ByZWZpeC9iaW4vb3BlbmNsYXc",
+          "appId": "openclaw",
+          "targetHostId": "host",
+          "environment": {
+            "kind": "macos"
+          },
+          "path": "<isolated-root>/prefix/bin/openclaw",
+          "realPath": "<isolated-root>/prefix/lib/node_modules/openclaw/openclaw.mjs",
+          "source": "unknown",
+          "isPathDefault": true,
+          "version": "2026.11.1",
+          "runtimeStatus": {
+            "status": "runnable"
+          }
+        }
+      ]
+    }
+  },
+  {
+    "method": "GET",
+    "path": "operations/ec33324d-b7fb-48fb-97b7-40691d7a2eca",
+    "body": null,
+    "status": 200,
+    "response": {
+      "operationId": "ec33324d-b7fb-48fb-97b7-40691d7a2eca",
+      "status": "completed",
+      "phase": "terminal"
+    }
+  },
+  {
+    "method": "GET",
+    "path": "installations?appId=openclaw",
+    "body": null,
+    "status": 200,
+    "response": {
+      "installations": [
+        {
+          "id": "NDpob3N0Ojg6b3BlbmNsYXc6OTg6L3ByaXZhdGUvdmFyL2ZvbGRlcnMvcmcvenIxOWxiX3M1dzMycTZkMnFrZDZwMG44MDAwMGdwL1Qvc2hpanUtdGFzazUyLWZzcnI2Y2dpL3ByZWZpeC9iaW4vb3BlbmNsYXc",
+          "appId": "openclaw",
+          "targetHostId": "host",
+          "environment": {
+            "kind": "macos"
+          },
+          "path": "<isolated-root>/prefix/bin/openclaw",
+          "realPath": "<isolated-root>/prefix/lib/node_modules/openclaw/openclaw.mjs",
+          "source": "unknown",
+          "isPathDefault": true,
+          "version": "2026.11.1",
+          "runtimeStatus": {
+            "status": "runnable"
+          }
+        }
+      ]
+    }
+  },
+  {
+    "method": "POST",
+    "path": "actions/preview",
+    "body": {
+      "appId": "openclaw",
+      "action": "uninstall",
+      "target": {
+        "kind": "installation",
+        "installationId": "NDpob3N0Ojg6b3BlbmNsYXc6OTg6L3ByaXZhdGUvdmFyL2ZvbGRlcnMvcmcvenIxOWxiX3M1dzMycTZkMnFrZDZwMG44MDAwMGdwL1Qvc2hpanUtdGFzazUyLWZzcnI2Y2dpL3ByZWZpeC9iaW4vb3BlbmNsYXc"
+      }
+    },
+    "status": 200,
+    "response": {
+      "previewId": "a26a16fb-a96e-4069-898d-a9ceba155fbb",
+      "request": {
+        "appId": "openclaw",
+        "action": "uninstall",
+        "target": {
+          "kind": "installation",
+          "installationId": "NDpob3N0Ojg6b3BlbmNsYXc6OTg6L3ByaXZhdGUvdmFyL2ZvbGRlcnMvcmcvenIxOWxiX3M1dzMycTZkMnFrZDZwMG44MDAwMGdwL1Qvc2hpanUtdGFzazUyLWZzcnI2Y2dpL3ByZWZpeC9iaW4vb3BlbmNsYXc"
+        }
+      },
+      "source": "system",
+      "confirmationRequired": true,
+      "summary": "Review the selected application action in the administrator-approved prefix",
+      "displayCommand": null
+    }
+  },
+  {
+    "method": "POST",
+    "path": "actions",
+    "body": {
+      "previewId": "a26a16fb-a96e-4069-898d-a9ceba155fbb",
+      "confirmed": true
+    },
+    "status": 202,
+    "response": {
+      "operationId": "2961baeb-6bbe-406f-8684-3c5140041c45",
+      "status": "queued"
+    }
+  },
+  {
+    "method": "GET",
+    "path": "operations/2961baeb-6bbe-406f-8684-3c5140041c45",
+    "body": null,
+    "status": 200,
+    "response": {
+      "operationId": "2961baeb-6bbe-406f-8684-3c5140041c45",
+      "status": "running",
+      "phase": "executing"
+    }
+  },
+  {
+    "method": "GET",
+    "path": "operations/2961baeb-6bbe-406f-8684-3c5140041c45",
+    "body": null,
+    "status": 200,
+    "response": {
+      "operationId": "2961baeb-6bbe-406f-8684-3c5140041c45",
+      "status": "running",
+      "phase": "executing"
+    }
+  },
+  {
+    "method": "GET",
+    "path": "operations/2961baeb-6bbe-406f-8684-3c5140041c45",
+    "body": null,
+    "status": 200,
+    "response": {
+      "operationId": "2961baeb-6bbe-406f-8684-3c5140041c45",
+      "status": "completed",
+      "phase": "terminal"
+    }
+  },
+  {
+    "method": "GET",
+    "path": "operations/2961baeb-6bbe-406f-8684-3c5140041c45/events",
+    "body": null,
+    "status": 200,
+    "response": {
+      "operationId": "2961baeb-6bbe-406f-8684-3c5140041c45",
+      "status": "completed",
+      "phase": "terminal"
+    }
+  },
+  {
+    "method": "POST",
+    "path": "actions/preview",
+    "body": {
+      "appId": "openclaw",
+      "action": "install",
+      "target": {
+        "kind": "environment",
+        "environment": {
+          "kind": "macos"
+        }
+      }
+    },
+    "status": 200,
+    "response": {
+      "previewId": "79bbcab2-54d8-4c8f-b82f-ac6356f3a6cd",
+      "request": {
+        "appId": "openclaw",
+        "action": "install",
+        "target": {
+          "kind": "environment",
+          "environment": {
+            "kind": "macos"
+          }
+        }
+      },
+      "source": "system",
+      "confirmationRequired": true,
+      "summary": "Review the selected application action in the administrator-approved prefix",
+      "displayCommand": null
+    }
+  },
+  {
+    "method": "POST",
+    "path": "actions",
+    "body": {
+      "previewId": "79bbcab2-54d8-4c8f-b82f-ac6356f3a6cd",
+      "confirmed": true
+    },
+    "status": 202,
+    "response": {
+      "operationId": "850c55f2-185d-4955-abe3-dea52f2397d4",
+      "status": "queued"
+    }
+  },
+  {
+    "method": "DELETE",
+    "path": "operations/850c55f2-185d-4955-abe3-dea52f2397d4",
+    "body": null,
+    "status": 200,
+    "response": {
+      "operationId": "850c55f2-185d-4955-abe3-dea52f2397d4",
+      "status": "cancelled",
+      "phase": "terminal"
+    }
+  },
+  {
+    "method": "GET",
+    "path": "operations/850c55f2-185d-4955-abe3-dea52f2397d4",
+    "body": null,
+    "status": 200,
+    "response": {
+      "operationId": "850c55f2-185d-4955-abe3-dea52f2397d4",
+      "status": "cancelled",
+      "phase": "terminal"
+    }
+  },
+  {
+    "method": "GET",
+    "path": "operations/850c55f2-185d-4955-abe3-dea52f2397d4/events",
+    "body": null,
+    "status": 200,
+    "response": {
+      "operationId": "850c55f2-185d-4955-abe3-dea52f2397d4",
+      "status": "cancelled",
+      "phase": "terminal"
+    }
+  },
+  {
+    "method": "GET",
+    "path": "installations?appId=openclaw",
+    "body": null,
+    "status": 200,
+    "response": {
+      "installations": []
+    }
+  },
+  {
+    "method": "POST",
+    "path": "actions/preview",
+    "body": {
+      "appId": "openclaw",
+      "action": "install",
+      "target": {
+        "kind": "environment",
+        "environment": {
+          "kind": "macos"
+        }
+      }
+    },
+    "status": 200,
+    "response": {
+      "previewId": "75abb2e4-4f3e-439c-baeb-df1efcc07084",
+      "request": {
+        "appId": "openclaw",
+        "action": "install",
+        "target": {
+          "kind": "environment",
+          "environment": {
+            "kind": "macos"
+          }
+        }
+      },
+      "source": "system",
+      "confirmationRequired": true,
+      "summary": "Review the selected application action in the administrator-approved prefix",
+      "displayCommand": null
+    }
+  },
+  {
+    "method": "POST",
+    "path": "actions",
+    "body": {
+      "previewId": "75abb2e4-4f3e-439c-baeb-df1efcc07084",
+      "confirmed": true
+    },
+    "status": 202,
+    "response": {
+      "operationId": "7d18f250-0cb9-4724-b797-725ded73729b",
+      "status": "queued"
+    }
+  },
+  {
+    "method": "GET",
+    "path": "operations/7d18f250-0cb9-4724-b797-725ded73729b",
+    "body": null,
+    "status": 200,
+    "response": {
+      "operationId": "7d18f250-0cb9-4724-b797-725ded73729b",
+      "status": "running",
+      "phase": "executing"
+    }
+  },
+  {
+    "method": "DELETE",
+    "path": "operations/7d18f250-0cb9-4724-b797-725ded73729b",
+    "body": null,
+    "status": 200,
+    "response": {
+      "operationId": "7d18f250-0cb9-4724-b797-725ded73729b",
+      "status": "cancelled",
+      "phase": "terminal"
+    }
+  },
+  {
+    "method": "GET",
+    "path": "operations/7d18f250-0cb9-4724-b797-725ded73729b",
+    "body": null,
+    "status": 200,
+    "response": {
+      "operationId": "7d18f250-0cb9-4724-b797-725ded73729b",
+      "status": "cancelled",
+      "phase": "terminal"
+    }
+  },
+  {
+    "method": "GET",
+    "path": "operations/7d18f250-0cb9-4724-b797-725ded73729b/events",
+    "body": null,
+    "status": 200,
+    "response": {
+      "operationId": "7d18f250-0cb9-4724-b797-725ded73729b",
+      "status": "cancelled",
+      "phase": "terminal"
+    }
+  },
+  {
+    "method": "GET",
+    "path": "installations?appId=openclaw",
+    "body": null,
+    "status": 200,
+    "response": {
+      "installations": []
+    }
+  },
+  {
+    "method": "GET",
+    "path": "installations?appId=openclaw",
+    "body": null,
+    "status": 200,
+    "response": {
+      "installations": []
+    }
+  },
+  {
+    "method": "GET",
+    "path": "diagnostics?appId=openclaw",
+    "body": null,
+    "status": 200,
+    "response": {
+      "installations": [
+        {
+          "id": "NDpob3N0Ojg6b3BlbmNsYXc6OTg6L3ByaXZhdGUvdmFyL2ZvbGRlcnMvcmcvenIxOWxiX3M1dzMycTZkMnFrZDZwMG44MDAwMGdwL1Qvc2hpanUtdGFzazUyLWZzcnI2Y2dpL3ByZWZpeC9iaW4vb3BlbmNsYXc",
+          "appId": "openclaw",
+          "targetHostId": "host",
+          "environment": {
+            "kind": "macos"
+          },
+          "path": "<isolated-root>/prefix/bin/openclaw",
+          "realPath": null,
+          "source": "unknown",
+          "isPathDefault": true,
+          "version": null,
+          "runtimeStatus": {
+            "status": "probe_failed",
+            "reason": "damaged_installation"
+          }
+        }
+      ]
+    }
+  },
+  {
+    "method": "POST",
+    "path": "actions/preview",
+    "body": {
+      "appId": "openclaw",
+      "action": "uninstall",
+      "target": {
+        "kind": "installation",
+        "installationId": "NDpob3N0Ojg6b3BlbmNsYXc6OTg6L3ByaXZhdGUvdmFyL2ZvbGRlcnMvcmcvenIxOWxiX3M1dzMycTZkMnFrZDZwMG44MDAwMGdwL1Qvc2hpanUtdGFzazUyLWZzcnI2Y2dpL3ByZWZpeC9iaW4vb3BlbmNsYXc"
+      }
+    },
+    "status": 422,
+    "response": ""
+  },
+  {
+    "method": "GET",
+    "path": "installations?appId=openclaw",
+    "body": null,
+    "status": 200,
+    "response": {
+      "installations": []
+    }
+  }
+]

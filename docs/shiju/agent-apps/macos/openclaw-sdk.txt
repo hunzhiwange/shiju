@@ -1,0 +1,18 @@
+BEFORE UPGRADE FINISHED exit=0
+CAT Some(AppCatalogEntry { id: OpenClaw, name: "OpenClaw", cli_command: Some("openclaw"), runtime_kinds: [NativeCli] })
+INSTALLATIONS AppReadResponse { installations: [AppInstallation { id: AppInstallationId("NDpob3N0Ojg6b3BlbmNsYXc6OTg6L3ByaXZhdGUvdmFyL2ZvbGRlcnMvcmcvenIxOWxiX3M1dzMycTZkMnFrZDZwMG44MDAwMGdwL1Qvc2hpanUtdGFzazUyLWZzcnI2Y2dpL3ByZWZpeC9iaW4vb3BlbmNsYXc"), app_id: OpenClaw, target_host_id: "host", environment: Macos, path: "<isolated-root>/prefix/bin/openclaw", real_path: Some("<isolated-root>/prefix/lib/node_modules/openclaw/openclaw.mjs"), source: Unknown, is_path_default: true, version: Some("2026.10.10"), runtime_status: Runnable }], desktop: None }
+UPGRADE COMPLETED exit=0
+CAT Some(AppCatalogEntry { id: OpenClaw, name: "OpenClaw", cli_command: Some("openclaw"), runtime_kinds: [NativeCli] })
+INSTALLATIONS AppReadResponse { installations: [AppInstallation { id: AppInstallationId("NDpob3N0Ojg6b3BlbmNsYXc6OTg6L3ByaXZhdGUvdmFyL2ZvbGRlcnMvcmcvenIxOWxiX3M1dzMycTZkMnFrZDZwMG44MDAwMGdwL1Qvc2hpanUtdGFzazUyLWZzcnI2Y2dpL3ByZWZpeC9iaW4vb3BlbmNsYXc"), app_id: OpenClaw, target_host_id: "host", environment: Macos, path: "<isolated-root>/prefix/bin/openclaw", real_path: Some("<isolated-root>/prefix/lib/node_modules/openclaw/openclaw.mjs"), source: Unknown, is_path_default: true, version: Some("2026.11.1"), runtime_status: Runnable }], desktop: None }
+REMAINING exit=0
+CAT Some(AppCatalogEntry { id: OpenClaw, name: "OpenClaw", cli_command: Some("openclaw"), runtime_kinds: [NativeCli] })
+INSTALLATIONS AppReadResponse { installations: [AppInstallation { id: AppInstallationId("NDpob3N0Ojg6b3BlbmNsYXc6MTAzOi9wcml2YXRlL3Zhci9mb2xkZXJzL3JnL3pyMTlsYl9zNXczMnE2ZDJxa2Q2cDBuODAwMDBncC9UL3NoaWp1LXRhc2s1Mi1mc3JyNmNnaS9ob21lLy5sb2NhbC9iaW4vb3BlbmNsYXc"), app_id: OpenClaw, target_host_id: "host", environment: Macos, path: "<isolated-root>/home/.local/bin/openclaw", real_path: Some("<isolated-root>/home/.local/lib/node_modules/openclaw/openclaw.mjs"), source: Unknown, is_path_default: true, version: Some("2026.10.10"), runtime_status: Runnable }], desktop: None }
+EMPTY exit=0
+CAT Some(AppCatalogEntry { id: OpenClaw, name: "OpenClaw", cli_command: Some("openclaw"), runtime_kinds: [NativeCli] })
+INSTALLATIONS AppReadResponse { installations: [], desktop: None }
+API INSTALL exit=0
+CAT Some(AppCatalogEntry { id: OpenClaw, name: "OpenClaw", cli_command: Some("openclaw"), runtime_kinds: [NativeCli] })
+INSTALLATIONS AppReadResponse { installations: [AppInstallation { id: AppInstallationId("NDpob3N0Ojg6b3BlbmNsYXc6OTg6L3ByaXZhdGUvdmFyL2ZvbGRlcnMvcmcvenIxOWxiX3M1dzMycTZkMnFrZDZwMG44MDAwMGdwL1Qvc2hpanUtdGFzazUyLWZzcnI2Y2dpL3ByZWZpeC9iaW4vb3BlbmNsYXc"), app_id: OpenClaw, target_host_id: "host", environment: Macos, path: "<isolated-root>/prefix/bin/openclaw", real_path: Some("<isolated-root>/prefix/lib/node_modules/openclaw/openclaw.mjs"), source: Unknown, is_path_default: true, version: Some("2026.11.1"), runtime_status: Runnable }], desktop: None }
+FINAL EMPTY exit=0
+CAT Some(AppCatalogEntry { id: OpenClaw, name: "OpenClaw", cli_command: Some("openclaw"), runtime_kinds: [NativeCli] })
+INSTALLATIONS AppReadResponse { installations: [], desktop: None }

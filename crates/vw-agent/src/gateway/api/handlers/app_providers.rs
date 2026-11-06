@@ -17,6 +17,7 @@ pub(crate) fn router() -> Router {
         .merge(presentation::router())
         .merge(endpoints::router())
         .merge(icons::router())
+        .merge(universal::router())
         .route(
             "/app-providers/{app}/{id}",
             get(read)
@@ -137,3 +138,8 @@ mod icons;
 #[cfg(test)]
 #[path = "app_providers/icons_tests.rs"]
 mod icons_tests;
+
+mod universal;
+#[cfg(test)]
+#[path = "app_providers/universal_tests.rs"]
+mod universal_tests;

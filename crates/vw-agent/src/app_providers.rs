@@ -382,3 +382,5 @@ impl AppProviderStore {
 #[cfg(test)]
 #[path = "app_providers_tests.rs"]
 mod tests;
+
+mod universal;

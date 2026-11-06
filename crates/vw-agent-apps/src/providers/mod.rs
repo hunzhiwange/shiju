@@ -93,3 +93,7 @@ mod endpoints_tests;
 pub mod icons;
 #[cfg(test)]
 mod icons_tests;
+
+pub mod universal;
+#[cfg(test)]
+mod universal_tests;

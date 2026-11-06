@@ -83,3 +83,9 @@ mod icons;
 #[cfg(test)]
 #[path = "app_providers/icons_tests.rs"]
 mod icons_tests;
+
+#[path = "app_providers/universal.rs"]
+mod universal;
+#[cfg(test)]
+#[path = "app_providers/universal_tests.rs"]
+mod universal_tests;

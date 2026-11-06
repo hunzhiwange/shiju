@@ -461,3 +461,45 @@ Gateway 使用真实隔离 SQLite、正式 handler_router 和 Basic 认证中间
 `sw_vers`、`uname -m` 退出 0：macOS 27.0（26A428）、arm64。应用版本未验证：本轮未启动应用。Iced 由后续 UI 任务验收，本轮没有窗口/渲染变更；应用 live 切换、Windows/Linux、其他架构、PostgreSQL 实际服务未验收，不能从 Clippy 或 SQLite 推及这些场景。
 
 定向差异与暂存检查退出 0，最终槽位 1 锁不存在、缓存保留。只提交本任务代码、独立测试、受影响的存储夹具和本条正式证据，排除原有任务状态/删除及其他会话变更；编号任务文件完成后删除且不纳入提交。未执行全量 cargo test、fmt check、wasm 或 Makefile。
+
+## 任务 10：统一供应商记录维护
+
+2026-11-06；状态：已完成。
+
+### 依赖、来源与实现
+
+批次 9 提交 `609f2770a` 及本文件任务 1–9 证据已核对；母任务 1、3 为已完成。母任务 2 完整领域迁移仍未收口，沿用任务 1 与 provider-contracts.md 记录的底座子计划 1–93 开工裁定，不将母任务 2 写成已完成。只读 plan.md 未修改。
+
+来源 `/Users/xiangmin/worker/code/cc-switch` HEAD `ca58c0313360eae7c851fbd7553c1614c7af03e7`，rev-parse/status 退出 0，来源干净。读取 database/dao/universal_providers.rs 的 get_all/get/save/delete、services/provider/mod.rs 的 list_universal/get_universal/upsert_universal/delete_universal，provider.rs 的 UniversalProvider/Apps/Models 和转换实现、相邻统一供应商图标校验测试；直接调用者 commands/provider.rs 的四个 CRUD command、UNIVERSAL_LOCK/universal_mutation、前端 universalProvidersApi 和 UniversalProviderFormModal 保存逻辑均已核对。
+
+- `vw-agent-apps/src/providers/universal.rs::{save,summary}` 是记录校验与安全读取的业务实现。保存 Claude 主/Haiku/Sonnet/Opus 模型、Codex 模型/推理强度、Gemini 模型、应用启用标记和展示字段；不从内建预设自动补知识。config 是完整编辑配置，缺失的可选字段清空；内部未知根字段/meta 保留，不接受公共任意 JSON/meta 写入，不回传旧元数据中的秘密。
+- DTO `vw-api-types/src/app_providers/universal.rs` 将 UniversalConfig、各应用模型与 UniversalProviderWrite/Summary 分开。apiKey 复用显式 Keep/Replace/Clear：新建只接受 Replace；已有记录 Keep 保留、Replace 校验并替换，凭据必填所以 Clear 明确拒绝；拒绝脱敏占位值。读响应只有 ID、强类型 config 与 configured，不包含 apiKey 或任意旧 meta；写请求 Debug 对凭据脱敏。非法身份、字段长度/控制字符、不安全端点、带凭据的 URL、路径/外链/SVG/损坏 PNG 图标均拒绝；内联 PNG 沿用完整解码边界，内建图标只接受惰性标识符。
+- `vw-agent/src/app_providers/universal.rs` 是 AppProviderStore 的直接子模块，复用同一 GatewaySettingsStore/GlobalDatabase，在租户作用域 `app_providers.universal` 中每个 ID 一条记录；没有第二份数据库、旧 settings 整映射双写或迁移。新建用 insert_if_absent，更新用 compare_exchange，过期写入返回 409；列表按 ID，损坏记录返回 503。删除仅移除此保存的统一记录，返回实际是否存在；不会级联删除应用档案或修改当前/路由/live 配置。来源中生成子档案的同步/清理与应用投影本轮不迁入，任务 11 接应用投影。
+- API `GET /v1/universal-providers`、`GET/PUT/DELETE /v1/universal-providers/{id}` 接现有 app-providers 分域 router，handler_router/bootstrap 沿用共享注册。沿用网关认证和 TenantScope 目录维护权限，PUT 限制 128 KiB 以容纳有界 PNG；无任意文件/命令入口，不授予主机 live-config 写权限。公司头只提供作用域，不证明公司成员身份。非法 400、缺失读取 404、竞争写入 409、损坏/不可用 503，错误不回显路径、载荷或底层错误链。
+- SDK `universal_provider_save/get/delete`、`universal_providers_list` 发送强类型请求并使用既有租户/认证上下文；错误仅保留状态与固定文案，忽略服务端敏感正文和原始传输错误。业务/DTO/Gateway/SDK 独立 universal_tests.rs 已注册到直接父模块。UI 属任务 70，本轮没有 Iced 或 live 激活变更。
+
+### 红/绿、平台与审查证据
+
+红/绿阶段均用原子 mkdir 动态领取共享槽位 **1**，`CARGO_TARGET_DIR=/Users/xiangmin/worker/code/shiju/target/rust-slot-1`；`CARGO_BUILD_BUILD_DIR` 同一绝对路径覆盖仓库 build-dir。owner 记录计划、任务、会话与持有 shell PID，EXIT/INT/TERM trap 负责自身记录/锁清理；全部子进程结束后释放，缓存保留。
+
+两阶段先运行 `cargo fmt --all`，退出 0；默认 features 使用如下相同命令：
+
+| 确切命令 | 红阶段退出码 / 有效结果 | 最终绿阶段退出码 / 有效结果 |
+| --- | --- | --- |
+| `cargo test -p vw-agent-apps --lib cc04_universal_ -- --nocapture` | 101；1 passed/1 failed：保存后 Haiku 字段为 null | 0；3 passed |
+| `cargo test -p vw-api-types --lib cc04_universal_ -- --nocapture` | 0；1 passed | 0；1 passed |
+| `cargo test -p vw-agent --lib cc04_universal_ -- --nocapture` | 101；1 passed/1 failed：SDK 保存没有可读取配置，API 返回 503 | 0；2 passed |
+| `cargo test -p vw-gateway-client --lib cc04_universal_ -- --nocapture` | 0；1 passed | 0；1 passed |
+| `cargo clippy --all-targets --all-features -- -D warnings` | 不适用 | 0；全部 targets/features 通过 |
+
+红阶段是可编译但未保存配置的业务实现，失败发生在真实字段/API 返回断言，不是缺类型或零测试。绿阶段共 **7** 项有效测试，无忽略；测试二进制来自上述槽位 debug/deps。Agent 链接有既有 `__eh_frame section too large` 提示，但测试退出 0，未改变链接设置。
+
+业务临时 JSON 文件保存/重读证明 cc04_universal_roundtrip_preserves_app_fields；cc04_universal_read_hides_credentials 验证普通读取/序列化与 Debug 脱敏。第三项证明 Keep 新建、Clear、占位凭据、非法 URL/图标和损坏记录明确拒绝、输入原记录不变，并接受完整 PNG/惰性图标标识。DTO 拒绝租户、路径、current、meta、隐式字符串凭据和应用模型中夹带秘密。
+
+Gateway 使用真实隔离 SQLite、正式 handler_router 与 Basic 认证中间件，证明未认证 PUT/DELETE 为 401、非法字段 400、缺失 404、损坏读取/列表 503，拒绝后原载荷不变，所有响应无测试秘密。SDK→本地回环 HTTP→正式 PUT/GET/list/DELETE handler→SQLite→重开数据库闭环，证明增改查删、Keep/Replace/Clear、三应用模型保留、未知内部元数据保留及跨 platform/company 隔离；同 ID 应用子档案与临时 native fixture 字节不变。
+
+本地服务仅替代远端传输，没有开启 Basic（SDK 支持 Bearer），Basic 由独立正式中间件测试覆盖，不冒充真实外部部署/公司成员认证。SDK 独立 HTTP fixture 验证方法、路径、公司头、强类型请求体和 403/409 正文脱敏，仅替代远端响应。所有数据库/文件均为临时目录、凭据为 fixture，不读取或修改真实用户配置。
+
+`sw_vers`、`uname -m` 均退出 0：macOS 27.0（26A428）、arm64。应用版本未验证，本轮没有启动实际应用。Iced、应用投影/live 激活、Windows/Linux、其他架构与 PostgreSQL 实际服务未验收；PostgreSQL 复用既有后端且参与 Clippy，不能推及运行验收。
+
+定向 git diff --check、git diff --cached --check 退出 0；本任务代码/独立测试/正式证据已审查，plan.md 无差异。最终槽位 1 锁不存在、缓存保留。仅提交本任务变更，排除原有母任务状态、任务文件删除和桌面终端等其他会话变更；完成后删除任务 10 文件且不纳入提交。未执行全量 cargo test、fmt check、wasm 或 Makefile。

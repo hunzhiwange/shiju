@@ -118,6 +118,56 @@ impl AppProviderStore {
         }
         Ok(Self::summary(app, id, &profile))
     }
+    /// Mutate only the existing scoped address book, never the active base URL.
+    pub fn change_endpoint(
+        &self,
+        tenant: &TenantScope,
+        app: AppId,
+        id: &str,
+        request: &vw_api_types::app_providers::endpoints::AppProviderEndpointChange,
+    ) -> Result<Vec<vw_api_types::app_providers::endpoints::AppProviderEndpoint>, String> {
+        let key = Self::key(app, id)?;
+        let before = self
+            .settings
+            .get(tenant, NAMESPACE, &key)
+            .map_err(|_| "application provider storage unavailable")?
+            .ok_or("application provider not found")?;
+        let stored = serde_json::from_str(&before)
+            .map_err(|_| "invalid stored application provider profile")?;
+        let updated = vw_agent_apps::providers::endpoints::update(
+            &stored,
+            request,
+            std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .map_err(|_| "application provider storage unavailable")?
+                .as_millis() as u64,
+        )?;
+        let after = serde_json::to_string(&updated)
+            .map_err(|_| "invalid stored application provider profile")?;
+        if !self
+            .settings
+            .compare_exchange(tenant, NAMESPACE, &key, &before, &after)
+            .map_err(|_| "application provider storage unavailable")?
+        {
+            return Err("application provider changed during update".into());
+        }
+        vw_agent_apps::providers::endpoints::read(&updated)
+    }
+    pub fn list_endpoints(
+        &self,
+        tenant: &TenantScope,
+        app: AppId,
+        id: &str,
+    ) -> Result<Vec<vw_api_types::app_providers::endpoints::AppProviderEndpoint>, String> {
+        let value = self
+            .settings
+            .get(tenant, NAMESPACE, &Self::key(app, id)?)
+            .map_err(|_| "application provider storage unavailable")?
+            .ok_or("application provider not found")?;
+        let stored = serde_json::from_str(&value)
+            .map_err(|_| "invalid stored application provider profile")?;
+        vw_agent_apps::providers::endpoints::read(&stored)
+    }
     /// Replace presentation fields on the existing row using the same scoped conditional write.
     pub fn set_presentation(
         &self,

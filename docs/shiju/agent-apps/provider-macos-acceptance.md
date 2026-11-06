@@ -367,3 +367,46 @@ SDK→回环 HTTP→正式 handler→SQLite→强类型响应/GET→重开数据
 `sw_vers`、`uname -m` 均退出 0：macOS 27.0（26A428）、arm64。应用版本未验证：本任务只读写隔离目录档案，没有启动实际应用。Iced、live 切换/应用运行、Windows/Linux、其他架构、PostgreSQL 实际服务未验收；PostgreSQL 复用已有条件写入适配并参与 Clippy，不宣称运行验收。
 
 定向 `git diff --check`、`git diff --cached --check` 退出 0，本任务实现/测试/正式证据已审查；plan.md 无差异。仅提交本任务变更，不纳入原有母任务状态和任务 1–6 删除。完成后的任务 7 文件删除不纳入提交。未运行全量 cargo test、fmt check、wasm 检查或 Makefile。
+
+## 任务 8：自定义端点维护
+
+2026-11-06；状态：已完成。
+
+### 依赖、来源与实现
+
+核对批次 7 提交 `fc70aa789` 与本文件任务 1–7 的验收证据。母任务 1、3 当前状态已完成；母任务 2 完整领域迁移仍未收口，沿用任务 1 和 provider-contracts.md 记录的底座子计划 1–93 开工裁定，不伪称母任务 2 已完成。只读 plan.md 未修改。
+
+来源 `/Users/xiangmin/worker/code/cc-switch` HEAD `ca58c0313360eae7c851fbd7553c1614c7af03e7`，rev-parse/status 均退出 0，来源工作区干净。读取 `services/provider/endpoints.rs::{get_custom_endpoints,add_custom_endpoint,remove_custom_endpoint,update_endpoint_last_used}`、commands/provider.rs 的四个直接调用者和 database/dao/providers.rs 的增删实现；前端读取 `useBaseUrlState`、ProviderForm 引用、FullUrlToggle 及相邻 `ProviderFormSettingsConfigSnapshot.test.tsx`，核对当前快照不能覆盖其他配置与完整请求 URL 不追加路径的语义。来源中的测速、代理请求和旧 CC 数据库未迁入。
+
+- `vw-agent-apps/src/providers/endpoints.rs::{read,update}` 为唯一地址簿业务实现。端点保存在既有供应商记录的 `customEndpoints`，不新增数据库或永久业务所有者。保留 apiKey/baseUrl/model、未知字段、绑定和运行状态。列表按 addedAt 降序、同时间按 URL 排序；身份由 URL 与 kind 共同组成。重复新增、删除不存在项幂等；新增不隐式标记使用，markUsed 对不存在项明确失败。addedAt/lastUsed 为执行端毫秒时间；lastUsed 不因时钟回退而倒退。显式使用记录不证明请求成功或应用当前正在使用该地址。
+- DTO `vw-api-types/src/app_providers/endpoints.rs` 显式要求 `kind: baseUrl|fullUrl`。baseUrl 去外层空白及末尾斜杠，可含版本路径；fullUrl 要求非空请求路径，只去外层空白，完整保留路径与末尾斜杠。不猜测/拼接路径，不修改供应商的当前 baseUrl 或 isFullUrl，不声称已经接入直连/代理适配。两类均要求 HTTPS，或 localhost/127.0.0.1/[::1] 的 HTTP；拒绝相对地址、非 HTTP(S)、用户凭据、查询参数、片段、内部空白/控制字符和反斜杠。单 URL 最长 2048 字节，最多 64 项；损坏/重复存储明确失败，不能作为空列表返回。
+- `AppProviderStore::{change_endpoint,list_endpoints}` 复用既有 `app_providers.records`、TenantScope/AppId/ID 键以及 compare_exchange 条件更新，不创建缺失供应商，不覆盖并发更新的配置。SQLite/PostgreSQL 使用既有 settings 后端，无迁移或任意文件 API。
+- API `GET/POST /v1/app-providers/{app}/{id}/endpoints`；POST 接受 `action: add|remove|markUsed` 与 url/kind，拒绝客户端时间戳、秘密、路径、租户、current 等字段。沿用正式分域 router（handler_router/bootstrap 共享）、网关认证、TenantScope 和 16 KiB 限制。供应商缺失 404、并发冲突 409、非法输入/不存在端点的 markUsed 400、损坏存储/不可用 503。只读写目录地址簿，权限与已有目录维护相同，不授予主机配置写入权限。公司头仍仅表示存储作用域，不证明公司成员身份。
+- SDK `app_provider_endpoint_change/app_provider_endpoints` 使用既有认证与租户上下文、强类型请求/响应；错误保留 HTTP 状态，不回显服务端正文、敏感载荷或传输原始错误。四层直接父模块接线完成，未另开通用命令入口。
+- UI 归任务 68，本轮未新增或验收 Iced；测速归母任务 9。没有调用 native writer、激活供应商、修改 live 文件、创建托管指针或变更路由/队列。
+
+### 红/绿、平台与审查证据
+
+红/绿阶段均通过原子 mkdir 动态领取共享槽位 **1**，`CARGO_TARGET_DIR=/Users/xiangmin/worker/code/shiju/target/rust-slot-1`，`CARGO_BUILD_BUILD_DIR` 同一绝对路径以覆盖仓库 build-dir。owner 记录计划、任务、会话标识与 shell PID，EXIT/INT/TERM trap 清理自身记录及锁；阶段全部子进程结束后释放，保留缓存。最终槽位 1 锁不存在。
+
+各阶段先执行 `cargo fmt --all`（退出 0），使用默认 features 的以下相同过滤命令：
+
+| 确切命令 | 红阶段退出码 / 有效结果 | 绿阶段退出码 / 有效结果 |
+| --- | --- | --- |
+| `cargo test -p vw-agent-apps --lib cc04_endpoints_ -- --nocapture` | 101；2 failed：新增后列表仍空、非法 URL 被接受 | 0；3 passed |
+| `cargo test -p vw-api-types --lib cc04_endpoints_ -- --nocapture` | 0；1 passed | 0；1 passed |
+| `cargo test -p vw-agent --lib cc04_endpoints_ -- --nocapture` | 101；2 failed：非法 URL 返回 200 而非 400、SDK 新增后列表仍空 | 0；2 passed |
+| `cargo test -p vw-gateway-client --lib cc04_endpoints_ -- --nocapture` | 0；1 passed | 0；1 passed |
+| `cargo clippy --all-targets --all-features -- -D warnings` | 不适用 | 0；全部 targets/features 通过 |
+
+红阶段测试先接线编译，以尚未修改记录的实现证明业务断言失败，不以缺少模块/类型或零测试代替红证据。最终 **7** 项有效测试，无忽略。Agent 链接出现既有 `__eh_frame section too large` 提示但测试退出 0，未改链接设置隐藏提示。
+
+业务独立测试在临时目录写入/重读 JSON，验证 `cc04_endpoints_add_remove_and_last_used` 的增删、去重、排序、时间戳及完整路径末尾斜杠保留；`cc04_endpoints_invalid_url_does_not_mutate` 验证非法 URL 拒绝且输入不变；第三项验证容量、损坏存储、不存在项使用和时钟回退。DTO 独立测试证明类型往返及拒绝客户端时间戳/运行字段/隐式 kind。
+
+Gateway 使用真实隔离 SQLite、正式 handler_router 和 Basic 认证中间件，证明 401、404、400 拒绝后记录及更新时间不变。SDK→本地回环 HTTP→正式 POST/GET handler→SQLite→强类型响应→重开数据库闭环，验证 base/full 两种地址增删、显式使用时间与落盘重读；相同 ID 的跨 platform/company/application 档案不变，原记录凭据/绑定/运行字段保留，临时 native fixture 字节不变。所有文件和凭据均为 fixture，没有访问真实用户配置。
+
+本地服务只替代远端部署传输，没有启用 Basic（SDK 当前支持 Bearer）；Basic 拒绝由独立正式路由测试覆盖，不将本地 HTTP 当作真实外部部署或公司成员认证。SDK crate 的独立 HTTP fixture 验证方法、URL、租户、请求体及 403/409 正文脱敏，不冒充执行端业务。
+
+`sw_vers`、`uname -m` 均退出 0：macOS 27.0（26A428）、arm64。应用版本未验证：本任务仅为隔离目录地址簿维护，没有启动实际应用。Iced、测速、live 切换/应用运行、Windows/Linux、其他架构与 PostgreSQL 实际服务未验收；PostgreSQL 复用既有条件更新后端并参与 Clippy，不宣称运行验收。
+
+本任务代码/测试/正式证据已审查，定向 `git diff --check`、`git diff --cached --check` 退出 0；plan.md 无差异。只提交本任务变更，排除原有母任务状态及其他编号文件删除。本任务完成后删除编号任务文件且不纳入提交。未执行全量 cargo test、fmt check、wasm 检查或 Makefile。

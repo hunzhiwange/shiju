@@ -85,3 +85,7 @@ mod duplicate_tests;
 pub mod presentation;
 #[cfg(test)]
 mod presentation_tests;
+
+pub mod endpoints;
+#[cfg(test)]
+mod endpoints_tests;

@@ -71,3 +71,9 @@ mod presentation;
 #[cfg(test)]
 #[path = "app_providers/presentation_tests.rs"]
 mod presentation_tests;
+
+#[path = "app_providers/endpoints.rs"]
+mod endpoints;
+#[cfg(test)]
+#[path = "app_providers/endpoints_tests.rs"]
+mod endpoints_tests;

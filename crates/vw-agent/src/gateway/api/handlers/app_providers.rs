@@ -15,6 +15,7 @@ pub(crate) fn router() -> Router {
         .merge(delete::router())
         .merge(duplicate::router())
         .merge(presentation::router())
+        .merge(endpoints::router())
         .route(
             "/app-providers/{app}/{id}",
             get(read)
@@ -122,3 +123,9 @@ mod presentation;
 #[cfg(test)]
 #[path = "app_providers/presentation_tests.rs"]
 mod presentation_tests;
+
+#[path = "app_providers/endpoints.rs"]
+mod endpoints;
+#[cfg(test)]
+#[path = "app_providers/endpoints_tests.rs"]
+mod endpoints_tests;

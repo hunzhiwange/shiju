@@ -152,3 +152,6 @@ mod launch;
 
 mod launch_identities;
 mod launch_sessions;
+
+#[cfg(all(test, unix))]
+mod remote_tests_tests;

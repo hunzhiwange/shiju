@@ -41,7 +41,7 @@ pub(super) fn router() -> Router {
         launch_posix_terminal,
     )
 }
-fn router_with_terminal(
+pub(super) fn router_with_terminal(
     policy: Option<PathBuf>,
     terminal: fn(Option<&str>, &Path, &LaunchMaterial) -> Result<(), String>,
 ) -> Router {

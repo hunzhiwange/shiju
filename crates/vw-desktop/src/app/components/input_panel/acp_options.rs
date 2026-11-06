@@ -16,7 +16,7 @@ pub(crate) fn with_modal<'a>(app: &'a App, base: Element<'a, Message>) -> Elemen
         return base;
     };
     let close = Message::Chat(ChatMessage::AcpOptionsClose);
-    let mut fields = column![source_controls(app)].spacing(16);
+    let mut fields = column![access_status(app), source_controls(app)].spacing(16);
     if !runtime.acp_options.connected {
         fields = fields.push(text("连接会话后可读取后端支持的选项").size(13));
     } else if runtime.acp_options.options.is_empty() {
@@ -148,4 +148,42 @@ pub(super) fn source_controls(app: &App) -> Element<'_, Message> {
         .size(11),
     );
     controls.into()
+}
+
+fn access_status(app: &App) -> Element<'_, Message> {
+    use vw_gateway_client::vw_api_types::acp_session::AcpAccessSupport;
+    let runtime = app.current_session_runtime();
+    let requested = if runtime.full_access_enabled { "已开启" } else { "已关闭" };
+    let mut status = column![text(format!("完全访问授权：{requested}")).size(14)].spacing(6);
+    let observed = runtime.acp_options.access_status.as_ref();
+    if runtime.acp_rebuild_required
+        || observed.is_some_and(|s| s.requested != runtime.full_access_enabled)
+    {
+        status = status.push(text("生效能力：未验证；下次发送时同步当前授权").size(13));
+    } else if let Some(observed) = observed {
+        let label = match observed.support {
+            AcpAccessSupport::Native => "原生权限已确认",
+            AcpAccessSupport::ClientOnly => "仅客户端",
+            AcpAccessSupport::Partial => "部分支持",
+            AcpAccessSupport::Unverified => "未验证",
+            AcpAccessSupport::Unavailable => "未启用或不可用",
+            AcpAccessSupport::Failed => "同步失败或未确认",
+        };
+        status = status
+            .push(text(format!("生效能力：{label}")).size(13))
+            .push(
+                text(format!(
+                    "后端：{}；版本：{}",
+                    observed.backend,
+                    observed.version.as_deref().unwrap_or("未提供")
+                ))
+                .size(12),
+            )
+            .push(text(observed.explanation.clone()).size(12));
+    } else {
+        status = status.push(text("生效能力：未验证；连接后刷新查看，读取不会启动后端").size(13));
+    }
+    status
+        .push(text("此处仅指工具权限；用户问答、计划确认及组织策略仍可能需要确认。").size(12))
+        .into()
 }

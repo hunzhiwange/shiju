@@ -47,6 +47,13 @@ impl AcpClient {
                 ));
             }
         }
+        self.actor_state.lock().agent_version = response.agent_info.as_ref().map(|info| {
+            info.version
+                .chars()
+                .filter(|c| c.is_ascii_alphanumeric() || matches!(c, '.' | '-' | '+' | '_'))
+                .take(80)
+                .collect()
+        });
         self.actor_state.lock().codex_runtime_verified = self.agent_name == "codex"
             && cfg!(all(target_os = "macos", target_arch = "aarch64"))
             && response.agent_info.as_ref().is_some_and(|info| {

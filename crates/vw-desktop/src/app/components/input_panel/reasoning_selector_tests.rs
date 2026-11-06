@@ -289,6 +289,7 @@ fn acp_session_options_follow_capabilities_commit_only_acknowledged_values() {
         selected_model: None,
         verified_cli_release: None,
         verified_platform: None,
+        access_status: None,
         connected: true,
         options: vec![AcpSessionOption {
             kind: AcpOptionKind::Mode,

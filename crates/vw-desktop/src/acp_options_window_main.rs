@@ -80,6 +80,7 @@ fn main() {
                 selected_model: None,
                 verified_cli_release: None,
                 verified_platform: None,
+                access_status: None,
                 connected: true,
                 options: vec![
                     AcpSessionOption {

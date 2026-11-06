@@ -120,6 +120,51 @@ pub(crate) fn annotate_model_source(options: &mut AcpSessionOptions, agent: &str
     }
 }
 
+fn annotate_access(
+    options: &mut AcpSessionOptions,
+    client: &vw_acp::AcpClient,
+    record: &vw_acp::SessionRecord,
+) {
+    use vw_acp::{AccessPolicyReason, FullAccessSupport};
+    use vw_api_types::acp_session::{AcpAccessStatus, AcpAccessSupport};
+    let info = client.session_capabilities(&record.acp_session_id);
+    let policy = client.access_policy(
+        info.as_ref().and_then(|i| i.modes.as_ref()),
+        info.as_ref().and_then(|i| i.config_options.as_deref()),
+    );
+    let (support, explanation) = if client.session_access_policy(&record.acp_session_id).is_err() {
+        (AcpAccessSupport::Failed, "权限同步尚未确认或会话已断开；请刷新或重试，不能视为原生免审批")
+    } else {
+        match policy.support {
+            FullAccessSupport::Native => {
+                (AcpAccessSupport::Native, "当前原生权限控制已确认；仍受后端与组织策略约束")
+            }
+            FullAccessSupport::Partial => (
+                AcpAccessSupport::Partial,
+                "仅部分权限生效；原生工具与客户端权限边界不同，仍可能要求审批",
+            ),
+            FullAccessSupport::ClientOnly => (
+                AcpAccessSupport::ClientOnly,
+                "仅客户端工具审批自动批准；后端原生免审批未验证，仍可能要求确认",
+            ),
+            FullAccessSupport::Unavailable => (
+                AcpAccessSupport::Unavailable,
+                match policy.reason {
+                    AccessPolicyReason::DeniedByHost => "执行主机策略拒绝完全访问",
+                    _ => "当前未授权完全访问，沿用普通工具审批",
+                },
+            ),
+        }
+    };
+    options.access_status = Some(AcpAccessStatus {
+        requested: policy.full_access_requested,
+        backend: client.agent_name().into(),
+        version: client.agent_version(),
+        support,
+        explanation: explanation.into(),
+    });
+}
+
 async fn connected(
     session_id: &str,
     directory: &str,
@@ -152,14 +197,15 @@ pub(crate) async fn read(session_id: &str, directory: &str) -> Result<AcpSession
     let selection = super::lifecycle::Store::open(session_id, directory)
         .and_then(|store| store.read())
         .map_err(|e| e.to_string())?;
-    let info = if let Some((record, client)) =
-        connected(session_id, directory, selection.as_ref()).await?
-    {
-        client.client.session_capabilities(&record.acp_session_id)
-    } else {
-        None
-    };
-    Ok(project_options(info, selection.as_ref()))
+    let connection = connected(session_id, directory, selection.as_ref()).await?;
+    let info = connection
+        .as_ref()
+        .and_then(|(record, client)| client.client.session_capabilities(&record.acp_session_id));
+    let mut options = project_options(info, selection.as_ref());
+    if let Some((record, client)) = connection.as_ref() {
+        annotate_access(&mut options, &client.client, record);
+    }
+    Ok(options)
 }
 
 pub(crate) async fn select(
@@ -249,7 +295,10 @@ pub(crate) async fn select(
         }
         return Err(format!("Failed to save ACP selection: {error}"));
     }
-    Ok(project_options(client.client.session_capabilities(&record.acp_session_id), saved.as_ref()))
+    let mut options =
+        project_options(client.client.session_capabilities(&record.acp_session_id), saved.as_ref());
+    annotate_access(&mut options, &client.client, &record);
+    Ok(options)
 }
 
 async fn apply_selection(

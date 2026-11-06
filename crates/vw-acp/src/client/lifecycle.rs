@@ -12,6 +12,7 @@ impl AcpClient {
         state.handle = None;
         state.reusable_session_id = None;
         state.lifecycle.pid = None;
+        state.agent_version = None;
         state.qwen_runtime_verified = false;
         state.qwen_confirmed_session = None;
         state.claude_runtime_verified = false;
@@ -39,6 +40,25 @@ impl AcpClient {
         state.session_capabilities.as_ref().filter(|info| info.session_id == session_id).cloned()
     }
 
+    /// Read current policy and control readiness without starting a process or sending RPCs.
+    pub fn session_access_policy(&self, session_id: &str) -> Result<crate::AccessPolicy, AcpError> {
+        self.ensure_session_controls_ready(session_id)?;
+        let info = self
+            .session_capabilities(session_id)
+            .ok_or_else(|| AcpError::Prompt("ACP session is disconnected".into()))?;
+        Ok(self.access_policy(info.modes.as_ref(), info.config_options.as_deref()))
+    }
+
+    pub fn agent_name(&self) -> &str {
+        &self.agent_name
+    }
+
+    /// Non-secret runtime version from the current initialize handshake.
+    pub fn agent_version(&self) -> Option<String> {
+        let state = self.actor_state.lock();
+        state.lifecycle.pid.and(state.agent_version.clone())
+    }
+
     /// 获取当前代理进程生命周期快照。
     pub fn get_agent_lifecycle_snapshot(&self) -> AgentLifecycleSnapshot {
         self.actor_state.lock().lifecycle.clone()
@@ -59,6 +79,7 @@ impl AcpClient {
     ) {
         let mut state = self.actor_state.lock();
         state.lifecycle.pid = None;
+        state.agent_version = None;
         state.qwen_runtime_verified = false;
         state.qwen_confirmed_session = None;
         state.claude_runtime_verified = false;

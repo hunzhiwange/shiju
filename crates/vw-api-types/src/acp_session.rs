@@ -23,6 +23,29 @@ pub struct AcpSessionOption {
     pub choices: Vec<AcpChoice>,
 }
 
+/// Observed tool permission boundary, separate from the user's requested grant.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum AcpAccessSupport {
+    Native,
+    ClientOnly,
+    Partial,
+    Unverified,
+    Unavailable,
+    Failed,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct AcpAccessStatus {
+    pub requested: bool,
+    pub backend: String,
+    /// Advertised handshake version; this is not real-provider acceptance evidence.
+    pub version: Option<String>,
+    pub support: AcpAccessSupport,
+    /// Fixed client explanation, never provider errors, command payloads or environment.
+    pub explanation: String,
+}
+
 #[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
 pub struct AcpSessionOptions {
     #[serde(default)]
@@ -36,6 +59,8 @@ pub struct AcpSessionOptions {
     pub verified_cli_release: Option<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub verified_platform: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub access_status: Option<AcpAccessStatus>,
     pub connected: bool,
     pub options: Vec<AcpSessionOption>,
 }

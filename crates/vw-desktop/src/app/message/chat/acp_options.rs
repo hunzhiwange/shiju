@@ -173,7 +173,16 @@ pub(super) fn update(app: &mut App, message: ChatMessage) -> Task<Message> {
                     runtime.acp_options = options;
                     Task::none()
                 }
-                Err(error) => app.show_error_toast(error),
+                Err(error) => {
+                    // A failed control must not leave an earlier native success on screen.
+                    if let Some(status) = runtime.acp_options.access_status.as_mut() {
+                        status.support =
+                            vw_gateway_client::vw_api_types::acp_session::AcpAccessSupport::Failed;
+                        status.explanation =
+                            "会话选项切换或读取失败，请刷新或重试；当前能力尚未确认".into();
+                    }
+                    app.show_error_toast(error)
+                }
             }
         }
         ChatMessage::AcpOptionsOpen | ChatMessage::AcpOptionSelected(_) => {

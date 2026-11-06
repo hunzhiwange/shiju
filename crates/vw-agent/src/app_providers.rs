@@ -667,3 +667,5 @@ mod mcode;
 mod omp;
 
 mod kimi;
+
+mod dsh;

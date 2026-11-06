@@ -156,6 +156,15 @@ pub(super) fn observe(
             ProviderSelection::NotApplicable,
         ));
     }
+    #[cfg(target_os = "macos")]
+    if app == AppId::Dsh {
+        let snapshot = super::dsh::read(home).map_err(|_| InvalidConfiguration)?;
+        let state = super::dsh::state(&snapshot).map_err(|_| InvalidConfiguration)?;
+        return Ok((
+            state.members.into_iter().map(|id| (id, ())).collect(),
+            ProviderSelection::NotApplicable,
+        ));
+    }
     if app != AppId::Kimi {
         return Err(NotImplemented);
     }

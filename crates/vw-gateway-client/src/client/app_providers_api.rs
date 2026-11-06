@@ -219,3 +219,9 @@ mod kimi;
 #[cfg(test)]
 #[path = "app_providers/kimi_tests.rs"]
 mod kimi_tests;
+
+#[path = "app_providers/dsh.rs"]
+mod dsh;
+#[cfg(test)]
+#[path = "app_providers/dsh_tests.rs"]
+mod dsh_tests;

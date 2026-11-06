@@ -97,7 +97,7 @@ fn cc04_catalog_additive_apps_never_invent_a_unique_current() {
         let result = read(home.path(), app, vec![row(app, "saved")]);
         assert_eq!(result.direct, ProviderSelection::NotApplicable);
         assert_eq!(result.in_use, ProviderSelection::NotApplicable);
-        if matches!(app, AppId::Hermes | AppId::Pi | AppId::Omp | AppId::Mcode) {
+        if matches!(app, AppId::Hermes | AppId::Pi | AppId::Omp | AppId::Mcode | AppId::Dsh) {
             assert_eq!(result.rows[0].native_member, ProviderMembership::Absent);
             assert_eq!(result.native_read, None);
         } else {

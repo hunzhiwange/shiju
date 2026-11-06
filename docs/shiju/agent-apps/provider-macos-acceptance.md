@@ -1965,3 +1965,54 @@ Gateway 测试使用真实回环 HTTP、正式 SDK、SQLite、临时 HOME 和管
 平台 macOS **27.0 (26A428)**、**arm64**，crate **0.6.0**。`command -v kimi` 无结果，`kimi --version` 退出 **127**；实际 Kimi 应用版本/消费、真实账号/Keychain、网络上游、Iced 渲染和非 macOS **未验证**。Gateway 链接器有既有 `__eh_frame section too large` 提示，测试退出 0，未修改链接配置。
 
 定向差异/暂存检查通过，plan.md 无差异；只提交本任务实现、独立测试、必要接线和本条证据，排除其它计划、母任务状态和既有编号文件删除。自身槽位锁已释放、缓存保留；未执行无过滤全量 cargo test、fmt check、wasm 或 Makefile。验收后删除本编号文件且不提交其删除；下一步批次 42。
+
+## 任务 42：Dsh 供应商配置
+
+2026-11-07。批次 41 提交 `56cf7510f` 和上节正式验收已核对。母任务 1、3 已完成；母任务 2 整体领域迁移仍未收口，沿用任务 1/provider-contracts.md 已登记的底座子计划 1–93 开工裁定，不冒称母任务 2 已完成。所有 plan.md 保持只读。
+
+来源 `/Users/xiangmin/worker/code/cc-switch` HEAD `ca58c0313360eae7c851fbd7553c1614c7af03e7`，工作区干净。阅读 `dsh_config::{data_dir,target_paths,read_paths,provider_entry,credential_document_from,get_providers,validate_provider,native_provider,update_provider,save_and_commit,save_paths_and_commit,account_grant}`、相邻供应商/profile/账号测试、`tests/dsh_commands.rs` 生命周期和失败无副作用断言、`services/provider/mod.rs` 列表/增量增删/保存调用者，以及 `DshAccount.tsx` 的共享状态、登录与原生账号卡和 `ProviderList.tsx` 消费。使用仓库 RustCodeGraph 技能检查既有事务、供应商和调用者；新增代码与来源用直接读取。未引入冻结 upstream 的运行依赖。
+
+### 实现和范围
+
+- `vw-agent-apps/src/providers/dsh.rs` 是 Dsh 纯配置投影所有者，`dsh_files.rs` 只管理固定执行路径、目录描述符和锁。只替换 `llm-pi-ai.config.providers.<id>`；其它供应商、config 字段、插件、周围注释和其它插件的 `!!js` 原文保留。目标 config 含动态 YAML/引用或无法安全编辑的布局明确拒绝，不通过全文件重写伪支持。
+- 消费与来源一致的 `{api, options:{baseURL,apiKey,headers}, models:{...}}` 供应商声明，转换为原生 models 数组、displayName/baseURL/headers、contextWindow/maxTokens、input 和 reasoningEfforts。校验 ID、保留官方 ID、协议、端点、凭据、模型及正数容量；掩码不作为密钥。纯目录保存、首次 Add、已存在成员编辑分别显式表达；Add 不覆盖原生节点，IfMember 对非成员仅存目录。
+- 静态密钥写入共享 `.credentials.yaml` 的专属 `refs.SHIJU_DSH_<ID>`，既有 `records`（含 DeepSeek 账号 grant/device）、其它 refs 与未知字段语义保留；不复制账号、设备记录、会话、技能、AGENTS 或 sdk/sdk-minimal 配置。凭据文档版本非 1 明确拒绝。显式 apiKeyEnv 只能引用执行端凭据文件中的既有非空值，不从进程环境回退；共享引用被其它供应商使用时禁止轮换。
+- 目录记录的 `meta.authBinding`/托管标志，以及无可解析凭据的 apiKeyEnv，返回 HTTP 422 与强类型 `DshError { code: invalid_binding }`；API 不保存目录或写入文件，SDK 仅保留白名单错误码，不透传任意失败载荷。此处拒绝无法由供应商目录解析的托管绑定，未实现账号管理或 OAuth。
+- 授权 HOME 下默认 `.dsh`，执行端 DSH_HOME 仅允许 HOME 内的绝对目录；客户端不接受路径/环境/命令。逐组件 no-follow 打开，目录不安全或符号链接明确拒绝。Web/Desktop 始终准备，headless/acp 仅在已有 patch 时参与；sdk/sdk-minimal 不参与。不支持链接 profile 别名，不把这项拒绝描述为别名兼容。
+- 根目录和所有 profile 的保留描述符交给已有 `lock_directories`/ProviderTransactions，一个 pending 管理凭据和全部 patch；使用 0600、前像检查、目录 CAS、租户/主机身份、发布前校验和前滚恢复，不制造唯一 current。复用 Dsh 原生 exclusive-create `<file>.lock` 协议，未知/活跃/遗留锁不擅自删除，需原生侧解除后重试。各 profile 的既有同名供应商内容不一致或 home 级 llm-pi-ai config 遮盖时拒绝写入。
+- 业务存储沿 `AppProviderStore` 的唯一租户命名空间保存并 CAS，元数据保留；通用 catalog 接入本实现只读成员观察。Gateway/SDK 仅补本任务父注册，不另开通用命令入口。目录保存与 live applied/not_attempted/failed/recovery_required 分开报告。
+
+| API | SDK |
+| --- | --- |
+| `PUT /v1/app-providers/dsh/{id}/config` | `dsh_provider_save`，catalog_only/add/if_member |
+| `POST /v1/app-providers/dsh/{id}/add` | `dsh_provider_add`，消费既有目录行 |
+| `POST /v1/app-providers/dsh/config/state` | `dsh_state`，只返回原生成员 ID |
+
+本任务未新增原生账号卡、登录动作、导入或移除 API；通用导入策略归任务 44，Iced 表单归任务 65。没有验收 UI、OAuth 或真实 Dsh 消费。
+
+### 红绿验证
+
+红阶段四条默认 features 的 `cc04_dsh_` 命令：执行端 **0 通过/2 业务断言失败，退出 101**，即 `cc04_dsh_provider_edit_keeps_native_account`（没有新增专属凭据引用）和 `cc04_dsh_invalid_binding_is_explicit`（绑定未被拒绝）；DTO **1 通过，退出 0**；Gateway **0 通过/1 业务断言失败，退出 101**（SDK 返回后执行文件仍无供应商）；SDK **2 通过，退出 0**。没有将编译失败或零测试算作红阶段证据。
+
+首轮绿测执行端 **5 通过/1 失败，退出 101**，定位新建 YAML 的 `- config:` 顺序与增量编辑定位不兼容，已兼容两种顶层字段顺序；Gateway 首轮缺少显式校验函数限定路径，退出 101，已修复；DTO 1、SDK 3 通过。随后拆开纯投影和文件持有职责、补共享凭据引用防护及凭据版本检查，再执行最终验证。
+
+所有阶段均通过原子 mkdir 动态领取共享槽位 **1**，`CARGO_TARGET_DIR=/Users/xiangmin/worker/code/shiju/target/rust-slot-1`，同时令 `CARGO_BUILD_BUILD_DIR` 等于该绝对路径以覆盖仓库 build-dir。owner 记录计划/任务/会话/PID；阶段结束 trap 删除自身记录并释放锁，缓存保留。最终默认 features 验证：
+
+| 确切命令 | 退出码 | 有效数量 |
+| --- | --- | --- |
+| `cargo fmt --all` | 0 | 格式化 |
+| `cargo test -p vw-agent-apps --lib cc04_dsh_ -- --nocapture` | 0 | 6 passed |
+| `cargo test -p vw-api-types --lib cc04_dsh_ -- --nocapture` | 0 | 1 passed |
+| `cargo test -p vw-agent --lib cc04_dsh_ -- --nocapture` | 0 | 3 passed |
+| `cargo test -p vw-gateway-client --lib cc04_dsh_ -- --nocapture` | 0 | 3 passed |
+| `cargo test -p vw-agent-apps --lib cc04_catalog_ -- --nocapture` | 0 | 7 passed，含子进程断言，去重计数 |
+| `cargo test -p vw-agent-apps --lib cc04_delete_ -- --nocapture` | 0 | 3 passed |
+| `cargo clippy --all-targets --all-features -- -D warnings` | 0 | 非行为测试 |
+
+本任务 **13 项**和相邻回归 **10 项**有效测试通过，无忽略。独立执行端测试覆盖指定两项行为、其它账号 records/refs、兄弟节点/插件原文、profile 差异/home 遮盖/失效凭据拒绝、IfMember 未加入无副作用、Intent/Marked/FilePublished/Published/Settled 五处注入失败后重建事务执行器前滚、0600、sdk 不触碰、外部文件/CAS 校验、未知原生锁及符号链接拒绝。故障注入使用正常进程内清理，不冒称验证了杀进程后的原生遗留锁自动回收。
+
+Gateway 采用真实回环 HTTP、正式 SDK、SQLite、管理员授权 policy 和临时 HOME：SDK catalog-only → API not_attempted 且原文件不变；SDK add/save-if-member → API applied → Web/Desktop 中出现专属 apiKeyEnv，凭据 refs 实际轮换且原生 DeepSeek grant、其它 refs 保留；非成员编辑仅存目录；无效目录绑定与缺失凭据引用返回同一可识别 invalid_binding，记录与文件不变；异租户/主机、假 token、无写权限均拒绝且无目录行/文件副作用。只替代不可控外部边界，未替代鉴权、文件系统、存储或事务；全部假密钥，不读取或修改真实用户配置。
+
+平台 macOS **27.0 (26A428)**、**arm64**，crate **0.6.0**。`command -v dsh` 无结果，`dsh --version` 退出 **127**；Dsh 应用版本、实际应用消费、真实账号登录、网络上游、Iced 渲染和非 macOS **未验证**。Gateway 链接器出现既有 `__eh_frame section too large` 提示，测试退出 0；强制 Clippy 退出 0，未改链接配置。
+
+状态：**已完成（本任务的原生配置/API/SDK 行为边界）**。定向 diff/check、暂存审查与只读 plan.md 无差异检查通过；仅提交本任务实现、独立测试、必要注册/目录观察和本条正式证据。既有母任务状态、其它计划和此前编号文件删除不纳入提交。自身槽位锁释放，缓存保留；未执行无过滤全量 cargo test、fmt check、wasm 或 Makefile。验收后删除本编号文件且不提交该删除；下一步批次 43，真实 Dsh/UI 按所属任务验收。

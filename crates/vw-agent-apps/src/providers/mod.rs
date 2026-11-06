@@ -197,3 +197,8 @@ mod mcode_tests;
 pub mod kimi;
 #[cfg(all(test, target_os = "macos"))]
 mod kimi_tests;
+
+#[cfg(target_os = "macos")]
+pub mod dsh;
+#[cfg(all(test, target_os = "macos"))]
+mod dsh_tests;

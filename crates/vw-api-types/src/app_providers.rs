@@ -164,3 +164,7 @@ mod mcode_tests;
 pub mod kimi;
 #[cfg(test)]
 mod kimi_tests;
+
+pub mod dsh;
+#[cfg(test)]
+mod dsh_tests;

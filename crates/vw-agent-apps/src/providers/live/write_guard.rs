@@ -34,6 +34,8 @@ pub enum FilePrivacy {
 pub enum WriteError {
     /// A prior transaction was recovered; reload state before retrying.
     Recovered,
+    /// Concurrent edits exhausted replanning or invalidated a guarded snapshot.
+    Conflict,
     InvalidResource,
     Io,
 }

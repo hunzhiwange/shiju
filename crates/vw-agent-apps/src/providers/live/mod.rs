@@ -31,3 +31,8 @@ mod commit_tests;
 pub mod recovery;
 #[cfg(all(test, target_os = "macos"))]
 mod recovery_tests;
+
+#[cfg(target_os = "macos")]
+pub mod concurrency;
+#[cfg(all(test, target_os = "macos"))]
+mod concurrency_tests;

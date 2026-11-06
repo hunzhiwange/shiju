@@ -178,15 +178,15 @@ impl ProviderTransactions {
         pending.published = true;
         self.save(app, "pending", &pending)?;
         checkpoint(self, app, Phase::Marked)?;
-        for write in &batch.writes {
-            write.publish()?;
-            write.directory.sync_all().map_err(|_| WriteError::Io)?;
-            checkpoint(self, app, Phase::FilePublished)?;
-        }
+        self.publish_checked(&mut batch, changes, &mut pending)?;
         checkpoint(self, app, Phase::Published)?;
         apply_target(&mut state, tenant, &pending.target);
         self.save(app, "state", &state)?;
         checkpoint(self, app, Phase::Settled)?;
+        self.clear_pending(app)
+    }
+
+    pub(super) fn clear_pending(&self, app: AppId) -> Result<(), WriteError> {
         let name =
             CString::new(filename(app, "pending")).map_err(|_| WriteError::InvalidResource)?;
         // SAFETY: generated single child, descriptor retained through transaction.
@@ -306,6 +306,7 @@ pub(super) fn apply_target(state: &mut AppState, tenant: &TenantScope, target: &
 pub(super) enum Phase {
     Intent,
     Marked,
+    BeforePublish,
     FilePublished,
     Published,
     Settled,
@@ -314,7 +315,11 @@ pub(super) enum Phase {
 type CheckpointHook = Box<dyn FnMut(&ProviderTransactions, AppId, Phase) -> Result<(), WriteError>>;
 #[cfg(test)]
 thread_local! { pub(super) static HOOK: std::cell::RefCell<Option<CheckpointHook>> = const { std::cell::RefCell::new(None) }; }
-fn checkpoint(store: &ProviderTransactions, app: AppId, phase: Phase) -> Result<(), WriteError> {
+pub(super) fn checkpoint(
+    store: &ProviderTransactions,
+    app: AppId,
+    phase: Phase,
+) -> Result<(), WriteError> {
     #[cfg(test)]
     {
         HOOK.with_borrow_mut(|hook| match hook {

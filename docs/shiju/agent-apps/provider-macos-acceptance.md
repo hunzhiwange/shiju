@@ -913,3 +913,45 @@ Gateway 定向用例用真实私有策略文件、host.id/credential_root、原�
 定向差异和暂存检查通过，本任务暂存范围为实现、独立测试、必要父注册/写入底层与 Gateway 启动连线及本条正式证据；母任务状态和既有编号文件删除未暂存。plan.md 无差异；各阶段结束后清理自己的 owner/锁目录，最终实际确认本任务槽位 2 锁不存在，保留缓存。未执行全量 cargo test、fmt check、wasm 或 Makefile。本任务标记完成后删除编号文件，不纳入提交，正式证据保留。
 
 提交隔离核对：并行终端会话随后将其提交修正为仅终端文件，并恢复本任务暂存。恢复实现及本条正式证据独立提交；未纳入其他未提交桌面改动、母任务状态或编号文件删除。
+
+## 任务 21：发布前并发变更检测
+
+2026-11-07；状态：已完成（内部执行端事务边界，未验收真实应用 live 切换）。
+
+### 依赖、来源与实现
+
+已核对批次 20 恢复实现提交 `248d0ce48`、正式证据及任务 1–20 记录。母任务 1、3 已完成；母任务 2 沿用任务 1 已裁定的底座子计划 1–93 开工门槛，完整领域迁移仍未收口。本项不改变其状态，不修改只读 plan.md。
+
+来源 `/Users/xiangmin/worker/code/cc-switch/src-tauri/src/live/patch/mod.rs::{Guarded,LivePatch}`、`mode/operation.rs::{run,AppWrite::begin,AppWrite::run}`；核对 `live/engine.rs`、`services/provider/claude_direct.rs`、`mode/controller.rs` 调用关系及 operation 相邻并发编辑/持续编辑/发布失败/恢复测试。来源 MAX_REPLANS 为 3；来源测试本轮未运行。RustCodeGraph status/explore 与定向搜索确认原生唯一事务所有者为 ProviderTransactions，冻结 upstream 不作为原生实现或运行证据。
+
+- `providers/live/concurrency.rs::publish_checked` 接入既有 `ProviderTransactions::commit` 的逐文件发布循环；每次发布前在原有目录描述符上重读并校验 SHA256 摘要，缺失文件用 None 区分。外部内容改变后，用原执行端键补丁重算，最多 3 次，第四次变化显式返回 `WriteError::Conflict`。
+- `Guarded::new/apply` 捕获计划快照摘要并通过既有 FileChange 补丁闭包消费；整文件替换遇到登录轮换、文件新增或消失直接冲突。未增加任意文件 API、动态命令接口、新特性或第二套业务状态所有者。
+- 重算后的暂存文件和目录先同步，再更新持久 pending 的 pre/planned/staged，成功后丢弃旧暂存。pending 保存若在 rename 后 fsync 失败，保留两候选暂存以免 durable intent 指向缺失文件。失败或崩溃可能留下不被当前 pending 引用的暂存；本项不新增全目录垃圾清理以免删除其他所有者资源。
+- 未发布任何文件时的可返回错误先持久化 published=false，再清理 pending 和自己的暂存，禁止失败目标日后被恢复落定。部分发布后冲突保留 pending，由既有恢复实现保留外部编辑并前滚其余文件与状态。真实 unwind 跳过返回错误的清理，保留已持久化重算意图，重新构造所有者可恢复。
+- 重算结果等于外部文件时不 rename，保留外部字节与权限并清理未使用暂存。读取拒绝符号链接和非普通目标，摘要及错误不包含配置字节、凭据或主机路径。测试钩子复用既有 checkpoint，仅增加 BeforePublish 阶段。
+- AppWriteGuard / StagedBatch 仍是受信执行端的底层写入及预演原语；持久事务入口统一在 commit 消费本行为。应用编辑、首次激活、公共写授权 handler 与 UI 仍由所属适配任务接入。API/SDK/UI 无本项新增公共入口，未验证 SDK→API→真实应用文件链路，不声称应用 live 已成功。
+- 外部程序不参与本进程锁，最终重读与 rename 之间仍存在文件系统竞争窗口；本项提供来源约定的有界检测，不声称跨进程 CAS 或多文件原子事务。
+
+### 红绿验证
+
+各验证阶段按 mkdir 原子竞争依次领取槽位；实际均获得槽位 1，`CARGO_TARGET_DIR=/Users/xiangmin/worker/code/shiju/target/rust-slot-1`。由于仓库 `.cargo/config.toml` 另设 build.build-dir，所有 Cargo 命令同时继承 `CARGO_BUILD_BUILD_DIR=/Users/xiangmin/worker/code/shiju/target/rust-slot-1`，未改仓库配置或绕过槽位。脚本记录计划、任务、会话和持有 PID，并用退出/中断 trap 释放自身 owner 与锁目录，缓存保留。
+
+红阶段先注册可编译的 Guarded 空校验及现有发布路径，`cargo fmt --all` 退出 0；执行 `cargo test -p vw-agent-apps --lib cc04_concurrency_ -- --nocapture` 退出 101，2 个有效测试均在业务断言处失败：键补丁覆盖并发新增 user=42；Guarded 返回 Ok 而非 Conflict。不是模块缺失或零测试。
+
+最小实现后相同聚焦命令退出 0，2 项通过。扩展验证阶段并发 7 项、提交 6 项、恢复 8 项全部通过且 Clippy 退出 0；差异审查补齐重算变为 noop 的暂存清理后，最终阶段重新执行下表全部命令。
+
+| 最终确切命令 | 退出码 | 有效行为测试数量 / 结果 |
+| --- | --- | --- |
+| `cargo fmt --all` | 0 | 格式化完成，无无关格式差异 |
+| `cargo test -p vw-agent-apps --lib cc04_concurrency_ -- --nocapture` | 0 | 8 通过、0 失败 |
+| `cargo test -p vw-agent-apps --lib cc04_commit_ -- --nocapture` | 0 | 6 通过、0 失败 |
+| `cargo test -p vw-agent-apps --lib cc04_recovery_ -- --nocapture` | 0 | 8 通过、0 失败 |
+| `cargo clippy --all-targets --all-features -- -D warnings` | 0 | 主工作区全部目标及 features，无警告 |
+
+8 个并发行为测试涵盖两项指定测试 `cc04_concurrency_replans_key_patch`、`cc04_concurrency_guarded_write_rejects_rotated_auth`，以及 3 次重算耗尽后保留第四轮外部编辑且不写其他文件/状态、部分发布后登录轮换与恢复、重算 pending 摘要及暂存持久化后的真实 unwind/重建恢复、Guarded 缺失/新增/轮换快照、符号链接轮换拒绝且外部目标不变、重算 noop 的权限/字节保留与暂存清理。模拟崩溃的 panic 由 catch_unwind 捕获，预期 panic 输出不代表测试失败。全部使用隔离真实临时目录、文件、权限及状态；假登录字节不含真实凭据，无网络、钥匙串或进程 mock，不读取或修改真实用户配置。
+
+### 平台及差异边界
+
+`sw_vers`、`uname -m` 均退出 0：macOS 27.0（26A428）、arm64；原生 crate 版本 0.6.0。安装应用版本、账号、CLI/Iced 实际运行与公共 SDK 请求未验证；Windows/Linux、其他架构和真实应用激活未验收。
+
+定向 diff 与暂存检查只包含本任务 concurrency 实现/独立测试、commit 接线、WriteError 冲突枚举、父模块注册及本条正式证据；现有桌面变更、母任务状态和其他编号任务删除均不提交。未执行全量 cargo test、fmt check、wasm 或 Makefile。槽位释放并保留缓存；本任务标记已完成后删除编号文件且不纳入提交，正式证据保留。

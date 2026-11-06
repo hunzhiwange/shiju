@@ -10,3 +10,7 @@ pub mod discovery;
 pub mod lifecycle;
 pub mod uninstall;
 pub mod versions;
+
+pub mod preferences;
+#[cfg(test)]
+mod preferences_tests;

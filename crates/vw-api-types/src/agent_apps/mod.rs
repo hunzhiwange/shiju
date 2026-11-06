@@ -76,3 +76,8 @@ mod actions;
 pub use actions::*;
 #[cfg(test)]
 mod actions_tests;
+
+mod preferences;
+pub use preferences::*;
+#[cfg(test)]
+mod preferences_tests;

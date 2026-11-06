@@ -30,7 +30,7 @@ impl AcpClient {
         value_id: &str,
     ) -> Result<acp::SetSessionConfigOptionResponse, AcpError> {
         if option_name == "mode" {
-            self.guard_codex_mode(session_id, value_id).await?;
+            self.guard_native_mode(session_id, value_id).await?;
         }
         let key = (session_id.to_string(), option_name.to_string());
         self.actor_state.lock().pending_controls.insert(key.clone(), value_id.to_string());
@@ -81,7 +81,7 @@ impl AcpClient {
         session_id: &str,
         mode_id: &str,
     ) -> Result<(), AcpError> {
-        self.guard_codex_mode(session_id, mode_id).await?;
+        self.guard_native_mode(session_id, mode_id).await?;
         let key = (session_id.to_string(), "session/set_mode".to_string());
         self.actor_state.lock().pending_controls.insert(key.clone(), mode_id.to_string());
         let capabilities = self
@@ -130,6 +130,34 @@ impl AcpClient {
 }
 
 impl AcpClient {
+    async fn guard_native_mode(&self, session_id: &str, mode_id: &str) -> Result<(), AcpError> {
+        if self.agent_name == "claude" {
+            self.actor_state.lock().claude_confirmed_session = None;
+            if mode_id == crate::access_policy::claude::FULL_MODE
+                && !(self.full_access && self.permission_mode == PermissionMode::ApproveAll)
+            {
+                return Err(AcpError::Prompt(
+                    "Claude bypass requires the current host grant; host deny cannot be overridden"
+                        .into(),
+                ));
+            }
+            if self.has_active_prompt() {
+                self.cancel(session_id).await?;
+                return Err(AcpError::Prompt("Claude mode changes cannot revoke an active turn; cancellation requested, wait for completion before retrying".into()));
+            }
+        }
+        self.guard_codex_mode(session_id, mode_id).await
+    }
+
+    pub(super) async fn sync_native_access(
+        &self,
+        conn: &acp::ClientSideConnection,
+        session_id: &str,
+    ) -> Result<(), AcpError> {
+        self.sync_codex_access(conn, session_id).await?;
+        self.sync_claude_access(conn, session_id).await
+    }
+
     async fn guard_codex_mode(&self, session_id: &str, mode_id: &str) -> Result<(), AcpError> {
         if self.agent_name != "codex" {
             return Ok(());
@@ -202,6 +230,75 @@ impl AcpClient {
         self.confirmed_config_control(conn, session_id, "mode", desired).await?;
         if desired == FULL_MODE {
             self.actor_state.lock().codex_confirmed_session = Some(session_id.into());
+        }
+        Ok(())
+    }
+    pub(super) async fn sync_claude_access(
+        &self,
+        conn: &acp::ClientSideConnection,
+        session_id: &str,
+    ) -> Result<(), AcpError> {
+        use crate::access_policy::claude::{FULL_MODE, RESTRICTED_MODE, advertises_mode};
+        let capabilities = {
+            let mut state = self.actor_state.lock();
+            if !state.claude_runtime_verified {
+                let elevated = state.session_capabilities.as_ref().is_some_and(|info| {
+                    info.session_id == session_id
+                        && (crate::access_policy::claude::current_mode(
+                            info.config_options.as_deref(),
+                        ) == Some(FULL_MODE)
+                            || info
+                                .modes
+                                .as_ref()
+                                .is_some_and(|modes| modes.current_mode_id.0.as_ref() == FULL_MODE))
+                });
+                if self.agent_name == "claude"
+                    && elevated
+                    && !(self.full_access && self.permission_mode == PermissionMode::ApproveAll)
+                {
+                    state.claude_confirmed_session = None;
+                    state
+                        .pending_controls
+                        .insert((session_id.into(), "mode".into()), RESTRICTED_MODE.into());
+                    return Err(AcpError::Prompt("Cannot revoke full access from an unverified Claude runtime; use a reviewed runtime before prompting".into()));
+                }
+                return Ok(());
+            }
+            state.claude_confirmed_session = None;
+            state.session_capabilities.clone().filter(|info| info.session_id == session_id)
+        };
+        // Planning changes tools and prompts. Permission intent must not exit it.
+        if crate::access_policy::claude::current_mode(
+            capabilities.as_ref().and_then(|info| info.config_options.as_deref()),
+        ) == Some("plan")
+        {
+            if self.full_access && self.permission_mode == PermissionMode::ApproveAll {
+                self.actor_state
+                    .lock()
+                    .pending_controls
+                    .insert((session_id.into(), "mode".into()), FULL_MODE.into());
+                return Err(AcpError::Prompt("Claude full access cannot replace plan mode; explicitly leave planning before retrying".into()));
+            }
+            return Ok(());
+        }
+        let desired = if self.full_access && self.permission_mode == PermissionMode::ApproveAll {
+            FULL_MODE
+        } else {
+            RESTRICTED_MODE
+        };
+        if !advertises_mode(
+            capabilities.as_ref().and_then(|info| info.config_options.as_deref()),
+            desired,
+        ) {
+            self.actor_state
+                .lock()
+                .pending_controls
+                .insert((session_id.into(), "mode".into()), desired.into());
+            return Err(AcpError::Prompt("Verified Claude runtime did not advertise its required permission control; refusing to prompt".into()));
+        }
+        self.confirmed_config_control(conn, session_id, "mode", desired).await?;
+        if desired == FULL_MODE {
+            self.actor_state.lock().claude_confirmed_session = Some(session_id.into());
         }
         Ok(())
     }

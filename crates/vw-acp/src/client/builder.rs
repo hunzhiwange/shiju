@@ -94,13 +94,27 @@ impl AcpClient {
             modes,
             config_options,
         );
-        if self.agent_name != "codex"
+        if !matches!(self.agent_name.as_str(), "codex" | "claude")
             || !self.full_access
             || self.permission_mode != PermissionMode::ApproveAll
         {
             return policy;
         }
         let state = self.actor_state.lock();
+        if self.agent_name == "claude" {
+            if state.claude_runtime_verified
+                && state.session_capabilities.as_ref().is_some_and(|info| {
+                    state.claude_confirmed_session.as_deref() == Some(info.session_id.as_str())
+                        && info.config_options.as_deref() == config_options
+                        && crate::access_policy::claude::current_mode(config_options)
+                            == Some(crate::access_policy::claude::FULL_MODE)
+                })
+            {
+                policy.support = crate::FullAccessSupport::Native;
+                policy.reason = crate::AccessPolicyReason::VerifiedNativeControl;
+            }
+            return policy;
+        }
         if state.codex_runtime_verified
             && state.session_capabilities.as_ref().is_some_and(|info| {
                 state.codex_confirmed_session.as_deref() == Some(info.session_id.as_str())

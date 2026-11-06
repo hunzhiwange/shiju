@@ -60,6 +60,24 @@ impl AcpClient {
             })
             && crate::verify_reviewed_agent_executable("codex", &self.config.command).is_ok();
         self.actor_state.lock().codex_confirmed_session = None;
+        self.actor_state.lock().claude_runtime_verified = self.agent_name == "claude"
+            && cfg!(all(target_os = "macos", target_arch = "aarch64"))
+            && response.agent_info.as_ref().is_some_and(|info| {
+                info.name == "@agentclientprotocol/claude-agent-acp" && info.version == "0.26.0"
+            })
+            && ["CLAUDE_CODE_EXECUTABLE", "NODE_OPTIONS", "NODE_PATH"].into_iter().all(|key| {
+                self.config.env.get(key).map_or_else(
+                    || std::env::var_os(key).is_none_or(|value| value.is_empty()),
+                    |value| value.is_empty(),
+                )
+            })
+            && !self.config.env.contains_key("CLAUDE_AGENT_ACP_IS_SINGLE_FILE_BUN")
+            && std::env::var_os("CLAUDE_AGENT_ACP_IS_SINGLE_FILE_BUN").is_none()
+            && crate::access_policy::claude::verified_entry(
+                &self.config.command,
+                &self.config.args,
+            );
+        self.actor_state.lock().claude_confirmed_session = None;
         self.authenticate_if_required(conn, &response.auth_methods).await?;
         Ok(())
     }
@@ -208,7 +226,7 @@ impl AcpClient {
             models: session.models.clone(),
             config_options: session.config_options.clone(),
         });
-        self.sync_codex_access(conn, &session.session_id.to_string()).await?;
+        self.sync_native_access(conn, &session.session_id.to_string()).await?;
         Ok(SessionInfo {
             session_id: session.session_id.0.to_string(),
             models: session.models,
@@ -253,7 +271,7 @@ impl AcpClient {
             models: response.models.clone(),
             config_options: response.config_options.clone(),
         });
-        self.sync_codex_access(conn, &session_id).await?;
+        self.sync_native_access(conn, &session_id).await?;
         Ok(SessionInfo {
             session_id,
             models: response.models,
@@ -298,7 +316,7 @@ impl AcpClient {
             models: response.models.clone(),
             config_options: response.config_options.clone(),
         });
-        self.sync_codex_access(conn, &session_id).await?;
+        self.sync_native_access(conn, &session_id).await?;
         Ok(SessionInfo {
             session_id,
             models: response.models,

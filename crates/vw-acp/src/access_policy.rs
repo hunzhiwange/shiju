@@ -4,6 +4,7 @@ use agent_client_protocol::{SessionConfigOption, SessionModeState};
 
 use crate::PermissionMode;
 
+pub(crate) mod claude;
 pub(crate) mod codex;
 
 /// 原生权限与客户端回调是不同的执行边界。

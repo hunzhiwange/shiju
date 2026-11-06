@@ -39,6 +39,7 @@ impl AcpClient {
             }
         });
         AcpEventClient {
+            claude_permissions: self.agent_name == "claude",
             expected_session_id,
             event_tx,
             filesystem: FileSystemHandlers::new(FileSystemHandlersOptions {
@@ -92,6 +93,14 @@ impl acp::Client for AcpEventClient {
             return Ok(cancelled_permission_response());
         }
         self.permission_stats.lock().requested += 1;
+        // ExitPlanMode is a workflow decision, not an ordinary tool approval.
+        // This client has no structured plan-confirmation UI. Fail explicitly rather
+        // than auto-selecting the offered bypassPermissions option.
+        if self.claude_permissions && args.tool_call.fields.kind == Some(acp::ToolKind::SwitchMode)
+        {
+            return Err(acp::Error::invalid_params().data("Claude plan confirmation requires explicit user interaction; automatic tool approval cannot answer it"));
+        }
+
         let response = resolve_permission_request(
             &args,
             self.permission_mode,

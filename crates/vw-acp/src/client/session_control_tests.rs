@@ -30,6 +30,7 @@ struct TestAgentState {
     calls: Vec<RecordedCall>,
     fail_resume: bool,
     codex_controls: bool,
+    claude_controls: bool,
     fail_set_config: bool,
     fail_set_model: bool,
     wrong_config: bool,
@@ -89,6 +90,8 @@ impl acp::Agent for TestAgent {
         let response = acp::NewSessionResponse::new("created-session");
         Ok(if self.state.lock().codex_controls {
             response.config_options(codex_tests::options("agent"))
+        } else if self.state.lock().claude_controls {
+            response.config_options(claude_tests::options("default"))
         } else {
             response
         })
@@ -105,6 +108,8 @@ impl acp::Agent for TestAgent {
         let response = acp::LoadSessionResponse::new();
         Ok(if self.state.lock().codex_controls {
             response.config_options(codex_tests::options("agent"))
+        } else if self.state.lock().claude_controls {
+            response.config_options(claude_tests::options("default"))
         } else {
             response
         })
@@ -128,6 +133,8 @@ impl acp::Agent for TestAgent {
         ));
         Ok(if state.codex_controls {
             response.config_options(codex_tests::options("agent"))
+        } else if state.claude_controls {
+            response.config_options(claude_tests::options("default"))
         } else {
             response
         })
@@ -164,6 +171,15 @@ impl acp::Agent for TestAgent {
         });
         if state.fail_set_config {
             return Err(acp::Error::invalid_params());
+        }
+        if state.claude_controls {
+            return Ok(acp::SetSessionConfigOptionResponse::new(claude_tests::options(
+                if state.wrong_config {
+                    "default"
+                } else {
+                    args.value.as_value_id().unwrap().0.as_ref()
+                },
+            )));
         }
         if state.codex_controls {
             return Ok(acp::SetSessionConfigOptionResponse::new(codex_tests::options(
@@ -514,3 +530,6 @@ mod access_policy_tests;
 
 #[path = "../access_policy/codex_tests.rs"]
 mod codex_tests;
+
+#[path = "../access_policy/claude_tests.rs"]
+mod claude_tests;

@@ -42,3 +42,7 @@ pub struct ProviderLaunchRequest {
     pub provider_id: String,
     pub launch: LaunchRequest,
 }
+
+pub mod catalog;
+#[cfg(test)]
+mod catalog_tests;

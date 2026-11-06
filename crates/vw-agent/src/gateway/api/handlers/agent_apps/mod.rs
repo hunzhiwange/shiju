@@ -158,3 +158,13 @@ mod remote_tests_tests;
 
 #[cfg(all(test, unix))]
 mod local_access_tests;
+
+/// Share host authorization without exposing policy records or broadening catalog grants.
+pub(super) fn provider_config_home(
+    path: Option<&std::path::Path>,
+    headers: &axum::http::HeaderMap,
+    tenant: &TenantScope,
+    target: &str,
+) -> Result<std::path::PathBuf, axum::http::StatusCode> {
+    access::authorize_provider_config(path, headers, tenant, target).map(|host| host.home)
+}

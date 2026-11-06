@@ -10,7 +10,7 @@ use axum::{
 use vw_api_types::{agent_apps::AppId, app_providers::AppProviderWrite, id::TenantScope};
 
 pub(crate) fn router() -> Router {
-    Router::new().route(
+    Router::new().merge(catalog::router()).route(
         "/app-providers/{app}/{id}",
         get(read).put(save).layer(DefaultBodyLimit::max(16 * 1024)),
     )
@@ -68,3 +68,9 @@ async fn save(
         Err(_) => error("application provider storage unavailable"),
     }
 }
+
+#[cfg(test)]
+#[path = "app_providers/catalog_tests.rs"]
+mod catalog_tests;
+
+mod catalog;

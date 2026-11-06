@@ -61,3 +61,7 @@ pub fn validate_profile(app: AppId, profile: &AppProviderWrite) -> Result<(), St
     }
     Ok(())
 }
+
+pub mod catalog;
+#[cfg(all(test, target_os = "macos"))]
+mod catalog_tests;

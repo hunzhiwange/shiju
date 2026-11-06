@@ -11,6 +11,7 @@ license = "MIT"
 tokio = { version = "1", features = ["rt", "sync"] }
 reqwest = { version = "0.13", default-features = false, features = ["json", "rustls"] }
 serde_json = "1"
+toml = "0.9"
 semver = "1"
 sha2 = "0.11"
 base64 = "0.23"

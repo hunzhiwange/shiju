@@ -30,6 +30,8 @@ struct Grant {
     #[serde(default)]
     preferences_write: bool,
     #[serde(default)]
+    provider_config_read: bool,
+    #[serde(default)]
     launch: bool,
     #[serde(default)]
     identities: Vec<IdentityPermit>,
@@ -114,8 +116,15 @@ pub(super) fn authorize_preferences(
     action: Option<vw_api_types::agent_apps::AppLifecycleAction>,
     write_host: bool,
 ) -> Result<(Host, String), StatusCode> {
-    authorize_scoped(path, headers, tenant, target, action, write_host, false)
-        .map(|a| (a.host, a.principal))
+    authorize_scoped(
+        path,
+        headers,
+        tenant,
+        target,
+        action,
+        if write_host { Capability::PreferencesWrite } else { Capability::Read },
+    )
+    .map(|a| (a.host, a.principal))
 }
 
 pub(super) fn authorize_launch_session(
@@ -124,7 +133,7 @@ pub(super) fn authorize_launch_session(
     tenant: &TenantScope,
     target: &str,
 ) -> Result<(Host, String), StatusCode> {
-    authorize_scoped(path, headers, tenant, target, None, false, true)
+    authorize_scoped(path, headers, tenant, target, None, Capability::Launch)
         .map(|a| (a.host, a.principal))
 }
 pub(super) fn authorize_identity_launch(
@@ -133,7 +142,15 @@ pub(super) fn authorize_identity_launch(
     tenant: &TenantScope,
     target: &str,
 ) -> Result<Authorization, StatusCode> {
-    authorize_scoped(path, headers, tenant, target, None, false, true)
+    authorize_scoped(path, headers, tenant, target, None, Capability::Launch)
+}
+
+#[derive(Clone, Copy)]
+enum Capability {
+    Read,
+    PreferencesWrite,
+    Launch,
+    ProviderConfigRead,
 }
 
 fn authorize_scoped(
@@ -142,8 +159,7 @@ fn authorize_scoped(
     tenant: &TenantScope,
     target: &str,
     action: Option<vw_api_types::agent_apps::AppLifecycleAction>,
-    write_host: bool,
-    launch: bool,
+    capability: Capability,
 ) -> Result<Authorization, StatusCode> {
     let mut values = headers.get_all("x-agent-apps-token").iter();
     let token = values
@@ -184,8 +200,12 @@ fn authorize_scoped(
                 && g.company_id == tenant.company_id().as_ref()
                 && g.host_id == target
                 && action.is_none_or(|a| g.actions.contains(&a))
-                && (!write_host || g.preferences_write)
-                && (!launch || g.launch)
+                && match capability {
+                    Capability::Read => true,
+                    Capability::PreferencesWrite => g.preferences_write,
+                    Capability::Launch => g.launch,
+                    Capability::ProviderConfigRead => g.provider_config_read,
+                }
         })
         .collect();
     if grants.is_empty() {
@@ -300,4 +320,15 @@ fn load(path: &Path) -> Result<Policy, ()> {
         }
         Ok(policy)
     }
+}
+
+/// Configuration metadata reads require an independent administrator grant.
+pub(super) fn authorize_provider_config(
+    path: Option<&Path>,
+    headers: &HeaderMap,
+    tenant: &TenantScope,
+    target: &str,
+) -> Result<Host, StatusCode> {
+    authorize_scoped(path, headers, tenant, target, None, Capability::ProviderConfigRead)
+        .map(|a| a.host)
 }

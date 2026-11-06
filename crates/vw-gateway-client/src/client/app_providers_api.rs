@@ -28,6 +28,16 @@ fn provider_path(app: AppId, id: &str) -> Result<String, String> {
     {
         return Err("invalid application provider identity".into());
     }
-    let app = serde_json::to_string(&app).map_err(|_| "invalid application identity")?;
-    Ok(format!("/v1/app-providers/{}/{id}", app.trim_matches('"')))
+    Ok(format!("{}/{id}", provider_collection_path(app)))
+}
+
+#[path = "app_providers/catalog.rs"]
+mod catalog;
+#[cfg(test)]
+#[path = "app_providers/catalog_tests.rs"]
+mod catalog_tests;
+
+fn provider_collection_path(app: AppId) -> String {
+    let app = serde_json::to_string(&app).expect("AppId serialization");
+    format!("/v1/app-providers/{}", app.trim_matches('"'))
 }

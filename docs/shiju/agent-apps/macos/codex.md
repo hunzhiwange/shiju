@@ -1,4 +1,4 @@
-# Codex macOS 实机验收（已阻塞，保留回归）
+# Codex macOS 实机验收（已完成，待回归）
 
 2026-11-06，Asia/Shanghai。已阅读只读总计划、来源与接口及任务05–45相关持久证据；依赖47已有SDK/Iced实机结果，仍有待回归项，不把状态标签等同于实现缺失。本任务没有修改Rust或plan.md。
 
@@ -46,3 +46,20 @@ macOS 27.0 (26A428)，arm64；Node v26.13.0、npm 11.20.0；brew入口/opt/homeb
 - 有效自动测试0；本项为人工场景验收，没有Rust改动，按任务规则无需Clippy；编译或0测试均不替代行为证据。
 - 第二prefix通过`npm uninstall --global --prefix <isolated-home>/.local @openai/codex`退出0清理；第一prefix通过正式API卸载及取消后为空。最终API200/installations=[]，SDK成功空列表，Iced重连未安装。
 - 本任务Iced bundle、标准桌面、两轮网关均终止，进程检查无本测试根残留；删除临时令牌/策略/应用包/隔离数据，个人Codex前后哈希一致。保留脱敏证据及共享编译缓存。
+
+## 恢复复核与最新结论（2026-11-06）
+
+按追加调度要求复核task-44及提交7f76dc816后当前生产代码：前节“已阻塞”为此前判断，本节结论取代该状态。身份列表与托管PTY通路已交付，不存在“身份契约未实现”或一概501的结论。正式处理器launch.rs在providerId/accountId分支调用唯一AppProviderStore/AuthAccountStore进行材料化，再经TerminalSession::connect_with、prepared.run_with、transport.run运行真实子进程；租约保持到退出、轮换回写与清理完成，sessionId只表示已spawn，最终状态另读launch-sessions。主机现有配置是单独的无身份分支，不能将其个人Terminal环境问题泛化为托管PTY缺陷。
+
+本次没有读取个人全局凭据、扫描钥匙串或自动认领个人登录。独立网关身份列表实机已为空；创建虚构密钥/令牌只能证明材料契约，不能形成真实厂商登录证据；因此没有向生产账号库写入假身份或发起外部模型调用。安全可执行的补充路径是运行已有隔离夹具回归，验证当前正式SDK/HTTP/PTY通路与权限边界，再明确保留真实账号场景待回归。
+
+新验证阶段动态原子领取slot-2，CARGO_TARGET_DIR与CARGO_BUILD_BUILD_DIR均为/Users/xiangmin/worker/code/shiju/target/rust-slot-2，覆盖仓库build.build-dir。owner记录任务48/resume及持有PID；全部Cargo和测试子进程结束后已释放自有锁、保留缓存，其他锁不动。
+
+| 本次确切命令 | 退出码 | 有效结果 |
+| --- | --- | --- |
+| cargo test -p vw-agent --lib cc_apps_launch_identity_list -- --nocapture | 0 | 3通过，11467过滤；0.49秒 |
+| cargo test -p vw-agent --lib cc_apps_launch_native_terminal -- --nocapture | 0 | 1通过，11469过滤；1.36秒 |
+
+共新增4项顶层有效回归通过。后者使用真实macOS Terminal、正式SDK/HTTP/PTY与独立临时SQLite/凭据目录；CLI和身份内容为受控夹具，覆盖供应商/账号材料存活、TTY、账号轮换及清理。它不是本任务官方Codex包登录真实服务的证据，不将假密钥当成真实登录成功。无Rust变更，按本任务规则无需Clippy；没有执行全量测试、fmt检查、wasm或Makefile。
+
+最新状态为**已完成，待回归**，保留任务48供回归；不会因缺少真实测试身份阻止下一应用批次。已完成的官方包生命周期、SDK/Iced一致性及故障场景证据继续有效。仍待真实身份/专用终端环境下确认官方Codex的默认终端程序/cwd/环境、供应商和官方账号登录启动及临时材料清理，以及运行中下载取消时序。缺账号属于未验证，不标不支持，不宣称整项完整通过。plan.md保持只读。

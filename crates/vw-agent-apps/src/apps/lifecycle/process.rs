@@ -200,6 +200,20 @@ pub(crate) fn run_command(mut command: Command) -> Result<(Option<i32>, String),
             None
         }
     };
+    let operation = super::operations::current();
+    if operation.as_ref().is_some_and(|op| op.is_cancelled()) {
+        return Err("operation cancelled".into());
+    }
+    #[cfg(not(unix))]
+    if operation.is_some() {
+        return Err("cancellable lifecycle execution requires a process-tree executor".into());
+    }
+    #[cfg(unix)]
+    {
+        use std::os::unix::process::CommandExt;
+        command.process_group(0);
+    }
+    super::operations::phase(super::operations::Phase::Executing);
     let mut child = command
         .stdin(Stdio::null())
         .stdout(Stdio::piped())
@@ -211,7 +225,34 @@ pub(crate) fn run_command(mut command: Command) -> Result<(Option<i32>, String),
     std::thread::scope(|scope| {
         let out = scope.spawn(|| drain(stdout));
         let err = scope.spawn(|| drain(stderr));
-        let status = child.wait().map_err(|_| "installer wait failed")?;
+        let mut cancelled = false;
+        let mut exited = None;
+        let status = loop {
+            if !cancelled && operation.as_ref().is_some_and(|op| op.is_cancelled()) {
+                cancelled = true;
+                #[cfg(unix)]
+                {
+                    // The child owns this fresh group; never signal the host group.
+                    let result = unsafe { libc::kill(-(child.id() as i32), libc::SIGKILL) };
+                    if result != 0
+                        && std::io::Error::last_os_error().raw_os_error() != Some(libc::ESRCH)
+                    {
+                        // Keep holding the write lock rather than claim cancellation.
+                        let _ = child.kill();
+                    }
+                }
+            }
+            if exited.is_none() {
+                exited = child.try_wait().map_err(|_| "installer wait failed")?;
+            }
+            if out.is_finished()
+                && err.is_finished()
+                && let Some(status) = exited
+            {
+                break status;
+            }
+            std::thread::sleep(std::time::Duration::from_millis(10));
+        };
         let out = out
             .join()
             .map_err(|_| "installer output reader failed")?
@@ -220,6 +261,10 @@ pub(crate) fn run_command(mut command: Command) -> Result<(Option<i32>, String),
             .join()
             .map_err(|_| "installer output reader failed")?
             .map_err(|_| "installer output read failed")?;
+        if cancelled {
+            return Err("operation cancelled".into());
+        }
+        super::operations::phase(super::operations::Phase::Postflight);
         if !status.success() {
             return Err(format!("installer failed (exit {:?}; output redacted)", status.code()));
         }

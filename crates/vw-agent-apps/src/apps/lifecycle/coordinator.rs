@@ -56,10 +56,11 @@ impl ToolLifecycleCoordinator {
         let execution = host.execution.clone().lock_owned().await;
         // No await between acquiring execution and handing both guards to the
         // non-abortable worker. The HTTP future never owns a running write lock.
+        let operation_context = super::operations::active();
         tokio::task::spawn_blocking(move || {
             let _tools = guards;
             let _execution = execution;
-            operation()
+            super::operations::with_context(operation_context, operation)
         })
         .await
         .map_err(|_| "tool lifecycle task join error".to_owned())?

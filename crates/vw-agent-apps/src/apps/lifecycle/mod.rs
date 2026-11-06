@@ -34,3 +34,7 @@ mod process_tests;
 pub mod wsl;
 #[cfg(test)]
 mod wsl_tests;
+
+pub mod operations;
+#[cfg(test)]
+mod operations_tests;

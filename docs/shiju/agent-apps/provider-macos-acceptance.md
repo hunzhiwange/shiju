@@ -1394,3 +1394,49 @@ Gateway 使用真实临时 SQLite、授权策略、回环 HTTP、原 SDK 和真�
 所有凭据均为假值，JWT 只用于本地身份分类；未替代文件系统、数据库、pending 事务或 Gateway 鉴权，没有访问真实账号、Keychain、网络模型上游或真实用户配置。平台为 macOS **27.0 (26A428)**、**arm64**，crate **0.6.0**。`codex --version` 退出 0，记录本机随应用安装的 **codex-cli 0.166.0-alpha.6**；只查询版本，未运行 CLI 消费本次配置，真实账号/CLI 会话/Iced 渲染未验证。Agent lib test 继续有既有 `__eh_frame section too large` 链接提示，测试退出 0；未改链接设置，强制 Clippy 退出 0。
 
 定向 diff/check、只读 plan.md 无差异检查与暂存审查通过；仅提交本任务代码、独立测试、最小注册及本条正式证据，保留其它母任务状态、此前编号文件删除及其它计划。全部自身槽位锁已释放，缓存保留；未运行全量 cargo test、fmt check、wasm 或 Makefile。任务完成后删除编号任务文件，不提交其删除；正式证据保留。下一步为批次 31。
+
+## 任务 31：Gemini 双文件事务切换
+
+2026-11-07；状态：已完成。本条仅记录 Gemini 官方 Google 登录与第三方 API key 的双文件切换，不代表真实账号登录、CLI 消费或 Iced 验收。
+
+### 前置、来源与实现
+
+核对批次 30 提交 `c1e1c3fef` 及任务 30 的正式验证证据。母任务 1、3 的当前状态为已完成；母任务 2 仍未整体收口，沿用任务 1 与 provider-contracts.md 已记录的底座子计划 1–93 开工裁定，不将其改报完成。只读 plan.md 未修改。
+
+来源 `/Users/xiangmin/worker/code/cc-switch` HEAD `ca58c0313360eae7c851fbd7553c1614c7af03e7`，rev-parse/status 均退出 0、来源干净。阅读 `gemini_direct::{projection,switch_to,reapply,run_with_edits}`、`gemini_auth::{detect_gemini_auth_type,is_google_official_gemini}`、`live/project/gemini::GeminiProjection::{of,env_patch,settings_patch}` 及相邻测试；直接调用者为 ProviderService 的首次供应商与 switch 分支、`provider/live.rs` 的 reapply 和 `gemini_editor::{view,write_live,plan_save}`。另核对 golden `mcp_bytes::gemini_switch_keeps_mcp_servers` 与 `file_modes`。来源测试只读，未运行。RustCodeGraph status 可用，explore 查询长时间无输出后终止，当前新增模块/未覆盖调用链用定向源码读取核对。
+
+- `vw-api-types/src/app_providers/gemini.rs` 定义 GeminiProfile、显式 Official/ThirdParty 认证、模型、host target 及 catalog_only/first/if_current/switch 激活方式。未知字段、客户端文件路径和官方卡内的 API key 拒绝；秘密 Debug 脱敏。官方登录类型显式选择，不从供应商名称猜认证方式，不导入 OAuth token 或托管账号快照。
+- `vw-agent-apps/src/providers/gemini.rs::{settings,patches,GeminiFiles}` 直接消费既有 `projection::gemini` 和 `fields::gemini_floor_env/GEMINI_FLOOR_SETTINGS`，未复制投影规则；使用已有 DotenvPatch/JsonPatch 保留用户行、JSONC 注释、MCP 和设置。只替换受管 env 键、security.auth.selectedType 与 model.name；官方切换清除旧 key、端点/Google 环境和旧模型，保留 GEMINI_SANDBOX、DEBUG、认证/模型对象的其它键及 MCP。新 DTO 的 model 对应 settings.json 的 model.name；其它既有受管 env 会清理，不新增任意 env/文件编辑 API。
+- HOME 来自执行主机授权策略；固定 `.gemini` 子目录通过 retained descriptor 与 no-follow 打开并持有既有物理目录锁。`.env`、settings.json 绑定 WholeFile 快照，均以 0600 准备，进入同一 ProviderTransactions intent；当前供应商指针和 direct mode 同次落定。目录状态、保存行及前供应商在发布标记前重新校验。复用已交付的 commit_checked/pending/recovery，无第二事务引擎、无事务外文件写入。
+- 发布仍是逐文件 rename，不能当作文件系统多文件原子 CAS。未发布意图丢弃、已标记意图前滚；发生外部修改时保留外部文件并报告恢复结果。实测部分发布后 settings.json 被外部修改时，恢复返回 RolledForwardExcept，目标指针按既有恢复契约落定；调用入口先返回 recovery_required，下一次请求才重新规划，不把保留外部内容后的状态报作本次 live 成功。
+- `vw-agent/src/app_providers/gemini.rs` 沿既有 AppProviderStore/租户 namespace 与 CAS 保存目录行，保留元数据，列表/摘要识别显式官方档案。API handler 在 `gateway/api/handlers/app_providers/gemini.rs`，经既有 app_providers/router/bootstrap 分域注册，沿 provider_editor_context 在数据库和目录访问前校验主机写权限。
+- SDK `gemini_provider_save/switch/reapply` 对应 `PUT /v1/app-providers/gemini/{id}/config`、`POST /switch` 与 `/reapply`。保存目录、首次激活、当前编辑、显式切换和重新应用均接同一适配器；目录保存与 live 结果分开，调用者须检查 catalogSaved 和 live，不能由目录保存成功推断 live 已成功。跨租户指针、代理/附着状态及已有 authBinding/liveConfigManaged 明确拒绝；未实现托管账号租约或 OAuth 授权。无新增 Iced 页面，后续 UI 使用本 SDK，通用全局编辑器仍不声称支持 Gemini 写入。
+- dotenv 新值使用可保留字面量的引号，避免将 JSON 转义误当 dotenv 转义；不能无损表示的值明确拒绝。SDK 令牌头为 sensitive，HTTP 错误体丢弃；成功响应仅返回结果枚举，不返回 key/配置。
+
+### 红绿与验证
+
+从仓库根按原子 mkdir 顺序动态领取共享槽位；格式化与最终验证实际槽位 **1**、红阶段实际槽位 **2**：
+
+- 槽位 1：`CARGO_TARGET_DIR=/Users/xiangmin/worker/code/shiju/target/rust-slot-1`。
+- 槽位 2：`CARGO_TARGET_DIR=/Users/xiangmin/worker/code/shiju/target/rust-slot-2`。
+
+各阶段同时将 CARGO_BUILD_BUILD_DIR 设为对应绝对路径以覆盖仓库 build-dir。锁内记录计划/任务/会话/PID，shell trap 覆盖正常、失败与中断；Cargo/产物进程结束后才清理自身 owner/锁，保留缓存。没有另建任务构建目录或使用其它 target-dir。
+
+红阶段先接通可编译基线，仅提交 env 而 settings 保持旧内容。四条指定过滤命令退出码依次 **101/0/101/0**，有效数量 **4/1/2/2**：业务包 1 通过、3 在业务断言失败，指定双文件测试实际读到 oauth-personal 而非 gemini-api-key；官方切换仍有旧模型，恢复意图未含两个变化文件。Gateway 1 通过、1 失败，当前供应商编辑后的 model.name 为 Null 而非 edited。没有用缺模块、编译失败或零测试代替红证据。
+
+最终源码先执行 `cargo fmt --all`（退出 0），以下四命令同阶段使用槽位 1：
+
+| 确切命令 | 退出码 | 有效通过数量 |
+| --- | --- | --- |
+| `cargo test -p vw-agent-apps --lib cc04_gemini_ -- --nocapture` | 0 | 9 |
+| `cargo test -p vw-api-types --lib cc04_gemini_ -- --nocapture` | 0 | 1 |
+| `cargo test -p vw-agent --lib cc04_gemini_ -- --nocapture` | 0 | 6 |
+| `cargo test -p vw-gateway-client --lib cc04_gemini_ -- --nocapture` | 0 | 2 |
+
+共 **18** 项通过，无忽略。指定 `cc04_gemini_switch_commits_both_files` 和 `cc04_gemini_official_switch_removes_only_managed_keys` 通过；另覆盖 Intent/Marked/FilePublished/Published/Settled 五处故障后重建事务执行器恢复、意图确含双文件、发布前保存输入变化拒绝、外部修改保留并报告异常、JSONC/MCP 字节和非受管 env 保留、秘密标点/反斜杠、坏 JSON/密钥/符号链接拒绝及文件私有权限。
+
+Gateway 以真实临时 SQLite、授权策略、回环 HTTP 和原 SDK 验证 SDK 请求→API 响应→执行端临时文件/指针：第三方首次激活、当前档案编辑重投影、官方目录仅保存后显式切换、重新应用；非当前 first/if_current 不改 live。错误 token、缺写权限、错误主机/租户、托管绑定、坏 live JSON 均无目标文件或目录行副作用。恢复 API 测试用真实私有 staged 文件和 Pending schema 构造已有中断意图，先恢复两文件并返回 recovery_required，下一次才应用；不是自然崩溃，实际五阶段故障由业务包 hook 测试证明。
+
+所有凭据均是假值；没有替代文件系统、数据库、事务或 Gateway 鉴权。仅故障点/保存输入有效性通过内部阶段 hook 控制；未访问真实用户配置、真实账号、Keychain 或网络模型上游。平台 macOS **27.0 (26A428)**、**arm64**，业务 crate **0.6.0**；`gemini --version` 退出 0 为 **0.66.0**，仅查询版本。真实 Google 登录、真实 Gemini CLI 会话消费、Iced 渲染和非 macOS 未验证。首轮本次 handler 的 unused variable 警告已修复，最终测试只余既有 `__eh_frame section too large` 链接提示，未改链接配置。
+
+强制 `cargo clippy --all-targets --all-features -- -D warnings` 使用重新动态领取的槽位 1 和相同绝对 CARGO_TARGET_DIR，退出 **0**，不计行为测试。定向 diff/check、暂存差异审查与只读 plan.md 无差异检查均通过；只提交本任务代码、独立测试、最小模块注册和本条正式证据。各阶段自身槽位 1/2 的锁均已释放，缓存保留。原有母任务状态、此前编号文件删除与其它计划保持原状，未纳入提交。未执行全量 cargo test、fmt check、wasm 或 Makefile；完成后删除任务 31 编号文件而不提交其删除。下一步为批次 32。

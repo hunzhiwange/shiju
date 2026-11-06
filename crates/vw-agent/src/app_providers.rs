@@ -409,6 +409,21 @@ impl AppProviderStore {
                 }
             }
         }
+        if app == AppId::Gemini {
+            if let Some(row) = self.gemini_record(tenant, id)? {
+                if let Some(profile) = row.get("gemini") {
+                    let profile: vw_api_types::app_providers::gemini::GeminiProfile =
+                        serde_json::from_value(profile.clone())
+                            .map_err(|_| "invalid provider record")?;
+                    return Ok(AppProviderSummary {
+                        id: id.into(),
+                        app_id: app,
+                        name: profile.name,
+                        configured: true,
+                    });
+                }
+            }
+        }
         let profile = self.read(tenant, app, id)?;
         Ok(Self::summary(app, id, &profile))
     }
@@ -499,3 +514,5 @@ mod snippets;
 mod claude;
 
 mod codex_catalog;
+
+mod gemini;

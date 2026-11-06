@@ -122,3 +122,7 @@ mod codex_tests;
 pub mod codex_catalog;
 #[cfg(test)]
 mod codex_catalog_tests;
+
+pub mod gemini;
+#[cfg(test)]
+mod gemini_tests;

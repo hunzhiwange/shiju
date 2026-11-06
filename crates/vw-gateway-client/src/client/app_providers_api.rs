@@ -154,3 +154,9 @@ mod codex_catalog;
 #[cfg(test)]
 #[path = "app_providers/codex_catalog_tests.rs"]
 mod codex_catalog_tests;
+
+#[path = "app_providers/gemini.rs"]
+mod gemini;
+#[cfg(test)]
+#[path = "app_providers/gemini_tests.rs"]
+mod gemini_tests;

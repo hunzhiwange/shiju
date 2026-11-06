@@ -145,3 +145,7 @@ mod codex_login_tests;
 pub mod codex_catalog;
 #[cfg(all(test, target_os = "macos"))]
 mod codex_catalog_tests;
+
+pub mod gemini;
+#[cfg(all(test, target_os = "macos"))]
+mod gemini_tests;

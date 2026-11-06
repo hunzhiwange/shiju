@@ -312,3 +312,124 @@ fn editor_style_callbacks_can_be_invoked_through_construction_inputs() {
     assert_eq!(height, 4.0 * INPUT_LINE_HEIGHT + INPUT_VERTICAL_PADDING * 2.0);
     assert!(Theme::Dark.palette().background.r < Theme::Light.palette().background.r);
 }
+
+/// Custom composer bindings run even when Iced reports an unfocused editor.
+/// Exercise the real sibling widgets so terminal paste/Enter cannot send chat.
+#[cfg(not(target_arch = "wasm32"))]
+#[tokio::test(flavor = "multi_thread")]
+async fn terminal_focus_composer_does_not_capture_terminal_paste_or_enter() {
+    use iced::advanced::renderer::Headless;
+    use iced::advanced::{Layout, Shell, layout, widget::Tree};
+    use iced::{Element, Event, Font, Pixels, Point, Rectangle, Size};
+    struct Clipboard;
+    impl iced::advanced::Clipboard for Clipboard {
+        fn read(&self, _: iced::advanced::clipboard::Kind) -> Option<String> {
+            Some("中文 paste".into())
+        }
+        fn write(&mut self, _: iced::advanced::clipboard::Kind, _: String) {}
+    }
+    let mut app = crate::app::App::new().0;
+    app.terminal = crate::app::TerminalState::blank_with_settings(
+        true,
+        crate::app::Shell::Bash,
+        crate::app::TerminalTheme::System,
+        "monospace".into(),
+        15.0,
+        300.0,
+    );
+    app.terminal
+        .add_terminal_with_command("focus".into(), Some(std::env::temp_dir()), "exec cat".into())
+        .expect("PTY");
+    let renderer =
+        <iced::Renderer as Headless>::new(Font::DEFAULT, Pixels(16.0), Some("tiny-skia"))
+            .await
+            .expect("renderer");
+    let mut element: Element<'_, Message> = iced::widget::column![
+        iced::widget::container(build_input_editor(&app, &app.input_editor, false, false).0)
+            .height(100),
+        iced::widget::container(crate::app::components::terminal_panel::view(&app)).height(300),
+    ]
+    .into();
+    let mut tree = Tree::new(element.as_widget());
+    let size = Size::new(800.0, 400.0);
+    let node = element.as_widget_mut().layout(
+        &mut tree,
+        &renderer,
+        &layout::Limits::new(Size::ZERO, size),
+    );
+    let mut dispatch = |event, point| {
+        let mut messages = Vec::new();
+        element.as_widget_mut().update(
+            &mut tree,
+            &event,
+            Layout::new(&node),
+            iced::mouse::Cursor::Available(point),
+            &renderer,
+            &mut Clipboard,
+            &mut Shell::new(&mut messages),
+            &Rectangle::with_size(size),
+        );
+        messages
+    };
+    dispatch(
+        Event::Mouse(iced::mouse::Event::ButtonPressed(iced::mouse::Button::Left)),
+        Point::new(100.0, 200.0),
+    );
+    let key_event = |key: keyboard::Key, modifiers| {
+        Event::Keyboard(keyboard::Event::KeyPressed {
+            modified_key: key.clone(),
+            key,
+            physical_key: keyboard::key::Physical::Code(keyboard::key::Code::KeyV),
+            location: keyboard::Location::Standard,
+            modifiers,
+            text: None,
+            repeat: false,
+        })
+    };
+    #[cfg(target_os = "macos")]
+    let paste_modifiers = keyboard::Modifiers::LOGO;
+    #[cfg(not(target_os = "macos"))]
+    let paste_modifiers = keyboard::Modifiers::CTRL | keyboard::Modifiers::SHIFT;
+    for (event, expected) in [
+        (key_event(keyboard::Key::Character("v".into()), paste_modifiers), "中文 paste".as_bytes()),
+        (
+            key_event(named_key(keyboard::key::Named::Enter), keyboard::Modifiers::empty()),
+            b"\n".as_slice(),
+        ),
+    ] {
+        if let Event::Keyboard(keyboard::Event::KeyPressed { modifiers, .. }) = &event {
+            dispatch(
+                Event::Keyboard(keyboard::Event::ModifiersChanged(*modifiers)),
+                Point::new(100.0, 200.0),
+            );
+        }
+        let messages = dispatch(event, Point::new(100.0, 200.0));
+        assert!(
+            !messages.iter().any(|message| matches!(message, Message::Chat(_))),
+            "unfocused composer published a chat action: {messages:?}"
+        );
+        let writes: Vec<_> = messages
+            .iter()
+            .filter_map(|message| match message {
+                Message::Terminal(message::TerminalMessage::Event(
+                    iced_term::Event::BackendCall(_, iced_term::BackendCommand::Write(bytes)),
+                )) => Some(bytes.as_slice()),
+                _ => None,
+            })
+            .collect();
+        assert_eq!(writes, vec![expected]);
+    }
+    dispatch(
+        Event::Mouse(iced::mouse::Event::ButtonPressed(iced::mouse::Button::Left)),
+        Point::new(100.0, 30.0),
+    );
+    let messages = dispatch(
+        key_event(named_key(keyboard::key::Named::Enter), keyboard::Modifiers::empty()),
+        Point::new(100.0, 30.0),
+    );
+    assert!(
+        messages
+            .iter()
+            .any(|message| matches!(message, Message::Chat(message::ChatMessage::SendPressed)))
+    );
+}

@@ -60,6 +60,9 @@ pub(super) fn binding_from_key_press(
     app: &App,
     kp: iced::widget::text_editor::KeyPress,
 ) -> Option<iced::widget::text_editor::Binding<Message>> {
+    if !matches!(kp.status, iced::widget::text_editor::Status::Focused { .. }) {
+        return None;
+    }
     if app.show_slash_palette {
         match kp.key {
             iced::keyboard::Key::Named(iced::keyboard::key::Named::ArrowUp) => {
@@ -132,6 +135,9 @@ pub(super) fn binding_from_key_press(
     app: &App,
     kp: iced::widget::text_editor::KeyPress,
 ) -> Option<iced::widget::text_editor::Binding<Message>> {
+    if !matches!(kp.status, iced::widget::text_editor::Status::Focused { .. }) {
+        return None;
+    }
     if app.show_slash_palette {
         match kp.key {
             iced::keyboard::Key::Named(iced::keyboard::key::Named::ArrowUp) => {

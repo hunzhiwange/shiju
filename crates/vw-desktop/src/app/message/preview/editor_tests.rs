@@ -391,7 +391,7 @@ fn preview_context_menu_request_preserves_selection_and_clears_lsp_overlay() {
 }
 
 #[cfg(not(target_arch = "wasm32"))]
-#[tokio::test]
+#[tokio::test(flavor = "multi_thread")]
 async fn preview_context_menu_reveal_routes_gateway_path_without_local_file_check() {
     let mut app = test_app();
     let path = "/gateway-only/project/文件.rs".to_string();

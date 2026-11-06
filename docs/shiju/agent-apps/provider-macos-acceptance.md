@@ -1648,3 +1648,56 @@ Gateway 使用真实临时 SQLite、管理员策略、回环 HTTP 和原 SDK，�
 `sw_vers`/`uname -m`：macOS **27.0 (26A428)**、**arm64**，crate **0.6.0**。`command -v opencode` 未找到可执行文件，`opencode --version` 退出 **127**，应用版本、真实 OpenCode 消费、真实账号/Keychain、网络上游、Iced 渲染及非 macOS **未验证**。未触碰真实用户配置。Gateway lib test 有既有 `__eh_frame section too large` 链接提示，测试退出 0；未修改链接配置。
 
 定向 diff/check 和暂存审查通过；只提交本任务实现、独立测试、必要注册、原生观察接线及本条证据。既有母任务状态、此前编号任务删除和其它计划不纳入；所有 plan.md 保持只读。自身锁释放、缓存保留；未运行全量 cargo test、fmt check、wasm 或 Makefile。完成后删除任务 35 编号文件且不提交该删除，正式证据保留；下一步批次 36，OpenCode Iced 编辑归任务 58。
+
+## 任务 36：OpenClaw 增量供应商
+
+2026-11-07；范围：点名维护 OpenClaw 供应商，设置 primary 时保留默认模型其它字段并移除与新 primary 重复的 fallback。状态：已完成。
+
+### 依赖与实现
+
+核对批次 35 提交 `c9e64fe96` 及上节验收记录。母任务 1、3 已完成；母任务 2 完整迁移仍未收口，沿用任务 1/provider-contracts.md 中底座子计划 1–93 的开工裁定，不将其误报为完整完成。所有 plan.md 保持只读。
+
+来源 HEAD 确认为 `ca58c0313360eae7c851fbd7553c1614c7af03e7`。阅读 `openclaw_config.rs::{set_provider,remove_provider,get_default_model,set_default_model}` 及相邻测试、`commands/openclaw.rs`、`services/provider/live.rs` 的写入/导入/移除调用者和 `services/provider/mod.rs` 的 OpenClaw 导入测试；`useProviderActions.ts::setAsDefaultModel` 是保留扩展字段并过滤重复 fallback 的来源。导航先使用 RustCodeGraph，未覆盖新文件使用源码读取。
+
+- 执行端唯一业务所有者为 `vw-agent-apps/src/providers/openclaw.rs`：固定授权 HOME `.openclaw/openclaw.json`，点名修改 `models.providers.<id>`；新建 models 时补 mode=merge，现有 mode、其他成员、agents/workspace/memory 和未知字段保持。声明内按差异叶节点修改，保留未触及的 JSONC 注释。默认模型仅接受 live 成员已声明的模型（允许模型 ID 内含 `/`），只修改 `agents.defaults.model.primary` 和存在的 fallbacks 数组，过滤所有等于新 primary 的条目，其它 fallback 的顺序、重复项和默认模型扩展字段保留。
+- 复用 JsonPatch、描述符目录锁及 ProviderTransactions；不新增事务所有者或唯一供应商指针。文件前像、目录行修订、租户和 direct/attached 状态在提交前检查；中断由既有 pending 恢复。缺失配置读取/导入不建目录，缺失成员移除不创建配置文件；符号链接、损坏结构、重复 key、非法模型拒绝。沿用现有 JSON/JSONC 补丁能力，JSON5 未加引号键/单引号明确拒绝，不将其记为已支持；自定义配置路径未接入。
+- `vw-api-types/src/app_providers/openclaw.rs`、`vw-agent/src/app_providers/openclaw.rs`、Gateway/SDK 同名模块沿用现有分域注册、管理员主机策略及租户存储。声明 Debug 脱敏，SDK 敏感 header 与失败载荷丢弃；DTO 拒绝客户端文件路径/命令。目录列表摘要、原生成员观察和删除引用检查接同一所有者；live 成员阻止目录删除，remove-live 保留目录行，目录删除不清理原生默认模型引用。
+
+API 前缀 `/v1/app-providers/openclaw`：
+
+| API | SDK |
+| --- | --- |
+| `PUT /{id}/config` | `openclaw_provider_save`；catalog_only/add/if_member |
+| `POST /{id}/add` | `openclaw_provider_add`；消费已保存声明 |
+| `POST /{id}/remove-live` | `openclaw_provider_remove_live` |
+| `PUT /config/default-model` | `openclaw_default_model` |
+| `POST /config/state` | `openclaw_state`；只投影成员 ID 和 primary |
+| `POST /config/import` | `openclaw_import`；只读配置，跳过已有目录行 |
+
+返回 `catalogSaved` 与 live applied/not_attempted/failed/recovery_required，保存目录不等于 live 成功。导入策略延续任务 35 的新增不覆盖边界，完整导入策略归任务 44；Iced 编辑归任务 59，本项没有新增或验收 UI。工作区与记忆仅断言原样保留，没有实现其管理功能。
+
+### 红绿验证与平台边界
+
+各阶段均从仓库根原子 mkdir 动态领取槽位 **1**；`CARGO_TARGET_DIR=/Users/xiangmin/worker/code/shiju/target/rust-slot-1`，并设置同路径 `CARGO_BUILD_BUILD_DIR` 覆盖仓库 build-dir。锁中记录计划/任务/会话/PID，shell trap 在退出/中断时清理自身记录与锁，缓存保留。
+
+红测使用下表四个相同命令：业务包 **2 项在行为断言失败，退出 101**（成员未写入、primary/fallback 未更新）；DTO **1 项通过，退出 0**；Gateway **2 通过/1 业务失败，退出 101**（保存编辑未反映到执行端文件）；SDK **2 项通过，退出 0**。不存在用编译失败或零测试充当红测。
+
+最终执行 `cargo fmt --all`，退出 **0**。采用默认 features 的有效结果：
+
+| 确切命令 | 退出码 | 通过数量 |
+| --- | --- | --- |
+| `cargo test -p vw-agent-apps --lib cc04_openclaw_ -- --nocapture` | 0 | 8 |
+| `cargo test -p vw-api-types --lib cc04_openclaw_ -- --nocapture` | 0 | 1 |
+| `cargo test -p vw-agent --lib cc04_openclaw_ -- --nocapture` | 0 | 3 |
+| `cargo test -p vw-gateway-client --lib cc04_openclaw_ -- --nocapture` | 0 | 2 |
+| `cargo test -p vw-agent-apps --lib cc04_catalog_ -- --nocapture` | 0 | 7 |
+| `cargo test -p vw-agent-apps --lib cc04_delete_ -- --nocapture` | 0 | 3 |
+| `cargo clippy --all-targets --all-features -- -D warnings` | 0 | 非行为测试 |
+
+本任务 **14 项**、相邻回归 **10 项**通过，无忽略。指定 `cc04_openclaw_membership_keeps_unrelated_config`、`cc04_openclaw_primary_preserves_remaining_fallbacks` 均通过；额外证明新建 merge/已有 replace 保留、嵌套注释、未知默认字段、workspace/memory 保留、非法与未声明模型、含斜线模型、只读元数据脱敏、缺失移除、符号链接拒绝、输入修订/外部文件冲突及 Intent/Marked/FilePublished/Published/Settled 五阶段重建恢复，无唯一指针。
+
+Gateway 使用临时 HOME、真实 SQLite、管理员策略、真实回环 HTTP 和原生 SDK：save/add/if_member → API applied → 文件凭据 fixture 更新；default-model → primary 更新、fallback 过滤且 workspace/注释保留；不存在模型拒绝且文件不变；成员阻止目录删除、remove-live 不删目录行且可单独删除；只读导入重复返回 0 且不创建事务目录；假 token、异租户、异主机、缺写权限无行/文件/事务副作用，读权限仍可获取 state。只有远端部署传输替换为本地回环，凭据均为假值；未替代文件系统、数据库、鉴权或事务，也没有网络上游 mock 次数断言。
+
+`sw_vers`/`uname -m`：macOS **27.0 (26A428)**、**arm64**，crate **0.6.0**。`command -v openclaw` 无结果，`openclaw --version` 退出 **127**；应用版本、真实 OpenClaw 消费、真实账号/Keychain、网络上游、Iced 渲染和非 macOS **未验证**。未读取或修改真实用户配置。Gateway 测试链接器有既有 `__eh_frame section too large` 提示，测试退出 0，不修改链接配置。
+
+定向 diff/check、暂存审查与 plan.md 只读检查通过；只提交本任务实现、独立测试、必要接线和本条证据，排除既有母任务状态、其它计划与此前编号文件删除。自身槽位锁释放、缓存保留；未执行全量 cargo test、fmt check、wasm 或 Makefile。验收后删除编号任务文件，不提交其删除；下一步批次 37。

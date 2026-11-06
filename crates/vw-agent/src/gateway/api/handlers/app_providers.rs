@@ -21,6 +21,7 @@ pub(crate) fn router() -> Router {
         .merge(gemini::router())
         .merge(grok::router())
         .merge(opencode::router())
+        .merge(openclaw::router())
         .merge(claude_desktop::router())
         .merge(desktop_mapping::router())
         .merge(delete::router())
@@ -236,6 +237,9 @@ mod desktop_mapping;
 #[cfg(all(test, target_os = "macos"))]
 mod desktop_mapping_tests;
 
+mod openclaw;
+#[cfg(all(test, target_os = "macos"))]
+mod openclaw_tests;
 mod opencode;
 #[cfg(all(test, target_os = "macos"))]
 mod opencode_tests;

@@ -93,7 +93,7 @@ fn cc04_catalog_jsonc_precedence_and_symlinks_fail_closed() {
 #[test]
 fn cc04_catalog_additive_apps_never_invent_a_unique_current() {
     let home = tempfile::tempdir().unwrap();
-    for app in [AppId::OpenClaw, AppId::Hermes, AppId::Pi, AppId::Mcode, AppId::Dsh, AppId::Omp] {
+    for app in [AppId::Hermes, AppId::Pi, AppId::Mcode, AppId::Dsh, AppId::Omp] {
         let result = read(home.path(), app, vec![row(app, "saved")]);
         assert_eq!(result.direct, ProviderSelection::NotApplicable);
         assert_eq!(result.in_use, ProviderSelection::NotApplicable);

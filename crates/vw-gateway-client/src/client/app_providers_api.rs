@@ -184,3 +184,9 @@ mod opencode;
 #[cfg(test)]
 #[path = "app_providers/opencode_tests.rs"]
 mod opencode_tests;
+
+#[path = "app_providers/openclaw.rs"]
+mod openclaw;
+#[cfg(test)]
+#[path = "app_providers/openclaw_tests.rs"]
+mod openclaw_tests;

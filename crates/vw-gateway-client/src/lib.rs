@@ -33,12 +33,12 @@ mod tests;
 
 #[cfg(not(target_arch = "wasm32"))]
 pub use client::GatewayChatWebSocket;
+/// 保留每步原始 LLM 载荷的会话 UI 批量加载结果。
+pub use client::SessionUiLoadResult;
 /// 网关 HTTP 与流式接口的统一客户端入口。
 ///
 /// 调用方通常只需要持有这个类型，即可访问本 crate 暴露的大部分能力。
-pub use client::GatewayClient;
-/// 保留每步原始 LLM 载荷的会话 UI 批量加载结果。
-pub use client::SessionUiLoadResult;
+pub use client::{AgentAppsReadError, GatewayClient};
 /// Channel QR-code authorization transport contract.
 pub use client::{ChannelQrFetchResponseDto, ChannelQrStatusDto, ChannelQrStatusResponseDto};
 pub use client::{CronAddRequest, CronJobDto, CronRunDto, CronUpdateRequest};

@@ -12,10 +12,14 @@
 //! - 目标网关端点配置
 //! - 复用的 `reqwest::Client`，宿主请求额外禁用重定向与重试
 
+mod agent_apps_read_api;
+pub use agent_apps_read_api::AgentAppsReadError;
 mod agent_apps_api;
 #[cfg(test)]
 #[path = "agent_apps_api_tests.rs"]
 mod agent_apps_api_tests;
+#[cfg(test)]
+mod agent_apps_read_api_tests;
 mod agent_scheduler_api;
 #[cfg(test)]
 #[path = "agent_scheduler_api_tests.rs"]

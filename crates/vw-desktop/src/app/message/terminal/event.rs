@@ -13,6 +13,24 @@ use crate::app::FocusArea;
 use crate::app::{App, Message, TerminalState};
 use iced::Task;
 
+/// Transfer both the editor's independent canvas focus and Iced's widget focus.
+#[cfg(not(target_arch = "wasm32"))]
+pub(crate) fn focus_active_terminal(app: &mut App) -> Task<Message> {
+    let Some(tab) = app.terminal.tabs.iter().find(|tab| {
+        Some(tab.id) == app.terminal.active_id
+            && app.terminal.is_visible
+            && tab.edit_title.is_none()
+    }) else {
+        return Task::none();
+    };
+    let widget_id = tab.term.widget_id().clone();
+    for tab in &mut app.preview_tabs {
+        tab.editor.inner.lose_focus();
+    }
+    app.focus_area = FocusArea::Terminal;
+    iced_term::TerminalView::focus(widget_id)
+}
+
 fn apply_drag_started(terminal: &mut TerminalState, cursor_y: f32) {
     terminal.is_dragging = true;
     terminal.drag_anchor_y = Some(cursor_y);
@@ -67,8 +85,25 @@ pub fn update(app: &mut App, message: TerminalMessage) -> Task<Message> {
         // 该事件由 iced_term 库产生，用于与底层 PTY 进程通信
         #[cfg(not(target_arch = "wasm32"))]
         TerminalMessage::Event(iced_term::Event::BackendCall(id, cmd)) => {
-            // 将焦点区域切换到终端，表示用户正在与终端交互
-            app.focus_area = FocusArea::Terminal;
+            // These commands are emitted by an actual pointer press, before any
+            // keyboard input. Resize and PTY notifications must never take focus.
+            let clicked = matches!(cmd, iced_term::BackendCommand::SelectStart(..))
+                || matches!(
+                    cmd,
+                    iced_term::BackendCommand::MouseReport(
+                        iced_term::MouseButton::LeftButton
+                            | iced_term::MouseButton::MiddleButton
+                            | iced_term::MouseButton::RightButton,
+                        _,
+                        _,
+                        true
+                    )
+                );
+            let focus = if clicked && app.terminal.active_id == Some(id) {
+                focus_active_terminal(app)
+            } else {
+                Task::none()
+            };
 
             // 查找匹配指定 ID 的终端标签页
             if let Some(tab) = app.terminal.tabs.iter_mut().find(|t| t.id == id) {
@@ -87,7 +122,7 @@ pub fn update(app: &mut App, message: TerminalMessage) -> Task<Message> {
                     return super::tabs::reap_retired_task(app);
                 }
             }
-            Task::none()
+            focus
         }
 
         // WASM 平台下忽略所有终端后端事件

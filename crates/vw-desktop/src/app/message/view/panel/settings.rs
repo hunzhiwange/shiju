@@ -1,8 +1,6 @@
 //! 处理设置面板、项目配置与桌面窗口关闭流程的消息。
 
 use super::ViewMessage;
-#[cfg(not(target_arch = "wasm32"))]
-use crate::app::FocusArea;
 use crate::app::message::settings::McpMessage;
 use crate::app::message::{ProjectMessage, SettingsMessage};
 use crate::app::state::WorkspaceMode;
@@ -610,18 +608,18 @@ pub fn update(app: &mut App, message: ViewMessage) -> Task<Message> {
             }
             if app.terminal.is_visible {
                 #[cfg(not(target_arch = "wasm32"))]
-                if app.terminal.ensure_default_terminal(
+                app.terminal.ensure_default_terminal(
                     app.project_path.as_ref().map(std::path::PathBuf::from),
-                ) {
-                    app.focus_area = FocusArea::Terminal;
-                } else if !app.terminal.tabs.is_empty() {
-                    app.focus_area = FocusArea::Terminal;
-                }
+                );
 
                 #[cfg(not(target_arch = "wasm32"))]
                 app.terminal.apply_app_theme(&app.app_theme);
             }
             set_config_field("show_terminal", serde_json::Value::Bool(app.terminal.is_visible));
+            #[cfg(not(target_arch = "wasm32"))]
+            if app.terminal.is_visible {
+                return crate::app::message::terminal::event::focus_active_terminal(app);
+            }
             Task::none()
         }
         ViewMessage::FileManagerPanelVisible(b) => {

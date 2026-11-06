@@ -74,3 +74,6 @@ pub fn update(app: &mut App, message: TerminalMessage) -> Task<Message> {
 }
 #[cfg(test)]
 mod tests;
+
+#[cfg(all(test, not(target_arch = "wasm32")))]
+mod focus_tests;

@@ -28,7 +28,7 @@ pub fn update(app: &mut App, message: TerminalMessage) -> Task<Message> {
             #[cfg(not(target_arch = "wasm32"))]
             if app.terminal.add_terminal(app.project_path.as_ref().map(std::path::PathBuf::from)) {
                 app.terminal.apply_app_theme(&app.app_theme);
-                app.focus_area = FocusArea::Terminal;
+                return super::event::focus_active_terminal(app);
             }
             Task::none()
         }
@@ -39,6 +39,9 @@ pub fn update(app: &mut App, message: TerminalMessage) -> Task<Message> {
             app.terminal.select_terminal(id);
             #[cfg(not(target_arch = "wasm32"))]
             app.terminal.apply_app_theme(&app.app_theme);
+            #[cfg(not(target_arch = "wasm32"))]
+            return super::event::focus_active_terminal(app);
+            #[cfg(target_arch = "wasm32")]
             Task::none()
         }
         TerminalMessage::Close(id) => {
@@ -47,8 +50,15 @@ pub fn update(app: &mut App, message: TerminalMessage) -> Task<Message> {
             if app.terminal.tabs.len() <= 1 {
                 return Task::none();
             }
+            #[cfg(not(target_arch = "wasm32"))]
+            let was_active = app.terminal.active_id == Some(id);
             if app.terminal.close_terminal(id) {
-                return reap_retired_task(app);
+                let reap = reap_retired_task(app);
+                #[cfg(not(target_arch = "wasm32"))]
+                if was_active {
+                    return Task::batch([reap, super::event::focus_active_terminal(app)]);
+                }
+                return reap;
             }
             Task::none()
         }
@@ -63,6 +73,9 @@ pub fn update(app: &mut App, message: TerminalMessage) -> Task<Message> {
             app.terminal.apply_app_theme(&app.app_theme);
             app.terminal.tab_context_menu_id = Some(id);
             app.terminal.tab_context_menu_pos = Some((x, y));
+            #[cfg(not(target_arch = "wasm32"))]
+            return super::event::focus_active_terminal(app);
+            #[cfg(target_arch = "wasm32")]
             Task::none()
         }
         TerminalMessage::TabContextClose => {

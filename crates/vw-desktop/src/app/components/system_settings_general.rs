@@ -141,7 +141,7 @@ fn timezone_selected(timezone: String) -> Message {
 }
 
 fn terminal_font_size_changed(font_size: f32) -> Message {
-    Message::Terminal(message::TerminalMessage::FontSizeChanged(font_size))
+    Message::Terminal(message::TerminalMessage::FontSizePreview(font_size))
 }
 
 /// 渲染系统设置通用页面的视图
@@ -269,8 +269,11 @@ pub fn view(app: &App) -> Element<'_, Message> {
         }))
         .style(settings_checkbox_style);
 
-    let size_slider =
-        slider(10.0..=18.0, app.terminal.font_size, terminal_font_size_changed).width(Length::Fill);
+    let displayed_font_size =
+        app.terminal_config_persistence.displayed_font_size(app.terminal.font_size);
+    let size_slider = slider(10.0..=18.0, displayed_font_size, terminal_font_size_changed)
+        .on_release(Message::Terminal(message::TerminalMessage::FontSizePreviewCommit))
+        .width(Length::Fill);
 
     let active_tab = app.general_settings_tab;
     let tab_button = |tab, label| {
@@ -408,7 +411,7 @@ pub fn view(app: &App) -> Element<'_, Message> {
                         i18n.__("在 10pt 到 18pt 之间调整终端字号。"),
                         row![
                             size_slider,
-                            settings_value_badge(format!("{} pt", app.terminal.font_size as u32))
+                            settings_value_badge(format!("{} pt", displayed_font_size as u32))
                         ]
                         .spacing(12)
                         .align_y(Alignment::Center),

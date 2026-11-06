@@ -108,7 +108,7 @@ fn view_builds_each_general_settings_tab() {
 fn font_size_helper_preserves_slider_boundaries_and_fraction() {
     for font_size in [10.0, 13.5, 18.0] {
         match terminal_font_size_changed(font_size) {
-            Message::Terminal(message::TerminalMessage::FontSizeChanged(selected)) => {
+            Message::Terminal(message::TerminalMessage::FontSizePreview(selected)) => {
                 assert_eq!(selected, font_size);
             }
             other => panic!("unexpected terminal font size message: {other:?}"),

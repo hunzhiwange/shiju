@@ -153,3 +153,43 @@ fn edits_during_save_wait_and_preserve_latest_value() {
     persistence.saving = false;
     assert!(persistence.begin(latest).is_none());
 }
+
+#[test]
+fn font_size_drag_updates_display_without_resizing_or_saving_until_release() {
+    let mut app = crate::app::App::new().0;
+    app.terminal.font_size = 13.0;
+    for index in 0..1_000 {
+        let size = 10.0 + (index % 9) as f32;
+        let _ = super::update(&mut app, super::TerminalMessage::FontSizePreview(size));
+        assert_eq!(app.terminal.font_size, 13.0);
+        assert_eq!(app.terminal_config_persistence.displayed_font_size(13.0), size);
+        assert!(app.terminal_config_persistence.pending.is_empty());
+    }
+    let _ = super::update(&mut app, super::TerminalMessage::FontSizePreview(18.0));
+    let _ = super::update(&mut app, super::TerminalMessage::FontSizePreviewCommit);
+    assert_eq!(app.terminal.font_size, 18.0);
+    assert_eq!(app.terminal_config_persistence.pending["terminal_font_size"], 18.0);
+    let saved_generation = app.terminal_config_persistence.generation;
+    let _ = super::update(&mut app, super::TerminalMessage::FontSizePreviewCommit);
+    assert_eq!(app.terminal_config_persistence.generation, saved_generation);
+}
+
+#[test]
+fn font_size_idle_commit_ignores_old_timers_and_supports_non_drag_input() {
+    let mut app = crate::app::App::new().0;
+    app.terminal.font_size = 13.0;
+    let _ = super::update(&mut app, super::TerminalMessage::FontSizePreview(14.0));
+    let old_generation = app.terminal_config_persistence.font_size_generation;
+    let _ = super::update(&mut app, super::TerminalMessage::FontSizePreview(16.0));
+    let latest = app.terminal_config_persistence.font_size_generation;
+    let _ =
+        super::update(&mut app, super::TerminalMessage::FontSizePreviewCommitDue(old_generation));
+    assert_eq!(app.terminal.font_size, 13.0);
+    assert!(app.terminal_config_persistence.pending.is_empty());
+    let _ = super::update(&mut app, super::TerminalMessage::FontSizePreviewCommitDue(latest));
+    assert_eq!(app.terminal.font_size, 16.0);
+    assert_eq!(app.terminal_config_persistence.pending["terminal_font_size"], 16.0);
+    let saved_generation = app.terminal_config_persistence.generation;
+    let _ = super::update(&mut app, super::TerminalMessage::FontSizePreviewCommitDue(latest));
+    assert_eq!(app.terminal_config_persistence.generation, saved_generation);
+}

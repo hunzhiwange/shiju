@@ -1,7 +1,4 @@
-//! 管理终端相关消息、配置和标签页状态更新。
-//!
-//! 注释说明当前文件的职责边界，帮助调用方理解数据流与错误传播，
-//! 不改变任何运行时行为。
+//! 终端偏好更新、字号输入合并与异步持久化。
 
 use super::TerminalMessage;
 #[cfg(not(target_arch = "wasm32"))]
@@ -65,9 +62,28 @@ pub(crate) struct ConfigPersistence {
     pending: serde_json::Map<String, serde_json::Value>,
     generation: u64,
     saving: bool,
+    font_size_preview: Option<f32>,
+    font_size_generation: u64,
 }
 
 impl ConfigPersistence {
+    pub(crate) fn displayed_font_size(&self, applied: f32) -> f32 {
+        self.font_size_preview.unwrap_or(applied)
+    }
+
+    fn preview_font_size(&mut self, size: f32) -> u64 {
+        self.font_size_preview = Some(size);
+        self.font_size_generation = self.font_size_generation.wrapping_add(1);
+        self.font_size_generation
+    }
+
+    fn take_font_size_preview(&mut self, generation: Option<u64>) -> Option<f32> {
+        if generation.is_some_and(|value| value != self.font_size_generation) {
+            return None;
+        }
+        self.font_size_preview.take()
+    }
+
     fn enqueue(&mut self, update: TerminalConfigUpdate) -> u64 {
         let (key, value) = match update {
             TerminalConfigUpdate::Shell(value) => ("terminal_shell", serde_json::json!(value)),
@@ -93,8 +109,33 @@ impl ConfigPersistence {
     }
 }
 
-pub fn update(app: &mut App, message: TerminalMessage) -> Task<Message> {
+pub fn update(app: &mut App, mut message: TerminalMessage) -> Task<Message> {
     match message {
+        TerminalMessage::FontSizePreview(size) => {
+            // 拖动期间仅更新滑块；ChangeFont 会重排 PTY 历史并复制网格，不能逐像素执行。
+            let generation = app.terminal_config_persistence.preview_font_size(size);
+            return crate::app::message::after(
+                std::time::Duration::from_millis(200),
+                Message::Terminal(TerminalMessage::FontSizePreviewCommitDue(generation)),
+            );
+        }
+        TerminalMessage::FontSizePreviewCommit | TerminalMessage::FontSizePreviewCommitDue(_) => {
+            let generation = match message {
+                TerminalMessage::FontSizePreviewCommitDue(value) => Some(value),
+                _ => None,
+            };
+            let Some(size) = app.terminal_config_persistence.take_font_size_preview(generation)
+            else {
+                return Task::none();
+            };
+            if size == app.terminal.font_size {
+                return Task::none();
+            }
+            message = TerminalMessage::FontSizeChanged(size);
+        }
+        TerminalMessage::FontSizeChanged(_) => {
+            app.terminal_config_persistence.font_size_preview = None;
+        }
         TerminalMessage::ConfigSaveDue(generation) => {
             let Some(patch) = app.terminal_config_persistence.begin(generation) else {
                 return Task::none();

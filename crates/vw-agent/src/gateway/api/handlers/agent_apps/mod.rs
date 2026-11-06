@@ -149,3 +149,6 @@ mod preferences;
 mod preferences_tests;
 
 mod launch;
+
+mod launch_identities;
+mod launch_sessions;

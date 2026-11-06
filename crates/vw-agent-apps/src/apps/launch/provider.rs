@@ -21,6 +21,15 @@ impl ProviderLaunch {
     /// Keep configuration alive until the child exits; drop removes it on all failure paths.
     /// Returns only a fixed error, never child output (which may contain credentials).
     pub fn run(self) -> Result<(), String> {
+        self.run_with(|command| {
+            command.stdin(Stdio::null()).stdout(Stdio::null()).stderr(Stdio::null()).status()
+        })
+    }
+    /// Trusted execution-host transport retains this owner until CLI reap and cleanup.
+    pub fn run_with(
+        self,
+        execute: impl FnOnce(&mut Command) -> std::io::Result<std::process::ExitStatus>,
+    ) -> Result<(), String> {
         let mut command = Command::new(&self.program);
         command.args(&self.args).current_dir(&self.cwd).env_clear();
         // Preserve OS essentials only. Never inherit host API keys, runtime hooks or provider selectors.
@@ -45,8 +54,7 @@ impl ProviderLaunch {
         for (key, value) in &self.env {
             command.env(key, value);
         }
-        let result =
-            command.stdin(Stdio::null()).stdout(Stdio::null()).stderr(Stdio::null()).status();
+        let result = execute(&mut command);
         // The private profile must outlive the process, even though it is not read here.
         self.private.close().map_err(|_| "private provider configuration cleanup failed")?;
         match result {

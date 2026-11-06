@@ -1,10 +1,38 @@
-//! Launch drafts contain no credentials and never invoke a desktop terminal.
+//! Draft identities are projections only; all execution and credential lifetime stay on the host.
+use crate::app::{App, Message, state::AgentAppsContext};
+use iced::Task;
 use vw_gateway_client::vw_api_types::agent_apps::*;
-
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub enum LaunchChoice {
+    ExistingConfiguration,
+    Identity(LaunchIdentity),
+}
+impl std::fmt::Display for LaunchChoice {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::ExistingConfiguration => f.write_str("主机现有 CLI 配置（可能使用已登录身份）"),
+            Self::Identity(identity) => write!(
+                f,
+                "{}：{}",
+                match identity.kind {
+                    LaunchIdentityKind::Provider => "供应商",
+                    LaunchIdentityKind::OfficialAccount => "官方账号",
+                },
+                identity.label
+            ),
+        }
+    }
+}
 #[derive(Clone, Default)]
 pub(crate) struct LaunchState {
     pub request: Option<LaunchRequest>,
     pub args: Vec<String>,
+    pub identities: Vec<LaunchIdentity>,
+    pub identities_loading: bool,
+    pub identities_ready: bool,
+    pub selected: Option<LaunchChoice>,
+    pub session_id: Option<String>,
+    pub phase: Option<LaunchSessionPhase>,
     pub busy: bool,
     pub generation: u64,
     pub error: Option<String>,
@@ -15,7 +43,12 @@ impl LaunchState {
         *self = Self { generation: self.generation.wrapping_add(1), ..Default::default() };
     }
     pub fn begin(&mut self) -> Option<(u64, LaunchRequest)> {
-        if self.busy || self.accepted {
+        if self.busy
+            || self.accepted
+            || self.identities_loading
+            || !self.identities_ready
+            || self.selected.is_none()
+        {
             return None;
         }
         let request = self.request.clone()?;
@@ -40,6 +73,8 @@ impl LaunchState {
             {
                 self.accepted = true;
                 self.error = None;
+                self.session_id = value.session_id;
+                self.phase = self.session_id.as_ref().map(|_| LaunchSessionPhase::Running);
             }
             Ok(_) => self.error = Some("执行主机返回了其他实例，启动未确认".into()),
             Err(error) => self.error = Some(error),
@@ -60,27 +95,76 @@ pub enum LaunchMessage {
     Args(usize, String),
     AddArg,
     RemoveArg(usize),
+    Select(LaunchChoice),
     Submit,
+    Identities {
+        scope: ReplyScope,
+        result: Result<Vec<LaunchIdentity>, String>,
+    },
+    Session {
+        scope: ReplyScope,
+        id: String,
+        result: Result<LaunchSessionStatus, String>,
+    },
     Reply {
-        context: crate::app::state::AgentAppsContext,
+        context: AgentAppsContext,
         host: String,
         catalog_generation: u64,
         generation: u64,
         result: Result<LaunchResult, String>,
     },
 }
-fn event(value: LaunchMessage) -> crate::app::Message {
+#[derive(Clone)]
+pub struct ReplyScope {
+    pub context: AgentAppsContext,
+    pub host: String,
+    pub catalog_generation: u64,
+    pub generation: u64,
+}
+impl ReplyScope {
+    fn current(app: &App, context: AgentAppsContext) -> Self {
+        Self {
+            context,
+            host: app.apps_catalog.host.clone(),
+            catalog_generation: app.apps_catalog.generation,
+            generation: app.apps_catalog.launch.generation,
+        }
+    }
+    fn matches(&self, app: &App, current: &AgentAppsContext) -> bool {
+        &self.context == current
+            && app.apps_catalog.context.as_ref() == Some(current)
+            && self.host == app.apps_catalog.host
+            && self.catalog_generation == app.apps_catalog.generation
+            && self.generation == app.apps_catalog.launch.generation
+    }
+}
+fn event(value: LaunchMessage) -> Message {
     super::message(crate::app::message::settings::AppsCatalogMessage::Launch(value))
 }
-pub(crate) fn update(
-    app: &mut crate::app::App,
-    message: LaunchMessage,
-) -> iced::Task<crate::app::Message> {
-    use iced::Task;
+fn poll(
+    client: vw_gateway_client::GatewayClient,
+    scope: ReplyScope,
+    id: String,
+    token: String,
+) -> Task<Message> {
+    Task::perform(
+        async move {
+            tokio::time::sleep(std::time::Duration::from_millis(500)).await;
+            let result = client
+                .agent_apps_launch_session(&scope.host, &id, &token)
+                .await
+                .map_err(|_| "会话状态暂不可用；请检查执行主机，不会重新启动 CLI".to_string());
+            (scope, id, result)
+        },
+        |(scope, id, result)| event(LaunchMessage::Session { scope, id, result }),
+    )
+}
+pub(crate) fn update(app: &mut App, message: LaunchMessage) -> Task<Message> {
     let Ok(client) = crate::app::config::gateway_client() else {
-        return app.show_error_toast("网关不可用");
+        app.apps_catalog.launch.invalidate();
+        return app.show_error_toast("网关不可用，请重新加载应用");
     };
-    let context = crate::app::state::AgentAppsContext {
+    let context = AgentAppsContext {
         gateway: client.endpoint().base_url(),
         tenant: client.endpoint().tenant_scope().clone(),
         project: app.project_path.clone(),
@@ -89,32 +173,86 @@ pub(crate) fn update(
         app.apps_catalog.launch.invalidate();
         return app.show_error_toast("连接上下文已更改，请重新加载应用");
     }
-    let catalog = &mut app.apps_catalog;
-    if let LaunchMessage::Reply {
-        context: requested,
-        host,
-        catalog_generation,
-        generation,
-        result,
-    } = message
-    {
-        if requested != context || host != catalog.host || catalog_generation != catalog.generation
-        {
+    match message {
+        LaunchMessage::Identities { scope, result } => {
+            if !scope.matches(app, &context) || !app.apps_catalog.launch.identities_loading {
+                return Task::none();
+            }
+            let state = &mut app.apps_catalog.launch;
+            state.identities_loading = false;
+            match result {
+                Ok(values) => {
+                    state.identities = values;
+                    state.identities_ready = true;
+                }
+                Err(error) => {
+                    state.error = Some(error.clone());
+                    return app.show_error_toast(error);
+                }
+            }
             return Task::none();
         }
-        if catalog.launch.finish(generation, result) {
-            if let Some(error) = catalog.launch.error.clone() {
-                return app.show_error_toast(error);
+        LaunchMessage::Session { scope, id, result } => {
+            if !scope.matches(app, &context)
+                || app.apps_catalog.launch.session_id.as_ref() != Some(&id)
+            {
+                return Task::none();
             }
-            return app.show_success_toast("执行主机已接受终端启动");
+            match result {
+                Ok(status) => {
+                    app.apps_catalog.launch.phase = Some(status.phase);
+                    if matches!(
+                        status.phase,
+                        LaunchSessionPhase::Starting | LaunchSessionPhase::Running
+                    ) {
+                        return poll(client, scope, id, app.apps_catalog.token.clone());
+                    }
+                    return if status.phase == LaunchSessionPhase::Completed {
+                        app.show_success_toast("CLI 已退出且执行端清理完成")
+                    } else {
+                        app.show_error_toast("CLI 会话失败或终端已关闭；请检查执行主机与账号状态")
+                    };
+                }
+                Err(error) => {
+                    app.apps_catalog.launch.error = Some(error.clone());
+                    return app.show_error_toast(error);
+                }
+            }
         }
-        return Task::none();
+        LaunchMessage::Reply {
+            context: requested,
+            host,
+            catalog_generation,
+            generation,
+            result,
+        } => {
+            let scope = ReplyScope { context: requested, host, catalog_generation, generation };
+            if !scope.matches(app, &context) {
+                return Task::none();
+            }
+            if app.apps_catalog.launch.finish(generation, result) {
+                if let Some(error) = app.apps_catalog.launch.error.clone() {
+                    return app.show_error_toast(error);
+                }
+                let toast = app.show_success_toast("执行主机已接受终端启动；尚未确认 CLI 完成");
+                if let Some(id) = app.apps_catalog.launch.session_id.clone() {
+                    return Task::batch([
+                        toast,
+                        poll(client, scope, id, app.apps_catalog.token.clone()),
+                    ]);
+                }
+                return toast;
+            }
+            return Task::none();
+        }
+        _ => {}
     }
-    if catalog.launch.busy {
+    if app.apps_catalog.launch.busy {
         return Task::none();
     }
     match message {
         LaunchMessage::Open(id, installation_id) => {
+            let catalog = &mut app.apps_catalog;
             if catalog.loading || catalog.token.is_empty() {
                 return Task::none();
             }
@@ -136,33 +274,60 @@ pub(crate) fn update(
                 args: vec![],
                 skip_permissions: false,
             });
+            catalog.launch.identities_loading = true;
+            let scope = ReplyScope::current(app, context);
+            let host = scope.host.clone();
+            let token = app.apps_catalog.token.clone();
+            return Task::perform(
+                async move {
+                    client
+                        .agent_apps_launch_identities(&host, id, &token)
+                        .await
+                        .map_err(|_| "身份列表读取失败，启动已禁用；请关闭后重试".to_string())
+                },
+                move |result| event(LaunchMessage::Identities { scope: scope.clone(), result }),
+            );
         }
-        LaunchMessage::Close => catalog.launch.invalidate(),
+        LaunchMessage::Close => app.apps_catalog.launch.invalidate(),
+        LaunchMessage::Select(choice) => {
+            let state = &mut app.apps_catalog.launch;
+            if !state.accepted
+                && state.identities_ready
+                && match &choice {
+                    LaunchChoice::ExistingConfiguration => true,
+                    LaunchChoice::Identity(value) => state.identities.contains(value),
+                }
+            {
+                state.selected = Some(choice);
+            }
+        }
         LaunchMessage::Cwd(value) => {
-            if !catalog.launch.accepted
-                && let Some(r) = &mut catalog.launch.request
+            if !app.apps_catalog.launch.accepted
+                && let Some(r) = &mut app.apps_catalog.launch.request
             {
                 r.cwd = value;
             }
         }
         LaunchMessage::Args(index, value) => {
-            if !catalog.launch.accepted {
-                if let Some(arg) = catalog.launch.args.get_mut(index) {
-                    *arg = value;
-                }
+            if !app.apps_catalog.launch.accepted
+                && let Some(arg) = app.apps_catalog.launch.args.get_mut(index)
+            {
+                *arg = value;
             }
         }
         LaunchMessage::AddArg => {
-            if !catalog.launch.accepted {
-                catalog.launch.args.push(String::new());
+            if !app.apps_catalog.launch.accepted {
+                app.apps_catalog.launch.args.push(String::new());
             }
         }
         LaunchMessage::RemoveArg(index) => {
-            if !catalog.launch.accepted && index < catalog.launch.args.len() {
-                catalog.launch.args.remove(index);
+            let state = &mut app.apps_catalog.launch;
+            if !state.accepted && index < state.args.len() {
+                state.args.remove(index);
             }
         }
         LaunchMessage::Submit => {
+            let catalog = &mut app.apps_catalog;
             if catalog.launch.error.is_some() || catalog.host.is_empty() || catalog.token.is_empty()
             {
                 return Task::none();
@@ -173,32 +338,40 @@ pub(crate) fn update(
             let Some((generation, request)) = catalog.launch.begin() else {
                 return Task::none();
             };
+            let choice = catalog.launch.selected.clone().unwrap();
             let host = catalog.host.clone();
             let token = catalog.token.clone();
             let catalog_generation = catalog.generation;
             return Task::perform(
                 async move {
-                    let result = client
-                        .agent_apps_launch_authorized(&host, &request, &token)
-                        .await
-                        .map_err(|e| {
-                            match e {
-                                vw_gateway_client::AgentAppsSettingsError::Http {
-                                    status: 401 | 403,
-                                    ..
-                                } => "启动未授权；未回退其他主机或账号",
-                                vw_gateway_client::AgentAppsSettingsError::Http {
-                                    status: 422,
-                                    ..
-                                } => "执行主机拒绝目录、参数或实例；请关闭后刷新并重新选择",
-                                vw_gateway_client::AgentAppsSettingsError::Http {
-                                    status: 501,
-                                    ..
-                                } => "执行主机尚不支持此启动方式",
-                                _ => "未确认启动结果；不会自动重试，请先检查执行主机上的终端",
-                            }
-                            .to_string()
-                        });
+                    let result = match choice {
+                        LaunchChoice::ExistingConfiguration => {
+                            client.agent_apps_launch_authorized(&host, &request, &token).await
+                        }
+                        LaunchChoice::Identity(identity) => {
+                            client
+                                .agent_apps_launch_identity_authorized(
+                                    &host, &request, &identity, &token,
+                                )
+                                .await
+                        }
+                    }
+                    .map_err(|e| {
+                        match e {
+                            vw_gateway_client::AgentAppsSettingsError::Http {
+                                status: 401 | 403,
+                                ..
+                            } => "启动未授权；未回退其他主机或账号",
+                            vw_gateway_client::AgentAppsSettingsError::Http {
+                                status: 422, ..
+                            } => "执行主机拒绝目录、身份、参数或实例；请关闭后刷新并重新选择",
+                            vw_gateway_client::AgentAppsSettingsError::Http {
+                                status: 501, ..
+                            } => "执行主机尚不支持此身份的启动方式",
+                            _ => "未确认启动结果；不会自动重试，请先检查执行主机上的终端",
+                        }
+                        .to_string()
+                    });
                     (host, result)
                 },
                 move |(host, result)| {
@@ -212,7 +385,9 @@ pub(crate) fn update(
                 },
             );
         }
-        LaunchMessage::Reply { .. } => unreachable!(),
+        LaunchMessage::Identities { .. }
+        | LaunchMessage::Session { .. }
+        | LaunchMessage::Reply { .. } => unreachable!(),
     }
     Task::none()
 }

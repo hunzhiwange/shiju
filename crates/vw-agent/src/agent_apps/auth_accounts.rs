@@ -28,8 +28,20 @@ pub struct AuthAccountLaunch {
 }
 impl AuthAccountLaunch {
     pub fn run(self) -> Result<(), String> {
+        self.run_with(|command| {
+            command
+                .stdin(std::process::Stdio::null())
+                .stdout(std::process::Stdio::null())
+                .stderr(std::process::Stdio::null())
+                .status()
+        })
+    }
+    pub fn run_with(
+        self,
+        execute: impl FnOnce(&mut std::process::Command) -> std::io::Result<std::process::ExitStatus>,
+    ) -> Result<(), String> {
         let Self { launch, lease } = self;
-        let result = launch.run_with_refresh(|credential| lease.save(&credential));
+        let result = launch.run_with_refresh_using(|credential| lease.save(&credential), execute);
         drop(lease);
         result
     }
@@ -49,6 +61,40 @@ impl AuthAccountStore {
         }
         serde_json::to_string(&(host, app, account_id))
             .map_err(|_| "invalid official account identity".into())
+    }
+    /// Read scoped metadata through the unique owner and validate its private material.
+    /// Unsupported account services and missing records produce no selectable identities.
+    pub fn list(
+        &self,
+        tenant: &TenantScope,
+        host: &str,
+        app: AppId,
+    ) -> Result<Vec<String>, String> {
+        if !matches!(app, AppId::Claude | AppId::Codex) {
+            return Ok(vec![]);
+        }
+        let mut ids = Vec::new();
+        for entry in self
+            .metadata
+            .list(tenant, "agent_apps.auth_accounts")
+            .map_err(|_| "official account metadata unavailable")?
+        {
+            let (record_host, record_app, id): (String, AppId, String) =
+                serde_json::from_str(&entry.config_key)
+                    .map_err(|_| "invalid stored official account metadata")?;
+            if record_host == host
+                && record_app == app
+                && entry.payload_json == "{\"configured\":true}"
+            {
+                Self::key(host, app, &id)?;
+                // Invalid/missing material is not advertised as an available account.
+                if self.credentials.read(tenant, host, app, &id).is_ok() {
+                    ids.push(id);
+                }
+            }
+        }
+        ids.sort();
+        Ok(ids)
     }
     /// Caller must authorize this explicit import for the tenant/host; no ambient adoption.
     pub fn save(

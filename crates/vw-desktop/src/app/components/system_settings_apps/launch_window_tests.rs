@@ -30,12 +30,38 @@ impl Harness {
                 skip_permissions: false,
             }),
             args: vec!["中文动态参数；不执行 shell".into(), "第二个参数".into()],
+            identities_ready: true,
+            identities: if self.case % 5 == 3 {
+                vec![]
+            } else {
+                vec![
+                    LaunchIdentity {
+                        kind: LaunchIdentityKind::Provider,
+                        id: "provider-fixture".into(),
+                        label: "中文供应商".into(),
+                    },
+                    LaunchIdentity {
+                        kind: LaunchIdentityKind::OfficialAccount,
+                        id: "account-fixture".into(),
+                        label: "中文官方账号".into(),
+                    },
+                ]
+            },
+            selected: Some(system_settings_apps::launch::LaunchChoice::Identity(LaunchIdentity {
+                kind: LaunchIdentityKind::OfficialAccount,
+                id: "account-fixture".into(),
+                label: "中文官方账号".into(),
+            })),
+            phase: (self.case % 5 == 0).then_some(LaunchSessionPhase::Completed),
             accepted: self.case % 5 == 0,
             busy: self.case % 5 == 2,
             error: (self.case % 5 == 1)
                 .then(|| "执行主机拒绝目录；没有回退本地终端或其他账号".into()),
             ..Default::default()
         };
+        if self.case % 5 == 3 {
+            self.state.launch.selected = None;
+        }
     }
 
     fn update(&mut self, message: Message) -> Task<Message> {

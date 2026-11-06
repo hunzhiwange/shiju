@@ -17,3 +17,8 @@ pub mod account;
 mod account_lifecycle_tests;
 #[cfg(test)]
 mod account_tests;
+
+#[cfg(unix)]
+pub mod terminal_session;
+#[cfg(all(test, unix))]
+mod terminal_session_tests;

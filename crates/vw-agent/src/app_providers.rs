@@ -76,6 +76,21 @@ impl AppProviderStore {
         let profile = self.read(tenant, app, id)?;
         Ok(Self::summary(app, id, &profile))
     }
+    /// Only summaries from this tenant's formal records; no ambient provider discovery.
+    pub fn list(
+        &self,
+        tenant: &TenantScope,
+        app: AppId,
+    ) -> Result<Vec<AppProviderSummary>, String> {
+        let prefix = format!("{}:", serde_json::to_string(&app).expect("AppId serialization"));
+        self.settings
+            .list(tenant, NAMESPACE)
+            .map_err(|_| "application provider storage unavailable".to_string())?
+            .into_iter()
+            .filter_map(|entry| entry.config_key.strip_prefix(&prefix).map(str::to_owned))
+            .map(|id| self.get_summary(tenant, app, &id))
+            .collect()
+    }
     /// Internal execution-host entry point. The host/observations/roots and skip decision must
     /// come from the authenticated host caller, never from client fields. The API does not
     /// expose this as a new execution endpoint; task36 owns the host dispatch.

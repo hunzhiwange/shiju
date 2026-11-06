@@ -85,3 +85,21 @@ fn cc_apps_provider_launch_isolation_store_reopen_tenant_app_and_host_boundaries
     // Same ID in another tenant selects only that tenant's key; fixture rejects it.
     assert!(prepare(&b, &request, "host").unwrap().run().is_err());
 }
+
+#[test]
+fn cc_apps_launch_identity_list_provider_tenant_scope_and_redaction() {
+    let root = tempfile::tempdir().unwrap();
+    let store = AppProviderStore::new(GlobalDatabase::for_home(root.path()).unwrap()).unwrap();
+    let a = TenantScope::new("p", "a").unwrap();
+    let b = TenantScope::new("p", "b").unwrap();
+    assert!(store.list(&a, AppId::Claude).unwrap().is_empty());
+    store.save(&a, AppId::Claude, "selected", &profile("fixture-private-key")).unwrap();
+    assert_eq!(store.list(&a, AppId::Claude).unwrap()[0].id, "selected");
+    assert!(store.list(&b, AppId::Claude).unwrap().is_empty());
+    assert!(store.list(&a, AppId::Codex).unwrap().is_empty());
+    assert!(
+        !serde_json::to_string(&store.list(&a, AppId::Claude).unwrap())
+            .unwrap()
+            .contains("fixture-private-key")
+    );
+}

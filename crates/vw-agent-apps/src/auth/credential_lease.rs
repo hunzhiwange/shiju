@@ -43,3 +43,19 @@ impl CredentialLease {
         write_credential(&self.path, self.app, credential)
     }
 }
+
+#[cfg(unix)]
+impl Drop for CredentialLease {
+    fn drop(&mut self) {
+        use std::os::fd::AsRawFd;
+        // A concurrent fork can retain a CLOEXEC descriptor until exec. Unlock at the
+        // owner's lifetime boundary rather than extending the lease until that copy closes.
+        loop {
+            if unsafe { libc::flock(self._lock.as_raw_fd(), libc::LOCK_UN) } == 0
+                || std::io::Error::last_os_error().kind() != std::io::ErrorKind::Interrupted
+            {
+                break;
+            }
+        }
+    }
+}

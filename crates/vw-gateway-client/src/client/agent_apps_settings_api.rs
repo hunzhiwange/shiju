@@ -112,7 +112,6 @@ impl GatewayClient {
         .await
     }
     /// Launch the selected instance with the separately granted application credential.
-    /// Identity launch remains unavailable until its server contract is delivered.
     pub async fn agent_apps_launch_authorized(
         &self,
         host: &str,
@@ -124,6 +123,80 @@ impl GatewayClient {
             "launch",
             host,
             Some(request),
+            Some(token),
+        )
+        .await
+    }
+    /// Sanitized identities from the selected host's tenant-owned stores.
+    pub async fn agent_apps_launch_identities(
+        &self,
+        host: &str,
+        app: AppId,
+        token: &str,
+    ) -> Result<Vec<LaunchIdentity>, AgentAppsSettingsError> {
+        let app = serde_json::to_value(app).expect("AppId serialization");
+        self.agent_apps_settings_request::<(), _>(
+            reqwest::Method::GET,
+            &format!("launch-identities?appId={}", app.as_str().expect("AppId string")),
+            host,
+            None,
+            Some(token),
+        )
+        .await
+    }
+    pub async fn agent_apps_launch_identity_authorized(
+        &self,
+        host: &str,
+        request: &LaunchRequest,
+        identity: &LaunchIdentity,
+        token: &str,
+    ) -> Result<LaunchResult, AgentAppsSettingsError> {
+        #[derive(Serialize)]
+        #[serde(rename_all = "camelCase")]
+        struct Selected<'a> {
+            #[serde(flatten)]
+            launch: &'a LaunchRequest,
+            #[serde(skip_serializing_if = "Option::is_none")]
+            provider_id: Option<&'a str>,
+            #[serde(skip_serializing_if = "Option::is_none")]
+            account_id: Option<&'a str>,
+        }
+        let body = Selected {
+            launch: request,
+            provider_id: (identity.kind == LaunchIdentityKind::Provider)
+                .then_some(identity.id.as_str()),
+            account_id: (identity.kind == LaunchIdentityKind::OfficialAccount)
+                .then_some(identity.id.as_str()),
+        };
+        self.agent_apps_settings_request(
+            reqwest::Method::POST,
+            "launch",
+            host,
+            Some(&body),
+            Some(token),
+        )
+        .await
+    }
+    /// Read status without ever replaying the launch POST.
+    pub async fn agent_apps_launch_session(
+        &self,
+        host: &str,
+        id: &str,
+        token: &str,
+    ) -> Result<LaunchSessionStatus, AgentAppsSettingsError> {
+        if id.is_empty()
+            || id.len() > 64
+            || !id.bytes().all(|b| b.is_ascii_alphanumeric() || b == b'-')
+        {
+            return Err(AgentAppsSettingsError::Transport(
+                "invalid terminal session identity".into(),
+            ));
+        }
+        self.agent_apps_settings_request::<(), _>(
+            reqwest::Method::GET,
+            &format!("launch-sessions/{id}"),
+            host,
+            None,
             Some(token),
         )
         .await

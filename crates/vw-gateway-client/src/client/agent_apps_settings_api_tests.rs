@@ -238,3 +238,66 @@ async fn cc_apps_settings_launch_sdk_roundtrip_authorized_launch() {
     }
     server.join();
 }
+
+#[tokio::test]
+async fn cc_apps_settings_launch_sdk_roundtrip_identities_session_and_scoped_selection() {
+    let identity = LaunchIdentity {
+        kind: LaunchIdentityKind::OfficialAccount,
+        id: "selected-account".into(),
+        label: "中文账号".into(),
+    };
+    let server = test_support::server(vec![
+        (200, json!([identity.clone()])),
+        (200, json!({"installationId":"remote-instance","sessionId":"session-fixture"})),
+        (200, json!({"phase":"running"})),
+        (200, json!({"phase":"completed"})),
+    ]);
+    let client = server.client();
+    assert_eq!(
+        client
+            .agent_apps_launch_identities("中文主机", AppId::Codex, "separate-grant")
+            .await
+            .unwrap()
+            .as_slice(),
+        std::slice::from_ref(&identity)
+    );
+    let result = client
+        .agent_apps_launch_identity_authorized(
+            "中文主机",
+            &launch_request(),
+            &identity,
+            "separate-grant",
+        )
+        .await
+        .unwrap();
+    assert_eq!(result.session_id.as_deref(), Some("session-fixture"));
+    assert_eq!(
+        client
+            .agent_apps_launch_session("中文主机", "session-fixture", "separate-grant")
+            .await
+            .unwrap()
+            .phase,
+        LaunchSessionPhase::Running
+    );
+    assert_eq!(
+        client
+            .agent_apps_launch_session("中文主机", "session-fixture", "separate-grant")
+            .await
+            .unwrap()
+            .phase,
+        LaunchSessionPhase::Completed
+    );
+    let list = server.take_request();
+    assert!(list.path.contains("appId=codex"));
+    let launch = server.take_request();
+    assert_eq!(launch.body["accountId"], "selected-account");
+    assert!(launch.body.get("providerId").is_none());
+    for request in [list, launch, server.take_request(), server.take_request()] {
+        assert_eq!(request.header("x-agent-apps-token"), Some("separate-grant"));
+        assert!(request.path.contains("targetHostId="));
+    }
+    assert!(
+        client.agent_apps_launch_session("中文主机", "../invalid", "separate-grant").await.is_err()
+    );
+    server.join();
+}

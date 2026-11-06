@@ -24,11 +24,20 @@ impl AccountLaunch {
     /// Return validated rotated credentials to their owner before cleaning temporary resources,
     /// even when the process exits unsuccessfully. Never return the child's output.
     pub fn run_with_refresh(
-        mut self,
+        self,
         persist: impl FnOnce(AccountCredential) -> Result<(), String>,
     ) -> Result<(), String> {
-        let result =
-            self.command.stdin(Stdio::null()).stdout(Stdio::null()).stderr(Stdio::null()).status();
+        self.run_with_refresh_using(persist, |command| {
+            command.stdin(Stdio::null()).stdout(Stdio::null()).stderr(Stdio::null()).status()
+        })
+    }
+    /// The transport must reap the real CLI before returning, including on disconnect.
+    pub fn run_with_refresh_using(
+        mut self,
+        persist: impl FnOnce(AccountCredential) -> Result<(), String>,
+        execute: impl FnOnce(&mut Command) -> std::io::Result<std::process::ExitStatus>,
+    ) -> Result<(), String> {
+        let result = execute(&mut self.command);
         let rotation = if result.is_ok() {
             if let Some(expected) = &self.codex_account_id {
                 crate::auth::credential_file::read_credential(

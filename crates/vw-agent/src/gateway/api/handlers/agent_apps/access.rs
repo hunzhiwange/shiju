@@ -31,9 +31,33 @@ struct Grant {
     preferences_write: bool,
     #[serde(default)]
     launch: bool,
+    #[serde(default)]
+    identities: Vec<IdentityPermit>,
     platform_id: String,
     company_id: String,
     host_id: String,
+}
+#[derive(Clone, Deserialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub(super) struct IdentityPermit {
+    pub app_id: vw_api_types::agent_apps::AppId,
+    pub kind: vw_api_types::agent_apps::LaunchIdentityKind,
+    pub id: String,
+}
+pub(super) struct Authorization {
+    pub host: Host,
+    pub principal: String,
+    pub identities: Vec<IdentityPermit>,
+}
+impl Authorization {
+    pub fn permits(
+        &self,
+        app: vw_api_types::agent_apps::AppId,
+        kind: vw_api_types::agent_apps::LaunchIdentityKind,
+        id: &str,
+    ) -> bool {
+        self.identities.iter().any(|p| p.app_id == app && p.kind == kind && p.id == id)
+    }
 }
 #[derive(Clone, Deserialize)]
 #[serde(deny_unknown_fields)]
@@ -44,6 +68,8 @@ pub(super) struct Host {
     pub home: PathBuf,
     pub search_paths: Vec<PathBuf>,
     pub applications: PathBuf,
+    #[serde(default)]
+    pub credential_root: Option<PathBuf>,
     #[serde(default)]
     pub lifecycle: Option<Lifecycle>,
 }
@@ -89,15 +115,25 @@ pub(super) fn authorize_preferences(
     write_host: bool,
 ) -> Result<(Host, String), StatusCode> {
     authorize_scoped(path, headers, tenant, target, action, write_host, false)
+        .map(|a| (a.host, a.principal))
 }
 
-pub(super) fn authorize_launch(
+pub(super) fn authorize_launch_session(
     path: Option<&Path>,
     headers: &HeaderMap,
     tenant: &TenantScope,
     target: &str,
-) -> Result<Host, StatusCode> {
-    authorize_scoped(path, headers, tenant, target, None, false, true).map(|(h, _)| h)
+) -> Result<(Host, String), StatusCode> {
+    authorize_scoped(path, headers, tenant, target, None, false, true)
+        .map(|a| (a.host, a.principal))
+}
+pub(super) fn authorize_identity_launch(
+    path: Option<&Path>,
+    headers: &HeaderMap,
+    tenant: &TenantScope,
+    target: &str,
+) -> Result<Authorization, StatusCode> {
+    authorize_scoped(path, headers, tenant, target, None, false, true)
 }
 
 fn authorize_scoped(
@@ -108,7 +144,7 @@ fn authorize_scoped(
     action: Option<vw_api_types::agent_apps::AppLifecycleAction>,
     write_host: bool,
     launch: bool,
-) -> Result<(Host, String), StatusCode> {
+) -> Result<Authorization, StatusCode> {
     let mut values = headers.get_all("x-agent-apps-token").iter();
     let token = values
         .next()
@@ -129,16 +165,22 @@ fn authorize_scoped(
         })
         .ok_or(StatusCode::UNAUTHORIZED)?;
     // Do not reveal whether an unauthorized host exists.
-    if !principal.grants.iter().any(|g| {
-        g.platform_id == tenant.platform_id().as_ref()
-            && g.company_id == tenant.company_id().as_ref()
-            && g.host_id == target
-            && action.is_none_or(|a| g.actions.contains(&a))
-            && (!write_host || g.preferences_write)
-            && (!launch || g.launch)
-    }) {
+    let grants: Vec<_> = principal
+        .grants
+        .iter()
+        .filter(|g| {
+            g.platform_id == tenant.platform_id().as_ref()
+                && g.company_id == tenant.company_id().as_ref()
+                && g.host_id == target
+                && action.is_none_or(|a| g.actions.contains(&a))
+                && (!write_host || g.preferences_write)
+                && (!launch || g.launch)
+        })
+        .collect();
+    if grants.is_empty() {
         return Err(StatusCode::FORBIDDEN);
     }
+    let identities = grants.into_iter().flat_map(|g| g.identities.clone()).collect();
     let host = policy.hosts.into_iter().find(|h| h.id == target).ok_or(StatusCode::NOT_FOUND)?;
     if !host.online {
         return Err(StatusCode::SERVICE_UNAVAILABLE);
@@ -146,7 +188,7 @@ fn authorize_scoped(
     if matches!(host.binding, Binding::Remote) {
         return Err(StatusCode::NOT_IMPLEMENTED);
     }
-    Ok((host, principal.id.clone()))
+    Ok(Authorization { host, principal: principal.id.clone(), identities })
 }
 
 fn load(path: &Path) -> Result<Policy, ()> {
@@ -215,6 +257,7 @@ fn load(path: &Path) -> Result<Policy, ()> {
                 || !ids.insert(&host.id)
                 || !host.home.is_absolute()
                 || !host.applications.is_absolute()
+                || host.credential_root.as_ref().is_some_and(|root| !root.is_absolute())
                 || host.search_paths.len() > 64
                 || host.search_paths.iter().any(|p| !p.is_absolute())
             {
@@ -236,6 +279,9 @@ fn load(path: &Path) -> Result<Policy, ()> {
                     g.platform_id.trim().is_empty()
                         || g.company_id.trim().is_empty()
                         || !ids.contains(&g.host_id)
+                        || g.identities
+                            .iter()
+                            .any(|p| vw_agent_apps::providers::validate_identity(&p.id).is_err())
                 })
             {
                 return Err(());

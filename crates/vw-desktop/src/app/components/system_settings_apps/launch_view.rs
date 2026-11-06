@@ -1,10 +1,11 @@
-use super::{LaunchMessage, event};
+use super::{LaunchChoice, LaunchMessage, event};
 use crate::app::components::system_settings_common::*;
 use crate::app::{Message, state::AppsCatalogState};
 use iced::{
     Element, Length,
-    widget::{button, column, container, row, scrollable, text, text_input},
+    widget::{button, column, container, pick_list, row, scrollable, text, text_input},
 };
+use vw_gateway_client::vw_api_types::agent_apps::{LaunchIdentityKind, LaunchSessionPhase};
 pub(crate) fn overlay<'a>(
     catalog: &'a AppsCatalogState,
     base: Element<'a, Message>,
@@ -19,7 +20,48 @@ pub(crate) fn overlay<'a>(
         status = status.push(text("等待执行主机确认；不会自动重试…"));
     }
     if state.accepted {
-        status = status.push(settings_success_banner("执行主机已接受终端启动"));
+        status = status.push(
+            text(match state.phase {
+                Some(LaunchSessionPhase::Completed) => "CLI 已退出，执行端回写与清理完成",
+                Some(LaunchSessionPhase::Failed) => "CLI 会话失败；请检查执行主机与账号状态",
+                Some(LaunchSessionPhase::Starting | LaunchSessionPhase::Running) => {
+                    "CLI 会话运行中；关闭终端将终止并回收进程"
+                }
+                None => "终端已接受启动，尚未确认 CLI 完成",
+            })
+            .size(13),
+        );
+    }
+    if state.identities_loading {
+        status = status.push(text("正在读取所选主机可用身份…"));
+    }
+    let choices: Vec<_> = std::iter::once(LaunchChoice::ExistingConfiguration)
+        .chain(state.identities.iter().cloned().map(LaunchChoice::Identity))
+        .collect();
+    let mut identities = column![text("启动身份（必须明确选择）").size(13)].spacing(8);
+    if state.identities_ready && !state.busy && !state.accepted {
+        identities = identities.push(
+            pick_list(choices, state.selected.clone(), |v| event(LaunchMessage::Select(v)))
+                .placeholder("选择主机现有配置、供应商或官方账号")
+                .style(settings_pick_list_style)
+                .menu_style(settings_pick_list_menu_style)
+                .padding(SETTINGS_CONTROL_PADDING)
+                .text_size(SETTINGS_CONTROL_TEXT_SIZE),
+        );
+    } else if let Some(selected) = &state.selected {
+        identities = identities.push(text(selected.to_string()).size(13));
+    }
+    for (kind, label) in [
+        (LaunchIdentityKind::Provider, "供应商"),
+        (LaunchIdentityKind::OfficialAccount, "官方账号"),
+    ] {
+        if state.identities_ready && !state.identities.iter().any(|i| i.kind == kind) {
+            identities = identities.push(
+                button(text(format!("{label}（暂无可用记录）")))
+                    .padding([8, 12])
+                    .style(rounded_action_btn_style),
+            );
+        }
     }
     if let Some(error) = &state.error {
         status = status.push(settings_error_banner(error.clone()));
@@ -55,11 +97,7 @@ pub(crate) fn overlay<'a>(
         status,
         text(format!("执行主机：{}", catalog.host)).size(14),
         text(format!("应用：{:?} · 实例：{}", request.app_id, request.installation_id.0)).size(13),
-        text("身份：使用所选执行主机的现有 CLI 配置。可能使用该主机已登录身份，请确认后启动。")
-            .size(13),
-        button(text("供应商账号（接口未就绪）")).padding([8, 12]).style(rounded_action_btn_style),
-        button(text("官方账号（接口未就绪）")).padding([8, 12]).style(rounded_action_btn_style),
-        text("尚无可用账号列表及账号终端交接契约，不能选择或回退其他账号。").size(12),
+        identities,
         text("工作目录（由执行主机验证）").size(13),
         text_input("所选主机上的绝对目录", &request.cwd)
             .on_input_maybe(
@@ -96,6 +134,8 @@ pub(crate) fn overlay<'a>(
                         (!state.busy
                             && !state.accepted
                             && state.error.is_none()
+                            && state.identities_ready
+                            && state.selected.is_some()
                             && !request.cwd.trim().is_empty())
                         .then_some(event(LaunchMessage::Submit))
                     ),

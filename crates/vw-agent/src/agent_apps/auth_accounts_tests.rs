@@ -358,3 +358,39 @@ fn cc_apps_account_launch_isolation_abandoned_preparation_releases_owner_lease()
     assert!(launch.run().is_err());
     store.save(&tenant, "host", AppId::Codex, "selected", &codex_auth()).unwrap();
 }
+
+#[cfg(unix)]
+#[test]
+fn cc_apps_launch_identity_list_official_host_tenant_and_missing_material() {
+    use std::os::unix::fs::PermissionsExt;
+    let root = tempfile::tempdir().unwrap();
+    let credentials = root.path().join("credentials");
+    std::fs::create_dir(&credentials).unwrap();
+    std::fs::set_permissions(&credentials, std::fs::Permissions::from_mode(0o700)).unwrap();
+    let store = AuthAccountStore::new(GlobalDatabase::for_home(root.path()).unwrap(), &credentials)
+        .unwrap();
+    let a = TenantScope::new("p", "a").unwrap();
+    let b = TenantScope::new("p", "b").unwrap();
+    assert!(store.list(&a, "host", AppId::Claude).unwrap().is_empty());
+    store
+        .save(
+            &a,
+            "host",
+            AppId::Claude,
+            "selected",
+            &AccountCredential::ClaudeToken("fixture-private-token".into()),
+        )
+        .unwrap();
+    assert_eq!(store.list(&a, "host", AppId::Claude).unwrap(), ["selected"]);
+    assert!(store.list(&b, "host", AppId::Claude).unwrap().is_empty());
+    assert!(store.list(&a, "other", AppId::Claude).unwrap().is_empty());
+    assert!(store.list(&a, "host", AppId::Codex).unwrap().is_empty());
+    assert!(store.list(&a, "host", AppId::Agy).unwrap().is_empty());
+    std::fs::remove_dir_all(&credentials).unwrap();
+    std::fs::create_dir(&credentials).unwrap();
+    std::fs::set_permissions(&credentials, std::fs::Permissions::from_mode(0o700)).unwrap();
+    assert!(
+        store.list(&a, "host", AppId::Claude).unwrap().is_empty(),
+        "missing secret material is not advertised"
+    );
+}

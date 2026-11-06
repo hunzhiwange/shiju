@@ -159,12 +159,11 @@ pub fn render_delete_ops(
                         line_marker_cell_emphasis(LineMarkerKind::Delete, hovered_or_selected),
                         stage_old_cb,
                         old_num_area,
-                        content_area
+                        container(content_area).padding([0, 2])
                     ]
                     .align_y(iced::Alignment::Center),
                 )
                 .width(Length::Fill)
-                .padding([0, 2])
                 .into(),
                 del_line_bg,
                 hovered_or_selected,

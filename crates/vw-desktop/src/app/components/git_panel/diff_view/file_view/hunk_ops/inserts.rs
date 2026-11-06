@@ -143,12 +143,11 @@ pub fn render_insert_ops(
                         line_marker_cell_emphasis(LineMarkerKind::Add, hovered_or_selected),
                         stage_cb,
                         new_num_area,
-                        content_area
+                        container(content_area).padding([0, 2])
                     ]
                     .align_y(iced::Alignment::Center),
                 )
                 .width(Length::Fill)
-                .padding([0, 2])
                 .into(),
                 add_line_bg,
                 hovered_or_selected,

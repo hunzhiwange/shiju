@@ -151,6 +151,45 @@ impl GatewaySettingsStore {
         }
     }
 
+    /// Atomically insert a new scoped key; conflicts leave payload and timestamp unchanged.
+    pub(crate) fn insert_if_absent(
+        &self,
+        tenant: &TenantScope,
+        namespace: &str,
+        config_key: &str,
+        payload_json: &str,
+    ) -> Result<bool> {
+        validate_identifier(namespace, "gateway settings namespace")?;
+        validate_identifier(config_key, "gateway settings config key")?;
+        validate_identifier(payload_json, "gateway settings payload")?;
+        let updated_at_ms = current_timestamp_ms()?;
+        match &self.provider {
+            GatewaySettingsStoreProvider::Sqlite(database) => {
+                let connection = database.connect_sqlite()?;
+                let changed = connection
+                    .execute(
+                        "INSERT INTO gateway_settings (
+                        platform_id, company_id, namespace, config_key, payload_json, updated_at_ms
+                     ) VALUES (?1, ?2, ?3, ?4, ?5, ?6)
+                     ON CONFLICT (platform_id, company_id, namespace, config_key) DO NOTHING",
+                        params![
+                            tenant.platform_id().as_ref(),
+                            tenant.company_id().as_ref(),
+                            namespace,
+                            config_key,
+                            payload_json,
+                            updated_at_ms
+                        ],
+                    )
+                    .context("insert tenant SQLite gateway setting")?;
+                Ok(changed == 1)
+            }
+            GatewaySettingsStoreProvider::Postgres(store) => {
+                store.insert_if_absent(tenant, namespace, config_key, payload_json, updated_at_ms)
+            }
+        }
+    }
+
     /// 删除单条设置并返回是否命中记录。
     pub(crate) fn delete(
         &self,

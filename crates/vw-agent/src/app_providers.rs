@@ -47,6 +47,23 @@ impl AppProviderStore {
             .map_err(|_| "application provider storage unavailable")?;
         Ok(Self::summary(app, id, profile))
     }
+    /// Insert a new record without activation; existing records are never replaced.
+    pub fn create(
+        &self,
+        tenant: &TenantScope,
+        app: AppId,
+        id: &str,
+        request: &vw_api_types::app_providers::create::AppProviderCreate,
+    ) -> Result<AppProviderSummary, String> {
+        vw_agent_apps::providers::create::create(app, id, request, |profile| {
+            let key = Self::key(app, id)?;
+            let value = serde_json::to_string(profile)
+                .map_err(|_| "invalid application provider profile")?;
+            self.settings
+                .insert_if_absent(tenant, NAMESPACE, &key, &value)
+                .map_err(|_| "application provider storage unavailable".into())
+        })
+    }
     fn read(&self, tenant: &TenantScope, app: AppId, id: &str) -> Result<AppProviderWrite, String> {
         let key = Self::key(app, id)?;
         let value = self

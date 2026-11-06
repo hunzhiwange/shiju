@@ -12,11 +12,14 @@ use vw_api_types::{agent_apps::AppId, app_providers::AppProviderWrite, id::Tenan
 pub(crate) fn router() -> Router {
     Router::new().merge(catalog::router()).route(
         "/app-providers/{app}/{id}",
-        get(read).put(save).layer(DefaultBodyLimit::max(16 * 1024)),
+        get(read).put(save).post(create::create).layer(DefaultBodyLimit::max(16 * 1024)),
     )
 }
 fn error(message: &str) -> Response {
     let (status, safe) = match message {
+        "application provider already exists" => {
+            (StatusCode::CONFLICT, "Application provider already exists")
+        }
         "application provider not found" => {
             (StatusCode::NOT_FOUND, "Application provider not found")
         }
@@ -74,3 +77,8 @@ async fn save(
 mod catalog_tests;
 
 mod catalog;
+
+mod create;
+#[cfg(test)]
+#[path = "app_providers/create_tests.rs"]
+mod create_tests;

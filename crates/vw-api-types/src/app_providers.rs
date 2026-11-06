@@ -46,3 +46,7 @@ pub struct ProviderLaunchRequest {
 pub mod catalog;
 #[cfg(test)]
 mod catalog_tests;
+
+pub mod create;
+#[cfg(test)]
+mod create_tests;

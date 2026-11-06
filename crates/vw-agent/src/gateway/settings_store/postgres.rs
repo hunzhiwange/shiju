@@ -99,6 +99,35 @@ impl PostgresGatewaySettingsStore {
         Ok(())
     }
 
+    /// Duplicate scoped keys preserve the existing payload and timestamp.
+    pub(super) fn insert_if_absent(
+        &self,
+        tenant: &TenantScope,
+        namespace: &str,
+        config_key: &str,
+        payload_json: &str,
+        updated_at_ms: i64,
+    ) -> Result<bool> {
+        let mut connection = self.database.connect_postgres()?;
+        let changed = connection
+            .execute(
+                "INSERT INTO gateway_settings (
+                platform_id, company_id, namespace, config_key, payload_json, updated_at_ms
+             ) VALUES ($1, $2, $3, $4, $5, $6)
+             ON CONFLICT (platform_id, company_id, namespace, config_key) DO NOTHING",
+                &[
+                    &tenant.platform_id().as_ref(),
+                    &tenant.company_id().as_ref(),
+                    &namespace,
+                    &config_key,
+                    &payload_json,
+                    &updated_at_ms,
+                ],
+            )
+            .context("insert tenant PostgreSQL gateway setting")?;
+        Ok(changed == 1)
+    }
+
     /// 删除完整作用域主键对应的设置。
     pub(super) fn delete(
         &self,

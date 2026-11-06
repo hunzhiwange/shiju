@@ -41,3 +41,9 @@ fn provider_collection_path(app: AppId) -> String {
     let app = serde_json::to_string(&app).expect("AppId serialization");
     format!("/v1/app-providers/{}", app.trim_matches('"'))
 }
+
+#[path = "app_providers/create.rs"]
+mod create;
+#[cfg(test)]
+#[path = "app_providers/create_tests.rs"]
+mod create_tests;

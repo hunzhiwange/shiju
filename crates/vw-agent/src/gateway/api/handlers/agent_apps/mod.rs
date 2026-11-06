@@ -246,3 +246,13 @@ pub(super) fn authorize_provider_snippet(
         access::authorize_provider_config(path, headers, tenant, target).map(|_| ())
     }
 }
+
+pub(super) fn authorize_provider_login(
+    path: Option<&std::path::Path>,
+    headers: &axum::http::HeaderMap,
+    tenant: &TenantScope,
+    target: &str,
+    account: &str,
+) -> Result<(), axum::http::StatusCode> {
+    access::authorize_provider_login(path, headers, tenant, target, account)
+}

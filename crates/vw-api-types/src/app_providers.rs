@@ -110,5 +110,8 @@ pub mod snippets;
 mod snippets_tests;
 
 pub mod claude;
+pub mod claude_login;
+#[cfg(test)]
+mod claude_login_tests;
 #[cfg(test)]
 mod claude_tests;

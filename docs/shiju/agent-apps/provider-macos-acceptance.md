@@ -1204,3 +1204,52 @@ SDK transport 测试替代 HTTP 对端，仅检查传输形状、固定状态错
 实际 `sw_vers` 为 macOS **27.0 (26A428)**，`uname -m` 为 **arm64**，仓库 crate 版本 **0.6.0**。没有查询/启动真实 Claude 应用版本、真实账号、CLI 消费配置或 Iced 渲染，这些明确未验证。Agent lib test 仍有既有 `__eh_frame section too large` 链接提示，测试退出 0；未修改链接设置，最终强制 Clippy 退出 0。
 
 定向 diff/暂存检查通过，仅提交本任务实现、独立测试、最小父注册/保存接线和本条正式证据；不纳入母任务状态、此前编号文件删除或其它计划。只读 plan.md 无差异。未运行全量 cargo test、fmt check、wasm 或 Makefile；完成后删除任务 26 编号文件，不提交其删除，正式证据保留。
+
+## 任务 27：Claude 原生登录切换
+
+2026-11-07；状态：已完成（macOS 隔离资源与假 Keychain；真实账号、真实 Keychain 和 UI 未验收）。
+
+### 依赖、来源与授权边界
+
+核对批次 26 提交 `4a23324e1` 与本文件任务 26；母任务 1、3 已完成，母任务 2 仍沿用任务 1 的底座子计划 1–93 开工裁定，不改报其完整迁移完成。首次因默认登录事务与绑定输入缺失登记阻塞；继续执行指令明确授权在现有 auth_accounts/CredentialFileStore/ClaudeAccountDirectory/租约所有者下补齐最小契约，依此解除。没有修改只读 plan.md，没有扩展母任务 6 的 OAuth 或全量账号管理。
+
+来源 `/Users/xiangmin/worker/code/cc-switch` HEAD `ca58c0313360eae7c851fbd7553c1614c7af03e7`，来源工作区干净。已读 `claude_official::{with_login_switch,switch_login,restore_login,recover_login_switch}`、`claude_direct::{write,run}`、provider/mod.rs 与 live.rs 直接调用者，以及 snapshot 的凭据键、资料缓存、Keychain 适配、默认登录迁入/切回相邻测试。使用 RustCodeGraph status 与定向搜索核对当前原生所有者；长时间无输出的 explore 已中断，不将其当作检索证据。冻结 upstream 没有加入原生运行链。
+
+### 实现与调用链
+
+- `vw-api-types/src/app_providers/claude_login.rs::ClaudeLoginBinding` 仅包含 accountId；`ClaudeConfig::Official` 增加可省略的 account，旧官方请求仍使用现有默认登录。未知字段、凭据、HOME/根路径与租户输入拒绝；Debug 遮蔽绑定。账号 ID 沿既有 identity 校验，无新的任意文件/命令 API。
+- `AuthAccountStore::{claude_login_account,archive_claude_default}` 复用原元数据命名空间、执行主机与租户隔离的 CredentialFileStore 和原 credential lease。只能解析已登记的目录账号，令牌型记录不伪装为原生登录；租约覆盖登录和文件提交。默认旧账号按 oauthAccount/组织识别，已有账号回写最新材料，首次发现的旧登录也通过同一所有者登记 `native_<identity hash>` 目录，防止成功换号丢失旧登录；不自动授予该身份使用权限，不建立第二账号库。
+- `vw-agent-apps/src/providers/claude_login.rs::LoginHost` 在受信 HOME 的固定 `.claude` 目录保存 0600、fsync 的暂态登录日志，原始材料不进入 DTO、错误或日志。保留默认槽位自己的 MCP/插件凭据与 `.claude.json` 全局键，按来源账号键替换登录与 oauthAccount，清理来源账号缓存。账号目录保留登录快照，离开默认账号前通过原所有者归档最新默认材料；没有声明与外部 CLI 同时刷新多份账号材料的一致性保证。
+- `auth/claude_login_files.rs` 使用 no-follow、descriptor-relative 的固定子文件读写、原子私有文件替换、进程锁与 CLI 刷新/存储/资料目录锁。锁保持 heartbeat，仅可回收带自身标识且 PID 已退出的遗留锁，未知/活跃 CLI 锁保留并拒绝切换。此处仍不能提供外部文件系统 CAS，外部不遵守锁的写入存在最终检查窗口。
+- `auth/claude_keychain.rs::MacOsKeychain` 是唯一可替代的 OS 边界：固定 `/usr/bin/security`，stdin 传送秘密，stderr 丢弃、输出与执行时间有界，写入后回读验证；支持 Keychain 未命中时的私有 `.credentials.json`。默认 Keychain 仅允许当前执行用户 HOME，配置目录覆盖、非 ASCII 目录哈希及超出 interactive 输入缓冲的载荷明确拒绝，不回退到将秘密置于进程参数的路径。未通过真实 Keychain 验证。
+- 既有 `ClaudeFile::apply` 保持原调用语义，新增内部同链 `apply_with_login`，在相同 Contract/pending/state 保存登录操作标识。登录失败不提交 settings/指针；首次发布前文件失败恢复原登录与原文件凭据存储形态；已发布 pending 或已落定操作标识使登录跟随目标前滚。后续恢复不会错误回退已发布的配置；恢复失败保留日志并返回 recovery_required。检测到外部新登录/令牌变化时保留它并拒绝覆盖。日志还绑定原执行主机；同 HOME 的别名不能消费或清除其它执行主机的登录意图，启动恢复会延后该别名。
+- `gateway/api/handlers/app_providers/claude_login.rs` 是既有 Host 的登录编排，复用 create/save/update/switch/reapply/sync 所用的 Claude 适配。增加绑定时沿原 SDK 请求类型传送 accountId，沿原分域路由返回 ClaudeResult；无需重复添加业务所有者或命令入口。除原 provider_config_write 外，还必须有同租户/主机的 official_account 身份许可；授权在账号/文件与目录写入前完成。catalogSaved/live 的部分成功语义沿任务 26 保留。启动工厂在配置事务恢复后协调同一登录日志；后续操作也检查该日志。
+- SDK 沿用 `claude_provider_{create,save,update,switch,reapply,sync}` 的原 transport、敏感令牌头与错误体丢弃契约，新增独立序列化测试登记到真实 app_providers_api 父模块。没有新增 UI，Iced 与真实 CLI 消费明确未验证。
+
+### 红绿与验证
+
+所有阶段均从仓库根动态原子 mkdir 领取共享槽位 **1**；`CARGO_TARGET_DIR=/Users/xiangmin/worker/code/shiju/target/rust-slot-1`，`CARGO_BUILD_BUILD_DIR` 同设此绝对路径，以覆盖仓库 build-dir。锁记录计划/任务/会话/PID；各阶段 shell trap 在 Cargo/产物进程退出后删除自身 owner 并 rmdir，编译缓存保留。所有下列命令继承此槽位；未运行全量 cargo test、fmt check、wasm 或 Makefile。
+
+先将独立测试接线编译，再运行 `cargo test -p vw-agent-apps --lib cc04_claude_login_ -- --nocapture`：退出 **101**、2 项业务断言失败，分别证明旧实现没有拒绝缺失登录、没有将目标登录应用到默认槽位。初始接线编译失败、SDK 零测试及 Gateway 夹具错误均已修复，不计作业务红证据或验收。最终源码先运行 `cargo fmt --all`（0），结果如下：
+
+| 确切命令 | 退出码 | 有效通过数量 |
+| --- | --- | --- |
+| `cargo test -p vw-agent-apps --lib cc04_claude_login_ -- --nocapture` | 0 | 10 |
+| `cargo test -p vw-api-types --lib cc04_claude_login_ -- --nocapture` | 0 | 1 |
+| `cargo test -p vw-agent --lib cc04_claude_login_ -- --nocapture` | 0 | 2 |
+| `cargo test -p vw-gateway-client --lib cc04_claude_login_ -- --nocapture` | 0 | 1 |
+| `cargo test -p vw-agent-apps --lib cc04_claude_ -- --nocapture` | 0 | 15（含上述 10） |
+| `cargo test -p vw-agent --lib cc04_claude_ -- --nocapture` | 0 | 11（含上述 2） |
+| `cargo test -p vw-agent --lib agent_apps::auth_accounts::tests -- --nocapture` | 0 | 5 |
+| `cargo test -p vw-agent --lib gateway::api::handlers::agent_apps::recovery_tests -- --nocapture` | 0 | 1 |
+| `cargo clippy --all-targets --all-features -- -D warnings` | 0 | 非行为测试 |
+
+去重为 **34** 项通过：本任务 14 项、相邻回归 20 项。两个指定行为测试 `cc04_claude_login_failure_leaves_pointer_and_settings`、`cc04_claude_login_write_failure_restores_original` 均通过；另外证明部分 Keychain 写入失败立即恢复、空登录/文件 fallback 恢复、未发布重启回退、发布后失败与统一 pending 前滚、外部新登录保留、活跃 CLI 锁不删除、真实 Keychain 适配拒绝其它 HOME，以及同 HOME 的执行主机别名拒绝消费其它主机日志。
+
+Gateway 使用真实回环 HTTP、原 SDK、临时 SQLite、真实临时主机目录与假账号材料：强类型绑定创建后 settings 清除旧第三方凭据、文件/指针与登录目标一致，旧登录由同一账号库保留；无效 token/无身份许可无目录记录和配置写入；允许但不存在的账号返回 live=failed，settings/指针不变；预先损坏真实 settings 文件，使登录换入后的文件提交失败，返回 catalogSaved=true/live=failed，原登录恢复且无指针发布。SDK 测试还验证真实路由/序列化与错误体脱敏。
+
+仅替代 Keychain 接口；假返回形状为 `{"claudeAiOauth":{"refreshToken":"fake-..."},"organizationUuid":"org"}`，资料为 `.claude.json` 的 oauthAccount.accountUuid/organizationUuid。没有读写真实用户登录/配置、没有执行真实 security 或 OAuth。发布后故障使用既有内部事务 checkpoint，文件/数据库/pending/恢复均走真实资源，未以 mock 次数证明行为。
+
+实际平台 macOS **27.0 (26A428)**、**arm64**，crate 版本 **0.6.0**。未查询/启动已安装 Claude 版本、真实账号、真实 Keychain、CLI 消费配置或 Iced 渲染，这些均未验证。Agent lib test 仍有既有 `__eh_frame section too large` 链接提示，相关测试退出 0；没有修改链接设置，强制 Clippy 退出 0。
+
+定向 diff/check 与暂存审查通过；提交仅含本任务实现、独立测试、最小 DTO/工厂/SDK 注册与本条证据，不纳入母任务状态、此前编号文件删除或其它计划。只读 plan.md 无差异；任务完成后删除编号文件且不提交其删除，正式证据保留。

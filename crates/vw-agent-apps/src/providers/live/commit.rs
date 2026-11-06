@@ -34,6 +34,8 @@ pub enum Mode {
 }
 #[derive(Clone, PartialEq, Serialize, Deserialize)]
 pub struct Contract {
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub claude_login_operation: Option<String>,
     pub version: u32,
     pub key: String,
     pub exclusive: serde_json::Map<String, serde_json::Value>,
@@ -145,6 +147,9 @@ impl ProviderTransactions {
             check_private(&directory)?;
         }
         Ok(Some(Self { directory, host }))
+    }
+    pub(crate) fn execution_host(&self) -> &ExecutionHostId {
+        &self.host
     }
     pub fn pending(&self, app: AppId) -> Result<Option<Pending>, WriteError> {
         let bytes = read_from(&self.directory, OsStr::new(&filename(app, "pending")))?;
@@ -345,7 +350,7 @@ pub(super) fn apply_target(state: &mut AppState, tenant: &TenantScope, target: &
     }
 }
 #[derive(Clone, Copy, PartialEq, Eq)]
-pub(super) enum Phase {
+pub(crate) enum Phase {
     Intent,
     Marked,
     BeforePublish,
@@ -356,7 +361,7 @@ pub(super) enum Phase {
 #[cfg(test)]
 type CheckpointHook = Box<dyn FnMut(&ProviderTransactions, AppId, Phase) -> Result<(), WriteError>>;
 #[cfg(test)]
-thread_local! { pub(super) static HOOK: std::cell::RefCell<Option<CheckpointHook>> = const { std::cell::RefCell::new(None) }; }
+thread_local! { pub(crate) static HOOK: std::cell::RefCell<Option<CheckpointHook>> = const { std::cell::RefCell::new(None) }; }
 pub(super) fn checkpoint(
     store: &ProviderTransactions,
     app: AppId,

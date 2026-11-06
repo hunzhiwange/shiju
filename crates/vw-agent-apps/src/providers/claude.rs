@@ -28,7 +28,12 @@ pub fn settings(profile: &ClaudeProfile) -> Result<Value, WriteError> {
         Ok(())
     };
     match &profile.config {
-        ClaudeConfig::Official {} => {}
+        ClaudeConfig::Official { account } => {
+            if let Some(binding) = account {
+                super::validate_identity(&binding.account_id)
+                    .map_err(|_| WriteError::InvalidResource)?;
+            }
+        }
         ClaudeConfig::ThirdParty { base_url, api_key, api_key_header } => {
             super::validation::endpoint(base_url).map_err(|_| WriteError::InvalidResource)?;
             put("ANTHROPIC_BASE_URL", base_url)?;
@@ -157,7 +162,7 @@ pub fn import(name: &str, bytes: &[u8]) -> Result<ClaudeProfile, WriteError> {
             api_key_header,
         }
     } else {
-        ClaudeConfig::Official {}
+        ClaudeConfig::Official { account: None }
     };
     let profile = ClaudeProfile { name: name.into(), config, model: string("ANTHROPIC_MODEL") };
     let owned = settings(&profile)?;
@@ -235,6 +240,20 @@ impl ClaudeFile {
         pointer: Option<String>,
         unchanged: impl Fn() -> bool,
     ) -> Result<(), WriteError> {
+        self.apply_with_login(tx, tenant, state, previous, target, pointer, unchanged, None)
+    }
+    #[allow(clippy::too_many_arguments)]
+    pub fn apply_with_login(
+        &mut self,
+        tx: &super::live::commit::ProviderTransactions,
+        tenant: &vw_api_types::id::TenantScope,
+        state: &super::live::commit::AppState,
+        previous: Option<&Value>,
+        target: &Value,
+        pointer: Option<String>,
+        unchanged: impl Fn() -> bool,
+        login_operation: Option<String>,
+    ) -> Result<(), WriteError> {
         use super::live::{
             commit::{Contract, Mode, ModeState, PendingTarget},
             stage::FileChange,
@@ -269,7 +288,12 @@ impl ClaudeFile {
             mode: Mode::Direct,
             attached: false,
             proxy_route: state.mode.as_ref().and_then(|m| m.proxy_route.clone()),
-            contract: Some(Contract { version: 1, key: id.into(), exclusive }),
+            contract: Some(Contract {
+                version: 1,
+                key: id.into(),
+                exclusive,
+                claude_login_operation: login_operation,
+            }),
         };
         let change = |pre: Option<&[u8]>| {
             if !unchanged() || tx.state(vw_api_types::agent_apps::AppId::Claude)? != *state {

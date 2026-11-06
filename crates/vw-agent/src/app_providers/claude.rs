@@ -50,12 +50,16 @@ impl AppProviderStore {
         for key in ["apiKey", "baseUrl", "protocol", "model", "requestOptions"] {
             object.remove(key);
         }
+        if let Some(meta) = object.get_mut("meta").and_then(Value::as_object_mut) {
+            meta.remove("authBinding");
+            meta.remove("claudeAccountId");
+        }
         object.insert("name".into(), json!(profile.name));
         object.insert(
             "category".into(),
             json!(if matches!(
                 profile.config,
-                vw_api_types::app_providers::claude::ClaudeConfig::Official {}
+                vw_api_types::app_providers::claude::ClaudeConfig::Official { .. }
             ) {
                 "official"
             } else {
@@ -88,5 +92,15 @@ impl AppProviderStore {
             return Err("application provider changed during update".into());
         }
         Ok(row)
+    }
+}
+
+#[cfg(target_os = "macos")]
+impl AppProviderStore {
+    pub(crate) fn claude_accounts(
+        &self,
+        root: &std::path::Path,
+    ) -> Result<crate::agent_apps::auth_accounts::AuthAccountStore, String> {
+        crate::agent_apps::auth_accounts::AuthAccountStore::new(self.database.clone(), root)
     }
 }

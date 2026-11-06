@@ -359,6 +359,22 @@ pub(super) fn recover_provider_policy(path: &Path) -> Result<(), ()> {
         let transactions =
             ProviderTransactions::new(&root, ExecutionHostId::new(&host.id).map_err(|_| ())?)
                 .map_err(|_| ())?;
+        let login = if host.home.join(".claude").exists() {
+            Some(
+                vw_agent_apps::providers::claude_login::LoginHost::open(&host.home)
+                    .map_err(|_| ())?,
+            )
+        } else {
+            None
+        };
+        if let Some(login) = &login
+            && !login.journal_matches_host(&transactions).map_err(|_| ())?
+        {
+            tracing::warn!(
+                "provider recovery deferred; login intent belongs to another execution host"
+            );
+            continue;
+        }
         for (app, outcome) in transactions.recover_on_startup() {
             match outcome {
                 Ok(RecoveryOutcome::Discarded) => {
@@ -375,6 +391,11 @@ pub(super) fn recover_provider_policy(path: &Path) -> Result<(), ()> {
                 Err(_) => tracing::warn!(?app, "provider recovery failed; pending intent retained"),
             }
         }
+        if let Some(login) = login {
+            login
+                .recover(&transactions, &vw_agent_apps::auth::claude_keychain::MacOsKeychain)
+                .map_err(|_| ())?;
+        }
     }
     Ok(())
 }
@@ -387,4 +408,24 @@ pub(super) fn authorize_provider_write(
 ) -> Result<Host, StatusCode> {
     authorize_scoped(path, headers, tenant, target, None, Capability::ProviderConfigWrite)
         .map(|a| a.host)
+}
+
+/// Configuration writes do not grant access to every registered official identity.
+pub(super) fn authorize_provider_login(
+    path: Option<&Path>,
+    headers: &HeaderMap,
+    tenant: &TenantScope,
+    target: &str,
+    account: &str,
+) -> Result<(), StatusCode> {
+    let authorization =
+        authorize_scoped(path, headers, tenant, target, None, Capability::ProviderConfigWrite)?;
+    if !authorization.permits(
+        vw_api_types::agent_apps::AppId::Claude,
+        vw_api_types::agent_apps::LaunchIdentityKind::OfficialAccount,
+        account,
+    ) {
+        return Err(StatusCode::FORBIDDEN);
+    }
+    Ok(())
 }

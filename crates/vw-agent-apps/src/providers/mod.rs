@@ -122,3 +122,8 @@ mod snippets_tests;
 pub mod claude;
 #[cfg(test)]
 mod claude_tests;
+
+#[cfg(target_os = "macos")]
+pub mod claude_login;
+#[cfg(all(test, target_os = "macos"))]
+mod claude_login_tests;

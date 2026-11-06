@@ -3,7 +3,10 @@ use serde::{Deserialize, Serialize};
 #[derive(Clone, Serialize, Deserialize)]
 #[serde(tag = "kind", rename_all = "snake_case", deny_unknown_fields)]
 pub enum ClaudeConfig {
-    Official {},
+    Official {
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        account: Option<super::claude_login::ClaudeLoginBinding>,
+    },
     ThirdParty {
         base_url: String,
         api_key: String,

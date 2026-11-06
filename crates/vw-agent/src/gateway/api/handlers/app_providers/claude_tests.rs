@@ -20,6 +20,11 @@ impl Drop for Fixture {
 }
 impl Fixture {
     async fn new() -> Self {
+        Self::new_with_keychain(None).await
+    }
+    async fn new_with_keychain(
+        keychain: Option<std::sync::Arc<dyn vw_agent_apps::auth::claude_keychain::ClaudeKeychain>>,
+    ) -> Self {
         let root = tempfile::tempdir().unwrap();
         std::fs::set_permissions(root.path(), std::fs::Permissions::from_mode(0o700)).unwrap();
         let private = root.path().join("private");
@@ -31,13 +36,17 @@ impl Fixture {
         let policy = root.path().join("access.json");
         std::fs::write(&policy,json!({"principals":[{"id":"claude","token_sha256":hex::encode(Sha256::digest(TOKEN)),"grants":[{"platform_id":"p","company_id":"a","host_id":"host","provider_config_read":true,"provider_config_write":true}]}],"hosts":[{"id":"host","online":true,"binding":"local","home":root.path(),"credential_root":private,"search_paths":[],"applications":root.path().join("Applications")}]}).to_string()).unwrap();
         std::fs::set_permissions(&policy, std::fs::Permissions::from_mode(0o600)).unwrap();
+        let mut context = super::claude::Policy::new(Some(policy.clone()));
+        if let Some(keychain) = keychain {
+            context.1 = keychain;
+        }
         let router = Router::new()
-            .merge(super::claude::router_with_policy(Some(policy.clone())))
+            .merge(super::claude::router_with_context(context.clone()))
             .route(
                 "/app-providers/{app}/{id}",
                 post(super::create::create).put(super::save).patch(super::update::update),
             )
-            .layer(Extension(super::claude::Policy(Some(policy.clone()))))
+            .layer(Extension(context))
             .layer(Extension(db.clone()))
             .layer(middleware::from_fn(crate::gateway::middleware::tenant_scope_middleware));
         let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
@@ -117,7 +126,7 @@ async fn cc04_claude_sdk_api_switches_four_variants_and_cleans_credentials() {
                 credentials_file: Some("/fake/never-opened.json".into()),
             },
         ),
-        ("official", ClaudeConfig::Official {}),
+        ("official", ClaudeConfig::Official { account: None }),
     ];
     for (index, (id, config)) in variants.into_iter().enumerate() {
         let activation =
@@ -169,7 +178,7 @@ async fn cc04_claude_sdk_api_switches_four_variants_and_cleans_credentials() {
 #[tokio::test]
 async fn cc04_claude_current_edit_reapply_import_and_inactive_edit_share_adapter() {
     let f = Fixture::new().await;
-    let official = f.request(ClaudeConfig::Official {}, ClaudeActivation::First);
+    let official = f.request(ClaudeConfig::Official { account: None }, ClaudeActivation::First);
     assert_eq!(
         f.client.claude_provider_create("saved", &official, TOKEN).await.unwrap().live,
         ClaudeLiveResult::Applied
@@ -221,7 +230,7 @@ async fn cc04_claude_current_edit_reapply_import_and_inactive_edit_share_adapter
 async fn cc04_claude_denied_and_invalid_requests_leave_database_and_files_untouched() {
     let f = Fixture::new().await;
     let before = std::fs::read(f.file()).unwrap();
-    let request = f.request(ClaudeConfig::Official {}, ClaudeActivation::First);
+    let request = f.request(ClaudeConfig::Official { account: None }, ClaudeActivation::First);
     assert!(f.client.claude_provider_create("denied", &request, "wrong-token").await.is_err());
     assert!(f.record("denied").is_none());
     let mut invalid = request.clone();
@@ -308,7 +317,7 @@ async fn cc04_claude_sync_projects_existing_universal_owner_and_applies_current_
 #[tokio::test]
 async fn cc04_claude_live_failure_reports_saved_catalog_and_reapply_repairs_it() {
     let f = Fixture::new().await;
-    let request = f.request(ClaudeConfig::Official {}, ClaudeActivation::First);
+    let request = f.request(ClaudeConfig::Official { account: None }, ClaudeActivation::First);
     assert_eq!(
         f.client.claude_provider_create("saved", &request, TOKEN).await.unwrap().live,
         ClaudeLiveResult::Applied
@@ -338,7 +347,7 @@ async fn cc04_claude_live_failure_reports_saved_catalog_and_reapply_repairs_it()
 async fn cc04_claude_legacy_path_first_activation_and_symlink_rejection() {
     let f = Fixture::new().await;
     std::fs::rename(f.file(), f.root.path().join(".claude/claude.json")).unwrap();
-    let request = f.request(ClaudeConfig::Official {}, ClaudeActivation::First);
+    let request = f.request(ClaudeConfig::Official { account: None }, ClaudeActivation::First);
     assert_eq!(
         f.client.claude_provider_create("legacy", &request, TOKEN).await.unwrap().live,
         ClaudeLiveResult::Applied
@@ -418,7 +427,8 @@ async fn cc04_claude_committed_exclusives_survive_catalog_edits_until_switch_cle
         ClaudeLiveResult::Applied
     );
     assert_eq!(f.live()["env"]["CLAUDE_CODE_DISABLE_ARTIFACT"], "1");
-    let request = f.request(ClaudeConfig::Official {}, ClaudeActivation::CatalogOnly);
+    let request =
+        f.request(ClaudeConfig::Official { account: None }, ClaudeActivation::CatalogOnly);
     f.client.claude_provider_save("legacy", &request, TOKEN).await.unwrap();
     assert_eq!(
         f.client.claude_provider_reapply("legacy", &f.target(), TOKEN).await.unwrap().live,
@@ -426,3 +436,6 @@ async fn cc04_claude_committed_exclusives_survive_catalog_edits_until_switch_cle
     );
     assert!(f.live()["env"].get("CLAUDE_CODE_DISABLE_ARTIFACT").is_none());
 }
+
+#[path = "claude_login_tests.rs"]
+mod claude_login_tests;

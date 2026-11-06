@@ -4,18 +4,34 @@ use axum::{http::HeaderMap, routing::post};
 use std::path::PathBuf;
 use vw_api_types::app_providers::claude::*;
 #[derive(Clone)]
-pub(super) struct Policy(pub(super) Option<PathBuf>);
+pub(super) struct Policy(
+    pub(super) Option<PathBuf>,
+    #[cfg(target_os = "macos")]
+    pub(super)  std::sync::Arc<dyn vw_agent_apps::auth::claude_keychain::ClaudeKeychain>,
+);
+impl Policy {
+    pub(super) fn new(path: Option<PathBuf>) -> Self {
+        Self(
+            path,
+            #[cfg(target_os = "macos")]
+            std::sync::Arc::new(vw_agent_apps::auth::claude_keychain::MacOsKeychain),
+        )
+    }
+}
 pub(super) fn router() -> Router {
     router_with_policy(std::env::var_os("SHIJU_AGENT_APPS_ACCESS_FILE").map(PathBuf::from))
 }
 pub(super) fn router_with_policy(policy: Option<PathBuf>) -> Router {
+    router_with_context(Policy::new(policy))
+}
+pub(super) fn router_with_context(policy: Policy) -> Router {
     Router::new()
         .route("/app-providers/claude/{id}/switch", post(switch))
         .route("/app-providers/claude/{id}/reapply", post(reapply))
         .route("/app-providers/claude/{id}/import", post(import))
         .route("/universal-providers/{id}/sync/claude", post(sync))
         .layer(DefaultBodyLimit::max(32 * 1024))
-        .layer(Extension(Policy(policy)))
+        .layer(Extension(policy))
 }
 #[derive(Clone, Copy)]
 pub(super) enum WriteKind {
@@ -32,9 +48,9 @@ pub(super) async fn write(
     req: ClaudeWrite,
     kind: WriteKind,
 ) -> Response {
-    let policy = policy
-        .map(|Extension(p)| p.0)
-        .unwrap_or_else(|| std::env::var_os("SHIJU_AGENT_APPS_ACCESS_FILE").map(PathBuf::from));
+    let policy = policy.map(|Extension(p)| p).unwrap_or_else(|| {
+        Policy::new(std::env::var_os("SHIJU_AGENT_APPS_ACCESS_FILE").map(PathBuf::from))
+    });
     write_with_policy(tenant, db, headers, id, req, kind, policy).await
 }
 pub(super) async fn write_with_policy(
@@ -44,7 +60,7 @@ pub(super) async fn write_with_policy(
     id: String,
     req: ClaudeWrite,
     kind: WriteKind,
-    policy: Option<PathBuf>,
+    policy: Policy,
 ) -> Response {
     let status =
         if matches!(kind, WriteKind::Create) { StatusCode::CREATED } else { StatusCode::OK };
@@ -66,15 +82,16 @@ fn write_sync(
     id: String,
     req: ClaudeWrite,
     kind: WriteKind,
-    policy: Option<PathBuf>,
+    policy: Policy,
 ) -> Result<ClaudeResult, StatusCode> {
     let (home, root) = super::super::agent_apps::provider_editor_context(
-        policy.as_deref(),
+        policy.0.as_deref(),
         &headers,
         &tenant,
         &req.target_host_id,
         true,
     )?;
+    authorize_login(&policy, &headers, &tenant, &req.target_host_id, &req.claude.config)?;
     let store = store(db).map_err(|_| StatusCode::SERVICE_UNAVAILABLE)?;
     vw_agent_apps::providers::claude::settings(&req.claude)
         .map_err(|_| StatusCode::UNPROCESSABLE_ENTITY)?;
@@ -90,7 +107,7 @@ fn write_sync(
         .claude_save(&tenant, &id, &req.claude, before.as_ref(), matches!(kind, WriteKind::Create))
         .map_err(|_| StatusCode::CONFLICT)?;
     let live = if let Some(host) = host {
-        host.apply(&store, &tenant, &id, &row, req.activation)
+        host.apply(&store, &tenant, &id, &row, req.activation, policy.1.as_ref())
     } else {
         ClaudeLiveResult::NotAttempted
     };
@@ -104,7 +121,7 @@ fn write_sync(
     _: String,
     _: ClaudeWrite,
     _: WriteKind,
-    _: Option<PathBuf>,
+    _: Policy,
 ) -> Result<ClaudeResult, StatusCode> {
     Err(StatusCode::NOT_IMPLEMENTED)
 }
@@ -114,6 +131,9 @@ struct Host {
     tx: vw_agent_apps::providers::live::commit::ProviderTransactions,
     state: vw_agent_apps::providers::live::commit::AppState,
     previous: Option<serde_json::Value>,
+    login: vw_agent_apps::providers::claude_login::LoginHost,
+    root: PathBuf,
+    host_id: String,
 }
 #[cfg(target_os = "macos")]
 impl Host {
@@ -189,48 +209,9 @@ impl Host {
         if state.pointer.is_some() && previous.is_none() {
             return Err(StatusCode::CONFLICT);
         }
-        Ok(Some(Self { file, tx, state, previous }))
-    }
-    fn apply(
-        mut self,
-        store: &AppProviderStore,
-        tenant: &TenantScope,
-        id: &str,
-        row: &serde_json::Value,
-        activation: ClaudeActivation,
-    ) -> ClaudeLiveResult {
-        let current = self.state.pointer.as_ref().map(|p| p.id.as_str());
-        let should = match activation {
-            ClaudeActivation::CatalogOnly => false,
-            ClaudeActivation::First => current.is_none(),
-            ClaudeActivation::IfCurrent => current == Some(id),
-            ClaudeActivation::Switch => true,
-        };
-        if !should {
-            return ClaudeLiveResult::NotAttempted;
-        }
-        let previous = self.previous.as_ref().and_then(|r| r.get("settingsConfig"));
-        if store.claude_record(tenant, id).ok().flatten().as_ref() != Some(row) {
-            return ClaudeLiveResult::Failed;
-        }
-        let Some(target) = row.get("settingsConfig") else {
-            return ClaudeLiveResult::Failed;
-        };
-        if row.pointer("/meta/authBinding").is_some()
-            || row.pointer("/meta/claudeAccountId").is_some()
-        {
-            return ClaudeLiveResult::Failed;
-        }
-        let pointer =
-            if activation == ClaudeActivation::IfCurrent { None } else { Some(id.to_owned()) };
-        let unchanged = || store.claude_record(tenant, id).ok().flatten().as_ref() == Some(row);
-        match self.file.apply(&self.tx, tenant, &self.state, previous, target, pointer, unchanged) {
-            Ok(()) => ClaudeLiveResult::Applied,
-            Err(_) if self.tx.pending(AppId::Claude).ok().flatten().is_some() => {
-                ClaudeLiveResult::RecoveryRequired
-            }
-            Err(_) => ClaudeLiveResult::Failed,
-        }
+        let login = vw_agent_apps::providers::claude_login::LoginHost::open(home)
+            .map_err(|_| StatusCode::CONFLICT)?;
+        Ok(Some(Self { file, tx, state, previous, login, root: root.into(), host_id: host.into() }))
     }
 }
 async fn switch(
@@ -298,11 +279,16 @@ async fn operation(
                 .claude_record(&tenant, &id)
                 .map_err(|_| StatusCode::SERVICE_UNAVAILABLE)?
                 .ok_or(StatusCode::NOT_FOUND)?;
+            if let Some(value) = row.get("claude") {
+                let profile: ClaudeProfile = serde_json::from_value(value.clone())
+                    .map_err(|_| StatusCode::UNPROCESSABLE_ENTITY)?;
+                authorize_login(&policy, &headers, &tenant, &host, &profile.config)?;
+            }
             let host = Host::open(&home, &root, &host, &tenant, activation, &store, &id)?
                 .ok_or(StatusCode::CONFLICT)?;
             Ok(ClaudeResult {
                 catalog_saved: false,
-                live: host.apply(&store, &tenant, &id, &row, activation),
+                live: host.apply(&store, &tenant, &id, &row, activation, policy.1.as_ref()),
             })
         }
         #[cfg(not(target_os = "macos"))]
@@ -423,7 +409,9 @@ async fn sync(
             }
             let live = if let Some(host) = host {
                 match store.claude_record(&tenant, &child) {
-                    Ok(Some(row)) => host.apply(&store, &tenant, &child, &row, req.activation),
+                    Ok(Some(row)) => {
+                        host.apply(&store, &tenant, &child, &row, req.activation, policy.1.as_ref())
+                    }
                     _ => ClaudeLiveResult::Failed,
                 }
             } else {
@@ -444,3 +432,27 @@ async fn sync(
         Err(_) => StatusCode::SERVICE_UNAVAILABLE.into_response(),
     }
 }
+
+#[cfg(target_os = "macos")]
+fn authorize_login(
+    policy: &Policy,
+    headers: &HeaderMap,
+    tenant: &TenantScope,
+    host: &str,
+    config: &ClaudeConfig,
+) -> Result<(), StatusCode> {
+    if let ClaudeConfig::Official { account: Some(binding) } = config {
+        super::super::agent_apps::authorize_provider_login(
+            policy.0.as_deref(),
+            headers,
+            tenant,
+            host,
+            &binding.account_id,
+        )?;
+    }
+    Ok(())
+}
+
+#[cfg(target_os = "macos")]
+#[path = "claude_login.rs"]
+mod login;

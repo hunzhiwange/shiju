@@ -216,3 +216,75 @@ impl AuthAccountStore {
 #[cfg(test)]
 #[path = "auth_accounts_tests.rs"]
 mod tests;
+
+#[cfg(target_os = "macos")]
+impl AuthAccountStore {
+    /// Resolve only a pre-existing tenant/host account and retain the owner's launch lease.
+    pub(crate) fn claude_login_account(
+        &self,
+        tenant: &TenantScope,
+        host: &str,
+        id: &str,
+    ) -> Result<
+        (CredentialLease, vw_agent_apps::auth::credential_file::ClaudeAccountDirectory),
+        String,
+    > {
+        let key = Self::key(host, AppId::Claude, id)?;
+        if self
+            .metadata
+            .get(tenant, "agent_apps.auth_accounts", &key)
+            .map_err(|_| "official account storage unavailable")?
+            .as_deref()
+            != Some("{\"configured\":true}")
+        {
+            return Err("official account not found".into());
+        }
+        let lease = self.credentials.lease(tenant, host, AppId::Claude, id, false)?;
+        let AccountCredential::ClaudeDirectory(directory) = lease.read()? else {
+            return Err("native login requires an existing directory account".into());
+        };
+        Ok((lease, directory))
+    }
+    /// Preserve a rotated/previous default in the same owner before overwriting the OS slot.
+    pub(crate) fn archive_claude_default(
+        &self,
+        tenant: &TenantScope,
+        host: &str,
+        material: &vw_agent_apps::providers::claude_login::LoginMaterial,
+        keychain: &dyn vw_agent_apps::auth::claude_keychain::ClaudeKeychain,
+    ) -> Result<(), vw_agent_apps::providers::live::write_guard::WriteError> {
+        use sha2::{Digest, Sha256};
+        use vw_agent_apps::providers::{
+            claude_login::LoginMaterial, live::write_guard::WriteError,
+        };
+        let Some(identity) = material.identity()? else {
+            return Ok(());
+        };
+        for id in self.list(tenant, host, AppId::Claude).map_err(|_| WriteError::Io)? {
+            if let AccountCredential::ClaudeDirectory(dir) = self
+                .credentials
+                .read(tenant, host, AppId::Claude, &id)
+                .map_err(|_| WriteError::Io)?
+                && LoginMaterial::from_account(dir.path(), keychain)?.identity()?.as_ref()
+                    == Some(&identity)
+            {
+                let (_lease, dir) = self
+                    .claude_login_account(tenant, host, &id)
+                    .map_err(|_| WriteError::Conflict)?;
+                return material.archive(dir.path(), keychain);
+            }
+        }
+        let id = format!(
+            "native_{}",
+            Sha256::digest(identity.as_bytes())
+                .iter()
+                .map(|b| format!("{b:02x}"))
+                .collect::<String>()
+        );
+        // This is an auth-owner import, not a second account registry or a client path.
+        self.register_claude_directory(tenant, host, &id).map_err(|_| WriteError::Io)?;
+        let (_lease, dir) =
+            self.claude_login_account(tenant, host, &id).map_err(|_| WriteError::Conflict)?;
+        material.archive(dir.path(), keychain)
+    }
+}

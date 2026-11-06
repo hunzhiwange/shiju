@@ -201,3 +201,9 @@ mod pi;
 #[cfg(test)]
 #[path = "app_providers/pi_tests.rs"]
 mod pi_tests;
+
+#[path = "app_providers/omp.rs"]
+mod omp;
+#[cfg(test)]
+#[path = "app_providers/omp_tests.rs"]
+mod omp_tests;

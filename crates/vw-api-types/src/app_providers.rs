@@ -152,3 +152,7 @@ mod opencode_tests;
 pub mod pi;
 #[cfg(test)]
 mod pi_tests;
+
+pub mod omp;
+#[cfg(test)]
+mod omp_tests;

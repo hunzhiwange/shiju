@@ -1804,3 +1804,56 @@ Gateway 使用真实回环 HTTP、原生 SDK、SQLite、临时 HOME 和管理员
 平台：macOS **27.0 (26A428)**、**arm64**，crate **0.6.0**。`command -v pi` 无结果，`pi --version` 退出 **127**；Pi 应用版本、真实应用消费、真实账号/Keychain、网络上游、Iced 渲染及非 macOS **未验证**，未读取或修改真实用户配置。Gateway 链接器仍有既有 `__eh_frame section too large` 提示，测试退出 0，未改链接配置。
 
 定向差异/暂存检查及只读 plan.md 检查通过；只提交本任务实现、独立测试、必要接线和本条证据，排除其它计划与此前编号任务删除。自身槽位已释放，缓存保留；未执行全量 cargo test、fmt check、wasm 或 Makefile。验收后删除本编号任务文件，不提交其删除；下一步批次 39。
+
+## 任务 39：OMP 增量成员管理
+
+2026-11-07；状态：已完成。已核对批次 38 提交 `681ed863d` 和上节验收；母任务 1、3 已完成，母任务 2 的完整领域迁移仍未收口，沿任务 1/provider-contracts.md 已记录的底座子计划 1–93 开工裁定消费真实接口，不冒称母任务 2 已完成。只读 plan.md 无差异。
+
+来源 HEAD `ca58c0313360eae7c851fbd7553c1614c7af03e7`，来源 `services/provider/omp.rs`、`omp_config.rs` 无工作区差异。阅读 `omp::{prepare,list,sync_native,add,update,delete,remove,enable,import_from_live}`、`omp_config::{get_omp_native_agent_dir,get_omp_models_path,validate_provider,edit_provider,change_and_commit}`、ProviderService 分派、`commands/omp.rs::current_state` 和相邻内联测试；表单参考 `PiProviderForm.tsx::{buildPiSettingsConfig,PiProviderForm}` 的 OMP 分支。使用 RustCodeGraph 检查已有调用者，新增/图未覆盖路径用源码读取。
+
+### 实现与边界
+
+- 唯一运行时所有者为 `vw-agent-apps/src/providers/omp.rs`；`omp_validation.rs` 保留来源的 OMP 替换节点规则。沿用现有 YAML 定点补丁，保留其它成员、根字段、注释原字节，不复制永久业务所有者或整份重序列化。只校验本次替换节点，原生其它未来字段/协议不阻断独立编辑；锚点、别名、tag、merge、重复 key、含糊流式分区和损坏文档明确拒绝。
+- 固定操作授权执行 HOME 下 `.omp/agent/models.yml`，原生优先级为已有 models.yml → models.yaml，均不存在时新建 models.yml。只有旧 models.json 时显式拒绝，交 OMP 自行迁移，不覆盖旧文件。执行主机 PI_CONFIG_DIR、OMP_PROFILE/PI_PROFILE 和 PI_CODING_AGENT_DIR 按原生优先级解析，目录必须位于授权 HOME，拒绝相对路径、父组件、越界和符号链接；客户端不接受路径、环境变量或命令。覆盖/命名 profile 有纯路径测试，实际部署未验证。
+- Add 拒绝不同声明的同键覆盖，相同声明可幂等启用；IfMember 编辑停用档案只保存目录，不自动启用。remove-live 保存最新原生节点后移除成员，保留目录元数据，可再启用；目录删除通过真实成员引用守卫。导入只读文件，只新增缺失目录行，不覆盖已有档案，完整导入策略归任务 44。
+- 写入复用目录描述符锁、私有文件、ProviderTransactions、目录修订/文件前像检查和 pending 前滚恢复，不产生唯一 current 指针。发布标记前重新检查 YAML 优先级，新出现的更高优先级文件触发冲突并保留原生文件。原生读取错误显式返回失败，目录观察显示 unavailable，不用保存档案冒充当前原生状态。
+- 本行为从不打开/改写 config.yml、config.yaml、agent.db、其它登录文件或 Keychain，不修改原生默认模型，不执行凭据表达式或脚本。强类型 DTO、Gateway、SDK、执行端存储只增加 OMP 局部模块和必要父接线；沿用管理员主机权限、租户隔离、敏感凭据 header 和无载荷错误。没有新增或验收 UI，Iced 编辑归任务 62；不宣称默认模型、登录、代理或真实应用运行闭环已完成。
+
+前缀 `/v1/app-providers/omp`：
+
+| API | SDK |
+| --- | --- |
+| `PUT /{id}/config` | `omp_provider_save`；catalog_only/add/if_member |
+| `POST /{id}/add` | `omp_provider_add` |
+| `POST /{id}/remove-live` | `omp_provider_remove_live` |
+| `POST /config/state` | `omp_state`；只返回原生成员 key |
+| `POST /config/import` | `omp_import`；只读原生文件 |
+
+### 红绿验证
+
+修正测试接线后执行四条相同 `cc04_omp_` 过滤红测：执行端 **1 通过/4 业务断言失败，退出 101**（含指定 roundtrip 与 membership 两项）；DTO **1 通过，退出 0**；Gateway **2 通过/2 业务断言失败，退出 101**（同键覆盖未拒绝、实际文件未包含编辑凭据）；SDK **2 通过，退出 0**。编译错误与零测试未作为有效红测证据。
+
+首轮绿测执行端 6 通过/1 失败：新增不安全 YAML 测试使用 IfMember 且目标不存在，实际正确地不写；改用 Add 验证写入拒绝。首轮 Clippy 指出迁入校验函数的一处 collapsible_if，已修正；以以下最终完整重跑为准。
+
+红测、首绿、最终阶段都从仓库根原子 mkdir 动态领取槽位 **1**；`CARGO_TARGET_DIR=/Users/xiangmin/worker/code/shiju/target/rust-slot-1`，`CARGO_BUILD_BUILD_DIR` 同值以覆盖仓库 build-dir。自身锁记录计划/任务/会话/PID，阶段结束释放，缓存保留。
+
+最终默认 features：
+
+| 确切命令 | 退出码 | 有效数量 |
+| --- | --- | --- |
+| `cargo fmt --all` | 0 | 格式化 |
+| `cargo test -p vw-agent-apps --lib cc04_omp_ -- --nocapture` | 0 | 8 passed |
+| `cargo test -p vw-api-types --lib cc04_omp_ -- --nocapture` | 0 | 1 passed |
+| `cargo test -p vw-agent --lib cc04_omp_ -- --nocapture` | 0 | 5 passed |
+| `cargo test -p vw-gateway-client --lib cc04_omp_ -- --nocapture` | 0 | 2 passed |
+| `cargo test -p vw-agent-apps --lib cc04_catalog_ -- --nocapture` | 0 | 7 passed |
+| `cargo test -p vw-agent-apps --lib cc04_delete_ -- --nocapture` | 0 | 3 passed |
+| `cargo clippy --all-targets --all-features -- -D warnings` | 0 | 非行为测试 |
+
+本任务 **16 项**、相邻回归 **10 项**通过，无忽略。含保注释增改移除、默认与登录只读、同键冲突、危险 YAML/字段/路径/链接拒绝、旧格式/优先级、目录/原生文件变更拒绝，以及 Intent/Marked/FilePublished/Published/Settled 五阶段重建恢复且无唯一指针。同步调整相邻目录测试对 OMP 已具备原生读取的预期。
+
+Gateway 使用真实回环 HTTP、原生 SDK、SQLite、临时 HOME 和现有管理员策略：save/add/if_member → applied 响应 → models.yml 中假凭据实际更新；停用保留目录并解除引用后可删除；外部轮换的凭据/未来字段在移除后保存并可重新启用；导入重复计数归零、源文件原字节不变。异租户、异主机、假 token、缺写权限均无目录/文件/事务副作用，读权限可查 state；同键碰撞/改名请求拒绝；损坏原生配置的 state/import 失败而保存目录不变。每次读取结果文件均断言 config.yml 和 agent.db 的故意非配置假内容不变。只以回环替代远端传输，均用假凭据；未替代文件系统、存储、鉴权或事务，未读取/写入真实用户配置。
+
+平台：macOS **27.0 (26A428)**、**arm64**，crate **0.6.0**。`command -v omp` 无结果，`omp --version` 退出 **127**；OMP 应用版本、真实应用消费、真实账号/Keychain、网络上游、Iced 渲染和非 macOS **未验证**。Gateway 链接器仍有既有 `__eh_frame section too large` 提示，测试退出 0，未改链接配置。
+
+定向差异/暂存检查及只读 plan.md 检查通过；只提交任务 39 的实现、独立测试、必要接线和本条证据，排除其它计划、母任务状态和此前编号文件删除。自身锁已释放、缓存保留；未执行全量 cargo test、fmt check、wasm 或 Makefile。验收后删除本编号任务文件，不提交其删除；下一步批次 40。

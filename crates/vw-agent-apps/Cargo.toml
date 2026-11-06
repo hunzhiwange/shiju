@@ -11,6 +11,7 @@ license = "MIT"
 tokio = { version = "1", features = ["rt", "sync"] }
 reqwest = { version = "0.13", default-features = false, features = ["json", "rustls"] }
 serde_json = "1"
+serde_yaml = "0.9"
 toml = "0.9"
 toml_edit = "0.22"
 semver = "1"

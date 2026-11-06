@@ -5,3 +5,6 @@ mod patch_json_tests;
 pub mod patch_toml;
 #[cfg(test)]
 mod patch_toml_tests;
+pub mod patch_yaml;
+#[cfg(test)]
+mod patch_yaml_tests;

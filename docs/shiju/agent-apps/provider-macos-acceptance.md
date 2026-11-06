@@ -657,3 +657,42 @@ RustCodeGraph status/explore 退出 0，索引含 6443 文件；运行时代码�
 定向 diff 检查及暂存检查只涵盖本任务实现、独立测试、父注册、依赖清单/锁文件和本条证据；现有母任务状态/编号文件删除及其他会话变更排除。未运行全量 cargo test、fmt check、wasm 或 Makefile。完成后删除任务 14 文件，不纳入提交，正式证据保留。
 
 本轮定向 `git diff --check` 退出 0；最终槽位 1 锁目录已不存在，缓存目录保留。只读 plan.md 无差异。
+
+## 任务 15：YAML 供应商节点补丁
+
+2026-11-06；状态：已完成（内存字节补丁原语，live 写入未接通）。
+
+### 依赖、来源与实现范围
+
+核对批次 14 提交 `6bab4e8cf` 及本文件任务 1–14 的正式证据；母任务 1、3 已完成，母任务 2 沿用任务 1 已记录的底座子计划 1–93 开工裁定，完整领域迁移尚未收口，不将其改报为完成。只读 plan.md 未修改。
+
+来源 `/Users/xiangmin/worker/code/cc-switch` HEAD `ca58c0313360eae7c851fbd7553c1614c7af03e7`，rev-parse/status 均退出 0、来源干净。读取 `omp_config.rs::{edit_provider,emit_provider,verify_edit,mapping_key,reject_yaml_tokens,has_yaml_reference_tokens,change_and_commit}`、相邻字节保留/不安全结构/普通标量/空节点测试和 `services/provider/omp.rs` 的 add/update 消费；读取 `mcode_config.rs::{write_entry,set_provider,add_provider,remove_provider}` 及相邻节点保留、锁/默认模型测试，确认原整文档序列化不能承诺字节保留。读取 `yamlNode.ts::{yamlNodeToText,yamlNodeFromText}` 和 PiProviderForm/McodeProviderForm 的节点编辑直接调用；没有找到独立 yamlNode 相邻测试。来源测试本轮未运行。RustCodeGraph status/explore 退出 0，索引 6448 文件，确认已有 OMP 编辑器仅在冻结 upstream，原生 providers/live 尚无 YAML 所有者。
+
+- 唯一原生补丁落点 `vw-agent-apps/src/providers/live/patch_yaml.rs::patch_provider`，父模块注册及独立 `patch_yaml_tests.rs`。沿用 OMP 的块映射文本定位/拼接方式，通过强类型 ProviderSection 限定为 `providers` 或 `custom_provider`。输入为字节、字面供应商 ID、可选 JSON 对象；Some 替换/新增目标节点，None 删除目标节点，缺失目标删除保持原字节。供应商业务 schema、MCode 原生账号/默认模型保护仍由后续所属应用适配负责。
+- 仅目标节点重新序列化，尾部空行/注释属于外围并保留；相邻供应商、根字段、中文/emoji 注释及 CRLF 外围字节保留。缺失 section 可追加，null section 仅规范化其头部，删除最后一家供应商保留空映射。目标内部注释和格式属于替换范围，新增目标使用 LF，不承诺重排或通用 YAML 格式化。
+- 保留 OMP 显式拒绝边界：flow section、tab、重复键、非映射根/section、非字符串供应商键、多文档/结束标记及无法可靠定位的布局返回 ManualEdit；文档全局扫描锚点/别名/标签/merge 指示符，拒绝可能跨节点引用的结构。普通标量中的 `Search & Fetch * x` 等文本允许。错误不携带配置载荷；非法 UTF-8、空 ID/非对象替换、超过 1 MiB 的输入/输出拒绝，不返回部分结果。
+- 输出重新解析，与完整预期文档比较，包含 section 外节点语义校验；不将解析成功代替字节保留断言。补强上游 mapping_key 对冒号的识别：仅尾部或后接空白的冒号是分隔符，避免 `target:key` 的重复编辑失败。
+- 新增直接依赖 `serde_yaml = "0.9"`，复用 Cargo.lock 既有 `0.9.34+deprecated` 和其依赖；锁文件仅新增本 crate 的依赖边，没有新增包版本。此依赖只解析及发射目标节点。
+- API/SDK/UI 没有新增入口：沿用任务 13/14 的内部字节原语边界，原生事务及 OMP/MCode 应用适配尚未交付，后续消费同一补丁所有者。本项未新增任意文件/命令 API，不宣布供应商编辑、首次激活或 live 切换成功。
+
+### 红绿验证与平台边界
+
+每阶段均原子 mkdir 动态领取共享槽位，owner 记录计划/任务/会话/PID，EXIT/INT/TERM trap 清理自身记录和锁，命令及子进程退出后释放、缓存保留。全部 Cargo 子进程同时继承 `CARGO_BUILD_BUILD_DIR=$CARGO_TARGET_DIR`，覆盖仓库 build-dir，测试二进制实际位于对应槽位 debug/deps。
+
+| 阶段 | 实际槽位 | 绝对 CARGO_TARGET_DIR | 确切命令 | 退出码 / 有效结果 |
+| --- | --- | --- | --- | --- |
+| 红 | 2 | `/Users/xiangmin/worker/code/shiju/target/rust-slot-2` | `cargo fmt --all` | 0 |
+| 红 | 2 | 同上 | `cargo test -p vw-agent-apps --lib cc04_patch_yaml_ -- --nocapture` | 101；0 passed / 2 failed |
+| 首次绿 | 1 | `/Users/xiangmin/worker/code/shiju/target/rust-slot-1` | `cargo fmt --all` | 0 |
+| 首次绿 | 1 | 同上 | `cargo test -p vw-agent-apps --lib cc04_patch_yaml_ -- --nocapture` | 101；2 passed / 2 failed，冒号键重复编辑定位失败 |
+| 最终绿 | 1 | `/Users/xiangmin/worker/code/shiju/target/rust-slot-1` | `cargo fmt --all` | 0 |
+| 最终绿 | 1 | 同上 | `cargo test -p vw-agent-apps --lib cc04_patch_yaml_ -- --nocapture` | 0；4 passed / 0 ignored |
+| 最终绿 | 1 | 同上 | `cargo clippy --all-targets --all-features -- -D warnings` | 0；全部 targets/features 通过，不计行为测试 |
+
+红阶段模块/类型/测试均接线可编译，原样返回输入的占位实现分别在“目标节点未更新”和“不安全结构被接受”业务断言失败，非编译失败或零测试。修正冒号定位后，同一过滤命令的 4 项真实行为测试全部通过，采用默认 features。
+
+4 项覆盖 OMP/MCode 两种 section、目标替换/增删、中文/emoji、不同缩进、带冒号/点号/引号的字面 ID、外围逐字节保留、重复应用稳定、CRLF 外围、null/空 section/最后移除、缺失目标无副作用，以及 17 种损坏/不安全结构、非对象替换、UTF-8/输入输出大小限制。拒绝测试读取隔离临时文件并检查原文件字节未变，其余使用真实内存 YAML；没有 mock/网络/钥匙串/不可控进程替代，不读取或改写真实用户配置。
+
+`sw_vers`、`uname -m` 均退出 0：macOS 27.0（26A428）、arm64。应用版本、个人账号、CLI/Iced 实际运行未验证，没有 SDK→API→执行端文件写入证据；Windows/Linux、其他架构与实机切换未验收。
+
+定向差异与暂存检查仅涵盖本任务代码、独立测试、父注册、依赖清单/锁文件及本条证据，其他会话的终端改动、母任务状态和既有任务文件删除均排除。只读 plan.md 无差异；最终阶段自身槽位 1 锁目录已释放，缓存保留。不执行全量 cargo test、fmt check、wasm 或 Makefile。任务 15 完成后删除编号文件且不纳入提交，正式证据保留。

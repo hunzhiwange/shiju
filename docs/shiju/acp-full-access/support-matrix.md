@@ -6,6 +6,8 @@ Goose 已接入会话 approve 与逐次客户端批准，避免 auto 跳过用�
 
 Auggie 已接入逐次客户端批准与当前 host deny 拦截；原生权限与工具执行未实测，见 [Auggie 接入说明](evidence/auggie.md)。
 
+Kilocode 已接入逐次客户端批准与当前 host deny 拦截；pure 保留权限配置，agent mode 不作权限开关；工具效果未实测，见 [Kilocode 接入说明](evidence/kilocode.md)。
+
 范围为 `BUILT_IN_AGENT_DEFINITIONS` 的 22 个稳定 key；别名和 `claude-legacy` 不另计。注册表、启动快照、哈希及逐项官方版本来源见 [证据清单](evidence/README.md)。初始静态审计仅修改文档；后续后端适配与验证按各独立证据文件记账。
 
 ## 证据与分类
@@ -41,7 +43,7 @@ Auggie 已接入逐次客户端批准与当前 host deny 拦截；原生权限�
 | [droid](evidence/droid.md) / E1、官方文档 | 1.3.0 | 1.5.0（基线查询） | 客户端自动批准：仅 allow_once，按当前授权处理；显式 skip-permissions-unsafe 要求当前完全访问；session_model 原有门控保留 | 用户要求跳过测试；开启、关闭、恢复及跨平台工具效果未实机验收 |
 | [gemini](evidence/gemini.md) / E2、E3 | 0.66.0 | 0.67.0 | 部分支持：客户端自动批准；原生自动提权不接入，缺少标准回读且修改工具/系统指令。高权限恢复拒绝；session_model 有驱动和版本门控 | 补齐其他平台与企业/原生沙箱；新版本须重新验收 |
 | [iflow](evidence/iflow.md) / E1、E2 | 0.5.19 | 0.5.19 | 部分支持：按当前授权同步 default↔yolo，保留 plan 与客户端审批；load 无 modes 依据固定源码发送精确值；session_model 原有门控保留 | 用户要求跳过测试；开启、关闭、恢复、子代理及跨平台效果未实机验收 |
-| [kilocode](evidence/README.md#kilocode) / E1 | 7.8.18 | 7.8.27 | 部分支持：客户端自动批准有源码、原生未知；session_model 有驱动和版本门控 | 固定真实 CLI，采集 initialize/权限选项并验证开启→关闭→恢复 |
+| [kilocode](evidence/kilocode.md) / E1、E2 | 7.8.18 | 7.8.27（基线查询） | 客户端自动批准：仅 allow_once，按当前授权处理；pure 保留权限配置，mode 选择 agent；session_model 原有门控保留 | 用户要求跳过测试；开启、关闭、恢复及跨平台工具效果未实机验收 |
 | [kimi](evidence/kimi.md) / E1、E2 | 2.5.0 | 2.5.2 | 部分支持：按公布配置同步 default↔yolo，客户端仅逐次批准，问答及计划确认独立；session_model 原有门控保留 | 用户要求跳过测试；开启、关闭、恢复与跨平台工具效果未实机验收 |
 | [kiro](evidence/kiro.md) / E1、官方协议文档 | 3.0.0 | 3.1.0 | 部分支持：new/load 按当前授权请求 V3 policyPreset allow-all 或空列表；客户端自动批准保留，硬拒绝、敏感路径 ask 与 sandbox_network 不被预设覆盖；session_model 原有门控保留 | 用户要求跳过测试；开启、关闭、恢复和跨平台执行未实机验收 |
 | [opencode](evidence/opencode.md) / E1、E2 | 1.19.5 | 1.19.5 | 客户端自动批准：仅选择 allow_once，按当前 permissionMode 处理；不注入全局 allow，不把 agent mode 当权限开关；session_model 原有门控保留 | 用户要求跳过测试；执行、关闭、恢复和跨平台效果未实机验收 |
@@ -72,7 +74,7 @@ U = 未获取该后端真实权限协议/结果；C = 仅共享客户端源码�
 | droid | U | 现有 new/load/resume；未实测 | 不推断原生权限配置 | 自治等级不等于免审批，不推断 ACP mode ID | 代码仅逐次批准；未实机计数 | C；未实测 | C；未实测 | U；保留供应商 block 与 sandbox |
 | gemini | E3 | E3/E3/-32601；同 ID load 回退 | -32601 | E3：legacy default/yolo；无标准回读 | E3：原始工具 1→0→1；生产保持客户端审批 | C；本例原生 write_file | C；本例原生 shell | E2 刷新管理器；OS 隔离未验收 |
 | iflow | U | new/load/resume 已接入；未实测 | E2：无标准配置路由，不杜撰 config | E2：default/smart/yolo/plan；已接入，无标准回读；load 无 modes | C；未实机计数 | C；未实测 | C；未实测 | U；不覆盖原生 deny |
-| kilocode | U | U/U/U | U | U | C | C | C | U |
+| kilocode | U | E2：new/load/resume；现有路径，未实测 | E2：model/effort/mode，无独立权限开关 | E2：agent 名称，不自动切换 | E2：once/always/reject；代码仅逐次批准，未计数 | C；未实测 | C；未实测 | U；保留供应商规则 |
 | kimi | U | new/load/resume 与 prompt 前已接入；未实测 | E2：mode default↔yolo，设置响应确认 | E2：default/plan/auto/yolo；不自动退出 plan | E2：approve_once/approve_always/reject；仅逐次批准，问答/计划不自动答复 | C；未实测 | C；未实测 | U；不覆盖供应商限制 |
 | kiro | U | new/load 已接入 policyPreset；resume 走同 ID load；未实测 | 不杜撰权限 config | 不切换 agent | C；未实机计数 | C | C | allow-all 不覆盖 sandbox_network；未实测 |
 | opencode | U | 现有 new/load/resume 路径；未实测 | E2：仅 model/effort/mode，无权限开关 | E2：agent 名称，不自动切换 | E2：once/always/reject；客户端仅逐次批准，未实机计数 | C；未实测 | C；未实测 | U；不覆盖原生 deny |

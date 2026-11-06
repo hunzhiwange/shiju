@@ -90,13 +90,14 @@ impl AcpClient {
     ) -> crate::AccessPolicy {
         if matches!(
             self.agent_name.as_str(),
-            "opencode" | "copilot" | "auggie" | "goose" | "snow" | "cursor" | "droid"
+            "opencode" | "copilot" | "auggie" | "goose" | "snow" | "cursor" | "droid" | "kilocode"
         ) {
             // OpenCode modes select agents. Copilot and Auggie have no confirmed
             // native session permission control here. Goose auto skips tool denies.
             // Snow 0.9.14 exposes only per-tool approvals, without session controls.
             // Cursor agent/plan/ask select workflow behavior, not approval policy.
             // Droid autonomy tiers are not a confirmed ACP permission switch.
+            // Kilocode modes also select agents; pure still loads permission config.
             // Keep client approvals.
             return crate::AccessPolicy::resolve(
                 self.full_access,

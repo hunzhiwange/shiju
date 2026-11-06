@@ -16,6 +16,7 @@ pub(crate) fn router() -> Router {
         .merge(preview::router())
         .merge(editor_merge::router())
         .merge(snippets::router())
+        .merge(claude::router())
         .merge(delete::router())
         .merge(duplicate::router())
         .merge(presentation::router())
@@ -85,10 +86,33 @@ async fn save(
     Extension(tenant): Extension<TenantScope>,
     database: Option<Extension<GlobalDatabase>>,
     Path((app, id)): Path<(AppId, String)>,
-    body: Result<Json<AppProviderWrite>, JsonRejection>,
+    policy: Option<Extension<claude::Policy>>,
+    headers: axum::http::HeaderMap,
+    body: Result<
+        Json<vw_api_types::app_providers::claude::ClaudeOr<AppProviderWrite>>,
+        JsonRejection,
+    >,
 ) -> Response {
     let Ok(Json(profile)) = body else {
         return error("invalid input");
+    };
+    let profile = match profile {
+        vw_api_types::app_providers::claude::ClaudeOr::Claude(request) => {
+            if app != AppId::Claude {
+                return StatusCode::BAD_REQUEST.into_response();
+            }
+            return claude::write(
+                tenant,
+                database,
+                headers,
+                policy,
+                id,
+                request,
+                claude::WriteKind::Save,
+            )
+            .await;
+        }
+        vw_api_types::app_providers::claude::ClaudeOr::Legacy(profile) => profile,
     };
     match tokio::task::spawn_blocking(move || store(database)?.save(&tenant, app, &id, &profile))
         .await
@@ -178,3 +202,7 @@ mod snippets;
 #[cfg(all(test, target_os = "macos"))]
 #[path = "app_providers/snippets_tests.rs"]
 mod snippets_tests;
+
+mod claude;
+#[cfg(all(test, target_os = "macos"))]
+mod claude_tests;

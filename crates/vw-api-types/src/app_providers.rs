@@ -108,3 +108,7 @@ mod editor_merge_tests;
 pub mod snippets;
 #[cfg(test)]
 mod snippets_tests;
+
+pub mod claude;
+#[cfg(test)]
+mod claude_tests;

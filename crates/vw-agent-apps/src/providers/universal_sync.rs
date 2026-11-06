@@ -54,8 +54,14 @@ pub fn project(
         if existing.get("universalProviderId").and_then(Value::as_str) != Some(id) {
             return Err(TargetConflict);
         }
-        let profile = update::profile(existing).map_err(|_| InvalidProfile)?;
-        validate_profile(app, &profile).map_err(|_| InvalidProfile)?;
+        if app == AppId::Claude && existing.get("claude").is_some() {
+            let profile =
+                serde_json::from_value(existing["claude"].clone()).map_err(|_| InvalidProfile)?;
+            super::claude::settings(&profile).map_err(|_| InvalidProfile)?;
+        } else {
+            let profile = update::profile(existing).map_err(|_| InvalidProfile)?;
+            validate_profile(app, &profile).map_err(|_| InvalidProfile)?;
+        }
     }
     let key = parent.get("apiKey").and_then(Value::as_str).ok_or(InvalidProfile)?;
     let mut settings =
@@ -69,7 +75,9 @@ pub fn project(
             let models = config.models.claude.as_ref();
             let model =
                 models.and_then(|m| m.model.as_deref()).unwrap_or("claude-sonnet-4-20250514");
-            let env = object_field(&mut settings, "env")?;
+            let previous = settings.clone();
+            let mut target = json!({"env":{}});
+            let env = object_field(&mut target, "env")?;
             for (name, value) in [
                 ("ANTHROPIC_BASE_URL", config.base_url.as_str()),
                 ("ANTHROPIC_AUTH_TOKEN", key),
@@ -89,6 +97,13 @@ pub fn project(
             ] {
                 env.insert(name.into(), value.into());
             }
+            let bytes = super::claude::patch(
+                Some(previous.to_string().as_bytes()),
+                Some(&previous),
+                &target,
+            )
+            .map_err(|_| InvalidProfile)?;
+            settings = serde_json::from_slice(&bytes).map_err(|_| InvalidProfile)?;
             (ProviderProtocol::Anthropic, model.to_owned(), config.base_url.clone())
         }
         AppId::Codex => {
@@ -157,6 +172,9 @@ pub fn project(
     validate_profile(app, &profile).map_err(|_| InvalidProfile)?;
     let mut updated = existing.cloned().unwrap_or_else(|| json!({}));
     let object = updated.as_object_mut().ok_or(InvalidProfile)?;
+    if app == AppId::Claude {
+        object.remove("claude");
+    }
     let fields = serde_json::to_value(profile).map_err(|_| InvalidProfile)?;
     for (name, value) in fields.as_object().ok_or(InvalidProfile)? {
         object.insert(name.clone(), value.clone());

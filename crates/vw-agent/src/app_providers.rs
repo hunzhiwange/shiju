@@ -377,6 +377,23 @@ impl AppProviderStore {
         app: AppId,
         id: &str,
     ) -> Result<AppProviderSummary, String> {
+        if app == AppId::Claude {
+            if let Some(row) = self.claude_record(tenant, id)? {
+                if let Some(config) = row.get("claude") {
+                    let profile: vw_api_types::app_providers::claude::ClaudeProfile =
+                        serde_json::from_value(config.clone())
+                            .map_err(|_| "invalid stored application provider profile")?;
+                    vw_agent_apps::providers::claude::settings(&profile)
+                        .map_err(|_| "invalid stored application provider profile")?;
+                    return Ok(AppProviderSummary {
+                        app_id: app,
+                        id: id.into(),
+                        name: profile.name,
+                        configured: true,
+                    });
+                }
+            }
+        }
         let profile = self.read(tenant, app, id)?;
         Ok(Self::summary(app, id, &profile))
     }
@@ -463,3 +480,5 @@ impl AppProviderStore {
 }
 
 mod snippets;
+
+mod claude;

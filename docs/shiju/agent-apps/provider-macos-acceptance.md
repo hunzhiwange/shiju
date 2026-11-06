@@ -1150,3 +1150,57 @@ SDK transport 测试替代 HTTP 对端，仅检查传输形状、固定状态错
 实际平台 macOS **27.0 (26A428)**、**arm64**；本仓库 crate 版本 **0.6.0**。已验证本机原生临时文件/数据库/SDK/API 行为；未启动或查询已安装 Claude/Codex/Gemini/OpenCode/OpenClaw 版本，没有真实账号、CLI 消费配置或 Iced 渲染证据，这些明确未验证。Agent lib test 链接仍有既有 `__eh_frame section too large` 提示（此前任务 10/11/12/20/23 已记录），测试退出 0；未改变链接设置，最终强制 Clippy 退出 0。
 
 定向 diff/暂存审查仅包含本任务业务/存储、DTO、SDK、权限 handler 与必要父注册、独立测试及本条正式证据；未纳入母任务状态、此前编号文件删除和其他计划变更。plan.md 无差异，自身槽位锁释放、缓存保留。未执行全量 cargo test、fmt check、wasm 或 Makefile。任务标记完成后删除编号文件且不提交其删除，正式证据保留。
+
+
+## 任务 26：Claude 关键字段切换
+
+2026-11-07；状态：已完成（macOS 隔离文件、真实数据库及 SDK/API 事务链；真实账号、CLI 消费与 Iced 未验收）。
+
+### 依赖与来源
+
+已核对批次 25 提交 `6d8d5247c` 和本文件任务 25；母任务 1、3 已完成，母任务 2 继续沿用任务 1 的底座子计划 1–93 开工裁定，完整领域迁移尚未收口。首次缺少四类输入及激活契约登记阻塞；继续指令明确授权本任务建立强类型配置、扩展现有保存及统一同步的 Claude 分支，并接通六入口，依此解除。没有修改只读 plan.md。
+
+来源 `/Users/xiangmin/worker/code/cc-switch` HEAD `ca58c0313360eae7c851fbd7553c1614c7af03e7`。已读 `services/provider/claude_direct.rs::{switch_to,reapply,write,run}`、`live/project/claude.rs::{ClaudeProjection::of,direct_patch,project_onto}`、`tests/golden/claude_key_fields.rs`，核对 `services/provider/mod.rs` 首卡、switch_claude_direct 和 `live.rs` reapply 调用，以及 `claude_official::{bound_account,strip_from_patch,with_login_switch}` 的登录边界。未运行冻结来源测试、未链接 upstream 成为运行所有者。RustCodeGraph status/query/node 与定向源码搜索用于核对现有调用者。
+
+### 实现与事务边界
+
+- `vw-api-types/src/app_providers/claude.rs` 定义官方、第三方、Bedrock、Vertex 配置；官方无需 key/URL，Bedrock 支持默认凭据链、Bearer、显式 AWS key/session 或 profile，Vertex 为项目/区域及可选凭据文件引用。引用路径只写入配置，不由本接口读取文件或执行凭据命令。敏感类型 Debug 遮蔽，未知字段/客户端根路径拒绝；没有伪造非空 key。
+- `vw-agent-apps/src/providers/claude.rs::{settings,patch,import,ClaudeFile::open,ClaudeFile::apply}` 为应用适配。字段所有权继续由任务 22 的 `projection::claude`/`fields` 决定；字节修改复用 `JsonPatch`，最小开放同一 JSON/JSONC 验证器的内部 object_value 读取，保留注释、空白和未修改字段，拒绝重复键及损坏配置。清除上一家所有关键字段、仅按原值清除独有字段，保留用户外部改值及功能开关；遗留 Bedrock 顶层 apiKey 沿唯一投影转换到 AWS_BEARER_TOKEN_BEDROCK。
+- `vw-agent/src/app_providers/claude.rs` 是既有 AppProviderStore 的子模块；复用 `app_providers.records` 和相同租户 key、insert_if_absent/compare_exchange，不建立第二档案库。typed claude 与 settingsConfig 同行保存，保留元数据/全局配置，替换时清除旧顶层凭据。列表/摘要支持四类，响应不返回秘密。typed PUT/PATCH 是明确的完整 ClaudeProfile 替换；既有 legacy 输入及默认仅存目录行为保持。
+- 在管理员授权 HOME 下以 descriptor-relative no-follow 打开固定 `.claude`，settings.json 优先、已有 claude.json 回退，明确激活时可创建缺失目录/文件；0600 发布。保留物理应用 guard，接任务 19–21 唯一 ProviderTransactions、发布前重算、pending 及启动恢复；补丁执行时重核对主机状态和目标档案。attached 模式、跨租户当前指针、未完成 pending 明确拒绝，不覆盖旧意图；旧事务由既有启动恢复所有者处理。外部编辑仍有任务 21 已注明的最终检查至 rename 窗口，不宣称文件系统 CAS。
+- 已发布独有字段契约使用既有 ModeState.contract 随同一 pending/状态落定，直连状态保留已保存 proxy_route；后续目录编辑不会丢失清理依据，重投影能清掉旧独有字段。没有新建旁路快照或第二事务状态。
+- 目录先 CAS 保存，之后 live 失败不会静默回滚目录。ClaudeResult 分别返回 catalogSaved 与 live=not_attempted/applied/failed/recovery_required；只有 applied 表示本次 live 已完成。发布开始后的失败保留 pending 供既有恢复，后续请求不会覆盖它；未发布的配置错误保留原文件和指针，可修复后 reapply。没有跨数据库/文件系统原子回滚承诺。
+
+### 六入口、API 与 SDK
+
+- 既有 `POST/PUT/PATCH /v1/app-providers/{app}/{id}` 在 Claude 分支接受 ClaudeWrite（targetHostId、claude 完整配置、activation），旧请求仍走原保存链；POST 成功 201。activation 缺省 catalog_only；first 只在无当前指针时激活，if_current 仅重投影当前卡，switch 显式切换。非当前编辑仅目录，不创建 native 文件或事务状态。
+- `POST /v1/app-providers/claude/{id}/switch`、`.../reapply` 读取同一租户档案后走同一适配；`.../import` 读取授权真实配置，导入可表达的四类强类型档案，不改 live/指针，要求独立读、写授权。不能表达的多鉴权、helper 或其它关键字段明确 422，不静默丢弃。没有原始秘密读取 API。
+- `POST /v1/universal-providers/{id}/sync/claude` 先消费既有 universal_sync 投影/存储所有者，再按显式 activation 应用到 live。原通用 sync 默认仍只写目录。最小扩展纯投影 Claude 分支以接受编辑成云配置的原统一子卡，重新同步时清除云凭据/选择器，并撤掉过时 typed claude 形状；其它应用算法未迁移。
+- SDK `claude_provider_{create,save,update,switch,reapply,import,sync}` 走原生 transport、租户上下文，主机令牌 HeaderValue 标为 sensitive，错误响应体丢弃；WASM 明确拒绝。沿既有分域 router 和 Gateway 认证注册；在数据库/主机访问前按已有执行端策略校验 token、租户、主机与写能力，import 再核对读能力，客户端不能指定 HOME/private root。未认证/未授权 401/403，非法输入 400/422，缺失 404，竞争/待恢复状态 409，存储/运行边界失败不回传敏感内容。
+- 本任务没有新增 Iced 或登录管理；带托管 authBinding/账号关联的档案不伪装登录切换成功。官方类型仅使用客户端已有登录；账号关联与真实登录处理不在本次验收内。
+
+### 红绿与平台证据
+
+各阶段从仓库根原子 mkdir 动态领取共享槽位 **1**，`CARGO_TARGET_DIR=/Users/xiangmin/worker/code/shiju/target/rust-slot-1`；`CARGO_BUILD_BUILD_DIR` 同设此绝对路径，防止仓库 build-dir 绕过槽位。锁内记录计划/任务/会话/PID，每阶段 shell trap 在 Cargo/子进程结束后清理 owner 并 rmdir，自身锁已释放，编译缓存保留。
+
+初始红阶段先 `cargo fmt --all`（0）：`cargo test -p vw-agent-apps --lib cc04_claude_ -- --nocapture` 退出 **101**，2 个有效测试分别在旧凭据未清除、新凭据未写入的业务断言失败；同过滤 DTO 命令退出 **101**，1 项发现 serde 官方 unit 变体接受多余字段的边界缺陷，改成严格空对象变体后通过。初次 Gateway 接线发生 E0282 返回类型推断错误，已修复，不将编译失败计为业务红证据。最终源码完整结果如下，均无忽略/零测试冒充验收：
+
+| 确切命令 | 退出码 | 有效通过数量 |
+| --- | --- | --- |
+| `cargo fmt --all` | 0 | 非行为测试 |
+| `cargo test -p vw-agent-apps --lib cc04_claude_ -- --nocapture` | 0 | 5 |
+| `cargo test -p vw-api-types --lib cc04_claude_ -- --nocapture` | 0 | 1 |
+| `cargo test -p vw-agent --lib cc04_claude_ -- --nocapture` | 0 | 9 |
+| `cargo test -p vw-gateway-client --lib cc04_claude_ -- --nocapture` | 0 | 1 |
+| `cargo test -p vw-agent --lib gateway::api::handlers::app_providers::create_tests -- --nocapture` | 0 | 4 |
+| `cargo test -p vw-agent --lib gateway::api::handlers::app_providers::update_tests -- --nocapture` | 0 | 3 |
+| `cargo test -p vw-agent-apps --lib cc04_universal_sync_ -- --nocapture` | 0 | 2 |
+| `cargo clippy --all-targets --all-features -- -D warnings` | 0 | 非行为测试 |
+
+提交前审查另调整不存在切换目标的检查顺序，避免创建配置/事务目录；统一同步目录已保存后如目标回读失败，仍返回 catalogSaved=true/live=failed。随后再次动态领取槽位 1，在同一上述绝对 CARGO_TARGET_DIR 执行 `cargo fmt --all`（0）、`cargo test -p vw-agent --lib cc04_claude_ -- --nocapture`（0，9 项）及 `cargo clippy --all-targets --all-features -- -D warnings`（0）；缺失目标不创建目录的实际 SDK/HTTP 断言通过，复验不重复累计有效数量。
+
+共 **25** 项通过，其中本任务 16 项、相邻回归 9 项。两个指定测试 cc04_claude_switch_cleans_previous_provider_keys / cc04_claude_switch_preserves_user_fields 均通过。真实回环 HTTP + SDK + 隔离 SQLite/临时主机文件证明四类依次切换及凭据清除、文件/指针结果、当前编辑、非当前目录编辑、读取导入、重投影、统一子卡云配置再同步、默认目录保存、缺文件首激活、legacy 路径、符号链接拒绝、权限/无效输入无写入、正式路由 Basic 认证、发布契约跨目录编辑的独有字段清理，以及目录保存/live 失败后的明确部分结果与修复重投影。全部为假凭据，没有替代上游/钥匙串/应用进程，没有读写真实用户配置。
+
+实际 `sw_vers` 为 macOS **27.0 (26A428)**，`uname -m` 为 **arm64**，仓库 crate 版本 **0.6.0**。没有查询/启动真实 Claude 应用版本、真实账号、CLI 消费配置或 Iced 渲染，这些明确未验证。Agent lib test 仍有既有 `__eh_frame section too large` 链接提示，测试退出 0；未修改链接设置，最终强制 Clippy 退出 0。
+
+定向 diff/暂存检查通过，仅提交本任务实现、独立测试、最小父注册/保存接线和本条正式证据；不纳入母任务状态、此前编号文件删除或其它计划。只读 plan.md 无差异。未运行全量 cargo test、fmt check、wasm 或 Makefile；完成后删除任务 26 编号文件，不提交其删除，正式证据保留。

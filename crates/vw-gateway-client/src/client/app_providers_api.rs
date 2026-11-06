@@ -134,3 +134,9 @@ mod snippets;
 #[cfg(all(test, target_os = "macos"))]
 #[path = "app_providers/snippets_tests.rs"]
 mod snippets_tests;
+
+#[path = "app_providers/claude.rs"]
+mod claude;
+#[cfg(test)]
+#[path = "app_providers/claude_tests.rs"]
+mod claude_tests;

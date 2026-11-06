@@ -52,6 +52,13 @@ impl JsonPatch {
     }
 }
 
+/// Read the same validated JSON/JSONC object used by byte-preserving edits.
+pub(crate) fn object_value(source: &[u8]) -> Result<Value, PatchError> {
+    parse(source)?;
+    serde_json::from_slice(&without_trailing_commas(&masked(source)?))
+        .map_err(|_| PatchError::Parse)
+}
+
 struct Node {
     start: usize,
     end: usize,

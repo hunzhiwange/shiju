@@ -34,6 +34,11 @@ impl AcpClient {
 
         let args = self.launch_args()?;
         let mut env = self.config.env.clone();
+        if self.agent_name == "copilot" {
+            // An inherited CLI grant must not override the current host policy.
+            // Explicit authorized flags remain supported; never inject a blanket grant.
+            env.remove("COPILOT_ALLOW_ALL");
+        }
         if self.agent_name == "qwen"
             && crate::access_policy::qwen::verified_entry(&self.config.command, &self.config.args)
         {
@@ -58,6 +63,9 @@ impl AcpClient {
         }
 
         let mut cmd = build_spawn_command(self.config.command.trim(), &env);
+        if self.agent_name == "copilot" {
+            cmd.env_remove("COPILOT_ALLOW_ALL");
+        }
         if managed_claude {
             // Do not inherit OAuth, cloud backends, Node injection or proxy credentials.
             // Keep the OS runtime paths; HOME is preserved, never substituted.
@@ -121,6 +129,9 @@ impl AcpClient {
     /// Materialize only known official launch shapes; custom argv stays byte-for-byte intact.
     pub(super) fn launch_args(&self) -> Result<Vec<String>, AcpError> {
         let unrestricted = self.full_access && self.permission_mode == PermissionMode::ApproveAll;
+        if self.agent_name == "copilot" {
+            crate::access_policy::copilot::validate_launch(&self.config.args, unrestricted)?;
+        }
         if self.agent_name == "kiro"
             && self.config.args.iter().any(|arg| {
                 arg == "--trust-all-tools"

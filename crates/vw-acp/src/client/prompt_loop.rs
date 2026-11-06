@@ -41,6 +41,7 @@ impl AcpClient {
                 | "vibe"
                 | "kiro"
                 | "opencode"
+                | "copilot"
                 | "hermes"
                 | "iflow"
         ) && self.permission_mode == PermissionMode::DenyAll

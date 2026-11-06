@@ -28,7 +28,7 @@ fn event_client(
 ) -> AcpEventClient {
     AcpEventClient {
         claude_permissions: false,
-        opencode_permissions: false,
+        transient_permissions: false,
         reject_untyped_workflow_permissions: false,
         expected_session_id: Arc::new(Mutex::new(expected_session_id)),
         event_tx,
@@ -54,7 +54,7 @@ fn event_client_with_cwd(
 ) -> AcpEventClient {
     AcpEventClient {
         claude_permissions: false,
-        opencode_permissions: false,
+        transient_permissions: false,
         reject_untyped_workflow_permissions: false,
         expected_session_id: Arc::new(Mutex::new(None)),
         event_tx,

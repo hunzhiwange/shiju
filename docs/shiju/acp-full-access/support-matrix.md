@@ -1,6 +1,6 @@
 # ACP 完全访问支持矩阵
 
-审计日期：2026-11-06（Asia/Shanghai）；审计平台：macOS / Darwin arm64。状态：静态基线已完成；Codex 与 Claude 固定制品的 macOS arm64 原生权限与撤销已验收，具体入口与边界见 [Codex 证据](evidence/codex.md)、[Claude 证据](evidence/claude.md)。Gemini 已核验为客户端自动批准，原生自动提权因确认及工具/提示词副作用不接入，见 [Gemini 证据](evidence/gemini.md)。Qwen 固定 npm 与现有托管补丁入口已核验原生免审批与撤销，见 [Qwen 证据](evidence/qwen.md)。Qoder 已接入公布的会话 mode 配置，权限工具效果未实机验收，见 [Qoder 接入说明](evidence/qoder.md)。Vibe 保留客户端自动批准，并为显式 auto-approve agent 加入授权及撤销保护，未实机验收，见 [Vibe 接入说明](evidence/vibe.md)。Kiro 已接入 V3 会话 policyPreset，效果未实机验收，见 [Kiro 接入说明](evidence/kiro.md)。OpenCode 使用逐次客户端自动批准，避免写入会话永久授权，见 [OpenCode 接入说明](evidence/opencode.md)。Hermes 已接入会话编辑审批 default↔dont_ask，终端继续客户端批准，未实机验收，见 [Hermes 接入说明](evidence/hermes.md)。iFlow 已接入会话 default↔yolo 并兼容 load 缺少 modes，未实机验收，见 [iFlow 接入说明](evidence/iflow.md)。其他后端原生能力仍未知。
+审计日期：2026-11-06（Asia/Shanghai）；审计平台：macOS / Darwin arm64。状态：静态基线已完成；Codex 与 Claude 固定制品的 macOS arm64 原生权限与撤销已验收，具体入口与边界见 [Codex 证据](evidence/codex.md)、[Claude 证据](evidence/claude.md)。Gemini 已核验为客户端自动批准，原生自动提权因确认及工具/提示词副作用不接入，见 [Gemini 证据](evidence/gemini.md)。Qwen 固定 npm 与现有托管补丁入口已核验原生免审批与撤销，见 [Qwen 证据](evidence/qwen.md)。Qoder 已接入公布的会话 mode 配置，权限工具效果未实机验收，见 [Qoder 接入说明](evidence/qoder.md)。Vibe 保留客户端自动批准，并为显式 auto-approve agent 加入授权及撤销保护，未实机验收，见 [Vibe 接入说明](evidence/vibe.md)。Kiro 已接入 V3 会话 policyPreset，效果未实机验收，见 [Kiro 接入说明](evidence/kiro.md)。OpenCode 使用逐次客户端自动批准，避免写入会话永久授权，见 [OpenCode 接入说明](evidence/opencode.md)。Hermes 已接入会话编辑审批 default↔dont_ask，终端继续客户端批准，未实机验收，见 [Hermes 接入说明](evidence/hermes.md)。iFlow 已接入会话 default↔yolo 并兼容 load 缺少 modes，未实机验收，见 [iFlow 接入说明](evidence/iflow.md)。Copilot 已接入逐次客户端批准，见 [Copilot 说明](evidence/copilot.md)。其他后端原生能力仍未知。
 
 范围为 `BUILT_IN_AGENT_DEFINITIONS` 的 22 个稳定 key；别名和 `claude-legacy` 不另计。注册表、启动快照、哈希及逐项官方版本来源见 [证据清单](evidence/README.md)。初始静态审计仅修改文档；后续后端适配与验证按各独立证据文件记账。
 
@@ -32,7 +32,7 @@
 | [vibe](evidence/vibe.md) / E1、E2 | 3.0.4 | 3.1.0 | 部分支持：客户端自动批准；原生 mode 切换整个 agent，仅允许当前授权下显式选择 auto-approve，撤销未完成则拒绝继续；session_model 保持现有门控 | 用户要求跳过测试；原生执行、恢复、deny 和跨平台效果未实机验收 |
 | [hermes](evidence/hermes.md) / E1、E2 | 0.19.0 | 0.19.0 | 部分支持：按当前授权同步 default↔dont_ask 编辑审批，敏感路径及终端仍用客户端审批；保留 session_model 门控 | 用户要求跳过测试；开启、关闭、恢复及跨平台工具效果未实机验收 |
 | [snow](evidence/README.md#snow) / E1 | 0.9.14 | 0.9.15 | 部分支持：客户端自动批准有源码、原生未知；session_model 有驱动和版本门控 | 固定真实 CLI，采集 initialize/权限选项并验证开启→关闭→恢复 |
-| [copilot](evidence/README.md#copilot) / E1 | 1.0.105 | 1.0.106 | 部分支持：客户端自动批准有源码、原生未知；session_model 有驱动和版本门控 | 固定真实 CLI，采集 initialize/权限选项并验证开启→关闭→恢复 |
+| [copilot](evidence/copilot.md) / E1、官方文档 | 1.0.105 | 1.0.106 | 客户端自动批准：仅 allow_once；显式启动全放行要求当前授权，不自动注入；保留模型来源门控 | 用户要求跳过测试；开启、关闭、恢复、tools/paths/URLs 与 deny 效果未实机验收 |
 | [cursor](evidence/README.md#cursor) / E1 | 2026.10.22-27dcf5f | 2026.11.05-86047df | 部分支持：客户端自动批准有源码、原生未知；session_model 不可用：第三方 Provider 契约未核验 | 固定真实 CLI，采集 initialize/权限选项并验证开启→关闭→恢复 |
 | [droid](evidence/README.md#droid) / E1 | 1.3.0 | 1.5.0 | 部分支持：客户端自动批准有源码、原生未知；session_model 不可用：双向 ACP 与隔离根未核验 | 固定真实 CLI，采集 initialize/权限选项并验证开启→关闭→恢复 |
 | [gemini](evidence/gemini.md) / E2、E3 | 0.66.0 | 0.67.0 | 部分支持：客户端自动批准；原生自动提权不接入，缺少标准回读且修改工具/系统指令。高权限恢复拒绝；session_model 有驱动和版本门控 | 补齐其他平台与企业/原生沙箱；新版本须重新验收 |
@@ -63,7 +63,7 @@ U = 未获取该后端真实权限协议/结果；C = 仅共享客户端源码�
 | vibe | U | 代码接入；未实测 | E2：mode 为 agent 名称，不自动切换 | E2：auto-approve 显式授权保护 | C；未实机计数 | C | C | U |
 | hermes | U | new/load/resume 与 prompt 已接入；未实测 | E2：未公布，隐藏编辑配置不主动发送 | E2：default/accept_edits/dont_ask；已接入，无回读确认 | E2：终端和敏感编辑仍回调；未计数 | C；未实测 | C；未实测 | U；不覆盖原生 deny |
 | snow | U | U/U/U | U | U | C | C | C | U |
-| copilot | U | U/U/U | U | U | C | C | C | U |
+| copilot | U | 现有 new/load/resume；未实测 | 不推断原生权限配置 | 不推断权限模式 | 代码接入 allow_once；未实机计数 | C；未实测 | C；未实测 | U；保留供应商限制 |
 | cursor | U | U/U/U | U | U | C | C | C | U |
 | droid | U | U/U/U | U | U | C | C | C | U |
 | gemini | E3 | E3/E3/-32601；同 ID load 回退 | -32601 | E3：legacy default/yolo；无标准回读 | E3：原始工具 1→0→1；生产保持客户端审批 | C；本例原生 write_file | C；本例原生 shell | E2 刷新管理器；OS 隔离未验收 |

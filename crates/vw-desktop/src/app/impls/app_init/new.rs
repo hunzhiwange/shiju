@@ -710,6 +710,7 @@ impl App {
             show_diff: true,
             show_git_diff_summary: cfg_show_git_diff_summary,
             show_git_diff_highlight: cfg_show_git_diff_highlight,
+            terminal_config_persistence: Default::default(),
             terminal: TerminalState::new(
                 cfg_show_terminal,
                 cfg_shell,

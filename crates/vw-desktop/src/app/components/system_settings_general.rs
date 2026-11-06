@@ -186,13 +186,6 @@ pub fn view(app: &App) -> Element<'_, Message> {
     .style(settings_pick_list_style)
     .menu_style(settings_pick_list_menu_style)
     .width(Length::Fixed(280.0));
-    let theme_pick =
-        pick_list(app_theme_options(app), Some(app.app_theme.clone()), app_theme_selected)
-            .padding([10, 14])
-            .text_size(13)
-            .style(settings_pick_list_style)
-            .menu_style(settings_pick_list_menu_style)
-            .width(Length::Fixed(280.0));
 
     let shell_pick = pick_list(Shell::all(), Some(app.terminal.shell), terminal_shell_selected)
         .padding([10, 14])
@@ -328,7 +321,16 @@ pub fn view(app: &App) -> Element<'_, Message> {
                     setting_row(
                         i18n.__("应用主题"),
                         i18n.__("快速切换内置、预设和自定义主题；完整管理见「主题」标签。"),
-                        theme_pick,
+                        pick_list(
+                            app_theme_options(app),
+                            Some(app.app_theme.clone()),
+                            app_theme_selected,
+                        )
+                        .padding([10, 14])
+                        .text_size(13)
+                        .style(settings_pick_list_style)
+                        .menu_style(settings_pick_list_menu_style)
+                        .width(Length::Fixed(280.0)),
                     ),
                     settings_divider(),
                     setting_row(

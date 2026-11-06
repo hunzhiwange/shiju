@@ -620,6 +620,9 @@ pub struct App {
     pub(crate) show_git_diff_highlight: bool,
     /// 终端状态（主终端）
     pub terminal: TerminalState,
+    /// 终端偏好设置写入队列；切换项目时仍持续保存。
+    pub(crate) terminal_config_persistence:
+        crate::app::message::terminal::config::ConfigPersistence,
     /// 按项目分组的终端状态映射
     pub(crate) terminals_by_project: HashMap<String, TerminalState>,
     /// 差异视图主题

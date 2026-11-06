@@ -6,9 +6,7 @@
 use super::TerminalMessage;
 #[cfg(not(target_arch = "wasm32"))]
 use crate::app::terminal::build_palette;
-use crate::app::{
-    App, Message, Shell, TerminalState, TerminalTheme, update_system_settings_config,
-};
+use crate::app::{App, Message, Shell, TerminalState, TerminalTheme};
 use iced::Task;
 
 enum TerminalConfigUpdate {
@@ -61,36 +59,74 @@ fn apply_update(
     }
 }
 
-/// 执行 update 对应的领域操作。
-///
-/// 参数由调用方提供，函数在当前模块的状态边界内完成处理。
-/// 返回值表达处理结果；失败时保留错误信息给上层界面或调度逻辑。
-pub fn update(app: &mut App, message: TerminalMessage) -> Task<Message> {
-    if let Some(config_update) = apply_update(&mut app.terminal, &app.app_theme, message) {
-        match config_update {
-            TerminalConfigUpdate::Shell(shell_key) => {
-                update_system_settings_config(|system| {
-                    system.terminal_shell = shell_key.to_string();
-                });
+/// 合并连续输入，并保证同一终端设置最多只有一个在途写入。
+#[derive(Default)]
+pub(crate) struct ConfigPersistence {
+    pending: serde_json::Map<String, serde_json::Value>,
+    generation: u64,
+    saving: bool,
+}
+
+impl ConfigPersistence {
+    fn enqueue(&mut self, update: TerminalConfigUpdate) -> u64 {
+        let (key, value) = match update {
+            TerminalConfigUpdate::Shell(value) => ("terminal_shell", serde_json::json!(value)),
+            TerminalConfigUpdate::Theme(value) => ("terminal_theme", serde_json::json!(value)),
+            TerminalConfigUpdate::FontFamily(value) => {
+                ("terminal_font_family", serde_json::json!(value))
             }
-            TerminalConfigUpdate::Theme(theme_key) => {
-                update_system_settings_config(|system| {
-                    system.terminal_theme = theme_key.to_string();
-                });
+            TerminalConfigUpdate::FontSize(value) => {
+                ("terminal_font_size", serde_json::json!(value))
             }
-            TerminalConfigUpdate::FontFamily(family) => {
-                update_system_settings_config(|system| {
-                    system.terminal_font_family = family;
-                });
-            }
-            TerminalConfigUpdate::FontSize(size) => {
-                update_system_settings_config(|system| {
-                    system.terminal_font_size = size;
-                });
-            }
-        }
+        };
+        self.pending.insert(key.into(), value);
+        self.generation = self.generation.wrapping_add(1);
+        self.generation
     }
 
+    fn begin(&mut self, generation: u64) -> Option<serde_json::Value> {
+        if generation != self.generation || self.saving || self.pending.is_empty() {
+            return None;
+        }
+        self.saving = true;
+        Some(serde_json::Value::Object(std::mem::take(&mut self.pending)))
+    }
+}
+
+pub fn update(app: &mut App, message: TerminalMessage) -> Task<Message> {
+    match message {
+        TerminalMessage::ConfigSaveDue(generation) => {
+            let Some(patch) = app.terminal_config_persistence.begin(generation) else {
+                return Task::none();
+            };
+            let client = crate::app::config::gateway_client();
+            return Task::perform(
+                async move { client?.desktop_system_settings_patch(&patch).await },
+                |result| Message::Terminal(TerminalMessage::ConfigSaved(result)),
+            );
+        }
+        TerminalMessage::ConfigSaved(result) => {
+            let persistence = &mut app.terminal_config_persistence;
+            persistence.saving = false;
+            let next = Task::done(Message::Terminal(TerminalMessage::ConfigSaveDue(
+                persistence.generation,
+            )));
+            return match result {
+                Ok(()) => next,
+                Err(error) => {
+                    Task::batch([next, app.show_error_toast(format!("终端配置保存失败：{error}"))])
+                }
+            };
+        }
+        _ => {}
+    }
+    if let Some(update) = apply_update(&mut app.terminal, &app.app_theme, message) {
+        let generation = app.terminal_config_persistence.enqueue(update);
+        return crate::app::message::after(
+            std::time::Duration::from_millis(200),
+            Message::Terminal(TerminalMessage::ConfigSaveDue(generation)),
+        );
+    }
     Task::none()
 }
 #[cfg(test)]

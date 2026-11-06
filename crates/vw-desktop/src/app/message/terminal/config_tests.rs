@@ -124,3 +124,32 @@ fn update_with_unrelated_message_leaves_app_terminal_unchanged() {
     assert_eq!(app.terminal.font_family, original_family);
     assert_eq!(app.terminal.font_size, original_size);
 }
+
+#[test]
+fn consecutive_settings_merge_latest_values_and_ignore_stale_timers() {
+    let mut persistence = super::ConfigPersistence::default();
+    let stale = persistence.enqueue(super::TerminalConfigUpdate::FontSize(12.0));
+    persistence.enqueue(super::TerminalConfigUpdate::Shell("zsh"));
+    let latest = persistence.enqueue(super::TerminalConfigUpdate::FontSize(17.0));
+
+    assert!(persistence.begin(stale).is_none());
+    assert_eq!(
+        persistence.begin(latest),
+        Some(serde_json::json!({"terminal_font_size": 17.0, "terminal_shell": "zsh"}))
+    );
+    assert!(persistence.begin(latest).is_none());
+}
+
+#[test]
+fn edits_during_save_wait_and_preserve_latest_value() {
+    let mut persistence = super::ConfigPersistence::default();
+    let first = persistence.enqueue(super::TerminalConfigUpdate::FontSize(12.0));
+    assert!(persistence.begin(first).is_some());
+    let next = persistence.enqueue(super::TerminalConfigUpdate::FontSize(14.0));
+    assert!(persistence.begin(next).is_none());
+    let latest = persistence.enqueue(super::TerminalConfigUpdate::FontSize(18.0));
+    persistence.saving = false;
+    assert_eq!(persistence.begin(latest), Some(serde_json::json!({"terminal_font_size": 18.0})));
+    persistence.saving = false;
+    assert!(persistence.begin(latest).is_none());
+}

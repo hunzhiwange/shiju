@@ -24,6 +24,8 @@ pub enum TerminalMessage {
     FontSelected(String),
     FontSizeChanged(f32),
     ShellSelected(Shell),
+    ConfigSaveDue(u64),
+    ConfigSaved(Result<(), String>),
     Add,
     Select(u64),
     Close(u64),
@@ -58,7 +60,9 @@ pub fn update(app: &mut App, message: TerminalMessage) -> Task<Message> {
         TerminalMessage::ThemeSelected(_)
         | TerminalMessage::FontSelected(_)
         | TerminalMessage::FontSizeChanged(_)
-        | TerminalMessage::ShellSelected(_) => config::update(app, message),
+        | TerminalMessage::ShellSelected(_)
+        | TerminalMessage::ConfigSaveDue(_)
+        | TerminalMessage::ConfigSaved(_) => config::update(app, message),
 
         TerminalMessage::RenameStart(_)
         | TerminalMessage::RenameChanged(_, _)

@@ -31,6 +31,8 @@ struct TestAgentState {
     fail_resume: bool,
     fail_set_config: bool,
     fail_set_model: bool,
+    wrong_config: bool,
+    delay_config: bool,
 }
 
 #[derive(Clone, Default)]
@@ -109,7 +111,10 @@ impl acp::Agent for TestAgent {
         if state.fail_resume {
             return Err(acp::Error::method_not_found());
         }
-        Ok(acp::ResumeSessionResponse::new())
+        Ok(acp::ResumeSessionResponse::new().modes(acp::SessionModeState::new(
+            "default",
+            vec![acp::SessionMode::new("plan", "Plan")],
+        )))
     }
 
     async fn set_session_mode(
@@ -127,6 +132,9 @@ impl acp::Agent for TestAgent {
         &self,
         args: acp::SetSessionConfigOptionRequest,
     ) -> acp::Result<acp::SetSessionConfigOptionResponse> {
+        if self.state.lock().delay_config {
+            std::future::pending::<()>().await;
+        }
         let mut state = self.state.lock();
         state.calls.push(RecordedCall::SetConfig {
             session_id: args.session_id.0.to_string(),
@@ -141,7 +149,16 @@ impl acp::Agent for TestAgent {
         if state.fail_set_config {
             return Err(acp::Error::invalid_params());
         }
-        Ok(acp::SetSessionConfigOptionResponse::new(Vec::new()))
+        Ok(acp::SetSessionConfigOptionResponse::new(vec![acp::SessionConfigOption::select(
+            args.config_id,
+            "Control",
+            if state.wrong_config {
+                "default".to_string()
+            } else {
+                args.value.as_value_id().unwrap().to_string()
+            },
+            vec![acp::SessionConfigSelectOption::new("high", "High")],
+        )]))
     }
 
     async fn set_session_model(
@@ -171,6 +188,7 @@ impl acp::Agent for TestAgent {
 struct RuntimeFixture {
     client: AcpClient,
     runtime: Option<ActorRuntime>,
+    agent_conn: acp::AgentSideConnection,
 }
 
 impl RuntimeFixture {
@@ -183,8 +201,8 @@ impl RuntimeFixture {
                 env: HashMap::new(),
             },
         );
-        let runtime = runtime_for(&client, agent.clone(), cwd).await;
-        Self { client, runtime: Some(runtime) }
+        let (runtime, agent_conn) = runtime_for(&client, agent.clone(), cwd).await;
+        Self { client, runtime: Some(runtime), agent_conn }
     }
 
     async fn shutdown(mut self) {
@@ -194,7 +212,11 @@ impl RuntimeFixture {
     }
 }
 
-async fn runtime_for(client: &AcpClient, agent: TestAgent, cwd: &Path) -> ActorRuntime {
+async fn runtime_for(
+    client: &AcpClient,
+    agent: TestAgent,
+    cwd: &Path,
+) -> (ActorRuntime, acp::AgentSideConnection) {
     let ProcessHandles { child, stderr_task } =
         client.spawn_child().expect("test child should spawn");
     let (client_out, agent_in) = tokio::io::duplex(4096);
@@ -221,18 +243,19 @@ async fn runtime_for(client: &AcpClient, agent: TestAgent, cwd: &Path) -> ActorR
         let _ = io_closed_tx.send(());
     });
     tokio::task::spawn_local(agent_io_task);
-    drop(agent_conn);
-
-    ActorRuntime {
-        cwd: cwd.to_path_buf(),
-        child,
-        stderr_task,
-        expected_session_id,
-        event_rx,
-        conn,
-        io_closed_rx,
-        io_task,
-    }
+    (
+        ActorRuntime {
+            cwd: cwd.to_path_buf(),
+            child,
+            stderr_task,
+            expected_session_id,
+            event_rx,
+            conn,
+            io_closed_rx,
+            io_task,
+        },
+        agent_conn,
+    )
 }
 
 async fn with_fixture<R>(agent: TestAgent, f: impl AsyncFnOnce(&mut RuntimeFixture) -> R) -> R {
@@ -359,7 +382,7 @@ async fn actor_set_config_option_falls_back_to_load_when_resume_fails() {
             .await
             .expect("config option should be set through load fallback");
 
-        assert!(response.config_options.is_empty());
+        assert_eq!(response.config_options.len(), 1);
         assert_eq!(expected_session_id(&fixture.runtime), Some("config-session".to_string()));
         assert!(fixture.client.has_reusable_session("config-session"));
         assert_eq!(
@@ -460,3 +483,6 @@ async fn actor_set_session_model_stores_session_for_reuse() {
     })
     .await;
 }
+
+#[path = "access_policy_tests.rs"]
+mod access_policy_tests;

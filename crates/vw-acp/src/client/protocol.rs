@@ -58,6 +58,14 @@ impl AcpClient {
         session_strategy: &SessionStrategy,
         expected_session_id: &Arc<Mutex<Option<String>>>,
     ) -> Result<String, AcpError> {
+        match session_strategy {
+            SessionStrategy::New => {}
+            SessionStrategy::Load(id)
+            | SessionStrategy::Resume(id)
+            | SessionStrategy::ResumeOrLoad(id)
+            | SessionStrategy::ResumeLoadOrNew(id)
+            | SessionStrategy::LoadOrNew(id) => self.ensure_session_controls_ready(id)?,
+        }
         let session_id = match session_strategy {
             // actor 已验证连接健康且 cwd 未变。活跃会话的历史仍在对端，
             // 重复 resume/load 不仅多余，还可能失败或重放旧输出。
@@ -120,6 +128,11 @@ impl AcpClient {
         session_id: String,
         expected_session_id: &Arc<Mutex<Option<String>>>,
     ) -> Result<(), AcpError> {
+        if self.cancelling_session_ids.lock().contains(&session_id) {
+            return Err(AcpError::Prompt(
+                "ACP session cancellation is in progress; retry later".into(),
+            ));
+        }
         if self.has_reusable_session(&session_id)
             && expected_session_id.lock().as_deref() == Some(session_id.as_str())
         {

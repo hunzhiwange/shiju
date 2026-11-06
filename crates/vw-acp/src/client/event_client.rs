@@ -177,6 +177,19 @@ impl acp::Client for AcpEventClient {
     }
 
     async fn session_notification(&self, args: acp::SessionNotification) -> acp::Result<()> {
+        // A delayed control notification from another session must not retarget
+        // the active prompt or reach consumers as current session state.
+        if matches!(
+            &args.update,
+            acp::SessionUpdate::ConfigOptionUpdate(_) | acp::SessionUpdate::CurrentModeUpdate(_)
+        ) && self
+            .expected_session_id
+            .lock()
+            .as_deref()
+            .is_some_and(|id| id != args.session_id.0.as_ref())
+        {
+            return Ok(());
+        }
         if let Some(callback) = &self.on_session_update {
             callback(args.clone());
         }

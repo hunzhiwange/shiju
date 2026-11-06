@@ -88,19 +88,7 @@ impl AcpClient {
             &runtime.expected_session_id,
         )
         .await?;
-        runtime
-            .conn
-            .set_session_mode(acp::SetSessionModeRequest::new(
-                acp::SessionId::new(session_id.clone()),
-                mode_id.clone(),
-            ))
-            .await
-            .map_err(|err| AcpError::Prompt(err.to_string()))?;
-        if let Some(info) = self.actor_state.lock().session_capabilities.as_mut()
-            && let Some(modes) = info.modes.as_mut()
-        {
-            modes.current_mode_id = mode_id.into();
-        }
+        self.confirmed_mode_control(&runtime.conn, &session_id, &mode_id).await?;
         self.store_reusable_session(Some(session_id));
         Ok(())
     }
@@ -124,26 +112,9 @@ impl AcpClient {
             &runtime.expected_session_id,
         )
         .await?;
-        let error_context = format!(r#"for "{}"="{}""#, option_name, value_id);
-        let response = runtime
-            .conn
-            .set_session_config_option(acp::SetSessionConfigOptionRequest::new(
-                acp::SessionId::new(session_id.clone()),
-                option_name,
-                acp::SessionConfigValueId::new(value_id),
-            ))
-            .await
-            .map_err(|err| {
-                wrap_session_control_error(
-                    "session/set_config_option",
-                    Some(error_context),
-                    err,
-                    AcpError::SetSessionConfigOption,
-                )
-            })?;
-        if let Some(info) = self.actor_state.lock().session_capabilities.as_mut() {
-            info.config_options = Some(response.config_options.clone());
-        }
+        let response = self
+            .confirmed_config_control(&runtime.conn, &session_id, &option_name, &value_id)
+            .await?;
         self.store_reusable_session(Some(session_id));
         Ok(response)
     }

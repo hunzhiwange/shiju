@@ -42,6 +42,7 @@ impl AcpClient {
                 &runtime.expected_session_id,
             )
             .await?;
+        self.ensure_session_controls_ready(&session_id)?;
         self.store_reusable_session(Some(session_id.clone()));
 
         let (cancel_tx, mut cancel_rx) = watch::channel(false);
@@ -126,7 +127,7 @@ impl AcpClient {
                             if matches!(&command, ActorCommand::Close { .. }) {
                                 let _ = self.request_cancel_active_prompt().await;
                             }
-                            match super::prompt_controls::control_future(&runtime.conn, command, &session_id, &request.cwd) {
+                            match super::prompt_controls::control_future(self, &runtime.conn, command, &session_id, &request.cwd) {
                                 Ok(control) => controls.push(control),
                                 Err(command) => deferred.push_back(command),
                             }

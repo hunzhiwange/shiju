@@ -40,6 +40,8 @@ use crate::types::{
     SessionStrategy, SessionUpdateCallback,
 };
 
+#[path = "client/access_policy.rs"]
+mod access_policy;
 #[path = "client/active_prompt.rs"]
 mod active_prompt;
 #[path = "client/actor.rs"]

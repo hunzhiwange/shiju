@@ -50,6 +50,7 @@ pub(super) struct AcpClientActorState {
     pub(super) reusable_session_id: Option<String>,
     pub(super) lifecycle: AgentLifecycleSnapshot,
     pub(super) session_capabilities: Option<crate::SessionCapabilities>,
+    pub(super) pending_controls: HashMap<(String, String), String>,
 }
 
 pub(super) struct AcpClientActorHandle {

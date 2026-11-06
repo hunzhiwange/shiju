@@ -5,6 +5,7 @@ use super::*;
 pub(super) type PromptControlFuture<'a> = Pin<Box<dyn std::future::Future<Output = ()> + 'a>>;
 
 pub(super) fn control_future<'a>(
+    client: &'a AcpClient,
     connection: &'a acp::ClientSideConnection,
     command: ActorCommand,
     active_session_id: &str,
@@ -20,11 +21,7 @@ pub(super) fn control_future<'a>(
                         "cannot switch another session during an active prompt".into(),
                     ))
                 } else {
-                    connection
-                        .set_session_mode(acp::SetSessionModeRequest::new(session_id, mode_id))
-                        .await
-                        .map(|_| ())
-                        .map_err(|error| AcpError::Prompt(error.to_string()))
+                    client.confirmed_mode_control(connection, &session_id, &mode_id).await
                 };
                 let _ = response_tx.send(result);
             }))
@@ -60,14 +57,9 @@ pub(super) fn control_future<'a>(
                         "cannot switch another session during an active prompt".into(),
                     ))
                 } else {
-                    connection
-                        .set_session_config_option(acp::SetSessionConfigOptionRequest::new(
-                            session_id,
-                            option_name,
-                            acp::SessionConfigValueId::new(value_id),
-                        ))
+                    client
+                        .confirmed_config_control(connection, &session_id, &option_name, &value_id)
                         .await
-                        .map_err(|error| AcpError::SetSessionConfigOption(error.to_string()))
                 };
                 let _ = response_tx.send(result);
             }))

@@ -197,6 +197,9 @@ impl AcpClient {
         {
             return Err(AcpError::Initialize("Vibe startup auto-approval cannot follow session permission changes; remove bypass arguments and explicitly select the ACP agent with a current full access grant".into()));
         }
+        if self.agent_name == "kimi" && bypass {
+            return Err(AcpError::Initialize("Kimi startup bypass cannot follow session permission changes; remove bypass arguments and use session access controls".into()));
+        }
         if self.agent_name == "qoder" && bypass {
             return Err(AcpError::Initialize("Qoder startup bypass cannot follow session permission changes; remove bypass arguments and use session access controls".into()));
         }

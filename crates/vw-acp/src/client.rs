@@ -68,6 +68,8 @@ mod helpers;
 mod hermes_access;
 #[path = "client/iflow_access.rs"]
 mod iflow_access;
+#[path = "client/kimi_access.rs"]
+mod kimi_access;
 #[path = "client/lifecycle.rs"]
 mod lifecycle;
 #[path = "client/message_io.rs"]

@@ -124,6 +124,17 @@ impl AcpClient {
             policy.reason = crate::AccessPolicyReason::UnverifiedControls;
             return policy;
         }
+        if self.agent_name == "kimi"
+            && self.full_access
+            && self.permission_mode == PermissionMode::ApproveAll
+            && crate::access_policy::kimi::current_mode(config_options)
+                == Some(crate::access_policy::kimi::FULL_MODE)
+        {
+            // Acknowledged protocol configuration is not a verified tool-execution claim.
+            policy.support = crate::FullAccessSupport::Partial;
+            policy.reason = crate::AccessPolicyReason::UnverifiedControls;
+            return policy;
+        }
         if !matches!(self.agent_name.as_str(), "codex" | "claude" | "qwen")
             || !self.full_access
             || self.permission_mode != PermissionMode::ApproveAll

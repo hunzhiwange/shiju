@@ -40,7 +40,11 @@ impl AcpClient {
         });
         AcpEventClient {
             claude_permissions: self.agent_name == "claude",
-            transient_permissions: matches!(self.agent_name.as_str(), "opencode" | "copilot"),
+            kimi_permissions: self.agent_name == "kimi",
+            transient_permissions: matches!(
+                self.agent_name.as_str(),
+                "opencode" | "copilot" | "kimi"
+            ),
             reject_untyped_workflow_permissions: matches!(
                 self.agent_name.as_str(),
                 "gemini" | "qwen"
@@ -114,6 +118,10 @@ impl acp::Client for AcpEventClient {
         if self.claude_permissions && args.tool_call.fields.kind == Some(acp::ToolKind::SwitchMode)
         {
             return Err(acp::Error::invalid_params().data("Claude plan confirmation requires explicit user interaction; automatic tool approval cannot answer it"));
+        }
+
+        if self.kimi_permissions && crate::access_policy::kimi::has_workflow_answers(&args) {
+            return Err(acp::Error::invalid_params().data("Kimi question or plan confirmation requires explicit user interaction; tool approval cannot answer it"));
         }
 
         let resolve = if self.transient_permissions {

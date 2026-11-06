@@ -10,6 +10,7 @@ pub(crate) mod copilot;
 pub(crate) mod gemini;
 pub(crate) mod hermes;
 pub(crate) mod iflow;
+pub(crate) mod kimi;
 pub(crate) mod kiro;
 pub(crate) mod opencode;
 pub(crate) mod qoder;

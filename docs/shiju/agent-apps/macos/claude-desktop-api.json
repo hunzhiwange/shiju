@@ -1,0 +1,108 @@
+{
+  "provenance": "2026-11-06正式隔离网关两轮实机调用；从本会话工具输出和任务执行登记整理，非新增重放，不含授权头或令牌；catalog仅保留本应用。",
+  "records": [
+    {
+      "method": "GET",
+      "path": "/v1/agent-apps/catalog?targetHostId=host",
+      "status": 200,
+      "response": {
+        "apps": [
+          {
+            "id": "claude-desktop",
+            "name": "Claude Desktop",
+            "cliCommand": null,
+            "runtimeKinds": [
+              "desktop_app"
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "method": "GET",
+      "path": "/v1/agent-apps/installations?targetHostId=host&appId=claude-desktop",
+      "status": 200,
+      "response": {
+        "installations": [],
+        "desktop": {
+          "supported": true,
+          "appBundles": [],
+          "configDirectories": []
+        }
+      }
+    },
+    {
+      "method": "GET",
+      "path": "/v1/agent-apps/diagnostics?targetHostId=host&appId=claude-desktop",
+      "status": 200,
+      "response": {
+        "installations": [],
+        "desktop": {
+          "supported": true,
+          "appBundles": [],
+          "configDirectories": []
+        }
+      }
+    },
+    {
+      "method": "POST",
+      "path": "/v1/agent-apps/actions/preview?targetHostId=host",
+      "request": {
+        "appId": "claude-desktop",
+        "action": "install",
+        "target": {
+          "kind": "environment",
+          "environment": {
+            "kind": "macos"
+          }
+        }
+      },
+      "status": 422,
+      "response": ""
+    },
+    {
+      "method": "POST",
+      "path": "/v1/agent-apps/actions/preview?targetHostId=host",
+      "request": {
+        "appId": "claude-desktop",
+        "action": "update",
+        "target": {
+          "kind": "environment",
+          "environment": {
+            "kind": "macos"
+          }
+        }
+      },
+      "status": 422,
+      "response": ""
+    },
+    {
+      "method": "POST",
+      "path": "/v1/agent-apps/actions/preview?targetHostId=host",
+      "request": {
+        "appId": "claude-desktop",
+        "action": "uninstall",
+        "target": {
+          "kind": "environment",
+          "environment": {
+            "kind": "macos"
+          }
+        }
+      },
+      "status": 422,
+      "response": ""
+    },
+    {
+      "method": "POST",
+      "path": "/v1/agent-apps/launch?targetHostId=host",
+      "request": {
+        "appId": "claude-desktop",
+        "installationId": "absent",
+        "cwd": "<isolated-home>",
+        "args": []
+      },
+      "status": 422,
+      "response": ""
+    }
+  ]
+}

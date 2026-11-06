@@ -36,3 +36,11 @@ pub struct AppPreferencesResult {
     pub host: AppHostPreferences,
     pub restart_required: bool,
 }
+
+/// Replace one complete preferences domain per PATCH. Other domains are preserved.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(tag = "scope", content = "value", rename_all = "snake_case", deny_unknown_fields)]
+pub enum AppPreferencesPatch {
+    User(AppUserPreferences),
+    Host(AppHostPreferences),
+}

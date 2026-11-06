@@ -27,6 +27,8 @@ struct Principal {
 struct Grant {
     #[serde(default)]
     actions: Vec<vw_api_types::agent_apps::AppLifecycleAction>,
+    #[serde(default)]
+    preferences_write: bool,
     platform_id: String,
     company_id: String,
     host_id: String,
@@ -73,6 +75,17 @@ pub(super) fn authorize_action(
     target: &str,
     action: Option<vw_api_types::agent_apps::AppLifecycleAction>,
 ) -> Result<Host, StatusCode> {
+    authorize_preferences(path, headers, tenant, target, action, false).map(|(host, _)| host)
+}
+
+pub(super) fn authorize_preferences(
+    path: Option<&Path>,
+    headers: &HeaderMap,
+    tenant: &TenantScope,
+    target: &str,
+    action: Option<vw_api_types::agent_apps::AppLifecycleAction>,
+    write_host: bool,
+) -> Result<(Host, String), StatusCode> {
     let mut values = headers.get_all("x-agent-apps-token").iter();
     let token = values
         .next()
@@ -98,6 +111,7 @@ pub(super) fn authorize_action(
             && g.company_id == tenant.company_id().as_ref()
             && g.host_id == target
             && action.is_none_or(|a| g.actions.contains(&a))
+            && (!write_host || g.preferences_write)
     }) {
         return Err(StatusCode::FORBIDDEN);
     }
@@ -108,7 +122,7 @@ pub(super) fn authorize_action(
     if matches!(host.binding, Binding::Remote) {
         return Err(StatusCode::NOT_IMPLEMENTED);
     }
-    Ok(host)
+    Ok((host, principal.id.clone()))
 }
 
 fn load(path: &Path) -> Result<Policy, ()> {

@@ -18,6 +18,7 @@ pub(crate) fn router() -> Router {
     Router::new()
         .merge(read::router())
         .merge(lifecycle::router())
+        .merge(preferences::router())
         .route(
             "/agent-apps/custom-icons",
             get(read_icons).post(add_icon).layer(DefaultBodyLimit::max(128 * 1024)),
@@ -141,3 +142,7 @@ mod access;
 mod lifecycle;
 #[cfg(all(test, unix))]
 mod lifecycle_tests;
+
+mod preferences;
+#[cfg(all(test, unix))]
+mod preferences_tests;

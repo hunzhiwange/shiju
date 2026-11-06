@@ -1,6 +1,6 @@
 use super::GatewayClient;
 use vw_api_types::app_providers::universal::{UniversalProviderSummary, UniversalProviderWrite};
-fn path(id: &str) -> Result<String, String> {
+pub(super) fn path(id: &str) -> Result<String, String> {
     if id.is_empty()
         || id.len() > 128
         || !id.bytes().all(|c| c.is_ascii_alphanumeric() || matches!(c, b'-' | b'_'))
@@ -10,7 +10,7 @@ fn path(id: &str) -> Result<String, String> {
     Ok(format!("/v1/universal-providers/{id}"))
 }
 impl GatewayClient {
-    async fn universal_response<T: serde::de::DeserializeOwned>(
+    pub(super) async fn universal_response<T: serde::de::DeserializeOwned>(
         &self,
         builder: reqwest::RequestBuilder,
     ) -> Result<T, String> {

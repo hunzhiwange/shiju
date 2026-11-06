@@ -503,3 +503,46 @@ Gateway 使用真实隔离 SQLite、正式 handler_router 与 Basic 认证中间
 `sw_vers`、`uname -m` 均退出 0：macOS 27.0（26A428）、arm64。应用版本未验证，本轮没有启动实际应用。Iced、应用投影/live 激活、Windows/Linux、其他架构与 PostgreSQL 实际服务未验收；PostgreSQL 复用既有后端且参与 Clippy，不能推及运行验收。
 
 定向 git diff --check、git diff --cached --check 退出 0；本任务代码/独立测试/正式证据已审查，plan.md 无差异。最终槽位 1 锁不存在、缓存保留。仅提交本任务变更，排除原有母任务状态、任务文件删除和桌面终端等其他会话变更；完成后删除任务 10 文件且不纳入提交。未执行全量 cargo test、fmt check、wasm 或 Makefile。
+
+## 任务 11：统一供应商向应用投影
+
+2026-11-06；状态：已完成（目录投影，live 未接通）。
+
+### 依赖与实现范围
+
+批次 10 提交 `cc0bc917d` 及本文件任务 1–10 证据已核对；母任务 1、3 已完成，母任务 2 完整领域迁移未收口，沿用任务 1 正式记录的底座子计划 1–93 开工裁定，不宣称母任务 2 已完成。只读 plan.md 不修改。
+
+来源 `/Users/xiangmin/worker/code/cc-switch` HEAD `ca58c0313360eae7c851fbd7553c1614c7af03e7`，rev-parse/status 均退出 0、来源干净。读取 `ProviderService::sync_universal_to_apps/project_universal_child_to_live`、相邻 `sync_universal_to_apps_preserves_child_metadata`，`UniversalProvider::to_claude_provider/to_codex_provider/to_gemini_provider` 和直接 command `sync_universal_provider`；同时读取 useTemplateValues.ts 的按占位路径合并/现读配置规则、ProviderForm 调用和相邻 ProviderFormSettingsConfigSnapshot 测试（只读，未运行来源测试）。
+
+- 业务唯一投影入口 `vw-agent-apps/src/providers/universal_sync.rs::{validate_request,child_id,project}`。请求明确选择应用；仅处理所选应用，未选应用不创建、不更新、不删除；选择为空/重复直接拒绝。Claude/Codex/Gemini 必须同时在父记录启用；其余 AppId 返回逐项 unsupported_app，禁用返回 app_disabled，不执行来源的隐式删除。
+- 生成 `universal-{app}-{id}` 子档案，使用已有 AppProviderWrite 的协议/凭据/模型字段，同时保存对应 settingsConfig；模型缺省值沿用冻结来源转换，不冒充动态模型知识。Claude 保留主/Haiku/Sonnet/Opus 映射，Gemini 保留模型；Codex 仅纯 origin 补 `/v1`，自定义前缀不补，推理强度保留。Codex 使用现有 toml 库按字段合并和序列化，保留应用独有 TOML 值、其它 provider、未知 custom 字段，避免字符串插值；目录内 TOML 格式/注释不承诺保留，原生文件补丁属于后续任务。
+- 已有子档案保留 meta、排序、端点、未知根字段以及 settingsConfig/env/auth 独有键；统一管理的配置和展示字段更新。新档案继承父排序，已有排序不覆盖。不复制父任意元数据或授权字段。内部 universalProviderId 绑定匹配才允许更新，名字碰撞返回 target_conflict，不覆盖普通档案；目标身份过长明确失败。损坏配置返回 invalid_profile，不静默覆盖。
+- `vw-agent/src/app_providers/universal_sync.rs` 为既有 AppProviderStore 的存储适配，仍用同租户 GatewaySettingsStore/GlobalDatabase 的 app_providers.records，不另建数据库。新档案 insert_if_absent，更新 compare_exchange；存储/竞争/配置失败为逐项强类型原因，失败不影响其他所选应用，每次操作使用读取到的父快照。
+- DTO：`vw-api-types/src/app_providers/universal_sync.rs`。API `POST /v1/universal-providers/{id}/sync`，请求 `{ "apps": ["claude", "codex"] }`，响应数组逐项包含 appId/providerId/catalog/live；catalog 为 updated 或 failed + 固定 code，live 始终 not_attempted。部分失败仍 HTTP 200、必须检查逐项 catalog。输入 400、缺父档案 404、损坏父档案/存储不可用 503。请求不接受 tenant/path/activate 等字段，4 KiB body 上限。响应不包含凭据、原始配置或底层错误。
+- handler 接既有 app-providers 分域 router，handler_router/bootstrap 复用既有注册与网关认证/TenantScope 目录维护权限；未授予主机文件或进程能力。公司头只选作用域，不等于公司成员认证。SDK `GatewayClient::universal_provider_sync` 复用统一记录的路径检查和脱敏传输，使用既有租户上下文。Iced 属后续任务，本轮未新增/验收 UI。
+
+### 红绿验证与边界
+
+红/绿阶段均通过原子 mkdir 动态领取槽位 **1**，`CARGO_TARGET_DIR=/Users/xiangmin/worker/code/shiju/target/rust-slot-1`，`CARGO_BUILD_BUILD_DIR` 同一绝对路径覆盖仓库 build-dir；owner 记录计划、任务、会话标识与 PID，EXIT/INT/TERM trap 清理自身锁，子进程全部结束后释放、缓存保留。
+
+两阶段先运行 `cargo fmt --all`，退出 0；四个 crate 均使用默认 features：
+
+| 确切命令 | 红阶段退出码 / 有效结果 | 绿阶段退出码 / 有效结果 |
+| --- | --- | --- |
+| `cargo test -p vw-agent-apps --lib cc04_universal_sync_ -- --nocapture` | 101；0 passed/2 failed | 0；2 passed |
+| `cargo test -p vw-api-types --lib cc04_universal_sync_ -- --nocapture` | 0；1 passed | 0；1 passed |
+| `cargo test -p vw-agent --lib cc04_universal_sync_ -- --nocapture` | 101；1 passed/1 failed | 0；2 passed |
+| `cargo test -p vw-gateway-client --lib cc04_universal_sync_ -- --nocapture` | 0；1 passed | 0；1 passed |
+| `cargo clippy --all-targets --all-features -- -D warnings` | 不适用 | 0；全部 targets/features 通过 |
+
+红阶段模块/测试已接线编译，投影尚返回 invalid_profile；业务生成子档案与禁用原因断言失败，Gateway 的 SDK→API 目录结果预期 updated 而得到 failed，均为业务断言失败，不是编译失败或零测试。绿阶段共 **6** 项有效测试、无忽略；业务测试在补充 Codex 原生形状断言后也验证保留 sandbox_mode 和其它 model_provider。测试二进制来自槽位 debug/deps。Agent 链接仍有既有 `__eh_frame section too large` 提示，测试退出 0，未改链接设置。
+
+业务临时 JSON 文件与结构断言证明仅选择 Claude/Codex、不创建 Gemini；覆盖 Gemini 投影、Codex origin/前缀、Haiku、元数据/排序/端点及局部配置保留，禁用/碰撞/过长身份明确错误。DTO 拒绝隐式激活、任意路径、跨租户字段和未知应用，序列化明确 catalog/live 边界。
+
+Gateway 使用真实隔离 SQLite 和正式 handler_router。SDK→本地回环 HTTP→正式 POST handler→SQLite→重开数据库验证落盘的 apiKey/元数据/排序/env 独有键；Kimi 不支持与 Codex 子档案损坏均逐项报告，其余应用继续持久化。未选 Gemini 没有记录，跨 company/platform 缺失父档案返回 404且没有子记录。父档案和临时 native fixture 字节保持不变，所有结果不含 fixture 凭据。正式 Basic 中间件测试未认证 401、空/重复选择与 activate 字段 400，拒绝后目录无写入。
+
+本地 HTTP 仅替代远端传输，Basic 在独立正式中间件测试覆盖，SDK 回环服务未启用 Basic；SDK 独立 fixture 仅替代远端响应，证明 POST/路径/公司头/选择请求及 403 正文脱敏，不冒充部署授权验收。全部凭据、文件、数据库为临时 fixture，不接触真实用户配置。
+
+`sw_vers`、`uname -m` 退出均为 0：macOS 27.0（26A428）、arm64。应用版本未验证，未启动实际 CLI/Iced；live 写入、激活、代理流量、Windows/Linux、其他架构、PostgreSQL 实际服务未验收。
+
+定向 diff 检查与暂存检查退出 0；仅提交本任务实现、独立测试、父注册和本条证据，排除其他母任务状态/任务删除及桌面终端变更。只读 plan.md 无差异。最终槽位 1 锁不存在、缓存保留。未执行全量 cargo test、fmt check、wasm 或 Makefile；任务文件在完成报告后删除且不纳入提交。

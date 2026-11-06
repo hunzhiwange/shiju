@@ -89,3 +89,9 @@ mod universal;
 #[cfg(test)]
 #[path = "app_providers/universal_tests.rs"]
 mod universal_tests;
+
+#[path = "app_providers/universal_sync.rs"]
+mod universal_sync;
+#[cfg(test)]
+#[path = "app_providers/universal_sync_tests.rs"]
+mod universal_sync_tests;

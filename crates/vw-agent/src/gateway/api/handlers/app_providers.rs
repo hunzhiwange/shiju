@@ -18,6 +18,7 @@ pub(crate) fn router() -> Router {
         .merge(endpoints::router())
         .merge(icons::router())
         .merge(universal::router())
+        .merge(universal_sync::router())
         .route(
             "/app-providers/{app}/{id}",
             get(read)
@@ -143,3 +144,8 @@ mod universal;
 #[cfg(test)]
 #[path = "app_providers/universal_tests.rs"]
 mod universal_tests;
+
+mod universal_sync;
+#[cfg(test)]
+#[path = "app_providers/universal_sync_tests.rs"]
+mod universal_sync_tests;

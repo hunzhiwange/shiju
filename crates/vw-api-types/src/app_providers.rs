@@ -78,3 +78,7 @@ mod icons_tests;
 pub mod universal;
 #[cfg(test)]
 mod universal_tests;
+
+pub mod universal_sync;
+#[cfg(test)]
+mod universal_sync_tests;

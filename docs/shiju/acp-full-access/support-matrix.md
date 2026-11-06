@@ -10,6 +10,8 @@ Kilocode 已接入逐次客户端批准与当前 host deny 拦截；pure 保留�
 
 范围为 `BUILT_IN_AGENT_DEFINITIONS` 的 22 个稳定 key；别名和 `claude-legacy` 不另计。注册表、启动快照、哈希及逐项官方版本来源见 [证据清单](evidence/README.md)。初始静态审计仅修改文档；后续后端适配与验证按各独立证据文件记账。
 
+整体交付范围、当前授权规则与本次静态检查见 [交付说明](acceptance.md)。本轮按用户要求不运行测试或账号验收，历史 E3 仅适用于各证据列出的固定制品及入口；未实测不作为禁用普通访问的理由。
+
 ## 证据与分类
 
 - E0：对话/历史线索，尚未核验当前运行版本。
@@ -18,9 +20,9 @@ Kilocode 已接入逐次客户端批准与当前 host deny 拦截；pure 保留�
 
 - E2：固定版本的上游源码/制品权限实现确认；包元数据只确认版本身份，不构成权限 E2。
 
-- E3：指定平台、版本、启动路径与模型来源的真实协议和工具结果验收。Codex、Claude、Qwen 的限定路径已有权限 E3，其他后端尚无。
+- E3：指定平台、版本、启动路径与模型来源的真实协议和工具结果验收。Codex、Claude、Qwen 的限定路径已有原生权限 E3，Gemini 有客户端批准及原生不接入的 E3；其他后端尚无权限 E3。
 
-分类使用“原生免审批”“客户端自动批准”“部分支持”“不可用”。Codex、Claude、Qwen 限定路径已核验原生支持，Gemini 为已核验的客户端批准与原生接入拒绝，OpenCode 为源码确认的客户端逐次批准（未实机验收）；其余项为**部分支持（E1 客户端机制；原生未知）**；这不是 22 项实机可用承诺。下表中的 `session_model 不可用` 只指该模型来源已有显式拒绝，不等于 CLI 本地模式不可用。原生未知不得展示为原生支持。
+分类使用“原生免审批”“客户端自动批准”“部分支持”“不可用”。Codex、Claude、Qwen 限定路径已核验原生支持，Gemini 为已核验的客户端批准与原生接入拒绝，客户端批准与部分支持后端按下表的逐项接入说明分类；未实测的配置同步不升级为已验收原生能力。这不是 22 项实机可用承诺。下表中的 `session_model 不可用` 只指该模型来源已有显式拒绝，不等于 CLI 本地模式不可用。原生未知不得展示为原生支持。
 
 `cli_local` 沿注册表选择命令并使用 CLI 本地模型配置；`session_model` 经 `model_source::prepare` 和对应 `drivers::<key>::configure` 生成私有配置/模型中继。模型路由验收与权限验收分别记账。
 
@@ -99,7 +101,7 @@ U = 未获取该后端真实权限协议/结果；C = 仅共享客户端源码�
 
 2. 初始基线的普通 Gemini 曾带 `--approval-mode yolo --skip-trust`；任务 4 改为按授权材料化，任务 7 的固定版本验收后停止自动注入并显式拒绝该参数组合。任务 8 停止为 Qwen 自动注入 `--approval-mode yolo`，改为固定制品会话 config 同步；显式启动 bypass 拒绝。Qoder 初始曾带 `--permission-mode bypass_permissions`，任务 9 已停止自动注入，改为会话 `mode=default/yolo` 同步当前授权，并拒绝显式启动 bypass；工具效果尚未实机验收。托管 Gemini/Qwen 初始 argv 不带这些宽松参数。
 
-3. `AcpClient::with_full_access` 设置独立布尔值；`build_event_client` 将它传给文件处理器，终端处理器及标准审批使用 `permission_mode` 等字段。`resolve_permission_request_with_prompt` 的 ApproveAll 选择允许选项，缺少允许选项时退到第一个选项；取消中的会话直接取消。后续需验证没有允许项和拒绝项优先级，不能据此声称所有请求均批准。
+3. `AcpClient::with_full_access` 保存会话完全访问意图，文件与终端处理器分别遵守当前授权及宿主策略，标准审批使用 `permission_mode`。当前共享解析器缺少允许选项时返回 `Cancelled`，不再回退第一个选项；逐次批准后端只选 `AllowOnce`，不写入永久授权。取消中的会话直接取消。客户端批准仍包含远端回调往返，不等于原生免审批。
 
 4. `drivers::capabilities` 仅对 Darwin arm64、`verified_release` 非空且必要托管制品可用的组合发布 session_model；`AcpLaunchProfile::new` 非 Unix 明确拒绝。这属于模型来源门控，不证明完全访问已生效。不得将 macOS 的既有模型证据外推到 Linux/Windows。
 
@@ -108,3 +110,7 @@ U = 未获取该后端真实权限协议/结果；C = 仅共享客户端源码�
 ## 初始静态验收（任务 1）
 
 已从注册表逐项人工核对上述 22 个 key，并用独立集合检查确认无遗漏/重复；逐项读取驱动入口，核对普通、本地候选、托管启动及显式拒绝。执行 `git diff --check` 和文档链接/来源哈希检查通过。未运行 Cargo（按任务的文档静态审计范围），未运行真实权限会话。下一步按后续任务实现共享策略映射，再逐后端积累 E2/E3。
+
+## 当前交付入口
+
+批次 27 的恢复规则见 [生命周期说明](evidence/lifecycle.md)；批次 28 的入口显式授权由提交 `f30a8c7ca` 接入；批次 29 的状态展示由提交 `8da45d287` 接入。会话选项返回 `access_status` 的 requested、backend、握手 version、support 和固定 explanation；展示当前确认结果，不以握手版本代替实机证据。权限同步失败时明确提示重试，关闭授权后不以历史提升值重新授权。详见 [交付说明](acceptance.md)。

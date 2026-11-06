@@ -16,3 +16,8 @@ mod patch_yaml_tests;
 pub mod write_guard;
 #[cfg(all(test, target_os = "macos"))]
 mod write_guard_tests;
+
+#[cfg(target_os = "macos")]
+pub mod stage;
+#[cfg(all(test, target_os = "macos"))]
+mod stage_tests;

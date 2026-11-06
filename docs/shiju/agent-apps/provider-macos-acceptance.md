@@ -781,3 +781,41 @@ RustCodeGraph status/explore 退出 0，索引含 6443 文件；运行时代码�
 `sw_vers`、`uname -m` 均退出 0：macOS 27.0（26A428）、arm64；应用版本、个人账号、CLI/Iced 运行、SDK/API 全链未验证；Windows/Linux、其他架构和跨进程写锁未验收。原生请求链仍需后续任务证明。
 
 定向 diff 检查及暂存检查退出 0，仅提交本任务实现、独立测试、父注册及本条证据；母任务状态、其他编号文件删除、桌面及其他会话改动排除。只读 plan.md 无差异。各阶段自身槽位锁均已释放、缓存保留；未运行全量 cargo test、fmt check、wasm 或 Makefile。任务状态标记已完成后删除编号文件，不纳入提交，正式证据保留。
+
+## 任务 18：多文件预演与暂存
+
+2026-11-07；状态：已完成（内部原语边界，公共事务请求链未接通）。
+
+### 依赖、来源与连线
+
+批次 17 提交 `e1046e3f2` 与任务 1–17 正式证据已核对。母任务 1、3 已完成；母任务 2 沿用任务 1 的底座子计划 1–93 开工裁定，完整领域迁移未收口。最初因单文件写无法分离暂存、无原生事务调用者而登记阻塞；继续执行指令明确授权按内部原语交付并最小调整 write_guard 所有者，本轮按该裁定解除阻塞。不修改只读 plan.md。
+
+来源 HEAD `ca58c0313360eae7c851fbd7553c1614c7af03e7`，工作区干净。读取 `live/engine.rs::{plan,plan_from,stage,ensure_first_write_backup}`、`mode/operation.rs::{run,AppWrite::begin,AppWrite::run}`、直接消费者 `services/provider/claude_direct.rs::run`、`config.rs::{stage_write,StagedWrite::commit}` 及相邻预演、无操作、暂存失败/崩溃和正常发布测试。来源测试未运行。RustCodeGraph status/explore 退出 0（6454 文件）；确认原生锁当前仅有独立测试调用，没有把冻结 upstream 当成可执行原生请求链。
+
+- 新增 `providers/live/stage.rs::{FileChange,StagedBatch,AppWriteGuard::stage}`、独立 `stage_tests.rs` 与直接父模块注册，仅 macOS 编译。FileChange 使用执行端纯解析/补丁闭包，不接受客户端文件操作。全部文件先读取和应用补丁、验证输出大小，精确字节相同的文件排除；然后逐一 fsync 暂存，全部成功才返回句柄。重复目标先拒绝。单目录内多文件适用，跨目录事务尚未交付；这里只准备写入，不新增删除协议。
+- 最小调整 `write_guard.rs`：原有 openat/O_EXCL/O_NOFOLLOW、权限、fsync 与 renameat 仍只有一个所有者；拆出内部 `PreparedWrite`，已有 `write` 改为同一 stage_one + commit。新增描述符锚定读取，O_NONBLOCK 防止特殊文件阻塞，拒绝 symlink、非常规文件、路径穿越/NUL 和超过 1 MiB 的输入/输出。保留临时命名空间 `.shiju-live-`，拒绝作为目标，避免批次目标与暂存名交叉。错误不携带路径、字节或凭据，无新依赖。
+- StagedBatch 的生命周期保持对 guard 的独占借用；准备失败或正常丢弃均 RAII 清理已创建暂存文件，不修改目标。noop 不写文件、不规范化权限，保留原始字节、inode、mode 和 mtime。私有写入仍为 0600，共享写入保留原权限。原生指针没有写入者，本原语完全不接触状态；测试中旁置 pointer 文件只证明未触碰，不能冒充真实指针事务验收。
+- 显式 publish 复用底层逐文件原子替换，调用方须在发布前持久化 pending；本任务不实现 pending、崩溃恢复、发布冲突重算或多文件原子回滚。发布过程中失败的持久恢复仍需任务 19–21 扩展消费，此处仅保证发布前的准备边界。外部进程不参与本进程锁，补丁闭包必须是执行端纯逻辑；测试只在明确的外部竞争场景注入文件系统改变。
+- 首写备份本轮不执行、不在目标目录留备份。后续事务必须从已授权执行主机的私有数据根解析 `backups/live-first-write`，禁止客户端路径/HOME 回退；沿用底座 `CredentialFileStore` 的执行端根来源与私有权限模式（目录 0700、文件 0600），不借用其账号命名空间或复制凭据所有者。该后续契约不等于当前已有供应商 DeviceStore/pending；事务接线时须提供实际私有根及权限验证证据，并复用本写入所有者。
+- 无新增 API/SDK/UI 行为，不另造任意路径/命令接口。本项不声称供应商编辑、首次激活或 live 切换成功；真实请求与应用适配全链归后续任务。
+
+### 红绿与平台证据
+
+红、绿阶段均通过原子 mkdir 动态领取槽位 **1**，`CARGO_TARGET_DIR=/Users/xiangmin/worker/code/shiju/target/rust-slot-1`，同时设置同值 `CARGO_BUILD_BUILD_DIR` 覆盖仓库 build-dir。owner 记录计划、任务、会话和 PID；shell EXIT/INT/TERM trap 在全部命令和子进程结束后清理自身锁，缓存保留。测试二进制实际从该槽位 debug/deps 运行，使用默认 features。
+
+| 阶段 | 确切命令 | 退出码 / 有效结果 |
+| --- | --- | --- |
+| 红 | `cargo fmt --all` | 0 |
+| 红 | `cargo test -p vw-agent-apps --lib cc04_stage_ -- --nocapture` | 101；0 passed / 2 failed |
+| 绿 | `cargo fmt --all` | 0 |
+| 绿 | `cargo test -p vw-agent-apps --lib cc04_stage_ -- --nocapture` | 0；5 passed / 0 ignored |
+| 绿 | `cargo test -p vw-agent-apps --lib cc04_write_guard_ -- --nocapture` | 0；5 passed / 0 ignored |
+| 绿 | `cargo clippy --all-targets --all-features -- -D warnings` | 0；全部 targets/features 通过，不计行为测试 |
+
+红阶段模块和类型可编译，使用会立即发布每个文件的基线实现：第二文件失败后第一文件已被替换，noop 的 inode/mode/mtime 发生变化，两项均在业务断言失败，非编译失败或零测试。红阶段一处测试 unused import 已在新增后续测试时消除。
+
+5 项暂存行为覆盖解析失败不发布、真实后续暂存失败清理第一份暂存、全部成功前目标不变/新文件不存在、显式发布、丢弃清理、字节 noop 的 metadata 保留、私有/共享权限、symlink/非法目标/重复目标/超大输出拒绝。真实 staging 失败通过在第二文件读取后创建同名目录模拟外部竞争，保留该外部目录，断言其他目标不变且无暂存残留；解析使用真实 serde_json。5 项既有写锁回归继续证明串行、物理目录归属、目录描述符锚定、unwind 释放与私有权限；其中预期 panic 被 catch_unwind 捕获，全部通过。测试使用隔离真实临时目录，没有网络、钥匙串或不可控进程 mock，不读取或写入真实用户配置。
+
+`sw_vers`、`uname -m` 退出 0：macOS 27.0（26A428）、arm64。应用版本、个人账号、CLI/Iced 运行与 SDK→API→执行端全链未验证；Windows/Linux、其他架构、跨进程锁和跨目录批次未验收。
+
+定向差异和暂存检查退出 0，只提交本任务 stage 实现、独立测试、write_guard 必要底层连线、父注册及本条证据。母任务状态、其他编号文件删除和其他会话桌面改动均排除。只读 plan.md 无差异；红绿阶段自身槽位 1 锁已释放、缓存保留。未执行全量 cargo test、fmt check、wasm 或 Makefile；任务 18 标记完成后删除，不纳入提交，正式证据保留。

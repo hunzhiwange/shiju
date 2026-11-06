@@ -7,7 +7,7 @@ use std::{
     collections::HashSet,
     ffi::{CString, OsStr},
     fs::{self, File, OpenOptions},
-    io::Write,
+    io::{Read, Write},
     os::{
         fd::{AsRawFd, FromRawFd},
         unix::{
@@ -101,13 +101,47 @@ impl AppWriteGuard {
         bytes: &[u8],
         privacy: FilePrivacy,
     ) -> Result<(), WriteError> {
-        let mut components = Path::new(name).components();
-        if !matches!(components.next(), Some(Component::Normal(part)) if part == name)
-            || components.next().is_some()
-        {
+        self.stage_one(name, bytes, privacy)?.commit()
+    }
+
+    pub(super) fn read(&self, name: &OsStr) -> Result<Option<Vec<u8>>, WriteError> {
+        let name = checked_name(name)?;
+        // SAFETY: retained directory descriptor and validated C string.
+        let raw = unsafe {
+            libc::openat(
+                self.directory.as_raw_fd(),
+                name.as_ptr(),
+                libc::O_RDONLY | libc::O_NOFOLLOW | libc::O_NONBLOCK | libc::O_CLOEXEC,
+            )
+        };
+        if raw < 0 {
+            return if std::io::Error::last_os_error().kind() == std::io::ErrorKind::NotFound {
+                Ok(None)
+            } else {
+                Err(WriteError::InvalidResource)
+            };
+        }
+        // SAFETY: newly owned descriptor from openat.
+        let file = unsafe { File::from_raw_fd(raw) };
+        let metadata = file.metadata().map_err(|_| WriteError::Io)?;
+        if !metadata.is_file() || metadata.len() > 1024 * 1024 {
             return Err(WriteError::InvalidResource);
         }
-        let name = CString::new(name.as_bytes()).map_err(|_| WriteError::InvalidResource)?;
+        let mut bytes = Vec::new();
+        file.take(1024 * 1024 + 1).read_to_end(&mut bytes).map_err(|_| WriteError::Io)?;
+        if bytes.len() > 1024 * 1024 {
+            return Err(WriteError::InvalidResource);
+        }
+        Ok(Some(bytes))
+    }
+
+    pub(super) fn stage_one(
+        &self,
+        name: &OsStr,
+        bytes: &[u8],
+        privacy: FilePrivacy,
+    ) -> Result<PreparedWrite<'_>, WriteError> {
+        let name = checked_name(name)?;
         let fd = self.directory.as_raw_fd();
         let mut metadata = std::mem::MaybeUninit::<libc::stat>::uninit();
         // SAFETY: owned directory fd and valid C string; fstatat initializes stat on success.
@@ -167,13 +201,10 @@ impl AppWriteGuard {
                 .write_all(bytes)
                 .and_then(|()| file.set_permissions(fs::Permissions::from_mode(mode)))
                 .and_then(|()| file.sync_all());
-            let result = staged.map_err(|_| WriteError::Io).and_then(|()| {
-                // SAFETY: renameat uses the same owned directory fd and valid names.
-                if unsafe { libc::renameat(fd, temp.as_ptr(), fd, name.as_ptr()) } == 0 {
-                    Ok(())
-                } else {
-                    Err(WriteError::Io)
-                }
+            let result = staged.map_err(|_| WriteError::Io).map(|()| PreparedWrite {
+                directory: &self.directory,
+                temp: temp.clone(),
+                name: name.clone(),
             });
             if result.is_err() {
                 // SAFETY: unlinkat removes only this call's exclusive temporary file.
@@ -184,5 +215,45 @@ impl AppWriteGuard {
             return result;
         }
         Err(WriteError::Io)
+    }
+}
+
+fn checked_name(name: &OsStr) -> Result<CString, WriteError> {
+    // Keep target names disjoint from every temporary in a multi-file batch.
+    if name.as_bytes().starts_with(b".shiju-live-") {
+        return Err(WriteError::InvalidResource);
+    }
+    let mut components = Path::new(name).components();
+    if !matches!(components.next(), Some(Component::Normal(part)) if part == name)
+        || components.next().is_some()
+    {
+        return Err(WriteError::InvalidResource);
+    }
+    CString::new(name.as_bytes()).map_err(|_| WriteError::InvalidResource)
+}
+
+/// Borrows the retained directory; the caller's guard cannot be released first.
+pub(super) struct PreparedWrite<'a> {
+    directory: &'a File,
+    temp: CString,
+    name: CString,
+}
+impl PreparedWrite<'_> {
+    pub(super) fn commit(self) -> Result<(), WriteError> {
+        let fd = self.directory.as_raw_fd();
+        // SAFETY: owned directory descriptor and validated direct child names.
+        if unsafe { libc::renameat(fd, self.temp.as_ptr(), fd, self.name.as_ptr()) } == 0 {
+            Ok(())
+        } else {
+            Err(WriteError::Io)
+        }
+    }
+}
+impl Drop for PreparedWrite<'_> {
+    fn drop(&mut self) {
+        // SAFETY: remove only our exclusive temp; after rename it is absent.
+        unsafe {
+            libc::unlinkat(self.directory.as_raw_fd(), self.temp.as_ptr(), 0);
+        }
     }
 }

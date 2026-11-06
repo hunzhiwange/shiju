@@ -33,7 +33,15 @@ impl AcpClient {
     ) -> Result<PromptResult, AcpError> {
         if matches!(
             self.agent_name.as_str(),
-            "codex" | "claude" | "gemini" | "qwen" | "qoder" | "vibe" | "kiro" | "opencode"
+            "codex"
+                | "claude"
+                | "gemini"
+                | "qwen"
+                | "qoder"
+                | "vibe"
+                | "kiro"
+                | "opencode"
+                | "hermes"
         ) && self.permission_mode == PermissionMode::DenyAll
         {
             return Err(AcpError::Prompt("Host deny forbids native tool execution".into()));

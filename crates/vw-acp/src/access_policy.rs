@@ -7,6 +7,7 @@ use crate::PermissionMode;
 pub(crate) mod claude;
 pub(crate) mod codex;
 pub(crate) mod gemini;
+pub(crate) mod hermes;
 pub(crate) mod kiro;
 pub(crate) mod opencode;
 pub(crate) mod qoder;

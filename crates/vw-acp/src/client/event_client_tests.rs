@@ -28,6 +28,7 @@ fn event_client(
 ) -> AcpEventClient {
     AcpEventClient {
         claude_permissions: false,
+        gemini_permissions: false,
         expected_session_id: Arc::new(Mutex::new(expected_session_id)),
         event_tx,
         filesystem: FileSystemHandlers::new(FileSystemHandlersOptions {
@@ -52,6 +53,7 @@ fn event_client_with_cwd(
 ) -> AcpEventClient {
     AcpEventClient {
         claude_permissions: false,
+        gemini_permissions: false,
         expected_session_id: Arc::new(Mutex::new(None)),
         event_tx,
         filesystem: FileSystemHandlers::new(FileSystemHandlersOptions {

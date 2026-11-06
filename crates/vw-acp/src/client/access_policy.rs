@@ -131,6 +131,15 @@ impl AcpClient {
 
 impl AcpClient {
     async fn guard_native_mode(&self, session_id: &str, mode_id: &str) -> Result<(), AcpError> {
+        if self.agent_name == "gemini" {
+            if !crate::access_policy::gemini::restricted_mode(mode_id) {
+                return Err(AcpError::Prompt("Gemini native approval modes lack confirmed revocation and change tools or prompts; use client approvals".into()));
+            }
+            if self.has_active_prompt() {
+                self.cancel(session_id).await?;
+                return Err(AcpError::Prompt("Gemini mode changes cannot revoke an active turn; cancellation requested, wait for completion before retrying".into()));
+            }
+        }
         if self.agent_name == "claude" {
             self.actor_state.lock().claude_confirmed_session = None;
             if mode_id == crate::access_policy::claude::FULL_MODE
@@ -155,7 +164,21 @@ impl AcpClient {
         session_id: &str,
     ) -> Result<(), AcpError> {
         self.sync_codex_access(conn, session_id).await?;
-        self.sync_claude_access(conn, session_id).await
+        self.sync_claude_access(conn, session_id).await?;
+        if self.agent_name == "gemini" {
+            let state = self.actor_state.lock();
+            let restricted = state.session_capabilities.as_ref().is_some_and(|info| {
+                info.session_id == session_id
+                    && crate::access_policy::gemini::restricted_session(
+                        info.modes.as_ref(),
+                        info.config_options.as_deref(),
+                    )
+            });
+            if !restricted {
+                return Err(AcpError::Prompt("Cannot confirm restricted Gemini permissions; native revocation is unsupported, restore default mode before prompting".into()));
+            }
+        }
+        Ok(())
     }
 
     async fn guard_codex_mode(&self, session_id: &str, mode_id: &str) -> Result<(), AcpError> {

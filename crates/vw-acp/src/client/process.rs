@@ -132,6 +132,14 @@ impl AcpClient {
                     | ("--permission-mode", "bypass_permissions" | "bypassPermissions")
             )
         });
+        if self.agent_name == "gemini" {
+            if bypass {
+                return Err(AcpError::Initialize("Gemini native bypass and skip-trust lack safe session revocation; remove these arguments and use client approvals".into()));
+            }
+            // Do not turn a session grant into workspace trust or a native mode
+            // that rewrites the model tools and system instruction.
+            return Ok(self.config.args.clone());
+        }
         if bypass && !unrestricted {
             return Err(AcpError::Initialize("launch arguments conflict with current full access authorization; remove explicit bypass arguments".into()));
         }
@@ -170,10 +178,6 @@ impl AcpClient {
             &shape[..]
         };
         let known = match self.agent_name.as_str() {
-            "gemini" => {
-                (matches!(command, "gemini" | "gemini-cli") && shape == ["--experimental-acp"])
-                    || (npx && shape == ["@google/gemini-cli@latest", "--experimental-acp"])
-            }
             "qwen" => {
                 (matches!(command, "qwen" | "qwen-code")
                     && (shape == ["--acp"] || shape == ["--acp", "--experimental-skills"]))
@@ -194,9 +198,6 @@ impl AcpClient {
                 ["--approval-mode", "yolo"]
             };
             args.extend(permission.map(String::from));
-            if self.agent_name == "gemini" {
-                args.push("--skip-trust".into());
-            }
         }
         Ok(args)
     }

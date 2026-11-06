@@ -40,6 +40,7 @@ impl AcpClient {
         });
         AcpEventClient {
             claude_permissions: self.agent_name == "claude",
+            gemini_permissions: self.agent_name == "gemini",
             expected_session_id,
             event_tx,
             filesystem: FileSystemHandlers::new(FileSystemHandlersOptions {
@@ -93,6 +94,16 @@ impl acp::Client for AcpEventClient {
             return Ok(cancelled_permission_response());
         }
         self.permission_stats.lock().requested += 1;
+        // Gemini maps plan/question tools to Other without a structured payload.
+        // Do not guess from user-controlled titles or answer these as tool approvals.
+        if self.gemini_permissions
+            && matches!(
+                args.tool_call.fields.kind,
+                None | Some(acp::ToolKind::Other | acp::ToolKind::SwitchMode)
+            )
+        {
+            return Err(acp::Error::invalid_params().data("Gemini workflow confirmation requires explicit user interaction; untyped tools cannot be automatically approved"));
+        }
         // ExitPlanMode is a workflow decision, not an ordinary tool approval.
         // This client has no structured plan-confirmation UI. Fail explicitly rather
         // than auto-selecting the offered bypassPermissions option.

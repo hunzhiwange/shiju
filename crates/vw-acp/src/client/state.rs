@@ -25,6 +25,7 @@ pub(super) struct ActivePromptControl {
 
 pub(super) struct AcpEventClient {
     pub(super) claude_permissions: bool,
+    pub(super) gemini_permissions: bool,
     pub(super) expected_session_id: Arc<Mutex<Option<String>>>,
     pub(super) event_tx: mpsc::UnboundedSender<InternalEvent>,
     pub(super) filesystem: FileSystemHandlers,

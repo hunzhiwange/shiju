@@ -1,6 +1,6 @@
 # ACP 完全访问支持矩阵
 
-审计日期：2026-11-06（Asia/Shanghai）；审计平台：macOS / Darwin arm64。状态：静态基线已完成；Codex 与 Claude 固定制品的 macOS arm64 原生权限与撤销已验收，具体入口与边界见 [Codex 证据](evidence/codex.md)、[Claude 证据](evidence/claude.md)。其他后端原生能力仍未知。
+审计日期：2026-11-06（Asia/Shanghai）；审计平台：macOS / Darwin arm64。状态：静态基线已完成；Codex 与 Claude 固定制品的 macOS arm64 原生权限与撤销已验收，具体入口与边界见 [Codex 证据](evidence/codex.md)、[Claude 证据](evidence/claude.md)。Gemini 已核验为客户端自动批准，原生自动提权因确认及工具/提示词副作用不接入，见 [Gemini 证据](evidence/gemini.md)。其他后端原生能力仍未知。
 
 范围为 `BUILT_IN_AGENT_DEFINITIONS` 的 22 个稳定 key；别名和 `claude-legacy` 不另计。注册表、启动快照、哈希及逐项官方版本来源见 [证据清单](evidence/README.md)。初始静态审计仅修改文档；后续后端适配与验证按各独立证据文件记账。
 
@@ -14,7 +14,7 @@
 
 - E3：指定平台、版本、启动路径与模型来源的真实协议和工具结果验收。Codex、Claude 的限定路径已有权限 E3，其他后端尚无。
 
-分类使用“原生免审批”“客户端自动批准”“部分支持”“不可用”。除 Codex、Claude 限定已核验路径外，其余项为**部分支持（E1 客户端机制；原生未知）**；这不是 22 项实机可用承诺。下表中的 `session_model 不可用` 只指该模型来源已有显式拒绝，不等于 CLI 本地模式不可用。原生未知不得展示为原生支持。
+分类使用“原生免审批”“客户端自动批准”“部分支持”“不可用”。Codex、Claude 限定路径已核验原生支持，Gemini 为已核验的客户端批准与原生接入拒绝；其余项为**部分支持（E1 客户端机制；原生未知）**；这不是 22 项实机可用承诺。下表中的 `session_model 不可用` 只指该模型来源已有显式拒绝，不等于 CLI 本地模式不可用。原生未知不得展示为原生支持。
 
 `cli_local` 沿注册表选择命令并使用 CLI 本地模型配置；`session_model` 经 `model_source::prepare` 和对应 `drivers::<key>::configure` 生成私有配置/模型中继。模型路由验收与权限验收分别记账。
 
@@ -35,7 +35,7 @@
 | [copilot](evidence/README.md#copilot) / E1 | 1.0.105 | 1.0.106 | 部分支持：客户端自动批准有源码、原生未知；session_model 有驱动和版本门控 | 固定真实 CLI，采集 initialize/权限选项并验证开启→关闭→恢复 |
 | [cursor](evidence/README.md#cursor) / E1 | 2026.10.22-27dcf5f | 2026.11.05-86047df | 部分支持：客户端自动批准有源码、原生未知；session_model 不可用：第三方 Provider 契约未核验 | 固定真实 CLI，采集 initialize/权限选项并验证开启→关闭→恢复 |
 | [droid](evidence/README.md#droid) / E1 | 1.3.0 | 1.5.0 | 部分支持：客户端自动批准有源码、原生未知；session_model 不可用：双向 ACP 与隔离根未核验 | 固定真实 CLI，采集 initialize/权限选项并验证开启→关闭→恢复 |
-| [gemini](evidence/README.md#gemini) / E1 | 0.66.0 | 0.67.0 | 部分支持：客户端自动批准有源码、原生未知；session_model 有驱动和版本门控 | 比较普通 yolo/skip-trust 与托管无该参数两条路径 |
+| [gemini](evidence/gemini.md) / E2、E3 | 0.66.0 | 0.67.0 | 部分支持：客户端自动批准；原生自动提权不接入，缺少标准回读且修改工具/系统指令。高权限恢复拒绝；session_model 有驱动和版本门控 | 补齐其他平台与企业/原生沙箱；新版本须重新验收 |
 | [iflow](evidence/README.md#iflow) / E1 | 0.5.19 | 0.5.19 | 部分支持：客户端自动批准有源码、原生未知；session_model 有驱动和版本门控 | 固定真实 CLI，采集 initialize/权限选项并验证开启→关闭→恢复 |
 | [kilocode](evidence/README.md#kilocode) / E1 | 7.8.18 | 7.8.27 | 部分支持：客户端自动批准有源码、原生未知；session_model 有驱动和版本门控 | 固定真实 CLI，采集 initialize/权限选项并验证开启→关闭→恢复 |
 | [kimi](evidence/README.md#kimi) / E1 | 2.5.0 | 2.5.1 | 部分支持：客户端自动批准有源码、原生未知；session_model 有驱动和版本门控 | 固定真实 CLI，采集 initialize/权限选项并验证开启→关闭→恢复 |
@@ -66,7 +66,7 @@ U = 未获取该后端真实权限协议/结果；C = 仅共享客户端源码�
 | copilot | U | U/U/U | U | U | C | C | C | U |
 | cursor | U | U/U/U | U | U | C | C | C | U |
 | droid | U | U/U/U | U | U | C | C | C | U |
-| gemini | U | U/U/U | U | U | C | C | C | U |
+| gemini | E3 | E3/E3/-32601；同 ID load 回退 | -32601 | E3：legacy default/yolo；无标准回读 | E3：原始工具 1→0→1；生产保持客户端审批 | C；本例原生 write_file | C；本例原生 shell | E2 刷新管理器；OS 隔离未验收 |
 | iflow | U | U/U/U | U | U | C | C | C | U |
 | kilocode | U | U/U/U | U | U | C | C | C | U |
 | kimi | U | U/U/U | U | U | C | C | C | U |
@@ -91,7 +91,7 @@ U = 未获取该后端真实权限协议/结果；C = 仅共享客户端源码�
 
 1. `built_in_agent_command` 优先返回通过校验的托管命令；缺失或校验错误会因 `if let Ok(Some(..))` 继续本地/默认回退。用户覆盖还可改变命令。不能把契约存在当作实际使用托管制品的证明。
 
-2. 普通 Gemini 带 `--approval-mode yolo --skip-trust`，Qwen 带 `--approval-mode yolo`，Qoder 带 `--permission-mode bypass_permissions`；托管 Gemini/Qwen 初始 argv 不带这些宽松参数。全部都是启动源码事实，当前无法证明参数与会话完全访问开关联动。
+2. 初始基线的普通 Gemini 曾带 `--approval-mode yolo --skip-trust`；任务 4 改为按授权材料化，任务 7 的固定版本验收后停止自动注入并显式拒绝该参数组合。当前 Qwen 带 `--approval-mode yolo`，Qoder 带 `--permission-mode bypass_permissions`；托管 Gemini/Qwen 初始 argv 不带这些宽松参数。全部都是启动源码事实，当前无法证明参数与会话完全访问开关联动。
 
 3. `AcpClient::with_full_access` 设置独立布尔值；`build_event_client` 将它传给文件处理器，终端处理器及标准审批使用 `permission_mode` 等字段。`resolve_permission_request_with_prompt` 的 ApproveAll 选择允许选项，缺少允许选项时退到第一个选项；取消中的会话直接取消。后续需验证没有允许项和拒绝项优先级，不能据此声称所有请求均批准。
 

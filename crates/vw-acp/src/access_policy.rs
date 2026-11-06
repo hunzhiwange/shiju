@@ -6,6 +6,7 @@ use crate::PermissionMode;
 
 pub(crate) mod claude;
 pub(crate) mod codex;
+pub(crate) mod gemini;
 
 /// 原生权限与客户端回调是不同的执行边界。
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]

@@ -420,18 +420,8 @@ async fn acp_full_access_launch_custom_bypass_requires_current_unrestricted_gran
 #[test]
 fn acp_full_access_launch_official_and_managed_shapes_follow_current_grant() {
     for (agent, command, base, expected) in [
-        (
-            "gemini",
-            "gemini",
-            vec!["--experimental-acp"],
-            vec!["--approval-mode", "yolo", "--skip-trust"],
-        ),
-        (
-            "gemini",
-            "npx",
-            vec!["@google/gemini-cli@latest", "--experimental-acp"],
-            vec!["--approval-mode", "yolo", "--skip-trust"],
-        ),
+        ("gemini", "gemini", vec!["--experimental-acp"], vec![]),
+        ("gemini", "npx", vec!["@google/gemini-cli@latest", "--experimental-acp"], vec![]),
         ("qwen", "qwen", vec!["--acp"], vec!["--approval-mode", "yolo"]),
         ("qwen", "qwen", vec!["--acp", "--experimental-skills"], vec!["--approval-mode", "yolo"]),
         ("qoder", "qodercli", vec!["--acp"], vec!["--permission-mode", "bypass_permissions"]),
@@ -493,14 +483,7 @@ async fn acp_full_access_launch_current_grant_is_materialized_at_process_boundar
         let ProcessHandles { child, stderr_task } = client.spawn_child().unwrap();
         let result = client.finalize_child(child, stderr_task).await;
         assert_eq!(result.summary.exit_code, Some(0));
-        assert_eq!(
-            result.stderr_output,
-            if full {
-                "--experimental-acp\n--approval-mode\nyolo\n--skip-trust\n"
-            } else {
-                "--experimental-acp\n"
-            }
-        );
+        assert_eq!(result.stderr_output, "--experimental-acp\n");
     }
 }
 
@@ -536,7 +519,7 @@ fn acp_full_access_launch_managed_routing_suffix_is_preserved_with_current_grant
             let client = AcpClient::new(agent, config.clone()).with_full_access(full);
             let actual = client.launch_args().unwrap();
             assert_eq!(&actual[..args.len()], &args);
-            assert_eq!(actual.iter().any(|arg| arg == "yolo"), full);
+            assert_eq!(actual.iter().any(|arg| arg == "yolo"), full && agent != "gemini");
             assert_eq!(client.config.env, config.env);
         }
     }

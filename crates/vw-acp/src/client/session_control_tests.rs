@@ -31,6 +31,7 @@ struct TestAgentState {
     fail_resume: bool,
     codex_controls: bool,
     claude_controls: bool,
+    gemini_controls: bool,
     fail_set_config: bool,
     fail_set_model: bool,
     wrong_config: bool,
@@ -92,6 +93,8 @@ impl acp::Agent for TestAgent {
             response.config_options(codex_tests::options("agent"))
         } else if self.state.lock().claude_controls {
             response.config_options(claude_tests::options("default"))
+        } else if self.state.lock().gemini_controls {
+            response.modes(gemini_tests::modes("default"))
         } else {
             response
         })
@@ -110,6 +113,8 @@ impl acp::Agent for TestAgent {
             response.config_options(codex_tests::options("agent"))
         } else if self.state.lock().claude_controls {
             response.config_options(claude_tests::options("default"))
+        } else if self.state.lock().gemini_controls {
+            response.modes(gemini_tests::modes("default"))
         } else {
             response
         })
@@ -533,3 +538,6 @@ mod codex_tests;
 
 #[path = "../access_policy/claude_tests.rs"]
 mod claude_tests;
+
+#[path = "../access_policy/gemini_tests.rs"]
+mod gemini_tests;

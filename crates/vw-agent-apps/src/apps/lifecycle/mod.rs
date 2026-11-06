@@ -30,3 +30,7 @@ mod coordinator_tests;
 pub mod process;
 #[cfg(test)]
 mod process_tests;
+
+pub mod wsl;
+#[cfg(test)]
+mod wsl_tests;

@@ -40,27 +40,7 @@ where
                 }
                 _ => {}
             }
-            let recipe = match app {
-                AppId::Claude | AppId::OpenCode => {
-                    super::native_primary::install_command(app, environment)
-                }
-                AppId::GrokBuild | AppId::Mcode => {
-                    super::native_grok_mcode::install_command(app, environment)
-                }
-                AppId::Hermes | AppId::Agy => {
-                    super::native_hermes_agy::install_command(app, environment)
-                }
-                AppId::Kimi | AppId::Omp => {
-                    super::native_kimi_omp::install_command(app, environment)
-                }
-                _ => super::npm::install_args(app).map(|args| {
-                    super::native_primary::InstallCommand {
-                        program: "npm",
-                        args: args.iter().map(|a| (*a).into()).collect(),
-                    }
-                }),
-            }
-            .map_err(str::to_owned)?;
+            let recipe = install_recipe(app, environment)?;
             check_node(gate()?)?;
             let command = command(recipe.program, &recipe.args, &[], None)?;
             finish(command, app, probe)
@@ -245,4 +225,23 @@ pub(crate) fn run_command(mut command: Command) -> Result<(Option<i32>, String),
         }
         Ok((status.code(), format!("stdout: {out} bytes; stderr: {err} bytes (redacted, capped)")))
     })
+}
+
+pub(super) fn install_recipe(
+    app: AppId,
+    environment: InstallEnvironment,
+) -> Result<super::native_primary::InstallCommand, String> {
+    match app {
+        AppId::Claude | AppId::OpenCode => super::native_primary::install_command(app, environment),
+        AppId::GrokBuild | AppId::Mcode => {
+            super::native_grok_mcode::install_command(app, environment)
+        }
+        AppId::Hermes | AppId::Agy => super::native_hermes_agy::install_command(app, environment),
+        AppId::Kimi | AppId::Omp => super::native_kimi_omp::install_command(app, environment),
+        _ => super::npm::install_args(app).map(|args| super::native_primary::InstallCommand {
+            program: "npm",
+            args: args.iter().map(|a| (*a).into()).collect(),
+        }),
+    }
+    .map_err(str::to_owned)
 }

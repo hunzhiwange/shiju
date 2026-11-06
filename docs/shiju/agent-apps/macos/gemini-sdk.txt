@@ -1,0 +1,27 @@
+INSTALLED exit=101
+
+thread 'main' (35483803) panicked at /rustc/58cf8f9c35b355199727627d07ae34a4e2846d67/library/core/src/ops/function.rs:250:5:
+there is no reactor running, must be called from the context of a Tokio 1.x runtime
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+REMAINING exit=101
+
+thread 'main' (35486687) panicked at /rustc/58cf8f9c35b355199727627d07ae34a4e2846d67/library/core/src/ops/function.rs:250:5:
+there is no reactor running, must be called from the context of a Tokio 1.x runtime
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+CLEANED exit=101
+
+thread 'main' (35486971) panicked at /rustc/58cf8f9c35b355199727627d07ae34a4e2846d67/library/core/src/ops/function.rs:250:5:
+there is no reactor running, must be called from the context of a Tokio 1.x runtime
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+RETRY EMPTY exit=0
+CAT Err(Transport("error sending request for url (http://127.0.0.1:19459/v1/agent-apps/catalog?targetHostId=host)"))
+INSTALLATIONS Err(Transport("error sending request for url (http://127.0.0.1:19459/v1/agent-apps/installations?targetHostId=host&appId=gemini)"))
+RETRY EMPTY exit=0
+CAT Ok(Some(AppCatalogEntry { id: Gemini, name: "Gemini", cli_command: Some("gemini"), runtime_kinds: [NativeCli] }))
+INSTALLATIONS Ok(AppReadResponse { installations: [], desktop: None })
+RETRY INSTALLED exit=0
+CAT Ok(Some(AppCatalogEntry { id: Gemini, name: "Gemini", cli_command: Some("gemini"), runtime_kinds: [NativeCli] }))
+INSTALLATIONS Ok(AppReadResponse { installations: [AppInstallation { id: AppInstallationId("NDpob3N0OjY6Z2VtaW5pOjk2Oi9wcml2YXRlL3Zhci9mb2xkZXJzL3JnL3pyMTlsYl9zNXczMnE2ZDJxa2Q2cDBuODAwMDBncC9UL3NoaWp1LXRhc2s0OS1fdGlsNF8xNC9wcmVmaXgvYmluL2dlbWluaQ"), app_id: Gemini, target_host_id: "host", environment: Macos, path: "<isolated-root>/prefix/bin/gemini", real_path: Some("<isolated-root>/prefix/lib/node_modules/@google/gemini-cli/bundle/gemini.js"), source: Unknown, is_path_default: true, version: Some("0.67.0"), runtime_status: Runnable }], desktop: None })
+RETRY CLEANED exit=0
+CAT Ok(Some(AppCatalogEntry { id: Gemini, name: "Gemini", cli_command: Some("gemini"), runtime_kinds: [NativeCli] }))
+INSTALLATIONS Ok(AppReadResponse { installations: [], desktop: None })

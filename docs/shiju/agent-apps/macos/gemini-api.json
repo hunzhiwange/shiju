@@ -1,0 +1,1342 @@
+[
+  {
+    "method": "GET",
+    "path": "catalog",
+    "body": null,
+    "status": 200,
+    "response": {
+      "apps": [
+        {
+          "id": "gemini",
+          "name": "Gemini",
+          "cliCommand": "gemini",
+          "runtimeKinds": [
+            "native_cli"
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "method": "GET",
+    "path": "installations?appId=gemini",
+    "body": null,
+    "status": 200,
+    "response": {
+      "installations": []
+    }
+  },
+  {
+    "method": "GET",
+    "path": "launch-identities?appId=gemini",
+    "body": null,
+    "status": 200,
+    "response": []
+  },
+  {
+    "method": "GET",
+    "path": "installations?appId=gemini",
+    "body": null,
+    "status": 200,
+    "response": {
+      "installations": [
+        {
+          "id": "NDpob3N0OjY6Z2VtaW5pOjk2Oi9wcml2YXRlL3Zhci9mb2xkZXJzL3JnL3pyMTlsYl9zNXczMnE2ZDJxa2Q2cDBuODAwMDBncC9UL3NoaWp1LXRhc2s0OS1zd2NyZHJ1cy9wcmVmaXgvYmluL2dlbWluaQ",
+          "appId": "gemini",
+          "targetHostId": "host",
+          "environment": {
+            "kind": "macos"
+          },
+          "path": "<isolated-root>/prefix/bin/gemini",
+          "realPath": "<isolated-root>/prefix/lib/node_modules/@google/gemini-cli/bundle/gemini.js",
+          "source": "unknown",
+          "isPathDefault": true,
+          "version": "0.66.0",
+          "runtimeStatus": {
+            "status": "runnable"
+          }
+        }
+      ]
+    }
+  },
+  {
+    "method": "GET",
+    "path": "installations?appId=gemini",
+    "body": null,
+    "status": 200,
+    "response": {
+      "installations": [
+        {
+          "id": "NDpob3N0OjY6Z2VtaW5pOjk2Oi9wcml2YXRlL3Zhci9mb2xkZXJzL3JnL3pyMTlsYl9zNXczMnE2ZDJxa2Q2cDBuODAwMDBncC9UL3NoaWp1LXRhc2s0OS1zd2NyZHJ1cy9wcmVmaXgvYmluL2dlbWluaQ",
+          "appId": "gemini",
+          "targetHostId": "host",
+          "environment": {
+            "kind": "macos"
+          },
+          "path": "<isolated-root>/prefix/bin/gemini",
+          "realPath": "<isolated-root>/prefix/lib/node_modules/@google/gemini-cli/bundle/gemini.js",
+          "source": "unknown",
+          "isPathDefault": true,
+          "version": "0.66.0",
+          "runtimeStatus": {
+            "status": "runnable"
+          }
+        }
+      ]
+    }
+  },
+  {
+    "method": "POST",
+    "path": "actions/preview",
+    "body": {
+      "appId": "gemini",
+      "action": "update",
+      "target": {
+        "kind": "installation",
+        "installationId": "NDpob3N0OjY6Z2VtaW5pOjk2Oi9wcml2YXRlL3Zhci9mb2xkZXJzL3JnL3pyMTlsYl9zNXczMnE2ZDJxa2Q2cDBuODAwMDBncC9UL3NoaWp1LXRhc2s0OS1zd2NyZHJ1cy9wcmVmaXgvYmluL2dlbWluaQ"
+      }
+    },
+    "status": 200,
+    "response": {
+      "previewId": "e6dfdad9-481a-4504-8e6e-75a8bf75bbcc",
+      "request": {
+        "appId": "gemini",
+        "action": "update",
+        "target": {
+          "kind": "installation",
+          "installationId": "NDpob3N0OjY6Z2VtaW5pOjk2Oi9wcml2YXRlL3Zhci9mb2xkZXJzL3JnL3pyMTlsYl9zNXczMnE2ZDJxa2Q2cDBuODAwMDBncC9UL3NoaWp1LXRhc2s0OS1zd2NyZHJ1cy9wcmVmaXgvYmluL2dlbWluaQ"
+        }
+      },
+      "source": "system",
+      "confirmationRequired": true,
+      "summary": "Review the selected application action in the administrator-approved prefix",
+      "displayCommand": null
+    }
+  },
+  {
+    "method": "POST",
+    "path": "actions",
+    "body": {
+      "previewId": "e6dfdad9-481a-4504-8e6e-75a8bf75bbcc",
+      "confirmed": true
+    },
+    "status": 202,
+    "response": {
+      "operationId": "5382e50b-22f0-4135-9427-5f15a174b1af",
+      "status": "queued"
+    }
+  },
+  {
+    "method": "GET",
+    "path": "operations/5382e50b-22f0-4135-9427-5f15a174b1af",
+    "body": null,
+    "status": 200,
+    "response": {
+      "operationId": "5382e50b-22f0-4135-9427-5f15a174b1af",
+      "status": "running",
+      "phase": "preflight"
+    }
+  },
+  {
+    "method": "GET",
+    "path": "operations/5382e50b-22f0-4135-9427-5f15a174b1af",
+    "body": null,
+    "status": 200,
+    "response": {
+      "operationId": "5382e50b-22f0-4135-9427-5f15a174b1af",
+      "status": "running",
+      "phase": "preflight"
+    }
+  },
+  {
+    "method": "GET",
+    "path": "operations/5382e50b-22f0-4135-9427-5f15a174b1af",
+    "body": null,
+    "status": 200,
+    "response": {
+      "operationId": "5382e50b-22f0-4135-9427-5f15a174b1af",
+      "status": "running",
+      "phase": "executing"
+    }
+  },
+  {
+    "method": "GET",
+    "path": "operations/5382e50b-22f0-4135-9427-5f15a174b1af",
+    "body": null,
+    "status": 200,
+    "response": {
+      "operationId": "5382e50b-22f0-4135-9427-5f15a174b1af",
+      "status": "running",
+      "phase": "executing"
+    }
+  },
+  {
+    "method": "GET",
+    "path": "operations/5382e50b-22f0-4135-9427-5f15a174b1af",
+    "body": null,
+    "status": 200,
+    "response": {
+      "operationId": "5382e50b-22f0-4135-9427-5f15a174b1af",
+      "status": "running",
+      "phase": "executing"
+    }
+  },
+  {
+    "method": "GET",
+    "path": "operations/5382e50b-22f0-4135-9427-5f15a174b1af",
+    "body": null,
+    "status": 200,
+    "response": {
+      "operationId": "5382e50b-22f0-4135-9427-5f15a174b1af",
+      "status": "running",
+      "phase": "executing"
+    }
+  },
+  {
+    "method": "GET",
+    "path": "operations/5382e50b-22f0-4135-9427-5f15a174b1af",
+    "body": null,
+    "status": 200,
+    "response": {
+      "operationId": "5382e50b-22f0-4135-9427-5f15a174b1af",
+      "status": "running",
+      "phase": "executing"
+    }
+  },
+  {
+    "method": "GET",
+    "path": "operations/5382e50b-22f0-4135-9427-5f15a174b1af",
+    "body": null,
+    "status": 200,
+    "response": {
+      "operationId": "5382e50b-22f0-4135-9427-5f15a174b1af",
+      "status": "running",
+      "phase": "executing"
+    }
+  },
+  {
+    "method": "GET",
+    "path": "operations/5382e50b-22f0-4135-9427-5f15a174b1af",
+    "body": null,
+    "status": 200,
+    "response": {
+      "operationId": "5382e50b-22f0-4135-9427-5f15a174b1af",
+      "status": "running",
+      "phase": "executing"
+    }
+  },
+  {
+    "method": "GET",
+    "path": "operations/5382e50b-22f0-4135-9427-5f15a174b1af",
+    "body": null,
+    "status": 200,
+    "response": {
+      "operationId": "5382e50b-22f0-4135-9427-5f15a174b1af",
+      "status": "running",
+      "phase": "executing"
+    }
+  },
+  {
+    "method": "GET",
+    "path": "operations/5382e50b-22f0-4135-9427-5f15a174b1af",
+    "body": null,
+    "status": 200,
+    "response": {
+      "operationId": "5382e50b-22f0-4135-9427-5f15a174b1af",
+      "status": "running",
+      "phase": "executing"
+    }
+  },
+  {
+    "method": "GET",
+    "path": "operations/5382e50b-22f0-4135-9427-5f15a174b1af",
+    "body": null,
+    "status": 200,
+    "response": {
+      "operationId": "5382e50b-22f0-4135-9427-5f15a174b1af",
+      "status": "running",
+      "phase": "executing"
+    }
+  },
+  {
+    "method": "GET",
+    "path": "operations/5382e50b-22f0-4135-9427-5f15a174b1af",
+    "body": null,
+    "status": 200,
+    "response": {
+      "operationId": "5382e50b-22f0-4135-9427-5f15a174b1af",
+      "status": "running",
+      "phase": "executing"
+    }
+  },
+  {
+    "method": "GET",
+    "path": "operations/5382e50b-22f0-4135-9427-5f15a174b1af",
+    "body": null,
+    "status": 200,
+    "response": {
+      "operationId": "5382e50b-22f0-4135-9427-5f15a174b1af",
+      "status": "running",
+      "phase": "executing"
+    }
+  },
+  {
+    "method": "GET",
+    "path": "operations/5382e50b-22f0-4135-9427-5f15a174b1af",
+    "body": null,
+    "status": 200,
+    "response": {
+      "operationId": "5382e50b-22f0-4135-9427-5f15a174b1af",
+      "status": "running",
+      "phase": "executing"
+    }
+  },
+  {
+    "method": "GET",
+    "path": "operations/5382e50b-22f0-4135-9427-5f15a174b1af",
+    "body": null,
+    "status": 200,
+    "response": {
+      "operationId": "5382e50b-22f0-4135-9427-5f15a174b1af",
+      "status": "running",
+      "phase": "executing"
+    }
+  },
+  {
+    "method": "GET",
+    "path": "operations/5382e50b-22f0-4135-9427-5f15a174b1af",
+    "body": null,
+    "status": 200,
+    "response": {
+      "operationId": "5382e50b-22f0-4135-9427-5f15a174b1af",
+      "status": "running",
+      "phase": "executing"
+    }
+  },
+  {
+    "method": "GET",
+    "path": "operations/5382e50b-22f0-4135-9427-5f15a174b1af",
+    "body": null,
+    "status": 200,
+    "response": {
+      "operationId": "5382e50b-22f0-4135-9427-5f15a174b1af",
+      "status": "running",
+      "phase": "executing"
+    }
+  },
+  {
+    "method": "GET",
+    "path": "operations/5382e50b-22f0-4135-9427-5f15a174b1af",
+    "body": null,
+    "status": 200,
+    "response": {
+      "operationId": "5382e50b-22f0-4135-9427-5f15a174b1af",
+      "status": "running",
+      "phase": "executing"
+    }
+  },
+  {
+    "method": "GET",
+    "path": "operations/5382e50b-22f0-4135-9427-5f15a174b1af",
+    "body": null,
+    "status": 200,
+    "response": {
+      "operationId": "5382e50b-22f0-4135-9427-5f15a174b1af",
+      "status": "running",
+      "phase": "executing"
+    }
+  },
+  {
+    "method": "GET",
+    "path": "operations/5382e50b-22f0-4135-9427-5f15a174b1af",
+    "body": null,
+    "status": 200,
+    "response": {
+      "operationId": "5382e50b-22f0-4135-9427-5f15a174b1af",
+      "status": "running",
+      "phase": "executing"
+    }
+  },
+  {
+    "method": "GET",
+    "path": "operations/5382e50b-22f0-4135-9427-5f15a174b1af",
+    "body": null,
+    "status": 200,
+    "response": {
+      "operationId": "5382e50b-22f0-4135-9427-5f15a174b1af",
+      "status": "running",
+      "phase": "executing"
+    }
+  },
+  {
+    "method": "GET",
+    "path": "operations/5382e50b-22f0-4135-9427-5f15a174b1af",
+    "body": null,
+    "status": 200,
+    "response": {
+      "operationId": "5382e50b-22f0-4135-9427-5f15a174b1af",
+      "status": "running",
+      "phase": "executing"
+    }
+  },
+  {
+    "method": "GET",
+    "path": "operations/5382e50b-22f0-4135-9427-5f15a174b1af",
+    "body": null,
+    "status": 200,
+    "response": {
+      "operationId": "5382e50b-22f0-4135-9427-5f15a174b1af",
+      "status": "running",
+      "phase": "executing"
+    }
+  },
+  {
+    "method": "GET",
+    "path": "operations/5382e50b-22f0-4135-9427-5f15a174b1af",
+    "body": null,
+    "status": 200,
+    "response": {
+      "operationId": "5382e50b-22f0-4135-9427-5f15a174b1af",
+      "status": "running",
+      "phase": "executing"
+    }
+  },
+  {
+    "method": "GET",
+    "path": "operations/5382e50b-22f0-4135-9427-5f15a174b1af",
+    "body": null,
+    "status": 200,
+    "response": {
+      "operationId": "5382e50b-22f0-4135-9427-5f15a174b1af",
+      "status": "running",
+      "phase": "executing"
+    }
+  },
+  {
+    "method": "GET",
+    "path": "operations/5382e50b-22f0-4135-9427-5f15a174b1af",
+    "body": null,
+    "status": 200,
+    "response": {
+      "operationId": "5382e50b-22f0-4135-9427-5f15a174b1af",
+      "status": "running",
+      "phase": "postflight"
+    }
+  },
+  {
+    "method": "GET",
+    "path": "operations/5382e50b-22f0-4135-9427-5f15a174b1af",
+    "body": null,
+    "status": 200,
+    "response": {
+      "operationId": "5382e50b-22f0-4135-9427-5f15a174b1af",
+      "status": "completed",
+      "phase": "terminal"
+    }
+  },
+  {
+    "method": "GET",
+    "path": "operations/5382e50b-22f0-4135-9427-5f15a174b1af/events",
+    "body": null,
+    "status": 200,
+    "response": {
+      "operationId": "5382e50b-22f0-4135-9427-5f15a174b1af",
+      "status": "completed",
+      "phase": "terminal"
+    }
+  },
+  {
+    "method": "GET",
+    "path": "installations?appId=gemini",
+    "body": null,
+    "status": 200,
+    "response": {
+      "installations": [
+        {
+          "id": "NDpob3N0OjY6Z2VtaW5pOjk2Oi9wcml2YXRlL3Zhci9mb2xkZXJzL3JnL3pyMTlsYl9zNXczMnE2ZDJxa2Q2cDBuODAwMDBncC9UL3NoaWp1LXRhc2s0OS1zd2NyZHJ1cy9wcmVmaXgvYmluL2dlbWluaQ",
+          "appId": "gemini",
+          "targetHostId": "host",
+          "environment": {
+            "kind": "macos"
+          },
+          "path": "<isolated-root>/prefix/bin/gemini",
+          "realPath": "<isolated-root>/prefix/lib/node_modules/@google/gemini-cli/bundle/gemini.js",
+          "source": "unknown",
+          "isPathDefault": true,
+          "version": "0.67.0",
+          "runtimeStatus": {
+            "status": "runnable"
+          }
+        }
+      ]
+    }
+  },
+  {
+    "method": "POST",
+    "path": "actions/preview",
+    "body": {
+      "appId": "gemini",
+      "action": "uninstall",
+      "target": {
+        "kind": "installation",
+        "installationId": "NDpob3N0OjY6Z2VtaW5pOjk2Oi9wcml2YXRlL3Zhci9mb2xkZXJzL3JnL3pyMTlsYl9zNXczMnE2ZDJxa2Q2cDBuODAwMDBncC9UL3NoaWp1LXRhc2s0OS1zd2NyZHJ1cy9wcmVmaXgvYmluL2dlbWluaQ"
+      }
+    },
+    "status": 200,
+    "response": {
+      "previewId": "7bf579a1-fa6d-48b5-8df7-5d2728b8a5d8",
+      "request": {
+        "appId": "gemini",
+        "action": "uninstall",
+        "target": {
+          "kind": "installation",
+          "installationId": "NDpob3N0OjY6Z2VtaW5pOjk2Oi9wcml2YXRlL3Zhci9mb2xkZXJzL3JnL3pyMTlsYl9zNXczMnE2ZDJxa2Q2cDBuODAwMDBncC9UL3NoaWp1LXRhc2s0OS1zd2NyZHJ1cy9wcmVmaXgvYmluL2dlbWluaQ"
+        }
+      },
+      "source": "system",
+      "confirmationRequired": true,
+      "summary": "Review the selected application action in the administrator-approved prefix",
+      "displayCommand": null
+    }
+  },
+  {
+    "method": "POST",
+    "path": "actions",
+    "body": {
+      "previewId": "7bf579a1-fa6d-48b5-8df7-5d2728b8a5d8",
+      "confirmed": true
+    },
+    "status": 202,
+    "response": {
+      "operationId": "4acb70e1-9aa0-409a-bafc-2cab1259c13a",
+      "status": "queued"
+    }
+  },
+  {
+    "method": "GET",
+    "path": "operations/4acb70e1-9aa0-409a-bafc-2cab1259c13a",
+    "body": null,
+    "status": 200,
+    "response": {
+      "operationId": "4acb70e1-9aa0-409a-bafc-2cab1259c13a",
+      "status": "running",
+      "phase": "executing"
+    }
+  },
+  {
+    "method": "GET",
+    "path": "operations/4acb70e1-9aa0-409a-bafc-2cab1259c13a",
+    "body": null,
+    "status": 200,
+    "response": {
+      "operationId": "4acb70e1-9aa0-409a-bafc-2cab1259c13a",
+      "status": "completed",
+      "phase": "terminal"
+    }
+  },
+  {
+    "method": "GET",
+    "path": "operations/4acb70e1-9aa0-409a-bafc-2cab1259c13a/events",
+    "body": null,
+    "status": 200,
+    "response": {
+      "operationId": "4acb70e1-9aa0-409a-bafc-2cab1259c13a",
+      "status": "completed",
+      "phase": "terminal"
+    }
+  },
+  {
+    "method": "POST",
+    "path": "actions/preview",
+    "body": {
+      "appId": "gemini",
+      "action": "install",
+      "target": {
+        "kind": "environment",
+        "environment": {
+          "kind": "macos"
+        }
+      }
+    },
+    "status": 200,
+    "response": {
+      "previewId": "34f4c414-9b68-40ba-a291-6859d0ad25f0",
+      "request": {
+        "appId": "gemini",
+        "action": "install",
+        "target": {
+          "kind": "environment",
+          "environment": {
+            "kind": "macos"
+          }
+        }
+      },
+      "source": "system",
+      "confirmationRequired": true,
+      "summary": "Review the selected application action in the administrator-approved prefix",
+      "displayCommand": null
+    }
+  },
+  {
+    "method": "POST",
+    "path": "actions",
+    "body": {
+      "previewId": "34f4c414-9b68-40ba-a291-6859d0ad25f0",
+      "confirmed": true
+    },
+    "status": 202,
+    "response": {
+      "operationId": "95004311-ec67-4f82-8643-a3b00e74f359",
+      "status": "queued"
+    }
+  },
+  {
+    "method": "GET",
+    "path": "operations/95004311-ec67-4f82-8643-a3b00e74f359",
+    "body": null,
+    "status": 200,
+    "response": {
+      "operationId": "95004311-ec67-4f82-8643-a3b00e74f359",
+      "status": "running",
+      "phase": "executing"
+    }
+  },
+  {
+    "method": "GET",
+    "path": "operations/95004311-ec67-4f82-8643-a3b00e74f359",
+    "body": null,
+    "status": 200,
+    "response": {
+      "operationId": "95004311-ec67-4f82-8643-a3b00e74f359",
+      "status": "running",
+      "phase": "executing"
+    }
+  },
+  {
+    "method": "GET",
+    "path": "operations/95004311-ec67-4f82-8643-a3b00e74f359",
+    "body": null,
+    "status": 200,
+    "response": {
+      "operationId": "95004311-ec67-4f82-8643-a3b00e74f359",
+      "status": "running",
+      "phase": "postflight"
+    }
+  },
+  {
+    "method": "GET",
+    "path": "operations/95004311-ec67-4f82-8643-a3b00e74f359",
+    "body": null,
+    "status": 200,
+    "response": {
+      "operationId": "95004311-ec67-4f82-8643-a3b00e74f359",
+      "status": "completed",
+      "phase": "terminal"
+    }
+  },
+  {
+    "method": "GET",
+    "path": "operations/95004311-ec67-4f82-8643-a3b00e74f359/events",
+    "body": null,
+    "status": 200,
+    "response": {
+      "operationId": "95004311-ec67-4f82-8643-a3b00e74f359",
+      "status": "completed",
+      "phase": "terminal"
+    }
+  },
+  {
+    "method": "GET",
+    "path": "installations?appId=gemini",
+    "body": null,
+    "status": 200,
+    "response": {
+      "installations": [
+        {
+          "id": "NDpob3N0OjY6Z2VtaW5pOjk2Oi9wcml2YXRlL3Zhci9mb2xkZXJzL3JnL3pyMTlsYl9zNXczMnE2ZDJxa2Q2cDBuODAwMDBncC9UL3NoaWp1LXRhc2s0OS1zd2NyZHJ1cy9wcmVmaXgvYmluL2dlbWluaQ",
+          "appId": "gemini",
+          "targetHostId": "host",
+          "environment": {
+            "kind": "macos"
+          },
+          "path": "<isolated-root>/prefix/bin/gemini",
+          "realPath": "<isolated-root>/prefix/lib/node_modules/@google/gemini-cli/bundle/gemini.js",
+          "source": "unknown",
+          "isPathDefault": true,
+          "version": "0.67.0",
+          "runtimeStatus": {
+            "status": "runnable"
+          }
+        }
+      ]
+    }
+  },
+  {
+    "method": "GET",
+    "path": "installations?appId=gemini",
+    "body": null,
+    "status": 200,
+    "response": {
+      "installations": [
+        {
+          "id": "NDpob3N0OjY6Z2VtaW5pOjk2Oi9wcml2YXRlL3Zhci9mb2xkZXJzL3JnL3pyMTlsYl9zNXczMnE2ZDJxa2Q2cDBuODAwMDBncC9UL3NoaWp1LXRhc2s0OS1zd2NyZHJ1cy9wcmVmaXgvYmluL2dlbWluaQ",
+          "appId": "gemini",
+          "targetHostId": "host",
+          "environment": {
+            "kind": "macos"
+          },
+          "path": "<isolated-root>/prefix/bin/gemini",
+          "realPath": "<isolated-root>/prefix/lib/node_modules/@google/gemini-cli/bundle/gemini.js",
+          "source": "unknown",
+          "isPathDefault": true,
+          "version": "0.67.0",
+          "runtimeStatus": {
+            "status": "runnable"
+          }
+        },
+        {
+          "id": "NDpob3N0OjY6Z2VtaW5pOjEwMTovcHJpdmF0ZS92YXIvZm9sZGVycy9yZy96cjE5bGJfczV3MzJxNmQycWtkNnAwbjgwMDAwZ3AvVC9zaGlqdS10YXNrNDktc3djcmRydXMvaG9tZS8ubG9jYWwvYmluL2dlbWluaQ",
+          "appId": "gemini",
+          "targetHostId": "host",
+          "environment": {
+            "kind": "macos"
+          },
+          "path": "<isolated-root>/home/.local/bin/gemini",
+          "realPath": "<isolated-root>/home/.local/lib/node_modules/@google/gemini-cli/bundle/gemini.js",
+          "source": "unknown",
+          "isPathDefault": false,
+          "version": "0.66.0",
+          "runtimeStatus": {
+            "status": "runnable"
+          }
+        }
+      ]
+    }
+  },
+  {
+    "method": "POST",
+    "path": "actions/preview",
+    "body": {
+      "appId": "gemini",
+      "action": "uninstall",
+      "target": {
+        "kind": "installation",
+        "installationId": "NDpob3N0OjY6Z2VtaW5pOjk2Oi9wcml2YXRlL3Zhci9mb2xkZXJzL3JnL3pyMTlsYl9zNXczMnE2ZDJxa2Q2cDBuODAwMDBncC9UL3NoaWp1LXRhc2s0OS1zd2NyZHJ1cy9wcmVmaXgvYmluL2dlbWluaQ"
+      }
+    },
+    "status": 422,
+    "response": ""
+  },
+  {
+    "method": "POST",
+    "path": "actions/preview",
+    "body": {
+      "appId": "gemini",
+      "action": "uninstall",
+      "target": {
+        "kind": "installation",
+        "installationId": "NDpob3N0OjY6Z2VtaW5pOjk2Oi9wcml2YXRlL3Zhci9mb2xkZXJzL3JnL3pyMTlsYl9zNXczMnE2ZDJxa2Q2cDBuODAwMDBncC9UL3NoaWp1LXRhc2s0OS1zd2NyZHJ1cy9wcmVmaXgvYmluL2dlbWluaQ"
+      }
+    },
+    "status": 200,
+    "response": {
+      "previewId": "efa08f33-3d36-41b6-919a-5b421d7a2fca",
+      "request": {
+        "appId": "gemini",
+        "action": "uninstall",
+        "target": {
+          "kind": "installation",
+          "installationId": "NDpob3N0OjY6Z2VtaW5pOjk2Oi9wcml2YXRlL3Zhci9mb2xkZXJzL3JnL3pyMTlsYl9zNXczMnE2ZDJxa2Q2cDBuODAwMDBncC9UL3NoaWp1LXRhc2s0OS1zd2NyZHJ1cy9wcmVmaXgvYmluL2dlbWluaQ"
+        }
+      },
+      "source": "system",
+      "confirmationRequired": true,
+      "summary": "Review the selected application action in the administrator-approved prefix",
+      "displayCommand": null
+    }
+  },
+  {
+    "method": "POST",
+    "path": "actions",
+    "body": {
+      "previewId": "efa08f33-3d36-41b6-919a-5b421d7a2fca",
+      "confirmed": true
+    },
+    "status": 202,
+    "response": {
+      "operationId": "056f2c38-e4c5-49c7-95a7-701c10b0bf41",
+      "status": "queued"
+    }
+  },
+  {
+    "method": "GET",
+    "path": "operations/056f2c38-e4c5-49c7-95a7-701c10b0bf41",
+    "body": null,
+    "status": 200,
+    "response": {
+      "operationId": "056f2c38-e4c5-49c7-95a7-701c10b0bf41",
+      "status": "running",
+      "phase": "executing"
+    }
+  },
+  {
+    "method": "GET",
+    "path": "operations/056f2c38-e4c5-49c7-95a7-701c10b0bf41",
+    "body": null,
+    "status": 200,
+    "response": {
+      "operationId": "056f2c38-e4c5-49c7-95a7-701c10b0bf41",
+      "status": "completed",
+      "phase": "terminal"
+    }
+  },
+  {
+    "method": "GET",
+    "path": "operations/056f2c38-e4c5-49c7-95a7-701c10b0bf41/events",
+    "body": null,
+    "status": 200,
+    "response": {
+      "operationId": "056f2c38-e4c5-49c7-95a7-701c10b0bf41",
+      "status": "completed",
+      "phase": "terminal"
+    }
+  },
+  {
+    "method": "GET",
+    "path": "installations?appId=gemini",
+    "body": null,
+    "status": 200,
+    "response": {
+      "installations": [
+        {
+          "id": "NDpob3N0OjY6Z2VtaW5pOjEwMTovcHJpdmF0ZS92YXIvZm9sZGVycy9yZy96cjE5bGJfczV3MzJxNmQycWtkNnAwbjgwMDAwZ3AvVC9zaGlqdS10YXNrNDktc3djcmRydXMvaG9tZS8ubG9jYWwvYmluL2dlbWluaQ",
+          "appId": "gemini",
+          "targetHostId": "host",
+          "environment": {
+            "kind": "macos"
+          },
+          "path": "<isolated-root>/home/.local/bin/gemini",
+          "realPath": "<isolated-root>/home/.local/lib/node_modules/@google/gemini-cli/bundle/gemini.js",
+          "source": "unknown",
+          "isPathDefault": true,
+          "version": "0.66.0",
+          "runtimeStatus": {
+            "status": "runnable"
+          }
+        }
+      ]
+    }
+  },
+  {
+    "method": "POST",
+    "path": "actions/preview",
+    "body": {
+      "appId": "gemini",
+      "action": "install",
+      "target": {
+        "kind": "environment",
+        "environment": {
+          "kind": "macos"
+        }
+      }
+    },
+    "status": 200,
+    "response": {
+      "previewId": "9acc6118-c94a-46d7-8f0e-677ae10ccc39",
+      "request": {
+        "appId": "gemini",
+        "action": "install",
+        "target": {
+          "kind": "environment",
+          "environment": {
+            "kind": "macos"
+          }
+        }
+      },
+      "source": "system",
+      "confirmationRequired": true,
+      "summary": "Review the selected application action in the administrator-approved prefix",
+      "displayCommand": null
+    }
+  },
+  {
+    "method": "POST",
+    "path": "actions",
+    "body": {
+      "previewId": "9acc6118-c94a-46d7-8f0e-677ae10ccc39",
+      "confirmed": true
+    },
+    "status": 202,
+    "response": {
+      "operationId": "fa898b98-aa11-459b-8d0a-909861b20f24",
+      "status": "queued"
+    }
+  },
+  {
+    "method": "DELETE",
+    "path": "operations/fa898b98-aa11-459b-8d0a-909861b20f24",
+    "body": null,
+    "status": 200,
+    "response": {
+      "operationId": "fa898b98-aa11-459b-8d0a-909861b20f24",
+      "status": "cancelled",
+      "phase": "terminal"
+    }
+  },
+  {
+    "method": "GET",
+    "path": "operations/fa898b98-aa11-459b-8d0a-909861b20f24/events",
+    "body": null,
+    "status": 200,
+    "response": {
+      "operationId": "fa898b98-aa11-459b-8d0a-909861b20f24",
+      "status": "cancelled",
+      "phase": "terminal"
+    }
+  },
+  {
+    "method": "GET",
+    "path": "installations?appId=gemini",
+    "body": null,
+    "status": 200,
+    "response": {
+      "installations": []
+    }
+  },
+  {
+    "method": "GET",
+    "path": "diagnostics?appId=gemini",
+    "body": null,
+    "status": 200,
+    "response": {
+      "installations": [
+        {
+          "id": "NDpob3N0OjY6Z2VtaW5pOjk2Oi9wcml2YXRlL3Zhci9mb2xkZXJzL3JnL3pyMTlsYl9zNXczMnE2ZDJxa2Q2cDBuODAwMDBncC9UL3NoaWp1LXRhc2s0OS1zd2NyZHJ1cy9wcmVmaXgvYmluL2dlbWluaQ",
+          "appId": "gemini",
+          "targetHostId": "host",
+          "environment": {
+            "kind": "macos"
+          },
+          "path": "<isolated-root>/prefix/bin/gemini",
+          "realPath": null,
+          "source": "unknown",
+          "isPathDefault": true,
+          "version": null,
+          "runtimeStatus": {
+            "status": "probe_failed",
+            "reason": "damaged_installation"
+          }
+        }
+      ]
+    }
+  },
+  {
+    "method": "POST",
+    "path": "actions/preview",
+    "body": {
+      "appId": "gemini",
+      "action": "uninstall",
+      "target": {
+        "kind": "installation",
+        "installationId": "NDpob3N0OjY6Z2VtaW5pOjk2Oi9wcml2YXRlL3Zhci9mb2xkZXJzL3JnL3pyMTlsYl9zNXczMnE2ZDJxa2Q2cDBuODAwMDBncC9UL3NoaWp1LXRhc2s0OS1zd2NyZHJ1cy9wcmVmaXgvYmluL2dlbWluaQ"
+      }
+    },
+    "status": 422,
+    "response": ""
+  },
+  {
+    "method": "GET",
+    "path": "installations?appId=gemini",
+    "body": null,
+    "status": 200,
+    "response": {
+      "installations": []
+    }
+  },
+  {
+    "method": "POST",
+    "path": "actions/preview",
+    "body": {
+      "appId": "gemini",
+      "action": "install",
+      "target": {
+        "kind": "environment",
+        "environment": {
+          "kind": "macos"
+        }
+      }
+    },
+    "status": 200,
+    "response": {
+      "previewId": "2bbaa174-f17b-4eb2-ac46-bf237559fd17",
+      "request": {
+        "appId": "gemini",
+        "action": "install",
+        "target": {
+          "kind": "environment",
+          "environment": {
+            "kind": "macos"
+          }
+        }
+      },
+      "source": "system",
+      "confirmationRequired": true,
+      "summary": "Review the selected application action in the administrator-approved prefix",
+      "displayCommand": null
+    }
+  },
+  {
+    "method": "POST",
+    "path": "actions",
+    "body": {
+      "previewId": "2bbaa174-f17b-4eb2-ac46-bf237559fd17",
+      "confirmed": true
+    },
+    "status": 202,
+    "response": {
+      "operationId": "1a83977a-e19b-4e17-aea8-9daf2cd26960",
+      "status": "queued"
+    }
+  },
+  {
+    "method": "GET",
+    "path": "operations/1a83977a-e19b-4e17-aea8-9daf2cd26960",
+    "body": null,
+    "status": 200,
+    "response": {
+      "operationId": "1a83977a-e19b-4e17-aea8-9daf2cd26960",
+      "status": "running",
+      "phase": "executing"
+    }
+  },
+  {
+    "method": "DELETE",
+    "path": "operations/1a83977a-e19b-4e17-aea8-9daf2cd26960",
+    "body": null,
+    "status": 200,
+    "response": {
+      "operationId": "1a83977a-e19b-4e17-aea8-9daf2cd26960",
+      "status": "cancelled",
+      "phase": "terminal"
+    }
+  },
+  {
+    "method": "GET",
+    "path": "operations/1a83977a-e19b-4e17-aea8-9daf2cd26960/events",
+    "body": null,
+    "status": 200,
+    "response": {
+      "operationId": "1a83977a-e19b-4e17-aea8-9daf2cd26960",
+      "status": "cancelled",
+      "phase": "terminal"
+    }
+  },
+  {
+    "method": "GET",
+    "path": "installations?appId=gemini",
+    "body": null,
+    "status": 200,
+    "response": {
+      "installations": []
+    }
+  },
+  {
+    "method": "POST",
+    "path": "actions/preview",
+    "body": {
+      "appId": "gemini",
+      "action": "install",
+      "target": {
+        "kind": "environment",
+        "environment": {
+          "kind": "macos"
+        }
+      }
+    },
+    "status": 200,
+    "response": {
+      "previewId": "cde18cef-5e4e-4298-97fc-35b45e5fcc27",
+      "request": {
+        "appId": "gemini",
+        "action": "install",
+        "target": {
+          "kind": "environment",
+          "environment": {
+            "kind": "macos"
+          }
+        }
+      },
+      "source": "system",
+      "confirmationRequired": true,
+      "summary": "Review the selected application action in the administrator-approved prefix",
+      "displayCommand": null
+    }
+  },
+  {
+    "method": "POST",
+    "path": "actions",
+    "body": {
+      "previewId": "cde18cef-5e4e-4298-97fc-35b45e5fcc27",
+      "confirmed": true
+    },
+    "status": 202,
+    "response": {
+      "operationId": "7f754f28-17bc-49f9-a8af-c900e332d193",
+      "status": "queued"
+    }
+  },
+  {
+    "method": "GET",
+    "path": "operations/7f754f28-17bc-49f9-a8af-c900e332d193",
+    "body": null,
+    "status": 200,
+    "response": {
+      "operationId": "7f754f28-17bc-49f9-a8af-c900e332d193",
+      "status": "running",
+      "phase": "executing"
+    }
+  },
+  {
+    "method": "GET",
+    "path": "operations/7f754f28-17bc-49f9-a8af-c900e332d193",
+    "body": null,
+    "status": 200,
+    "response": {
+      "operationId": "7f754f28-17bc-49f9-a8af-c900e332d193",
+      "status": "running",
+      "phase": "executing"
+    }
+  },
+  {
+    "method": "GET",
+    "path": "operations/7f754f28-17bc-49f9-a8af-c900e332d193",
+    "body": null,
+    "status": 200,
+    "response": {
+      "operationId": "7f754f28-17bc-49f9-a8af-c900e332d193",
+      "status": "running",
+      "phase": "executing"
+    }
+  },
+  {
+    "method": "GET",
+    "path": "operations/7f754f28-17bc-49f9-a8af-c900e332d193",
+    "body": null,
+    "status": 200,
+    "response": {
+      "operationId": "7f754f28-17bc-49f9-a8af-c900e332d193",
+      "status": "running",
+      "phase": "executing"
+    }
+  },
+  {
+    "method": "GET",
+    "path": "operations/7f754f28-17bc-49f9-a8af-c900e332d193",
+    "body": null,
+    "status": 200,
+    "response": {
+      "operationId": "7f754f28-17bc-49f9-a8af-c900e332d193",
+      "status": "running",
+      "phase": "executing"
+    }
+  },
+  {
+    "method": "GET",
+    "path": "operations/7f754f28-17bc-49f9-a8af-c900e332d193",
+    "body": null,
+    "status": 200,
+    "response": {
+      "operationId": "7f754f28-17bc-49f9-a8af-c900e332d193",
+      "status": "running",
+      "phase": "executing"
+    }
+  },
+  {
+    "method": "GET",
+    "path": "operations/7f754f28-17bc-49f9-a8af-c900e332d193",
+    "body": null,
+    "status": 200,
+    "response": {
+      "operationId": "7f754f28-17bc-49f9-a8af-c900e332d193",
+      "status": "running",
+      "phase": "executing"
+    }
+  },
+  {
+    "method": "GET",
+    "path": "operations/7f754f28-17bc-49f9-a8af-c900e332d193",
+    "body": null,
+    "status": 200,
+    "response": {
+      "operationId": "7f754f28-17bc-49f9-a8af-c900e332d193",
+      "status": "running",
+      "phase": "executing"
+    }
+  },
+  {
+    "method": "GET",
+    "path": "operations/7f754f28-17bc-49f9-a8af-c900e332d193",
+    "body": null,
+    "status": 200,
+    "response": {
+      "operationId": "7f754f28-17bc-49f9-a8af-c900e332d193",
+      "status": "running",
+      "phase": "executing"
+    }
+  },
+  {
+    "method": "GET",
+    "path": "operations/7f754f28-17bc-49f9-a8af-c900e332d193",
+    "body": null,
+    "status": 200,
+    "response": {
+      "operationId": "7f754f28-17bc-49f9-a8af-c900e332d193",
+      "status": "running",
+      "phase": "executing"
+    }
+  },
+  {
+    "method": "GET",
+    "path": "operations/7f754f28-17bc-49f9-a8af-c900e332d193",
+    "body": null,
+    "status": 200,
+    "response": {
+      "operationId": "7f754f28-17bc-49f9-a8af-c900e332d193",
+      "status": "running",
+      "phase": "executing"
+    }
+  },
+  {
+    "method": "GET",
+    "path": "operations/7f754f28-17bc-49f9-a8af-c900e332d193",
+    "body": null,
+    "status": 200,
+    "response": {
+      "operationId": "7f754f28-17bc-49f9-a8af-c900e332d193",
+      "status": "running",
+      "phase": "postflight"
+    }
+  },
+  {
+    "method": "GET",
+    "path": "operations/7f754f28-17bc-49f9-a8af-c900e332d193",
+    "body": null,
+    "status": 200,
+    "response": {
+      "operationId": "7f754f28-17bc-49f9-a8af-c900e332d193",
+      "status": "completed",
+      "phase": "terminal"
+    }
+  },
+  {
+    "method": "GET",
+    "path": "operations/7f754f28-17bc-49f9-a8af-c900e332d193/events",
+    "body": null,
+    "status": 200,
+    "response": {
+      "operationId": "7f754f28-17bc-49f9-a8af-c900e332d193",
+      "status": "completed",
+      "phase": "terminal"
+    }
+  },
+  {
+    "method": "GET",
+    "path": "installations?appId=gemini",
+    "body": null,
+    "status": 200,
+    "response": {
+      "installations": [
+        {
+          "id": "NDpob3N0OjY6Z2VtaW5pOjk2Oi9wcml2YXRlL3Zhci9mb2xkZXJzL3JnL3pyMTlsYl9zNXczMnE2ZDJxa2Q2cDBuODAwMDBncC9UL3NoaWp1LXRhc2s0OS1fdGlsNF8xNC9wcmVmaXgvYmluL2dlbWluaQ",
+          "appId": "gemini",
+          "targetHostId": "host",
+          "environment": {
+            "kind": "macos"
+          },
+          "path": "<isolated-root>/prefix/bin/gemini",
+          "realPath": "<isolated-root>/prefix/lib/node_modules/@google/gemini-cli/bundle/gemini.js",
+          "source": "unknown",
+          "isPathDefault": true,
+          "version": "0.67.0",
+          "runtimeStatus": {
+            "status": "runnable"
+          }
+        }
+      ]
+    }
+  },
+  {
+    "method": "POST",
+    "path": "actions/preview",
+    "body": {
+      "appId": "gemini",
+      "action": "uninstall",
+      "target": {
+        "kind": "installation",
+        "installationId": "NDpob3N0OjY6Z2VtaW5pOjk2Oi9wcml2YXRlL3Zhci9mb2xkZXJzL3JnL3pyMTlsYl9zNXczMnE2ZDJxa2Q2cDBuODAwMDBncC9UL3NoaWp1LXRhc2s0OS1fdGlsNF8xNC9wcmVmaXgvYmluL2dlbWluaQ"
+      }
+    },
+    "status": 200,
+    "response": {
+      "previewId": "a47bd564-94bf-42fd-b022-c3a469011b6f",
+      "request": {
+        "appId": "gemini",
+        "action": "uninstall",
+        "target": {
+          "kind": "installation",
+          "installationId": "NDpob3N0OjY6Z2VtaW5pOjk2Oi9wcml2YXRlL3Zhci9mb2xkZXJzL3JnL3pyMTlsYl9zNXczMnE2ZDJxa2Q2cDBuODAwMDBncC9UL3NoaWp1LXRhc2s0OS1fdGlsNF8xNC9wcmVmaXgvYmluL2dlbWluaQ"
+        }
+      },
+      "source": "system",
+      "confirmationRequired": true,
+      "summary": "Review the selected application action in the administrator-approved prefix",
+      "displayCommand": null
+    }
+  },
+  {
+    "method": "POST",
+    "path": "actions",
+    "body": {
+      "previewId": "a47bd564-94bf-42fd-b022-c3a469011b6f",
+      "confirmed": true
+    },
+    "status": 202,
+    "response": {
+      "operationId": "a819c2cc-2cbc-4af0-a7f5-5dafacdf38b6",
+      "status": "queued"
+    }
+  },
+  {
+    "method": "GET",
+    "path": "operations/a819c2cc-2cbc-4af0-a7f5-5dafacdf38b6",
+    "body": null,
+    "status": 200,
+    "response": {
+      "operationId": "a819c2cc-2cbc-4af0-a7f5-5dafacdf38b6",
+      "status": "running",
+      "phase": "executing"
+    }
+  },
+  {
+    "method": "GET",
+    "path": "operations/a819c2cc-2cbc-4af0-a7f5-5dafacdf38b6",
+    "body": null,
+    "status": 200,
+    "response": {
+      "operationId": "a819c2cc-2cbc-4af0-a7f5-5dafacdf38b6",
+      "status": "completed",
+      "phase": "terminal"
+    }
+  },
+  {
+    "method": "GET",
+    "path": "operations/a819c2cc-2cbc-4af0-a7f5-5dafacdf38b6/events",
+    "body": null,
+    "status": 200,
+    "response": {
+      "operationId": "a819c2cc-2cbc-4af0-a7f5-5dafacdf38b6",
+      "status": "completed",
+      "phase": "terminal"
+    }
+  }
+]

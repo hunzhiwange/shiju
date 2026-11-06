@@ -381,3 +381,163 @@ fn claude_managed_child_resolves_shebang_with_augmented_path() {
         String::from_utf8_lossy(&output.stderr)
     );
 }
+
+#[tokio::test]
+async fn acp_full_access_launch_custom_bypass_requires_current_unrestricted_grant() {
+    for args in [
+        vec!["--approval-mode", "yolo"],
+        vec!["--permission-mode=bypass_permissions"],
+        vec!["--yolo"],
+        vec!["--skip-trust"],
+    ] {
+        for (full, mode) in [
+            (false, crate::PermissionMode::ApproveAll),
+            (true, crate::PermissionMode::DenyAll),
+            (true, crate::PermissionMode::ApproveReads),
+        ] {
+            let client = AcpClient::new(
+                "custom",
+                AcpAgentConfig {
+                    command: "sh".into(),
+                    args: args.iter().map(|s| (*s).into()).collect(),
+                    env: HashMap::new(),
+                },
+            )
+            .with_full_access(full)
+            .with_permission_mode(mode);
+            match client.spawn_child() {
+                Err(AcpError::Initialize(message)) => assert!(message.contains("full access")),
+                Ok(ProcessHandles { child, stderr_task }) => {
+                    client.finalize_child(child, stderr_task).await;
+                    panic!("conflicting custom bypass must be rejected");
+                }
+                Err(error) => panic!("unexpected error: {error}"),
+            }
+        }
+    }
+}
+
+#[test]
+fn acp_full_access_launch_official_and_managed_shapes_follow_current_grant() {
+    for (agent, command, base, expected) in [
+        (
+            "gemini",
+            "gemini",
+            vec!["--experimental-acp"],
+            vec!["--approval-mode", "yolo", "--skip-trust"],
+        ),
+        (
+            "gemini",
+            "npx",
+            vec!["@google/gemini-cli@latest", "--experimental-acp"],
+            vec!["--approval-mode", "yolo", "--skip-trust"],
+        ),
+        ("qwen", "qwen", vec!["--acp"], vec!["--approval-mode", "yolo"]),
+        ("qwen", "qwen", vec!["--acp", "--experimental-skills"], vec!["--approval-mode", "yolo"]),
+        ("qoder", "qodercli", vec!["--acp"], vec!["--permission-mode", "bypass_permissions"]),
+    ] {
+        let config = AcpAgentConfig {
+            command: command.into(),
+            args: base.iter().map(|s| (*s).into()).collect(),
+            env: HashMap::new(),
+        };
+        for (full, mode) in [
+            (false, crate::PermissionMode::ApproveAll),
+            (true, crate::PermissionMode::ApproveAll),
+            (true, crate::PermissionMode::DenyAll),
+            (true, crate::PermissionMode::ApproveReads),
+        ] {
+            let client = AcpClient::new(agent, config.clone())
+                .with_full_access(full)
+                .with_permission_mode(mode);
+            let mut wanted = config.args.clone();
+            if full && mode == crate::PermissionMode::ApproveAll {
+                wanted.extend(expected.iter().map(|s| (*s).into()));
+            }
+            assert_eq!(client.launch_args().unwrap(), wanted, "{agent} {full} {mode:?}");
+            assert_eq!(client.config.args, config.args);
+        }
+    }
+}
+
+#[tokio::test]
+async fn acp_full_access_launch_custom_arguments_and_environment_reach_child_unchanged() {
+    let client = shell_client(shell_args(
+        "printf '%s|%s' \"$1\" \"$CUSTOM_VALUE\" >&2",
+        vec!["unknown --option=值".into()],
+    ))
+    .with_full_access(true);
+    let mut client = client;
+    client.config.env.insert("CUSTOM_VALUE".into(), "preserved".into());
+    let ProcessHandles { child, stderr_task } = client.spawn_child().unwrap();
+    let result = client.finalize_child(child, stderr_task).await;
+    assert_eq!(result.summary.exit_code, Some(0));
+    assert_eq!(result.stderr_output, "unknown --option=值|preserved");
+}
+
+#[cfg(unix)]
+#[tokio::test]
+async fn acp_full_access_launch_current_grant_is_materialized_at_process_boundary() {
+    use std::os::unix::fs::PermissionsExt;
+    let temp = tempfile::tempdir().unwrap();
+    let command = temp.path().join("gemini");
+    std::fs::write(&command, "#!/bin/sh\nprintf '%s\\n' \"$@\" >&2\n").unwrap();
+    std::fs::set_permissions(&command, std::fs::Permissions::from_mode(0o755)).unwrap();
+    let config = AcpAgentConfig {
+        command: command.to_string_lossy().into_owned(),
+        args: vec!["--experimental-acp".into()],
+        env: HashMap::new(),
+    };
+    for full in [true, false] {
+        let client = AcpClient::new("gemini", config.clone()).with_full_access(full);
+        let ProcessHandles { child, stderr_task } = client.spawn_child().unwrap();
+        let result = client.finalize_child(child, stderr_task).await;
+        assert_eq!(result.summary.exit_code, Some(0));
+        assert_eq!(
+            result.stderr_output,
+            if full {
+                "--experimental-acp\n--approval-mode\nyolo\n--skip-trust\n"
+            } else {
+                "--experimental-acp\n"
+            }
+        );
+    }
+}
+
+#[test]
+fn acp_full_access_launch_managed_routing_suffix_is_preserved_with_current_grant() {
+    for (agent, base, suffix) in [
+        ("gemini", vec!["--experimental-acp"], vec!["--shiju-model-source"]),
+        (
+            "qwen",
+            vec!["--acp"],
+            vec![
+                "--shiju-model-source",
+                "--auth-type",
+                "openai",
+                "--model",
+                "alias",
+                "--openai-base-url",
+                "http://127.0.0.1:12345/v1",
+            ],
+        ),
+    ] {
+        let args: Vec<String> = base.iter().chain(&suffix).map(|s| (*s).into()).collect();
+        let config = AcpAgentConfig {
+            command: agent.into(),
+            args: args.clone(),
+            env: HashMap::from([
+                ("VW_ACP_LAUNCH_REFERENCE".into(), format!("vw-session-model:{}", "a".repeat(64))),
+                ("OPENAI_MODEL".into(), "alias".into()),
+                ("OPENAI_BASE_URL".into(), "http://127.0.0.1:12345/v1".into()),
+            ]),
+        };
+        for full in [false, true] {
+            let client = AcpClient::new(agent, config.clone()).with_full_access(full);
+            let actual = client.launch_args().unwrap();
+            assert_eq!(&actual[..args.len()], &args);
+            assert_eq!(actual.iter().any(|arg| arg == "yolo"), full);
+            assert_eq!(client.config.env, config.env);
+        }
+    }
+}

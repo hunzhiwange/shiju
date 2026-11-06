@@ -23,16 +23,12 @@ const CODEX_ADAPTER_PACKAGE: &str = "@agentclientprotocol/codex-acp@latest";
 const CODEX_ADAPTER_ARGS: &[&str] = &["-y", CODEX_ADAPTER_PACKAGE];
 const LEGACY_CODEX_ADAPTER_PACKAGES: &[&str] = &["@zed-industries/codex-acp", "@openai/codex-acp"];
 const OBSOLETE_CODEX_NODE_REPL_CONFIG: &str = "mcp_servers.node_repl.enabled=false";
-const GEMINI_ACP_ARGS: &[&str] =
-    &["@google/gemini-cli@latest", "--experimental-acp", "--approval-mode", "yolo", "--skip-trust"];
-const GEMINI_LOCAL_ARGS: &[&str] =
-    &["--experimental-acp", "--approval-mode", "yolo", "--skip-trust"];
-const QODER_ACP_ARGS: &[&str] =
-    &["@qoder-ai/qodercli@latest", "--acp", "--permission-mode", "bypass_permissions"];
-const QODER_LOCAL_ARGS: &[&str] = &["--acp", "--permission-mode", "bypass_permissions"];
-const QWEN_ACP_ARGS: &[&str] =
-    &["@qwen-code/qwen-code@latest", "--acp", "--experimental-skills", "--approval-mode", "yolo"];
-const QWEN_LOCAL_ARGS: &[&str] = &["--acp", "--experimental-skills", "--approval-mode", "yolo"];
+const GEMINI_ACP_ARGS: &[&str] = &["@google/gemini-cli@latest", "--experimental-acp"];
+const GEMINI_LOCAL_ARGS: &[&str] = &["--experimental-acp"];
+const QODER_ACP_ARGS: &[&str] = &["@qoder-ai/qodercli@latest", "--acp"];
+const QODER_LOCAL_ARGS: &[&str] = &["--acp"];
+const QWEN_ACP_ARGS: &[&str] = &["@qwen-code/qwen-code@latest", "--acp", "--experimental-skills"];
+const QWEN_LOCAL_ARGS: &[&str] = &["--acp", "--experimental-skills"];
 
 #[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 #[serde(rename_all = "camelCase")]

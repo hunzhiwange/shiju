@@ -16,7 +16,10 @@ pub(super) fn configure(profile: &mut AcpLaunchProfile, endpoint: &str) -> anyho
         "Qwen requires an owned loopback relay"
     );
     anyhow::ensure!(
-        profile.config().args == ["--acp", "--experimental-skills", "--approval-mode", "yolo"],
+        (profile.config().args == ["--acp"]
+            || profile.config().args == ["--acp", "--experimental-skills"]
+            || profile.config().args
+                == ["--acp", "--experimental-skills", "--approval-mode", "yolo"]),
         "Qwen requires the pinned ACP arguments"
     );
     anyhow::ensure!(

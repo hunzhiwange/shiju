@@ -134,13 +134,9 @@ fn built_in_specs_include_stable_user_keys() {
     assert_eq!(codex_args.first().map(String::as_str), Some("-y"));
     assert!(codex_args.iter().any(|arg| arg == CODEX_ADAPTER_PACKAGE));
     assert!(!codex_args.iter().any(|arg| arg.contains("mcp_servers.node_repl")));
-    assert!(gemini_args.windows(2).any(|args| args[0] == "--approval-mode" && args[1] == "yolo"));
-    assert!(
-        qoder_args
-            .windows(2)
-            .any(|args| args[0] == "--permission-mode" && args[1] == "bypass_permissions")
-    );
-    assert!(qwen_args.windows(2).any(|args| args[0] == "--approval-mode" && args[1] == "yolo"));
+    for args in [gemini_args, qoder_args, qwen_args] {
+        assert!(!args.iter().any(|arg| matches!(arg.as_str(), "yolo" | "bypass_permissions")));
+    }
     assert!(
         built_in_agent_definitions()
             .iter()
@@ -469,4 +465,20 @@ fn agent_unified_selection_saved_official_launcher_uses_installed_cli() {
     let resolved = merge_agent_specs(Some(&HashMap::from([("auggie".into(), custom.clone())])));
     assert_eq!(resolved["auggie"].command, custom.command);
     assert_eq!(resolved["auggie"].args, custom.args);
+}
+
+#[test]
+fn acp_full_access_launch_registry_never_grants_bypass() {
+    for name in ["gemini", "qwen", "qoder"] {
+        let definition =
+            built_in_agent_definitions().iter().find(|item| item.name == name).unwrap();
+        for args in [definition.args, definition.local_args] {
+            assert!(
+                !args
+                    .iter()
+                    .any(|arg| matches!(*arg, "yolo" | "bypass_permissions" | "--skip-trust")),
+                "{name}: {args:?}"
+            );
+        }
+    }
 }

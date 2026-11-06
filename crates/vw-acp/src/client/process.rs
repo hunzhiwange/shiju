@@ -32,6 +32,7 @@ impl AcpClient {
             return Err(AcpError::EmptyCommand);
         }
 
+        let args = self.launch_args()?;
         let mut env = self.config.env.clone();
         let managed_claude = managed_claude_settings(&self.config).is_some();
         if !managed_claude {
@@ -65,7 +66,7 @@ impl AcpClient {
             vw_shared::shell::apply_augmented_path_tokio_command(&mut cmd);
             cmd.envs(&env);
         }
-        cmd.args(self.config.args.iter())
+        cmd.args(&args)
             .stdin(Stdio::piped())
             .stdout(Stdio::piped())
             .stderr(if discard_stderr { Stdio::null() } else { Stdio::piped() })
@@ -84,7 +85,7 @@ impl AcpClient {
             target: "vw_acp",
             acp_agent = %self.agent_name,
             command = %self.config.command.trim(),
-            args_count = self.config.args.len(),
+            args_count = args.len(),
             env_count = env.len(),
             "starting ACP agent process"
         );
@@ -99,6 +100,105 @@ impl AcpClient {
         });
 
         Ok(ProcessHandles { child, stderr_task })
+    }
+
+    /// Materialize only known official launch shapes; custom argv stays byte-for-byte intact.
+    pub(super) fn launch_args(&self) -> Result<Vec<String>, AcpError> {
+        let unrestricted = self.full_access && self.permission_mode == PermissionMode::ApproveAll;
+        let command = std::path::Path::new(self.config.command.trim())
+            .file_stem()
+            .and_then(|s| s.to_str())
+            .unwrap_or_default();
+        let npx = command == "npx";
+        let bypass = self.config.args.iter().any(|arg| {
+            (arg == "-y" && matches!(command, "gemini" | "gemini-cli" | "qwen" | "qwen-code"))
+                || matches!(
+                    arg.as_str(),
+                    "--yolo"
+                        | "--skip-trust"
+                        | "--dangerously-skip-permissions"
+                        | "--dangerously-bypass-approvals-and-sandbox"
+                )
+                || matches!(
+                    arg.as_str(),
+                    "--approval-mode=yolo"
+                        | "--permission-mode=bypass_permissions"
+                        | "--permission-mode=bypassPermissions"
+                )
+        }) || self.config.args.windows(2).any(|pair| {
+            matches!(
+                (pair[0].as_str(), pair[1].as_str()),
+                ("--approval-mode", "yolo")
+                    | ("--permission-mode", "bypass_permissions" | "bypassPermissions")
+            )
+        });
+        if bypass && !unrestricted {
+            return Err(AcpError::Initialize("launch arguments conflict with current full access authorization; remove explicit bypass arguments".into()));
+        }
+        let mut args = self.config.args.clone();
+        if !unrestricted || bypass {
+            return Ok(args);
+        }
+        let shape: Vec<&str> = args.iter().map(String::as_str).collect();
+        // Session-model drivers append routing material before reaching this boundary.
+        // Recognize their exact suffix without removing or rewriting any of it.
+        let managed = self
+            .config
+            .env
+            .get("VW_ACP_LAUNCH_REFERENCE")
+            .is_some_and(|value| value.starts_with("vw-session-model:"));
+        let shape = if managed
+            && self.agent_name == "gemini"
+            && shape.last() == Some(&"--shiju-model-source")
+        {
+            &shape[..shape.len() - 1]
+        } else if managed && self.agent_name == "qwen" && shape.len() >= 7 {
+            let suffix = &shape[shape.len() - 7..];
+            if suffix[0] == "--shiju-model-source"
+                && suffix[1] == "--auth-type"
+                && suffix[2] == "openai"
+                && suffix[3] == "--model"
+                && self.config.env.get("OPENAI_MODEL").map(String::as_str) == Some(suffix[4])
+                && suffix[5] == "--openai-base-url"
+                && self.config.env.get("OPENAI_BASE_URL").map(String::as_str) == Some(suffix[6])
+            {
+                &shape[..shape.len() - 7]
+            } else {
+                &shape[..]
+            }
+        } else {
+            &shape[..]
+        };
+        let known = match self.agent_name.as_str() {
+            "gemini" => {
+                (matches!(command, "gemini" | "gemini-cli") && shape == ["--experimental-acp"])
+                    || (npx && shape == ["@google/gemini-cli@latest", "--experimental-acp"])
+            }
+            "qwen" => {
+                (matches!(command, "qwen" | "qwen-code")
+                    && (shape == ["--acp"] || shape == ["--acp", "--experimental-skills"]))
+                    || (npx
+                        && shape
+                            == ["@qwen-code/qwen-code@latest", "--acp", "--experimental-skills"])
+            }
+            "qoder" => {
+                (command == "qodercli" && shape == ["--acp"])
+                    || (npx && shape == ["@qoder-ai/qodercli@latest", "--acp"])
+            }
+            _ => false,
+        };
+        if known {
+            let permission = if self.agent_name == "qoder" {
+                ["--permission-mode", "bypass_permissions"]
+            } else {
+                ["--approval-mode", "yolo"]
+            };
+            args.extend(permission.map(String::from));
+            if self.agent_name == "gemini" {
+                args.push("--skip-trust".into());
+            }
+        }
+        Ok(args)
     }
 
     /// 收尾 ACP 代理子进程并收集退出摘要。

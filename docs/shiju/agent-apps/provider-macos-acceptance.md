@@ -621,3 +621,39 @@ RustCodeGraph status/explore 退出 0，索引含 6443 文件；运行时代码�
 `sw_vers`、`uname -m` 退出 0：macOS 27.0（26A428）、arm64。应用版本未验证，未启动实际 CLI/Iced；没有 SDK→API→原生文件链的成功声明。Windows/Linux、其他架构及实际应用读写运行未验收。
 
 定向 diff 检查和暂存差异检查退出 0；仅提交本任务补丁、独立测试、两个父注册及本条证据。既有母任务状态/编号文件删除和桌面变更排除；只读 plan.md 无差异。最终实际检查槽位 1 锁已释放、缓存保留。未执行全量 cargo test、fmt check、wasm 或 Makefile。完成报告后删除任务 13 文件，不纳入提交，正式证据保留。
+
+## 任务 14：TOML 定点补丁
+
+2026-11-06；状态：已完成（内存字节补丁原语，live 写入未接通）。
+
+### 依赖、来源与实现范围
+
+核对批次 13 提交 `1a1376a99` 及任务 1–13 的正式证据；母任务 1、3 已完成，母任务 2 沿用任务 1 的底座子计划 1–93 开工裁定，完整领域迁移仍未收口，不将其改报为完成。只读 plan.md 未修改。
+
+来源 `/Users/xiangmin/worker/code/cc-switch` HEAD `ca58c0313360eae7c851fbd7553c1614c7af03e7`，rev-parse/status 退出 0、来源干净。读取 `live/patch/toml.rs::{TomlPatch::apply_to,parse,keep_layout,table_at_mut,ensure_table_mut}` 及其相邻 5 项测试；读取 `services/provider/editor_toml.rs::{insert_at,remove_at,TomlEdits::apply_to}`、直接消费者 Codex/Grok 的 direct/editor 及 Codex 编辑器相邻全局字段、三方冲突测试；来源测试未执行。RustCodeGraph status/explore 退出 0，索引 6446 文件，确认现有实现仅在冻结 upstream 中，没有接到原生运行包的同职责所有者。
+
+- 业务唯一落点 `vw-agent-apps/src/providers/live/patch_toml.rs::TomlPatch::apply`；直接父模块注册及独立 `patch_toml_tests.rs`。新增直接依赖 `toml_edit = "0.22"`，复用锁文件已有 0.22.27 及其依赖，没有新增锁定包版本；现有 toml 反序列化库不能保留注释布局。
+- 仅提供点名 set/remove/seed，路径为字面键片段，带点号键不拆分；set 胜过同路径 remove，seed 不覆盖已有值；缺失标准祖先创建隐式表，内联祖先内新增内联表，写入的标准表转换为内联值。支持点名整表替换/删除，不引入编辑器三方比较、业务 floor 谓词或步骤 trait。
+- 原位替换值保留其空白/行尾注释，替换标准表沿用位置和表装饰；未修改的表、键写法、数字写法和注释保留。被点名替换/删除的条目内部内容属于修改范围，不承诺保留其内部注释。没有对 CRLF/BOM 或所有布局作额外保字节承诺。
+- 私有解析文档上操作，错误不返回部分结果，不包含路径、配置载荷或凭据；拒绝非法 UTF-8/TOML、非表祖先、空/超过 64 段路径、无值 Item；输入/输出上限 1 MiB，输出再次解析。缺失文件从空文档开始，空文档是合法 TOML。数组可作为值整体替换，不提供数组索引导航。
+- API/SDK/UI 无新增入口：沿用任务 13 已验收的纯内部补丁边界，当前原生事务写入链尚未交付，后续事务及应用适配消费本所有者。本项不增加任意路径/文件 API、不改写目录存储投影、不宣称供应商编辑、首次激活或 live 切换成功。
+
+### 红绿验证与平台边界
+
+红/绿阶段均通过原子 mkdir 动态领取槽位 **1**；`CARGO_TARGET_DIR=/Users/xiangmin/worker/code/shiju/target/rust-slot-1`，`CARGO_BUILD_BUILD_DIR` 同一绝对路径覆盖仓库 build-dir。owner 记录计划/任务/会话/PID，EXIT/INT/TERM trap 清理自己的 owner 与锁；所有子进程结束后释放、缓存保留。测试二进制实际位于槽位 debug/deps。
+
+| 确切命令 | 红阶段退出码 / 有效结果 | 最终绿阶段退出码 / 有效结果 |
+| --- | --- | --- |
+| `cargo fmt --all` | 0 | 0 |
+| `cargo test -p vw-agent-apps --lib cc04_patch_toml_ -- --nocapture` | 101；0 passed / 4 failed | 0；4 passed / 0 ignored |
+| `cargo clippy --all-targets --all-features -- -D warnings` | 不适用 | 0；全部 targets/features 通过 |
+
+红阶段模块、类型及测试接线均可编译，补丁仅返回原字节时，目标更新、非法文档拒绝、新增子表及 remove/set 优先级均在业务断言失败，非编译失败或零测试。绿阶段同一过滤命令全部 4 项通过，使用默认 features。
+
+4 项测试验证中文/emoji 注释、行尾注释、带点号引用键与 dotted key、内联表、未修改表及十六进制字面量的精确预期文本，重复应用字节稳定；新增普通/内联嵌套表、整表删除、set/remove 优先级、seed 不覆盖、损坏 TOML/UTF-8、非法路径、标量祖先及批次后段失败。隔离临时文件的非法文档解析前后字节不变；其余为真实内存 TOML，无 mock/网络/钥匙串/进程替代，不读取或修改真实用户配置。
+
+`sw_vers`、`uname -m` 退出均为 0：macOS 27.0（26A428）、arm64。应用版本未验证，未启动实际 CLI/Iced；没有 SDK→API→原生文件写入成功证据，Windows/Linux、其他架构和实际应用运行未验收。
+
+定向 diff 检查及暂存检查只涵盖本任务实现、独立测试、父注册、依赖清单/锁文件和本条证据；现有母任务状态/编号文件删除及其他会话变更排除。未运行全量 cargo test、fmt check、wasm 或 Makefile。完成后删除任务 14 文件，不纳入提交，正式证据保留。
+
+本轮定向 `git diff --check` 退出 0；最终槽位 1 锁目录已不存在，缓存目录保留。只读 plan.md 无差异。

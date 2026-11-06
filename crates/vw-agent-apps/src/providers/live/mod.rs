@@ -2,3 +2,6 @@
 pub mod patch_json;
 #[cfg(test)]
 mod patch_json_tests;
+pub mod patch_toml;
+#[cfg(test)]
+mod patch_toml_tests;

@@ -31,6 +31,15 @@ pub fn project(
     previous: Option<&Value>,
     login_on_disk: bool,
 ) -> Result<NativeProjection, ProjectionError> {
+    project_owned(live, settings, previous, login_on_disk, None)
+}
+pub(crate) fn project_owned(
+    live: &str,
+    settings: &Value,
+    previous: Option<&Value>,
+    login_on_disk: bool,
+    exclusive: Option<&serde_json::Map<String, Value>>,
+) -> Result<NativeProjection, ProjectionError> {
     // Unlike editor drafts, native inputs must have the actual config/auth shape.
     let config =
         settings.get("config").and_then(Value::as_str).ok_or(ProjectionError::InvalidConfig)?;
@@ -43,8 +52,9 @@ pub fn project(
         validate_key(key.as_str().ok_or(ProjectionError::InvalidConfig)?)?;
     }
     let live = super::projection::toml(live, "live.config").map_err(map_error)?;
-    let result = super::projection::codex_native(live, settings, previous, login_on_disk)
-        .map_err(map_error)?;
+    let result =
+        super::projection::codex_native(live, settings, previous, login_on_disk, exclusive)
+            .map_err(map_error)?;
     // Also cover an embedded table/top-level token selected by the same routing owner.
     if let Some(key) = result
         .get("model_provider")

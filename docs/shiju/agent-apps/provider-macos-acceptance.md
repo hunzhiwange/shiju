@@ -1336,3 +1336,61 @@ Gateway 用真实临时 `.codex/config.toml`、`auth.json`、管理员读权限�
 全部使用真实临时目录/JSON/文件、统一 pending/恢复和假 token；没有替代文件系统或事务所有者，没有访问真实账号、网络上游或 Keychain。实际 macOS **27.0 (26A428)**、**arm64**，业务 crate 版本 **0.6.0**。未查询已安装 Codex 版本，真实账号轮换、真实 CLI 消费、Iced 渲染及供应商 SDK/API 切换均未验证，后者明确由任务 30 验收。未运行全量 cargo test、fmt check、wasm 或 Makefile。
 
 定向 diff/check 与暂存审查通过；提交只包含本任务实现、底层删除/恢复支持、独立测试、最小模块注册与本条正式证据。既有母任务状态、其他计划、此前编号文件删除不纳入提交；plan.md 无差异。各阶段自己的槽位锁已释放，缓存保留。状态：**已完成（本次授权的内部准备边界）**；任务 30 消费本实现，完成后删除任务 29 编号文件而不提交其删除。
+
+## 任务 30：Codex 配置与目录指针提交
+
+2026-11-07；状态：已完成（本任务的保存目录统一提交行为；不代表母任务 5 全部交付）。
+
+### 前置、来源与本次裁定
+
+批次 29 为 `2b802c64c`，28 为 `a896ac028`；母任务 1、3 已完成，母任务 2 沿任务 1 已有的底座子计划 1–93 开工裁定，完整迁移仍未收口。首次检查因母任务 5 尚无原生目录契约登记阻塞；继续指令明确允许在唯一模型目录领域所有者补齐最小保存目录读取/投影与租户持久化，不等待网络发现、预设迁移或 OAuth，因此解除阻塞。已读母任务 5 只读设计与共享契约子任务；未改任何只读 plan.md，也没有将母任务 5 改报完成。
+
+来源 `/Users/xiangmin/worker/code/cc-switch` HEAD `ca58c0313360eae7c851fbd7553c1614c7af03e7`，来源工作区干净。核对 `codex_official_models::{OfficialLogin::of,rows_for_switch}` 的缓存身份/不刷新用户 token/锁外网络规则、`codex_direct::{plan,run_with_edits}` 及 `codex_editor`/`codex_terminal` 调用者、`codex_config::{plan_codex_model_catalog,codex_native_row_is_valid,CODEX_CATALOG_PARSER_REQUIRED_FIELDS}` 与相邻测试，以及 golden `codex_red_lines::model_catalog_pointer_ownership`。网络发现与模板知识留给母任务 5；本项不读取 Codex 的 models_cache.json，也不调用冻结 upstream 作为业务实现。
+
+### 唯一目录所有者与实际调用链
+
+- `vw-api-types/src/model_catalog.rs` 定义本行为实际消费的 `ModelCatalogIdentity`、`SavedCodexCatalog`、`CodexNativeModel`。身份为执行主机/应用/供应商/精确端点，租户来自既有认证请求上下文；模型 slug 保留请求身份。消费已经准备的原生目录行，不从简化 modelCatalog 猜模板、补能力或制造官方列表。两个来源解析必需能力 bool 显式输入，未知 context_window 保留 None；未知输入字段拒绝。
+- 领域验证/原生 JSON 投影仅在 `vw-agent-apps/src/models/mod.rs`；持久化适配仅在 `vw-agent/src/model_catalog.rs::ModelCatalogStore`。复用 GatewaySettingsStore 的租户 SQLite/Postgres 门面和固定 `model_catalog.saved` 命名空间，不在 providers 内复制目录存储。保存为 SHA-256 标识的不可变部署修订；provider 行 CAS 绑定 `modelCatalogRevision`，读取必须同时匹配租户、主机、应用、供应商、端点和修订内容。并发保存失败可能保留未引用的目录修订，但不能使 live 混用另一请求的目录。后续母任务 5 扩展上述同一所有者；本项仅实测 SQLite，没有声称验证 PostgreSQL。
+- `vw-agent-apps/src/providers/codex_catalog.rs::CodexFiles` 从授权 HOME 的保留描述符打开固定 `.codex` 并持有物理目录 guard，消费任务 28 的唯一原生路由投影和任务 29 的登录准备。`config.toml`、受管目录 `shiju-model-catalog.json`、`auth.json` 与 `shiju-login-stash.json` 进入同一 ProviderTransactions intent，供应商指针及 direct mode 在同一 intent 中落定；需要删除的 auth/目录是真删除。四个文件均按私有权限准备，没有往 TOML 内联私有 modelCatalog。
+- 无目录或空列表是合法无目录：清除受管目录指针和受管文件；供应商自己声明的外部指针优先，仅复制 TOML 值，不读取该任意路径。来源按文件名识别受管指针，旧绝对路径中的 `cc-switch-model-catalog.json` 和当前受管文件名也不能在无保存目录时残留；不迁移或删除旧任意目录下的文件。
+- 目录/登录准备后重新投影并检查 active profile；WholeFile 绑定 config/auth/stash/catalog 的准备快照。新增有真实调用者的 `ProviderTransactions::commit_checked` 在暂存后和发布标记前复核保存行、目录修订与执行端状态；已有 commit 沿原签名委托空校验。发布开始后仍按冻结 intent 前滚，不承诺文件系统多文件原子 CAS；外部修改保留并返回恢复结果，调用入口要求重新规划。
+- direct contract 保存本次已提交的 exclusive 所有权，供当前供应商先编辑目录记录、后 reapply 时清理旧窗口字段；复用原投影的 exclusive 参数，没有复制路由/补丁所有者。
+- API DTO 为 `vw-api-types/src/app_providers/codex_catalog.rs`；Gateway 为对应 handler，注册进入既有 app_providers router，由 router.rs/bootstrap.rs 的既有分域注册消费。`PUT /v1/app-providers/codex/{id}/config` 保存及按 catalog_only/first/if_current/switch 决定提交；POST `/switch`、`/reapply` 消费已保存记录。SDK 为 `codex_provider_save/switch/reapply`，沿真实 native HTTP、租户头、敏感令牌头及错误体丢弃契约。
+- 写权限在目录/数据库访问前由既有 provider_editor_context 校验；非授权租户/主机或无写权限拒绝；live 提交另拒绝附着/代理状态或其它租户指针。eligible live 操作的 profile 预检查在保存数据前拒绝重定向，错误不含 TOML/凭据。保存目录记录与 live 是显式部分成功语义：catalogSaved=true 仍须检查 live=applied/failed/recovery_required。恢复任何旧 intent 后返回 recovery_required，不把旧输入继续当作本次提交。
+- 本项消费任务 28 已支持且能确定端点的直连路由；未提供官方/托管账号切换 API，也不伪造账号引用或租约。已有托管绑定/托管标志、非 file 凭据存储、不能归属端点的配置明确拒绝。实际验证了本机原生登录的保留、暂存和清除，不宣称托管账号、Keychain 或 OAuth 切换通过。没有新增 UI；Iced 编辑入口由后续任务消费本 SDK。
+
+### 红绿与最终验证
+
+各阶段均从仓库根按原子 mkdir 顺序动态领取共享槽位 **1**；`CARGO_TARGET_DIR=/Users/xiangmin/worker/code/shiju/target/rust-slot-1`，`CARGO_BUILD_BUILD_DIR` 同设该绝对路径，以覆盖仓库 build-dir。锁记录计划/任务/会话/PID；shell trap 覆盖正常、失败与中断，在 Cargo/产物进程退出后清理自身 owner/锁，缓存保留。未使用其它 target-dir 或独占全仓缓存。
+
+红阶段先接通编译、使用尚未消费保存目录的事务基线。四条指定过滤命令的退出码为 **101/0/101/0**，有效数量 **4/1/2/1**；Gateway 在“配置缺少受管目录指针”的业务断言失败。随后业务包 6 项的明确断言同时证明指针 None 与 intent 只有 auth/stash/config 三文件，未包含目录，退出 101；补充来源绝对受管指针用例后 9 项中 1 项在业务断言失败，退出 101。最初 String→静态错误的接线编译错误、私有 guard 读取接口编译错误，以及缺少 alg 的假 JWT 夹具错误均已修复，不作为预期红证据或通过证据；没有把零测试当验收。
+
+最终源码先运行 `cargo fmt --all`（0），以下命令使用同阶段上述槽位：
+
+| 确切命令 | 退出码 | 有效通过数量 |
+| --- | --- | --- |
+| `cargo test -p vw-agent-apps --lib cc04_codex_catalog_ -- --nocapture` | 0 | 9 |
+| `cargo test -p vw-api-types --lib cc04_codex_catalog_ -- --nocapture` | 0 | 1 |
+| `cargo test -p vw-agent --lib cc04_codex_catalog_ -- --nocapture` | 0 | 6 |
+| `cargo test -p vw-gateway-client --lib cc04_codex_catalog_ -- --nocapture` | 0 | 2 |
+| `cargo clippy --all-targets --all-features -- -D warnings` | 0 | 非行为测试 |
+
+共享事务增加发布前校验，故对相邻消费者执行聚焦回归（重新动态领取同一实际槽位 1，源码未再变化）：
+
+| 确切命令 | 退出码 | 有效通过数量 |
+| --- | --- | --- |
+| `cargo test -p vw-agent-apps --lib cc04_codex_ -- --nocapture` | 0 | 35 |
+| `cargo test -p vw-agent-apps --lib providers::live:: -- --nocapture` | 0 | 49 |
+| `cargo test -p vw-agent-apps --lib cc04_claude_ -- --nocapture` | 0 | 15 |
+| `cargo test -p vw-agent --lib cc04_codex_ -- --nocapture` | 0 | 7 |
+| `cargo test -p vw-agent --lib cc04_claude_ -- --nocapture` | 0 | 11 |
+| `cargo test -p vw-api-types --lib cc04_codex_ -- --nocapture` | 0 | 2 |
+| `cargo test -p vw-gateway-client --lib cc04_codex_ -- --nocapture` | 0 | 3 |
+
+去重 **122** 项通过，其中本任务 **18** 项、相邻回归 **104** 项，无忽略。两个指定行为 `cc04_codex_catalog_pointer_matches_committed_provider`、`cc04_codex_catalog_failure_is_recoverable` 均通过。实际故障覆盖 Intent/Marked/FilePublished/Published/Settled 五处；重建执行器后未发布丢弃、已标记前滚，目录/配置/指针一致。还验证四文件同一 intent、发布标记前输入有效性校验变为失败时拒绝并丢弃（仅此校验回调使用阶段 hook 改变布尔有效性夹具，数据库修订隔离另由真实 SQLite 测试证明）、外部目录修改保留、exclusive 编辑后 reapply、用户目录指针优先及旧受管绝对路径清除。
+
+Gateway 使用真实临时 SQLite、授权策略、回环 HTTP、原 SDK 和真实临时 `.codex` 文件，证明：保存有目录→首次激活→保存无目录→切换清除→切回恢复；配置不含私有 modelCatalog，API 成功/错误不回传 key；非法 token/缺写权限没有记录或文件副作用；active profile 拒绝保持文件不变；保留本机登录与暂存清除；坏 auth 时返回 catalogSaved=true/live=failed 且旧文件/指针保持；部署/租户/修订隔离。API 恢复场景使用真实私有 staged 文件和 Pending schema 表示已有中断意图，SDK 请求先恢复两文件并返回 recovery_required，下一次请求才重新提交；实际运行中的五阶段注入由业务包测试证明，没有把手工 pending 夹具当作自然崩溃或 mock 次数证明。
+
+所有凭据均为假值，JWT 只用于本地身份分类；未替代文件系统、数据库、pending 事务或 Gateway 鉴权，没有访问真实账号、Keychain、网络模型上游或真实用户配置。平台为 macOS **27.0 (26A428)**、**arm64**，crate **0.6.0**。`codex --version` 退出 0，记录本机随应用安装的 **codex-cli 0.166.0-alpha.6**；只查询版本，未运行 CLI 消费本次配置，真实账号/CLI 会话/Iced 渲染未验证。Agent lib test 继续有既有 `__eh_frame section too large` 链接提示，测试退出 0；未改链接设置，强制 Clippy 退出 0。
+
+定向 diff/check、只读 plan.md 无差异检查与暂存审查通过；仅提交本任务代码、独立测试、最小注册及本条正式证据，保留其它母任务状态、此前编号文件删除及其它计划。全部自身槽位锁已释放，缓存保留；未运行全量 cargo test、fmt check、wasm 或 Makefile。任务完成后删除编号任务文件，不提交其删除；正式证据保留。下一步为批次 31。

@@ -403,3 +403,5 @@ mod tests;
 include!("agent_scheduler_policy_legacy_review_exact_tests.rs");
 
 pub mod app_providers;
+
+mod model_catalog;

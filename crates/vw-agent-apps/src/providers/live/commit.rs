@@ -184,6 +184,18 @@ impl ProviderTransactions {
         changes: &[FileChange<'_>],
         target: PendingTarget,
     ) -> Result<(), WriteError> {
+        self.commit_checked(tenant, guard, changes, target, || Ok(()))
+    }
+    /// Executor-owned saved-input validation immediately before publication starts.
+    /// After the durable publication marker, recovery forwards the frozen intent.
+    pub fn commit_checked(
+        &self,
+        tenant: &TenantScope,
+        guard: &mut AppWriteGuard,
+        changes: &[FileChange<'_>],
+        target: PendingTarget,
+        validate: impl Fn() -> Result<(), WriteError>,
+    ) -> Result<(), WriteError> {
         validate_target(&target)?;
         let app = guard.app();
         let _lock = self.lock(app)?;
@@ -194,6 +206,7 @@ impl ProviderTransactions {
         self.register(guard)?;
         let mut state = self.state(app)?;
         let mut batch = guard.stage(changes)?;
+        validate()?;
         if batch.is_empty() {
             apply_target(&mut state, tenant, &target);
             return self.save(app, "state", &state);
@@ -230,6 +243,7 @@ impl ProviderTransactions {
             write.retain = true;
         }
         checkpoint(self, app, Phase::Intent)?;
+        validate()?;
         pending.published = true;
         self.save(app, "pending", &pending)?;
         checkpoint(self, app, Phase::Marked)?;

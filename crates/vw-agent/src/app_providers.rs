@@ -394,6 +394,21 @@ impl AppProviderStore {
                 }
             }
         }
+        if app == AppId::Codex {
+            if let Some(row) = self.codex_record(tenant, id)? {
+                if let Some(profile) = row.get("codex") {
+                    let profile: vw_api_types::app_providers::codex_catalog::CodexProfile =
+                        serde_json::from_value(profile.clone())
+                            .map_err(|_| "invalid provider record")?;
+                    return Ok(AppProviderSummary {
+                        id: id.into(),
+                        app_id: app,
+                        name: profile.name,
+                        configured: true,
+                    });
+                }
+            }
+        }
         let profile = self.read(tenant, app, id)?;
         Ok(Self::summary(app, id, &profile))
     }
@@ -482,3 +497,5 @@ impl AppProviderStore {
 mod snippets;
 
 mod claude;
+
+mod codex_catalog;

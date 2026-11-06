@@ -17,6 +17,7 @@ pub(crate) fn router() -> Router {
         .merge(editor_merge::router())
         .merge(snippets::router())
         .merge(claude::router())
+        .merge(codex_catalog::router())
         .merge(delete::router())
         .merge(duplicate::router())
         .merge(presentation::router())
@@ -209,3 +210,7 @@ mod claude_tests;
 
 #[cfg(all(test, target_os = "macos"))]
 mod codex_tests;
+
+mod codex_catalog;
+#[cfg(all(test, target_os = "macos"))]
+mod codex_catalog_tests;

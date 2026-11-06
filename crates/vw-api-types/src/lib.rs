@@ -134,3 +134,5 @@ mod agent_apps_tests;
 pub mod app_providers;
 #[cfg(test)]
 mod app_providers_tests;
+
+pub mod model_catalog;

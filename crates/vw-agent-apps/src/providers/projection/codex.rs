@@ -93,13 +93,14 @@ pub(crate) fn native(
     row: &Value,
     previous: Option<&Value>,
     login: bool,
+    exclusive: Option<&Map<String, Value>>,
 ) -> Result<DocumentMut, Error> {
     let projection = CodexProjection::of(&RowInput {
         settings: row,
         official: false,
         proxy_injected_oauth: false,
     })?;
-    apply(live, previous, None, login, projection)
+    apply(live, previous, exclusive, login, projection)
 }
 
 fn apply(

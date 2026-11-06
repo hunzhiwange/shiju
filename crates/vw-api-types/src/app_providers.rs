@@ -118,3 +118,7 @@ mod claude_tests;
 
 #[cfg(test)]
 mod codex_tests;
+
+pub mod codex_catalog;
+#[cfg(test)]
+mod codex_catalog_tests;

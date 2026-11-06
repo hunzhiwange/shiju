@@ -11,3 +11,7 @@ mod windows_tests;
 pub mod provider;
 #[cfg(test)]
 mod provider_tests;
+
+pub mod account;
+#[cfg(test)]
+mod account_tests;

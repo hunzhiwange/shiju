@@ -13,3 +13,5 @@ mod sqlite;
 mod postgres_tests;
 
 mod postgres;
+
+pub mod auth_accounts;

@@ -9,3 +9,5 @@ pub mod icons;
 pub mod apps;
 
 pub mod providers;
+
+pub mod auth;

@@ -23,6 +23,7 @@ pub(crate) fn router() -> Router {
         .merge(opencode::router())
         .merge(openclaw::router())
         .merge(hermes::router())
+        .merge(pi::router())
         .merge(claude_desktop::router())
         .merge(desktop_mapping::router())
         .merge(delete::router())
@@ -247,3 +248,7 @@ mod openclaw_tests;
 mod opencode;
 #[cfg(all(test, target_os = "macos"))]
 mod opencode_tests;
+
+mod pi;
+#[cfg(all(test, target_os = "macos"))]
+mod pi_tests;

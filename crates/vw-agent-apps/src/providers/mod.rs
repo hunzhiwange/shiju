@@ -177,3 +177,8 @@ mod opencode_tests;
 
 #[cfg(target_os = "macos")]
 mod opencode_schema;
+
+#[cfg(target_os = "macos")]
+pub mod pi;
+#[cfg(all(test, target_os = "macos"))]
+mod pi_tests;

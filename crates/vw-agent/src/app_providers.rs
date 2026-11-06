@@ -469,6 +469,21 @@ impl AppProviderStore {
                 }
             }
         }
+        if app == AppId::Pi {
+            if let Some(row) = self.pi_record(tenant, id)? {
+                if let Some(profile) = row.get("pi") {
+                    let profile: vw_api_types::app_providers::pi::PiProfile =
+                        serde_json::from_value(profile.clone())
+                            .map_err(|_| "invalid provider record")?;
+                    return Ok(AppProviderSummary {
+                        id: id.into(),
+                        app_id: app,
+                        name: profile.name,
+                        configured: true,
+                    });
+                }
+            }
+        }
         if app == AppId::GrokBuild {
             if let Some(row) = self.grok_record(tenant, id)? {
                 if let Some(profile) = row.get("grok") {
@@ -600,3 +615,5 @@ mod desktop_mapping;
 mod hermes;
 mod openclaw;
 mod opencode;
+
+mod pi;

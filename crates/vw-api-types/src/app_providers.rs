@@ -148,3 +148,7 @@ mod openclaw_tests;
 pub mod opencode;
 #[cfg(test)]
 mod opencode_tests;
+
+pub mod pi;
+#[cfg(test)]
+mod pi_tests;

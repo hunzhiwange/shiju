@@ -1752,3 +1752,55 @@ Gateway 使用临时 HOME、真实 SQLite、管理员策略、真实回环 HTTP 
 平台：`sw_vers`/`uname -m` 为 macOS **27.0 (26A428)**、**arm64**，crate **0.6.0**。`command -v hermes` 无结果，`hermes --version` 退出 **127**；Hermes 应用版本、真实应用消费、真实账号/Keychain、网络上游、Iced 渲染和非 macOS **未验证**。未读取或修改真实用户配置。HERMES_HOME 路径规则由纯解析断言验证，真实文件链在默认隔离目录验证；显式设置覆盖和实际自定义目录部署未验收。Gateway 链接器有既有 `__eh_frame section too large` 提示，测试退出 0，不修改链接配置。
 
 定向差异检查、暂存审查和只读 plan.md 检查通过；只提交本任务代码、独立测试、必要接线与本条证据，排除其它计划、母任务状态和此前编号文件删除。自身槽位锁释放、缓存保留；未执行全量 cargo test、fmt check、wasm 或 Makefile。验收后删除本编号任务文件，不提交其删除；下一步批次 38。
+
+## 任务 38：Pi 增量成员管理
+
+2026-11-07；状态：已完成。批次 37 提交 `7fc253fe7` 及其上节验收已核对；母任务 1、3 已完成，母任务 2 完整迁移仍未收口，沿用任务 1/provider-contracts.md 已记录的底座子计划 1–93 开工裁定，不冒称母任务 2 完成。未修改任何 plan.md。
+
+来源 HEAD `ca58c0313360eae7c851fbd7553c1614c7af03e7`，相关来源文件无工作区差异。阅读 `services/provider/pi.rs::{add,update,remove,enable,import_from_live,update_usage_script}`、`pi_config/mod.rs::{get_pi_agent_dir,insert_pi_provider,replace_pi_provider_if_present,remove_pi_provider,validate_provider_node}`、ProviderService 直接分派及相邻测试、`PiProviderForm.tsx::{buildPiSettingsConfig,PiProviderForm}`、ProviderForm 调用者和表单测试。使用 RustCodeGraph 检查既有入口与调用链，新文件/未覆盖来源使用源码读取。
+
+### 实现与边界
+
+- 唯一原生业务所有者为 `vw-agent-apps/src/providers/pi.rs`。固定只读写授权 HOME 下 `.pi/agent/models.json`；执行主机 `PI_CODING_AGENT_DIR` 可指向同一授权 HOME 下的绝对目录，禁止相对路径、越界、父组件及符号链接。不接收客户端文件路径，不读取环境密钥，不打开 settings.json、auth.json 或 Keychain，不运行命令。路径覆盖实际部署未验收，仅默认隔离目录和纯路径解析有证据。
+- 使用既有 JSON/JSONC 定点补丁保留其它供应商、根字段与注释原字节；声明保持原生对象、模型数组、独立原生 name 和未来字段。现有共享解析器接受注释/尾逗号，拒绝 JSON5 单引号/裸标识符、重复对象 key、损坏文档或非对象成员，不静默整份改写。成员 key 沿用既有供应商身份契约；不提供改名入口，带 originalId 的请求明确拒绝。
+- Add 对不同声明的同键成员拒绝覆盖；相同声明可幂等启用。IfMember 编辑已存在成员，缺失时只保存目录，不自动启用。remove-live 在发布前将最新原生声明保存到现有目录行，保留元数据，随后可重新启用；目录删除仍需成员引用检查。导入只读源文件，只新增缺失目录行，不覆盖已有档案，完整策略归任务 44。
+- 原生写入复用目录描述符锁、私有权限、ProviderTransactions、前像/目录修订检查与 pending 前滚恢复；不创建唯一 current 指针。观察目录和删除引用守卫接同一所有者。目录写入与原生发布分别返回 catalogSaved/live，冲突不假报成功。
+- 强类型 DTO、执行端存储、Gateway 和 SDK 分别位于各 crate 的 `app_providers/pi.rs`；只补既有父模块接线。权限沿用管理员主机读写、租户隔离和现有分域 API。声明/脚本 Debug 脱敏，SDK 敏感凭据 header 与失败载荷丢弃沿用相邻模式。用量脚本接口只更新目录 `meta.usageScript`，不读取/回写原生快照、不执行脚本；执行属于母任务 7。Iced 表单归任务 61，本任务未新增或验收 UI。
+
+前缀 `/v1/app-providers/pi`：
+
+| API | SDK |
+| --- | --- |
+| `PUT /{id}/config` | `pi_provider_save`；catalog_only/add/if_member |
+| `POST /{id}/add` | `pi_provider_add` |
+| `POST /{id}/remove-live` | `pi_provider_remove_live` |
+| `POST /config/state` | `pi_state`；仅成员 key |
+| `POST /config/import` | `pi_import` |
+| `PUT /{id}/usage-script` | `pi_usage_save`；仅目录元数据 |
+
+### 红绿验证
+
+红测执行任务四条相同 `cc04_pi_` 过滤命令：执行端 **2 项业务断言失败，退出 101**（新增成员未出现、同键覆盖未拒绝）；DTO **1 通过，退出 0**；Gateway **2 通过/1 业务断言失败，退出 101**（实际原生文件中编辑凭据未出现）；SDK **2 通过，退出 0**。未以编译失败或零测试作为红测。首绿 14 项通过；首绿包装脚本在所有命令结束后因运行期间调整脚本出现尾部语法错误，槽位已释放，最终阶段完整重跑，不以包装脚本错误替代命令验证。
+
+红测、首绿、最终阶段均从仓库根原子 mkdir 动态领取槽位 **1**；`CARGO_TARGET_DIR=/Users/xiangmin/worker/code/shiju/target/rust-slot-1`，`CARGO_BUILD_BUILD_DIR` 同值，覆盖仓库 build-dir。自身锁记录计划/任务/会话/PID，正常结束释放；最终脚本中断先等待子进程再退出释放，缓存保留。
+
+最终默认 features：
+
+| 确切命令 | 退出码 | 有效数量 |
+| --- | --- | --- |
+| `cargo fmt --all` | 0 | 格式化 |
+| `cargo test -p vw-agent-apps --lib cc04_pi_ -- --nocapture` | 0 | 5 passed |
+| `cargo test -p vw-api-types --lib cc04_pi_ -- --nocapture` | 0 | 2 passed |
+| `cargo test -p vw-agent --lib cc04_pi_ -- --nocapture` | 0 | 5 passed |
+| `cargo test -p vw-gateway-client --lib cc04_pi_ -- --nocapture` | 0 | 2 passed |
+| `cargo test -p vw-agent-apps --lib cc04_catalog_ -- --nocapture` | 0 | 7 passed |
+| `cargo test -p vw-agent-apps --lib cc04_delete_ -- --nocapture` | 0 | 3 passed |
+| `cargo clippy --all-targets --all-features -- -D warnings` | 0 | 非行为测试 |
+
+本任务 **14 项**、相邻回归 **10 项**通过，无忽略。包括指定两项行为、非法结构/路径/链接拒绝、目录修订和外部原生文件冲突，以及 Intent/Marked/FilePublished/Published/Settled 五阶段重建恢复且无唯一指针。
+
+Gateway 使用真实回环 HTTP、原生 SDK、SQLite、临时 HOME 和管理员策略：save/add/if_member → applied 响应 → models.json 中假凭据实际更新；移除保留目录，引用解除后可删除目录行；导入重复计数归零且源文件字节不变；同键碰撞和改名请求不改目录或原生文件；外部更新的凭据/未来字段不被用量元数据或导入覆盖，移除后重新启用仍保持最新声明；假 token、异租户、异主机、缺写权限无目录/文件/事务副作用，读权限可 state。每次检查原生文件时也断言 settings.json、auth.json 字节未变，二者使用故意无法解析的假内容，证明成员管理不依赖默认模型或登录解析。只以回环替代远端传输，凭据均为 fixture，没有替代文件系统、存储、鉴权或事务。
+
+平台：macOS **27.0 (26A428)**、**arm64**，crate **0.6.0**。`command -v pi` 无结果，`pi --version` 退出 **127**；Pi 应用版本、真实应用消费、真实账号/Keychain、网络上游、Iced 渲染及非 macOS **未验证**，未读取或修改真实用户配置。Gateway 链接器仍有既有 `__eh_frame section too large` 提示，测试退出 0，未改链接配置。
+
+定向差异/暂存检查及只读 plan.md 检查通过；只提交本任务实现、独立测试、必要接线和本条证据，排除其它计划与此前编号任务删除。自身槽位已释放，缓存保留；未执行全量 cargo test、fmt check、wasm 或 Makefile。验收后删除本编号任务文件，不提交其删除；下一步批次 39。

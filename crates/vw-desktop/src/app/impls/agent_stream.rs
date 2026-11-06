@@ -2018,9 +2018,7 @@ fn gateway_request_options(
     use serde_json::{Value, json};
 
     let mut options = serde_json::Map::new();
-    if req.full_access_enabled || req.acp_test {
-        options.insert("full_access".to_string(), json!(true));
-    }
+    options.insert("full_access".to_string(), json!(req.full_access_enabled));
     if let Some(agent) = &req.agent {
         options.insert("agent".to_string(), json!(agent));
     }
@@ -2040,7 +2038,10 @@ fn gateway_request_options(
         options.insert("acp_history_strategy".to_string(), json!(req.acp_history_mode.as_str()));
         options.insert("acp_history_recent_count".to_string(), json!(req.acp_recent_count));
         options.insert("cwd".to_string(), json!(req.root));
-        options.insert("acp_permission_mode".to_string(), json!("approve-all"));
+        options.insert(
+            "acp_permission_mode".to_string(),
+            json!(if req.full_access_enabled { "approve-all" } else { "approve-reads" }),
+        );
     }
     if req.resume_history_only {
         options.insert("desktop_resume_history_only".to_string(), json!(true));

@@ -177,7 +177,7 @@ pub(super) fn handle_permission_list_loaded(
             if !auto_approve_request_ids.is_empty() {
                 return submit_permission_replies(
                     auto_approve_request_ids,
-                    PendingPermissionReplyDto::Always,
+                    PendingPermissionReplyDto::Once,
                     directory,
                 );
             }
@@ -221,11 +221,7 @@ pub(super) fn handle_toggle_full_access_permission(app: &mut App) -> Task<Messag
         std::mem::take(&mut app.permission_modal_requests),
     );
     apply_permission_request(app, remaining_requests);
-    submit_permission_replies(
-        auto_approve_request_ids,
-        PendingPermissionReplyDto::Always,
-        directory,
-    )
+    submit_permission_replies(auto_approve_request_ids, PendingPermissionReplyDto::Once, directory)
 }
 
 /// 模块内可见函数，执行 handle_permission_approve_once 对应的应用流程。

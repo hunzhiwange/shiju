@@ -730,9 +730,7 @@ fn cron_gateway_options(
     acp_agent: Option<&str>,
 ) -> serde_json::Map<String, serde_json::Value> {
     let mut options = serde_json::Map::new();
-    if job.full_access || acp_agent.is_some() {
-        options.insert("full_access".to_string(), serde_json::Value::Bool(true));
-    }
+    options.insert("full_access".to_string(), serde_json::Value::Bool(job.full_access));
     if let Some(acp_agent) = acp_agent {
         options.insert("acp_test".to_string(), serde_json::Value::Bool(true));
         options.insert("acp_agent".to_string(), serde_json::Value::String(acp_agent.to_string()));
@@ -744,7 +742,9 @@ fn cron_gateway_options(
         );
         options.insert(
             "acp_permission_mode".to_string(),
-            serde_json::Value::String("approve-all".to_string()),
+            serde_json::Value::String(
+                if job.full_access { "approve-all" } else { "approve-reads" }.to_string(),
+            ),
         );
     }
     options

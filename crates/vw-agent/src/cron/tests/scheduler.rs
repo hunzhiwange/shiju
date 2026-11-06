@@ -732,7 +732,7 @@ async fn cron_gateway_options_close_acp_client_after_request() {
 }
 
 #[tokio::test]
-async fn cron_gateway_options_approve_all_for_acp_without_job_full_access() {
+async fn cron_gateway_options_preserves_disabled_full_access_for_acp() {
     let tmp = TempDir::new().unwrap();
     let config = test_config(&tmp).await;
     let mut job = test_job("");
@@ -741,10 +741,10 @@ async fn cron_gateway_options_approve_all_for_acp_without_job_full_access() {
 
     let options = super::cron_gateway_options(&config, &job, Some("codex"));
 
-    assert_eq!(options.get("full_access").and_then(serde_json::Value::as_bool), Some(true));
+    assert_eq!(options.get("full_access").and_then(serde_json::Value::as_bool), Some(false));
     assert_eq!(
         options.get("acp_permission_mode").and_then(serde_json::Value::as_str),
-        Some("approve-all")
+        Some("approve-reads")
     );
 }
 

@@ -3718,6 +3718,12 @@ pub(crate) fn gateway_stream_request_from_state(
     let snapshot = state.to_chat_session();
     let acp_agent = submission.execution.acp_backend.clone();
     let full_access_enabled = submission.execution.full_access_enabled;
+    let acp_permission_mode =
+        if full_access_enabled || submission.execution.permission_mode == PermissionMode::Bypass {
+            "approve-all"
+        } else {
+            "approve-reads"
+        };
     let subagent_mode_enabled = submission.execution.subagent_mode_enabled;
     let mut allowed_tools = (!full_access_enabled
         && submission.execution.permission_mode == PermissionMode::Plan)
@@ -3738,19 +3744,21 @@ pub(crate) fn gateway_stream_request_from_state(
                     state.project.workspace_root.as_ref().map(|path| path.display().to_string())
                 })
                 .unwrap_or_default();
-            let mut options = json!({
+            json!({
                 "acp_test": true,
                 "acp_agent": acp_agent,
                 "cwd": cwd,
                 "acp_force_new_session": submission.execution.acp_force_new_session,
-                "acp_permission_mode": if full_access_enabled { "approve-all" } else { "approve-reads" },
-            });
-            if full_access_enabled {
-                options["full_access"] = json!(true);
-            }
-            options
+                "acp_permission_mode": acp_permission_mode,
+                "full_access": full_access_enabled,
+            })
         })
-        .or_else(|| full_access_enabled.then(|| json!({"full_access": true})));
+        .or_else(|| {
+            Some(json!({
+                "full_access": full_access_enabled,
+                "acp_permission_mode": acp_permission_mode,
+            }))
+        });
     if subagent_mode_enabled {
         let options = options.get_or_insert_with(|| json!({}));
         options["allowed_tools"] = json!(allowed_tools);

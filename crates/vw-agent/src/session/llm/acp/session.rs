@@ -155,7 +155,11 @@ fn build_cached_acp_client(
             .map(|view| view.0.clone() as Arc<dyn std::any::Any + Send + Sync>),
     )
     .with_mcp_servers(parsed_options.mcp_servers.clone())
-    .with_permission_mode(parsed_options.permission_mode.unwrap_or(PermissionMode::ApproveAll))
+    .with_permission_mode(parsed_options.permission_mode.unwrap_or(if parsed_options.full_access {
+        PermissionMode::ApproveAll
+    } else {
+        PermissionMode::ApproveReads
+    }))
     .with_full_access(parsed_options.full_access)
     .with_non_interactive_permissions(parsed_options.non_interactive_permissions.clone())
     .with_auth_policy(parsed_options.auth_policy.unwrap_or(AuthPolicy::Skip))

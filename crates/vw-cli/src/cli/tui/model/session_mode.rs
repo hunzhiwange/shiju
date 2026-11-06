@@ -162,12 +162,17 @@ impl SessionOptions {
     pub(crate) fn execution_snapshot(&self) -> SessionExecutionSnapshot {
         SessionExecutionSnapshot {
             effort: self.effort,
-            permission_mode: self.permission_mode,
+            permission_mode: if self.permission_mode == PermissionMode::Bypass
+                && !self.bypass_confirmed
+            {
+                PermissionMode::Default
+            } else {
+                self.permission_mode
+            },
             delegate_agent: self.delegate_agent.clone(),
             acp_backend: self.acp_backend.clone(),
             acp_force_new_session: self.acp_session_mode == AcpSessionMode::ForceNew,
-            full_access_enabled: self.access_mode == AccessMode::Full
-                || (self.permission_mode == PermissionMode::Bypass && self.bypass_confirmed),
+            full_access_enabled: self.full_access_enabled(),
             subagent_mode_enabled: self.subagent_mode == SubagentMode::Enabled,
             workflow_mode: self.workflow_mode,
             goal_mode: self.goal_mode,
@@ -200,7 +205,6 @@ impl SessionOptions {
 
     pub(crate) fn full_access_enabled(&self) -> bool {
         self.access_mode == AccessMode::Full
-            || (self.permission_mode == PermissionMode::Bypass && self.bypass_confirmed)
     }
 
     pub(crate) fn explicit_full_access_enabled(&self) -> bool {

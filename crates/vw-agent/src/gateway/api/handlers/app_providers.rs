@@ -16,6 +16,7 @@ pub(crate) fn router() -> Router {
         .merge(duplicate::router())
         .merge(presentation::router())
         .merge(endpoints::router())
+        .merge(icons::router())
         .route(
             "/app-providers/{app}/{id}",
             get(read)
@@ -39,6 +40,7 @@ fn error(message: &str) -> Response {
         "application provider already exists" => {
             (StatusCode::CONFLICT, "Application provider already exists")
         }
+        "custom icon not found" => (StatusCode::NOT_FOUND, "Custom icon not found"),
         "application provider not found" => {
             (StatusCode::NOT_FOUND, "Application provider not found")
         }
@@ -129,3 +131,9 @@ mod endpoints;
 #[cfg(test)]
 #[path = "app_providers/endpoints_tests.rs"]
 mod endpoints_tests;
+
+#[path = "app_providers/icons.rs"]
+mod icons;
+#[cfg(test)]
+#[path = "app_providers/icons_tests.rs"]
+mod icons_tests;

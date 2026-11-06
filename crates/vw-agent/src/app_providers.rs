@@ -19,16 +19,69 @@ const NAMESPACE: &str = "app_providers.records";
 /// Fixed domain namespace; no global auth, host environment, upstream database or arbitrary key access.
 pub struct AppProviderStore {
     settings: GatewaySettingsStore,
+    database: GlobalDatabase,
 }
 impl AppProviderStore {
     pub fn new(database: GlobalDatabase) -> Result<Self, String> {
-        GatewaySettingsStore::new(database)
-            .map(|settings| Self { settings })
+        GatewaySettingsStore::new(database.clone())
+            .map(|settings| Self { settings, database })
             .map_err(|_| "application provider storage unavailable".into())
     }
     fn key(app: AppId, id: &str) -> Result<String, String> {
         validate_identity(id)?;
         Ok(format!("{}:{id}", serde_json::to_string(&app).expect("AppId serialization")))
+    }
+    /// Consume the shared tenant library without linking provider records to deletable IDs.
+    pub fn set_icon(
+        &self,
+        tenant: &TenantScope,
+        app: AppId,
+        id: &str,
+        request: &vw_api_types::app_providers::icons::AppProviderIconChange,
+    ) -> Result<vw_api_types::app_providers::icons::AppProviderIcon, String> {
+        let key = Self::key(app, id)?;
+        let before = self
+            .settings
+            .get(tenant, NAMESPACE, &key)
+            .map_err(|_| "application provider storage unavailable")?
+            .ok_or("application provider not found")?;
+        let stored = serde_json::from_str(&before)
+            .map_err(|_| "invalid stored application provider profile")?;
+        let icons = match request {
+            vw_api_types::app_providers::icons::AppProviderIconChange::Select { .. } => {
+                crate::agent_apps::store::IconLibraryStore::new(self.database.clone())
+                    .map_err(|_| "application provider storage unavailable")?
+                    .read_icons(tenant)
+                    .map_err(|_| "application provider storage unavailable")?
+            }
+            vw_api_types::app_providers::icons::AppProviderIconChange::Clear => Vec::new(),
+        };
+        let updated = vw_agent_apps::providers::icons::update(&stored, request, &icons)?;
+        let after = serde_json::to_string(&updated)
+            .map_err(|_| "invalid stored application provider profile")?;
+        if !self
+            .settings
+            .compare_exchange(tenant, NAMESPACE, &key, &before, &after)
+            .map_err(|_| "application provider storage unavailable")?
+        {
+            return Err("application provider changed during update".into());
+        }
+        vw_agent_apps::providers::icons::read(&updated)
+    }
+    pub fn get_icon(
+        &self,
+        tenant: &TenantScope,
+        app: AppId,
+        id: &str,
+    ) -> Result<vw_api_types::app_providers::icons::AppProviderIcon, String> {
+        let raw = self
+            .settings
+            .get(tenant, NAMESPACE, &Self::key(app, id)?)
+            .map_err(|_| "application provider storage unavailable")?
+            .ok_or("application provider not found")?;
+        let stored = serde_json::from_str(&raw)
+            .map_err(|_| "invalid stored application provider profile")?;
+        vw_agent_apps::providers::icons::read(&stored)
     }
     /// Upsert a tenant-owned API provider without activating it or changing any CLI live config.
     pub fn save(

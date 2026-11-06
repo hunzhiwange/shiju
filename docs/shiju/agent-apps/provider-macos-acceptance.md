@@ -410,3 +410,54 @@ Gateway 使用真实隔离 SQLite、正式 handler_router 和 Basic 认证中间
 `sw_vers`、`uname -m` 均退出 0：macOS 27.0（26A428）、arm64。应用版本未验证：本任务仅为隔离目录地址簿维护，没有启动实际应用。Iced、测速、live 切换/应用运行、Windows/Linux、其他架构与 PostgreSQL 实际服务未验收；PostgreSQL 复用既有条件更新后端并参与 Clippy，不宣称运行验收。
 
 本任务代码/测试/正式证据已审查，定向 `git diff --check`、`git diff --cached --check` 退出 0；plan.md 无差异。只提交本任务变更，排除原有母任务状态及其他编号文件删除。本任务完成后删除编号任务文件且不纳入提交。未执行全量 cargo test、fmt check、wasm 检查或 Makefile。
+
+## 任务 9：供应商图标库
+
+2026-11-06；状态：已完成。
+
+### 依赖、来源与接线
+
+核对批次 8 提交 `19ca94f39` 及任务 1–8 正式证据；母任务 1、3 已完成。母任务 2 完整领域迁移仍未收口，沿用任务 1 与 provider-contracts.md 的底座子计划 1–93 开工裁定，不冒充母任务 2 完成。只读 plan.md 未修改。
+
+来源 `/Users/xiangmin/worker/code/cc-switch` HEAD `ca58c0313360eae7c851fbd7553c1614c7af03e7`，rev-parse/status 退出 0，来源干净。读取 `services/provider/icon.rs::{validate_icon,is_valid_custom_icon,list_library_icons,add_library_icon,rename_library_icon,delete_library_icon}`、相邻完整 PNG/容量/去重/改名/删除测试、commands/custom_icon.rs、lib.rs 注册、customIcons API/query 与 IconPicker 调用者。来源选择 `icon.data` 写入供应商，库 ID 仅用于管理库条目；删除库条目不应删除供应商的图片副本。
+
+- 复用 `vw-agent-apps/src/icons/{validation,name,library}.rs`、`vw-agent/src/agent_apps/store.rs::IconLibraryStore` 及 SQLite/PostgreSQL 原子事务；唯一库仍为 `agent_apps.custom_icons/default`。没有第二份库、存储迁移或新增依赖。
+- 保存/改名/删除继续使用原 `POST/GET /v1/agent-apps/custom-icons`、`PATCH/DELETE /v1/agent-apps/custom-icons/{id}` 和 SDK `custom_icon_add/custom_icons_list/custom_icon_rename/custom_icon_delete`。完整解码 PNG（含块校验与像素）、data URI 不超过 64 KiB、尺寸不超过 256×256、解码内存上限 1 MiB、名称 1–64 Unicode 字符、库最多 100 项；重复数据保留原 ID/名称/时间，改名不改图片，删除不存在项幂等。
+- `vw-agent-apps/src/providers/icons.rs::{read,update}` 只负责供应商消费共享库。选择时校验 ID、引用存在性/唯一性及完整 PNG，然后复制图片；clear 清除 icon/iconColor，其余秘密、未知字段与配置保留。库改名/删除不会产生悬空引用。原生配置、应用激活、直连指针、代理路由均不改变。
+- DTO `app_providers/icons.rs` 显式 `action: select` + `iconId` 或 `action: clear`，拒绝任意路径、data、租户和运行字段。新增 `GET/PUT /v1/app-providers/{app}/{id}/icon`，返回 `{data: PNG data URI|null}`；读入非法图片、路径或外链返回受控 503。这个接口仅投影自定义 PNG，既有其他 icon 字符串不被解释为可访问路径。
+- `AppProviderStore::{get_icon,set_icon}` 沿用现有租户/应用/供应商键与 compare_exchange，缺失供应商/库引用 404、输入非法 400、并发修改 409、存储不可用 503。SDK `app_provider_icon/app_provider_icon_change` 保留状态码，不回显服务端正文或传输错误细节。四层直接父模块登记到现有分域 router，handler_router/bootstrap 共用；无通用命令入口。沿用目录维护权限、网关认证和 TenantScope，不授予主机配置写权限；公司头不独立证明公司成员身份。
+- 共享存储的 `read_icons` 与 `rename_icon` 对将返回的图片增加完整 PNG 校验，阻断历史导入数据中的路径/外链经列表或改名响应返回。沿用原有损坏数组返回空、坏形状条目过滤的行为，不声称已经统一为严格解析；本轮安全校验针对可反序列化条目的图片载荷。相邻存储测试的非图片占位值换为真实 PNG，并新增危险图片拒绝断言。
+
+### 红/绿、平台与审查证据
+
+各阶段原子 mkdir 动态领取槽位 **1**，`CARGO_TARGET_DIR=/Users/xiangmin/worker/code/shiju/target/rust-slot-1`，`CARGO_BUILD_BUILD_DIR` 同一绝对路径覆盖仓库 build-dir。owner 记录计划、任务、会话与 PID，EXIT/INT/TERM 清理自身 owner 与锁，全部子进程结束才释放，缓存保留。
+
+红阶段先用可编译的未消费图片实现接线，四条命令均为默认 features，先 `cargo fmt --all`（退出 0）：
+
+| 确切命令 | 红阶段退出码 / 有效结果 | 最终绿阶段退出码 / 有效结果 |
+| --- | --- | --- |
+| `cargo test -p vw-agent-apps --lib cc04_icons_ -- --nocapture` | 101；2 failed：选择后图片仍为空、非法引用被接受 | 0；2 passed |
+| `cargo test -p vw-api-types --lib cc04_icons_ -- --nocapture` | 0；1 passed | 0；1 passed |
+| `cargo test -p vw-agent --lib cc04_icons_ -- --nocapture` | 101；2 failed：非法选择返回 200、SDK 选择图片仍为空 | 0；2 passed |
+| `cargo test -p vw-gateway-client --lib cc04_icons_ -- --nocapture` | 0；1 passed | 0；1 passed |
+
+最终补充跨租户引用拒绝和真实 PNG 存储夹具后，重新运行 `cargo fmt --all`（0）、上述四条命令（共 **6** 项有效测试），再执行以下相邻回归及强制检查：
+
+| 确切命令 | 退出码 | 有效数量 / 结果 |
+| --- | --- | --- |
+| `cargo test -p vw-agent --lib cc_base_icon_store_read_sqlite_reopen_isolation_and_corruption -- --nocapture` | 0 | 1 passed |
+| `cargo test -p vw-agent --lib cc_base_icon_api_add_sqlite_read_and_deduplicate -- --nocapture` | 0 | 1 passed |
+| `cargo test -p vw-agent --lib cc_base_icon_api_read_scoped_sqlite -- --nocapture` | 0 | 1 passed |
+| `cargo test -p vw-agent --lib cc_base_icon_api_rename_sqlite_boundaries_and_scope -- --nocapture` | 0 | 1 passed |
+| `cargo test -p vw-agent --lib cc_base_icon_api_delete_sqlite_idempotent_and_scoped -- --nocapture` | 0 | 1 passed |
+| `cargo clippy --all-targets --all-features -- -D warnings` | 0 | 全 targets/features 通过 |
+
+共 **11** 项有效测试，无忽略、零测试或编译代替行为验收。测试二进制来自领取槽位 `debug/deps`。Agent 链接仍有既有 `__eh_frame section too large` 提示，测试退出 0；未改链接设置。
+
+业务测试使用真实编码 PNG 与临时文件重读，验证保存、去重、改名、删除后的副本、clear、缺失/非法引用及 SVG/外链/路径/过大/超尺寸/截断图片拒绝。Gateway 通过正式路由与真实隔离 SQLite，SDK→本地回环 HTTP→API→共享库原子事务/供应商条件更新→重开数据库，验证去重、改名、删除、选择与清除、跨 platform/company/app 记录保留，以及跨租户引用 404。Basic 无凭据 401 且不改记录，非法字段 400、损坏图片读取/改名 503 且不含路径或秘密；临时 native fixture 字节保持不变。
+
+本地 HTTP 只替代远端传输，未启用 Basic（SDK 支持 Bearer）；Basic 拒绝由独立正式路由测试覆盖，不冒充真实外部部署认证。SDK crate 的 HTTP fixture 只证明线协议、租户与错误正文脱敏。使用假凭据和临时目录，没有读取或修改真实用户应用配置。
+
+`sw_vers`、`uname -m` 退出 0：macOS 27.0（26A428）、arm64。应用版本未验证：本轮未启动应用。Iced 由后续 UI 任务验收，本轮没有窗口/渲染变更；应用 live 切换、Windows/Linux、其他架构、PostgreSQL 实际服务未验收，不能从 Clippy 或 SQLite 推及这些场景。
+
+定向差异与暂存检查退出 0，最终槽位 1 锁不存在、缓存保留。只提交本任务代码、独立测试、受影响的存储夹具和本条正式证据，排除原有任务状态/删除及其他会话变更；编号任务文件完成后删除且不纳入提交。未执行全量 cargo test、fmt check、wasm 或 Makefile。

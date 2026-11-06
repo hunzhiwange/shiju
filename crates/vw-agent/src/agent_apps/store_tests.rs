@@ -3,6 +3,7 @@ use serde_json::json;
 use vw_api_types::id::TenantScope;
 
 use super::store::IconLibraryStore;
+const IMAGE: &str = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR4nGP4z8DwHwAFAAH/iZk9HQAAAABJRU5ErkJggg==";
 use crate::global_database::test_support::PostgresTestDatabase;
 use crate::{gateway::settings_store::GatewaySettingsStore, global_database::GlobalDatabase};
 
@@ -16,7 +17,7 @@ fn exercise(
     let settings = GatewaySettingsStore::new(database.clone())?;
     let store = IconLibraryStore::new(database)?;
     assert!(store.read_icons(&tenant)?.is_empty());
-    let icon = json!({"id":"first","name":"图标","data":"original image","createdAt":12});
+    let icon = json!({"id":"first","name":"图标","data":IMAGE,"createdAt":12});
     for (scope, id) in [(&tenant, "first"), (&company, "company"), (&platform, "platform")] {
         let mut entry = icon.clone();
         entry["id"] = json!(id);
@@ -36,8 +37,16 @@ fn exercise(
         let icons = store.read_icons(scope)?;
         assert_eq!(icons.len(), 1);
         assert_eq!(icons[0].id, id);
-        assert_eq!(icons[0].data, "original image");
+        assert_eq!(icons[0].data, IMAGE);
     }
+    settings.upsert(
+        &tenant,
+        "agent_apps.custom_icons",
+        "default",
+        &json!([{"id":"unsafe","name":"Icon","data":"/private/fixture.png","createdAt":1}])
+            .to_string(),
+    )?;
+    assert!(store.read_icons(&tenant).is_err());
     for raw in ["{broken", "{}", "null"] {
         settings.upsert(&tenant, "agent_apps.custom_icons", "default", raw)?;
         assert!(store.read_icons(&tenant)?.is_empty());

@@ -44,6 +44,11 @@ impl IconLibraryStore {
         name: &str,
     ) -> Result<CustomIconEntry, AgentAppsErrorCode> {
         self.mutate(tenant, |icons| {
+            if icons.iter().any(|icon| {
+                icon.id == id && !vw_agent_apps::icons::validation::is_valid_custom_icon(&icon.data)
+            }) {
+                return Err(AgentAppsErrorCode::StorageUnavailable);
+            }
             let updated = library::rename_icon(icons, id, name)?;
             let icon = updated
                 .iter()
@@ -72,12 +77,19 @@ impl IconLibraryStore {
         }
     }
 
-    /// Read in stored order, tolerating malformed arrays and individual entries.
+    /// Read in stored order, tolerating malformed shapes but rejecting unsafe image payloads.
     pub fn read_icons(&self, tenant: &TenantScope) -> Result<Vec<CustomIconEntry>> {
         let Some(raw) = self.settings.get(tenant, ICON_NAMESPACE, ICON_KEY)? else {
             return Ok(Vec::new());
         };
-        Ok(parse_icons(&raw))
+        let icons = parse_icons(&raw);
+        if icons
+            .iter()
+            .any(|icon| !vw_agent_apps::icons::validation::is_valid_custom_icon(&icon.data))
+        {
+            anyhow::bail!("invalid stored custom icon image");
+        }
+        Ok(icons)
     }
 }
 

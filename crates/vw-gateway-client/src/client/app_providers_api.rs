@@ -77,3 +77,9 @@ mod endpoints;
 #[cfg(test)]
 #[path = "app_providers/endpoints_tests.rs"]
 mod endpoints_tests;
+
+#[path = "app_providers/icons.rs"]
+mod icons;
+#[cfg(test)]
+#[path = "app_providers/icons_tests.rs"]
+mod icons_tests;

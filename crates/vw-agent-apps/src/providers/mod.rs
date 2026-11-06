@@ -89,3 +89,7 @@ mod presentation_tests;
 pub mod endpoints;
 #[cfg(test)]
 mod endpoints_tests;
+
+pub mod icons;
+#[cfg(test)]
+mod icons_tests;

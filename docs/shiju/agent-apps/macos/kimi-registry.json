@@ -1,0 +1,78 @@
+{
+  "2.5.0": {
+    "name": "@moonshot-ai/kimi-code",
+    "version": "2.5.0",
+    "bin": {
+      "kimi": "dist/main.mjs"
+    },
+    "engines": {
+      "node": ">=22.19.0"
+    },
+    "dist": {
+      "shasum": "976ea6a13f2910a3edc5320d53e78abc21bfadf4",
+      "tarball": "https://registry.npmjs.org/@moonshot-ai/kimi-code/-/kimi-code-2.5.0.tgz",
+      "fileCount": 536,
+      "integrity": "sha512-AYuT4fW7pzZAqxIIDjx+ypLJNoAL07NZCUyPDlf/JrgyKri35eVq9mDuhoe/xRX7wNHL+1fX+H0Dj/rB3H04Yg==",
+      "signatures": [
+        {
+          "sig": "MEQCICI1zC8qUMT62nilOYsswH9rEn4AckGLeZ3ahDVXeCvmAiBZ8Qgl0UeSFIHvY9aP6iKm0qi+AQGRjpnJhVYHuKoeMg==",
+          "keyid": "SHA256:DhQ8wR5APBvFHLF/+Tc+AYvPOdTpcIDqOhxsBHRwC7U"
+        },
+        {
+          "sig": "MEYCIQDMh/Buv8T0wCl8ADH+3jmkMUYWVncdrAyvqeiAzSMn3AIhAMWlyiAzgLnB8/BSIMliM5HfskQMGh3InA83xxnkcwkp",
+          "keyid": "SHA256:DhQ8wR5APBvFHLF/+Tc+AYvPOdTpcIDqOhxsBHRwC7U"
+        }
+      ],
+      "attestations": {
+        "url": "https://registry.npmjs.org/-/npm/v1/attestations/@moonshot-ai%2fkimi-code@2.5.0",
+        "provenance": {
+          "predicateType": "https://slsa.dev/provenance/v1"
+        }
+      },
+      "unpackedSize": 47289516
+    },
+    "repository": {
+      "url": "git+https://github.com/MoonshotAI/kimi-code.git",
+      "type": "git",
+      "directory": "apps/kimi-code"
+    }
+  },
+  "2.5.1": {
+    "name": "@moonshot-ai/kimi-code",
+    "version": "2.5.1",
+    "bin": {
+      "kimi": "dist/main.mjs"
+    },
+    "engines": {
+      "node": ">=22.19.0"
+    },
+    "dist": {
+      "shasum": "86ad960474cf57bb2869f5e4b0732f374e4bc01e",
+      "tarball": "https://registry.npmjs.org/@moonshot-ai/kimi-code/-/kimi-code-2.5.1.tgz",
+      "fileCount": 536,
+      "integrity": "sha512-cfKwN1iy3SRvtBSlMdErUz/c3xTb6Gn5CLHEwO7nBFc5DLxNbI3S1KCzK/V4XJheIZt5yyKATsIT9nJ3ouD2qg==",
+      "signatures": [
+        {
+          "sig": "MEUCIQDyfvVQUodW2VKS2khFmYVUFzmd3quWarokUWCNfICuhQIgCALgn5IeVst7gY1wfXbn+UkNUG36V/4d76uGcqu/4tw=",
+          "keyid": "SHA256:DhQ8wR5APBvFHLF/+Tc+AYvPOdTpcIDqOhxsBHRwC7U"
+        },
+        {
+          "sig": "MEYCIQDkYYo4ZtU9KhBY3lrHXMu9GM61vL9JsD8+tT0IxiY1YgIhANQtQKlXj96XpbHigElXKdeufSM63lWIxvw3aLu1r5W9",
+          "keyid": "SHA256:DhQ8wR5APBvFHLF/+Tc+AYvPOdTpcIDqOhxsBHRwC7U"
+        }
+      ],
+      "attestations": {
+        "url": "https://registry.npmjs.org/-/npm/v1/attestations/@moonshot-ai%2fkimi-code@2.5.1",
+        "provenance": {
+          "predicateType": "https://slsa.dev/provenance/v1"
+        }
+      },
+      "unpackedSize": 47305102
+    },
+    "repository": {
+      "url": "git+https://github.com/MoonshotAI/kimi-code.git",
+      "type": "git",
+      "directory": "apps/kimi-code"
+    }
+  }
+}

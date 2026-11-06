@@ -1,0 +1,779 @@
+[
+  {
+    "method": "GET",
+    "path": "catalog",
+    "body": null,
+    "status": 200,
+    "response": {
+      "apps": [
+        {
+          "id": "kimi",
+          "name": "Kimi Code",
+          "cliCommand": "kimi",
+          "runtimeKinds": [
+            "native_cli"
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "method": "GET",
+    "path": "installations?appId=kimi",
+    "body": null,
+    "status": 200,
+    "response": {
+      "installations": []
+    }
+  },
+  {
+    "method": "GET",
+    "path": "launch-identities?appId=kimi",
+    "body": null,
+    "status": 200,
+    "response": []
+  },
+  {
+    "method": "GET",
+    "path": "catalog",
+    "body": null,
+    "status": 200,
+    "response": {
+      "apps": [
+        {
+          "id": "kimi",
+          "name": "Kimi Code",
+          "cliCommand": "kimi",
+          "runtimeKinds": [
+            "native_cli"
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "method": "GET",
+    "path": "launch-identities?appId=kimi",
+    "body": null,
+    "status": 200,
+    "response": []
+  },
+  {
+    "method": "GET",
+    "path": "installations?appId=kimi",
+    "body": null,
+    "status": 200,
+    "response": {
+      "installations": [
+        {
+          "id": "installation-1",
+          "appId": "kimi",
+          "targetHostId": "host",
+          "environment": {
+            "kind": "macos"
+          },
+          "path": "<isolated-root>/prefix/bin/kimi",
+          "realPath": "<isolated-root>/prefix/lib/node_modules/@moonshot-ai/kimi-code/dist/main.mjs",
+          "source": "unknown",
+          "isPathDefault": true,
+          "version": "2.5.0",
+          "runtimeStatus": {
+            "status": "runnable"
+          }
+        }
+      ]
+    }
+  },
+  {
+    "method": "POST",
+    "path": "actions/preview",
+    "body": {
+      "appId": "kimi",
+      "action": "update",
+      "target": {
+        "kind": "installation",
+        "installationId": "installation-1"
+      }
+    },
+    "status": 200,
+    "response": {
+      "previewId": "d0c7dd3b-bdff-4d78-9f3e-ca7d89cbb043",
+      "request": {
+        "appId": "kimi",
+        "action": "update",
+        "target": {
+          "kind": "installation",
+          "installationId": "installation-1"
+        }
+      },
+      "source": "system",
+      "confirmationRequired": true,
+      "summary": "Review the selected application action in the administrator-approved prefix",
+      "displayCommand": null
+    }
+  },
+  {
+    "method": "POST",
+    "path": "actions",
+    "body": {
+      "previewId": "d0c7dd3b-bdff-4d78-9f3e-ca7d89cbb043",
+      "confirmed": true
+    },
+    "status": 202,
+    "response": {
+      "operationId": "26d202c7-94c2-4f20-ab69-8cec144a120d",
+      "status": "queued"
+    }
+  },
+  {
+    "method": "GET",
+    "path": "operations/26d202c7-94c2-4f20-ab69-8cec144a120d",
+    "body": null,
+    "status": 200,
+    "response": {
+      "operationId": "26d202c7-94c2-4f20-ab69-8cec144a120d",
+      "status": "running",
+      "phase": "preflight"
+    }
+  },
+  {
+    "method": "GET",
+    "path": "operations/26d202c7-94c2-4f20-ab69-8cec144a120d",
+    "body": null,
+    "status": 200,
+    "response": {
+      "operationId": "26d202c7-94c2-4f20-ab69-8cec144a120d",
+      "status": "running",
+      "phase": "executing"
+    }
+  },
+  {
+    "method": "GET",
+    "path": "operations/26d202c7-94c2-4f20-ab69-8cec144a120d",
+    "body": null,
+    "status": 200,
+    "response": {
+      "operationId": "26d202c7-94c2-4f20-ab69-8cec144a120d",
+      "status": "running",
+      "phase": "postflight"
+    }
+  },
+  {
+    "method": "GET",
+    "path": "operations/26d202c7-94c2-4f20-ab69-8cec144a120d",
+    "body": null,
+    "status": 200,
+    "response": {
+      "operationId": "26d202c7-94c2-4f20-ab69-8cec144a120d",
+      "status": "completed",
+      "phase": "terminal"
+    }
+  },
+  {
+    "method": "GET",
+    "path": "operations/26d202c7-94c2-4f20-ab69-8cec144a120d/events",
+    "body": null,
+    "status": 200,
+    "response": {
+      "operationId": "26d202c7-94c2-4f20-ab69-8cec144a120d",
+      "status": "completed",
+      "phase": "terminal"
+    }
+  },
+  {
+    "method": "GET",
+    "path": "installations?appId=kimi",
+    "body": null,
+    "status": 200,
+    "response": {
+      "installations": [
+        {
+          "id": "installation-1",
+          "appId": "kimi",
+          "targetHostId": "host",
+          "environment": {
+            "kind": "macos"
+          },
+          "path": "<isolated-root>/prefix/bin/kimi",
+          "realPath": "<isolated-root>/prefix/lib/node_modules/@moonshot-ai/kimi-code/dist/main.mjs",
+          "source": "unknown",
+          "isPathDefault": true,
+          "version": "2.5.1",
+          "runtimeStatus": {
+            "status": "runnable"
+          }
+        },
+        {
+          "id": "installation-2",
+          "appId": "kimi",
+          "targetHostId": "host",
+          "environment": {
+            "kind": "macos"
+          },
+          "path": "<isolated-root>/home/.local/bin/kimi",
+          "realPath": "<isolated-root>/home/.local/lib/node_modules/@moonshot-ai/kimi-code/dist/main.mjs",
+          "source": "unknown",
+          "isPathDefault": false,
+          "version": "2.5.0",
+          "runtimeStatus": {
+            "status": "runnable"
+          }
+        }
+      ]
+    }
+  },
+  {
+    "method": "POST",
+    "path": "actions/preview",
+    "body": {
+      "appId": "kimi",
+      "action": "uninstall",
+      "target": {
+        "kind": "installation",
+        "installationId": "installation-1"
+      }
+    },
+    "status": 200,
+    "response": {
+      "previewId": "2007f58f-f409-471b-b8bd-72ebe6ffa92f",
+      "request": {
+        "appId": "kimi",
+        "action": "uninstall",
+        "target": {
+          "kind": "installation",
+          "installationId": "installation-1"
+        }
+      },
+      "source": "system",
+      "confirmationRequired": true,
+      "summary": "Review the selected application action in the administrator-approved prefix",
+      "displayCommand": null
+    }
+  },
+  {
+    "method": "POST",
+    "path": "actions",
+    "body": {
+      "previewId": "2007f58f-f409-471b-b8bd-72ebe6ffa92f",
+      "confirmed": true
+    },
+    "status": 202,
+    "response": {
+      "operationId": "3385f380-7522-44ff-9126-a583f7df411c",
+      "status": "queued"
+    }
+  },
+  {
+    "method": "GET",
+    "path": "operations/3385f380-7522-44ff-9126-a583f7df411c",
+    "body": null,
+    "status": 200,
+    "response": {
+      "operationId": "3385f380-7522-44ff-9126-a583f7df411c",
+      "status": "completed",
+      "phase": "terminal"
+    }
+  },
+  {
+    "method": "GET",
+    "path": "operations/3385f380-7522-44ff-9126-a583f7df411c/events",
+    "body": null,
+    "status": 200,
+    "response": {
+      "operationId": "3385f380-7522-44ff-9126-a583f7df411c",
+      "status": "completed",
+      "phase": "terminal"
+    }
+  },
+  {
+    "method": "POST",
+    "path": "actions/preview",
+    "body": {
+      "appId": "kimi",
+      "action": "uninstall",
+      "target": {
+        "kind": "installation",
+        "installationId": "installation-1"
+      }
+    },
+    "status": 422,
+    "response": ""
+  },
+  {
+    "method": "GET",
+    "path": "installations?appId=kimi",
+    "body": null,
+    "status": 200,
+    "response": {
+      "installations": [
+        {
+          "id": "installation-2",
+          "appId": "kimi",
+          "targetHostId": "host",
+          "environment": {
+            "kind": "macos"
+          },
+          "path": "<isolated-root>/home/.local/bin/kimi",
+          "realPath": "<isolated-root>/home/.local/lib/node_modules/@moonshot-ai/kimi-code/dist/main.mjs",
+          "source": "unknown",
+          "isPathDefault": true,
+          "version": "2.5.0",
+          "runtimeStatus": {
+            "status": "runnable"
+          }
+        }
+      ]
+    }
+  },
+  {
+    "method": "POST",
+    "path": "actions/preview",
+    "body": {
+      "appId": "kimi",
+      "action": "install",
+      "target": {
+        "kind": "environment",
+        "environment": {
+          "kind": "macos"
+        }
+      }
+    },
+    "status": 200,
+    "response": {
+      "previewId": "5436a71c-de63-47b4-8082-9642276b4af4",
+      "request": {
+        "appId": "kimi",
+        "action": "install",
+        "target": {
+          "kind": "environment",
+          "environment": {
+            "kind": "macos"
+          }
+        }
+      },
+      "source": "system",
+      "confirmationRequired": true,
+      "summary": "Review the selected application action in the administrator-approved prefix",
+      "displayCommand": null
+    }
+  },
+  {
+    "method": "POST",
+    "path": "actions",
+    "body": {
+      "previewId": "5436a71c-de63-47b4-8082-9642276b4af4",
+      "confirmed": true
+    },
+    "status": 202,
+    "response": {
+      "operationId": "89778c1f-b107-4989-8072-1b3a14046ddf",
+      "status": "queued"
+    }
+  },
+  {
+    "method": "GET",
+    "path": "operations/89778c1f-b107-4989-8072-1b3a14046ddf",
+    "body": null,
+    "status": 200,
+    "response": {
+      "operationId": "89778c1f-b107-4989-8072-1b3a14046ddf",
+      "status": "running",
+      "phase": "postflight"
+    }
+  },
+  {
+    "method": "GET",
+    "path": "operations/89778c1f-b107-4989-8072-1b3a14046ddf",
+    "body": null,
+    "status": 200,
+    "response": {
+      "operationId": "89778c1f-b107-4989-8072-1b3a14046ddf",
+      "status": "completed",
+      "phase": "terminal"
+    }
+  },
+  {
+    "method": "GET",
+    "path": "operations/89778c1f-b107-4989-8072-1b3a14046ddf/events",
+    "body": null,
+    "status": 200,
+    "response": {
+      "operationId": "89778c1f-b107-4989-8072-1b3a14046ddf",
+      "status": "completed",
+      "phase": "terminal"
+    }
+  },
+  {
+    "method": "GET",
+    "path": "installations?appId=kimi",
+    "body": null,
+    "status": 200,
+    "response": {
+      "installations": [
+        {
+          "id": "installation-1",
+          "appId": "kimi",
+          "targetHostId": "host",
+          "environment": {
+            "kind": "macos"
+          },
+          "path": "<isolated-root>/prefix/bin/kimi",
+          "realPath": "<isolated-root>/prefix/lib/node_modules/@moonshot-ai/kimi-code/dist/main.mjs",
+          "source": "unknown",
+          "isPathDefault": true,
+          "version": "2.5.1",
+          "runtimeStatus": {
+            "status": "runnable"
+          }
+        }
+      ]
+    }
+  },
+  {
+    "method": "POST",
+    "path": "launch",
+    "body": {
+      "appId": "kimi",
+      "installationId": "installation-1",
+      "cwd": "<isolated-root>/home",
+      "args": [
+        "--version"
+      ]
+    },
+    "status": 422,
+    "response": ""
+  },
+  {
+    "method": "GET",
+    "path": "installations?appId=kimi",
+    "body": null,
+    "status": 200,
+    "response": {
+      "installations": [
+        {
+          "id": "installation-1",
+          "appId": "kimi",
+          "targetHostId": "host",
+          "environment": {
+            "kind": "macos"
+          },
+          "path": "<isolated-root>/prefix/bin/kimi",
+          "realPath": "<isolated-root>/prefix/lib/node_modules/@moonshot-ai/kimi-code/dist/main.mjs",
+          "source": "unknown",
+          "isPathDefault": true,
+          "version": "2.5.1",
+          "runtimeStatus": {
+            "status": "runnable"
+          }
+        }
+      ]
+    }
+  },
+  {
+    "method": "POST",
+    "path": "actions/preview",
+    "body": {
+      "appId": "kimi",
+      "action": "uninstall",
+      "target": {
+        "kind": "installation",
+        "installationId": "installation-1"
+      }
+    },
+    "status": 200,
+    "response": {
+      "previewId": "6524b949-fefa-42cd-b75f-0272b753e4b2",
+      "request": {
+        "appId": "kimi",
+        "action": "uninstall",
+        "target": {
+          "kind": "installation",
+          "installationId": "installation-1"
+        }
+      },
+      "source": "system",
+      "confirmationRequired": true,
+      "summary": "Review the selected application action in the administrator-approved prefix",
+      "displayCommand": null
+    }
+  },
+  {
+    "method": "POST",
+    "path": "actions",
+    "body": {
+      "previewId": "6524b949-fefa-42cd-b75f-0272b753e4b2",
+      "confirmed": true
+    },
+    "status": 202,
+    "response": {
+      "operationId": "57cae5c9-7f10-40b5-99df-ab591b58e515",
+      "status": "queued"
+    }
+  },
+  {
+    "method": "GET",
+    "path": "operations/57cae5c9-7f10-40b5-99df-ab591b58e515",
+    "body": null,
+    "status": 200,
+    "response": {
+      "operationId": "57cae5c9-7f10-40b5-99df-ab591b58e515",
+      "status": "completed",
+      "phase": "terminal"
+    }
+  },
+  {
+    "method": "GET",
+    "path": "operations/57cae5c9-7f10-40b5-99df-ab591b58e515/events",
+    "body": null,
+    "status": 200,
+    "response": {
+      "operationId": "57cae5c9-7f10-40b5-99df-ab591b58e515",
+      "status": "completed",
+      "phase": "terminal"
+    }
+  },
+  {
+    "method": "POST",
+    "path": "actions/preview",
+    "body": {
+      "appId": "kimi",
+      "action": "install",
+      "target": {
+        "kind": "environment",
+        "environment": {
+          "kind": "macos"
+        }
+      }
+    },
+    "status": 200,
+    "response": {
+      "previewId": "9e65a872-1a9d-4373-938a-9eefa8cf9e99",
+      "request": {
+        "appId": "kimi",
+        "action": "install",
+        "target": {
+          "kind": "environment",
+          "environment": {
+            "kind": "macos"
+          }
+        }
+      },
+      "source": "system",
+      "confirmationRequired": true,
+      "summary": "Review the selected application action in the administrator-approved prefix",
+      "displayCommand": null
+    }
+  },
+  {
+    "method": "POST",
+    "path": "actions",
+    "body": {
+      "previewId": "9e65a872-1a9d-4373-938a-9eefa8cf9e99",
+      "confirmed": true
+    },
+    "status": 202,
+    "response": {
+      "operationId": "78a70783-3f36-40c9-9432-c0667427ac94",
+      "status": "queued"
+    }
+  },
+  {
+    "method": "DELETE",
+    "path": "operations/78a70783-3f36-40c9-9432-c0667427ac94",
+    "body": null,
+    "status": 200,
+    "response": {
+      "operationId": "78a70783-3f36-40c9-9432-c0667427ac94",
+      "status": "cancelled",
+      "phase": "terminal"
+    }
+  },
+  {
+    "method": "GET",
+    "path": "operations/78a70783-3f36-40c9-9432-c0667427ac94",
+    "body": null,
+    "status": 200,
+    "response": {
+      "operationId": "78a70783-3f36-40c9-9432-c0667427ac94",
+      "status": "cancelled",
+      "phase": "terminal"
+    }
+  },
+  {
+    "method": "GET",
+    "path": "operations/78a70783-3f36-40c9-9432-c0667427ac94/events",
+    "body": null,
+    "status": 200,
+    "response": {
+      "operationId": "78a70783-3f36-40c9-9432-c0667427ac94",
+      "status": "cancelled",
+      "phase": "terminal"
+    }
+  },
+  {
+    "method": "GET",
+    "path": "installations?appId=kimi",
+    "body": null,
+    "status": 200,
+    "response": {
+      "installations": []
+    }
+  },
+  {
+    "method": "POST",
+    "path": "actions/preview",
+    "body": {
+      "appId": "kimi",
+      "action": "install",
+      "target": {
+        "kind": "environment",
+        "environment": {
+          "kind": "macos"
+        }
+      }
+    },
+    "status": 200,
+    "response": {
+      "previewId": "1e05f8e3-bc7f-4f0c-8162-26a4c5fcde6d",
+      "request": {
+        "appId": "kimi",
+        "action": "install",
+        "target": {
+          "kind": "environment",
+          "environment": {
+            "kind": "macos"
+          }
+        }
+      },
+      "source": "system",
+      "confirmationRequired": true,
+      "summary": "Review the selected application action in the administrator-approved prefix",
+      "displayCommand": null
+    }
+  },
+  {
+    "method": "POST",
+    "path": "actions",
+    "body": {
+      "previewId": "1e05f8e3-bc7f-4f0c-8162-26a4c5fcde6d",
+      "confirmed": true
+    },
+    "status": 202,
+    "response": {
+      "operationId": "e9350687-9e35-46fd-be14-8582bf719f38",
+      "status": "queued"
+    }
+  },
+  {
+    "method": "GET",
+    "path": "operations/e9350687-9e35-46fd-be14-8582bf719f38",
+    "body": null,
+    "status": 200,
+    "response": {
+      "operationId": "e9350687-9e35-46fd-be14-8582bf719f38",
+      "status": "running",
+      "phase": "executing"
+    }
+  },
+  {
+    "method": "DELETE",
+    "path": "operations/e9350687-9e35-46fd-be14-8582bf719f38",
+    "body": null,
+    "status": 200,
+    "response": {
+      "operationId": "e9350687-9e35-46fd-be14-8582bf719f38",
+      "status": "cancelled",
+      "phase": "terminal"
+    }
+  },
+  {
+    "method": "GET",
+    "path": "operations/e9350687-9e35-46fd-be14-8582bf719f38",
+    "body": null,
+    "status": 200,
+    "response": {
+      "operationId": "e9350687-9e35-46fd-be14-8582bf719f38",
+      "status": "cancelled",
+      "phase": "terminal"
+    }
+  },
+  {
+    "method": "GET",
+    "path": "operations/e9350687-9e35-46fd-be14-8582bf719f38/events",
+    "body": null,
+    "status": 200,
+    "response": {
+      "operationId": "e9350687-9e35-46fd-be14-8582bf719f38",
+      "status": "cancelled",
+      "phase": "terminal"
+    }
+  },
+  {
+    "method": "GET",
+    "path": "installations?appId=kimi",
+    "body": null,
+    "status": 200,
+    "response": {
+      "installations": []
+    }
+  },
+  {
+    "method": "GET",
+    "path": "diagnostics?appId=pi",
+    "body": null,
+    "status": 200,
+    "response": {
+      "installations": []
+    }
+  },
+  {
+    "method": "GET",
+    "path": "diagnostics?appId=kimi",
+    "body": null,
+    "status": 200,
+    "response": {
+      "installations": [
+        {
+          "id": "installation-1",
+          "appId": "kimi",
+          "targetHostId": "host",
+          "environment": {
+            "kind": "macos"
+          },
+          "path": "<isolated-root>/prefix/bin/kimi",
+          "realPath": null,
+          "source": "unknown",
+          "isPathDefault": true,
+          "version": null,
+          "runtimeStatus": {
+            "status": "probe_failed",
+            "reason": "damaged_installation"
+          }
+        }
+      ]
+    }
+  },
+  {
+    "method": "POST",
+    "path": "actions/preview",
+    "body": {
+      "appId": "kimi",
+      "action": "uninstall",
+      "target": {
+        "kind": "installation",
+        "installationId": "installation-1"
+      }
+    },
+    "status": 422,
+    "response": ""
+  },
+  {
+    "method": "GET",
+    "path": "installations?appId=kimi",
+    "body": null,
+    "status": 200,
+    "response": {
+      "installations": []
+    }
+  }
+]

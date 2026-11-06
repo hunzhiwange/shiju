@@ -1,0 +1,22 @@
+SDK compile: rustc --edition=2024 <isolated-root>/sdk.rs -L dependency=/Users/xiangmin/worker/code/shiju/target/rust-slot-5/debug/deps --extern vw_gateway_client=/Users/xiangmin/worker/code/shiju/target/rust-slot-5/debug/deps/libvw_gateway_client-1a94bf756d53cb1d.rlib --extern tokio=/Users/xiangmin/worker/code/shiju/target/rust-slot-5/debug/deps/libtokio-f993a923b732abac.rlib -o /Users/xiangmin/worker/code/shiju/target/rust-slot-5/task56-sdk
+rustc 0
+OLD 0
+UPGRADED 0
+VERSION 0 2.5.1
+
+SECOND 0
+422 ""
+REMAINING 0
+REMAINING VERSION 0 2.5.0
+
+EMPTY 0
+API INSTALL 0
+
+Traceback (most recent call last):
+  File "/tmp/task56-finish.py", line 16, in <module>
+    (r/'prefix/bin/kimi').symlink_to(r/'missing-kimi');v=a.call('GET','diagnostics?appId=pi')[1];a.action('uninstall',v['installations'][0]['id']);(r/'prefix/bin/kimi').unlink()
+IndexError: list index out of range
+
+71532 67468 node <isolated-root>/prefix/bin/npm i -g @moonshot-ai/kimi-code@latest
+Cancel PID71532: ProcessLookupError after cancellation
+Controller exits [0, 0, -15, -15]

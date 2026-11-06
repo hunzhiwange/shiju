@@ -1,0 +1,1073 @@
+[
+  {
+    "method": "GET",
+    "path": "catalog",
+    "body": null,
+    "status": 200,
+    "response": {
+      "apps": [
+        {
+          "id": "opencode",
+          "name": "OpenCode",
+          "cliCommand": "opencode",
+          "runtimeKinds": [
+            "native_cli"
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "method": "GET",
+    "path": "installations?appId=opencode",
+    "body": null,
+    "status": 200,
+    "response": {
+      "installations": []
+    }
+  },
+  {
+    "method": "GET",
+    "path": "launch-identities?appId=opencode",
+    "body": null,
+    "status": 200,
+    "response": []
+  },
+  {
+    "method": "GET",
+    "path": "installations?appId=opencode",
+    "body": null,
+    "status": 200,
+    "response": {
+      "installations": [
+        {
+          "id": "NDpob3N0Ojg6b3BlbmNvZGU6OTg6L3ByaXZhdGUvdmFyL2ZvbGRlcnMvcmcvenIxOWxiX3M1dzMycTZkMnFrZDZwMG44MDAwMGdwL1Qvc2hpanUtdGFzazUxLTcyczBfNm43L3ByZWZpeC9iaW4vb3BlbmNvZGU",
+          "appId": "opencode",
+          "targetHostId": "host",
+          "environment": {
+            "kind": "macos"
+          },
+          "path": "<isolated-root>/prefix/bin/opencode",
+          "realPath": "<isolated-root>/prefix/lib/node_modules/opencode-ai/bin/opencode.exe",
+          "source": "unknown",
+          "isPathDefault": true,
+          "version": "1.19.4",
+          "runtimeStatus": {
+            "status": "runnable"
+          }
+        }
+      ]
+    }
+  },
+  {
+    "method": "POST",
+    "path": "actions/preview",
+    "body": {
+      "appId": "opencode",
+      "action": "update",
+      "target": {
+        "kind": "installation",
+        "installationId": "NDpob3N0Ojg6b3BlbmNvZGU6OTg6L3ByaXZhdGUvdmFyL2ZvbGRlcnMvcmcvenIxOWxiX3M1dzMycTZkMnFrZDZwMG44MDAwMGdwL1Qvc2hpanUtdGFzazUxLTcyczBfNm43L3ByZWZpeC9iaW4vb3BlbmNvZGU"
+      }
+    },
+    "status": 200,
+    "response": {
+      "previewId": "914e53dd-f3b6-4789-b570-76a4a2eaebd8",
+      "request": {
+        "appId": "opencode",
+        "action": "update",
+        "target": {
+          "kind": "installation",
+          "installationId": "NDpob3N0Ojg6b3BlbmNvZGU6OTg6L3ByaXZhdGUvdmFyL2ZvbGRlcnMvcmcvenIxOWxiX3M1dzMycTZkMnFrZDZwMG44MDAwMGdwL1Qvc2hpanUtdGFzazUxLTcyczBfNm43L3ByZWZpeC9iaW4vb3BlbmNvZGU"
+        }
+      },
+      "source": "system",
+      "confirmationRequired": true,
+      "summary": "Review the selected application action in the administrator-approved prefix",
+      "displayCommand": null
+    }
+  },
+  {
+    "method": "POST",
+    "path": "actions",
+    "body": {
+      "previewId": "914e53dd-f3b6-4789-b570-76a4a2eaebd8",
+      "confirmed": true
+    },
+    "status": 202,
+    "response": {
+      "operationId": "1b8bb7ca-81bb-435b-ae7b-144ddbf5f255",
+      "status": "queued"
+    }
+  },
+  {
+    "method": "GET",
+    "path": "operations/1b8bb7ca-81bb-435b-ae7b-144ddbf5f255",
+    "body": null,
+    "status": 200,
+    "response": {
+      "operationId": "1b8bb7ca-81bb-435b-ae7b-144ddbf5f255",
+      "status": "running",
+      "phase": "executing"
+    }
+  },
+  {
+    "method": "GET",
+    "path": "operations/1b8bb7ca-81bb-435b-ae7b-144ddbf5f255",
+    "body": null,
+    "status": 200,
+    "response": {
+      "operationId": "1b8bb7ca-81bb-435b-ae7b-144ddbf5f255",
+      "status": "running",
+      "phase": "executing"
+    }
+  },
+  {
+    "method": "GET",
+    "path": "operations/1b8bb7ca-81bb-435b-ae7b-144ddbf5f255",
+    "body": null,
+    "status": 200,
+    "response": {
+      "operationId": "1b8bb7ca-81bb-435b-ae7b-144ddbf5f255",
+      "status": "running",
+      "phase": "executing"
+    }
+  },
+  {
+    "method": "GET",
+    "path": "operations/1b8bb7ca-81bb-435b-ae7b-144ddbf5f255",
+    "body": null,
+    "status": 200,
+    "response": {
+      "operationId": "1b8bb7ca-81bb-435b-ae7b-144ddbf5f255",
+      "status": "running",
+      "phase": "executing"
+    }
+  },
+  {
+    "method": "GET",
+    "path": "operations/1b8bb7ca-81bb-435b-ae7b-144ddbf5f255",
+    "body": null,
+    "status": 200,
+    "response": {
+      "operationId": "1b8bb7ca-81bb-435b-ae7b-144ddbf5f255",
+      "status": "running",
+      "phase": "executing"
+    }
+  },
+  {
+    "method": "GET",
+    "path": "operations/1b8bb7ca-81bb-435b-ae7b-144ddbf5f255",
+    "body": null,
+    "status": 200,
+    "response": {
+      "operationId": "1b8bb7ca-81bb-435b-ae7b-144ddbf5f255",
+      "status": "running",
+      "phase": "executing"
+    }
+  },
+  {
+    "method": "GET",
+    "path": "operations/1b8bb7ca-81bb-435b-ae7b-144ddbf5f255",
+    "body": null,
+    "status": 200,
+    "response": {
+      "operationId": "1b8bb7ca-81bb-435b-ae7b-144ddbf5f255",
+      "status": "running",
+      "phase": "executing"
+    }
+  },
+  {
+    "method": "GET",
+    "path": "operations/1b8bb7ca-81bb-435b-ae7b-144ddbf5f255",
+    "body": null,
+    "status": 200,
+    "response": {
+      "operationId": "1b8bb7ca-81bb-435b-ae7b-144ddbf5f255",
+      "status": "running",
+      "phase": "executing"
+    }
+  },
+  {
+    "method": "GET",
+    "path": "operations/1b8bb7ca-81bb-435b-ae7b-144ddbf5f255",
+    "body": null,
+    "status": 200,
+    "response": {
+      "operationId": "1b8bb7ca-81bb-435b-ae7b-144ddbf5f255",
+      "status": "running",
+      "phase": "executing"
+    }
+  },
+  {
+    "method": "GET",
+    "path": "operations/1b8bb7ca-81bb-435b-ae7b-144ddbf5f255",
+    "body": null,
+    "status": 200,
+    "response": {
+      "operationId": "1b8bb7ca-81bb-435b-ae7b-144ddbf5f255",
+      "status": "running",
+      "phase": "executing"
+    }
+  },
+  {
+    "method": "GET",
+    "path": "operations/1b8bb7ca-81bb-435b-ae7b-144ddbf5f255",
+    "body": null,
+    "status": 200,
+    "response": {
+      "operationId": "1b8bb7ca-81bb-435b-ae7b-144ddbf5f255",
+      "status": "running",
+      "phase": "executing"
+    }
+  },
+  {
+    "method": "GET",
+    "path": "operations/1b8bb7ca-81bb-435b-ae7b-144ddbf5f255",
+    "body": null,
+    "status": 200,
+    "response": {
+      "operationId": "1b8bb7ca-81bb-435b-ae7b-144ddbf5f255",
+      "status": "running",
+      "phase": "executing"
+    }
+  },
+  {
+    "method": "GET",
+    "path": "operations/1b8bb7ca-81bb-435b-ae7b-144ddbf5f255",
+    "body": null,
+    "status": 200,
+    "response": {
+      "operationId": "1b8bb7ca-81bb-435b-ae7b-144ddbf5f255",
+      "status": "running",
+      "phase": "executing"
+    }
+  },
+  {
+    "method": "GET",
+    "path": "operations/1b8bb7ca-81bb-435b-ae7b-144ddbf5f255",
+    "body": null,
+    "status": 200,
+    "response": {
+      "operationId": "1b8bb7ca-81bb-435b-ae7b-144ddbf5f255",
+      "status": "running",
+      "phase": "executing"
+    }
+  },
+  {
+    "method": "GET",
+    "path": "operations/1b8bb7ca-81bb-435b-ae7b-144ddbf5f255",
+    "body": null,
+    "status": 200,
+    "response": {
+      "operationId": "1b8bb7ca-81bb-435b-ae7b-144ddbf5f255",
+      "status": "running",
+      "phase": "executing"
+    }
+  },
+  {
+    "method": "GET",
+    "path": "operations/1b8bb7ca-81bb-435b-ae7b-144ddbf5f255",
+    "body": null,
+    "status": 200,
+    "response": {
+      "operationId": "1b8bb7ca-81bb-435b-ae7b-144ddbf5f255",
+      "status": "running",
+      "phase": "executing"
+    }
+  },
+  {
+    "method": "GET",
+    "path": "operations/1b8bb7ca-81bb-435b-ae7b-144ddbf5f255",
+    "body": null,
+    "status": 200,
+    "response": {
+      "operationId": "1b8bb7ca-81bb-435b-ae7b-144ddbf5f255",
+      "status": "running",
+      "phase": "executing"
+    }
+  },
+  {
+    "method": "GET",
+    "path": "operations/1b8bb7ca-81bb-435b-ae7b-144ddbf5f255",
+    "body": null,
+    "status": 200,
+    "response": {
+      "operationId": "1b8bb7ca-81bb-435b-ae7b-144ddbf5f255",
+      "status": "running",
+      "phase": "executing"
+    }
+  },
+  {
+    "method": "GET",
+    "path": "operations/1b8bb7ca-81bb-435b-ae7b-144ddbf5f255",
+    "body": null,
+    "status": 200,
+    "response": {
+      "operationId": "1b8bb7ca-81bb-435b-ae7b-144ddbf5f255",
+      "status": "running",
+      "phase": "executing"
+    }
+  },
+  {
+    "method": "GET",
+    "path": "operations/1b8bb7ca-81bb-435b-ae7b-144ddbf5f255",
+    "body": null,
+    "status": 200,
+    "response": {
+      "operationId": "1b8bb7ca-81bb-435b-ae7b-144ddbf5f255",
+      "status": "running",
+      "phase": "executing"
+    }
+  },
+  {
+    "method": "GET",
+    "path": "operations/1b8bb7ca-81bb-435b-ae7b-144ddbf5f255",
+    "body": null,
+    "status": 200,
+    "response": {
+      "operationId": "1b8bb7ca-81bb-435b-ae7b-144ddbf5f255",
+      "status": "running",
+      "phase": "executing"
+    }
+  },
+  {
+    "method": "GET",
+    "path": "operations/1b8bb7ca-81bb-435b-ae7b-144ddbf5f255",
+    "body": null,
+    "status": 200,
+    "response": {
+      "operationId": "1b8bb7ca-81bb-435b-ae7b-144ddbf5f255",
+      "status": "completed",
+      "phase": "terminal"
+    }
+  },
+  {
+    "method": "GET",
+    "path": "operations/1b8bb7ca-81bb-435b-ae7b-144ddbf5f255/events",
+    "body": null,
+    "status": 200,
+    "response": {
+      "operationId": "1b8bb7ca-81bb-435b-ae7b-144ddbf5f255",
+      "status": "completed",
+      "phase": "terminal"
+    }
+  },
+  {
+    "method": "GET",
+    "path": "installations?appId=opencode",
+    "body": null,
+    "status": 200,
+    "response": {
+      "installations": [
+        {
+          "id": "NDpob3N0Ojg6b3BlbmNvZGU6OTg6L3ByaXZhdGUvdmFyL2ZvbGRlcnMvcmcvenIxOWxiX3M1dzMycTZkMnFrZDZwMG44MDAwMGdwL1Qvc2hpanUtdGFzazUxLTcyczBfNm43L3ByZWZpeC9iaW4vb3BlbmNvZGU",
+          "appId": "opencode",
+          "targetHostId": "host",
+          "environment": {
+            "kind": "macos"
+          },
+          "path": "<isolated-root>/prefix/bin/opencode",
+          "realPath": "<isolated-root>/prefix/lib/node_modules/opencode-ai/bin/opencode.exe",
+          "source": "unknown",
+          "isPathDefault": true,
+          "version": "1.19.5",
+          "runtimeStatus": {
+            "status": "runnable"
+          }
+        },
+        {
+          "id": "NDpob3N0Ojg6b3BlbmNvZGU6MTAzOi9wcml2YXRlL3Zhci9mb2xkZXJzL3JnL3pyMTlsYl9zNXczMnE2ZDJxa2Q2cDBuODAwMDBncC9UL3NoaWp1LXRhc2s1MS03MnMwXzZuNy9ob21lLy5sb2NhbC9iaW4vb3BlbmNvZGU",
+          "appId": "opencode",
+          "targetHostId": "host",
+          "environment": {
+            "kind": "macos"
+          },
+          "path": "<isolated-root>/home/.local/bin/opencode",
+          "realPath": "<isolated-root>/home/.local/lib/node_modules/opencode-ai/bin/opencode.exe",
+          "source": "unknown",
+          "isPathDefault": false,
+          "version": "1.19.4",
+          "runtimeStatus": {
+            "status": "runnable"
+          }
+        }
+      ]
+    }
+  },
+  {
+    "method": "POST",
+    "path": "actions/preview",
+    "body": {
+      "appId": "opencode",
+      "action": "uninstall",
+      "target": {
+        "kind": "installation",
+        "installationId": "NDpob3N0Ojg6b3BlbmNvZGU6OTg6L3ByaXZhdGUvdmFyL2ZvbGRlcnMvcmcvenIxOWxiX3M1dzMycTZkMnFrZDZwMG44MDAwMGdwL1Qvc2hpanUtdGFzazUxLTcyczBfNm43L3ByZWZpeC9iaW4vb3BlbmNvZGU"
+      }
+    },
+    "status": 200,
+    "response": {
+      "previewId": "0ebde1d7-4981-47ef-bccd-b22e3cc0d357",
+      "request": {
+        "appId": "opencode",
+        "action": "uninstall",
+        "target": {
+          "kind": "installation",
+          "installationId": "NDpob3N0Ojg6b3BlbmNvZGU6OTg6L3ByaXZhdGUvdmFyL2ZvbGRlcnMvcmcvenIxOWxiX3M1dzMycTZkMnFrZDZwMG44MDAwMGdwL1Qvc2hpanUtdGFzazUxLTcyczBfNm43L3ByZWZpeC9iaW4vb3BlbmNvZGU"
+        }
+      },
+      "source": "system",
+      "confirmationRequired": true,
+      "summary": "Review the selected application action in the administrator-approved prefix",
+      "displayCommand": null
+    }
+  },
+  {
+    "method": "POST",
+    "path": "actions",
+    "body": {
+      "previewId": "0ebde1d7-4981-47ef-bccd-b22e3cc0d357",
+      "confirmed": true
+    },
+    "status": 202,
+    "response": {
+      "operationId": "899a975c-6b95-4635-b781-9ba7e4dc71ce",
+      "status": "queued"
+    }
+  },
+  {
+    "method": "GET",
+    "path": "operations/899a975c-6b95-4635-b781-9ba7e4dc71ce",
+    "body": null,
+    "status": 200,
+    "response": {
+      "operationId": "899a975c-6b95-4635-b781-9ba7e4dc71ce",
+      "status": "completed",
+      "phase": "terminal"
+    }
+  },
+  {
+    "method": "GET",
+    "path": "operations/899a975c-6b95-4635-b781-9ba7e4dc71ce/events",
+    "body": null,
+    "status": 200,
+    "response": {
+      "operationId": "899a975c-6b95-4635-b781-9ba7e4dc71ce",
+      "status": "completed",
+      "phase": "terminal"
+    }
+  },
+  {
+    "method": "POST",
+    "path": "actions/preview",
+    "body": {
+      "appId": "opencode",
+      "action": "uninstall",
+      "target": {
+        "kind": "installation",
+        "installationId": "NDpob3N0Ojg6b3BlbmNvZGU6OTg6L3ByaXZhdGUvdmFyL2ZvbGRlcnMvcmcvenIxOWxiX3M1dzMycTZkMnFrZDZwMG44MDAwMGdwL1Qvc2hpanUtdGFzazUxLTcyczBfNm43L3ByZWZpeC9iaW4vb3BlbmNvZGU"
+      }
+    },
+    "status": 422,
+    "response": ""
+  },
+  {
+    "method": "GET",
+    "path": "installations?appId=opencode",
+    "body": null,
+    "status": 200,
+    "response": {
+      "installations": [
+        {
+          "id": "NDpob3N0Ojg6b3BlbmNvZGU6MTAzOi9wcml2YXRlL3Zhci9mb2xkZXJzL3JnL3pyMTlsYl9zNXczMnE2ZDJxa2Q2cDBuODAwMDBncC9UL3NoaWp1LXRhc2s1MS03MnMwXzZuNy9ob21lLy5sb2NhbC9iaW4vb3BlbmNvZGU",
+          "appId": "opencode",
+          "targetHostId": "host",
+          "environment": {
+            "kind": "macos"
+          },
+          "path": "<isolated-root>/home/.local/bin/opencode",
+          "realPath": "<isolated-root>/home/.local/lib/node_modules/opencode-ai/bin/opencode.exe",
+          "source": "unknown",
+          "isPathDefault": true,
+          "version": "1.19.4",
+          "runtimeStatus": {
+            "status": "runnable"
+          }
+        }
+      ]
+    }
+  },
+  {
+    "method": "POST",
+    "path": "actions/preview",
+    "body": {
+      "appId": "opencode",
+      "action": "install",
+      "target": {
+        "kind": "environment",
+        "environment": {
+          "kind": "macos"
+        }
+      }
+    },
+    "status": 200,
+    "response": {
+      "previewId": "e35d066f-dcef-40ef-9f0c-623aca2fa4ab",
+      "request": {
+        "appId": "opencode",
+        "action": "install",
+        "target": {
+          "kind": "environment",
+          "environment": {
+            "kind": "macos"
+          }
+        }
+      },
+      "source": "system",
+      "confirmationRequired": true,
+      "summary": "Review the selected application action in the administrator-approved prefix",
+      "displayCommand": null
+    }
+  },
+  {
+    "method": "POST",
+    "path": "actions",
+    "body": {
+      "previewId": "e35d066f-dcef-40ef-9f0c-623aca2fa4ab",
+      "confirmed": true
+    },
+    "status": 202,
+    "response": {
+      "operationId": "060213da-ed54-4554-91e4-7ed8f4407757",
+      "status": "queued"
+    }
+  },
+  {
+    "method": "GET",
+    "path": "operations/060213da-ed54-4554-91e4-7ed8f4407757",
+    "body": null,
+    "status": 200,
+    "response": {
+      "operationId": "060213da-ed54-4554-91e4-7ed8f4407757",
+      "status": "running",
+      "phase": "executing"
+    }
+  },
+  {
+    "method": "GET",
+    "path": "operations/060213da-ed54-4554-91e4-7ed8f4407757",
+    "body": null,
+    "status": 200,
+    "response": {
+      "operationId": "060213da-ed54-4554-91e4-7ed8f4407757",
+      "status": "running",
+      "phase": "postflight"
+    }
+  },
+  {
+    "method": "GET",
+    "path": "operations/060213da-ed54-4554-91e4-7ed8f4407757",
+    "body": null,
+    "status": 200,
+    "response": {
+      "operationId": "060213da-ed54-4554-91e4-7ed8f4407757",
+      "status": "completed",
+      "phase": "terminal"
+    }
+  },
+  {
+    "method": "GET",
+    "path": "operations/060213da-ed54-4554-91e4-7ed8f4407757/events",
+    "body": null,
+    "status": 200,
+    "response": {
+      "operationId": "060213da-ed54-4554-91e4-7ed8f4407757",
+      "status": "completed",
+      "phase": "terminal"
+    }
+  },
+  {
+    "method": "GET",
+    "path": "installations?appId=opencode",
+    "body": null,
+    "status": 200,
+    "response": {
+      "installations": [
+        {
+          "id": "NDpob3N0Ojg6b3BlbmNvZGU6OTg6L3ByaXZhdGUvdmFyL2ZvbGRlcnMvcmcvenIxOWxiX3M1dzMycTZkMnFrZDZwMG44MDAwMGdwL1Qvc2hpanUtdGFzazUxLTcyczBfNm43L3ByZWZpeC9iaW4vb3BlbmNvZGU",
+          "appId": "opencode",
+          "targetHostId": "host",
+          "environment": {
+            "kind": "macos"
+          },
+          "path": "<isolated-root>/prefix/bin/opencode",
+          "realPath": "<isolated-root>/prefix/lib/node_modules/opencode-ai/bin/opencode.exe",
+          "source": "unknown",
+          "isPathDefault": true,
+          "version": "1.19.5",
+          "runtimeStatus": {
+            "status": "runnable"
+          }
+        }
+      ]
+    }
+  },
+  {
+    "method": "GET",
+    "path": "installations?appId=opencode",
+    "body": null,
+    "status": 200,
+    "response": {
+      "installations": [
+        {
+          "id": "NDpob3N0Ojg6b3BlbmNvZGU6OTg6L3ByaXZhdGUvdmFyL2ZvbGRlcnMvcmcvenIxOWxiX3M1dzMycTZkMnFrZDZwMG44MDAwMGdwL1Qvc2hpanUtdGFzazUxLTcyczBfNm43L3ByZWZpeC9iaW4vb3BlbmNvZGU",
+          "appId": "opencode",
+          "targetHostId": "host",
+          "environment": {
+            "kind": "macos"
+          },
+          "path": "<isolated-root>/prefix/bin/opencode",
+          "realPath": "<isolated-root>/prefix/lib/node_modules/opencode-ai/bin/opencode.exe",
+          "source": "unknown",
+          "isPathDefault": true,
+          "version": "1.19.5",
+          "runtimeStatus": {
+            "status": "runnable"
+          }
+        }
+      ]
+    }
+  },
+  {
+    "method": "POST",
+    "path": "actions/preview",
+    "body": {
+      "appId": "opencode",
+      "action": "uninstall",
+      "target": {
+        "kind": "installation",
+        "installationId": "NDpob3N0Ojg6b3BlbmNvZGU6OTg6L3ByaXZhdGUvdmFyL2ZvbGRlcnMvcmcvenIxOWxiX3M1dzMycTZkMnFrZDZwMG44MDAwMGdwL1Qvc2hpanUtdGFzazUxLTcyczBfNm43L3ByZWZpeC9iaW4vb3BlbmNvZGU"
+      }
+    },
+    "status": 200,
+    "response": {
+      "previewId": "55da4f92-d848-4a3b-af88-ac35efc58f40",
+      "request": {
+        "appId": "opencode",
+        "action": "uninstall",
+        "target": {
+          "kind": "installation",
+          "installationId": "NDpob3N0Ojg6b3BlbmNvZGU6OTg6L3ByaXZhdGUvdmFyL2ZvbGRlcnMvcmcvenIxOWxiX3M1dzMycTZkMnFrZDZwMG44MDAwMGdwL1Qvc2hpanUtdGFzazUxLTcyczBfNm43L3ByZWZpeC9iaW4vb3BlbmNvZGU"
+        }
+      },
+      "source": "system",
+      "confirmationRequired": true,
+      "summary": "Review the selected application action in the administrator-approved prefix",
+      "displayCommand": null
+    }
+  },
+  {
+    "method": "POST",
+    "path": "actions",
+    "body": {
+      "previewId": "55da4f92-d848-4a3b-af88-ac35efc58f40",
+      "confirmed": true
+    },
+    "status": 202,
+    "response": {
+      "operationId": "c7fec7ff-69f5-40f9-89c8-b8fcf3d89631",
+      "status": "queued"
+    }
+  },
+  {
+    "method": "GET",
+    "path": "operations/c7fec7ff-69f5-40f9-89c8-b8fcf3d89631",
+    "body": null,
+    "status": 200,
+    "response": {
+      "operationId": "c7fec7ff-69f5-40f9-89c8-b8fcf3d89631",
+      "status": "completed",
+      "phase": "terminal"
+    }
+  },
+  {
+    "method": "GET",
+    "path": "operations/c7fec7ff-69f5-40f9-89c8-b8fcf3d89631/events",
+    "body": null,
+    "status": 200,
+    "response": {
+      "operationId": "c7fec7ff-69f5-40f9-89c8-b8fcf3d89631",
+      "status": "completed",
+      "phase": "terminal"
+    }
+  },
+  {
+    "method": "POST",
+    "path": "actions/preview",
+    "body": {
+      "appId": "opencode",
+      "action": "install",
+      "target": {
+        "kind": "environment",
+        "environment": {
+          "kind": "macos"
+        }
+      }
+    },
+    "status": 200,
+    "response": {
+      "previewId": "8df6a1cb-8fbe-4e2b-9a4e-5aaa3789f490",
+      "request": {
+        "appId": "opencode",
+        "action": "install",
+        "target": {
+          "kind": "environment",
+          "environment": {
+            "kind": "macos"
+          }
+        }
+      },
+      "source": "system",
+      "confirmationRequired": true,
+      "summary": "Review the selected application action in the administrator-approved prefix",
+      "displayCommand": null
+    }
+  },
+  {
+    "method": "POST",
+    "path": "actions",
+    "body": {
+      "previewId": "8df6a1cb-8fbe-4e2b-9a4e-5aaa3789f490",
+      "confirmed": true
+    },
+    "status": 202,
+    "response": {
+      "operationId": "19b40ab1-52f9-445f-be33-887c35904fbf",
+      "status": "queued"
+    }
+  },
+  {
+    "method": "DELETE",
+    "path": "operations/19b40ab1-52f9-445f-be33-887c35904fbf",
+    "body": null,
+    "status": 200,
+    "response": {
+      "operationId": "19b40ab1-52f9-445f-be33-887c35904fbf",
+      "status": "cancelled",
+      "phase": "terminal"
+    }
+  },
+  {
+    "method": "GET",
+    "path": "operations/19b40ab1-52f9-445f-be33-887c35904fbf",
+    "body": null,
+    "status": 200,
+    "response": {
+      "operationId": "19b40ab1-52f9-445f-be33-887c35904fbf",
+      "status": "cancelled",
+      "phase": "terminal"
+    }
+  },
+  {
+    "method": "GET",
+    "path": "operations/19b40ab1-52f9-445f-be33-887c35904fbf/events",
+    "body": null,
+    "status": 200,
+    "response": {
+      "operationId": "19b40ab1-52f9-445f-be33-887c35904fbf",
+      "status": "cancelled",
+      "phase": "terminal"
+    }
+  },
+  {
+    "method": "GET",
+    "path": "installations?appId=opencode",
+    "body": null,
+    "status": 200,
+    "response": {
+      "installations": []
+    }
+  },
+  {
+    "method": "POST",
+    "path": "actions/preview",
+    "body": {
+      "appId": "opencode",
+      "action": "install",
+      "target": {
+        "kind": "environment",
+        "environment": {
+          "kind": "macos"
+        }
+      }
+    },
+    "status": 200,
+    "response": {
+      "previewId": "eb4a1744-3d01-47f0-b038-1df0a6274147",
+      "request": {
+        "appId": "opencode",
+        "action": "install",
+        "target": {
+          "kind": "environment",
+          "environment": {
+            "kind": "macos"
+          }
+        }
+      },
+      "source": "system",
+      "confirmationRequired": true,
+      "summary": "Review the selected application action in the administrator-approved prefix",
+      "displayCommand": null
+    }
+  },
+  {
+    "method": "POST",
+    "path": "actions",
+    "body": {
+      "previewId": "eb4a1744-3d01-47f0-b038-1df0a6274147",
+      "confirmed": true
+    },
+    "status": 202,
+    "response": {
+      "operationId": "8afc121c-2a37-4e06-80e6-00e2d0e86120",
+      "status": "queued"
+    }
+  },
+  {
+    "method": "GET",
+    "path": "operations/8afc121c-2a37-4e06-80e6-00e2d0e86120",
+    "body": null,
+    "status": 200,
+    "response": {
+      "operationId": "8afc121c-2a37-4e06-80e6-00e2d0e86120",
+      "status": "running",
+      "phase": "executing"
+    }
+  },
+  {
+    "method": "DELETE",
+    "path": "operations/8afc121c-2a37-4e06-80e6-00e2d0e86120",
+    "body": null,
+    "status": 200,
+    "response": {
+      "operationId": "8afc121c-2a37-4e06-80e6-00e2d0e86120",
+      "status": "cancelled",
+      "phase": "terminal"
+    }
+  },
+  {
+    "method": "GET",
+    "path": "operations/8afc121c-2a37-4e06-80e6-00e2d0e86120",
+    "body": null,
+    "status": 200,
+    "response": {
+      "operationId": "8afc121c-2a37-4e06-80e6-00e2d0e86120",
+      "status": "cancelled",
+      "phase": "terminal"
+    }
+  },
+  {
+    "method": "GET",
+    "path": "operations/8afc121c-2a37-4e06-80e6-00e2d0e86120/events",
+    "body": null,
+    "status": 200,
+    "response": {
+      "operationId": "8afc121c-2a37-4e06-80e6-00e2d0e86120",
+      "status": "cancelled",
+      "phase": "terminal"
+    }
+  },
+  {
+    "method": "GET",
+    "path": "installations?appId=opencode",
+    "body": null,
+    "status": 200,
+    "response": {
+      "installations": []
+    }
+  },
+  {
+    "method": "GET",
+    "path": "installations?appId=opencode",
+    "body": null,
+    "status": 200,
+    "response": {
+      "installations": []
+    }
+  },
+  {
+    "method": "GET",
+    "path": "diagnostics?appId=opencode",
+    "body": null,
+    "status": 200,
+    "response": {
+      "installations": [
+        {
+          "id": "NDpob3N0Ojg6b3BlbmNvZGU6OTg6L3ByaXZhdGUvdmFyL2ZvbGRlcnMvcmcvenIxOWxiX3M1dzMycTZkMnFrZDZwMG44MDAwMGdwL1Qvc2hpanUtdGFzazUxLTcyczBfNm43L3ByZWZpeC9iaW4vb3BlbmNvZGU",
+          "appId": "opencode",
+          "targetHostId": "host",
+          "environment": {
+            "kind": "macos"
+          },
+          "path": "<isolated-root>/prefix/bin/opencode",
+          "realPath": null,
+          "source": "unknown",
+          "isPathDefault": true,
+          "version": null,
+          "runtimeStatus": {
+            "status": "probe_failed",
+            "reason": "damaged_installation"
+          }
+        }
+      ]
+    }
+  },
+  {
+    "method": "POST",
+    "path": "actions/preview",
+    "body": {
+      "appId": "opencode",
+      "action": "uninstall",
+      "target": {
+        "kind": "installation",
+        "installationId": "NDpob3N0Ojg6b3BlbmNvZGU6OTg6L3ByaXZhdGUvdmFyL2ZvbGRlcnMvcmcvenIxOWxiX3M1dzMycTZkMnFrZDZwMG44MDAwMGdwL1Qvc2hpanUtdGFzazUxLTcyczBfNm43L3ByZWZpeC9iaW4vb3BlbmNvZGU"
+      }
+    },
+    "status": 422,
+    "response": ""
+  },
+  {
+    "method": "GET",
+    "path": "installations?appId=opencode",
+    "body": null,
+    "status": 200,
+    "response": {
+      "installations": []
+    }
+  },
+  {
+    "method": "GET",
+    "path": "installations?appId=opencode",
+    "body": null,
+    "status": 200,
+    "response": {
+      "installations": []
+    }
+  },
+  {
+    "method": "GET",
+    "path": "installations?appId=opencode",
+    "body": null,
+    "status": 200,
+    "response": {
+      "installations": [
+        {
+          "id": "NDpob3N0Ojg6b3BlbmNvZGU6MTEzOi9wcml2YXRlL3Zhci9mb2xkZXJzL3JnL3pyMTlsYl9zNXczMnE2ZDJxa2Q2cDBuODAwMDBncC9UL3NoaWp1LXRhc2s1MS03MnMwXzZuNy9uYXRpdmUtaG9tZS8ub3BlbmNvZGUvYmluL29wZW5jb2Rl",
+          "appId": "opencode",
+          "targetHostId": "host",
+          "environment": {
+            "kind": "macos"
+          },
+          "path": "<isolated-root>/native-home/.opencode/bin/opencode",
+          "realPath": "<isolated-root>/native-home/.opencode/bin/opencode",
+          "source": "unknown",
+          "isPathDefault": true,
+          "version": "1.19.4",
+          "runtimeStatus": {
+            "status": "runnable"
+          }
+        }
+      ]
+    }
+  },
+  {
+    "method": "GET",
+    "path": "diagnostics?appId=opencode",
+    "body": null,
+    "status": 200,
+    "response": {
+      "installations": [
+        {
+          "id": "NDpob3N0Ojg6b3BlbmNvZGU6MTEzOi9wcml2YXRlL3Zhci9mb2xkZXJzL3JnL3pyMTlsYl9zNXczMnE2ZDJxa2Q2cDBuODAwMDBncC9UL3NoaWp1LXRhc2s1MS03MnMwXzZuNy9uYXRpdmUtaG9tZS8ub3BlbmNvZGUvYmluL29wZW5jb2Rl",
+          "appId": "opencode",
+          "targetHostId": "host",
+          "environment": {
+            "kind": "macos"
+          },
+          "path": "<isolated-root>/native-home/.opencode/bin/opencode",
+          "realPath": "<isolated-root>/native-home/.opencode/bin/opencode",
+          "source": "unknown",
+          "isPathDefault": true,
+          "version": "1.19.4",
+          "runtimeStatus": {
+            "status": "runnable"
+          }
+        }
+      ]
+    }
+  },
+  {
+    "method": "GET",
+    "path": "installations?appId=opencode",
+    "body": null,
+    "status": 200,
+    "response": {
+      "installations": [
+        {
+          "id": "NDpob3N0Ojg6b3BlbmNvZGU6MTEzOi9wcml2YXRlL3Zhci9mb2xkZXJzL3JnL3pyMTlsYl9zNXczMnE2ZDJxa2Q2cDBuODAwMDBncC9UL3NoaWp1LXRhc2s1MS03MnMwXzZuNy9uYXRpdmUtaG9tZS8ub3BlbmNvZGUvYmluL29wZW5jb2Rl",
+          "appId": "opencode",
+          "targetHostId": "host",
+          "environment": {
+            "kind": "macos"
+          },
+          "path": "<isolated-root>/native-home/.opencode/bin/opencode",
+          "realPath": "<isolated-root>/native-home/.opencode/bin/opencode",
+          "source": "unknown",
+          "isPathDefault": true,
+          "version": "1.19.4",
+          "runtimeStatus": {
+            "status": "runnable"
+          }
+        }
+      ]
+    }
+  },
+  {
+    "method": "POST",
+    "path": "actions/preview",
+    "body": {
+      "appId": "opencode",
+      "action": "update",
+      "target": {
+        "kind": "installation",
+        "installationId": "NDpob3N0Ojg6b3BlbmNvZGU6MTEzOi9wcml2YXRlL3Zhci9mb2xkZXJzL3JnL3pyMTlsYl9zNXczMnE2ZDJxa2Q2cDBuODAwMDBncC9UL3NoaWp1LXRhc2s1MS03MnMwXzZuNy9uYXRpdmUtaG9tZS8ub3BlbmNvZGUvYmluL29wZW5jb2Rl"
+      }
+    },
+    "status": 422,
+    "response": ""
+  },
+  {
+    "method": "POST",
+    "path": "actions/preview",
+    "body": {
+      "appId": "opencode",
+      "action": "uninstall",
+      "target": {
+        "kind": "installation",
+        "installationId": "NDpob3N0Ojg6b3BlbmNvZGU6MTEzOi9wcml2YXRlL3Zhci9mb2xkZXJzL3JnL3pyMTlsYl9zNXczMnE2ZDJxa2Q2cDBuODAwMDBncC9UL3NoaWp1LXRhc2s1MS03MnMwXzZuNy9uYXRpdmUtaG9tZS8ub3BlbmNvZGUvYmluL29wZW5jb2Rl"
+      }
+    },
+    "status": 422,
+    "response": ""
+  },
+  {
+    "method": "GET",
+    "path": "installations?appId=opencode",
+    "body": null,
+    "status": 200,
+    "response": {
+      "installations": []
+    }
+  }
+]

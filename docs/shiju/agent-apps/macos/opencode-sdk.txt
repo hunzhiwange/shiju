@@ -1,0 +1,15 @@
+UPGRADED exit=0
+CAT Some(AppCatalogEntry { id: OpenCode, name: "OpenCode", cli_command: Some("opencode"), runtime_kinds: [NativeCli] })
+INSTALLATIONS AppReadResponse { installations: [AppInstallation { id: AppInstallationId("NDpob3N0Ojg6b3BlbmNvZGU6OTg6L3ByaXZhdGUvdmFyL2ZvbGRlcnMvcmcvenIxOWxiX3M1dzMycTZkMnFrZDZwMG44MDAwMGdwL1Qvc2hpanUtdGFzazUxLTcyczBfNm43L3ByZWZpeC9iaW4vb3BlbmNvZGU"), app_id: OpenCode, target_host_id: "host", environment: Macos, path: "<isolated-root>/prefix/bin/opencode", real_path: Some("<isolated-root>/prefix/lib/node_modules/opencode-ai/bin/opencode.exe"), source: Unknown, is_path_default: true, version: Some("1.19.5"), runtime_status: Runnable }], desktop: None }
+REMAINING exit=0
+CAT Some(AppCatalogEntry { id: OpenCode, name: "OpenCode", cli_command: Some("opencode"), runtime_kinds: [NativeCli] })
+INSTALLATIONS AppReadResponse { installations: [AppInstallation { id: AppInstallationId("NDpob3N0Ojg6b3BlbmNvZGU6MTAzOi9wcml2YXRlL3Zhci9mb2xkZXJzL3JnL3pyMTlsYl9zNXczMnE2ZDJxa2Q2cDBuODAwMDBncC9UL3NoaWp1LXRhc2s1MS03MnMwXzZuNy9ob21lLy5sb2NhbC9iaW4vb3BlbmNvZGU"), app_id: OpenCode, target_host_id: "host", environment: Macos, path: "<isolated-root>/home/.local/bin/opencode", real_path: Some("<isolated-root>/home/.local/lib/node_modules/opencode-ai/bin/opencode.exe"), source: Unknown, is_path_default: true, version: Some("1.19.4"), runtime_status: Runnable }], desktop: None }
+EMPTY exit=0
+CAT Some(AppCatalogEntry { id: OpenCode, name: "OpenCode", cli_command: Some("opencode"), runtime_kinds: [NativeCli] })
+INSTALLATIONS AppReadResponse { installations: [], desktop: None }
+API INSTALL exit=0
+CAT Some(AppCatalogEntry { id: OpenCode, name: "OpenCode", cli_command: Some("opencode"), runtime_kinds: [NativeCli] })
+INSTALLATIONS AppReadResponse { installations: [AppInstallation { id: AppInstallationId("NDpob3N0Ojg6b3BlbmNvZGU6OTg6L3ByaXZhdGUvdmFyL2ZvbGRlcnMvcmcvenIxOWxiX3M1dzMycTZkMnFrZDZwMG44MDAwMGdwL1Qvc2hpanUtdGFzazUxLTcyczBfNm43L3ByZWZpeC9iaW4vb3BlbmNvZGU"), app_id: OpenCode, target_host_id: "host", environment: Macos, path: "<isolated-root>/prefix/bin/opencode", real_path: Some("<isolated-root>/prefix/lib/node_modules/opencode-ai/bin/opencode.exe"), source: Unknown, is_path_default: true, version: Some("1.19.5"), runtime_status: Runnable }], desktop: None }
+FINAL EMPTY exit=0
+CAT Some(AppCatalogEntry { id: OpenCode, name: "OpenCode", cli_command: Some("opencode"), runtime_kinds: [NativeCli] })
+INSTALLATIONS AppReadResponse { installations: [], desktop: None }

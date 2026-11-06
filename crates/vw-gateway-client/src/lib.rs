@@ -38,7 +38,7 @@ pub use client::SessionUiLoadResult;
 /// 网关 HTTP 与流式接口的统一客户端入口。
 ///
 /// 调用方通常只需要持有这个类型，即可访问本 crate 暴露的大部分能力。
-pub use client::{AgentAppsReadError, GatewayClient};
+pub use client::{AgentAppsLifecycleError, AgentAppsReadError, GatewayClient};
 /// Channel QR-code authorization transport contract.
 pub use client::{ChannelQrFetchResponseDto, ChannelQrStatusDto, ChannelQrStatusResponseDto};
 pub use client::{CronAddRequest, CronJobDto, CronRunDto, CronUpdateRequest};

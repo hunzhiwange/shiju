@@ -45,6 +45,7 @@ pub enum PreferencesMessage {
     Terminal(String),
     Shell(AppId, String),
     Flag(AppId, String),
+    Reorder(Vec<String>),
     SaveUser,
     SaveHost,
     Reply {
@@ -191,6 +192,14 @@ pub(crate) fn update(
         PreferencesMessage::Flag(id, value) => {
             state.wsl_edit(id, value, true);
             return Task::none();
+        }
+        PreferencesMessage::Reorder(order) => {
+            let Some(saved) = &state.saved else {
+                return Task::none();
+            };
+            let mut user = saved.user.clone();
+            user.app_order = order;
+            Some(AppPreferencesPatch::User(user))
         }
         PreferencesMessage::SaveUser => {
             let Some(draft) = &state.draft else {

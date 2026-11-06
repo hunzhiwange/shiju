@@ -7,6 +7,10 @@ pub(crate) struct AppsCatalogState {
     pub launch: crate::app::components::system_settings_apps::launch::LaunchState,
     pub preferences: crate::app::components::system_settings_apps::preferences::PreferencesState,
     pub lifecycle: crate::app::components::system_settings_apps::lifecycle::LifecycleState,
+    pub query: String,
+    pub hovered: Option<vw_gateway_client::vw_api_types::agent_apps::AppId>,
+    pub expanded: Option<vw_gateway_client::vw_api_types::agent_apps::AppId>,
+    pub drag: crate::app::components::system_settings_apps::drag::DragState,
     pub host: String,
     pub token: String,
     pub connection_open: bool,
@@ -30,12 +34,15 @@ impl AppsCatalogState {
         self.generation = self.generation.wrapping_add(1);
         self.loading = false;
         self.rows.clear();
+        self.drag = Default::default();
+        self.expanded = None;
+        self.hovered = None;
         self.token.clear();
         self.lifecycle.invalidate();
         self.preferences.invalidate();
         self.launch.invalidate();
-        self.connection_open = true;
-        self.error = Some("连接上下文已更改，请重新输入应用管理令牌".into());
+        self.connection_open = false;
+        self.error = Some("连接已更改，正在重新连接应用".into());
         true
     }
 
@@ -46,6 +53,9 @@ impl AppsCatalogState {
         self.context = Some(context);
         self.loading = true;
         self.rows.clear();
+        self.drag = Default::default();
+        self.expanded = None;
+        self.hovered = None;
         self.error = None;
         self.generation
     }

@@ -147,7 +147,13 @@ impl App {
             .map(|req| Subscription::run_with(req, workflow_run_stream))
             .unwrap_or_else(Subscription::none);
 
-        let events = iced::event::listen_with(map_global_event);
+        let events = Subscription::batch([
+            iced::event::listen_with(map_global_event),
+            crate::app::components::system_settings_apps::drag::subscription(
+                &self.apps_catalog.drag,
+                self.main_window_id,
+            ),
+        ]);
 
         #[cfg(not(target_arch = "wasm32"))]
         let terminal_subs = {

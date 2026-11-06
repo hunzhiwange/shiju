@@ -9,6 +9,15 @@ pub enum AppsCatalogMessage {
     Launch(crate::app::components::system_settings_apps::launch::LaunchMessage),
     Preferences(crate::app::components::system_settings_apps::preferences::PreferencesMessage),
     Lifecycle(super::apps_lifecycle::LifecycleMessage),
+    QueryInput(String),
+    ToggleDetails(vw_gateway_client::vw_api_types::agent_apps::AppId),
+    Drag(crate::app::components::system_settings_apps::drag::DragMessage),
+    LocalConnect,
+    LocalReady {
+        context: AgentAppsContext,
+        generation: u64,
+        result: Result<vw_shared::local_apps::Credentials, String>,
+    },
     ConnectionOpen,
     ConnectionClose,
     HostInput(String),
@@ -28,6 +37,16 @@ impl std::fmt::Debug for AppsCatalogMessage {
 }
 pub(super) fn update(app: &mut App, message: AppsCatalogMessage) -> Task<Message> {
     match message {
+        AppsCatalogMessage::QueryInput(query) => {
+            app.apps_catalog.query = query;
+            app.apps_catalog.drag = Default::default();
+        }
+        AppsCatalogMessage::ToggleDetails(id) => {
+            app.apps_catalog.expanded = (app.apps_catalog.expanded != Some(id)).then_some(id);
+        }
+        AppsCatalogMessage::Drag(value) => {
+            return crate::app::components::system_settings_apps::drag::update(app, value);
+        }
         AppsCatalogMessage::Launch(message) => {
             return crate::app::components::system_settings_apps::launch::update(app, message);
         }
@@ -37,13 +56,72 @@ pub(super) fn update(app: &mut App, message: AppsCatalogMessage) -> Task<Message
         AppsCatalogMessage::Lifecycle(message) => {
             return super::apps_lifecycle::update(app, message);
         }
-        AppsCatalogMessage::ConnectionOpen => app.apps_catalog.connection_open = true,
+        AppsCatalogMessage::LocalConnect => {
+            if app.apps_catalog.loading {
+                return Task::none();
+            }
+            let client = match crate::app::config::gateway_client() {
+                Ok(client) if client.endpoint().is_loopback() => client,
+                _ => return app.show_error_toast("请先切换到本机网关"),
+            };
+            let context = AgentAppsContext {
+                gateway: client.endpoint().base_url(),
+                tenant: client.endpoint().tenant_scope().clone(),
+                project: app.project_path.clone(),
+            };
+            let generation = app.apps_catalog.begin(context.clone());
+            app.apps_catalog.token.clear();
+            app.apps_catalog.host.clear();
+            return Task::perform(
+                crate::app::components::system_settings_apps::local::connect(client),
+                move |result| {
+                    Message::Settings(SettingsMessage::AppsCatalog(
+                        AppsCatalogMessage::LocalReady {
+                            context: context.clone(),
+                            generation,
+                            result,
+                        },
+                    ))
+                },
+            );
+        }
+        AppsCatalogMessage::LocalReady { context, generation, result } => {
+            let current =
+                crate::app::config::gateway_client().ok().map(|client| AgentAppsContext {
+                    gateway: client.endpoint().base_url(),
+                    tenant: client.endpoint().tenant_scope().clone(),
+                    project: app.project_path.clone(),
+                });
+            if current.as_ref() != Some(&context)
+                || app.apps_catalog.generation != generation
+                || !app.apps_catalog.loading
+            {
+                return Task::none();
+            }
+            app.apps_catalog.loading = false;
+            match result {
+                Ok(credentials) => {
+                    app.apps_catalog.token = credentials.token;
+                    app.apps_catalog.host = vw_shared::local_apps::HOST_ID.into();
+                    return update(app, AppsCatalogMessage::Refresh);
+                }
+                Err(error) => {
+                    app.apps_catalog.error = Some(error.clone());
+                    return app.show_error_toast(error);
+                }
+            }
+        }
+        AppsCatalogMessage::ConnectionOpen => {
+            app.apps_catalog.connection_open = true;
+        }
         AppsCatalogMessage::ConnectionClose => app.apps_catalog.connection_open = false,
         AppsCatalogMessage::HostInput(host) => {
             app.apps_catalog.lifecycle.invalidate();
             app.apps_catalog.preferences.invalidate();
             app.apps_catalog.launch.invalidate();
             app.apps_catalog.host = host;
+            app.apps_catalog.drag = Default::default();
+            app.apps_catalog.expanded = None;
             app.apps_catalog.generation = app.apps_catalog.generation.wrapping_add(1);
             app.apps_catalog.loading = false;
             app.apps_catalog.rows.clear();
@@ -60,16 +138,14 @@ pub(super) fn update(app: &mut App, message: AppsCatalogMessage) -> Task<Message
             app.apps_catalog.preferences.invalidate();
             app.apps_catalog.launch.invalidate();
             app.apps_catalog.token = token;
+            app.apps_catalog.drag = Default::default();
+            app.apps_catalog.expanded = None;
             app.apps_catalog.generation = app.apps_catalog.generation.wrapping_add(1);
             app.apps_catalog.loading = false;
             app.apps_catalog.rows.clear();
             app.apps_catalog.error = None;
         }
         AppsCatalogMessage::Refresh => {
-            if app.apps_catalog.host.trim().is_empty() || app.apps_catalog.token.is_empty() {
-                app.apps_catalog.connection_open = true;
-                return Task::none();
-            }
             let client = match crate::app::config::gateway_client() {
                 Ok(client) => client,
                 Err(_) => {
@@ -85,7 +161,12 @@ pub(super) fn update(app: &mut App, message: AppsCatalogMessage) -> Task<Message
                 tenant: client.endpoint().tenant_scope().clone(),
                 project: app.project_path.clone(),
             };
-            if app.apps_catalog.reset_if_context_changed(&context) {
+            app.apps_catalog.reset_if_context_changed(&context);
+            if app.apps_catalog.host.trim().is_empty() || app.apps_catalog.token.is_empty() {
+                if client.endpoint().is_loopback() && cfg!(unix) {
+                    return update(app, AppsCatalogMessage::LocalConnect);
+                }
+                app.apps_catalog.connection_open = true;
                 return Task::none();
             }
             if app.apps_catalog.loading {
@@ -95,12 +176,24 @@ pub(super) fn update(app: &mut App, message: AppsCatalogMessage) -> Task<Message
             let host = app.apps_catalog.host.clone();
             let token = app.apps_catalog.token.clone();
             app.apps_catalog.connection_open = false;
+            let local = client.endpoint().is_loopback() && host == vw_shared::local_apps::HOST_ID;
             return Task::perform(catalog::load(client, host.clone(), token), move |result| {
                 Message::Settings(SettingsMessage::AppsCatalog(AppsCatalogMessage::Loaded {
                     context: context.clone(),
                     host: host.clone(),
                     generation,
-                    result: result.map_err(|e| catalog::error_label(&e).into()),
+                    result: result.map_err(|e| {
+                        if local
+                            && matches!(
+                                e,
+                                vw_gateway_client::AgentAppsReadError::Http { status: 503, .. }
+                            )
+                        {
+                            "本机应用服务尚未就绪，请重启新版网关后重试".into()
+                        } else {
+                            catalog::error_label(&e).into()
+                        }
+                    }),
                 }))
             });
         }

@@ -175,9 +175,55 @@ fn cc_apps_desktop_catalog_state_context_switch_releases_pending_load() {
     let generation = state.begin(old.clone());
     assert!(state.reset_if_context_changed(&current));
     assert!(!state.loading);
-    assert!(state.token.is_empty() && state.rows.is_empty() && state.connection_open);
+    assert!(state.token.is_empty() && state.rows.is_empty() && !state.connection_open);
     assert!(!state.finish(&old, generation, Ok(vec![row()])));
     let retry = state.begin(current.clone());
     assert!(state.finish(&current, retry, Ok(vec![row()])));
     assert_eq!(state.rows.len(), 1);
+}
+
+#[test]
+fn local_apps_credentials_only_apply_to_current_connection_and_generation() {
+    use crate::app::{
+        App,
+        message::{SettingsMessage, settings::AppsCatalogMessage},
+        state::AgentAppsContext,
+    };
+    let mut app = App::new().0;
+    let client = crate::app::config::gateway_client().unwrap();
+    let context = AgentAppsContext {
+        gateway: client.endpoint().base_url(),
+        tenant: client.endpoint().tenant_scope().clone(),
+        project: app.project_path.clone(),
+    };
+    let generation = app.apps_catalog.begin(context.clone());
+    let mut other = context.clone();
+    other.gateway = "http://other-gateway".into();
+    for (context, generation) in
+        [(other, generation), (context.clone(), generation.wrapping_sub(1))]
+    {
+        let _ = app.update(crate::app::Message::Settings(SettingsMessage::AppsCatalog(
+            AppsCatalogMessage::LocalReady {
+                context,
+                generation,
+                result: Ok(vw_shared::local_apps::Credentials {
+                    token: "stale-local-credential".into(),
+                }),
+            },
+        )));
+        assert!(app.apps_catalog.token.is_empty());
+    }
+    let _ = app.update(crate::app::Message::Settings(SettingsMessage::AppsCatalog(
+        AppsCatalogMessage::LocalReady {
+            context,
+            generation,
+            result: Ok(vw_shared::local_apps::Credentials {
+                token: "current-local-credential".into(),
+            }),
+        },
+    )));
+    assert_eq!(app.apps_catalog.host, vw_shared::local_apps::HOST_ID);
+    assert_eq!(app.apps_catalog.token, "current-local-credential");
+    assert!(app.apps_catalog.loading);
+    assert!(!app.apps_catalog.connection_open);
 }

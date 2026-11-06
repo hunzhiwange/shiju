@@ -20,11 +20,13 @@ use super::providers::refresh_task;
 pub fn update(app: &mut App, message: SettingsMessage) -> Task<Message> {
     match message {
         SettingsMessage::TabSelected(tab) => {
+            app.apps_catalog.drag = Default::default();
             app.settings_tab = tab;
             app.system_settings_help_tab = None;
             Task::none()
         }
         SettingsMessage::SystemTabSelected(tab) => {
+            app.apps_catalog.drag = Default::default();
             app.system_settings_tab = match tab {
                 SystemTab::Editor => {
                     app.general_settings_tab = crate::app::state::GeneralSettingsTab::Editor;

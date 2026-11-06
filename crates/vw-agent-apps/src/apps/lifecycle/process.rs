@@ -109,7 +109,7 @@ fn check_node(requirement: NodeRequirement) -> Result<(), String> {
     Ok(())
 }
 
-pub(super) fn command(
+pub(crate) fn command(
     program: &str,
     args: &[String],
     env: &[(String, String)],
@@ -169,10 +169,22 @@ fn finish(
 }
 
 pub(super) fn execute(
-    mut command: Command,
+    command: Command,
     app: AppId,
     probe: impl FnOnce() -> Result<AppInstallationReport, String>,
 ) -> Result<ProcessResult, String> {
+    let (exit_code, output) = run_command(command)?;
+    let installations = probe()?;
+    if !installations.installations.iter().any(|i| {
+        i.runtime_status == vw_api_types::agent_apps::AppInstallationRuntimeStatus::Runnable
+    }) || installations.installations.iter().any(|i| i.app_id != app)
+    {
+        return Err("installation postcondition failed".into());
+    }
+    Ok(ProcessResult { exit_code, output, installations })
+}
+
+pub(crate) fn run_command(mut command: Command) -> Result<(Option<i32>, String), String> {
     #[cfg(windows)]
     let _batch = {
         use std::io::Write;
@@ -231,17 +243,6 @@ pub(super) fn execute(
         if !status.success() {
             return Err(format!("installer failed (exit {:?}; output redacted)", status.code()));
         }
-        let installations = probe()?;
-        if !installations.installations.iter().any(|i| {
-            i.runtime_status == vw_api_types::agent_apps::AppInstallationRuntimeStatus::Runnable
-        }) || installations.installations.iter().any(|i| i.app_id != app)
-        {
-            return Err("installation postcondition failed".into());
-        }
-        Ok(ProcessResult {
-            exit_code: status.code(),
-            output: format!("stdout: {out} bytes; stderr: {err} bytes (redacted, capped)"),
-            installations,
-        })
+        Ok((status.code(), format!("stdout: {out} bytes; stderr: {err} bytes (redacted, capped)")))
     })
 }

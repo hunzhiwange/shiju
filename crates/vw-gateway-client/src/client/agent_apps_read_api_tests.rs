@@ -102,3 +102,35 @@ async fn cc_apps_read_sdk_roundtrip_rejects_invalid_payload_and_unreachable_gate
         Err(AgentAppsReadError::Transport(_))
     ));
 }
+
+#[tokio::test]
+async fn cc_apps_desktop_catalog_state_authorized_read_keeps_credential_scoped() {
+    let server = test_support::server(vec![
+        (200, json!({"apps":[]})),
+        (307, json!({"message":"redirect refused"})),
+    ]);
+    server
+        .client()
+        .agent_apps_catalog_authorized("host", "fixture-application-grant")
+        .await
+        .unwrap();
+    let request = server.take_request();
+    assert_eq!(request.header("x-agent-apps-token"), Some("fixture-application-grant"));
+    assert!(request.body.is_null());
+    assert!(matches!(
+        server
+            .client()
+            .agent_apps_installations_authorized("host", AppId::Codex, "fixture-application-grant")
+            .await,
+        Err(AgentAppsReadError::Http { status: 307, .. })
+    ));
+    assert_eq!(
+        server.take_request().header("x-agent-apps-token"),
+        Some("fixture-application-grant")
+    );
+    server.join();
+    let server = test_support::server(vec![(200, json!({"apps":[]}))]);
+    server.client().agent_apps_catalog("host").await.unwrap();
+    assert_eq!(server.take_request().header("x-agent-apps-token"), None);
+    server.join();
+}

@@ -711,6 +711,7 @@ pub enum GeneralSettingsMessage {
 #[derive(Debug, Clone)]
 pub enum SettingsMessage {
     AgentApps(super::AgentAppsMessage),
+    AppsCatalog(super::AppsCatalogMessage),
     TabSelected(SettingsTab),
     SystemTabSelected(SystemTab),
     SystemSearchTargetSelected(SystemSettingsSearchTarget),

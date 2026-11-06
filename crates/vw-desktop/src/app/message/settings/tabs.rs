@@ -47,7 +47,9 @@ pub fn update(app: &mut App, message: SettingsMessage) -> Task<Message> {
                 _ => tab,
             };
             app.system_settings_help_tab = None;
-            if tab == SystemTab::Themes {
+            if tab == SystemTab::Apps {
+                super::apps_catalog::update(app, super::AppsCatalogMessage::Refresh)
+            } else if tab == SystemTab::Themes {
                 app.themes_settings.error = None;
                 Task::done(Message::Settings(SettingsMessage::Themes(
                     super::messages::ThemesMessage::Refresh,

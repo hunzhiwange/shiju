@@ -427,3 +427,5 @@ pub mod mcp_app_panel;
 mod system_settings_agent_apps_tests;
 
 mod system_settings_agent_apps;
+
+pub(crate) mod system_settings_apps;

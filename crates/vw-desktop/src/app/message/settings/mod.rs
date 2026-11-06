@@ -3,6 +3,7 @@
 mod acp;
 mod agent_apps;
 mod agents;
+mod apps_catalog;
 mod autonomy;
 mod browser;
 mod channels;
@@ -45,6 +46,7 @@ mod web_search;
 use crate::app::config::server_config_unreachable_error;
 use crate::app::{App, Message};
 pub use agent_apps::AgentAppsMessage;
+pub use apps_catalog::AppsCatalogMessage;
 use iced::Task;
 
 pub(crate) use messages::{
@@ -109,6 +111,7 @@ fn apply_agent_config_saved(app: &mut App, tag: &'static str, result: Result<(),
 pub fn update(app: &mut App, message: SettingsMessage) -> Task<Message> {
     match message {
         SettingsMessage::AgentApps(message) => agent_apps::update(app, message),
+        SettingsMessage::AppsCatalog(message) => apps_catalog::update(app, message),
         SettingsMessage::TabSelected(_)
         | SettingsMessage::SystemTabSelected(_)
         | SettingsMessage::SystemSearchTargetSelected(_)

@@ -82,6 +82,8 @@ use iced::{Alignment, Background, Border, Color, Element, Length, Shadow, Vector
 /// - `HttpRequest` - HTTP 请求设置，配置 http_request 工具白名单与请求限制
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum SystemTab {
+    /// 应用目录与安装诊断
+    Apps,
     /// 常规设置标签页
     General,
     /// 兼容旧主题入口，选择时转入常规设置的主题标签
@@ -131,6 +133,7 @@ pub enum SystemTab {
 impl SystemTab {
     pub(super) fn label(self) -> &'static str {
         match self {
+            SystemTab::Apps => "应用列表",
             SystemTab::General => "常规设置",
             SystemTab::Themes => "主题",
             SystemTab::Editor => "编辑器",
@@ -169,9 +172,10 @@ impl SystemTab {
     ///     println!("{}", tab);
     /// }
     /// ```
-    pub(super) fn all() -> [SystemTab; 14] {
+    pub(super) fn all() -> [SystemTab; 15] {
         [
             SystemTab::General,
+            SystemTab::Apps,
             SystemTab::Providers,
             SystemTab::Models,
             SystemTab::Agents,
@@ -220,6 +224,7 @@ impl std::fmt::Display for SystemTab {
 
 pub(super) fn system_tab_keywords(tab: SystemTab) -> &'static [&'static str] {
     match tab {
+        SystemTab::Apps => &["apps", "应用", "安装", "catalog"],
         SystemTab::General => &["general", "app", "basic", "基础", "themes", "主题"],
         SystemTab::Themes => {
             &["themes", "gallery", "palette", "custom", "builtin", "画廊", "配色", "色板"]
@@ -504,7 +509,7 @@ pub(super) fn active_tab_save_error(app: &App, active_tab: SystemTab) -> Option<
             crate::app::state::GeneralSettingsTab::Themes => app.themes_settings.error.as_deref(),
             _ => None,
         },
-        SystemTab::Editor | SystemTab::Projects => None,
+        SystemTab::Apps | SystemTab::Editor | SystemTab::Projects => None,
     }
 }
 
@@ -709,6 +714,7 @@ pub fn view(app: &App) -> Element<'_, Message> {
 
     // 根据当前激活的标签页加载对应的配置内容视图
     let content: Element<'_, Message> = match active_tab {
+        SystemTab::Apps => super::system_settings_apps::view(&app.apps_catalog),
         SystemTab::General => crate::app::components::system_settings_general::view(app),
         SystemTab::Themes => crate::app::components::system_settings_themes::view(app),
         SystemTab::Editor => crate::app::components::system_settings_editor::view(app),
@@ -976,6 +982,9 @@ pub fn view(app: &App) -> Element<'_, Message> {
         dialog = crate::app::components::system_settings_security::view_overlays(app, dialog);
     }
 
+    if app.system_settings_tab == SystemTab::Apps {
+        dialog = super::system_settings_apps::view_overlays(&app.apps_catalog, dialog);
+    }
     if app.system_settings_tab == SystemTab::GatewayClient {
         dialog = crate::app::components::system_settings_gateway_client::view_overlays(app, dialog);
         dialog = super::system_settings_agent_apps::view_overlays(&app.agent_apps, dialog);

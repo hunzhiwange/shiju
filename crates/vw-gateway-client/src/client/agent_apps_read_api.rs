@@ -26,7 +26,7 @@ impl GatewayClient {
         &self,
         target_host_id: &str,
     ) -> Result<AppCatalogResponse, AgentAppsReadError> {
-        self.agent_apps_read("catalog", target_host_id, None).await
+        self.agent_apps_read("catalog", target_host_id, None, None).await
     }
     /// 读取应用安装实例。
     pub async fn agent_apps_installations(
@@ -34,7 +34,7 @@ impl GatewayClient {
         target_host_id: &str,
         app_id: AppId,
     ) -> Result<AppReadResponse, AgentAppsReadError> {
-        self.agent_apps_read("installations", target_host_id, Some(app_id)).await
+        self.agent_apps_read("installations", target_host_id, Some(app_id), None).await
     }
     /// 读取应用诊断。
     pub async fn agent_apps_diagnostics(
@@ -42,7 +42,7 @@ impl GatewayClient {
         target_host_id: &str,
         app_id: AppId,
     ) -> Result<AppReadResponse, AgentAppsReadError> {
-        self.agent_apps_read("diagnostics", target_host_id, Some(app_id)).await
+        self.agent_apps_read("diagnostics", target_host_id, Some(app_id), None).await
     }
     /// 读取应用版本。
     pub async fn agent_apps_versions(
@@ -50,13 +50,31 @@ impl GatewayClient {
         target_host_id: &str,
         app_id: AppId,
     ) -> Result<AppReadResponse, AgentAppsReadError> {
-        self.agent_apps_read("versions", target_host_id, Some(app_id)).await
+        self.agent_apps_read("versions", target_host_id, Some(app_id), None).await
+    }
+    /// Read the catalog using the independently granted application credential.
+    pub async fn agent_apps_catalog_authorized(
+        &self,
+        host: &str,
+        token: &str,
+    ) -> Result<AppCatalogResponse, AgentAppsReadError> {
+        self.agent_apps_read("catalog", host, None, Some(token)).await
+    }
+    /// Read installations using the independently granted application credential.
+    pub async fn agent_apps_installations_authorized(
+        &self,
+        host: &str,
+        app: AppId,
+        token: &str,
+    ) -> Result<AppReadResponse, AgentAppsReadError> {
+        self.agent_apps_read("installations", host, Some(app), Some(token)).await
     }
     async fn agent_apps_read<T: DeserializeOwned>(
         &self,
         resource: &str,
         target_host_id: &str,
         app_id: Option<AppId>,
+        token: Option<&str>,
     ) -> Result<T, AgentAppsReadError> {
         let mut query = vec![("targetHostId", target_host_id.to_owned())];
         if let Some(app_id) = app_id {
@@ -67,10 +85,28 @@ impl GatewayClient {
             };
             query.push(("appId", id));
         }
-        let request = self
-            .client
+        #[cfg(target_arch = "wasm32")]
+        if token.is_some() {
+            return Err(AgentAppsReadError::Transport(
+                "authorized application reads require native transport".into(),
+            ));
+        }
+        #[cfg(not(target_arch = "wasm32"))]
+        let transport = &self.dynamic_host_client;
+        #[cfg(target_arch = "wasm32")]
+        let transport = &self.client;
+        let request = transport
             .get(format!("{}/v1/agent-apps/{resource}", self.endpoint.base_url()))
             .query(&query);
+        let request = if let Some(token) = token {
+            let mut value = reqwest::header::HeaderValue::from_str(token).map_err(|_| {
+                AgentAppsReadError::Transport("invalid application credential".into())
+            })?;
+            value.set_sensitive(true);
+            request.header("x-agent-apps-token", value)
+        } else {
+            request
+        };
         let response = crate::http::apply_request_context(request, &self.endpoint)
             .send()
             .await

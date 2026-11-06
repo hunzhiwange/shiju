@@ -160,3 +160,9 @@ name = "tray-window"
 path = "tests/tray_window.rs"
 harness = false
 test = false
+
+[[test]]
+name = "apps-catalog-window"
+path = "src/apps_catalog_window_main.rs"
+harness = false
+test = false

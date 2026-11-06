@@ -1119,6 +1119,7 @@ impl App {
             },
 
             agent_apps: super::state::AgentAppsState::default(),
+            apps_catalog: super::state::AppsCatalogState::default(),
             gateway_client_settings: super::state::GatewayClientSettingsState {
                 selected_server_id: gateway_client_cfg.active_server().id.clone(),
                 name_input: gateway_client_cfg.active_server().name.clone(),

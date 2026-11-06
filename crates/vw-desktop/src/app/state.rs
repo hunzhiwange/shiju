@@ -156,3 +156,6 @@ impl AgentAppsState {
         true
     }
 }
+
+mod agent_apps;
+pub(crate) use agent_apps::AppsCatalogState;

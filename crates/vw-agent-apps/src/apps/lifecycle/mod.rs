@@ -42,3 +42,4 @@ mod operations_tests;
 pub mod local;
 
 pub(crate) mod local_agy;
+pub(crate) mod local_omp;

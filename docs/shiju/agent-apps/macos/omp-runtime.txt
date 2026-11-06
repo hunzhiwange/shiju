@@ -1,0 +1,47 @@
+{"installer": "https://omp.sh/install", "sha256": "cd8f77920da58c6f56b5851c841b61d5e30b4ba8f4cab683afba1f8274b56a06", "baseline": {"omp": null, "bun": null}, "os": "ProductName:\t\tmacOS\nProductVersion:\t\t27.0\nBuildVersion:\t\t26A428\n", "arch": "arm64\n"}
+
+official-install.log
+Fetching latest release...
+Using version: 18.17.0
+Downloading omp-darwin-arm64...
+
+✓ Installed omp to <isolated-root>/prefix/bin/omp
+Add <isolated-root>/prefix/bin to your PATH, then run 'omp'
+
+official-old.log
+Fetching omp 18.8.9...
+Using version: 18.8.9
+Downloading omp-darwin-arm64...
+
+✓ Installed omp to <isolated-root>/home/.local/bin/omp
+Add <isolated-root>/home/.local/bin to your PATH, then run 'omp'
+
+official-update.log
+Current version: 18.8.9
+New version available: 18.17.0
+Update failed: Error: Could not resolve omp binary path in PATH
+
+official-update-path.log
+Current version: 18.8.9
+New version available: 18.17.0
+Update failed: Error: GitHub API rate limit exceeded while fetching release metadata; retry later or set GITHUB_TOKEN or GH_TOKEN
+
+latest --version exit=0
+omp/18.17.0
+
+old --version exit=0
+omp/18.8.9
+
+SDK command: rustc --edition=2024 <isolated-root>/sdk.rs -L dependency=/Users/xiangmin/worker/code/shiju/target/rust-slot-6/debug/deps --extern vw_gateway_client=/Users/xiangmin/worker/code/shiju/target/rust-slot-6/debug/deps/libvw_gateway_client-1a94bf756d53cb1d.rlib --extern tokio=/Users/xiangmin/worker/code/shiju/target/rust-slot-6/debug/deps/libtokio-f993a923b732abac.rlib -o /Users/xiangmin/worker/code/shiju/target/rust-slot-6/task59-sdk-resume
+
+Default terminal observed program/cwd:
+20908 20852 <isolated-root>/prefix/bin/omp
+p20908
+fcwd
+n<isolated-root>/home
+
+pid=20908 isolated_HOME=False
+
+Additional ps environment check: HOME=<personal-home>; isolated HOME check failed. Process stopped.
+Runtime controller exits: [-15, -15]
+Cancelled installer staging: one prefix/bin/.omp.download.* remains; no omp entry; explicitly removed with isolated test root after all children ended.

@@ -1,0 +1,15 @@
+manual first-prefix instance before fix exit=0
+CAT Some(AppCatalogEntry { id: Omp, name: "Oh My Pi", cli_command: Some("omp"), runtime_kinds: [NativeCli] })
+INSTALLATIONS AppReadResponse { installations: [AppInstallation { id: AppInstallationId("installation-1"), app_id: Omp, target_host_id: "host", environment: Macos, path: "<isolated-root>/prefix/bin/omp", real_path: Some("<isolated-root>/prefix/bin/omp"), source: Unknown, is_path_default: true, version: None, runtime_status: ProbeFailed { reason: InvalidVersionOutput } }], desktop: None }
+managed-installed exit=0
+CAT Some(AppCatalogEntry { id: Omp, name: "Oh My Pi", cli_command: Some("omp"), runtime_kinds: [NativeCli] })
+INSTALLATIONS AppReadResponse { installations: [AppInstallation { id: AppInstallationId("installation-1"), app_id: Omp, target_host_id: "host", environment: Macos, path: "<isolated-root>/prefix/bin/omp", real_path: Some("<isolated-root>/prefix/bin/omp"), source: System, is_path_default: true, version: Some("18.17.0"), runtime_status: Runnable }], desktop: None }
+two-official-instances exit=0
+CAT Some(AppCatalogEntry { id: Omp, name: "Oh My Pi", cli_command: Some("omp"), runtime_kinds: [NativeCli] })
+INSTALLATIONS AppReadResponse { installations: [AppInstallation { id: AppInstallationId("installation-1"), app_id: Omp, target_host_id: "host", environment: Macos, path: "<isolated-root>/prefix/bin/omp", real_path: Some("<isolated-root>/prefix/bin/omp"), source: System, is_path_default: true, version: Some("18.17.0"), runtime_status: Runnable }, AppInstallation { id: AppInstallationId("installation-2"), app_id: Omp, target_host_id: "host", environment: Macos, path: "<isolated-root>/home/.local/bin/omp", real_path: Some("<isolated-root>/home/.local/bin/omp"), source: Unknown, is_path_default: false, version: Some("18.8.9"), runtime_status: Runnable }], desktop: None }
+remaining-old-instance exit=0
+CAT Some(AppCatalogEntry { id: Omp, name: "Oh My Pi", cli_command: Some("omp"), runtime_kinds: [NativeCli] })
+INSTALLATIONS AppReadResponse { installations: [AppInstallation { id: AppInstallationId("installation-2"), app_id: Omp, target_host_id: "host", environment: Macos, path: "<isolated-root>/home/.local/bin/omp", real_path: Some("<isolated-root>/home/.local/bin/omp"), source: Unknown, is_path_default: true, version: Some("18.8.9"), runtime_status: Runnable }], desktop: None }
+final-empty exit=0
+CAT Some(AppCatalogEntry { id: Omp, name: "Oh My Pi", cli_command: Some("omp"), runtime_kinds: [NativeCli] })
+INSTALLATIONS AppReadResponse { installations: [], desktop: None }

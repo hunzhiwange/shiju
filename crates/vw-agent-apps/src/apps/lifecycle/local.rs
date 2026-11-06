@@ -116,6 +116,8 @@ fn preview_with_node(
     validate(write, env)?;
     if request.app_id == AppId::Agy {
         super::local_agy::validate(&write.prefix)?;
+    } else if request.app_id == AppId::Omp {
+        super::local_omp::validate(&write.prefix)?;
     }
     let report = scoped_discover(request.app_id, env, write)?;
     let (source, action) = match (&request.action, &request.target) {
@@ -128,7 +130,7 @@ fn preview_with_node(
             if environment != &local {
                 return Err("local environment executor required".into());
             }
-            if request.app_id != AppId::Agy {
+            if !matches!(request.app_id, AppId::Agy | AppId::Omp) {
                 npm::install_args(request.app_id).map_err(str::to_owned)?;
             }
             if !report.installations.is_empty() {
@@ -139,7 +141,7 @@ fn preview_with_node(
         }
         (AppLifecycleAction::Update, AppActionTarget::Installation { installation_id }) => {
             let inst = selected(&report, installation_id, write)?;
-            if request.app_id != AppId::Agy {
+            if !matches!(request.app_id, AppId::Agy | AppId::Omp) {
                 node_check(&inst, write)?;
             }
             let plan =
@@ -166,6 +168,11 @@ pub fn run(plan: Plan, env: LocalReadEnvironment, write: WriteEnvironment) -> Re
             let recipe = super::native_hermes_agy::agy_managed_install(&write.prefix.join("bin"));
             (recipe.program.into(), recipe.args, vec![])
         }
+        Action::Install if plan.request.app_id == AppId::Omp => (
+            "/bin/bash".into(),
+            vec!["-c".into(), "(tmp=$(mktemp) || exit $?; trap 'rm -f \"$tmp\"' EXIT; curl -fsSL https://omp.sh/install -o \"$tmp\" && sh \"$tmp\" --binary)".into()],
+            vec![("PI_INSTALL_DIR".into(), write.prefix.join("bin").to_string_lossy().into_owned())],
+        ),
         Action::Install => (
             write.npm.to_string_lossy().into_owned(),
             npm::install_args(plan.request.app_id)?.iter().map(|s| (*s).into()).collect(),
@@ -179,6 +186,8 @@ pub fn run(plan: Plan, env: LocalReadEnvironment, write: WriteEnvironment) -> Re
     let mut command = process::command(&program, &args, &[], None)?;
     let home = if plan.request.app_id == AppId::Agy {
         super::local_agy::home(&write.prefix)?
+    } else if plan.request.app_id == AppId::Omp {
+        super::local_omp::home(&write.prefix)?
     } else {
         write.prefix.clone()
     };
@@ -189,7 +198,7 @@ pub fn run(plan: Plan, env: LocalReadEnvironment, write: WriteEnvironment) -> Re
     )
     .apply(&mut command)?;
     command.envs(extra);
-    if plan.request.app_id == AppId::Agy {
+    if matches!(plan.request.app_id, AppId::Agy | AppId::Omp) {
         command.env("TMPDIR", &home);
     }
     process::run_command(command)?;
@@ -202,6 +211,16 @@ pub fn run(plan: Plan, env: LocalReadEnvironment, write: WriteEnvironment) -> Re
             return Err("native agy postcondition failed".into());
         }
         super::local_agy::record(&write.prefix)?;
+    }
+    if plan.request.app_id == AppId::Omp {
+        let observed = discover(AppId::Omp, &env)?;
+        if !observed.installations.iter().any(|i| {
+            i.path == write.prefix.join("bin/omp").to_string_lossy()
+                && i.runtime_status == AppInstallationRuntimeStatus::Runnable
+        }) {
+            return Err("native omp postcondition failed".into());
+        }
+        super::local_omp::record(&write.prefix)?;
     }
     let result = scoped_discover(plan.request.app_id, &env, &write)?;
     if matches!(plan.action, Action::Install)
@@ -267,3 +286,7 @@ mod node_tests;
 #[cfg(all(test, unix))]
 #[path = "local_agy_tests.rs"]
 mod agy_tests;
+
+#[cfg(all(test, unix))]
+#[path = "local_omp_tests.rs"]
+mod omp_tests;

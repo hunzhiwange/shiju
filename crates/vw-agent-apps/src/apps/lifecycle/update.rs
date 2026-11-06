@@ -267,7 +267,7 @@ fn recipe(inst: &AppInstallation, companions: &[String]) -> Result<UpdateCommand
                 companions,
             )
         }
-        Omp if inst.source == Native => self_update(&["update"]),
+        Omp if matches!(inst.source, Native | System) => self_update(&["update"]),
         Mcode if lower.contains("/.minimax-code/") => {
             let index = lower.find("/.minimax-code/").ok_or("unmanaged installation")?;
             let root = &real[..index + "/.minimax-code".len()];

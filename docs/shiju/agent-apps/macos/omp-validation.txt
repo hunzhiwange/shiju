@@ -1,0 +1,314 @@
+
+$ cargo test -p vw-agent-apps --lib cc_apps_omp_managed -- --nocapture (red)
+exit=101
+    Blocking waiting for file lock on build directory
+   Compiling smallvec v1.16.2
+   Compiling libc v0.2.189
+   Compiling once_cell v1.21.4
+   Compiling serde_core v1.0.229
+   Compiling slab v0.4.12
+   Compiling serde_json v1.0.151
+   Compiling syn v2.0.119
+   Compiling crossbeam-utils v0.8.23
+   Compiling rustls v0.23.45
+   Compiling num-traits v0.2.19
+   Compiling unicode-segmentation v1.13.3
+   Compiling form_urlencoded v1.2.2
+   Compiling rustix v1.1.5
+   Compiling getrandom v0.4.3
+   Compiling hashbrown v0.15.5
+   Compiling aho-corasick v1.1.5
+   Compiling scopeguard v1.2.0
+   Compiling futures-util v0.3.34
+   Compiling tracing-core v0.1.36
+   Compiling lock_api v0.4.14
+   Compiling icu_normalizer v2.3.0
+   Compiling digest v0.11.3
+   Compiling time v0.3.55
+   Compiling flate2 v1.1.10
+   Compiling concurrent-queue v2.5.0
+   Compiling tracing-log v0.2.0
+   Compiling convert_case v0.10.0
+   Compiling event-listener v5.4.1
+   Compiling idna_adapter v1.2.2
+   Compiling jobserver v0.1.35
+   Compiling errno v0.3.14
+   Compiling mio v1.2.3
+   Compiling socket2 v0.6.5
+   Compiling idna v1.1.0
+   Compiling signal-hook-registry v1.4.8
+   Compiling core-foundation v0.10.1
+   Compiling cc v1.4.6
+   Compiling dirs-sys v0.5.0
+   Compiling security-framework-sys v2.17.0
+   Compiling dirs v6.0.0
+   Compiling dirs-sys v0.4.1
+   Compiling security-framework v3.7.0
+   Compiling url v2.5.8
+   Compiling chrono v0.4.45
+   Compiling directories v5.0.1
+   Compiling shellexpand v3.1.2
+   Compiling tokio v1.53.1
+   Compiling event-listener-strategy v0.5.4
+   Compiling hashlink v0.10.0
+   Compiling cpufeatures v0.3.1
+   Compiling parking_lot_core v0.9.12
+   Compiling parking_lot v0.12.5
+   Compiling sha2 v0.11.0
+   Compiling regex-automata v0.4.18
+   Compiling rusqlite v0.37.0
+   Compiling async-broadcast v0.7.2
+   Compiling tracing-subscriber v0.3.23
+   Compiling png v0.18.1
+   Compiling cmake v0.1.58
+   Compiling chrono-tz v0.10.4
+   Compiling aws-lc-sys v0.45.0
+   Compiling tempfile v3.27.0
+   Compiling serde v1.0.229
+   Compiling futures-executor v0.3.33
+   Compiling futures v0.3.33
+   Compiling vw-api-types v0.6.0 (/Users/xiangmin/worker/code/shiju/crates/vw-api-types)
+   Compiling regex v1.13.1
+   Compiling serde_derive_internals v0.29.1
+   Compiling tracing-attributes v0.1.31
+   Compiling schemars_derive v1.2.1
+   Compiling strum_macros v0.28.0
+   Compiling derive_more-impl v2.1.1
+   Compiling tracing v0.1.44
+   Compiling schemars v1.2.1
+   Compiling derive_more v2.1.1
+   Compiling strum v0.28.0
+   Compiling hyper v1.11.1
+   Compiling tower v0.5.3
+   Compiling tokio-util v0.7.19
+   Compiling agent-client-protocol-schema v0.11.4
+   Compiling tower-http v0.6.11
+   Compiling hyper-util v0.1.21
+   Compiling vw-config-types v0.6.0 (/Users/xiangmin/worker/code/shiju/crates/vw-config-types)
+   Compiling agent-client-protocol v0.10.4
+   Compiling aws-lc-rs v1.18.1
+   Compiling rustls-webpki v0.103.15
+   Compiling tokio-rustls v0.26.5
+   Compiling rustls-platform-verifier v0.7.0
+   Compiling hyper-rustls v0.27.10
+   Compiling reqwest v0.13.4
+   Compiling vw-shared v0.6.0 (/Users/xiangmin/worker/code/shiju/crates/vw-shared)
+   Compiling vw-acp v0.6.0 (/Users/xiangmin/worker/code/shiju/crates/vw-acp)
+   Compiling vw-agent-apps v0.6.0 (/Users/xiangmin/worker/code/shiju/crates/vw-agent-apps)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 15m 26s
+     Running unittests src/lib.rs (target/rust-slot-6/debug/deps/vw_agent_apps-c350eefc4d73b711)
+
+running 1 test
+
+thread 'apps::lifecycle::local::omp_tests::cc_apps_omp_managed_install_preview_accepts_authorized_empty_prefix' (37882732) panicked at crates/vw-agent-apps/src/apps/lifecycle/local_omp_tests.rs:29:44:
+reviewed omp installer must be reachable: "application has no reviewed npm installation recipe"
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+test apps::lifecycle::local::omp_tests::cc_apps_omp_managed_install_preview_accepts_authorized_empty_prefix ... FAILED
+
+failures:
+
+failures:
+    apps::lifecycle::local::omp_tests::cc_apps_omp_managed_install_preview_accepts_authorized_empty_prefix
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 173 filtered out; finished in 0.00s
+
+error: test failed, to rerun pass `-p vw-agent-apps --lib`
+
+
+$ cargo test -p vw-agent-apps --lib cc_apps_omp_managed -- --nocapture (red version)
+exit=101
+   Compiling vw-agent-apps v0.6.0 (/Users/xiangmin/worker/code/shiju/crates/vw-agent-apps)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 3.49s
+     Running unittests src/lib.rs (target/rust-slot-6/debug/deps/vw_agent_apps-c350eefc4d73b711)
+
+running 2 tests
+
+thread 'apps::lifecycle::local::omp_tests::cc_apps_omp_managed_install_preview_accepts_authorized_empty_prefix' (37900745) panicked at crates/vw-agent-apps/src/apps/lifecycle/local_omp_tests.rs:29:44:
+reviewed omp installer must be reachable: "application has no reviewed npm installation recipe"
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+test apps::lifecycle::local::omp_tests::cc_apps_omp_managed_install_preview_accepts_authorized_empty_prefix ... FAILED
+
+thread 'apps::discovery::version_tests::cc_apps_omp_managed_version_probe_accepts_official_binary_output' (37900744) panicked at crates/vw-agent-apps/src/apps/discovery/version_tests.rs:138:5:
+assertion `left == right` failed
+  left: None
+ right: Some("18.17.0")
+test apps::discovery::version_tests::cc_apps_omp_managed_version_probe_accepts_official_binary_output ... FAILED
+
+failures:
+
+failures:
+    apps::discovery::version_tests::cc_apps_omp_managed_version_probe_accepts_official_binary_output
+    apps::lifecycle::local::omp_tests::cc_apps_omp_managed_install_preview_accepts_authorized_empty_prefix
+
+test result: FAILED. 0 passed; 2 failed; 0 ignored; 0 measured; 173 filtered out; finished in 0.01s
+
+error: test failed, to rerun pass `-p vw-agent-apps --lib`
+
+
+$ cargo fmt --all
+exit=0
+
+
+$ cargo test -p vw-agent-apps --lib cc_apps_omp_managed -- --nocapture
+exit=0
+   Compiling vw-agent-apps v0.6.0 (/Users/xiangmin/worker/code/shiju/crates/vw-agent-apps)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 6.99s
+     Running unittests src/lib.rs (target/rust-slot-6/debug/deps/vw_agent_apps-c350eefc4d73b711)
+
+running 7 tests
+test apps::lifecycle::local::omp_tests::cc_apps_omp_managed_install_rejects_redirected_bin_before_writing ... ok
+test apps::lifecycle::local::omp_tests::cc_apps_omp_managed_install_preview_accepts_authorized_empty_prefix ... ok
+test apps::lifecycle::local::omp_tests::cc_apps_omp_managed_receipt_rejects_replacement_and_symlinks ... ok
+test apps::lifecycle::local::omp_tests::cc_apps_omp_managed_manual_install_does_not_acquire_ownership ... ok
+test apps::discovery::version_tests::cc_apps_omp_managed_version_probe_accepts_official_binary_output ... ok
+test apps::lifecycle::local::omp_tests::cc_apps_omp_managed_cancel_reaps_installer_without_source_receipt ... ok
+test apps::lifecycle::local::omp_tests::cc_apps_omp_managed_install_update_and_selected_uninstall_use_real_processes ... ok
+
+test result: ok. 7 passed; 0 failed; 0 ignored; 0 measured; 173 filtered out; finished in 0.38s
+
+
+
+$ cargo test -p vw-agent-apps --lib cc_apps_version_probe_broken_install -- --nocapture
+exit=0
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.82s
+     Running unittests src/lib.rs (target/rust-slot-6/debug/deps/vw_agent_apps-c350eefc4d73b711)
+
+running 5 tests
+test apps::discovery::version_tests::cc_apps_version_probe_broken_install_missing_permission_and_damage ... ok
+test apps::discovery::version_tests::cc_apps_version_probe_broken_install_stderr_and_empty_output ... ok
+test apps::discovery::version_tests::cc_apps_version_probe_broken_install_success_and_nonzero ... ok
+test apps::discovery::version_tests::cc_apps_version_probe_broken_install_deadline_and_output_limit ... ok
+test apps::discovery::version_tests::cc_apps_version_probe_broken_install_bounded_output_and_descendant_cleanup ... ok
+
+test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 175 filtered out; finished in 0.49s
+
+
+
+$ cargo test -p vw-agent-apps --lib cc_apps_native_uninstall_scope -- --nocapture
+exit=0
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.39s
+     Running unittests src/lib.rs (target/rust-slot-6/debug/deps/vw_agent_apps-c350eefc4d73b711)
+
+running 5 tests
+test apps::uninstall::native_tests::cc_apps_native_uninstall_scope_removes_only_binary ... ok
+test apps::uninstall::native_tests::cc_apps_native_uninstall_scope_windows_wsl_rules_and_directory_rejection ... ok
+test apps::uninstall::native_tests::cc_apps_native_uninstall_scope_symlinks_and_changed_plan ... ok
+test apps::uninstall::native_tests::cc_apps_native_uninstall_scope_grok_retains_data_and_external_links ... ok
+test apps::uninstall::native_tests::cc_apps_native_uninstall_scope_rejects_unverified_and_scripts ... ok
+
+test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 175 filtered out; finished in 0.02s
+
+
+
+$ cargo test -p vw-agent-apps --lib cc_apps_kimi_omp_install -- --nocapture
+exit=0
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.34s
+     Running unittests src/lib.rs (target/rust-slot-6/debug/deps/vw_agent_apps-c350eefc4d73b711)
+
+running 3 tests
+test apps::lifecycle::native_kimi_omp_tests::cc_apps_kimi_omp_install_rules ... ok
+test apps::lifecycle::native_kimi_omp_tests::cc_apps_kimi_omp_install_update_exit_codes ... ok
+test apps::lifecycle::native_kimi_omp_tests::cc_apps_kimi_omp_install_process_results ... ok
+
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 177 filtered out; finished in 0.69s
+
+
+
+$ cargo clippy --all-targets --all-features -- -D warnings
+exit=0
+    Checking iced_font_awesome v0.4.3
+    Checking usvg v0.46.0
+   Compiling vw-desktop v0.6.0 (/Users/xiangmin/worker/code/shiju/crates/vw-desktop)
+    Checking keyboard-types v0.7.0
+    Checking mac-usernotifications v0.3.1
+   Compiling rust-i18n-macro v4.2.4
+    Checking auto-launch v0.6.0
+    Checking iced_term v0.8.1 (https://github.com/doyouhaobaby/iced_term.git?rev=4cf92c247879d1cce1b8bdba5dd301d844179ac5#4cf92c24)
+    Checking muda v0.19.3
+   Compiling wry v0.54.4
+   Compiling iced_fonts_macros v0.3.0
+    Checking objc2-web-kit v0.3.2
+    Checking core-graphics v0.25.0
+    Checking yansi v1.0.1
+    Checking iced_fonts v0.3.0
+    Checking iced_aw v0.13.1
+    Checking resvg v0.46.0
+    Checking diff v0.1.13
+    Checking vt100 v0.16.2
+    Checking insta v1.48.0
+    Checking pretty_assertions v1.4.1
+    Checking itertools v0.15.0
+    Checking tao v0.34.8
+    Checking vw-webview v0.6.0 (/Users/xiangmin/worker/code/shiju/crates/vw-webview)
+    Checking iced-code-editor v0.5.2 (https://github.com/doyouhaobaby/iced-code-editor.git?tag=v0.4.4#b1279104)
+    Checking wa-rs-libsignal v0.2.0
+    Checking wa-rs-noise v0.2.0
+    Checking wa-rs-appstate v0.2.0
+    Checking wa-rs-core v0.2.0
+    Checking wa-rs-tokio-transport v0.2.0
+    Checking wa-rs-ureq-http v0.2.0
+    Checking wa-rs v0.2.0
+    Checking vw-agent v0.6.0 (/Users/xiangmin/worker/code/shiju/crates/vw-agent)
+    Checking vw-cli v0.6.0 (/Users/xiangmin/worker/code/shiju/crates/vw-cli)
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 5m 19s
+
+$ cargo build -p vw-cli --bin shiju
+exit=0
+   Compiling vw-acp v0.6.0 (/Users/xiangmin/worker/code/shiju/crates/vw-acp)
+   Compiling vw-agent-apps v0.6.0 (/Users/xiangmin/worker/code/shiju/crates/vw-agent-apps)
+   Compiling vw-agent v0.6.0 (/Users/xiangmin/worker/code/shiju/crates/vw-agent)
+   Compiling vw-cli v0.6.0 (/Users/xiangmin/worker/code/shiju/crates/vw-cli)
+warning: linker stderr: ld: __eh_frame section too large (max 16MB) to encode dwarf unwind offsets in compact unwind table, performance of exception handling might be affected
+  |
+  = note: `#[warn(linker_messages)]` on by default
+
+warning: `vw-cli` (bin "shiju") generated 1 warning
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 1m 23s
+
+$ cargo build -p vw-desktop --bin shi-ju
+exit=0
+   Compiling objc2-app-kit v0.3.2
+   Compiling objc2-core-location v0.3.2
+   Compiling objc2-service-management v0.3.2
+   Compiling os_info v3.15.0
+   Compiling objc2-user-notifications v0.3.2
+   Compiling smappservice-rs v0.1.3
+   Compiling auto-launch v0.6.0
+   Compiling iced_program v0.14.0
+   Compiling iced_winit v0.14.0
+   Compiling softbuffer v0.4.8
+   Compiling iced_tiny_skia v0.14.0
+   Compiling mac-usernotifications v0.3.1
+   Compiling cryoglyph v0.1.0
+   Compiling iced_wgpu v0.14.0
+   Compiling muda v0.21.2
+   Compiling muda v0.19.3
+   Compiling rfd v0.17.1
+   Compiling arboard v3.6.1
+   Compiling iced_renderer v0.14.0
+   Compiling vw-gateway-client v0.6.0 (/Users/xiangmin/worker/code/shiju/crates/vw-gateway-client)
+   Compiling vw-provider-resolver v0.6.0 (/Users/xiangmin/worker/code/shiju/crates/vw-provider-resolver)
+   Compiling iced_widget v0.14.2
+   Compiling tray-icon v0.26.1
+   Compiling iced v0.14.0
+   Compiling iced_fonts v0.3.0
+   Compiling iced_aw v0.13.1
+   Compiling iced_font_awesome v0.4.3
+   Compiling iced_term v0.8.1 (https://github.com/doyouhaobaby/iced_term.git?rev=4cf92c247879d1cce1b8bdba5dd301d844179ac5#4cf92c24)
+   Compiling iced-code-editor v0.5.2 (https://github.com/doyouhaobaby/iced-code-editor.git?tag=v0.4.4#b1279104)
+warning: linker stderr: ld: __eh_frame section too large (max 16MB) to encode dwarf unwind offsets in compact unwind table, performance of exception handling might be affected
+  |
+  = note: `#[warn(linker_messages)]` on by default
+
+warning: `vw-desktop` (bin "shi-ju") generated 1 warning
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 1m 16s
+
+$ cargo run -p vw-desktop --bin shi-ju
+exit=-15
+warning: linker stderr: ld: __eh_frame section too large (max 16MB) to encode dwarf unwind offsets in compact unwind table, performance of exception handling might be affected
+  |
+  = note: `#[warn(linker_messages)]` on by default
+
+warning: `vw-desktop` (bin "shi-ju") generated 1 warning
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 1.90s
+     Running `target/rust-slot-6/debug/shi-ju`

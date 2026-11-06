@@ -178,7 +178,9 @@ fn known_native_install(tool: AppId, real: &Path) -> bool {
         }
         // Official install.sh (`~/.local/bin`) / install.ps1 (`%LOCALAPPDATA%\omp`) targets.
         AppId::Omp => {
-            normalized.ends_with("/.local/bin/omp") || normalized.ends_with("/omp/omp.exe")
+            normalized.ends_with("/.local/bin/omp")
+                || normalized.ends_with("/omp/omp.exe")
+                || crate::apps::lifecycle::local_omp::owns(real)
         }
         _ => false,
     }

@@ -136,6 +136,7 @@ pub fn probe_local_version(path: &Path, timeout: Duration) -> io::Result<Version
 fn parse_version(output: &str) -> Option<String> {
     output.split_whitespace().find_map(|word| {
         let word = word.trim_matches(|c: char| matches!(c, '(' | ')' | ','));
+        let word = word.strip_prefix("omp/").unwrap_or(word);
         let version = word.strip_prefix('v').unwrap_or(word);
         let core = version.split(['-', '+']).next()?;
         let parts: Vec<_> = core.split('.').collect();

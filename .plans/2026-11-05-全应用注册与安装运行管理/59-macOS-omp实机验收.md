@@ -2,7 +2,7 @@
 
 批次：【批次 59】 依赖：批次 58（传递依赖此前全部批次）。线性执行；不与其他任务并行占用测试安装、终端或桌面进程。
 
-状态：未开始
+状态：已阻塞
 
 目的：用macOS真实环境证明 `omp` 的已声明安装运行能力，不外推到其他平台。
 
@@ -63,3 +63,17 @@
 ## 完成
 
 有未验证场景按执行技能保留 `已完成，待回归` 或真实依赖阻塞时 `已阻塞`，只在本编号文件记录原因。完整通过方可 `已完成`；使用 `$git-commit` 提交本任务实际证据/修复并排除无关变更，只有任务状态变化不提交。最终报告后删除已完整通过的任务文件，证据保留；不修改plan.md。
+
+## 2026-11-06 实施前缺陷登记
+
+正式local.rs仅对Agy绕开npm安装门控，Omp官方原生配方未接线，原生收据/来源锚定亦缺失。拟以独立cc_apps_omp_managed测试覆盖空前缀预检、官方安装器环境/真实进程更新与指定卸载、手工来源拒绝、摘要/符号链接与取消回收；先运行失败，再最小补齐Omp专用本地适配。官方安装器支持PI_INSTALL_DIR和--binary、--ref v18.8.9，下载实际SHA256校验通过后才能取得来源。
+
+真实API/SDK读取官方18.17.0原生文件为invalid_version_output；实际--version为omp/18.17.0。增加cc_apps_omp_managed_version_probe_accepts_official_binary_output精确失败/通过测试，仅识别官方omp/前缀且拒绝URL/未知前缀。
+
+## 实际执行结果与回归条件
+
+已修复Omp正式原生生命周期缺口及官方omp/版本格式，红灯2项、绿灯7项，加相邻回归13项，共20项有效测试通过；cargo fmt --all与全仓cargo clippy --all-targets --all-features -- -D warnings均0。正式安装3d39e86b、update a7b279eb、指定卸载1bcc0bf3均completed；两实例/剩余实例、SDK/Iced一致、UI提交后取消f4ca9875、离线503/恢复200/toast、破损断链/unknown拒绝与最终API/SDK/Iced空态有实证。持久证据docs/shiju/agent-apps/macos/omp.md及omp-api.json、omp-sdk.txt、omp-runtime.txt、omp-validation.txt与原生JPEG。
+
+阻塞：默认终端实际程序和cwd正确，但PID20908的HOME为个人OS HOME，未使用隔离测试HOME，已停止，不能判隔离通过。posix默认shell路径没有传送策略HOME；需专用测试OS用户/执行主机，或终端底座补齐受控环境，禁止在本应用加绕过特例。无专用供应商/适用官方账号，且Omp供应商投影not implemented；旧版18.8.9自更新GitHub限流退出1，正式最新版update无版本变化，仍需真实升级变化。取消虽终态正确且最终无相关进程，留下1个下载暂存文件，已随隔离根显式清理，不假报自动暂存清理。保留本任务待条件恢复回归，不删除，不改plan.md。
+
+动态slot-6；CARGO_TARGET_DIR与CARGO_BUILD_BUILD_DIR=/Users/xiangmin/worker/code/shiju/target/rust-slot-6。CLI首次构建0（17m07s），desktop首次为优先版本红灯中断-2；最终CLI/desktop构建0，cargo run -p vw-desktop --bin shi-ju默认features进入Running后主动-15。所有自有产物进程结束后释放本人锁保留缓存，测试二进制/凭据/暂存/app清理。其他工作区改动不纳入提交。

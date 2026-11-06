@@ -130,3 +130,15 @@ fn cc_apps_version_probe_broken_install_bounded_output_and_descendant_cleanup() 
         }
     );
 }
+
+#[test]
+fn cc_apps_omp_managed_version_probe_accepts_official_binary_output() {
+    let (_dir, path) = fixture("#!/bin/sh\necho omp/18.17.0\n", true);
+    let result = probe_local_version(&path, Duration::from_secs(1)).unwrap();
+    assert_eq!(result.version.as_deref(), Some("18.17.0"));
+    assert_eq!(result.runtime_status, AppInstallationRuntimeStatus::Runnable);
+    for output in ["https://example.test/18.17.0", "other/18.17.0", "omp/invalid"] {
+        fs::write(&path, format!("#!/bin/sh\necho '{output}'\n")).unwrap();
+        assert!(probe_local_version(&path, Duration::from_secs(1)).unwrap().version.is_none());
+    }
+}

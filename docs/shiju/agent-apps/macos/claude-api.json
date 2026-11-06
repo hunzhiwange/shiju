@@ -1,0 +1,460 @@
+[
+  {
+    "route": "catalog",
+    "request": null,
+    "status": 200,
+    "response": {
+      "apps": [
+        {
+          "id": "claude",
+          "name": "Claude",
+          "cliCommand": "claude",
+          "runtimeKinds": [
+            "native_cli"
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "route": "installations?appId=claude",
+    "request": null,
+    "status": 200,
+    "response": {
+      "installations": [
+        {
+          "id": "Njp0YXNrNDY6NjpjbGF1ZGU6NDM6L3ByaXZhdGUvdG1wL3NoaWp1LXRhc2s0Ni9wcmVmaXgvYmluL2NsYXVkZQ",
+          "appId": "claude",
+          "targetHostId": "task46",
+          "environment": {
+            "kind": "macos"
+          },
+          "path": "<test-root>/prefix/bin/claude",
+          "realPath": "<test-root>/prefix/lib/node_modules/@anthropic-ai/claude-code/bin/claude.exe",
+          "source": "unknown",
+          "isPathDefault": true,
+          "version": "2.1.316",
+          "runtimeStatus": {
+            "status": "runnable"
+          }
+        }
+      ]
+    }
+  },
+  {
+    "route": "launch-identities?appId=claude",
+    "request": null,
+    "status": 200,
+    "response": []
+  },
+  {
+    "route": "actions/preview",
+    "request": {
+      "appId": "claude",
+      "action": "update",
+      "target": {
+        "kind": "installation",
+        "installationId": "Njp0YXNrNDY6NjpjbGF1ZGU6NDM6L3ByaXZhdGUvdG1wL3NoaWp1LXRhc2s0Ni9wcmVmaXgvYmluL2NsYXVkZQ"
+      }
+    },
+    "status": 200,
+    "response": {
+      "previewId": "6845774c-159d-4085-9ec5-17e6f60fa115",
+      "request": {
+        "appId": "claude",
+        "action": "update",
+        "target": {
+          "kind": "installation",
+          "installationId": "Njp0YXNrNDY6NjpjbGF1ZGU6NDM6L3ByaXZhdGUvdG1wL3NoaWp1LXRhc2s0Ni9wcmVmaXgvYmluL2NsYXVkZQ"
+        }
+      },
+      "source": "system",
+      "confirmationRequired": true,
+      "summary": "Review the selected application action in the administrator-approved prefix",
+      "displayCommand": null
+    }
+  },
+  {
+    "route": "actions",
+    "request": {
+      "previewId": "6845774c-159d-4085-9ec5-17e6f60fa115",
+      "confirmed": true
+    },
+    "status": 202,
+    "response": {
+      "operationId": "8721c18d-5e54-4868-8b8e-34c0b3d6ea77",
+      "status": "queued"
+    }
+  },
+  {
+    "route": "operations/8721c18d-5e54-4868-8b8e-34c0b3d6ea77",
+    "request": null,
+    "status": 200,
+    "response": {
+      "operationId": "8721c18d-5e54-4868-8b8e-34c0b3d6ea77",
+      "status": "running",
+      "phase": "preflight"
+    }
+  },
+  {
+    "route": "operations/8721c18d-5e54-4868-8b8e-34c0b3d6ea77",
+    "request": null,
+    "status": 200,
+    "response": {
+      "operationId": "8721c18d-5e54-4868-8b8e-34c0b3d6ea77",
+      "status": "running",
+      "phase": "executing"
+    }
+  },
+  {
+    "route": "operations/8721c18d-5e54-4868-8b8e-34c0b3d6ea77",
+    "request": null,
+    "status": 200,
+    "response": {
+      "operationId": "8721c18d-5e54-4868-8b8e-34c0b3d6ea77",
+      "status": "completed",
+      "phase": "terminal"
+    }
+  },
+  {
+    "route": "installations?appId=claude",
+    "request": null,
+    "status": 200,
+    "response": {
+      "installations": [
+        {
+          "id": "Njp0YXNrNDY6NjpjbGF1ZGU6NDM6L3ByaXZhdGUvdG1wL3NoaWp1LXRhc2s0Ni9wcmVmaXgvYmluL2NsYXVkZQ",
+          "appId": "claude",
+          "targetHostId": "task46",
+          "environment": {
+            "kind": "macos"
+          },
+          "path": "<test-root>/prefix/bin/claude",
+          "realPath": "<test-root>/prefix/lib/node_modules/@anthropic-ai/claude-code/bin/claude.exe",
+          "source": "unknown",
+          "isPathDefault": true,
+          "version": "2.1.318",
+          "runtimeStatus": {
+            "status": "runnable"
+          }
+        }
+      ]
+    }
+  },
+  {
+    "route": "actions/preview",
+    "request": {
+      "appId": "claude",
+      "action": "uninstall",
+      "target": {
+        "kind": "installation",
+        "installationId": "Njp0YXNrNDY6NjpjbGF1ZGU6NDM6L3ByaXZhdGUvdG1wL3NoaWp1LXRhc2s0Ni9wcmVmaXgvYmluL2NsYXVkZQ"
+      }
+    },
+    "status": 200,
+    "response": {
+      "previewId": "9ea094b1-186e-4eee-9731-ff7fc1043c05",
+      "request": {
+        "appId": "claude",
+        "action": "uninstall",
+        "target": {
+          "kind": "installation",
+          "installationId": "Njp0YXNrNDY6NjpjbGF1ZGU6NDM6L3ByaXZhdGUvdG1wL3NoaWp1LXRhc2s0Ni9wcmVmaXgvYmluL2NsYXVkZQ"
+        }
+      },
+      "source": "system",
+      "confirmationRequired": true,
+      "summary": "Review the selected application action in the administrator-approved prefix",
+      "displayCommand": null
+    }
+  },
+  {
+    "route": "actions",
+    "request": {
+      "previewId": "9ea094b1-186e-4eee-9731-ff7fc1043c05",
+      "confirmed": true
+    },
+    "status": 202,
+    "response": {
+      "operationId": "58e1a1e2-407a-48c7-b0c4-60c714d03cf4",
+      "status": "queued"
+    }
+  },
+  {
+    "route": "operations/58e1a1e2-407a-48c7-b0c4-60c714d03cf4",
+    "request": null,
+    "status": 200,
+    "response": {
+      "operationId": "58e1a1e2-407a-48c7-b0c4-60c714d03cf4",
+      "status": "running",
+      "phase": "preflight"
+    }
+  },
+  {
+    "route": "operations/58e1a1e2-407a-48c7-b0c4-60c714d03cf4",
+    "request": null,
+    "status": 200,
+    "response": {
+      "operationId": "58e1a1e2-407a-48c7-b0c4-60c714d03cf4",
+      "status": "completed",
+      "phase": "terminal"
+    }
+  },
+  {
+    "route": "installations?appId=claude",
+    "request": null,
+    "status": 200,
+    "response": {
+      "installations": []
+    }
+  },
+  {
+    "route": "actions/preview",
+    "request": {
+      "appId": "claude",
+      "action": "install",
+      "target": {
+        "kind": "environment",
+        "environment": {
+          "kind": "macos"
+        }
+      }
+    },
+    "status": 200,
+    "response": {
+      "previewId": "bef7372e-cdf9-42dd-a1f4-7044e95b344f",
+      "request": {
+        "appId": "claude",
+        "action": "install",
+        "target": {
+          "kind": "environment",
+          "environment": {
+            "kind": "macos"
+          }
+        }
+      },
+      "source": "system",
+      "confirmationRequired": true,
+      "summary": "Review the selected application action in the administrator-approved prefix",
+      "displayCommand": null
+    }
+  },
+  {
+    "route": "actions",
+    "request": {
+      "previewId": "bef7372e-cdf9-42dd-a1f4-7044e95b344f",
+      "confirmed": true
+    },
+    "status": 202,
+    "response": {
+      "operationId": "2bf39362-761a-4da7-9697-b10210d9829c",
+      "status": "queued"
+    }
+  },
+  {
+    "route": "operations/2bf39362-761a-4da7-9697-b10210d9829c",
+    "request": null,
+    "status": 200,
+    "response": {
+      "operationId": "2bf39362-761a-4da7-9697-b10210d9829c",
+      "status": "running",
+      "phase": "executing"
+    }
+  },
+  {
+    "route": "operations/2bf39362-761a-4da7-9697-b10210d9829c",
+    "request": null,
+    "status": 200,
+    "response": {
+      "operationId": "2bf39362-761a-4da7-9697-b10210d9829c",
+      "status": "completed",
+      "phase": "terminal"
+    }
+  },
+  {
+    "route": "actions/preview",
+    "request": {
+      "appId": "claude",
+      "action": "uninstall",
+      "target": {
+        "kind": "installation",
+        "installationId": "Njp0YXNrNDY6NjpjbGF1ZGU6NDM6L3ByaXZhdGUvdG1wL3NoaWp1LXRhc2s0Ni9wcmVmaXgvYmluL2NsYXVkZQ"
+      }
+    },
+    "status": 200,
+    "response": {
+      "previewId": "a197ceb0-bf59-4c19-a05f-560ff28b528d",
+      "request": {
+        "appId": "claude",
+        "action": "uninstall",
+        "target": {
+          "kind": "installation",
+          "installationId": "Njp0YXNrNDY6NjpjbGF1ZGU6NDM6L3ByaXZhdGUvdG1wL3NoaWp1LXRhc2s0Ni9wcmVmaXgvYmluL2NsYXVkZQ"
+        }
+      },
+      "source": "system",
+      "confirmationRequired": true,
+      "summary": "Review the selected application action in the administrator-approved prefix",
+      "displayCommand": null
+    }
+  },
+  {
+    "route": "actions",
+    "request": {
+      "previewId": "a197ceb0-bf59-4c19-a05f-560ff28b528d",
+      "confirmed": true
+    },
+    "status": 202,
+    "response": {
+      "operationId": "ddf74444-f469-4d26-9842-e778b84d4294",
+      "status": "queued"
+    }
+  },
+  {
+    "route": "operations/ddf74444-f469-4d26-9842-e778b84d4294",
+    "request": null,
+    "status": 200,
+    "response": {
+      "operationId": "ddf74444-f469-4d26-9842-e778b84d4294",
+      "status": "running",
+      "phase": "preflight"
+    }
+  },
+  {
+    "route": "operations/ddf74444-f469-4d26-9842-e778b84d4294",
+    "request": null,
+    "status": 200,
+    "response": {
+      "operationId": "ddf74444-f469-4d26-9842-e778b84d4294",
+      "status": "completed",
+      "phase": "terminal"
+    }
+  },
+  {
+    "route": "actions/preview",
+    "request": {
+      "appId": "claude",
+      "action": "install",
+      "target": {
+        "kind": "environment",
+        "environment": {
+          "kind": "macos"
+        }
+      }
+    },
+    "status": 200,
+    "response": {
+      "previewId": "e2889151-89ed-48fc-ab02-14c982d06fce",
+      "request": {
+        "appId": "claude",
+        "action": "install",
+        "target": {
+          "kind": "environment",
+          "environment": {
+            "kind": "macos"
+          }
+        }
+      },
+      "source": "system",
+      "confirmationRequired": true,
+      "summary": "Review the selected application action in the administrator-approved prefix",
+      "displayCommand": null
+    }
+  },
+  {
+    "route": "actions",
+    "request": {
+      "previewId": "e2889151-89ed-48fc-ab02-14c982d06fce",
+      "confirmed": true
+    },
+    "status": 202,
+    "response": {
+      "operationId": "8311f427-3b92-4c9e-a8cc-1e8a32d51d03",
+      "status": "queued"
+    }
+  },
+  {
+    "route": "operations/8311f427-3b92-4c9e-a8cc-1e8a32d51d03",
+    "request": null,
+    "status": 200,
+    "response": {
+      "operationId": "8311f427-3b92-4c9e-a8cc-1e8a32d51d03",
+      "status": "cancelled",
+      "phase": "terminal"
+    }
+  },
+  {
+    "route": "operations/8311f427-3b92-4c9e-a8cc-1e8a32d51d03/events",
+    "request": null,
+    "status": 200,
+    "response": {
+      "operationId": "8311f427-3b92-4c9e-a8cc-1e8a32d51d03",
+      "status": "cancelled",
+      "phase": "terminal"
+    }
+  },
+  {
+    "route": "diagnostics?appId=claude",
+    "request": null,
+    "status": 200,
+    "response": {
+      "installations": [
+        {
+          "id": "Njp0YXNrNDY6NjpjbGF1ZGU6NDM6L3ByaXZhdGUvdG1wL3NoaWp1LXRhc2s0Ni9wcmVmaXgvYmluL2NsYXVkZQ",
+          "appId": "claude",
+          "targetHostId": "task46",
+          "environment": {
+            "kind": "macos"
+          },
+          "path": "<test-root>/prefix/bin/claude",
+          "realPath": null,
+          "source": "unknown",
+          "isPathDefault": true,
+          "version": null,
+          "runtimeStatus": {
+            "status": "probe_failed",
+            "reason": "damaged_installation"
+          }
+        }
+      ]
+    }
+  },
+  {
+    "route": "actions/preview",
+    "request": {
+      "appId": "claude",
+      "action": "uninstall",
+      "target": {
+        "kind": "installation",
+        "installationId": "untrusted-broken-entry"
+      }
+    },
+    "status": 422,
+    "response": null
+  },
+  {
+    "route": "actions/preview",
+    "request": {
+      "appId": "claude",
+      "action": "uninstall",
+      "target": {
+        "kind": "installation",
+        "installationId": "Njp0YXNrNDY6NjpjbGF1ZGU6NDM6L3ByaXZhdGUvdG1wL3NoaWp1LXRhc2s0Ni9wcmVmaXgvYmluL2NsYXVkZQ"
+      }
+    },
+    "status": 422,
+    "response": null
+  },
+  {
+    "route": "launch",
+    "request": {
+      "appId": "claude",
+      "installationId": "Njp0YXNrNDY6NjpjbGF1ZGU6NDM6L3ByaXZhdGUvdG1wL3NoaWp1LXRhc2s0Ni9wcmVmaXgvYmluL2NsYXVkZQ",
+      "cwd": "<test-root>/home",
+      "args": [],
+      "skipPermissions": false
+    },
+    "status": 422,
+    "response": null
+  }
+]

@@ -317,3 +317,39 @@ pub(crate) fn dynamic_tools_acceptance_router() -> Router {
     state.pairing = Arc::new(PairingGuard::new(true, &["dynamic-acceptance-skey".into()]));
     client_router(state.clone(), Router::new(), Router::new()).with_state(state)
 }
+
+#[tokio::test]
+async fn cc_apps_production_gateway_routes_preserve_authorization() {
+    let initial = state();
+    let app = client_router(initial.clone(), Router::new(), Router::new()).with_state(initial);
+    for resource in ["catalog", "installations", "launch-identities"] {
+        let uri = format!("/v1/agent-apps/{resource}?targetHostId=task46&appId=claude");
+        let request = Request::builder()
+            .uri(&uri)
+            .header("X-Platform-ID", "task46")
+            .header("X-Company-ID", "task46")
+            .body(Body::empty())
+            .unwrap();
+        assert_eq!(
+            app.clone().oneshot(request).await.unwrap().status(),
+            StatusCode::UNAUTHORIZED,
+            "{resource}: application token still required"
+        );
+        let request = Request::builder().uri(&uri).body(Body::empty()).unwrap();
+        assert_eq!(
+            app.clone().oneshot(request).await.unwrap().status(),
+            StatusCode::BAD_REQUEST,
+            "{resource}: tenant required"
+        );
+    }
+    let mut protected = state();
+    protected.pairing = Arc::new(PairingGuard::new(true, &["task46-test-key".into()]));
+    let app = client_router(protected.clone(), Router::new(), Router::new()).with_state(protected);
+    let request = Request::builder()
+        .uri("/v1/agent-apps/catalog?targetHostId=task46")
+        .header("X-Platform-ID", "task46")
+        .header("X-Company-ID", "task46")
+        .body(Body::empty())
+        .unwrap();
+    assert_eq!(app.oneshot(request).await.unwrap().status(), StatusCode::UNAUTHORIZED);
+}

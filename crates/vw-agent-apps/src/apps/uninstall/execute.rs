@@ -93,10 +93,13 @@ where
                         &action.env,
                         Some(&action.path_prefix),
                     )?;
-                    if let Some(environment) = &environment {
-                        environment.apply(&mut command)?;
+                    let _npm_config = if let Some(environment) = &environment {
+                        let config = environment.apply(&mut command)?;
                         command.envs(action.env.iter().cloned());
-                    }
+                        Some(config)
+                    } else {
+                        None
+                    };
                     crate::apps::lifecycle::process::run_command(command)?;
                 }
             }

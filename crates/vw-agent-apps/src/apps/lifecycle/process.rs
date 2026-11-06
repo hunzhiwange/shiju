@@ -306,7 +306,12 @@ impl WriteProcessEnvironment {
         Self { home, prefix, tools }
     }
 
-    pub(crate) fn apply(&self, command: &mut std::process::Command) -> Result<(), String> {
+    /// Keep the returned private empty npm configuration alive through child exit.
+    pub(crate) fn apply(
+        &self,
+        command: &mut std::process::Command,
+    ) -> Result<tempfile::NamedTempFile, String> {
+        let config = tempfile::NamedTempFile::new().map_err(|_| "npm configuration unavailable")?;
         command
             .env_clear()
             .env("HOME", &self.home)
@@ -321,9 +326,9 @@ impl WriteProcessEnvironment {
             )
             .env("npm_config_prefix", &self.prefix)
             .env("npm_config_engine_strict", "true")
-            .env("npm_config_userconfig", "/dev/null")
+            .env("npm_config_userconfig", config.path())
             .env("npm_config_globalconfig", "/dev/null")
             .current_dir(&self.prefix);
-        Ok(())
+        Ok(config)
     }
 }

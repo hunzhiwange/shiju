@@ -139,3 +139,21 @@ async fn cc_apps_lifecycle_process_result_upgrade_runs_reviewed_argv() {
     .unwrap();
     assert_eq!(result.exit_code, Some(0));
 }
+
+#[test]
+fn cc_apps_npm_configuration_files_are_distinct_empty_and_scoped() {
+    let root = tempfile::tempdir().unwrap();
+    let environment =
+        WriteProcessEnvironment::new(root.path().into(), root.path().into(), root.path().into());
+    let mut command = Command::new("npm");
+    let config = environment.apply(&mut command).unwrap();
+    let value = |key: &str| {
+        command.get_envs().find(|(name, _)| *name == key).unwrap().1.unwrap().to_owned()
+    };
+    let user = std::path::PathBuf::from(value("npm_config_userconfig"));
+    let global = std::path::PathBuf::from(value("npm_config_globalconfig"));
+    assert_ne!(user, global, "npm rejects double loading the same configuration path");
+    assert!(std::fs::read(&user).unwrap().is_empty());
+    drop(config);
+    assert!(!user.exists(), "private empty configuration must be removed after the child exits");
+}

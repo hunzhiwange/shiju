@@ -166,7 +166,7 @@ pub fn run(plan: Plan, env: LocalReadEnvironment, write: WriteEnvironment) -> Re
         Action::Uninstall(_) => return Err("uninstall must use its coordinated executor".into()),
     };
     let mut command = process::command(&program, &args, &[], None)?;
-    process::WriteProcessEnvironment::new(
+    let _npm_config = process::WriteProcessEnvironment::new(
         write.prefix.clone(),
         write.prefix.clone(),
         write.npm.parent().ok_or("npm parent missing")?.into(),

@@ -1440,3 +1440,49 @@ Gateway 以真实临时 SQLite、授权策略、回环 HTTP 和原 SDK 验证 SD
 所有凭据均是假值；没有替代文件系统、数据库、事务或 Gateway 鉴权。仅故障点/保存输入有效性通过内部阶段 hook 控制；未访问真实用户配置、真实账号、Keychain 或网络模型上游。平台 macOS **27.0 (26A428)**、**arm64**，业务 crate **0.6.0**；`gemini --version` 退出 0 为 **0.66.0**，仅查询版本。真实 Google 登录、真实 Gemini CLI 会话消费、Iced 渲染和非 macOS 未验证。首轮本次 handler 的 unused variable 警告已修复，最终测试只余既有 `__eh_frame section too large` 链接提示，未改链接配置。
 
 强制 `cargo clippy --all-targets --all-features -- -D warnings` 使用重新动态领取的槽位 1 和相同绝对 CARGO_TARGET_DIR，退出 **0**，不计行为测试。定向 diff/check、暂存差异审查与只读 plan.md 无差异检查均通过；只提交本任务代码、独立测试、最小模块注册和本条正式证据。各阶段自身槽位 1/2 的锁均已释放，缓存保留。原有母任务状态、此前编号文件删除与其它计划保持原状，未纳入提交。未执行全量 cargo test、fmt check、wasm 或 Makefile；完成后删除任务 31 编号文件而不提交其删除。下一步为批次 32。
+
+## 任务 32：Grok 模型表定点切换
+
+2026-11-07；状态：已完成。本项证明隔离 macOS 文件与 API/SDK 链路，不代表真实账号登录、Grok CLI 消费或 Iced 验收。
+
+### 前置、来源与实现
+
+核对批次 31 提交 `e97a9659a` 与本文件任务 31 正式证据。母任务 1、3 已完成；母任务 2 完整领域迁移仍未收口，沿用任务 1 和 provider-contracts.md 已记录的底座子计划 1–93 开工裁定，不将其误报为整体完成。只读 plan.md 未修改。
+
+来源 `/Users/xiangmin/worker/code/cc-switch` HEAD `ca58c0313360eae7c851fbd7553c1614c7af03e7`，rev-parse/status 退出 0、来源干净。阅读 `grok_direct::{projection,retired_tables,switch_to,reapply,run_with_edits}`、`grok_editor::{view,plan_save,store_into_row,write_live}`、`live/project/grok::{GrokProjection,GrokConfigPatch}`、原生配置 schema 及相邻测试；直接调用者为 ProviderService 的首次激活/switch/editor-save 和 provider/live.rs 的 reapply。来源测试只读，未运行。按 rustcodegraph 技能检查索引，status 可用；explore 长时间无输出后终止，未覆盖调用链使用定向源码读取。
+
+- `vw-agent-apps/src/providers/grok.rs::{settings,patch,GrokFiles}` 为固定 `.grok/config.toml` 的执行端适配；实际调用既有 `providers/projection/grok.rs` 的同一模型表投影。将原投影提取为返回 DocumentMut 的内部函数，原 preview 继续委托它，没有复制模型表规则或调用 upstream 作为业务实现。只替换 models.default、跟随的 session_summary 和供应商整张模型表；保留用户模型、MCP、设置、注释及用户单独选择的摘要模型。整表替换清除旧 env_key，保留新表的嵌套 headers/vendor 选项；供应商行的全局配置不随切换生效。本项不新增全局编辑器，桌面编辑归任务 57。
+- 写入表名保存在既有 ModeState.contract.exclusive.grokWrittenTable，contract.key 绑定供应商 ID，官方卡保存明确空表名。文件、当前指针、direct mode 与写入记录进入同一 ProviderTransactions intent；清理只消费已提交记录，不能从 Grok 当前 default 或已编辑供应商行猜旧表。缺少/错版/不匹配写入记录明确拒绝，不做兼容迁移。沿用来源已存在的 PROXY_MANAGED 清理规则。
+- 授权 HOME 经 retained descriptor/no-follow 打开固定子目录并持有物理目录锁；config.toml 按 0600 准备，WholeFile 绑定读取快照。沿用 commit_checked，在发布标记前复核目录行、前供应商和 AppState；恢复已有意图后要求调用者重新规划。没有第二套事务引擎或事务外文件写入。
+- `vw-api-types/src/app_providers/grok.rs` 为显式 Official/ThirdParty TOML 的强类型 DTO，未知字段/任意文件路径/官方卡载荷拒绝，Debug 脱敏。既有原生 schema 检查模型、名称、端点、api_backend、凭据字段和正整数 context_window；歧义行拒绝，单一模型表沿用既有选择语义。不会创建 OAuth 账号快照或托管租约。
+- `vw-agent/src/app_providers/grok.rs` 沿 AppProviderStore/GatewaySettingsStore 的现有租户 namespace 与 CAS 保存行，保留元数据；摘要/列表识别新档案。对应 handler 通过已有 app_providers router 和 bootstrap/router.rs 分域注册消费，权限在目录/数据库访问前沿 provider_editor_context 校验。`PUT /v1/app-providers/grokbuild/{id}/config` 与 `POST /switch`、`/reapply` 对应 SDK `grok_provider_save/switch/reapply`。支持 catalog_only/first/if_current/switch，保存目录与 live 结果分开；附着/代理、异租户状态与托管绑定拒绝。SDK 令牌头 sensitive，HTTP 错误体丢弃，结果不回传配置或 key。无新增 UI；非 macOS 执行明确不支持。
+
+### 红绿与验证
+
+各阶段从仓库根按原子 mkdir 顺序动态领取槽位 **1、2**，未固定编号；实际路径为：
+
+- `CARGO_TARGET_DIR=/Users/xiangmin/worker/code/shiju/target/rust-slot-1`。
+- `CARGO_TARGET_DIR=/Users/xiangmin/worker/code/shiju/target/rust-slot-2`。
+
+同设 CARGO_BUILD_BUILD_DIR，覆盖仓库 build-dir；锁记录计划/任务/会话/PID，shell trap 覆盖正常/失败/中断，Cargo 与产物进程退出后清理自身 owner/锁，保留缓存。首次格式化与绿阶段四 crate 使用槽位 1；首轮红阶段 DTO/Gateway/SDK 使用槽位 2，业务包编译接线修正后在槽位 1 重跑；最后格式化、业务包 8 项与 preview 回归 2 项在槽位 2。
+
+红阶段基线写入记录但尚未消费，业务包 **5 项：3 通过、2 在业务断言失败，退出 101**，指定 preserves_unowned_model_tables 读到旧写入表残留；Gateway **2 项：1 通过、1 在当前档案改名后旧表仍存在的断言失败，退出 101**。DTO **1**、SDK **2** 项通过，退出 0。最初投影函数可见性的接线编译错误已修复，不作为红证据；没有用零测试或编译错误代替业务失败。补充外部修改测试首次误按多文件部分发布预期 RolledForwardExcept；检查实际单文件尚未发布契约后，修正为无残留意图/指针未落定/外部内容保留，未改共享事务行为。
+
+最终源码先执行 `cargo fmt --all`（退出 0），最终有效结果：
+
+| 确切命令 | 槽位 | 退出码 | 有效通过数量 |
+| --- | --- | --- | --- |
+| `cargo test -p vw-agent-apps --lib cc04_grok_ -- --nocapture` | 2 | 0 | 8 |
+| `cargo test -p vw-api-types --lib cc04_grok_ -- --nocapture` | 1 | 0 | 1 |
+| `cargo test -p vw-agent --lib cc04_grok_ -- --nocapture` | 1 | 0 | 4 |
+| `cargo test -p vw-gateway-client --lib cc04_grok_ -- --nocapture` | 1 | 0 | 2 |
+| `cargo test -p vw-agent-apps --lib cc04_preview_grok_ -- --nocapture` | 2 | 0 | 2 |
+| `cargo clippy --all-targets --all-features -- -D warnings` | 1 | 0 | 非行为测试 |
+
+去重 **17** 项通过：本任务 **15**、相邻回归 **2**，无忽略。指定 `cc04_grok_switch_preserves_unowned_model_tables`、`cc04_grok_editor_schema_rejects_bad_rows` 均通过。业务包以真实临时文件/私有事务目录验证模型表定点替换、用户模型/MCP/注释保留、用户摘要模型保留、旧代理表清理、嵌套 vendor 表、符号链接拒绝、0600 权限，以及 Intent/Marked/FilePublished/Published/Settled 五阶段故障后重建执行器恢复。文件/指针/写入记录一致；发布标记前保存输入变化拒绝，单文件发布前外部修改撤销意图并保留外部文件，不把多文件部分发布的结果套用于此行为。
+
+Gateway 使用真实临时 SQLite、主机授权策略、回环 HTTP 和原 SDK，证明请求→API 响应→临时 `.grok/config.toml`/指针/写入记录：首次激活、当前档案改名、仅保存后 reapply 再改名、官方档案保存后显式 switch 清理；非当前 first/if_current 不改 live。错误 token/缺写权限、错误主机、租户目录隔离、坏 live TOML、托管绑定与缺失写入记录均有实际结果断言，权限拒绝未写文件或目录行。不是用 mock 调用次数证明行为；恢复阶段 hook 仅替代故障边界/输入有效性，其余文件系统、存储、事务和鉴权未替代。
+
+所有凭据均为假值；未访问真实用户配置、真实账号、OAuth/Keychain 或网络模型上游。平台 macOS **27.0 (26A428)**、**arm64**，crate **0.6.0**；`sw_vers`、`uname -m`、`grok --version` 均退出 0，Grok **1.0.77 (50ca579fa996) [stable]**。仅查询版本，真实 CLI 会话消费、真实账号登录、Iced 渲染及非 macOS 未验证。Agent lib test 继续有既有 `__eh_frame section too large` 链接提示，测试退出 0；未改链接设置，最终强制 Clippy 退出 0。
+
+本任务代码/独立测试/正式证据的定向 diff/check、暂存检查及只读 plan.md 无差异检查通过；只提交本任务变更，不纳入既有母任务状态、此前任务文件删除或其它计划。各阶段槽位 1/2 自身锁均释放、缓存保留；未执行全量 cargo test、fmt check、wasm 或 Makefile。完成后删除编号任务文件、不提交其删除；正式证据保留。下一步为批次 33。

@@ -149,3 +149,7 @@ mod codex_catalog_tests;
 pub mod gemini;
 #[cfg(all(test, target_os = "macos"))]
 mod gemini_tests;
+
+pub mod grok;
+#[cfg(all(test, target_os = "macos"))]
+mod grok_tests;

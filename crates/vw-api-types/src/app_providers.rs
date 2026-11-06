@@ -126,3 +126,7 @@ mod codex_catalog_tests;
 pub mod gemini;
 #[cfg(test)]
 mod gemini_tests;
+
+pub mod grok;
+#[cfg(test)]
+mod grok_tests;

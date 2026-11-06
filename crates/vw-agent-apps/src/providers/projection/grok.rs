@@ -26,12 +26,12 @@ fn valid(table: &dyn TableLike) -> bool {
         && (nonempty("api_key") || nonempty("env_key"))
         && table.get("context_window").and_then(Item::as_integer).is_some_and(|v| v > 0)
 }
-pub fn project(
+pub(crate) fn document(
     live: DocumentMut,
     row: &Value,
     previous: Option<&Value>,
     official: bool,
-) -> Result<Projected, Error> {
+) -> Result<DocumentMut, Error> {
     let row_doc = toml(row.get("config").and_then(Value::as_str).unwrap_or(""), "draft.config")?;
     let before = value(&live)?;
     let target = if official { None } else { selected(&row_doc) };
@@ -112,6 +112,18 @@ pub fn project(
             doc.remove(k);
         }
     }
+    Ok(doc)
+}
+pub fn project(
+    live: DocumentMut,
+    row: &Value,
+    previous: Option<&Value>,
+    official: bool,
+) -> Result<Projected, Error> {
+    let before = value(&live)?;
+    let row_doc = toml(row.get("config").and_then(Value::as_str).unwrap_or(""), "draft.config")?;
+    let target = if official { None } else { selected(&row_doc) };
+    let doc = document(live, row, previous, official)?;
     let shown = value(&doc)?;
     let inactive = super::inactive(&value(&row_doc)?, &shown, |p| {
         p.len() == 3

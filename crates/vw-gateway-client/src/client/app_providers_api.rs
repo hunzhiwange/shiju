@@ -160,3 +160,9 @@ mod gemini;
 #[cfg(test)]
 #[path = "app_providers/gemini_tests.rs"]
 mod gemini_tests;
+
+#[path = "app_providers/grok.rs"]
+mod grok;
+#[cfg(test)]
+#[path = "app_providers/grok_tests.rs"]
+mod grok_tests;

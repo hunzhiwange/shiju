@@ -88,6 +88,16 @@ impl AcpClient {
         modes: Option<&acp::SessionModeState>,
         config_options: Option<&[acp::SessionConfigOption]>,
     ) -> crate::AccessPolicy {
+        if self.agent_name == "pi" {
+            // pi-acp modes select thinking levels. Native Pi tools execute locally,
+            // outside ACP callbacks, so host grants cannot revoke their permissions.
+            let mut policy =
+                crate::AccessPolicy::resolve(self.full_access, self.permission_mode, None, None);
+            if self.full_access && self.permission_mode == PermissionMode::ApproveAll {
+                policy.support = crate::FullAccessSupport::Partial;
+            }
+            return policy;
+        }
         if matches!(
             self.agent_name.as_str(),
             "opencode"

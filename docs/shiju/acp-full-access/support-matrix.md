@@ -48,7 +48,7 @@ Kilocode 已接入逐次客户端批准与当前 host deny 拦截；pure 保留�
 | [kiro](evidence/kiro.md) / E1、官方协议文档 | 3.0.0 | 3.1.0 | 部分支持：new/load 按当前授权请求 V3 policyPreset allow-all 或空列表；客户端自动批准保留，硬拒绝、敏感路径 ask 与 sandbox_network 不被预设覆盖；session_model 原有门控保留 | 用户要求跳过测试；开启、关闭、恢复和跨平台执行未实机验收 |
 | [opencode](evidence/opencode.md) / E1、E2 | 1.19.5 | 1.19.5 | 客户端自动批准：仅选择 allow_once，按当前 permissionMode 处理；不注入全局 allow，不把 agent mode 当权限开关；session_model 原有门控保留 | 用户要求跳过测试；执行、关闭、恢复和跨平台效果未实机验收 |
 | [openclaw](evidence/openclaw.md) / E1、E2 | 2026.10.10 | 2026.11.1（基线查询） | 客户端自动批准：Gateway exec 审批仅 allow-once；不改 elevated_level 或网关 deny；session_model 原有门控保留 | 用户要求跳过测试；开启、关闭、恢复及跨平台效果未实机验收 |
-| [pi](evidence/README.md#pi) / E1 | 0.0.22 | 0.0.34 | 部分支持：客户端自动批准有源码、原生未知；session_model 有驱动和版本门控 | 核对 ACP adapter 与 Pi RPC 原生工具审批边界 |
+| [pi](evidence/pi.md) / E1、E2 | 0.0.22 | 0.0.34（基线查询） | 部分支持：本地 Pi 工具不经过 ACP 审批；保持访问，不注入权限参数；host deny 拒绝 prompt | 用户要求跳过测试；关闭仅撤销客户端授权，不能限制原生文件/终端；实际效果未验收 |
 | [qoder](evidence/qoder.md) / E1、协议字段采集 | 1.1.82 | 1.1.83 | 部分支持：已接入 mode default↔yolo 与客户端审批；实机效果未测，不宣称已验证原生支持；session_model 原有账号权益门控保留 | 用户要求跳过测试；后续可补工具执行、恢复、deny 与跨平台实机验收 |
 | [qwen](evidence/qwen.md) / E2、E3 | 0.26.7 | 0.26.8 | 原生免审批：macOS arm64 固定 npm/现有托管补丁、当前授权和 config 确认后；未知入口降级，无法确认撤销则拒绝；计划独立交互 | 补齐其他平台、原生沙箱、企业策略与完整网关中继验收 |
 | [trae](evidence/README.md#trae) / E1 | 0.121.3 | v0.121.3 | 部分支持：客户端自动批准有源码、原生未知；session_model 不可用：需要平台认证，隔离根未核验 | 固定真实 CLI，采集 initialize/权限选项并验证开启→关闭→恢复 |
@@ -79,7 +79,7 @@ U = 未获取该后端真实权限协议/结果；C = 仅共享客户端源码�
 | kiro | U | new/load 已接入 policyPreset；resume 走同 ID load；未实测 | 不杜撰权限 config | 不切换 agent | C；未实机计数 | C | C | allow-all 不覆盖 sandbox_network；未实测 |
 | opencode | U | 现有 new/load/resume 路径；未实测 | E2：仅 model/effort/mode，无权限开关 | E2：agent 名称，不自动切换 | E2：once/always/reject；客户端仅逐次批准，未实机计数 | C；未实测 | C；未实测 | U；不覆盖原生 deny |
 | openclaw | E2：Gateway 桥接；未实测 | E2：new/load/resume；现有路径，未实测 | E2：elevated_level 改网关执行边界，不自动设置 | E2：thinkingLevel，不作权限开关 | E2：allow-once/allow-always/deny；代码仅逐次批准，未计数 | E2：桥接不调用 | E2：桥接不调用 | U；保留 Gateway deny 和沙箱 |
-| pi | U | U/U/U | U | U | C | C | C | U |
+| pi | E2：stdio→Pi RPC；未实测 | E2：new/load；resume 走既有回退，未实测 | E2：无权限配置 | E2：仅思考级别，保留原值 | E2：0.0.22 不调用；未来回调仅逐次批准 | E2：不委托，本地执行 | E2：不委托，本地执行 | 无原生权限撤销开关；host deny 拒绝 prompt，未实测 |
 | qoder | 1.1.83 字段已采集 | new 字段已采集；load/resume 仅代码接入 | mode default↔yolo 已接入，未测执行效果 | 公布 default/acceptEdits/auto/dontAsk/yolo | C；未实机计数 | C；未实机执行 | C；未实机执行 | U |
 | qwen | E3 | E3/E3/E3 | E3：mode default↔yolo | E2/E3；以 config 回读确认 | E3：普通工具 1→0→1；deny 保留 | C；本例原生 write_file | C；本例原生 shell | 未验收；不等同解除 OS 隔离 |
 | trae | U | U/U/U | U | U | C | C | C | U |

@@ -1,0 +1,330 @@
+
+┌─────────────────────────────────────────────────────────┐
+│             ☤ Hermes Agent Installer                    │
+├─────────────────────────────────────────────────────────┤
+│  An open source AI agent by Nous Research.              │
+└─────────────────────────────────────────────────────────┘
+
+✓ prerequisites ok (git, curl)
+→ Installing the latest stable release (v0.23.0); --channel main follows every commit
+→ Cloning https://github.com/NousResearch/hermes-agent.git (main) into <isolated-root>/home/.hermes/hermes-agent
+Cloning into '<isolated-root>/home/.hermes/.hermes-clone-nP3LH0/tree'...
+→ Fetching v0.23.0
+→ Checking out v0.23.0 (attempt 1 of 2)
+HEAD is now at 2bd378ed1b test(desktop-e2e): find the p2 draft tab by its title, not by its status dot
+✓ Hermes Agent cloned
+→ Downloading uv 0.13.5 (darwin-arm64)
+✓ uv ready (uv 0.13.5 (46776a95d 2026-10-21 aarch64-apple-darwin))
+→ Downloading Python 3.14
+Downloading cpython-3.14.9-macos-aarch64-none (download) (25.5MiB)
+ Downloaded cpython-3.14.9-macos-aarch64-none (download)
+Installed Python 3.14.9 in 5.16s
+ + cpython-3.14.9-macos-aarch64-none
+✓ bootstrap Python ready; PM prepares the dependency environment
+✓ uv ready (uv 0.13.5 (46776a95d 2026-10-21 aarch64-apple-darwin))
+→ Installing dependencies (hash-verified via uv.lock)
+Preparing the isolated Hermes runtime…
+Using CPython 3.14.9 interpreter at: <isolated-root>/home/.local/share/uv/python/cpython-3.14-macos-aarch64-none/bin/python3.14
+Creating virtual environment at: b8583e5da1c54d22a40ecaa4cfcaea9d
+Activate with: source b8583e5da1c54d22a40ecaa4cfcaea9d/bin/activate
+Resolved 5 packages in 3ms
+Prepared 4 packages in 379ms
+Installed 4 packages in 3ms
+Bytecode compiled 61 files in 66ms
+ + packaging==26.3
+ + ruamel-yaml==0.18.16
+ + tomli-w==1.2.0
+ + truststore==0.10.5
+  ffmpeg:  16.2%  4.4 MiB / 27.1 MiB
+  ffmpeg:  30.9%  8.4 MiB / 27.1 MiB
+  ffmpeg:  45.7%  12.4 MiB / 27.1 MiB
+  ffmpeg:  60.4%  16.4 MiB / 27.1 MiB
+  ffmpeg:  78.0%  21.2 MiB / 27.1 MiB
+  ffmpeg:  93.4%  25.3 MiB / 27.1 MiB
+  ffmpeg: 100.0%  27.1 MiB / 27.1 MiB
+  ffmpeg: 100.0%  27.1 MiB / 27.1 MiB
+  ffmpeg: unpacking
+✓ ffmpeg
+  node:  13.7%  4.0 MiB / 29.2 MiB
+  node:  29.6%  8.7 MiB / 29.2 MiB
+  node:  45.5%  13.3 MiB / 29.2 MiB
+  node:  61.4%  18.0 MiB / 29.2 MiB
+  node:  75.1%  22.0 MiB / 29.2 MiB
+  node:  92.1%  26.9 MiB / 29.2 MiB
+  node: 100.0%  29.2 MiB / 29.2 MiB
+  node: 100.0%  29.2 MiB / 29.2 MiB
+  node: unpacking
+✓ node
+  npm: 100.0%  2.9 MiB / 2.9 MiB
+  npm: 100.0%  2.9 MiB / 2.9 MiB
+  npm: unpacking
+✓ npm
+  python:  16.4%  4.2 MiB / 25.6 MiB
+  python:  32.0%  8.2 MiB / 25.6 MiB
+  python:  48.4%  12.4 MiB / 25.6 MiB
+  python:  64.9%  16.6 MiB / 25.6 MiB
+  python:  80.5%  20.6 MiB / 25.6 MiB
+  python:  99.2%  25.4 MiB / 25.6 MiB
+  python: 100.0%  25.6 MiB / 25.6 MiB
+  python: 100.0%  25.6 MiB / 25.6 MiB
+  python: unpacking
+✓ python
+  ripgrep: 100.0%  1.7 MiB / 1.7 MiB
+  ripgrep: 100.0%  1.7 MiB / 1.7 MiB
+  ripgrep: unpacking
+✓ ripgrep
+Using CPython 3.14.9 interpreter at: <isolated-root>/home/.hermes/tools/python-3.14.9+20261021-darwin-arm64/bin/python3
+Creating virtual environment at: venv
+Activate with: source venv/bin/activate
+   Building hermes-agent @ file://<isolated-root>/home/.hermes/installs/dd153cd602e56d1a/environments/bc2aa60f6b024677ac24cd160a842c10/workspace
+Downloading openai (1.6MiB)
+Downloading cryptography (3.7MiB)
+Downloading pygments (1.2MiB)
+Downloading google-api-python-client (16.0MiB)
+Downloading pydantic-core (1.9MiB)
+Downloading pillow (4.6MiB)
+Downloading nemo-relay (11.1MiB)
+Downloading firecrawl-anydoc (3.1MiB)
+Downloading uvloop (1.4MiB)
+Downloading pillow-heif (4.1MiB)
+Downloading resvg-py (1.2MiB)
+ Downloaded pygments
+ Downloaded resvg-py
+ Downloaded uvloop
+ Downloaded openai
+ Downloaded pydantic-core
+ Downloaded firecrawl-anydoc
+ Downloaded cryptography
+ Downloaded pillow-heif
+ Downloaded pillow
+ Downloaded nemo-relay
+ Downloaded google-api-python-client
+      Built hermes-agent @ file://<isolated-root>/home/.hermes/installs/dd153cd602e56d1a/environments/bc2aa60f6b024677ac24cd160a842c10/workspace
+Prepared 100 packages in 13.72s
+Installed 104 packages in 72ms
+Bytecode compiled 4751 files in 1.22s
+ + agent-client-protocol==0.9.0
+ + aiohappyeyeballs==2.7.1
+ + aiohttp==3.14.5
+ + aiosignal==1.4.0
+ + annotated-doc==0.0.5
+ + annotated-types==0.8.0
+ + anyio==4.15.1
+ + attrs==26.1.0
+ + browser-harness==0.1.13
+ + cdp-use==1.4.5
+ + certifi==2026.10.19
+ + cffi==2.1.1
+ + charset-normalizer==3.5.2
+ + click==8.5.0
+ + croniter==6.2.4
+ + cryptography==50.0.2
+ + defusedxml==0.7.1
+ + distro==1.9.0
+ + fastapi==0.133.1
+ + fetch-use==0.4.0
+ + fire==0.7.1
+ + firecrawl-anydoc==0.2.4
+ + frozenlist==1.8.0
+ + google-api-core==2.42.0
+ + google-api-python-client==2.201.0
+ + google-auth==2.62.0
+ + google-auth-httplib2==0.4.4
+ + google-auth-oauthlib==1.5.0
+ + googleapis-common-protos==1.75.5
+ + h11==0.16.0
+ + hermes-agent==0.0.0 (from file://<isolated-root>/home/.hermes/installs/dd153cd602e56d1a/environments/bc2aa60f6b024677ac24cd160a842c10/workspace)
+ + httpcore==1.0.9
+ + httpcore2==2.15.1
+ + httplib2==0.32.0
+ + httptools==0.8.0
+ + httpx==0.28.1
+ + httpx2==2.15.1
+ + idna==3.20
+ + jinja2==3.1.6
+ + jiter==0.17.0
+ + jsonschema==4.26.0
+ + jsonschema-specifications==2025.9.1
+ + markdown==3.11.2
+ + markdown-it-py==4.2.0
+ + markupsafe==3.0.4
+ + mcp==2.3.0
+ + mcp-types==2.3.0
+ + mdurl==0.1.2
+ + multidict==6.9.1
+ + nemo-relay==0.11.0
+ + oauthlib==4.0.0
+ + openai==2.54.0
+ + opentelemetry-api==1.45.1
+ + packaging==26.3
+ + pathspec==1.1.1
+ + pillow==13.0.0
+ + pillow-heif==1.8.1
+ + prompt-toolkit==3.0.53
+ + propcache==0.5.4
+ + proto-plus==1.29.0
+ + protobuf==6.33.6
+ + psutil==7.2.2
+ + ptyprocess==0.7.0
+ + pyasn1==0.6.5
+ + pyasn1-modules==0.4.2
+ + pycparser==3.11
+ + pydantic==2.14.1
+ + pydantic-core==2.50.1
+ + pygments==2.21.0
+ + pyjwt==2.15.1
+ + pyparsing==3.3.3
+ + python-dateutil==2.9.0.post0
+ + python-dotenv==1.2.4
+ + python-multipart==0.0.32
+ + referencing==0.37.0
+ + requests==2.34.2
+ + requests-oauthlib==2.0.0
+ + resvg-py==0.5.0
+ + rich==14.3.4
+ + rpds-py==2026.9.1
+ + ruamel-yaml==0.18.16
+ + ruamel-yaml-clib==0.2.15
+ + six==1.17.0
+ + sniffio==1.3.1
+ + snowballstemmer==3.1.1
+ + socksio==1.0.0
+ + sse-starlette==3.5.0
+ + starlette==1.9.0
+ + tenacity==9.2.1
+ + termcolor==3.3.0
+ + tomli-w==1.2.0
+ + tqdm==4.70.1
+ + truststore==0.10.5
+ + typing-extensions==4.16.0
+ + typing-inspection==0.4.4
+ + uritemplate==4.2.0
+ + urllib3==2.8.0
+ + uvicorn==0.54.0
+ + uvloop==0.23.0
+ + watchfiles==1.3.0
+ + wcwidth==0.9.2
+ + websockets==15.0.1
+ + yarl==1.25.1
+ + youtube-transcript-api==1.2.4
+✓ venv
+✓ dependencies installed
+✓ config prepared in <isolated-root>/home/.hermes
+✓ uv ready (uv 0.13.5 (46776a95d 2026-10-21 aarch64-apple-darwin))
+→ Building the hermes command and apps
+Preparing the isolated Hermes runtime…
+Using CPython 3.14.9 interpreter at: <isolated-root>/home/.hermes/tools/python-3.14.9+20261021-darwin-arm64/bin/python3
+Creating virtual environment at: cff19b6d658c40a2a2d1686309d20d26
+Activate with: source cff19b6d658c40a2a2d1686309d20d26/bin/activate
+Resolved 5 packages in 3ms
+Installed 4 packages in 2ms
+Bytecode compiled 61 files in 66ms
+ + packaging==26.3
+ + ruamel-yaml==0.18.16
+ + tomli-w==1.2.0
+ + truststore==0.10.5
+  → Preparing Node dependencies…
+node-deps: installing workspace dependencies with npm ci (ui-tui, web)...
+npm notice run hermes-agent@1.0.0 postinstall
+npm notice run echo '✅ Node dependencies installed. Run: python run_agent.py --help'
+✅ Node dependencies installed. Run: python run_agent.py --help
+npm notice run hermes-agent@1.0.0 prepare
+npm notice run node -e "const {existsSync}=require('fs');const {spawnSync}=require('child_process');if(existsSync('.git'))spawnSync('lefthook',['install'],{stdio:'inherit',shell:true})"
+sync hooks: ✔️(pre-commit)
+(node:82562) [DEP0190] DeprecationWarning: Passing args to a child process with shell option true can lead to security vulnerabilities, as the arguments are not escaped, only concatenated.
+(Use `node --trace-deprecation ...` to show where the warning was created)
+
+added 566 packages in 2m
+  → Building the TUI…
+
+  .../../../hermes-tui-QQmnAg/.tui-build-HVbvac/product/dist/entry.js  4.0mb ⚠️
+
+⚡ Done in 136ms
+built <isolated-root>/home/.hermes/hermes-agent/ui-tui/dist/entry.js
+  → Building the web UI…
+vite v8.3.4 building client environment for production...
+transforming...
+✓ 2298 modules transformed.
+rendering chunks...
+computing gzip size...
+hermes_cli/.web_dist-build-OKajpr/product/index.html                                       1.09 kB │ gzip:   0.46 kB
+hermes_cli/.web_dist-build-OKajpr/product/assets/Mondwest-Regular-CWscgue7.woff2          23.82 kB
+hermes_cli/.web_dist-build-OKajpr/product/assets/RulesExpanded-Regular-l8uVympt.woff2     33.82 kB
+hermes_cli/.web_dist-build-OKajpr/product/assets/RulesExpanded-Bold-DZA7s8Pa.woff2        35.01 kB
+hermes_cli/.web_dist-build-OKajpr/product/assets/RulesCompressed-Regular-BSXFyF4x.woff2   37.76 kB
+hermes_cli/.web_dist-build-OKajpr/product/assets/RulesCompressed-Medium-CA76_CrB.woff2    38.84 kB
+hermes_cli/.web_dist-build-OKajpr/product/assets/Collapse-Bold-mgICk9-_.woff2             59.14 kB
+hermes_cli/.web_dist-build-OKajpr/product/assets/Collapse-Regular-DysayoTY.woff2          62.81 kB
+hermes_cli/.web_dist-build-OKajpr/product/assets/xterm-BrP-ENHg.css                        3.93 kB │ gzip:   1.01 kB
+hermes_cli/.web_dist-build-OKajpr/product/assets/index-Ce2CT0FJ.css                      113.83 kB │ gzip:  17.71 kB
+hermes_cli/.web_dist-build-OKajpr/product/assets/usePageHeader-BYUd55ob.js                 0.29 kB │ gzip:   0.23 kB
+hermes_cli/.web_dist-build-OKajpr/product/assets/utils-C79OiNRf.js                         0.53 kB │ gzip:   0.29 kB
+hermes_cli/.web_dist-build-OKajpr/product/assets/rolldown-runtime-CbXtAM7H.js              0.58 kB │ gzip:   0.36 kB
+hermes_cli/.web_dist-build-OKajpr/product/assets/DeleteConfirmDialog-3waUOJrN.js           0.61 kB │ gzip:   0.37 kB
+hermes_cli/.web_dist-build-OKajpr/product/assets/useModalBehavior-DS_ReodJ.js              0.62 kB │ gzip:   0.39 kB
+hermes_cli/.web_dist-build-OKajpr/product/assets/clipboard-owkvc3zk.js                     0.73 kB │ gzip:   0.44 kB
+hermes_cli/.web_dist-build-OKajpr/product/assets/terminal-font-refit-Dmois6_8.js           0.83 kB │ gzip:   0.44 kB
+hermes_cli/.web_dist-build-OKajpr/product/assets/mcp-server-create-B0VgoYzF.js             0.92 kB │ gzip:   0.46 kB
+hermes_cli/.web_dist-build-OKajpr/product/assets/LoadErrorNotice-kvg6Ep8-.js               1.74 kB │ gzip:   0.90 kB
+hermes_cli/.web_dist-build-OKajpr/product/assets/DocsPage-CdgOOpvN.js                      1.96 kB │ gzip:   1.08 kB
+hermes_cli/.web_dist-build-OKajpr/product/assets/ConfirmDialog-CPxD_lxs.js                 2.10 kB │ gzip:   1.01 kB
+hermes_cli/.web_dist-build-OKajpr/product/assets/PairingPage-Bnr9BO3O.js                   4.88 kB │ gzip:   1.67 kB
+hermes_cli/.web_dist-build-OKajpr/product/assets/LogsPage-DVmaImO-.js                      7.50 kB │ gzip:   3.29 kB
+hermes_cli/.web_dist-build-OKajpr/product/assets/FilesPage-L9ScA_4P.js                    10.16 kB │ gzip:   3.35 kB
+hermes_cli/.web_dist-build-OKajpr/product/assets/WebhooksPage-BfDgHd7X.js                 12.58 kB │ gzip:   3.85 kB
+hermes_cli/.web_dist-build-OKajpr/product/assets/ModelReloadConfirm-BkpZJmQv.js           12.98 kB │ gzip:   4.97 kB
+hermes_cli/.web_dist-build-OKajpr/product/assets/ProfileBuilderPage-CtkT16Zx.js           14.87 kB │ gzip:   4.50 kB
+hermes_cli/.web_dist-build-OKajpr/product/assets/McpPage-CPOdk7II.js                      17.82 kB │ gzip:   5.22 kB
+hermes_cli/.web_dist-build-OKajpr/product/assets/ConfigPage-CZDBBqq3.js                   18.00 kB │ gzip:   6.02 kB
+hermes_cli/.web_dist-build-OKajpr/product/assets/AnalyticsPage-JZOTJOwK.js                20.17 kB │ gzip:   6.01 kB
+hermes_cli/.web_dist-build-OKajpr/product/assets/ProfilesPage-BItnA5br.js                 25.23 kB │ gzip:   7.10 kB
+hermes_cli/.web_dist-build-OKajpr/product/assets/EnvPage-CBZkVzBc.js                      29.75 kB │ gzip:   7.95 kB
+hermes_cli/.web_dist-build-OKajpr/product/assets/ModelsPage-DINtSZCa.js                   35.08 kB │ gzip:  10.91 kB
+hermes_cli/.web_dist-build-OKajpr/product/assets/PluginsPage-Bomwl_Ck.js                  36.94 kB │ gzip:  10.90 kB
+hermes_cli/.web_dist-build-OKajpr/product/assets/ChannelsPage-BIhoslNR.js                 37.75 kB │ gzip:  10.76 kB
+hermes_cli/.web_dist-build-OKajpr/product/assets/SystemPage-CxduNYxi.js                   44.79 kB │ gzip:  12.50 kB
+hermes_cli/.web_dist-build-OKajpr/product/assets/SkillsPage-BotK5BRq.js                   44.93 kB │ gzip:  12.82 kB
+hermes_cli/.web_dist-build-OKajpr/product/assets/CronPage--ClQvUXv.js                     45.50 kB │ gzip:  14.70 kB
+hermes_cli/.web_dist-build-OKajpr/product/assets/SessionsPage-V06S5i9b.js                 49.61 kB │ gzip:  15.08 kB
+hermes_cli/.web_dist-build-OKajpr/product/assets/vendor-BJi0XXI8.js                       50.84 kB │ gzip:  18.06 kB
+hermes_cli/.web_dist-build-OKajpr/product/assets/api-C-R7aZtu.js                          53.46 kB │ gzip:  14.09 kB
+hermes_cli/.web_dist-build-OKajpr/product/assets/ChatPage-QyO-OkWU.js                     54.31 kB │ gzip:  19.02 kB
+hermes_cli/.web_dist-build-OKajpr/product/assets/index--mXBFZzP.js                        92.07 kB │ gzip:  31.75 kB
+hermes_cli/.web_dist-build-OKajpr/product/assets/react-vendor-R7IuHd60.js                257.67 kB │ gzip:  81.90 kB
+hermes_cli/.web_dist-build-OKajpr/product/assets/ui-3UxrYTm8.js                          292.55 kB │ gzip:  95.67 kB
+hermes_cli/.web_dist-build-OKajpr/product/assets/xterm-DL6ywjCu.js                       473.46 kB │ gzip: 122.31 kB
+hermes_cli/.web_dist-build-OKajpr/product/assets/i18n-BdZu51Ll.js                        507.63 kB │ gzip: 151.68 kB
+
+✓ built in 3.71s
+[33m[PLUGIN_TIMINGS] [0mJavaScript callbacks ran for 3.5s of this 3.7s build (96%).
+The slowest callbacks, timed inside each callback (the wait before a callback starts is excluded, the time it awaits is included):
+  - plugin @rolldown/plugin-babel transform (88%, 3.2s, 75 calls)
+Additional callback time came from the callbacks below and from callbacks under 1s.
+1 callback is listed without a time. Its calls overlapped, so the time inside one call includes work from other calls. To find its cost, profile the build with `node --cpu-prof`:
+  - plugin @tailwindcss/vite:generate:build transform (2 calls)
+See https://rolldown.rs/reference/InputOptions.checks#bundlertimings for more details.
+
+built <isolated-root>/home/.hermes/hermes-agent/hermes_cli/web_dist/index.html
+  ✓ Model catalog cache refreshed from checkout
+
+→ Syncing bundled skills...
+  + 44 new: youtube-content, maps, teams-meeting-pipeline, pdf, document-to-action-items, meeting-action-items, product-price-monitor, microsoft-office, google-workspace, weekly-review-planning, claude-code, codex, hermes-agent, computer-use, himalaya, email-inbox-triage, baoyu-infographic, songwriting-and-ai-music, ascii-video, claude-design, popular-web-designs, manim-video, humanizer, p5js, architecture-diagram, obsidian, blocked-page-recovery, test-driven-development, systematic-debugging, github, codebase-inspection, spike, requesting-code-review, simplify-code, dogfood, sdlc-review, xurl, grounded-citations, competitor-news-monitor, arxiv, apple-reminders, imessage, findmy, apple-notes
+
+→ Syncing bundled skills to all profiles...
+  default: up to date
+
+→ Checking configuration for new options...
+  ✓ Configuration is up to date
+
+✓ Install complete! [detached @ 2bd378ed1b]
+
+ℹ Skill curator
+  Background skill maintenance is enabled. First pass is deferred ~7d after installation; only agent-created skills are in scope and nothing is ever auto-deleted (archive is recoverable).
+  Preview now:  hermes curator run --dry-run
+  Pause it:     hermes curator pause
+  Docs:         https://hermes-agent.nousresearch.com/docs/user-guide/features/curator
+✓ added ~/.local/bin to PATH in <isolated-root>/home/.zshrc
+✓ added ~/.local/bin to PATH in <isolated-root>/home/.zprofile
+✓ app products and hermes command ready
+✓ Hermes Agent install complete. Run: hermes
+→ Reload your shell to use hermes: open a new terminal, or run: source ~/.zshrc

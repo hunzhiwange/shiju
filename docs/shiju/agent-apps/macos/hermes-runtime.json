@@ -1,0 +1,6 @@
+{
+  "command": "<isolated-home>/.local/bin/hermes --version",
+  "exit": 0,
+  "stdout": "Hermes Agent v0.23.0 (2026.9.24) · stable · local 2bd378ed1b8d\nInstall directory: <isolated-root>/home/.hermes/hermes-agent\nInstall method: git\nPython: 3.14.9\nOpenAI SDK: 2.54.0\n",
+  "stderr": ""
+}

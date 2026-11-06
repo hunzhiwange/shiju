@@ -1,0 +1,229 @@
+[
+  {
+    "method": "GET",
+    "path": "catalog",
+    "body": null,
+    "status": 200,
+    "response": {
+      "apps": [
+        {
+          "id": "hermes",
+          "name": "Hermes",
+          "cliCommand": "hermes",
+          "runtimeKinds": [
+            "native_cli"
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "method": "GET",
+    "path": "installations?appId=hermes",
+    "body": null,
+    "status": 200,
+    "response": {
+      "installations": []
+    }
+  },
+  {
+    "method": "GET",
+    "path": "launch-identities?appId=hermes",
+    "body": null,
+    "status": 200,
+    "response": []
+  },
+  {
+    "method": "POST",
+    "path": "actions/preview",
+    "body": {
+      "appId": "hermes",
+      "action": "install",
+      "target": {
+        "kind": "environment",
+        "environment": {
+          "kind": "macos"
+        }
+      }
+    },
+    "status": 422,
+    "response": ""
+  },
+  {
+    "method": "GET",
+    "path": "diagnostics?appId=hermes",
+    "body": null,
+    "status": 200,
+    "response": {
+      "installations": [
+        {
+          "id": "NDpob3N0OjY6aGVybWVzOjEwMTovcHJpdmF0ZS92YXIvZm9sZGVycy9yZy96cjE5bGJfczV3MzJxNmQycWtkNnAwbjgwMDAwZ3AvVC9zaGlqdS10YXNrNTMtbW5fNDhpODAvaG9tZS8ubG9jYWwvYmluL2hlcm1lcw",
+          "appId": "hermes",
+          "targetHostId": "host",
+          "environment": {
+            "kind": "macos"
+          },
+          "path": "<isolated-root>/home/.local/bin/hermes",
+          "realPath": "<isolated-root>/home/.local/bin/hermes",
+          "source": "unknown",
+          "isPathDefault": true,
+          "version": null,
+          "runtimeStatus": {
+            "status": "probe_failed",
+            "reason": "timed_out"
+          }
+        }
+      ]
+    }
+  },
+  {
+    "method": "GET",
+    "path": "installations?appId=hermes",
+    "body": null,
+    "status": 200,
+    "response": {
+      "installations": [
+        {
+          "id": "NDpob3N0OjY6aGVybWVzOjEwMTovcHJpdmF0ZS92YXIvZm9sZGVycy9yZy96cjE5bGJfczV3MzJxNmQycWtkNnAwbjgwMDAwZ3AvVC9zaGlqdS10YXNrNTMtbW5fNDhpODAvaG9tZS8ubG9jYWwvYmluL2hlcm1lcw",
+          "appId": "hermes",
+          "targetHostId": "host",
+          "environment": {
+            "kind": "macos"
+          },
+          "path": "<isolated-root>/home/.local/bin/hermes",
+          "realPath": "<isolated-root>/home/.local/bin/hermes",
+          "source": "unknown",
+          "isPathDefault": true,
+          "version": null,
+          "runtimeStatus": {
+            "status": "probe_failed",
+            "reason": "timed_out"
+          }
+        }
+      ]
+    }
+  },
+  {
+    "method": "GET",
+    "path": "installations?appId=hermes",
+    "body": null,
+    "status": 200,
+    "response": {
+      "installations": [
+        {
+          "id": "NDpob3N0OjY6aGVybWVzOjEwMTovcHJpdmF0ZS92YXIvZm9sZGVycy9yZy96cjE5bGJfczV3MzJxNmQycWtkNnAwbjgwMDAwZ3AvVC9zaGlqdS10YXNrNTMtbW5fNDhpODAvaG9tZS8ubG9jYWwvYmluL2hlcm1lcw",
+          "appId": "hermes",
+          "targetHostId": "host",
+          "environment": {
+            "kind": "macos"
+          },
+          "path": "<isolated-root>/home/.local/bin/hermes",
+          "realPath": "<isolated-root>/home/.local/bin/hermes",
+          "source": "unknown",
+          "isPathDefault": true,
+          "version": "0.23.0",
+          "runtimeStatus": {
+            "status": "runnable"
+          }
+        }
+      ]
+    }
+  },
+  {
+    "method": "POST",
+    "path": "actions/preview",
+    "body": {
+      "appId": "hermes",
+      "action": "update",
+      "target": {
+        "kind": "installation",
+        "installationId": "NDpob3N0OjY6aGVybWVzOjEwMTovcHJpdmF0ZS92YXIvZm9sZGVycy9yZy96cjE5bGJfczV3MzJxNmQycWtkNnAwbjgwMDAwZ3AvVC9zaGlqdS10YXNrNTMtbW5fNDhpODAvaG9tZS8ubG9jYWwvYmluL2hlcm1lcw"
+      }
+    },
+    "status": 422,
+    "response": ""
+  },
+  {
+    "method": "POST",
+    "path": "actions/preview",
+    "body": {
+      "appId": "hermes",
+      "action": "uninstall",
+      "target": {
+        "kind": "installation",
+        "installationId": "NDpob3N0OjY6aGVybWVzOjEwMTovcHJpdmF0ZS92YXIvZm9sZGVycy9yZy96cjE5bGJfczV3MzJxNmQycWtkNnAwbjgwMDAwZ3AvVC9zaGlqdS10YXNrNTMtbW5fNDhpODAvaG9tZS8ubG9jYWwvYmluL2hlcm1lcw"
+      }
+    },
+    "status": 422,
+    "response": ""
+  },
+  {
+    "method": "GET",
+    "path": "diagnostics?appId=hermes",
+    "body": null,
+    "status": 200,
+    "response": {
+      "installations": [
+        {
+          "id": "NDpob3N0OjY6aGVybWVzOjEwMTovcHJpdmF0ZS92YXIvZm9sZGVycy9yZy96cjE5bGJfczV3MzJxNmQycWtkNnAwbjgwMDAwZ3AvVC9zaGlqdS10YXNrNTMtbW5fNDhpODAvaG9tZS8ubG9jYWwvYmluL2hlcm1lcw",
+          "appId": "hermes",
+          "targetHostId": "host",
+          "environment": {
+            "kind": "macos"
+          },
+          "path": "<isolated-root>/home/.local/bin/hermes",
+          "realPath": null,
+          "source": "unknown",
+          "isPathDefault": true,
+          "version": null,
+          "runtimeStatus": {
+            "status": "probe_failed",
+            "reason": "damaged_installation"
+          }
+        }
+      ]
+    }
+  },
+  {
+    "method": "GET",
+    "path": "installations?appId=hermes",
+    "body": null,
+    "status": 200,
+    "response": {
+      "installations": [
+        {
+          "id": "NDpob3N0OjY6aGVybWVzOjEwMTovcHJpdmF0ZS92YXIvZm9sZGVycy9yZy96cjE5bGJfczV3MzJxNmQycWtkNnAwbjgwMDAwZ3AvVC9zaGlqdS10YXNrNTMtbW5fNDhpODAvaG9tZS8ubG9jYWwvYmluL2hlcm1lcw",
+          "appId": "hermes",
+          "targetHostId": "host",
+          "environment": {
+            "kind": "macos"
+          },
+          "path": "<isolated-root>/home/.local/bin/hermes",
+          "realPath": "<isolated-root>/home/.local/bin/hermes",
+          "source": "unknown",
+          "isPathDefault": true,
+          "version": "0.23.0",
+          "runtimeStatus": {
+            "status": "runnable"
+          }
+        }
+      ]
+    }
+  },
+  {
+    "method": "GET",
+    "path": "launch-identities?appId=hermes",
+    "body": null,
+    "status": 200,
+    "response": []
+  },
+  {
+    "method": "GET",
+    "path": "installations?appId=hermes",
+    "body": null,
+    "status": 200,
+    "response": {
+      "installations": []
+    }
+  }
+]

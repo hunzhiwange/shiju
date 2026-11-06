@@ -94,6 +94,15 @@ impl AcpClient {
             modes,
             config_options,
         );
+        if self.agent_name == "kiro"
+            && self.full_access
+            && self.permission_mode == PermissionMode::ApproveAll
+        {
+            // Presets retain mandatory asks/denies; tool effects are untested.
+            policy.support = crate::FullAccessSupport::Partial;
+            policy.reason = crate::AccessPolicyReason::UnverifiedControls;
+            return policy;
+        }
         if self.agent_name == "qoder"
             && self.full_access
             && self.permission_mode == PermissionMode::ApproveAll

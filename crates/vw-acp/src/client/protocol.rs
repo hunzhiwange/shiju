@@ -278,7 +278,9 @@ impl AcpClient {
     ) -> Result<SessionInfo, AcpError> {
         let mut request = acp::LoadSessionRequest::new(session_id.clone(), cwd)
             .mcp_servers(self.mcp_servers.clone());
-        if (managed_claude_settings(&self.config).is_some() || self.skill_mounts.is_some())
+        if (managed_claude_settings(&self.config).is_some()
+            || self.skill_mounts.is_some()
+            || self.agent_name == "kiro")
             && let Some(meta) = self.mounted_session_meta()
         {
             request = request.meta(meta);
@@ -321,6 +323,11 @@ impl AcpClient {
         cwd: &Path,
         session_id: String,
     ) -> Result<SessionInfo, AcpError> {
+        // Kiro documents presets on new/load, not resume. Restore the same ID
+        // through load so the current client policy accompanies restoration.
+        if self.agent_name == "kiro" {
+            return self.load_session_info(conn, cwd, session_id).await;
+        }
         let mut request = acp::ResumeSessionRequest::new(session_id.clone(), cwd)
             .mcp_servers(self.mcp_servers.clone());
         if (managed_claude_settings(&self.config).is_some() || self.skill_mounts.is_some())

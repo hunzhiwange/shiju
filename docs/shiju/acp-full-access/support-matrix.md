@@ -1,6 +1,6 @@
 # ACP 完全访问支持矩阵
 
-审计日期：2026-11-06（Asia/Shanghai）；审计平台：macOS / Darwin arm64。状态：静态基线已完成；Codex 与 Claude 固定制品的 macOS arm64 原生权限与撤销已验收，具体入口与边界见 [Codex 证据](evidence/codex.md)、[Claude 证据](evidence/claude.md)。Gemini 已核验为客户端自动批准，原生自动提权因确认及工具/提示词副作用不接入，见 [Gemini 证据](evidence/gemini.md)。Qwen 固定 npm 与现有托管补丁入口已核验原生免审批与撤销，见 [Qwen 证据](evidence/qwen.md)。Qoder 已接入公布的会话 mode 配置，权限工具效果未实机验收，见 [Qoder 接入说明](evidence/qoder.md)。Vibe 保留客户端自动批准，并为显式 auto-approve agent 加入授权及撤销保护，未实机验收，见 [Vibe 接入说明](evidence/vibe.md)。其他后端原生能力仍未知。
+审计日期：2026-11-06（Asia/Shanghai）；审计平台：macOS / Darwin arm64。状态：静态基线已完成；Codex 与 Claude 固定制品的 macOS arm64 原生权限与撤销已验收，具体入口与边界见 [Codex 证据](evidence/codex.md)、[Claude 证据](evidence/claude.md)。Gemini 已核验为客户端自动批准，原生自动提权因确认及工具/提示词副作用不接入，见 [Gemini 证据](evidence/gemini.md)。Qwen 固定 npm 与现有托管补丁入口已核验原生免审批与撤销，见 [Qwen 证据](evidence/qwen.md)。Qoder 已接入公布的会话 mode 配置，权限工具效果未实机验收，见 [Qoder 接入说明](evidence/qoder.md)。Vibe 保留客户端自动批准，并为显式 auto-approve agent 加入授权及撤销保护，未实机验收，见 [Vibe 接入说明](evidence/vibe.md)。Kiro 已接入 V3 会话 policyPreset，效果未实机验收，见 [Kiro 接入说明](evidence/kiro.md)。其他后端原生能力仍未知。
 
 范围为 `BUILT_IN_AGENT_DEFINITIONS` 的 22 个稳定 key；别名和 `claude-legacy` 不另计。注册表、启动快照、哈希及逐项官方版本来源见 [证据清单](evidence/README.md)。初始静态审计仅修改文档；后续后端适配与验证按各独立证据文件记账。
 
@@ -39,7 +39,7 @@
 | [iflow](evidence/README.md#iflow) / E1 | 0.5.19 | 0.5.19 | 部分支持：客户端自动批准有源码、原生未知；session_model 有驱动和版本门控 | 固定真实 CLI，采集 initialize/权限选项并验证开启→关闭→恢复 |
 | [kilocode](evidence/README.md#kilocode) / E1 | 7.8.18 | 7.8.27 | 部分支持：客户端自动批准有源码、原生未知；session_model 有驱动和版本门控 | 固定真实 CLI，采集 initialize/权限选项并验证开启→关闭→恢复 |
 | [kimi](evidence/README.md#kimi) / E1 | 2.5.0 | 2.5.1 | 部分支持：客户端自动批准有源码、原生未知；session_model 有驱动和版本门控 | 固定真实 CLI，采集 initialize/权限选项并验证开启→关闭→恢复 |
-| [kiro](evidence/README.md#kiro) / E1 | 3.0.0 | 3.1.0 | 部分支持：客户端自动批准有源码、原生未知；session_model 有驱动和版本门控 | 核对 v3 harness 权限选项及恢复行为 |
+| [kiro](evidence/kiro.md) / E1、官方协议文档 | 3.0.0 | 3.1.0 | 部分支持：new/load 按当前授权请求 V3 policyPreset allow-all 或空列表；客户端自动批准保留，硬拒绝、敏感路径 ask 与 sandbox_network 不被预设覆盖；session_model 原有门控保留 | 用户要求跳过测试；开启、关闭、恢复和跨平台执行未实机验收 |
 | [opencode](evidence/README.md#opencode) / E1 | 1.19.5 | 1.19.5 | 部分支持：客户端自动批准有源码、原生未知；session_model 有驱动和版本门控 | 固定真实 CLI，采集 initialize/权限选项并验证开启→关闭→恢复 |
 | [openclaw](evidence/README.md#openclaw) / E1 | 2026.10.10 | 2026.11.1 | 部分支持：客户端自动批准有源码、原生未知；session_model 有驱动和版本门控 | 核对 gateway exec 审批与 ACP 客户端回调边界 |
 | [pi](evidence/README.md#pi) / E1 | 0.0.22 | 0.0.34 | 部分支持：客户端自动批准有源码、原生未知；session_model 有驱动和版本门控 | 核对 ACP adapter 与 Pi RPC 原生工具审批边界 |
@@ -70,7 +70,7 @@ U = 未获取该后端真实权限协议/结果；C = 仅共享客户端源码�
 | iflow | U | U/U/U | U | U | C | C | C | U |
 | kilocode | U | U/U/U | U | U | C | C | C | U |
 | kimi | U | U/U/U | U | U | C | C | C | U |
-| kiro | U | U/U/U | U | U | C | C | C | U |
+| kiro | U | new/load 已接入 policyPreset；resume 走同 ID load；未实测 | 不杜撰权限 config | 不切换 agent | C；未实机计数 | C | C | allow-all 不覆盖 sandbox_network；未实测 |
 | opencode | U | U/U/U | U | U | C | C | C | U |
 | openclaw | U | U/U/U | U | U | C | C | C | U |
 | pi | U | U/U/U | U | U | C | C | C | U |

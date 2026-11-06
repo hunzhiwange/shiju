@@ -121,6 +121,16 @@ impl AcpClient {
     /// Materialize only known official launch shapes; custom argv stays byte-for-byte intact.
     pub(super) fn launch_args(&self) -> Result<Vec<String>, AcpError> {
         let unrestricted = self.full_access && self.permission_mode == PermissionMode::ApproveAll;
+        if self.agent_name == "kiro"
+            && self.config.args.iter().any(|arg| {
+                arg == "--trust-all-tools"
+                    || arg == "--trust-tools"
+                    || arg.starts_with("--trust-all-tools=")
+                    || arg.starts_with("--trust-tools=")
+            })
+        {
+            return Err(AcpError::Initialize("Kiro startup tool trust cannot follow session permission changes; remove trust flags and use session policy presets".into()));
+        }
         let command = std::path::Path::new(self.config.command.trim())
             .file_stem()
             .and_then(|s| s.to_str())

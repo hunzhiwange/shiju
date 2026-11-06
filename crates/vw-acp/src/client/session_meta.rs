@@ -69,6 +69,14 @@ pub(super) fn build_launch_session_meta(
 impl AcpClient {
     pub(super) fn mounted_session_meta(&self) -> Option<acp::Meta> {
         let mut meta = build_launch_session_meta(self.session_options.as_ref(), &self.config);
+        if self.agent_name == "kiro" {
+            // Send the current grant on every open, including an empty preset list
+            // on load; never inherit a historical client grant deliberately.
+            meta.get_or_insert_with(Map::new).insert(
+                "kiro".into(),
+                crate::access_policy::kiro::session_policy(self.full_access, self.permission_mode),
+            );
+        }
         if let Some(selection) = &self.skill_mounts {
             if matches!(self.agent_name.as_str(), "claude" | "claude code") {
                 let options = meta

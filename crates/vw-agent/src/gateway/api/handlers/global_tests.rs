@@ -677,3 +677,22 @@ fn agent_unified_selection_install_status_uses_gateway_executable_without_downlo
     assert!(!acp_command_installed("npx"));
     assert!(!acp_command_installed("C:\\tools\\npx.cmd"));
 }
+
+#[tokio::test]
+async fn global_acp_defaults_route_returns_builtin_launch_fields() {
+    let response = router::<()>()
+        .oneshot(Request::builder().uri("/global/config/acp/defaults").body(Body::empty()).unwrap())
+        .await
+        .unwrap();
+    assert_eq!(response.status(), StatusCode::OK);
+    let body = to_bytes(response.into_body(), usize::MAX).await.unwrap();
+    let defaults: HashMap<String, config::schema::AcpAgentConfig> =
+        serde_json::from_slice(&body).unwrap();
+    let builtins = vw_acp::built_in_agent_specs();
+    assert_eq!(defaults.len(), builtins.len());
+    for (name, spec) in builtins {
+        assert_eq!(defaults[&name].command, spec.command);
+        assert_eq!(defaults[&name].args, spec.args);
+        assert_eq!(defaults[&name].env, spec.env);
+    }
+}

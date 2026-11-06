@@ -34,6 +34,7 @@ fn apply_snapshot(app: &mut App, snapshot: AcpSettingsSnapshot) {
             |(old, new)| old.command == new.command && old.args == new.args && old.env == new.env,
         )
     });
+    app.acp_settings.defaults = snapshot.defaults;
     app.acp_settings.catalog = snapshot.catalog;
     app.acp_settings.enabled = snapshot.enabled.keys().cloned().collect();
     app.acp_agents = sort_acp_agent_names(app.acp_settings.enabled.iter().cloned().collect());
@@ -101,6 +102,8 @@ pub fn update(app: &mut App, message: SettingsMessage) -> Task<Message> {
             | AcpMessage::NewAgentNameChanged(_)
             | AcpMessage::NewAgentCommandChanged(_)
             | AcpMessage::NewAgentArgsChanged(_)
+            | AcpMessage::RestoreDefaultArguments
+            | AcpMessage::RestoreDefaultEnvironment
             | AcpMessage::ArgumentChanged(..)
             | AcpMessage::AddArgument
             | AcpMessage::RemoveArgument(_)
@@ -254,6 +257,26 @@ pub fn update(app: &mut App, message: SettingsMessage) -> Task<Message> {
             app.acp_settings.new_agent_expanded = false;
             app.acp_settings.editing_agent = None;
             Task::none()
+        }
+        AcpMessage::RestoreDefaultArguments | AcpMessage::RestoreDefaultEnvironment => {
+            let Some(defaults) = app
+                .acp_settings
+                .editing_agent
+                .as_ref()
+                .and_then(|agent| app.acp_settings.defaults.get(agent))
+            else {
+                return app.show_error_toast("该 ACP 没有内置默认配置");
+            };
+            if matches!(message, AcpMessage::RestoreDefaultArguments) {
+                app.acp_settings.editor_args = defaults.args.clone();
+            } else {
+                app.acp_settings.editor_env =
+                    defaults.env.iter().map(|(key, value)| (key.clone(), value.clone())).collect();
+                app.acp_settings.editor_env.sort_by(|a, b| a.0.cmp(&b.0));
+            }
+            app.acp_settings.save_error = None;
+            app.acp_settings.error_translation = None;
+            app.show_info_toast("已恢复默认值，保存后生效")
         }
         AcpMessage::AddArgument => {
             app.acp_settings.editor_args.push(String::new());

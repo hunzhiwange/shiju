@@ -304,3 +304,14 @@ async fn agent_unified_selection_install_status_reads_gateway_projection() {
     let request = server.take_request();
     assert_eq!(request.path, "/v1/global/config/acp/installed");
 }
+
+#[tokio::test]
+async fn global_acp_defaults_get_reads_builtin_defaults_route() {
+    let server = test_support::server(vec![(200, json!({"agent": "builtin"}))]);
+    let defaults: AcpConfig = server.client().global_acp_defaults_get().await.unwrap();
+    assert_eq!(defaults.agent, "builtin");
+    let request = server.take_request();
+    assert_eq!(request.method, "GET");
+    assert_eq!(request.path, "/v1/global/config/acp/defaults");
+    server.join();
+}

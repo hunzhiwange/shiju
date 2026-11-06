@@ -33,6 +33,7 @@ use super::gateway::{
 
 #[derive(Debug, Clone)]
 pub struct AcpSettingsSnapshot {
+    pub defaults: BTreeMap<String, AcpAgentConfig>,
     pub catalog: BTreeMap<String, AcpAgentConfig>,
     pub enabled: BTreeMap<String, AcpAgentConfig>,
 }
@@ -396,12 +397,14 @@ pub async fn load_enabled_acp_config_async() -> Result<HashMap<String, AcpAgentC
 }
 
 pub async fn load_acp_settings_snapshot_async() -> Result<AcpSettingsSnapshot, String> {
+    let defaults = gateway_client()?.global_acp_defaults_get().await?;
     let mut catalog = fetch_global_acp_config_via_gateway().await?;
     let config = fetch_global_agent_config_via_gateway().await?;
     catalog.extend(config.acp_saved);
     let enabled = resolve_enabled_acp_config(&catalog, config.acp);
 
     Ok(AcpSettingsSnapshot {
+        defaults,
         catalog: catalog.into_iter().collect(),
         enabled: enabled.into_iter().collect(),
     })

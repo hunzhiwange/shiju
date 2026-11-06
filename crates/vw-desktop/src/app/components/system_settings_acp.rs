@@ -313,10 +313,22 @@ fn new_agent_form(app: &App) -> Element<'_, Message> {
         .size(SETTINGS_CONTROL_TEXT_SIZE)
         .style(settings_text_input_style)
         .on_input(|v| acp_message(AcpMessage::NewAgentCommandChanged(v)));
+    let can_restore = !state.adding_agent
+        && state.editing_agent.as_ref().is_some_and(|agent| state.defaults.contains_key(agent));
     let mut fields = column![
         form_field("名称（已有名称不可修改）", name),
         form_field("启动命令", command),
-        text("参数：每项独立保存，保留空格与逗号")
+        row![
+            text("参数：每项独立保存，保留空格与逗号").width(Length::Fill),
+            button(text("恢复默认参数"))
+                .padding([8, 12])
+                .style(rounded_action_btn_style)
+                .on_press_maybe(
+                    can_restore.then(|| acp_message(AcpMessage::RestoreDefaultArguments))
+                ),
+        ]
+        .spacing(8)
+        .align_y(Alignment::Center)
     ]
     .spacing(12);
     for (i, arg) in state.editor_args.iter().enumerate() {
@@ -341,7 +353,19 @@ fn new_agent_form(app: &App) -> Element<'_, Message> {
             .style(rounded_action_btn_style)
             .on_press(acp_message(AcpMessage::AddArgument)),
     );
-    fields = fields.push(text("环境变量"));
+    fields = fields.push(
+        row![
+            text("环境变量").width(Length::Fill),
+            button(text("恢复默认环境变量"))
+                .padding([8, 12])
+                .style(rounded_action_btn_style)
+                .on_press_maybe(
+                    can_restore.then(|| acp_message(AcpMessage::RestoreDefaultEnvironment))
+                ),
+        ]
+        .spacing(8)
+        .align_y(Alignment::Center),
+    );
     for (i, (key, value)) in state.editor_env.iter().enumerate() {
         fields = fields.push(
             row![

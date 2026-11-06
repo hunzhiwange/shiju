@@ -377,6 +377,8 @@ pub enum AcpMessage {
     },
     EditAgent(String),
     CancelEditor,
+    RestoreDefaultArguments,
+    RestoreDefaultEnvironment,
     ArgumentChanged(usize, String),
     AddArgument,
     RemoveArgument(usize),

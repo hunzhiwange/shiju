@@ -104,6 +104,15 @@ impl GatewayClient {
         serde_json::from_value(value).map_err(|err| err.to_string())
     }
 
+    /// Read gateway built-in ACP defaults without user overrides.
+    pub async fn global_acp_defaults_get<T>(&self) -> Result<T, String>
+    where
+        T: DeserializeOwned,
+    {
+        let value = self.get_json("/v1/global/config/acp/defaults", &[]).await?;
+        serde_json::from_value(value).map_err(|err| err.to_string())
+    }
+
     pub async fn global_acp_config_get<T>(&self) -> Result<T, String>
     where
         T: DeserializeOwned,

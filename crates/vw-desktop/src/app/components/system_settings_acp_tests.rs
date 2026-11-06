@@ -16,6 +16,8 @@ async fn acp_status_cards_and_editor_render_all_results_and_animate_in_both_them
 
     let (mut app, _) = crate::app::App::new();
     let config = AcpAgentConfig { command: "中文路径/agent".into(), ..Default::default() };
+    app.acp_settings.editing_agent = Some("codex".into());
+    app.acp_settings.defaults.insert("codex".into(), AcpAgentConfig::default());
     app.acp_settings.new_agent_name_input = "中文代理".into();
     app.acp_settings.new_agent_command_input = config.command.clone();
     for theme in [Theme::Dark, Theme::Light] {

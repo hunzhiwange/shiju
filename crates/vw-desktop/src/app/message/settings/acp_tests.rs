@@ -24,7 +24,7 @@ fn snapshot(entries: &[(&str, bool)]) -> AcpSettingsSnapshot {
         }
     }
 
-    AcpSettingsSnapshot { catalog, enabled }
+    AcpSettingsSnapshot { catalog, enabled, defaults: BTreeMap::new() }
 }
 
 // 行为契约：使用代表性场景固定该分支的可观察结果。
@@ -541,4 +541,52 @@ fn acp_install_tracks_busy_state_and_releases_after_failure() {
         }),
     );
     assert!(app.acp_settings.installing_agent.is_none());
+}
+
+#[test]
+fn restore_defaults_updates_only_selected_draft_field_and_cancel_preserves_saved_config() {
+    let (mut app, _) = crate::app::App::new();
+    let saved = AcpAgentConfig {
+        command: "custom-launcher".into(),
+        args: vec!["custom arg".into()],
+        env: std::collections::HashMap::from([("TOKEN".into(), "custom".into())]),
+    };
+    let defaults = AcpAgentConfig {
+        command: "default-launcher".into(),
+        args: vec!["--acp".into()],
+        env: std::collections::HashMap::from([("DEFAULT".into(), "1".into())]),
+    };
+    let mut loaded = snapshot(&[("codex", false)]);
+    loaded.catalog.insert("codex".into(), saved.clone());
+    loaded.defaults.insert("codex".into(), defaults.clone());
+    let _ = update(&mut app, SettingsMessage::Acp(AcpMessage::Loaded(Ok(loaded))));
+    let _ = update(&mut app, SettingsMessage::Acp(AcpMessage::EditAgent("codex".into())));
+    app.acp_settings.diagnostic_status = Some(AcpDiagnosticStatus::Connected);
+    let _ = update(&mut app, SettingsMessage::Acp(AcpMessage::RestoreDefaultArguments));
+    assert_eq!(app.acp_settings.editor_args, defaults.args);
+    assert_eq!(app.acp_settings.editor_env, vec![("TOKEN".into(), "custom".into())]);
+    assert!(app.acp_settings.diagnostic_status.is_none());
+    let _ = update(&mut app, SettingsMessage::Acp(AcpMessage::RestoreDefaultEnvironment));
+    let (_, request) = new_agent_request(&app).unwrap();
+    assert_eq!(request.command, saved.command);
+    assert_eq!(request.args, defaults.args);
+    assert_eq!(request.env, defaults.env);
+    assert!(!app.acp_settings.enabled.contains("codex"));
+    let _ = update(&mut app, SettingsMessage::Acp(AcpMessage::CancelEditor));
+    let _ = update(&mut app, SettingsMessage::Acp(AcpMessage::EditAgent("codex".into())));
+    assert_eq!(app.acp_settings.editor_args, saved.args);
+    assert_eq!(app.acp_settings.editor_env, vec![("TOKEN".into(), "custom".into())]);
+}
+
+#[test]
+fn restore_defaults_without_builtin_keeps_custom_draft() {
+    let (mut app, _) = crate::app::App::new();
+    app.acp_settings.editing_agent = Some("custom".into());
+    app.acp_settings.editor_args = vec!["--custom".into()];
+    app.acp_settings.editor_env = vec![("TOKEN".into(), "value".into())];
+    for message in [AcpMessage::RestoreDefaultArguments, AcpMessage::RestoreDefaultEnvironment] {
+        let _ = update(&mut app, SettingsMessage::Acp(message));
+        assert_eq!(app.acp_settings.editor_args, vec!["--custom"]);
+        assert_eq!(app.acp_settings.editor_env, vec![("TOKEN".into(), "value".into())]);
+    }
 }

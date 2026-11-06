@@ -73,6 +73,7 @@ where
         .route("/global/event", get(global_event_sse))
         .route("/global/config", get(global_config_get).patch(global_config_patch))
         .route("/global/config/acp", get(global_config_acp_get))
+        .route("/global/config/acp/defaults", get(global_config_acp_defaults_get))
         .route("/global/config/acp/installed", get(global_acp_installed_get))
         .route("/global/dispose", post(global_dispose))
 }
@@ -83,6 +84,7 @@ pub(crate) fn stateful_router() -> Router<AppState> {
         .route("/global/event", get(global_event_sse))
         .route("/global/config", get(global_config_get).patch(global_config_patch_stateful))
         .route("/global/config/acp", get(global_config_acp_get))
+        .route("/global/config/acp/defaults", get(global_config_acp_defaults_get))
         .route("/global/config/acp/installed", get(global_acp_installed_get))
         .route("/global/dispose", post(global_dispose))
 }
@@ -148,6 +150,10 @@ async fn global_config_get(
         .await
         .map_err(|error| ApiError::bad_request(error.to_string()))?;
     config_response(config)
+}
+
+async fn global_config_acp_defaults_get() -> Json<Value> {
+    Json(serde_json::to_value(vw_acp::built_in_agent_specs()).expect("serializable ACP defaults"))
 }
 
 async fn global_config_acp_get() -> Json<Value> {

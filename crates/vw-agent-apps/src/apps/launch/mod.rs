@@ -27,3 +27,6 @@ mod terminal_session_tests;
 pub mod host;
 #[cfg(all(test, unix))]
 mod host_tests;
+
+#[cfg(all(test, unix))]
+mod provider_omp_tests;

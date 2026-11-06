@@ -353,3 +353,41 @@ async fn cc_apps_production_gateway_routes_preserve_authorization() {
         .unwrap();
     assert_eq!(app.oneshot(request).await.unwrap().status(), StatusCode::UNAUTHORIZED);
 }
+
+#[tokio::test]
+async fn cc_apps_omp_provider_stateful_gateway_persists_and_isolates_tenant_records() {
+    use axum::{Extension, middleware};
+    let root = tempfile::tempdir().unwrap();
+    let app = Router::new()
+        .nest("/v1", stateful_handler_router())
+        .with_state(state())
+        .layer(Extension(crate::global_database::GlobalDatabase::for_home(root.path()).unwrap()))
+        .layer(middleware::from_fn(crate::gateway::middleware::tenant_scope_middleware));
+    let profile = serde_json::json!({"name":"fixture","protocol":"openai_responses","apiKey":"fixture-provider-key","baseUrl":"https://provider.example.test/v1","model":"fixture-model"});
+    let request = |method: &str, company: &str, body: String| {
+        Request::builder()
+            .method(method)
+            .uri("/v1/app-providers/omp/selected")
+            .header("x-platform-id", "p")
+            .header("x-company-id", company)
+            .header("content-type", "application/json")
+            .body(Body::from(body))
+            .unwrap()
+    };
+    let response = app.clone().oneshot(request("PUT", "a", profile.to_string())).await.unwrap();
+    assert_eq!(
+        response.status(),
+        StatusCode::OK,
+        "stateful CLI gateway must register provider writes"
+    );
+    let bytes = axum::body::to_bytes(response.into_body(), 65536).await.unwrap();
+    assert!(!String::from_utf8_lossy(&bytes).contains("fixture-provider-key"));
+    assert_eq!(
+        app.clone().oneshot(request("GET", "a", String::new())).await.unwrap().status(),
+        StatusCode::OK
+    );
+    assert_eq!(
+        app.oneshot(request("GET", "foreign", String::new())).await.unwrap().status(),
+        StatusCode::NOT_FOUND
+    );
+}

@@ -121,6 +121,13 @@ pub fn prepare_provider_launch(
                     || ancestor.join(".gemini/.env").exists()
                     || ancestor.join(".env").exists()
             }
+            AppId::Omp => {
+                let directory = ancestor.join(".omp");
+                (directory.exists() && !directory.is_dir())
+                    || directory.join("config.yml").exists()
+                    || directory.join("config.yaml").exists()
+                    || ancestor.join(".env").exists()
+            }
             _ => false,
         };
         if conflict {
@@ -197,6 +204,38 @@ pub fn prepare_provider_launch(
             env.extend([
                 ("GEMINI_API_KEY", profile.api_key.clone()),
                 ("GOOGLE_GEMINI_BASE_URL", profile.base_url.clone()),
+            ]);
+        }
+        Omp => {
+            // JSON is valid YAML; keep credentials out of configuration and argv.
+            write_private(
+                &private.path().join("models.yml"),
+                &serde_json::json!({"providers":{"shiju_session":{
+                    "baseUrl":profile.base_url,"api":"openai-responses",
+                    "apiKey":"SHIJU_PROVIDER_API_KEY","authHeader":true,
+                    "models":[{"id":profile.model,"name":profile.model}]
+                }}}),
+            )?;
+            args.extend([
+                "--model".into(),
+                format!("shiju_session/{}", profile.model),
+                "--no-extensions".into(),
+                "--no-skills".into(),
+            ]);
+            env.extend([
+                ("PI_CODING_AGENT_DIR", path.clone()),
+                ("HOME", path.clone()),
+                ("XDG_CONFIG_HOME", private.path().join(".config").to_string_lossy().into_owned()),
+                ("XDG_CACHE_HOME", private.path().join(".cache").to_string_lossy().into_owned()),
+                (
+                    "XDG_DATA_HOME",
+                    private.path().join(".local/share").to_string_lossy().into_owned(),
+                ),
+                (
+                    "XDG_STATE_HOME",
+                    private.path().join(".local/state").to_string_lossy().into_owned(),
+                ),
+                ("SHIJU_PROVIDER_API_KEY", profile.api_key.clone()),
             ]);
         }
         // validate_profile rejects every unimplemented capability individually before creating files.

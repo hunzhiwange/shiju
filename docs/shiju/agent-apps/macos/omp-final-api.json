@@ -1,0 +1,246 @@
+[
+  {
+    "method": "GET",
+    "path": "/v1/agent-apps/installations?targetHostId=host&appId=omp",
+    "body": null,
+    "status": 200,
+    "response": {
+      "installations": [
+        {
+          "id": "installation-final-1",
+          "appId": "omp",
+          "targetHostId": "host",
+          "environment": {
+            "kind": "macos"
+          },
+          "path": "<isolated-root>/prefix/bin/omp",
+          "realPath": "<isolated-root>/prefix/bin/omp",
+          "source": "unknown",
+          "isPathDefault": true,
+          "version": "18.17.0",
+          "runtimeStatus": {
+            "status": "runnable"
+          }
+        }
+      ]
+    }
+  },
+  {
+    "method": "PUT",
+    "path": "/v1/app-providers/omp/task59-local",
+    "body": {
+      "name": "Task59 explicit loopback protocol fixture",
+      "protocol": "openai_responses",
+      "apiKey": "<test-key>",
+      "baseUrl": "http://127.0.0.1:50324/v1",
+      "model": "task59-local-model"
+    },
+    "status": 404,
+    "response": ""
+  },
+  {
+    "method": "GET",
+    "path": "/v1/agent-apps/installations?targetHostId=host&appId=omp",
+    "body": null,
+    "status": 200,
+    "response": {
+      "installations": [
+        {
+          "id": "installation-final-1",
+          "appId": "omp",
+          "targetHostId": "host",
+          "environment": {
+            "kind": "macos"
+          },
+          "path": "<isolated-root>/prefix/bin/omp",
+          "realPath": "<isolated-root>/prefix/bin/omp",
+          "source": "unknown",
+          "isPathDefault": true,
+          "version": "18.17.0",
+          "runtimeStatus": {
+            "status": "runnable"
+          }
+        }
+      ]
+    }
+  },
+  {
+    "method": "PUT",
+    "path": "/v1/app-providers/omp/task59-local",
+    "body": {
+      "name": "Task59 explicit loopback protocol fixture",
+      "protocol": "openai_responses",
+      "apiKey": "<test-key>",
+      "baseUrl": "http://127.0.0.1:52826/v1",
+      "model": "task59-local-model"
+    },
+    "status": 200,
+    "response": {
+      "id": "task59-local",
+      "appId": "omp",
+      "name": "Task59 explicit loopback protocol fixture",
+      "configured": true
+    }
+  },
+  {
+    "method": "GET",
+    "path": "/v1/agent-apps/launch-identities?targetHostId=host&appId=omp",
+    "body": null,
+    "status": 200,
+    "response": [
+      {
+        "kind": "provider",
+        "id": "task59-local",
+        "label": "Task59 explicit loopback protocol fixture"
+      }
+    ]
+  },
+  {
+    "method": "POST",
+    "path": "/v1/agent-apps/launch?targetHostId=host",
+    "body": {
+      "appId": "omp",
+      "installationId": "installation-final-1",
+      "cwd": "<isolated-root>/home/workspace",
+      "args": [
+        "Respond only TASK59_PROVIDER_OK without using tools"
+      ],
+      "providerId": "not-granted"
+    },
+    "status": 403,
+    "response": ""
+  },
+  {
+    "method": "POST",
+    "path": "/v1/agent-apps/launch?targetHostId=host",
+    "body": {
+      "appId": "omp",
+      "installationId": "installation-final-1",
+      "cwd": "<isolated-root>/home/workspace",
+      "args": [
+        "Respond only TASK59_PROVIDER_OK without using tools"
+      ],
+      "providerId": "task59-local"
+    },
+    "status": 422,
+    "response": ""
+  },
+  {
+    "method": "GET",
+    "path": "/v1/agent-apps/installations?targetHostId=host&appId=omp",
+    "body": null,
+    "status": 200,
+    "response": {
+      "installations": [
+        {
+          "id": "installation-final-1",
+          "appId": "omp",
+          "targetHostId": "host",
+          "environment": {
+            "kind": "macos"
+          },
+          "path": "<isolated-root>/prefix/bin/omp",
+          "realPath": "<isolated-root>/prefix/bin/omp",
+          "source": "unknown",
+          "isPathDefault": true,
+          "version": "18.17.0",
+          "runtimeStatus": {
+            "status": "runnable"
+          }
+        }
+      ]
+    }
+  },
+  {
+    "method": "PUT",
+    "path": "/v1/app-providers/omp/task59-local",
+    "body": {
+      "name": "Task59 explicit loopback protocol fixture",
+      "protocol": "openai_responses",
+      "apiKey": "<test-key>",
+      "baseUrl": "http://127.0.0.1:55714/v1",
+      "model": "task59-local-model"
+    },
+    "status": 200,
+    "response": {
+      "id": "task59-local",
+      "appId": "omp",
+      "name": "Task59 explicit loopback protocol fixture",
+      "configured": true
+    }
+  },
+  {
+    "method": "GET",
+    "path": "/v1/agent-apps/launch-identities?targetHostId=host&appId=omp",
+    "body": null,
+    "status": 200,
+    "response": [
+      {
+        "kind": "provider",
+        "id": "task59-local",
+        "label": "Task59 explicit loopback protocol fixture"
+      }
+    ]
+  },
+  {
+    "method": "POST",
+    "path": "/v1/agent-apps/launch?targetHostId=host",
+    "body": {
+      "appId": "omp",
+      "installationId": "installation-final-1",
+      "cwd": "<isolated-root>/home/workspace",
+      "args": [
+        "Respond only TASK59_PROVIDER_OK without using tools"
+      ],
+      "providerId": "not-granted"
+    },
+    "status": 403,
+    "response": ""
+  },
+  {
+    "method": "POST",
+    "path": "/v1/agent-apps/launch?targetHostId=host",
+    "body": {
+      "appId": "omp",
+      "installationId": "installation-final-1",
+      "cwd": "<isolated-root>/home/workspace",
+      "args": [
+        "Respond only TASK59_PROVIDER_OK without using tools"
+      ],
+      "providerId": "task59-local"
+    },
+    "status": 200,
+    "response": {
+      "sessionId": "f7022492-05cf-4c98-8069-0b429a1d15df",
+      "installationId": "installation-final-1"
+    }
+  },
+  {
+    "method": "GET",
+    "path": "/v1/agent-apps/launch-sessions/f7022492-05cf-4c98-8069-0b429a1d15df?targetHostId=host",
+    "body": null,
+    "status": 200,
+    "response": {
+      "phase": "running"
+    },
+    "repeatCount": 411
+  },
+  {
+    "method": "GET",
+    "path": "/v1/agent-apps/launch-sessions/f7022492-05cf-4c98-8069-0b429a1d15df?targetHostId=host",
+    "body": null,
+    "status": 200,
+    "response": {
+      "phase": "failed"
+    }
+  },
+  {
+    "method": "GET",
+    "path": "/v1/agent-apps/installations?targetHostId=host&appId=omp",
+    "body": null,
+    "status": 200,
+    "response": {
+      "installations": []
+    }
+  }
+]

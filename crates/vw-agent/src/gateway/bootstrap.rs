@@ -804,6 +804,7 @@ pub(super) fn client_router(
 pub(super) fn stateful_handler_router() -> Router<AppState> {
     Router::<AppState>::new()
         .merge(api::handlers::agent_apps::router().with_state(()))
+        .merge(api::handlers::app_providers::router().with_state(()))
         .merge(api::handlers::auth::router())
         .merge(api::handlers::channel_qr::router())
         .merge(api::handlers::file::router())

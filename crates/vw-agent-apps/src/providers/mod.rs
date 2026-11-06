@@ -18,7 +18,7 @@ pub fn validate_profile(app: AppId, profile: &AppProviderWrite) -> Result<(), St
     use AppId::*;
     let expected = match app {
         Claude => ProviderProtocol::Anthropic,
-        Codex => ProviderProtocol::OpenaiResponses,
+        Codex | Omp => ProviderProtocol::OpenaiResponses,
         Gemini | Agy => ProviderProtocol::Gemini,
         ClaudeDesktop => {
             return Err("desktop application has no provider terminal capability".into());
@@ -31,7 +31,6 @@ pub fn validate_profile(app: AppId, profile: &AppProviderWrite) -> Result<(), St
         Mcode => return Err("mcode provider session projection is not implemented".into()),
         Kimi => return Err("kimi provider session projection is not implemented".into()),
         Dsh => return Err("dsh provider session projection is not implemented".into()),
-        Omp => return Err("omp provider session projection is not implemented".into()),
     };
     if profile.protocol != expected {
         return Err("provider protocol does not match application".into());

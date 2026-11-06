@@ -1,0 +1,215 @@
+slot=1
+CARGO_TARGET_DIR=CARGO_BUILD_BUILD_DIR=/Users/xiangmin/worker/code/shiju/target/rust-slot-1
+Dependency progress omitted; all commands, diagnostics and test results retained.
+
+$ cargo test -p vw-agent-apps --lib cc_apps_omp_provider -- --nocapture (before projection)
+exit=101
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 5.40s
+     Running unittests src/lib.rs (target/rust-slot-1/debug/deps/vw_agent_apps-c350eefc4d73b711)
+
+running 1 test
+
+thread 'apps::launch::provider_omp_tests::cc_apps_omp_provider_private_projection_is_available' (38616523) panicked at crates/vw-agent-apps/src/apps/launch/provider_omp_tests.rs:8:2:
+reviewed omp OpenAI Responses projection must be reachable
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+test apps::launch::provider_omp_tests::cc_apps_omp_provider_private_projection_is_available ... FAILED
+
+failures:
+
+failures:
+    apps::launch::provider_omp_tests::cc_apps_omp_provider_private_projection_is_available
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 181 filtered out; finished in 0.00s
+
+error: test failed, to rerun pass `-p vw-agent-apps --lib`
+
+$ cargo fmt --all
+exit=0
+
+
+$ cargo test -p vw-agent-apps --lib cc_apps_omp_provider -- --nocapture (first projection)
+exit=0
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 3.09s
+     Running unittests src/lib.rs (target/rust-slot-1/debug/deps/vw_agent_apps-c350eefc4d73b711)
+
+running 4 tests
+test apps::launch::provider_omp_tests::cc_apps_omp_provider_rejects_project_overrides_and_wrong_protocol_before_materialization ... ok
+test apps::launch::provider_omp_tests::cc_apps_omp_provider_private_projection_is_available ... ok
+test apps::launch::provider_omp_tests::cc_apps_omp_provider_consumes_private_configuration_and_cleans_process_material ... ok
+test apps::launch::provider_omp_tests::cc_apps_omp_provider_cleans_nonzero_spawn_failure_and_dropped_material ... ok
+
+test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 181 filtered out; finished in 0.01s
+
+
+$ cargo test -p vw-agent-apps --lib cc_apps_provider_launch_isolation -- --nocapture
+exit=0
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 2.32s
+     Running unittests src/lib.rs (target/rust-slot-1/debug/deps/vw_agent_apps-c350eefc4d73b711)
+
+running 8 tests
+test apps::launch::provider_tests::cc_apps_provider_launch_isolation_windows_batch_rules_refuse_without_spawn ... ok
+test apps::launch::provider_tests::cc_apps_provider_launch_isolation_invalid_inputs_have_no_side_effects ... ok
+test apps::launch::provider_tests::cc_apps_provider_launch_isolation_unimplemented_apps_and_wrong_protocol_refuse ... ok
+
+running 1 test
+test apps::launch::provider_tests::cc_apps_provider_launch_isolation_private_process_success_and_cleanup ... ok
+test apps::launch::provider_tests::cc_apps_provider_launch_isolation_project_conflict_and_permission_flags ... ok
+test apps::launch::provider_tests::cc_apps_provider_launch_isolation_inherited_credentials_are_removed ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 184 filtered out; finished in 0.00s
+
+test apps::launch::provider_tests::cc_apps_provider_launch_isolation_inherited_credentials_are_removed ... ok
+test apps::launch::provider_tests::cc_apps_provider_launch_isolation_codex_gemini_agy_use_actual_programs ... ok
+test apps::launch::provider_tests::cc_apps_provider_launch_isolation_failure_drop_and_private_permissions ... ok
+
+test result: ok. 8 passed; 0 failed; 0 ignored; 0 measured; 177 filtered out; finished in 0.03s
+
+
+$ cargo test -p vw-agent --lib cc_apps_launch_identity_list_sdk_http_tty_lifetime_and_account_rotation -- --nocapture
+exit=0
+warning: linker stderr: ld: __eh_frame section too large (max 16MB) to encode dwarf unwind offsets in compact unwind table, performance of exception handling might be affected
+  |
+  = note: `#[warn(linker_messages)]` on by default
+
+warning: `vw-agent` (lib test) generated 1 warning
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 1m 49s
+     Running unittests src/lib.rs (target/rust-slot-1/debug/deps/vw_agent-761b4c54e01851ea)
+
+running 1 test
+test gateway::api::handlers::agent_apps::launch::tests::cc_apps_launch_identity_list_sdk_http_tty_lifetime_and_account_rotation ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 11482 filtered out; finished in 0.39s
+
+
+$ cargo build -p vw-cli --bin shiju
+exit=0
+warning: linker stderr: ld: __eh_frame section too large (max 16MB) to encode dwarf unwind offsets in compact unwind table, performance of exception handling might be affected
+  |
+  = note: `#[warn(linker_messages)]` on by default
+
+warning: `vw-cli` (bin "shiju") generated 1 warning
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 44.79s
+
+$ cargo clippy --all-targets --all-features -- -D warnings
+exit=0
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 22.50s
+
+$ cargo test -p vw-agent --lib cc_apps_omp_provider_stateful_gateway -- --nocapture (before production wiring)
+exit=101
+warning: linker stderr: ld: __eh_frame section too large (max 16MB) to encode dwarf unwind offsets in compact unwind table, performance of exception handling might be affected
+  |
+  = note: `#[warn(linker_messages)]` on by default
+
+warning: `vw-agent` (lib test) generated 1 warning
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 1m 06s
+     Running unittests src/lib.rs (target/rust-slot-1/debug/deps/vw_agent-761b4c54e01851ea)
+
+running 1 test
+
+thread 'gateway::bootstrap::bootstrap_tests::cc_apps_omp_provider_stateful_gateway_persists_and_isolates_tenant_records' (38664291) panicked at crates/vw-agent/src/gateway/bootstrap_tests.rs:367:5:
+assertion `left == right` failed: stateful CLI gateway must register provider writes
+  left: 404
+ right: 200
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+test gateway::bootstrap::bootstrap_tests::cc_apps_omp_provider_stateful_gateway_persists_and_isolates_tenant_records ... FAILED
+
+failures:
+
+failures:
+    gateway::bootstrap::bootstrap_tests::cc_apps_omp_provider_stateful_gateway_persists_and_isolates_tenant_records
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 11483 filtered out; finished in 0.19s
+
+error: test failed, to rerun pass `-p vw-agent --lib`
+
+$ cargo fmt --all
+exit=0
+
+
+$ cargo test -p vw-agent --lib cc_apps_omp_provider_stateful_gateway -- --nocapture
+exit=0
+warning: linker stderr: ld: __eh_frame section too large (max 16MB) to encode dwarf unwind offsets in compact unwind table, performance of exception handling might be affected
+  |
+  = note: `#[warn(linker_messages)]` on by default
+
+warning: `vw-agent` (lib test) generated 1 warning
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 1m 43s
+     Running unittests src/lib.rs (target/rust-slot-1/debug/deps/vw_agent-761b4c54e01851ea)
+
+running 1 test
+test gateway::bootstrap::bootstrap_tests::cc_apps_omp_provider_stateful_gateway_persists_and_isolates_tenant_records ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 11483 filtered out; finished in 0.04s
+
+
+$ cargo build -p vw-cli --bin shiju
+exit=0
+warning: linker stderr: ld: __eh_frame section too large (max 16MB) to encode dwarf unwind offsets in compact unwind table, performance of exception handling might be affected
+  |
+  = note: `#[warn(linker_messages)]` on by default
+
+warning: `vw-cli` (bin "shiju") generated 1 warning
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 42.82s
+
+$ cargo clippy --all-targets --all-features -- -D warnings
+exit=0
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 23.69s
+
+$ cargo test -p vw-agent-apps --lib cc_apps_omp_provider -- --nocapture (metadata directory regression)
+exit=101
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 7.17s
+     Running unittests src/lib.rs (target/rust-slot-1/debug/deps/vw_agent_apps-c350eefc4d73b711)
+
+running 5 tests
+
+thread 'apps::launch::provider_omp_tests::cc_apps_omp_provider_metadata_directory_does_not_override_private_configuration' (38694707) panicked at crates/vw-agent-apps/src/apps/launch/provider_omp_tests.rs:134:10:
+metadata-only .omp directory must not block the explicit private agent directory: "project configuration conflicts with isolated provider launch"
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+test apps::launch::provider_omp_tests::cc_apps_omp_provider_rejects_project_overrides_and_wrong_protocol_before_materialization ... ok
+test apps::launch::provider_omp_tests::cc_apps_omp_provider_metadata_directory_does_not_override_private_configuration ... FAILED
+test apps::launch::provider_omp_tests::cc_apps_omp_provider_private_projection_is_available ... ok
+test apps::launch::provider_omp_tests::cc_apps_omp_provider_consumes_private_configuration_and_cleans_process_material ... ok
+test apps::launch::provider_omp_tests::cc_apps_omp_provider_cleans_nonzero_spawn_failure_and_dropped_material ... ok
+
+failures:
+
+failures:
+    apps::launch::provider_omp_tests::cc_apps_omp_provider_metadata_directory_does_not_override_private_configuration
+
+test result: FAILED. 4 passed; 1 failed; 0 ignored; 0 measured; 181 filtered out; finished in 0.02s
+
+error: test failed, to rerun pass `-p vw-agent-apps --lib`
+
+$ cargo fmt --all
+exit=0
+
+
+$ cargo test -p vw-agent-apps --lib cc_apps_omp_provider -- --nocapture
+exit=0
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 1.81s
+     Running unittests src/lib.rs (target/rust-slot-1/debug/deps/vw_agent_apps-c350eefc4d73b711)
+
+running 5 tests
+test apps::launch::provider_omp_tests::cc_apps_omp_provider_private_projection_is_available ... ok
+test apps::launch::provider_omp_tests::cc_apps_omp_provider_rejects_project_overrides_and_wrong_protocol_before_materialization ... ok
+test apps::launch::provider_omp_tests::cc_apps_omp_provider_consumes_private_configuration_and_cleans_process_material ... ok
+test apps::launch::provider_omp_tests::cc_apps_omp_provider_metadata_directory_does_not_override_private_configuration ... ok
+test apps::launch::provider_omp_tests::cc_apps_omp_provider_cleans_nonzero_spawn_failure_and_dropped_material ... ok
+
+test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 181 filtered out; finished in 0.01s
+
+
+$ cargo build -p vw-cli --bin shiju
+exit=0
+warning: linker stderr: ld: __eh_frame section too large (max 16MB) to encode dwarf unwind offsets in compact unwind table, performance of exception handling might be affected
+  |
+  = note: `#[warn(linker_messages)]` on by default
+
+warning: `vw-cli` (bin "shiju") generated 1 warning
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 41.84s
+
+$ cargo clippy --all-targets --all-features -- -D warnings
+exit=0
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 24.97s
+
+Effective distinct tests in this regression: 15 (Omp provider 5 + existing provider 8 + identity HTTP/SDK 1 + stateful production router 1). Auxiliary child test and repeats excluded.

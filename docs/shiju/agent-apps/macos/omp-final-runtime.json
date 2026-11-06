@@ -1,0 +1,147 @@
+{
+  "executed_at": "2026-11-06T18:04:34.831275+08:00",
+  "scope": "macOS arm64; official account acceptance waived by user, not authenticated",
+  "official_account_user_decision": "无账号，算通过，只要大体能够访问，以后专门来配置再说。",
+  "source_anchors": {
+    "models-config.ts": {
+      "sha256": "6609d40da256601426253b5917f0770fcc2e651574f085fe38d16c829a9d3cbf",
+      "source": "https://github.com/can1357/oh-my-pi/blob/v18.17.0/packages/coding-agent/src/config/models-config.ts"
+    },
+    "resolve-config-value.ts": {
+      "sha256": "03d5d49de0c5a0e641415a6c56b3a1ae3669a525c45fcd2c6240c2cd0b1f8ac9",
+      "source": "https://github.com/can1357/oh-my-pi/blob/v18.17.0/packages/coding-agent/src/config/resolve-config-value.ts"
+    },
+    "args.ts": {
+      "sha256": "592f11336fbe668ed69e8ba9a011321cf21176de23761814745335ca6719b21f",
+      "source": "https://github.com/can1357/oh-my-pi/blob/v18.17.0/packages/coding-agent/src/cli/args.ts"
+    },
+    "models.md": {
+      "sha256": "60edfd7daf22a2d06c6197ae4614c800ca3d8cd1a5e3591350283e62ff662dfb",
+      "source": "https://github.com/can1357/oh-my-pi/blob/v18.17.0/docs/models.md"
+    },
+    "config.ts": {
+      "sha256": "cd640b2a74a17bd47b8fce9397533a6acc894a6af6459e255a105f44aa060989",
+      "source": "https://github.com/can1357/oh-my-pi/blob/v18.17.0/packages/coding-agent/src/config.ts"
+    },
+    "dirs.ts": {
+      "sha256": "662dbd03c87e623c84fd890bb173e72c48aaae352344f1d53e0ae377e7386bf4",
+      "source": "https://github.com/can1357/oh-my-pi/blob/v18.17.0/packages/utils/src/dirs.ts"
+    },
+    "model-registry.ts": {
+      "sha256": "8a79ab8212bad6ecd8bef31f7f430d0c8771611c89c461b1ace257fa89722e2d",
+      "source": "https://github.com/can1357/oh-my-pi/blob/v18.17.0/packages/coding-agent/src/config/model-registry.ts"
+    }
+  },
+  "upgrade_commands": [
+    {
+      "label": "old-install",
+      "command": [
+        "sh",
+        "/tmp/task59-installer.sh",
+        "--binary",
+        "--ref",
+        "v18.8.9"
+      ],
+      "exit": 0
+    },
+    {
+      "label": "old-version",
+      "command": [
+        "<isolated-root>/prefix/bin/omp",
+        "--version"
+      ],
+      "exit": 0
+    },
+    {
+      "label": "update",
+      "command": [
+        "<isolated-root>/prefix/bin/omp",
+        "update"
+      ],
+      "exit": 0
+    },
+    {
+      "label": "new-version",
+      "command": [
+        "<isolated-root>/prefix/bin/omp",
+        "--version"
+      ],
+      "exit": 0
+    }
+  ],
+  "upgrade_logs": {
+    "old-install": "Fetching omp 18.8.9...\nUsing version: 18.8.9\nDownloading omp-darwin-arm64...\n\n✓ Installed omp to <isolated-root>/prefix/bin/omp\nRun 'omp' to get started!\n",
+    "old-version": "omp/18.8.9\n",
+    "update": "Current version: 18.8.9\nNew version available: 18.17.0\nDownloading omp-darwin-arm64…\nVerified sha256:51f2836f267a8ba6c12cfb50f80e75f0301ccfb1bd53535fc6f9df03199da364\nInstalling update...\n\n✔ Updated to 18.17.0 at <isolated-root>/prefix/bin/omp\nRestart omp to use the new version\n",
+    "new-version": "omp/18.17.0\n"
+  },
+  "formal_api_provider_startup": {
+    "pid": 8342,
+    "program": "<isolated-root>/prefix/bin/omp",
+    "home_is_private_agent_directory": true,
+    "agent_directory": "/tmp/shiju-provider-QnRoPu",
+    "cwd_lsof": "p8342\nfcwd\nn<isolated-root>/home/workspace\n",
+    "temporary_directory": "/tmp/sj-tty-KP9Bxg",
+    "environment_key_matches_fixture": true,
+    "config_contains_key_reference_only": true,
+    "personal_key_and_hook_variables_absent": true,
+    "backend": "loopback protocol fixture, not official account authentication",
+    "final_session": {
+      "phase": "failed"
+    },
+    "private_material_removed": true,
+    "provider_http_request_observed_from_tty": false,
+    "terminal_inspection": "CUA denied Terminal access; no UI workaround used"
+  },
+  "native_noninteractive_provider_request": {
+    "path": "/v1/responses",
+    "model": "task59-local-model",
+    "stream": true,
+    "authorization_matches_test_key": true,
+    "contains_test_prompt": true,
+    "backend": "explicit loopback protocol fixture; not an official login"
+  },
+  "native_noninteractive_output": "exit=Some(0)\nstdout:\nTASK59_PROVIDER_OK\n\nstderr:\nWorking...\n",
+  "native_cleanup": "private_removed=true\nresult_ok=true\n",
+  "native_compile_command": [
+    "rustc",
+    "--edition=2024",
+    "<isolated-root>/native-provider.rs",
+    "-L",
+    "dependency=/Users/xiangmin/worker/code/shiju/target/rust-slot-1/debug/deps",
+    "--extern",
+    "vw_agent_apps=/Users/xiangmin/worker/code/shiju/target/rust-slot-1/debug/deps/libvw_agent_apps-2cde594654b65d10.rlib",
+    "--extern",
+    "vw_api_types=/Users/xiangmin/worker/code/shiju/target/rust-slot-1/debug/deps/libvw_api_types-e36a76bee736197e.rlib",
+    "-o",
+    "/Users/xiangmin/worker/code/shiju/target/rust-slot-1/task59-final-native-provider",
+    "-L",
+    "native=/Users/xiangmin/worker/code/shiju/target/rust-slot-1/debug/build/aws-lc-sys-34b687bb2b570279/out",
+    "-L",
+    "native=/Users/xiangmin/worker/code/shiju/target/rust-slot-1/debug/build/secp256k1-sys-84c195ff380077f3/out",
+    "-L",
+    "native=/Users/xiangmin/worker/code/shiju/target/rust-slot-1/debug/build/onig_sys-7471cd8871911ac0/out",
+    "-L",
+    "native=/Users/xiangmin/worker/code/shiju/target/rust-slot-1/debug/build/zstd-sys-1e757d2fb314cda7/out",
+    "-L",
+    "native=/Users/xiangmin/worker/code/shiju/target/rust-slot-1/debug/build/objc2-exception-helper-0ce01ce8de71cf28/out",
+    "-L",
+    "native=/Users/xiangmin/worker/code/shiju/target/rust-slot-1/debug/build/tree-sitter-00a21ff02138353c/out",
+    "-L",
+    "native=/Users/xiangmin/worker/code/shiju/target/rust-slot-1/debug/build/ring-947394833c036a66/out",
+    "-L",
+    "native=/Users/xiangmin/worker/code/shiju/target/rust-slot-1/debug/build/hidapi-357ed42af7884c80/out",
+    "-L",
+    "native=/Users/xiangmin/worker/code/shiju/target/rust-slot-1/debug/build/tree-sitter-2ae8b52c764c29fa/out",
+    "-L",
+    "native=/Users/xiangmin/worker/code/shiju/target/rust-slot-1/debug/build/aws-lc-sys-04a3df420fda9f07/out",
+    "-L",
+    "native=/Users/xiangmin/worker/code/shiju/target/rust-slot-1/debug/build/tree-sitter-bash-ead4f70c89369f88/out",
+    "-L",
+    "native=/Users/xiangmin/worker/code/shiju/target/rust-slot-1/debug/build/tree-sitter-af7368020c95206c/out"
+  ],
+  "native_compile_exit": 0,
+  "native_run_exit": 0,
+  "gateway_exit": -15,
+  "final_installations_empty": true
+}

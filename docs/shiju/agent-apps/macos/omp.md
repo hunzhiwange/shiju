@@ -1,5 +1,7 @@
 # Oh My Pi macOS 实机验收
 
+当前结论：**已完成**。官方账号实机按用户最新口径豁免，未验证、未冒充已登录；详见最终回归。
+
 2026-11-06，Asia/Shanghai。读取只读plan.md、任务59、来源与接口、task-17/31/32与批次58实际证据。批次58为已完成，待回归，正式API/SDK/授权主机已存在；不把母任务标签当作符号缺失。RustCodeGraph status与node核对当前生命周期、发现和升级实现。其他平台未实机验收。
 
 ## 环境与官方来源
@@ -66,8 +68,28 @@ launch-identities为空；`providers/mod.rs`对Omp明确not implemented，无专
 
 新建0700隔离根及0600随机双principal策略，复用首轮官方安装器--binary，SHA256和退出0日志见omp-terminal-runtime.json。正式生产Gateway在19459读取官方18.17.0/unknown/runnable；此份手工官方安装不伪造受管收据。真实无身份launch返回sessionId，并观察官方omp PID56006由Gateway直接启动。ps仅提取允许记录的环境字段/敏感变量存在性，不保存完整环境或令牌；HOME和全部XDG均指向隔离主机目录，lsof证明cwd为HOME/workspace，所选程序为隔离prefix/bin/omp。TMPDIR在/tmp/sj-tty-*且运行时存在；进程主动SIGTERM后status为Failed（不假报成功），进程已消失且该目录被删除。跨租户/跨principal正式HTTP各404。再以允许的位置参数help经同一正式通路运行，实际会话Completed。最终删除仅本任务官方入口后API空态。请求/响应见omp-terminal-api.json，程序/cwd/环境与清理见runtime JSON。
 
-因此默认终端HOME问题已解决。最终任务59为**已完成，待回归**，保留编号文件：仍待专用供应商/适用官方账号、真实旧版到新版升级变化，以及其他会话Git面板编译修复后的最终全仓Clippy复核，不把缺专用身份/版本条件记为不支持或已通过。首轮Iced/API/SDK生命周期证据继续有效，本轮未改UI、未用Element测试代替原生渲染。
+因此默认终端HOME问题已解决。第二轮当时将任务59记为**已完成，待回归**：仍待专用供应商/适用官方账号、真实旧版到新版升级变化，以及其他会话Git面板编译修复后的最终全仓Clippy复核，不把缺专用身份/版本条件记为不支持或已通过。首轮Iced/API/SDK生命周期证据继续有效，本轮未改UI、未用Element测试代替原生渲染。
 
 本轮动态领取slot-1，owner为task59/terminal-resume/PID46034；CARGO_TARGET_DIR与CARGO_BUILD_BUILD_DIR均为`/Users/xiangmin/worker/code/shiju/target/rust-slot-1`，覆盖build.build-dir。真实Gateway主动结束-15，所有自有CLI/socket客户端/产物进程结束后清理随机根、凭据、配置、官方二进制；确认验证命令退出后释放本人slot-1并保留缓存。plan.md未修改，其他工作区改动不纳入提交。
 
 提交归属复核：本轮暂存完成后，另一会话的共享索引提交`0d224984a`已一并收入终端修复、测试、任务状态与证据（也含该会话自身ACP改动）。随后本任务的`3e4983de3`实际仅压缩验证日志中的依赖进度，不能将其称为实现提交；本任务未改写、拆分或撤销他人提交。实现代码归属以`0d224984a`及对应文件历史为准。
+
+## 最终回归与用户调整后的收口
+
+2026-11-06，继续使用do-task-plans执行，仅补本应用延后项。用户明确答复：“无账号，算通过，只要大体能够访问，以后专门来配置再说。”因此官方账号/真实在线厂商账号场景按用户豁免，记录为未验证；没有复制个人凭据、构造假OAuth登录或声称外部账号认证通过。其他已通过且未变更的SDK/Iced、终端HOME、生命周期场景未重复执行。其他平台仍未实机验收。
+
+**真实升级已补齐。** 在全新0700隔离根使用此前审查的官方安装器`--binary --ref v18.8.9`安装，退出0，实际`omp/18.8.9`。将唯一隔离入口加入PATH后运行该入口`omp update`，本次GitHub下载条件恢复，退出0，输出SHA256校验与Updated to 18.17.0；随后实际`--version`为18.17.0。来源仍为官方安装/自更新，未搬个人GitHub令牌、编造URL或把“已最新”当升级变化。旧/新版本、命令、退出码与摘要见omp-final-runtime.json。此为官方自更新实机版本变化；此前受管API更新/来源锚定证据另见首轮，不将手工入口伪造为受管收据。
+
+**供应商投影已补齐。** 按[官方v18.17模型契约](https://github.com/can1357/oh-my-pi/blob/v18.17.0/docs/models.md)、[CLI参数](https://github.com/can1357/oh-my-pi/blob/v18.17.0/packages/coding-agent/src/cli/args.ts)及[配置值解析](https://github.com/can1357/oh-my-pi/blob/v18.17.0/packages/coding-agent/src/config/resolve-config-value.ts)，复用现有OpenaiResponses协议、ProviderLaunch及租户记录。私有models.yml以JSON兼容YAML形式写入固定shiju_session供应商与单个指定模型；apiKey仅引用SHIJU_PROVIDER_API_KEY，密钥只进子进程环境。PI_CODING_AGENT_DIR、HOME、XDG目录均私有；固定--model、--no-extensions、--no-skills，不透传任意配置/权限选项。目录0700、配置0600，非零退出、spawn失败、未运行丢弃及正常结束均清理。未新增依赖、协议枚举、RPC或用户HOME参数，其他应用未扩写。
+
+实机再次发现两处底层问题并完成红绿验证：CLI真正使用的stateful_handler_router漏接app_providers，导致PUT404，已接入同一正式路由并验证保存/读取、脱敏和跨租户404；最初Omp项目冲突检查把自更新创建的.omp/agent/agent.db当成覆盖，导致启动422，新增失败测试后只拒绝实际.omp/config.yml、config.yaml、.env或非目录异常项，元数据目录允许，未放宽实际配置覆盖拒绝。初始投影缺失、工厂404、元数据误拒绝各有行为失败记录，未将编译失败冒充红灯。
+
+**实际访问与清理。** 新生产Gateway仅127.0.0.1:19459，0600随机令牌/管理员策略仅授权p/a/host和task59-local供应商。正式PUT200、身份读取200；未获准供应商启动403。正式provider launch返回会话ID，并观察官方omp程序、授权cwd、私有HOME=PI_CODING_AGENT_DIR、正确环境密钥及不含密钥的配置；主动终止后会话Failed且私有HOME/TTY目录均删除。其TUI未自动发送初始消息，40秒内无HTTP请求；CUA明确禁止访问Terminal，未用其他UI控制方式绕过，也未把该次启动记为网络访问通过。
+
+随后以同一生产prepare_provider_launch材料化官方二进制，使用官方非交互--print和禁用工具的验收传输（不是对外API任意参数转发）发送固定测试提示。真实omp向专用loopback协议夹具POST /v1/responses，模型task59-local-model、stream=true、Bearer测试值匹配；收到SSE并输出TASK59_PROVIDER_OK，实际退出0，私有材料清理。该后端明确标为协议夹具，不是官方账号/外部厂商登录；按用户“大体能够访问”口径证明配置消费和请求/响应通路。请求只记录端点、模型、匹配布尔值，不保存原始密钥、完整环境或请求载荷。辅助watcher首次在验证清单生成前启动报FileNotFound，改为等待清单后继续，不归作产品失败。证据见omp-final-api.json和omp-final-runtime.json。
+
+**最终验证。** 本轮15项不同有效测试通过：Omp投影5、既有供应商8、身份HTTP/SDK/轮换1、生产有状态工厂1；重复回归与辅助子进程不累计。最终cargo fmt --all、CLI构建与`cargo clippy --all-targets --all-features -- -D warnings`均0；最后全仓检查24.97秒，先前Git/ACP回归限制已解除。确切命令、退出码与红绿输出见omp-final-validation.txt。没有无过滤test、fmt检查、wasm或Makefile；既有__eh_frame链接器提示保留。
+
+本轮动态原子领取slot-1，owner task59/final-regression/PID87272，session=shiju-task59-final-_lq3ofks。CARGO_TARGET_DIR与CARGO_BUILD_BUILD_DIR均为`/Users/xiangmin/worker/code/shiju/target/rust-slot-1`，覆盖仓库build.build-dir；辅助rustc产物也位于该槽位。所有Gateway（主动-15）、官方CLI、非交互辅助进程和loopback服务结束后清理隔离二进制、SQLite测试记录、令牌、策略、私有配置及编译辅助产物，再释放本人锁，保留缓存。最终API安装为空；个人安装与凭据未搬动。plan.md只读，61交接由其责任会话处理。
+
+任务59按用户调整后的验收标准**已完成**；仅移除本编号任务文件，持久证据保留。今后真实账号与外部供应商配置应另行使用专用授权材料验证，不把本次豁免倒填为已验证。

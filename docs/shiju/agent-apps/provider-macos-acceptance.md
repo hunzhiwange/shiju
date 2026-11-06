@@ -1857,3 +1857,58 @@ Gateway 使用真实回环 HTTP、原生 SDK、SQLite、临时 HOME 和现有管
 平台：macOS **27.0 (26A428)**、**arm64**，crate **0.6.0**。`command -v omp` 无结果，`omp --version` 退出 **127**；OMP 应用版本、真实应用消费、真实账号/Keychain、网络上游、Iced 渲染和非 macOS **未验证**。Gateway 链接器仍有既有 `__eh_frame section too large` 提示，测试退出 0，未改链接配置。
 
 定向差异/暂存检查及只读 plan.md 检查通过；只提交任务 39 的实现、独立测试、必要接线和本条证据，排除其它计划、母任务状态和此前编号文件删除。自身锁已释放、缓存保留；未执行全量 cargo test、fmt check、wasm 或 Makefile。验收后删除本编号任务文件，不提交其删除；下一步批次 40。
+
+## 任务 40：Mcode 增量供应商
+
+2026-11-07；状态：已完成。已核对批次 39 提交 `000bd531d` 与上节正式验收。母任务 1、3 已完成；母任务 2 完整领域迁移仍未收口，本次沿用任务 1/provider-contracts.md 已记录的底座子计划 1–93 开工裁定，不误报母任务 2 完整完成。未修改任何 plan.md。
+
+来源 HEAD `ca58c0313360eae7c851fbd7553c1614c7af03e7`，来源工作区干净。核对 `mcode_config::{data_dir,get_providers,provider_key_exists,validate_provider,write_entry,add_provider,set_provider,remove_provider}`，`services/provider/mod.rs::{list,save_native_provider}`、live 分派、相邻内联测试和 `tests/mcode_commands.rs`。表单规则来自 `McodeProviderForm.tsx::configSchema` 与 `helpers/yamlNode.ts::yamlNodeFromText`。使用 RustCodeGraph 检查既有模块/调用者，新文件与图未覆盖内容直接读取。
+
+### 实现与边界
+
+- 运行时唯一所有者为 `vw-agent-apps/src/providers/mcode.rs`。沿用 `live/patch_yaml.rs::patch_provider(CustomProvider)`，只发射选定 `custom_provider.<id>` 节点，保留其它供应商、根字段和周围注释原字节，不整份重序列化、不调用冻结上游实现。
+- 服务端检查协议（缺省 anthropic-messages）、HTTP(S) 端点、非空真实形状的假密钥、models 非空对象及 model/name/limit/options、headers 类型；拒绝 redacted 凭据、非 custom 替换、非法标识及误放的配置根字段。编辑器入口只接受 `custom_provider.<同一 id>` 一个节点，不允许其它根字段、兄弟节点或改名。未知节点内字段可保留；危险/含糊原生 YAML、重复键、锚点/别名/tag/merge 和损坏文档写入明确失败。
+- 默认路径为授权执行 HOME 下 `.minimax/config.yaml`；执行主机 `MINIMAX_DATA_DIR` 优先，空值回退 `MAVIS_DATA_DIR`，再回退默认目录。路径必须位于授权 HOME；相对路径、父组件、越界和符号链接拒绝，客户端没有文件路径/环境变量/命令参数。
+- 同时持有保留目录描述符、现有 AppWriteGuard 和 Mcode 原生 `config.yaml.lock` 目录锁。心跳刷新原生锁，发布前检查锁身份；退出只移除自己仍持有的空锁。已有原生锁一律明确冲突，包含陈旧锁，不按时间删除其它进程的锁，需由原生应用恢复。私有文件、前像/目录修订检查、pending 发布与恢复均复用 ProviderTransactions，不产生唯一 current 指针。
+- Add 不覆盖不同声明，同声明可幂等启用；IfMember 对非成员只保存目录。remove-live 先保留最新原生节点到目录后移除成员，可再启用；引用守卫禁止直接删除 live 成员。原生非 custom 账号节点不能被目录创建遮蔽或被编辑/移除；`defaultModel` 和 `defaultLightModel` 选中模型不能被删除/停用。默认与账号根字段保持原字节，未实现其选择/登录管理。
+- DTO、Gateway、SDK、存储按相邻供应商模式增加局部模块与必要父接线，沿用管理员主机权限、租户隔离、目录 CAS、秘密 Debug 脱敏、敏感凭据 header 与不携带响应载荷的错误。目录观察增加真实原生成员读取。没有新增或验收 UI，Iced 表单归任务 63；不宣称真实应用消费、登录、代理或模型选择闭环通过。
+
+前缀 `/v1/app-providers/mcode`：
+
+| API | SDK |
+| --- | --- |
+| `PUT /{id}/config` | `mcode_provider_save`；catalog_only/add/if_member |
+| `PUT /{id}/editor` | `mcode_provider_editor_save`；服务端 YAML 范围/schema 检查 |
+| `POST /{id}/add` | `mcode_provider_add` |
+| `POST /{id}/remove-live` | `mcode_provider_remove_live` |
+| `POST /config/state` | `mcode_state`；仅原生 custom 成员 key |
+| `POST /config/import` | `mcode_import`；只读文件，仅新增缺失目录行 |
+
+### 红绿验证
+
+首轮测试接线/命名编译错误不计红证据，修正后运行四条相同 `cc04_mcode_` 过滤命令：执行端 **0 通过/4 业务断言失败，退出 101**，含两条指定测试；DTO **2 通过，退出 0**；Gateway **2 通过/3 业务断言失败，退出 101**（未写实际节点、碰撞未拒绝、越界 YAML 未拒绝）；SDK **2 通过，退出 0**。没有用编译错误或零测试代替红测。
+
+首绿修正 URL 类型引用（复用现有 reqwest::Url，未新增依赖）；随后 Gateway **6 通过/1 失败**，暴露通用删除守卫仍将 Mcode 当作未支持的问题。在既有唯一 `delete::ensure_unreferenced` 中接入已实现的 Mcode 原生观察，保持 live 引用拒绝；以下最终完整重跑通过。
+
+各阶段均原子 mkdir 动态领取槽位 1；`CARGO_TARGET_DIR=/Users/xiangmin/worker/code/shiju/target/rust-slot-1`，`CARGO_BUILD_BUILD_DIR` 同值以覆盖仓库 build-dir。自身 owner 记录计划/任务/会话/PID，所有命令与子进程结束后 trap 释放自己的锁，缓存保留。
+
+最终默认 features：
+
+| 确切命令 | 退出码 | 有效数量 |
+| --- | --- | --- |
+| `cargo fmt --all` | 0 | 格式化 |
+| `cargo test -p vw-agent-apps --lib cc04_mcode_ -- --nocapture` | 0 | 9 passed |
+| `cargo test -p vw-api-types --lib cc04_mcode_ -- --nocapture` | 0 | 2 passed |
+| `cargo test -p vw-agent --lib cc04_mcode_ -- --nocapture` | 0 | 7 passed |
+| `cargo test -p vw-gateway-client --lib cc04_mcode_ -- --nocapture` | 0 | 2 passed |
+| `cargo test -p vw-agent-apps --lib cc04_catalog_ -- --nocapture` | 0 | 7 passed；内含自调用隔离子进程，未重复计数 |
+| `cargo test -p vw-agent-apps --lib cc04_delete_ -- --nocapture` | 0 | 3 passed |
+| `cargo clippy --all-targets --all-features -- -D warnings` | 0 | 非行为测试 |
+
+本任务 **20 项**、相邻回归 **10 项**去重通过，无忽略。独立测试覆盖单节点增改删与其它字节保留、原生账号/默认模型保护、服务端编辑范围与 schema、路径优先级/越界/符号链接、原生锁占用与释放、外部文件/目录修订冲突，以及 Intent/Marked/FilePublished/Published/Settled 五处故障后重建事务执行器恢复且没有唯一 current 指针。Gateway 测试链接器有既有 `__eh_frame section too large` 提示，测试退出 0，未修改链接配置。
+
+Gateway 使用真实回环 HTTP、原生 SDK、SQLite、临时 HOME 和现有管理员策略；save/editor/add/if_member → API applied → config.yaml 实际假凭据更新，remove-live 保留目录且解除引用后可删除。导入不回写文件、不覆盖已有档案；异租户/异主机/假 token/无写权限/编辑器越界/账号碰撞/原生锁占用均不写原生配置或创建档案。默认轻量模型受保护，原生外部轮换的凭据和未来字段在 remove-live 后保存且可再启用；损坏原生文件显式返回错误。只以回环替代远端传输，未替代鉴权、文件系统、存储或事务，未读取/写入真实用户配置。
+
+平台：macOS **27.0 (26A428)**、**arm64**，crate **0.6.0**。`command -v mcode` 无结果，`mcode --version` 退出 **127**；实际 Mcode 版本/消费、真实账号/Keychain、网络上游、Iced 渲染和非 macOS **未验证**。
+
+定向差异/暂存审查与只读 plan.md 检查通过；仅提交本任务实现、独立测试、必要接线和本条证据，排除母任务状态、其它计划与此前编号文件删除。自身槽位锁释放、缓存保留；未运行无过滤全量 cargo test、fmt check、wasm 或 Makefile。验收后删除本编号文件，不提交该删除；下一步批次 41。

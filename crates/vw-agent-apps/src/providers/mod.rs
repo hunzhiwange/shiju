@@ -187,3 +187,8 @@ mod pi_tests;
 pub mod omp;
 #[cfg(all(test, target_os = "macos"))]
 mod omp_tests;
+
+#[cfg(target_os = "macos")]
+pub mod mcode;
+#[cfg(all(test, target_os = "macos"))]
+mod mcode_tests;

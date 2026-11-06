@@ -6,7 +6,7 @@ use vw_api_types::{
 };
 
 /// `home` is the administrator-authorized execution home, never a client path.
-/// Native reads cover Kimi TOML, OpenCode/OpenClaw JSON/JSONC, Hermes YAML, Pi models JSONC and OMP models YAML.
+/// Native reads cover Kimi TOML, OpenCode/OpenClaw JSON/JSONC, Hermes YAML, Pi models JSONC, OMP models YAML and Mcode custom-provider YAML.
 /// Hermes also honors an execution-host HERMES_HOME beneath this authorized HOME.
 /// No CC database, ambient client home, separate credential files or processes are read.
 /// Configurations can contain secrets; only the typed metadata projection leaves this owner.
@@ -141,6 +141,16 @@ pub(super) fn observe(
     if app == AppId::Omp {
         let bytes = super::omp::read(home).map_err(|_| InvalidConfiguration)?;
         let rows = super::omp::declarations(bytes.as_deref()).map_err(|_| InvalidConfiguration)?;
+        return Ok((
+            rows.into_keys().map(|id| (id, ())).collect(),
+            ProviderSelection::NotApplicable,
+        ));
+    }
+    #[cfg(target_os = "macos")]
+    if app == AppId::Mcode {
+        let bytes = super::mcode::read(home).map_err(|_| InvalidConfiguration)?;
+        let rows =
+            super::mcode::declarations(bytes.as_deref()).map_err(|_| InvalidConfiguration)?;
         return Ok((
             rows.into_keys().map(|id| (id, ())).collect(),
             ProviderSelection::NotApplicable,

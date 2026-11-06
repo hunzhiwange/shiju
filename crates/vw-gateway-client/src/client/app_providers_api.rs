@@ -207,3 +207,9 @@ mod omp;
 #[cfg(test)]
 #[path = "app_providers/omp_tests.rs"]
 mod omp_tests;
+
+#[path = "app_providers/mcode.rs"]
+mod mcode;
+#[cfg(test)]
+#[path = "app_providers/mcode_tests.rs"]
+mod mcode_tests;

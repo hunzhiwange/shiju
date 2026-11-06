@@ -156,3 +156,7 @@ mod pi_tests;
 pub mod omp;
 #[cfg(test)]
 mod omp_tests;
+
+pub mod mcode;
+#[cfg(test)]
+mod mcode_tests;

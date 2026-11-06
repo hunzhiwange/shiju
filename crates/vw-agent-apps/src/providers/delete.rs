@@ -4,7 +4,7 @@ use vw_api_types::{agent_apps::AppId, app_providers::catalog::ProviderSelection}
 
 pub fn ensure_unreferenced(home: &Path, app: AppId, id: &str) -> Result<(), String> {
     super::validate_identity(id)?;
-    // Additive OpenCode/OpenClaw/Hermes/Pi/OMP writes never create a unique direct pointer. Native
+    // Additive OpenCode/OpenClaw/Hermes/Pi/OMP/Mcode writes never create a unique direct pointer. Native
     // membership still blocks catalog deletion; removing live is a separate action.
     // Other applications without a complete observation remain fail-closed.
     match app {
@@ -13,7 +13,8 @@ pub fn ensure_unreferenced(home: &Path, app: AppId, id: &str) -> Result<(), Stri
         | AppId::OpenClaw
         | AppId::Hermes
         | AppId::Pi
-        | AppId::Omp => {}
+        | AppId::Omp
+        | AppId::Mcode => {}
         _ => return Err("application provider references unavailable".into()),
     }
     let (members, selection) = super::catalog::observe(home, app)

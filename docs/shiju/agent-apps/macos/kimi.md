@@ -37,6 +37,6 @@ kimi-api.json保存脱敏请求与响应；kimi-sdk.txt来自生产GatewayClient
 | cargo build -p vw-desktop --bin shi-ju | 0 | 0，构建 |
 | cargo run -p vw-desktop --bin shi-ju | -15，人工结束 | 0，进程已启动 |
 
-日志见kimi-cli-build.txt、kimi-desktop-build.txt、kimi-desktop-run.txt。桌面既有unused_mut warning见日志；本次未改Rust，无需Clippy。临时SDK rustc及各阶段真实调用退出0；辅助finish脚本首次退出1已在前文说明。有效自动测试0，本项以人工/API场景验收，不用编译或零测试冒充通过。未运行全量test、fmt检查、wasm或Makefile。
+日志见kimi-cli-build.txt、kimi-desktop-build.txt、kimi-desktop-run.txt。CLI/桌面链接器既有__eh_frame大小warning见日志；本次未改Rust，无需Clippy。临时SDK rustc及各阶段真实调用退出0；辅助finish脚本首次退出1已在前文说明。有效自动测试0，本项以人工/API场景验收，不用编译或零测试冒充通过。未运行全量test、fmt检查、wasm或Makefile。
 
 自有Gateway、桌面及临时.app子进程全部退出后释放slot-5本人锁，保留缓存；其他锁不动。隔离安装、令牌、策略和临时.app清理；个人安装基线不变。plan.md未修改。

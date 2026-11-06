@@ -1297,3 +1297,42 @@ Gateway 用真实临时 `.codex/config.toml`、`auth.json`、管理员读权限�
 实际平台 macOS **27.0 (26A428)**、**arm64**；crate 版本 **0.6.0**。已验证真实本机隔离文件读入、内存原生 TOML 和只读 API/SDK；未查询/启动已安装 Codex 版本，真实账号、CLI 消费、Iced 渲染和 live 提交均未验证。登录/暂存及统一提交明确归 29/30。Agent lib test 仍出现既有 `__eh_frame section too large` 链接提示，测试退出 0；未改变链接配置，最终强制 Clippy 退出 0。
 
 定向 diff/check 与暂存审查通过；仅提交本任务实现、独立测试、最小父注册和本条证据。保留其他母任务状态和此前编号任务删除；plan.md 无差异。各阶段自身槽位锁已释放、缓存保留。未运行全量 cargo test、fmt check、wasm 检查或 Makefile。完成后删除任务 28 编号文件，不提交其删除；正式证据保留。下一步任务 29 消费原生投影并规划登录事实。
+
+## 任务 29：Codex 登录暂存与轮换
+
+2026-11-07；范围：按继续执行裁定交付内部登录规划/事务准备及统一删除/恢复能力；完整供应商 SDK/API live 切换验收归任务 30，本批没有接通或宣称该闭环。
+
+### 依赖、来源与实现边界
+
+批次 28 提交 `a896ac028` 及本文件任务 28 已交付纯路由投影；母任务 1、3 已完成，母任务 2 继续沿此前底座子计划 1–93 的开工裁定，不改报全部迁移完成。本任务首次登记的 29/30 所有者缺口，已由继续指令明确解除：29 准备登录/暂存和共享事务删除，30 消费并统一提交。不修改只读 plan.md，不提前实现供应商切换 API。
+
+来源 `/Users/xiangmin/worker/code/cc-switch` HEAD `ca58c0313360eae7c851fbd7553c1614c7af03e7`，来源工作区干净。已读 `services/provider/codex_login.rs::{LoginStash,plan,official}` 与相邻测试、`codex_direct.rs::{load_stash,run_with_edits}` 及 provider/editor 调用者、golden `codex_red_lines.rs` 的当前登录/登出保持场景；原生登录分类沿冻结 `codex_config.rs` 的用户身份、凭据、模式和残留分类函数。先前 RustCodeGraph status/explore 与定向源码检查已核对原生与 upstream 的区别，未把冻结快照当运行实现。
+
+- `providers/codex_login.rs::prepare` 只读取已授权且已持锁的 Codex 目录；调用者先恢复 outstanding intent，再传入既有账号所有者/目录的执行端事实。返回不可序列化、Debug 脱敏的 `PreparedLogin`；`changes()` 提供固定 auth/stash 两个 FileChange，`login_on_disk` 供任务 28 的投影消费。没有独立提交方法，没有客户端路径、命令或明文登录响应。
+- 唯一规划在 `codex_login_policy.rs`；分类在 `codex_login_material.rs`。按用户与 workspace 区分暂存；CLI 刷新后的 live 优先于行内旧快照；旧行仅在暂存第一次建立或冻结升级规则允许时补种。离开已登出的官方卡使对应旧暂存失效；保留登录的第三方切换不重放旧登录。只删除有已知第三方 key 证据的残留，不误删用户自己的 API key；托管登录不进入暂存。代理仅在明确 restore_last 且 token 未过期时恢复最近登录；官方恢复沿来源规则。JWT 仅用于本地身份/到期分类，不作为授权验证。
+- 暂存固定为同一 `.codex` 物理目录的 `shiju-login-stash.json`，0600、设备本地，不写回供应商行、不云同步、不新建永久账号库，也不自动发现/迁移用户的 `.cc-switch` 文件。这样 auth、stash 与 config/catalog 可以消费同一个目录 guard、同一 ProviderTransactions intent。没有读取真实用户配置。
+- `live/stage.rs::FilePatch` 明确区分 Some(bytes) 与 None 删除；既有 Vec 返回闭包通过 blanket 实现保持原调用方式。`WholeFile` 绑定准备快照，在 staging 和发布前重读时拒绝外部轮换。`write_guard.rs::PreparedWrite` 通过保留目录描述符的 unlinkat 真正删除 auth，空文件与 `{}` 都不冒充登出。删除先准备私有空暂存作为 intent 资源，提交/恢复沿原所有者 fsync；不在事务外删除 auth。
+- `commit/concurrency/recovery` 共同保存、发布、恢复可空的 planned 摘要；含删除的 intent 为版本 2，旧版本执行器明确拒绝。原版本 1 写入 intent 继续可读；缺失 planned 字段拒绝，不隐式当作删除。未发布 intent 丢弃，已标记/部分发布前滚；目标已不存在时删除恢复幂等，外部新登录/不安全目标保留并返回既有 RolledForwardExcept。调用者必须检查恢复结果并重新规划；逐文件发布仍不是文件系统多文件原子 CAS，不承诺外部 CLI 不遵守锁时不存在最终检查窗口。
+- 不新增 API、DTO、SDK 或 UI，也不添加虚构的只读端点凑测试数量。按继续裁定，原计划另外三包的 cc04_codex_login_ DTO/Gateway/SDK 命令本批不适用，未运行零测试充数。任务 30 需在真实供应商入口完成鉴权、账号引用/租约、准备后 config 再校验、组合 changes、目录/指针提交与 SDK→API→执行文件验收。当前 helper 对非 file/未知凭据存储、不可解析 auth/stash、未来暂存版本、符号链接等明确拒绝，不伪装支持系统 Keychain。
+
+### 红绿与验证
+
+各阶段从仓库根动态原子 mkdir 领取共享槽位 **1**；实际 `CARGO_TARGET_DIR=/Users/xiangmin/worker/code/shiju/target/rust-slot-1`，同时设置 `CARGO_BUILD_BUILD_DIR` 为此绝对路径以覆盖仓库 build-dir。锁记录任务/计划/会话/PID，shell trap 在 Cargo 及子进程结束后清理自己的 owner/锁，保留缓存。
+
+首轮 `cargo fmt --all` 退出 0；将准备输出接到原文件基线后，`cargo test -p vw-agent-apps --lib cc04_codex_login_ -- --nocapture` 退出 **101**，有效 **8** 项（3 通过、5 在业务断言失败）：指定 roundtrip/logout 测试分别证明没有实际删除 auth、旧暂存未作废，另有轮换冲突与恢复断言失败。没有把缺模块/编译失败/零测试当红证据。随后新增 schema 测试曾因夹具调用私有 save 编译失败，已改为写真实隔离 pending；首轮完整 Clippy 发现本次迁入的 collapsible_if，已修复，不归咎既有问题。
+
+最终源码先执行 `cargo fmt --all`（0），同阶段命令如下：
+
+| 确切命令 | 退出码 | 有效通过数量 |
+| --- | --- | --- |
+| `cargo test -p vw-agent-apps --lib cc04_codex_login_ -- --nocapture` | 0 | 18 |
+| `cargo test -p vw-agent-apps --lib providers::live:: -- --nocapture` | 0 | 49 |
+| `cargo test -p vw-agent-apps --lib cc04_claude_ -- --nocapture` | 0 | 15 |
+| `cargo test -p vw-agent-apps --lib cc04_codex_ -- --nocapture` | 0 | 26（含上述 18） |
+| `cargo clippy --all-targets --all-features -- -D warnings` | 0 | 非行为测试 |
+
+共 **90** 项去重通过（本任务 18、相邻回归 72），无忽略。指定 `cc04_codex_login_roundtrip_keeps_latest_login`、`cc04_codex_login_logout_is_not_resurrected` 通过。独立测试还覆盖 Intent/Marked/FilePublished/Published/Settled 五处故障后重建执行器恢复、真实 auth 删除及私有 stash、外部轮换拒绝/恢复保留、workspace 区分与旧暂存升级不复活登出用户、托管与残留不入暂存、过期代理恢复规则、只读准备/脱敏、坏资源拒绝、空文件区别、删除 intent schema 与版本保护、missing 删除无副作用，以及 auth/stash/config 三文件与指针的同一 intent 前滚。组合测试使用内部固定补丁，证明可组合事务能力，不代表已经交付供应商 live 入口。
+
+全部使用真实临时目录/JSON/文件、统一 pending/恢复和假 token；没有替代文件系统或事务所有者，没有访问真实账号、网络上游或 Keychain。实际 macOS **27.0 (26A428)**、**arm64**，业务 crate 版本 **0.6.0**。未查询已安装 Codex 版本，真实账号轮换、真实 CLI 消费、Iced 渲染及供应商 SDK/API 切换均未验证，后者明确由任务 30 验收。未运行全量 cargo test、fmt check、wasm 或 Makefile。
+
+定向 diff/check 与暂存审查通过；提交只包含本任务实现、底层删除/恢复支持、独立测试、最小模块注册与本条正式证据。既有母任务状态、其他计划、此前编号文件删除不纳入提交；plan.md 无差异。各阶段自己的槽位锁已释放，缓存保留。状态：**已完成（本次授权的内部准备边界）**；任务 30 消费本实现，完成后删除任务 29 编号文件而不提交其删除。

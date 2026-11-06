@@ -218,7 +218,7 @@ fn cc04_concurrency_replanned_pending_survives_interruption() {
                     );
                     let bytes =
                         fs::read(path.join(OsStr::from_bytes(&pending.files[0].staged))).unwrap();
-                    assert_eq!(pending.files[0].planned, digest(&bytes));
+                    assert_eq!(pending.files[0].planned, Some(digest(&bytes)));
                     assert_eq!(
                         serde_json::from_slice::<serde_json::Value>(&bytes).unwrap(),
                         serde_json::json!({"key":"new","user":42})

@@ -49,7 +49,7 @@ impl ProviderTransactions {
                     let current = read_from(write.directory, name)?;
                     let pre = current.as_deref().map(digest);
                     if pre == pending.files[index].pre {
-                        if pre.as_ref() != Some(&pending.files[index].planned) {
+                        if pre != pending.files[index].planned {
                             write.publish()?;
                             published_any = true;
                             write.directory.sync_all().map_err(|_| WriteError::Io)?;
@@ -65,15 +65,24 @@ impl ProviderTransactions {
                         .find(|change| change.name == name)
                         .ok_or(WriteError::InvalidResource)?;
                     // Guarded patches reject here on their first changed snapshot.
-                    let after = (change.patch)(current.as_deref())?;
-                    if after.len() > 1024 * 1024 {
+                    let after = change.patch.apply(current.as_deref())?;
+                    if after.as_ref().is_some_and(|bytes| bytes.len() > 1024 * 1024) {
                         return Err(WriteError::InvalidResource);
                     }
-                    let mut replacement = prepare(write.directory, name, &after, change.privacy)?;
+                    let mut replacement = prepare(
+                        write.directory,
+                        name,
+                        after.as_deref().unwrap_or_default(),
+                        change.privacy,
+                    )?;
+                    replacement.delete = after.is_none();
                     replacement.directory.sync_all().map_err(|_| WriteError::Io)?;
                     let mut updated = pending.clone();
                     updated.files[index].pre = pre;
-                    updated.files[index].planned = digest(&after);
+                    updated.files[index].planned = after.as_deref().map(digest);
+                    if after.is_none() {
+                        updated.version = 2;
+                    }
                     updated.files[index].staged = replacement.temp.as_bytes().to_vec();
                     // save can rename pending then fail its directory fsync. Keep
                     // both candidates on error so either durable record is valid.

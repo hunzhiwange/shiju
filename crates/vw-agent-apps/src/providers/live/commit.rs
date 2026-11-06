@@ -69,7 +69,9 @@ pub struct PendingFile {
     pub name: Vec<u8>,
     pub staged: Vec<u8>,
     pub pre: Option<String>,
-    pub planned: String,
+    // Required field: a missing digest must never silently become a deletion.
+    #[serde(deserialize_with = "Option::<String>::deserialize")]
+    pub planned: Option<String>,
 }
 #[derive(Clone, Serialize, Deserialize)]
 pub struct Pending {
@@ -156,7 +158,12 @@ impl ProviderTransactions {
         let pending: Option<Pending> = bytes
             .map(|b| serde_json::from_slice(&b).map_err(|_| WriteError::InvalidResource))
             .transpose()?;
-        if pending.as_ref().is_some_and(|p| p.version != 1 || p.app != app || p.host != self.host) {
+        if pending.as_ref().is_some_and(|p| {
+            !matches!(p.version, 1 | 2)
+                || (p.version == 1 && p.files.iter().any(|f| f.planned.is_none()))
+                || p.app != app
+                || p.host != self.host
+        }) {
             return Err(WriteError::InvalidResource);
         }
         Ok(pending)
@@ -195,7 +202,8 @@ impl ProviderTransactions {
         batch.writes[0].directory.sync_all().map_err(|_| WriteError::Io)?;
         let metadata = batch.writes[0].directory.metadata().map_err(|_| WriteError::Io)?;
         let mut pending = Pending {
-            version: 1,
+            // Older executors must reject intents containing actual deletions.
+            version: if batch.revisions.iter().any(|r| r.after.is_none()) { 2 } else { 1 },
             host: self.host.clone(),
             app,
             tenant: tenant.clone(),

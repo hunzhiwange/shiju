@@ -150,7 +150,7 @@ impl ProviderTransactions {
                         continue;
                     }
                 };
-                if current.as_ref() == Some(&file.planned) {
+                if current == file.planned {
                     continue;
                 }
                 if current != file.pre {
@@ -158,7 +158,8 @@ impl ProviderTransactions {
                     continue;
                 }
                 let bytes = read_staged(&guard.directory, OsStr::from_bytes(&file.staged));
-                if !matches!(bytes, Ok(Some(ref bytes)) if digest(bytes) == file.planned) {
+                if !matches!(bytes, Ok(Some(ref bytes)) if file.planned.as_ref().map_or(bytes.is_empty(), |planned| digest(bytes) == *planned))
+                {
                     skipped.push(file.name.clone());
                     continue;
                 }
@@ -169,6 +170,7 @@ impl ProviderTransactions {
                     name: child(&file.name)?,
                     temp: child(&file.staged)?,
                     retain: true,
+                    delete: file.planned.is_none(),
                 };
                 write.publish()?;
                 guard.directory.sync_all().map_err(|_| WriteError::Io)?;

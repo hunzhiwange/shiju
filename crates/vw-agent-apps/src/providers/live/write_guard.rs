@@ -97,7 +97,7 @@ impl Drop for AppWriteGuard {
 }
 
 impl AppWriteGuard {
-    pub(super) fn app(&self) -> AppId {
+    pub(crate) fn app(&self) -> AppId {
         match self.keys[0] {
             LockKey::App(app) => app,
             _ => unreachable!(),
@@ -241,6 +241,7 @@ pub(super) fn prepare<'a>(
             temp: temp.clone(),
             name: name.clone(),
             retain: false,
+            delete: false,
         });
         if result.is_err() {
             // SAFETY: unlinkat removes only this call's exclusive temporary file.
@@ -273,6 +274,7 @@ pub(super) struct PreparedWrite<'a> {
     pub(super) temp: CString,
     pub(super) name: CString,
     pub(super) retain: bool,
+    pub(super) delete: bool,
 }
 impl PreparedWrite<'_> {
     pub(super) fn commit(self) -> Result<(), WriteError> {
@@ -280,6 +282,15 @@ impl PreparedWrite<'_> {
     }
     pub(super) fn publish(&self) -> Result<(), WriteError> {
         let fd = self.directory.as_raw_fd();
+        if self.delete {
+            // SAFETY: retained directory and validated direct child, never follows links.
+            if unsafe { libc::unlinkat(fd, self.name.as_ptr(), 0) } != 0
+                && std::io::Error::last_os_error().kind() != std::io::ErrorKind::NotFound
+            {
+                return Err(WriteError::Io);
+            }
+            return Ok(());
+        }
         // SAFETY: owned directory descriptor and validated direct child names.
         if unsafe { libc::renameat(fd, self.temp.as_ptr(), fd, self.name.as_ptr()) } == 0 {
             Ok(())

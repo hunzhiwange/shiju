@@ -6,13 +6,40 @@ use std::{collections::HashSet, ffi::OsStr};
 
 pub(super) struct FileRevision {
     pub before: Option<String>,
-    pub after: String,
+    pub after: Option<String>,
 }
 pub(super) fn digest(bytes: &[u8]) -> String {
     URL_SAFE_NO_PAD.encode(Sha256::digest(bytes))
 }
 
-pub type Patch<'a> = &'a dyn Fn(Option<&[u8]>) -> Result<Vec<u8>, WriteError>;
+/// None means remove the file; an empty vector still means an existing empty file.
+pub trait FilePatch {
+    fn apply(&self, before: Option<&[u8]>) -> Result<Option<Vec<u8>>, WriteError>;
+}
+impl<F: Fn(Option<&[u8]>) -> Result<Vec<u8>, WriteError>> FilePatch for F {
+    fn apply(&self, before: Option<&[u8]>) -> Result<Option<Vec<u8>>, WriteError> {
+        self(before).map(Some)
+    }
+}
+/// Executor-owned snapshot guard for whole-file replacement or deletion.
+pub struct WholeFile {
+    expected: Option<String>,
+    after: Option<Vec<u8>>,
+}
+impl WholeFile {
+    pub fn new(before: Option<&[u8]>, after: Option<Vec<u8>>) -> Self {
+        Self { expected: before.map(digest), after }
+    }
+}
+impl FilePatch for WholeFile {
+    fn apply(&self, before: Option<&[u8]>) -> Result<Option<Vec<u8>>, WriteError> {
+        if before.map(digest) != self.expected {
+            return Err(WriteError::Conflict);
+        }
+        Ok(self.after.clone())
+    }
+}
+pub type Patch<'a> = &'a dyn FilePatch;
 
 /// Executor-owned patch; never a client-supplied arbitrary file operation.
 pub struct FileChange<'a> {
@@ -59,13 +86,15 @@ impl AppWriteGuard {
         let mut plans = Vec::with_capacity(changes.len());
         for change in changes {
             let before = self.read(change.name)?;
-            let after = (change.patch)(before.as_deref())?;
-            if after.len() > 1024 * 1024 {
+            let after = change.patch.apply(before.as_deref())?;
+            if after.as_ref().is_some_and(|bytes| bytes.len() > 1024 * 1024) {
                 return Err(WriteError::InvalidResource);
             }
-            if before.as_deref() != Some(after.as_slice()) {
-                let revision =
-                    FileRevision { before: before.as_deref().map(digest), after: digest(&after) };
+            if before != after {
+                let revision = FileRevision {
+                    before: before.as_deref().map(digest),
+                    after: after.as_deref().map(digest),
+                };
                 plans.push((change, after, revision));
             }
         }
@@ -73,7 +102,10 @@ impl AppWriteGuard {
         let mut writes = Vec::with_capacity(plans.len());
         let mut revisions = Vec::with_capacity(plans.len());
         for (change, bytes, revision) in plans {
-            writes.push(self.stage_one(change.name, &bytes, change.privacy)?);
+            let mut write =
+                self.stage_one(change.name, bytes.as_deref().unwrap_or_default(), change.privacy)?;
+            write.delete = bytes.is_none();
+            writes.push(write);
             revisions.push(revision);
         }
         Ok(StagedBatch { writes, revisions })

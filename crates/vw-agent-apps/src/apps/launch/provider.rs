@@ -156,7 +156,7 @@ pub fn prepare_provider_launch(
             let settings = private.path().join("settings.json");
             write_private(&settings, &serde_json::json!({"model": profile.model}))?;
             args.extend([
-                "--settings-sources".into(),
+                "--setting-sources".into(),
                 String::new(),
                 "--settings".into(),
                 settings.to_str().ok_or("invalid private settings path")?.into(),

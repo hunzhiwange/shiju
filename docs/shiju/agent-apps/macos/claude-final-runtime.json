@@ -1,0 +1,210 @@
+{
+  "proof.json": {
+    "pid": 33068,
+    "ppid": 31661,
+    "program": "<isolated-root>/prefix/lib/node_modules/@anthropic-ai/claude-code/bin/claude.exe",
+    "cwd_lsof": "p33068\nfcwd\nn<isolated-root>/home/workspace\n",
+    "environment": {
+      "HOME": "<isolated-root>/home",
+      "XDG_CONFIG_HOME": "<isolated-root>/home/.config",
+      "XDG_CACHE_HOME": "<isolated-root>/home/.cache",
+      "XDG_DATA_HOME": "<isolated-root>/home/.local/share",
+      "XDG_STATE_HOME": "<isolated-root>/home/.local/state",
+      "TMPDIR": "/tmp/sj-tty-X3teBl",
+      "PATH": "<isolated-root>/prefix/bin:/usr/bin:/bin:/usr/sbin:/sbin"
+    },
+    "inherited_keys_and_hooks_absent": true,
+    "temporary_directory_present_during_process": true,
+    "final_session": {
+      "phase": "failed"
+    },
+    "temporary_directory_removed": true,
+    "process_gone": true
+  },
+  "ui-process-proof.json": {
+    "program": "<isolated-root>/prefix/lib/node_modules/@anthropic-ai/claude-code/bin/claude.exe",
+    "pid": 35373,
+    "ppid": 31661,
+    "environment": {
+      "HOME": "<isolated-root>/home",
+      "XDG_CONFIG_HOME": "<isolated-root>/home/.config",
+      "XDG_CACHE_HOME": "<isolated-root>/home/.cache",
+      "XDG_DATA_HOME": "<isolated-root>/home/.local/share",
+      "XDG_STATE_HOME": "<isolated-root>/home/.local/state",
+      "TMPDIR": "/tmp/sj-tty-EEZAvQ",
+      "PATH": "<isolated-root>/prefix/bin:/usr/bin:/bin:/usr/sbin:/sbin"
+    },
+    "cwd_lsof": "p35373\nfcwd\nn<isolated-root>/home/workspace\n",
+    "inherited_sensitive_keys_absent": true,
+    "origin": "actual Iced launch submit through Gateway SDK",
+    "temporary_directory_removed": true,
+    "process_gone": true
+  },
+  "provider-proof.json": {
+    "pid": 42276,
+    "program": "<isolated-root>/prefix/lib/node_modules/@anthropic-ai/claude-code/bin/claude.exe",
+    "cwd_lsof": "p42276\nfcwd\nn<isolated-root>/home/workspace\n",
+    "private_configuration": "/tmp/shiju-provider-ttYxmb",
+    "temporary_directory": "/tmp/sj-tty-2JGDeN",
+    "test_key_matches": true,
+    "base_url_matches_loopback": true,
+    "configuration_excludes_key": true,
+    "backend": "loopback protocol fixture; no vendor login",
+    "session": {
+      "phase": "failed"
+    },
+    "private_configuration_removed": true,
+    "tty_directory_removed": true,
+    "process_gone": true,
+    "limitation": "Captured before setting-sources spelling fix; this API process was stopped and does not prove protocol access. Corrected production material builder plus official CLI protocol access is recorded separately."
+  },
+  "provider-helper-result.json": {
+    "exit": 0,
+    "stdout": "OFFICIAL_CLAUDE_LOOPBACK_PROTOCOL_AND_MATERIAL_CLEANUP_PASSED\n",
+    "stderr": ""
+  },
+  "provider-requests.json": [
+    {
+      "path": "/v1/messages?beta=true",
+      "model": "claude-sonnet-4-5",
+      "stream": true,
+      "test_key_matches": true,
+      "contains_test_prompt": true,
+      "backend": "loopback Anthropic protocol fixture; not vendor authentication"
+    }
+  ],
+  "official_cli_output": "CLAUDE_PROVIDER_OK\n",
+  "vendor_login": "Not executed; explicitly waived by user under OMP acceptance scope",
+  "install-process-proof.json": {
+    "pid": 60772,
+    "ppid": 53010,
+    "pgid": 60772,
+    "program": "npm i @anthropic-ai/claude-code@latest",
+    "cwd_lsof": "p60772\nfcwd\nn<isolated-root>/prefix\n",
+    "observed_at": 1793966354.7045069,
+    "actual_official_npm_process": true,
+    "pid_gone": true,
+    "remaining_process_group": []
+  },
+  "network-proof.json": {
+    "before_posts": 6,
+    "operation": "3f346ecb-fe21-4713-b35e-65bc48c8b098",
+    "disconnected_at": 1793966388.124414,
+    "after_posts": 6,
+    "no_resubmit": true,
+    "restored_at": 1793966475.475412,
+    "requests": [
+      {
+        "method": "POST",
+        "path": "/v1/agent-apps/actions/preview?targetHostId=host",
+        "time": 1793965864.347719
+      },
+      {
+        "method": "POST",
+        "path": "/v1/agent-apps/actions?targetHostId=host",
+        "time": 1793965878.902187
+      },
+      {
+        "method": "POST",
+        "path": "/v1/agent-apps/actions/preview?targetHostId=host",
+        "time": 1793966135.160028
+      },
+      {
+        "method": "POST",
+        "path": "/v1/agent-apps/actions?targetHostId=host",
+        "time": 1793966141.834951
+      },
+      {
+        "method": "POST",
+        "path": "/v1/agent-apps/actions/preview?targetHostId=host",
+        "time": 1793966240.222263
+      },
+      {
+        "method": "POST",
+        "path": "/v1/agent-apps/actions?targetHostId=host",
+        "time": 1793966240.260136
+      },
+      {
+        "method": "POST",
+        "path": "/v1/agent-apps/actions/preview?targetHostId=host",
+        "time": 1793966270.731026
+      },
+      {
+        "method": "POST",
+        "path": "/v1/agent-apps/actions?targetHostId=host",
+        "time": 1793966279.34079
+      },
+      {
+        "method": "POST",
+        "path": "/v1/agent-apps/actions/preview?targetHostId=host",
+        "time": 1793966317.054721
+      },
+      {
+        "method": "POST",
+        "path": "/v1/agent-apps/actions?targetHostId=host",
+        "time": 1793966317.076802
+      },
+      {
+        "method": "POST",
+        "path": "/v1/agent-apps/actions/preview?targetHostId=host",
+        "time": 1793966344.410132
+      },
+      {
+        "method": "POST",
+        "path": "/v1/agent-apps/actions?targetHostId=host",
+        "time": 1793966354.5010931
+      },
+      {
+        "method": "GET",
+        "path": "/v1/agent-apps/operations/3f346ecb-fe21-4713-b35e-65bc48c8b098/events?targetHostId=host",
+        "time": 1793966354.506794
+      },
+      {
+        "method": "GET",
+        "path": "/v1/agent-apps/operations/3f346ecb-fe21-4713-b35e-65bc48c8b098?targetHostId=host",
+        "time": 1793966355.023814
+      },
+      {
+        "method": "GET",
+        "path": "/v1/agent-apps/operations/3f346ecb-fe21-4713-b35e-65bc48c8b098/events?targetHostId=host",
+        "time": 1793966355.036116
+      },
+      {
+        "method": "DELETE",
+        "path": "/v1/agent-apps/operations/3f346ecb-fe21-4713-b35e-65bc48c8b098?targetHostId=host",
+        "time": 1793966355.597846
+      },
+      {
+        "method": "GET",
+        "path": "/v1/agent-apps/operations/3f346ecb-fe21-4713-b35e-65bc48c8b098?targetHostId=host",
+        "time": 1793966367.5202649
+      },
+      {
+        "method": "GET",
+        "path": "/v1/agent-apps/operations/3f346ecb-fe21-4713-b35e-65bc48c8b098/events?targetHostId=host",
+        "time": 1793966367.5862021
+      },
+      {
+        "method": "GET",
+        "path": "/v1/agent-apps/operations/3f346ecb-fe21-4713-b35e-65bc48c8b098?targetHostId=host",
+        "time": 1793966417.1871622
+      },
+      {
+        "method": "GET",
+        "path": "/v1/agent-apps/operations/3f346ecb-fe21-4713-b35e-65bc48c8b098/events?targetHostId=host",
+        "time": 1793966417.249262
+      }
+    ]
+  },
+  "cleanup": {
+    "desktop_exit": "-15",
+    "gateway_exit": "-15",
+    "personal_claude_version": "2.1.316",
+    "personal_sha256": "64c327e92b2c5e0f78c0a980c5a518121e1f0d140ca771ca5dd4488d1a2dcb3f",
+    "final_installations": [],
+    "isolated_root_removed": true,
+    "own_processes_gone": true,
+    "auxiliary_executables_removed": true,
+    "slot_1_released": true
+  }
+}

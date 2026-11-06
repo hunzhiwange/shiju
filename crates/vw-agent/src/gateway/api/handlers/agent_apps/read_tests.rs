@@ -316,3 +316,49 @@ async fn cc_apps_read_api_authorization_invalid_registration_never_probes() {
     std::fs::set_permissions(root.path(), std::fs::Permissions::from_mode(0o700)).unwrap();
     assert!(!root.path().join("probed").exists());
 }
+
+#[tokio::test]
+async fn cc_apps_read_api_authorization_managed_package_source_matches_lifecycle() {
+    let root = tempfile::tempdir_in(std::env::temp_dir().canonicalize().unwrap()).unwrap();
+    let path = policy(root.path());
+    let prefix = root.path().join("prefix");
+    let package = prefix.join("lib/node_modules/@anthropic-ai/claude-code");
+    std::fs::create_dir_all(package.join("bin")).unwrap();
+    std::fs::create_dir_all(prefix.join("bin")).unwrap();
+    std::fs::write(package.join("package.json"), r#"{"name":"@anthropic-ai/claude-code"}"#)
+        .unwrap();
+    let binary = package.join("bin/claude");
+    std::fs::write(&binary, "#!/bin/sh\nprintf 'claude 2.3.4\\n'\n").unwrap();
+    std::fs::set_permissions(&binary, std::fs::Permissions::from_mode(0o700)).unwrap();
+    std::os::unix::fs::symlink(&binary, prefix.join("bin/claude")).unwrap();
+    let mut value: serde_json::Value =
+        serde_json::from_slice(&std::fs::read(&path).unwrap()).unwrap();
+    value["hosts"][0]["search_paths"] = serde_json::json!([prefix.join("bin")]);
+    value["hosts"][0]["lifecycle"] =
+        serde_json::json!({"prefix":prefix,"npm":prefix.join("bin/npm")});
+    std::fs::write(&path, serde_json::to_vec(&value).unwrap()).unwrap();
+    let app = router(&path);
+    for valid_manifest in [true, false] {
+        if !valid_manifest {
+            std::fs::write(package.join("package.json"), r#"{"name":"different-package"}"#)
+                .unwrap();
+        }
+        for endpoint in ["installations", "diagnostics", "versions"] {
+            let response =
+                app.clone().oneshot(request(endpoint, TOKEN, "a", "host")).await.unwrap();
+            assert_eq!(response.status(), StatusCode::OK);
+            let response: vw_api_types::agent_apps::AppReadResponse =
+                serde_json::from_slice(&to_bytes(response.into_body(), 65536).await.unwrap())
+                    .unwrap();
+            assert_eq!(response.installations.len(), 1);
+            assert_eq!(
+                response.installations[0].source,
+                if valid_manifest {
+                    vw_api_types::agent_apps::AppInstallationSource::System
+                } else {
+                    vw_api_types::agent_apps::AppInstallationSource::Unknown
+                }
+            );
+        }
+    }
+}

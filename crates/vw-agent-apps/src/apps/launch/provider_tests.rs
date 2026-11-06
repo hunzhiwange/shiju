@@ -306,3 +306,22 @@ fn cc_apps_provider_launch_isolation_invalid_inputs_have_no_side_effects() {
     assert!(!root.path().join("unexpected-launch").exists());
     assert_eq!(std::fs::read_dir(&private).unwrap().count(), 0);
 }
+
+#[test]
+fn cc_apps_provider_launch_isolation_claude_uses_supported_setting_sources_option() {
+    let root = tempfile::tempdir().unwrap();
+    executable(
+        &root.path().join("claude"),
+        "#!/bin/sh\ntest \"$1\" = --setting-sources || exit 31\ntest -z \"$2\" || exit 32\ntest \"$3\" = --settings || exit 33\ntest -f \"$4\" || exit 34\ntest \"$5\" = --model || exit 35\ntest \"$6\" = fixture-model || exit 36\nprintf '%s' \"$CLAUDE_CONFIG_DIR\" > private-path\n",
+    );
+    let launch = prepare_provider_launch(
+        AppId::Claude,
+        &profile(ProviderProtocol::Anthropic),
+        material(root.path(), "claude"),
+        root.path(),
+    )
+    .unwrap();
+    assert!(launch.run().is_ok(), "Claude must accept the fixed isolation options");
+    let private = std::fs::read_to_string(root.path().join("private-path")).unwrap();
+    assert!(!std::path::Path::new(&private).exists());
+}

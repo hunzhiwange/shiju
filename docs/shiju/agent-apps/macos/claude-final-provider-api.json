@@ -1,0 +1,106 @@
+[
+  {
+    "method": "PUT",
+    "path": "/v1/app-providers/claude/task46-local",
+    "body": {
+      "name": "Claude loopback protocol fixture",
+      "protocol": "anthropic",
+      "apiKey": "<loopback-test-key>",
+      "baseUrl": "http://127.0.0.1:57343",
+      "model": "claude-sonnet-4-5"
+    },
+    "status": 200,
+    "response": {
+      "id": "task46-local",
+      "appId": "claude",
+      "name": "Claude loopback protocol fixture",
+      "configured": true
+    }
+  },
+  {
+    "method": "GET",
+    "path": "/v1/agent-apps/launch-identities?targetHostId=host&appId=claude",
+    "body": null,
+    "status": 200,
+    "response": [
+      {
+        "kind": "provider",
+        "id": "task46-local",
+        "label": "Claude loopback protocol fixture"
+      }
+    ]
+  },
+  {
+    "method": "GET",
+    "path": "/v1/agent-apps/installations?targetHostId=host&appId=claude",
+    "body": null,
+    "status": 200,
+    "response": {
+      "installations": [
+        {
+          "id": "NDpob3N0OjY6Y2xhdWRlOjU4Oi9wcml2YXRlL3RtcC9zaGlqdS10YXNrNDYtZmluYWwtNXM5X2JiaXIvcHJlZml4L2Jpbi9jbGF1ZGU",
+          "appId": "claude",
+          "targetHostId": "host",
+          "environment": {
+            "kind": "macos"
+          },
+          "path": "<isolated-root>/prefix/bin/claude",
+          "realPath": "<isolated-root>/prefix/lib/node_modules/@anthropic-ai/claude-code/bin/claude.exe",
+          "source": "unknown",
+          "isPathDefault": true,
+          "version": "2.1.318",
+          "runtimeStatus": {
+            "status": "runnable"
+          }
+        }
+      ]
+    }
+  },
+  {
+    "method": "POST",
+    "path": "/v1/agent-apps/launch?targetHostId=host",
+    "body": {
+      "appId": "claude",
+      "installationId": "NDpob3N0OjY6Y2xhdWRlOjU4Oi9wcml2YXRlL3RtcC9zaGlqdS10YXNrNDYtZmluYWwtNXM5X2JiaXIvcHJlZml4L2Jpbi9jbGF1ZGU",
+      "cwd": "<isolated-root>/home/workspace",
+      "args": [],
+      "providerId": "not-granted"
+    },
+    "status": 403,
+    "response": ""
+  },
+  {
+    "method": "POST",
+    "path": "/v1/agent-apps/launch?targetHostId=host",
+    "body": {
+      "appId": "claude",
+      "installationId": "NDpob3N0OjY6Y2xhdWRlOjU4Oi9wcml2YXRlL3RtcC9zaGlqdS10YXNrNDYtZmluYWwtNXM5X2JiaXIvcHJlZml4L2Jpbi9jbGF1ZGU",
+      "cwd": "<isolated-root>/home/workspace",
+      "args": [],
+      "providerId": "task46-local"
+    },
+    "status": 200,
+    "response": {
+      "sessionId": "0505a7e1-9b12-43a7-8621-f591a320fc45",
+      "installationId": "NDpob3N0OjY6Y2xhdWRlOjU4Oi9wcml2YXRlL3RtcC9zaGlqdS10YXNrNDYtZmluYWwtNXM5X2JiaXIvcHJlZml4L2Jpbi9jbGF1ZGU"
+    }
+  },
+  {
+    "method": "GET",
+    "path": "/v1/agent-apps/launch-sessions/0505a7e1-9b12-43a7-8621-f591a320fc45?targetHostId=host",
+    "body": null,
+    "status": 200,
+    "response": {
+      "phase": "running"
+    }
+  },
+  {
+    "method": "GET",
+    "path": "/v1/agent-apps/launch-sessions/0505a7e1-9b12-43a7-8621-f591a320fc45?targetHostId=host",
+    "body": null,
+    "status": 200,
+    "response": {
+      "phase": "failed"
+    }
+  }
+]

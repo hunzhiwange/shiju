@@ -1,0 +1,179 @@
+2026-11-06 Claude macOS final acceptance
+slot=1
+CARGO_TARGET_DIR=/Users/xiangmin/worker/code/shiju/target/rust-slot-1
+CARGO_BUILD_BUILD_DIR=/Users/xiangmin/worker/code/shiju/target/rust-slot-1
+cargo fmt --all: exit 0 before final verification
+Effective distinct tests: 9 + 8 + 5 = 22; child probe test summaries are not counted again.
+
+$ cargo test -p vw-agent --lib cc_apps_read_api_authorization_managed_package_source -- --nocapture
+exit=101
+   Compiling vw-acp v0.6.0 (/Users/xiangmin/worker/code/shiju/crates/vw-acp)
+   Compiling vw-agent-apps v0.6.0 (/Users/xiangmin/worker/code/shiju/crates/vw-agent-apps)
+   Compiling vw-agent v0.6.0 (/Users/xiangmin/worker/code/shiju/crates/vw-agent)
+warning: linker stderr: ld: __eh_frame section too large (max 16MB) to encode dwarf unwind offsets in compact unwind table, performance of exception handling might be affected
+  |
+  = note: `#[warn(linker_messages)]` on by default
+
+warning: `vw-agent` (lib test) generated 1 warning
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 2m 03s
+     Running unittests src/lib.rs (target/rust-slot-1/debug/deps/vw_agent-761b4c54e01851ea)
+
+running 1 test
+
+thread 'gateway::api::handlers::agent_apps::read_tests::cc_apps_read_api_authorization_managed_package_source_matches_lifecycle' (38915863) panicked at crates/vw-agent/src/gateway/api/handlers/agent_apps/read_tests.rs:354:13:
+assertion `left == right` failed
+  left: Unknown
+ right: System
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+test gateway::api::handlers::agent_apps::read_tests::cc_apps_read_api_authorization_managed_package_source_matches_lifecycle ... FAILED
+
+failures:
+
+failures:
+    gateway::api::handlers::agent_apps::read_tests::cc_apps_read_api_authorization_managed_package_source_matches_lifecycle
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 11484 filtered out; finished in 0.18s
+
+error: test failed, to rerun pass `-p vw-agent --lib`
+
+$ cargo test -p vw-agent-apps --lib cc_apps_provider_launch_isolation_claude_uses_supported_setting_sources_option -- --nocapture
+exit=101
+   Compiling vw-api-types v0.6.0 (/Users/xiangmin/worker/code/shiju/crates/vw-api-types)
+   Compiling vw-acp v0.6.0 (/Users/xiangmin/worker/code/shiju/crates/vw-acp)
+   Compiling vw-agent-apps v0.6.0 (/Users/xiangmin/worker/code/shiju/crates/vw-agent-apps)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 11.90s
+     Running unittests src/lib.rs (target/rust-slot-1/debug/deps/vw_agent_apps-c350eefc4d73b711)
+
+running 1 test
+
+thread 'apps::launch::provider_tests::cc_apps_provider_launch_isolation_claude_uses_supported_setting_sources_option' (38945614) panicked at crates/vw-agent-apps/src/apps/launch/provider_tests.rs:324:5:
+Claude must accept the fixed isolation options
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+test apps::launch::provider_tests::cc_apps_provider_launch_isolation_claude_uses_supported_setting_sources_option ... FAILED
+
+failures:
+
+failures:
+    apps::launch::provider_tests::cc_apps_provider_launch_isolation_claude_uses_supported_setting_sources_option
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 186 filtered out; finished in 0.01s
+
+error: test failed, to rerun pass `-p vw-agent-apps --lib`
+
+$ cargo test -p vw-agent-apps --lib cc_apps_provider_launch_isolation -- --nocapture
+exit=0
+   Compiling vw-agent-apps v0.6.0 (/Users/xiangmin/worker/code/shiju/crates/vw-agent-apps)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 1.71s
+     Running unittests src/lib.rs (target/rust-slot-1/debug/deps/vw_agent_apps-c350eefc4d73b711)
+
+running 9 tests
+test apps::launch::provider_tests::cc_apps_provider_launch_isolation_invalid_inputs_have_no_side_effects ... ok
+test apps::launch::provider_tests::cc_apps_provider_launch_isolation_windows_batch_rules_refuse_without_spawn ... ok
+
+running 1 test
+test apps::launch::provider_tests::cc_apps_provider_launch_isolation_unimplemented_apps_and_wrong_protocol_refuse ... ok
+test apps::launch::provider_tests::cc_apps_provider_launch_isolation_private_process_success_and_cleanup ... ok
+test apps::launch::provider_tests::cc_apps_provider_launch_isolation_claude_uses_supported_setting_sources_option ... ok
+test apps::launch::provider_tests::cc_apps_provider_launch_isolation_project_conflict_and_permission_flags ... ok
+test apps::launch::provider_tests::cc_apps_provider_launch_isolation_inherited_credentials_are_removed ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 186 filtered out; finished in 0.01s
+
+test apps::launch::provider_tests::cc_apps_provider_launch_isolation_inherited_credentials_are_removed ... ok
+test apps::launch::provider_tests::cc_apps_provider_launch_isolation_codex_gemini_agy_use_actual_programs ... ok
+test apps::launch::provider_tests::cc_apps_provider_launch_isolation_failure_drop_and_private_permissions ... ok
+
+test result: ok. 9 passed; 0 failed; 0 ignored; 0 measured; 178 filtered out; finished in 0.04s
+
+
+$ cargo test -p vw-agent --lib cc_apps_read_api_authorization -- --nocapture
+exit=0
+   Compiling vw-acp v0.6.0 (/Users/xiangmin/worker/code/shiju/crates/vw-acp)
+   Compiling vw-gateway-client v0.6.0 (/Users/xiangmin/worker/code/shiju/crates/vw-gateway-client)
+   Compiling vw-agent-apps v0.6.0 (/Users/xiangmin/worker/code/shiju/crates/vw-agent-apps)
+   Compiling vw-agent v0.6.0 (/Users/xiangmin/worker/code/shiju/crates/vw-agent)
+warning: linker stderr: ld: __eh_frame section too large (max 16MB) to encode dwarf unwind offsets in compact unwind table, performance of exception handling might be affected
+  |
+  = note: `#[warn(linker_messages)]` on by default
+
+warning: `vw-agent` (lib test) generated 1 warning
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 4m 34s
+     Running unittests src/lib.rs (target/rust-slot-1/debug/deps/vw_agent-761b4c54e01851ea)
+
+running 8 tests
+test gateway::api::handlers::agent_apps::read_tests::cc_apps_read_api_authorization_tenant_query_and_token_boundaries ... ok
+test gateway::api::handlers::agent_apps::read_tests::cc_apps_read_api_authorization_revocation_and_invalid_files_fail_closed ... ok
+test gateway::api::handlers::agent_apps::read_tests::cc_apps_read_api_authorization_invalid_registration_never_probes ... ok
+test gateway::api::handlers::agent_apps::read_tests::cc_apps_read_api_authorization_denials_never_run_probe ... ok
+
+running 1 test
+test gateway::api::handlers::agent_apps::read_tests::cc_apps_read_api_authorization_reports_actual_failure_and_desktop_presence ... ok
+test gateway::api::handlers::agent_apps::read_tests::cc_apps_read_api_authorization_production_registration_and_default_deny ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 11484 filtered out; finished in 0.01s
+
+test gateway::api::handlers::agent_apps::read_tests::cc_apps_read_api_authorization_production_registration_and_default_deny ... ok
+test gateway::api::handlers::agent_apps::read_tests::cc_apps_read_api_authorization_success_and_real_probe ... ok
+test gateway::api::handlers::agent_apps::read_tests::cc_apps_read_api_authorization_managed_package_source_matches_lifecycle ... ok
+
+test result: ok. 8 passed; 0 failed; 0 ignored; 0 measured; 11477 filtered out; finished in 0.06s
+
+
+$ cargo test -p vw-agent --lib cc_apps_lifecycle_api_scope -- --nocapture
+exit=0
+warning: linker stderr: ld: __eh_frame section too large (max 16MB) to encode dwarf unwind offsets in compact unwind table, performance of exception handling might be affected
+  |
+  = note: `#[warn(linker_messages)]` on by default
+
+warning: `vw-agent` (lib test) generated 1 warning
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 1.12s
+     Running unittests src/lib.rs (target/rust-slot-1/debug/deps/vw_agent-761b4c54e01851ea)
+
+running 5 tests
+test gateway::api::handlers::agent_apps::lifecycle_tests::cc_apps_lifecycle_api_scope_missing_identity_rejected ... ok
+test gateway::api::handlers::agent_apps::lifecycle_tests::cc_apps_lifecycle_api_scope_read_grants_do_not_grant_writes_or_accept_paths ... ok
+test gateway::api::handlers::agent_apps::lifecycle_tests::cc_apps_lifecycle_api_scope_install_update_uninstall_and_tenant_isolation ... ok
+test gateway::api::handlers::agent_apps::lifecycle_tests::cc_apps_lifecycle_api_scope_failure_cancel_and_revocation ... ok
+test gateway::api::handlers::agent_apps::lifecycle_tests::cc_apps_lifecycle_api_scope_rejects_unsupported_and_changed_plan ... ok
+
+test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 11480 filtered out; finished in 1.48s
+
+
+$ cargo clippy --all-targets --all-features -- -D warnings
+exit=0
+    Checking vw-api-types v0.6.0 (/Users/xiangmin/worker/code/shiju/crates/vw-api-types)
+    Checking vw-acp v0.6.0 (/Users/xiangmin/worker/code/shiju/crates/vw-acp)
+    Checking vw-gateway-client v0.6.0 (/Users/xiangmin/worker/code/shiju/crates/vw-gateway-client)
+    Checking vw-desktop v0.6.0 (/Users/xiangmin/worker/code/shiju/crates/vw-desktop)
+    Checking vw-agent-apps v0.6.0 (/Users/xiangmin/worker/code/shiju/crates/vw-agent-apps)
+    Checking vw-agent v0.6.0 (/Users/xiangmin/worker/code/shiju/crates/vw-agent)
+    Checking vw-cli v0.6.0 (/Users/xiangmin/worker/code/shiju/crates/vw-cli)
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 1m 21s
+
+$ cargo build -p vw-cli --bin shiju
+exit=0
+   Compiling vw-acp v0.6.0 (/Users/xiangmin/worker/code/shiju/crates/vw-acp)
+   Compiling vw-agent-apps v0.6.0 (/Users/xiangmin/worker/code/shiju/crates/vw-agent-apps)
+   Compiling vw-agent v0.6.0 (/Users/xiangmin/worker/code/shiju/crates/vw-agent)
+   Compiling vw-cli v0.6.0 (/Users/xiangmin/worker/code/shiju/crates/vw-cli)
+warning: linker stderr: ld: __eh_frame section too large (max 16MB) to encode dwarf unwind offsets in compact unwind table, performance of exception handling might be affected
+  |
+  = note: `#[warn(linker_messages)]` on by default
+
+warning: `vw-cli` (bin "shiju") generated 1 warning
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 1m 33s
+
+Auxiliary real SDK / official CLI protocol probes (not Cargo unit tests):
+rustc --edition=2024 /tmp/task46-resume-sdk.rs -L dependency=/Users/xiangmin/worker/code/shiju/target/rust-slot-1/debug/deps --extern vw_gateway_client=/Users/xiangmin/worker/code/shiju/target/rust-slot-1/debug/deps/libvw_gateway_client-601c8d932ba563e6.rlib --extern tokio=/Users/xiangmin/worker/code/shiju/target/rust-slot-1/debug/deps/libtokio-49c3d960b83bfe81.rlib -o /Users/xiangmin/worker/code/shiju/target/rust-slot-1/task46-sdk
+exit=0
+rustc --edition=2024 /tmp/task46-resume-provider.rs -L dependency=/Users/xiangmin/worker/code/shiju/target/rust-slot-1/debug/deps --extern vw_api_types=/Users/xiangmin/worker/code/shiju/target/rust-slot-1/debug/deps/libvw_api_types-e36a76bee736197e.rlib --extern vw_agent_apps=/Users/xiangmin/worker/code/shiju/target/rust-slot-1/debug/deps/libvw_agent_apps-e663a892d8554997.rlib -o /Users/xiangmin/worker/code/shiju/target/rust-slot-1/task46-provider
+exit=0
+cargo build -p vw-desktop --bin shi-ju: exit 0, 25.96s
+cargo run -p vw-desktop --bin shi-ju: reached Running; controlled SIGTERM exit -15, not a passing business test
+Earlier CLI build failed on unrelated ACP controls.rs record.agent; repaired by its owner. Final build above passes.
+SDK final read: catalog Claude NativeCli; installations=[]; exit 0
+Official CLI protocol helper: exit 0, CLAUDE_PROVIDER_OK; temporary material removed
+Personal Claude final: 2.1.316, SHA256 unchanged
+
+git diff --check: exit 0
+Cleanup: own runtime processes gone, isolated root and auxiliary executables removed; slot-1 released; Cargo cache retained.

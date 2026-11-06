@@ -2,6 +2,40 @@
 
 2026-11-06，macOS 27.0 (26A428)，Darwin arm64，Node v26.13.0、npm 11.20.0。仅涉及 Claude Code CLI；不代表 Claude Desktop 或其他平台。
 
+## 最终补验结论（2026-11-06）
+
+状态：已完成（按用户调整后的账号验收范围）。用户授权其余应用沿用 OMP 口径：无专用账号时，以官方程序访问隔离测试接口及材料清理为准；真实账号登录以后配置。本次未执行 Anthropic 真实账号登录，loopback 测试密钥不代表厂商认证。下文“待回归”等状态为首轮历史记录，由本节补验结果取代。其他平台和 Claude Desktop 不在本项结论内。
+
+### 实际界面、SDK与进程
+
+使用隔离 HOME、配置、管理员 npm prefix，未复制个人凭据。默认 `cargo run -p vw-desktop --bin shi-ju` 确认进入 Running；为 CUA 定位，将同一槽位桌面产物复制到唯一标识的临时 Task46Claude.app 后实际运行。使用现有网关连接表单连接测试 host；初始错误凭据得到 Unauthorized toast，纠正为本测试授权后读取成功。
+
+- 实际 `vw-gateway-client` SDK 取得 Claude / NativeCli、2.1.318 / runnable；修复后来源为 System，与 Iced 一致。卸载和取消后两者均返回零安装。记录：[SDK](claude-final-sdk.txt)、[API](claude-final-api.json)。
+- 默认终端 API 与 Iced“终端启动”均执行官方 npm 包的真实 claude.exe。实际 PID 33068、35373，cwd 为授权 `<isolated-home>/workspace`；HOME、XDG、PATH 隔离，未继承供应商密钥或 Node hooks。主动 SIGTERM 后 session 为 Failed，进程及 sj-tty 临时目录消失；这是受控停止，不是成功完成聊天。[进程证据](claude-final-runtime.json)、[Iced 运行](claude-final-iced-launch-running.jpg)、[停止结果](claude-final-iced-launch-stopped.jpg)。
+- 供应商配置经真实 API 保存、授权身份可列出，未授权 ID 返回403。API 启动观察到测试 baseURL、测试 key 和私有配置正确投影，停止后配置及终端临时目录清理；该次在修复参数拼写前，不作为协议成功证据。[脱敏身份 API](claude-final-provider-api.json)。
+- 之后用修正后的生产 `prepare_provider_launch`，在授权隔离 cwd 执行官方 Claude 2.1.318；仅测试传输追加 print / 禁工具 / 禁会话持久化参数，没有开放客户端任意 flags。真实收到 loopback Anthropic `/v1/messages?beta=true`，model=claude-sonnet-4-5、stream=true、测试 key/prompt 匹配；官方 CLI 输出 CLAUDE_PROVIDER_OK，退出0，私有材料移除。此为官方程序实际协议访问；不声称真实厂商登录。详见同一进程证据中的 provider-helper-result、provider-requests。
+
+### Iced 生命周期与连接失败
+
+- 管理员 npm manifest 锚定后 Iced 显示 System，指定实例卸载操作 `88466af3-ffef-460e-8d7e-c1c5e9fa73a1` Completed。API、SDK和刷新后的 Iced 均确认未安装，个人原有实例保留。[来源](claude-final-iced-anchored.jpg)、[卸载确认](claude-final-iced-uninstall-confirm.jpg)、[卸载后](claude-final-iced-uninstalled.jpg)。
+- 实际 Iced 安装后，观察官方 npm 子进程 PID/PGID 60772、父进程测试网关53010、cwd=隔离 prefix；Iced 为 Executing / Running 时点击取消，操作 `3f346ecb-fe21-4713-b35e-65bc48c8b098` 变为 Cancelled。独立状态/events重读一致，PID不存在、进程组为空、发现为空。此前两次下载过快已 Completed，未将它们计为取消通过。[运行中](claude-final-iced-install-running.jpg)、[取消后](claude-final-iced-cancelled.jpg)。
+- 使用只转发原请求的本地 TCP relay 切断客户端至测试网关连接，网关进程及操作状态保留。Iced刷新实际出现加载失败及错误 toast，恢复传输并重试后重新显示零安装及同一 Cancelled 操作；独立重读状态/events仍 Cancelled。relay只记录方法、路径、时间，不记录认证头/正文；断开前后 actions POST 数均为6，没有重复提交。[断网](claude-final-iced-disconnected.jpg)、[恢复](claude-final-iced-recovered.jpg)、计数见进程证据 network-proof。
+- 单独的管理员 host.online=false 场景返回503并显示错误 toast；此与实际 TCP 断线分开记录。[主机离线](claude-final-iced-host-offline.jpg)。
+
+### 补验发现的最小修复
+
+正式读取 API 未复用生命周期已验证的 npm ownership anchor，导致 Iced 显示 Unknown、禁止卸载。独立测试先失败 Unknown != System，再令 installations/diagnostics/versions 复用底层 scoped_discover；错误包名仍为 Unknown，只读授权不获得写权限，Claude Desktop 仍走原发现路径。
+
+官方 CLI 实际报 unknown option --settings-sources，并提示 --setting-sources。独立测试先红灯，再将固定隔离参数改为单数，实际官方程序协议访问通过；未放宽客户端参数或凭据边界。
+
+### 补验验证与清理
+
+本阶段动态领取 slot-1，CARGO_TARGET_DIR 与 CARGO_BUILD_BUILD_DIR 均为 `/Users/xiangmin/worker/code/shiju/target/rust-slot-1`。先 `cargo fmt --all` 退出0；最终聚焦测试为 provider isolation 9项、read authorization 8项、lifecycle scope 5项，共22项有效通过，不重复计子进程探针摘要。`cargo clippy --all-targets --all-features -- -D warnings` 退出0（1m21s），最终CLI构建退出0（1m33s）；链接器既有 __eh_frame 提示单列。一次中间构建因无关 ACP 字段失败，由该任务维护者修复，最终构建通过；本任务未修改ACP。确切命令、红绿灯、退出码与辅助 Rust 探针编译命令见 [最终验证](claude-final-validation.txt)。未执行无过滤全量测试、wasm或Makefile。
+
+取消后SDK/API发现为空；最后个人 Claude 仍2.1.316，SHA256=`64c327e92b2c5e0f78c0a980c5a518121e1f0d140ca771ca5dd4488d1a2dcb3f`，与初始相同。所有本任务桌面、网关、relay、协议fixture、npm/CLI子进程退出后清理隔离安装、策略、令牌、临时app与辅助可执行文件，随后释放本人slot-1锁，保留编译缓存。受控SIGTERM退出-15，不冒充自然退出0；未终止个人进程。终端应用可能保留空闲窗口，不认领为已关闭，测试CLI及其临时资源已确认消失。
+
+## 首轮历史记录
+
 本次隔离 HOME、配置和 npm prefix 位于专用临时根，没有复制个人凭据。原有 `/opt/homebrew/bin/claude` 为 npm 包入口，版本 2.1.316；原桌面/网关进程不属于本次资源，不终止或卸载。
 
 ## 官方包渠道实际变化

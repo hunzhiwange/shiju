@@ -53,7 +53,8 @@ pub fn discover(app: AppId, env: &LocalReadEnvironment) -> Result<AppInstallatio
     report::build(read::read(app, env).map_err(|_| "host discovery unavailable")?.installations)
         .map_err(str::to_owned)
 }
-fn scoped_discover(
+/// Read using administrator-supplied package ownership anchors, without granting writes.
+pub fn scoped_discover(
     app: AppId,
     env: &LocalReadEnvironment,
     write: &WriteEnvironment,

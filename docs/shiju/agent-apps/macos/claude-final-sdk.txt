@@ -1,0 +1,11 @@
+installed exit=0
+CAT Some(AppCatalogEntry { id: Claude, name: "Claude", cli_command: Some("claude"), runtime_kinds: [NativeCli] })
+INSTALLATIONS AppReadResponse { installations: [AppInstallation { id: AppInstallationId("NDpob3N0OjY6Y2xhdWRlOjU4Oi9wcml2YXRlL3RtcC9zaGlqdS10YXNrNDYtZmluYWwtNXM5X2JiaXIvcHJlZml4L2Jpbi9jbGF1ZGU"), app_id: Claude, target_host_id: "host", environment: Macos, path: "<isolated-root>/prefix/bin/claude", real_path: Some("<isolated-root>/prefix/lib/node_modules/@anthropic-ai/claude-code/bin/claude.exe"), source: Unknown, is_path_default: true, version: Some("2.1.318"), runtime_status: Runnable }], desktop: None }
+source anchored exit=0
+CAT Some(AppCatalogEntry { id: Claude, name: "Claude", cli_command: Some("claude"), runtime_kinds: [NativeCli] })
+INSTALLATIONS AppReadResponse { installations: [AppInstallation { id: AppInstallationId("NDpob3N0OjY6Y2xhdWRlOjU4Oi9wcml2YXRlL3RtcC9zaGlqdS10YXNrNDYtZmluYWwtNXM5X2JiaXIvcHJlZml4L2Jpbi9jbGF1ZGU"), app_id: Claude, target_host_id: "host", environment: Macos, path: "<isolated-root>/prefix/bin/claude", real_path: Some("<isolated-root>/prefix/lib/node_modules/@anthropic-ai/claude-code/bin/claude.exe"), source: System, is_path_default: true, version: Some("2.1.318"), runtime_status: Runnable }], desktop: None }
+after Iced uninstall exit=0
+CAT Some(AppCatalogEntry { id: Claude, name: "Claude", cli_command: Some("claude"), runtime_kinds: [NativeCli] })
+INSTALLATIONS AppReadResponse { installations: [], desktop: None }
+
+Final after running cancellation: SDK exit 0; Claude NativeCli; AppReadResponse { installations: [], desktop: None }

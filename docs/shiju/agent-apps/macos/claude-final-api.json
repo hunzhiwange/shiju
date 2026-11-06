@@ -1,0 +1,364 @@
+[
+  {
+    "method": "GET",
+    "path": "catalog",
+    "body": null,
+    "status": 200,
+    "response": {
+      "apps": [
+        {
+          "id": "claude",
+          "name": "Claude",
+          "cliCommand": "claude",
+          "runtimeKinds": [
+            "native_cli"
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "method": "GET",
+    "path": "installations?appId=claude",
+    "body": null,
+    "status": 200,
+    "response": {
+      "installations": [
+        {
+          "id": "NDpob3N0OjY6Y2xhdWRlOjU4Oi9wcml2YXRlL3RtcC9zaGlqdS10YXNrNDYtZmluYWwtNXM5X2JiaXIvcHJlZml4L2Jpbi9jbGF1ZGU",
+          "appId": "claude",
+          "targetHostId": "host",
+          "environment": {
+            "kind": "macos"
+          },
+          "path": "<isolated-root>/prefix/bin/claude",
+          "realPath": "<isolated-root>/prefix/lib/node_modules/@anthropic-ai/claude-code/bin/claude.exe",
+          "source": "unknown",
+          "isPathDefault": true,
+          "version": "2.1.318",
+          "runtimeStatus": {
+            "status": "runnable"
+          }
+        }
+      ]
+    }
+  },
+  {
+    "method": "GET",
+    "path": "launch-identities?appId=claude",
+    "body": null,
+    "status": 200,
+    "response": []
+  },
+  {
+    "method": "GET",
+    "path": "installations?appId=claude",
+    "body": null,
+    "status": 503,
+    "response": ""
+  },
+  {
+    "method": "GET",
+    "path": "catalog",
+    "body": null,
+    "status": 200,
+    "response": {
+      "apps": [
+        {
+          "id": "claude",
+          "name": "Claude",
+          "cliCommand": "claude",
+          "runtimeKinds": [
+            "native_cli"
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "method": "GET",
+    "path": "installations?appId=claude",
+    "body": null,
+    "status": 200,
+    "response": {
+      "installations": [
+        {
+          "id": "NDpob3N0OjY6Y2xhdWRlOjU4Oi9wcml2YXRlL3RtcC9zaGlqdS10YXNrNDYtZmluYWwtNXM5X2JiaXIvcHJlZml4L2Jpbi9jbGF1ZGU",
+          "appId": "claude",
+          "targetHostId": "host",
+          "environment": {
+            "kind": "macos"
+          },
+          "path": "<isolated-root>/prefix/bin/claude",
+          "realPath": "<isolated-root>/prefix/lib/node_modules/@anthropic-ai/claude-code/bin/claude.exe",
+          "source": "system",
+          "isPathDefault": true,
+          "version": "2.1.318",
+          "runtimeStatus": {
+            "status": "runnable"
+          }
+        }
+      ]
+    }
+  },
+  {
+    "method": "GET",
+    "path": "launch-identities?appId=claude",
+    "body": null,
+    "status": 200,
+    "response": [
+      {
+        "kind": "provider",
+        "id": "task46-local",
+        "label": "Claude loopback protocol fixture"
+      }
+    ]
+  },
+  {
+    "method": "GET",
+    "path": "operations/88466af3-ffef-460e-8d7e-c1c5e9fa73a1",
+    "body": null,
+    "status": 200,
+    "response": {
+      "operationId": "88466af3-ffef-460e-8d7e-c1c5e9fa73a1",
+      "status": "completed",
+      "phase": "terminal"
+    }
+  },
+  {
+    "method": "GET",
+    "path": "installations?appId=claude",
+    "body": null,
+    "status": 200,
+    "response": {
+      "installations": []
+    }
+  },
+  {
+    "method": "GET",
+    "path": "operations/89e0d1fd-a59c-49b7-a97c-80775629c684",
+    "body": null,
+    "status": 200,
+    "response": {
+      "operationId": "89e0d1fd-a59c-49b7-a97c-80775629c684",
+      "status": "completed",
+      "phase": "terminal"
+    }
+  },
+  {
+    "method": "GET",
+    "path": "operations/89e0d1fd-a59c-49b7-a97c-80775629c684/events",
+    "body": null,
+    "status": 200,
+    "response": {
+      "operationId": "89e0d1fd-a59c-49b7-a97c-80775629c684",
+      "status": "completed",
+      "phase": "terminal"
+    }
+  },
+  {
+    "method": "GET",
+    "path": "installations?appId=claude",
+    "body": null,
+    "status": 200,
+    "response": {
+      "installations": [
+        {
+          "id": "NDpob3N0OjY6Y2xhdWRlOjU4Oi9wcml2YXRlL3RtcC9zaGlqdS10YXNrNDYtZmluYWwtNXM5X2JiaXIvcHJlZml4L2Jpbi9jbGF1ZGU",
+          "appId": "claude",
+          "targetHostId": "host",
+          "environment": {
+            "kind": "macos"
+          },
+          "path": "<isolated-root>/prefix/bin/claude",
+          "realPath": "<isolated-root>/prefix/lib/node_modules/@anthropic-ai/claude-code/bin/claude.exe",
+          "source": "system",
+          "isPathDefault": true,
+          "version": "2.1.318",
+          "runtimeStatus": {
+            "status": "runnable"
+          }
+        }
+      ]
+    }
+  },
+  {
+    "method": "POST",
+    "path": "actions/preview",
+    "body": {
+      "appId": "claude",
+      "action": "uninstall",
+      "target": {
+        "kind": "installation",
+        "installationId": "NDpob3N0OjY6Y2xhdWRlOjU4Oi9wcml2YXRlL3RtcC9zaGlqdS10YXNrNDYtZmluYWwtNXM5X2JiaXIvcHJlZml4L2Jpbi9jbGF1ZGU"
+      }
+    },
+    "status": 200,
+    "response": {
+      "previewId": "93869833-ed37-46eb-b5a6-9887179545dd",
+      "request": {
+        "appId": "claude",
+        "action": "uninstall",
+        "target": {
+          "kind": "installation",
+          "installationId": "NDpob3N0OjY6Y2xhdWRlOjU4Oi9wcml2YXRlL3RtcC9zaGlqdS10YXNrNDYtZmluYWwtNXM5X2JiaXIvcHJlZml4L2Jpbi9jbGF1ZGU"
+        }
+      },
+      "source": "system",
+      "confirmationRequired": true,
+      "summary": "Review the selected application action in the administrator-approved prefix",
+      "displayCommand": null
+    }
+  },
+  {
+    "method": "POST",
+    "path": "actions",
+    "body": {
+      "previewId": "93869833-ed37-46eb-b5a6-9887179545dd",
+      "confirmed": true
+    },
+    "status": 202,
+    "response": {
+      "operationId": "f9fec1b1-a02e-443f-b91a-24e81b3e4530",
+      "status": "queued"
+    }
+  },
+  {
+    "method": "GET",
+    "path": "operations/f9fec1b1-a02e-443f-b91a-24e81b3e4530",
+    "body": null,
+    "status": 200,
+    "response": {
+      "operationId": "f9fec1b1-a02e-443f-b91a-24e81b3e4530",
+      "status": "completed",
+      "phase": "terminal"
+    }
+  },
+  {
+    "method": "GET",
+    "path": "operations/f9fec1b1-a02e-443f-b91a-24e81b3e4530/events",
+    "body": null,
+    "status": 200,
+    "response": {
+      "operationId": "f9fec1b1-a02e-443f-b91a-24e81b3e4530",
+      "status": "completed",
+      "phase": "terminal"
+    }
+  },
+  {
+    "method": "POST",
+    "path": "actions/preview",
+    "body": {
+      "appId": "claude",
+      "action": "uninstall",
+      "target": {
+        "kind": "installation",
+        "installationId": "NDpob3N0OjY6Y2xhdWRlOjU4Oi9wcml2YXRlL3RtcC9zaGlqdS10YXNrNDYtZmluYWwtNXM5X2JiaXIvcHJlZml4L2Jpbi9jbGF1ZGU"
+      }
+    },
+    "status": 200,
+    "response": {
+      "previewId": "62075675-514d-48fa-977a-cdc387de07f9",
+      "request": {
+        "appId": "claude",
+        "action": "uninstall",
+        "target": {
+          "kind": "installation",
+          "installationId": "NDpob3N0OjY6Y2xhdWRlOjU4Oi9wcml2YXRlL3RtcC9zaGlqdS10YXNrNDYtZmluYWwtNXM5X2JiaXIvcHJlZml4L2Jpbi9jbGF1ZGU"
+        }
+      },
+      "source": "system",
+      "confirmationRequired": true,
+      "summary": "Review the selected application action in the administrator-approved prefix",
+      "displayCommand": null
+    }
+  },
+  {
+    "method": "POST",
+    "path": "actions",
+    "body": {
+      "previewId": "62075675-514d-48fa-977a-cdc387de07f9",
+      "confirmed": true
+    },
+    "status": 202,
+    "response": {
+      "operationId": "2cd97a62-9742-4de8-95ec-27ef4ade62f7",
+      "status": "queued"
+    }
+  },
+  {
+    "method": "GET",
+    "path": "operations/2cd97a62-9742-4de8-95ec-27ef4ade62f7",
+    "body": null,
+    "status": 200,
+    "response": {
+      "operationId": "2cd97a62-9742-4de8-95ec-27ef4ade62f7",
+      "status": "completed",
+      "phase": "terminal"
+    }
+  },
+  {
+    "method": "GET",
+    "path": "operations/2cd97a62-9742-4de8-95ec-27ef4ade62f7/events",
+    "body": null,
+    "status": 200,
+    "response": {
+      "operationId": "2cd97a62-9742-4de8-95ec-27ef4ade62f7",
+      "status": "completed",
+      "phase": "terminal"
+    }
+  },
+  {
+    "method": "GET",
+    "path": "operations/3f346ecb-fe21-4713-b35e-65bc48c8b098",
+    "body": null,
+    "status": 200,
+    "response": {
+      "operationId": "3f346ecb-fe21-4713-b35e-65bc48c8b098",
+      "status": "cancelled",
+      "phase": "terminal"
+    }
+  },
+  {
+    "method": "GET",
+    "path": "operations/3f346ecb-fe21-4713-b35e-65bc48c8b098/events",
+    "body": null,
+    "status": 200,
+    "response": {
+      "operationId": "3f346ecb-fe21-4713-b35e-65bc48c8b098",
+      "status": "cancelled",
+      "phase": "terminal"
+    }
+  },
+  {
+    "method": "GET",
+    "path": "operations/3f346ecb-fe21-4713-b35e-65bc48c8b098",
+    "body": null,
+    "status": 200,
+    "response": {
+      "operationId": "3f346ecb-fe21-4713-b35e-65bc48c8b098",
+      "status": "cancelled",
+      "phase": "terminal"
+    }
+  },
+  {
+    "method": "GET",
+    "path": "operations/3f346ecb-fe21-4713-b35e-65bc48c8b098/events",
+    "body": null,
+    "status": 200,
+    "response": {
+      "operationId": "3f346ecb-fe21-4713-b35e-65bc48c8b098",
+      "status": "cancelled",
+      "phase": "terminal"
+    }
+  },
+  {
+    "method": "GET",
+    "path": "installations?appId=claude",
+    "body": null,
+    "status": 200,
+    "response": {
+      "installations": []
+    }
+  }
+]

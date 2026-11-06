@@ -76,17 +76,31 @@ async fn read(
     }
     #[cfg(unix)]
     tokio::task::spawn_blocking(move || {
-        vw_agent_apps::apps::discovery::read::read(
-            app,
-            &vw_agent_apps::apps::discovery::read::LocalReadEnvironment {
-                host_id: host.id,
-                home: host.home,
-                search_paths: host.search_paths,
-                applications: host.applications,
-            },
-        )
-        .map(Json)
-        .map_err(|_| StatusCode::SERVICE_UNAVAILABLE)
+        let environment = vw_agent_apps::apps::discovery::read::LocalReadEnvironment {
+            host_id: host.id,
+            home: host.home,
+            search_paths: host.search_paths,
+            applications: host.applications,
+        };
+        if app != AppId::ClaudeDesktop
+            && let Some(write) = host.lifecycle
+        {
+            return vw_agent_apps::apps::lifecycle::local::scoped_discover(
+                app,
+                &environment,
+                &vw_agent_apps::apps::lifecycle::local::WriteEnvironment {
+                    prefix: write.prefix,
+                    npm: write.npm,
+                },
+            )
+            .map(|report| {
+                Json(AppReadResponse { installations: report.installations, desktop: None })
+            })
+            .map_err(|_| StatusCode::SERVICE_UNAVAILABLE);
+        }
+        vw_agent_apps::apps::discovery::read::read(app, &environment)
+            .map(Json)
+            .map_err(|_| StatusCode::SERVICE_UNAVAILABLE)
     })
     .await
     .map_err(|_| StatusCode::SERVICE_UNAVAILABLE)?

@@ -128,6 +128,36 @@ impl PostgresGatewaySettingsStore {
         Ok(changed == 1)
     }
 
+    /// Replace only the scoped payload read by the caller, never a newer record.
+    pub(super) fn compare_exchange(
+        &self,
+        tenant: &TenantScope,
+        namespace: &str,
+        config_key: &str,
+        expected: &str,
+        payload_json: &str,
+        updated_at_ms: i64,
+    ) -> Result<bool> {
+        let mut connection = self.database.connect_postgres()?;
+        let changed = connection
+            .execute(
+                "UPDATE gateway_settings SET payload_json = $5, updated_at_ms = $6
+             WHERE platform_id = $1 AND company_id = $2 AND namespace = $3
+               AND config_key = $4 AND payload_json = $7",
+                &[
+                    &tenant.platform_id().as_ref(),
+                    &tenant.company_id().as_ref(),
+                    &namespace,
+                    &config_key,
+                    &payload_json,
+                    &updated_at_ms,
+                    &expected,
+                ],
+            )
+            .context("conditionally update tenant PostgreSQL gateway setting")?;
+        Ok(changed == 1)
+    }
+
     /// 删除完整作用域主键对应的设置。
     pub(super) fn delete(
         &self,

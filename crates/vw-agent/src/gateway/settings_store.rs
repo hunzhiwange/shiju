@@ -190,6 +190,51 @@ impl GatewaySettingsStore {
         }
     }
 
+    /// Conditional scoped update: stale readers cannot replace newer fields or metadata.
+    pub(crate) fn compare_exchange(
+        &self,
+        tenant: &TenantScope,
+        namespace: &str,
+        config_key: &str,
+        expected: &str,
+        payload_json: &str,
+    ) -> Result<bool> {
+        validate_identifier(namespace, "gateway settings namespace")?;
+        validate_identifier(config_key, "gateway settings config key")?;
+        validate_identifier(payload_json, "gateway settings payload")?;
+        let updated_at_ms = current_timestamp_ms()?;
+        match &self.provider {
+            GatewaySettingsStoreProvider::Sqlite(database) => {
+                let connection = database.connect_sqlite()?;
+                let changed = connection
+                    .execute(
+                        "UPDATE gateway_settings SET payload_json = ?5, updated_at_ms = ?6
+                     WHERE platform_id = ?1 AND company_id = ?2 AND namespace = ?3
+                       AND config_key = ?4 AND payload_json = ?7",
+                        params![
+                            tenant.platform_id().as_ref(),
+                            tenant.company_id().as_ref(),
+                            namespace,
+                            config_key,
+                            payload_json,
+                            updated_at_ms,
+                            expected
+                        ],
+                    )
+                    .context("conditionally update tenant SQLite gateway setting")?;
+                Ok(changed == 1)
+            }
+            GatewaySettingsStoreProvider::Postgres(store) => store.compare_exchange(
+                tenant,
+                namespace,
+                config_key,
+                expected,
+                payload_json,
+                updated_at_ms,
+            ),
+        }
+    }
+
     /// 删除单条设置并返回是否命中记录。
     pub(crate) fn delete(
         &self,

@@ -69,3 +69,7 @@ mod catalog_tests;
 pub mod create;
 #[cfg(test)]
 mod create_tests;
+
+pub mod update;
+#[cfg(test)]
+mod update_tests;

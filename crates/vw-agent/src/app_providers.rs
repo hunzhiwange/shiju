@@ -64,6 +64,35 @@ impl AppProviderStore {
                 .map_err(|_| "application provider storage unavailable".into())
         })
     }
+    /// Update an existing scoped catalog record, without touching native configuration.
+    pub fn update(
+        &self,
+        tenant: &TenantScope,
+        app: AppId,
+        id: &str,
+        request: &vw_api_types::app_providers::update::AppProviderUpdate,
+    ) -> Result<AppProviderSummary, String> {
+        let key = Self::key(app, id)?;
+        let before = self
+            .settings
+            .get(tenant, NAMESPACE, &key)
+            .map_err(|_| "application provider storage unavailable")?
+            .ok_or("application provider not found")?;
+        let stored = serde_json::from_str(&before)
+            .map_err(|_| "invalid stored application provider profile")?;
+        let updated = vw_agent_apps::providers::update::update(app, id, &stored, request)?;
+        let profile = vw_agent_apps::providers::update::profile(&updated)?;
+        let after =
+            serde_json::to_string(&updated).map_err(|_| "invalid application provider profile")?;
+        if !self
+            .settings
+            .compare_exchange(tenant, NAMESPACE, &key, &before, &after)
+            .map_err(|_| "application provider storage unavailable")?
+        {
+            return Err("application provider changed during update".into());
+        }
+        Ok(Self::summary(app, id, &profile))
+    }
     fn read(&self, tenant: &TenantScope, app: AppId, id: &str) -> Result<AppProviderWrite, String> {
         let key = Self::key(app, id)?;
         let value = self
@@ -71,8 +100,9 @@ impl AppProviderStore {
             .get(tenant, NAMESPACE, &key)
             .map_err(|_| "application provider storage unavailable")?
             .ok_or("application provider not found")?;
-        let profile: AppProviderWrite = serde_json::from_str(&value)
+        let stored = serde_json::from_str(&value)
             .map_err(|_| "invalid stored application provider profile")?;
+        let profile = vw_agent_apps::providers::update::profile(&stored)?;
         validate_profile(app, &profile)?;
         Ok(profile)
     }

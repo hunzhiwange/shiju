@@ -47,3 +47,9 @@ mod create;
 #[cfg(test)]
 #[path = "app_providers/create_tests.rs"]
 mod create_tests;
+
+#[path = "app_providers/update.rs"]
+mod update;
+#[cfg(test)]
+#[path = "app_providers/update_tests.rs"]
+mod update_tests;

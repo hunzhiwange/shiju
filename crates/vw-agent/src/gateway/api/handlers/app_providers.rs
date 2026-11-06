@@ -12,11 +12,18 @@ use vw_api_types::{agent_apps::AppId, app_providers::AppProviderWrite, id::Tenan
 pub(crate) fn router() -> Router {
     Router::new().merge(catalog::router()).route(
         "/app-providers/{app}/{id}",
-        get(read).put(save).post(create::create).layer(DefaultBodyLimit::max(16 * 1024)),
+        get(read)
+            .put(save)
+            .post(create::create)
+            .patch(update::update)
+            .layer(DefaultBodyLimit::max(16 * 1024)),
     )
 }
 fn error(message: &str) -> Response {
     let (status, safe) = match message {
+        "application provider changed during update" => {
+            (StatusCode::CONFLICT, "Application provider changed during update; retry")
+        }
         "application provider already exists" => {
             (StatusCode::CONFLICT, "Application provider already exists")
         }
@@ -82,3 +89,8 @@ mod create;
 #[cfg(test)]
 #[path = "app_providers/create_tests.rs"]
 mod create_tests;
+
+mod update;
+#[cfg(test)]
+#[path = "app_providers/update_tests.rs"]
+mod update_tests;

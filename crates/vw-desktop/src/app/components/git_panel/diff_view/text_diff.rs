@@ -7,8 +7,8 @@ use crate::app::{App, DiffTheme, Message, message};
 use super::super::utils::{lang_for_file, render_line_content};
 use super::{
     DiffRenderCtx, DiffSplitPaneTone, diff_highlight_enabled, diff_split_divider, diff_split_pane,
-    diff_split_pane_with_background, header, markers, selection, split_line_number_area,
-    wrap_diff_row_with_context_menu,
+    diff_split_pane_with_background, diff_split_row, header, markers, selection,
+    split_line_number_area, wrap_diff_row_with_context_menu,
 };
 
 /// 创建自定义文本差异对比视图
@@ -367,15 +367,12 @@ pub fn view_custom_text_diff(
                 )
             };
 
-            let row = container(
-                row![
-                    markers::line_marker_cell_emphasis(marker, pane_emphasis),
-                    left_part,
-                    diff_split_divider(),
-                    right_part
-                ]
-                .width(Length::Fill),
-            )
+            let row = container(diff_split_row([
+                markers::line_marker_cell_emphasis(marker, pane_emphasis),
+                left_part,
+                diff_split_divider(),
+                right_part,
+            ]))
             .width(Length::Fill)
             .padding([0, 1])
             .style(move |_| iced::widget::container::Style {

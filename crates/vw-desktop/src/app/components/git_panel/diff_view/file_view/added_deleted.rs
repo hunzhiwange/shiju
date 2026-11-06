@@ -23,8 +23,8 @@ use super::super::wrap_diff_row_with_context_menu;
 /// 重新导出 use super::super::{，让上层模块通过稳定路径访问。
 use super::super::{
     DiffRenderCtx, DiffSplitPaneTone, diff_highlight_enabled, diff_line_number_with_background,
-    diff_split_divider, diff_split_pane, diff_split_pane_with_background, merge_diff_row,
-    merge_diff_row_with_background, split_line_number_area,
+    diff_split_divider, diff_split_pane, diff_split_pane_with_background, diff_split_row,
+    merge_diff_row, merge_diff_row_with_background, split_line_number_area,
 };
 /// 重新导出 use super::diff_line_select_button，让上层模块通过稳定路径访问。
 use super::diff_line_select_button;
@@ -96,6 +96,7 @@ pub fn render_added_lines(
                 // Message 保存该结构在渲染、解析或测试断言中需要直接访问的数据。
                 Message::Git(message::GitMessage::ToggleStageLine(file.to_string(), new_idx, true))
             },
+            render_ctx.read_only,
         );
         let new_num_area: Element<'_, Message> =
             MouseArea::new(line_number_cell_with_tone(new_num.clone(), LineNumberTone::Add))
@@ -196,7 +197,7 @@ pub fn render_added_lines(
                 marker_emphasis,
             );
             let r = merge_diff_row(
-                container(row![left_part, diff_split_divider(), right_part].width(Length::Fill))
+                container(diff_split_row([left_part, diff_split_divider(), right_part]))
                     .width(Length::Fill)
                     .into(),
                 // DiffSplitPaneTone 保存该结构在渲染、解析或测试断言中需要直接访问的数据。
@@ -301,6 +302,7 @@ pub fn render_deleted_lines(
                     true,
                 ))
             },
+            render_ctx.read_only,
         );
         let old_num_area: Element<'_, Message> = MouseArea::new(line_number_cell_with_tone_offset(
             old_num.clone(),
@@ -411,7 +413,7 @@ pub fn render_deleted_lines(
                 marker_emphasis,
             );
             let r = merge_diff_row(
-                container(row![left_part, diff_split_divider(), right_part].width(Length::Fill))
+                container(diff_split_row([left_part, diff_split_divider(), right_part]))
                     .width(Length::Fill)
                     .into(),
                 // DiffSplitPaneTone 保存该结构在渲染、解析或测试断言中需要直接访问的数据。

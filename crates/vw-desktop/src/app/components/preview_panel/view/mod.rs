@@ -87,7 +87,7 @@ pub fn view(app: &App) -> Element<'_, Message> {
             // editor_toolbar 保存该结构在渲染、解析或测试断言中需要直接访问的数据。
             editor_toolbar::view(
                 app,
-                Some(Message::Preview(message::PreviewMessage::SaveFile)),
+                (!tab.read_only).then_some(Message::Preview(message::PreviewMessage::SaveFile)),
                 tab.is_dirty,
             )
         })
@@ -102,7 +102,11 @@ pub fn view(app: &App) -> Element<'_, Message> {
             let display_segments =
                 preview_breadcrumb_segments(Path::new(active_path), app.project_path.as_deref());
 
-            if display_segments.is_empty() {
+            if let Some(tab) =
+                app.preview_tabs.iter().find(|tab| tab.path == active_path && tab.read_only)
+            {
+                text(&tab.title).size(12).into()
+            } else if display_segments.is_empty() {
                 // Space 保存该结构在渲染、解析或测试断言中需要直接访问的数据。
                 Space::new().into()
             } else {
@@ -225,6 +229,9 @@ pub fn view(app: &App) -> Element<'_, Message> {
 fn active_preview_lsp_badge(app: &App) -> Option<Element<'_, Message>> {
     let path = app.active_preview_path.as_deref()?;
     let tab = app.preview_tabs.iter().find(|tab| tab.path == path)?;
+    if tab.read_only {
+        return None;
+    }
     let language = crate::app::lsp::config::lsp_language_for_path(std::path::Path::new(path));
     let has_progress = tab.lsp_server_key.is_some_and(|server_key| {
         app.lsp_progress.get(server_key).is_some_and(|entries| !entries.is_empty())

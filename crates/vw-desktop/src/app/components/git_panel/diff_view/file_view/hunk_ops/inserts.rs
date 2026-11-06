@@ -22,8 +22,8 @@ use super::super::super::wrap_diff_row_with_context_menu;
 /// 重新导出 use super::super::super::{，让上层模块通过稳定路径访问。
 use super::super::super::{
     DiffSplitPaneTone, diff_highlight_enabled, diff_line_number_with_background,
-    diff_split_divider, diff_split_pane, diff_split_pane_with_background, merge_diff_row,
-    merge_diff_row_with_background, split_line_number_area,
+    diff_split_divider, diff_split_pane, diff_split_pane_with_background, diff_split_row,
+    merge_diff_row, merge_diff_row_with_background, split_line_number_area,
 };
 /// 重新导出 use super::super::diff_line_select_button，让上层模块通过稳定路径访问。
 use super::super::diff_line_select_button;
@@ -133,6 +133,7 @@ pub fn render_insert_ops(
                 // Message 保存该结构在渲染、解析或测试断言中需要直接访问的数据。
                 Message::Git(message::GitMessage::ToggleStageLine(file.to_string(), new_idx, true))
             },
+            render_ctx.read_only,
         );
 
         if app.merge_view {
@@ -207,7 +208,7 @@ pub fn render_insert_ops(
                 hovered_or_selected,
             );
             let r = merge_diff_row(
-                container(row![left_part, diff_split_divider(), right_part].width(Length::Fill))
+                container(diff_split_row([left_part, diff_split_divider(), right_part]))
                     .width(Length::Fill)
                     .into(),
                 // DiffSplitPaneTone 保存该结构在渲染、解析或测试断言中需要直接访问的数据。

@@ -2,7 +2,7 @@
 //!
 //! 本模块负责 diff 行、行号、选区、上下文菜单和配色的局部组合。
 
-use iced::widget::{MouseArea, Space, container};
+use iced::widget::{MouseArea, Row, Space, container};
 /// 重新导出 use iced::{Background, Border, Color, Element, Length}，让上层模块通过稳定路径访问。
 use iced::{Background, Border, Color, Element, Length};
 
@@ -313,6 +313,7 @@ pub(in crate::app::components::git_panel) fn diff_split_pane<'a>(
 ) -> Element<'a, Message> {
     container(content)
         .width(Length::FillPortion(1))
+        .height(Length::Shrink)
         .padding([0, 3])
         .style(move |theme: &iced::Theme| diff_split_pane_style(theme, tone, emphasized))
         .into()
@@ -340,6 +341,7 @@ pub(in crate::app::components::git_panel) fn diff_split_pane_with_background<'a>
 ) -> Element<'a, Message> {
     container(content)
         .width(Length::FillPortion(1))
+        .height(Length::Shrink)
         .style(move |theme: &iced::Theme| {
             diff_split_pane_background_style(theme, background, emphasized)
         })
@@ -429,4 +431,12 @@ pub(in crate::app::components::git_panel) fn split_line_number_area(
         }
         None => markers::empty_line_number_cell(),
     }
+}
+
+/// 分隔线需要填充行高，但不能把整个 diff 行的固有高度提升为 Fill。
+/// 滚动区域的高度无上界，必须让行按两侧内容测量，再由分隔线填充。
+pub(in crate::app::components::git_panel) fn diff_split_row<'a>(
+    children: impl IntoIterator<Item = Element<'a, Message>>,
+) -> Element<'a, Message> {
+    Row::with_children(children).width(Length::Fill).height(Length::Shrink).into()
 }

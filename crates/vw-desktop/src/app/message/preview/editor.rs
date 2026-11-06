@@ -283,6 +283,13 @@ fn update_context_target_from_editor_event(app: &mut App, evt: &iced_code_editor
 pub fn update(app: &mut App, message: PreviewMessage) -> Task<Message> {
     match message {
         PreviewMessage::EditorEvent(evt) => {
+            if app.active_preview_path.as_ref().is_some_and(|path| {
+                app.preview_tabs.iter().any(|tab| tab.path == *path && tab.read_only)
+            }) && (editor_message_may_change_content(&evt)
+                || matches!(evt, iced_code_editor::Message::RevealInFileManager))
+            {
+                return Task::none();
+            }
             match &evt {
                 iced_code_editor::Message::CustomContextMenuAction(id) => {
                     return match id.as_str() {

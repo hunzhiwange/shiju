@@ -20,7 +20,9 @@ use iced::widget::text_editor;
 mod diff;
 mod modal;
 mod refresh;
+mod repository;
 mod shared;
+pub(crate) use shared::git_context_path_for_app;
 mod stage_commit;
 
 /// Diff 上下文展开方向
@@ -42,6 +44,34 @@ pub enum ExpandDirection {
 /// 暂存区、提交、过滤等多个功能领域。
 #[derive(Debug, Clone)]
 pub enum GitMessage {
+    RemoteAnimationTick,
+    ShowHistory(bool),
+    RefreshRepository,
+    LoadMoreHistory,
+    RepositoryReady {
+        path: String,
+        generation: u64,
+        result:
+            Result<crate::app::components::git_panel::repository_ops::RepositorySnapshot, String>,
+    },
+    SelectHistoryCommit(String),
+    HistoryDetailReady {
+        path: String,
+        generation: u64,
+        sha: String,
+        result: Result<crate::app::components::git_panel::repository_ops::HistoryDetail, String>,
+    },
+    SelectHistoryFile(usize),
+    OpenHistoryFileMenu(usize),
+    CloseHistoryFileMenu,
+    PreviewHistoryFile(usize),
+    CopyHistoryFile(usize),
+    RunRemote(crate::app::components::git_panel::repository_ops::RemoteAction),
+    RemoteFinished {
+        path: String,
+        action: crate::app::components::git_panel::repository_ops::RemoteAction,
+        result: Result<(), String>,
+    },
     /// 刷新 Git 面板所需的全部数据
     RefreshGitPanelData,
 
@@ -419,6 +449,20 @@ struct SelectedCommitRequest {
 /// 这是 Git 消息处理的核心函数，根据接收到的消息类型分发到对应职责模块。
 pub fn update(app: &mut App, message: GitMessage) -> Task<Message> {
     match message {
+        message @ (GitMessage::RemoteAnimationTick
+        | GitMessage::ShowHistory(_)
+        | GitMessage::RefreshRepository
+        | GitMessage::LoadMoreHistory
+        | GitMessage::RepositoryReady { .. }
+        | GitMessage::SelectHistoryCommit(_)
+        | GitMessage::HistoryDetailReady { .. }
+        | GitMessage::OpenHistoryFileMenu(_)
+        | GitMessage::CloseHistoryFileMenu
+        | GitMessage::PreviewHistoryFile(_)
+        | GitMessage::CopyHistoryFile(_)
+        | GitMessage::SelectHistoryFile(_)
+        | GitMessage::RunRemote(_)
+        | GitMessage::RemoteFinished { .. }) => repository::update(app, message),
         message @ (GitMessage::RefreshGitPanelData
         | GitMessage::RefreshWorktreeOptions
         | GitMessage::WorktreeOptionsReady { .. }
@@ -546,3 +590,6 @@ mod shared_tests;
 #[cfg(test)]
 #[path = "stage_commit_tests.rs"]
 mod stage_commit_tests;
+
+#[cfg(all(test, not(target_arch = "wasm32")))]
+mod repository_tests;

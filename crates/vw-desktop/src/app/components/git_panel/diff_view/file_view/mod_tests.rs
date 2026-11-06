@@ -107,18 +107,21 @@ fn diff_line_select_controls_and_file_menu_build() {
         crate::app::Message::Git(crate::app::message::GitMessage::SelectAllFileLines(
             "src/lib.rs".to_string(),
         )),
+        false,
     );
     let _unselected = super::diff_line_select_button(
         false,
         crate::app::Message::Git(crate::app::message::GitMessage::ClearAllFileLines(
             "src/lib.rs".to_string(),
         )),
+        false,
     );
     let _spacer = super::diff_line_select_spacer();
     let _menu = super::diff_file_actions_menu(
         vw_config_types::ui::DesktopLocale::SimplifiedChinese,
         "src/lib.rs",
         Some("deleted".to_string()),
+        false,
     );
 }
 

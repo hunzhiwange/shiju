@@ -42,7 +42,7 @@ fn current_preview_location(app: &App) -> Option<(String, usize, usize)> {
 }
 
 fn preview_is_dirty(tab: &PreviewTab) -> bool {
-    tab.is_dirty
+    !tab.read_only && tab.is_dirty
 }
 
 fn gateway_preview_target(
@@ -279,6 +279,7 @@ pub fn update(app: &mut App, message: PreviewMessage) -> Task<Message> {
                     content: initial_content,
                     is_dirty: false,
                     truncated,
+                    read_only: false,
                     auto_save_revision: 0,
                     editor,
                     scroll_id: widget::Id::unique(),
@@ -331,11 +332,12 @@ pub fn update(app: &mut App, message: PreviewMessage) -> Task<Message> {
                 };
             }
             // Add a top-level Preview tab for this file and select it
-            let title = std::path::Path::new(&path_clone)
-                .file_name()
-                .and_then(|s| s.to_str())
-                .unwrap_or(&path_clone)
-                .to_string();
+            let title = app
+                .preview_tabs
+                .iter()
+                .find(|tab| tab.path == path_clone)
+                .map(|tab| tab.title.clone())
+                .unwrap_or_else(|| path_clone.clone());
             let id = format!("preview:{}", path_clone);
             if !app.open_tabs.iter().any(|t| t.id == id) {
                 app.open_tabs.push(AppTab {
@@ -371,6 +373,9 @@ pub fn update(app: &mut App, message: PreviewMessage) -> Task<Message> {
             let language = crate::app::i18n::editor::language(app.desktop_locale);
 
             if let Some(tab) = app.preview_tabs.iter_mut().find(|t| t.path == path) {
+                if tab.read_only {
+                    return Task::none();
+                }
                 tab.content = content.clone();
                 tab.is_dirty = false;
                 tab.truncated = truncated;

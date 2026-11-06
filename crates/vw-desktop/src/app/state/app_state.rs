@@ -87,6 +87,7 @@ pub(crate) enum NativeStartupState {
 
 #[allow(dead_code)]
 pub struct App {
+    pub(crate) git_repository: crate::app::components::git_panel::repository_ops::RepositoryState,
     pub(crate) session_ui_projection: crate::app::session::ui_projection::SessionUiProjection,
     /// 当前显示的屏幕
     pub(crate) screen: Screen,

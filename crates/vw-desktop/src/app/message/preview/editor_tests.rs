@@ -24,6 +24,7 @@ fn tab(path: &str, content: &str) -> PreviewTab {
         content: content.to_string(),
         is_dirty: false,
         truncated: false,
+        read_only: false,
         auto_save_revision: 0,
         editor: Editor::new(content, "rust"),
         scroll_id: Id::unique(),

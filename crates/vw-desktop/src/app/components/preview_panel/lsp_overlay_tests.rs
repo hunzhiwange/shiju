@@ -26,6 +26,7 @@ mod native {
             content: "fn main() {}".to_string(),
             is_dirty: false,
             truncated: false,
+            read_only: false,
             auto_save_revision: 0,
             editor: Editor::new("fn main() {}", "rust"),
             scroll_id: Id::unique(),

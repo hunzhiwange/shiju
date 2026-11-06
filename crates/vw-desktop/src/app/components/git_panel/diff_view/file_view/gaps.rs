@@ -32,7 +32,7 @@ use super::super::selection::{is_diff_hovered, is_diff_selected};
 use super::super::wrap_diff_row_with_context_menu;
 use super::super::{
     DiffRenderCtx, DiffSplitPaneTone, diff_highlight_enabled, diff_split_divider, diff_split_pane,
-    merge_diff_row, split_line_number_area,
+    diff_split_row, merge_diff_row, split_line_number_area,
 };
 use super::diff_line_select_spacer;
 use super::start_end::GapRange;
@@ -362,15 +362,12 @@ pub fn render_gap(
                 hovered_or_selected,
             );
             let r = merge_diff_row(
-                container(
-                    row![
-                        line_marker_cell_emphasis(LineMarkerKind::None, hovered_or_selected),
-                        left_part,
-                        diff_split_divider(),
-                        right_part,
-                    ]
-                    .width(Length::Fill),
-                )
+                container(diff_split_row([
+                    line_marker_cell_emphasis(LineMarkerKind::None, hovered_or_selected),
+                    left_part,
+                    diff_split_divider(),
+                    right_part,
+                ]))
                 .width(Length::Fill)
                 .into(),
                 DiffSplitPaneTone::Neutral,
@@ -495,15 +492,12 @@ pub fn render_gap(
                 false,
             );
             merge_diff_row(
-                container(
-                    row![
-                        line_marker_cell_emphasis(LineMarkerKind::None, false),
-                        left_part,
-                        diff_split_divider(),
-                        right_part
-                    ]
-                    .width(Length::Fill),
-                )
+                container(diff_split_row([
+                    line_marker_cell_emphasis(LineMarkerKind::None, false),
+                    left_part,
+                    diff_split_divider(),
+                    right_part,
+                ]))
                 .width(Length::Fill)
                 .into(),
                 DiffSplitPaneTone::Empty,

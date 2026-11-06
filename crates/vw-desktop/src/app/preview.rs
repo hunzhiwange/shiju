@@ -58,6 +58,8 @@ pub struct PreviewTab {
     pub is_dirty: bool,
     /// 文件是否被截断
     pub truncated: bool,
+    /// 提交快照等非工作区内容只允许浏览。
+    pub read_only: bool,
     /// 自动保存版本号，用于丢弃过期的延迟保存任务。
     pub auto_save_revision: u64,
     /// 编辑器组件

@@ -31,6 +31,7 @@ use super::super::utils::{FileStatus, Lang, lang_for_file};
 use super::DiffRenderCtx;
 
 mod added_deleted;
+mod body;
 mod gaps;
 mod hunk_ops;
 mod standard;
@@ -56,7 +57,15 @@ mod tests;
 
 const DIFF_LINE_SELECT_WIDTH: f32 = 18.0;
 
-pub(super) fn diff_line_select_button(selected: bool, on: Message) -> Element<'static, Message> {
+pub(super) fn diff_line_select_button(
+    selected: bool,
+    on: Message,
+    read_only: bool,
+) -> Element<'static, Message> {
+    if read_only {
+        // 分栏 diff 的行布局依赖控件的固有高度；隐藏暂存框时仍保留行高。
+        return container(Space::new().height(20)).width(DIFF_LINE_SELECT_WIDTH).into();
+    }
     let glyph = if selected { "✓" } else { "" };
     button(text(glyph).size(12))
         .on_press(on)
@@ -155,6 +164,7 @@ fn diff_file_actions_menu(
     locale: vw_config_types::ui::DesktopLocale,
     file: &str,
     deleted_content: Option<String>,
+    read_only: bool,
 ) -> Element<'static, Message> {
     let menu_button_style = |theme: &iced::Theme, status: iced::widget::button::Status| {
         let ext = theme.extended_palette();
@@ -191,55 +201,60 @@ fn diff_file_actions_menu(
         .on_press(message)
     };
 
-    container(
-        column![
-            menu_item(
-                crate::app::i18n::I18n::new(locale).__("查看"),
-                Message::Git(message::GitMessage::PreviewDiffFile(file.to_string())),
-            ),
-            menu_item(
-                crate::app::i18n::I18n::new(locale).__("复制"),
-                Message::Git(message::GitMessage::CopyDiffFile {
-                    file: file.to_string(),
-                    deleted_content: deleted_content.clone(),
-                }),
-            ),
-            menu_item(
-                crate::app::i18n::I18n::new(locale).__("回滚"),
-                Message::Git(message::GitMessage::RevertDiffFile(file.to_string())),
-            ),
-        ]
-        .spacing(0)
-        .width(Length::Fixed(78.0)),
-    )
-    .padding([3, 3])
-    .style(|theme: &iced::Theme| {
-        let ext = theme.extended_palette();
-        let is_dark = theme.palette().background.r
-            + theme.palette().background.g
-            + theme.palette().background.b
-            < 1.5;
+    let mut items = column![
+        menu_item(
+            crate::app::i18n::I18n::new(locale).__("查看"),
+            Message::Git(message::GitMessage::PreviewDiffFile(file.to_string())),
+        ),
+        menu_item(
+            crate::app::i18n::I18n::new(locale).__("复制"),
+            Message::Git(message::GitMessage::CopyDiffFile {
+                file: file.to_string(),
+                deleted_content
+            }),
+        ),
+    ]
+    .spacing(0)
+    .width(Length::Fixed(78.0));
+    if !read_only {
+        items = items.push(menu_item(
+            crate::app::i18n::I18n::new(locale).__("回滚"),
+            Message::Git(message::GitMessage::RevertDiffFile(file.to_string())),
+        ));
+    }
+    container(items)
+        .padding([3, 3])
+        .style(|theme: &iced::Theme| {
+            let ext = theme.extended_palette();
+            let is_dark = theme.palette().background.r
+                + theme.palette().background.g
+                + theme.palette().background.b
+                < 1.5;
 
-        iced::widget::container::Style {
-            background: Some(Background::Color(if is_dark {
-                ext.background.base.color.scale_alpha(0.96)
-            } else {
-                ext.background.base.color.scale_alpha(0.99)
-            })),
-            border: Border {
-                width: 1.0,
-                color: ext.background.strong.color.scale_alpha(if is_dark { 0.52 } else { 0.74 }),
-                radius: 10.0.into(),
-            },
-            shadow: iced::Shadow {
-                color: Color::BLACK.scale_alpha(if is_dark { 0.20 } else { 0.08 }),
-                offset: iced::Vector::new(0.0, 4.0),
-                blur_radius: 10.0,
-            },
-            ..Default::default()
-        }
-    })
-    .into()
+            iced::widget::container::Style {
+                background: Some(Background::Color(if is_dark {
+                    ext.background.base.color.scale_alpha(0.96)
+                } else {
+                    ext.background.base.color.scale_alpha(0.99)
+                })),
+                border: Border {
+                    width: 1.0,
+                    color: ext.background.strong.color.scale_alpha(if is_dark {
+                        0.52
+                    } else {
+                        0.74
+                    }),
+                    radius: 10.0.into(),
+                },
+                shadow: iced::Shadow {
+                    color: Color::BLACK.scale_alpha(if is_dark { 0.20 } else { 0.08 }),
+                    offset: iced::Vector::new(0.0, 4.0),
+                    blur_radius: 10.0,
+                },
+                ..Default::default()
+            }
+        })
+        .into()
 }
 
 /// 渲染单个 Git 差异文件的完整视图
@@ -307,14 +322,14 @@ pub fn view_file(
     del_word_bg: Color,
     is_modified: bool,
 ) -> Element<'static, Message> {
-    let expanded = app.is_diff_file_expanded(file);
+    let expanded = render_ctx.history_file.as_ref().map_or_else(
+        || app.is_diff_file_expanded(file),
+        |(index, _)| app.git_repository.selected_file == Some(*index),
+    );
     let (old_content, new_content) = contents.unwrap_or(("", ""));
-    let old_lines: Vec<&str> =
-        if expanded { old_content.lines().collect() } else { Default::default() };
-    let new_lines: Vec<&str> =
-        if expanded { new_content.lines().collect() } else { Default::default() };
-    let mut diff_groups = None;
-    let line_selection_state = if contents.is_some() {
+    let line_selection_state = if render_ctx.read_only {
+        FileLineSelectionState::None
+    } else if contents.is_some() {
         let changed_line_sets = match status {
             FileStatus::Added | FileStatus::Untracked => {
                 (std::collections::HashSet::new(), (0..new_content.lines().count()).collect())
@@ -325,9 +340,7 @@ pub fn view_file(
             FileStatus::Modified | FileStatus::Renamed => {
                 let diff = similar::TextDiff::from_lines(old_content, new_content);
                 let groups = diff.grouped_ops(crate::app::git::DIFF_CONTEXT);
-                let changed_line_sets = changed_diff_line_sets(&groups);
-                diff_groups = Some(groups);
-                changed_line_sets
+                changed_diff_line_sets(&groups)
             }
             FileStatus::Unknown => {
                 (std::collections::HashSet::new(), std::collections::HashSet::new())
@@ -340,16 +353,11 @@ pub fn view_file(
         if has_any_selected { FileLineSelectionState::All } else { FileLineSelectionState::None }
     };
 
-    let allow_revert = matches!(
-        status,
-        FileStatus::Modified
-            | FileStatus::Renamed
-            | FileStatus::Added
-            | FileStatus::Untracked
-            | FileStatus::Deleted
-    );
     let file_header: Element<'static, Message> = {
-        let file_menu_open = app.git_diff_file_menu.as_ref().is_some_and(|menu| menu.file == file);
+        let file_menu_open = render_ctx.history_file.as_ref().map_or_else(
+            || app.git_diff_file_menu.as_ref().is_some_and(|menu| menu.file == file),
+            |(index, _)| app.git_repository.file_menu == Some(*index),
+        );
         let deleted_copy_content =
             matches!(status, FileStatus::Deleted).then(|| old_content.to_string());
         let file_menu_button = small_plain_icon_button(
@@ -433,21 +441,23 @@ pub fn view_file(
             .clip(true),
             container(stats).padding([0, 4]).width(Length::Shrink)
         ]
-        .spacing(6)
+        .spacing(10)
         .width(Length::FillPortion(1))
         .align_y(iced::Alignment::Center);
 
         let menu_anchor_x = -54.0;
         let menu_anchor_y = 22.0;
-        let menu_trigger = container(file_menu_button)
-            .width(Length::Fixed(24.0))
-            .height(Length::Fixed(24.0))
-            .center_x(Length::Fill)
-            .center_y(Length::Fill);
+        let menu_trigger =
+            container(file_menu_button).center_x(Length::Fixed(28.0)).center_y(Length::Fixed(28.0));
 
         let file_menu = crate::app::components::overlays::PointBelowOverlay::new(
             menu_trigger,
-            diff_file_actions_menu(app.desktop_locale, file, deleted_copy_content),
+            diff_file_actions_menu(
+                app.desktop_locale,
+                file,
+                deleted_copy_content,
+                render_ctx.read_only,
+            ),
         )
         .show(file_menu_open)
         .anchor(Point::new(menu_anchor_x, menu_anchor_y))
@@ -456,7 +466,7 @@ pub fn view_file(
         .capture_outside_click(false);
 
         let action_bar =
-            row![file_menu].spacing(6).width(Length::Shrink).align_y(iced::Alignment::Center);
+            row![file_menu].width(Length::Fixed(28.0)).align_y(iced::Alignment::Center);
 
         let expand_toggle = button(title_with_stats)
             .width(Length::FillPortion(1))
@@ -469,14 +479,19 @@ pub fn view_file(
                 ..Default::default()
             });
 
-        let content =
-            row![container(line_select_btn).width(Length::Shrink), expand_toggle, action_bar]
-                .spacing(8)
-                .width(Length::Fill)
-                .align_y(iced::Alignment::Center);
+        let mut content = row![];
+        if !render_ctx.read_only {
+            content = content.push(container(line_select_btn).width(Length::Shrink));
+        }
+        let content = content
+            .push(expand_toggle)
+            .push(action_bar)
+            .spacing(8)
+            .width(Length::Fill)
+            .align_y(iced::Alignment::Center);
 
         // 根据文件状态设置头部的背景色和边框色
-        let header = container(content).width(Length::Fill).padding([4, 4]).style(move |theme| {
+        let header = container(content).width(Length::Fill).padding([4, 10]).style(move |theme| {
             let ext = theme.extended_palette();
             let is_dark = theme.palette().background.r
                 + theme.palette().background.g
@@ -516,297 +531,29 @@ pub fn view_file(
         header.into()
     };
 
-    // ========== 构建差异内容区域 ==========
-    let mut list: Vec<Element<'static, Message>> = Vec::new();
-    list.push(file_header);
-
     if expanded {
-        if loading || contents.is_none() {
-            let placeholder =
-                if loading { "正在加载文件内容..." } else { "文件内容暂不可用" };
-            list.push(
-                container(
-                    text(crate::app::i18n::I18n::new(app.desktop_locale).__(placeholder)).size(12),
-                )
-                .width(Length::Fill)
-                .padding([10, 12])
-                .into(),
-            );
-            return container(
-                iced::widget::Column::with_children(list).spacing(0).width(Length::Fill),
-            )
-            .width(Length::Fill)
-            .into();
-        }
-
-        // 确定文件的语言类型（用于语法高亮）
-        // 新增、未跟踪、删除的文件不进行语法高亮
-        let lang =
-            if matches!(status, FileStatus::Added | FileStatus::Untracked | FileStatus::Deleted) {
-                Lang::Other
-            } else {
-                lang_for_file(file)
-            };
-
-        // 悬停高亮颜色设置
-        let hover_color = Color::from_rgba8(255, 210, 0, 1.0);
-        let hover_mix: f32 = 0.22;
-        let hover_alpha: f32 = 0.22;
-        let hover_tint = Color::from_rgba(hover_color.r, hover_color.g, hover_color.b, hover_alpha);
-
-        // 检查是否有选中的行（影响某些交互行为）
-        // ========== 处理新增文件（纯绿色显示） ==========
-        if matches!(status, FileStatus::Added | FileStatus::Untracked) {
-            let col = added_deleted::render_added_lines(
+        column![
+            file_header,
+            body::view_file_body(
                 app,
                 render_ctx,
-                file,
-                &new_lines,
-                lang,
-                effective_theme,
-                add_line_bg,
-                add_word_bg,
-                hover_color,
-                hover_mix,
-                hover_tint,
-                false,
-                allow_revert,
-            );
-            list.push(container(col).width(Length::Fill).padding([4, 0]).into());
-            return container(
-                iced::widget::Column::with_children(list).spacing(0).width(Length::Fill),
-            )
-            .width(Length::Fill)
-            .into();
-        }
-
-        // ========== 处理删除文件（纯红色显示） ==========
-        if matches!(status, FileStatus::Deleted) {
-            let col = added_deleted::render_deleted_lines(
-                app,
-                render_ctx,
-                file,
-                &old_lines,
-                lang,
-                effective_theme,
-                del_line_bg,
-                hover_color,
-                hover_mix,
-                hover_tint,
-                false,
-                allow_revert,
-            );
-            list.push(container(col).width(Length::Fill).padding([4, 0]).into());
-            return container(
-                iced::widget::Column::with_children(list).spacing(0).width(Length::Fill),
-            )
-            .width(Length::Fill)
-            .into();
-        }
-
-        // ========== 处理修改/重命名文件（标准差异视图） ==========
-        let groups = diff_groups.as_deref().unwrap_or(&[]);
-
-        // 检查是否有手动展开的差异块
-        let has_hunk_manual_expanded = app.expanded_hunks.iter().any(|(f, _)| f.as_str() == file);
-
-        // 自动展开预算：小于等于这个行数的差异块会自动展开
-        let mut auto_expanded_budget: usize = 500;
-
-        // 追踪上一个差异块结束的行号（用于计算间隙区域）
-        let mut last_old_end = 0;
-        let mut last_new_end = 0;
-
-        // 遍历每个差异块（hunk）并渲染
-        for (i, group) in groups.iter().enumerate() {
-            // 估算当前差异块的行数（用于决定是否自动展开）
-            let group_line_estimate = group.iter().fold(0usize, |acc, op| match op {
-                similar::DiffOp::Equal { len, .. } => acc + len,
-                similar::DiffOp::Delete { old_len, .. } => acc + old_len,
-                similar::DiffOp::Insert { new_len, .. } => acc + new_len,
-                similar::DiffOp::Replace { old_len, new_len, .. } => acc + old_len + new_len,
-            });
-
-            // 判断差异块是否展开
-            // 展开条件：手动展开 或 （没有手动展开过且行数在预算内）
-            let hunk_expanded = app
-                .expanded_hunks
-                .iter()
-                .any(|(f, idx)| f.as_str() == file && *idx == i)
-                || (!has_hunk_manual_expanded && group_line_estimate <= auto_expanded_budget && {
-                    auto_expanded_budget = auto_expanded_budget.saturating_sub(group_line_estimate);
-                    true
-                });
-
-            // 计算当前差异块在旧文件和新文件中的范围
-            let mut current_old_start = usize::MAX;
-            let mut current_old_end = last_old_end;
-            let mut current_new_end = last_new_end;
-
-            // 遍历差异块中的所有操作，确定行号范围
-            for op in group.iter() {
-                match op {
-                    similar::DiffOp::Equal { old_index, new_index, len } => {
-                        current_old_start = current_old_start.min(*old_index);
-                        current_old_end = current_old_end.max(old_index + *len);
-                        current_new_end = current_new_end.max(new_index + *len);
-                    }
-                    similar::DiffOp::Delete { old_index, old_len, new_index } => {
-                        current_old_start = current_old_start.min(*old_index);
-                        current_old_end = current_old_end.max(old_index + *old_len);
-                        current_new_end = current_new_end.max(*new_index);
-                    }
-                    similar::DiffOp::Insert { new_index, new_len, .. } => {
-                        current_new_end = current_new_end.max(new_index + *new_len);
-                    }
-                    similar::DiffOp::Replace { old_index, old_len, new_index, new_len } => {
-                        current_old_start = current_old_start.min(*old_index);
-                        current_old_end = current_old_end.max(old_index + *old_len);
-                        current_new_end = current_new_end.max(new_index + *new_len);
-                    }
-                }
-            }
-
-            // 如果没有找到起始位置（例如只有插入操作），使用上一个块的结束位置
-            if current_old_start == usize::MAX {
-                current_old_start = last_old_end;
-            }
-            // 渲染差异块之间的间隙区域（折叠的内容）
-            let gap_elems = gaps::render_gap(
-                app,
-                render_ctx,
-                file,
-                &old_lines,
-                start_end::GapRange {
-                    start_old: last_old_end,
-                    end_old: current_old_start,
-                    start_new: last_new_end,
-                    gap_id: i * 2,
-                },
-                lang,
-                effective_theme,
-                bg_default,
-                hover_tint,
-                false,
-            );
-            for elem in gap_elems {
-                list.push(elem);
-            }
-
-            // 创建差异块列容器
-            let mut col = column![].spacing(0);
-
-            // 如果差异块未展开，显示折叠摘要
-            if !hunk_expanded {
-                col = col.push(
-                    container(
-                        text(
-                            crate::app::i18n::I18n::new(app.desktop_locale)
-                                .format("已折叠 %u 行差异", &[group_line_estimate.into()])
-                                .expect("valid folded count"),
-                        )
-                        .size(12)
-                        .style(|theme: &iced::Theme| {
-                            iced::widget::text::Style {
-                                color: Some(
-                                    theme.extended_palette().secondary.base.text.scale_alpha(0.80),
-                                ),
-                            }
-                        }),
-                    )
-                    .width(Length::Fill)
-                    .padding([6, 10])
-                    .style(|theme: &iced::Theme| {
-                        let is_dark = theme.palette().background.r
-                            + theme.palette().background.g
-                            + theme.palette().background.b
-                            < 1.5;
-                        let ext = theme.extended_palette();
-                        iced::widget::container::Style {
-                            background: Some(Background::Color(if is_dark {
-                                ext.background.weak.color.scale_alpha(0.40)
-                            } else {
-                                ext.background.weak.color.scale_alpha(0.88)
-                            })),
-                            border: Border {
-                                width: 1.0,
-                                color: ext.background.strong.color.scale_alpha(if is_dark {
-                                    0.28
-                                } else {
-                                    0.14
-                                }),
-                                radius: 8.0.into(),
-                            },
-                            ..Default::default()
-                        }
-                    }),
-                );
-                list.push(col.into());
-
-                // 更新最后一个差异块的结束位置
-                last_old_end = current_old_end;
-                last_new_end = current_new_end;
-                continue;
-            }
-
-            // 差异块已展开，渲染详细的差异操作
-            let hunk_col = hunk_ops::render_hunk_ops(
-                app,
-                render_ctx,
-                file,
-                group,
-                i,
-                &old_lines,
-                &new_lines,
-                lang,
+                render_ctx.history_file.as_ref().map_or(file, |(_, key)| key.as_str()),
+                contents,
+                loading,
+                status,
                 effective_theme,
                 bg_default,
                 add_line_bg,
                 add_word_bg,
                 del_line_bg,
                 del_word_bg,
-                hover_color,
-                hover_mix,
-                hover_tint,
-                false,
-                is_modified,
-            );
-
-            // 将差异操作行添加到列容器
-            for elem in hunk_col {
-                col = col.push(elem);
-            }
-
-            // 更新最后一个差异块的结束位置
-            last_old_end = current_old_end;
-            last_new_end = current_new_end;
-
-            list.push(container(col).padding([4, 0]).into());
-        }
-
-        // 渲染最后一个差异块之后到文件末尾的间隙区域
-        let gap_elems = gaps::render_gap(
-            app,
-            render_ctx,
-            file,
-            &old_lines,
-            start_end::GapRange {
-                start_old: last_old_end,
-                end_old: old_lines.len(),
-                start_new: last_new_end,
-                gap_id: groups.len(),
-            },
-            lang,
-            effective_theme,
-            bg_default,
-            hover_tint,
-            false,
-        );
-        for elem in gap_elems {
-            list.push(elem);
-        }
+                is_modified
+            )
+        ]
+        .spacing(0)
+        .width(Length::Fill)
+        .into()
+    } else {
+        file_header
     }
-
-    // 返回完整的文件差异视图（包含头部和差异内容）
-    container(iced::widget::Column::with_children(list).spacing(0)).width(Length::Fill).into()
 }

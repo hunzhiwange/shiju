@@ -236,6 +236,7 @@ fn preview_tab_debug_omits_content_and_editor_state() {
         content: "secret content".to_string(),
         is_dirty: true,
         truncated: true,
+        read_only: false,
         auto_save_revision: 7,
         editor: Editor::new("secret editor content", "rust"),
         scroll_id: Id::unique(),

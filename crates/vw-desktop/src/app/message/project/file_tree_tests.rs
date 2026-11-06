@@ -21,6 +21,7 @@ fn preview_tab(path: &str) -> crate::app::PreviewTab {
         content: String::new(),
         is_dirty: false,
         truncated: false,
+        read_only: false,
         auto_save_revision: 0,
         editor: crate::app::components::editor::Editor::new("", "txt"),
         scroll_id: iced::widget::Id::unique(),

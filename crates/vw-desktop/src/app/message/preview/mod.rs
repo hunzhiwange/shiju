@@ -27,6 +27,7 @@ pub mod editor;
 #[cfg(not(target_arch = "wasm32"))]
 pub mod lsp;
 pub mod search;
+mod snapshot;
 pub mod tab;
 
 /// 预览模块消息枚举
@@ -40,6 +41,14 @@ pub enum PreviewMessage {
     /// # 参数
     /// - `String`: 文件绝对路径
     Open(String),
+
+    /// 在同一编辑器中打开只读快照，不读取或写入工作区文件。
+    OpenSnapshot {
+        key: String,
+        path: String,
+        title: String,
+        content: String,
+    },
 
     /// 文件内容加载完成
     ///
@@ -358,6 +367,9 @@ pub(crate) fn dismiss_preview_popup_menus(app: &mut App) {
 /// | LSP 相关操作（仅非 WASM） | [`editor::update`] |
 pub fn update(app: &mut App, message: PreviewMessage) -> Task<Message> {
     match message {
+        PreviewMessage::OpenSnapshot { key, path, title, content } => {
+            snapshot::open(app, key, path, title, content)
+        }
         // 标签页管理相关消息：文件打开、关闭、选择、导航历史、保存
         PreviewMessage::Open(_)
         | PreviewMessage::OpenLoaded { .. }

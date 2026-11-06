@@ -157,5 +157,6 @@ fn diff_file_actions_menu_supports_files_without_deleted_content() {
         vw_config_types::ui::DesktopLocale::SimplifiedChinese,
         "src/new.rs",
         None,
+        false,
     );
 }

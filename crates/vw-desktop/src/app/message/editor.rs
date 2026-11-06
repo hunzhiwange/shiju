@@ -92,6 +92,23 @@ pub enum EditorMessage {
 /// - 粘贴操作返回剪贴板读取任务
 /// - 其他操作通常返回 `Task::none()`
 pub fn update(app: &mut App, message: EditorMessage) -> Task<Message> {
+    if app
+        .active_preview_path
+        .as_ref()
+        .is_some_and(|path| app.preview_tabs.iter().any(|tab| tab.path == *path && tab.read_only))
+        && matches!(
+            message,
+            EditorMessage::OpenReplace
+                | EditorMessage::Undo
+                | EditorMessage::Redo
+                | EditorMessage::Cut
+                | EditorMessage::Paste
+                | EditorMessage::ClipboardContentReceived(_)
+                | EditorMessage::Delete
+        )
+    {
+        return Task::none();
+    }
     match message {
         // 切换预览设置面板的显示/隐藏状态
         EditorMessage::ToggleSettings => {

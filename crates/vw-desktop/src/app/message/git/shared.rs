@@ -43,7 +43,7 @@ pub(super) fn dismiss_preview_transient_ui(app: &mut App) {
 ///
 /// 参数由调用方提供应用状态、用户输入或后台任务结果；返回值会交给上层消息循环继续处理。
 /// 变更范围限制在当前消息处理路径内，不引入额外的流程分支。
-pub(super) fn git_context_path_for_app(app: &App) -> Option<String> {
+pub(crate) fn git_context_path_for_app(app: &App) -> Option<String> {
     if let Some(dir) = app.selected_git_worktree_directory.as_ref() {
         let dir = dir.trim();
         if !dir.is_empty() {
@@ -227,6 +227,7 @@ pub(super) fn text_too_large_for_code_editor(s: &str) -> bool {
 /// 失败会被转换为界面可展示的状态或消息，避免在处理链路中静默丢失。
 pub(super) fn refresh_git_panel_data_task() -> Task<Message> {
     Task::batch(vec![
+        Task::done(Message::Git(GitMessage::RefreshRepository)),
         Task::done(Message::Git(GitMessage::RefreshWorktreeOptions)),
         Task::done(Message::Git(GitMessage::RefreshChangedFiles)),
         Task::done(Message::Git(GitMessage::RefreshDiffFileMetas)),

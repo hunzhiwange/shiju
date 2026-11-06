@@ -26,6 +26,7 @@ fn preview_tab(path: &str, server_key: Option<&'static str>) -> PreviewTab {
         content: "fn main() {}\n".to_string(),
         is_dirty: false,
         truncated: false,
+        read_only: false,
         auto_save_revision: 0,
         editor: crate::app::components::editor::Editor::new("fn main() {}", "rust"),
         scroll_id: iced::widget::Id::unique(),

@@ -91,6 +91,7 @@ fn preview_tab(title: &str) -> PreviewTab {
         content: String::new(),
         is_dirty: false,
         truncated: false,
+        read_only: false,
         auto_save_revision: 0,
         editor: Editor::new("", "txt"),
         scroll_id: iced::widget::Id::unique(),

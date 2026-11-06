@@ -50,6 +50,7 @@ fn preview_tab_with_lsp(server_key: Option<&'static str>) -> PreviewTab {
         content: String::new(),
         is_dirty: false,
         truncated: false,
+        read_only: false,
         auto_save_revision: 0,
         editor: Editor::new("", "rust"),
         scroll_id: iced::widget::Id::unique(),

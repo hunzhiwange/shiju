@@ -22,7 +22,7 @@ use super::super::super::wrap_diff_row_with_context_menu;
 /// 重新导出 use super::super::super::{，让上层模块通过稳定路径访问。
 use super::super::super::{
     DiffSplitPaneTone, diff_highlight_enabled, diff_line_number_with_background,
-    diff_split_divider, diff_split_pane, diff_split_pane_with_background,
+    diff_split_divider, diff_split_pane, diff_split_pane_with_background, diff_split_row,
     merge_diff_row_with_background, split_line_number_area,
 };
 /// 重新导出 use super::super::diff_line_select_button，让上层模块通过稳定路径访问。
@@ -204,6 +204,7 @@ pub fn render_replace_ops(
                         true,
                     ))
                 },
+                render_ctx.read_only,
             );
 
             let r = merge_diff_row_with_background(
@@ -307,6 +308,7 @@ pub fn render_replace_ops(
                         true,
                     ))
                 },
+                render_ctx.read_only,
             );
 
             let r = merge_diff_row_with_background(
@@ -418,6 +420,7 @@ pub fn render_replace_ops(
                             true,
                         ))
                     },
+                    render_ctx.read_only,
                 );
                 let row = render_line_content(
                     old_content,
@@ -496,6 +499,7 @@ pub fn render_replace_ops(
                             true,
                         ))
                     },
+                    render_ctx.read_only,
                 );
                 let row = render_line_content(
                     new_content,
@@ -552,7 +556,7 @@ pub fn render_replace_ops(
                 )
             };
 
-            let r = container(row![old_part, diff_split_divider(), new_part].width(Length::Fill))
+            let r = container(diff_split_row([old_part, diff_split_divider(), new_part]))
                 .width(Length::Fill);
             let wrapped = MouseArea::new(r)
                 .on_enter(Message::Git(message::GitMessage::DiffHoverEnter(

@@ -221,7 +221,7 @@ pub(super) fn update(app: &mut App, message: GitMessage) -> Task<Message> {
             Task::none()
         }
         GitMessage::StageAll => {
-            if app.git_commit_in_progress {
+            if app.git_commit_in_progress || app.git_repository.remote_busy {
                 return Task::none();
             }
             let Some(path) = git_context_path_for_app(app) else {
@@ -265,7 +265,7 @@ pub(super) fn update(app: &mut App, message: GitMessage) -> Task<Message> {
             }
         }
         message @ (GitMessage::CommitSelected | GitMessage::CommitAll) => {
-            if app.git_commit_in_progress {
+            if app.git_commit_in_progress || app.git_repository.remote_busy {
                 return Task::none();
             }
 

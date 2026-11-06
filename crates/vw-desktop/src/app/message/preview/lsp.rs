@@ -100,7 +100,7 @@ pub(crate) fn detach_lsp_for_tab(tab: &mut PreviewTab) {
 /// 5. 如果已有匹配的 LSP 服务器，则复用
 /// 6. 否则启动新的 LSP 服务器实例
 pub(crate) fn sync_lsp_for_path(app: &mut App, path: &str) -> bool {
-    if app.lsp_disabled {
+    if app.lsp_disabled || app.preview_tabs.iter().any(|tab| tab.path == path && tab.read_only) {
         if let Some(tab) = app.preview_tabs.iter_mut().find(|tab| tab.path == path) {
             detach_lsp_for_tab(tab);
         }

@@ -32,6 +32,8 @@ mod comment_editor;
 mod context_menu;
 mod file_view;
 mod header;
+mod history;
+pub(super) use history::view_history_diff;
 mod markers;
 mod selection;
 mod styles;
@@ -71,11 +73,14 @@ pub(crate) use comment_editor::diff_comment_editor;
 pub(super) use context_menu::wrap_diff_row_with_context_menu;
 pub(super) use styles::{
     diff_highlight_enabled, diff_line_number_with_background, diff_split_divider, diff_split_pane,
-    diff_split_pane_with_background, merge_diff_row, merge_diff_row_with_background,
-    split_line_number_area,
+    diff_split_pane_with_background, diff_split_row, merge_diff_row,
+    merge_diff_row_with_background, split_line_number_area,
 };
 
 pub(super) struct DiffRenderCtx<'a> {
+    read_only: bool,
+    history_file: Option<(usize, String)>,
+    history_notice: Option<String>,
     selected_new_lines: HashSet<(&'a str, usize)>,
     selected_old_lines: HashSet<(&'a str, usize)>,
     selected_diff_lines: HashSet<(&'a str, usize, bool)>,
@@ -85,6 +90,9 @@ pub(super) struct DiffRenderCtx<'a> {
 impl<'a> DiffRenderCtx<'a> {
     pub(super) fn new(app: &'a App) -> Self {
         Self {
+            read_only: false,
+            history_file: None,
+            history_notice: None,
             selected_new_lines: app
                 .staged_lines_selected
                 .iter()
@@ -101,6 +109,18 @@ impl<'a> DiffRenderCtx<'a> {
                 .map(|line| (line.file.as_str(), line.line, line.is_old))
                 .collect(),
             selected_files: app.staged_files_selected.iter().map(String::as_str).collect(),
+        }
+    }
+
+    fn history(index: usize, key: String) -> Self {
+        Self {
+            read_only: true,
+            history_file: Some((index, key)),
+            history_notice: None,
+            selected_new_lines: HashSet::new(),
+            selected_old_lines: HashSet::new(),
+            selected_diff_lines: HashSet::new(),
+            selected_files: HashSet::new(),
         }
     }
 

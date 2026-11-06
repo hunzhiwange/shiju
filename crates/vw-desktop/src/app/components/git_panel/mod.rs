@@ -35,6 +35,10 @@ mod filter_options;
 mod header;
 mod left_panel;
 mod ops;
+mod repository;
+pub(crate) mod repository_ops;
+#[cfg(test)]
+mod repository_tests;
 mod ui;
 mod utils;
 
@@ -450,6 +454,15 @@ pub fn embedded_custom_text_diff_view(
 /// 4. 渲染变更文件列表及其 diff
 /// 5. 根据状态渲染各种模态框（复制、评论等）
 pub fn view(app: &App) -> Element<'_, Message> {
+    if app.git_repository.history {
+        return with_git_overlays(
+            app,
+            column![header::view(app, vec![]), repository::toolbar(app), repository::view(app)]
+                .spacing(10)
+                .height(Length::Fill)
+                .into(),
+        );
+    }
     // 获取所有变更文件的元数据
     let diff_files_all = &app.git_diff_file_metas;
 
@@ -756,7 +769,7 @@ pub fn view(app: &App) -> Element<'_, Message> {
     }
 
     // 组合头部和主列表
-    let mut col = column![header].spacing(10);
+    let mut col = column![header, repository::toolbar(app)].spacing(10);
 
     // 如果显示 diff 汇总，添加左侧面板
     if app.show_git_diff_summary {
@@ -786,7 +799,11 @@ pub fn view(app: &App) -> Element<'_, Message> {
     let base_content: Element<'_, Message> = iced::widget::MouseArea::new(col.height(Length::Fill))
         .on_release(Message::Git(message::GitMessage::DiffDragSelectEnd))
         .into();
-    let mut base: Element<'_, Message> = base_content;
+    with_git_overlays(app, base_content)
+}
+
+fn with_git_overlays<'a>(app: &'a App, base_content: Element<'a, Message>) -> Element<'a, Message> {
+    let mut base = base_content;
 
     if app.show_git_commit_help_modal {
         base = with_settings_help_modal(

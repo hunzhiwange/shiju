@@ -780,6 +780,7 @@ impl App {
             git_focused_file: None,
             git_hovered_file_header: None,
             git_panel_header_hovered: false,
+            git_repository: Default::default(),
             git_changed_files: vec![],
             git_changed_files_loading: false,
             git_changed_files_repo_path: None,

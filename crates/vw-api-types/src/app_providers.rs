@@ -139,6 +139,9 @@ pub mod desktop_mapping;
 #[cfg(test)]
 mod desktop_mapping_tests;
 
+pub mod hermes;
+#[cfg(test)]
+mod hermes_tests;
 pub mod openclaw;
 #[cfg(test)]
 mod openclaw_tests;

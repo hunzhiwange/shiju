@@ -1701,3 +1701,54 @@ Gateway 使用临时 HOME、真实 SQLite、管理员策略、真实回环 HTTP 
 `sw_vers`/`uname -m`：macOS **27.0 (26A428)**、**arm64**，crate **0.6.0**。`command -v openclaw` 无结果，`openclaw --version` 退出 **127**；应用版本、真实 OpenClaw 消费、真实账号/Keychain、网络上游、Iced 渲染和非 macOS **未验证**。未读取或修改真实用户配置。Gateway 测试链接器有既有 `__eh_frame section too large` 提示，测试退出 0，不修改链接配置。
 
 定向 diff/check、暂存审查与 plan.md 只读检查通过；只提交本任务实现、独立测试、必要接线和本条证据，排除既有母任务状态、其它计划与此前编号文件删除。自身槽位锁释放、缓存保留；未执行全量 cargo test、fmt check、wasm 或 Makefile。验收后删除编号任务文件，不提交其删除；下一步批次 37。
+
+## 任务 37：Hermes 增量供应商
+
+2026-11-07；范围：Hermes 原生 YAML 成员、关联凭据字段和安全导入。状态：已完成。
+
+### 依赖与实现
+
+核对批次 36 提交 `4001d7173` 及上节验收记录。母任务 1、3 已完成；母任务 2 完整迁移未收口，沿用任务 1/provider-contracts.md 中底座子计划 1–93 的开工裁定，不将其误报为完整完成。未修改任何 plan.md。
+
+来源 HEAD 为 `ca58c0313360eae7c851fbd7553c1614c7af03e7`。阅读 `hermes_config.rs::{get_hermes_dir,get_providers,set_provider,remove_provider,normalize_provider_models_for_write,sanitize_hermes_provider_keys}`、相邻测试、`commands/hermes.rs`、`services/provider/live.rs::{write_live_snapshot,import_hermes_providers_from_live,remove_hermes_provider_from_live}` 及 `tests/hermes_roundtrip.rs`；RustCodeGraph 用于入口和调用链导航，新增文件及未覆盖文件用源码读取。
+
+- 唯一执行端所有者为 `vw-agent-apps/src/providers/hermes.rs`。固定文件集合是 Hermes 目录下 `config.yaml`；关联凭据在成员 `api_key`、`key_env` 字段中，不新增凭据文件、不读取环境密钥、Keychain 或 shell 配置。默认授权 HOME 下 `.hermes`；执行主机 `HERMES_HOME` trim 后按字面路径解析，只允许授权 HOME 下正常组件，不展开 tilde、不允许相对路径/越界/父目录穿越/目录或文件符号链接。未新增客户端路径覆盖接口。
+- 只改 `custom_providers` 序列中点名成员，保留其它成员原始字节、根区块/注释及当前成员未知字段、遗漏的凭据字段；支持正常缩进与无缩进列表、CRLF 输入的正常 YAML 解析。表单 `models` 数组转换为原生字典并在未显式提供 model 时取首模型；保留显式原生 model，读取时转换回数组。历史 camelCase 字段归一化为 snake_case，伪脱敏密钥拒绝。`providers` 字典按显式 name/字典 key 读取，列表同名优先；字典独有成员及其 key 禁止编辑、添加覆盖或移除，state 单独返回 readOnlyMembers。每次补丁将输出语义与预期文档比较，损坏配置、重复 key/成员、flow 列表编辑及跨节点引用等不能安全修改的布局明确拒绝，不静默重写整份 YAML。
+- 复用目录描述符写锁、私有文件权限、ProviderTransactions、前像校验、租户/目录行修订和 pending 前滚恢复；不新增事务所有者或唯一供应商指针。目录保存、原生发布分别返回结果；当前成员表单编辑走 IfMember，首次添加走 Add。model/agent/MCP/memory 等其它区块保持，不提供其设置入口。
+- `vw-api-types/src/app_providers/hermes.rs`、`vw-agent/src/app_providers/hermes.rs`、Gateway/SDK 同名模块沿用既有分域注册、管理员主机读写权限与租户存储。声明 Debug 脱敏，SDK 凭据 header 标记敏感，失败响应载荷丢弃。目录摘要、原生成员观察与删除引用检查接同一所有者；成员存在时阻止目录删除，remove-live 保留目录记录，导入只新增、不覆盖已有目录行、不改源文件。完整导入策略归任务 44；Iced 表单归任务 60，本轮 UI 未新增或验收。
+
+API 前缀 `/v1/app-providers/hermes`：
+
+| API | SDK |
+| --- | --- |
+| `PUT /{id}/config` | `hermes_provider_save`；catalog_only/add/if_member |
+| `POST /{id}/add` | `hermes_provider_add`；消费保存的声明 |
+| `POST /{id}/remove-live` | `hermes_provider_remove_live` |
+| `POST /config/state` | `hermes_state`；只返回成员及只读成员 ID |
+| `POST /config/import` | `hermes_import`；只读源文件、新增不覆盖 |
+
+### 红绿验证与平台边界
+
+红测、首轮绿测、最终验证均从仓库根原子 mkdir 动态领取槽位 **1**；`CARGO_TARGET_DIR=/Users/xiangmin/worker/code/shiju/target/rust-slot-1`，并设置同路径 `CARGO_BUILD_BUILD_DIR` 覆盖仓库 build-dir。锁记录计划/任务/会话/PID，shell trap 负责阶段结束及失败/中断时释放自身锁，保留缓存。
+
+红测执行下表四个相同 Hermes 过滤命令：执行端 **2 项业务失败，退出 101**（成员结果缺失）；DTO **1 通过，退出 0**；Gateway **3 项业务失败，退出 101**（成员结果/导入计数缺失）；SDK **2 通过，退出 0**。不存在用编译失败或零测试充当红测。首轮绿测执行端 7 通过/1 失败，定位无缩进列表被误判为根区块；修复后最终结果如下。代码审查另补充部分表单别名/旧凭据合并及显式 model 往返保留场景。
+
+最终 `cargo fmt --all` 退出 **0**。默认 features 有效结果：
+
+| 确切命令 | 退出码 | 通过数量 |
+| --- | --- | --- |
+| `cargo test -p vw-agent-apps --lib cc04_hermes_ -- --nocapture` | 0 | 9 |
+| `cargo test -p vw-api-types --lib cc04_hermes_ -- --nocapture` | 0 | 1 |
+| `cargo test -p vw-agent --lib cc04_hermes_ -- --nocapture` | 0 | 5 |
+| `cargo test -p vw-gateway-client --lib cc04_hermes_ -- --nocapture` | 0 | 2 |
+| `cargo test -p vw-agent-apps --lib cc04_catalog_ -- --nocapture` | 0 | 7 |
+| `cargo test -p vw-agent-apps --lib cc04_delete_ -- --nocapture` | 0 | 3 |
+| `cargo clippy --all-targets --all-features -- -D warnings` | 0 | 非行为测试 |
+
+本任务 **17 项**、相邻回归 **10 项**通过，无忽略。指定 `cc04_hermes_roundtrip_keeps_unrelated_yaml`、`cc04_hermes_external_edit_is_not_lost` 均通过；另证明部分表单保留凭据/未来字段、model 与模型字典往返、字典只读/列表优先、缺失移除不建文件、非法结构/链接拒绝、授权 HERMES_HOME 组件规则、目录行修订和外部文件冲突不覆盖，以及 Intent/Marked/FilePublished/Published/Settled 五阶段重建恢复且无唯一指针。目录回归相邻断言更新为 Hermes 已可观察，缺失配置的已保存行明确 Absent，不再误报 NotImplemented。
+
+Gateway 使用临时 HOME、真实 SQLite、管理员策略、真实回环 HTTP 与原生 SDK：save/add/if_member → API applied → YAML 中假凭据实际更新；remove-live → 保留目录记录并可随后删除；导入重复返回 0，不创建事务目录且只读源文件不变；导入字典覆盖层可观察，编辑/移除拒绝且原生文件、原目录记录不变；部分目录表单遗漏 key_env/未来字段后再次 add，文件中仍保留这些字段；假 token、异租户、异主机、缺写权限无目录/文件/事务副作用，读权限仍可 state。只将远端部署传输替换为本地回环；凭据均为 fixture，不替代文件系统、SQLite、鉴权或事务，不以 mock 次数作为行为证据。
+
+平台：`sw_vers`/`uname -m` 为 macOS **27.0 (26A428)**、**arm64**，crate **0.6.0**。`command -v hermes` 无结果，`hermes --version` 退出 **127**；Hermes 应用版本、真实应用消费、真实账号/Keychain、网络上游、Iced 渲染和非 macOS **未验证**。未读取或修改真实用户配置。HERMES_HOME 路径规则由纯解析断言验证，真实文件链在默认隔离目录验证；显式设置覆盖和实际自定义目录部署未验收。Gateway 链接器有既有 `__eh_frame section too large` 提示，测试退出 0，不修改链接配置。
+
+定向差异检查、暂存审查和只读 plan.md 检查通过；只提交本任务代码、独立测试、必要接线与本条证据，排除其它计划、母任务状态和此前编号文件删除。自身槽位锁释放、缓存保留；未执行全量 cargo test、fmt check、wasm 或 Makefile。验收后删除本编号任务文件，不提交其删除；下一步批次 38。

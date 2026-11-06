@@ -185,6 +185,11 @@ mod opencode;
 #[path = "app_providers/opencode_tests.rs"]
 mod opencode_tests;
 
+#[path = "app_providers/hermes.rs"]
+mod hermes;
+#[cfg(test)]
+#[path = "app_providers/hermes_tests.rs"]
+mod hermes_tests;
 #[path = "app_providers/openclaw.rs"]
 mod openclaw;
 #[cfg(test)]

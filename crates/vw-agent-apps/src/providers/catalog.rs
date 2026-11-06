@@ -6,7 +6,8 @@ use vw_api_types::{
 };
 
 /// `home` is the administrator-authorized execution home, never a client path.
-/// Native reads currently cover Kimi TOML and OpenCode/OpenClaw JSON/JSONC at their default paths.
+/// Native reads cover Kimi TOML, OpenCode/OpenClaw JSON/JSONC and Hermes YAML.
+/// Hermes also honors an execution-host HERMES_HOME beneath this authorized HOME.
 /// No CC database, ambient client home, separate credential files or processes are read.
 /// Configurations can contain secrets; only the typed metadata projection leaves this owner.
 pub fn read(home: &Path, app: AppId, rows: Vec<AppProviderSummary>) -> ProviderCatalog {
@@ -112,6 +113,16 @@ pub(super) fn observe(
         let bytes = super::openclaw::read(home).map_err(|_| InvalidConfiguration)?;
         let rows =
             super::openclaw::declarations(bytes.as_deref()).map_err(|_| InvalidConfiguration)?;
+        return Ok((
+            rows.into_keys().map(|id| (id, ())).collect(),
+            ProviderSelection::NotApplicable,
+        ));
+    }
+    #[cfg(target_os = "macos")]
+    if app == AppId::Hermes {
+        let bytes = super::hermes::read(home).map_err(|_| InvalidConfiguration)?;
+        let rows =
+            super::hermes::declarations(bytes.as_deref()).map_err(|_| InvalidConfiguration)?;
         return Ok((
             rows.into_keys().map(|id| (id, ())).collect(),
             ProviderSelection::NotApplicable,

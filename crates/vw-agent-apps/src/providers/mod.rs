@@ -163,6 +163,10 @@ pub mod desktop_mapping;
 mod desktop_mapping_tests;
 
 #[cfg(target_os = "macos")]
+pub mod hermes;
+#[cfg(all(test, target_os = "macos"))]
+mod hermes_tests;
+#[cfg(target_os = "macos")]
 pub mod openclaw;
 #[cfg(all(test, target_os = "macos"))]
 mod openclaw_tests;

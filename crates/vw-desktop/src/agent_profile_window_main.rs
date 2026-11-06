@@ -21,7 +21,7 @@ fn main() {
                 ("profile-fixture", serde_json::json!({"label":"自定义验收", "runtime":{"kind":"native"}})),
             ].into_iter().map(|(key, value)| app::state::DelegateAgentSettingsEntry::from_config(key, Some({ let mut full = serde_json::to_value(vw_config_types::agent::DelegateAgentConfig::default()).unwrap(); full.as_object_mut().unwrap().extend(value.as_object().unwrap().clone()); serde_json::from_value(full).unwrap() }))).collect();
             app.agents_settings.selected_agent = "acp-codex".into();
-            app.acp_agents = vec!["codex".into()];
+            app.acp_agents = vec!["codex".into(), "claude".into()];
             app.recent_projects = vec![
                 "/tmp/agent-acceptance-a".into(),
                 "/tmp/agent-acceptance-b".into(),
@@ -44,7 +44,13 @@ fn main() {
         view,
     )
     .title("Agent Profile Acceptance — isolated gateway port 9")
-    .theme(|_: &App| Theme::Dark)
+    .theme(|_: &App| {
+        if std::env::args().any(|arg| arg == "--light") {
+            Theme::Light
+        } else {
+            Theme::Dark
+        }
+    })
     .window_size((1280.0, 940.0))
     .settings(iced::Settings {
         fonts: fonts::load_all(),

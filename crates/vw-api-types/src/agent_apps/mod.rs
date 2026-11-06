@@ -81,3 +81,8 @@ mod preferences;
 pub use preferences::*;
 #[cfg(test)]
 mod preferences_tests;
+
+mod launch;
+pub use launch::*;
+#[cfg(test)]
+mod launch_tests;

@@ -14,3 +14,5 @@ pub mod versions;
 pub mod preferences;
 #[cfg(test)]
 mod preferences_tests;
+
+pub mod launch;

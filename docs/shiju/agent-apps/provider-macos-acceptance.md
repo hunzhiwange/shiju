@@ -955,3 +955,55 @@ Gateway 定向用例用真实私有策略文件、host.id/credential_root、原�
 `sw_vers`、`uname -m` 均退出 0：macOS 27.0（26A428）、arm64；原生 crate 版本 0.6.0。安装应用版本、账号、CLI/Iced 实际运行与公共 SDK 请求未验证；Windows/Linux、其他架构和真实应用激活未验收。
 
 定向 diff 与暂存检查只包含本任务 concurrency 实现/独立测试、commit 接线、WriteError 冲突枚举、父模块注册及本条正式证据；现有桌面变更、母任务状态和其他编号任务删除均不提交。未执行全量 cargo test、fmt check、wasm 或 Makefile。槽位释放并保留缓存；本任务标记已完成后删除编号文件且不纳入提交，正式证据保留。
+
+## 任务 22：编辑草稿投影与预览
+
+2026-11-07；状态：已完成（四应用只读编辑预览；未验收应用 live 切换）。
+
+### 依赖、来源及授权边界
+
+核对批次 21 提交 `25b2d7d27` 与任务 21 正式证据；母任务 1、3 已完成，母任务 2 沿用任务 1 的底座子计划 1–93 开工裁定，未改报其完整迁移完成。首次缺原生应用投影而登记阻塞；继续执行指令明确授权本任务建立四应用最小纯投影、必要只读观察及工厂，作为任务 26–32 后续复用的唯一所有者，依此解除阻塞。没有修改只读 plan.md。
+
+来源 `/Users/xiangmin/worker/code/cc-switch` HEAD `ca58c0313360eae7c851fbd7553c1614c7af03e7`，本轮来源工作区干净。阅读 `ProviderService::{editor_view_with_meta,editor_category}`、`commands/provider.rs::get_provider_editor_view`，四个 `*_editor::{view,inactive_fields}`、`live/project/{claude,codex,gemini,grok}`、`live/floor.rs`、`live/residue.rs`，以及 Codex 登录预测、配置校验与模型目录依赖。直接 TS 消费者 `useDraftEditorProjection`、Add/EditProviderDialog、`providersApi.getEditorView` 与相邻 hook/Claude inactive/Codex 元数据测试已核对；来源测试未运行。RustCodeGraph 状态与检索、定向来源读取用于导航，冻结 upstream 不加入原生运行链。
+
+### 实现与明确限制
+
+- `providers/projection/` 为四应用唯一原生纯投影所有者；`providers/preview.rs::read` 从授权主机 HOME 与任务 12 路径解析结果读取真实配置，复用 catalog 的 descriptor-relative no-follow 有界读取。缺文件在内存中视为空，不创建目录、锁、暂存、pending 或配置；不调用 writer、commit 或 recovery。后续适配可复用本领域模块，未新建第二数据库、通用文件/命令 API、特性开关或 UI。
+- Claude：只替换连接/鉴权/模型/协议字段；独有字段按前所有者原值相等才清除，保留外部改值；冻结窗口残留按值清理，Bedrock 顶层 apiKey 转到专用 env。用户 hooks、非供应商功能开关与超时保留；失效字段排除内部旧字段。
+- Gemini：读取 `.env` 与 `settings.json`，只替换来源指定的 env 关键字段、`security.auth.selectedType`、`model.name`，其余全局配置保留。官方卡只预览 oauth-personal 配置选择，不证明已登录；非官方卡不会沿用行里残留的 OAuth 类型。
+- Codex：复用来源纯路由解析规则，支持第三方自定义/保留 ID/旧顶层地址归一到 custom、keyless 草稿的内存占位、ollama/lmstudio/Bedrock 内置及只改模型的 Default；嵌套关键字段单独清理，前所有者独有值匹配清理；保留 profile 引用，拒绝有效 profile 覆盖。凭据差异先按真实投影计算，再从编辑展示移除重复 bearer 字段，不能把两次 `[redacted]` 当相等。官方卡、现有原生登录材料、非 file 凭据存储、任何非空 Codex meta（含尚未分类的元数据）均明确不可用；非空 modelCatalog.models 依赖模型目录所有者，明确 `model_catalog` 不可用，不猜测账号保留策略、钥匙串、托管路由或生成目录。
+- Grok：models.default 与所选整张模型表投影，保留所有 vendor 扩展字段；按前所有者及代理占位表清理退休表，session_summary 按来源条件跟随目标，保留用户模型表。官方卡仅预览去除托管模型指针，不证明 xAI 登录成功。无有效唯一模型表或形状校验失败时显示脱敏草稿并显式 `invalid_draft`，不伪装成 live 投影；语法错误返回无载荷的解析位置。
+- 其他应用明确 `unsupported_application`。所有预览只是观察，不保证随后写入时的 revision，也不宣称多文件读快照原子性或应用 live 已成功；应用写事务、UI、模式切换仍归后续任务。
+
+### API、秘密及执行端状态
+
+公开 `POST /v1/app-providers/{app}/config/preview`，DTO 为 `ProviderPreviewRequest/ProviderPreview`，SDK 为 `GatewayClient::app_provider_preview`。沿用既有 app-providers 父 router，标准与 bootstrap 两入口均由原 merge 连通；网关认证与目标主机 `provider_config_read` 授权独立，权限检查在解析目标路径与记录读取前执行。256 KiB 请求上限、128 KiB 草稿上限；不接受任意文件参数，override 沿用 HOME 内边界，符号链接拒绝。
+
+请求可提供草稿，或以 providerId 加空 settings 在当前租户执行端读取已有原生 settingsConfig，无需客户端读取明文 Key。仅含旧 launch profile、缺 settingsConfig 的记录明确 422；不猜测原生配置。现有卡官方类别按来源 legacy 名称/partner/fixed-ID 规则判定；显式空草稿 meta 覆盖保存的 meta，未提供时消费保存的 meta。存储异常/缺记录用安全 HTTP 状态，不返回 SQL、路径、配置正文或错误链。SDK 丢弃失败原始响应体，request Debug 整体脱敏。
+
+响应包含结构化 settings、变更路径/类型、失效字段路径、受控 unavailable 或逻辑文件角色+行列号。**所有字符串值都遮蔽**（包括模型名、URL、命令及未知插件字符串），敏感字段子树连数值/布尔值也遮蔽；这是一份保守的结构展示，不提供可保存的明文编辑底。差异在脱敏前计算；原始基底及摘要只用于执行端本次调用、随后释放，没有返回客户端，也未增加无消费者的持久缓存或三方合并接口。
+
+执行端读取既有 ProviderTransactions 状态：`open_existing` 只打开私有现有目录，不创建、不 fsync、不恢复；pending 存在时返回 `pending_transaction`。跨租户物理配置所有者不返回他租户记录，返回 ownership；同租户指针从唯一 tenant store 取原生 settings，附着契约只消费既有独有字段。缺真实所有者数据明确不可用。现有记录查询采用 `GatewaySettingsStore::read_existing`，SQLite 只读打开、PostgreSQL 仅 SELECT，避免原构造器的 schema 锁与 DDL；预览不回退初始化全局 HOME 数据库。PostgreSQL 本轮未实测。
+
+### 红绿及系统证据
+
+各阶段按原子 mkdir 动态竞争，实际均获得槽位 **1**：`CARGO_TARGET_DIR=/Users/xiangmin/worker/code/shiju/target/rust-slot-1`。因仓库另配置 build.build-dir，所有 Cargo 同时继承 `CARGO_BUILD_BUILD_DIR=/Users/xiangmin/worker/code/shiju/target/rust-slot-1`。锁目录记录计划、任务、会话标识与 PID；阶段结束 trap 清理自身 owner/锁，缓存保留，未删其他锁。
+
+红阶段先接通可编译空投影：`cargo fmt --all` 退出 0；以下四个同名过滤测试分别退出 **101 / 0 / 101 / 0**，业务包 2 项均在 hooks/失效字段断言失败，真实本地 SDK→API 1 项在投影结果断言失败；DTO 1 项与 SDK 1 项传输测试通过。失败不是缺模块/类型或零测试。
+
+| 最终确切命令 | 退出码 | 有效测试 / 结果 |
+| --- | --- | --- |
+| `cargo fmt --all` | 0 | 格式化完成，无无关格式差异 |
+| `cargo test -p vw-agent-apps --lib cc04_preview_ -- --nocapture` | 0 | 12 通过，0 失败 |
+| `cargo test -p vw-api-types --lib cc04_preview_ -- --nocapture` | 0 | 1 通过，0 失败 |
+| `cargo test -p vw-agent --lib cc04_preview_ -- --nocapture` | 0 | 3 通过，0 失败 |
+| `cargo test -p vw-gateway-client --lib cc04_preview_ -- --nocapture` | 0 | 1 通过，0 失败 |
+| `cargo clippy --all-targets --all-features -- -D warnings` | 0 | 工作区全 targets/features 检查通过 |
+
+12 项业务测试包含指定的 `cc04_preview_never_writes_files`、`cc04_preview_reports_inactive_fields_and_parse_location`，以及四应用规则、凭据同值/轮换先比较后遮蔽、非字符串凭据遮蔽、官方/托管/模型目录/歧义草稿不可用、源类别判定、profile 冲突、symlink 拒绝、只读事务工厂。隔离真实目录快照比较字节、权限、修改时间及目录成员，未创建缺失配置或事务目录。
+
+Gateway 的 3 项有效测试通过真实 loopback HTTP 与正式 SDK 验证四应用草稿→API→执行端投影及失效字段，比较原文件字节和目录成员；另以真实 SQLite 和既有事务状态验证 providerId 读取、数据库/供应商行/状态不变、没有 pending 新增、pending 观察不触发恢复、他租户所有者受控不可用。401、403、503、501 与网关认证拒绝均有真实断言。全用假凭据，无网络上游、钥匙串或进程 mock，不读写真实用户配置。
+
+`sw_vers`、`uname -m` 退出 0：macOS 27.0（26A428）、arm64；原生 crate 0.6.0。真实已安装 CLI 应用/版本、账号、钥匙串、Iced 窗口、正式登录/激活及 Windows/Linux 未验收；不将临时配置与本地 HTTP 等同于真实应用切换。
+
+定向差异/暂存检查覆盖本任务实现、独立测试、最少注册与只读支持，排除其他会话桌面终端、母任务状态及既有编号文件删除；只读 plan.md 无差异。自身槽位锁释放、缓存保留。未运行全量 cargo test、fmt check、wasm 或 Makefile。任务标记完成后删除编号文件且不纳入提交，正式证据保留。

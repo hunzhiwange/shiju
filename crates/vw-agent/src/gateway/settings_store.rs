@@ -72,6 +72,28 @@ impl GatewaySettingsStore {
         Ok(Self { provider })
     }
 
+    /// Observe an already initialized store without schema locks, DDL or database creation.
+    pub(crate) fn read_existing(
+        database: &GlobalDatabase,
+        tenant: &TenantScope,
+        namespace: &str,
+        config_key: &str,
+    ) -> Result<Option<String>> {
+        validate_identifier(namespace, "gateway settings namespace")?;
+        validate_identifier(config_key, "gateway settings config key")?;
+        match database.provider() {
+            DatabaseProvider::Sqlite => {
+                let connection = rusqlite::Connection::open_with_flags(
+                    database.sqlite_path()?,
+                    rusqlite::OpenFlags::SQLITE_OPEN_READ_ONLY,
+                )?;
+                connection.query_row("SELECT payload_json FROM gateway_settings WHERE platform_id=?1 AND company_id=?2 AND namespace=?3 AND config_key=?4",params![tenant.platform_id().as_ref(),tenant.company_id().as_ref(),namespace,config_key],|row|row.get(0)).optional().context("observe existing tenant setting")
+            }
+            DatabaseProvider::Postgres => {
+                PostgresGatewaySettingsStore::read_existing(database, tenant, namespace, config_key)
+            }
+        }
+    }
     /// 读取单条设置；不存在时返回 `None`。
     pub(crate) fn get(
         &self,

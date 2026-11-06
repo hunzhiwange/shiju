@@ -167,7 +167,10 @@ pub(super) fn observe(
 }
 
 #[cfg(unix)]
-fn read_file(home: &Path, components: &[&str]) -> Result<Option<Vec<u8>>, ProviderReadUnavailable> {
+pub(super) fn read_file(
+    home: &Path,
+    components: &[&str],
+) -> Result<Option<Vec<u8>>, ProviderReadUnavailable> {
     use ProviderReadUnavailable::Unreadable;
     use std::{
         fs::OpenOptions,
@@ -222,7 +225,7 @@ fn read_file(home: &Path, components: &[&str]) -> Result<Option<Vec<u8>>, Provid
     Err(Unreadable)
 }
 #[cfg(not(unix))]
-fn read_file(
+pub(super) fn read_file(
     _home: &Path,
     _components: &[&str],
 ) -> Result<Option<Vec<u8>>, ProviderReadUnavailable> {

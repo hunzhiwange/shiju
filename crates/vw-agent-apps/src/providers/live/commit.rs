@@ -104,6 +104,48 @@ impl ProviderTransactions {
         let directory = private_child(&directory, &URL_SAFE_NO_PAD.encode(&host.0))?;
         Ok(Self { directory, host })
     }
+    /// Read-only opening for observations. Missing state is empty; never provisions,
+    /// synchronizes, repairs or recovers a directory as a side effect of preview.
+    pub fn open_existing(
+        private_root: &Path,
+        host: ExecutionHostId,
+    ) -> Result<Option<Self>, WriteError> {
+        if !private_root.is_absolute() {
+            return Err(WriteError::InvalidResource);
+        }
+        let mut directory = match OpenOptions::new()
+            .read(true)
+            .custom_flags(libc::O_DIRECTORY | libc::O_NOFOLLOW | libc::O_CLOEXEC)
+            .open(private_root)
+        {
+            Ok(file) => file,
+            Err(e) if e.kind() == std::io::ErrorKind::NotFound => return Ok(None),
+            Err(_) => return Err(WriteError::InvalidResource),
+        };
+        check_private(&directory)?;
+        for component in ["provider-live".to_string(), URL_SAFE_NO_PAD.encode(&host.0)] {
+            let component = CString::new(component).map_err(|_| WriteError::InvalidResource)?;
+            // SAFETY: single fixed/base64 child and a live directory descriptor.
+            let fd = unsafe {
+                libc::openat(
+                    directory.as_raw_fd(),
+                    component.as_ptr(),
+                    libc::O_RDONLY | libc::O_DIRECTORY | libc::O_NOFOLLOW | libc::O_CLOEXEC,
+                )
+            };
+            if fd < 0 {
+                return if std::io::Error::last_os_error().kind() == std::io::ErrorKind::NotFound {
+                    Ok(None)
+                } else {
+                    Err(WriteError::InvalidResource)
+                };
+            }
+            // SAFETY: openat returned a fresh descriptor, consumed exactly once.
+            directory = unsafe { File::from_raw_fd(fd) };
+            check_private(&directory)?;
+        }
+        Ok(Some(Self { directory, host }))
+    }
     pub fn pending(&self, app: AppId) -> Result<Option<Pending>, WriteError> {
         let bytes = read_from(&self.directory, OsStr::new(&filename(app, "pending")))?;
         let pending: Option<Pending> = bytes

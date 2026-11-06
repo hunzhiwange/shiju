@@ -101,3 +101,9 @@ mod paths;
 #[cfg(test)]
 #[path = "app_providers/paths_tests.rs"]
 mod paths_tests;
+
+#[path = "app_providers/preview.rs"]
+mod preview;
+#[cfg(test)]
+#[path = "app_providers/preview_tests.rs"]
+mod preview_tests;

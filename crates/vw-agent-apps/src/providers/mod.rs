@@ -107,3 +107,9 @@ pub mod paths;
 mod paths_tests;
 
 pub mod live;
+
+pub mod preview;
+#[cfg(all(test, target_os = "macos"))]
+mod preview_tests;
+
+mod projection;

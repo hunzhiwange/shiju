@@ -205,3 +205,14 @@ pub(crate) fn recover_providers_on_startup() -> Result<(), String> {
 
 #[cfg(all(test, target_os = "macos"))]
 mod recovery_tests;
+
+/// Preview needs the same authorized execution identity and existing private state root.
+pub(super) fn provider_preview_context(
+    path: Option<&std::path::Path>,
+    headers: &axum::http::HeaderMap,
+    tenant: &TenantScope,
+    target: &str,
+) -> Result<(std::path::PathBuf, Option<std::path::PathBuf>), axum::http::StatusCode> {
+    access::authorize_provider_config(path, headers, tenant, target)
+        .map(|host| (host.home, host.credential_root))
+}

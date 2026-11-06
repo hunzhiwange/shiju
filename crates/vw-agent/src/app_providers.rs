@@ -308,6 +308,19 @@ impl AppProviderStore {
         }
         Ok(())
     }
+    /// Executor-only record for editor projection. Never returned by an HTTP handler.
+    pub(crate) fn preview_record(
+        database: &GlobalDatabase,
+        tenant: &TenantScope,
+        app: AppId,
+        id: &str,
+    ) -> Result<serde_json::Value, String> {
+        let raw =
+            GatewaySettingsStore::read_existing(database, tenant, NAMESPACE, &Self::key(app, id)?)
+                .map_err(|_| "application provider storage unavailable")?
+                .ok_or("application provider not found")?;
+        serde_json::from_str(&raw).map_err(|_| "invalid stored application provider profile".into())
+    }
     fn read(&self, tenant: &TenantScope, app: AppId, id: &str) -> Result<AppProviderWrite, String> {
         let key = Self::key(app, id)?;
         let value = self

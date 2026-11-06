@@ -13,6 +13,7 @@ pub(crate) fn router() -> Router {
     Router::new()
         .merge(catalog::router())
         .merge(paths::router())
+        .merge(preview::router())
         .merge(delete::router())
         .merge(duplicate::router())
         .merge(presentation::router())
@@ -156,3 +157,8 @@ mod paths;
 #[cfg(test)]
 #[path = "app_providers/paths_tests.rs"]
 mod paths_tests;
+
+mod preview;
+#[cfg(test)]
+#[path = "app_providers/preview_tests.rs"]
+mod preview_tests;

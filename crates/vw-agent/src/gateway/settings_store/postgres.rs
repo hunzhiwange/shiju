@@ -38,6 +38,15 @@ impl PostgresGatewaySettingsStore {
         Ok(Self { database })
     }
 
+    /// SELECT only; preview must never initialize or migrate the schema.
+    pub(super) fn read_existing(
+        database: &GlobalDatabase,
+        tenant: &TenantScope,
+        namespace: &str,
+        config_key: &str,
+    ) -> Result<Option<String>> {
+        Self { database: database.clone() }.get(tenant, namespace, config_key)
+    }
     /// 读取租户命名空间中的单条设置。
     pub(super) fn get(
         &self,

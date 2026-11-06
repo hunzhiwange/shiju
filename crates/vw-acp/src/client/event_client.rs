@@ -43,7 +43,7 @@ impl AcpClient {
             kimi_permissions: self.agent_name == "kimi",
             transient_permissions: matches!(
                 self.agent_name.as_str(),
-                "opencode" | "copilot" | "kimi"
+                "opencode" | "copilot" | "kimi" | "auggie"
             ),
             reject_untyped_workflow_permissions: matches!(
                 self.agent_name.as_str(),

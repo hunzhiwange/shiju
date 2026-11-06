@@ -2,6 +2,8 @@
 
 审计日期：2026-11-06（Asia/Shanghai）；审计平台：macOS / Darwin arm64。状态：静态基线已完成；Codex 与 Claude 固定制品的 macOS arm64 原生权限与撤销已验收，具体入口与边界见 [Codex 证据](evidence/codex.md)、[Claude 证据](evidence/claude.md)。Gemini 已核验为客户端自动批准，原生自动提权因确认及工具/提示词副作用不接入，见 [Gemini 证据](evidence/gemini.md)。Qwen 固定 npm 与现有托管补丁入口已核验原生免审批与撤销，见 [Qwen 证据](evidence/qwen.md)。Qoder 已接入公布的会话 mode 配置，权限工具效果未实机验收，见 [Qoder 接入说明](evidence/qoder.md)。Vibe 保留客户端自动批准，并为显式 auto-approve agent 加入授权及撤销保护，未实机验收，见 [Vibe 接入说明](evidence/vibe.md)。Kiro 已接入 V3 会话 policyPreset，效果未实机验收，见 [Kiro 接入说明](evidence/kiro.md)。OpenCode 使用逐次客户端自动批准，避免写入会话永久授权，见 [OpenCode 接入说明](evidence/opencode.md)。Hermes 已接入会话编辑审批 default↔dont_ask，终端继续客户端批准，未实机验收，见 [Hermes 接入说明](evidence/hermes.md)。iFlow 已接入会话 default↔yolo 并兼容 load 缺少 modes，未实机验收，见 [iFlow 接入说明](evidence/iflow.md)。Copilot 已接入逐次客户端批准，见 [Copilot 说明](evidence/copilot.md)。Kimi 已接入新版 ACP default↔yolo 与逐次客户端批准，未实机验收，见 [Kimi 接入说明](evidence/kimi.md)。其他后端原生能力仍未知。
 
+Auggie 已接入逐次客户端批准与当前 host deny 拦截；原生权限与工具执行未实测，见 [Auggie 接入说明](evidence/auggie.md)。
+
 范围为 `BUILT_IN_AGENT_DEFINITIONS` 的 22 个稳定 key；别名和 `claude-legacy` 不另计。注册表、启动快照、哈希及逐项官方版本来源见 [证据清单](evidence/README.md)。初始静态审计仅修改文档；后续后端适配与验证按各独立证据文件记账。
 
 ## 证据与分类
@@ -24,7 +26,7 @@
 
 | key / 证据 | 基线版本 | 官方当前发布 | 当前权限分类 / 模型来源限制 | 下一项核验目标 |
 | --- | --- | --- | --- | --- |
-| [auggie](evidence/README.md#auggie) / E1 | 0.36.0 | 0.37.0 | 部分支持：客户端自动批准有源码、原生未知；session_model 不可用：Provider 注册被拒绝 | 固定真实 CLI，采集 initialize/权限选项并验证开启→关闭→恢复 |
+| [auggie](evidence/auggie.md) / E1、官方文档 | 0.36.0 | 0.37.0（基线查询） | 客户端自动批准：仅 allow_once，按当前授权处理；不注入原生 permission 规则；session_model 原有门控保留 | 用户要求跳过测试；开启、关闭、恢复及跨平台工具效果未实机验收 |
 | [claude](evidence/claude.md) / E2、E3 | 0.26.0 / SDK 0.2.96 / CLI 2.1.96 | 0.101.0 | 原生免审批：macOS arm64 固定 npm 入口、当前授权及配置确认后；未知入口降级、无法撤销时拒绝。计划确认需独立交互 | 补齐企业托管 deny、其他平台和 Bun 制品；保持计划确认独立 |
 | [codex](evidence/codex.md) / E2、E3 | 2.5.0 / Codex 0.165.0 | 2.5.0 | 原生免审批：macOS arm64 已核验制品、当前授权与配置确认后；cli_local/session_model 均验收。未知入口/平台降级，无法确认撤销时拒绝；活动 turn 必须先取消 | 补齐其他平台、独立文件编辑工具、网络及企业策略验收 |
 | [codebuddy](evidence/README.md#codebuddy) / E1 | 2.179.3 | 2.180.0 | 部分支持：客户端自动批准有源码、原生未知；session_model 有驱动和版本门控 | 固定真实 CLI，采集 initialize/权限选项并验证开启→关闭→恢复 |
@@ -55,7 +57,7 @@ U = 未获取该后端真实权限协议/结果；C = 仅共享客户端源码�
 
 | key | initialize | new/load/resume | configOptions | modes | request_permission | 客户端文件 | 客户端终端 | 原生沙箱 |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| auggie | U | U/U/U | U | U | C | C | C | U |
+| auggie | U | 现有 new/load/resume 路径；未实测 | 不推断原生权限配置 | 不推断权限模式 | 代码接入 allow_once；未实机计数 | C；未实测 | C；未实测 | U；保留供应商规则 |
 | claude | E3 | E3/E3/E3 | E3：default↔bypassPermissions | E2/E3；以 config 同步 | E3：普通工具 1→0→1；计划另行确认 | C；本例为原生 Write | C；本例为原生 Bash | 不等同沙箱解除；项目 deny 保留 |
 | codex | E3 | E3/E3/E3 | E3 | E2；以 config 同步 | E3：本例 0 | C；本例未调用 | C；本例未调用 | E3：readOnly↔dangerFullAccess |
 | codebuddy | U | U/U/U | U | U | C | C | C | U |

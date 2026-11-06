@@ -214,8 +214,8 @@ async fn config_get_without_directory_restores_the_requested_tenant_after_restar
 
     assert_eq!(body["agents"]["main"]["max_iterations"], 123);
     assert_ne!(
-        config::get().await.agents["main"].max_iterations,
-        123,
+        config::get().await.agents.get("main").map(|agent| agent.max_iterations),
+        Some(123),
         "local gateway startup config must not replace the requested tenant"
     );
 }
@@ -362,6 +362,7 @@ async fn config_patch_stateful_leaves_runtime_config_when_directory_is_explicit(
     let _config_dir = EnvGuard::set("VIBEWINDOW_CONFIG_DIR", config_dir.as_os_str());
     let _workspace = EnvGuard::unset("VIBEWINDOW_WORKSPACE");
     let state = state(config::Config::default(), false, &[]);
+    let original_provider = state.config.lock().default_provider.clone();
 
     let Json(body) = config_patch_stateful(
         Extension(TenantScope::default()),
@@ -374,7 +375,7 @@ async fn config_patch_stateful_leaves_runtime_config_when_directory_is_explicit(
     .expect("explicit directory config patch should succeed");
 
     assert_eq!(body["default_provider"], "openai");
-    assert_eq!(state.config.lock().default_provider.as_deref(), Some("openrouter"));
+    assert_eq!(state.config.lock().default_provider, original_provider);
 }
 
 #[tokio::test]
@@ -1113,6 +1114,26 @@ async fn manual_agent_save_updates_live_resolution_and_survives_instance_restart
                     // 两次保存之间不销毁实例，先读旧值使历史缓存问题可被复现。
                     for (provider, model) in [("before", "old-model"), ("after", "saved-model")] {
                         let model_ref = format!("{provider}/{model}");
+                        let agents =
+                            serde_json::json!({"main": {"provider": provider, "model": model}});
+                        let mut patch = serde_json::json!({
+                            "default_provider": provider,
+                            "default_model": model_ref,
+                        });
+                        if project_override {
+                            // Agent definitions are tenant-global even when editing project defaults.
+                            let Json(saved) = config_patch_stateful(
+                                Extension(scoped_tenant.clone()),
+                                State(state.clone()),
+                                Query(InstanceQuery { directory: None }),
+                                HeaderMap::new(),
+                                Json(serde_json::json!({"agents": agents})),
+                            )
+                            .await?;
+                            assert_eq!(saved["agents"]["main"]["model"], model);
+                        } else {
+                            patch["agents"] = agents;
+                        }
                         let Json(saved) = config_patch_stateful(
                             Extension(scoped_tenant.clone()),
                             State(state.clone()),
@@ -1120,11 +1141,7 @@ async fn manual_agent_save_updates_live_resolution_and_survives_instance_restart
                                 directory: project_override.then(|| scoped_directory.clone()),
                             }),
                             HeaderMap::new(),
-                            Json(serde_json::json!({
-                                "agents": {"main": {"provider": provider, "model": model}},
-                                "default_provider": provider,
-                                "default_model": model_ref,
-                            })),
+                            Json(patch),
                         )
                         .await?;
                         assert_eq!(saved["agents"]["main"]["model"], model);
@@ -1166,11 +1183,13 @@ async fn manual_agent_save_updates_live_resolution_and_survives_instance_restart
         .await
         .unwrap();
         let store = local_store(home.path());
-        let payload = if project_override {
-            store.get_project(&tenant, &directory).unwrap().unwrap()
-        } else {
-            store.get(&tenant).unwrap().unwrap()
-        };
+        if project_override {
+            let payload = store.get_project(&tenant, &directory).unwrap().unwrap();
+            let payload: Value = serde_json::from_str(&payload).unwrap();
+            assert!(payload.get("agents").is_none());
+            assert_eq!(payload["default_model"], "after/saved-model");
+        }
+        let payload = store.get(&tenant).unwrap().unwrap();
         let payload: Value = serde_json::from_str(&payload).unwrap();
         assert_eq!(payload["agents"]["main"]["model"], "saved-model");
     }

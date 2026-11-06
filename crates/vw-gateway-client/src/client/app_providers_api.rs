@@ -178,3 +178,9 @@ mod desktop_mapping;
 #[cfg(test)]
 #[path = "app_providers/desktop_mapping_tests.rs"]
 mod desktop_mapping_tests;
+
+#[path = "app_providers/opencode.rs"]
+mod opencode;
+#[cfg(test)]
+#[path = "app_providers/opencode_tests.rs"]
+mod opencode_tests;

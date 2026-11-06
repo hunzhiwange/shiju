@@ -4,11 +4,9 @@ use vw_api_types::{agent_apps::AppId, app_providers::catalog::ProviderSelection}
 
 pub fn ensure_unreferenced(home: &Path, app: AppId, id: &str) -> Result<(), String> {
     super::validate_identity(id)?;
-    // These two native adapters have no managed direct pointer or proxy-route writer:
-    // the compiled owner only persists catalog records (upstream is not built).
-    // Do not infer absence from catalog's NotImplemented projection. When managed
-    // state writers are introduced, their real references must join this guard.
-    // Other applications lack a complete native observation and must fail closed.
+    // Additive OpenCode writes never create a unique direct pointer. Native
+    // membership still blocks catalog deletion; removing live is a separate action.
+    // Other applications without a complete observation remain fail-closed.
     match app {
         AppId::Kimi | AppId::OpenCode => {}
         _ => return Err("application provider references unavailable".into()),

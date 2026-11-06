@@ -424,6 +424,21 @@ impl AppProviderStore {
                 }
             }
         }
+        if app == AppId::OpenCode {
+            if let Some(row) = self.opencode_record(tenant, id)? {
+                if let Some(profile) = row.get("opencode") {
+                    let profile: vw_api_types::app_providers::opencode::OpenCodeProfile =
+                        serde_json::from_value(profile.clone())
+                            .map_err(|_| "invalid provider record")?;
+                    return Ok(AppProviderSummary {
+                        id: id.into(),
+                        app_id: app,
+                        name: profile.name,
+                        configured: true,
+                    });
+                }
+            }
+        }
         if app == AppId::GrokBuild {
             if let Some(row) = self.grok_record(tenant, id)? {
                 if let Some(profile) = row.get("grok") {
@@ -551,3 +566,5 @@ mod claude_desktop;
 mod grok;
 
 mod desktop_mapping;
+
+mod opencode;

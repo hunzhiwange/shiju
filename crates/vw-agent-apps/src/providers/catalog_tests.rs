@@ -72,7 +72,7 @@ fn cc04_catalog_jsonc_precedence_and_symlinks_fail_closed() {
     std::fs::write(&json, r#"{"provider":{"native":{}}}"#).unwrap();
     std::fs::write(directory.join("opencode.jsonc"), "// secret").unwrap();
     let result = read(home.path(), AppId::OpenCode, vec![]);
-    assert_eq!(result.native_read, Some(ProviderReadUnavailable::UnsupportedFormat));
+    assert_eq!(result.native_read, Some(ProviderReadUnavailable::InvalidConfiguration));
     assert!(result.rows.is_empty());
     std::fs::remove_file(directory.join("opencode.jsonc")).unwrap();
     std::fs::remove_file(&json).unwrap();

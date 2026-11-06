@@ -1589,3 +1589,62 @@ Gateway 使用真实临时 SQLite、主机授权策略、回环 HTTP 与原 SDK�
 `sw_vers`、`uname -m` 退出 0：macOS **27.0 (26A428)**、**arm64**，crate **0.6.0**。默认 `/Applications/Claude.app/Contents/Info.plist` 版本查询退出 1，未取得应用版本；真实 Desktop 消费、账号/Keychain、网络模型上游、Iced 渲染与非 macOS 未验证。未触碰真实用户配置。Gateway lib test 有既有 `__eh_frame section too large` 链接提示，测试退出 0；未改链接设置，最终强制 Clippy 退出 0。
 
 定向差异与暂存检查通过，plan.md 保持只读；仅提交本任务代码、独立测试、必要父注册和本条证据，既有母任务状态、此前编号文件删除与其它计划不纳入。自身槽位 1 锁已释放、缓存保留。未执行全量 cargo test、fmt check、wasm 或 Makefile。验收后删除任务 34 编号文件，正式证据保留；下一步为批次 35，真实 Desktop/UI/路由运行时按其所属任务验收。
+
+## 任务 35：OpenCode 增量供应商
+
+2026-11-07；范围：OpenCode 的点名成员增改/移除、已声明默认模型、只读原生导入及 API/SDK 闭环。状态：已完成。
+
+### 依赖与来源
+
+已核对批次 34 提交 `221402ff2` 和本文件任务 34 的正式证据。母任务 1、3 已完成；母任务 2 仍未整体收口，沿任务 1/provider-contracts.md 已记录的底座子计划 1–93 开工裁定消费真实接口，不将其误报为完整完成。未修改只读 plan.md。
+
+来源快照 `ca58c0313360eae7c851fbd7553c1614c7af03e7`：`opencode_config.rs::{resolve_config_path,get_providers_with_format,native_provider_problem,set_provider_with_format,remove_provider,set_default_model}`，`services/provider/live.rs::{write_live_snapshot,remove_opencode_provider_from_live,import_opencode_providers_from_live}`，相邻 `services/provider/opencode_tests.rs`；表单 helper `opencodeFormUtils.ts::{isNativeOpencodeConfig,hasOpencodeDefinition,getOpencodeDeclaredModels}` 及 ProviderForm/ProviderList/presentation 调用者和相邻测试。导航使用仓库 RustCodeGraph 索引；新增/图未覆盖路径用源码读取核对。
+
+### 实现与接口
+
+- 唯一执行端所有者为 `vw-agent-apps/src/providers/opencode.rs`；V2 已知字段校验在相邻 `opencode_schema.rs`。复用已有 JsonPatch/物理目录 guard/ProviderTransactions。V1 写 `provider.<id>`、V2 写 `providers.<id>`，保留未知声明字段与未点名 provider/MCP/主题；更新按声明内的键差异落补丁，保留嵌套 JSONC 注释。有效 V2 优先且拒绝 V1 覆盖；移除同名有效 V2 与旧 V1，避免旧声明复活；无效 V2 旁支保留。部分 V1 内置覆盖仅允许已有 live 同名成员，移除后不能靠旧成员资格重新加入。
+- 固定授权 HOME `.config/opencode` 中 JSONC 优先于 JSON，保留描述符并拒绝符号链接；JSON 选定后 JSONC 新出现会报冲突。默认模型只允许 live 中已声明且未禁用的模型，模型 ID 可含 `/`；只改顶层 `model`，不改 `small_model`。缺失成员移除不创建空配置。
+- 所有 live 写进入既有 pending/恢复事务，校验租户、direct/attached 状态、保存行修订、文件前像与路径优先级；不创建唯一 provider 指针。读取/导入不创建配置、锁或事务目录，不读取账号数据库/Keychain、不执行 OpenCode。现有 catalog/delete 引用观察接到同一 JSONC/V2 所有者，live 成员阻止目录删除，显式 remove-live 保留目录行，之后目录删除只删除该行。
+- `vw-api-types/src/app_providers/opencode.rs` 提供强类型 profile/format/activation/target/default-model/state/result。原有租户命名空间 `AppProviderStore` 条件保存，保留行元数据；导入跳过已有行，不覆盖目录草稿，后续导入策略归任务 44。敏感 profile Debug 脱敏；SDK 标记凭据 header 为 sensitive，失败响应不保留载荷。权限沿既有 provider_editor_context：state 要读权限，其余操作要写权限；不接收客户端文件路径/命令。
+
+以下路径前缀均为 `/v1/app-providers/opencode`，注册沿既有 app_providers 分域 router 和 SDK 模块：
+
+| API | SDK |
+| --- | --- |
+| `PUT /{id}/config` | `opencode_provider_save`，catalog_only/add/if_member |
+| `POST /{id}/add` | `opencode_provider_add`，消费已保存行 |
+| `POST /{id}/remove-live` | `opencode_provider_remove_live`，不删除目录行 |
+| `PUT /config/default-model` | `opencode_default_model` |
+| `POST /config/state` | `opencode_state`，只返回成员 ID 和默认模型 |
+| `POST /config/import` | `opencode_import`，只返回新增数量 |
+
+`catalogSaved` 与 live applied/not_attempted/failed/recovery_required 分开返回。没有新增 UI；任务 58 消费本 API/SDK。自定义路径、真实应用消费、路由/聚合运行时不由本项冒充验收。
+
+### 验证证据
+
+各阶段均从仓库根用原子 mkdir 顺序动态领取槽位 **1**，最终：
+
+`CARGO_TARGET_DIR=/Users/xiangmin/worker/code/shiju/target/rust-slot-1`
+
+同时设置 `CARGO_BUILD_BUILD_DIR` 为同一绝对路径，覆盖仓库 build-dir。首次红测因遗漏此附加变量使用了仓库 build-dir，未采用其结果；随即在完整槽位环境重跑：业务包 **2 项在业务断言失败，退出 101**（新增成员缺失、默认模型未更新），不是编译错误或零测试。之后四包首次完整聚焦检查为 2/1/4/2 项通过。补充恢复测试的临时事务根最初缺少 0700 权限，被安全检查拒绝；按既有 fixture 设置权限后重新验证。未削弱执行端检查。
+
+最终源码先执行 `cargo fmt --all`，退出 **0**；以下均采用默认 features、同一槽位：
+
+| 确切命令 | 退出码 | 有效通过数量 |
+| --- | --- | --- |
+| `cargo test -p vw-agent-apps --lib cc04_opencode_ -- --nocapture` | 0 | 10 |
+| `cargo test -p vw-api-types --lib cc04_opencode_ -- --nocapture` | 0 | 1 |
+| `cargo test -p vw-agent --lib cc04_opencode_ -- --nocapture` | 0 | 4 |
+| `cargo test -p vw-gateway-client --lib cc04_opencode_ -- --nocapture` | 0 | 2 |
+| `cargo test -p vw-agent-apps --lib cc04_delete_ -- --nocapture` | 0 | 3 |
+| `cargo test -p vw-agent --lib cc04_delete_ -- --nocapture` | 0 | 4 |
+| `cargo test -p vw-agent-apps --lib cc04_catalog_ -- --nocapture` | 0 | 7 |
+| `cargo clippy --all-targets --all-features -- -D warnings` | 0 | 非行为测试 |
+
+本任务 **17 项**、相邻回归 **14 项**，去重 **31 项通过**，无忽略。指定 `cc04_opencode_membership_preserves_other_providers`、`cc04_opencode_default_model_keeps_small_model` 通过。其余覆盖 V1/V2 优先级与无效旁支、嵌套注释、部分内置覆盖、禁用模型/含斜线模型、非法与重复 JSON key、JSONC 优先级变化、缺失配置只读与移除、符号链接拒绝、文件/保存输入冲突，以及 Intent/Marked/FilePublished/Published/Settled 五处中断后的事务重建恢复与无唯一指针。
+
+Gateway 使用真实临时 SQLite、管理员策略、回环 HTTP 和原 SDK，证明 SDK 保存/编辑 → API applied → 执行端文件包含新值，默认模型写入且 small_model/MCP/注释保留；非法默认模型无文件变化；live 成员阻止目录删除，remove-live 后目录行仍在并可单独删除；导入只读文件字节/权限不变、重复导入 0；假 token、异租户、异主机和缺写权限拒绝且无目录行/配置/事务目录变化；只读授权仍可读取 state。未替代文件系统、数据库、事务、鉴权或 HTTP；仅使用假凭据，没有网络上游或 mock 次数断言。
+
+`sw_vers`/`uname -m`：macOS **27.0 (26A428)**、**arm64**，crate **0.6.0**。`command -v opencode` 未找到可执行文件，`opencode --version` 退出 **127**，应用版本、真实 OpenCode 消费、真实账号/Keychain、网络上游、Iced 渲染及非 macOS **未验证**。未触碰真实用户配置。Gateway lib test 有既有 `__eh_frame section too large` 链接提示，测试退出 0；未修改链接配置。
+
+定向 diff/check 和暂存审查通过；只提交本任务实现、独立测试、必要注册、原生观察接线及本条证据。既有母任务状态、此前编号任务删除和其它计划不纳入；所有 plan.md 保持只读。自身锁释放、缓存保留；未运行全量 cargo test、fmt check、wasm 或 Makefile。完成后删除任务 35 编号文件且不提交该删除，正式证据保留；下一步批次 36，OpenCode Iced 编辑归任务 58。

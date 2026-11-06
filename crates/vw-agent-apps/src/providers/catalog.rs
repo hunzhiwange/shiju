@@ -6,7 +6,7 @@ use vw_api_types::{
 };
 
 /// `home` is the administrator-authorized execution home, never a client path.
-/// Native reads currently cover Kimi TOML and OpenCode JSON at their default paths.
+/// Native reads currently cover Kimi TOML and OpenCode JSON/JSONC at their default paths.
 /// No CC database, ambient client home, separate credential files or processes are read.
 /// Configurations can contain secrets; only the typed metadata projection leaves this owner.
 pub fn read(home: &Path, app: AppId, rows: Vec<AppProviderSummary>) -> ProviderCatalog {
@@ -91,44 +91,42 @@ pub(super) fn observe(
     if !cfg!(target_os = "macos") {
         return Err(UnsupportedPlatform);
     }
-    let (components, format) = match app {
+    #[cfg(target_os = "macos")]
+    if app == AppId::OpenCode {
+        let mut bytes = None;
+        for name in ["opencode.jsonc", "opencode.json"] {
+            bytes = read_file(home, &[".config", "opencode", name])?;
+            if bytes.is_some() {
+                break;
+            }
+        }
+        let rows =
+            super::opencode::declarations(bytes.as_deref()).map_err(|_| InvalidConfiguration)?;
+        return Ok((
+            rows.into_keys().map(|id| (id, ())).collect(),
+            ProviderSelection::NotApplicable,
+        ));
+    }
+    let components = match app {
         AppId::Kimi => {
             if std::env::var_os("KIMI_CODE_HOME").is_some_and(|v| !v.is_empty()) {
                 return Err(CustomPathNotSupported);
             }
-            (vec![".kimi-code", "config.toml"], "toml")
-        }
-        AppId::OpenCode => {
-            // The source gives JSONC precedence. Never silently fall back to stale JSON.
-            if read_file(home, &[".config", "opencode", "opencode.jsonc"])?.is_some() {
-                return Err(UnsupportedFormat);
-            }
-            (vec![".config", "opencode", "opencode.json"], "json")
+            vec![".kimi-code", "config.toml"]
         }
         _ => return Err(NotImplemented),
     };
     let Some(bytes) = read_file(home, &components)? else {
-        return Ok((
-            Members::new(),
-            if app == AppId::OpenCode {
-                ProviderSelection::NotApplicable
-            } else {
-                ProviderSelection::Unconfigured
-            },
-        ));
+        return Ok((Members::new(), ProviderSelection::Unconfigured));
     };
-    let value: serde_json::Value = if format == "toml" {
+    let value: serde_json::Value =
         toml::from_str(std::str::from_utf8(&bytes).map_err(|_| InvalidConfiguration)?)
-            .map_err(|_| InvalidConfiguration)?
-    } else {
-        serde_json::from_slice(&bytes).map_err(|_| InvalidConfiguration)?
-    };
+            .map_err(|_| InvalidConfiguration)?;
     if !value.is_object() {
         return Err(InvalidConfiguration);
     }
-    let key = if app == AppId::Kimi { "providers" } else { "provider" };
     let mut members = Members::new();
-    if let Some(providers) = value.get(key) {
+    if let Some(providers) = value.get("providers") {
         let providers = providers.as_object().ok_or(InvalidConfiguration)?;
         for (id, config) in providers {
             if id.trim().is_empty()
@@ -140,9 +138,6 @@ pub(super) fn observe(
             }
             members.insert(id.clone(), ());
         }
-    }
-    if app == AppId::OpenCode {
-        return Ok((members, ProviderSelection::NotApplicable));
     }
     if value.get("models").is_some_and(|v| !v.is_object()) {
         return Err(InvalidConfiguration);

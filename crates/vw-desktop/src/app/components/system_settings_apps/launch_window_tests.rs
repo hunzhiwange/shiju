@@ -25,7 +25,7 @@ impl Harness {
             request: Some(LaunchRequest {
                 app_id: AppId::Codex,
                 installation_id: AppInstallationId("远端中文实例".into()),
-                cwd: "/授权目录/中文项目".into(),
+                cwd: "/Users/中文用户/授权目录/中文项目".into(),
                 args: vec![],
                 skip_permissions: false,
             }),
@@ -56,7 +56,7 @@ impl Harness {
             accepted: self.case % 6 == 0,
             busy: self.case % 6 == 2,
             error: (self.case % 6 == 1)
-                .then(|| "执行主机拒绝目录；没有回退本地终端或其他账号".into()),
+                .then(|| "执行主机拒绝中文目录；没有回退本地终端或其他账号。".repeat(40)),
             ..Default::default()
         };
         if self.case % 6 == 3 {
@@ -75,6 +75,9 @@ impl Harness {
             Message::Ui(_) => {}
             Message::Frame => {
                 self.frames += 1;
+                if self.frames == 4 && self.case % 6 == 4 {
+                    return iced::widget::operation::focus_next();
+                }
                 if self.frames == 2 {
                     return iced::widget::operation::snap_to(
                         "apps-launch-body",

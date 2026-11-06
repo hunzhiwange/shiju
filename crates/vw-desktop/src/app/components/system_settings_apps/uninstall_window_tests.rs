@@ -110,6 +110,11 @@ impl Harness {
             Message::Ui(_) => {}
             Message::Frame => {
                 self.frames += 1;
+                if self.frames == 4 && self.case % 6 == 2 {
+                    let operation = self.state.lifecycle.operation.as_mut().unwrap();
+                    operation.phase = AppOperationPhase::Terminal;
+                    operation.status = vw_gateway_client::vw_api_types::task::TaskStatus::Completed;
+                }
                 if self.frames == 60 {
                     return window::screenshot(self.window).map(Message::Capture);
                 }

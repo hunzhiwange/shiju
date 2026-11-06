@@ -85,7 +85,7 @@ impl Harness {
             open: true,
             busy: self.case % 5 == 2,
             error: (self.case % 5 == 1)
-                .then(|| "保存被执行主机拒绝，已恢复原值；至少保留一项可见应用".into()),
+                .then(|| "保存被执行主机拒绝，已恢复原值；至少保留一项中文应用。".repeat(40)),
             generation: 0,
         };
     }
@@ -95,6 +95,9 @@ impl Harness {
             Message::Ui(_) => {}
             Message::Frame => {
                 self.frames += 1;
+                if self.frames == 4 && self.case % 5 == 4 {
+                    return iced::widget::operation::focus_next();
+                }
                 if self.frames == 2 {
                     return iced::widget::operation::snap_to(
                         "apps-preferences-body",

@@ -1,0 +1,11 @@
+slot=1
+CARGO_TARGET_DIR=/Users/xiangmin/worker/code/shiju/target/rust-slot-1
+CARGO_BUILD_BUILD_DIR=/Users/xiangmin/worker/code/shiju/target/rust-slot-1
+cargo fmt --all => 0
+cargo test -p vw-desktop --test apps-lifecycle-window => 0
+cargo test -p vw-desktop --test apps-uninstall-window => 0
+cargo test -p vw-desktop --test apps-preferences-window => 0
+cargo test -p vw-desktop --test apps-launch-window => 0
+cargo test -p vw-desktop --bin shi-ju cc_apps_desktop_ -- --nocapture => 0
+cargo test -p vw-desktop --lib cc_apps_desktop_ -- --nocapture => 0
+cargo clippy --all-targets --all-features -- -D warnings => 0

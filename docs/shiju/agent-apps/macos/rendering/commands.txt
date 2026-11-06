@@ -1,0 +1,8 @@
+slot=1
+CARGO_TARGET_DIR=/Users/xiangmin/worker/code/shiju/target/rust-slot-1
+CARGO_BUILD_BUILD_DIR=/Users/xiangmin/worker/code/shiju/target/rust-slot-1
+cargo test -p vw-desktop --test apps-lifecycle-window => 0
+cargo test -p vw-desktop --test apps-uninstall-window => 0
+cargo test -p vw-desktop --test apps-preferences-window => 0
+cargo test -p vw-desktop --test apps-launch-window => 0
+cargo run -p vw-desktop --bin shi-ju => -15 (120s limit; negative is signal)

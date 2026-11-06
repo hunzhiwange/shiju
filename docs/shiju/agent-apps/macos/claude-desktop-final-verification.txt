@@ -119,7 +119,7 @@ GPT Partition Data (Backup GPT Table：已验证CRC32 $28510831
   GPT Header (Backup GPT Header : 7)：已验证CRC32 $FE2DB0C4
 已验证CRC32 $C93C098E
 hdiutil: WARNING: 'hdiutil attach -readonly -nobrowse -mountpoint ...' is deprecated. Please use 'diskutil image attach --readOnly --mountOptions nobrowse --mountPoint ...' instead.
-/dev/disk23         	GUID_partition_scheme          	
+/dev/disk23         	GUID_partition_scheme
 /dev/disk23s1       	Apple_HFS                      	/private/tmp/task47-final/mount
 
 ### final controller cleanup

@@ -381,7 +381,7 @@ fn default_terminal_font_family() -> String {
 }
 
 fn default_terminal_font_size() -> f32 {
-    13.0
+    15.0
 }
 
 fn default_editor_font_size() -> f32 {

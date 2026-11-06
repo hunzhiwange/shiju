@@ -31,7 +31,7 @@ fn app_system_settings_default_matches_desktop_contract() {
     assert_eq!(settings.terminal_shell, "zsh");
     assert_eq!(settings.terminal_theme, "system");
     assert_eq!(settings.terminal_font_family, "JetBrains Mono");
-    assert_eq!(settings.terminal_font_size, 13.0);
+    assert_eq!(settings.terminal_font_size, 15.0);
     assert!(settings.editor_follow_system_theme);
     assert_eq!(settings.editor_theme, "Light");
     assert_eq!(settings.editor_font_size, 16.0);
@@ -694,4 +694,27 @@ fn task_completion_notification_defaults_off_and_roundtrips() {
     let restored: AppSystemSettingsConfig =
         serde_json::from_value(serde_json::to_value(&enabled).unwrap()).unwrap();
     assert!(restored.task_completion_notification);
+}
+
+#[test]
+fn terminal_typography_defaults_to_fifteen_pixels() {
+    assert_eq!(AppSystemSettingsConfig::default().terminal_font_size, 15.0);
+}
+
+#[test]
+fn terminal_typography_missing_font_size_defaults_to_fifteen_pixels() {
+    let settings: AppSystemSettingsConfig = serde_json::from_str("{}").unwrap();
+    assert_eq!(settings.terminal_font_size, 15.0);
+}
+
+#[test]
+fn terminal_typography_preserves_explicit_font_sizes() {
+    for size in [12.0, 13.0, 15.0, 20.0] {
+        let settings: AppSystemSettingsConfig =
+            serde_json::from_value(serde_json::json!({"terminal_font_size": size})).unwrap();
+        assert_eq!(settings.terminal_font_size, size);
+        let restored: AppSystemSettingsConfig =
+            serde_json::from_value(serde_json::to_value(&settings).unwrap()).unwrap();
+        assert_eq!(restored.terminal_font_size, size);
+    }
 }

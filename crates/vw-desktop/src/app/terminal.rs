@@ -136,8 +136,8 @@ fn build_font_settings(font_family: &str, font_size: f32) -> iced_term::settings
         Box::leak(font_family.trim().to_string().into_boxed_str())
     };
     iced_term::settings::FontSettings {
-        size: 13.0,
-        scale_factor: ((font_size / 13.0) * 1.2).max(0.5),
+        size: font_size,
+        scale_factor: 1.4,
         font_type: iced::Font::with_name(family),
     }
 }
@@ -754,7 +754,7 @@ impl Default for TerminalState {
             Shell::Bash,
             TerminalTheme::System,
             "JetBrains Mono".to_string(),
-            13.0,
+            15.0,
             200.0,
         )
     }

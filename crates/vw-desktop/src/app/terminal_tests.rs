@@ -73,7 +73,7 @@ fn default_terminal_state_uses_expected_settings() {
     assert_eq!(state.shell, super::Shell::Bash);
     assert_eq!(state.theme, super::TerminalTheme::System);
     assert_eq!(state.font_family, "JetBrains Mono");
-    assert_eq!(state.font_size, 13.0);
+    assert_eq!(state.font_size, 15.0);
 }
 
 #[test]
@@ -207,13 +207,12 @@ fn palette_uses_extended_theme_colors_for_each_terminal_role() {
 
 #[cfg(not(target_arch = "wasm32"))]
 #[test]
-fn font_settings_scale_is_clamped_for_tiny_sizes() {
-    let tiny = super::build_font_settings("JetBrains Mono", 1.0);
-    let normal = super::build_font_settings("JetBrains Mono", 13.0);
-
-    assert_eq!(tiny.size, 13.0);
-    assert_eq!(tiny.scale_factor, 0.5);
-    assert!(normal.scale_factor > tiny.scale_factor);
+fn terminal_typography_uses_real_size_and_fixed_line_height() {
+    for size in [12.0, 15.0, 20.0] {
+        let font = super::build_font_settings("JetBrains Mono", size);
+        assert_eq!(font.size, size);
+        assert_eq!(font.scale_factor, 1.4);
+    }
 }
 
 #[cfg(not(target_arch = "wasm32"))]
@@ -223,9 +222,9 @@ fn font_settings_default_blank_family_and_trim_custom_family() {
     let custom = super::build_font_settings("  Fira Code  ", 26.0);
 
     assert_eq!(blank.font_type, iced::Font::with_name("JetBrains Mono"));
-    assert_eq!(blank.scale_factor, 1.2);
+    assert_eq!(blank.scale_factor, 1.4);
     assert_eq!(custom.font_type, iced::Font::with_name("Fira Code"));
-    assert_eq!(custom.scale_factor, 2.4);
+    assert_eq!(custom.scale_factor, 1.4);
 }
 
 #[cfg(not(target_arch = "wasm32"))]

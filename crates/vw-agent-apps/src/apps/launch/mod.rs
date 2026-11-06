@@ -4,3 +4,6 @@ mod posix_tests;
 pub mod request;
 #[cfg(test)]
 mod request_tests;
+pub mod windows;
+#[cfg(test)]
+mod windows_tests;

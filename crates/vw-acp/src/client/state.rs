@@ -26,6 +26,7 @@ pub(super) struct ActivePromptControl {
 pub(super) struct AcpEventClient {
     pub(super) claude_permissions: bool,
     pub(super) kimi_permissions: bool,
+    pub(super) codebuddy_permissions: bool,
     pub(super) transient_permissions: bool,
     pub(super) reject_untyped_workflow_permissions: bool,
     pub(super) expected_session_id: Arc<Mutex<Option<String>>>,

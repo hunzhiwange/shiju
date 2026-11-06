@@ -5,6 +5,7 @@ use agent_client_protocol::{SessionConfigOption, SessionModeState};
 use crate::PermissionMode;
 
 pub(crate) mod claude;
+pub(crate) mod codebuddy;
 pub(crate) mod codex;
 pub(crate) mod copilot;
 pub(crate) mod gemini;

@@ -29,6 +29,7 @@ fn event_client(
     AcpEventClient {
         claude_permissions: false,
         kimi_permissions: false,
+        codebuddy_permissions: false,
         transient_permissions: false,
         reject_untyped_workflow_permissions: false,
         expected_session_id: Arc::new(Mutex::new(expected_session_id)),
@@ -56,6 +57,7 @@ fn event_client_with_cwd(
     AcpEventClient {
         claude_permissions: false,
         kimi_permissions: false,
+        codebuddy_permissions: false,
         transient_permissions: false,
         reject_untyped_workflow_permissions: false,
         expected_session_id: Arc::new(Mutex::new(None)),

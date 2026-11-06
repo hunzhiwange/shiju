@@ -56,6 +56,8 @@ mod auth_env;
 mod builder;
 #[path = "client/client_error.rs"]
 mod client_error;
+#[path = "client/codebuddy_access.rs"]
+mod codebuddy_access;
 #[path = "client/commands.rs"]
 mod commands;
 #[path = "client/error_context.rs"]

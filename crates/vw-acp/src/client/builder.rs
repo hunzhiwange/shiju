@@ -124,6 +124,17 @@ impl AcpClient {
             policy.reason = crate::AccessPolicyReason::UnverifiedControls;
             return policy;
         }
+        if self.agent_name == "codebuddy"
+            && self.full_access
+            && self.permission_mode == PermissionMode::ApproveAll
+            && crate::access_policy::codebuddy::current_mode(config_options)
+                == Some(crate::access_policy::codebuddy::FULL_MODE)
+        {
+            // Protocol acknowledgement does not establish real tool execution.
+            policy.support = crate::FullAccessSupport::Partial;
+            policy.reason = crate::AccessPolicyReason::UnverifiedControls;
+            return policy;
+        }
         if self.agent_name == "kimi"
             && self.full_access
             && self.permission_mode == PermissionMode::ApproveAll

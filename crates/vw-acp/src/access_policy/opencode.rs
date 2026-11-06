@@ -1,4 +1,4 @@
-//! Transient ACP approvals for OpenCode, Copilot, Kimi and Auggie leave no cached host grants.
+//! Transient ACP approvals for OpenCode, Copilot, Kimi, Auggie and CodeBuddy leave no cached host grants.
 use agent_client_protocol::{
     PermissionOptionKind, RequestPermissionRequest, RequestPermissionResponse,
 };

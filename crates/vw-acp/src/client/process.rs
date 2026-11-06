@@ -203,6 +203,20 @@ impl AcpClient {
         if self.agent_name == "qoder" && bypass {
             return Err(AcpError::Initialize("Qoder startup bypass cannot follow session permission changes; remove bypass arguments and use session access controls".into()));
         }
+        if self.agent_name == "codebuddy" {
+            let elevated_mode = self.config.args.iter().any(|arg| {
+                arg == "-y"
+                    || arg
+                        .strip_prefix("--permission-mode=")
+                        .is_some_and(|mode| !crate::access_policy::codebuddy::restricted_mode(mode))
+            }) || self.config.args.windows(2).any(|pair| {
+                pair[0] == "--permission-mode"
+                    && !crate::access_policy::codebuddy::restricted_mode(&pair[1])
+            });
+            if bypass || elevated_mode {
+                return Err(AcpError::Initialize("CodeBuddy startup elevated permissions cannot follow session access changes; remove bypass arguments and use session access controls".into()));
+            }
+        }
         if bypass && !unrestricted {
             return Err(AcpError::Initialize("launch arguments conflict with current full access authorization; remove explicit bypass arguments".into()));
         }

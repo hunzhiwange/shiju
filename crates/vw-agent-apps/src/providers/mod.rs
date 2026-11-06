@@ -77,3 +77,7 @@ mod update_tests;
 pub mod delete;
 #[cfg(all(test, target_os = "macos"))]
 mod delete_tests;
+
+pub mod duplicate;
+#[cfg(test)]
+mod duplicate_tests;

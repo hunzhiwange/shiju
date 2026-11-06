@@ -59,3 +59,9 @@ mod delete;
 #[cfg(test)]
 #[path = "app_providers/delete_tests.rs"]
 mod delete_tests;
+
+#[path = "app_providers/duplicate.rs"]
+mod duplicate;
+#[cfg(test)]
+#[path = "app_providers/duplicate_tests.rs"]
+mod duplicate_tests;

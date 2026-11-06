@@ -58,3 +58,7 @@ mod update_tests;
 pub mod delete;
 #[cfg(test)]
 mod delete_tests;
+
+pub mod duplicate;
+#[cfg(test)]
+mod duplicate_tests;

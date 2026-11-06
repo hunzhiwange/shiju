@@ -64,6 +64,31 @@ impl AppProviderStore {
                 .map_err(|_| "application provider storage unavailable".into())
         })
     }
+    /// Copy only within this tenant/application; atomic insertion never overwrites a target.
+    pub fn duplicate(
+        &self,
+        tenant: &TenantScope,
+        app: AppId,
+        id: &str,
+        request: &vw_api_types::app_providers::duplicate::AppProviderDuplicate,
+    ) -> Result<AppProviderSummary, String> {
+        let key = Self::key(app, id)?;
+        let target = Self::key(app, &request.new_id)?;
+        let source = self
+            .settings
+            .get(tenant, NAMESPACE, &key)
+            .map_err(|_| "application provider storage unavailable")?
+            .ok_or("application provider not found")?;
+        let stored = serde_json::from_str(&source)
+            .map_err(|_| "invalid stored application provider profile")?;
+        vw_agent_apps::providers::duplicate::duplicate(app, id, &stored, request, |copy| {
+            let payload =
+                serde_json::to_string(copy).map_err(|_| "invalid application provider profile")?;
+            self.settings
+                .insert_if_absent(tenant, NAMESPACE, &target, &payload)
+                .map_err(|_| "application provider storage unavailable".into())
+        })
+    }
     /// Update an existing scoped catalog record, without touching native configuration.
     pub fn update(
         &self,

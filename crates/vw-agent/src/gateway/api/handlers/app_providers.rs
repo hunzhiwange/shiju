@@ -10,7 +10,7 @@ use axum::{
 use vw_api_types::{agent_apps::AppId, app_providers::AppProviderWrite, id::TenantScope};
 
 pub(crate) fn router() -> Router {
-    Router::new().merge(catalog::router()).merge(delete::router()).route(
+    Router::new().merge(catalog::router()).merge(delete::router()).merge(duplicate::router()).route(
         "/app-providers/{app}/{id}",
         get(read)
             .put(save)
@@ -105,3 +105,9 @@ mod delete;
 #[cfg(all(test, target_os = "macos"))]
 #[path = "app_providers/delete_tests.rs"]
 mod delete_tests;
+
+#[path = "app_providers/duplicate.rs"]
+mod duplicate;
+#[cfg(test)]
+#[path = "app_providers/duplicate_tests.rs"]
+mod duplicate_tests;

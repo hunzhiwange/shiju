@@ -133,5 +133,17 @@ pub(super) fn view<'a>(
             }
         }
     }
+    if app.entry.id == vw_gateway_client::vw_api_types::agent_apps::AppId::ClaudeDesktop {
+        details = details
+            .push(text("请从 Claude 官网手动下载安装到目标主机的 Applications 文件夹，然后刷新应用列表。下载页将在当前客户端浏览器打开；远程主机需在该主机上安装。")
+                .size(12).style(settings_muted_text_style))
+            .push(text("https://claude.com/download").size(12))
+            .push(button(text("打开 Claude 官方下载页").size(12))
+                .padding([8, 12])
+                .style(rounded_action_btn_style)
+                .on_press(Message::View(crate::app::message::ViewMessage::OpenUrlExternal(
+                    "https://claude.com/download".into(),
+                ))));
+    }
     container(details).padding([16, 18]).width(Length::Fill).into()
 }

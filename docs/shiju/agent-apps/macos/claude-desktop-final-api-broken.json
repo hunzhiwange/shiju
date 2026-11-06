@@ -1,0 +1,44 @@
+[
+  {
+    "path": "/v1/agent-apps/installations?targetHostId=host&appId=claude-desktop",
+    "status": 200,
+    "body": {
+      "installations": [],
+      "desktop": {
+        "supported": true,
+        "appBundles": [
+          "<isolated-root>/home/Applications/Claude.app"
+        ],
+        "configDirectories": []
+      }
+    }
+  },
+  {
+    "path": "/v1/agent-apps/diagnostics?targetHostId=host&appId=claude-desktop",
+    "status": 200,
+    "body": {
+      "installations": [],
+      "desktop": {
+        "supported": true,
+        "appBundles": [
+          "<isolated-root>/home/Applications/Claude.app"
+        ],
+        "configDirectories": []
+      }
+    }
+  },
+  {
+    "path": "/v1/agent-apps/versions?targetHostId=host&appId=claude-desktop",
+    "status": 200,
+    "body": {
+      "installations": [],
+      "desktop": {
+        "supported": true,
+        "appBundles": [
+          "<isolated-root>/home/Applications/Claude.app"
+        ],
+        "configDirectories": []
+      }
+    }
+  }
+]

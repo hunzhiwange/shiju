@@ -1,0 +1,2 @@
+AppReadResponse { installations: [], desktop: Some(AppDesktopObservation { supported: true, app_bundles: Some([]), config_directories: [] }) }
+exit=0

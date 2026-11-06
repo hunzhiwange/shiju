@@ -1,0 +1,1 @@
+Official signed 4.23118.0 bundle copied to isolated home, then moved Contents/MacOS/Claude to task-owned holding path. Direct process creation fails ENOENT=2. No replacement executable or fixture was created.

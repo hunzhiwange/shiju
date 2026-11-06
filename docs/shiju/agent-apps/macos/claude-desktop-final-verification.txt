@@ -1,0 +1,152 @@
+
+### red
+SLOT 1 /Users/xiangmin/worker/code/shiju/target/rust-slot-1
+   Compiling vw-api-types v0.6.0 (/Users/xiangmin/worker/code/shiju/crates/vw-api-types)
+   Compiling vw-gateway-client v0.6.0 (/Users/xiangmin/worker/code/shiju/crates/vw-gateway-client)
+   Compiling vw-desktop v0.6.0 (/Users/xiangmin/worker/code/shiju/crates/vw-desktop)
+warning: linker stderr: ld: __eh_frame section too large (max 16MB) to encode dwarf unwind offsets in compact unwind table, performance of exception handling might be affected
+  |
+  = note: `#[warn(linker_messages)]` on by default
+
+warning: `vw-desktop` (lib test) generated 1 warning
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 1m 00s
+     Running unittests src/lib.rs (target/rust-slot-1/debug/deps/vw_desktop-c3550d52c5fe1742)
+
+running 1 test
+
+thread 'app::components::system_settings_apps::details_tests::cc_apps_desktop_manual_guide_click_opens_only_official_client_url' (39119749) panicked at crates/vw-desktop/src/app/components/system_settings_apps/details_tests.rs:31:13:
+Desktop details must offer manual installation even when discovery is unavailable
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+test app::components::system_settings_apps::details_tests::cc_apps_desktop_manual_guide_click_opens_only_official_client_url ... FAILED
+
+failures:
+
+failures:
+    app::components::system_settings_apps::details_tests::cc_apps_desktop_manual_guide_click_opens_only_official_client_url
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 8612 filtered out; finished in 0.21s
+
+error: test failed, to rerun pass `-p vw-desktop --lib`
+EXIT 101
+RELEASED 1
+
+### fmt
+SLOT 1 /Users/xiangmin/worker/code/shiju/target/rust-slot-1
+EXIT 0
+RELEASED 1
+
+### green
+SLOT 1 /Users/xiangmin/worker/code/shiju/target/rust-slot-1
+   Compiling vw-desktop v0.6.0 (/Users/xiangmin/worker/code/shiju/crates/vw-desktop)
+warning: linker stderr: ld: __eh_frame section too large (max 16MB) to encode dwarf unwind offsets in compact unwind table, performance of exception handling might be affected
+  |
+  = note: `#[warn(linker_messages)]` on by default
+
+warning: `vw-desktop` (lib test) generated 1 warning
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 27.20s
+     Running unittests src/lib.rs (target/rust-slot-1/debug/deps/vw_desktop-c3550d52c5fe1742)
+
+running 1 test
+test app::components::system_settings_apps::details_tests::cc_apps_desktop_manual_guide_click_opens_only_official_client_url ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 8612 filtered out; finished in 0.20s
+
+EXIT 0
+RELEASED 1
+
+### clippy
+SLOT 1 /Users/xiangmin/worker/code/shiju/target/rust-slot-1
+    Checking vw-desktop v0.6.0 (/Users/xiangmin/worker/code/shiju/crates/vw-desktop)
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 10.48s
+EXIT 0
+RELEASED 1
+
+### final-run
+SLOT 1 /Users/xiangmin/worker/code/shiju/target/rust-slot-1
+warning: linker stderr: ld: __eh_frame section too large (max 16MB) to encode dwarf unwind offsets in compact unwind table, performance of exception handling might be affected
+  |
+  = note: `#[warn(linker_messages)]` on by default
+
+warning: `vw-cli` (bin "shiju") generated 1 warning
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 0.58s
+COMMAND ['cargo', 'build', '-p', 'vw-cli', '--bin', 'shiju'] EXIT 0
+   Compiling vw-desktop v0.6.0 (/Users/xiangmin/worker/code/shiju/crates/vw-desktop)
+warning: linker stderr: ld: __eh_frame section too large (max 16MB) to encode dwarf unwind offsets in compact unwind table, performance of exception handling might be affected
+  |
+  = note: `#[warn(linker_messages)]` on by default
+
+warning: `vw-desktop` (bin "shi-ju") generated 1 warning
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 30.35s
+COMMAND ['cargo', 'build', '-p', 'vw-desktop', '--bin', 'shi-ju'] EXIT 0
+standard desktop exit -15
+READY /Users/xiangmin/worker/code/shiju/target/rust-slot-1
+
+### download-parts
+part 0
+part 1
+part 2
+part 3
+part 4
+part 5
+part 6
+part 7
+part 8
+part 9
+part 10
+part 11
+part 12
+part 13
+part 14
+part 15
+SHA256 0e3d86a8b7ac6d7e6a3de011134db1717716fa6ecbe323f5ea4a5356fba62810
+
+### mount
+正在检查“Protective Master Boot Record (MBR : 0)”的校验和…
+Protective Master Boot Record (MBR :：已验证CRC32 $B53E6BEC
+正在检查“GPT Header (Primary GPT Header : 1)”的校验和…
+ GPT Header (Primary GPT Header : 1)：已验证CRC32 $7A68EADC
+正在检查“GPT Partition Data (Primary GPT Table : 2)”的校验和…
+GPT Partition Data (Primary GPT Tabl：已验证CRC32 $28510831
+正在检查“ (Apple_Free : 3)”的校验和…
+                    (Apple_Free : 3)：已验证CRC32 $00000000
+正在检查“disk image (Apple_HFS : 4)”的校验和…
+          disk image (Apple_HFS : 4)：已验证CRC32 $015F0523
+正在检查“ (Apple_Free : 5)”的校验和…
+                    (Apple_Free : 5)：已验证CRC32 $00000000
+正在检查“GPT Partition Data (Backup GPT Table : 6)”的校验和…
+GPT Partition Data (Backup GPT Table：已验证CRC32 $28510831
+正在检查“GPT Header (Backup GPT Header : 7)”的校验和…
+  GPT Header (Backup GPT Header : 7)：已验证CRC32 $FE2DB0C4
+已验证CRC32 $C93C098E
+hdiutil: WARNING: 'hdiutil attach -readonly -nobrowse -mountpoint ...' is deprecated. Please use 'diskutil image attach --readOnly --mountOptions nobrowse --mountPoint ...' instead.
+/dev/disk23         	GUID_partition_scheme          	
+/dev/disk23s1       	Apple_HFS                      	/private/tmp/task47-final/mount
+
+### final controller cleanup
+SLOT 1 /Users/xiangmin/worker/code/shiju/target/rust-slot-1
+warning: linker stderr: ld: __eh_frame section too large (max 16MB) to encode dwarf unwind offsets in compact unwind table, performance of exception handling might be affected
+  |
+  = note: `#[warn(linker_messages)]` on by default
+
+warning: `vw-cli` (bin "shiju") generated 1 warning
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 0.58s
+COMMAND ['cargo', 'build', '-p', 'vw-cli', '--bin', 'shiju'] EXIT 0
+   Compiling vw-desktop v0.6.0 (/Users/xiangmin/worker/code/shiju/crates/vw-desktop)
+warning: linker stderr: ld: __eh_frame section too large (max 16MB) to encode dwarf unwind offsets in compact unwind table, performance of exception handling might be affected
+  |
+  = note: `#[warn(linker_messages)]` on by default
+
+warning: `vw-desktop` (bin "shi-ju") generated 1 warning
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 30.35s
+COMMAND ['cargo', 'build', '-p', 'vw-desktop', '--bin', 'shi-ju'] EXIT 0
+standard desktop exit -15
+READY /Users/xiangmin/worker/code/shiju/target/rust-slot-1
+child exit 81342 -15
+child exit 81341 -15
+child exit 81340 -15
+EXIT 0
+RELEASED 1
+
+### eject
+hdiutil: WARNING: 'hdiutil detach ...' is deprecated. Please use 'diskutil eject ...' instead.
+"disk23" ejected.

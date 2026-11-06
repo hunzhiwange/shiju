@@ -2,6 +2,8 @@ pub(crate) mod catalog;
 #[cfg(test)]
 mod catalog_tests;
 mod details;
+#[cfg(test)]
+mod details_tests;
 pub(crate) mod drag;
 #[cfg(test)]
 mod drag_tests;

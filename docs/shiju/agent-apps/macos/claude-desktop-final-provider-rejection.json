@@ -1,0 +1,7 @@
+{
+  "method": "PUT",
+  "path": "/v1/app-providers/claude-desktop/final47",
+  "status": 400,
+  "body": "{\"message\":\"Invalid application provider input or unsupported projection\"}",
+  "note": "Desktop provider protocol projection rejected; test marker is not real account authentication and no local protocol service was claimed as visited."
+}

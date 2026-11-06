@@ -1,4 +1,4 @@
-# Claude Desktop macOS 实机验收（已完成，待回归）
+# Claude Desktop macOS 实机验收（已完成）
 
 ## 执行登记（2026-11-06，Asia/Shanghai）
 
@@ -131,3 +131,57 @@ Chrome显示ERR_BLOCKED_BY_CLIENT，没有禁用扩展或更改安全设置。�
 - 只存在既有ld __eh_frame提示；无仓库Rust修改、不运行Clippy。有效自动测试数量仍0；SDK实机读取与UI人工场景单列，不包装为单元测试数量。
 - 本任务Claude、Iced、两轮网关及相关子进程终止；两份测试应用包已清理，卸载DMG挂载并删除隔离数据/策略/令牌。个人已有ShiJu/网关/CLI保持不动；既定/Applications/Claude.app与个人home/Applications/Claude.app前后均不存在。
 - 本人slot-2锁释放，保留编译缓存；不碰slot-1/9他人锁。plan.md保持只读，提交仅本应用持久证据。
+
+## 最终收口（2026-11-06，约20:06–20:18）
+
+最新状态：**已完成（当前声明能力范围）**。本节补齐前文两处缺口；历史待回归描述保留以说明证据演进，不再代表当前状态。用户随后要求不再追加测试，立即停止验证扩展，仅清理与提交。既有通过场景未重复执行。
+
+### 客户端手动安装指引修复
+
+当前共享源码详情确实没有Desktop外部安装入口，故最小修改`system_settings_apps/details.rs`：Desktop详情显示官方手动安装说明、固定`https://claude.com/download`及按钮；通过现有`ViewMessage::OpenUrlExternal`在当前客户端开浏览器。说明明确目标主机Applications安装与刷新，并提醒远程主机须在该主机安装。链接不来自请求、配置或执行主机；不增加自动安装/终端能力，也不调用Gateway开浏览器。
+
+先新增独立`details_tests.rs`的`cc_apps_desktop_manual_guide_click_opens_only_official_client_url`，驱动真实Iced控件鼠标事件，要求产生且只产生固定官方URL消息。原实现实际失败：缺按钮，messages为空；最小实现后1项通过，循环覆盖明/暗主题及发现失败、未安装、有桌面路径三种状态，并真实layout/draw中文文本。不是源码字符串断言或镜像测试。
+
+原生Task47Final窗口由当前构建的同一二进制、私有HOME和唯一bundle标识启动，连接本任务loopback网关及管理员host授权。在Light和Dark主题实际展开Desktop详情：文字、路径、按钮及固定URL清晰，无字形panic。点击“打开 Claude 官方下载页”后，Chrome新增标签实际落地https://claude.com/download（标题Download Claude | Claude by Anthropic）；读取到macOS下载按钮。保存原生详情与官网截图后关闭本任务新增标签，未登录个人账号或修改浏览器策略。
+
+截图：`claude-desktop-final-broken-light.jpg`、`claude-desktop-final-broken-dark.jpg`、`claude-desktop-final-official-download.jpg`。
+
+### 真实破损包与断链观察
+
+重新从此前已观察的官方4.23118.0产物URL下载同一DMG。单流网络缓慢，终止后使用官方服务器支持的16段Range请求并校验拼接总长度390297994及SHA256；结果仍为`0e3d86a8b7ac6d7e6a3de011134db1717716fa6ecbe323f5ea4a5356fba62810`，不采用镜像或生成包夹具。只读挂载、验证官方原包签名后ditto至本任务私有home/Applications/Claude.app。
+
+将该真实副本Contents/MacOS/Claude移至任务持有目录，直接创建程序进程实际失败ENOENT=2。未创建替代可执行程序、未关闭签名检查，也未破坏个人安装。随后通过正式Gateway的installations/diagnostics/versions三端点以及正式SDK读取：
+
+- 三端点均200，installations=[]；desktop.appBundles包含这个破损副本的真实路径。SDK同样返回目录观察。
+- 原生详情实际显示“桌面应用：已发现，运行未验证”，没有“可运行”徽章、终端启动、版本或来源断言。概览的“已发现”/安装分组仅为路径存在，不能据此声称破损包可运行。
+- 这证明当前只读Desktop探测的真实边界：目录存在不代表内部可执行文件健康。本次故障已实测，不能说诊断具有未实现的损坏分类。
+- 将整个副本移出搜索根，在Claude.app处建立指向不存在测试路径的断链：正式SDK返回appBundles=[]，三端点也均200/空观察。移除本任务断链后再读仍为空。没有回退CLI或执行不明程序。
+
+已有证据见`claude-desktop-final-broken-executable.txt`、`claude-desktop-final-sdk-broken.txt`、`claude-desktop-final-sdk-broken-link.txt`、`claude-desktop-final-sdk-cleaned.txt`及对应`api-*.json`。本轮清理后未追加原生截图：Mac在最后一次尝试前再次自动锁定；用户随即明确要求停止追加测试。原任务较早清理/重连原生截图仍有效，读取逻辑本次未改，未将新截图伪造为已取得。
+
+### 身份与协议能力不混报
+
+现行`vw-agent-apps/src/providers/mod.rs::validate_profile`明确拒绝ClaudeDesktop provider terminal capability。对本任务正式隔离网关PUT /v1/app-providers/claude-desktop/final47，使用明确非凭据标记和loopback URL，实际返回400：Invalid application provider input or unsupported projection，记录在`claude-desktop-final-provider-rejection.json`。这是生产拒绝路径，**没有**声称官方Desktop访问了隔离协议接口、真实厂商登录成功或测试标记通过认证。另一次补充GET使用了不存在的/app-providers/claude-desktop路径，实际404，未据此声称列表为空；不再扩展验证。真实厂商账号登录依用户口径留待以后配置，不阻塞本次已声明的发现与客户端手动安装能力。
+
+### Cargo与交付
+
+每个阶段动态原子领取slot-1，所有Cargo/调用Cargo脚本/SDK/桌面与网关进程均继承：
+
+- CARGO_TARGET_DIR=/Users/xiangmin/worker/code/shiju/target/rust-slot-1
+- CARGO_BUILD_BUILD_DIR=/Users/xiangmin/worker/code/shiju/target/rust-slot-1
+
+未通过--target-dir绕过，owner记录任务/会话/PID。确切命令与输出保存在`claude-desktop-final-verification.txt`：
+
+| 命令 | 结果 |
+| --- | --- |
+| cargo test -p vw-desktop --lib cc_apps_desktop_manual_guide_click -- --nocapture（红） | 退出101，1有效失败，8612过滤；不是编译错误 |
+| cargo fmt --all | 退出0，无无关源码格式化差异 |
+| 同一聚焦命令（绿） | 退出0，1通过、0失败、8612过滤；6种主题/观察组合 |
+| cargo clippy --all-targets --all-features -- -D warnings | 退出0，10.48秒 |
+| cargo build -p vw-cli --bin shiju | 退出0，0.58秒 |
+| cargo build -p vw-desktop --bin shi-ju | 退出0，30.35秒 |
+| cargo run -p vw-desktop --bin shi-ju | 默认features，构建0.30秒并Running，主动终止-15；非业务通过依据 |
+
+临时SDK以槽位内正式rlib精确依赖链接（命令含于SDK记录），三次真实读取退出0；人工API/SDK/UI场景不另计单元测试。既有macOS链接器__eh_frame性能提示单列，不改链接设置。用户停止追加测试后没有再运行测试、Clippy或构建。
+
+本任务标准桌面、专用bundle、Gateway及SDK产物使用进程已结束，控制器日志记录退出并释放本人slot-1锁，缓存保留；挂载卸载，测试包/断链/原入口/随机令牌/策略及私有数据全部清理。未碰其他任务进程、个人安装或凭据；plan.md只读。最终提交仅本次源码、独立测试和本应用证据；编号任务标已完成后删除。建议任务61直接引用本节与新增证据收口。

@@ -373,7 +373,7 @@ pub fn build_file_tree_list(app: &App) -> Element<'_, Message> {
             let item = if app.file_tree_menu_path.as_deref() == Some(&abs)
                 && app.file_tree_menu_source.as_deref() == Some("tree-file")
             {
-                PointBelowOverlay::new(right_click, build_file_tree_menu(app, true))
+                PointBelowOverlay::new(right_click, build_file_tree_menu(app, false))
                     .show(true)
                     .anchor(app.file_tree_menu_anchor.unwrap_or(iced::Point::ORIGIN))
                     .on_close(Message::Project(ProjectMessage::FileTreeMenuClose))
@@ -610,7 +610,7 @@ pub fn build_changes_list(app: &App) -> Element<'_, Message> {
             let item = if app.file_tree_menu_path.as_deref() == Some(&abs)
                 && app.file_tree_menu_source.as_deref() == Some("changes-file")
             {
-                PointBelowOverlay::new(right_click, build_file_tree_menu(app, true))
+                PointBelowOverlay::new(right_click, build_file_tree_menu(app, false))
                     .show(true)
                     .anchor(app.file_tree_menu_anchor.unwrap_or(iced::Point::ORIGIN))
                     .on_close(Message::Project(ProjectMessage::FileTreeMenuClose))

@@ -91,7 +91,7 @@ pub(crate) async fn execute(
                 "应用管理授权不足，请联系管理员".into()
             }
             AgentAppsLifecycleError::Http { status: 404 | 409, .. } => {
-                "预览或操作已失效，请核对网关状态".into()
+                "预览或操作已失效，请重新预检并确认；不会自动重试删除".into()
             }
             _ if submitting => "提交结果未知，请联系管理员核对；禁止重复提交".into(),
             _ => "连接中断或服务不可用，可刷新恢复同一操作".into(),
@@ -113,7 +113,12 @@ pub(super) fn update(app: &mut App, message: LifecycleMessage) -> Task<Message> 
     }
     let target_label = if let LifecycleMessage::Preview(request) = &message {
         match &request.target {
-            AppActionTarget::Environment { environment } => format!("新安装环境：{environment:?}"),
+            AppActionTarget::Environment { environment } => {
+                if request.action == AppLifecycleAction::Uninstall {
+                    return app.show_error_toast("卸载必须选择具体实例");
+                }
+                format!("新安装环境：{environment:?}")
+            }
             AppActionTarget::Installation { installation_id } => {
                 let Some(installation) = app
                     .apps_catalog
@@ -126,9 +131,22 @@ pub(super) fn update(app: &mut App, message: LifecycleMessage) -> Task<Message> 
                 else {
                     return app.show_error_toast("目标实例已失效，请刷新列表");
                 };
+                if request.action == AppLifecycleAction::Uninstall
+                    && !crate::app::components::system_settings_apps::uninstall::selectable(
+                        request,
+                        installation,
+                    )
+                {
+                    return app.show_error_toast(
+                        crate::app::components::system_settings_apps::uninstall::MANUAL_GUIDANCE,
+                    );
+                }
                 format!(
-                    "实际目标：{}\n观察来源：{:?} · {:?}",
-                    installation.path, installation.source, installation.environment
+                    "实例路径：{}\n真实路径：{}\n观察来源：{:?} · {:?}",
+                    installation.path,
+                    installation.real_path.as_deref().unwrap_or("未确认"),
+                    installation.source,
+                    installation.environment
                 )
             }
         }
@@ -138,10 +156,7 @@ pub(super) fn update(app: &mut App, message: LifecycleMessage) -> Task<Message> 
     let state = &mut app.apps_catalog.lifecycle;
     let work = match message {
         LifecycleMessage::Preview(request) => {
-            if state.active()
-                || state.preview.is_some()
-                || request.action == AppLifecycleAction::Uninstall
-            {
+            if state.active() || state.preview.is_some() {
                 return Task::none();
             }
             state.target_label = target_label;
@@ -208,7 +223,7 @@ pub(super) fn update(app: &mut App, message: LifecycleMessage) -> Task<Message> 
                     let operation = state.operation.as_ref().unwrap();
                     if operation.phase == AppOperationPhase::Terminal {
                         return if operation.status == TaskStatus::Failed {
-                            app.show_error_toast("安装或升级失败，请刷新应用诊断")
+                            app.show_error_toast("应用操作失败，请刷新应用诊断")
                         } else {
                             Task::none()
                         };

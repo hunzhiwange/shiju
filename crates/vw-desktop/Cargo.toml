@@ -172,3 +172,9 @@ name = "apps-lifecycle-window"
 path = "src/apps_lifecycle_window_main.rs"
 harness = false
 test = false
+
+[[test]]
+name = "apps-uninstall-window"
+path = "src/apps_uninstall_window_main.rs"
+harness = false
+test = false

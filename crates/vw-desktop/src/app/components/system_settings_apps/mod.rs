@@ -4,6 +4,7 @@ mod catalog_tests;
 pub(crate) mod lifecycle;
 #[cfg(test)]
 mod lifecycle_tests;
+pub(crate) mod uninstall;
 
 use super::system_settings_common::*;
 use crate::app::{
@@ -96,11 +97,12 @@ pub(crate) fn view(state: &AppsCatalogState) -> Element<'_, Message> {
             for installation in &observation.installations {
                 details = details.push(
                     text(format!(
-                        "{:?} · {:?} · {}\n{}",
+                        "{:?} · {:?} · {}\n实例路径：{}\n真实路径：{}",
                         installation.environment,
                         installation.source,
                         installation.version.as_deref().unwrap_or("版本未验证"),
-                        installation.path
+                        installation.path,
+                        installation.real_path.as_deref().unwrap_or("未确认")
                     ))
                     .size(12),
                 );
@@ -115,6 +117,21 @@ pub(crate) fn view(state: &AppsCatalogState) -> Element<'_, Message> {
                     },
                     !state.lifecycle.active() && state.lifecycle.preview.is_none(),
                 ));
+                if installation.source == AppInstallationSource::Unknown {
+                    details = details.push(text(uninstall::MANUAL_GUIDANCE).size(12));
+                } else {
+                    details = details.push(lifecycle::action_button(
+                        "卸载此实例（预检）",
+                        AppActionPreviewRequest {
+                            app_id: app.entry.id,
+                            action: AppLifecycleAction::Uninstall,
+                            target: AppActionTarget::Installation {
+                                installation_id: installation.id.clone(),
+                            },
+                        },
+                        !state.lifecycle.active() && state.lifecycle.preview.is_none(),
+                    ));
+                }
             }
             if let Some(desktop) = &observation.desktop {
                 for path in desktop.app_bundles.iter().flatten() {
@@ -175,3 +192,6 @@ pub(crate) fn view_overlays<'a>(
     .width(Length::Fixed(520.0));
     settings_modal_overlay(Some(base), close, card)
 }
+
+#[cfg(test)]
+mod uninstall_tests;

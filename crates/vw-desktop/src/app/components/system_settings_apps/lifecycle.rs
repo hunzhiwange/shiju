@@ -121,9 +121,18 @@ pub(crate) fn overlay<'a>(
         return base;
     };
     let close = event(LifecycleMessage::Close);
+    let uninstalling = preview.request.action == AppLifecycleAction::Uninstall;
     let content = column![
         row![
-            container(text("确认安装 / 升级").size(22)).width(Length::Fill),
+            container(
+                text(if uninstalling {
+                    "确认卸载所选实例"
+                } else {
+                    "确认安装 / 升级"
+                })
+                .size(22)
+            )
+            .width(Length::Fill),
             settings_close_button(close.clone())
         ],
         iced::widget::scrollable(
@@ -133,7 +142,18 @@ pub(crate) fn overlay<'a>(
                     text(format!("来源：{:?}", preview.source)),
                     text(&state.target_label),
                     text(&preview.summary),
-                    text("确认后由网关重新检查目标与 Node 依赖；排队不表示安装成功。").size(12),
+                    text(if uninstalling {
+                        super::uninstall::guidance(preview.request.app_id)
+                    } else {
+                        "确认后由网关重新检查目标与 Node 依赖；排队不表示安装成功。"
+                    })
+                    .size(12),
+                    text(if uninstalling {
+                        "计划或路径变化时拒绝执行；请重新预检并确认，不会自动重试删除。"
+                    } else {
+                        ""
+                    })
+                    .size(12),
                 ]
                 .spacing(12)
             )
@@ -149,10 +169,25 @@ pub(crate) fn overlay<'a>(
                 .padding([8, 16])
                 .style(rounded_action_btn_style)
                 .on_press(close.clone()),
-            button(text("确认提交"))
-                .padding([8, 16])
-                .style(primary_action_btn_style)
-                .on_press_maybe((!state.busy).then_some(event(LifecycleMessage::Confirm)))
+            button(
+                text(if state.busy {
+                    "处理中…"
+                } else if uninstalling {
+                    "确认卸载"
+                } else {
+                    "确认提交"
+                })
+                .size(16)
+            )
+            .padding([8, 16])
+            .style(primary_action_btn_style)
+            .on_press_maybe(
+                (!state.busy
+                    && !state.uncertain
+                    && state.request.as_ref() == Some(&preview.request)
+                    && preview.source != AppInstallationSource::Unknown)
+                    .then_some(event(LifecycleMessage::Confirm))
+            )
         ]
         .spacing(10),
     ]

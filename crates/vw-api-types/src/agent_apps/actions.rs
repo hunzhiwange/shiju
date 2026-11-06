@@ -75,3 +75,22 @@ pub struct AppActionExecutionResult {
     pub operation_id: TaskId,
     pub status: TaskStatus,
 }
+
+/// Safe current progress snapshot. Polling never resubmits an action.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct AppOperationStatus {
+    pub operation_id: TaskId,
+    pub status: TaskStatus,
+    pub phase: AppOperationPhase,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum AppOperationPhase {
+    Queued,
+    Preflight,
+    Executing,
+    Postflight,
+    Terminal,
+}

@@ -290,3 +290,40 @@ pub(super) fn install_recipe(
     }
     .map_err(str::to_owned)
 }
+
+/// Child-only environment; never mutates the gateway process environment.
+pub struct WriteProcessEnvironment {
+    home: std::path::PathBuf,
+    prefix: std::path::PathBuf,
+    tools: std::path::PathBuf,
+}
+impl WriteProcessEnvironment {
+    pub(crate) fn new(
+        home: std::path::PathBuf,
+        prefix: std::path::PathBuf,
+        tools: std::path::PathBuf,
+    ) -> Self {
+        Self { home, prefix, tools }
+    }
+
+    pub(crate) fn apply(&self, command: &mut std::process::Command) -> Result<(), String> {
+        command
+            .env_clear()
+            .env("HOME", &self.home)
+            .env(
+                "PATH",
+                std::env::join_paths([
+                    self.tools.as_path(),
+                    std::path::Path::new("/usr/bin"),
+                    std::path::Path::new("/bin"),
+                ])
+                .map_err(|_| "invalid PATH")?,
+            )
+            .env("npm_config_prefix", &self.prefix)
+            .env("npm_config_engine_strict", "true")
+            .env("npm_config_userconfig", "/dev/null")
+            .env("npm_config_globalconfig", "/dev/null")
+            .current_dir(&self.prefix);
+        Ok(())
+    }
+}

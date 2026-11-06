@@ -35,6 +35,35 @@ where
         + Send
         + 'static,
 {
+    uninstall_inner(plan, confirmed, refresh, None).await
+}
+
+/// Explicit child environment from the authorized host, never inherited credentials.
+pub async fn uninstall_isolated<R>(
+    plan: UninstallPlan,
+    confirmed: bool,
+    refresh: R,
+    environment: crate::apps::lifecycle::process::WriteProcessEnvironment,
+) -> Result<(), String>
+where
+    R: FnOnce() -> Result<(AppInstallation, Vec<String>, Option<packages::BrewOwnership>), String>
+        + Send
+        + 'static,
+{
+    uninstall_inner(plan, confirmed, refresh, Some(environment)).await
+}
+
+async fn uninstall_inner<R>(
+    plan: UninstallPlan,
+    confirmed: bool,
+    refresh: R,
+    environment: Option<crate::apps::lifecycle::process::WriteProcessEnvironment>,
+) -> Result<(), String>
+where
+    R: FnOnce() -> Result<(AppInstallation, Vec<String>, Option<packages::BrewOwnership>), String>
+        + Send
+        + 'static,
+{
     ToolLifecycleCoordinator
         .run(vec![plan.installation.app_id], move || {
             if !confirmed {
@@ -58,12 +87,16 @@ where
             match &current.action {
                 Action::Native(removal) => removal.remove()?,
                 Action::Package(action) => {
-                    let command = crate::apps::lifecycle::process::command(
+                    let mut command = crate::apps::lifecycle::process::command(
                         &action.program,
                         &action.args,
                         &action.env,
                         Some(&action.path_prefix),
                     )?;
+                    if let Some(environment) = &environment {
+                        environment.apply(&mut command)?;
+                        command.envs(action.env.iter().cloned());
+                    }
                     crate::apps::lifecycle::process::run_command(command)?;
                 }
             }

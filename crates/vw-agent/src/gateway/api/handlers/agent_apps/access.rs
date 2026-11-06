@@ -25,6 +25,8 @@ struct Principal {
 #[derive(Deserialize)]
 #[serde(deny_unknown_fields)]
 struct Grant {
+    #[serde(default)]
+    actions: Vec<vw_api_types::agent_apps::AppLifecycleAction>,
     platform_id: String,
     company_id: String,
     host_id: String,
@@ -38,7 +40,16 @@ pub(super) struct Host {
     pub home: PathBuf,
     pub search_paths: Vec<PathBuf>,
     pub applications: PathBuf,
+    #[serde(default)]
+    pub lifecycle: Option<Lifecycle>,
 }
+#[derive(Clone, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub(super) struct Lifecycle {
+    pub prefix: PathBuf,
+    pub npm: PathBuf,
+}
+
 #[derive(Clone, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub(super) enum Binding {
@@ -51,6 +62,16 @@ pub(super) fn authorize(
     headers: &HeaderMap,
     tenant: &TenantScope,
     target: &str,
+) -> Result<Host, StatusCode> {
+    authorize_action(path, headers, tenant, target, None)
+}
+
+pub(super) fn authorize_action(
+    path: Option<&Path>,
+    headers: &HeaderMap,
+    tenant: &TenantScope,
+    target: &str,
+    action: Option<vw_api_types::agent_apps::AppLifecycleAction>,
 ) -> Result<Host, StatusCode> {
     let mut values = headers.get_all("x-agent-apps-token").iter();
     let token = values
@@ -76,6 +97,7 @@ pub(super) fn authorize(
         g.platform_id == tenant.platform_id().as_ref()
             && g.company_id == tenant.company_id().as_ref()
             && g.host_id == target
+            && action.is_none_or(|a| g.actions.contains(&a))
     }) {
         return Err(StatusCode::FORBIDDEN);
     }

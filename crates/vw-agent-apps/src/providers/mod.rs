@@ -157,3 +157,7 @@ mod grok_tests;
 
 #[cfg(all(test, target_os = "macos"))]
 mod claude_desktop_tests;
+
+pub mod desktop_mapping;
+#[cfg(test)]
+mod desktop_mapping_tests;

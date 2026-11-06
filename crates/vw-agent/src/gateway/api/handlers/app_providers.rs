@@ -21,6 +21,7 @@ pub(crate) fn router() -> Router {
         .merge(gemini::router())
         .merge(grok::router())
         .merge(claude_desktop::router())
+        .merge(desktop_mapping::router())
         .merge(delete::router())
         .merge(duplicate::router())
         .merge(presentation::router())
@@ -229,3 +230,7 @@ mod grok_tests;
 
 #[cfg(all(test, target_os = "macos"))]
 mod claude_desktop_tests;
+
+mod desktop_mapping;
+#[cfg(all(test, target_os = "macos"))]
+mod desktop_mapping_tests;

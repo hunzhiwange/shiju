@@ -172,3 +172,9 @@ mod grok_tests;
 #[cfg(test)]
 #[path = "app_providers/claude_desktop_tests.rs"]
 mod claude_desktop_tests;
+
+#[path = "app_providers/desktop_mapping.rs"]
+mod desktop_mapping;
+#[cfg(test)]
+#[path = "app_providers/desktop_mapping_tests.rs"]
+mod desktop_mapping_tests;

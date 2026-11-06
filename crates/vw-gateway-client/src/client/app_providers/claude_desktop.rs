@@ -34,14 +34,17 @@ impl GatewayClient {
     ) -> Result<ClaudeDesktopResult, Error> {
         self.claude_desktop_request(id, "POST", "/reapply", body, token).await
     }
-    async fn claude_desktop_request<B: serde::Serialize>(
+    pub(super) async fn claude_desktop_request<
+        B: serde::Serialize,
+        R: serde::de::DeserializeOwned,
+    >(
         &self,
         id: &str,
         method: &str,
         action: &str,
         body: &B,
         token: &str,
-    ) -> Result<ClaudeDesktopResult, Error> {
+    ) -> Result<R, Error> {
         if id.is_empty()
             || id.len() > 128
             || !id.bytes().all(|c| c.is_ascii_alphanumeric() || matches!(c, b'-' | b'_'))

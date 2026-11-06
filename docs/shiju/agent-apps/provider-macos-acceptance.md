@@ -1543,3 +1543,49 @@ Gateway 使用真实临时 SQLite、主机授权策略、回环 HTTP 与原 SDK�
 平台 `sw_vers`、`uname -m` 退出 0：macOS **27.0 (26A428)**、**arm64**，crate **0.6.0**。默认 `/Applications/Claude.app/Contents/Info.plist` 版本查询退出 1、未取得版本；不据此推断其它安装位置。本项没有读取真实用户配置/账号/Keychain、启动 Desktop、访问网络模型上游；真实 Desktop 消费、账号登录、Iced 明暗主题及非 macOS 未验证。Gateway lib test 有既有 `__eh_frame section too large` 链接提示，测试退出 0，未改链接配置。
 
 最终定向差异/暂存检查及只读 plan.md 无差异检查均通过；各阶段自身槽位 1 的锁已释放，缓存保留。仅提交本任务代码、独立测试、必要父注册与本条正式证据；既有母任务状态、之前编号文件删除和其它计划不纳入。未运行全量 cargo test、fmt check、wasm 或 Makefile。完成后删除本任务编号文件且不提交其删除，正式证据保留；下一步为批次 34 与后续真实 Desktop 验收。
+
+## 任务 34：Claude Desktop 模型映射
+
+2026-11-07；状态：已完成。范围为从 Claude 目录导入兼容档案、默认角色路由及目录映射校验/保存；不交付代理运行时或聚合模型目录。真实 macOS 临时目录、SQLite 和 HTTP/SDK 链路已验收；真实 Desktop 进程、账号及 Iced 未验证。
+
+### 前置、来源与实现
+
+已核对批次 33 提交 `363edbc32` 及本文件任务 33 的正式证据。母任务 1、3 已完成；母任务 2 完整领域迁移仍未收口，继续沿用任务 1/provider-contracts.md 记载的底座子计划 1–93 开工裁定，不将其误报为完整完成。只读 plan.md 无差异。
+
+来源 `/Users/xiangmin/worker/code/cc-switch` 的 HEAD 为 `ca58c0313360eae7c851fbd7553c1614c7af03e7`，rev-parse/status 均退出 0、来源干净。读取 `claude_desktop_config.rs::{default_proxy_routes,is_compatible_direct_provider,validate_direct_provider,validate_proxy_provider,is_claude_safe_model_id,direct_inference_model_specs,proxy_model_routes}`、`commands/provider.rs::{import_claude_desktop_providers_from_claude_blocking,claude_provider_models_are_claude_safe,suggested_claude_desktop_routes}` 及相邻导入/模型校验测试；来源调用者为 `src/lib/api/providers.ts` 的 Desktop 默认路由/导入调用和 `ClaudeDesktopProviderForm.tsx` 的路由表保存。来源只读，未运行来源测试。按 rustcodegraph 技能检查 status（退出 0），explore 返回来源映射与既有 Desktop 符号；新模块与未覆盖原生链路以定向源码读取核对。
+
+- 执行端唯一规则所有者为 `vw-agent-apps/src/providers/desktop_mapping.rs`。保留默认路由的物理顺序 Sonnet/Opus/Haiku/Fable、routeId/envKey/supports1m；导入按角色 env 生成映射，没有角色模型时回退 ANTHROPIC_MODEL。大小写无关的 `[1M]` 后缀转换为 supports1m，同一目标模型合并；显式 `_NAME` 优先，非 Claude 模型名作为缺省标签。原生 Anthropic bearer、Claude 安全模型可成为 direct；其余有受支持协议/静态凭据和有效模型的档案仅保存 proxy 映射。保留备注与设置，取消导入行的 failover 标记；支持既有通用 AppProviderWrite 和任务 26 的原生 Claude 记录。
+- 缺凭据/官方登录、托管绑定/托管 providerType、Bedrock/Vertex、full URL、未知协议、远端明文端点及掩码凭据不导入；不伪造其依赖或 OAuth 运行时。模型/协议字段类型错误、控制字符、非法 routeId、退化角色名、未转换的 `[1M]`、空 proxy 路由及超过 200 路由均拒绝；direct 仅允许同名目标，非法映射在数据库 CAS 之前拒绝。本任务不迁移旧目录、修复非法 routeId 或生成运行时发布目录。
+- `vw-agent/src/app_providers/desktop_mapping.rs` 消费原 AppProviderStore/GatewaySettingsStore 租户 namespace。导入跳过已有 Desktop ID，原子 insert-if-absent，不改当前指针；映射保存在已有 `meta.claudeDesktopMode/claudeDesktopModelRoutes`，校验凭据后 CAS 保存，保留档案其它内容。每行独立插入，不宣称整批导入原子性；错误不会写入该非法行。
+- 强类型 DTO 在 `vw-api-types/src/app_providers/desktop_mapping.rs`，拒绝未知字段和任意路径。Gateway 沿既有 app_providers 根路由与 gateway/router 注册，API 为 `POST /v1/app-providers/claude-desktop/model-mapping/defaults`、`POST /providers/import-claude`（同一 Desktop 前缀）、`PUT /{id}/model-mapping`（同一前缀）。默认路由要求 read；导入与保存要求目标主机 write，均在数据库访问之前调用 provider_editor_context。SDK 对应 `claude_desktop_default_routes/import_claude/mapping_save`，复用既有敏感令牌头、租户请求上下文、身份校验和丢弃错误载荷的传输。
+- 导入仅返回数量，映射保存返回 catalogSaved=true/live=not_attempted；不返回凭据或假报 live 成功。需路由的档案仍由任务 33 的直接切换入口明确拒绝，无主机配置或事务目录写入；导入的兼容原生档案可通过原有 SDK switch→API→ProviderTransactions 写入四文件与 direct 指针。没有新增 UI；Iced 表单归任务 67，真实聚合目录/运行时归母任务 10。
+
+### 红绿与验证
+
+各阶段从仓库根按原子 mkdir 顺序动态领取共享槽位 **1**：
+
+`CARGO_TARGET_DIR=/Users/xiangmin/worker/code/shiju/target/rust-slot-1`
+
+同时设置 CARGO_BUILD_BUILD_DIR 至同一绝对路径，覆盖仓库 build-dir；owner 记录计划、任务、会话与持有 PID。阶段结束后清理自身 owner/锁，保留编译缓存；未固定按任务编号分配或使用其它 target 目录。
+
+红阶段先接通可编译接口：业务包 **3 项均在业务断言失败，退出 101**，导入返回 None、非法 gpt-5 route 被接受；Gateway **1 项在导入数量 0≠1 断言失败，退出 101**；DTO **1 项**、SDK **2 项**通过，退出 0。不是缺模块/类型、编译错误或零测试代替红测。
+
+最终源码先执行 `cargo fmt --all`，退出 **0**；以下均采用默认 features，相同槽位：
+
+| 确切命令 | 退出码 | 有效通过数量 |
+| --- | --- | --- |
+| `cargo test -p vw-agent-apps --lib cc04_desktop_mapping_ -- --nocapture` | 0 | 4 |
+| `cargo test -p vw-api-types --lib cc04_desktop_mapping_ -- --nocapture` | 0 | 1 |
+| `cargo test -p vw-agent --lib cc04_desktop_mapping_ -- --nocapture` | 0 | 3 |
+| `cargo test -p vw-gateway-client --lib cc04_desktop_mapping_ -- --nocapture` | 0 | 2 |
+| `cargo test -p vw-agent-apps --lib cc04_claude_desktop_ -- --nocapture` | 0 | 11 |
+| `cargo test -p vw-api-types --lib cc04_claude_desktop_ -- --nocapture` | 0 | 1 |
+| `cargo test -p vw-agent --lib cc04_claude_desktop_ -- --nocapture` | 0 | 4 |
+| `cargo test -p vw-gateway-client --lib cc04_claude_desktop_ -- --nocapture` | 0 | 3 |
+| `cargo clippy --all-targets --all-features -- -D warnings` | 0 | 非行为测试 |
+
+本任务 **10 项**、相邻回归 **19 项**，去重 **29 项通过**，无忽略；指定 imports_only_compatible_rows/rejects_invalid_model_id 均通过。独立测试覆盖原生/通用档案导入、元数据保留、默认角色顺序、重复目标合并、标签与 marker、非法 ID/字段类型/协议/端点/凭据、直连映射限制、已有 ID 不覆盖。Gateway 使用真实临时 SQLite、管理员策略、回环 HTTP 和原 SDK：非法映射保存后记录原样不变；错误 token/缺写权限不创建目录行、不改临时文件，read-only 仍能读取默认路由；proxy 档案明确拒绝直接激活；native 档案成功沿既有事务写入 profile 凭据、base URL 和 current 指针。测试没有替换文件系统、数据库、事务、鉴权或 HTTP，无 mock 调用次数断言；全部凭据为假值。
+
+`sw_vers`、`uname -m` 退出 0：macOS **27.0 (26A428)**、**arm64**，crate **0.6.0**。默认 `/Applications/Claude.app/Contents/Info.plist` 版本查询退出 1，未取得应用版本；真实 Desktop 消费、账号/Keychain、网络模型上游、Iced 渲染与非 macOS 未验证。未触碰真实用户配置。Gateway lib test 有既有 `__eh_frame section too large` 链接提示，测试退出 0；未改链接设置，最终强制 Clippy 退出 0。
+
+定向差异与暂存检查通过，plan.md 保持只读；仅提交本任务代码、独立测试、必要父注册和本条证据，既有母任务状态、此前编号文件删除与其它计划不纳入。自身槽位 1 锁已释放、缓存保留。未执行全量 cargo test、fmt check、wasm 或 Makefile。验收后删除任务 34 编号文件，正式证据保留；下一步为批次 35，真实 Desktop/UI/路由运行时按其所属任务验收。

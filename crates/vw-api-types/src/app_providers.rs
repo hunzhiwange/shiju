@@ -134,3 +134,7 @@ mod grok_tests;
 
 #[cfg(test)]
 mod claude_desktop_tests;
+
+pub mod desktop_mapping;
+#[cfg(test)]
+mod desktop_mapping_tests;

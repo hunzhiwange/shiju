@@ -549,3 +549,5 @@ mod gemini;
 
 mod claude_desktop;
 mod grok;
+
+mod desktop_mapping;

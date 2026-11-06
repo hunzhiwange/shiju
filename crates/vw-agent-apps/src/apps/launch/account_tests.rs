@@ -314,3 +314,31 @@ fn cc_apps_account_launch_isolation_storage_distinct_scopes_and_rejected_materia
             .is_err()
     );
 }
+
+#[test]
+fn cc_apps_account_launch_isolation_rotated_codex_auth_reaches_owner_on_nonzero_exit() {
+    let root = tempfile::tempdir().unwrap();
+    executable(
+        &root.path().join("codex"),
+        "#!/bin/sh\ncat > \"$CODEX_HOME/auth.json\" <<'AUTH'\n{\"auth_mode\":\"chatgpt\",\"tokens\":{\"access_token\":\"fixture-rotated-access\",\"refresh_token\":\"fixture-rotated-refresh\",\"id_token\":\"fixture-id\",\"account_id\":\"fixture-account\"}}\nAUTH\nprintf '%s' \"$CODEX_HOME\" > private-path\nexit 7\n",
+    );
+    let mut rotated = None;
+    let result = prepare_account_launch(
+        AppId::Codex,
+        codex_auth(),
+        material(root.path(), "codex"),
+        root.path(),
+    )
+    .unwrap()
+    .run_with_refresh(|credential| {
+        rotated = Some(credential);
+        Ok(())
+    });
+    assert!(result.is_err());
+    let Some(AccountCredential::CodexAuth(auth)) = rotated else {
+        panic!("rotated official credentials must reach their owner before cleanup")
+    };
+    assert_eq!(auth["tokens"]["refresh_token"], "fixture-rotated-refresh");
+    let path = std::fs::read_to_string(root.path().join("private-path")).unwrap();
+    assert!(!std::path::Path::new(&path).exists());
+}

@@ -13,12 +13,46 @@ use vw_api_types::agent_apps::AppId;
 pub struct AccountLaunch {
     command: Command,
     private: tempfile::TempDir,
+    codex_account_id: Option<String>,
 }
 impl AccountLaunch {
-    pub fn run(mut self) -> Result<(), String> {
+    /// Process-only convenience for independent process-boundary tests.
+    #[cfg(test)]
+    pub(super) fn run(self) -> Result<(), String> {
+        self.run_with_refresh(|_| Ok(()))
+    }
+    /// Return validated rotated credentials to their owner before cleaning temporary resources,
+    /// even when the process exits unsuccessfully. Never return the child's output.
+    pub fn run_with_refresh(
+        mut self,
+        persist: impl FnOnce(AccountCredential) -> Result<(), String>,
+    ) -> Result<(), String> {
         let result =
             self.command.stdin(Stdio::null()).stdout(Stdio::null()).stderr(Stdio::null()).status();
-        self.private.close().map_err(|_| "official account temporary cleanup failed")?;
+        let rotation = if result.is_ok() {
+            if let Some(expected) = &self.codex_account_id {
+                crate::auth::credential_file::read_credential(
+                    &self.private.path().join("auth.json"),
+                    AppId::Codex,
+                )
+                .and_then(|credential| {
+                    let AccountCredential::CodexAuth(auth) = &credential else {
+                        return Err("invalid rotated official account material".into());
+                    };
+                    if auth["tokens"]["account_id"].as_str() != Some(expected.as_str()) {
+                        return Err("rotated official account identity changed".into());
+                    }
+                    persist(credential)
+                })
+            } else {
+                Ok(())
+            }
+        } else {
+            Ok(())
+        };
+        let cleanup = self.private.close().map_err(|_| "official account temporary cleanup failed");
+        cleanup?;
+        rotation?;
         match result {
             Ok(status) if status.success() => Ok(()),
             Ok(_) => Err("official account process exited unsuccessfully".into()),
@@ -125,6 +159,7 @@ pub fn prepare_account_launch(
             command.env(name, value);
         }
     }
+    let mut codex_account_id = None;
     match credential {
         AccountCredential::ClaudeToken(token) => {
             command
@@ -132,7 +167,11 @@ pub fn prepare_account_launch(
                 .env("CLAUDE_CODE_OAUTH_TOKEN", token)
                 .args(["--settings-sources", ""]);
         }
+        AccountCredential::ClaudeDirectory(directory) => {
+            command.env("CLAUDE_CONFIG_DIR", directory.path()).args(["--settings-sources", ""]);
+        }
         AccountCredential::CodexAuth(auth) => {
+            codex_account_id = auth["tokens"]["account_id"].as_str().map(str::to_owned);
             write_private(&private.path().join("auth.json"), auth.to_string().as_bytes())?;
             write_private(
                 &private.path().join("config.toml"),
@@ -142,7 +181,7 @@ pub fn prepare_account_launch(
         }
     }
     command.args(material.args);
-    Ok(AccountLaunch { command, private })
+    Ok(AccountLaunch { command, private, codex_account_id })
 }
 fn write_private(path: &Path, bytes: &[u8]) -> Result<(), String> {
     let mut options = fs::OpenOptions::new();

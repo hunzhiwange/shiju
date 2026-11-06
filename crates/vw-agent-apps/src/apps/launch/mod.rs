@@ -14,4 +14,6 @@ mod provider_tests;
 
 pub mod account;
 #[cfg(test)]
+mod account_lifecycle_tests;
+#[cfg(test)]
 mod account_tests;

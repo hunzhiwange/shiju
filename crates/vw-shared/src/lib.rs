@@ -22,6 +22,7 @@ pub mod auth;
 pub mod build_identity;
 pub mod id;
 pub mod json;
+pub mod local_apps;
 pub mod message;
 pub mod pasted_text;
 pub mod patch;

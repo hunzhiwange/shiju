@@ -102,7 +102,8 @@ fn environment(
         LocalReadEnvironment {
             host_id: host.id,
             home: host.home,
-            search_paths: host.search_paths,
+            // Lifecycle discovery is restricted to the managed installation prefix.
+            search_paths: vec![write.prefix.join("bin")],
             applications: host.applications,
         },
         local::WriteEnvironment { prefix: write.prefix, npm: write.npm },

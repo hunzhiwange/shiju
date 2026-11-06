@@ -154,7 +154,18 @@ fn authorize_scoped(
     if values.next().is_some() {
         return Err(StatusCode::UNAUTHORIZED);
     }
-    let path = path.ok_or(StatusCode::SERVICE_UNAVAILABLE)?;
+    let local_path;
+    let path = match path {
+        Some(path) => path,
+        None => {
+            local_path = vw_shared::local_apps::policy_path(
+                &crate::global::paths().home,
+                tenant.platform_id().as_ref(),
+                tenant.company_id().as_ref(),
+            );
+            &local_path
+        }
+    };
     let policy = load(path).map_err(|_| StatusCode::SERVICE_UNAVAILABLE)?;
     let digest = hex::encode(Sha256::digest(token));
     let principal = policy

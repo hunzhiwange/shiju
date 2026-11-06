@@ -155,3 +155,6 @@ mod launch_sessions;
 
 #[cfg(all(test, unix))]
 mod remote_tests_tests;
+
+#[cfg(all(test, unix))]
+mod local_access_tests;

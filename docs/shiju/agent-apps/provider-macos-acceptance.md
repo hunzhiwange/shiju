@@ -735,3 +735,49 @@ RustCodeGraph status/explore 退出 0，索引含 6443 文件；运行时代码�
 `sw_vers` / `uname -m` 退出 0：macOS 27.0（26A428）、arm64。应用版本、真实账号、CLI/Iced 运行及 SDK→API→执行端写入未验证；Windows/Linux 与其他架构未验收。
 
 定向差异及暂存检查退出 0，只提交本任务实现、独立测试、父注册及本条正式证据；既有终端改动、母任务状态、其他编号任务删除不纳入提交。所有阶段自身槽位 2 锁已释放、缓存保留。未执行全量 cargo test、fmt check、wasm 或 Makefile。完成后删除任务 16 文件且不纳入提交，正式证据保留。
+
+## 任务 17：应用写锁与私有文件权限
+
+2026-11-07；状态：已完成（内部原语边界，原生事务写入口尚未接通）。
+
+### 依赖、范围与来源
+
+核对批次 16 提交 `24076e1e2` 及本文件任务 1–16 证据。母任务 1、3 已完成，母任务 2 沿用任务 1 的底座子计划 1–93 开工裁定，完整领域迁移仍未收口。首次因不存在原生写调用者而登记阻塞；继续执行指令明确按任务 13–16 的内部原语边界交付，解除该阻塞，不把尚不存在的请求链当作已接通。只读 plan.md 无修改。
+
+来源 HEAD `ca58c0313360eae7c851fbd7553c1614c7af03e7`，工作区干净；读取 `live/engine.rs::{lock_app,AppWriteGuard,stage}` 和相邻并发/0600 测试，`config.rs::{atomic_write_private,stage_write,StagedWrite::commit}` 及原子替换相邻测试；读取直接消费者 `mode/operation.rs::{settle,AppWrite::begin}`、`claude_desktop_config.rs::write_desktop_files`。来源测试未运行。RustCodeGraph status/explore 退出 0，6452 文件；核对原生 providers/live、创建/更新、配置路径路由和 read grant，没有可复用的原生供应商文件提交所有者。安装生命周期锁、账号 lease 与启动临时文件有各自职责，本任务未迁移或复制这些业务。
+
+- 原生唯一落点 `crates/vw-agent-apps/src/providers/live/write_guard.rs::{lock_app,AppWriteGuard::write}`，独立 `write_guard_tests.rs`，仅直接父模块注册；无新依赖。模块仅 macOS 编译，不冒充其他平台支持。
+- 两类键在同一进程级静态表中原子取得：实际执行进程的 `AppId` 和打开目录的 `(dev, ino)`。不接受租户或客户端 host ID 作为隔离键，因此同一应用的不同目录、不同应用共享的同一物理目录均串行，路径别名也不能绕过资源锁；不同应用且不同目录可以继续。进程本身是本地执行主机边界，不声称跨进程/远程执行/外部应用写入参与该锁。
+- 锁不可重入，阻塞调用应放在 blocking worker；RAII 在正常返回、错误和 panic unwind 时释放。调用者须在锁前完成执行主机与目录授权，并在读取、预演、提交全过程持锁。目录必须已存在，末级 symlink 拒绝；父路径授权/安全遍历仍归执行端入口，原语不是权限凭证。
+- 写方法要求 `&mut AppWriteGuard`，防止共享同一 guard 的引用并发调用写入。持有目录描述符，使用 `fstatat(AT_SYMLINK_NOFOLLOW)`、`openat(O_EXCL|O_NOFOLLOW|O_CLOEXEC)`、`renameat` 和 `unlinkat` 定位直接子文件，不创建目录，不接受绝对/多段/空/NUL 文件名，不跟随目标 symlink，拒绝目录等非普通目标。目录路径被改名/替换后仍写原已打开目录。
+- 同目录独占临时文件初始权限 0600，写入、设置权限并 fsync 成功才 rename。私有文件新增/替换均准确 0600；共享文件保留既有 rwx mode（不保留 setuid/setgid/sticky），缺失时从 0600 起步，不扩大权限；共享文件原权限只读也不扩大。固定错误枚举不携带路径、输入或凭据。失败准备/发布不提交目标，并尝试清理自己的暂存文件；不承诺崩溃恢复、目录 fsync、多文件原子性、ACL/扩展属性保留或外部进程竞争检测。
+- 无公共 API/SDK/UI 新行为，故“对外行为附 SDK→API→执行端”不适用。本项仅供 18–21 及应用适配消费；未来事务入口必须使用同一锁并持有完整事务，不能绕过锁直接写文件。真实请求、目录写授权、编辑/首次激活、pending/恢复和全链验收归相应任务及 76；本项不宣称 live 切换成功。
+
+### 红绿与平台证据
+
+红阶段、首次绿及修正可变参数后的绿阶段通过原子 mkdir 动态领取共享槽位 **2**；`CARGO_TARGET_DIR=/Users/xiangmin/worker/code/shiju/target/rust-slot-2`，`CARGO_BUILD_BUILD_DIR` 同值覆盖仓库 build-dir。owner 记录计划/任务/会话/PID，EXIT/INT/TERM trap 在所有 Cargo/子进程结束后清理自身记录和锁，缓存保留。测试二进制实际在槽位 debug/deps，默认 features。
+
+| 阶段 | 确切命令 | 退出码 / 有效结果 |
+| --- | --- | --- |
+| 红 | `cargo fmt --all` | 0 |
+| 红 | `cargo test -p vw-agent-apps --lib cc04_write_guard_ -- --nocapture` | 101；0 passed / 2 failed |
+| 首次绿 | `cargo fmt --all` | 0 |
+| 首次绿 | `cargo test -p vw-agent-apps --lib cc04_write_guard_ -- --nocapture` | 101；本次 openat 可变参数用了 u16 mode_t，macOS 要求整数提升；无有效测试 |
+| 首次绿 | `cargo clippy --all-targets --all-features -- -D warnings` | 101；同一编译错误，已改为 c_uint |
+| 修正可变参数后 | `cargo fmt --all` | 0 |
+| 修正可变参数后 | `cargo test -p vw-agent-apps --lib cc04_write_guard_ -- --nocapture` | 0；5 passed / 0 ignored |
+| 修正可变参数后 | `cargo clippy --all-targets --all-features -- -D warnings` | 0；全部 targets/features |
+
+最终审查将写方法收紧为可变持有 guard，并补充成功写入无暂存残留断言；因此重新动态领取槽位 **1**，最终 `CARGO_TARGET_DIR=/Users/xiangmin/worker/code/shiju/target/rust-slot-1`，`CARGO_BUILD_BUILD_DIR` 同值。以下为最终代码验证，不沿用上次结果：
+
+| 最终确切命令 | 退出码 / 有效结果 |
+| --- | --- |
+| `cargo fmt --all` | 0 |
+| `cargo test -p vw-agent-apps --lib cc04_write_guard_ -- --nocapture` | 0；5 passed / 0 ignored |
+| `cargo clippy --all-targets --all-features -- -D warnings` | 0；全部 targets/features 通过，不计行为测试 |
+
+红阶段两项可编译的业务断言失败：第二并发调用未等待、已有私有文件仍是 0644；不是缺模块/类型或零测试。最终 5 项真实行为测试覆盖两个线程同应用/同目录的顺序写入与最终字节、跨 app 的目录物理归属、同 app 跨目录锁、无关 app/资源可继续、目录别名、目录路径替换后的描述符锚定、panic unwind 后释放、新增/替换私有文件 0600、共享文件 0400/0600/0640/0644 保留和新文件 0600、非法文件名/穿越/NUL/symlink/非普通目标拒绝、拒绝后原文件/外部文件/目录条目不变及无暂存残留。unwind 测试中的 panic 被 catch_unwind 捕获，日志出现预期 panic 不代表测试失败。测试使用真实隔离临时目录、字节和 Unix metadata，没有网络/钥匙串/进程 mock，不读取或写入真实用户配置。
+
+`sw_vers`、`uname -m` 均退出 0：macOS 27.0（26A428）、arm64；应用版本、个人账号、CLI/Iced 运行、SDK/API 全链未验证；Windows/Linux、其他架构和跨进程写锁未验收。原生请求链仍需后续任务证明。
+
+定向 diff 检查及暂存检查退出 0，仅提交本任务实现、独立测试、父注册及本条证据；母任务状态、其他编号文件删除、桌面及其他会话改动排除。只读 plan.md 无差异。各阶段自身槽位锁均已释放、缓存保留；未运行全量 cargo test、fmt check、wasm 或 Makefile。任务状态标记已完成后删除编号文件，不纳入提交，正式证据保留。

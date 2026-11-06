@@ -1,4 +1,4 @@
-//! Byte patch primitives; file authorization, locking and commit belong to callers.
+//! Internal live configuration primitives; callers authorize resources and own transactions.
 pub mod patch_dotenv;
 #[cfg(test)]
 mod patch_dotenv_tests;
@@ -11,3 +11,8 @@ mod patch_toml_tests;
 pub mod patch_yaml;
 #[cfg(test)]
 mod patch_yaml_tests;
+
+#[cfg(target_os = "macos")]
+pub mod write_guard;
+#[cfg(all(test, target_os = "macos"))]
+mod write_guard_tests;

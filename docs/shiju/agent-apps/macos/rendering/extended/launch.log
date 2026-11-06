@@ -1,0 +1,10 @@
+warning: linker stderr: ld: __eh_frame section too large (max 16MB) to encode dwarf unwind offsets in compact unwind table, performance of exception handling might be affected
+  |
+  = note: `#[warn(linker_messages)]` on by default
+
+   Compiling vw-desktop v0.6.0 (/Users/xiangmin/worker/code/shiju/crates/vw-desktop)
+warning: `vw-desktop` (bin "shi-ju") generated 1 warning
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 5.70s
+     Running src/apps_launch_window_main.rs (target/rust-slot-1/debug/deps/apps_launch_window-d8d7aca5e03ee686)
+2026-11-06 17:15:19.969 apps_launch_window-d8d7aca5e03ee686[76949:38550172] error messaging the mach port for IMKCFRunLoopWakeUpReliable
+PASS: 12 native Chinese launch scenarios; no shaping panic

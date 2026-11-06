@@ -1,0 +1,41 @@
+   Compiling vw-desktop v0.6.0 (/Users/xiangmin/worker/code/shiju/crates/vw-desktop)
+warning: linker stderr: ld: __eh_frame section too large (max 16MB) to encode dwarf unwind offsets in compact unwind table, performance of exception handling might be affected
+  |
+  = note: `#[warn(linker_messages)]` on by default
+
+warning: `vw-desktop` (lib test) generated 1 warning
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 54.33s
+     Running unittests src/lib.rs (target/rust-slot-1/debug/deps/vw_desktop-c3550d52c5fe1742)
+
+running 29 tests
+test app::components::system_settings_apps::catalog_tests::cc_apps_desktop_catalog_state_empty_and_independent_runtimes ... ok
+test app::components::system_settings_apps::launch_tests::cc_apps_desktop_launch_state_identity_loading_empty_and_explicit_selection ... ok
+test app::components::system_settings_apps::launch_tests::cc_apps_desktop_launch_state_explains_disabled_action_and_blocks_uncertain_replay ... ok
+test app::components::system_settings_apps::launch_tests::cc_apps_desktop_launch_state_session_completion_is_not_spawn_success ... ok
+test app::components::system_settings_apps::launch_tests::cc_apps_desktop_launch_state_success_requires_matching_instance ... ok
+test app::components::system_settings_apps::launch_tests::cc_apps_desktop_launch_state_failure_and_invalidation_preserve_selection ... ok
+test app::components::system_settings_apps::launch_tests::cc_apps_desktop_launch_state_wrong_response_and_empty_cwd_reject ... ok
+test app::components::system_settings_apps::catalog_tests::cc_apps_desktop_catalog_state_explicit_failures_and_desktop_presence ... ok
+test app::components::system_settings_apps::lifecycle_tests::cc_apps_desktop_lifecycle_state_uncertain_submit_blocks_retry_and_invalidates_generation ... ok
+test app::components::system_settings_apps::catalog_tests::cc_apps_desktop_catalog_state_context_switch_releases_pending_load ... ok
+test app::components::system_settings_apps::lifecycle_tests::cc_apps_desktop_lifecycle_state_rejects_other_operation_and_terminal_regression ... ok
+test app::components::system_settings_apps::catalog_tests::cc_apps_desktop_catalog_state_retry_and_stale_response ... ok
+test app::components::system_settings_apps::preferences_tests::cc_apps_desktop_preferences_state_last_visible_and_busy_reject_edits ... ok
+test app::components::system_settings_apps::preferences_tests::cc_apps_desktop_preferences_state_only_api_results_commit ... ok
+test app::components::system_settings_apps::preferences_tests::cc_apps_desktop_preferences_state_host_capabilities_and_invalidation ... ok
+test app::components::system_settings_apps::catalog_tests::cc_apps_desktop_catalog_state_damaged_runnable_unverified ... ok
+test app::components::system_settings_apps::preferences_tests::cc_apps_desktop_preferences_state_list_uses_saved_order_and_visibility ... ok
+test app::components::system_settings_apps::uninstall_tests::cc_apps_desktop_uninstall_state_http_selected_instance_stale_submit_and_no_replay ... ok
+test app::components::system_settings_apps::lifecycle_tests::cc_apps_desktop_lifecycle_state_authorized_preview_submit_disconnect_recover_cancel ... ok
+test app::components::system_settings_apps::catalog_tests::cc_apps_desktop_catalog_state_sdk_fourteen_and_partial_failure ... ok
+test app::components::system_settings_apps::launch_tests::cc_apps_desktop_launch_state_defaults_only_for_matching_private_local_grant ... ok
+test app::components::system_settings_apps::lifecycle_tests::cc_apps_desktop_lifecycle_state_message_confirmation_scope_cancel_and_toast ... ok
+test app::components::system_settings_apps::launch_tests::cc_apps_desktop_launch_state_identity_reply_scope_and_no_forged_selection ... ok
+test app::components::system_settings_apps::preferences_tests::cc_apps_desktop_preferences_state_message_scopes_and_atomic_domains ... ok
+test app::components::system_settings_apps::uninstall_tests::cc_apps_desktop_uninstall_state_mismatched_preview_and_unknown_source_rejected ... ok
+test app::components::system_settings_apps::uninstall_tests::cc_apps_desktop_uninstall_state_selected_instance_requires_new_preview_after_rejection ... ok
+test app::components::system_settings_apps::uninstall_tests::cc_apps_desktop_uninstall_state_unknown_missing_and_environment_targets_never_execute ... ok
+test app::components::system_settings_apps::lifecycle_tests::cc_apps_desktop_lifecycle_state_message_unknown_submit_cannot_replay ... ok
+test app::components::system_settings_apps::launch_tests::cc_apps_desktop_launch_state_message_scope_and_redacted_diagnostics ... ok
+
+test result: ok. 29 passed; 0 failed; 0 ignored; 0 measured; 8583 filtered out; finished in 2.86s

@@ -181,6 +181,7 @@ pub(crate) async fn select(
     // Reload under the prompt lock so this write cannot overwrite a completed prompt's record.
     let mut record =
         vw_acp::resolve_session_record(&record.vwacp_record_id).await.map_err(|e| e.to_string())?;
+    prepare_access_restore(&client.client, &mut record);
     let original_record = record.clone();
     let visible =
         project_options(client.client.session_capabilities(&record.acp_session_id), saved.as_ref());
@@ -198,9 +199,42 @@ pub(crate) async fn select(
             options.options.into_iter().find(|option| option.kind == selection.kind)
         })
         .map(|option| AcpSessionSelection { kind: option.kind, value: option.current });
+    let permission_id = match &selection.kind {
+        AcpOptionKind::Mode => "mode",
+        AcpOptionKind::Config { id } => id,
+        AcpOptionKind::Model => "model",
+    };
+    let restricted = client.client.restricted_permission_value(permission_id, &selection.value);
+    let baseline = (restricted != selection.value).then(|| {
+        let value = match &selection.kind {
+            AcpOptionKind::Mode => vw_acp::get_desired_mode_id(original_record.vwacp.as_ref()),
+            AcpOptionKind::Config { id } => {
+                vw_acp::get_desired_config_options(original_record.vwacp.as_ref()).remove(id)
+            }
+            AcpOptionKind::Model => None,
+        };
+        (selection.kind.clone(), value.unwrap_or_else(|| restricted.to_owned()))
+    });
     apply_selection(&client.client, &mut record, selection).await?;
+    // A temporary elevated selection changes readback, not the revocation baseline.
+    if let Some((kind, value)) = baseline {
+        match kind {
+            AcpOptionKind::Mode => vw_acp::set_desired_mode_id(&mut record, Some(&value)),
+            AcpOptionKind::Config { id } => {
+                vw_acp::set_desired_config_option(&mut record, &id, &value)
+            }
+            AcpOptionKind::Model => {}
+        }
+    }
     if let Err(error) = vw_acp::write_session_record(&record).await {
-        if let Some(previous) = previous {
+        if let Some(mut previous) = previous {
+            let id = match &previous.kind {
+                AcpOptionKind::Mode => "mode",
+                AcpOptionKind::Config { id } => id,
+                AcpOptionKind::Model => "model",
+            };
+            previous.value =
+                client.client.restored_permission_value(id, &previous.value).to_owned();
             if let Err(rollback) = apply_selection(&client.client, &mut record, previous).await {
                 return Err(format!(
                     "Failed to save ACP selection: {error}; backend rollback also failed: {rollback}. Refresh the session options."
@@ -290,3 +324,48 @@ pub(super) fn has_saved_config_category(
 #[cfg(test)]
 #[path = "controls_tests.rs"]
 mod tests;
+
+/// Keep a non-elevated baseline in desired preferences, separate from readback.
+/// Revocation also sanitizes legacy records that saved an elevated mode.
+pub(super) fn prepare_access_restore(
+    client: &vw_acp::AcpClient,
+    record: &mut vw_acp::SessionRecord,
+) {
+    let Some(state) = record.vwacp.as_ref() else { return };
+    let mode = state
+        .desired_mode_id
+        .as_ref()
+        .map(|value| client.restricted_permission_value("mode", value).to_owned())
+        .or_else(|| {
+            state
+                .current_mode_id
+                .as_ref()
+                .map(|value| client.restricted_permission_value("mode", value).to_owned())
+        });
+    let mut desired = vw_acp::get_desired_config_options(Some(state));
+    for option in state.config_options.iter().flatten() {
+        if (option.category == Some(SessionConfigOptionCategory::Mode)
+            || matches!(option.id.0.as_ref(), "mode" | "edit_approval_policy"))
+            && let SessionConfigKind::Select(select) = &option.kind
+        {
+            desired.entry(option.id.to_string()).or_insert_with(|| {
+                client
+                    .restricted_permission_value(
+                        &option.id.to_string(),
+                        &select.current_value.to_string(),
+                    )
+                    .to_owned()
+            });
+        }
+    }
+    if let Some(mode) = mode {
+        vw_acp::set_desired_mode_id(record, Some(&mode));
+    }
+    for (id, value) in desired {
+        vw_acp::set_desired_config_option(
+            record,
+            &id,
+            client.restricted_permission_value(&id, &value),
+        );
+    }
+}

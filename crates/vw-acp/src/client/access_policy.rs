@@ -296,7 +296,11 @@ impl AcpClient {
         let desired = if self.full_access && self.permission_mode == PermissionMode::ApproveAll {
             FULL_MODE
         } else {
-            RESTRICTED_MODE
+            crate::access_policy::codex::current_mode(
+                capabilities.as_ref().and_then(|info| info.config_options.as_deref()),
+            )
+            .filter(|mode| matches!(*mode, "read-only" | "workspace-write" | "agent"))
+            .unwrap_or(RESTRICTED_MODE)
         };
         if !advertises_mode(
             capabilities.as_ref().and_then(|info| info.config_options.as_deref()),
@@ -365,7 +369,11 @@ impl AcpClient {
         let desired = if self.full_access && self.permission_mode == PermissionMode::ApproveAll {
             FULL_MODE
         } else {
-            RESTRICTED_MODE
+            crate::access_policy::claude::current_mode(
+                capabilities.as_ref().and_then(|info| info.config_options.as_deref()),
+            )
+            .filter(|mode| matches!(*mode, "default" | "acceptEdits"))
+            .unwrap_or(RESTRICTED_MODE)
         };
         if !advertises_mode(
             capabilities.as_ref().and_then(|info| info.config_options.as_deref()),

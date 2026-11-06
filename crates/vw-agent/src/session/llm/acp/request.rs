@@ -315,6 +315,20 @@ pub(crate) async fn do_stream_request_acp(
             // Managed launch identity takes precedence over a saved native selection.
             vw_acp::set_desired_model_id(&mut record, Some(model_id));
         }
+        // Capture the non-elevated preference before replaying controls. Automatic
+        // native access sync must never become the saved user preference.
+        if vw_acp::get_desired_mode_id(record.vwacp.as_ref()).is_none() {
+            vw_acp::set_desired_mode_id(&mut record, parsed_options.session_mode.as_deref());
+        }
+        let saved_config = vw_acp::get_desired_config_options(record.vwacp.as_ref());
+        for (id, value) in &parsed_options.session_config_options {
+            if !saved_config.contains_key(id)
+                && matches!(id.as_str(), "mode" | "edit_approval_policy")
+            {
+                vw_acp::set_desired_config_option(&mut record, id, value);
+            }
+        }
+        super::controls::prepare_access_restore(&cached_client.client, &mut record);
         let acp_session_id = record.acp_session_id.clone();
         if !super::controls::has_saved_config_category(
             &record,
@@ -322,8 +336,13 @@ pub(crate) async fn do_stream_request_acp(
         ) && let Some(mode_id) = vw_acp::get_desired_mode_id(record.vwacp.as_ref())
             .or_else(|| parsed_options.session_mode.clone())
         {
-            if let Err(err) =
-                apply_default_mode(&cached_client.client, &acp_session_id, &cwd, mode_id).await
+            if let Err(err) = apply_default_mode(
+                &cached_client.client,
+                &acp_session_id,
+                &cwd,
+                cached_client.client.restored_permission_value("mode", &mode_id).to_owned(),
+            )
+            .await
             {
                 close_client_after_request_if_needed(
                     close_client_after_request,
@@ -391,6 +410,8 @@ pub(crate) async fn do_stream_request_acp(
             });
         }
         for (config_id, value) in config_options {
+            let value =
+                cached_client.client.restored_permission_value(&config_id, &value).to_owned();
             if let Err(err) = cached_client
                 .client
                 .set_session_config_option(acp_session_id.clone(), &cwd, config_id, value)

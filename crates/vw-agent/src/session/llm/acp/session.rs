@@ -208,20 +208,26 @@ pub(super) async fn stop_incompatible_cached_clients(
     let key = acp_client_cache_key(agent, config, cwd, options);
     let tenant = crate::session::ui_store::current_tenant_scope();
     let retired: Vec<_> = {
-        let mut cache = ACP_CLIENT_CACHE.lock();
-        let keys: Vec<_> = cache
+        let cache = ACP_CLIENT_CACHE.lock();
+        cache
             .iter()
             .filter(|(candidate, client)| {
                 **candidate != key
                     && client.tenant == tenant
                     && client.runtime_identity.as_ref() == Some(owner)
             })
-            .map(|(key, _)| key.clone())
-            .collect();
-        keys.into_iter().filter_map(|key| cache.remove(&key)).collect()
+            .map(|(key, client)| (key.clone(), client.clone()))
+            .collect()
     };
-    for client in retired {
+    for (key, client) in retired {
+        let _guard = client.prompt_lock.lock().await;
+        // Keep a failed shutdown reachable so a retry cannot leave an executable
+        // old process behind while constructing a replacement with lower access.
         client.client.close().await.map_err(to_api_error)?;
+        let mut cache = ACP_CLIENT_CACHE.lock();
+        if cache.get(&key).is_some_and(|current| Arc::ptr_eq(current, &client)) {
+            cache.remove(&key);
+        }
     }
     Ok(())
 }

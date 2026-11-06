@@ -57,7 +57,11 @@ impl AcpClient {
         }
         let can_restrict = advertises_mode(options, RESTRICTED_MODE);
         let can_enable = can_restrict && advertises_mode(options, FULL_MODE);
-        let desired = if unrestricted && can_enable { FULL_MODE } else { RESTRICTED_MODE };
+        let desired = if unrestricted && can_enable {
+            FULL_MODE
+        } else {
+            config_mode.filter(|mode| restricted_mode(mode)).unwrap_or(RESTRICTED_MODE)
+        };
         if !can_restrict {
             if [config_mode, legacy_mode].into_iter().flatten().any(|mode| !restricted_mode(mode)) {
                 return self.block_codebuddy_access(session_id, "CodeBuddy session has elevated permissions but no advertised default config control; restore default mode before prompting");

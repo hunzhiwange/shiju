@@ -42,6 +42,8 @@ use crate::types::{
 
 #[path = "client/access_policy.rs"]
 mod access_policy;
+#[path = "client/access_restore.rs"]
+mod access_restore;
 #[path = "client/active_prompt.rs"]
 mod active_prompt;
 #[path = "client/actor.rs"]

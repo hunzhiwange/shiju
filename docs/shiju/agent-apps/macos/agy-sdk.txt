@@ -1,0 +1,22 @@
+BASELINE exit=101
+
+thread 'main' (36529185) panicked at /rustc/58cf8f9c35b355199727627d07ae34a4e2846d67/library/core/src/ops/function.rs:250:5:
+there is no reactor running, must be called from the context of a Tokio 1.x runtime
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+BASELINE exit=101
+
+thread 'main' (36535156) panicked at /rustc/58cf8f9c35b355199727627d07ae34a4e2846d67/library/core/src/ops/function.rs:250:5:
+there is no reactor running, must be called from the context of a Tokio 1.x runtime
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+BASELINE exit=0
+CAT Some(AppCatalogEntry { id: Agy, name: "Antigravity", cli_command: Some("agy"), runtime_kinds: [NativeCli] })
+INSTALLATIONS AppReadResponse { installations: [AppInstallation { id: AppInstallationId("installation-1"), app_id: Agy, target_host_id: "host", environment: Macos, path: "<isolated-root>/home/.local/bin/agy", real_path: Some("<isolated-root>/home/.local/bin/agy"), source: Unknown, is_path_default: true, version: Some("1.5.2"), runtime_status: Runnable }], desktop: None }
+TWO OFFICIAL INSTALLS exit=0
+CAT Some(AppCatalogEntry { id: Agy, name: "Antigravity", cli_command: Some("agy"), runtime_kinds: [NativeCli] })
+INSTALLATIONS AppReadResponse { installations: [AppInstallation { id: AppInstallationId("installation-1"), app_id: Agy, target_host_id: "host", environment: Macos, path: "<isolated-root>/home/.local/bin/agy", real_path: Some("<isolated-root>/home/.local/bin/agy"), source: Unknown, is_path_default: true, version: Some("1.5.2"), runtime_status: Runnable }, AppInstallation { id: AppInstallationId("installation-2"), app_id: Agy, target_host_id: "host", environment: Macos, path: "<isolated-root>/second/.local/bin/agy", real_path: Some("<isolated-root>/second/.local/bin/agy"), source: Unknown, is_path_default: false, version: Some("1.5.2"), runtime_status: Runnable }], desktop: None }
+SECOND REMAINS exit=0
+CAT Some(AppCatalogEntry { id: Agy, name: "Antigravity", cli_command: Some("agy"), runtime_kinds: [NativeCli] })
+INSTALLATIONS AppReadResponse { installations: [AppInstallation { id: AppInstallationId("installation-2"), app_id: Agy, target_host_id: "host", environment: Macos, path: "<isolated-root>/second/.local/bin/agy", real_path: Some("<isolated-root>/second/.local/bin/agy"), source: Unknown, is_path_default: true, version: Some("1.5.2"), runtime_status: Runnable }], desktop: None }
+FINAL EMPTY exit=0
+CAT Some(AppCatalogEntry { id: Agy, name: "Antigravity", cli_command: Some("agy"), runtime_kinds: [NativeCli] })
+INSTALLATIONS AppReadResponse { installations: [], desktop: None }

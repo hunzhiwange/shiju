@@ -73,7 +73,7 @@ impl AcpClient {
         self
     }
 
-    /// 设置是否允许文件系统请求访问会话 cwd 子树之外的绝对路径。
+    /// 设置会话完全访问意图，包括根外文件访问及已核验后端的原生权限同步。
     pub fn with_full_access(mut self, full_access: bool) -> Self {
         self.full_access = full_access;
         self
@@ -88,7 +88,31 @@ impl AcpClient {
         modes: Option<&acp::SessionModeState>,
         config_options: Option<&[acp::SessionConfigOption]>,
     ) -> crate::AccessPolicy {
-        crate::AccessPolicy::resolve(self.full_access, self.permission_mode, modes, config_options)
+        let mut policy = crate::AccessPolicy::resolve(
+            self.full_access,
+            self.permission_mode,
+            modes,
+            config_options,
+        );
+        if self.agent_name != "codex"
+            || !self.full_access
+            || self.permission_mode != PermissionMode::ApproveAll
+        {
+            return policy;
+        }
+        let state = self.actor_state.lock();
+        if state.codex_runtime_verified
+            && state.session_capabilities.as_ref().is_some_and(|info| {
+                state.codex_confirmed_session.as_deref() == Some(info.session_id.as_str())
+                    && info.config_options.as_deref() == config_options
+                    && crate::access_policy::codex::current_mode(config_options)
+                        == Some(crate::access_policy::codex::FULL_MODE)
+            })
+        {
+            policy.support = crate::FullAccessSupport::Native;
+            policy.reason = crate::AccessPolicyReason::VerifiedNativeControl;
+        }
+        policy
     }
 
     /// 设置非交互模式下的权限策略。

@@ -29,6 +29,9 @@ impl AcpClient {
         option_name: &str,
         value_id: &str,
     ) -> Result<acp::SetSessionConfigOptionResponse, AcpError> {
+        if option_name == "mode" {
+            self.guard_codex_mode(session_id, value_id).await?;
+        }
         let key = (session_id.to_string(), option_name.to_string());
         self.actor_state.lock().pending_controls.insert(key.clone(), value_id.to_string());
         let response = timeout(
@@ -78,6 +81,7 @@ impl AcpClient {
         session_id: &str,
         mode_id: &str,
     ) -> Result<(), AcpError> {
+        self.guard_codex_mode(session_id, mode_id).await?;
         let key = (session_id.to_string(), "session/set_mode".to_string());
         self.actor_state.lock().pending_controls.insert(key.clone(), mode_id.to_string());
         let capabilities = self
@@ -121,6 +125,84 @@ impl AcpClient {
         self.actor_state.lock().pending_controls.remove(&key);
         // The empty response acknowledges the request only. CurrentModeUpdate is the
         // readback authority; never assign current_mode_id from the desired value.
+        Ok(())
+    }
+}
+
+impl AcpClient {
+    async fn guard_codex_mode(&self, session_id: &str, mode_id: &str) -> Result<(), AcpError> {
+        if self.agent_name != "codex" {
+            return Ok(());
+        }
+        self.actor_state.lock().codex_confirmed_session = None;
+        if mode_id == crate::access_policy::codex::FULL_MODE
+            && !(self.full_access && self.permission_mode == PermissionMode::ApproveAll)
+        {
+            return Err(AcpError::Prompt(
+                "Codex full access requires the current host grant; host deny cannot be overridden"
+                    .into(),
+            ));
+        }
+        if self.has_active_prompt() {
+            self.cancel(session_id).await?;
+            return Err(AcpError::Prompt("Codex mode changes cannot revoke an active turn; cancellation requested, wait for completion before retrying".into()));
+        }
+        Ok(())
+    }
+
+    pub(super) async fn sync_codex_access(
+        &self,
+        conn: &acp::ClientSideConnection,
+        session_id: &str,
+    ) -> Result<(), AcpError> {
+        use crate::access_policy::codex::{FULL_MODE, RESTRICTED_MODE, advertises_mode};
+        let capabilities = {
+            let mut state = self.actor_state.lock();
+            if !state.codex_runtime_verified {
+                let elevated = state.session_capabilities.as_ref().is_some_and(|info| {
+                    info.session_id == session_id
+                        && (crate::access_policy::codex::current_mode(
+                            info.config_options.as_deref(),
+                        ) == Some(FULL_MODE)
+                            || info
+                                .modes
+                                .as_ref()
+                                .is_some_and(|modes| modes.current_mode_id.0.as_ref() == FULL_MODE))
+                });
+                if self.agent_name == "codex"
+                    && elevated
+                    && !(self.full_access && self.permission_mode == PermissionMode::ApproveAll)
+                {
+                    state.codex_confirmed_session = None;
+                    state
+                        .pending_controls
+                        .insert((session_id.into(), "mode".into()), RESTRICTED_MODE.into());
+                    return Err(AcpError::Prompt("Cannot revoke full access from an unverified Codex runtime; use a reviewed runtime before prompting".into()));
+                }
+                return Ok(());
+            }
+            state.codex_confirmed_session = None;
+            state.session_capabilities.clone().filter(|info| info.session_id == session_id)
+        };
+        let desired = if self.full_access && self.permission_mode == PermissionMode::ApproveAll {
+            FULL_MODE
+        } else {
+            RESTRICTED_MODE
+        };
+        if !advertises_mode(
+            capabilities.as_ref().and_then(|info| info.config_options.as_deref()),
+            desired,
+        ) {
+            self.actor_state
+                .lock()
+                .pending_controls
+                .insert((session_id.into(), "mode".into()), desired.into());
+            return Err(AcpError::Prompt("Verified Codex runtime did not advertise its required permission control; refusing to prompt".into()));
+        }
+        self.confirmed_config_control(conn, session_id, "mode", desired).await?;
+        if desired == FULL_MODE {
+            self.actor_state.lock().codex_confirmed_session = Some(session_id.into());
+        }
         Ok(())
     }
 }

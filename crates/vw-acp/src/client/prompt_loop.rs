@@ -31,6 +31,9 @@ impl AcpClient {
         mut command_rx: Option<&mut mpsc::UnboundedReceiver<ActorCommand>>,
         deferred: &mut std::collections::VecDeque<ActorCommand>,
     ) -> Result<PromptResult, AcpError> {
+        if self.agent_name == "codex" && self.permission_mode == PermissionMode::DenyAll {
+            return Err(AcpError::Prompt("Host deny forbids Codex native tool execution".into()));
+        }
         let mut controls = Vec::<super::prompt_controls::PromptControlFuture<'_>>::new();
         while runtime.event_rx.try_recv().is_ok() {}
 
@@ -42,6 +45,7 @@ impl AcpClient {
                 &runtime.expected_session_id,
             )
             .await?;
+        self.sync_codex_access(&runtime.conn, &session_id).await?;
         self.ensure_session_controls_ready(&session_id)?;
         self.store_reusable_session(Some(session_id.clone()));
 

@@ -4,6 +4,8 @@ use agent_client_protocol::{SessionConfigOption, SessionModeState};
 
 use crate::PermissionMode;
 
+pub(crate) mod codex;
+
 /// 原生权限与客户端回调是不同的执行边界。
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum FullAccessSupport {
@@ -17,6 +19,7 @@ pub enum FullAccessSupport {
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum AccessPolicyReason {
     NotRequested,
+    VerifiedNativeControl,
     DeniedByHost,
     ReadApprovalOnly,
     NoAdvertisedControls,
@@ -48,9 +51,8 @@ impl AccessPolicy {
                 (FullAccessSupport::Partial, AccessPolicyReason::ReadApprovalOnly)
             }
             (PermissionMode::ApproveAll, true) => {
-                // 任务 1 的支持矩阵尚无权限 E2/E3：允许列表保持空。
-                // mode/config 的 id、显示名、描述及当前值均不构成验证证据。
-                // 后续供应商适配必须精确匹配已验证值，并在协议回读后才报告 Native。
+                // 通用解析不识别供应商权限语义，公布的选项本身不是验证证据。
+                // 后端适配须另外核对运行时身份和当前会话协议回读，才可报告 Native。
                 let has_controls = modes.is_some_and(|state| !state.available_modes.is_empty())
                     || config_options.is_some_and(|options| !options.is_empty());
                 let reason = if has_controls {

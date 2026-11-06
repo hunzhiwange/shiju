@@ -47,6 +47,19 @@ impl AcpClient {
                 ));
             }
         }
+        self.actor_state.lock().codex_runtime_verified = self.agent_name == "codex"
+            && cfg!(all(target_os = "macos", target_arch = "aarch64"))
+            && response.agent_info.as_ref().is_some_and(|info| {
+                info.name == "@agentclientprotocol/codex-acp" && info.version == "2.5.0"
+            })
+            && ["CODEX_PATH", "NODE_OPTIONS", "NODE_PATH"].into_iter().all(|key| {
+                self.config.env.get(key).map_or_else(
+                    || std::env::var_os(key).is_none_or(|value| value.is_empty()),
+                    |value| value.is_empty(),
+                )
+            })
+            && crate::verify_reviewed_agent_executable("codex", &self.config.command).is_ok();
+        self.actor_state.lock().codex_confirmed_session = None;
         self.authenticate_if_required(conn, &response.auth_methods).await?;
         Ok(())
     }
@@ -195,10 +208,16 @@ impl AcpClient {
             models: session.models.clone(),
             config_options: session.config_options.clone(),
         });
+        self.sync_codex_access(conn, &session.session_id.to_string()).await?;
         Ok(SessionInfo {
             session_id: session.session_id.0.to_string(),
             models: session.models,
-            config_options: session.config_options,
+            config_options: self
+                .actor_state
+                .lock()
+                .session_capabilities
+                .as_ref()
+                .and_then(|info| info.config_options.clone()),
         })
     }
 
@@ -234,10 +253,16 @@ impl AcpClient {
             models: response.models.clone(),
             config_options: response.config_options.clone(),
         });
+        self.sync_codex_access(conn, &session_id).await?;
         Ok(SessionInfo {
             session_id,
             models: response.models,
-            config_options: response.config_options,
+            config_options: self
+                .actor_state
+                .lock()
+                .session_capabilities
+                .as_ref()
+                .and_then(|info| info.config_options.clone()),
         })
     }
 
@@ -273,10 +298,16 @@ impl AcpClient {
             models: response.models.clone(),
             config_options: response.config_options.clone(),
         });
+        self.sync_codex_access(conn, &session_id).await?;
         Ok(SessionInfo {
             session_id,
             models: response.models,
-            config_options: response.config_options,
+            config_options: self
+                .actor_state
+                .lock()
+                .session_capabilities
+                .as_ref()
+                .and_then(|info| info.config_options.clone()),
         })
     }
 

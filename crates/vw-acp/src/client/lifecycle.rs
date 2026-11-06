@@ -12,6 +12,8 @@ impl AcpClient {
         state.handle = None;
         state.reusable_session_id = None;
         state.lifecycle.pid = None;
+        state.codex_runtime_verified = false;
+        state.codex_confirmed_session = None;
     }
 
     /// 判断指定会话是否正被当前 actor 运行时复用。
@@ -53,6 +55,8 @@ impl AcpClient {
     ) {
         let mut state = self.actor_state.lock();
         state.lifecycle.pid = None;
+        state.codex_runtime_verified = false;
+        state.codex_confirmed_session = None;
         state.lifecycle.last_exit = Some(AgentLifecycleExit {
             exit_code: exit.exit_code,
             signal: exit.signal,

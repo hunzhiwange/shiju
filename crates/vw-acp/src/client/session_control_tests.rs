@@ -29,6 +29,7 @@ enum RecordedCall {
 struct TestAgentState {
     calls: Vec<RecordedCall>,
     fail_resume: bool,
+    codex_controls: bool,
     fail_set_config: bool,
     fail_set_model: bool,
     wrong_config: bool,
@@ -85,7 +86,12 @@ impl acp::Agent for TestAgent {
         args: acp::NewSessionRequest,
     ) -> acp::Result<acp::NewSessionResponse> {
         self.state.lock().calls.push(RecordedCall::NewSession(args.cwd));
-        Ok(acp::NewSessionResponse::new("created-session"))
+        let response = acp::NewSessionResponse::new("created-session");
+        Ok(if self.state.lock().codex_controls {
+            response.config_options(codex_tests::options("agent"))
+        } else {
+            response
+        })
     }
 
     async fn load_session(
@@ -96,7 +102,12 @@ impl acp::Agent for TestAgent {
             session_id: args.session_id.0.to_string(),
             cwd: args.cwd,
         });
-        Ok(acp::LoadSessionResponse::new())
+        let response = acp::LoadSessionResponse::new();
+        Ok(if self.state.lock().codex_controls {
+            response.config_options(codex_tests::options("agent"))
+        } else {
+            response
+        })
     }
 
     async fn resume_session(
@@ -111,10 +122,15 @@ impl acp::Agent for TestAgent {
         if state.fail_resume {
             return Err(acp::Error::method_not_found());
         }
-        Ok(acp::ResumeSessionResponse::new().modes(acp::SessionModeState::new(
+        let response = acp::ResumeSessionResponse::new().modes(acp::SessionModeState::new(
             "default",
             vec![acp::SessionMode::new("plan", "Plan")],
-        )))
+        ));
+        Ok(if state.codex_controls {
+            response.config_options(codex_tests::options("agent"))
+        } else {
+            response
+        })
     }
 
     async fn set_session_mode(
@@ -148,6 +164,15 @@ impl acp::Agent for TestAgent {
         });
         if state.fail_set_config {
             return Err(acp::Error::invalid_params());
+        }
+        if state.codex_controls {
+            return Ok(acp::SetSessionConfigOptionResponse::new(codex_tests::options(
+                if state.wrong_config {
+                    "agent"
+                } else {
+                    args.value.as_value_id().unwrap().0.as_ref()
+                },
+            )));
         }
         Ok(acp::SetSessionConfigOptionResponse::new(vec![acp::SessionConfigOption::select(
             args.config_id,
@@ -486,3 +511,6 @@ async fn actor_set_session_model_stores_session_for_reuse() {
 
 #[path = "access_policy_tests.rs"]
 mod access_policy_tests;
+
+#[path = "../access_policy/codex_tests.rs"]
+mod codex_tests;

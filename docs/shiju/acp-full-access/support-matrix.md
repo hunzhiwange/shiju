@@ -1,8 +1,8 @@
 # ACP 完全访问支持矩阵
 
-审计日期：2026-11-06（Asia/Shanghai）；审计平台：macOS / Darwin arm64。状态：静态基线已完成，**全部后端的原生免审批与权限撤销实机验收均未知**。本页不发布新的运行能力。
+审计日期：2026-11-06（Asia/Shanghai）；审计平台：macOS / Darwin arm64。状态：静态基线已完成；Codex 固定制品的 macOS arm64 原生权限与撤销已验收，具体入口与边界见 [Codex 证据](evidence/codex.md)。其他后端原生能力仍未知。
 
-范围为 `BUILT_IN_AGENT_DEFINITIONS` 的 22 个稳定 key；别名和 `claude-legacy` 不另计。注册表、启动快照、哈希及逐项官方版本来源见 [证据清单](evidence/README.md)。本次只修改本文与证据说明，不修改代码、安装、登录或全局权限。
+范围为 `BUILT_IN_AGENT_DEFINITIONS` 的 22 个稳定 key；别名和 `claude-legacy` 不另计。注册表、启动快照、哈希及逐项官方版本来源见 [证据清单](evidence/README.md)。初始静态审计仅修改文档；后续后端适配与验证按各独立证据文件记账。
 
 ## 证据与分类
 
@@ -12,21 +12,21 @@
 
 - E2：固定版本的上游源码/制品权限实现确认；包元数据只确认版本身份，不构成权限 E2。
 
-- E3：指定平台、版本、启动路径与模型来源的真实协议和工具结果验收。本次没有权限 E3。
+- E3：指定平台、版本、启动路径与模型来源的真实协议和工具结果验收。Codex 的限定路径已有权限 E3，其他后端尚无。
 
-分类使用“原生免审批”“客户端自动批准”“部分支持”“不可用”。当前 22 项统一为**部分支持（E1 客户端机制；原生未知）**；这不是 22 项实机可用承诺。下表中的 `session_model 不可用` 只指该模型来源已有显式拒绝，不等于 CLI 本地模式不可用。原生未知不得展示为原生支持。
+分类使用“原生免审批”“客户端自动批准”“部分支持”“不可用”。除 Codex 限定已核验路径外，其余项为**部分支持（E1 客户端机制；原生未知）**；这不是 22 项实机可用承诺。下表中的 `session_model 不可用` 只指该模型来源已有显式拒绝，不等于 CLI 本地模式不可用。原生未知不得展示为原生支持。
 
 `cli_local` 沿注册表选择命令并使用 CLI 本地模型配置；`session_model` 经 `model_source::prepare` 和对应 `drivers::<key>::configure` 生成私有配置/模型中继。模型路由验收与权限验收分别记账。
 
 ## 22 项版本与下一项核验
 
-“基线”来自现有版本清单/托管契约；“官方当前”是本次查询的发布元数据或版本指针，**均不是本次执行所得 CLI 版本**。实际安装版本未知；不得自动升级。版本不同必须重验，并同时确认适配器与底层引擎。
+“基线”来自现有版本清单/托管契约；“官方当前”是本次查询的发布元数据或版本指针，**均不是本次执行所得 CLI 版本**。初始基线的实际安装版本未知；Codex 本次隔离固定制品身份见独立证据，不自动升级用户 CLI。版本不同必须重验，并同时确认适配器与底层引擎。
 
 | key / 证据 | 基线版本 | 官方当前发布 | 当前权限分类 / 模型来源限制 | 下一项核验目标 |
 | --- | --- | --- | --- | --- |
 | [auggie](evidence/README.md#auggie) / E1 | 0.36.0 | 0.37.0 | 部分支持：客户端自动批准有源码、原生未知；session_model 不可用：Provider 注册被拒绝 | 固定真实 CLI，采集 initialize/权限选项并验证开启→关闭→恢复 |
 | [claude](evidence/README.md#claude) / E1 | 0.26.0 | 0.101.0 | 部分支持：客户端自动批准有源码、原生未知；session_model 有驱动和版本门控 | 核对 SDK permissionMode、企业 deny 和 modes/configOptions |
-| [codex](evidence/README.md#codex) / E1 | 2.5.0 | 2.5.0 | 部分支持：客户端自动批准有源码、原生未知；session_model 有驱动和版本门控 | 核对 adapter→Codex 的审批策略/沙箱映射及恢复撤销 |
+| [codex](evidence/codex.md) / E2、E3 | 2.5.0 / Codex 0.165.0 | 2.5.0 | 原生免审批：macOS arm64 已核验制品、当前授权与配置确认后；cli_local/session_model 均验收。未知入口/平台降级，无法确认撤销时拒绝；活动 turn 必须先取消 | 补齐其他平台、独立文件编辑工具、网络及企业策略验收 |
 | [codebuddy](evidence/README.md#codebuddy) / E1 | 2.179.3 | 2.180.0 | 部分支持：客户端自动批准有源码、原生未知；session_model 有驱动和版本门控 | 固定真实 CLI，采集 initialize/权限选项并验证开启→关闭→恢复 |
 | [goose](evidence/README.md#goose) / E1 | v1.57.0 | v1.57.0 | 部分支持：客户端自动批准有源码、原生未知；session_model 有驱动和版本门控 | 固定真实 CLI，采集 initialize/权限选项并验证开启→关闭→恢复 |
 | [vibe](evidence/README.md#vibe) / E1 | 3.0.4 | 3.1.0 | 部分支持：客户端自动批准有源码、原生未知；session_model 有驱动和版本门控 | 核对 ACP approval mode 与 smart_approve 的区别 |
@@ -57,7 +57,7 @@ U = 未获取该后端真实权限协议/结果；C = 仅共享客户端源码�
 | --- | --- | --- | --- | --- | --- | --- | --- | --- |
 | auggie | U | U/U/U | U | U | C | C | C | U |
 | claude | U | U/U/U | U | U | C | C | C | U |
-| codex | U | U/U/U | U | U | C | C | C | U |
+| codex | E3 | E3/E3/E3 | E3 | E2；以 config 同步 | E3：本例 0 | C；本例未调用 | C；本例未调用 | E3：readOnly↔dangerFullAccess |
 | codebuddy | U | U/U/U | U | U | C | C | C | U |
 | goose | U | U/U/U | U | U | C | C | C | U |
 | vibe | U | U/U/U | U | U | C | C | C | U |
@@ -99,6 +99,6 @@ U = 未获取该后端真实权限协议/结果；C = 仅共享客户端源码�
 
 5. 相邻 `agent_registry_tests.rs`、`managed_runtime_tests.rs`、`client/event_client_tests.rs`、`permissions_tests.rs` 与各 `<key>_tests.rs` 是后续聚焦测试入口。本任务未运行这些测试；现有 fixture 不替代外部 CLI 真实验收。
 
-## 本次静态验收
+## 初始静态验收（任务 1）
 
 已从注册表逐项人工核对上述 22 个 key，并用独立集合检查确认无遗漏/重复；逐项读取驱动入口，核对普通、本地候选、托管启动及显式拒绝。执行 `git diff --check` 和文档链接/来源哈希检查通过。未运行 Cargo（按任务的文档静态审计范围），未运行真实权限会话。下一步按后续任务实现共享策略映射，再逐后端积累 E2/E3。

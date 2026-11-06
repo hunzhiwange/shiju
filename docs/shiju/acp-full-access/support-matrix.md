@@ -35,7 +35,7 @@ Auggie 已接入逐次客户端批准与当前 host deny 拦截；原生权限�
 | [goose](evidence/goose.md) / E1、E2 | v1.57.0 | v1.57.0（基线查询） | 客户端自动批准：同步会话 approve，仅逐次批准；auto 跳过用户 deny，不自动接入；session_model 原有门控保留 | 用户要求跳过测试；开启、关闭、恢复及跨平台工具效果未实机验收 |
 | [vibe](evidence/vibe.md) / E1、E2 | 3.0.4 | 3.1.0 | 部分支持：客户端自动批准；原生 mode 切换整个 agent，仅允许当前授权下显式选择 auto-approve，撤销未完成则拒绝继续；session_model 保持现有门控 | 用户要求跳过测试；原生执行、恢复、deny 和跨平台效果未实机验收 |
 | [hermes](evidence/hermes.md) / E1、E2 | 0.19.0 | 0.19.0 | 部分支持：按当前授权同步 default↔dont_ask 编辑审批，敏感路径及终端仍用客户端审批；保留 session_model 门控 | 用户要求跳过测试；开启、关闭、恢复及跨平台工具效果未实机验收 |
-| [snow](evidence/README.md#snow) / E1 | 0.9.14 | 0.9.15 | 部分支持：客户端自动批准有源码、原生未知；session_model 有驱动和版本门控 | 固定真实 CLI，采集 initialize/权限选项并验证开启→关闭→恢复 |
+| [snow](evidence/snow.md) / E1、E2 | 0.9.14 | 0.9.15（基线查询） | 客户端自动批准：仅 allow_once，避免写入工作区永久批准；ACP 未实现权限模式；session_model 原有门控保留 | 用户要求跳过测试；开启、关闭、恢复及跨平台工具效果未实机验收 |
 | [copilot](evidence/copilot.md) / E1、官方文档 | 1.0.105 | 1.0.106 | 客户端自动批准：仅 allow_once；显式启动全放行要求当前授权，不自动注入；保留模型来源门控 | 用户要求跳过测试；开启、关闭、恢复、tools/paths/URLs 与 deny 效果未实机验收 |
 | [cursor](evidence/README.md#cursor) / E1 | 2026.10.22-27dcf5f | 2026.11.05-86047df | 部分支持：客户端自动批准有源码、原生未知；session_model 不可用：第三方 Provider 契约未核验 | 固定真实 CLI，采集 initialize/权限选项并验证开启→关闭→恢复 |
 | [droid](evidence/README.md#droid) / E1 | 1.3.0 | 1.5.0 | 部分支持：客户端自动批准有源码、原生未知；session_model 不可用：双向 ACP 与隔离根未核验 | 固定真实 CLI，采集 initialize/权限选项并验证开启→关闭→恢复 |
@@ -66,7 +66,7 @@ U = 未获取该后端真实权限协议/结果；C = 仅共享客户端源码�
 | goose | U | new/load/resume 与 prompt 前已接入；未实测 | E2：mode=approve，响应确认；不改模型/provider | E2：auto/approve/smart_approve/chat；保留 chat，legacy 回退 approve | E2：allow_always/allow_once/reject_once/reject_always；客户端仅逐次批准，未实测 | C；未实测 | C；未实测 | U；auto 跳过用户 deny，生产不自动选择 |
 | vibe | U | 代码接入；未实测 | E2：mode 为 agent 名称，不自动切换 | E2：auto-approve 显式授权保护 | C；未实机计数 | C | C | U |
 | hermes | U | new/load/resume 与 prompt 已接入；未实测 | E2：未公布，隐藏编辑配置不主动发送 | E2：default/accept_edits/dont_ask；已接入，无回读确认 | E2：终端和敏感编辑仍回调；未计数 | C；未实测 | C；未实测 | U；不覆盖原生 deny |
-| snow | U | U/U/U | U | U | C | C | C | U |
+| snow | E2：源码声明 loadSession；未实测 | E2：new/load；resume 使用既有 load 回退，未实测 | E2：未实现 | E2：未实现；CLI yolo 不用于 ACP | E2：approve_once/approve_always/reject_once；客户端仅逐次批准，未计数 | C；未实测 | C；未实测 | U；保留敏感命令与 hook 规则 |
 | copilot | U | 现有 new/load/resume；未实测 | 不推断原生权限配置 | 不推断权限模式 | 代码接入 allow_once；未实机计数 | C；未实测 | C；未实测 | U；保留供应商限制 |
 | cursor | U | U/U/U | U | U | C | C | C | U |
 | droid | U | U/U/U | U | U | C | C | C | U |

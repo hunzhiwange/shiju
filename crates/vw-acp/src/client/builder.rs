@@ -88,9 +88,11 @@ impl AcpClient {
         modes: Option<&acp::SessionModeState>,
         config_options: Option<&[acp::SessionConfigOption]>,
     ) -> crate::AccessPolicy {
-        if matches!(self.agent_name.as_str(), "opencode" | "copilot" | "auggie" | "goose") {
+        if matches!(self.agent_name.as_str(), "opencode" | "copilot" | "auggie" | "goose" | "snow")
+        {
             // OpenCode modes select agents. Copilot and Auggie have no confirmed
             // native session permission control here. Goose auto skips tool denies.
+            // Snow 0.9.14 exposes only per-tool approvals, without session controls.
             // Keep client approvals.
             return crate::AccessPolicy::resolve(
                 self.full_access,

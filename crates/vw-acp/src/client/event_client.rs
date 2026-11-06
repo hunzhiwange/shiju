@@ -44,7 +44,7 @@ impl AcpClient {
             codebuddy_permissions: self.agent_name == "codebuddy",
             transient_permissions: matches!(
                 self.agent_name.as_str(),
-                "opencode" | "copilot" | "kimi" | "auggie" | "codebuddy" | "goose"
+                "opencode" | "copilot" | "kimi" | "auggie" | "codebuddy" | "goose" | "snow"
             ),
             reject_untyped_workflow_permissions: matches!(
                 self.agent_name.as_str(),

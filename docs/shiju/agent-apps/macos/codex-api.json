@@ -1,0 +1,762 @@
+[
+  {
+    "method": "GET",
+    "path": "catalog",
+    "body": null,
+    "status": 200,
+    "response": {
+      "apps": [
+        {
+          "id": "codex",
+          "name": "Codex",
+          "cliCommand": "codex",
+          "runtimeKinds": [
+            "native_cli"
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "method": "GET",
+    "path": "installations?appId=codex",
+    "body": null,
+    "status": 200,
+    "response": {
+      "installations": []
+    }
+  },
+  {
+    "method": "GET",
+    "path": "launch-identities?appId=codex",
+    "body": null,
+    "status": 200,
+    "response": []
+  },
+  {
+    "method": "GET",
+    "path": "installations?appId=codex",
+    "body": null,
+    "status": 200,
+    "response": {
+      "installations": [
+        {
+          "id": "NDpob3N0OjU6Y29kZXg6OTU6L3ByaXZhdGUvdmFyL2ZvbGRlcnMvcmcvenIxOWxiX3M1dzMycTZkMnFrZDZwMG44MDAwMGdwL1Qvc2hpanUtdGFzazQ4LW1xemJjM21nL3ByZWZpeC9iaW4vY29kZXg",
+          "appId": "codex",
+          "targetHostId": "host",
+          "environment": {
+            "kind": "macos"
+          },
+          "path": "<isolated-root>/prefix/bin/codex",
+          "realPath": "<isolated-root>/prefix/lib/node_modules/@openai/codex/bin/codex.js",
+          "source": "unknown",
+          "isPathDefault": true,
+          "version": "0.166.0",
+          "runtimeStatus": {
+            "status": "runnable"
+          }
+        }
+      ]
+    }
+  },
+  {
+    "method": "POST",
+    "path": "actions/preview",
+    "body": {
+      "appId": "codex",
+      "action": "update",
+      "target": {
+        "kind": "installation",
+        "installationId": "NDpob3N0OjU6Y29kZXg6OTU6L3ByaXZhdGUvdmFyL2ZvbGRlcnMvcmcvenIxOWxiX3M1dzMycTZkMnFrZDZwMG44MDAwMGdwL1Qvc2hpanUtdGFzazQ4LW1xemJjM21nL3ByZWZpeC9iaW4vY29kZXg"
+      }
+    },
+    "status": 200,
+    "response": {
+      "previewId": "d171bacc-ef2a-49d2-b809-96301f087086",
+      "request": {
+        "appId": "codex",
+        "action": "update",
+        "target": {
+          "kind": "installation",
+          "installationId": "NDpob3N0OjU6Y29kZXg6OTU6L3ByaXZhdGUvdmFyL2ZvbGRlcnMvcmcvenIxOWxiX3M1dzMycTZkMnFrZDZwMG44MDAwMGdwL1Qvc2hpanUtdGFzazQ4LW1xemJjM21nL3ByZWZpeC9iaW4vY29kZXg"
+        }
+      },
+      "source": "system",
+      "confirmationRequired": true,
+      "summary": "Review the selected application action in the administrator-approved prefix",
+      "displayCommand": null
+    }
+  },
+  {
+    "method": "POST",
+    "path": "actions",
+    "body": {
+      "previewId": "d171bacc-ef2a-49d2-b809-96301f087086",
+      "confirmed": true
+    },
+    "status": 202,
+    "response": {
+      "operationId": "583eb14b-f71c-4f10-9581-0707805553a0",
+      "status": "queued"
+    }
+  },
+  {
+    "method": "GET",
+    "path": "operations/583eb14b-f71c-4f10-9581-0707805553a0",
+    "body": null,
+    "status": 200,
+    "response": {
+      "operationId": "583eb14b-f71c-4f10-9581-0707805553a0",
+      "status": "running",
+      "phase": "executing"
+    }
+  },
+  {
+    "method": "GET",
+    "path": "operations/583eb14b-f71c-4f10-9581-0707805553a0",
+    "body": null,
+    "status": 200,
+    "response": {
+      "operationId": "583eb14b-f71c-4f10-9581-0707805553a0",
+      "status": "completed",
+      "phase": "terminal"
+    }
+  },
+  {
+    "method": "GET",
+    "path": "operations/583eb14b-f71c-4f10-9581-0707805553a0/events",
+    "body": null,
+    "status": 200,
+    "response": {
+      "operationId": "583eb14b-f71c-4f10-9581-0707805553a0",
+      "status": "completed",
+      "phase": "terminal"
+    }
+  },
+  {
+    "method": "GET",
+    "path": "installations?appId=codex",
+    "body": null,
+    "status": 200,
+    "response": {
+      "installations": [
+        {
+          "id": "NDpob3N0OjU6Y29kZXg6OTU6L3ByaXZhdGUvdmFyL2ZvbGRlcnMvcmcvenIxOWxiX3M1dzMycTZkMnFrZDZwMG44MDAwMGdwL1Qvc2hpanUtdGFzazQ4LW1xemJjM21nL3ByZWZpeC9iaW4vY29kZXg",
+          "appId": "codex",
+          "targetHostId": "host",
+          "environment": {
+            "kind": "macos"
+          },
+          "path": "<isolated-root>/prefix/bin/codex",
+          "realPath": "<isolated-root>/prefix/lib/node_modules/@openai/codex/bin/codex.js",
+          "source": "unknown",
+          "isPathDefault": true,
+          "version": "0.167.0",
+          "runtimeStatus": {
+            "status": "runnable"
+          }
+        }
+      ]
+    }
+  },
+  {
+    "method": "POST",
+    "path": "actions/preview",
+    "body": {
+      "appId": "codex",
+      "action": "uninstall",
+      "target": {
+        "kind": "installation",
+        "installationId": "NDpob3N0OjU6Y29kZXg6OTU6L3ByaXZhdGUvdmFyL2ZvbGRlcnMvcmcvenIxOWxiX3M1dzMycTZkMnFrZDZwMG44MDAwMGdwL1Qvc2hpanUtdGFzazQ4LW1xemJjM21nL3ByZWZpeC9iaW4vY29kZXg"
+      }
+    },
+    "status": 200,
+    "response": {
+      "previewId": "11f57ab8-fe55-4a14-8975-39a3adb09036",
+      "request": {
+        "appId": "codex",
+        "action": "uninstall",
+        "target": {
+          "kind": "installation",
+          "installationId": "NDpob3N0OjU6Y29kZXg6OTU6L3ByaXZhdGUvdmFyL2ZvbGRlcnMvcmcvenIxOWxiX3M1dzMycTZkMnFrZDZwMG44MDAwMGdwL1Qvc2hpanUtdGFzazQ4LW1xemJjM21nL3ByZWZpeC9iaW4vY29kZXg"
+        }
+      },
+      "source": "system",
+      "confirmationRequired": true,
+      "summary": "Review the selected application action in the administrator-approved prefix",
+      "displayCommand": null
+    }
+  },
+  {
+    "method": "POST",
+    "path": "actions",
+    "body": {
+      "previewId": "11f57ab8-fe55-4a14-8975-39a3adb09036",
+      "confirmed": true
+    },
+    "status": 202,
+    "response": {
+      "operationId": "ae60cf77-9012-4a79-9038-0ce419348835",
+      "status": "queued"
+    }
+  },
+  {
+    "method": "GET",
+    "path": "operations/ae60cf77-9012-4a79-9038-0ce419348835",
+    "body": null,
+    "status": 200,
+    "response": {
+      "operationId": "ae60cf77-9012-4a79-9038-0ce419348835",
+      "status": "completed",
+      "phase": "terminal"
+    }
+  },
+  {
+    "method": "GET",
+    "path": "operations/ae60cf77-9012-4a79-9038-0ce419348835/events",
+    "body": null,
+    "status": 200,
+    "response": {
+      "operationId": "ae60cf77-9012-4a79-9038-0ce419348835",
+      "status": "completed",
+      "phase": "terminal"
+    }
+  },
+  {
+    "method": "GET",
+    "path": "installations?appId=codex",
+    "body": null,
+    "status": 200,
+    "response": {
+      "installations": []
+    }
+  },
+  {
+    "method": "POST",
+    "path": "actions/preview",
+    "body": {
+      "appId": "codex",
+      "action": "install",
+      "target": {
+        "kind": "environment",
+        "environment": {
+          "kind": "macos"
+        }
+      }
+    },
+    "status": 200,
+    "response": {
+      "previewId": "285a904b-0dde-40d5-9ef4-0f2fadebc531",
+      "request": {
+        "appId": "codex",
+        "action": "install",
+        "target": {
+          "kind": "environment",
+          "environment": {
+            "kind": "macos"
+          }
+        }
+      },
+      "source": "system",
+      "confirmationRequired": true,
+      "summary": "Review the selected application action in the administrator-approved prefix",
+      "displayCommand": null
+    }
+  },
+  {
+    "method": "POST",
+    "path": "actions",
+    "body": {
+      "previewId": "285a904b-0dde-40d5-9ef4-0f2fadebc531",
+      "confirmed": true
+    },
+    "status": 202,
+    "response": {
+      "operationId": "af92d10f-b24a-4c01-a7b2-dae383ccd86a",
+      "status": "queued"
+    }
+  },
+  {
+    "method": "GET",
+    "path": "operations/af92d10f-b24a-4c01-a7b2-dae383ccd86a",
+    "body": null,
+    "status": 200,
+    "response": {
+      "operationId": "af92d10f-b24a-4c01-a7b2-dae383ccd86a",
+      "status": "running",
+      "phase": "executing"
+    }
+  },
+  {
+    "method": "GET",
+    "path": "operations/af92d10f-b24a-4c01-a7b2-dae383ccd86a",
+    "body": null,
+    "status": 200,
+    "response": {
+      "operationId": "af92d10f-b24a-4c01-a7b2-dae383ccd86a",
+      "status": "completed",
+      "phase": "terminal"
+    }
+  },
+  {
+    "method": "GET",
+    "path": "operations/af92d10f-b24a-4c01-a7b2-dae383ccd86a/events",
+    "body": null,
+    "status": 200,
+    "response": {
+      "operationId": "af92d10f-b24a-4c01-a7b2-dae383ccd86a",
+      "status": "completed",
+      "phase": "terminal"
+    }
+  },
+  {
+    "method": "GET",
+    "path": "installations?appId=codex",
+    "body": null,
+    "status": 200,
+    "response": {
+      "installations": [
+        {
+          "id": "NDpob3N0OjU6Y29kZXg6OTU6L3ByaXZhdGUvdmFyL2ZvbGRlcnMvcmcvenIxOWxiX3M1dzMycTZkMnFrZDZwMG44MDAwMGdwL1Qvc2hpanUtdGFzazQ4LW1xemJjM21nL3ByZWZpeC9iaW4vY29kZXg",
+          "appId": "codex",
+          "targetHostId": "host",
+          "environment": {
+            "kind": "macos"
+          },
+          "path": "<isolated-root>/prefix/bin/codex",
+          "realPath": "<isolated-root>/prefix/lib/node_modules/@openai/codex/bin/codex.js",
+          "source": "unknown",
+          "isPathDefault": true,
+          "version": "0.167.0",
+          "runtimeStatus": {
+            "status": "runnable"
+          }
+        }
+      ]
+    }
+  },
+  {
+    "method": "POST",
+    "path": "launch",
+    "body": {
+      "appId": "codex",
+      "installationId": "NDpob3N0OjU6Y29kZXg6OTU6L3ByaXZhdGUvdmFyL2ZvbGRlcnMvcmcvenIxOWxiX3M1dzMycTZkMnFrZDZwMG44MDAwMGdwL1Qvc2hpanUtdGFzazQ4LW1xemJjM21nL3ByZWZpeC9iaW4vY29kZXg",
+      "cwd": "<isolated-root>/home",
+      "args": [
+        "--version"
+      ]
+    },
+    "status": 422,
+    "response": ""
+  },
+  {
+    "method": "GET",
+    "path": "installations?appId=codex",
+    "body": null,
+    "status": 200,
+    "response": {
+      "installations": [
+        {
+          "id": "NDpob3N0OjU6Y29kZXg6OTU6L3ByaXZhdGUvdmFyL2ZvbGRlcnMvcmcvenIxOWxiX3M1dzMycTZkMnFrZDZwMG44MDAwMGdwL1Qvc2hpanUtdGFzazQ4LW1xemJjM21nL3ByZWZpeC9iaW4vY29kZXg",
+          "appId": "codex",
+          "targetHostId": "host",
+          "environment": {
+            "kind": "macos"
+          },
+          "path": "<isolated-root>/prefix/bin/codex",
+          "realPath": "<isolated-root>/prefix/lib/node_modules/@openai/codex/bin/codex.js",
+          "source": "unknown",
+          "isPathDefault": true,
+          "version": "0.167.0",
+          "runtimeStatus": {
+            "status": "runnable"
+          }
+        },
+        {
+          "id": "NDpob3N0OjU6Y29kZXg6MTAwOi9wcml2YXRlL3Zhci9mb2xkZXJzL3JnL3pyMTlsYl9zNXczMnE2ZDJxa2Q2cDBuODAwMDBncC9UL3NoaWp1LXRhc2s0OC1tcXpiYzNtZy9ob21lLy5sb2NhbC9iaW4vY29kZXg",
+          "appId": "codex",
+          "targetHostId": "host",
+          "environment": {
+            "kind": "macos"
+          },
+          "path": "<isolated-root>/home/.local/bin/codex",
+          "realPath": "<isolated-root>/home/.local/lib/node_modules/@openai/codex/bin/codex.js",
+          "source": "unknown",
+          "isPathDefault": false,
+          "version": "0.166.0",
+          "runtimeStatus": {
+            "status": "runnable"
+          }
+        }
+      ]
+    }
+  },
+  {
+    "method": "POST",
+    "path": "actions/preview",
+    "body": {
+      "appId": "codex",
+      "action": "uninstall",
+      "target": {
+        "kind": "installation",
+        "installationId": "NDpob3N0OjU6Y29kZXg6OTU6L3ByaXZhdGUvdmFyL2ZvbGRlcnMvcmcvenIxOWxiX3M1dzMycTZkMnFrZDZwMG44MDAwMGdwL1Qvc2hpanUtdGFzazQ4LW1xemJjM21nL3ByZWZpeC9iaW4vY29kZXg"
+      }
+    },
+    "status": 422,
+    "response": ""
+  },
+  {
+    "method": "GET",
+    "path": "installations?appId=codex",
+    "body": null,
+    "status": 200,
+    "response": {
+      "installations": [
+        {
+          "id": "NDpob3N0OjU6Y29kZXg6OTU6L3ByaXZhdGUvdmFyL2ZvbGRlcnMvcmcvenIxOWxiX3M1dzMycTZkMnFrZDZwMG44MDAwMGdwL1Qvc2hpanUtdGFzazQ4LW1xemJjM21nL3ByZWZpeC9iaW4vY29kZXg",
+          "appId": "codex",
+          "targetHostId": "host",
+          "environment": {
+            "kind": "macos"
+          },
+          "path": "<isolated-root>/prefix/bin/codex",
+          "realPath": "<isolated-root>/prefix/lib/node_modules/@openai/codex/bin/codex.js",
+          "source": "unknown",
+          "isPathDefault": true,
+          "version": "0.167.0",
+          "runtimeStatus": {
+            "status": "runnable"
+          }
+        },
+        {
+          "id": "NDpob3N0OjU6Y29kZXg6MTAwOi9wcml2YXRlL3Zhci9mb2xkZXJzL3JnL3pyMTlsYl9zNXczMnE2ZDJxa2Q2cDBuODAwMDBncC9UL3NoaWp1LXRhc2s0OC1tcXpiYzNtZy9ob21lLy5sb2NhbC9iaW4vY29kZXg",
+          "appId": "codex",
+          "targetHostId": "host",
+          "environment": {
+            "kind": "macos"
+          },
+          "path": "<isolated-root>/home/.local/bin/codex",
+          "realPath": "<isolated-root>/home/.local/lib/node_modules/@openai/codex/bin/codex.js",
+          "source": "unknown",
+          "isPathDefault": false,
+          "version": "0.166.0",
+          "runtimeStatus": {
+            "status": "runnable"
+          }
+        }
+      ]
+    }
+  },
+  {
+    "method": "GET",
+    "path": "installations?appId=codex",
+    "body": null,
+    "status": 200,
+    "response": {
+      "installations": [
+        {
+          "id": "NDpob3N0OjU6Y29kZXg6OTU6L3ByaXZhdGUvdmFyL2ZvbGRlcnMvcmcvenIxOWxiX3M1dzMycTZkMnFrZDZwMG44MDAwMGdwL1Qvc2hpanUtdGFzazQ4LW1xemJjM21nL3ByZWZpeC9iaW4vY29kZXg",
+          "appId": "codex",
+          "targetHostId": "host",
+          "environment": {
+            "kind": "macos"
+          },
+          "path": "<isolated-root>/prefix/bin/codex",
+          "realPath": "<isolated-root>/prefix/lib/node_modules/@openai/codex/bin/codex.js",
+          "source": "unknown",
+          "isPathDefault": true,
+          "version": "0.167.0",
+          "runtimeStatus": {
+            "status": "runnable"
+          }
+        }
+      ]
+    }
+  },
+  {
+    "method": "POST",
+    "path": "actions/preview",
+    "body": {
+      "appId": "codex",
+      "action": "uninstall",
+      "target": {
+        "kind": "installation",
+        "installationId": "NDpob3N0OjU6Y29kZXg6OTU6L3ByaXZhdGUvdmFyL2ZvbGRlcnMvcmcvenIxOWxiX3M1dzMycTZkMnFrZDZwMG44MDAwMGdwL1Qvc2hpanUtdGFzazQ4LW1xemJjM21nL3ByZWZpeC9iaW4vY29kZXg"
+      }
+    },
+    "status": 200,
+    "response": {
+      "previewId": "fbebf765-4f56-47a1-98e7-38177953c92a",
+      "request": {
+        "appId": "codex",
+        "action": "uninstall",
+        "target": {
+          "kind": "installation",
+          "installationId": "NDpob3N0OjU6Y29kZXg6OTU6L3ByaXZhdGUvdmFyL2ZvbGRlcnMvcmcvenIxOWxiX3M1dzMycTZkMnFrZDZwMG44MDAwMGdwL1Qvc2hpanUtdGFzazQ4LW1xemJjM21nL3ByZWZpeC9iaW4vY29kZXg"
+        }
+      },
+      "source": "system",
+      "confirmationRequired": true,
+      "summary": "Review the selected application action in the administrator-approved prefix",
+      "displayCommand": null
+    }
+  },
+  {
+    "method": "POST",
+    "path": "actions",
+    "body": {
+      "previewId": "fbebf765-4f56-47a1-98e7-38177953c92a",
+      "confirmed": true
+    },
+    "status": 202,
+    "response": {
+      "operationId": "35d99004-3bf1-442b-9d40-e27971cfaed7",
+      "status": "queued"
+    }
+  },
+  {
+    "method": "GET",
+    "path": "operations/35d99004-3bf1-442b-9d40-e27971cfaed7",
+    "body": null,
+    "status": 200,
+    "response": {
+      "operationId": "35d99004-3bf1-442b-9d40-e27971cfaed7",
+      "status": "completed",
+      "phase": "terminal"
+    }
+  },
+  {
+    "method": "GET",
+    "path": "operations/35d99004-3bf1-442b-9d40-e27971cfaed7/events",
+    "body": null,
+    "status": 200,
+    "response": {
+      "operationId": "35d99004-3bf1-442b-9d40-e27971cfaed7",
+      "status": "completed",
+      "phase": "terminal"
+    }
+  },
+  {
+    "method": "GET",
+    "path": "installations?appId=codex",
+    "body": null,
+    "status": 200,
+    "response": {
+      "installations": [
+        {
+          "id": "NDpob3N0OjU6Y29kZXg6MTAwOi9wcml2YXRlL3Zhci9mb2xkZXJzL3JnL3pyMTlsYl9zNXczMnE2ZDJxa2Q2cDBuODAwMDBncC9UL3NoaWp1LXRhc2s0OC1tcXpiYzNtZy9ob21lLy5sb2NhbC9iaW4vY29kZXg",
+          "appId": "codex",
+          "targetHostId": "host",
+          "environment": {
+            "kind": "macos"
+          },
+          "path": "<isolated-root>/home/.local/bin/codex",
+          "realPath": "<isolated-root>/home/.local/lib/node_modules/@openai/codex/bin/codex.js",
+          "source": "unknown",
+          "isPathDefault": true,
+          "version": "0.166.0",
+          "runtimeStatus": {
+            "status": "runnable"
+          }
+        }
+      ]
+    }
+  },
+  {
+    "method": "POST",
+    "path": "actions/preview",
+    "body": {
+      "appId": "codex",
+      "action": "install",
+      "target": {
+        "kind": "environment",
+        "environment": {
+          "kind": "macos"
+        }
+      }
+    },
+    "status": 200,
+    "response": {
+      "previewId": "4f54f676-d5f6-4889-b18e-1258c5114e64",
+      "request": {
+        "appId": "codex",
+        "action": "install",
+        "target": {
+          "kind": "environment",
+          "environment": {
+            "kind": "macos"
+          }
+        }
+      },
+      "source": "system",
+      "confirmationRequired": true,
+      "summary": "Review the selected application action in the administrator-approved prefix",
+      "displayCommand": null
+    }
+  },
+  {
+    "method": "POST",
+    "path": "actions",
+    "body": {
+      "previewId": "4f54f676-d5f6-4889-b18e-1258c5114e64",
+      "confirmed": true
+    },
+    "status": 202,
+    "response": {
+      "operationId": "51969614-c1c8-4070-a8b4-cd17bfaa4620",
+      "status": "queued"
+    }
+  },
+  {
+    "method": "DELETE",
+    "path": "operations/51969614-c1c8-4070-a8b4-cd17bfaa4620",
+    "body": null,
+    "status": 200,
+    "response": {
+      "operationId": "51969614-c1c8-4070-a8b4-cd17bfaa4620",
+      "status": "cancelled",
+      "phase": "terminal"
+    }
+  },
+  {
+    "method": "GET",
+    "path": "operations/51969614-c1c8-4070-a8b4-cd17bfaa4620/events",
+    "body": null,
+    "status": 200,
+    "response": {
+      "operationId": "51969614-c1c8-4070-a8b4-cd17bfaa4620",
+      "status": "cancelled",
+      "phase": "terminal"
+    }
+  },
+  {
+    "method": "GET",
+    "path": "installations?appId=codex",
+    "body": null,
+    "status": 200,
+    "response": {
+      "installations": []
+    }
+  },
+  {
+    "method": "GET",
+    "path": "diagnostics?appId=codex",
+    "body": null,
+    "status": 200,
+    "response": {
+      "installations": [
+        {
+          "id": "NDpob3N0OjU6Y29kZXg6OTU6L3ByaXZhdGUvdmFyL2ZvbGRlcnMvcmcvenIxOWxiX3M1dzMycTZkMnFrZDZwMG44MDAwMGdwL1Qvc2hpanUtdGFzazQ4LW1xemJjM21nL3ByZWZpeC9iaW4vY29kZXg",
+          "appId": "codex",
+          "targetHostId": "host",
+          "environment": {
+            "kind": "macos"
+          },
+          "path": "<isolated-root>/prefix/bin/codex",
+          "realPath": null,
+          "source": "unknown",
+          "isPathDefault": true,
+          "version": null,
+          "runtimeStatus": {
+            "status": "probe_failed",
+            "reason": "damaged_installation"
+          }
+        },
+        {
+          "id": "NDpob3N0OjU6Y29kZXg6MTAwOi9wcml2YXRlL3Zhci9mb2xkZXJzL3JnL3pyMTlsYl9zNXczMnE2ZDJxa2Q2cDBuODAwMDBncC9UL3NoaWp1LXRhc2s0OC1tcXpiYzNtZy9ob21lLy5sb2NhbC9iaW4vY29kZXg",
+          "appId": "codex",
+          "targetHostId": "host",
+          "environment": {
+            "kind": "macos"
+          },
+          "path": "<isolated-root>/home/.local/bin/codex",
+          "realPath": "<isolated-root>/home/.local/lib/node_modules/@openai/codex/bin/codex.js",
+          "source": "unknown",
+          "isPathDefault": false,
+          "version": "0.166.0",
+          "runtimeStatus": {
+            "status": "runnable"
+          }
+        }
+      ]
+    }
+  },
+  {
+    "method": "GET",
+    "path": "installations?appId=codex",
+    "body": null,
+    "status": 200,
+    "response": {
+      "installations": [
+        {
+          "id": "NDpob3N0OjU6Y29kZXg6OTU6L3ByaXZhdGUvdmFyL2ZvbGRlcnMvcmcvenIxOWxiX3M1dzMycTZkMnFrZDZwMG44MDAwMGdwL1Qvc2hpanUtdGFzazQ4LW1xemJjM21nL3ByZWZpeC9iaW4vY29kZXg",
+          "appId": "codex",
+          "targetHostId": "host",
+          "environment": {
+            "kind": "macos"
+          },
+          "path": "<isolated-root>/prefix/bin/codex",
+          "realPath": null,
+          "source": "unknown",
+          "isPathDefault": true,
+          "version": null,
+          "runtimeStatus": {
+            "status": "probe_failed",
+            "reason": "damaged_installation"
+          }
+        },
+        {
+          "id": "NDpob3N0OjU6Y29kZXg6MTAwOi9wcml2YXRlL3Zhci9mb2xkZXJzL3JnL3pyMTlsYl9zNXczMnE2ZDJxa2Q2cDBuODAwMDBncC9UL3NoaWp1LXRhc2s0OC1tcXpiYzNtZy9ob21lLy5sb2NhbC9iaW4vY29kZXg",
+          "appId": "codex",
+          "targetHostId": "host",
+          "environment": {
+            "kind": "macos"
+          },
+          "path": "<isolated-root>/home/.local/bin/codex",
+          "realPath": "<isolated-root>/home/.local/lib/node_modules/@openai/codex/bin/codex.js",
+          "source": "unknown",
+          "isPathDefault": false,
+          "version": "0.166.0",
+          "runtimeStatus": {
+            "status": "runnable"
+          }
+        }
+      ]
+    }
+  },
+  {
+    "method": "POST",
+    "path": "actions/preview",
+    "body": {
+      "appId": "codex",
+      "action": "uninstall",
+      "target": {
+        "kind": "installation",
+        "installationId": "NDpob3N0OjU6Y29kZXg6OTU6L3ByaXZhdGUvdmFyL2ZvbGRlcnMvcmcvenIxOWxiX3M1dzMycTZkMnFrZDZwMG44MDAwMGdwL1Qvc2hpanUtdGFzazQ4LW1xemJjM21nL3ByZWZpeC9iaW4vY29kZXg"
+      }
+    },
+    "status": 422,
+    "response": ""
+  },
+  {
+    "method": "POST",
+    "path": "launch",
+    "body": {
+      "appId": "codex",
+      "installationId": "NDpob3N0OjU6Y29kZXg6OTU6L3ByaXZhdGUvdmFyL2ZvbGRlcnMvcmcvenIxOWxiX3M1dzMycTZkMnFrZDZwMG44MDAwMGdwL1Qvc2hpanUtdGFzazQ4LW1xemJjM21nL3ByZWZpeC9iaW4vY29kZXg",
+      "cwd": "<isolated-root>/home",
+      "args": []
+    },
+    "status": 422,
+    "response": ""
+  },
+  {
+    "method": "GET",
+    "path": "installations?appId=codex",
+    "body": null,
+    "status": 200,
+    "response": {
+      "installations": []
+    }
+  }
+]

@@ -1,6 +1,6 @@
-//! 网关 Git 提交 / 合并路由（git2）。
+//! 网关 Git 提交、合并、历史与远端路由（git2）。
 //!
-//! `/git/commit` 与 `/git/merge` 仅使用 libgit2，不启动系统 `git`。
+//! 提交、合并、历史及远端数据操作使用 libgit2；通用命令接口独立保留。
 //! 仍依赖 Git CLI、不在本计划范围的路径：`/v1/git/command`、普通 worktree 的
 //! fetch/submodule、skill clone/pull、snapshot 等。
 
@@ -25,6 +25,8 @@ use crate::app::agent::gateway::instance::with_instance;
 use crate::app::agent::project;
 use crate::worktree;
 
+mod repository;
+
 const DIFF_CONTEXT: usize = 3;
 
 #[derive(Default)]
@@ -42,6 +44,7 @@ where
     Router::new()
         .route("/git/commit", post(git_commit_v1))
         .route("/git/merge", post(git_merge_v1))
+        .merge(repository::router())
         .merge(super::git_command::router())
 }
 

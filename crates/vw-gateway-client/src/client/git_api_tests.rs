@@ -185,3 +185,62 @@ async fn git_command_surfaces_response_decode_error() {
     assert_eq!(request.body["timeout_secs"], 0);
     server.join();
 }
+
+#[tokio::test]
+async fn repository_history_and_remote_use_typed_gateway_endpoints() {
+    use vw_api_types::git::*;
+    let server = test_support::server(vec![
+        (
+            200,
+            json!({"branch":"main","remote":"origin","remote_branch":"main","upstream":true,"ahead_behind":[1,2],"commits":[],"has_more":false}),
+        ),
+        (
+            200,
+            json!({"message":"add file","files":[{"path":"中文.md","status":"added","old_content":"","new_content":"中文","notice":null,"insertions":1,"deletions":0}]}),
+        ),
+        (200, json!({"ok":true})),
+    ]);
+    let client = server.client();
+    let project_id = vw_api_types::id::ProjectId("project".into());
+    let worktree_id = Some(vw_api_types::id::WorktreeId("worktree".into()));
+    let snapshot = client
+        .git_repository(&GitRepositoryRequest {
+            project_id: project_id.clone(),
+            worktree_id: worktree_id.clone(),
+            limit: 100,
+        })
+        .await
+        .unwrap();
+    assert_eq!(snapshot.ahead_behind, Some((1, 2)));
+    let request = server.take_request();
+    assert_eq!(request.path, "/v1/git/repository");
+    assert_eq!(request.body, json!({"project_id":"project","worktree_id":"worktree","limit":100}));
+    let detail = client
+        .git_history_detail(&GitHistoryDetailRequest {
+            project_id: project_id.clone(),
+            worktree_id: worktree_id.clone(),
+            sha: "a".repeat(40),
+        })
+        .await
+        .unwrap();
+    assert_eq!(detail.files[0].status, GitFileStatus::Added);
+    assert_eq!(server.take_request().path, "/v1/git/history/detail");
+    assert!(
+        client
+            .git_remote(&GitRemoteRequest {
+                project_id,
+                worktree_id,
+                action: GitRemoteAction::Pull
+            })
+            .await
+            .unwrap()
+            .ok
+    );
+    let request = server.take_request();
+    assert_eq!(request.path, "/v1/git/remote");
+    assert_eq!(
+        request.body,
+        json!({"project_id":"project","worktree_id":"worktree","action":"pull"})
+    );
+    server.join();
+}

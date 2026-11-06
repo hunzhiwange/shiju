@@ -182,11 +182,31 @@ pub async fn list_directories() -> Result<Vec<String>, Error> {
     if primary.trim().is_empty() {
         return Err(Error::MissingProject("missing instance worktree".to_string()));
     }
-    let list = run_git(&["worktree", "list", "--porcelain"], &primary).await?;
-    if !list.success {
-        return Err(Error::Invalid(list.error_text("Failed to read git worktrees")));
-    }
-    Ok(parse_worktree_list(&list.stdout).into_iter().map(|entry| entry.path).collect())
+    // Git API 的 worktree 校验同样使用内置库，避免间接依赖系统 Git。
+    tokio::task::spawn_blocking(move || -> Result<Vec<String>, Error> {
+        let read = || -> Result<Vec<String>, git2::Error> {
+            let repository = git2::Repository::open(&primary)?;
+            let common = git2::Repository::open(repository.commondir())?;
+            let root = common
+                .workdir()
+                .ok_or_else(|| git2::Error::from_str("worktree requires a non-bare repository"))?;
+            let normalize = |path: &std::path::Path| {
+                std::fs::canonicalize(path)
+                    .unwrap_or_else(|_| path.to_path_buf())
+                    .to_string_lossy()
+                    .into_owned()
+            };
+            let mut directories = vec![normalize(root)];
+            for name in common.worktrees()?.iter() {
+                if let Some(name) = name? {
+                    directories.push(normalize(common.find_worktree(name)?.path()));
+                }
+            }
+            Ok(directories)
+        };
+        read().map_err(|error| Error::Invalid(error.to_string()))
+    })
+    .await?
 }
 
 /// 重置 worktree 到指定状态（WASM 平台实现）

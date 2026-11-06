@@ -636,6 +636,7 @@ pub async fn update_global_for_tenant(tenant: &TenantScope, mut patch: Value) ->
 
     // 反序列化回 Config 结构
     let mut next = serde_json::from_value::<Config>(merged).map_err(Error::Json)?;
+    validate_agent_runtime_update(&current, &next)?;
     // 保留路径字段（不被 patch 覆盖）
     next.workspace_dir = current.workspace_dir;
     next.config_path = current.config_path;
@@ -646,6 +647,20 @@ pub async fn update_global_for_tenant(tenant: &TenantScope, mut patch: Value) ->
     }
     validate_config(&next).map_err(|e| Error::Invalid(e.to_string()))?;
     save_config_for_tenant(&next, tenant).await.map_err(|e| Error::Invalid(e.to_string()))
+}
+
+/// Saved agent keys retain their engine; custom deletion remains supported.
+pub(crate) fn validate_agent_runtime_update(current: &Config, next: &Config) -> Result<(), Error> {
+    for (key, agent) in &current.agents {
+        if let Some(candidate) = next.agents.get(key)
+            && agent.runtime != candidate.runtime
+        {
+            return Err(Error::Invalid(format!(
+                "agent {key} runtime cannot be changed after saving"
+            )));
+        }
+    }
+    Ok(())
 }
 
 pub async fn update_global(patch: Value) -> Result<(), Error> {

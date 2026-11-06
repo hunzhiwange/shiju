@@ -352,6 +352,14 @@ pub async fn handle_api_config_put(
     let mut new_config = super::super::secrets::hydrate_config_for_save(incoming, &current_config);
     let runtime_auth_enabled = new_config.gateway.auth_enabled;
 
+    if let Err(error) = config::validate_agent_runtime_update(&current_config, &new_config) {
+        return (
+            StatusCode::BAD_REQUEST,
+            Json(serde_json::json!({"error": format!("Invalid config: {error}")})),
+        )
+            .into_response();
+    }
+
     // Full replacement must not erase already saved builtin profiles.
     for key in current_config.agents.keys() {
         let builtin = vw_config_types::agent::builtin_agent_spec(key).is_some()

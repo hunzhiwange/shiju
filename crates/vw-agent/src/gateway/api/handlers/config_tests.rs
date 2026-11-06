@@ -1391,3 +1391,250 @@ async fn agent_profile_api_full_replacement_cannot_remove_saved_builtin() {
     assert!(response_json(response).await["error"].as_str().unwrap().contains("cannot be deleted"));
     assert!(state.config.lock().agents.contains_key("acp-claude"));
 }
+
+#[tokio::test]
+async fn agent_runtime_lock_patch_preserves_saved_engines_and_is_atomic() {
+    let _env_lock = crate::test_support::global_async_env_lock().lock().await;
+    let home = TempDir::new().unwrap();
+    let _home = EnvGuard::set("HOME", home.path().as_os_str());
+    let config_dir = home.path().join("config");
+    let _config_dir = EnvGuard::set("VIBEWINDOW_CONFIG_DIR", config_dir.as_os_str());
+    let _workspace = EnvGuard::unset("VIBEWINDOW_WORKSPACE");
+    let tenant = TenantScope::default();
+    config::update_global(serde_json::json!({"agents": {
+        "custom-native": {"runtime": {"kind": "native"}},
+        "custom-codex": {"runtime": {"kind": "acp", "backend": "codex"}},
+        "custom-claude": {"runtime": {"kind": "acp", "backend": "claude"}}
+    }}))
+    .await
+    .unwrap();
+    for (key, runtime) in [
+        ("custom-native", serde_json::json!({"kind":"native"})),
+        ("custom-codex", serde_json::json!({"kind":"acp","backend":"codex"})),
+        ("custom-claude", serde_json::json!({"kind":"acp","backend":"claude"})),
+    ] {
+        config::update_global(serde_json::json!({"agents": {key: {
+            "label":"Renamed", "runtime":runtime
+        }}}))
+        .await
+        .unwrap();
+    }
+    let current = config::get_global_for_tenant(&tenant).await.unwrap();
+    let state = state(current.clone(), false, &[]);
+    let store = local_store(home.path());
+    let before = store.get(&tenant).unwrap();
+    let skeys_before = config::load_gateway_skeys_for_tenant(&tenant).await.unwrap();
+    for (key, runtime) in [
+        ("custom-native", serde_json::json!({"kind":"acp","backend":"codex"})),
+        ("custom-codex", serde_json::json!({"kind":"native","backend":null})),
+        ("custom-codex", serde_json::json!({"backend":"claude"})),
+        ("custom-codex", serde_json::json!({"backend":"unknown-backend"})),
+        ("custom-codex", Value::Null),
+    ] {
+        let result = config_patch_stateful(
+            Extension(tenant.clone()),
+            State(state.clone()),
+            Query(InstanceQuery { directory: None }),
+            HeaderMap::new(),
+            Json(serde_json::json!({
+                "default_model":"must-not-leak",
+                "gateway":{"skeys":[{"name":"must-not-save","skey":"runtime-lock-secret"}]},
+                "agents":{key:{"label":"must-not-leak","runtime":runtime}}
+            })),
+        )
+        .await;
+        assert!(result.is_err(), "engine change must be rejected: {key}");
+        assert_eq!(store.get(&tenant).unwrap(), before);
+        assert_eq!(
+            serde_json::to_value(&*state.config.lock()).unwrap(),
+            serde_json::to_value(&current).unwrap()
+        );
+        assert_eq!(
+            serde_json::to_value(config::load_gateway_skeys_for_tenant(&tenant).await.unwrap())
+                .unwrap(),
+            serde_json::to_value(&skeys_before).unwrap()
+        );
+    }
+    config::update_global(serde_json::json!({"agents":{"custom-codex":null}})).await.unwrap();
+    assert!(
+        !config::get_global_for_tenant(&tenant).await.unwrap().agents.contains_key("custom-codex")
+    );
+}
+
+#[tokio::test]
+async fn agent_runtime_lock_patch_is_scoped_to_each_tenant() {
+    let _env_lock = crate::test_support::global_async_env_lock().lock().await;
+    let home = TempDir::new().unwrap();
+    let _home = EnvGuard::set("HOME", home.path().as_os_str());
+    let config_dir = home.path().join("config");
+    let _config_dir = EnvGuard::set("VIBEWINDOW_CONFIG_DIR", config_dir.as_os_str());
+    let _workspace = EnvGuard::unset("VIBEWINDOW_WORKSPACE");
+    let first = TenantScope::new("runtime-lock", "first").unwrap();
+    let second = TenantScope::new("runtime-lock", "second").unwrap();
+    for (tenant, runtime) in [
+        (&first, serde_json::json!({"kind":"native"})),
+        (&second, serde_json::json!({"kind":"acp","backend":"codex"})),
+    ] {
+        config::update_global_for_tenant(
+            tenant,
+            serde_json::json!({"agents":{"custom":{"runtime":runtime}}}),
+        )
+        .await
+        .unwrap();
+    }
+    let before = local_store(home.path()).get(&second).unwrap();
+    assert!(
+        config::update_global_for_tenant(
+            &first,
+            serde_json::json!({"agents":{"custom":{"runtime":{"kind":"acp","backend":"codex"}}}})
+        )
+        .await
+        .is_err()
+    );
+    config::update_global_for_tenant(
+        &second,
+        serde_json::json!({"agents":{"custom":{"label":"Allowed"}}}),
+    )
+    .await
+    .unwrap();
+    assert_ne!(local_store(home.path()).get(&second).unwrap(), before);
+    assert_eq!(
+        config::get_global_for_tenant(&first).await.unwrap().agents["custom"].runtime,
+        vw_config_types::agent::AgentRuntime::Native
+    );
+}
+
+#[tokio::test]
+async fn agent_runtime_lock_put_rejects_replacement_and_implicit_switches() {
+    use vw_config_types::agent::{AgentDefinitionConfig, AgentRuntime};
+    let _env_lock = crate::test_support::global_async_env_lock().lock().await;
+    let home = TempDir::new().unwrap();
+    let _home = EnvGuard::set("HOME", home.path().as_os_str());
+    let mut current = config::Config::default();
+    current.agents.insert(
+        "custom".into(),
+        AgentDefinitionConfig {
+            runtime: AgentRuntime::Acp { backend: "codex".into() },
+            permission: serde_json::json!({}),
+            ..Default::default()
+        },
+    );
+    config::save_config(&current).await.unwrap();
+    let state = state(current.clone(), false, &[]);
+    let before = local_store(home.path()).get(&TenantScope::default()).unwrap();
+    for runtime in [AgentRuntime::Native, AgentRuntime::Acp { backend: "claude".into() }] {
+        let mut incoming = current.clone();
+        incoming.agents.insert(
+            "custom".into(),
+            AgentDefinitionConfig {
+                runtime,
+                permission: serde_json::json!({}),
+                ..Default::default()
+            },
+        );
+        incoming.default_model = Some("must-not-leak".into());
+        let response = handle_api_config_put(
+            State(state.clone()),
+            Extension(TenantScope::default()),
+            HeaderMap::new(),
+            toml::to_string_pretty(&incoming).unwrap(),
+        )
+        .await
+        .into_response();
+        assert_eq!(response.status(), StatusCode::BAD_REQUEST);
+        assert!(
+            response_json(response).await["error"]
+                .as_str()
+                .unwrap()
+                .contains("runtime cannot be changed")
+        );
+        assert_eq!(local_store(home.path()).get(&TenantScope::default()).unwrap(), before);
+        assert_eq!(
+            serde_json::to_value(&*state.config.lock()).unwrap(),
+            serde_json::to_value(&current).unwrap()
+        );
+    }
+    let mut incoming: toml::Value =
+        toml::from_str(&toml::to_string_pretty(&current).unwrap()).unwrap();
+    incoming["agents"]["custom"].as_table_mut().unwrap().remove("runtime");
+    let response = handle_api_config_put(
+        State(state.clone()),
+        Extension(TenantScope::default()),
+        HeaderMap::new(),
+        toml::to_string_pretty(&incoming).unwrap(),
+    )
+    .await
+    .into_response();
+    assert_eq!(response.status(), StatusCode::BAD_REQUEST);
+    assert_eq!(local_store(home.path()).get(&TenantScope::default()).unwrap(), before);
+    let mut incoming = current.clone();
+    incoming.agents.get_mut("custom").unwrap().label = Some("Renamed".into());
+    let response = handle_api_config_put(
+        State(state.clone()),
+        Extension(TenantScope::default()),
+        HeaderMap::new(),
+        toml::to_string_pretty(&incoming).unwrap(),
+    )
+    .await
+    .into_response();
+    assert_eq!(response.status(), StatusCode::OK);
+    assert_eq!(state.config.lock().agents["custom"].label.as_deref(), Some("Renamed"));
+    incoming.agents.clear();
+    let response = handle_api_config_put(
+        State(state.clone()),
+        Extension(TenantScope::default()),
+        HeaderMap::new(),
+        toml::to_string_pretty(&incoming).unwrap(),
+    )
+    .await
+    .into_response();
+    assert_eq!(response.status(), StatusCode::OK);
+    assert!(state.config.lock().agents.is_empty());
+}
+
+#[tokio::test]
+async fn agent_runtime_lock_put_accepts_first_save_and_locks_native() {
+    use vw_config_types::agent::{AgentDefinitionConfig, AgentRuntime};
+    let _env_lock = crate::test_support::global_async_env_lock().lock().await;
+    let home = TempDir::new().unwrap();
+    let _home = EnvGuard::set("HOME", home.path().as_os_str());
+    let state = state(config::Config::default(), false, &[]);
+    let mut incoming = config::Config::default();
+    for (key, runtime) in [
+        ("custom-native", AgentRuntime::Native),
+        ("custom-codex", AgentRuntime::Acp { backend: "codex".into() }),
+        ("custom-claude", AgentRuntime::Acp { backend: "claude".into() }),
+    ] {
+        incoming.agents.insert(
+            key.into(),
+            AgentDefinitionConfig {
+                runtime,
+                permission: serde_json::json!({}),
+                ..Default::default()
+            },
+        );
+    }
+    let response = handle_api_config_put(
+        State(state.clone()),
+        Extension(TenantScope::default()),
+        HeaderMap::new(),
+        toml::to_string_pretty(&incoming).unwrap(),
+    )
+    .await
+    .into_response();
+    assert_eq!(response.status(), StatusCode::OK);
+    let saved = local_store(home.path()).get(&TenantScope::default()).unwrap();
+    incoming.agents.get_mut("custom-native").unwrap().runtime =
+        AgentRuntime::Acp { backend: "codex".into() };
+    let response = handle_api_config_put(
+        State(state.clone()),
+        Extension(TenantScope::default()),
+        HeaderMap::new(),
+        toml::to_string_pretty(&incoming).unwrap(),
+    )
+    .await
+    .into_response();
+    assert_eq!(response.status(), StatusCode::BAD_REQUEST);
+    assert_eq!(local_store(home.path()).get(&TenantScope::default()).unwrap(), saved);
+    assert_eq!(state.config.lock().agents["custom-native"].runtime, AgentRuntime::Native);
+}

@@ -4,6 +4,7 @@ use crate::app::components::system_settings_apps::catalog::CatalogRow;
 
 #[derive(Clone, Default)]
 pub(crate) struct AppsCatalogState {
+    pub lifecycle: crate::app::components::system_settings_apps::lifecycle::LifecycleState,
     pub host: String,
     pub token: String,
     pub connection_open: bool,
@@ -28,6 +29,7 @@ impl AppsCatalogState {
         self.loading = false;
         self.rows.clear();
         self.token.clear();
+        self.lifecycle.invalidate();
         self.connection_open = true;
         self.error = Some("连接上下文已更改，请重新输入应用管理令牌".into());
         true

@@ -105,6 +105,14 @@ pub fn preview(
     env: &LocalReadEnvironment,
     write: &WriteEnvironment,
 ) -> Result<Plan, String> {
+    preview_with_node(request, env, write, node_preflight::check)
+}
+fn preview_with_node(
+    request: AppActionPreviewRequest,
+    env: &LocalReadEnvironment,
+    write: &WriteEnvironment,
+    node_check: impl FnOnce(&AppInstallation, &WriteEnvironment) -> Result<(), String>,
+) -> Result<Plan, String> {
     validate(write, env)?;
     let report = scoped_discover(request.app_id, env, write)?;
     let (source, action) = match (&request.action, &request.target) {
@@ -126,6 +134,7 @@ pub fn preview(
         }
         (AppLifecycleAction::Update, AppActionTarget::Installation { installation_id }) => {
             let inst = selected(&report, installation_id, write)?;
+            node_check(&inst, write)?;
             let plan =
                 update::plan(&report, installation_id, &managers(write)).map_err(str::to_owned)?;
             (inst.source, Action::Update(plan))
@@ -219,3 +228,9 @@ where
     )
     .await
 }
+
+#[path = "local_node.rs"]
+mod node_preflight;
+#[cfg(test)]
+#[path = "local_node_tests.rs"]
+mod node_tests;

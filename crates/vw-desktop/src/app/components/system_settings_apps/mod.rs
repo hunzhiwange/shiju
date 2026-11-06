@@ -1,6 +1,9 @@
 pub(crate) mod catalog;
 #[cfg(test)]
 mod catalog_tests;
+pub(crate) mod lifecycle;
+#[cfg(test)]
+mod lifecycle_tests;
 
 use super::system_settings_common::*;
 use crate::app::{
@@ -44,6 +47,7 @@ pub(crate) fn view(state: &AppsCatalogState) -> Element<'_, Message> {
         content = content
             .push(text("选择已授权的执行主机后刷新应用列表。").style(settings_muted_text_style));
     }
+    content = content.push(lifecycle::progress(&state.lifecycle));
     for app in &state.rows {
         let mut details = column![text(&app.entry.name).size(18)].spacing(8);
         for kind in &app.entry.runtime_kinds {
@@ -57,6 +61,38 @@ pub(crate) fn view(state: &AppsCatalogState) -> Element<'_, Message> {
             );
         }
         if let Ok(observation) = &app.observation {
+            use vw_gateway_client::vw_api_types::agent_apps::*;
+            if observation.installations.is_empty()
+                && app.entry.runtime_kinds.contains(&AppRuntimeKind::NativeCli)
+            {
+                details = details.push(
+                    row![
+                        lifecycle::action_button(
+                            "macOS 安装预检",
+                            AppActionPreviewRequest {
+                                app_id: app.entry.id,
+                                action: AppLifecycleAction::Install,
+                                target: AppActionTarget::Environment {
+                                    environment: AppInstallationEnvironment::Macos
+                                }
+                            },
+                            !state.lifecycle.active() && state.lifecycle.preview.is_none()
+                        ),
+                        lifecycle::action_button(
+                            "Linux 安装预检",
+                            AppActionPreviewRequest {
+                                app_id: app.entry.id,
+                                action: AppLifecycleAction::Install,
+                                target: AppActionTarget::Environment {
+                                    environment: AppInstallationEnvironment::Linux
+                                }
+                            },
+                            !state.lifecycle.active() && state.lifecycle.preview.is_none()
+                        ),
+                    ]
+                    .spacing(10),
+                );
+            }
             for installation in &observation.installations {
                 details = details.push(
                     text(format!(
@@ -68,6 +104,17 @@ pub(crate) fn view(state: &AppsCatalogState) -> Element<'_, Message> {
                     ))
                     .size(12),
                 );
+                details = details.push(lifecycle::action_button(
+                    "升级此实例（预检）",
+                    AppActionPreviewRequest {
+                        app_id: app.entry.id,
+                        action: AppLifecycleAction::Update,
+                        target: AppActionTarget::Installation {
+                            installation_id: installation.id.clone(),
+                        },
+                    },
+                    !state.lifecycle.active() && state.lifecycle.preview.is_none(),
+                ));
             }
             if let Some(desktop) = &observation.desktop {
                 for path in desktop.app_bundles.iter().flatten() {
@@ -85,7 +132,7 @@ pub(crate) fn view_overlays<'a>(
     base: Element<'a, Message>,
 ) -> Element<'a, Message> {
     if !state.connection_open {
-        return base;
+        return lifecycle::overlay(&state.lifecycle, &state.host, base);
     }
     let close = message(AppsCatalogMessage::ConnectionClose);
     let host = text_input("管理员登记的主机 ID", &state.host)

@@ -32,6 +32,7 @@ impl GatewayClient {
             "actions/preview",
             host,
             Some(request),
+            None,
         )
         .await
     }
@@ -41,8 +42,14 @@ impl GatewayClient {
         host: &str,
         request: &AppActionSubmitRequest,
     ) -> Result<AppActionExecutionResult, AgentAppsLifecycleError> {
-        self.agent_apps_lifecycle_request(reqwest::Method::POST, "actions", host, Some(request))
-            .await
+        self.agent_apps_lifecycle_request(
+            reqwest::Method::POST,
+            "actions",
+            host,
+            Some(request),
+            None,
+        )
+        .await
     }
     /// Recover current state using the operation ID returned by submission.
     pub async fn agent_apps_operation(
@@ -54,6 +61,7 @@ impl GatewayClient {
             reqwest::Method::GET,
             &operation_path(id, false),
             host,
+            None,
             None,
         )
         .await
@@ -70,6 +78,7 @@ impl GatewayClient {
             &operation_path(id, true),
             host,
             None,
+            None,
         )
         .await
     }
@@ -84,6 +93,87 @@ impl GatewayClient {
             &operation_path(id, false),
             host,
             None,
+            None,
+        )
+        .await
+    }
+    /// Scoped application credential, with redirects and retries disabled.
+    pub async fn agent_apps_action_preview_authorized(
+        &self,
+        host: &str,
+        request: &AppActionPreviewRequest,
+        token: &str,
+    ) -> Result<AppActionPreview, AgentAppsLifecycleError> {
+        self.agent_apps_lifecycle_request(
+            reqwest::Method::POST,
+            "actions/preview",
+            host,
+            Some(request),
+            Some(token),
+        )
+        .await
+    }
+    /// Scoped application credential, with redirects and retries disabled.
+    pub async fn agent_apps_action_submit_authorized(
+        &self,
+        host: &str,
+        request: &AppActionSubmitRequest,
+        token: &str,
+    ) -> Result<AppActionExecutionResult, AgentAppsLifecycleError> {
+        self.agent_apps_lifecycle_request(
+            reqwest::Method::POST,
+            "actions",
+            host,
+            Some(request),
+            Some(token),
+        )
+        .await
+    }
+    /// Scoped application credential, with redirects and retries disabled.
+    pub async fn agent_apps_operation_authorized(
+        &self,
+        host: &str,
+        id: &TaskId,
+        token: &str,
+    ) -> Result<AppOperationStatus, AgentAppsLifecycleError> {
+        self.agent_apps_lifecycle_request::<(), _>(
+            reqwest::Method::GET,
+            &operation_path(id, false),
+            host,
+            None,
+            Some(token),
+        )
+        .await
+    }
+    /// Scoped application credential, with redirects and retries disabled.
+    pub async fn agent_apps_operation_events_authorized(
+        &self,
+        host: &str,
+        id: &TaskId,
+        token: &str,
+    ) -> Result<AppOperationStatus, AgentAppsLifecycleError> {
+        self.agent_apps_lifecycle_request::<(), _>(
+            reqwest::Method::GET,
+            &operation_path(id, true),
+            host,
+            None,
+            Some(token),
+        )
+        .await
+    }
+    /// Scoped application credential, with redirects and retries disabled.
+    pub async fn agent_apps_operation_cancel_authorized(
+        &self,
+        host: &str,
+        id: &TaskId,
+        token: &str,
+    ) -> Result<AppOperationStatus, AgentAppsLifecycleError> {
+        self.agent_apps_lifecycle_request::<(), _>(
+            reqwest::Method::DELETE,
+            &operation_path(id, false),
+            host,
+            None,
+            Some(token),
         )
         .await
     }
@@ -93,10 +183,11 @@ impl GatewayClient {
         resource: &str,
         host: &str,
         body: Option<&B>,
+        token: Option<&str>,
     ) -> Result<T, AgentAppsLifecycleError> {
         #[cfg(target_arch = "wasm32")]
         {
-            let _ = (method, resource, host, body);
+            let _ = (method, resource, host, body, token);
             Err(AgentAppsLifecycleError::Transport(
                 "lifecycle requests require a native transport with redirects and retries disabled"
                     .into(),
@@ -109,6 +200,13 @@ impl GatewayClient {
                 .dynamic_host_client
                 .request(method, format!("{}/v1/agent-apps/{resource}", self.endpoint.base_url()))
                 .query(&[("targetHostId", host)]);
+            if let Some(token) = token {
+                let mut value = reqwest::header::HeaderValue::from_str(token).map_err(|_| {
+                    AgentAppsLifecycleError::Transport("invalid application credential".into())
+                })?;
+                value.set_sensitive(true);
+                request = request.header("x-agent-apps-token", value);
+            }
             if let Some(body) = body {
                 request = request.json(body);
             }

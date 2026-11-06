@@ -6,6 +6,7 @@ use iced::Task;
 
 #[derive(Clone)]
 pub enum AppsCatalogMessage {
+    Lifecycle(super::apps_lifecycle::LifecycleMessage),
     ConnectionOpen,
     ConnectionClose,
     HostInput(String),
@@ -25,9 +26,13 @@ impl std::fmt::Debug for AppsCatalogMessage {
 }
 pub(super) fn update(app: &mut App, message: AppsCatalogMessage) -> Task<Message> {
     match message {
+        AppsCatalogMessage::Lifecycle(message) => {
+            return super::apps_lifecycle::update(app, message);
+        }
         AppsCatalogMessage::ConnectionOpen => app.apps_catalog.connection_open = true,
         AppsCatalogMessage::ConnectionClose => app.apps_catalog.connection_open = false,
         AppsCatalogMessage::HostInput(host) => {
+            app.apps_catalog.lifecycle.invalidate();
             app.apps_catalog.host = host;
             app.apps_catalog.generation = app.apps_catalog.generation.wrapping_add(1);
             app.apps_catalog.loading = false;
@@ -41,6 +46,7 @@ pub(super) fn update(app: &mut App, message: AppsCatalogMessage) -> Task<Message
                     tenant: client.endpoint().tenant_scope().clone(),
                     project: app.project_path.clone(),
                 });
+            app.apps_catalog.lifecycle.invalidate();
             app.apps_catalog.token = token;
             app.apps_catalog.generation = app.apps_catalog.generation.wrapping_add(1);
             app.apps_catalog.loading = false;

@@ -49,6 +49,18 @@ pub async fn update_node_gap(
     target: &str,
     probe_node: impl FnOnce(&AppInstallation) -> Option<String>,
 ) -> NodeRequirement {
+    update_node_gap_at(client, installation, target, probe_node, "https://registry.npmjs.org/")
+        .await
+}
+
+/// Internal metadata boundary, also used by isolated HTTP fixtures.
+pub(crate) async fn update_node_gap_at(
+    client: &reqwest::Client,
+    installation: &AppInstallation,
+    target: &str,
+    probe_node: impl FnOnce(&AppInstallation) -> Option<String>,
+    registry: &str,
+) -> NodeRequirement {
     if !applicable(installation) {
         return NodeRequirement::NotApplicable;
     }
@@ -68,7 +80,7 @@ pub async fn update_node_gap(
         AppId::Omp => "@oh-my-pi/pi-coding-agent",
         _ => return NodeRequirement::NotApplicable,
     };
-    let mut url = reqwest::Url::parse("https://registry.npmjs.org/").expect("fixed URL");
+    let mut url = reqwest::Url::parse(registry).expect("internal registry URL");
     url.path_segments_mut().expect("base URL").push(package).push(target);
     fetch_requirement(client, url.as_str(), &current).await
 }

@@ -4,6 +4,7 @@ mod acp;
 mod agent_apps;
 mod agents;
 mod apps_catalog;
+pub(crate) mod apps_lifecycle;
 mod autonomy;
 mod browser;
 mod channels;

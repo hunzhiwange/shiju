@@ -252,3 +252,8 @@ mod agent_apps_delete_tests;
 
 #[cfg(all(test, target_os = "macos"))]
 mod agent_apps_acceptance_tests;
+
+pub(crate) mod app_providers;
+
+#[cfg(test)]
+mod app_providers_tests;

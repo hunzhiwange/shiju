@@ -1,0 +1,207 @@
+//! Private, single-process API sessions. Call after execution-host authorization/validation.
+use super::request::LaunchMaterial;
+use crate::providers::validate_profile;
+use std::{
+    fs,
+    io::Write,
+    path::{Path, PathBuf},
+    process::{Command, Stdio},
+};
+use vw_api_types::{agent_apps::AppId, app_providers::AppProviderWrite};
+
+/// Not serializable or Debug: argv/environment must never become API responses or logs.
+pub struct ProviderLaunch {
+    program: PathBuf,
+    cwd: PathBuf,
+    args: Vec<String>,
+    env: Vec<(&'static str, String)>,
+    private: tempfile::TempDir,
+}
+impl ProviderLaunch {
+    /// Keep configuration alive until the child exits; drop removes it on all failure paths.
+    /// Returns only a fixed error, never child output (which may contain credentials).
+    pub fn run(self) -> Result<(), String> {
+        let mut command = Command::new(&self.program);
+        command.args(&self.args).current_dir(&self.cwd).env_clear();
+        // Preserve OS essentials only. Never inherit host API keys, runtime hooks or provider selectors.
+        for name in [
+            "PATH",
+            "HOME",
+            "USERPROFILE",
+            "SystemRoot",
+            "WINDIR",
+            "TEMP",
+            "TMP",
+            "LANG",
+            "LC_ALL",
+            "LC_CTYPE",
+            "TERM",
+            "COLORTERM",
+        ] {
+            if let Some(value) = std::env::var_os(name) {
+                command.env(name, value);
+            }
+        }
+        for (key, value) in &self.env {
+            command.env(key, value);
+        }
+        let result =
+            command.stdin(Stdio::null()).stdout(Stdio::null()).stderr(Stdio::null()).status();
+        // The private profile must outlive the process, even though it is not read here.
+        self.private.close().map_err(|_| "private provider configuration cleanup failed")?;
+        match result {
+            Ok(status) if status.success() => Ok(()),
+            Ok(_) => Err("provider process exited unsuccessfully".into()),
+            Err(_) => Err("provider process could not be started".into()),
+        }
+    }
+}
+
+fn write_private(path: &Path, value: &serde_json::Value) -> Result<(), String> {
+    write_bytes(path, value.to_string().as_bytes())
+}
+fn write_bytes(path: &Path, bytes: &[u8]) -> Result<(), String> {
+    let mut options = fs::OpenOptions::new();
+    options.write(true).create_new(true);
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::OpenOptionsExt;
+        options.mode(0o600);
+    }
+    options
+        .open(path)
+        .and_then(|mut file| file.write_all(bytes))
+        .map_err(|_| "cannot create private provider configuration".into())
+}
+
+pub fn prepare_provider_launch(
+    app: AppId,
+    profile: &AppProviderWrite,
+    material: LaunchMaterial,
+    private_temp_root: &Path,
+) -> Result<ProviderLaunch, String> {
+    validate_profile(app, profile)?;
+    if !material.program.is_absolute()
+        || !material.cwd.is_absolute()
+        || !material.program.is_file()
+        || !material.cwd.is_dir()
+        || !private_temp_root.is_absolute()
+    {
+        return Err("provider launch requires validated execution-host paths".into());
+    }
+    if material
+        .program
+        .extension()
+        .and_then(|s| s.to_str())
+        .is_some_and(|s| s.eq_ignore_ascii_case("cmd") || s.eq_ignore_ascii_case("bat"))
+    {
+        return Err("provider batch entrypoint requires a reviewed Windows host adapter".into());
+    }
+    if material.args.len() > 32
+        || material.args.iter().any(|arg| {
+            arg.starts_with('-') || arg.len() > 8192 || arg.chars().any(char::is_control)
+        })
+    {
+        return Err("invalid provider launch arguments".into());
+    }
+    // A project override could select another provider despite a private user profile.
+    for ancestor in material.cwd.ancestors() {
+        let conflict = match app {
+            AppId::Codex => ancestor.join(".codex/config.toml").exists(),
+            AppId::Gemini => {
+                ancestor.join(".gemini/settings.json").exists()
+                    || ancestor.join(".gemini/.env").exists()
+                    || ancestor.join(".env").exists()
+            }
+            _ => false,
+        };
+        if conflict {
+            return Err("project configuration conflicts with isolated provider launch".into());
+        }
+        if ancestor.join(".git").exists() {
+            break;
+        }
+    }
+    let mut builder = tempfile::Builder::new();
+    builder.prefix("shiju-provider-");
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::PermissionsExt;
+        builder.permissions(fs::Permissions::from_mode(0o700));
+    }
+    let private = builder
+        .tempdir_in(private_temp_root)
+        .map_err(|_| "cannot create private provider directory")?;
+    let path = private.path().to_str().ok_or("private provider directory is not UTF-8")?.to_owned();
+    let mut args = Vec::new();
+    let mut env = Vec::new();
+    use AppId::*;
+    match app {
+        Claude => {
+            let settings = private.path().join("settings.json");
+            write_private(&settings, &serde_json::json!({"model": profile.model}))?;
+            args.extend([
+                "--settings-sources".into(),
+                String::new(),
+                "--settings".into(),
+                settings.to_str().ok_or("invalid private settings path")?.into(),
+                "--model".into(),
+                profile.model.clone(),
+            ]);
+            env.extend([
+                ("CLAUDE_CONFIG_DIR", path),
+                ("ANTHROPIC_API_KEY", profile.api_key.clone()),
+                ("ANTHROPIC_BASE_URL", profile.base_url.clone()),
+            ]);
+        }
+        Codex => {
+            // JSON quoted strings are valid TOML basic strings after control characters are rejected.
+            let quote = |s: &str| serde_json::to_string(s).expect("string serialization");
+            let config = format!(
+                "model = {}\nmodel_provider = \"shiju_session\"\n[model_providers.shiju_session]\nname = \"Single process provider\"\nbase_url = {}\nenv_key = \"SHIJU_PROVIDER_API_KEY\"\nwire_api = \"responses\"\n",
+                quote(&profile.model),
+                quote(&profile.base_url)
+            );
+            write_bytes(&private.path().join("config.toml"), config.as_bytes())?;
+            env.extend([("CODEX_HOME", path), ("SHIJU_PROVIDER_API_KEY", profile.api_key.clone())]);
+        }
+        Gemini => {
+            let config_dir = private.path().join(".gemini");
+            fs::create_dir(&config_dir)
+                .map_err(|_| "cannot create private Gemini configuration")?;
+            write_private(
+                &config_dir.join("settings.json"),
+                &serde_json::json!({"security":{"auth":{"selectedType":"gemini-api-key"}}, "advanced":{"ignoreLocalEnv":true}, "model":{"name": profile.model}}),
+            )?;
+            args.extend(["--model".into(), profile.model.clone()]);
+            env.extend([
+                ("GEMINI_CLI_HOME", path),
+                ("GEMINI_API_KEY", profile.api_key.clone()),
+                ("GOOGLE_GEMINI_BASE_URL", profile.base_url.clone()),
+            ]);
+        }
+        Agy => {
+            write_private(
+                &private.path().join("settings.json"),
+                &serde_json::json!({"model":{"name":profile.model}}),
+            )?;
+            args.extend(["--gemini_dir".into(), path, "--model".into(), profile.model.clone()]);
+            env.extend([
+                ("GEMINI_API_KEY", profile.api_key.clone()),
+                ("GOOGLE_GEMINI_BASE_URL", profile.base_url.clone()),
+            ]);
+        }
+        // validate_profile rejects every unimplemented capability individually before creating files.
+        _ => return Err("application provider session capability is not implemented".into()),
+    }
+    if material.skip_permissions {
+        let flag = match app {
+            Claude | Agy => "--dangerously-skip-permissions",
+            Codex => "--dangerously-bypass-approvals-and-sandbox",
+            _ => return Err("permission skipping is not supported by this provider adapter".into()),
+        };
+        args.push(flag.into());
+    }
+    args.extend(material.args);
+    Ok(ProviderLaunch { program: material.program, cwd: material.cwd, args, env, private })
+}

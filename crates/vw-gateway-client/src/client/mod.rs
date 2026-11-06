@@ -275,3 +275,7 @@ impl GatewayClient {
 #[cfg(test)]
 #[path = "tests.rs"]
 mod tests;
+
+mod app_providers_api;
+#[cfg(test)]
+mod app_providers_api_tests;

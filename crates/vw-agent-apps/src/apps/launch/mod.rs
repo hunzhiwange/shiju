@@ -7,3 +7,7 @@ mod request_tests;
 pub mod windows;
 #[cfg(test)]
 mod windows_tests;
+
+pub mod provider;
+#[cfg(test)]
+mod provider_tests;

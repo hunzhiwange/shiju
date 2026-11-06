@@ -4,6 +4,7 @@ use crate::app::components::system_settings_apps::catalog::CatalogRow;
 
 #[derive(Clone, Default)]
 pub(crate) struct AppsCatalogState {
+    pub launch: crate::app::components::system_settings_apps::launch::LaunchState,
     pub preferences: crate::app::components::system_settings_apps::preferences::PreferencesState,
     pub lifecycle: crate::app::components::system_settings_apps::lifecycle::LifecycleState,
     pub host: String,
@@ -32,6 +33,7 @@ impl AppsCatalogState {
         self.token.clear();
         self.lifecycle.invalidate();
         self.preferences.invalidate();
+        self.launch.invalidate();
         self.connection_open = true;
         self.error = Some("连接上下文已更改，请重新输入应用管理令牌".into());
         true
@@ -39,6 +41,7 @@ impl AppsCatalogState {
 
     pub fn begin(&mut self, context: AgentAppsContext) -> u64 {
         self.preferences.invalidate();
+        self.launch.invalidate();
         self.generation = self.generation.wrapping_add(1);
         self.context = Some(context);
         self.loading = true;

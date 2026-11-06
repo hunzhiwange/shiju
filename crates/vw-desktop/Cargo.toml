@@ -184,3 +184,9 @@ name = "apps-preferences-window"
 path = "src/apps_preferences_window_main.rs"
 harness = false
 test = false
+
+[[test]]
+name = "apps-launch-window"
+path = "src/apps_launch_window_main.rs"
+harness = false
+test = false

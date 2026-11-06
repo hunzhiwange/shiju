@@ -111,6 +111,23 @@ impl GatewayClient {
         )
         .await
     }
+    /// Launch the selected instance with the separately granted application credential.
+    /// Identity launch remains unavailable until its server contract is delivered.
+    pub async fn agent_apps_launch_authorized(
+        &self,
+        host: &str,
+        request: &LaunchRequest,
+        token: &str,
+    ) -> Result<LaunchResult, AgentAppsSettingsError> {
+        self.agent_apps_settings_request(
+            reqwest::Method::POST,
+            "launch",
+            host,
+            Some(request),
+            Some(token),
+        )
+        .await
+    }
     async fn agent_apps_settings_request<B: Serialize, T: DeserializeOwned>(
         &self,
         method: reqwest::Method,

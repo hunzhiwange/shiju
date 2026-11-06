@@ -6,6 +6,7 @@ use iced::Task;
 
 #[derive(Clone)]
 pub enum AppsCatalogMessage {
+    Launch(crate::app::components::system_settings_apps::launch::LaunchMessage),
     Preferences(crate::app::components::system_settings_apps::preferences::PreferencesMessage),
     Lifecycle(super::apps_lifecycle::LifecycleMessage),
     ConnectionOpen,
@@ -27,6 +28,9 @@ impl std::fmt::Debug for AppsCatalogMessage {
 }
 pub(super) fn update(app: &mut App, message: AppsCatalogMessage) -> Task<Message> {
     match message {
+        AppsCatalogMessage::Launch(message) => {
+            return crate::app::components::system_settings_apps::launch::update(app, message);
+        }
         AppsCatalogMessage::Preferences(message) => {
             return crate::app::components::system_settings_apps::preferences::update(app, message);
         }
@@ -38,6 +42,7 @@ pub(super) fn update(app: &mut App, message: AppsCatalogMessage) -> Task<Message
         AppsCatalogMessage::HostInput(host) => {
             app.apps_catalog.lifecycle.invalidate();
             app.apps_catalog.preferences.invalidate();
+            app.apps_catalog.launch.invalidate();
             app.apps_catalog.host = host;
             app.apps_catalog.generation = app.apps_catalog.generation.wrapping_add(1);
             app.apps_catalog.loading = false;
@@ -53,6 +58,7 @@ pub(super) fn update(app: &mut App, message: AppsCatalogMessage) -> Task<Message
                 });
             app.apps_catalog.lifecycle.invalidate();
             app.apps_catalog.preferences.invalidate();
+            app.apps_catalog.launch.invalidate();
             app.apps_catalog.token = token;
             app.apps_catalog.generation = app.apps_catalog.generation.wrapping_add(1);
             app.apps_catalog.loading = false;

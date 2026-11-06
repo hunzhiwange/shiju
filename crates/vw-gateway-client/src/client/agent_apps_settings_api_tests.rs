@@ -205,3 +205,36 @@ async fn cc_apps_settings_launch_sdk_roundtrip_authorized_preferences() {
     }
     server.join();
 }
+
+#[tokio::test]
+async fn cc_apps_settings_launch_sdk_roundtrip_authorized_launch() {
+    let server = test_support::server(vec![
+        (200, json!({"installationId":"remote-instance"})),
+        (403, json!({"error":"private payload must not reach desktop"})),
+    ]);
+    let client = server.client();
+    assert_eq!(
+        client
+            .agent_apps_launch_authorized("host /?中文", &launch_request(), "separate-grant")
+            .await
+            .unwrap()
+            .installation_id
+            .0,
+        "remote-instance"
+    );
+    assert!(matches!(
+        client
+            .agent_apps_launch_authorized("host /?中文", &launch_request(), "separate-grant")
+            .await,
+        Err(AgentAppsSettingsError::Http { status: 403, .. })
+    ));
+    for _ in 0..2 {
+        let request = server.take_request();
+        assert_eq!(request.method, "POST");
+        assert_eq!(request.header("x-agent-apps-token"), Some("separate-grant"));
+        assert!(request.path.contains("targetHostId=host+%2F%3F%E4%B8%AD%E6%96%87"));
+        assert_eq!(request.body, serde_json::to_value(launch_request()).unwrap());
+        assert!(request.body.get("token").is_none());
+    }
+    server.join();
+}

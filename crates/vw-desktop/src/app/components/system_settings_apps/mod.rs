@@ -116,6 +116,14 @@ pub(crate) fn view(state: &AppsCatalogState) -> Element<'_, Message> {
                     ))
                     .size(12),
                 );
+                details = details.push(
+                    button(text("终端启动"))
+                        .padding([8, 16])
+                        .style(rounded_action_btn_style)
+                        .on_press(message(AppsCatalogMessage::Launch(
+                            launch::LaunchMessage::Open(app.entry.id, installation.id.clone()),
+                        ))),
+                );
                 details = details.push(lifecycle::action_button(
                     "升级此实例（预检）",
                     AppActionPreviewRequest {
@@ -159,9 +167,9 @@ pub(crate) fn view_overlays<'a>(
     base: Element<'a, Message>,
 ) -> Element<'a, Message> {
     if !state.connection_open {
-        return preferences::overlay(
+        return launch::overlay(
             state,
-            lifecycle::overlay(&state.lifecycle, &state.host, base),
+            preferences::overlay(state, lifecycle::overlay(&state.lifecycle, &state.host, base)),
         );
     }
     let close = message(AppsCatalogMessage::ConnectionClose);
@@ -212,3 +220,7 @@ mod uninstall_tests;
 pub(crate) mod preferences;
 #[cfg(test)]
 mod preferences_tests;
+
+pub(crate) mod launch;
+#[cfg(test)]
+mod launch_tests;

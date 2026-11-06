@@ -2,6 +2,7 @@ use crate::global_database::GlobalDatabase;
 use vw_api_types::app_providers::{AppProviderWrite, ProviderProtocol};
 fn profile(key: &str) -> AppProviderWrite {
     AppProviderWrite {
+        request_options: None,
         name: "fixture".into(),
         protocol: ProviderProtocol::Anthropic,
         api_key: key.into(),

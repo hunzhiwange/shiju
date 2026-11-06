@@ -1007,3 +1007,57 @@ Gateway 的 3 项有效测试通过真实 loopback HTTP 与正式 SDK 验证四�
 `sw_vers`、`uname -m` 退出 0：macOS 27.0（26A428）、arm64；原生 crate 0.6.0。真实已安装 CLI 应用/版本、账号、钥匙串、Iced 窗口、正式登录/激活及 Windows/Linux 未验收；不将临时配置与本地 HTTP 等同于真实应用切换。
 
 定向差异/暂存检查覆盖本任务实现、独立测试、最少注册与只读支持，排除其他会话桌面终端、母任务状态及既有编号文件删除；只读 plan.md 无差异。自身槽位锁释放、缓存保留。未运行全量 cargo test、fmt check、wasm 或 Makefile。任务标记完成后删除编号文件且不纳入提交，正式证据保留。
+
+## 任务 23：公共字段与请求校验原生化
+
+2026-11-07；状态：已完成（公共字段存储与校验；不代表原生应用 live/代理执行已验收）。
+
+### 依赖与来源
+
+核对批次 22 提交 `08b6d3c0d` 及正式证据；母任务 1、3 已完成，母任务 2 沿用任务 1 底座子计划 1–93 开工裁定，完整领域迁移仍未收口。本任务继续执行指令明确授权最小扩展公共字段 DTO 和既有 save/create/update 保存链，未把缺失输入契约当作外部阻塞，也未改只读 plan.md。
+
+来源 `/Users/xiangmin/worker/code/cc-switch` HEAD `ca58c0313360eae7c851fbd7553c1614c7af03e7`，本轮 `rev-parse HEAD`、`status --short` 退出 0，工作区干净。读取 `ProviderForm.tsx::handleSubmit`、meta 构造及 key 字段状态，`helpers/requestHeaders.ts::{normalizeRequestHeaders,findRequestHeaderValue}`、`schemas/provider.ts::providerSchema`、`lib/requestOverrides.ts` 和相邻 `tests/lib/requestOverrides.test.ts`；核对普通头的 Kimi/Pi/OpenCode/Mcode 调用位置和原生入口的 DTO、业务规则、存储、Gateway/SDK 直接调用者。来源测试未运行。RustCodeGraph status 可用；explore 无输出后终止本会话进程，改用定向 rg/读取当前文件，没有重建索引。
+
+### 唯一所有者与输入语义
+
+- `vw-api-types/src/app_providers/validation.rs` 定义 `ProviderRequestOptions`、`ProviderRequestOverrides`、`ProviderApiKeyField`；现有 `AppProviderWrite`、`AppProviderCreate`、`AppProviderUpdate` 和 `ProviderPreviewRequest` 增加可省略的 `requestOptions`，不新增独立 validation/任意配置写 API。字段为 `requestHeaders`、`apiKeyField`、`localProxyRequestOverrides`，沿用来源成员名，统一封装为原生公共字段域；不扩展协议或新增 features/dependencies。
+- 旧 JSON 省略 requestOptions 仍按原 profile 工作；PUT/PATCH 均保留省略的公共成员，普通头 map 整体替换、空 map 清除，代理覆盖对象整体替换、空对象清除。显式 null、未知公共字段、非法 key 选择、非字符串头、非对象 body、完全同名重复 JSON 头拒绝。key 仅接受 ANTHROPIC_AUTH_TOKEN / ANTHROPIC_API_KEY（显式 AuthToken 恢复来源默认选择），Claude/Codex 可保存选择及代理覆盖，其余应用拒绝不支持的成员；原 profile 的协议/应用能力边界不扩大。
+- `vw-agent-apps/src/providers/validation.rs` 为公共地址、请求头及覆盖规则的唯一 Rust 所有者。地址要求 HTTPS 或 loopback HTTP，无用户信息/query/fragment，拒绝空值、超长、空白、控制符、反斜杠及缺 `://`；档案 validate_profile 与 endpoints 地址簿共用此规则。头名/值使用现有 reqwest 的 HTTP parser，拒绝控制字符、draft-header、按 trim/大小写归一后的重复名，保存为 trim 后小写。单组头最多 64 个、名称 256 字节、值 8192 字节，公共选项有 128 KiB 内部上限；HTTP 保存入口继续受既有 16 KiB 请求限制约束。
+- 普通请求头允许显式 Authorization 等自定义鉴权头；代理覆盖头独立应用来源完整受保护集合，包括鉴权、路由、传输、代理及追踪头，大小写变化不能绕过。代理 body 保留供应商扩展字段，但禁止存在 stream（即使 false/null），不迁入模型/能力知识或 14 套应用特殊 schema。
+- create 在插入前校验/归一；update 在唯一档案上合并后校验；`AppProviderStore::save` 改为保留既有未知/应用独有字段的合并写，复用既有 compare_exchange/insert_if_absent，竞争返回既有 409，不覆盖并发更新。不创建第二数据库或存储所有者。duplicate/universal sync/启动的既有 validate_profile 调用同样覆盖新公共字段。读取保存档案时只增加受控 requestOptions，不把 opaque settingsConfig/meta 反序列化为任意写 DTO。
+- 预览接入相同类型与校验：providerId 读取时从执行端档案合并已保存公共选项，读取权限在路径/档案访问前检查；来源 meta 中已存在的公共字段也校验，未知应用元数据保留。Claude/Gemini 已识别的草稿端点、Codex 选中路由的 base_url/http_headers、Grok 选中模型表的 base_url/extra_headers 复用公共规则；仅校验已有投影所有者选出的连接字段，不迁移其余 schema。原有官方/托管/登录不可用边界保留，合法来源 Codex 非空 meta 也不因此被宣称已支持。
+
+### API、秘密与执行结果
+
+沿用现有 `POST/PUT/PATCH /v1/app-providers/{app}/{id}` 及 `POST /v1/app-providers/{app}/config/preview`，父 router、标准/bootstrap 注册及权限边界均未新增授权。SDK 继续使用 app_provider_create/save/update/preview；不另加无保存调用者的校验端点。write-only options/overrides 的 Debug 整体脱敏；SDK PUT 从通用带载荷日志 helper 改为与 create/update 一致的领域请求，仅报告固定错误和状态，丢弃失败原始响应体。响应仍只有既有脱敏 summary 或脱敏 preview，不返回请求头、body 或秘密。
+
+真实 loopback SDK→正式 handler_router→隔离 SQLite 验证合法 Authorization 普通头、key 选择及代理扩展 body 持久保存，头名归一；受保护代理头经 POST/PUT/PATCH 均 400，记录值和成员数不变。随后通过真实 SDK 局部编辑、旧式 PUT、显式清除，重读临时数据库确认应用 settingsConfig、未知嵌套 meta、未编辑公共成员保留。Basic 认证拒绝 401 且无记录；类型/未知字段/控制字符绕过均 400，响应无假秘密。预览由真实策略文件/HTTP 验证无效 token 401、合法 reader 的非法选项 400，私有目录与策略字节不变、无配置/pending/锁新增。
+
+SDK transport 测试替代 HTTP 对端，仅检查传输形状、固定状态错误和丢弃原响应；另用真实 tracing Subscriber 的正向 capture-ready 信号确认捕获有效，POST/PUT/PATCH 的 key、普通头、代理任意 body 不进入领域日志。业务测试使用真实临时目录和 JSON/本地配置，未替代公共校验函数；所有凭据均为 fixture。
+
+保存公共字段不等于已在 CLI/代理执行这些选项。现有隔离启动器对非空公共请求选项明确报“requires a native application adapter”，在创建临时配置前拒绝，避免静默忽略；省略、空选项及已清空的头/覆盖保留原启动行为。源脚本启动回归只验收已有隔离启动机制，不代表真实安装应用/登录成功。应用适配、代理消费、编辑器 UI 仍归后续任务。
+
+### 红绿验证与 macOS
+
+红、首次绿、最终绿/回归阶段均通过原子 mkdir 动态领取槽位 **1**，`CARGO_TARGET_DIR=/Users/xiangmin/worker/code/shiju/target/rust-slot-1`；仓库 build.build-dir 另配置 target，故所有 Cargo 同时继承 `CARGO_BUILD_BUILD_DIR=/Users/xiangmin/worker/code/shiju/target/rust-slot-1`。锁记录计划/任务/会话/PID，阶段结束 trap 删除自身 owner 后 rmdir，缓存保留；未操作其他会话槽位或进程。
+
+红阶段 `cargo fmt --all` 退出 0，四条同名过滤测试的退出码分别为 **101 / 0 / 101 / 0**，有效测试数 **2 / 1 / 1 / 1**。业务两项在非法头被放行、局部更新丢失公共字段断言失败；Gateway 真 SDK/HTTP 在受保护代理 Authorization 被创建成功处失败。不是模块缺失、编译错误或零测试。首次绿四包 **4 / 2 / 3 / 2** 项通过，强制 Clippy 退出 0；审查后补原生预览连接字段、日志捕获及空选项启动验证，以下为最终结果：
+
+| 最终确切命令 | 退出码 | 有效测试数 / 结果 |
+| --- | --- | --- |
+| `cargo fmt --all` | 0 | 无无关格式差异 |
+| `cargo test -p vw-agent-apps --lib cc04_validation_ -- --nocapture` | 0 | 6 通过 |
+| `cargo test -p vw-api-types --lib cc04_validation_ -- --nocapture` | 0 | 2 通过 |
+| `cargo test -p vw-agent --lib cc04_validation_ -- --nocapture` | 0 | 3 通过 |
+| `cargo test -p vw-gateway-client --lib cc04_validation_ -- --nocapture` | 0 | 3 通过 |
+| `cargo test -p vw-agent-apps --lib providers:: -- --nocapture` | 0 | 105 通过 |
+| `cargo test -p vw-agent-apps --lib cc_apps_provider_launch_isolation_ -- --nocapture` | 0 | 9 通过 |
+| `cargo test -p vw-agent --lib app_providers -- --nocapture` | 0 | 40 通过 |
+| `cargo test -p vw-gateway-client --lib app_providers -- --nocapture` | 0 | 19 通过 |
+| `cargo clippy --all-targets --all-features -- -D warnings` | 0 | 全 targets/features 通过 |
+
+回归过滤包含部分同名聚焦测试，不叠加为独立行为数量；providers/启动回归中的子进程输出不重复计入父测试数。业务 6 项包括两项指定具名断言、普通/代理头区分与清除、预览源 meta/公共选项拒绝、四应用既有原生请求字段拒绝、未实现启动选项无文件副作用及空选项兼容。Gateway 3 项包括真实 SQLite 写入链、认证/坏请求无副作用、独立预览授权；SDK 3 项包括 wire/error、PUT 原始错误丢弃和真实 tracing 日志捕获。测试链接阶段出现 macOS ld 的既有大 __eh_frame 提示，但命令成功；强制 Clippy 无警告退出 0。最终槽位 1 锁已不存在，缓存保留。
+
+`sw_vers` / `uname -m` 退出 0：macOS 27.0（26A428）、arm64；原生 crate 0.6.0。未验收真实安装 CLI/桌面应用版本、账号/钥匙串、Iced 窗口、真实代理/应用激活或 Windows/Linux；这些限制不被临时存储/HTTP/脚本测试替代。
+
+定向 git diff --check、暂存差异审查通过；只提交本任务公共 DTO、校验、保存/预览/SDK/启动必要连线、独立测试、既有 literal 的兼容默认值和本条证据。未纳入母任务状态、此前编号任务删除及其他会话差异；只读 plan.md 无差异。任务完成后删除编号文件且不提交其删除，正式证据保留。未运行全量 cargo test、fmt check、wasm 或 Makefile。

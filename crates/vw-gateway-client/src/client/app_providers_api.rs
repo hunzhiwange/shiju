@@ -11,7 +11,18 @@ impl GatewayClient {
         id: &str,
         profile: &AppProviderWrite,
     ) -> Result<AppProviderSummary, String> {
-        self.put_json(&provider_path(app, id)?, &[], profile).await
+        let path = provider_path(app, id)?;
+        let request =
+            self.client.put(format!("{}{}", self.endpoint.base_url(), path)).json(profile);
+        let response = crate::http::apply_request_context(request, &self.endpoint)
+            .send()
+            .await
+            .map_err(|_| "application provider save transport failed")?;
+        let status = response.status();
+        if !status.is_success() {
+            return Err(format!("application provider save failed: {}", status.as_u16()));
+        }
+        response.json().await.map_err(|_| "invalid application provider save response".into())
     }
     pub async fn app_provider_get(
         &self,
@@ -107,3 +118,7 @@ mod preview;
 #[cfg(test)]
 #[path = "app_providers/preview_tests.rs"]
 mod preview_tests;
+
+#[cfg(test)]
+#[path = "app_providers/validation_tests.rs"]
+mod validation_tests;

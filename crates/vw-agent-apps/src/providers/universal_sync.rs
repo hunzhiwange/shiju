@@ -147,6 +147,7 @@ pub fn project(
         _ => return Err(UnsupportedApp),
     };
     let profile = AppProviderWrite {
+        request_options: None,
         name: config.name.clone(),
         protocol,
         base_url,

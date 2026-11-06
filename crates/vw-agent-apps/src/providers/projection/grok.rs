@@ -49,6 +49,14 @@ pub fn project(
         shown["config"] = value(&row_doc)?;
         return Err(Error::Draft(shown));
     }
+    if let Some(table) = target.as_ref().and_then(|id| row_doc.get("model").and_then(|m| m.get(id)))
+    {
+        crate::providers::validation::native_request(
+            table.get("base_url"),
+            table.get("extra_headers"),
+        )
+        .map_err(|_| Error::Shape)?;
+    }
     let mut retired = vec![];
     if let Some(previous) = previous {
         let doc =

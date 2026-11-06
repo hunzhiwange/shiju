@@ -24,6 +24,12 @@ pub struct AppProviderCreate {
     pub api_key: ProviderSecretWrite,
     pub base_url: String,
     pub model: String,
+    #[serde(
+        default,
+        deserialize_with = "crate::app_providers::validation::present",
+        skip_serializing_if = "Option::is_none"
+    )]
+    pub request_options: Option<crate::app_providers::validation::ProviderRequestOptions>,
     /// Required, with no default. Only false is supported by this create-only operation.
     pub add_to_live: bool,
 }

@@ -7,6 +7,7 @@ use vw_api_types::{
 fn cc_apps_omp_provider_private_projection_is_available() {
     let root = tempfile::tempdir().unwrap();
     let profile = AppProviderWrite {
+        request_options: None,
         name: "fixture".into(),
         protocol: ProviderProtocol::OpenaiResponses,
         api_key: "fixture-key".into(),
@@ -29,6 +30,7 @@ fn cc_apps_omp_provider_private_projection_is_available() {
 
 fn profile() -> AppProviderWrite {
     AppProviderWrite {
+        request_options: None,
         name: "fixture".into(),
         protocol: ProviderProtocol::OpenaiResponses,
         api_key: "fixture-key-only".into(),

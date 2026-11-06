@@ -14,6 +14,9 @@ pub fn profile(stored: &serde_json::Value) -> Result<AppProviderWrite, String> {
             stored.get(key).cloned().ok_or("invalid stored application provider profile")?,
         );
     }
+    if let Some(options) = stored.get("requestOptions") {
+        fields.insert("requestOptions".into(), options.clone());
+    }
     serde_json::from_value(fields.into())
         .map_err(|_| "invalid stored application provider profile".into())
 }
@@ -53,6 +56,11 @@ pub fn update(
             return Err("application provider requires a credential".into());
         }
     }
+    if let Some(options) = &request.request_options {
+        value.request_options =
+            Some(super::validation::merge(app, value.request_options.as_ref(), options)?);
+    }
+    super::validation::metadata(app, stored.get("meta"))?;
     validate_profile(app, &value)?;
     let fields = serde_json::to_value(value).map_err(|_| "invalid application provider profile")?;
     let mut updated = stored.clone();

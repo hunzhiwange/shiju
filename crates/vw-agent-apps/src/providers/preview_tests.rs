@@ -11,6 +11,7 @@ use serde_json::json;
 use vw_api_types::{agent_apps::AppId, app_providers::preview::*};
 fn request(settings: serde_json::Value) -> ProviderPreviewRequest {
     ProviderPreviewRequest {
+        request_options: None,
         target_host_id: "host".into(),
         directory_override: None,
         settings,

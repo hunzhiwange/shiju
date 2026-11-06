@@ -21,6 +21,11 @@ pub fn create(
         return Err("new application provider requires explicit credential replacement".into());
     };
     let profile = AppProviderWrite {
+        request_options: request
+            .request_options
+            .as_ref()
+            .map(|v| super::validation::merge(app, None, v))
+            .transpose()?,
         name: request.name.clone(),
         protocol: request.protocol,
         api_key: value.clone(),

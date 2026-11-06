@@ -4,6 +4,7 @@ use vw_api_types::{
 };
 fn request() -> AppProviderCreate {
     AppProviderCreate {
+        request_options: None,
         name: "fixture".into(),
         protocol: ProviderProtocol::Anthropic,
         api_key: ProviderSecretWrite::Replace { value: "fixture-private-key".into() },

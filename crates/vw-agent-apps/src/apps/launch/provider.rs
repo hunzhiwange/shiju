@@ -89,6 +89,16 @@ pub fn prepare_provider_launch(
     private_temp_root: &Path,
 ) -> Result<ProviderLaunch, String> {
     validate_profile(app, profile)?;
+    if profile.request_options.as_ref().is_some_and(|v| {
+        v.api_key_field.is_some()
+            || v.request_headers.as_ref().is_some_and(|h| !h.is_empty())
+            || v.local_proxy_request_overrides.as_ref().is_some_and(|o| {
+                o.headers.as_ref().is_some_and(|h| !h.is_empty())
+                    || o.body.as_ref().is_some_and(|b| !b.is_empty())
+            })
+    }) {
+        return Err("provider request options require a native application adapter".into());
+    }
     if !material.program.is_absolute()
         || !material.cwd.is_absolute()
         || !material.program.is_file()

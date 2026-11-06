@@ -26,9 +26,22 @@ pub struct AppProviderUpdate {
     pub base_url: Option<String>,
     #[serde(default, deserialize_with = "present", skip_serializing_if = "Option::is_none")]
     pub model: Option<String>,
+    #[serde(
+        default,
+        deserialize_with = "crate::app_providers::validation::present",
+        skip_serializing_if = "Option::is_none"
+    )]
+    pub request_options: Option<crate::app_providers::validation::ProviderRequestOptions>,
 }
 impl Default for AppProviderUpdate {
     fn default() -> Self {
-        Self { name: None, protocol: None, api_key: keep(), base_url: None, model: None }
+        Self {
+            name: None,
+            protocol: None,
+            api_key: keep(),
+            base_url: None,
+            model: None,
+            request_options: None,
+        }
     }
 }

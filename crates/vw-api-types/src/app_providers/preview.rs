@@ -11,6 +11,12 @@ pub struct ProviderPreviewRequest {
     pub category: Option<String>,
     pub provider_id: Option<String>,
     pub meta: Option<Value>,
+    #[serde(
+        default,
+        deserialize_with = "super::validation::present",
+        skip_serializing_if = "Option::is_none"
+    )]
+    pub request_options: Option<super::validation::ProviderRequestOptions>,
 }
 impl std::fmt::Debug for ProviderPreviewRequest {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {

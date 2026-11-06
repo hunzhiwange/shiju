@@ -7,6 +7,7 @@ async fn cc04_preview_sdk_encodes_target_and_redacts_denial() {
         TenantScope::new("p", "a").unwrap(),
     );
     let request = ProviderPreviewRequest {
+        request_options: None,
         target_host_id: "host /?&".into(),
         directory_override: Some("~/custom".into()),
         settings: serde_json::json!({"apiKey":"fixture-secret"}),

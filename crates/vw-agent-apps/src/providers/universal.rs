@@ -14,6 +14,7 @@ fn validate(config: &UniversalConfig, secret: &str) -> Result<(), String> {
     validate_profile(
         AppId::Claude,
         &AppProviderWrite {
+            request_options: None,
             name: config.name.clone(),
             protocol: ProviderProtocol::Anthropic,
             base_url: config.base_url.clone(),

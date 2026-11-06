@@ -48,16 +48,9 @@ pub fn validate_profile(app: AppId, profile: &AppProviderWrite) -> Result<(), St
     if profile.model.starts_with('-') {
         return Err("invalid application provider model".into());
     }
-    let url = reqwest::Url::parse(&profile.base_url).map_err(|_| "invalid provider endpoint")?;
-    let local = matches!(url.host_str(), Some("localhost" | "127.0.0.1" | "[::1]"));
-    if (url.scheme() != "https" && !(url.scheme() == "http" && local))
-        || url.host_str().is_none()
-        || !url.username().is_empty()
-        || url.password().is_some()
-        || url.query().is_some()
-        || url.fragment().is_some()
-    {
-        return Err("provider endpoint requires HTTPS or loopback HTTP without credentials, query or fragment".into());
+    validation::endpoint(&profile.base_url)?;
+    if let Some(options) = &profile.request_options {
+        validation::validate(app, options)?;
     }
     Ok(())
 }
@@ -113,3 +106,7 @@ pub mod preview;
 mod preview_tests;
 
 mod projection;
+
+pub mod validation;
+#[cfg(test)]
+mod validation_tests;

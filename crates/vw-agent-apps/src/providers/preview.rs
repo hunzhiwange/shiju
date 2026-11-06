@@ -42,6 +42,14 @@ pub fn read(
     {
         return Err("invalid preview draft");
     }
+    if let Some(options) = &request.request_options {
+        super::validation::validate(app, options).map_err(|_| "invalid preview request options")?;
+    }
+    super::validation::metadata(
+        app,
+        request.meta.as_ref().or_else(|| request.settings.get("meta")),
+    )
+    .map_err(|_| "invalid preview request metadata")?;
     let paths =
         super::paths::read(home, app, request.directory_override.as_deref(), &BTreeMap::new())?;
     if paths.files.iter().any(|f| f.state == ConfigPathState::Inaccessible) {

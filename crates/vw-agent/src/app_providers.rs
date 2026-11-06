@@ -93,11 +93,40 @@ impl AppProviderStore {
     ) -> Result<AppProviderSummary, String> {
         let key = Self::key(app, id)?;
         validate_profile(app, profile)?;
-        let value =
-            serde_json::to_string(profile).map_err(|_| "invalid application provider profile")?;
-        self.settings
-            .upsert(tenant, NAMESPACE, &key, &value)
+        let before = self
+            .settings
+            .get(tenant, NAMESPACE, &key)
             .map_err(|_| "application provider storage unavailable")?;
+        let input = vw_api_types::app_providers::update::AppProviderUpdate {
+            name: Some(profile.name.clone()),
+            protocol: Some(profile.protocol),
+            api_key: vw_api_types::app_providers::create::ProviderSecretWrite::Replace {
+                value: profile.api_key.clone(),
+            },
+            base_url: Some(profile.base_url.clone()),
+            model: Some(profile.model.clone()),
+            request_options: profile.request_options.clone(),
+        };
+        let stored = match &before {
+            Some(raw) => serde_json::from_str(raw)
+                .map_err(|_| "invalid stored application provider profile")?,
+            None => {
+                serde_json::to_value(profile).map_err(|_| "invalid application provider profile")?
+            }
+        };
+        let updated = vw_agent_apps::providers::update::update(app, id, &stored, &input)?;
+        let value =
+            serde_json::to_string(&updated).map_err(|_| "invalid application provider profile")?;
+        let saved = match before {
+            Some(before) => {
+                self.settings.compare_exchange(tenant, NAMESPACE, &key, &before, &value)
+            }
+            None => self.settings.insert_if_absent(tenant, NAMESPACE, &key, &value),
+        }
+        .map_err(|_| "application provider storage unavailable")?;
+        if !saved {
+            return Err("application provider changed during update".into());
+        }
         Ok(Self::summary(app, id, profile))
     }
     /// Insert a new record without activation; existing records are never replaced.

@@ -83,6 +83,7 @@ mod host_reads {
                     app,
                     id,
                     &AppProviderWrite {
+                        request_options: None,
                         name: id.into(),
                         protocol: if app == AppId::Claude {
                             ProviderProtocol::Anthropic

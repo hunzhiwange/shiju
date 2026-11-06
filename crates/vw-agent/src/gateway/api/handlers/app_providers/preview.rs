@@ -78,6 +78,20 @@ async fn read(
             if request.meta.is_none() {
                 request.meta = record.get("meta").filter(|v| !v.is_null()).cloned();
             }
+            if let Some(options) = record.get("requestOptions") {
+                let saved = serde_json::from_value(options.clone())
+                    .map_err(|_| StatusCode::SERVICE_UNAVAILABLE)?;
+                // Validate saved fields even if this preview supplies a partial override.
+                vw_agent_apps::providers::validation::validate(app, &saved)
+                    .map_err(|_| StatusCode::BAD_REQUEST)?;
+                request.request_options = Some(match &request.request_options {
+                    Some(incoming) => {
+                        vw_agent_apps::providers::validation::merge(app, Some(&saved), incoming)
+                            .map_err(|_| StatusCode::BAD_REQUEST)?
+                    }
+                    None => saved,
+                });
+            }
         }
         vw_agent_apps::providers::preview::read(&home, app, &request, &owner)
             .map(|value| Json(value).into_response())

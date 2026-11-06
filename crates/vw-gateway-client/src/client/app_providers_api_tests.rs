@@ -13,6 +13,7 @@ async fn cc_apps_provider_launch_isolation_sdk_uses_domain_identity_and_tenant()
         TenantScope::new("p", "a").unwrap(),
     );
     let profile = AppProviderWrite {
+        request_options: None,
         name: "fixture".into(),
         protocol: ProviderProtocol::Anthropic,
         api_key: "fixture-key-only".into(),

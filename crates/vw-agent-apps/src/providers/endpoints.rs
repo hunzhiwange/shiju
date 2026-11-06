@@ -5,25 +5,8 @@ use vw_api_types::app_providers::endpoints::{
 
 fn normalize(raw: &str, kind: AppProviderEndpointKind) -> Result<String, String> {
     let value = raw.trim();
-    if value.is_empty()
-        || value.len() > 2048
-        || value.chars().any(|c| c.is_control() || c.is_whitespace())
-        || value.contains('\\')
-    {
-        return Err("invalid application provider endpoint".into());
-    }
+    super::validation::endpoint(value)?;
     let url = reqwest::Url::parse(value).map_err(|_| "invalid application provider endpoint")?;
-    let local = matches!(url.host_str(), Some("localhost" | "127.0.0.1" | "[::1]"));
-    if (url.scheme() != "https" && !(url.scheme() == "http" && local))
-        || url.host_str().is_none()
-        || !url.username().is_empty()
-        || url.password().is_some()
-        || url.query().is_some()
-        || url.fragment().is_some()
-        || !value.contains("://")
-    {
-        return Err("invalid application provider endpoint".into());
-    }
     match kind {
         AppProviderEndpointKind::BaseUrl => Ok(value.trim_end_matches('/').into()),
         AppProviderEndpointKind::FullUrl => {

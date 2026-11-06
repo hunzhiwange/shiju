@@ -6,6 +6,7 @@ use vw_api_types::{
 
 pub(super) fn profile(protocol: ProviderProtocol) -> AppProviderWrite {
     AppProviderWrite {
+        request_options: None,
         name: "fixture".into(),
         protocol,
         api_key: "fixture-key-only".into(),

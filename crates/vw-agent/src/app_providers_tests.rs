@@ -2,6 +2,7 @@ use super::*;
 use vw_api_types::{agent_apps::*, app_providers::ProviderProtocol};
 fn profile(key: &str) -> AppProviderWrite {
     AppProviderWrite {
+        request_options: None,
         name: "fixture".into(),
         protocol: ProviderProtocol::Anthropic,
         api_key: key.into(),

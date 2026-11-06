@@ -45,6 +45,7 @@ async fn cc04_preview_sdk_api_projects_without_writing_and_denies_permission() {
     )
     .unwrap();
     let mut request = ProviderPreviewRequest {
+        request_options: None,
         target_host_id: "host".into(),
         directory_override: None,
         settings: serde_json::json!({"env":{"ANTHROPIC_API_KEY":"draft-secret","ANTHROPIC_MODEL":"m"},"hooks":{"keep":false}}),
@@ -159,6 +160,7 @@ async fn cc04_preview_existing_record_and_owner_are_read_only_and_tenant_scoped(
     let endpoint = GatewayEndpoint::new("127.0.0.1", addr.port());
     let client = GatewayClient::new(endpoint.clone().with_tenant_scope(tenant.clone())).unwrap();
     let req = ProviderPreviewRequest {
+        request_options: None,
         target_host_id: "host".into(),
         provider_id: Some("saved".into()),
         meta: None,

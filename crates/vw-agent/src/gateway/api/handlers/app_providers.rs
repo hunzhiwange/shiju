@@ -162,3 +162,7 @@ mod preview;
 #[cfg(test)]
 #[path = "app_providers/preview_tests.rs"]
 mod preview_tests;
+
+#[cfg(test)]
+#[path = "app_providers/validation_tests.rs"]
+mod validation_tests;

@@ -19,6 +19,12 @@ pub struct AppProviderWrite {
     pub api_key: String,
     pub base_url: String,
     pub model: String,
+    #[serde(
+        default,
+        deserialize_with = "crate::app_providers::validation::present",
+        skip_serializing_if = "Option::is_none"
+    )]
+    pub request_options: Option<crate::app_providers::validation::ProviderRequestOptions>,
 }
 impl std::fmt::Debug for AppProviderWrite {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
@@ -90,3 +96,7 @@ mod paths_tests;
 pub mod preview;
 #[cfg(test)]
 mod preview_tests;
+
+pub mod validation;
+#[cfg(test)]
+mod validation_tests;

@@ -37,6 +37,16 @@ pub fn project(
     let text = row.get("config").and_then(Value::as_str).unwrap_or("");
     let row_doc = toml(text, "draft.config")?;
     let projection = parse(row, false)?;
+    match &projection.route {
+        Route::Custom { table, .. } | Route::BuiltIn { table: Some(table), .. } => {
+            crate::providers::validation::native_request(
+                table.get("base_url"),
+                table.get("http_headers"),
+            )
+            .map_err(|_| Error::Shape)?;
+        }
+        _ => {}
+    }
     let before = value(&live)?;
     let mut edits = TomlPatch::default();
     for key in fields::CODEX_FLOOR_TOP {

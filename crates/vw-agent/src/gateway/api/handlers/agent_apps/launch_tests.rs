@@ -229,6 +229,7 @@ async fn identity_roundtrip(
             AppId::Claude,
             "selected-provider",
             &AppProviderWrite {
+                request_options: None,
                 name: "中文供应商".into(),
                 protocol: ProviderProtocol::Anthropic,
                 api_key: "fixture-private-key".into(),

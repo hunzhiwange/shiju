@@ -127,6 +127,10 @@ pub mod gemini;
 #[cfg(test)]
 mod gemini_tests;
 
+pub mod claude_desktop;
 pub mod grok;
 #[cfg(test)]
 mod grok_tests;
+
+#[cfg(test)]
+mod claude_desktop_tests;

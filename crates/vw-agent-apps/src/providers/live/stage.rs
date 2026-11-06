@@ -5,6 +5,8 @@ use sha2::{Digest, Sha256};
 use std::{collections::HashSet, ffi::OsStr};
 
 pub(super) struct FileRevision {
+    pub directory: usize,
+    pub source: std::ffi::OsString,
     pub before: Option<String>,
     pub after: Option<String>,
 }
@@ -92,6 +94,8 @@ impl AppWriteGuard {
             }
             if before != after {
                 let revision = FileRevision {
+                    directory: self.resolve(change.name)?.0,
+                    source: change.name.to_owned(),
                     before: before.as_deref().map(digest),
                     after: after.as_deref().map(digest),
                 };

@@ -192,6 +192,7 @@ async fn cc04_gemini_sdk_api_recovers_both_files_before_replanning() {
         let digest = URL_SAFE_NO_PAD.encode(Sha256::digest(&before));
         std::fs::remove_file(directory.join(name)).unwrap();
         changes.push(PendingFile {
+            directory: 0,
             name: name.as_bytes().to_vec(),
             staged: staged.into_bytes(),
             pre: None,

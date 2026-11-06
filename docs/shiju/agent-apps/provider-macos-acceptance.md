@@ -1486,3 +1486,60 @@ Gateway 使用真实临时 SQLite、主机授权策略、回环 HTTP 和原 SDK�
 所有凭据均为假值；未访问真实用户配置、真实账号、OAuth/Keychain 或网络模型上游。平台 macOS **27.0 (26A428)**、**arm64**，crate **0.6.0**；`sw_vers`、`uname -m`、`grok --version` 均退出 0，Grok **1.0.77 (50ca579fa996) [stable]**。仅查询版本，真实 CLI 会话消费、真实账号登录、Iced 渲染及非 macOS 未验证。Agent lib test 继续有既有 `__eh_frame section too large` 链接提示，测试退出 0；未改链接设置，最终强制 Clippy 退出 0。
 
 本任务代码/独立测试/正式证据的定向 diff/check、暂存检查及只读 plan.md 无差异检查通过；只提交本任务变更，不纳入既有母任务状态、此前任务文件删除或其它计划。各阶段槽位 1/2 自身锁均释放、缓存保留；未执行全量 cargo test、fmt check、wasm 或 Makefile。完成后删除编号任务文件、不提交其删除；正式证据保留。下一步为批次 33。
+
+## 任务 33：Claude Desktop 直连配置
+
+2026-11-07；状态：已完成。本项验收真实 macOS 临时目录、SQLite 与本地 HTTP/SDK 链路；真实 Desktop 进程、账号与 Iced 未验证。
+
+### 前置、来源与实现
+
+核对批次 32 提交 `ca6819afe` 和本文件任务 32 证据。母任务 1、3 已完成，母任务 2 当前仍未整体完成；按 provider-contracts.md 已有底座子计划 1–93 开工裁定消费真实接口，不伪报母任务 2 完成。只读 plan.md 未修改。多目录支持按本次明确授权在既有唯一事务所有者内补齐。
+
+来源 `/Users/xiangmin/worker/code/cc-switch` HEAD `ca58c0313360eae7c851fbd7553c1614c7af03e7`，rev-parse/status 退出 0、来源干净。读取 `claude_desktop_config.rs` 的 direct_target/write_direct、write_profile_at_paths、restore_official_at_paths、gateway_profile_patch、MetaPatch、macos_paths_from_home/paths_from_dirs 及相邻用户字段、官方恢复、meta 条目与私有权限测试；真实调用者为 ProviderService::switch_desktop_direct、live::write_live_for_state 和泛导入拒绝分支。表单来源为 ClaudeDesktopProviderForm.tsx、forms/ProviderForm.tsx 的 Desktop 分派及相邻 ClaudeDesktopProviderForm.test.tsx。来源只读、未运行来源测试。RustCodeGraph status 退出 0；explore 无输出后中止（130），其未覆盖的调用链改用定向源码读取。
+
+- `vw-agent-apps/src/providers/claude_desktop.rs::{settings,ClaudeDesktopFiles}` 只由管理员授权的 HOME 固定推导 `Library/Application Support/Claude/claude_desktop_config.json`、`Claude-3p/claude_desktop_config.json`、`Claude-3p/configLibrary/00000000-0000-4000-8000-000000157210.json` 和 `_meta.json`。逐层 mkdirat/openat/O_NOFOLLOW，核验目录所有者及不可组/全局写；不消费客户端路径。保留来源固定 profile ID/名称，未重品牌。
+- 官方档案将两个 deploymentMode 恢复为 1p，清除 profile 网关/旧模型/发现字段及 3p enterpriseConfig 的旧网关字段，保留用户字段和非空企业设置；meta 只移除本 profile，必要时选回其余条目。第三方直连仅支持 Anthropic bearer 凭据，复用既有 validation::endpoint（HTTPS 或回环 HTTP，拒绝控制字符和 URL 凭据），按来源裁剪地址和令牌两端空白后写 gateway profile、两个 3p 模式和 appliedId；旧模型字段清除，用户 auto 模式、收紧的出站白名单、部署选择器及其它 meta 条目保留。沿用 JsonPatch 保留非受管 JSON/JSONC 字节；profile 写入按 0600，两个配置与 meta 沿用 Shared 权限策略。
+- 多目录扩展限于既有 `live/write_guard.rs`、`stage.rs`、`commit.rs`、`concurrency.rs`、`recovery.rs`：一个应用 guard 一次领取全部物理目录锁；执行端 DirectoryTarget 把固定逻辑键映射至目录索引与直属文件名，两者均经过原 checked_name 校验，未放开相对路径。一次 stage 预演全部文件；同一 pending 包含每文件目录索引、前后摘要和 staged 文件，全部暂存目录 fsync 后才发布意图。跨目录使用 version 3，旧执行器拒绝；单目录仍产生原 version 1/2，省略零目录索引及空 additional，未迁移旧状态。
+- 资源登记来自保留描述符的物理路径、device/inode/uid；启动恢复无跟随链接重开全部登记目录，校验身份、权限与索引之后才碰文件。未标记意图丢弃；已标记意图前滚，保留外部改动并报告 RolledForwardExcept。文件、direct 指针与模式落定仍由同一 ProviderTransactions 所有者处理，无第二引擎、分次 commit 或事务外文件写入；只承诺逐文件发布及持久意图恢复，不承诺跨文件系统原子回滚。两个既有 Gateway 恢复 fixture 仅补显式 directory: 0。
+- DTO 在 `vw-api-types/src/app_providers/claude_desktop.rs`：Official/ThirdParty、baseUrl/authToken、明确激活意图，拒绝未知字段/任意路径/官方载荷，Debug 脱敏。AppProviderStore 适配沿原租户 namespace/CAS 保存和摘要列表保留元数据。handler 通过既有 app_providers 根路由及 bootstrap/router 注册；权限在数据库和文件操作之前经 provider_editor_context 校验。SDK 在既有 app_providers_api 根注册，无新增通用命令入口。
+- `PUT /v1/app-providers/claude-desktop/{id}/config` 和 `POST /switch`、`/reapply` 对应 SDK `claude_desktop_provider_save/switch/reapply`，支持 catalog_only/first/if_current/switch；目录保存与 live 结果分开，不能由 catalogSaved 推断 live 成功。附着/代理、异租户状态、托管绑定和需路由的旧映射/非 Anthropic 档案明确拒绝。模型映射归任务 34，Iced 表单归任务 67；本项没有伪造路由、OAuth 或 UI 支持。
+- `POST /v1/app-providers/claude-desktop/live/import` / SDK `claude_desktop_provider_import_live` 经相同授权后明确返回 422 与固定 `claude_desktop.import_unsupported`，不读取 live、不创建事务状态或目录行；不是泛文件 API。SDK 令牌头 sensitive，失败体丢弃，成功响应只返回结果枚举，不回传配置或凭据。
+
+### 红绿与验证
+
+各阶段均从仓库根按原子 mkdir 顺序动态领取共享槽位 **1**，实际：
+
+`CARGO_TARGET_DIR=/Users/xiangmin/worker/code/shiju/target/rust-slot-1`
+
+同设 CARGO_BUILD_BUILD_DIR 覆盖仓库 build-dir；锁记录计划/任务/会话/PID，shell trap 覆盖退出/失败/中断，Cargo 与产物子进程结束后才移除自身 owner 和锁，保留编译缓存，没有固定分配或其它构建目录。
+
+红阶段为可编译基线：profile 整体替换尚未保用户字段，泛导入尚未拒绝。业务包 **5 项：3 通过、2 在指定行为断言失败，退出 101**；keeps_other_fields 读到 userAutoMode 为 Null 而非 true，generic_import 读到 Ok 而非固定拒绝。DTO **1 项失败，退出 101**，明确 camelCase 凭据字段未接线；Gateway **3 项：1 通过、2 在保字段/泛导入响应断言失败，退出 101**；SDK **2 项通过，退出 0**。不是缺模块、编译错误或零测试充当红证据。审查时新增端点策略测试，命令 cargo test -p vw-agent-apps --lib cc04_claude_desktop_direct_credentials_follow_existing_endpoint_policy -- --nocapture 的 1 项在远端明文 HTTP 被应用的断言失败（退出 101）；随后接回已有端点校验，验证拒绝时四文件和指针不变，以及回环地址和令牌裁剪。
+
+最终源码执行 `cargo fmt --all`，退出 **0**。四条任务聚焦命令默认 features，初次绿阶段全部通过；最后的 Clippy 风格修正后再次执行相同命令。有效数量如下：
+
+| 确切命令 | 退出码 | 有效通过数量 |
+| --- | --- | --- |
+| `cargo test -p vw-agent-apps --lib cc04_claude_desktop_ -- --nocapture` | 0 | 11 |
+| `cargo test -p vw-api-types --lib cc04_claude_desktop_ -- --nocapture` | 0 | 1 |
+| `cargo test -p vw-agent --lib cc04_claude_desktop_ -- --nocapture` | 0 | 4 |
+| `cargo test -p vw-gateway-client --lib cc04_claude_desktop_ -- --nocapture` | 0 | 3 |
+
+本任务 **19 项**，无忽略。使用真实临时三目录/四文件/私有事务根验证指定保字段、泛导入拒绝、官方清理、profile 凭据切换、meta 其它条目及 0600；Intent/Marked/FilePublished/Published/Settled 故障后重建执行器并从启动入口恢复；已发布部分文件后的外部改动保留、剩余文件前滚；输入在意图后改变则丢弃且不落指针；目录换 inode/符号链接和未登记目录索引均在写任意文件前拒绝。
+
+Gateway 使用真实临时 SQLite、主机授权策略、回环 HTTP 与原 SDK，证明请求→响应→四文件/指针：首次激活、当前编辑、目录仅保存后重新应用、官方显式切换；first/if_current 非当前不改 live。错误 token、缺写权限、错误主机、坏 live JSON、托管账号及需路由档案无文件或目录行修改。泛导入返回 422，未改临时文件或创建 live 行。仅阶段 hook 替代不可控崩溃/输入变化边界，未替代文件系统、存储、事务或鉴权；所有凭据为假值。
+
+共享设施及单目录应用聚焦回归：
+
+| 确切命令 | 退出码 | 有效通过数量 |
+| --- | --- | --- |
+| `cargo test -p vw-agent-apps --lib providers::live:: -- --nocapture` | 0 | 49 |
+| `cargo test -p vw-agent-apps --lib cc04_gemini_ -- --nocapture` | 0 | 9 |
+| `cargo test -p vw-agent-apps --lib cc04_grok_ -- --nocapture` | 0 | 8 |
+| `cargo test -p vw-agent-apps --lib cc04_codex_ -- --nocapture` | 0 | 35 |
+| `cargo test -p vw-agent-apps --lib providers::claude_tests:: -- --nocapture` | 0 | 5 |
+
+回归 **106 项**，连同本任务去重 **125 项通过**；最后一次源码修正后再跑 live 的 49 项，不重复计数。初轮强制 `cargo clippy --all-targets --all-features -- -D warnings` 退出 101，仅本次 OR 范围模式写法触发 manual_range_patterns；已改为 `1..=3`，未压制 lint。最终相同 Clippy 命令退出 **0**；端点策略修正后已再次运行格式化、四 crate 聚焦测试、live 49 项及 Clippy，全部退出 0。
+
+平台 `sw_vers`、`uname -m` 退出 0：macOS **27.0 (26A428)**、**arm64**，crate **0.6.0**。默认 `/Applications/Claude.app/Contents/Info.plist` 版本查询退出 1、未取得版本；不据此推断其它安装位置。本项没有读取真实用户配置/账号/Keychain、启动 Desktop、访问网络模型上游；真实 Desktop 消费、账号登录、Iced 明暗主题及非 macOS 未验证。Gateway lib test 有既有 `__eh_frame section too large` 链接提示，测试退出 0，未改链接配置。
+
+最终定向差异/暂存检查及只读 plan.md 无差异检查均通过；各阶段自身槽位 1 的锁已释放，缓存保留。仅提交本任务代码、独立测试、必要父注册与本条正式证据；既有母任务状态、之前编号文件删除和其它计划不纳入。未运行全量 cargo test、fmt check、wasm 或 Makefile。完成后删除本任务编号文件且不提交其删除，正式证据保留；下一步为批次 34 与后续真实 Desktop 验收。

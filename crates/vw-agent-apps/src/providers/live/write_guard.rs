@@ -5,7 +5,7 @@
 //! executor processes do not participate. No network/file API is exposed here.
 use std::{
     collections::HashSet,
-    ffi::{CString, OsStr},
+    ffi::{CString, OsStr, OsString},
     fs::{self, File, OpenOptions},
     io::{Read, Write},
     os::{
@@ -57,7 +57,9 @@ fn locks() -> &'static LockTable {
 #[derive(Debug)]
 pub struct AppWriteGuard {
     pub(super) directory: File,
-    keys: [LockKey; 2],
+    additional: Vec<File>,
+    targets: Vec<DirectoryTarget>,
+    keys: Vec<LockKey>,
 }
 
 /// Non-reentrant, blocking lock. Call outside async runtime workers. Same-app
@@ -73,16 +75,56 @@ pub fn lock_app(app: AppId, directory: &Path) -> Result<AppWriteGuard, WriteErro
     lock_directory(app, directory)
 }
 
+/// Executor-defined logical names map to validated direct children, never request paths.
+#[derive(Debug)]
+pub(crate) struct DirectoryTarget {
+    pub key: OsString,
+    pub directory: usize,
+    pub name: OsString,
+}
 pub(crate) fn lock_directory(app: AppId, directory: File) -> Result<AppWriteGuard, WriteError> {
-    let metadata = directory.metadata().map_err(|_| WriteError::Io)?;
-    let keys = [LockKey::App(app), LockKey::Directory(metadata.dev(), metadata.ino())];
+    lock_directories(app, directory, Vec::new(), Vec::new())
+}
+pub(crate) fn lock_directories(
+    app: AppId,
+    directory: File,
+    additional: Vec<File>,
+    targets: Vec<DirectoryTarget>,
+) -> Result<AppWriteGuard, WriteError> {
+    let mut keys = vec![LockKey::App(app)];
+    for dir in std::iter::once(&directory).chain(&additional) {
+        let metadata = dir.metadata().map_err(|_| WriteError::Io)?;
+        if !metadata.is_dir()
+            || (!additional.is_empty()
+                && (metadata.uid() != unsafe { libc::geteuid() } || metadata.mode() & 0o022 != 0))
+        {
+            return Err(WriteError::InvalidResource);
+        }
+        let key = LockKey::Directory(metadata.dev(), metadata.ino());
+        if keys.contains(&key) {
+            return Err(WriteError::InvalidResource);
+        }
+        keys.push(key);
+    }
+    let mut names = HashSet::new();
+    let mut physical = HashSet::new();
+    for target in &targets {
+        checked_name(&target.key)?;
+        checked_name(&target.name)?;
+        if target.directory > additional.len()
+            || !names.insert(&target.key)
+            || !physical.insert((target.directory, &target.name))
+        {
+            return Err(WriteError::InvalidResource);
+        }
+    }
     let (held, released) = locks();
     let mut held = held.lock().unwrap_or_else(|e| e.into_inner());
     while keys.iter().any(|key| held.contains(key)) {
         held = released.wait(held).unwrap_or_else(|e| e.into_inner());
     }
     held.extend(keys.iter().cloned());
-    Ok(AppWriteGuard { directory, keys })
+    Ok(AppWriteGuard { directory, additional, targets, keys })
 }
 
 impl Drop for AppWriteGuard {
@@ -118,8 +160,30 @@ impl AppWriteGuard {
         self.stage_one(name, bytes, privacy)?.commit()
     }
 
+    pub(super) fn directories(&self) -> impl Iterator<Item = &File> {
+        std::iter::once(&self.directory).chain(&self.additional)
+    }
+    pub(super) fn directory_at(&self, index: usize) -> Result<&File, WriteError> {
+        if index == 0 {
+            Ok(&self.directory)
+        } else {
+            self.additional.get(index - 1).ok_or(WriteError::InvalidResource)
+        }
+    }
+    pub(super) fn resolve<'a>(&'a self, name: &'a OsStr) -> Result<(usize, &'a OsStr), WriteError> {
+        checked_name(name)?;
+        if self.targets.is_empty() {
+            return Ok((0, name));
+        }
+        self.targets
+            .iter()
+            .find(|t| t.key == name)
+            .map(|t| (t.directory, t.name.as_os_str()))
+            .ok_or(WriteError::InvalidResource)
+    }
     pub(crate) fn read(&self, name: &OsStr) -> Result<Option<Vec<u8>>, WriteError> {
-        read_from(&self.directory, name)
+        let (index, name) = self.resolve(name)?;
+        read_from(self.directory_at(index)?, name)
     }
 
     pub(super) fn stage_one(
@@ -128,7 +192,8 @@ impl AppWriteGuard {
         bytes: &[u8],
         privacy: FilePrivacy,
     ) -> Result<PreparedWrite<'_>, WriteError> {
-        prepare(&self.directory, name, bytes, privacy)
+        let (index, name) = self.resolve(name)?;
+        prepare(self.directory_at(index)?, name, bytes, privacy)
     }
 }
 

@@ -161,8 +161,14 @@ mod gemini;
 #[path = "app_providers/gemini_tests.rs"]
 mod gemini_tests;
 
+#[path = "app_providers/claude_desktop.rs"]
+mod claude_desktop;
 #[path = "app_providers/grok.rs"]
 mod grok;
 #[cfg(test)]
 #[path = "app_providers/grok_tests.rs"]
 mod grok_tests;
+
+#[cfg(test)]
+#[path = "app_providers/claude_desktop_tests.rs"]
+mod claude_desktop_tests;

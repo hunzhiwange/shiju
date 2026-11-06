@@ -250,6 +250,7 @@ async fn cc04_codex_catalog_sdk_api_recovers_marked_catalog_and_pointer_before_r
         let digest = URL_SAFE_NO_PAD.encode(Sha256::digest(&before));
         std::fs::remove_file(directory.join(name)).unwrap();
         changes.push(PendingFile {
+            directory: 0,
             name: name.as_bytes().to_vec(),
             staged: staged.into_bytes(),
             pre: None,

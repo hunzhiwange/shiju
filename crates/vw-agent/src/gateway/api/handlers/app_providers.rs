@@ -20,6 +20,7 @@ pub(crate) fn router() -> Router {
         .merge(codex_catalog::router())
         .merge(gemini::router())
         .merge(grok::router())
+        .merge(claude_desktop::router())
         .merge(delete::router())
         .merge(duplicate::router())
         .merge(presentation::router())
@@ -221,6 +222,10 @@ mod gemini;
 #[cfg(all(test, target_os = "macos"))]
 mod gemini_tests;
 
+mod claude_desktop;
 mod grok;
 #[cfg(all(test, target_os = "macos"))]
 mod grok_tests;
+
+#[cfg(all(test, target_os = "macos"))]
+mod claude_desktop_tests;

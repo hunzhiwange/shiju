@@ -66,6 +66,9 @@ pub struct AppState {
 }
 #[derive(Clone, Serialize, Deserialize)]
 pub struct PendingFile {
+    /// Index into the executor registration; legacy intents use the primary directory.
+    #[serde(default, skip_serializing_if = "is_zero")]
+    pub directory: usize,
     pub name: Vec<u8>,
     pub staged: Vec<u8>,
     pub pre: Option<String>,
@@ -84,6 +87,10 @@ pub struct Pending {
     pub target: PendingTarget,
     pub files: Vec<PendingFile>,
     pub published: bool,
+}
+
+fn is_zero(index: &usize) -> bool {
+    *index == 0
 }
 
 pub struct ProviderTransactions {
@@ -159,7 +166,8 @@ impl ProviderTransactions {
             .map(|b| serde_json::from_slice(&b).map_err(|_| WriteError::InvalidResource))
             .transpose()?;
         if pending.as_ref().is_some_and(|p| {
-            !matches!(p.version, 1 | 2)
+            !matches!(p.version, 1..=3)
+                || (p.version < 3 && p.files.iter().any(|f| f.directory != 0))
                 || (p.version == 1 && p.files.iter().any(|f| f.planned.is_none()))
                 || p.app != app
                 || p.host != self.host
@@ -205,6 +213,8 @@ impl ProviderTransactions {
         }
         self.register(guard)?;
         let mut state = self.state(app)?;
+        let metadata = guard.directory.metadata().map_err(|_| WriteError::Io)?;
+        let multi = guard.directories().count() > 1;
         let mut batch = guard.stage(changes)?;
         validate()?;
         if batch.is_empty() {
@@ -212,11 +222,18 @@ impl ProviderTransactions {
             return self.save(app, "state", &state);
         }
         // Persist staged directory entries before the intent can reference them.
-        batch.writes[0].directory.sync_all().map_err(|_| WriteError::Io)?;
-        let metadata = batch.writes[0].directory.metadata().map_err(|_| WriteError::Io)?;
+        for write in &batch.writes {
+            write.directory.sync_all().map_err(|_| WriteError::Io)?;
+        }
         let mut pending = Pending {
-            // Older executors must reject intents containing actual deletions.
-            version: if batch.revisions.iter().any(|r| r.after.is_none()) { 2 } else { 1 },
+            // Older executors must reject multi-directory intents and actual deletions.
+            version: if multi {
+                3
+            } else if batch.revisions.iter().any(|r| r.after.is_none()) {
+                2
+            } else {
+                1
+            },
             host: self.host.clone(),
             app,
             tenant: tenant.clone(),
@@ -228,6 +245,7 @@ impl ProviderTransactions {
                 .iter()
                 .zip(&batch.revisions)
                 .map(|(write, revision)| PendingFile {
+                    directory: revision.directory,
                     name: write.name.as_bytes().to_vec(),
                     staged: write.temp.as_bytes().to_vec(),
                     pre: revision.before.clone(),

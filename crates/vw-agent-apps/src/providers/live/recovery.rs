@@ -3,7 +3,7 @@
 use super::{
     commit::{ProviderTransactions, apply_target, filename, validate_target},
     stage::digest,
-    write_guard::{AppWriteGuard, WriteError, lock_directory, read_from, read_staged},
+    write_guard::{AppWriteGuard, WriteError, lock_directories, read_from, read_staged},
 };
 use serde::{Deserialize, Serialize};
 use std::{
@@ -30,6 +30,8 @@ pub enum RecoveryOutcome {
 
 #[derive(Serialize, Deserialize)]
 struct RegisteredDirectory {
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    additional: Vec<RegisteredDirectory>,
     host: super::commit::ExecutionHostId,
     app: AppId,
     path: Vec<u8>,
@@ -53,7 +55,13 @@ impl ProviderTransactions {
                 let registered = self.registered(app)?;
                 let directory = open_directory(Path::new(OsStr::from_bytes(&registered.path)))?;
                 verify(&registered, &directory)?;
-                let mut guard = lock_directory(app, directory)?;
+                let mut additional = Vec::new();
+                for resource in &registered.additional {
+                    let dir = open_directory(Path::new(OsStr::from_bytes(&resource.path)))?;
+                    verify(resource, &dir)?;
+                    additional.push(dir);
+                }
+                let mut guard = lock_directories(app, directory, additional, Vec::new())?;
                 self.recover(&mut guard)
             })();
             match result {
@@ -74,27 +82,31 @@ impl ProviderTransactions {
     }
 
     pub(super) fn register(&self, guard: &AppWriteGuard) -> Result<(), WriteError> {
-        // F_GETPATH obtains the retained descriptor's physical name, not the
-        // caller's potentially aliased input. Reopen without following any links.
-        let mut path = [0u8; libc::PATH_MAX as usize];
-        // SAFETY: valid directory fd and PATH_MAX writable bytes as F_GETPATH requires.
-        if unsafe { libc::fcntl(guard.directory.as_raw_fd(), libc::F_GETPATH, path.as_mut_ptr()) }
-            < 0
-        {
-            return Err(WriteError::InvalidResource);
+        let mut records = Vec::new();
+        for directory in guard.directories() {
+            let mut path = [0u8; libc::PATH_MAX as usize];
+            // SAFETY: retained directory descriptor and writable PATH_MAX buffer.
+            if unsafe { libc::fcntl(directory.as_raw_fd(), libc::F_GETPATH, path.as_mut_ptr()) } < 0
+            {
+                return Err(WriteError::InvalidResource);
+            }
+            let end = path.iter().position(|b| *b == 0).ok_or(WriteError::InvalidResource)?;
+            let metadata = directory.metadata().map_err(|_| WriteError::Io)?;
+            let resource = RegisteredDirectory {
+                additional: Vec::new(),
+                host: self.host.clone(),
+                app: guard.app(),
+                path: path[..end].to_vec(),
+                device: metadata.dev(),
+                inode: metadata.ino(),
+                uid: metadata.uid(),
+            };
+            verify(&resource, &open_directory(Path::new(OsStr::from_bytes(&resource.path)))?)?;
+            records.push(resource);
         }
-        let end = path.iter().position(|b| *b == 0).ok_or(WriteError::InvalidResource)?;
-        let metadata = guard.directory.metadata().map_err(|_| WriteError::Io)?;
-        let registered = RegisteredDirectory {
-            host: self.host.clone(),
-            app: guard.app(),
-            path: path[..end].to_vec(),
-            device: metadata.dev(),
-            inode: metadata.ino(),
-            uid: metadata.uid(),
-        };
-        verify(&registered, &open_directory(Path::new(OsStr::from_bytes(&registered.path)))?)?;
-        self.save(guard.app(), "resource", &registered)
+        let mut primary = records.remove(0);
+        primary.additional = records;
+        self.save(guard.app(), "resource", &primary)
     }
 
     fn registered(&self, app: AppId) -> Result<RegisteredDirectory, WriteError> {
@@ -102,7 +114,13 @@ impl ProviderTransactions {
             .ok_or(WriteError::InvalidResource)?;
         let registered: RegisteredDirectory =
             serde_json::from_slice(&bytes).map_err(|_| WriteError::InvalidResource)?;
-        if registered.host != self.host || registered.app != app {
+        if registered.host != self.host
+            || registered.app != app
+            || registered
+                .additional
+                .iter()
+                .any(|d| d.host != self.host || d.app != app || !d.additional.is_empty())
+        {
             return Err(WriteError::InvalidResource);
         }
         Ok(registered)
@@ -123,18 +141,37 @@ impl ProviderTransactions {
         {
             return Err(WriteError::InvalidResource);
         }
+        if registered.additional.len() + 1 != guard.directories().count()
+            || (pending.version < 3 && !registered.additional.is_empty())
+        {
+            return Err(WriteError::InvalidResource);
+        }
+        for (index, resource) in
+            std::iter::once(&registered).chain(&registered.additional).enumerate()
+        {
+            let directory = guard.directory_at(index)?;
+            verify(resource, directory)?;
+            if pending.version == 3 {
+                let metadata = directory.metadata().map_err(|_| WriteError::Io)?;
+                if metadata.uid() != unsafe { libc::geteuid() } || metadata.mode() & 0o022 != 0 {
+                    return Err(WriteError::InvalidResource);
+                }
+            }
+            verify(resource, &open_directory(Path::new(OsStr::from_bytes(&resource.path)))?)?;
+        }
         validate_target(&pending.target)?;
         // Validate all records before modifying any file. Targets and temporary
         // names occupy disjoint namespaces; duplicates could corrupt cleanup.
         let mut targets = HashSet::new();
         let mut staged = HashSet::new();
         for file in &pending.files {
+            guard.directory_at(file.directory)?;
             child(&file.name)?;
             child(&file.staged)?;
             if file.name.starts_with(b".shiju-live-")
                 || !file.staged.starts_with(b".shiju-live-")
-                || !targets.insert(&file.name)
-                || !staged.insert(&file.staged)
+                || !targets.insert((file.directory, &file.name))
+                || !staged.insert((file.directory, &file.staged))
             {
                 return Err(WriteError::InvalidResource);
             }
@@ -142,7 +179,8 @@ impl ProviderTransactions {
         let mut skipped = Vec::new();
         if pending.published {
             for file in &pending.files {
-                let current = read_from(&guard.directory, OsStr::from_bytes(&file.name));
+                let current =
+                    read_from(guard.directory_at(file.directory)?, OsStr::from_bytes(&file.name));
                 let current = match current {
                     Ok(bytes) => bytes.as_deref().map(digest),
                     Err(_) => {
@@ -157,7 +195,10 @@ impl ProviderTransactions {
                     skipped.push(file.name.clone());
                     continue;
                 }
-                let bytes = read_staged(&guard.directory, OsStr::from_bytes(&file.staged));
+                let bytes = read_staged(
+                    guard.directory_at(file.directory)?,
+                    OsStr::from_bytes(&file.staged),
+                );
                 if !matches!(bytes, Ok(Some(ref bytes)) if file.planned.as_ref().map_or(bytes.is_empty(), |planned| digest(bytes) == *planned))
                 {
                     skipped.push(file.name.clone());
@@ -166,23 +207,25 @@ impl ProviderTransactions {
                 // Preserve the staged file's exact mode and use the original
                 // owner of descriptor-relative atomic file publication.
                 let write = super::write_guard::PreparedWrite {
-                    directory: &guard.directory,
+                    directory: guard.directory_at(file.directory)?,
                     name: child(&file.name)?,
                     temp: child(&file.staged)?,
                     retain: true,
                     delete: file.planned.is_none(),
                 };
                 write.publish()?;
-                guard.directory.sync_all().map_err(|_| WriteError::Io)?;
+                guard.directory_at(file.directory)?.sync_all().map_err(|_| WriteError::Io)?;
             }
             let mut state = self.state(app)?;
             apply_target(&mut state, &pending.tenant, &pending.target);
             self.save(app, "state", &state)?;
         }
         for file in &pending.files {
-            unlink(&guard.directory, &file.staged)?;
+            unlink(guard.directory_at(file.directory)?, &file.staged)?;
         }
-        guard.directory.sync_all().map_err(|_| WriteError::Io)?;
+        for directory in guard.directories() {
+            directory.sync_all().map_err(|_| WriteError::Io)?;
+        }
         unlink(&self.directory, filename(app, "pending").as_bytes())?;
         self.directory.sync_all().map_err(|_| WriteError::Io)?;
         Ok(Some(if !pending.published {

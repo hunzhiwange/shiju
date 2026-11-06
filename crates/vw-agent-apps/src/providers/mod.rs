@@ -150,6 +150,10 @@ pub mod gemini;
 #[cfg(all(test, target_os = "macos"))]
 mod gemini_tests;
 
+pub mod claude_desktop;
 pub mod grok;
 #[cfg(all(test, target_os = "macos"))]
 mod grok_tests;
+
+#[cfg(all(test, target_os = "macos"))]
+mod claude_desktop_tests;

@@ -62,7 +62,7 @@ impl ProviderTransactions {
                     replans += 1;
                     let change = changes
                         .iter()
-                        .find(|change| change.name == name)
+                        .find(|change| change.name == batch.revisions[index].source)
                         .ok_or(WriteError::InvalidResource)?;
                     // Guarded patches reject here on their first changed snapshot.
                     let after = change.patch.apply(current.as_deref())?;
@@ -81,7 +81,7 @@ impl ProviderTransactions {
                     updated.files[index].pre = pre;
                     updated.files[index].planned = after.as_deref().map(digest);
                     if after.is_none() {
-                        updated.version = 2;
+                        updated.version = updated.version.max(2);
                     }
                     updated.files[index].staged = replacement.temp.as_bytes().to_vec();
                     // save can rename pending then fail its directory fsync. Keep

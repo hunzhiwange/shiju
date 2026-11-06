@@ -45,7 +45,9 @@ fn main() {
     )
     .title("Agent Profile Acceptance — isolated gateway port 9")
     .theme(|_: &App| {
-        if std::env::args().any(|arg| arg == "--light") {
+        if std::env::args().any(|arg| arg == "--light")
+            || std::env::var("SHIJU_PROFILE_ACCEPTANCE_THEME").as_deref() == Ok("light")
+        {
             Theme::Light
         } else {
             Theme::Dark

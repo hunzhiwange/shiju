@@ -20,6 +20,10 @@ pub(super) fn overlay<'a>(app: &'a App, base: Element<'a, Message>) -> Element<'
     let busy = app.agents_settings.profile_saving;
     let fixed = builtin_agent_spec(&draft.key).is_some() || draft.key.starts_with("acp-");
     let settings = &app.agents_settings;
+    let native = match draft.runtime {
+        vw_config_types::agent::AgentRuntime::Native => true,
+        vw_config_types::agent::AgentRuntime::Acp { .. } => false,
+    };
     let tabs = row![
         super::shared::detail_tab_button(
             "基础参数",
@@ -31,11 +35,11 @@ pub(super) fn overlay<'a>(app: &'a App, base: Element<'a, Message>) -> Element<'
             crate::app::state::AGENT_DETAIL_IDENTITY_TAB,
             &settings.active_detail_tab
         ),
-        super::shared::detail_tab_button(
+        native.then(|| super::shared::detail_tab_button(
             "工具",
             crate::app::state::AGENT_DETAIL_TOOLS_TAB,
             &settings.active_detail_tab
-        ),
+        )),
         super::shared::detail_tab_button(
             "技能",
             crate::app::state::AGENT_DETAIL_SKILLS_TAB,
@@ -52,7 +56,7 @@ pub(super) fn overlay<'a>(app: &'a App, base: Element<'a, Message>) -> Element<'
     let entry = super::shared::selected_entry(app).unwrap_or(draft);
     let fields: Element<'_, Message> = match settings.active_detail_tab.as_str() {
         crate::app::state::AGENT_DETAIL_IDENTITY_TAB => super::identity::view(app, entry),
-        crate::app::state::AGENT_DETAIL_TOOLS_TAB => super::tools::view(app, entry),
+        crate::app::state::AGENT_DETAIL_TOOLS_TAB if native => super::tools::view(app, entry),
         crate::app::state::AGENT_DETAIL_SKILLS_TAB => super::skills::view(app, entry),
         crate::app::state::AGENT_DETAIL_MCP_TAB => super::mcp::view(app, entry),
         _ => super::basic::view(app, entry, Vec::new()),

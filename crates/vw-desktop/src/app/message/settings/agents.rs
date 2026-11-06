@@ -1071,7 +1071,15 @@ pub fn update(app: &mut App, message: SettingsMessage) -> Task<Message> {
             Task::batch([refresh_skill_catalog(app), catalog])
         }
         AgentsMessage::DetailTabSelected(tab_key) => {
-            app.agents_settings.active_detail_tab = tab_key;
+            let acp_draft = app.agents_settings.profile_modal.as_ref().is_some_and(|draft| {
+                matches!(draft.runtime, vw_config_types::agent::AgentRuntime::Acp { .. })
+            });
+            app.agents_settings.active_detail_tab =
+                if acp_draft && tab_key == crate::app::state::AGENT_DETAIL_TOOLS_TAB {
+                    crate::app::state::AGENT_DETAIL_BASIC_TAB.to_string()
+                } else {
+                    tab_key
+                };
             app.agents_settings.save_error = None;
             Task::none()
         }

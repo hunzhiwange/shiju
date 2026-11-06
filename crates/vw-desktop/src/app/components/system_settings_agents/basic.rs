@@ -42,6 +42,10 @@ pub(super) fn view<'a>(
     entry: &'a DelegateAgentSettingsEntry,
     _provider_options: Vec<String>,
 ) -> Element<'a, Message> {
+    let native = match entry.runtime {
+        vw_config_types::agent::AgentRuntime::Native => true,
+        vw_config_types::agent::AgentRuntime::Acp { .. } => false,
+    };
     let api_key_row = row![
         label_col(
             tr(app.desktop_locale, "API 密钥"),
@@ -179,9 +183,13 @@ pub(super) fn view<'a>(
         column![
             section_card(
                 tr(app.desktop_locale, "子智能体委托"),
-                tr(app.desktop_locale, "控制该 Agent 是否可被委托，以及它发起委托时的并发上限。")
+                tr(
+                    app.desktop_locale,
+                    "控制该 Agent 是否可被平台委托；原生引擎还可配置发起委托的并发上限。"
+                )
             ),
-            column![allow_as_subagent_row, max_parallel_subagents_row].spacing(14),
+            column![allow_as_subagent_row, native.then_some(max_parallel_subagents_row)]
+                .spacing(14),
         ]
         .spacing(14)
         .into()
@@ -320,14 +328,14 @@ pub(super) fn view<'a>(
         super::defaults::view(app, entry),
         registration_section,
         delegation_section,
-        api_key_row,
-        temperature_row,
-        shows_delegation_controls(entry).then_some(max_depth_row),
-        max_iterations_row,
-        agentic_row,
-        compact_context_row,
-        max_history_messages_row,
-        parallel_tools_row,
+        native.then_some(api_key_row),
+        native.then_some(temperature_row),
+        (native && shows_delegation_controls(entry)).then_some(max_depth_row),
+        native.then_some(max_iterations_row),
+        native.then_some(agentic_row),
+        native.then_some(compact_context_row),
+        native.then_some(max_history_messages_row),
+        native.then_some(parallel_tools_row),
     ]
     .spacing(14)
     .into()

@@ -69,11 +69,11 @@ fn agent_defaults_form_switch_preserves_invalid_draft_and_prevents_save() {
     let mut app = App::new().0;
     app.agents_settings.config_ready = true;
     app.acp_agents = vec!["codex".into()];
-    app.agents_settings.entries.push(DelegateAgentSettingsEntry::from_config("custom", None));
     let dispatch = |app: &mut App, message| {
         let _ = crate::app::message::settings::update(app, SettingsMessage::Agents(message));
     };
-    dispatch(&mut app, AgentsMessage::ProfileOpen("custom".into()));
+    dispatch(&mut app, AgentsMessage::AddAgentKeyChanged("custom".into()));
+    dispatch(&mut app, AgentsMessage::AddAgentRequested);
     let defaults = AgentDefaults {
         permission: AgentDefault::Fixed(serde_json::json!({"*":"ask"})),
         ..Default::default()
@@ -83,7 +83,7 @@ fn agent_defaults_form_switch_preserves_invalid_draft_and_prevents_save() {
     dispatch(&mut app, AgentsMessage::ProfileSave);
     assert!(!app.agents_settings.profile_saving);
     assert_eq!(app.agents_settings.profile_modal.as_ref().unwrap().defaults, defaults);
-    assert_eq!(app.agents_settings.entries.last().unwrap().defaults, AgentDefaults::default());
+    assert!(!app.agents_settings.entries.iter().any(|entry| entry.key == "custom"));
 }
 
 #[test]

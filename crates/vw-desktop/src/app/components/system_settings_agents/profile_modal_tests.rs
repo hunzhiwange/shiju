@@ -571,3 +571,161 @@ async fn agent_runtime_creation_controls_render_in_both_themes() {
         }
     }
 }
+
+#[test]
+fn agent_runtime_visibility_switch_closes_and_rejects_tools_tab_without_clearing_values() {
+    use crate::app::state::{AGENT_DETAIL_BASIC_TAB, AGENT_DETAIL_TOOLS_TAB};
+    let mut app = runtime_creation_draft();
+    let draft = app.agents_settings.profile_modal.as_mut().unwrap();
+    draft.api_key_input = "retained-override".into();
+    draft.temperature = 1.23;
+    draft.allowed_tools = vec!["shell".into()];
+    draft.max_iterations = 123;
+    draft.max_depth = 7;
+    draft.max_parallel_subagents = 3;
+    draft.compact_context = true;
+    draft.parallel_tools = true;
+    draft.max_history_messages = 42;
+    let original = draft.clone();
+    dispatch(&mut app, AgentsMessage::DetailTabSelected(AGENT_DETAIL_TOOLS_TAB.into()));
+    assert_eq!(app.agents_settings.active_detail_tab, AGENT_DETAIL_TOOLS_TAB);
+    dispatch(&mut app, AgentsMessage::ProfileRuntimeChanged("codex".into()));
+    assert_eq!(app.agents_settings.active_detail_tab, AGENT_DETAIL_BASIC_TAB);
+    dispatch(&mut app, AgentsMessage::DetailTabSelected(AGENT_DETAIL_TOOLS_TAB.into()));
+    assert_eq!(app.agents_settings.active_detail_tab, AGENT_DETAIL_BASIC_TAB);
+    dispatch(&mut app, AgentsMessage::ProfileRuntimeChanged("native".into()));
+    dispatch(&mut app, AgentsMessage::DetailTabSelected(AGENT_DETAIL_TOOLS_TAB.into()));
+    assert_eq!(app.agents_settings.active_detail_tab, AGENT_DETAIL_TOOLS_TAB);
+    dispatch(&mut app, AgentsMessage::ProfileRuntimeChanged("claude".into()));
+    assert_eq!(app.agents_settings.active_detail_tab, AGENT_DETAIL_BASIC_TAB);
+    dispatch(&mut app, AgentsMessage::ProfileSave);
+    assert!(app.agents_settings.profile_saving);
+    dispatch(&mut app, AgentsMessage::ProfileSaved(Ok(())));
+    let saved = app.agents_settings.entries.iter().find(|e| e.key == original.key).unwrap();
+    assert_eq!(saved.allowed_tools, original.allowed_tools);
+    assert_eq!(saved.max_iterations, original.max_iterations);
+    assert_eq!(saved.max_depth, original.max_depth);
+    assert_eq!(saved.max_parallel_subagents, original.max_parallel_subagents);
+    assert_eq!(saved.api_key_input, original.api_key_input);
+    assert_eq!(saved.temperature, original.temperature);
+    assert_eq!(saved.defaults.permission, original.defaults.permission);
+    assert_eq!(saved.compact_context, original.compact_context);
+    assert_eq!(saved.parallel_tools, original.parallel_tools);
+    assert_eq!(saved.max_history_messages, original.max_history_messages);
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn agent_runtime_visibility_actual_modal_renders_native_and_acp_in_both_themes() {
+    use iced::advanced::renderer::Headless;
+    use iced::advanced::{Layout, layout, mouse, renderer, widget::Tree};
+    use iced::{Color, Font, Pixels, Rectangle, Size, Theme};
+    for backend in ["native", "codex", "claude"] {
+        for (theme, name) in [(Theme::Light, "light"), (Theme::Dark, "dark")] {
+            let mut app = runtime_creation_draft();
+            dispatch(&mut app, AgentsMessage::ProfileRuntimeChanged(backend.into()));
+            for tab in ["basic", "identity", "skills", "mcp", "tools"] {
+                // Exercise the view's defensive fallback as well as reducer validation.
+                app.agents_settings.active_detail_tab = tab.into();
+                let mut element = super::profile_modal::overlay(
+                    &app,
+                    iced::widget::container(iced::widget::text("背景"))
+                        .width(iced::Length::Fill)
+                        .height(iced::Length::Fill)
+                        .into(),
+                );
+                let mut renderer = <iced::Renderer as Headless>::new(
+                    Font::DEFAULT,
+                    Pixels(16.0),
+                    Some("tiny-skia"),
+                )
+                .await
+                .unwrap();
+                let bounds = Size::new(1100.0, 900.0);
+                let mut tree = Tree::new(element.as_widget());
+                let node = element.as_widget_mut().layout(
+                    &mut tree,
+                    &renderer,
+                    &layout::Limits::new(Size::ZERO, bounds),
+                );
+                #[derive(Default)]
+                struct Labels(Vec<String>);
+                impl iced::advanced::widget::Operation for Labels {
+                    fn traverse(
+                        &mut self,
+                        operate: &mut dyn FnMut(&mut dyn iced::advanced::widget::Operation),
+                    ) {
+                        operate(self);
+                    }
+                    fn text(
+                        &mut self,
+                        _: Option<&iced::advanced::widget::Id>,
+                        _: Rectangle,
+                        value: &str,
+                    ) {
+                        self.0.push(value.into());
+                    }
+                }
+                let mut labels = Labels::default();
+                element.as_widget_mut().operate(
+                    &mut tree,
+                    Layout::new(&node),
+                    &renderer,
+                    &mut labels,
+                );
+                let has = |label: &str| labels.0.iter().any(|s| s == label);
+                for label in ["基础参数", "身份", "技能", "MCP", "保存配置"] {
+                    assert!(has(label), "{backend}/{tab}: {label}");
+                }
+                assert_eq!(has("工具"), backend == "native");
+                if tab == "skills" {
+                    assert!(has("技能目录"));
+                }
+                if tab == "mcp" {
+                    assert!(has("默认 MCP"));
+                }
+                if tab == "identity" {
+                    assert!(has("系统提示词"));
+                }
+                if tab == "basic" || (tab == "tools" && backend != "native") {
+                    for label in ["名称", "描述", "模型", "权限", "作为子智能体"] {
+                        assert!(has(label), "{backend}: {label}");
+                    }
+                    for label in [
+                        "API 密钥",
+                        "温度",
+                        "最大深度",
+                        "子智能体数量",
+                        "最大迭代次数",
+                        "智能体模式",
+                        "上下文压缩",
+                        "历史消息上限",
+                        "并行工具",
+                    ] {
+                        assert_eq!(has(label), backend == "native", "{backend}: {label}");
+                    }
+                }
+                element.as_widget().draw(
+                    &tree,
+                    &mut renderer,
+                    &theme,
+                    &renderer::Style { text_color: theme.palette().text },
+                    Layout::new(&node),
+                    mouse::Cursor::Unavailable,
+                    &Rectangle::with_size(bounds),
+                );
+                let pixels = renderer.screenshot(Size::new(1100, 900), 1.0, Color::TRANSPARENT);
+                assert!(pixels.chunks_exact(4).any(|p| p[3] > 0));
+                if tab == "basic" {
+                    image::save_buffer(
+                        format!("/tmp/shiju-runtime-visibility-{backend}-{name}.png"),
+                        &pixels,
+                        1100,
+                        900,
+                        image::ColorType::Rgba8,
+                    )
+                    .unwrap();
+                }
+            }
+        }
+    }
+}

@@ -152,3 +152,23 @@ fn basic_view_renders_runtime_boolean_and_text_variants() {
 
     assert_common_field_structure(&tree, false);
 }
+
+#[test]
+fn agent_runtime_visibility_acp_preserves_profile_defaults_and_delegation_eligibility() {
+    use vw_config_types::agent::{AgentRuntime, DelegateAgentConfig};
+    let app = crate::app::App::new().0;
+    for backend in ["codex", "claude"] {
+        let entry = DelegateAgentSettingsEntry::from_config(
+            "custom-runtime",
+            Some(DelegateAgentConfig {
+                runtime: AgentRuntime::Acp { backend: backend.into() },
+                ..Default::default()
+            }),
+        );
+        let tree = view_tree(&app, &entry, Vec::new());
+        assert_eq!(tree.children.len(), 4);
+        assert_eq!(tree.children[0].children.len(), 4);
+        assert!(tree.children[1].children.len() >= 4);
+        assert_eq!(tree.children[3].children[1].children.len(), 1);
+    }
+}

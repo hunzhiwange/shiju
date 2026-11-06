@@ -186,6 +186,13 @@ pub(super) fn update(app: &mut App, message: AgentsMessage) -> Task<Message> {
                         } else {
                             return Task::none();
                         };
+                        if matches!(draft.runtime, vw_config_types::agent::AgentRuntime::Acp { .. })
+                            && app.agents_settings.active_detail_tab
+                                == crate::app::state::AGENT_DETAIL_TOOLS_TAB
+                        {
+                            app.agents_settings.active_detail_tab =
+                                crate::app::state::AGENT_DETAIL_BASIC_TAB.to_string();
+                        }
                     }
                 }
                 AgentsMessage::ProfilePromptAdd => draft.recommended_prompts.push(String::new()),

@@ -55,7 +55,7 @@ SDK源码：[读取](../../../crates/vw-gateway-client/src/client/agent_apps_rea
 
 ## 应用逐项矩阵
 
-P＝对应macOS记录含该场景实证；R＝共享规则/夹具证据，不是本应用实机通过；待＝尚待应用回归；L＝源码明确限定CLI不适用。P不表示全部安装渠道通过。依赖R指12/41；权限R指33–36/44；设置R指27/35/43；远程R指45，不冒充14次实机验收。
+P＝对应macOS记录含该场景实证；R＝共享规则/夹具证据，不是本应用实机通过；待＝尚待应用回归；L＝源码明确限定CLI不适用；W＝用户明确豁免的未验证项；Q＝实际官方CLI对专用loopback协议夹具访问通过。P不表示全部安装渠道通过。依赖R指12/41；权限R指33–36/44；设置R指27/35/43；远程R指45，不冒充14次实机验收。
 
 | AppId/实机记录 | 发现 | 多实例 | 版本/运行 | 依赖 | 安装 | 升级变化 | 指定卸载 | 终端实态 | 供应商/账号 | 权限 | 取消进度 | 设置 | 远程 | Iced对应 |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
@@ -72,7 +72,7 @@ P＝对应macOS记录含该场景实证；R＝共享规则/夹具证据，不是
 | [kimi](macos/kimi.md) | P | P | P | R | P | P | P | 待 | 待 | R | P | R | R | 待 |
 | [dsh](macos/dsh.md) | P | P | P | R | P | P | P | 待 | 待 | R | P | R | R | P |
 | [agy](macos/agy.md) | P | P | P | R | P | 待 | P | 待 | 待 | R | P | R | R | P |
-| [omp](macos/omp.md) | P | P | P | R | P | 待 | P | P | 待 | R | P | R | R | P |
+| [omp](macos/omp.md) | P | P | P | R | P | P | P | P | Q/W | R | P | R | R | P |
 
 每格仅表达该项观察；真实版本、渠道、API/SDK输出与截图见各行记录。`grokbuild`的CLI名为`grok`，不是两个应用。Desktop的L依据[CatalogApp::capability](../../../crates/vw-agent-apps/src/apps/catalog.rs)及[独立桌面探测](../../../crates/vw-agent-apps/src/apps/discovery/claude_desktop.rs)，不表示桌面产品全部功能完成；欢迎界面不改变API只做包观察的边界。Hermes官方安装器成功不等同正式安装API通过。Node列未逐应用实机制造依赖缺失。
 
@@ -81,6 +81,14 @@ P＝对应macOS记录含该场景实证；R＝共享规则/夹具证据，不是
 [03](task-03.md)及[acp_registry/catalog_with_acp](../../../crates/vw-agent-apps/src/apps/acp_projection.rs)直接委托`vw_acp::built_in_agent_specs`。[独立测试](../../../crates/vw-agent-apps/src/apps/acp_projection_tests.rs)断言22项完整相等，旧claude-legacy兼容key保留。8个应用（claude/codex/gemini/opencode/openclaw/hermes/pi/kimi）追加ACP形态；目录外ACP仍在完整视图，未缩减为14项。reviewed_command与verify_reviewed_executable继续委托原审查门控，Ok(None)不代表已安装或审查通过。本轮未重跑历史测试。
 
 母任务4/6后置启动证据：[31](task-31.md)供应商投影、[32](task-32.md)官方账号材料/租约/轮换、[44](task-44.md)API/SDK/Iced/PTY，均含实际子进程夹具；真实厂商账号仍以应用矩阵为准。[供应商实现](../../../crates/vw-agent-apps/src/providers/mod.rs)区分已迁入与未实现分支；AGY固定OS钥匙串路径的安全拒绝依据在32，缺账号不判不支持。
+
+### OMP最终补验与豁免范围
+
+提交`e5205438a`及[OMP最终记录](macos/omp.md)已补齐官方18.8.9→18.17.0真实升级、Omp供应商投影、生产app_providers路由及私有材料清理。佐证：[最终API](macos/omp-final-api.json)、[实机运行](macos/omp-final-runtime.json)、[验证输出](macos/omp-final-validation.txt)。15项不同有效测试及全仓Clippy退出0属于59的执行证据，本轮未重跑。此前59的Git/ACP编译限制已解除，不再列作当前限制。
+
+本轮通过read_thread直接核实原会话`01a1afdb-07a3-7f21-8f57-5bc5a0a32c0c`的用户消息`01a1b037-9420-76e3-82a1-edfb5cc02904`：问题明确询问“omp 官方账号实机验收”，用户答复“无账号，算通过，只要大体能够访问，以后专门来配置再说。”因此Q表示真实官方OMP消费生产材料并向loopback的`/v1/responses`请求/接收SSE；W表示真实账号及外部厂商认证未验证、按本应用用户口径豁免。没有把协议夹具标为真实登录，也不将该答复扩展到其他13应用、缺失功能或UI场景。
+
+原46–58会话与当前持久记录已重新核对：尚无与上述OMP答复等价的范围调整或完整补验证据。编号文件不存在仅是文件状态，不是新的实机证据。具体原会话定位和恢复范围保留在任务61；不能据此更新母任务3为完整通过。
 
 macOS实机记录为27.0（26A428）、arm64；未覆盖Intel/x86_64，不外推其他CPU。Node v26.13.0/npm 11.20.0是记录中的环境，不等于任意版本兼容。Windows/WSL/Linux只引用05–07、19–25、29–30的规则/拒绝测试，均未实机验证；按用户要求不构成本轮完成阻塞。
 

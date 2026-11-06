@@ -1,0 +1,66 @@
+{
+  "name": "@deepseek-ai/dsh",
+  "dist-tags": {
+    "latest": "0.2.2-rc.1",
+    "alpha": "0.2.2-alpha.3",
+    "next": "0.2.2-rc.1"
+  },
+  "repository": {
+    "url": "git+https://github.com/deepseek-ai/deepseek-harness.git",
+    "type": "git",
+    "directory": "apps/cli"
+  },
+  "homepage": "https://github.com/deepseek-ai/deepseek-harness#readme",
+  "versions": {
+    "0.2.1-rc.5": {
+      "version": "0.2.1-rc.5",
+      "engines": null,
+      "bin": {
+        "dsh": "lib/bin.js"
+      },
+      "dist": {
+        "shasum": "8e1bfd31869414f7a5ec10c34403a852ac9c3dc7",
+        "tarball": "https://registry.npmjs.org/@deepseek-ai/dsh/-/dsh-0.2.1-rc.5.tgz",
+        "fileCount": 20,
+        "integrity": "sha512-WkyJZv4zl9sCAxSzRctGm58m0rilGqwR6pniBiLOz5CPDfHfDuAUicg0AAazXI7oj/Cph6/cjNTncA/rpLTXpw==",
+        "signatures": [
+          {
+            "sig": "MEQCICQYpubd5M4tkCKPB4cvjY9R3PMR89gdi9GrLVW08S9TAiApcZSuANw3YYe6r9Yl4A7JwankLXg6Sp441zRcpcX0bg==",
+            "keyid": "SHA256:DhQ8wR5APBvFHLF/+Tc+AYvPOdTpcIDqOhxsBHRwC7U"
+          },
+          {
+            "sig": "MEYCIQD50RhR6miEA7DAz4v+4aEXaPscBdpmx8Sf1ZwUioy+IgIhAI06HoMXdrDLbM3AnPU388InRjgR8SwlXDp0NFASfCCb",
+            "keyid": "SHA256:DhQ8wR5APBvFHLF/+Tc+AYvPOdTpcIDqOhxsBHRwC7U"
+          }
+        ],
+        "unpackedSize": 75972
+      }
+    },
+    "0.2.2-rc.1": {
+      "version": "0.2.2-rc.1",
+      "engines": {
+        "node": ">=24.9.0"
+      },
+      "bin": {
+        "dsh": "lib/bin.js"
+      },
+      "dist": {
+        "shasum": "95d1cf510061a57c97b4a68d43336658bcec6af1",
+        "tarball": "https://registry.npmjs.org/@deepseek-ai/dsh/-/dsh-0.2.2-rc.1.tgz",
+        "fileCount": 20,
+        "integrity": "sha512-ijR9UEVYkG15Q/Q79JzvzLBzQOQfc63VLr9n6flpwHPhr5IKn2UxthnSoto/P9l7qGd7pPvI1Ra6TW7LH3oKpg==",
+        "signatures": [
+          {
+            "sig": "MEQCIFBEZNLgEUMqpMutRa3dHfVAO8RhjmBbQTAOmsCa1msnAiB9PxSpU60azAlCiWIS4ryOBk37CcDr3zjPpjfulaWDyg==",
+            "keyid": "SHA256:DhQ8wR5APBvFHLF/+Tc+AYvPOdTpcIDqOhxsBHRwC7U"
+          },
+          {
+            "sig": "MEYCIQD1xNMmUk4M5DRr8NfvytReZKACIsTVhtiQrlIX6miCtQIhAIakJ9wLrQD/ZOfkYUTTm8Q9bs0Kv+hIcd7Rr4xQrOx3",
+            "keyid": "SHA256:DhQ8wR5APBvFHLF/+Tc+AYvPOdTpcIDqOhxsBHRwC7U"
+          }
+        ],
+        "unpackedSize": 76416
+      }
+    }
+  }
+}

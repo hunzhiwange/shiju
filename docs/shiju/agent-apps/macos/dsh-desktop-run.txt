@@ -1,0 +1,26 @@
+   Compiling vw-desktop v0.6.0 (/Users/xiangmin/worker/code/shiju/crates/vw-desktop)
+warning: falling back to `f32` as the trait bound `f32: From<f64>` is not satisfied
+   --> crates/vw-desktop/src/app/components/system_settings_apps/list.rs:287:21
+    |
+287 |                     0.0
+    |                     ^^^ help: explicitly specify the type as `f32`: `0.0_f32`
+    |
+    = warning: this was previously accepted by the compiler but is being phased out; it will become a hard error in a future release!
+    = note: for more information, see issue #154024 <https://github.com/rust-lang/rust/issues/154024>
+    = note: `#[warn(float_literal_f32_fallback)]` (part of `#[warn(future_incompatible)]`) on by default
+
+error[E0533]: expected value, found struct variant `ViewMessage::PathRevealFinished`
+  --> crates/vw-desktop/src/app/message/view/panel/external.rs:18:36
+   |
+18 |             |result| Message::View(ViewMessage::PathRevealFinished(result)),
+   |                                    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ not a value
+   |
+help: you might have meant to create a new value of the struct
+   |
+18 -             |result| Message::View(ViewMessage::PathRevealFinished(result)),
+18 +             |result| Message::View(ViewMessage::PathRevealFinished { path: /* value */, result: /* value */ }),
+   |
+
+For more information about this error, try `rustc --explain E0533`.
+warning: `vw-desktop` (lib) generated 1 warning
+error: could not compile `vw-desktop` (lib) due to 1 previous error; 1 warning emitted

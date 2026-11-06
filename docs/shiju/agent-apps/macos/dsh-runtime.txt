@@ -1,0 +1,36 @@
+Initial isolated install: npm install --global --prefix <isolated-prefix> @deepseek-ai/dsh@0.2.1-rc.5 --registry=https://registry.npmjs.org --fetch-timeout=30000 --fetch-retries=1
+exit=0, dsh --version exit=0: 0.2.1-rc.5
+npm warn deprecated node-domexception@1.0.0: Use your platform's native DOMException instead
+
+added 616 packages in 4m
+npm warn install-scripts 5 packages have install scripts not yet covered by allowScripts:
+npm warn install-scripts   @deepseek-ai/dsh-subprocess-local@0.2.1-rc.5 (postinstall: node scripts/ensure-spawn-helper.mjs)
+npm warn install-scripts   koffi@3.1.1 (install: node ./cnoke.cjs -P . -D src/koffi --prebuild --release)
+npm warn install-scripts   node-pty@1.2.0-beta.15 (install: node scripts/prebuild.js || node-gyp rebuild; postinstall: node scripts/post-install.js)
+npm warn install-scripts   @google/genai@2.21.0 (preinstall: echo 'preinstall: no-op')
+npm warn install-scripts   protobufjs@7.6.6 (postinstall: node scripts/postinstall)
+npm warn install-scripts
+npm warn install-scripts Run `npm install -g --allow-scripts=@deepseek-ai/dsh-subprocess-local,koffi,node-pty,@google/genai,protobufjs` to allow these scripts once, or `npm config set allow-scripts=@deepseek-ai/dsh-subprocess-local,koffi,node-pty,@google/genai,protobufjs --location=user` to allow them for all global installs.
+npm notice
+npm notice New major version of npm available! 11.20.0 -> 12.2.2
+npm notice Changelog: https://github.com/npm/cli/releases/tag/v12.2.2
+npm notice To update run: npm install -g npm@12.2.2
+npm notice
+
+SDK exact rustc command: rustc --edition=2024 <isolated-root>/sdk.rs -L dependency=/Users/xiangmin/worker/code/shiju/target/rust-slot-2/debug/deps --extern vw_gateway_client=/Users/xiangmin/worker/code/shiju/target/rust-slot-2/debug/deps/libvw_gateway_client-dd8ef51022e14057.rlib --extern tokio=/Users/xiangmin/worker/code/shiju/target/rust-slot-2/debug/deps/libtokio-52b6635379736477.rlib -o /Users/xiangmin/worker/code/shiju/target/rust-slot-2/task57-sdk
+program=<isolated-root>/prefix/lib/node_modules/@deepseek-ai/dsh/lib/bin.js
+cwd=<isolated-root>/home
+HOME=<isolated-root>/home
+version exit=0
+0.2.2-rc.1
+
+ 9361 83042 node <isolated-root>/prefix/bin/npm i -g @deepseek-ai/dsh@latest --engine-strict
+After cancel: PID9361 absent (kill(pid,0) ProcessLookupError)
+SECOND npm uninstall --global --prefix <isolated-home>/.local @deepseek-ai/dsh exit=0
+
+removed 616 packages in 5s
+npm notice
+npm notice New major version of npm available! 11.20.0 -> 12.2.2
+npm notice Changelog: https://github.com/npm/cli/releases/tag/v12.2.2
+npm notice To update run: npm install -g npm@12.2.2
+npm notice

@@ -1,0 +1,10 @@
+   Compiling vw-acp v0.6.0 (/Users/xiangmin/worker/code/shiju/crates/vw-acp)
+   Compiling vw-agent-apps v0.6.0 (/Users/xiangmin/worker/code/shiju/crates/vw-agent-apps)
+   Compiling vw-agent v0.6.0 (/Users/xiangmin/worker/code/shiju/crates/vw-agent)
+   Compiling vw-cli v0.6.0 (/Users/xiangmin/worker/code/shiju/crates/vw-cli)
+warning: linker stderr: ld: __eh_frame section too large (max 16MB) to encode dwarf unwind offsets in compact unwind table, performance of exception handling might be affected
+  |
+  = note: `#[warn(linker_messages)]` on by default
+
+warning: `vw-cli` (bin "shiju") generated 1 warning
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 1m 01s

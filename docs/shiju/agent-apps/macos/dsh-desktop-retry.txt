@@ -1,0 +1,9 @@
+   Compiling vw-gateway-client v0.6.0 (/Users/xiangmin/worker/code/shiju/crates/vw-gateway-client)
+   Compiling vw-desktop v0.6.0 (/Users/xiangmin/worker/code/shiju/crates/vw-desktop)
+warning: linker stderr: ld: __eh_frame section too large (max 16MB) to encode dwarf unwind offsets in compact unwind table, performance of exception handling might be affected
+  |
+  = note: `#[warn(linker_messages)]` on by default
+
+warning: `vw-desktop` (bin "shi-ju") generated 1 warning
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 1m 04s
+     Running `target/rust-slot-2/debug/shi-ju`

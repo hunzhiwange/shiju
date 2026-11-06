@@ -16,6 +16,7 @@ use vw_api_types::{
 
 pub(crate) fn router() -> Router {
     Router::new()
+        .merge(read::router())
         .route(
             "/agent-apps/custom-icons",
             get(read_icons).post(add_icon).layer(DefaultBodyLimit::max(128 * 1024)),
@@ -129,3 +130,9 @@ async fn delete_icon(
     .await
     .map_err(|error| AgentAppsApiError::storage_unavailable(error.into()))?
 }
+
+mod read;
+#[cfg(all(test, unix))]
+mod read_tests;
+
+mod access;

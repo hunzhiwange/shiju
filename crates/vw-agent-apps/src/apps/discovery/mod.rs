@@ -22,3 +22,6 @@ mod report_tests;
 pub mod version;
 #[cfg(all(test, unix))]
 mod version_tests;
+
+#[cfg(unix)]
+pub mod read;

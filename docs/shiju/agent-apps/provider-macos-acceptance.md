@@ -865,3 +865,51 @@ RustCodeGraph status/explore 退出 0，索引含 6443 文件；运行时代码�
 `sw_vers`、`uname -m` 退出 0：macOS 27.0（26A428）、arm64。应用版本、个人账号、CLI/Iced 实际运行与公共 SDK/API 请求链未验证；Windows/Linux、其他架构、真实应用激活、跨进程配置写入和崩溃后自动恢复未验收。
 
 最终定向 diff 检查与暂存检查通过；只提交本任务 commit/独立测试、必要 stage/write_guard 底层连线、父注册、Cargo 依赖/锁文件及本条正式证据。排除其他任务状态/删除和桌面并行改动。只读 plan.md 无差异；最终自身槽位锁释放、缓存保留。未执行全量 cargo test、fmt check、wasm 或 Makefile。任务19状态标记完成后删除编号文件，不纳入提交；正式证据保留。
+
+## 任务 20：崩溃后前滚恢复
+
+### 依赖与范围
+
+核对批次 19 `1132125d7` 与任务 1–19 正式证据；母任务 1、3 已完成，母任务 2 继续沿用任务 1 的底座子计划 1–93 开工裁定，完整领域迁移仍未收口。首次因缺原生启动消费链及资源重开契约登记阻塞；继续执行指令明确授权最小受信资源登记、执行端工厂与初始化调用者，按此解除阻塞。只读 plan.md 不修改。
+
+来源 HEAD `ca58c0313360eae7c851fbd7553c1614c7af03e7`；已读 `mode/operation.rs::{recover,recover_all,recover_on_startup,recover_before_write,AppWrite::begin,run}`、`mode/state.rs::{pending,apps_with_pending,set_pending}`、`services/provider/claude_direct.rs` 的写前入口及 `lib.rs` 的启动入口和相邻 crash/marked/published/target 测试。来源测试未运行。RustCodeGraph status/explore 与原生定向搜索确认现有唯一 pending 所有者为 ProviderTransactions，冻结 upstream 恢复链不作为原生消费证据。
+
+### 原生所有者与自动入口
+
+- `vw-agent-apps/src/providers/live/recovery.rs` 扩展同一 `ProviderTransactions`，未发布 pending 丢弃并清理暂存；published=true 时按 pre/planned 摘要完成剩余暂存，外部变化、目标不可读或暂存缺失/摘要不符均保留当前目标，返回 `RolledForwardExcept { names }`；状态仍按原 pending 租户落定。已完成文件不重写，状态/目录同步失败保留 pending，重试可幂等完成。没有第二份指针数据库。
+- 受信资源登记 `*.resource.json` 与 pending/state 同处主机私有状态目录，沿用原子 0600 写入和目录同步。仅 commit 从已授权、已加锁 guard 经 F_GETPATH 获取物理路径，核验重开身份后登记 host/app/path/dev/ino/uid。启动按所有者中的登记逐组件 openat(O_NOFOLLOW|O_DIRECTORY) 重开，再核验主机、应用、设备、inode、uid；目录替换/符号链接、非法 pending 子文件名或重复记录直接拒绝。dev/ino 仅用于身份核验，不单独授予写权限；不从请求路径或 HOME 推断 live 资源。
+- `commit.rs::commit` 在同一物理 guard 和主机 flock 下先恢复旧事务；有恢复时返回 `WriteError::Recovered`，本次预演/目标不执行，要求调用者重读状态后重算。注册写入只发生在没有未完成意图时，不能用新请求替换旧 pending 的资源归属。原提交测试按此新行为更新；另加逐文件发布后的明确失败注入点，复用原任务 19 阶段钩子。
+- 真实执行端入口：`gateway/bootstrap.rs::run_gateway` 在绑定监听器前 spawn_blocking 调用 `agent_apps::recover_providers_on_startup`；按既有管理员 access 策略（显式策略优先，否则已有本地租户策略）消费 online/local host.id 与 credential_root。无 root/无历史事务不创建资源授权。`access.rs::recover_provider_policy` 构造同一 ProviderTransactions 并执行 recover_on_startup；按应用返回结果，日志仅包含 AppId、结果与跳过数量，不记录路径、配置字节或凭据。恢复失败保留 pending 并记录告警。
+- write_guard 仅最小提取 descriptor-relative `lock_directory` 与暂存读取，共用既有读取边界、PreparedWrite::publish、私有文件权限和物理锁；未复制文件替换所有者。
+- 无新增公共 API/SDK/UI：底层执行端启动与 commit 消费真实恢复实现，未交付的应用供应商编辑、首次激活及写授权 handler 仍归所属适配任务；不能把本项通过推及真实应用 live 切换。SDK→API→应用文件请求链和 Iced 页面不在本项新增行为中，未验证。
+
+### TDD 与验证
+
+最初两项具名测试以可编译的恢复空实现接线，均在 None 与预期恢复结果的业务断言处失败（退出 101，2 失败）。检查发现仓库 build.build-dir 固定为共享 target 后，停止该验证阶段，不采用其构建隔离证据；后续同时设置 CARGO_TARGET_DIR 与 CARGO_BUILD_BUILD_DIR 为同一动态槽位路径，未改仓库 Cargo 配置。
+
+隔离复核红阶段：动态槽位 1，`CARGO_TARGET_DIR=/Users/xiangmin/worker/code/shiju/target/rust-slot-1`，`CARGO_BUILD_BUILD_DIR` 同值；临时将公开 recover 入口还原为空恢复后执行 `cargo test -p vw-agent-apps --lib cc04_recovery_ -- --nocapture`，退出 101，8 项有效行为测试中 7 失败、1 通过，两项要求的具名断言均失败。阶段退出自动恢复完整实现并释放自身锁，产物路径实际为 target/rust-slot-1/debug/deps。
+
+最终绿阶段动态领取槽位 2：`CARGO_TARGET_DIR=/Users/xiangmin/worker/code/shiju/target/rust-slot-2`，`CARGO_BUILD_BUILD_DIR` 同值；本阶段下列命令全部继承相同环境，测试二进制实际位于该槽位 debug/deps。Gateway 初次用例在事务开始前制造状态目录冲突，未产生 pending 而失败（退出 101、1 失败）；将故障移到补丁执行阶段后，本轮完整通过。
+
+| 确切命令 | 退出码 | 有效行为测试 |
+| --- | --- | --- |
+| `cargo fmt --all` | 0 | 不计测试 |
+| `cargo test -p vw-agent-apps --lib cc04_recovery_ -- --nocapture` | 0 | 8 |
+| `cargo test -p vw-agent-apps --lib cc04_commit_ -- --nocapture` | 0 | 6 |
+| `cargo test -p vw-agent-apps --lib cc04_stage_ -- --nocapture` | 0 | 5 |
+| `cargo test -p vw-agent-apps --lib cc04_write_ -- --nocapture` | 0 | 5 |
+| `cargo test -p vw-agent --lib cc04_recovery_ -- --nocapture` | 0 | 1 |
+| `cargo clippy --all-targets --all-features -- -D warnings` | 0 | 不计测试 |
+
+共 25 项有效定向测试通过。写锁测试中的既有 catch_unwind panic 为预期场景。Gateway lib test 链接器提示 `__eh_frame` 超过 compact unwind 表 16MB 编码范围，测试退出 0；未调整 unwind/构建安全配置，最终强制 Clippy 退出 0。
+
+8 项隔离真实文件恢复测试覆盖 pending/marked/逐文件 published/全部 published/target 后中断、未发布丢弃、外部已改文件保留及其余文件前滚、部分结果列表、暂存缺失、启动重新构造所有者、目录替换/符号链接拒绝与恢复条件、恶意 pending 名拒绝且零副作用、落定失败保留和幂等重试、跨租户下一次 commit 先恢复原租户并要求重算。中断使用 cfg(test) 明确阶段注入点；全部目标、暂存、登记、状态及权限操作均为隔离真实文件系统，无网络/钥匙串或业务 mock，不碰真实用户配置。
+
+Gateway 定向用例用真实私有策略文件、host.id/credential_root、原生 commit 和真实状态路径被目录占据造成的落定失败产生 pending；重建执行端后调用实际启动策略消费者，验证外部文件保留、原租户指针落定、pending 清理、状态 0600，并验证 0644 策略拒绝且没有目标副作用。
+
+平台命令 sw_vers / uname -m 退出 0：macOS 27.0（26A428）、arm64；本机原生 Rust crate 版本 0.6.0。未验证个人账号、已安装应用版本、真实 CLI/Iced 启动、公开 SDK 请求、Windows/Linux 或其他架构。本项隔离执行端恢复通过不代表应用适配和全链 live 切换验收。
+
+
+定向差异和暂存检查通过，本任务暂存范围为实现、独立测试、必要父注册/写入底层与 Gateway 启动连线及本条正式证据；母任务状态和既有编号文件删除未暂存。plan.md 无差异；各阶段结束后清理自己的 owner/锁目录，最终实际确认本任务槽位 2 锁不存在，保留缓存。未执行全量 cargo test、fmt check、wasm 或 Makefile。本任务标记完成后删除编号文件，不纳入提交，正式证据保留。
+
+提交核对：本任务上述 12 个文件暂存后，共享索引被并行终端提交 `07785d930`（`fix(terminal): ignore composer shortcuts while unfocused`）一并消费，该提交同时包含终端任务的 3 个文件。已通过 git show 核对本任务实现与验证后内容一致，未改写该提交或他人历史；本次另以仅本证据文件的 docs 提交记录该归属情况。其他未提交桌面改动仍保留。

@@ -585,3 +585,39 @@ SDK→真实回环 HTTP→正式 paths handler→管理员 policy HOME 下临时
 `sw_vers`、`uname -m` 退出 0：macOS 27.0（26A428）、arm64。应用版本未验证，未启动实际 CLI/Iced；本条仅验收主机路径解析与只读元数据，live 激活、写权限、持久覆盖设置、动态 Desktop profile、Windows/Linux、其它架构和 UI 均未验收。后续应用任务须接通原生文件动作，不将本接口当作写成功证据。
 
 定向 diff 检查及暂存检查均退出 0；仅提交本任务代码、独立测试、父模块注册及本条正式证据。现有其他任务状态/删除与桌面改动不纳入提交；只读 plan.md 无差异。最终锁已释放、缓存保留。未执行全量 cargo test、fmt check、wasm 或 Makefile。完成报告后删除任务 12 文件，不纳入提交，正式证据保留。
+
+## 任务 13：JSON 与 JSONC 定点补丁
+
+2026-11-06；状态：已完成（内存字节补丁原语，live 写入未接通）。
+
+### 依赖、来源与范围
+
+核对批次 12 提交 `11d1d83e5` 及本文件任务 1–12 正式证据；母任务 1、3 已完成，母任务 2 沿用任务 1 记录的底座子计划 1–93 开工裁定，完整领域迁移仍未收口，不将其改报为完成。只读 plan.md 未修改。
+
+来源 `/Users/xiangmin/worker/code/cc-switch` HEAD `ca58c0313360eae7c851fbd7553c1614c7af03e7`，rev-parse/status 退出 0、来源干净。阅读 `live/patch/json.rs::{JsonPatch::apply_to,LivePatch::apply,parse,serialize}` 及相邻测试，直接消费方 `live/project/claude.rs::direct_patch`、`live/project/gemini.rs::settings_patch`、`services/provider/claude_direct.rs::write/run`、`services/provider/gemini_editor.rs`；同时阅读 `opencode_config.rs::OpenCodeDocument::{load,save}/try_edit_config/set_provider_with_format/set_default_model`、`jsonc_document.rs` 文本编辑机制、直接调用者 `services/provider/live.rs` 与 `commands/provider.rs::set_opencode_default_model`，以及相邻配置/服务 JSONC、损坏文件、Unicode 注释测试。来源测试只读，未运行。
+
+RustCodeGraph status/explore 退出 0，索引含 6443 文件；运行时代码和 Cargo 清单检索确认保注释编辑器仅存在冻结的 upstream 源码中，未连接原生 crate，依赖 JSON5/json-five。当前原生 crate 只有 serde_json，未新增依赖或接入 Tauri。业务唯一落点 `vw-agent-apps/src/providers/live/patch_json.rs::JsonPatch::apply`，通过父模块 `providers::live` 注册，独立测试 `live/patch_json_tests.rs`。
+
+- 提供点名对象键的 set/remove/seed；set 胜过相同路径 remove，seed 只写缺失键，已有 null 保留，缺失对象祖先可创建；路径按字符串片段解释，支持中文、转义引号与 escaped key，不提供数组索引或根节点覆盖。
+- 使用 serde_json 验证语义和嵌套限制，在临时副本屏蔽 JSONC 注释/BOM/尾逗号以取得同偏移文本范围；实际只改原文的目标值、删除目标成员及必要逗号、新增成员。未触及字段保留原始数字、Unicode 转义、键顺序、缩进、CRLF、BOM 和注释；语义相同目标保持原字节。被明确替换/删除的目标值内部原文属于修改范围，不承诺保留其内部注释。
+- 支持标准 JSON 和带行/块注释、尾逗号的 JSONC；不扩展为 JSON5 标识符/单引号。拒绝非对象根、非对象祖先、重复解码键、非法 UTF-8、损坏/空现有文档、非法空路径及超限输入。文件缺失才从 `{}` 起步；输入/输出上限 1 MiB，路径最多 64 段。错误只有固定枚举，不回显配置或凭据。
+- 全程在私有输出副本操作，返回前再次验证，不修改输入、不接触文件系统；任意操作失败不返回部分结果。调用方负责目标选择、权限、物理锁、快照与原子提交，本任务没有引入任意路径/文件 API。
+- API/SDK/UI 无新增入口：当前原生调用链尚无可授权的 live 写入事务；本项只交付内部补丁原语，测试直接使用同一公开业务函数。后续事务与应用适配任务接入此所有者；目录创建/编辑、首次激活、实际 native 文件提交和 UI 未验收，不能将本项称为切换成功。
+
+### 红绿验证与平台边界
+
+所有阶段均通过原子 mkdir 动态领取槽位 **1**，`CARGO_TARGET_DIR=/Users/xiangmin/worker/code/shiju/target/rust-slot-1`；`CARGO_BUILD_BUILD_DIR` 同一绝对路径覆盖仓库另设的 build-dir。owner 记录计划/任务/会话/PID，EXIT/INT/TERM trap 清理自己的 owner/锁；所有子进程结束后释放，缓存保留。测试二进制实际位于槽位 debug/deps。
+
+| 确切命令 | 红阶段退出码 / 有效结果 | 最终绿阶段退出码 / 有效结果 |
+| --- | --- | --- |
+| `cargo fmt --all` | 0 | 0 |
+| `cargo test -p vw-agent-apps --lib cc04_patch_json_ -- --nocapture` | 101；0 passed / 2 failed | 0；5 passed / 0 ignored |
+| `cargo clippy --all-targets --all-features -- -D warnings` | 不适用 | 0；全部 targets/features 通过 |
+
+红阶段模块/类型/测试接线可编译：补丁返回原字节时目标 token 更新断言失败、数组根被错误接受的业务拒绝断言失败，非编译失败或零测试。中间绿测 4 passed/1 failed，因删除单键的预期字符串误多写一个空格，修正 fixture 后 5 passed；第一次 Clippy 退出 101，发现本次 helper 多余引用，已修正并重跑格式化、全部 5 项聚焦及强制 Clippy，表格为最终结果。
+
+5 项有效行为测试覆盖精确字节保留（中文/emoji 注释、EOF 注释、BOM/CRLF、数字与 Unicode 转义）、重复写入稳定、首/中/尾/唯一键删除、尾逗号、新增嵌套键与转义键、set/remove 优先级及 seed、损坏语法/形状/重复键/非法 UTF-8、批次后段失败。隔离临时文件实测解析失败前后内容不变；其余测试用真实内存文本和 serde_json 值，无 mock/网络/钥匙串/进程替代，无真实用户配置读取或写入。
+
+`sw_vers`、`uname -m` 退出 0：macOS 27.0（26A428）、arm64。应用版本未验证，未启动实际 CLI/Iced；没有 SDK→API→原生文件链的成功声明。Windows/Linux、其他架构及实际应用读写运行未验收。
+
+定向 diff 检查和暂存差异检查退出 0；仅提交本任务补丁、独立测试、两个父注册及本条证据。既有母任务状态/编号文件删除和桌面变更排除；只读 plan.md 无差异。最终实际检查槽位 1 锁已释放、缓存保留。未执行全量 cargo test、fmt check、wasm 或 Makefile。完成报告后删除任务 13 文件，不纳入提交，正式证据保留。

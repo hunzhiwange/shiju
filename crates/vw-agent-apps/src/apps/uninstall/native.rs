@@ -122,7 +122,7 @@ fn check_parents(path: &Path) -> Result<(), String> {
     Ok(())
 }
 
-fn is_native_executable(path: &Path) -> bool {
+pub(crate) fn is_native_executable(path: &Path) -> bool {
     use std::io::Read;
     if !std::fs::symlink_metadata(path).is_ok_and(|m| m.is_file()) {
         return false;
@@ -172,7 +172,9 @@ fn known_native_install(tool: AppId, real: &Path) -> bool {
         // Official install.sh / install.ps1 targets. A cask binary the self-updater
         // replaced in place sits in Homebrew's bin and stays a manual uninstall.
         AppId::Agy => {
-            normalized.ends_with("/.local/bin/agy") || normalized.ends_with("/agy/bin/agy.exe")
+            normalized.ends_with("/.local/bin/agy")
+                || normalized.ends_with("/agy/bin/agy.exe")
+                || crate::apps::lifecycle::local_agy::owns(real)
         }
         // Official install.sh (`~/.local/bin`) / install.ps1 (`%LOCALAPPDATA%\omp`) targets.
         AppId::Omp => {

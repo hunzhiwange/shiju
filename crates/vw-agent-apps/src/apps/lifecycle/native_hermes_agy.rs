@@ -71,3 +71,11 @@ fn recipe(
         }
     }
 }
+
+/// The official agy installer explicitly supports --dir. Pass the administrator's
+/// path as a positional argument; never interpolate it into shell source.
+pub(crate) fn agy_managed_install(directory: &std::path::Path) -> InstallCommand {
+    InstallCommand { program: "bash", args: vec!["-c".into(),
+        "(tmp=$(mktemp) || exit $?; trap 'rm -f \"$tmp\"' EXIT; curl -fsSL https://antigravity.google/cli/install.sh -o \"$tmp\" && bash \"$tmp\" --dir \"$1\")".into(),
+        "shiju-agy-install".into(), directory.to_string_lossy().into_owned()] }
+}

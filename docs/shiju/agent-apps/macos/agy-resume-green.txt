@@ -1,0 +1,14 @@
+    Blocking waiting for file lock on build directory
+   Compiling vw-agent-apps v0.6.0 (/Users/xiangmin/worker/code/shiju/crates/vw-agent-apps)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 1m 36s
+     Running unittests src/lib.rs (target/rust-slot-4/debug/deps/vw_agent_apps-c350eefc4d73b711)
+
+running 6 tests
+test apps::lifecycle::local::agy_tests::cc_apps_agy_managed_install_rejects_redirected_bin_before_writing ... ok
+test apps::lifecycle::local::agy_tests::cc_apps_agy_managed_install_preview_accepts_authorized_empty_prefix ... ok
+test apps::lifecycle::local::agy_tests::cc_apps_agy_managed_receipt_rejects_replacement_and_symlinks ... ok
+test apps::lifecycle::local::agy_tests::cc_apps_agy_managed_manual_install_does_not_acquire_ownership ... ok
+test apps::lifecycle::local::agy_tests::cc_apps_agy_managed_cancel_reaps_installer_without_source_receipt ... ok
+test apps::lifecycle::local::agy_tests::cc_apps_agy_managed_install_update_and_selected_uninstall_use_real_processes ... ok
+
+test result: ok. 6 passed; 0 failed; 0 ignored; 0 measured; 167 filtered out; finished in 0.17s

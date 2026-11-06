@@ -1,0 +1,22 @@
+sdk.txt
+exit=0
+CAT Some(AppCatalogEntry { id: Agy, name: "Antigravity", cli_command: Some("agy"), runtime_kinds: [NativeCli] })
+INSTALLATIONS AppReadResponse { installations: [], desktop: None }
+
+
+sdk-installed.txt
+exit=0
+CAT Some(AppCatalogEntry { id: Agy, name: "Antigravity", cli_command: Some("agy"), runtime_kinds: [NativeCli] })
+INSTALLATIONS AppReadResponse { installations: [AppInstallation { id: AppInstallationId("installation-1"), app_id: Agy, target_host_id: "host", environment: Macos, path: "<isolated-root>/prefix/bin/agy", real_path: Some("<isolated-root>/prefix/bin/agy"), source: System, is_path_default: true, version: Some("1.5.2"), runtime_status: Runnable }, AppInstallation { id: AppInstallationId("installation-2"), app_id: Agy, target_host_id: "host", environment: Macos, path: "<isolated-root>/second-home/.local/bin/agy", real_path: Some("<isolated-root>/second-home/.local/bin/agy"), source: Unknown, is_path_default: false, version: Some("1.5.2"), runtime_status: Runnable }], desktop: None }
+
+
+sdk-final.txt
+exit=0
+CAT Some(AppCatalogEntry { id: Agy, name: "Antigravity", cli_command: Some("agy"), runtime_kinds: [NativeCli] })
+INSTALLATIONS AppReadResponse { installations: [], desktop: None }
+
+
+sdk-ui-installed.txt
+exit=0
+CAT Some(AppCatalogEntry { id: Agy, name: "Antigravity", cli_command: Some("agy"), runtime_kinds: [NativeCli] })
+INSTALLATIONS AppReadResponse { installations: [AppInstallation { id: AppInstallationId("installation-1"), app_id: Agy, target_host_id: "host", environment: Macos, path: "<isolated-root>/prefix/bin/agy", real_path: Some("<isolated-root>/prefix/bin/agy"), source: System, is_path_default: true, version: Some("1.5.2"), runtime_status: Runnable }], desktop: None }

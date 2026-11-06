@@ -79,7 +79,11 @@ pub fn read(app: AppId, env: &LocalReadEnvironment) -> io::Result<AppReadRespons
             },
             path: entry,
             real_path: path.canonicalize().ok().map(|p| p.to_string_lossy().into_owned()),
-            source: AppInstallationSource::Unknown,
+            source: if app == AppId::Agy && crate::apps::lifecycle::local_agy::owns(&path) {
+                AppInstallationSource::System
+            } else {
+                AppInstallationSource::Unknown
+            },
             is_path_default,
             version: probe.version,
             runtime_status: probe.runtime_status,

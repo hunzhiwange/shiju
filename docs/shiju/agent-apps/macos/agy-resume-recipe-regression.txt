@@ -1,0 +1,8 @@
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.23s
+     Running unittests src/lib.rs (target/rust-slot-4/debug/deps/vw_agent_apps-c350eefc4d73b711)
+
+running 2 tests
+test apps::lifecycle::native_hermes_agy_tests::cc_apps_hermes_agy_install_platform_rules ... ok
+test apps::lifecycle::native_hermes_agy_tests::cc_apps_hermes_agy_install_process_results ... ok
+
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 171 filtered out; finished in 0.55s

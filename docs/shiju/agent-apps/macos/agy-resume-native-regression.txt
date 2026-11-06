@@ -1,0 +1,11 @@
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.65s
+     Running unittests src/lib.rs (target/rust-slot-4/debug/deps/vw_agent_apps-c350eefc4d73b711)
+
+running 5 tests
+test apps::uninstall::native_tests::cc_apps_native_uninstall_scope_removes_only_binary ... ok
+test apps::uninstall::native_tests::cc_apps_native_uninstall_scope_symlinks_and_changed_plan ... ok
+test apps::uninstall::native_tests::cc_apps_native_uninstall_scope_windows_wsl_rules_and_directory_rejection ... ok
+test apps::uninstall::native_tests::cc_apps_native_uninstall_scope_rejects_unverified_and_scripts ... ok
+test apps::uninstall::native_tests::cc_apps_native_uninstall_scope_grok_retains_data_and_external_links ... ok
+
+test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 168 filtered out; finished in 0.02s

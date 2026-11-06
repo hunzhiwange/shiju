@@ -1,0 +1,6 @@
+    Checking vw-agent-apps v0.6.0 (/Users/xiangmin/worker/code/shiju/crates/vw-agent-apps)
+    Checking vw-desktop v0.6.0 (/Users/xiangmin/worker/code/shiju/crates/vw-desktop)
+    Checking vw-gateway-client v0.6.0 (/Users/xiangmin/worker/code/shiju/crates/vw-gateway-client)
+    Checking vw-agent v0.6.0 (/Users/xiangmin/worker/code/shiju/crates/vw-agent)
+    Checking vw-cli v0.6.0 (/Users/xiangmin/worker/code/shiju/crates/vw-cli)
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 2m 19s

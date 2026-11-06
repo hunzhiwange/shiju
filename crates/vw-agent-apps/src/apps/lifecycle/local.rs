@@ -114,6 +114,9 @@ fn preview_with_node(
     node_check: impl FnOnce(&AppInstallation, &WriteEnvironment) -> Result<(), String>,
 ) -> Result<Plan, String> {
     validate(write, env)?;
+    if request.app_id == AppId::Agy {
+        super::local_agy::validate(&write.prefix)?;
+    }
     let report = scoped_discover(request.app_id, env, write)?;
     let (source, action) = match (&request.action, &request.target) {
         (AppLifecycleAction::Install, AppActionTarget::Environment { environment }) => {
@@ -125,16 +128,20 @@ fn preview_with_node(
             if environment != &local {
                 return Err("local environment executor required".into());
             }
-            npm::install_args(request.app_id).map_err(str::to_owned)?;
+            if request.app_id != AppId::Agy {
+                npm::install_args(request.app_id).map_err(str::to_owned)?;
+            }
             if !report.installations.is_empty() {
                 return Err("installation already exists".into());
             }
-            // Source is the administrator-selected system npm prefix, not PATH inference.
+            // Source is the administrator-approved installer target, not PATH inference.
             (AppInstallationSource::System, Action::Install)
         }
         (AppLifecycleAction::Update, AppActionTarget::Installation { installation_id }) => {
             let inst = selected(&report, installation_id, write)?;
-            node_check(&inst, write)?;
+            if request.app_id != AppId::Agy {
+                node_check(&inst, write)?;
+            }
             let plan =
                 update::plan(&report, installation_id, &managers(write)).map_err(str::to_owned)?;
             (inst.source, Action::Update(plan))
@@ -155,6 +162,10 @@ pub fn run(plan: Plan, env: LocalReadEnvironment, write: WriteEnvironment) -> Re
         return Err("installation changed since preview".into());
     }
     let (program, args, extra) = match &plan.action {
+        Action::Install if plan.request.app_id == AppId::Agy => {
+            let recipe = super::native_hermes_agy::agy_managed_install(&write.prefix.join("bin"));
+            (recipe.program.into(), recipe.args, vec![])
+        }
         Action::Install => (
             write.npm.to_string_lossy().into_owned(),
             npm::install_args(plan.request.app_id)?.iter().map(|s| (*s).into()).collect(),
@@ -166,14 +177,32 @@ pub fn run(plan: Plan, env: LocalReadEnvironment, write: WriteEnvironment) -> Re
         Action::Uninstall(_) => return Err("uninstall must use its coordinated executor".into()),
     };
     let mut command = process::command(&program, &args, &[], None)?;
+    let home = if plan.request.app_id == AppId::Agy {
+        super::local_agy::home(&write.prefix)?
+    } else {
+        write.prefix.clone()
+    };
     let _npm_config = process::WriteProcessEnvironment::new(
-        write.prefix.clone(),
+        home.clone(),
         write.prefix.clone(),
         write.npm.parent().ok_or("npm parent missing")?.into(),
     )
     .apply(&mut command)?;
     command.envs(extra);
+    if plan.request.app_id == AppId::Agy {
+        command.env("TMPDIR", &home);
+    }
     process::run_command(command)?;
+    if plan.request.app_id == AppId::Agy {
+        let observed = discover(AppId::Agy, &env)?;
+        if !observed.installations.iter().any(|i| {
+            i.path == write.prefix.join("bin/agy").to_string_lossy()
+                && i.runtime_status == AppInstallationRuntimeStatus::Runnable
+        }) {
+            return Err("native agy postcondition failed".into());
+        }
+        super::local_agy::record(&write.prefix)?;
+    }
     let result = scoped_discover(plan.request.app_id, &env, &write)?;
     if matches!(plan.action, Action::Install)
         && !result.installations.iter().any(|i| i.source == AppInstallationSource::System)
@@ -234,3 +263,7 @@ mod node_preflight;
 #[cfg(test)]
 #[path = "local_node_tests.rs"]
 mod node_tests;
+
+#[cfg(all(test, unix))]
+#[path = "local_agy_tests.rs"]
+mod agy_tests;

@@ -1,0 +1,23 @@
+   Compiling vw-api-types v0.6.0 (/Users/xiangmin/worker/code/shiju/crates/vw-api-types)
+   Compiling png v0.18.1
+   Compiling vw-acp v0.6.0 (/Users/xiangmin/worker/code/shiju/crates/vw-acp)
+   Compiling vw-agent-apps v0.6.0 (/Users/xiangmin/worker/code/shiju/crates/vw-agent-apps)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 16.42s
+     Running unittests src/lib.rs (target/rust-slot-4/debug/deps/vw_agent_apps-ce9d6dcf9d5955c1)
+
+running 2 tests
+
+thread 'apps::lifecycle::local::agy_tests::cc_apps_agy_managed_install_preview_accepts_authorized_empty_prefix' (36651724) panicked at crates/vw-agent-apps/src/apps/lifecycle/local_agy_tests.rs:24:44:
+reviewed agy installer must be reachable: "application has no reviewed npm installation recipe"
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+test apps::lifecycle::local::agy_tests::cc_apps_agy_managed_install_preview_accepts_authorized_empty_prefix ... FAILED
+test apps::lifecycle::local::agy_tests::cc_apps_agy_managed_manual_install_does_not_acquire_ownership ... ok
+
+failures:
+
+failures:
+    apps::lifecycle::local::agy_tests::cc_apps_agy_managed_install_preview_accepts_authorized_empty_prefix
+
+test result: FAILED. 1 passed; 1 failed; 0 ignored; 0 measured; 167 filtered out; finished in 0.03s
+
+error: test failed, to rerun pass `-p vw-agent-apps --lib`

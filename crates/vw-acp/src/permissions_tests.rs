@@ -405,7 +405,7 @@ fn resolve_permission_request_cancels_when_no_options_are_available() {
 }
 
 #[test]
-fn resolve_permission_request_approve_all_prefers_allow_or_first_option() {
+fn resolve_permission_request_approve_all_requires_allow_option() {
     let strongest = resolve_permission_request(
         &request_with_options(
             Some("edit: file"),
@@ -436,7 +436,7 @@ fn resolve_permission_request_approve_all_prefers_allow_or_first_option() {
         None,
     )
     .unwrap();
-    assert_eq!(selected_option_id(&fallback).as_deref(), Some("reject-once"));
+    assert!(selected_option_id(&fallback).is_none());
 }
 
 #[test]
@@ -571,4 +571,63 @@ fn classify_permission_decision_maps_selected_options_and_cancellations() {
         classify_permission_decision(&params, &cancelled_response()),
         PermissionDecision::Cancelled
     );
+}
+
+#[test]
+fn acp_full_access_policy_approve_all_cancels_without_allow_option() {
+    for options in [vec![reject_once()], vec![reject_always(), reject_once()]] {
+        let response = resolve_permission_request(
+            &request_with_options(Some("edit: file"), Some("edit"), options),
+            PermissionMode::ApproveAll,
+            None,
+        )
+        .unwrap();
+        assert!(matches!(response.outcome, RequestPermissionOutcome::Cancelled));
+    }
+}
+
+#[test]
+fn acp_full_access_policy_empty_options_cancels() {
+    let response = resolve_permission_request(
+        &request_with_options(None, None, Vec::new()),
+        PermissionMode::ApproveAll,
+        None,
+    )
+    .unwrap();
+    assert!(matches!(response.outcome, RequestPermissionOutcome::Cancelled));
+}
+
+#[test]
+fn acp_full_access_policy_deny_all_never_selects_allow() {
+    let response = resolve_permission_request(
+        &request_with_options(None, None, vec![allow_always(), reject_once()]),
+        PermissionMode::DenyAll,
+        None,
+    )
+    .unwrap();
+    assert_eq!(
+        classify_permission_decision(
+            &request_with_options(None, None, vec![allow_always(), reject_once()]),
+            &response,
+        ),
+        PermissionDecision::Denied
+    );
+    let response = resolve_permission_request(
+        &request_with_options(None, None, vec![allow_always()]),
+        PermissionMode::DenyAll,
+        None,
+    )
+    .unwrap();
+    assert!(matches!(response.outcome, RequestPermissionOutcome::Cancelled));
+}
+
+#[test]
+fn acp_full_access_policy_approve_all_selects_allow_once_after_reject() {
+    let response = resolve_permission_request(
+        &request_with_options(None, None, vec![reject_once(), allow_once()]),
+        PermissionMode::ApproveAll,
+        None,
+    )
+    .unwrap();
+    assert_eq!(selected_option_id(&response).as_deref(), Some("allow-once"));
 }

@@ -79,6 +79,18 @@ impl AcpClient {
         self
     }
 
+    /// 判定访问意图和已公布的协议选项；此方法不发送协议请求或扩大权限。
+    ///
+    /// 返回的客户端能力不代表供应商原生工具已免审批。调用方应传入当前会话
+    /// 最新的 modes/configOptions，不能以自由文本或名称推断供应商能力。
+    pub fn access_policy(
+        &self,
+        modes: Option<&acp::SessionModeState>,
+        config_options: Option<&[acp::SessionConfigOption]>,
+    ) -> crate::AccessPolicy {
+        crate::AccessPolicy::resolve(self.full_access, self.permission_mode, modes, config_options)
+    }
+
     /// 设置非交互模式下的权限策略。
     ///
     /// 当调用方无法弹出权限确认界面时，该策略决定 ACP 权限请求如何自动处理。

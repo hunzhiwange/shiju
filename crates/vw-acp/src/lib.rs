@@ -20,6 +20,8 @@
 
 #![allow(clippy::result_large_err)]
 
+mod access_policy;
+pub use access_policy::{AccessPolicy, AccessPolicyReason, FullAccessSupport};
 mod acp_error_shapes;
 mod acp_jsonrpc;
 mod agent_registry;

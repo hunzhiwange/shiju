@@ -199,7 +199,9 @@ fn resolve_permission_request_with_prompt(
 
     match mode {
         PermissionMode::ApproveAll => {
-            return Ok(selected(allow_always_option.unwrap_or(&options[0]).option_id.to_string()));
+            return Ok(allow_always_option
+                .map(|option| selected(option.option_id.to_string()))
+                .unwrap_or_else(cancelled));
         }
         PermissionMode::DenyAll => {
             return Ok(reject_option

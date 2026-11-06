@@ -86,7 +86,7 @@ async fn launch(
                 &vw_agent_apps::apps::discovery::read::LocalReadEnvironment {
                     host_id: host.id.clone(),
                     home: host.home.clone(),
-                    search_paths: host.search_paths,
+                    search_paths: host.search_paths.clone(),
                     applications: host.applications,
                 },
             )
@@ -128,9 +128,17 @@ async fn launch(
                     })?)
                 }
             } else {
-                let material = validate_launch_request(&request.launch, &host.id, &observed.installations, &[root], false).map_err(|_| StatusCode::UNPROCESSABLE_ENTITY)?;
-                (context.terminal)(preferences.preferred_terminal.as_deref(), Path::new("/bin/sh"), &material).map_err(|_| StatusCode::SERVICE_UNAVAILABLE)?;
-                None
+                let material = validate_launch_request(&request.launch, &host.id, &observed.installations, &[root.clone()], false).map_err(|_| StatusCode::UNPROCESSABLE_ENTITY)?;
+                let mut command = vw_agent_apps::apps::launch::host::command(material, &root, &host.search_paths).map_err(|_| StatusCode::UNPROCESSABLE_ENTITY)?;
+                let terminal = context.terminal;
+                let preferred = preferences.preferred_terminal;
+                let scope = super::launch_sessions::Scope { tenant, host: host.id, principal };
+                Some(context.sessions.start(scope, move |ready| {
+                    let transport = vw_agent_apps::apps::launch::terminal_session::TerminalSession::connect_with(Path::new("/tmp"), |_, material| terminal(preferred.as_deref(), Path::new("/bin/sh"), material))?;
+                    let status = transport.run(&mut command, move || { let _ = ready.send(()); }).map_err(|_| "execution-host process failed")?;
+                    if !status.success() { return Err("execution-host process exited unsuccessfully".into()); }
+                    Ok(())
+                })?)
             };
             Ok(Json(LaunchResult { session_id, installation_id: request.launch.installation_id }))
         }

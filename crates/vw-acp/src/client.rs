@@ -92,6 +92,8 @@ mod session_meta;
 mod state;
 #[path = "client/timeout_messages.rs"]
 mod timeout_messages;
+#[path = "client/vibe_access.rs"]
+mod vibe_access;
 
 #[cfg(test)]
 #[path = "client/active_prompt_tests.rs"]

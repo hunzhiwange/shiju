@@ -22,3 +22,8 @@ mod account_tests;
 pub mod terminal_session;
 #[cfg(all(test, unix))]
 mod terminal_session_tests;
+
+#[cfg(unix)]
+pub mod host;
+#[cfg(all(test, unix))]
+mod host_tests;

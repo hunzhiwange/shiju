@@ -11,12 +11,10 @@ use tower::ServiceExt;
 const TOKEN: &str = "fixture-launch-api-authorized-token";
 fn terminal(preferred: Option<&str>, _: &Path, material: &LaunchMaterial) -> Result<(), String> {
     assert_eq!(preferred, Some("terminal"));
-    if material.args == ["fail-terminal"] {
-        return Err("fixed failure".into());
-    }
-    std::fs::write(material.cwd.join("accepted"), serde_json::to_vec(&material.args).unwrap())
-        .unwrap();
-    Ok(())
+    attached_terminal(preferred, Path::new("/bin/sh"), material)
+}
+fn failing_terminal(_: Option<&str>, _: &Path, _: &LaunchMaterial) -> Result<(), String> {
+    Err("fixed failure".into())
 }
 async fn call(app: &Router, token: &str, value: Value) -> (StatusCode, Value) {
     let response = app
@@ -42,10 +40,12 @@ async fn call(app: &Router, token: &str, value: Value) -> (StatusCode, Value) {
 async fn cc_apps_launch_api_target_scope_accepts_and_rejects_before_terminal() {
     let root = tempfile::tempdir().unwrap();
     std::fs::set_permissions(root.path(), std::fs::Permissions::from_mode(0o700)).unwrap();
+    let cwd = root.path().join("workdir");
+    std::fs::create_dir(&cwd).unwrap();
     let bin = root.path().join("bin");
     std::fs::create_dir(&bin).unwrap();
     let program = bin.join("codex");
-    std::fs::write(&program, "#!/bin/sh\necho 'codex 1.0.0'\n").unwrap();
+    std::fs::write(&program, "#!/bin/sh\nif [ \"$1\" = --version ]; then echo 'codex 1.0.0'; exit 0; fi\ntest -t 0 && test -t 1 || exit 30\nprintf '%s' \"$HOME\" > home-proof\npwd > cwd-proof\nprintf '%s' \"$0\" > program-proof\nprintf '[\"%s\"]' \"$1\" > accepted\n").unwrap();
     std::fs::set_permissions(&program, std::fs::Permissions::from_mode(0o700)).unwrap();
     let policy = root.path().join("policy.json");
     let mut value = json!({"principals":[{"id":"a","token_sha256":hex::encode(Sha256::digest(TOKEN)),"grants":[{"platform_id":"p","company_id":"c","host_id":"h","launch":true}]}],"hosts":[{"id":"h","online":true,"binding":"local","home":root.path(),"search_paths":[bin],"applications":root.path()}]});
@@ -58,7 +58,7 @@ async fn cc_apps_launch_api_target_scope_accepts_and_rejects_before_terminal() {
         .upsert(&tenant, "agent_apps_host", "h", r#"{"preferredTerminal":"terminal"}"#)
         .unwrap();
     let app = router_with_terminal(Some(policy.clone()), terminal)
-        .layer(Extension(db))
+        .layer(Extension(db.clone()))
         .layer(middleware::from_fn(crate::gateway::middleware::tenant_scope_middleware));
     let observed = vw_agent_apps::apps::discovery::read::read(
         vw_api_types::agent_apps::AppId::Codex,
@@ -70,7 +70,7 @@ async fn cc_apps_launch_api_target_scope_accepts_and_rejects_before_terminal() {
         },
     )
     .unwrap();
-    let request = json!({"appId":"codex","installationId":observed.installations[0].id,"cwd":root.path(),"args":["hello"]});
+    let request = json!({"appId":"codex","installationId":observed.installations[0].id,"cwd":cwd,"args":["hello"]});
     for (field, replacement, status) in [
         ("cwd", json!("/"), StatusCode::UNPROCESSABLE_ENTITY),
         ("installationId", json!("forged"), StatusCode::UNPROCESSABLE_ENTITY),
@@ -86,7 +86,7 @@ async fn cc_apps_launch_api_target_scope_accepts_and_rejects_before_terminal() {
         let mut invalid = request.clone();
         invalid[field] = replacement;
         assert_eq!(call(&app, TOKEN, invalid).await.0, status, "{field}");
-        assert!(!root.path().join("accepted").exists());
+        assert!(!cwd.join("accepted").exists());
     }
     assert_eq!(
         call(&app, "invalid-token-with-sufficient-length", request.clone()).await.0,
@@ -95,17 +95,66 @@ async fn cc_apps_launch_api_target_scope_accepts_and_rejects_before_terminal() {
     value["principals"][0]["grants"][0]["launch"] = json!(false);
     std::fs::write(&policy, value.to_string()).unwrap();
     assert_eq!(call(&app, TOKEN, request.clone()).await.0, StatusCode::FORBIDDEN);
-    assert!(!root.path().join("accepted").exists());
+    assert!(!cwd.join("accepted").exists());
     value["principals"][0]["grants"][0]["launch"] = json!(true);
     std::fs::write(&policy, value.to_string()).unwrap();
     let mut failed = request.clone();
     failed["args"] = json!(["fail-terminal"]);
-    assert_eq!(call(&app, TOKEN, failed).await, (StatusCode::SERVICE_UNAVAILABLE, Value::Null));
-    assert!(!root.path().join("accepted").exists());
+    let failed_app = router_with_terminal(Some(policy.clone()), failing_terminal)
+        .layer(Extension(db))
+        .layer(middleware::from_fn(crate::gateway::middleware::tenant_scope_middleware));
+    assert_eq!(
+        call(&failed_app, TOKEN, failed).await,
+        (StatusCode::SERVICE_UNAVAILABLE, Value::Null)
+    );
+    assert!(!cwd.join("accepted").exists());
     let (status, result) = call(&app, TOKEN, request.clone()).await;
     assert_eq!(status, StatusCode::OK);
-    assert_eq!(result, json!({"installationId":request["installationId"]}));
-    assert_eq!(std::fs::read_to_string(root.path().join("accepted")).unwrap(), "[\"hello\"]");
+    assert_eq!(result["installationId"], request["installationId"]);
+    for _ in 0..200 {
+        if std::fs::read_to_string(cwd.join("accepted")).is_ok_and(|s| s == "[\"hello\"]") {
+            break;
+        }
+        tokio::time::sleep(std::time::Duration::from_millis(10)).await;
+    }
+    assert_eq!(std::fs::read_to_string(cwd.join("accepted")).unwrap(), "[\"hello\"]");
+    assert_eq!(
+        std::fs::read_to_string(cwd.join("home-proof")).unwrap(),
+        root.path().canonicalize().unwrap().to_str().unwrap()
+    );
+    assert_eq!(
+        std::fs::read_to_string(cwd.join("cwd-proof")).unwrap().trim(),
+        cwd.canonicalize().unwrap().to_str().unwrap()
+    );
+    assert_eq!(
+        std::fs::read_to_string(cwd.join("program-proof")).unwrap(),
+        program.canonicalize().unwrap().to_str().unwrap()
+    );
+    assert!(result.get("sessionId").and_then(Value::as_str).is_some());
+    let id = result["sessionId"].as_str().unwrap();
+    value["principals"][0]["grants"]
+        .as_array_mut()
+        .unwrap()
+        .push(json!({"platform_id":"p","company_id":"foreign","host_id":"h","launch":true}));
+    value["principals"].as_array_mut().unwrap().push(json!({"id":"b","token_sha256":hex::encode(Sha256::digest("fixture-other-principal-authorized-token")),"grants":[{"platform_id":"p","company_id":"c","host_id":"h","launch":true}]}));
+    std::fs::write(&policy, value.to_string()).unwrap();
+    for (company, token) in [("foreign", TOKEN), ("c", "fixture-other-principal-authorized-token")]
+    {
+        let response = app
+            .clone()
+            .oneshot(
+                HttpRequest::builder()
+                    .uri(format!("/agent-apps/launch-sessions/{id}?targetHostId=h"))
+                    .header("x-platform-id", "p")
+                    .header("x-company-id", company)
+                    .header("x-agent-apps-token", token)
+                    .body(Body::empty())
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+        assert_eq!(response.status(), StatusCode::NOT_FOUND);
+    }
 }
 
 fn attached_terminal(_: Option<&str>, _: &Path, material: &LaunchMaterial) -> Result<(), String> {
@@ -159,7 +208,7 @@ async fn identity_roundtrip(
     std::fs::create_dir(&credentials).unwrap();
     std::fs::set_permissions(&credentials, std::fs::Permissions::from_mode(0o700)).unwrap();
     let policy = root.path().join("policy.json");
-    let other_token = "fixture-other-principal-token-12345678";
+    let other_token = "fixture-other-principal-authorized-token-token-12345678";
     let restricted_token = "fixture-no-identity-grant-token-12345678";
     let permitted = json!([
         {"appId":"claude","kind":"provider","id":"selected-provider"},

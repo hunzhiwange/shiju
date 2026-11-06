@@ -132,6 +132,7 @@ impl AcpClient {
 impl AcpClient {
     async fn guard_native_mode(&self, session_id: &str, mode_id: &str) -> Result<(), AcpError> {
         self.guard_qoder_mode(session_id, mode_id).await?;
+        self.guard_vibe_mode(session_id, mode_id).await?;
         if self.agent_name == "gemini" {
             if !crate::access_policy::gemini::restricted_mode(mode_id) {
                 return Err(AcpError::Prompt("Gemini native approval modes lack confirmed revocation and change tools or prompts; use client approvals".into()));
@@ -191,6 +192,7 @@ impl AcpClient {
         self.sync_claude_access(conn, session_id).await?;
         self.sync_qwen_access(conn, session_id).await?;
         self.sync_qoder_access(conn, session_id).await?;
+        self.ensure_vibe_access(session_id)?;
         if self.agent_name == "gemini" {
             let state = self.actor_state.lock();
             let restricted = state.session_capabilities.as_ref().is_some_and(|info| {

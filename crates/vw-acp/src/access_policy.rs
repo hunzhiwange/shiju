@@ -9,6 +9,7 @@ pub(crate) mod codex;
 pub(crate) mod gemini;
 pub(crate) mod qoder;
 pub(crate) mod qwen;
+pub(crate) mod vibe;
 
 /// 原生权限与客户端回调是不同的执行边界。
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]

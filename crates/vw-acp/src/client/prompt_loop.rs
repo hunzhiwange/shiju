@@ -31,8 +31,10 @@ impl AcpClient {
         mut command_rx: Option<&mut mpsc::UnboundedReceiver<ActorCommand>>,
         deferred: &mut std::collections::VecDeque<ActorCommand>,
     ) -> Result<PromptResult, AcpError> {
-        if matches!(self.agent_name.as_str(), "codex" | "claude" | "gemini" | "qwen" | "qoder")
-            && self.permission_mode == PermissionMode::DenyAll
+        if matches!(
+            self.agent_name.as_str(),
+            "codex" | "claude" | "gemini" | "qwen" | "qoder" | "vibe"
+        ) && self.permission_mode == PermissionMode::DenyAll
         {
             return Err(AcpError::Prompt("Host deny forbids native tool execution".into()));
         }

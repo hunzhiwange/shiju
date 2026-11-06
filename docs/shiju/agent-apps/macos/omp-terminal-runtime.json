@@ -1,0 +1,39 @@
+{
+  "installer_source": "https://omp.sh/install (same reviewed script as initial acceptance)",
+  "installer_sha256": "cd8f77920da58c6f56b5851c841b61d5e30b4ba8f4cab683afba1f8274b56a06",
+  "install_exit": 0,
+  "official_install_log": "Fetching latest release...\nUsing version: 18.17.0\nDownloading omp-darwin-arm64...\n\n✓ Installed omp to <isolated-root>/prefix/bin/omp\nAdd <isolated-root>/prefix/bin to your PATH, then run 'omp'\n",
+  "interactive_proof": {
+    "pid": 56006,
+    "ppid": 54223,
+    "program": "<isolated-root>/prefix/bin/omp",
+    "cwd_lsof": "p56006\nfcwd\nn<isolated-root>/home/workspace\n",
+    "environment": {
+      "HOME": "<isolated-root>/home",
+      "XDG_CONFIG_HOME": "<isolated-root>/home/.config",
+      "XDG_CACHE_HOME": "<isolated-root>/home/.cache",
+      "XDG_DATA_HOME": "<isolated-root>/home/.local/share",
+      "XDG_STATE_HOME": "<isolated-root>/home/.local/state",
+      "TMPDIR": "/tmp/sj-tty-E48oq3",
+      "PATH": "<isolated-root>/prefix/bin:/usr/bin:/bin:/usr/sbin:/sbin"
+    },
+    "inherited_keys_and_hooks_absent": true,
+    "temporary_directory_present_during_process": true,
+    "final_session": {
+      "phase": "failed"
+    },
+    "temporary_directory_removed": true,
+    "process_gone": true
+  },
+  "normal_help_launch": {
+    "response": {
+      "sessionId": "1228a289-29c3-4b4f-85fb-238e101a7ff1",
+      "installationId": "installation-terminal-1"
+    },
+    "final": {
+      "phase": "completed"
+    }
+  },
+  "gateway_exit": -15,
+  "final_installations_empty": true
+}

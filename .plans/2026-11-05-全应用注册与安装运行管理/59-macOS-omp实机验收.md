@@ -2,7 +2,7 @@
 
 批次：【批次 59】 依赖：批次 58（传递依赖此前全部批次）。线性执行；不与其他任务并行占用测试安装、终端或桌面进程。
 
-状态：已阻塞
+状态：已完成，待回归
 
 目的：用macOS真实环境证明 `omp` 的已声明安装运行能力，不外推到其他平台。
 
@@ -77,3 +77,19 @@
 阻塞：默认终端实际程序和cwd正确，但PID20908的HOME为个人OS HOME，未使用隔离测试HOME，已停止，不能判隔离通过。posix默认shell路径没有传送策略HOME；需专用测试OS用户/执行主机，或终端底座补齐受控环境，禁止在本应用加绕过特例。无专用供应商/适用官方账号，且Omp供应商投影not implemented；旧版18.8.9自更新GitHub限流退出1，正式最新版update无版本变化，仍需真实升级变化。取消虽终态正确且最终无相关进程，留下1个下载暂存文件，已随隔离根显式清理，不假报自动暂存清理。保留本任务待条件恢复回归，不删除，不改plan.md。
 
 动态slot-6；CARGO_TARGET_DIR与CARGO_BUILD_BUILD_DIR=/Users/xiangmin/worker/code/shiju/target/rust-slot-6。CLI首次构建0（17m07s），desktop首次为优先版本红灯中断-2；最终CLI/desktop构建0，cargo run -p vw-desktop --bin shi-ju默认features进入Running后主动-15。所有自有产物进程结束后释放本人锁保留缓存，测试二进制/凭据/暂存/app清理。其他工作区改动不纳入提交。
+
+## 终端隔离继续执行
+
+用户授权底层范围扩展。源码task-29和Iced启动表单明确主机现有配置；保留其含义，默认launch转由既有Gateway PTY通路执行，以管理员host.home明确设置子进程HOME及XDG目录，隔离终端环境且不改父环境/个人配置。先扩展生产API测试cc_apps_launch_api_target_scope_accepts_and_rejects_before_terminal，要求实际CLI的TTY、HOME/cwd/program证据与sessionId，确认修复前失败。
+
+## 终端隔离修复后的最终结果
+
+默认“主机现有配置”现经正式Gateway PTY执行，HOME来自管理员host.home，XDG为该HOME的标准目录，PATH为管理员/系统目录，TMPDIR为私有会话目录；不改代理父环境，不让登录Shell/OS Terminal覆盖CLI环境。不新增客户端HOME输入或权限开关；保持当前配置语义和tenant/host/principal拒绝。
+
+红灯生产API1项失败（未执行真正CLI、HOME证据缺失）；最终本轮20项有效测试通过：环境污染1、PTY3、生产API1、原有身份HTTP/SDK轮换1、请求7、POSIX终端7。一次跨principal夹具token不足32字的401已修正为合法长度，保持404断言。cargo fmt --all、CLI构建0；首轮本次全仓Clippy0；最终API加强HOME/cwd不同目录断言仍0，最后全仓Clippy受无关ACP process_tests.rs:445 E0282阻断，未越界修复，定向检查结果见日志。
+
+官方18.17.0在新隔离主机通过真实HTTP启动，实际程序/cwd=HOME/workspace、HOME/XDG/TMPDIR均正确，无宿主API key/钩子；主动结束后真实Failed、进程消失、私有目录删除。正式help位置参数启动会话Completed；跨租户/跨principal均404，最终API空态。证据docs/shiju/agent-apps/macos/omp-terminal-api.json、omp-terminal-runtime.json、omp-terminal-validation.txt及更新后的omp.md。
+
+本轮动态slot-1；CARGO_TARGET_DIR和CARGO_BUILD_BUILD_DIR=/Users/xiangmin/worker/code/shiju/target/rust-slot-1，owner PID46034。验证和自有产物进程结束后清理隔离根/凭据/配置/二进制并释放本人锁保留缓存。默认终端问题已解决；按追加授权将状态改为已完成，待回归并保留文件，剩余专用身份/官方账号、旧版真实升级与无关ACP全仓检查待回归。plan.md只读。
+
+最终定向cargo clippy -p vw-agent-apps -p vw-agent --all-targets --all-features -- -D warnings退出0。其他会话补齐ACP类型标注后，全仓重跑转而被无关Git面板diff_view/history.rs:31 E0599、repository.rs:271 E0061阻断（101），未修改这些模块。默认终端环境修复与20项行为验证均通过；最终全仓复核随这些独立改动稳定后回归。

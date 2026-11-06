@@ -161,6 +161,21 @@ impl AcpClient {
             }
             return Ok(self.config.args.clone());
         }
+        if self.agent_name == "vibe"
+            && (bypass
+                || self
+                    .config
+                    .args
+                    .iter()
+                    .any(|arg| matches!(arg.as_str(), "--auto-approve" | "--agent=auto-approve"))
+                || self
+                    .config
+                    .args
+                    .windows(2)
+                    .any(|pair| pair[0] == "--agent" && pair[1] == "auto-approve"))
+        {
+            return Err(AcpError::Initialize("Vibe startup auto-approval cannot follow session permission changes; remove bypass arguments and explicitly select the ACP agent with a current full access grant".into()));
+        }
         if self.agent_name == "qoder" && bypass {
             return Err(AcpError::Initialize("Qoder startup bypass cannot follow session permission changes; remove bypass arguments and use session access controls".into()));
         }

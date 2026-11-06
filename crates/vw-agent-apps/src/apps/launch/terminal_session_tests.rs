@@ -26,7 +26,7 @@ fn cc_apps_terminal_session_real_tty_io_and_reaped_exit() {
     .unwrap();
     let started = Arc::new(AtomicBool::new(false));
     let signal = started.clone();
-    let status = session.run(Command::new("/bin/sh").args(["-c", "test -t 0 && test -t 1 || exit 9; read value; printf 'received:%s\\n' \"$value\"; exit 7"]), move || { signal.store(true, Ordering::SeqCst); }).unwrap();
+    let status = session.run(Command::new("/bin/sh").args(["-c", "test -t 0 && test -t 1 || exit 9; test -d \"$TMPDIR\" && test -S \"$TMPDIR/io\" || exit 11; read value; printf 'received:%s\\n' \"$value\"; exit 7"]), move || { signal.store(true, Ordering::SeqCst); }).unwrap();
     assert!(started.load(Ordering::SeqCst));
     assert_eq!(status.code(), Some(7));
     let output = String::from_utf8(client.unwrap().join().unwrap()).unwrap();

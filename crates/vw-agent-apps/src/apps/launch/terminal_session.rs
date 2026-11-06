@@ -81,7 +81,11 @@ impl TerminalSession {
     pub fn run(self, command: &mut Command, started: impl FnOnce()) -> io::Result<ExitStatus> {
         let Self { stream, private } = self;
         let (master, slave) = open_pty()?;
-        command.env("TERM", "xterm-256color").env("COLUMNS", "80").env("LINES", "24");
+        command
+            .env("TMPDIR", private.path())
+            .env("TERM", "xterm-256color")
+            .env("COLUMNS", "80")
+            .env("LINES", "24");
         command
             .stdin(Stdio::from(slave.try_clone()?))
             .stdout(Stdio::from(slave.try_clone()?))

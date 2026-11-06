@@ -1,6 +1,6 @@
 # ACP 完全访问支持矩阵
 
-审计日期：2026-11-06（Asia/Shanghai）；审计平台：macOS / Darwin arm64。状态：静态基线已完成；Codex 与 Claude 固定制品的 macOS arm64 原生权限与撤销已验收，具体入口与边界见 [Codex 证据](evidence/codex.md)、[Claude 证据](evidence/claude.md)。Gemini 已核验为客户端自动批准，原生自动提权因确认及工具/提示词副作用不接入，见 [Gemini 证据](evidence/gemini.md)。Qwen 固定 npm 与现有托管补丁入口已核验原生免审批与撤销，见 [Qwen 证据](evidence/qwen.md)。Qoder 已接入公布的会话 mode 配置，权限工具效果未实机验收，见 [Qoder 接入说明](evidence/qoder.md)。其他后端原生能力仍未知。
+审计日期：2026-11-06（Asia/Shanghai）；审计平台：macOS / Darwin arm64。状态：静态基线已完成；Codex 与 Claude 固定制品的 macOS arm64 原生权限与撤销已验收，具体入口与边界见 [Codex 证据](evidence/codex.md)、[Claude 证据](evidence/claude.md)。Gemini 已核验为客户端自动批准，原生自动提权因确认及工具/提示词副作用不接入，见 [Gemini 证据](evidence/gemini.md)。Qwen 固定 npm 与现有托管补丁入口已核验原生免审批与撤销，见 [Qwen 证据](evidence/qwen.md)。Qoder 已接入公布的会话 mode 配置，权限工具效果未实机验收，见 [Qoder 接入说明](evidence/qoder.md)。Vibe 保留客户端自动批准，并为显式 auto-approve agent 加入授权及撤销保护，未实机验收，见 [Vibe 接入说明](evidence/vibe.md)。其他后端原生能力仍未知。
 
 范围为 `BUILT_IN_AGENT_DEFINITIONS` 的 22 个稳定 key；别名和 `claude-legacy` 不另计。注册表、启动快照、哈希及逐项官方版本来源见 [证据清单](evidence/README.md)。初始静态审计仅修改文档；后续后端适配与验证按各独立证据文件记账。
 
@@ -29,7 +29,7 @@
 | [codex](evidence/codex.md) / E2、E3 | 2.5.0 / Codex 0.165.0 | 2.5.0 | 原生免审批：macOS arm64 已核验制品、当前授权与配置确认后；cli_local/session_model 均验收。未知入口/平台降级，无法确认撤销时拒绝；活动 turn 必须先取消 | 补齐其他平台、独立文件编辑工具、网络及企业策略验收 |
 | [codebuddy](evidence/README.md#codebuddy) / E1 | 2.179.3 | 2.180.0 | 部分支持：客户端自动批准有源码、原生未知；session_model 有驱动和版本门控 | 固定真实 CLI，采集 initialize/权限选项并验证开启→关闭→恢复 |
 | [goose](evidence/README.md#goose) / E1 | v1.57.0 | v1.57.0 | 部分支持：客户端自动批准有源码、原生未知；session_model 有驱动和版本门控 | 固定真实 CLI，采集 initialize/权限选项并验证开启→关闭→恢复 |
-| [vibe](evidence/README.md#vibe) / E1 | 3.0.4 | 3.1.0 | 部分支持：客户端自动批准有源码、原生未知；session_model 有驱动和版本门控 | 核对 ACP approval mode 与 smart_approve 的区别 |
+| [vibe](evidence/vibe.md) / E1、E2 | 3.0.4 | 3.1.0 | 部分支持：客户端自动批准；原生 mode 切换整个 agent，仅允许当前授权下显式选择 auto-approve，撤销未完成则拒绝继续；session_model 保持现有门控 | 用户要求跳过测试；原生执行、恢复、deny 和跨平台效果未实机验收 |
 | [hermes](evidence/README.md#hermes) / E1 | 0.19.0 | 0.19.0 | 部分支持：客户端自动批准有源码、原生未知；session_model 有驱动和版本门控 | 固定真实 CLI，采集 initialize/权限选项并验证开启→关闭→恢复 |
 | [snow](evidence/README.md#snow) / E1 | 0.9.14 | 0.9.15 | 部分支持：客户端自动批准有源码、原生未知；session_model 有驱动和版本门控 | 固定真实 CLI，采集 initialize/权限选项并验证开启→关闭→恢复 |
 | [copilot](evidence/README.md#copilot) / E1 | 1.0.105 | 1.0.106 | 部分支持：客户端自动批准有源码、原生未知；session_model 有驱动和版本门控 | 固定真实 CLI，采集 initialize/权限选项并验证开启→关闭→恢复 |
@@ -60,7 +60,7 @@ U = 未获取该后端真实权限协议/结果；C = 仅共享客户端源码�
 | codex | E3 | E3/E3/E3 | E3 | E2；以 config 同步 | E3：本例 0 | C；本例未调用 | C；本例未调用 | E3：readOnly↔dangerFullAccess |
 | codebuddy | U | U/U/U | U | U | C | C | C | U |
 | goose | U | U/U/U | U | U | C | C | C | U |
-| vibe | U | U/U/U | U | U | C | C | C | U |
+| vibe | U | 代码接入；未实测 | E2：mode 为 agent 名称，不自动切换 | E2：auto-approve 显式授权保护 | C；未实机计数 | C | C | U |
 | hermes | U | U/U/U | U | U | C | C | C | U |
 | snow | U | U/U/U | U | U | C | C | C | U |
 | copilot | U | U/U/U | U | U | C | C | C | U |

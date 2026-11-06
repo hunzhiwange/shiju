@@ -1,0 +1,887 @@
+CARGO_TARGET_DIR=CARGO_BUILD_BUILD_DIR=/Users/xiangmin/worker/code/shiju/target/rust-slot-1
+
+$ cargo test -p vw-agent --lib cc_apps_launch_api_target_scope_accepts_and_rejects_before_terminal -- --nocapture (before fix)
+exit=101
+   Compiling portable-atomic v1.14.0
+   Compiling equivalent v1.0.2
+   Compiling libc v0.2.189
+   Compiling serde_core v1.0.229
+   Compiling allocator-api2 v0.2.21
+   Compiling foldhash v0.2.0
+   Compiling syn v2.0.119
+   Compiling slab v0.4.12
+   Compiling num-traits v0.2.19
+   Compiling generic-array v0.14.7
+   Compiling aws-lc-sys v0.45.0
+   Compiling simd-adler32 v0.3.10
+   Compiling scopeguard v1.2.0
+   Compiling fnv v1.0.7
+   Compiling crossbeam-utils v0.8.23
+   Compiling adler2 v2.0.1
+   Compiling futures-util v0.3.34
+   Compiling lock_api v0.4.14
+   Compiling crc32fast v1.5.2
+   Compiling hashbrown v0.17.1
+   Compiling miniz_oxide v0.9.1
+   Compiling form_urlencoded v1.2.2
+   Compiling zlib-rs v0.6.8
+   Compiling phf_shared v0.11.3
+   Compiling webpki-roots v1.0.9
+   Compiling aws-lc-rs v1.18.1
+   Compiling rand_core v0.10.1
+   Compiling ryu v1.0.23
+   Compiling block-buffer v0.10.4
+   Compiling either v1.18.0
+   Compiling errno v0.3.14
+   Compiling getrandom v0.2.17
+   Compiling mio v1.2.3
+   Compiling socket2 v0.6.5
+   Compiling indexmap v2.14.2
+   Compiling once_cell v1.21.4
+   Compiling signal-hook-registry v1.4.8
+   Compiling cpufeatures v0.2.17
+   Compiling getrandom v0.4.3
+   Compiling phf_generator v0.11.3
+   Compiling rand_core v0.6.4
+   Compiling ring v0.17.14
+   Compiling tracing-core v0.1.36
+   Compiling unicode-segmentation v1.13.3
+   Compiling alloc-no-stdlib v2.0.4
+   Compiling crypto-common v0.1.7
+   Compiling zstd-sys v2.0.16+zstd.1.5.7
+   Compiling alloc-stdlib v0.2.4
+   Compiling tokio v1.53.1
+   Compiling digest v0.10.7
+   Compiling rustix v1.1.5
+   Compiling httpdate v1.0.3
+   Compiling cmov v0.5.4
+   Compiling arrayvec v0.7.8
+   Compiling crossbeam-epoch v0.9.21
+   Compiling brotli-decompressor v5.0.3
+   Compiling zstd-safe v7.2.4
+   Compiling unicase v2.9.0
+   Compiling ctutils v0.4.2
+   Compiling mime v0.3.17
+   Compiling zstd v0.13.3
+   Compiling digest v0.11.3
+   Compiling serde v1.0.229
+   Compiling serde_json v1.0.151
+   Compiling aho-corasick v1.1.5
+   Compiling compression-core v0.4.32
+   Compiling crossbeam-deque v0.8.8
+   Compiling mime_guess v2.0.5
+   Compiling brotli v8.0.4
+   Compiling phf_codegen v0.11.3
+   Compiling block-padding v0.3.3
+   Compiling smallvec v1.16.2
+   Compiling rustls-webpki v0.103.15
+   Compiling chrono v0.4.45
+   Compiling inout v0.1.4
+   Compiling parking_lot_core v0.9.12
+   Compiling icu_normalizer v2.3.0
+   Compiling serde_urlencoded v0.7.1
+   Compiling rustls v0.23.45
+   Compiling parking_lot v0.12.5
+   Compiling regex-automata v0.4.18
+   Compiling core-foundation v0.10.1
+   Compiling idna_adapter v1.2.2
+   Compiling cpufeatures v0.3.1
+   Compiling unicode-width v0.2.2
+   Compiling new_debug_unreachable v1.0.6
+   Compiling idna v1.1.0
+   Compiling sha2 v0.11.0
+   Compiling hashbrown v0.15.5
+   Compiling serde_derive_internals v0.29.1
+   Compiling cipher v0.4.4
+   Compiling byteorder v1.5.0
+   Compiling url v2.5.8
+   Compiling utf-8 v0.7.6
+   Compiling itertools v0.14.0
+   Compiling concurrent-queue v2.5.0
+   Compiling tinyvec v1.13.3
+   Compiling getrandom v0.3.4
+   Compiling futures-executor v0.3.33
+   Compiling sha1 v0.10.7
+   Compiling convert_case v0.10.0
+   Compiling chacha20 v0.10.2
+   Compiling num_threads v0.1.7
+   Compiling regex-syntax v0.8.11
+   Compiling unicode-normalization v0.1.25
+   Compiling unicode-bidi v0.3.18
+   Compiling unicode-properties v0.1.4
+   Compiling same-file v1.0.6
+   Compiling data-encoding v2.11.1
+   Compiling zerocopy-derive v0.8.59
+   Compiling tracing-attributes v0.1.31
+   Compiling thiserror-impl v1.0.69
+   Compiling schemars_derive v1.2.1
+   Compiling strum_macros v0.28.0
+   Compiling phf_macros v0.11.3
+   Compiling regex v1.13.1
+   Compiling equator-macro v0.4.2
+   Compiling phf v0.11.3
+   Compiling flate2 v1.1.10
+   Compiling thiserror v1.0.69
+   Compiling stringprep v0.1.5
+   Compiling tracing v0.1.44
+   Compiling walkdir v2.5.0
+   Compiling compression-codecs v0.4.38
+   Compiling derive_more-impl v2.1.1
+   Compiling time v0.3.55
+   Compiling rand v0.10.3
+   Compiling equator v0.4.2
+   Compiling tokio-util v0.7.19
+   Compiling zerocopy v0.8.59
+   Compiling tower v0.5.3
+   Compiling schemars v1.2.1
+   Compiling futures v0.3.33
+   Compiling async-compression v0.4.43
+   Compiling bitcoin-io v0.1.4
+   Compiling rayon-core v1.13.0
+   Compiling dirs-sys v0.5.0
+   Compiling hex-conservative v0.2.2
+   Compiling strum v0.28.0
+   Compiling h2 v0.4.19
+   Compiling tower-http v0.6.11
+   Compiling num-integer v0.1.47
+   Compiling security-framework-sys v2.17.0
+   Compiling nom v8.0.0
+   Compiling static_assertions v1.1.0
+   Compiling tokio-rustls v0.26.5
+   Compiling event-listener v5.4.1
+   Compiling num-bigint v0.4.8
+   Compiling security-framework v3.7.0
+   Compiling bitcoin_hashes v0.14.1
+   Compiling dirs v6.0.0
+   Compiling aligned-vec v0.6.4
+   Compiling bitcoin-internals v0.3.0
+   Compiling dirs-sys v0.4.1
+   Compiling darling_core v0.23.0
+   Compiling string_cache_codegen v0.5.4
+   Compiling webpki-roots v0.26.11
+   Compiling mac v0.1.1
+   Compiling derive_more v2.1.1
+   Compiling futf v0.1.5
+   Compiling v_frame v0.3.9
+   Compiling parse-zoneinfo v0.3.1
+   Compiling rustls-platform-verifier v0.7.0
+   Compiling markup5ever v0.12.1
+   Compiling directories v5.0.1
+   Compiling shellexpand v3.1.2
+   Compiling castaway v0.2.4
+   Compiling num-rational v0.4.2
+   Compiling secp256k1-sys v0.10.1
+   Compiling chrono-tz v0.10.4
+   Compiling event-listener-strategy v0.5.4
+   Compiling tempfile v3.27.0
+   Compiling rayon v1.12.0
+   Compiling rand_core v0.9.5
+   Compiling hashlink v0.10.0
+   Compiling aes v0.8.4
+   Compiling cbc v0.1.2
+   Compiling darling_core v0.20.11
+   Compiling md-5 v0.11.0
+   Compiling hmac v0.13.0
+   Compiling sha2 v0.10.9
+   Compiling tracing-log v0.2.0
+   Compiling hashbrown v0.16.1
+   Compiling as-slice v0.2.1
+   Compiling fallible-iterator v0.2.0
+   Compiling weezl v0.1.12
+   Compiling minimal-lexical v0.2.1
+   Compiling precomputed-hash v0.1.1
+   Compiling ucd-trie v0.1.7
+   Compiling string_cache v0.8.9
+   Compiling aligned v0.4.3
+   Compiling ppv-lite86 v0.2.21
+   Compiling postgres-protocol v0.6.12
+   Compiling nom v7.1.3
+   Compiling pest v2.9.2
+   Compiling tracing-subscriber v0.3.23
+   Compiling rusqlite v0.37.0
+   Compiling chrono-tz-build v0.3.0
+   Compiling rand_chacha v0.3.1
+   Compiling rand_chacha v0.9.0
+   Compiling darling_macro v0.23.0
+   Compiling rand v0.8.8
+   Compiling hyper v1.11.1
+   Compiling kasuari v0.4.11
+   Compiling darling v0.23.0
+   Compiling compact_str v0.9.0
+   Compiling secp256k1 v0.29.1
+   Compiling tendril v0.4.3
+   Compiling base58ck v0.1.0
+   Compiling hex_lit v0.1.1
+   Compiling bitcoin-units v0.1.2
+   Compiling unicode-truncate v2.0.1
+   Compiling arg_enum_proc_macro v0.3.4
+   Compiling darling_macro v0.20.11
+   Compiling profiling-procmacros v1.0.18
+   Compiling chacha20 v0.9.1
+   Compiling hyper-util v0.1.21
+   Compiling lru v0.18.2
+   Compiling miniz_oxide v0.8.9
+   Compiling phf_shared v0.13.1
+   Compiling bstr v1.13.1
+   Compiling no_std_io2 v0.9.4
+   Compiling critical-section v1.2.0
+   Compiling bech32 v0.11.1
+   Compiling quick-error v2.0.1
+   Compiling y4m v0.8.0
+   Compiling instability v0.3.11
+   Compiling darling v0.20.11
+   Compiling ratatui-core v0.1.2
+   Compiling phf v0.13.1
+   Compiling profiling v1.0.18
+   Compiling av-scenechange v0.14.1
+   Compiling bitstream-io v4.10.0
+   Compiling maybe-rayon v0.1.1
+   Compiling globset v0.4.19
+   Compiling pest_meta v2.9.2
+   Compiling bitcoin v0.32.8
+   Compiling tungstenite v0.24.0
+   Compiling chrono-tz v0.9.0
+   Compiling rand v0.9.5
+   Compiling postgres-types v0.2.14
+   Compiling signal-hook v0.3.18
+   Compiling half v2.7.1
+   Compiling av1-grain v0.2.5
+   Compiling fax_derive v0.2.0
+   Compiling num-derive v0.4.2
+   Compiling html5ever v0.27.0
+   Compiling der_derive v0.7.3
+   Compiling darling_core v0.21.3
+   Compiling mach2 v0.4.3
+   Compiling fdeflate v0.3.7
+   Compiling hyper-rustls v0.27.10
+   Compiling simd_helpers v0.1.0
+   Compiling const-oid v0.9.6
+   Compiling flagset v0.4.7
+   Compiling reqwest v0.13.4
+   Compiling reqwest v0.12.28
+   Compiling negentropy v0.3.1
+   Compiling whoami v2.1.0
+   Compiling imgref v1.12.0
+   Compiling negentropy v0.4.3
+   Compiling bitflags v1.3.2
+   Compiling zune-core v0.5.1
+   Compiling const-random-macro v0.1.16
+   Compiling nix v0.26.4
+   Compiling tokio-postgres v0.7.18
+   Compiling zune-jpeg v0.5.15
+   Compiling loop9 v0.1.5
+   Compiling rav1e v0.8.1
+   Compiling fax v0.2.6
+   Compiling png v0.18.1
+   Compiling io-kit-sys v0.4.1
+   Compiling pest_generator v2.9.2
+   Compiling der v0.7.10
+   Compiling vw-config-types v0.6.0 (/Users/xiangmin/worker/code/shiju/crates/vw-config-types)
+   Compiling tokio-tungstenite v0.24.0
+   Compiling tungstenite v0.29.0
+   Compiling signal-hook-mio v0.2.5
+   Compiling ignore v0.4.31
+   Compiling nix v0.30.1
+   Compiling derive_builder_core v0.20.2
+   Compiling darling_macro v0.21.3
+   Compiling libm v0.2.16
+   Compiling async-broadcast v0.7.2
+   Compiling openssl-sys v0.9.117
+   Compiling agent-client-protocol-schema v0.11.4
+   Compiling libz-sys v1.1.29
+   Compiling tokio-stream v0.1.19
+   Compiling async-utility v0.2.0
+   Compiling tokio-socks v0.5.2
+   Compiling lru v0.12.5
+   Compiling vw-api-types v0.6.0 (/Users/xiangmin/worker/code/shiju/crates/vw-api-types)
+   Compiling serde_path_to_error v0.1.20
+   Compiling avif-serialize v0.8.6
+   Compiling nostr v0.37.0
+   Compiling zune-inflate v0.2.54
+   Compiling line-clipping v0.3.5
+   Compiling pxfm v0.1.29
+   Compiling rgb v0.8.52
+   Compiling byteorder-lite v0.1.0
+   Compiling color_quant v1.1.0
+   Compiling pom v1.1.0
+   Compiling lebe v0.5.3
+   Compiling event-listener v2.5.3
+   Compiling bytemuck v1.25.2
+   Compiling bit_field v0.10.3
+   Compiling deunicode v1.6.2
+   Compiling image-webp v0.2.4
+   Compiling async-channel v1.9.0
+   Compiling exr v1.74.0
+   Compiling gif v0.14.2
+   Compiling slug v0.1.6
+   Compiling qoi v0.4.1
+   Compiling ratatui-widgets v0.3.2
+   Compiling libssh2-sys v0.3.1
+   Compiling humansize v2.1.3
+   Compiling async-wsocket v0.10.1
+   Compiling derive_builder_macro v0.20.2
+   Compiling darling v0.21.3
+   Compiling globwalk v0.9.1
+   Compiling tokio-tungstenite v0.29.0
+   Compiling ravif v0.13.0
+   Compiling spki v0.7.3
+   Compiling pest_derive v2.9.2
+   Compiling crossterm v0.29.0
+   Compiling serialport v4.7.3
+   Compiling tiff v0.11.3
+   Compiling nix v0.29.0
+   Compiling rust-embed-utils v8.11.0
+   Compiling nostr-database v0.37.0
+   Compiling moxcms v0.8.1
+   Compiling const-random v0.1.18
+   Compiling xml5ever v0.18.1
+   Compiling tree-sitter v0.26.10
+   Compiling eventsource-stream v0.2.3
+   Compiling tree-sitter-language v0.1.7
+   Compiling atomic-destructor v0.2.0
+   Compiling protobuf-support v3.7.2
+   Compiling pin-project-internal v1.1.13
+   Compiling ecb v0.1.2
+   Compiling scheduled-thread-pool v0.2.7
+   Compiling nibble_vec v0.1.0
+   Compiling md-5 v0.10.6
+   Compiling universal-hash v0.5.1
+   Compiling mach2 v0.5.0
+   Compiling encoding_rs v0.8.35
+   Compiling futures-timer v3.0.4
+   Compiling rangemap v1.7.1
+   Compiling winnow v1.0.4
+   Compiling home v0.5.12
+   Compiling winnow v0.7.15
+   Compiling vw-shared v0.6.0 (/Users/xiangmin/worker/code/shiju/crates/vw-shared)
+   Compiling agent-client-protocol v0.10.4
+   Compiling shell-words v1.1.1
+   Compiling opaque-debug v0.3.1
+   Compiling endian-type v0.1.2
+   Compiling ttf-parser v0.25.1
+   Compiling toml_parser v1.1.3+spec-1.1.0
+   Compiling pin-project v1.1.13
+   Compiling radix_trie v0.2.1
+   Compiling poly1305 v0.8.0
+   Compiling io-kit-sys v0.5.0
+   Compiling reqwest-eventsource v0.6.0
+   Compiling tera v1.20.1
+   Compiling r2d2 v0.8.10
+   Compiling protobuf v3.7.2
+   Compiling nostr-relay-pool v0.37.0
+   Compiling markup5ever_rcdom v0.3.0
+   Compiling nix v0.28.0
+   Compiling mio-serial v5.0.6
+   Compiling ahash v0.8.12
+   Compiling ratatui-crossterm v0.1.2
+   Compiling rust-embed-impl v8.11.0
+   Compiling x509-cert v0.2.5
+   Compiling ratatui-macros v0.7.2
+   Compiling image v0.25.10
+   Compiling lopdf v0.42.0
+   Compiling prost-derive v0.14.4
+   Compiling derive_builder v0.20.2
+   Compiling rmcp-macros v0.8.5
+   Compiling libgit2-sys v0.18.4+1.9.3
+   Compiling smartstring v1.0.1
+   Compiling stop-token v0.7.0
+   Compiling rustix v0.38.44
+   Compiling type1-encoding-parser v0.1.1
+   Compiling adobe-cmap-parser v0.4.1
+   Compiling oauth2 v5.0.0
+   Compiling process-wrap v8.2.1
+   Compiling postgres v0.19.14
+   Compiling imap-proto v0.16.6
+   Compiling async-channel v2.5.0
+   Compiling axum-core v0.5.6
+   Compiling filedescriptor v0.8.3
+   Compiling axum-macros v0.5.1
+   Compiling vibewindow-aisdk-macros v0.3.0 (https://github.com/hunzhiwange/aisdk.git?rev=3401d28a7353c6e90cf4372f52c682cb2d02986b#3401d28a)
+   Compiling hashify v0.2.7
+   Compiling rhai_codegen v3.2.0
+   Compiling console v0.15.11
+   Compiling getopts v0.2.24
+   Compiling fd-lock v4.0.4
+   Compiling xattr v1.6.1
+   Compiling sse-stream v0.2.1
+   Compiling thin-vec v0.2.19
+   Compiling toml_datetime v0.7.5+spec-1.1.0
+   Compiling serde_spanned v1.1.1
+   Compiling aead v0.5.2
+   Compiling uuid v1.26.1
+   Compiling euclid v0.20.14
+   Compiling hostname v0.4.2
+   Compiling serial2 v0.2.33
+   Compiling filetime v0.2.29
+   Compiling email-encoding v0.4.1
+   Compiling include_dir_macros v0.7.4
+   Compiling memo-map v0.3.3
+   Compiling typed-path v0.12.3
+   Compiling matchit v0.8.4
+   Compiling pulldown-cmark-escape v0.11.0
+   Compiling toml_writer v1.1.2+spec-1.1.0
+   Compiling quoted_printable v0.5.1
+   Compiling glob v0.3.4
+   Compiling self_cell v1.3.0
+   Compiling postscript v0.14.1
+   Compiling cff-parser v0.2.0
+   Compiling semver v1.0.28
+   Compiling unsafe-libyaml v0.2.11
+   Compiling downcast-rs v1.2.1
+   Compiling email_address v0.2.9
+   Compiling pin-utils v0.1.0
+   Compiling streaming-iterator v0.1.9
+   Compiling portable-pty v0.9.0
+   Compiling async-imap v0.11.2
+   Compiling lettre v0.11.22
+   Compiling qrcode v0.14.1
+   Compiling vibewindow-aisdk v0.7.1 (https://github.com/hunzhiwange/aisdk.git?rev=3401d28a7353c6e90cf4372f52c682cb2d02986b#3401d28a)
+   Compiling toml v0.9.12+spec-1.1.0
+   Compiling axum v0.8.9
+   Compiling zip v8.6.0
+   Compiling serde_yaml v0.9.34+deprecated
+   Compiling include_dir v0.7.4
+   Compiling pulldown-cmark v0.13.4
+   Compiling pdf-extract v0.12.0
+   Compiling minijinja v2.20.0
+   Compiling tar v0.4.46
+   Compiling vw-acp v0.6.0 (/Users/xiangmin/worker/code/shiju/crates/vw-acp)
+   Compiling vw-gateway-client v0.6.0 (/Users/xiangmin/worker/code/shiju/crates/vw-gateway-client)
+   Compiling chacha20poly1305 v0.10.1
+   Compiling rhai v1.25.1
+   Compiling mail-parser v0.11.2
+   Compiling rmcp v0.8.5
+   Compiling vw-provider-resolver v0.6.0 (/Users/xiangmin/worker/code/shiju/crates/vw-provider-resolver)
+   Compiling rustyline v17.0.2
+   Compiling dialoguer v0.11.0
+   Compiling rust-embed v8.11.0
+   Compiling which v6.0.3
+   Compiling r2d2_postgres v0.18.2
+   Compiling prometheus v0.14.0
+   Compiling prost v0.14.4
+   Compiling tokio-postgres-rustls v0.14.0
+   Compiling git2 v0.21.0
+   Compiling nostr-sdk v0.37.0
+   Compiling ratatui v0.30.2
+   Compiling tokio-serial v5.4.5
+   Compiling html2md v0.2.15
+   Compiling cron v0.16.0
+   Compiling nusb v0.2.2
+   Compiling tree-sitter-bash v0.23.3
+   Compiling clap_complete v4.5.66
+   Compiling console v0.16.2
+   Compiling serde_ignored v0.1.14
+   Compiling similar v2.7.0
+   Compiling nanohtml2text v0.2.1
+   Compiling urlencoding v2.1.3
+   Compiling vw-agent-apps v0.6.0 (/Users/xiangmin/worker/code/shiju/crates/vw-agent-apps)
+   Compiling vw-agent v0.6.0 (/Users/xiangmin/worker/code/shiju/crates/vw-agent)
+warning: linker stderr: ld: __eh_frame section too large (max 16MB) to encode dwarf unwind offsets in compact unwind table, performance of exception handling might be affected
+  |
+  = note: `#[warn(linker_messages)]` on by default
+
+warning: `vw-agent` (lib test) generated 1 warning
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 4m 08s
+     Running unittests src/lib.rs (target/rust-slot-1/debug/deps/vw_agent-761b4c54e01851ea)
+
+running 1 test
+
+thread 'gateway::api::handlers::agent_apps::launch::tests::cc_apps_launch_api_target_scope_accepts_and_rejects_before_terminal' (38351524) panicked at crates/vw-agent/src/gateway/api/handlers/agent_apps/launch_tests.rs:109:72:
+called `Result::unwrap()` on an `Err` value: Os { code: 2, kind: NotFound, message: "No such file or directory" }
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+test gateway::api::handlers::agent_apps::launch::tests::cc_apps_launch_api_target_scope_accepts_and_rejects_before_terminal ... FAILED
+
+failures:
+
+failures:
+    gateway::api::handlers::agent_apps::launch::tests::cc_apps_launch_api_target_scope_accepts_and_rejects_before_terminal
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 11482 filtered out; finished in 0.25s
+
+error: test failed, to rerun pass `-p vw-agent --lib`
+
+
+$ cargo fmt --all
+exit=0
+
+
+$ cargo test -p vw-agent-apps --lib cc_apps_host_launch -- --nocapture
+exit=0
+   Compiling vw-config-types v0.6.0 (/Users/xiangmin/worker/code/shiju/crates/vw-config-types)
+   Compiling vw-api-types v0.6.0 (/Users/xiangmin/worker/code/shiju/crates/vw-api-types)
+   Compiling flate2 v1.1.10
+   Compiling png v0.18.1
+   Compiling vw-shared v0.6.0 (/Users/xiangmin/worker/code/shiju/crates/vw-shared)
+   Compiling vw-acp v0.6.0 (/Users/xiangmin/worker/code/shiju/crates/vw-acp)
+   Compiling vw-agent-apps v0.6.0 (/Users/xiangmin/worker/code/shiju/crates/vw-agent-apps)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 13.45s
+     Running unittests src/lib.rs (target/rust-slot-1/debug/deps/vw_agent_apps-c350eefc4d73b711)
+
+running 1 test
+
+running 1 test
+test apps::launch::host_tests::cc_apps_host_launch_uses_authorized_home_without_parent_secrets_or_hooks ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 180 filtered out; finished in 0.01s
+
+test apps::launch::host_tests::cc_apps_host_launch_uses_authorized_home_without_parent_secrets_or_hooks ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 180 filtered out; finished in 0.01s
+
+
+
+$ cargo test -p vw-agent-apps --lib cc_apps_terminal_session -- --nocapture
+exit=0
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.17s
+     Running unittests src/lib.rs (target/rust-slot-1/debug/deps/vw_agent_apps-c350eefc4d73b711)
+
+running 3 tests
+test apps::launch::terminal_session_tests::cc_apps_terminal_session_real_tty_io_and_reaped_exit ... ok
+test apps::launch::terminal_session_tests::cc_apps_terminal_session_disconnect_kills_and_reaps_group ... ok
+test apps::launch::terminal_session_tests::cc_apps_terminal_session_normal_exit_is_not_a_disconnect_failure ... ok
+
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 178 filtered out; finished in 0.74s
+
+
+
+$ cargo test -p vw-agent --lib cc_apps_launch_api_target_scope_accepts_and_rejects_before_terminal -- --nocapture (fixture token length error)
+exit=101
+   Compiling vw-agent-apps v0.6.0 (/Users/xiangmin/worker/code/shiju/crates/vw-agent-apps)
+   Compiling vw-agent v0.6.0 (/Users/xiangmin/worker/code/shiju/crates/vw-agent)
+warning: linker stderr: ld: __eh_frame section too large (max 16MB) to encode dwarf unwind offsets in compact unwind table, performance of exception handling might be affected
+  |
+  = note: `#[warn(linker_messages)]` on by default
+
+warning: `vw-agent` (lib test) generated 1 warning
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 1m 27s
+     Running unittests src/lib.rs (target/rust-slot-1/debug/deps/vw_agent-761b4c54e01851ea)
+
+running 1 test
+
+thread 'gateway::api::handlers::agent_apps::launch::tests::cc_apps_launch_api_target_scope_accepts_and_rejects_before_terminal' (38364919) panicked at crates/vw-agent/src/gateway/api/handlers/agent_apps/launch_tests.rs:153:9:
+assertion `left == right` failed
+  left: 401
+ right: 404
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+test gateway::api::handlers::agent_apps::launch::tests::cc_apps_launch_api_target_scope_accepts_and_rejects_before_terminal ... FAILED
+
+failures:
+
+failures:
+    gateway::api::handlers::agent_apps::launch::tests::cc_apps_launch_api_target_scope_accepts_and_rejects_before_terminal
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 11482 filtered out; finished in 0.28s
+
+error: test failed, to rerun pass `-p vw-agent --lib`
+
+
+$ cargo fmt --all
+exit=0
+
+
+$ cargo test -p vw-agent --lib cc_apps_launch_api_target_scope_accepts_and_rejects_before_terminal -- --nocapture
+exit=0
+   Compiling vw-agent v0.6.0 (/Users/xiangmin/worker/code/shiju/crates/vw-agent)
+warning: linker stderr: ld: __eh_frame section too large (max 16MB) to encode dwarf unwind offsets in compact unwind table, performance of exception handling might be affected
+  |
+  = note: `#[warn(linker_messages)]` on by default
+
+warning: `vw-agent` (lib test) generated 1 warning
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 42.50s
+     Running unittests src/lib.rs (target/rust-slot-1/debug/deps/vw_agent-761b4c54e01851ea)
+
+running 1 test
+test gateway::api::handlers::agent_apps::launch::tests::cc_apps_launch_api_target_scope_accepts_and_rejects_before_terminal ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 11482 filtered out; finished in 0.09s
+
+
+
+$ cargo test -p vw-agent --lib cc_apps_launch_identity_list_sdk_http_tty_lifetime_and_account_rotation -- --nocapture
+exit=0
+warning: linker stderr: ld: __eh_frame section too large (max 16MB) to encode dwarf unwind offsets in compact unwind table, performance of exception handling might be affected
+  |
+  = note: `#[warn(linker_messages)]` on by default
+
+warning: `vw-agent` (lib test) generated 1 warning
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.77s
+     Running unittests src/lib.rs (target/rust-slot-1/debug/deps/vw_agent-761b4c54e01851ea)
+
+running 1 test
+test gateway::api::handlers::agent_apps::launch::tests::cc_apps_launch_identity_list_sdk_http_tty_lifetime_and_account_rotation ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 11482 filtered out; finished in 0.37s
+
+
+
+$ cargo test -p vw-agent-apps --lib cc_apps_launch_request_validation -- --nocapture
+exit=0
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.20s
+     Running unittests src/lib.rs (target/rust-slot-1/debug/deps/vw_agent_apps-c350eefc4d73b711)
+
+running 7 tests
+test apps::launch::request_tests::cc_apps_launch_request_validation_rejects_symlink_escape ... ok
+test apps::launch::request_tests::cc_apps_launch_request_validation_bounds_arguments_and_rejects_desktop ... ok
+test apps::launch::request_tests::cc_apps_launch_request_validation_rejects_nonexecutable_program ... ok
+test apps::launch::request_tests::cc_apps_launch_request_validation_rejects_identity_cwd_and_permission_boundaries ... ok
+test apps::launch::request_tests::cc_apps_launch_request_validation_rejects_stale_ambiguous_and_foreign_instances ... ok
+test apps::launch::request_tests::cc_apps_launch_request_validation_accepts_observed_instance_and_argv ... ok
+test apps::launch::request_tests::cc_apps_launch_request_validation_rejects_argument_injection ... ok
+
+test result: ok. 7 passed; 0 failed; 0 ignored; 0 measured; 174 filtered out; finished in 0.01s
+
+
+
+$ cargo test -p vw-agent-apps --lib cc_apps_posix_terminal_launch -- --nocapture
+exit=0
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.17s
+     Running unittests src/lib.rs (target/rust-slot-1/debug/deps/vw_agent_apps-c350eefc4d73b711)
+
+running 7 tests
+test apps::launch::posix_tests::cc_apps_posix_terminal_launch_missing_shell_and_permissions_fail ... ok
+test apps::launch::posix_tests::cc_apps_posix_terminal_launch_rejects_unknown_terminal ... ok
+test apps::launch::posix_tests::cc_apps_posix_terminal_launch_fish_argument_rules ... ok
+test apps::launch::posix_tests::cc_apps_posix_terminal_launch_macos_escaping_and_warp_cleanup ... ok
+test apps::launch::posix_tests::cc_apps_posix_terminal_launch_process_failure_and_fallback ... ok
+test apps::launch::posix_tests::cc_apps_posix_terminal_launch_shell_executes_argv_and_cwd ... ok
+test apps::launch::posix_tests::cc_apps_posix_terminal_launch_cwd_survives_shell_startup ... ok
+
+test result: ok. 7 passed; 0 failed; 0 ignored; 0 measured; 174 filtered out; finished in 0.37s
+
+
+
+$ cargo build -p vw-cli --bin shiju
+exit=0
+   Compiling crossbeam-queue v0.3.14
+   Compiling pem v3.0.6
+   Compiling twox-hash v2.1.4
+   Compiling is_ci v1.2.0
+   Compiling unicode-linebreak v0.1.5
+   Compiling bufstream v0.1.4
+   Compiling rav1e v0.8.1
+   Compiling lru v0.16.4
+   Compiling smawk v0.3.3
+   Compiling zip v8.6.0
+   Compiling supports-color v3.0.2
+   Compiling crossterm v0.29.0 (https://github.com/openai-oss-forks/crossterm?rev=45fecb9508105988f42fe6ff0441783ed3717f92#45fecb95)
+   Compiling regex-lite v0.1.9
+   Compiling reqwest v0.13.4
+   Compiling reqwest v0.12.28
+   Compiling objc2-core-graphics v0.3.2
+   Compiling objc2-foundation v0.3.2
+   Compiling textwrap v0.16.2
+   Compiling mysql-common-derive v0.32.2
+   Compiling regex v1.13.1
+   Compiling matchers v0.2.0
+   Compiling globset v0.4.19
+   Compiling tracing-subscriber v0.3.23
+   Compiling tree-sitter v0.26.10
+   Compiling two-face v0.5.2+bat-0.26.1
+   Compiling ignore v0.4.31
+   Compiling mysql_common v0.36.2
+   Compiling oauth2 v5.0.0
+   Compiling reqwest-eventsource v0.6.0
+   Compiling globwalk v0.9.1
+   Compiling html2md v0.2.15
+   Compiling objc2-app-kit v0.3.2
+   Compiling tera v1.20.1
+   Compiling vw-shared v0.6.0 (/Users/xiangmin/worker/code/shiju/crates/vw-shared)
+   Compiling rmcp v0.8.5
+   Compiling pdf-extract v0.12.0
+   Compiling ravif v0.13.0
+   Compiling mysql v27.0.0
+   Compiling vibewindow-aisdk v0.7.1 (https://github.com/hunzhiwange/aisdk.git?rev=3401d28a7353c6e90cf4372f52c682cb2d02986b#3401d28a)
+   Compiling image v0.25.10
+   Compiling vw-acp v0.6.0 (/Users/xiangmin/worker/code/shiju/crates/vw-acp)
+   Compiling vw-provider-resolver v0.6.0 (/Users/xiangmin/worker/code/shiju/crates/vw-provider-resolver)
+   Compiling vw-gateway-client v0.6.0 (/Users/xiangmin/worker/code/shiju/crates/vw-gateway-client)
+   Compiling qrcode v0.14.1
+   Compiling arboard v3.6.1
+   Compiling vw-tui v0.6.0 (/Users/xiangmin/worker/code/shiju/crates/vw-tui)
+   Compiling vw-agent-apps v0.6.0 (/Users/xiangmin/worker/code/shiju/crates/vw-agent-apps)
+   Compiling vw-agent v0.6.0 (/Users/xiangmin/worker/code/shiju/crates/vw-agent)
+   Compiling vw-cli v0.6.0 (/Users/xiangmin/worker/code/shiju/crates/vw-cli)
+warning: linker stderr: ld: __eh_frame section too large (max 16MB) to encode dwarf unwind offsets in compact unwind table, performance of exception handling might be affected
+  |
+  = note: `#[warn(linker_messages)]` on by default
+
+warning: `vw-cli` (bin "shiju") generated 1 warning
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 1m 56s
+
+$ cargo clippy --all-targets --all-features -- -D warnings
+exit=0
+    Checking vw-acp v0.6.0 (/Users/xiangmin/worker/code/shiju/crates/vw-acp)
+    Checking vw-desktop v0.6.0 (/Users/xiangmin/worker/code/shiju/crates/vw-desktop)
+    Checking vw-agent-apps v0.6.0 (/Users/xiangmin/worker/code/shiju/crates/vw-agent-apps)
+    Checking vw-agent v0.6.0 (/Users/xiangmin/worker/code/shiju/crates/vw-agent)
+    Checking vw-cli v0.6.0 (/Users/xiangmin/worker/code/shiju/crates/vw-cli)
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 26.54s
+
+$ cargo fmt --all
+exit=0
+
+
+$ cargo test -p vw-agent --lib cc_apps_launch_api_target_scope_accepts_and_rejects_before_terminal -- --nocapture (different HOME/cwd)
+exit=0
+   Compiling vw-acp v0.6.0 (/Users/xiangmin/worker/code/shiju/crates/vw-acp)
+   Compiling vw-agent-apps v0.6.0 (/Users/xiangmin/worker/code/shiju/crates/vw-agent-apps)
+   Compiling vw-agent v0.6.0 (/Users/xiangmin/worker/code/shiju/crates/vw-agent)
+warning: linker stderr: ld: __eh_frame section too large (max 16MB) to encode dwarf unwind offsets in compact unwind table, performance of exception handling might be affected
+  |
+  = note: `#[warn(linker_messages)]` on by default
+
+warning: `vw-agent` (lib test) generated 1 warning
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 1m 54s
+     Running unittests src/lib.rs (target/rust-slot-1/debug/deps/vw_agent-761b4c54e01851ea)
+
+running 1 test
+test gateway::api::handlers::agent_apps::launch::tests::cc_apps_launch_api_target_scope_accepts_and_rejects_before_terminal ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 11482 filtered out; finished in 0.12s
+
+
+
+$ cargo clippy --all-targets --all-features -- -D warnings (unrelated ACP test)
+exit=101
+    Checking vw-acp v0.6.0 (/Users/xiangmin/worker/code/shiju/crates/vw-acp)
+    Checking vw-agent-apps v0.6.0 (/Users/xiangmin/worker/code/shiju/crates/vw-agent-apps)
+error[E0282]: type annotations needed for `&_`
+   --> crates/vw-acp/src/client/process_tests.rs:445:52
+    |
+445 |                 wanted.extend(expected.iter().map(|s| (*s).into()));
+    |                                                    ^  ---- type must be known at this point
+    |
+help: consider giving this closure parameter an explicit type, where the type for type parameter `T` is specified
+    |
+445 |                 wanted.extend(expected.iter().map(|s: &T| (*s).into()));
+    |                                                     ++++
+
+    Checking vw-agent v0.6.0 (/Users/xiangmin/worker/code/shiju/crates/vw-agent)
+For more information about this error, try `rustc --explain E0282`.
+error: could not compile `vw-acp` (lib test) due to 1 previous error
+warning: build failed, waiting for other jobs to finish...
+
+
+$ cargo clippy -p vw-agent-apps -p vw-agent --all-targets --all-features -- -D warnings
+exit=0
+    Checking filedescriptor v0.8.3
+   Compiling hashify v0.2.7
+   Compiling rhai_codegen v3.2.0
+   Compiling vibewindow-aisdk-macros v0.3.0 (https://github.com/hunzhiwange/aisdk.git?rev=3401d28a7353c6e90cf4372f52c682cb2d02986b#3401d28a)
+    Checking nostr-database v0.37.0
+   Compiling axum-macros v0.5.1
+    Checking sse-stream v0.2.1
+    Checking thin-vec v0.2.19
+    Checking espflash v4.3.0
+    Checking euclid v0.20.14
+    Checking rmcp v0.8.5
+    Checking vibewindow-aisdk v0.7.1 (https://github.com/hunzhiwange/aisdk.git?rev=3401d28a7353c6e90cf4372f52c682cb2d02986b#3401d28a)
+    Checking async-imap v0.11.2
+    Checking zip v8.6.0
+    Checking nostr-relay-pool v0.37.0
+    Checking minijinja v2.20.0
+    Checking rhai v1.25.1
+    Checking mail-parser v0.11.2
+    Checking lettre v0.11.22
+    Checking portable-pty v0.9.0
+    Checking vw-acp v0.6.0 (/Users/xiangmin/worker/code/shiju/crates/vw-acp)
+    Checking vw-gateway-client v0.6.0 (/Users/xiangmin/worker/code/shiju/crates/vw-gateway-client)
+    Checking vw-provider-resolver v0.6.0 (/Users/xiangmin/worker/code/shiju/crates/vw-provider-resolver)
+    Checking mysql v27.0.0
+    Checking include_dir v0.7.4
+    Checking axum v0.8.9
+    Checking rustyline v17.0.2
+    Checking dialoguer v0.11.0
+    Checking chacha20poly1305 v0.10.1
+    Checking pdf-extract v0.12.0
+    Checking rust-embed v8.11.0
+    Checking qrcode v0.14.1
+    Checking fantoccini v0.22.1
+    Checking tokio-postgres-rustls v0.14.0
+    Checking nostr-sdk v0.37.0
+    Checking opentelemetry-otlp v0.31.0
+    Checking r2d2_postgres v0.18.2
+    Checking ratatui v0.30.2
+    Checking html2md v0.2.15
+    Checking git2 v0.21.0
+    Checking tokio-serial v5.4.5
+    Checking prometheus v0.14.0
+    Checking cron v0.16.0
+    Checking clap_complete v4.5.66
+    Checking similar v2.7.0
+    Checking vw-agent-apps v0.6.0 (/Users/xiangmin/worker/code/shiju/crates/vw-agent-apps)
+    Checking wa-rs-libsignal v0.2.0
+    Checking wa-rs-appstate v0.2.0
+    Checking wa-rs-noise v0.2.0
+    Checking wa-rs-core v0.2.0
+    Checking wa-rs-ureq-http v0.2.0
+    Checking wa-rs-tokio-transport v0.2.0
+    Checking wa-rs v0.2.0
+    Checking vw-agent v0.6.0 (/Users/xiangmin/worker/code/shiju/crates/vw-agent)
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 1m 43s
+
+$ cargo clippy --all-targets --all-features -- -D warnings (ACP recovered; unrelated Git panel)
+exit=101
+    Checking vw-acp v0.6.0 (/Users/xiangmin/worker/code/shiju/crates/vw-acp)
+    Checking vw-desktop v0.6.0 (/Users/xiangmin/worker/code/shiju/crates/vw-desktop)
+    Checking vw-agent-apps v0.6.0 (/Users/xiangmin/worker/code/shiju/crates/vw-agent-apps)
+    Checking vw-agent v0.6.0 (/Users/xiangmin/worker/code/shiju/crates/vw-agent)
+error[E0599]: no associated function or constant named `read_only` found for struct `app::components::git_panel::diff_view::DiffRenderCtx<'a>` in the current scope
+   --> crates/vw-desktop/src/app/components/git_panel/diff_view/history.rs:31:32
+    |
+ 31 |         &super::DiffRenderCtx::read_only(),
+    |                                ^^^^^^^^^ associated function or constant not found in `app::components::git_panel::diff_view::DiffRenderCtx<'_>`
+    |
+   ::: crates/vw-desktop/src/app/components/git_panel/diff_view/mod.rs:80:1
+    |
+ 80 | pub(super) struct DiffRenderCtx<'a> {
+    | ----------------------------------- associated function or constant `read_only` not found for this struct
+    |
+note: if you're trying to build a new `app::components::git_panel::diff_view::DiffRenderCtx<'_>` consider using one of the following associated functions:
+      app::components::git_panel::diff_view::DiffRenderCtx::<'a>::new
+      app::components::git_panel::diff_view::DiffRenderCtx::<'a>::history
+   --> crates/vw-desktop/src/app/components/git_panel/diff_view/mod.rs:90:5
+    |
+ 90 |     pub(super) fn new(app: &'a App) -> Self {
+    |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+...
+113 |     fn history(index: usize, key: String) -> Self {
+    |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+error[E0061]: this function takes 5 arguments but 3 arguments were supplied
+   --> crates/vw-desktop/src/app/components/git_panel/repository.rs:271:32
+    |
+271 |             files = files.push(super::diff_view::view_history_diff(app, index, file));
+    |                                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^------------------
+    |                                                                   |     |      |
+    |                                                                   |     |      expected `&str`, found `&GitHistoryFileDto`
+    |                                                                   |     expected `&str`, found `usize`
+    |                                                                   two arguments of type `&str` and `&vw_gateway_client::vw_api_types::git::GitFileStatus` are missing
+    |
+    = note: expected reference `&str`
+               found reference `&vw_gateway_client::vw_api_types::git::GitHistoryFileDto`
+note: function defined here
+   --> crates/vw-desktop/src/app/components/git_panel/diff_view/history.rs:7:15
+    |
+  7 | pub(crate) fn view_history_diff(
+    |               ^^^^^^^^^^^^^^^^^
+  8 |     app: &App,
+  9 |     key: &str,
+    |     ---------
+ 10 |     old: &str,
+    |     ---------
+ 11 |     new: &str,
+    |     ---------
+ 12 |     status: &GitFileStatus,
+    |     ----------------------
+help: provide the arguments
+    |
+271 -             files = files.push(super::diff_view::view_history_diff(app, index, file));
+271 +             files = files.push(super::diff_view::view_history_diff(app, /* &str */, /* &str */, /* &str */, /* &GitFileStatus */));
+    |
+
+Some errors have detailed explanations: E0061, E0599.
+For more information about an error, try `rustc --explain E0061`.
+error: could not compile `vw-desktop` (lib) due to 2 previous errors
+warning: build failed, waiting for other jobs to finish...
+error: could not compile `vw-desktop` (lib test) due to 2 previous errors

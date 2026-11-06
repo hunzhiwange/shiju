@@ -1,0 +1,307 @@
+[
+  {
+    "method": "GET",
+    "path": "installations?appId=omp",
+    "body": null,
+    "company": "a",
+    "principal": "owner",
+    "status": 200,
+    "response": {
+      "installations": [
+        {
+          "id": "installation-terminal-1",
+          "appId": "omp",
+          "targetHostId": "host",
+          "environment": {
+            "kind": "macos"
+          },
+          "path": "<isolated-root>/prefix/bin/omp",
+          "realPath": "<isolated-root>/prefix/bin/omp",
+          "source": "unknown",
+          "isPathDefault": true,
+          "version": "18.17.0",
+          "runtimeStatus": {
+            "status": "runnable"
+          }
+        }
+      ]
+    }
+  },
+  {
+    "method": "POST",
+    "path": "launch",
+    "body": {
+      "appId": "omp",
+      "installationId": "installation-terminal-1",
+      "cwd": "<isolated-root>/home",
+      "args": []
+    },
+    "company": "a",
+    "principal": "owner",
+    "status": 200,
+    "response": {
+      "sessionId": "bba63844-4612-43e3-88c8-a103e2c3261b",
+      "installationId": "installation-terminal-1"
+    }
+  },
+  {
+    "method": "GET",
+    "path": "launch-sessions/bba63844-4612-43e3-88c8-a103e2c3261b",
+    "body": null,
+    "company": "a",
+    "principal": "owner",
+    "status": 200,
+    "response": {
+      "phase": "running"
+    }
+  },
+  {
+    "method": "GET",
+    "path": "launch-sessions/bba63844-4612-43e3-88c8-a103e2c3261b",
+    "body": null,
+    "company": "foreign",
+    "principal": "owner",
+    "status": 404,
+    "response": ""
+  },
+  {
+    "method": "GET",
+    "path": "launch-sessions/bba63844-4612-43e3-88c8-a103e2c3261b",
+    "body": null,
+    "company": "a",
+    "principal": "other",
+    "status": 404,
+    "response": ""
+  },
+  {
+    "method": "GET",
+    "path": "launch-sessions/bba63844-4612-43e3-88c8-a103e2c3261b",
+    "body": null,
+    "company": "a",
+    "principal": "owner",
+    "status": 200,
+    "response": {
+      "phase": "running"
+    }
+  },
+  {
+    "method": "GET",
+    "path": "launch-sessions/bba63844-4612-43e3-88c8-a103e2c3261b",
+    "body": null,
+    "company": "a",
+    "principal": "owner",
+    "status": 200,
+    "response": {
+      "phase": "running"
+    }
+  },
+  {
+    "method": "GET",
+    "path": "launch-sessions/bba63844-4612-43e3-88c8-a103e2c3261b",
+    "body": null,
+    "company": "a",
+    "principal": "owner",
+    "status": 200,
+    "response": {
+      "phase": "running"
+    }
+  },
+  {
+    "method": "GET",
+    "path": "launch-sessions/bba63844-4612-43e3-88c8-a103e2c3261b",
+    "body": null,
+    "company": "a",
+    "principal": "owner",
+    "status": 200,
+    "response": {
+      "phase": "failed"
+    }
+  },
+  {
+    "method": "GET",
+    "path": "installations?appId=omp",
+    "body": null,
+    "company": "a",
+    "principal": "owner",
+    "status": 200,
+    "response": {
+      "installations": [
+        {
+          "id": "installation-terminal-1",
+          "appId": "omp",
+          "targetHostId": "host",
+          "environment": {
+            "kind": "macos"
+          },
+          "path": "<isolated-root>/prefix/bin/omp",
+          "realPath": "<isolated-root>/prefix/bin/omp",
+          "source": "unknown",
+          "isPathDefault": true,
+          "version": "18.17.0",
+          "runtimeStatus": {
+            "status": "runnable"
+          }
+        }
+      ]
+    }
+  },
+  {
+    "method": "POST",
+    "path": "launch",
+    "body": {
+      "appId": "omp",
+      "installationId": "installation-terminal-1",
+      "cwd": "<isolated-root>/home/workspace",
+      "args": []
+    },
+    "company": "a",
+    "principal": "owner",
+    "status": 200,
+    "response": {
+      "sessionId": "aaa5c3dd-b8a4-4a3d-991d-d289d485a0c9",
+      "installationId": "installation-terminal-1"
+    }
+  },
+  {
+    "method": "GET",
+    "path": "launch-sessions/aaa5c3dd-b8a4-4a3d-991d-d289d485a0c9",
+    "body": null,
+    "company": "a",
+    "principal": "owner",
+    "status": 200,
+    "response": {
+      "phase": "running"
+    }
+  },
+  {
+    "method": "GET",
+    "path": "launch-sessions/aaa5c3dd-b8a4-4a3d-991d-d289d485a0c9",
+    "body": null,
+    "company": "foreign",
+    "principal": "owner",
+    "status": 404,
+    "response": ""
+  },
+  {
+    "method": "GET",
+    "path": "launch-sessions/aaa5c3dd-b8a4-4a3d-991d-d289d485a0c9",
+    "body": null,
+    "company": "a",
+    "principal": "other",
+    "status": 404,
+    "response": ""
+  },
+  {
+    "method": "GET",
+    "path": "launch-sessions/aaa5c3dd-b8a4-4a3d-991d-d289d485a0c9",
+    "body": null,
+    "company": "a",
+    "principal": "owner",
+    "status": 200,
+    "response": {
+      "phase": "running"
+    }
+  },
+  {
+    "method": "GET",
+    "path": "launch-sessions/aaa5c3dd-b8a4-4a3d-991d-d289d485a0c9",
+    "body": null,
+    "company": "a",
+    "principal": "owner",
+    "status": 200,
+    "response": {
+      "phase": "failed"
+    }
+  },
+  {
+    "method": "GET",
+    "path": "installations?appId=omp",
+    "body": null,
+    "company": "a",
+    "principal": "owner",
+    "status": 200,
+    "response": {
+      "installations": [
+        {
+          "id": "installation-terminal-1",
+          "appId": "omp",
+          "targetHostId": "host",
+          "environment": {
+            "kind": "macos"
+          },
+          "path": "<isolated-root>/prefix/bin/omp",
+          "realPath": "<isolated-root>/prefix/bin/omp",
+          "source": "unknown",
+          "isPathDefault": true,
+          "version": "18.17.0",
+          "runtimeStatus": {
+            "status": "runnable"
+          }
+        }
+      ]
+    }
+  },
+  {
+    "method": "POST",
+    "path": "launch",
+    "body": {
+      "appId": "omp",
+      "installationId": "installation-terminal-1",
+      "cwd": "<isolated-root>/home/workspace",
+      "args": [
+        "help"
+      ]
+    },
+    "company": "a",
+    "principal": "owner",
+    "status": 200,
+    "response": {
+      "sessionId": "1228a289-29c3-4b4f-85fb-238e101a7ff1",
+      "installationId": "installation-terminal-1"
+    }
+  },
+  {
+    "method": "GET",
+    "path": "launch-sessions/1228a289-29c3-4b4f-85fb-238e101a7ff1",
+    "body": null,
+    "company": "a",
+    "principal": "owner",
+    "status": 200,
+    "response": {
+      "phase": "running"
+    }
+  },
+  {
+    "method": "GET",
+    "path": "launch-sessions/1228a289-29c3-4b4f-85fb-238e101a7ff1",
+    "body": null,
+    "company": "a",
+    "principal": "owner",
+    "status": 200,
+    "response": {
+      "phase": "running"
+    }
+  },
+  {
+    "method": "GET",
+    "path": "launch-sessions/1228a289-29c3-4b4f-85fb-238e101a7ff1",
+    "body": null,
+    "company": "a",
+    "principal": "owner",
+    "status": 200,
+    "response": {
+      "phase": "completed"
+    }
+  },
+  {
+    "method": "GET",
+    "path": "installations?appId=omp",
+    "body": null,
+    "company": "a",
+    "principal": "owner",
+    "status": 200,
+    "response": {
+      "installations": []
+    }
+  }
+]

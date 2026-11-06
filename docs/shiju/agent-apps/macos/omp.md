@@ -46,10 +46,26 @@ macOS 27.0 (26A428)、arm64；Node v26.13.0、npm 11.20.0；开始时command -v 
 
 隔离prefix创建指向不存在目标的omp断链，读取/正确diagnostics查询200、damaged_installation/unknown，卸载预检422。首次diagnostics误带installationId返回400，按正式契约仅appId重试成功，保留原失败。移除断链后最终API/SDK均空；20项有效自动测试与这些真实场景分开计数。
 
-## 仍阻塞的收口条件
+## 首轮未收口项（终端已在后续修复）
 
-默认launch返回200，确实观察PID20908执行所选隔离prefix/bin/omp，lsof确认cwd为授权隔离HOME。然而进一步ps环境检查发现该进程HOME为个人OS HOME，并非测试HOME，故隔离环境验收失败，立即结束该进程；没有抓取或保存其他环境值/凭据。`launch/posix.rs`在默认路径只构造shell cd/exec，再由独立OS Terminal启动，没有转送策略home；身份启动另走Gateway PTY材料生命周期。此跨应用默认终端契约不在本任务改动中扩写，也不通过给omp增加上层特例绕过。需要专用macOS测试用户/主机，或由终端底座正式补齐受控环境后，再验证进程环境和相关临时材料。不声称个人配置未被该短暂进程访问，也不在无基线情况下删除个人资料。
+默认launch返回200，确实观察PID20908执行所选隔离prefix/bin/omp，lsof确认cwd为授权隔离HOME。然而进一步ps环境检查发现该进程HOME为个人OS HOME，并非测试HOME，故隔离环境验收失败，立即结束该进程；没有抓取或保存其他环境值/凭据。`launch/posix.rs`在默认路径只构造shell cd/exec，再由独立OS Terminal启动，没有转送策略home；身份启动另走Gateway PTY材料生命周期。首轮未扩写此跨应用默认终端契约，后续获授权后已在底层修复，见下一节；未给omp增加上层绕过特例。需要专用macOS测试用户/主机，或由终端底座正式补齐受控环境后，再验证进程环境和相关临时材料。不声称个人配置未被该短暂进程访问，也不在无基线情况下删除个人资料。
 
-launch-identities为空；`providers/mod.rs`对Omp明确not implemented，无专用供应商/适用官方账号与清理证据。旧版自更新实际受GitHub API限流，正式受管update只验证最新版无需升级；真实旧版到新版变化仍缺。上述是缺项/失败，不标作上游不支持。任务59保持**已阻塞**并保留编号文件；下一步在隔离终端、身份与可成功旧版更新条件具备后收口，不宣称整项通过。
+launch-identities为空；`providers/mod.rs`对Omp明确not implemented，无专用供应商/适用官方账号与清理证据。旧版自更新实际受GitHub API限流，正式受管update只验证最新版无需升级；真实旧版到新版变化仍缺。上述是缺项/失败，不标作上游不支持。首轮据此记为**已阻塞**并保留编号文件；后续修复和最终状态见下一节，不宣称缺项已通过。
 
 最终全仓Clippy退出0（5m19s），新CLI和默认desktop构建均0，desktop运行后主动-15。确切命令、退出码、红绿与20项有效测试数量见omp-validation.txt；仅本任务源码/测试/证据提交。所有自有Gateway、Iced、终端omp及使用槽位的进程结束后再释放slot-6，缓存保留；原有个人标准omp路径仍为空，未改个人安装。两份测试二进制、下载暂存、随机令牌/策略/配置/缓存与临时.app清理。plan.md保持只读。
+
+## 继续执行：默认终端环境已修复
+
+2026-11-06，用户明确授权必要底层范围扩展。Iced启动表单的“主机现有配置”和task-29说明表明，无身份启动应使用执行主机的配置；不能把外部OS Terminal继承的个人HOME当作管理员host.home。未增加客户端HOME参数、RPC或权限开关，也未改代理自身HOME/个人配置。
+
+默认launch保留既有实例/cwd/权限校验，改走已有Gateway-owned TerminalSession及principal/tenant/host作用域Sessions。外部默认终端只运行不含凭据的私有socket客户端；真正CLI由Gateway以独立argv在PTY直接启动，绕过登录Shell的环境覆盖。HOME取管理员执行主机的规范目录；XDG配置/缓存/数据/状态目录分别位于该HOME，PATH取管理员搜索路径和固定系统目录；env_clear不继承宿主API key、应用profile选择器、Node钩子。TMPDIR位于0700会话目录，CLI及其后代回收后再关闭socket并清理目录。使用主机现有配置文件的语义保留；管理员若配置真实OS HOME则仍会明确使用该目录，不把此功能宣称为OS文件系统/钥匙串沙箱。
+
+生产API测试先失败于缺少真正CLI写出的HOME证据（退出101，1失败），随后通过。新增第二调用方夹具初因token不足32字而返回401，按真实规则修正夹具后保持404归属断言，未改鉴权。最终API测试以不同的HOME和cwd验证真实TTY、程序、HOME/cwd；有有效主机grant的其他租户/其他principal仍不能读取会话（404）。环境污染子进程测试确保父HOME/API key不变且子进程不继承敏感变量/钩子；PTY回归覆盖私有TMPDIR、正常退出、断线终止进程组及目录清理；原有身份启动/账号轮换、请求边界与POSIX终端适配均回归通过。
+
+本轮20项不同有效测试通过：host环境1、PTY3、生产API1、身份HTTP/SDK/轮换1、请求边界7、POSIX终端7；环境测试的辅助子进程不重复计数，API重复回归不累计。新证据见omp-terminal-validation.txt。CLI构建退出0；首轮本次全仓Clippy退出0。最终加强cwd断言后API仍0，最终全仓Clippy则被其他会话的`crates/vw-acp/src/client/process_tests.rs:445` E0282阻断，未修改无关ACP代码；本任务两个crate定向Clippy退出0。观察到ACP夹具类型标注已由其他会话补齐后重跑全仓，ACP错误消失，但遇无关Git面板`diff_view/history.rs:31` E0599和`repository.rs:271` E0061，退出101；未修改Git模块。未跑无过滤test、fmt检查、wasm或Makefile。
+
+新建0700隔离根及0600随机双principal策略，复用首轮官方安装器--binary，SHA256和退出0日志见omp-terminal-runtime.json。正式生产Gateway在19459读取官方18.17.0/unknown/runnable；此份手工官方安装不伪造受管收据。真实无身份launch返回sessionId，并观察官方omp PID56006由Gateway直接启动。ps仅提取允许记录的环境字段/敏感变量存在性，不保存完整环境或令牌；HOME和全部XDG均指向隔离主机目录，lsof证明cwd为HOME/workspace，所选程序为隔离prefix/bin/omp。TMPDIR在/tmp/sj-tty-*且运行时存在；进程主动SIGTERM后status为Failed（不假报成功），进程已消失且该目录被删除。跨租户/跨principal正式HTTP各404。再以允许的位置参数help经同一正式通路运行，实际会话Completed。最终删除仅本任务官方入口后API空态。请求/响应见omp-terminal-api.json，程序/cwd/环境与清理见runtime JSON。
+
+因此默认终端HOME问题已解决。最终任务59为**已完成，待回归**，保留编号文件：仍待专用供应商/适用官方账号、真实旧版到新版升级变化，以及其他会话Git面板编译修复后的最终全仓Clippy复核，不把缺专用身份/版本条件记为不支持或已通过。首轮Iced/API/SDK生命周期证据继续有效，本轮未改UI、未用Element测试代替原生渲染。
+
+本轮动态领取slot-1，owner为task59/terminal-resume/PID46034；CARGO_TARGET_DIR与CARGO_BUILD_BUILD_DIR均为`/Users/xiangmin/worker/code/shiju/target/rust-slot-1`，覆盖build.build-dir。真实Gateway主动结束-15，所有自有CLI/socket客户端/产物进程结束后清理随机根、凭据、配置、官方二进制；确认验证命令退出后释放本人slot-1并保留缓存。plan.md未修改，其他工作区改动不纳入提交。

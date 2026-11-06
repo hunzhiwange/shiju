@@ -381,3 +381,193 @@ fn agent_config_cleanup_multiline_description_roundtrips_and_cancels() {
     dispatch(&mut app, AgentsMessage::ProfileOpen("multiline".into()));
     assert_eq!(app.agents_settings.profile_modal.as_ref().unwrap().description, description);
 }
+
+fn runtime_creation_draft() -> App {
+    let mut app = App::new().0;
+    app.agents_settings.config_ready = true;
+    app.acp_agents = vec!["codex".into(), "claude".into()];
+    dispatch(&mut app, AgentsMessage::AddAgentKeyChanged("runtime-custom".into()));
+    dispatch(&mut app, AgentsMessage::AddAgentRequested);
+    app
+}
+
+#[test]
+fn agent_runtime_creation_success_locks_runtime_but_keeps_profile_editable() {
+    use vw_config_types::agent::{AgentDefault, AgentRuntime};
+    let mut app = runtime_creation_draft();
+    for backend in ["codex", "claude", "native", "codex"] {
+        dispatch(&mut app, AgentsMessage::ProfileRuntimeChanged(backend.into()));
+        let expected = if backend == "native" {
+            AgentRuntime::Native
+        } else {
+            AgentRuntime::Acp { backend: backend.into() }
+        };
+        assert_eq!(app.agents_settings.profile_modal.as_ref().unwrap().runtime, expected);
+    }
+    dispatch(&mut app, AgentsMessage::ProfileRuntimeChanged("unknown-custom-name".into()));
+    let expected = AgentRuntime::Acp { backend: "codex".into() };
+    assert_eq!(app.agents_settings.profile_modal.as_ref().unwrap().runtime, expected);
+    dispatch(&mut app, AgentsMessage::ProfileSave);
+    assert!(app.agents_settings.profile_saving);
+    dispatch(&mut app, AgentsMessage::ProfileRuntimeChanged("claude".into()));
+    dispatch(&mut app, AgentsMessage::ProfileCancel);
+    assert_eq!(app.agents_settings.profile_modal.as_ref().unwrap().runtime, expected);
+    dispatch(&mut app, AgentsMessage::ProfileSaved(Ok(())));
+    dispatch(&mut app, AgentsMessage::ProfileOpen("runtime-custom".into()));
+    for backend in ["native", "claude"] {
+        dispatch(&mut app, AgentsMessage::ProfileRuntimeChanged(backend.into()));
+        assert_eq!(app.agents_settings.profile_modal.as_ref().unwrap().runtime, expected);
+    }
+    dispatch(&mut app, AgentsMessage::ProfileNameChanged("保存后仍可改名".into()));
+    dispatch(&mut app, AgentsMessage::ProfileModelChanged(AgentDefault::Inherit));
+    let draft = app.agents_settings.profile_modal.as_ref().unwrap();
+    assert_eq!(draft.label, "保存后仍可改名");
+    assert_eq!(draft.defaults.model, AgentDefault::Inherit);
+}
+
+#[test]
+fn agent_runtime_creation_failed_save_allows_retry_and_cancel_leaves_no_entry() {
+    use vw_config_types::agent::AgentRuntime;
+    let mut app = runtime_creation_draft();
+    dispatch(&mut app, AgentsMessage::ProfileRuntimeChanged("codex".into()));
+    dispatch(&mut app, AgentsMessage::ProfileSave);
+    assert!(app.agents_settings.profile_saving);
+    dispatch(&mut app, AgentsMessage::ProfileSaved(Err("受控保存失败".into())));
+    dispatch(&mut app, AgentsMessage::ProfileRuntimeChanged("claude".into()));
+    assert_eq!(
+        app.agents_settings.profile_modal.as_ref().unwrap().runtime,
+        AgentRuntime::Acp { backend: "claude".into() }
+    );
+    dispatch(&mut app, AgentsMessage::ProfileCancel);
+    assert!(app.agents_settings.profile_modal.is_none());
+    assert!(!app.agents_settings.entries.iter().any(|e| e.key == "runtime-custom"));
+}
+
+#[test]
+fn agent_runtime_creation_reloaded_custom_and_builtin_reject_changes() {
+    use vw_config_types::agent::{AgentRuntime, DelegateAgentConfig};
+    let mut app = App::new().0;
+    app.agents_settings.config_ready = true;
+    app.acp_agents = vec!["codex".into(), "claude".into()];
+    let config = DelegateAgentConfig {
+        runtime: AgentRuntime::Acp { backend: "claude".into() },
+        ..Default::default()
+    };
+    app.agents_settings
+        .entries
+        .push(crate::app::state::DelegateAgentSettingsEntry::from_config("reloaded", Some(config)));
+    for key in ["reloaded", "main"] {
+        dispatch(&mut app, AgentsMessage::ProfileOpen(key.into()));
+        let expected = app.agents_settings.profile_modal.as_ref().unwrap().runtime.clone();
+        dispatch(&mut app, AgentsMessage::ProfileRuntimeChanged("codex".into()));
+        assert_eq!(app.agents_settings.profile_modal.as_ref().unwrap().runtime, expected);
+    }
+}
+
+#[test]
+fn agent_runtime_creation_empty_directory_refreshes_and_failure_preserves_native() {
+    use crate::app::message::settings::AcpMessage;
+    let mut app = App::new().0;
+    app.agents_settings.config_ready = true;
+    app.acp_agents.clear();
+    app.acp_settings.loading = false;
+    dispatch(&mut app, AgentsMessage::AddAgentKeyChanged("empty-catalog".into()));
+    dispatch(&mut app, AgentsMessage::AddAgentRequested);
+    assert!(app.acp_settings.loading);
+    let _ = crate::app::message::settings::update(
+        &mut app,
+        SettingsMessage::Acp(AcpMessage::Loaded(Err("目录加载失败".into()))),
+    );
+    assert!(!app.acp_settings.loading);
+    assert!(app.acp_settings.save_error.is_some());
+    dispatch(&mut app, AgentsMessage::ProfileRuntimeChanged("codex".into()));
+    assert_eq!(
+        app.agents_settings.profile_modal.as_ref().unwrap().runtime,
+        vw_config_types::agent::AgentRuntime::Native
+    );
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn agent_runtime_creation_controls_render_in_both_themes() {
+    use iced::advanced::renderer::Headless;
+    use iced::advanced::{Layout, layout, mouse, renderer, widget::Tree};
+    use iced::{Color, Font, Pixels, Rectangle, Size, Theme};
+    for (theme, name) in [(Theme::Light, "light"), (Theme::Dark, "dark")] {
+        for state in ["new", "loading", "failed", "saved"] {
+            let mut app = runtime_creation_draft();
+            if state == "saved" {
+                dispatch(&mut app, AgentsMessage::ProfileRuntimeChanged("codex".into()));
+                dispatch(&mut app, AgentsMessage::ProfileSave);
+                dispatch(&mut app, AgentsMessage::ProfileSaved(Ok(())));
+                dispatch(&mut app, AgentsMessage::ProfileOpen("runtime-custom".into()));
+            } else if state != "new" {
+                app.acp_agents.clear();
+                app.acp_settings.loading = state == "loading";
+                if state == "failed" {
+                    app.acp_settings.save_error = Some("目录加载失败，请重试".into());
+                }
+            }
+            let draft = app.agents_settings.profile_modal.as_ref().unwrap();
+            let mut element = super::basic_profile::view(&app, draft);
+            let mut renderer =
+                <iced::Renderer as Headless>::new(Font::DEFAULT, Pixels(16.0), Some("tiny-skia"))
+                    .await
+                    .unwrap();
+            let bounds = Size::new(920.0, 760.0);
+            let mut tree = Tree::new(element.as_widget());
+            let node = element.as_widget_mut().layout(
+                &mut tree,
+                &renderer,
+                &layout::Limits::new(Size::ZERO, bounds),
+            );
+            #[derive(Default)]
+            struct Labels(Vec<String>);
+            impl iced::advanced::widget::Operation for Labels {
+                fn traverse(
+                    &mut self,
+                    operate: &mut dyn FnMut(&mut dyn iced::advanced::widget::Operation),
+                ) {
+                    operate(self);
+                }
+                fn text(
+                    &mut self,
+                    _id: Option<&iced::advanced::widget::Id>,
+                    _bounds: Rectangle,
+                    value: &str,
+                ) {
+                    self.0.push(value.into());
+                }
+            }
+            let mut labels = Labels::default();
+            element.as_widget_mut().operate(&mut tree, Layout::new(&node), &renderer, &mut labels);
+            assert!(labels.0.iter().any(|s| s.contains("首次保存成功后")));
+            if state == "saved" {
+                assert!(labels.0.iter().any(|s| s == "固定运行引擎：codex"));
+                assert!(!labels.0.iter().any(|s| s == "刷新引擎目录"));
+            } else if state == "loading" {
+                assert!(labels.0.iter().any(|s| s == "正在加载 ACP 引擎目录…"));
+            } else if state == "failed" {
+                assert!(labels.0.iter().any(|s| s == "目录加载失败，请重试"));
+            }
+            element.as_widget().draw(
+                &tree,
+                &mut renderer,
+                &theme,
+                &renderer::Style { text_color: theme.palette().text },
+                Layout::new(&node),
+                mouse::Cursor::Unavailable,
+                &Rectangle::with_size(bounds),
+            );
+            let pixels = renderer.screenshot(Size::new(920, 760), 1.0, Color::TRANSPARENT);
+            assert!(pixels.chunks_exact(4).any(|p| p[3] > 0));
+            image::save_buffer(
+                format!("/tmp/shiju-runtime-creation-{name}-{state}.png"),
+                &pixels,
+                920,
+                760,
+                image::ColorType::Rgba8,
+            )
+            .unwrap();
+        }
+    }
+}

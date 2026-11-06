@@ -175,7 +175,10 @@ pub(super) fn update(app: &mut App, message: AgentsMessage) -> Task<Message> {
                     draft.description = draft.description_editor.text();
                 }
                 AgentsMessage::ProfileRuntimeChanged(value) => {
-                    if builtin_agent_spec(&draft.key).is_none() && !draft.key.starts_with("acp-") {
+                    if builtin_agent_spec(&draft.key).is_none()
+                        && !draft.key.starts_with("acp-")
+                        && !app.agents_settings.entries.iter().any(|entry| entry.key == draft.key)
+                    {
                         draft.runtime = if value == "native" {
                             vw_config_types::agent::AgentRuntime::Native
                         } else if app.acp_agents.contains(&value) {

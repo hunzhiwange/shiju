@@ -1063,7 +1063,12 @@ pub fn update(app: &mut App, message: SettingsMessage) -> Task<Message> {
             app.agents_settings.active_detail_tab =
                 crate::app::state::AGENT_DETAIL_BASIC_TAB.to_string();
             app.agents_settings.save_error = None;
-            refresh_skill_catalog(app)
+            let catalog = if app.acp_agents.is_empty() && !app.acp_settings.loading {
+                super::acp::update(app, SettingsMessage::Acp(super::AcpMessage::Refresh))
+            } else {
+                Task::none()
+            };
+            Task::batch([refresh_skill_catalog(app), catalog])
         }
         AgentsMessage::DetailTabSelected(tab_key) => {
             app.agents_settings.active_detail_tab = tab_key;

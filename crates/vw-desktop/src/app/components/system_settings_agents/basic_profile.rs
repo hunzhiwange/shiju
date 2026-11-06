@@ -17,7 +17,9 @@ pub(super) fn view<'a>(
     app: &'a App,
     draft: &'a DelegateAgentSettingsEntry,
 ) -> Element<'a, Message> {
-    let fixed = builtin_agent_spec(&draft.key).is_some() || draft.key.starts_with("acp-");
+    let fixed = builtin_agent_spec(&draft.key).is_some()
+        || draft.key.starts_with("acp-")
+        || app.agents_settings.entries.iter().any(|entry| entry.key == draft.key);
     let input = |placeholder, value, callback: fn(String) -> AgentsMessage| {
         text_input(placeholder, value)
             .on_input(move |value| message(callback(value)))
@@ -84,19 +86,50 @@ pub(super) fn view<'a>(
     } else {
         let mut options = vec!["native".to_string()];
         options.extend(app.acp_agents.clone());
-        pick_list(options, Some(runtime), |value| {
+        let busy = app.agents_settings.profile_saving;
+        let picker = pick_list(options, Some(runtime), move |value| {
             message(AgentsMessage::ProfileRuntimeChanged(value))
         })
         .padding(SETTINGS_CONTROL_PADDING)
         .text_size(SETTINGS_CONTROL_TEXT_SIZE)
         .style(settings_pick_list_style)
         .menu_style(settings_pick_list_menu_style)
-        .width(Length::Fill)
-        .into()
+        .width(Length::Fill);
+        let mut controls = column![picker].spacing(8);
+        if app.acp_agents.is_empty() {
+            controls = controls.push(
+                text(if app.acp_settings.loading {
+                    "正在加载 ACP 引擎目录…"
+                } else {
+                    "暂无可用 ACP 引擎，可刷新目录或在 ACP 设置中启用。"
+                })
+                .size(12)
+                .style(settings_muted_text_style),
+            );
+        }
+        if let Some(error) = &app.acp_settings.save_error {
+            controls = controls.push(settings_error_banner(error.clone()));
+        }
+        controls = controls.push(
+            button(text(if app.acp_settings.loading {
+                "加载中…"
+            } else {
+                "刷新引擎目录"
+            }))
+            .on_press_maybe((!busy && !app.acp_settings.loading).then_some(Message::Settings(
+                SettingsMessage::Acp(crate::app::message::settings::AcpMessage::Refresh),
+            )))
+            .padding([8, 14])
+            .style(rounded_action_btn_style),
+        );
+        controls.into()
     };
     let runtime = row![
         text("运行智能体").width(Length::Fixed(SETTINGS_LABEL_WIDTH)),
-        settings_control_with_hint(runtime_control, "引擎和系统提示词修改只影响新会话。"),
+        settings_control_with_hint(
+            runtime_control,
+            "首次保存成功后，运行引擎及 ACP backend 不可修改。"
+        ),
     ]
     .spacing(16)
     .align_y(Alignment::Start);

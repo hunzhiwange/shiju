@@ -38,7 +38,7 @@ Auggie 已接入逐次客户端批准与当前 host deny 拦截；原生权限�
 | [snow](evidence/snow.md) / E1、E2 | 0.9.14 | 0.9.15（基线查询） | 客户端自动批准：仅 allow_once，避免写入工作区永久批准；ACP 未实现权限模式；session_model 原有门控保留 | 用户要求跳过测试；开启、关闭、恢复及跨平台工具效果未实机验收 |
 | [copilot](evidence/copilot.md) / E1、官方文档 | 1.0.105 | 1.0.106 | 客户端自动批准：仅 allow_once；显式启动全放行要求当前授权，不自动注入；保留模型来源门控 | 用户要求跳过测试；开启、关闭、恢复、tools/paths/URLs 与 deny 效果未实机验收 |
 | [cursor](evidence/cursor.md) / E1、官方文档 | 2026.10.22-27dcf5f | 2026.11.05-86047df（基线查询） | 客户端自动批准：仅 allow_once，按当前授权处理；显式 force/yolo 要求当前完全访问；session_model 原有门控保留 | 用户要求跳过测试；开启、关闭、恢复及跨平台工具效果未实机验收 |
-| [droid](evidence/README.md#droid) / E1 | 1.3.0 | 1.5.0 | 部分支持：客户端自动批准有源码、原生未知；session_model 不可用：双向 ACP 与隔离根未核验 | 固定真实 CLI，采集 initialize/权限选项并验证开启→关闭→恢复 |
+| [droid](evidence/droid.md) / E1、官方文档 | 1.3.0 | 1.5.0（基线查询） | 客户端自动批准：仅 allow_once，按当前授权处理；显式 skip-permissions-unsafe 要求当前完全访问；session_model 原有门控保留 | 用户要求跳过测试；开启、关闭、恢复及跨平台工具效果未实机验收 |
 | [gemini](evidence/gemini.md) / E2、E3 | 0.66.0 | 0.67.0 | 部分支持：客户端自动批准；原生自动提权不接入，缺少标准回读且修改工具/系统指令。高权限恢复拒绝；session_model 有驱动和版本门控 | 补齐其他平台与企业/原生沙箱；新版本须重新验收 |
 | [iflow](evidence/iflow.md) / E1、E2 | 0.5.19 | 0.5.19 | 部分支持：按当前授权同步 default↔yolo，保留 plan 与客户端审批；load 无 modes 依据固定源码发送精确值；session_model 原有门控保留 | 用户要求跳过测试；开启、关闭、恢复、子代理及跨平台效果未实机验收 |
 | [kilocode](evidence/README.md#kilocode) / E1 | 7.8.18 | 7.8.27 | 部分支持：客户端自动批准有源码、原生未知；session_model 有驱动和版本门控 | 固定真实 CLI，采集 initialize/权限选项并验证开启→关闭→恢复 |
@@ -69,7 +69,7 @@ U = 未获取该后端真实权限协议/结果；C = 仅共享客户端源码�
 | snow | E2：源码声明 loadSession；未实测 | E2：new/load；resume 使用既有 load 回退，未实测 | E2：未实现 | E2：未实现；CLI yolo 不用于 ACP | E2：approve_once/approve_always/reject_once；客户端仅逐次批准，未计数 | C；未实测 | C；未实测 | U；保留敏感命令与 hook 规则 |
 | copilot | U | 现有 new/load/resume；未实测 | 不推断原生权限配置 | 不推断权限模式 | 代码接入 allow_once；未实机计数 | C；未实测 | C；未实测 | U；保留供应商限制 |
 | cursor | U | 现有 new/load/resume；未实测 | 不推断原生权限配置 | 官方 agent/plan/ask 是工作模式，不自动切换 | 官方 allow-once/allow-always/reject-once；代码仅逐次批准，未计数 | C；未实测 | C；未实测 | U；保留供应商 deny |
-| droid | U | U/U/U | U | U | C | C | C | U |
+| droid | U | 现有 new/load/resume；未实测 | 不推断原生权限配置 | 自治等级不等于免审批，不推断 ACP mode ID | 代码仅逐次批准；未实机计数 | C；未实测 | C；未实测 | U；保留供应商 block 与 sandbox |
 | gemini | E3 | E3/E3/-32601；同 ID load 回退 | -32601 | E3：legacy default/yolo；无标准回读 | E3：原始工具 1→0→1；生产保持客户端审批 | C；本例原生 write_file | C；本例原生 shell | E2 刷新管理器；OS 隔离未验收 |
 | iflow | U | new/load/resume 已接入；未实测 | E2：无标准配置路由，不杜撰 config | E2：default/smart/yolo/plan；已接入，无标准回读；load 无 modes | C；未实机计数 | C；未实测 | C；未实测 | U；不覆盖原生 deny |
 | kilocode | U | U/U/U | U | U | C | C | C | U |

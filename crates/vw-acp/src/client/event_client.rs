@@ -52,6 +52,7 @@ impl AcpClient {
                     | "goose"
                     | "snow"
                     | "cursor"
+                    | "droid"
             ),
             reject_untyped_workflow_permissions: matches!(
                 self.agent_name.as_str(),

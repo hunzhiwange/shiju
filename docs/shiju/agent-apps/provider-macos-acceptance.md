@@ -696,3 +696,42 @@ RustCodeGraph status/explore 退出 0，索引含 6443 文件；运行时代码�
 `sw_vers`、`uname -m` 均退出 0：macOS 27.0（26A428）、arm64。应用版本、个人账号、CLI/Iced 实际运行未验证，没有 SDK→API→执行端文件写入证据；Windows/Linux、其他架构与实机切换未验收。
 
 定向差异与暂存检查仅涵盖本任务代码、独立测试、父注册、依赖清单/锁文件及本条证据，其他会话的终端改动、母任务状态和既有任务文件删除均排除。只读 plan.md 无差异；最终阶段自身槽位 1 锁目录已释放，缓存保留。不执行全量 cargo test、fmt check、wasm 或 Makefile。任务 15 完成后删除编号文件且不纳入提交，正式证据保留。
+
+## 任务 16：dotenv 定点补丁
+
+2026-11-07；状态：已完成（内存字节补丁原语，live 写入未接通）。
+
+### 依赖、来源与实现范围
+
+核对批次 15 提交 `87e51035c` 及本文件任务 1–15 正式证据；母任务 1、3 已完成，母任务 2 沿用任务 1 的底座子计划 1–93 开工裁定，完整领域迁移仍未收口，不将其改报完成。只读 plan.md 未修改。
+
+来源 `/Users/xiangmin/worker/code/cc-switch` HEAD `ca58c0313360eae7c851fbd7553c1614c7af03e7`，rev-parse/status 退出 0、来源干净。读取 `live/patch/dotenv.rs::{DotenvPatch::apply,entries,parse_key,value_of,unquote}` 及四项相邻测试；读取 `services/provider/gemini_editor.rs::{view,env_changes,EnvWrite::apply,plan_save,write_live}`、三方冲突相邻测试及 provider/mod.rs 编辑器读写调用，核对 `gemini_direct::run_with_edits`、`GeminiProjection::env_patch` 直接消费。来源测试本轮未运行。RustCodeGraph status/explore 退出 0，确认原生 live 目录已有 JSON/TOML/YAML 原语，dotenv 原所有者仍位于冻结 upstream。
+
+- 新增唯一原生所有者 `crates/vw-agent-apps/src/providers/live/patch_dotenv.rs::{DotenvPatch::apply,entries}`，父注册和独立 `patch_dotenv_tests.rs`。延续任务 13–15 内存补丁边界，不执行文件读写。保留来源 set/remove/remove_if/clear 操作；set 优先于删除，第一处原位替换并保留 export 前缀，同名重复行删除，缺失键追加。clear 仅接受执行端函数指针，不新增客户端谓词或配置接口。
+- 非目标变量、注释、空行、无法识别的行和顺序逐字节保留，额外保留每行各自 LF/CRLF，混合换行不被整体规范化。追加分隔符沿用来源 CRLF 优先与末尾换行规则。目标整行按来源规则重写，不承诺保留目标行自身的缩进、空格或内联注释。
+- 值为原始 dotenv 字面文本，不自动加引号、不做 shell 求值或变量展开；调用者提供需要的引号。entries 保留引号、重复键取最后值但保持首次位置；remove_if 只剥离首尾配对单双引号后比较，不将此接口冒充完整 shell/dotenv 解析器。
+- 拒绝非法 UTF-8、NUL、空/非法点名键、set/remove_if 值中的 CR/LF/NUL 和超过 1 MiB 的输入/输出。载荷不进入错误；失败不返回部分结果。沿用来源 ASCII 字母数字/下划线键规则。
+- API/SDK/UI 未新增入口：原生事务与 Gemini 适配尚待后续任务消费此原语；不新增任意文件/命令 API，不宣称供应商编辑、首次激活或 live 切换已成功。
+
+### 红绿验证与平台边界
+
+每阶段原子 mkdir 动态领取槽位 2，owner 记录计划/任务/会话/PID，EXIT/INT/TERM trap 在全部子进程结束后清理自身记录和锁、保留缓存。所有 Cargo 同时继承 `CARGO_BUILD_BUILD_DIR=$CARGO_TARGET_DIR`，覆盖仓库 build-dir。
+
+全部阶段实际 `CARGO_TARGET_DIR=/Users/xiangmin/worker/code/shiju/target/rust-slot-2`，默认 features；测试二进制位于该槽位 debug/deps。
+
+| 阶段 | 确切命令 | 退出码 / 有效结果 |
+| --- | --- | --- |
+| 红 | `cargo fmt --all` | 0 |
+| 红 | `cargo test -p vw-agent-apps --lib cc04_patch_dotenv_ -- --nocapture` | 101；0 passed / 2 failed |
+| 首次绿 | `cargo fmt --all` | 0 |
+| 首次绿 | `cargo test -p vw-agent-apps --lib cc04_patch_dotenv_ -- --nocapture` | 0；4 passed / 0 ignored |
+| 首次绿 | `cargo clippy --all-targets --all-features -- -D warnings` | 101；本次代码 collapsible_if 一处，已修复 |
+| 最终绿 | `cargo fmt --all` | 0 |
+| 最终绿 | `cargo test -p vw-agent-apps --lib cc04_patch_dotenv_ -- --nocapture` | 0；4 passed / 0 ignored |
+| 最终绿 | `cargo clippy --all-targets --all-features -- -D warnings` | 0；全部 targets/features 通过，不计行为测试 |
+
+红阶段类型/模块/测试可编译，原样返回输入的占位实现分别在“目标值未改动”和“非法输入被接受”业务断言失败，不是编译失败或零测试。最终四项行为测试覆盖目标替换、删除、条件删除、重复行、追加、set 优先、clear、原始引号/中文/emoji/混合换行保留、重复应用稳定、非法输入与大小限制。拒绝测试使用隔离临时文件并检查文件未变；其余使用真实内存文本。没有网络/钥匙串/进程 mock，不读写真实用户配置。
+
+`sw_vers` / `uname -m` 退出 0：macOS 27.0（26A428）、arm64。应用版本、真实账号、CLI/Iced 运行及 SDK→API→执行端写入未验证；Windows/Linux 与其他架构未验收。
+
+定向差异及暂存检查退出 0，只提交本任务实现、独立测试、父注册及本条正式证据；既有终端改动、母任务状态、其他编号任务删除不纳入提交。所有阶段自身槽位 2 锁已释放、缓存保留。未执行全量 cargo test、fmt check、wasm 或 Makefile。完成后删除任务 16 文件且不纳入提交，正式证据保留。

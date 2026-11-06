@@ -1,0 +1,83 @@
+old-version.txt
+0
+0.7.4
+
+npm-old.log
+npm warn deprecated prebuild-install@7.1.3: No longer maintained. Please contact the author of the relevant native addon; alternatives are available.
+
+added 48 packages in 2m
+npm notice
+npm notice New major version of npm available! 11.20.0 -> 12.2.2
+npm notice Changelog: https://github.com/npm/cli/releases/tag/v12.2.2
+npm notice To update run: npm install -g npm@12.2.2
+npm notice
+
+npm-second.log
+npm warn deprecated prebuild-install@7.1.3: No longer maintained. Please contact the author of the relevant native addon; alternatives are available.
+
+added 49 packages in 2m
+
+cancel-processes.txt
+62163 52795 node <isolated-root>/prefix/bin/npm i -g @minimax-ai/code@latest --ignore-scripts=false --include=optional --allow-scripts=@minimax-ai/code,better-sqlite3
+npm-clean.log
+
+removed 49 packages in 463ms
+
+cleanup-check.txt
+personal baseline unchanged=True
+
+ui-note.txt
+cargo run started PID52796 with isolated HOME/config; terminated intentionally. Bundle symlink child PID56143 disappeared after tool shell exit; CUA getApp launched untracked PID57795 with default app environment, so subsequent window showed existing user session. Stopped UI interaction and terminated only PID57795 from own rust-slot-5. No UI evidence accepted; no personal installations modified.
+
+sdk-command.txt
+rustc --edition=2024 <isolated-root>/sdk.rs -L dependency=/Users/xiangmin/worker/code/shiju/target/rust-slot-5/debug/deps --extern vw_gateway_client=/Users/xiangmin/worker/code/shiju/target/rust-slot-5/debug/deps/libvw_gateway_client-1a94bf756d53cb1d.rlib --extern tokio=/Users/xiangmin/worker/code/shiju/target/rust-slot-5/debug/deps/libtokio-f993a923b732abac.rlib -o /Users/xiangmin/worker/code/shiju/target/rust-slot-5/task55-sdk
+rustc 0
+200 {"apps": [{"id": "mcode", "name": "MiniMax Code", "cliCommand": "mcode", "runtimeKinds": ["native_cli"]}]}
+200 []
+200 {"installations": [{"id": "installation-1", "appId": "mcode", "targetHostId": "host", "environment": {"kind": "macos"}, "path": "<isolated-root>/prefix/bin/mcode", "realPath": "<isolated-root>/prefix/lib/node_modules/@minimax-ai/code/cli.js", "source": "unknown", "isPathDefault": true, "version": "0.7.4", "runtimeStatus": {"status": "runnable"}}]}
+OLD 0
+200 {"installations": [{"id": "installation-1", "appId": "mcode", "targetHostId": "host", "environment": {"kind": "macos"}, "path": "<isolated-root>/prefix/bin/mcode", "realPath": "<isolated-root>/prefix/lib/node_modules/@minimax-ai/code/cli.js", "source": "unknown", "isPathDefault": true, "version": "0.7.4", "runtimeStatus": {"status": "runnable"}}]}
+200 {"previewId": "5ab55910-a2d4-4bf6-ae95-6c62e7415301", "request": {"appId": "mcode", "action": "update", "target": {"kind": "installation", "installationId": "installation-1"}}, "source": "system", "confirmationRequired": true, "summary": "Review the selected application action in the administrator-approved prefix", "displayCommand": null}
+202 {"operationId": "12e45e4c-18d0-4343-9f67-2ec269365a3e", "status": "queued"}
+200 {"operationId": "12e45e4c-18d0-4343-9f67-2ec269365a3e", "status": "running", "phase": "executing"}
+200 {"operationId": "12e45e4c-18d0-4343-9f67-2ec269365a3e", "status": "completed", "phase": "terminal"}
+UPGRADED 0
+VERSION 0 0.7.6
+
+SECOND 0
+200 {"installations": [{"id": "installation-1", "appId": "mcode", "targetHostId": "host", "environment": {"kind": "macos"}, "path": "<isolated-root>/prefix/bin/mcode", "realPath": "<isolated-root>/prefix/lib/node_modules/@minimax-ai/code/cli.js", "source": "unknown", "isPathDefault": true, "version": "0.7.6", "runtimeStatus": {"status": "runnable"}}, {"id": "installation-2", "appId": "mcode", "targetHostId": "host", "environment": {"kind": "macos"}, "path": "<isolated-root>/home/.local/bin/mcode", "realPath": "<isolated-root>/home/.local/lib/node_modules/@minimax-ai/code/cli.js", "source": "unknown", "isPathDefault": false, "version": "0.7.4", "runtimeStatus": {"status": "runnable"}}]}
+200 {"previewId": "0f78469a-8bb7-4e6f-84fa-b04627d0f728", "request": {"appId": "mcode", "action": "uninstall", "target": {"kind": "installation", "installationId": "installation-1"}}, "source": "system", "confirmationRequired": true, "summary": "Review the selected application action in the administrator-approved prefix", "displayCommand": null}
+202 {"operationId": "2bbc6d58-af65-4c66-b1d6-8bf2ecd0cd37", "status": "queued"}
+200 {"operationId": "2bbc6d58-af65-4c66-b1d6-8bf2ecd0cd37", "status": "completed", "phase": "terminal"}
+422 ""
+200 {"installations": [{"id": "installation-2", "appId": "mcode", "targetHostId": "host", "environment": {"kind": "macos"}, "path": "<isolated-root>/home/.local/bin/mcode", "realPath": "<isolated-root>/home/.local/lib/node_modules/@minimax-ai/code/cli.js", "source": "unknown", "isPathDefault": true, "version": "0.7.4", "runtimeStatus": {"status": "runnable"}}]}
+REMAINING 0
+REMAINING VERSION 0 0.7.4
+
+EMPTY 0
+200 {"previewId": "9c009c88-1067-4d4a-8ba4-c882eeccfe4c", "request": {"appId": "mcode", "action": "install", "target": {"kind": "environment", "environment": {"kind": "macos"}}}, "source": "system", "confirmationRequired": true, "summary": "Review the selected application action in the administrator-approved prefix", "displayCommand": null}
+202 {"operationId": "618b9f7f-32ea-4cc1-9c54-951a706d192b", "status": "queued"}
+200 {"operationId": "618b9f7f-32ea-4cc1-9c54-951a706d192b", "status": "running", "phase": "executing"}
+200 {"operationId": "618b9f7f-32ea-4cc1-9c54-951a706d192b", "status": "completed", "phase": "terminal"}
+200 {"installations": [{"id": "installation-1", "appId": "mcode", "targetHostId": "host", "environment": {"kind": "macos"}, "path": "<isolated-root>/prefix/bin/mcode", "realPath": "<isolated-root>/prefix/lib/node_modules/@minimax-ai/code/cli.js", "source": "unknown", "isPathDefault": true, "version": "0.7.6", "runtimeStatus": {"status": "runnable"}}]}
+API INSTALL 0
+
+200 {"installations": [{"id": "installation-1", "appId": "mcode", "targetHostId": "host", "environment": {"kind": "macos"}, "path": "<isolated-root>/prefix/bin/mcode", "realPath": "<isolated-root>/prefix/lib/node_modules/@minimax-ai/code/cli.js", "source": "unknown", "isPathDefault": true, "version": "0.7.6", "runtimeStatus": {"status": "runnable"}}]}
+200 {"previewId": "e34cc07e-7a0c-4c04-8440-7380639713d3", "request": {"appId": "mcode", "action": "uninstall", "target": {"kind": "installation", "installationId": "installation-1"}}, "source": "system", "confirmationRequired": true, "summary": "Review the selected application action in the administrator-approved prefix", "displayCommand": null}
+202 {"operationId": "989a24e7-455f-4bd5-925a-454cc98e3091", "status": "queued"}
+200 {"operationId": "989a24e7-455f-4bd5-925a-454cc98e3091", "status": "completed", "phase": "terminal"}
+200 {"previewId": "8ce527b6-5f9e-4e9b-8364-f01b9dbc6643", "request": {"appId": "mcode", "action": "install", "target": {"kind": "environment", "environment": {"kind": "macos"}}}, "source": "system", "confirmationRequired": true, "summary": "Review the selected application action in the administrator-approved prefix", "displayCommand": null}
+202 {"operationId": "174c3525-c8fc-4a22-81b3-d6e5b0503022", "status": "queued"}
+200 {"operationId": "174c3525-c8fc-4a22-81b3-d6e5b0503022", "status": "cancelled", "phase": "terminal"}
+200 {"installations": []}
+200 {"previewId": "e5b52bb3-0457-4cd0-9191-5ab367d3a0f6", "request": {"appId": "mcode", "action": "install", "target": {"kind": "environment", "environment": {"kind": "macos"}}}, "source": "system", "confirmationRequired": true, "summary": "Review the selected application action in the administrator-approved prefix", "displayCommand": null}
+202 {"operationId": "680e9313-ba00-4303-965c-92ab3d5de4ac", "status": "queued"}
+200 {"operationId": "680e9313-ba00-4303-965c-92ab3d5de4ac", "status": "running", "phase": "executing"}
+200 {"operationId": "680e9313-ba00-4303-965c-92ab3d5de4ac", "status": "cancelled", "phase": "terminal"}
+200 {"installations": []}
+200 {"installations": [{"id": "installation-1", "appId": "mcode", "targetHostId": "host", "environment": {"kind": "macos"}, "path": "<isolated-root>/prefix/bin/mcode", "realPath": null, "source": "unknown", "isPathDefault": true, "version": null, "runtimeStatus": {"status": "probe_failed", "reason": "damaged_installation"}}]}
+422 ""
+SECOND CLEAN 0
+200 {"installations": []}
+
+cancel observed PID62163: ProcessLookupError after cancellation

@@ -1,0 +1,18 @@
+OLD exit=0
+CAT Some(AppCatalogEntry { id: Mcode, name: "MiniMax Code", cli_command: Some("mcode"), runtime_kinds: [NativeCli] })
+INSTALLATIONS AppReadResponse { installations: [AppInstallation { id: AppInstallationId("installation-1"), app_id: Mcode, target_host_id: "host", environment: Macos, path: "<isolated-root>/prefix/bin/mcode", real_path: Some("<isolated-root>/prefix/lib/node_modules/@minimax-ai/code/cli.js"), source: Unknown, is_path_default: true, version: Some("0.7.4"), runtime_status: Runnable }], desktop: None }
+UPGRADED exit=0
+CAT Some(AppCatalogEntry { id: Mcode, name: "MiniMax Code", cli_command: Some("mcode"), runtime_kinds: [NativeCli] })
+INSTALLATIONS AppReadResponse { installations: [AppInstallation { id: AppInstallationId("installation-1"), app_id: Mcode, target_host_id: "host", environment: Macos, path: "<isolated-root>/prefix/bin/mcode", real_path: Some("<isolated-root>/prefix/lib/node_modules/@minimax-ai/code/cli.js"), source: Unknown, is_path_default: true, version: Some("0.7.6"), runtime_status: Runnable }], desktop: None }
+REMAINING exit=0
+CAT Some(AppCatalogEntry { id: Mcode, name: "MiniMax Code", cli_command: Some("mcode"), runtime_kinds: [NativeCli] })
+INSTALLATIONS AppReadResponse { installations: [AppInstallation { id: AppInstallationId("installation-2"), app_id: Mcode, target_host_id: "host", environment: Macos, path: "<isolated-root>/home/.local/bin/mcode", real_path: Some("<isolated-root>/home/.local/lib/node_modules/@minimax-ai/code/cli.js"), source: Unknown, is_path_default: true, version: Some("0.7.4"), runtime_status: Runnable }], desktop: None }
+EMPTY exit=0
+CAT Some(AppCatalogEntry { id: Mcode, name: "MiniMax Code", cli_command: Some("mcode"), runtime_kinds: [NativeCli] })
+INSTALLATIONS AppReadResponse { installations: [], desktop: None }
+API INSTALL exit=0
+CAT Some(AppCatalogEntry { id: Mcode, name: "MiniMax Code", cli_command: Some("mcode"), runtime_kinds: [NativeCli] })
+INSTALLATIONS AppReadResponse { installations: [AppInstallation { id: AppInstallationId("installation-1"), app_id: Mcode, target_host_id: "host", environment: Macos, path: "<isolated-root>/prefix/bin/mcode", real_path: Some("<isolated-root>/prefix/lib/node_modules/@minimax-ai/code/cli.js"), source: Unknown, is_path_default: true, version: Some("0.7.6"), runtime_status: Runnable }], desktop: None }
+FINAL EMPTY exit=0
+CAT Some(AppCatalogEntry { id: Mcode, name: "MiniMax Code", cli_command: Some("mcode"), runtime_kinds: [NativeCli] })
+INSTALLATIONS AppReadResponse { installations: [], desktop: None }

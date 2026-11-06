@@ -1,0 +1,76 @@
+   Compiling regex-automata v0.4.18
+   Compiling async-compression v0.4.43
+   Compiling av-scenechange v0.14.1
+   Compiling av1-grain v0.2.5
+   Compiling png v0.18.1
+   Compiling vw-config-types v0.6.0 (/Users/xiangmin/worker/code/shiju/crates/vw-config-types)
+   Compiling toml_edit v0.25.15+spec-1.1.0
+   Compiling tiff v0.11.3
+   Compiling objc2-core-foundation v0.3.2
+   Compiling ratatui-widgets v0.3.2
+   Compiling manyhow v0.11.4
+   Compiling onig_sys v69.9.3
+   Compiling vw-api-types v0.6.0 (/Users/xiangmin/worker/code/shiju/crates/vw-api-types)
+   Compiling plist v1.10.0
+   Compiling onig v6.5.3
+   Compiling tower-http v0.6.11
+   Compiling ratatui-crossterm v0.1.2
+   Compiling rav1e v0.8.1
+   Compiling proc-macro-crate v3.5.0
+   Compiling bincode v1.3.3
+   Compiling derive_utils v0.15.1
+   Compiling lopdf v0.42.0
+   Compiling vibewindow-aisdk-macros v0.3.0 (https://github.com/hunzhiwange/aisdk.git?rev=3401d28a7353c6e90cf4372f52c682cb2d02986b#3401d28a)
+   Compiling objc2-foundation v0.3.2
+   Compiling objc2-core-graphics v0.3.2
+   Compiling mysql-common-derive v0.32.2
+   Compiling io-enum v1.2.1
+   Compiling semver v1.0.28
+   Compiling reqwest v0.13.4
+   Compiling reqwest v0.12.28
+   Compiling ratatui-macros v0.7.2
+   Compiling syntect v5.3.0
+   Compiling smawk v0.3.3
+   Compiling ratatui v0.30.2
+   Compiling is_ci v1.2.0
+   Compiling textwrap v0.16.2
+   Compiling zip v8.6.0
+   Compiling crossterm v0.29.0 (https://github.com/openai-oss-forks/crossterm?rev=45fecb9508105988f42fe6ff0441783ed3717f92#45fecb95)
+   Compiling supports-color v3.0.2
+   Compiling regex v1.13.1
+   Compiling matchers v0.2.0
+   Compiling globset v0.4.19
+   Compiling tracing-subscriber v0.3.23
+   Compiling mysql_common v0.36.2
+   Compiling tree-sitter v0.26.10
+   Compiling ignore v0.4.31
+   Compiling oauth2 v5.0.0
+   Compiling reqwest-eventsource v0.6.0
+   Compiling objc2-app-kit v0.3.2
+   Compiling two-face v0.5.2+bat-0.26.1
+   Compiling regex-lite v0.1.9
+   Compiling vw-shared v0.6.0 (/Users/xiangmin/worker/code/shiju/crates/vw-shared)
+   Compiling globwalk v0.9.1
+   Compiling html2md v0.2.15
+   Compiling tera v1.20.1
+   Compiling rmcp v0.8.5
+   Compiling pdf-extract v0.12.0
+   Compiling ravif v0.13.0
+   Compiling mysql v27.0.0
+   Compiling image v0.25.10
+   Compiling vibewindow-aisdk v0.7.1 (https://github.com/hunzhiwange/aisdk.git?rev=3401d28a7353c6e90cf4372f52c682cb2d02986b#3401d28a)
+   Compiling vw-provider-resolver v0.6.0 (/Users/xiangmin/worker/code/shiju/crates/vw-provider-resolver)
+   Compiling qrcode v0.14.1
+   Compiling arboard v3.6.1
+   Compiling vw-tui v0.6.0 (/Users/xiangmin/worker/code/shiju/crates/vw-tui)
+   Compiling vw-acp v0.6.0 (/Users/xiangmin/worker/code/shiju/crates/vw-acp)
+   Compiling vw-gateway-client v0.6.0 (/Users/xiangmin/worker/code/shiju/crates/vw-gateway-client)
+   Compiling vw-agent-apps v0.6.0 (/Users/xiangmin/worker/code/shiju/crates/vw-agent-apps)
+   Compiling vw-agent v0.6.0 (/Users/xiangmin/worker/code/shiju/crates/vw-agent)
+   Compiling vw-cli v0.6.0 (/Users/xiangmin/worker/code/shiju/crates/vw-cli)
+warning: linker stderr: ld: __eh_frame section too large (max 16MB) to encode dwarf unwind offsets in compact unwind table, performance of exception handling might be affected
+  |
+  = note: `#[warn(linker_messages)]` on by default
+
+warning: `vw-cli` (bin "shiju") generated 1 warning
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 4m 02s

@@ -1,0 +1,31 @@
+{
+  "latest": "0.7.6",
+  "previous": "0.7.4",
+  "name": "@minimax-ai/code",
+  "bin": {
+    "mcode": "cli.js",
+    "mcode-tools": "mcode-tools.js"
+  },
+  "engines": {
+    "node": ">=22.19 <23 || >=24 <27"
+  },
+  "dist": {
+    "shasum": "fca87c3c52467021208127caf2dcff4d4cd387ca",
+    "tarball": "https://registry.npmjs.org/@minimax-ai/code/-/code-0.7.6.tgz",
+    "fileCount": 845,
+    "integrity": "sha512-JhW+amhgnKKm25YK+35pVW4GFK9lXHxVO+Bk7U7UAGO2ljNsWoKebkiKi205YqBVkcJB4JOCNxljKEXjYlsGYg==",
+    "signatures": [
+      {
+        "sig": "MEUCIQDmjcIAug/ENnu/oH/cO06wD/avVFb+x0hiNl3CpGDKfAIgLJco/SugH4ZZzfdy6DGD7irEEZn5C3koGhEVNI+DttA=",
+        "keyid": "SHA256:DhQ8wR5APBvFHLF/+Tc+AYvPOdTpcIDqOhxsBHRwC7U"
+      },
+      {
+        "keyid": "SHA256:DhQ8wR5APBvFHLF/+Tc+AYvPOdTpcIDqOhxsBHRwC7U",
+        "sig": "MEUCIQD2hHUCxFkfOeAbvPriI1V5MfPT/t1qyZser0sDiREkJwIgB1fR19I3CQrEYnDHIgngWR+oxy1qKjhp93tdnpPjazs="
+      }
+    ],
+    "unpackedSize": 282811570
+  },
+  "installerUrl": "https://filecdn.minimax.chat/public/install.sh",
+  "installerSha256": "506bf1854db35fefbacec1615ccc83b6154e88e88bfd14c010f65406a3234bc9"
+}

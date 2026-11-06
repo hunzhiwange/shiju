@@ -100,3 +100,7 @@ mod preview_tests;
 pub mod validation;
 #[cfg(test)]
 mod validation_tests;
+
+pub mod editor_merge;
+#[cfg(test)]
+mod editor_merge_tests;

@@ -73,7 +73,7 @@ pub fn lock_app(app: AppId, directory: &Path) -> Result<AppWriteGuard, WriteErro
     lock_directory(app, directory)
 }
 
-pub(super) fn lock_directory(app: AppId, directory: File) -> Result<AppWriteGuard, WriteError> {
+pub(crate) fn lock_directory(app: AppId, directory: File) -> Result<AppWriteGuard, WriteError> {
     let metadata = directory.metadata().map_err(|_| WriteError::Io)?;
     let keys = [LockKey::App(app), LockKey::Directory(metadata.dev(), metadata.ino())];
     let (held, released) = locks();
@@ -118,7 +118,7 @@ impl AppWriteGuard {
         self.stage_one(name, bytes, privacy)?.commit()
     }
 
-    pub(super) fn read(&self, name: &OsStr) -> Result<Option<Vec<u8>>, WriteError> {
+    pub(crate) fn read(&self, name: &OsStr) -> Result<Option<Vec<u8>>, WriteError> {
         read_from(&self.directory, name)
     }
 

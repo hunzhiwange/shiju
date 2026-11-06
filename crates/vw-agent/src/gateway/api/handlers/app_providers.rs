@@ -14,6 +14,7 @@ pub(crate) fn router() -> Router {
         .merge(catalog::router())
         .merge(paths::router())
         .merge(preview::router())
+        .merge(editor_merge::router())
         .merge(delete::router())
         .merge(duplicate::router())
         .merge(presentation::router())
@@ -166,3 +167,7 @@ mod preview_tests;
 #[cfg(test)]
 #[path = "app_providers/validation_tests.rs"]
 mod validation_tests;
+
+mod editor_merge;
+#[cfg(all(test, target_os = "macos"))]
+mod editor_merge_tests;

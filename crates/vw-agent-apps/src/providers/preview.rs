@@ -184,7 +184,7 @@ fn parse_json(bytes: Option<&[u8]>, source: &str) -> Result<Value, Error> {
     }
     Ok(value)
 }
-fn redact(value: Value) -> Value {
+pub(crate) fn redact(value: Value) -> Value {
     match value {
         Value::String(_) => json!("[redacted]"),
         Value::Array(values) => values.into_iter().map(redact).collect(),

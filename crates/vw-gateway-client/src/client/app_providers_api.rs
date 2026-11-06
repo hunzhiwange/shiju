@@ -122,3 +122,9 @@ mod preview_tests;
 #[cfg(test)]
 #[path = "app_providers/validation_tests.rs"]
 mod validation_tests;
+
+#[path = "app_providers/editor_merge.rs"]
+mod editor_merge;
+#[cfg(test)]
+#[path = "app_providers/editor_merge_tests.rs"]
+mod editor_merge_tests;

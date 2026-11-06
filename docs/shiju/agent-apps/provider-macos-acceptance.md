@@ -1061,3 +1061,48 @@ SDK transport 测试替代 HTTP 对端，仅检查传输形状、固定状态错
 `sw_vers` / `uname -m` 退出 0：macOS 27.0（26A428）、arm64；原生 crate 0.6.0。未验收真实安装 CLI/桌面应用版本、账号/钥匙串、Iced 窗口、真实代理/应用激活或 Windows/Linux；这些限制不被临时存储/HTTP/脚本测试替代。
 
 定向 git diff --check、暂存差异审查通过；只提交本任务公共 DTO、校验、保存/预览/SDK/启动必要连线、独立测试、既有 literal 的兼容默认值和本条证据。未纳入母任务状态、此前编号任务删除及其他会话差异；只读 plan.md 无差异。任务完成后删除编号文件且不提交其删除，正式证据保留。未运行全量 cargo test、fmt check、wasm 或 Makefile。
+
+## 任务 24：编辑保存三方冲突
+
+2026-11-07；状态：已完成（Claude 自定义档案的全局键编辑与非当前卡目录草稿；不代表关键字段切换、其他应用适配或 Iced 已验收）。
+
+### 依赖、来源与继续执行裁定
+
+批次 23 提交 `0744c6231` 及本文件任务 23 证据已核对；母任务 1、3 已完成，母任务 2 继续沿用任务 1 的底座子计划 1–93 开工裁定，完整领域迁移仍未收口。最初缺可信基底与保存适配而登记阻塞；继续执行指令明确授权本任务补最小服务端基底、DTO、存储/工厂和真实保存适配，依此解除，不修改只读 plan.md。
+
+来源 `/Users/xiangmin/worker/code/cc-switch` HEAD `ca58c0313360eae7c851fbd7553c1614c7af03e7`。已阅读 `claude_editor.rs::{EditorSave,ConflictPolicy::resolve,JsonChange::conflicts_with,plan_save,global_changes,write_live}` 及相邻冲突测试、`editor_toml.rs::TomlEdits::{between,apply_to}`、`LiveEditConflictDialog.tsx::useLiveEditConflict`、`EditProviderDialog.tsx` 与 provider/mod.rs 的编辑保存直接调用者。复用“当前值既不同于基底也不同于目标才冲突；明确保留外部时跳过冲突键，其余用户修改照常提交”的语义；不复制来源应用写入/数据库所有者。来源测试未运行。RustCodeGraph status/explore 已运行；图内冻结 upstream 命中与当前原生文件逐项区分，新文件采用定向读取与差异审查。
+
+### 实现与支持边界
+
+- `vw-api-types/src/app_providers/editor_merge.rs` 定义 `EditorOpen/EditorView`、`EditorSave/EditorEdit/EditorValue`、`EditorChoice/EditorResult`。草稿以显式键路径的 Set/Remove 表达用户修改；缺键、显式 null 和删除不同。没有客户端 base/current、任意文件路径、命令或 force 输入；未知字段拒绝，写入 DTO 的 Debug 遮蔽全部载荷。
+- `vw-agent/src/gateway/api/handlers/app_providers/editor_merge.rs` 在执行端保留未遮蔽基底和完整档案/事务状态快照；随机不透明上下文绑定租户、应用、供应商、主机、管理员 HOME/private root、当前配置目录设备/inode 及基底内容。最多 128 个上下文，15 分钟过期，重启丢弃，成功后单次消费；不建立第二持久存储。显示继续复用任务 22 的全字符串/敏感键遮蔽，显示结果不能回送为基底。
+- 冲突响应只包含键路径和随机 resolution。选择绑定当前文件完整字节与本次 edits，保存重试重新读文件、档案与事务状态；外部再次修改会重新报告冲突并签发新选择上下文。无有效选择时不能直接 KeepMine/KeepTheirs；基底档案、主机或状态失配明确 409，需重新打开。服务端只取显式用户差异，基底与目标相同的编辑不会恢复外部旧值，外部已经写成目标不算冲突。
+- `vw-agent-apps/src/providers/editor_merge.rs::merge` 复用唯一 `projection::fields` 字段分类和任务 13 的 `JsonPatch`；支持嵌套对象键与整值/数组替换，拒绝重叠/重复路径、超限路径、损坏/非对象配置及遮蔽占位值。当前 Claude 卡只支持全局键，连接/鉴权关键字段、供应商独有 env、整个 env 替换与内部协议字段一律明确拒绝。供应商关键/独有字段的当前卡写入由后续应用切换适配实现，不通过本接口伪支持。
+- `ClaudeFile::open/commit` 是本行为最小原生保存适配：在管理员授权 HOME 下 descriptor-relative 打开固定 `.claude/settings.json`，拒绝链接、缺失及不安全资源；保留应用/目录物理 guard，复用任务 19–21 唯一 `ProviderTransactions::commit`、pending、恢复与发布前变更检测。提交补丁内部在事务锁下再次校验状态与批准文件字节，外部并发变化返回冲突；不修改直连指针或模式。目标为 0600，未编辑字节由定点补丁保留；无文件变化时不重写事务状态。外部进程不参与锁，仍沿用任务 21 已注明的最终检测至 rename 之间竞争窗口，不宣称文件系统 CAS。
+- 当前卡全局编辑只更新 live，目录档案不变；非当前卡以 `AppProviderStore::editor_save_record` 的同一真实存储 compare_exchange 更新 settingsConfig、保留其他档案字段，不读写 live、不创建事务资源或首次激活。没有历史事务时视为空状态，目录保存不会 provision provider-live。缺少 settingsConfig 的普通 profile、官方/非空托管元数据、代理 attached 状态、跨租户所有者、pending、无法投影的配置均明确拒绝；本轮不负责档案/live 双写、首次激活或代理重同步。
+
+### API、SDK 与权限
+
+- `POST /v1/app-providers/{app}/{id}/editor/open` 与 `/editor/save` 接入既有分域 router 和 Gateway 身份认证；请求体限制 128 KiB。SDK 为 `GatewayClient::{app_provider_editor_open,app_provider_editor_save}`，原生 transport，沿用租户头与敏感 `x-agent-apps-token`，非成功错误体丢弃以防配置载荷泄漏。WASM 明确拒绝。
+- open 复用管理员 `provider_config_read`；save 必须具备独立 `provider_config_write`，默认 false，没有从读取/启动/偏好写权限推导授权，也不自动生成新授权。每次保存重新鉴权后才读基底/数据库/主机文件。执行端工厂只消费既有管理员 HOME 与 credential_root；生产未注入数据库时复用现有 GlobalDatabase 工厂，不另建数据库。
+- 200 + saved=false 表示有键级冲突，调用者须展示明确选择；200 + saved=true 才是已保存。无有效/过期/失配上下文与状态变化返回 409；无效输入/投影返回 400/422，未授权 401/403。除 Claude 外应用返回 501；非 macOS 未实现。Iced 弹窗/编辑器未新增、未验收，归后续 UI 任务。
+
+### 红绿证据与实际环境
+
+红、绿阶段均从仓库根通过原子 mkdir 动态领取槽位 **1**：`CARGO_TARGET_DIR=/Users/xiangmin/worker/code/shiju/target/rust-slot-1`，并将 `CARGO_BUILD_BUILD_DIR` 设置为同一绝对路径，避免仓库 build-dir 配置绕过槽位。每阶段写入自己的计划/任务/会话/PID owner，所有 Cargo 及子进程结束后由 shell trap 清理 owner/rmdir 锁，缓存保留；最终实际确认本任务 slot-1.lock 不存在。
+
+红阶段 `cargo fmt --all` 退出 0；下表四条聚焦命令退出码依次 **101 / 0 / 101 / 0**，有效测试数 **2 / 1 / 2 / 1**。业务断言在 x 未更新、冲突未报告处失败；Gateway 真实 SDK/HTTP 在冲突被当作成功保存、目录用户值未写入处失败，均已编译接线，不是模块缺失或零测试。随后最小实现合并及边界处理，绿阶段 `cargo fmt --all` 退出 0，最终结果：
+
+| 确切命令 | 退出码 | 有效通过数量 |
+| --- | --- | --- |
+| `cargo test -p vw-agent-apps --lib cc04_editor_merge_ -- --nocapture` | 0 | 4 |
+| `cargo test -p vw-api-types --lib cc04_editor_merge_ -- --nocapture` | 0 | 1 |
+| `cargo test -p vw-agent --lib cc04_editor_merge_ -- --nocapture` | 0 | 6 |
+| `cargo test -p vw-gateway-client --lib cc04_editor_merge_ -- --nocapture` | 0 | 1 |
+| `cargo clippy --all-targets --all-features -- -D warnings` | 0 | 非行为测试 |
+
+两项指定测试 `cc04_editor_merge_keeps_external_unedited_fields`、`cc04_editor_merge_conflict_requires_explicit_choice` 全部通过；另覆盖 null/删除、嵌套无关键、外部同目标、未改值、重叠/关键字段/占位/损坏输入拒绝。Gateway 六项有效测试使用隔离真实 SQLite、真实管理员策略/事务状态 fixture、真实临时 macOS 文件和本地回环 HTTP，经 SDK→API→执行端读写证明：冲突拒绝不改文件，明确 KeepMine/KeepTheirs 后只提交用户差异，外部无关值保留，第二次外部修改使旧选择失效，成功上下文重放失败；非当前卡只更新目录、无历史事务时不创建资源；原档案和状态变化拒绝、投影失败拒绝、符号链接拒绝、读取授权不能保存、正式路由 Gateway Basic 拒绝，以及显示/错误脱敏。凭据与 provider state 均为隔离 fixture；没有上游网络、钥匙串或进程 mock，不触碰真实用户配置。
+
+实际运行平台 `sw_vers`：macOS **27.0 (26A428)**；`uname -m`：**arm64**。本机原生文件/数据库/SDK/API 行为已验证；没有启动或查询已安装 Claude 版本，没有真实账号、真实 CLI 消费配置、Iced 渲染或其他应用适配证据，这些明确未验证，不能把 fixture 指针/档案视为真实应用激活成功。
+
+定向 diff 与暂存审查仅包含本任务 DTO、业务合并/最小适配、必要存储与授权工厂、Gateway/SDK 注册、独立测试及本条证据；未纳入母任务状态、其他编号任务删除或终端计划变更。只读 plan.md 无差异。未执行全量 cargo test、fmt check、wasm 或 Makefile。任务标记完成后删除编号任务文件且不提交其删除，正式证据保留。

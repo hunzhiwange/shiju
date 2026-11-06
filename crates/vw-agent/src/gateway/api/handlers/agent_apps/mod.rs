@@ -216,3 +216,18 @@ pub(super) fn provider_preview_context(
     access::authorize_provider_config(path, headers, tenant, target)
         .map(|host| (host.home, host.credential_root))
 }
+
+pub(super) fn provider_editor_context(
+    path: Option<&std::path::Path>,
+    headers: &axum::http::HeaderMap,
+    tenant: &TenantScope,
+    target: &str,
+    write: bool,
+) -> Result<(std::path::PathBuf, std::path::PathBuf), axum::http::StatusCode> {
+    let host = if write {
+        access::authorize_provider_write(path, headers, tenant, target)?
+    } else {
+        access::authorize_provider_config(path, headers, tenant, target)?
+    };
+    Ok((host.home, host.credential_root.ok_or(axum::http::StatusCode::SERVICE_UNAVAILABLE)?))
+}

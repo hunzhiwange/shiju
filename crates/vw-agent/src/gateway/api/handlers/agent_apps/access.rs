@@ -32,6 +32,8 @@ struct Grant {
     #[serde(default)]
     provider_config_read: bool,
     #[serde(default)]
+    provider_config_write: bool,
+    #[serde(default)]
     launch: bool,
     #[serde(default)]
     identities: Vec<IdentityPermit>,
@@ -151,6 +153,7 @@ enum Capability {
     PreferencesWrite,
     Launch,
     ProviderConfigRead,
+    ProviderConfigWrite,
 }
 
 fn authorize_scoped(
@@ -205,6 +208,7 @@ fn authorize_scoped(
                     Capability::PreferencesWrite => g.preferences_write,
                     Capability::Launch => g.launch,
                     Capability::ProviderConfigRead => g.provider_config_read,
+                    Capability::ProviderConfigWrite => g.provider_config_write,
                 }
         })
         .collect();
@@ -373,4 +377,14 @@ pub(super) fn recover_provider_policy(path: &Path) -> Result<(), ()> {
         }
     }
     Ok(())
+}
+
+pub(super) fn authorize_provider_write(
+    path: Option<&Path>,
+    headers: &HeaderMap,
+    tenant: &TenantScope,
+    target: &str,
+) -> Result<Host, StatusCode> {
+    authorize_scoped(path, headers, tenant, target, None, Capability::ProviderConfigWrite)
+        .map(|a| a.host)
 }

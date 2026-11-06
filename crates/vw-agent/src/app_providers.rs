@@ -428,3 +428,36 @@ mod tests;
 mod universal;
 
 mod universal_sync;
+
+impl AppProviderStore {
+    pub(crate) fn editor_save_record(
+        &self,
+        tenant: &TenantScope,
+        app: AppId,
+        id: &str,
+        before: &serde_json::Value,
+        settings: serde_json::Value,
+    ) -> Result<(), String> {
+        let key = Self::key(app, id)?;
+        let raw = self
+            .settings
+            .get(tenant, NAMESPACE, &key)
+            .map_err(|_| "application provider storage unavailable")?
+            .ok_or("application provider not found")?;
+        let stored: serde_json::Value = serde_json::from_str(&raw)
+            .map_err(|_| "invalid stored application provider profile")?;
+        if stored != *before {
+            return Err("application provider changed during update".into());
+        }
+        let mut after = stored;
+        after["settingsConfig"] = settings;
+        if !self
+            .settings
+            .compare_exchange(tenant, NAMESPACE, &key, &raw, &after.to_string())
+            .map_err(|_| "application provider storage unavailable")?
+        {
+            return Err("application provider changed during update".into());
+        }
+        Ok(())
+    }
+}

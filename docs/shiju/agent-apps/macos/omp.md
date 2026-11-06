@@ -69,3 +69,5 @@ launch-identities为空；`providers/mod.rs`对Omp明确not implemented，无专
 因此默认终端HOME问题已解决。最终任务59为**已完成，待回归**，保留编号文件：仍待专用供应商/适用官方账号、真实旧版到新版升级变化，以及其他会话Git面板编译修复后的最终全仓Clippy复核，不把缺专用身份/版本条件记为不支持或已通过。首轮Iced/API/SDK生命周期证据继续有效，本轮未改UI、未用Element测试代替原生渲染。
 
 本轮动态领取slot-1，owner为task59/terminal-resume/PID46034；CARGO_TARGET_DIR与CARGO_BUILD_BUILD_DIR均为`/Users/xiangmin/worker/code/shiju/target/rust-slot-1`，覆盖build.build-dir。真实Gateway主动结束-15，所有自有CLI/socket客户端/产物进程结束后清理随机根、凭据、配置、官方二进制；确认验证命令退出后释放本人slot-1并保留缓存。plan.md未修改，其他工作区改动不纳入提交。
+
+提交归属复核：本轮暂存完成后，另一会话的共享索引提交`0d224984a`已一并收入终端修复、测试、任务状态与证据（也含该会话自身ACP改动）。随后本任务的`3e4983de3`实际仅压缩验证日志中的依赖进度，不能将其称为实现提交；本任务未改写、拆分或撤销他人提交。实现代码归属以`0d224984a`及对应文件历史为准。

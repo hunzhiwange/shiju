@@ -29,6 +29,8 @@ struct Grant {
     actions: Vec<vw_api_types::agent_apps::AppLifecycleAction>,
     #[serde(default)]
     preferences_write: bool,
+    #[serde(default)]
+    launch: bool,
     platform_id: String,
     company_id: String,
     host_id: String,
@@ -86,6 +88,27 @@ pub(super) fn authorize_preferences(
     action: Option<vw_api_types::agent_apps::AppLifecycleAction>,
     write_host: bool,
 ) -> Result<(Host, String), StatusCode> {
+    authorize_scoped(path, headers, tenant, target, action, write_host, false)
+}
+
+pub(super) fn authorize_launch(
+    path: Option<&Path>,
+    headers: &HeaderMap,
+    tenant: &TenantScope,
+    target: &str,
+) -> Result<Host, StatusCode> {
+    authorize_scoped(path, headers, tenant, target, None, false, true).map(|(h, _)| h)
+}
+
+fn authorize_scoped(
+    path: Option<&Path>,
+    headers: &HeaderMap,
+    tenant: &TenantScope,
+    target: &str,
+    action: Option<vw_api_types::agent_apps::AppLifecycleAction>,
+    write_host: bool,
+    launch: bool,
+) -> Result<(Host, String), StatusCode> {
     let mut values = headers.get_all("x-agent-apps-token").iter();
     let token = values
         .next()
@@ -112,6 +135,7 @@ pub(super) fn authorize_preferences(
             && g.host_id == target
             && action.is_none_or(|a| g.actions.contains(&a))
             && (!write_host || g.preferences_write)
+            && (!launch || g.launch)
     }) {
         return Err(StatusCode::FORBIDDEN);
     }

@@ -1,0 +1,959 @@
+[
+  {
+    "method": "GET",
+    "path": "catalog",
+    "body": null,
+    "status": 200,
+    "response": {
+      "apps": [
+        {
+          "id": "grokbuild",
+          "name": "Grok Build",
+          "cliCommand": "grok",
+          "runtimeKinds": [
+            "native_cli"
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "method": "GET",
+    "path": "installations?appId=grokbuild",
+    "body": null,
+    "status": 200,
+    "response": {
+      "installations": [
+        {
+          "id": "NDpob3N0OjQ6Z3Jvazo5NDovcHJpdmF0ZS92YXIvZm9sZGVycy9yZy96cjE5bGJfczV3MzJxNmQycWtkNnAwbjgwMDAwZ3AvVC9zaGlqdS10YXNrNTAtcmxoZzE3aGEvcHJlZml4L2Jpbi9ncm9r",
+          "appId": "grokbuild",
+          "targetHostId": "host",
+          "environment": {
+            "kind": "macos"
+          },
+          "path": "<isolated-root>/prefix/bin/grok",
+          "realPath": "<isolated-root>/prefix/lib/node_modules/@xai-official/grok/bin/grok-native",
+          "source": "unknown",
+          "isPathDefault": true,
+          "version": "1.0.76",
+          "runtimeStatus": {
+            "status": "runnable"
+          }
+        }
+      ]
+    }
+  },
+  {
+    "method": "GET",
+    "path": "launch-identities?appId=grokbuild",
+    "body": null,
+    "status": 200,
+    "response": []
+  },
+  {
+    "method": "GET",
+    "path": "installations?appId=grokbuild",
+    "body": null,
+    "status": 200,
+    "response": {
+      "installations": [
+        {
+          "id": "NDpob3N0OjQ6Z3Jvazo5NDovcHJpdmF0ZS92YXIvZm9sZGVycy9yZy96cjE5bGJfczV3MzJxNmQycWtkNnAwbjgwMDAwZ3AvVC9zaGlqdS10YXNrNTAtcmxoZzE3aGEvcHJlZml4L2Jpbi9ncm9r",
+          "appId": "grokbuild",
+          "targetHostId": "host",
+          "environment": {
+            "kind": "macos"
+          },
+          "path": "<isolated-root>/prefix/bin/grok",
+          "realPath": "<isolated-root>/prefix/lib/node_modules/@xai-official/grok/bin/grok-native",
+          "source": "unknown",
+          "isPathDefault": true,
+          "version": "1.0.76",
+          "runtimeStatus": {
+            "status": "runnable"
+          }
+        }
+      ]
+    }
+  },
+  {
+    "method": "POST",
+    "path": "actions/preview",
+    "body": {
+      "appId": "grokbuild",
+      "action": "update",
+      "target": {
+        "kind": "installation",
+        "installationId": "NDpob3N0OjQ6Z3Jvazo5NDovcHJpdmF0ZS92YXIvZm9sZGVycy9yZy96cjE5bGJfczV3MzJxNmQycWtkNnAwbjgwMDAwZ3AvVC9zaGlqdS10YXNrNTAtcmxoZzE3aGEvcHJlZml4L2Jpbi9ncm9r"
+      }
+    },
+    "status": 200,
+    "response": {
+      "previewId": "6ad92311-35d3-4821-967d-9f8868c96560",
+      "request": {
+        "appId": "grokbuild",
+        "action": "update",
+        "target": {
+          "kind": "installation",
+          "installationId": "NDpob3N0OjQ6Z3Jvazo5NDovcHJpdmF0ZS92YXIvZm9sZGVycy9yZy96cjE5bGJfczV3MzJxNmQycWtkNnAwbjgwMDAwZ3AvVC9zaGlqdS10YXNrNTAtcmxoZzE3aGEvcHJlZml4L2Jpbi9ncm9r"
+        }
+      },
+      "source": "system",
+      "confirmationRequired": true,
+      "summary": "Review the selected application action in the administrator-approved prefix",
+      "displayCommand": null
+    }
+  },
+  {
+    "method": "POST",
+    "path": "actions",
+    "body": {
+      "previewId": "6ad92311-35d3-4821-967d-9f8868c96560",
+      "confirmed": true
+    },
+    "status": 202,
+    "response": {
+      "operationId": "6d93d668-364f-485e-96d0-c7847dbf5b32",
+      "status": "queued"
+    }
+  },
+  {
+    "method": "GET",
+    "path": "operations/6d93d668-364f-485e-96d0-c7847dbf5b32",
+    "body": null,
+    "status": 200,
+    "response": {
+      "operationId": "6d93d668-364f-485e-96d0-c7847dbf5b32",
+      "status": "running",
+      "phase": "preflight"
+    }
+  },
+  {
+    "method": "GET",
+    "path": "operations/6d93d668-364f-485e-96d0-c7847dbf5b32",
+    "body": null,
+    "status": 200,
+    "response": {
+      "operationId": "6d93d668-364f-485e-96d0-c7847dbf5b32",
+      "status": "running",
+      "phase": "executing"
+    }
+  },
+  {
+    "method": "GET",
+    "path": "operations/6d93d668-364f-485e-96d0-c7847dbf5b32",
+    "body": null,
+    "status": 200,
+    "response": {
+      "operationId": "6d93d668-364f-485e-96d0-c7847dbf5b32",
+      "status": "running",
+      "phase": "executing"
+    }
+  },
+  {
+    "method": "GET",
+    "path": "operations/6d93d668-364f-485e-96d0-c7847dbf5b32",
+    "body": null,
+    "status": 200,
+    "response": {
+      "operationId": "6d93d668-364f-485e-96d0-c7847dbf5b32",
+      "status": "running",
+      "phase": "executing"
+    }
+  },
+  {
+    "method": "GET",
+    "path": "operations/6d93d668-364f-485e-96d0-c7847dbf5b32",
+    "body": null,
+    "status": 200,
+    "response": {
+      "operationId": "6d93d668-364f-485e-96d0-c7847dbf5b32",
+      "status": "running",
+      "phase": "executing"
+    }
+  },
+  {
+    "method": "GET",
+    "path": "operations/6d93d668-364f-485e-96d0-c7847dbf5b32",
+    "body": null,
+    "status": 200,
+    "response": {
+      "operationId": "6d93d668-364f-485e-96d0-c7847dbf5b32",
+      "status": "running",
+      "phase": "executing"
+    }
+  },
+  {
+    "method": "GET",
+    "path": "operations/6d93d668-364f-485e-96d0-c7847dbf5b32",
+    "body": null,
+    "status": 200,
+    "response": {
+      "operationId": "6d93d668-364f-485e-96d0-c7847dbf5b32",
+      "status": "running",
+      "phase": "executing"
+    }
+  },
+  {
+    "method": "GET",
+    "path": "operations/6d93d668-364f-485e-96d0-c7847dbf5b32",
+    "body": null,
+    "status": 200,
+    "response": {
+      "operationId": "6d93d668-364f-485e-96d0-c7847dbf5b32",
+      "status": "running",
+      "phase": "executing"
+    }
+  },
+  {
+    "method": "GET",
+    "path": "operations/6d93d668-364f-485e-96d0-c7847dbf5b32",
+    "body": null,
+    "status": 200,
+    "response": {
+      "operationId": "6d93d668-364f-485e-96d0-c7847dbf5b32",
+      "status": "running",
+      "phase": "executing"
+    }
+  },
+  {
+    "method": "GET",
+    "path": "operations/6d93d668-364f-485e-96d0-c7847dbf5b32",
+    "body": null,
+    "status": 200,
+    "response": {
+      "operationId": "6d93d668-364f-485e-96d0-c7847dbf5b32",
+      "status": "running",
+      "phase": "executing"
+    }
+  },
+  {
+    "method": "GET",
+    "path": "operations/6d93d668-364f-485e-96d0-c7847dbf5b32",
+    "body": null,
+    "status": 200,
+    "response": {
+      "operationId": "6d93d668-364f-485e-96d0-c7847dbf5b32",
+      "status": "running",
+      "phase": "executing"
+    }
+  },
+  {
+    "method": "GET",
+    "path": "operations/6d93d668-364f-485e-96d0-c7847dbf5b32",
+    "body": null,
+    "status": 200,
+    "response": {
+      "operationId": "6d93d668-364f-485e-96d0-c7847dbf5b32",
+      "status": "running",
+      "phase": "executing"
+    }
+  },
+  {
+    "method": "GET",
+    "path": "operations/6d93d668-364f-485e-96d0-c7847dbf5b32",
+    "body": null,
+    "status": 200,
+    "response": {
+      "operationId": "6d93d668-364f-485e-96d0-c7847dbf5b32",
+      "status": "running",
+      "phase": "executing"
+    }
+  },
+  {
+    "method": "GET",
+    "path": "operations/6d93d668-364f-485e-96d0-c7847dbf5b32",
+    "body": null,
+    "status": 200,
+    "response": {
+      "operationId": "6d93d668-364f-485e-96d0-c7847dbf5b32",
+      "status": "running",
+      "phase": "executing"
+    }
+  },
+  {
+    "method": "GET",
+    "path": "operations/6d93d668-364f-485e-96d0-c7847dbf5b32",
+    "body": null,
+    "status": 200,
+    "response": {
+      "operationId": "6d93d668-364f-485e-96d0-c7847dbf5b32",
+      "status": "running",
+      "phase": "executing"
+    }
+  },
+  {
+    "method": "GET",
+    "path": "operations/6d93d668-364f-485e-96d0-c7847dbf5b32",
+    "body": null,
+    "status": 200,
+    "response": {
+      "operationId": "6d93d668-364f-485e-96d0-c7847dbf5b32",
+      "status": "running",
+      "phase": "executing"
+    }
+  },
+  {
+    "method": "GET",
+    "path": "operations/6d93d668-364f-485e-96d0-c7847dbf5b32",
+    "body": null,
+    "status": 200,
+    "response": {
+      "operationId": "6d93d668-364f-485e-96d0-c7847dbf5b32",
+      "status": "running",
+      "phase": "executing"
+    }
+  },
+  {
+    "method": "GET",
+    "path": "operations/6d93d668-364f-485e-96d0-c7847dbf5b32",
+    "body": null,
+    "status": 200,
+    "response": {
+      "operationId": "6d93d668-364f-485e-96d0-c7847dbf5b32",
+      "status": "running",
+      "phase": "executing"
+    }
+  },
+  {
+    "method": "GET",
+    "path": "operations/6d93d668-364f-485e-96d0-c7847dbf5b32",
+    "body": null,
+    "status": 200,
+    "response": {
+      "operationId": "6d93d668-364f-485e-96d0-c7847dbf5b32",
+      "status": "running",
+      "phase": "executing"
+    }
+  },
+  {
+    "method": "GET",
+    "path": "operations/6d93d668-364f-485e-96d0-c7847dbf5b32",
+    "body": null,
+    "status": 200,
+    "response": {
+      "operationId": "6d93d668-364f-485e-96d0-c7847dbf5b32",
+      "status": "completed",
+      "phase": "terminal"
+    }
+  },
+  {
+    "method": "GET",
+    "path": "operations/6d93d668-364f-485e-96d0-c7847dbf5b32/events",
+    "body": null,
+    "status": 200,
+    "response": {
+      "operationId": "6d93d668-364f-485e-96d0-c7847dbf5b32",
+      "status": "completed",
+      "phase": "terminal"
+    }
+  },
+  {
+    "method": "GET",
+    "path": "installations?appId=grokbuild",
+    "body": null,
+    "status": 200,
+    "response": {
+      "installations": [
+        {
+          "id": "NDpob3N0OjQ6Z3Jvazo5NDovcHJpdmF0ZS92YXIvZm9sZGVycy9yZy96cjE5bGJfczV3MzJxNmQycWtkNnAwbjgwMDAwZ3AvVC9zaGlqdS10YXNrNTAtcmxoZzE3aGEvcHJlZml4L2Jpbi9ncm9r",
+          "appId": "grokbuild",
+          "targetHostId": "host",
+          "environment": {
+            "kind": "macos"
+          },
+          "path": "<isolated-root>/prefix/bin/grok",
+          "realPath": "<isolated-root>/prefix/lib/node_modules/@xai-official/grok/bin/grok-native",
+          "source": "unknown",
+          "isPathDefault": true,
+          "version": "1.0.77",
+          "runtimeStatus": {
+            "status": "runnable"
+          }
+        }
+      ]
+    }
+  },
+  {
+    "method": "GET",
+    "path": "installations?appId=grokbuild",
+    "body": null,
+    "status": 200,
+    "response": {
+      "installations": [
+        {
+          "id": "NDpob3N0OjQ6Z3Jvazo5NDovcHJpdmF0ZS92YXIvZm9sZGVycy9yZy96cjE5bGJfczV3MzJxNmQycWtkNnAwbjgwMDAwZ3AvVC9zaGlqdS10YXNrNTAtcmxoZzE3aGEvcHJlZml4L2Jpbi9ncm9r",
+          "appId": "grokbuild",
+          "targetHostId": "host",
+          "environment": {
+            "kind": "macos"
+          },
+          "path": "<isolated-root>/prefix/bin/grok",
+          "realPath": "<isolated-root>/prefix/lib/node_modules/@xai-official/grok/bin/grok-native",
+          "source": "unknown",
+          "isPathDefault": true,
+          "version": "1.0.77",
+          "runtimeStatus": {
+            "status": "runnable"
+          }
+        },
+        {
+          "id": "NDpob3N0OjQ6Z3Jvazo5OTovcHJpdmF0ZS92YXIvZm9sZGVycy9yZy96cjE5bGJfczV3MzJxNmQycWtkNnAwbjgwMDAwZ3AvVC9zaGlqdS10YXNrNTAtcmxoZzE3aGEvaG9tZS8ubG9jYWwvYmluL2dyb2s",
+          "appId": "grokbuild",
+          "targetHostId": "host",
+          "environment": {
+            "kind": "macos"
+          },
+          "path": "<isolated-root>/home/.local/bin/grok",
+          "realPath": "<isolated-root>/home/.local/lib/node_modules/@xai-official/grok/bin/grok-native",
+          "source": "unknown",
+          "isPathDefault": false,
+          "version": "1.0.76",
+          "runtimeStatus": {
+            "status": "runnable"
+          }
+        }
+      ]
+    }
+  },
+  {
+    "method": "POST",
+    "path": "actions/preview",
+    "body": {
+      "appId": "grokbuild",
+      "action": "uninstall",
+      "target": {
+        "kind": "installation",
+        "installationId": "NDpob3N0OjQ6Z3Jvazo5NDovcHJpdmF0ZS92YXIvZm9sZGVycy9yZy96cjE5bGJfczV3MzJxNmQycWtkNnAwbjgwMDAwZ3AvVC9zaGlqdS10YXNrNTAtcmxoZzE3aGEvcHJlZml4L2Jpbi9ncm9r"
+      }
+    },
+    "status": 200,
+    "response": {
+      "previewId": "329fa3bb-a218-41cf-8330-310db849b45b",
+      "request": {
+        "appId": "grokbuild",
+        "action": "uninstall",
+        "target": {
+          "kind": "installation",
+          "installationId": "NDpob3N0OjQ6Z3Jvazo5NDovcHJpdmF0ZS92YXIvZm9sZGVycy9yZy96cjE5bGJfczV3MzJxNmQycWtkNnAwbjgwMDAwZ3AvVC9zaGlqdS10YXNrNTAtcmxoZzE3aGEvcHJlZml4L2Jpbi9ncm9r"
+        }
+      },
+      "source": "system",
+      "confirmationRequired": true,
+      "summary": "Review the selected application action in the administrator-approved prefix",
+      "displayCommand": null
+    }
+  },
+  {
+    "method": "POST",
+    "path": "actions",
+    "body": {
+      "previewId": "329fa3bb-a218-41cf-8330-310db849b45b",
+      "confirmed": true
+    },
+    "status": 202,
+    "response": {
+      "operationId": "05f60d7a-cf37-4a9b-9935-491d0c049014",
+      "status": "queued"
+    }
+  },
+  {
+    "method": "GET",
+    "path": "operations/05f60d7a-cf37-4a9b-9935-491d0c049014",
+    "body": null,
+    "status": 200,
+    "response": {
+      "operationId": "05f60d7a-cf37-4a9b-9935-491d0c049014",
+      "status": "completed",
+      "phase": "terminal"
+    }
+  },
+  {
+    "method": "GET",
+    "path": "operations/05f60d7a-cf37-4a9b-9935-491d0c049014/events",
+    "body": null,
+    "status": 200,
+    "response": {
+      "operationId": "05f60d7a-cf37-4a9b-9935-491d0c049014",
+      "status": "completed",
+      "phase": "terminal"
+    }
+  },
+  {
+    "method": "POST",
+    "path": "actions/preview",
+    "body": {
+      "appId": "grokbuild",
+      "action": "uninstall",
+      "target": {
+        "kind": "installation",
+        "installationId": "NDpob3N0OjQ6Z3Jvazo5NDovcHJpdmF0ZS92YXIvZm9sZGVycy9yZy96cjE5bGJfczV3MzJxNmQycWtkNnAwbjgwMDAwZ3AvVC9zaGlqdS10YXNrNTAtcmxoZzE3aGEvcHJlZml4L2Jpbi9ncm9r"
+      }
+    },
+    "status": 422,
+    "response": ""
+  },
+  {
+    "method": "GET",
+    "path": "installations?appId=grokbuild",
+    "body": null,
+    "status": 200,
+    "response": {
+      "installations": [
+        {
+          "id": "NDpob3N0OjQ6Z3Jvazo5OTovcHJpdmF0ZS92YXIvZm9sZGVycy9yZy96cjE5bGJfczV3MzJxNmQycWtkNnAwbjgwMDAwZ3AvVC9zaGlqdS10YXNrNTAtcmxoZzE3aGEvaG9tZS8ubG9jYWwvYmluL2dyb2s",
+          "appId": "grokbuild",
+          "targetHostId": "host",
+          "environment": {
+            "kind": "macos"
+          },
+          "path": "<isolated-root>/home/.local/bin/grok",
+          "realPath": "<isolated-root>/home/.local/lib/node_modules/@xai-official/grok/bin/grok-native",
+          "source": "unknown",
+          "isPathDefault": true,
+          "version": "1.0.76",
+          "runtimeStatus": {
+            "status": "runnable"
+          }
+        }
+      ]
+    }
+  },
+  {
+    "method": "POST",
+    "path": "actions/preview",
+    "body": {
+      "appId": "grokbuild",
+      "action": "install",
+      "target": {
+        "kind": "environment",
+        "environment": {
+          "kind": "macos"
+        }
+      }
+    },
+    "status": 200,
+    "response": {
+      "previewId": "0dc19890-6696-4a6e-8957-a655183dfe61",
+      "request": {
+        "appId": "grokbuild",
+        "action": "install",
+        "target": {
+          "kind": "environment",
+          "environment": {
+            "kind": "macos"
+          }
+        }
+      },
+      "source": "system",
+      "confirmationRequired": true,
+      "summary": "Review the selected application action in the administrator-approved prefix",
+      "displayCommand": null
+    }
+  },
+  {
+    "method": "POST",
+    "path": "actions",
+    "body": {
+      "previewId": "0dc19890-6696-4a6e-8957-a655183dfe61",
+      "confirmed": true
+    },
+    "status": 202,
+    "response": {
+      "operationId": "54ec1166-194e-4a3d-a223-39ef876c5390",
+      "status": "queued"
+    }
+  },
+  {
+    "method": "GET",
+    "path": "operations/54ec1166-194e-4a3d-a223-39ef876c5390",
+    "body": null,
+    "status": 200,
+    "response": {
+      "operationId": "54ec1166-194e-4a3d-a223-39ef876c5390",
+      "status": "running",
+      "phase": "executing"
+    }
+  },
+  {
+    "method": "GET",
+    "path": "operations/54ec1166-194e-4a3d-a223-39ef876c5390",
+    "body": null,
+    "status": 200,
+    "response": {
+      "operationId": "54ec1166-194e-4a3d-a223-39ef876c5390",
+      "status": "completed",
+      "phase": "terminal"
+    }
+  },
+  {
+    "method": "GET",
+    "path": "operations/54ec1166-194e-4a3d-a223-39ef876c5390/events",
+    "body": null,
+    "status": 200,
+    "response": {
+      "operationId": "54ec1166-194e-4a3d-a223-39ef876c5390",
+      "status": "completed",
+      "phase": "terminal"
+    }
+  },
+  {
+    "method": "GET",
+    "path": "installations?appId=grokbuild",
+    "body": null,
+    "status": 200,
+    "response": {
+      "installations": [
+        {
+          "id": "NDpob3N0OjQ6Z3Jvazo5NDovcHJpdmF0ZS92YXIvZm9sZGVycy9yZy96cjE5bGJfczV3MzJxNmQycWtkNnAwbjgwMDAwZ3AvVC9zaGlqdS10YXNrNTAtcmxoZzE3aGEvcHJlZml4L2Jpbi9ncm9r",
+          "appId": "grokbuild",
+          "targetHostId": "host",
+          "environment": {
+            "kind": "macos"
+          },
+          "path": "<isolated-root>/prefix/bin/grok",
+          "realPath": "<isolated-root>/prefix/lib/node_modules/@xai-official/grok/bin/grok-native",
+          "source": "unknown",
+          "isPathDefault": true,
+          "version": "1.0.77",
+          "runtimeStatus": {
+            "status": "runnable"
+          }
+        }
+      ]
+    }
+  },
+  {
+    "method": "GET",
+    "path": "installations?appId=grokbuild",
+    "body": null,
+    "status": 200,
+    "response": {
+      "installations": [
+        {
+          "id": "NDpob3N0OjQ6Z3Jvazo5NDovcHJpdmF0ZS92YXIvZm9sZGVycy9yZy96cjE5bGJfczV3MzJxNmQycWtkNnAwbjgwMDAwZ3AvVC9zaGlqdS10YXNrNTAtcmxoZzE3aGEvcHJlZml4L2Jpbi9ncm9r",
+          "appId": "grokbuild",
+          "targetHostId": "host",
+          "environment": {
+            "kind": "macos"
+          },
+          "path": "<isolated-root>/prefix/bin/grok",
+          "realPath": "<isolated-root>/prefix/lib/node_modules/@xai-official/grok/bin/grok-native",
+          "source": "unknown",
+          "isPathDefault": true,
+          "version": "1.0.77",
+          "runtimeStatus": {
+            "status": "runnable"
+          }
+        }
+      ]
+    }
+  },
+  {
+    "method": "POST",
+    "path": "actions/preview",
+    "body": {
+      "appId": "grokbuild",
+      "action": "uninstall",
+      "target": {
+        "kind": "installation",
+        "installationId": "NDpob3N0OjQ6Z3Jvazo5NDovcHJpdmF0ZS92YXIvZm9sZGVycy9yZy96cjE5bGJfczV3MzJxNmQycWtkNnAwbjgwMDAwZ3AvVC9zaGlqdS10YXNrNTAtcmxoZzE3aGEvcHJlZml4L2Jpbi9ncm9r"
+      }
+    },
+    "status": 200,
+    "response": {
+      "previewId": "32ec58de-fb14-4d10-b438-6bb01cee62a7",
+      "request": {
+        "appId": "grokbuild",
+        "action": "uninstall",
+        "target": {
+          "kind": "installation",
+          "installationId": "NDpob3N0OjQ6Z3Jvazo5NDovcHJpdmF0ZS92YXIvZm9sZGVycy9yZy96cjE5bGJfczV3MzJxNmQycWtkNnAwbjgwMDAwZ3AvVC9zaGlqdS10YXNrNTAtcmxoZzE3aGEvcHJlZml4L2Jpbi9ncm9r"
+        }
+      },
+      "source": "system",
+      "confirmationRequired": true,
+      "summary": "Review the selected application action in the administrator-approved prefix",
+      "displayCommand": null
+    }
+  },
+  {
+    "method": "POST",
+    "path": "actions",
+    "body": {
+      "previewId": "32ec58de-fb14-4d10-b438-6bb01cee62a7",
+      "confirmed": true
+    },
+    "status": 202,
+    "response": {
+      "operationId": "5bc4479d-3dd8-432d-b0a2-7e081f0e5a43",
+      "status": "queued"
+    }
+  },
+  {
+    "method": "GET",
+    "path": "operations/5bc4479d-3dd8-432d-b0a2-7e081f0e5a43",
+    "body": null,
+    "status": 200,
+    "response": {
+      "operationId": "5bc4479d-3dd8-432d-b0a2-7e081f0e5a43",
+      "status": "completed",
+      "phase": "terminal"
+    }
+  },
+  {
+    "method": "GET",
+    "path": "operations/5bc4479d-3dd8-432d-b0a2-7e081f0e5a43/events",
+    "body": null,
+    "status": 200,
+    "response": {
+      "operationId": "5bc4479d-3dd8-432d-b0a2-7e081f0e5a43",
+      "status": "completed",
+      "phase": "terminal"
+    }
+  },
+  {
+    "method": "POST",
+    "path": "actions/preview",
+    "body": {
+      "appId": "grokbuild",
+      "action": "install",
+      "target": {
+        "kind": "environment",
+        "environment": {
+          "kind": "macos"
+        }
+      }
+    },
+    "status": 200,
+    "response": {
+      "previewId": "cb47ec57-d20c-43fc-846e-667afd5f8d00",
+      "request": {
+        "appId": "grokbuild",
+        "action": "install",
+        "target": {
+          "kind": "environment",
+          "environment": {
+            "kind": "macos"
+          }
+        }
+      },
+      "source": "system",
+      "confirmationRequired": true,
+      "summary": "Review the selected application action in the administrator-approved prefix",
+      "displayCommand": null
+    }
+  },
+  {
+    "method": "POST",
+    "path": "actions",
+    "body": {
+      "previewId": "cb47ec57-d20c-43fc-846e-667afd5f8d00",
+      "confirmed": true
+    },
+    "status": 202,
+    "response": {
+      "operationId": "2c1b42ea-4a86-465b-b766-6e9ce9167058",
+      "status": "queued"
+    }
+  },
+  {
+    "method": "DELETE",
+    "path": "operations/2c1b42ea-4a86-465b-b766-6e9ce9167058",
+    "body": null,
+    "status": 200,
+    "response": {
+      "operationId": "2c1b42ea-4a86-465b-b766-6e9ce9167058",
+      "status": "cancelled",
+      "phase": "terminal"
+    }
+  },
+  {
+    "method": "GET",
+    "path": "operations/2c1b42ea-4a86-465b-b766-6e9ce9167058",
+    "body": null,
+    "status": 200,
+    "response": {
+      "operationId": "2c1b42ea-4a86-465b-b766-6e9ce9167058",
+      "status": "cancelled",
+      "phase": "terminal"
+    }
+  },
+  {
+    "method": "GET",
+    "path": "operations/2c1b42ea-4a86-465b-b766-6e9ce9167058/events",
+    "body": null,
+    "status": 200,
+    "response": {
+      "operationId": "2c1b42ea-4a86-465b-b766-6e9ce9167058",
+      "status": "cancelled",
+      "phase": "terminal"
+    }
+  },
+  {
+    "method": "GET",
+    "path": "installations?appId=grokbuild",
+    "body": null,
+    "status": 200,
+    "response": {
+      "installations": []
+    }
+  },
+  {
+    "method": "POST",
+    "path": "actions/preview",
+    "body": {
+      "appId": "grokbuild",
+      "action": "install",
+      "target": {
+        "kind": "environment",
+        "environment": {
+          "kind": "macos"
+        }
+      }
+    },
+    "status": 200,
+    "response": {
+      "previewId": "23f20733-7113-4d18-b39a-74cdacef07a3",
+      "request": {
+        "appId": "grokbuild",
+        "action": "install",
+        "target": {
+          "kind": "environment",
+          "environment": {
+            "kind": "macos"
+          }
+        }
+      },
+      "source": "system",
+      "confirmationRequired": true,
+      "summary": "Review the selected application action in the administrator-approved prefix",
+      "displayCommand": null
+    }
+  },
+  {
+    "method": "POST",
+    "path": "actions",
+    "body": {
+      "previewId": "23f20733-7113-4d18-b39a-74cdacef07a3",
+      "confirmed": true
+    },
+    "status": 202,
+    "response": {
+      "operationId": "0f916cfe-7120-4b02-86aa-8e00017746bc",
+      "status": "queued"
+    }
+  },
+  {
+    "method": "GET",
+    "path": "operations/0f916cfe-7120-4b02-86aa-8e00017746bc",
+    "body": null,
+    "status": 200,
+    "response": {
+      "operationId": "0f916cfe-7120-4b02-86aa-8e00017746bc",
+      "status": "running",
+      "phase": "executing"
+    }
+  },
+  {
+    "method": "DELETE",
+    "path": "operations/0f916cfe-7120-4b02-86aa-8e00017746bc",
+    "body": null,
+    "status": 200,
+    "response": {
+      "operationId": "0f916cfe-7120-4b02-86aa-8e00017746bc",
+      "status": "cancelled",
+      "phase": "terminal"
+    }
+  },
+  {
+    "method": "GET",
+    "path": "operations/0f916cfe-7120-4b02-86aa-8e00017746bc",
+    "body": null,
+    "status": 200,
+    "response": {
+      "operationId": "0f916cfe-7120-4b02-86aa-8e00017746bc",
+      "status": "cancelled",
+      "phase": "terminal"
+    }
+  },
+  {
+    "method": "GET",
+    "path": "operations/0f916cfe-7120-4b02-86aa-8e00017746bc/events",
+    "body": null,
+    "status": 200,
+    "response": {
+      "operationId": "0f916cfe-7120-4b02-86aa-8e00017746bc",
+      "status": "cancelled",
+      "phase": "terminal"
+    }
+  },
+  {
+    "method": "GET",
+    "path": "installations?appId=grokbuild",
+    "body": null,
+    "status": 200,
+    "response": {
+      "installations": []
+    }
+  },
+  {
+    "method": "GET",
+    "path": "installations?appId=grokbuild",
+    "body": null,
+    "status": 200,
+    "response": {
+      "installations": []
+    }
+  },
+  {
+    "method": "GET",
+    "path": "diagnostics?appId=grokbuild",
+    "body": null,
+    "status": 200,
+    "response": {
+      "installations": [
+        {
+          "id": "NDpob3N0OjQ6Z3Jvazo5NDovcHJpdmF0ZS92YXIvZm9sZGVycy9yZy96cjE5bGJfczV3MzJxNmQycWtkNnAwbjgwMDAwZ3AvVC9zaGlqdS10YXNrNTAtcmxoZzE3aGEvcHJlZml4L2Jpbi9ncm9r",
+          "appId": "grokbuild",
+          "targetHostId": "host",
+          "environment": {
+            "kind": "macos"
+          },
+          "path": "<isolated-root>/prefix/bin/grok",
+          "realPath": null,
+          "source": "unknown",
+          "isPathDefault": true,
+          "version": null,
+          "runtimeStatus": {
+            "status": "probe_failed",
+            "reason": "damaged_installation"
+          }
+        }
+      ]
+    }
+  },
+  {
+    "method": "POST",
+    "path": "actions/preview",
+    "body": {
+      "appId": "grokbuild",
+      "action": "uninstall",
+      "target": {
+        "kind": "installation",
+        "installationId": "NDpob3N0OjQ6Z3Jvazo5NDovcHJpdmF0ZS92YXIvZm9sZGVycy9yZy96cjE5bGJfczV3MzJxNmQycWtkNnAwbjgwMDAwZ3AvVC9zaGlqdS10YXNrNTAtcmxoZzE3aGEvcHJlZml4L2Jpbi9ncm9r"
+      }
+    },
+    "status": 422,
+    "response": ""
+  },
+  {
+    "method": "GET",
+    "path": "installations?appId=grokbuild",
+    "body": null,
+    "status": 200,
+    "response": {
+      "installations": []
+    }
+  }
+]

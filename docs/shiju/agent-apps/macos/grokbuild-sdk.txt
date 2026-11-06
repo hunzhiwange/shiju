@@ -1,0 +1,20 @@
+UPGRADED exit=101
+
+thread 'main' (35563412) panicked at /rustc/58cf8f9c35b355199727627d07ae34a4e2846d67/library/core/src/ops/function.rs:250:5:
+there is no reactor running, must be called from the context of a Tokio 1.x runtime
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+CORRECTED UPGRADED exit=0
+CAT Some(AppCatalogEntry { id: GrokBuild, name: "Grok Build", cli_command: Some("grok"), runtime_kinds: [NativeCli] })
+INSTALLATIONS AppReadResponse { installations: [AppInstallation { id: AppInstallationId("NDpob3N0OjQ6Z3Jvazo5NDovcHJpdmF0ZS92YXIvZm9sZGVycy9yZy96cjE5bGJfczV3MzJxNmQycWtkNnAwbjgwMDAwZ3AvVC9zaGlqdS10YXNrNTAtcmxoZzE3aGEvcHJlZml4L2Jpbi9ncm9r"), app_id: GrokBuild, target_host_id: "host", environment: Macos, path: "<isolated-root>/prefix/bin/grok", real_path: Some("<isolated-root>/prefix/lib/node_modules/@xai-official/grok/bin/grok-native"), source: Unknown, is_path_default: true, version: Some("1.0.77"), runtime_status: Runnable }], desktop: None }
+REMAINING exit=0
+CAT Some(AppCatalogEntry { id: GrokBuild, name: "Grok Build", cli_command: Some("grok"), runtime_kinds: [NativeCli] })
+INSTALLATIONS AppReadResponse { installations: [AppInstallation { id: AppInstallationId("NDpob3N0OjQ6Z3Jvazo5OTovcHJpdmF0ZS92YXIvZm9sZGVycy9yZy96cjE5bGJfczV3MzJxNmQycWtkNnAwbjgwMDAwZ3AvVC9zaGlqdS10YXNrNTAtcmxoZzE3aGEvaG9tZS8ubG9jYWwvYmluL2dyb2s"), app_id: GrokBuild, target_host_id: "host", environment: Macos, path: "<isolated-root>/home/.local/bin/grok", real_path: Some("<isolated-root>/home/.local/lib/node_modules/@xai-official/grok/bin/grok-native"), source: Unknown, is_path_default: true, version: Some("1.0.76"), runtime_status: Runnable }], desktop: None }
+EMPTY exit=0
+CAT Some(AppCatalogEntry { id: GrokBuild, name: "Grok Build", cli_command: Some("grok"), runtime_kinds: [NativeCli] })
+INSTALLATIONS AppReadResponse { installations: [], desktop: None }
+API INSTALL exit=0
+CAT Some(AppCatalogEntry { id: GrokBuild, name: "Grok Build", cli_command: Some("grok"), runtime_kinds: [NativeCli] })
+INSTALLATIONS AppReadResponse { installations: [AppInstallation { id: AppInstallationId("NDpob3N0OjQ6Z3Jvazo5NDovcHJpdmF0ZS92YXIvZm9sZGVycy9yZy96cjE5bGJfczV3MzJxNmQycWtkNnAwbjgwMDAwZ3AvVC9zaGlqdS10YXNrNTAtcmxoZzE3aGEvcHJlZml4L2Jpbi9ncm9r"), app_id: GrokBuild, target_host_id: "host", environment: Macos, path: "<isolated-root>/prefix/bin/grok", real_path: Some("<isolated-root>/prefix/lib/node_modules/@xai-official/grok/bin/grok-native"), source: Unknown, is_path_default: true, version: Some("1.0.77"), runtime_status: Runnable }], desktop: None }
+FINAL EMPTY exit=0
+CAT Some(AppCatalogEntry { id: GrokBuild, name: "Grok Build", cli_command: Some("grok"), runtime_kinds: [NativeCli] })
+INSTALLATIONS AppReadResponse { installations: [], desktop: None }

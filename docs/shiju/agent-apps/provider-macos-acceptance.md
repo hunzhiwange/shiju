@@ -546,3 +546,42 @@ Gateway 使用真实隔离 SQLite 和正式 handler_router。SDK→本地回环 
 `sw_vers`、`uname -m` 退出均为 0：macOS 27.0（26A428）、arm64。应用版本未验证，未启动实际 CLI/Iced；live 写入、激活、代理流量、Windows/Linux、其他架构、PostgreSQL 实际服务未验收。
 
 定向 diff 检查与暂存检查退出 0；仅提交本任务实现、独立测试、父注册和本条证据，排除其他母任务状态/任务删除及桌面终端变更。只读 plan.md 无差异。最终槽位 1 锁不存在、缓存保留。未执行全量 cargo test、fmt check、wasm 或 Makefile；任务文件在完成报告后删除且不纳入提交。
+
+## 任务 12：macOS 配置路径与覆盖
+
+2026-11-06；状态：已完成（只读配置路径及访问状态）。
+
+### 依赖与实现范围
+
+核对批次 11 提交 `e13f452d7` 和本文件任务 1–11 的正式证据；母任务 1、3 已完成，母任务 2 沿用任务 1 的底座子计划 1–93 开工裁定，完整领域迁移仍未收口，不将其改报为完成。只读 plan.md 未修改。
+
+来源仓库 HEAD `ca58c0313360eae7c851fbd7553c1614c7af03e7`，rev-parse/status 退出 0、来源干净。阅读 `commands/config.rs::get_config_status`、打开/选择目录直接调用者，`settings.rs::resolve_override_path/get_*_override_dir`、设置界面 useSettings/useDirectorySettings 引用与相邻 override 测试；`omp_config.rs::normalize_profile/native_agent_dir/data_dir/get_omp_models_path` 及相邻 native_profile_and_config_root_resolution、xdg_data_root_follows_existing_profile_and_agent_override、yaml_extension_follows_native_precedence 测试。同时核对正式契约的 14 应用默认路径和相关路径函数，未执行来源测试。
+
+- 业务唯一解析入口 `vw-agent-apps/src/providers/paths.rs::read`；`execution_environment` 只捕获执行进程相关变量，HTTP 不接受 HOME/cwd/environment/profile/tenant。HOME 来自管理员 policy 的授权 host；不回退客户端路径，不创建目录或读取文件内容。返回 14 应用固定配置文件的路径与 present/absent/inaccessible，存在不等于配置有效、供应商激活或应用可运行。
+- Claude 优先 settings.json、已有 claude.json 回退；OpenCode JSONC 优先、无文件默认 JSON；OMP models.yml/config.yml 优先于对应 yaml。Codex/Gemini/Pi 返回相关多文件状态；DSH 返回四个标准 profile 的只读状态，不将其当写入目标清单；Desktop 只列两个固定配置文件，configLibrary 的动态 profile/登录处理归应用任务。
+- 显式 directoryOverride 只支持来源已有覆盖的九个应用，`~`/`~/`/`~\\` 根据执行主机 HOME 展开。覆盖只用于本次状态查询，不保存应用设置或改变 catalog/native reader、启动参数。绝对路径须位于授权 HOME；相对路径、其它用户 tilde、父目录穿越、越界环境目录、不可遍历/链接覆盖目录明确 400。管理员当前仅授权 HOME，HOME 外目录没有授权依据，直接拒绝。Hermes 环境目录 trim 后按原样解释、不展开 tilde；Pi 环境目录沿用 tilde 展开；MCode MINIMAX 优先于 MAVIS。
+- OMP_PROFILE 优先于 PI_PROFILE（包括显式空值/default），名称沿用原生长度、字符与保留设备名校验；PI_CONFIG_DIR 是 HOME 下目录名；命名 profile 优先于 PI_CODING_AGENT_DIR；显式 default 忽略从 PI_PROFILE 继承的命名 agent 目录；自定义绝对 agent 路径保留。已有 XDG_DATA_HOME/omp[/profiles/name] 仅在使用默认 agent 目录时成为 dataDirectory。环境相对 cwd 路径及 HOME 外 XDG/agent 目录安全拒绝，不能借原生宽松路径语义越权。
+- descriptor-relative openat + O_NOFOLLOW/O_DIRECTORY/O_NONBLOCK 遍历授权 HOME 下组件；读取 metadata 不读配置载荷，文件/目录类型不符、链接、权限错误均为 inaccessible，不伪装缺失。显式覆盖目录不可访问时拒绝，默认配置不可访问时返回状态。返回路径仅为观察结果，不能作为后续写授权或防竞争凭证；任务 17/应用适配仍须独立写权限与物理锁。
+- DTO `vw-api-types/src/app_providers/paths.rs`；API `POST /v1/app-providers/{app}/config/paths`，4 KiB 上限，请求 `{targetHostId,directoryOverride?}`；SDK `GatewayClient::app_provider_paths` 走 native dynamic_host_client、租户上下文和敏感 token header。handler 在任何路径探测前复用独立 provider_config_read 授权：无 token 401、无 grant/跨租户 403、离线 503、remote 501，不扩大 preferences_write/launch 权限。输入/路径错误受控 400，SDK 不回显错误正文。两个正式路由根通过已有 app-providers router 自动注册；无新通用文件/命令 API。Iced 配置路径界面属于任务 75，本轮未验收 UI/live 写入。
+
+### 红绿验证与边界
+
+正式红阶段及最终验证阶段均原子 mkdir 动态领取槽位 **1**，`CARGO_TARGET_DIR=/Users/xiangmin/worker/code/shiju/target/rust-slot-1`；`CARGO_BUILD_BUILD_DIR` 设置为同一绝对路径，覆盖仓库另设的 build-dir。owner 记录计划、任务、会话及持有进程 PID，阶段退出清理自身锁、保留缓存。首次接线发现 SDK AppId 缺少导入，已修正；首次探索运行仅设置 target-dir 导致仓库 build-dir 仍生效，未将该轮作为正式槽位证据，随后显式设置两者并完整重跑红测。
+
+各阶段先 `cargo fmt --all`，退出 0；默认 features：
+
+| 确切命令 | 正式红阶段退出码 / 有效结果 | 最终绿阶段退出码 / 有效结果 |
+| --- | --- | --- |
+| `cargo test -p vw-agent-apps --lib cc04_paths_ -- --nocapture` | 101；1 passed / 2 failed | 0；6 passed |
+| `cargo test -p vw-api-types --lib cc04_paths_ -- --nocapture` | 0；1 passed | 0；1 passed |
+| `cargo test -p vw-agent --lib cc04_paths_ -- --nocapture` | 101；0 passed / 1 failed | 0；2 passed |
+| `cargo test -p vw-gateway-client --lib cc04_paths_ -- --nocapture` | 0；1 passed | 0；1 passed |
+| `cargo clippy --all-targets --all-features -- -D warnings` | 不适用 | 0；全部 targets/features 检查通过 |
+
+红阶段业务解析函数显式返回 unavailable；覆盖路径/profile 测试在 unwrap 业务结果处失败，Gateway SDK 预期成功而得到 400，均非编译错误或零测试。绿阶段新增默认路径/环境/访问失败/XDG 等断言，总计 **10** 项有效测试、无忽略；macOS 行为测试按目标平台注册。第一次 Clippy 退出 101，只指出本次 XDG 分支的 collapsible_if，已合并后重新格式化、验证。测试二进制位于槽位 debug/deps；Agent 链接仍提示既有 `__eh_frame section too large`，测试退出 0，未调整链接配置。
+
+SDK→真实回环 HTTP→正式 paths handler→管理员 policy HOME 下临时 models.yaml，返回正确绝对路径和 present；原始 fixture 内容不出现在响应，查询与拒绝后字节保持不变。缺少独立 grant、未知 host、跨 company 均 403，无效 token 401、离线 503、remote 501、HOME 外覆盖 400。另用正式 handler_router + Basic 中间件验证未认证 401。回环服务替代远端传输，独立 SDK fixture 替代远端返回、验证 POST/body/租户头与错误正文脱敏；这些不冒充实际远程主机运行验收。临时文件与 policy 使用假凭据，未读取真实用户配置、未使用钥匙串或外部应用进程。
+
+`sw_vers`、`uname -m` 退出 0：macOS 27.0（26A428）、arm64。应用版本未验证，未启动实际 CLI/Iced；本条仅验收主机路径解析与只读元数据，live 激活、写权限、持久覆盖设置、动态 Desktop profile、Windows/Linux、其它架构和 UI 均未验收。后续应用任务须接通原生文件动作，不将本接口当作写成功证据。
+
+定向 diff 检查及暂存检查均退出 0；仅提交本任务代码、独立测试、父模块注册及本条正式证据。现有其他任务状态/删除与桌面改动不纳入提交；只读 plan.md 无差异。最终锁已释放、缓存保留。未执行全量 cargo test、fmt check、wasm 或 Makefile。完成报告后删除任务 12 文件，不纳入提交，正式证据保留。

@@ -12,6 +12,7 @@ use vw_api_types::{agent_apps::AppId, app_providers::AppProviderWrite, id::Tenan
 pub(crate) fn router() -> Router {
     Router::new()
         .merge(catalog::router())
+        .merge(paths::router())
         .merge(delete::router())
         .merge(duplicate::router())
         .merge(presentation::router())
@@ -149,3 +150,9 @@ mod universal_sync;
 #[cfg(test)]
 #[path = "app_providers/universal_sync_tests.rs"]
 mod universal_sync_tests;
+
+#[path = "app_providers/paths.rs"]
+mod paths;
+#[cfg(test)]
+#[path = "app_providers/paths_tests.rs"]
+mod paths_tests;

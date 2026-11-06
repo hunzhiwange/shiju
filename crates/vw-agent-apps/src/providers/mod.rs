@@ -101,3 +101,7 @@ mod universal_tests;
 pub mod universal_sync;
 #[cfg(test)]
 mod universal_sync_tests;
+
+pub mod paths;
+#[cfg(test)]
+mod paths_tests;

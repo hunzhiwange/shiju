@@ -206,3 +206,6 @@ mod snippets_tests;
 mod claude;
 #[cfg(all(test, target_os = "macos"))]
 mod claude_tests;
+
+#[cfg(all(test, target_os = "macos"))]
+mod codex_tests;

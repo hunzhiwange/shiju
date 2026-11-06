@@ -6,7 +6,7 @@ mod codex_route;
 pub(crate) mod fields;
 mod grok;
 mod json;
-pub(crate) use codex::project as codex;
+pub(crate) use codex::{native as codex_native, project as codex};
 pub(crate) use grok::project as grok;
 pub(crate) use json::{claude, gemini};
 pub(crate) struct Projected {

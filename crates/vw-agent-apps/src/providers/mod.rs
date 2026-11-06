@@ -127,3 +127,7 @@ mod claude_tests;
 pub mod claude_login;
 #[cfg(all(test, target_os = "macos"))]
 mod claude_login_tests;
+
+pub mod codex;
+#[cfg(test)]
+mod codex_tests;

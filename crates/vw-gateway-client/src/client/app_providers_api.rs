@@ -144,3 +144,7 @@ mod claude_tests;
 #[cfg(test)]
 #[path = "app_providers/claude_login_tests.rs"]
 mod claude_login_tests;
+
+#[cfg(test)]
+#[path = "app_providers/codex_tests.rs"]
+mod codex_tests;

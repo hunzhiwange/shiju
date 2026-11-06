@@ -1,4 +1,4 @@
-//! Pure Codex editor projection. Login/catalog execution stays outside this owner.
+//! Shared Codex TOML projection, with a separate editor display step. No file publication.
 use super::codex_route::{CodexProjection, Route, RowInput, requires_openai_auth};
 use super::{Error, Projected, fields, patch, toml, value};
 use crate::providers::live::patch_toml::TomlPatch;
@@ -23,7 +23,7 @@ fn parse(row: &Value, official: bool) -> Result<CodexProjection, Error> {
     }
 }
 pub fn project(
-    mut live: DocumentMut,
+    live: DocumentMut,
     row: &Value,
     previous: Option<&Value>,
     exclusive: Option<&Map<String, Value>>,
@@ -37,6 +37,78 @@ pub fn project(
     let text = row.get("config").and_then(Value::as_str).unwrap_or("");
     let row_doc = toml(text, "draft.config")?;
     let projection = parse(row, false)?;
+    let before = value(&live)?;
+    let selector = row_doc.get("model_provider").and_then(Item::as_str);
+    let mut doc = apply(live, previous, exclusive, login, projection)?;
+    let projected_config = value(&doc)?;
+    if let Some(table) = doc
+        .get_mut("model_providers")
+        .and_then(|p| p.get_mut("custom"))
+        .and_then(Item::as_table_like_mut)
+    {
+        table.remove("experimental_bearer_token");
+    }
+    let shown = value(&doc)?;
+    let inactive = super::inactive(&value(&row_doc)?, &shown, |p| {
+        if p.len() == 2 {
+            fields::CODEX_FLOOR_TOP.contains(&p[1].as_str())
+                || fields::CODEX_EXCLUSIVE_TOP.contains(&p[1].as_str())
+        } else {
+            p[1] == "model_providers"
+                && (p[2] == "custom"
+                    || p[2] == "cc-switch-official"
+                    || Some(p[2].as_str()) == selector)
+                || fields::CODEX_FLOOR_NESTED
+                    .iter()
+                    .any(|k| p[1..].iter().map(String::as_str).eq(k.iter().copied()))
+        }
+    });
+    let mut settings = row.as_object().cloned().ok_or(Error::Shape)?;
+    settings.insert("config".into(), shown);
+    Ok(Projected {
+        before: serde_json::json!({"config":before,"auth":row.get("auth").cloned().unwrap_or_default()}),
+        settings: settings.into(),
+        difference: Some((
+            serde_json::json!({"config":before}),
+            serde_json::json!({"config":projected_config}),
+        )),
+        inactive,
+    })
+}
+fn value_from(v: &toml_edit::Value) -> Option<Value> {
+    let mut doc = DocumentMut::new();
+    doc.insert("v", Item::Value(v.clone()));
+    value(&doc).ok()?.get("v").cloned()
+}
+fn profile_references(before: &Value, id: &str) -> bool {
+    before
+        .get("profiles")
+        .and_then(Value::as_object)
+        .is_some_and(|p| p.values().any(|v| v["model_provider"] == id))
+}
+
+/// Strict native path: no draft placeholder or display credential removal.
+pub(crate) fn native(
+    live: DocumentMut,
+    row: &Value,
+    previous: Option<&Value>,
+    login: bool,
+) -> Result<DocumentMut, Error> {
+    let projection = CodexProjection::of(&RowInput {
+        settings: row,
+        official: false,
+        proxy_injected_oauth: false,
+    })?;
+    apply(live, previous, None, login, projection)
+}
+
+fn apply(
+    mut live: DocumentMut,
+    previous: Option<&Value>,
+    exclusive: Option<&Map<String, Value>>,
+    login: bool,
+    projection: CodexProjection,
+) -> Result<DocumentMut, Error> {
     match &projection.route {
         Route::Custom { table, .. } | Route::BuiltIn { table: Some(table), .. } => {
             crate::providers::validation::native_request(
@@ -87,7 +159,6 @@ pub fn project(
     for (p, v) in &projection.nested {
         edits.set.push((p.clone(), Item::Value(v.clone())));
     }
-    let selector = row_doc.get("model_provider").and_then(Item::as_str);
     let mut targets = vec!["custom".to_string(), "cc-switch-official".to_string()];
     if let Some(previous) = previous {
         let previous =
@@ -143,8 +214,6 @@ pub fn project(
     }
     match projection.route {
         Route::Custom { mut table, auth } => {
-            // Editor view never repeats the key in TOML, even for an embedded token.
-
             table.insert(
                 "requires_openai_auth",
                 toml_edit::value(requires_openai_auth(auth, login)),
@@ -164,64 +233,35 @@ pub fn project(
         }
         Route::Official => return Err(Error::Unavailable(PreviewUnavailable::OfficialLogin)),
     }
-    let mut doc = patch(&live, edits)?;
-    let projected_config = value(&doc)?;
-    if let Some(table) = doc
-        .get_mut("model_providers")
-        .and_then(|p| p.get_mut("custom"))
-        .and_then(Item::as_table_like_mut)
-    {
-        table.remove("experimental_bearer_token");
-    }
-    let shown = value(&doc)?;
-    if let Some(profile) = shown
+    let doc = patch(&live, edits)?;
+    let output = value(&doc)?;
+    if let Some(profile) = output
         .get("profile")
         .and_then(Value::as_str)
-        .and_then(|p| shown.get("profiles").and_then(|v| v.get(p)))
+        .map(str::trim)
+        .filter(|name| !name.is_empty())
+        .and_then(|name| output.get("profiles").and_then(|v| v.get(name)))
     {
-        let overridden = profile.get("openai_base_url").is_some()
-            || profile.get("experimental_bearer_token").is_some()
-            || profile
-                .get("model_provider")
-                .is_some_and(|v| Some(v) != shown.get("model_provider"));
+        // With no top-level selector, Codex uses built-in openai. A profile that
+        // explicitly selects the same route does not redirect requests.
+        let selector = output.get("model_provider").and_then(Value::as_str).unwrap_or("openai");
+        let overridden = ["model_provider", "openai_base_url", "experimental_bearer_token"]
+            .into_iter()
+            .any(|key| {
+                let value = profile
+                    .get(key)
+                    .and_then(Value::as_str)
+                    .map(str::trim)
+                    .filter(|text| !text.is_empty());
+                match (key, value) {
+                    (_, None) => false,
+                    ("model_provider", Some(id)) => id != selector,
+                    _ => true,
+                }
+            });
         if overridden {
             return Err(Error::Unavailable(PreviewUnavailable::Ownership));
         }
     }
-    let inactive = super::inactive(&value(&row_doc)?, &shown, |p| {
-        if p.len() == 2 {
-            fields::CODEX_FLOOR_TOP.contains(&p[1].as_str())
-                || fields::CODEX_EXCLUSIVE_TOP.contains(&p[1].as_str())
-        } else {
-            p[1] == "model_providers"
-                && (p[2] == "custom"
-                    || p[2] == "cc-switch-official"
-                    || Some(p[2].as_str()) == selector)
-                || fields::CODEX_FLOOR_NESTED
-                    .iter()
-                    .any(|k| p[1..].iter().map(String::as_str).eq(k.iter().copied()))
-        }
-    });
-    let mut settings = row.as_object().cloned().ok_or(Error::Shape)?;
-    settings.insert("config".into(), shown);
-    Ok(Projected {
-        before: serde_json::json!({"config":before,"auth":row.get("auth").cloned().unwrap_or_default()}),
-        settings: settings.into(),
-        difference: Some((
-            serde_json::json!({"config":before}),
-            serde_json::json!({"config":projected_config}),
-        )),
-        inactive,
-    })
-}
-fn value_from(v: &toml_edit::Value) -> Option<Value> {
-    let mut doc = DocumentMut::new();
-    doc.insert("v", Item::Value(v.clone()));
-    value(&doc).ok()?.get("v").cloned()
-}
-fn profile_references(before: &Value, id: &str) -> bool {
-    before
-        .get("profiles")
-        .and_then(Value::as_object)
-        .is_some_and(|p| p.values().any(|v| v["model_provider"] == id))
+    Ok(doc)
 }

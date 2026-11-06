@@ -115,3 +115,6 @@ pub mod claude_login;
 mod claude_login_tests;
 #[cfg(test)]
 mod claude_tests;
+
+#[cfg(test)]
+mod codex_tests;

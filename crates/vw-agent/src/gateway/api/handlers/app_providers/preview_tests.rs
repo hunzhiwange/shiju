@@ -4,7 +4,7 @@ use sha2::{Digest, Sha256};
 use std::{os::unix::fs::PermissionsExt, path::Path};
 use vw_api_types::{agent_apps::AppId, app_providers::preview::*, id::TenantScope};
 const TOKEN: &str = "fixture-config-reader-token-over-32-chars";
-fn policy(root: &Path) -> std::path::PathBuf {
+pub(super) fn policy(root: &Path) -> std::path::PathBuf {
     std::fs::set_permissions(root, std::fs::Permissions::from_mode(0o700)).unwrap();
     let path = root.join("access.json");
     let value = serde_json::json!({

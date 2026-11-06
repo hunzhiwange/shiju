@@ -1253,3 +1253,47 @@ Gateway 使用真实回环 HTTP、原 SDK、临时 SQLite、真实临时主机�
 实际平台 macOS **27.0 (26A428)**、**arm64**，crate 版本 **0.6.0**。未查询/启动已安装 Claude 版本、真实账号、真实 Keychain、CLI 消费配置或 Iced 渲染，这些均未验证。Agent lib test 仍有既有 `__eh_frame section too large` 链接提示，相关测试退出 0；没有修改链接设置，强制 Clippy 退出 0。
 
 定向 diff/check 与暂存审查通过；提交仅含本任务实现、独立测试、最小 DTO/工厂/SDK 注册与本条证据，不纳入母任务状态、此前编号文件删除或其它计划。只读 plan.md 无差异；任务完成后删除编号文件且不提交其删除，正式证据保留。
+
+## 任务 28：Codex 路由表投影
+
+2026-11-07；状态：已完成（授权的纯路由投影边界；没有提交 live）。
+
+### 依赖、来源与边界
+
+核对批次 27 提交 `51725a50e` 及本文件任务 27 的 34 项去重测试/Clippy 证据。母任务 1、3 已完成，母任务 2 继续沿用任务 1 的底座子计划 1–93 开工裁定，完整领域迁移仍未收口。首次因投影与原生提交的边界不清登记阻塞；继续执行指令已明确：28 提供内部原生 TOML 与严格拒绝，29 处理 auth/暂存，30 统一提交；SDK/API 按只读行为证明文件不变，解除原阻塞。不修改只读 plan.md，不提前实现 29/30。
+
+来源 `/Users/xiangmin/worker/code/cc-switch` HEAD `ca58c0313360eae7c851fbd7553c1614c7af03e7`，工作区干净。已核对 `live/project/codex.rs::{CodexProjection::of,third_party_route,custom_route,check_effective_route}` 及路由/自有认证/旧形态相邻测试，`services/provider/codex_direct.rs::{project,plan,run_with_edits}`、`codex_editor` 与 `codex_terminal` 直接调用者，以及 golden `codex_red_lines.rs` 的 CX-01/04/05/06/11/13。原生继续复用任务 22 的路由解析，不接入冻结 upstream 或新增第二个业务所有者。RustCodeGraph status/explore 与定向读取/rg 已执行，未将索引中的 upstream 命中误作当前运行实现。
+
+### 实现与调用链
+
+- 新增 `vw-agent-apps/src/providers/codex.rs::project`：接收真实读取的 live TOML、目标 settings、已知前所有者及登录所有者提供的 `login_on_disk` 事实，产生仅供执行端消费的 `NativeProjection`。它不读写主机文件、选择登录保留策略或发布事务；29/30 可消费 `config()`。`NativeProjection` 没有 Serialize，Debug 固定脱敏，错误是无载荷的强类型枚举。
+- 原生路径直接调用唯一 `codex_route::CodexProjection::of`，绕开编辑草稿的 keyless 占位回退；真正结果不剥离必要 bearer。校验 config/auth 形状和有界输入，拒绝所消费的显示掩码、pending key 和错误类型；keyless 官方登录回退返回 MissingCredential，不生成可发布的占位配置。
+- `projection/codex.rs` 将已有字段归属、TomlPatch 和最终 profile 检查提取为共用 `apply`，供原生与编辑路径共同消费；没有复制第二套路由/写入规则。key 仅进入归一后的 `model_providers.custom.experimental_bearer_token`，旧顶层 bearer/base URL 清理；非目标用户表、项目、非活跃 profile 保留。env_key、auth/aws、Authorization http_headers/env_http_headers 等来源认可的表级自有认证保留，不注入行 key。来源中 requires_openai_auth=true 的头认证回退规则仍沿唯一解析器处理，不扩大到“所有普通头都替代 key”。
+- 活跃 profile 重定向 model_provider、openai_base_url 或 experimental_bearer_token 时整次拒绝，无部分结果。对照来源补正既有预览判定：省略顶层 selector 时内置 openai 与 profile 显式 openai 是同一路由；profile 名/值按来源 trim，空字符串不作重定向。同一目标路由允许，非活跃 profile 不阻止投影。
+- 对外复用既有 `ProviderPreviewRequest/ProviderPreview`、`POST /v1/app-providers/codex/config/preview` 和 `GatewayClient::app_provider_preview`，没有新增可返回原生明文 TOML/key 的接口、配置源、文件/命令 API、权限或 UI。编辑路径仍允许缺 key 草稿预览并移除重复 bearer，最终整棵显示结果继续脱敏；原生路径和显示路径不可互换。当前已有登录、官方卡、非 file 凭据存储、托管 metadata、生成模型目录等既有不可用边界未扩展。
+
+### 红绿与验证
+
+所有阶段从仓库根按原子 mkdir 动态领取共享槽位 **1**；实际 `CARGO_TARGET_DIR=/Users/xiangmin/worker/code/shiju/target/rust-slot-1`，同时设置 `CARGO_BUILD_BUILD_DIR` 为此绝对路径，覆盖仓库 build-dir。锁记录计划/任务/会话/PID；shell trap 覆盖正常、失败及中断退出，在 Cargo/产物进程结束后释放自身 owner/锁，保留缓存。
+
+先将原生入口接到现有编辑结果，独立失败测试编译后，四条指定命令退出 **101/0/0/0**，有效运行数 **4/1/1/1**：业务包中 2 项失败（原生结果被剥离 key、原生错误放行 keyless fallback），其余通过。profile/表级认证行为本已存在，未伪造失败。额外命令 `cargo test -p vw-agent-apps --lib cc04_codex_native_default_profile_does_not_override_route -- --nocapture` 退出 **101**，有效 1 项，在默认 openai profile 被误拒绝的业务断言失败，随后按来源修正。各阶段先 `cargo fmt --all`，均退出 0；没有以缺模块或零测试当红证据。
+
+最终源码先 `cargo fmt --all`（0），同阶段完整验证如下：
+
+| 确切命令 | 退出码 | 有效通过数量 |
+| --- | --- | --- |
+| `cargo test -p vw-agent-apps --lib cc04_codex_ -- --nocapture` | 0 | 8 |
+| `cargo test -p vw-api-types --lib cc04_codex_ -- --nocapture` | 0 | 1 |
+| `cargo test -p vw-agent --lib cc04_codex_ -- --nocapture` | 0 | 1 |
+| `cargo test -p vw-gateway-client --lib cc04_codex_ -- --nocapture` | 0 | 1 |
+| `cargo test -p vw-agent-apps --lib cc04_preview_codex -- --nocapture` | 0 | 2 |
+| `cargo test -p vw-agent --lib cc04_preview_ -- --nocapture` | 0 | 3 |
+| `cargo clippy --all-targets --all-features -- -D warnings` | 0 | 非行为测试 |
+
+共 **16** 项通过（本任务 11 项、相邻预览回归 5 项），无忽略。指定 `cc04_codex_key_is_in_active_route_table`、`cc04_codex_profile_override_rejects_without_side_effects` 均通过。另验标准/内联表、旧顶层地址、保留 ID 表和嵌入 token 的路由归一、行 key 仅在目标表出现一次、自有认证无注入、登录事实控制 requires_openai_auth、占位/错误形状拒绝，以及默认/同路由/非活跃/带空格 profile 语义。
+
+Gateway 用真实临时 `.codex/config.toml`、`auth.json`、管理员读权限策略及回环 HTTP，经原 SDK→实际 API→执行端读配置：普通投影响应脱敏，三种覆盖和带空格 profile 名均返回 unavailable=ownership、空显示/空差异；metadata-only 主机返回 403。每种场景断言 config/auth 原字节不变、目录仍仅两个文件，没有锁、暂存或 pending。DTO 拒绝 publish/authFile/loginOnDisk/tenant/file 扩权字段；SDK 另验证正式方法/路径/请求体/租户头与错误载荷脱敏。SDK 单测的本地响应夹具为 400、带假 secret 的对象；真实 Gateway 集成没有替代文件/业务投影/鉴权。所有凭据均为假值，没有访问真实用户配置、真实账号、Keychain 或网络上游。
+
+实际平台 macOS **27.0 (26A428)**、**arm64**；crate 版本 **0.6.0**。已验证真实本机隔离文件读入、内存原生 TOML 和只读 API/SDK；未查询/启动已安装 Codex 版本，真实账号、CLI 消费、Iced 渲染和 live 提交均未验证。登录/暂存及统一提交明确归 29/30。Agent lib test 仍出现既有 `__eh_frame section too large` 链接提示，测试退出 0；未改变链接配置，最终强制 Clippy 退出 0。
+
+定向 diff/check 与暂存审查通过；仅提交本任务实现、独立测试、最小父注册和本条证据。保留其他母任务状态和此前编号任务删除；plan.md 无差异。各阶段自身槽位锁已释放、缓存保留。未运行全量 cargo test、fmt check、wasm 检查或 Makefile。完成后删除任务 28 编号文件，不提交其删除；正式证据保留。下一步任务 29 消费原生投影并规划登录事实。

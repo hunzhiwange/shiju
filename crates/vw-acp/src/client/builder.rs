@@ -104,7 +104,7 @@ impl AcpClient {
             modes,
             config_options,
         );
-        if matches!(self.agent_name.as_str(), "kiro" | "hermes")
+        if matches!(self.agent_name.as_str(), "kiro" | "hermes" | "iflow")
             && self.full_access
             && self.permission_mode == PermissionMode::ApproveAll
         {

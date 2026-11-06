@@ -242,6 +242,7 @@ impl AcpClient {
         } else {
             conn.new_session(request).await.map_err(|err| AcpError::NewSession(err.to_string()))?
         };
+        self.actor_state.lock().iflow_acknowledged_mode = None;
         self.actor_state.lock().session_capabilities = Some(crate::SessionCapabilities {
             session_id: session.session_id.to_string(),
             modes: session.modes.clone(),
@@ -289,6 +290,7 @@ impl AcpClient {
             .load_session(request)
             .await
             .map_err(|err| AcpError::LoadSession(err.to_string()))?;
+        self.actor_state.lock().iflow_acknowledged_mode = None;
         self.actor_state.lock().session_capabilities = Some(crate::SessionCapabilities {
             session_id: session_id.clone(),
             modes: response.modes.clone(),
@@ -339,6 +341,7 @@ impl AcpClient {
             .resume_session(request)
             .await
             .map_err(|err| AcpError::ResumeSession(err.to_string()))?;
+        self.actor_state.lock().iflow_acknowledged_mode = None;
         self.actor_state.lock().session_capabilities = Some(crate::SessionCapabilities {
             session_id: session_id.clone(),
             modes: response.modes.clone(),

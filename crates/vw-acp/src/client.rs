@@ -66,6 +66,8 @@ mod event_client;
 mod helpers;
 #[path = "client/hermes_access.rs"]
 mod hermes_access;
+#[path = "client/iflow_access.rs"]
+mod iflow_access;
 #[path = "client/lifecycle.rs"]
 mod lifecycle;
 #[path = "client/message_io.rs"]

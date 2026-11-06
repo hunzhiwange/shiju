@@ -111,9 +111,21 @@ impl AcpClient {
             self.actor_state.lock().pending_controls.remove(&key);
             return Ok(());
         }
-        if !capabilities.as_ref().and_then(|info| info.modes.as_ref()).is_some_and(|modes| {
-            modes.available_modes.iter().any(|mode| mode.id.0.as_ref() == mode_id)
-        }) {
+        let modes = capabilities.as_ref().and_then(|info| info.modes.as_ref());
+        // iFlow 0.5.19 load returns only sessionId. Its fixed ACP implementation
+        // still accepts these exact set_mode values; do not invent a mode readback.
+        let iflow_load_mode = self.agent_name == "iflow"
+            && modes.is_none()
+            && matches!(
+                mode_id,
+                crate::access_policy::iflow::FULL_MODE
+                    | crate::access_policy::iflow::RESTRICTED_MODE
+            );
+        if !iflow_load_mode
+            && !modes.is_some_and(|modes| {
+                modes.available_modes.iter().any(|mode| mode.id.0.as_ref() == mode_id)
+            })
+        {
             return Err(AcpError::Prompt("Agent did not advertise the requested session mode; retry with a supported control".into()));
         }
         timeout(
@@ -127,6 +139,10 @@ impl AcpClient {
         .map_err(|_| AcpError::Prompt("session/set_mode timed out; retry before prompting".into()))?
         .map_err(|err| AcpError::Prompt(err.to_string()))?;
         self.actor_state.lock().pending_controls.remove(&key);
+        if self.agent_name == "iflow" {
+            self.actor_state.lock().iflow_acknowledged_mode =
+                Some((session_id.into(), mode_id.into()));
+        }
         // The empty response acknowledges the request only. CurrentModeUpdate is the
         // readback authority; never assign current_mode_id from the desired value.
         Ok(())
@@ -136,6 +152,7 @@ impl AcpClient {
 impl AcpClient {
     async fn guard_native_mode(&self, session_id: &str, mode_id: &str) -> Result<(), AcpError> {
         self.guard_hermes_mode(session_id, mode_id).await?;
+        self.guard_iflow_mode(session_id, mode_id).await?;
         self.guard_qoder_mode(session_id, mode_id).await?;
         self.guard_vibe_mode(session_id, mode_id).await?;
         if self.agent_name == "gemini" {
@@ -198,6 +215,7 @@ impl AcpClient {
         self.sync_qwen_access(conn, session_id).await?;
         self.sync_qoder_access(conn, session_id).await?;
         self.sync_hermes_access(conn, session_id).await?;
+        self.sync_iflow_access(conn, session_id).await?;
         self.ensure_vibe_access(session_id)?;
         if self.agent_name == "gemini" {
             let state = self.actor_state.lock();

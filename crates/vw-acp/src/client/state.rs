@@ -59,6 +59,8 @@ pub(super) struct AcpClientActorState {
     pub(super) claude_confirmed_session: Option<String>,
     pub(super) codex_runtime_verified: bool,
     pub(super) codex_confirmed_session: Option<String>,
+    // Acknowledged iFlow control intent, separate from protocol mode readback.
+    pub(super) iflow_acknowledged_mode: Option<(String, String)>,
     pub(super) pending_controls: HashMap<(String, String), String>,
 }
 

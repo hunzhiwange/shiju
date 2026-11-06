@@ -73,3 +73,7 @@ mod create_tests;
 pub mod update;
 #[cfg(test)]
 mod update_tests;
+
+pub mod delete;
+#[cfg(all(test, target_os = "macos"))]
+mod delete_tests;

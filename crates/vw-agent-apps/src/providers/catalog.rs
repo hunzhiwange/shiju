@@ -83,7 +83,7 @@ pub fn read(home: &Path, app: AppId, rows: Vec<AppProviderSummary>) -> ProviderC
 }
 
 type Members = BTreeMap<String, ()>;
-fn observe(
+pub(super) fn observe(
     home: &Path,
     app: AppId,
 ) -> Result<(Members, ProviderSelection), ProviderReadUnavailable> {

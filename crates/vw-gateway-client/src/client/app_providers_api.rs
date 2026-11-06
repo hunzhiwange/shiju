@@ -53,3 +53,9 @@ mod update;
 #[cfg(test)]
 #[path = "app_providers/update_tests.rs"]
 mod update_tests;
+
+#[path = "app_providers/delete.rs"]
+mod delete;
+#[cfg(test)]
+#[path = "app_providers/delete_tests.rs"]
+mod delete_tests;

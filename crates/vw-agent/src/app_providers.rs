@@ -93,6 +93,29 @@ impl AppProviderStore {
         }
         Ok(Self::summary(app, id, &profile))
     }
+    /// Delete only a scoped catalog row after checking the authorized host's native references.
+    pub fn delete(
+        &self,
+        tenant: &TenantScope,
+        app: AppId,
+        id: &str,
+        home: &Path,
+    ) -> Result<(), String> {
+        let key = Self::key(app, id)?;
+        self.settings
+            .get(tenant, NAMESPACE, &key)
+            .map_err(|_| "application provider storage unavailable")?
+            .ok_or("application provider not found")?;
+        vw_agent_apps::providers::delete::ensure_unreferenced(home, app, id)?;
+        if !self
+            .settings
+            .delete(tenant, NAMESPACE, &key)
+            .map_err(|_| "application provider storage unavailable")?
+        {
+            return Err("application provider not found".into());
+        }
+        Ok(())
+    }
     fn read(&self, tenant: &TenantScope, app: AppId, id: &str) -> Result<AppProviderWrite, String> {
         let key = Self::key(app, id)?;
         let value = self

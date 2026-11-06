@@ -10,7 +10,7 @@ use axum::{
 use vw_api_types::{agent_apps::AppId, app_providers::AppProviderWrite, id::TenantScope};
 
 pub(crate) fn router() -> Router {
-    Router::new().merge(catalog::router()).route(
+    Router::new().merge(catalog::router()).merge(delete::router()).route(
         "/app-providers/{app}/{id}",
         get(read)
             .put(save)
@@ -21,6 +21,12 @@ pub(crate) fn router() -> Router {
 }
 fn error(message: &str) -> Response {
     let (status, safe) = match message {
+        "application provider is referenced" => {
+            (StatusCode::CONFLICT, "Application provider is still referenced")
+        }
+        "application provider references unavailable" => {
+            (StatusCode::CONFLICT, "Application provider references cannot be verified")
+        }
         "application provider changed during update" => {
             (StatusCode::CONFLICT, "Application provider changed during update; retry")
         }
@@ -94,3 +100,8 @@ mod update;
 #[cfg(test)]
 #[path = "app_providers/update_tests.rs"]
 mod update_tests;
+
+mod delete;
+#[cfg(all(test, target_os = "macos"))]
+#[path = "app_providers/delete_tests.rs"]
+mod delete_tests;

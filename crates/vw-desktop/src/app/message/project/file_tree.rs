@@ -354,20 +354,11 @@ pub(crate) fn handle(app: &mut App, message: ProjectMessage) -> Option<iced::Tas
                         crate::app::message::PreviewMessage::Open(path),
                     )));
                 }
-                // 在文件管理器中显示：使用系统默认程序打开文件所在目录
-                // 该操作在 WASM 目标平台不可用
+                // 由数据网关所在主机定位文件，桌面与 WASM 共用同一入口。
                 FileTreeAction::RevealInFinder => {
-                    #[cfg(not(target_arch = "wasm32"))]
-                    {
-                        let target = std::path::Path::new(&path);
-                        // 如果是目录则直接打开，否则打开其父目录
-                        let open_path = if target.is_dir() {
-                            target
-                        } else {
-                            target.parent().unwrap_or(target)
-                        };
-                        let _ = open::that(open_path);
-                    }
+                    return Some(iced::Task::done(Message::View(
+                        crate::app::message::ViewMessage::OpenPathInFinder(path),
+                    )));
                 }
                 // 在终端中打开：在该目录下打开新的终端标签页
                 // 该操作在 WASM 目标平台不可用

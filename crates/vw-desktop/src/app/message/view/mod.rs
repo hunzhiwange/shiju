@@ -607,6 +607,11 @@ pub enum ViewMessage {
     /// # 参数
     /// - 要打开的文件系统路径
     OpenPathInFinder(String),
+    /// 数据网关完成文件管理器定位。
+    PathRevealFinished {
+        path: String,
+        result: Result<(), String>,
+    },
     /// 使用首选外部应用打开项目
     OpenProjectInExternalPreferred,
     /// 使用指定外部应用打开项目
@@ -917,6 +922,7 @@ pub fn update(app: &mut App, message: ViewMessage) -> Task<Message> {
         | ViewMessage::UsageTurnStepRawOpen(_, _)
         | ViewMessage::UsageStepRawClose
         | ViewMessage::OpenPathInFinder(_)
+        | ViewMessage::PathRevealFinished { .. }
         | ViewMessage::OpenProjectInExternalPreferred
         | ViewMessage::OpenProjectInExternalWith(_)
         | ViewMessage::CopyProjectPath

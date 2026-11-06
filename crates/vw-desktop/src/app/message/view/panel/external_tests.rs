@@ -205,3 +205,33 @@ fn unrelated_message_is_rejected_without_mutating_menu() {
     assert_eq!(app.active_menu, Some(MenuType::Help));
     assert!(!has_scheduled_action(task));
 }
+
+#[test]
+fn failed_path_reveal_shows_gateway_error_and_target_in_toast() {
+    let mut app = new_app();
+    let _ = super::update(
+        &mut app,
+        super::ViewMessage::PathRevealFinished {
+            path: "/gateway/文件.rs".to_string(),
+            result: Err("gateway unavailable".to_string()),
+        },
+    );
+    let toast = app.active_toast.as_ref().expect("gateway failures must be visible");
+    assert!(matches!(toast.kind, crate::app::state::ToastKind::Error));
+    assert!(toast.message.contains("/gateway/文件.rs"));
+    assert!(toast.message.contains("gateway unavailable"));
+}
+
+#[test]
+fn successful_path_reveal_does_not_show_toast() {
+    let mut app = new_app();
+    let task = super::update(
+        &mut app,
+        super::ViewMessage::PathRevealFinished {
+            path: "/gateway/file.rs".to_string(),
+            result: Ok(()),
+        },
+    );
+    assert!(app.active_toast.is_none());
+    assert!(!has_scheduled_action(task));
+}

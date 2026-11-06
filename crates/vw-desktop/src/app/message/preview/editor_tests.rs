@@ -390,19 +390,20 @@ fn preview_context_menu_request_preserves_selection_and_clears_lsp_overlay() {
 }
 
 #[cfg(not(target_arch = "wasm32"))]
-#[test]
-fn preview_context_menu_reveal_rejects_missing_file_without_spawning() {
-    let missing =
-        std::env::temp_dir().join(format!("vibe-window-missing-reveal-{}", std::process::id()));
-
-    let error = super::reveal_in_file_manager(&missing.to_string_lossy())
-        .expect_err("missing paths must not be sent to the file manager");
-
-    let error = error
-        .render(crate::app::i18n::I18n::new(vw_config_types::ui::DesktopLocale::SimplifiedChinese))
-        .unwrap();
-    assert!(error.contains("文件不存在"));
-    assert!(error.contains(&missing.to_string_lossy().to_string()));
+#[tokio::test]
+async fn preview_context_menu_reveal_routes_gateway_path_without_local_file_check() {
+    let mut app = test_app();
+    let path = "/gateway-only/project/文件.rs".to_string();
+    app.active_preview_path = Some(path.clone());
+    let task = update(
+        &mut app,
+        PreviewMessage::EditorEvent(iced_code_editor::Message::RevealInFileManager),
+    );
+    let messages = collect_task_messages(task).await;
+    assert!(matches!(
+        messages.as_slice(),
+        [Message::View(message::ViewMessage::OpenPathInFinder(target))] if target == &path
+    ));
 }
 
 #[test]

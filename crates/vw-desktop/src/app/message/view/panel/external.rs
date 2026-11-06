@@ -15,10 +15,20 @@ pub fn update(app: &mut App, message: ViewMessage) -> Task<Message> {
     match message {
         ViewMessage::OpenPathInFinder(path) => Task::perform(
             async move {
-                let _ = crate::app::session_gateway::gateway_external_reveal_async(&path).await;
+                let result =
+                    crate::app::session_gateway::gateway_external_reveal_async(&path).await;
+                ViewMessage::PathRevealFinished { path, result }
             },
-            |_| Message::None,
+            Message::View,
         ),
+        ViewMessage::PathRevealFinished { path, result } => match result {
+            Ok(()) => Task::none(),
+            Err(error) => app.show_localized_toast(
+                crate::app::state::ToastKind::Error,
+                "无法在文件管理器中显示 %s：%s",
+                vec![path.into(), error.into()],
+            ),
+        },
         ViewMessage::OpenProjectInExternalPreferred => {
             app.active_menu = None;
             let Some(path) = app.project_path.as_deref().map(str::to_owned) else {

@@ -182,6 +182,7 @@ pub fn update(app: &mut App, message: ViewMessage) -> Task<Message> {
         | ViewMessage::WebBookmarkRemove(_) => web::update(app, message),
 
         ViewMessage::OpenPathInFinder(_)
+        | ViewMessage::PathRevealFinished { .. }
         | ViewMessage::OpenProjectInExternalPreferred
         | ViewMessage::OpenProjectInExternalWith(_)
         | ViewMessage::CopyProjectPath => external::update(app, message),

@@ -261,10 +261,7 @@ pub fn update(app: &mut App, message: PreviewMessage) -> Task<Message> {
                 editor.set_line_height(app.current_line_height.clamp(10.0, 60.0));
                 editor.set_ui_language(crate::app::i18n::editor::language(app.desktop_locale));
                 editor.set_search_replace_enabled(true);
-                editor.configure_preview_context_menu(
-                    app.desktop_locale,
-                    cfg!(not(target_arch = "wasm32")),
-                );
+                editor.configure_preview_context_menu(app.desktop_locale, true);
 
                 app.preview_messages.remove(&path_clone);
                 if !instant_preview {
@@ -391,10 +388,7 @@ pub fn update(app: &mut App, message: PreviewMessage) -> Task<Message> {
                 editor.set_line_height(line_height.clamp(10.0, 60.0));
                 editor.set_ui_language(language);
                 editor.set_search_replace_enabled(true);
-                editor.configure_preview_context_menu(
-                    app.desktop_locale,
-                    cfg!(not(target_arch = "wasm32")),
-                );
+                editor.configure_preview_context_menu(app.desktop_locale, true);
                 tab.editor = editor;
                 #[cfg(not(target_arch = "wasm32"))]
                 {

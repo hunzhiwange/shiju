@@ -111,7 +111,18 @@ pub fn view(app: &App) -> Element<'_, Message> {
                     if i > 0 {
                         row = row.push(small_icon_svg(Icon::ChevronRight));
                     }
-                    row = row.push(container(text(name.clone()).size(12)).padding([2, 6]));
+                    let target = Path::new(active_path)
+                        .ancestors()
+                        .nth(display_segments.len() - i - 1)
+                        .unwrap_or_else(|| Path::new(active_path));
+                    row = row.push(
+                        button(text(name.clone()).size(12))
+                            .padding([2, 6])
+                            .style(iced::widget::button::text)
+                            .on_press(Message::View(message::ViewMessage::OpenPathInFinder(
+                                target.to_string_lossy().into_owned(),
+                            ))),
+                    );
                 }
                 row.into()
             }

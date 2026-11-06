@@ -8,7 +8,7 @@ pub(super) struct FileRevision {
     pub before: Option<String>,
     pub after: String,
 }
-fn digest(bytes: &[u8]) -> String {
+pub(super) fn digest(bytes: &[u8]) -> String {
     URL_SAFE_NO_PAD.encode(Sha256::digest(bytes))
 }
 

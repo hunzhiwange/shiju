@@ -86,6 +86,11 @@ pub async fn run_gateway(host: &str, port: u16, mut config: Config) -> Result<()
     config.gateway.skeys = config::load_gateway_skeys_for_tenant(&TenantScope::default())
         .await
         .map_err(|error| anyhow::anyhow!(error.to_string()))?;
+    #[cfg(target_os = "macos")]
+    tokio::task::spawn_blocking(api::handlers::agent_apps::recover_providers_on_startup)
+        .await
+        .context("provider startup recovery task failed")?
+        .map_err(anyhow::Error::msg)?;
     let config_state = Arc::new(Mutex::new(config.clone()));
 
     let hook_runtime = crate::app::agent::hooks::build_hook_runtime(&config)

@@ -32,6 +32,8 @@ pub enum FilePrivacy {
 /// Fixed errors deliberately exclude credentials, input bytes and host paths.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum WriteError {
+    /// A prior transaction was recovered; reload state before retrying.
+    Recovered,
     InvalidResource,
     Io,
 }
@@ -52,7 +54,7 @@ fn locks() -> &'static LockTable {
 
 #[derive(Debug)]
 pub struct AppWriteGuard {
-    directory: File,
+    pub(super) directory: File,
     keys: [LockKey; 2],
 }
 
@@ -66,6 +68,10 @@ pub fn lock_app(app: AppId, directory: &Path) -> Result<AppWriteGuard, WriteErro
         .custom_flags(libc::O_DIRECTORY | libc::O_NOFOLLOW | libc::O_CLOEXEC)
         .open(directory)
         .map_err(|_| WriteError::InvalidResource)?;
+    lock_directory(app, directory)
+}
+
+pub(super) fn lock_directory(app: AppId, directory: File) -> Result<AppWriteGuard, WriteError> {
     let metadata = directory.metadata().map_err(|_| WriteError::Io)?;
     let keys = [LockKey::App(app), LockKey::Directory(metadata.dev(), metadata.ino())];
     let (held, released) = locks();
@@ -125,7 +131,18 @@ impl AppWriteGuard {
 }
 
 pub(super) fn read_from(directory: &File, name: &OsStr) -> Result<Option<Vec<u8>>, WriteError> {
-    let name = checked_name(name)?;
+    read_child(directory, &checked_name(name)?)
+}
+
+pub(super) fn read_staged(directory: &File, name: &OsStr) -> Result<Option<Vec<u8>>, WriteError> {
+    if !name.as_bytes().starts_with(b".shiju-live-") || name.as_bytes().contains(&b'/') {
+        return Err(WriteError::InvalidResource);
+    }
+    let name = CString::new(name.as_bytes()).map_err(|_| WriteError::InvalidResource)?;
+    read_child(directory, &name)
+}
+
+fn read_child(directory: &File, name: &CString) -> Result<Option<Vec<u8>>, WriteError> {
     // SAFETY: retained directory descriptor and validated C string.
     let raw = unsafe {
         libc::openat(

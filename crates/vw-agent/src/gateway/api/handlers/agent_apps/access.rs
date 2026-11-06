@@ -332,3 +332,45 @@ pub(super) fn authorize_provider_config(
     authorize_scoped(path, headers, tenant, target, None, Capability::ProviderConfigRead)
         .map(|a| a.host)
 }
+
+/// Startup consumes the same administrator-owned host identities and private
+/// roots as account execution. No request path, token or ambient HOME fallback.
+#[cfg(target_os = "macos")]
+pub(super) fn recover_provider_policy(path: &Path) -> Result<(), ()> {
+    use vw_agent_apps::providers::live::{
+        commit::{ExecutionHostId, ProviderTransactions},
+        recovery::RecoveryOutcome,
+    };
+    for host in load(path)?.hosts {
+        if !host.online || !matches!(host.binding, Binding::Local) {
+            continue;
+        }
+        let Some(root) = host.credential_root else {
+            continue;
+        };
+        // Unused hosts have no transactions. Do not provision a root at startup.
+        if !root.join("provider-live").try_exists().map_err(|_| ())? {
+            continue;
+        }
+        let transactions =
+            ProviderTransactions::new(&root, ExecutionHostId::new(&host.id).map_err(|_| ())?)
+                .map_err(|_| ())?;
+        for (app, outcome) in transactions.recover_on_startup() {
+            match outcome {
+                Ok(RecoveryOutcome::Discarded) => {
+                    tracing::info!(?app, "discarded unpublished provider transaction")
+                }
+                Ok(RecoveryOutcome::RolledForward) => {
+                    tracing::info!(?app, "recovered provider transaction")
+                }
+                Ok(RecoveryOutcome::RolledForwardExcept { names }) => tracing::warn!(
+                    ?app,
+                    skipped = names.len(),
+                    "partially recovered provider transaction; external files preserved"
+                ),
+                Err(_) => tracing::warn!(?app, "provider recovery failed; pending intent retained"),
+            }
+        }
+    }
+    Ok(())
+}

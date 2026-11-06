@@ -1,6 +1,6 @@
 //! Execution-host state owner. Construct only from a trusted host's private data
 //! root (the same source as CredentialFileStore), never a request path or HOME.
-//! No application adapters, public file API, recovery or cross-file rollback.
+//! No application adapters, public file API or cross-file rollback.
 use super::{
     stage::FileChange,
     write_guard::{AppWriteGuard, FilePrivacy, WriteError, prepare, read_from},
@@ -83,8 +83,8 @@ pub struct Pending {
 }
 
 pub struct ProviderTransactions {
-    directory: File,
-    host: ExecutionHostId,
+    pub(super) directory: File,
+    pub(super) host: ExecutionHostId,
 }
 impl ProviderTransactions {
     /// Executor initialization factory. Caller supplies the authorized host's
@@ -122,7 +122,7 @@ impl ProviderTransactions {
             .map(Option::unwrap_or_default)
     }
     /// Holds the physical application guard for staging, intent, publication and
-    /// state settlement. Existing pending rejects every tenant until recovery.
+    /// state settlement. Recovery stops this request so the caller can replan.
     pub fn commit(
         &self,
         tenant: &TenantScope,
@@ -133,9 +133,11 @@ impl ProviderTransactions {
         validate_target(&target)?;
         let app = guard.app();
         let _lock = self.lock(app)?;
-        if self.pending(app)?.is_some() {
-            return Err(WriteError::InvalidResource);
+        if self.recover_locked(guard)?.is_some() {
+            // Recovery can move state. The caller must re-read and replan.
+            return Err(WriteError::Recovered);
         }
+        self.register(guard)?;
         let mut state = self.state(app)?;
         let mut batch = guard.stage(changes)?;
         if batch.is_empty() {
@@ -179,6 +181,7 @@ impl ProviderTransactions {
         for write in &batch.writes {
             write.publish()?;
             write.directory.sync_all().map_err(|_| WriteError::Io)?;
+            checkpoint(self, app, Phase::FilePublished)?;
         }
         checkpoint(self, app, Phase::Published)?;
         apply_target(&mut state, tenant, &pending.target);
@@ -193,7 +196,12 @@ impl ProviderTransactions {
         self.directory.sync_all().map_err(|_| WriteError::Io)
     }
 
-    fn save(&self, app: AppId, kind: &str, value: &impl Serialize) -> Result<(), WriteError> {
+    pub(super) fn save(
+        &self,
+        app: AppId,
+        kind: &str,
+        value: &impl Serialize,
+    ) -> Result<(), WriteError> {
         let bytes = serde_json::to_vec(value).map_err(|_| WriteError::InvalidResource)?;
         if bytes.len() > 1024 * 1024 {
             return Err(WriteError::InvalidResource);
@@ -202,7 +210,7 @@ impl ProviderTransactions {
             .commit()?;
         self.directory.sync_all().map_err(|_| WriteError::Io)
     }
-    fn lock(&self, app: AppId) -> Result<File, WriteError> {
+    pub(super) fn lock(&self, app: AppId) -> Result<File, WriteError> {
         let name = CString::new(filename(app, "lock")).map_err(|_| WriteError::InvalidResource)?;
         // SAFETY: retained directory and validated generated name; owns returned fd.
         let fd = unsafe {
@@ -233,7 +241,7 @@ impl ProviderTransactions {
         Ok(file)
     }
 }
-fn filename(app: AppId, kind: &str) -> String {
+pub(super) fn filename(app: AppId, kind: &str) -> String {
     format!(
         "{}.{kind}.json",
         serde_json::to_value(app)
@@ -275,7 +283,7 @@ fn private_child(parent: &File, name: &str) -> Result<File, WriteError> {
     parent.sync_all().map_err(|_| WriteError::Io)?;
     Ok(file)
 }
-fn validate_target(target: &PendingTarget) -> Result<(), WriteError> {
+pub(super) fn validate_target(target: &PendingTarget) -> Result<(), WriteError> {
     for id in target.pointer.iter().chain(target.mode.iter().filter_map(|m| m.proxy_route.as_ref()))
     {
         crate::providers::validate_identity(id).map_err(|_| WriteError::InvalidResource)?;
@@ -285,7 +293,7 @@ fn validate_target(target: &PendingTarget) -> Result<(), WriteError> {
     }
     Ok(())
 }
-fn apply_target(state: &mut AppState, tenant: &TenantScope, target: &PendingTarget) {
+pub(super) fn apply_target(state: &mut AppState, tenant: &TenantScope, target: &PendingTarget) {
     if let Some(id) = &target.pointer {
         state.pointer = Some(ScopedProvider { tenant: tenant.clone(), id: id.clone() });
     }
@@ -298,6 +306,7 @@ fn apply_target(state: &mut AppState, tenant: &TenantScope, target: &PendingTarg
 pub(super) enum Phase {
     Intent,
     Marked,
+    FilePublished,
     Published,
     Settled,
 }

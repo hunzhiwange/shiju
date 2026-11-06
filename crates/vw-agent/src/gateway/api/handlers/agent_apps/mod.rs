@@ -168,3 +168,40 @@ pub(super) fn provider_config_home(
 ) -> Result<std::path::PathBuf, axum::http::StatusCode> {
     access::authorize_provider_config(path, headers, tenant, target).map(|host| host.home)
 }
+
+/// Runs before the gateway accepts requests, without depending on a desktop page.
+#[cfg(target_os = "macos")]
+pub(crate) fn recover_providers_on_startup() -> Result<(), String> {
+    if let Some(path) = std::env::var_os("SHIJU_AGENT_APPS_ACCESS_FILE") {
+        return access::recover_provider_policy(std::path::Path::new(&path))
+            .map_err(|_| "provider recovery policy unavailable".into());
+    }
+    // The configured runtime root locates existing tenant policies only. Live
+    // resource paths always come from previously persisted executor registration.
+    let directory =
+        vw_config_types::paths::home_config_dir(&crate::global::paths().home).join("local-apps");
+    let entries = match std::fs::read_dir(directory) {
+        Ok(entries) => entries,
+        Err(error) if error.kind() == std::io::ErrorKind::NotFound => return Ok(()),
+        Err(_) => return Err("provider recovery policy directory unavailable".into()),
+    };
+    for entry in entries {
+        let entry = entry.map_err(|_| "provider recovery policy directory unavailable")?;
+        if !entry
+            .file_type()
+            .map_err(|_| "provider recovery policy directory unavailable")?
+            .is_dir()
+        {
+            continue;
+        }
+        let path = entry.path().join("access.json");
+        if path.try_exists().map_err(|_| "provider recovery policy unavailable")? {
+            access::recover_provider_policy(&path)
+                .map_err(|_| "provider recovery policy unavailable")?;
+        }
+    }
+    Ok(())
+}
+
+#[cfg(all(test, target_os = "macos"))]
+mod recovery_tests;

@@ -153,14 +153,12 @@ fn cc04_commit_interruption_retains_durable_intent_and_staging() {
             assert_eq!(fs::read(staged).unwrap(), b"new");
             assert!(transactions.state(AppId::Codex).unwrap().pointer.is_none());
         }
-        // Neither the originating tenant nor a different tenant may replace intent.
-        for scope in [tenant, TenantScope::new("other-p", "other-c").unwrap()] {
-            assert!(transactions.commit(&scope, &mut guard, &changes, target()).is_err());
-        }
+        // Recovery completes the old tenant's intent before accepting new work.
         assert_eq!(
-            transactions.pending(AppId::Codex).unwrap().unwrap().files[0].planned,
-            pending.files[0].planned
+            transactions.commit(&tenant, &mut guard, &changes, target()),
+            Err(super::write_guard::WriteError::Recovered)
         );
+        assert!(transactions.pending(AppId::Codex).unwrap().is_none());
     }
 }
 

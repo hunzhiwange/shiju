@@ -26,3 +26,8 @@ mod stage_tests;
 pub mod commit;
 #[cfg(all(test, target_os = "macos"))]
 mod commit_tests;
+
+#[cfg(target_os = "macos")]
+pub mod recovery;
+#[cfg(all(test, target_os = "macos"))]
+mod recovery_tests;

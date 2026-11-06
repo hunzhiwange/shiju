@@ -30,3 +30,49 @@ pub(crate) async fn connect(
     #[cfg(target_arch = "wasm32")]
     Err("请在桌面应用中添加本机应用".into())
 }
+
+/// Only our private local grant may default to this machine's existing CLI configuration.
+pub(super) fn launch_directory(
+    client: &GatewayClient,
+    host: &str,
+    token: &str,
+    project: Option<&str>,
+) -> Option<String> {
+    if host != vw_shared::local_apps::HOST_ID || !client.endpoint().is_loopback() {
+        return None;
+    }
+    #[cfg(not(target_arch = "wasm32"))]
+    {
+        let base = directories::BaseDirs::new()?;
+        verified_launch_directory(base.home_dir(), client.endpoint().tenant_scope(), token, project)
+    }
+    #[cfg(target_arch = "wasm32")]
+    {
+        let _ = (token, project);
+        None
+    }
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+pub(super) fn verified_launch_directory(
+    home: &std::path::Path,
+    tenant: &vw_gateway_client::vw_api_types::id::TenantScope,
+    token: &str,
+    project: Option<&str>,
+) -> Option<String> {
+    let credentials = vw_shared::local_apps::restore(
+        home,
+        tenant.platform_id().as_ref(),
+        tenant.company_id().as_ref(),
+    )
+    .ok()??;
+    if credentials.token != token {
+        return None;
+    }
+    Some(
+        project
+            .filter(|p| !p.trim().is_empty())
+            .map(str::to_owned)
+            .unwrap_or_else(|| home.to_string_lossy().into_owned()),
+    )
+}

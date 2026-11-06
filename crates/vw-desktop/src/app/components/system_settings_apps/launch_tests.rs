@@ -205,3 +205,64 @@ fn cc_apps_desktop_launch_state_identity_reply_scope_and_no_forged_selection() {
     let _ = route(&mut app, LaunchMessage::Select(LaunchChoice::Identity(identity.clone())));
     assert_eq!(app.apps_catalog.launch.selected, Some(LaunchChoice::Identity(identity)));
 }
+
+#[test]
+fn cc_apps_desktop_launch_state_explains_disabled_action_and_blocks_uncertain_replay() {
+    let mut state = draft();
+    state.selected = None;
+    assert_eq!(state.blocked_reason(), Some("请选择启动身份。"));
+    state.selected = Some(LaunchChoice::ExistingConfiguration);
+    state.request.as_mut().unwrap().cwd.clear();
+    assert_eq!(state.blocked_reason(), Some("请填写工作目录。"));
+    state.request.as_mut().unwrap().cwd = "/fixture/project".into();
+    assert!(state.blocked_reason().is_none());
+    let (generation, _) = state.begin().unwrap();
+    state.finish(generation, Err("启动结果不明".into()));
+    assert!(state.blocked_reason().is_some());
+    assert!(state.begin().is_none());
+}
+
+#[cfg(unix)]
+#[test]
+fn cc_apps_desktop_launch_state_defaults_only_for_matching_private_local_grant() {
+    let home = tempfile::tempdir().unwrap();
+    let tenant = vw_gateway_client::vw_api_types::id::TenantScope::new(
+        "fixture-platform",
+        "fixture-company",
+    )
+    .unwrap();
+    let credentials =
+        vw_shared::local_apps::initialize(home.path(), "fixture-platform", "fixture-company")
+            .unwrap();
+    let directory =
+        |tenant: &vw_gateway_client::vw_api_types::id::TenantScope, token: &str, project| {
+            super::local::verified_launch_directory(home.path(), tenant, token, project)
+        };
+    assert_eq!(
+        directory(&tenant, &credentials.token, None),
+        Some(home.path().to_string_lossy().into_owned())
+    );
+    assert_eq!(
+        directory(&tenant, &credentials.token, Some("/fixture/project")),
+        Some("/fixture/project".into())
+    );
+    assert!(directory(&tenant, "unrelated-credential", None).is_none());
+    let other =
+        vw_gateway_client::vw_api_types::id::TenantScope::new("fixture-platform", "other-company")
+            .unwrap();
+    assert!(directory(&other, &credentials.token, None).is_none());
+    let remote = vw_gateway_client::GatewayClient::new(vw_gateway_client::GatewayEndpoint::new(
+        "remote.example",
+        42617,
+    ))
+    .unwrap();
+    assert!(
+        super::local::launch_directory(
+            &remote,
+            vw_shared::local_apps::HOST_ID,
+            &credentials.token,
+            None
+        )
+        .is_none()
+    );
+}

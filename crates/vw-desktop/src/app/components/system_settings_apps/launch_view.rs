@@ -38,7 +38,7 @@ pub(crate) fn overlay<'a>(
     let choices: Vec<_> = std::iter::once(LaunchChoice::ExistingConfiguration)
         .chain(state.identities.iter().cloned().map(LaunchChoice::Identity))
         .collect();
-    let mut identities = column![text("启动身份（必须明确选择）").size(13)].spacing(8);
+    let mut identities = column![text("启动身份").size(13)].spacing(8);
     if state.identities_ready && !state.busy && !state.accepted {
         identities = identities.push(
             pick_list(choices, state.selected.clone(), |v| event(LaunchMessage::Select(v)))
@@ -122,23 +122,28 @@ pub(crate) fn overlay<'a>(
                     scrollable::Scrollbar::new().width(4).scroller_width(4)
                 ))
                 .height(Length::Fill),
+            text(state.blocked_reason().unwrap_or("准备就绪，点击启动将在所选主机打开终端。"))
+                .size(12)
+                .style(settings_muted_text_style),
             row![
                 button(text("关闭"))
                     .padding([8, 16])
                     .style(rounded_action_btn_style)
                     .on_press_maybe((!state.busy).then_some(close.clone())),
-                button(text("在所选主机启动"))
-                    .padding([8, 16])
-                    .style(primary_action_btn_style)
-                    .on_press_maybe(
-                        (!state.busy
-                            && !state.accepted
-                            && state.error.is_none()
-                            && state.identities_ready
-                            && state.selected.is_some()
-                            && !request.cwd.trim().is_empty())
-                        .then_some(event(LaunchMessage::Submit))
-                    ),
+                button(text(if catalog.host == vw_shared::local_apps::HOST_ID {
+                    "在本机启动"
+                } else {
+                    "在所选主机启动"
+                }))
+                .padding([8, 16])
+                .style(|theme, status| if status == iced::widget::button::Status::Disabled {
+                    rounded_action_btn_style(theme, status)
+                } else {
+                    primary_action_btn_style(theme, status)
+                })
+                .on_press_maybe(
+                    state.blocked_reason().is_none().then_some(event(LaunchMessage::Submit))
+                ),
             ]
             .spacing(10),
         ]

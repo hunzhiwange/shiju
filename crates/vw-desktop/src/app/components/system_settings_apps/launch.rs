@@ -42,19 +42,38 @@ impl LaunchState {
     pub fn invalidate(&mut self) {
         *self = Self { generation: self.generation.wrapping_add(1), ..Default::default() };
     }
+    pub fn blocked_reason(&self) -> Option<&'static str> {
+        if self.busy {
+            return Some("正在等待主机确认，请稍候。");
+        }
+        if self.accepted {
+            return Some("已提交启动，请查看终端或上方会话状态。");
+        }
+        if self.error.is_some() {
+            return Some("请先查看上方错误提示，关闭后重新打开。");
+        }
+        if self.identities_loading {
+            return Some("正在读取启动身份，请稍候。");
+        }
+        if !self.identities_ready {
+            return Some("启动身份尚未就绪，请关闭后重新打开。");
+        }
+        if self.selected.is_none() {
+            return Some("请选择启动身份。");
+        }
+        let Some(request) = &self.request else {
+            return Some("请先选择应用实例。");
+        };
+        if request.cwd.trim().is_empty() {
+            return Some("请填写工作目录。");
+        }
+        None
+    }
     pub fn begin(&mut self) -> Option<(u64, LaunchRequest)> {
-        if self.busy
-            || self.accepted
-            || self.identities_loading
-            || !self.identities_ready
-            || self.selected.is_none()
-        {
+        if self.blocked_reason().is_some() {
             return None;
         }
         let request = self.request.clone()?;
-        if request.cwd.trim().is_empty() {
-            return None;
-        }
         self.busy = true;
         self.generation = self.generation.wrapping_add(1);
         Some((self.generation, request))
@@ -267,10 +286,17 @@ pub(crate) fn update(app: &mut App, message: LaunchMessage) -> Task<Message> {
                 return app.show_error_toast("所选实例已失效，请刷新应用");
             }
             catalog.launch.invalidate();
+            let cwd = super::local::launch_directory(
+                &client,
+                &catalog.host,
+                &catalog.token,
+                app.project_path.as_deref(),
+            );
+            catalog.launch.selected = cwd.as_ref().map(|_| LaunchChoice::ExistingConfiguration);
             catalog.launch.request = Some(LaunchRequest {
                 app_id: id,
                 installation_id,
-                cwd: String::new(),
+                cwd: cwd.unwrap_or_default(),
                 args: vec![],
                 skip_permissions: false,
             });

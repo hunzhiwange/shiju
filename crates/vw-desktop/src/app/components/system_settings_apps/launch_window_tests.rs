@@ -31,7 +31,7 @@ impl Harness {
             }),
             args: vec!["中文动态参数；不执行 shell".into(), "第二个参数".into()],
             identities_ready: true,
-            identities: if self.case % 5 == 3 {
+            identities: if self.case % 6 == 3 {
                 vec![]
             } else {
                 vec![
@@ -52,15 +52,20 @@ impl Harness {
                 id: "account-fixture".into(),
                 label: "中文官方账号".into(),
             })),
-            phase: (self.case % 5 == 0).then_some(LaunchSessionPhase::Completed),
-            accepted: self.case % 5 == 0,
-            busy: self.case % 5 == 2,
-            error: (self.case % 5 == 1)
+            phase: (self.case % 6 == 0).then_some(LaunchSessionPhase::Completed),
+            accepted: self.case % 6 == 0,
+            busy: self.case % 6 == 2,
+            error: (self.case % 6 == 1)
                 .then(|| "执行主机拒绝目录；没有回退本地终端或其他账号".into()),
             ..Default::default()
         };
-        if self.case % 5 == 3 {
+        if self.case % 6 == 3 {
             self.state.launch.selected = None;
+        } else if self.case % 6 == 5 {
+            self.state.host = vw_shared::local_apps::HOST_ID.into();
+            self.state.launch.identities.clear();
+            self.state.launch.selected =
+                Some(system_settings_apps::launch::LaunchChoice::ExistingConfiguration);
         }
     }
 
@@ -73,7 +78,7 @@ impl Harness {
                 if self.frames == 2 {
                     return iced::widget::operation::snap_to(
                         "apps-launch-body",
-                        if self.case % 5 == 4 {
+                        if self.case % 6 == 4 {
                             iced::widget::scrollable::RelativeOffset::END
                         } else {
                             iced::widget::scrollable::RelativeOffset::START
@@ -89,8 +94,9 @@ impl Harness {
                 image::save_buffer(
                     self.root.join(format!(
                         "{}-{}.png",
-                        if self.case < 5 { "light" } else { "dark" },
-                        ["accepted", "error", "disabled", "ready", "fields"][self.case % 5]
+                        if self.case < 6 { "light" } else { "dark" },
+                        ["accepted", "error", "disabled", "ready", "fields", "local-ready"]
+                            [self.case % 6]
                     )),
                     &screenshot.rgba,
                     screenshot.size.width,
@@ -99,8 +105,8 @@ impl Harness {
                 )
                 .unwrap();
                 self.case += 1;
-                if self.case == 10 {
-                    eprintln!("PASS: 10 native Chinese launch scenarios; no shaping panic");
+                if self.case == 12 {
+                    eprintln!("PASS: 12 native Chinese launch scenarios; no shaping panic");
                     return iced::exit();
                 }
                 self.frames = 0;
@@ -142,7 +148,7 @@ pub fn run() {
         Harness::view,
     )
     .title("终端启动实际渲染验收")
-    .theme(|state: &Harness, _| if state.case < 5 { Theme::Light } else { Theme::Dark })
+    .theme(|state: &Harness, _| if state.case < 6 { Theme::Light } else { Theme::Dark })
     .subscription(|_| window::frames().map(|_| Message::Frame))
     .settings(iced::Settings {
         fonts: crate::fonts::load_all(),

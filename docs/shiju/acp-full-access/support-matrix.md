@@ -1,6 +1,6 @@
 # ACP 完全访问支持矩阵
 
-审计日期：2026-11-06（Asia/Shanghai）；审计平台：macOS / Darwin arm64。状态：静态基线已完成；Codex 与 Claude 固定制品的 macOS arm64 原生权限与撤销已验收，具体入口与边界见 [Codex 证据](evidence/codex.md)、[Claude 证据](evidence/claude.md)。Gemini 已核验为客户端自动批准，原生自动提权因确认及工具/提示词副作用不接入，见 [Gemini 证据](evidence/gemini.md)。Qwen 固定 npm 与现有托管补丁入口已核验原生免审批与撤销，见 [Qwen 证据](evidence/qwen.md)。Qoder 已接入公布的会话 mode 配置，权限工具效果未实机验收，见 [Qoder 接入说明](evidence/qoder.md)。Vibe 保留客户端自动批准，并为显式 auto-approve agent 加入授权及撤销保护，未实机验收，见 [Vibe 接入说明](evidence/vibe.md)。Kiro 已接入 V3 会话 policyPreset，效果未实机验收，见 [Kiro 接入说明](evidence/kiro.md)。其他后端原生能力仍未知。
+审计日期：2026-11-06（Asia/Shanghai）；审计平台：macOS / Darwin arm64。状态：静态基线已完成；Codex 与 Claude 固定制品的 macOS arm64 原生权限与撤销已验收，具体入口与边界见 [Codex 证据](evidence/codex.md)、[Claude 证据](evidence/claude.md)。Gemini 已核验为客户端自动批准，原生自动提权因确认及工具/提示词副作用不接入，见 [Gemini 证据](evidence/gemini.md)。Qwen 固定 npm 与现有托管补丁入口已核验原生免审批与撤销，见 [Qwen 证据](evidence/qwen.md)。Qoder 已接入公布的会话 mode 配置，权限工具效果未实机验收，见 [Qoder 接入说明](evidence/qoder.md)。Vibe 保留客户端自动批准，并为显式 auto-approve agent 加入授权及撤销保护，未实机验收，见 [Vibe 接入说明](evidence/vibe.md)。Kiro 已接入 V3 会话 policyPreset，效果未实机验收，见 [Kiro 接入说明](evidence/kiro.md)。OpenCode 使用逐次客户端自动批准，避免写入会话永久授权，见 [OpenCode 接入说明](evidence/opencode.md)。其他后端原生能力仍未知。
 
 范围为 `BUILT_IN_AGENT_DEFINITIONS` 的 22 个稳定 key；别名和 `claude-legacy` 不另计。注册表、启动快照、哈希及逐项官方版本来源见 [证据清单](evidence/README.md)。初始静态审计仅修改文档；后续后端适配与验证按各独立证据文件记账。
 
@@ -14,7 +14,7 @@
 
 - E3：指定平台、版本、启动路径与模型来源的真实协议和工具结果验收。Codex、Claude、Qwen 的限定路径已有权限 E3，其他后端尚无。
 
-分类使用“原生免审批”“客户端自动批准”“部分支持”“不可用”。Codex、Claude、Qwen 限定路径已核验原生支持，Gemini 为已核验的客户端批准与原生接入拒绝；其余项为**部分支持（E1 客户端机制；原生未知）**；这不是 22 项实机可用承诺。下表中的 `session_model 不可用` 只指该模型来源已有显式拒绝，不等于 CLI 本地模式不可用。原生未知不得展示为原生支持。
+分类使用“原生免审批”“客户端自动批准”“部分支持”“不可用”。Codex、Claude、Qwen 限定路径已核验原生支持，Gemini 为已核验的客户端批准与原生接入拒绝，OpenCode 为源码确认的客户端逐次批准（未实机验收）；其余项为**部分支持（E1 客户端机制；原生未知）**；这不是 22 项实机可用承诺。下表中的 `session_model 不可用` 只指该模型来源已有显式拒绝，不等于 CLI 本地模式不可用。原生未知不得展示为原生支持。
 
 `cli_local` 沿注册表选择命令并使用 CLI 本地模型配置；`session_model` 经 `model_source::prepare` 和对应 `drivers::<key>::configure` 生成私有配置/模型中继。模型路由验收与权限验收分别记账。
 
@@ -40,7 +40,7 @@
 | [kilocode](evidence/README.md#kilocode) / E1 | 7.8.18 | 7.8.27 | 部分支持：客户端自动批准有源码、原生未知；session_model 有驱动和版本门控 | 固定真实 CLI，采集 initialize/权限选项并验证开启→关闭→恢复 |
 | [kimi](evidence/README.md#kimi) / E1 | 2.5.0 | 2.5.1 | 部分支持：客户端自动批准有源码、原生未知；session_model 有驱动和版本门控 | 固定真实 CLI，采集 initialize/权限选项并验证开启→关闭→恢复 |
 | [kiro](evidence/kiro.md) / E1、官方协议文档 | 3.0.0 | 3.1.0 | 部分支持：new/load 按当前授权请求 V3 policyPreset allow-all 或空列表；客户端自动批准保留，硬拒绝、敏感路径 ask 与 sandbox_network 不被预设覆盖；session_model 原有门控保留 | 用户要求跳过测试；开启、关闭、恢复和跨平台执行未实机验收 |
-| [opencode](evidence/README.md#opencode) / E1 | 1.19.5 | 1.19.5 | 部分支持：客户端自动批准有源码、原生未知；session_model 有驱动和版本门控 | 固定真实 CLI，采集 initialize/权限选项并验证开启→关闭→恢复 |
+| [opencode](evidence/opencode.md) / E1、E2 | 1.19.5 | 1.19.5 | 客户端自动批准：仅选择 allow_once，按当前 permissionMode 处理；不注入全局 allow，不把 agent mode 当权限开关；session_model 原有门控保留 | 用户要求跳过测试；执行、关闭、恢复和跨平台效果未实机验收 |
 | [openclaw](evidence/README.md#openclaw) / E1 | 2026.10.10 | 2026.11.1 | 部分支持：客户端自动批准有源码、原生未知；session_model 有驱动和版本门控 | 核对 gateway exec 审批与 ACP 客户端回调边界 |
 | [pi](evidence/README.md#pi) / E1 | 0.0.22 | 0.0.34 | 部分支持：客户端自动批准有源码、原生未知；session_model 有驱动和版本门控 | 核对 ACP adapter 与 Pi RPC 原生工具审批边界 |
 | [qoder](evidence/qoder.md) / E1、协议字段采集 | 1.1.82 | 1.1.83 | 部分支持：已接入 mode default↔yolo 与客户端审批；实机效果未测，不宣称已验证原生支持；session_model 原有账号权益门控保留 | 用户要求跳过测试；后续可补工具执行、恢复、deny 与跨平台实机验收 |
@@ -71,7 +71,7 @@ U = 未获取该后端真实权限协议/结果；C = 仅共享客户端源码�
 | kilocode | U | U/U/U | U | U | C | C | C | U |
 | kimi | U | U/U/U | U | U | C | C | C | U |
 | kiro | U | new/load 已接入 policyPreset；resume 走同 ID load；未实测 | 不杜撰权限 config | 不切换 agent | C；未实机计数 | C | C | allow-all 不覆盖 sandbox_network；未实测 |
-| opencode | U | U/U/U | U | U | C | C | C | U |
+| opencode | U | 现有 new/load/resume 路径；未实测 | E2：仅 model/effort/mode，无权限开关 | E2：agent 名称，不自动切换 | E2：once/always/reject；客户端仅逐次批准，未实机计数 | C；未实测 | C；未实测 | U；不覆盖原生 deny |
 | openclaw | U | U/U/U | U | U | C | C | C | U |
 | pi | U | U/U/U | U | U | C | C | C | U |
 | qoder | 1.1.83 字段已采集 | new 字段已采集；load/resume 仅代码接入 | mode default↔yolo 已接入，未测执行效果 | 公布 default/acceptEdits/auto/dontAsk/yolo | C；未实机计数 | C；未实机执行 | C；未实机执行 | U |

@@ -40,6 +40,7 @@ impl AcpClient {
         });
         AcpEventClient {
             claude_permissions: self.agent_name == "claude",
+            opencode_permissions: self.agent_name == "opencode",
             reject_untyped_workflow_permissions: matches!(
                 self.agent_name.as_str(),
                 "gemini" | "qwen"
@@ -115,12 +116,13 @@ impl acp::Client for AcpEventClient {
             return Err(acp::Error::invalid_params().data("Claude plan confirmation requires explicit user interaction; automatic tool approval cannot answer it"));
         }
 
-        let response = resolve_permission_request(
-            &args,
-            self.permission_mode,
-            self.non_interactive_permissions,
-        )
-        .map_err(acp::Error::into_internal_error)?;
+        let resolve = if self.opencode_permissions {
+            crate::access_policy::opencode::resolve_permission_request
+        } else {
+            resolve_permission_request
+        };
+        let response = resolve(&args, self.permission_mode, self.non_interactive_permissions)
+            .map_err(acp::Error::into_internal_error)?;
         match classify_permission_decision(&args, &response) {
             PermissionDecision::Approved => self.permission_stats.lock().approved += 1,
             PermissionDecision::Denied => self.permission_stats.lock().denied += 1,

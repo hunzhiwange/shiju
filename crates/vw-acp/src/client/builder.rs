@@ -88,6 +88,16 @@ impl AcpClient {
         modes: Option<&acp::SessionModeState>,
         config_options: Option<&[acp::SessionConfigOption]>,
     ) -> crate::AccessPolicy {
+        if self.agent_name == "opencode" {
+            // OpenCode modes select agents, not permission policies. Its model,
+            // effort and mode config options do not advertise native access control.
+            return crate::AccessPolicy::resolve(
+                self.full_access,
+                self.permission_mode,
+                None,
+                None,
+            );
+        }
         let mut policy = crate::AccessPolicy::resolve(
             self.full_access,
             self.permission_mode,

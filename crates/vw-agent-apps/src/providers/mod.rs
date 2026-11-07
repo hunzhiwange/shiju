@@ -202,3 +202,8 @@ mod kimi_tests;
 pub mod dsh;
 #[cfg(all(test, target_os = "macos"))]
 mod dsh_tests;
+
+#[cfg(target_os = "macos")]
+pub mod agy;
+#[cfg(all(test, target_os = "macos"))]
+mod agy_tests;

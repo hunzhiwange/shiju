@@ -225,3 +225,9 @@ mod dsh;
 #[cfg(test)]
 #[path = "app_providers/dsh_tests.rs"]
 mod dsh_tests;
+
+#[path = "app_providers/agy.rs"]
+mod agy;
+#[cfg(test)]
+#[path = "app_providers/agy_tests.rs"]
+mod agy_tests;

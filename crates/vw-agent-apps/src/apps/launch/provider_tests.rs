@@ -75,12 +75,6 @@ fn cc_apps_provider_launch_isolation_codex_gemini_agy_use_actual_programs() {
             ProviderProtocol::Gemini,
             "test \"$GEMINI_API_KEY\" = fixture-key-only || exit 11\ntest -f \"$GEMINI_CLI_HOME/.gemini/settings.json\" || exit 12\ntest -z \"$GOOGLE_API_KEY$GOOGLE_APPLICATION_CREDENTIALS\" || exit 13\nprintf '%s' \"$GEMINI_CLI_HOME\" > private-path\n",
         ),
-        (
-            AppId::Agy,
-            "agy",
-            ProviderProtocol::Gemini,
-            "test \"$GEMINI_API_KEY\" = fixture-key-only || exit 11\ntest \"$1\" = --gemini_dir || exit 12\ntest -f \"$2/settings.json\" || exit 13\nprintf '%s' \"$2\" > private-path\n",
-        ),
     ] {
         let root = tempfile::tempdir().unwrap();
         executable(

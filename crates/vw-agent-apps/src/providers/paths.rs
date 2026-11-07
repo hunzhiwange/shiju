@@ -278,3 +278,23 @@ pub fn read(
         files,
     })
 }
+
+/// Fixed persistent Agy profiles below the administrator's private execution root.
+/// Host, tenant and provider come from authenticated dispatch, never request filesystem paths.
+#[cfg(target_os = "macos")]
+pub(crate) fn agy_profile_directory(
+    root: &Path,
+    host: &str,
+    tenant: &vw_api_types::id::TenantScope,
+    provider: &str,
+) -> PathBuf {
+    use base64::{Engine as _, engine::general_purpose::URL_SAFE_NO_PAD};
+    use sha2::{Digest, Sha256};
+    root.join("agy-profiles")
+        .join(URL_SAFE_NO_PAD.encode(host))
+        .join(
+            URL_SAFE_NO_PAD
+                .encode(Sha256::digest(serde_json::to_vec(tenant).expect("tenant serializes"))),
+        )
+        .join(provider)
+}

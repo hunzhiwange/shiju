@@ -168,3 +168,7 @@ mod kimi_tests;
 pub mod dsh;
 #[cfg(test)]
 mod dsh_tests;
+
+pub mod agy;
+#[cfg(test)]
+mod agy_tests;

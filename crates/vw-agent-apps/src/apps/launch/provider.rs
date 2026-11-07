@@ -1,4 +1,4 @@
-//! Private, single-process API sessions. Call after execution-host authorization/validation.
+//! Authorized provider processes; temporary profiles or a persistent Agy profile lease.
 use super::request::LaunchMaterial;
 use crate::providers::validate_profile;
 use std::{
@@ -11,14 +11,16 @@ use vw_api_types::{agent_apps::AppId, app_providers::AppProviderWrite};
 
 /// Not serializable or Debug: argv/environment must never become API responses or logs.
 pub struct ProviderLaunch {
-    program: PathBuf,
-    cwd: PathBuf,
-    args: Vec<String>,
-    env: Vec<(&'static str, String)>,
-    private: tempfile::TempDir,
+    pub(crate) program: PathBuf,
+    pub(crate) cwd: PathBuf,
+    pub(crate) args: Vec<String>,
+    pub(crate) env: Vec<(&'static str, String)>,
+    pub(crate) private: Option<tempfile::TempDir>,
+    #[cfg(target_os = "macos")]
+    pub(crate) agy: Option<crate::providers::agy::Lease>,
 }
 impl ProviderLaunch {
-    /// Keep configuration alive until the child exits; drop removes it on all failure paths.
+    /// Retain configuration until child exit; Agy sessions persist, temporary profiles are removed.
     /// Returns only a fixed error, never child output (which may contain credentials).
     pub fn run(self) -> Result<(), String> {
         self.run_with(|command| {
@@ -30,6 +32,10 @@ impl ProviderLaunch {
         self,
         execute: impl FnOnce(&mut Command) -> std::io::Result<std::process::ExitStatus>,
     ) -> Result<(), String> {
+        #[cfg(target_os = "macos")]
+        if let Some(lease) = &self.agy {
+            lease.validate().map_err(|_| "Agy profile changed before launch")?;
+        }
         let mut command = Command::new(&self.program);
         command.args(&self.args).current_dir(&self.cwd).env_clear();
         // Preserve OS essentials only. Never inherit host API keys, runtime hooks or provider selectors.
@@ -56,7 +62,9 @@ impl ProviderLaunch {
         }
         let result = execute(&mut command);
         // The private profile must outlive the process, even though it is not read here.
-        self.private.close().map_err(|_| "private provider configuration cleanup failed")?;
+        if let Some(private) = self.private {
+            private.close().map_err(|_| "private provider configuration cleanup failed")?;
+        }
         match result {
             Ok(status) if status.success() => Ok(()),
             Ok(_) => Err("provider process exited unsuccessfully".into()),
@@ -88,6 +96,9 @@ pub fn prepare_provider_launch(
     material: LaunchMaterial,
     private_temp_root: &Path,
 ) -> Result<ProviderLaunch, String> {
+    if app == AppId::Agy {
+        return Err("Agy requires persistent execution-host profile selection".into());
+    }
     validate_profile(app, profile)?;
     if profile.request_options.as_ref().is_some_and(|v| {
         v.api_key_field.is_some()
@@ -205,17 +216,6 @@ pub fn prepare_provider_launch(
                 ("GOOGLE_GEMINI_BASE_URL", profile.base_url.clone()),
             ]);
         }
-        Agy => {
-            write_private(
-                &private.path().join("settings.json"),
-                &serde_json::json!({"model":{"name":profile.model}}),
-            )?;
-            args.extend(["--gemini_dir".into(), path, "--model".into(), profile.model.clone()]);
-            env.extend([
-                ("GEMINI_API_KEY", profile.api_key.clone()),
-                ("GOOGLE_GEMINI_BASE_URL", profile.base_url.clone()),
-            ]);
-        }
         Omp => {
             // JSON is valid YAML; keep credentials out of configuration and argv.
             write_private(
@@ -260,5 +260,13 @@ pub fn prepare_provider_launch(
         args.push(flag.into());
     }
     args.extend(material.args);
-    Ok(ProviderLaunch { program: material.program, cwd: material.cwd, args, env, private })
+    Ok(ProviderLaunch {
+        program: material.program,
+        cwd: material.cwd,
+        args,
+        env,
+        private: Some(private),
+        #[cfg(target_os = "macos")]
+        agy: None,
+    })
 }

@@ -28,6 +28,7 @@ pub(crate) fn router() -> Router {
         .merge(mcode::router())
         .merge(kimi::router())
         .merge(dsh::router())
+        .merge(agy::router())
         .merge(claude_desktop::router())
         .merge(desktop_mapping::router())
         .merge(delete::router())
@@ -272,3 +273,5 @@ mod kimi_tests;
 mod dsh;
 #[cfg(all(test, target_os = "macos"))]
 mod dsh_tests;
+
+pub(super) mod agy;

@@ -22,6 +22,7 @@ pub fn read(home: &Path, app: AppId, rows: Vec<AppProviderSummary>) -> ProviderC
             | AppId::Mcode
             | AppId::Dsh
             | AppId::Omp
+            | AppId::Agy
     );
     let mut result = ProviderCatalog {
         app_id: app,
@@ -45,6 +46,9 @@ pub fn read(home: &Path, app: AppId, rows: Vec<AppProviderSummary>) -> ProviderC
         },
         native_read: None,
     };
+    if app == AppId::Agy {
+        return result;
+    }
     match observe(home, app) {
         Ok((members, selection)) => {
             let mut rows: BTreeMap<_, _> = result

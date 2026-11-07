@@ -110,9 +110,16 @@ async fn launch(
                 let preferred = preferences.preferred_terminal;
                 let scope = super::launch_sessions::Scope { tenant: tenant.clone(), host: host.id.clone(), principal };
                 if let Some(provider_id) = request.provider_id {
-                    let prepared = crate::app_providers::AppProviderStore::new(db)
-                        .and_then(|store| store.prepare_launch(&tenant, &vw_api_types::app_providers::ProviderLaunchRequest { provider_id, launch: request.launch.clone() }, &host.id, &observed.installations, &[root], false, Path::new("/tmp")))
-                        .map_err(|_| StatusCode::UNPROCESSABLE_ENTITY)?;
+                    let store=crate::app_providers::AppProviderStore::new(db).map_err(|_|StatusCode::SERVICE_UNAVAILABLE)?;
+                    #[cfg(target_os="macos")]
+                    let agy=if request.launch.app_id==vw_api_types::agent_apps::AppId::Agy {
+                        let material=validate_launch_request(&request.launch,&host.id,&observed.installations,std::slice::from_ref(&root),false).map_err(|_|StatusCode::UNPROCESSABLE_ENTITY)?;
+                        Some(store.prepare_agy_launch(&tenant,&provider_id,&host.id,&host.home,host.credential_root.as_deref().ok_or(StatusCode::SERVICE_UNAVAILABLE)?,material).map_err(|_|StatusCode::UNPROCESSABLE_ENTITY)?)
+                    }else{None};
+                    #[cfg(not(target_os="macos"))]
+                    let agy: Option<vw_agent_apps::apps::launch::provider::ProviderLaunch>=None;
+                    let prepared=if let Some(prepared)=agy{prepared}else{store.prepare_launch(&tenant, &vw_api_types::app_providers::ProviderLaunchRequest { provider_id, launch: request.launch.clone() }, &host.id, &observed.installations, &[root], false, Path::new("/tmp"))
+                        .map_err(|_| StatusCode::UNPROCESSABLE_ENTITY)?};
                     Some(context.sessions.start(scope, move |ready| {
                         let transport = vw_agent_apps::apps::launch::terminal_session::TerminalSession::connect_with(Path::new("/tmp"), |_, material| terminal(preferred.as_deref(), Path::new("/bin/sh"), material))?;
                         prepared.run_with(|command| transport.run(command, move || { let _ = ready.send(()); }))
@@ -171,3 +178,7 @@ async fn session_status(
 #[cfg(all(test, unix))]
 #[path = "launch_tests.rs"]
 mod tests;
+
+#[cfg(all(test, target_os = "macos"))]
+#[path = "../app_providers/agy_tests.rs"]
+mod agy_tests;

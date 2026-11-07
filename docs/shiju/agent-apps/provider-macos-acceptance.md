@@ -2016,3 +2016,60 @@ Gateway 采用真实回环 HTTP、正式 SDK、SQLite、管理员授权 policy �
 平台 macOS **27.0 (26A428)**、**arm64**，crate **0.6.0**。`command -v dsh` 无结果，`dsh --version` 退出 **127**；Dsh 应用版本、实际应用消费、真实账号登录、网络上游、Iced 渲染和非 macOS **未验证**。Gateway 链接器出现既有 `__eh_frame section too large` 提示，测试退出 0；强制 Clippy 退出 0，未改链接配置。
 
 状态：**已完成（本任务的原生配置/API/SDK 行为边界）**。定向 diff/check、暂存审查与只读 plan.md 无差异检查通过；仅提交本任务实现、独立测试、必要注册/目录观察和本条正式证据。既有母任务状态、其它计划和此前编号文件删除不纳入提交。自身槽位锁释放，缓存保留；未执行无过滤全量 cargo test、fmt check、wasm 或 Makefile。验收后删除本编号文件且不提交该删除；下一步批次 43，真实 Dsh/UI 按所属任务验收。
+
+## 任务 43：Agy 供应商配置
+
+2026-11-07。核对批次 42 提交 `007f365ad` 及上节正式验收；母任务 1、3 已完成，母任务 2 完整迁移未收口，沿 provider-contracts.md 底座子计划 1–93 的开工裁定消费真实接口。只读 plan.md 未修改。原阻塞已由本次继续指令明确解除：Agy“切换”指终端启动选择持久 profile，无全局 current；允许必要路径/启动适配，固定共享链接不得替换用户目录。
+
+来源 `/Users/xiangmin/worker/code/cc-switch` HEAD `ca58c0313360eae7c851fbd7553c1614c7af03e7`，rev-parse/status 退出 0、来源干净。阅读 `agy_config::{prepare_launch,prepare_key_profile,key_profile_patch,link_shared_config}`、`services/provider/agy_direct::{is_official,live_settings,terminal_launch}`、`ProviderService::switch` 明确拒绝分支、终端直接调用者，以及相邻 cards_never_write_the_real_settings_credentials_or_shell_files / key_launch_prepares_a_private_profile_linked_to_shared_config 测试。使用仓库 RustCodeGraph 技能定位现有启动/事务调用链；来源与未覆盖新模块直接读取，没有链接冻结 upstream 作为运行依赖。
+
+### 实现与接口
+
+- `vw-agent-apps/src/providers/agy.rs` 为 Agy 校验与 profile 准备所有者，`agy_files.rs` 只持有目录/链接核验和进程租约；既有 `providers/paths.rs::agy_profile_directory` 从管理员授权 `credential_root` 固定推导 `agy-profiles/<base64url(host)>/<base64url(sha256(tenant JSON))>/<provider-id>`。租户来自鉴权中间件，主机来自授权 policy，供应商 ID 校验为固定单路径段；客户端不能提供根、文件、链接目标或命令。0700 目录和新写入的 0600 settings；没有照搬 `.cc-switch` 或新增路径配置。
+- 私有 profile 使用真实 `antigravity-cli/settings.json`，仅补丁更新 `modelProvider: gemini` 和显示名 `model`；不选模型时删除该字段，保留注释、未知选项及原生会话。`GEMINI_API_KEY` 和可选 `GOOGLE_GEMINI_BASE_URL` 仅进入所选子进程环境，不写 settings、argv、终端包装脚本或共享目录。默认端点时不继承 ambient endpoint，子进程 HOME 使用授权主机 HOME。
+- 固定 `config` 链接只指向已存在、逐组件 no-follow 打开的授权 `~/.gemini/config`。链接采用 create-only 准备：既有相同目标复用，异目标链接、真实目录/文件明确拒绝，绝不替换或回滚未知用户条目。失败可以保留空私有目录或有效固定链接，不能由这些准备产物推断启动成功；适配器对共享原生目录只读，不替用户初始化它。
+- settings 使用既有唯一 ProviderTransactions 的私有文件补丁、pending、发布前校验和前滚恢复；每个隔离 profile 使用自己的事务注册空间，避免多个 profile 争用同一应用 journal。固定链接和保留目录身份在恢复前、提交校验及启动前核验；通用写守卫仍拒绝任意符号链接，无新文件/命令 API，也无链接替换意图。没有更改共享事务语义。
+- profile 根的 0600 flock 租约保留到子进程回收或启动失败；同一 profile 活跃时明确拒绝再次准备/轮换，其它租户、主机和供应商独立。未把互斥限制伪装成同 profile 多进程支持。进程退出、失败或丢弃准备对象均释放租约，但保留会话/profile；继承的任意凭据通过现有 env_clear 移除。
+- model-only / 无 key 的卡走原生登录，最多传会话级 `--model=<显示名>`，不创建私有 profile、不修改登录。来源旧记录只允许显式 category=official 或 google-official promotion 选择 native，不按可编辑名称猜测；无法解析的 managed authBinding/liveConfigManaged 明确拒绝。未实现账号切换、Keychain 写入或 OAuth。
+- 目录记录沿 `AppProviderStore` 的既有租户命名空间和 CAS 保存；Agy DTO 支持 name、可选 model/apiKey/baseUrl，校验控制字符、错误端点、无 key 的端点与掩码。保存返回 `catalogSaved=true`，不声称 live 已启动；编辑的配置在下一次授权 launch 准备后生效。读取只返回摘要，Debug/SDK 错误不含凭据。通用 catalog 的 Agy current/in-use 为 NotApplicable。
+
+| API | SDK / 结果 |
+| --- | --- |
+| `PUT /v1/app-providers/agy/{id}/config` | `agy_provider_save`；只存目录，返回 catalogSaved |
+| `POST /v1/app-providers/agy/{id}/switch` | `agy_provider_switch`；鉴权后固定 HTTP 422 / agy_switch_unsupported |
+| 既有 `POST /v1/agent-apps/launch`，providerId 选择卡片 | 既有 `agent_apps_launch_identity_authorized`；修正真实 dispatch 为持久 Agy profile，返回 session ID 并可查询实际进程状态 |
+
+未新增 UI；Iced 编辑归任务 66。真实 native settings、credentials、shell 文件和全局 current 均不写；非 macOS 的供应商启动明确拒绝，不实现 Windows 链接命令。
+
+### 红绿与平台证据
+
+红阶段先修复测试接线中的字面量编译错误（不计业务失败）；动态槽位 2 下重跑执行端命令，**0 passed / 2 业务断言失败，退出 101**：`cc04_agy_switch_preserves_native_profile` 缺真实 profile 布局，`cc04_agy_failed_apply_keeps_original_binding` 未拒绝既有真实 config 目录。其余红阶段槽位 1：DTO 1、Gateway 1、SDK 1 通过，均退出 0，无零测试充数。首轮实现两项业务测试通过；随后补恢复/隔离/真实 HTTP 场景，修复新 handler 的 Result 类型推导编译错误，再完成验证。
+
+全部 Cargo 阶段原子 mkdir 动态领取共享槽位 **1** 或 **2**，记录计划/任务/会话/PID；`CARGO_TARGET_DIR` 分别为 `/Users/xiangmin/worker/code/shiju/target/rust-slot-1`、`/Users/xiangmin/worker/code/shiju/target/rust-slot-2`。同时设置 `CARGO_BUILD_BUILD_DIR` 为同一目录，覆盖仓库 build-dir，未另建缓存。阶段退出释放自身锁、保留缓存。
+
+最终默认 features 验证使用动态领取的槽位 **1**，`CARGO_TARGET_DIR=/Users/xiangmin/worker/code/shiju/target/rust-slot-1`，`CARGO_BUILD_BUILD_DIR` 同路径：
+
+| 确切命令 | 退出码 | 有效数量 |
+| --- | --- | --- |
+| `cargo fmt --all` | 0 | 格式化 |
+| `cargo test -p vw-agent-apps --lib cc04_agy_ -- --nocapture` | 0 | 6 passed |
+| `cargo test -p vw-api-types --lib cc04_agy_ -- --nocapture` | 0 | 1 passed |
+| `cargo test -p vw-agent --lib cc04_agy_ -- --nocapture` | 0 | 2 passed |
+| `cargo test -p vw-gateway-client --lib cc04_agy_ -- --nocapture` | 0 | 2 passed |
+| `cargo test -p vw-agent-apps --lib cc_apps_provider_launch_isolation_ -- --nocapture` | 0 | 9 passed，子进程断言不重复计数 |
+| `cargo test -p vw-agent-apps --lib cc04_catalog_ -- --nocapture` | 0 | 7 passed |
+| `cargo test -p vw-agent-apps --lib cc04_paths_ -- --nocapture` | 0 | 6 passed |
+| `cargo test -p vw-agent-apps --lib cc04_write_guard_ -- --nocapture` | 0 | 5 passed |
+| `cargo clippy --all-targets --all-features -- -D warnings` | 0 | 非行为测试 |
+
+本任务 **11** 项及相邻回归 **27** 项，去重 **38** 项通过，无忽略。执行端独立测试覆盖指定两项行为、0600/0700、原生 settings/假登录引用不变、共享链接内容/异链接及真实目录拒绝、目录被替换后拒绝执行、同 profile 活跃租约、不同租户/主机/供应商隔离、失败启动/重复准备保留 session、注释/未知设置保留、模型删除/缺省端点清除、native model-only 无私有目录与密钥、非法输入/权限跳过无副作用，以及 Intent/Marked/FilePublished/Published/Settled 五处注入失败后的重建/前滚与空 current/mode。
+
+Gateway 使用真实回环 HTTP、正式 SDK、SQLite、管理员 policy、应用发现和隔离 HOME；只替代真实终端应用的连接动作（连接既有 TerminalSession 的 Unix socket），实际受控假 agy 进程必须通过 TTY、环境、真实 settings 与链接断言后才写 session/proof。SDK save → HTTP catalogSaved 且无 profile；SDK global switch → HTTP 422 且无 profile；SDK identity launch → API session → 真实私有 settings/config 链接和持久 session。错误 token、未许可 provider 身份、无配置写权限均拒绝且不创建 profile/目录行；异租户记录不可读。没有替代鉴权、事务、文件系统、存储或进程生命周期；所有凭据均为假值。
+
+最后审查将 launch 的 profile 解析改为消费同一份已捕获目录行，发布前复核同一前像，避免双读混用版本；重新动态领取槽位 1，以同一绝对 CARGO_TARGET_DIR 运行 `cargo fmt --all`（退出 0）、`cargo test -p vw-agent --lib cc04_agy_ -- --nocapture`（退出 0，2 passed）及 `cargo clippy --all-targets --all-features -- -D warnings`（退出 0）。此复验不重复计入 38 项去重数量。
+
+平台 macOS **27.0 (26A428)**、**arm64**，crate **0.6.0**。`command -v agy` 无结果、退出 **1**；真实 Agy 应用版本、实际应用消费、原生 Keychain 登录、账号切换、网络上游、Iced 渲染和非 macOS 均 **未验证**。假进程版本仅为发现 fixture，不当成真实应用验收。Gateway 测试有既有链接器 `__eh_frame section too large` 提示，测试退出 0；强制 Clippy 退出 0，没有修改链接参数或降级检查。未运行无过滤全量 cargo test、fmt check、wasm 或 Makefile。
+
+定向差异审查排除 cargo fmt 引起的 Dsh 纯格式差异；不纳入母任务状态、此前编号文件删除或其它计划，所有 plan.md 保持只读。正式证据保留；本编号任务在最终通过后删除且不提交其删除。下一步批次 44；Agy 的真实应用/UI 验收按所属边界另行开展。
+
+状态：**已完成（持久 profile 配置与授权终端选择边界）**。本阶段自身槽位 1 锁已释放，之前槽位 2 锁亦已释放，缓存保留；定向 diff/check、暂存审查和只读 plan.md 无差异检查通过。仅提交本任务代码、独立测试、必要父注册与本条证据。

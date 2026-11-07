@@ -377,6 +377,18 @@ impl AppProviderStore {
         app: AppId,
         id: &str,
     ) -> Result<AppProviderSummary, String> {
+        if app == AppId::Agy {
+            if let Some(row) = self.agy_record(tenant, id)? {
+                if row.get("agy").is_some() {
+                    return Ok(AppProviderSummary {
+                        app_id: app,
+                        id: id.into(),
+                        name: row["name"].as_str().ok_or("invalid provider record")?.into(),
+                        configured: true,
+                    });
+                }
+            }
+        }
         if app == AppId::Claude {
             if let Some(row) = self.claude_record(tenant, id)? {
                 if let Some(config) = row.get("claude") {
@@ -669,3 +681,5 @@ mod omp;
 mod kimi;
 
 mod dsh;
+
+mod agy;

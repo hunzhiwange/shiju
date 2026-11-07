@@ -223,11 +223,17 @@ impl ProviderTransactions {
         validate_stack_update(&state, tenant, &target)?;
         let metadata = guard.directory.metadata().map_err(|_| WriteError::Io)?;
         let multi = guard.directories().count() > 1;
+        crate::providers::operations::planned(changes.len());
         let mut batch = guard.stage(changes)?;
         validate()?;
         if batch.is_empty() {
+            crate::providers::operations::publication().map_err(|_| WriteError::Conflict)?;
             apply_target(&mut state, tenant, &target);
-            return self.save(app, "state", &state);
+            self.save(app, "state", &state)?;
+            for _ in changes {
+                crate::providers::operations::advanced();
+            }
+            return Ok(());
         }
         // Persist staged directory entries before the intent can reference them.
         for write in &batch.writes {
@@ -264,6 +270,7 @@ impl ProviderTransactions {
                 .collect(),
             published: false,
         };
+        crate::providers::operations::publication().map_err(|_| WriteError::Conflict)?;
         self.save(app, "pending", &pending)?;
         // Durable intent owns these temporary files from here on. Errors and
         // unwind must retain them for the later recovery owner.
@@ -280,7 +287,11 @@ impl ProviderTransactions {
         apply_target(&mut state, tenant, &pending.target);
         self.save(app, "state", &state)?;
         checkpoint(self, app, Phase::Settled)?;
-        self.clear_pending(app)
+        self.clear_pending(app)?;
+        for _ in changes {
+            crate::providers::operations::advanced();
+        }
+        Ok(())
     }
 
     pub(super) fn clear_pending(&self, app: AppId) -> Result<(), WriteError> {

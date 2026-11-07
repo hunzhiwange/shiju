@@ -24,6 +24,12 @@ impl AppProviderStore {
             }
             Err(_) => return Err("native provider configuration unavailable".into()),
         };
+        vw_agent_apps::providers::operations::planned(candidates.len());
+        // Freeze the batch before the first scoped catalog save. Once a batch
+        // starts, cancellation cannot abandon its remaining catalog entries.
+        if !candidates.is_empty() {
+            vw_agent_apps::providers::operations::publication()?;
+        }
         let mut imported = 0;
         for (id, profile) in candidates {
             // A custom Grok row blocks another default, while the official
@@ -32,6 +38,7 @@ impl AppProviderStore {
                 && rows.iter().any(|row| row.id != "grokbuild-official")
                 && id != "grokbuild-official"
             {
+                vw_agent_apps::providers::operations::advanced();
                 continue;
             }
             if self
@@ -40,6 +47,7 @@ impl AppProviderStore {
                 .map_err(|_| "provider storage unavailable")?
                 .is_some()
             {
+                vw_agent_apps::providers::operations::advanced();
                 continue;
             }
             match profile {
@@ -81,6 +89,7 @@ impl AppProviderStore {
                 }
             }
             imported += 1;
+            vw_agent_apps::providers::operations::advanced();
         }
         Ok(ProviderImportResult { imported })
     }

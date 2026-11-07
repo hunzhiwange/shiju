@@ -20,6 +20,8 @@ impl AppProviderStore {
             .map_err(|_| "invalid stored application provider profile")?;
         universal::summary(id, &parent)
             .map_err(|_| "invalid stored application provider profile")?;
+        vw_agent_apps::providers::operations::planned(request.apps.len());
+        vw_agent_apps::providers::operations::publication()?;
         Ok(request
             .apps
             .iter()
@@ -28,6 +30,7 @@ impl AppProviderStore {
                 let result = child.as_ref().map_err(|e| *e).and_then(|child| {
                     self.project_universal_child(tenant, id, &parent, app, child)
                 });
+                vw_agent_apps::providers::operations::advanced();
                 UniversalSyncResult {
                     app_id: app,
                     provider_id: child.ok(),

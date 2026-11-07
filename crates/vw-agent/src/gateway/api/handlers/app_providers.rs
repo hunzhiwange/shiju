@@ -35,6 +35,7 @@ pub(crate) fn router() -> Router {
         .merge(dsh::router())
         .merge(agy::router())
         .merge(import::router())
+        .merge(operations::router())
         .merge(claude_desktop::router())
         .merge(desktop_mapping::router())
         .merge(delete::router())
@@ -305,3 +306,7 @@ mod env_clean_tests;
 mod env_restore;
 #[cfg(test)]
 mod env_restore_tests;
+
+mod operations;
+#[cfg(all(test, target_os = "macos"))]
+mod operations_tests;

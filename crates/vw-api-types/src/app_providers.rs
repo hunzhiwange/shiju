@@ -196,3 +196,7 @@ mod env_clean_tests;
 pub mod env_restore;
 #[cfg(test)]
 mod env_restore_tests;
+
+pub mod operations;
+#[cfg(test)]
+mod operations_tests;

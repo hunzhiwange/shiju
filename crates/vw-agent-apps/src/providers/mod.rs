@@ -236,3 +236,7 @@ mod env_restore_tests;
 
 #[cfg(target_os = "macos")]
 mod env_backup;
+
+pub mod operations;
+#[cfg(test)]
+mod operations_tests;

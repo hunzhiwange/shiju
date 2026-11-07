@@ -267,3 +267,9 @@ mod env_restore;
 #[cfg(all(test, not(target_arch = "wasm32")))]
 #[path = "app_providers/env_restore_tests.rs"]
 mod env_restore_tests;
+
+#[path = "app_providers/operations.rs"]
+mod operations;
+#[cfg(all(test, not(target_arch = "wasm32")))]
+#[path = "app_providers/operations_tests.rs"]
+mod operations_tests;

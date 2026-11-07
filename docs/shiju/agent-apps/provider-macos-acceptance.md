@@ -2347,3 +2347,50 @@ Gateway 集成使用正式 SDK、真实回环 HTTP、真实授权 policy/租户�
 实际平台 macOS **27.0（26A428）/ arm64**，workspace crate **0.6.0**。没有读取/修改真实用户 shell 配置；真实客户端应用版本/消费、账号/Keychain、Iced 渲染、完整 shell 求值及非 macOS **未验证**。
 
 状态：**已完成（macOS 授权环境备份恢复与逐文件冲突结果）**。定向差异/暂存审查通过，plan.md 只读、自身 Cargo 锁已释放；只提交任务 49 实现、独立测试、必要父注册/清理备份接线及本条正式证据，排除既有 Dsh 格式差异、母任务状态、其它编号文件删除与其它计划。本编号任务验收后删除且不提交该删除；下一步批次 50。
+
+## 任务 50：配置操作进度与取消
+
+2026-11-07。批次 49 提交 `c55667052` 与上节完成证据已核对；母任务 1、3 已完成，母任务 2 沿任务 1 的底座子计划 1–93 开工裁定消费实际接口，不将母任务 2 完整迁移改报完成。plan.md 保持只读。
+
+### 来源、实现与边界
+
+来源 `/Users/xiangmin/worker/code/cc-switch` HEAD `ca58c0313360eae7c851fbd7553c1614c7af03e7`，rev-parse/status 退出 0、来源干净。只读 `commands/provider.rs::{sync_universal_provider,import_opencode_providers_from_live}`、TS `providers.ts::{sync,importOpenCodeFromLive}`、`mode/operation.rs::{run,AppWrite::run,recover_before_write}`、controller 调用及相邻 provider_commands/operation 测试；没有构建或修改来源包。RustCodeGraph status/explore/node 定位现有 Operation、生产路由和事务所有者；新模块及图未覆盖部分使用定向搜索/读取。
+
+- 业务所有者 `vw-agent-apps/src/providers/operations.rs::ProviderOperation` 复用既有 `apps::lifecycle::operations::Operation::start_action`，只增加供应商阶段、计数与发布屏障，不新增调度器、持久任务库或通用执行 API。现有导入 `AppProviderStore::import_native`、投影 `universal_sync` 与事务 `ProviderTransactions::commit_checked` 调用同一屏障，沿用各自解码、CAS、写锁、暂存、pending 和恢复所有者。
+- 取消请求与发布决定通过同一状态锁排序。发布前取消由 worker 确认后返回 cancelled，真实配置和已提交指针保持原样，暂存清理；进入发布临界区后不因取消中止剩余写入，返回 settling/cancellationRequested，再完成为 completed。发布后执行错误返回 failed/settling，绝不改报 cancelled；事务保留原 pending 并由既有前滚恢复继续。目录注册等既有私有恢复元数据不作为用户配置发布。catalog 批次保持既有逐行 CAS/逐项失败语义，不增加整体原子性或跨存储回滚承诺。
+- DTO 为 `vw-api-types/src/app_providers/operations.rs`，复用 TaskId/TaskStatus；支持固定 Import(app,trigger) 与 Project(id,apps)，拒绝路径、命令和未知字段。progress 提供 operationId/requestId/status/phase/completed/total/cancellationRequested；计数表示处理项数，包含跳过的既有导入项和投影失败项，不是成功写入数；失败不会返回 completed 状态。
+- Gateway `handlers/app_providers/operations.rs` 注册 `POST /v1/app-providers/operations` 与 `GET/DELETE /v1/app-providers/operations/{id}?targetHostId=…`，沿用原 app_providers 分域父注册和正式 handler_router。提交前、排队后工作开始前重做授权；全部操作要求目标主机配置写权限，导入额外要求读权限。读取/取消重新授权并绑定 tenant/host；无 token、外租户、外主机和只读授权拒绝且不修改 catalog/native 配置。校验 400、不支持的通用导入应用 422、认证 401/403、未知/不属于当前作用域 ID 404、请求关联冲突 409、容量 429；执行期间失败通过安全的 task status 返回，不出站原始错误链、路径或秘密。
+- SDK `client/app_providers/operations.rs` 提供 provider_operation_start/get/cancel，使用敏感 token header、原有租户上下文、受限 operation ID 和编码 host query；错误载荷丢弃。相同 tenant/host/requestId 与相同请求在保留期复用 operationId，改变请求返回 409，不重新提交写入。宿主内存最多保留 1024 项，满时清理终态；重启/清理后旧 ID 返回 404，关联与进度不承诺跨重启持久重放。断开观察者不停止 owned worker。没有新增 SSE 重放、任意文件/命令入口或进程执行权限。
+- 原同步导入/投影继续走同一业务实现；本任务提供新的异步操作入口。供应商编辑/首次激活的异步 UI 接入仍归所属适配任务，未声明这些 live/UI 路径已完成。Iced 未改动、未启动。
+
+### 红绿与验证
+
+红阶段领取槽位 **2**，`CARGO_TARGET_DIR=/Users/xiangmin/worker/code/shiju/target/rust-slot-2`，`CARGO_BUILD_BUILD_DIR` 同值。`cargo fmt --all` 退出 0；`cargo test -p vw-agent-apps --lib cc04_operations_ -- --nocapture` 两个指定测试分别在“取消未拒绝发布”与“Preparing != Settling”业务断言失败，**0 passed / 2 failed，退出 101**。四条规定过滤命令均执行；DTO/SDK 各 1 passed、退出 0；Gateway 初次因测试误用 TaskId::to_string 编译失败，修正为实际字段后重跑，不将编译失败或零测试计作红证据。实现检查中的测试闭包参数类型与临时根 0700 权限遗漏已修正，没有放松生产私有目录检查。
+
+本轮阶段动态领取过槽位 **1、2、3**，绝对目录分别为 `/Users/xiangmin/worker/code/shiju/target/rust-slot-1`、`/Users/xiangmin/worker/code/shiju/target/rust-slot-2`、`/Users/xiangmin/worker/code/shiju/target/rust-slot-3`；纠正后的业务 6 项、DTO 1 项、SDK 2 项与事务 6 项在槽位 3 通过。最终完整验证领取 **槽位 1**，所有以下命令及子进程继承 `CARGO_TARGET_DIR=/Users/xiangmin/worker/code/shiju/target/rust-slot-1`、`CARGO_BUILD_BUILD_DIR` 同值；聚焦测试使用默认 features：
+
+| 确切命令 | 退出码 | 有效数量 |
+| --- | --- | --- |
+| `cargo fmt --all` | 0 | 格式化 |
+| `cargo test -p vw-agent-apps --lib cc04_operations_ -- --nocapture` | 0 | 6 passed |
+| `cargo test -p vw-api-types --lib cc04_operations_ -- --nocapture` | 0 | 1 passed |
+| `cargo test -p vw-agent --lib cc04_operations_ -- --nocapture` | 0 | 3 passed |
+| `cargo test -p vw-gateway-client --lib cc04_operations_ -- --nocapture` | 0 | 2 passed |
+| `cargo test -p vw-agent-apps --lib cc04_commit_ -- --nocapture` | 0 | 6 passed |
+| `cargo test -p vw-agent --lib cc04_import_ -- --nocapture` | 0 | 7 passed |
+| `cargo test -p vw-agent --lib cc04_universal_sync_ -- --nocapture` | 0 | 2 passed |
+| `cargo clippy --all-targets --all-features -- -D warnings` | 0 | 全部 targets/features |
+
+暂存审查补齐 SDK 测试模块与相邻模块一致的非 wasm 限定后，在同一槽位 1 再次执行 `cargo fmt --all`、`cargo test -p vw-gateway-client --lib cc04_operations_ -- --nocapture`（2 passed）与 `cargo clippy --all-targets --all-features -- -D warnings`，均退出 0。
+
+本任务 **12** 项、相关回归 **15** 项，去重 **27** 项通过，无忽略。Gateway 测试链接器继续提示既有 `__eh_frame section too large`，测试实际退出 0；没有改变链接设置或放宽 lint。未执行无过滤全量测试、fmt check、wasm 或 Makefile。各阶段原子 mkdir 领取并记录计划/任务/会话/PID，子进程全部结束后 finally 删除自身记录并 rmdir 释放锁；最终脚本处理 SIGINT/SIGTERM 时先结束并等待自身子进程组，再释放，缓存保留。未处理其他会话的锁或缓存。
+
+### SDK→API→执行端与 macOS 证据
+
+真实回环 HTTP、正式 SDK、真实授权 policy/租户中间件与隔离 SQLite/HOME：SDK start 导入 Pi 的两个声明 → 202/operationId/requestId → SDK get 最终 completed、completed=total=2 → 独立读取保存记录实际含两条假凭据，原 models.json 字节保持一致；重复请求复用 ID，改变关联请求返回 409。SDK start 投影统一供应商 → API 完成 2 项 → 独立读取 Claude/Codex 已保存子记录；响应不含假密钥。终态取消返回原终态；外租户/主机、错误 token、撤回写权限后的提交/取消拒绝，记录不变；正式 handler_router 的 Basic 拒绝返回 401。SDK 单独的真实 HTTP 协议夹具证明 GET/DELETE 路径、host 编码、租户头和 settling DTO，403 响应丢弃秘密载荷；该协议夹具不冒充业务执行证据。
+
+执行端 6 项独立行为测试证明：发布前取消不改原文件；实际事务暂存期间取消保留原字节/空指针、无 pending 或暂存残留；持久发布 marker 后取消实际写完文件并落定指针；marker 后中断保留 published pending、failed/settling，现有 recover 实际写完文件与指针并清 pending；无观察者仍完成工作，同一句柄重复提交拒绝。仅用现有内部 checkpoint 替代不可控中断时机，文件系统、授权、数据库及回环 HTTP 均实际执行，凭据均为假值。
+
+实际平台 macOS **27.0（26A428）/ arm64**，workspace crate **0.6.0**。未使用真实用户配置或账号；真实客户端版本/消费、Keychain、Iced 渲染及非 macOS **未验证**。
+
+状态：**已完成（请求关联、进度与安全取消边界）**。本任务定向差异/暂存审查通过，仅提交上述实现、独立测试、必要父注册与本条证据；排除既有 Dsh 格式差异、其他任务/计划与并行桌面变更。自身 Cargo 锁释放，plan.md 只读；编号任务验收后删除且不提交该删除，下一步批次 51。

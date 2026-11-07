@@ -176,6 +176,10 @@ async fn global_config_patch_stateful(
     Json(patch): Json<Value>,
 ) -> Result<Json<Value>, ApiError> {
     let response = global_config_patch(Extension(tenant.clone()), Json(patch)).await?;
+    // Keep a slower reload from publishing an older snapshot after a newer one.
+    // Persistence remains coordinated by the database across gateway processes.
+    static REFRESH_LOCK: tokio::sync::Mutex<()> = tokio::sync::Mutex::const_new(());
+    let _refresh = REFRESH_LOCK.lock().await;
     let next = config::get_global_for_tenant(&tenant)
         .await
         .map_err(|error| ApiError::bad_request(error.to_string()))?;

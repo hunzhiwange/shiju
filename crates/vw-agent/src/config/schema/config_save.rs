@@ -33,13 +33,16 @@ pub(super) fn save_config_to_store(
     tenant: &TenantScope,
     store: &SystemConfigStore,
 ) -> Result<()> {
+    store.upsert(tenant, &encode_config_for_storage(config)?)
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+pub(crate) fn encode_config_for_storage(config: &Config) -> Result<String> {
     let mut config_to_save = config.clone();
     config_to_save.gateway.skeys.clear();
     validate_config(&config_to_save)?;
     encrypt_config_secrets(&mut config_to_save)?;
-    let payload =
-        serde_json::to_string(&config_to_save).context("Failed to serialize system config")?;
-    store.upsert(tenant, &payload)
+    serde_json::to_string(&config_to_save).context("Failed to serialize system config")
 }
 
 /// 将配置保存到指定租户；原生平台把阻塞式数据库操作移出异步执行器。

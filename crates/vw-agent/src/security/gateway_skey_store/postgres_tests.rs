@@ -53,7 +53,7 @@ fn replace_all_rejects_sqlite_backend_without_mutating_it() {
     };
 
     let error = store
-        .replace_all(&tenant, &[skey], 1_234)
+        .replace_all(&tenant, &GatewaySkeyReplacement::new(&[skey]).unwrap(), 1_234)
         .expect_err("replacement must require a PostgreSQL connection");
 
     assert!(

@@ -6,6 +6,7 @@ use anyhow::{Context, Result, bail};
 use vw_api_types::id::TenantScope;
 use vw_config_types::gateway::GatewaySkey;
 
+use super::GatewaySkeyReplacement;
 use crate::global_database::GlobalDatabase;
 
 const GATEWAY_SKEYS_SCHEMA: &str = r#"
@@ -71,19 +72,31 @@ impl PostgresGatewaySkeyStore {
     pub(super) fn replace_all(
         &self,
         tenant: &TenantScope,
-        skeys: &[GatewaySkey],
+        replacement: &GatewaySkeyReplacement,
         timestamp_ms: i64,
     ) -> Result<()> {
         let mut connection = self.database.connect_postgres()?;
         let mut transaction =
             connection.transaction().context("begin PostgreSQL gateway skey replacement")?;
+        replacement.write_postgres(&mut transaction, tenant, timestamp_ms)?;
+        transaction.commit().context("commit PostgreSQL gateway skey replacement")
+    }
+}
+
+impl GatewaySkeyReplacement {
+    pub(crate) fn write_postgres(
+        &self,
+        transaction: &mut ::postgres::Transaction<'_>,
+        tenant: &TenantScope,
+        timestamp_ms: i64,
+    ) -> Result<()> {
         transaction
             .execute(
                 "DELETE FROM gateway_skeys WHERE platform_id = $1 AND company_id = $2",
                 &[&tenant.platform_id().as_ref(), &tenant.company_id().as_ref()],
             )
             .context("delete tenant PostgreSQL gateway skeys")?;
-        for skey in skeys {
+        for skey in &self.0 {
             let changed = transaction
                 .execute(
                     "INSERT INTO gateway_skeys (
@@ -106,7 +119,7 @@ impl PostgresGatewaySkeyStore {
                 bail!("PostgreSQL gateway skey insert affected an unexpected row count");
             }
         }
-        transaction.commit().context("commit PostgreSQL gateway skey replacement")
+        Ok(())
     }
 }
 

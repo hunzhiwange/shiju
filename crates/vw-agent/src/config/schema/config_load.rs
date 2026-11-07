@@ -196,6 +196,51 @@ pub(crate) async fn load_config_from_json_root(
 }
 
 #[cfg(not(target_arch = "wasm32"))]
+fn default_tenant_payload(config_path: &Path, workspace_dir: &Path) -> Result<String> {
+    let mut config = Config::default();
+    config.config_path = config_path.to_path_buf();
+    config.workspace_dir = workspace_dir.to_path_buf();
+    validate_config(&config)?;
+    encrypt_config_secrets(&mut config)?;
+    serde_json::to_string(&config).context("serialize default tenant system config")
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+fn decode_tenant_config(
+    base_payload: &str,
+    project_payload: Option<&str>,
+    config_path: &Path,
+    workspace_dir: PathBuf,
+    vibewindow_dir: &Path,
+    apply_environment: impl FnOnce(&mut Config),
+) -> Result<Config> {
+    let mut merged_payload: Value = serde_json::from_str(base_payload)
+        .context("Failed to parse tenant system config payload")?;
+    if !merged_payload.is_object() {
+        bail!("tenant system config payload root must be an object");
+    }
+
+    if let Some(project_payload) = project_payload {
+        let mut project_override: Value = serde_json::from_str(project_payload)
+            .context("Failed to parse tenant project config payload")?;
+        let Some(override_object) = project_override.as_object_mut() else {
+            bail!("tenant project config payload root must be an object");
+        };
+        // Agent definitions belong to the tenant, never to a workspace.
+        override_object.remove("agents");
+        merge_config_payload(&mut merged_payload, project_override);
+    }
+
+    decode_json_config_with_environment(
+        merged_payload,
+        config_path,
+        workspace_dir,
+        vibewindow_dir,
+        apply_environment,
+    )
+}
+
+#[cfg(not(target_arch = "wasm32"))]
 pub(super) async fn load_config_for_tenant_from_store(
     store: &SystemConfigStore,
     tenant: &TenantScope,
@@ -203,7 +248,7 @@ pub(super) async fn load_config_for_tenant_from_store(
     vibewindow_dir: &Path,
     workspace_dir: PathBuf,
     resolution_source: ConfigResolutionSource,
-    apply_environment: impl FnOnce(&mut Config),
+    apply_environment: impl Fn(&mut Config),
 ) -> Result<Config> {
     let config_path = config_json_path(vibewindow_dir);
     let project_key = project_root
@@ -222,56 +267,116 @@ pub(super) async fn load_config_for_tenant_from_store(
     })
     .await
     .context("join system config load task")??;
-    let (base_payload_json, initialized) = match stored_payload {
-        Some(payload) => (payload, false),
+    let decode = |payload: &str| {
+        decode_tenant_config(
+            payload,
+            project_payload.as_deref(),
+            &config_path,
+            workspace_dir.clone(),
+            vibewindow_dir,
+            &apply_environment,
+        )
+    };
+    let (config, initialized) = match stored_payload {
+        Some(payload) => (decode(&payload)?, false),
         None => {
-            let mut config = Config::default();
-            config.config_path = config_json_path(vibewindow_dir);
-            config.workspace_dir = workspace_dir.clone();
-            validate_config(&config)?;
-            encrypt_config_secrets(&mut config)?;
-            let payload =
-                serde_json::to_string(&config).context("serialize default tenant system config")?;
-            (payload, true)
+            let payload = default_tenant_payload(&config_path, &workspace_dir)?;
+            let config = decode(&payload)?;
+            let store = store.clone();
+            let tenant = tenant.clone();
+            let winner = tokio::task::spawn_blocking(move || {
+                if store.compare_and_swap(&tenant, None, &payload, None)? {
+                    Ok(None)
+                } else {
+                    store.get(&tenant)?.context("tenant system config disappeared").map(Some)
+                }
+            })
+            .await
+            .context("join system config initialization task")??;
+            match winner {
+                Some(payload) => (decode(&payload)?, false),
+                None => (config, true),
+            }
         }
     };
-
-    let mut merged_payload: Value = serde_json::from_str(&base_payload_json)
-        .context("Failed to parse tenant system config payload")?;
-    if !merged_payload.is_object() {
-        bail!("tenant system config payload root must be an object");
-    }
-
-    if let Some(project_payload) = project_payload {
-        let mut project_override: Value = serde_json::from_str(&project_payload)
-            .context("Failed to parse tenant project config payload")?;
-        if !project_override.is_object() {
-            bail!("tenant project config payload root must be an object");
-        }
-        // Agent definitions belong to the tenant, never to a workspace.
-        project_override.as_object_mut().unwrap().remove("agents");
-        merge_config_payload(&mut merged_payload, project_override);
-    }
-
-    let config = decode_json_config_with_environment(
-        merged_payload,
-        &config_path,
-        workspace_dir,
-        vibewindow_dir,
-        apply_environment,
-    )?;
-    if initialized {
-        let blocking_store = store.clone();
-        let blocking_tenant = tenant.clone();
-        let blocking_payload = base_payload_json.clone();
-        tokio::task::spawn_blocking(move || {
-            blocking_store.upsert(&blocking_tenant, &blocking_payload)
-        })
-        .await
-        .context("join system config initialization task")??;
-    }
     log_loaded_config(&config, resolution_source, initialized);
     Ok(config)
+}
+
+/// The same resolved store and paths are used for reads and optimistic updates.
+#[cfg(not(target_arch = "wasm32"))]
+pub(crate) struct TenantConfigSource {
+    pub(crate) store: SystemConfigStore,
+    config_dir: PathBuf,
+    workspace_dir: PathBuf,
+    resolution_source: ConfigResolutionSource,
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+impl TenantConfigSource {
+    pub(crate) async fn open(tenant: &TenantScope, project_root: Option<&Path>) -> Result<Self> {
+        let home = UserDirs::new()
+            .map(|dirs| dirs.home_dir().to_path_buf())
+            .context("Could not find home directory")?;
+        #[cfg(test)]
+        let home =
+            std::env::var_os("VW_MODEL_RECOVERY_TEST_ROOT").map(PathBuf::from).unwrap_or(home);
+
+        let migrate = tenant == &TenantScope::default();
+        let store = tokio::task::spawn_blocking(move || {
+            if migrate {
+                migrate_user_config(&home)?;
+            }
+            SystemConfigStore::new(GlobalDatabase::for_home(home)?)
+        })
+        .await
+        .context("join system config store initialization task")??;
+
+        let (default_config_dir, default_workspace_dir) = default_config_and_workspace_dirs()?;
+        let (config_dir, resolved_workspace_dir, resolution_source) =
+            resolve_runtime_config_dirs(&default_config_dir, &default_workspace_dir).await?;
+        fs::create_dir_all(&config_dir)
+            .await
+            .with_context(|| config_dir_creation_error(&config_dir))?;
+
+        let workspace_dir = project_root.map(Path::to_path_buf).unwrap_or(resolved_workspace_dir);
+        if project_root.is_none() {
+            fs::create_dir_all(&workspace_dir)
+                .await
+                .context("Failed to create workspace directory")?;
+        }
+        Ok(Self { store, config_dir, workspace_dir, resolution_source })
+    }
+
+    /// Load the base and its exact persisted snapshot without initializing an absent row.
+    pub(crate) async fn read_for_patch(
+        &self,
+        tenant: &TenantScope,
+    ) -> Result<(Config, Option<String>)> {
+        let store = self.store.clone();
+        let tenant = tenant.clone();
+        let snapshot = tokio::task::spawn_blocking(move || store.get(&tenant))
+            .await
+            .context("join system config load task")??;
+        let config_path = config_json_path(&self.config_dir);
+        let default;
+        let payload = match snapshot.as_deref() {
+            Some(payload) => payload,
+            None => {
+                default = default_tenant_payload(&config_path, &self.workspace_dir)?;
+                &default
+            }
+        };
+        let config = decode_tenant_config(
+            payload,
+            None,
+            &config_path,
+            self.workspace_dir.clone(),
+            &self.config_dir,
+            apply_env_overrides,
+        )?;
+        Ok((config, snapshot))
+    }
 }
 
 /// 按显式租户加载数据库基础配置，并可选择叠加项目路径对应的数据库覆盖。
@@ -281,45 +386,16 @@ pub(super) async fn load_config_for_tenant_from_store(
 async fn load_or_init_config_for_tenant_with_environment(
     tenant: &TenantScope,
     project_root: Option<&Path>,
-    apply_environment: impl FnOnce(&mut Config),
+    apply_environment: impl Fn(&mut Config),
 ) -> Result<Config> {
-    let home = UserDirs::new()
-        .map(|dirs| dirs.home_dir().to_path_buf())
-        .context("Could not find home directory")?;
-    #[cfg(test)]
-    let home = std::env::var_os("VW_MODEL_RECOVERY_TEST_ROOT").map(PathBuf::from).unwrap_or(home);
-    if tenant == &TenantScope::default() {
-        migrate_user_config(&home)?;
-    }
-
-    let (default_vibewindow_dir, default_workspace_dir) = default_config_and_workspace_dirs()?;
-    let (vibewindow_dir, resolved_workspace_dir, resolution_source) =
-        resolve_runtime_config_dirs(&default_vibewindow_dir, &default_workspace_dir).await?;
-    fs::create_dir_all(&vibewindow_dir)
-        .await
-        .with_context(|| config_dir_creation_error(&vibewindow_dir))?;
-
-    let workspace_dir = project_root.map(Path::to_path_buf).unwrap_or(resolved_workspace_dir);
-    if project_root.is_none() {
-        fs::create_dir_all(&workspace_dir).await.context("Failed to create workspace directory")?;
-    }
-
-    #[cfg(test)]
-    let store = SystemConfigStore::new(GlobalDatabase::for_home(home)?)?;
-    #[cfg(not(test))]
-    let store = {
-        let database = GlobalDatabase::for_home(home)?;
-        tokio::task::spawn_blocking(move || SystemConfigStore::new(database))
-    }
-    .await
-    .context("join system config store initialization task")??;
+    let source = TenantConfigSource::open(tenant, project_root).await?;
     load_config_for_tenant_from_store(
-        &store,
+        &source.store,
         tenant,
         project_root,
-        &vibewindow_dir,
-        workspace_dir,
-        resolution_source,
+        &source.config_dir,
+        source.workspace_dir,
+        source.resolution_source,
         apply_environment,
     )
     .await

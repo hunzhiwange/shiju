@@ -4,13 +4,14 @@ use anyhow::Result;
 use vw_api_types::id::TenantScope;
 
 use super::SystemConfigStore;
+use crate::app::agent::security::gateway_skey_store::{GatewaySkeyReplacement, GatewaySkeyStore};
 use crate::global_database::GlobalDatabase;
 use crate::global_database::test_support::PostgresTestDatabase;
 
 // 正常值、缺省值与非法输入成组验证，用于固定配置兼容边界和失败语义。
 #[test]
 fn system_config_store_isolates_platform_and_company_rows() -> Result<()> {
-    for_each_system_config_store_provider(system_config_store_isolation)?;
+    for_each_system_config_store_provider(|store, _| system_config_store_isolation(store))?;
     Ok(())
 }
 
@@ -41,7 +42,7 @@ fn system_config_store_isolation(store: &SystemConfigStore) -> Result<()> {
 
 #[test]
 fn project_config_store_isolates_tenants_and_project_paths() -> Result<()> {
-    for_each_system_config_store_provider(project_config_store_isolation)?;
+    for_each_system_config_store_provider(|store, _| project_config_store_isolation(store))?;
     Ok(())
 }
 
@@ -104,16 +105,61 @@ fn system_config_store_reports_sqlite_schema_initialization_failure() -> Result<
     Ok(())
 }
 
+#[test]
+fn system_config_store_conditional_write_preserves_winner_and_rolls_back_skeys() -> Result<()> {
+    for_each_system_config_store_provider(|store, database| {
+        let tenant = TenantScope::new("platform", "company")?;
+        let other = TenantScope::new("platform", "other")?;
+        let skey_store = GatewaySkeyStore::new(database.clone())?;
+        let skey = serde_json::from_value::<vw_config_types::gateway::GatewaySkey>(
+            serde_json::json!({"skey_hash": "a".repeat(64)}),
+        )?;
+        let initial = GatewaySkeyReplacement::new(std::slice::from_ref(&skey))?;
+        let original = r#"{"version":1}"#;
+        assert!(store.compare_and_swap(&tenant, None, original, Some(&initial))?);
+        let original_skeys = skey_store.load(&tenant)?;
+        assert_eq!(original_skeys.len(), 1);
+        assert!(!store.compare_and_swap(&tenant, None, "{}", None)?);
+
+        let barrier = std::sync::Barrier::new(2);
+        let editor = r#"{"version":2}"#;
+        let terminal = r#"{"version":3}"#;
+        let (editor_won, terminal_won) = std::thread::scope(|scope| {
+            let editor_write = scope.spawn(|| {
+                barrier.wait();
+                store.compare_and_swap(&tenant, Some(original), editor, None)
+            });
+            let terminal_write = scope.spawn(|| {
+                barrier.wait();
+                store.compare_and_swap(&tenant, Some(original), terminal, None)
+            });
+            Ok::<_, anyhow::Error>((editor_write.join().unwrap()?, terminal_write.join().unwrap()?))
+        })?;
+        assert_ne!(editor_won, terminal_won);
+        let winner = if editor_won { editor } else { terminal };
+        assert_eq!(store.get(&tenant)?.as_deref(), Some(winner));
+
+        let duplicate = GatewaySkeyReplacement::new(&[skey.clone(), skey])?;
+        assert!(store.compare_and_swap(&tenant, Some(winner), "{}", Some(&duplicate)).is_err());
+        assert_eq!(store.get(&tenant)?.as_deref(), Some(winner));
+        assert_eq!(skey_store.load(&tenant)?, original_skeys);
+        assert_eq!(store.get(&other)?, None);
+        assert!(skey_store.load(&other)?.is_empty());
+        Ok(())
+    })
+}
+
 fn for_each_system_config_store_provider(
-    mut check: impl FnMut(&SystemConfigStore) -> Result<()>,
+    mut check: impl FnMut(&SystemConfigStore, &GlobalDatabase) -> Result<()>,
 ) -> Result<()> {
     let sqlite_home = tempfile::tempdir()?;
-    let sqlite_store = SystemConfigStore::new(GlobalDatabase::for_home(sqlite_home.path())?)?;
-    check(&sqlite_store)?;
+    let sqlite_db = GlobalDatabase::for_home(sqlite_home.path())?;
+    let sqlite_store = SystemConfigStore::new(sqlite_db.clone())?;
+    check(&sqlite_store, &sqlite_db)?;
 
     let postgres_fixture = crate::global_database::test_support::postgres_test_database!();
     let postgres_store = SystemConfigStore::new(postgres_fixture.database().clone())?;
-    check(&postgres_store)?;
+    check(&postgres_store, postgres_fixture.database())?;
     postgres_fixture.cleanup()?;
     Ok(())
 }

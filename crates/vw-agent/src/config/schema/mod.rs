@@ -81,12 +81,17 @@ pub use ui::*;
 pub use config::{AcpAgentConfig, Config, ConfigExt};
 pub(crate) use config_env::apply_env_overrides;
 pub(crate) use config_io::parse_config_contents;
+#[cfg(not(target_arch = "wasm32"))]
+pub(crate) use config_load::TenantConfigSource;
 pub(crate) use config_load::load_or_init_config;
 pub use config_load::load_or_init_config_for_tenant;
 pub(crate) use config_load::load_or_init_config_for_tenant_without_env;
+#[cfg(not(target_arch = "wasm32"))]
+pub(crate) use config_save::encode_config_for_storage;
+#[cfg(any(test, target_arch = "wasm32"))]
+pub(crate) use config_save::save_config_for_tenant;
 pub(crate) use config_save::{
-    save_config, save_config_for_tenant, update_project_config_for_tenant,
-    update_project_config_from_configs,
+    save_config, update_project_config_for_tenant, update_project_config_from_configs,
 };
 pub(crate) use config_secrets::{decrypt_config_secrets, encrypt_config_secrets};
 pub(crate) use config_validate::{

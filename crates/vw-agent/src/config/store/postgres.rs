@@ -5,6 +5,7 @@
 use anyhow::{Context, Result, bail};
 use vw_api_types::id::TenantScope;
 
+use crate::app::agent::security::gateway_skey_store::GatewaySkeyReplacement;
 use crate::global_database::GlobalDatabase;
 
 const SYSTEM_CONFIGS_SCHEMA: &str = r#"
@@ -88,6 +89,42 @@ impl PostgresSystemConfigStore {
             bail!("PostgreSQL system config upsert affected an unexpected row count");
         }
         Ok(())
+    }
+
+    pub(super) fn compare_and_swap(
+        &self,
+        tenant: &TenantScope,
+        expected: Option<&str>,
+        payload_json: &str,
+        skeys: Option<&GatewaySkeyReplacement>,
+        updated_at_ms: i64,
+    ) -> Result<bool> {
+        let mut connection = self.database.connect_postgres()?;
+        let mut transaction = connection.transaction().context("begin PostgreSQL config write")?;
+        let platform = tenant.platform_id().as_ref();
+        let company = tenant.company_id().as_ref();
+        let changed = match expected {
+            Some(expected) => transaction.execute(
+                "UPDATE system_configs SET payload_json = $3, updated_at_ms = $4
+                 WHERE platform_id = $1 AND company_id = $2 AND payload_json = $5",
+                &[&platform, &company, &payload_json, &updated_at_ms, &expected],
+            ),
+            None => transaction.execute(
+                "INSERT INTO system_configs (
+                     platform_id, company_id, payload_json, updated_at_ms
+                 ) VALUES ($1, $2, $3, $4)
+                 ON CONFLICT (platform_id, company_id) DO NOTHING",
+                &[&platform, &company, &payload_json, &updated_at_ms],
+            ),
+        }
+        .context("conditionally write tenant PostgreSQL system config")?;
+        if changed == 1
+            && let Some(skeys) = skeys
+        {
+            skeys.write_postgres(&mut transaction, tenant, updated_at_ms)?;
+        }
+        transaction.commit().context("commit PostgreSQL config write")?;
+        Ok(changed == 1)
     }
 
     /// 读取指定租户和项目路径的覆盖 JSON。

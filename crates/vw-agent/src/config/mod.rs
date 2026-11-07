@@ -28,6 +28,8 @@
 //! ```
 
 use crate::app::agent::config::schema::load_or_init_config;
+#[cfg(not(target_arch = "wasm32"))]
+use crate::app::agent::security::gateway_skey_store::GatewaySkeyReplacement;
 use crate::app::agent::security::gateway_skey_store::GatewaySkeyStore;
 use crate::app::agent::storage;
 use crate::app::agent::util::log;
@@ -60,8 +62,10 @@ pub mod traits;
 #[cfg(test)]
 #[path = "traits_tests.rs"]
 mod traits_tests;
+#[cfg(test)]
+pub(crate) use schema::save_config_for_tenant;
 pub use schema::*;
-pub(crate) use schema::{save_config, save_config_for_tenant, validate_config};
+pub(crate) use schema::{save_config, validate_config};
 #[cfg(not(target_arch = "wasm32"))]
 pub use store::SystemConfigStore;
 
@@ -578,6 +582,11 @@ pub async fn remove_global_provider(provider_id: &str) -> Result<(), Error> {
     save_config(&config).await.map_err(|e| Error::Invalid(e.to_string()))
 }
 
+#[cfg(test)]
+tokio::task_local! {
+    pub(crate) static GLOBAL_CONFIG_PATCH_READ_BARRIER: std::sync::Arc<tokio::sync::Barrier>;
+}
+
 /// 更新全局配置（增量合并）
 ///
 /// 将补丁配置深度合并到当前配置中，验证后保存
@@ -626,7 +635,75 @@ pub async fn update_global_for_tenant(tenant: &TenantScope, mut patch: Value) ->
     schema::validate_agent_profile_patch(&patch)
         .map_err(|error| Error::Invalid(error.to_string()))?;
     let gateway_skeys = take_gateway_skeys_from_patch(&mut patch)?;
-    let current = get_global_for_tenant(tenant).await?;
+
+    #[cfg(not(target_arch = "wasm32"))]
+    {
+        let skeys = gateway_skeys
+            .as_deref()
+            .map(GatewaySkeyReplacement::new)
+            .transpose()
+            .map_err(|error| Error::Invalid(error.to_string()))?
+            .map(std::sync::Arc::new);
+        let source = schema::TenantConfigSource::open(tenant, None)
+            .await
+            .map_err(|error| Error::Invalid(error.to_string()))?;
+        let read_snapshot = || async {
+            source.read_for_patch(tenant).await.map_err(|error| Error::Invalid(error.to_string()))
+        };
+        let mut snapshot = read_snapshot().await?;
+        #[cfg(test)]
+        if let Ok(barrier) = GLOBAL_CONFIG_PATCH_READ_BARRIER.try_with(std::sync::Arc::clone) {
+            barrier.wait().await;
+        }
+
+        const MAX_ATTEMPTS: usize = 8;
+        for attempt in 1..=MAX_ATTEMPTS {
+            let (mut current, expected) = snapshot;
+            current.gateway.skeys = load_gateway_skeys_for_tenant(tenant).await?;
+            let next = merge_global_config_patch(current, patch.clone())?;
+            let payload = schema::encode_config_for_storage(&next)
+                .map_err(|error| Error::Invalid(error.to_string()))?;
+            let store = source.store.clone();
+            let write_tenant = tenant.clone();
+            let write_skeys = skeys.clone();
+            let written = tokio::task::spawn_blocking(move || {
+                store.compare_and_swap(
+                    &write_tenant,
+                    expected.as_deref(),
+                    &payload,
+                    write_skeys.as_deref(),
+                )
+            })
+            .await
+            .map_err(|error| Error::Invalid(format!("join system config write task: {error}")))?
+            .map_err(|error| Error::Invalid(error.to_string()))?;
+            if written {
+                return Ok(());
+            }
+            if attempt == MAX_ATTEMPTS {
+                break;
+            }
+            snapshot = read_snapshot().await?;
+        }
+        Err(Error::Invalid("tenant system config changed concurrently; retry the patch".into()))
+    }
+
+    #[cfg(target_arch = "wasm32")]
+    {
+        let current = get_global_for_tenant(tenant).await?;
+        let mut next = merge_global_config_patch(current, patch)?;
+        if let Some(skeys) = gateway_skeys {
+            replace_gateway_skeys_for_tenant(tenant, &skeys).await?;
+            next.gateway.skeys = load_gateway_skeys_for_tenant(tenant).await?;
+        }
+        validate_config(&next).map_err(|error| Error::Invalid(error.to_string()))?;
+        schema::save_config_for_tenant(&next, tenant)
+            .await
+            .map_err(|error| Error::Invalid(error.to_string()))
+    }
+}
+
+fn merge_global_config_patch(current: Config, mut patch: Value) -> Result<Config, Error> {
     schema::seed_agent_profile_patch(&current, &mut patch)
         .map_err(|error| Error::Invalid(error.to_string()))?;
     // 将配置转换为 JSON 值
@@ -641,12 +718,7 @@ pub async fn update_global_for_tenant(tenant: &TenantScope, mut patch: Value) ->
     next.workspace_dir = current.workspace_dir;
     next.config_path = current.config_path;
     validate_config(&next).map_err(|e| Error::Invalid(e.to_string()))?;
-    if let Some(skeys) = gateway_skeys {
-        replace_gateway_skeys_for_tenant(tenant, &skeys).await?;
-        next.gateway.skeys = load_gateway_skeys_for_tenant(tenant).await?;
-    }
-    validate_config(&next).map_err(|e| Error::Invalid(e.to_string()))?;
-    save_config_for_tenant(&next, tenant).await.map_err(|e| Error::Invalid(e.to_string()))
+    Ok(next)
 }
 
 /// Saved agent keys retain their engine; custom deletion remains supported.

@@ -103,8 +103,28 @@ impl GatewaySkeyStore {
 
     /// 规范化输入并在事务内替换租户全部密钥元数据。
     ///
-    /// 重复摘要会去重，任何一条无效都会使整批写入失败。
+    /// 无效或重复的摘要会使整批写入失败。
     pub(crate) fn replace_all(&self, tenant: &TenantScope, skeys: &[GatewaySkey]) -> Result<()> {
+        let replacement = GatewaySkeyReplacement::new(skeys)?;
+        let timestamp_ms = current_timestamp_ms()?;
+        let result = match &self.provider {
+            GatewaySkeyStoreProvider::Sqlite(database) => database
+                .with_sqlite_transaction(TransactionBehavior::Immediate, |transaction| {
+                    replacement.write_sqlite(transaction, tenant, timestamp_ms)
+                }),
+            GatewaySkeyStoreProvider::Postgres(store) => {
+                store.replace_all(tenant, &replacement, timestamp_ms)
+            }
+        };
+        result.context("replace tenant gateway skeys")
+    }
+}
+
+/// 仅含规范化元数据，可随租户配置写入同一数据库事务。
+pub(crate) struct GatewaySkeyReplacement(Vec<GatewaySkey>);
+
+impl GatewaySkeyReplacement {
+    pub(crate) fn new(skeys: &[GatewaySkey]) -> Result<Self> {
         let normalized = skeys
             .iter()
             .map(normalize_skey)
@@ -113,40 +133,38 @@ impl GatewaySkeyStore {
             .into_iter()
             .flatten()
             .collect::<Vec<_>>();
-        let timestamp_ms = current_timestamp_ms()?;
-        let result = match &self.provider {
-            GatewaySkeyStoreProvider::Sqlite(database) => {
-                database.with_sqlite_transaction(TransactionBehavior::Immediate, |transaction| {
-                    transaction.execute(
-                        "DELETE FROM gateway_skeys WHERE platform_id = ?1 AND company_id = ?2",
-                        params![tenant.platform_id().as_ref(), tenant.company_id().as_ref()],
-                    )?;
-                    for skey in &normalized {
-                        transaction.execute(
-                            "INSERT INTO gateway_skeys (
-                                 platform_id, company_id, skey_hash, masked_skey, name, enabled,
-                                 expires_at, created_at_ms, updated_at_ms
-                             ) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?8)",
-                            params![
-                                tenant.platform_id().as_ref(),
-                                tenant.company_id().as_ref(),
-                                skey.skey_hash,
-                                skey.masked_skey,
-                                skey.name,
-                                if skey.enabled { 1_i64 } else { 0_i64 },
-                                skey.expires_at,
-                                timestamp_ms,
-                            ],
-                        )?;
-                    }
-                    Ok(())
-                })
-            }
-            GatewaySkeyStoreProvider::Postgres(store) => {
-                store.replace_all(tenant, &normalized, timestamp_ms)
-            }
-        };
-        result.context("replace tenant gateway skeys")
+        Ok(Self(normalized))
+    }
+
+    pub(crate) fn write_sqlite(
+        &self,
+        transaction: &rusqlite::Transaction<'_>,
+        tenant: &TenantScope,
+        timestamp_ms: i64,
+    ) -> Result<()> {
+        transaction.execute(
+            "DELETE FROM gateway_skeys WHERE platform_id = ?1 AND company_id = ?2",
+            params![tenant.platform_id().as_ref(), tenant.company_id().as_ref()],
+        )?;
+        for skey in &self.0 {
+            transaction.execute(
+                "INSERT INTO gateway_skeys (
+                     platform_id, company_id, skey_hash, masked_skey, name, enabled,
+                     expires_at, created_at_ms, updated_at_ms
+                 ) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?8)",
+                params![
+                    tenant.platform_id().as_ref(),
+                    tenant.company_id().as_ref(),
+                    skey.skey_hash,
+                    skey.masked_skey,
+                    skey.name,
+                    if skey.enabled { 1_i64 } else { 0_i64 },
+                    skey.expires_at,
+                    timestamp_ms,
+                ],
+            )?;
+        }
+        Ok(())
     }
 }
 

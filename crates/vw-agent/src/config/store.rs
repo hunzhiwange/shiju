@@ -5,9 +5,10 @@
 use std::time::{SystemTime, UNIX_EPOCH};
 
 use anyhow::{Context, Result, bail};
-use rusqlite::{OptionalExtension, params};
+use rusqlite::{OptionalExtension, TransactionBehavior, params};
 use vw_api_types::id::TenantScope;
 
+use crate::app::agent::security::gateway_skey_store::GatewaySkeyReplacement;
 use crate::global_database::GlobalDatabase;
 use crate::global_database::config::DatabaseProvider;
 
@@ -116,6 +117,52 @@ impl SystemConfigStore {
             }
             SystemConfigStoreProvider::Postgres(store) => {
                 store.upsert(tenant, payload_json, updated_at_ms)
+            }
+        }
+    }
+
+    /// 仅当租户记录仍匹配读取的原始 JSON（或仍不存在）时写入。
+    /// 同时更新网关密钥时，两项写入在同一事务提交。
+    pub(crate) fn compare_and_swap(
+        &self,
+        tenant: &TenantScope,
+        expected: Option<&str>,
+        payload_json: &str,
+        skeys: Option<&GatewaySkeyReplacement>,
+    ) -> Result<bool> {
+        let updated_at_ms = current_timestamp_ms()?;
+        match &self.provider {
+            SystemConfigStoreProvider::Sqlite(database) => {
+                database.with_sqlite_transaction(TransactionBehavior::Immediate, |transaction| {
+                    let platform = tenant.platform_id().as_ref();
+                    let company = tenant.company_id().as_ref();
+                    let changed = match expected {
+                        Some(expected) => transaction.execute(
+                            "UPDATE system_configs SET payload_json = ?3, updated_at_ms = ?4
+                             WHERE platform_id = ?1 AND company_id = ?2 AND payload_json = ?5",
+                            params![platform, company, payload_json, updated_at_ms, expected],
+                        ),
+                        None => transaction.execute(
+                            "INSERT INTO system_configs (
+                                 platform_id, company_id, payload_json, updated_at_ms
+                             ) VALUES (?1, ?2, ?3, ?4)
+                             ON CONFLICT (platform_id, company_id) DO NOTHING",
+                            params![platform, company, payload_json, updated_at_ms],
+                        ),
+                    }
+                    .context("conditionally write tenant SQLite system config")?;
+                    if changed == 1
+                        && let Some(skeys) = skeys
+                    {
+                        skeys
+                            .write_sqlite(transaction, tenant, updated_at_ms)
+                            .context("replace tenant gateway skeys")?;
+                    }
+                    Ok(changed == 1)
+                })
+            }
+            SystemConfigStoreProvider::Postgres(store) => {
+                store.compare_and_swap(tenant, expected, payload_json, skeys, updated_at_ms)
             }
         }
     }

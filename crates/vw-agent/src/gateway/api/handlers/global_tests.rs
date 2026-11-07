@@ -521,6 +521,115 @@ async fn global_config_patch_stateful_rejects_invalid_patch_without_runtime_upda
 }
 
 #[tokio::test]
+async fn global_config_patch_stateful_concurrent_fields_preserve_both_values() {
+    use crate::config::GLOBAL_CONFIG_PATCH_READ_BARRIER;
+    use axum::middleware::{Next, from_fn};
+    use serde_json::json;
+
+    let _env_lock = crate::test_support::global_async_env_lock().lock().await;
+    let temp = TempDir::new().expect("temp dir");
+    let (_home, _config_dir, _workspace) = use_temp_config_dir(&temp);
+    let tenant = TenantScope::new("patch-test", "primary").unwrap();
+    let other = TenantScope::new("patch-test", "other").unwrap();
+    let token = uuid::Uuid::new_v4().to_string();
+    config::update_global_for_tenant(
+        &tenant,
+        json!({
+            "gateway": {"auth_enabled": true, "skeys": [{"skey": token, "enabled": true}]},
+            "app_ui": {"system_settings": {"editor_font_size": 14, "terminal_font_size": 14}}
+        }),
+    )
+    .await
+    .expect("initialize authenticated tenant");
+    let initial = config::get_global_for_tenant(&tenant).await.unwrap();
+    let state = state(initial, true, std::slice::from_ref(&token));
+    let barrier = Arc::new(tokio::sync::Barrier::new(2));
+    let app = crate::gateway::bootstrap::client_router(state.clone(), Router::new(), Router::new())
+        .layer(from_fn(move |request: Request<Body>, next: Next| {
+            let barrier = barrier.clone();
+            async move {
+                if request.headers().contains_key("x-test-concurrent-patch") {
+                    GLOBAL_CONFIG_PATCH_READ_BARRIER.scope(barrier, next.run(request)).await
+                } else {
+                    next.run(request).await
+                }
+            }
+        }))
+        .with_state(state.clone());
+    let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
+    let url = format!("http://{}/v1/global/config", listener.local_addr().unwrap());
+    let server = tokio::spawn(async { axum::serve(listener, app).await.unwrap() });
+    let client =
+        reqwest::Client::builder().no_proxy().timeout(Duration::from_secs(10)).build().unwrap();
+    let request = |method, scope: &TenantScope| {
+        client
+            .request(method, &url)
+            .bearer_auth(&token)
+            .header(vw_api_types::id::PLATFORM_ID_HEADER, scope.platform_id().as_ref())
+            .header(vw_api_types::id::COMPANY_ID_HEADER, scope.company_id().as_ref())
+    };
+    let read_fonts = |response: reqwest::Response| async move {
+        assert_eq!(response.status(), StatusCode::OK);
+        let body = response.json::<Value>().await.expect("JSON response");
+        let settings = &body["app_ui"]["system_settings"];
+        (settings["editor_font_size"].as_f64(), settings["terminal_font_size"].as_f64())
+    };
+    let get = |scope| request(reqwest::Method::GET, scope);
+    let patch = |body| request(reqwest::Method::PATCH, &tenant).json(&body);
+    assert_eq!(client.get(&url).send().await.unwrap().status(), StatusCode::UNAUTHORIZED);
+    let other_before = read_fonts(get(&other).send().await.unwrap()).await;
+
+    for round in 0..20 {
+        if round > 0 {
+            let reset = patch(json!({
+                "app_ui": {"system_settings": {"editor_font_size": 14, "terminal_font_size": 14}}
+            }))
+            .send()
+            .await
+            .unwrap();
+            assert_eq!(reset.status(), StatusCode::OK);
+        }
+        let (editor, terminal) = tokio::join!(
+            patch(json!({"app_ui": {"system_settings": {"editor_font_size": 24}}}))
+                .header("x-test-concurrent-patch", "1")
+                .send(),
+            patch(json!({"app_ui": {"system_settings": {"terminal_font_size": 19}}}))
+                .header("x-test-concurrent-patch", "1")
+                .send(),
+        );
+        assert_eq!(editor.unwrap().status(), StatusCode::OK);
+        assert_eq!(terminal.unwrap().status(), StatusCode::OK);
+        assert_eq!(
+            read_fonts(get(&tenant).send().await.unwrap()).await,
+            (Some(24.0), Some(19.0)),
+            "persisted fonts in round {round}"
+        );
+        let cached = state.config.lock();
+        let settings = &cached.app_ui.system_settings;
+        assert_eq!((settings.editor_font_size, settings.terminal_font_size), (24.0, 19.0));
+    }
+
+    let invalid = patch(json!({
+        "gateway": {"host": "", "skeys": []},
+        "app_ui": {"system_settings": {"editor_font_size": 30}}
+    }))
+    .send()
+    .await
+    .unwrap();
+    assert_eq!(invalid.status(), StatusCode::BAD_REQUEST);
+    assert!(state.pairing.is_authenticated(&token));
+    assert_eq!(read_fonts(get(&tenant).send().await.unwrap()).await, (Some(24.0), Some(19.0)));
+    assert_eq!(read_fonts(get(&other).send().await.unwrap()).await, other_before);
+    {
+        let cached = state.config.lock();
+        let settings = &cached.app_ui.system_settings;
+        assert_eq!((settings.editor_font_size, settings.terminal_font_size), (24.0, 19.0));
+    }
+    server.abort();
+    assert!(server.await.unwrap_err().is_cancelled());
+}
+
+#[tokio::test]
 async fn global_dispose_returns_true_and_publishes_global_event() {
     let (tx, mut rx) = tokio::sync::mpsc::unbounded_channel();
     let unsub = bus::global_subscribe(move |event| {

@@ -1,4 +1,7 @@
 //! Incremental OpenCode JSONC adapter. All writes use the shared transaction owner.
+#[path = "opencode_form.rs"]
+pub mod form;
+
 use super::live::{
     patch_json::{JsonPatch, object_value},
     write_guard::WriteError,

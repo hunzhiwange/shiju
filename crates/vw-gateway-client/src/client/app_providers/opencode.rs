@@ -11,6 +11,30 @@ impl GatewayClient {
     ) -> Result<OpenCodeResult, Error> {
         self.opencode_request(id, "PUT", "/config", body, token).await
     }
+    pub async fn opencode_form_read(
+        &self,
+        id: &str,
+        body: &OpenCodeTarget,
+        token: &str,
+    ) -> Result<OpenCodeFormView, Error> {
+        self.opencode_request(id, "POST", "/form/read", body, token).await
+    }
+    pub async fn opencode_form_create(
+        &self,
+        id: &str,
+        body: &OpenCodeFormWrite,
+        token: &str,
+    ) -> Result<OpenCodeResult, Error> {
+        self.opencode_request(id, "POST", "/form", body, token).await
+    }
+    pub async fn opencode_form_update(
+        &self,
+        id: &str,
+        body: &OpenCodeFormWrite,
+        token: &str,
+    ) -> Result<OpenCodeResult, Error> {
+        self.opencode_request(id, "PATCH", "/form", body, token).await
+    }
     pub async fn opencode_provider_add(
         &self,
         id: &str,

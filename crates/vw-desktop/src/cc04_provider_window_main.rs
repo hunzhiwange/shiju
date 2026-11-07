@@ -16,6 +16,7 @@ fn main() {
         "codex" => (AppId::Codex, true),
         "gemini" => (AppId::Gemini, true),
         "grok" => (AppId::GrokBuild, true),
+        "opencode" => (AppId::OpenCode, true),
         _ => panic!("unknown window case"),
     };
     let edit = case == "edit";
@@ -57,6 +58,7 @@ fn main() {
         "codex" => "Codex 供应商隔离验收",
         "gemini" => "Gemini CLI 供应商隔离验收",
         "grok" => "Grok Build 供应商隔离验收",
+        "opencode" => "OpenCode 供应商隔离验收",
         "claude" => "Claude Code 供应商隔离验收",
         _ => "供应商基础编辑隔离验收",
     })
@@ -103,6 +105,7 @@ fn fixture(
             AppId::Codex => "codex",
             AppId::Gemini => "gemini",
             AppId::GrokBuild => "grokbuild",
+            AppId::OpenCode => "opencode",
             _ => panic!("unknown fixture app"),
         };
         let prefix = format!("/v1/app-providers/{app}/");
@@ -135,6 +138,21 @@ fn fixture(
                 "inactive":[["config","legacy","中文旧字段"],["config","ui","theme"]],
             }));
         }
+        let mut opencode_configs = std::collections::BTreeMap::from([(
+            "provider-0".to_owned(),
+            serde_json::json!({
+                "format": "v1",
+                "declaration": serde_json::to_string_pretty(&serde_json::json!({
+                    "npm": "@ai-sdk/openai-compatible",
+                    "name": "中文原生节点",
+                    "options": {"baseURL":"https://fixture-api.example.test/v1", "headers":"[保留执行端值]"},
+                    "models": {"中文模型":{"name":"中文动态模型", "limit":{"context":8192}}}
+                })).unwrap(),
+                "hasSavedKey": true,
+                "revision": "fixture-1"
+            }),
+        )]);
+        let mut opencode_members = std::collections::BTreeSet::from(["provider-0".to_owned()]);
         while !done.load(std::sync::atomic::Ordering::Relaxed) {
             let (mut stream, _) = match listener.accept() {
                 Ok(v) => v,
@@ -168,7 +186,77 @@ fn fixture(
             let mut status = "200 OK";
             let path = line.split_whitespace().nth(1).unwrap_or("");
             let id = path.strip_prefix(&prefix).and_then(|v| v.split('/').next()).unwrap_or("");
-            let body = if native_form && path.ends_with("/form/read") && line.starts_with("POST ") {
+            let body = if app == "opencode"
+                && (path.ends_with("/form/read")
+                    || path.ends_with("/form")
+                    || path.ends_with("/add")
+                    || path.ends_with("/remove-live"))
+            {
+                assert!(head.to_lowercase().contains("x-agent-apps-token: fake-host-token"));
+                let mut value: serde_json::Value = serde_json::from_slice(&payload).unwrap();
+                assert_eq!(value["targetHostId"], "fixture-host");
+                if path.ends_with("/form/read") {
+                    assert!(line.starts_with("POST "));
+                    serde_json::json!({"fields":basics[id],"config":opencode_configs.get(id)})
+                } else if path.ends_with("/add") || path.ends_with("/remove-live") {
+                    assert!(line.starts_with("POST "));
+                    if path.ends_with("/remove-live") {
+                        opencode_members.remove(id);
+                        serde_json::json!({"catalogSaved":false,"live":"applied"})
+                    } else if opencode_configs.contains_key(id) {
+                        opencode_members.insert(id.into());
+                        serde_json::json!({"catalogSaved":false,"live":"applied"})
+                    } else {
+                        status = "404 Not Found";
+                        serde_json::Value::Null
+                    }
+                } else {
+                    assert!(line.starts_with("POST ") || line.starts_with("PATCH "));
+                    let declaration = value["declaration"].as_str().unwrap();
+                    if !serde_json::from_str::<serde_json::Value>(declaration)
+                        .ok()
+                        .and_then(|node| node.get("models").cloned())
+                        .is_some_and(|models| {
+                            models.is_object()
+                                && models
+                                    .as_object()
+                                    .unwrap()
+                                    .values()
+                                    .all(serde_json::Value::is_object)
+                        })
+                    {
+                        status = "422 Unprocessable Entity";
+                        serde_json::Value::Null
+                    } else {
+                        let prior = opencode_configs.get(id);
+                        if line.starts_with("PATCH ") {
+                            assert_eq!(value["revision"], prior.unwrap()["revision"]);
+                        }
+                        let has_saved_key = match value["apiKey"]["action"].as_str() {
+                            Some("replace") => true,
+                            Some("clear") => false,
+                            _ => prior.is_some_and(|p| p["hasSavedKey"] == true),
+                        };
+                        let live = match value["activation"].as_str() {
+                            Some("add") => {
+                                opencode_members.insert(id.into());
+                                "applied"
+                            }
+                            Some("if_member") if opencode_members.contains(id) => "applied",
+                            _ => "not_attempted",
+                        };
+                        opencode_configs.insert(
+                            id.into(),
+                            serde_json::json!({
+                                "format":value["format"], "declaration":declaration,
+                                "hasSavedKey":has_saved_key,"revision":"fixture-saved",
+                            }),
+                        );
+                        basics.insert(id.into(), value["fields"].take());
+                        serde_json::json!({"catalogSaved":true,"live":live})
+                    }
+                }
+            } else if native_form && path.ends_with("/form/read") && line.starts_with("POST ") {
                 assert!(head.to_lowercase().contains("x-agent-apps-token: fake-host-token"));
                 let target: serde_json::Value = serde_json::from_slice(&payload).unwrap();
                 assert_eq!(target["targetHostId"], "fixture-host");
@@ -263,7 +351,15 @@ fn fixture(
                 && path.starts_with(&format!("{prefix}catalog/state?"))
             {
                 assert!(head.to_lowercase().contains("x-agent-apps-token: fake-host-token"));
-                serde_json::json!({"appId":app,"rows":basics.iter().map(|(id, fields)|serde_json::json!({"provider":{"id":id,"appId":app,"name":fields["name"],"configured":true},"nativeMember":if id=="provider-0"{"present"}else{"absent"}})).collect::<Vec<_>>(),"direct":{"status":"selected","id":"provider-0"},"inUse":{"status":"selected","id":"provider-0"},"nativeRead":null})
+                let selection = if app == "opencode" {
+                    serde_json::json!({"status":"not_applicable"})
+                } else {
+                    serde_json::json!({"status":"selected","id":"provider-0"})
+                };
+                serde_json::json!({"appId":app,"rows":basics.iter().map(|(id, fields)|serde_json::json!({
+                    "provider":{"id":id,"appId":app,"name":fields["name"],"configured":true},
+                    "nativeMember":if (app == "opencode" && opencode_members.contains(id)) || (app != "opencode" && id=="provider-0") {"present"}else{"absent"}
+                })).collect::<Vec<_>>(),"direct":selection,"inUse":selection,"nativeRead":null})
             } else if line.starts_with("GET ") && path == format!("{prefix}presentation/entries") {
                 serde_json::json!([{"id":"provider-0","presentation":presentation}])
             } else if line.starts_with("PUT ")

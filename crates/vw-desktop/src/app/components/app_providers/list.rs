@@ -5,8 +5,9 @@ use iced::{
     Element, Length,
     widget::{button, column, container, row, scrollable, text, text_input},
 };
-use vw_gateway_client::vw_api_types::app_providers::catalog::{
-    ProviderMembership, ProviderSelection,
+use vw_gateway_client::vw_api_types::{
+    agent_apps::AppId,
+    app_providers::catalog::{ProviderMembership, ProviderSelection},
 };
 fn selection(value: &ProviderSelection) -> String {
     match value {
@@ -86,6 +87,22 @@ pub(crate) fn overlay<'a>(
                 ProviderMembership::Absent => "未添加",
                 ProviderMembership::Unknown => "成员状态未知",
             };
+            let enabled = state.form.is_none() && state.editor.is_none() && !state.loading;
+            let id = &entry.provider.id;
+            let mut actions = row![
+                edit_action("编辑", id, false, false, enabled),
+                edit_action("复制", id, true, false, enabled),
+                edit_action("删除", id, false, true, enabled),
+            ]
+            .spacing(8);
+            if scope.app == AppId::OpenCode && entry.native_member != ProviderMembership::Unknown {
+                let add = entry.native_member == ProviderMembership::Absent;
+                actions = actions.push(action(
+                    if add { "添加到 OpenCode" } else { "从 OpenCode 移除" },
+                    ListMessage::OpenCodeMember { id: id.clone(), add },
+                    enabled,
+                ));
+            }
             body = body.push(settings_panel(
                 column![
                     row![
@@ -112,30 +129,7 @@ pub(crate) fn overlay<'a>(
                     ]
                     .spacing(12),
                     text(p.notes.unwrap_or_default()),
-                    row![
-                        edit_action(
-                            "编辑",
-                            &entry.provider.id,
-                            false,
-                            false,
-                            state.form.is_none() && state.editor.is_none() && !state.loading
-                        ),
-                        edit_action(
-                            "复制",
-                            &entry.provider.id,
-                            true,
-                            false,
-                            state.form.is_none() && state.editor.is_none() && !state.loading
-                        ),
-                        edit_action(
-                            "删除",
-                            &entry.provider.id,
-                            false,
-                            true,
-                            state.form.is_none() && state.editor.is_none() && !state.loading
-                        )
-                    ]
-                    .spacing(8)
+                    actions
                 ]
                 .spacing(8),
             ));

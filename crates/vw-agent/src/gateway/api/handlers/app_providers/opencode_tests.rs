@@ -199,3 +199,153 @@ async fn cc04_opencode_partial_builtin_cannot_reactivate_after_removal() {
     assert!(f.record("other").is_some());
     assert_ne!(before, removed);
 }
+
+fn form(declaration: &str, activation: OpenCodeActivation) -> OpenCodeFormWrite {
+    OpenCodeFormWrite {
+        target_host_id: "host".into(),
+        fields: vw_api_types::app_providers::basic::ProviderBasic {
+            name: "中文节点".into(),
+            category: Some("隔离测试".into()),
+            notes: Some("中文备注".into()),
+            website_url: None,
+        },
+        format: OpenCodeFormat::V1,
+        declaration: declaration.into(),
+        api_key: vw_api_types::app_providers::create::ProviderSecretWrite::Keep,
+        activation,
+        revision: None,
+    }
+}
+
+#[tokio::test]
+async fn cc04_ui_opencode_form_updates_native_node_and_preserves_protected_values() {
+    use vw_api_types::app_providers::create::ProviderSecretWrite;
+    let f = Fixture::new().await;
+    let mut body = form(
+        r#"{"npm":"@ai-sdk/openai-compatible","options":{"baseURL":"https://example.test/v1","headers":{"Authorization":"fake-hidden-header"}},"models":{"one":{"name":"旧模型"}}}"#,
+        OpenCodeActivation::Add,
+    );
+    body.api_key = ProviderSecretWrite::Replace { value: "fake-hidden-key".into() };
+    assert_eq!(
+        f.client.opencode_form_create("one", &body, TOKEN).await.unwrap().live,
+        OpenCodeLiveResult::Applied
+    );
+    let initial = f.bytes();
+    assert!(f.client.opencode_form_create("one", &body, TOKEN).await.is_err());
+    assert_eq!(f.bytes(), initial);
+    assert!(f.client.opencode_form_read("one", &f.target(), "bad-token").await.is_err());
+    let view = f.client.opencode_form_read("one", &f.target(), TOKEN).await.unwrap();
+    let config = view.config.unwrap();
+    assert!(config.has_saved_key);
+    assert!(config.declaration.contains("保留执行端值"));
+    assert!(!config.declaration.contains("fake-hidden"));
+    let mut redirected = form(
+        &config.declaration.replace("https://example.test/v1", "https://other.test/v1"),
+        OpenCodeActivation::IfMember,
+    );
+    redirected.revision = Some(config.revision.clone());
+    assert!(matches!(
+        f.client.opencode_form_update("one", &redirected, TOKEN).await.unwrap_err(),
+        vw_gateway_client::AgentAppsReadError::Http { status: 422, .. }
+    ));
+    assert_eq!(f.bytes(), initial);
+    let mut edit =
+        form(&config.declaration.replace("旧模型", "新模型"), OpenCodeActivation::IfMember);
+    edit.revision = Some(config.revision);
+    edit.fields = view.fields;
+    edit.fields.notes = Some("新备注".into());
+    assert_eq!(
+        f.client.opencode_form_update("one", &edit, TOKEN).await.unwrap().live,
+        OpenCodeLiveResult::Applied
+    );
+    let bytes = f.bytes();
+    let native = std::str::from_utf8(&bytes).unwrap();
+    for expected in ["新模型", "/*keep*/", "fake-hidden-key", "fake-hidden-header", "other/small"]
+    {
+        assert!(native.contains(expected));
+    }
+    let row = f.record("one").unwrap();
+    assert_eq!(
+        vw_agent_apps::providers::basic::read(&row).unwrap().notes.as_deref(),
+        Some("新备注")
+    );
+    assert!(matches!(
+        f.client.opencode_form_update("one", &edit, TOKEN).await.unwrap_err(),
+        vw_gateway_client::AgentAppsReadError::Http { status: 409, .. }
+    ));
+    assert_eq!(f.bytes(), bytes);
+    assert_eq!(f.record("one"), Some(row));
+    assert_eq!(
+        f.client.opencode_provider_remove_live("one", &f.target(), TOKEN).await.unwrap().live,
+        OpenCodeLiveResult::Applied
+    );
+    assert!(f.record("one").is_some());
+    assert_eq!(
+        f.client.opencode_provider_add("one", &f.target(), TOKEN).await.unwrap().live,
+        OpenCodeLiveResult::Applied
+    );
+    assert_eq!(
+        f.client.opencode_state(&f.target(), TOKEN).await.unwrap().members,
+        vec!["one", "other"]
+    );
+}
+
+#[tokio::test]
+async fn cc04_ui_opencode_form_rejects_invalid_node_and_write_permission_without_effects() {
+    let f = Fixture::new().await;
+    let before = f.bytes();
+    let bad = form(r#"{"models":{"one":false}}"#, OpenCodeActivation::Add);
+    assert!(matches!(
+        f.client.opencode_form_create("one", &bad, TOKEN).await.unwrap_err(),
+        vw_gateway_client::AgentAppsReadError::Http { status: 422, .. }
+    ));
+    let path = f.root.path().join("access.json");
+    let mut policy: Value = serde_json::from_slice(&std::fs::read(&path).unwrap()).unwrap();
+    policy["principals"][0]["grants"][0]["provider_config_write"] = json!(false);
+    std::fs::write(path, policy.to_string()).unwrap();
+    let valid =
+        form(r#"{"npm":"@ai-sdk/openai-compatible","models":{"one":{}}}"#, OpenCodeActivation::Add);
+    assert!(matches!(
+        f.client.opencode_form_create("one", &valid, TOKEN).await.unwrap_err(),
+        vw_gateway_client::AgentAppsReadError::Http { status: 403, .. }
+    ));
+    assert_eq!(f.bytes(), before);
+    assert!(f.record("one").is_none());
+    assert!(!f.root.path().join("private/provider-live").exists());
+}
+
+#[tokio::test]
+async fn cc04_ui_opencode_v2_edit_stays_in_catalog_until_explicit_add() {
+    let f = Fixture::new().await;
+    let initial = f.bytes();
+    let mut body = form(
+        r#"{"package":"@opencode/example","models":{"model/id":{"name":"中文模型","limit":{"context":4096}}}}"#,
+        OpenCodeActivation::CatalogOnly,
+    );
+    body.format = OpenCodeFormat::V2;
+    assert_eq!(
+        f.client.opencode_form_create("native", &body, TOKEN).await.unwrap().live,
+        OpenCodeLiveResult::NotAttempted
+    );
+    let config =
+        f.client.opencode_form_read("native", &f.target(), TOKEN).await.unwrap().config.unwrap();
+    assert_eq!(config.format, OpenCodeFormat::V2);
+    body.declaration = config.declaration.replace("4096", "8192");
+    body.revision = Some(config.revision);
+    body.activation = OpenCodeActivation::IfMember;
+    assert_eq!(
+        f.client.opencode_form_update("native", &body, TOKEN).await.unwrap().live,
+        OpenCodeLiveResult::NotAttempted
+    );
+    assert_eq!(f.bytes(), initial);
+    assert_eq!(
+        f.client.opencode_provider_add("native", &f.target(), TOKEN).await.unwrap().live,
+        OpenCodeLiveResult::Applied
+    );
+    let bytes = f.bytes();
+    let native = std::str::from_utf8(&bytes).unwrap();
+    for expected in ["\"providers\"", "\"native\"", "8192", "中文模型", "/*keep*/", "other/small"]
+    {
+        assert!(native.contains(expected));
+    }
+}

@@ -2646,3 +2646,37 @@ macOS **27.0 (26A428) / arm64**，桌面版本 **0.6.0**。临时 app bundle 启
 - 浅色：[失败与保留草稿](evidence/task-57/light-failure.jpg)、[保存反馈](evidence/task-57/light-saved.jpg)、[取消后重开](evidence/task-57/light-cancel.jpg)。
 
 差异审查限本任务代码、独立测试、必要接线及本条证据。排除并行终端和其它计划的改动。状态为 **已完成**，下一步批次 58。
+
+## 任务 58：桌面 OpenCode 供应商编辑
+
+2026-11-07。核对批次 57 提交 `4fd67e19f` 与上节验收。母任务 1、3 已完成。母任务 2 沿用 `provider-contracts.md` 记录的底座子计划 1–93 开工裁定，完整领域迁移仍待收口。沿用任务 35 的 OpenCode 原生事务与任务 52 的显式窗口入口。
+
+- 冻结来源 `ca58c0313360eae7c851fbd7553c1614c7af03e7`。核对 `OpenCodeFormFields`、`ProviderForm` 的 V1 字段及 V2 原生编辑分支、`OpenCodeFormFields.test.tsx` 的模型和请求字段案例。桌面复用现有弹窗，编辑单个 V1 `provider` 或 V2 `providers` 节点。新增可同时添加成员，编辑可同步已添加成员，列表分别提供添加与移除。官方授权、模型发现和专用请求选项控件留给各自任务。
+- `vw-gateway-client` 的 `opencode_form_{read,create,update}` 调用 `POST /v1/app-providers/opencode/{id}/form/read`、`POST /form` 和 `PATCH /form`。执行端 `providers/opencode_form.rs` 投影公开字段、保留原位的受保护字段、处理 V1 密钥保留/替换/清除、校验 JSON/JSONC，并以公开内容修订检查并发修改。变更已识别的连接字段时拒绝沿用受保护配置。托管档案可以编辑基础资料。成员操作直接复用原 SDK 和事务。
+- SDK → 回环 HTTP → 正式 Gateway 权限检查和 handler → 隔离 SQLite、HOME 与原生 JSONC。新增并添加、编辑既有成员、V2 仅保存目录后显式添加、移除成员保留目录、重新添加均检查实际结果。未点名供应商、JSONC 注释、`small_model` 与原凭据保留。验证失败、无写权限及过期公开修订拒绝提交。桌面聚焦用例用假回环响应证明 422 保留草稿，过期主机或代次的响应被忽略。
+
+### 红绿验证
+
+红测与最终聚焦验证动态领取槽位 **1**，`CARGO_TARGET_DIR=/Users/xiangmin/worker/code/shiju/target/rust-slot-1`。窗口阶段领取槽位 **2**，`CARGO_TARGET_DIR=/Users/xiangmin/worker/code/shiju/target/rust-slot-2`。`CARGO_BUILD_BUILD_DIR` 与各自槽位相同。各阶段退出后释放自身锁并保留缓存。
+
+| 阶段 | 命令 | 退出码 | 有效结果 |
+| --- | --- | --- | --- |
+| 红 | `cargo fmt --all` | 0 | 格式化 |
+| 红 | `cargo test -p vw-desktop --lib cc04_ui_opencode_ -- --nocapture` | 101 | 2 项业务断言失败。草稿未提交给 SDK，有效响应未结束保存 |
+| 绿 | `cargo fmt --all` | 0 | 格式化 |
+| 绿 | `cargo test -p vw-desktop --lib cc04_ui_opencode_ -- --nocapture` | 0 | 2 passed |
+| 绿 | `cargo test -p vw-agent --lib gateway::api::handlers::app_providers::opencode_tests:: -- --nocapture` | 0 | 7 passed，含本任务 3 项 |
+| 绿 | `cargo clippy --all-targets --all-features -- -D warnings` | 0 | 全 targets/features |
+| 窗口 | `SHIJU_CC04_WINDOW_CASE=opencode SHIJU_CC04_WINDOW_THEME=dark cargo test -p vw-desktop --test cc04-provider-window` | 0 | 实际操作并关闭 |
+| 窗口 | `SHIJU_CC04_WINDOW_CASE=opencode SHIJU_CC04_WINDOW_THEME=light cargo test -p vw-desktop --test cc04-provider-window` | 0 | 实际操作并关闭 |
+
+### macOS 窗口
+
+macOS **27.0 (26A428) / arm64**，桌面版本 **0.6.0**。临时 app bundle 运行真实 Iced 组件、Message 和 SDK，连接使用假档案的回环 HTTP 夹具。夹具返回表单和目录契约，真实 Gateway 鉴权、事务与文件结果由独立集成用例证明。系统 PATH 未找到 OpenCode CLI，CLI 版本、真实安装消费及账号未验证。
+
+两种主题从供应商列表打开已添加的中文档案，提交错误模型节点后提示失败并保留中文草稿。修正后保存并同步，输入另一份草稿后取消，再重开核对已保存值。长表单滚动时标题和底部按钮固定，滚动条 4px，内容区两侧各预留 7px。移除后档案仍在目录中，重新添加后成员恢复。窗口均正常退出，中文动态文本无字形整形 panic。日志有系统 sandbox extension 与既有链接提示。
+
+- 深色 [失败保留](evidence/task-58/dark-failure.jpg)、[保存](evidence/task-58/dark-saved.jpg)、[取消后重开](evidence/task-58/dark-cancel.jpg)、[滚动](evidence/task-58/dark-scroll.jpg)、[移除](evidence/task-58/dark-removed.jpg)、[重新添加](evidence/task-58/dark-added.jpg)。
+- 浅色 [失败保留](evidence/task-58/light-failure.jpg)、[保存](evidence/task-58/light-saved.jpg)、[取消后重开](evidence/task-58/light-cancel.jpg)、[滚动](evidence/task-58/light-scroll.jpg)、[移除](evidence/task-58/light-removed.jpg)、[重新添加](evidence/task-58/light-added.jpg)。
+
+差异审查限本任务的实现、必要接线、独立测试及上述证据。状态为 **已完成**，下一步批次 59。

@@ -65,3 +65,33 @@ pub struct OpenCodeImportResult {
 pub use super::claude::{ClaudeLiveResult as OpenCodeLiveResult, ClaudeResult as OpenCodeResult};
 macro_rules! concealed { ($($t:ty),*) => {$(impl std::fmt::Debug for $t { fn fmt(&self,f:&mut std::fmt::Formatter<'_>)->std::fmt::Result { f.write_str("OpenCode([redacted])") } })*}; }
 concealed!(OpenCodeProfile, OpenCodeWrite);
+
+#[derive(Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct OpenCodeFormConfig {
+    pub format: OpenCodeFormat,
+    /// Editable provider node. Protected values are represented by a keep marker.
+    pub declaration: String,
+    pub has_saved_key: bool,
+    pub revision: String,
+}
+
+#[derive(Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct OpenCodeFormView {
+    pub fields: super::basic::ProviderBasic,
+    pub config: Option<OpenCodeFormConfig>,
+}
+
+#[derive(Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct OpenCodeFormWrite {
+    pub target_host_id: String,
+    pub fields: super::basic::ProviderBasic,
+    pub format: OpenCodeFormat,
+    pub declaration: String,
+    pub api_key: super::create::ProviderSecretWrite,
+    pub activation: OpenCodeActivation,
+    pub revision: Option<String>,
+}
+concealed!(OpenCodeFormConfig, OpenCodeFormView, OpenCodeFormWrite);

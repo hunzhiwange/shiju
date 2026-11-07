@@ -4,3 +4,4 @@ pub(crate) mod edit;
 mod gemini;
 mod grok;
 pub(crate) mod list;
+mod opencode;

@@ -12,3 +12,6 @@ pub(crate) mod grok;
 #[cfg(test)]
 mod grok_tests;
 pub(crate) mod list;
+pub(crate) mod opencode;
+#[cfg(test)]
+mod opencode_tests;

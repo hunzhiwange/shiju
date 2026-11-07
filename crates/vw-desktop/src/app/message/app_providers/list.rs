@@ -28,20 +28,40 @@ mod tests;
 use crate::app::state::app_providers::list::Editor;
 use crate::app::{App, Message, message::SettingsMessage};
 use iced::Task;
-use vw_gateway_client::vw_api_types::agent_apps::AppId;
+use vw_gateway_client::vw_api_types::{
+    agent_apps::AppId, app_providers::opencode::OpenCodeLiveResult,
+};
 #[derive(Clone, Debug)]
 pub enum ListMessage {
     Open(AppId),
     Close,
     Refresh,
-    Loaded { scope: Scope, generation: u64, result: Result<Snapshot, String> },
+    Loaded {
+        scope: Scope,
+        generation: u64,
+        result: Result<Snapshot, String>,
+    },
     Edit(String),
+    OpenCodeMember {
+        id: String,
+        add: bool,
+    },
+    OpenCodeMemberChanged {
+        scope: Scope,
+        generation: u64,
+        add: bool,
+        result: Result<OpenCodeLiveResult, String>,
+    },
     Sort(String),
     Category(String),
     Notes(String),
     Cancel,
     Save,
-    Saved { scope: Scope, generation: u64, result: Result<AppProviderPresentation, String> },
+    Saved {
+        scope: Scope,
+        generation: u64,
+        result: Result<AppProviderPresentation, String>,
+    },
 }
 pub(crate) fn message(value: ListMessage) -> Message {
     Message::Settings(SettingsMessage::AppProviders(value))
@@ -94,6 +114,12 @@ pub(crate) fn update(app: &mut App, value: ListMessage) -> Task<Message> {
                     return app.show_error_toast(e);
                 }
             }
+        }
+        ListMessage::OpenCodeMember { id, add } => {
+            return super::opencode::change_membership(app, id, add);
+        }
+        ListMessage::OpenCodeMemberChanged { scope, generation, add, result } => {
+            return super::opencode::membership_changed(app, scope, generation, add, result);
         }
         ListMessage::Edit(id) => {
             if app.app_providers.loading || app.app_providers.editor.is_some() {

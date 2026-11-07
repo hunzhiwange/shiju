@@ -67,7 +67,7 @@ impl AppProviderStore {
                     self.agy_insert(tenant, &id, &p)?;
                 }
                 NativeImport::OpenCode(p) => {
-                    self.opencode_save(tenant, &id, &p, None)?;
+                    self.opencode_save(tenant, &id, &p, None, None)?;
                 }
                 NativeImport::OpenClaw(p) => {
                     self.openclaw_save(tenant, &id, &p, None)?;

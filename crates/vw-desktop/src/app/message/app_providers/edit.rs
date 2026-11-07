@@ -30,7 +30,7 @@ mod tests;
 use super::{
     claude, codex, gemini, grok, hermes,
     list::{ListMessage, current},
-    omp, openclaw, opencode, pi,
+    mcode, omp, openclaw, opencode, pi,
 };
 use crate::app::state::app_providers::claude::Draft;
 use crate::app::state::app_providers::edit::Mode;
@@ -46,6 +46,7 @@ use vw_gateway_client::vw_api_types::{
         gemini::{GeminiFormView, GeminiLiveResult},
         grok::{GrokFormView, GrokLiveResult},
         hermes::{HermesFormView, HermesLiveResult},
+        mcode::{McodeFormView, McodeLiveResult},
         omp::{OmpFormView, OmpLiveResult},
         openclaw::{OpenClawFormView, OpenClawLiveResult},
         opencode::{OpenCodeFormView, OpenCodeLiveResult},
@@ -108,6 +109,12 @@ pub enum EditMessage {
         id: String,
         result: Result<PiFormView, String>,
     },
+    McodeLoaded {
+        scope: Scope,
+        generation: u64,
+        id: String,
+        result: Result<McodeFormView, String>,
+    },
     OmpLoaded {
         scope: Scope,
         generation: u64,
@@ -129,6 +136,7 @@ pub enum EditMessage {
     OpenCode(opencode::Field),
     Hermes(hermes::Field),
     Pi(pi::Field),
+    Mcode(mcode::Field),
     Omp(omp::Field),
     OpenClaw(openclaw::Field),
     Id(String),
@@ -170,6 +178,11 @@ pub enum EditMessage {
         scope: Scope,
         generation: u64,
         result: Result<PiLiveResult, String>,
+    },
+    McodeSaved {
+        scope: Scope,
+        generation: u64,
+        result: Result<McodeLiveResult, String>,
     },
     OmpSaved {
         scope: Scope,
@@ -251,6 +264,13 @@ pub(crate) fn update(app: &mut App, event: EditMessage) -> Task<Message> {
                 form.hermes = Some(crate::app::state::app_providers::hermes::Draft::new());
             } else if app.app_providers.scope.as_ref().is_some_and(|scope| scope.app == AppId::Pi) {
                 form.pi = Some(crate::app::state::app_providers::pi::Draft::new());
+            } else if app
+                .app_providers
+                .scope
+                .as_ref()
+                .is_some_and(|scope| scope.app == AppId::Mcode)
+            {
+                form.mcode = Some(crate::app::state::app_providers::mcode::Draft::new());
             } else if app.app_providers.scope.as_ref().is_some_and(|scope| scope.app == AppId::Omp)
             {
                 form.omp = Some(crate::app::state::app_providers::omp::Draft::new());
@@ -359,6 +379,21 @@ pub(crate) fn update(app: &mut App, event: EditMessage) -> Task<Message> {
                     async move { pi::load(client, request_scope, &source, &token).await },
                     move |result| {
                         message(EditMessage::PiLoaded {
+                            scope: scope.clone(),
+                            generation,
+                            id: id.clone(),
+                            result,
+                        })
+                    },
+                );
+            }
+            if scope.app == AppId::Mcode && !copy && !delete {
+                let token = app.apps_catalog.token.clone();
+                let request_scope = scope.clone();
+                return Task::perform(
+                    async move { mcode::load(client, request_scope, &source, &token).await },
+                    move |result| {
+                        message(EditMessage::McodeLoaded {
                             scope: scope.clone(),
                             generation,
                             id: id.clone(),
@@ -548,6 +583,25 @@ pub(crate) fn update(app: &mut App, event: EditMessage) -> Task<Message> {
                 Err(error) => return app.show_error_toast(error),
             }
         }
+        EditMessage::McodeLoaded { scope, generation, id, result } => {
+            if !app.app_providers.loading || !matches_scope(app, &scope, generation) {
+                return Task::none();
+            }
+            app.app_providers.loading = false;
+            match result {
+                Ok(view) => {
+                    let member =
+                        mcode::membership(&app.app_providers, &id) == ProviderMembership::Present;
+                    let mut form = EditForm::new(Mode::Update, id, view.fields, None);
+                    form.mcode = view.config.map(|config| {
+                        crate::app::state::app_providers::mcode::Draft::from_view(config, member)
+                    });
+                    form.mcode_config_unavailable = form.mcode.is_none();
+                    app.app_providers.form = Some(form);
+                }
+                Err(error) => return app.show_error_toast(error),
+            }
+        }
         EditMessage::OmpLoaded { scope, generation, id, result } => {
             if !app.app_providers.loading || !matches_scope(app, &scope, generation) {
                 return Task::none();
@@ -627,9 +681,20 @@ pub(crate) fn update(app: &mut App, event: EditMessage) -> Task<Message> {
             let opencode = form.opencode.is_some();
             let hermes = form.hermes.is_some();
             let pi = form.pi.is_some();
+            let mcode = form.mcode.is_some();
             let omp = form.omp.is_some();
             let openclaw = form.openclaw.is_some();
-            if claude || gemini || codex || grok || opencode || openclaw || hermes || pi || omp {
+            if claude
+                || gemini
+                || codex
+                || grok
+                || opencode
+                || openclaw
+                || hermes
+                || pi
+                || omp
+                || mcode
+            {
                 if !form.identified() {
                     return app.show_error_toast("请填写标识与名称");
                 }
@@ -704,6 +769,18 @@ pub(crate) fn update(app: &mut App, event: EditMessage) -> Task<Message> {
                     pi::save(client, scope.clone(), form, token),
                     move |result| {
                         message(EditMessage::PiSaved { scope: scope.clone(), generation, result })
+                    },
+                );
+            }
+            if mcode {
+                return Task::perform(
+                    mcode::save(client, scope.clone(), form, token),
+                    move |result| {
+                        message(EditMessage::McodeSaved {
+                            scope: scope.clone(),
+                            generation,
+                            result,
+                        })
                     },
                 );
             }
@@ -869,6 +946,25 @@ pub(crate) fn update(app: &mut App, event: EditMessage) -> Task<Message> {
             };
             return Task::batch([toast, super::list::update(app, ListMessage::Refresh)]);
         }
+        EditMessage::McodeSaved { scope, generation, result } => {
+            if !matches_scope(app, &scope, generation)
+                || !mcode::finish(&mut app.app_providers, &scope, generation, &result)
+            {
+                return Task::none();
+            }
+            let toast = match result {
+                Err(error) => return app.show_error_toast(error),
+                Ok(McodeLiveResult::NotAttempted) => app.show_success_toast("已保存到供应商目录。"),
+                Ok(McodeLiveResult::Applied) => app.show_success_toast("已保存并应用 Mcode 配置。"),
+                Ok(McodeLiveResult::Failed) => {
+                    app.show_warning_toast("目录已保存，但应用 Mcode 配置失败。")
+                }
+                Ok(McodeLiveResult::RecoveryRequired) => {
+                    app.show_warning_toast("目录已保存，执行端配置需要恢复。")
+                }
+            };
+            return Task::batch([toast, super::list::update(app, ListMessage::Refresh)]);
+        }
         EditMessage::OmpSaved { scope, generation, result } => {
             if !matches_scope(app, &scope, generation)
                 || !omp::finish(&mut app.app_providers, &scope, generation, &result)
@@ -965,6 +1061,7 @@ pub(crate) fn update(app: &mut App, event: EditMessage) -> Task<Message> {
                 EditMessage::Grok(field) => grok::change(form, field),
                 EditMessage::Hermes(field) => hermes::change(form, field),
                 EditMessage::Pi(field) => pi::change(form, field),
+                EditMessage::Mcode(field) => mcode::change(form, field),
                 EditMessage::Omp(field) => omp::change(form, field),
                 EditMessage::OpenClaw(field) => openclaw::change(form, field),
                 EditMessage::OpenCode(field) => opencode::change(form, field),

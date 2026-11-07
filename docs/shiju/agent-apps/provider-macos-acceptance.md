@@ -2826,3 +2826,46 @@ macOS **27.0 (26A428) / arm64**，桌面 **0.6.0**。临时 app bundle 运行真
 - 浅色 [滚动](evidence/task-62/light-scroll.jpg)、[校验失败](evidence/task-62/light-failure.jpg)、[保存同步](evidence/task-62/light-saved.jpg)、[取消前](evidence/task-62/light-cancel-draft.jpg)、[取消后重开](evidence/task-62/light-cancel-reopened.jpg)、[加入](evidence/task-62/light-added.jpg)、[移除](evidence/task-62/light-removed.jpg)。
 
 状态 **已完成**。差异审查限于本任务实现、测试、接线和证据。下一步批次 63。
+
+## 任务 63：桌面 Mcode 供应商编辑
+
+2026-11-07。核对批次 62 提交 `e5f875f67` 和正式验收。母任务 1、3 已完成；母任务 2 沿用 provider-contracts.md 的底座子计划 1–93 开工裁定，完整领域迁移未收口。复用批次 40 的 Mcode 增量事务和批次 52 的原生窗口入口；所有 plan.md 保持只读。
+
+- 来源为冻结快照 `ca58c0313360eae7c851fbd7553c1614c7af03e7` 的 `McodeProviderForm`、`ProviderForm` Mcode 分支及 `McodeProviderForm.test.tsx` 的原生字段、未知选项保留、失败草稿和标识锁定用例。
+- 桌面 `components/state/message/app_providers/mcode.rs` 接入统一弹窗和列表成员操作。用户编辑 `config.yaml` 中单个 `custom_provider` 节点的 YAML；名称与基础资料、API、地址、模型及原生字段通过 SDK 发送，Iced 不实现 YAML 或事务策略。官方授权、模型发现暂不可用。
+- `McodeFormWrite/View`、`GatewayClient::mcode_form_read/create/update` 对应 `POST /v1/app-providers/mcode/{id}/form/read`、`POST /form`、`PATCH /form`。执行端 `providers/mcode_form.rs` 投影公开字段，隐藏值以原位置保留标记表示，API 密钥独立 Keep/Replace/Clear；Mcode 的必需密钥约束仍由原校验器拒绝无效 Clear。公开目录与原生节点修订共同参与陈旧检测，哈希不包含秘密值。保存时还原隐藏值、检验保留凭据的地址/协议变更、校验原生结构，并复用现有授权、存储 CAS、文件锁和事务。
+- 新增可只存目录或同时加入；编辑可只存目录或同步现有成员。列表调用既有 add/remove-live，移除仍保留档案和展示名。非自定义原生节点、托管授权、冲突和无权限路径明确拒绝。
+- 回环 HTTP → 真实 SDK/Gateway → 临时 SQLite 与隔离 HOME 验证了保存及同步、凭据和请求头保留、中文模型变更、其他成员/注释/设置/登录文件不变、422 无效 YAML、409 陈旧修订、授权拒绝。桌面回环夹具仅替代执行端边界，返回 422 或 catalogSaved/live 形状，证明失败保留草稿、过期作用域和代次不覆盖当前表单。
+
+### 自动验证
+
+各阶段原子领取共享槽位，记录计划、任务、会话、PID；`CARGO_BUILD_BUILD_DIR` 与绝对 `CARGO_TARGET_DIR` 相同，退出后释放自己的锁并保留缓存。
+
+| 槽位 | CARGO_TARGET_DIR | 用途 |
+|---|---|---|
+| 1 | `/Users/xiangmin/worker/code/shiju/target/rust-slot-1` | 深色窗口、9 项 Gateway 与桌面复跑、首次 Clippy |
+| 2 | `/Users/xiangmin/worker/code/shiju/target/rust-slot-2` | 基线、红测、首轮绿测与 Gateway、浅色窗口、最终聚焦验证及 Clippy |
+
+| 阶段 | 命令 | 退出码 | 有效数量/结果 |
+|---|---|---:|---|
+| 基线 | `cargo test -p vw-desktop --lib cc04_ui_mcode_ -- --nocapture` | 0 | 0 项，不计验收 |
+| 红 | 同上 | 101 | 0 passed / 2 failed，保存未提交给 SDK、有效响应未结束保存 |
+| 绿 | 同上 | 0 | 2 项 |
+| 格式化 | `cargo fmt --all` | 0 | 完成 |
+| Gateway | `cargo test -p vw-agent --lib gateway::api::handlers::app_providers::mcode_tests:: -- --nocapture` | 0 | 9 项，含新增 2 项 |
+| Clippy | `cargo clippy --all-targets --all-features -- -D warnings` | 0 | 全 targets/features |
+| 深色 | `SHIJU_CC04_WINDOW_CASE=mcode SHIJU_CC04_WINDOW_THEME=dark cargo test -p vw-desktop --test cc04-provider-window` | 0 | 实际操作后关闭 |
+| 浅色 | `SHIJU_CC04_WINDOW_CASE=mcode SHIJU_CC04_WINDOW_THEME=light cargo test -p vw-desktop --test cc04-provider-window` | 0 | 实际操作后关闭 |
+
+Gateway 首轮 8 passed / 1 failed（101）：既有原生账号用例检出非自定义节点保护回归，恢复 Mcode 的 key_exists 保护后重跑。首次严格 Clippy 退出 101，检出新增分支的 collapsible_if；修正后重新格式化，运行 `cargo test -p vw-agent --lib cc04_ui_mcode_ -- --nocapture`（2 passed，退出 0）及桌面上述两项过滤测试（2 passed，退出 0），最终 Clippy 退出 0。测试链接器有既有 unwind 提示；自身锁已释放，缓存保留。
+
+### macOS 原生窗口
+
+macOS **27.0（26A428）/ arm64**，桌面 **0.6.0**。临时 app bundle 运行真实 Iced、Message 和 SDK，连接假档案回环 HTTP 夹具；不改真实用户配置。真实 Gateway 授权、事务及 YAML 落盘由上述集成测试验证。PATH 未找到 Mcode CLI，真实安装、账号和 CLI 消费配置未验证。
+
+明暗主题均完成：列表加入 → 编辑并拖动长表单 → 提交空 models 得到 422 且保留中文草稿 → 修正后保存并同步 → 修改中文名称后取消 → 重开显示原已存名称 → 移除后档案保留。真实绘制中文动态模型、表单和 toast，未发生字形整形 panic；使用默认字体，滚动条 4px、内容两侧各留 7px，标题与底部按钮固定。窗口正常关闭且 Cargo 退出 0；日志仅有既有 macOS sandbox extension/输入法端口提示。
+
+- 深色：[加入](evidence/task-63/dark-added.png)、[滚动](evidence/task-63/dark-scroll.png)、[失败](evidence/task-63/dark-failure.png)、[保存](evidence/task-63/dark-saved.png)、[取消前](evidence/task-63/dark-cancel-draft.png)、[重开](evidence/task-63/dark-cancel-reopened.png)、[移除](evidence/task-63/dark-removed.png)。
+- 浅色：[加入](evidence/task-63/light-added.png)、[滚动](evidence/task-63/light-scroll.png)、[失败](evidence/task-63/light-failure.png)、[保存](evidence/task-63/light-saved.png)、[取消前](evidence/task-63/light-cancel-draft.png)、[重开](evidence/task-63/light-cancel-reopened.png)、[移除](evidence/task-63/light-removed.png)。
+
+状态：**已完成**。只提交本任务实现、测试、必要接线和证据，排除其他会话的设置/终端变更和编号任务删除。下一步批次 64。

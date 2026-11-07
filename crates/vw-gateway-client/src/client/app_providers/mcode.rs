@@ -3,6 +3,31 @@ use super::super::agent_apps_read_api::AgentAppsReadError as Error;
 use super::GatewayClient;
 use vw_api_types::app_providers::mcode::*;
 impl GatewayClient {
+    pub async fn mcode_form_read(
+        &self,
+        id: &str,
+        body: &McodeTarget,
+        token: &str,
+    ) -> Result<McodeFormView, Error> {
+        self.mcode_request(id, "POST", "/form/read", body, token).await
+    }
+    pub async fn mcode_form_create(
+        &self,
+        id: &str,
+        body: &McodeFormWrite,
+        token: &str,
+    ) -> Result<McodeResult, Error> {
+        self.mcode_request(id, "POST", "/form", body, token).await
+    }
+    pub async fn mcode_form_update(
+        &self,
+        id: &str,
+        body: &McodeFormWrite,
+        token: &str,
+    ) -> Result<McodeResult, Error> {
+        self.mcode_request(id, "PATCH", "/form", body, token).await
+    }
+
     pub async fn mcode_provider_editor_save(
         &self,
         id: &str,

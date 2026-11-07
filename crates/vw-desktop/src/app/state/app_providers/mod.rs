@@ -10,3 +10,5 @@ pub(crate) mod opencode;
 
 pub(crate) mod omp;
 pub(crate) mod pi;
+
+pub(crate) mod mcode;

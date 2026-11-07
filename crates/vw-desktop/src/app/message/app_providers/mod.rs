@@ -28,3 +28,7 @@ mod omp_tests;
 pub(crate) mod pi;
 #[cfg(test)]
 mod pi_tests;
+
+pub(crate) mod mcode;
+#[cfg(test)]
+mod mcode_tests;

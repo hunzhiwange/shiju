@@ -21,6 +21,7 @@ fn main() {
         "hermes" => (AppId::Hermes, true),
         "pi" => (AppId::Pi, true),
         "omp" => (AppId::Omp, true),
+        "mcode" => (AppId::Mcode, true),
         _ => panic!("unknown window case"),
     };
     let edit = case == "edit";
@@ -67,6 +68,7 @@ fn main() {
         "hermes" => "Hermes 供应商隔离验收",
         "pi" => "Pi 供应商隔离验收",
         "omp" => "OMP 供应商隔离验收",
+        "mcode" => "Mcode 供应商隔离验收",
         "claude" => "Claude Code 供应商隔离验收",
         _ => "供应商基础编辑隔离验收",
     })
@@ -118,6 +120,7 @@ fn fixture(
             AppId::Hermes => "hermes",
             AppId::Pi => "pi",
             AppId::Omp => "omp",
+            AppId::Mcode => "mcode",
             _ => panic!("unknown fixture app"),
         };
         let prefix = format!("/v1/app-providers/{app}/");
@@ -150,7 +153,8 @@ fn fixture(
                 "inactive":[["config","legacy","中文旧字段"],["config","ui","theme"]],
             }));
         }
-        let incremental = matches!(app, "opencode" | "openclaw" | "hermes" | "pi" | "omp");
+        let incremental =
+            matches!(app, "opencode" | "openclaw" | "hermes" | "pi" | "omp" | "mcode");
         let mut node_configs = std::collections::BTreeMap::from([(
             "provider-0".to_owned(),
             serde_json::json!({
@@ -236,6 +240,13 @@ fn fixture(
                 );
             }
         }
+        if app == "mcode" {
+            for id in basics.keys() {
+                let models = (0..18).map(|i|(format!("fixture-model-{i}"),serde_json::json!({"name":format!("中文动态模型 {i}"),"limit":{"context":8192,"output":2048}}))).collect::<serde_json::Map<_,_>>();
+                let declaration=serde_yaml::to_string(&serde_json::json!({"kind":"custom","api":"openai-completions","options":{"baseURL":"https://fixture-api.example.test/v1"},"models":models})).unwrap();
+                node_configs.insert(id.clone(),serde_json::json!({"declaration":declaration,"hasSavedKey":true,"revision":"fixture-mcode"}));
+            }
+        }
         let mut node_members = std::collections::BTreeSet::from(["provider-0".to_owned()]);
         while !done.load(std::sync::atomic::Ordering::Relaxed) {
             let (mut stream, _) = match listener.accept() {
@@ -297,7 +308,7 @@ fn fixture(
                 } else {
                     assert!(line.starts_with("POST ") || line.starts_with("PATCH "));
                     let declaration = value["declaration"].as_str().unwrap();
-                    let node = if app == "omp" {
+                    let node = if matches!(app, "omp" | "mcode") {
                         serde_yaml::from_str::<serde_json::Value>(declaration).ok()
                     } else {
                         serde_json::from_str::<serde_json::Value>(declaration).ok()
@@ -311,7 +322,14 @@ fn fixture(
                             })
                         } else {
                             models.as_object().is_some_and(|models| {
-                                models.values().all(serde_json::Value::is_object)
+                                if app == "mcode" {
+                                    !models.is_empty()
+                                        && models.iter().all(|(id, model)| {
+                                            !id.trim().is_empty() && model.is_object()
+                                        })
+                                } else {
+                                    models.values().all(serde_json::Value::is_object)
+                                }
                             })
                         }
                     }) {

@@ -315,3 +315,79 @@ async fn cc04_mcode_native_account_and_lock_denials_leave_no_catalog_changes() {
     assert!(f.client.mcode_import(&f.target(), TOKEN).await.is_err());
     assert!(f.record("one").is_none());
 }
+
+#[tokio::test]
+async fn cc04_ui_mcode_form_roundtrip_preserves_secrets_and_other_nodes() {
+    use vw_api_types::app_providers::create::ProviderSecretWrite;
+    let f = Fixture::new().await;
+    let mut initial = f.request(McodeActivation::Add);
+    initial.profile.declaration["options"]["headers"] = json!({"Authorization":"private-fixture"});
+    f.client.mcode_provider_save("fixture", &initial, TOKEN).await.unwrap();
+    let before = f.bytes();
+    let view = f.client.mcode_form_read("fixture", &f.target(), TOKEN).await.unwrap();
+    let config = view.config.unwrap();
+    assert!(!config.declaration.contains("fake-secret"));
+    assert!(!config.declaration.contains("private-fixture"));
+    let mut node: Value = serde_yaml::from_str(&config.declaration).unwrap();
+    node["models"]["one"]["name"] = json!("中文模型");
+    let mut body = McodeFormWrite {
+        target_host_id: "host".into(),
+        fields: view.fields,
+        declaration: serde_yaml::to_string(&node).unwrap(),
+        api_key: ProviderSecretWrite::Keep,
+        activation: McodeActivation::IfMember,
+        revision: Some(config.revision),
+    };
+    body.fields.name = "中文供应商".into();
+    let result = f.client.mcode_form_update("fixture", &body, TOKEN).await.unwrap();
+    assert!(result.catalog_saved);
+    assert_eq!(result.live, McodeLiveResult::Applied);
+    let after = f.bytes();
+    assert_ne!(before, after);
+    let yaml: Value = serde_yaml::from_slice(&after).unwrap();
+    assert_eq!(yaml["custom_provider"]["fixture"]["options"]["apiKey"], "fake-secret");
+    assert_eq!(
+        yaml["custom_provider"]["fixture"]["options"]["headers"]["Authorization"],
+        "private-fixture"
+    );
+    assert_eq!(yaml["custom_provider"]["fixture"]["models"]["one"]["name"], "中文模型");
+    assert_eq!(yaml["custom_provider"]["other"]["baseUrl"], "https://other.example");
+    assert!(String::from_utf8(after.clone()).unwrap().contains("# keep"));
+    assert!(matches!(
+        f.client.mcode_form_update("fixture", &body, TOKEN).await.unwrap_err(),
+        vw_gateway_client::AgentAppsReadError::Http { status: 409, .. }
+    ));
+    assert_eq!(f.bytes(), after);
+}
+
+#[tokio::test]
+async fn cc04_ui_mcode_form_rejects_invalid_yaml_and_unauthorized_writes() {
+    use vw_api_types::app_providers::{basic::ProviderBasic, create::ProviderSecretWrite};
+    let f = Fixture::new().await;
+    let before = f.bytes();
+    let mut body = McodeFormWrite {
+        target_host_id: "host".into(),
+        fields: ProviderBasic {
+            name: "中文".into(),
+            category: None,
+            notes: None,
+            website_url: None,
+        },
+        declaration: "models: [".into(),
+        api_key: ProviderSecretWrite::Replace { value: "fake-key".into() },
+        activation: McodeActivation::Add,
+        revision: None,
+    };
+    let err = f.client.mcode_form_create("fixture", &body, TOKEN).await.unwrap_err();
+    assert!(matches!(err, vw_gateway_client::AgentAppsReadError::Http { status: 422, .. }));
+    assert_eq!(f.bytes(), before);
+    assert!(f.record("fixture").is_none());
+    body.declaration =
+        "kind: custom\noptions:\n  baseURL: https://example.com\nmodels:\n  one: {}".into();
+    assert!(f.client.mcode_form_create("fixture", &body, "wrong-token").await.is_err());
+    assert_eq!(f.bytes(), before);
+    assert!(f.record("fixture").is_none());
+    let result = f.client.mcode_form_create("fixture", &body, TOKEN).await.unwrap();
+    assert!(result.catalog_saved);
+    assert_eq!(result.live, McodeLiveResult::Applied);
+}

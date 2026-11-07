@@ -52,3 +52,29 @@ pub struct McodeEditorWrite {
     pub activation: McodeActivation,
 }
 concealed!(McodeEditorWrite);
+#[derive(Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct McodeFormWrite {
+    pub target_host_id: String,
+    pub fields: super::basic::ProviderBasic,
+    pub declaration: String,
+    pub api_key: super::create::ProviderSecretWrite,
+    pub activation: McodeActivation,
+    pub revision: Option<String>,
+}
+concealed!(McodeFormWrite);
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct McodeFormView {
+    pub fields: super::basic::ProviderBasic,
+    pub config: Option<McodeFormConfig>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct McodeFormConfig {
+    pub declaration: String,
+    pub has_saved_key: bool,
+    pub revision: String,
+}

@@ -31,8 +31,8 @@ use iced::Task;
 use vw_gateway_client::vw_api_types::{
     agent_apps::AppId,
     app_providers::{
-        hermes::HermesLiveResult, omp::OmpLiveResult, openclaw::OpenClawLiveResult,
-        opencode::OpenCodeLiveResult, pi::PiLiveResult,
+        hermes::HermesLiveResult, mcode::McodeLiveResult, omp::OmpLiveResult,
+        openclaw::OpenClawLiveResult, opencode::OpenCodeLiveResult, pi::PiLiveResult,
     },
 };
 #[derive(Clone, Debug)]
@@ -65,6 +65,16 @@ pub enum ListMessage {
         generation: u64,
         add: bool,
         result: Result<PiLiveResult, String>,
+    },
+    McodeMember {
+        id: String,
+        add: bool,
+    },
+    McodeMemberChanged {
+        scope: Scope,
+        generation: u64,
+        add: bool,
+        result: Result<McodeLiveResult, String>,
     },
     OmpMember {
         id: String,
@@ -170,6 +180,12 @@ pub(crate) fn update(app: &mut App, value: ListMessage) -> Task<Message> {
         }
         ListMessage::PiMemberChanged { scope, generation, add, result } => {
             return super::pi::membership_changed(app, scope, generation, add, result);
+        }
+        ListMessage::McodeMember { id, add } => {
+            return super::mcode::change_membership(app, id, add);
+        }
+        ListMessage::McodeMemberChanged { scope, generation, add, result } => {
+            return super::mcode::membership_changed(app, scope, generation, add, result);
         }
         ListMessage::OmpMember { id, add } => {
             return super::omp::change_membership(app, id, add);

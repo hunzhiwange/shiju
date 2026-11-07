@@ -9,3 +9,5 @@ mod omp;
 mod openclaw;
 mod opencode;
 mod pi;
+
+mod mcode;

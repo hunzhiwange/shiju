@@ -29,6 +29,7 @@ pub(crate) struct ListState {
     pub universal: Option<super::universal::Form>,
     pub snippets: Option<super::snippets::Form>,
     pub env: Option<super::env::Form>,
+    pub mode: Option<super::mode::Form>,
     pub preview: Option<super::preview::Form>,
     pub endpoints: Option<super::endpoints::Form>,
     pub desktop: Option<super::desktop::Form>,
@@ -61,6 +62,7 @@ impl ListState {
         self.snippets = None;
         self.preview = None;
         self.env = None;
+        self.mode = None;
         self.loading = true;
         self.error = None;
         self.generation

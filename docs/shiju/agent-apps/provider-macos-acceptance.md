@@ -3351,3 +3351,48 @@ macOS **27.0（26A428）/ arm64**，桌面 **0.6.0**。现有显式窗口入口�
 定向差异与暂存检查通过。提交范围为任务 73 的桌面源码、独立测试、窗口夹具、本节证据和截图。只读 `plan.md` 无差异。
 
 状态为 **已完成**。下一步批次 74。
+
+## 任务 74：桌面供应商模式切换
+
+2026-11-07。批次 73 提交 `9a2ac330d` 与上节验收已核对；窗口使用批次 52 的显式入口，状态与事务使用批次 45/46。母任务 1、3 已完成；母任务 2 沿用 `provider-contracts.md` 记录的底座子计划 1–93 开工裁定，完整领域迁移待收口。
+
+- 来源快照 `ca58c0313360eae7c851fbd7553c1614c7af03e7`；核对 `ModeDialog.tsx` 的 `ModeDialog`、`EnterBody`、`ExitBody`，以及 `SwitchModePanel.tsx` 调用方和相邻 `ModeDialog.test.tsx`、`SwitchModePanel.test.tsx`。沿用切换前确认、失败保留草稿、取消不提交的交互。来源测试未运行。
+- 从 macOS 的 Claude Code 供应商列表打开“供应商模式”。`crates/vw-desktop/src/app/{components,state,message}/app_providers/mode.rs` 展示主机记录的模式、直连供应商、逻辑目标、客户端接入状态及聚合配置。生产路由运行时未接入、聚合切换无写入口，明确展示不可用。已配置路由状态可请求恢复保存的直连供应商，执行端负责配置、权限、事务和运行时校验。
+- 复用 `provider_mode_state` → `GET /v1/app-providers/{app}/mode/state`，以及 `provider_mode_apply` → `POST /v1/app-providers/{app}/mode/apply`（仅 `direct` 操作，传已授权主机 ID）。无新增 API 或客户端写文件。请求以 Gateway、租户、项目、主机、应用和代次过滤；422 保留确认草稿，409 或结果不明时要求重新读取。保存成功后刷新列表；若执行端报告目标发布 pending，明确提示客户端配置已恢复、路由目标更新待完成。
+- 本项未替换供应商编辑、首次激活或官方授权路径。聚合规则、模型目录及代理协议仍由各领域负责。未验证生产代理、真实用户配置、第三方账号、其它应用窗口或非 macOS 平台。
+
+### 红绿与 Gateway 回归
+
+| 实际槽位 | CARGO_TARGET_DIR | 阶段 |
+| --- | --- | --- |
+| 2 | `/Users/xiangmin/worker/code/shiju/target/rust-slot-2` | 格式化、红绿、Gateway 和 Clippy |
+| 1 | `/Users/xiangmin/worker/code/shiju/target/rust-slot-1` | 明暗原生窗口 |
+
+从仓库根以原子 `mkdir` 动态领取。锁内记录计划、任务、会话和 PID；`CARGO_BUILD_BUILD_DIR` 同值；相关进程退出后释放自身锁并保留缓存。
+
+| 确切命令 | 退出码 | 有效结果 |
+| --- | --- | --- |
+| `cargo fmt --all` | 0 | 红阶段与实现后的格式化 |
+| `cargo test -p vw-desktop --lib cc04_ui_mode_ -- --nocapture`（红） | 101 | 0 通过、2 失败；分别在校验失败丢草稿和过期响应覆盖状态的业务断言失败 |
+| 同一桌面命令（绿） | 0 | 3 通过；指定两项均通过，另验证冲突后需重新读取 |
+| `cargo test -p vw-agent --lib cc04_mode_apply_ -- --nocapture` | 0 | 4 通过 |
+| `cargo test -p vw-agent --lib cc04_mode_state_ -- --nocapture` | 0 | 4 通过 |
+| `cargo clippy --all-targets --all-features -- -D warnings` | 0 | 全目标及全部特性 |
+
+真实回环 HTTP 的 SDK → Gateway → 执行端测试使用隔离 SQLite、临时私有根、临时 `.claude/settings.json` 和假凭据。模式读取返回持久化直连/路由与聚合状态且不改文件；模式事务先写客户端配置及持久状态，再发布路由目标。恢复直连保留外部编辑及上次路由目标；相同契约换路由不重写文件。错误凭据、外主机、无写授权、外属状态和路由不可用路径拒绝且无相关写入副作用。运行时准备、发布和消息流量由隔离 HTTP 服务替代，不能外推到生产代理。测试的既有链接器 unwind 提示未影响退出码。
+
+### macOS 原生窗口
+
+macOS **27.0（26A428）/ arm64**，桌面 **0.6.0**。批次 52 窗口新增 `mode` case，真实 Iced 组件通过生产 Message 和 SDK 请求回环夹具。夹具校验应用令牌头、目标主机和请求形状，返回已配置路由及 26 家聚合成员，首次恢复直连返回 422，重试成功后读回直连状态。实际权限与文件落盘由上述 Gateway 回归覆盖。
+
+| 确切命令 | 退出码 | 结果 |
+| --- | --- | --- |
+| `SHIJU_CC04_WINDOW_CASE=mode SHIJU_CC04_WINDOW_THEME=dark cargo test -p vw-desktop --test cc04-provider-window` | 0 | 实际操作并关闭 |
+| `SHIJU_CC04_WINDOW_CASE=mode SHIJU_CC04_WINDOW_THEME=light cargo test -p vw-desktop --test cc04-provider-window` | 0 | 实际操作并关闭 |
+
+两种主题均从 Claude Code 供应商列表进入，核对保存的直连供应商与路由目标分别显示、路由和聚合切换不可用。滚到第 26 家中文供应商时，标题和底部按钮固定，滚动条 4px，内容两侧各留 7px。点击恢复直连后取消，路由状态未变。再次确认，422 出错后中文供应商确认草稿仍在；重试成功，列表刷新，重新打开可见直连、客户端未接入路由、上次路由目标仍保留、聚合已启用但当前未使用，且恢复按钮禁用。两次窗口均无中文动态文本字形整形 panic。测试仍有既有 sandbox extension 提示；窗口不计入行为测试数。
+
+- 深色：[状态](evidence/task-74/dark-status.jpg)、[长列表](evidence/task-74/dark-scroll.jpg)、[取消](evidence/task-74/dark-cancel.jpg)、[校验失败](evidence/task-74/dark-rejected.jpg)、[恢复直连](evidence/task-74/dark-direct.jpg)。
+- 浅色：[状态](evidence/task-74/light-status.jpg)、[长列表](evidence/task-74/light-scroll.jpg)、[取消](evidence/task-74/light-cancel.jpg)、[校验失败](evidence/task-74/light-rejected.jpg)、[恢复直连](evidence/task-74/light-direct.jpg)。
+
+差异审查及暂存检查通过，仅提交任务 74 的桌面源码、独立测试、窗口夹具和本条证据。只读 `plan.md` 无差异，槽位 1、2 的本任务锁已释放，缓存保留。状态为 **已完成**。下一步批次 75。

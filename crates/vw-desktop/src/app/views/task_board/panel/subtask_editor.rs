@@ -19,6 +19,10 @@
 //! 该模块主要用于任务看板面板中，当用户查看或编辑任务详情时，
 //! 提供子任务列表的展示和交互功能。
 
+use crate::app::components::system_settings_common::{
+    SETTINGS_CONTROL_PADDING, SETTINGS_CONTROL_TEXT_SIZE, danger_action_btn_style,
+    primary_action_btn_style, rounded_action_btn_style, settings_field_label,
+};
 use crate::app::components::text_editor_context_menu::{
     TextEditorContextMenuMessages, TextEditorContextMenuState, wrap_with_context_menu,
 };
@@ -34,9 +38,7 @@ use iced::widget::{
 };
 use iced::{Alignment, Background, Border, Color, Element, Length, Size, Theme};
 
-use super::super::common::{
-    SUBTASK_BADGE_SIZE, button_style_danger, button_style_primary, button_style_secondary,
-};
+use super::super::common::SUBTASK_BADGE_SIZE;
 use super::styles::{
     disabled_arrow_button_style, input_style, subtask_badge_style, subtask_card_style,
     subtask_status_badge_style, subtask_status_icon, subtask_status_label,
@@ -145,8 +147,8 @@ pub fn build_edit_mode_subtasks<'a>(
                 content: v,
             })
         })
-        .padding([6, 8])
-        .size(12)
+        .padding(SETTINGS_CONTROL_PADDING)
+        .size(SETTINGS_CONTROL_TEXT_SIZE)
         .width(Length::Fill)
         .style(input_style);
 
@@ -214,7 +216,7 @@ pub fn build_edit_mode_subtasks<'a>(
             top: 0.0,
             right: SUBTASK_SCROLLBAR_GUTTER,
             bottom: 0.0,
-            left: 0.0,
+            left: 7.0,
         }))
         .direction(Direction::Vertical(
             Scrollbar::new().width(SUBTASK_SCROLLBAR_WIDTH).scroller_width(SUBTASK_SCROLLBAR_WIDTH),
@@ -282,8 +284,8 @@ pub fn build_draft_mode_subtasks<'a>(app: &'a App) -> Element<'a, Message> {
         .on_input(move |v| {
             Message::TaskBoard(TaskBoardMessage::UpdateDraftSubtask { index: idx, value: v })
         })
-        .padding([6, 8])
-        .size(12)
+        .padding(SETTINGS_CONTROL_PADDING)
+        .size(SETTINGS_CONTROL_TEXT_SIZE)
         .width(Length::Fill)
         .style(input_style);
 
@@ -308,7 +310,7 @@ pub fn build_draft_mode_subtasks<'a>(app: &'a App) -> Element<'a, Message> {
         button(text(crate::app::i18n::I18n::new(app.desktop_locale).__("新增子任务")).size(11))
             .on_press(Message::TaskBoard(TaskBoardMessage::AddDraftSubtask))
             .padding([6, 10])
-            .style(button_style_secondary);
+            .style(rounded_action_btn_style);
 
     // 构建标题文本
     let subtasks_title = text(crate::app::i18n::I18n::new(app.desktop_locale).__("子任务"))
@@ -351,7 +353,7 @@ pub fn build_draft_mode_subtasks<'a>(app: &'a App) -> Element<'a, Message> {
 fn build_add_subtask_section<'a>(app: &'a App, task_id: &str) -> Element<'a, Message> {
     // 标题文本
     let add_subtask_title =
-        text(crate::app::i18n::I18n::new(app.desktop_locale).__("添加子任务")).size(12);
+        settings_field_label(crate::app::i18n::I18n::new(app.desktop_locale).__("添加子任务"));
 
     // 子任务内容输入框
     // 绑定到应用状态中的 task_board_new_subtask_content 字段
@@ -360,8 +362,8 @@ fn build_add_subtask_section<'a>(app: &'a App, task_id: &str) -> Element<'a, Mes
         &app.task_board_new_subtask_content,
     )
     .on_input(|v| Message::TaskBoard(TaskBoardMessage::UpdateNewSubtaskContent(v)))
-    .padding([6, 8])
-    .size(12)
+    .padding(SETTINGS_CONTROL_PADDING)
+    .size(SETTINGS_CONTROL_TEXT_SIZE)
     .width(Length::Fill)
     .style(input_style);
 
@@ -378,13 +380,16 @@ fn build_add_subtask_section<'a>(app: &'a App, task_id: &str) -> Element<'a, Mes
                 content: content_for_add,
             }))
             .padding([6, 12])
-            .style(button_style_primary);
+            .style(primary_action_btn_style);
 
     // 组装添加区域布局
     column![
         add_subtask_title,
         Space::new().height(4.0),
-        row![add_subtask_input, add_subtask_btn].spacing(8).width(Length::Fill),
+        row![add_subtask_input, add_subtask_btn]
+            .spacing(8)
+            .align_y(Alignment::Center)
+            .width(Length::Fill),
     ]
     .into()
 }
@@ -426,7 +431,7 @@ fn build_up_button<'a>(idx: usize, task: &Task, is_edit_mode: bool) -> Element<'
                 TaskBoardMessage::MoveDraftSubtaskUp(idx)
             }))
             .padding([2, 6])
-            .style(button_style_secondary)
+            .style(rounded_action_btn_style)
             .into()
     } else {
         // 已在顶部，显示禁用样式
@@ -480,7 +485,7 @@ fn build_down_button<'a>(
                 TaskBoardMessage::MoveDraftSubtaskDown(idx)
             }))
             .padding([2, 6])
-            .style(button_style_secondary)
+            .style(rounded_action_btn_style)
             .into()
     } else {
         // 已在底部，显示禁用样式
@@ -521,7 +526,7 @@ fn build_delete_button<'a>(
             subtask_id: subtask_id.to_string(),
         }))
         .padding([2, 6])
-        .style(button_style_danger)
+        .style(danger_action_btn_style)
         .into()
 }
 
@@ -551,7 +556,7 @@ fn build_draft_up_button<'a>(idx: usize) -> Element<'a, Message> {
         button(text("↑").size(10))
             .on_press(Message::TaskBoard(TaskBoardMessage::MoveDraftSubtaskUp(idx)))
             .padding([2, 6])
-            .style(button_style_secondary)
+            .style(rounded_action_btn_style)
             .into()
     } else {
         // 已在顶部，显示禁用样式
@@ -589,7 +594,7 @@ fn build_draft_down_button<'a>(idx: usize, total: usize) -> Element<'a, Message>
         button(text("↓").size(10))
             .on_press(Message::TaskBoard(TaskBoardMessage::MoveDraftSubtaskDown(idx)))
             .padding([2, 6])
-            .style(button_style_secondary)
+            .style(rounded_action_btn_style)
             .into()
     } else {
         // 已在底部，显示禁用样式
@@ -622,7 +627,7 @@ fn build_draft_delete_button<'a>(idx: usize) -> Element<'a, Message> {
     button(text("×").size(10))
         .on_press(Message::TaskBoard(TaskBoardMessage::RemoveDraftSubtask(idx)))
         .padding([2, 6])
-        .style(button_style_danger)
+        .style(danger_action_btn_style)
         .into()
 }
 
@@ -664,7 +669,6 @@ fn build_task_logs_panel<'a>(app: &'a App, size: Size) -> Element<'a, Message> {
     let editor = text_editor(&app.task_board_logs_editor)
         .id(app.task_board_logs_editor_id.clone())
         .on_action(|action| Message::TaskBoard(TaskBoardMessage::LogsViewerEditorAction(action)))
-        .font(iced::Font::with_name("JetBrains Mono"))
         .size(11)
         .padding(0)
         .height(Length::Shrink)

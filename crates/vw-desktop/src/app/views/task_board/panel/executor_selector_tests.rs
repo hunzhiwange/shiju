@@ -1,35 +1,15 @@
 //! 任务详情执行器选择器的测试，覆盖候选项、当前选择与不可用状态。
 //! 用例验证提供商图标和交互消息在空目录或混合配置下仍保持一致。
 use iced::widget::button;
-use iced::{Background, Color, Element, Theme};
+use iced::{Element, Theme};
 
 use crate::app::message::TaskBoardMessage;
 use crate::app::{App, Message};
 
 use super::*;
 
-const EPSILON: f32 = 0.000_01;
-
 fn test_app() -> App {
     App::new().0
-}
-
-fn assert_close(actual: f32, expected: f32) {
-    assert!((actual - expected).abs() <= EPSILON, "expected {actual} to be close to {expected}");
-}
-
-fn assert_color_close(actual: Color, expected: Color) {
-    assert_close(actual.r, expected.r);
-    assert_close(actual.g, expected.g);
-    assert_close(actual.b, expected.b);
-    assert_close(actual.a, expected.a);
-}
-
-fn color_background(background: Option<Background>) -> Color {
-    match background {
-        Some(Background::Color(color)) => color,
-        other => panic!("expected color background, got {other:?}"),
-    }
 }
 
 fn assert_task_board_message(message: TaskBoardMessage, expected: TaskBoardMessage) {
@@ -141,46 +121,16 @@ fn selector_kind_maps_open_close_toggle_and_select_messages() {
 }
 
 #[test]
-fn executor_option_button_style_covers_hover_selected_and_idle_branches() {
-    let theme = Theme::Dark;
-    let palette = theme.extended_palette();
-
-    let hovered = executor_option_button_style(&theme, button::Status::Hovered, false);
-    assert_color_close(
-        color_background(hovered.background),
-        palette.background.weak.color.scale_alpha(0.35),
-    );
-    assert_color_close(hovered.border.color, theme.palette().primary);
-    assert_close(hovered.border.radius.top_left, 6.0);
-    assert_close(hovered.border.width, 0.0);
-    assert_color_close(hovered.text_color, theme.palette().text);
-
-    let selected = executor_option_button_style(&theme, button::Status::Active, true);
-    assert_color_close(
-        color_background(selected.background),
-        Color::from_rgba(
-            theme.palette().primary.r,
-            theme.palette().primary.g,
-            theme.palette().primary.b,
-            0.10,
-        ),
-    );
-
-    let idle = executor_option_button_style(&theme, button::Status::Active, false);
-    assert!(idle.background.is_none());
-}
-
-#[test]
-fn executor_option_hover_takes_precedence_over_selected_background() {
-    let theme = Theme::Light;
-    let palette = theme.extended_palette();
-
-    let hovered_selected = executor_option_button_style(&theme, button::Status::Hovered, true);
-
-    assert_color_close(
-        color_background(hovered_selected.background),
-        palette.background.weak.color.scale_alpha(0.35),
-    );
+fn executor_options_distinguish_selection_and_hover() {
+    for theme in [Theme::Light, Theme::Dark] {
+        let hovered = selector_option_style(&theme, button::Status::Hovered, false);
+        let hovered_selected = selector_option_style(&theme, button::Status::Hovered, true);
+        let selected = selector_option_style(&theme, button::Status::Active, true);
+        let idle = selector_option_style(&theme, button::Status::Active, false);
+        assert_eq!(hovered.background, hovered_selected.background);
+        assert_ne!(hovered.background, selected.background);
+        assert_ne!(selected.background, idle.background);
+    }
 }
 
 #[test]

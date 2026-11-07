@@ -3339,6 +3339,7 @@
   "工具 %s · 图片输入 %s · 上下文限制 %u": "Tools %s · Image input %s · Context limit %u",
   "未知错误": "Unknown error",
   "人工暂停": "Manually paused",
+  "执行器": "Executor",
   "未使用 ACP": "No ACP agent",
   "执行完成%s": "Execution complete%s",
   "执行完成: %s": "Execution complete: %s",

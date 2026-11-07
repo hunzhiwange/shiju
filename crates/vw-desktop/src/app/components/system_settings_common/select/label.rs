@@ -7,10 +7,10 @@ use iced::{Element, Font, Length, Pixels, Rectangle, Renderer, Size, Theme, alig
 
 type Paragraph = <Renderer as text::Renderer>::Paragraph;
 
-pub(super) struct Label(String);
+pub(crate) struct Label(String);
 
 impl Label {
-    pub(super) fn new(value: String) -> Self {
+    pub(crate) fn new(value: String) -> Self {
         Self(if value.contains(['\n', '\r']) { value.replace(['\n', '\r'], " ") } else { value })
     }
 }

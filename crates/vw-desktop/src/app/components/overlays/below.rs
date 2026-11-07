@@ -333,6 +333,17 @@ where
         layout_with_backdrop(viewport, node.move_to(overlay_position))
     }
 
+    fn operate(
+        &mut self,
+        layout: Layout<'_>,
+        renderer: &RendererT,
+        operation: &mut dyn widget::Operation,
+    ) {
+        if let Some(overlay_layout) = layout.children().next() {
+            self.overlay.as_widget_mut().operate(self.tree, overlay_layout, renderer, operation);
+        }
+    }
+
     fn update(
         &mut self,
         event: &Event,

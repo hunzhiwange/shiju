@@ -49,54 +49,21 @@ fn input_controls_delegate_to_shared_settings_styles() {
 }
 
 #[test]
-fn pill_button_style_tracks_status_and_theme_brightness() {
-    let dark_palette = Theme::Dark.extended_palette();
-    let light = Theme::Light;
-
-    let dark_active = pill_button_style(&Theme::Dark, button::Status::Active);
-    assert_color_close(
-        color_background(dark_active.background),
-        dark_palette.background.base.color.scale_alpha(0.72),
-    );
-    assert_color_close(
-        dark_active.border.color,
-        dark_palette.background.strong.color.scale_alpha(0.82),
-    );
-    assert_color_close(dark_active.shadow.color, Color::BLACK.scale_alpha(0.14));
-    assert_close(dark_active.border.radius.top_left, 14.0);
-    assert_close(dark_active.border.width, 1.0);
-
-    let dark_hovered = pill_button_style(&Theme::Dark, button::Status::Hovered);
-    assert_color_close(
-        color_background(dark_hovered.background),
-        dark_palette.background.weak.color.scale_alpha(0.88),
-    );
-
-    let dark_pressed = pill_button_style(&Theme::Dark, button::Status::Pressed);
-    assert_color_close(
-        color_background(dark_pressed.background),
-        dark_palette.background.strong.color.scale_alpha(0.92),
-    );
-
-    let light_active = pill_button_style(&light, button::Status::Disabled);
-    assert_color_close(color_background(light_active.background), Color::WHITE.scale_alpha(0.84));
-    assert_color_close(light_active.border.color, Color::from_rgba8(15, 23, 42, 0.08));
-    assert_color_close(light_active.shadow.color, Color::BLACK.scale_alpha(0.06));
-
-    let light_hovered = pill_button_style(&light, button::Status::Hovered);
-    assert_color_close(color_background(light_hovered.background), Color::WHITE.scale_alpha(0.96));
-
-    let light_pressed = pill_button_style(&light, button::Status::Pressed);
-    assert_color_close(
-        color_background(light_pressed.background),
-        light.extended_palette().background.strong.color.scale_alpha(0.28),
-    );
+fn selector_trigger_style_distinguishes_hover_and_open() {
+    for theme in [Theme::Light, Theme::Dark] {
+        let active = selector_trigger_style(&theme, button::Status::Active, false);
+        let hovered = selector_trigger_style(&theme, button::Status::Hovered, false);
+        let open = selector_trigger_style(&theme, button::Status::Active, true);
+        assert_ne!(active.background, hovered.background);
+        assert_ne!(active.border.color, open.border.color);
+        assert_eq!(open.text_color, theme.palette().text);
+    }
 }
 
 #[test]
 fn panel_popover_and_tooltip_styles_set_expected_surfaces() {
     let popover = popover_style(&Theme::Dark);
-    assert_close(popover.border.radius.top_left, 18.0);
+    assert_close(popover.border.radius.top_left, 16.0);
 
     let panel = panel_container_style(&Theme::Light);
     assert_close(panel.border.radius.top_left, 22.0);

@@ -4,21 +4,24 @@ use iced::widget::scrollable::{Direction, Scrollbar};
 use iced::widget::svg;
 use iced::widget::{
     Space, button, column, container, mouse_area, row, scrollable, stack, text, text_input,
-    toggler,
     tooltip::{Position as TooltipPosition, Tooltip},
 };
-use iced::{Alignment, Background, Border, Color, Element, Length, Theme};
+use iced::{Alignment, Color, Element, Length, Theme};
 
 use crate::app::assets::{self, Icon};
 use crate::app::components::overlays::BelowOverlay;
-use crate::app::components::system_settings_common::settings_text_input_style;
+use crate::app::components::system_settings_common::{
+    SETTINGS_CONTROL_PADDING, SETTINGS_CONTROL_TEXT_SIZE, SettingsSelectLabel,
+    settings_field_label, settings_muted_text_style, settings_text_input_style, settings_toggle,
+};
 use crate::app::message::{SettingsMessage, TaskBoardMessage, ViewMessage};
 use crate::app::task::normalize_task_model_input;
 use crate::app::{App, Message};
 
 use super::super::common::{auto_icon, provider_logo_handle};
 use super::styles::{
-    pill_button_style, popover_style, square_icon_button_style, tooltip_dark_style,
+    popover_style, selector_option_style, selector_trigger_style, square_icon_button_style,
+    tooltip_dark_style,
 };
 
 #[derive(Clone, Copy)]
@@ -101,27 +104,30 @@ fn build_selector<'a>(app: &'a App, kind: TaskBoardModelSelectorKind) -> Element
     let chevron_style =
         |theme: &Theme, _| svg::Style { color: Some(theme.palette().text.scale_alpha(0.65)) };
     let chevron_model = svg::Svg::<iced::Theme>::new(assets::get_icon(Icon::ChevronDown))
-        .width(Length::Fixed(14.0))
-        .height(Length::Fixed(14.0))
+        .width(Length::Fixed(12.0))
+        .height(Length::Fixed(12.0))
         .style(chevron_style);
 
+    let open = kind.is_open(app);
     let model_toggle = button(
         row![
             build_model_icon(auto_model, app, model),
-            text(build_toggle_label(app, auto_model, model)).size(14),
+            SettingsSelectLabel::new(build_toggle_label(app, auto_model, model)),
             chevron_model
         ]
-        .spacing(8)
+        .spacing(6)
         .align_y(Alignment::Center),
     )
-    .style(pill_button_style)
-    .padding([6, 10])
+    .style(move |theme, status| selector_trigger_style(theme, status, open))
+    .padding([6, 8])
+    .width(Length::Fill)
+    .height(38)
     .on_press(Message::TaskBoard(kind.toggle_message()));
 
     let model_pop_content = build_model_popover(app, kind, auto_model, model);
 
     BelowOverlay::new(model_toggle, model_pop_content)
-        .show(kind.is_open(app))
+        .show(open)
         .gap(6.0)
         .on_close(Message::TaskBoard(kind.close_message()))
         .into()
@@ -215,11 +221,11 @@ fn build_model_popover<'a>(
         &app.model_settings.query,
     )
     .on_input(|v| Message::Settings(SettingsMessage::ModelQueryChanged(v)))
-    .padding([8, 10])
-    .size(13)
+    .padding(SETTINGS_CONTROL_PADDING)
+    .size(SETTINGS_CONTROL_TEXT_SIZE)
     .style(settings_text_input_style);
 
-    let mut model_list = column![].spacing(8);
+    let mut model_list = column![].spacing(2);
     let mut any_models = false;
 
     if app.model_settings.loading && app.model_settings.providers.is_empty() {
@@ -248,7 +254,7 @@ fn build_model_popover<'a>(
                     .width(Length::Fixed(16.0))
                     .height(Length::Fixed(16.0))
                     .style(|theme: &Theme, _| svg::Style { color: Some(theme.palette().text) }),
-                text(p.name.clone()).size(13),
+                text(p.name.clone()).size(13).wrapping(text::Wrapping::WordOrGlyph),
                 container(text("")).width(Length::Fill),
             ]
             .spacing(8)
@@ -262,75 +268,29 @@ fn build_model_popover<'a>(
                 let model_id = m.id.clone();
                 let model_key = format!("{}/{}", provider_id, model_id);
 
-                let display_name = {
-                    let max_chars = 26usize;
-                    let mut s = m.name.clone();
-                    if s.chars().count() > max_chars {
-                        s = s.chars().take(max_chars.saturating_sub(1)).collect::<String>() + "…";
-                    }
-                    s
-                };
-
                 let selected = !auto_model && is_selected(model, &provider_id, &model_id);
                 let selected_badge: Element<'_, Message> = if selected {
-                    row![
-                        text(crate::app::i18n::I18n::new(app.desktop_locale).__("已选择"))
-                            .size(11)
-                            .style(|theme: &Theme| iced::widget::text::Style {
-                                color: Some(theme.palette().primary),
-                            }),
-                        svg::Svg::<iced::Theme>::new(assets::get_icon(Icon::Check))
-                            .width(Length::Fixed(14.0))
-                            .height(Length::Fixed(14.0))
-                            .style(|theme: &Theme, _| svg::Style {
-                                color: Some(theme.palette().primary),
-                            })
-                    ]
-                    .spacing(4)
-                    .align_y(Alignment::Center)
-                    .into()
+                    svg::Svg::<iced::Theme>::new(assets::get_icon(Icon::Check))
+                        .width(14)
+                        .height(14)
+                        .style(|theme: &Theme, _| svg::Style {
+                            color: Some(theme.palette().primary),
+                        })
+                        .into()
                 } else {
-                    Space::new().width(Length::Fixed(44.0)).into()
+                    Space::new().width(14).height(14).into()
                 };
 
-                let model_key_for_select = model_key.clone();
-                let provider_id_for_detail = provider_id.clone();
-                let model_id_for_detail = model_id.clone();
-
                 let select_btn = button(
-                    row![text(display_name).size(13).width(Length::Fill), selected_badge]
+                    row![SettingsSelectLabel::new(m.name.clone()), selected_badge]
                         .spacing(8)
                         .align_y(Alignment::Center),
                 )
-                .padding(iced::Padding { top: 6.0, right: 52.0, bottom: 6.0, left: 8.0 })
+                .padding(iced::Padding { top: 6.0, right: 36.0, bottom: 6.0, left: 10.0 })
                 .width(Length::Fill)
-                .style(move |theme: &Theme, status: iced::widget::button::Status| {
-                    let hovered = matches!(status, iced::widget::button::Status::Hovered);
-                    let p = theme.extended_palette();
-                    let bg = if hovered {
-                        Some(Background::Color(p.background.weak.color.scale_alpha(0.35)))
-                    } else if selected {
-                        Some(Background::Color(Color::from_rgba(
-                            theme.palette().primary.r,
-                            theme.palette().primary.g,
-                            theme.palette().primary.b,
-                            0.10,
-                        )))
-                    } else {
-                        None
-                    };
-                    iced::widget::button::Style {
-                        background: bg,
-                        border: Border {
-                            radius: 6.0.into(),
-                            width: 0.0,
-                            color: theme.palette().primary,
-                        },
-                        text_color: theme.palette().text,
-                        ..Default::default()
-                    }
-                })
-                .on_press(Message::TaskBoard(kind.select_message(model_key_for_select)));
+                .height(36)
+                .style(move |theme, status| selector_option_style(theme, status, selected))
+                .on_press(Message::TaskBoard(kind.select_message(model_key)));
 
                 let detail_btn = mouse_area(
                     container(
@@ -347,10 +307,7 @@ fn build_model_popover<'a>(
                     .align_y(iced::alignment::Vertical::Center),
                 )
                 .on_press(Message::View(
-                    ViewMessage::OpenSystemSettingsModelDetail(
-                        provider_id_for_detail.clone(),
-                        model_id_for_detail.clone(),
-                    ),
+                    ViewMessage::OpenSystemSettingsModelDetail(provider_id, model_id),
                 ));
 
                 let select_btn = stack![
@@ -365,9 +322,11 @@ fn build_model_popover<'a>(
 
                 let model_tip = container(
                     column![
-                        text(m.name.clone()).size(12).style(|_t: &Theme| {
-                            iced::widget::text::Style { color: Some(Color::WHITE) }
-                        }),
+                        text(m.name.clone()).size(12).wrapping(text::Wrapping::WordOrGlyph).style(
+                            |_t: &Theme| {
+                                iced::widget::text::Style { color: Some(Color::WHITE) }
+                            }
+                        ),
                         text(format!("{} / {}", p.name, p.id))
                             .size(11)
                             .wrapping(iced::widget::text::Wrapping::Word)
@@ -499,19 +458,22 @@ fn build_model_popover<'a>(
                     .gap(8),
                     text(crate::app::i18n::I18n::new(app.desktop_locale).__("自动模型")),
                     container(text("")).width(Length::Fill),
-                    toggler(auto_model).on_toggle({
+                    settings_toggle(auto_model).on_toggle({
                         let kind = kind;
                         move |_| Message::TaskBoard(kind.select_message("auto".to_string()))
                     })
                 ]
-                .spacing(8),
+                .spacing(8)
+                .align_y(Alignment::Center),
             ]
             .spacing(10)
         )
         .padding([6, 8]),
         container(
             column![
-                text(crate::app::i18n::I18n::new(app.desktop_locale).__("手工填写模型")).size(12),
+                settings_field_label(
+                    crate::app::i18n::I18n::new(app.desktop_locale).__("手工填写模型")
+                ),
                 text_input(
                     crate::app::i18n::I18n::new(app.desktop_locale)
                         .__("auto / provider/model / 自定义模型"),
@@ -523,27 +485,16 @@ fn build_model_popover<'a>(
                         Message::TaskBoard(kind.input_message(normalize_task_model_input(&value)))
                     }
                 })
-                .padding([8, 10])
-                .size(13)
+                .padding(SETTINGS_CONTROL_PADDING)
+                .size(SETTINGS_CONTROL_TEXT_SIZE)
                 .style(settings_text_input_style),
                 text(
                     crate::app::i18n::I18n::new(app.desktop_locale)
                         .__("兼容特殊调度器或未出现在列表中的模型 ID")
                         .to_owned()
                 )
-                .size(11)
-                .style(|theme: &Theme| {
-                    let palette = theme.palette();
-                    let is_dark =
-                        palette.background.r + palette.background.g + palette.background.b < 1.5;
-                    iced::widget::text::Style {
-                        color: Some(if is_dark {
-                            palette.text.scale_alpha(0.78)
-                        } else {
-                            theme.extended_palette().background.base.text.scale_alpha(0.82)
-                        }),
-                    }
-                },)
+                .size(12)
+                .style(settings_muted_text_style)
             ]
             .spacing(6)
         )
@@ -553,15 +504,14 @@ fn build_model_popover<'a>(
                 row![search.width(Length::Fill), providers_btn, manage_btn]
                     .spacing(8)
                     .align_y(Alignment::Center),
-                scrollable(container(model_list).padding(iced::Padding {
-                    top: 0.0,
-                    right: 12.0,
-                    bottom: 0.0,
-                    left: 0.0,
-                }))
-                .id(iced::widget::Id::new("task_board_model_selector_scroll"))
-                .direction(Direction::Vertical(Scrollbar::new().width(4).scroller_width(4)))
-                .height(Length::Fixed(260.0)),
+                container(
+                    scrollable(container(model_list).padding([0, 7]))
+                        .id("task_board_model_selector_scroll")
+                        .direction(Direction::Vertical(Scrollbar::new().width(4).scroller_width(4)))
+                        .height(Length::Shrink)
+                        .width(Length::Fill)
+                )
+                .max_height(240),
             ]
             .spacing(8)
         )

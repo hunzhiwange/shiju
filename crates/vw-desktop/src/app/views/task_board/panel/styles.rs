@@ -6,7 +6,8 @@ use iced::{Background, Border, Color, Theme};
 use crate::app::Message;
 use crate::app::components::system_settings_common::{
     round_icon_btn_style, settings_muted_text_style, settings_panel_style,
-    settings_text_editor_style, settings_text_input_style,
+    settings_pick_list_menu_style, settings_pick_list_style, settings_text_editor_style,
+    settings_text_input_style,
 };
 use crate::app::task::SubTaskStatus;
 
@@ -31,64 +32,57 @@ pub fn editor_style(theme: &Theme, status: text_editor::Status) -> text_editor::
     settings_text_editor_style(theme, status)
 }
 
-/// 构建或更新 pill button style 相关行为。
-///
-/// 参数由调用方提供，返回值直接交给上层视图或状态处理；本函数不执行额外错误恢复。
-pub fn pill_button_style(
+pub(super) fn selector_trigger_style(
     theme: &Theme,
-    status: iced::widget::button::Status,
-) -> iced::widget::button::Style {
-    let p = theme.extended_palette();
-    let is_dark =
-        theme.palette().background.r + theme.palette().background.g + theme.palette().background.b
-            < 1.5;
-    let bg = match status {
-        iced::widget::button::Status::Hovered => Some(Background::Color(if is_dark {
-            p.background.weak.color.scale_alpha(0.88)
-        } else {
-            Color::WHITE.scale_alpha(0.96)
-        })),
-        iced::widget::button::Status::Pressed => {
-            Some(Background::Color(p.background.strong.color.scale_alpha(if is_dark {
-                0.92
-            } else {
-                0.28
-            })))
-        }
-        _ => Some(Background::Color(if is_dark {
-            p.background.base.color.scale_alpha(0.72)
-        } else {
-            Color::WHITE.scale_alpha(0.84)
-        })),
+    status: button::Status,
+    open: bool,
+) -> button::Style {
+    use iced::widget::pick_list::Status;
+    let hovered = matches!(status, button::Status::Hovered | button::Status::Pressed);
+    let status = if open {
+        Status::Opened { is_hovered: hovered }
+    } else if hovered {
+        Status::Hovered
+    } else {
+        Status::Active
     };
-    iced::widget::button::Style {
-        background: bg,
-        border: Border {
-            radius: 14.0.into(),
-            width: 1.0,
-            color: if is_dark {
-                p.background.strong.color.scale_alpha(0.82)
-            } else {
-                Color::from_rgba8(15, 23, 42, 0.08)
-            },
-        },
-        text_color: theme.palette().text,
-        shadow: iced::Shadow {
-            color: Color::BLACK.scale_alpha(if is_dark { 0.14 } else { 0.06 }),
-            offset: iced::Vector::new(0.0, 8.0),
-            blur_radius: 16.0,
-        },
+    let style = settings_pick_list_style(theme, status);
+    button::Style {
+        background: Some(style.background),
+        border: Border { radius: 10.0.into(), ..style.border },
+        text_color: style.text_color,
         ..Default::default()
     }
 }
 
-/// 构建或更新 popover style 相关行为。
-///
-/// 参数由调用方提供，返回值直接交给上层视图或状态处理；本函数不执行额外错误恢复。
+pub(super) fn selector_option_style(
+    theme: &Theme,
+    status: button::Status,
+    selected: bool,
+) -> button::Style {
+    let background = if matches!(status, button::Status::Hovered | button::Status::Pressed) {
+        Some(theme.palette().text.scale_alpha(0.08).into())
+    } else if selected {
+        Some(settings_pick_list_menu_style(theme).selected_background)
+    } else {
+        None
+    };
+    button::Style {
+        background,
+        border: Border { radius: 9.0.into(), ..Default::default() },
+        text_color: theme.palette().text,
+        ..Default::default()
+    }
+}
+
 pub fn popover_style(theme: &Theme) -> container::Style {
-    let mut style = settings_panel_style(theme);
-    style.border.radius = 18.0.into();
-    style
+    let menu = settings_pick_list_menu_style(theme);
+    container::Style {
+        background: Some(theme.extended_palette().background.base.color.into()),
+        border: menu.border,
+        shadow: menu.shadow,
+        ..Default::default()
+    }
 }
 
 /// 构建或更新 tooltip dark style 相关行为。

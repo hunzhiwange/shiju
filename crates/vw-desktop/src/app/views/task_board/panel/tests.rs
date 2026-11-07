@@ -94,10 +94,10 @@ fn segmented_button_style_distinguishes_theme_selection_and_interaction() {
         let hovered = segmented_button_style(&theme, false, button::Status::Hovered);
         let pressed = segmented_button_style(&theme, true, button::Status::Pressed);
 
-        assert_eq!(active.text_color, theme.palette().primary);
+        assert_eq!(active.text_color, theme.palette().text);
         assert_eq!(inactive.text_color, theme.palette().text);
         assert_eq!(active.border.width, 1.0);
-        assert!(active.shadow.blur_radius > inactive.shadow.blur_radius);
+        assert_ne!(active.background, inactive.background);
         assert!(hovered.background.is_some());
         assert!(pressed.background.is_some());
     }

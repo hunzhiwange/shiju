@@ -9,6 +9,8 @@ mod styles;
 #[cfg(test)]
 mod tests;
 
+pub(crate) use label::Label as SettingsSelectLabel;
+
 use super::{SETTINGS_CONTROL_TEXT_SIZE, icon_svg};
 use crate::app::{Message, assets::Icon};
 use iced::advanced::widget::operation::focusable::Focusable;

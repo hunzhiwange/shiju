@@ -124,11 +124,11 @@ where
             move |value| on_scrollbar_changed(state.max_scroll - value, state.viewport_height),
         )
         .step(1.0)
-        .width(10)
+        .width(4)
         .height(Length::Fill)
         .style(scrollbar_style);
 
-        body = body.push(container(slider).width(Length::Fixed(10.0)).height(Length::Fill));
+        body = body.push(container(slider).center_x(10).height(Length::Fill));
     }
 
     container(body.spacing(8).height(Length::Fill))

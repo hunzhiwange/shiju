@@ -2,16 +2,13 @@
 
 use std::fmt;
 
-use iced::widget::pick_list;
 use iced::{Element, Length};
 use vw_gateway_client::vw_api_types::ReasoningEffortDto;
 
 use crate::app::components::input_panel::reasoning_selector::{
     model_reasoning_effort_options, reasoning_effort_label, reasoning_effort_options,
 };
-use crate::app::components::system_settings_common::{
-    settings_pick_list_menu_style, settings_pick_list_style,
-};
+use crate::app::components::system_settings_common::settings_select;
 use crate::app::message::TaskBoardMessage;
 use crate::app::{App, Message};
 
@@ -95,14 +92,10 @@ fn build_selector(app: &App, kind: TaskBoardReasoningSelectorKind) -> Option<Ele
     let selected = TaskBoardReasoningEffortOption(kind.current(app), app.desktop_locale);
 
     Some(
-        pick_list(options, Some(selected), move |option| {
+        settings_select(options, Some(selected), move |option| {
             Message::TaskBoard(kind.select_message(option.0))
         })
         .placeholder(crate::app::i18n::I18n::new(app.desktop_locale).__("推理强度"))
-        .padding([6, 10])
-        .text_size(14)
-        .style(settings_pick_list_style)
-        .menu_style(settings_pick_list_menu_style)
         .width(Length::Fill)
         .into(),
     )

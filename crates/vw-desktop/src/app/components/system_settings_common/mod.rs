@@ -49,6 +49,7 @@ pub(crate) use panels::{
     settings_modal_layout_with_scroll_id, settings_modal_overlay_with_backdrop_dismiss,
     settings_modal_overlay_with_escape,
 };
+pub(crate) use select::SettingsSelectLabel;
 pub use select::settings_select;
 pub use styles::{
     danger_action_btn_style, primary_action_btn_style, round_icon_btn_style,

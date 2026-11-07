@@ -5,16 +5,15 @@
 use std::fmt;
 
 use iced::widget::{
-    Space, button, checkbox, column, container, pick_list, row, scrollable, text, text_editor,
-    text_input,
+    Space, button, checkbox, column, container, row, scrollable, text, text_editor, text_input,
 };
 use iced::{Alignment, Background, Border, Color, Element, Length, Theme};
 
 use crate::app::components::system_settings_common::{
     SETTINGS_CONTROL_PADDING, SETTINGS_CONTROL_TEXT_SIZE, primary_action_btn_style,
     rounded_action_btn_style, settings_checkbox_style, settings_close_button, settings_divider,
-    settings_field_label, settings_muted_text_style, settings_panel, settings_pick_list_menu_style,
-    settings_pick_list_style, settings_segment_button_style, settings_select,
+    settings_field_label, settings_muted_text_style, settings_panel, settings_segment_button_style,
+    settings_select,
 };
 use crate::app::message::TaskBoardMessage;
 use crate::app::state::{MAIN_AGENT_KEY, TaskBoardDetailTab};
@@ -22,7 +21,7 @@ use crate::app::task::{Task, TaskSplitMode};
 use crate::app::{App, Message};
 use vw_config_types::agent::is_retired_builtin_agent_key;
 
-use super::common::{button_style_primary, button_style_secondary, button_style_success};
+use super::common::button_style_success;
 
 mod executor_selector;
 mod logs_modal;
@@ -123,62 +122,9 @@ fn segmented_button_style(
     active: bool,
     status: iced::widget::button::Status,
 ) -> iced::widget::button::Style {
-    let p = theme.extended_palette();
-    let is_dark =
-        theme.palette().background.r + theme.palette().background.g + theme.palette().background.b
-            < 1.5;
-    let active_bg = if is_dark {
-        theme.palette().primary.scale_alpha(0.18)
-    } else {
-        theme.palette().primary.scale_alpha(0.10)
-    };
-    let background = match status {
-        iced::widget::button::Status::Hovered => Some(Background::Color(if active {
-            active_bg
-        } else if is_dark {
-            p.background.weak.color.scale_alpha(0.84)
-        } else {
-            Color::WHITE.scale_alpha(0.92)
-        })),
-        iced::widget::button::Status::Pressed => {
-            Some(Background::Color(p.background.strong.color.scale_alpha(if is_dark {
-                0.82
-            } else {
-                0.26
-            })))
-        }
-        _ => Some(Background::Color(if active {
-            active_bg
-        } else if is_dark {
-            p.background.base.color.scale_alpha(0.54)
-        } else {
-            Color::WHITE.scale_alpha(0.76)
-        })),
-    };
-
-    iced::widget::button::Style {
-        background,
-        text_color: if active { theme.palette().primary } else { theme.palette().text },
-        border: Border {
-            radius: 999.0.into(),
-            width: 1.0,
-            color: if active {
-                theme.palette().primary.scale_alpha(if is_dark { 0.68 } else { 0.34 })
-            } else {
-                p.background.strong.color.scale_alpha(0.62)
-            },
-        },
-        shadow: if active {
-            iced::Shadow {
-                color: theme.palette().primary.scale_alpha(if is_dark { 0.18 } else { 0.08 }),
-                offset: iced::Vector::new(0.0, 8.0),
-                blur_radius: 18.0,
-            }
-        } else {
-            iced::Shadow::default()
-        },
-        ..Default::default()
-    }
+    let mut style = settings_segment_button_style(theme, status, active);
+    style.text_color = theme.palette().text;
+    style
 }
 
 fn section_block<'a>(
@@ -248,11 +194,11 @@ pub fn build_task_panel<'a>(app: &'a App, is_edit_mode: bool) -> Element<'a, Mes
     .spacing(0)
     .width(Length::Fill);
 
-    let (mut main_col, create_header) =
-        if is_edit_mode { (header, None) } else { (column![].width(Length::Fill), Some(header)) };
+    let mut header = header;
+    let mut main_col = column![].width(Length::Fill);
 
     if is_edit_mode {
-        main_col = main_col.push(build_detail_tabs(app)).push(Space::new().height(14.0));
+        header = header.push(build_detail_tabs(app));
 
         if app.task_board_detail_tab == TaskBoardDetailTab::Logs {
             main_col = main_col.push(build_task_logs(app));
@@ -276,12 +222,22 @@ pub fn build_task_panel<'a>(app: &'a App, is_edit_mode: bool) -> Element<'a, Mes
                 main_col = main_col.push(merge_lock_row).push(Space::new().height(12.0));
             }
 
-            let priority_field = build_priority_field(app, true);
-            let model_field = build_model_selector(app, true);
-            let agent_field = build_agent_field(app, true);
-            let executor_field = build_executor_selector(app, true);
-            let reasoning_effort_field = build_reasoning_effort_selector(app, true);
-            let task_split_field = build_task_split_mode_selector(app, true);
+            let i18n = crate::app::i18n::I18n::new(app.desktop_locale);
+            let control = |label, field| {
+                column![
+                    input_label(i18n.__(label)),
+                    container(field).center_y(42).width(Length::Fill),
+                ]
+                .spacing(6)
+                .width(Length::FillPortion(1))
+            };
+            let priority_field = control("优先级", build_priority_field(app, true));
+            let model_field = control("模型", build_model_selector(app, true));
+            let agent_field = control("代理", build_agent_field(app, true));
+            let executor_field = control("执行器", build_executor_selector(app, true));
+            let reasoning_effort_field =
+                build_reasoning_effort_selector(app, true).map(|field| control("推理强度", field));
+            let task_split_field = control("任务拆分", build_task_split_mode_selector(app, true));
             let prompt_field = build_prompt_field(app);
 
             main_col = main_col.push(section_block(
@@ -291,21 +247,13 @@ pub fn build_task_panel<'a>(app: &'a App, is_edit_mode: bool) -> Element<'a, Mes
                 column![
                     prompt_field,
                     settings_divider(),
-                    row![
-                        container(agent_field).width(Length::FillPortion(1)),
-                        container(executor_field).width(Length::FillPortion(1)),
-                    ]
-                    .extend(
-                        reasoning_effort_field
-                            .map(|field| container(field).width(Length::FillPortion(1)).into())
-                    )
-                    .spacing(12),
-                    row![
-                        container(model_field).width(Length::FillPortion(1)),
-                        container(task_split_field).width(Length::FillPortion(1)),
-                        container(priority_field).width(Length::FillPortion(1)),
-                    ]
-                    .spacing(12),
+                    row![agent_field, executor_field]
+                        .extend(reasoning_effort_field.map(Into::into))
+                        .spacing(12)
+                        .align_y(Alignment::End),
+                    row![model_field, task_split_field, priority_field]
+                        .spacing(12)
+                        .align_y(Alignment::End),
                 ]
                 .spacing(14),
             ));
@@ -354,40 +302,41 @@ pub fn build_task_panel<'a>(app: &'a App, is_edit_mode: bool) -> Element<'a, Mes
         main_col = build_draft_mode_content(app, main_col);
     }
 
-    let panel_padding = iced::Padding::ZERO
-        .left(if is_edit_mode { 0.0 } else { 7.0 })
-        .right(TASK_PANEL_SCROLLBAR_GUTTER);
-    let content: Element<'_, Message> =
-        if is_edit_mode && app.task_board_detail_tab == TaskBoardDetailTab::Logs {
-            container(main_col.height(Length::Fill))
-                .width(Length::Fill)
-                .height(Length::Fill)
-                .padding(panel_padding)
-                .into()
-        } else {
-            scrollable(container(main_col).width(Length::Fill).padding(panel_padding))
-                .direction(iced::widget::scrollable::Direction::Vertical(
-                    iced::widget::scrollable::Scrollbar::new()
-                        .width(TASK_PANEL_SCROLLBAR_WIDTH)
-                        .scroller_width(TASK_PANEL_SCROLLBAR_WIDTH),
-                ))
-                .width(Length::Fill)
-                .height(Length::Fill)
-                .into()
-        };
-    let content: Element<'_, Message> = if let Some(header) = create_header {
-        column![header, content, build_action_buttons(app, false)].spacing(12).into()
+    let showing_logs = is_edit_mode && app.task_board_detail_tab == TaskBoardDetailTab::Logs;
+    let content: Element<'_, Message> = if showing_logs {
+        main_col.height(Length::Fill).into()
     } else {
-        content
+        scrollable(container(main_col).width(Length::Fill).padding(iced::Padding {
+            left: 7.0,
+            right: TASK_PANEL_SCROLLBAR_GUTTER,
+            ..iced::Padding::ZERO
+        }))
+        .direction(iced::widget::scrollable::Direction::Vertical(
+            iced::widget::scrollable::Scrollbar::new()
+                .width(TASK_PANEL_SCROLLBAR_WIDTH)
+                .scroller_width(TASK_PANEL_SCROLLBAR_WIDTH),
+        ))
+        .width(Length::Fill)
+        .height(Length::Fill)
+        .into()
     };
+    let mut content = column![header, content].spacing(12).height(Length::Fill);
+    if !showing_logs && (!is_edit_mode || current_task.is_some()) {
+        content = content.push(build_action_buttons(app, is_edit_mode));
+    }
     let panel_width = if is_edit_mode { Length::Fixed(560.0) } else { Length::Fill };
 
-    container(content)
+    let panel = container(content)
         .padding(20)
         .style(panel_container_style)
         .width(panel_width)
-        .height(Length::Fill)
-        .into()
+        .height(Length::Fill);
+    if is_edit_mode {
+        // Mark the whole sidebar surface as interactive so the stack shields the board.
+        iced::widget::mouse_area(panel).interaction(iced::mouse::Interaction::Idle).into()
+    } else {
+        panel.into()
+    }
 }
 
 fn build_close_button(close_msg: TaskBoardMessage) -> iced::Element<'static, Message> {
@@ -502,13 +451,10 @@ fn build_failed_reason_row<'a>(
             i18n.format("执行失败: %s", &[(reason).into()]).expect("valid task detail template"),
         )
         .size(12)
-        .wrapping(iced::widget::text::Wrapping::Word)
-        .style(|theme: &Theme| iced::widget::text::Style {
-            color: Some(theme.extended_palette().danger.base.color),
-        });
+        .wrapping(iced::widget::text::Wrapping::WordOrGlyph);
         let retry_button = button(text(i18n.__("手工重试")).size(12))
             .padding([6, 10])
-            .style(button_style_secondary)
+            .style(rounded_action_btn_style)
             .on_press(Message::TaskBoard(TaskBoardMessage::ExecuteTask {
                 task_id: task.id.clone(),
             }));
@@ -540,10 +486,7 @@ fn build_failed_reason_row<'a>(
             i18n.format("暂停原因: %s", &[(reason).into()]).expect("valid task detail template"),
         )
         .size(12)
-        .wrapping(iced::widget::text::Wrapping::Word)
-        .style(|theme: &Theme| iced::widget::text::Style {
-            color: Some(theme.extended_palette().warning.base.color),
-        });
+        .wrapping(iced::widget::text::Wrapping::WordOrGlyph);
         return Some(
             container(reason_text)
                 .padding([8, 10])
@@ -584,7 +527,7 @@ fn build_selected_worktree_row<'a>(
                         ),
                     }
                 }),
-                text(path).size(12).wrapping(iced::widget::text::Wrapping::Word),
+                text(path).size(12).wrapping(iced::widget::text::Wrapping::WordOrGlyph),
             ]
             .spacing(4),
         )
@@ -715,14 +658,10 @@ pub(crate) fn build_bulk_task_split_selector(app: &App) -> iced::Element<'_, Mes
     let options = TaskSplitMode::all()
         .map(|mode| crate::app::i18n::tasks::SplitOption(mode, app.desktop_locale))
         .to_vec();
-    pick_list(options, Some(selected), |mode| {
+    settings_select(options, Some(selected), |mode| {
         Message::TaskBoard(TaskBoardMessage::UpdateBulkTaskSplitMode(mode.0))
     })
     .placeholder(crate::app::i18n::I18n::new(app.desktop_locale).__("任务拆分"))
-    .padding([6, 10])
-    .text_size(14)
-    .style(settings_pick_list_style)
-    .menu_style(settings_pick_list_menu_style)
     .width(Length::Fill)
     .into()
 }
@@ -763,14 +702,10 @@ pub(crate) fn build_bulk_agent_selector(app: &App) -> iced::Element<'_, Message>
         .cloned()
         .or_else(|| options.iter().find(|option| option.key == MAIN_AGENT_KEY).cloned());
 
-    pick_list(options, selected, |option| {
+    settings_select(options, selected, |option| {
         Message::TaskBoard(TaskBoardMessage::BulkAgentSelected(option.key))
     })
     .placeholder(crate::app::i18n::I18n::new(app.desktop_locale).__("选择代理"))
-    .padding([6, 10])
-    .text_size(14)
-    .style(settings_pick_list_style)
-    .menu_style(settings_pick_list_menu_style)
     .width(Length::Fill)
     .into()
 }
@@ -1092,13 +1027,12 @@ fn build_action_buttons(app: &App, is_edit_mode: bool) -> iced::Element<'static,
     } else {
         ("创建任务", TaskBoardMessage::CreateTaskSubmitted)
     };
-    let submit_style = if is_edit_mode {
-        if app.task_board_edit_submit_success { button_style_success } else { button_style_primary }
-    } else if app.task_board_create_submit_success {
-        button_style_success
+    let succeeded = if is_edit_mode {
+        app.task_board_edit_submit_success
     } else {
-        primary_action_btn_style
+        app.task_board_create_submit_success
     };
+    let submit_style = if succeeded { button_style_success } else { primary_action_btn_style };
 
     row![
         button(text(crate::app::i18n::I18n::new(app.desktop_locale).__("取消")).size(14))
@@ -1142,13 +1076,7 @@ fn build_edit_mode_content<'a>(
         main_col = main_col.push(Space::new().height(12.0)).push(add_section);
     }
 
-    main_col = main_col
-        .push(Space::new().height(16.0))
-        .push(build_edit_options_row(app))
-        .push(Space::new().height(8.0))
-        .push(build_action_buttons(app, true));
-
-    main_col
+    main_col.push(Space::new().height(16.0)).push(build_edit_options_row(app))
 }
 
 fn build_draft_mode_content<'a>(

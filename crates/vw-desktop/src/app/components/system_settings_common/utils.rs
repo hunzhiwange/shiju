@@ -13,6 +13,16 @@ pub const SETTINGS_CONTROL_TEXT_SIZE: f32 = 14.0;
 /// 该定义保持在当前模块职责内，调用方应通过显式字段、变体或别名理解其语义。
 pub const SETTINGS_CONTROL_PADDING: [u16; 2] = [12, 14];
 
+/// 设置行使用默认字体，支持中英文混排及换行。
+pub fn settings_field_label(label: &str) -> iced::widget::Text<'_> {
+    iced::widget::text(label).size(15)
+}
+
+/// 与常规设置行使用相同尺寸和主题的开关。
+pub fn settings_toggle<'a, Message: 'a>(checked: bool) -> iced::widget::Toggler<'a, Message> {
+    iced::widget::toggler(checked).size(22).style(super::styles::settings_toggle_style)
+}
+
 /// 构建或处理 `url_encode` 对应的界面片段与交互数据。
 ///
 /// # 参数

@@ -48,11 +48,11 @@ pub use styles::{
     rounded_action_btn_style, settings_checkbox_style, settings_modal_backdrop_style,
     settings_modal_card_style, settings_muted_text_style, settings_panel_style,
     settings_pick_list_menu_style, settings_pick_list_style, settings_segment_button_style,
-    settings_text_editor_style, settings_text_input_style,
+    settings_text_editor_style, settings_text_editor_style_for, settings_text_input_style,
 };
 pub use utils::{
     SETTINGS_CONTROL_PADDING, SETTINGS_CONTROL_TEXT_SIZE, SETTINGS_LABEL_WIDTH, bool_support_label,
-    format_context_limit, url_encode,
+    format_context_limit, settings_field_label, settings_toggle, url_encode,
 };
 
 #[cfg(test)]

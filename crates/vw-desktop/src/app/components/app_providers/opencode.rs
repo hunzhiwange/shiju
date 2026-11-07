@@ -52,7 +52,7 @@ pub(super) fn fields<'a>(form: &'a EditForm, draft: &'a Draft) -> Element<'a, Me
         .height(Length::Fixed(250.))
         .padding(SETTINGS_CONTROL_PADDING)
         .size(SETTINGS_CONTROL_TEXT_SIZE)
-        .style(settings_text_editor_style);
+        .style(settings_text_editor_style_for(enabled));
     if enabled {
         editor = editor.on_action(move |action| event(Field::Declaration(action)));
     }

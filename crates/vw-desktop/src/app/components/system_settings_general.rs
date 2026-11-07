@@ -9,19 +9,19 @@
 //! - 终端字体及字号配置
 
 use crate::app::components::system_settings_common::{
-    rounded_action_btn_style, settings_divider, settings_muted_text_style, settings_select,
-    settings_value_badge,
+    rounded_action_btn_style, settings_divider, settings_field_label, settings_muted_text_style,
+    settings_select, settings_toggle, settings_value_badge,
 };
 use crate::app::components::system_settings_search::SettingsTabDescriptor;
 use crate::app::state::GeneralSettingsTab;
 use crate::app::theme_catalog::{theme_store_from_home, to_iced_theme};
 use crate::app::{App, Message, PreviewAutoSaveMode, Shell, TerminalTheme, message};
-use iced::widget::{button, column, container, row, slider, text, toggler};
+use iced::widget::{button, column, container, row, slider, text};
 use iced::{Alignment, Element, Length, Theme};
 
 #[path = "system_settings_general/presentation.rs"]
 mod presentation;
-use presentation::{group_card, group_heading, tab_style, toggle_style};
+use presentation::{group_card, group_heading, tab_style};
 
 const TERMINAL_CONTROL_WIDTH: f32 = 280.0;
 
@@ -69,7 +69,7 @@ fn setting_row<'a>(
     container(
         row![
             column![
-                text(label).size(15),
+                settings_field_label(label),
                 text(description).size(13).style(settings_muted_text_style),
             ]
             .spacing(6)
@@ -231,24 +231,20 @@ pub fn view(app: &App) -> Element<'_, Message> {
     )
     .width(Length::Fixed(280.0));
 
-    let launch_toggle = toggler(app.launch_at_login)
-        .size(22)
-        .on_toggle_maybe((!app.launch_at_login_busy && !cfg!(target_arch = "wasm32")).then_some(
-            |enabled| {
-                Message::Settings(message::SettingsMessage::General(
-                    message::GeneralSettingsMessage::LaunchAtLoginToggled(enabled),
-                ))
-            },
-        ))
-        .style(toggle_style);
-    let tray_toggle = toggler(app.close_to_tray)
-        .size(22)
-        .on_toggle_maybe((!cfg!(target_arch = "wasm32")).then_some(|enabled| {
+    let launch_toggle = settings_toggle(app.launch_at_login).on_toggle_maybe(
+        (!app.launch_at_login_busy && !cfg!(target_arch = "wasm32")).then_some(|enabled| {
+            Message::Settings(message::SettingsMessage::General(
+                message::GeneralSettingsMessage::LaunchAtLoginToggled(enabled),
+            ))
+        }),
+    );
+    let tray_toggle = settings_toggle(app.close_to_tray).on_toggle_maybe(
+        (!cfg!(target_arch = "wasm32")).then_some(|enabled| {
             Message::Settings(message::SettingsMessage::General(
                 message::GeneralSettingsMessage::CloseToTrayToggled(enabled),
             ))
-        }))
-        .style(toggle_style);
+        }),
+    );
 
     let displayed_font_size =
         app.terminal_config_persistence.displayed_font_size(app.terminal.font_size);
@@ -340,14 +336,12 @@ pub fn view(app: &App) -> Element<'_, Message> {
                                 ))
                                 .padding([8, 14])
                                 .style(rounded_action_btn_style),
-                            toggler(app.task_completion_notification)
-                                .size(22)
+                            settings_toggle(app.task_completion_notification)
                                 .on_toggle_maybe(crate::app::desktop_notification::SUPPORTED.then_some(
                                     |enabled| Message::Settings(message::SettingsMessage::General(
                                         message::GeneralSettingsMessage::TaskCompletionNotificationToggled(enabled),
                                     )),
-                                ))
-                                .style(toggle_style),
+                                )),
                         ]
                         .spacing(12)
                         .align_y(Alignment::Center),

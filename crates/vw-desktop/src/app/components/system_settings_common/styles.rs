@@ -4,7 +4,7 @@
 //! 注释聚焦调用边界、返回值和错误传播方式，便于后续维护设置页与工具栏行为时快速定位职责。
 
 use crate::app::components::system_settings_common::theme::is_dark_theme;
-use iced::widget::{button, checkbox, pick_list, text_editor, text_input};
+use iced::widget::{button, checkbox, pick_list, text_editor, text_input, toggler};
 use iced::{Background, Border, Color, Shadow, Theme, Vector};
 
 /// 构建或处理 `rounded_action_btn_style` 对应的界面片段与交互数据。
@@ -40,7 +40,8 @@ pub fn rounded_action_btn_style(theme: &Theme, status: button::Status) -> button
             }
             .into(),
         ),
-        _ => Some(
+        button::Status::Disabled => Some(palette.background.weak.color.scale_alpha(0.50).into()),
+        button::Status::Active => Some(
             if is_dark {
                 palette.background.base.color.scale_alpha(0.52)
             } else {
@@ -52,7 +53,11 @@ pub fn rounded_action_btn_style(theme: &Theme, status: button::Status) -> button
 
     button::Style {
         background: bg,
-        text_color: theme.palette().text,
+        text_color: if status == button::Status::Disabled {
+            theme.palette().text.scale_alpha(0.55)
+        } else {
+            theme.palette().text
+        },
         border: Border {
             radius: 10.0.into(),
             width: 1.0,
@@ -138,15 +143,19 @@ pub fn round_icon_btn_style(theme: &Theme, status: button::Status) -> button::St
 /// # 错误处理
 ///
 /// 本函数不直接返回错误；无法交互或缺省状态会在控件状态中显式表达。
-pub fn danger_action_btn_style(_theme: &Theme, status: button::Status) -> button::Style {
-    let bg = match status {
-        button::Status::Pressed => Color::from_rgba8(220, 45, 40, 0.98),
-        _ => Color::from_rgba8(255, 59, 48, 0.96),
+pub fn danger_action_btn_style(theme: &Theme, status: button::Status) -> button::Style {
+    let (background, text_color) = match status {
+        button::Status::Active => (Color::from_rgb8(196, 43, 40), Color::WHITE),
+        button::Status::Hovered => (Color::from_rgb8(174, 34, 31), Color::WHITE),
+        button::Status::Pressed => (Color::from_rgb8(145, 27, 25), Color::WHITE),
+        button::Status::Disabled => {
+            (theme.extended_palette().background.weak.color, theme.palette().text.scale_alpha(0.55))
+        }
     };
 
     button::Style {
-        background: Some(Background::Color(bg)),
-        text_color: Color::WHITE,
+        background: Some(background.into()),
+        text_color,
         border: Border { radius: 8.0.into(), ..Default::default() },
         ..Default::default()
     }
@@ -167,15 +176,18 @@ pub fn danger_action_btn_style(_theme: &Theme, status: button::Status) -> button
 /// 本函数不直接返回错误；无法交互或缺省状态会在控件状态中显式表达。
 pub fn primary_action_btn_style(theme: &Theme, status: button::Status) -> button::Style {
     let palette = theme.extended_palette();
-    let bg = match status {
-        button::Status::Hovered => palette.primary.base.color.scale_alpha(0.92),
-        button::Status::Pressed => palette.primary.base.color.scale_alpha(0.85),
-        _ => palette.primary.base.color,
+    let (background, text_color) = match status {
+        button::Status::Active => (palette.primary.base.color, palette.primary.base.text),
+        button::Status::Hovered => (palette.primary.strong.color, palette.primary.strong.text),
+        button::Status::Pressed => (palette.primary.weak.color, palette.primary.weak.text),
+        button::Status::Disabled => {
+            (palette.background.weak.color, theme.palette().text.scale_alpha(0.55))
+        }
     };
 
     button::Style {
-        background: Some(Background::Color(bg)),
-        text_color: Color::WHITE,
+        background: Some(background.into()),
+        text_color,
         border: Border { radius: 8.0.into(), ..Default::default() },
         ..Default::default()
     }
@@ -358,10 +370,13 @@ pub fn settings_text_input_style(theme: &Theme, status: text_input::Status) -> t
         palette.primary.scale_alpha(0.84)
     } else if is_hovered {
         extended.background.strong.color.scale_alpha(0.92)
-    } else if is_dark {
-        extended.background.strong.color.scale_alpha(0.82)
     } else {
-        Color::from_rgba8(15, 23, 42, 0.10)
+        let idle_border = if is_dark {
+            extended.background.strong.color.scale_alpha(0.82)
+        } else {
+            Color::from_rgba8(15, 23, 42, 0.10)
+        };
+        if is_disabled { idle_border.scale_alpha(0.55) } else { idle_border }
     };
 
     text_input::Style {
@@ -374,44 +389,41 @@ pub fn settings_text_input_style(theme: &Theme, status: text_input::Status) -> t
     }
 }
 
-/// 构建或处理 `settings_text_editor_style` 对应的界面片段与交互数据。
-///
-/// # 参数
-///
-/// 参数来自调用方持有的应用状态、配置快照或控件输入，用于保持渲染结果与当前状态同步。
-///
-/// # 返回值
-///
-/// 返回本函数生成的状态、样式或辅助值，供同一流程继续组合使用。
-///
-/// # 错误处理
-///
-/// 本函数不直接返回错误；无法交互或缺省状态会在控件状态中显式表达。
+/// 使用与单行输入相同的背景、边框和文字状态。
 pub fn settings_text_editor_style(
     theme: &Theme,
-    _status: text_editor::Status,
+    status: text_editor::Status,
 ) -> text_editor::Style {
-    let palette = theme.palette();
-    let extended = theme.extended_palette();
-
-    text_editor::Style {
-        background: Background::Color(if is_dark_theme(theme) {
-            extended.background.base.color.scale_alpha(0.88)
-        } else {
-            Color::WHITE.scale_alpha(0.92)
-        }),
-        border: Border {
-            width: 1.0,
-            color: if is_dark_theme(theme) {
-                extended.background.strong.color.scale_alpha(0.82)
-            } else {
-                Color::from_rgba8(15, 23, 42, 0.10)
-            },
-            radius: 14.0.into(),
+    let input = settings_text_input_style(
+        theme,
+        match status {
+            text_editor::Status::Active => text_input::Status::Active,
+            text_editor::Status::Hovered => text_input::Status::Hovered,
+            text_editor::Status::Focused { is_hovered } => {
+                text_input::Status::Focused { is_hovered }
+            }
+            text_editor::Status::Disabled => text_input::Status::Disabled,
         },
-        placeholder: palette.text.scale_alpha(0.48),
-        value: palette.text,
-        selection: palette.primary.scale_alpha(0.20),
+    );
+    text_editor::Style {
+        background: input.background,
+        border: input.border,
+        placeholder: input.placeholder,
+        value: input.value,
+        selection: input.selection,
+    }
+}
+
+/// Iced 的只读编辑器跳过事件更新，绘制时仍可能提供 Active。
+/// 使用与绑定编辑回调相同的 enabled 值确保禁用状态可见。
+pub fn settings_text_editor_style_for(
+    enabled: bool,
+) -> impl Fn(&Theme, text_editor::Status) -> text_editor::Style {
+    move |theme, status| {
+        settings_text_editor_style(
+            theme,
+            if enabled { status } else { text_editor::Status::Disabled },
+        )
     }
 }
 
@@ -666,4 +678,25 @@ pub fn settings_segment_button_style(
         },
         ..Default::default()
     }
+}
+
+/// 常规设置开关的共享样式。
+pub(super) fn settings_toggle_style(theme: &Theme, status: toggler::Status) -> toggler::Style {
+    let mut style = toggler::default(theme, status);
+    // 保持开关滑块稳定可见，悬停时只改变轨道颜色。
+    style.foreground = Color::WHITE.into();
+    let palette = theme.extended_palette();
+    match status {
+        toggler::Status::Hovered { is_toggled: true } => {
+            style.background = palette.primary.strong.color.into();
+        }
+        toggler::Status::Hovered { is_toggled: false } => {
+            style.background = palette.background.strongest.color.into();
+        }
+        toggler::Status::Disabled { .. } => {
+            style.foreground = Color::WHITE.scale_alpha(0.8).into();
+        }
+        toggler::Status::Active { .. } => {}
+    }
+    style
 }

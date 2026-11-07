@@ -149,12 +149,8 @@ fn text_input_style_covers_light_theme_and_focused_without_hover() {
 
 #[test]
 fn text_editor_style_tracks_theme_palette() {
-    let dark =
-        settings_text_editor_style(&Theme::Dark, text_editor::Status::Focused { is_hovered: true });
-    let light = settings_text_editor_style(
-        &Theme::Light,
-        text_editor::Status::Focused { is_hovered: true },
-    );
+    let dark = settings_text_editor_style(&Theme::Dark, text_editor::Status::Active);
+    let light = settings_text_editor_style(&Theme::Light, text_editor::Status::Active);
 
     assert_ne!(solid_background(dark.background), solid_background(light.background));
     assert_ne!(dark.border.color, light.border.color);
@@ -259,7 +255,7 @@ fn rounded_and_round_icon_button_styles_cover_remaining_dark_statuses() {
         background_color(round_icon_btn_style(&theme, button::Status::Disabled).background);
 
     assert_ne!(rounded_active, rounded_pressed);
-    assert_eq!(rounded_active, rounded_disabled);
+    assert_ne!(rounded_active, rounded_disabled);
     assert_ne!(round_hovered, round_disabled);
 }
 
@@ -287,14 +283,14 @@ fn text_input_style_covers_light_hovered_background() {
 }
 
 #[test]
-fn text_editor_style_accepts_all_statuses_without_changing_output() {
+fn text_editor_style_distinguishes_hover_and_disabled() {
     let theme = Theme::Dark;
     let active = settings_text_editor_style(&theme, text_editor::Status::Active);
     let hovered = settings_text_editor_style(&theme, text_editor::Status::Hovered);
     let disabled = settings_text_editor_style(&theme, text_editor::Status::Disabled);
 
-    assert_eq!(active, hovered);
-    assert_eq!(hovered, disabled);
+    assert_ne!(active.border.color, hovered.border.color);
+    assert_ne!(disabled.value, active.value);
 }
 
 #[test]

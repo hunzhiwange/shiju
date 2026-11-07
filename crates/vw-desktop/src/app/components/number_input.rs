@@ -30,9 +30,12 @@
 
 use iced::advanced::{Clipboard, Layout, Shell, Widget, layout, mouse, renderer, widget};
 use iced::widget::{container, mouse_area, row, text_input};
-use iced::{Background, Border, Color, Element, Length, Rectangle, Size, Theme};
+use iced::{Background, Border, Element, Length, Rectangle, Size, Theme};
 
 use crate::app::Message;
+use crate::app::components::system_settings_common::{
+    SETTINGS_CONTROL_PADDING, SETTINGS_CONTROL_TEXT_SIZE, settings_text_input_style,
+};
 
 const PROP_INPUT_RADIUS: f32 = 8.0;
 
@@ -264,55 +267,6 @@ fn fmt_value(v: f32, p: u8) -> String {
         let s = format!("{:.4}", r);
         let s = s.trim_end_matches('0').trim_end_matches('.');
         s.to_string()
-    }
-}
-
-fn settings_text_input_style(theme: &Theme, status: text_input::Status) -> text_input::Style {
-    let palette = theme.palette();
-    let extended = theme.extended_palette();
-    let is_dark = palette.background.r + palette.background.g + palette.background.b < 1.5;
-    let is_focused = matches!(status, text_input::Status::Focused { .. });
-    let is_hovered = matches!(status, text_input::Status::Hovered)
-        || matches!(status, text_input::Status::Focused { is_hovered: true });
-    let is_disabled = matches!(status, text_input::Status::Disabled);
-
-    let background = if is_disabled {
-        extended.background.base.color.scale_alpha(if is_dark { 0.40 } else { 0.60 })
-    } else if is_focused {
-        if is_dark {
-            extended.background.weak.color.scale_alpha(0.96)
-        } else {
-            Color::WHITE.scale_alpha(0.98)
-        }
-    } else if is_hovered {
-        if is_dark {
-            extended.background.base.color.scale_alpha(0.96)
-        } else {
-            Color::WHITE.scale_alpha(0.94)
-        }
-    } else if is_dark {
-        extended.background.base.color.scale_alpha(0.84)
-    } else {
-        Color::WHITE.scale_alpha(0.90)
-    };
-
-    let border_color = if is_focused {
-        palette.primary.scale_alpha(0.84)
-    } else if is_hovered {
-        extended.background.strong.color.scale_alpha(0.92)
-    } else if is_dark {
-        extended.background.strong.color.scale_alpha(0.82)
-    } else {
-        Color::from_rgba8(15, 23, 42, 0.10)
-    };
-
-    text_input::Style {
-        background: Background::Color(background),
-        border: Border { width: 1.0, color: border_color, radius: 14.0.into() },
-        icon: palette.text.scale_alpha(0.65),
-        placeholder: palette.text.scale_alpha(0.50),
-        value: if is_disabled { palette.text.scale_alpha(0.55) } else { palette.text },
-        selection: palette.primary.scale_alpha(0.20),
     }
 }
 
@@ -698,10 +652,12 @@ impl<'a> From<NumberInput<'a>> for Element<'a, Message> {
         let display = fmt_value(value, precision);
 
         // 创建文本输入框
-        let input_padding = match style_variant {
-            NumberInputStyleVariant::PropertyPanel => iced::Padding::from(0),
+        let (input_padding, text_size, height) = match style_variant {
+            NumberInputStyleVariant::PropertyPanel => {
+                (iced::Padding::ZERO, 12.0, Length::Fixed(style_variant.height()))
+            }
             NumberInputStyleVariant::Settings => {
-                iced::Padding { top: 12.0, right: 14.0, bottom: 12.0, left: 14.0 }
+                (SETTINGS_CONTROL_PADDING.into(), SETTINGS_CONTROL_TEXT_SIZE, Length::Shrink)
             }
         };
 
@@ -713,10 +669,7 @@ impl<'a> From<NumberInput<'a>> for Element<'a, Message> {
                 (on_change)(round_precision(v, precision))
             })
             .padding(input_padding)
-            .size(match style_variant {
-                NumberInputStyleVariant::PropertyPanel => 12,
-                NumberInputStyleVariant::Settings => 14,
-            })
+            .size(text_size)
             .width(Length::Fill)
             .style(match style_variant {
                 NumberInputStyleVariant::PropertyPanel => prop_text_input_style,
@@ -727,15 +680,14 @@ impl<'a> From<NumberInput<'a>> for Element<'a, Message> {
         let overlay = mouse_area(
             container(row![input].spacing(6))
                 .width(Length::Fill)
-                .height(Length::Fixed(style_variant.height()))
+                .height(height)
                 .align_y(iced::alignment::Vertical::Center),
         )
         .on_move(move |_pos| Message::None)
         .on_press(Message::None)
         .on_release(Message::None);
 
-        let wrapper =
-            container(overlay).width(Length::Fill).height(Length::Fixed(style_variant.height()));
+        let wrapper = container(overlay).width(Length::Fill).height(height);
 
         match style_variant {
             NumberInputStyleVariant::PropertyPanel => wrapper
@@ -760,3 +712,7 @@ impl<'a> From<NumberInput<'a>> for Element<'a, Message> {
 #[cfg(test)]
 #[path = "number_input_tests.rs"]
 mod number_input_tests;
+
+#[cfg(test)]
+#[path = "number_input_ui_refresh_02_tests.rs"]
+mod ui_refresh_02_tests;

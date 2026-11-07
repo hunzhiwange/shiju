@@ -51,6 +51,7 @@ pub(crate) use turn::run_tool_call_loop_with_non_cli_approval_context;
 
 pub use constants::AUTOSAVE_MIN_MESSAGE_CHARS;
 pub use history::autosave_memory_key;
+pub(crate) use history::build_native_assistant_history;
 pub use timeouts::{effective_message_timeout_secs, message_timeout_budget_secs};
 
 #[cfg(test)]
@@ -59,8 +60,7 @@ pub(crate) use constants::DEFAULT_MAX_HISTORY_MESSAGES;
 pub(crate) use constants::DEFAULT_MAX_ITERATIONS;
 #[cfg(test)]
 pub(crate) use history::{
-    build_native_assistant_history, build_native_assistant_history_from_parsed_calls,
-    tools_to_openai_format,
+    build_native_assistant_history_from_parsed_calls, tools_to_openai_format,
 };
 #[cfg(test)]
 pub(crate) use tool_loop::looks_like_unverified_action_completion_without_tool_call;

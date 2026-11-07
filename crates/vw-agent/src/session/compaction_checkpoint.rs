@@ -70,7 +70,7 @@ pub(crate) async fn restore(session: &str, history: &[Value]) -> Result<Vec<Valu
     for key in keys.into_iter().rev() {
         let refs = key.iter().map(String::as_str).collect::<Vec<_>>();
         let checkpoint: Checkpoint = storage::read(&refs).await.map_err(|e| e.to_string())?;
-        if !checkpoint.source_hashes.is_empty() && hashes.starts_with(&checkpoint.source_hashes) {
+        if matches_prefix(&hashes, &checkpoint.source_hashes) {
             let mut context = vec![
                 json!({"role": "assistant", "content": format!("[Compaction summary]\n{}", checkpoint.summary)}),
             ];
@@ -85,17 +85,54 @@ pub(crate) async fn restore(session: &str, history: &[Value]) -> Result<Vec<Valu
 }
 
 pub(crate) async fn copy(source: &str, target: &str) -> Result<(), String> {
-    super::skill_checkpoint::copy(source, target).await?;
+    let scope = scope_for_directory(&crate::project::instance::directory());
+    copy_scoped(&scope, &scope, source, target, None).await
+}
+
+pub(crate) async fn copy_fork(
+    source_directory: &str,
+    target_directory: &str,
+    source: &str,
+    target: &str,
+    history: &[Value],
+) -> Result<(), String> {
+    let hashes = history.iter().map(message_hash).collect::<Vec<_>>();
+    copy_scoped(
+        &scope_for_directory(source_directory),
+        &scope_for_directory(target_directory),
+        source,
+        target,
+        Some(&hashes),
+    )
+    .await
+}
+
+pub(super) fn matches_prefix(hashes: &[String], checkpoint: &[String]) -> bool {
+    !checkpoint.is_empty() && hashes.starts_with(checkpoint)
+}
+
+async fn copy_scoped(
+    source_scope: &str,
+    target_scope: &str,
+    source: &str,
+    target: &str,
+    hashes: Option<&[String]>,
+) -> Result<(), String> {
     validate_session(source)?;
     validate_session(target)?;
-    let scope = scope_for_directory(&crate::project::instance::directory());
-    for key in
-        storage::list(&["context_checkpoint", &scope, source]).await.map_err(|e| e.to_string())?
+    super::skill_checkpoint::copy_scoped(source_scope, target_scope, source, target, hashes)
+        .await?;
+    for key in storage::list(&["context_checkpoint", source_scope, source])
+        .await
+        .map_err(|e| e.to_string())?
     {
         let refs = key.iter().map(String::as_str).collect::<Vec<_>>();
         let checkpoint: Checkpoint = storage::read(&refs).await.map_err(|e| e.to_string())?;
+        if hashes.is_some_and(|hashes| !matches_prefix(hashes, &checkpoint.source_hashes)) {
+            continue;
+        }
         let id = key.last().ok_or_else(|| "invalid checkpoint key".to_string())?;
-        storage::write_atomic(&["context_checkpoint", &scope, target, id], &checkpoint)
+        storage::write_atomic(&["context_checkpoint", target_scope, target, id], &checkpoint)
             .await
             .map_err(|e| e.to_string())?;
     }

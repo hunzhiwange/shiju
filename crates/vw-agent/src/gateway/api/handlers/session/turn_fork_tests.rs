@@ -311,3 +311,226 @@ async fn session_fork_before_turn_rolls_back_staged_history_and_worktree_on_writ
     assert_eq!(history(&forked).await.len(), 2);
     worktree_cleanup(&source, forked.directory).await;
 }
+
+#[tokio::test(flavor = "multi_thread")]
+async fn fork_history_ui_reads_the_persisted_prefix() {
+    let _guard = SESSION_OPS_TEST_LOCK.lock().await;
+    ensure_test_home();
+    let repo = repository();
+    let source = create_session_in(repo.path(), "History source").await;
+    let (_, first) = persist_turn(&source.id, "retained user", "retained assistant").await;
+    let (_, second) = persist_turn(&source.id, "omitted user", "omitted assistant").await;
+    persist_turn(&source.id, "future user", "future assistant").await;
+
+    let warm_state = state();
+    warm_state.config.lock().workspace_dir = repo.path().to_owned();
+    let source_engine =
+        crate::gateway::chat::session_query_engine(&warm_state, &source.id).await.unwrap();
+    source_engine
+        .lock()
+        .await
+        .replace_history(vec![crate::providers::ChatMessage::user("source cached future")]);
+
+    for (boundary, expected) in [(&second, 2), (&first, 0)] {
+        let (status, body) = fork(&source, json!({"beforeTurnId": boundary})).await;
+        assert_eq!(status, StatusCode::OK, "{body}");
+        let forked: agent_session::session::Info = serde_json::from_value(body).unwrap();
+        let native = history(&forked).await;
+        let (status, ui) = request(
+            Method::GET,
+            &format!("/session/{}/ui/without-raw", forked.id),
+            &forked.directory,
+            Value::Null,
+        )
+        .await;
+        assert_eq!(status, StatusCode::OK, "{ui}");
+        let messages = ui["messages"].as_array().expect("persisted UI history");
+        assert_eq!(messages.len(), expected);
+        let ids = native.iter().rev().map(|msg| msg.info.id()).collect::<Vec<_>>();
+        assert_eq!(ui["message_ids"], json!(ids));
+        eprintln!("fork UI readback: target={} message_ids={ids:?}", forked.directory);
+        if expected > 0 {
+            assert_eq!(messages[0]["content"], "retained user");
+            assert_eq!(messages[1]["content"], "retained assistant");
+        }
+        for gateway in [&warm_state, &state()] {
+            let engine =
+                crate::gateway::chat::session_query_engine(gateway, &forked.id).await.unwrap();
+            let engine = engine.lock().await;
+            let history = engine.history_snapshot();
+            assert!(!history.iter().any(|msg| msg.content.contains("source cached future")));
+            assert_eq!(history.iter().any(|msg| msg.content == "retained user"), expected > 0);
+            assert_eq!(history.iter().any(|msg| msg.content == "retained assistant"), expected > 0);
+        }
+    }
+    assert_eq!(source_engine.lock().await.history_snapshot()[0].content, "source cached future");
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn fork_history_first_sse_request_replays_only_durable_turns() {
+    let _env = crate::test_support::global_async_env_lock().lock().await;
+    let _guard = SESSION_OPS_TEST_LOCK.lock().await;
+    ensure_test_home();
+
+    struct RestoreHttpMode(Option<std::ffi::OsString>);
+    impl Drop for RestoreHttpMode {
+        fn drop(&mut self) {
+            unsafe {
+                if let Some(previous) = self.0.take() {
+                    std::env::set_var("VW_RECOVERY_WINDOW_HTTP", previous);
+                } else {
+                    std::env::remove_var("VW_RECOVERY_WINDOW_HTTP");
+                }
+            }
+        }
+    }
+    let _http = RestoreHttpMode(std::env::var_os("VW_RECOVERY_WINDOW_HTTP"));
+    unsafe { std::env::set_var("VW_RECOVERY_WINDOW_HTTP", "1") };
+
+    let requests = Arc::new(parking_lot::Mutex::new(Vec::<Value>::new()));
+    let captured = Arc::clone(&requests);
+    let model = axum::Router::new().route(
+        "/v1/chat/completions",
+        axum::routing::post(move |Json(body): Json<Value>| {
+            let captured = Arc::clone(&captured);
+            async move {
+                captured.lock().push(body);
+                let chunk = json!({"id":"fork-history","object":"chat.completion.chunk","created":0,
+                    "model":"original","choices":[{"index":0,"delta":{"content":"fork response"},
+                    "finish_reason":"stop"}]});
+                (
+                    [("content-type", "text/event-stream")],
+                    format!("data: {chunk}\n\ndata: [DONE]\n\n"),
+                )
+            }
+        }),
+    );
+    let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
+    let address = listener.local_addr().unwrap();
+    let server = tokio::spawn(async move { axum::serve(listener, model).await.unwrap() });
+    let _fixture = agent_session::llm::recovery_test_support::RecoveryConfig::new(
+        &format!("http://{address}/v1"),
+        Some("fixture-key"),
+    )
+    .await;
+    let repo = repository();
+    let source = create_session_in(repo.path(), "Fork request source").await;
+    let (assistant, first) =
+        persist_turn(&source.id, "fork retained user", "fork retained answer").await;
+    let (_, second) =
+        persist_turn(&source.id, "fork omitted second", "fork omitted second response").await;
+    persist_turn(&source.id, "fork omitted third", "fork omitted third response").await;
+    let tool: Part = serde_json::from_value(json!({
+        "type":"tool", "id":"part-fork-fixture", "sessionID":source.id, "messageID":assistant,
+        "callID":"fork-retained-call", "tool":"read",
+        "state":{"status":"completed","input":{"path":"tracked.txt"},"output":"fork retained result",
+            "title":"read","metadata":{},"time":{"start":1,"end":2}}
+    })).unwrap();
+    message::update_part(&tool).await.unwrap();
+
+    for (target, boundary) in [
+        (Value::Null, &second),
+        (Value::Null, &first),
+        (json!({"type":"worktree","name":format!("fork-history-{}", Uuid::new_v4())}), &second),
+        (json!({"type":"worktree","name":format!("fork-history-{}", Uuid::new_v4())}), &first),
+    ] {
+        let (status, body) = fork(&source, json!({"beforeTurnId":boundary, "target":target})).await;
+        assert_eq!(status, StatusCode::OK, "{body}");
+        let branch: agent_session::session::Info = serde_json::from_value(body).unwrap();
+        let request = vw_api_types::chat::GatewayChatStreamRequest {
+            session_id: Some(branch.id.clone().into()),
+            model: Some("model-recovery/original".into()),
+            options: Some(json!({"full_access":false})),
+            messages: vec![
+                json!({"role":"user","content":"fork omitted second"}),
+                json!({"role":"assistant","content":"fork omitted third"}),
+                json!({"role":"user","content":"fork new prompt"}),
+            ],
+            ..Default::default()
+        };
+        let mut headers = HeaderMap::new();
+        headers.insert("x-vw-stream-request-id", HeaderValue::from_str(&branch.id).unwrap());
+        if !target.is_null() {
+            let wrong_directory = super::super::super::stream::chat_stream(
+                Query(query_for(FsPath::new(&source.directory))),
+                headers.clone(),
+                Json(request.clone()),
+            )
+            .await;
+            assert!(
+                matches!(wrong_directory, Err(error) if error.status == StatusCode::BAD_REQUEST)
+            );
+        }
+        let response = super::super::super::stream::chat_stream(
+            Query(query_for(FsPath::new(&branch.directory))),
+            headers,
+            Json(request),
+        )
+        .await
+        .unwrap();
+        let bytes = tokio::time::timeout(
+            Duration::from_secs(30),
+            axum::body::to_bytes(
+                axum::response::IntoResponse::into_response(response).into_body(),
+                2_000_000,
+            ),
+        )
+        .await
+        .unwrap()
+        .unwrap();
+        let events = String::from_utf8(bytes.to_vec()).unwrap();
+        assert!(events.contains("chat.done"), "{events}");
+        let provider_request = requests.lock().pop().expect("real provider request");
+        let messages = provider_request["messages"].as_array().unwrap();
+        assert!(messages.iter().any(|message| {
+            message["role"] == "system"
+                && message["content"].as_str().is_some_and(|content| {
+                    content.contains(&format!("working directory is `{}`", branch.directory))
+                })
+        }));
+        let relevant = messages
+            .iter()
+            .filter_map(|message| {
+                let role = message["role"].as_str()?;
+                if role == "assistant" && message["tool_calls"].is_array() {
+                    let call = &message["tool_calls"][0];
+                    assert_eq!(call["id"], "fork-retained-call");
+                    Some("call")
+                } else {
+                    let content = message["content"].as_str()?;
+                    match (role, content.trim_matches('"')) {
+                        ("user", "fork retained user") => Some("user"),
+                        ("tool", "fork retained result") => {
+                            assert_eq!(message["tool_call_id"], "fork-retained-call");
+                            Some("tool")
+                        }
+                        ("assistant", "fork retained answer") => Some("assistant"),
+                        ("user", "fork new prompt") => Some("new user"),
+                        _ => {
+                            assert!(
+                                !content.contains("fork omitted"),
+                                "discarded source history in role {role}"
+                            );
+                            None
+                        }
+                    }
+                }
+            })
+            .collect::<Vec<_>>();
+        let expected: &[&str] = if boundary == &second {
+            &["user", "call", "tool", "assistant", "new user"]
+        } else {
+            &["new user"]
+        };
+        assert_eq!(relevant, expected);
+        eprintln!(
+            "fork model request: source={} target={} sequence={relevant:?}",
+            source.directory, branch.directory
+        );
+        if !target.is_null() {
+            assert_ne!(branch.directory, source.directory);
+            worktree_cleanup(&source, branch.directory).await;
+        }
+    }
+    server.abort();
+}

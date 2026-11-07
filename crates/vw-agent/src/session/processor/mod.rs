@@ -56,6 +56,7 @@ pub(crate) use types::ToolSessionState;
 pub(crate) use helpers::allowed_tool_ids_for_request_from_specs;
 pub(crate) use helpers::{allowed_tool_ids, should_execute_structured_tool_calls_locally};
 pub use runner::run;
+pub(crate) use runner::run_with_persisted_history;
 pub use types::{
     CompactionPhase, ModelRecovery, RecoveryPhase, Request, StreamEvent, ToolCallStatus, ToolEvent,
     ToolEventKind,

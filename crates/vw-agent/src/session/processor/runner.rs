@@ -42,6 +42,8 @@ struct DesktopSessionProtocol {
     context_window_tokens: usize,
     hidden_prefetch: std::ops::Range<usize>,
     native_call_ids: HashSet<String>,
+    persisted_history: Vec<Value>,
+    persisted_history_len: usize,
 }
 
 impl DesktopSessionProtocol {
@@ -153,13 +155,17 @@ impl DesktopSessionProtocol {
     }
 
     fn checkpoint_history(&self, session: &Session) -> Vec<Value> {
-        session
-            .messages
-            .iter()
-            .enumerate()
-            .filter(|(index, _)| !self.hidden_prefetch.contains(index))
-            .flat_map(|(_, message)| llm_messages::session_message_to_llm_messages(message))
-            .collect()
+        let mut history = self.persisted_history.clone();
+        history.extend(
+            session
+                .messages
+                .iter()
+                .enumerate()
+                .skip(self.persisted_history_len)
+                .filter(|(index, _)| !self.hidden_prefetch.contains(index))
+                .flat_map(|(_, message)| llm_messages::session_message_to_llm_messages(message)),
+        );
+        history
     }
 
     fn consume_invoked_skills(
@@ -474,9 +480,17 @@ fn ensure_persistent_request_message_id(req: &mut Request) -> Result<(), String>
 ///
 /// 本函数保留原有入口签名，对外仍通过 `processor::run` 暴露；
 /// 这里仅将实现迁移至独立文件，方便后续按职责维护。
-pub fn run(req: Request, mut on_event: impl FnMut(StreamEvent) -> bool + Send + 'static) {
+pub fn run(req: Request, on_event: impl FnMut(StreamEvent) -> bool + Send + 'static) {
+    run_with_persisted_history(req, None, on_event);
+}
+
+pub(crate) fn run_with_persisted_history(
+    req: Request,
+    persisted_history: Option<Vec<Value>>,
+    mut on_event: impl FnMut(StreamEvent) -> bool + Send + 'static,
+) {
     let Some(root) = req.root.as_deref().filter(|root| !root.trim().is_empty()) else {
-        return run_in_project(req, on_event);
+        return run_in_project(req, persisted_history, on_event);
     };
     let tenant = crate::session::ui_store::current_tenant_scope();
     let project =
@@ -489,7 +503,7 @@ pub fn run(req: Request, mut on_event: impl FnMut(StreamEvent) -> bool + Send + 
                 project,
             };
             crate::project::instance::provide_context_sync(context, || {
-                run_in_project(req, on_event)
+                run_in_project(req, persisted_history, on_event)
             })
         }
         Err(error) => {
@@ -500,6 +514,7 @@ pub fn run(req: Request, mut on_event: impl FnMut(StreamEvent) -> bool + Send + 
 
 fn run_in_project(
     mut req: Request,
+    persisted_history: Option<Vec<Value>>,
     mut on_event: impl FnMut(StreamEvent) -> bool + Send + 'static,
 ) {
     if let Err(message) = ensure_persistent_request_message_id(&mut req) {
@@ -609,7 +624,10 @@ fn run_in_project(
         })
         .collect();
 
-    let checkpoint_source = llm_messages::session_messages_to_llm_messages(&session);
+    let persisted_history_len = persisted_history.as_ref().map_or(0, |_| session.messages.len());
+    let checkpoint_source = persisted_history
+        .clone()
+        .unwrap_or_else(|| llm_messages::session_messages_to_llm_messages(&session));
     let restored_context = match prompt::block_on(crate::session::compaction_checkpoint::restore(
         &req.session,
         &checkpoint_source,
@@ -760,6 +778,8 @@ fn run_in_project(
         agent_key.as_deref().unwrap_or("main"),
         usize::try_from(selected_model.limit.context).unwrap_or(usize::MAX),
     );
+    session_protocol.persisted_history = persisted_history.unwrap_or_default();
+    session_protocol.persisted_history_len = persisted_history_len;
     #[cfg(not(target_arch = "wasm32"))]
     for message in &checkpoint_source {
         if message["role"] == "native"
@@ -963,8 +983,14 @@ fn run_in_project(
         .filter(|value| !value.is_empty())
         .map(ToOwned::to_owned);
     let mut llm_messages = restored_context;
-    let current_messages = llm_messages::session_messages_to_llm_messages(&session);
-    llm_messages.extend_from_slice(&current_messages[checkpoint_source.len()..]);
+    let history_len = checkpoint_source.len();
+    let mut current_messages = checkpoint_source;
+    llm_messages::extend_llm_messages_from_session_range(
+        &mut current_messages,
+        &session,
+        prefetch_start,
+    );
+    llm_messages.extend_from_slice(&current_messages[history_len..]);
     if let Err(error) = session_protocol
         .persist_checkpoint(&req.session, &session_protocol.checkpoint_history(&session))
     {

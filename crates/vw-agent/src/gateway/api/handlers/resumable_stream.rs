@@ -293,6 +293,34 @@ impl ResumableProducer {
     }
 }
 
+impl Drop for ResumableProducer {
+    fn drop(&mut self) {
+        if self.run.key.kind != StreamKind::Chat {
+            return;
+        }
+        let started = {
+            let state = lock_or_recover(&self.run.state);
+            if state.terminal {
+                return;
+            }
+            !state.events.is_empty()
+        };
+        // Rejected admission can retry the ID. Keep partial runs replayable
+        // because starting those again could execute tools twice.
+        if !started {
+            let mut store = lock_or_recover(&self.store.state);
+            if store.runs.get(&self.run.key).is_some_and(|run| Arc::ptr_eq(run, &self.run)) {
+                store.runs.remove(&self.run.key);
+            }
+        }
+        self.publish(
+            serde_json::json!({"type":"chat.error", "error":"chat stream ended before completion"})
+                .to_string(),
+            true,
+        );
+    }
+}
+
 impl ResumableSubscription {
     pub(super) async fn next(&mut self) -> Option<StoredEvent> {
         loop {

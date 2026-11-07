@@ -1,6 +1,8 @@
 //! History-anchored invocation sources. Expanded skill bodies are never persisted.
 
-use super::compaction_checkpoint::{message_hash, scope_for_directory, validate_session};
+use super::compaction_checkpoint::{
+    matches_prefix, message_hash, scope_for_directory, validate_session,
+};
 use crate::skills::InvokedSkillRecord;
 use crate::storage;
 use serde::{Deserialize, Serialize};
@@ -67,8 +69,7 @@ pub(crate) async fn restore(
                 .await
                 .map_err(|e| e.to_string())?;
         if checkpoint.mount_revision == mount_revision
-            && !checkpoint.source_hashes.is_empty()
-            && hashes.starts_with(&checkpoint.source_hashes)
+            && matches_prefix(&hashes, &checkpoint.source_hashes)
         {
             return Ok(checkpoint.records);
         }
@@ -78,12 +79,16 @@ pub(crate) async fn restore(
 
 /// Fork copies source records and anchors only. The destination must still match
 /// its retained history and revalidate sources against its current skill policy.
-pub(crate) async fn copy(source: &str, target: &str) -> Result<(), String> {
-    validate_session(source)?;
-    validate_session(target)?;
-    let scope = scope_for_directory(&crate::project::instance::directory());
-    for key in
-        storage::list(&["skill_checkpoint", &scope, source]).await.map_err(|e| e.to_string())?
+pub(super) async fn copy_scoped(
+    source_scope: &str,
+    target_scope: &str,
+    source: &str,
+    target: &str,
+    hashes: Option<&[String]>,
+) -> Result<(), String> {
+    for key in storage::list(&["skill_checkpoint", source_scope, source])
+        .await
+        .map_err(|e| e.to_string())?
     {
         if key.len() != 5 {
             return Err("invalid skill checkpoint key".into());
@@ -92,9 +97,15 @@ pub(crate) async fn copy(source: &str, target: &str) -> Result<(), String> {
             storage::read(&key.iter().map(String::as_str).collect::<Vec<_>>())
                 .await
                 .map_err(|e| e.to_string())?;
-        storage::write_atomic(&["skill_checkpoint", &scope, target, &key[3], &key[4]], &checkpoint)
-            .await
-            .map_err(|e| e.to_string())?;
+        if hashes.is_some_and(|hashes| !matches_prefix(hashes, &checkpoint.source_hashes)) {
+            continue;
+        }
+        storage::write_atomic(
+            &["skill_checkpoint", target_scope, target, &key[3], &key[4]],
+            &checkpoint,
+        )
+        .await
+        .map_err(|e| e.to_string())?;
     }
     Ok(())
 }

@@ -73,11 +73,13 @@ struct StreamStepSnapshot {
 struct StreamTrajectoryRecorder {
     turn_id: String,
     steps: Vec<ui_models::ChatSessionStep>,
+    tool_results: Vec<agent_session::processor::ToolEvent>,
+    response_text: String,
 }
 
 impl StreamTrajectoryRecorder {
     fn new(turn_id: String) -> Self {
-        Self { turn_id, steps: Vec::new() }
+        Self { turn_id, steps: Vec::new(), tool_results: Vec::new(), response_text: String::new() }
     }
 
     fn step_mut(&mut self, step_index: u32, occurred_ms: u64) -> &mut ui_models::ChatSessionStep {
@@ -109,6 +111,9 @@ impl StreamTrajectoryRecorder {
                     step.model.clone_from(model);
                 }
             }
+            agent_session::processor::StreamEvent::Delta(text) => {
+                self.response_text.push_str(text);
+            }
             agent_session::processor::StreamEvent::Tool(event) => {
                 let step_index = event_step_index(self.steps.as_slice());
                 let step = self.step_mut(step_index, event.occurred_ms);
@@ -132,7 +137,9 @@ impl StreamTrajectoryRecorder {
                     agent_session::processor::ToolEventKind::Update => {}
                     agent_session::processor::ToolEventKind::Complete => {
                         timing.started_ms.get_or_insert(event.occurred_ms);
-                        timing.finished_ms.get_or_insert(event.occurred_ms);
+                        if timing.finished_ms.replace(event.occurred_ms).is_none() {
+                            self.tool_results.push(event.clone());
+                        }
                     }
                 }
             }
@@ -153,6 +160,64 @@ impl StreamTrajectoryRecorder {
             }
             _ => {}
         }
+    }
+
+    fn append_tool_parts(
+        &self,
+        session_id: &str,
+        parts: &mut Vec<agent_session::message::Part>,
+    ) -> anyhow::Result<()> {
+        use agent_session::message::{
+            Part, PartTime, ToolPart, ToolState, ToolStateCompleted, ToolStateCompletedTime,
+            ToolStateError,
+        };
+        use agent_session::processor::ToolCallStatus;
+
+        for event in &self.tool_results {
+            let payload = &event.payload;
+            let input = payload["input"]
+                .as_object()
+                .cloned()
+                .or_else(|| {
+                    payload["input"].as_str().and_then(|input| serde_json::from_str(input).ok())
+                })
+                .unwrap_or_default();
+            let output = payload["output"]
+                .as_str()
+                .or_else(|| payload["error"].as_str())
+                .unwrap_or_default()
+                .to_owned();
+            let state = if event.status == ToolCallStatus::Completed {
+                ToolState::Completed(ToolStateCompleted {
+                    input,
+                    output,
+                    title: event.name.clone(),
+                    metadata: Map::new(),
+                    time: ToolStateCompletedTime {
+                        start: event.occurred_ms,
+                        end: event.occurred_ms,
+                        compacted: None,
+                    },
+                    attachments: None,
+                })
+            } else {
+                ToolState::Error(ToolStateError {
+                    input,
+                    error: output,
+                    metadata: None,
+                    time: PartTime { start: event.occurred_ms, end: Some(event.occurred_ms) },
+                })
+            };
+            let part_id = id::ascending(id::Prefix::Part, None)?;
+            parts.push(Part::Tool(ToolPart {
+                base: stream_part_base(session_id, &self.turn_id, part_id),
+                call_id: event.call_id.clone(),
+                tool: event.name.clone(),
+                state,
+                metadata: None,
+            }));
+        }
+        Ok(())
     }
 }
 
@@ -1099,6 +1164,25 @@ async fn start_gateway_chat_producer(
     prompt_cancel: Option<SharedPromptCancel>,
     send: impl FnMut(Value, bool) -> bool + Send + 'static,
 ) -> Result<(), ApiError> {
+    let fork = match body.session_id.as_ref().map(|id| id.0.trim()).filter(|id| !id.is_empty()) {
+        Some(id) => agent_session::session::forked_session(id)
+            .await
+            .map_err(|error| ApiError::internal(error.to_string()))?,
+        None => None,
+    };
+    let fork_guard = match &fork {
+        Some(info) => Some(agent_session::message::lock_fork_prompt(&info.id).await),
+        None => None,
+    };
+    let (dir, fork_history) = match fork {
+        Some(info) => {
+            let history = agent_session::session::load_fork_history(&info)
+                .await
+                .map_err(|error| ApiError::bad_request(error.to_string()))?;
+            (info.directory, Some(history))
+        }
+        None => (dir, None),
+    };
     let delegate_overrides = match delegate_overrides {
         Some(overrides) => overrides,
         None => prepare_gateway_agent_request(&mut body).await?,
@@ -1145,7 +1229,6 @@ async fn start_gateway_chat_producer(
         .map_err(|error| ApiError::bad_request(error.to_string()))?
         .reliability;
 
-    let history_messages = messages;
     let root_dir = dir;
     let goal_evaluation = options.get("goal_evaluation").and_then(Value::as_bool).unwrap_or(false);
     let stream_session_id =
@@ -1169,8 +1252,25 @@ async fn start_gateway_chat_producer(
     } else {
         Some(preallocate_stream_turn_message_ids()?)
     };
-    let PreparedStreamHistory { history, query } =
-        prepare_stream_history(history_messages, resume_history_only, preserve_structured_prompt);
+    let (history, query, persisted_history) = match fork_history {
+        Some((history, persisted)) => {
+            let query = if resume_history_only {
+                String::new()
+            } else {
+                let message =
+                    messages.last().filter(|msg| msg["role"] == "user").ok_or_else(|| {
+                        ApiError::bad_request("fork continuation requires a new user message")
+                    })?;
+                gateway_content_to_prompt_text(&message["content"], preserve_structured_prompt)
+            };
+            (history, query, Some(persisted))
+        }
+        None => {
+            let PreparedStreamHistory { history, query } =
+                prepare_stream_history(messages, resume_history_only, preserve_structured_prompt);
+            (history, query, None)
+        }
+    };
     if should_persist_app_session_artifacts {
         let title = initial_stream_session_title(&query);
         let created_ms = agent_session::session::now_ms();
@@ -1189,6 +1289,7 @@ async fn start_gateway_chat_producer(
     let delegated_context = crate::tools::current_tool_use_context();
 
     std::thread::spawn(move || {
+        let _fork_guard = fork_guard;
         struct Sink<F> {
             send: F,
             sent_terminal: bool,
@@ -1217,7 +1318,7 @@ async fn start_gateway_chat_producer(
 
             let turn = agent_session::ui_store::with_tenant_scope_sync(tenant.clone(), || {
                 let start = || {
-                    agent_session::runtime::start_prompt(agent_session::processor::Request {
+                    let request = agent_session::processor::Request {
                         stream: 0,
                         session: stream_session_id.clone(),
                         query: query.clone(),
@@ -1243,7 +1344,17 @@ async fn start_gateway_chat_producer(
                         abort_token,
                         session_tools: crate::session::runtime::SessionToolset::default(),
                         session_skills: Default::default(),
-                    })
+                    };
+                    agent_session::runtime::start_prompt_with_runner(
+                        request,
+                        move |request, emit| {
+                            agent_session::processor::run_with_persisted_history(
+                                request,
+                                persisted_history,
+                                emit,
+                            );
+                        },
+                    )
                 };
                 match delegated_context {
                     Some(context) => crate::tools::scope_tool_use_context_sync(context, start),
@@ -1300,14 +1411,24 @@ async fn start_gateway_chat_producer(
                             && !(resume_history_only && query.trim().is_empty())
                         {
                             let stream_message_ids = stream_message_ids.clone();
-                            let patch_parts = patch_recorder.take_parts();
+                            let mut patch_parts = patch_recorder.take_parts();
+                            if let Err(error) = trajectory_recorder
+                                .append_tool_parts(&stream_session_id, &mut patch_parts)
+                            {
+                                tracing::warn!(%error, "failed to allocate a stream tool part");
+                            }
+                            let native_text = if trajectory_recorder.tool_results.is_empty() {
+                                &assistant_text
+                            } else {
+                                &trajectory_recorder.response_text
+                            };
                             match runtime_handle.block_on(
                                 crate::session::ui_store::with_tenant_scope(
                                     tenant.clone(),
                                     persist_stream_chat_turn_for_agent(
                                         &stream_session_id,
                                         &query,
-                                        &assistant_text,
+                                        native_text,
                                         assistant_model.as_deref(),
                                         &usage,
                                         assistant_finish_reason.as_deref(),
@@ -1565,7 +1686,7 @@ async fn collect_gateway_chat_stream_payloads(
 pub(super) async fn chat_stream(
     Query(query): Query<InstanceQuery>,
     headers: HeaderMap,
-    Json(mut body): Json<GatewayChatStreamRequest>,
+    Json(body): Json<GatewayChatStreamRequest>,
 ) -> Result<impl IntoResponse, ApiError> {
     let tenant = crate::session::ui_store::current_tenant_scope();
     let dir = resolve_directory(&query, &headers);
@@ -1577,7 +1698,6 @@ pub(super) async fn chat_stream(
     let tenant_for_stream = tenant.clone();
     let sse = with_tenant_instance(tenant, dir.clone(), move || {
         Box::pin(async move {
-            let delegate_overrides = prepare_gateway_agent_request(&mut body).await?;
             let mut opened = global_stream_store()
                 .open(
                     tenant_for_stream.clone(),
@@ -1611,7 +1731,7 @@ pub(super) async fn chat_stream(
                     tenant_for_stream,
                     dir,
                     body,
-                    Some(delegate_overrides),
+                    None,
                     Some(cancellation),
                     Some(prompt_cancel),
                     move |payload, terminal| producer.publish(payload.to_string(), terminal),
@@ -1871,7 +1991,10 @@ async fn persist_stream_chat_turn_for_agent(
             .await
             .map_err(|err| ApiError::internal(err.to_string()))?;
     }
-    if !extra_assistant_parts.is_empty() {
+    if extra_assistant_parts
+        .iter()
+        .any(|part| !matches!(part, agent_session::message::Part::Tool(_)))
+    {
         let _ = agent_session::summary::refresh_session_diff_summary(session_id).await;
     }
 

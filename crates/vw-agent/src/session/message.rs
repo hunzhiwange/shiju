@@ -19,6 +19,15 @@ static HISTORY_LOCKS: LazyLock<Mutex<HashMap<String, Weak<HistoryLock>>>> =
 
 /// Serialize a full turn write or history edit with a fork snapshot.
 pub(crate) async fn lock_history(session_id: &str) -> tokio::sync::OwnedMutexGuard<()> {
+    lock_history_key(session_id).await
+}
+
+/// Order branch prompts through their terminal persistence, independently of short history writes.
+pub(crate) async fn lock_fork_prompt(session_id: &str) -> tokio::sync::OwnedMutexGuard<()> {
+    lock_history_key(&format!("turn-fork-prompt/{session_id}")).await
+}
+
+async fn lock_history_key(session_id: &str) -> tokio::sync::OwnedMutexGuard<()> {
     let lock = {
         let mut locks = HISTORY_LOCKS.lock().unwrap_or_else(std::sync::PoisonError::into_inner);
         if let Some(lock) = locks.get(session_id).and_then(Weak::upgrade) {

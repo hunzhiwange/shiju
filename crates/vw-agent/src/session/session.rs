@@ -45,7 +45,7 @@ use std::sync::LazyLock;
 
 #[path = "turn_fork.rs"]
 mod turn_fork;
-pub(crate) use turn_fork::TurnFork;
+pub(crate) use turn_fork::{TurnFork, forked_session, load_fork_history};
 
 use serde_json::{Map, Value, json};
 use std::fmt;

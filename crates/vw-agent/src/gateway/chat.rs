@@ -10,42 +10,105 @@
 
 use crate::app::agent::multimodal;
 use crate::app::agent::multimodal::ocr::{ImageTextExtractor, SessionImageTextExtractor};
-use crate::app::agent::providers::{ChatMessage, ProviderCapabilityError};
+use crate::app::agent::providers::{ChatMessage, ProviderCapabilityError, ToolCall, ToolCallKind};
 use crate::app::agent::tools::Tool;
 use crate::app::agent::util::truncate_with_ellipsis;
+use crate::project::{self, instance};
+use crate::session::{compaction_checkpoint, session};
 use std::sync::Arc;
 
 use super::state::{AppState, SharedQueryEngine};
 
-async fn session_query_engine(
+pub(super) async fn session_query_engine(
     state: &AppState,
     session_id: &str,
 ) -> anyhow::Result<SharedQueryEngine> {
+    let fork = session::forked_session(session_id).await?;
+    let cache_key = session_query_engine_key(session_id);
     {
         let engines = state.session_query_engines.lock().await;
-        if let Some(engine) = engines.get(session_id) {
+        if let Some(engine) = engines.get(&cache_key) {
             return Ok(Arc::clone(engine));
         }
     }
 
-    let config = state.config.lock().clone();
-    let created = Arc::new(tokio::sync::Mutex::new(
+    let mut config = state.config.lock().clone();
+    if let Some(info) = &fork {
+        config.workspace_dir = info.directory.clone().into();
+    }
+    let mut engine =
         crate::app::agent::agent::loop_::query_engine::QueryEngine::new_with_provider_and_hook_runtime(
             config,
             session_id,
             Some(Arc::clone(&state.provider)),
             state.hook_runtime.clone(),
         )
-        .await?,
-    ));
+        .await?;
+    if let Some(info) = fork {
+        let context = fork_context(&info).await?;
+        let history = instance::provide_context(context, async {
+            let (_, protocol) = session::load_fork_history(&info).await?;
+            compaction_checkpoint::restore(&info.id, &protocol).await.map_err(anyhow::Error::msg)
+        })
+        .await?;
+        engine.replace_history(
+            history
+                .into_iter()
+                .map(|item| {
+                    if let Some(calls) = item["tool_calls"].as_array() {
+                        let calls = calls
+                            .iter()
+                            .filter_map(|call| {
+                                Some(ToolCall {
+                                    kind: ToolCallKind::Function,
+                                    namespace: call["namespace"].as_str().map(ToOwned::to_owned),
+                                    id: call["id"].as_str()?.to_owned(),
+                                    name: call["function"]["name"].as_str()?.to_owned(),
+                                    arguments: call["function"]["arguments"].as_str()?.to_owned(),
+                                })
+                            })
+                            .collect::<Vec<_>>();
+                        ChatMessage::assistant(
+                            crate::agent::loop_::core::build_native_assistant_history(
+                                item["content"].as_str().unwrap_or_default(),
+                                &calls,
+                                item["reasoning_content"].as_str(),
+                            ),
+                        )
+                    } else if item["role"] == "tool" {
+                        ChatMessage::tool(item.to_string())
+                    } else {
+                        ChatMessage {
+                            role: item["role"].as_str().unwrap_or_default().to_owned(),
+                            content: item["content"].as_str().unwrap_or_default().to_owned(),
+                        }
+                    }
+                })
+                .collect(),
+        );
+    }
+    let created = Arc::new(tokio::sync::Mutex::new(engine));
 
     let mut engines = state.session_query_engines.lock().await;
-    Ok(Arc::clone(engines.entry(session_id.to_string()).or_insert_with(|| Arc::clone(&created))))
+    Ok(Arc::clone(engines.entry(cache_key).or_insert_with(|| Arc::clone(&created))))
+}
+
+pub(crate) fn session_query_engine_key(
+    session_id: &str,
+) -> (vw_api_types::id::TenantScope, String) {
+    (crate::session::ui_store::current_tenant_scope(), session_id.to_owned())
+}
+
+async fn fork_context(info: &session::Info) -> anyhow::Result<instance::Context> {
+    let tenant = crate::session::ui_store::current_tenant_scope();
+    let (project, worktree) = project::from_directory(&tenant, &info.directory).await?;
+    anyhow::ensure!(project.id == info.project_id, "fork belongs to another project");
+    Ok(instance::Context { directory: info.directory.clone(), worktree, project })
 }
 
 pub(crate) async fn invalidate_session_query_engine(state: &AppState, session_id: &str) {
     let mut engines = state.session_query_engines.lock().await;
-    engines.remove(session_id);
+    engines.remove(&session_query_engine_key(session_id));
 }
 
 pub(crate) async fn invalidate_all_session_query_engines(state: &AppState) {
@@ -59,7 +122,7 @@ pub(crate) async fn fork_session_query_engine(
 ) -> anyhow::Result<()> {
     let source_engine = {
         let engines = state.session_query_engines.lock().await;
-        engines.get(source_session_id).cloned()
+        engines.get(&session_query_engine_key(source_session_id)).cloned()
     };
 
     let Some(source_engine) = source_engine else {
@@ -79,7 +142,10 @@ pub(crate) async fn fork_session_query_engine(
     forked_engine.restore_snapshot(snapshot);
 
     let mut engines = state.session_query_engines.lock().await;
-    engines.insert(target_session_id.to_string(), Arc::new(tokio::sync::Mutex::new(forked_engine)));
+    engines.insert(
+        session_query_engine_key(target_session_id),
+        Arc::new(tokio::sync::Mutex::new(forked_engine)),
+    );
     Ok(())
 }
 
@@ -230,7 +296,13 @@ pub async fn run_gateway_chat_with_tools(
 ) -> anyhow::Result<String> {
     let engine = session_query_engine(state, session_id).await?;
     let mut engine = engine.lock_owned().await;
-    let response = engine.submit_message(message).await;
+    let response = match session::forked_session(session_id).await? {
+        Some(info) => {
+            instance::provide_context(fork_context(&info).await?, engine.submit_message(message))
+                .await
+        }
+        None => engine.submit_message(message).await,
+    };
 
     if response.is_ok() {
         let session_state = engine.session_state();

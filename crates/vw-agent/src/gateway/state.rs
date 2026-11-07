@@ -29,10 +29,11 @@ use crate::app::agent::tools::traits::ToolSpec;
 use parking_lot::Mutex;
 use std::collections::HashMap;
 use std::sync::Arc;
+use vw_api_types::id::TenantScope;
 
 pub(crate) type SharedQueryEngine = Arc<tokio::sync::Mutex<QueryEngine>>;
 pub(crate) type SessionQueryEngineStore =
-    Arc<tokio::sync::Mutex<HashMap<String, SharedQueryEngine>>>;
+    Arc<tokio::sync::Mutex<HashMap<(TenantScope, String), SharedQueryEngine>>>;
 
 /// 所有 Axum 处理器共享的应用状态
 ///

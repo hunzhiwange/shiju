@@ -295,15 +295,15 @@ async fn session_query_engine_caches_forks_and_invalidates_engines() {
 
     {
         let engines = state.session_query_engines.lock().await;
-        assert!(engines.contains_key("source-session"));
-        assert!(engines.contains_key("target-session"));
+        assert!(engines.contains_key(&session_query_engine_key("source-session")));
+        assert!(engines.contains_key(&session_query_engine_key("target-session")));
     }
 
     invalidate_session_query_engine(&state, "source-session").await;
 
     let engines = state.session_query_engines.lock().await;
-    assert!(!engines.contains_key("source-session"));
-    assert!(engines.contains_key("target-session"));
+    assert!(!engines.contains_key(&session_query_engine_key("source-session")));
+    assert!(engines.contains_key(&session_query_engine_key("target-session")));
 }
 
 #[tokio::test]
@@ -321,7 +321,13 @@ async fn fork_session_query_engine_copies_source_history_and_replaces_target_eng
 
     fork_session_query_engine(&state, "source-session", "target-session").await.unwrap();
 
-    let forked = state.session_query_engines.lock().await.get("target-session").cloned().unwrap();
+    let forked = state
+        .session_query_engines
+        .lock()
+        .await
+        .get(&session_query_engine_key("target-session"))
+        .cloned()
+        .unwrap();
     assert!(!Arc::ptr_eq(&original_target, &forked));
     let forked_history = forked.lock().await.history_snapshot();
     let actual = forked_history
@@ -350,8 +356,8 @@ async fn fork_session_query_engine_reuses_injected_provider_after_config_changes
 
     fork_session_query_engine(&state, "source-session", "target-session").await.unwrap();
     let engines = state.session_query_engines.lock().await;
-    assert!(engines.contains_key("source-session"));
-    assert!(engines.contains_key("target-session"));
+    assert!(engines.contains_key(&session_query_engine_key("source-session")));
+    assert!(engines.contains_key(&session_query_engine_key("target-session")));
 }
 
 #[tokio::test]
@@ -362,7 +368,13 @@ async fn run_gateway_chat_with_tools_reuses_injected_provider() {
     let response = run_gateway_chat_with_tools(&state, "hello", "session-1").await.unwrap();
 
     assert!(response.contains("hello"));
-    assert!(state.session_query_engines.lock().await.contains_key("session-1"));
+    assert!(
+        state
+            .session_query_engines
+            .lock()
+            .await
+            .contains_key(&session_query_engine_key("session-1"))
+    );
 }
 
 #[tokio::test]

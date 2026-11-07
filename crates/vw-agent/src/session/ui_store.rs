@@ -1063,6 +1063,21 @@ pub fn load_agent_session_any_for_tenant(
     }
 }
 
+/// Read session metadata without treating a database failure as a missing session.
+pub(crate) fn load_agent_session_any_for_tenant_fallible(
+    tenant: &TenantScope,
+    session_id: &str,
+) -> anyhow::Result<Option<agent_session::Info>> {
+    #[cfg(not(target_arch = "wasm32"))]
+    {
+        runtime_session_store()?.load_agent_session_any(tenant, session_id)
+    }
+    #[cfg(target_arch = "wasm32")]
+    {
+        Ok(load_agent_session_any_for_tenant(tenant, session_id))
+    }
+}
+
 /// 执行 session_preview_meta 操作，并返回调用方需要的结果。
 pub fn session_preview_meta(id: &str) -> Option<ChatSessionMeta> {
     session_preview_meta_for_tenant(&current_tenant_scope(), id)

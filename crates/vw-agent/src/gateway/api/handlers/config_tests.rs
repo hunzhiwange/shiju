@@ -785,7 +785,7 @@ async fn handle_api_config_put_reports_config_save_failure_without_mutating_runt
         .session_query_engines
         .lock()
         .await
-        .get("save-failure-session")
+        .get(&crate::gateway::chat::session_query_engine_key("save-failure-session"))
         .cloned()
         .expect("cached engine");
 
@@ -809,7 +809,7 @@ async fn handle_api_config_put_reports_config_save_failure_without_mutating_runt
         .session_query_engines
         .lock()
         .await
-        .get("save-failure-session")
+        .get(&crate::gateway::chat::session_query_engine_key("save-failure-session"))
         .cloned()
         .expect("engine retained after save failure");
     assert!(Arc::ptr_eq(&cached_engine, &retained_engine));
@@ -838,7 +838,13 @@ async fn config_put_reloads_hooks_and_invalidates_query_engines() {
     )
     .await
     .expect("gateway chat");
-    assert!(state.session_query_engines.lock().await.contains_key("reload-session"));
+    assert!(
+        state
+            .session_query_engines
+            .lock()
+            .await
+            .contains_key(&crate::gateway::chat::session_query_engine_key("reload-session"))
+    );
 
     let mut incoming = current;
     incoming.hooks.builtin.command_logger = false;
@@ -918,7 +924,7 @@ async fn config_put_hook_build_failure_is_atomic() {
         .session_query_engines
         .lock()
         .await
-        .get("build-failure-session")
+        .get(&crate::gateway::chat::session_query_engine_key("build-failure-session"))
         .cloned()
         .expect("cached engine");
 
@@ -948,7 +954,7 @@ async fn config_put_hook_build_failure_is_atomic() {
         .session_query_engines
         .lock()
         .await
-        .get("build-failure-session")
+        .get(&crate::gateway::chat::session_query_engine_key("build-failure-session"))
         .cloned()
         .expect("engine retained after build failure");
     assert!(Arc::ptr_eq(&cached_engine, &retained_engine));

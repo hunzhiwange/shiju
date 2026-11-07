@@ -9,21 +9,22 @@
 //! - 终端字体及字号配置
 
 use crate::app::components::system_settings_common::{
-    rounded_action_btn_style, settings_divider, settings_field_label, settings_muted_text_style,
-    settings_select, settings_toggle, settings_value_badge,
+    rounded_action_btn_style, settings_divider, settings_group_card, settings_group_heading,
+    settings_muted_text_style, settings_page_heading, settings_row, settings_select,
+    settings_toggle, settings_value_badge,
 };
 use crate::app::components::system_settings_search::SettingsTabDescriptor;
 use crate::app::state::GeneralSettingsTab;
 use crate::app::theme_catalog::{theme_store_from_home, to_iced_theme};
 use crate::app::{App, Message, PreviewAutoSaveMode, Shell, TerminalTheme, message};
-use iced::widget::{button, column, container, row, slider, text};
+use iced::widget::{button, column, row, slider, text};
 use iced::{Alignment, Element, Length, Theme};
 
 #[path = "system_settings_general/presentation.rs"]
 mod presentation;
-use presentation::{group_card, group_heading, tab_style};
+use presentation::tab_style;
 
-const TERMINAL_CONTROL_WIDTH: f32 = 280.0;
+const GENERAL_CONTROL_WIDTH: f32 = 280.0;
 
 pub(super) const GENERAL_TABS: &[SettingsTabDescriptor<GeneralSettingsTab>] = &[
     SettingsTabDescriptor::new(
@@ -60,29 +61,6 @@ pub(super) const GENERAL_TABS: &[SettingsTabDescriptor<GeneralSettingsTab>] = &[
         &["themes", "gallery", "palette", "custom", "builtin", "画廊", "配色", "色板"],
     ),
 ];
-
-fn setting_row<'a>(
-    label: &'static str,
-    description: &'static str,
-    control: impl Into<Element<'a, Message>>,
-) -> Element<'a, Message> {
-    container(
-        row![
-            column![
-                settings_field_label(label),
-                text(description).size(13).style(settings_muted_text_style),
-            ]
-            .spacing(6)
-            .width(Length::Fill),
-            container(control.into()).align_right(TERMINAL_CONTROL_WIDTH),
-        ]
-        .spacing(24)
-        .align_y(Alignment::Center),
-    )
-    .padding([20, 0])
-    .width(Length::Fill)
-    .into()
-}
 
 fn app_theme_selected(theme: iced::Theme) -> Message {
     Message::View(message::ViewMessage::AppThemeSelected(theme))
@@ -185,17 +163,17 @@ pub fn view(app: &App) -> Element<'_, Message> {
             message::GeneralSettingsMessage::LocaleSelected(locale),
         ))
     })
-    .width(Length::Fixed(280.0));
+    .width(GENERAL_CONTROL_WIDTH);
 
     let shell_pick =
         settings_select(Shell::all(), Some(app.terminal.shell), terminal_shell_selected)
-            .width(TERMINAL_CONTROL_WIDTH);
+            .width(GENERAL_CONTROL_WIDTH);
 
     let term_theme_pick =
         settings_select([i18n.__("跟随系统")], Some(i18n.__("跟随系统")), |_| {
             terminal_theme_selected(TerminalTheme::System)
         })
-        .width(TERMINAL_CONTROL_WIDTH);
+        .width(GENERAL_CONTROL_WIDTH);
 
     let font_pick = settings_select(
         [
@@ -207,7 +185,7 @@ pub fn view(app: &App) -> Element<'_, Message> {
         Some(app.terminal.font_family.clone()),
         terminal_font_selected,
     )
-    .width(TERMINAL_CONTROL_WIDTH);
+    .width(GENERAL_CONTROL_WIDTH);
 
     let auto_save_options: Vec<_> =
         PreviewAutoSaveMode::ALL.into_iter().map(|mode| i18n.__(mode.label())).collect();
@@ -222,14 +200,14 @@ pub fn view(app: &App) -> Element<'_, Message> {
             preview_auto_save_mode_changed(mode)
         },
     )
-    .width(Length::Fixed(280.0));
+    .width(GENERAL_CONTROL_WIDTH);
 
     let timezone_pick = settings_select(
         vw_config_types::ui::timezone_options().into_iter().map(str::to_string).collect::<Vec<_>>(),
         Some(app.chat_timezone.clone()),
         timezone_selected,
     )
-    .width(Length::Fixed(280.0));
+    .width(GENERAL_CONTROL_WIDTH);
 
     let launch_toggle = settings_toggle(app.launch_at_login).on_toggle_maybe(
         (!app.launch_at_login_busy && !cfg!(target_arch = "wasm32")).then_some(|enabled| {
@@ -270,46 +248,51 @@ pub fn view(app: &App) -> Element<'_, Message> {
 
     let content: Element<'_, Message> = match active_tab {
         GeneralSettingsTab::Interface => column![
-            group_heading(i18n.__("界面"), i18n.__("应用外观与预览行为。")),
-            group_card(
+            settings_group_heading(i18n.__("界面"), i18n.__("应用外观与预览行为。")),
+            settings_group_card(
                 column![
-                    setting_row(
+                    settings_row(
                         i18n.__("开机启动"),
                         i18n.__("随系统自动启动识矩，仅对当前设备生效。"),
+                        GENERAL_CONTROL_WIDTH,
                         launch_toggle,
                     ),
                     settings_divider(),
-                    setting_row(
+                    settings_row(
                         i18n.__("关闭到托盘"),
                         i18n.__(if cfg!(target_os = "macos") {
                             "点击红色关闭按钮后继续运行；从屏幕顶部菜单栏的识矩图标显示窗口或退出。"
                         } else {
                             "关闭主窗口后在后台运行，可从托盘显示窗口或退出。"
                         }),
+                        GENERAL_CONTROL_WIDTH,
                         tray_toggle,
                     ),
                     settings_divider(),
-                    setting_row(
+                    settings_row(
                         crate::app::i18n::I18n::new(app.desktop_locale).__("语言"),
                         crate::app::i18n::I18n::new(app.desktop_locale)
                             .__("当前桌面端使用的界面语言。"),
+                        GENERAL_CONTROL_WIDTH,
                         locale_pick,
                     ),
                     settings_divider(),
-                    setting_row(
+                    settings_row(
                         i18n.__("应用主题"),
                         i18n.__("快速切换内置、预设和自定义主题；完整管理见「主题」标签。"),
+                        GENERAL_CONTROL_WIDTH,
                         settings_select(
                             app_theme_options(app),
                             Some(app.app_theme.clone()),
                             app_theme_selected,
                         )
-                        .width(Length::Fixed(280.0)),
+                        .width(GENERAL_CONTROL_WIDTH),
                     ),
                     settings_divider(),
-                    setting_row(
+                    settings_row(
                         i18n.__("自动保存"),
                         i18n.__("控制预览编辑器自动保存的时机。"),
+                        GENERAL_CONTROL_WIDTH,
                         column![
                             auto_save_pick,
                             text(i18n.__(app.preview_auto_save_mode.description()))
@@ -317,16 +300,17 @@ pub fn view(app: &App) -> Element<'_, Message> {
                                 .style(settings_muted_text_style),
                         ]
                         .spacing(8)
-                        .width(TERMINAL_CONTROL_WIDTH),
+                        .width(GENERAL_CONTROL_WIDTH),
                     ),
                     settings_divider(),
-                    setting_row(
+                    settings_row(
                         i18n.__("任务完成通知"),
                         i18n.__(if crate::app::desktop_notification::SUPPORTED {
                             "本轮对话成功完成后发送系统通知，需在系统中允许通知。"
                         } else {
                             "当前仅支持 macOS 和 Windows 桌面端。"
                         }),
+                        GENERAL_CONTROL_WIDTH,
                         row![
                             button(text(i18n.__("发送测试通知")).size(13))
                                 .on_press_maybe(crate::app::desktop_notification::SUPPORTED.then_some(
@@ -347,9 +331,10 @@ pub fn view(app: &App) -> Element<'_, Message> {
                         .align_y(Alignment::Center),
                     ),
                     settings_divider(),
-                    setting_row(
+                    settings_row(
                         i18n.__("聊天时区"),
                         i18n.__("用于模型时间上下文，新会话生效。"),
+                        GENERAL_CONTROL_WIDTH,
                         timezone_pick,
                     ),
                 ]
@@ -359,32 +344,40 @@ pub fn view(app: &App) -> Element<'_, Message> {
         .spacing(16)
         .into(),
         GeneralSettingsTab::Terminal => column![
-            group_heading(i18n.__("终端"), i18n.__("默认 Shell、主题与字体。")),
-            group_card(
+            settings_group_heading(i18n.__("终端"), i18n.__("默认 Shell、主题与字体。")),
+            settings_group_card(
                 column![
-                    setting_row(
+                    settings_row(
                         i18n.__("终端 Shell"),
                         i18n.__("新终端默认使用的 Shell。"),
+                        GENERAL_CONTROL_WIDTH,
                         shell_pick
                     ),
                     settings_divider(),
-                    setting_row(
+                    settings_row(
                         i18n.__("终端主题"),
                         i18n.__("当前仅跟随系统主题。"),
+                        GENERAL_CONTROL_WIDTH,
                         term_theme_pick
                     ),
                     settings_divider(),
-                    setting_row(i18n.__("终端字体"), i18n.__("选择终端字体家族。"), font_pick),
+                    settings_row(
+                        i18n.__("终端字体"),
+                        i18n.__("选择终端字体家族。"),
+                        GENERAL_CONTROL_WIDTH,
+                        font_pick,
+                    ),
                     settings_divider(),
-                    setting_row(
+                    settings_row(
                         i18n.__("字体大小"),
                         i18n.__("在 10pt 到 18pt 之间调整终端字号。"),
+                        GENERAL_CONTROL_WIDTH,
                         row![
                             size_slider,
                             settings_value_badge(format!("{} pt", displayed_font_size as u32))
                         ]
                         .spacing(12)
-                        .width(TERMINAL_CONTROL_WIDTH)
+                        .width(GENERAL_CONTROL_WIDTH)
                         .align_y(Alignment::Center),
                     ),
                 ]
@@ -398,13 +391,10 @@ pub fn view(app: &App) -> Element<'_, Message> {
     };
 
     column![
-        column![
-            text(i18n.__("常规")).size(28),
-            text(i18n.__("通过标签切换界面、终端、编辑器与主题配置。"))
-                .size(13)
-                .style(settings_muted_text_style),
-        ]
-        .spacing(8),
+        settings_page_heading(
+            i18n.__("常规"),
+            i18n.__("通过标签切换界面、终端、编辑器与主题配置。"),
+        ),
         tabs,
         content,
     ]

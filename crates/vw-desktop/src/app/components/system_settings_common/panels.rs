@@ -3,14 +3,20 @@
 //! 本模块主要负责把应用状态转换为桌面端可渲染的 Iced 控件，并把用户操作映射回上层消息。
 //! 注释聚焦调用边界、返回值和错误传播方式，便于后续维护设置页与工具栏行为时快速定位职责。
 
+use super::settings_field_label;
 use crate::app::Message;
 use crate::app::components::system_settings_common::styles::{
     settings_modal_backdrop_style, settings_modal_card_style, settings_muted_text_style,
     settings_panel_style,
 };
 use crate::app::components::system_settings_common::theme::is_dark_theme;
-use iced::widget::{Space, column, container, mouse_area, opaque, row, stack, text};
-use iced::{Alignment, Background, Border, Color, Element, Length, Padding, Theme};
+use iced::advanced::{Layout, Widget, layout, renderer, widget::Tree};
+use iced::widget::scrollable::{Direction, Scrollbar};
+use iced::widget::{Space, column, container, mouse_area, opaque, row, scrollable, stack, text};
+use iced::{
+    Alignment, Background, Border, Color, Element, Length, Padding, Rectangle, Renderer, Size,
+    Theme, mouse,
+};
 
 pub(super) const SETTINGS_SECTION_CONTENT_PADDING: Padding = Padding::ZERO;
 
@@ -54,6 +60,93 @@ pub fn settings_section_content<'a>(
 
 pub(super) fn settings_section_content_style(_theme: &Theme) -> iced::widget::container::Style {
     iced::widget::container::Style::default()
+}
+
+/// 常规设置样式的页面标题与说明。
+pub fn settings_page_heading<'a>(title: &'a str, description: &'a str) -> Element<'a, Message> {
+    column![text(title).size(28), text(description).size(13).style(settings_muted_text_style)]
+        .spacing(8)
+        .into()
+}
+
+/// 圆角设置分组上方的标题与说明。
+pub fn settings_group_heading<'a>(title: &'a str, description: &'a str) -> Element<'a, Message> {
+    column![text(title).size(17), text(description).size(13).style(settings_muted_text_style)]
+        .spacing(6)
+        .into()
+}
+
+/// 承载带分隔线的设置行，横向留白与行内间距独立。
+pub fn settings_group_card<'a>(
+    content: impl Into<Element<'a, Message>>,
+) -> iced::widget::Container<'a, Message> {
+    container(content.into()).padding([0, 22]).width(Length::Fill).style(settings_group_card_style)
+}
+
+fn settings_group_card_style(theme: &Theme) -> container::Style {
+    let palette = theme.extended_palette();
+    container::Style {
+        background: Some(palette.background.base.color.into()),
+        border: Border {
+            color: palette.background.strong.color.scale_alpha(0.55),
+            width: 1.0,
+            radius: 18.0.into(),
+        },
+        ..Default::default()
+    }
+}
+
+/// 将说明放在标签下方，并使控件与文字区垂直居中。
+pub fn settings_row<'a>(
+    label: &'a str,
+    description: &'a str,
+    control_width: f32,
+    control: impl Into<Element<'a, Message>>,
+) -> Element<'a, Message> {
+    container(
+        row![
+            column![
+                settings_field_label(label),
+                text(description).size(13).style(settings_muted_text_style),
+            ]
+            .spacing(6)
+            .width(Length::Fill),
+            container(control.into()).align_right(control_width),
+        ]
+        .spacing(24)
+        .align_y(Alignment::Center),
+    )
+    .padding([20, 0])
+    .width(Length::Fill)
+    .into()
+}
+
+/// 弹窗标题占用可用宽度，操作区和关闭按钮固定在右侧。
+pub fn settings_modal_header<'a>(
+    title: impl Into<Element<'a, Message>>,
+    actions: impl Into<Element<'a, Message>>,
+) -> Element<'a, Message> {
+    row![container(title.into()).width(Length::Fill), actions.into()]
+        .spacing(10)
+        .align_y(Alignment::Center)
+        .into()
+}
+
+/// 只滚动弹窗内容，将标题区和可选操作区固定在卡片内。
+pub fn settings_modal_layout<'a>(
+    header: impl Into<Element<'a, Message>>,
+    body: impl Into<Element<'a, Message>>,
+    footer: Option<Element<'a, Message>>,
+) -> iced::widget::Container<'a, Message> {
+    let body = scrollable(container(body.into()).padding([0, 7]).width(Length::Fill))
+        .direction(Direction::Vertical(Scrollbar::new().width(4).scroller_width(4)))
+        .width(Length::Fill)
+        .height(Length::Fill);
+    let mut content = column![header.into(), body].spacing(16).width(Length::Fill);
+    if let Some(footer) = footer {
+        content = content.push(footer);
+    }
+    settings_modal_card(content.height(Length::Fill))
 }
 
 /// 构建或处理 `settings_modal_card` 对应的界面片段与交互数据。
@@ -111,7 +204,70 @@ pub fn settings_modal_overlay<'a>(
 
     let modal_stack: Element<'a, Message> = stack![overlay, modal_layer].into();
 
-    if let Some(base) = base { stack![base, modal_stack].into() } else { modal_stack }
+    if let Some(base) = base {
+        stack![Element::new(ModalBackground(base)), modal_stack].into()
+    } else {
+        modal_stack
+    }
+}
+
+// Paint the underlying view without exposing its overlays, focus targets, or events.
+struct ModalBackground<'a>(Element<'a, Message>);
+
+impl Widget<Message, Theme, Renderer> for ModalBackground<'_> {
+    fn tag(&self) -> iced::advanced::widget::tree::Tag {
+        self.0.as_widget().tag()
+    }
+
+    fn state(&self) -> iced::advanced::widget::tree::State {
+        self.0.as_widget().state()
+    }
+
+    fn children(&self) -> Vec<Tree> {
+        self.0.as_widget().children()
+    }
+
+    fn diff(&self, tree: &mut Tree) {
+        self.0.as_widget().diff(tree);
+    }
+
+    fn size(&self) -> Size<Length> {
+        self.0.as_widget().size()
+    }
+
+    fn size_hint(&self) -> Size<Length> {
+        self.0.as_widget().size_hint()
+    }
+
+    fn layout(
+        &mut self,
+        tree: &mut Tree,
+        renderer: &Renderer,
+        limits: &layout::Limits,
+    ) -> layout::Node {
+        self.0.as_widget_mut().layout(tree, renderer, limits)
+    }
+
+    fn draw(
+        &self,
+        tree: &Tree,
+        renderer: &mut Renderer,
+        theme: &Theme,
+        style: &renderer::Style,
+        layout: Layout<'_>,
+        _cursor: mouse::Cursor,
+        viewport: &Rectangle,
+    ) {
+        self.0.as_widget().draw(
+            tree,
+            renderer,
+            theme,
+            style,
+            layout,
+            mouse::Cursor::Unavailable,
+            viewport,
+        );
+    }
 }
 
 /// 构建或处理 `settings_section_card` 对应的界面片段与交互数据。

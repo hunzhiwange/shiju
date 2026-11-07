@@ -6,13 +6,12 @@
 use crate::app::assets::Icon;
 use crate::app::components::system_settings_common::icons::{icon_btn, icon_svg};
 use crate::app::components::system_settings_common::panels::{
-    settings_modal_card, settings_modal_overlay,
+    settings_modal_header, settings_modal_layout, settings_modal_overlay,
 };
 use crate::app::components::system_settings_common::styles::settings_muted_text_style;
 use crate::app::components::system_settings_common::theme::is_dark_theme;
 use crate::app::{App, Message};
-use iced::widget::scrollable::{Direction, Scrollbar};
-use iced::widget::{Space, button, column, container, row, scrollable, svg, text};
+use iced::widget::{button, container, row, svg, text};
 use iced::{Alignment, Border, Color, Element, Length};
 use std::hash::{Hash, Hasher};
 
@@ -133,29 +132,12 @@ pub fn with_settings_help_modal<'a>(
         if copy_tip == "已复制" { "已复制" } else { "复制帮助" },
     );
     let copy_btn = icon_btn(copy_icon, copy_tip, Some(Message::CopyCode(help_text.clone())));
-    let header = row![
+    let header = settings_modal_header(
         text(i18n.__(title).to_string()).size(16),
-        Space::new().width(Length::Fill),
-        copy_btn,
-        close_btn,
-    ]
-    .spacing(10)
-    .align_y(Alignment::Center);
-
-    let body = scrollable(
-        container(text(help_text).size(13).style(settings_muted_text_style))
-            .width(Length::Fill)
-            .padding([4, 7]),
-    )
-    .direction(Direction::Vertical(Scrollbar::new().width(4).scroller_width(4)))
-    .width(Length::Fill)
-    .height(Length::Fill);
-
-    let card = settings_modal_card(
-        column![header, body].spacing(12).width(Length::Fill).height(Length::Fill),
-    )
-    .width(Length::Fixed(720.0))
-    .height(Length::Fixed(560.0));
+        row![copy_btn, close_btn].spacing(10).align_y(Alignment::Center),
+    );
+    let body = text(help_text).size(13).style(settings_muted_text_style);
+    let card = settings_modal_layout(header, body, None).width(720).height(560);
 
     settings_modal_overlay(Some(base), close_message, card)
 }
@@ -174,3 +156,7 @@ pub fn settings_help_copy_state(
         (Icon::Copy, "复制帮助")
     }
 }
+
+#[cfg(test)]
+#[path = "help_ui_refresh_03_tests.rs"]
+mod help_ui_refresh_03_tests;

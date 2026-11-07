@@ -26,7 +26,7 @@ fn system_settings_general_tests_are_wired() {
 
 #[test]
 fn setting_row_builds_text_and_control_columns() {
-    keep_element(setting_row("标签", "设置说明", text("control")));
+    keep_element(settings_row("标签", "设置说明", GENERAL_CONTROL_WIDTH, text("control")));
 }
 
 #[test]
@@ -128,7 +128,7 @@ async fn terminal_font_size_control_matches_the_other_terminal_fields() {
         let row = field.children().next().expect("field row");
         let wrapper = row.children().nth(1).expect("control wrapper");
         let control = wrapper.children().next().expect("terminal control");
-        assert_eq!(control.bounds().width, TERMINAL_CONTROL_WIDTH);
+        assert_eq!(control.bounds().width, GENERAL_CONTROL_WIDTH);
     }
 }
 

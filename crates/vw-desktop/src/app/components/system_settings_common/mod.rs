@@ -38,9 +38,11 @@ pub use help::{
 };
 pub use icons::{icon_btn, icon_svg, provider_logo_svg};
 pub use panels::{
-    settings_control_with_hint, settings_divider, settings_error_banner, settings_modal_card,
-    settings_modal_overlay, settings_page_intro, settings_panel, settings_section_card,
-    settings_section_content, settings_success_banner, settings_value_badge,
+    settings_control_with_hint, settings_divider, settings_error_banner, settings_group_card,
+    settings_group_heading, settings_modal_card, settings_modal_header, settings_modal_layout,
+    settings_modal_overlay, settings_page_heading, settings_page_intro, settings_panel,
+    settings_row, settings_section_card, settings_section_content, settings_success_banner,
+    settings_value_badge,
 };
 pub use select::settings_select;
 pub use styles::{

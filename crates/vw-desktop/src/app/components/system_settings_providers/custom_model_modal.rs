@@ -6,21 +6,16 @@
 use crate::app::components::system_settings_common::{
     SETTINGS_CONTROL_PADDING, SETTINGS_CONTROL_TEXT_SIZE, SETTINGS_LABEL_WIDTH,
     primary_action_btn_style, rounded_action_btn_style, settings_checkbox_style,
-    settings_close_button, settings_divider, settings_error_banner, settings_modal_card,
-    settings_modal_overlay, settings_muted_text_style, settings_page_intro, settings_section_card,
-    settings_section_content, settings_segment_button_style, settings_text_input_style,
+    settings_close_button, settings_divider, settings_error_banner, settings_modal_header,
+    settings_modal_layout, settings_modal_overlay, settings_muted_text_style, settings_page_intro,
+    settings_section_card, settings_section_content, settings_segment_button_style,
+    settings_text_input_style,
 };
 use crate::app::i18n::settings_models::connection_text::text as connection_text;
 use crate::app::state::CustomProviderModelTab;
 use crate::app::{App, Message, message};
-use iced::widget::scrollable::{Direction, Scrollbar};
-use iced::widget::{button, checkbox, column, container, row, scrollable, text, text_input};
+use iced::widget::{button, checkbox, column, container, row, text, text_input};
 use iced::{Alignment, Element, Length};
-
-const SCROLLBAR_WIDTH: f32 = 4.0;
-const SCROLLBAR_GUTTER: u16 = 3;
-// 两侧同时预留滚动条宽度与内容间隔，避免内容贴住 4px 滚动条。
-const SCROLLABLE_SIDE_PADDING: u16 = SCROLLBAR_WIDTH as u16 + SCROLLBAR_GUTTER;
 
 const MODALITIES: [&str; 5] = ["text", "image", "audio", "video", "pdf"];
 
@@ -421,44 +416,34 @@ pub fn view_overlays<'a>(app: &'a App, dialog: Element<'a, Message>) -> Element<
             .map(|error| settings_error_banner(error.display(app.desktop_locale)))
             .unwrap_or_else(|| container(text("")).height(0).into());
 
-        let modal_col = column![
-            row![
-                container(settings_page_intro(
+        let header = column![
+            settings_modal_header(
+                settings_page_intro(
                     title,
-                    connection_text(app.desktop_locale, "填写模型 ID 和展示名称。")
-                ))
-                .width(Length::Fill),
+                    connection_text(app.desktop_locale, "填写模型 ID 和展示名称。"),
+                ),
                 close_btn,
-            ]
-            .align_y(Alignment::Start),
+            ),
             tabs,
             error_banner,
-            scrollable(container(body).padding([0, SCROLLABLE_SIDE_PADDING]).width(Length::Fill),)
-                .direction(Direction::Vertical(
-                    Scrollbar::new().width(SCROLLBAR_WIDTH).scroller_width(SCROLLBAR_WIDTH),
-                ),)
-                .height(Length::Fill),
-            row![
-                container(text("")).width(Length::Fill),
-                button(text(connection_text(app.desktop_locale, "取消")))
-                    .on_press(close_message.clone())
-                    .padding([8, 14])
-                    .style(rounded_action_btn_style),
-                button(text(connection_text(app.desktop_locale, "保存")))
-                    .on_press(Message::Settings(
-                        message::SettingsMessage::CustomProviderModelModalSave
-                    ))
-                    .padding([8, 14])
-                    .style(primary_action_btn_style),
-            ]
-            .spacing(10)
-            .align_y(Alignment::Center),
         ]
-        .spacing(16)
-        .height(Length::Fill);
+        .spacing(16);
 
-        let card =
-            settings_modal_card(modal_col).width(Length::Fixed(840.0)).height(Length::Fixed(680.0));
+        let actions = row![
+            container(text("")).width(Length::Fill),
+            button(text(connection_text(app.desktop_locale, "取消")))
+                .on_press(close_message.clone())
+                .padding([8, 14])
+                .style(rounded_action_btn_style),
+            button(text(connection_text(app.desktop_locale, "保存")))
+                .on_press(Message::Settings(message::SettingsMessage::CustomProviderModelModalSave))
+                .padding([8, 14])
+                .style(primary_action_btn_style),
+        ]
+        .spacing(10)
+        .align_y(Alignment::Center);
+
+        let card = settings_modal_layout(header, body, Some(actions.into())).width(840).height(680);
         base = settings_modal_overlay(Some(base), close_message, card);
     }
 

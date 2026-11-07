@@ -5,8 +5,8 @@
 //!
 //! - SVG 图标渲染工具
 //! - 工具提示气泡组件
-//! - 按钮样式定义（磁贴按钮、主要按钮、图标按钮、酷炫按钮）
-//! - 文本输入框和文本编辑器样式
+//! - 按钮样式定义（磁贴按钮、图标按钮、酷炫按钮）
+//! - 文本输入框样式
 //! - 磁贴卡片组件构建器
 //!
 //! 这些组件基于 iced 框架构建，遵循统一的设计语言和视觉规范。
@@ -14,9 +14,7 @@
 use crate::app::Message;
 use crate::app::assets::{self, Icon};
 use crate::app::components::system_settings_common::{
-    primary_action_btn_style as settings_primary_button_style,
     rounded_action_btn_style as settings_rounded_button_style, settings_panel_style,
-    settings_text_editor_style as settings_editor_style,
     settings_text_input_style as settings_input_style,
 };
 use iced::widget::svg::Svg;
@@ -289,34 +287,6 @@ pub(super) fn tile_button_style(
     }
 }
 
-/// 主要按钮样式
-///
-/// 定义应用中的主要操作按钮样式，使用主题色作为背景。
-/// 禁用状态下使用半透明的灰白色（深色主题）或浅黑色（浅色主题）。
-///
-/// # 参数
-///
-/// - `theme`: 主题引用
-/// - `status`: 按钮的当前交互状态
-///
-/// # 返回值
-///
-/// 返回对应状态的按钮样式配置
-///
-/// # 行为说明
-///
-/// - 悬停时主题色透明度降至 90%
-/// - 按下时主题色透明度降至 85%
-/// - 禁用时文字颜色也会降低透明度
-pub(super) fn primary_button_style(
-    theme: &Theme,
-    status: iced::widget::button::Status,
-) -> iced::widget::button::Style {
-    let mut style = settings_primary_button_style(theme, status);
-    style.border.radius = 12.0.into();
-    style
-}
-
 /// 图标按钮样式
 ///
 /// 定义简洁的图标按钮样式，默认无背景，
@@ -365,26 +335,6 @@ pub(super) fn figma_text_input_style(
     status: iced::widget::text_input::Status,
 ) -> iced::widget::text_input::Style {
     settings_input_style(theme, status)
-}
-
-/// Figma 风格文本编辑器样式
-///
-/// 定义类似 Figma 设计工具的多行文本编辑器样式，
-/// 与 `figma_text_input_style` 保持视觉一致性。
-///
-/// # 参数
-///
-/// - `theme`: 主题引用
-/// - `_status`: 文本编辑器的当前状态（当前未使用）
-///
-/// # 返回值
-///
-/// 返回对应的文本编辑器样式配置
-pub(super) fn figma_text_editor_style(
-    theme: &Theme,
-    status: iced::widget::text_editor::Status,
-) -> iced::widget::text_editor::Style {
-    settings_editor_style(theme, status)
 }
 
 /// 构建应用磁贴卡片组件

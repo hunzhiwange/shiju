@@ -103,7 +103,7 @@ pub(crate) fn view(
         CliCommandsTab::All => ALL_COMMANDS,
     };
     let mut content = column![
-        tabs,
+        tabs.align_y(Alignment::Center).wrap(),
         text(i18n.__(
             "在终端运行；点击标签页切换。全部命令页提供各入口的帮助，可继续查看子命令与参数。"
         ))

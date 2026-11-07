@@ -1,7 +1,7 @@
 //! 应用中心基础控件测试，覆盖图标映射、明暗主题样式和组件树结构。
 //! 交互状态需保持可读表面与一致圆角，未知动作标签使用稳定图标回退。
 
-use iced::widget::{button, text_editor, text_input};
+use iced::widget::{button, text_input};
 use iced::{Background, Color, Element, Length, Theme};
 
 fn background_color(background: Option<Background>) -> Color {
@@ -163,7 +163,7 @@ fn tile_button_style_covers_light_theme_status_surfaces() {
 }
 
 #[test]
-fn primary_and_icon_button_styles_preserve_shared_styles_except_radius() {
+fn icon_button_style_preserves_shared_style_except_radius() {
     let themes = [Theme::Dark, Theme::Light];
     let statuses = [
         button::Status::Active,
@@ -174,10 +174,6 @@ fn primary_and_icon_button_styles_preserve_shared_styles_except_radius() {
 
     for theme in &themes {
         for status in statuses {
-            let mut expected_primary = super::settings_primary_button_style(theme, status);
-            expected_primary.border.radius = 12.0.into();
-            assert_eq!(super::primary_button_style(theme, status), expected_primary);
-
             let mut expected_icon = super::settings_rounded_button_style(theme, status);
             expected_icon.border.radius = 12.0.into();
             assert_eq!(super::icon_button_style(theme, status), expected_icon);
@@ -186,7 +182,7 @@ fn primary_and_icon_button_styles_preserve_shared_styles_except_radius() {
 }
 
 #[test]
-fn input_and_editor_styles_delegate_all_statuses_to_shared_settings_styles() {
+fn input_style_delegates_all_statuses_to_shared_settings_style() {
     let themes = [Theme::Dark, Theme::Light];
     let input_statuses = [
         text_input::Status::Active,
@@ -195,25 +191,11 @@ fn input_and_editor_styles_delegate_all_statuses_to_shared_settings_styles() {
         text_input::Status::Focused { is_hovered: true },
         text_input::Status::Disabled,
     ];
-    let editor_statuses = [
-        text_editor::Status::Active,
-        text_editor::Status::Hovered,
-        text_editor::Status::Focused { is_hovered: false },
-        text_editor::Status::Focused { is_hovered: true },
-        text_editor::Status::Disabled,
-    ];
-
     for theme in &themes {
         for status in input_statuses {
             assert_eq!(
                 super::figma_text_input_style(theme, status),
                 super::settings_input_style(theme, status)
-            );
-        }
-        for status in editor_statuses {
-            assert_eq!(
-                super::figma_text_editor_style(theme, status),
-                super::settings_editor_style(theme, status)
             );
         }
     }

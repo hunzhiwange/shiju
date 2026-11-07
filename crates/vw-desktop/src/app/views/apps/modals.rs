@@ -1,21 +1,20 @@
-//! 模态框模块
-//!
-//! 本模块提供应用程序中使用的各种模态框UI组件，包括：
-//! - 编辑网址书签的模态框
-//! - 添加网址书签的模态框
-//!
-//! 模态框采用统一的外壳样式，包含圆角边框、阴影效果和主题适配的背景色。
+//! 应用中心的新增和编辑书签弹窗。
 
 use super::ui;
-use crate::app::assets::Icon;
 use crate::app::components::system_settings_common::{
-    settings_muted_text_style, settings_panel_style, settings_section_card,
+    SETTINGS_CONTROL_PADDING, SETTINGS_CONTROL_TEXT_SIZE, primary_action_btn_style,
+    rounded_action_btn_style, settings_close_button, settings_field_label, settings_group_card,
+    settings_group_heading, settings_modal_header, settings_modal_layout,
+    settings_text_editor_style, settings_text_input_style,
 };
+use crate::app::i18n::I18n;
 use crate::app::message::ViewMessage;
 use crate::app::{App, Message};
 use iced::widget::tooltip::{Position as TooltipPosition, Tooltip};
-use iced::widget::{Space, button, column, container, row, text, text_input};
-use iced::{Color, Element, Length, Theme};
+use iced::widget::{
+    Space, button, column, container, row, text, text::Wrapping, text_editor, text_input,
+};
+use iced::{Alignment, Element, Length};
 
 const WEB_BOOKMARK_COOKIE_CONFIG_EXAMPLE: &str = r#"[
   {
@@ -30,424 +29,211 @@ fn can_add_web_bookmark(title: &str, url: &str) -> bool {
     !title.trim().is_empty() && !url.trim().is_empty()
 }
 
-/// 创建模态框的外壳容器
-///
-/// 为模态框内容提供统一的视觉样式，包括：
-/// - 内边距（18px）
-/// - 圆角边框（16px圆角）
-/// - 阴影效果（模糊半径30px，向下偏移10px）
-/// - 主题适配的背景色
-///
-/// # 参数
-/// - `content`: 模态框的内容元素
-///
-/// # 返回
-/// 包装后的容器元素，可直接用于渲染
-fn modal_shell<'a>(content: Element<'a, Message>) -> Element<'a, Message> {
-    container(content)
-        .padding([22, 24])
-        .style(|theme: &Theme| {
-            let mut style = settings_panel_style(theme);
-            style.border.radius = 24.0.into();
-            style.shadow = iced::Shadow {
-                color: Color::BLACK.scale_alpha(0.22),
-                offset: iced::Vector::new(0.0, 18.0),
-                blur_radius: 34.0,
-            };
-            style
-        })
-        .into()
+fn bookmark_field<'a>(
+    label: &'a str,
+    value: &'a str,
+    on_input: fn(String) -> ViewMessage,
+) -> Element<'a, Message> {
+    column![
+        settings_field_label(label),
+        text_input("", value)
+            .on_input(move |value| Message::View(on_input(value)))
+            .padding(SETTINGS_CONTROL_PADDING)
+            .size(SETTINGS_CONTROL_TEXT_SIZE)
+            .style(settings_text_input_style)
+            .width(Length::Fill),
+    ]
+    .spacing(6)
+    .width(Length::Fill)
+    .into()
 }
 
-/// 创建编辑网址书签的模态框
-///
-/// 该模态框允许用户编辑现有的网址书签，包括：
-/// - 标题：书签显示名称
-/// - 网址：书签URL
-/// - 宽度/高度：窗口尺寸（可选）
-/// - Cookie配置：以JSON格式配置需要注入的Cookie
-///
-/// # 参数
-/// - `app`: 应用状态引用，包含编辑中的书签数据
-///
-/// # 返回
-/// - `Some((Element, Message))`: 模态框元素和关闭消息的元组
-/// - `None`: 如果没有正在编辑的书签
-fn edit_web_bookmark_modal<'a>(app: &'a App) -> Option<(Element<'a, Message>, Message)> {
-    // 关闭模态框的消息
-    let close = Message::View(ViewMessage::WebBookmarkEditCancel);
-
-    // 标题输入框
-    let title_input = text_input("", &app.edit_web_bookmark_title_input)
-        .on_input(|s| Message::View(ViewMessage::WebBookmarkEditTitleChanged(s)))
-        .width(Length::Fill)
-        .padding([8, 10])
-        .size(13)
-        .style(ui::figma_text_input_style);
-    // URL输入框
-    let url_input = text_input("", &app.edit_web_bookmark_url_input)
-        .on_input(|s| Message::View(ViewMessage::WebBookmarkEditUrlChanged(s)))
-        .width(Length::Fill)
-        .padding([8, 10])
-        .size(13)
-        .style(ui::figma_text_input_style);
-    // 宽度输入框（可选）
-    let width_input = text_input("", &app.edit_web_bookmark_width_input)
-        .on_input(|s| Message::View(ViewMessage::WebBookmarkEditWidthChanged(s)))
-        .width(Length::Fill)
-        .padding([8, 10])
-        .size(13)
-        .style(ui::figma_text_input_style);
-    // 高度输入框（可选）
-    let height_input = text_input("", &app.edit_web_bookmark_height_input)
-        .on_input(|s| Message::View(ViewMessage::WebBookmarkEditHeightChanged(s)))
-        .width(Length::Fill)
-        .padding([8, 10])
-        .size(13)
-        .style(ui::figma_text_input_style);
-
-    // Cookie配置编辑器（多行文本编辑器）
-    let cookie_configs_editor =
-        iced::widget::text_editor(&app.edit_web_bookmark_cookie_configs_editor)
-            .on_action(|action| {
-                Message::View(ViewMessage::WebBookmarkEditCookieConfigsChanged(action))
-            })
-            .height(Length::Fixed(120.0))
-            .style(ui::figma_text_editor_style);
-
-    // 获取正在编辑的书签索引
+fn edit_web_bookmark_modal(app: &App) -> Option<(Element<'_, Message>, Message)> {
     let idx = app.editing_web_bookmark.unwrap_or(0);
-
-    // 顶部标题栏：标题 + 关闭按钮
-    let top_bar = row![
-        text(crate::app::i18n::I18n::new(app.desktop_locale).__("编辑网址")).size(16),
-        Space::new().width(Length::Fill),
-        button(ui::icon_svg(Icon::X, 14.0).style(|theme: &Theme, _| iced::widget::svg::Style {
-            color: Some(theme.palette().text),
-        }))
-        .on_press(close.clone())
-        .style(ui::icon_button_style)
-        .padding(6)
-    ]
-    .align_y(iced::Alignment::Center);
-
-    // Cookie 配置帮助气泡：展示示例 JSON
-    let cookie_tooltip = {
-        // 构建提示气泡内容：标题 + 示例文本
-        ui::tooltip_bubble_el(
-            column![
-                text(crate::app::i18n::I18n::new(app.desktop_locale).__("配置示例")).size(12),
-                text(WEB_BOOKMARK_COOKIE_CONFIG_EXAMPLE).size(11),
-            ]
-            .spacing(6)
-            .into(),
-        )
-    };
-
-    // 构建模态框主体内容
-    let content = column![
-        top_bar,
-        settings_section_card(
-            crate::app::i18n::I18n::new(app.desktop_locale).__("书签信息"),
-            crate::app::i18n::I18n::new(app.desktop_locale)
-                .__("设置标题、网址以及独立窗口的默认尺寸。")
-        ),
+    let i18n = I18n::new(app.desktop_locale);
+    let close = Message::View(ViewMessage::WebBookmarkEditCancel);
+    let header = settings_modal_header(
+        text(i18n.__("编辑网址")).size(20),
+        settings_close_button(close.clone()),
+    );
+    let fields = settings_group_card(
         column![
-            text(crate::app::i18n::I18n::new(app.desktop_locale).__("标题"))
-                .size(12)
-                .style(settings_muted_text_style),
-            title_input
+            bookmark_field(
+                i18n.__("标题"),
+                &app.edit_web_bookmark_title_input,
+                ViewMessage::WebBookmarkEditTitleChanged,
+            ),
+            bookmark_field(
+                i18n.__("网址"),
+                &app.edit_web_bookmark_url_input,
+                ViewMessage::WebBookmarkEditUrlChanged,
+            ),
+            row![
+                bookmark_field(
+                    i18n.__("宽度（可选）"),
+                    &app.edit_web_bookmark_width_input,
+                    ViewMessage::WebBookmarkEditWidthChanged,
+                ),
+                bookmark_field(
+                    i18n.__("高度（可选）"),
+                    &app.edit_web_bookmark_height_input,
+                    ViewMessage::WebBookmarkEditHeightChanged,
+                ),
+            ]
+            .spacing(10),
         ]
-        .spacing(6),
+        .spacing(12)
+        .padding([12, 0]),
+    );
+
+    let cookie_tooltip = ui::tooltip_bubble_el(
         column![
-            text(crate::app::i18n::I18n::new(app.desktop_locale).__("网址"))
-                .size(12)
-                .style(settings_muted_text_style),
-            url_input
+            text(i18n.__("配置示例")).size(12),
+            text(WEB_BOOKMARK_COOKIE_CONFIG_EXAMPLE).size(11),
         ]
-        .spacing(6),
-        row![
-            column![
-                text(crate::app::i18n::I18n::new(app.desktop_locale).__("宽度（可选）"))
-                    .size(12)
-                    .style(settings_muted_text_style),
-                width_input
-            ]
-            .spacing(6),
-            column![
-                text(crate::app::i18n::I18n::new(app.desktop_locale).__("高度（可选）"))
-                    .size(12)
-                    .style(settings_muted_text_style),
-                height_input
-            ]
-            .spacing(6),
-        ]
-        .spacing(10),
-        settings_section_card(
-            crate::app::i18n::I18n::new(app.desktop_locale).__("Cookie 配置"),
-            crate::app::i18n::I18n::new(app.desktop_locale)
-                .__("支持按 JSON 为指定站点注入 Cookie。")
-        ),
+        .spacing(6)
+        .into(),
+    );
+    let cookie = settings_group_card(
         column![
             row![
-                text(crate::app::i18n::I18n::new(app.desktop_locale).__("Cookie配置(JSON)"))
-                    .size(12)
-                    .style(settings_muted_text_style),
+                settings_field_label(i18n.__("Cookie配置(JSON)")),
                 Tooltip::new(
-                    button(text("?").size(12)).style(ui::cool_icon_button_style).padding([4, 8]),
+                    button(text("?").size(12)).style(rounded_action_btn_style).padding([4, 8]),
                     cookie_tooltip,
                     TooltipPosition::Top,
                 )
                 .gap(8.0),
                 Tooltip::new(
-                    button(
-                        text(crate::app::i18n::I18n::new(app.desktop_locale).__("插入例子"))
-                            .size(12)
-                    )
-                    .on_press(
-                        Message::View(ViewMessage::WebBookmarkEditCookieConfigsInsertExample,)
-                    )
-                    .style(ui::primary_button_style)
-                    .padding([4, 10]),
-                    ui::tooltip_bubble(
-                        crate::app::i18n::I18n::new(app.desktop_locale)
-                            .__("插入预设 Cookie 配置示例")
-                    ),
+                    button(text(i18n.__("插入例子")).size(13))
+                        .on_press(Message::View(
+                            ViewMessage::WebBookmarkEditCookieConfigsInsertExample
+                        ))
+                        .style(rounded_action_btn_style)
+                        .padding([6, 10]),
+                    ui::tooltip_bubble(i18n.__("插入预设 Cookie 配置示例")),
                     TooltipPosition::Top,
                 )
                 .gap(8.0),
             ]
-            .align_y(iced::Alignment::Center)
-            .spacing(8),
-            cookie_configs_editor
+            .align_y(Alignment::Center)
+            .spacing(8)
+            .wrap(),
+            text_editor(&app.edit_web_bookmark_cookie_configs_editor)
+                .on_action(|action| {
+                    Message::View(ViewMessage::WebBookmarkEditCookieConfigsChanged(action))
+                })
+                .height(Length::Fixed(120.0))
+                .wrapping(Wrapping::WordOrGlyph)
+                .padding(SETTINGS_CONTROL_PADDING)
+                .size(SETTINGS_CONTROL_TEXT_SIZE)
+                .style(settings_text_editor_style),
         ]
-        .spacing(6),
-        // 底部操作按钮栏：取消、删除、保存
-        row![
-            // 取消按钮
-            Tooltip::new(
-                button(ui::icon_svg(ui::action_icon("取消"), 14.0).style(move |_t: &Theme, _| {
-                    iced::widget::svg::Style { color: Some(Color::WHITE) }
-                },))
-                .on_press(close.clone())
-                .style(ui::cool_icon_button_style)
-                .padding([8, 12]),
-                ui::tooltip_bubble(crate::app::i18n::I18n::new(app.desktop_locale).__("取消")),
-                TooltipPosition::Top,
-            )
-            .gap(8.0),
-            Space::new().width(Length::Fill),
-            // 删除按钮
-            Tooltip::new(
-                button(ui::icon_svg(ui::action_icon("删除"), 14.0).style(move |_t: &Theme, _| {
-                    iced::widget::svg::Style { color: Some(Color::WHITE) }
-                },))
-                .on_press(Message::View(ViewMessage::WebBookmarkRemove(idx)))
-                .style(ui::cool_icon_button_style)
-                .padding([8, 12]),
-                ui::tooltip_bubble(crate::app::i18n::I18n::new(app.desktop_locale).__("删除")),
-                TooltipPosition::Top,
-            )
-            .gap(8.0),
-            // 保存按钮
-            Tooltip::new(
-                button(ui::icon_svg(ui::action_icon("保存"), 14.0).style(move |_t: &Theme, _| {
-                    iced::widget::svg::Style { color: Some(Color::WHITE) }
-                },))
-                .on_press(Message::View(ViewMessage::WebBookmarkEditSave))
-                .style(ui::primary_button_style)
-                .padding([8, 14]),
-                ui::tooltip_bubble(crate::app::i18n::I18n::new(app.desktop_locale).__("保存")),
-                TooltipPosition::Top,
-            )
-            .gap(8.0),
-        ]
-        .align_y(iced::Alignment::Center)
-        .spacing(10),
-    ]
-    .spacing(14)
-    .width(Length::Fixed(560.0));
-
-    // 返回包装在模态框外壳中的内容元素
-    Some((modal_shell(content.into()), close))
-}
-
-/// 创建添加网址书签的模态框
-///
-/// 该模态框允许用户添加新的网址书签，包括：
-/// - 标题：书签显示名称（必填）
-/// - 网址：书签URL（必填）
-/// - 宽度/高度：窗口尺寸（可选）
-///
-/// 只有当标题和网址都不为空时，添加按钮才会被激活。
-///
-/// # 参数
-/// - `app`: 应用状态引用，包含输入中的书签数据
-///
-/// # 返回
-/// - `Some((Element, Message))`: 模态框元素和关闭消息的元组
-/// - `None`: 理论上不会返回（该模态框显示时总是返回 Some）
-fn add_web_bookmark_modal<'a>(app: &'a App) -> Option<(Element<'a, Message>, Message)> {
-    // 关闭模态框的消息（切换网址链接菜单）
-    let close = Message::View(ViewMessage::ToggleWebLinksMenu);
-
-    // 标题输入框
-    let title_input = text_input("", &app.web_bookmark_title_input)
-        .on_input(|s| Message::View(ViewMessage::WebBookmarkTitleChanged(s)))
-        .width(Length::Fill)
-        .padding([8, 10])
-        .size(13)
-        .style(ui::figma_text_input_style);
-    // URL输入框
-    let url_input = text_input("", &app.web_bookmark_url_input)
-        .on_input(|s| Message::View(ViewMessage::WebBookmarkUrlChanged(s)))
-        .width(Length::Fill)
-        .padding([8, 10])
-        .size(13)
-        .style(ui::figma_text_input_style);
-    // 宽度输入框（可选）
-    let width_input = text_input("", &app.web_bookmark_width_input)
-        .on_input(|s| Message::View(ViewMessage::WebBookmarkWidthChanged(s)))
-        .width(Length::Fill)
-        .padding([8, 10])
-        .size(13)
-        .style(ui::figma_text_input_style);
-    // 高度输入框（可选）
-    let height_input = text_input("", &app.web_bookmark_height_input)
-        .on_input(|s| Message::View(ViewMessage::WebBookmarkHeightChanged(s)))
-        .width(Length::Fill)
-        .padding([8, 10])
-        .size(13)
-        .style(ui::figma_text_input_style);
-
-    // 顶部标题栏：标题 + 关闭按钮
-    let top_bar = row![
-        text(crate::app::i18n::I18n::new(app.desktop_locale).__("添加网址")).size(16),
-        Space::new().width(Length::Fill),
-        button(ui::icon_svg(Icon::X, 14.0).style(|theme: &Theme, _| iced::widget::svg::Style {
-            color: Some(theme.palette().text),
-        }))
-        .on_press(close.clone())
-        .style(ui::icon_button_style)
-        .padding(6)
-    ]
-    .align_y(iced::Alignment::Center);
-
-    let content = column![
-        top_bar,
-        settings_section_card(
-            crate::app::i18n::I18n::new(app.desktop_locale).__("新增网址书签"),
-            crate::app::i18n::I18n::new(app.desktop_locale)
-                .__("保存一个可在应用中心快速打开的网页入口。")
+        .spacing(8)
+        .padding([12, 0]),
+    );
+    let body = column![
+        settings_group_heading(
+            i18n.__("书签信息"),
+            i18n.__("设置标题、网址以及独立窗口的默认尺寸。")
         ),
-        column![
-            text(crate::app::i18n::I18n::new(app.desktop_locale).__("标题"))
-                .size(12)
-                .style(settings_muted_text_style),
-            title_input
-        ]
-        .spacing(6),
-        column![
-            text(crate::app::i18n::I18n::new(app.desktop_locale).__("网址"))
-                .size(12)
-                .style(settings_muted_text_style),
-            url_input
-        ]
-        .spacing(6),
-        row![
-            column![
-                text(crate::app::i18n::I18n::new(app.desktop_locale).__("宽度（可选）"))
-                    .size(12)
-                    .style(settings_muted_text_style),
-                width_input
-            ]
-            .spacing(6),
-            column![
-                text(crate::app::i18n::I18n::new(app.desktop_locale).__("高度（可选）"))
-                    .size(12)
-                    .style(settings_muted_text_style),
-                height_input
-            ]
-            .spacing(6),
-        ]
-        .spacing(10),
-        // 底部操作按钮栏：取消、添加
-        row![
-            // 取消按钮
-            Tooltip::new(
-                button(ui::icon_svg(ui::action_icon("取消"), 14.0).style(move |_t: &Theme, _| {
-                    iced::widget::svg::Style { color: Some(Color::WHITE) }
-                },))
-                .on_press(close.clone())
-                .style(ui::cool_icon_button_style)
-                .padding([8, 12]),
-                ui::tooltip_bubble(crate::app::i18n::I18n::new(app.desktop_locale).__("取消")),
-                TooltipPosition::Top,
-            )
-            .gap(8.0),
-            Space::new().width(Length::Fill),
-            // 添加按钮（仅当标题和URL都不为空时激活）
-            Tooltip::new(
-                {
-                    // 检查是否可以添加：标题和URL都非空
-                    let can_add = can_add_web_bookmark(
-                        &app.web_bookmark_title_input,
-                        &app.web_bookmark_url_input,
-                    );
-                    // 根据是否可添加决定图标颜色
-                    let icon_color =
-                        if can_add { Color::WHITE } else { Color::WHITE.scale_alpha(0.65) };
-                    let mut btn = button(ui::icon_svg(ui::action_icon("添加"), 14.0).style(
-                        move |_t: &Theme, _| iced::widget::svg::Style { color: Some(icon_color) },
-                    ))
-                    .padding([8, 14]);
-                    // 仅当可以添加时设置点击事件和主要按钮样式
-                    if can_add {
-                        btn = btn
-                            .on_press(Message::View(ViewMessage::WebBookmarkAddSave))
-                            .style(ui::primary_button_style);
-                    } else {
-                        btn = btn.style(ui::cool_icon_button_style);
-                    }
-                    btn
-                },
-                ui::tooltip_bubble(crate::app::i18n::I18n::new(app.desktop_locale).__("添加")),
-                TooltipPosition::Top,
-            )
-            .gap(8.0),
-        ]
-        .align_y(iced::Alignment::Center)
-        .spacing(10),
+        fields,
+        settings_group_heading(
+            i18n.__("Cookie 配置"),
+            i18n.__("支持按 JSON 为指定站点注入 Cookie。")
+        ),
+        cookie,
     ]
-    .spacing(14)
-    .width(Length::Fixed(560.0));
-
-    // 返回包装在模态框外壳中的内容元素
-    Some((modal_shell(content.into()), close))
+    .spacing(12);
+    let actions = row![
+        button(text(i18n.__("删除")).size(13))
+            .on_press(Message::View(ViewMessage::WebBookmarkRemove(idx)))
+            .padding([8, 14])
+            .style(rounded_action_btn_style),
+        Space::new().width(Length::Fill),
+        button(text(i18n.__("取消")).size(13))
+            .on_press(close.clone())
+            .padding([8, 14])
+            .style(rounded_action_btn_style),
+        button(text(i18n.__("保存")).size(13))
+            .on_press(Message::View(ViewMessage::WebBookmarkEditSave))
+            .padding([8, 14])
+            .style(primary_action_btn_style),
+    ]
+    .align_y(Alignment::Center)
+    .spacing(8);
+    let card = settings_modal_layout(header, body, Some(actions.into())).width(560).height(610);
+    Some((container(card).padding(12).into(), close))
 }
 
-/// 根据应用状态返回当前活动的模态框
-///
-/// 该函数根据应用的状态决定显示哪个模态框：
-/// - 如果 `editing_web_bookmark` 为 `Some`，显示编辑书签模态框
-/// - 如果 `show_web_links_menu` 为 `true`，显示添加书签模态框
-/// - 否则不显示任何模态框
-///
-/// # 参数
-/// - `app`: 应用状态引用
-///
-/// # 返回
-/// - `Some((Element, Message))`: 当前活动的模态框元素和关闭消息
-/// - `None`: 没有活动的模态框
-pub(super) fn active_modal<'a>(app: &'a App) -> Option<(Element<'a, Message>, Message)> {
-    // 优先检查是否有正在编辑的书签
+fn add_web_bookmark_modal(app: &App) -> Option<(Element<'_, Message>, Message)> {
+    let i18n = I18n::new(app.desktop_locale);
+    let close = Message::View(ViewMessage::ToggleWebLinksMenu);
+    let header = settings_modal_header(
+        text(i18n.__("添加网址")).size(20),
+        settings_close_button(close.clone()),
+    );
+    let fields = settings_group_card(
+        column![
+            bookmark_field(
+                i18n.__("标题"),
+                &app.web_bookmark_title_input,
+                ViewMessage::WebBookmarkTitleChanged,
+            ),
+            bookmark_field(
+                i18n.__("网址"),
+                &app.web_bookmark_url_input,
+                ViewMessage::WebBookmarkUrlChanged,
+            ),
+            row![
+                bookmark_field(
+                    i18n.__("宽度（可选）"),
+                    &app.web_bookmark_width_input,
+                    ViewMessage::WebBookmarkWidthChanged,
+                ),
+                bookmark_field(
+                    i18n.__("高度（可选）"),
+                    &app.web_bookmark_height_input,
+                    ViewMessage::WebBookmarkHeightChanged,
+                ),
+            ]
+            .spacing(10),
+        ]
+        .spacing(12)
+        .padding([12, 0]),
+    );
+    let body = column![
+        settings_group_heading(
+            i18n.__("新增网址书签"),
+            i18n.__("保存一个可在应用中心快速打开的网页入口。"),
+        ),
+        fields,
+    ]
+    .spacing(12);
+    let can_add = can_add_web_bookmark(&app.web_bookmark_title_input, &app.web_bookmark_url_input);
+    let actions = row![
+        Space::new().width(Length::Fill),
+        button(text(i18n.__("取消")).size(13))
+            .on_press(close.clone())
+            .padding([8, 14])
+            .style(rounded_action_btn_style),
+        button(text(i18n.__("添加")).size(13))
+            .on_press_maybe(can_add.then_some(Message::View(ViewMessage::WebBookmarkAddSave)))
+            .padding([8, 14])
+            .style(primary_action_btn_style),
+    ]
+    .align_y(Alignment::Center)
+    .spacing(8);
+    let card = settings_modal_layout(header, body, Some(actions.into())).width(560).height(445);
+    Some((container(card).padding(12).into(), close))
+}
+
+pub(super) fn active_modal(app: &App) -> Option<(Element<'_, Message>, Message)> {
     if app.editing_web_bookmark.is_some() {
         edit_web_bookmark_modal(app)
     } else if app.show_web_links_menu {
-        // 否则检查是否显示添加书签菜单
         add_web_bookmark_modal(app)
     } else {
-        // 无活动模态框
         None
     }
 }

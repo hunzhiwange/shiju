@@ -14,15 +14,15 @@
 
 use crate::app::assets::{self, Icon};
 use crate::app::components::system_settings_common::{
-    SETTINGS_CONTROL_PADDING, SETTINGS_CONTROL_TEXT_SIZE, icon_svg, primary_action_btn_style,
-    rounded_action_btn_style, settings_close_button, settings_modal_card, settings_modal_overlay,
-    settings_muted_text_style, settings_pick_list_menu_style, settings_pick_list_style,
+    SETTINGS_CONTROL_TEXT_SIZE, icon_svg, primary_action_btn_style, rounded_action_btn_style,
+    settings_close_button, settings_field_label, settings_group_card, settings_modal_header,
+    settings_modal_layout, settings_modal_overlay, settings_muted_text_style, settings_select,
     settings_value_badge,
 };
 use crate::app::{Message, message};
 use iced::alignment::Horizontal;
 use iced::widget::{
-    Space, button, column, container, image, pick_list, progress_bar, row, scrollable, text,
+    Space, button, column, container, image, progress_bar, row, text, text::Wrapping,
 };
 use iced::{Alignment, Background, ContentFit, Element, Length, Theme};
 use std::hash::{Hash, Hasher};
@@ -241,33 +241,28 @@ fn view_inner<'a>(
         .style(move |theme: &Theme| logo_badge_style(theme, logo_badge_radius))
     };
 
-    // 构建模态框卡片主体
-    // 包含 Logo、标题、内容和关闭按钮的垂直布局
     let version_block: Element<'a, Message> =
         if let (Some(current_version), Some(server_version)) = (current_version, server_version) {
-            container(
-                row![
-                    settings_value_badge(crate::app::i18n::modals::render(
-                        i18n,
-                        "当前版本 %s",
-                        &[current_version.into()]
-                    )),
-                    settings_value_badge(crate::app::i18n::modals::render(
-                        i18n,
-                        "服务器版本 %s",
-                        &[server_version.into()]
-                    )),
-                ]
-                .spacing(8),
-            )
-            .width(Length::Fill)
-            .center_x(Length::Fill)
+            row![
+                settings_value_badge(crate::app::i18n::modals::render(
+                    i18n,
+                    "当前版本 %s",
+                    &[current_version.into()]
+                )),
+                settings_value_badge(crate::app::i18n::modals::render(
+                    i18n,
+                    "服务器版本 %s",
+                    &[server_version.into()]
+                )),
+            ]
+            .spacing(8)
+            .wrap()
             .into()
         } else {
             Space::new().height(0.0).into()
         };
 
-    let action_buttons: Element<'a, Message> = if has_version_info {
+    let actions: Option<Element<'a, Message>> = if has_version_info {
         let detect_label = if is_checking && !installing { "检测中..." } else { "检测更新" };
         let detect_message = if use_app_update_action {
             message::ViewMessage::CheckAppUpdate
@@ -275,12 +270,13 @@ fn view_inner<'a>(
             message::ViewMessage::CheckCliToolUpdate
         };
         let action_row = row![
-            button(i18n.__(detect_label))
+            button(text(i18n.__(detect_label)).size(13))
                 .on_press_maybe((!is_checking).then_some(Message::View(detect_message)))
                 .padding([8, 16])
                 .style(rounded_action_btn_style)
         ]
-        .spacing(12);
+        .spacing(8)
+        .align_y(Alignment::Center);
         #[cfg(not(target_arch = "wasm32"))]
         let action_row = if use_app_update_action
             && desktop_update.is_some_and(|state| state.ready.is_some())
@@ -293,7 +289,7 @@ fn view_inner<'a>(
                         .width(Length::Fixed(16.0)),
                 );
             }
-            let content = content.push(text(i18n.__(label)));
+            let content = content.push(text(i18n.__(label)).size(13));
             action_row
                 .push(
                     button(content)
@@ -305,7 +301,7 @@ fn view_inner<'a>(
                         .style(primary_action_btn_style),
                 )
                 .push(
-                    button(i18n.__("打开安装包目录"))
+                    button(text(i18n.__("打开安装包目录")).size(13))
                         .on_press_maybe((!is_checking).then_some(Message::View(
                             message::ViewMessage::OpenAppInstallerDirectory,
                         )))
@@ -324,7 +320,7 @@ fn view_inner<'a>(
                 message::ViewMessage::RunInstallCliTool
             };
             action_row.push(
-                button(i18n.__(install_label))
+                button(text(i18n.__(install_label)).size(13))
                     .on_press_maybe((!is_checking).then_some(Message::View(install_message)))
                     .padding([8, 16])
                     .style(primary_action_btn_style),
@@ -338,7 +334,7 @@ fn view_inner<'a>(
             && state.notification_release().is_some()
         {
             action_row.push(
-                button(i18n.__("跳过此版本"))
+                button(text(i18n.__("跳过此版本")).size(13))
                     .on_press_maybe(
                         (!is_checking && !state.saving_skip)
                             .then_some(Message::View(message::ViewMessage::SkipAppUpdate)),
@@ -349,29 +345,33 @@ fn view_inner<'a>(
         } else {
             action_row
         };
-        container(
-            action_row
-                .push(
-                    button(i18n.__("关闭"))
-                        .on_press(close_message.clone())
-                        .padding([8, 16])
-                        .style(rounded_action_btn_style),
-                )
-                .wrap(),
+        Some(
+            container(
+                action_row
+                    .push(
+                        button(text(i18n.__("关闭")).size(13))
+                            .on_press(close_message.clone())
+                            .padding([8, 16])
+                            .style(rounded_action_btn_style),
+                    )
+                    .wrap(),
+            )
+            .align_right(Length::Fill)
+            .into(),
         )
-        .width(Length::Fill)
-        .center_x(Length::Fill)
-        .into()
+    } else if show_logo_above_content {
+        None
     } else {
-        container(
-            button(i18n.__("关闭"))
-                .on_press(close_message.clone())
-                .padding([8, 16])
-                .style(primary_action_btn_style),
+        Some(
+            container(
+                button(text(i18n.__("关闭")).size(13))
+                    .on_press(close_message.clone())
+                    .padding([8, 16])
+                    .style(primary_action_btn_style),
+            )
+            .align_right(Length::Fill)
+            .into(),
         )
-        .width(Length::Fill)
-        .align_x(iced::alignment::Horizontal::Right)
-        .into()
     };
 
     let progress_block: Element<'a, Message> =
@@ -390,7 +390,7 @@ fn view_inner<'a>(
         let control: Element<'a, Message> = if state.busy || state.saving {
             text(label.unwrap_or(i18n.__("请选择来源"))).size(SETTINGS_CONTROL_TEXT_SIZE).into()
         } else {
-            pick_list([i18n.__("shiju（默认）"), "github.com"], label, |label| {
+            settings_select([i18n.__("shiju（默认）"), "github.com"], label, |label| {
                 Message::View(message::ViewMessage::AppUpdateSourceSelected(
                     if label == "github.com" {
                         vw_shared::update::UpdateSource::Github
@@ -400,131 +400,79 @@ fn view_inner<'a>(
                 ))
             })
             .placeholder(i18n.__("请选择来源"))
-            .padding(SETTINGS_CONTROL_PADDING)
-            .text_size(SETTINGS_CONTROL_TEXT_SIZE)
-            .style(settings_pick_list_style)
-            .menu_style(settings_pick_list_menu_style)
+            .width(Length::Fill)
             .into()
         };
-        row![text(i18n.__("升级来源")), control].spacing(12).align_y(Alignment::Center).into()
+        column![settings_field_label(i18n.__("升级来源")), control].spacing(6).into()
     } else {
         Space::new().height(0.0).into()
     };
 
-    let card_content: Element<'a, Message> = if let Some(commands) = cli_commands {
-        let body = column![
-            text(i18n.__(content)).size(12).style(settings_muted_text_style),
-            source_control,
-            version_block,
-            text(i18n.__(helper_text)).size(12).style(settings_muted_text_style),
-            commands,
-        ]
-        .spacing(16);
-        let body = scrollable(container(body).padding([0, 7]))
-            .direction(iced::widget::scrollable::Direction::Vertical(
-                iced::widget::scrollable::Scrollbar::new().width(4).scroller_width(4),
-            ))
-            .height(Length::Fixed(380.0));
-        column![
-            row![
-                text(i18n.__(title)).size(24).width(Length::Fill),
-                settings_close_button(close_message.clone()),
+    let header = settings_modal_header(
+        text(i18n.__(title)).size(20).wrapping(Wrapping::WordOrGlyph),
+        settings_close_button(close_message.clone()),
+    );
+    let description = text(i18n.__(content))
+        .size(13)
+        .width(Length::Fill)
+        .wrapping(Wrapping::WordOrGlyph)
+        .style(settings_muted_text_style)
+        .line_height(iced::widget::text::LineHeight::Relative(1.5));
+    let helper = text(i18n.__(helper_text))
+        .size(12)
+        .width(Length::Fill)
+        .wrapping(Wrapping::WordOrGlyph)
+        .style(settings_muted_text_style);
+    let (body, height): (Element<'_, Message>, _) = if let Some(commands) = cli_commands {
+        (
+            column![
+                description,
+                settings_group_card(
+                    column![source_control, version_block, helper].spacing(12).padding([12, 0]),
+                ),
+                commands,
             ]
-            .align_y(Alignment::Center),
-            body,
-            action_buttons,
-        ]
-        .spacing(16)
-        .into()
+            .spacing(14)
+            .into(),
+            540,
+        )
     } else if has_version_info {
-        column![
-            container(logo_badge(true)).width(Length::Fill).center_x(Length::Fill),
+        (
             column![
-                text(i18n.__(title)).size(24),
-                text(i18n.__(content))
-                    .size(12)
-                    .align_x(Horizontal::Center)
-                    .style(settings_muted_text_style)
-                    .line_height(iced::widget::text::LineHeight::Relative(1.5)),
+                container(logo_badge(true)).center_x(Length::Fill),
+                description,
+                settings_group_card(
+                    column![source_control, version_block, helper].spacing(12).padding([12, 0]),
+                ),
+                progress_block,
             ]
-            .spacing(6)
-            .align_x(Horizontal::Center)
-            .width(Length::Fill),
-            source_control,
-            version_block,
-            progress_block,
-            container(
-                text(i18n.__(helper_text))
-                    .size(12)
-                    .align_x(Horizontal::Center)
-                    .style(settings_muted_text_style),
-            )
-            .width(Length::Fill)
-            .center_x(Length::Fill),
-            action_buttons,
-        ]
-        .spacing(16)
-        .align_x(Horizontal::Center)
-        .into()
+            .spacing(14)
+            .into(),
+            640,
+        )
     } else if show_logo_above_content {
-        column![
-            row![Space::new().width(Length::Fill), settings_close_button(close_message.clone()),]
-                .width(Length::Fill)
-                .align_y(Alignment::Start),
-            container(logo_badge(true)).width(Length::Fill).center_x(Length::Fill),
+        (
             column![
-                text(i18n.__(title)).size(24).align_x(Horizontal::Center),
-                text(i18n.__(content))
-                    .size(12)
-                    .align_x(Horizontal::Center)
-                    .style(settings_muted_text_style)
-                    .line_height(iced::widget::text::LineHeight::Relative(1.5)),
+                container(logo_badge(true)).center_x(Length::Fill),
+                description.align_x(Horizontal::Center),
             ]
-            .spacing(6)
-            .align_x(Horizontal::Center)
-            .width(Length::Fill),
-        ]
-        .spacing(16)
-        .align_x(Horizontal::Center)
-        .into()
+            .spacing(14)
+            .into(),
+            390,
+        )
     } else {
-        column![
-            row![
-                row![
-                    logo_badge(false),
-                    column![
-                        text(i18n.__(title)).size(24),
-                        text(i18n.__(content))
-                            .size(12)
-                            .style(settings_muted_text_style)
-                            .line_height(iced::widget::text::LineHeight::Relative(1.5)),
-                    ]
-                    .spacing(6)
-                    .width(Length::Fill),
-                ]
-                .spacing(14)
-                .align_y(Alignment::Center)
-                .width(Length::Fill),
-                settings_close_button(close_message.clone()),
+        (
+            column![
+                row![logo_badge(false), description].spacing(14).align_y(Alignment::Center),
+                helper,
             ]
-            .align_y(Alignment::Start),
-            version_block,
-            container(
-                text(i18n.__(helper_text))
-                    .size(12)
-                    .align_x(Horizontal::Left)
-                    .style(settings_muted_text_style),
-            )
-            .width(Length::Fill),
-            action_buttons,
-        ]
-        .spacing(16)
-        .into()
+            .spacing(14)
+            .into(),
+            330,
+        )
     };
-
-    let card = settings_modal_card(card_content).width(Length::Fixed(540.0)).max_width(620.0);
-
-    settings_modal_overlay(None, close_message, card)
+    let card = settings_modal_layout(header, body, actions).width(540).height(height);
+    settings_modal_overlay(None, close_message, container(card).padding(12))
 }
 
 fn update_progress_block_localized<'a>(

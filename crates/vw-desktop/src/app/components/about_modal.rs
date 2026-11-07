@@ -20,8 +20,9 @@
 //! ```
 
 use crate::app::components::system_settings_common::{
-    primary_action_btn_style, rounded_action_btn_style, settings_close_button, settings_modal_card,
-    settings_modal_overlay, settings_muted_text_style,
+    primary_action_btn_style, rounded_action_btn_style, settings_close_button, settings_group_card,
+    settings_modal_header, settings_modal_layout, settings_modal_overlay,
+    settings_muted_text_style,
 };
 use crate::app::{App, Message, message};
 use iced::widget::{button, column, container, row, text, text::Wrapping};
@@ -86,63 +87,57 @@ pub fn view<'a>(app: &'a App) -> Element<'a, Message> {
     } else {
         "复制应用信息"
     };
-    let copy_button =
-        button(text(crate::app::i18n::I18n::new(app.desktop_locale).__(copy_label)).size(13))
-            .on_press(Message::CopyCode(copy_text))
-            .padding([10, 18])
-            .width(Length::Fixed(132.0))
-            .style(rounded_action_btn_style);
-
-    let card = settings_modal_card(
-        column![
-            row![
-                column![
-                    text(crate::app::i18n::I18n::new(app.desktop_locale).__(ABOUT_TITLE)).size(24),
-                    text(crate::app::i18n::I18n::new(app.desktop_locale).__(ABOUT_SUBTITLE))
-                        .size(12)
-                        .width(Length::Fill)
-                        .wrapping(Wrapping::Word)
-                        .style(settings_muted_text_style),
-                ]
-                .spacing(4)
-                .width(Length::Fill),
-                settings_close_button(close_message.clone()),
-            ]
-            .align_y(Alignment::Start),
+    let header = settings_modal_header(
+        text(i18n.__(ABOUT_TITLE)).size(20),
+        settings_close_button(close_message.clone()),
+    );
+    let body = column![
+        text(i18n.__(ABOUT_SUBTITLE))
+            .size(13)
+            .width(Length::Fill)
+            .wrapping(Wrapping::WordOrGlyph)
+            .style(settings_muted_text_style),
+        settings_group_card(
             column![
-                text(crate::app::i18n::I18n::new(app.desktop_locale).__(ABOUT_DESCRIPTION))
+                text(i18n.__(ABOUT_DESCRIPTION))
                     .size(13)
                     .width(Length::Fill)
-                    .wrapping(Wrapping::Word),
-                text(crate::app::i18n::I18n::new(app.desktop_locale).__(AUTHOR_INFO))
+                    .wrapping(Wrapping::WordOrGlyph),
+                text(i18n.__(AUTHOR_INFO))
                     .size(12)
                     .width(Length::Fill)
-                    .wrapping(Wrapping::Word)
+                    .wrapping(Wrapping::WordOrGlyph)
                     .style(settings_muted_text_style),
             ]
-            .spacing(8),
-            container(
-                row![
-                    copy_button,
-                    button(
-                        text(crate::app::i18n::I18n::new(app.desktop_locale).__("关闭")).size(13)
-                    )
-                    .on_press(close_message.clone())
-                    .padding([10, 18])
-                    .style(primary_action_btn_style),
-                ]
-                .spacing(10)
-                .align_y(Alignment::Center),
-            )
-            .width(Length::Fill)
-            .align_x(iced::alignment::Horizontal::Right),
+            .spacing(8)
+            .padding([12, 0]),
+        ),
+    ]
+    .spacing(12);
+    let actions = container(
+        row![
+            button(text(i18n.__(copy_label)).size(13))
+                .on_press(Message::CopyCode(copy_text))
+                .padding([8, 14])
+                .style(rounded_action_btn_style),
+            button(text(i18n.__("关闭")).size(13))
+                .on_press(close_message.clone())
+                .padding([8, 14])
+                .style(primary_action_btn_style),
         ]
-        .spacing(16),
+        .spacing(8)
+        .align_y(Alignment::Center)
+        .wrap(),
     )
-    .width(Length::Fixed(560.0));
+    .align_right(Length::Fill);
+    let card = settings_modal_layout(header, body, Some(actions.into())).width(560).height(300);
 
-    settings_modal_overlay(None, close_message, card)
+    settings_modal_overlay(None, close_message, container(card).padding(12))
 }
 #[cfg(test)]
 #[path = "about_modal_tests.rs"]
 mod about_modal_tests;
+
+#[cfg(test)]
+#[path = "about_modal_ui_refresh_41_tests.rs"]
+mod ui_refresh_41_tests;

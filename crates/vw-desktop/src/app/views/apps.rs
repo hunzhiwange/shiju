@@ -16,10 +16,12 @@
 //! - `tiles`: 磁贴渲染，负责生成应用磁贴网格
 //! - `ui`: UI 组件，提供通用界面元素
 
-use crate::app::components::system_settings_common::settings_panel_style;
+use crate::app::components::system_settings_common::{
+    settings_modal_overlay, settings_panel_style,
+};
 use crate::app::{App, Message};
-use iced::widget::{Space, column, container, mouse_area, opaque, scrollable, stack};
-use iced::{Background, Color, Element, Length};
+use iced::widget::{column, container, scrollable};
+use iced::{Element, Length};
 
 mod modals;
 mod tiles;
@@ -98,36 +100,8 @@ pub fn view(app: &App) -> Element<'_, Message> {
     let base_content: Element<'_, Message> =
         scrollable(base_content).width(Length::Fill).height(Length::Fill).into();
 
-    // 如果有活动的模态框，构建叠加层
     if let Some((modal, close_msg)) = active_modal {
-        // 创建半透明黑色遮罩层
-        // 点击遮罩层会触发关闭模态框的消息
-        let overlay = opaque(
-            mouse_area(container(Space::new().width(Length::Fill).height(Length::Fill)).style(
-                |_| iced::widget::container::Style {
-                    // 使用45%不透明度的黑色背景
-                    background: Some(Background::Color(Color::from_rgba(0.0, 0.0, 0.0, 0.45))),
-                    ..Default::default()
-                },
-            ))
-            .on_press(close_msg), // 点击遮罩层关闭模态框
-        );
-
-        // 创建模态框层
-        // 将模态框内容居中显示
-        let modal_layer: Element<'_, Message> = opaque(
-            container(modal)
-                .width(Length::Fill)
-                .height(Length::Fill)
-                .center_x(Length::Fill)
-                .center_y(Length::Fill),
-        );
-
-        // 将遮罩层和模态框层叠加
-        let modal_stack: Element<'_, Message> = stack![overlay, modal_layer].into();
-
-        // 返回完整视图：基础内容 + 模态框叠加层
-        stack![base_content, modal_stack].into()
+        settings_modal_overlay(Some(base_content), close_msg, modal)
     } else {
         // 没有模态框时，直接返回基础内容
         base_content

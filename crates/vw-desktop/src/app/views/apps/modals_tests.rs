@@ -107,9 +107,3 @@ fn cookie_config_example_documents_required_cookie_fields() {
         assert!(example.contains(field));
     }
 }
-
-#[test]
-fn modal_shell_wraps_any_content() {
-    let content = iced::widget::text("body").into();
-    let _ = super::modal_shell(content);
-}

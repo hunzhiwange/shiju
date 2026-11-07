@@ -3,8 +3,11 @@ use axum::{Extension, Router, middleware};
 use serde_json::{Value, json};
 use sha2::{Digest, Sha256};
 use std::{os::unix::fs::PermissionsExt, path::PathBuf};
-use vw_api_types::{app_providers::pi::*, id::TenantScope};
-use vw_gateway_client::{GatewayClient, GatewayEndpoint};
+use vw_api_types::{
+    app_providers::{basic::ProviderBasic, create::ProviderSecretWrite, pi::*},
+    id::TenantScope,
+};
+use vw_gateway_client::{AgentAppsReadError, GatewayClient, GatewayEndpoint};
 const TOKEN: &str = "fixture-pi-token-with-at-least-32-chars";
 struct Fixture {
     root: tempfile::TempDir,
@@ -229,4 +232,156 @@ async fn cc04_pi_disabled_edits_metadata_and_import_preserve_external_changes() 
     assert_eq!(record["meta"]["usageScript"]["apiKey"], "fake-usage-secret");
     f.client.pi_provider_add("one", &f.target(), TOKEN).await.unwrap();
     assert!(String::from_utf8_lossy(&f.bytes()).contains("fake-rotated-outside"));
+}
+
+fn form(declaration: &Value, activation: PiActivation) -> PiFormWrite {
+    PiFormWrite {
+        target_host_id: "host".into(),
+        fields: ProviderBasic {
+            name: "中文目录名".into(),
+            category: Some("工作".into()),
+            notes: Some("保留备注".into()),
+            website_url: Some("https://example.test".into()),
+        },
+        declaration: declaration.to_string(),
+        api_key: ProviderSecretWrite::Keep,
+        activation,
+        revision: None,
+    }
+}
+
+#[tokio::test]
+async fn cc04_ui_pi_sdk_edits_only_the_named_native_member_and_preserves_protected_fields() {
+    let f = Fixture::new().await;
+    let mut request = f.request(PiActivation::Add);
+    request.profile.declaration = json!({
+        "name":"原生名称",
+        "baseUrl":"https://pi.example.test",
+        "api":"openai-completions",
+        "apiKey":"fake-catalog-secret",
+        "headers":{"Authorization":"fake-header"},
+        "compat":{"future":true},
+        "models":[{"id":"one","name":"原模型","api":"openai-completions","custom":{"future":true}}]
+    });
+    f.client.pi_provider_save("one", &request, TOKEN).await.unwrap();
+    let rotated = String::from_utf8(f.bytes())
+        .unwrap()
+        .replace("fake-catalog-secret", "fake-rotated-secret")
+        .replace("fake-header", "fake-rotated-header");
+    std::fs::write(f.file(), rotated).unwrap();
+    let view = f.client.pi_form_read("one", &f.target(), TOKEN).await.unwrap().config.unwrap();
+    let mut declaration: Value = serde_json::from_str(&view.declaration).unwrap();
+    assert!(view.has_saved_key);
+    assert_eq!(declaration["name"], "原生名称");
+    assert_eq!(declaration["models"][0]["name"], "原模型");
+    assert!(declaration.get("apiKey").is_none());
+    assert!(declaration.get("headers").is_none());
+    assert!(declaration["models"][0].get("custom").is_none());
+    declaration["models"][0]["name"] = json!("中文新模型");
+    let mut edit = form(&declaration, PiActivation::IfMember);
+    edit.revision = Some(view.revision);
+    let result = f.client.pi_form_update("one", &edit, TOKEN).await.unwrap();
+    assert!(result.catalog_saved);
+    assert_eq!(result.live, PiLiveResult::Applied);
+    let bytes = f.bytes();
+    assert!(String::from_utf8_lossy(&bytes).contains("// keep\n\"future\":true"));
+    let members = vw_agent_apps::providers::pi::declarations(Some(&bytes)).unwrap();
+    assert_eq!(members["other"].declaration, json!({"models":[]}));
+    let saved = &members["one"].declaration;
+    assert_eq!(saved["apiKey"], "fake-rotated-secret");
+    assert_eq!(saved["headers"]["Authorization"], "fake-rotated-header");
+    assert_eq!(saved["compat"]["future"], true);
+    assert_eq!(saved["models"][0]["name"], "中文新模型");
+    assert_eq!(saved["models"][0]["custom"]["future"], true);
+    assert_eq!(saved["models"][0]["api"], "openai-completions");
+    let row = f.record("one").unwrap();
+    assert_eq!(row["name"], "中文目录名");
+    assert_eq!(row["notes"], "保留备注");
+    assert_eq!(row["pi"]["declaration"], *saved);
+}
+
+#[tokio::test]
+async fn cc04_ui_pi_sdk_rejects_invalid_stale_and_unauthorized_writes_without_side_effects() {
+    let f = Fixture::new().await;
+    let mut create = form(
+        &json!({"baseUrl":"https://old.example.test","api":"openai-completions","models":[{"id":"one","name":"旧模型","contextWindow":8192,"maxTokens":1024}]}),
+        PiActivation::Add,
+    );
+    create.api_key = ProviderSecretWrite::Replace { value: "fake-secret".into() };
+    assert_eq!(
+        f.client.pi_form_create("one", &create, TOKEN).await.unwrap().live,
+        PiLiveResult::Applied
+    );
+    let loaded = f.client.pi_form_read("one", &f.target(), TOKEN).await.unwrap().config.unwrap();
+    let record = f.record("one");
+    let before = f.bytes();
+    let mut edit = form(&json!({"models":[{"id":""}]}), PiActivation::IfMember);
+    edit.revision = Some(loaded.revision.clone());
+    assert!(matches!(
+        f.client.pi_form_update("one", &edit, TOKEN).await,
+        Err(AgentAppsReadError::Http { status: 422, .. })
+    ));
+    edit.declaration =
+        json!({"baseUrl":"https://other.example.test","models":[{"id":"one"}]}).to_string();
+    assert!(matches!(
+        f.client.pi_form_update("one", &edit, TOKEN).await,
+        Err(AgentAppsReadError::Http { status: 422, .. })
+    ));
+    edit.declaration = loaded.declaration;
+    edit.api_key = ProviderSecretWrite::Replace { value: "!must-not-execute".into() };
+    assert!(matches!(
+        f.client.pi_form_update("one", &edit, TOKEN).await,
+        Err(AgentAppsReadError::Http { status: 422, .. })
+    ));
+    edit.api_key = ProviderSecretWrite::Keep;
+    assert!(f.client.pi_form_update("one", &edit, "wrong-token").await.is_err());
+    assert!(f.client.pi_form_read("one", &f.target(), "wrong-token").await.is_err());
+    assert_eq!(f.record("one"), record);
+    assert_eq!(f.bytes(), before);
+    let external = String::from_utf8(before)
+        .unwrap()
+        .replace("old.example.test", "externally-changed.example.test");
+    std::fs::write(f.file(), &external).unwrap();
+    assert!(matches!(
+        f.client.pi_form_update("one", &edit, TOKEN).await,
+        Err(AgentAppsReadError::Http { status: 409, .. })
+    ));
+    assert_eq!(f.record("one"), record);
+    assert_eq!(f.bytes(), external.as_bytes());
+}
+
+#[tokio::test]
+async fn cc04_ui_pi_sdk_catalog_edits_and_incremental_membership_preserve_native_defaults() {
+    let f = Fixture::new().await;
+    let before = f.bytes();
+    let declaration = json!({"baseUrl":"https://pi.example.test","api":"openai-completions","models":[{"id":"新模型","name":"新模型","contextWindow":8192,"maxTokens":2048}]});
+    let create = form(&declaration, PiActivation::CatalogOnly);
+    let result = f.client.pi_form_create("one", &create, TOKEN).await.unwrap();
+    assert!(result.catalog_saved);
+    assert_eq!(result.live, PiLiveResult::NotAttempted);
+    assert_eq!(f.bytes(), before);
+    assert_eq!(
+        f.client.pi_provider_add("one", &f.target(), TOKEN).await.unwrap().live,
+        PiLiveResult::Applied
+    );
+    assert_eq!(
+        f.client.pi_provider_remove_live("one", &f.target(), TOKEN).await.unwrap().live,
+        PiLiveResult::Applied
+    );
+    let catalog = f.client.pi_form_read("one", &f.target(), TOKEN).await.unwrap();
+    assert_eq!(catalog.fields.name, "中文目录名");
+    let stored: Value = serde_json::from_str(&catalog.config.unwrap().declaration).unwrap();
+    assert_eq!(stored, declaration);
+    assert_eq!(f.client.pi_state(&f.target(), TOKEN).await.unwrap().members, ["other"]);
+
+    let view = f.client.pi_form_read("other", &f.target(), TOKEN).await.unwrap();
+    assert!(f.record("other").is_none());
+    let mut edit = form(&declaration, PiActivation::IfMember);
+    edit.revision = Some(view.config.unwrap().revision);
+    let result = f.client.pi_form_update("other", &edit, TOKEN).await.unwrap();
+    assert!(result.catalog_saved);
+    assert_eq!(result.live, PiLiveResult::Applied);
+    assert_eq!(f.record("other").unwrap()["pi"]["declaration"], declaration);
+    assert_eq!(f.client.pi_state(&f.target(), TOKEN).await.unwrap().members, ["other"]);
+    assert!(String::from_utf8_lossy(&f.bytes()).contains("// keep\n\"future\":true"));
 }

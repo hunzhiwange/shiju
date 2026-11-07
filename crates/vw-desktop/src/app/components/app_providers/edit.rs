@@ -70,6 +70,13 @@ pub(crate) fn overlay<'a>(form: &'a EditForm, base: Element<'a, Message>) -> Ele
                 text("此档案的 Hermes 节点不可编辑，可修改基础资料。官方授权暂不可用。")
                     .style(settings_muted_text_style),
             );
+        } else if let Some(draft) = &form.pi {
+            fields = fields.push(super::pi::fields(form, draft));
+        } else if form.pi_config_unavailable {
+            fields = fields.push(
+                text("此档案的 Pi 节点不可编辑，可修改基础资料。官方授权暂不可用。")
+                    .style(settings_muted_text_style),
+            );
         } else if let Some(draft) = &form.openclaw {
             fields = fields.push(super::openclaw::fields(form, draft));
         } else if form.openclaw_config_unavailable {
@@ -134,6 +141,7 @@ pub(crate) fn overlay<'a>(form: &'a EditForm, base: Element<'a, Message>) -> Ele
                 || form.grok.is_some()
                 || form.opencode.is_some()
                 || form.hermes.is_some()
+                || form.pi.is_some()
                 || form.openclaw.is_some()
             {
                 form.identified()

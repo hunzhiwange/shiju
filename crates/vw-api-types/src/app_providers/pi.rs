@@ -69,3 +69,30 @@ pub struct PiUsageScript {
     pub team_project_id: Option<String>,
 }
 concealed!(PiUsageWrite, PiUsageScript);
+
+#[derive(Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct PiFormWrite {
+    pub target_host_id: String,
+    pub fields: super::basic::ProviderBasic,
+    pub declaration: String,
+    pub api_key: super::create::ProviderSecretWrite,
+    pub activation: PiActivation,
+    pub revision: Option<String>,
+}
+concealed!(PiFormWrite);
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct PiFormView {
+    pub fields: super::basic::ProviderBasic,
+    pub config: Option<PiFormConfig>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct PiFormConfig {
+    pub declaration: String,
+    pub has_saved_key: bool,
+    pub revision: String,
+}

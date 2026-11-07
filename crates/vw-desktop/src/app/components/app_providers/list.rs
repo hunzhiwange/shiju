@@ -103,6 +103,14 @@ pub(crate) fn overlay<'a>(
                     enabled,
                 ));
             }
+            if scope.app == AppId::Pi && entry.native_member != ProviderMembership::Unknown {
+                let add = entry.native_member == ProviderMembership::Absent;
+                actions = actions.push(action(
+                    if add { "添加到 Pi" } else { "从 Pi 移除" },
+                    ListMessage::PiMember { id: id.clone(), add },
+                    enabled,
+                ));
+            }
             if scope.app == AppId::OpenClaw && entry.native_member != ProviderMembership::Unknown {
                 let add = entry.native_member == ProviderMembership::Absent;
                 actions = actions.push(action(

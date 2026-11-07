@@ -2749,3 +2749,39 @@ macOS **27.0 (26A428) / arm64**，桌面 **0.6.0**。临时 app bundle 通过真
 - 浅色 [校验失败](evidence/task-60/light-failure.png)、[保存同步](evidence/task-60/light-saved.png)、[取消后重开](evidence/task-60/light-cancel.png)、[滚动](evidence/task-60/light-scroll.png)、[移除](evidence/task-60/light-removed.png)、[重新添加](evidence/task-60/light-added.png)。
 
 差异审查限本任务实现、必要接线、独立测试及证据。状态为 **已完成**，下一步批次 61。
+
+## 任务 61：桌面 Pi 供应商编辑
+
+2026-11-07。核对批次 60 提交 `1f2b2ba81` 和正式验收。母任务 1、3 已完成；母任务 2 沿用底座子计划 1–93 的既有开工裁定，完整领域迁移仍待收口。复用批次 38 的 Pi 增量事务和批次 52 的原生窗口入口。
+
+- 来源快照 `ca58c0313360eae7c851fbd7553c1614c7af03e7`：核对 `PiProviderForm`、`buildPiSettingsConfig`、`ProviderForm` 的 Pi 分支及相邻表单测试。桌面 `components/state/message/app_providers/pi.rs` 复用统一弹窗，编辑 `models.json` 中单个 `providers` 节点。新增需要地址、协议和模型，既有原生覆盖可保留缺省字段。官方授权和模型发现暂不可用，端点与请求选项归批次 68。
+- `pi_form_read/create/update` 通过 SDK 调用 `POST /v1/app-providers/pi/{id}/form/read`、`POST /form` 与 `PATCH /form`。Gateway 校验租户、主机和读写权限，执行端 `providers/pi/form.rs` 校验草稿并比较公开修订。API 密钥可保留、替换或清除；拒绝可执行的密钥输入。请求头、兼容选项与未投影的模型字段留在执行端。同步时保留现有原生凭据，拒绝将其沿用到变更后的传输配置。
+- 新建可同时加入 Pi；编辑可仅保存目录或同步现有成员。列表复用 `pi_provider_add` 和 `pi_provider_remove_live`。移除保留档案及展示名，原生节点中的独立名称保留在声明中。真实 SDK → 回环 HTTP → Gateway → 临时 SQLite/HOME 用例验证：仅改动指定节点，保留其它成员、根字段、注释、设置与登录文件。无效、过期或无权的请求保留目录和文件前像。
+
+### 红绿验证
+
+红测和首次绿测使用动态槽位 **2**，`CARGO_TARGET_DIR=/Users/xiangmin/worker/code/shiju/target/rust-slot-2`。最终桌面聚焦与窗口用槽位 **4**，`CARGO_TARGET_DIR=/Users/xiangmin/worker/code/shiju/target/rust-slot-4`。最终 Gateway 用槽位 **1**，`CARGO_TARGET_DIR=/Users/xiangmin/worker/code/shiju/target/rust-slot-1`。最终 Clippy 回到槽位 **2**。各阶段的 `CARGO_BUILD_BUILD_DIR` 同相应槽位，进程退出后释放自己的锁，保留缓存。
+
+| 阶段 | 确切命令 | 退出码 | 有效结果 |
+| --- | --- | --- | --- |
+| 红 | `cargo fmt --all` | 0 | 格式化 |
+| 红 | `cargo test -p vw-desktop --lib cc04_ui_pi_ -- --nocapture` | 101 | 2 项业务断言失败：草稿未提交给 SDK，有效响应未结束保存 |
+| 绿 | `cargo fmt --all` | 0 | 格式化 |
+| 绿 | `cargo test -p vw-desktop --lib cc04_ui_pi_ -- --nocapture` | 0 | 2 passed：失败保留草稿，忽略过期响应 |
+| 绿 | `cargo test -p vw-agent --lib gateway::api::handlers::app_providers::pi_tests:: -- --nocapture` | 0 | 8 passed，含本任务 3 项 |
+| 绿 | `cargo clippy --all-targets --all-features -- -D warnings` | 0 | 全 targets/features |
+| 窗口 | `SHIJU_CC04_WINDOW_CASE=pi SHIJU_CC04_WINDOW_THEME=dark cargo test -p vw-desktop --test cc04-provider-window` | 0 | 实际操作并关闭 |
+| 窗口 | `SHIJU_CC04_WINDOW_CASE=pi SHIJU_CC04_WINDOW_THEME=light cargo test -p vw-desktop --test cc04-provider-window` | 0 | 实际操作并关闭 |
+
+首次绿测时工作区并行改动曾导致 `point_below_tests.rs` 缺 `capture_keyboard` 字段，重试已通过。首次 Gateway 测试的测试夹具存在借用冲突，修正后重跑。槽位 1 随后的 Clippy 读到了缺 Pi 表单类型的依赖产物，退出 101；使用槽位 2 重跑成功。
+
+### macOS 原生窗口
+
+macOS **27.0 (26A428) / arm64**，桌面 **0.6.0**。临时 app bundle 经真实 Iced 组件、Message 和 SDK 连接隔离回环 HTTP 夹具；真实权限、目录及原生 JSONC 文件由 Gateway 集成测试验证。PATH 未找到 Pi CLI，未验证真实安装、账号或 CLI 消费配置。
+
+两种主题均从供应商列表打开已加入的中文档案，提交空模型 ID 后收到 422 并保留草稿；修正后保存和同步，再修改草稿并取消，重新打开确认已保存值仍在。实际拖动长表单的 4px 滚动条，内容两侧各留 7px，标题及底部按钮固定。移除后仍可看到档案，重新加入后恢复成员。中文动态文本实际绘制，无字形整形 panic。日志含既有链接提示和 macOS sandbox extension 提示，深色窗口另有一条输入法端口提示。
+
+- 深色 [校验失败](evidence/task-61/dark-failure.jpg)、[保存同步](evidence/task-61/dark-saved.jpg)、[取消前](evidence/task-61/dark-cancel-draft.jpg)、[取消后重开](evidence/task-61/dark-cancel.jpg)、[滚动](evidence/task-61/dark-scroll.jpg)、[移除](evidence/task-61/dark-removed.jpg)、[重新添加](evidence/task-61/dark-added.jpg)。
+- 浅色 [校验失败](evidence/task-61/light-failure.jpg)、[保存同步](evidence/task-61/light-saved.jpg)、[取消前](evidence/task-61/light-cancel-draft.jpg)、[取消后重开](evidence/task-61/light-cancel.jpg)、[滚动](evidence/task-61/light-scroll.jpg)、[移除](evidence/task-61/light-removed.jpg)、[重新添加](evidence/task-61/light-added.jpg)。
+
+差异审查限本任务的实现、独立测试、必要接线及上述证据。状态为 **已完成**，下一步批次 62。

@@ -76,7 +76,7 @@ impl AppProviderStore {
                     self.hermes_save(tenant, &id, &p, None, None)?;
                 }
                 NativeImport::Pi(p) => {
-                    self.pi_save(tenant, &id, &p, None)?;
+                    self.pi_save(tenant, &id, &p, None, None)?;
                 }
                 NativeImport::Omp(p) => {
                     self.omp_save(tenant, &id, &p, None)?;

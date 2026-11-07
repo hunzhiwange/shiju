@@ -12,6 +12,31 @@ impl GatewayClient {
         self.pi_request(id, "PUT", "/usage-script", body, token).await
     }
 
+    pub async fn pi_form_read(
+        &self,
+        id: &str,
+        body: &PiTarget,
+        token: &str,
+    ) -> Result<PiFormView, Error> {
+        self.pi_request(id, "POST", "/form/read", body, token).await
+    }
+    pub async fn pi_form_create(
+        &self,
+        id: &str,
+        body: &PiFormWrite,
+        token: &str,
+    ) -> Result<PiResult, Error> {
+        self.pi_request(id, "POST", "/form", body, token).await
+    }
+    pub async fn pi_form_update(
+        &self,
+        id: &str,
+        body: &PiFormWrite,
+        token: &str,
+    ) -> Result<PiResult, Error> {
+        self.pi_request(id, "PATCH", "/form", body, token).await
+    }
+
     pub async fn pi_provider_save(
         &self,
         id: &str,

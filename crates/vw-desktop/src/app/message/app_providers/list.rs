@@ -32,6 +32,7 @@ use vw_gateway_client::vw_api_types::{
     agent_apps::AppId,
     app_providers::{
         hermes::HermesLiveResult, openclaw::OpenClawLiveResult, opencode::OpenCodeLiveResult,
+        pi::PiLiveResult,
     },
 };
 #[derive(Clone, Debug)]
@@ -54,6 +55,16 @@ pub enum ListMessage {
         generation: u64,
         add: bool,
         result: Result<HermesLiveResult, String>,
+    },
+    PiMember {
+        id: String,
+        add: bool,
+    },
+    PiMemberChanged {
+        scope: Scope,
+        generation: u64,
+        add: bool,
+        result: Result<PiLiveResult, String>,
     },
     OpenClawMember {
         id: String,
@@ -143,6 +154,12 @@ pub(crate) fn update(app: &mut App, value: ListMessage) -> Task<Message> {
         }
         ListMessage::HermesMemberChanged { scope, generation, add, result } => {
             return super::hermes::membership_changed(app, scope, generation, add, result);
+        }
+        ListMessage::PiMember { id, add } => {
+            return super::pi::change_membership(app, id, add);
+        }
+        ListMessage::PiMemberChanged { scope, generation, add, result } => {
+            return super::pi::membership_changed(app, scope, generation, add, result);
         }
         ListMessage::OpenClawMember { id, add } => {
             return super::openclaw::change_membership(app, id, add);

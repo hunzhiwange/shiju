@@ -21,3 +21,7 @@ mod openclaw_tests;
 pub(crate) mod opencode;
 #[cfg(test)]
 mod opencode_tests;
+
+pub(crate) mod pi;
+#[cfg(test)]
+mod pi_tests;

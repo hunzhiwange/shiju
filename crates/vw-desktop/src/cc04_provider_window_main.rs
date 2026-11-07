@@ -19,6 +19,7 @@ fn main() {
         "opencode" => (AppId::OpenCode, true),
         "openclaw" => (AppId::OpenClaw, true),
         "hermes" => (AppId::Hermes, true),
+        "pi" => (AppId::Pi, true),
         _ => panic!("unknown window case"),
     };
     let edit = case == "edit";
@@ -63,6 +64,7 @@ fn main() {
         "opencode" => "OpenCode 供应商隔离验收",
         "openclaw" => "OpenClaw 供应商隔离验收",
         "hermes" => "Hermes 供应商隔离验收",
+        "pi" => "Pi 供应商隔离验收",
         "claude" => "Claude Code 供应商隔离验收",
         _ => "供应商基础编辑隔离验收",
     })
@@ -112,6 +114,7 @@ fn fixture(
             AppId::OpenCode => "opencode",
             AppId::OpenClaw => "openclaw",
             AppId::Hermes => "hermes",
+            AppId::Pi => "pi",
             _ => panic!("unknown fixture app"),
         };
         let prefix = format!("/v1/app-providers/{app}/");
@@ -144,7 +147,7 @@ fn fixture(
                 "inactive":[["config","legacy","中文旧字段"],["config","ui","theme"]],
             }));
         }
-        let incremental = matches!(app, "opencode" | "openclaw" | "hermes");
+        let incremental = matches!(app, "opencode" | "openclaw" | "hermes" | "pi");
         let mut node_configs = std::collections::BTreeMap::from([(
             "provider-0".to_owned(),
             serde_json::json!({
@@ -182,6 +185,21 @@ fn fixture(
                         "models":[{"id":"fixture-model","name":"中文动态模型","context_length":8192,
                             "supports_vision":true}],
                         "rate_limit_delay":0.5
+                    })).unwrap(),
+                    "hasSavedKey":true,
+                    "revision":"fixture-1"
+                }),
+            );
+        }
+        if app == "pi" {
+            node_configs.insert(
+                "provider-0".into(),
+                serde_json::json!({
+                    "declaration": serde_json::to_string_pretty(&serde_json::json!({
+                        "baseUrl":"https://fixture-api.example.test/v1",
+                        "api":"openai-completions",
+                        "models":[{"id":"fixture-model","name":"中文动态模型","contextWindow":8192,
+                            "input":["text","image"], "maxTokens":1024, "reasoning":false}]
                     })).unwrap(),
                     "hasSavedKey":true,
                     "revision":"fixture-1"
@@ -253,7 +271,7 @@ fn fixture(
                         .ok()
                         .and_then(|node| node.get("models").cloned())
                         .is_some_and(|models| {
-                            if matches!(app, "openclaw" | "hermes") {
+                            if matches!(app, "openclaw" | "hermes" | "pi") {
                                 models.as_array().is_some_and(|models| {
                                     models.iter().all(|model| {
                                         model["id"].as_str().is_some_and(|id| !id.trim().is_empty())

@@ -7,3 +7,5 @@ pub(crate) mod hermes;
 pub(crate) mod list;
 pub(crate) mod openclaw;
 pub(crate) mod opencode;
+
+pub(crate) mod pi;

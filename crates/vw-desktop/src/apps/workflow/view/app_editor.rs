@@ -1,6 +1,9 @@
 //! 工作流应用编辑器视图，负责应用名称、图标、描述和请求限制的表单渲染。
 
 use super::*;
+use crate::app::components::system_settings_common::{
+    settings_group_card, settings_group_heading, settings_toggle,
+};
 use iced::widget::{column, row};
 
 /// 构建或更新 build app editor modal 相关行为。
@@ -16,8 +19,6 @@ pub(super) fn build_app_editor_modal(
 
     const APP_EDITOR_MODAL_WIDTH: f32 = 680.0;
     const APP_EDITOR_MODAL_HEIGHT: f32 = 620.0;
-    const APP_EDITOR_SCROLLBAR_WIDTH: f32 = 4.0;
-    const APP_EDITOR_SCROLL_GUTTER: f32 = 12.0;
 
     let title = match &editor.mode {
         super::state::WorkflowAppEditorMode::Create => i18n.__("新增应用"),
@@ -33,33 +34,23 @@ pub(super) fn build_app_editor_modal(
         }
     };
 
-    let header = row![
-        row![
-            column![
-                text(title).size(24),
-                text(subtitle).size(12).style(settings_muted_text_style),
-            ]
+    let close = Message::WorkflowTool(WorkflowMessage::CloseAppEditor);
+    let header = settings_modal_header(
+        column![text(title).size(20), text(subtitle).size(13).style(settings_muted_text_style)]
             .spacing(4),
-            Space::new().width(Length::Fill),
-            settings_close_button(Message::WorkflowTool(WorkflowMessage::CloseAppEditor)),
-        ]
-        .align_y(Alignment::Center),
-    ];
+        settings_close_button(close.clone()),
+    );
 
-    let mut content = column![section_card(
-        i18n.__("应用基础信息"),
-        i18n.__("表单结构参考 Dify 应用设置页，先整理名称、图标和描述。"),
-    )]
-    .spacing(16);
+    let mut fields = column![].spacing(14);
 
     if let super::state::WorkflowAppEditorMode::Edit(target_id) = &editor.mode {
-        content = content.push(build_app_uuid_field(i18n, state, target_id));
+        fields = fields.push(build_app_uuid_field(i18n, state, target_id));
         if state.active_app_id.as_deref() == Some(target_id.as_str()) {
-            content = content.push(build_app_organize_field(i18n));
+            fields = fields.push(build_app_organize_field(i18n));
         }
     }
 
-    let content = content
+    let fields = fields
         .push(build_editor_field(
             i18n.__("应用名称"),
             workflow_text_input(i18n.__("例如：客服分流工作流"), &editor.name, |value| {
@@ -83,7 +74,7 @@ pub(super) fn build_app_editor_modal(
         .push(build_editor_field(
             i18n.__("使用 web app 图标替换 🤖"),
             row![
-                toggler(editor.use_icon_as_answer_icon).on_toggle(|value| {
+                settings_toggle(editor.use_icon_as_answer_icon).on_toggle(|value| {
                     Message::WorkflowTool(WorkflowMessage::AppEditorUseIconAsAnswerIconChanged(
                         value,
                     ))
@@ -112,7 +103,7 @@ pub(super) fn build_app_editor_modal(
         button(text(i18n.__("取消")))
             .style(rounded_action_btn_style)
             .padding([9, 14])
-            .on_press(Message::WorkflowTool(WorkflowMessage::CloseAppEditor)),
+            .on_press(close.clone()),
         button(text(i18n.__("保存应用信息")))
             .style(primary_action_btn_style)
             .padding([9, 14])
@@ -120,39 +111,19 @@ pub(super) fn build_app_editor_modal(
     ]
     .spacing(10);
 
-    let scroll_content = container(content).width(Length::Fill).padding(iced::Padding {
-        top: 0.0,
-        right: APP_EDITOR_SCROLLBAR_WIDTH + APP_EDITOR_SCROLL_GUTTER,
-        bottom: 0.0,
-        left: 0.0,
-    });
+    let body = column![
+        settings_group_heading(
+            i18n.__("应用基础信息"),
+            i18n.__("表单结构参考 Dify 应用设置页，先整理名称、图标和描述。"),
+        ),
+        settings_group_card(fields).padding(14),
+    ]
+    .spacing(12);
+    let card = settings_modal_layout(header, body, Some(footer.into()))
+        .width(APP_EDITOR_MODAL_WIDTH)
+        .height(APP_EDITOR_MODAL_HEIGHT);
 
-    container(
-        container(
-            column![
-                header,
-                scrollable(scroll_content)
-                    .direction(Direction::Vertical(
-                        Scrollbar::new()
-                            .width(APP_EDITOR_SCROLLBAR_WIDTH)
-                            .scroller_width(APP_EDITOR_SCROLLBAR_WIDTH),
-                    ))
-                    .height(Length::Fill),
-                footer,
-            ]
-            .spacing(16)
-            .height(Length::Fill),
-        )
-        .width(Length::Fixed(APP_EDITOR_MODAL_WIDTH))
-        .height(Length::Fixed(APP_EDITOR_MODAL_HEIGHT))
-        .padding([24, 26])
-        .style(modal_card_style),
-    )
-    .width(Length::Fill)
-    .height(Length::Fill)
-    .align_x(iced::alignment::Horizontal::Center)
-    .align_y(iced::alignment::Vertical::Center)
-    .into()
+    settings_modal_overlay(None, close, container(card).padding(12))
 }
 
 fn build_app_uuid_field<'a>(
@@ -246,3 +217,7 @@ fn build_app_organize_field(i18n: crate::app::i18n::I18n) -> Element<'static, Me
 #[cfg(test)]
 #[path = "app_editor_tests.rs"]
 mod app_editor_tests;
+
+#[cfg(all(test, not(target_arch = "wasm32")))]
+#[path = "app_editor_ui_refresh_38_tests.rs"]
+mod ui_refresh_38_tests;

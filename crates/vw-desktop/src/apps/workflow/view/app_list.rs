@@ -1,15 +1,16 @@
 //! Workflow 应用列表视图模块，负责展示本地数据库中的应用入口。
 
 use super::*;
+use crate::app::components::system_settings_common::{
+    settings_error_banner, settings_group_card, settings_toggle,
+};
 use chrono::{Local, TimeZone};
 use iced::widget::{column, row};
 
-const SAVED_APPS_HEADER_ITEM_HEIGHT: f32 = 38.0;
+const SAVED_APPS_HEADER_ITEM_HEIGHT: f32 = 44.0;
 const SAVED_APPS_SEARCH_INPUT_LINE_HEIGHT: f32 = 20.0;
 const SAVED_APP_RUN_PROMPT_WIDTH: f32 = 520.0;
-const SAVED_APP_RUN_PROMPT_FORM_MAX_HEIGHT: f32 = 440.0;
-const SAVED_APP_RUN_PROMPT_SCROLLBAR_WIDTH: f32 = 4.0;
-const SAVED_APP_RUN_PROMPT_SCROLLBAR_GUTTER: f32 = 12.0;
+const SAVED_APP_RUN_PROMPT_HEIGHT: f32 = 560.0;
 
 /// 构建 saved apps view 对应的界面元素。
 ///
@@ -66,10 +67,10 @@ fn build_saved_apps_header(
         build_search_input(i18n, state),
         saved_apps_header_button(i18n.__("刷新"), WorkflowMessage::LoadSavedApps),
         saved_apps_header_button(i18n.__("导入 DSL"), WorkflowMessage::OpenFile),
-        Space::new().width(Length::Fill),
     ]
     .spacing(10)
     .align_y(Alignment::Center)
+    .wrap()
     .into()
 }
 
@@ -107,8 +108,8 @@ fn build_search_input(i18n: crate::app::i18n::I18n, state: &WorkflowState) -> El
     container(
         text_input(i18n.__("搜索"), &state.saved_app_search_query)
             .on_input(|query| Message::WorkflowTool(WorkflowMessage::SavedAppSearchChanged(query)))
-            .padding([9, 12])
-            .size(13)
+            .padding(SETTINGS_CONTROL_PADDING)
+            .size(SETTINGS_CONTROL_TEXT_SIZE)
             .line_height(iced::Pixels(SAVED_APPS_SEARCH_INPUT_LINE_HEIGHT))
             .width(Length::Fill)
             .style(settings_text_input_style),
@@ -478,21 +479,20 @@ pub(super) fn build_saved_app_run_prompt_dialog(
         .map(|app| saved_app_title(i18n, &app.name))
         .unwrap_or_else(|| i18n.__("该应用").to_string());
 
-    let header = row![
+    let close = Message::WorkflowTool(WorkflowMessage::CancelSavedAppRunPrompt);
+    let header = settings_modal_header(
         column![
-            text(i18n.__("运行工作流")).size(22),
+            text(i18n.__("运行工作流")).size(20),
             text(
-                i18n.format("为「%s」填写本次运行参数", &[app_name.to_string().into()])
+                i18n.format("为「%s」填写本次运行参数", &[app_name.into()])
                     .expect("valid workflow display template")
             )
-            .size(12)
+            .size(13)
             .style(settings_muted_text_style),
         ]
         .spacing(4),
-        Space::new().width(Length::Fill),
-        settings_close_button(Message::WorkflowTool(WorkflowMessage::CancelSavedAppRunPrompt)),
-    ]
-    .align_y(Alignment::Center);
+        settings_close_button(close.clone()),
+    );
 
     let mut form = column![].spacing(16).width(Length::Fill);
 
@@ -507,38 +507,18 @@ pub(super) fn build_saved_app_run_prompt_dialog(
 
     form = form.push(build_saved_app_run_inputs(i18n, prompt));
 
+    let mut body = column![].spacing(12);
     if let Some(error) = &prompt.error {
-        form = form.push(
-            container(text(error.render(i18n)).size(12))
-                .width(Length::Fill)
-                .padding([9, 12])
-                .style(workflow_run_prompt_error_style),
-        );
+        body = body.push(settings_error_banner(error.render(i18n)));
     }
-
-    let form_scroll = container(
-        scrollable(container(form).width(Length::Fill).padding(iced::Padding {
-            top: 0.0,
-            right: SAVED_APP_RUN_PROMPT_SCROLLBAR_WIDTH + SAVED_APP_RUN_PROMPT_SCROLLBAR_GUTTER,
-            bottom: 0.0,
-            left: 0.0,
-        }))
-        .direction(Direction::Vertical(
-            Scrollbar::new()
-                .width(SAVED_APP_RUN_PROMPT_SCROLLBAR_WIDTH)
-                .scroller_width(SAVED_APP_RUN_PROMPT_SCROLLBAR_WIDTH),
-        ))
-        .height(Length::Shrink),
-    )
-    .width(Length::Fill)
-    .max_height(SAVED_APP_RUN_PROMPT_FORM_MAX_HEIGHT);
+    let body = body.push(settings_group_card(form).padding(14));
 
     let footer = row![
         Space::new().width(Length::Fill),
         button(text(i18n.__("取消")))
             .style(rounded_action_btn_style)
             .padding([9, 14])
-            .on_press(Message::WorkflowTool(WorkflowMessage::CancelSavedAppRunPrompt)),
+            .on_press(close.clone()),
         button(text(i18n.__("运行")))
             .style(primary_action_btn_style)
             .padding([9, 14])
@@ -547,23 +527,17 @@ pub(super) fn build_saved_app_run_prompt_dialog(
     .spacing(10)
     .align_y(Alignment::Center);
 
-    let card = container(column![header, form_scroll, footer].spacing(18).width(Length::Fill))
-        .width(Length::Fixed(SAVED_APP_RUN_PROMPT_WIDTH))
-        .padding([22, 24])
-        .style(settings_modal_card_style);
-
-    Some(settings_modal_overlay(
-        None,
-        Message::WorkflowTool(WorkflowMessage::CancelSavedAppRunPrompt),
-        card,
-    ))
+    let card = settings_modal_layout(header, body, Some(footer.into()))
+        .width(SAVED_APP_RUN_PROMPT_WIDTH)
+        .height(SAVED_APP_RUN_PROMPT_HEIGHT);
+    Some(settings_modal_overlay(None, close, container(card).padding(12)))
 }
 
 fn build_saved_app_run_inputs(
     i18n: crate::app::i18n::I18n,
     prompt: &state::WorkflowRunPromptDraft,
 ) -> Element<'_, Message> {
-    let mut rows = column![].spacing(8).width(Length::Fill);
+    let mut rows = column![].spacing(12).width(Length::Fill);
 
     if prompt.loading {
         rows = rows
@@ -592,7 +566,7 @@ fn build_saved_app_run_input_field(
         saved_app_run_input_label(input)
     };
     let meta = row![
-        text(label).size(12).style(settings_muted_text_style),
+        text(label).size(15).width(Length::Fill),
         settings_value_badge(start_variable_value_type_label(&input.input_type)),
     ]
     .spacing(8)
@@ -611,9 +585,11 @@ fn build_saved_app_run_input_control(
 ) -> Element<'_, Message> {
     match input.input_type.as_str() {
         "checkbox" => row![
-            toggler(input.value.trim().eq_ignore_ascii_case("true")).on_toggle(move |value| {
-                Message::WorkflowTool(WorkflowMessage::SavedAppRunInputToggled(index, value))
-            }),
+            settings_toggle(input.value.trim().eq_ignore_ascii_case("true")).on_toggle(
+                move |value| {
+                    Message::WorkflowTool(WorkflowMessage::SavedAppRunInputToggled(index, value))
+                }
+            ),
             text(saved_app_run_input_placeholder(i18n, input))
                 .size(12)
                 .style(settings_muted_text_style),
@@ -622,28 +598,21 @@ fn build_saved_app_run_input_control(
         .align_y(Alignment::Center)
         .into(),
         "select" if !input.options.is_empty() => {
-            let options = input.options.clone();
             let selected =
-                options.iter().find(|option| option.as_str() == input.value.trim()).cloned();
-            pick_list(options, selected, move |value| {
+                input.options.iter().find(|option| option.as_str() == input.value.trim()).cloned();
+            settings_select(input.options.iter().cloned(), selected, move |value| {
                 Message::WorkflowTool(WorkflowMessage::SavedAppRunInputChanged(index, value))
             })
-            .padding([9, 12])
-            .text_size(13)
-            .style(settings_pick_list_style)
-            .menu_style(settings_pick_list_menu_style)
             .width(Length::Fill)
             .into()
         }
-        _ => text_input(saved_app_run_input_placeholder(i18n, input), &input.value)
-            .on_input(move |value| {
+        _ => workflow_text_input(
+            saved_app_run_input_placeholder(i18n, input),
+            &input.value,
+            move |value| {
                 Message::WorkflowTool(WorkflowMessage::SavedAppRunInputChanged(index, value))
-            })
-            .padding([9, 12])
-            .size(13)
-            .style(settings_text_input_style)
-            .width(Length::Fill)
-            .into(),
+            },
+        ),
     }
 }
 
@@ -668,19 +637,6 @@ fn saved_app_run_input_placeholder(
         "file-list" => i18n.__("输入文件 URL 或路径，逗号分隔"),
         _ if !input.hint.trim().is_empty() => input.hint.as_str(),
         _ => i18n.__("请输入"),
-    }
-}
-
-fn workflow_run_prompt_error_style(theme: &Theme) -> iced::widget::container::Style {
-    iced::widget::container::Style {
-        background: Some(Background::Color(theme.extended_palette().danger.weak.color)),
-        text_color: Some(theme.extended_palette().danger.strong.color),
-        border: Border {
-            radius: 8.0.into(),
-            width: 1.0,
-            color: theme.extended_palette().danger.base.color.scale_alpha(0.5),
-        },
-        ..Default::default()
     }
 }
 

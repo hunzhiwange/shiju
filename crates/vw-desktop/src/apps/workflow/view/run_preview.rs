@@ -1,14 +1,13 @@
 //! Workflow saved app run preview overlay.
 
 use super::*;
+use crate::app::components::system_settings_common::settings_modal_card;
 use chrono::{Local, TimeZone};
 use iced::widget::{column, row};
 use state::{WorkflowRunNodePreview, WorkflowRunPreview, WorkflowRunStatus};
 
 const RUN_PREVIEW_WIDTH: f32 = 860.0;
 const RUN_PREVIEW_MAX_HEIGHT: f32 = 760.0;
-pub(super) const RUN_PREVIEW_SCROLLBAR_WIDTH: f32 = 4.0;
-const RUN_PREVIEW_SCROLL_GUTTER: f32 = 12.0;
 const RUN_PREVIEW_NODE_LABEL_WIDTH: f32 = 74.0;
 const RUN_PREVIEW_NODE_RAIL_WIDTH: f32 = 12.0;
 const RUN_PREVIEW_NODE_MAX_FIELDS: usize = 8;
@@ -110,63 +109,34 @@ pub(super) fn build_saved_app_run_preview_layer(
         ));
     }
 
-    let scroll_body = scrollable(container(body).width(Length::Fill).padding(iced::Padding {
-        top: 0.0,
-        right: RUN_PREVIEW_SCROLLBAR_WIDTH + RUN_PREVIEW_SCROLL_GUTTER,
-        bottom: 0.0,
-        left: 0.0,
-    }))
-    .direction(Direction::Vertical(
-        Scrollbar::new()
-            .width(RUN_PREVIEW_SCROLLBAR_WIDTH)
-            .scroller_width(RUN_PREVIEW_SCROLLBAR_WIDTH),
-    ))
-    .height(Length::Fill);
-
-    let mut header_actions = row![].spacing(10).align_y(Alignment::Center);
-    if let Some((label, action)) = preview_action {
+    let heading = settings_modal_header(
+        column![
+            text(i18n.__("运行预览")).size(20),
+            text(i18n.__("实时展示 Workflow 执行过程")).size(13).style(settings_muted_text_style),
+        ]
+        .spacing(4),
+        settings_close_button(close_message.clone()),
+    );
+    let header = column![heading, summary].spacing(12);
+    let footer = preview_action.map(|(label, action)| {
         let button_style = match action {
             WorkflowMessage::CancelSavedAppRun => danger_action_btn_style,
             WorkflowMessage::RetrySavedAppRunPreview => primary_action_btn_style,
             _ => rounded_action_btn_style,
         };
-        header_actions = header_actions.push(
+        row![
+            Space::new().width(Length::Fill),
             button(text(label).size(13))
                 .style(button_style)
                 .padding([8, 14])
                 .on_press(Message::WorkflowTool(action)),
-        );
-    }
-    header_actions = header_actions.push(settings_close_button(close_message.clone()));
-
-    let card = container(
-        column![
-            row![
-                column![
-                    text(i18n.__("运行预览")).size(18).line_height(1.0),
-                    text(i18n.__("实时展示 Workflow 执行过程"))
-                        .size(12)
-                        .style(settings_muted_text_style),
-                ]
-                .spacing(6)
-                .width(Length::Fill),
-                header_actions,
-            ]
-            .spacing(12)
-            .align_y(Alignment::Center),
-            summary,
-            scroll_body,
         ]
-        .spacing(18)
-        .width(Length::Fill),
-    )
-    .width(Length::Fixed(RUN_PREVIEW_WIDTH))
-    .height(Length::Shrink)
-    .max_height(RUN_PREVIEW_MAX_HEIGHT)
-    .padding([22, 24])
-    .style(workflow_run_preview_card_style);
-
-    settings_modal_overlay(None, close_message, card)
+        .into()
+    });
+    let card = settings_modal_layout(header, body, footer)
+        .width(RUN_PREVIEW_WIDTH)
+        .height(RUN_PREVIEW_MAX_HEIGHT);
+    settings_modal_overlay(None, close_message, container(card).padding(12))
 }
 
 /// 构建运行预览的“查看详细”弹窗：以只读、可滚动、可选中复制的编辑器展示完整内容。
@@ -177,61 +147,24 @@ pub(super) fn build_saved_app_run_detail_layer(
     let close_message = Message::WorkflowTool(WorkflowMessage::CloseSavedAppRunDetail);
 
     let editor = text_editor(&detail.content)
-        .size(13)
-        .padding([10, 12])
+        .font(iced::Font::DEFAULT)
+        .size(SETTINGS_CONTROL_TEXT_SIZE)
+        .padding(SETTINGS_CONTROL_PADDING)
         .height(Length::Fill)
         .on_action(|action| Message::WorkflowTool(WorkflowMessage::SavedAppRunDetailAction(action)))
-        .style(workflow_run_detail_editor_style);
-
-    let card = container(
+        .style(settings_text_editor_style);
+    let header = settings_modal_header(
         column![
-            row![
-                column![
-                    text(
-                        detail.title_source.map(|source| i18n.__(source)).unwrap_or(&detail.title)
-                    )
-                    .size(16)
-                    .line_height(1.1)
-                    .width(Length::Fill),
-                    text(i18n.__("可滚动并选中复制完整内容"))
-                        .size(12)
-                        .style(settings_muted_text_style),
-                ]
-                .spacing(6)
-                .width(Length::Fill),
-                settings_close_button(close_message.clone()),
-            ]
-            .spacing(12)
-            .align_y(Alignment::Center),
-            container(editor)
-                .width(Length::Fill)
-                .height(Length::Fill)
-                .padding(4)
-                .style(workflow_run_preview_node_style),
+            text(detail.title_source.map(|source| i18n.__(source)).unwrap_or(&detail.title))
+                .size(20),
+            text(i18n.__("可滚动并选中复制完整内容")).size(13).style(settings_muted_text_style),
         ]
-        .spacing(16)
-        .width(Length::Fill),
-    )
-    .width(Length::Fixed(760.0))
-    .height(Length::Fixed(560.0))
-    .padding([22, 24])
-    .style(workflow_run_preview_card_style);
-
-    settings_modal_overlay(None, close_message, card)
-}
-
-fn workflow_run_detail_editor_style(
-    theme: &Theme,
-    _status: text_editor::Status,
-) -> text_editor::Style {
-    let palette = theme.extended_palette();
-    text_editor::Style {
-        background: Background::Color(Color::TRANSPARENT),
-        border: Border { width: 0.0, color: Color::TRANSPARENT, radius: 0.0.into() },
-        value: theme.palette().text,
-        selection: theme.palette().primary.scale_alpha(0.30),
-        placeholder: palette.background.strong.color,
-    }
+        .spacing(4),
+        settings_close_button(close_message.clone()),
+    );
+    // The editor already scrolls internally so selection and copy keep their original behavior.
+    let card = settings_modal_card(column![header, editor].spacing(16)).width(760).height(560);
+    settings_modal_overlay(None, close_message, container(card).padding(12))
 }
 
 /// Wraps a labeled section so its heading hugs its content; sections themselves are
@@ -763,31 +696,6 @@ fn workflow_run_node_status_kind(status: Option<&str>) -> WorkflowPreviewStatusK
         Some("canceled") | Some("cancelled") => WorkflowPreviewStatusKind::Canceled,
         Some(_) => WorkflowPreviewStatusKind::Unknown,
         None => WorkflowPreviewStatusKind::Waiting,
-    }
-}
-
-pub(super) fn workflow_run_preview_card_style(theme: &Theme) -> iced::widget::container::Style {
-    let palette = theme.extended_palette();
-    let is_dark = is_dark_theme(theme);
-
-    iced::widget::container::Style {
-        text_color: Some(theme.palette().text),
-        background: Some(Background::Color(if is_dark {
-            palette.background.base.color.scale_alpha(0.98)
-        } else {
-            Color::WHITE
-        })),
-        border: Border {
-            width: 1.0,
-            color: palette.background.strong.color.scale_alpha(if is_dark { 0.56 } else { 0.18 }),
-            radius: 8.0.into(),
-        },
-        shadow: Shadow {
-            color: Color::BLACK.scale_alpha(if is_dark { 0.34 } else { 0.16 }),
-            offset: Vector::new(0.0, 12.0),
-            blur_radius: 28.0,
-        },
-        ..Default::default()
     }
 }
 

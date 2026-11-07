@@ -24,14 +24,13 @@ use crate::app::components::system_settings_common::{
     primary_action_btn_style, round_icon_btn_style, rounded_action_btn_style,
     settings_close_button, settings_modal_backdrop_style, settings_modal_card_style,
     settings_modal_header, settings_modal_layout, settings_modal_overlay,
-    settings_muted_text_style, settings_panel_style, settings_pick_list_menu_style,
-    settings_pick_list_style, settings_section_card, settings_segment_button_style,
+    settings_muted_text_style, settings_panel_style, settings_segment_button_style,
     settings_select, settings_text_editor_style, settings_text_input_style, settings_value_badge,
 };
 use iced::widget::{
-    Space, button, checkbox, container, image, mouse_area, pick_list, scrollable,
+    Space, button, checkbox, container, image, mouse_area, scrollable,
     scrollable::{Direction, Scrollbar},
-    slider, stack, svg, text, text_editor, text_input, toggler,
+    slider, stack, svg, text, text_editor, text_input,
     tooltip::{Position as TooltipPosition, Tooltip},
 };
 use iced::{Alignment, Background, Border, Color, Element, Length, Point, Shadow, Theme, Vector};
@@ -161,10 +160,6 @@ fn next_step_jump_card_style(
         text_color: theme.palette().text,
         ..Default::default()
     }
-}
-
-fn section_card<'a>(title: &'a str, description: &'a str) -> Element<'a, Message> {
-    settings_section_card(title, description).into()
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]

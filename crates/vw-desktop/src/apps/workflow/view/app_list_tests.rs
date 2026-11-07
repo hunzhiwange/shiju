@@ -333,9 +333,6 @@ fn workflow_run_preview_builds_running_success_and_error_states() {
     );
     assert_eq!(run_preview_run_id_label(&multi), "run-multi");
 
-    // The scrollbar gutter must stay pinned at the repo-mandated 4px width.
-    assert_eq!(RUN_PREVIEW_SCROLLBAR_WIDTH, 4.0);
-
     // Every node status kind resolves to a chip style with a visible color in both themes,
     // and a distinct accent color so dark mode stays readable.
     let kinds = [
@@ -347,7 +344,6 @@ fn workflow_run_preview_builds_running_success_and_error_states() {
         WorkflowPreviewStatusKind::Unknown,
     ];
     for theme in [Theme::Light, Theme::Dark] {
-        assert!(workflow_run_preview_card_style(&theme).background.is_some());
         assert!(workflow_run_preview_node_style(&theme).background.is_some());
         assert!(workflow_run_preview_output_style(&theme).background.is_some());
         for kind in kinds {
@@ -722,7 +718,6 @@ fn saved_app_styles_cover_light_dark_and_button_statuses() {
     assert!(saved_app_card_container_style(&light).background.is_some());
     assert!(saved_app_card_container_style(&dark).background.is_some());
     assert!(saved_app_name_text_style(&dark).color.is_some());
-    assert!(workflow_run_prompt_error_style(&light).background.is_some());
 
     let enabled_hovered = saved_app_action_item_style(&light, button::Status::Hovered, true, true);
     let enabled_pressed = saved_app_action_item_style(&light, button::Status::Pressed, false, true);

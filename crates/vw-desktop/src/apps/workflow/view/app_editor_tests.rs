@@ -85,7 +85,6 @@ fn app_editor_modal_renders_inactive_app_with_matching_copy_marker() {
     let element = build_app_editor_modal(crate::app::i18n::I18n::new(Default::default()), &state);
 
     assert_eq!(element.as_widget().size(), iced::Size::new(Length::Fill, Length::Fill));
-    assert_eq!(element.as_widget().children().len(), 3);
 }
 
 #[test]

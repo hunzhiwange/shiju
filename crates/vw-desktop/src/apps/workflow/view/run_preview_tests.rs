@@ -380,7 +380,6 @@ fn run_preview_node_status_aliases_map_to_labels_and_kinds() {
 #[test]
 fn run_preview_styles_keep_visible_backgrounds_and_opaque_accent_text() {
     for theme in [Theme::Light, Theme::Dark] {
-        assert!(workflow_run_preview_card_style(&theme).background.is_some());
         assert!(workflow_run_preview_node_style(&theme).background.is_some());
         assert!(workflow_run_preview_output_style(&theme).background.is_some());
         assert!(workflow_run_preview_output_empty_style(&theme).background.is_some());
@@ -395,10 +394,6 @@ fn run_preview_styles_keep_visible_backgrounds_and_opaque_accent_text() {
                 .background
                 .is_some()
         );
-
-        let editor = workflow_run_detail_editor_style(&theme, text_editor::Status::Active);
-        assert_eq!(editor.border.width, 0.0);
-        assert_eq!(editor.background, Background::Color(Color::TRANSPARENT));
 
         for kind in [
             WorkflowPreviewStatusKind::Running,

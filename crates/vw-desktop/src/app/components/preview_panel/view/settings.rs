@@ -22,9 +22,10 @@ use crate::app::components::system_settings_common::{
     settings_modal_card, settings_modal_overlay, settings_muted_text_style, settings_panel,
     settings_pick_list_menu_style, settings_pick_list_style, settings_value_badge,
 };
-use crate::app::message::editor::EditorMessage;
+use crate::app::components::system_settings_editor::metrics_slider;
+use crate::app::message::editor::{EditorMessage, metrics};
 use crate::app::{App, Message};
-use iced::widget::{button, checkbox, column, container, pick_list, row, slider, text};
+use iced::widget::{button, checkbox, column, container, pick_list, row, text};
 use iced::{Alignment, Element, Length};
 
 use super::super::tabs::{DisplayLanguage, all_languages};
@@ -51,9 +52,9 @@ pub(super) enum SettingsControl {
 pub(super) fn control_message(control: SettingsControl) -> Message {
     let message = match control {
         SettingsControl::Close => EditorMessage::ToggleSettings,
-        SettingsControl::FontSize(value) => EditorMessage::FontSizeChanged(value),
+        SettingsControl::FontSize(value) => EditorMessage::FontSizePreview(value),
         SettingsControl::AutoLineHeight(enabled) => EditorMessage::ToggleAutoLineHeight(enabled),
-        SettingsControl::LineHeight(value) => EditorMessage::LineHeightChanged(value),
+        SettingsControl::LineHeight(value) => EditorMessage::LineHeightPreview(value),
         SettingsControl::Language(language) => EditorMessage::LanguageChanged(language),
         SettingsControl::FollowSystemTheme(enabled) => {
             EditorMessage::ToggleFollowSystemTheme(enabled)
@@ -118,9 +119,9 @@ pub(super) fn line_height_badge_label(line_height: f32) -> String {
 /// # 消息处理
 ///
 /// 所有 UI 交互都会生成 `Message::Editor` 消息，包含相应的 `EditorMessage` 变体：
-/// - `FontSizeChanged` - 字号变更
+/// - `FontSizePreview` - 字号变更
 /// - `ToggleAutoLineHeight` - 切换自动行高
-/// - `LineHeightChanged` - 行高变更
+/// - `LineHeightPreview` - 行高变更
 /// - `LanguageChanged` - 语言变更
 /// - `ToggleFollowSystemTheme` - 切换跟随系统主题
 /// - `ThemeChanged` - 主题变更
@@ -152,6 +153,7 @@ pub fn build_settings_overlay<'a>(
         .into()
     }
 
+    let displayed = metrics::displayed(app);
     let close_message = control_message(SettingsControl::Close);
     let language_pick =
         pick_list(all_languages(), Some(DisplayLanguage(app.current_language)), |l| {
@@ -192,11 +194,11 @@ pub fn build_settings_overlay<'a>(
                     crate::app::i18n::I18n::new(app.desktop_locale).__("字号"),
                     crate::app::i18n::I18n::new(app.desktop_locale).__("调整编辑器基础字体大小。"),
                     row![
-                        slider(10.0..=30.0, app.current_font_size, |value| {
+                        metrics_slider(10.0..=30.0, displayed.font_size, |value| {
                             control_message(SettingsControl::FontSize(value))
                         })
                         .width(Length::Fill),
-                        settings_value_badge(font_size_badge_label(app.current_font_size)),
+                        settings_value_badge(font_size_badge_label(displayed.font_size)),
                     ]
                     .spacing(12)
                     .align_y(Alignment::Center),
@@ -206,7 +208,7 @@ pub fn build_settings_overlay<'a>(
                     crate::app::i18n::I18n::new(app.desktop_locale).__("自动行高"),
                     crate::app::i18n::I18n::new(app.desktop_locale)
                         .__("启用后根据字体大小自动匹配行距。"),
-                    checkbox(app.auto_adjust_line_height)
+                    checkbox(displayed.auto_line_height)
                         .label(crate::app::i18n::I18n::new(app.desktop_locale).__("启用"))
                         .on_toggle(|enabled| {
                             control_message(SettingsControl::AutoLineHeight(enabled))
@@ -219,11 +221,11 @@ pub fn build_settings_overlay<'a>(
                     crate::app::i18n::I18n::new(app.desktop_locale)
                         .__("关闭自动行高后可手动微调阅读密度。"),
                     row![
-                        slider(10.0..=50.0, app.current_line_height, |value| {
+                        metrics_slider(10.0..=50.0, displayed.line_height, |value| {
                             control_message(SettingsControl::LineHeight(value))
                         })
                         .width(Length::Fill),
-                        settings_value_badge(line_height_badge_label(app.current_line_height)),
+                        settings_value_badge(line_height_badge_label(displayed.line_height)),
                     ]
                     .spacing(12)
                     .align_y(Alignment::Center),

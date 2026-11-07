@@ -18,9 +18,19 @@ use crate::app::components::system_settings_common::{
     settings_page_intro, settings_pick_list_menu_style, settings_pick_list_style,
     settings_section_card, settings_section_content, settings_value_badge,
 };
+use crate::app::message::editor::{EditorMessage, metrics};
 use crate::app::{App, Message, message};
-use iced::widget::{checkbox, column, container, pick_list, row, slider, text};
+use iced::widget::{Slider, checkbox, column, container, pick_list, row, slider, text};
 use iced::{Alignment, Element, Length};
+use std::ops::RangeInclusive;
+
+pub(crate) fn metrics_slider(
+    range: RangeInclusive<f32>,
+    value: f32,
+    on_preview: impl Fn(f32) -> Message + 'static,
+) -> Slider<'static, f32, Message> {
+    slider(range, value, on_preview).on_release(Message::Editor(EditorMessage::CommitMetrics))
+}
 
 fn field_row<'a>(
     label: &'static str,
@@ -104,12 +114,13 @@ pub(crate) fn content(app: &App) -> Element<'_, Message> {
         theme_pick,
     );
 
+    let displayed = metrics::displayed(app);
     let size_slider = row![
-        slider(10.0..=30.0, app.current_font_size, |v| {
-            Message::Editor(message::EditorMessage::FontSizeChanged(v))
+        metrics_slider(10.0..=30.0, displayed.font_size, |v| {
+            Message::Editor(message::EditorMessage::FontSizePreview(v))
         })
         .width(Length::Fixed(220.0)),
-        settings_value_badge(format!("{:.0}px", app.current_font_size))
+        settings_value_badge(format!("{:.0}px", displayed.font_size))
     ]
     .spacing(16)
     .align_y(Alignment::Center);
@@ -121,11 +132,11 @@ pub(crate) fn content(app: &App) -> Element<'_, Message> {
     );
 
     let line_height_slider = row![
-        slider(10.0..=60.0, app.current_line_height, |v| {
-            Message::Editor(message::EditorMessage::LineHeightChanged(v))
+        metrics_slider(10.0..=60.0, displayed.line_height, |v| {
+            Message::Editor(message::EditorMessage::LineHeightPreview(v))
         })
         .width(Length::Fixed(220.0)),
-        settings_value_badge(format!("{:.1}px", app.current_line_height))
+        settings_value_badge(format!("{:.1}px", displayed.line_height))
     ]
     .spacing(16)
     .align_y(Alignment::Center);
@@ -139,7 +150,7 @@ pub(crate) fn content(app: &App) -> Element<'_, Message> {
     let auto_line_height = field_row(
         crate::app::i18n::I18n::new(app.desktop_locale).__("自动行高"),
         crate::app::i18n::I18n::new(app.desktop_locale).__("根据字体大小自动推导更合适的行高。"),
-        checkbox(app.auto_adjust_line_height)
+        checkbox(displayed.auto_line_height)
             .label(crate::app::i18n::I18n::new(app.desktop_locale).__("根据字体大小自动调整"))
             .on_toggle(|v| Message::Editor(message::EditorMessage::ToggleAutoLineHeight(v)))
             .style(settings_checkbox_style),

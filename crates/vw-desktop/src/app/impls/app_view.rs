@@ -149,6 +149,15 @@ impl App {
                 .into()
         };
 
+        let main_view = if self.show_preview_settings
+            && !self.show_system_settings
+            && matches!(self.screen, Screen::Project | Screen::Preview)
+        {
+            components::preview_panel::build_settings_overlay(self, main_view)
+        } else {
+            main_view
+        };
+
         // 如果通知面板已展开，则在主视图之上叠加通知组件
         // 通知面板定位在右下角，带有适当的内边距
         let main_view: Element<'_, Message> = if self.notifications_expanded {

@@ -13,6 +13,7 @@ use iced::{Task, Theme};
 use iced_code_editor::i18n::Language;
 use iced_code_editor::theme;
 
+pub(crate) mod metrics;
 pub(crate) mod persistence;
 
 use persistence::EditorSettingsPatch;
@@ -37,11 +38,11 @@ pub enum EditorMessage {
     /// 字体变更消息（参数：字体名称）
     FontChanged(String),
 
-    /// 字号变更消息（参数：字号大小，单位为点）
-    FontSizeChanged(f32),
-
-    /// 行高变更消息（参数：行高值）
-    LineHeightChanged(f32),
+    /// 预览滑块值，等释放或停顿后再更新编辑器度量。
+    FontSizePreview(f32),
+    LineHeightPreview(f32),
+    CommitMetrics,
+    CommitMetricsDue(u64),
 
     /// 编辑器界面语言变更（参数：语言类型）
     LanguageChanged(Language),
@@ -123,7 +124,7 @@ pub fn update(app: &mut App, message: EditorMessage) -> Task<Message> {
         // 切换预览设置面板的显示/隐藏状态
         EditorMessage::ToggleSettings => {
             app.show_preview_settings = !app.show_preview_settings;
-            Task::none()
+            if app.show_preview_settings { Task::none() } else { metrics::commit(app, None) }
         }
 
         // 打开搜索对话框（仅限当前激活的预览标签页）
@@ -165,75 +166,23 @@ pub fn update(app: &mut App, message: EditorMessage) -> Task<Message> {
         // 字体变更（当前未实现具体逻辑）
         EditorMessage::FontChanged(_) => Task::none(),
 
-        // 字号变更：更新所有编辑器实例并持久化配置
-        EditorMessage::FontSizeChanged(size) => {
-            // 更新当前字号设置
-            app.current_font_size = size;
-
-            // 如果启用了自动行高，则按字号 1.4 倍计算行高
-            if app.auto_adjust_line_height {
-                app.current_line_height = size * 1.4;
-            }
-
-            // 更新所有预览标签页的编辑器字号和行高
-            for tab in app.preview_tabs.iter_mut() {
-                let previous_line_height = tab.editor.inner.line_height();
-                tab.editor.set_font_size(app.current_font_size);
-                if app.auto_adjust_line_height {
-                    tab.editor.set_line_height(app.current_line_height.clamp(10.0, 60.0));
-                } else {
-                    tab.editor.set_line_height(previous_line_height);
-                }
-            }
-
-            // 更新 Git 复制模态框中的代码编辑器
-            app.git_copy_modal_code_editor.set_font_size(
-                app.current_font_size.clamp(10.0, 30.0),
-                app.auto_adjust_line_height,
-            );
-            if app.auto_adjust_line_height {
-                app.git_copy_modal_code_editor
-                    .set_line_height(app.current_line_height.clamp(10.0, 60.0));
-            }
-
-            let patch = EditorSettingsPatch::metrics(app);
-            persistence::enqueue(app, patch)
+        EditorMessage::FontSizePreview(size) => {
+            app.editor_metrics_preview.font_size = Some(size);
+            app.editor_metrics_preview.schedule_commit()
         }
-        // 行高变更：更新所有编辑器实例并持久化配置
-        EditorMessage::LineHeightChanged(height) => {
-            // 更新当前行高设置，并禁用自动行高调整
-            app.current_line_height = height;
-            app.auto_adjust_line_height = false;
-
-            // 更新所有预览标签页的编辑器行高（限制在 10.0-60.0 范围内）
-            for tab in app.preview_tabs.iter_mut() {
-                tab.editor.set_line_height(height.clamp(10.0, 60.0));
-            }
-
-            // 更新 Git 复制模态框中的代码编辑器行高
-            app.git_copy_modal_code_editor.set_line_height(height.clamp(10.0, 60.0));
-
-            let patch = EditorSettingsPatch::metrics(app);
-            persistence::enqueue(app, patch)
+        EditorMessage::LineHeightPreview(height) => {
+            app.editor_metrics_preview.line_height = Some(height);
+            app.editor_metrics_preview.schedule_commit()
         }
-
-        // 切换自动行高调整模式
-        EditorMessage::ToggleAutoLineHeight(auto) => {
-            app.auto_adjust_line_height = auto;
-
-            // 如果启用自动行高，则按字号 1.4 倍计算并更新所有编辑器
-            if auto {
-                app.current_line_height = app.current_font_size * 1.4;
-                for tab in app.preview_tabs.iter_mut() {
-                    tab.editor.set_line_height(app.current_line_height.clamp(10.0, 60.0));
-                }
-                app.git_copy_modal_code_editor
-                    .set_line_height(app.current_line_height.clamp(10.0, 60.0));
+        EditorMessage::CommitMetrics => metrics::commit(app, None),
+        EditorMessage::CommitMetricsDue(generation) => {
+            if app.editor_metrics_preview.generation == generation {
+                metrics::commit(app, None)
+            } else {
+                Task::none()
             }
-
-            let patch = EditorSettingsPatch::metrics(app);
-            persistence::enqueue(app, patch)
         }
+        EditorMessage::ToggleAutoLineHeight(auto) => metrics::commit(app, Some(auto)),
 
         // 编辑器界面语言变更：更新所有编辑器实例的语言设置
         EditorMessage::LanguageChanged(lang) => {

@@ -148,7 +148,11 @@ pub fn update(app: &mut App, message: ViewMessage) -> Task<Message> {
         ViewMessage::ToggleSystemSettings => {
             app.show_system_settings = !app.show_system_settings;
             app.system_settings_help_tab = None;
-            Task::none()
+            if app.show_system_settings {
+                Task::none()
+            } else {
+                crate::app::message::editor::metrics::commit(app, None)
+            }
         }
         ViewMessage::OpenAcpSettings => {
             app.show_system_settings = true;
@@ -192,20 +196,26 @@ pub fn update(app: &mut App, message: ViewMessage) -> Task<Message> {
         ViewMessage::RestartApp => {
             app.active_menu = None;
             #[cfg(not(target_arch = "wasm32"))]
-            let editor_saves = {
+            let (editor_commit, editor_saves) = {
                 if !begin_shutdown(&mut app.shutdown_requested) {
                     return Task::none();
                 }
-                app.editor_config_persistence.wait_for_idle()
+                let commit = crate::app::message::editor::metrics::commit(app, None);
+                (commit, app.editor_config_persistence.wait_for_idle())
             };
-            Task::perform(
-                async move {
-                    #[cfg(not(target_arch = "wasm32"))]
-                    wait_for_editor_settings_saves(editor_saves).await;
-                    restart_application()
-                },
-                |res| Message::View(ViewMessage::RestartAppFinished(res)),
-            )
+            #[cfg(target_arch = "wasm32")]
+            let editor_commit = Task::none();
+            Task::batch([
+                editor_commit,
+                Task::perform(
+                    async move {
+                        #[cfg(not(target_arch = "wasm32"))]
+                        wait_for_editor_settings_saves(editor_saves).await;
+                        restart_application()
+                    },
+                    |res| Message::View(ViewMessage::RestartAppFinished(res)),
+                ),
+            ])
         }
         ViewMessage::RestartAppFinished(res) => match res {
             Ok(()) => {
@@ -737,6 +747,7 @@ fn shutdown(app: &mut App, window_id: Option<iced::window::Id>) -> Task<Message>
 
     arm_shutdown_exit_watchdog();
     let requests = take_shutdown_stream_requests(app);
+    let editor_commit = crate::app::message::editor::metrics::commit(app, None);
     let editor_saves = app.editor_config_persistence.wait_for_idle();
     app.work_browser_controller.shutdown();
     if let Some(manager) = app.lsp_manager.as_mut() {
@@ -748,6 +759,7 @@ fn shutdown(app: &mut App, window_id: Option<iced::window::Id>) -> Task<Message>
     app.independent_webview_children.clear();
 
     Task::batch([
+        editor_commit,
         window_id
             .map_or_else(Task::none, |id| iced::window::set_mode(id, iced::window::Mode::Hidden)),
         Task::perform(

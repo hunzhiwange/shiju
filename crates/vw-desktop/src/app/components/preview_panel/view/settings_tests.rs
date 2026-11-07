@@ -46,12 +46,12 @@ fn close_control_maps_to_toggle_settings() {
 #[test]
 fn numeric_controls_preserve_slider_values() {
     match editor_message(control_message(SettingsControl::FontSize(17.25))) {
-        EditorMessage::FontSizeChanged(value) => assert_eq!(value, 17.25),
+        EditorMessage::FontSizePreview(value) => assert_eq!(value, 17.25),
         other => panic!("expected font size change, got {other:?}"),
     }
 
     match editor_message(control_message(SettingsControl::LineHeight(28.5))) {
-        EditorMessage::LineHeightChanged(value) => assert_eq!(value, 28.5),
+        EditorMessage::LineHeightPreview(value) => assert_eq!(value, 28.5),
         other => panic!("expected line height change, got {other:?}"),
     }
 }

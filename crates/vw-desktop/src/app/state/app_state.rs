@@ -649,6 +649,7 @@ pub struct App {
     pub(crate) editor_follow_system_theme: bool,
     /// 编辑器主题
     pub(crate) editor_theme: Theme,
+    pub(crate) editor_metrics_preview: crate::app::message::editor::metrics::MetricsPreview,
     pub(crate) editor_config_persistence:
         crate::app::message::editor::persistence::ConfigPersistence,
     /// 展开的差异块列表（文件路径，块索引）

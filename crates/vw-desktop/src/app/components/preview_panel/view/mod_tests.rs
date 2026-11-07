@@ -50,12 +50,12 @@ fn view_builds_project_preview_with_tabs_and_content() {
 }
 
 #[test]
-fn view_builds_settings_overlay_when_enabled() {
+fn app_view_builds_preview_settings_overlay_when_enabled() {
     let mut app = app();
     app.screen = Screen::Preview;
     app.show_preview_settings = true;
 
-    keep(view(&app));
+    keep(app.view());
 }
 
 #[test]

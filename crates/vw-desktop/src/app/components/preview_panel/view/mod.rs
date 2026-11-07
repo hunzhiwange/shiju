@@ -144,20 +144,28 @@ pub fn view(app: &App) -> Element<'_, Message> {
             trace_row
         };
 
+        let trace_row = if app.active_preview_path.is_some() {
+            let settings = preview_control_tooltip(
+                button(
+                    small_icon_svg(Icon::Gear).style(|theme, _status| fullscreen_icon_style(theme)),
+                )
+                .padding(4)
+                .style(overlay_icon_button_style)
+                .on_press(Message::Editor(message::EditorMessage::ToggleSettings))
+                .into(),
+                crate::app::i18n::I18n::new(app.desktop_locale).__("编辑器设置"),
+            );
+            trace_row.push(Space::new().width(Length::Fill)).push(settings)
+        } else {
+            trace_row
+        };
         container(trace_row).padding([0, 4]).width(Length::Fill).into()
-    };
-
-    let content_base = build_content_base(app);
-
-    let content = if app.show_preview_settings {
-        build_settings_overlay(app, content_base)
-    } else {
-        content_base
     };
 
     let menu_ui = build_menu_ui(app);
 
-    let content_container = container(content).width(Length::Fill).height(Length::Fill);
+    let content_container =
+        container(build_content_base(app)).width(Length::Fill).height(Length::Fill);
     let mut layout = if let Some(tools_left) = header_tools {
         column![container(tools_left).padding([0, 4]), content_container].spacing(6)
     } else {
@@ -537,7 +545,7 @@ fn overlay_icon_button_style(theme: &Theme, status: button::Status) -> button::S
 ///
 /// 本函数不吞掉底层错误；没有显式错误通道时，会用空集合、`None` 或现有 UI 状态表达不可用结果。
 fn fullscreen_controls<'a>(app: &'a App) -> Element<'a, Message> {
-    let half_button: Element<'a, Message> = fullscreen_control_tooltip(
+    let half_button: Element<'a, Message> = preview_control_tooltip(
         button(
             svg::Svg::new(crate::app::assets::get_icon(Icon::LayoutTextWindow))
                 .width(Length::Fixed(11.0))
@@ -561,7 +569,7 @@ fn fullscreen_controls<'a>(app: &'a App) -> Element<'a, Message> {
         crate::app::i18n::I18n::new(app.desktop_locale).__("全屏")
     };
 
-    let fullscreen_button: Element<'a, Message> = fullscreen_control_tooltip(
+    let fullscreen_button: Element<'a, Message> = preview_control_tooltip(
         button(
             svg::Svg::new(crate::app::assets::get_icon(fullscreen_icon))
                 .width(Length::Fixed(11.0))
@@ -580,7 +588,7 @@ fn fullscreen_controls<'a>(app: &'a App) -> Element<'a, Message> {
     row![half_button, fullscreen_button].spacing(4).align_y(iced::Alignment::Center).into()
 }
 
-fn fullscreen_control_tooltip<'a>(
+fn preview_control_tooltip<'a>(
     content: Element<'a, Message>,
     label: &'a str,
 ) -> Element<'a, Message> {

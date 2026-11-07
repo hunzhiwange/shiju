@@ -42,4 +42,5 @@ mod view_tests;
 #[path = "widgets_tests.rs"]
 mod widgets_tests;
 
+pub(crate) use view::build_settings_overlay;
 pub use view::view;

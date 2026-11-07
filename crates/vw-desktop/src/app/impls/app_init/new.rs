@@ -736,6 +736,7 @@ impl App {
             active_theme_skin: None,
             editor_follow_system_theme: cfg_editor_follow_system_theme,
             editor_theme: cfg_editor_theme,
+            editor_metrics_preview: Default::default(),
             editor_config_persistence: Default::default(),
 
             // ========== Git状态 ==========

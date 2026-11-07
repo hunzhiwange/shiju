@@ -204,3 +204,57 @@ impl GeminiFiles {
         )
     }
 }
+
+/// Decode existing dotenv/settings without consulting process credentials or login files.
+pub fn import(env: &[u8], config: Option<&[u8]>) -> Result<GeminiProfile, WriteError> {
+    super::import::reject_placeholders(env)?;
+    let text = std::str::from_utf8(env).map_err(|_| WriteError::InvalidResource)?;
+    let mut values = std::collections::BTreeMap::new();
+    for (key, raw) in super::live::patch_dotenv::entries(text) {
+        if !matches!(key.as_str(), "GEMINI_API_KEY" | "GOOGLE_GEMINI_BASE_URL" | "GEMINI_MODEL") {
+            continue;
+        }
+        let value =
+            if let Some(quote) = raw.chars().next().filter(|c| matches!(c, '\'' | '"' | '`')) {
+                let tail = &raw[quote.len_utf8()..];
+                let end = tail.find(quote).ok_or(WriteError::InvalidResource)?;
+                let rest = tail[end + quote.len_utf8()..].trim();
+                if !rest.is_empty() && !rest.starts_with('#') {
+                    return Err(WriteError::InvalidResource);
+                }
+                let inner = &tail[..end];
+                if quote == '"' && inner.contains(['\\', '$']) {
+                    return Err(WriteError::InvalidResource);
+                }
+                inner.to_string()
+            } else {
+                if raw.contains('$') {
+                    return Err(WriteError::InvalidResource);
+                }
+                raw.split('#').next().unwrap_or_default().trim().to_string()
+            };
+        values.insert(key, value);
+    }
+    let doc = super::live::patch_json::object_value(config.unwrap_or(b"{}"))
+        .map_err(|_| WriteError::InvalidResource)?;
+    let key = values.remove("GEMINI_API_KEY").filter(|s| !s.is_empty());
+    let endpoint = values.remove("GOOGLE_GEMINI_BASE_URL").filter(|s| !s.is_empty());
+    let config = match (key, endpoint) {
+        (None, None) => GeminiConfig::Official {},
+        (Some(api_key), base_url) => GeminiConfig::ThirdParty {
+            api_key,
+            base_url: base_url
+                .unwrap_or_else(|| "https://generativelanguage.googleapis.com".into()),
+        },
+        _ => return Err(WriteError::InvalidResource),
+    };
+    let native_model = match doc.pointer("/model/name") {
+        None | Some(Value::Null) => None,
+        Some(Value::String(s)) => Some(s.clone()),
+        _ => return Err(WriteError::InvalidResource),
+    };
+    let model = values.remove("GEMINI_MODEL").or(native_model);
+    let p = GeminiProfile { name: "default".into(), config, model };
+    settings(&p)?;
+    Ok(p)
+}

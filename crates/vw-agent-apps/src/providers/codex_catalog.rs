@@ -226,3 +226,50 @@ impl CodexFiles {
         )
     }
 }
+
+/// Decode native routing/auth without copying login tokens into provider records.
+pub fn import(config: Option<&[u8]>, auth: Option<&[u8]>) -> Result<CodexProfile, WriteError> {
+    super::import::reject_placeholders(config.unwrap_or_default())?;
+    super::import::reject_placeholders(auth.unwrap_or_default())?;
+    if config.is_none() && auth.is_none() {
+        return Err(WriteError::InvalidResource);
+    }
+    let text =
+        std::str::from_utf8(config.unwrap_or_default()).map_err(|_| WriteError::InvalidResource)?;
+    let doc: toml_edit::DocumentMut = text.parse().map_err(|_| WriteError::InvalidResource)?;
+    if doc.get("cli_auth_credentials_store").is_some_and(|v| v.as_str() != Some("file")) {
+        return Err(WriteError::InvalidResource);
+    }
+    let auth = super::live::patch_json::object_value(auth.unwrap_or(b"{}"))
+        .map_err(|_| WriteError::InvalidResource)?;
+    let api_key = match auth.get("OPENAI_API_KEY") {
+        Some(Value::String(key)) if !key.trim().is_empty() => Some(key.clone()),
+        Some(Value::String(_)) | Some(Value::Null) | None => None,
+        _ => return Err(WriteError::InvalidResource),
+    };
+    if let Some(key) = &api_key {
+        let marker = key.trim();
+        if key.len() > 8192
+            || key.chars().any(char::is_control)
+            || matches!(marker, "[redacted]" | "<redacted>")
+            || marker.chars().all(|c| matches!(c, '*' | '•'))
+        {
+            return Err(WriteError::InvalidResource);
+        }
+    }
+    if let Some(id) = doc.get("model_provider") {
+        let id = id.as_str().ok_or(WriteError::InvalidResource)?;
+        if id != "openai"
+            && doc
+                .get("model_providers")
+                .and_then(|v| v.get(id))
+                .and_then(toml_edit::Item::as_table_like)
+                .is_none()
+        {
+            return Err(WriteError::InvalidResource);
+        }
+    }
+    // This flag asks the existing login owner to retain native login at activation;
+    // it is not a saved login, auth binding, or claim that switching has occurred.
+    Ok(CodexProfile { name: "default".into(), config: text.into(), api_key, preserve_login: true })
+}

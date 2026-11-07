@@ -173,8 +173,7 @@ pub(super) fn provider_config_home(
 #[cfg(target_os = "macos")]
 pub(crate) fn recover_providers_on_startup() -> Result<(), String> {
     if let Some(path) = std::env::var_os("SHIJU_AGENT_APPS_ACCESS_FILE") {
-        return access::recover_provider_policy(std::path::Path::new(&path))
-            .map_err(|_| "provider recovery policy unavailable".into());
+        return startup_provider_policy(std::path::Path::new(&path));
     }
     // The configured runtime root locates existing tenant policies only. Live
     // resource paths always come from previously persisted executor registration.
@@ -196,8 +195,7 @@ pub(crate) fn recover_providers_on_startup() -> Result<(), String> {
         }
         let path = entry.path().join("access.json");
         if path.try_exists().map_err(|_| "provider recovery policy unavailable")? {
-            access::recover_provider_policy(&path)
-                .map_err(|_| "provider recovery policy unavailable")?;
+            startup_provider_policy(&path)?;
         }
     }
     Ok(())
@@ -256,3 +254,15 @@ pub(super) fn authorize_provider_login(
 ) -> Result<(), axum::http::StatusCode> {
     access::authorize_provider_login(path, headers, tenant, target, account)
 }
+
+#[cfg(target_os = "macos")]
+fn startup_provider_policy(path: &std::path::Path) -> Result<(), String> {
+    access::recover_provider_policy(path).map_err(|_| "provider recovery policy unavailable")?;
+    let database = crate::global_database::GlobalDatabase::for_home(&crate::global::paths().home)
+        .map_err(|_| "provider import storage unavailable")?;
+    access::import_provider_policy(path, &database)
+        .map_err(|_| "provider import policy unavailable".into())
+}
+
+#[cfg(all(test, target_os = "macos"))]
+mod import_tests;

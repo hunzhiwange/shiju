@@ -231,3 +231,9 @@ mod agy;
 #[cfg(test)]
 #[path = "app_providers/agy_tests.rs"]
 mod agy_tests;
+
+#[path = "app_providers/import.rs"]
+mod import;
+#[cfg(test)]
+#[path = "app_providers/import_tests.rs"]
+mod import_tests;

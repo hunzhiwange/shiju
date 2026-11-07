@@ -196,3 +196,26 @@ impl GrokFiles {
         )
     }
 }
+
+/// Import only native provider configuration; MCP is not part of a supplier profile.
+/// Official login can be requested manually, but must not be recreated on startup.
+pub fn import(bytes: &[u8], startup: bool) -> Result<Option<GrokProfile>, WriteError> {
+    super::import::reject_placeholders(bytes)?;
+    let text = std::str::from_utf8(bytes).map_err(|_| WriteError::InvalidResource)?;
+    let mut doc: DocumentMut = text.parse().map_err(|_| WriteError::InvalidResource)?;
+    doc.remove("mcp_servers");
+    let official = doc.get("model").is_none() && doc.get("models").is_none();
+    if official && startup {
+        return Ok(None);
+    }
+    let p = GrokProfile {
+        name: if official { "Grok Official" } else { "default" }.into(),
+        config: if official {
+            GrokConfig::Official {}
+        } else {
+            GrokConfig::ThirdParty { toml: doc.to_string() }
+        },
+    };
+    settings(&p)?;
+    Ok(Some(p))
+}

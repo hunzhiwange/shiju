@@ -22,11 +22,32 @@ impl AppProviderStore {
         id: &str,
         p: &AgyProfile,
     ) -> Result<AppProviderSummary, String> {
+        self.agy_save_inner(t, id, p, false)
+    }
+    #[cfg(target_os = "macos")]
+    pub(crate) fn agy_insert(
+        &self,
+        t: &TenantScope,
+        id: &str,
+        p: &AgyProfile,
+    ) -> Result<AppProviderSummary, String> {
+        self.agy_save_inner(t, id, p, true)
+    }
+    fn agy_save_inner(
+        &self,
+        t: &TenantScope,
+        id: &str,
+        p: &AgyProfile,
+        create: bool,
+    ) -> Result<AppProviderSummary, String> {
         #[cfg(target_os = "macos")]
         vw_agent_apps::providers::agy::validate(p)?;
         let key = Self::key(AppId::Agy, id)?;
         let raw =
             self.settings.get(t, NAMESPACE, &key).map_err(|_| "provider storage unavailable")?;
+        if create && raw.is_some() {
+            return Err("application provider already exists".into());
+        }
         let mut row: Value = raw
             .as_ref()
             .map(|s| serde_json::from_str(s).map_err(|_| "invalid provider record"))

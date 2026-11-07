@@ -2073,3 +2073,45 @@ Gateway 使用真实回环 HTTP、正式 SDK、SQLite、管理员 policy、应�
 定向差异审查排除 cargo fmt 引起的 Dsh 纯格式差异；不纳入母任务状态、此前编号文件删除或其它计划，所有 plan.md 保持只读。正式证据保留；本编号任务在最终通过后删除且不提交其删除。下一步批次 44；Agy 的真实应用/UI 验收按所属边界另行开展。
 
 状态：**已完成（持久 profile 配置与授权终端选择边界）**。本阶段自身槽位 1 锁已释放，之前槽位 2 锁亦已释放，缓存保留；定向 diff/check、暂存审查和只读 plan.md 无差异检查通过。仅提交本任务代码、独立测试、必要父注册与本条证据。
+
+## 任务 44：从当前配置导入策略
+
+2026-11-07。批次 43 提交 `97767eeac` 与本文件正式验收已核对。母任务 1、3 已完成；母任务 2 完整迁移未收口，沿任务 1/provider-contracts.md 已登记的底座子计划 1–93 开工裁定消费真实接口。最初审查发现缺少部分原生导入器并登记阻塞；继续指令已明确授权在既有领域所有者补齐最小能力，解除阻塞。未修改任何只读 plan.md。
+
+### 来源与实现边界
+
+来源 `/Users/xiangmin/worker/code/cc-switch` HEAD 为 `ca58c0313360eae7c851fbd7553c1614c7af03e7`，rev-parse/status 均退出 0，来源干净。已读取 `services/provider/live.rs::{read_live_settings,import_default_config,should_import_default_config_on_startup}`、`commands/provider.rs::import_default_config_internal`、`lib.rs` 的启动导入调用、golden/import_rows.rs 的 first_run_* 测试，以及 Codex/Grok/Agy 原生读取、Grok 官方种子 ID 和 Dsh 的 get_providers/get_providers_from。RustCodeGraph status/explore 退出 0；图包含冻结 upstream，新增原生模块以定向源码读取补查。来源只读，未运行来源测试。
+
+- `vw-agent-apps/src/providers/import.rs` 只拥有分派和首次导入策略；应用解析仍归现有 Claude、Codex catalog、Gemini、Grok、Agy 及各增量应用模块。新增解码器解析原生输入，没有倒用写投影重建输入，没有新增路径/命令 API、第二套档案库或永久业务所有者。
+- `AppProviderStore::import_native` 使用同一租户命名空间及现有应用 CAS 保存。首次导入遇到任何既有目录行即跳过；主动导入也保护既有普通目录。无自动官方种子机制的应用不按名称猜测 seed。Grok 保留来源的主动官方例外：原生官方态保存 `grokbuild-official`，启动不重建；该官方条目单独存在不阻止主动导入自定义 default，自定义目录已存在则不覆盖或新增另一个 default。
+- OpenCode/OpenClaw/Hermes/Pi/OMP/Mcode/Kimi 分派到已交付的原生读取/declarations，主动导入仅新增缺失成员，已有行及其元数据不覆盖；启动跳过这些增量应用。Pi/OMP 使用各自 JSON/YAML 文件与既有有界路径规则，不经过通用 read_live_settings。
+- Codex 读取固定 config.toml/auth.json，只复制 API key 与原生配置，登录令牌不进入档案；preserveLogin 仅表达后续既有登录所有者保留原生登录的请求，没有创建登录绑定或声称已经切换。非 file 凭据存储、坏路由形状和占位凭据明确拒绝。Gemini 读取现有 .env/可选 settings.json，保留受支持凭据和模型；dotenv 不执行环境展开，无法无损解码的双引号转义明确拒绝。Grok 去除供应商外的 MCP 配置，拒绝残缺自定义模型表；Agy 只从既有 settings 的 model 创建原生登录卡，空模型不导入，不读取进程 key、不创建持久 profile。
+- Desktop 泛导入返回 HTTP 422 / use_claude_compatible_import，现有“从 Claude 导入兼容供应商”入口保留。Dsh 的来源 get_providers 会合并多个 profile 并解析凭据引用/环境回退，来源没有专用 import_dsh 导入入口，通用 import_default 对其增量模式直接跳过；本任务按继续授权的“有据拒绝”返回 HTTP 422 / dsh_native_profile_import_unsupported，没有把原生成员观察伪装为成功导入或读取任意环境凭据。
+- API 为 `POST /v1/app-providers/{app}/catalog/import`，DTO 为 targetHostId/trigger（manual 或 startup），SDK 为 `provider_import`。沿用分域 router、认证中间件与租户作用域；同时要求主机配置读、写权限，鉴权在存储/原生文件打开前完成。成功只返回 imported 数量；非法目标/权限/平台沿既有契约，存储故障 503、并发冲突 409、配置不可导入 422。SDK 敏感 token header 与无载荷错误沿现有模式，不回显档案、凭据或原生配置。
+- 真实 gateway bootstrap 既有启动恢复路径接到 `startup_provider_policy` → `access::import_provider_policy` → 同一 import_native。仅消费管理员 policy 中同一 grant 的读写授权、本地在线 host 和显式 tenant；缺失/坏配置延后且仅记录固定消息。导入不写 live、登录、全局 current/mode，不引入新的原生事务。未新增 UI；桌面入口由后续所属任务消费 SDK。
+
+### 验证
+
+红阶段动态槽位 1：`cargo test -p vw-agent-apps --lib cc04_import_ -- --nocapture` 编译接线成功，两个指定测试在业务策略断言失败，**0 passed / 2 failed，退出 101**；`cargo test -p vw-api-types --lib cc04_import_ -- --nocapture` **1 passed，退出 0**。初次 Gateway 验证发现新启动 helper 的 anyhow/String 转换编译错误，已修复；后续完整过滤验证通过。没有将找不到模块、零测试或历史结果计作行为证据。
+
+所有 Cargo 阶段均原子 mkdir 动态领取仓库共享槽位 **1**，记录任务/会话/PID；`CARGO_TARGET_DIR=/Users/xiangmin/worker/code/shiju/target/rust-slot-1`，`CARGO_BUILD_BUILD_DIR` 同路径，覆盖仓库 build-dir 而未另建构建空间。最终验证的确切命令和结果如下：
+
+| 确切命令 | 退出码 | 有效数量 |
+| --- | --- | --- |
+| `cargo fmt --all` | 0 | 格式化 |
+| `cargo test -p vw-agent-apps --lib cc04_import_ -- --nocapture` | 0 | 4 passed |
+| `cargo test -p vw-api-types --lib cc04_import_ -- --nocapture` | 0 | 1 passed |
+| `cargo test -p vw-agent --lib cc04_import_ -- --nocapture` | 0 | 7 passed |
+| `cargo test -p vw-gateway-client --lib cc04_import_ -- --nocapture` | 0 | 1 passed |
+| `cargo test -p vw-agent-apps --lib cc04_agy_ -- --nocapture` | 0 | 6 passed |
+| `cargo test -p vw-agent --lib cc04_agy_ -- --nocapture` | 0 | 2 passed |
+| `cargo test -p vw-agent --lib cc04_recovery_ -- --nocapture` | 0 | 1 passed |
+| `cargo clippy --all-targets --all-features -- -D warnings` | 0 | 非行为测试 |
+
+本任务 **13** 项、相邻回归 **9** 项，共 **22** 项去重通过，无忽略。
+
+真实回环 HTTP 使用正式 SDK、Gateway handler、鉴权 policy、租户 SQLite 与隔离 HOME；没有替代文件系统、存储、权限或业务所有者。覆盖五个默认导入应用的真实文件→目录、原生文件即时不变、坏原生文件下重复启动仍跳过、已有非 default 原生登录卡、Grok 主动/启动区别、Pi/OMP 专用增量、已有成员不覆盖、Desktop/Dsh 明确拒绝、错误 token/缺读权限/缺写权限无目录与原生副作用，以及异租户隔离。直接启动策略调用证明只有授权的空目录可以首次导入，随后原生变化不能覆盖档案。SDK 独立 HTTP fixture 验证请求路径/trigger/租户及错误敏感载荷丢弃；所有 key/token/login 都是假值。
+
+平台为实际 macOS **27.0 (26A428)**、**arm64**，crate **0.6.0**。已安装应用版本未查询；真实应用消费、真实登录/Keychain、网络上游、Iced 渲染和非 macOS **未验证**，不把隔离文件与 HTTP 证据扩展为真实应用端到端验收。Gateway 测试链接器有既有 `__eh_frame section too large` 提示，行为测试仍退出 0；强制 Clippy 结果见表，没有降低 lint 或修改链接参数。未运行无过滤全量 cargo test、fmt check、wasm 或 Makefile。
+
+状态：**已完成（统一目录导入策略与授权启动边界）**。差异/暂存检查及只读 plan.md 检查通过；仅提交本任务代码、独立测试、必要父注册和本条正式证据，排除母任务状态、此前编号文件删除、其它计划与 cargo fmt 产生的 Dsh 纯格式差异。所有阶段自身槽位 1 锁已释放，缓存保留；完成后删除本编号文件，不提交该删除。下一步批次 45。

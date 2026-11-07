@@ -429,3 +429,38 @@ pub(super) fn authorize_provider_login(
     }
     Ok(())
 }
+
+/// Import only empty exclusive catalogs for administrator-authorized startup hosts.
+#[cfg(target_os = "macos")]
+pub(super) fn import_provider_policy(
+    path: &Path,
+    database: &crate::global_database::GlobalDatabase,
+) -> Result<(), ()> {
+    use vw_api_types::{agent_apps::AppId, app_providers::import::ImportTrigger};
+    let policy = load(path)?;
+    for principal in &policy.principals {
+        for grant in &principal.grants {
+            if !grant.provider_config_read || !grant.provider_config_write {
+                continue;
+            }
+            let Some(host) = policy
+                .hosts
+                .iter()
+                .find(|h| h.id == grant.host_id && h.online && matches!(h.binding, Binding::Local))
+            else {
+                continue;
+            };
+            let tenant = TenantScope::new(&grant.platform_id, &grant.company_id).map_err(|_| ())?;
+            let store =
+                crate::app_providers::AppProviderStore::new(database.clone()).map_err(|_| ())?;
+            for app in [AppId::Claude, AppId::Codex, AppId::Gemini, AppId::GrokBuild, AppId::Agy] {
+                if store.import_native(&tenant, &host.home, app, ImportTrigger::Startup).is_err() {
+                    // Missing, unsupported and proxy-owned native files are all
+                    // deferred. Never log their bytes or error payloads.
+                    tracing::debug!(?app, "native provider startup import deferred");
+                }
+            }
+        }
+    }
+    Ok(())
+}

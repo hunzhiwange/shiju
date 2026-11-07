@@ -6,6 +6,7 @@ use crate::app::state::{CronAddJobType, CronAddScheduleKind, CronSettingsTab};
 use crate::app::{App, Message};
 use iced::Element;
 use iced::widget::text;
+use vw_gateway_client::CronRunDto;
 
 // 设置页 fixture 从统一默认应用出发，各用例只覆写当前页面关心的字段。
 fn test_app() -> App {
@@ -17,7 +18,7 @@ fn keep_element(element: Element<'_, Message>) {
     std::hint::black_box(element);
 }
 
-fn job(id: &str) -> CronJobDto {
+pub(super) fn job(id: &str) -> CronJobDto {
     CronJobDto {
         id: id.to_string(),
         name: None,
@@ -49,7 +50,7 @@ fn job(id: &str) -> CronJobDto {
     }
 }
 
-fn run(status: &str) -> CronRunDto {
+pub(super) fn run(status: &str) -> CronRunDto {
     CronRunDto {
         id: 1,
         job_id: "job-1".to_string(),
@@ -274,14 +275,6 @@ fn job_row_builds_disabled_announced_agent_with_complete_execution_metadata() {
 
     assert!(job_is_agent(&item));
     keep_element(job_row(&app, &item));
-}
-
-#[test]
-fn run_row_handles_missing_output_and_duration() {
-    keep_element(run_row(vw_config_types::ui::DesktopLocale::SimplifiedChinese, &run("success")));
-
-    let missing = CronRunDto { output: None, duration_ms: None, ..run("failed") };
-    keep_element(run_row(vw_config_types::ui::DesktopLocale::SimplifiedChinese, &missing));
 }
 
 #[test]

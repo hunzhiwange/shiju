@@ -222,12 +222,14 @@ pub fn view(app: &App) -> Element<'_, Message> {
         .direction(Direction::Vertical(Scrollbar::new().width(4).scroller_width(4)))
         .height(Length::Fill)
         .into(),
-        AgentConfigTab::Heartbeat => {
-            scrollable(container(crate::app::components::system_settings_heartbeat::view(app)))
-                .direction(Direction::Vertical(Scrollbar::new().width(4).scroller_width(4)))
-                .height(Length::Fill)
-                .into()
-        }
+        AgentConfigTab::Heartbeat => scrollable(
+            container(crate::app::components::system_settings_heartbeat::view(app))
+                .padding([0, 7])
+                .width(Length::Fill),
+        )
+        .direction(Direction::Vertical(Scrollbar::new().width(4).scroller_width(4)))
+        .height(Length::Fill)
+        .into(),
     };
 
     let mut page = column![tabs].spacing(16).width(Length::Fill).height(Length::Fill);

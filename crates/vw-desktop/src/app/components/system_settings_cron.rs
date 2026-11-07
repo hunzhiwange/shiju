@@ -3,26 +3,26 @@
 //! 本模块提供 Cron 全局配置、任务列表管理与任务添加界面。
 
 use crate::app::components::system_settings_common::{
-    SETTINGS_CONTROL_PADDING, SETTINGS_CONTROL_TEXT_SIZE, SETTINGS_LABEL_WIDTH,
-    danger_action_btn_style, primary_action_btn_style, rounded_action_btn_style,
-    settings_checkbox_style, settings_close_button, settings_divider, settings_error_banner,
+    SETTINGS_CONTROL_PADDING, SETTINGS_CONTROL_TEXT_SIZE, danger_action_btn_style,
+    primary_action_btn_style, rounded_action_btn_style, settings_checkbox_style,
+    settings_close_button, settings_divider, settings_error_banner, settings_field_label,
+    settings_group_card, settings_group_heading,
     settings_help_button_with_locale as settings_help_button, settings_modal_card,
-    settings_modal_overlay, settings_muted_text_style, settings_page_intro, settings_panel,
-    settings_pick_list_menu_style, settings_pick_list_style, settings_section_card,
-    settings_section_content, settings_segment_button_style, settings_success_banner,
-    settings_text_editor_style, settings_text_input_style, settings_value_badge,
+    settings_modal_card_style, settings_modal_header, settings_modal_layout,
+    settings_modal_overlay, settings_muted_text_style, settings_page_heading, settings_panel,
+    settings_row_with_flexible_control, settings_segment_button_style, settings_select,
+    settings_success_banner, settings_text_editor_style, settings_text_input_style,
+    settings_value_badge,
 };
 use crate::app::components::system_settings_search::SettingsTabDescriptor;
 use crate::app::state::{CronAddJobType, CronAddScheduleKind, CronSettingsTab};
 use crate::app::{App, Message, message};
 use chrono::{DateTime, Local};
-use iced::widget::scrollable::{Direction, Scrollbar};
 use iced::widget::{
-    button, checkbox, column, container, pick_list, row, scrollable, slider, text, text_editor,
-    text_input,
+    button, checkbox, column, container, row, slider, text, text_editor, text_input,
 };
-use iced::{Alignment, Element, Length, Theme};
-use vw_gateway_client::{CronJobDto, CronRunDto};
+use iced::{Alignment, Background, Element, Length, Theme};
+use vw_gateway_client::CronJobDto;
 
 mod schedule;
 
@@ -62,21 +62,25 @@ fn field_row<'a>(
     control: impl Into<Element<'a, Message>>,
 ) -> Element<'a, Message> {
     container(
-        row![
-            column![
-                text(label).size(13),
-                text(description).size(11).style(settings_muted_text_style),
-            ]
-            .spacing(4)
-            .width(Length::Fixed(SETTINGS_LABEL_WIDTH)),
-            container(control.into()).width(Length::Fill),
+        column![
+            settings_field_label(label),
+            text(description).size(13).style(settings_muted_text_style),
+            control.into(),
         ]
-        .spacing(22)
-        .align_y(Alignment::Center),
+        .spacing(6)
+        .width(Length::Fill),
     )
     .padding([14, 0])
     .width(Length::Fill)
     .into()
+}
+
+fn cron_segment_style(theme: &Theme, status: button::Status, is_active: bool) -> button::Style {
+    let mut style = settings_segment_button_style(theme, status, is_active);
+    if is_active {
+        style.text_color = theme.palette().text;
+    }
+    style
 }
 
 fn tab_button(
@@ -87,7 +91,7 @@ fn tab_button(
     let is_active = tab == active_tab;
     button(text(label).size(13))
         .padding([8, 14])
-        .style(move |theme: &Theme, status| settings_segment_button_style(theme, status, is_active))
+        .style(move |theme: &Theme, status| cron_segment_style(theme, status, is_active))
         .on_press(Message::Settings(message::SettingsMessage::CronTabSelected(tab)))
         .into()
 }
@@ -99,7 +103,7 @@ fn segment_button<'a>(
 ) -> Element<'a, Message> {
     button(text(label).size(13))
         .padding([8, 14])
-        .style(move |theme: &Theme, status| settings_segment_button_style(theme, status, is_active))
+        .style(move |theme: &Theme, status| cron_segment_style(theme, status, is_active))
         .on_press(on_press)
         .into()
 }
@@ -204,11 +208,7 @@ fn pick_field<'a>(
     selected: Option<String>,
     on_selected: impl Fn(String) -> Message + 'a,
 ) -> Element<'a, Message> {
-    pick_list(options, selected, on_selected)
-        .style(settings_pick_list_style)
-        .menu_style(settings_pick_list_menu_style)
-        .width(Length::Fill)
-        .into()
+    settings_select(options, selected, on_selected).width(Length::Fill).into()
 }
 
 fn job_title(job: &CronJobDto) -> String {
@@ -275,7 +275,6 @@ fn job_row<'a>(app: &'a App, job: &'a CronJobDto) -> Element<'a, Message> {
     let s = &app.cron_settings;
     let selected = s.selected_job_ids.iter().any(|id| id == &job.id);
     let details_expanded = s.expanded_job_ids.iter().any(|id| id == &job.id);
-    let is_editing = s.editing_job_id.as_deref() == Some(job.id.as_str());
     let id_for_select = job.id.clone();
     let id_for_details = job.id.clone();
     let id_for_toggle = job.id.clone();
@@ -362,7 +361,7 @@ fn job_row<'a>(app: &'a App, job: &'a CronJobDto) -> Element<'a, Message> {
             .spacing(10),
         row![
             text(crate::app::i18n::I18n::new(app.desktop_locale).__("项目")).size(12).style(settings_muted_text_style),
-            text(job_project_label(app, job)).size(12).wrapping(iced::widget::text::Wrapping::Word),
+            text(job_project_label(app, job)).size(12).wrapping(iced::widget::text::Wrapping::WordOrGlyph).width(Length::Fill),
         ]
         .spacing(10),
         row![
@@ -442,61 +441,9 @@ fn job_row<'a>(app: &'a App, job: &'a CronJobDto) -> Element<'a, Message> {
     let mut content = column![header].spacing(12).width(Length::Fill);
     if details_expanded {
         content = content.push(meta).push(actions);
-        if is_editing {
-            content = content.push(settings_divider()).push(edit_form(app));
-        }
     }
 
     container(content).padding([14, 0]).width(Length::Fill).into()
-}
-
-fn run_row(locale: vw_config_types::ui::DesktopLocale, run: &CronRunDto) -> Element<'_, Message> {
-    let duration = run
-        .duration_ms
-        .map(|value| format!("{value} ms"))
-        .unwrap_or_else(|| crate::app::i18n::I18n::new(locale).__("无").to_string());
-    let output = run.output.as_deref().unwrap_or(crate::app::i18n::I18n::new(locale).__("无输出"));
-    let started_at = format_cron_datetime(&run.started_at);
-    let finished_at = format_cron_datetime(&run.finished_at);
-
-    container(
-        column![
-            row![
-                settings_value_badge(run.status.clone()),
-                text(
-                    crate::__!(crate::app::i18n::I18n::new(locale), "开始 %s", started_at)
-                        .expect("valid cron display template")
-                )
-                .size(12),
-                text(
-                    crate::__!(crate::app::i18n::I18n::new(locale), "结束 %s", finished_at)
-                        .expect("valid cron display template")
-                )
-                .size(12)
-                .style(settings_muted_text_style),
-                text(
-                    crate::__!(crate::app::i18n::I18n::new(locale), "耗时 %s", duration)
-                        .expect("valid cron display template")
-                )
-                .size(12)
-                .style(settings_muted_text_style),
-            ]
-            .spacing(10)
-            .align_y(Alignment::Center),
-            container(
-                text(output)
-                    .size(11)
-                    .wrapping(iced::widget::text::Wrapping::Word)
-                    .width(Length::Fill)
-            )
-            .width(Length::Fill)
-            .padding(iced::Padding { top: 6.0, right: 0.0, bottom: 0.0, left: 0.0 }),
-        ]
-        .spacing(8),
-    )
-    .padding([12, 0])
-    .width(Length::Fill)
-    .into()
 }
 
 fn edit_form(app: &App) -> Element<'_, Message> {
@@ -845,24 +792,7 @@ fn edit_form(app: &App) -> Element<'_, Message> {
             ));
     }
 
-    form.push(
-        row![
-            container(text("")).width(Length::Fixed(SETTINGS_LABEL_WIDTH)),
-            row![
-                primary_button(
-                    crate::app::i18n::I18n::new(app.desktop_locale).__("保存"),
-                    Message::Settings(message::SettingsMessage::CronJobEditSave)
-                ),
-                secondary_button(
-                    crate::app::i18n::I18n::new(app.desktop_locale).__("取消"),
-                    Message::Settings(message::SettingsMessage::CronJobEditCanceled),
-                )
-            ]
-            .spacing(10)
-        ]
-        .spacing(22),
-    )
-    .into()
+    settings_group_card(form).into()
 }
 
 fn jobs_tab(app: &App) -> Element<'_, Message> {
@@ -884,7 +814,6 @@ fn jobs_tab(app: &App) -> Element<'_, Message> {
                     message::SettingsMessage::CronJobsSelectAllToggled(v)
                 ))
                 .style(settings_checkbox_style),
-            container(text("")).width(Length::Fill),
             small_button(
                 crate::app::i18n::I18n::new(app.desktop_locale).__("刷新"),
                 Message::Settings(message::SettingsMessage::CronJobsRefresh),
@@ -922,7 +851,8 @@ fn jobs_tab(app: &App) -> Element<'_, Message> {
             ),
         ]
         .spacing(8)
-        .align_y(Alignment::Center),
+        .align_y(Alignment::Center)
+        .wrap(),
         settings_divider(),
     ]
     .spacing(10);
@@ -949,7 +879,7 @@ fn jobs_tab(app: &App) -> Element<'_, Message> {
     }
 
     column![
-        settings_section_card(
+        settings_group_heading(
             crate::app::i18n::I18n::new(app.desktop_locale).__("当前任务"),
             crate::app::i18n::I18n::new(app.desktop_locale)
                 .__("默认展示已配置的定时任务，并支持单项或批量管理。")
@@ -962,9 +892,10 @@ fn jobs_tab(app: &App) -> Element<'_, Message> {
 
 fn config_tab(app: &App) -> Element<'_, Message> {
     let s = &app.cron_settings;
-    let enabled_row = field_row(
+    let enabled_row = settings_row_with_flexible_control(
         crate::app::i18n::I18n::new(app.desktop_locale).__("启用"),
         crate::app::i18n::I18n::new(app.desktop_locale).__("控制是否启用 Cron 子系统。"),
+        320.0,
         checkbox(s.enabled)
             .label(crate::app::i18n::I18n::new(app.desktop_locale).__("开启 Cron 子系统"))
             .on_toggle(|v| Message::Settings(message::SettingsMessage::CronEnabledToggled(v)))
@@ -976,32 +907,34 @@ fn config_tab(app: &App) -> Element<'_, Message> {
     })
     .width(Length::Fill);
 
-    let history_row = field_row(
+    let history_row = settings_row_with_flexible_control(
         crate::app::i18n::I18n::new(app.desktop_locale).__("历史保留"),
         crate::app::i18n::I18n::new(app.desktop_locale)
             .__("每个任务保留的执行历史记录数量，建议 20-200。"),
+        320.0,
         row![
             history_slider,
-            settings_value_badge(
+            container(settings_value_badge(
                 crate::__!(
                     crate::app::i18n::I18n::new(app.desktop_locale),
                     "%u 条",
                     s.max_run_history
                 )
                 .expect("valid cron display template")
-            )
+            ))
+            .align_right(84.0)
         ]
         .spacing(16)
         .align_y(Alignment::Center),
     );
 
     column![
-        settings_section_card(
+        settings_group_heading(
             crate::app::i18n::I18n::new(app.desktop_locale).__("基础行为"),
             crate::app::i18n::I18n::new(app.desktop_locale)
                 .__("控制 Cron 子系统是否运行与历史留存数量。")
         ),
-        settings_section_content(column![enabled_row, history_row].spacing(0)),
+        settings_group_card(column![enabled_row, settings_divider(), history_row]),
     ]
     .spacing(14)
     .into()
@@ -1347,24 +1280,18 @@ fn add_tab(app: &App) -> Element<'_, Message> {
             ));
     }
 
-    let form = form.push(
-        row![
-            container(text("")).width(Length::Fixed(SETTINGS_LABEL_WIDTH)),
-            primary_button(
-                crate::app::i18n::I18n::new(app.desktop_locale).__("新增任务"),
-                Message::Settings(message::SettingsMessage::CronAddSubmit)
-            )
-        ]
-        .spacing(22),
-    );
-
     column![
-        settings_section_card(
+        settings_group_heading(
             crate::app::i18n::I18n::new(app.desktop_locale).__("添加任务"),
             crate::app::i18n::I18n::new(app.desktop_locale)
                 .__("创建 Shell 或 Agent 定时任务，支持 Cron、指定时间和固定间隔。")
         ),
-        settings_section_content(form),
+        settings_group_card(form),
+        container(primary_button(
+            crate::app::i18n::I18n::new(app.desktop_locale).__("新增任务"),
+            Message::Settings(message::SettingsMessage::CronAddSubmit)
+        ))
+        .align_right(Length::Fill),
     ]
     .spacing(14)
     .into()
@@ -1395,7 +1322,7 @@ pub fn view(app: &App) -> Element<'_, Message> {
 
     let mut col = column![
         row![
-            container(settings_page_intro(
+            container(settings_page_heading(
                 crate::app::i18n::I18n::new(app.desktop_locale).__("定时任务配置"),
                 crate::app::i18n::I18n::new(app.desktop_locale)
                     .__("配置 Cron 子系统的开关与历史保留策略。")
@@ -1409,18 +1336,8 @@ pub fn view(app: &App) -> Element<'_, Message> {
     .spacing(16)
     .width(Length::Fill);
 
-    if let Some(error) = active_save_error(app) {
-        col = col.push(settings_error_banner(
-            app.cron_settings
-                .save_error_translation
-                .as_ref()
-                .map(|message| {
-                    message
-                        .render(crate::app::i18n::I18n::new(app.desktop_locale))
-                        .expect("valid cron error template")
-                })
-                .unwrap_or_else(|| error.to_string()),
-        ));
+    if let Some(error) = save_error_banner(app) {
+        col = col.push(error);
     }
     col = col.push(tab_content);
 
@@ -1437,6 +1354,68 @@ fn active_save_error(app: &App) -> Option<&str> {
     app.cron_settings.save_error.as_deref().or(app.scheduler_settings.save_error.as_deref())
 }
 
+fn save_error_banner(app: &App) -> Option<Element<'_, Message>> {
+    active_save_error(app).map(|error| {
+        settings_error_banner(
+            app.cron_settings
+                .save_error_translation
+                .as_ref()
+                .map(|message| {
+                    message
+                        .render(crate::app::i18n::I18n::new(app.desktop_locale))
+                        .expect("valid cron error template")
+                })
+                .unwrap_or_else(|| error.to_string()),
+        )
+        .into()
+    })
+}
+
+fn cron_modal_style(theme: &Theme) -> container::Style {
+    let mut style = settings_modal_card_style(theme);
+    // Keep the task list from showing through either dialog.
+    if let Some(Background::Color(color)) = &mut style.background {
+        color.a = 1.0;
+    }
+    style
+}
+
+fn with_edit_modal<'a>(app: &'a App, dialog: Element<'a, Message>) -> Element<'a, Message> {
+    let s = &app.cron_settings;
+    if s.active_tab != CronSettingsTab::Jobs {
+        return dialog;
+    }
+    let Some(job) = s.jobs.iter().find(|job| s.editing_job_id.as_deref() == Some(job.id.as_str()))
+    else {
+        return dialog;
+    };
+    let tr = crate::app::i18n::I18n::new(app.desktop_locale);
+    let close = Message::Settings(message::SettingsMessage::CronJobEditCanceled);
+    let header = settings_modal_header(
+        column![
+            text(tr.__("编辑")).size(20),
+            text(job_title(job)).size(13).style(settings_muted_text_style)
+        ]
+        .spacing(4),
+        settings_close_button(close.clone()),
+    );
+    let actions = row![
+        secondary_button(tr.__("取消"), close.clone()),
+        primary_button(tr.__("保存"), Message::Settings(message::SettingsMessage::CronJobEditSave)),
+    ]
+    .spacing(10);
+    let mut footer = column![].spacing(10).width(Length::Fill);
+    if let Some(error) = save_error_banner(app) {
+        footer = footer.push(error);
+    }
+    let footer = footer.push(container(actions).align_right(Length::Fill));
+    let card = settings_modal_layout(header, edit_form(app), Some(footer.into()))
+        .style(cron_modal_style)
+        .width(740)
+        .height(620);
+    settings_modal_overlay(Some(dialog), close, container(card).padding([10, 12]))
+}
+
 fn with_runs_modal<'a>(app: &'a App, dialog: Element<'a, Message>) -> Element<'a, Message> {
     let s = &app.cron_settings;
     let Some(job_id) = s.runs_modal_job_id.as_deref() else {
@@ -1448,79 +1427,48 @@ fn with_runs_modal<'a>(app: &'a App, dialog: Element<'a, Message>) -> Element<'a
         .find(|job| job.id == job_id)
         .map(job_title)
         .unwrap_or_else(|| job_id.to_string());
-
-    let header = row![
+    let tr = crate::app::i18n::I18n::new(app.desktop_locale);
+    let close = Message::Settings(message::SettingsMessage::CronJobRunsClose);
+    let header = settings_modal_header(
         column![
-            text(crate::app::i18n::I18n::new(app.desktop_locale).__("执行历史")).size(18),
-            text(job_label).size(12).style(settings_muted_text_style),
+            text(tr.__("执行历史")).size(20),
+            text(job_label).size(13).style(settings_muted_text_style)
         ]
-        .spacing(4)
-        .width(Length::Fill),
-        settings_close_button(Message::Settings(message::SettingsMessage::CronJobRunsClose)),
-    ]
-    .spacing(12)
-    .align_y(Alignment::Center);
+        .spacing(4),
+        settings_close_button(close.clone()),
+    );
 
-    let mut rows = column![].spacing(0).width(Length::Fill);
-    if s.runs_modal_loading {
-        rows = rows.push(
-            text(crate::app::i18n::I18n::new(app.desktop_locale).__("正在加载历史记录..."))
-                .size(13)
-                .style(settings_muted_text_style),
-        );
-    } else if let Some(err) = &s.runs_modal_error {
-        rows = rows.push(settings_error_banner(err));
+    let status: Option<Element<'_, Message>> = if s.runs_modal_loading {
+        Some(text(tr.__("正在加载历史记录...")).size(13).style(settings_muted_text_style).into())
+    } else if let Some(error) = &s.runs_modal_error {
+        Some(settings_error_banner(error).into())
     } else if s.runs_modal.is_empty() {
-        rows = rows.push(
-            text(crate::app::i18n::I18n::new(app.desktop_locale).__("暂无执行历史"))
-                .size(13)
-                .style(settings_muted_text_style),
-        );
+        Some(text(tr.__("暂无执行历史")).size(13).style(settings_muted_text_style).into())
     } else {
-        for run in &s.runs_modal {
-            rows = rows.push(run_row(app.desktop_locale, run)).push(settings_divider());
-        }
-    }
-
-    let body: Element<'_, Message> =
-        if s.runs_modal_loading || s.runs_modal_error.is_some() || s.runs_modal.is_empty() {
-            scrollable(container(rows).width(Length::Fill).padding(iced::Padding {
-                top: 0.0,
-                right: 8.0,
-                bottom: 0.0,
-                left: 0.0,
-            }))
+        None
+    };
+    let card = if let Some(status) = status {
+        settings_modal_layout(header, status, None)
+    } else {
+        let editor = text_editor(&s.runs_modal_editor)
+            .on_action(|action| {
+                Message::Settings(message::SettingsMessage::CronJobRunsEditorAction(action))
+            })
+            .size(SETTINGS_CONTROL_TEXT_SIZE)
+            .padding(SETTINGS_CONTROL_PADDING)
             .height(Length::Fill)
-            .direction(Direction::Vertical(Scrollbar::new().width(4).scroller_width(4)))
-            .into()
-        } else {
-            text_editor(&s.runs_modal_editor)
-                .placeholder(crate::app::i18n::I18n::new(app.desktop_locale).__("暂无执行历史"))
-                .on_action(|action| {
-                    Message::Settings(message::SettingsMessage::CronJobRunsEditorAction(action))
-                })
-                .size(12)
-                .padding(SETTINGS_CONTROL_PADDING)
-                .height(Length::Fill)
-                .style(settings_text_editor_style)
-                .into()
-        };
-
-    let card = settings_modal_card(
-        column![header, settings_divider(), body].spacing(14).height(Length::Fill),
-    )
-    .width(Length::Fixed(780.0))
-    .height(Length::Fixed(620.0));
-
-    settings_modal_overlay(
-        Some(dialog),
-        Message::Settings(message::SettingsMessage::CronJobRunsClose),
-        card,
-    )
+            .style(settings_text_editor_style);
+        settings_modal_card(column![header, editor].spacing(16).height(Length::Fill))
+    }
+    .style(cron_modal_style)
+    .width(780)
+    .height(620);
+    settings_modal_overlay(Some(dialog), close, container(card).padding([10, 12]))
 }
 
 pub fn view_overlays<'a>(app: &'a App, dialog: Element<'a, Message>) -> Element<'a, Message> {
     let s = &app.cron_settings;
+    let dialog = with_edit_modal(app, dialog);
     let dialog = with_runs_modal(app, dialog);
 
     if !s.show_help_modal {
@@ -1604,3 +1552,7 @@ pub fn view_overlays<'a>(app: &'a App, dialog: Element<'a, Message>) -> Element<
 #[cfg(test)]
 #[path = "system_settings_cron_tests.rs"]
 mod system_settings_cron_tests;
+
+#[cfg(test)]
+#[path = "system_settings_cron_ui_refresh_27_tests.rs"]
+mod ui_refresh_27_tests;

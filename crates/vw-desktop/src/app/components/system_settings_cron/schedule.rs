@@ -1,12 +1,11 @@
 //! 新增和编辑任务共用的执行频率控件。
 use super::{
-    field_row, settings_muted_text_style, settings_pick_list_menu_style, settings_pick_list_style,
-    settings_segment_button_style, text_field,
+    cron_segment_style, field_row, settings_muted_text_style, settings_select, text_field,
 };
 use crate::app::Message;
 use crate::app::message::SettingsMessage;
 use crate::app::state::{CronFrequency, CronJobDraft};
-use iced::widget::{button, column, pick_list, row, text};
+use iced::widget::{button, column, row, text};
 use iced::{Alignment, Element, Length, Theme};
 
 fn replace_field(expression: &str, index: usize, value: String) -> String {
@@ -22,11 +21,11 @@ fn number_picker<'a>(
     selected: String,
     changed: fn(String) -> SettingsMessage,
 ) -> Element<'a, Message> {
-    pick_list(range.map(|n| n.to_string()).collect::<Vec<_>>(), Some(selected), move |value| {
-        Message::Settings(changed(replace_field(expression, index, value)))
-    })
-    .style(settings_pick_list_style)
-    .menu_style(settings_pick_list_menu_style)
+    settings_select(
+        range.map(|n| n.to_string()).collect::<Vec<_>>(),
+        Some(selected),
+        move |value| Message::Settings(changed(replace_field(expression, index, value))),
+    )
     .width(80)
     .into()
 }
@@ -64,7 +63,7 @@ pub(super) fn frequency_form(
                 .width(Length::Fill)
                 .padding([10, 8])
                 .style(move |theme: &Theme, status| {
-                    settings_segment_button_style(theme, status, frequency == option)
+                    cron_segment_style(theme, status, frequency == option)
                 })
                 .on_press(Message::Settings(frequency_changed(option))),
             );
@@ -101,19 +100,17 @@ pub(super) fn frequency_form(
     }
     let fields: Vec<_> = draft.schedule.split_whitespace().collect();
     let expression = draft.schedule.as_str();
-    let mut controls = row![].spacing(8).align_y(Alignment::Center);
+    let mut controls = row![].spacing(10).align_y(Alignment::Center);
     if frequency == CronFrequency::Minutes {
         let selected = fields[0].trim_start_matches("*/").to_string();
         controls = controls
             .push(text(crate::app::i18n::I18n::new(locale).__("每")))
             .push(
-                pick_list(
+                settings_select(
                     (1..=59).map(|n| n.to_string()).collect::<Vec<_>>(),
                     Some(selected),
                     move |v| Message::Settings(changed(format!("*/{v} * * * *"))),
                 )
-                .style(settings_pick_list_style)
-                .menu_style(settings_pick_list_menu_style)
                 .width(80),
             )
             .push(text(crate::app::i18n::I18n::new(locale).__("分钟")));
@@ -131,7 +128,7 @@ pub(super) fn frequency_form(
             ];
             let selected = days.iter().position(|d| *d == fields[4]).map(|i| labels[i]);
             controls = controls.push(
-                pick_list(labels, selected, move |label| {
+                settings_select(labels, selected, move |label| {
                     let index =
                         labels.iter().position(|value| *value == label).expect("weekday option");
                     Message::Settings(changed(replace_field(
@@ -140,26 +137,40 @@ pub(super) fn frequency_form(
                         days[index].to_string(),
                     )))
                 })
-                .style(settings_pick_list_style)
-                .menu_style(settings_pick_list_menu_style),
+                .width(126),
             );
         }
         if frequency == CronFrequency::Monthly {
-            controls = controls
-                .push(text(crate::app::i18n::I18n::new(locale).__("每月")))
-                .push(number_picker(expression, 2, 1..=31, fields[2].to_string(), changed))
-                .push(text(crate::app::i18n::I18n::new(locale).__("日")));
+            controls = controls.push(
+                row![
+                    text(crate::app::i18n::I18n::new(locale).__("每月")),
+                    number_picker(expression, 2, 1..=31, fields[2].to_string(), changed),
+                    text(crate::app::i18n::I18n::new(locale).__("日")),
+                ]
+                .spacing(8)
+                .align_y(Alignment::Center),
+            );
         }
         if frequency != CronFrequency::Hourly {
-            controls = controls
-                .push(number_picker(expression, 1, 0..=23, fields[1].to_string(), changed))
-                .push(text(crate::app::i18n::I18n::new(locale).__("时")));
+            controls = controls.push(
+                row![
+                    number_picker(expression, 1, 0..=23, fields[1].to_string(), changed),
+                    text(crate::app::i18n::I18n::new(locale).__("时")),
+                ]
+                .spacing(8)
+                .align_y(Alignment::Center),
+            );
         } else {
             controls = controls.push(text(crate::app::i18n::I18n::new(locale).__("每小时第")));
         }
-        controls = controls
-            .push(number_picker(expression, 0, 0..=59, fields[0].to_string(), changed))
-            .push(text(crate::app::i18n::I18n::new(locale).__("分")));
+        controls = controls.push(
+            row![
+                number_picker(expression, 0, 0..=59, fields[0].to_string(), changed),
+                text(crate::app::i18n::I18n::new(locale).__("分")),
+            ]
+            .spacing(8)
+            .align_y(Alignment::Center),
+        );
     }
     let note = match frequency {
         CronFrequency::Minutes => crate::app::i18n::I18n::new(locale)
@@ -169,6 +180,10 @@ pub(super) fn frequency_form(
         }
         _ => crate::app::i18n::I18n::new(locale).__("时间使用 UTC（北京时间为 UTC + 8 小时）。"),
     };
-    form = form.push(field_row(crate::app::i18n::I18n::new(locale).__("执行时间"), note, controls));
+    form = form.push(field_row(
+        crate::app::i18n::I18n::new(locale).__("执行时间"),
+        note,
+        controls.wrap(),
+    ));
     form.into()
 }

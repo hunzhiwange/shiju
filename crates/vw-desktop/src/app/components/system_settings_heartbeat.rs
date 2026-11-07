@@ -17,13 +17,13 @@
 //! 用户的配置会通过 Gateway 保存到共享数据库的 `heartbeat` 字段中。
 
 use crate::app::components::system_settings_common::{
-    SETTINGS_LABEL_WIDTH, settings_checkbox_style, settings_divider,
-    settings_help_button_with_locale as settings_help_button, settings_muted_text_style,
-    settings_page_intro, settings_section_card, settings_section_content,
-    settings_text_input_style, settings_value_badge,
+    SETTINGS_CONTROL_PADDING, SETTINGS_CONTROL_TEXT_SIZE, settings_checkbox_style,
+    settings_divider, settings_group_card, settings_group_heading,
+    settings_help_button_with_locale as settings_help_button, settings_page_heading,
+    settings_row_with_flexible_control, settings_text_input_style, settings_value_badge,
 };
 use crate::app::{App, Message, message};
-use iced::widget::{checkbox, column, container, row, slider, text, text_input};
+use iced::widget::{checkbox, column, container, row, slider, text_input};
 use iced::{Alignment, Element, Length};
 
 fn field_row<'a>(
@@ -31,22 +31,7 @@ fn field_row<'a>(
     description: &'static str,
     control: impl Into<Element<'a, Message>>,
 ) -> Element<'a, Message> {
-    container(
-        row![
-            column![
-                text(label).size(13),
-                text(description).size(11).style(settings_muted_text_style),
-            ]
-            .spacing(4)
-            .width(Length::Fixed(SETTINGS_LABEL_WIDTH)),
-            container(control.into()).width(Length::Fill),
-        ]
-        .spacing(22)
-        .align_y(Alignment::Center),
-    )
-    .padding([14, 0])
-    .width(Length::Fill)
-    .into()
+    settings_row_with_flexible_control(label, description, 320.0, control)
 }
 
 fn text_row<'a>(
@@ -61,8 +46,8 @@ fn text_row<'a>(
         description,
         text_input(placeholder, value)
             .on_input(on_input)
-            .padding([10, 12])
-            .size(13)
+            .padding(SETTINGS_CONTROL_PADDING)
+            .size(SETTINGS_CONTROL_TEXT_SIZE)
             .style(settings_text_input_style)
             .width(Length::Fill),
     )
@@ -121,23 +106,24 @@ pub fn view(app: &App) -> Element<'_, Message> {
     let interval_slider = slider(1.0..=1440.0, s.interval_minutes as f32, |v| {
         Message::Settings(message::SettingsMessage::HeartbeatIntervalChanged(v.round() as u32))
     })
-    .width(Length::Fixed(280.0));
+    .width(Length::Fill);
 
     let interval_row = field_row(
         crate::app::i18n::I18n::new(app.desktop_locale).__("间隔分钟"),
         crate::app::i18n::I18n::new(app.desktop_locale).__("周期性触发心跳的时间间隔。"),
         row![
             interval_slider,
-            settings_value_badge(
+            container(settings_value_badge(
                 crate::__!(
                     crate::app::i18n::I18n::new(app.desktop_locale),
                     "%u 分钟",
                     s.interval_minutes
                 )
                 .expect("valid heartbeat interval template")
-            ),
+            ))
+            .align_right(104.0),
         ]
-        .spacing(16)
+        .spacing(12)
         .align_y(Alignment::Center),
     );
 
@@ -167,7 +153,7 @@ pub fn view(app: &App) -> Element<'_, Message> {
 
     let col = column![
         row![
-            container(settings_page_intro(
+            container(settings_page_heading(
                 crate::app::i18n::I18n::new(app.desktop_locale).__("心跳配置"),
                 crate::app::i18n::I18n::new(app.desktop_locale)
                     .__("配置心跳任务的间隔、兜底消息与投递目标。")
@@ -176,16 +162,16 @@ pub fn view(app: &App) -> Element<'_, Message> {
             help_btn
         ]
         .align_y(Alignment::Start),
-        settings_section_card(
+        settings_group_heading(
             crate::app::i18n::I18n::new(app.desktop_locale).__("基础行为"),
             crate::app::i18n::I18n::new(app.desktop_locale).__("控制心跳开关与执行间隔。")
         ),
-        settings_section_content(column![enabled_row, settings_divider(), interval_row].spacing(0)),
-        settings_section_card(
+        settings_group_card(column![enabled_row, settings_divider(), interval_row].spacing(0)),
+        settings_group_heading(
             crate::app::i18n::I18n::new(app.desktop_locale).__("投递内容"),
             crate::app::i18n::I18n::new(app.desktop_locale).__("配置兜底消息、目标通道和接收者。")
         ),
-        settings_section_content(
+        settings_group_card(
             column![message_row, settings_divider(), target_row, settings_divider(), to_row]
                 .spacing(0),
         ),

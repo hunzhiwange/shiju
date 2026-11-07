@@ -15,10 +15,11 @@
 //! 影响定时任务的拉取数量与并发执行能力。
 
 use crate::app::components::system_settings_common::{
-    SETTINGS_LABEL_WIDTH, icon_btn, settings_checkbox_style, settings_close_button,
-    settings_control_with_hint, settings_help_button_with_locale as settings_help_button,
-    settings_help_copy_state, settings_muted_text_style, settings_page_intro, settings_panel,
-    settings_section_card, settings_section_content, settings_value_badge,
+    icon_btn, settings_checkbox_style, settings_close_button, settings_control_with_hint,
+    settings_divider, settings_group_card, settings_group_heading,
+    settings_help_button_with_locale as settings_help_button, settings_help_copy_state,
+    settings_modal_header, settings_muted_text_style, settings_page_heading, settings_panel,
+    settings_row_with_flexible_control, settings_value_badge,
 };
 use crate::app::{App, Message, message};
 use iced::widget::{Space, checkbox, column, container, row, slider, text};
@@ -59,22 +60,7 @@ fn field_row<'a>(
     description: &'static str,
     control: impl Into<Element<'a, Message>>,
 ) -> Element<'a, Message> {
-    container(
-        row![
-            column![
-                text(label).size(13),
-                text(description).size(11).style(settings_muted_text_style),
-            ]
-            .spacing(4)
-            .width(Length::Fixed(SETTINGS_LABEL_WIDTH)),
-            container(control.into()).width(Length::Fill),
-        ]
-        .spacing(22)
-        .align_y(Alignment::Center),
-    )
-    .padding([14, 0])
-    .width(Length::Fill)
-    .into()
+    settings_row_with_flexible_control(label, description, 320.0, control)
 }
 
 fn enabled_toggled(value: bool) -> Message {
@@ -107,15 +93,11 @@ fn inline_help_panel(app: &App) -> Option<Element<'static, Message>> {
 
         settings_panel(
             column![
-                row![
+                settings_modal_header(
                     text(crate::app::i18n::I18n::new(app.desktop_locale).__("Scheduler 配置帮助"))
                         .size(16),
-                    Space::new().width(Length::Fill),
-                    copy_btn,
-                    close_btn
-                ]
-                .spacing(10)
-                .align_y(Alignment::Center),
+                    row![copy_btn, close_btn].spacing(10).align_y(Alignment::Center),
+                ),
                 text(crate::app::i18n::I18n::new(app.desktop_locale).__(SCHEDULER_HELP))
                     .size(13)
                     .style(settings_muted_text_style),
@@ -145,27 +127,29 @@ pub(crate) fn embedded_view(app: &App) -> Element<'_, Message> {
     );
 
     let max_tasks_slider =
-        slider(1.0..=10_000.0, s.max_tasks as f32, max_tasks_changed).width(Length::Fixed(280.0));
+        slider(1.0..=10_000.0, s.max_tasks as f32, max_tasks_changed).width(Length::Fill);
 
     let max_tasks_row = field_row(
         crate::app::i18n::I18n::new(app.desktop_locale).__("最大任务"),
         crate::app::i18n::I18n::new(app.desktop_locale).__("单次轮询最多处理的任务数量。"),
-        row![max_tasks_slider, settings_value_badge(format!("{}", s.max_tasks))]
-            .spacing(16)
+        row![max_tasks_slider, container(settings_value_badge(s.max_tasks)).align_right(72.0)]
+            .spacing(12)
             .align_y(Alignment::Center),
     );
 
     let max_concurrent_slider =
-        slider(1.0..=100.0, s.max_concurrent as f32, max_concurrent_changed)
-            .width(Length::Fixed(280.0));
+        slider(1.0..=100.0, s.max_concurrent as f32, max_concurrent_changed).width(Length::Fill);
 
     let max_concurrent_row = field_row(
         crate::app::i18n::I18n::new(app.desktop_locale).__("并发上限"),
         crate::app::i18n::I18n::new(app.desktop_locale).__("允许并行执行的任务数量上限。"),
         settings_control_with_hint(
-            row![max_concurrent_slider, settings_value_badge(format!("{}", s.max_concurrent))]
-                .spacing(16)
-                .align_y(Alignment::Center),
+            row![
+                max_concurrent_slider,
+                container(settings_value_badge(s.max_concurrent)).align_right(72.0)
+            ]
+            .spacing(12)
+            .align_y(Alignment::Center),
             crate::app::i18n::I18n::new(app.desktop_locale)
                 .__("建议 max_tasks=64、max_concurrent=4；高并发场景可按资源逐步上调。"),
         ),
@@ -187,14 +171,18 @@ pub(crate) fn embedded_view(app: &App) -> Element<'_, Message> {
     }
 
     col = col
-        .push(settings_section_card(
+        .push(settings_group_heading(
             crate::app::i18n::I18n::new(app.desktop_locale).__("执行能力"),
             crate::app::i18n::I18n::new(app.desktop_locale)
                 .__("控制调度器处理任务的吞吐和并发上限。"),
         ))
-        .push(settings_section_content(
-            column![enabled_row, max_tasks_row, max_concurrent_row].spacing(0),
-        ));
+        .push(settings_group_card(column![
+            enabled_row,
+            settings_divider(),
+            max_tasks_row,
+            settings_divider(),
+            max_concurrent_row
+        ]));
 
     col.into()
 }
@@ -204,7 +192,7 @@ pub(crate) fn embedded_view(app: &App) -> Element<'_, Message> {
 /// 保留该入口供组件测试和嵌入前的调用方使用；系统设置导航会将内容展示在定时任务配置中。
 pub fn view(app: &App) -> Element<'_, Message> {
     column![
-        settings_page_intro(
+        settings_page_heading(
             crate::app::i18n::I18n::new(app.desktop_locale).__("调度配置"),
             crate::app::i18n::I18n::new(app.desktop_locale)
                 .__("配置内置调度器的开关、吞吐和并发能力。")

@@ -4,6 +4,7 @@
 use super::*;
 use crate::app::App;
 use iced::advanced::widget::Tree;
+use iced::widget::text;
 
 // 心跳页面基线关闭调度，各用例显式开启所需配置以突出条件分支。
 fn test_app() -> App {

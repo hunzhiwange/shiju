@@ -1,0 +1,40 @@
+[
+  {
+    "providerType": "newapi",
+    "name": "NewAPI",
+    "defaultApps": { "claude": true, "codex": true, "gemini": true },
+    "defaultModels": {
+      "claude": {
+        "model": "claude-sonnet-5",
+        "haikuModel": "claude-haiku-4-5-20251001",
+        "sonnetModel": "claude-sonnet-5",
+        "opusModel": "claude-opus-5"
+      },
+      "codex": { "model": "gpt-5.6-sol", "reasoningEffort": "high" },
+      "gemini": { "model": "gemini-3.6-flash" }
+    },
+    "websiteUrl": "https://www.newapi.pro",
+    "icon": "newapi",
+    "iconColor": "#00A67E",
+    "description": "NewAPI 是一个可自部署的 API 网关，支持 Anthropic、OpenAI、Gemini 等多种协议"
+  },
+  {
+    "providerType": "custom_gateway",
+    "name": "自定义网关",
+    "defaultApps": { "claude": true, "codex": true, "gemini": true },
+    "defaultModels": {
+      "claude": {
+        "model": "claude-sonnet-5",
+        "haikuModel": "claude-haiku-4-5-20251001",
+        "sonnetModel": "claude-sonnet-5",
+        "opusModel": "claude-opus-5"
+      },
+      "codex": { "model": "gpt-5.6-sol", "reasoningEffort": "high" },
+      "gemini": { "model": "gemini-3.6-flash" }
+    },
+    "icon": "openai",
+    "iconColor": "#6366F1",
+    "description": "自定义配置的 API 网关",
+    "isCustomTemplate": true
+  }
+]

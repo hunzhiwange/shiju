@@ -82,3 +82,30 @@
 | `cargo clippy --all-targets --all-features -- -D warnings`（隔离源码快照） | 0 | 工作区全部目标及 features 通过。快照基于 `0e01c516e`，仅叠加本项三个 Rust 文件和两个 JSON 文件。此阶段动态领取槽位 **3**，`CARGO_TARGET_DIR=/Users/xiangmin/worker/code/shiju/target/rust-slot-3` |
 
 差异审查和 `git diff --cached --check` 通过。只提交本项源码、测试、数据与证据。各阶段已释放本项的槽位锁并保留编译缓存。
+
+## 任务 4　通用供应商模型预设
+
+2026-11-08，macOS 27.0（26A428），arm64。批次 3 由 `897b2bbf7` 交付。沿用现有供应商 DTO 和事务边界。本项的目录测试使用原生 `providers/universal.rs::save` 和 `providers/universal_sync.rs::project` 做进程内验证，未连接实际账号或网关。
+
+| 固定来源 `ca58c0313360eae7c851fbd7553c1614c7af03e7` | 实际实现 |
+| --- | --- |
+| `src/config/universalProviderPresets.ts::universalProviderPresets`、`findPresetByType`、`NEWAPI_DEFAULT_MODELS` | `crates/vw-agent-apps/src/models/presets/universal.json` 嵌入 Rust，由 `models/preset_catalog.rs::universal_presets` 按源顺序列出，`universal_preset` 按精确 key 查询。复用 `vw-api-types/src/app_providers/universal.rs` 的 `UniversalApps` 与 `UniversalModels` |
+| `src/config/universalProviderPresets.ts::createUniversalProviderFromPreset` 的调用方提供 base URL，`src-tauri/src/provider.rs::UniversalProvider::to_{claude,codex,gemini}_provider` 定义投影 | `UniversalPreset::endpoint` 校验部署地址，并和 `providers/universal_sync.rs::project` 共用 `projected_endpoint`。Claude 用 Anthropic，Codex 用 OpenAI Responses，Gemini 用 Gemini。Codex 为纯 origin 补 `/v1`，保留自定义路径 |
+
+逐条核对两个稳定 key（`newapi`、`custom_gateway`）、六组应用模型默认值、十二处模型字段（五个不同的模型 ID）和一个展示网址。源预设的部署 URL 均由用户提供，家族、限额、模态和能力均无已核实值。Codex 的 `high` 保留为默认配置，部署能力视为未知。JieKou 和 PPIO 属于各应用预设。保留的来源许可见 `crates/vw-agent-apps/upstream/LICENSE`（MIT，Copyright (c) 2025 Jason Young）。
+
+现有配置入口是 `vw-agent/src/gateway/api/handlers/app_providers/universal.rs` 的 `/v1/universal-providers`，SDK 为 `vw-gateway-client/src/client/app_providers/universal.rs`，Iced 为 `vw-desktop/src/app/components/app_providers/universal.rs::overlay`。这些入口继续处理已保存配置。预设目录的 API 与 SDK 由任务 36 接入，Iced 搜索由任务 39 接入。本项无窗口验收项。
+
+### 验证
+
+红灯和绿灯均动态领取共享槽位 **2**，`CARGO_TARGET_DIR=/Users/xiangmin/worker/code/shiju/target/rust-slot-2`，中间目录设为同一槽位。`cargo fmt --all` 在基于 `897b2bbf7` 的源码快照中运行，只回写本项 Rust 文件。聚焦测试和 Clippy 在实际工作区根目录运行。
+
+| 命令 | 退出码 | 证据 |
+| --- | ---: | --- |
+| `cargo fmt --all`（红灯、绿灯） | 0、0 | 格式化完成 |
+| `cargo test -p vw-agent-apps catalog_presets_universal_ -- --nocapture`（红灯） | 101 | 4 条有效测试，4 条预期失败。首个断言实际查到 `[]`，预期 `["newapi", "custom_gateway"]` |
+| `cargo test -p vw-agent-apps catalog_presets_universal_ -- --nocapture`（绿灯） | 0 | 4 条有效测试全部通过。覆盖稳定键与默认模型、外部预设隔离、无效部署地址、自定义路径与原生投影一致性 |
+| `cargo test -p vw-agent-apps cc04_universal -- --nocapture` | 0 | 5 条已有配置与同步回归全部通过 |
+| `cargo clippy --all-targets --all-features -- -D warnings` | 0 | 实际工作区全部目标和 features 通过 |
+
+差异只包含目录、数据、独立测试、复用的端点规则和本证据。提交前检查差异和空白错误。各阶段已释放本项的槽位锁并保留编译缓存。

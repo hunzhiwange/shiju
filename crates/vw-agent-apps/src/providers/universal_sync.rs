@@ -30,6 +30,26 @@ pub fn child_id(app: AppId, id: &str) -> Result<String, UniversalSyncError> {
     validate_identity(&child).map_err(|_| UniversalSyncError::InvalidTargetIdentity)?;
     Ok(child)
 }
+
+pub(crate) fn projected_endpoint(
+    app: AppId,
+    base_url: &str,
+) -> Result<(ProviderProtocol, String), UniversalSyncError> {
+    match app {
+        AppId::Claude => Ok((ProviderProtocol::Anthropic, base_url.into())),
+        AppId::Codex => {
+            let base = base_url.trim_end_matches('/');
+            let origin =
+                reqwest::Url::parse(base).map_err(|_| UniversalSyncError::InvalidProfile)?.path()
+                    == "/";
+            let base_url = if origin { format!("{base}/v1") } else { base.into() };
+            Ok((ProviderProtocol::OpenaiResponses, base_url))
+        }
+        AppId::Gemini => Ok((ProviderProtocol::Gemini, base_url.into())),
+        _ => Err(UniversalSyncError::UnsupportedApp),
+    }
+}
+
 /// Only generated children of this parent can be replaced. Preserve application-owned
 /// metadata, order, unknown configuration keys and nested env/auth entries.
 pub fn project(
@@ -69,8 +89,9 @@ pub fn project(
     if !settings.is_object() {
         return Err(InvalidProfile);
     }
+    let (protocol, base_url) = projected_endpoint(app, &config.base_url)?;
     // These defaults are frozen source conversion behavior, not model discovery.
-    let (protocol, model, base_url) = match app {
+    let model = match app {
         AppId::Claude => {
             let models = config.models.claude.as_ref();
             let model =
@@ -79,7 +100,7 @@ pub fn project(
             let mut target = json!({"env":{}});
             let env = object_field(&mut target, "env")?;
             for (name, value) in [
-                ("ANTHROPIC_BASE_URL", config.base_url.as_str()),
+                ("ANTHROPIC_BASE_URL", base_url.as_str()),
                 ("ANTHROPIC_AUTH_TOKEN", key),
                 ("ANTHROPIC_MODEL", model),
                 (
@@ -104,15 +125,12 @@ pub fn project(
             )
             .map_err(|_| InvalidProfile)?;
             settings = serde_json::from_slice(&bytes).map_err(|_| InvalidProfile)?;
-            (ProviderProtocol::Anthropic, model.to_owned(), config.base_url.clone())
+            model.to_owned()
         }
         AppId::Codex => {
             let models = config.models.codex.as_ref();
             let model = models.and_then(|m| m.model.as_deref()).unwrap_or("gpt-4o");
             let effort = models.and_then(|m| m.reasoning_effort.as_deref()).unwrap_or("high");
-            let base = config.base_url.trim_end_matches('/');
-            let origin = reqwest::Url::parse(base).map_err(|_| InvalidProfile)?.path() == "/";
-            let base_url = if origin { format!("{base}/v1") } else { base.into() };
             object_field(&mut settings, "auth")?.insert("OPENAI_API_KEY".into(), key.into());
             let mut document: toml::Table = match settings.get("config") {
                 None => toml::Table::new(),
@@ -140,7 +158,7 @@ pub fn project(
             }
             custom.insert("requires_openai_auth".into(), true.into());
             settings["config"] = toml::to_string(&document).map_err(|_| InvalidProfile)?.into();
-            (ProviderProtocol::OpenaiResponses, model.to_owned(), base_url)
+            model.to_owned()
         }
         AppId::Gemini => {
             let model = config
@@ -151,13 +169,13 @@ pub fn project(
                 .unwrap_or("gemini-2.5-pro");
             let env = object_field(&mut settings, "env")?;
             for (name, value) in [
-                ("GOOGLE_GEMINI_BASE_URL", config.base_url.as_str()),
+                ("GOOGLE_GEMINI_BASE_URL", base_url.as_str()),
                 ("GEMINI_API_KEY", key),
                 ("GEMINI_MODEL", model),
             ] {
                 env.insert(name.into(), value.into());
             }
-            (ProviderProtocol::Gemini, model.into(), config.base_url.clone())
+            model.to_owned()
         }
         _ => return Err(UnsupportedApp),
     };

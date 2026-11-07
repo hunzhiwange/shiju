@@ -69,6 +69,7 @@ pub struct PointBelowOverlay<'a, Message, ThemeT = Theme, RendererT = iced::Rend
     close_on_target_click: bool,
     // anchor_is_global 表示锚点已经是 overlay 坐标系中的位置。
     anchor_is_global: bool,
+    capture_keyboard: bool,
 }
 
 impl<'a, Message, ThemeT, RendererT> PointBelowOverlay<'a, Message, ThemeT, RendererT> {
@@ -113,6 +114,7 @@ impl<'a, Message, ThemeT, RendererT> PointBelowOverlay<'a, Message, ThemeT, Rend
             // close_on_target_click 保存该结构在渲染、解析或测试断言中需要直接访问的数据。
             close_on_target_click: false,
             anchor_is_global: false,
+            capture_keyboard: false,
         }
     }
 
@@ -220,6 +222,12 @@ impl<'a, Message, ThemeT, RendererT> PointBelowOverlay<'a, Message, ThemeT, Rend
     /// 空白处无法关闭菜单。
     pub fn close_on_target_click(mut self, close: bool) -> Self {
         self.close_on_target_click = close;
+        self
+    }
+
+    /// Keep keyboard input in the overlay and dismiss it on Escape.
+    pub fn capture_keyboard(mut self) -> Self {
+        self.capture_keyboard = true;
         self
     }
 
@@ -559,6 +567,7 @@ where
                 capture_outside_click: self.capture_outside_click,
                 // close_on_target_click 保存该结构在渲染、解析或测试断言中需要直接访问的数据。
                 close_on_target_click: self.close_on_target_click,
+                capture_keyboard: self.capture_keyboard,
             })))
         } else {
             None
@@ -630,6 +639,7 @@ struct PointBelowOverlayElement<'a, 'b, Message, ThemeT, RendererT> {
     capture_outside_click: bool,
     // close_on_target_click 保存该结构在渲染、解析或测试断言中需要直接访问的数据。
     close_on_target_click: bool,
+    capture_keyboard: bool,
 }
 
 impl<Message, ThemeT, RendererT> overlay::Overlay<Message, ThemeT, RendererT>
@@ -704,6 +714,30 @@ where
         // shell 保存该结构在渲染、解析或测试断言中需要直接访问的数据。
         shell: &mut Shell<'_, Message>,
     ) {
+        if self.capture_keyboard
+            && matches!(
+                event,
+                Event::Keyboard(iced::keyboard::Event::KeyPressed { .. })
+                    | Event::InputMethod(
+                        iced::advanced::input_method::Event::Commit(_)
+                            | iced::advanced::input_method::Event::Preedit(..)
+                    )
+            )
+        {
+            if matches!(
+                event,
+                Event::Keyboard(iced::keyboard::Event::KeyPressed {
+                    key: iced::keyboard::Key::Named(iced::keyboard::key::Named::Escape),
+                    ..
+                })
+            ) && let Some(on_close) = &self.on_close
+            {
+                shell.publish(on_close.clone());
+            }
+            shell.capture_event();
+            return;
+        }
+
         let bounds = layout.bounds();
         let cursor_position = cursor.position();
 

@@ -7,6 +7,24 @@ use super::TerminalMessage;
 use crate::app::{App, FocusArea, Message};
 use iced::Task;
 
+pub(super) fn close_tab(app: &mut App, id: u64) -> Task<Message> {
+    #[cfg(not(target_arch = "wasm32"))]
+    let was_active = app.terminal.active_id == Some(id);
+    if !app.terminal.close_terminal(id) {
+        return Task::none();
+    }
+    if app.terminal.tabs.is_empty() {
+        app.terminal.is_visible = false;
+        app.focus_area = FocusArea::None;
+    }
+    let reap = reap_retired_task(app);
+    #[cfg(not(target_arch = "wasm32"))]
+    if was_active {
+        return Task::batch([reap, super::event::focus_active_terminal(app)]);
+    }
+    reap
+}
+
 /// Schedule dropping retired terminals after iced cancels their subscriptions.
 pub(crate) fn reap_retired_task(app: &App) -> Task<Message> {
     if app.terminal.has_retired() {
@@ -25,6 +43,10 @@ pub fn update(app: &mut App, message: TerminalMessage) -> Task<Message> {
         TerminalMessage::Add => {
             app.terminal.tab_context_menu_id = None;
             app.terminal.tab_context_menu_pos = None;
+            #[cfg(not(target_arch = "wasm32"))]
+            {
+                app.terminal.content_menu = None;
+            }
             #[cfg(not(target_arch = "wasm32"))]
             if app.terminal.add_terminal(app.project_path.as_ref().map(std::path::PathBuf::from)) {
                 app.terminal.apply_app_theme(&app.app_theme);
@@ -50,17 +72,7 @@ pub fn update(app: &mut App, message: TerminalMessage) -> Task<Message> {
             if app.terminal.tabs.len() <= 1 {
                 return Task::none();
             }
-            #[cfg(not(target_arch = "wasm32"))]
-            let was_active = app.terminal.active_id == Some(id);
-            if app.terminal.close_terminal(id) {
-                let reap = reap_retired_task(app);
-                #[cfg(not(target_arch = "wasm32"))]
-                if was_active {
-                    return Task::batch([reap, super::event::focus_active_terminal(app)]);
-                }
-                return reap;
-            }
-            Task::none()
+            close_tab(app, id)
         }
         TerminalMessage::ReapRetired => {
             app.terminal.reap_retired();

@@ -84,14 +84,8 @@ pub fn update(app: &mut App, message: ChatMessage) -> Task<Message> {
         }
         ChatMessage::AppendText(text) => {
             if !text.is_empty() {
-                let runtime = app.current_session_runtime();
-                let mut content = runtime.input_editor.text().to_string();
-                if !content.is_empty() {
-                    content.push('\n');
-                }
-                content.push_str(&text);
                 let runtime = app.current_session_runtime_mut();
-                runtime.input_editor = iced::widget::text_editor::Content::with_text(&content);
+                chat::append_line(&mut runtime.input_editor, &text);
                 if app.active_session_id.is_none() {
                     let runtime = app.current_session_runtime();
                     app.input_editor = runtime.input_editor;

@@ -8,12 +8,17 @@ use iced::Task;
 
 /// config 子模块，拆分当前领域的局部职责。
 pub mod config;
+#[cfg(not(target_arch = "wasm32"))]
+mod content_menu;
 /// event 子模块，拆分当前领域的局部职责。
 pub mod event;
 /// rename 子模块，拆分当前领域的局部职责。
 pub mod rename;
 /// tabs 子模块，拆分当前领域的局部职责。
 pub mod tabs;
+
+#[cfg(not(target_arch = "wasm32"))]
+pub use content_menu::ContentAction;
 
 pub(crate) use tabs::reap_retired_task;
 
@@ -44,6 +49,14 @@ pub enum TerminalMessage {
     RenameCancel(u64),
     TabContextOpen(u64, f32, f32),
     TabContextClose,
+    #[cfg(not(target_arch = "wasm32"))]
+    ContentMenuOpen(u64, iced::Point),
+    #[cfg(not(target_arch = "wasm32"))]
+    ContentMenuClose,
+    #[cfg(not(target_arch = "wasm32"))]
+    ContentMenuAction(u64, ContentAction),
+    #[cfg(not(target_arch = "wasm32"))]
+    PasteResolved(iced::widget::Id, Option<String>),
     DragStarted,
 }
 
@@ -76,6 +89,11 @@ pub fn update(app: &mut App, message: TerminalMessage) -> Task<Message> {
         | TerminalMessage::RenameCancel(_) => rename::update(app, message),
 
         TerminalMessage::Event(_) | TerminalMessage::DragStarted => event::update(app, message),
+        #[cfg(not(target_arch = "wasm32"))]
+        TerminalMessage::ContentMenuOpen(..)
+        | TerminalMessage::ContentMenuClose
+        | TerminalMessage::ContentMenuAction(..)
+        | TerminalMessage::PasteResolved(..) => content_menu::update(app, message),
     }
 }
 #[cfg(test)]

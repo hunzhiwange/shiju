@@ -8,6 +8,8 @@ use iced_core::{
 pub enum BindingAction {
     Copy,
     Paste,
+    SelectAll,
+    Clear,
     Char(char),
     Esc(String),
     LinkOpen,
@@ -330,6 +332,8 @@ fn platform_keyboard_bindings() -> Vec<(Binding<InputKind>, BindingAction)> {
         KeyboardBinding;
         "c", Modifiers::COMMAND; BindingAction::Copy;
         "v", Modifiers::COMMAND; BindingAction::Paste;
+        "a", Modifiers::COMMAND; BindingAction::SelectAll;
+        "k", Modifiers::COMMAND; BindingAction::Clear;
         "h", Modifiers::COMMAND; BindingAction::Char('\x7f');
     )
 }
@@ -340,6 +344,8 @@ fn platform_keyboard_bindings() -> Vec<(Binding<InputKind>, BindingAction)> {
         KeyboardBinding;
         "c", Modifiers::SHIFT | Modifiers::COMMAND; BindingAction::Copy;
         "v", Modifiers::SHIFT | Modifiers::COMMAND; BindingAction::Paste;
+        "a", Modifiers::SHIFT | Modifiers::COMMAND; BindingAction::SelectAll;
+        "k", Modifiers::SHIFT | Modifiers::COMMAND; BindingAction::Clear;
     )
 }
 

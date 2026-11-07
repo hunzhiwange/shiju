@@ -90,6 +90,15 @@ impl Terminal {
         self.backend.text()
     }
 
+    /// The current selection as plain text.
+    pub fn selected_text(&self) -> String {
+        self.backend.selectable_content()
+    }
+
+    pub fn has_selection(&self) -> bool {
+        self.backend.has_selection()
+    }
+
     pub fn handle(&mut self, cmd: Command) -> Action {
         let mut action = Action::default();
 

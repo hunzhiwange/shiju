@@ -342,6 +342,7 @@ impl<'a> TerminalView<'a> {
         &self,
         state: &mut TerminalViewState,
         clipboard: &mut dyn iced_graphics::core::Clipboard,
+        shell: &mut iced_graphics::core::Shell<'_, Event>,
         event: &iced::keyboard::Event,
     ) -> Option<Command> {
         let mut binding_action = BindingAction::Ignore;
@@ -403,22 +404,20 @@ impl<'a> TerminalView<'a> {
                 return Some(Command::Write(seq.as_bytes().to_vec()));
             },
             BindingAction::Paste => {
-                if let Some(data) = clipboard.read(ClipboardKind::Standard) {
-                    let input: Vec<u8> = data.bytes().collect();
-                    let bracketed = last_content
-                        .terminal_mode
-                        .contains(TermMode::BRACKETED_PASTE);
-                    return Some(Command::Write(wrap_bracketed_paste(
-                        input, bracketed,
-                    )));
-                }
+                shell.capture_event();
+                return clipboard
+                    .read(ClipboardKind::Standard)
+                    .map(Command::Paste);
             },
             BindingAction::Copy => {
-                clipboard.write(
-                    ClipboardKind::Standard,
-                    self.term.backend.selectable_content(),
-                );
+                shell.capture_event();
+                let text = self.term.selected_text();
+                if !text.is_empty() {
+                    clipboard.write(ClipboardKind::Standard, text);
+                }
             },
+            BindingAction::SelectAll => return Some(Command::SelectAll),
+            BindingAction::Clear => return Some(Command::Clear),
             _ => {},
         };
 
@@ -762,9 +761,14 @@ impl Widget<Event, Theme, iced::Renderer> for TerminalView<'_> {
                     return;
                 }
 
-                self.handle_keyboard_event(state, clipboard, keyboard_event)
-                    .into_iter()
-                    .collect()
+                self.handle_keyboard_event(
+                    state,
+                    clipboard,
+                    shell,
+                    keyboard_event,
+                )
+                .into_iter()
+                .collect()
             },
             _ => Vec::new(),
         };
@@ -927,41 +931,18 @@ impl BackgroundRect {
     }
 }
 
-// Wrap pasted text in bracketed paste when the target application has enabled the mode. The markers
-// `\x1b[200~` / `\x1b[201~` make the application (readline, TUIs) receive the paste as a single BLOCK, so
-// inner newlines are not interpreted as Enter (a multi-line paste is not submitted line by line). When
-// the mode is off, the bytes are written unchanged (historical behavior).
-//
-// ESC (0x1b) and Ctrl-C (0x03) are stripped from the pasted text first, mirroring Alacritty: otherwise a
-// clipboard that itself contains `\x1b[201~` would close the bracketed paste early (the rest would be
-// interpreted as keystrokes), and some shells terminate bracketed paste on 0x03.
-fn wrap_bracketed_paste(input: Vec<u8>, bracketed: bool) -> Vec<u8> {
-    if !bracketed {
-        return input;
-    }
-    let filtered: Vec<u8> = input
-        .into_iter()
-        .filter(|&b| b != 0x1b && b != 0x03)
-        .collect();
-    let mut out = Vec::with_capacity(filtered.len() + 12);
-    out.extend_from_slice(b"\x1b[200~");
-    out.extend_from_slice(&filtered);
-    out.extend_from_slice(b"\x1b[201~");
-    out
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
 
     mod wrap_bracketed_paste_tests {
-        use super::*;
+        use crate::backend::paste_bytes;
 
         #[test]
         fn wraps_only_when_active() {
             let input = b"line 1\nline 2".to_vec();
-            assert_eq!(wrap_bracketed_paste(input.clone(), false), input);
-            let wrapped = wrap_bracketed_paste(input.clone(), true);
+            assert_eq!(paste_bytes(input.clone(), false), input);
+            let wrapped = paste_bytes(input.clone(), true);
             assert!(wrapped.starts_with(b"\x1b[200~"));
             assert!(wrapped.ends_with(b"\x1b[201~"));
             assert_eq!(&wrapped[6..wrapped.len() - 6], input.as_slice());
@@ -970,8 +951,7 @@ mod tests {
         #[test]
         fn filters_escape_and_ctrl_c() {
             // A clipboard containing `\x1b[201~` must not be able to close the bracketed paste early.
-            let wrapped =
-                wrap_bracketed_paste(b"a\x1b[201~b\x03c".to_vec(), true);
+            let wrapped = paste_bytes(b"a\x1b[201~b\x03c".to_vec(), true);
             let body = &wrapped[6..wrapped.len() - 6];
             assert_eq!(body, b"a[201~bc");
             assert!(!body.contains(&0x1b));

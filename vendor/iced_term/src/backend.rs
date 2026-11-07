@@ -12,6 +12,7 @@ use alacritty_terminal::term::search::{Match, RegexIter, RegexSearch};
 use alacritty_terminal::term::{
     self, cell::Cell, test::TermSize, viewport_to_point, Term, TermMode,
 };
+use alacritty_terminal::vte::ansi::{ClearMode, Handler};
 use alacritty_terminal::{tty, Grid};
 use iced::keyboard::Modifiers;
 use iced_core::Size;
@@ -27,10 +28,13 @@ const URL_REGEX: &str = r#"(ipfs:|ipns:|magnet:|mailto:|gemini://|gopher://|http
 #[derive(Debug, Clone)]
 pub enum Command {
     Write(Vec<u8>),
+    Paste(String),
     Scroll(i32),
     Resize(Option<Size<f32>>, Option<Size<f32>>),
     SelectStart(SelectionType, (f32, f32)),
     SelectUpdate((f32, f32)),
+    SelectAll,
+    Clear,
     ProcessLink(LinkAction, Point),
     MouseReport(MouseButton, Modifiers, Point, bool),
     ProcessAlacrittyEvent(Event),
@@ -212,6 +216,15 @@ impl Backend {
                 self.write(input);
                 term.scroll_display(Scroll::Bottom);
             },
+            Command::Paste(text) => {
+                if !text.is_empty() {
+                    self.write(paste_bytes(
+                        text.into_bytes(),
+                        term.mode().contains(TermMode::BRACKETED_PASTE),
+                    ));
+                    term.scroll_display(Scroll::Bottom);
+                }
+            },
             Command::Scroll(delta) => {
                 self.scroll(&mut term, delta);
             },
@@ -223,6 +236,24 @@ impl Backend {
             },
             Command::SelectUpdate((x, y)) => {
                 self.update_selection(&mut term, x, y);
+            },
+            Command::SelectAll => {
+                let (start, end) = Self::buffer_bounds(&term);
+                let mut selection =
+                    Selection::new(SelectionType::Simple, start, Side::Left);
+                selection.update(end, Side::Right);
+                term.selection = Some(selection);
+            },
+            Command::Clear => {
+                // Keep the active prompt and input line without sending a keystroke to the PTY.
+                let cursor = term.grid().cursor.point;
+                let columns = term.columns();
+                let line = term.grid()[cursor.line][..Column(columns)].to_vec();
+                term.clear_screen(ClearMode::All);
+                term.clear_screen(ClearMode::Saved);
+                let grid = term.grid_mut();
+                grid[Line(0)][..Column(columns)].clone_from_slice(&line);
+                grid.cursor.point.line = Line(0);
             },
             Command::ProcessLink(link_action, point) => {
                 self.process_link_action(&term, link_action, point);
@@ -481,6 +512,17 @@ impl Backend {
         self.term.lock().selection_to_string().unwrap_or_default()
     }
 
+    pub fn has_selection(&self) -> bool {
+        self.last_content.selectable_range.is_some()
+    }
+
+    fn buffer_bounds(term: &Term<EventProxy>) -> (Point, Point) {
+        // Scrollback rows have negative indices and the visible screen starts at zero.
+        let start = Point::new(Line(-(term.history_size() as i32)), Column(0));
+        let end = Point::new(term.bottommost_line(), term.last_column());
+        (start, end)
+    }
+
     /// The whole buffer as text, scrollback first and the visible screen last.
     ///
     /// [`Term::bounds_to_string`] does the work: it already trims each line at
@@ -492,11 +534,7 @@ impl Backend {
     /// the last synced snapshot of it.
     pub fn text(&self) -> Vec<String> {
         let term = self.term.lock();
-        // The grid indexes scrollback with negative lines and the visible
-        // screen from zero, so the oldest history row is the negated history
-        // size and the newest is the bottommost line.
-        let start = Point::new(Line(-(term.history_size() as i32)), Column(0));
-        let end = Point::new(term.bottommost_line(), term.last_column());
+        let (start, end) = Self::buffer_bounds(&term);
         term.bounds_to_string(start, end)
             .lines()
             .map(str::to_owned)
@@ -539,6 +577,18 @@ impl Backend {
             .find(|rm| rm.contains(&point));
         x
     }
+}
+
+pub(crate) fn paste_bytes(input: Vec<u8>, bracketed: bool) -> Vec<u8> {
+    if !bracketed {
+        return input;
+    }
+    // ESC can close the bracketed paste early, and some shells terminate it on Ctrl-C.
+    let mut out = Vec::with_capacity(input.len() + 12);
+    out.extend_from_slice(b"\x1b[200~");
+    out.extend(input.into_iter().filter(|&b| b != 0x1b && b != 0x03));
+    out.extend_from_slice(b"\x1b[201~");
+    out
 }
 
 /// Copied from alacritty/src/display/hint.rs:

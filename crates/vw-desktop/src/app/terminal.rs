@@ -300,6 +300,8 @@ pub struct TerminalState {
     pub font_size: f32,
     pub tab_context_menu_id: Option<u64>,
     pub tab_context_menu_pos: Option<(f32, f32)>,
+    #[cfg(not(target_arch = "wasm32"))]
+    pub(crate) content_menu: Option<(u64, iced::Point)>,
     /// Closed terminals kept alive until iced cancels their subscriptions.
     ///
     /// Dropping `iced_term::Terminal` while its subscription stream is still
@@ -344,6 +346,8 @@ impl TerminalState {
             font_size,
             tab_context_menu_id: None,
             tab_context_menu_pos: None,
+            #[cfg(not(target_arch = "wasm32"))]
+            content_menu: None,
             #[cfg(not(target_arch = "wasm32"))]
             retiring: Vec::new(),
         }
@@ -610,6 +614,10 @@ fi
     }
 
     pub fn select_terminal(&mut self, id: u64) {
+        #[cfg(not(target_arch = "wasm32"))]
+        {
+            self.content_menu = None;
+        }
         self.active_id = Some(id);
         self.is_visible = true;
         if self.height < 160.0 {
@@ -627,6 +635,10 @@ fi
     pub fn close_terminal(&mut self, id: u64) -> bool {
         if let Some(pos) = self.tabs.iter().position(|t| t.id == id) {
             let tab = self.tabs.remove(pos);
+            #[cfg(not(target_arch = "wasm32"))]
+            if self.content_menu.is_some_and(|(menu_id, _)| menu_id == id) {
+                self.content_menu = None;
+            }
             if self.active_id == Some(id) {
                 self.active_id = self.tabs.first().map(|t| t.id);
             }

@@ -3,7 +3,7 @@
 //! 该模块提供终端界面的完整视图渲染功能，包括：
 //! - 多标签页管理（添加、切换、关闭）
 //! - 标签页右键上下文菜单（重命名、关闭）
-//! - 终端内容显示区域
+//! - 终端内容显示区域与选区右键菜单
 //! - 标签页重命名模态对话框
 //!
 //! 该模块是 VibeWindow 应用的终端 UI 层核心组件，
@@ -23,6 +23,10 @@ use crate::app::components::system_settings_common::{
 };
 use crate::app::components::widgets::RightClickArea;
 use crate::app::{App, Message, message};
+
+#[cfg(not(target_arch = "wasm32"))]
+#[path = "terminal_content_menu.rs"]
+mod content_menu;
 
 pub(super) fn terminal_tab_width(title: &str) -> f32 {
     (title.chars().count() as f32 * 8.4 + 62.0).clamp(92.0, 260.0)
@@ -527,15 +531,7 @@ pub fn view(app: &App) -> Element<'_, Message> {
         // 非 WASM 平台：渲染真实的终端视图
         #[cfg(not(target_arch = "wasm32"))]
         {
-            let term = &_tab.term;
-            container(
-                iced_term::TerminalView::show(term)
-                    .map(|e| Message::Terminal(message::TerminalMessage::Event(e))),
-            )
-            .width(Length::Fill)
-            .height(Length::Fill)
-            .padding(terminal_content_padding(_tab.id))
-            .into()
+            content_menu::terminal_surface(app, _tab)
         }
         // WASM 平台：显示不支持提示
         #[cfg(target_arch = "wasm32")]

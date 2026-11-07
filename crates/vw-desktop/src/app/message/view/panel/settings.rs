@@ -631,6 +631,10 @@ pub fn update(app: &mut App, message: ViewMessage) -> Task<Message> {
             Task::none()
         }
         ViewMessage::ToggleTerminalPanel => {
+            #[cfg(not(target_arch = "wasm32"))]
+            {
+                app.terminal.content_menu = None;
+            }
             app.terminal.is_visible = !app.terminal.is_visible;
             if app.terminal.is_visible && app.terminal.height < 160.0 {
                 app.terminal.height = 200.0;

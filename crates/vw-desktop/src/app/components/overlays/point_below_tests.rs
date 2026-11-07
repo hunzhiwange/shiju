@@ -208,6 +208,7 @@ fn overlay_element_with<'a>(
         on_close: Some(TestMessage::Close),
         capture_outside_click,
         close_on_target_click,
+        capture_keyboard: false,
     }
 }
 

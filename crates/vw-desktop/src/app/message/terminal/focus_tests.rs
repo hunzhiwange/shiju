@@ -183,6 +183,87 @@ impl Drop for Harness {
 }
 
 #[tokio::test(flavor = "multi_thread")]
+async fn terminal_context_menu_preserves_selection_and_appends_to_chat_draft() {
+    use super::ContentAction;
+    use iced_runtime::user_interface::{Cache, UserInterface};
+
+    let mut h = Harness::with_command("printf '终端输出 READY\\n'; exec cat").await;
+    let point = Point::new(120.0, 360.0);
+    let id = h.app.terminal.active_id.unwrap();
+    let right_click = Event::Mouse(iced::mouse::Event::ButtonPressed(iced::mouse::Button::Right));
+    h.click(point).await;
+    tokio::time::timeout(std::time::Duration::from_secs(5), async {
+        while !h.app.terminal.tabs[0].term.text().iter().any(|line| line.contains("READY")) {
+            tokio::time::sleep(std::time::Duration::from_millis(10)).await;
+        }
+    })
+    .await
+    .expect("terminal output");
+
+    h.event(right_click.clone(), point).await;
+    assert!(h.app.terminal.content_menu.is_some());
+    h.message(TerminalMessage::ContentMenuAction(id, ContentAction::SelectAll)).await;
+    let selection = h.app.terminal.tabs[0].term.selected_text();
+    assert!(selection.contains("终端输出 READY"));
+
+    h.event(right_click.clone(), point).await;
+    assert_eq!(h.app.terminal.tabs[0].term.selected_text(), selection);
+    {
+        let mut ui = UserInterface::build(
+            view(&h.app),
+            Size::new(800.0, 500.0),
+            Cache::new(),
+            &mut h.renderer,
+        );
+        let cursor = iced::mouse::Cursor::Available(point);
+        let key = iced::keyboard::Key::Named(iced::keyboard::key::Named::Escape);
+        let mut messages = Vec::new();
+        let (_, statuses) = ui.update(
+            &[Event::Keyboard(iced::keyboard::Event::KeyPressed {
+                modified_key: key.clone(),
+                key,
+                physical_key: iced::keyboard::key::Physical::Unidentified(
+                    iced::keyboard::key::NativeCode::Unidentified,
+                ),
+                location: iced::keyboard::Location::Standard,
+                modifiers: iced::keyboard::Modifiers::empty(),
+                text: None,
+                repeat: false,
+            })],
+            cursor,
+            &mut h.renderer,
+            &mut iced::advanced::clipboard::Null,
+            &mut messages,
+        );
+        assert_eq!(statuses, [iced::event::Status::Captured]);
+        assert!(matches!(
+            messages.as_slice(),
+            [Message::Terminal(TerminalMessage::ContentMenuClose)]
+        ));
+        for theme in [iced::Theme::Light, iced::Theme::Dark] {
+            ui.draw(
+                &mut h.renderer,
+                &theme,
+                &iced::advanced::renderer::Style { text_color: theme.palette().text },
+                cursor,
+            );
+        }
+    }
+    h.message(TerminalMessage::ContentMenuClose).await;
+
+    h.app.current_session_runtime_mut().input_editor =
+        iced::widget::text_editor::Content::with_text("现有草稿");
+    h.event(right_click, point).await;
+    h.message(TerminalMessage::ContentMenuAction(id, ContentAction::InsertInChat)).await;
+    assert!(h.app.terminal.content_menu.is_none());
+    assert_eq!(
+        h.app.current_session_runtime().input_editor.text(),
+        format!("现有草稿\n{selection}")
+    );
+    assert!(h.key().await.is_empty());
+}
+
+#[tokio::test(flavor = "multi_thread")]
 async fn terminal_focus_click_delivers_keys_in_both_directions() {
     let mut h = Harness::new().await;
     for turn in 0..3 {

@@ -1,6 +1,7 @@
 use super::super::system_settings_common::*;
 use crate::app::message::app_providers::{
     list::{ListMessage, message},
+    preview::Event as PreviewEvent,
     snippets::Event as SnippetEvent,
     universal::Event as UniversalEvent,
 };
@@ -119,6 +120,13 @@ pub(crate) fn overlay<'a>(
                 )),
                 enabled,
             ));
+            if crate::app::state::app_providers::preview::available(scope.app) {
+                actions = actions.push(action(
+                    "配置预览",
+                    ListMessage::Preview(PreviewEvent::Open(id.clone())),
+                    enabled,
+                ));
+            }
             if scope.app == AppId::ClaudeDesktop {
                 actions = actions.push(action(
                     "直连与映射",
@@ -260,6 +268,9 @@ pub(crate) fn overlay<'a>(
     .wrap();
     let card = settings_modal_layout(header, body, Some(actions.into())).width(800).height(650);
     let list = settings_modal_overlay(Some(base), close, container(card).padding(12));
+    if let Some(form) = &state.preview {
+        return super::preview::overlay(form, list);
+    }
     if let Some(form) = &state.snippets {
         return super::snippets::overlay(state, form, scope.app, list);
     }

@@ -52,7 +52,11 @@ impl GatewayClient {
             let mut credential = reqwest::header::HeaderValue::from_str(token)
                 .map_err(|_| Error::Transport("invalid application credential".into()))?;
             credential.set_sensitive(true);
-            let path = id.map(|id| format!("/{id}")).unwrap_or_default();
+            let path = match (id, body.map(|request| &request.action)) {
+                (Some(id), _) => format!("/{id}"),
+                (None, Some(ProviderOperationAction::EditorSave { .. })) => "/editor-save".into(),
+                _ => String::new(),
+            };
             let method = reqwest::Method::from_bytes(method.as_bytes())
                 .map_err(|_| Error::Transport("invalid operation method".into()))?;
             let url = format!("{}/v1/app-providers/operations{path}", self.endpoint.base_url());

@@ -54,8 +54,14 @@ impl Fixture {
         let policy = root.path().join("access.json");
         std::fs::write(&policy,json!({"principals":[{"id":"editor","token_sha256":hex::encode(Sha256::digest(TOKEN)),"grants":[{"platform_id":"p","company_id":"a","host_id":"host","provider_config_read":true,"provider_config_write":true}]}],"hosts":[{"id":"host","online":true,"binding":"local","home":root.path(),"credential_root":private,"search_paths":[],"applications":root.path().join("Applications")}]}).to_string()).unwrap();
         std::fs::set_permissions(&policy, std::fs::Permissions::from_mode(0o600)).unwrap();
+        let editor = super::editor_merge::Editor::new(Some(policy.clone()));
+        let provider_routes = editor
+            .clone()
+            .router()
+            .merge(super::operations::router_with_editor(Some(policy.clone()), editor))
+            .merge(super::preview::router_with_policy(Some(policy.clone())));
         let router = Router::new()
-            .nest("/v1", super::editor_merge::router_with_policy(Some(policy.clone())))
+            .nest("/v1", provider_routes)
             .layer(Extension(db.clone()))
             .layer(middleware::from_fn(crate::gateway::middleware::tenant_scope_middleware));
         let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
@@ -275,4 +281,143 @@ async fn cc04_editor_merge_registered_route_requires_gateway_authentication() {
         .await
         .unwrap();
     assert_eq!(response.status(), 401);
+}
+
+use vw_api_types::{
+    app_providers::{operations::*, preview::SavedProviderPreviewRequest},
+    task::TaskStatus,
+};
+
+async fn wait_for_progress(
+    f: &Fixture,
+    id: &str,
+    ready: impl Fn(&ProviderOperationProgress) -> bool,
+) -> ProviderOperationProgress {
+    tokio::time::timeout(std::time::Duration::from_secs(10), async {
+        loop {
+            let progress = f.client.provider_operation_get(id, "host", TOKEN).await.unwrap();
+            if ready(&progress) {
+                break progress;
+            }
+            tokio::time::sleep(std::time::Duration::from_millis(20)).await;
+        }
+    })
+    .await
+    .expect("editor operation did not reach expected state")
+}
+
+fn operation(request_id: &str, input: EditorSave) -> ProviderOperationRequest {
+    ProviderOperationRequest {
+        target_host_id: "host".into(),
+        request_id: request_id.into(),
+        action: ProviderOperationAction::EditorSave {
+            app: AppId::Claude,
+            id: "saved".into(),
+            input,
+        },
+    }
+}
+
+#[tokio::test]
+async fn cc04_ui_preview_editor_operation_keeps_file_when_cancelled_and_saves_after_retry() {
+    let f = Fixture::new().await;
+    let view = f.open("saved").await;
+    let file = std::fs::read(f.file()).unwrap();
+    let hold = vw_agent_apps::providers::editor_merge::ClaudeFile::open(f.root.path()).unwrap();
+    let request = operation("cancel-fixture", f.request(&view));
+    let accepted = f.client.provider_operation_start(&request, TOKEN).await.unwrap();
+    assert_eq!(accepted.request_id, "cancel-fixture");
+    let id = accepted.operation_id.as_ref();
+    let running = wait_for_progress(&f, id, |p| p.status == TaskStatus::Running).await;
+    assert_eq!(running.phase, ProviderOperationPhase::Preparing);
+    let same = f.client.provider_operation_start(&request, TOKEN).await.unwrap();
+    assert_eq!(same.operation_id, accepted.operation_id);
+    let cancelled = f.client.provider_operation_cancel(id, "host", TOKEN).await.unwrap();
+    assert!(cancelled.cancellation_requested);
+    assert_eq!(std::fs::read(f.file()).unwrap(), file);
+    drop(hold);
+    let terminal = wait_for_progress(&f, id, |p| p.phase == ProviderOperationPhase::Terminal).await;
+    assert_eq!(terminal.status, TaskStatus::Cancelled);
+    assert!(terminal.editor_outcome.is_none());
+    assert_eq!(std::fs::read(f.file()).unwrap(), file);
+
+    let retry = operation("retry-fixture", f.request(&view));
+    let denied = f.client.provider_operation_start(&retry, "bad-token").await.unwrap_err();
+    assert!(matches!(
+        denied,
+        vw_gateway_client::AgentAppsReadError::Http { status: 401 | 403, .. }
+    ));
+    assert_eq!(std::fs::read(f.file()).unwrap(), file);
+    let mut external: Value = serde_json::from_slice(&file).unwrap();
+    external["x"] = 3.into();
+    let external = serde_json::to_vec(&external).unwrap();
+    std::fs::write(f.file(), &external).unwrap();
+    let accepted = f.client.provider_operation_start(&retry, TOKEN).await.unwrap();
+    let terminal = wait_for_progress(&f, accepted.operation_id.as_ref(), |p| {
+        p.phase == ProviderOperationPhase::Terminal
+    })
+    .await;
+    assert_eq!(terminal.status, TaskStatus::Completed);
+    let Some(ProviderEditorOutcome::Reviewed {
+        result: EditorResult { saved: false, conflicts, resolution: Some(resolution) },
+    }) = terminal.editor_outcome
+    else {
+        panic!("expected explicit conflict choice")
+    };
+    assert_eq!(conflicts, vec![vec!["x".to_owned()]]);
+    assert_eq!(std::fs::read(f.file()).unwrap(), external);
+
+    let mut input = f.request(&view);
+    input.choice = EditorChoice::KeepMine;
+    input.resolution = Some(resolution);
+    let accepted = f
+        .client
+        .provider_operation_start(&operation("choose-fixture", input.clone()), TOKEN)
+        .await
+        .unwrap();
+    let terminal = wait_for_progress(&f, accepted.operation_id.as_ref(), |p| {
+        p.phase == ProviderOperationPhase::Terminal
+    })
+    .await;
+    assert_eq!(terminal.status, TaskStatus::Completed);
+    assert!(matches!(
+        terminal.editor_outcome,
+        Some(ProviderEditorOutcome::Reviewed { result: EditorResult { saved: true, .. } })
+    ));
+    let accepted =
+        f.client.provider_operation_start(&operation("stale-fixture", input), TOKEN).await.unwrap();
+    let terminal = wait_for_progress(&f, accepted.operation_id.as_ref(), |p| {
+        p.phase == ProviderOperationPhase::Terminal
+    })
+    .await;
+    assert_eq!(terminal.status, TaskStatus::Failed);
+    assert_eq!(terminal.editor_outcome, Some(ProviderEditorOutcome::Rejected { status: 409 }));
+    let saved: Value = serde_json::from_slice(&std::fs::read(f.file()).unwrap()).unwrap();
+    assert_eq!(saved["x"], 2);
+    assert_eq!(saved["untouched"], "fixture-secret");
+}
+
+#[tokio::test]
+async fn cc04_ui_preview_saved_fallback_is_redacted_authorized_and_read_only() {
+    let f = Fixture::new().await;
+    let corrupt = b"broken native configuration";
+    std::fs::write(f.file(), corrupt).unwrap();
+    let request =
+        SavedProviderPreviewRequest { target_host_id: "host".into(), provider_id: "saved".into() };
+    let before = f.record("saved");
+    let fallback =
+        f.client.app_provider_saved_preview(AppId::Claude, &request, TOKEN).await.unwrap();
+    assert_eq!(fallback.settings["catalog"], true);
+    assert!(!fallback.settings.to_string().contains("fixture-key"));
+    let denied = f
+        .client
+        .app_provider_saved_preview(AppId::Claude, &request, "bad-token")
+        .await
+        .unwrap_err();
+    assert!(matches!(
+        denied,
+        vw_gateway_client::AgentAppsReadError::Http { status: 401 | 403, .. }
+    ));
+    assert_eq!(f.record("saved"), before);
+    assert_eq!(std::fs::read(f.file()).unwrap(), corrupt);
 }

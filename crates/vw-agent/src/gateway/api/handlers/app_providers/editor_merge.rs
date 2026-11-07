@@ -20,7 +20,7 @@ use vw_agent_apps::providers::{
 };
 use vw_api_types::{agent_apps::AppId, app_providers::editor_merge::*, id::TenantScope};
 #[derive(Clone)]
-struct Editor {
+pub(super) struct Editor {
     policy: Option<PathBuf>,
     contexts: Arc<Mutex<HashMap<String, Context>>>,
 }
@@ -40,15 +40,22 @@ struct Context {
     identity: Option<(u64, u64)>,
     resolution: Option<(String, Vec<u8>, Vec<u8>)>,
 }
-pub(super) fn router() -> Router {
-    router_with_policy(std::env::var_os("SHIJU_AGENT_APPS_ACCESS_FILE").map(PathBuf::from))
+impl Editor {
+    pub(super) fn new(policy: Option<PathBuf>) -> Self {
+        Self { policy, contexts: Default::default() }
+    }
+
+    pub(super) fn router(self) -> Router {
+        Router::new()
+            .route("/app-providers/{app}/{id}/editor/open", post(open))
+            .route("/app-providers/{app}/{id}/editor/save", post(save))
+            .layer(DefaultBodyLimit::max(128 * 1024))
+            .layer(Extension(self))
+    }
 }
+#[cfg(test)]
 pub(super) fn router_with_policy(policy: Option<PathBuf>) -> Router {
-    Router::new()
-        .route("/app-providers/{app}/{id}/editor/open", post(open))
-        .route("/app-providers/{app}/{id}/editor/save", post(save))
-        .layer(DefaultBodyLimit::max(128 * 1024))
-        .layer(Extension(Editor { policy, contexts: Default::default() }))
+    Editor::new(policy).router()
 }
 async fn open(
     Extension(editor): Extension<Editor>,
@@ -185,7 +192,7 @@ fn open_sync(
     Ok(Json(view))
 }
 #[cfg(target_os = "macos")]
-fn save_sync(
+pub(super) fn save_sync(
     editor: Editor,
     tenant: TenantScope,
     db: Option<Extension<GlobalDatabase>>,
@@ -268,8 +275,10 @@ fn save_sync(
     } else {
         let settings = serde_json::from_slice(&merged).map_err(|_| StatusCode::BAD_REQUEST)?;
         business::project(&merged, &settings).map_err(|_| StatusCode::UNPROCESSABLE_ENTITY)?;
-        crate::app_providers::AppProviderStore::new(db)
-            .map_err(|_| StatusCode::SERVICE_UNAVAILABLE)?
+        let store = crate::app_providers::AppProviderStore::new(db)
+            .map_err(|_| StatusCode::SERVICE_UNAVAILABLE)?;
+        vw_agent_apps::providers::operations::publication().map_err(|_| StatusCode::CONFLICT)?;
+        store
             .editor_save_record(&tenant, app, &id, &ctx.record, settings)
             .map_err(|_| StatusCode::CONFLICT)?;
     }
@@ -289,7 +298,7 @@ fn open_sync(
     Err(StatusCode::NOT_IMPLEMENTED)
 }
 #[cfg(not(target_os = "macos"))]
-fn save_sync(
+pub(super) fn save_sync(
     _: Editor,
     _: TenantScope,
     _: Option<Extension<GlobalDatabase>>,

@@ -36,14 +36,14 @@ pub struct EditorSave {
     pub choice: EditorChoice,
     pub resolution: Option<String>,
 }
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
 pub struct EditorView {
     pub context: String,
     pub settings: Value,
     pub current: bool,
 }
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
 pub struct EditorResult {
     pub saved: bool,
@@ -53,4 +53,4 @@ pub struct EditorResult {
 macro_rules! concealed { ($($t:ty),*) => { $(impl std::fmt::Debug for $t {
  fn fmt(&self,f:&mut std::fmt::Formatter<'_>)->std::fmt::Result { f.write_str("EditorInput([redacted])") }
 })* }; }
-concealed!(EditorOpen, EditorEdit, EditorValue, EditorChoice, EditorSave);
+concealed!(EditorOpen, EditorEdit, EditorValue, EditorChoice, EditorSave, EditorView, EditorResult);

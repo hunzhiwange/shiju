@@ -43,6 +43,7 @@ pub enum ListMessage {
     Icons(super::icons::Event),
     Universal(super::universal::Event),
     Snippets(super::snippets::Event),
+    Preview(super::preview::Event),
     Open(AppId),
     Close,
     Refresh,
@@ -163,6 +164,7 @@ pub(crate) fn update(app: &mut App, value: ListMessage) -> Task<Message> {
     match value {
         ListMessage::Icons(event) => return super::icons::update(app, event),
         ListMessage::Universal(event) => return super::universal::update(app, event),
+        ListMessage::Preview(event) => return super::preview::update(app, event),
         ListMessage::Snippets(event) => return super::snippets::update(app, event),
         ListMessage::Endpoints(event) => return super::endpoints::update(app, event),
         ListMessage::Desktop(event) => return super::desktop::update(app, event),

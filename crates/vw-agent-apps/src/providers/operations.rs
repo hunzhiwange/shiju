@@ -19,6 +19,7 @@ impl ProviderOperation {
                 completed: 0,
                 total: 0,
                 cancellation_requested: false,
+                editor_outcome: None,
             })),
         }
     }

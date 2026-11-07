@@ -10,6 +10,8 @@ use axum::{
 use vw_api_types::{agent_apps::AppId, app_providers::AppProviderWrite, id::TenantScope};
 
 pub(crate) fn router() -> Router {
+    let policy = std::env::var_os("SHIJU_AGENT_APPS_ACCESS_FILE").map(std::path::PathBuf::from);
+    let editor = editor_merge::Editor::new(policy.clone());
     Router::new()
         .merge(catalog::router())
         .merge(basic::router())
@@ -20,7 +22,7 @@ pub(crate) fn router() -> Router {
         .merge(env_clean::router())
         .merge(env_restore::router())
         .merge(preview::router())
-        .merge(editor_merge::router())
+        .merge(editor.clone().router())
         .merge(snippets::router())
         .merge(claude::router())
         .merge(codex_catalog::router())
@@ -36,7 +38,7 @@ pub(crate) fn router() -> Router {
         .merge(dsh::router())
         .merge(agy::router())
         .merge(import::router())
-        .merge(operations::router())
+        .merge(operations::router_with_editor(policy, editor))
         .merge(claude_desktop::router())
         .merge(desktop_mapping::router())
         .merge(delete::router())

@@ -66,3 +66,17 @@ pub struct ProviderPreview {
     pub unavailable: Option<PreviewUnavailable>,
     pub parse_error: Option<PreviewParseError>,
 }
+
+/// Read the redacted saved configuration when the native projection cannot be read.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct SavedProviderPreviewRequest {
+    pub target_host_id: String,
+    pub provider_id: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct SavedProviderPreview {
+    pub settings: Value,
+}

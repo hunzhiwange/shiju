@@ -8,7 +8,11 @@ use axum::{
 };
 use std::path::PathBuf;
 use vw_api_types::{
-    agent_apps::AppId, app_providers::preview::ProviderPreviewRequest, id::TenantScope,
+    agent_apps::AppId,
+    app_providers::preview::{
+        ProviderPreviewRequest, SavedProviderPreview, SavedProviderPreviewRequest,
+    },
+    id::TenantScope,
 };
 #[derive(Clone)]
 struct PolicyFile(Option<PathBuf>);
@@ -21,8 +25,61 @@ pub(super) fn router_with_policy(path: Option<PathBuf>) -> Router {
             "/app-providers/{app}/config/preview",
             post(read).layer(DefaultBodyLimit::max(256 * 1024)),
         )
+        .route(
+            "/app-providers/{app}/config/saved-preview",
+            post(read_saved).layer(DefaultBodyLimit::max(4096)),
+        )
         .layer(Extension(PolicyFile(path)))
 }
+async fn read_saved(
+    Extension(policy): Extension<PolicyFile>,
+    Extension(tenant): Extension<TenantScope>,
+    headers: HeaderMap,
+    database: Option<Extension<crate::global_database::GlobalDatabase>>,
+    Path(app): Path<AppId>,
+    body: Result<Json<SavedProviderPreviewRequest>, JsonRejection>,
+) -> Result<Json<SavedProviderPreview>, StatusCode> {
+    let Json(request) = body.map_err(|_| StatusCode::BAD_REQUEST)?;
+    tokio::task::spawn_blocking(move || {
+        super::super::agent_apps::provider_preview_context(
+            policy.0.as_deref(),
+            &headers,
+            &tenant,
+            &request.target_host_id,
+        )?;
+        let record = saved_record(database.as_ref(), &tenant, app, &request.provider_id)?;
+        let settings = record
+            .get("settingsConfig")
+            .filter(|v| v.is_object())
+            .ok_or(StatusCode::UNPROCESSABLE_ENTITY)?;
+        Ok(Json(SavedProviderPreview {
+            settings: vw_agent_apps::providers::editor_merge::display(settings.clone()),
+        }))
+    })
+    .await
+    .map_err(|_| StatusCode::SERVICE_UNAVAILABLE)?
+}
+
+fn saved_record(
+    database: Option<&Extension<crate::global_database::GlobalDatabase>>,
+    tenant: &TenantScope,
+    app: AppId,
+    id: &str,
+) -> Result<serde_json::Value, StatusCode> {
+    crate::app_providers::AppProviderStore::preview_record(
+        &database.ok_or(StatusCode::SERVICE_UNAVAILABLE)?.0,
+        tenant,
+        app,
+        id,
+    )
+    .map_err(|message| match message.as_str() {
+        "application provider not found" => StatusCode::NOT_FOUND,
+        "application provider storage unavailable"
+        | "invalid stored application provider profile" => StatusCode::SERVICE_UNAVAILABLE,
+        _ => StatusCode::BAD_REQUEST,
+    })
+}
+
 async fn read(
     Extension(policy): Extension<PolicyFile>,
     Extension(tenant): Extension<TenantScope>,
@@ -47,18 +104,7 @@ async fn read(
             database.clone(),
         )?;
         if let Some(id) = request.provider_id.as_deref() {
-            let record = crate::app_providers::AppProviderStore::preview_record(
-                &database.as_ref().ok_or(StatusCode::SERVICE_UNAVAILABLE)?.0,
-                &tenant,
-                app,
-                id,
-            )
-            .map_err(|message| match message.as_str() {
-                "application provider not found" => StatusCode::NOT_FOUND,
-                "application provider storage unavailable"
-                | "invalid stored application provider profile" => StatusCode::SERVICE_UNAVAILABLE,
-                _ => StatusCode::BAD_REQUEST,
-            })?;
+            let record = saved_record(database.as_ref(), &tenant, app, id)?;
             if request.settings.is_null() {
                 let Some(settings) = record.get("settingsConfig").filter(|v| v.is_object()) else {
                     return Err(StatusCode::UNPROCESSABLE_ENTITY);

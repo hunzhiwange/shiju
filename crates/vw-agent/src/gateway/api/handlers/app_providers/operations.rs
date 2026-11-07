@@ -1,7 +1,15 @@
 //! Scoped provider work on the existing host operation executor.
-use super::*;
-use axum::{extract::Query, http::HeaderMap, routing::post};
+use super::{
+    editor_merge::{self, Editor},
+    *,
+};
+use axum::{
+    extract::{OriginalUri, Query},
+    http::HeaderMap,
+    routing::post,
+};
 use serde::Deserialize;
+use sha2::{Digest, Sha256};
 use std::{
     collections::HashMap,
     path::PathBuf,
@@ -12,27 +20,49 @@ use vw_api_types::{app_providers::operations::*, id::TaskId, task::TaskStatus};
 #[derive(Clone)]
 struct State {
     policy: Option<PathBuf>,
+    editor: Editor,
     operations: Arc<Mutex<HashMap<String, Running>>>,
 }
 struct Running {
     tenant: TenantScope,
-    request: ProviderOperationRequest,
+    host: String,
+    request_id: String,
+    fingerprint: [u8; 32],
     operation: ProviderOperation,
+    editor_outcome: Arc<Mutex<Option<ProviderEditorOutcome>>>,
 }
 #[derive(Deserialize)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
 struct Target {
     target_host_id: String,
 }
-pub(super) fn router() -> Router {
-    router_with_policy(std::env::var_os("SHIJU_AGENT_APPS_ACCESS_FILE").map(PathBuf::from))
-}
+#[cfg(test)]
 pub(super) fn router_with_policy(policy: Option<PathBuf>) -> Router {
+    router_with_editor(policy.clone(), Editor::new(policy))
+}
+pub(super) fn router_with_editor(policy: Option<PathBuf>, editor: Editor) -> Router {
     Router::new()
-        .route("/app-providers/operations", post(submit))
+        .route("/app-providers/operations", post(submit).layer(DefaultBodyLimit::max(4096)))
+        .route(
+            "/app-providers/operations/editor-save",
+            post(submit).layer(DefaultBodyLimit::max(128 * 1024)),
+        )
         .route("/app-providers/operations/{id}", get(read).delete(cancel))
-        .layer(DefaultBodyLimit::max(4096))
-        .layer(Extension(State { policy, operations: Arc::new(Mutex::new(HashMap::new())) }))
+        .layer(Extension(State {
+            policy,
+            editor,
+            operations: Arc::new(Mutex::new(HashMap::new())),
+        }))
+}
+
+impl Running {
+    fn progress(&self, mut progress: ProviderOperationProgress) -> ProviderOperationProgress {
+        if matches!(progress.status, TaskStatus::Completed | TaskStatus::Failed) {
+            progress.editor_outcome =
+                self.editor_outcome.lock().unwrap_or_else(|e| e.into_inner()).clone();
+        }
+        progress
+    }
 }
 async fn authorize(
     state: &State,
@@ -69,9 +99,15 @@ async fn submit(
     Extension(tenant): Extension<TenantScope>,
     database: Option<Extension<GlobalDatabase>>,
     headers: HeaderMap,
+    OriginalUri(uri): OriginalUri,
     body: Result<Json<ProviderOperationRequest>, JsonRejection>,
 ) -> Result<(StatusCode, Json<ProviderOperationProgress>), StatusCode> {
     let Json(request) = body.map_err(|_| StatusCode::BAD_REQUEST)?;
+    if uri.path().ends_with("/operations/editor-save")
+        != matches!(request.action, ProviderOperationAction::EditorSave { .. })
+    {
+        return Err(StatusCode::BAD_REQUEST);
+    }
     vw_agent_apps::providers::validate_identity(&request.request_id)
         .map_err(|_| StatusCode::BAD_REQUEST)?;
     match &request.action {
@@ -87,21 +123,30 @@ async fn submit(
         ProviderOperationAction::Import { app: AppId::Dsh | AppId::ClaudeDesktop, .. } => {
             return Err(StatusCode::UNPROCESSABLE_ENTITY);
         }
+        ProviderOperationAction::EditorSave { app, id, input } => {
+            if *app != AppId::Claude {
+                return Err(StatusCode::NOT_IMPLEMENTED);
+            }
+            if input.target_host_id != request.target_host_id {
+                return Err(StatusCode::BAD_REQUEST);
+            }
+            vw_agent_apps::providers::validate_identity(id).map_err(|_| StatusCode::BAD_REQUEST)?;
+        }
         _ => {}
     }
+    let encoded = serde_json::to_vec(&request).map_err(|_| StatusCode::BAD_REQUEST)?;
+    let fingerprint = Sha256::digest(&encoded).into();
     let needs_read = matches!(request.action, ProviderOperationAction::Import { .. });
     authorize(&state, headers.clone(), tenant.clone(), request.target_host_id.clone(), needs_read)
         .await?;
     let mut registry = state.operations.lock().map_err(|_| StatusCode::SERVICE_UNAVAILABLE)?;
     if let Some(r) = registry.values().find(|r| {
-        r.tenant == tenant
-            && r.request.target_host_id == request.target_host_id
-            && r.request.request_id == request.request_id
+        r.tenant == tenant && r.host == request.target_host_id && r.request_id == request.request_id
     }) {
-        if serde_json::to_value(&r.request).ok() != serde_json::to_value(&request).ok() {
+        if r.fingerprint != fingerprint {
             return Err(StatusCode::CONFLICT);
         }
-        return Ok((StatusCode::ACCEPTED, Json(r.operation.snapshot())));
+        return Ok((StatusCode::ACCEPTED, Json(r.progress(r.operation.snapshot()))));
     }
     if registry.len() >= 1024 {
         registry.retain(|_, r| {
@@ -116,6 +161,9 @@ async fn submit(
     let policy = state.policy.clone();
     let scoped = tenant.clone();
     let input = request.clone();
+    let editor = state.editor.clone();
+    let editor_outcome = Arc::new(Mutex::new(None));
+    let worker_outcome = Arc::clone(&editor_outcome);
     operation
         .start(move || {
             let (home, _) = super::super::agent_apps::provider_editor_context(
@@ -136,14 +184,31 @@ async fn submit(
                 )
                 .map_err(|_| "authorization unavailable")?;
             }
-            let store = store(database)?;
             match input.action {
+                ProviderOperationAction::EditorSave { app, id, input } => {
+                    vw_agent_apps::providers::operations::planned(1);
+                    let result =
+                        editor_merge::save_sync(editor, scoped, database, headers, app, id, input);
+                    let outcome = match result {
+                        Ok(Json(result)) => {
+                            vw_agent_apps::providers::operations::advanced();
+                            ProviderEditorOutcome::Reviewed { result }
+                        }
+                        Err(status) => ProviderEditorOutcome::Rejected { status: status.as_u16() },
+                    };
+                    let succeeded = matches!(outcome, ProviderEditorOutcome::Reviewed { .. });
+                    *worker_outcome.lock().unwrap_or_else(|e| e.into_inner()) = Some(outcome);
+                    if succeeded { Ok(()) } else { Err("editor save rejected".into()) }
+                }
                 ProviderOperationAction::Project { id, apps } => {
                     use vw_api_types::app_providers::universal_sync::{
                         UniversalCatalogResult, UniversalSyncRequest,
                     };
-                    let results =
-                        store.universal_sync(&scoped, &id, &UniversalSyncRequest { apps })?;
+                    let results = store(database)?.universal_sync(
+                        &scoped,
+                        &id,
+                        &UniversalSyncRequest { apps },
+                    )?;
                     if results
                         .iter()
                         .any(|r| matches!(r.catalog, UniversalCatalogResult::Failed { .. }))
@@ -155,19 +220,27 @@ async fn submit(
                 ProviderOperationAction::Import { app, trigger } => {
                     #[cfg(target_os = "macos")]
                     {
-                        store.import_native(&scoped, &home, app, trigger).map(|_| ())
+                        store(database)?.import_native(&scoped, &home, app, trigger).map(|_| ())
                     }
                     #[cfg(not(target_os = "macos"))]
                     {
-                        let _ = (store, home, app, trigger);
+                        let _ = (database, home, app, trigger);
                         Err("provider import unsupported".into())
                     }
                 }
             }
         })
         .map_err(|_| StatusCode::CONFLICT)?;
-    let progress = operation.snapshot();
-    registry.insert(id, Running { tenant, request, operation });
+    let running = Running {
+        tenant,
+        host: request.target_host_id,
+        request_id: request.request_id,
+        fingerprint,
+        operation,
+        editor_outcome,
+    };
+    let progress = running.progress(running.operation.snapshot());
+    registry.insert(id, running);
     Ok((StatusCode::ACCEPTED, Json(progress)))
 }
 async fn owned(
@@ -176,13 +249,14 @@ async fn owned(
     headers: HeaderMap,
     host: String,
     id: &str,
-) -> Result<ProviderOperation, StatusCode> {
+    cancel: bool,
+) -> Result<ProviderOperationProgress, StatusCode> {
     authorize(state, headers, tenant.clone(), host.clone(), false).await?;
     let registry = state.operations.lock().map_err(|_| StatusCode::SERVICE_UNAVAILABLE)?;
     registry
         .get(id)
-        .filter(|r| r.tenant == tenant && r.request.target_host_id == host)
-        .map(|r| r.operation.clone())
+        .filter(|r| r.tenant == tenant && r.host == host)
+        .map(|r| r.progress(if cancel { r.operation.cancel() } else { r.operation.snapshot() }))
         .ok_or(StatusCode::NOT_FOUND)
 }
 async fn read(
@@ -192,7 +266,7 @@ async fn read(
     Query(target): Query<Target>,
     Path(id): Path<String>,
 ) -> Result<Json<ProviderOperationProgress>, StatusCode> {
-    Ok(Json(owned(&state, tenant, headers, target.target_host_id, &id).await?.snapshot()))
+    Ok(Json(owned(&state, tenant, headers, target.target_host_id, &id, false).await?))
 }
 async fn cancel(
     Extension(state): Extension<State>,
@@ -201,5 +275,5 @@ async fn cancel(
     Query(target): Query<Target>,
     Path(id): Path<String>,
 ) -> Result<Json<ProviderOperationProgress>, StatusCode> {
-    Ok(Json(owned(&state, tenant, headers, target.target_host_id, &id).await?.cancel()))
+    Ok(Json(owned(&state, tenant, headers, target.target_host_id, &id, true).await?))
 }

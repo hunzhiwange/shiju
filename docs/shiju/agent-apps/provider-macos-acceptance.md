@@ -3245,3 +3245,59 @@ macOS **27.0（26A428）/ arm64**，桌面 **0.6.0**。使用批次 52 的原生
 定向 `git diff --check` 与 `git diff --cached --check` 通过。只读 plan.md 无差异，任务 71 的槽位锁全部释放且缓存保留。提交范围为本任务实现、独立测试、窗口夹具、截图和本条证据。
 
 状态：**已完成**。下一步批次 72。
+
+## 任务 72：桌面预览差异与冲突确认
+
+2026-11-07。核对批次 71 提交 `99802db3b` 及上节验收。母任务 1、3 已完成，母任务 2 沿用任务 1 的底座子计划 1–93 开工裁定，完整领域迁移待收口。首次因正式表单缺少取消契约登记阻塞。继续执行后复用已验收的 Claude 编辑上下文和供应商操作注册，仅增加本行为所需入口。
+
+### 来源、实现与边界
+
+- 冻结来源 `ca58c0313360eae7c851fbd7553c1614c7af03e7`。核对 `LiveEditConflictDialog.tsx::useLiveEditConflict`、`useDraftEditorProjection.ts::projectDraft`，增改对话框与表单调用点，以及相邻投影和编辑对话框测试。来源测试未执行。
+- 从应用供应商列表的“配置预览”进入 `crates/vw-desktop/src/app/{components,state,message}/app_providers/preview.rs`。Claude Code、Codex、Gemini CLI、Grok Build 通过现有 `app_provider_preview` 展示已保存档案的脱敏投影、变更路径和失效字段。原生配置读取失败时保留警告，通过新增 `app_provider_saved_preview` 读取脱敏档案。Gateway 的 `POST /v1/app-providers/{app}/config/saved-preview` 先校验主机读取权限，再读取租户档案，通过现有脱敏器生成展示。只读请求可以关闭窗口取消等待。
+- Claude Code 的冲突保存复用任务 24 的 `app_provider_editor_open` 和同一执行端保存函数。用户提交显式 JSON 键路径改动，首次保存使用拒绝冲突策略，随后显式选择保留外部值或采用草稿。执行端上下文或确认失效后，桌面丢弃旧确认，重读投影和编辑上下文并保留草稿，等待再次确认。桌面校验 Gateway、租户、项目、主机、应用、请求代次和操作标识。写入覆盖当前卡全局键和非当前卡目录档案。常规供应商表单的连接、凭据、关键字段和首次激活仍由各应用适配负责。
+- `POST /v1/app-providers/operations/editor-save` 在任务 50 的操作注册中增加固定编辑动作。SDK 用同一 start/get/cancel 接口传递结构化结果，保留原导入和投影接口的请求上限。提交、执行、查询和取消沿用配置写授权，打开编辑上下文仍要求读授权。请求指纹用于同 ID 重试，注册表保留摘要与脱敏结果。执行端复用事务发布屏障并在非当前卡目录 CAS 前使用同一屏障。发布前取消不写文件，发布后按既有状态机完成或等待恢复。
+- 弹窗复用统一布局、编辑器、按钮和 toast。标题与操作区固定，滚动条 4px，两侧各留 7px。冲突和过期重读将内容滚回顶部，中文动态文本使用默认字体。
+
+### 红绿与回归
+
+| 动态槽位 | CARGO_TARGET_DIR | 阶段 |
+| --- | --- | --- |
+| 1 | `/Users/xiangmin/worker/code/shiju/target/rust-slot-1` | 桌面绿测、Clippy、最终明暗窗口 |
+| 2 | `/Users/xiangmin/worker/code/shiju/target/rust-slot-2` | 桌面红测、Gateway 聚焦与回归 |
+| 3 | `/Users/xiangmin/worker/code/shiju/target/rust-slot-3` | 首轮明暗窗口 |
+
+各阶段从仓库根以原子 `mkdir` 领取，记录计划、任务、会话和 PID。`CARGO_BUILD_BUILD_DIR` 使用同一绝对路径。窗口与 Cargo 子进程结束后释放本任务锁，保留缓存。
+
+| 确切命令 | 退出码 | 有效结果 |
+| --- | --- | --- |
+| `cargo fmt --all` | 0 | 红、绿、窗口改动后格式化 |
+| `cargo test -p vw-desktop --lib cc04_ui_preview_ -- --nocapture`（红） | 101 | 2 项在业务断言失败。旧确认未触发重读，未确认时仍可构造选择请求 |
+| 同一桌面命令（最终绿） | 0 | `cc04_ui_preview_stale_confirmation_reloads`、`cc04_ui_preview_conflict_choice_is_explicit`，2 项通过 |
+| `cargo test -p vw-agent --lib cc04_ui_preview_ -- --nocapture` | 0 | 2 项通过 |
+| `cargo test -p vw-agent --lib cc04_editor_merge_ -- --nocapture` | 0 | 6 项通过 |
+| `cargo test -p vw-agent --lib cc04_operations_ -- --nocapture` | 0 | 3 项通过 |
+| `cargo clippy --all-targets --all-features -- -D warnings` | 0 | 全部目标及特性通过 |
+
+共 4 项本任务行为测试、9 项相关回归。首轮桌面绿测因并行渠道设置测试的 `Geometry` 缺字段、`key` 遮蔽而退出 101，零有效测试。该并行变更修复后，原命令通过。首轮布局复验过程中曾发现本任务滚动 ID 接线遗漏，补齐后上述最终绿测及严格 Clippy 均通过。
+
+Gateway 用正式 SDK、隔离回环 HTTP、真实授权策略、临时 SQLite 和临时 Claude 配置。锁住真实配置目录后提交异步编辑，观察 Preparing、同一请求重试复用操作 ID，调用 DELETE 后释放文件锁，等待 Cancelled 并断言原文件字节一致。无效凭据提交不改文件。外部随后修改键值，首次重试返回冲突与确认 ID，文件不变。选择采用草稿后，只改指定键并保留外部无关值，重放已消费的上下文返回结构化 409。另将原生文件置为损坏内容，检查已保存档案的脱敏读取、无效凭据拒绝及档案和文件不变。全程使用假凭据。
+
+### macOS 原生窗口
+
+macOS **27.0（26A428）/ arm64**，桌面 **0.6.0**。批次 52 的原生入口通过 `cc04_preview_fixture.rs` 提供隔离回环响应，真实 Iced 视图调用正式 Message 和 SDK。临时 Cargo runner 将同槽位产物包装为独立 app bundle。回环响应替代外部版本、解析失败与保存时机，权限和持久化由上面的真实 Gateway 测试验证。
+
+| 确切命令 | 退出码 | 结果 |
+| --- | --- | --- |
+| `SHIJU_CC04_WINDOW_CASE=preview SHIJU_CC04_WINDOW_THEME=dark cargo test -p vw-desktop --test cc04-provider-window` | 0 | 深色实际操作并关闭 |
+| `SHIJU_CC04_WINDOW_CASE=preview SHIJU_CC04_WINDOW_THEME=light cargo test -p vw-desktop --test cc04-provider-window` | 0 | 浅色实际操作并关闭 |
+
+两种主题从供应商列表进入配置预览。先触发原生解析失败，确认显示行列警告与脱敏档案。打开当前供应商，滚动 28 项中文动态差异并检查标题、操作按钮固定。保存时观察进度和冲突说明，选择采用草稿触发 409，再确认预览重读且草稿仍在。取消一次在途保存并等执行端确认。重提草稿后显式保留外部修改，看到保存成功提示与清空的草稿。复验最终版本从长列表底部保存时回到冲突提示，中文草稿、标题和动态字段实际完成整形。
+
+- 深色：[解析失败](evidence/task-72/dark-fallback.jpg)、[长差异](evidence/task-72/dark-scroll.jpg)、[明确选择](evidence/task-72/dark-conflict.jpg)、[确认过期](evidence/task-72/dark-stale.jpg)、[取消](evidence/task-72/dark-cancelled.jpg)、[保存](evidence/task-72/dark-saved.jpg)。
+- 浅色：[解析失败](evidence/task-72/light-fallback.jpg)、[长差异](evidence/task-72/light-scroll.jpg)、[明确选择](evidence/task-72/light-conflict.jpg)、[确认过期](evidence/task-72/light-stale.jpg)、[取消](evidence/task-72/light-cancelled.jpg)、[保存](evidence/task-72/light-saved.jpg)。
+
+两种窗口无字形整形 panic，既有链接器 unwind 和系统 sandbox extension 提示仍出现。窗口不计入行为测试数量。实窗范围为 Claude Code 隔离夹具，其他应用窗口、真实第三方账号及非 macOS 平台未验收。
+
+定向差异和暂存检查通过。只读 `plan.md` 无差异。提交范围为本任务源码、独立测试、窗口夹具和本节证据。
+
+状态为 **已完成**。下一步批次 73。

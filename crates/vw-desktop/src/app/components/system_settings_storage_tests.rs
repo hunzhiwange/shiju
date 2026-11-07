@@ -63,11 +63,11 @@ fn embedded_view_builds_all_storage_sections_and_field_rows() {
 
     let connection_panel = &tree.children[1];
     assert_eq!(connection_panel.children.len(), 3);
-    assert_eq!(connection_panel.children[2].children[1].children.len(), 2);
+    assert_eq!(connection_panel.children[2].children[0].children.len(), 2);
 
     let naming_panel = &tree.children[3];
     assert_eq!(naming_panel.children.len(), 5);
-    assert_eq!(naming_panel.children[4].children[1].children.len(), 2);
+    assert_eq!(naming_panel.children[4].children[0].children.len(), 2);
 
     let security_panel = &tree.children[5];
     assert_eq!(security_panel.children.len(), 1);

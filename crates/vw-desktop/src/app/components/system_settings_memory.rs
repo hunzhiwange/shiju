@@ -5,19 +5,18 @@
 
 use crate::app::components::number_input::NumberInput;
 use crate::app::components::system_settings_common::{
-    SETTINGS_CONTROL_PADDING, SETTINGS_CONTROL_TEXT_SIZE, SETTINGS_LABEL_WIDTH,
-    settings_checkbox_style, settings_divider, settings_error_banner, settings_muted_text_style,
-    settings_page_intro, settings_pick_list_menu_style, settings_pick_list_style,
-    settings_section_card, settings_section_content, settings_segment_button_style,
-    settings_text_input_style,
+    SETTINGS_CONTROL_PADDING, SETTINGS_CONTROL_TEXT_SIZE, rounded_action_btn_style,
+    settings_checkbox_style, settings_divider, settings_error_banner, settings_field_label,
+    settings_group_card, settings_group_heading, settings_muted_text_style, settings_page_heading,
+    settings_segment_button_style, settings_select, settings_text_input_style,
 };
 use crate::app::components::system_settings_search::SettingsTabDescriptor;
 use crate::app::i18n::settings_runtime::text as runtime_text;
 use crate::app::message::settings::{MemoryMessage, SettingsMessage};
 use crate::app::state::MemorySettingsTab;
 use crate::app::{App, Message};
-use iced::widget::{button, checkbox, column, container, pick_list, row, text, text_input};
-use iced::{Alignment, Border, Element, Length};
+use iced::widget::{button, checkbox, column, container, row, text, text_input};
+use iced::{Alignment, Element, Length};
 
 pub(super) const MEMORY_TABS: &[SettingsTabDescriptor<MemorySettingsTab>] = &[
     SettingsTabDescriptor::new(
@@ -53,22 +52,28 @@ pub(super) const QDRANT_TAB: &[SettingsTabDescriptor<MemorySettingsTab>] =
         &["qdrant", "向量数据库", "collection", "API Key"],
     )];
 
-fn field_row<'a>(
+pub(super) fn field_row<'a>(
     label: &'static str,
     description: &'static str,
     control: impl Into<Element<'a, Message>>,
 ) -> Element<'a, Message> {
+    let mut labels = column![settings_field_label(label)].spacing(6);
+    if !description.is_empty() {
+        labels = labels.push(text(description).size(13).style(settings_muted_text_style));
+    }
+    aligned_field_row(labels, control)
+}
+
+fn aligned_field_row<'a>(
+    labels: iced::widget::Column<'a, Message>,
+    control: impl Into<Element<'a, Message>>,
+) -> Element<'a, Message> {
     container(
         row![
-            column![
-                text(label).size(13),
-                text(description).size(11).style(settings_muted_text_style),
-            ]
-            .spacing(4)
-            .width(Length::Fixed(SETTINGS_LABEL_WIDTH)),
-            container(control.into()).width(Length::Fill),
+            labels.width(Length::FillPortion(2)),
+            container(control.into()).width(Length::FillPortion(3)),
         ]
-        .spacing(22)
+        .spacing(24)
         .align_y(Alignment::Center),
     )
     .padding([14, 0])
@@ -76,7 +81,7 @@ fn field_row<'a>(
     .into()
 }
 
-fn text_row<'a>(
+pub(super) fn text_row<'a>(
     label: &'static str,
     description: &'static str,
     placeholder: &'static str,
@@ -105,7 +110,11 @@ fn bool_row<'a>(
     field_row(
         label,
         description,
-        checkbox(checked).label(checkbox_label).on_toggle(on_toggle).style(settings_checkbox_style),
+        checkbox(checked)
+            .label(checkbox_label)
+            .text_size(SETTINGS_CONTROL_TEXT_SIZE)
+            .on_toggle(on_toggle)
+            .style(settings_checkbox_style),
     )
 }
 
@@ -114,11 +123,16 @@ fn tab_button<'a>(
     tab: MemorySettingsTab,
     active_tab: MemorySettingsTab,
 ) -> iced::widget::Button<'a, Message> {
-    button(text(label))
+    button(text(label).size(SETTINGS_CONTROL_TEXT_SIZE))
         .on_press(Message::Settings(SettingsMessage::Memory(MemoryMessage::TabSelected(tab))))
         .padding([8, 14])
         .style(move |theme: &iced::Theme, status| {
-            settings_segment_button_style(theme, status, tab == active_tab)
+            let is_active = tab == active_tab;
+            let mut style = settings_segment_button_style(theme, status, is_active);
+            if is_active {
+                style.text_color = theme.palette().text;
+            }
+            style
         })
 }
 
@@ -140,16 +154,19 @@ fn number_row<'a>(
         label,
         "",
         row![
-            NumberInput::new(
-                parse_bounded_number(&value, min, max),
-                min,
-                max,
-                step,
-                precision,
-                step.max(0.01),
-                on_change,
+            container(
+                NumberInput::new(
+                    parse_bounded_number(&value, min, max),
+                    min,
+                    max,
+                    step,
+                    precision,
+                    step.max(0.01),
+                    on_change,
+                )
+                .settings_style()
             )
-            .settings_style(),
+            .width(110),
             text(suffix).size(13).style(settings_muted_text_style),
         ]
         .spacing(16)
@@ -174,7 +191,7 @@ pub fn view(app: &App) -> Element<'_, Message> {
     let locale = app.desktop_locale;
     let s = &app.memory_settings;
 
-    let backend_pick = pick_list(
+    let backend_pick = settings_select(
         [
             "sqlite".to_string(),
             "postgres".to_string(),
@@ -186,11 +203,7 @@ pub fn view(app: &App) -> Element<'_, Message> {
         Some(s.backend.clone()),
         |value| Message::Settings(SettingsMessage::Memory(MemoryMessage::BackendChanged(value))),
     )
-    .padding(SETTINGS_CONTROL_PADDING)
-    .text_size(SETTINGS_CONTROL_TEXT_SIZE)
-    .style(settings_pick_list_style)
-    .menu_style(settings_pick_list_menu_style)
-    .width(Length::Fixed(280.0));
+    .width(Length::Fill);
 
     let backend_row: Element<'_, Message> = field_row(
         runtime_text(locale, "存储后端"),
@@ -199,11 +212,11 @@ pub fn view(app: &App) -> Element<'_, Message> {
     );
 
     let general_section = column![
-        settings_section_card(
+        settings_group_heading(
             runtime_text(locale, "基础行为"),
             runtime_text(locale, "控制持久化、清理、快照和自动恢复等核心记忆行为。")
         ),
-        settings_section_content(
+        settings_group_card(
             column![
                 backend_row,
                 settings_divider(),
@@ -285,11 +298,11 @@ pub fn view(app: &App) -> Element<'_, Message> {
     .spacing(16);
 
     let retention_section = column![
-        settings_section_card(
+        settings_group_heading(
             runtime_text(locale, "保留与缓存"),
             runtime_text(locale, "配置归档、清理、SQLite 打开超时与缓存容量。")
         ),
-        settings_section_content(
+        settings_group_card(
             column![
                 number_row(
                     runtime_text(locale, "归档天数"),
@@ -417,11 +430,11 @@ pub fn view(app: &App) -> Element<'_, Message> {
     .spacing(16);
 
     let embedding_section = column![
-        settings_section_card(
+        settings_group_heading(
             runtime_text(locale, "嵌入与检索"),
             runtime_text(locale, "配置 embedding provider/model、维度和混合检索权重。")
         ),
-        settings_section_content(
+        settings_group_card(
             column![
                 text_row(
                     runtime_text(locale, "嵌入提供者"),
@@ -435,62 +448,39 @@ pub fn view(app: &App) -> Element<'_, Message> {
                     },
                 ),
                 settings_divider(),
-                container(
-                    row![
-                        column![
-                            text(runtime_text(locale, "嵌入模型")).size(13),
-                            row![
-                                text(runtime_text(locale, "模型名称，可用"))
-                                    .size(11)
-                                    .style(settings_muted_text_style),
-                                button(text(runtime_text(locale, "hint:模式名")).size(11))
-                                    .on_press(Message::Settings(SettingsMessage::Memory(
-                                        MemoryMessage::TabSelected(
-                                            MemorySettingsTab::EmbeddingRoutes
-                                        ),
-                                    )))
-                                    .padding([1, 6])
-                                    .style(|theme: &iced::Theme, _status| {
-                                        let palette = theme.extended_palette();
-                                        iced::widget::button::Style {
-                                            background: None,
-                                            text_color: palette.primary.base.color,
-                                            border: Border {
-                                                width: 0.0,
-                                                color: iced::Color::TRANSPARENT,
-                                                radius: 4.0.into(),
-                                            },
-                                            ..Default::default()
-                                        }
-                                    }),
-                                text(runtime_text(locale, "引用路由。"))
-                                    .size(11)
-                                    .style(settings_muted_text_style),
-                            ]
-                            .spacing(0)
-                            .align_y(Alignment::Center),
+                aligned_field_row(
+                    column![
+                        settings_field_label(runtime_text(locale, "嵌入模型")),
+                        row![
+                            text(runtime_text(locale, "模型名称，可用"))
+                                .size(13)
+                                .style(settings_muted_text_style),
+                            button(text(runtime_text(locale, "hint:模式名")).size(13))
+                                .on_press(Message::Settings(SettingsMessage::Memory(
+                                    MemoryMessage::TabSelected(MemorySettingsTab::EmbeddingRoutes),
+                                )))
+                                .padding([3, 6])
+                                .style(rounded_action_btn_style),
+                            text(runtime_text(locale, "引用路由。"))
+                                .size(13)
+                                .style(settings_muted_text_style),
                         ]
                         .spacing(4)
-                        .width(Length::Fixed(SETTINGS_LABEL_WIDTH)),
-                        container(
-                            text_input("text-embedding-v4", &s.embedding_model)
-                                .on_input(|value| {
-                                    Message::Settings(SettingsMessage::Memory(
-                                        MemoryMessage::EmbeddingModelChanged(value),
-                                    ))
-                                })
-                                .padding(SETTINGS_CONTROL_PADDING)
-                                .size(SETTINGS_CONTROL_TEXT_SIZE)
-                                .style(settings_text_input_style)
-                                .width(Length::Fill)
-                        )
-                        .width(Length::Fill),
+                        .align_y(Alignment::Center)
+                        .wrap(),
                     ]
-                    .spacing(22)
-                    .align_y(Alignment::Center),
-                )
-                .padding([14, 0])
-                .width(Length::Fill),
+                    .spacing(6),
+                    text_input("text-embedding-v4", &s.embedding_model)
+                        .on_input(|value| {
+                            Message::Settings(SettingsMessage::Memory(
+                                MemoryMessage::EmbeddingModelChanged(value),
+                            ))
+                        })
+                        .padding(SETTINGS_CONTROL_PADDING)
+                        .size(SETTINGS_CONTROL_TEXT_SIZE)
+                        .style(settings_text_input_style)
+                        .width(Length::Fill),
+                ),
                 settings_divider(),
                 number_row(
                     runtime_text(locale, "嵌入维度"),
@@ -560,14 +550,14 @@ pub fn view(app: &App) -> Element<'_, Message> {
     let qdrant_section = if s.backend == "qdrant" {
         Some(
             column![
-                settings_section_card(
+                settings_group_heading(
                     runtime_text(locale, "Qdrant 连接"),
                     runtime_text(
                         locale,
                         "仅在 backend=qdrant 时显示，用于配置向量数据库地址、集合和 API Key。"
                     ),
                 ),
-                settings_section_content(
+                settings_group_card(
                     column![
                         text_row(
                             runtime_text(locale, "Qdrant 地址"),
@@ -648,11 +638,11 @@ pub fn view(app: &App) -> Element<'_, Message> {
     };
 
     let mut sections = column![
-        settings_page_intro(
+        settings_page_heading(
             runtime_text(locale, "记忆系统配置"),
             runtime_text(locale, "统一配置后端、保留策略、缓存和向量检索参数。")
         ),
-        tabs,
+        tabs.wrap(),
     ]
     .spacing(16)
     .width(Length::Fill);
@@ -692,3 +682,7 @@ pub(super) fn memory_tab_label(
         },
     )
 }
+
+#[cfg(test)]
+#[path = "system_settings_memory_ui_refresh_20_tests.rs"]
+mod ui_refresh_20_tests;

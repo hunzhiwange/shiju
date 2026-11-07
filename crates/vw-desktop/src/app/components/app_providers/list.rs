@@ -6,8 +6,8 @@ use crate::app::message::app_providers::{
 };
 use crate::app::{Message, state::app_providers::list::ListState};
 use iced::{
-    Element, Length,
-    widget::{button, column, container, row, scrollable, text, text_input},
+    Alignment, Element, Length,
+    widget::{button, column, container, row, text, text_input},
 };
 use vw_gateway_client::vw_api_types::{
     agent_apps::AppId,
@@ -56,22 +56,30 @@ pub(crate) fn overlay<'a>(
     let Some(scope) = &state.scope else {
         return base;
     };
-    let mut body = column![].spacing(12);
+    let mut body = column![].spacing(12).width(Length::Fill);
     if state.loading {
-        body = body.push(text("正在从执行主机读取…"));
+        body =
+            body.push(settings_panel(text("正在从执行主机读取…").style(settings_muted_text_style)));
     }
     if let Some(error) = &state.error {
-        body = body.push(text(error));
+        body = body.push(settings_error_banner(error.as_str()));
     }
     if let Some(snapshot) = &state.snapshot {
-        body = body.push(text(format!(
-            "直连：{}　原生当前：{}",
-            selection(&snapshot.catalog.direct),
-            selection(&snapshot.catalog.in_use)
-        )));
+        let mut status = column![
+            settings_field_label("直连"),
+            text(selection(&snapshot.catalog.direct)).size(13),
+            settings_field_label("原生当前"),
+            text(selection(&snapshot.catalog.in_use)).size(13),
+        ]
+        .spacing(6);
         if let Some(reason) = snapshot.catalog.native_read {
-            body = body.push(text(format!("原生状态不可用：{reason:?}")));
+            status = status.push(
+                text(format!("原生状态不可用：{reason:?}"))
+                    .size(13)
+                    .style(settings_muted_text_style),
+            );
         }
+        body = body.push(settings_panel(status));
         let mut rows = snapshot.catalog.rows.iter().collect::<Vec<_>>();
         rows.sort_by_key(|r| {
             let p = state.presentation(&r.provider.id);
@@ -82,7 +90,8 @@ pub(crate) fn overlay<'a>(
             )
         });
         if rows.is_empty() {
-            body = body.push(text("没有已保存的供应商"));
+            body = body
+                .push(settings_panel(text("没有已保存的供应商").style(settings_muted_text_style)));
         }
         for entry in rows {
             let p = state.presentation(&entry.provider.id);
@@ -183,101 +192,74 @@ pub(crate) fn overlay<'a>(
                     enabled,
                 ));
             }
-            body = body.push(settings_panel(
-                column![
-                    row![
-                        column![
-                            text(&entry.provider.name).size(18),
-                            text(if entry.provider.configured {
-                                "凭据已配置"
-                            } else {
-                                "凭据未配置"
-                            })
-                            .size(12),
-                            text(format!(
-                                "{} · {}",
-                                p.category.unwrap_or_else(|| "未分类".into()),
-                                member
-                            ))
-                        ]
-                        .width(Length::Fill),
-                        action(
-                            "图标",
-                            ListMessage::Icons(
-                                crate::app::message::app_providers::icons::Event::Open(id.clone())
-                            ),
-                            enabled,
-                        ),
-                        action(
-                            "排序与备注",
-                            ListMessage::Edit(entry.provider.id.clone()),
-                            state.editor.is_none() && state.form.is_none() && !state.loading
-                        )
-                    ]
-                    .spacing(12),
-                    text(p.notes.unwrap_or_default()),
-                    actions
+            actions = actions
+                .push(action(
+                    "图标",
+                    ListMessage::Icons(crate::app::message::app_providers::icons::Event::Open(
+                        id.clone(),
+                    )),
+                    enabled,
+                ))
+                .push(action("排序与备注", ListMessage::Edit(id.clone()), enabled));
+            let mut details = column![
+                text(&entry.provider.name).size(17),
+                row![
+                    settings_value_badge(if entry.provider.configured {
+                        "凭据已配置"
+                    } else {
+                        "凭据未配置"
+                    }),
+                    text(format!("{} · {member}", p.category.unwrap_or_else(|| "未分类".into())))
+                        .size(13)
+                        .style(settings_muted_text_style),
                 ]
-                .spacing(8),
-            ));
+                .spacing(8)
+                .align_y(Alignment::Center)
+                .wrap(),
+            ]
+            .spacing(8);
+            if let Some(notes) = p.notes.filter(|notes| !notes.is_empty()) {
+                details = details.push(text(notes).size(13).style(settings_muted_text_style));
+            }
+            body =
+                body.push(settings_panel(details.push(actions.align_y(Alignment::Center).wrap())));
         }
     }
-    let content = scrollable(container(body).padding([0, 7]))
-        .direction(scrollable::Direction::Vertical(
-            scrollable::Scrollbar::new().width(4).scroller_width(4),
-        ))
-        .height(Length::Fill);
-    let card = settings_modal_card(
-        column![
-            row![
-                text(format!("应用供应商 · {:?}", scope.app)).size(22).width(Length::Fill),
-                settings_close_button(message(ListMessage::Close))
-            ]
-            .spacing(12),
-            content,
-            row![
-                button(text("新增"))
-                    .padding([8, 14])
-                    .style(rounded_action_btn_style)
-                    .on_press_maybe(
-                        (!state.loading && state.form.is_none() && state.editor.is_none())
-                            .then_some(if scope.app == AppId::ClaudeDesktop {
-                                crate::app::message::app_providers::desktop::message(
-                                    crate::app::message::app_providers::desktop::Event::Open(None),
-                                )
-                            } else {
-                                crate::app::message::app_providers::edit::message(
-                                    crate::app::message::app_providers::edit::EditMessage::Create,
-                                )
-                            })
-                    ),
-                action(
-                    "刷新",
-                    ListMessage::Refresh,
-                    !state.loading && state.editor.is_none() && state.form.is_none()
-                ),
-                action(
-                    "统一供应商投影",
-                    ListMessage::Universal(UniversalEvent::Open),
-                    !state.loading && state.editor.is_none() && state.form.is_none()
-                ),
-                action(
-                    "公共配置片段",
-                    ListMessage::Snippets(SnippetEvent::Open),
-                    crate::app::state::app_providers::snippets::available(scope.app)
-                        && !state.loading
-                        && state.editor.is_none()
-                        && state.form.is_none()
-                ),
-                action("关闭", ListMessage::Close, true)
-            ]
-            .spacing(10)
-        ]
-        .spacing(16),
-    )
-    .width(Length::Fixed(800.))
-    .height(Length::Fixed(650.));
-    let list = settings_modal_overlay(Some(base), message(ListMessage::Close), card);
+
+    let close = message(ListMessage::Close);
+    let header = settings_modal_header(
+        text(format!("应用供应商 · {:?}", scope.app)).size(20),
+        settings_close_button(close.clone()),
+    );
+    let ready = !state.loading && state.form.is_none() && state.editor.is_none();
+    let create = if scope.app == AppId::ClaudeDesktop {
+        super::super::super::message::app_providers::desktop::message(
+            super::super::super::message::app_providers::desktop::Event::Open(None),
+        )
+    } else {
+        super::super::super::message::app_providers::edit::message(
+            super::super::super::message::app_providers::edit::EditMessage::Create,
+        )
+    };
+    let actions = row![
+        button(text("新增"))
+            .padding([8, 14])
+            .style(primary_action_btn_style)
+            .on_press_maybe(ready.then_some(create)),
+        action("刷新", ListMessage::Refresh, ready),
+        action("统一供应商投影", ListMessage::Universal(UniversalEvent::Open), ready),
+        action(
+            "公共配置片段",
+            ListMessage::Snippets(SnippetEvent::Open),
+            ready && crate::app::state::app_providers::snippets::available(scope.app),
+        ),
+        action("关闭", ListMessage::Close, true),
+    ]
+    .spacing(10)
+    .align_y(Alignment::Center)
+    .wrap();
+    let card = settings_modal_layout(header, body, Some(actions.into())).width(800).height(650);
+    let list = settings_modal_overlay(Some(base), close, container(card).padding(12));
     if let Some(form) = &state.snippets {
         return super::snippets::overlay(state, form, scope.app, list);
     }
@@ -306,38 +288,34 @@ pub(crate) fn overlay<'a>(
             .style(settings_text_input_style)
             .on_input_maybe((!form.saving).then_some(move |v| message(event(v))))
     };
-    let fields = column![
-        text("排序（非负整数，留空清除）"),
-        input("排序", &form.sort, ListMessage::Sort),
-        text("分类"),
-        input("分类", &form.category, ListMessage::Category),
-        text("备注"),
-        input("备注", &form.notes, ListMessage::Notes)
-    ]
-    .spacing(10);
-    let card = settings_modal_card(
+    let fields = settings_panel(
         column![
-            row![
-                text("排序、分类与备注").size(22).width(Length::Fill),
-                settings_close_button(message(ListMessage::Cancel))
-            ],
-            scrollable(container(fields).padding([0, 7]))
-                .direction(scrollable::Direction::Vertical(
-                    scrollable::Scrollbar::new().width(4).scroller_width(4)
-                ))
-                .height(Length::Fill),
-            row![
-                action("取消", ListMessage::Cancel, !form.saving),
-                button(text(if form.saving { "保存中…" } else { "保存" }))
-                    .padding([8, 16])
-                    .style(primary_action_btn_style)
-                    .on_press_maybe((!form.saving).then_some(message(ListMessage::Save)))
-            ]
-            .spacing(12)
+            settings_field_label("排序"),
+            settings_control_with_hint(
+                input("排序", &form.sort, ListMessage::Sort),
+                "非负整数，留空清除",
+            ),
+            settings_field_label("分类"),
+            input("分类", &form.category, ListMessage::Category),
+            settings_field_label("备注"),
+            input("备注", &form.notes, ListMessage::Notes),
         ]
-        .spacing(16),
-    )
-    .width(Length::Fixed(560.))
-    .height(Length::Fixed(480.));
-    settings_modal_overlay(Some(list), message(ListMessage::Cancel), card)
+        .spacing(8),
+    );
+    let cancel = message(ListMessage::Cancel);
+    let header = settings_modal_header(
+        text("排序、分类与备注").size(20),
+        settings_close_button(cancel.clone()),
+    );
+    let actions = row![
+        action("取消", ListMessage::Cancel, !form.saving),
+        button(text(if form.saving { "保存中…" } else { "保存" }))
+            .padding([8, 16])
+            .style(primary_action_btn_style)
+            .on_press_maybe((!form.saving).then_some(message(ListMessage::Save))),
+    ]
+    .spacing(12)
+    .align_y(Alignment::Center);
+    let card = settings_modal_layout(header, fields, Some(actions.into())).width(560).height(480);
+    settings_modal_overlay(Some(list), cancel, container(card).padding(12))
 }

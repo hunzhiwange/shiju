@@ -5,8 +5,8 @@ use crate::app::{
     state::app_providers::edit::{EditForm, Mode},
 };
 use iced::{
-    Element, Length,
-    widget::{button, checkbox, column, container, row, scrollable, text, text_input},
+    Alignment, Element, Length,
+    widget::{button, checkbox, column, container, row, text, text_input},
 };
 pub(crate) fn overlay<'a>(form: &'a EditForm, base: Element<'a, Message>) -> Element<'a, Message> {
     let title = match form.mode {
@@ -22,39 +22,46 @@ pub(crate) fn overlay<'a>(form: &'a EditForm, base: Element<'a, Message>) -> Ele
             .style(settings_text_input_style)
             .on_input_maybe((!form.saving).then_some(move |v| message(event(v))))
     };
-    let mut fields = column![].spacing(10);
+    let mut fields = column![].spacing(12).width(Length::Fill);
     let delete = matches!(form.mode, Mode::Delete);
     if delete {
-        fields = fields.push(text(format!(
+        fields = fields.push(settings_panel(text(format!(
             "确认删除「{}」？执行端会检查当前选择与引用，失败时保留此选择。",
             form.fields.name
-        )));
+        ))));
     } else {
+        let mut basic = column![].spacing(8);
         if matches!(form.mode, Mode::Create | Mode::Copy { .. }) {
-            fields = fields.push(text("新标识（ASCII 字母、数字、短横线或下划线）")).push(input(
-                "新标识",
-                &form.id,
-                EditMessage::Id,
+            basic = basic.push(settings_field_label("新标识")).push(settings_control_with_hint(
+                input("新标识", &form.id, EditMessage::Id),
+                "ASCII 字母、数字、短横线或下划线",
             ));
         }
-        fields =
-            fields.push(text("名称")).push(input("名称", &form.fields.name, EditMessage::Name));
+        basic = basic.push(settings_field_label("名称")).push(input(
+            "名称",
+            &form.fields.name,
+            EditMessage::Name,
+        ));
         if !form.claude_editable() {
-            fields = fields.push(text("分类")).push(input(
+            basic = basic.push(settings_field_label("分类")).push(input(
                 "分类",
                 form.fields.category.as_deref().unwrap_or(""),
                 EditMessage::Category,
             ));
         }
-        fields = fields
-            .push(text("备注"))
+        basic = basic
+            .push(settings_field_label("备注"))
             .push(input("备注", form.fields.notes.as_deref().unwrap_or(""), EditMessage::Notes))
-            .push(text("网址（展示网址，与 API 地址分开保存）"))
-            .push(input(
-                "https://…",
-                form.fields.website_url.as_deref().unwrap_or(""),
-                EditMessage::Website,
+            .push(settings_field_label("网址"))
+            .push(settings_control_with_hint(
+                input(
+                    "https://…",
+                    form.fields.website_url.as_deref().unwrap_or(""),
+                    EditMessage::Website,
+                ),
+                "展示网址，与 API 地址分开保存",
             ));
+        fields = fields.push(text("基础资料").size(17)).push(settings_panel(basic));
         if let Some(draft) = &form.claude {
             fields = fields.push(super::claude::fields(form, draft));
         } else if let Some(draft) = &form.codex {
@@ -132,9 +139,14 @@ pub(crate) fn overlay<'a>(form: &'a EditForm, base: Element<'a, Message>) -> Ele
                     .style(settings_muted_text_style),
             );
         } else {
+            let mut credentials = column![].spacing(8);
             if !matches!(form.mode, Mode::Create) {
-                fields = fields
-                    .push(text("默认保留执行端密钥，界面不读取原值。"))
+                credentials = credentials
+                    .push(
+                        text("默认保留执行端密钥，界面不读取原值。")
+                            .size(13)
+                            .style(settings_muted_text_style),
+                    )
                     .push(
                         checkbox(form.replace_key)
                             .label("替换密钥")
@@ -153,14 +165,18 @@ pub(crate) fn overlay<'a>(form: &'a EditForm, base: Element<'a, Message>) -> Ele
                     );
             }
             if form.replace_key || matches!(form.mode, Mode::Create) {
-                fields = fields
-                    .push(text("新的完整密钥"))
+                credentials = credentials
+                    .push(settings_field_label("新的完整密钥"))
                     .push(input("输入新密钥", &form.key, EditMessage::Key).secure(true));
             }
             if matches!(form.mode, Mode::Create) && !form.draft_ready() {
-                fields =
-                    fields.push(text("待补完整应用配置：请先完成应用专属表单，保存暂不可用。"));
+                credentials = credentials.push(
+                    text("待补完整应用配置：请先完成应用专属表单，保存暂不可用。")
+                        .size(13)
+                        .style(settings_muted_text_style),
+                );
             }
+            fields = fields.push(text("凭据").size(17)).push(settings_panel(credentials));
         }
     }
     let enabled = !form.saving
@@ -183,38 +199,28 @@ pub(crate) fn overlay<'a>(form: &'a EditForm, base: Element<'a, Message>) -> Ele
             } else {
                 form.request().is_ok()
             });
-    let card = settings_modal_card(
-        column![
-            row![
-                text(title).size(22).width(Length::Fill),
-                settings_close_button(message(EditMessage::Cancel))
-            ],
-            scrollable(container(fields).padding([0, 7]))
-                .direction(scrollable::Direction::Vertical(
-                    scrollable::Scrollbar::new().width(4).scroller_width(4)
-                ))
-                .height(Length::Fill),
-            row![
-                button(text("取消"))
-                    .padding([8, 16])
-                    .style(rounded_action_btn_style)
-                    .on_press_maybe((!form.saving).then_some(message(EditMessage::Cancel))),
-                button(text(if form.saving {
-                    "处理中…"
-                } else if delete {
-                    "确认删除"
-                } else {
-                    "保存"
-                }))
-                .padding([8, 16])
-                .style(primary_action_btn_style)
-                .on_press_maybe(enabled.then_some(message(EditMessage::Save)))
-            ]
-            .spacing(12)
-        ]
-        .spacing(16),
-    )
-    .width(Length::Fixed(620.))
-    .height(Length::Fixed(620.));
-    settings_modal_overlay(Some(base), message(EditMessage::Cancel), card)
+    let cancel = message(EditMessage::Cancel);
+    let header = settings_modal_header(text(title).size(20), settings_close_button(cancel.clone()));
+    let actions = row![
+        button(text("取消"))
+            .padding([8, 16])
+            .style(rounded_action_btn_style)
+            .on_press_maybe((!form.saving).then_some(cancel.clone())),
+        button(text(if form.saving {
+            "处理中…"
+        } else if delete {
+            "确认删除"
+        } else {
+            "保存"
+        }))
+        .padding([8, 16])
+        .style(primary_action_btn_style)
+        .on_press_maybe(enabled.then_some(message(EditMessage::Save))),
+    ]
+    .spacing(12)
+    .align_y(Alignment::Center);
+    let card = settings_modal_layout(header, fields, Some(actions.into()))
+        .width(620)
+        .height(if delete { 300 } else { 620 });
+    settings_modal_overlay(Some(base), cancel, container(card).padding(12))
 }

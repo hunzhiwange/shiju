@@ -2,7 +2,7 @@
 
 use super::{
     preset_claude::ClaudePreset, preset_codex::CodexPreset, preset_gemini_grok::GeminiGrokPreset,
-    preset_opencode_openclaw::OpenCodeOpenClawPreset,
+    preset_hermes_mcode::HermesMcodePreset, preset_opencode_openclaw::OpenCodeOpenClawPreset,
 };
 use crate::providers::{universal_sync::projected_endpoint, validation::endpoint};
 use serde::Deserialize;
@@ -28,6 +28,11 @@ static CODEX_PRESETS: LazyLock<Vec<CodexPreset>> = LazyLock::new(|| {
 static GEMINI_GROK_PRESETS: LazyLock<Vec<GeminiGrokPreset>> = LazyLock::new(|| {
     serde_json::from_str(include_str!("presets/gemini_grok.json"))
         .expect("valid built-in Gemini and Grok Build presets")
+});
+
+static HERMES_MCODE_PRESETS: LazyLock<Vec<HermesMcodePreset>> = LazyLock::new(|| {
+    serde_json::from_str(include_str!("presets/hermes_mcode.json"))
+        .expect("valid built-in Hermes and Mcode presets")
 });
 
 static OPENCODE_OPENCLAW_PRESETS: LazyLock<Vec<OpenCodeOpenClawPreset>> = LazyLock::new(|| {
@@ -133,4 +138,14 @@ pub fn opencode_openclaw_presets(
 /// Find a preset by its exact source name within one application.
 pub fn opencode_openclaw_preset(app: AppId, name: &str) -> Option<&'static OpenCodeOpenClawPreset> {
     opencode_openclaw_presets(app).find(|preset| preset.name == name)
+}
+
+/// List Hermes or Mcode presets in source order.
+pub fn hermes_mcode_presets(app: AppId) -> impl Iterator<Item = &'static HermesMcodePreset> {
+    HERMES_MCODE_PRESETS.iter().filter(move |preset| preset.app_id == app)
+}
+
+/// Find a preset by its exact source name within one application.
+pub fn hermes_mcode_preset(app: AppId, name: &str) -> Option<&'static HermesMcodePreset> {
+    hermes_mcode_presets(app).find(|preset| preset.name == name)
 }

@@ -6,6 +6,7 @@ pub mod preset_catalog;
 pub mod preset_claude;
 pub mod preset_codex;
 pub mod preset_gemini_grok;
+pub mod preset_hermes_mcode;
 pub mod preset_opencode_openclaw;
 pub mod preset_search;
 
@@ -19,6 +20,8 @@ mod preset_claude_tests;
 mod preset_codex_tests;
 #[cfg(test)]
 mod preset_gemini_grok_tests;
+#[cfg(test)]
+mod preset_hermes_mcode_tests;
 #[cfg(test)]
 mod preset_opencode_openclaw_tests;
 #[cfg(test)]

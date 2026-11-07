@@ -219,3 +219,31 @@
 | `cargo clippy --all-targets --all-features -- -D warnings` | 0 | 实际工作区全部目标与 features 通过 |
 
 差异仅包含原生目录入口、类型、数据、独立测试和本证据。槽位锁均已释放，编译缓存已保留。
+
+## 任务 9　Hermes 与 Mcode 模型预设
+
+2026-11-08，macOS 27.0（26A428），arm64。批次 8 由 `e97f73930` 交付。本项沿用任务 4 的内嵌 JSON 读取方式。`models/preset_catalog.rs::hermes_mcode_presets` 按应用枚举源顺序，`hermes_mcode_preset` 按应用和源名称精确选择。`HermesMcodePreset::model_at_endpoint` 仅在该预设的精确端点查询原始模型 ID。
+
+| 固定来源 `ca58c0313360eae7c851fbd7553c1614c7af03e7` | 实际实现 |
+| --- | --- |
+| `src/config/hermesProviderPresets.ts::hermesProviderPresets` | `crates/vw-agent-apps/src/models/presets/hermes_mcode.json` 的 Hermes 行保留原生 API mode、端点、供应商键、建议默认模型，以及模型级 `context_length` 与 `supports_vision`。未声明的窗口、输出上限与模态保持未知 |
+| `src/config/mcodeProviderPresets.ts::mcodeProviderPresets` | 同一 JSON 的 Mcode 行取自源模块执行过滤后的数组，包含仅 Mcode 使用的 OpenAI API 条目。保留原生 API 格式、端点、`limit.context`、`limit.output`、双向模态、推理、兼容性与自适应推理档位。无需 Pi 目录在运行时提供数据 |
+| `tests/config/hermesMinimaxProviderKey.test.ts`、`src/config/mcodeProviderPresets.test.ts` | `models/preset_hermes_mcode_tests.rs` 验证 MiniMax 的原生供应商键与图片标记、Kimi 兼容性过滤、PackyCode 的推理档位和火山套餐隔离。两个应用的窗口分别取自所选预设，即使模型 ID 和端点相同也不互补 |
+
+从固定 Git 对象执行两个源模块，独立逐行核对目录顺序、部署、模型 ID 及全部投影字段。Hermes 有 121 条预设、400 条模型记录，其中 309 条声明窗口、2 条声明图片支持。Mcode 有 115 条预设、406 条模型记录，全部声明输入及输出模态和窗口限制；109 条含兼容性声明，64 条含推理档位。展示网址移除查询参数和片段。凭据、推广、请求头、标题生成和配置处理器在本项范围之外。来源许可见 `crates/vw-agent-apps/upstream/LICENSE`（MIT，Copyright (c) 2025 Jason Young）。
+
+现有配置入口为网关 `vw-agent/src/gateway/api/handlers/app_providers/{hermes,mcode}.rs` 的 `/v1/app-providers/{hermes,mcode}/{id}/form`，对应 SDK `vw-gateway-client/src/client/app_providers/{hermes,mcode}.rs` 的 `*_form_{read,create,update}`，Iced 由 `vw-desktop/src/app/components/app_providers/{hermes,mcode}.rs::fields` 渲染。预设目录 API 和 SDK 由任务 36 接入，Iced 搜索由任务 39 接入。本项只验收原生离线查询，不涉及窗口、账号或网络请求。
+
+### 验证
+
+红灯动态领取共享槽位 **4**，`CARGO_TARGET_DIR=/Users/xiangmin/worker/code/shiju/target/rust-slot-4`。绿灯和首轮 Clippy 各自动态领取共享槽位 **5**，`CARGO_TARGET_DIR=/Users/xiangmin/worker/code/shiju/target/rust-slot-5`。Clippy 复验使用共享槽位 **2**，`CARGO_TARGET_DIR=/Users/xiangmin/worker/code/shiju/target/rust-slot-2`。Cargo 中间目录使用对应槽位。`cargo fmt --all` 在基于 `e97f73930` 的源码快照执行，只回写本任务的四个 Rust 文件；聚焦测试和 Clippy 在实际仓库根目录执行。
+
+| 命令 | 退出码 | 证据 |
+| --- | ---: | --- |
+| `cargo fmt --all`（红灯、绿灯） | 0、0 | 格式化完成 |
+| `cargo test -p vw-agent-apps catalog_presets_hermes_mcode_ -- --nocapture`（红灯） | 101 | 5 条有效测试均按预期失败。首个指定用例实际窗口为 `(None, None)`，预期为 `(Some(1048576), Some(1000000))` |
+| `cargo test -p vw-agent-apps catalog_presets_hermes_mcode_ -- --nocapture`（绿灯） | 0 | 5 条有效测试全部通过，540 条过滤 |
+| `cargo clippy --all-targets --all-features -- -D warnings`（首轮） | 101 | 同期桌面变更使 `crates/vw-desktop/src/app/message/chat/mod.rs:24` 的 `agent_message` 导入未被使用；该导入已由其变更移除，本任务未编辑此文件 |
+| `cargo clippy --all-targets --all-features -- -D warnings`（复验） | 0 | 实际工作区全部目标与 features 通过 |
+
+差异只包含原生目录入口、类型、数据、独立测试和本证据。`git diff --cached --check` 通过。各阶段的槽位锁均已释放，编译缓存已保留。

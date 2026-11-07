@@ -44,14 +44,11 @@ fn field_helpers_fill_width_for_text_secure_and_number_controls() {
     let secure = secure_text_row("Secret", "Description", "placeholder", "value", |_| {
         Message::GatewayHealthTick
     });
-    let number_without_suffix =
-        number_row("Port", "Description", 42617, 1, u16::MAX as u32, "", |_| {
-            Message::GatewayHealthTick
-        });
-    let number_with_suffix =
-        number_row("Timeout", "Description", 30, 1, 60, "s", |_| Message::GatewayHealthTick);
+    let number = number_row("Port", "Description", 42617, 1, u16::MAX as u32, |_| {
+        Message::GatewayHealthTick
+    });
 
-    for element in [field, text, secure, number_without_suffix, number_with_suffix] {
+    for element in [field, text, secure, number] {
         assert_size(&element, Length::Fill, Length::Shrink);
     }
 }
@@ -77,7 +74,7 @@ fn server_health_defaults_false_and_uses_only_the_matching_key() {
 }
 
 #[test]
-fn button_builders_keep_server_width_and_action_height_across_states() {
+fn server_buttons_fill_width_across_states() {
     let selected = server_button(
         "Local".to_string(),
         "127.0.0.1:42617".to_string(),
@@ -92,15 +89,8 @@ fn button_builders_keep_server_width_and_action_height_across_states() {
         false,
         Message::GatewayHealthTick,
     );
-    let enabled_label: Element<'_, Message> = iced::widget::text("enabled").into();
-    let disabled_label: Element<'_, Message> = iced::widget::text("disabled").into();
-    let enabled = rounded_action_button(enabled_label, true, Some(Message::GatewayHealthTick));
-    let disabled = rounded_action_button(disabled_label, false, None);
-
     assert_size(&selected, Length::Fill, Length::Shrink);
     assert_size(&unselected, Length::Fill, Length::Shrink);
-    assert_size(&enabled, Length::Shrink, Length::Fixed(36.0));
-    assert_size(&disabled, Length::Shrink, Length::Fixed(36.0));
 }
 
 #[test]
@@ -138,29 +128,6 @@ fn view_builds_empty_single_and_multi_server_states() {
     multi.gateway_client_settings.servers.push(extra);
     let multi_view = view(&multi);
     assert_size(&multi_view, Length::Fill, Length::Shrink);
-}
-
-#[test]
-fn view_keeps_intro_service_and_authentication_sections_across_server_counts() {
-    let mut app = test_app();
-
-    app.gateway_client_settings.servers.clear();
-    let empty_view = view(&app);
-    assert_eq!(empty_view.as_widget().children().len(), 5);
-    drop(empty_view);
-
-    app.gateway_client_settings.servers.push(server("local", "127.0.0.1", 42617));
-    app.gateway_client_settings.selected_server_id = "local".to_string();
-    let single_view = view(&app);
-    let single_children = single_view.as_widget().children();
-    assert_eq!(single_children.len(), 5);
-    assert_eq!(single_children[2].children.len(), 3);
-    assert_eq!(single_children[4].children.len(), 1);
-    drop(single_view);
-
-    app.gateway_client_settings.servers.push(server("remote", "gateway.example.test", 8080));
-    let multi_view = view(&app);
-    assert_eq!(multi_view.as_widget().children().len(), 5);
 }
 
 #[test]

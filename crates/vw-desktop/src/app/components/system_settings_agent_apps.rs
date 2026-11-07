@@ -1,8 +1,8 @@
 //! SDK 图标库与改名入口。
 mod rename_modal;
 use super::system_settings_common::{
-    rounded_action_btn_style, settings_error_banner, settings_muted_text_style,
-    settings_section_card, settings_section_content,
+    rounded_action_btn_style, settings_divider, settings_error_banner, settings_group_card,
+    settings_group_heading, settings_muted_text_style,
 };
 use crate::app::{
     Message,
@@ -10,8 +10,8 @@ use crate::app::{
     state::AgentAppsState,
 };
 use base64::{Engine as _, engine::general_purpose::STANDARD};
-use iced::widget::{button, column, container, image, row, text};
-use iced::{Element, Length};
+use iced::widget::{button, column, container, image, row, text, text::Wrapping};
+use iced::{Alignment, Element, Length};
 
 pub(super) fn refresh_message() -> Message {
     Message::Settings(SettingsMessage::AgentApps(AgentAppsMessage::Refresh))
@@ -30,28 +30,32 @@ pub(super) fn status_text(state: &AgentAppsState) -> Option<&str> {
 }
 
 pub(super) fn view(state: &AgentAppsState) -> Element<'_, Message> {
-    let mut refresh = button(text(if state.error.is_some() { "重试" } else { "刷新" }))
-        .padding([8, 16])
-        .style(rounded_action_btn_style);
-    if !state.loading {
-        refresh = refresh.on_press(refresh_message());
-    }
-    let mut content = column![
-        settings_section_card("我的图标", "读取当前网关与公司的图标库"),
-        row![container(text("图标库")).width(Length::Fill), refresh].spacing(12)
+    let refresh = button(text(if state.error.is_some() { "重试" } else { "刷新" }).size(13))
+        .padding([8, 14])
+        .style(rounded_action_btn_style)
+        .on_press_maybe((!state.loading).then(refresh_message));
+    let header = row![
+        container(settings_group_heading("我的图标", "读取当前网关与公司的图标库"))
+            .width(Length::Fill),
+        refresh,
     ]
     .spacing(12)
-    .width(Length::Fill);
+    .align_y(Alignment::Center);
+
+    let mut entries = column![].width(Length::Fill);
     if let Some(status) = status_text(state) {
-        if state.error.is_some() && !state.loading {
-            content = content.push(settings_error_banner(status.to_owned()));
+        let status = if state.error.is_some() && !state.loading {
+            settings_error_banner(status.to_owned())
         } else {
-            content = content.push(text(status).style(settings_muted_text_style));
-        }
-    }
-    if !state.loading && state.error.is_none() {
-        for icon in &state.icons {
-            let mut entry = row![].spacing(12).align_y(iced::Alignment::Center);
+            text(status).size(13).style(settings_muted_text_style).into()
+        };
+        entries = entries.push(container(status).padding([14, 0]).width(Length::Fill));
+    } else {
+        for (index, icon) in state.icons.iter().enumerate() {
+            if index > 0 {
+                entries = entries.push(settings_divider());
+            }
+            let mut entry = row![].spacing(12).align_y(Alignment::Center);
             if let Some((header, encoded)) = icon.data.split_once(',')
                 && header.starts_with("data:image/")
                 && header.ends_with(";base64")
@@ -59,18 +63,29 @@ pub(super) fn view(state: &AgentAppsState) -> Element<'_, Message> {
             {
                 entry = entry.push(image(image::Handle::from_bytes(bytes)).width(32).height(32));
             }
-            let rename = button(text("改名"))
+            let rename = button(text("改名").size(13))
                 .padding([8, 14])
                 .style(rounded_action_btn_style)
                 .on_press(Message::Settings(SettingsMessage::AgentApps(
                     AgentAppsMessage::RenameOpen(icon.id.clone()),
                 )));
-            content = content.push(settings_section_content(
-                entry.push(container(text(&icon.name).size(14)).width(Length::Fill)).push(rename),
-            ));
+            entries = entries.push(
+                container(
+                    entry
+                        .push(
+                            text(&icon.name)
+                                .size(14)
+                                .wrapping(Wrapping::WordOrGlyph)
+                                .width(Length::Fill),
+                        )
+                        .push(rename),
+                )
+                .padding([12, 0])
+                .width(Length::Fill),
+            );
         }
     }
-    container(content).padding([0, 7]).width(Length::Fill).into()
+    column![header, settings_group_card(entries)].spacing(12).width(Length::Fill).into()
 }
 
 #[cfg(test)]
@@ -86,3 +101,7 @@ pub(super) fn view_overlays<'a>(
         None => base,
     }
 }
+
+#[cfg(test)]
+#[path = "system_settings_agent_apps_ui_refresh_24_tests.rs"]
+mod ui_refresh_24_tests;

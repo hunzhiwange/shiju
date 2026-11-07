@@ -5,16 +5,16 @@
 
 use crate::app::components::number_input::NumberInput;
 use crate::app::components::system_settings_common::{
-    SETTINGS_CONTROL_PADDING, SETTINGS_CONTROL_TEXT_SIZE, SETTINGS_LABEL_WIDTH,
-    settings_help_button, settings_muted_text_style, settings_page_intro, settings_panel,
-    settings_section_card, settings_section_content, settings_text_input_style,
-    with_settings_help_modal,
+    SETTINGS_CONTROL_PADDING, SETTINGS_CONTROL_TEXT_SIZE, primary_action_btn_style,
+    rounded_action_btn_style, settings_divider, settings_group_card, settings_group_heading,
+    settings_help_button_with_locale, settings_muted_text_style, settings_page_heading,
+    settings_row_with_flexible_control, settings_text_input_style, with_settings_help_modal,
 };
 use crate::app::i18n::settings_models::connection_text::text as connection_text;
 use crate::app::i18n::settings_models::messages::render as owned_text;
 use crate::app::message::settings::{GatewayClientMessage, SettingsMessage};
 use crate::app::{App, Message};
-use iced::widget::{Space, button, column, container, row, text, text_input};
+use iced::widget::{Space, button, column, container, row, text, text::Wrapping, text_input};
 use iced::{Alignment, Color, Element, Length, Theme};
 
 fn field_row<'a>(
@@ -22,22 +22,7 @@ fn field_row<'a>(
     description: &'static str,
     control: impl Into<Element<'a, Message>>,
 ) -> Element<'a, Message> {
-    container(
-        row![
-            column![
-                text(label).size(13),
-                text(description).size(11).style(settings_muted_text_style),
-            ]
-            .spacing(4)
-            .width(Length::Fixed(SETTINGS_LABEL_WIDTH)),
-            container(control.into()).width(Length::Fill),
-        ]
-        .spacing(22)
-        .align_y(Alignment::Center),
-    )
-    .padding([14, 0])
-    .width(Length::Fill)
-    .into()
+    settings_row_with_flexible_control(label, description, 460.0, control)
 }
 
 fn text_row<'a>(
@@ -85,7 +70,6 @@ fn number_row<'a>(
     value: u32,
     min: u32,
     max: u32,
-    _suffix: &'static str,
     on_change: impl Fn(u32) -> Message + 'a,
 ) -> Element<'a, Message> {
     field_row(
@@ -105,40 +89,44 @@ fn server_button<'a>(
     selected: bool,
     on_press: Message,
 ) -> Element<'a, Message> {
-    let marker = if selected { "✓" } else { "" };
-    button(
-        row![
-            status_dot(healthy),
-            column![text(label).size(13), text(detail).size(11).style(settings_muted_text_style)]
-                .spacing(3)
-                .width(Length::Fill),
-            text(marker).size(14),
+    let mut entry = row![
+        status_dot(healthy),
+        column![
+            text(label).size(14).wrapping(Wrapping::WordOrGlyph),
+            text(detail).size(12).wrapping(Wrapping::WordOrGlyph).style(settings_muted_text_style),
         ]
-        .spacing(10)
-        .align_y(Alignment::Center),
-    )
-    .on_press(on_press)
-    .padding([10, 12])
-    .width(Length::Fill)
-    .style(move |theme, status| {
-        let palette = theme.extended_palette();
-        let background = if selected || status == iced::widget::button::Status::Hovered {
-            Some(iced::Background::Color(palette.background.weak.color))
-        } else {
-            None
-        };
-        iced::widget::button::Style {
-            background,
-            text_color: theme.palette().text,
-            border: iced::Border {
-                width: 1.0,
-                color: palette.background.strong.color.scale_alpha(0.60),
-                radius: 6.0.into(),
-            },
-            ..Default::default()
-        }
-    })
-    .into()
+        .spacing(4)
+        .width(Length::Fill),
+    ]
+    .spacing(10)
+    .align_y(Alignment::Center);
+    if selected {
+        entry = entry.push(text("✓").size(14));
+    }
+    button(entry)
+        .on_press(on_press)
+        .padding([10, 14])
+        .width(Length::Fill)
+        .style(move |theme, status| {
+            let mut style = rounded_action_btn_style(theme, status);
+            let accent = theme.palette().primary;
+            if selected {
+                style.border.color = accent.scale_alpha(0.42);
+            }
+            let tint = match (selected, status) {
+                (true, button::Status::Pressed) => 0.28,
+                (true, button::Status::Hovered) => 0.21,
+                (true, _) => 0.14,
+                (false, button::Status::Pressed) => 0.14,
+                (false, button::Status::Hovered) => 0.08,
+                (false, _) => 0.0,
+            };
+            if tint > 0.0 {
+                style.background = Some(accent.scale_alpha(tint).into());
+            }
+            style
+        })
+        .into()
 }
 
 fn status_dot(healthy: bool) -> Element<'static, Message> {
@@ -164,41 +152,6 @@ fn server_healthy(app: &App, server: &crate::app::state::GatewayClientServerDraf
         .unwrap_or(false)
 }
 
-fn rounded_action_button<'a>(
-    label: Element<'a, Message>,
-    enabled: bool,
-    on_press: Option<Message>,
-) -> Element<'a, Message> {
-    let base = button(container(label).height(Length::Fill).align_y(Alignment::Center))
-        .height(Length::Fixed(36.0))
-        .padding([0, 14])
-        .style(move |theme: &Theme, status| {
-            let palette = theme.extended_palette();
-            let hovered = enabled && status == iced::widget::button::Status::Hovered;
-            iced::widget::button::Style {
-                background: Some(iced::Background::Color(if hovered {
-                    palette.background.weak.color
-                } else {
-                    theme.palette().background
-                })),
-                text_color: if enabled {
-                    theme.palette().text
-                } else {
-                    theme.palette().text.scale_alpha(0.38)
-                },
-                border: iced::Border {
-                    width: 1.0,
-                    color: palette.background.strong.color.scale_alpha(0.65),
-                    radius: 8.0.into(),
-                },
-                shadow: iced::Shadow::default(),
-                ..Default::default()
-            }
-        });
-
-    if let Some(on_press) = on_press { base.on_press(on_press).into() } else { base.into() }
-}
-
 /// 构建或处理 `view` 对应的界面片段与交互数据。
 ///
 /// # 参数
@@ -215,9 +168,10 @@ fn rounded_action_button<'a>(
 pub fn view(app: &App) -> Element<'_, Message> {
     let s = &app.gateway_client_settings;
 
-    let help_btn = settings_help_button(Message::Settings(SettingsMessage::GatewayClient(
-        GatewayClientMessage::HelpOpen,
-    )));
+    let help_btn = settings_help_button_with_locale(
+        app.desktop_locale,
+        Message::Settings(SettingsMessage::GatewayClient(GatewayClientMessage::HelpOpen)),
+    );
 
     let server_items = s
         .servers
@@ -246,33 +200,26 @@ pub fn view(app: &App) -> Element<'_, Message> {
         column(server_items).spacing(8).into()
     };
 
-    let add_server = rounded_action_button(
-        row![text("+").size(16), text(connection_text(app.desktop_locale, "新增网关")).size(13)]
+    let add_server = button(
+        row![text("+").size(13), text(connection_text(app.desktop_locale, "新增网关")).size(13)]
             .spacing(8)
-            .align_y(Alignment::Center)
-            .into(),
-        true,
-        Some(Message::Settings(SettingsMessage::GatewayClient(GatewayClientMessage::AddServer))),
-    );
-    let can_remove_server = s.servers.len() > 1;
-    let remove_server = rounded_action_button(
-        row![text(connection_text(app.desktop_locale, "删除当前")).size(13)]
-            .align_y(Alignment::Center)
-            .into(),
-        can_remove_server,
-        can_remove_server.then(|| {
+            .align_y(Alignment::Center),
+    )
+    .padding([8, 14])
+    .style(primary_action_btn_style)
+    .on_press(Message::Settings(SettingsMessage::GatewayClient(GatewayClientMessage::AddServer)));
+    let remove_server = button(text(connection_text(app.desktop_locale, "删除当前")).size(13))
+        .padding([8, 14])
+        .style(rounded_action_btn_style)
+        .on_press_maybe((s.servers.len() > 1).then(|| {
             Message::Settings(SettingsMessage::GatewayClient(
                 GatewayClientMessage::RemoveServerRequested(s.selected_server_id.clone()),
             ))
-        }),
-    );
-    let refresh_server = rounded_action_button(
-        row![text(connection_text(app.desktop_locale, "刷新状态")).size(13)]
-            .align_y(Alignment::Center)
-            .into(),
-        true,
-        Some(Message::GatewayHealthTick),
-    );
+        }));
+    let refresh_server = button(text(connection_text(app.desktop_locale, "刷新状态")).size(13))
+        .padding([8, 14])
+        .style(rounded_action_btn_style)
+        .on_press(Message::GatewayHealthTick);
 
     let name_row = text_row(
         connection_text(app.desktop_locale, "网关名称"),
@@ -302,7 +249,6 @@ pub fn view(app: &App) -> Element<'_, Message> {
         s.port as u32,
         1,
         u16::MAX as u32,
-        "",
         |value| {
             Message::Settings(SettingsMessage::GatewayClient(GatewayClientMessage::PortChanged(
                 value as u16,
@@ -345,7 +291,7 @@ pub fn view(app: &App) -> Element<'_, Message> {
 
     let content = column![
         row![
-            container(settings_page_intro(
+            container(settings_page_heading(
                 connection_text(app.desktop_locale, "客户端网关"),
                 connection_text(
                     app.desktop_locale,
@@ -356,34 +302,46 @@ pub fn view(app: &App) -> Element<'_, Message> {
             help_btn
         ]
         .align_y(Alignment::Start),
-        settings_section_card(
+        settings_group_heading(
             connection_text(app.desktop_locale, "网关服务"),
             connection_text(
                 app.desktop_locale,
                 "可以维护多个客户端网关，当前选中的网关会用于 Desktop 的 Gateway 请求。"
             ),
         ),
-        settings_panel(
-            row![
-                column![server_list, row![add_server, remove_server, refresh_server].spacing(8)]
-                    .spacing(12)
-                    .width(Length::Fixed(360.0)),
-                Space::new().width(Length::Fixed(10.0)),
-                column![name_row, host_row, port_row, platform_id_row, company_id_row]
-                    .spacing(0)
-                    .width(Length::Fill),
-            ]
-            .spacing(12)
-            .align_y(Alignment::Start),
+        settings_group_card(
+            container(
+                column![
+                    server_list,
+                    row![add_server, remove_server, refresh_server]
+                        .spacing(8)
+                        .align_y(Alignment::Center)
+                        .wrap(),
+                ]
+                .spacing(12),
+            )
+            .padding([14, 0]),
         ),
-        settings_section_card(
+        text(connection_text(app.desktop_locale, "连接参数")).size(17),
+        settings_group_card(column![
+            name_row,
+            settings_divider(),
+            host_row,
+            settings_divider(),
+            port_row,
+            settings_divider(),
+            platform_id_row,
+            settings_divider(),
+            company_id_row,
+        ]),
+        settings_group_heading(
             connection_text(app.desktop_locale, "认证"),
             connection_text(
                 app.desktop_locale,
                 "可选填写 skey。请求会通过 Authorization: Bearer <skey> 发送。"
             ),
         ),
-        settings_section_content(column![skey_row].spacing(0)),
+        settings_group_card(skey_row),
     ]
     .spacing(16)
     .width(Length::Fill);

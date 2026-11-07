@@ -109,3 +109,30 @@
 | `cargo clippy --all-targets --all-features -- -D warnings` | 0 | 实际工作区全部目标和 features 通过 |
 
 差异只包含目录、数据、独立测试、复用的端点规则和本证据。提交前检查差异和空白错误。各阶段已释放本项的槽位锁并保留编译缓存。
+
+## 任务 5　Claude 双应用模型预设
+
+2026-11-08，macOS 27.0（26A428），arm64。批次 4 由 `5b87c60fe` 交付。本项沿用其内嵌 JSON 读取入口，由 `models/preset_catalog.rs::claude_presets` 按 `AppId` 保留源顺序，`claude_preset` 在应用内按精确名称查询。隐藏预设仍可查询，并保留其隐藏标记。
+
+| 固定来源 `ca58c0313360eae7c851fbd7553c1614c7af03e7` | 实际实现 |
+| --- | --- |
+| `src/config/claudeProviderPresets.ts::providerPresets` | `models/presets/claude.json` 中的 `claude` 行，解析为 `models/preset_claude.rs::ClaudePreset::Code`。复用 `ClaudeModels` 保存默认模型和 Haiku、Sonnet、Opus 角色，另外保留小模型、子代理模型、发现 URL 及显式配置的窗口值 |
+| `src/config/claudeDesktopProviderPresets.ts::claudeDesktopProviderPresets`、`CLAUDE_DESKTOP_ROLE_ROUTE_IDS`、`passthroughRoutes`、`mappedRoutes`、`brandedRoutes` | 同一文件中的 `claude-desktop` 行，解析为 `ClaudePreset::Desktop`。展开源工厂的输出，保留路由顺序、直连或代理模式、路由 ID、上游模型、显示名称和 1M 标志。复用 `DesktopMappingMode` 和 `DesktopModelRoute` |
+| `tests/config/claudeProviderPresets.test.ts`、`claudeDesktopProviderPresets.test.ts` | `models/preset_claude_tests.rs` 通过真实目录验证 Kimi For Coding 的角色和窗口、OpenCode Go 的同名部署隔离及 OpenCode Zen 的应用隔离。另验证 Desktop 路由顺序和 Haiku 窗口、官方空默认值及全量查询 |
+
+从固定 Git 对象读取两份 TypeScript 数组，并独立逐行比对投影结果。共核对 268 条预设（Code 139、Desktop 129）、331 个 Code 模型字段、292 条 Desktop 路由、266 个部署地址或模板、266 个候选端点及 7 个发现地址。128 个同名项保留各自的应用身份，OpenCode Go、Microsoft Foundry 和 Cloudflare AI Gateway 各自的端点差异也保留。展示网址保留域名、路径和片段，移除推广或敏感查询参数。目录只保存模型与部署所需的配置提示，凭据值、通用环境开关及推广字段均未迁移。源 API 格式、OAuth 类型、端点模板、配置窗口与 1M 标记是目录数据，执行端仍需独立验证支持情况。来源许可见 `crates/vw-agent-apps/upstream/LICENSE`（MIT，Copyright (c) 2025 Jason Young）。
+
+现有 Claude Code 表单经过网关 `app_providers/claude.rs` 的 `/v1/app-providers/claude/{id}/form`、SDK 的 `client/app_providers/claude.rs::claude_form_create` 和 `claude_form_update` 以及 Iced 的 `components/app_providers/claude.rs::fields`。Desktop 配置及映射分别经过网关 `app_providers/claude_desktop.rs` 的 `/{id}/config` 和 `app_providers/desktop_mapping.rs` 的 `/{id}/model-mapping`，对应 SDK 的 `claude_desktop_provider_save`、`claude_desktop_mapping_save` 和 Iced 的 `components/app_providers/desktop.rs::overlay`。这些入口继续处理已保存配置。预设目录 API 与 SDK 在任务 36 接入，Iced 搜索在任务 39 接入。本项验收原生离线目录，无窗口、账号或线上请求验收项。
+
+### 验证
+
+红灯、绿灯与全工作区 Clippy 均动态领取共享槽位 **3**，`CARGO_TARGET_DIR=/Users/xiangmin/worker/code/shiju/target/rust-slot-3`，Cargo 中间目录使用同一槽位。`cargo fmt --all` 在基于 `5b87c60fe` 的源码快照中运行，只回写本项四个 Rust 文件。聚焦测试和全工作区 Clippy 在实际工作区根目录运行。
+
+| 命令 | 退出码 | 证据 |
+| --- | ---: | --- |
+| `cargo fmt --all`（红灯、绿灯） | 0、0 | 格式化完成 |
+| `cargo test -p vw-agent-apps catalog_presets_claude_ -- --nocapture`（红灯） | 101 | 6 条有效测试，6 条预期失败。同名 OpenCode Go 查询实际为 `(None, None)`，预期为 `(Some(Claude), Some(ClaudeDesktop))` |
+| `cargo test -p vw-agent-apps catalog_presets_claude_ -- --nocapture`（绿灯） | 0 | 6 条有效测试全部通过 |
+| `cargo clippy --all-targets --all-features -- -D warnings` | 0 | 实际工作区全部目标及 features 通过 |
+
+审查范围仅包含目录入口、类型、数据、独立测试与本证据。各阶段已释放本项的槽位锁并保留编译缓存。

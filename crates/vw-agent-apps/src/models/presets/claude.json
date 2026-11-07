@@ -1,0 +1,6668 @@
+[
+  {
+    "appId": "claude",
+    "provider": {
+      "name": "Claude Official",
+      "websiteUrl": "https://www.anthropic.com/claude-code",
+      "category": "official",
+      "icon": "anthropic",
+      "iconColor": "#D4915D"
+    }
+  },
+  {
+    "appId": "claude",
+    "provider": {
+      "name": "Kimi",
+      "websiteUrl": "https://platform.kimi.com",
+      "category": "cn_official",
+      "family": "kimi",
+      "planKey": "payg",
+      "regionKey": "cn",
+      "icon": "kimi",
+      "iconColor": "#6366F1",
+      "baseUrl": "https://api.moonshot.cn/anthropic"
+    },
+    "models": {
+      "model": "kimi-k3.1-pro",
+      "haikuModel": "kimi-k3.1-pro",
+      "sonnetModel": "kimi-k3.1-pro",
+      "opusModel": "kimi-k3.1-pro"
+    }
+  },
+  {
+    "appId": "claude",
+    "provider": {
+      "name": "Kimi Global",
+      "websiteUrl": "https://platform.kimi.ai",
+      "category": "cn_official",
+      "family": "kimi",
+      "planKey": "payg",
+      "regionKey": "intl",
+      "icon": "kimi",
+      "iconColor": "#6366F1",
+      "baseUrl": "https://api.moonshot.ai/anthropic"
+    },
+    "models": {
+      "model": "kimi-k3.1-pro",
+      "haikuModel": "kimi-k3.1-pro",
+      "sonnetModel": "kimi-k3.1-pro",
+      "opusModel": "kimi-k3.1-pro"
+    }
+  },
+  {
+    "appId": "claude",
+    "provider": {
+      "name": "Kimi For Coding",
+      "websiteUrl": "https://www.kimi.com/code/",
+      "category": "cn_official",
+      "family": "kimi",
+      "planKey": "coding",
+      "regionKey": "cn",
+      "icon": "kimi",
+      "iconColor": "#6366F1",
+      "baseUrl": "https://api.kimi.com/coding/"
+    },
+    "models": {
+      "model": "kimi-for-coding",
+      "haikuModel": "kimi-for-coding",
+      "sonnetModel": "kimi-for-coding",
+      "opusModel": "kimi-for-coding"
+    },
+    "maxContextTokens": 262144,
+    "autoCompactWindow": 262144
+  },
+  {
+    "appId": "claude",
+    "provider": {
+      "name": "Kimi For Coding Global",
+      "websiteUrl": "https://www.kimi.ai/code",
+      "category": "cn_official",
+      "family": "kimi",
+      "planKey": "coding",
+      "regionKey": "intl",
+      "icon": "kimi",
+      "iconColor": "#6366F1",
+      "baseUrl": "https://api.kimi.ai/coding/"
+    },
+    "models": {
+      "model": "kimi-for-coding",
+      "haikuModel": "kimi-for-coding",
+      "sonnetModel": "kimi-for-coding",
+      "opusModel": "kimi-for-coding"
+    },
+    "maxContextTokens": 262144,
+    "autoCompactWindow": 262144
+  },
+  {
+    "appId": "claude",
+    "provider": {
+      "name": "PackyCode",
+      "websiteUrl": "https://www.packyapi.ai",
+      "category": "third_party",
+      "icon": "packycode",
+      "baseUrl": "https://www.packyapi.ai",
+      "endpointCandidates": [
+        "https://www.packyapi.ai",
+        "https://cf.api.fan",
+        "https://slb-v1.api.fan",
+        "https://www.packyapi.com"
+      ]
+    }
+  },
+  {
+    "appId": "claude",
+    "provider": {
+      "name": "APINebula",
+      "websiteUrl": "https://apinebula.ai",
+      "category": "third_party",
+      "icon": "apinebula",
+      "baseUrl": "https://apinebula.ai",
+      "endpointCandidates": [
+        "https://apinebula.ai"
+      ]
+    }
+  },
+  {
+    "appId": "claude",
+    "provider": {
+      "name": "AICodeMirror",
+      "websiteUrl": "https://www.aicodemirror.ai",
+      "category": "third_party",
+      "icon": "aicodemirror",
+      "iconColor": "#000000",
+      "baseUrl": "https://api.aicodemirror.ai/api/claudecode",
+      "endpointCandidates": [
+        "https://api.aicodemirror.ai/api/claudecode"
+      ]
+    }
+  },
+  {
+    "appId": "claude",
+    "provider": {
+      "name": "PatewayAI",
+      "websiteUrl": "https://pateway.ai",
+      "category": "third_party",
+      "icon": "pateway",
+      "baseUrl": "https://api.pateway.ai",
+      "apiKeyHeader": true
+    }
+  },
+  {
+    "appId": "claude",
+    "provider": {
+      "name": "hao.ai",
+      "websiteUrl": "https://hao.ai",
+      "category": "aggregator",
+      "icon": "haoai",
+      "baseUrl": "https://api.hao.ai/anthropic"
+    }
+  },
+  {
+    "appId": "claude",
+    "provider": {
+      "name": "FennoAI",
+      "websiteUrl": "https://api.fenno.ai",
+      "category": "aggregator",
+      "icon": "fenno",
+      "baseUrl": "https://api.fenno.ai"
+    }
+  },
+  {
+    "appId": "claude",
+    "provider": {
+      "name": "RunAPI",
+      "websiteUrl": "https://runapi.host",
+      "category": "aggregator",
+      "icon": "runapi",
+      "baseUrl": "https://runapi.host",
+      "endpointCandidates": [
+        "https://runapi.host",
+        "https://runapi.co"
+      ]
+    }
+  },
+  {
+    "appId": "claude",
+    "provider": {
+      "name": "OpenModel",
+      "websiteUrl": "https://www.openmodel.ai",
+      "category": "aggregator",
+      "icon": "openmodel",
+      "baseUrl": "https://api.openmodel.ai"
+    }
+  },
+  {
+    "appId": "claude",
+    "provider": {
+      "name": "GrooRoute Pro",
+      "websiteUrl": "https://grooroute.pro",
+      "category": "aggregator",
+      "icon": "grooroute",
+      "baseUrl": "https://grooroute.pro",
+      "endpointCandidates": [
+        "https://grooroute.pro",
+        "https://grooroute.xyz"
+      ]
+    },
+    "models": {
+      "haikuModel": "claude-sonnet-5-5"
+    }
+  },
+  {
+    "appId": "claude",
+    "provider": {
+      "name": "BuyToken",
+      "websiteUrl": "https://buytoken.work",
+      "category": "aggregator",
+      "icon": "buytoken",
+      "baseUrl": "https://api.buytoken.work"
+    },
+    "models": {
+      "haikuModel": "claude-haiku-4-5-20251001"
+    }
+  },
+  {
+    "appId": "claude",
+    "provider": {
+      "name": "V-API",
+      "websiteUrl": "https://gpt.ge",
+      "category": "aggregator",
+      "icon": "vapi",
+      "baseUrl": "https://api.gpt.ge",
+      "endpointCandidates": [
+        "https://api.gpt.ge",
+        "https://api.vveai.com",
+        "https://run.v3.cm",
+        "https://api1.v3.cm",
+        "https://api2.v3.cm",
+        "https://us.gpt.ge"
+      ]
+    }
+  },
+  {
+    "appId": "claude",
+    "provider": {
+      "name": "TokenFactory",
+      "nameKey": "providerForm.presets.tokenfactory",
+      "websiteUrl": "https://tokenfactory.cn",
+      "category": "aggregator",
+      "icon": "tokenfactory",
+      "baseUrl": "https://api.tokenfactory.cn/anthropic",
+      "endpointCandidates": [
+        "https://api.tokenfactory.cn/anthropic"
+      ]
+    },
+    "models": {
+      "model": "glm-5.3[1M]",
+      "haikuModel": "deepseek-v4.1-flash[1M]",
+      "sonnetModel": "glm-5.3[1M]",
+      "opusModel": "kimi-k3[1M]"
+    }
+  },
+  {
+    "appId": "claude",
+    "provider": {
+      "name": "FluxA Token Plan",
+      "websiteUrl": "https://agentmarket.fluxapay.xyz/",
+      "category": "aggregator",
+      "icon": "fluxa",
+      "baseUrl": "https://api.baiduqianfan.ai/anthropic/tokenplan/team",
+      "endpointCandidates": [
+        "https://api.baiduqianfan.ai/anthropic/tokenplan/team"
+      ]
+    },
+    "models": {
+      "model": "deepseek-v4.1-flash[1M]",
+      "haikuModel": "deepseek-v4.1-flash[1M]",
+      "sonnetModel": "deepseek-v4.1-flash[1M]",
+      "opusModel": "deepseek-v4.1-flash[1M]"
+    }
+  },
+  {
+    "appId": "claude",
+    "provider": {
+      "name": "AIGoCode",
+      "websiteUrl": "https://aigocode.net",
+      "category": "third_party",
+      "icon": "aigocode",
+      "iconColor": "#5B7FFF",
+      "baseUrl": "https://api.aigocode.dev",
+      "endpointCandidates": [
+        "https://api.aigocode.dev",
+        "https://api.aigocode.app"
+      ]
+    }
+  },
+  {
+    "appId": "claude",
+    "provider": {
+      "name": "Qiniu",
+      "nameKey": "providerForm.presets.qiniu",
+      "websiteUrl": "https://s.qiniu.com/nMvAvy",
+      "category": "aggregator",
+      "icon": "qiniu",
+      "baseUrl": "https://api.qnaigc.com",
+      "endpointCandidates": [
+        "https://api.qnaigc.com",
+        "https://api.modelink.ai"
+      ]
+    }
+  },
+  {
+    "appId": "claude",
+    "provider": {
+      "name": "AICoding",
+      "websiteUrl": "https://aicoding.inc",
+      "category": "third_party",
+      "icon": "aicoding",
+      "iconColor": "#000000",
+      "baseUrl": "https://api.aicoding.inc",
+      "endpointCandidates": [
+        "https://api.aicoding.inc"
+      ]
+    }
+  },
+  {
+    "appId": "claude",
+    "provider": {
+      "name": "SubRouter",
+      "websiteUrl": "https://subrouter.ai",
+      "category": "aggregator",
+      "icon": "subrouter",
+      "baseUrl": "https://subrouter.ai"
+    }
+  },
+  {
+    "appId": "claude",
+    "provider": {
+      "name": "OspreyAI",
+      "websiteUrl": "https://open.ospreyai.cn",
+      "category": "aggregator",
+      "icon": "ospreyai",
+      "baseUrl": "https://open.ospreyai.cn"
+    },
+    "models": {
+      "haikuModel": "claude-haiku-4-5"
+    }
+  },
+  {
+    "appId": "claude",
+    "provider": {
+      "name": "Shengsuanyun",
+      "nameKey": "providerForm.presets.shengsuanyun",
+      "websiteUrl": "https://www.shengsuanyun.com/",
+      "category": "aggregator",
+      "icon": "shengsuanyun",
+      "baseUrl": "https://router.shengsuanyun.com/api"
+    },
+    "models": {
+      "model": "anthropic/claude-sonnet-5.5",
+      "haikuModel": "anthropic/claude-haiku-5.5",
+      "sonnetModel": "anthropic/claude-sonnet-5.5",
+      "opusModel": "anthropic/claude-opus-5.5"
+    }
+  },
+  {
+    "appId": "claude",
+    "provider": {
+      "name": "88API",
+      "websiteUrl": "https://88api.ai",
+      "category": "aggregator",
+      "icon": "88api",
+      "baseUrl": "https://api.88api.ai",
+      "endpointCandidates": [
+        "https://api.88api.ai",
+        "https://88api.ai"
+      ]
+    }
+  },
+  {
+    "appId": "claude",
+    "provider": {
+      "name": "APIKEY.FUN",
+      "websiteUrl": "https://apikey.fan",
+      "category": "third_party",
+      "icon": "apikeyfun",
+      "baseUrl": "https://api.apikey.fan",
+      "endpointCandidates": [
+        "https://api.apikey.fan",
+        "https://api.apikey.fun",
+        "https://slb.apikey.fun"
+      ]
+    }
+  },
+  {
+    "appId": "claude",
+    "provider": {
+      "name": "9527CODE",
+      "websiteUrl": "https://9527.codes",
+      "category": "aggregator",
+      "icon": "9527code",
+      "baseUrl": "https://9527.codes",
+      "endpointCandidates": [
+        "https://9527.codes",
+        "https://api.9527.codes",
+        "https://cdn.9527.codes"
+      ]
+    }
+  },
+  {
+    "appId": "claude",
+    "provider": {
+      "name": "ClaudeAPI",
+      "websiteUrl": "https://www.apito.ai",
+      "category": "aggregator",
+      "icon": "claudeapi",
+      "baseUrl": "https://gw.apito.ai"
+    }
+  },
+  {
+    "appId": "claude",
+    "provider": {
+      "name": "Code0",
+      "websiteUrl": "https://code0.ai",
+      "category": "aggregator",
+      "icon": "code0",
+      "baseUrl": "https://code0.ai"
+    }
+  },
+  {
+    "appId": "claude",
+    "provider": {
+      "name": "TeamoRouter",
+      "websiteUrl": "https://teamorouter.cn",
+      "category": "aggregator",
+      "icon": "teamorouter",
+      "baseUrl": "https://api.teamorouter.cn",
+      "endpointCandidates": [
+        "https://api.teamorouter.cn",
+        "https://api.teamorouter.com"
+      ]
+    }
+  },
+  {
+    "appId": "claude",
+    "provider": {
+      "name": "PPIO",
+      "websiteUrl": "https://ppio.com",
+      "category": "aggregator",
+      "icon": "ppio",
+      "iconColor": "#2874FF",
+      "baseUrl": "https://api.ppio.com/anthropic",
+      "endpointCandidates": [
+        "https://api.ppio.com/anthropic"
+      ]
+    },
+    "models": {
+      "model": "deepseek/deepseek-v4.1-flash[1M]",
+      "haikuModel": "deepseek/deepseek-v4.1-flash[1M]",
+      "sonnetModel": "deepseek/deepseek-v4.1-flash[1M]",
+      "opusModel": "deepseek/deepseek-v4.1-flash[1M]"
+    },
+    "modelsUrl": "https://api.ppio.com/openai/v1/models"
+  },
+  {
+    "appId": "claude",
+    "provider": {
+      "name": "ClaudeCN",
+      "websiteUrl": "https://claudecn.top",
+      "category": "third_party",
+      "icon": "claudecn",
+      "baseUrl": "https://claudecn.top"
+    }
+  },
+  {
+    "appId": "claude",
+    "provider": {
+      "name": "火山 Agent Plan",
+      "websiteUrl": "https://www.volcengine.com/activity/agentplan",
+      "category": "cn_official",
+      "family": "volcengine",
+      "planKey": "agentPlan",
+      "icon": "huoshan",
+      "iconColor": "#3370FF",
+      "baseUrl": "https://ark.cn-beijing.volces.com/api/plan"
+    },
+    "models": {
+      "model": "ark-code-latest",
+      "haikuModel": "ark-code-latest",
+      "sonnetModel": "ark-code-latest",
+      "opusModel": "ark-code-latest"
+    }
+  },
+  {
+    "appId": "claude",
+    "provider": {
+      "name": "火山 Coding Plan",
+      "websiteUrl": "https://www.volcengine.com/activity/codingplan",
+      "category": "cn_official",
+      "family": "volcengine",
+      "planKey": "codingPlan",
+      "icon": "huoshan",
+      "iconColor": "#3370FF",
+      "baseUrl": "https://ark.cn-beijing.volces.com/api/coding"
+    },
+    "models": {
+      "model": "ark-code-latest",
+      "haikuModel": "ark-code-latest",
+      "sonnetModel": "ark-code-latest",
+      "opusModel": "ark-code-latest"
+    }
+  },
+  {
+    "appId": "claude",
+    "provider": {
+      "name": "BytePlus",
+      "websiteUrl": "https://www.byteplus.com/en/product/modelark",
+      "category": "cn_official",
+      "icon": "byteplus",
+      "iconColor": "#3370FF",
+      "baseUrl": "https://ark.ap-southeast.bytepluses.com/api/coding"
+    },
+    "models": {
+      "model": "ark-code-latest",
+      "haikuModel": "ark-code-latest",
+      "sonnetModel": "ark-code-latest",
+      "opusModel": "ark-code-latest"
+    }
+  },
+  {
+    "appId": "claude",
+    "provider": {
+      "name": "Volcengine Doubao",
+      "nameKey": "providerForm.presets.doubaoseed",
+      "websiteUrl": "https://console.volcengine.com/ark/region:ark+cn-beijing/apiKey",
+      "category": "cn_official",
+      "family": "volcengine",
+      "planKey": "payg",
+      "icon": "doubao",
+      "iconColor": "#3370FF",
+      "baseUrl": "https://ark.cn-beijing.volces.com/api/compatible"
+    },
+    "models": {
+      "model": "doubao-seed-2-1-pro-260915",
+      "haikuModel": "doubao-seed-2-1-pro-260915",
+      "sonnetModel": "doubao-seed-2-1-pro-260915",
+      "opusModel": "doubao-seed-2-1-pro-260915"
+    }
+  },
+  {
+    "appId": "claude",
+    "provider": {
+      "name": "SiliconFlow",
+      "websiteUrl": "https://siliconflow.cn",
+      "category": "aggregator",
+      "family": "siliconflow",
+      "regionKey": "cn",
+      "icon": "siliconflow",
+      "iconColor": "#6E29F6",
+      "baseUrl": "https://api.siliconflow.cn"
+    },
+    "models": {
+      "model": "deepseek-ai/DeepSeek-V4-Flash[1M]",
+      "haikuModel": "deepseek-ai/DeepSeek-V4-Flash[1M]",
+      "sonnetModel": "deepseek-ai/DeepSeek-V4-Flash[1M]",
+      "opusModel": "deepseek-ai/DeepSeek-V4-Flash[1M]"
+    }
+  },
+  {
+    "appId": "claude",
+    "provider": {
+      "name": "SiliconFlow en",
+      "websiteUrl": "https://siliconflow.com",
+      "category": "aggregator",
+      "family": "siliconflow",
+      "regionKey": "intl",
+      "icon": "siliconflow",
+      "iconColor": "#000000",
+      "baseUrl": "https://api.siliconflow.com"
+    },
+    "models": {
+      "model": "MiniMaxAI/MiniMax-M3[1M]",
+      "haikuModel": "MiniMaxAI/MiniMax-M3[1M]",
+      "sonnetModel": "MiniMaxAI/MiniMax-M3[1M]",
+      "opusModel": "MiniMaxAI/MiniMax-M3[1M]"
+    }
+  },
+  {
+    "appId": "claude",
+    "provider": {
+      "name": "A6API",
+      "websiteUrl": "https://www.a6api.vip",
+      "category": "aggregator",
+      "icon": "a6api",
+      "baseUrl": "https://api.a6api.vip"
+    }
+  },
+  {
+    "appId": "claude",
+    "provider": {
+      "name": "Compshare",
+      "nameKey": "providerForm.presets.ucloud",
+      "websiteUrl": "https://www.compshare.cn",
+      "category": "aggregator",
+      "family": "compshare",
+      "planKey": "payg",
+      "icon": "ucloud",
+      "iconColor": "#000000",
+      "baseUrl": "https://api.modelverse.cn",
+      "endpointCandidates": [
+        "https://api.modelverse.cn"
+      ]
+    }
+  },
+  {
+    "appId": "claude",
+    "provider": {
+      "name": "Compshare Coding Plan",
+      "nameKey": "providerForm.presets.ucloudCoding",
+      "websiteUrl": "https://www.compshare.cn",
+      "category": "aggregator",
+      "family": "compshare",
+      "planKey": "codingPlan",
+      "icon": "ucloud",
+      "iconColor": "#000000",
+      "baseUrl": "https://cp.compshare.cn",
+      "endpointCandidates": [
+        "https://cp.compshare.cn"
+      ]
+    }
+  },
+  {
+    "appId": "claude",
+    "provider": {
+      "name": "CCSub",
+      "websiteUrl": "https://www.ccsub.net",
+      "category": "aggregator",
+      "icon": "ccsub",
+      "baseUrl": "https://www.ccsub.net"
+    }
+  },
+  {
+    "appId": "claude",
+    "provider": {
+      "name": "SSSAiCode",
+      "websiteUrl": "https://sssaicodeapi.com",
+      "category": "third_party",
+      "icon": "sssaicode",
+      "iconColor": "#000000",
+      "baseUrl": "https://node-hk.sssaicodeapi.com/api",
+      "endpointCandidates": [
+        "https://node-hk.sssaicodeapi.com/api",
+        "https://node-hk.sssaiapi.com/api",
+        "https://node-cf.sssaicodeapi.com/api"
+      ]
+    }
+  },
+  {
+    "appId": "claude",
+    "provider": {
+      "name": "SoleAPI",
+      "websiteUrl": "https://soleapi.com",
+      "category": "aggregator",
+      "icon": "soleapi",
+      "baseUrl": "https://soleapi.com",
+      "endpointCandidates": [
+        "https://soleapi.com"
+      ]
+    }
+  },
+  {
+    "appId": "claude",
+    "provider": {
+      "name": "Micu",
+      "websiteUrl": "https://www.micuapi.ai",
+      "category": "third_party",
+      "icon": "micu",
+      "iconColor": "#000000",
+      "baseUrl": "https://www.micuapi.ai",
+      "endpointCandidates": [
+        "https://www.micuapi.ai"
+      ]
+    }
+  },
+  {
+    "appId": "claude",
+    "provider": {
+      "name": "RightCode",
+      "websiteUrl": "https://www.rightapi.ai",
+      "category": "third_party",
+      "icon": "rc",
+      "iconColor": "#E96B2C",
+      "baseUrl": "https://www.rightapi.ai/claude"
+    }
+  },
+  {
+    "appId": "claude",
+    "provider": {
+      "name": "Cubence",
+      "websiteUrl": "https://cubence.com",
+      "category": "third_party",
+      "icon": "cubence",
+      "iconColor": "#000000",
+      "baseUrl": "https://api.cubence.com",
+      "endpointCandidates": [
+        "https://api.cubence.com",
+        "https://api-cf.cubence.com",
+        "https://api-dmit.cubence.com",
+        "https://api-bwg.cubence.com"
+      ]
+    }
+  },
+  {
+    "appId": "claude",
+    "provider": {
+      "name": "CrazyRouter",
+      "websiteUrl": "https://www.crazyrouter.com",
+      "category": "third_party",
+      "icon": "crazyrouter",
+      "iconColor": "#000000",
+      "baseUrl": "https://cn.crazyrouter.com",
+      "endpointCandidates": [
+        "https://cn.crazyrouter.com"
+      ]
+    }
+  },
+  {
+    "appId": "claude",
+    "provider": {
+      "name": "DMXAPI",
+      "websiteUrl": "https://www.dmxapi.cn",
+      "category": "aggregator",
+      "icon": "dmxapi",
+      "baseUrl": "https://www.dmxapi.cn",
+      "endpointCandidates": [
+        "https://www.dmxapi.cn",
+        "https://api.dmxapi.cn"
+      ]
+    }
+  },
+  {
+    "appId": "claude",
+    "provider": {
+      "name": "SudoCode.chat",
+      "websiteUrl": "https://sudocode.chat",
+      "category": "third_party",
+      "family": "sudocode",
+      "icon": "sudocode",
+      "baseUrl": "https://api.sudocode.chat",
+      "endpointCandidates": [
+        "https://api.sudocode.chat",
+        "https://api.sudorelay.com"
+      ]
+    }
+  },
+  {
+    "appId": "claude",
+    "provider": {
+      "name": "SudoCode.us",
+      "websiteUrl": "https://sudocode.us",
+      "category": "third_party",
+      "family": "sudocode",
+      "icon": "sudocode-us",
+      "baseUrl": "https://sudocode.us",
+      "endpointCandidates": [
+        "https://sudocode.us",
+        "https://sudocode.run"
+      ]
+    }
+  },
+  {
+    "appId": "claude",
+    "provider": {
+      "name": "XycAi",
+      "websiteUrl": "https://xycai.us",
+      "category": "aggregator",
+      "icon": "xycai",
+      "baseUrl": "https://apicdn.xycai.us",
+      "endpointCandidates": [
+        "https://apicdn.xycai.us",
+        "https://apicdn.xyc.ai"
+      ],
+      "apiKeyHeader": true
+    }
+  },
+  {
+    "appId": "claude",
+    "provider": {
+      "name": "Modelflare",
+      "websiteUrl": "https://modelflare.dev",
+      "category": "aggregator",
+      "icon": "modelflare",
+      "baseUrl": "https://modelflare.dev",
+      "endpointCandidates": [
+        "https://modelflare.dev",
+        "https://origin.modelflare.dev"
+      ]
+    },
+    "models": {
+      "haikuModel": "claude-sonnet-5-5"
+    }
+  },
+  {
+    "appId": "claude",
+    "provider": {
+      "name": "AllTokens",
+      "websiteUrl": "https://alltokens.cc",
+      "category": "aggregator",
+      "icon": "alltokens",
+      "baseUrl": "https://alltokens.cc"
+    }
+  },
+  {
+    "appId": "claude",
+    "provider": {
+      "name": "AllTokens SI",
+      "websiteUrl": "https://alltokens.si",
+      "category": "aggregator",
+      "icon": "alltokens-si",
+      "baseUrl": "https://alltokens.si"
+    },
+    "models": {
+      "model": "claude-sonnet-5.5",
+      "haikuModel": "claude-sonnet-5.5",
+      "sonnetModel": "claude-sonnet-5.5",
+      "opusModel": "claude-opus-5.5"
+    }
+  },
+  {
+    "appId": "claude",
+    "provider": {
+      "name": "Tu-zi",
+      "nameKey": "providerForm.presets.tuzi",
+      "websiteUrl": "https://api.tu-zi.com",
+      "category": "aggregator",
+      "icon": "tuzi",
+      "baseUrl": "https://api.tu-zi.com",
+      "endpointCandidates": [
+        "https://api.tu-zi.com",
+        "https://api.ourzhishi.top",
+        "https://api.sydney-ai.com",
+        "https://apicdn.tu-zi.com"
+      ],
+      "apiKeyHeader": true
+    }
+  },
+  {
+    "appId": "claude",
+    "provider": {
+      "name": "Amux",
+      "websiteUrl": "https://amux.ai",
+      "category": "aggregator",
+      "icon": "amux",
+      "baseUrl": "https://api.amux.ai"
+    }
+  },
+  {
+    "appId": "claude",
+    "provider": {
+      "name": "AtlasCloud",
+      "websiteUrl": "https://www.atlascloud.ai/console/coding-plan",
+      "category": "aggregator",
+      "icon": "atlascloud",
+      "baseUrl": "https://api.atlascloud.ai",
+      "endpointCandidates": [
+        "https://api.atlascloud.ai"
+      ]
+    },
+    "models": {
+      "model": "zai-org/glm-5.3",
+      "haikuModel": "zai-org/glm-5.3-flash",
+      "sonnetModel": "zai-org/glm-5.3",
+      "opusModel": "zai-org/glm-5.3"
+    }
+  },
+  {
+    "appId": "claude",
+    "provider": {
+      "name": "Soshow",
+      "websiteUrl": "https://aimarket.so-show.com",
+      "category": "aggregator",
+      "icon": "soshow",
+      "baseUrl": "https://maas.so-show.com"
+    },
+    "models": {
+      "haikuModel": "claude-sonnet-5"
+    }
+  },
+  {
+    "appId": "claude",
+    "provider": {
+      "name": "Gemini Native",
+      "websiteUrl": "https://ai.google.dev/gemini-api",
+      "category": "third_party",
+      "icon": "gemini",
+      "iconColor": "#4285F4",
+      "baseUrl": "https://generativelanguage.googleapis.com",
+      "endpointCandidates": [
+        "https://generativelanguage.googleapis.com"
+      ],
+      "apiFormat": "gemini_native",
+      "apiKeyHeader": true
+    },
+    "models": {
+      "model": "gemini-3.8-flash",
+      "haikuModel": "gemini-3.8-flash",
+      "sonnetModel": "gemini-3.8-flash",
+      "opusModel": "gemini-3.8-flash"
+    }
+  },
+  {
+    "appId": "claude",
+    "provider": {
+      "name": "DeepSeek",
+      "websiteUrl": "https://platform.deepseek.com",
+      "category": "cn_official",
+      "icon": "deepseek",
+      "iconColor": "#1E88E5",
+      "baseUrl": "https://api.deepseek.com/anthropic"
+    },
+    "models": {
+      "model": "deepseek-flash[1M]",
+      "haikuModel": "deepseek-flash[1M]",
+      "sonnetModel": "deepseek-flash[1M]",
+      "opusModel": "deepseek-flash[1M]"
+    },
+    "modelsUrl": "https://api.deepseek.com/models"
+  },
+  {
+    "appId": "claude",
+    "provider": {
+      "name": "OpenCode Go",
+      "websiteUrl": "https://opencode.ai/go",
+      "category": "third_party",
+      "family": "opencode",
+      "planKey": "coding",
+      "icon": "opencode",
+      "iconColor": "#211E1E",
+      "baseUrl": "https://opencode.ai/zen/go",
+      "endpointCandidates": [
+        "https://opencode.ai/zen/go"
+      ],
+      "apiKeyHeader": true
+    },
+    "models": {
+      "model": "deepseek-v4.1-flash[1M]",
+      "haikuModel": "deepseek-v4.1-flash[1M]",
+      "sonnetModel": "deepseek-v4.1-flash[1M]",
+      "opusModel": "deepseek-v4.1-flash[1M]"
+    }
+  },
+  {
+    "appId": "claude",
+    "provider": {
+      "name": "OpenCode Zen",
+      "websiteUrl": "https://opencode.ai/zen",
+      "category": "aggregator",
+      "family": "opencode",
+      "planKey": "payg",
+      "icon": "opencode",
+      "iconColor": "#211E1E",
+      "baseUrl": "https://opencode.ai/zen",
+      "endpointCandidates": [
+        "https://opencode.ai/zen"
+      ],
+      "apiKeyHeader": true
+    },
+    "models": {
+      "model": "claude-sonnet-5-5",
+      "haikuModel": "claude-haiku-5-5",
+      "sonnetModel": "claude-sonnet-5-5",
+      "opusModel": "claude-opus-5-5"
+    }
+  },
+  {
+    "appId": "claude",
+    "provider": {
+      "name": "Tencent Token Plan",
+      "websiteUrl": "https://cloud.tencent.com/product/tokenhub",
+      "category": "cn_official",
+      "family": "tencent",
+      "planKey": "tokenPlan",
+      "regionKey": "cn",
+      "icon": "tencent",
+      "iconColor": "#0052D9",
+      "baseUrl": "https://api.lkeap.cloud.tencent.com/plan/anthropic",
+      "endpointCandidates": [
+        "https://api.lkeap.cloud.tencent.com/plan/anthropic"
+      ]
+    },
+    "models": {
+      "model": "tc-code-latest",
+      "haikuModel": "tc-code-latest",
+      "sonnetModel": "tc-code-latest",
+      "opusModel": "tc-code-latest"
+    },
+    "modelsUrl": "https://api.lkeap.cloud.tencent.com/plan/v3/models"
+  },
+  {
+    "appId": "claude",
+    "provider": {
+      "name": "Tencent Token Plan (Intl)",
+      "websiteUrl": "https://www.tencentcloud.com/products/tokenhub",
+      "category": "cn_official",
+      "family": "tencent",
+      "planKey": "tokenPlan",
+      "regionKey": "intl",
+      "icon": "tencent",
+      "iconColor": "#0052D9",
+      "baseUrl": "https://tokenhub-intl.tencentcloudmaas.com/plan/anthropic",
+      "endpointCandidates": [
+        "https://tokenhub-intl.tencentcloudmaas.com/plan/anthropic"
+      ]
+    },
+    "models": {
+      "model": "auto",
+      "haikuModel": "auto",
+      "sonnetModel": "auto",
+      "opusModel": "auto"
+    }
+  },
+  {
+    "appId": "claude",
+    "provider": {
+      "name": "Tencent Token Plan Enterprise Pro",
+      "websiteUrl": "https://cloud.tencent.com/product/tokenhub",
+      "category": "cn_official",
+      "family": "tencent",
+      "planKey": "enterprisePro",
+      "regionKey": "cn",
+      "icon": "tencent",
+      "iconColor": "#0052D9",
+      "baseUrl": "https://tokenhub.tencentmaas.com/plan/anthropic",
+      "endpointCandidates": [
+        "https://tokenhub.tencentmaas.com/plan/anthropic",
+        "https://tokenhub-intl.tencentmaas.com/plan/anthropic"
+      ]
+    },
+    "models": {
+      "model": "auto",
+      "haikuModel": "auto",
+      "sonnetModel": "auto",
+      "opusModel": "auto"
+    }
+  },
+  {
+    "appId": "claude",
+    "provider": {
+      "name": "Tencent Token Plan Enterprise Pro (Intl)",
+      "websiteUrl": "https://www.tencentcloud.com/products/tokenhub",
+      "category": "cn_official",
+      "family": "tencent",
+      "planKey": "enterprisePro",
+      "regionKey": "intl",
+      "icon": "tencent",
+      "iconColor": "#0052D9",
+      "baseUrl": "https://tokenhub-intl.tencentcloudmaas.com/plan/anthropic",
+      "endpointCandidates": [
+        "https://tokenhub-intl.tencentcloudmaas.com/plan/anthropic",
+        "https://tokenhub.tencentcloudmaas.com/plan/anthropic"
+      ]
+    },
+    "models": {
+      "model": "auto",
+      "haikuModel": "auto",
+      "sonnetModel": "auto",
+      "opusModel": "auto"
+    }
+  },
+  {
+    "appId": "claude",
+    "provider": {
+      "name": "Tencent Token Plan Enterprise Lite",
+      "websiteUrl": "https://cloud.tencent.com/product/tokenhub",
+      "category": "cn_official",
+      "family": "tencent",
+      "planKey": "enterpriseLite",
+      "regionKey": "cn",
+      "icon": "tencent",
+      "iconColor": "#0052D9",
+      "baseUrl": "https://tokenhub.tencentmaas.com/plan/anthropic",
+      "endpointCandidates": [
+        "https://tokenhub.tencentmaas.com/plan/anthropic",
+        "https://tokenhub-intl.tencentmaas.com/plan/anthropic"
+      ]
+    },
+    "models": {
+      "model": "auto",
+      "haikuModel": "auto",
+      "sonnetModel": "auto",
+      "opusModel": "auto"
+    }
+  },
+  {
+    "appId": "claude",
+    "provider": {
+      "name": "Tencent Token Plan Enterprise Lite (Intl)",
+      "websiteUrl": "https://www.tencentcloud.com/products/tokenhub",
+      "category": "cn_official",
+      "family": "tencent",
+      "planKey": "enterpriseLite",
+      "regionKey": "intl",
+      "icon": "tencent",
+      "iconColor": "#0052D9",
+      "baseUrl": "https://tokenhub-intl.tencentcloudmaas.com/plan/anthropic",
+      "endpointCandidates": [
+        "https://tokenhub-intl.tencentcloudmaas.com/plan/anthropic",
+        "https://tokenhub.tencentcloudmaas.com/plan/anthropic"
+      ]
+    },
+    "models": {
+      "model": "auto",
+      "haikuModel": "auto",
+      "sonnetModel": "auto",
+      "opusModel": "auto"
+    }
+  },
+  {
+    "appId": "claude",
+    "provider": {
+      "name": "Zhipu GLM",
+      "websiteUrl": "https://open.bigmodel.cn",
+      "category": "cn_official",
+      "family": "zhipu",
+      "regionKey": "cn",
+      "icon": "zhipu",
+      "iconColor": "#0F62FE",
+      "baseUrl": "https://open.bigmodel.cn/api/anthropic"
+    },
+    "models": {
+      "model": "glm-5.3[1M]",
+      "haikuModel": "glm-5.3[1M]",
+      "sonnetModel": "glm-5.3[1M]",
+      "opusModel": "glm-5.3[1M]"
+    }
+  },
+  {
+    "appId": "claude",
+    "provider": {
+      "name": "Zhipu GLM en",
+      "websiteUrl": "https://z.ai",
+      "category": "cn_official",
+      "family": "zhipu",
+      "regionKey": "intl",
+      "icon": "zhipu",
+      "iconColor": "#0F62FE",
+      "baseUrl": "https://api.z.ai/api/anthropic"
+    },
+    "models": {
+      "model": "glm-5.3[1M]",
+      "haikuModel": "glm-5.3[1M]",
+      "sonnetModel": "glm-5.3[1M]",
+      "opusModel": "glm-5.3[1M]"
+    }
+  },
+  {
+    "appId": "claude",
+    "provider": {
+      "name": "Baidu Qianfan Coding Plan",
+      "websiteUrl": "https://cloud.baidu.com/product/qianfan_modelbuilder",
+      "category": "cn_official",
+      "family": "baidu-qianfan",
+      "planKey": "codingPlan",
+      "icon": "baidu",
+      "iconColor": "#2932E1",
+      "baseUrl": "https://qianfan.baidubce.com/anthropic/coding",
+      "endpointCandidates": [
+        "https://qianfan.baidubce.com/anthropic/coding"
+      ]
+    },
+    "models": {
+      "model": "qianfan-code-latest",
+      "haikuModel": "qianfan-code-latest",
+      "sonnetModel": "qianfan-code-latest",
+      "opusModel": "qianfan-code-latest"
+    }
+  },
+  {
+    "appId": "claude",
+    "provider": {
+      "name": "Baidu Qianfan Token Plan",
+      "websiteUrl": "https://cloud.baidu.com/product/codingplan.html",
+      "category": "cn_official",
+      "family": "baidu-qianfan",
+      "planKey": "tokenPlan",
+      "icon": "baidu",
+      "iconColor": "#2932E1",
+      "baseUrl": "https://qianfan.baidubce.com/anthropic/tokenplan/personal",
+      "endpointCandidates": [
+        "https://qianfan.baidubce.com/anthropic/tokenplan/personal"
+      ]
+    },
+    "models": {
+      "model": "deepseek-v4-flash[1M]",
+      "haikuModel": "deepseek-v4-flash[1M]",
+      "sonnetModel": "deepseek-v4-flash[1M]",
+      "opusModel": "deepseek-v4-flash[1M]"
+    }
+  },
+  {
+    "appId": "claude",
+    "provider": {
+      "name": "Astron MaaS",
+      "websiteUrl": "https://maas.xfyun.cn",
+      "category": "cn_official",
+      "family": "astron",
+      "planKey": "payg",
+      "icon": "astron",
+      "baseUrl": "https://maas-api.cn-huabei-1.xf-yun.com/anthropic",
+      "endpointCandidates": [
+        "https://maas-api.cn-huabei-1.xf-yun.com/anthropic"
+      ]
+    },
+    "models": {
+      "model": "spark-x2.6",
+      "haikuModel": "spark-x2.6",
+      "sonnetModel": "spark-x2.6",
+      "opusModel": "spark-x2.6"
+    }
+  },
+  {
+    "appId": "claude",
+    "provider": {
+      "name": "Astron Coding Plan",
+      "websiteUrl": "https://maas.xfyun.cn/packageSubscription",
+      "category": "cn_official",
+      "family": "astron",
+      "planKey": "codingPlan",
+      "icon": "astron",
+      "baseUrl": "https://maas-coding-api.cn-huabei-1.xf-yun.com/anthropic",
+      "endpointCandidates": [
+        "https://maas-coding-api.cn-huabei-1.xf-yun.com/anthropic"
+      ]
+    },
+    "models": {
+      "model": "astron-code-latest",
+      "haikuModel": "astron-code-latest",
+      "sonnetModel": "astron-code-latest",
+      "opusModel": "astron-code-latest"
+    },
+    "maxContextTokens": 92160
+  },
+  {
+    "appId": "claude",
+    "provider": {
+      "name": "千问AI平台",
+      "websiteUrl": "https://platform.qianwenai.com/",
+      "category": "cn_official",
+      "family": "qianwen",
+      "planKey": "payg",
+      "icon": "qianwenai",
+      "iconColor": "#624AFF",
+      "baseUrl": "https://maas.qianwenaiapi.com/apps/anthropic",
+      "endpointCandidates": [
+        "https://maas.qianwenaiapi.com/apps/anthropic",
+        "https://dashscope.aliyuncs.com/apps/anthropic"
+      ]
+    },
+    "models": {
+      "model": "qwen3.8-max[1M]",
+      "haikuModel": "qwen3.8-flash[1M]",
+      "sonnetModel": "qwen3.7-plus[1M]",
+      "opusModel": "qwen3.8-max[1M]"
+    },
+    "maxContextTokens": 983616
+  },
+  {
+    "appId": "claude",
+    "provider": {
+      "name": "千问AI平台 Coding Plan",
+      "websiteUrl": "https://bailian.console.aliyun.com",
+      "category": "cn_official",
+      "family": "qianwen",
+      "planKey": "codingPlan",
+      "icon": "qianwenai",
+      "iconColor": "#624AFF",
+      "baseUrl": "https://coding.dashscope.aliyuncs.com/apps/anthropic"
+    }
+  },
+  {
+    "appId": "claude",
+    "provider": {
+      "name": "千问AI平台 Token Plan",
+      "websiteUrl": "https://platform.qianwenai.com/pricing/token-plan",
+      "category": "cn_official",
+      "family": "qianwen",
+      "planKey": "tokenPlan",
+      "icon": "qianwenai",
+      "iconColor": "#624AFF",
+      "baseUrl": "https://token-plan.maas.qianwenaiapi.com/apps/anthropic",
+      "endpointCandidates": [
+        "https://token-plan.maas.qianwenaiapi.com/apps/anthropic",
+        "https://token-plan.cn-beijing.maas.aliyuncs.com/apps/anthropic"
+      ]
+    },
+    "models": {
+      "model": "qwen3.8-max[1M]",
+      "haikuModel": "qwen3.8-flash[1M]",
+      "sonnetModel": "qwen3.7-plus[1M]",
+      "opusModel": "qwen3.8-max[1M]"
+    },
+    "maxContextTokens": 983616
+  },
+  {
+    "appId": "claude",
+    "provider": {
+      "name": "QwenCloud",
+      "websiteUrl": "https://home.qwencloud.com/",
+      "category": "cn_official",
+      "family": "qwencloud",
+      "planKey": "payg",
+      "icon": "qwencloud",
+      "iconColor": "#6336E7",
+      "baseUrl": "https://ap-southeast-1.maas.qwencloudapi.com/apps/anthropic",
+      "endpointCandidates": [
+        "https://ap-southeast-1.maas.qwencloudapi.com/apps/anthropic",
+        "https://dashscope-intl.aliyuncs.com/apps/anthropic"
+      ]
+    },
+    "models": {
+      "model": "qwen3.8-max[1M]",
+      "haikuModel": "qwen3.8-flash[1M]",
+      "sonnetModel": "qwen3.7-plus[1M]",
+      "opusModel": "qwen3.8-max[1M]"
+    }
+  },
+  {
+    "appId": "claude",
+    "provider": {
+      "name": "QwenCloud For Coding",
+      "websiteUrl": "https://www.qwencloud.com",
+      "category": "cn_official",
+      "family": "qwencloud",
+      "planKey": "coding",
+      "icon": "qwencloud",
+      "iconColor": "#6336E7",
+      "baseUrl": "https://coding-intl.dashscope.aliyuncs.com/apps/anthropic"
+    },
+    "models": {
+      "model": "qwen3.7-plus[1M]",
+      "haikuModel": "qwen3.7-plus[1M]",
+      "sonnetModel": "qwen3.7-plus[1M]",
+      "opusModel": "qwen3.7-plus[1M]"
+    }
+  },
+  {
+    "appId": "claude",
+    "provider": {
+      "name": "QwenCloud Token Plan",
+      "websiteUrl": "https://www.qwencloud.com/pricing/token-plan",
+      "category": "cn_official",
+      "family": "qwencloud",
+      "planKey": "tokenPlan",
+      "icon": "qwencloud",
+      "iconColor": "#6336E7",
+      "baseUrl": "https://token-plan.maas.qwencloudapi.com/apps/anthropic",
+      "endpointCandidates": [
+        "https://token-plan.maas.qwencloudapi.com/apps/anthropic",
+        "https://token-plan.ap-southeast-1.maas.aliyuncs.com/apps/anthropic"
+      ]
+    },
+    "models": {
+      "model": "qwen3.8-max[1M]",
+      "haikuModel": "qwen3.8-flash[1M]",
+      "sonnetModel": "qwen3.7-plus[1M]",
+      "opusModel": "qwen3.8-max[1M]"
+    },
+    "maxContextTokens": 983616
+  },
+  {
+    "appId": "claude",
+    "provider": {
+      "name": "StepFun",
+      "websiteUrl": "https://platform.stepfun.com/step-plan",
+      "category": "cn_official",
+      "family": "stepfun",
+      "regionKey": "cn",
+      "icon": "stepfun",
+      "iconColor": "#16D6D2",
+      "baseUrl": "https://api.stepfun.com/step_plan",
+      "endpointCandidates": [
+        "https://api.stepfun.com/step_plan"
+      ]
+    },
+    "models": {
+      "model": "step-5-preview",
+      "haikuModel": "step-5-preview",
+      "sonnetModel": "step-5-preview",
+      "opusModel": "step-5-preview"
+    }
+  },
+  {
+    "appId": "claude",
+    "provider": {
+      "name": "StepFun en",
+      "websiteUrl": "https://platform.stepfun.ai/step-plan",
+      "category": "cn_official",
+      "family": "stepfun",
+      "regionKey": "intl",
+      "icon": "stepfun",
+      "iconColor": "#16D6D2",
+      "baseUrl": "https://api.stepfun.ai/step_plan",
+      "endpointCandidates": [
+        "https://api.stepfun.ai/step_plan"
+      ]
+    },
+    "models": {
+      "model": "step-3.5-flash-2603",
+      "haikuModel": "step-3.5-flash-2603",
+      "sonnetModel": "step-3.5-flash-2603",
+      "opusModel": "step-3.5-flash-2603"
+    }
+  },
+  {
+    "appId": "claude",
+    "provider": {
+      "name": "ModelScope",
+      "websiteUrl": "https://modelscope.cn",
+      "category": "aggregator",
+      "icon": "modelscope",
+      "iconColor": "#624AFF",
+      "baseUrl": "https://api-inference.modelscope.cn"
+    },
+    "models": {
+      "model": "ZhipuAI/GLM-5.2[1M]",
+      "haikuModel": "ZhipuAI/GLM-5.2[1M]",
+      "sonnetModel": "ZhipuAI/GLM-5.2[1M]",
+      "opusModel": "ZhipuAI/GLM-5.2[1M]"
+    }
+  },
+  {
+    "appId": "claude",
+    "provider": {
+      "name": "StreamLake",
+      "websiteUrl": "https://www.streamlake.com",
+      "category": "cn_official",
+      "family": "streamlake",
+      "regionKey": "cn",
+      "icon": "streamlake",
+      "baseUrl": "https://wanqing.streamlakeapi.com/api/gateway/v1/endpoints/kat-coder-pro-v2.5/claude-code-proxy"
+    },
+    "models": {
+      "model": "kat-coder-pro-v2.5",
+      "haikuModel": "kat-coder-pro-v2.5",
+      "sonnetModel": "kat-coder-pro-v2.5",
+      "opusModel": "kat-coder-pro-v2.5"
+    }
+  },
+  {
+    "appId": "claude",
+    "provider": {
+      "name": "StreamLake en",
+      "websiteUrl": "https://console.streamlake.ai",
+      "category": "cn_official",
+      "family": "streamlake",
+      "regionKey": "intl",
+      "icon": "streamlake",
+      "baseUrl": "https://vanchin.streamlake.ai/api/gateway/v1/endpoints/kat-coder-pro-v2.5/claude-code-proxy"
+    },
+    "models": {
+      "model": "kat-coder-pro-v2.5",
+      "haikuModel": "kat-coder-pro-v2.5",
+      "sonnetModel": "kat-coder-pro-v2.5",
+      "opusModel": "kat-coder-pro-v2.5"
+    }
+  },
+  {
+    "appId": "claude",
+    "provider": {
+      "name": "Longcat",
+      "websiteUrl": "https://longcat.chat/platform",
+      "category": "cn_official",
+      "icon": "longcat",
+      "iconColor": "#29E154",
+      "baseUrl": "https://api.longcat.chat/anthropic"
+    },
+    "models": {
+      "model": "LongCat-2.0[1M]",
+      "haikuModel": "LongCat-2.0[1M]",
+      "sonnetModel": "LongCat-2.0[1M]",
+      "opusModel": "LongCat-2.0[1M]"
+    },
+    "smallFastModel": "LongCat-2.0",
+    "maxOutputTokens": 131072
+  },
+  {
+    "appId": "claude",
+    "provider": {
+      "name": "MiniMax",
+      "websiteUrl": "https://platform.minimax.cn",
+      "category": "cn_official",
+      "family": "minimax",
+      "regionKey": "cn",
+      "icon": "minimax",
+      "iconColor": "#FF6B6B",
+      "baseUrl": "https://api.minimax.cn/anthropic"
+    },
+    "models": {
+      "model": "MiniMax-M3.1-Flash[1M]",
+      "haikuModel": "MiniMax-M3.1-Flash[1M]",
+      "sonnetModel": "MiniMax-M3.1-Flash[1M]",
+      "opusModel": "MiniMax-M3[1M]"
+    },
+    "autoCompactWindow": 1000000
+  },
+  {
+    "appId": "claude",
+    "provider": {
+      "name": "MiniMax en",
+      "websiteUrl": "https://platform.minimax.io",
+      "category": "cn_official",
+      "family": "minimax",
+      "regionKey": "intl",
+      "icon": "minimax",
+      "iconColor": "#FF6B6B",
+      "baseUrl": "https://api.minimax.io/anthropic"
+    },
+    "models": {
+      "model": "MiniMax-M3.1-Flash[1M]",
+      "haikuModel": "MiniMax-M3.1-Flash[1M]",
+      "sonnetModel": "MiniMax-M3.1-Flash[1M]",
+      "opusModel": "MiniMax-M3[1M]"
+    },
+    "autoCompactWindow": 1000000
+  },
+  {
+    "appId": "claude",
+    "provider": {
+      "name": "BaiLing",
+      "websiteUrl": "https://developer.ant-ling.com/zh-CN/docs/",
+      "category": "cn_official",
+      "icon": "bailing",
+      "baseUrl": "https://api.ant-ling.com/anthropic"
+    },
+    "models": {
+      "model": "Ling-2.6-1T",
+      "haikuModel": "Ling-2.6-1T",
+      "sonnetModel": "Ling-2.6-1T",
+      "opusModel": "Ling-2.6-1T"
+    }
+  },
+  {
+    "appId": "claude",
+    "provider": {
+      "name": "AiHubMix",
+      "websiteUrl": "https://aihubmix.com",
+      "category": "aggregator",
+      "icon": "aihubmix",
+      "iconColor": "#006FFB",
+      "baseUrl": "https://aihubmix.com",
+      "endpointCandidates": [
+        "https://aihubmix.com",
+        "https://api.aihubmix.com"
+      ],
+      "apiKeyHeader": true
+    }
+  },
+  {
+    "appId": "claude",
+    "provider": {
+      "name": "CherryIN",
+      "websiteUrl": "https://open.cherryin.ai",
+      "category": "aggregator",
+      "icon": "cherryin",
+      "baseUrl": "https://open.cherryin.net",
+      "endpointCandidates": [
+        "https://open.cherryin.net"
+      ]
+    },
+    "models": {
+      "model": "anthropic/claude-sonnet-5.5",
+      "haikuModel": "anthropic/claude-haiku-5.5",
+      "sonnetModel": "anthropic/claude-sonnet-5.5",
+      "opusModel": "anthropic/claude-opus-5.5"
+    }
+  },
+  {
+    "appId": "claude",
+    "provider": {
+      "name": "RelaxyCode",
+      "websiteUrl": "https://www.relaxycode.com",
+      "category": "third_party",
+      "icon": "relaxcode",
+      "baseUrl": "https://www.relaxycode.com"
+    }
+  },
+  {
+    "appId": "claude",
+    "provider": {
+      "name": "E-FlowCode",
+      "websiteUrl": "https://e-flowcode.cc",
+      "category": "third_party",
+      "icon": "eflowcode",
+      "iconColor": "#000000",
+      "baseUrl": "https://e-flowcode.cc",
+      "endpointCandidates": [
+        "https://e-flowcode.cc"
+      ]
+    }
+  },
+  {
+    "appId": "claude",
+    "provider": {
+      "name": "OpenRouter",
+      "websiteUrl": "https://openrouter.ai",
+      "category": "aggregator",
+      "icon": "openrouter",
+      "iconColor": "#6566F1",
+      "baseUrl": "https://openrouter.ai/api"
+    },
+    "models": {
+      "model": "anthropic/claude-sonnet-5.5",
+      "haikuModel": "anthropic/claude-haiku-5.5",
+      "sonnetModel": "anthropic/claude-sonnet-5.5",
+      "opusModel": "anthropic/claude-opus-5.5"
+    }
+  },
+  {
+    "appId": "claude",
+    "provider": {
+      "name": "TheRouter",
+      "websiteUrl": "https://therouter.ai",
+      "category": "aggregator",
+      "icon": "therouter",
+      "baseUrl": "https://api.therouter.ai",
+      "endpointCandidates": [
+        "https://api.therouter.ai"
+      ]
+    },
+    "models": {
+      "model": "anthropic/claude-sonnet-5-5",
+      "haikuModel": "anthropic/claude-haiku-5-5",
+      "sonnetModel": "anthropic/claude-sonnet-5-5",
+      "opusModel": "anthropic/claude-opus-5-5"
+    }
+  },
+  {
+    "appId": "claude",
+    "provider": {
+      "name": "Baseten",
+      "websiteUrl": "https://www.baseten.co",
+      "category": "aggregator",
+      "icon": "baseten",
+      "baseUrl": "https://inference.baseten.co",
+      "endpointCandidates": [
+        "https://inference.baseten.co"
+      ]
+    },
+    "models": {
+      "model": "zai-org/GLM-5.3[1M]",
+      "haikuModel": "zai-org/GLM-5.3-Flash[1M]",
+      "sonnetModel": "zai-org/GLM-5.3[1M]",
+      "opusModel": "moonshotai/Kimi-K3[1M]"
+    }
+  },
+  {
+    "appId": "claude",
+    "provider": {
+      "name": "Novita AI",
+      "websiteUrl": "https://novita.ai",
+      "category": "aggregator",
+      "icon": "novita",
+      "iconColor": "#000000",
+      "baseUrl": "https://api.novita.ai/anthropic",
+      "endpointCandidates": [
+        "https://api.novita.ai/anthropic"
+      ]
+    },
+    "models": {
+      "model": "zai-org/glm-5.3",
+      "haikuModel": "zai-org/glm-5.3-flash",
+      "sonnetModel": "zai-org/glm-5.3",
+      "opusModel": "zai-org/glm-5.3"
+    },
+    "modelsUrl": "https://api.novita.ai/openai/v1/models"
+  },
+  {
+    "appId": "claude",
+    "provider": {
+      "name": "Ollama Cloud",
+      "websiteUrl": "https://ollama.com",
+      "category": "cloud_provider",
+      "icon": "ollama",
+      "baseUrl": "https://ollama.com",
+      "endpointCandidates": [
+        "https://ollama.com"
+      ]
+    },
+    "models": {
+      "model": "glm-5.3[1M]",
+      "haikuModel": "glm-5.3-flash[1M]",
+      "sonnetModel": "glm-5.3[1M]",
+      "opusModel": "kimi-k3[1M]"
+    }
+  },
+  {
+    "appId": "claude",
+    "provider": {
+      "name": "Ollama",
+      "websiteUrl": "https://ollama.com",
+      "category": "local",
+      "icon": "ollama",
+      "baseUrl": "http://localhost:11434",
+      "endpointCandidates": [
+        "http://localhost:11434",
+        "http://127.0.0.1:11434"
+      ]
+    },
+    "models": {
+      "model": "qwen3.5",
+      "haikuModel": "qwen3.5",
+      "sonnetModel": "qwen3.5",
+      "opusModel": "qwen3.5"
+    }
+  },
+  {
+    "appId": "claude",
+    "provider": {
+      "name": "LM Studio",
+      "websiteUrl": "https://lmstudio.ai",
+      "category": "local",
+      "icon": "lmstudio",
+      "baseUrl": "http://localhost:1234",
+      "endpointCandidates": [
+        "http://localhost:1234",
+        "http://127.0.0.1:1234"
+      ]
+    },
+    "models": {
+      "model": "openai/gpt-oss-20b",
+      "haikuModel": "openai/gpt-oss-20b",
+      "sonnetModel": "openai/gpt-oss-20b",
+      "opusModel": "openai/gpt-oss-20b"
+    },
+    "maxContextTokens": 131072
+  },
+  {
+    "appId": "claude",
+    "provider": {
+      "name": "llama.cpp",
+      "websiteUrl": "https://github.com/ggml-org/llama.cpp",
+      "category": "local",
+      "icon": "llamacpp",
+      "baseUrl": "http://127.0.0.1:9931",
+      "endpointCandidates": [
+        "http://127.0.0.1:9931",
+        "http://127.0.0.1:8080"
+      ]
+    },
+    "models": {
+      "model": "ggml-org/Qwen3-Coder-30B-A3B-Instruct-Q8_0-GGUF",
+      "haikuModel": "ggml-org/Qwen3-Coder-30B-A3B-Instruct-Q8_0-GGUF",
+      "sonnetModel": "ggml-org/Qwen3-Coder-30B-A3B-Instruct-Q8_0-GGUF",
+      "opusModel": "ggml-org/Qwen3-Coder-30B-A3B-Instruct-Q8_0-GGUF"
+    }
+  },
+  {
+    "appId": "claude",
+    "provider": {
+      "name": "vLLM",
+      "websiteUrl": "https://vllm.ai",
+      "category": "local",
+      "icon": "vllm",
+      "baseUrl": "http://localhost:8000",
+      "endpointCandidates": [
+        "http://localhost:8000",
+        "http://127.0.0.1:8000"
+      ]
+    },
+    "models": {
+      "model": "Qwen/Qwen3.6-27B",
+      "haikuModel": "Qwen/Qwen3.6-27B",
+      "sonnetModel": "Qwen/Qwen3.6-27B",
+      "opusModel": "Qwen/Qwen3.6-27B"
+    }
+  },
+  {
+    "appId": "claude",
+    "provider": {
+      "name": "Meta Model API",
+      "websiteUrl": "https://dev.meta.ai",
+      "category": "cn_official",
+      "icon": "meta",
+      "baseUrl": "https://api.meta.ai",
+      "endpointCandidates": [
+        "https://api.meta.ai"
+      ]
+    },
+    "models": {
+      "model": "muse-wonder-1.0[1M]",
+      "haikuModel": "muse-spark-1.3[1M]",
+      "sonnetModel": "muse-spark-1.3[1M]",
+      "opusModel": "muse-wonder-1.0[1M]"
+    },
+    "subagentModel": "muse-spark-1.3[1M]",
+    "maxContextTokens": 1048576
+  },
+  {
+    "appId": "claude",
+    "provider": {
+      "name": "DeepInfra",
+      "websiteUrl": "https://deepinfra.com",
+      "category": "aggregator",
+      "icon": "deepinfra",
+      "baseUrl": "https://api.deepinfra.com/anthropic",
+      "endpointCandidates": [
+        "https://api.deepinfra.com/anthropic"
+      ]
+    },
+    "models": {
+      "model": "deepseek-ai/DeepSeek-V4.1-Flash-1017[1M]",
+      "haikuModel": "inclusionAI/Ling-3.0-flash",
+      "sonnetModel": "deepseek-ai/DeepSeek-V4.1-Flash-1017[1M]",
+      "opusModel": "deepseek-ai/DeepSeek-V4.1-Flash-1017[1M]"
+    }
+  },
+  {
+    "appId": "claude",
+    "provider": {
+      "name": "Vercel AI Gateway",
+      "websiteUrl": "https://vercel.com/ai-gateway",
+      "category": "aggregator",
+      "icon": "vercel",
+      "baseUrl": "https://ai-gateway.vercel.sh/claude-code",
+      "endpointCandidates": [
+        "https://ai-gateway.vercel.sh/claude-code"
+      ]
+    },
+    "models": {
+      "model": "anthropic/claude-sonnet-5.5",
+      "haikuModel": "anthropic/claude-haiku-5.5",
+      "sonnetModel": "anthropic/claude-sonnet-5.5",
+      "opusModel": "anthropic/claude-opus-5.5"
+    },
+    "modelsUrl": "https://ai-gateway.vercel.sh/coding-agent/v1/models"
+  },
+  {
+    "appId": "claude",
+    "provider": {
+      "name": "Nebius Token Factory",
+      "websiteUrl": "https://nebius.com/token-factory",
+      "category": "aggregator",
+      "icon": "nebius",
+      "baseUrl": "https://api.tokenfactory.nebius.com",
+      "endpointCandidates": [
+        "https://api.tokenfactory.nebius.com"
+      ],
+      "apiFormat": "openai_chat"
+    },
+    "models": {
+      "model": "zai-org/GLM-5.3[1M]",
+      "haikuModel": "zai-org/GLM-5.3-Flash[1M]",
+      "sonnetModel": "zai-org/GLM-5.3[1M]",
+      "opusModel": "zai-org/GLM-5.3[1M]"
+    }
+  },
+  {
+    "appId": "claude",
+    "provider": {
+      "name": "ClinePass",
+      "websiteUrl": "https://docs.cline.bot/getting-started/clinepass",
+      "category": "third_party",
+      "icon": "cline",
+      "baseUrl": "https://api.cline.bot/api/v1",
+      "endpointCandidates": [
+        "https://api.cline.bot/api/v1"
+      ],
+      "apiFormat": "openai_chat"
+    },
+    "models": {
+      "model": "cline-pass/kimi-k3.1-pro[1M]",
+      "haikuModel": "cline-pass/glm-5.3-flash[1M]",
+      "sonnetModel": "cline-pass/kimi-k3.1-pro[1M]",
+      "opusModel": "cline-pass/kimi-k3.1-pro[1M]"
+    }
+  },
+  {
+    "appId": "claude",
+    "provider": {
+      "name": "Groq",
+      "websiteUrl": "https://groq.com",
+      "category": "aggregator",
+      "icon": "groq",
+      "baseUrl": "https://api.groq.com/openai/v1",
+      "endpointCandidates": [
+        "https://api.groq.com/openai/v1"
+      ],
+      "apiFormat": "openai_chat"
+    },
+    "models": {
+      "model": "openai/gpt-oss-120b",
+      "haikuModel": "openai/gpt-oss-20b",
+      "sonnetModel": "openai/gpt-oss-120b",
+      "opusModel": "openai/gpt-oss-120b"
+    },
+    "maxContextTokens": 131072
+  },
+  {
+    "appId": "claude",
+    "provider": {
+      "name": "SambaNova",
+      "websiteUrl": "https://sambanova.ai",
+      "category": "cloud_provider",
+      "icon": "sambanova",
+      "baseUrl": "https://api.sambanova.ai",
+      "endpointCandidates": [
+        "https://api.sambanova.ai"
+      ]
+    },
+    "models": {
+      "model": "MiniMax-M3[1M]",
+      "haikuModel": "MiniMax-M3[1M]",
+      "sonnetModel": "MiniMax-M3[1M]",
+      "opusModel": "MiniMax-M3[1M]"
+    }
+  },
+  {
+    "appId": "claude",
+    "provider": {
+      "name": "DigitalOcean",
+      "websiteUrl": "https://www.digitalocean.com/products/ai-platform",
+      "category": "cloud_provider",
+      "icon": "digitalocean",
+      "baseUrl": "https://inference.do-ai.run",
+      "endpointCandidates": [
+        "https://inference.do-ai.run"
+      ]
+    }
+  },
+  {
+    "appId": "claude",
+    "provider": {
+      "name": "Hugging Face",
+      "websiteUrl": "https://huggingface.co/inference/models",
+      "category": "aggregator",
+      "icon": "huggingface",
+      "baseUrl": "https://router.huggingface.co",
+      "endpointCandidates": [
+        "https://router.huggingface.co"
+      ]
+    },
+    "models": {
+      "model": "zai-org/GLM-5.3:baseten[1M]",
+      "haikuModel": "zai-org/GLM-5.3-Flash:baseten[1M]",
+      "sonnetModel": "zai-org/GLM-5.3:baseten[1M]",
+      "opusModel": "zai-org/GLM-5.3:baseten[1M]"
+    },
+    "maxContextTokens": 1048576
+  },
+  {
+    "appId": "claude",
+    "provider": {
+      "name": "Microsoft Foundry",
+      "websiteUrl": "https://azure.microsoft.com/en-us/products/ai-foundry",
+      "category": "cloud_provider",
+      "icon": "azure",
+      "iconColor": "#0078D4",
+      "baseUrl": "https://${AZURE_RESOURCE_NAME}.services.ai.azure.com/anthropic",
+      "apiKeyHeader": true
+    },
+    "models": {
+      "model": "claude-opus-5-5",
+      "haikuModel": "claude-haiku-5-5",
+      "sonnetModel": "claude-sonnet-5-5",
+      "opusModel": "claude-opus-5-5"
+    }
+  },
+  {
+    "appId": "claude",
+    "provider": {
+      "name": "Fireworks AI",
+      "websiteUrl": "https://fireworks.ai",
+      "category": "cloud_provider",
+      "icon": "fireworks",
+      "baseUrl": "https://api.fireworks.ai/inference",
+      "endpointCandidates": [
+        "https://api.fireworks.ai/inference"
+      ]
+    },
+    "models": {
+      "model": "accounts/fireworks/models/glm-5p3[1M]",
+      "haikuModel": "accounts/fireworks/models/deepseek-v4p1-flash[1M]",
+      "sonnetModel": "accounts/fireworks/models/glm-5p3[1M]",
+      "opusModel": "accounts/fireworks/models/kimi-k3[1M]"
+    }
+  },
+  {
+    "appId": "claude",
+    "provider": {
+      "name": "Mistral AI",
+      "websiteUrl": "https://mistral.ai",
+      "category": "cn_official",
+      "icon": "mistral",
+      "hidden": true,
+      "baseUrl": "https://api.mistral.ai",
+      "endpointCandidates": [
+        "https://api.mistral.ai"
+      ],
+      "apiFormat": "openai_chat"
+    },
+    "models": {
+      "model": "mistral-medium-3-5",
+      "haikuModel": "mistral-small-2603",
+      "sonnetModel": "mistral-medium-3-5",
+      "opusModel": "mistral-medium-3-5"
+    },
+    "maxContextTokens": 256000,
+    "autoCompactWindow": 256000
+  },
+  {
+    "appId": "claude",
+    "provider": {
+      "name": "Cloudflare AI Gateway",
+      "websiteUrl": "https://developers.cloudflare.com/ai-gateway/",
+      "category": "cloud_provider",
+      "icon": "cloudflare",
+      "baseUrl": "https://gateway.ai.cloudflare.com/v1/${ACCOUNT_ID}/${GATEWAY_ID}/anthropic"
+    },
+    "models": {
+      "model": "claude-sonnet-5-5",
+      "haikuModel": "claude-haiku-5-5",
+      "sonnetModel": "claude-sonnet-5-5",
+      "opusModel": "claude-opus-5-5"
+    }
+  },
+  {
+    "appId": "claude",
+    "provider": {
+      "name": "GitHub Copilot",
+      "websiteUrl": "https://github.com/features/copilot",
+      "category": "third_party",
+      "icon": "github",
+      "iconColor": "#000000",
+      "oauthProvider": "github_copilot",
+      "baseUrl": "https://api.githubcopilot.com",
+      "apiFormat": "openai_chat"
+    },
+    "models": {
+      "model": "claude-sonnet-5",
+      "haikuModel": "claude-haiku-4.5",
+      "sonnetModel": "claude-sonnet-5",
+      "opusModel": "claude-sonnet-5"
+    }
+  },
+  {
+    "appId": "claude",
+    "provider": {
+      "name": "Codex",
+      "websiteUrl": "https://openai.com/chatgpt/pricing",
+      "category": "third_party",
+      "icon": "openai",
+      "iconColor": "#000000",
+      "oauthProvider": "codex_oauth",
+      "baseUrl": "https://chatgpt.com/backend-api/codex",
+      "apiFormat": "openai_responses"
+    },
+    "models": {
+      "model": "gpt-5.6-sol",
+      "haikuModel": "gpt-5.6-luna",
+      "sonnetModel": "gpt-5.6-sol",
+      "opusModel": "gpt-5.6-sol"
+    },
+    "maxContextTokens": 272000,
+    "autoCompactWindow": 272000
+  },
+  {
+    "appId": "claude",
+    "provider": {
+      "name": "xAI (Grok)",
+      "websiteUrl": "https://x.ai/grok",
+      "category": "third_party",
+      "icon": "xai",
+      "iconColor": "#000000",
+      "oauthProvider": "xai_oauth",
+      "baseUrl": "https://api.x.ai/v1",
+      "apiFormat": "openai_responses"
+    },
+    "models": {
+      "model": "grok-4.7",
+      "haikuModel": "grok-4.7",
+      "sonnetModel": "grok-4.7",
+      "opusModel": "grok-4.7"
+    },
+    "maxContextTokens": 500000
+  },
+  {
+    "appId": "claude",
+    "provider": {
+      "name": "OpenAI API",
+      "websiteUrl": "https://platform.openai.com",
+      "category": "cn_official",
+      "icon": "openai",
+      "iconColor": "#00A67E",
+      "baseUrl": "https://api.openai.com",
+      "endpointCandidates": [
+        "https://api.openai.com"
+      ],
+      "apiFormat": "openai_responses"
+    },
+    "models": {
+      "model": "gpt-6.1-sol",
+      "haikuModel": "gpt-6-luna",
+      "sonnetModel": "gpt-6.1-sol",
+      "opusModel": "gpt-6.1-sol"
+    },
+    "maxContextTokens": 272000,
+    "autoCompactWindow": 272000
+  },
+  {
+    "appId": "claude",
+    "provider": {
+      "name": "Nvidia",
+      "websiteUrl": "https://build.nvidia.com",
+      "category": "aggregator",
+      "icon": "nvidia",
+      "iconColor": "#000000",
+      "baseUrl": "https://integrate.api.nvidia.com",
+      "apiFormat": "openai_chat"
+    },
+    "models": {
+      "model": "moonshotai/kimi-k2.6",
+      "haikuModel": "moonshotai/kimi-k2.6",
+      "sonnetModel": "moonshotai/kimi-k2.6",
+      "opusModel": "moonshotai/kimi-k2.6"
+    }
+  },
+  {
+    "appId": "claude",
+    "provider": {
+      "name": "PIPELLM",
+      "websiteUrl": "https://code.pipellm.ai",
+      "category": "aggregator",
+      "icon": "pipellm",
+      "baseUrl": "https://cc-api.pipellm.ai"
+    },
+    "models": {
+      "model": "claude-opus-5-5",
+      "haikuModel": "claude-haiku-5-5",
+      "sonnetModel": "claude-sonnet-5-5",
+      "opusModel": "claude-opus-5-5"
+    }
+  },
+  {
+    "appId": "claude",
+    "provider": {
+      "name": "Xiaomi MiMo",
+      "websiteUrl": "https://platform.xiaomimimo.com",
+      "category": "cn_official",
+      "family": "xiaomi-mimo",
+      "planKey": "payg",
+      "icon": "xiaomimimo",
+      "iconColor": "#000000",
+      "baseUrl": "https://api.xiaomimimo.com/anthropic"
+    },
+    "models": {
+      "model": "mimo-v2.6-pro[1M]",
+      "haikuModel": "mimo-v2.6-pro[1M]",
+      "sonnetModel": "mimo-v2.6-pro[1M]",
+      "opusModel": "mimo-v2.6-pro[1M]"
+    }
+  },
+  {
+    "appId": "claude",
+    "provider": {
+      "name": "Xiaomi MiMo Token Plan (China)",
+      "websiteUrl": "https://platform.xiaomimimo.com/#/token-plan",
+      "category": "cn_official",
+      "family": "xiaomi-mimo",
+      "planKey": "tokenPlan",
+      "icon": "xiaomimimo",
+      "iconColor": "#000000",
+      "baseUrl": "https://token-plan-cn.xiaomimimo.com/anthropic"
+    },
+    "models": {
+      "model": "mimo-v2.6-pro[1M]",
+      "haikuModel": "mimo-v2.6-pro[1M]",
+      "sonnetModel": "mimo-v2.6-pro[1M]",
+      "opusModel": "mimo-v2.6-pro[1M]"
+    }
+  },
+  {
+    "appId": "claude",
+    "provider": {
+      "name": "AWS Bedrock (AKSK)",
+      "websiteUrl": "https://aws.amazon.com/bedrock/",
+      "category": "cloud_provider",
+      "family": "aws-bedrock",
+      "planKey": "aksk",
+      "icon": "aws",
+      "iconColor": "#FF9900",
+      "baseUrl": "https://bedrock-runtime.${AWS_REGION}.amazonaws.com"
+    },
+    "models": {
+      "model": "global.anthropic.claude-opus-5",
+      "haikuModel": "global.anthropic.claude-haiku-4-5-20251001-v1:0",
+      "sonnetModel": "global.anthropic.claude-sonnet-5",
+      "opusModel": "global.anthropic.claude-opus-5"
+    }
+  },
+  {
+    "appId": "claude",
+    "provider": {
+      "name": "AWS Bedrock (API Key)",
+      "websiteUrl": "https://aws.amazon.com/bedrock/",
+      "category": "cloud_provider",
+      "family": "aws-bedrock",
+      "planKey": "apiKey",
+      "icon": "aws",
+      "iconColor": "#FF9900",
+      "baseUrl": "https://bedrock-runtime.${AWS_REGION}.amazonaws.com"
+    },
+    "models": {
+      "model": "global.anthropic.claude-opus-5",
+      "haikuModel": "global.anthropic.claude-haiku-4-5-20251001-v1:0",
+      "sonnetModel": "global.anthropic.claude-sonnet-5",
+      "opusModel": "global.anthropic.claude-opus-5"
+    }
+  },
+  {
+    "appId": "claude",
+    "provider": {
+      "name": "JieKou AI",
+      "websiteUrl": "https://jiekou.ai/#model-library",
+      "category": "aggregator",
+      "icon": "jiekou",
+      "iconColor": "#000000",
+      "baseUrl": "https://api.jiekou.ai/anthropic",
+      "endpointCandidates": [
+        "https://api.jiekou.ai/anthropic"
+      ]
+    },
+    "models": {
+      "model": "claude-fable-5-1",
+      "haikuModel": "claude-fable-5-1",
+      "sonnetModel": "claude-fable-5-1",
+      "opusModel": "claude-fable-5-1"
+    },
+    "modelsUrl": "https://api.jiekou.ai/openai/v1/models"
+  },
+  {
+    "appId": "claude",
+    "provider": {
+      "name": "AICodeWith",
+      "websiteUrl": "https://aicodewith.ai",
+      "category": "aggregator",
+      "icon": "aicodewith",
+      "iconColor": "#3A3B40",
+      "baseUrl": "https://api.aicodewith.ai",
+      "endpointCandidates": [
+        "https://api.aicodewith.ai"
+      ]
+    }
+  },
+  {
+    "appId": "claude",
+    "provider": {
+      "name": "Command Code",
+      "websiteUrl": "https://commandcode.ai",
+      "category": "third_party",
+      "icon": "commandcode",
+      "baseUrl": "https://api.commandcode.ai/provider",
+      "endpointCandidates": [
+        "https://api.commandcode.ai/provider"
+      ],
+      "apiFormat": "openai_chat"
+    },
+    "models": {
+      "model": "deepseek/deepseek-v4.1-flash[1M]",
+      "haikuModel": "deepseek/deepseek-v4.1-flash[1M]",
+      "sonnetModel": "deepseek/deepseek-v4.1-flash[1M]",
+      "opusModel": "deepseek/deepseek-v4.1-flash[1M]"
+    },
+    "modelsUrl": "https://api.commandcode.ai/provider/v1/models"
+  },
+  {
+    "appId": "claude",
+    "provider": {
+      "name": "模力方舟",
+      "websiteUrl": "https://moark.com",
+      "category": "aggregator",
+      "icon": "moark",
+      "baseUrl": "https://moark.com/anthropic",
+      "endpointCandidates": [
+        "https://moark.com/anthropic"
+      ]
+    },
+    "models": {
+      "model": "deepseek-v4.1-flash[1M]",
+      "haikuModel": "deepseek-v4.1-flash[1M]",
+      "sonnetModel": "deepseek-v4.1-flash[1M]",
+      "opusModel": "deepseek-v4.1-flash[1M]"
+    }
+  },
+  {
+    "appId": "claude",
+    "provider": {
+      "name": "SoruxGPT",
+      "websiteUrl": "https://ai.soruxgpt.com",
+      "category": "aggregator",
+      "family": "soruxgpt",
+      "planKey": "payg",
+      "icon": "soruxgpt",
+      "baseUrl": "https://ai.soruxgpt.com",
+      "endpointCandidates": [
+        "https://ai.soruxgpt.com",
+        "https://api-cf.soruxgpt.com",
+        "https://api-host.soruxgpt.com",
+        "https://api-node6.soruxgpt.com",
+        "https://api-node3.soruxgpt.com"
+      ]
+    }
+  },
+  {
+    "appId": "claude",
+    "provider": {
+      "name": "SoruxGPT Coding Plan",
+      "websiteUrl": "https://app.soruxgpt.com",
+      "category": "aggregator",
+      "family": "soruxgpt",
+      "planKey": "codingPlan",
+      "icon": "soruxgpt",
+      "baseUrl": "https://app.soruxgpt.com/api/cc",
+      "endpointCandidates": [
+        "https://app.soruxgpt.com/api/cc",
+        "https://center.soruxgpt.com/api/cc",
+        "https://u.soruxgpt.com/api/cc"
+      ]
+    }
+  },
+  {
+    "appId": "claude",
+    "provider": {
+      "name": "IKunCode",
+      "websiteUrl": "https://api.ikuncode.ai",
+      "category": "aggregator",
+      "icon": "ikuncode",
+      "baseUrl": "https://api.ikuncode.ai",
+      "endpointCandidates": [
+        "https://api.ikuncode.ai",
+        "https://api.ikuncode.cc"
+      ]
+    }
+  },
+  {
+    "appId": "claude",
+    "provider": {
+      "name": "RunToken",
+      "websiteUrl": "https://www.runtoken.ai",
+      "category": "aggregator",
+      "icon": "runtoken",
+      "baseUrl": "https://www.runtoken.ai",
+      "endpointCandidates": [
+        "https://www.runtoken.ai",
+        "https://fast.runtoken.ai"
+      ]
+    }
+  },
+  {
+    "appId": "claude",
+    "provider": {
+      "name": "BotCF",
+      "websiteUrl": "https://botcf.com",
+      "category": "aggregator",
+      "icon": "botcf",
+      "baseUrl": "https://botcf.com"
+    }
+  },
+  {
+    "appId": "claude",
+    "provider": {
+      "name": "YYLX",
+      "nameKey": "providerForm.presets.yylx",
+      "websiteUrl": "https://yylx.io",
+      "category": "aggregator",
+      "icon": "yylx",
+      "baseUrl": "https://app.yylx.io",
+      "endpointCandidates": [
+        "https://app.yylx.io",
+        "https://global.yylx.io",
+        "https://cn.yylx.io"
+      ]
+    }
+  },
+  {
+    "appId": "claude",
+    "provider": {
+      "name": "TokenFlux",
+      "websiteUrl": "https://tokenflux.com",
+      "category": "aggregator",
+      "icon": "tokenflux",
+      "baseUrl": "https://tokenflux.com",
+      "endpointCandidates": [
+        "https://tokenflux.com",
+        "https://tokenflux.dev"
+      ]
+    }
+  },
+  {
+    "appId": "claude",
+    "provider": {
+      "name": "NekoCode",
+      "websiteUrl": "https://nekoapi.ai",
+      "category": "aggregator",
+      "icon": "nekocode",
+      "baseUrl": "https://nekoapi.ai"
+    }
+  },
+  {
+    "appId": "claude",
+    "provider": {
+      "name": "AIComing",
+      "websiteUrl": "https://aicoming.top",
+      "category": "aggregator",
+      "icon": "aicoming",
+      "baseUrl": "https://api.aicoming.top"
+    }
+  },
+  {
+    "appId": "claude-desktop",
+    "provider": {
+      "name": "Claude Desktop Official",
+      "websiteUrl": "https://claude.ai/download",
+      "category": "official",
+      "icon": "anthropic",
+      "iconColor": "#D4915D"
+    },
+    "mode": "direct"
+  },
+  {
+    "appId": "claude-desktop",
+    "provider": {
+      "name": "Kimi",
+      "websiteUrl": "https://platform.kimi.com",
+      "category": "cn_official",
+      "family": "kimi",
+      "planKey": "payg",
+      "regionKey": "cn",
+      "icon": "kimi",
+      "iconColor": "#6366F1",
+      "baseUrl": "https://api.moonshot.cn/anthropic"
+    },
+    "mode": "proxy",
+    "routes": [
+      {
+        "routeId": "claude-sonnet-5",
+        "target": {
+          "model": "kimi-k3.1-pro",
+          "labelOverride": "kimi-k3.1-pro",
+          "supports1m": false
+        }
+      }
+    ]
+  },
+  {
+    "appId": "claude-desktop",
+    "provider": {
+      "name": "Kimi Global",
+      "websiteUrl": "https://platform.kimi.ai",
+      "category": "cn_official",
+      "family": "kimi",
+      "planKey": "payg",
+      "regionKey": "intl",
+      "icon": "kimi",
+      "iconColor": "#6366F1",
+      "baseUrl": "https://api.moonshot.ai/anthropic"
+    },
+    "mode": "proxy",
+    "routes": [
+      {
+        "routeId": "claude-sonnet-5",
+        "target": {
+          "model": "kimi-k3.1-pro",
+          "labelOverride": "kimi-k3.1-pro",
+          "supports1m": false
+        }
+      }
+    ]
+  },
+  {
+    "appId": "claude-desktop",
+    "provider": {
+      "name": "Kimi For Coding",
+      "websiteUrl": "https://www.kimi.com/code/",
+      "category": "cn_official",
+      "family": "kimi",
+      "planKey": "coding",
+      "regionKey": "cn",
+      "icon": "kimi",
+      "iconColor": "#6366F1",
+      "baseUrl": "https://api.kimi.com/coding/"
+    },
+    "mode": "proxy",
+    "routes": [
+      {
+        "routeId": "claude-sonnet-5",
+        "target": {
+          "model": "claude-sonnet-5",
+          "supports1m": false
+        }
+      },
+      {
+        "routeId": "claude-opus-5",
+        "target": {
+          "model": "claude-opus-5",
+          "supports1m": false
+        }
+      },
+      {
+        "routeId": "claude-haiku-4-5",
+        "target": {
+          "model": "claude-haiku-4-5",
+          "supports1m": false
+        }
+      }
+    ]
+  },
+  {
+    "appId": "claude-desktop",
+    "provider": {
+      "name": "Kimi For Coding Global",
+      "websiteUrl": "https://www.kimi.ai/code",
+      "category": "cn_official",
+      "family": "kimi",
+      "planKey": "coding",
+      "regionKey": "intl",
+      "icon": "kimi",
+      "iconColor": "#6366F1",
+      "baseUrl": "https://api.kimi.ai/coding/"
+    },
+    "mode": "proxy",
+    "routes": [
+      {
+        "routeId": "claude-sonnet-5",
+        "target": {
+          "model": "claude-sonnet-5",
+          "supports1m": false
+        }
+      },
+      {
+        "routeId": "claude-opus-5",
+        "target": {
+          "model": "claude-opus-5",
+          "supports1m": false
+        }
+      },
+      {
+        "routeId": "claude-haiku-4-5",
+        "target": {
+          "model": "claude-haiku-4-5",
+          "supports1m": false
+        }
+      }
+    ]
+  },
+  {
+    "appId": "claude-desktop",
+    "provider": {
+      "name": "PackyCode",
+      "websiteUrl": "https://www.packyapi.ai",
+      "category": "third_party",
+      "icon": "packycode",
+      "baseUrl": "https://www.packyapi.ai",
+      "endpointCandidates": [
+        "https://www.packyapi.ai",
+        "https://cf.api.fan",
+        "https://slb-v1.api.fan",
+        "https://www.packyapi.com"
+      ]
+    },
+    "mode": "direct",
+    "routes": [
+      {
+        "routeId": "claude-sonnet-5",
+        "target": {
+          "model": "claude-sonnet-5",
+          "supports1m": true
+        }
+      },
+      {
+        "routeId": "claude-opus-5",
+        "target": {
+          "model": "claude-opus-5",
+          "supports1m": true
+        }
+      },
+      {
+        "routeId": "claude-haiku-4-5",
+        "target": {
+          "model": "claude-haiku-4-5",
+          "supports1m": false
+        }
+      }
+    ]
+  },
+  {
+    "appId": "claude-desktop",
+    "provider": {
+      "name": "APINebula",
+      "websiteUrl": "https://apinebula.ai",
+      "category": "third_party",
+      "icon": "apinebula",
+      "baseUrl": "https://apinebula.ai",
+      "endpointCandidates": [
+        "https://apinebula.ai"
+      ]
+    },
+    "mode": "direct",
+    "routes": [
+      {
+        "routeId": "claude-sonnet-5",
+        "target": {
+          "model": "claude-sonnet-5",
+          "supports1m": true
+        }
+      },
+      {
+        "routeId": "claude-opus-5",
+        "target": {
+          "model": "claude-opus-5",
+          "supports1m": true
+        }
+      },
+      {
+        "routeId": "claude-haiku-4-5",
+        "target": {
+          "model": "claude-haiku-4-5",
+          "supports1m": false
+        }
+      }
+    ]
+  },
+  {
+    "appId": "claude-desktop",
+    "provider": {
+      "name": "AICodeMirror",
+      "websiteUrl": "https://www.aicodemirror.ai",
+      "category": "third_party",
+      "icon": "aicodemirror",
+      "iconColor": "#000000",
+      "baseUrl": "https://api.aicodemirror.ai/api/claudecode",
+      "endpointCandidates": [
+        "https://api.aicodemirror.ai/api/claudecode"
+      ]
+    },
+    "mode": "direct",
+    "routes": [
+      {
+        "routeId": "claude-sonnet-5",
+        "target": {
+          "model": "claude-sonnet-5",
+          "supports1m": true
+        }
+      },
+      {
+        "routeId": "claude-opus-5",
+        "target": {
+          "model": "claude-opus-5",
+          "supports1m": true
+        }
+      },
+      {
+        "routeId": "claude-haiku-4-5",
+        "target": {
+          "model": "claude-haiku-4-5",
+          "supports1m": false
+        }
+      }
+    ]
+  },
+  {
+    "appId": "claude-desktop",
+    "provider": {
+      "name": "PatewayAI",
+      "websiteUrl": "https://pateway.ai",
+      "category": "third_party",
+      "icon": "pateway",
+      "baseUrl": "https://api.pateway.ai"
+    },
+    "mode": "direct",
+    "routes": [
+      {
+        "routeId": "claude-sonnet-5",
+        "target": {
+          "model": "claude-sonnet-5",
+          "supports1m": true
+        }
+      },
+      {
+        "routeId": "claude-opus-5",
+        "target": {
+          "model": "claude-opus-5",
+          "supports1m": true
+        }
+      },
+      {
+        "routeId": "claude-haiku-4-5",
+        "target": {
+          "model": "claude-haiku-4-5",
+          "supports1m": false
+        }
+      }
+    ]
+  },
+  {
+    "appId": "claude-desktop",
+    "provider": {
+      "name": "hao.ai",
+      "websiteUrl": "https://hao.ai",
+      "category": "aggregator",
+      "icon": "haoai",
+      "baseUrl": "https://api.hao.ai/anthropic"
+    },
+    "mode": "direct",
+    "routes": [
+      {
+        "routeId": "claude-sonnet-5",
+        "target": {
+          "model": "anthropic/claude-sonnet-5-5",
+          "supports1m": true
+        }
+      },
+      {
+        "routeId": "claude-opus-5",
+        "target": {
+          "model": "anthropic/claude-opus-5-5",
+          "supports1m": true
+        }
+      },
+      {
+        "routeId": "claude-haiku-4-5",
+        "target": {
+          "model": "anthropic/claude-haiku-5-5",
+          "supports1m": true
+        }
+      }
+    ]
+  },
+  {
+    "appId": "claude-desktop",
+    "provider": {
+      "name": "FennoAI",
+      "websiteUrl": "https://api.fenno.ai",
+      "category": "aggregator",
+      "icon": "fenno",
+      "baseUrl": "https://api.fenno.ai"
+    },
+    "mode": "direct",
+    "routes": [
+      {
+        "routeId": "claude-sonnet-5",
+        "target": {
+          "model": "claude-sonnet-5",
+          "supports1m": true
+        }
+      },
+      {
+        "routeId": "claude-opus-5",
+        "target": {
+          "model": "claude-opus-5",
+          "supports1m": true
+        }
+      },
+      {
+        "routeId": "claude-haiku-4-5",
+        "target": {
+          "model": "claude-haiku-4-5",
+          "supports1m": false
+        }
+      }
+    ]
+  },
+  {
+    "appId": "claude-desktop",
+    "provider": {
+      "name": "RunAPI",
+      "websiteUrl": "https://runapi.host",
+      "category": "aggregator",
+      "icon": "runapi",
+      "baseUrl": "https://runapi.host",
+      "endpointCandidates": [
+        "https://runapi.host",
+        "https://runapi.co"
+      ]
+    },
+    "mode": "direct",
+    "routes": [
+      {
+        "routeId": "claude-sonnet-5",
+        "target": {
+          "model": "claude-sonnet-5",
+          "supports1m": true
+        }
+      },
+      {
+        "routeId": "claude-opus-5",
+        "target": {
+          "model": "claude-opus-5",
+          "supports1m": true
+        }
+      },
+      {
+        "routeId": "claude-haiku-4-5",
+        "target": {
+          "model": "claude-haiku-4-5",
+          "supports1m": false
+        }
+      }
+    ]
+  },
+  {
+    "appId": "claude-desktop",
+    "provider": {
+      "name": "OpenModel",
+      "websiteUrl": "https://www.openmodel.ai",
+      "category": "aggregator",
+      "icon": "openmodel",
+      "baseUrl": "https://api.openmodel.ai"
+    },
+    "mode": "direct",
+    "routes": [
+      {
+        "routeId": "claude-sonnet-5",
+        "target": {
+          "model": "claude-sonnet-5-5",
+          "supports1m": true
+        }
+      },
+      {
+        "routeId": "claude-opus-5",
+        "target": {
+          "model": "claude-opus-5-5",
+          "supports1m": true
+        }
+      },
+      {
+        "routeId": "claude-haiku-4-5",
+        "target": {
+          "model": "claude-haiku-5-5",
+          "supports1m": true
+        }
+      }
+    ]
+  },
+  {
+    "appId": "claude-desktop",
+    "provider": {
+      "name": "GrooRoute Pro",
+      "websiteUrl": "https://grooroute.pro",
+      "category": "aggregator",
+      "icon": "grooroute",
+      "baseUrl": "https://grooroute.pro",
+      "endpointCandidates": [
+        "https://grooroute.pro",
+        "https://grooroute.xyz"
+      ]
+    },
+    "mode": "direct",
+    "routes": [
+      {
+        "routeId": "claude-sonnet-5",
+        "target": {
+          "model": "claude-sonnet-5-5",
+          "supports1m": true
+        }
+      },
+      {
+        "routeId": "claude-opus-5",
+        "target": {
+          "model": "claude-opus-5-5",
+          "supports1m": true
+        }
+      },
+      {
+        "routeId": "claude-haiku-4-5",
+        "target": {
+          "model": "claude-sonnet-5-5",
+          "supports1m": true
+        }
+      }
+    ]
+  },
+  {
+    "appId": "claude-desktop",
+    "provider": {
+      "name": "BuyToken",
+      "websiteUrl": "https://buytoken.work",
+      "category": "aggregator",
+      "icon": "buytoken",
+      "baseUrl": "https://api.buytoken.work"
+    },
+    "mode": "direct",
+    "routes": [
+      {
+        "routeId": "claude-sonnet-5",
+        "target": {
+          "model": "claude-sonnet-5-5",
+          "supports1m": true
+        }
+      },
+      {
+        "routeId": "claude-opus-5",
+        "target": {
+          "model": "claude-opus-5-5",
+          "supports1m": true
+        }
+      },
+      {
+        "routeId": "claude-haiku-4-5",
+        "target": {
+          "model": "claude-haiku-4-5-20251001",
+          "supports1m": false
+        }
+      }
+    ]
+  },
+  {
+    "appId": "claude-desktop",
+    "provider": {
+      "name": "V-API",
+      "websiteUrl": "https://gpt.ge",
+      "category": "aggregator",
+      "icon": "vapi",
+      "baseUrl": "https://api.gpt.ge",
+      "endpointCandidates": [
+        "https://api.gpt.ge",
+        "https://api.vveai.com",
+        "https://run.v3.cm",
+        "https://api1.v3.cm",
+        "https://api2.v3.cm",
+        "https://us.gpt.ge"
+      ]
+    },
+    "mode": "direct",
+    "routes": [
+      {
+        "routeId": "claude-sonnet-5",
+        "target": {
+          "model": "claude-sonnet-5-5",
+          "supports1m": true
+        }
+      },
+      {
+        "routeId": "claude-opus-5",
+        "target": {
+          "model": "claude-opus-5-5",
+          "supports1m": true
+        }
+      },
+      {
+        "routeId": "claude-haiku-4-5",
+        "target": {
+          "model": "claude-haiku-5-5",
+          "supports1m": true
+        }
+      }
+    ]
+  },
+  {
+    "appId": "claude-desktop",
+    "provider": {
+      "name": "TokenFactory",
+      "nameKey": "providerForm.presets.tokenfactory",
+      "websiteUrl": "https://tokenfactory.cn",
+      "category": "aggregator",
+      "icon": "tokenfactory",
+      "baseUrl": "https://api.tokenfactory.cn/anthropic",
+      "endpointCandidates": [
+        "https://api.tokenfactory.cn/anthropic"
+      ]
+    },
+    "mode": "proxy",
+    "routes": [
+      {
+        "routeId": "claude-sonnet-5",
+        "target": {
+          "model": "glm-5.3",
+          "labelOverride": "glm-5.3",
+          "supports1m": true
+        }
+      },
+      {
+        "routeId": "claude-opus-5",
+        "target": {
+          "model": "kimi-k3",
+          "labelOverride": "kimi-k3",
+          "supports1m": true
+        }
+      },
+      {
+        "routeId": "claude-haiku-4-5",
+        "target": {
+          "model": "deepseek-v4.1-flash",
+          "labelOverride": "deepseek-v4.1-flash",
+          "supports1m": true
+        }
+      }
+    ]
+  },
+  {
+    "appId": "claude-desktop",
+    "provider": {
+      "name": "FluxA Token Plan",
+      "websiteUrl": "https://agentmarket.fluxapay.xyz/",
+      "category": "aggregator",
+      "icon": "fluxa",
+      "baseUrl": "https://api.baiduqianfan.ai/anthropic/tokenplan/team",
+      "endpointCandidates": [
+        "https://api.baiduqianfan.ai/anthropic/tokenplan/team"
+      ]
+    },
+    "mode": "proxy",
+    "routes": [
+      {
+        "routeId": "claude-sonnet-5",
+        "target": {
+          "model": "deepseek-v4.1-flash",
+          "labelOverride": "deepseek-v4.1-flash",
+          "supports1m": true
+        }
+      }
+    ]
+  },
+  {
+    "appId": "claude-desktop",
+    "provider": {
+      "name": "AIGoCode",
+      "websiteUrl": "https://aigocode.net",
+      "category": "third_party",
+      "icon": "aigocode",
+      "iconColor": "#5B7FFF",
+      "baseUrl": "https://api.aigocode.dev",
+      "endpointCandidates": [
+        "https://api.aigocode.dev",
+        "https://api.aigocode.app"
+      ]
+    },
+    "mode": "direct",
+    "routes": [
+      {
+        "routeId": "claude-sonnet-5",
+        "target": {
+          "model": "claude-sonnet-5",
+          "supports1m": true
+        }
+      },
+      {
+        "routeId": "claude-opus-5",
+        "target": {
+          "model": "claude-opus-5",
+          "supports1m": true
+        }
+      },
+      {
+        "routeId": "claude-haiku-4-5",
+        "target": {
+          "model": "claude-haiku-4-5",
+          "supports1m": false
+        }
+      }
+    ]
+  },
+  {
+    "appId": "claude-desktop",
+    "provider": {
+      "name": "Qiniu",
+      "nameKey": "providerForm.presets.qiniu",
+      "websiteUrl": "https://s.qiniu.com/nMvAvy",
+      "category": "aggregator",
+      "icon": "qiniu",
+      "baseUrl": "https://api.qnaigc.com",
+      "endpointCandidates": [
+        "https://api.qnaigc.com",
+        "https://api.modelink.ai"
+      ]
+    },
+    "mode": "direct",
+    "routes": [
+      {
+        "routeId": "claude-sonnet-5",
+        "target": {
+          "model": "claude-sonnet-5",
+          "supports1m": true
+        }
+      },
+      {
+        "routeId": "claude-opus-5",
+        "target": {
+          "model": "claude-opus-5",
+          "supports1m": true
+        }
+      },
+      {
+        "routeId": "claude-haiku-4-5",
+        "target": {
+          "model": "claude-haiku-4-5",
+          "supports1m": false
+        }
+      }
+    ]
+  },
+  {
+    "appId": "claude-desktop",
+    "provider": {
+      "name": "AICoding",
+      "websiteUrl": "https://aicoding.inc",
+      "category": "third_party",
+      "icon": "aicoding",
+      "iconColor": "#000000",
+      "baseUrl": "https://api.aicoding.inc",
+      "endpointCandidates": [
+        "https://api.aicoding.inc"
+      ]
+    },
+    "mode": "direct",
+    "routes": [
+      {
+        "routeId": "claude-sonnet-5",
+        "target": {
+          "model": "claude-sonnet-5",
+          "supports1m": true
+        }
+      },
+      {
+        "routeId": "claude-opus-5",
+        "target": {
+          "model": "claude-opus-5",
+          "supports1m": true
+        }
+      },
+      {
+        "routeId": "claude-haiku-4-5",
+        "target": {
+          "model": "claude-haiku-4-5",
+          "supports1m": false
+        }
+      }
+    ]
+  },
+  {
+    "appId": "claude-desktop",
+    "provider": {
+      "name": "SubRouter",
+      "websiteUrl": "https://subrouter.ai",
+      "category": "aggregator",
+      "icon": "subrouter",
+      "baseUrl": "https://subrouter.ai"
+    },
+    "mode": "direct",
+    "routes": [
+      {
+        "routeId": "claude-sonnet-5",
+        "target": {
+          "model": "claude-sonnet-5",
+          "supports1m": true
+        }
+      },
+      {
+        "routeId": "claude-opus-5",
+        "target": {
+          "model": "claude-opus-5",
+          "supports1m": true
+        }
+      },
+      {
+        "routeId": "claude-haiku-4-5",
+        "target": {
+          "model": "claude-haiku-4-5",
+          "supports1m": false
+        }
+      }
+    ]
+  },
+  {
+    "appId": "claude-desktop",
+    "provider": {
+      "name": "OspreyAI",
+      "websiteUrl": "https://open.ospreyai.cn",
+      "category": "aggregator",
+      "icon": "ospreyai",
+      "baseUrl": "https://open.ospreyai.cn"
+    },
+    "mode": "direct",
+    "routes": [
+      {
+        "routeId": "claude-sonnet-5",
+        "target": {
+          "model": "claude-sonnet-5-5",
+          "supports1m": true
+        }
+      },
+      {
+        "routeId": "claude-opus-5",
+        "target": {
+          "model": "claude-opus-5-5",
+          "supports1m": true
+        }
+      },
+      {
+        "routeId": "claude-haiku-4-5",
+        "target": {
+          "model": "claude-haiku-4-5",
+          "supports1m": false
+        }
+      }
+    ]
+  },
+  {
+    "appId": "claude-desktop",
+    "provider": {
+      "name": "Shengsuanyun",
+      "nameKey": "providerForm.presets.shengsuanyun",
+      "websiteUrl": "https://www.shengsuanyun.com/",
+      "category": "aggregator",
+      "icon": "shengsuanyun",
+      "baseUrl": "https://router.shengsuanyun.com/api"
+    },
+    "mode": "direct",
+    "routes": [
+      {
+        "routeId": "claude-sonnet-5",
+        "target": {
+          "model": "anthropic/claude-sonnet-5.5",
+          "supports1m": true
+        }
+      },
+      {
+        "routeId": "claude-opus-5",
+        "target": {
+          "model": "anthropic/claude-opus-5.5",
+          "supports1m": true
+        }
+      },
+      {
+        "routeId": "claude-haiku-4-5",
+        "target": {
+          "model": "anthropic/claude-haiku-5.5",
+          "supports1m": true
+        }
+      }
+    ]
+  },
+  {
+    "appId": "claude-desktop",
+    "provider": {
+      "name": "88API",
+      "websiteUrl": "https://88api.ai",
+      "category": "aggregator",
+      "icon": "88api",
+      "baseUrl": "https://api.88api.ai",
+      "endpointCandidates": [
+        "https://api.88api.ai",
+        "https://88api.ai"
+      ]
+    },
+    "mode": "direct",
+    "routes": [
+      {
+        "routeId": "claude-sonnet-5",
+        "target": {
+          "model": "claude-sonnet-5-5",
+          "supports1m": true
+        }
+      },
+      {
+        "routeId": "claude-opus-5",
+        "target": {
+          "model": "claude-opus-5-5",
+          "supports1m": true
+        }
+      },
+      {
+        "routeId": "claude-haiku-4-5",
+        "target": {
+          "model": "claude-haiku-5-5",
+          "supports1m": true
+        }
+      }
+    ]
+  },
+  {
+    "appId": "claude-desktop",
+    "provider": {
+      "name": "APIKEY.FUN",
+      "websiteUrl": "https://apikey.fan",
+      "category": "third_party",
+      "icon": "apikeyfun",
+      "baseUrl": "https://api.apikey.fan",
+      "endpointCandidates": [
+        "https://api.apikey.fan",
+        "https://api.apikey.fun",
+        "https://slb.apikey.fun"
+      ]
+    },
+    "mode": "direct",
+    "routes": [
+      {
+        "routeId": "claude-sonnet-5",
+        "target": {
+          "model": "claude-sonnet-5",
+          "supports1m": true
+        }
+      },
+      {
+        "routeId": "claude-opus-5",
+        "target": {
+          "model": "claude-opus-5",
+          "supports1m": true
+        }
+      },
+      {
+        "routeId": "claude-haiku-4-5",
+        "target": {
+          "model": "claude-haiku-4-5",
+          "supports1m": false
+        }
+      }
+    ]
+  },
+  {
+    "appId": "claude-desktop",
+    "provider": {
+      "name": "9527CODE",
+      "websiteUrl": "https://9527.codes",
+      "category": "aggregator",
+      "icon": "9527code",
+      "baseUrl": "https://9527.codes",
+      "endpointCandidates": [
+        "https://9527.codes",
+        "https://api.9527.codes",
+        "https://cdn.9527.codes"
+      ]
+    },
+    "mode": "direct",
+    "routes": [
+      {
+        "routeId": "claude-sonnet-5",
+        "target": {
+          "model": "claude-sonnet-5",
+          "supports1m": true
+        }
+      },
+      {
+        "routeId": "claude-opus-5",
+        "target": {
+          "model": "claude-opus-5",
+          "supports1m": true
+        }
+      },
+      {
+        "routeId": "claude-haiku-4-5",
+        "target": {
+          "model": "claude-haiku-4-5",
+          "supports1m": false
+        }
+      }
+    ]
+  },
+  {
+    "appId": "claude-desktop",
+    "provider": {
+      "name": "ClaudeAPI",
+      "websiteUrl": "https://www.apito.ai",
+      "category": "aggregator",
+      "icon": "claudeapi",
+      "baseUrl": "https://gw.apito.ai"
+    },
+    "mode": "direct",
+    "routes": [
+      {
+        "routeId": "claude-sonnet-5",
+        "target": {
+          "model": "claude-sonnet-5",
+          "supports1m": true
+        }
+      },
+      {
+        "routeId": "claude-opus-5",
+        "target": {
+          "model": "claude-opus-5",
+          "supports1m": true
+        }
+      },
+      {
+        "routeId": "claude-haiku-4-5",
+        "target": {
+          "model": "claude-haiku-4-5",
+          "supports1m": false
+        }
+      }
+    ]
+  },
+  {
+    "appId": "claude-desktop",
+    "provider": {
+      "name": "Code0",
+      "websiteUrl": "https://code0.ai",
+      "category": "aggregator",
+      "icon": "code0",
+      "baseUrl": "https://code0.ai"
+    },
+    "mode": "direct",
+    "routes": [
+      {
+        "routeId": "claude-sonnet-5",
+        "target": {
+          "model": "claude-sonnet-5",
+          "supports1m": true
+        }
+      },
+      {
+        "routeId": "claude-opus-5",
+        "target": {
+          "model": "claude-opus-5",
+          "supports1m": true
+        }
+      },
+      {
+        "routeId": "claude-haiku-4-5",
+        "target": {
+          "model": "claude-haiku-4-5",
+          "supports1m": false
+        }
+      }
+    ]
+  },
+  {
+    "appId": "claude-desktop",
+    "provider": {
+      "name": "TeamoRouter",
+      "websiteUrl": "https://teamorouter.cn",
+      "category": "aggregator",
+      "icon": "teamorouter",
+      "baseUrl": "https://api.teamorouter.cn",
+      "endpointCandidates": [
+        "https://api.teamorouter.cn",
+        "https://api.teamorouter.com"
+      ]
+    },
+    "mode": "direct",
+    "routes": [
+      {
+        "routeId": "claude-sonnet-5",
+        "target": {
+          "model": "claude-sonnet-5",
+          "supports1m": true
+        }
+      },
+      {
+        "routeId": "claude-opus-5",
+        "target": {
+          "model": "claude-opus-5",
+          "supports1m": true
+        }
+      },
+      {
+        "routeId": "claude-haiku-4-5",
+        "target": {
+          "model": "claude-haiku-4-5",
+          "supports1m": false
+        }
+      }
+    ]
+  },
+  {
+    "appId": "claude-desktop",
+    "provider": {
+      "name": "PPIO",
+      "websiteUrl": "https://ppio.com",
+      "category": "aggregator",
+      "icon": "ppio",
+      "iconColor": "#2874FF",
+      "baseUrl": "https://api.ppio.com/anthropic",
+      "endpointCandidates": [
+        "https://api.ppio.com/anthropic"
+      ]
+    },
+    "mode": "proxy",
+    "routes": [
+      {
+        "routeId": "claude-sonnet-5",
+        "target": {
+          "model": "deepseek/deepseek-v4.1-flash",
+          "labelOverride": "deepseek/deepseek-v4.1-flash",
+          "supports1m": true
+        }
+      }
+    ]
+  },
+  {
+    "appId": "claude-desktop",
+    "provider": {
+      "name": "ClaudeCN",
+      "websiteUrl": "https://claudecn.top",
+      "category": "third_party",
+      "icon": "claudecn",
+      "baseUrl": "https://claudecn.top"
+    },
+    "mode": "direct",
+    "routes": [
+      {
+        "routeId": "claude-sonnet-5",
+        "target": {
+          "model": "claude-sonnet-5",
+          "supports1m": true
+        }
+      },
+      {
+        "routeId": "claude-opus-5",
+        "target": {
+          "model": "claude-opus-5",
+          "supports1m": true
+        }
+      },
+      {
+        "routeId": "claude-haiku-4-5",
+        "target": {
+          "model": "claude-haiku-4-5",
+          "supports1m": false
+        }
+      }
+    ]
+  },
+  {
+    "appId": "claude-desktop",
+    "provider": {
+      "name": "火山 Agent Plan",
+      "websiteUrl": "https://www.volcengine.com/activity/agentplan",
+      "category": "cn_official",
+      "family": "volcengine",
+      "planKey": "agentPlan",
+      "icon": "huoshan",
+      "iconColor": "#3370FF",
+      "baseUrl": "https://ark.cn-beijing.volces.com/api/plan"
+    },
+    "mode": "proxy",
+    "routes": [
+      {
+        "routeId": "claude-sonnet-5",
+        "target": {
+          "model": "ark-code-latest",
+          "labelOverride": "ark-code-latest",
+          "supports1m": false
+        }
+      }
+    ]
+  },
+  {
+    "appId": "claude-desktop",
+    "provider": {
+      "name": "火山 Coding Plan",
+      "websiteUrl": "https://www.volcengine.com/activity/codingplan",
+      "category": "cn_official",
+      "family": "volcengine",
+      "planKey": "codingPlan",
+      "icon": "huoshan",
+      "iconColor": "#3370FF",
+      "baseUrl": "https://ark.cn-beijing.volces.com/api/coding"
+    },
+    "mode": "proxy",
+    "routes": [
+      {
+        "routeId": "claude-sonnet-5",
+        "target": {
+          "model": "ark-code-latest",
+          "labelOverride": "ark-code-latest",
+          "supports1m": false
+        }
+      }
+    ]
+  },
+  {
+    "appId": "claude-desktop",
+    "provider": {
+      "name": "BytePlus",
+      "websiteUrl": "https://www.byteplus.com/en/product/modelark",
+      "category": "cn_official",
+      "icon": "byteplus",
+      "iconColor": "#3370FF",
+      "baseUrl": "https://ark.ap-southeast.bytepluses.com/api/coding"
+    },
+    "mode": "proxy",
+    "routes": [
+      {
+        "routeId": "claude-sonnet-5",
+        "target": {
+          "model": "ark-code-latest",
+          "labelOverride": "ark-code-latest",
+          "supports1m": false
+        }
+      }
+    ]
+  },
+  {
+    "appId": "claude-desktop",
+    "provider": {
+      "name": "Volcengine Doubao",
+      "nameKey": "providerForm.presets.doubaoseed",
+      "websiteUrl": "https://console.volcengine.com/ark/region:ark+cn-beijing/apiKey",
+      "category": "cn_official",
+      "family": "volcengine",
+      "planKey": "payg",
+      "icon": "doubao",
+      "iconColor": "#3370FF",
+      "baseUrl": "https://ark.cn-beijing.volces.com/api/compatible"
+    },
+    "mode": "proxy",
+    "routes": [
+      {
+        "routeId": "claude-sonnet-5",
+        "target": {
+          "model": "doubao-seed-2-1-pro-260915",
+          "labelOverride": "doubao-seed-2-1-pro-260915",
+          "supports1m": false
+        }
+      }
+    ]
+  },
+  {
+    "appId": "claude-desktop",
+    "provider": {
+      "name": "SiliconFlow",
+      "websiteUrl": "https://siliconflow.cn",
+      "category": "aggregator",
+      "family": "siliconflow",
+      "regionKey": "cn",
+      "icon": "siliconflow",
+      "iconColor": "#6E29F6",
+      "baseUrl": "https://api.siliconflow.cn"
+    },
+    "mode": "proxy",
+    "routes": [
+      {
+        "routeId": "claude-sonnet-5",
+        "target": {
+          "model": "deepseek-ai/DeepSeek-V4-Flash",
+          "labelOverride": "deepseek-ai/DeepSeek-V4-Flash",
+          "supports1m": true
+        }
+      }
+    ]
+  },
+  {
+    "appId": "claude-desktop",
+    "provider": {
+      "name": "SiliconFlow en",
+      "websiteUrl": "https://siliconflow.com",
+      "category": "aggregator",
+      "family": "siliconflow",
+      "regionKey": "intl",
+      "icon": "siliconflow",
+      "iconColor": "#000000",
+      "baseUrl": "https://api.siliconflow.com"
+    },
+    "mode": "proxy",
+    "routes": [
+      {
+        "routeId": "claude-sonnet-5",
+        "target": {
+          "model": "MiniMaxAI/MiniMax-M3",
+          "labelOverride": "MiniMaxAI/MiniMax-M3",
+          "supports1m": true
+        }
+      }
+    ]
+  },
+  {
+    "appId": "claude-desktop",
+    "provider": {
+      "name": "A6API",
+      "websiteUrl": "https://www.a6api.vip",
+      "category": "aggregator",
+      "icon": "a6api",
+      "baseUrl": "https://api.a6api.vip"
+    },
+    "mode": "direct",
+    "routes": [
+      {
+        "routeId": "claude-sonnet-5",
+        "target": {
+          "model": "claude-sonnet-5",
+          "supports1m": true
+        }
+      },
+      {
+        "routeId": "claude-opus-5",
+        "target": {
+          "model": "claude-opus-5",
+          "supports1m": true
+        }
+      },
+      {
+        "routeId": "claude-haiku-4-5",
+        "target": {
+          "model": "claude-haiku-4-5",
+          "supports1m": false
+        }
+      }
+    ]
+  },
+  {
+    "appId": "claude-desktop",
+    "provider": {
+      "name": "Compshare",
+      "nameKey": "providerForm.presets.ucloud",
+      "websiteUrl": "https://www.compshare.cn",
+      "category": "aggregator",
+      "family": "compshare",
+      "planKey": "payg",
+      "icon": "ucloud",
+      "iconColor": "#000000",
+      "baseUrl": "https://api.modelverse.cn",
+      "endpointCandidates": [
+        "https://api.modelverse.cn"
+      ]
+    },
+    "mode": "direct",
+    "routes": [
+      {
+        "routeId": "claude-sonnet-5",
+        "target": {
+          "model": "claude-sonnet-5",
+          "supports1m": true
+        }
+      },
+      {
+        "routeId": "claude-opus-5",
+        "target": {
+          "model": "claude-opus-5",
+          "supports1m": true
+        }
+      },
+      {
+        "routeId": "claude-haiku-4-5",
+        "target": {
+          "model": "claude-haiku-4-5",
+          "supports1m": false
+        }
+      }
+    ]
+  },
+  {
+    "appId": "claude-desktop",
+    "provider": {
+      "name": "Compshare Coding Plan",
+      "nameKey": "providerForm.presets.ucloudCoding",
+      "websiteUrl": "https://www.compshare.cn",
+      "category": "aggregator",
+      "family": "compshare",
+      "planKey": "codingPlan",
+      "icon": "ucloud",
+      "iconColor": "#000000",
+      "baseUrl": "https://cp.compshare.cn",
+      "endpointCandidates": [
+        "https://cp.compshare.cn"
+      ]
+    },
+    "mode": "direct",
+    "routes": [
+      {
+        "routeId": "claude-sonnet-5",
+        "target": {
+          "model": "claude-sonnet-5",
+          "supports1m": true
+        }
+      },
+      {
+        "routeId": "claude-opus-5",
+        "target": {
+          "model": "claude-opus-5",
+          "supports1m": true
+        }
+      },
+      {
+        "routeId": "claude-haiku-4-5",
+        "target": {
+          "model": "claude-haiku-4-5",
+          "supports1m": false
+        }
+      }
+    ]
+  },
+  {
+    "appId": "claude-desktop",
+    "provider": {
+      "name": "CCSub",
+      "websiteUrl": "https://www.ccsub.net",
+      "category": "aggregator",
+      "icon": "ccsub",
+      "baseUrl": "https://www.ccsub.net"
+    },
+    "mode": "direct",
+    "routes": [
+      {
+        "routeId": "claude-sonnet-5",
+        "target": {
+          "model": "claude-sonnet-5",
+          "supports1m": true
+        }
+      },
+      {
+        "routeId": "claude-opus-5",
+        "target": {
+          "model": "claude-opus-5",
+          "supports1m": true
+        }
+      },
+      {
+        "routeId": "claude-haiku-4-5",
+        "target": {
+          "model": "claude-haiku-4-5",
+          "supports1m": false
+        }
+      }
+    ]
+  },
+  {
+    "appId": "claude-desktop",
+    "provider": {
+      "name": "SSSAiCode",
+      "websiteUrl": "https://sssaicodeapi.com",
+      "category": "third_party",
+      "icon": "sssaicode",
+      "iconColor": "#000000",
+      "baseUrl": "https://node-hk.sssaicodeapi.com/api",
+      "endpointCandidates": [
+        "https://node-hk.sssaicodeapi.com/api",
+        "https://node-hk.sssaiapi.com/api",
+        "https://node-cf.sssaicodeapi.com/api"
+      ]
+    },
+    "mode": "direct",
+    "routes": [
+      {
+        "routeId": "claude-sonnet-5",
+        "target": {
+          "model": "claude-sonnet-5",
+          "supports1m": true
+        }
+      },
+      {
+        "routeId": "claude-opus-5",
+        "target": {
+          "model": "claude-opus-5",
+          "supports1m": true
+        }
+      },
+      {
+        "routeId": "claude-haiku-4-5",
+        "target": {
+          "model": "claude-haiku-4-5",
+          "supports1m": false
+        }
+      }
+    ]
+  },
+  {
+    "appId": "claude-desktop",
+    "provider": {
+      "name": "SoleAPI",
+      "websiteUrl": "https://soleapi.com",
+      "category": "aggregator",
+      "icon": "soleapi",
+      "baseUrl": "https://soleapi.com",
+      "endpointCandidates": [
+        "https://soleapi.com"
+      ]
+    },
+    "mode": "direct",
+    "routes": [
+      {
+        "routeId": "claude-sonnet-5",
+        "target": {
+          "model": "claude-sonnet-5-5",
+          "supports1m": true
+        }
+      },
+      {
+        "routeId": "claude-opus-5",
+        "target": {
+          "model": "claude-opus-5-5",
+          "supports1m": true
+        }
+      },
+      {
+        "routeId": "claude-haiku-4-5",
+        "target": {
+          "model": "claude-haiku-5-5",
+          "supports1m": true
+        }
+      }
+    ]
+  },
+  {
+    "appId": "claude-desktop",
+    "provider": {
+      "name": "Micu",
+      "websiteUrl": "https://www.micuapi.ai",
+      "category": "third_party",
+      "icon": "micu",
+      "iconColor": "#000000",
+      "baseUrl": "https://www.micuapi.ai",
+      "endpointCandidates": [
+        "https://www.micuapi.ai"
+      ]
+    },
+    "mode": "direct",
+    "routes": [
+      {
+        "routeId": "claude-sonnet-5",
+        "target": {
+          "model": "claude-sonnet-5",
+          "supports1m": true
+        }
+      },
+      {
+        "routeId": "claude-opus-5",
+        "target": {
+          "model": "claude-opus-5",
+          "supports1m": true
+        }
+      },
+      {
+        "routeId": "claude-haiku-4-5",
+        "target": {
+          "model": "claude-haiku-4-5",
+          "supports1m": false
+        }
+      }
+    ]
+  },
+  {
+    "appId": "claude-desktop",
+    "provider": {
+      "name": "RightCode",
+      "websiteUrl": "https://www.rightapi.ai",
+      "category": "third_party",
+      "icon": "rc",
+      "iconColor": "#E96B2C",
+      "baseUrl": "https://www.rightapi.ai/claude"
+    },
+    "mode": "direct",
+    "routes": [
+      {
+        "routeId": "claude-sonnet-5",
+        "target": {
+          "model": "claude-sonnet-5",
+          "supports1m": true
+        }
+      },
+      {
+        "routeId": "claude-opus-5",
+        "target": {
+          "model": "claude-opus-5",
+          "supports1m": true
+        }
+      },
+      {
+        "routeId": "claude-haiku-4-5",
+        "target": {
+          "model": "claude-haiku-4-5",
+          "supports1m": false
+        }
+      }
+    ]
+  },
+  {
+    "appId": "claude-desktop",
+    "provider": {
+      "name": "Cubence",
+      "websiteUrl": "https://cubence.com",
+      "category": "third_party",
+      "icon": "cubence",
+      "iconColor": "#000000",
+      "baseUrl": "https://api.cubence.com",
+      "endpointCandidates": [
+        "https://api.cubence.com",
+        "https://api-cf.cubence.com",
+        "https://api-dmit.cubence.com",
+        "https://api-bwg.cubence.com"
+      ]
+    },
+    "mode": "direct",
+    "routes": [
+      {
+        "routeId": "claude-sonnet-5",
+        "target": {
+          "model": "claude-sonnet-5",
+          "supports1m": true
+        }
+      },
+      {
+        "routeId": "claude-opus-5",
+        "target": {
+          "model": "claude-opus-5",
+          "supports1m": true
+        }
+      },
+      {
+        "routeId": "claude-haiku-4-5",
+        "target": {
+          "model": "claude-haiku-4-5",
+          "supports1m": false
+        }
+      }
+    ]
+  },
+  {
+    "appId": "claude-desktop",
+    "provider": {
+      "name": "CrazyRouter",
+      "websiteUrl": "https://www.crazyrouter.com",
+      "category": "third_party",
+      "icon": "crazyrouter",
+      "iconColor": "#000000",
+      "baseUrl": "https://cn.crazyrouter.com",
+      "endpointCandidates": [
+        "https://cn.crazyrouter.com"
+      ]
+    },
+    "mode": "direct",
+    "routes": [
+      {
+        "routeId": "claude-sonnet-5",
+        "target": {
+          "model": "claude-sonnet-5",
+          "supports1m": true
+        }
+      },
+      {
+        "routeId": "claude-opus-5",
+        "target": {
+          "model": "claude-opus-5",
+          "supports1m": true
+        }
+      },
+      {
+        "routeId": "claude-haiku-4-5",
+        "target": {
+          "model": "claude-haiku-4-5",
+          "supports1m": false
+        }
+      }
+    ]
+  },
+  {
+    "appId": "claude-desktop",
+    "provider": {
+      "name": "DMXAPI",
+      "websiteUrl": "https://www.dmxapi.cn",
+      "category": "aggregator",
+      "icon": "dmxapi",
+      "baseUrl": "https://www.dmxapi.cn",
+      "endpointCandidates": [
+        "https://www.dmxapi.cn",
+        "https://api.dmxapi.cn"
+      ]
+    },
+    "mode": "direct",
+    "routes": [
+      {
+        "routeId": "claude-sonnet-5",
+        "target": {
+          "model": "claude-sonnet-5",
+          "supports1m": true
+        }
+      },
+      {
+        "routeId": "claude-opus-5",
+        "target": {
+          "model": "claude-opus-5",
+          "supports1m": true
+        }
+      },
+      {
+        "routeId": "claude-haiku-4-5",
+        "target": {
+          "model": "claude-haiku-4-5",
+          "supports1m": false
+        }
+      }
+    ]
+  },
+  {
+    "appId": "claude-desktop",
+    "provider": {
+      "name": "SudoCode.chat",
+      "websiteUrl": "https://sudocode.chat",
+      "category": "third_party",
+      "family": "sudocode",
+      "icon": "sudocode",
+      "baseUrl": "https://api.sudocode.chat",
+      "endpointCandidates": [
+        "https://api.sudocode.chat",
+        "https://api.sudorelay.com"
+      ]
+    },
+    "mode": "direct",
+    "routes": [
+      {
+        "routeId": "claude-sonnet-5",
+        "target": {
+          "model": "claude-sonnet-5",
+          "supports1m": true
+        }
+      },
+      {
+        "routeId": "claude-opus-5",
+        "target": {
+          "model": "claude-opus-5",
+          "supports1m": true
+        }
+      },
+      {
+        "routeId": "claude-haiku-4-5",
+        "target": {
+          "model": "claude-haiku-4-5",
+          "supports1m": false
+        }
+      }
+    ]
+  },
+  {
+    "appId": "claude-desktop",
+    "provider": {
+      "name": "SudoCode.us",
+      "websiteUrl": "https://sudocode.us",
+      "category": "third_party",
+      "family": "sudocode",
+      "icon": "sudocode-us",
+      "baseUrl": "https://sudocode.us",
+      "endpointCandidates": [
+        "https://sudocode.us",
+        "https://sudocode.run"
+      ]
+    },
+    "mode": "direct",
+    "routes": [
+      {
+        "routeId": "claude-sonnet-5",
+        "target": {
+          "model": "claude-sonnet-5",
+          "supports1m": true
+        }
+      },
+      {
+        "routeId": "claude-opus-5",
+        "target": {
+          "model": "claude-opus-5",
+          "supports1m": true
+        }
+      },
+      {
+        "routeId": "claude-haiku-4-5",
+        "target": {
+          "model": "claude-haiku-4-5",
+          "supports1m": false
+        }
+      }
+    ]
+  },
+  {
+    "appId": "claude-desktop",
+    "provider": {
+      "name": "XycAi",
+      "websiteUrl": "https://xycai.us",
+      "category": "aggregator",
+      "icon": "xycai",
+      "baseUrl": "https://apicdn.xycai.us",
+      "endpointCandidates": [
+        "https://apicdn.xycai.us",
+        "https://apicdn.xyc.ai"
+      ]
+    },
+    "mode": "direct",
+    "routes": [
+      {
+        "routeId": "claude-sonnet-5",
+        "target": {
+          "model": "claude-sonnet-5",
+          "supports1m": true
+        }
+      },
+      {
+        "routeId": "claude-opus-5",
+        "target": {
+          "model": "claude-opus-5",
+          "supports1m": true
+        }
+      },
+      {
+        "routeId": "claude-haiku-4-5",
+        "target": {
+          "model": "claude-haiku-4-5",
+          "supports1m": false
+        }
+      }
+    ]
+  },
+  {
+    "appId": "claude-desktop",
+    "provider": {
+      "name": "Modelflare",
+      "websiteUrl": "https://modelflare.dev",
+      "category": "aggregator",
+      "icon": "modelflare",
+      "baseUrl": "https://modelflare.dev",
+      "endpointCandidates": [
+        "https://modelflare.dev",
+        "https://origin.modelflare.dev"
+      ]
+    },
+    "mode": "direct",
+    "routes": [
+      {
+        "routeId": "claude-sonnet-5",
+        "target": {
+          "model": "claude-sonnet-5",
+          "supports1m": true
+        }
+      },
+      {
+        "routeId": "claude-opus-5",
+        "target": {
+          "model": "claude-opus-5",
+          "supports1m": true
+        }
+      },
+      {
+        "routeId": "claude-haiku-4-5",
+        "target": {
+          "model": "claude-haiku-4-5",
+          "supports1m": false
+        }
+      }
+    ]
+  },
+  {
+    "appId": "claude-desktop",
+    "provider": {
+      "name": "AllTokens",
+      "websiteUrl": "https://alltokens.cc",
+      "category": "aggregator",
+      "icon": "alltokens",
+      "baseUrl": "https://alltokens.cc"
+    },
+    "mode": "direct",
+    "routes": [
+      {
+        "routeId": "claude-sonnet-5",
+        "target": {
+          "model": "claude-sonnet-5",
+          "supports1m": true
+        }
+      },
+      {
+        "routeId": "claude-opus-5",
+        "target": {
+          "model": "claude-opus-5",
+          "supports1m": true
+        }
+      },
+      {
+        "routeId": "claude-haiku-4-5",
+        "target": {
+          "model": "claude-haiku-4-5",
+          "supports1m": false
+        }
+      }
+    ]
+  },
+  {
+    "appId": "claude-desktop",
+    "provider": {
+      "name": "AllTokens SI",
+      "websiteUrl": "https://alltokens.si",
+      "category": "aggregator",
+      "icon": "alltokens-si",
+      "baseUrl": "https://alltokens.si"
+    },
+    "mode": "direct",
+    "routes": [
+      {
+        "routeId": "claude-sonnet-5",
+        "target": {
+          "model": "claude-sonnet-5.5",
+          "supports1m": true
+        }
+      },
+      {
+        "routeId": "claude-opus-5",
+        "target": {
+          "model": "claude-opus-5.5",
+          "supports1m": true
+        }
+      },
+      {
+        "routeId": "claude-haiku-4-5",
+        "target": {
+          "model": "claude-sonnet-5.5",
+          "supports1m": true
+        }
+      }
+    ]
+  },
+  {
+    "appId": "claude-desktop",
+    "provider": {
+      "name": "Tu-zi",
+      "nameKey": "providerForm.presets.tuzi",
+      "websiteUrl": "https://api.tu-zi.com",
+      "category": "aggregator",
+      "icon": "tuzi",
+      "baseUrl": "https://api.tu-zi.com",
+      "endpointCandidates": [
+        "https://api.tu-zi.com",
+        "https://api.ourzhishi.top",
+        "https://api.sydney-ai.com",
+        "https://apicdn.tu-zi.com"
+      ]
+    },
+    "mode": "direct",
+    "routes": [
+      {
+        "routeId": "claude-sonnet-5",
+        "target": {
+          "model": "claude-sonnet-5",
+          "supports1m": true
+        }
+      },
+      {
+        "routeId": "claude-opus-5",
+        "target": {
+          "model": "claude-opus-5",
+          "supports1m": true
+        }
+      },
+      {
+        "routeId": "claude-haiku-4-5",
+        "target": {
+          "model": "claude-haiku-4-5",
+          "supports1m": false
+        }
+      }
+    ]
+  },
+  {
+    "appId": "claude-desktop",
+    "provider": {
+      "name": "Amux",
+      "websiteUrl": "https://amux.ai",
+      "category": "aggregator",
+      "icon": "amux",
+      "baseUrl": "https://api.amux.ai"
+    },
+    "mode": "direct",
+    "routes": [
+      {
+        "routeId": "claude-sonnet-5",
+        "target": {
+          "model": "claude-sonnet-5",
+          "supports1m": true
+        }
+      },
+      {
+        "routeId": "claude-opus-5",
+        "target": {
+          "model": "claude-opus-5",
+          "supports1m": true
+        }
+      },
+      {
+        "routeId": "claude-haiku-4-5",
+        "target": {
+          "model": "claude-haiku-4-5",
+          "supports1m": false
+        }
+      }
+    ]
+  },
+  {
+    "appId": "claude-desktop",
+    "provider": {
+      "name": "AtlasCloud",
+      "websiteUrl": "https://www.atlascloud.ai/console/coding-plan",
+      "category": "aggregator",
+      "icon": "atlascloud",
+      "baseUrl": "https://api.atlascloud.ai",
+      "endpointCandidates": [
+        "https://api.atlascloud.ai"
+      ]
+    },
+    "mode": "direct",
+    "routes": [
+      {
+        "routeId": "claude-sonnet-5",
+        "target": {
+          "model": "claude-sonnet-5",
+          "supports1m": false
+        }
+      },
+      {
+        "routeId": "claude-opus-5",
+        "target": {
+          "model": "claude-opus-5",
+          "supports1m": false
+        }
+      },
+      {
+        "routeId": "claude-haiku-4-5",
+        "target": {
+          "model": "claude-haiku-4-5",
+          "supports1m": false
+        }
+      }
+    ]
+  },
+  {
+    "appId": "claude-desktop",
+    "provider": {
+      "name": "Soshow",
+      "websiteUrl": "https://aimarket.so-show.com",
+      "category": "aggregator",
+      "icon": "soshow",
+      "baseUrl": "https://maas.so-show.com"
+    },
+    "mode": "direct",
+    "routes": [
+      {
+        "routeId": "claude-sonnet-5",
+        "target": {
+          "model": "claude-sonnet-5",
+          "supports1m": true
+        }
+      },
+      {
+        "routeId": "claude-opus-5",
+        "target": {
+          "model": "claude-opus-5",
+          "supports1m": true
+        }
+      }
+    ]
+  },
+  {
+    "appId": "claude-desktop",
+    "provider": {
+      "name": "Gemini Native",
+      "websiteUrl": "https://ai.google.dev/gemini-api",
+      "category": "third_party",
+      "icon": "gemini",
+      "iconColor": "#4285F4",
+      "baseUrl": "https://generativelanguage.googleapis.com",
+      "endpointCandidates": [
+        "https://generativelanguage.googleapis.com"
+      ],
+      "apiFormat": "gemini_native",
+      "apiKeyHeader": true
+    },
+    "mode": "proxy",
+    "routes": [
+      {
+        "routeId": "claude-sonnet-5",
+        "target": {
+          "model": "gemini-3.8-flash",
+          "labelOverride": "gemini-3.8-flash",
+          "supports1m": false
+        }
+      }
+    ]
+  },
+  {
+    "appId": "claude-desktop",
+    "provider": {
+      "name": "GitHub Copilot",
+      "websiteUrl": "https://github.com/features/copilot",
+      "category": "third_party",
+      "icon": "github",
+      "iconColor": "#000000",
+      "oauthProvider": "github_copilot",
+      "baseUrl": "https://api.githubcopilot.com",
+      "apiFormat": "openai_chat"
+    },
+    "mode": "proxy",
+    "routes": [
+      {
+        "routeId": "claude-sonnet-5",
+        "target": {
+          "model": "claude-sonnet-5",
+          "labelOverride": "claude-sonnet-5",
+          "supports1m": false
+        }
+      },
+      {
+        "routeId": "claude-haiku-4-5",
+        "target": {
+          "model": "claude-haiku-4.5",
+          "labelOverride": "claude-haiku-4.5",
+          "supports1m": false
+        }
+      }
+    ]
+  },
+  {
+    "appId": "claude-desktop",
+    "provider": {
+      "name": "Codex",
+      "websiteUrl": "https://openai.com/chatgpt/pricing",
+      "category": "third_party",
+      "icon": "openai",
+      "iconColor": "#000000",
+      "oauthProvider": "codex_oauth",
+      "baseUrl": "https://chatgpt.com/backend-api/codex",
+      "apiFormat": "openai_responses"
+    },
+    "mode": "proxy",
+    "routes": [
+      {
+        "routeId": "claude-sonnet-5",
+        "target": {
+          "model": "gpt-5.6-sol",
+          "labelOverride": "gpt-5.6-sol",
+          "supports1m": false
+        }
+      },
+      {
+        "routeId": "claude-haiku-4-5",
+        "target": {
+          "model": "gpt-5.6-luna",
+          "labelOverride": "gpt-5.6-luna",
+          "supports1m": false
+        }
+      }
+    ]
+  },
+  {
+    "appId": "claude-desktop",
+    "provider": {
+      "name": "xAI (Grok)",
+      "websiteUrl": "https://x.ai/grok",
+      "category": "third_party",
+      "icon": "xai",
+      "iconColor": "#000000",
+      "oauthProvider": "xai_oauth",
+      "baseUrl": "https://api.x.ai/v1",
+      "apiFormat": "openai_responses"
+    },
+    "mode": "proxy",
+    "routes": [
+      {
+        "routeId": "claude-sonnet-5",
+        "target": {
+          "model": "grok-4.7",
+          "labelOverride": "grok-4.7",
+          "supports1m": false
+        }
+      }
+    ]
+  },
+  {
+    "appId": "claude-desktop",
+    "provider": {
+      "name": "OpenAI API",
+      "websiteUrl": "https://platform.openai.com",
+      "category": "cn_official",
+      "icon": "openai",
+      "iconColor": "#00A67E",
+      "baseUrl": "https://api.openai.com",
+      "endpointCandidates": [
+        "https://api.openai.com"
+      ],
+      "apiFormat": "openai_responses"
+    },
+    "mode": "proxy",
+    "routes": [
+      {
+        "routeId": "claude-sonnet-5",
+        "target": {
+          "model": "gpt-6.1-sol",
+          "labelOverride": "gpt-6.1-sol",
+          "supports1m": false
+        }
+      },
+      {
+        "routeId": "claude-haiku-4-5",
+        "target": {
+          "model": "gpt-6-luna",
+          "labelOverride": "gpt-6-luna",
+          "supports1m": false
+        }
+      }
+    ]
+  },
+  {
+    "appId": "claude-desktop",
+    "provider": {
+      "name": "DeepSeek",
+      "websiteUrl": "https://platform.deepseek.com",
+      "category": "cn_official",
+      "icon": "deepseek",
+      "iconColor": "#1E88E5",
+      "baseUrl": "https://api.deepseek.com/anthropic"
+    },
+    "mode": "proxy",
+    "routes": [
+      {
+        "routeId": "claude-sonnet-5",
+        "target": {
+          "model": "deepseek-flash",
+          "labelOverride": "deepseek-flash",
+          "supports1m": true
+        }
+      }
+    ]
+  },
+  {
+    "appId": "claude-desktop",
+    "provider": {
+      "name": "OpenCode Go",
+      "websiteUrl": "https://opencode.ai/go",
+      "category": "third_party",
+      "icon": "opencode",
+      "iconColor": "#211E1E",
+      "baseUrl": "https://opencode.ai/inference/go/anthropic",
+      "endpointCandidates": [
+        "https://opencode.ai/inference/go/anthropic"
+      ]
+    },
+    "mode": "proxy",
+    "routes": [
+      {
+        "routeId": "claude-sonnet-5",
+        "target": {
+          "model": "deepseek-v4.1-flash",
+          "labelOverride": "deepseek-v4.1-flash",
+          "supports1m": true
+        }
+      }
+    ]
+  },
+  {
+    "appId": "claude-desktop",
+    "provider": {
+      "name": "Tencent Token Plan",
+      "websiteUrl": "https://cloud.tencent.com/product/tokenhub",
+      "category": "cn_official",
+      "family": "tencent",
+      "planKey": "tokenPlan",
+      "regionKey": "cn",
+      "icon": "tencent",
+      "iconColor": "#0052D9",
+      "baseUrl": "https://api.lkeap.cloud.tencent.com/plan/anthropic",
+      "endpointCandidates": [
+        "https://api.lkeap.cloud.tencent.com/plan/anthropic"
+      ]
+    },
+    "mode": "proxy",
+    "routes": [
+      {
+        "routeId": "claude-sonnet-5",
+        "target": {
+          "model": "tc-code-latest",
+          "labelOverride": "tc-code-latest",
+          "supports1m": false
+        }
+      }
+    ]
+  },
+  {
+    "appId": "claude-desktop",
+    "provider": {
+      "name": "Tencent Token Plan (Intl)",
+      "websiteUrl": "https://www.tencentcloud.com/products/tokenhub",
+      "category": "cn_official",
+      "family": "tencent",
+      "planKey": "tokenPlan",
+      "regionKey": "intl",
+      "icon": "tencent",
+      "iconColor": "#0052D9",
+      "baseUrl": "https://tokenhub-intl.tencentcloudmaas.com/plan/anthropic",
+      "endpointCandidates": [
+        "https://tokenhub-intl.tencentcloudmaas.com/plan/anthropic"
+      ]
+    },
+    "mode": "proxy",
+    "routes": [
+      {
+        "routeId": "claude-sonnet-5",
+        "target": {
+          "model": "auto",
+          "labelOverride": "auto",
+          "supports1m": false
+        }
+      }
+    ]
+  },
+  {
+    "appId": "claude-desktop",
+    "provider": {
+      "name": "Tencent Token Plan Enterprise Pro",
+      "websiteUrl": "https://cloud.tencent.com/product/tokenhub",
+      "category": "cn_official",
+      "family": "tencent",
+      "planKey": "enterprisePro",
+      "regionKey": "cn",
+      "icon": "tencent",
+      "iconColor": "#0052D9",
+      "baseUrl": "https://tokenhub.tencentmaas.com/plan/anthropic",
+      "endpointCandidates": [
+        "https://tokenhub.tencentmaas.com/plan/anthropic",
+        "https://tokenhub-intl.tencentmaas.com/plan/anthropic"
+      ]
+    },
+    "mode": "proxy",
+    "routes": [
+      {
+        "routeId": "claude-sonnet-5",
+        "target": {
+          "model": "auto",
+          "labelOverride": "auto",
+          "supports1m": false
+        }
+      }
+    ]
+  },
+  {
+    "appId": "claude-desktop",
+    "provider": {
+      "name": "Tencent Token Plan Enterprise Pro (Intl)",
+      "websiteUrl": "https://www.tencentcloud.com/products/tokenhub",
+      "category": "cn_official",
+      "family": "tencent",
+      "planKey": "enterprisePro",
+      "regionKey": "intl",
+      "icon": "tencent",
+      "iconColor": "#0052D9",
+      "baseUrl": "https://tokenhub-intl.tencentcloudmaas.com/plan/anthropic",
+      "endpointCandidates": [
+        "https://tokenhub-intl.tencentcloudmaas.com/plan/anthropic",
+        "https://tokenhub.tencentcloudmaas.com/plan/anthropic"
+      ]
+    },
+    "mode": "proxy",
+    "routes": [
+      {
+        "routeId": "claude-sonnet-5",
+        "target": {
+          "model": "auto",
+          "labelOverride": "auto",
+          "supports1m": false
+        }
+      }
+    ]
+  },
+  {
+    "appId": "claude-desktop",
+    "provider": {
+      "name": "Tencent Token Plan Enterprise Lite",
+      "websiteUrl": "https://cloud.tencent.com/product/tokenhub",
+      "category": "cn_official",
+      "family": "tencent",
+      "planKey": "enterpriseLite",
+      "regionKey": "cn",
+      "icon": "tencent",
+      "iconColor": "#0052D9",
+      "baseUrl": "https://tokenhub.tencentmaas.com/plan/anthropic",
+      "endpointCandidates": [
+        "https://tokenhub.tencentmaas.com/plan/anthropic",
+        "https://tokenhub-intl.tencentmaas.com/plan/anthropic"
+      ]
+    },
+    "mode": "proxy",
+    "routes": [
+      {
+        "routeId": "claude-sonnet-5",
+        "target": {
+          "model": "auto",
+          "labelOverride": "auto",
+          "supports1m": false
+        }
+      }
+    ]
+  },
+  {
+    "appId": "claude-desktop",
+    "provider": {
+      "name": "Tencent Token Plan Enterprise Lite (Intl)",
+      "websiteUrl": "https://www.tencentcloud.com/products/tokenhub",
+      "category": "cn_official",
+      "family": "tencent",
+      "planKey": "enterpriseLite",
+      "regionKey": "intl",
+      "icon": "tencent",
+      "iconColor": "#0052D9",
+      "baseUrl": "https://tokenhub-intl.tencentcloudmaas.com/plan/anthropic",
+      "endpointCandidates": [
+        "https://tokenhub-intl.tencentcloudmaas.com/plan/anthropic",
+        "https://tokenhub.tencentcloudmaas.com/plan/anthropic"
+      ]
+    },
+    "mode": "proxy",
+    "routes": [
+      {
+        "routeId": "claude-sonnet-5",
+        "target": {
+          "model": "auto",
+          "labelOverride": "auto",
+          "supports1m": false
+        }
+      }
+    ]
+  },
+  {
+    "appId": "claude-desktop",
+    "provider": {
+      "name": "Zhipu GLM",
+      "websiteUrl": "https://open.bigmodel.cn",
+      "category": "cn_official",
+      "family": "zhipu",
+      "regionKey": "cn",
+      "icon": "zhipu",
+      "iconColor": "#0F62FE",
+      "baseUrl": "https://open.bigmodel.cn/api/anthropic"
+    },
+    "mode": "proxy",
+    "routes": [
+      {
+        "routeId": "claude-sonnet-5",
+        "target": {
+          "model": "glm-5.3",
+          "labelOverride": "glm-5.3",
+          "supports1m": true
+        }
+      }
+    ]
+  },
+  {
+    "appId": "claude-desktop",
+    "provider": {
+      "name": "Zhipu GLM en",
+      "websiteUrl": "https://z.ai",
+      "category": "cn_official",
+      "family": "zhipu",
+      "regionKey": "intl",
+      "icon": "zhipu",
+      "iconColor": "#0F62FE",
+      "baseUrl": "https://api.z.ai/api/anthropic"
+    },
+    "mode": "proxy",
+    "routes": [
+      {
+        "routeId": "claude-sonnet-5",
+        "target": {
+          "model": "glm-5.3",
+          "labelOverride": "glm-5.3",
+          "supports1m": true
+        }
+      }
+    ]
+  },
+  {
+    "appId": "claude-desktop",
+    "provider": {
+      "name": "Baidu Qianfan Coding Plan",
+      "websiteUrl": "https://cloud.baidu.com/product/qianfan_modelbuilder",
+      "category": "cn_official",
+      "family": "baidu-qianfan",
+      "planKey": "codingPlan",
+      "icon": "baidu",
+      "iconColor": "#2932E1",
+      "baseUrl": "https://qianfan.baidubce.com/anthropic/coding",
+      "endpointCandidates": [
+        "https://qianfan.baidubce.com/anthropic/coding"
+      ]
+    },
+    "mode": "proxy",
+    "routes": [
+      {
+        "routeId": "claude-sonnet-5",
+        "target": {
+          "model": "qianfan-code-latest",
+          "labelOverride": "qianfan-code-latest",
+          "supports1m": false
+        }
+      }
+    ]
+  },
+  {
+    "appId": "claude-desktop",
+    "provider": {
+      "name": "Baidu Qianfan Token Plan",
+      "websiteUrl": "https://cloud.baidu.com/product/codingplan.html",
+      "category": "cn_official",
+      "family": "baidu-qianfan",
+      "planKey": "tokenPlan",
+      "icon": "baidu",
+      "iconColor": "#2932E1",
+      "baseUrl": "https://qianfan.baidubce.com/anthropic/tokenplan/personal",
+      "endpointCandidates": [
+        "https://qianfan.baidubce.com/anthropic/tokenplan/personal"
+      ]
+    },
+    "mode": "proxy",
+    "routes": [
+      {
+        "routeId": "claude-sonnet-5",
+        "target": {
+          "model": "deepseek-v4-flash",
+          "labelOverride": "deepseek-v4-flash",
+          "supports1m": true
+        }
+      }
+    ]
+  },
+  {
+    "appId": "claude-desktop",
+    "provider": {
+      "name": "千问AI平台",
+      "websiteUrl": "https://platform.qianwenai.com/",
+      "category": "cn_official",
+      "family": "qianwen",
+      "planKey": "payg",
+      "icon": "qianwenai",
+      "iconColor": "#624AFF",
+      "baseUrl": "https://maas.qianwenaiapi.com/apps/anthropic",
+      "endpointCandidates": [
+        "https://maas.qianwenaiapi.com/apps/anthropic",
+        "https://dashscope.aliyuncs.com/apps/anthropic"
+      ]
+    },
+    "mode": "proxy",
+    "routes": [
+      {
+        "routeId": "claude-sonnet-5",
+        "target": {
+          "model": "qwen3.7-plus",
+          "labelOverride": "qwen3.7-plus",
+          "supports1m": true
+        }
+      },
+      {
+        "routeId": "claude-opus-5",
+        "target": {
+          "model": "qwen3.8-max",
+          "labelOverride": "qwen3.8-max",
+          "supports1m": true
+        }
+      },
+      {
+        "routeId": "claude-haiku-4-5",
+        "target": {
+          "model": "qwen3.8-flash",
+          "labelOverride": "qwen3.8-flash",
+          "supports1m": true
+        }
+      }
+    ]
+  },
+  {
+    "appId": "claude-desktop",
+    "provider": {
+      "name": "千问AI平台 Coding Plan",
+      "websiteUrl": "https://bailian.console.aliyun.com",
+      "category": "cn_official",
+      "family": "qianwen",
+      "planKey": "codingPlan",
+      "icon": "qianwenai",
+      "iconColor": "#624AFF",
+      "baseUrl": "https://coding.dashscope.aliyuncs.com/apps/anthropic"
+    },
+    "mode": "proxy",
+    "routes": [
+      {
+        "routeId": "claude-sonnet-5",
+        "target": {
+          "model": "claude-sonnet-5",
+          "supports1m": false
+        }
+      },
+      {
+        "routeId": "claude-opus-5",
+        "target": {
+          "model": "claude-opus-5",
+          "supports1m": false
+        }
+      },
+      {
+        "routeId": "claude-haiku-4-5",
+        "target": {
+          "model": "claude-haiku-4-5",
+          "supports1m": false
+        }
+      }
+    ]
+  },
+  {
+    "appId": "claude-desktop",
+    "provider": {
+      "name": "千问AI平台 Token Plan",
+      "websiteUrl": "https://platform.qianwenai.com/pricing/token-plan",
+      "category": "cn_official",
+      "family": "qianwen",
+      "planKey": "tokenPlan",
+      "icon": "qianwenai",
+      "iconColor": "#624AFF",
+      "baseUrl": "https://token-plan.maas.qianwenaiapi.com/apps/anthropic",
+      "endpointCandidates": [
+        "https://token-plan.maas.qianwenaiapi.com/apps/anthropic",
+        "https://token-plan.cn-beijing.maas.aliyuncs.com/apps/anthropic"
+      ]
+    },
+    "mode": "proxy",
+    "routes": [
+      {
+        "routeId": "claude-sonnet-5",
+        "target": {
+          "model": "qwen3.7-plus",
+          "labelOverride": "qwen3.7-plus",
+          "supports1m": true
+        }
+      },
+      {
+        "routeId": "claude-opus-5",
+        "target": {
+          "model": "qwen3.8-max",
+          "labelOverride": "qwen3.8-max",
+          "supports1m": true
+        }
+      },
+      {
+        "routeId": "claude-haiku-4-5",
+        "target": {
+          "model": "qwen3.8-flash",
+          "labelOverride": "qwen3.8-flash",
+          "supports1m": true
+        }
+      }
+    ]
+  },
+  {
+    "appId": "claude-desktop",
+    "provider": {
+      "name": "QwenCloud",
+      "websiteUrl": "https://home.qwencloud.com/",
+      "category": "cn_official",
+      "family": "qwencloud",
+      "planKey": "payg",
+      "icon": "qwencloud",
+      "iconColor": "#6336E7",
+      "baseUrl": "https://ap-southeast-1.maas.qwencloudapi.com/apps/anthropic",
+      "endpointCandidates": [
+        "https://ap-southeast-1.maas.qwencloudapi.com/apps/anthropic",
+        "https://dashscope-intl.aliyuncs.com/apps/anthropic"
+      ]
+    },
+    "mode": "proxy",
+    "routes": [
+      {
+        "routeId": "claude-sonnet-5",
+        "target": {
+          "model": "qwen3.7-plus",
+          "labelOverride": "qwen3.7-plus",
+          "supports1m": true
+        }
+      },
+      {
+        "routeId": "claude-opus-5",
+        "target": {
+          "model": "qwen3.8-max",
+          "labelOverride": "qwen3.8-max",
+          "supports1m": true
+        }
+      },
+      {
+        "routeId": "claude-haiku-4-5",
+        "target": {
+          "model": "qwen3.8-flash",
+          "labelOverride": "qwen3.8-flash",
+          "supports1m": true
+        }
+      }
+    ]
+  },
+  {
+    "appId": "claude-desktop",
+    "provider": {
+      "name": "QwenCloud For Coding",
+      "websiteUrl": "https://www.qwencloud.com",
+      "category": "cn_official",
+      "family": "qwencloud",
+      "planKey": "coding",
+      "icon": "qwencloud",
+      "iconColor": "#6336E7",
+      "baseUrl": "https://coding-intl.dashscope.aliyuncs.com/apps/anthropic"
+    },
+    "mode": "proxy",
+    "routes": [
+      {
+        "routeId": "claude-sonnet-5",
+        "target": {
+          "model": "qwen3.7-plus",
+          "labelOverride": "qwen3.7-plus",
+          "supports1m": true
+        }
+      }
+    ]
+  },
+  {
+    "appId": "claude-desktop",
+    "provider": {
+      "name": "QwenCloud Token Plan",
+      "websiteUrl": "https://www.qwencloud.com/pricing/token-plan",
+      "category": "cn_official",
+      "family": "qwencloud",
+      "planKey": "tokenPlan",
+      "icon": "qwencloud",
+      "iconColor": "#6336E7",
+      "baseUrl": "https://token-plan.maas.qwencloudapi.com/apps/anthropic",
+      "endpointCandidates": [
+        "https://token-plan.maas.qwencloudapi.com/apps/anthropic",
+        "https://token-plan.ap-southeast-1.maas.aliyuncs.com/apps/anthropic"
+      ]
+    },
+    "mode": "proxy",
+    "routes": [
+      {
+        "routeId": "claude-sonnet-5",
+        "target": {
+          "model": "qwen3.7-plus",
+          "labelOverride": "qwen3.7-plus",
+          "supports1m": true
+        }
+      },
+      {
+        "routeId": "claude-opus-5",
+        "target": {
+          "model": "qwen3.8-max",
+          "labelOverride": "qwen3.8-max",
+          "supports1m": true
+        }
+      },
+      {
+        "routeId": "claude-haiku-4-5",
+        "target": {
+          "model": "qwen3.8-flash",
+          "labelOverride": "qwen3.8-flash",
+          "supports1m": true
+        }
+      }
+    ]
+  },
+  {
+    "appId": "claude-desktop",
+    "provider": {
+      "name": "StepFun",
+      "websiteUrl": "https://platform.stepfun.com/step-plan",
+      "category": "cn_official",
+      "family": "stepfun",
+      "regionKey": "cn",
+      "icon": "stepfun",
+      "iconColor": "#16D6D2",
+      "baseUrl": "https://api.stepfun.com/step_plan",
+      "endpointCandidates": [
+        "https://api.stepfun.com/step_plan"
+      ]
+    },
+    "mode": "proxy",
+    "routes": [
+      {
+        "routeId": "claude-sonnet-5",
+        "target": {
+          "model": "step-5-preview",
+          "labelOverride": "step-5-preview",
+          "supports1m": false
+        }
+      }
+    ]
+  },
+  {
+    "appId": "claude-desktop",
+    "provider": {
+      "name": "StepFun en",
+      "websiteUrl": "https://platform.stepfun.ai/step-plan",
+      "category": "cn_official",
+      "family": "stepfun",
+      "regionKey": "intl",
+      "icon": "stepfun",
+      "iconColor": "#16D6D2",
+      "baseUrl": "https://api.stepfun.ai/step_plan",
+      "endpointCandidates": [
+        "https://api.stepfun.ai/step_plan"
+      ]
+    },
+    "mode": "proxy",
+    "routes": [
+      {
+        "routeId": "claude-sonnet-5",
+        "target": {
+          "model": "step-3.5-flash-2603",
+          "labelOverride": "step-3.5-flash-2603",
+          "supports1m": false
+        }
+      }
+    ]
+  },
+  {
+    "appId": "claude-desktop",
+    "provider": {
+      "name": "ModelScope",
+      "websiteUrl": "https://modelscope.cn",
+      "category": "aggregator",
+      "icon": "modelscope",
+      "iconColor": "#624AFF",
+      "baseUrl": "https://api-inference.modelscope.cn"
+    },
+    "mode": "proxy",
+    "routes": [
+      {
+        "routeId": "claude-sonnet-5",
+        "target": {
+          "model": "ZhipuAI/GLM-5.2",
+          "labelOverride": "ZhipuAI/GLM-5.2",
+          "supports1m": true
+        }
+      }
+    ]
+  },
+  {
+    "appId": "claude-desktop",
+    "provider": {
+      "name": "Longcat",
+      "websiteUrl": "https://longcat.chat/platform",
+      "category": "cn_official",
+      "icon": "longcat",
+      "iconColor": "#29E154",
+      "baseUrl": "https://api.longcat.chat/anthropic"
+    },
+    "mode": "proxy",
+    "routes": [
+      {
+        "routeId": "claude-sonnet-5",
+        "target": {
+          "model": "LongCat-2.0",
+          "labelOverride": "LongCat-2.0",
+          "supports1m": true
+        }
+      }
+    ]
+  },
+  {
+    "appId": "claude-desktop",
+    "provider": {
+      "name": "MiniMax",
+      "websiteUrl": "https://platform.minimax.cn",
+      "category": "cn_official",
+      "family": "minimax",
+      "regionKey": "cn",
+      "icon": "minimax",
+      "iconColor": "#FF6B6B",
+      "baseUrl": "https://api.minimax.cn/anthropic"
+    },
+    "mode": "proxy",
+    "routes": [
+      {
+        "routeId": "claude-sonnet-5",
+        "target": {
+          "model": "MiniMax-M3.1-Flash",
+          "labelOverride": "MiniMax-M3.1-Flash",
+          "supports1m": true
+        }
+      },
+      {
+        "routeId": "claude-fable-5",
+        "target": {
+          "model": "MiniMax-M3",
+          "labelOverride": "MiniMax-M3",
+          "supports1m": true
+        }
+      }
+    ]
+  },
+  {
+    "appId": "claude-desktop",
+    "provider": {
+      "name": "MiniMax en",
+      "websiteUrl": "https://platform.minimax.io",
+      "category": "cn_official",
+      "family": "minimax",
+      "regionKey": "intl",
+      "icon": "minimax",
+      "iconColor": "#FF6B6B",
+      "baseUrl": "https://api.minimax.io/anthropic"
+    },
+    "mode": "proxy",
+    "routes": [
+      {
+        "routeId": "claude-sonnet-5",
+        "target": {
+          "model": "MiniMax-M3.1-Flash",
+          "labelOverride": "MiniMax-M3.1-Flash",
+          "supports1m": true
+        }
+      },
+      {
+        "routeId": "claude-fable-5",
+        "target": {
+          "model": "MiniMax-M3",
+          "labelOverride": "MiniMax-M3",
+          "supports1m": true
+        }
+      }
+    ]
+  },
+  {
+    "appId": "claude-desktop",
+    "provider": {
+      "name": "BaiLing",
+      "websiteUrl": "https://developer.ant-ling.com/zh-CN/docs/",
+      "category": "cn_official",
+      "icon": "bailing",
+      "baseUrl": "https://api.ant-ling.com/anthropic"
+    },
+    "mode": "proxy",
+    "routes": [
+      {
+        "routeId": "claude-sonnet-5",
+        "target": {
+          "model": "Ling-2.6-1T",
+          "labelOverride": "Ling-2.6-1T",
+          "supports1m": false
+        }
+      }
+    ]
+  },
+  {
+    "appId": "claude-desktop",
+    "provider": {
+      "name": "AiHubMix",
+      "websiteUrl": "https://aihubmix.com",
+      "category": "aggregator",
+      "icon": "aihubmix",
+      "iconColor": "#006FFB",
+      "baseUrl": "https://aihubmix.com",
+      "endpointCandidates": [
+        "https://aihubmix.com",
+        "https://api.aihubmix.com"
+      ],
+      "apiKeyHeader": true
+    },
+    "mode": "direct",
+    "routes": [
+      {
+        "routeId": "claude-sonnet-5",
+        "target": {
+          "model": "claude-sonnet-5",
+          "supports1m": true
+        }
+      },
+      {
+        "routeId": "claude-opus-5",
+        "target": {
+          "model": "claude-opus-5",
+          "supports1m": true
+        }
+      },
+      {
+        "routeId": "claude-haiku-4-5",
+        "target": {
+          "model": "claude-haiku-4-5",
+          "supports1m": false
+        }
+      }
+    ]
+  },
+  {
+    "appId": "claude-desktop",
+    "provider": {
+      "name": "CherryIN",
+      "websiteUrl": "https://open.cherryin.ai",
+      "category": "aggregator",
+      "icon": "cherryin",
+      "baseUrl": "https://open.cherryin.net",
+      "endpointCandidates": [
+        "https://open.cherryin.net"
+      ]
+    },
+    "mode": "direct",
+    "routes": [
+      {
+        "routeId": "claude-sonnet-5",
+        "target": {
+          "model": "anthropic/claude-sonnet-5.5",
+          "supports1m": true
+        }
+      },
+      {
+        "routeId": "claude-opus-5",
+        "target": {
+          "model": "anthropic/claude-opus-5.5",
+          "supports1m": true
+        }
+      },
+      {
+        "routeId": "claude-haiku-4-5",
+        "target": {
+          "model": "anthropic/claude-haiku-5.5",
+          "supports1m": true
+        }
+      }
+    ]
+  },
+  {
+    "appId": "claude-desktop",
+    "provider": {
+      "name": "RelaxyCode",
+      "websiteUrl": "https://www.relaxycode.com",
+      "category": "third_party",
+      "icon": "relaxcode",
+      "baseUrl": "https://www.relaxycode.com"
+    },
+    "mode": "direct",
+    "routes": [
+      {
+        "routeId": "claude-sonnet-5",
+        "target": {
+          "model": "claude-sonnet-5",
+          "supports1m": true
+        }
+      },
+      {
+        "routeId": "claude-opus-5",
+        "target": {
+          "model": "claude-opus-5",
+          "supports1m": true
+        }
+      },
+      {
+        "routeId": "claude-haiku-4-5",
+        "target": {
+          "model": "claude-haiku-4-5",
+          "supports1m": false
+        }
+      }
+    ]
+  },
+  {
+    "appId": "claude-desktop",
+    "provider": {
+      "name": "E-FlowCode",
+      "websiteUrl": "https://e-flowcode.cc",
+      "category": "third_party",
+      "icon": "eflowcode",
+      "iconColor": "#000000",
+      "baseUrl": "https://e-flowcode.cc",
+      "endpointCandidates": [
+        "https://e-flowcode.cc"
+      ]
+    },
+    "mode": "direct",
+    "routes": [
+      {
+        "routeId": "claude-sonnet-5",
+        "target": {
+          "model": "claude-sonnet-5",
+          "supports1m": true
+        }
+      },
+      {
+        "routeId": "claude-opus-5",
+        "target": {
+          "model": "claude-opus-5",
+          "supports1m": true
+        }
+      },
+      {
+        "routeId": "claude-haiku-4-5",
+        "target": {
+          "model": "claude-haiku-4-5",
+          "supports1m": false
+        }
+      }
+    ]
+  },
+  {
+    "appId": "claude-desktop",
+    "provider": {
+      "name": "OpenRouter",
+      "websiteUrl": "https://openrouter.ai",
+      "category": "aggregator",
+      "icon": "openrouter",
+      "iconColor": "#6566F1",
+      "baseUrl": "https://openrouter.ai/api"
+    },
+    "mode": "proxy",
+    "routes": [
+      {
+        "routeId": "claude-sonnet-5",
+        "target": {
+          "model": "anthropic/claude-sonnet-5.5",
+          "supports1m": true
+        }
+      },
+      {
+        "routeId": "claude-opus-5",
+        "target": {
+          "model": "anthropic/claude-opus-5.5",
+          "supports1m": true
+        }
+      },
+      {
+        "routeId": "claude-haiku-4-5",
+        "target": {
+          "model": "anthropic/claude-haiku-5.5",
+          "supports1m": true
+        }
+      }
+    ]
+  },
+  {
+    "appId": "claude-desktop",
+    "provider": {
+      "name": "TheRouter",
+      "websiteUrl": "https://therouter.ai",
+      "category": "aggregator",
+      "icon": "therouter",
+      "baseUrl": "https://api.therouter.ai",
+      "endpointCandidates": [
+        "https://api.therouter.ai"
+      ]
+    },
+    "mode": "proxy",
+    "routes": [
+      {
+        "routeId": "claude-sonnet-5",
+        "target": {
+          "model": "anthropic/claude-sonnet-5-5",
+          "supports1m": true
+        }
+      },
+      {
+        "routeId": "claude-opus-5",
+        "target": {
+          "model": "anthropic/claude-opus-5-5",
+          "supports1m": true
+        }
+      },
+      {
+        "routeId": "claude-haiku-4-5",
+        "target": {
+          "model": "anthropic/claude-haiku-5-5",
+          "supports1m": true
+        }
+      }
+    ]
+  },
+  {
+    "appId": "claude-desktop",
+    "provider": {
+      "name": "Baseten",
+      "websiteUrl": "https://www.baseten.co",
+      "category": "aggregator",
+      "icon": "baseten",
+      "baseUrl": "https://inference.baseten.co",
+      "endpointCandidates": [
+        "https://inference.baseten.co"
+      ]
+    },
+    "mode": "proxy",
+    "routes": [
+      {
+        "routeId": "claude-sonnet-5",
+        "target": {
+          "model": "zai-org/GLM-5.3",
+          "labelOverride": "zai-org/GLM-5.3",
+          "supports1m": true
+        }
+      },
+      {
+        "routeId": "claude-opus-5",
+        "target": {
+          "model": "moonshotai/Kimi-K3",
+          "labelOverride": "moonshotai/Kimi-K3",
+          "supports1m": true
+        }
+      },
+      {
+        "routeId": "claude-haiku-4-5",
+        "target": {
+          "model": "zai-org/GLM-5.3-Flash",
+          "labelOverride": "zai-org/GLM-5.3-Flash",
+          "supports1m": true
+        }
+      }
+    ]
+  },
+  {
+    "appId": "claude-desktop",
+    "provider": {
+      "name": "Novita AI",
+      "websiteUrl": "https://novita.ai",
+      "category": "aggregator",
+      "icon": "novita",
+      "iconColor": "#000000",
+      "baseUrl": "https://api.novita.ai/anthropic",
+      "endpointCandidates": [
+        "https://api.novita.ai/anthropic"
+      ]
+    },
+    "mode": "proxy",
+    "routes": [
+      {
+        "routeId": "claude-sonnet-5",
+        "target": {
+          "model": "zai-org/glm-5.3",
+          "labelOverride": "zai-org/glm-5.3",
+          "supports1m": false
+        }
+      },
+      {
+        "routeId": "claude-haiku-4-5",
+        "target": {
+          "model": "zai-org/glm-5.3-flash",
+          "labelOverride": "zai-org/glm-5.3-flash",
+          "supports1m": false
+        }
+      }
+    ]
+  },
+  {
+    "appId": "claude-desktop",
+    "provider": {
+      "name": "Ollama Cloud",
+      "websiteUrl": "https://ollama.com",
+      "category": "cloud_provider",
+      "icon": "ollama",
+      "baseUrl": "https://ollama.com",
+      "endpointCandidates": [
+        "https://ollama.com"
+      ]
+    },
+    "mode": "proxy",
+    "routes": [
+      {
+        "routeId": "claude-sonnet-5",
+        "target": {
+          "model": "glm-5.3",
+          "labelOverride": "glm-5.3",
+          "supports1m": true
+        }
+      },
+      {
+        "routeId": "claude-opus-5",
+        "target": {
+          "model": "kimi-k3",
+          "labelOverride": "kimi-k3",
+          "supports1m": true
+        }
+      },
+      {
+        "routeId": "claude-haiku-4-5",
+        "target": {
+          "model": "glm-5.3-flash",
+          "labelOverride": "glm-5.3-flash",
+          "supports1m": true
+        }
+      }
+    ]
+  },
+  {
+    "appId": "claude-desktop",
+    "provider": {
+      "name": "Ollama",
+      "websiteUrl": "https://ollama.com",
+      "category": "local",
+      "icon": "ollama",
+      "baseUrl": "http://localhost:11434",
+      "endpointCandidates": [
+        "http://localhost:11434",
+        "http://127.0.0.1:11434"
+      ]
+    },
+    "mode": "proxy",
+    "routes": [
+      {
+        "routeId": "claude-sonnet-5",
+        "target": {
+          "model": "qwen3.5",
+          "labelOverride": "qwen3.5",
+          "supports1m": false
+        }
+      }
+    ]
+  },
+  {
+    "appId": "claude-desktop",
+    "provider": {
+      "name": "LM Studio",
+      "websiteUrl": "https://lmstudio.ai",
+      "category": "local",
+      "icon": "lmstudio",
+      "baseUrl": "http://localhost:1234",
+      "endpointCandidates": [
+        "http://localhost:1234",
+        "http://127.0.0.1:1234"
+      ]
+    },
+    "mode": "proxy",
+    "routes": [
+      {
+        "routeId": "claude-sonnet-5",
+        "target": {
+          "model": "openai/gpt-oss-20b",
+          "labelOverride": "openai/gpt-oss-20b",
+          "supports1m": false
+        }
+      }
+    ]
+  },
+  {
+    "appId": "claude-desktop",
+    "provider": {
+      "name": "llama.cpp",
+      "websiteUrl": "https://github.com/ggml-org/llama.cpp",
+      "category": "local",
+      "icon": "llamacpp",
+      "baseUrl": "http://127.0.0.1:9931",
+      "endpointCandidates": [
+        "http://127.0.0.1:9931",
+        "http://127.0.0.1:8080"
+      ]
+    },
+    "mode": "proxy",
+    "routes": [
+      {
+        "routeId": "claude-sonnet-5",
+        "target": {
+          "model": "ggml-org/Qwen3-Coder-30B-A3B-Instruct-Q8_0-GGUF",
+          "labelOverride": "ggml-org/Qwen3-Coder-30B-A3B-Instruct-Q8_0-GGUF",
+          "supports1m": false
+        }
+      }
+    ]
+  },
+  {
+    "appId": "claude-desktop",
+    "provider": {
+      "name": "vLLM",
+      "websiteUrl": "https://vllm.ai",
+      "category": "local",
+      "icon": "vllm",
+      "baseUrl": "http://localhost:8000",
+      "endpointCandidates": [
+        "http://localhost:8000",
+        "http://127.0.0.1:8000"
+      ]
+    },
+    "mode": "proxy",
+    "routes": [
+      {
+        "routeId": "claude-sonnet-5",
+        "target": {
+          "model": "Qwen/Qwen3.6-27B",
+          "labelOverride": "Qwen/Qwen3.6-27B",
+          "supports1m": false
+        }
+      }
+    ]
+  },
+  {
+    "appId": "claude-desktop",
+    "provider": {
+      "name": "Meta Model API",
+      "websiteUrl": "https://dev.meta.ai",
+      "category": "cn_official",
+      "icon": "meta",
+      "baseUrl": "https://api.meta.ai",
+      "endpointCandidates": [
+        "https://api.meta.ai"
+      ]
+    },
+    "mode": "proxy",
+    "routes": [
+      {
+        "routeId": "claude-sonnet-5",
+        "target": {
+          "model": "muse-spark-1.3",
+          "labelOverride": "muse-spark-1.3",
+          "supports1m": true
+        }
+      },
+      {
+        "routeId": "claude-opus-5",
+        "target": {
+          "model": "muse-wonder-1.0",
+          "labelOverride": "muse-wonder-1.0",
+          "supports1m": true
+        }
+      }
+    ]
+  },
+  {
+    "appId": "claude-desktop",
+    "provider": {
+      "name": "DeepInfra",
+      "websiteUrl": "https://deepinfra.com",
+      "category": "aggregator",
+      "icon": "deepinfra",
+      "baseUrl": "https://api.deepinfra.com/anthropic",
+      "endpointCandidates": [
+        "https://api.deepinfra.com/anthropic"
+      ]
+    },
+    "mode": "proxy",
+    "routes": [
+      {
+        "routeId": "claude-sonnet-5",
+        "target": {
+          "model": "deepseek-ai/DeepSeek-V4.1-Flash-1017",
+          "labelOverride": "deepseek-ai/DeepSeek-V4.1-Flash-1017",
+          "supports1m": true
+        }
+      },
+      {
+        "routeId": "claude-haiku-4-5",
+        "target": {
+          "model": "inclusionAI/Ling-3.0-flash",
+          "labelOverride": "inclusionAI/Ling-3.0-flash",
+          "supports1m": false
+        }
+      }
+    ]
+  },
+  {
+    "appId": "claude-desktop",
+    "provider": {
+      "name": "Vercel AI Gateway",
+      "websiteUrl": "https://vercel.com/ai-gateway",
+      "category": "aggregator",
+      "icon": "vercel",
+      "baseUrl": "https://ai-gateway.vercel.sh/claude-code",
+      "endpointCandidates": [
+        "https://ai-gateway.vercel.sh/claude-code"
+      ]
+    },
+    "mode": "proxy",
+    "routes": [
+      {
+        "routeId": "claude-sonnet-5",
+        "target": {
+          "model": "anthropic/claude-sonnet-5.5",
+          "supports1m": true
+        }
+      },
+      {
+        "routeId": "claude-opus-5",
+        "target": {
+          "model": "anthropic/claude-opus-5.5",
+          "supports1m": true
+        }
+      },
+      {
+        "routeId": "claude-haiku-4-5",
+        "target": {
+          "model": "anthropic/claude-haiku-5.5",
+          "supports1m": true
+        }
+      }
+    ]
+  },
+  {
+    "appId": "claude-desktop",
+    "provider": {
+      "name": "Nebius Token Factory",
+      "websiteUrl": "https://nebius.com/token-factory",
+      "category": "aggregator",
+      "icon": "nebius",
+      "baseUrl": "https://api.tokenfactory.nebius.com",
+      "endpointCandidates": [
+        "https://api.tokenfactory.nebius.com"
+      ],
+      "apiFormat": "openai_chat"
+    },
+    "mode": "proxy",
+    "routes": [
+      {
+        "routeId": "claude-sonnet-5",
+        "target": {
+          "model": "zai-org/GLM-5.3",
+          "labelOverride": "zai-org/GLM-5.3",
+          "supports1m": true
+        }
+      },
+      {
+        "routeId": "claude-haiku-4-5",
+        "target": {
+          "model": "zai-org/GLM-5.3-Flash",
+          "labelOverride": "zai-org/GLM-5.3-Flash",
+          "supports1m": true
+        }
+      }
+    ]
+  },
+  {
+    "appId": "claude-desktop",
+    "provider": {
+      "name": "ClinePass",
+      "websiteUrl": "https://docs.cline.bot/getting-started/clinepass",
+      "category": "third_party",
+      "icon": "cline",
+      "baseUrl": "https://api.cline.bot/api/v1",
+      "endpointCandidates": [
+        "https://api.cline.bot/api/v1"
+      ],
+      "apiFormat": "openai_chat"
+    },
+    "mode": "proxy",
+    "routes": [
+      {
+        "routeId": "claude-sonnet-5",
+        "target": {
+          "model": "cline-pass/kimi-k3.1-pro",
+          "labelOverride": "cline-pass/kimi-k3.1-pro",
+          "supports1m": true
+        }
+      },
+      {
+        "routeId": "claude-haiku-4-5",
+        "target": {
+          "model": "cline-pass/glm-5.3-flash",
+          "labelOverride": "cline-pass/glm-5.3-flash",
+          "supports1m": true
+        }
+      }
+    ]
+  },
+  {
+    "appId": "claude-desktop",
+    "provider": {
+      "name": "Groq",
+      "websiteUrl": "https://groq.com",
+      "category": "aggregator",
+      "icon": "groq",
+      "baseUrl": "https://api.groq.com/openai/v1",
+      "endpointCandidates": [
+        "https://api.groq.com/openai/v1"
+      ],
+      "apiFormat": "openai_chat"
+    },
+    "mode": "proxy",
+    "routes": [
+      {
+        "routeId": "claude-sonnet-5",
+        "target": {
+          "model": "openai/gpt-oss-120b",
+          "labelOverride": "openai/gpt-oss-120b",
+          "supports1m": false
+        }
+      },
+      {
+        "routeId": "claude-haiku-4-5",
+        "target": {
+          "model": "openai/gpt-oss-20b",
+          "labelOverride": "openai/gpt-oss-20b",
+          "supports1m": false
+        }
+      }
+    ]
+  },
+  {
+    "appId": "claude-desktop",
+    "provider": {
+      "name": "SambaNova",
+      "websiteUrl": "https://sambanova.ai",
+      "category": "cloud_provider",
+      "icon": "sambanova",
+      "baseUrl": "https://api.sambanova.ai",
+      "endpointCandidates": [
+        "https://api.sambanova.ai"
+      ]
+    },
+    "mode": "proxy",
+    "routes": [
+      {
+        "routeId": "claude-sonnet-5",
+        "target": {
+          "model": "MiniMax-M3",
+          "labelOverride": "MiniMax-M3",
+          "supports1m": true
+        }
+      }
+    ]
+  },
+  {
+    "appId": "claude-desktop",
+    "provider": {
+      "name": "DigitalOcean",
+      "websiteUrl": "https://www.digitalocean.com/products/ai-platform",
+      "category": "cloud_provider",
+      "icon": "digitalocean",
+      "baseUrl": "https://inference.do-ai.run",
+      "endpointCandidates": [
+        "https://inference.do-ai.run"
+      ]
+    },
+    "mode": "direct",
+    "routes": [
+      {
+        "routeId": "claude-sonnet-5",
+        "target": {
+          "model": "claude-sonnet-5",
+          "supports1m": true
+        }
+      },
+      {
+        "routeId": "claude-opus-5",
+        "target": {
+          "model": "claude-opus-5",
+          "supports1m": true
+        }
+      },
+      {
+        "routeId": "claude-haiku-4-5",
+        "target": {
+          "model": "claude-haiku-4-5",
+          "supports1m": false
+        }
+      }
+    ]
+  },
+  {
+    "appId": "claude-desktop",
+    "provider": {
+      "name": "Hugging Face",
+      "websiteUrl": "https://huggingface.co/inference/models",
+      "category": "aggregator",
+      "icon": "huggingface",
+      "baseUrl": "https://router.huggingface.co",
+      "endpointCandidates": [
+        "https://router.huggingface.co"
+      ]
+    },
+    "mode": "proxy",
+    "routes": [
+      {
+        "routeId": "claude-sonnet-5",
+        "target": {
+          "model": "zai-org/GLM-5.3:baseten",
+          "labelOverride": "zai-org/GLM-5.3:baseten",
+          "supports1m": true
+        }
+      },
+      {
+        "routeId": "claude-haiku-4-5",
+        "target": {
+          "model": "zai-org/GLM-5.3-Flash:baseten",
+          "labelOverride": "zai-org/GLM-5.3-Flash:baseten",
+          "supports1m": true
+        }
+      }
+    ]
+  },
+  {
+    "appId": "claude-desktop",
+    "provider": {
+      "name": "Microsoft Foundry",
+      "websiteUrl": "https://azure.microsoft.com/en-us/products/ai-foundry",
+      "category": "cloud_provider",
+      "icon": "azure",
+      "iconColor": "#0078D4",
+      "baseUrl": "https://YOUR_RESOURCE_NAME.services.ai.azure.com/anthropic",
+      "apiKeyHeader": true
+    },
+    "mode": "proxy",
+    "routes": [
+      {
+        "routeId": "claude-sonnet-5",
+        "target": {
+          "model": "claude-sonnet-5-5",
+          "supports1m": true
+        }
+      },
+      {
+        "routeId": "claude-opus-5",
+        "target": {
+          "model": "claude-opus-5-5",
+          "supports1m": true
+        }
+      },
+      {
+        "routeId": "claude-haiku-4-5",
+        "target": {
+          "model": "claude-haiku-5-5",
+          "supports1m": true
+        }
+      }
+    ]
+  },
+  {
+    "appId": "claude-desktop",
+    "provider": {
+      "name": "Fireworks AI",
+      "websiteUrl": "https://fireworks.ai",
+      "category": "cloud_provider",
+      "icon": "fireworks",
+      "baseUrl": "https://api.fireworks.ai/inference",
+      "endpointCandidates": [
+        "https://api.fireworks.ai/inference"
+      ]
+    },
+    "mode": "proxy",
+    "routes": [
+      {
+        "routeId": "claude-sonnet-5",
+        "target": {
+          "model": "accounts/fireworks/models/glm-5p3",
+          "labelOverride": "accounts/fireworks/models/glm-5p3",
+          "supports1m": true
+        }
+      },
+      {
+        "routeId": "claude-opus-5",
+        "target": {
+          "model": "accounts/fireworks/models/kimi-k3",
+          "labelOverride": "accounts/fireworks/models/kimi-k3",
+          "supports1m": true
+        }
+      },
+      {
+        "routeId": "claude-haiku-4-5",
+        "target": {
+          "model": "accounts/fireworks/models/deepseek-v4p1-flash",
+          "labelOverride": "accounts/fireworks/models/deepseek-v4p1-flash",
+          "supports1m": true
+        }
+      }
+    ]
+  },
+  {
+    "appId": "claude-desktop",
+    "provider": {
+      "name": "Mistral AI",
+      "websiteUrl": "https://mistral.ai",
+      "category": "cn_official",
+      "icon": "mistral",
+      "hidden": true,
+      "baseUrl": "https://api.mistral.ai",
+      "endpointCandidates": [
+        "https://api.mistral.ai"
+      ],
+      "apiFormat": "openai_chat"
+    },
+    "mode": "proxy",
+    "routes": [
+      {
+        "routeId": "claude-sonnet-5",
+        "target": {
+          "model": "mistral-medium-3-5",
+          "labelOverride": "mistral-medium-3-5",
+          "supports1m": false
+        }
+      },
+      {
+        "routeId": "claude-haiku-4-5",
+        "target": {
+          "model": "mistral-small-2603",
+          "labelOverride": "mistral-small-2603",
+          "supports1m": false
+        }
+      }
+    ]
+  },
+  {
+    "appId": "claude-desktop",
+    "provider": {
+      "name": "Cloudflare AI Gateway",
+      "websiteUrl": "https://developers.cloudflare.com/ai-gateway/",
+      "category": "cloud_provider",
+      "icon": "cloudflare",
+      "baseUrl": "https://gateway.ai.cloudflare.com/v1/YOUR_ACCOUNT_ID/default/anthropic"
+    },
+    "mode": "direct",
+    "routes": [
+      {
+        "routeId": "claude-sonnet-5",
+        "target": {
+          "model": "claude-sonnet-5",
+          "supports1m": true
+        }
+      },
+      {
+        "routeId": "claude-opus-5",
+        "target": {
+          "model": "claude-opus-5",
+          "supports1m": true
+        }
+      },
+      {
+        "routeId": "claude-haiku-4-5",
+        "target": {
+          "model": "claude-haiku-4-5",
+          "supports1m": false
+        }
+      }
+    ]
+  },
+  {
+    "appId": "claude-desktop",
+    "provider": {
+      "name": "Nvidia",
+      "websiteUrl": "https://build.nvidia.com",
+      "category": "aggregator",
+      "icon": "nvidia",
+      "iconColor": "#000000",
+      "baseUrl": "https://integrate.api.nvidia.com",
+      "apiFormat": "openai_chat"
+    },
+    "mode": "proxy",
+    "routes": [
+      {
+        "routeId": "claude-sonnet-5",
+        "target": {
+          "model": "moonshotai/kimi-k2.6",
+          "labelOverride": "moonshotai/kimi-k2.6",
+          "supports1m": false
+        }
+      }
+    ]
+  },
+  {
+    "appId": "claude-desktop",
+    "provider": {
+      "name": "PIPELLM",
+      "websiteUrl": "https://code.pipellm.ai",
+      "category": "aggregator",
+      "icon": "pipellm",
+      "baseUrl": "https://cc-api.pipellm.ai"
+    },
+    "mode": "direct",
+    "routes": [
+      {
+        "routeId": "claude-sonnet-5",
+        "target": {
+          "model": "claude-sonnet-5",
+          "supports1m": true
+        }
+      },
+      {
+        "routeId": "claude-opus-5",
+        "target": {
+          "model": "claude-opus-5",
+          "supports1m": true
+        }
+      },
+      {
+        "routeId": "claude-haiku-4-5",
+        "target": {
+          "model": "claude-haiku-4-5",
+          "supports1m": false
+        }
+      }
+    ]
+  },
+  {
+    "appId": "claude-desktop",
+    "provider": {
+      "name": "Xiaomi MiMo",
+      "websiteUrl": "https://platform.xiaomimimo.com",
+      "category": "cn_official",
+      "family": "xiaomi-mimo",
+      "planKey": "payg",
+      "icon": "xiaomimimo",
+      "iconColor": "#000000",
+      "baseUrl": "https://api.xiaomimimo.com/anthropic"
+    },
+    "mode": "proxy",
+    "routes": [
+      {
+        "routeId": "claude-sonnet-5",
+        "target": {
+          "model": "mimo-v2.6-pro",
+          "labelOverride": "mimo-v2.6-pro",
+          "supports1m": true
+        }
+      }
+    ]
+  },
+  {
+    "appId": "claude-desktop",
+    "provider": {
+      "name": "Xiaomi MiMo Token Plan (China)",
+      "websiteUrl": "https://platform.xiaomimimo.com/#/token-plan",
+      "category": "cn_official",
+      "family": "xiaomi-mimo",
+      "planKey": "tokenPlan",
+      "icon": "xiaomimimo",
+      "iconColor": "#000000",
+      "baseUrl": "https://token-plan-cn.xiaomimimo.com/anthropic"
+    },
+    "mode": "proxy",
+    "routes": [
+      {
+        "routeId": "claude-sonnet-5",
+        "target": {
+          "model": "mimo-v2.6-pro",
+          "labelOverride": "mimo-v2.6-pro",
+          "supports1m": true
+        }
+      }
+    ]
+  },
+  {
+    "appId": "claude-desktop",
+    "provider": {
+      "name": "JieKou AI",
+      "websiteUrl": "https://jiekou.ai/#model-library",
+      "category": "aggregator",
+      "icon": "jiekou",
+      "iconColor": "#000000",
+      "baseUrl": "https://api.jiekou.ai/anthropic",
+      "endpointCandidates": [
+        "https://api.jiekou.ai/anthropic"
+      ]
+    },
+    "mode": "proxy",
+    "routes": [
+      {
+        "routeId": "claude-fable-5",
+        "target": {
+          "model": "claude-fable-5-1",
+          "supports1m": true
+        }
+      }
+    ]
+  },
+  {
+    "appId": "claude-desktop",
+    "provider": {
+      "name": "AICodeWith",
+      "websiteUrl": "https://aicodewith.ai",
+      "category": "aggregator",
+      "icon": "aicodewith",
+      "iconColor": "#3A3B40",
+      "baseUrl": "https://api.aicodewith.ai",
+      "endpointCandidates": [
+        "https://api.aicodewith.ai"
+      ]
+    },
+    "mode": "proxy",
+    "routes": [
+      {
+        "routeId": "claude-sonnet-5",
+        "target": {
+          "model": "claude-sonnet-5-5",
+          "supports1m": true
+        }
+      },
+      {
+        "routeId": "claude-opus-5",
+        "target": {
+          "model": "claude-opus-5-5",
+          "supports1m": true
+        }
+      },
+      {
+        "routeId": "claude-haiku-4-5",
+        "target": {
+          "model": "claude-haiku-5-5",
+          "supports1m": true
+        }
+      }
+    ]
+  },
+  {
+    "appId": "claude-desktop",
+    "provider": {
+      "name": "SoruxGPT",
+      "websiteUrl": "https://ai.soruxgpt.com",
+      "category": "aggregator",
+      "icon": "soruxgpt",
+      "baseUrl": "https://ai.soruxgpt.com",
+      "endpointCandidates": [
+        "https://ai.soruxgpt.com",
+        "https://api-cf.soruxgpt.com",
+        "https://api-host.soruxgpt.com",
+        "https://api-node6.soruxgpt.com",
+        "https://api-node3.soruxgpt.com"
+      ]
+    },
+    "mode": "direct",
+    "routes": [
+      {
+        "routeId": "claude-sonnet-5",
+        "target": {
+          "model": "claude-sonnet-5-5",
+          "supports1m": true
+        }
+      },
+      {
+        "routeId": "claude-opus-5",
+        "target": {
+          "model": "claude-opus-5-5",
+          "supports1m": true
+        }
+      },
+      {
+        "routeId": "claude-haiku-4-5",
+        "target": {
+          "model": "claude-haiku-5-5",
+          "supports1m": true
+        }
+      }
+    ]
+  },
+  {
+    "appId": "claude-desktop",
+    "provider": {
+      "name": "IKunCode",
+      "websiteUrl": "https://api.ikuncode.ai",
+      "category": "aggregator",
+      "icon": "ikuncode",
+      "baseUrl": "https://api.ikuncode.ai",
+      "endpointCandidates": [
+        "https://api.ikuncode.ai",
+        "https://api.ikuncode.cc"
+      ]
+    },
+    "mode": "direct",
+    "routes": [
+      {
+        "routeId": "claude-sonnet-5",
+        "target": {
+          "model": "claude-sonnet-5-5",
+          "supports1m": true
+        }
+      },
+      {
+        "routeId": "claude-opus-5",
+        "target": {
+          "model": "claude-opus-5-5",
+          "supports1m": true
+        }
+      },
+      {
+        "routeId": "claude-haiku-4-5",
+        "target": {
+          "model": "claude-haiku-5-5",
+          "supports1m": true
+        }
+      }
+    ]
+  },
+  {
+    "appId": "claude-desktop",
+    "provider": {
+      "name": "RunToken",
+      "websiteUrl": "https://www.runtoken.ai",
+      "category": "aggregator",
+      "icon": "runtoken",
+      "baseUrl": "https://www.runtoken.ai",
+      "endpointCandidates": [
+        "https://www.runtoken.ai",
+        "https://fast.runtoken.ai"
+      ]
+    },
+    "mode": "direct",
+    "routes": [
+      {
+        "routeId": "claude-sonnet-5",
+        "target": {
+          "model": "claude-sonnet-5-5",
+          "supports1m": true
+        }
+      },
+      {
+        "routeId": "claude-opus-5",
+        "target": {
+          "model": "claude-opus-5-5",
+          "supports1m": true
+        }
+      },
+      {
+        "routeId": "claude-haiku-4-5",
+        "target": {
+          "model": "claude-haiku-5-5",
+          "supports1m": true
+        }
+      }
+    ]
+  },
+  {
+    "appId": "claude-desktop",
+    "provider": {
+      "name": "BotCF",
+      "websiteUrl": "https://botcf.com",
+      "category": "aggregator",
+      "icon": "botcf",
+      "baseUrl": "https://botcf.com"
+    },
+    "mode": "direct",
+    "routes": [
+      {
+        "routeId": "claude-sonnet-5",
+        "target": {
+          "model": "claude-sonnet-5-5",
+          "supports1m": true
+        }
+      },
+      {
+        "routeId": "claude-opus-5",
+        "target": {
+          "model": "claude-opus-5-5",
+          "supports1m": true
+        }
+      },
+      {
+        "routeId": "claude-haiku-4-5",
+        "target": {
+          "model": "claude-haiku-5-5",
+          "supports1m": true
+        }
+      }
+    ]
+  },
+  {
+    "appId": "claude-desktop",
+    "provider": {
+      "name": "YYLX",
+      "nameKey": "providerForm.presets.yylx",
+      "websiteUrl": "https://yylx.io",
+      "category": "aggregator",
+      "icon": "yylx",
+      "baseUrl": "https://app.yylx.io",
+      "endpointCandidates": [
+        "https://app.yylx.io",
+        "https://global.yylx.io",
+        "https://cn.yylx.io"
+      ]
+    },
+    "mode": "direct",
+    "routes": [
+      {
+        "routeId": "claude-sonnet-5",
+        "target": {
+          "model": "claude-sonnet-5-5",
+          "supports1m": true
+        }
+      },
+      {
+        "routeId": "claude-opus-5",
+        "target": {
+          "model": "claude-opus-5-5",
+          "supports1m": true
+        }
+      },
+      {
+        "routeId": "claude-haiku-4-5",
+        "target": {
+          "model": "claude-haiku-5-5",
+          "supports1m": true
+        }
+      }
+    ]
+  },
+  {
+    "appId": "claude-desktop",
+    "provider": {
+      "name": "TokenFlux",
+      "websiteUrl": "https://tokenflux.com",
+      "category": "aggregator",
+      "icon": "tokenflux",
+      "baseUrl": "https://tokenflux.com",
+      "endpointCandidates": [
+        "https://tokenflux.com",
+        "https://tokenflux.dev"
+      ]
+    },
+    "mode": "direct",
+    "routes": [
+      {
+        "routeId": "claude-sonnet-5",
+        "target": {
+          "model": "claude-sonnet-5-5",
+          "supports1m": true
+        }
+      },
+      {
+        "routeId": "claude-opus-5",
+        "target": {
+          "model": "claude-opus-5-5",
+          "supports1m": true
+        }
+      },
+      {
+        "routeId": "claude-haiku-4-5",
+        "target": {
+          "model": "claude-haiku-5-5",
+          "supports1m": true
+        }
+      }
+    ]
+  },
+  {
+    "appId": "claude-desktop",
+    "provider": {
+      "name": "NekoCode",
+      "websiteUrl": "https://nekoapi.ai",
+      "category": "aggregator",
+      "icon": "nekocode",
+      "baseUrl": "https://nekoapi.ai"
+    },
+    "mode": "direct",
+    "routes": [
+      {
+        "routeId": "claude-sonnet-5",
+        "target": {
+          "model": "claude-sonnet-5-5",
+          "supports1m": true
+        }
+      },
+      {
+        "routeId": "claude-opus-5",
+        "target": {
+          "model": "claude-opus-5-5",
+          "supports1m": true
+        }
+      },
+      {
+        "routeId": "claude-haiku-4-5",
+        "target": {
+          "model": "claude-haiku-5-5",
+          "supports1m": true
+        }
+      }
+    ]
+  },
+  {
+    "appId": "claude-desktop",
+    "provider": {
+      "name": "AIComing",
+      "websiteUrl": "https://aicoming.top",
+      "category": "aggregator",
+      "icon": "aicoming",
+      "baseUrl": "https://api.aicoming.top"
+    },
+    "mode": "direct",
+    "routes": [
+      {
+        "routeId": "claude-sonnet-5",
+        "target": {
+          "model": "claude-sonnet-5-5",
+          "supports1m": true
+        }
+      },
+      {
+        "routeId": "claude-opus-5",
+        "target": {
+          "model": "claude-opus-5-5",
+          "supports1m": true
+        }
+      },
+      {
+        "routeId": "claude-haiku-4-5",
+        "target": {
+          "model": "claude-haiku-5-5",
+          "supports1m": true
+        }
+      }
+    ]
+  }
+]

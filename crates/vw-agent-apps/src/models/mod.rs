@@ -3,12 +3,15 @@ use vw_api_types::model_catalog::*;
 
 pub mod identity;
 pub mod preset_catalog;
+pub mod preset_claude;
 pub mod preset_search;
 
 #[cfg(test)]
 mod identity_tests;
 #[cfg(test)]
 mod preset_catalog_tests;
+#[cfg(test)]
+mod preset_claude_tests;
 #[cfg(test)]
 mod preset_search_tests;
 

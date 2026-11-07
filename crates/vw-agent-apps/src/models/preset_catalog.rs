@@ -1,5 +1,6 @@
 //! Built-in provider presets for the native model catalog.
 
+use super::preset_claude::ClaudePreset;
 use crate::providers::{universal_sync::projected_endpoint, validation::endpoint};
 use serde::Deserialize;
 use std::sync::LazyLock;
@@ -11,6 +12,11 @@ use vw_api_types::{
         universal_sync::UniversalSyncError,
     },
 };
+
+static CLAUDE_PRESETS: LazyLock<Vec<ClaudePreset>> = LazyLock::new(|| {
+    serde_json::from_str(include_str!("presets/claude.json"))
+        .expect("valid built-in Claude presets")
+});
 
 static UNIVERSAL_PRESETS: LazyLock<Vec<UniversalPreset>> = LazyLock::new(|| {
     serde_json::from_str(include_str!("presets/universal.json"))
@@ -64,4 +70,14 @@ pub fn universal_presets() -> &'static [UniversalPreset] {
 
 pub fn universal_preset(provider_type: &str) -> Option<&'static UniversalPreset> {
     universal_presets().iter().find(|preset| preset.provider_type == provider_type)
+}
+
+/// List one application's presets in source order, including hidden rows.
+pub fn claude_presets(app: AppId) -> impl Iterator<Item = &'static ClaudePreset> {
+    CLAUDE_PRESETS.iter().filter(move |preset| preset.app_id() == app)
+}
+
+/// Find a preset by its exact source name within one application.
+pub fn claude_preset(app: AppId, name: &str) -> Option<&'static ClaudePreset> {
+    claude_presets(app).find(|preset| preset.provider().name == name)
 }

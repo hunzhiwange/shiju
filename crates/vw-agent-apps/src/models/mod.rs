@@ -4,6 +4,7 @@ use vw_api_types::model_catalog::*;
 pub mod identity;
 pub mod preset_catalog;
 pub mod preset_claude;
+pub mod preset_codex;
 pub mod preset_gemini_grok;
 pub mod preset_search;
 
@@ -13,6 +14,8 @@ mod identity_tests;
 mod preset_catalog_tests;
 #[cfg(test)]
 mod preset_claude_tests;
+#[cfg(test)]
+mod preset_codex_tests;
 #[cfg(test)]
 mod preset_gemini_grok_tests;
 #[cfg(test)]

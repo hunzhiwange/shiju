@@ -165,3 +165,30 @@
 | `cargo clippy --all-targets --all-features -- -D warnings` | 0 | 实际工作区全部目标及 features 通过 |
 
 审查范围仅包含目录入口、类型、数据、独立测试与本证据。各阶段已释放本项的槽位锁并保留编译缓存。
+
+## 任务 7　Codex 模型预设
+
+2026-11-08，macOS 27.0（26A428），arm64。批次 6 由 `f08af768d` 交付。本项复用任务 4 的 `crates/vw-agent-apps/src/models/preset_catalog.rs` 内嵌读取入口，按应用和源名称查询。模型查询限定在已选预设的主端点或候选端点内，并保留原始模型 ID。共享候选端点的套餐也分别持有模型清单。
+
+| 固定来源 `ca58c0313360eae7c851fbd7553c1614c7af03e7` | 实际实现 |
+| --- | --- |
+| `src/config/codexProviderPresets.ts::codexProviderPresets`、`generateThirdPartyConfig` | `models/presets/codex.json` 由 `models/preset_catalog.rs::codex_presets` 和 `codex_preset` 读取。保留源顺序、套餐、地区、默认模型、推理默认值、主端点与候选地址。显式 `apiFormat` 优先，其余有配置的条目采用源 TOML 的 Responses 格式 |
+| 同源 `modelCatalog`、`codexProviderPresets.tokenPlanTextOnly.test.ts`、`codexProviderPresets.zhipuFlashVision.test.ts` | `models/preset_codex.rs::CodexPresetModel` 保留每行的窗口、推理档位与默认档位、图片声明、并行工具调用和模型指令。独立测试覆盖第三方 Token Plan 纯文本、DeepSeek 官方图片声明、智谱国内与国际版 Flash 图片声明和同模型不同部署 |
+| `src/config/codexProviderPresets.test.ts` | `models/preset_codex_tests.rs` 核对 Copilot 的默认模型和目录、两条托管 OAuth 的回退标记均为 `false`，以及普通 API Key 预设的显式 `true`。目录只记录认证类型及回退标记 |
+
+执行固定来源数组并逐行核对源名称、模型字段、候选端点和 TOML 投影。137 条预设包含 136 个主端点、174 个候选端点和 213 个模型条目（118 个不同 ID）。展示网址移除查询参数和片段。凭据、推广字段、完整 TOML 模板及 Chat 协议转换参数在本项目录范围之外。来源许可见 `crates/vw-agent-apps/upstream/LICENSE`（MIT，Copyright (c) 2025 Jason Young）。
+
+已有配置入口为网关 `app_providers/codex_catalog.rs` 的 `/v1/app-providers/codex/{id}/form`，SDK 为 `client/app_providers/codex_catalog.rs::codex_form_create` 和 `codex_form_update`，Iced 由 `components/app_providers/codex.rs::fields` 渲染现有配置字段。预设目录 API 与 SDK 由任务 36 接入，Iced 搜索由任务 39 接入。本项验收原生离线查询，无窗口、账号或线上请求验收项。
+
+### 验证
+
+红灯动态领取共享槽位 **5**，`CARGO_TARGET_DIR=/Users/xiangmin/worker/code/shiju/target/rust-slot-5`。绿灯与 Clippy 分别动态领取共享槽位 **3**，`CARGO_TARGET_DIR=/Users/xiangmin/worker/code/shiju/target/rust-slot-3`。Cargo 中间目录也使用对应槽位。`cargo fmt --all` 在基于 `f08af768d` 的源码快照执行，仅回写本项四个 Rust 文件。聚焦测试和 Clippy 在实际仓库根目录执行。
+
+| 命令 | 退出码 | 证据 |
+| --- | ---: | --- |
+| `cargo fmt --all`（红灯、绿灯） | 0、0 | 格式化完成 |
+| `cargo test -p vw-agent-apps catalog_presets_codex_ -- --nocapture`（红灯） | 101 | 4 条有效测试均按预期失败。首条 `catalog_presets_codex_keeps_plan_vision_declaration` 查询千帆 Token Plan 的 `deepseek-v4-flash`，纯文本判断实际为 `None`，预期为 `Some(true)` |
+| `cargo test -p vw-agent-apps catalog_presets_codex_ -- --nocapture`（绿灯） | 0 | 4 条有效测试全部通过，531 条过滤 |
+| `cargo clippy --all-targets --all-features -- -D warnings` | 0 | 实际工作区全部目标及 features 通过 |
+
+差异审查与 `git diff --cached --check` 通过。各阶段的槽位锁已释放，编译缓存已保留。

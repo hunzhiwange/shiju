@@ -1,0 +1,4727 @@
+[
+  {
+    "name": "OpenAI Official",
+    "category": "official",
+    "icon": "openai",
+    "iconColor": "#00A67E",
+    "isOfficial": true,
+    "websiteUrl": "https://chatgpt.com/codex",
+    "authProvider": "codex_oauth"
+  },
+  {
+    "name": "GitHub Copilot",
+    "category": "third_party",
+    "icon": "github",
+    "iconColor": "#000000",
+    "websiteUrl": "https://github.com/features/copilot",
+    "authProvider": "github_copilot",
+    "requiresOAuth": true,
+    "apiFormat": "openai_responses",
+    "baseUrl": "https://api.githubcopilot.com",
+    "defaultModel": "gpt-6-astra",
+    "defaultReasoningEffort": "high",
+    "requiresOpenaiAuth": false,
+    "endpointCandidates": [
+      "https://api.githubcopilot.com"
+    ],
+    "modelCatalog": [
+      {
+        "model": "gpt-6-astra",
+        "displayName": "GPT-6 Astra",
+        "contextWindow": 272000,
+        "supportsParallelToolCalls": true,
+        "inputModalities": [
+          "text"
+        ],
+        "reasoningLevels": [
+          "low",
+          "medium",
+          "high",
+          "xhigh",
+          "max"
+        ]
+      },
+      {
+        "model": "gpt-5.6-sol",
+        "displayName": "GPT-5.6 Sol",
+        "contextWindow": 272000,
+        "supportsParallelToolCalls": true,
+        "inputModalities": [
+          "text"
+        ],
+        "reasoningLevels": [
+          "none",
+          "low",
+          "medium",
+          "high",
+          "xhigh",
+          "max"
+        ]
+      },
+      {
+        "model": "gpt-5.6-terra",
+        "displayName": "GPT-5.6 Terra",
+        "contextWindow": 272000,
+        "supportsParallelToolCalls": true,
+        "inputModalities": [
+          "text"
+        ],
+        "reasoningLevels": [
+          "none",
+          "low",
+          "medium",
+          "high",
+          "xhigh",
+          "max"
+        ]
+      },
+      {
+        "model": "gpt-5.6-luna",
+        "displayName": "GPT-5.6 Luna",
+        "contextWindow": 200000,
+        "supportsParallelToolCalls": true,
+        "inputModalities": [
+          "text"
+        ],
+        "reasoningLevels": [
+          "none",
+          "low",
+          "medium",
+          "high",
+          "xhigh",
+          "max"
+        ]
+      },
+      {
+        "model": "gpt-5.5",
+        "displayName": "GPT-5.5",
+        "contextWindow": 272000,
+        "supportsParallelToolCalls": true,
+        "inputModalities": [
+          "text"
+        ],
+        "reasoningLevels": [
+          "none",
+          "low",
+          "medium",
+          "high",
+          "xhigh"
+        ]
+      }
+    ]
+  },
+  {
+    "name": "Kimi",
+    "category": "cn_official",
+    "family": "kimi",
+    "planKey": "payg",
+    "regionKey": "cn",
+    "icon": "kimi",
+    "iconColor": "#6366F1",
+    "websiteUrl": "https://platform.kimi.com",
+    "apiFormat": "openai_responses",
+    "baseUrl": "https://api.moonshot.cn/v1",
+    "defaultModel": "kimi-k3",
+    "defaultReasoningEffort": "high",
+    "requiresOpenaiAuth": true,
+    "endpointCandidates": [
+      "https://api.moonshot.cn/v1"
+    ],
+    "modelCatalog": [
+      {
+        "model": "kimi-k3",
+        "displayName": "Kimi K3",
+        "contextWindow": 1048576,
+        "supportsParallelToolCalls": true,
+        "reasoningLevels": [
+          "low",
+          "high",
+          "max"
+        ]
+      },
+      {
+        "model": "kimi-k2.7-code",
+        "displayName": "Kimi K2.7 Code",
+        "contextWindow": 262144,
+        "supportsParallelToolCalls": true,
+        "reasoningLevels": [
+          "high"
+        ]
+      }
+    ]
+  },
+  {
+    "name": "Kimi Global",
+    "category": "cn_official",
+    "family": "kimi",
+    "planKey": "payg",
+    "regionKey": "intl",
+    "icon": "kimi",
+    "iconColor": "#6366F1",
+    "websiteUrl": "https://platform.kimi.ai",
+    "apiFormat": "openai_responses",
+    "baseUrl": "https://api.moonshot.ai/v1",
+    "defaultModel": "kimi-k3",
+    "defaultReasoningEffort": "high",
+    "requiresOpenaiAuth": true,
+    "endpointCandidates": [
+      "https://api.moonshot.ai/v1"
+    ],
+    "modelCatalog": [
+      {
+        "model": "kimi-k3",
+        "displayName": "Kimi K3",
+        "contextWindow": 1048576,
+        "supportsParallelToolCalls": true,
+        "reasoningLevels": [
+          "low",
+          "high",
+          "max"
+        ]
+      },
+      {
+        "model": "kimi-k2.7-code",
+        "displayName": "Kimi K2.7 Code",
+        "contextWindow": 262144,
+        "supportsParallelToolCalls": true,
+        "reasoningLevels": [
+          "high"
+        ]
+      }
+    ]
+  },
+  {
+    "name": "Kimi For Coding",
+    "category": "cn_official",
+    "family": "kimi",
+    "planKey": "coding",
+    "regionKey": "cn",
+    "icon": "kimi",
+    "iconColor": "#6366F1",
+    "websiteUrl": "https://www.kimi.com/code/",
+    "apiFormat": "openai_responses",
+    "baseUrl": "https://api.kimi.com/coding/v1",
+    "defaultModel": "kimi-for-coding",
+    "defaultReasoningEffort": "high",
+    "requiresOpenaiAuth": true,
+    "endpointCandidates": [
+      "https://api.kimi.com/coding/v1"
+    ],
+    "modelCatalog": [
+      {
+        "model": "kimi-for-coding",
+        "displayName": "Kimi For Coding (K2.8 Preview)",
+        "contextWindow": 1048576,
+        "supportsParallelToolCalls": true,
+        "inputModalities": [
+          "text",
+          "image"
+        ],
+        "reasoningLevels": [
+          "low",
+          "high",
+          "max"
+        ],
+        "defaultReasoningLevel": "high"
+      },
+      {
+        "model": "kimi-for-coding-highspeed",
+        "displayName": "Kimi For Coding HighSpeed",
+        "contextWindow": 262144,
+        "supportsParallelToolCalls": true,
+        "reasoningLevels": [
+          "high"
+        ]
+      },
+      {
+        "model": "k3",
+        "displayName": "Kimi K3",
+        "contextWindow": 1048576,
+        "supportsParallelToolCalls": true,
+        "reasoningLevels": [
+          "low",
+          "high",
+          "max"
+        ],
+        "defaultReasoningLevel": "high"
+      },
+      {
+        "model": "k3-256k",
+        "displayName": "Kimi K3 256K",
+        "contextWindow": 262144,
+        "supportsParallelToolCalls": true,
+        "reasoningLevels": [
+          "low",
+          "high",
+          "max"
+        ],
+        "defaultReasoningLevel": "high"
+      }
+    ]
+  },
+  {
+    "name": "Kimi For Coding Global",
+    "category": "cn_official",
+    "family": "kimi",
+    "planKey": "coding",
+    "regionKey": "intl",
+    "icon": "kimi",
+    "iconColor": "#6366F1",
+    "websiteUrl": "https://www.kimi.ai/code",
+    "apiFormat": "openai_responses",
+    "baseUrl": "https://api.kimi.ai/coding/v1",
+    "defaultModel": "kimi-for-coding",
+    "defaultReasoningEffort": "high",
+    "requiresOpenaiAuth": true,
+    "endpointCandidates": [
+      "https://api.kimi.ai/coding/v1"
+    ],
+    "modelCatalog": [
+      {
+        "model": "kimi-for-coding",
+        "displayName": "Kimi For Coding",
+        "contextWindow": 1048576,
+        "supportsParallelToolCalls": true,
+        "reasoningLevels": [
+          "low",
+          "high",
+          "max"
+        ],
+        "defaultReasoningLevel": "max"
+      },
+      {
+        "model": "kimi-for-coding-highspeed",
+        "displayName": "Kimi For Coding HighSpeed",
+        "contextWindow": 262144,
+        "supportsParallelToolCalls": true,
+        "reasoningLevels": [
+          "high"
+        ]
+      },
+      {
+        "model": "k3",
+        "displayName": "Kimi K3",
+        "contextWindow": 1048576,
+        "supportsParallelToolCalls": true,
+        "reasoningLevels": [
+          "low",
+          "high",
+          "max"
+        ],
+        "defaultReasoningLevel": "high"
+      },
+      {
+        "model": "k3-256k",
+        "displayName": "Kimi K3 256K",
+        "contextWindow": 262144,
+        "supportsParallelToolCalls": true,
+        "reasoningLevels": [
+          "low",
+          "high",
+          "max"
+        ],
+        "defaultReasoningLevel": "high"
+      }
+    ]
+  },
+  {
+    "name": "PackyCode",
+    "category": "third_party",
+    "icon": "packycode",
+    "websiteUrl": "https://www.packyapi.ai",
+    "apiFormat": "openai_responses",
+    "baseUrl": "https://www.packyapi.ai/v1",
+    "defaultModel": "gpt-6.1-sol",
+    "defaultReasoningEffort": "high",
+    "requiresOpenaiAuth": true,
+    "endpointCandidates": [
+      "https://www.packyapi.ai/v1",
+      "https://cf.api.fan/v1",
+      "https://slb-v1.api.fan/v1",
+      "https://www.packyapi.com/v1"
+    ]
+  },
+  {
+    "name": "APINebula",
+    "category": "third_party",
+    "icon": "apinebula",
+    "websiteUrl": "https://apinebula.ai",
+    "apiFormat": "openai_responses",
+    "baseUrl": "https://apinebula.ai/v1",
+    "defaultModel": "gpt-6.1-sol",
+    "defaultReasoningEffort": "high",
+    "requiresOpenaiAuth": true,
+    "endpointCandidates": [
+      "https://apinebula.ai/v1"
+    ]
+  },
+  {
+    "name": "AICodeMirror",
+    "icon": "aicodemirror",
+    "iconColor": "#000000",
+    "websiteUrl": "https://www.aicodemirror.ai",
+    "apiFormat": "openai_responses",
+    "baseUrl": "https://api.aicodemirror.ai/api/codex/backend-api/codex",
+    "defaultModel": "gpt-6.1-sol",
+    "defaultReasoningEffort": "high",
+    "requiresOpenaiAuth": true,
+    "endpointCandidates": [
+      "https://api.aicodemirror.ai/api/codex/backend-api/codex"
+    ]
+  },
+  {
+    "name": "PatewayAI",
+    "category": "third_party",
+    "icon": "pateway",
+    "websiteUrl": "https://pateway.ai",
+    "apiFormat": "openai_responses",
+    "baseUrl": "https://api.pateway.ai/v1",
+    "defaultModel": "gpt-6.1-sol",
+    "defaultReasoningEffort": "high",
+    "requiresOpenaiAuth": true,
+    "endpointCandidates": [
+      "https://api.pateway.ai/v1"
+    ]
+  },
+  {
+    "name": "hao.ai",
+    "category": "aggregator",
+    "icon": "haoai",
+    "websiteUrl": "https://hao.ai",
+    "apiFormat": "openai_responses",
+    "baseUrl": "https://api.hao.ai/v1",
+    "defaultModel": "openai/gpt-5.6-sol",
+    "defaultReasoningEffort": "high",
+    "requiresOpenaiAuth": true
+  },
+  {
+    "name": "FennoAI",
+    "category": "aggregator",
+    "icon": "fenno",
+    "websiteUrl": "https://api.fenno.ai",
+    "apiFormat": "openai_responses",
+    "baseUrl": "https://api.fenno.ai",
+    "defaultModel": "gpt-6.1-sol",
+    "defaultReasoningEffort": "high",
+    "requiresOpenaiAuth": true,
+    "endpointCandidates": [
+      "https://api.fenno.ai"
+    ]
+  },
+  {
+    "name": "RunAPI",
+    "category": "aggregator",
+    "icon": "runapi",
+    "websiteUrl": "https://runapi.host",
+    "apiFormat": "openai_responses",
+    "baseUrl": "https://runapi.host/v1",
+    "defaultModel": "gpt-6.1-sol",
+    "defaultReasoningEffort": "high",
+    "requiresOpenaiAuth": true,
+    "endpointCandidates": [
+      "https://runapi.host/v1",
+      "https://runapi.co/v1"
+    ]
+  },
+  {
+    "name": "OpenModel",
+    "category": "aggregator",
+    "icon": "openmodel",
+    "websiteUrl": "https://www.openmodel.ai",
+    "apiFormat": "openai_responses",
+    "baseUrl": "https://api.openmodel.ai/v1",
+    "defaultModel": "gpt-6.1-sol",
+    "defaultReasoningEffort": "high",
+    "requiresOpenaiAuth": true
+  },
+  {
+    "name": "GrooRoute Pro",
+    "category": "aggregator",
+    "icon": "grooroute",
+    "websiteUrl": "https://grooroute.pro",
+    "apiFormat": "openai_responses",
+    "baseUrl": "https://grooroute.pro/v1",
+    "defaultModel": "gpt-6.1-sol",
+    "defaultReasoningEffort": "high",
+    "requiresOpenaiAuth": true,
+    "endpointCandidates": [
+      "https://grooroute.pro/v1",
+      "https://grooroute.xyz/v1"
+    ]
+  },
+  {
+    "name": "BuyToken",
+    "category": "aggregator",
+    "icon": "buytoken",
+    "websiteUrl": "https://buytoken.work",
+    "apiFormat": "openai_responses",
+    "baseUrl": "https://api.buytoken.work/v1",
+    "defaultModel": "gpt-5.6-sol",
+    "defaultReasoningEffort": "high",
+    "requiresOpenaiAuth": true
+  },
+  {
+    "name": "V-API",
+    "category": "aggregator",
+    "icon": "vapi",
+    "websiteUrl": "https://gpt.ge",
+    "apiFormat": "openai_responses",
+    "baseUrl": "https://api.gpt.ge/v1",
+    "defaultModel": "gpt-6.1-sol",
+    "defaultReasoningEffort": "high",
+    "requiresOpenaiAuth": true,
+    "endpointCandidates": [
+      "https://api.gpt.ge/v1",
+      "https://api.vveai.com/v1",
+      "https://run.v3.cm/v1",
+      "https://api1.v3.cm/v1",
+      "https://api2.v3.cm/v1",
+      "https://us.gpt.ge/v1"
+    ]
+  },
+  {
+    "name": "TokenFactory",
+    "nameKey": "providerForm.presets.tokenfactory",
+    "category": "aggregator",
+    "icon": "tokenfactory",
+    "websiteUrl": "https://tokenfactory.cn",
+    "apiFormat": "openai_responses",
+    "baseUrl": "https://api.tokenfactory.cn/v1",
+    "defaultModel": "glm-5.3",
+    "defaultReasoningEffort": "high",
+    "requiresOpenaiAuth": true,
+    "endpointCandidates": [
+      "https://api.tokenfactory.cn/v1"
+    ],
+    "modelCatalog": [
+      {
+        "model": "glm-5.3",
+        "displayName": "GLM-5.3",
+        "contextWindow": 1048576,
+        "inputModalities": [
+          "text"
+        ],
+        "reasoningLevels": [
+          "low",
+          "high",
+          "max"
+        ]
+      },
+      {
+        "model": "kimi-k3",
+        "displayName": "Kimi K3",
+        "contextWindow": 1048576,
+        "inputModalities": [
+          "text",
+          "image"
+        ],
+        "reasoningLevels": [
+          "low",
+          "high",
+          "max"
+        ]
+      },
+      {
+        "model": "deepseek-v4.1-flash",
+        "displayName": "DeepSeek V4.1 Flash",
+        "contextWindow": 1048576,
+        "inputModalities": [
+          "text",
+          "image"
+        ],
+        "reasoningLevels": [
+          "low",
+          "high",
+          "max"
+        ]
+      },
+      {
+        "model": "glm-5.3-flash",
+        "displayName": "GLM-5.3-Flash",
+        "contextWindow": 1048576,
+        "inputModalities": [
+          "text",
+          "image"
+        ],
+        "reasoningLevels": [
+          "low",
+          "high",
+          "max"
+        ]
+      },
+      {
+        "model": "qwen3.8-flash",
+        "displayName": "Qwen3.8 Flash",
+        "contextWindow": 1000000,
+        "inputModalities": [
+          "text",
+          "image"
+        ],
+        "reasoningLevels": [
+          "low",
+          "medium",
+          "xhigh"
+        ],
+        "defaultReasoningLevel": "xhigh"
+      }
+    ]
+  },
+  {
+    "name": "FluxA Token Plan",
+    "category": "aggregator",
+    "icon": "fluxa",
+    "websiteUrl": "https://agentmarket.fluxapay.xyz/",
+    "apiFormat": "openai_chat",
+    "baseUrl": "https://api.baiduqianfan.ai/v2/tokenplan/team",
+    "defaultModel": "deepseek-v4.1-flash",
+    "defaultReasoningEffort": "high",
+    "requiresOpenaiAuth": true,
+    "endpointCandidates": [
+      "https://api.baiduqianfan.ai/v2/tokenplan/team"
+    ],
+    "modelCatalog": [
+      {
+        "model": "deepseek-v4.1-flash",
+        "displayName": "DeepSeek V4.1 Flash",
+        "contextWindow": 1048576,
+        "inputModalities": [
+          "text"
+        ]
+      },
+      {
+        "model": "deepseek-v4-flash-0731",
+        "displayName": "DeepSeek V4 Flash 0731",
+        "contextWindow": 1048576,
+        "inputModalities": [
+          "text"
+        ]
+      },
+      {
+        "model": "deepseek-v4-flash",
+        "displayName": "DeepSeek V4 Flash",
+        "contextWindow": 1048576,
+        "inputModalities": [
+          "text"
+        ]
+      },
+      {
+        "model": "deepseek-v3.2",
+        "displayName": "DeepSeek V3.2",
+        "contextWindow": 131072,
+        "inputModalities": [
+          "text"
+        ]
+      },
+      {
+        "model": "glm-5.3",
+        "displayName": "GLM-5.3",
+        "contextWindow": 1000000,
+        "inputModalities": [
+          "text"
+        ]
+      },
+      {
+        "model": "glm-5.2",
+        "displayName": "GLM-5.2",
+        "contextWindow": 500000,
+        "inputModalities": [
+          "text"
+        ]
+      },
+      {
+        "model": "glm-5.1",
+        "displayName": "GLM-5.1",
+        "contextWindow": 198000,
+        "inputModalities": [
+          "text"
+        ]
+      },
+      {
+        "model": "glm-5",
+        "displayName": "GLM-5",
+        "contextWindow": 198000,
+        "inputModalities": [
+          "text"
+        ]
+      },
+      {
+        "model": "kimi-k2.6",
+        "displayName": "Kimi K2.6",
+        "contextWindow": 262144,
+        "inputModalities": [
+          "text"
+        ]
+      }
+    ]
+  },
+  {
+    "name": "AIGoCode",
+    "category": "third_party",
+    "icon": "aigocode",
+    "iconColor": "#5B7FFF",
+    "websiteUrl": "https://aigocode.net",
+    "apiFormat": "openai_responses",
+    "baseUrl": "https://api.aigocode.dev",
+    "defaultModel": "gpt-6.1-sol",
+    "defaultReasoningEffort": "high",
+    "requiresOpenaiAuth": true,
+    "endpointCandidates": [
+      "https://api.aigocode.dev",
+      "https://api.aigocode.app"
+    ]
+  },
+  {
+    "name": "Qiniu",
+    "nameKey": "providerForm.presets.qiniu",
+    "category": "aggregator",
+    "icon": "qiniu",
+    "websiteUrl": "https://s.qiniu.com/nMvAvy",
+    "apiFormat": "openai_responses",
+    "baseUrl": "https://api.qnaigc.com/bypass/openai/v1",
+    "defaultModel": "gpt-6-astra",
+    "defaultReasoningEffort": "high",
+    "requiresOpenaiAuth": true,
+    "endpointCandidates": [
+      "https://api.qnaigc.com/bypass/openai/v1",
+      "https://api.modelink.ai/bypass/openai/v1"
+    ]
+  },
+  {
+    "name": "AICoding",
+    "icon": "aicoding",
+    "iconColor": "#000000",
+    "websiteUrl": "https://aicoding.inc",
+    "apiFormat": "openai_responses",
+    "baseUrl": "https://api.aicoding.inc",
+    "defaultModel": "gpt-6.1-sol",
+    "defaultReasoningEffort": "high",
+    "requiresOpenaiAuth": true,
+    "endpointCandidates": [
+      "https://api.aicoding.inc"
+    ]
+  },
+  {
+    "name": "SubRouter",
+    "category": "aggregator",
+    "icon": "subrouter",
+    "websiteUrl": "https://subrouter.ai",
+    "apiFormat": "openai_responses",
+    "baseUrl": "https://subrouter.ai/v1",
+    "defaultModel": "gpt-6.1-sol",
+    "defaultReasoningEffort": "high",
+    "requiresOpenaiAuth": true,
+    "endpointCandidates": [
+      "https://subrouter.ai/v1"
+    ]
+  },
+  {
+    "name": "OspreyAI",
+    "category": "aggregator",
+    "icon": "ospreyai",
+    "websiteUrl": "https://open.ospreyai.cn",
+    "apiFormat": "openai_responses",
+    "baseUrl": "https://open.ospreyai.cn/v1",
+    "defaultModel": "gpt-6.1-sol",
+    "defaultReasoningEffort": "high",
+    "requiresOpenaiAuth": true
+  },
+  {
+    "name": "Shengsuanyun",
+    "nameKey": "providerForm.presets.shengsuanyun",
+    "category": "aggregator",
+    "icon": "shengsuanyun",
+    "websiteUrl": "https://www.shengsuanyun.com/",
+    "apiFormat": "openai_responses",
+    "baseUrl": "https://router.shengsuanyun.com/api/v1",
+    "defaultModel": "openai/gpt-6.1-sol",
+    "defaultReasoningEffort": "high",
+    "requiresOpenaiAuth": true
+  },
+  {
+    "name": "88API",
+    "category": "aggregator",
+    "icon": "88api",
+    "websiteUrl": "https://88api.ai",
+    "apiFormat": "openai_responses",
+    "baseUrl": "https://api.88api.ai/v1",
+    "defaultModel": "gpt-6.1-sol",
+    "defaultReasoningEffort": "high",
+    "requiresOpenaiAuth": true,
+    "endpointCandidates": [
+      "https://api.88api.ai/v1",
+      "https://88api.ai/v1"
+    ]
+  },
+  {
+    "name": "APIKEY.FUN",
+    "category": "third_party",
+    "icon": "apikeyfun",
+    "websiteUrl": "https://apikey.fan",
+    "apiFormat": "openai_responses",
+    "baseUrl": "https://api.apikey.fan/v1",
+    "defaultModel": "gpt-6.1-sol",
+    "defaultReasoningEffort": "high",
+    "requiresOpenaiAuth": true,
+    "endpointCandidates": [
+      "https://api.apikey.fan/v1",
+      "https://api.apikey.fun/v1",
+      "https://slb.apikey.fun/v1"
+    ]
+  },
+  {
+    "name": "9527CODE",
+    "category": "aggregator",
+    "icon": "9527code",
+    "websiteUrl": "https://9527.codes",
+    "apiFormat": "openai_responses",
+    "baseUrl": "https://9527.codes/v1",
+    "defaultModel": "gpt-6.1-sol",
+    "defaultReasoningEffort": "high",
+    "requiresOpenaiAuth": true,
+    "endpointCandidates": [
+      "https://9527.codes/v1",
+      "https://api.9527.codes/v1",
+      "https://cdn.9527.codes/v1"
+    ]
+  },
+  {
+    "name": "Code0",
+    "category": "aggregator",
+    "icon": "code0",
+    "websiteUrl": "https://code0.ai",
+    "apiFormat": "openai_responses",
+    "baseUrl": "https://code0.ai/v1",
+    "defaultModel": "gpt-6.1-sol",
+    "defaultReasoningEffort": "high",
+    "requiresOpenaiAuth": true,
+    "endpointCandidates": [
+      "https://code0.ai/v1"
+    ]
+  },
+  {
+    "name": "TeamoRouter",
+    "category": "aggregator",
+    "icon": "teamorouter",
+    "websiteUrl": "https://teamorouter.cn",
+    "apiFormat": "openai_responses",
+    "baseUrl": "https://api.teamorouter.cn/v1",
+    "defaultModel": "gpt-6.1-sol",
+    "defaultReasoningEffort": "high",
+    "requiresOpenaiAuth": true,
+    "endpointCandidates": [
+      "https://api.teamorouter.cn/v1",
+      "https://api.teamorouter.com/v1"
+    ]
+  },
+  {
+    "name": "PPIO",
+    "category": "aggregator",
+    "icon": "ppio",
+    "iconColor": "#2874FF",
+    "websiteUrl": "https://ppio.com",
+    "apiFormat": "openai_chat",
+    "baseUrl": "https://api.ppio.com/openai/v1",
+    "defaultModel": "deepseek/deepseek-v4.1-flash",
+    "defaultReasoningEffort": "high",
+    "requiresOpenaiAuth": true,
+    "endpointCandidates": [
+      "https://api.ppio.com/openai/v1"
+    ],
+    "modelCatalog": [
+      {
+        "model": "deepseek/deepseek-v4.1-flash",
+        "displayName": "DeepSeek V4.1 Flash",
+        "contextWindow": 1048576,
+        "inputModalities": [
+          "text"
+        ]
+      }
+    ]
+  },
+  {
+    "name": "ClaudeCN",
+    "category": "third_party",
+    "icon": "claudecn",
+    "websiteUrl": "https://claudecn.top",
+    "apiFormat": "openai_responses",
+    "baseUrl": "https://claudecn.top/v1",
+    "defaultModel": "gpt-6.1-sol",
+    "defaultReasoningEffort": "high",
+    "requiresOpenaiAuth": true
+  },
+  {
+    "name": "火山 Agent Plan",
+    "category": "cn_official",
+    "family": "volcengine",
+    "planKey": "agentPlan",
+    "icon": "huoshan",
+    "iconColor": "#3370FF",
+    "websiteUrl": "https://www.volcengine.com/activity/agentplan",
+    "apiFormat": "openai_responses",
+    "baseUrl": "https://ark.cn-beijing.volces.com/api/plan/v3",
+    "defaultModel": "ark-code-latest",
+    "defaultReasoningEffort": "high",
+    "requiresOpenaiAuth": true,
+    "endpointCandidates": [
+      "https://ark.cn-beijing.volces.com/api/plan/v3"
+    ],
+    "modelCatalog": [
+      {
+        "model": "ark-code-latest",
+        "displayName": "Ark Code Latest",
+        "contextWindow": 256000,
+        "reasoningLevels": [
+          "low",
+          "medium",
+          "high"
+        ]
+      }
+    ]
+  },
+  {
+    "name": "火山 Coding Plan",
+    "category": "cn_official",
+    "family": "volcengine",
+    "planKey": "codingPlan",
+    "icon": "huoshan",
+    "iconColor": "#3370FF",
+    "websiteUrl": "https://www.volcengine.com/activity/codingplan",
+    "apiFormat": "openai_responses",
+    "baseUrl": "https://ark.cn-beijing.volces.com/api/coding/v3",
+    "defaultModel": "ark-code-latest",
+    "defaultReasoningEffort": "high",
+    "requiresOpenaiAuth": true,
+    "endpointCandidates": [
+      "https://ark.cn-beijing.volces.com/api/coding/v3"
+    ],
+    "modelCatalog": [
+      {
+        "model": "ark-code-latest",
+        "displayName": "Ark Code Latest",
+        "contextWindow": 256000,
+        "reasoningLevels": [
+          "low",
+          "medium",
+          "high"
+        ]
+      }
+    ]
+  },
+  {
+    "name": "BytePlus",
+    "category": "cn_official",
+    "icon": "byteplus",
+    "iconColor": "#3370FF",
+    "websiteUrl": "https://www.byteplus.com/en/product/modelark",
+    "apiFormat": "openai_responses",
+    "baseUrl": "https://ark.ap-southeast.bytepluses.com/api/coding/v3",
+    "defaultModel": "ark-code-latest",
+    "defaultReasoningEffort": "high",
+    "requiresOpenaiAuth": true,
+    "endpointCandidates": [
+      "https://ark.ap-southeast.bytepluses.com/api/coding/v3"
+    ],
+    "modelCatalog": [
+      {
+        "model": "ark-code-latest",
+        "displayName": "Ark Code Latest",
+        "contextWindow": 256000,
+        "reasoningLevels": [
+          "low",
+          "medium",
+          "high"
+        ]
+      }
+    ]
+  },
+  {
+    "name": "Volcengine Doubao",
+    "nameKey": "providerForm.presets.doubaoseed",
+    "category": "cn_official",
+    "family": "volcengine",
+    "planKey": "payg",
+    "icon": "doubao",
+    "iconColor": "#3370FF",
+    "websiteUrl": "https://console.volcengine.com/ark/region:ark+cn-beijing/apiKey",
+    "apiFormat": "openai_responses",
+    "baseUrl": "https://ark.cn-beijing.volces.com/api/v3",
+    "defaultModel": "doubao-seed-2-1-pro-260915",
+    "defaultReasoningEffort": "high",
+    "requiresOpenaiAuth": true,
+    "endpointCandidates": [
+      "https://ark.cn-beijing.volces.com/api/v3"
+    ],
+    "modelCatalog": [
+      {
+        "model": "doubao-seed-2-1-pro-260915",
+        "displayName": "Doubao Seed 2.1 Pro",
+        "contextWindow": 262144,
+        "reasoningLevels": [
+          "minimal",
+          "low",
+          "medium",
+          "high"
+        ]
+      }
+    ]
+  },
+  {
+    "name": "SiliconFlow",
+    "category": "aggregator",
+    "family": "siliconflow",
+    "regionKey": "cn",
+    "icon": "siliconflow",
+    "iconColor": "#6E29F6",
+    "websiteUrl": "https://siliconflow.cn",
+    "apiFormat": "openai_chat",
+    "baseUrl": "https://api.siliconflow.cn/v1",
+    "defaultModel": "deepseek-ai/DeepSeek-V4-Flash",
+    "defaultReasoningEffort": "high",
+    "requiresOpenaiAuth": true,
+    "endpointCandidates": [
+      "https://api.siliconflow.cn/v1"
+    ],
+    "modelCatalog": [
+      {
+        "model": "deepseek-ai/DeepSeek-V4-Flash",
+        "displayName": "DeepSeek V4 Flash",
+        "contextWindow": 1048576,
+        "inputModalities": [
+          "text"
+        ],
+        "reasoningLevels": [
+          "high",
+          "max"
+        ],
+        "defaultReasoningLevel": "high"
+      }
+    ]
+  },
+  {
+    "name": "SiliconFlow en",
+    "category": "aggregator",
+    "family": "siliconflow",
+    "regionKey": "intl",
+    "icon": "siliconflow",
+    "iconColor": "#000000",
+    "websiteUrl": "https://siliconflow.com",
+    "apiFormat": "openai_chat",
+    "baseUrl": "https://api.siliconflow.com/v1",
+    "defaultModel": "MiniMaxAI/MiniMax-M3",
+    "defaultReasoningEffort": "high",
+    "requiresOpenaiAuth": true,
+    "endpointCandidates": [
+      "https://api.siliconflow.com/v1"
+    ],
+    "modelCatalog": [
+      {
+        "model": "MiniMaxAI/MiniMax-M3",
+        "displayName": "MiniMax M3",
+        "contextWindow": 1048576,
+        "reasoningLevels": [
+          "none",
+          "high"
+        ]
+      }
+    ]
+  },
+  {
+    "name": "A6API",
+    "category": "aggregator",
+    "icon": "a6api",
+    "websiteUrl": "https://www.a6api.vip",
+    "apiFormat": "openai_responses",
+    "baseUrl": "https://api.a6api.vip/v1",
+    "defaultModel": "gpt-6.1-sol",
+    "defaultReasoningEffort": "high",
+    "requiresOpenaiAuth": true,
+    "endpointCandidates": [
+      "https://api.a6api.vip/v1"
+    ]
+  },
+  {
+    "name": "Compshare",
+    "nameKey": "providerForm.presets.ucloud",
+    "category": "aggregator",
+    "family": "compshare",
+    "planKey": "payg",
+    "icon": "ucloud",
+    "iconColor": "#000000",
+    "websiteUrl": "https://www.compshare.cn",
+    "apiFormat": "openai_responses",
+    "baseUrl": "https://api.modelverse.cn/v1",
+    "defaultModel": "gpt-6.1-sol",
+    "defaultReasoningEffort": "high",
+    "requiresOpenaiAuth": true,
+    "endpointCandidates": [
+      "https://api.modelverse.cn/v1"
+    ]
+  },
+  {
+    "name": "Compshare Coding Plan",
+    "nameKey": "providerForm.presets.ucloudCoding",
+    "category": "aggregator",
+    "family": "compshare",
+    "planKey": "codingPlan",
+    "icon": "ucloud",
+    "iconColor": "#000000",
+    "websiteUrl": "https://www.compshare.cn",
+    "apiFormat": "openai_responses",
+    "baseUrl": "https://cp.compshare.cn/v1",
+    "defaultModel": "gpt-6.1-sol",
+    "defaultReasoningEffort": "high",
+    "requiresOpenaiAuth": true,
+    "endpointCandidates": [
+      "https://cp.compshare.cn/v1"
+    ]
+  },
+  {
+    "name": "CCSub",
+    "category": "aggregator",
+    "icon": "ccsub",
+    "websiteUrl": "https://www.ccsub.net",
+    "apiFormat": "openai_responses",
+    "baseUrl": "https://www.ccsub.net/v1",
+    "defaultModel": "gpt-6-astra",
+    "defaultReasoningEffort": "high",
+    "requiresOpenaiAuth": true,
+    "endpointCandidates": [
+      "https://www.ccsub.net/v1"
+    ]
+  },
+  {
+    "name": "SSSAiCode",
+    "category": "third_party",
+    "icon": "sssaicode",
+    "iconColor": "#000000",
+    "websiteUrl": "https://sssaicodeapi.com",
+    "apiFormat": "openai_responses",
+    "baseUrl": "https://node-hk.sssaicodeapi.com/api/v1",
+    "defaultModel": "gpt-6.1-sol",
+    "defaultReasoningEffort": "high",
+    "requiresOpenaiAuth": true,
+    "endpointCandidates": [
+      "https://node-hk.sssaicodeapi.com/api/v1",
+      "https://node-hk.sssaiapi.com/api/v1",
+      "https://node-cf.sssaicodeapi.com/api/v1"
+    ]
+  },
+  {
+    "name": "SoleAPI",
+    "category": "aggregator",
+    "icon": "soleapi",
+    "websiteUrl": "https://soleapi.com",
+    "apiFormat": "openai_responses",
+    "baseUrl": "https://soleapi.com/v1",
+    "defaultModel": "gpt-6.1-sol",
+    "defaultReasoningEffort": "high",
+    "requiresOpenaiAuth": true,
+    "endpointCandidates": [
+      "https://soleapi.com/v1"
+    ]
+  },
+  {
+    "name": "Micu",
+    "category": "third_party",
+    "icon": "micu",
+    "iconColor": "#000000",
+    "websiteUrl": "https://www.micuapi.ai",
+    "apiFormat": "openai_responses",
+    "baseUrl": "https://www.micuapi.ai/v1",
+    "defaultModel": "gpt-6.1-sol",
+    "defaultReasoningEffort": "high",
+    "requiresOpenaiAuth": true,
+    "endpointCandidates": [
+      "https://www.micuapi.ai/v1"
+    ]
+  },
+  {
+    "name": "RightCode",
+    "category": "third_party",
+    "icon": "rc",
+    "iconColor": "#E96B2C",
+    "websiteUrl": "https://www.rightapi.ai",
+    "apiFormat": "openai_responses",
+    "baseUrl": "https://www.rightapi.ai/codex/v1",
+    "defaultModel": "gpt-6.1-sol",
+    "defaultReasoningEffort": "high",
+    "requiresOpenaiAuth": true
+  },
+  {
+    "name": "Cubence",
+    "category": "third_party",
+    "icon": "cubence",
+    "iconColor": "#000000",
+    "websiteUrl": "https://cubence.com",
+    "apiFormat": "openai_responses",
+    "baseUrl": "https://api.cubence.com/v1",
+    "defaultModel": "gpt-6.1-sol",
+    "defaultReasoningEffort": "high",
+    "requiresOpenaiAuth": true,
+    "endpointCandidates": [
+      "https://api.cubence.com/v1",
+      "https://api-cf.cubence.com/v1",
+      "https://api-dmit.cubence.com/v1",
+      "https://api-bwg.cubence.com/v1"
+    ]
+  },
+  {
+    "name": "CrazyRouter",
+    "icon": "crazyrouter",
+    "iconColor": "#000000",
+    "websiteUrl": "https://www.crazyrouter.com",
+    "apiFormat": "openai_responses",
+    "baseUrl": "https://cn.crazyrouter.com/v1",
+    "defaultModel": "gpt-6.1-sol",
+    "defaultReasoningEffort": "high",
+    "requiresOpenaiAuth": true,
+    "endpointCandidates": [
+      "https://cn.crazyrouter.com/v1"
+    ]
+  },
+  {
+    "name": "DMXAPI",
+    "category": "aggregator",
+    "icon": "dmxapi",
+    "websiteUrl": "https://www.dmxapi.cn",
+    "apiFormat": "openai_responses",
+    "baseUrl": "https://www.dmxapi.cn/v1",
+    "defaultModel": "gpt-6.1-sol",
+    "defaultReasoningEffort": "high",
+    "requiresOpenaiAuth": true,
+    "endpointCandidates": [
+      "https://www.dmxapi.cn/v1"
+    ]
+  },
+  {
+    "name": "SudoCode.chat",
+    "category": "third_party",
+    "family": "sudocode",
+    "icon": "sudocode",
+    "websiteUrl": "https://sudocode.chat",
+    "apiFormat": "openai_responses",
+    "baseUrl": "https://api.sudocode.chat/v1",
+    "defaultModel": "gpt-6.1-sol",
+    "defaultReasoningEffort": "high",
+    "requiresOpenaiAuth": true,
+    "endpointCandidates": [
+      "https://api.sudocode.chat/v1",
+      "https://api.sudorelay.com/v1"
+    ]
+  },
+  {
+    "name": "SudoCode.us",
+    "category": "third_party",
+    "family": "sudocode",
+    "icon": "sudocode-us",
+    "websiteUrl": "https://sudocode.us",
+    "apiFormat": "openai_responses",
+    "baseUrl": "https://sudocode.us/v1",
+    "defaultModel": "gpt-6.1-sol",
+    "defaultReasoningEffort": "high",
+    "requiresOpenaiAuth": true,
+    "endpointCandidates": [
+      "https://sudocode.us/v1",
+      "https://sudocode.run/v1"
+    ]
+  },
+  {
+    "name": "XycAi",
+    "category": "aggregator",
+    "icon": "xycai",
+    "websiteUrl": "https://xycai.us",
+    "apiFormat": "openai_responses",
+    "baseUrl": "https://apicdn.xycai.us/v1",
+    "defaultModel": "gpt-6.1-sol",
+    "defaultReasoningEffort": "high",
+    "requiresOpenaiAuth": true,
+    "endpointCandidates": [
+      "https://apicdn.xycai.us/v1",
+      "https://apicdn.xyc.ai/v1"
+    ]
+  },
+  {
+    "name": "Modelflare",
+    "category": "aggregator",
+    "icon": "modelflare",
+    "websiteUrl": "https://modelflare.dev",
+    "apiFormat": "openai_responses",
+    "baseUrl": "https://modelflare.dev/v1",
+    "defaultModel": "gpt-6.1-sol",
+    "defaultReasoningEffort": "high",
+    "requiresOpenaiAuth": true,
+    "endpointCandidates": [
+      "https://modelflare.dev/v1",
+      "https://origin.modelflare.dev/v1"
+    ]
+  },
+  {
+    "name": "AllTokens",
+    "category": "aggregator",
+    "icon": "alltokens",
+    "websiteUrl": "https://alltokens.cc",
+    "apiFormat": "openai_responses",
+    "baseUrl": "https://alltokens.cc/v1",
+    "defaultModel": "gpt-6.1-sol",
+    "defaultReasoningEffort": "high",
+    "requiresOpenaiAuth": true
+  },
+  {
+    "name": "AllTokens SI",
+    "category": "aggregator",
+    "icon": "alltokens-si",
+    "websiteUrl": "https://alltokens.si",
+    "apiFormat": "openai_responses",
+    "baseUrl": "https://alltokens.si/v1",
+    "defaultModel": "gpt-6.1-sol",
+    "defaultReasoningEffort": "high",
+    "requiresOpenaiAuth": true
+  },
+  {
+    "name": "Tu-zi",
+    "nameKey": "providerForm.presets.tuzi",
+    "category": "aggregator",
+    "icon": "tuzi",
+    "websiteUrl": "https://api.tu-zi.com",
+    "apiFormat": "openai_responses",
+    "baseUrl": "https://api.tu-zi.com/v1",
+    "defaultModel": "gpt-6.1-sol",
+    "defaultReasoningEffort": "high",
+    "requiresOpenaiAuth": true,
+    "endpointCandidates": [
+      "https://api.tu-zi.com/v1",
+      "https://api.ourzhishi.top/v1",
+      "https://api.sydney-ai.com/v1",
+      "https://apicdn.tu-zi.com/v1"
+    ]
+  },
+  {
+    "name": "Amux",
+    "category": "aggregator",
+    "icon": "amux",
+    "websiteUrl": "https://amux.ai",
+    "apiFormat": "openai_responses",
+    "baseUrl": "https://api.amux.ai/v1",
+    "defaultModel": "gpt-6.1-sol",
+    "defaultReasoningEffort": "high",
+    "requiresOpenaiAuth": true,
+    "endpointCandidates": [
+      "https://api.amux.ai/v1"
+    ]
+  },
+  {
+    "name": "AtlasCloud",
+    "category": "aggregator",
+    "icon": "atlascloud",
+    "websiteUrl": "https://www.atlascloud.ai/console/coding-plan",
+    "apiFormat": "openai_chat",
+    "baseUrl": "https://api.atlascloud.ai/v1",
+    "defaultModel": "zai-org/glm-5.3",
+    "requiresOpenaiAuth": true,
+    "endpointCandidates": [
+      "https://api.atlascloud.ai/v1"
+    ],
+    "modelCatalog": [
+      {
+        "model": "zai-org/glm-5.3",
+        "displayName": "GLM 5.3",
+        "contextWindow": 1048576,
+        "inputModalities": [
+          "text"
+        ],
+        "reasoningLevels": [
+          "high"
+        ]
+      }
+    ]
+  },
+  {
+    "name": "Soshow",
+    "category": "aggregator",
+    "icon": "soshow",
+    "websiteUrl": "https://aimarket.so-show.com",
+    "apiFormat": "openai_responses",
+    "baseUrl": "https://maas.so-show.com/v1",
+    "defaultModel": "gpt-6.1-sol",
+    "defaultReasoningEffort": "high",
+    "requiresOpenaiAuth": true
+  },
+  {
+    "name": "Azure OpenAI",
+    "category": "third_party",
+    "icon": "azure",
+    "iconColor": "#0078D4",
+    "isOfficial": true,
+    "websiteUrl": "https://learn.microsoft.com/en-us/azure/ai-foundry/openai/how-to/codex",
+    "apiFormat": "openai_responses",
+    "baseUrl": "https://YOUR_RESOURCE_NAME.openai.azure.com/openai",
+    "defaultModel": "gpt-5.6-sol",
+    "defaultReasoningEffort": "high",
+    "requiresOpenaiAuth": true,
+    "endpointCandidates": [
+      "https://YOUR_RESOURCE_NAME.openai.azure.com/openai"
+    ]
+  },
+  {
+    "name": "OpenAI API",
+    "category": "cn_official",
+    "icon": "openai",
+    "iconColor": "#00A67E",
+    "websiteUrl": "https://platform.openai.com",
+    "apiFormat": "openai_responses",
+    "baseUrl": "https://api.openai.com/v1",
+    "defaultModel": "gpt-6.1-sol",
+    "defaultReasoningEffort": "high",
+    "requiresOpenaiAuth": true,
+    "endpointCandidates": [
+      "https://api.openai.com/v1"
+    ]
+  },
+  {
+    "name": "DeepSeek",
+    "category": "cn_official",
+    "icon": "deepseek",
+    "iconColor": "#1E88E5",
+    "websiteUrl": "https://platform.deepseek.com",
+    "apiFormat": "openai_responses",
+    "baseUrl": "https://api.deepseek.com",
+    "defaultModel": "deepseek-flash",
+    "defaultReasoningEffort": "high",
+    "requiresOpenaiAuth": true,
+    "endpointCandidates": [
+      "https://api.deepseek.com"
+    ],
+    "modelCatalog": [
+      {
+        "model": "deepseek-flash",
+        "displayName": "DeepSeek V4.1 Flash",
+        "contextWindow": 1048576,
+        "inputModalities": [
+          "text",
+          "image"
+        ],
+        "reasoningLevels": [
+          "low",
+          "high",
+          "max"
+        ]
+      }
+    ]
+  },
+  {
+    "name": "Zhipu GLM",
+    "category": "cn_official",
+    "family": "zhipu",
+    "regionKey": "cn",
+    "icon": "zhipu",
+    "iconColor": "#0F62FE",
+    "websiteUrl": "https://open.bigmodel.cn",
+    "apiFormat": "openai_responses",
+    "baseUrl": "https://open.bigmodel.cn/api/v1",
+    "defaultModel": "glm-5.3",
+    "defaultReasoningEffort": "high",
+    "requiresOpenaiAuth": true,
+    "endpointCandidates": [
+      "https://open.bigmodel.cn/api/v1"
+    ],
+    "modelCatalog": [
+      {
+        "model": "glm-5.3",
+        "displayName": "GLM-5.3",
+        "contextWindow": 1048576,
+        "supportsParallelToolCalls": true,
+        "inputModalities": [
+          "text"
+        ],
+        "reasoningLevels": [
+          "low",
+          "high",
+          "max"
+        ],
+        "defaultReasoningLevel": "max"
+      },
+      {
+        "model": "glm-5.3-flash",
+        "displayName": "GLM-5.3-Flash",
+        "contextWindow": 1048576,
+        "supportsParallelToolCalls": true,
+        "inputModalities": [
+          "text",
+          "image"
+        ],
+        "reasoningLevels": [
+          "low",
+          "high",
+          "max"
+        ],
+        "defaultReasoningLevel": "max"
+      },
+      {
+        "model": "glm-5-turbo",
+        "displayName": "GLM-5-Turbo",
+        "contextWindow": 204800,
+        "supportsParallelToolCalls": true,
+        "inputModalities": [
+          "text"
+        ],
+        "reasoningLevels": [
+          "max"
+        ]
+      }
+    ]
+  },
+  {
+    "name": "Zhipu GLM en",
+    "category": "cn_official",
+    "family": "zhipu",
+    "regionKey": "intl",
+    "icon": "zhipu",
+    "iconColor": "#0F62FE",
+    "websiteUrl": "https://z.ai",
+    "apiFormat": "openai_responses",
+    "baseUrl": "https://api.z.ai/api/v1",
+    "defaultModel": "glm-5.3",
+    "defaultReasoningEffort": "high",
+    "requiresOpenaiAuth": true,
+    "endpointCandidates": [
+      "https://api.z.ai/api/v1"
+    ],
+    "modelCatalog": [
+      {
+        "model": "glm-5.3",
+        "displayName": "GLM-5.3",
+        "contextWindow": 1048576,
+        "supportsParallelToolCalls": true,
+        "inputModalities": [
+          "text"
+        ],
+        "reasoningLevels": [
+          "low",
+          "high",
+          "max"
+        ],
+        "defaultReasoningLevel": "max"
+      },
+      {
+        "model": "glm-5.3-flash",
+        "displayName": "GLM-5.3-Flash",
+        "contextWindow": 1048576,
+        "supportsParallelToolCalls": true,
+        "inputModalities": [
+          "text",
+          "image"
+        ],
+        "reasoningLevels": [
+          "low",
+          "high",
+          "max"
+        ],
+        "defaultReasoningLevel": "max"
+      }
+    ]
+  },
+  {
+    "name": "Baidu Qianfan",
+    "category": "cn_official",
+    "family": "baidu-qianfan",
+    "planKey": "payg",
+    "icon": "baidu",
+    "iconColor": "#2932E1",
+    "websiteUrl": "https://cloud.baidu.com/product/qianfan_modelbuilder",
+    "apiFormat": "openai_responses",
+    "baseUrl": "https://qianfan.baidubce.com/v2",
+    "defaultModel": "deepseek-v4-flash",
+    "defaultReasoningEffort": "high",
+    "requiresOpenaiAuth": true,
+    "endpointCandidates": [
+      "https://qianfan.baidubce.com/v2"
+    ],
+    "modelCatalog": [
+      {
+        "model": "deepseek-v4-flash",
+        "displayName": "DeepSeek V4 Flash",
+        "contextWindow": 1048576,
+        "inputModalities": [
+          "text"
+        ],
+        "reasoningLevels": [
+          "high"
+        ]
+      }
+    ]
+  },
+  {
+    "name": "Baidu Qianfan Coding Plan",
+    "category": "cn_official",
+    "family": "baidu-qianfan",
+    "planKey": "codingPlan",
+    "icon": "baidu",
+    "iconColor": "#2932E1",
+    "websiteUrl": "https://cloud.baidu.com/product/qianfan_modelbuilder",
+    "apiFormat": "openai_chat",
+    "baseUrl": "https://qianfan.baidubce.com/v2/coding",
+    "defaultModel": "qianfan-code-latest",
+    "defaultReasoningEffort": "high",
+    "requiresOpenaiAuth": true,
+    "endpointCandidates": [
+      "https://qianfan.baidubce.com/v2/coding"
+    ],
+    "modelCatalog": [
+      {
+        "model": "qianfan-code-latest",
+        "displayName": "Qianfan Code Latest",
+        "contextWindow": 131072,
+        "reasoningLevels": [
+          "none",
+          "high"
+        ]
+      }
+    ]
+  },
+  {
+    "name": "Baidu Qianfan Token Plan",
+    "category": "cn_official",
+    "family": "baidu-qianfan",
+    "planKey": "tokenPlan",
+    "icon": "baidu",
+    "iconColor": "#2932E1",
+    "websiteUrl": "https://cloud.baidu.com/product/codingplan.html",
+    "apiFormat": "openai_chat",
+    "baseUrl": "https://qianfan.baidubce.com/v2/tokenplan/personal",
+    "defaultModel": "deepseek-v4-flash",
+    "defaultReasoningEffort": "high",
+    "requiresOpenaiAuth": true,
+    "endpointCandidates": [
+      "https://qianfan.baidubce.com/v2/tokenplan/personal"
+    ],
+    "modelCatalog": [
+      {
+        "model": "deepseek-v4-flash",
+        "displayName": "DeepSeek V4 Flash",
+        "contextWindow": 1048576,
+        "inputModalities": [
+          "text"
+        ],
+        "reasoningLevels": [
+          "none",
+          "high",
+          "max"
+        ]
+      },
+      {
+        "model": "deepseek-v4-flash-0731",
+        "displayName": "DeepSeek V4 Flash 0731",
+        "contextWindow": 1048576,
+        "inputModalities": [
+          "text"
+        ]
+      },
+      {
+        "model": "glm-5.2",
+        "displayName": "GLM-5.2",
+        "contextWindow": 1048576
+      },
+      {
+        "model": "glm-5.1",
+        "displayName": "GLM-5.1",
+        "contextWindow": 198000,
+        "reasoningLevels": [
+          "none",
+          "high"
+        ]
+      },
+      {
+        "model": "kimi-k2.6",
+        "displayName": "Kimi K2.6",
+        "contextWindow": 262144
+      }
+    ]
+  },
+  {
+    "name": "千问AI平台",
+    "category": "cn_official",
+    "family": "qianwen",
+    "planKey": "payg",
+    "icon": "qianwenai",
+    "iconColor": "#624AFF",
+    "websiteUrl": "https://platform.qianwenai.com/",
+    "apiFormat": "openai_responses",
+    "baseUrl": "https://maas.qianwenaiapi.com/compatible-mode/v1",
+    "defaultModel": "qwen3.8-max",
+    "defaultReasoningEffort": "high",
+    "requiresOpenaiAuth": true,
+    "endpointCandidates": [
+      "https://maas.qianwenaiapi.com/compatible-mode/v1",
+      "https://dashscope.aliyuncs.com/compatible-mode/v1"
+    ],
+    "modelCatalog": [
+      {
+        "model": "qwen3.8-max",
+        "displayName": "Qwen3.8 Max",
+        "contextWindow": 983616,
+        "supportsParallelToolCalls": false,
+        "reasoningLevels": [
+          "low",
+          "medium",
+          "xhigh"
+        ],
+        "defaultReasoningLevel": "xhigh"
+      },
+      {
+        "model": "qwen3.8-2.4t-a95b",
+        "displayName": "Qwen3.8 2.4T A95B",
+        "contextWindow": 983616,
+        "supportsParallelToolCalls": false,
+        "inputModalities": [
+          "text"
+        ],
+        "reasoningLevels": [
+          "low",
+          "medium",
+          "xhigh"
+        ],
+        "defaultReasoningLevel": "xhigh"
+      },
+      {
+        "model": "qwen3.8-27b",
+        "displayName": "Qwen3.8 27B",
+        "contextWindow": 983616,
+        "supportsParallelToolCalls": false,
+        "inputModalities": [
+          "text",
+          "image"
+        ],
+        "reasoningLevels": [
+          "low",
+          "medium",
+          "xhigh"
+        ],
+        "defaultReasoningLevel": "xhigh"
+      }
+    ]
+  },
+  {
+    "name": "千问AI平台 Token Plan",
+    "category": "cn_official",
+    "family": "qianwen",
+    "planKey": "tokenPlan",
+    "icon": "qianwenai",
+    "iconColor": "#624AFF",
+    "websiteUrl": "https://platform.qianwenai.com/pricing/token-plan",
+    "apiFormat": "openai_responses",
+    "baseUrl": "https://token-plan.maas.qianwenaiapi.com/compatible-mode/v1",
+    "defaultModel": "qwen3.8-max",
+    "defaultReasoningEffort": "high",
+    "requiresOpenaiAuth": true,
+    "endpointCandidates": [
+      "https://token-plan.maas.qianwenaiapi.com/compatible-mode/v1",
+      "https://token-plan.cn-beijing.maas.aliyuncs.com/compatible-mode/v1"
+    ],
+    "modelCatalog": [
+      {
+        "model": "qwen3.8-max",
+        "displayName": "Qwen3.8 Max",
+        "contextWindow": 983616,
+        "supportsParallelToolCalls": false,
+        "reasoningLevels": [
+          "low",
+          "medium",
+          "xhigh"
+        ],
+        "defaultReasoningLevel": "xhigh"
+      },
+      {
+        "model": "qwen3.8-flash",
+        "displayName": "Qwen3.8 Flash",
+        "contextWindow": 983616,
+        "supportsParallelToolCalls": false,
+        "reasoningLevels": [
+          "low",
+          "medium",
+          "xhigh"
+        ],
+        "defaultReasoningLevel": "xhigh"
+      }
+    ]
+  },
+  {
+    "name": "QwenCloud",
+    "category": "cn_official",
+    "family": "qwencloud",
+    "planKey": "payg",
+    "icon": "qwencloud",
+    "iconColor": "#6336E7",
+    "websiteUrl": "https://home.qwencloud.com/",
+    "apiFormat": "openai_responses",
+    "baseUrl": "https://ap-southeast-1.maas.qwencloudapi.com/compatible-mode/v1",
+    "defaultModel": "qwen3.8-max",
+    "defaultReasoningEffort": "high",
+    "requiresOpenaiAuth": true,
+    "endpointCandidates": [
+      "https://ap-southeast-1.maas.qwencloudapi.com/compatible-mode/v1",
+      "https://dashscope-intl.aliyuncs.com/compatible-mode/v1"
+    ],
+    "modelCatalog": [
+      {
+        "model": "qwen3.8-max",
+        "displayName": "Qwen3.8 Max",
+        "contextWindow": 983616,
+        "supportsParallelToolCalls": false,
+        "reasoningLevels": [
+          "low",
+          "medium",
+          "xhigh"
+        ],
+        "defaultReasoningLevel": "xhigh"
+      },
+      {
+        "model": "qwen3.8-flash",
+        "displayName": "Qwen3.8 Flash",
+        "contextWindow": 983616,
+        "supportsParallelToolCalls": false,
+        "reasoningLevels": [
+          "low",
+          "medium",
+          "xhigh"
+        ],
+        "defaultReasoningLevel": "xhigh"
+      },
+      {
+        "model": "qwen3.7-max",
+        "displayName": "Qwen3.7 Max",
+        "contextWindow": 1000000,
+        "inputModalities": [
+          "text"
+        ]
+      },
+      {
+        "model": "qwen3.8-2.4t-a95b",
+        "displayName": "Qwen3.8 2.4T A95B",
+        "contextWindow": 983616,
+        "supportsParallelToolCalls": false,
+        "inputModalities": [
+          "text"
+        ],
+        "reasoningLevels": [
+          "low",
+          "medium",
+          "xhigh"
+        ],
+        "defaultReasoningLevel": "xhigh"
+      },
+      {
+        "model": "qwen3.8-27b",
+        "displayName": "Qwen3.8 27B",
+        "contextWindow": 983616,
+        "supportsParallelToolCalls": false,
+        "inputModalities": [
+          "text",
+          "image"
+        ],
+        "reasoningLevels": [
+          "low",
+          "medium",
+          "xhigh"
+        ],
+        "defaultReasoningLevel": "xhigh"
+      }
+    ]
+  },
+  {
+    "name": "QwenCloud For Coding",
+    "category": "cn_official",
+    "family": "qwencloud",
+    "planKey": "coding",
+    "icon": "qwencloud",
+    "iconColor": "#6336E7",
+    "websiteUrl": "https://www.qwencloud.com",
+    "apiFormat": "openai_chat",
+    "baseUrl": "https://coding-intl.dashscope.aliyuncs.com/v1",
+    "defaultModel": "qwen3.7-plus",
+    "defaultReasoningEffort": "high",
+    "requiresOpenaiAuth": true,
+    "endpointCandidates": [
+      "https://coding-intl.dashscope.aliyuncs.com/v1"
+    ],
+    "modelCatalog": [
+      {
+        "model": "qwen3.7-plus",
+        "displayName": "Qwen3.7 Plus",
+        "contextWindow": 1000000
+      },
+      {
+        "model": "qwen3.6-plus",
+        "displayName": "Qwen3.6 Plus",
+        "contextWindow": 1000000
+      },
+      {
+        "model": "qwen3-coder-plus",
+        "displayName": "Qwen3 Coder Plus",
+        "contextWindow": 131072,
+        "inputModalities": [
+          "text"
+        ]
+      }
+    ]
+  },
+  {
+    "name": "QwenCloud Token Plan",
+    "category": "cn_official",
+    "family": "qwencloud",
+    "planKey": "tokenPlan",
+    "icon": "qwencloud",
+    "iconColor": "#6336E7",
+    "websiteUrl": "https://www.qwencloud.com/pricing/token-plan",
+    "apiFormat": "openai_responses",
+    "baseUrl": "https://token-plan.maas.qwencloudapi.com/compatible-mode/v1",
+    "defaultModel": "qwen3.8-max",
+    "defaultReasoningEffort": "high",
+    "requiresOpenaiAuth": true,
+    "endpointCandidates": [
+      "https://token-plan.maas.qwencloudapi.com/compatible-mode/v1",
+      "https://token-plan.ap-southeast-1.maas.aliyuncs.com/compatible-mode/v1"
+    ],
+    "modelCatalog": [
+      {
+        "model": "qwen3.8-max",
+        "displayName": "Qwen3.8 Max",
+        "contextWindow": 983616,
+        "supportsParallelToolCalls": false,
+        "reasoningLevels": [
+          "low",
+          "medium",
+          "xhigh"
+        ],
+        "defaultReasoningLevel": "xhigh"
+      },
+      {
+        "model": "qwen3.8-flash",
+        "displayName": "Qwen3.8 Flash",
+        "contextWindow": 983616,
+        "supportsParallelToolCalls": false,
+        "reasoningLevels": [
+          "low",
+          "medium",
+          "xhigh"
+        ],
+        "defaultReasoningLevel": "xhigh"
+      },
+      {
+        "model": "qwen3.7-max",
+        "displayName": "Qwen3.7 Max",
+        "contextWindow": 1000000,
+        "inputModalities": [
+          "text"
+        ]
+      }
+    ]
+  },
+  {
+    "name": "Tencent Hunyuan",
+    "category": "cn_official",
+    "family": "tencent",
+    "planKey": "payg",
+    "regionKey": "cn",
+    "icon": "hunyuan",
+    "iconColor": "#0055E9",
+    "websiteUrl": "https://cloud.tencent.com/product/tokenhub",
+    "apiFormat": "openai_responses",
+    "baseUrl": "https://tokenhub.tencentmaas.com/v1",
+    "defaultModel": "hy3",
+    "defaultReasoningEffort": "high",
+    "requiresOpenaiAuth": true,
+    "endpointCandidates": [
+      "https://tokenhub.tencentmaas.com/v1",
+      "https://tokenhub.tencentmaas.cn/v1"
+    ],
+    "modelCatalog": [
+      {
+        "model": "hy3",
+        "displayName": "Hy3",
+        "contextWindow": 256000,
+        "inputModalities": [
+          "text"
+        ],
+        "reasoningLevels": [
+          "low",
+          "high"
+        ]
+      },
+      {
+        "model": "hy4-preview",
+        "displayName": "Hy4 Preview",
+        "contextWindow": 960000,
+        "inputModalities": [
+          "text"
+        ],
+        "reasoningLevels": [
+          "none",
+          "high"
+        ],
+        "defaultReasoningLevel": "high"
+      },
+      {
+        "model": "hy3-preview",
+        "displayName": "Hy3 Preview",
+        "contextWindow": 256000,
+        "inputModalities": [
+          "text"
+        ],
+        "reasoningLevels": [
+          "low",
+          "high"
+        ]
+      }
+    ]
+  },
+  {
+    "name": "Tencent Token Plan",
+    "category": "cn_official",
+    "family": "tencent",
+    "planKey": "tokenPlan",
+    "regionKey": "cn",
+    "icon": "tencent",
+    "iconColor": "#0052D9",
+    "websiteUrl": "https://cloud.tencent.com/product/tokenhub",
+    "apiFormat": "openai_chat",
+    "baseUrl": "https://api.lkeap.cloud.tencent.com/plan/v3",
+    "defaultModel": "tc-code-latest",
+    "defaultReasoningEffort": "high",
+    "requiresOpenaiAuth": true,
+    "endpointCandidates": [
+      "https://api.lkeap.cloud.tencent.com/plan/v3"
+    ],
+    "modelCatalog": [
+      {
+        "model": "tc-code-latest",
+        "displayName": "Auto",
+        "contextWindow": 196608,
+        "reasoningLevels": [
+          "none",
+          "high"
+        ]
+      },
+      {
+        "model": "deepseek-v4-flash-202605",
+        "displayName": "DeepSeek V4 Flash",
+        "contextWindow": 1048576,
+        "reasoningLevels": [
+          "none",
+          "high"
+        ]
+      },
+      {
+        "model": "minimax-m2.7",
+        "displayName": "MiniMax M2.7",
+        "contextWindow": 200000,
+        "reasoningLevels": [
+          "high"
+        ]
+      },
+      {
+        "model": "glm-5",
+        "displayName": "GLM-5",
+        "contextWindow": 200000,
+        "reasoningLevels": [
+          "none",
+          "high"
+        ]
+      },
+      {
+        "model": "glm-5.1",
+        "displayName": "GLM-5.1",
+        "contextWindow": 200000,
+        "reasoningLevels": [
+          "none",
+          "high"
+        ]
+      },
+      {
+        "model": "glm-5.2",
+        "displayName": "GLM-5.2",
+        "contextWindow": 1048576,
+        "reasoningLevels": [
+          "none",
+          "high"
+        ]
+      },
+      {
+        "model": "hy3",
+        "displayName": "Hy3",
+        "contextWindow": 256000,
+        "inputModalities": [
+          "text"
+        ],
+        "reasoningLevels": [
+          "none",
+          "high"
+        ]
+      },
+      {
+        "model": "hy3-preview",
+        "displayName": "Hy3 Preview",
+        "contextWindow": 256000,
+        "inputModalities": [
+          "text"
+        ],
+        "reasoningLevels": [
+          "none",
+          "high"
+        ]
+      }
+    ]
+  },
+  {
+    "name": "Tencent Token Plan (Intl)",
+    "category": "cn_official",
+    "family": "tencent",
+    "planKey": "tokenPlan",
+    "regionKey": "intl",
+    "icon": "tencent",
+    "iconColor": "#0052D9",
+    "websiteUrl": "https://www.tencentcloud.com/products/tokenhub",
+    "apiFormat": "openai_chat",
+    "baseUrl": "https://tokenhub-intl.tencentcloudmaas.com/plan/v3",
+    "defaultModel": "auto",
+    "defaultReasoningEffort": "high",
+    "requiresOpenaiAuth": true,
+    "endpointCandidates": [
+      "https://tokenhub-intl.tencentcloudmaas.com/plan/v3"
+    ],
+    "modelCatalog": [
+      {
+        "model": "auto",
+        "displayName": "Auto",
+        "contextWindow": 196608,
+        "reasoningLevels": [
+          "none",
+          "high"
+        ]
+      },
+      {
+        "model": "glm-5.2",
+        "displayName": "GLM-5.2",
+        "contextWindow": 1048576,
+        "reasoningLevels": [
+          "none",
+          "high"
+        ]
+      },
+      {
+        "model": "kimi-k2.6",
+        "displayName": "Kimi K2.6",
+        "contextWindow": 262144,
+        "reasoningLevels": [
+          "none",
+          "high"
+        ]
+      },
+      {
+        "model": "deepseek-v4-flash-202605",
+        "displayName": "DeepSeek V4 Flash",
+        "contextWindow": 1048576,
+        "reasoningLevels": [
+          "none",
+          "high"
+        ]
+      },
+      {
+        "model": "minimax-m3",
+        "displayName": "MiniMax M3",
+        "contextWindow": 1048576,
+        "reasoningLevels": [
+          "none",
+          "high"
+        ]
+      }
+    ]
+  },
+  {
+    "name": "Tencent Token Plan Enterprise Pro",
+    "category": "cn_official",
+    "family": "tencent",
+    "planKey": "enterprisePro",
+    "regionKey": "cn",
+    "icon": "tencent",
+    "iconColor": "#0052D9",
+    "websiteUrl": "https://cloud.tencent.com/product/tokenhub",
+    "apiFormat": "openai_chat",
+    "baseUrl": "https://tokenhub.tencentmaas.com/plan/v3",
+    "defaultModel": "auto",
+    "defaultReasoningEffort": "high",
+    "requiresOpenaiAuth": true,
+    "endpointCandidates": [
+      "https://tokenhub.tencentmaas.com/plan/v3",
+      "https://tokenhub-intl.tencentmaas.com/plan/v3"
+    ],
+    "modelCatalog": [
+      {
+        "model": "auto",
+        "displayName": "Auto",
+        "contextWindow": 196608,
+        "reasoningLevels": [
+          "high"
+        ]
+      },
+      {
+        "model": "glm-5.3",
+        "displayName": "GLM-5.3",
+        "contextWindow": 1048576,
+        "reasoningLevels": [
+          "low",
+          "high",
+          "max"
+        ],
+        "defaultReasoningLevel": "high"
+      },
+      {
+        "model": "glm-5.2",
+        "displayName": "GLM-5.2",
+        "contextWindow": 1048576,
+        "reasoningLevels": [
+          "none",
+          "high"
+        ]
+      },
+      {
+        "model": "glm-5",
+        "displayName": "GLM-5",
+        "contextWindow": 200000,
+        "reasoningLevels": [
+          "none",
+          "high"
+        ]
+      },
+      {
+        "model": "glm-5.1",
+        "displayName": "GLM-5.1",
+        "contextWindow": 200000,
+        "reasoningLevels": [
+          "none",
+          "high"
+        ]
+      },
+      {
+        "model": "glm-5-turbo",
+        "displayName": "GLM-5 Turbo",
+        "contextWindow": 200000,
+        "reasoningLevels": [
+          "none",
+          "high"
+        ]
+      },
+      {
+        "model": "kimi-k2.7-code",
+        "displayName": "Kimi K2.7 Code",
+        "contextWindow": 262144,
+        "reasoningLevels": [
+          "high"
+        ]
+      },
+      {
+        "model": "kimi-k2.7-code-highspeed",
+        "displayName": "Kimi K2.7 Code HighSpeed",
+        "contextWindow": 262144,
+        "reasoningLevels": [
+          "high"
+        ]
+      },
+      {
+        "model": "kimi-k2.6",
+        "displayName": "Kimi K2.6",
+        "contextWindow": 262144,
+        "reasoningLevels": [
+          "none",
+          "high"
+        ]
+      },
+      {
+        "model": "minimax-m3",
+        "displayName": "MiniMax M3",
+        "contextWindow": 1048576,
+        "reasoningLevels": [
+          "none",
+          "high"
+        ]
+      },
+      {
+        "model": "deepseek-v4-flash",
+        "displayName": "DeepSeek V4 Flash",
+        "contextWindow": 1048576,
+        "inputModalities": [
+          "text"
+        ],
+        "reasoningLevels": [
+          "none",
+          "high"
+        ]
+      },
+      {
+        "model": "deepseek-v4-flash-0731",
+        "displayName": "DeepSeek V4 Flash 0731 GA",
+        "contextWindow": 1048576,
+        "inputModalities": [
+          "text"
+        ],
+        "reasoningLevels": [
+          "none",
+          "high"
+        ]
+      },
+      {
+        "model": "deepseek-v4-flash-202605",
+        "displayName": "DeepSeek V4 Flash Official",
+        "contextWindow": 1048576,
+        "inputModalities": [
+          "text"
+        ],
+        "reasoningLevels": [
+          "none",
+          "high"
+        ]
+      }
+    ]
+  },
+  {
+    "name": "Tencent Token Plan Enterprise Pro (Intl)",
+    "category": "cn_official",
+    "family": "tencent",
+    "planKey": "enterprisePro",
+    "regionKey": "intl",
+    "icon": "tencent",
+    "iconColor": "#0052D9",
+    "websiteUrl": "https://www.tencentcloud.com/products/tokenhub",
+    "apiFormat": "openai_chat",
+    "baseUrl": "https://tokenhub-intl.tencentcloudmaas.com/plan/v3",
+    "defaultModel": "auto",
+    "defaultReasoningEffort": "high",
+    "requiresOpenaiAuth": true,
+    "endpointCandidates": [
+      "https://tokenhub-intl.tencentcloudmaas.com/plan/v3",
+      "https://tokenhub.tencentcloudmaas.com/plan/v3"
+    ],
+    "modelCatalog": [
+      {
+        "model": "auto",
+        "displayName": "Auto",
+        "contextWindow": 196608,
+        "reasoningLevels": [
+          "none",
+          "high"
+        ]
+      },
+      {
+        "model": "glm-5.3",
+        "displayName": "GLM-5.3",
+        "contextWindow": 1048576,
+        "reasoningLevels": [
+          "low",
+          "high",
+          "max"
+        ],
+        "defaultReasoningLevel": "high"
+      },
+      {
+        "model": "glm-5.2",
+        "displayName": "GLM-5.2",
+        "contextWindow": 1048576,
+        "reasoningLevels": [
+          "none",
+          "high"
+        ]
+      },
+      {
+        "model": "minimax-m3",
+        "displayName": "MiniMax M3",
+        "contextWindow": 1048576,
+        "reasoningLevels": [
+          "none",
+          "high"
+        ]
+      },
+      {
+        "model": "kimi-k2.7-code",
+        "displayName": "Kimi K2.7 Code",
+        "contextWindow": 262144,
+        "reasoningLevels": [
+          "high"
+        ]
+      },
+      {
+        "model": "kimi-k2.7-code-highspeed",
+        "displayName": "Kimi K2.7 Code HighSpeed",
+        "contextWindow": 262144,
+        "reasoningLevels": [
+          "high"
+        ]
+      },
+      {
+        "model": "deepseek-v4-flash",
+        "displayName": "DeepSeek V4 Flash",
+        "contextWindow": 1048576,
+        "inputModalities": [
+          "text"
+        ],
+        "reasoningLevels": [
+          "none",
+          "high"
+        ]
+      },
+      {
+        "model": "deepseek-v4-flash-0731",
+        "displayName": "DeepSeek V4 Flash 0731 GA",
+        "contextWindow": 1048576,
+        "inputModalities": [
+          "text"
+        ],
+        "reasoningLevels": [
+          "none",
+          "high"
+        ]
+      },
+      {
+        "model": "deepseek-v4-flash-202605",
+        "displayName": "DeepSeek V4 Flash Official",
+        "contextWindow": 1048576,
+        "inputModalities": [
+          "text"
+        ],
+        "reasoningLevels": [
+          "none",
+          "high"
+        ]
+      }
+    ]
+  },
+  {
+    "name": "Tencent Token Plan Enterprise Lite",
+    "category": "cn_official",
+    "family": "tencent",
+    "planKey": "enterpriseLite",
+    "regionKey": "cn",
+    "icon": "tencent",
+    "iconColor": "#0052D9",
+    "websiteUrl": "https://cloud.tencent.com/product/tokenhub",
+    "apiFormat": "openai_chat",
+    "baseUrl": "https://tokenhub.tencentmaas.com/plan/v3",
+    "defaultModel": "auto",
+    "defaultReasoningEffort": "high",
+    "requiresOpenaiAuth": true,
+    "endpointCandidates": [
+      "https://tokenhub.tencentmaas.com/plan/v3",
+      "https://tokenhub-intl.tencentmaas.com/plan/v3"
+    ],
+    "modelCatalog": [
+      {
+        "model": "auto",
+        "displayName": "Auto",
+        "contextWindow": 196608,
+        "reasoningLevels": [
+          "high"
+        ]
+      }
+    ]
+  },
+  {
+    "name": "Tencent Token Plan Enterprise Lite (Intl)",
+    "category": "cn_official",
+    "family": "tencent",
+    "planKey": "enterpriseLite",
+    "regionKey": "intl",
+    "icon": "tencent",
+    "iconColor": "#0052D9",
+    "websiteUrl": "https://www.tencentcloud.com/products/tokenhub",
+    "apiFormat": "openai_chat",
+    "baseUrl": "https://tokenhub-intl.tencentcloudmaas.com/plan/v3",
+    "defaultModel": "auto",
+    "defaultReasoningEffort": "high",
+    "requiresOpenaiAuth": true,
+    "endpointCandidates": [
+      "https://tokenhub-intl.tencentcloudmaas.com/plan/v3",
+      "https://tokenhub.tencentcloudmaas.com/plan/v3"
+    ],
+    "modelCatalog": [
+      {
+        "model": "auto",
+        "displayName": "Auto",
+        "contextWindow": 196608,
+        "reasoningLevels": [
+          "none",
+          "high"
+        ]
+      }
+    ]
+  },
+  {
+    "name": "StepFun API",
+    "category": "cn_official",
+    "family": "stepfun",
+    "planKey": "payg",
+    "regionKey": "cn",
+    "icon": "stepfun",
+    "iconColor": "#16D6D2",
+    "websiteUrl": "https://platform.stepfun.com",
+    "apiFormat": "openai_responses",
+    "baseUrl": "https://api.stepfun.com/v1",
+    "defaultModel": "step-3.7-flash",
+    "defaultReasoningEffort": "high",
+    "requiresOpenaiAuth": true,
+    "endpointCandidates": [
+      "https://api.stepfun.com/v1"
+    ],
+    "modelCatalog": [
+      {
+        "model": "step-3.7-flash",
+        "displayName": "Step 3.7 Flash",
+        "contextWindow": 262144,
+        "inputModalities": [
+          "text",
+          "image"
+        ],
+        "reasoningLevels": [
+          "low",
+          "medium",
+          "high"
+        ],
+        "defaultReasoningLevel": "high"
+      }
+    ]
+  },
+  {
+    "name": "StepFun API en",
+    "category": "cn_official",
+    "family": "stepfun",
+    "planKey": "payg",
+    "regionKey": "intl",
+    "icon": "stepfun",
+    "iconColor": "#16D6D2",
+    "websiteUrl": "https://platform.stepfun.ai",
+    "apiFormat": "openai_responses",
+    "baseUrl": "https://api.stepfun.ai/v1",
+    "defaultModel": "step-3.7-flash",
+    "defaultReasoningEffort": "high",
+    "requiresOpenaiAuth": true,
+    "endpointCandidates": [
+      "https://api.stepfun.ai/v1"
+    ],
+    "modelCatalog": [
+      {
+        "model": "step-3.7-flash",
+        "displayName": "Step 3.7 Flash",
+        "contextWindow": 262144,
+        "inputModalities": [
+          "text",
+          "image"
+        ],
+        "reasoningLevels": [
+          "low",
+          "medium",
+          "high"
+        ],
+        "defaultReasoningLevel": "high"
+      }
+    ]
+  },
+  {
+    "name": "StepFun",
+    "category": "cn_official",
+    "family": "stepfun",
+    "planKey": "stepPlan",
+    "regionKey": "cn",
+    "icon": "stepfun",
+    "iconColor": "#16D6D2",
+    "websiteUrl": "https://platform.stepfun.com/step-plan",
+    "apiFormat": "openai_chat",
+    "baseUrl": "https://api.stepfun.com/step_plan/v1",
+    "defaultModel": "step-3.7-flash",
+    "defaultReasoningEffort": "high",
+    "requiresOpenaiAuth": true,
+    "endpointCandidates": [
+      "https://api.stepfun.com/step_plan/v1"
+    ],
+    "modelCatalog": [
+      {
+        "model": "step-3.7-flash",
+        "displayName": "Step 3.7 Flash",
+        "contextWindow": 262144,
+        "reasoningLevels": [
+          "low",
+          "medium",
+          "high"
+        ]
+      },
+      {
+        "model": "step-3.5-flash-2603",
+        "displayName": "Step 3.5 Flash 2603",
+        "contextWindow": 262144,
+        "reasoningLevels": [
+          "low",
+          "high"
+        ]
+      },
+      {
+        "model": "step-3.5-flash",
+        "displayName": "Step 3.5 Flash",
+        "contextWindow": 262144
+      }
+    ]
+  },
+  {
+    "name": "StepFun en",
+    "category": "cn_official",
+    "family": "stepfun",
+    "planKey": "stepPlan",
+    "regionKey": "intl",
+    "icon": "stepfun",
+    "iconColor": "#16D6D2",
+    "websiteUrl": "https://platform.stepfun.ai/step-plan",
+    "apiFormat": "openai_chat",
+    "baseUrl": "https://api.stepfun.ai/step_plan/v1",
+    "defaultModel": "step-3.7-flash",
+    "defaultReasoningEffort": "high",
+    "requiresOpenaiAuth": true,
+    "endpointCandidates": [
+      "https://api.stepfun.ai/step_plan/v1"
+    ],
+    "modelCatalog": [
+      {
+        "model": "step-3.7-flash",
+        "displayName": "Step 3.7 Flash",
+        "contextWindow": 262144,
+        "reasoningLevels": [
+          "low",
+          "medium",
+          "high"
+        ]
+      },
+      {
+        "model": "step-3.5-flash-2603",
+        "displayName": "Step 3.5 Flash 2603",
+        "contextWindow": 262144,
+        "reasoningLevels": [
+          "low",
+          "high"
+        ]
+      },
+      {
+        "model": "step-3.5-flash",
+        "displayName": "Step 3.5 Flash",
+        "contextWindow": 262144
+      }
+    ]
+  },
+  {
+    "name": "ModelScope",
+    "category": "aggregator",
+    "icon": "modelscope",
+    "iconColor": "#624AFF",
+    "websiteUrl": "https://modelscope.cn",
+    "apiFormat": "openai_chat",
+    "baseUrl": "https://api-inference.modelscope.cn/v1",
+    "defaultModel": "ZhipuAI/GLM-5.2",
+    "defaultReasoningEffort": "high",
+    "requiresOpenaiAuth": true,
+    "endpointCandidates": [
+      "https://api-inference.modelscope.cn/v1"
+    ],
+    "modelCatalog": [
+      {
+        "model": "ZhipuAI/GLM-5.2",
+        "displayName": "ZhipuAI / GLM-5.2",
+        "contextWindow": 200000
+      }
+    ]
+  },
+  {
+    "name": "StreamLake",
+    "category": "cn_official",
+    "family": "streamlake",
+    "regionKey": "cn",
+    "icon": "streamlake",
+    "websiteUrl": "https://www.streamlake.com",
+    "apiFormat": "openai_responses",
+    "baseUrl": "https://wanqing.streamlakeapi.com/api/gateway/v1/endpoints",
+    "defaultModel": "kat-coder-pro-v2.5",
+    "defaultReasoningEffort": "high",
+    "requiresOpenaiAuth": true,
+    "endpointCandidates": [
+      "https://wanqing.streamlakeapi.com/api/gateway/v1/endpoints"
+    ],
+    "modelCatalog": [
+      {
+        "model": "kat-coder-pro-v2.5",
+        "displayName": "KAT-Coder Pro V2.5",
+        "contextWindow": 262144,
+        "inputModalities": [
+          "text"
+        ],
+        "reasoningLevels": [
+          "high"
+        ]
+      }
+    ]
+  },
+  {
+    "name": "StreamLake en",
+    "category": "cn_official",
+    "family": "streamlake",
+    "regionKey": "intl",
+    "icon": "streamlake",
+    "websiteUrl": "https://console.streamlake.ai",
+    "apiFormat": "openai_responses",
+    "baseUrl": "https://vanchin.streamlake.ai/api/gateway/v1/endpoints",
+    "defaultModel": "kat-coder-pro-v2.5",
+    "defaultReasoningEffort": "high",
+    "requiresOpenaiAuth": true,
+    "endpointCandidates": [
+      "https://vanchin.streamlake.ai/api/gateway/v1/endpoints"
+    ],
+    "modelCatalog": [
+      {
+        "model": "kat-coder-pro-v2.5",
+        "displayName": "KAT-Coder Pro V2.5",
+        "contextWindow": 262144,
+        "inputModalities": [
+          "text"
+        ],
+        "reasoningLevels": [
+          "high"
+        ]
+      }
+    ]
+  },
+  {
+    "name": "Longcat",
+    "category": "cn_official",
+    "icon": "longcat",
+    "iconColor": "#29E154",
+    "websiteUrl": "https://longcat.chat/platform",
+    "apiFormat": "openai_responses",
+    "baseUrl": "https://api.longcat.chat/openai/v1",
+    "defaultModel": "LongCat-2.0",
+    "defaultReasoningEffort": "high",
+    "requiresOpenaiAuth": true,
+    "endpointCandidates": [
+      "https://api.longcat.chat/openai/v1"
+    ],
+    "modelCatalog": [
+      {
+        "model": "LongCat-2.0",
+        "displayName": "LongCat 2.0",
+        "contextWindow": 1048576,
+        "reasoningLevels": [
+          "high"
+        ]
+      }
+    ]
+  },
+  {
+    "name": "MiniMax",
+    "category": "cn_official",
+    "family": "minimax",
+    "regionKey": "cn",
+    "icon": "minimax",
+    "iconColor": "#FF6B6B",
+    "websiteUrl": "https://platform.minimax.cn",
+    "apiFormat": "openai_responses",
+    "baseUrl": "https://api.minimax.cn/v1",
+    "defaultModel": "MiniMax-M3.1-Flash",
+    "defaultReasoningEffort": "high",
+    "requiresOpenaiAuth": true,
+    "endpointCandidates": [
+      "https://api.minimax.cn/v1"
+    ],
+    "modelCatalog": [
+      {
+        "model": "MiniMax-M3.1-Flash",
+        "displayName": "MiniMax-M3.1-Flash",
+        "contextWindow": 1000000,
+        "supportsParallelToolCalls": true,
+        "inputModalities": [
+          "text",
+          "image"
+        ],
+        "baseInstructions": "You are Codex, a coding agent based on MiniMax-M3.1-Flash. You and the user share the same workspace and collaborate to achieve the user's goals.",
+        "reasoningLevels": [
+          "low",
+          "medium",
+          "high",
+          "xhigh",
+          "max"
+        ]
+      },
+      {
+        "model": "MiniMax-M3",
+        "displayName": "MiniMax-M3",
+        "contextWindow": 1000000,
+        "supportsParallelToolCalls": true,
+        "inputModalities": [
+          "text",
+          "image"
+        ],
+        "baseInstructions": "You are Codex, a coding agent based on MiniMax-M3. You and the user share the same workspace and collaborate to achieve the user's goals.",
+        "reasoningLevels": [
+          "none",
+          "high"
+        ]
+      }
+    ]
+  },
+  {
+    "name": "MiniMax en",
+    "category": "cn_official",
+    "family": "minimax",
+    "regionKey": "intl",
+    "icon": "minimax",
+    "iconColor": "#FF6B6B",
+    "websiteUrl": "https://platform.minimax.io",
+    "apiFormat": "openai_responses",
+    "baseUrl": "https://api.minimax.io/v1",
+    "defaultModel": "MiniMax-M3.1-Flash",
+    "defaultReasoningEffort": "high",
+    "requiresOpenaiAuth": true,
+    "endpointCandidates": [
+      "https://api.minimax.io/v1"
+    ],
+    "modelCatalog": [
+      {
+        "model": "MiniMax-M3.1-Flash",
+        "displayName": "MiniMax-M3.1-Flash",
+        "contextWindow": 1000000,
+        "supportsParallelToolCalls": true,
+        "inputModalities": [
+          "text",
+          "image"
+        ],
+        "baseInstructions": "You are Codex, a coding agent based on MiniMax-M3.1-Flash. You and the user share the same workspace and collaborate to achieve the user's goals.",
+        "reasoningLevels": [
+          "low",
+          "medium",
+          "high",
+          "xhigh",
+          "max"
+        ]
+      },
+      {
+        "model": "MiniMax-M3",
+        "displayName": "MiniMax-M3",
+        "contextWindow": 1000000,
+        "supportsParallelToolCalls": true,
+        "inputModalities": [
+          "text",
+          "image"
+        ],
+        "baseInstructions": "You are Codex, a coding agent based on MiniMax-M3. You and the user share the same workspace and collaborate to achieve the user's goals.",
+        "reasoningLevels": [
+          "none",
+          "high"
+        ]
+      }
+    ]
+  },
+  {
+    "name": "Astron Coding Plan",
+    "category": "cn_official",
+    "icon": "astron",
+    "websiteUrl": "https://maas.xfyun.cn/packageSubscription",
+    "apiFormat": "openai_responses",
+    "baseUrl": "https://maas-coding-api.cn-huabei-1.xf-yun.com/v1",
+    "defaultModel": "astron-code-latest",
+    "defaultReasoningEffort": "high",
+    "requiresOpenaiAuth": true,
+    "endpointCandidates": [
+      "https://maas-coding-api.cn-huabei-1.xf-yun.com/v1"
+    ],
+    "modelCatalog": [
+      {
+        "model": "astron-code-latest",
+        "displayName": "Astron Code Latest",
+        "contextWindow": 92160,
+        "inputModalities": [
+          "text"
+        ],
+        "reasoningLevels": [
+          "high"
+        ],
+        "defaultReasoningLevel": "high"
+      }
+    ]
+  },
+  {
+    "name": "BaiLing",
+    "category": "cn_official",
+    "icon": "bailing",
+    "websiteUrl": "https://developer.ant-ling.com/zh-CN/docs/",
+    "apiFormat": "openai_chat",
+    "baseUrl": "https://api.ant-ling.com/v1",
+    "defaultModel": "Ling-2.6-1T",
+    "defaultReasoningEffort": "high",
+    "requiresOpenaiAuth": true,
+    "endpointCandidates": [
+      "https://api.ant-ling.com/v1"
+    ],
+    "modelCatalog": [
+      {
+        "model": "Ling-2.6-1T",
+        "displayName": "Ling-2.6-1T",
+        "contextWindow": 262144
+      }
+    ]
+  },
+  {
+    "name": "Xiaomi MiMo",
+    "category": "cn_official",
+    "family": "xiaomi-mimo",
+    "planKey": "payg",
+    "icon": "xiaomimimo",
+    "iconColor": "#000000",
+    "websiteUrl": "https://platform.xiaomimimo.com",
+    "apiFormat": "openai_responses",
+    "baseUrl": "https://api.xiaomimimo.com/v1",
+    "defaultModel": "mimo-v2.6-pro",
+    "defaultReasoningEffort": "high",
+    "requiresOpenaiAuth": true,
+    "endpointCandidates": [
+      "https://api.xiaomimimo.com/v1"
+    ],
+    "modelCatalog": [
+      {
+        "model": "mimo-v2.6-pro",
+        "displayName": "MiMo V2.6 Pro",
+        "contextWindow": 1048576,
+        "supportsParallelToolCalls": false,
+        "inputModalities": [
+          "text",
+          "image"
+        ],
+        "baseInstructions": "You are MiMo, an AI assistant developed by Xiaomi. Today's date: {date} {week}. Your knowledge cutoff date is December 2024.",
+        "reasoningLevels": [
+          "none",
+          "low",
+          "medium",
+          "high"
+        ],
+        "defaultReasoningLevel": "low"
+      },
+      {
+        "model": "mimo-v2.6-flash",
+        "displayName": "MiMo V2.6 Flash",
+        "contextWindow": 1048576,
+        "supportsParallelToolCalls": false,
+        "inputModalities": [
+          "text",
+          "image"
+        ],
+        "baseInstructions": "You are MiMo, an AI assistant developed by Xiaomi. Today's date: {date} {week}. Your knowledge cutoff date is December 2024.",
+        "reasoningLevels": [
+          "none",
+          "low",
+          "medium",
+          "high"
+        ],
+        "defaultReasoningLevel": "low"
+      },
+      {
+        "model": "mimo-v2.6-pro-ultraspeed",
+        "displayName": "MiMo V2.6 Pro UltraSpeed",
+        "contextWindow": 1048576,
+        "supportsParallelToolCalls": false,
+        "inputModalities": [
+          "text",
+          "image"
+        ],
+        "baseInstructions": "You are MiMo, an AI assistant developed by Xiaomi. Today's date: {date} {week}. Your knowledge cutoff date is December 2024.",
+        "reasoningLevels": [
+          "none",
+          "low",
+          "medium",
+          "high"
+        ],
+        "defaultReasoningLevel": "low"
+      }
+    ]
+  },
+  {
+    "name": "Xiaomi MiMo Token Plan (China)",
+    "category": "cn_official",
+    "family": "xiaomi-mimo",
+    "planKey": "tokenPlan",
+    "icon": "xiaomimimo",
+    "iconColor": "#000000",
+    "websiteUrl": "https://platform.xiaomimimo.com/",
+    "apiFormat": "openai_responses",
+    "baseUrl": "https://token-plan-cn.xiaomimimo.com/v1",
+    "defaultModel": "mimo-v2.6-pro",
+    "defaultReasoningEffort": "high",
+    "requiresOpenaiAuth": true,
+    "endpointCandidates": [
+      "https://token-plan-cn.xiaomimimo.com/v1"
+    ],
+    "modelCatalog": [
+      {
+        "model": "mimo-v2.6-pro",
+        "displayName": "MiMo V2.6 Pro",
+        "contextWindow": 1048576,
+        "supportsParallelToolCalls": false,
+        "inputModalities": [
+          "text",
+          "image"
+        ],
+        "baseInstructions": "You are MiMo, an AI assistant developed by Xiaomi. Today's date: {date} {week}. Your knowledge cutoff date is December 2024.",
+        "reasoningLevels": [
+          "none",
+          "low",
+          "medium",
+          "high"
+        ],
+        "defaultReasoningLevel": "low"
+      },
+      {
+        "model": "mimo-v2.6-flash",
+        "displayName": "MiMo V2.6 Flash",
+        "contextWindow": 1048576,
+        "supportsParallelToolCalls": false,
+        "inputModalities": [
+          "text",
+          "image"
+        ],
+        "baseInstructions": "You are MiMo, an AI assistant developed by Xiaomi. Today's date: {date} {week}. Your knowledge cutoff date is December 2024.",
+        "reasoningLevels": [
+          "none",
+          "low",
+          "medium",
+          "high"
+        ],
+        "defaultReasoningLevel": "low"
+      }
+    ]
+  },
+  {
+    "name": "Baseten",
+    "category": "aggregator",
+    "icon": "baseten",
+    "websiteUrl": "https://www.baseten.co",
+    "apiFormat": "openai_chat",
+    "baseUrl": "https://inference.baseten.co/v1",
+    "defaultModel": "zai-org/GLM-5.3",
+    "defaultReasoningEffort": "high",
+    "requiresOpenaiAuth": true,
+    "endpointCandidates": [
+      "https://inference.baseten.co/v1"
+    ],
+    "modelCatalog": [
+      {
+        "model": "zai-org/GLM-5.3",
+        "displayName": "GLM-5.3",
+        "contextWindow": 1048576,
+        "inputModalities": [
+          "text",
+          "image"
+        ],
+        "reasoningLevels": [
+          "low",
+          "high",
+          "max"
+        ],
+        "defaultReasoningLevel": "high"
+      },
+      {
+        "model": "moonshotai/Kimi-K3",
+        "displayName": "Kimi K3",
+        "contextWindow": 1048576,
+        "inputModalities": [
+          "text",
+          "image"
+        ],
+        "reasoningLevels": [
+          "none",
+          "low",
+          "high",
+          "max"
+        ],
+        "defaultReasoningLevel": "high"
+      },
+      {
+        "model": "zai-org/GLM-5.3-Flash",
+        "displayName": "GLM-5.3 Flash",
+        "contextWindow": 1048576,
+        "inputModalities": [
+          "text",
+          "image"
+        ],
+        "reasoningLevels": [
+          "low",
+          "high",
+          "max"
+        ],
+        "defaultReasoningLevel": "high"
+      },
+      {
+        "model": "deepseek-ai/DeepSeek-V4.1-Flash-1017",
+        "displayName": "DeepSeek V4.1 Flash 1017",
+        "contextWindow": 1048576,
+        "inputModalities": [
+          "text",
+          "image"
+        ],
+        "reasoningLevels": [
+          "none",
+          "high",
+          "max"
+        ],
+        "defaultReasoningLevel": "high"
+      },
+      {
+        "model": "zai-org/GLM-5.3-Fast",
+        "displayName": "GLM-5.3 Fast",
+        "contextWindow": 1048576,
+        "inputModalities": [
+          "text",
+          "image"
+        ],
+        "reasoningLevels": [
+          "low",
+          "high",
+          "max"
+        ],
+        "defaultReasoningLevel": "high"
+      }
+    ]
+  },
+  {
+    "name": "Novita AI",
+    "category": "aggregator",
+    "icon": "novita",
+    "iconColor": "#000000",
+    "websiteUrl": "https://novita.ai",
+    "apiFormat": "openai_chat",
+    "baseUrl": "https://api.novita.ai/openai/v1",
+    "defaultModel": "zai-org/glm-5.3",
+    "defaultReasoningEffort": "high",
+    "requiresOpenaiAuth": true,
+    "endpointCandidates": [
+      "https://api.novita.ai/openai/v1"
+    ],
+    "modelCatalog": [
+      {
+        "model": "zai-org/glm-5.3",
+        "displayName": "GLM-5.3",
+        "contextWindow": 1048576,
+        "inputModalities": [
+          "text"
+        ],
+        "reasoningLevels": [
+          "high"
+        ]
+      }
+    ]
+  },
+  {
+    "name": "xAI (Grok)",
+    "category": "third_party",
+    "icon": "xai",
+    "iconColor": "#000000",
+    "websiteUrl": "https://x.ai/api",
+    "apiFormat": "openai_responses",
+    "baseUrl": "https://api.x.ai/v1",
+    "defaultModel": "grok-4.7",
+    "defaultReasoningEffort": "high",
+    "requiresOpenaiAuth": true,
+    "endpointCandidates": [
+      "https://api.x.ai/v1"
+    ],
+    "modelCatalog": [
+      {
+        "model": "grok-4.7",
+        "displayName": "Grok 4.7",
+        "contextWindow": 500000,
+        "supportsParallelToolCalls": true,
+        "inputModalities": [
+          "text",
+          "image"
+        ],
+        "reasoningLevels": [
+          "low",
+          "medium",
+          "high",
+          "xhigh"
+        ],
+        "defaultReasoningLevel": "high"
+      },
+      {
+        "model": "grok-4.5",
+        "displayName": "Grok 4.5",
+        "contextWindow": 500000,
+        "supportsParallelToolCalls": true,
+        "inputModalities": [
+          "text",
+          "image"
+        ],
+        "reasoningLevels": [
+          "low",
+          "medium",
+          "high",
+          "xhigh"
+        ]
+      }
+    ]
+  },
+  {
+    "name": "xAI (Grok) OAuth",
+    "category": "third_party",
+    "icon": "xai",
+    "iconColor": "#000000",
+    "websiteUrl": "https://x.ai/grok",
+    "authProvider": "xai_oauth",
+    "requiresOAuth": true,
+    "apiFormat": "openai_responses",
+    "baseUrl": "https://api.x.ai/v1",
+    "defaultModel": "grok-4.7",
+    "defaultReasoningEffort": "high",
+    "requiresOpenaiAuth": false,
+    "modelCatalog": [
+      {
+        "model": "grok-4.7",
+        "displayName": "Grok 4.7",
+        "contextWindow": 500000,
+        "supportsParallelToolCalls": true,
+        "inputModalities": [
+          "text",
+          "image"
+        ],
+        "reasoningLevels": [
+          "low",
+          "medium",
+          "high",
+          "xhigh"
+        ],
+        "defaultReasoningLevel": "high"
+      },
+      {
+        "model": "grok-4.5",
+        "displayName": "Grok 4.5",
+        "contextWindow": 500000,
+        "supportsParallelToolCalls": true,
+        "inputModalities": [
+          "text",
+          "image"
+        ],
+        "reasoningLevels": [
+          "low",
+          "medium",
+          "high",
+          "xhigh"
+        ]
+      }
+    ]
+  },
+  {
+    "name": "Nvidia",
+    "category": "aggregator",
+    "icon": "nvidia",
+    "iconColor": "#000000",
+    "websiteUrl": "https://build.nvidia.com",
+    "apiFormat": "openai_chat",
+    "baseUrl": "https://integrate.api.nvidia.com/v1",
+    "defaultModel": "moonshotai/kimi-k2.6",
+    "defaultReasoningEffort": "high",
+    "requiresOpenaiAuth": true,
+    "endpointCandidates": [
+      "https://integrate.api.nvidia.com/v1"
+    ],
+    "modelCatalog": [
+      {
+        "model": "moonshotai/kimi-k2.6",
+        "displayName": "Kimi K2.6",
+        "contextWindow": 262144,
+        "inputModalities": [
+          "text",
+          "image"
+        ]
+      }
+    ]
+  },
+  {
+    "name": "Ollama Cloud",
+    "category": "cloud_provider",
+    "icon": "ollama",
+    "websiteUrl": "https://ollama.com",
+    "apiFormat": "openai_responses",
+    "baseUrl": "https://ollama.com/v1",
+    "defaultModel": "glm-5.3",
+    "defaultReasoningEffort": "high",
+    "requiresOpenaiAuth": true,
+    "endpointCandidates": [
+      "https://ollama.com/v1"
+    ],
+    "modelCatalog": [
+      {
+        "model": "glm-5.3",
+        "displayName": "GLM-5.3",
+        "contextWindow": 1048576,
+        "inputModalities": [
+          "text"
+        ],
+        "reasoningLevels": [
+          "low",
+          "high",
+          "max"
+        ]
+      },
+      {
+        "model": "glm-5.3-flash",
+        "displayName": "GLM-5.3-Flash",
+        "contextWindow": 1048576,
+        "inputModalities": [
+          "text",
+          "image"
+        ],
+        "reasoningLevels": [
+          "low",
+          "high",
+          "max"
+        ]
+      },
+      {
+        "model": "kimi-k3",
+        "displayName": "Kimi K3",
+        "contextWindow": 1048576,
+        "inputModalities": [
+          "text",
+          "image"
+        ],
+        "reasoningLevels": [
+          "low",
+          "high",
+          "max"
+        ]
+      },
+      {
+        "model": "deepseek-v4.1-flash",
+        "displayName": "DeepSeek V4.1 Flash",
+        "contextWindow": 1048576,
+        "inputModalities": [
+          "text",
+          "image"
+        ],
+        "reasoningLevels": [
+          "low",
+          "high",
+          "max"
+        ]
+      }
+    ]
+  },
+  {
+    "name": "Ollama",
+    "category": "local",
+    "icon": "ollama",
+    "websiteUrl": "https://ollama.com",
+    "apiFormat": "openai_responses",
+    "baseUrl": "http://localhost:11434/v1",
+    "defaultModel": "gpt-oss:20b",
+    "defaultReasoningEffort": "high",
+    "requiresOpenaiAuth": true,
+    "endpointCandidates": [
+      "http://localhost:11434/v1",
+      "http://127.0.0.1:11434/v1"
+    ],
+    "modelCatalog": [
+      {
+        "model": "gpt-oss:20b",
+        "displayName": "GPT-OSS 20B",
+        "contextWindow": 131072,
+        "supportsParallelToolCalls": false,
+        "inputModalities": [
+          "text"
+        ],
+        "reasoningLevels": [
+          "low",
+          "medium",
+          "high"
+        ]
+      },
+      {
+        "model": "gpt-oss:120b",
+        "displayName": "GPT-OSS 120B",
+        "contextWindow": 131072,
+        "supportsParallelToolCalls": false,
+        "inputModalities": [
+          "text"
+        ],
+        "reasoningLevels": [
+          "low",
+          "medium",
+          "high"
+        ]
+      },
+      {
+        "model": "qwen3.5",
+        "displayName": "Qwen3.5",
+        "contextWindow": 262144,
+        "supportsParallelToolCalls": false,
+        "inputModalities": [
+          "text",
+          "image"
+        ],
+        "reasoningLevels": [
+          "none",
+          "high"
+        ]
+      }
+    ]
+  },
+  {
+    "name": "LM Studio",
+    "category": "local",
+    "icon": "lmstudio",
+    "websiteUrl": "https://lmstudio.ai",
+    "apiFormat": "openai_responses",
+    "baseUrl": "http://localhost:1234/v1",
+    "defaultModel": "openai/gpt-oss-20b",
+    "defaultReasoningEffort": "high",
+    "requiresOpenaiAuth": true,
+    "endpointCandidates": [
+      "http://localhost:1234/v1",
+      "http://127.0.0.1:1234/v1"
+    ],
+    "modelCatalog": [
+      {
+        "model": "openai/gpt-oss-20b",
+        "displayName": "GPT-OSS 20B",
+        "contextWindow": 131072,
+        "inputModalities": [
+          "text"
+        ],
+        "reasoningLevels": [
+          "low",
+          "medium",
+          "high"
+        ]
+      }
+    ]
+  },
+  {
+    "name": "llama.cpp",
+    "category": "local",
+    "icon": "llamacpp",
+    "websiteUrl": "https://github.com/ggml-org/llama.cpp",
+    "apiFormat": "openai_responses",
+    "baseUrl": "http://127.0.0.1:9931/v1",
+    "defaultModel": "ggml-org/Qwen3-Coder-30B-A3B-Instruct-Q8_0-GGUF",
+    "defaultReasoningEffort": "high",
+    "requiresOpenaiAuth": true,
+    "endpointCandidates": [
+      "http://127.0.0.1:9931/v1",
+      "http://127.0.0.1:8080/v1"
+    ],
+    "modelCatalog": [
+      {
+        "model": "ggml-org/Qwen3-Coder-30B-A3B-Instruct-Q8_0-GGUF",
+        "displayName": "Qwen3-Coder 30B A3B",
+        "contextWindow": 262144,
+        "inputModalities": [
+          "text"
+        ],
+        "reasoningLevels": [
+          "high"
+        ]
+      }
+    ]
+  },
+  {
+    "name": "vLLM",
+    "category": "local",
+    "icon": "vllm",
+    "websiteUrl": "https://vllm.ai",
+    "apiFormat": "openai_responses",
+    "baseUrl": "http://localhost:8000/v1",
+    "defaultModel": "Qwen/Qwen3.6-27B",
+    "defaultReasoningEffort": "high",
+    "requiresOpenaiAuth": true,
+    "endpointCandidates": [
+      "http://localhost:8000/v1",
+      "http://127.0.0.1:8000/v1"
+    ],
+    "modelCatalog": [
+      {
+        "model": "Qwen/Qwen3.6-27B",
+        "displayName": "Qwen3.6 27B",
+        "contextWindow": 262144,
+        "inputModalities": [
+          "text",
+          "image"
+        ],
+        "reasoningLevels": [
+          "none",
+          "high"
+        ]
+      }
+    ]
+  },
+  {
+    "name": "Meta Model API",
+    "category": "cn_official",
+    "icon": "meta",
+    "websiteUrl": "https://dev.meta.ai",
+    "apiFormat": "openai_responses",
+    "baseUrl": "https://api.meta.ai/v1",
+    "defaultModel": "muse-wonder-1.0",
+    "defaultReasoningEffort": "high",
+    "requiresOpenaiAuth": true,
+    "endpointCandidates": [
+      "https://api.meta.ai/v1"
+    ],
+    "modelCatalog": [
+      {
+        "model": "muse-wonder-1.0",
+        "displayName": "Muse Wonder 1.0",
+        "contextWindow": 1048576,
+        "supportsParallelToolCalls": true,
+        "inputModalities": [
+          "text",
+          "image"
+        ],
+        "reasoningLevels": [
+          "minimal",
+          "low",
+          "medium",
+          "high",
+          "xhigh",
+          "max"
+        ]
+      },
+      {
+        "model": "muse-spark-1.3",
+        "displayName": "Muse Spark 1.3",
+        "contextWindow": 1048576,
+        "supportsParallelToolCalls": true,
+        "inputModalities": [
+          "text",
+          "image"
+        ],
+        "reasoningLevels": [
+          "minimal",
+          "low",
+          "medium",
+          "high",
+          "xhigh",
+          "max"
+        ]
+      }
+    ]
+  },
+  {
+    "name": "DeepInfra",
+    "category": "aggregator",
+    "icon": "deepinfra",
+    "websiteUrl": "https://deepinfra.com",
+    "apiFormat": "openai_responses",
+    "baseUrl": "https://api.deepinfra.com/v1",
+    "defaultModel": "deepseek-ai/DeepSeek-V4.1-Flash-1017",
+    "defaultReasoningEffort": "high",
+    "requiresOpenaiAuth": true,
+    "endpointCandidates": [
+      "https://api.deepinfra.com/v1"
+    ],
+    "modelCatalog": [
+      {
+        "model": "deepseek-ai/DeepSeek-V4.1-Flash-1017",
+        "displayName": "DeepSeek V4.1 Flash 1017",
+        "contextWindow": 1048576,
+        "inputModalities": [
+          "text"
+        ],
+        "reasoningLevels": [
+          "low",
+          "high",
+          "max"
+        ]
+      },
+      {
+        "model": "moonshotai/Kimi-K3",
+        "displayName": "Kimi K3",
+        "contextWindow": 1048576,
+        "inputModalities": [
+          "text",
+          "image"
+        ],
+        "reasoningLevels": [
+          "low",
+          "high",
+          "max"
+        ]
+      },
+      {
+        "model": "zai-org/GLM-5.3",
+        "displayName": "GLM-5.3",
+        "contextWindow": 1048576,
+        "inputModalities": [
+          "text"
+        ],
+        "reasoningLevels": [
+          "low",
+          "high",
+          "max"
+        ]
+      },
+      {
+        "model": "zai-org/GLM-5.3-Flash",
+        "displayName": "GLM-5.3 Flash",
+        "contextWindow": 1048576,
+        "inputModalities": [
+          "text",
+          "image"
+        ],
+        "reasoningLevels": [
+          "low",
+          "high",
+          "max"
+        ]
+      }
+    ]
+  },
+  {
+    "name": "Vercel AI Gateway",
+    "category": "aggregator",
+    "icon": "vercel",
+    "websiteUrl": "https://vercel.com/ai-gateway",
+    "apiFormat": "openai_responses",
+    "baseUrl": "https://ai-gateway.vercel.sh/codex/v1",
+    "defaultModel": "openai/gpt-6-astra",
+    "defaultReasoningEffort": "high",
+    "requiresOpenaiAuth": true,
+    "endpointCandidates": [
+      "https://ai-gateway.vercel.sh/codex/v1"
+    ],
+    "modelCatalog": [
+      {
+        "model": "openai/gpt-6-astra",
+        "displayName": "GPT-6 Astra",
+        "contextWindow": 272000,
+        "supportsParallelToolCalls": true,
+        "inputModalities": [
+          "text",
+          "image"
+        ],
+        "reasoningLevels": [
+          "low",
+          "medium",
+          "high",
+          "xhigh",
+          "max"
+        ]
+      },
+      {
+        "model": "openai/gpt-6.1-sol",
+        "displayName": "GPT-6.1 Sol",
+        "contextWindow": 272000,
+        "supportsParallelToolCalls": true,
+        "inputModalities": [
+          "text",
+          "image"
+        ],
+        "reasoningLevels": [
+          "low",
+          "medium",
+          "high",
+          "xhigh",
+          "max"
+        ]
+      },
+      {
+        "model": "openai/gpt-6-luna",
+        "displayName": "GPT-6 Luna",
+        "contextWindow": 272000,
+        "supportsParallelToolCalls": true,
+        "inputModalities": [
+          "text",
+          "image"
+        ],
+        "reasoningLevels": [
+          "low",
+          "medium",
+          "high",
+          "xhigh",
+          "max"
+        ]
+      },
+      {
+        "model": "anthropic/claude-sonnet-5.5",
+        "displayName": "Claude Sonnet 5.5",
+        "contextWindow": 1000000,
+        "supportsParallelToolCalls": true,
+        "inputModalities": [
+          "text",
+          "image"
+        ],
+        "reasoningLevels": [
+          "low",
+          "medium",
+          "high",
+          "xhigh"
+        ]
+      },
+      {
+        "model": "anthropic/claude-opus-5.5",
+        "displayName": "Claude Opus 5.5",
+        "contextWindow": 1000000,
+        "supportsParallelToolCalls": true,
+        "inputModalities": [
+          "text",
+          "image"
+        ],
+        "reasoningLevels": [
+          "low",
+          "medium",
+          "high",
+          "xhigh"
+        ]
+      }
+    ]
+  },
+  {
+    "name": "Nebius Token Factory",
+    "category": "aggregator",
+    "icon": "nebius",
+    "websiteUrl": "https://nebius.com/token-factory",
+    "apiFormat": "openai_responses",
+    "baseUrl": "https://api.tokenfactory.nebius.com/v1",
+    "defaultModel": "zai-org/GLM-5.3",
+    "defaultReasoningEffort": "high",
+    "requiresOpenaiAuth": true,
+    "endpointCandidates": [
+      "https://api.tokenfactory.nebius.com/v1"
+    ],
+    "modelCatalog": [
+      {
+        "model": "zai-org/GLM-5.3",
+        "displayName": "GLM-5.3",
+        "contextWindow": 1024000,
+        "inputModalities": [
+          "text"
+        ],
+        "reasoningLevels": [
+          "high"
+        ]
+      },
+      {
+        "model": "zai-org/GLM-5.3-Flash",
+        "displayName": "GLM-5.3-Flash",
+        "contextWindow": 1024000,
+        "inputModalities": [
+          "text",
+          "image"
+        ],
+        "reasoningLevels": [
+          "high"
+        ]
+      },
+      {
+        "model": "moonshotai/Kimi-K3",
+        "displayName": "Kimi K3",
+        "contextWindow": 1024000,
+        "inputModalities": [
+          "text",
+          "image"
+        ],
+        "reasoningLevels": [
+          "high"
+        ]
+      },
+      {
+        "model": "moonshotai/Kimi-K2.7-Code",
+        "displayName": "Kimi K2.7 Code",
+        "contextWindow": 262144,
+        "inputModalities": [
+          "text"
+        ],
+        "reasoningLevels": [
+          "high"
+        ]
+      },
+      {
+        "model": "deepseek-ai/DeepSeek-V4.1-Flash",
+        "displayName": "DeepSeek V4.1 Flash",
+        "contextWindow": 1048000,
+        "inputModalities": [
+          "text",
+          "image"
+        ],
+        "reasoningLevels": [
+          "high"
+        ]
+      },
+      {
+        "model": "MiniMaxAI/MiniMax-M3.1-Flash",
+        "displayName": "MiniMax M3.1 Flash",
+        "contextWindow": 1049000,
+        "inputModalities": [
+          "text"
+        ],
+        "reasoningLevels": [
+          "high"
+        ]
+      }
+    ]
+  },
+  {
+    "name": "ClinePass",
+    "category": "third_party",
+    "icon": "cline",
+    "websiteUrl": "https://docs.cline.bot/getting-started/clinepass",
+    "apiFormat": "openai_chat",
+    "baseUrl": "https://api.cline.bot/api/v1",
+    "defaultModel": "cline-pass/kimi-k3.1-pro",
+    "defaultReasoningEffort": "high",
+    "requiresOpenaiAuth": true,
+    "endpointCandidates": [
+      "https://api.cline.bot/api/v1"
+    ],
+    "modelCatalog": [
+      {
+        "model": "cline-pass/kimi-k3.1-pro",
+        "displayName": "Kimi K3.1 Pro",
+        "contextWindow": 1048576,
+        "inputModalities": [
+          "text",
+          "image"
+        ],
+        "reasoningLevels": [
+          "high"
+        ]
+      },
+      {
+        "model": "cline-pass/glm-5.3",
+        "displayName": "GLM-5.3",
+        "contextWindow": 1000000,
+        "inputModalities": [
+          "text"
+        ],
+        "reasoningLevels": [
+          "high"
+        ]
+      },
+      {
+        "model": "cline-pass/glm-5.3-flash",
+        "displayName": "GLM-5.3 Flash",
+        "contextWindow": 1000000,
+        "inputModalities": [
+          "text",
+          "image"
+        ],
+        "reasoningLevels": [
+          "high"
+        ]
+      },
+      {
+        "model": "cline-pass/kimi-k3",
+        "displayName": "Kimi K3",
+        "contextWindow": 1048576,
+        "inputModalities": [
+          "text",
+          "image"
+        ],
+        "reasoningLevels": [
+          "high"
+        ]
+      },
+      {
+        "model": "cline-pass/deepseek-v4-pro",
+        "displayName": "DeepSeek V4 Pro",
+        "contextWindow": 1000000,
+        "inputModalities": [
+          "text"
+        ],
+        "reasoningLevels": [
+          "high"
+        ]
+      },
+      {
+        "model": "cline-pass/deepseek-v4.1-flash",
+        "displayName": "DeepSeek V4.1 Flash",
+        "contextWindow": 1000000,
+        "inputModalities": [
+          "text",
+          "image"
+        ],
+        "reasoningLevels": [
+          "high"
+        ]
+      },
+      {
+        "model": "cline-pass/qwen3.8-max",
+        "displayName": "Qwen3.8 Max",
+        "contextWindow": 1000000,
+        "inputModalities": [
+          "text",
+          "image"
+        ],
+        "reasoningLevels": [
+          "high"
+        ]
+      },
+      {
+        "model": "cline-pass/qwen3.7-plus",
+        "displayName": "Qwen3.7 Plus",
+        "contextWindow": 1000000,
+        "inputModalities": [
+          "text",
+          "image"
+        ],
+        "reasoningLevels": [
+          "high"
+        ]
+      },
+      {
+        "model": "cline-pass/minimax-m3",
+        "displayName": "MiniMax M3",
+        "contextWindow": 1048576,
+        "inputModalities": [
+          "text",
+          "image"
+        ],
+        "reasoningLevels": [
+          "high"
+        ]
+      },
+      {
+        "model": "cline-pass/minimax-m3.1-flash",
+        "displayName": "MiniMax M3.1 Flash",
+        "contextWindow": 1000000,
+        "inputModalities": [
+          "text",
+          "image"
+        ],
+        "reasoningLevels": [
+          "high"
+        ]
+      },
+      {
+        "model": "cline-pass/mimo-v2.6-pro",
+        "displayName": "MiMo V2.6 Pro",
+        "contextWindow": 1048576,
+        "inputModalities": [
+          "text",
+          "image"
+        ],
+        "reasoningLevels": [
+          "high"
+        ]
+      },
+      {
+        "model": "cline-pass/mimo-v2.6-flash",
+        "displayName": "MiMo V2.6 Flash",
+        "contextWindow": 1048576,
+        "inputModalities": [
+          "text",
+          "image"
+        ],
+        "reasoningLevels": [
+          "high"
+        ]
+      }
+    ]
+  },
+  {
+    "name": "Groq",
+    "category": "aggregator",
+    "icon": "groq",
+    "websiteUrl": "https://groq.com",
+    "apiFormat": "openai_chat",
+    "baseUrl": "https://api.groq.com/openai/v1",
+    "defaultModel": "openai/gpt-oss-120b",
+    "defaultReasoningEffort": "high",
+    "requiresOpenaiAuth": true,
+    "endpointCandidates": [
+      "https://api.groq.com/openai/v1"
+    ],
+    "modelCatalog": [
+      {
+        "model": "openai/gpt-oss-120b",
+        "displayName": "GPT-OSS 120B",
+        "contextWindow": 131072,
+        "inputModalities": [
+          "text"
+        ],
+        "reasoningLevels": [
+          "low",
+          "medium",
+          "high"
+        ]
+      },
+      {
+        "model": "openai/gpt-oss-20b",
+        "displayName": "GPT-OSS 20B",
+        "contextWindow": 131072,
+        "inputModalities": [
+          "text"
+        ],
+        "reasoningLevels": [
+          "low",
+          "medium",
+          "high"
+        ]
+      }
+    ]
+  },
+  {
+    "name": "SambaNova",
+    "category": "cloud_provider",
+    "icon": "sambanova",
+    "websiteUrl": "https://sambanova.ai",
+    "apiFormat": "openai_responses",
+    "baseUrl": "https://api.sambanova.ai/v1",
+    "defaultModel": "MiniMax-M3",
+    "defaultReasoningEffort": "high",
+    "requiresOpenaiAuth": true,
+    "endpointCandidates": [
+      "https://api.sambanova.ai/v1"
+    ],
+    "modelCatalog": [
+      {
+        "model": "MiniMax-M3",
+        "displayName": "MiniMax-M3",
+        "contextWindow": 1048576,
+        "inputModalities": [
+          "text"
+        ],
+        "reasoningLevels": [
+          "high"
+        ]
+      },
+      {
+        "model": "gpt-oss-120b",
+        "displayName": "gpt-oss-120b",
+        "contextWindow": 131072,
+        "inputModalities": [
+          "text"
+        ],
+        "reasoningLevels": [
+          "low",
+          "medium",
+          "high"
+        ]
+      }
+    ]
+  },
+  {
+    "name": "DigitalOcean",
+    "category": "cloud_provider",
+    "icon": "digitalocean",
+    "websiteUrl": "https://www.digitalocean.com/products/ai-platform",
+    "apiFormat": "openai_responses",
+    "baseUrl": "https://inference.do-ai.run/v1",
+    "defaultModel": "openai-gpt-6-1-sol",
+    "defaultReasoningEffort": "high",
+    "requiresOpenaiAuth": true,
+    "endpointCandidates": [
+      "https://inference.do-ai.run/v1"
+    ],
+    "modelCatalog": [
+      {
+        "model": "openai-gpt-6-1-sol",
+        "displayName": "GPT-6.1 Sol",
+        "contextWindow": 1050000,
+        "inputModalities": [
+          "text",
+          "image"
+        ],
+        "reasoningLevels": [
+          "low",
+          "medium",
+          "high",
+          "xhigh",
+          "max"
+        ]
+      },
+      {
+        "model": "glm-5.3",
+        "displayName": "GLM-5.3",
+        "contextWindow": 1048576,
+        "inputModalities": [
+          "text"
+        ],
+        "reasoningLevels": [
+          "low",
+          "high",
+          "max"
+        ]
+      },
+      {
+        "model": "deepseek-v4.1-flash-1017",
+        "displayName": "DeepSeek V4.1 Flash 1017",
+        "contextWindow": 1048576,
+        "inputModalities": [
+          "text",
+          "image"
+        ],
+        "reasoningLevels": [
+          "low",
+          "high",
+          "max"
+        ]
+      }
+    ]
+  },
+  {
+    "name": "Hugging Face",
+    "category": "aggregator",
+    "icon": "huggingface",
+    "websiteUrl": "https://huggingface.co/inference/models",
+    "apiFormat": "openai_chat",
+    "baseUrl": "https://router.huggingface.co/v1",
+    "defaultModel": "zai-org/GLM-5.3:baseten",
+    "defaultReasoningEffort": "high",
+    "requiresOpenaiAuth": true,
+    "endpointCandidates": [
+      "https://router.huggingface.co/v1"
+    ],
+    "modelCatalog": [
+      {
+        "model": "zai-org/GLM-5.3:baseten",
+        "displayName": "GLM-5.3 (Baseten)",
+        "contextWindow": 1048576,
+        "inputModalities": [
+          "text"
+        ],
+        "reasoningLevels": [
+          "high"
+        ]
+      },
+      {
+        "model": "zai-org/GLM-5.3-Flash:baseten",
+        "displayName": "GLM-5.3 Flash (Baseten)",
+        "contextWindow": 1048576,
+        "inputModalities": [
+          "text",
+          "image"
+        ],
+        "reasoningLevels": [
+          "high"
+        ]
+      },
+      {
+        "model": "moonshotai/Kimi-K3:baseten",
+        "displayName": "Kimi K3 (Baseten)",
+        "contextWindow": 1048576,
+        "inputModalities": [
+          "text",
+          "image"
+        ],
+        "reasoningLevels": [
+          "high"
+        ]
+      },
+      {
+        "model": "deepseek-ai/DeepSeek-V4.1-Flash-1017:baseten",
+        "displayName": "DeepSeek V4.1 Flash 1017 (Baseten)",
+        "contextWindow": 1048576,
+        "inputModalities": [
+          "text"
+        ],
+        "reasoningLevels": [
+          "high"
+        ]
+      }
+    ]
+  },
+  {
+    "name": "Fireworks AI",
+    "category": "cloud_provider",
+    "icon": "fireworks",
+    "websiteUrl": "https://fireworks.ai",
+    "apiFormat": "openai_responses",
+    "baseUrl": "https://api.fireworks.ai/inference/v1",
+    "defaultModel": "accounts/fireworks/models/glm-5p3",
+    "defaultReasoningEffort": "high",
+    "requiresOpenaiAuth": true,
+    "endpointCandidates": [
+      "https://api.fireworks.ai/inference/v1"
+    ],
+    "modelCatalog": [
+      {
+        "model": "accounts/fireworks/models/glm-5p3",
+        "displayName": "GLM 5.3",
+        "contextWindow": 1048576,
+        "inputModalities": [
+          "text"
+        ],
+        "reasoningLevels": [
+          "low",
+          "high",
+          "max"
+        ]
+      },
+      {
+        "model": "accounts/fireworks/models/kimi-k3",
+        "displayName": "Kimi K3",
+        "contextWindow": 1048576,
+        "inputModalities": [
+          "text",
+          "image"
+        ],
+        "reasoningLevels": [
+          "none",
+          "low",
+          "high",
+          "max"
+        ]
+      },
+      {
+        "model": "accounts/fireworks/models/deepseek-v4p1-flash",
+        "displayName": "DeepSeek V4.1 Flash",
+        "contextWindow": 1000000,
+        "inputModalities": [
+          "text",
+          "image"
+        ],
+        "reasoningLevels": [
+          "none",
+          "low",
+          "high",
+          "max"
+        ]
+      },
+      {
+        "model": "accounts/fireworks/models/glm-5p3-flash",
+        "displayName": "GLM 5.3 Flash",
+        "contextWindow": 1048576,
+        "inputModalities": [
+          "text",
+          "image"
+        ],
+        "reasoningLevels": [
+          "low",
+          "high",
+          "max"
+        ]
+      }
+    ]
+  },
+  {
+    "name": "Mistral AI",
+    "category": "cn_official",
+    "icon": "mistral",
+    "hidden": true,
+    "websiteUrl": "https://mistral.ai",
+    "apiFormat": "openai_chat",
+    "baseUrl": "https://api.mistral.ai/v1",
+    "defaultModel": "mistral-medium-3-5",
+    "defaultReasoningEffort": "high",
+    "requiresOpenaiAuth": true,
+    "endpointCandidates": [
+      "https://api.mistral.ai/v1"
+    ],
+    "modelCatalog": [
+      {
+        "model": "mistral-medium-3-5",
+        "displayName": "Mistral Medium 3.5",
+        "contextWindow": 256000,
+        "inputModalities": [
+          "text",
+          "image"
+        ]
+      },
+      {
+        "model": "mistral-small-2603",
+        "displayName": "Mistral Small 4",
+        "contextWindow": 256000,
+        "inputModalities": [
+          "text",
+          "image"
+        ]
+      }
+    ]
+  },
+  {
+    "name": "Cloudflare AI Gateway",
+    "category": "cloud_provider",
+    "icon": "cloudflare",
+    "websiteUrl": "https://developers.cloudflare.com/ai-gateway/",
+    "apiFormat": "openai_responses",
+    "baseUrl": "https://gateway.ai.cloudflare.com/v1/YOUR_ACCOUNT_ID/default/openai",
+    "defaultModel": "gpt-6.1-sol",
+    "defaultReasoningEffort": "high",
+    "requiresOpenaiAuth": true
+  },
+  {
+    "name": "OpenCode Go",
+    "category": "third_party",
+    "family": "opencode",
+    "planKey": "coding",
+    "icon": "opencode",
+    "iconColor": "#211E1E",
+    "websiteUrl": "https://opencode.ai/go",
+    "apiFormat": "openai_chat",
+    "baseUrl": "https://opencode.ai/zen/go/v1",
+    "defaultModel": "glm-5.3",
+    "defaultReasoningEffort": "high",
+    "requiresOpenaiAuth": true,
+    "endpointCandidates": [
+      "https://opencode.ai/zen/go/v1"
+    ],
+    "modelCatalog": [
+      {
+        "model": "glm-5.3",
+        "displayName": "GLM 5.3",
+        "contextWindow": 1000000,
+        "inputModalities": [
+          "text"
+        ],
+        "reasoningLevels": [
+          "low",
+          "high",
+          "max"
+        ],
+        "defaultReasoningLevel": "high"
+      },
+      {
+        "model": "glm-5.3-flash",
+        "displayName": "GLM 5.3 Flash",
+        "contextWindow": 1000000,
+        "inputModalities": [
+          "text",
+          "image"
+        ],
+        "reasoningLevels": [
+          "low",
+          "high",
+          "max"
+        ],
+        "defaultReasoningLevel": "high"
+      },
+      {
+        "model": "kimi-k3.1-pro",
+        "displayName": "Kimi K3.1 Pro",
+        "contextWindow": 1048576,
+        "inputModalities": [
+          "text",
+          "image"
+        ],
+        "reasoningLevels": [
+          "max"
+        ]
+      },
+      {
+        "model": "deepseek-v4.1-flash",
+        "displayName": "DeepSeek V4.1 Flash",
+        "contextWindow": 1048576,
+        "reasoningLevels": [
+          "low",
+          "high",
+          "max"
+        ]
+      },
+      {
+        "model": "mimo-v2.6-pro",
+        "displayName": "MiMo V2.6 Pro",
+        "contextWindow": 1048576
+      }
+    ]
+  },
+  {
+    "name": "OpenCode Zen",
+    "category": "aggregator",
+    "family": "opencode",
+    "planKey": "payg",
+    "icon": "opencode",
+    "iconColor": "#211E1E",
+    "websiteUrl": "https://opencode.ai/zen",
+    "apiFormat": "openai_responses",
+    "baseUrl": "https://opencode.ai/zen/v1",
+    "defaultModel": "gpt-6-sol",
+    "defaultReasoningEffort": "high",
+    "requiresOpenaiAuth": true,
+    "endpointCandidates": [
+      "https://opencode.ai/zen/v1"
+    ]
+  },
+  {
+    "name": "AiHubMix",
+    "category": "aggregator",
+    "icon": "aihubmix",
+    "iconColor": "#006FFB",
+    "websiteUrl": "https://aihubmix.com",
+    "apiFormat": "openai_responses",
+    "baseUrl": "https://aihubmix.com/v1",
+    "defaultModel": "gpt-6.1-sol",
+    "defaultReasoningEffort": "high",
+    "requiresOpenaiAuth": true,
+    "endpointCandidates": [
+      "https://aihubmix.com/v1",
+      "https://api.aihubmix.com/v1"
+    ]
+  },
+  {
+    "name": "CherryIN",
+    "category": "aggregator",
+    "icon": "cherryin",
+    "websiteUrl": "https://open.cherryin.ai",
+    "apiFormat": "openai_responses",
+    "baseUrl": "https://open.cherryin.net/v1",
+    "defaultModel": "openai/gpt-6.1-sol",
+    "defaultReasoningEffort": "high",
+    "requiresOpenaiAuth": true,
+    "endpointCandidates": [
+      "https://open.cherryin.net/v1"
+    ]
+  },
+  {
+    "name": "RelaxyCode",
+    "category": "third_party",
+    "icon": "relaxcode",
+    "websiteUrl": "https://www.relaxycode.com",
+    "apiFormat": "openai_responses",
+    "baseUrl": "https://www.relaxycode.com/v1",
+    "defaultModel": "gpt-6-astra",
+    "defaultReasoningEffort": "high",
+    "requiresOpenaiAuth": true
+  },
+  {
+    "name": "E-FlowCode",
+    "category": "third_party",
+    "icon": "eflowcode",
+    "iconColor": "#000000",
+    "websiteUrl": "https://e-flowcode.cc",
+    "apiFormat": "openai_responses",
+    "baseUrl": "https://e-flowcode.cc/v1",
+    "defaultModel": "gpt-6.1-sol",
+    "defaultReasoningEffort": "high",
+    "requiresOpenaiAuth": true,
+    "endpointCandidates": [
+      "https://e-flowcode.cc/v1"
+    ]
+  },
+  {
+    "name": "PIPELLM",
+    "category": "aggregator",
+    "icon": "pipellm",
+    "websiteUrl": "https://code.pipellm.ai",
+    "apiFormat": "openai_responses",
+    "baseUrl": "https://cc-api.pipellm.ai/v1",
+    "defaultModel": "gpt-6.1-sol",
+    "defaultReasoningEffort": "medium",
+    "requiresOpenaiAuth": true,
+    "endpointCandidates": [
+      "https://cc-api.pipellm.ai/v1"
+    ]
+  },
+  {
+    "name": "OpenRouter",
+    "category": "aggregator",
+    "icon": "openrouter",
+    "iconColor": "#6566F1",
+    "websiteUrl": "https://openrouter.ai",
+    "apiFormat": "openai_responses",
+    "baseUrl": "https://openrouter.ai/api/v1",
+    "defaultModel": "openai/gpt-6.1-sol",
+    "defaultReasoningEffort": "high",
+    "requiresOpenaiAuth": true
+  },
+  {
+    "name": "TheRouter",
+    "category": "aggregator",
+    "icon": "therouter",
+    "websiteUrl": "https://therouter.ai",
+    "apiFormat": "openai_responses",
+    "baseUrl": "https://api.therouter.ai/v1",
+    "defaultModel": "openai/gpt-6.1-sol",
+    "defaultReasoningEffort": "high",
+    "requiresOpenaiAuth": true,
+    "endpointCandidates": [
+      "https://api.therouter.ai/v1"
+    ]
+  },
+  {
+    "name": "JieKou AI",
+    "category": "aggregator",
+    "icon": "jiekou",
+    "iconColor": "#000000",
+    "websiteUrl": "https://jiekou.ai/",
+    "apiFormat": "openai_chat",
+    "baseUrl": "https://api.jiekou.ai/openai/v1",
+    "defaultModel": "claude-fable-5-1",
+    "defaultReasoningEffort": "high",
+    "requiresOpenaiAuth": true,
+    "endpointCandidates": [
+      "https://api.jiekou.ai/openai/v1"
+    ],
+    "modelCatalog": [
+      {
+        "model": "claude-fable-5-1",
+        "displayName": "Claude Fable 5.1",
+        "contextWindow": 1000000,
+        "inputModalities": [
+          "text",
+          "image"
+        ]
+      }
+    ]
+  },
+  {
+    "name": "AICodeWith",
+    "category": "aggregator",
+    "icon": "aicodewith",
+    "iconColor": "#3A3B40",
+    "websiteUrl": "https://aicodewith.ai",
+    "apiFormat": "openai_responses",
+    "baseUrl": "https://api.aicodewith.ai/v1",
+    "defaultModel": "gpt-6.1-sol",
+    "defaultReasoningEffort": "high",
+    "requiresOpenaiAuth": true,
+    "endpointCandidates": [
+      "https://api.aicodewith.ai/v1"
+    ]
+  },
+  {
+    "name": "Command Code",
+    "category": "third_party",
+    "icon": "commandcode",
+    "websiteUrl": "https://commandcode.ai",
+    "apiFormat": "openai_responses",
+    "baseUrl": "https://api.commandcode.ai/provider/v1",
+    "defaultModel": "deepseek/deepseek-v4.1-flash",
+    "defaultReasoningEffort": "high",
+    "requiresOpenaiAuth": true,
+    "endpointCandidates": [
+      "https://api.commandcode.ai/provider/v1"
+    ],
+    "modelCatalog": [
+      {
+        "model": "deepseek/deepseek-v4.1-flash",
+        "displayName": "DeepSeek V4.1 Flash",
+        "contextWindow": 1000000
+      },
+      {
+        "model": "z-ai/glm-5.3-flash",
+        "displayName": "GLM-5.3 Flash",
+        "contextWindow": 1048576
+      },
+      {
+        "model": "Qwen/Qwen3.8-Flash",
+        "displayName": "Qwen 3.8 Flash",
+        "contextWindow": 1000000
+      },
+      {
+        "model": "moonshotai/Kimi-K3.1-Pro",
+        "displayName": "Kimi K3.1 Pro",
+        "contextWindow": 1048576
+      },
+      {
+        "model": "zai-org/GLM-5.3",
+        "displayName": "GLM-5.3",
+        "contextWindow": 1000000
+      }
+    ]
+  },
+  {
+    "name": "模力方舟",
+    "category": "aggregator",
+    "icon": "moark",
+    "websiteUrl": "https://moark.com",
+    "apiFormat": "openai_responses",
+    "baseUrl": "https://moark.com/v1",
+    "defaultModel": "deepseek-v4.1-flash",
+    "defaultReasoningEffort": "high",
+    "requiresOpenaiAuth": true,
+    "endpointCandidates": [
+      "https://moark.com/v1"
+    ],
+    "modelCatalog": [
+      {
+        "model": "deepseek-v4.1-flash",
+        "displayName": "DeepSeek V4.1 Flash",
+        "contextWindow": 1000000,
+        "inputModalities": [
+          "text"
+        ],
+        "reasoningLevels": [
+          "low",
+          "high",
+          "max"
+        ]
+      },
+      {
+        "model": "GLM-5.3",
+        "displayName": "GLM-5.3",
+        "contextWindow": 1048576,
+        "inputModalities": [
+          "text"
+        ],
+        "reasoningLevels": [
+          "none",
+          "low",
+          "medium",
+          "high",
+          "xhigh",
+          "max"
+        ]
+      },
+      {
+        "model": "GLM-5.3-Flash",
+        "displayName": "GLM-5.3 Flash",
+        "contextWindow": 1000000,
+        "inputModalities": [
+          "text",
+          "image"
+        ],
+        "reasoningLevels": [
+          "low",
+          "high",
+          "max"
+        ]
+      },
+      {
+        "model": "Kimi-K2.7-Code",
+        "displayName": "Kimi K2.7 Code",
+        "contextWindow": 262144,
+        "inputModalities": [
+          "text",
+          "image"
+        ],
+        "reasoningLevels": [
+          "none",
+          "minimal",
+          "low",
+          "medium",
+          "high",
+          "xhigh"
+        ]
+      }
+    ]
+  },
+  {
+    "name": "SoruxGPT",
+    "category": "aggregator",
+    "family": "soruxgpt",
+    "planKey": "payg",
+    "icon": "soruxgpt",
+    "websiteUrl": "https://ai.soruxgpt.com",
+    "apiFormat": "openai_responses",
+    "baseUrl": "https://ai.soruxgpt.com/v1",
+    "defaultModel": "gpt-6.1-sol",
+    "defaultReasoningEffort": "high",
+    "requiresOpenaiAuth": true,
+    "endpointCandidates": [
+      "https://ai.soruxgpt.com/v1",
+      "https://api-cf.soruxgpt.com/v1",
+      "https://api-host.soruxgpt.com/v1",
+      "https://api-node6.soruxgpt.com/v1",
+      "https://api-node3.soruxgpt.com/v1"
+    ]
+  },
+  {
+    "name": "SoruxGPT Coding Plan",
+    "category": "aggregator",
+    "family": "soruxgpt",
+    "planKey": "codingPlan",
+    "icon": "soruxgpt",
+    "websiteUrl": "https://app.soruxgpt.com",
+    "apiFormat": "openai_responses",
+    "baseUrl": "https://app.soruxgpt.com/api/codex",
+    "defaultModel": "gpt-6.1-sol",
+    "defaultReasoningEffort": "high",
+    "requiresOpenaiAuth": true,
+    "endpointCandidates": [
+      "https://app.soruxgpt.com/api/codex",
+      "https://center.soruxgpt.com/api/codex",
+      "https://u.soruxgpt.com/api/codex"
+    ]
+  },
+  {
+    "name": "IKunCode",
+    "category": "aggregator",
+    "icon": "ikuncode",
+    "websiteUrl": "https://api.ikuncode.ai",
+    "apiFormat": "openai_responses",
+    "baseUrl": "https://api.ikuncode.ai/v1",
+    "defaultModel": "gpt-6.1-sol",
+    "defaultReasoningEffort": "high",
+    "requiresOpenaiAuth": true,
+    "endpointCandidates": [
+      "https://api.ikuncode.ai/v1",
+      "https://api.ikuncode.cc/v1"
+    ]
+  },
+  {
+    "name": "RunToken",
+    "category": "aggregator",
+    "icon": "runtoken",
+    "websiteUrl": "https://www.runtoken.ai",
+    "apiFormat": "openai_responses",
+    "baseUrl": "https://www.runtoken.ai/v1",
+    "defaultModel": "gpt-6.1-sol",
+    "defaultReasoningEffort": "high",
+    "requiresOpenaiAuth": true,
+    "endpointCandidates": [
+      "https://www.runtoken.ai/v1",
+      "https://fast.runtoken.ai/v1"
+    ]
+  },
+  {
+    "name": "BotCF",
+    "category": "aggregator",
+    "icon": "botcf",
+    "websiteUrl": "https://botcf.com",
+    "apiFormat": "openai_responses",
+    "baseUrl": "https://botcf.com/v1",
+    "defaultModel": "gpt-6.1-sol",
+    "defaultReasoningEffort": "high",
+    "requiresOpenaiAuth": true
+  },
+  {
+    "name": "YYLX",
+    "nameKey": "providerForm.presets.yylx",
+    "category": "aggregator",
+    "icon": "yylx",
+    "websiteUrl": "https://yylx.io",
+    "apiFormat": "openai_responses",
+    "baseUrl": "https://app.yylx.io/v1",
+    "defaultModel": "gpt-6.1-sol",
+    "defaultReasoningEffort": "high",
+    "requiresOpenaiAuth": true,
+    "endpointCandidates": [
+      "https://app.yylx.io/v1",
+      "https://global.yylx.io/v1",
+      "https://cn.yylx.io/v1"
+    ]
+  },
+  {
+    "name": "TokenFlux",
+    "category": "aggregator",
+    "icon": "tokenflux",
+    "websiteUrl": "https://tokenflux.com",
+    "apiFormat": "openai_responses",
+    "baseUrl": "https://tokenflux.com/v1",
+    "defaultModel": "gpt-6.1-sol",
+    "defaultReasoningEffort": "high",
+    "requiresOpenaiAuth": true,
+    "endpointCandidates": [
+      "https://tokenflux.com/v1",
+      "https://tokenflux.dev/v1"
+    ]
+  },
+  {
+    "name": "NekoCode",
+    "category": "aggregator",
+    "icon": "nekocode",
+    "websiteUrl": "https://nekoapi.ai",
+    "apiFormat": "openai_responses",
+    "baseUrl": "https://nekoapi.ai/v1",
+    "defaultModel": "gpt-6.1-sol",
+    "defaultReasoningEffort": "high",
+    "requiresOpenaiAuth": true
+  },
+  {
+    "name": "AIComing",
+    "category": "aggregator",
+    "icon": "aicoming",
+    "websiteUrl": "https://aicoming.top",
+    "apiFormat": "openai_responses",
+    "baseUrl": "https://api.aicoming.top/v1",
+    "defaultModel": "gpt-6.1-sol",
+    "defaultReasoningEffort": "high",
+    "requiresOpenaiAuth": true
+  }
+]

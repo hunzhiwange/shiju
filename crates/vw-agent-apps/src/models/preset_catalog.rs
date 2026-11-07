@@ -1,6 +1,8 @@
 //! Built-in provider presets for the native model catalog.
 
-use super::{preset_claude::ClaudePreset, preset_gemini_grok::GeminiGrokPreset};
+use super::{
+    preset_claude::ClaudePreset, preset_codex::CodexPreset, preset_gemini_grok::GeminiGrokPreset,
+};
 use crate::providers::{universal_sync::projected_endpoint, validation::endpoint};
 use serde::Deserialize;
 use std::sync::LazyLock;
@@ -16,6 +18,10 @@ use vw_api_types::{
 static CLAUDE_PRESETS: LazyLock<Vec<ClaudePreset>> = LazyLock::new(|| {
     serde_json::from_str(include_str!("presets/claude.json"))
         .expect("valid built-in Claude presets")
+});
+
+static CODEX_PRESETS: LazyLock<Vec<CodexPreset>> = LazyLock::new(|| {
+    serde_json::from_str(include_str!("presets/codex.json")).expect("valid built-in Codex presets")
 });
 
 static GEMINI_GROK_PRESETS: LazyLock<Vec<GeminiGrokPreset>> = LazyLock::new(|| {
@@ -95,4 +101,18 @@ pub fn gemini_grok_presets(app: AppId) -> impl Iterator<Item = &'static GeminiGr
 /// Find a preset by its exact source name within one application.
 pub fn gemini_grok_preset(app: AppId, name: &str) -> Option<&'static GeminiGrokPreset> {
     gemini_grok_presets(app).find(|preset| preset.name == name)
+}
+
+/// List Codex presets in source order, including hidden rows.
+pub fn codex_presets(app: AppId) -> impl Iterator<Item = &'static CodexPreset> {
+    let presets: &[CodexPreset] = match app {
+        AppId::Codex => &CODEX_PRESETS,
+        _ => &[],
+    };
+    presets.iter()
+}
+
+/// Find a preset by its exact source name within Codex.
+pub fn codex_preset(app: AppId, name: &str) -> Option<&'static CodexPreset> {
+    codex_presets(app).find(|preset| preset.name == name)
 }

@@ -210,14 +210,10 @@ fn execute_inner(
     let Some((mut files, tx, expected, pre, next)) = live else {
         return encode(&DshResult { catalog_saved: writing, live: DshLiveResult::NotAttempted });
     };
-    let result = files.apply(
-        &tx,
-        &tenant,
-        &expected,
-        &pre,
-        &next,
-        || read(&home).ok().as_ref() == Some(&pre) && matches!(store.dsh_record(&tenant,&id),Ok(current) if current==saved),
-    );
+    let result = files.apply(&tx, &tenant, &expected, &pre, &next, || {
+        read(&home).ok().as_ref() == Some(&pre)
+            && matches!(store.dsh_record(&tenant,&id),Ok(current) if current==saved)
+    });
     let live = match result {
         Ok(()) => DshLiveResult::Applied,
         Err(WriteError::Recovered) => DshLiveResult::RecoveryRequired,

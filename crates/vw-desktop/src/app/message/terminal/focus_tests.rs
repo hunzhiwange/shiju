@@ -28,6 +28,10 @@ struct Harness {
 }
 impl Harness {
     async fn new() -> Self {
+        Self::with_command("exec cat").await
+    }
+
+    async fn with_command(command: &str) -> Self {
         let mut app = App::new().0;
         app.terminal = crate::app::TerminalState::blank_with_settings(
             true,
@@ -38,11 +42,7 @@ impl Harness {
             220.0,
         );
         app.terminal
-            .add_terminal_with_command(
-                "focus".into(),
-                Some(std::env::temp_dir()),
-                "exec cat".into(),
-            )
+            .add_terminal_with_command("focus".into(), Some(std::env::temp_dir()), command.into())
             .expect("PTY");
         app.preview_tabs.push(PreviewTab {
             path: "/tmp/terminal-focus.rs".into(),
@@ -90,28 +90,37 @@ impl Harness {
         let task = super::update(&mut self.app, message);
         self.task(task).await;
     }
-    async fn event(&mut self, event: Event, position: Point) -> Vec<Vec<u8>> {
+    fn dispatch(
+        &mut self,
+        event: Event,
+        position: Point,
+    ) -> (Vec<Message>, iced::advanced::input_method::InputMethod) {
         let mut messages = Vec::new();
-        {
-            let mut element = view(&self.app);
-            self.tree.diff(element.as_widget());
-            let size = Size::new(800.0, 500.0);
-            let node = element.as_widget_mut().layout(
-                &mut self.tree,
-                &self.renderer,
-                &layout::Limits::new(Size::ZERO, size),
-            );
-            element.as_widget_mut().update(
-                &mut self.tree,
-                &event,
-                Layout::new(&node),
-                iced::mouse::Cursor::Available(position),
-                &self.renderer,
-                &mut iced::advanced::clipboard::Null,
-                &mut Shell::new(&mut messages),
-                &Rectangle::with_size(size),
-            );
-        }
+        let mut element = view(&self.app);
+        self.tree.diff(element.as_widget());
+        let size = Size::new(800.0, 500.0);
+        let node = element.as_widget_mut().layout(
+            &mut self.tree,
+            &self.renderer,
+            &layout::Limits::new(Size::ZERO, size),
+        );
+        let mut shell = Shell::new(&mut messages);
+        element.as_widget_mut().update(
+            &mut self.tree,
+            &event,
+            Layout::new(&node),
+            iced::mouse::Cursor::Available(position),
+            &self.renderer,
+            &mut iced::advanced::clipboard::Null,
+            &mut shell,
+            &Rectangle::with_size(size),
+        );
+        let input_method = shell.input_method().clone();
+        (messages, input_method)
+    }
+
+    async fn event(&mut self, event: Event, position: Point) -> Vec<Vec<u8>> {
+        let (messages, _) = self.dispatch(event, position);
         let mut writes = Vec::new();
         for message in messages {
             match message {
@@ -261,4 +270,101 @@ async fn terminal_focus_repeated_clicks_and_keys_preserve_tab_and_pty_identity()
         assert_eq!(h.app.terminal.active_id, Some(id));
         assert_eq!(h.app.terminal.tabs[0].term.widget_id(), &widget_id);
     }
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn terminal_ime_requests_native_composition_only_while_focused() {
+    use iced::advanced::input_method::{Event as Ime, InputMethod, Purpose};
+
+    let mut h = Harness::new().await;
+    let point = Point::new(120.0, 360.0);
+    let redraw = || Event::Window(iced::window::Event::RedrawRequested(std::time::Instant::now()));
+    assert!(!h.dispatch(redraw(), point).1.is_enabled());
+    h.click(point).await;
+
+    let InputMethod::Enabled { cursor, purpose, preedit } = h.dispatch(redraw(), point).1 else {
+        panic!("focused terminal must request native IME on redraw");
+    };
+    assert_eq!(purpose, Purpose::Terminal);
+    assert!(cursor.y >= 314.0 && cursor.y < 500.0);
+    assert!(preedit.is_none());
+
+    assert!(
+        h.event(Event::InputMethod(Ime::Preedit("zhong".into(), Some(5..5))), point)
+            .await
+            .is_empty()
+    );
+    let InputMethod::Enabled { preedit: Some(preedit), .. } = h.dispatch(redraw(), point).1 else {
+        panic!("IME preedit should be presented at the terminal caret");
+    };
+    assert_eq!(preedit.content, "zhong");
+    assert_eq!(preedit.selection, Some(5..5));
+
+    h.event(Event::Window(iced::window::Event::Unfocused), point).await;
+    assert!(!h.dispatch(redraw(), point).1.is_enabled());
+    assert!(h.event(Event::InputMethod(Ime::Commit("中".into())), point).await.is_empty());
+
+    h.event(Event::Window(iced::window::Event::Focused), point).await;
+    assert!(matches!(h.dispatch(redraw(), point).1, InputMethod::Enabled { preedit: None, .. }));
+
+    h.click(Point::new(120.0, 100.0)).await;
+    assert!(!matches!(
+        h.dispatch(redraw(), point).1,
+        InputMethod::Enabled { purpose: Purpose::Terminal, .. }
+    ));
+    assert!(h.event(Event::InputMethod(Ime::Commit("文".into())), point).await.is_empty());
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn terminal_ime_writes_committed_utf8_once_to_the_pty() {
+    use iced::advanced::input_method::Event as Ime;
+
+    let mut h = Harness::with_command(concat!(
+        "stty -echo; printf 'IME-READY\\n'; ",
+        r#"IFS= read -r line; printf 'IME:%s\n' "$line"; exec cat"#,
+    ))
+    .await;
+    let point = Point::new(120.0, 360.0);
+    h.click(point).await;
+    let id = h.app.terminal.active_id.unwrap();
+
+    async fn wait_for_line(h: &mut Harness, id: u64, expected: &str) {
+        tokio::time::timeout(std::time::Duration::from_secs(5), async {
+            loop {
+                h.message(TerminalMessage::Event(iced_term::Event::BackendCall(
+                    id,
+                    iced_term::BackendCommand::Resize(None, None),
+                )))
+                .await;
+                if h.app.terminal.tabs[0].term.text().iter().any(|line| line == expected) {
+                    break;
+                }
+                tokio::time::sleep(std::time::Duration::from_millis(10)).await;
+            }
+        })
+        .await
+        .expect("PTY should read the committed input");
+    }
+
+    wait_for_line(&mut h, id, "IME-READY").await;
+    for event in [
+        Ime::Opened,
+        Ime::Preedit("zhongwen".into(), Some(8..8)),
+        Ime::Preedit(String::new(), None),
+    ] {
+        assert!(h.event(Event::InputMethod(event), point).await.is_empty());
+    }
+    let writes = h.event(Event::InputMethod(Ime::Commit("中文".into())), point).await;
+    assert_eq!(writes, vec!["中文".as_bytes().to_vec()]);
+    assert!(h.app.preview_tabs[0].editor.content().is_empty());
+    assert_eq!(h.app.terminal.tabs.len(), 1);
+    for mut bytes in writes {
+        bytes.push(b'\n');
+        h.message(TerminalMessage::Event(iced_term::Event::BackendCall(
+            id,
+            iced_term::BackendCommand::Write(bytes),
+        )))
+        .await;
+    }
+    wait_for_line(&mut h, id, "IME:中文").await;
 }

@@ -13,7 +13,12 @@ members = [
   "crates/vw-webview",
   "crates/vw-provider-resolver",
 ]
-exclude = ["vendor/block", "vendor/block/test_utils", "crates/vw-agent-apps/upstream/src-tauri"]
+exclude = [
+  "vendor/block",
+  "vendor/block/test_utils",
+  "vendor/iced_term",
+  "crates/vw-agent-apps/upstream/src-tauri",
+]
 resolver = "3"
 
 [profile.dev]

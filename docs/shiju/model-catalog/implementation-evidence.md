@@ -136,3 +136,32 @@
 | `cargo clippy --all-targets --all-features -- -D warnings` | 0 | 实际工作区全部目标及 features 通过 |
 
 审查范围仅包含目录入口、类型、数据、独立测试与本证据。各阶段已释放本项的槽位锁并保留编译缓存。
+
+## 任务 6　Gemini 与 Grok Build 模型预设
+
+2026-11-08，macOS 27.0（26A428），arm64。批次 5 由 `1eba39833` 交付。本项沿用 `models/preset_catalog.rs` 的内嵌 JSON 读取方式。`gemini_grok_presets` 按 `AppId` 保留源顺序并将官方条目置首，`gemini_grok_preset` 在应用内按精确名称查询。
+
+| 固定来源 `ca58c0313360eae7c851fbd7553c1614c7af03e7` | 实际实现 |
+| --- | --- |
+| `src/config/geminiProviderPresets.ts::geminiProviderPresets` | `models/presets/gemini_grok.json` 的 `gemini` 行解析为 `models/preset_gemini_grok.rs::GeminiGrokPreset`。保留 `GEMINI_MODEL`、`GOOGLE_GEMINI_BASE_URL`、候选地址和 TeamoRouter 的 Bearer 配置提示，使用共享的 `ProviderProtocol::Gemini` |
+| `src/config/grokBuildProviderPresets.ts::grokBuildProviderPresets`、`grokPresetConfig` 和 `src/utils/grokBuildConfig.ts::GROK_BUILD_DEFAULT_MODEL` | 同一 JSON 的 `grokbuild` 行保留源 TOML 的 `model`、`base_url`、候选地址及分组，按 `wire_api = "responses"` 和显式格式使用 `ProviderProtocol::OpenaiResponses`。模型命名空间原样保留 |
+| Gemini 的 Google Official、`grokBuildOfficialPreset` 和 `src-tauri/src/database/dao/providers_seed.rs::OFFICIAL_SEEDS` | 保留 `gemini-official`、`grokbuild-official` 及 Google 的 `google-official` 认证识别标记。官方行保留空部署配置。Grok 的 xAI API Key 预设是独立行 |
+| `src/config/grokBuildProviderPresets.test.ts`、`tests/components/GeminiFormFields.test.tsx` 和 `tests/components/ProviderForm.addDraftProjection.test.tsx` | `models/preset_gemini_grok_tests.rs` 验证真实目录的官方空配置、逐应用枚举、排除名单、模型 ID 和协议、候选地址和同名部署隔离 |
+
+执行固定来源的两份数组后，逐行核对顺序与所投影字段。Gemini 50 条包含 49 个部署地址、49 个模型值（6 个不同 ID）、73 个候选端点。Grok Build 55 条包含 54 个部署地址、54 个模型值（3 个不同 ID）、79 个候选端点。展示网址移除查询参数。推广链接、凭据占位、E-FlowCode 的客户端通用设置以及 Grok 表单共用的上下文窗口默认值均在本项模型目录投影范围之外。来源许可见 `crates/vw-agent-apps/upstream/LICENSE`（MIT，Copyright (c) 2025 Jason Young）。
+
+现有配置入口由网关 `app_providers/gemini.rs` 和 `app_providers/grok.rs` 分别提供 `/v1/app-providers/gemini/{id}/form` 和 `/v1/app-providers/grokbuild/{id}/form`。SDK 对应 `client/app_providers/gemini.rs::gemini_form_create`、`gemini_form_update` 及 `client/app_providers/grok.rs::grok_form_create`、`grok_form_update`。Iced 配置字段由 `components/app_providers/gemini.rs::fields` 和 `components/app_providers/grok.rs::fields` 渲染。预设目录 API 与 SDK 在任务 36 接入，Iced 搜索在任务 39 接入。本项验收原生离线目录，无窗口、账号或线上请求验收项。
+
+### 验证
+
+各阶段动态领取共享槽位 **2**，`CARGO_TARGET_DIR=/Users/xiangmin/worker/code/shiju/target/rust-slot-2`，Cargo 中间目录使用同一槽位。`cargo fmt --all` 在基于 `1eba39833` 的源码快照中运行，只回写本项四个 Rust 文件。聚焦测试和全工作区 Clippy 在实际工作区根目录运行。
+
+| 命令 | 退出码 | 证据 |
+| --- | ---: | --- |
+| `cargo fmt --all`（红灯、首轮复验、最终绿灯） | 0、0、0 | 格式化完成 |
+| `cargo test -p vw-agent-apps catalog_presets_gemini_grok_ -- --nocapture`（红灯） | 101 | 5 条有效测试，5 条预期失败。首个精确测试对 Gemini OpenModel 查到 `None`，预期 `Some((Some(Gemini), Some("gemini-4-argon")))` |
+| 同一聚焦命令（首轮复验） | 101 | 4 通过、1 失败。源清单两边都有 OpenModel，隔离用例改用仅 Gemini 收录的 OspreyAI，并断言其在 Gemini 可查 |
+| 同一聚焦命令（最终绿灯） | 0 | 5 条有效测试全部通过 |
+| `cargo clippy --all-targets --all-features -- -D warnings` | 0 | 实际工作区全部目标及 features 通过 |
+
+审查范围仅包含目录入口、类型、数据、独立测试与本证据。各阶段已释放本项的槽位锁并保留编译缓存。

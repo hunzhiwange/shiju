@@ -509,45 +509,6 @@ fn editor_style_maps_requesting_and_theme_colors() {
 }
 
 #[test]
-fn subtask_editor_style_maps_dark_and_light_fields() {
-    for (theme, is_dark) in [(Theme::Light, false), (Theme::Dark, true)] {
-        let active = subtask_editor_style(&theme, text_editor::Status::Active);
-        let focused =
-            subtask_editor_style(&theme, text_editor::Status::Focused { is_hovered: false });
-        let expected_background = if is_dark {
-            Color::from_rgba8(22, 23, 27, 0.92)
-        } else {
-            Color::from_rgba8(248, 249, 251, 1.0)
-        };
-        let expected_border = if is_dark {
-            Color::from_rgba8(43, 46, 52, 0.96)
-        } else {
-            Color::from_rgba8(226, 231, 237, 1.0)
-        };
-        let expected_placeholder = if is_dark {
-            theme.palette().text.scale_alpha(0.48)
-        } else {
-            theme.extended_palette().secondary.base.text.scale_alpha(0.56)
-        };
-
-        for style in [active, focused] {
-            assert_eq!(style.background, Background::Color(expected_background));
-            assert_eq!(style.border.width, 1.0);
-            assert_color(style.border.color, expected_border);
-            assert_color(
-                style.value,
-                theme.palette().text.scale_alpha(if is_dark { 0.94 } else { 0.92 }),
-            );
-            assert_color(
-                style.selection,
-                theme.palette().primary.scale_alpha(if is_dark { 0.26 } else { 0.18 }),
-            );
-            assert_color(style.placeholder, expected_placeholder);
-        }
-    }
-}
-
-#[test]
 fn input_panel_style_falls_back_without_active_chrome() {
     for theme in [Theme::Light, Theme::Dark] {
         let with_none = input_card_style(&theme, false, None);

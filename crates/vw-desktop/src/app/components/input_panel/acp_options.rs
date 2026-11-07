@@ -1,12 +1,13 @@
 //! Backend-advertised session options, using the shared settings modal controls.
 use crate::app::components::system_settings_common::{
-    primary_action_btn_style, rounded_action_btn_style, settings_close_button, settings_modal_card,
-    settings_modal_overlay,
+    rounded_action_btn_style, settings_close_button, settings_field_label, settings_modal_header,
+    settings_modal_layout, settings_modal_overlay, settings_muted_text_style, settings_panel_style,
 };
 use crate::app::{App, Message, message::ChatMessage};
-use iced::widget::scrollable::{Direction, Scrollbar};
-use iced::widget::{Space, button as action, column, container, row, scrollable, text};
-use iced::{Alignment, Element, Length};
+use iced::widget::{Space, button as action, column, container, row, text};
+use iced::{Alignment, Element, Length, Theme};
+
+use super::styles::selectable_list_button_style;
 use vw_gateway_client::vw_api_types::acp_session::AcpSessionSelection;
 
 pub(crate) fn with_modal<'a>(app: &'a App, base: Element<'a, Message>) -> Element<'a, Message> {
@@ -16,22 +17,34 @@ pub(crate) fn with_modal<'a>(app: &'a App, base: Element<'a, Message>) -> Elemen
         return base;
     };
     let close = Message::Chat(ChatMessage::AcpOptionsClose);
-    let mut fields = column![access_status(app), source_controls(app)].spacing(16);
+    let mut fields = column![
+        container(access_status(app)).padding(12).width(Length::Fill).style(settings_panel_style),
+        container(source_controls(app)).padding(12).width(Length::Fill).style(settings_panel_style),
+    ]
+    .spacing(12);
     if !runtime.acp_options.connected {
-        fields = fields.push(text("连接会话后可读取后端支持的选项").size(13));
+        fields = fields
+            .push(text("连接会话后可读取后端支持的选项").size(13).style(settings_muted_text_style));
     } else if runtime.acp_options.options.is_empty() {
-        fields = fields.push(text("后端未提供可调整的会话选项").size(13));
+        fields = fields
+            .push(text("后端未提供可调整的会话选项").size(13).style(settings_muted_text_style));
     }
     for option in &runtime.acp_options.options {
-        let mut choices = column![text(&option.name).size(14)].spacing(6);
+        let mut choices = column![settings_field_label(&option.name)].spacing(6);
         for choice in &option.choices {
             let selected = option.current == choice.id;
             let control = action(
-                text(format!("{}{}", if selected { "✓ " } else { "" }, choice.name)).size(13),
+                text(format!("{}{}", if selected { "✓ " } else { "" }, choice.name)).size(14),
             )
             .width(Length::Fill)
             .padding([8, 12])
-            .style(if selected { primary_action_btn_style } else { rounded_action_btn_style })
+            .style(move |theme, status| {
+                let mut style = selectable_list_button_style(theme, status, selected);
+                if !selected && status == iced::widget::button::Status::Disabled {
+                    style.text_color = theme.palette().text.scale_alpha(0.55);
+                }
+                style
+            })
             .on_press_maybe(
                 (!selected && !runtime.acp_options_pending && !runtime.is_requesting).then(|| {
                     Message::Chat(ChatMessage::AcpOptionSelected(AcpSessionSelection {
@@ -42,40 +55,39 @@ pub(crate) fn with_modal<'a>(app: &'a App, base: Element<'a, Message>) -> Elemen
             );
             choices = choices.push(control);
         }
-        fields = fields.push(choices);
+        fields = fields
+            .push(container(choices).padding(12).width(Length::Fill).style(settings_panel_style));
     }
-    let contents = scrollable(container(fields).padding([0, 7]))
-        .direction(Direction::Vertical(Scrollbar::new().width(4).scroller_width(4)))
-        .height(Length::Fixed(320.0));
-    let card = settings_modal_card(
+    let header = settings_modal_header(
         column![
-            row![
-                text("ACP 会话选项").size(20),
-                Space::new().width(Length::Fill),
-                settings_close_button(close.clone())
-            ]
-            .align_y(Alignment::Center),
-            text("选择后即时保存；失败时保留原值").size(12),
-            contents,
-            row![
-                action(text(if runtime.acp_options_pending { "处理中…" } else { "刷新" }))
-                    .padding([8, 16])
-                    .style(rounded_action_btn_style)
-                    .on_press_maybe(
-                        (!runtime.acp_options_pending)
-                            .then_some(Message::Chat(ChatMessage::AcpOptionsOpen))
-                    ),
-                Space::new().width(Length::Fill),
-                action(text("关闭"))
-                    .padding([8, 16])
-                    .style(rounded_action_btn_style)
-                    .on_press(close.clone())
-            ]
-            .spacing(8)
+            text("ACP 会话选项").size(20),
+            text("选择后即时保存；失败时保留原值").size(13).style(settings_muted_text_style),
         ]
-        .spacing(16),
-    )
-    .width(Length::Fixed(480.0));
+        .spacing(4),
+        settings_close_button(close.clone()),
+    );
+    let footer = row![
+        action(text(if runtime.acp_options_pending { "处理中…" } else { "刷新" }))
+            .padding([8, 16])
+            .style(rounded_action_btn_style)
+            .on_press_maybe(
+                (!runtime.acp_options_pending)
+                    .then_some(Message::Chat(ChatMessage::AcpOptionsOpen))
+            ),
+        Space::new().width(Length::Fill),
+        action(text("关闭"))
+            .padding([8, 16])
+            .style(rounded_action_btn_style)
+            .on_press(close.clone()),
+    ]
+    .spacing(8)
+    .align_y(Alignment::Center);
+    let card = settings_modal_layout(header, fields, Some(footer.into()))
+        .width(Length::Fill)
+        .height(Length::Fill)
+        .max_width(520)
+        .max_height(560);
+    let card = container(card).padding(12);
     settings_modal_overlay(Some(base), close, card)
 }
 
@@ -84,7 +96,7 @@ pub(super) fn source_controls(app: &App) -> Element<'_, Message> {
         AcpModelSource, AcpModelSourceCapability, AcpModelSourceRejectionReason,
     };
     let runtime = app.current_session_runtime();
-    let mut controls = column![text("模型来源").size(14)].spacing(6);
+    let mut controls = column![settings_field_label("模型来源")].spacing(6);
     for (source, label, description) in [
         (AcpModelSource::SessionModel, "客户端模型", "使用当前供应商与模型，无需重复填写密钥"),
         (AcpModelSource::CliLocal, "智能体原生模型", "使用执行主机上的配置与登录状态"),
@@ -115,13 +127,19 @@ pub(super) fn source_controls(app: &App) -> Element<'_, Message> {
             action(
                 column![
                     text(format!("{}{}", if selected { "✓ " } else { "" }, label)).size(13),
-                    text(description).size(11),
+                    text(description).size(12),
                 ]
                 .spacing(4),
             )
             .width(Length::Fill)
             .padding([8, 10])
-            .style(if selected { primary_action_btn_style } else { rounded_action_btn_style })
+            .style(move |theme: &Theme, status| {
+                if selected {
+                    selectable_list_button_style(theme, status, true)
+                } else {
+                    rounded_action_btn_style(theme, status)
+                }
+            })
             .on_press_maybe(
                 (matches!(capability, Some(AcpModelSourceCapability::Supported { .. }))
                     && !selected
@@ -132,12 +150,17 @@ pub(super) fn source_controls(app: &App) -> Element<'_, Message> {
             ),
         );
         if let Some(reason) = reason {
-            controls = controls.push(text(reason).size(12));
+            controls = controls.push(text(reason).size(12).style(settings_muted_text_style));
         }
     }
     if runtime.acp_model_source == AcpModelSource::SessionModel {
         let model = if runtime.auto_model { "自动选择".to_string() } else { runtime.model };
-        controls = controls.push(text(format!("当前客户端 Provider/model：{model}")).size(12));
+        controls = controls.push(
+            text(format!("当前客户端 Provider/model：{model}"))
+                .size(12)
+                .wrapping(text::Wrapping::WordOrGlyph)
+                .style(settings_muted_text_style),
+        );
     }
     controls = controls.push(
         text(if runtime.acp_source_pending.is_some() {
@@ -145,7 +168,8 @@ pub(super) fn source_controls(app: &App) -> Element<'_, Message> {
         } else {
             "切换来源将创建新的 ACP 会话；原生上下文不继承"
         })
-        .size(11),
+        .size(12)
+        .style(settings_muted_text_style),
     );
     controls.into()
 }
@@ -184,6 +208,14 @@ fn access_status(app: &App) -> Element<'_, Message> {
         status = status.push(text("生效能力：未验证；连接后刷新查看，读取不会启动后端").size(13));
     }
     status
-        .push(text("此处仅指工具权限；用户问答、计划确认及组织策略仍可能需要确认。").size(12))
+        .push(
+            text("此处仅指工具权限；用户问答、计划确认及组织策略仍可能需要确认。")
+                .size(12)
+                .style(settings_muted_text_style),
+        )
         .into()
 }
+
+#[cfg(test)]
+#[path = "acp_options_ui_refresh_42_tests.rs"]
+mod ui_refresh_42_tests;

@@ -3,7 +3,7 @@
 use iced::widget::svg;
 use iced::widget::tooltip::{Position as TooltipPosition, Tooltip};
 use iced::widget::{button, column, container, row, text};
-use iced::{Alignment, Border, Element, Length, Theme};
+use iced::{Alignment, Element, Length, Theme};
 use vw_gateway_client::vw_api_types::ReasoningEffortDto;
 
 use super::dark_tooltip_content;
@@ -14,6 +14,9 @@ use super::styles::{
 };
 use crate::app::assets::Icon;
 use crate::app::components::overlays::AboveOverlay;
+use crate::app::components::system_settings_common::{
+    SettingsSelectLabel, rounded_action_btn_style, settings_field_label,
+};
 use crate::app::{App, Message, message};
 
 #[path = "reasoning_slider.rs"]
@@ -226,7 +229,7 @@ pub(super) fn reasoning_effort_popover<'a>(
     let reset = Tooltip::new(
         button(icon_svg(Icon::ArrowCounterClockwise, 14.0))
             .padding(5)
-            .style(crate::app::components::system_settings_common::rounded_action_btn_style)
+            .style(rounded_action_btn_style)
             .on_press(reasoning_effort_message(None)),
         dark_tooltip_content(i18n.__("默认")),
         TooltipPosition::Top,
@@ -236,15 +239,11 @@ pub(super) fn reasoning_effort_popover<'a>(
     let heading = row![
         icon_svg(Icon::Speedometer2, 16.0),
         column![
-            text(localized_reasoning_effort_label(i18n, current))
-                .size(15)
-                .style(|theme: &Theme| text::Style { color: Some(theme.palette().primary) }),
-            text(model_name).size(11).wrapping(text::Wrapping::None).style(|theme: &Theme| {
-                text::Style { color: Some(theme.palette().text.scale_alpha(0.7)) }
-            }),
+            settings_field_label(localized_reasoning_effort_label(i18n, current))
+                .font(selector_label_font()),
+            SettingsSelectLabel::new(model_name),
         ]
         .spacing(2)
-        .align_x(Alignment::Center)
         .width(Length::Fill),
         reset,
     ]
@@ -253,9 +252,6 @@ pub(super) fn reasoning_effort_popover<'a>(
     container(column![heading, control].spacing(12))
         .padding(12)
         .width(Length::Fixed(SELECTOR_WIDTH))
-        .style(|theme: &Theme| container::Style {
-            border: Border { radius: 14.0.into(), ..popover_style(theme).border },
-            ..popover_style(theme)
-        })
+        .style(popover_style)
         .into()
 }

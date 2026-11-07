@@ -294,13 +294,18 @@ impl Widget<Message, Theme, iced::Renderer> for ReasoningSlider {
             );
         }
         renderer.fill_quad(
-            quad(
-                Rectangle::new(
+            renderer::Quad {
+                border: Border {
+                    width: 1.0,
+                    color: theme.palette().text.scale_alpha(0.24),
+                    radius: HANDLE_RADIUS.into(),
+                },
+                bounds: Rectangle::new(
                     Point::new(center.x - HANDLE_RADIUS, center.y - HANDLE_RADIUS),
                     Size::new(HANDLE_RADIUS * 2.0, HANDLE_RADIUS * 2.0),
                 ),
-                HANDLE_RADIUS,
-            ),
+                ..renderer::Quad::default()
+            },
             Color::WHITE,
         );
     }

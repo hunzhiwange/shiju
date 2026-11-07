@@ -17,10 +17,8 @@ use std::fmt;
 use iced::widget::scrollable;
 use iced::widget::scrollable::{Direction, Scrollbar};
 use iced::widget::svg;
-use iced::widget::{
-    Space, button, column, container, pick_list, row, text, text_editor, text_input,
-};
-use iced::{Alignment, Background, Border, Color, Element, Length, Theme};
+use iced::widget::{Space, button, column, container, row, text, text_editor, text_input};
+use iced::{Alignment, Background, Border, Element, Length, Theme};
 
 use crate::app::assets::Icon;
 use crate::app::components::input_panel::icons::{acp_agent_icon, icon_svg};
@@ -29,8 +27,7 @@ use crate::app::components::input_panel::reasoning_selector::{
 };
 use crate::app::components::input_panel::styles::{
     popover_style, selectable_list_button_style, selector_chevron_color, selector_label_font,
-    selector_pill_button_style, selector_text_color, square_icon_button_style,
-    subtask_editor_style,
+    selector_pill_button_style, selector_text_color,
 };
 use crate::app::components::overlays::AboveOverlay;
 use crate::app::state::SessionRuntimeState;
@@ -39,8 +36,9 @@ use crate::app::{App, Message, message};
 use vw_gateway_client::vw_api_types::ReasoningEffortDto;
 
 use crate::app::components::system_settings_common::{
-    SETTINGS_CONTROL_PADDING, SETTINGS_CONTROL_TEXT_SIZE, settings_pick_list_menu_style,
-    settings_pick_list_style, settings_text_input_style,
+    SETTINGS_CONTROL_PADDING, SETTINGS_CONTROL_TEXT_SIZE, rounded_action_btn_style,
+    settings_field_label, settings_panel_style, settings_select, settings_text_editor_style,
+    settings_text_input_style,
 };
 
 const ACP_SELECTOR_MAX_HEIGHT: f32 = 240.0;
@@ -138,7 +136,7 @@ pub fn task_mode_form<'a>(
 
     // 优先级行布局：左侧标签，右侧输入框
     let priority_row = row![
-        text(crate::app::i18n::I18n::new(app.desktop_locale).__("优先级")).size(12),
+        settings_field_label(crate::app::i18n::I18n::new(app.desktop_locale).__("优先级")),
         Space::new().width(Length::Fill),
         priority_input
     ]
@@ -156,14 +154,14 @@ pub fn task_mode_form<'a>(
     .width(Length::Fixed(180.0));
 
     let model_row = row![
-        text(crate::app::i18n::I18n::new(app.desktop_locale).__("大模型")).size(12),
+        settings_field_label(crate::app::i18n::I18n::new(app.desktop_locale).__("大模型")),
         Space::new().width(Length::Fill),
         model_input
     ]
     .align_y(Alignment::Center)
     .spacing(10);
 
-    let task_split_field = pick_list(
+    let task_split_field = settings_select(
         TaskSplitMode::all()
             .into_iter()
             .map(|mode| {
@@ -179,14 +177,10 @@ pub fn task_mode_form<'a>(
         )),
         |mode| Message::Chat(message::ChatMessage::TaskModeTaskSplitModeChanged(mode.0)),
     )
-    .text_size(SETTINGS_CONTROL_TEXT_SIZE)
-    .padding(SETTINGS_CONTROL_PADDING)
-    .style(settings_pick_list_style)
-    .menu_style(settings_pick_list_menu_style)
     .width(Length::Fixed(180.0));
 
     let task_split_row = row![
-        text(crate::app::i18n::I18n::new(app.desktop_locale).__("任务拆分")).size(12),
+        settings_field_label(crate::app::i18n::I18n::new(app.desktop_locale).__("任务拆分")),
         Space::new().width(Length::Fill),
         task_split_field
     ]
@@ -225,7 +219,8 @@ pub fn task_mode_form<'a>(
         {
             // 计算富文本编辑器高度：根据文本行数动态调整（1-3行）
             let subtask_line_count = subtask_editor.text().split('\n').count().clamp(1, 3) as f32;
-            let subtask_editor_height = subtask_line_count * 18.0 + 8.0;
+            let padding = iced::Padding::from(SETTINGS_CONTROL_PADDING);
+            let subtask_editor_height = subtask_line_count * 18.0 + padding.y();
 
             // 富文本编辑器模式：支持多行文本编辑
             container(
@@ -239,10 +234,10 @@ pub fn task_mode_form<'a>(
                             action,
                         })
                     })
-                    .size(12)
-                    .padding(iced::Padding { top: 4.0, right: 8.0, bottom: 4.0, left: 8.0 })
+                    .size(SETTINGS_CONTROL_TEXT_SIZE)
+                    .padding(padding)
                     .height(subtask_editor_height)
-                    .style(subtask_editor_style),
+                    .style(settings_text_editor_style),
             )
             .width(Length::Fill)
             .into()
@@ -262,49 +257,24 @@ pub fn task_mode_form<'a>(
             .into()
         };
 
-        // 上移按钮：如果不是第一个子任务，则显示可点击的上移按钮
-        // 否则显示禁用状态的上移按钮（无背景色）
-        let up_btn: Element<'_, Message> = if idx > 0 {
-            button(text("↑").size(10))
-                .on_press(Message::Chat(message::ChatMessage::TaskModeMoveSubtaskUp(idx)))
-                .padding([2, 6])
-                .style(|theme: &Theme, status| square_icon_button_style(theme, status, true))
-                .into()
-        } else {
-            button(text("↑").size(10))
-                .padding([2, 6])
-                .style(|theme: &Theme, status| {
-                    let mut style = square_icon_button_style(theme, status, false);
-                    style.background = None;
-                    style
-                })
-                .into()
-        };
-
-        // 下移按钮：如果不是最后一个子任务，则显示可点击的下移按钮
-        // 否则显示禁用状态的下移按钮（无背景色）
-        let down_btn: Element<'_, Message> = if idx + 1 < task_mode_subtasks.len() {
-            button(text("↓").size(10))
-                .on_press(Message::Chat(message::ChatMessage::TaskModeMoveSubtaskDown(idx)))
-                .padding([2, 6])
-                .style(|theme: &Theme, status| square_icon_button_style(theme, status, true))
-                .into()
-        } else {
-            button(text("↓").size(10))
-                .padding([2, 6])
-                .style(|theme: &Theme, status| {
-                    let mut style = square_icon_button_style(theme, status, false);
-                    style.background = None;
-                    style
-                })
-                .into()
-        };
-
-        // 删除按钮：允许用户删除当前子任务
-        let delete_btn = button(text("×").size(10))
+        let up_btn = button(text("↑").size(13))
+            .on_press_maybe(
+                (idx > 0)
+                    .then_some(Message::Chat(message::ChatMessage::TaskModeMoveSubtaskUp(idx))),
+            )
+            .padding([4, 8])
+            .style(rounded_action_btn_style);
+        let down_btn = button(text("↓").size(13))
+            .on_press_maybe(
+                (idx + 1 < task_mode_subtasks.len())
+                    .then_some(Message::Chat(message::ChatMessage::TaskModeMoveSubtaskDown(idx))),
+            )
+            .padding([4, 8])
+            .style(rounded_action_btn_style);
+        let delete_btn = button(text("×").size(13))
             .on_press(Message::Chat(message::ChatMessage::TaskModeRemoveSubtask(idx)))
-            .padding([2, 6])
-            .style(|theme: &Theme, status| square_icon_button_style(theme, status, true));
+            .padding([4, 8])
+            .style(rounded_action_btn_style);
 
         // 组装子任务行：序号徽章 + 输入框 + 上移按钮 + 下移按钮 + 删除按钮
         let subtask_row = row![index_badge, subtask_input, up_btn, down_btn, delete_btn]
@@ -333,7 +303,7 @@ pub fn task_mode_form<'a>(
         button(text(crate::app::i18n::I18n::new(app.desktop_locale).__("新增子任务")).size(11))
             .on_press(Message::Chat(message::ChatMessage::TaskModeAddSubtask))
             .padding([6, 10])
-            .style(|theme: &Theme, status| square_icon_button_style(theme, status, true));
+            .style(rounded_action_btn_style);
 
     let effective_acp_agent = task_mode_executor.clone();
     let selected_for_default = effective_acp_agent.is_none();
@@ -369,6 +339,7 @@ pub fn task_mode_form<'a>(
     )
     .style(move |theme: &Theme, status| selector_pill_button_style(theme, status, highlight_toggle))
     .padding([6, 12])
+    .height(38)
     .on_press(Message::View(message::ViewMessage::ToggleExecutorPopover));
 
     // 构建 ACP 智能体选择弹出框内容
@@ -392,6 +363,7 @@ pub fn task_mode_form<'a>(
             .align_y(Alignment::Center),
         )
         .padding([6, 10])
+        .height(36)
         .width(Length::Fill)
         .style(move |theme: &Theme, status: iced::widget::button::Status| {
             selectable_list_button_style(theme, status, selected_for_default)
@@ -421,6 +393,7 @@ pub fn task_mode_form<'a>(
                 .align_y(Alignment::Center),
             )
             .padding([6, 10])
+            .height(36)
             .width(Length::Fill)
             .style(move |theme: &Theme, status: iced::widget::button::Status| {
                 selectable_list_button_style(theme, status, selected)
@@ -446,9 +419,10 @@ pub fn task_mode_form<'a>(
                     .width(ACP_SELECTOR_SCROLLBAR_WIDTH)
                     .scroller_width(ACP_SELECTOR_SCROLLBAR_WIDTH),
             ))
-            .height(Length::Fixed(ACP_SELECTOR_MAX_HEIGHT)),
+            .height(Length::Shrink),
         )
         .style(popover_style)
+        .max_height(ACP_SELECTOR_MAX_HEIGHT)
         .padding(8)
         .width(Length::Fixed(180.0))
         .into()
@@ -466,7 +440,7 @@ pub fn task_mode_form<'a>(
 
     // ACP 智能体行布局：左侧标签，右侧智能体选择按钮
     let executor_row = row![
-        text(crate::app::i18n::I18n::new(app.desktop_locale).__("ACP 智能体")).size(12),
+        settings_field_label(crate::app::i18n::I18n::new(app.desktop_locale).__("ACP 智能体")),
         Space::new().width(Length::Fill),
         executor_btn
     ]
@@ -475,7 +449,7 @@ pub fn task_mode_form<'a>(
     let effort_options =
         task_mode_reasoning_effort_options(app, task_mode_model, effective_acp_agent.as_deref());
     let show_effort = effort_options.len() > 1;
-    let reasoning_effort_field = pick_list(
+    let reasoning_effort_field = settings_select(
         effort_options
             .into_iter()
             .map(|value| {
@@ -497,13 +471,9 @@ pub fn task_mode_form<'a>(
         )),
         |option| Message::Chat(message::ChatMessage::TaskModeReasoningEffortChanged(option.0)),
     )
-    .text_size(SETTINGS_CONTROL_TEXT_SIZE)
-    .padding(SETTINGS_CONTROL_PADDING)
-    .style(settings_pick_list_style)
-    .menu_style(settings_pick_list_menu_style)
     .width(Length::Fixed(180.0));
     let reasoning_effort_row = row![
-        text(crate::app::i18n::I18n::new(app.desktop_locale).__("推理强度")).size(12),
+        settings_field_label(crate::app::i18n::I18n::new(app.desktop_locale).__("推理强度")),
         Space::new().width(Length::Fill),
         reasoning_effort_field
     ]
@@ -516,7 +486,7 @@ pub fn task_mode_form<'a>(
         .extend(show_effort.then_some(reasoning_effort_row.into()))
         .push(
             column![
-                text(crate::app::i18n::I18n::new(app.desktop_locale).__("子任务")).size(12),
+                settings_field_label(crate::app::i18n::I18n::new(app.desktop_locale).__("子任务")),
                 subtask_rows,
                 row![add_subtask_btn, Space::new().width(Length::Fill)].align_y(Alignment::Center)
             ]
@@ -525,28 +495,5 @@ pub fn task_mode_form<'a>(
         .spacing(6)
         .width(Length::Fill);
 
-    // 将表单包装为容器，应用样式（背景、边框、阴影）
-    container(form)
-        .width(Length::Fill)
-        .padding(iced::Padding { top: 8.0, right: 12.0, bottom: 8.0, left: 12.0 })
-        .style(|theme: &Theme| {
-            let p = theme.extended_palette();
-            iced::widget::container::Style {
-                // 半透明背景
-                background: Some(Background::Color(p.background.base.color.scale_alpha(0.92))),
-                border: Border {
-                    width: 1.0,
-                    color: p.background.strong.color,
-                    radius: 14.0.into(),
-                },
-                // 添加阴影效果增强视觉层次
-                shadow: iced::Shadow {
-                    color: Color::BLACK.scale_alpha(0.06),
-                    offset: iced::Vector::new(0.0, 2.0),
-                    blur_radius: 10.0,
-                },
-                ..Default::default()
-            }
-        })
-        .into()
+    container(form).width(Length::Fill).padding([12, 16]).style(settings_panel_style).into()
 }

@@ -14,7 +14,7 @@
 use iced::widget::scrollable::{Direction, Scrollbar};
 use iced::widget::svg;
 use iced::widget::{
-    Space, button, column, container, mouse_area, row, scrollable, stack, text, text_input, toggler,
+    Space, button, column, container, mouse_area, row, scrollable, text, text_input,
 };
 use iced::{Alignment, Element, Length, Theme};
 
@@ -28,7 +28,8 @@ use crate::app::components::input_panel::styles::{
     selector_pill_button_style, selector_text_color, square_icon_button_style,
 };
 use crate::app::components::system_settings_common::{
-    SETTINGS_CONTROL_PADDING, SETTINGS_CONTROL_TEXT_SIZE, settings_text_input_style,
+    SETTINGS_CONTROL_PADDING, SETTINGS_CONTROL_TEXT_SIZE, SettingsSelectLabel, settings_divider,
+    settings_field_label, settings_muted_text_style, settings_text_input_style, settings_toggle,
 };
 use crate::app::state::ProviderModelsSummary;
 use crate::app::{App, Message, message};
@@ -239,11 +240,15 @@ pub fn model_popover_content<'a>(
     let cli_local =
         runtime.acp_agent.is_some() && runtime.acp_model_source == AcpModelSource::CliLocal;
     if cli_local {
-        return container(super::acp_options::source_controls(app))
-            .style(popover_style)
-            .padding(12)
-            .width(Length::Fixed(popup_width))
-            .into();
+        return container(
+            scrollable(container(super::acp_options::source_controls(app)).padding([0, 7]))
+                .direction(Direction::Vertical(Scrollbar::new().width(4).scroller_width(4))),
+        )
+        .style(popover_style)
+        .padding(10)
+        .width(Length::Fixed(popup_width))
+        .max_height(420)
+        .into();
     }
     let can_select = !runtime.is_requesting
         && !runtime.acp_options_pending
@@ -272,11 +277,9 @@ pub fn model_popover_content<'a>(
     if app.model_settings.loading && app.model_settings.providers.is_empty() {
         // 加载中且无数据时显示加载提示
         model_list = model_list.push(
-            text(crate::app::i18n::I18n::new(app.desktop_locale).__("加载中…")).size(13).style(
-                |t: &Theme| iced::widget::text::Style {
-                    color: Some(t.extended_palette().secondary.base.text),
-                },
-            ),
+            text(crate::app::i18n::I18n::new(app.desktop_locale).__("加载中…"))
+                .size(13)
+                .style(settings_muted_text_style),
         );
     } else {
         // 遍历所有 provider 及其模型
@@ -297,14 +300,12 @@ pub fn model_popover_content<'a>(
             // Provider 分组标题
             let header = row![
                 themed_svg_handle(provider_logo_handle(&p.id), 16.0),
-                text(p.name.clone()).size(13),
-                container(text("")).width(Length::Fill),
+                text(&p.name).size(14).width(Length::Fill).wrapping(text::Wrapping::WordOrGlyph),
             ]
             .spacing(8)
             .align_y(Alignment::Center);
 
             model_list = model_list.push(container(header).padding([4, 0]));
-            any_models = true;
 
             // 渲染该 provider 下的每个模型
             for m in models {
@@ -312,36 +313,31 @@ pub fn model_popover_content<'a>(
                 let model_id = m.id.clone();
                 let model_key = format!("{}/{}", provider_id, model_id);
 
-                // 截断过长的模型名称（最多 26 个字符）
-                let display_name = truncated_model_name(&m.name);
-
                 // 判断当前模型是否被选中
-                let selected =
-                    !cli_local && !auto_model && model_is_selected(model, &provider_id, &model_id);
+                let selected = !auto_model && model_is_selected(model, &provider_id, &model_id);
 
                 // 选中状态显示勾选图标，否则显示占位空间
                 let selected_badge: Element<'_, Message> = if selected {
-                    row![
-                        text(crate::app::i18n::I18n::new(app.desktop_locale).__("已选择")).size(11),
-                        icon_svg(Icon::Check, 14.0)
-                    ]
-                    .spacing(4)
-                    .align_y(Alignment::Center)
-                    .into()
+                    icon_svg(Icon::Check, 14.0).into()
                 } else {
-                    Space::new().width(Length::Fixed(44.0)).into()
+                    Space::new().width(14).into()
                 };
 
                 // 模型选择按钮
                 let select_btn = button(
-                    row![text(display_name).size(13).width(Length::Fill), selected_badge]
+                    row![SettingsSelectLabel::new(truncated_model_name(&m.name)), selected_badge]
                         .spacing(8)
                         .align_y(Alignment::Center),
                 )
-                .padding(iced::Padding { top: 6.0, right: 52.0, bottom: 6.0, left: 8.0 })
+                .padding([6, 8])
+                .height(36)
                 .width(Length::Fill)
                 .style(move |theme: &Theme, status: iced::widget::button::Status| {
-                    selectable_list_button_style(theme, status, selected)
+                    let mut style = selectable_list_button_style(theme, status, selected);
+                    if !can_select && !selected {
+                        style.text_color = theme.palette().text.scale_alpha(0.55);
+                    }
+                    style
                 })
                 .on_press_maybe(
                     can_select
@@ -365,18 +361,8 @@ pub fn model_popover_content<'a>(
                     ),
                 ));
 
-                // 将详情按钮叠加在选择按钮右侧
-                let select_btn = stack![
-                    select_btn,
-                    container(detail_btn)
-                        .width(Length::Fill)
-                        .height(Length::Fill)
-                        .align_x(iced::alignment::Horizontal::Right)
-                        .align_y(iced::alignment::Vertical::Center)
-                        .padding([0, 6])
-                ];
-
-                model_list = model_list.push(select_btn);
+                model_list = model_list
+                    .push(row![select_btn, detail_btn].spacing(4).align_y(Alignment::Center));
                 any_models = true;
             }
         }
@@ -389,9 +375,7 @@ pub fn model_popover_content<'a>(
                         .__("暂无可选模型（请先在系统设置里启用模型）"),
                 )
                 .size(13)
-                .style(|t: &Theme| iced::widget::text::Style {
-                    color: Some(t.extended_palette().secondary.base.text),
-                }),
+                .style(settings_muted_text_style),
             );
         }
     }
@@ -400,8 +384,8 @@ pub fn model_popover_content<'a>(
     let manage_btn: Element<'_, Message> = {
         let btn = button(
             container(icon_svg(Icon::Sliders, 16.0))
-                .width(Length::Fixed(28.0))
-                .height(Length::Fixed(28.0))
+                .width(Length::Fixed(36.0))
+                .height(Length::Fixed(36.0))
                 .align_x(iced::alignment::Horizontal::Center)
                 .align_y(iced::alignment::Vertical::Center),
         )
@@ -417,8 +401,8 @@ pub fn model_popover_content<'a>(
     let providers_btn: Element<'_, Message> = {
         let btn = button(
             container(icon_svg(Icon::Plus, 16.0))
-                .width(Length::Fixed(28.0))
-                .height(Length::Fixed(28.0))
+                .width(Length::Fixed(36.0))
+                .height(Length::Fixed(36.0))
                 .align_x(iced::alignment::Horizontal::Center)
                 .align_y(iced::alignment::Vertical::Center),
         )
@@ -430,99 +414,69 @@ pub fn model_popover_content<'a>(
         btn.into()
     };
 
-    // 主内容区域：模式切换 + 模型列表
-    let mut boxed_content = column![].spacing(6);
-    if is_acp {
-        boxed_content =
-            boxed_content.push(container(super::acp_options::source_controls(app)).padding(8));
-    }
-    let boxed_content = boxed_content.extend([
-        // 模式切换区域
-        container(
-            row![
-                themed_svg_handle(auto_icon(), 18.0),
-                text(crate::app::i18n::I18n::new(app.desktop_locale).__("自动模型")),
-                container(text("")).width(Length::Fill),
-                toggler(auto_model && !cli_local).on_toggle_maybe(
-                    can_select
-                        .then_some(|b| Message::Chat(message::ChatMessage::AutoModelToggled(b)))
-                )
-            ]
-            .spacing(8),
-        )
-        .padding([6, 8])
-        .into(),
-        container(
-            column![
-                text(crate::app::i18n::I18n::new(app.desktop_locale).__("手工填写模型")).size(12),
-                text_input(
-                    crate::app::i18n::I18n::new(app.desktop_locale)
-                        .__("auto / provider/model / 自定义模型"),
-                    &input_model
-                )
-                .on_input_maybe(can_select.then_some(move |value: String| {
-                    Message::Chat(if is_acp {
-                        message::ChatMessage::AcpModelInputDraftChanged(value)
-                    } else {
-                        message::ChatMessage::ModelInputChanged(normalize_model_input(&value))
-                    })
-                }))
-                .on_submit_maybe(can_select.then_some(Message::Chat(
-                    message::ChatMessage::ModelSelected(normalize_model_input(&input_model)),
-                )))
-                .padding(SETTINGS_CONTROL_PADDING)
-                .size(SETTINGS_CONTROL_TEXT_SIZE)
-                .style(settings_text_input_style),
-                text(if runtime.acp_agent.is_some() {
-                    "输入 Provider/model 后按回车确认"
+    let i18n = crate::app::i18n::I18n::new(app.desktop_locale);
+    let auto = row![
+        themed_svg_handle(auto_icon(), 18.0),
+        settings_field_label(i18n.__("自动模型")),
+        Space::new().width(Length::Fill),
+        settings_toggle(auto_model).on_toggle_maybe(can_select.then_some(|enabled| {
+            Message::Chat(message::ChatMessage::AutoModelToggled(enabled))
+        }),)
+    ]
+    .spacing(8)
+    .align_y(Alignment::Center);
+
+    let manual = column![
+        settings_field_label(i18n.__("手工填写模型")),
+        text_input(i18n.__("auto / provider/model / 自定义模型"), &input_model)
+            .on_input_maybe(can_select.then_some(move |value: String| {
+                Message::Chat(if is_acp {
+                    message::ChatMessage::AcpModelInputDraftChanged(value)
                 } else {
-                    crate::app::i18n::I18n::new(app.desktop_locale)
-                        .__("兼容特殊调度器或未出现在列表中的模型 ID")
+                    message::ChatMessage::ModelInputChanged(normalize_model_input(&value))
                 })
-                .size(11)
-                .style(|theme: &Theme| {
-                    let palette = theme.palette();
-                    let is_dark =
-                        palette.background.r + palette.background.g + palette.background.b < 1.5;
-                    iced::widget::text::Style {
-                        color: Some(if is_dark {
-                            palette.text.scale_alpha(0.78)
-                        } else {
-                            theme.extended_palette().secondary.base.text.scale_alpha(0.9)
-                        }),
-                    }
-                },)
-            ]
-            .spacing(6),
-        )
-        .padding(iced::Padding { top: 2.0, right: 8.0, bottom: 6.0, left: 8.0 })
-        .into(),
-        // 搜索和列表区域
-        container(
-            column![
-                // 搜索框 + 快捷按钮
-                row![search.width(Length::Fill), providers_btn, manage_btn]
-                    .spacing(8)
-                    .align_y(Alignment::Center),
-                // 可滚动的模型列表
-                scrollable(container(model_list).padding(iced::Padding {
-                    top: 0.0,
-                    right: 12.0,
-                    bottom: 0.0,
-                    left: 0.0,
-                }))
-                .id(iced::widget::Id::new("input_panel_model_popover_scroll"))
-                .direction(Direction::Vertical(Scrollbar::new().width(4).scroller_width(4)))
-                .height(Length::Fixed(260.0)),
-            ]
-            .spacing(8),
-        )
-        .padding(iced::Padding { top: 2.0, right: 8.0, bottom: 8.0, left: 8.0 })
-        .into(),
-    ]);
+            }))
+            .on_submit_maybe(can_select.then_some(Message::Chat(
+                message::ChatMessage::ModelSelected(normalize_model_input(&input_model)),
+            )))
+            .padding(SETTINGS_CONTROL_PADDING)
+            .size(SETTINGS_CONTROL_TEXT_SIZE)
+            .style(settings_text_input_style),
+        text(if is_acp {
+            "输入 Provider/model 后按回车确认"
+        } else {
+            i18n.__("兼容特殊调度器或未出现在列表中的模型 ID")
+        })
+        .size(12)
+        .style(settings_muted_text_style),
+    ]
+    .spacing(6);
 
-    let content =
-        container(boxed_content).style(popover_style).padding(4).width(Length::Fixed(popup_width));
-
-    content.into()
+    let mut controls = column![auto, manual].spacing(10);
+    if is_acp {
+        controls = controls.push(settings_divider()).push(super::acp_options::source_controls(app));
+    }
+    let body = if query.is_empty() {
+        column![controls, settings_divider(), model_list]
+    } else {
+        column![model_list, settings_divider(), controls]
+    }
+    .spacing(10);
+    let body = scrollable(container(body).padding([0, 7]))
+        .id(iced::widget::Id::new(super::MODEL_POPOVER_SCROLL_ID))
+        .direction(Direction::Vertical(Scrollbar::new().width(4).scroller_width(4)));
+    container(
+        column![
+            row![search.width(Length::Fill), providers_btn, manage_btn]
+                .spacing(8)
+                .align_y(Alignment::Center),
+            body,
+        ]
+        .spacing(10),
+    )
+    .style(popover_style)
+    .padding(10)
+    .width(Length::Fixed(popup_width))
+    .max_height(520)
+    .into()
 }

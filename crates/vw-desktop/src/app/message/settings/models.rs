@@ -1,5 +1,6 @@
 //! 处理系统设置页面中对应功能区的消息、校验和配置持久化。
 
+use crate::app::components::input_panel::MODEL_POPOVER_SCROLL_ID;
 use crate::app::config;
 use crate::app::i18n::settings_models::messages::Feedback;
 use crate::app::{
@@ -291,8 +292,16 @@ pub fn update(app: &mut App, message: SettingsMessage) -> Task<Message> {
             }
         },
         SettingsMessage::ModelQueryChanged(v) => {
+            let reset_chat_results = app.show_model_popover && app.model_settings.query != v;
             app.model_settings.query = v;
-            Task::none()
+            if reset_chat_results {
+                iced::widget::operation::scroll_to(
+                    iced::widget::Id::new(MODEL_POPOVER_SCROLL_ID),
+                    iced::widget::scrollable::AbsoluteOffset { x: 0.0, y: 0.0 },
+                )
+            } else {
+                Task::none()
+            }
         }
         SettingsMessage::ModelToggle(provider_id, model_id, enabled) => {
             let change = app

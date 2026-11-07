@@ -52,6 +52,8 @@ pub(crate) mod todo_panel;
 pub(crate) mod usage;
 mod usage_button;
 
+pub(crate) const MODEL_POPOVER_SCROLL_ID: &str = "input_panel_model_popover_scroll";
+
 #[cfg(test)]
 #[path = "agent_sessions_tests.rs"]
 mod agent_sessions_tests;

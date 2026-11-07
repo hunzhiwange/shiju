@@ -17,6 +17,7 @@ pub(crate) fn router() -> Router {
         .merge(paths::router())
         .merge(env_diagnose::router())
         .merge(env_clean::router())
+        .merge(env_restore::router())
         .merge(preview::router())
         .merge(editor_merge::router())
         .merge(snippets::router())
@@ -300,3 +301,7 @@ mod env_diagnose_tests;
 mod env_clean;
 #[cfg(all(test, target_os = "macos"))]
 mod env_clean_tests;
+
+mod env_restore;
+#[cfg(test)]
+mod env_restore_tests;

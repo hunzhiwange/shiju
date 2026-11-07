@@ -39,12 +39,10 @@ pub fn clean(
 #[cfg(target_os = "macos")]
 pub(super) mod macos {
     use super::*;
+    use crate::providers::env_backup::{self, Backup, BackupFile, base, identity, random_id, safe};
     use crate::providers::env_diagnose::macos::{open_root, read_source, scan};
-    use sha2::{Digest, Sha256};
     use std::{
         collections::BTreeMap,
-        fs::{File, Metadata},
-        io::Read,
         os::unix::fs::MetadataExt,
         sync::{Mutex, OnceLock},
         time::{Duration, Instant},
@@ -65,39 +63,6 @@ pub(super) mod macos {
     fn receipts() -> &'static Mutex<BTreeMap<String, Receipt>> {
         static RECEIPTS: OnceLock<Mutex<BTreeMap<String, Receipt>>> = OnceLock::new();
         RECEIPTS.get_or_init(Default::default)
-    }
-    fn random_id() -> Result<String, &'static str> {
-        let mut bytes = [0u8; 32];
-        File::open("/dev/urandom")
-            .and_then(|mut f| f.read_exact(&mut bytes))
-            .map_err(|_| UNAVAILABLE)?;
-        Ok(bytes.iter().map(|b| format!("{b:02x}")).collect())
-    }
-    fn identity(m: &Metadata) -> (u64, u64) {
-        (m.dev(), m.ino())
-    }
-    fn safe(m: &Metadata) -> bool {
-        // SAFETY: geteuid has no pointer arguments or side effects.
-        m.uid() == unsafe { libc::geteuid() } && m.mode() & 0o022 == 0
-    }
-    fn base(m: &Metadata, content: &str) -> String {
-        let mut hash = Sha256::new();
-        for v in [
-            m.dev(),
-            m.ino(),
-            m.len(),
-            m.mode() as u64,
-            m.uid() as u64,
-            m.nlink(),
-            m.mtime() as u64,
-            m.mtime_nsec() as u64,
-            m.ctime() as u64,
-            m.ctime_nsec() as u64,
-        ] {
-            hash.update(v.to_le_bytes());
-        }
-        hash.update(content.as_bytes());
-        hash.finalize().iter().map(|b| format!("{b:02x}")).collect()
     }
     pub(crate) fn issue(
         home: &Path,
@@ -246,6 +211,8 @@ pub(super) mod macos {
                 base_digest: digest,
                 original,
                 replacement,
+                cleaned_digest: None,
+                restored_digest: None,
             });
         }
         let current_home = || -> Result<(), &'static str> {
@@ -267,13 +234,17 @@ pub(super) mod macos {
             validate(file)?;
         }
         let id = random_id()?;
-        save_backup(private_root, &id, scope, app, &files)?;
+        let directory = env_backup::directory(private_root, true)?;
+        let mut backup =
+            Backup { version: 2, scope: scope.into(), app_id: app, home_identity: root_id, files };
+        env_backup::store(&directory, &id, &backup, false)?;
         after_backup(&id)?;
         // Check the complete selection again after the durable backup, before any publication.
-        for file in &files {
+        for file in &backup.files {
             validate(file)?;
         }
-        for file in &files {
+        for index in 0..backup.files.len() {
+            let file = &backup.files[index];
             validate(file)?;
             guard
                 .write(
@@ -283,6 +254,9 @@ pub(super) mod macos {
                 )
                 .map_err(|_| UNAVAILABLE)?;
             root.sync_all().map_err(|_| UNAVAILABLE)?;
+            let digest = env_backup::fingerprint(&root, file.file.filename(), &file.replacement)?;
+            backup.files[index].cleaned_digest = Some(digest);
+            env_backup::store(&directory, &id, &backup, true)?;
         }
         for selection in selections {
             cache.remove(&selection.diagnostic_id);
@@ -307,85 +281,5 @@ pub(super) mod macos {
             previous_space = ch == ' ' || ch == '\t';
         }
         ""
-    }
-    #[derive(serde::Serialize)]
-    struct BackupFile {
-        file: UserShellFile,
-        #[serde(rename = "baseDigest")]
-        base_digest: String,
-        original: String,
-        replacement: String,
-    }
-    fn save_backup(
-        private_root: &Path,
-        id: &str,
-        scope: &str,
-        app: AppId,
-        files: &[BackupFile],
-    ) -> Result<(), &'static str> {
-        use std::{
-            ffi::CString,
-            io::Write,
-            os::fd::{AsRawFd, FromRawFd},
-        };
-        let root = open_root(private_root)?;
-        let check_private = |f: &File| -> Result<(), &'static str> {
-            let m = f.metadata().map_err(|_| UNAVAILABLE)?;
-            if !safe(&m) || m.mode() & 0o077 != 0 {
-                return Err(UNAVAILABLE);
-            }
-            Ok(())
-        };
-        check_private(&root)?;
-        // SAFETY: fixed direct child under an authorized retained directory, created private.
-        if unsafe { libc::mkdirat(root.as_raw_fd(), c"environment-backups".as_ptr(), 0o700) } != 0
-            && std::io::Error::last_os_error().kind() != std::io::ErrorKind::AlreadyExists
-        {
-            return Err(UNAVAILABLE);
-        }
-        // SAFETY: fixed child, never follow a symlink; descriptor is consumed once.
-        let fd = unsafe {
-            libc::openat(
-                root.as_raw_fd(),
-                c"environment-backups".as_ptr(),
-                libc::O_RDONLY | libc::O_DIRECTORY | libc::O_NOFOLLOW | libc::O_CLOEXEC,
-            )
-        };
-        if fd < 0 {
-            return Err(UNAVAILABLE);
-        }
-        let directory = unsafe { File::from_raw_fd(fd) };
-        check_private(&directory)?;
-        let name = CString::new(format!("{id}.json")).map_err(|_| UNAVAILABLE)?;
-        let bytes = serde_json::to_vec(
-            &serde_json::json!({"version":1,"scope":scope,"appId":app,"files":files}),
-        )
-        .map_err(|_| UNAVAILABLE)?;
-        // SAFETY: generated opaque ASCII child; exclusive creation cannot overwrite/link another file.
-        let fd = unsafe {
-            libc::openat(
-                directory.as_raw_fd(),
-                name.as_ptr(),
-                libc::O_WRONLY | libc::O_CREAT | libc::O_EXCL | libc::O_NOFOLLOW | libc::O_CLOEXEC,
-                0o600,
-            )
-        };
-        if fd < 0 {
-            return Err(UNAVAILABLE);
-        }
-        let mut file = unsafe { File::from_raw_fd(fd) };
-        let result = file
-            .write_all(&bytes)
-            .and_then(|_| file.sync_all())
-            .and_then(|_| directory.sync_all())
-            .and_then(|_| root.sync_all());
-        if result.is_err() {
-            // SAFETY: only this invocation's exclusive file; no source has been mutated yet.
-            unsafe {
-                libc::unlinkat(directory.as_raw_fd(), name.as_ptr(), 0);
-            }
-            return Err(UNAVAILABLE);
-        }
-        Ok(())
     }
 }

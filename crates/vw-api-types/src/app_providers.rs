@@ -192,3 +192,7 @@ mod env_diagnose_tests;
 pub mod env_clean;
 #[cfg(test)]
 mod env_clean_tests;
+
+pub mod env_restore;
+#[cfg(test)]
+mod env_restore_tests;

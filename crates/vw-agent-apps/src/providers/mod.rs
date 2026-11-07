@@ -229,3 +229,10 @@ mod env_diagnose_tests;
 pub mod env_clean;
 #[cfg(all(test, target_os = "macos"))]
 mod env_clean_tests;
+
+pub mod env_restore;
+#[cfg(all(test, target_os = "macos"))]
+mod env_restore_tests;
+
+#[cfg(target_os = "macos")]
+mod env_backup;

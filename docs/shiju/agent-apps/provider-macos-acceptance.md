@@ -2303,3 +2303,47 @@ Gateway 集成测试使用正式 SDK、真实回环 HTTP、真实权限 policy/�
 全部凭据为假值。没有替代权限或文件系统；业务诊断夹具只替代系统扫描根和继承枚举，内部 after_backup 观察点用于确定性模拟持久备份之后、源发布之前的中断/外部修改。正式 HTTP diagnose 仍调用真实执行端诊断路径。实际平台 macOS **27.0（26A428）/ arm64**，workspace crate **0.6.0**。没有读取或修改真实用户 shell 配置；真实客户端应用版本/消费、账号、Iced、恢复、完整 shell 求值及非 macOS **未验证**。
 
 状态：**已完成（macOS 服务端诊断选择、私有备份与选择性清理）**。定向差异/暂存审查通过，plan.md 未修改、自身 Cargo 锁已释放；只提交本任务实现、独立测试、必要父注册/诊断接线和本条正式证据，排除既有 Dsh 格式差异、母任务状态、其它编号文件删除及其它计划。本编号任务验收后删除且不提交删除；下一步批次 49。
+
+## 任务 49：环境备份恢复
+
+2026-11-07。批次 48 提交 `f83de4f3a` 与上节正式验收已核对；母任务 1、3 已完成，母任务 2 完整领域迁移仍未收口，沿任务 1/provider-contracts.md 已记录的底座子计划 1–93 开工裁定消费真实接口，不将其改报完整完成。所有 plan.md 保持只读。
+
+### 来源、实现与边界
+
+只读来源 `/Users/xiangmin/worker/code/cc-switch` HEAD 为 `ca58c0313360eae7c851fbd7553c1614c7af03e7`，rev-parse/status 退出 0、来源干净。阅读 `services/env_manager.rs::{restore_from_backup,restore_single_env,create_backup,delete_env_vars}`、相邻备份测试、`commands/env.rs::restore_env_backup` 与直接 TS 包装 `src/lib/api/env.ts::restoreEnvBackup`。来源按请求路径读备份并追加未经转义定义；本实现使用既有执行端备份所有者和固定文件枚举，按原字节恢复。RustCodeGraph status/explore 检查既有清理调用链，图未覆盖的新模块定向读取；没有运行或修改来源包。
+
+- 唯一恢复所有者为 `vw-agent-apps/src/providers/env_restore.rs::restore`；DTO、Gateway、SDK 分别为各 crate 的 `app_providers/env_restore.rs`，只补既有父模块注册。`POST /v1/app-providers/{app}/environment/restore` 和 `GatewayClient::provider_env_restore` 只接受 targetHostId/backupId，拒绝请求路径、文件坐标、秘密、scope 和 force 等注入。沿既有 host-config write 权限，在备份查询和文件动作前完成鉴权/租户检查；401 鉴权失败、403 无写授权/外租户、400 非法标识、409 缺失/外属/不匹配备份、422 不支持应用/平台、503 执行端不可用。逐文件失败通过强类型 items.status 返回，HTTP 成功不代表所有项成功。
+- 清理与恢复共用 `env_backup.rs` 的私有备份格式/IO、源身份摘要与安全检查，从原清理模块移出已有实现，没有第二套持久库或解析器。保持 256-bit 不透明标识、固定授权 credential_root/environment-backups 目录、描述符相对读取、O_NOFOLLOW/O_NONBLOCK、0600 文件和私有所有权检查；拒绝链接、硬链接、非普通/过大/损坏备份、未知字段、重复文件和非枚举坐标。
+- 清理备份升级为版本 2，增加物理 HOME 的 dev/inode、每文件 cleanedDigest/restoredDigest。每个清理文件发布并 fsync 后，复核预期字节与安全元数据，再原子更新备份 checkpoint；完整 original 始终在源修改前持久。版本 1 缺少恢复授权基底，明确拒绝，无旧备份迁移或猜测恢复。
+- 恢复复用物理目录/App 写锁和 HOME advisory flock，绑定租户/目标主机、AppId 与 HOME 身份。逐文件仅在当前字节和 dev/inode、长度、权限、UID、硬链接数及 mtime/ctime 纳秒摘要都等于清理后基底时写回 original，保留模式。外部改写、同内容 inode 替换、源缺失、HOME 替换和不安全来源均不覆盖。成功恢复持久 restoredDigest；重复请求仅在恢复后身份与内容仍相同时返回 already_restored，否则 conflict。
+- 逐文件返回 restored/already_restored/not_cleaned/conflict/unavailable，不返回原始秘密或任意主机路径。部分冲突不阻止其它有效项恢复；清理尚未发布且原基底仍匹配时返回 not_cleaned。源发布至 checkpoint 持久之间中断时保留原备份并安全拒绝自动重试，不猜测已发布状态。无多文件整体原子性或内核 CAS 承诺：非协作编辑器仍可在最后复核与 rename 之间写入；沿任务 48 的竞争边界，没有削弱验证。
+- 未新增 Iced、任意文件/命令入口、进程环境修改、供应商激活或 live 切换；环境 UI 归后续所属任务。
+
+### 红绿与验证
+
+红阶段动态领取槽位 **2**，`CARGO_TARGET_DIR=/Users/xiangmin/worker/code/shiju/target/rust-slot-2`，`CARGO_BUILD_BUILD_DIR` 同值。`cargo fmt --all` 退出 0，四条规定过滤命令均运行：业务包两条指定测试在业务断言处失败（未恢复选中定义、未拒绝外属备份），**0 passed / 2 failed，退出 101**；DTO/Gateway/SDK 各 **1 passed、退出 0**。没有用编译失败或零测试替代红证据。
+
+首轮实现验证发现恢复 checkpoint 的不可变/可变借用冲突，修正借用范围后重跑格式化与全部规定验证。最终阶段动态领取 **槽位 2**，所有 Cargo/脚本及子进程继承 `CARGO_TARGET_DIR=/Users/xiangmin/worker/code/shiju/target/rust-slot-2`、`CARGO_BUILD_BUILD_DIR` 同值，无 --target-dir 或任务独有缓存；各 crate 使用默认 features：
+
+| 确切命令 | 退出码 | 有效数量 |
+| --- | --- | --- |
+| `cargo fmt --all` | 0 | 格式化 |
+| `cargo test -p vw-agent-apps --lib cc04_env_restore_ -- --nocapture` | 0 | 8 passed |
+| `cargo test -p vw-api-types --lib cc04_env_restore_ -- --nocapture` | 0 | 1 passed |
+| `cargo test -p vw-agent --lib cc04_env_restore_ -- --nocapture` | 0 | 2 passed |
+| `cargo test -p vw-gateway-client --lib cc04_env_restore_ -- --nocapture` | 0 | 1 passed |
+| `cargo test -p vw-agent-apps --lib cc04_env_clean_ -- --nocapture` | 0 | 8 passed |
+| `cargo test -p vw-agent --lib cc04_env_clean_ -- --nocapture` | 0 | 2 passed |
+| `cargo clippy --all-targets --all-features -- -D warnings` | 0 | 全部 targets/features |
+
+本任务 **12** 项、清理回归 **10** 项，去重 **22** 项通过，无忽略。Gateway 链接器沿前序任务提示 `__eh_frame section too large`，命令仍退出 0；未修改链接配置或放宽 lint。未运行无过滤全量 cargo test、fmt check、wasm 或 Makefile。每阶段以原子 mkdir 领取槽位并记录计划/任务/会话/PID；全部子进程结束后 trap 删除自身 owner、rmdir 释放锁，编译缓存保留。
+
+### SDK→API→执行端与 macOS 证据
+
+Gateway 集成使用正式 SDK、真实回环 HTTP、真实授权 policy/租户中间件和隔离 HOME/private 根：SDK diagnose 获取选择 → SDK clean 返回 backupId 并实际清理所选定义 → SDK restore → API items[0].status=restored → 独立读取源文件与完整 original 一致，重复请求 already_restored；恢复后外部编辑返回 conflict 并保留外部字节。只读授权、错 token、外属租户/目标主机、外属 AppId、伪造/路径标识拒绝，源与备份字节不变；正式 handler_router 未通过 Basic 返回 401。SDK 独立测试核对真实路径/方法/JSON/租户头及错误载荷丢弃，凭据 header 标敏感，响应不含假秘密。
+
+执行端独立隔离文件测试证明：CRLF、选中行的引号/注释和未选中定义完整还原，其它文件不动；同字节 inode 替换与 HOME 重新绑定拒绝；源链接/缺失、备份链接/非私有权限/损坏/旧版本/坐标注入/重复文件拒绝且不覆盖；两个文件中的一项冲突时另一项实际恢复，原权限 0640 保留；持久备份后、源发布前中断返回 not_cleaned；发布前 HOME 替换保留新旧目录。仅用内部观察点替代不可控中断时机，诊断夹具替代系统扫描根和继承枚举；权限、文件系统、HTTP、SDK 均真实执行，所有凭据均为假值。
+
+实际平台 macOS **27.0（26A428）/ arm64**，workspace crate **0.6.0**。没有读取/修改真实用户 shell 配置；真实客户端应用版本/消费、账号/Keychain、Iced 渲染、完整 shell 求值及非 macOS **未验证**。
+
+状态：**已完成（macOS 授权环境备份恢复与逐文件冲突结果）**。定向差异/暂存审查通过，plan.md 只读、自身 Cargo 锁已释放；只提交任务 49 实现、独立测试、必要父注册/清理备份接线及本条正式证据，排除既有 Dsh 格式差异、母任务状态、其它编号文件删除与其它计划。本编号任务验收后删除且不提交该删除；下一步批次 50。

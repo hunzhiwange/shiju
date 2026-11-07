@@ -261,3 +261,9 @@ mod env_clean;
 #[cfg(test)]
 #[path = "app_providers/env_clean_tests.rs"]
 mod env_clean_tests;
+
+#[path = "app_providers/env_restore.rs"]
+mod env_restore;
+#[cfg(all(test, not(target_arch = "wasm32")))]
+#[path = "app_providers/env_restore_tests.rs"]
+mod env_restore_tests;

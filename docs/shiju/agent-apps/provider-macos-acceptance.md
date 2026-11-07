@@ -2115,3 +2115,51 @@ Gateway 使用真实回环 HTTP、正式 SDK、SQLite、管理员 policy、应�
 平台为实际 macOS **27.0 (26A428)**、**arm64**，crate **0.6.0**。已安装应用版本未查询；真实应用消费、真实登录/Keychain、网络上游、Iced 渲染和非 macOS **未验证**，不把隔离文件与 HTTP 证据扩展为真实应用端到端验收。Gateway 测试链接器有既有 `__eh_frame section too large` 提示，行为测试仍退出 0；强制 Clippy 结果见表，没有降低 lint 或修改链接参数。未运行无过滤全量 cargo test、fmt check、wasm 或 Makefile。
 
 状态：**已完成（统一目录导入策略与授权启动边界）**。差异/暂存检查及只读 plan.md 检查通过；仅提交本任务代码、独立测试、必要父注册和本条正式证据，排除母任务状态、此前编号文件删除、其它计划与 cargo fmt 产生的 Dsh 纯格式差异。所有阶段自身槽位 1 锁已释放，缓存保留；完成后删除本编号文件，不提交该删除。下一步批次 45。
+
+## 任务 45：直连路由聚合状态契约
+
+2026-11-07；状态：已完成（状态与客户端契约决策边界）。批次 44 提交 `a85e99b0f` 及正式验收已核对。母任务 1、3 已完成；母任务 2 的完整领域迁移仍未收口，沿 provider-contracts.md 底座子计划 1–93 的既有开工裁定消费真实接口。原阻塞由继续指令解除：45 负责状态、执行端契约计算和只读决策，46 负责真实模式切换、文件免重写及路由服务接线。未修改任何 plan.md。
+
+### 来源、实现与交付边界
+
+- 对照冻结来源 `mode/state.rs::{ModeState,StackState}`、`current.rs::provider_for`、`contract.rs::{claude,gemini,grok,claude_desktop}`、`stack.rs` 及直接调用者 `controller.rs::{write_proxy,switch_route_locked}`。Mode 保持 Direct/Proxy；stack 是独立持久状态，退回 Direct 保留开关、成员和永久 key 登记簿，只有 Proxy 且 enabled 时逻辑激活。attached 独立展示，不把配置附着当作代理运行证据。
+- 唯一所有者仍是 `vw-agent-apps/src/providers/live/commit.rs::ProviderTransactions`，AppState/PendingTarget 新增 stack 和独立租户归属；未提供新的存储或任意状态写入 API。普通应用适配只补新增可选字段的默认值，行为不变。拒绝重复成员、非法标识、跨租户更新、无归属非空 stack、移除或改派已登记 key。包含 stack 的文件意图使用版本 4，旧执行器会拒绝；恢复保持版本 3 的目录安全校验，不丢 stack。
+- `vw-agent-apps/src/providers/mode_state.rs::{ClientConfiguration,observe,rewrite_decision}` 提供同一算法供 46 消费。客户端投影按 Claude/Gemini/Grok/Desktop/Codex 强类型应用分支表达，摘要递归规范化对象顺序并保留数组顺序，覆盖最终地址、凭据、模型/别名/显示名与独有字段。独有值由已知字段规则保留；客户端契约版本 2 与既有版本 1 的指针/清理记录明确分开，旧记录保守要求重写。相同模式和契约才能 SkipRewrite；Proxy 分离时、缺契约、跨模式或内容变化均要求重写。
+- `ClientConfiguration::saved` 只在执行端从已保存行生成 Direct 配置投影，复用已有 Claude、Gemini、Grok 字段投影及官方分类。其余应用的已保存行决策明确返回 422，状态观察不受此限制。内部五类最终投影契约计算不宣称已具备对应代理投影生成器。46 必须传最终客户端投影，不能拿 Direct 行摘要代替代理配置；需持有实际应用锁并在发布前验证输入。
+- DTO、Gateway、SDK 位于各 crate 的 `app_providers/mode_state.rs`，沿原分域父模块接线。`GET /v1/app-providers/{app}/mode/state?targetHostId=...` 返回已持久化的 mode、直连指针、逻辑使用者、保留路由、attached、契约存在位与 stack 成员；可选 providerId/mode=direct 返回已保存行的脱敏决策。客户端不能提交 contract/settings/stack/path/tenant，额外字段和第三个 mode 值被拒绝。响应不含契约摘要、exclusive、配置、凭据或主机路径，SDK 凭据头标记敏感且丢弃失败响应载荷。
+- 权限检查早于状态/存储读取，沿用管理员主机配置读取授权和租户作用域；缺状态只读返回空态，不创建目录、不恢复 pending。pending 返回 409，外属状态返回 403。路由运行时明确展示 Unavailable；请求 Proxy 候选决策返回 503，不创建空代理。
+
+### 红绿与验证证据
+
+初次接线编译错误（新增字段默认值、未注册的 hex 编码依赖、Debug）已修复，不计业务红证据。仓库 `.cargo/config.toml` 另设 build-dir；有效阶段将 `CARGO_BUILD_BUILD_DIR` 同设为槽位路径，以下红/绿证据均来自槽位中的二进制。
+
+有效红阶段动态领取槽位 **2**，`CARGO_TARGET_DIR=/Users/xiangmin/worker/code/shiju/target/rust-slot-2`：四条指定默认 features 过滤命令均实际运行。执行端 **3 passed / 2 failed，退出 101**，两条指定测试分别在逻辑使用者仍为 direct 和相等契约仍要求重写的业务断言失败；DTO **1 passed，退出 0**；Gateway **0 passed / 2 failed，退出 101**，其中持久 stack 未出现是有效业务失败，另一项为测试预期误用 403（现有鉴权应为 401，已修正，不作为业务失败证据）；SDK **1 passed，退出 0**。没有用编译失败或零测试代替红证据。
+
+首绿本任务 14 项、相邻回归 14 项通过；Clippy 发现一项新增 collapsible_if，已修正，并补充无归属 stack 与独有字段不一致拒绝断言。
+
+完整验证阶段重新动态领取槽位 **2**；`CARGO_TARGET_DIR=/Users/xiangmin/worker/code/shiju/target/rust-slot-2`，`CARGO_BUILD_BUILD_DIR` 同值；所有命令继承该绝对路径，未指定 --target-dir，完成后仅释放自身锁并保留缓存。
+
+| 确切命令 | 退出码 | 有效数量 |
+| --- | --- | --- |
+| `cargo fmt --all` | 0 | 格式化 |
+| `cargo test -p vw-agent-apps --lib cc04_mode_state_ -- --nocapture` | 0 | 9 passed |
+| `cargo test -p vw-api-types --lib cc04_mode_state_ -- --nocapture` | 0 | 1 passed |
+| `cargo test -p vw-agent --lib cc04_mode_state_ -- --nocapture` | 0 | 4 passed |
+| `cargo test -p vw-gateway-client --lib cc04_mode_state_ -- --nocapture` | 0 | 1 passed |
+| `cargo test -p vw-agent-apps --lib cc04_commit_ -- --nocapture` | 0 | 6 passed |
+| `cargo test -p vw-agent-apps --lib cc04_recovery_ -- --nocapture` | 0 | 8 passed |
+| `cargo clippy --all-targets --all-features -- -D warnings` | 0 | 全仓全部 targets/features |
+
+末审补充 Direct/attached 不一致时也要求重写；之后重新动态领取槽位 **1**，`CARGO_TARGET_DIR=/Users/xiangmin/worker/code/shiju/target/rust-slot-1`（`CARGO_BUILD_BUILD_DIR` 同值），重跑 `cargo fmt --all`、四条相同 `cc04_mode_state_` 过滤命令及 `cargo clippy --all-targets --all-features -- -D warnings`，均退出 0，分别为 9/1/4/1 项；不重复计数。
+
+本任务 **15 项**、相邻回归 **14 项**通过，无忽略。两条指定测试全部通过。实际证明状态重开往返、Direct/Proxy 使用者区分、stack 独立、永久 key 与租户约束、递归对象顺序稳定/数组顺序变化、跨应用与旧版本隔离、分离/模式/独有字段变化决策、版本 4 意图与文件前滚恢复、旧意图版本拒绝、只读缺省不建目录、鉴权/租户/pending/非法请求拒绝。
+
+### macOS / SDK→API→文件证据与后续
+
+本机 macOS **27.0（26A428）/ arm64**，工作区包版本 **0.6.0**，默认 features。真实本地 TCP HTTP、SDK、SQLite 与临时私有根/配置文件；使用假凭据，无替代业务存储或状态算法。SDK 请求取到已保存行的相等契约 SkipRewrite，API 状态重开可见 Direct 指针、保留 route 与 stack；随后仅通过内部事务持久化 Proxy 观察夹具，SDK 逻辑使用者变为 route，仍明确 runtime=Unavailable。观察/决策前后状态文件、SQLite 文件和临时客户端文件字节一致；单独执行端断言还检查临时文件 inode/mtime 不变，读取缺省状态不创建 provider-live。此 Proxy 夹具只证明状态观察，不表示代理实际运行。
+
+Gateway 测试有此前任务已记录的 `__eh_frame section too large` 链接器提示，测试退出 0，未修改链接配置或降级 lint。
+
+Iced UI、真实客户端应用版本/消费、代理运行与 live 文件免重写未验证，明确归 46 或所属 UI 任务。46 应直接消费本契约算法和 ProviderTransactions/PendingTarget.stack，沿明确外部服务边界验证真实可用依赖，再取得模式切换及 live 免重写证据；不得以此次决策断言代替。
+
+定向差异/暂存审查和 plan.md 只读检查通过；仅提交本任务实现、独立测试、必要默认字段/注册和本条证据。排除既有母任务状态、其它计划、此前编号文件删除及 cargo fmt 产生的 Dsh 纯格式差异。未执行全量 cargo test、fmt check、wasm 或 Makefile。验收后删除本编号任务文件，不提交该删除；下一步批次 46。

@@ -215,6 +215,7 @@ impl CodexFiles {
                         },
                     }),
                 }),
+                ..Default::default()
             },
             || {
                 if unchanged() && tx.state(AppId::Codex)? == *state {

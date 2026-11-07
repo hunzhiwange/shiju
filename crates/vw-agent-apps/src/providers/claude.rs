@@ -309,7 +309,7 @@ impl ClaudeFile {
                 privacy: FilePrivacy::Private,
                 patch: &change,
             }],
-            PendingTarget { pointer, mode: Some(mode) },
+            PendingTarget { pointer, mode: Some(mode), ..Default::default() },
         )
     }
 }

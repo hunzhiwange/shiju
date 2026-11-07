@@ -185,6 +185,7 @@ impl GrokFiles {
                         claude_login_operation: None,
                     }),
                 }),
+                ..Default::default()
             },
             || {
                 if unchanged() && tx.state(AppId::GrokBuild)? == *state {

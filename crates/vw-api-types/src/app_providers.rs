@@ -176,3 +176,7 @@ mod agy_tests;
 pub mod import;
 #[cfg(test)]
 mod import_tests;
+
+pub mod mode_state;
+#[cfg(test)]
+mod mode_state_tests;

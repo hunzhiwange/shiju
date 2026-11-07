@@ -285,6 +285,7 @@ impl ClaudeDesktopFiles {
                         claude_login_operation: None,
                     }),
                 }),
+                ..Default::default()
             },
             || {
                 if unchanged() && tx.state(AppId::ClaudeDesktop)? == *state {

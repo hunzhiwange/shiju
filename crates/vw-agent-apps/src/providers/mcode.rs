@@ -327,6 +327,7 @@ impl McodeFiles {
                     proxy_route: expected.mode.as_ref().and_then(|m| m.proxy_route.clone()),
                     contract: None,
                 }),
+                ..Default::default()
             },
             || {
                 if native_lock.is_current() && unchanged() && tx.state(AppId::Mcode)? == *expected {

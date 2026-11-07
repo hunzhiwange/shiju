@@ -151,7 +151,7 @@ impl ProviderTransactions {
         {
             let directory = guard.directory_at(index)?;
             verify(resource, directory)?;
-            if pending.version == 3 {
+            if pending.version >= 3 {
                 let metadata = directory.metadata().map_err(|_| WriteError::Io)?;
                 if metadata.uid() != unsafe { libc::geteuid() } || metadata.mode() & 0o022 != 0 {
                     return Err(WriteError::InvalidResource);

@@ -12,6 +12,7 @@ use vw_api_types::{agent_apps::AppId, app_providers::AppProviderWrite, id::Tenan
 pub(crate) fn router() -> Router {
     Router::new()
         .merge(catalog::router())
+        .merge(mode_state::router())
         .merge(paths::router())
         .merge(preview::router())
         .merge(editor_merge::router())
@@ -280,3 +281,7 @@ pub(super) mod agy;
 mod import;
 #[cfg(all(test, target_os = "macos"))]
 mod import_tests;
+
+mod mode_state;
+#[cfg(all(test, target_os = "macos"))]
+mod mode_state_tests;

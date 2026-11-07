@@ -190,6 +190,7 @@ impl PiFiles {
                     proxy_route: expected.mode.as_ref().and_then(|m| m.proxy_route.clone()),
                     contract: None,
                 }),
+                ..Default::default()
             },
             || {
                 if unchanged() && tx.state(AppId::Pi)? == *expected {

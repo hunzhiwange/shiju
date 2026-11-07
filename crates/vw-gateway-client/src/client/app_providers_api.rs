@@ -237,3 +237,9 @@ mod import;
 #[cfg(test)]
 #[path = "app_providers/import_tests.rs"]
 mod import_tests;
+
+#[path = "app_providers/mode_state.rs"]
+mod mode_state;
+#[cfg(test)]
+#[path = "app_providers/mode_state_tests.rs"]
+mod mode_state_tests;

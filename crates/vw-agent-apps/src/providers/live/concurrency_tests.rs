@@ -18,7 +18,7 @@ fn store(root: &std::path::Path) -> ProviderTransactions {
     ProviderTransactions::new(root, ExecutionHostId::new("host-a").unwrap()).unwrap()
 }
 fn target() -> PendingTarget {
-    PendingTarget { pointer: Some("provider-b".into()), mode: None }
+    PendingTarget { pointer: Some("provider-b".into()), mode: None, ..Default::default() }
 }
 fn key_patch(before: Option<&[u8]>) -> Result<Vec<u8>, WriteError> {
     let mut value: serde_json::Value =

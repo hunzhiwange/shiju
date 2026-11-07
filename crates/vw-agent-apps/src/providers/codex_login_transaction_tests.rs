@@ -29,7 +29,7 @@ fn cc04_codex_login_preparation_joins_config_and_pointer_in_one_intent() {
             &TenantScope::new("p", "c").unwrap(),
             &mut guard,
             &changes,
-            PendingTarget { pointer: Some("relay".into()), mode: None }
+            PendingTarget { pointer: Some("relay".into()), mode: None, ..Default::default() }
         )
         .is_err()
     );

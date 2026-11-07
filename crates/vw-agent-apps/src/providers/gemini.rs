@@ -193,6 +193,7 @@ impl GeminiFiles {
                     proxy_route: state.mode.as_ref().and_then(|m| m.proxy_route.clone()),
                     contract: None,
                 }),
+                ..Default::default()
             },
             || {
                 if unchanged() && tx.state(AppId::Gemini)? == *state {

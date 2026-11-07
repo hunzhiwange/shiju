@@ -291,6 +291,7 @@ impl OpenCodeFiles {
                     proxy_route: expected.mode.as_ref().and_then(|m| m.proxy_route.clone()),
                     contract: None,
                 }),
+                ..Default::default()
             },
             || {
                 if name == "opencode.json" {

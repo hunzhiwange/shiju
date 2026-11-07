@@ -22,7 +22,7 @@ fn interrupt(store: &ProviderTransactions, guard: &mut AppWriteGuard, phase: Pha
                 &TenantScope::new("p", "c").unwrap(),
                 guard,
                 &changes,
-                PendingTarget { pointer: Some("next".into()), mode: None }
+                PendingTarget { pointer: Some("next".into()), mode: None, ..Default::default() }
             )
             .is_err()
     );
@@ -105,7 +105,8 @@ fn cc04_recovery_next_commit_recovers_and_requires_replanning() {
     let mut guard = lock_app(AppId::Claude, live.path()).unwrap();
     interrupt(&s, &mut guard, Phase::Marked);
     let tenant = TenantScope::new("other", "tenant").unwrap();
-    let target = PendingTarget { pointer: Some("unplanned".into()), mode: None };
+    let target =
+        PendingTarget { pointer: Some("unplanned".into()), mode: None, ..Default::default() };
     assert_eq!(s.commit(&tenant, &mut guard, &[], target.clone()), Err(WriteError::Recovered));
     assert_eq!(s.state(AppId::Claude).unwrap().pointer.unwrap().id, "next");
     assert_eq!(s.commit(&tenant, &mut guard, &[], target), Ok(()));

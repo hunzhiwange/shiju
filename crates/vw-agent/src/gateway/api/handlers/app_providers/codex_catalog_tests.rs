@@ -264,7 +264,7 @@ async fn cc04_codex_catalog_sdk_api_recovers_marked_catalog_and_pointer_before_r
         tenant: TenantScope::new("p", "a").unwrap(),
         directory_device: meta.dev(),
         directory_inode: meta.ino(),
-        target: PendingTarget { pointer: Some("one".into()), mode: None },
+        target: PendingTarget { pointer: Some("one".into()), mode: None, ..Default::default() },
         files: changes,
         published: true,
     };

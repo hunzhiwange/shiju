@@ -50,6 +50,8 @@ pub struct ModeState {
 /// None preserves that part of state; direct pointer and proxy route are independent.
 #[derive(Clone, Default, PartialEq, Serialize, Deserialize)]
 pub struct PendingTarget {
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub stack: Option<crate::providers::mode_state::StackState>,
     pub pointer: Option<String>,
     pub mode: Option<ModeState>,
 }
@@ -60,6 +62,10 @@ pub struct ScopedProvider {
 }
 #[derive(Clone, Default, PartialEq, Serialize, Deserialize)]
 pub struct AppState {
+    #[serde(default, skip_serializing_if = "crate::providers::mode_state::StackState::is_empty")]
+    pub stack: crate::providers::mode_state::StackState,
+    #[serde(default)]
+    pub stack_tenant: Option<TenantScope>,
     pub pointer: Option<ScopedProvider>,
     pub mode: Option<ModeState>,
     pub mode_tenant: Option<TenantScope>,
@@ -166,7 +172,8 @@ impl ProviderTransactions {
             .map(|b| serde_json::from_slice(&b).map_err(|_| WriteError::InvalidResource))
             .transpose()?;
         if pending.as_ref().is_some_and(|p| {
-            !matches!(p.version, 1..=3)
+            !matches!(p.version, 1..=4)
+                || (p.version < 4 && p.target.stack.is_some())
                 || (p.version < 3 && p.files.iter().any(|f| f.directory != 0))
                 || (p.version == 1 && p.files.iter().any(|f| f.planned.is_none()))
                 || p.app != app
@@ -213,6 +220,7 @@ impl ProviderTransactions {
         }
         self.register(guard)?;
         let mut state = self.state(app)?;
+        validate_stack_update(&state, tenant, &target)?;
         let metadata = guard.directory.metadata().map_err(|_| WriteError::Io)?;
         let multi = guard.directories().count() > 1;
         let mut batch = guard.stage(changes)?;
@@ -227,7 +235,9 @@ impl ProviderTransactions {
         }
         let mut pending = Pending {
             // Older executors must reject multi-directory intents and actual deletions.
-            version: if multi {
+            version: if target.stack.is_some() {
+                4
+            } else if multi {
                 3
             } else if batch.revisions.iter().any(|r| r.after.is_none()) {
                 2
@@ -375,14 +385,47 @@ pub(super) fn validate_target(target: &PendingTarget) -> Result<(), WriteError> 
     {
         crate::providers::validate_identity(id).map_err(|_| WriteError::InvalidResource)?;
     }
+    if let Some(stack) = &target.stack {
+        let mut members = std::collections::HashSet::new();
+        for id in &stack.members {
+            crate::providers::validate_identity(id).map_err(|_| WriteError::InvalidResource)?;
+            if !members.insert(id) {
+                return Err(WriteError::InvalidResource);
+            }
+        }
+        for (key, id) in &stack.keys {
+            crate::providers::validate_identity(key).map_err(|_| WriteError::InvalidResource)?;
+            crate::providers::validate_identity(id).map_err(|_| WriteError::InvalidResource)?;
+        }
+    }
     if serde_json::to_vec(target).map_err(|_| WriteError::InvalidResource)?.len() > 65536 {
         return Err(WriteError::InvalidResource);
+    }
+    Ok(())
+}
+/// Stack keys are permanent reservations: removal and reassignment are forbidden.
+/// The stack has its own tenant owner, independent of direct-pointer changes.
+pub(super) fn validate_stack_update(
+    state: &AppState,
+    tenant: &TenantScope,
+    target: &PendingTarget,
+) -> Result<(), WriteError> {
+    if let Some(stack) = &target.stack
+        && (state.stack_tenant.as_ref().is_some_and(|t| t != tenant)
+            || !state.stack.is_empty() && state.stack_tenant.as_ref() != Some(tenant)
+            || state.stack.keys.iter().any(|(key, id)| stack.keys.get(key) != Some(id)))
+    {
+        return Err(WriteError::Conflict);
     }
     Ok(())
 }
 pub(super) fn apply_target(state: &mut AppState, tenant: &TenantScope, target: &PendingTarget) {
     if let Some(id) = &target.pointer {
         state.pointer = Some(ScopedProvider { tenant: tenant.clone(), id: id.clone() });
+    }
+    if let Some(stack) = &target.stack {
+        state.stack = stack.clone();
+        state.stack_tenant = Some(tenant.clone());
     }
     if let Some(mode) = &target.mode {
         state.mode = Some(mode.clone());

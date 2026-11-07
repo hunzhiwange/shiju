@@ -30,7 +30,7 @@ fn cc04_recovery_executor_startup_consumes_trusted_host_policy() {
                 privacy: FilePrivacy::Private,
                 patch: &patch
             }],
-            PendingTarget { pointer: Some("next".into()), mode: None }
+            PendingTarget { pointer: Some("next".into()), mode: None, ..Default::default() }
         )
         .is_err()
     );

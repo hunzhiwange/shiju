@@ -286,6 +286,7 @@ impl OmpFiles {
                     proxy_route: expected.mode.as_ref().and_then(|m| m.proxy_route.clone()),
                     contract: None,
                 }),
+                ..Default::default()
             },
             || {
                 if selection_unchanged(directory, name, pre.is_none())?

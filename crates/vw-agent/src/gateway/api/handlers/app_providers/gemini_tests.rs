@@ -206,7 +206,7 @@ async fn cc04_gemini_sdk_api_recovers_both_files_before_replanning() {
         tenant: TenantScope::new("p", "a").unwrap(),
         directory_device: meta.dev(),
         directory_inode: meta.ino(),
-        target: PendingTarget { pointer: Some("one".into()), mode: None },
+        target: PendingTarget { pointer: Some("one".into()), mode: None, ..Default::default() },
         files: changes,
         published: true,
     };

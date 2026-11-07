@@ -18,6 +18,7 @@ fn target() -> PendingTarget {
             proxy_route: Some("route-kept".into()),
             contract: None,
         }),
+        ..Default::default()
     }
 }
 fn store(root: &std::path::Path) -> ProviderTransactions {
@@ -221,7 +222,12 @@ fn cc04_commit_state_is_idempotent_and_pointer_route_independent() {
         contract: None,
     };
     transactions
-        .commit(&tenant, &mut guard, &[], PendingTarget { pointer: None, mode: Some(mode.clone()) })
+        .commit(
+            &tenant,
+            &mut guard,
+            &[],
+            PendingTarget { pointer: None, mode: Some(mode.clone()), ..Default::default() },
+        )
         .unwrap();
     let state = store(root.path()).state(AppId::Claude).unwrap();
     assert!(state.pointer == first.pointer);
@@ -272,7 +278,11 @@ fn cc04_commit_rejects_unsafe_root_and_invalid_target_without_publication() {
                 &TenantScope::new("p", "c").unwrap(),
                 &mut guard,
                 &[],
-                PendingTarget { pointer: Some("../unsafe".into()), mode: None }
+                PendingTarget {
+                    pointer: Some("../unsafe".into()),
+                    mode: None,
+                    ..Default::default()
+                }
             )
             .is_err()
     );

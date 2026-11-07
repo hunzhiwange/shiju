@@ -1,0 +1,94 @@
+[
+  {
+    "id": "astron",
+    "name": "Astron"
+  },
+  {
+    "id": "aws-bedrock",
+    "name": "AWS Bedrock"
+  },
+  {
+    "id": "baidu-qianfan",
+    "name": "Baidu Qianfan"
+  },
+  {
+    "id": "compshare",
+    "name": "Compshare",
+    "nameKey": "providerForm.presets.ucloud"
+  },
+  {
+    "id": "kimi",
+    "name": "Kimi",
+    "planOrder": [
+      "payg",
+      "coding"
+    ]
+  },
+  {
+    "id": "minimax",
+    "name": "MiniMax"
+  },
+  {
+    "id": "opencode",
+    "name": "OpenCode",
+    "planOrder": [
+      "coding",
+      "payg"
+    ]
+  },
+  {
+    "id": "qianwen",
+    "name": "千问AI平台"
+  },
+  {
+    "id": "qwencloud",
+    "name": "QwenCloud"
+  },
+  {
+    "id": "siliconflow",
+    "name": "SiliconFlow"
+  },
+  {
+    "id": "soruxgpt",
+    "name": "SoruxGPT",
+    "planOrder": [
+      "payg",
+      "codingPlan"
+    ]
+  },
+  {
+    "id": "stepfun",
+    "name": "StepFun"
+  },
+  {
+    "id": "streamlake",
+    "name": "StreamLake"
+  },
+  {
+    "id": "sudocode",
+    "name": "SudoCode"
+  },
+  {
+    "id": "tencent",
+    "name": "Tencent Cloud",
+    "nameKey": "providerPreset.family.tencent",
+    "planOrder": [
+      "tokenPlan",
+      "enterpriseLite",
+      "enterprisePro"
+    ]
+  },
+  {
+    "id": "volcengine",
+    "name": "Volcengine",
+    "nameKey": "providerPreset.family.volcengine"
+  },
+  {
+    "id": "xiaomi-mimo",
+    "name": "Xiaomi MiMo"
+  },
+  {
+    "id": "zhipu",
+    "name": "Zhipu GLM"
+  }
+]

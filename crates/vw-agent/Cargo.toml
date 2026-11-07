@@ -180,3 +180,7 @@ sandbox-landlock = ["dep:landlock"]
 shell-ast = ["dep:tree-sitter", "dep:tree-sitter-bash"]
 channel-lark = ["dep:prost"]
 whatsapp-web = ["dep:prost", "dep:wa-rs", "dep:wa-rs-core", "dep:wa-rs-binary", "dep:wa-rs-proto", "dep:wa-rs-ureq-http", "dep:wa-rs-tokio-transport"]
+
+[[test]]
+name = "cc04_accept_transactions"
+path = "tests/cc04_accept_transactions.rs"

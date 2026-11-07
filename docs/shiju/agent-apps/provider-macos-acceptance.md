@@ -3439,3 +3439,31 @@ macOS **27.0（26A428）/ arm64**，桌面 **0.6.0**。两个窗口命令使用�
 - 浅色：[校验失败](evidence/task-75/light-rejected.jpg)、[保存](evidence/task-75/light-saved.jpg)、[长列表](evidence/task-75/light-scroll.jpg)、[取消后回读](evidence/task-75/light-readback.jpg)。
 
 定向差异检查通过，只读 `plan.md` 无差异。本任务的全部槽位锁已释放，保留编译缓存。任务 75 已完成。下一步批次 76。
+
+## 任务 76：macOS 事务链路验收
+
+2026-11-08。核对批次 75 提交 `f7183fe10` 及上一条验收。母任务 1、3 已完成，母任务 2 沿用任务 1 的底座子计划 1–93 开工裁定，完整领域迁移待收口。来源快照 `ca58c0313360eae7c851fbd7553c1614c7af03e7` 工作区干净。核对 `ProviderService::switch`、`switch_provider_internal` 和前端调用，以及 golden `codex_red_lines` 的密钥落点、登录保留、拒绝无副作用，`claude_key_fields` 的关键字段归属和外部配置保留，`file_modes` 的私有权限及相邻金标。
+
+### 真实 SDK、Gateway 与执行端
+
+- 集成目标 `crates/vw-agent/tests/cc04_accept_transactions.rs` 启动隔离子进程中的生产入口 `gateway::run_gateway`，经 SDK 和真实回环 HTTP 调用正式路由。每条用例使用独立 HOME、SQLite、主机策略和事务根。凭据夹具只含假 API key 和 Codex `auth_mode/tokens` JSON，未访问真实账号、Keychain 或上游网络。故障由临时状态文件的 macOS `uchg` 触发，事务逻辑和文件系统均真实运行。
+- Codex 经 `codex_provider_save` 首次激活，`codex_provider_switch` 在两条路由间往返四次。Gateway 的 `codex_catalog` handler 消费 `CodexFiles::apply` 和 `ProviderTransactions`。SDK 返回 `Applied`，模式查询的指针与实际 TOML 路由一致。TOML 保留外部注释与偏好，假 API key 仅进入活动路由表，保留登录时 `auth.json` 字节和 0600 权限保持一致。
+- 切到关闭保留登录的第三条路由时，文件发布后状态替换被系统拒绝，SDK 返回 `RecoveryRequired`。磁盘保留已发布 pending 和旧指针，TOML 已切换，`auth.json` 已删除。结束旧进程并清除故障后，生产启动恢复在服务可用前清掉 pending。新 SDK 通过 `provider_mode_state` 查得第三条路由，TOML、登录暂存及指针一致，配置、暂存和状态文件权限为 0600。
+- Claude 经 `claude_provider_create` 首次激活，编辑器通过 `app_provider_editor_open/save` 走 Gateway `editor_merge` 与执行端 `ClaudeFile::commit`。打开后从 SDK 之外改写原生 JSON，模拟配置文件被另一个编辑者更新。只读令牌保存返回 403，原生文件、状态字节和 SDK 目录摘要一致。写令牌提交返回 `saved=false`、冲突路径 `theme` 及确认票据，文件字节一致。选择 `KeepTheirs` 后 `saved=true`，保留外部主题、hooks、env 和供应商凭据，提交无冲突字段，指针仍为当前档案，文件为 0600。
+- 现有 Iced 预览入口调用 `app_provider_editor_open`，保存经 `provider_operation_start` 的 `EditorSave` 操作复用同一编辑所有者。批次 75 有独立原生窗口证据。本批验收范围为 SDK 到执行端，未操作窗口，未验证已安装客户端读取配置或真实登录。平台为 macOS 27.0（26A428）arm64，测试链接的识矩 Gateway 为 0.6.0。已安装识矩 0.6.0、Codex CLI 0.167.0-alpha.3.2、Claude Code 2.1.316，仅查询版本。
+
+### 验证记录
+
+各阶段在仓库根按原子 `mkdir` 动态领取槽位 **1**。实际 `CARGO_TARGET_DIR=/Users/xiangmin/worker/code/shiju/target/rust-slot-1`，`CARGO_BUILD_BUILD_DIR` 同设此绝对路径。各阶段结束后释放本会话锁并保留缓存。
+
+| 确切命令 | 退出码 | 有效结果 |
+| --- | --- | --- |
+| `cargo fmt --all` | 0 | 三次，包含最终源码 |
+| `cargo test -p vw-agent --test cc04_accept_transactions cc04_accept_transactions_ -- --nocapture`（首次） | 101 | 共享缓存缺少已有批次 75 DTO，未运行测试。刷新相应源码时间戳后重新编译，源码内容一致 |
+| 同一聚焦命令（红） | 101 | 2 项执行，Claude 通过，Codex 在启动应清除 pending 的断言失败 |
+| 同一聚焦命令（绿） | 0 | 2 项通过 |
+| `cargo clippy --all-targets --all-features -- -D warnings` | 0 | 全部 targets/features 检查通过 |
+
+红测使用已实现功能的阴性对照。仅在重启阶段将夹具主机标为离线，让生产 Gateway 跳过该主机的恢复，随后恢复策略的在线状态。绿测按正常在线策略启动。两阶段共用真实文件故障与相同的行为断言。筛选排除了仅供子进程启动的测试入口。链接器提示体积较大的 DWARF unwind 区段，测试正常执行。
+
+定向差异检查通过。仅新增集成测试目标及本条证据。只读 `plan.md` 无差异。本任务的槽位锁已释放，状态为 **已完成**。下一步批次 77。

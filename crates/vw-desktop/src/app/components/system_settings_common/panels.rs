@@ -103,6 +103,25 @@ pub fn settings_row<'a>(
     control_width: f32,
     control: impl Into<Element<'a, Message>>,
 ) -> Element<'a, Message> {
+    settings_row_layout(label, description, container(control.into()).align_right(control_width))
+}
+
+/// 在窄内容区为说明保留一半可用宽度，宽屏仍限制控件的最大宽度。
+pub(crate) fn settings_row_with_flexible_control<'a>(
+    label: &'a str,
+    description: &'a str,
+    max_control_width: f32,
+    control: impl Into<Element<'a, Message>>,
+) -> Element<'a, Message> {
+    let control = container(control.into()).align_right(Length::Fill).max_width(max_control_width);
+    settings_row_layout(label, description, container(control).align_right(Length::Fill))
+}
+
+fn settings_row_layout<'a>(
+    label: &'a str,
+    description: &'a str,
+    control: impl Into<Element<'a, Message>>,
+) -> Element<'a, Message> {
     container(
         row![
             column![
@@ -111,7 +130,7 @@ pub fn settings_row<'a>(
             ]
             .spacing(6)
             .width(Length::Fill),
-            container(control.into()).align_right(control_width),
+            control.into(),
         ]
         .spacing(24)
         .align_y(Alignment::Center),

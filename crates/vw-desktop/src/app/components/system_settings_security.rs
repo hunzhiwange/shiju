@@ -18,11 +18,12 @@
 //! 通过 [`view`] 函数创建安全设置界面的 UI 元素，该函数返回一个 Iced 框架的 `Element`。
 
 use crate::app::components::system_settings_common::{
-    SETTINGS_LABEL_WIDTH, danger_action_btn_style, settings_checkbox_style, settings_divider,
-    settings_error_banner, settings_muted_text_style, settings_page_intro,
-    settings_pick_list_menu_style, settings_pick_list_style, settings_section_card,
-    settings_section_content, settings_segment_button_style, settings_text_input_style,
-    settings_value_badge,
+    SETTINGS_CONTROL_PADDING, SETTINGS_CONTROL_TEXT_SIZE, danger_action_btn_style,
+    primary_action_btn_style, rounded_action_btn_style, settings_checkbox_style, settings_divider,
+    settings_error_banner, settings_field_label, settings_group_card, settings_group_heading,
+    settings_help_button_with_locale as settings_help_button, settings_muted_text_style,
+    settings_page_heading, settings_row_with_flexible_control, settings_segment_button_style,
+    settings_select, settings_text_input_style, settings_value_badge,
 };
 use crate::app::components::system_settings_search::SettingsTabDescriptor;
 use crate::app::i18n::settings_security::text as security_text;
@@ -30,11 +31,12 @@ use crate::app::state::{SecurityListKind, SecuritySettingsTab};
 use crate::app::{App, Message, message};
 use iced::widget::scrollable::{Direction, Scrollbar};
 use iced::widget::{
-    button, checkbox, column, container, pick_list, row, scrollable, slider, text, text_input,
+    button, checkbox, column, container, row, scrollable, slider, text, text_input,
 };
-use iced::{Alignment, Element, Length, Padding};
+use iced::{Alignment, Element, Length};
 use vw_config_types::ui::DesktopLocale;
 
+const CONTROL_WIDTH: f32 = 240.0;
 const LIST_EDITOR_MAX_HEIGHT: f32 = 176.0;
 
 pub(super) const SECURITY_TABS: &[SettingsTabDescriptor<SecuritySettingsTab>] = &[
@@ -89,22 +91,7 @@ fn field_row<'a>(
     description: &'static str,
     control: impl Into<Element<'a, Message>>,
 ) -> Element<'a, Message> {
-    container(
-        row![
-            column![
-                text(label).size(13),
-                text(description).size(11).style(settings_muted_text_style),
-            ]
-            .spacing(4)
-            .width(Length::Fixed(SETTINGS_LABEL_WIDTH)),
-            container(control.into()).width(Length::Fill),
-        ]
-        .spacing(22)
-        .align_y(Alignment::Center),
-    )
-    .padding([14, 0])
-    .width(Length::Fill)
-    .into()
+    settings_row_with_flexible_control(label, description, CONTROL_WIDTH, control)
 }
 
 fn text_row<'a>(
@@ -119,8 +106,8 @@ fn text_row<'a>(
         description,
         text_input(placeholder, value)
             .on_input(on_input)
-            .padding([10, 12])
-            .size(13)
+            .padding(SETTINGS_CONTROL_PADDING)
+            .size(SETTINGS_CONTROL_TEXT_SIZE)
             .style(settings_text_input_style)
             .width(Length::Fill),
     )
@@ -142,8 +129,9 @@ fn list_editor<'a>(
     let add_message = Message::Settings(message::SettingsMessage::SecurityListAdd(kind));
     let add_button = {
         let button = button(text(security_text(locale, "添加")))
-            .padding([9, 14])
-            .style(|theme, status| settings_segment_button_style(theme, status, false));
+            .padding([8, 14])
+            .height(38)
+            .style(primary_action_btn_style);
         if draft.trim().is_empty() { button } else { button.on_press(add_message.clone()) }
     };
 
@@ -157,7 +145,7 @@ fn list_editor<'a>(
                         message::SettingsMessage::SecurityListRemoveRequested(kind, index),
                     ))
                     .padding([6, 10])
-                    .style(|theme, status| { settings_segment_button_style(theme, status, false) }),
+                    .style(rounded_action_btn_style),
             ]
             .spacing(10)
             .align_y(Alignment::Center),
@@ -172,9 +160,7 @@ fn list_editor<'a>(
                             message::SettingsMessage::SecurityListRemoveCanceled,
                         ))
                         .padding([6, 10])
-                        .style(|theme, status| {
-                            settings_segment_button_style(theme, status, false)
-                        }),
+                        .style(rounded_action_btn_style),
                     button(text(security_text(locale, "确认删除")).size(12))
                         .on_press(Message::Settings(
                             message::SettingsMessage::SecurityListRemoveConfirmed(kind, index),
@@ -190,7 +176,7 @@ fn list_editor<'a>(
     }
 
     let item_list = container(
-        scrollable(container(item_rows).padding(Padding { right: 12.0, ..Padding::default() }))
+        scrollable(container(item_rows).padding([0, 7]).width(Length::Fill))
             .height(Length::Shrink)
             .direction(Direction::Vertical(Scrollbar::new().width(4).scroller_width(4))),
     )
@@ -198,14 +184,17 @@ fn list_editor<'a>(
     .width(Length::Fill);
 
     column![
-        column![text(label).size(13), text(description).size(11).style(settings_muted_text_style),]
-            .spacing(4),
+        column![
+            settings_field_label(label),
+            text(description).size(13).style(settings_muted_text_style),
+        ]
+        .spacing(6),
         row![
             text_input(placeholder, draft)
                 .on_input(draft_changed)
                 .on_submit(add_message)
-                .padding([10, 12])
-                .size(13)
+                .padding(SETTINGS_CONTROL_PADDING)
+                .size(SETTINGS_CONTROL_TEXT_SIZE)
                 .style(settings_text_input_style)
                 .width(Length::Fill),
             add_button,
@@ -615,42 +604,31 @@ pub fn view(app: &App) -> Element<'_, Message> {
     let backend_options = sandbox_backend_options(locale, &s.sandbox_enabled_input);
     let backend_selected =
         backend_options.iter().find(|option| option.value == s.sandbox_backend_input).cloned();
-    let help_btn = crate::app::components::system_settings_common::icon_btn(
-        crate::app::assets::Icon::QuestionCircle,
-        crate::app::i18n::settings_runtime::text(locale, "帮助"),
-        Some(Message::Settings(message::SettingsMessage::SecurityHelpOpen)),
-    );
+    let help_btn =
+        settings_help_button(locale, Message::Settings(message::SettingsMessage::SecurityHelpOpen));
     let sandbox_enabled_row = field_row(
         security_text(locale, "沙箱启用"),
         security_text(locale, "选择自动检测、强制启用或强制禁用沙箱。"),
-        pick_list(enabled_options, enabled_selected, |value| {
+        settings_select(enabled_options, enabled_selected, |value| {
             Message::Settings(message::SettingsMessage::SecuritySandboxEnabledChanged(
                 value.value.to_string(),
             ))
         })
-        .padding([10, 14])
-        .text_size(13)
-        .style(settings_pick_list_style)
-        .menu_style(settings_pick_list_menu_style)
-        .width(Length::Fixed(280.0)),
+        .width(Length::Fill),
     );
 
     let sandbox_backend_row = field_row(
         security_text(locale, "沙箱后端"),
         security_text(locale, "根据启用策略收窄可选值，避免互相矛盾的配置。"),
-        pick_list(backend_options, backend_selected, |value| {
+        settings_select(backend_options, backend_selected, |value| {
             Message::Settings(message::SettingsMessage::SecuritySandboxBackendChanged(
                 value.value.to_string(),
             ))
         })
-        .padding([10, 14])
-        .text_size(13)
-        .style(settings_pick_list_style)
-        .menu_style(settings_pick_list_menu_style)
-        .width(Length::Fixed(280.0)),
+        .width(Length::Fill),
     );
 
-    let sandbox_backend_card = settings_section_card(
+    let sandbox_backend_note = settings_group_heading(
         security_text(locale, "后端说明"),
         sandbox_backend_description(locale, &s.sandbox_backend_input),
     );
@@ -1004,39 +982,39 @@ pub fn view(app: &App) -> Element<'_, Message> {
 
     let content: Element<'_, Message> = match s.active_tab {
         SecuritySettingsTab::Bash => column![
-            settings_section_card(
+            settings_group_heading(
                 security_text(locale, "Bash 安全检查"),
                 security_text(
                     locale,
                     "优先级为总开关 → 分组开关 → 单项开关；关闭父级不会改写已保存的子项。"
                 )
             ),
-            settings_section_content(bash_security_row),
-            settings_section_card(
+            settings_group_card(bash_security_row),
+            settings_group_heading(
                 security_text(locale, "策略检查"),
                 security_text(locale, "命令、路径、风险与重定向策略。")
             ),
-            settings_section_content(policy_rows),
-            settings_section_card(
+            settings_group_card(policy_rows),
+            settings_group_heading(
                 security_text(locale, "Shell 语法检测"),
                 security_text(locale, "按 validator 独立控制 Shell 语法检查。")
             ),
-            settings_section_content(validator_rows),
+            settings_group_card(validator_rows),
         ]
         .spacing(16)
         .into(),
         SecuritySettingsTab::SandboxAndResources => column![
-            settings_section_card(
+            settings_group_heading(
                 security_text(locale, "沙箱"),
                 security_text(locale, "控制是否启用沙箱以及选择具体后端。")
             ),
-            settings_section_content(sandbox_rows),
-            sandbox_backend_card,
-            settings_section_card(
+            settings_group_card(sandbox_rows),
+            sandbox_backend_note,
+            settings_group_heading(
                 security_text(locale, "资源限制"),
                 security_text(locale, "约束进程的内存、CPU 与子进程数量。")
             ),
-            settings_section_content(
+            settings_group_card(
                 column![
                     max_memory_row,
                     settings_divider(),
@@ -1052,11 +1030,11 @@ pub fn view(app: &App) -> Element<'_, Message> {
         .spacing(16)
         .into(),
         SecuritySettingsTab::Audit => column![
-            settings_section_card(
+            settings_group_heading(
                 security_text(locale, "审计日志"),
                 security_text(locale, "记录并限制安全事件日志。")
             ),
-            settings_section_content(
+            settings_group_card(
                 column![
                     audit_enabled_row,
                     settings_divider(),
@@ -1072,8 +1050,8 @@ pub fn view(app: &App) -> Element<'_, Message> {
         .spacing(16)
         .into(),
         SecuritySettingsTab::OtpAndEstop => column![
-            settings_section_card("OTP", security_text(locale, "对敏感动作启用二次验证。")),
-            settings_section_content(
+            settings_group_heading("OTP", security_text(locale, "对敏感动作启用二次验证。")),
+            settings_group_card(
                 column![
                     otp_enabled_row,
                     settings_divider(),
@@ -1091,11 +1069,11 @@ pub fn view(app: &App) -> Element<'_, Message> {
                 ]
                 .spacing(0)
             ),
-            settings_section_card(
+            settings_group_heading(
                 security_text(locale, "紧急停止"),
                 security_text(locale, "配置 E-Stop 状态与恢复要求。")
             ),
-            settings_section_content(
+            settings_group_card(
                 column![
                     estop_enabled_row,
                     settings_divider(),
@@ -1109,11 +1087,11 @@ pub fn view(app: &App) -> Element<'_, Message> {
         .spacing(16)
         .into(),
         SecuritySettingsTab::Syscall => column![
-            settings_section_card(
+            settings_group_heading(
                 security_text(locale, "系统调用异常检测"),
                 security_text(locale, "监控系统调用行为并限制告警节奏。")
             ),
-            settings_section_content(
+            settings_group_card(
                 column![
                     syscall_enabled_row,
                     settings_divider(),
@@ -1139,11 +1117,11 @@ pub fn view(app: &App) -> Element<'_, Message> {
         .spacing(16)
         .into(),
         SecuritySettingsTab::Guard => column![
-            settings_section_card(
+            settings_group_heading(
                 security_text(locale, "防护"),
                 security_text(locale, "配置 Canary Token 与语义注入防护。")
             ),
-            settings_section_content(
+            settings_group_card(
                 column![
                     canary_row,
                     settings_divider(),
@@ -1162,15 +1140,16 @@ pub fn view(app: &App) -> Element<'_, Message> {
 
     let mut col = column![
         row![
-            settings_page_intro(
+            container(settings_page_heading(
                 security_text(locale, "安全配置"),
                 security_text(locale, "配置沙箱、资源限制、审计与安全门控策略。")
-            ),
-            container(text(" ")).width(Length::Fill),
+            ))
+            .width(Length::Fill),
             help_btn,
         ]
+        .spacing(12)
         .align_y(Alignment::Start),
-        tabs,
+        tabs.wrap(),
     ]
     .spacing(16)
     .width(Length::Fill);

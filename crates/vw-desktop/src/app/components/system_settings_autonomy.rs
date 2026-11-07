@@ -18,23 +18,23 @@
 
 use crate::app::components::number_input::NumberInput;
 use crate::app::components::system_settings_common::{
-    SETTINGS_LABEL_WIDTH, danger_action_btn_style, settings_checkbox_style, settings_divider,
-    settings_error_banner, settings_help_button_with_locale as settings_help_button,
-    settings_muted_text_style, settings_page_intro, settings_pick_list_menu_style,
-    settings_pick_list_style, settings_section_card, settings_section_content,
-    settings_segment_button_style, settings_text_input_style,
+    SETTINGS_CONTROL_PADDING, SETTINGS_CONTROL_TEXT_SIZE, danger_action_btn_style,
+    primary_action_btn_style, rounded_action_btn_style, settings_checkbox_style, settings_divider,
+    settings_error_banner, settings_field_label, settings_group_card, settings_group_heading,
+    settings_help_button_with_locale as settings_help_button, settings_muted_text_style,
+    settings_page_heading, settings_row_with_flexible_control, settings_segment_button_style,
+    settings_select, settings_text_input_style,
 };
 use crate::app::components::system_settings_search::SettingsTabDescriptor;
 use crate::app::state::{AutonomyListKind, AutonomySettingsTab};
 use crate::app::{App, Message, message};
 use iced::widget::scrollable::{Direction, Scrollbar};
-use iced::widget::{
-    button, checkbox, column, container, pick_list, row, scrollable, text, text_input,
-};
-use iced::{Alignment, Element, Length, Padding};
+use iced::widget::{button, checkbox, column, container, row, scrollable, text, text_input};
+use iced::{Alignment, Element, Length};
 use vw_config_types::security::NonCliNaturalLanguageApprovalMode;
 use vw_config_types::security::{AutonomyLevel, ShellRedirectPolicy};
 
+const CONTROL_WIDTH: f32 = 240.0;
 const LIST_EDITOR_MAX_HEIGHT: f32 = 176.0;
 
 pub(super) const AUTONOMY_TABS: &[SettingsTabDescriptor<AutonomySettingsTab>] = &[
@@ -78,22 +78,7 @@ fn field_row<'a>(
     description: &'static str,
     control: impl Into<Element<'a, Message>>,
 ) -> Element<'a, Message> {
-    container(
-        row![
-            column![
-                text(label).size(13),
-                text(description).size(11).style(settings_muted_text_style),
-            ]
-            .spacing(4)
-            .width(Length::Fixed(SETTINGS_LABEL_WIDTH)),
-            container(control.into()).width(Length::Fill),
-        ]
-        .spacing(22)
-        .align_y(Alignment::Center),
-    )
-    .padding([14, 0])
-    .width(Length::Fill)
-    .into()
+    settings_row_with_flexible_control(label, description, CONTROL_WIDTH, control)
 }
 
 fn text_row<'a>(
@@ -108,8 +93,8 @@ fn text_row<'a>(
         description,
         text_input(placeholder, value)
             .on_input(on_input)
-            .padding([10, 12])
-            .size(13)
+            .padding(SETTINGS_CONTROL_PADDING)
+            .size(SETTINGS_CONTROL_TEXT_SIZE)
             .style(settings_text_input_style)
             .width(Length::Fill),
     )
@@ -132,8 +117,9 @@ fn list_editor<'a>(
     let add_message = Message::Settings(message::SettingsMessage::AutonomyListAdd(kind));
     let add_button = {
         let button = button(text(crate::app::i18n::I18n::new(locale).__("添加")))
-            .padding([9, 14])
-            .style(|theme, status| settings_segment_button_style(theme, status, false));
+            .padding([8, 14])
+            .height(38)
+            .style(primary_action_btn_style);
         if draft.trim().is_empty() { button } else { button.on_press(add_message.clone()) }
     };
     let control: Element<'a, Message> = if kind.is_tool_list() {
@@ -142,12 +128,8 @@ fn list_editor<'a>(
         options.dedup();
         let selected = options.iter().find(|tool| tool.as_str() == draft).map(ToOwned::to_owned);
         row![
-            pick_list(options, selected, draft_changed)
+            settings_select(options, selected, draft_changed)
                 .placeholder(crate::app::i18n::I18n::new(locale).__("选择现有工具"))
-                .padding([10, 14])
-                .text_size(13)
-                .style(settings_pick_list_style)
-                .menu_style(settings_pick_list_menu_style)
                 .width(Length::Fill),
             add_button,
         ]
@@ -159,8 +141,8 @@ fn list_editor<'a>(
             text_input(crate::app::i18n::I18n::new(locale).__("输入单个列表项"), draft)
                 .on_input(draft_changed)
                 .on_submit(add_message)
-                .padding([10, 12])
-                .size(13)
+                .padding(SETTINGS_CONTROL_PADDING)
+                .size(SETTINGS_CONTROL_TEXT_SIZE)
                 .style(settings_text_input_style)
                 .width(Length::Fill),
             add_button,
@@ -180,7 +162,7 @@ fn list_editor<'a>(
                         message::SettingsMessage::AutonomyListRemoveRequested(kind, index),
                     ))
                     .padding([6, 10])
-                    .style(|theme, status| { settings_segment_button_style(theme, status, false) }),
+                    .style(rounded_action_btn_style),
             ]
             .spacing(10)
             .align_y(Alignment::Center),
@@ -197,9 +179,7 @@ fn list_editor<'a>(
                             message::SettingsMessage::AutonomyListRemoveCanceled,
                         ))
                         .padding([6, 10])
-                        .style(|theme, status| {
-                            settings_segment_button_style(theme, status, false)
-                        }),
+                        .style(rounded_action_btn_style),
                     button(text(crate::app::i18n::I18n::new(locale).__("确认删除")).size(12))
                         .on_press(Message::Settings(
                             message::SettingsMessage::AutonomyListRemoveConfirmed(kind, index),
@@ -215,7 +195,7 @@ fn list_editor<'a>(
     }
 
     let item_list = container(
-        scrollable(container(item_rows).padding(Padding { right: 12.0, ..Padding::default() }))
+        scrollable(container(item_rows).padding([0, 7]).width(Length::Fill))
             .height(Length::Shrink)
             .direction(Direction::Vertical(Scrollbar::new().width(4).scroller_width(4))),
     )
@@ -223,8 +203,11 @@ fn list_editor<'a>(
     .width(Length::Fill);
 
     column![
-        column![text(label).size(13), text(description).size(11).style(settings_muted_text_style),]
-            .spacing(4),
+        column![
+            settings_field_label(label),
+            text(description).size(13).style(settings_muted_text_style),
+        ]
+        .spacing(6),
         control,
         item_list,
     ]
@@ -248,51 +231,7 @@ fn bool_row<'a>(
     )
 }
 
-/// 构建自治配置设置界面的视图
-///
-/// 该函数创建一个完整的自治配置编辑界面，包含所有配置项的输入控件和帮助信息。
-/// 界面采用垂直布局，每个配置项占据一行，并提供帮助按钮和模态框说明。
-///
-/// # 参数
-///
-/// - `app`: 应用状态引用，包含当前的自治配置数据
-///
-/// # 返回值
-///
-/// 返回构建好的 Iced UI 元素，包含所有配置控件和可选的帮助模态框
-///
-/// # 界面布局
-///
-/// 界面从上到下依次包含：
-/// 1. 标题栏（标题 + 帮助按钮）
-/// 2. 配置文件路径说明
-/// 3. 权限级别选择器
-/// 4. 工作区限制开关
-/// 5. 每小时动作上限滑块
-/// 6. 每日成本上限滑块
-/// 7. 中风险审批开关
-/// 8. 高风险阻断开关
-/// 9. Shell 引号内换行阻断开关
-/// 10. 重定向策略选择器
-/// 11. 自然语言审批模式选择器
-/// 12. 允许命令输入框
-/// 13. 禁止路径输入框
-/// 14. 环境变量透传输入框
-/// 15. 自动审批工具输入框
-/// 16. 始终询问工具输入框
-/// 17. 允许根目录输入框
-/// 18. 非 CLI 排除工具输入框
-/// 19. 审批人列表输入框
-/// 20. 按通道模式输入框
-/// 21. 输入格式提示
-/// 22. 错误信息（如有）
-///
-/// # 示例
-///
-/// ```ignore
-/// let element = view(&app);
-/// // 将 element 添加到 Iced 应用中显示
-/// ```
+/// 渲染当前自治设置标签及其权限、预算或列表控件。
 pub fn view(app: &App) -> Element<'_, Message> {
     let s = &app.autonomy_settings;
     let available_tools = &app.agents_settings.available_tools;
@@ -329,7 +268,8 @@ pub fn view(app: &App) -> Element<'_, Message> {
                 ),
             ]
             .spacing(8)
-            .align_y(Alignment::Center),
+            .align_y(Alignment::Center)
+            .wrap(),
         )
     };
 
@@ -443,7 +383,8 @@ pub fn view(app: &App) -> Element<'_, Message> {
                 ),
             ]
             .spacing(8)
-            .align_y(Alignment::Center),
+            .align_y(Alignment::Center)
+            .wrap(),
         )
     };
 
@@ -485,7 +426,8 @@ pub fn view(app: &App) -> Element<'_, Message> {
                 ),
             ]
             .spacing(8)
-            .align_y(Alignment::Center),
+            .align_y(Alignment::Center)
+            .wrap(),
         )
     };
 
@@ -620,7 +562,7 @@ pub fn view(app: &App) -> Element<'_, Message> {
         row![].spacing(8).align_y(Alignment::Center),
         |row, descriptor| {
             row.push(tab_button(
-                descriptor.label,
+                crate::app::i18n::I18n::new(app.desktop_locale).__(descriptor.label),
                 s.active_tab == descriptor.tab,
                 Message::Settings(message::SettingsMessage::AutonomyTabSelected(descriptor.tab)),
             ))
@@ -629,13 +571,13 @@ pub fn view(app: &App) -> Element<'_, Message> {
 
     let (section, panel): (Element<'_, Message>, Element<'_, Message>) = match s.active_tab {
         AutonomySettingsTab::Permissions => (
-            settings_section_card(
+            settings_group_heading(
                 crate::app::i18n::I18n::new(app.desktop_locale).__("权限与审批"),
                 crate::app::i18n::I18n::new(app.desktop_locale)
                     .__("核心执行级别、审批阈值与重定向策略。"),
             )
             .into(),
-            settings_section_content(
+            settings_group_card(
                 column![
                     level_row(),
                     settings_divider(),
@@ -654,24 +596,24 @@ pub fn view(app: &App) -> Element<'_, Message> {
             .into(),
         ),
         AutonomySettingsTab::Budget => (
-            settings_section_card(
+            settings_group_heading(
                 crate::app::i18n::I18n::new(app.desktop_locale).__("预算"),
                 crate::app::i18n::I18n::new(app.desktop_locale).__("限制单位时间的动作量与成本。"),
             )
             .into(),
-            settings_section_content(
+            settings_group_card(
                 column![max_actions_row(), settings_divider(), max_cost_row()].spacing(0),
             )
             .into(),
         ),
         AutonomySettingsTab::ToolsAndPaths => (
-            settings_section_card(
+            settings_group_heading(
                 crate::app::i18n::I18n::new(app.desktop_locale).__("工具与路径"),
                 crate::app::i18n::I18n::new(app.desktop_locale)
                     .__("为 shell 命令、路径访问和自动审批设置边界。"),
             )
             .into(),
-            settings_section_content(
+            settings_group_card(
                 column![
                     allowed_commands_row(),
                     settings_divider(),
@@ -690,13 +632,13 @@ pub fn view(app: &App) -> Element<'_, Message> {
             .into(),
         ),
         AutonomySettingsTab::NonCli => (
-            settings_section_card(
+            settings_group_heading(
                 crate::app::i18n::I18n::new(app.desktop_locale).__("非 CLI 暴露"),
                 crate::app::i18n::I18n::new(app.desktop_locale)
                     .__("控制外部通道中的工具暴露与审批人。"),
             )
             .into(),
-            settings_section_content(
+            settings_group_card(
                 column![
                     excluded_tools_row(),
                     settings_divider(),
@@ -712,16 +654,17 @@ pub fn view(app: &App) -> Element<'_, Message> {
 
     let mut col = column![
         row![
-            settings_page_intro(
+            container(settings_page_heading(
                 crate::app::i18n::I18n::new(app.desktop_locale).__("自治配置"),
                 crate::app::i18n::I18n::new(app.desktop_locale)
                     .__("配置代理的权限边界、预算限制与审批规则。")
-            ),
-            container(text(" ")).width(Length::Fill),
+            ))
+            .width(Length::Fill),
             help_btn,
         ]
+        .spacing(12)
         .align_y(Alignment::Start),
-        tabs,
+        tabs.wrap(),
     ]
     .spacing(16)
     .width(Length::Fill);
@@ -864,3 +807,7 @@ pub fn view_overlays<'a>(app: &'a App, dialog: Element<'a, Message>) -> Element<
 #[cfg(test)]
 #[path = "system_settings_autonomy_tests.rs"]
 mod system_settings_autonomy_tests;
+
+#[cfg(test)]
+#[path = "system_settings_autonomy_ui_refresh_22_tests.rs"]
+mod ui_refresh_22_tests;

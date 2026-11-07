@@ -165,9 +165,6 @@ fn list_editor_renders_one_row_per_saved_item() {
     let source = include_str!("system_settings_autonomy.rs");
     assert!(source.contains("LIST_EDITOR_MAX_HEIGHT"));
     assert!(source.contains("Scrollbar::new().width(4).scroller_width(4)"));
-    assert!(source.contains("settings_pick_list_style"));
-    assert!(source.contains("settings_pick_list_menu_style"));
-    assert!(source.contains("right: 12.0"));
     assert!(!source.contains("Font::MONOSPACE"));
 }
 

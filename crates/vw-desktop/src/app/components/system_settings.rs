@@ -719,6 +719,8 @@ pub fn view(app: &App) -> Element<'_, Message> {
     let editing_theme = themes_active && app.themes_settings.mode == ThemesSettingsMode::Edit;
     let select_focus_available = app.system_settings_help_tab.is_none()
         && (active_tab == SystemTab::Editor
+            || (active_tab == SystemTab::Autonomy && !app.autonomy_settings.show_help_modal)
+            || (active_tab == SystemTab::Security && !app.security_settings.show_help_modal)
             || (active_tab == SystemTab::General
                 && matches!(
                     app.general_settings_tab,

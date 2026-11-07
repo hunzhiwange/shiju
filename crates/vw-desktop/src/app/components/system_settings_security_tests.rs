@@ -262,7 +262,6 @@ fn list_editor_builds_bounded_scrolling_saved_items() {
 
     assert!(SOURCE.contains("LIST_EDITOR_MAX_HEIGHT"));
     assert!(SOURCE.contains("Scrollbar::new().width(4).scroller_width(4)"));
-    assert!(SOURCE.contains("right: 12.0"));
 }
 
 #[test]

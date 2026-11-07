@@ -70,7 +70,7 @@ impl AppProviderStore {
                     self.opencode_save(tenant, &id, &p, None, None)?;
                 }
                 NativeImport::OpenClaw(p) => {
-                    self.openclaw_save(tenant, &id, &p, None)?;
+                    self.openclaw_save(tenant, &id, &p, None, None)?;
                 }
                 NativeImport::Hermes(p) => {
                     self.hermes_save(tenant, &id, &p, None)?;

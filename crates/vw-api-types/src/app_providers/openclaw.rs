@@ -47,4 +47,33 @@ pub struct OpenClawImportResult {
 }
 pub use super::claude::{ClaudeLiveResult as OpenClawLiveResult, ClaudeResult as OpenClawResult};
 macro_rules! concealed { ($($t:ty),*) => {$(impl std::fmt::Debug for $t { fn fmt(&self,f:&mut std::fmt::Formatter<'_>)->std::fmt::Result { f.write_str("OpenClaw([redacted])") } })*}; }
-concealed!(OpenClawProfile, OpenClawWrite);
+concealed!(OpenClawProfile, OpenClawWrite, OpenClawFormWrite);
+
+/// Redacted desktop projection of a single native provider node.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct OpenClawFormView {
+    pub fields: super::basic::ProviderBasic,
+    pub config: Option<OpenClawFormConfig>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct OpenClawFormConfig {
+    pub declaration: String,
+    pub has_saved_key: bool,
+    pub user_agent: bool,
+    pub revision: String,
+}
+
+#[derive(Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct OpenClawFormWrite {
+    pub target_host_id: String,
+    pub fields: super::basic::ProviderBasic,
+    pub declaration: String,
+    pub api_key: super::create::ProviderSecretWrite,
+    pub user_agent: bool,
+    pub activation: OpenClawActivation,
+    pub revision: Option<String>,
+}

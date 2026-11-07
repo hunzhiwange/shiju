@@ -2680,3 +2680,38 @@ macOS **27.0 (26A428) / arm64**，桌面版本 **0.6.0**。临时 app bundle 运
 - 浅色 [失败保留](evidence/task-58/light-failure.jpg)、[保存](evidence/task-58/light-saved.jpg)、[取消后重开](evidence/task-58/light-cancel.jpg)、[滚动](evidence/task-58/light-scroll.jpg)、[移除](evidence/task-58/light-removed.jpg)、[重新添加](evidence/task-58/light-added.jpg)。
 
 差异审查限本任务的实现、必要接线、独立测试及上述证据。状态为 **已完成**，下一步批次 59。
+
+## 任务 59：桌面 OpenClaw 供应商编辑
+
+2026-11-07。核对批次 58 提交 `9e183e69d` 和正式验收。母任务 1、3 已完成，母任务 2 按底座子计划 1–93 的既有开工裁定执行。沿用任务 36 的增量事务和任务 52 的显式原生窗口入口。
+
+- 冻结来源 `ca58c0313360eae7c851fbd7553c1614c7af03e7`。核对 `OpenClawFormFields`、`ProviderForm` 的 OpenClaw 分支、`useOpenclawFormState` 的模型与 User-Agent 保存逻辑及相邻表单测试。桌面在既有弹窗编辑单个 `models.providers` 节点，提供模型配置、API 密钥保留/替换/清除和浏览器 User-Agent。官方授权和模型发现暂不可用。
+- `openclaw_form_{read,create,update}` 通过 SDK 调用 `POST /v1/app-providers/openclaw/{id}/form/read`、`POST /form` 与 `PATCH /form`。Gateway 按目标主机权限读写。执行端 `providers/openclaw_form.rs` 校验 JSON/JSONC，投影公开字段和公开修订，按模型 ID 恢复保留项。密钥和自定义请求头留在执行端。修改地址或协议时，执行端拒绝沿用受保护的值。托管或缺少节点的档案可编辑基础资料。
+- 新建可同时添加到原生配置，编辑可同步现有成员。供应商列表复用任务 36 SDK 增量添加与移除，保留目录行。SDK → 回环 HTTP → 真实 Gateway → 临时 SQLite/HOME 测试确认，仅更新点名成员，保留其它供应商、注释、工作区字段、密钥与自定义请求头。非法模型、过期公开修订和权限拒绝均保留数据库与文件前像。仅保存目录时不写原生文件。
+- 桌面聚焦用例使用假回环 HTTP 的 422 响应证明失败保留中文草稿，并验证上一代或其它执行主机的响应不会关闭正在保存的表单。
+
+### 红绿验证
+
+红绿验证动态领取槽位 **1**，`CARGO_TARGET_DIR=/Users/xiangmin/worker/code/shiju/target/rust-slot-1`。窗口阶段动态领取槽位 **2**，`CARGO_TARGET_DIR=/Users/xiangmin/worker/code/shiju/target/rust-slot-2`。两阶段的 `CARGO_BUILD_BUILD_DIR` 随各自槽位设置。进程退出后释放各自占用并保留缓存。
+
+| 阶段 | 确切命令 | 退出码 | 有效结果 |
+| --- | --- | --- | --- |
+| 红 | `cargo fmt --all` | 0 | 格式化 |
+| 红 | `cargo test -p vw-desktop --lib cc04_ui_openclaw_ -- --nocapture` | 101 | 2 项业务断言失败，草稿未发给 SDK，有效响应未结束保存 |
+| 绿 | `cargo fmt --all` | 0 | 格式化 |
+| 绿 | `cargo test -p vw-desktop --lib cc04_ui_openclaw_ -- --nocapture` | 0 | 2 passed |
+| 绿 | `cargo test -p vw-agent --lib gateway::api::handlers::app_providers::openclaw_tests:: -- --nocapture` | 0 | 5 passed，含本任务 2 项 |
+| 绿 | `cargo clippy --all-targets --all-features -- -D warnings` | 0 | 全 targets/features |
+| 窗口 | `SHIJU_CC04_WINDOW_CASE=openclaw SHIJU_CC04_WINDOW_THEME=dark cargo test -p vw-desktop --test cc04-provider-window` | 0 | 实际操作并关闭 |
+| 窗口 | `SHIJU_CC04_WINDOW_CASE=openclaw SHIJU_CC04_WINDOW_THEME=light cargo test -p vw-desktop --test cc04-provider-window` | 0 | 实际操作并关闭 |
+
+### macOS 原生窗口
+
+macOS **27.0 (26A428) / arm64**，桌面 **0.6.0**。临时 app bundle 通过实际 Iced 组件、Message 与 SDK 调用隔离回环 HTTP 夹具。窗口夹具返回脱敏表单和目录契约，真实 Gateway 权限、事务和落盘结果由上表集成测试验证。PATH 未找到 OpenClaw CLI，真实安装版本、账号和 CLI 消费配置未验证。
+
+两种主题均从列表打开已添加的中文档案，提交空模型 ID，确认服务拒绝且中文草稿仍显示。修正后保存并同步，输入新草稿后取消，再次打开确认仍显示已保存的模型。拖动长表单滚动条时标题和底部按钮固定，滚动条宽 4px，内容两侧各预留 7px。移除原生成员后档案仍在目录，重新添加后状态恢复。中文名称、备注和模型文本均实际绘制，窗口正常退出，无字形整形 panic。日志有既有链接提示、系统 sandbox extension 提示及深色窗口的一条 macOS 输入法端口提示。
+
+- 深色 [失败保留](evidence/task-59/dark-failure.png)、[保存](evidence/task-59/dark-saved.png)、[取消前](evidence/task-59/dark-cancel-draft.png)、[取消后重开](evidence/task-59/dark-cancel.png)、[滚动](evidence/task-59/dark-scroll.png)、[移除](evidence/task-59/dark-removed.png)、[重新添加](evidence/task-59/dark-added.png)。
+- 浅色 [失败保留](evidence/task-59/light-failure.png)、[保存](evidence/task-59/light-saved.png)、[取消前](evidence/task-59/light-cancel-draft.png)、[取消后重开](evidence/task-59/light-cancel.png)、[滚动](evidence/task-59/light-scroll.png)、[移除](evidence/task-59/light-removed.png)、[重新添加](evidence/task-59/light-added.png)。
+
+差异审查限本任务实现、独立测试、必要接线及证据。状态为 **已完成**，下一步批次 60。

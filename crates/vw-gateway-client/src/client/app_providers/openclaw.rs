@@ -48,6 +48,30 @@ impl GatewayClient {
     ) -> Result<OpenClawState, Error> {
         self.openclaw_request("config", "POST", "/state", body, token).await
     }
+    pub async fn openclaw_form_read(
+        &self,
+        id: &str,
+        body: &OpenClawTarget,
+        token: &str,
+    ) -> Result<OpenClawFormView, Error> {
+        self.openclaw_request(id, "POST", "/form/read", body, token).await
+    }
+    pub async fn openclaw_form_create(
+        &self,
+        id: &str,
+        body: &OpenClawFormWrite,
+        token: &str,
+    ) -> Result<OpenClawResult, Error> {
+        self.openclaw_request(id, "POST", "/form", body, token).await
+    }
+    pub async fn openclaw_form_update(
+        &self,
+        id: &str,
+        body: &OpenClawFormWrite,
+        token: &str,
+    ) -> Result<OpenClawResult, Error> {
+        self.openclaw_request(id, "PATCH", "/form", body, token).await
+    }
     async fn openclaw_request<B: serde::Serialize, R: serde::de::DeserializeOwned>(
         &self,
         id: &str,

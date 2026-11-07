@@ -95,6 +95,14 @@ pub(crate) fn overlay<'a>(
                 edit_action("删除", id, false, true, enabled),
             ]
             .spacing(8);
+            if scope.app == AppId::OpenClaw && entry.native_member != ProviderMembership::Unknown {
+                let add = entry.native_member == ProviderMembership::Absent;
+                actions = actions.push(action(
+                    if add { "添加到 OpenClaw" } else { "从 OpenClaw 移除" },
+                    ListMessage::OpenClawMember { id: id.clone(), add },
+                    enabled,
+                ));
+            }
             if scope.app == AppId::OpenCode && entry.native_member != ProviderMembership::Unknown {
                 let add = entry.native_member == ProviderMembership::Absent;
                 actions = actions.push(action(

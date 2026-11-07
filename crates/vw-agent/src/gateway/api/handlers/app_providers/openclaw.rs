@@ -1,7 +1,7 @@
 //! Authorized OpenClaw members, declared default models and read-only native import.
 use super::*;
 use axum::{
-    http::HeaderMap,
+    http::{HeaderMap, Method},
     routing::{post, put},
 };
 use std::path::PathBuf;
@@ -14,6 +14,8 @@ pub(super) fn router() -> Router {
 pub(super) fn router_with_policy(path: Option<PathBuf>) -> Router {
     Router::new()
         .route("/app-providers/openclaw/{id}/config", put(save))
+        .route("/app-providers/openclaw/{id}/form/read", post(read_form))
+        .route("/app-providers/openclaw/{id}/form", post(write_form).patch(write_form))
         .route("/app-providers/openclaw/{id}/add", post(add))
         .route("/app-providers/openclaw/{id}/remove-live", post(remove))
         .route("/app-providers/openclaw/config/default-model", put(model))
@@ -24,6 +26,8 @@ pub(super) fn router_with_policy(path: Option<PathBuf>) -> Router {
 }
 enum Operation {
     Save(OpenClawWrite),
+    ReadForm(OpenClawTarget),
+    WriteForm(OpenClawFormWrite, bool),
     Add(OpenClawTarget),
     Remove(OpenClawTarget),
     Model(OpenClawDefaultModel),
@@ -40,6 +44,29 @@ async fn save(
 ) -> Response {
     let Ok(Json(b)) = body else { return StatusCode::BAD_REQUEST.into_response() };
     run(p, t, db, h, id, Operation::Save(b)).await
+}
+async fn read_form(
+    Extension(p): Extension<Policy>,
+    Extension(t): Extension<TenantScope>,
+    db: Option<Extension<GlobalDatabase>>,
+    h: HeaderMap,
+    Path(id): Path<String>,
+    body: Result<Json<OpenClawTarget>, JsonRejection>,
+) -> Response {
+    let Ok(Json(b)) = body else { return StatusCode::BAD_REQUEST.into_response() };
+    run(p, t, db, h, id, Operation::ReadForm(b)).await
+}
+async fn write_form(
+    Extension(p): Extension<Policy>,
+    Extension(t): Extension<TenantScope>,
+    db: Option<Extension<GlobalDatabase>>,
+    h: HeaderMap,
+    Path(id): Path<String>,
+    method: Method,
+    body: Result<Json<OpenClawFormWrite>, JsonRejection>,
+) -> Response {
+    let Ok(Json(b)) = body else { return StatusCode::BAD_REQUEST.into_response() };
+    run(p, t, db, h, id, Operation::WriteForm(b, method == Method::POST)).await
 }
 async fn add(
     Extension(p): Extension<Policy>,
@@ -133,9 +160,12 @@ fn execute(
     };
     let host = match &op {
         Operation::Save(w) => &w.target_host_id,
-        Operation::Add(t) | Operation::Remove(t) | Operation::Import(t) | Operation::State(t) => {
-            &t.target_host_id
-        }
+        Operation::WriteForm(w, _) => &w.target_host_id,
+        Operation::Add(t)
+        | Operation::Remove(t)
+        | Operation::Import(t)
+        | Operation::State(t)
+        | Operation::ReadForm(t) => &t.target_host_id,
         Operation::Model(m) => &m.target_host_id,
     };
     let (home, root) = super::super::agent_apps::provider_editor_context(
@@ -143,7 +173,7 @@ fn execute(
         &headers,
         &tenant,
         host,
-        !matches!(op, Operation::State(_)),
+        !matches!(op, Operation::State(_) | Operation::ReadForm(_)),
     )?;
     if matches!(op, Operation::State(_)) {
         return encode(
@@ -164,7 +194,7 @@ fn execute(
         for (id, profile) in rows {
             if store.openclaw_record(&tenant, &id).map_err(|_| StatusCode::CONFLICT)?.is_none() {
                 store
-                    .openclaw_save(&tenant, &id, &profile, None)
+                    .openclaw_save(&tenant, &id, &profile, None, None)
                     .map_err(|_| StatusCode::CONFLICT)?;
                 imported += 1;
             }
@@ -177,16 +207,44 @@ fn execute(
     }
     vw_agent_apps::providers::validate_identity(&id).map_err(|_| StatusCode::BAD_REQUEST)?;
     let before = store.openclaw_record(&tenant, &id).map_err(|_| StatusCode::CONFLICT)?;
-    if before.as_ref().is_some_and(|v| {
-        v.pointer("/meta/authBinding").is_some()
-            || v.pointer("/meta/liveConfigManaged").is_some_and(|v| v == true)
-    }) {
+    if matches!(op, Operation::ReadForm(_)) {
+        let row = before.as_ref().ok_or(StatusCode::NOT_FOUND)?;
+        return encode(&form::view(row).map_err(|_| StatusCode::UNPROCESSABLE_ENTITY)?);
+    }
+    if before.as_ref().is_some_and(form::managed) {
         return Err(StatusCode::UNPROCESSABLE_ENTITY);
     }
+    let mut metadata = None;
+    let mut activation = None;
     let profile = match &op {
         Operation::Save(w) => {
             validate(&w.profile).map_err(|_| StatusCode::UNPROCESSABLE_ENTITY)?;
+            activation = Some(w.activation);
             Some(w.profile.clone())
+        }
+        Operation::WriteForm(w, create) => {
+            match (*create, before.is_some()) {
+                (true, true) => return Err(StatusCode::CONFLICT),
+                (false, false) => return Err(StatusCode::NOT_FOUND),
+                _ => {}
+            }
+            if matches!(
+                (*create, w.activation),
+                (true, OpenClawActivation::IfMember) | (false, OpenClawActivation::Add)
+            ) || (*create && w.revision.is_some())
+            {
+                return Err(StatusCode::BAD_REQUEST);
+            }
+            let (profile, fields) = form::prepare(w, before.as_ref()).map_err(|error| {
+                if matches!(error, WriteError::Conflict) {
+                    StatusCode::CONFLICT
+                } else {
+                    StatusCode::UNPROCESSABLE_ENTITY
+                }
+            })?;
+            activation = Some(w.activation);
+            metadata = Some(fields);
+            Some(profile)
         }
         Operation::Add(_) => Some(
             serde_json::from_value(
@@ -200,9 +258,8 @@ fn execute(
         ),
         _ => None,
     };
-    let writing = matches!(op, Operation::Save(_));
-    let catalog_only =
-        matches!(&op,Operation::Save(w) if w.activation==OpenClawActivation::CatalogOnly);
+    let writing = activation.is_some();
+    let catalog_only = activation == Some(OpenClawActivation::CatalogOnly);
     let mut live = None;
     if !catalog_only {
         let mut files = OpenClawFiles::open(&home).map_err(|_| StatusCode::CONFLICT)?;
@@ -225,7 +282,10 @@ fn execute(
             return Err(StatusCode::CONFLICT);
         }
         let (name, pre) = files.snapshot().map_err(|_| StatusCode::CONFLICT)?;
-        let eligible = !matches!(&op,Operation::Save(w) if w.activation==OpenClawActivation::IfMember && !declarations(pre.as_deref()).map_err(|_|StatusCode::UNPROCESSABLE_ENTITY)?.contains_key(&id));
+        let eligible = activation != Some(OpenClawActivation::IfMember)
+            || declarations(pre.as_deref())
+                .map_err(|_| StatusCode::UNPROCESSABLE_ENTITY)?
+                .contains_key(&id);
         if eligible {
             let model = match &op {
                 Operation::Model(m) => Some(m.model.as_str()),
@@ -244,6 +304,7 @@ fn execute(
                     &id,
                     profile.as_ref().ok_or(StatusCode::BAD_REQUEST)?,
                     before.as_ref(),
+                    metadata,
                 )
                 .map_err(|_| StatusCode::CONFLICT)?,
         )

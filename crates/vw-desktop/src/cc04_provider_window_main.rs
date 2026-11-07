@@ -17,6 +17,7 @@ fn main() {
         "gemini" => (AppId::Gemini, true),
         "grok" => (AppId::GrokBuild, true),
         "opencode" => (AppId::OpenCode, true),
+        "openclaw" => (AppId::OpenClaw, true),
         _ => panic!("unknown window case"),
     };
     let edit = case == "edit";
@@ -59,6 +60,7 @@ fn main() {
         "gemini" => "Gemini CLI 供应商隔离验收",
         "grok" => "Grok Build 供应商隔离验收",
         "opencode" => "OpenCode 供应商隔离验收",
+        "openclaw" => "OpenClaw 供应商隔离验收",
         "claude" => "Claude Code 供应商隔离验收",
         _ => "供应商基础编辑隔离验收",
     })
@@ -106,6 +108,7 @@ fn fixture(
             AppId::Gemini => "gemini",
             AppId::GrokBuild => "grokbuild",
             AppId::OpenCode => "opencode",
+            AppId::OpenClaw => "openclaw",
             _ => panic!("unknown fixture app"),
         };
         let prefix = format!("/v1/app-providers/{app}/");
@@ -138,7 +141,8 @@ fn fixture(
                 "inactive":[["config","legacy","中文旧字段"],["config","ui","theme"]],
             }));
         }
-        let mut opencode_configs = std::collections::BTreeMap::from([(
+        let incremental = matches!(app, "opencode" | "openclaw");
+        let mut node_configs = std::collections::BTreeMap::from([(
             "provider-0".to_owned(),
             serde_json::json!({
                 "format": "v1",
@@ -152,7 +156,20 @@ fn fixture(
                 "revision": "fixture-1"
             }),
         )]);
-        let mut opencode_members = std::collections::BTreeSet::from(["provider-0".to_owned()]);
+        if app == "openclaw" {
+            node_configs.insert("provider-0".into(), serde_json::json!({
+                "declaration": serde_json::to_string_pretty(&serde_json::json!({
+                    "baseUrl":"https://fixture-api.example.test/v1",
+                    "api":"openai-completions",
+                    "models":[{"id":"fixture-model", "name":"中文动态模型", "contextWindow":8192,
+                        "input":["text","image"], "maxTokens":1024, "reasoning":false}]
+                })).unwrap(),
+                "hasSavedKey": true,
+                "userAgent": true,
+                "revision": "fixture-1"
+            }));
+        }
+        let mut node_members = std::collections::BTreeSet::from(["provider-0".to_owned()]);
         while !done.load(std::sync::atomic::Ordering::Relaxed) {
             let (mut stream, _) = match listener.accept() {
                 Ok(v) => v,
@@ -186,7 +203,7 @@ fn fixture(
             let mut status = "200 OK";
             let path = line.split_whitespace().nth(1).unwrap_or("");
             let id = path.strip_prefix(&prefix).and_then(|v| v.split('/').next()).unwrap_or("");
-            let body = if app == "opencode"
+            let body = if incremental
                 && (path.ends_with("/form/read")
                     || path.ends_with("/form")
                     || path.ends_with("/add")
@@ -197,14 +214,14 @@ fn fixture(
                 assert_eq!(value["targetHostId"], "fixture-host");
                 if path.ends_with("/form/read") {
                     assert!(line.starts_with("POST "));
-                    serde_json::json!({"fields":basics[id],"config":opencode_configs.get(id)})
+                    serde_json::json!({"fields":basics[id],"config":node_configs.get(id)})
                 } else if path.ends_with("/add") || path.ends_with("/remove-live") {
                     assert!(line.starts_with("POST "));
                     if path.ends_with("/remove-live") {
-                        opencode_members.remove(id);
+                        node_members.remove(id);
                         serde_json::json!({"catalogSaved":false,"live":"applied"})
-                    } else if opencode_configs.contains_key(id) {
-                        opencode_members.insert(id.into());
+                    } else if node_configs.contains_key(id) {
+                        node_members.insert(id.into());
                         serde_json::json!({"catalogSaved":false,"live":"applied"})
                     } else {
                         status = "404 Not Found";
@@ -217,18 +234,23 @@ fn fixture(
                         .ok()
                         .and_then(|node| node.get("models").cloned())
                         .is_some_and(|models| {
-                            models.is_object()
-                                && models
-                                    .as_object()
-                                    .unwrap()
-                                    .values()
-                                    .all(serde_json::Value::is_object)
+                            if app == "openclaw" {
+                                models.as_array().is_some_and(|models| {
+                                    models.iter().all(|model| {
+                                        model["id"].as_str().is_some_and(|id| !id.trim().is_empty())
+                                    })
+                                })
+                            } else {
+                                models.as_object().is_some_and(|models| {
+                                    models.values().all(serde_json::Value::is_object)
+                                })
+                            }
                         })
                     {
                         status = "422 Unprocessable Entity";
                         serde_json::Value::Null
                     } else {
-                        let prior = opencode_configs.get(id);
+                        let prior = node_configs.get(id);
                         if line.starts_with("PATCH ") {
                             assert_eq!(value["revision"], prior.unwrap()["revision"]);
                         }
@@ -239,19 +261,20 @@ fn fixture(
                         };
                         let live = match value["activation"].as_str() {
                             Some("add") => {
-                                opencode_members.insert(id.into());
+                                node_members.insert(id.into());
                                 "applied"
                             }
-                            Some("if_member") if opencode_members.contains(id) => "applied",
+                            Some("if_member") if node_members.contains(id) => "applied",
                             _ => "not_attempted",
                         };
-                        opencode_configs.insert(
-                            id.into(),
-                            serde_json::json!({
-                                "format":value["format"], "declaration":declaration,
-                                "hasSavedKey":has_saved_key,"revision":"fixture-saved",
-                            }),
-                        );
+                        let mut config = serde_json::json!({
+                            "declaration": declaration,
+                            "hasSavedKey": has_saved_key,
+                            "revision": "fixture-saved"
+                        });
+                        let field = if app == "openclaw" { "userAgent" } else { "format" };
+                        config[field] = value[field].clone();
+                        node_configs.insert(id.into(), config);
                         basics.insert(id.into(), value["fields"].take());
                         serde_json::json!({"catalogSaved":true,"live":live})
                     }
@@ -351,14 +374,14 @@ fn fixture(
                 && path.starts_with(&format!("{prefix}catalog/state?"))
             {
                 assert!(head.to_lowercase().contains("x-agent-apps-token: fake-host-token"));
-                let selection = if app == "opencode" {
+                let selection = if incremental {
                     serde_json::json!({"status":"not_applicable"})
                 } else {
                     serde_json::json!({"status":"selected","id":"provider-0"})
                 };
                 serde_json::json!({"appId":app,"rows":basics.iter().map(|(id, fields)|serde_json::json!({
                     "provider":{"id":id,"appId":app,"name":fields["name"],"configured":true},
-                    "nativeMember":if (app == "opencode" && opencode_members.contains(id)) || (app != "opencode" && id=="provider-0") {"present"}else{"absent"}
+                    "nativeMember":if (incremental && node_members.contains(id)) || (!incremental && id=="provider-0") {"present"}else{"absent"}
                 })).collect::<Vec<_>>(),"direct":selection,"inUse":selection,"nativeRead":null})
             } else if line.starts_with("GET ") && path == format!("{prefix}presentation/entries") {
                 serde_json::json!([{"id":"provider-0","presentation":presentation}])

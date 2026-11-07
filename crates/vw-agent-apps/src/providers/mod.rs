@@ -216,3 +216,8 @@ mod import_tests;
 pub mod mode_state;
 #[cfg(all(test, target_os = "macos"))]
 mod mode_state_tests;
+
+#[cfg(target_os = "macos")]
+pub mod mode_apply;
+#[cfg(all(test, target_os = "macos"))]
+mod mode_apply_tests;

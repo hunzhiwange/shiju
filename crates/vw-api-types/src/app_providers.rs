@@ -180,3 +180,7 @@ mod import_tests;
 pub mod mode_state;
 #[cfg(test)]
 mod mode_state_tests;
+
+pub mod mode_apply;
+#[cfg(test)]
+mod mode_apply_tests;

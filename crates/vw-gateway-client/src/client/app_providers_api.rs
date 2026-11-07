@@ -243,3 +243,9 @@ mod mode_state;
 #[cfg(test)]
 #[path = "app_providers/mode_state_tests.rs"]
 mod mode_state_tests;
+
+#[path = "app_providers/mode_apply.rs"]
+mod mode_apply;
+#[cfg(test)]
+#[path = "app_providers/mode_apply_tests.rs"]
+mod mode_apply_tests;

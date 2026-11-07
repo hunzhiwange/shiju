@@ -2163,3 +2163,54 @@ Gateway 测试有此前任务已记录的 `__eh_frame section too large` 链接�
 Iced UI、真实客户端应用版本/消费、代理运行与 live 文件免重写未验证，明确归 46 或所属 UI 任务。46 应直接消费本契约算法和 ProviderTransactions/PendingTarget.stack，沿明确外部服务边界验证真实可用依赖，再取得模式切换及 live 免重写证据；不得以此次决策断言代替。
 
 定向差异/暂存审查和 plan.md 只读检查通过；仅提交本任务实现、独立测试、必要默认字段/注册和本条证据。排除既有母任务状态、其它计划、此前编号文件删除及 cargo fmt 产生的 Dsh 纯格式差异。未执行全量 cargo test、fmt check、wasm 或 Makefile。验收后删除本编号任务文件，不提交该删除；下一步批次 46。
+
+## 任务 46：模式切换的配置事务
+
+2026-11-07；验收边界为 **Claude 配置事务与显式路由服务接入点**，不代表生产代理协议或其它应用模式迁移。批次 45 提交 `3d407fc05` 与正式验收已核对；母任务 1、3 完成，母任务 2 依 provider-contracts.md 既有底座开工裁定消费真实交付。最初缺少显式服务契约的阻塞，由继续指令明确授权在本任务定义最小契约/执行端注入入口而解除；未修改任何 plan.md。
+
+### 来源、接口与实现
+
+只读来源 `/Users/xiangmin/worker/code/cc-switch` HEAD 为 `ca58c0313360eae7c851fbd7553c1614c7af03e7`，rev-parse/status 均退出 0，来源干净。读取 `mode/controller.rs::{write_proxy,enter_locked,switch_route_locked,exit_locked,write_direct_for_exit}`、直接调用者及相邻相同契约免重写/独有字段测试，`mode/operation.rs::{run,recover}` 及相邻发布/外部修改测试，`live/residue.rs` 与相邻测试；继续后对照只读母任务 8、底座《后端边界》《存储与生命周期》及来源 `live/project/claude.rs::proxy_projection`。RustCodeGraph status/explore 成功，未覆盖的新原生模块使用定向读取；未运行或修改来源包。
+
+- 唯一文件/状态所有者仍为 `ProviderTransactions`；`providers/mode_apply.rs::ClaudeMode::apply` 在既有 Claude 固定路径守卫下先提交客户端配置及持久模式/路由，再调用运行时 `publish`。保留直连指针及 stack；Detach 保留逻辑 Proxy/路由，attached=false；Direct 退出保留上次路由。计算最终代理地址、占位凭据、模型与独有字段之后，消费任务 45 的版本 2 客户端契约及 `rewrite_decision`。契约相同的换路由只提交目标，不写客户端文件。
+- `RouteRuntime` 为母任务 8 后续运行时的唯一接入接口，只表达 read-only prepare（受信本地客户端地址/当前作用域就绪）与幂等 publish（目标供应商或移除）。`ClientEndpoint` 拒绝远程地址、用户凭据、query/fragment、隐式端口；按解析后的 URL 规范化。继承冻结来源 `PROXY_MANAGED` 占位值，不把档案中的上游密钥写到代理客户端配置。Gateway 通过 `ProviderRouteRuntime(Arc<dyn RouteRuntime>)` Extension 注入，先只读探测，再在应用锁下复核；发布始终持有应用守卫。没有空实现、后台监听器、环境地址回退、协议引擎或第二套持久存储。生产装配未注入运行时，Proxy 在原生/状态目录创建前返回 503；没有将已有 model_relay 误作长期路由。
+- 客户端落盘与外部运行时发布不是跨进程原子事务。发布失败返回 `targetPublication=pending`，明确配置已经提交；重复同一操作根据持久目标重新计算契约、跳过文件并重试幂等发布。文件发布中断沿已有 pending 前滚；首次恢复请求返回 409 要求重读，再次请求发布目标。不会以运行时失败回滚已提交文件，也没有承诺自动启动生产服务或后台重试。
+- 退出清理复用底层 Claude patch/投影，按持久 contract.exclusive 的已写值精确匹配才删除。新增内部显式 legacy-residue 策略，仅模式事务关闭旧预设猜测清理，既有预览/普通直连维持原行为；外部改成另一冻结预设值也保留。模式操作通过登录所有者提供的 journal 查询拒绝未完成登录，不执行 Keychain/账号迁移。目录行及直连行前像、模式状态在应用守卫与事务发布前复核；外属 state/pending 不恢复、不发布。
+- DTO 位于 `vw-api-types/src/app_providers/mode_apply.rs`；`POST /v1/app-providers/{app}/mode/apply` 接受 targetHostId 和明确的 proxy/direct/detach action，SDK 为 `provider_mode_apply`。沿既有分域根注册，供两类 Gateway 根装配复用，不新开通用命令入口。未知字段拒绝，不能提交 path/settings/contract/runtime/tenant/stack。授权沿管理员 host-config write 与租户作用域，在存储/文件动作前完成；400 非法身份、401 错 token、403 无写授权/外属状态、409 并发/已恢复、422 不支持、503 运行时/存储不可用。SDK 凭据 header 标记敏感，错误响应载荷丢弃。
+- 本行为沿已交付 Claude 适配接通，不顺带迁移其它应用。其它 AppId、enabled stack、官方/托管登录路径明确拒绝，Claude 进入要求已有可恢复的第三方直连行；原生账号、聚合目录与完整别名/模型发布仍归其唯一领域所有者。未增加 UI，当前供应商编辑/首次激活不被该接口旁路或宣称成功。读取模式的 runtime 观察仍按已有生产未装配事实返回 Unavailable；本次 HTTP fixture 的可用性由 apply 的 Published 和真实请求证明，不外推生产运行状态。
+
+### 红绿与验证
+
+红阶段原子 mkdir 动态领取槽位 **1**，`CARGO_TARGET_DIR=/Users/xiangmin/worker/code/shiju/target/rust-slot-1`，`CARGO_BUILD_BUILD_DIR` 同值。先 `cargo fmt --all`（退出 0），再运行四条指定默认 features 过滤命令：业务包的两条指定测试在业务断言失败（未附着/未清理已写值），**0 passed / 2 failed，退出 101**；DTO **1 passed，退出 0**；Gateway 未装配拒绝路径 **1 passed，退出 0**；SDK **1 passed，退出 0**。接线编译成功，没有以缺类型、缺模块或零测试代替红证据。
+
+首绿动态槽位 **1**，相同绝对目录和 build-dir，格式化、四条过滤命令和强制 Clippy 均退出 0，分别 5/1/3/1 项。本轮末审补充未完成登录、写权限、外属状态及非法输入拒绝，并改进创建文件前的只读前置检查。
+
+最终验证动态槽位 **2**，`CARGO_TARGET_DIR=/Users/xiangmin/worker/code/shiju/target/rust-slot-2`，`CARGO_BUILD_BUILD_DIR` 同值；以下命令均继承该绝对路径，没有使用 --target-dir 或新建专属构建目录：
+
+| 确切命令 | 退出码 | 有效数量 |
+| --- | --- | --- |
+| `cargo fmt --all` | 0 | 格式化 |
+| `cargo test -p vw-agent-apps --lib cc04_mode_apply_ -- --nocapture` | 0 | 6 passed |
+| `cargo test -p vw-api-types --lib cc04_mode_apply_ -- --nocapture` | 0 | 1 passed |
+| `cargo test -p vw-agent --lib cc04_mode_apply_ -- --nocapture` | 0 | 4 passed |
+| `cargo test -p vw-gateway-client --lib cc04_mode_apply_ -- --nocapture` | 0 | 1 passed |
+| `cargo test -p vw-agent-apps --lib cc04_mode_state_ -- --nocapture` | 0 | 9 passed |
+| `cargo test -p vw-agent-apps --lib cc04_commit_ -- --nocapture` | 0 | 6 passed |
+| `cargo test -p vw-agent-apps --lib cc04_recovery_ -- --nocapture` | 0 | 8 passed |
+| `cargo test -p vw-agent-apps --lib cc04_claude_ -- --nocapture` | 0 | 26 passed |
+| `cargo test -p vw-agent-apps --lib cc04_preview_claude_ -- --nocapture` | 0 | 1 passed |
+| `cargo clippy --all-targets --all-features -- -D warnings` | 0 | 全仓全部 targets/features |
+
+本任务 **12** 项及相邻回归 **50** 项，去重 **62** 项通过，无忽略。两条指定测试全部通过。未运行无过滤全量 cargo test、fmt check、wasm 或 Makefile。各阶段记录计划/任务/会话/PID，自身占用锁在子进程结束后清理，编译缓存保留。
+
+### SDK→API→执行端文件与 macOS 证据
+
+Gateway 测试使用真实回环 HTTP、正式 SDK、真实权限 policy/租户中间件、SQLite 与隔离 HOME/private 根。只替代母任务 8 尚未交付的不可控路由服务边界：测试服务真实接收并校验作用域、readiness/target 控制请求；在接受 publish 前独立读取实际 `.claude/settings.json`、持久 ModeState、直连指针/pending 完成状态；实际服务状态按请求记录 active target。随后按 SDK 写出的客户端地址和占位鉴权发送 `POST /v1/messages`，校验 model/max_tokens/messages 并返回固定 Anthropic message 形状（content 文本、stop_reason、usage），调用方断言实际响应 `pong`。这不是空实现、布尔假运行状态或调用次数验证，也不是生产协议转换/流式验收。
+
+SDK Proxy → API Published → 客户端本机地址/占位凭据；换到相同契约的另一目录行 → active target 改变，文件字节、inode、mtime 均不变，直连指针保持原行。外部更改独有值/未知设置 → SDK Detach → 写回直连地址、只删除与已写值相同的字段、保留外部值（包括另一旧窗口预设）、Proxy/route 保留且 attached=false；SDK Direct → 持久 mode=Direct。真实 HTTP publish 503 → API Pending 且配置已提交；重试 → Published，原生文件不重写。错误 token、无写权限、非法身份、其它应用、外属状态、未注入/未就绪服务均拒绝，相关断言检查无文件/状态/目标发布副作用。执行端独立测试还覆盖校验失败无写入、发布后注入故障的前滚恢复与外部更改保留、未完成登录 journal 拒绝。
+
+全部凭据为假值。业务包独立测试以受控 RouteRuntime 实现隔离运行时调用边界；真实 HTTP 与 Messages 证据在 Gateway 集成测试取得，没有替代权限、存储、事务或文件系统。
+
+实际平台 macOS **27.0（26A428）/ arm64**，workspace crate **0.6.0**。真实 Claude 应用版本/消费、真实账号或 Keychain、生产代理协议引擎、流式/多模态转换、Iced 渲染及非 macOS 均 **未验证**。没有读取或修改真实用户配置。后续应由母任务 8 将真实服务注入上述唯一接入点，按各自领域验收扩展应用投影/聚合/原生登录；不得将本记录扩写为全应用或生产代理通过。
+
+状态：**已完成（Claude 配置事务与显式服务边界）**。仅提交本任务实现、独立测试、必要父注册/底层策略及本条正式证据；排除既有母任务状态、此前编号文件删除、终端体验变更及 cargo fmt 产生的 Dsh 纯格式差异。所有 plan.md 保持只读；本编号任务验收后删除，不提交该删除。

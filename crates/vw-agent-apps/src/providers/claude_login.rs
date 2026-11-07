@@ -27,6 +27,12 @@ const ACCOUNT_CACHE_KEYS: &[&str] = &[
     "penguinModeOrgEnabled",
 ];
 const JOURNAL: &str = ".shiju-login.json";
+/// Configuration-only operations must not bypass the login owner's unfinished journal.
+pub(crate) fn configuration_has_pending_login(
+    guard: &super::live::write_guard::AppWriteGuard,
+) -> Result<bool, WriteError> {
+    Ok(guard.read(std::ffi::OsStr::new(JOURNAL))?.is_some())
+}
 const ACCOUNT_KEYS: &[&str] = &[
     "claudeAiOauth",
     "organizationUuid",

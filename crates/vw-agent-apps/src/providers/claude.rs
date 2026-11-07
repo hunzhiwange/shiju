@@ -82,11 +82,20 @@ pub fn patch(
     previous: Option<&Value>,
     target: &Value,
 ) -> Result<Vec<u8>, WriteError> {
+    patch_with_residue(pre, previous, target, true)
+}
+pub(crate) fn patch_with_residue(
+    pre: Option<&[u8]>,
+    previous: Option<&Value>,
+    target: &Value,
+    clean_legacy: bool,
+) -> Result<Vec<u8>, WriteError> {
     let live = super::live::patch_json::object_value(pre.unwrap_or(b"{}"))
         .map_err(|_| WriteError::InvalidResource)?;
-    let projected = super::projection::claude(live.clone(), target, previous, None)
-        .map_err(|_| WriteError::InvalidResource)?
-        .settings;
+    let projected =
+        super::projection::claude_with_residue(live.clone(), target, previous, None, clean_legacy)
+            .map_err(|_| WriteError::InvalidResource)?
+            .settings;
     let mut patch = JsonPatch::default();
     let before = live.as_object().ok_or(WriteError::InvalidResource)?;
     let after = projected.as_object().ok_or(WriteError::InvalidResource)?;
@@ -179,8 +188,8 @@ pub fn import(name: &str, bytes: &[u8]) -> Result<ClaudeProfile, WriteError> {
 
 #[cfg(target_os = "macos")]
 pub struct ClaudeFile {
-    guard: super::live::write_guard::AppWriteGuard,
-    name: &'static str,
+    pub(crate) guard: super::live::write_guard::AppWriteGuard,
+    pub(crate) name: &'static str,
     pub bytes: Option<Vec<u8>>,
 }
 #[cfg(target_os = "macos")]

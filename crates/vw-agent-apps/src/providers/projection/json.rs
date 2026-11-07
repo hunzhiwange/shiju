@@ -14,6 +14,17 @@ pub fn claude(
     previous: Option<&Value>,
     exclusive: Option<&Map<String, Value>>,
 ) -> Result<Projected, Error> {
+    claude_with_residue(live, row, previous, exclusive, true)
+}
+/// Mode exits have a durable value owner; legacy residue guesses must not erase
+/// a different externally edited value, even if it matches an old preset.
+pub(crate) fn claude_with_residue(
+    live: Value,
+    row: &Value,
+    previous: Option<&Value>,
+    exclusive: Option<&Map<String, Value>>,
+    clean_legacy: bool,
+) -> Result<Projected, Error> {
     for path in ["/apiBaseUrl", "/env/ANTHROPIC_BASE_URL"] {
         if let Some(url) = row.pointer(path) {
             crate::providers::validation::endpoint(url.as_str().ok_or(Error::Shape)?)
@@ -44,9 +55,11 @@ pub fn claude(
         ("CLAUDE_CODE_AUTO_COMPACT_WINDOW", &["262144", "372000", "1000000"][..]),
         ("CLAUDE_CODE_MAX_OUTPUT_TOKENS", &["131072"][..]),
     ] {
-        if out.get(k).is_some_and(|v| {
-            values.iter().any(|s| v == *s || v.as_u64().is_some_and(|n| n.to_string() == *s))
-        }) {
+        if clean_legacy
+            && out.get(k).is_some_and(|v| {
+                values.iter().any(|s| v == *s || v.as_u64().is_some_and(|n| n.to_string() == *s))
+            })
+        {
             out.remove(k);
         }
     }

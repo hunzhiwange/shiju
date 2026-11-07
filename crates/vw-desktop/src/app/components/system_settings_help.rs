@@ -9,8 +9,7 @@ use crate::app::components::system_settings_common::{
 };
 use crate::app::message::settings::SettingsMessage;
 use crate::app::{App, Message};
-use iced::widget::{container, row, text};
-use iced::{Alignment, Element, Length};
+use iced::Element;
 
 const GENERAL_HELP: &str = r#"常规设置说明
 
@@ -344,37 +343,16 @@ pub fn help_open_for_tab(open_tab: Option<SystemTab>, active_tab: SystemTab) -> 
     open_tab == Some(active_tab) && help_content(active_tab).is_some()
 }
 
-/// 构建或处理 `help_button_bar` 对应的界面片段与交互数据。
-///
-/// # 参数
-///
-/// 参数来自调用方持有的应用状态、配置快照或控件输入，用于保持渲染结果与当前状态同步。
-///
-/// # 返回值
-///
-/// 返回可交给 Iced 渲染树使用的 `Element`，其中已绑定必要的消息回调。
-///
-/// # 错误处理
-///
-/// 本函数不直接返回错误；无法交互或缺省状态会在控件状态中显式表达。
-pub fn help_button_bar(
+/// 为有通用帮助内容的页面提供标题栏入口。
+pub(super) fn help_button(
     locale: vw_config_types::ui::DesktopLocale,
     tab: SystemTab,
 ) -> Option<Element<'static, Message>> {
     help_content(tab)?;
-
-    Some(
-        row![
-            container(text(" ")).width(Length::Fill),
-            settings_help_button_with_locale(
-                locale,
-                Message::Settings(SettingsMessage::SystemHelpOpen(tab))
-            ),
-        ]
-        .spacing(8)
-        .align_y(Alignment::Center)
-        .into(),
-    )
+    Some(settings_help_button_with_locale(
+        locale,
+        Message::Settings(SettingsMessage::SystemHelpOpen(tab)),
+    ))
 }
 
 /// 构建或处理 `with_help_modal` 对应的界面片段与交互数据。

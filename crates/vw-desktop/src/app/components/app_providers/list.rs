@@ -23,6 +23,27 @@ fn action(label: &str, event: ListMessage, enabled: bool) -> Element<'_, Message
         .on_press_maybe(enabled.then_some(message(event)))
         .into()
 }
+fn edit_action<'a>(
+    label: &'a str,
+    id: &str,
+    copy: bool,
+    delete: bool,
+    enabled: bool,
+) -> Element<'a, Message> {
+    button(text(label))
+        .padding([8, 10])
+        .style(rounded_action_btn_style)
+        .on_press_maybe(enabled.then(|| {
+            super::super::super::message::app_providers::edit::message(
+                super::super::super::message::app_providers::edit::EditMessage::Open {
+                    id: id.into(),
+                    copy,
+                    delete,
+                },
+            )
+        }))
+        .into()
+}
 pub(crate) fn overlay<'a>(
     state: &'a ListState,
     base: Element<'a, Message>,
@@ -86,11 +107,35 @@ pub(crate) fn overlay<'a>(
                         action(
                             "排序与备注",
                             ListMessage::Edit(entry.provider.id.clone()),
-                            state.editor.is_none() && !state.loading
+                            state.editor.is_none() && state.form.is_none() && !state.loading
                         )
                     ]
                     .spacing(12),
-                    text(p.notes.unwrap_or_default())
+                    text(p.notes.unwrap_or_default()),
+                    row![
+                        edit_action(
+                            "编辑",
+                            &entry.provider.id,
+                            false,
+                            false,
+                            state.form.is_none() && state.editor.is_none() && !state.loading
+                        ),
+                        edit_action(
+                            "复制",
+                            &entry.provider.id,
+                            true,
+                            false,
+                            state.form.is_none() && state.editor.is_none() && !state.loading
+                        ),
+                        edit_action(
+                            "删除",
+                            &entry.provider.id,
+                            false,
+                            true,
+                            state.form.is_none() && state.editor.is_none() && !state.loading
+                        )
+                    ]
+                    .spacing(8)
                 ]
                 .spacing(8),
             ));
@@ -110,7 +155,20 @@ pub(crate) fn overlay<'a>(
             .spacing(12),
             content,
             row![
-                action("刷新", ListMessage::Refresh, !state.loading && state.editor.is_none()),
+                button(text("新增"))
+                    .padding([8, 14])
+                    .style(rounded_action_btn_style)
+                    .on_press_maybe(
+                        (!state.loading && state.form.is_none() && state.editor.is_none())
+                            .then_some(crate::app::message::app_providers::edit::message(
+                                crate::app::message::app_providers::edit::EditMessage::Create
+                            ))
+                    ),
+                action(
+                    "刷新",
+                    ListMessage::Refresh,
+                    !state.loading && state.editor.is_none() && state.form.is_none()
+                ),
                 action("关闭", ListMessage::Close, true)
             ]
             .spacing(10)
@@ -120,6 +178,9 @@ pub(crate) fn overlay<'a>(
     .width(Length::Fixed(800.))
     .height(Length::Fixed(650.));
     let list = settings_modal_overlay(Some(base), message(ListMessage::Close), card);
+    if let Some(form) = &state.form {
+        return super::edit::overlay(form, list);
+    }
     let Some(form) = &state.editor else {
         return list;
     };

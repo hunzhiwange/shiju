@@ -2454,3 +2454,56 @@ macOS 27.0（26A428）/arm64，workspace 0.6.0；显式 `cc04-provider-window`�
 最终重跑阶段仍动态领取槽位1，两个Cargo目录均指向 `/Users/xiangmin/worker/code/shiju/target/rust-slot-1`；格式化、4项桌面聚焦测试及全targets/features Clippy均退出0。定向暂存审查排除既有Dsh格式差异、母任务状态、其他编号任务删除及其它计划；截图约1.6MB仅含隔离假数据。自身槽位锁在各阶段结束后清理，缓存保留。
 
 状态：**已完成（桌面列表、展示排序与过期响应隔离）**。真实窗口验收使用上述同产物临时bundle回退，Cargo原始窗口命令的101保留如实记录，不冒称其退出0。下一步批次53；任务52编号文件验收后删除且不提交该删除。
+
+## 任务 53：桌面供应商增删改复制
+
+2026-11-07。批次 52 提交 `d59bfc858` 及正式证据已核对；母任务 1、3 已完成，母任务 2 沿 provider-contracts.md 既有底座子计划 1–93 开工裁定消费实际接口，不冒称整体完成。继续指令明确交付统一基础壳与完整应用草稿的组合，解除最初“基础字段不足以构造应用配置”的阻塞；没有引入未配置档案生命周期或默认模型/地址/官方模式。所有 plan.md 只读。
+
+### 来源与实现边界
+
+只读来源 HEAD `ca58c0313360eae7c851fbd7553c1614c7af03e7`，status 干净。已读 AddProviderDialog::handleSubmit、EditProviderDialog::handleSubmit、BasicFormFields、App.tsx 直接调用者及三个相邻组件测试；来源的 websiteUrl 是展示网址，settingsConfig 来自专属表单，不能当作 baseUrl。RustCodeGraph status/explore 已执行，图未返回目标片段后按技能回退定向搜索；修改前已读 system_settings_common 与 custom_model_modal。
+
+- `vw-desktop/src/app/{components,state,message}/app_providers/edit.rs` 与直接父注册、SettingsMessage、既有 list 入口构成同一弹窗壳。列表提供新增、编辑、复制、删除；取消不保存，失败保留表单/目标，只有成功刷新目录。请求和返回均校验原 scope、generation 与当前 Gateway/租户/项目/主机，迟到响应不修改新上下文。删除复用正式 SDK 与既有授权主机引用检查，不自造删除所有者。
+- 应用表单通过当前 scope 的 `ListState.new_draft` 提供现有强类型 AppProviderCreate 草稿；切换 scope 清除该上下文。没有草稿、缺少 model/baseUrl 或请求 live 激活时禁用新增保存并显示待补配置说明。此次真实调用者为隔离完整假配置 fixture；生产专属表单由 54–67 接到同一壳，后续按实际原生 DTO/应用适配扩充桥接。不能把本次通用 DTO 夹具当作 14 应用全部配置变体的新增/复制/密钥编辑验收。
+- 编辑只从服务端获取 `ProviderBasic`（name/category/notes/websiteUrl），不读取原始配置或密钥；Keep/Replace/Clear 明确表达。替换输入使用 secure 输入框，空值与脱敏标记禁用提交；新建草稿中夹带的凭据被改为 Keep，唯一新密钥来自本次明确输入。请求 Debug 隐藏密钥。原生专属凭据变体仍须应用表单/适配处理，通用路径拒绝不支持的替换，不把脱敏值或空串伪作旧值。
+- 新增最小正式 DTO `vw-api-types/src/app_providers/basic.rs`，SDK `app_provider_basic/app_provider_basic_write`，路由 `GET/PUT /v1/app-providers/{app}/{id}/basic`。父 Gateway 鉴权与租户作用域沿用正式注册；未知字段拒绝、16 KiB 限制、错误出站固定安全内容，不含请求密钥或服务端原始响应体。没有任意文件/命令/namespace 接口。
+- `vw-agent-apps/src/providers/basic.rs` 在唯一领域所有者中校验基础字段；网址只接受无内嵌凭据的 http(s) 地址，与 baseUrl 分开。修改保留未知字段、排序和应用配置；原生 profile 内用于摘要的 name 同步更新。`vw-agent/src/app_providers/basic.rs` 沿原租户 settings/SQLite/PostgreSQL 所有者，新增/复制用 insert-if-absent，更新用 compare-exchange，一次写入基础字段；复制复用既有白名单并排除账号/未知授权元数据。基础操作不激活、不改原生文件，不宣称 live 成功。
+
+### TDD 与自动验证
+
+红阶段动态槽位 **1**，`CARGO_TARGET_DIR=/Users/xiangmin/worker/code/shiju/target/rust-slot-1`；`CARGO_BUILD_BUILD_DIR` 同值。确切命令 `cargo test -p vw-desktop --lib cc04_ui_edit_ -- --nocapture` 编译接线成功，两个指定测试分别在“脱敏值不得提交”“删除失败不能关闭选择与确认”的业务断言失败，**0 passed / 2 failed，退出 101**。修复后原两项转绿，继续增加草稿、秘密意图与真实 SDK 调度断言。首次 Clippy 报 DTO large_enum_variant，已将 Create 草稿装箱，未放宽 lint。
+
+末审补充消息诊断保密断言：`cargo test -p vw-desktop --lib cc04_ui_edit_redacted_secret_is_not_submitted -- --nocapture` 在 Key 消息自动 Debug 会打印假密钥的业务断言失败，0 passed / 1 failed，退出 101。随后将整个 EditMessage Debug 改为固定脱敏输出；该断言并入原指定测试，不增加有效测试计数。最后仅调整消息诊断输出与独立断言，视图/调度路径保持上述实际窗口验证范围。
+
+所有阶段先按 mkdir 原子动态领取槽位并记录任务/会话/PID，两个 Cargo 目录始终使用对应绝对路径；中间独立 Gateway 阶段动态槽位 **3**：`/Users/xiangmin/worker/code/shiju/target/rust-slot-3`，2 项 HTTP/DB 测试通过，退出 0。最终收口与窗口阶段槽位 **1**；审查补充后重新格式化并执行下表，不重复累计先前轮次。
+
+| 确切命令（默认 features；Clippy 全 features） | 退出码 | 有效结果 |
+| --- | --- | --- |
+| `cargo fmt --all` | 0 | 格式化 |
+| `cargo test -p vw-desktop --lib cc04_ui_edit_ -- --nocapture` | 0 | 6 passed |
+| `cargo test -p vw-desktop --lib cc04_ui_list_ -- --nocapture` | 0 | 4 passed |
+| `cargo test -p vw-agent --lib cc04_ui_edit_ -- --nocapture` | 0 | 3 passed |
+| `cargo clippy --all-targets --all-features -- -D warnings` | 0 | 通过 |
+
+独立桌面测试 `message/app_providers/edit_tests.rs` 覆盖指定两项、无完整草稿拒绝、Keep 不带 value、明确 Clear、复制来源/新身份、草稿夹带密钥剥离、HTTP SDK PUT 与 DELETE 错误结果。Gateway 独立 `basic_tests.rs` 使用真实回环 HTTP、正式 SDK→生产路由→临时 SQLite→重开存储，断言新增/编辑/复制结果、websiteUrl 与 baseUrl 分离、model/密钥/未知元数据保留及复制授权白名单；Basic 未授权、外租户、脱敏凭据拒绝均无写入。原生 Claude 记录另断言其专属 config 不变、嵌套名称与正式摘要同步、通用密钥替换拒绝后内容不变。SDK 成功 HTTP 测试沿父路由、租户中间件，独立 Basic 拒绝测试验证保护；不将其称为真实账号或执行主机的实机授权验收。
+
+### macOS 真实窗口
+
+macOS **27.0（26A428）/ arm64**，workspace **0.6.0**。沿任务 52 的显式原生入口，case 仅支持 list/edit、theme 仅 dark/light，未知值直接报错。edit 使用完整且显式的假应用配置（fixture model/API 地址）和假 token；仅本地 HTTP 服务被替代，真实 Iced 组件、Message 和正式 SDK 执行，未读取/修改真实用户配置。
+
+确切窗口命令如下，均在槽位 1 内执行并手动关闭，**退出 0**：
+
+```bash
+SHIJU_CC04_WINDOW_CASE=edit SHIJU_CC04_WINDOW_THEME=dark cargo test -p vw-desktop --test cc04-provider-window
+SHIJU_CC04_WINDOW_CASE=edit SHIJU_CC04_WINDOW_THEME=light cargo test -p vw-desktop --test cc04-provider-window
+```
+
+为使 CUA 能稳定定位原生进程，额外继承 `CARGO_TARGET_AARCH64_APPLE_DARWIN_RUNNER=/tmp/shiju-53-window-runner.sh`；runner 仅把 Cargo 传入的同一槽位测试二进制复制到临时 `/tmp/CC04Edit53Acceptance.app` 后 exec，Cargo 全程等待并返回其真实退出码。没有把原始命令启动、零测试或强制杀进程当作窗口通过。两个窗口分别在 CUA 中观察关闭，fixture 线程随应用退出并 join 后才释放槽位。日志有系统 sandbox_extension_issue_file_to_process 提示及既有链接器 __eh_frame 提示，实际窗口正常退出，无字形整形 panic。
+
+暗色实际操作：中文名称/网址与 80 遍中文长备注保存，重新编辑重读；name=fail 触发 HTTP403，toast 与可编辑表单保留；取消后重开仍是已保存中文名称。选择替换密钥、输入脱敏占位值后保存无动作，再输入明确假密钥保存；复制为新 ID 并看到中文副本；使用完整应用草稿新增并看到中文记录。删除先取消再确认成功移除副本；删除当前 provider-0 得到 HTTP409，确认框和目标保留，取消后列表直连/原生当前仍为 provider-0。浅色实际操作：中文名称/分类/80 遍长备注保存重读，切换明确清除意图再取消该意图，HTTP403 失败保留、取消后中文已保存记录仍在；删除确认可取消。只滚动内容，标题和底部操作固定；输入/复选框/按钮复用统一明暗样式，4px 滚动条两侧各 7px 留白；中文均走默认字体。
+
+真实截图：[暗色表单](evidence/task-53/dark-form.png)、[保存](evidence/task-53/dark-saved.png)、[失败](evidence/task-53/dark-failure.png)、[密钥意图与滚动](evidence/task-53/dark-key-intent.png)、[复制](evidence/task-53/dark-copy.png)、[组合新增表单](evidence/task-53/dark-create-form.png)、[新增结果](evidence/task-53/dark-created.png)、[删除失败](evidence/task-53/dark-delete-failure.png)、[保留选择](evidence/task-53/dark-selection-preserved.png)、[浅色表单](evidence/task-53/light-form.png)、[保存](evidence/task-53/light-saved.png)、[失败](evidence/task-53/light-failure.png)、[删除确认](evidence/task-53/light-delete-confirm.png)。均为真实原生绘制，未用 Element 构造测试替代。
+
+边界：窗口服务端是本地假数据夹具，真实持久化由上述隔离 HTTP/SQLite 测试证明；不将二者合称真实生产 Gateway/账号/原生客户端消费通过。54–67 专属配置表单、14 应用完整新增与原生密钥变体、当前供应商 live/首次激活、真实账号/Keychain、非 macOS 均未在本任务验收。
+
+状态：**已完成（统一基础壳、组合草稿及正式基础元数据接口）**。最终格式化、6/4/3 项聚焦验证及 Clippy 均退出 0；明暗窗口均退出 0。自身所有阶段槽位 1/3 锁已清理，缓存保留。仅提交本任务实现、独立测试、必要接线及本条证据/截图。排除既有 Dsh 格式差异、母任务状态、其他编号任务删除和其它计划；计划文件保持只读。本编号文件在最终证据齐备后删除，不提交该删除；下一步批次 54。

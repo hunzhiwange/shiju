@@ -46,7 +46,7 @@ pub enum ListMessage {
 pub(crate) fn message(value: ListMessage) -> Message {
     Message::Settings(SettingsMessage::AppProviders(value))
 }
-fn current(app: &App, id: AppId) -> Result<(GatewayClient, Scope), String> {
+pub(crate) fn current(app: &App, id: AppId) -> Result<(GatewayClient, Scope), String> {
     let client = crate::app::config::gateway_client()?;
     let scope = Scope {
         context: crate::app::state::AgentAppsContext {

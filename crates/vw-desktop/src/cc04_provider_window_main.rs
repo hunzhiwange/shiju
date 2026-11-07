@@ -8,11 +8,9 @@ use app::message::app_providers::list::{ListMessage, message};
 use app::{App, Message};
 use iced::{Element, Task, Theme};
 fn main() {
-    assert_eq!(
-        std::env::var("SHIJU_CC04_WINDOW_CASE").as_deref(),
-        Ok("list"),
-        "unknown window case"
-    );
+    let case = std::env::var("SHIJU_CC04_WINDOW_CASE").expect("window case");
+    assert!(matches!(case.as_str(), "list" | "edit"), "unknown window case");
+    let edit = case == "edit";
     let theme = match std::env::var("SHIJU_CC04_WINDOW_THEME").as_deref() {
         Ok("dark") => Theme::Dark,
         Ok("light") => Theme::Light,
@@ -21,7 +19,7 @@ fn main() {
     let (port, stop, server) = fixture();
     app::config::install_window_test_bootstrap(port);
     iced::application(
-        || {
+        move || {
             let (mut state, _) = App::new();
             state.apps_catalog.host = "fixture-host".into();
             state.apps_catalog.token = "fake-host-token".into();
@@ -29,6 +27,18 @@ fn main() {
                 &mut state,
                 ListMessage::Open(vw_gateway_client::vw_api_types::agent_apps::AppId::Claude),
             );
+            if edit {
+                use vw_gateway_client::vw_api_types::app_providers::{ProviderProtocol, create::*};
+                state.app_providers.new_draft = Some(AppProviderCreate {
+                    name: "fixture".into(),
+                    protocol: ProviderProtocol::Anthropic,
+                    api_key: ProviderSecretWrite::Keep,
+                    base_url: "https://fixture-api.example.test".into(),
+                    model: "fixture-model".into(),
+                    request_options: None,
+                    add_to_live: false,
+                });
+            }
             (state, task)
         },
         |state: &mut App, event: Message| match event {
@@ -37,7 +47,7 @@ fn main() {
         },
         view,
     )
-    .title("供应商列表隔离验收")
+    .title("供应商基础编辑隔离验收")
     .theme(move |_: &App| theme.clone())
     .window_size((1000., 820.))
     .settings(iced::Settings {
@@ -72,6 +82,7 @@ fn fixture() -> (u16, std::sync::Arc<std::sync::atomic::AtomicBool>, std::thread
     let done = stop.clone();
     let server = std::thread::spawn(move || {
         let mut presentation = serde_json::json!({"sortIndex":1,"category":"工作","notes":"中文动态备注：实际字体整形验收。"});
+        let mut basics: std::collections::BTreeMap<String, serde_json::Value> = (0..16).map(|i| (format!("provider-{i}"), serde_json::json!({"name":format!("中文供应商 {i}"),"category":"工作","notes":"中文动态备注","websiteUrl":"https://website.example.test"}))).collect();
         while !done.load(std::sync::atomic::Ordering::Relaxed) {
             let (mut stream, _) = match listener.accept() {
                 Ok(v) => v,
@@ -92,26 +103,57 @@ fn fixture() -> (u16, std::sync::Arc<std::sync::atomic::AtomicBool>, std::thread
             }
             let head = String::from_utf8(head).unwrap();
             let line = head.lines().next().unwrap_or("");
+            let len: usize = head
+                .lines()
+                .find_map(|l| {
+                    l.to_lowercase()
+                        .strip_prefix("content-length:")
+                        .map(|v| v.trim().parse().unwrap())
+                })
+                .unwrap_or(0);
+            let mut payload = vec![0; len];
+            stream.read_exact(&mut payload).unwrap();
             let mut status = "200 OK";
-            let body = if line.starts_with("GET /v1/app-providers/claude/catalog/state?") {
+            let path = line.split_whitespace().nth(1).unwrap_or("");
+            let id = path
+                .strip_prefix("/v1/app-providers/claude/")
+                .and_then(|v| v.split('/').next())
+                .unwrap_or("");
+            let body = if path.ends_with("/basic") && line.starts_with("GET ") {
+                basics.get(id).cloned().unwrap_or_else(|| {
+                    status = "404 Not Found";
+                    serde_json::json!({"message":"missing"})
+                })
+            } else if path.ends_with("/basic") && line.starts_with("PUT ") {
+                let value: serde_json::Value = serde_json::from_slice(&payload).unwrap();
+                if value["fields"]["name"] == "fail" {
+                    status = "403 Forbidden";
+                    serde_json::json!({"message":"denied"})
+                } else {
+                    if value["apiKey"]["action"] == "keep" {
+                        assert!(value["apiKey"].get("value").is_none());
+                    }
+                    basics.insert(id.into(), value["fields"].clone());
+                    value["fields"].clone()
+                }
+            } else if line.starts_with("DELETE ") {
                 assert!(head.to_lowercase().contains("x-agent-apps-token: fake-host-token"));
-                serde_json::json!({"appId":"claude","rows":(0..16).map(|i|serde_json::json!({"provider":{"id":format!("provider-{i}"),"appId":"claude","name":format!("中文供应商 {i}"),"configured":true},"nativeMember":if i==0{"present"}else{"absent"}})).collect::<Vec<_>>(),"direct":{"status":"selected","id":"provider-0"},"inUse":{"status":"selected","id":"provider-0"},"nativeRead":null})
+                if id == "provider-0" {
+                    status = "409 Conflict";
+                    serde_json::json!({"message":"referenced"})
+                } else {
+                    basics.remove(id);
+                    serde_json::json!({"deleted":true})
+                }
+            } else if line.starts_with("GET /v1/app-providers/claude/catalog/state?") {
+                assert!(head.to_lowercase().contains("x-agent-apps-token: fake-host-token"));
+                serde_json::json!({"appId":"claude","rows":basics.iter().map(|(id, fields)|serde_json::json!({"provider":{"id":id,"appId":"claude","name":fields["name"],"configured":true},"nativeMember":if id=="provider-0"{"present"}else{"absent"}})).collect::<Vec<_>>(),"direct":{"status":"selected","id":"provider-0"},"inUse":{"status":"selected","id":"provider-0"},"nativeRead":null})
             } else if line.starts_with("GET /v1/app-providers/claude/presentation/entries ") {
                 serde_json::json!([{"id":"provider-0","presentation":presentation}])
             } else if line.starts_with("PUT /v1/app-providers/claude/")
                 && line.contains("/presentation ")
             {
-                let len: usize = head
-                    .lines()
-                    .find_map(|l| {
-                        l.to_lowercase()
-                            .strip_prefix("content-length:")
-                            .map(|v| v.trim().parse().unwrap())
-                    })
-                    .unwrap();
-                let mut buf = vec![0; len];
-                stream.read_exact(&mut buf).unwrap();
-                let value: serde_json::Value = serde_json::from_slice(&buf).unwrap();
+                let value: serde_json::Value = serde_json::from_slice(&payload).unwrap();
                 if value["notes"] == "fail" {
                     status = "403 Forbidden";
                     serde_json::json!({"error":"denied"})

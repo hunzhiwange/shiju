@@ -273,3 +273,6 @@ mod operations;
 #[cfg(all(test, not(target_arch = "wasm32")))]
 #[path = "app_providers/operations_tests.rs"]
 mod operations_tests;
+
+#[path = "app_providers/basic.rs"]
+mod basic;

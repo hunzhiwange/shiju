@@ -24,6 +24,9 @@ pub(crate) struct ListState {
     pub loading: bool,
     pub snapshot: Option<Snapshot>,
     pub editor: Option<Editor>,
+    pub form: Option<super::edit::EditForm>,
+    pub new_draft:
+        Option<vw_gateway_client::vw_api_types::app_providers::create::AppProviderCreate>,
     pub error: Option<String>,
 }
 #[derive(Clone, Debug)]
@@ -36,10 +39,14 @@ pub(crate) struct Editor {
 }
 impl ListState {
     pub fn begin(&mut self, scope: Scope) -> u64 {
+        if self.scope.as_ref() != Some(&scope) {
+            self.new_draft = None;
+        }
         self.generation = self.generation.wrapping_add(1);
         self.scope = Some(scope);
         self.snapshot = None;
         self.editor = None;
+        self.form = None;
         self.loading = true;
         self.error = None;
         self.generation

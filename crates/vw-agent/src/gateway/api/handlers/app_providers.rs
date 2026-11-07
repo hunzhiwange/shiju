@@ -12,6 +12,7 @@ use vw_api_types::{agent_apps::AppId, app_providers::AppProviderWrite, id::Tenan
 pub(crate) fn router() -> Router {
     Router::new()
         .merge(catalog::router())
+        .merge(basic::router())
         .merge(mode_state::router())
         .merge(mode_apply::router())
         .merge(paths::router())
@@ -313,3 +314,7 @@ mod operations_tests;
 
 #[cfg(all(test, target_os = "macos"))]
 mod api_security_tests;
+
+mod basic;
+#[cfg(test)]
+mod basic_tests;

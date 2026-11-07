@@ -26,20 +26,21 @@
 
 use crate::app::assets::Icon;
 use crate::app::components::system_settings_common::{
-    format_context_limit, icon_btn, provider_logo_svg, rounded_action_btn_style,
-    settings_close_button, settings_divider, settings_error_banner, settings_modal_card,
-    settings_modal_overlay, settings_muted_text_style, settings_page_intro, settings_panel,
-    settings_panel_style, settings_section_card, settings_section_content,
-    settings_segment_button_style, settings_text_input_style, settings_value_badge,
+    SETTINGS_CONTROL_PADDING, SETTINGS_CONTROL_TEXT_SIZE, format_context_limit, icon_btn,
+    provider_logo_svg, rounded_action_btn_style, settings_close_button, settings_divider,
+    settings_error_banner, settings_group_card, settings_group_heading, settings_modal_card_style,
+    settings_modal_header, settings_modal_layout, settings_modal_overlay,
+    settings_muted_text_style, settings_page_heading, settings_segment_button_style,
+    settings_text_input_style, settings_toggle, settings_value_badge,
 };
 use crate::app::components::system_settings_search::SettingsTabDescriptor;
 use crate::app::i18n::settings_models::{self, text as model_text};
 use crate::app::message::settings::{ModelConfigTabMessage, SettingsMessage};
 use crate::app::state::ModelConfigTab;
 use crate::app::{App, Message, message};
-use iced::widget::scrollable::{Direction, Scrollbar};
-use iced::widget::{button, column, container, row, scrollable, text, text_input, toggler};
-use iced::{Alignment, Element, Length, Theme};
+use iced::widget::text::Wrapping;
+use iced::widget::{button, column, container, row, text, text_input};
+use iced::{Alignment, Background, Element, Length, Theme};
 
 pub(super) const MODEL_TABS: &[SettingsTabDescriptor<ModelConfigTab>] = &[
     SettingsTabDescriptor::new(
@@ -99,18 +100,23 @@ pub fn view(app: &App) -> Element<'_, Message> {
     let active_tab = app.model_settings.active_tab;
     let tab_button = |tab, label| {
         let is_active = tab == active_tab;
-        button(text(label).size(13))
+        button(text(label).size(SETTINGS_CONTROL_TEXT_SIZE))
             .on_press(Message::Settings(SettingsMessage::ModelConfigTab(
                 ModelConfigTabMessage::Selected(tab),
             )))
             .padding([8, 14])
             .style(move |theme: &Theme, status| {
-                settings_segment_button_style(theme, status, is_active)
+                let mut style = settings_segment_button_style(theme, status, is_active);
+                if is_active {
+                    style.text_color = theme.palette().text;
+                }
+                style
             })
     };
 
-    let tabs =
-        MODEL_TABS.iter().fold(row![].spacing(8).align_y(Alignment::Center), |row, descriptor| {
+    let tabs = MODEL_TABS
+        .iter()
+        .fold(row![].spacing(8).align_y(Alignment::Center), |row, descriptor| {
             let key = match descriptor.tab {
                 ModelConfigTab::Models => "模型",
                 ModelConfigTab::ModelRoutes => "模型路由",
@@ -118,7 +124,8 @@ pub fn view(app: &App) -> Element<'_, Message> {
                 ModelConfigTab::Multimodal => "多模态",
             };
             row.push(tab_button(descriptor.tab, model_text(app.desktop_locale, key)))
-        });
+        })
+        .wrap();
     let content = match active_tab {
         ModelConfigTab::Models => main_view(app),
         ModelConfigTab::ModelRoutes => {
@@ -191,6 +198,7 @@ pub fn view(app: &App) -> Element<'_, Message> {
 pub fn main_view(app: &App) -> Element<'_, Message> {
     let s = &app.model_settings;
     let q = s.query.trim().to_ascii_lowercase();
+    let busy = s.loading || s.saving;
     let enabled_model_count = s
         .providers
         .iter()
@@ -233,7 +241,6 @@ pub fn main_view(app: &App) -> Element<'_, Message> {
         let expanded = s.expanded_provider_ids.contains(&p.id);
         let provider_enabled_count = p.models.iter().filter(|model| model.enabled).count();
         let provider_model_count = p.models.len();
-        let busy = s.loading || s.saving;
         let mut enable_provider_btn =
             button(text(model_text(app.desktop_locale, "全部启用")).size(12))
                 .padding([6, 10])
@@ -275,129 +282,90 @@ pub fn main_view(app: &App) -> Element<'_, Message> {
         .padding([6, 10])
         .style(rounded_action_btn_style);
 
-        let mut card_col = column![
-            row![
+        let provider_header = container(
+            column![
                 row![
-                    container(provider_logo_svg(&p.id, 16.0))
-                        .center_x(Length::Fixed(18.0))
-                        .center_y(Length::Fixed(18.0)),
+                    container(provider_logo_svg(&p.id, 18.0)).center_x(24).center_y(24),
                     column![
-                        text(&p.name).size(14),
-                        text(&p.id).size(12).style(settings_muted_text_style)
+                        text(&p.name).size(15).wrapping(Wrapping::WordOrGlyph),
+                        text(&p.id)
+                            .size(13)
+                            .wrapping(Wrapping::WordOrGlyph)
+                            .style(settings_muted_text_style),
                     ]
-                    .spacing(2),
-                ]
-                .spacing(10)
-                .align_y(Alignment::Center)
-                .width(Length::Fill),
-                settings_value_badge(settings_models::enabled_count(
-                    app.desktop_locale,
-                    provider_enabled_count,
-                    provider_model_count
-                )),
-                row![
-                    enable_provider_btn,
-                    disable_provider_btn,
-                    reset_provider_btn,
+                    .spacing(4)
+                    .width(Length::Fill),
+                    settings_value_badge(settings_models::enabled_count(
+                        app.desktop_locale,
+                        provider_enabled_count,
+                        provider_model_count,
+                    )),
                     expand_provider_btn,
                 ]
-                .spacing(6)
-                .wrap(),
+                .spacing(10)
+                .align_y(Alignment::Center),
+                row![enable_provider_btn, disable_provider_btn, reset_provider_btn]
+                    .spacing(8)
+                    .align_y(Alignment::Center)
+                    .wrap(),
             ]
-            .spacing(12)
-            .align_y(Alignment::Center)
-            .wrap()
-        ]
-        .spacing(12);
+            .spacing(12),
+        )
+        .padding([14, 0])
+        .width(Length::Fill);
 
+        let mut card_rows = column![provider_header];
         if expanded {
-            let mut first_model = true;
             for m in models {
-                let provider_id = p.id.clone();
-                let model_id = m.id.clone();
-                let model_name = m.name.clone();
-                let enabled = m.enabled;
-                let title_color_alpha = if enabled { 1.0 } else { 0.65 };
-                let id_color_alpha = if enabled { 0.65 } else { 0.5 };
-                let meta_alpha = if enabled { 0.65 } else { 0.5 };
-                let meta_text = settings_models::model_metadata(
+                let mut model_toggle = settings_toggle(m.enabled);
+                if !busy {
+                    let provider_id = p.id.clone();
+                    let model_id = m.id.clone();
+                    model_toggle = model_toggle.on_toggle(move |enabled| {
+                        Message::Settings(SettingsMessage::ModelToggle(
+                            provider_id.clone(),
+                            model_id.clone(),
+                            enabled,
+                        ))
+                    });
+                }
+                let metadata = settings_models::model_metadata(
                     app.desktop_locale,
                     m.toolcall,
                     m.attachment,
                     &format_context_limit(m.context_limit),
                 );
-                let provider_id_toggle = provider_id.clone();
-                let model_id_toggle = model_id.clone();
-
-                let model_toggle = if s.loading || s.saving {
-                    toggler(enabled)
-                } else {
-                    toggler(enabled).on_toggle(move |b| {
-                        Message::Settings(message::SettingsMessage::ModelToggle(
-                            provider_id_toggle.clone(),
-                            model_id_toggle.clone(),
-                            b,
-                        ))
-                    })
-                };
-
                 let item = container(
                     row![
                         column![
-                            row![
-                                text(model_name).size(14).style(move |t: &iced::Theme| {
-                                    text::Style {
-                                        color: Some(
-                                            t.palette().text.scale_alpha(title_color_alpha),
-                                        ),
-                                    }
-                                }),
-                                text(model_id.clone()).size(12).style(move |t: &iced::Theme| {
-                                    text::Style {
-                                        color: Some(t.palette().text.scale_alpha(id_color_alpha)),
-                                    }
-                                }),
-                            ]
-                            .spacing(8)
-                            .align_y(Alignment::Center)
-                            .wrap(),
-                            text(meta_text).size(12).style(move |t: &iced::Theme| {
-                                text::Style {
-                                    color: Some(t.palette().text.scale_alpha(meta_alpha)),
-                                }
-                            }),
+                            text(&m.name).size(15).wrapping(Wrapping::WordOrGlyph),
+                            text(&m.id)
+                                .size(13)
+                                .wrapping(Wrapping::WordOrGlyph)
+                                .style(settings_muted_text_style),
+                            text(metadata).size(12).style(settings_muted_text_style),
                         ]
-                        .spacing(2)
+                        .spacing(4)
                         .width(Length::Fill),
-                        // 打开模型详情弹窗的按钮
                         icon_btn(
                             Icon::QuestionCircle,
                             model_text(app.desktop_locale, "更多"),
-                            Some(Message::Settings(message::SettingsMessage::ModelDetailOpen(
-                                provider_id.clone(),
-                                model_id.clone(),
+                            Some(Message::Settings(SettingsMessage::ModelDetailOpen(
+                                p.id.clone(),
+                                m.id.clone(),
                             ))),
                         ),
                         model_toggle,
                     ]
-                    .spacing(10)
+                    .spacing(12)
                     .align_y(Alignment::Center),
                 )
-                .padding([10, 0])
+                .padding([12, 0])
                 .width(Length::Fill);
-
-                if !first_model {
-                    card_col = card_col.push(settings_divider());
-                }
-                first_model = false;
-
-                card_col = card_col.push(item);
+                card_rows = card_rows.push(settings_divider()).push(item);
             }
         }
-
-        let card = container(card_col).padding(16).width(Length::Fill).style(settings_panel_style);
-
-        list = list.push(card);
+        list = list.push(settings_group_card(card_rows));
     }
 
     if !any {
@@ -412,77 +380,75 @@ pub fn main_view(app: &App) -> Element<'_, Message> {
             model_text(app.desktop_locale, "请先完成 provider 连接，或调整搜索关键字后重试。")
         };
 
-        list = list.push(settings_panel(
-            column![
-                text(empty_title).size(14),
-                text(empty_description).size(12).style(settings_muted_text_style),
-            ]
-            .spacing(6),
+        list = list.push(settings_group_card(
+            container(settings_group_heading(empty_title, empty_description)).padding([16, 0]),
         ));
     }
 
     let query_input = text_input(model_text(app.desktop_locale, "搜索模型"), &s.query)
         .on_input(|v| Message::Settings(message::SettingsMessage::ModelQueryChanged(v)))
-        .padding([10, 12])
-        .size(13)
+        .padding(SETTINGS_CONTROL_PADDING)
+        .size(SETTINGS_CONTROL_TEXT_SIZE)
         .style(settings_text_input_style)
         .width(Length::Fill);
 
-    let refresh_btn = icon_btn(
-        Icon::ArrowCounterClockwise,
+    let refresh_btn = button(text(model_text(
+        app.desktop_locale,
         if s.loading {
-            model_text(app.desktop_locale, "刷新中…")
+            "刷新中…"
         } else if s.saving {
-            model_text(app.desktop_locale, "保存中…")
+            "保存中…"
         } else {
-            model_text(app.desktop_locale, "刷新")
+            "刷新"
         },
-        if s.loading || s.saving {
-            None
-        } else {
-            Some(Message::Settings(message::SettingsMessage::ModelsRefresh))
-        },
-    );
+    )))
+    .on_press_maybe((!busy).then_some(Message::Settings(SettingsMessage::ModelsRefresh)))
+    .padding([8, 14])
+    .style(rounded_action_btn_style);
 
-    let filter_content = settings_section_content(
-        column![
-            query_input,
+    let filter_content = settings_group_card(
+        container(
             row![
-                settings_value_badge(settings_models::provider_count(
-                    app.desktop_locale,
-                    matched_provider_count
-                )),
-                settings_value_badge(settings_models::model_count(
-                    app.desktop_locale,
-                    matched_model_count
-                )),
+                query_input,
+                row![
+                    settings_value_badge(settings_models::provider_count(
+                        app.desktop_locale,
+                        matched_provider_count,
+                    )),
+                    settings_value_badge(settings_models::model_count(
+                        app.desktop_locale,
+                        matched_model_count,
+                    )),
+                ]
+                .spacing(8)
+                .align_y(Alignment::Center),
             ]
-            .spacing(10)
+            .spacing(12)
             .align_y(Alignment::Center),
-        ]
-        .spacing(12),
+        )
+        .padding([14, 0]),
     );
 
     let mut content = column![
         row![
-            container(settings_page_intro(
+            container(settings_page_heading(
                 model_text(app.desktop_locale, "模型配置"),
                 model_text(
                     app.desktop_locale,
-                    "浏览已连接 provider 的模型目录，搜索、筛选并切换模型可用状态。"
-                )
+                    "浏览已连接 provider 的模型目录，搜索、筛选并切换模型可用状态。",
+                ),
             ))
             .width(Length::Fill),
             refresh_btn,
         ]
         .spacing(12)
-        .align_y(Alignment::Start),
-        settings_section_card(
+        .align_y(Alignment::Center),
+        settings_group_heading(
             model_text(app.desktop_locale, "搜索与过滤"),
             model_text(
                 app.desktop_locale,
-                "按 provider 名称、provider ID、模型名称或模型 ID 过滤结果。"
-            )
+                "按 provider 名称、provider ID、模型名称或模型 ID 过滤结果。",
+            ),
         ),
         filter_content,
     ]
@@ -492,7 +458,7 @@ pub fn main_view(app: &App) -> Element<'_, Message> {
     let mut enable_all_btn = button(text(model_text(app.desktop_locale, "全部启用")).size(12))
         .padding([7, 12])
         .style(rounded_action_btn_style);
-    if !s.loading && !s.saving && enabled_model_count < total_model_count {
+    if !busy && enabled_model_count < total_model_count {
         enable_all_btn = enable_all_btn
             .on_press(Message::Settings(message::SettingsMessage::ModelsSetAll(true)));
     }
@@ -500,14 +466,14 @@ pub fn main_view(app: &App) -> Element<'_, Message> {
     let mut disable_all_btn = button(text(model_text(app.desktop_locale, "全部禁用")).size(12))
         .padding([7, 12])
         .style(rounded_action_btn_style);
-    if !s.loading && !s.saving && enabled_model_count > 0 {
+    if !busy && enabled_model_count > 0 {
         disable_all_btn = disable_all_btn
             .on_press(Message::Settings(message::SettingsMessage::ModelsSetAll(false)));
     }
 
     content = content.push(
         row![
-            settings_section_card(
+            container(settings_group_heading(
                 model_text(app.desktop_locale, "已连接模型"),
                 if s.saving {
                     model_text(app.desktop_locale, "正在保存模型状态，完成后即可继续操作。")
@@ -516,8 +482,9 @@ pub fn main_view(app: &App) -> Element<'_, Message> {
                         app.desktop_locale,
                         "按 provider 分组展示可用模型，可单独或一次性切换启用状态。",
                     )
-                }
-            ),
+                },
+            ))
+            .width(Length::Fill),
             row![enable_all_btn, disable_all_btn].spacing(8).align_y(Alignment::Center),
         ]
         .spacing(12)
@@ -546,102 +513,98 @@ pub fn main_view(app: &App) -> Element<'_, Message> {
 /// # 模型详情弹窗结构
 ///
 /// 弹窗包含：
-/// - 标题栏：弹窗标题、切换按钮（字段列表/原始 JSON）、关闭按钮
-/// - 模型标识：提供商名称/模型名称、提供商 ID/模型 ID
-/// - 内容区：根据 `show_raw` 标志显示字段列表或原始 JSON
+/// - 固定标题栏：弹窗标题、切换按钮（字段列表/原始 JSON）、关闭按钮
+/// - 滚动内容区：模型和提供商标识，以及字段列表或原始 JSON
 ///
 /// # UI 交互
 ///
-/// - 关闭按钮/点击遮罩：触发 `SettingsMessage::ModelDetailClose` 消息
+/// - 关闭按钮：触发 `SettingsMessage::ModelDetailClose` 消息
 /// - 切换按钮：触发 `SettingsMessage::ModelDetailToggleRaw` 消息
 pub fn view_overlays<'a>(app: &'a App, dialog: Element<'a, Message>) -> Element<'a, Message> {
-    let s = &app.model_settings;
-    let mut base = dialog;
+    let Some(mm) = &app.model_settings.detail_modal else {
+        return dialog;
+    };
+    let locale = app.desktop_locale;
+    let close_message = Message::Settings(SettingsMessage::ModelDetailClose);
+    let toggle_raw =
+        button(text(model_text(locale, if mm.show_raw { "字段列表" } else { "原始 JSON" })))
+            .on_press(Message::Settings(SettingsMessage::ModelDetailToggleRaw))
+            .padding([8, 14])
+            .style(rounded_action_btn_style);
 
-    // 检查是否需要显示模型详情弹窗
-    if let Some(mm) = &s.detail_modal {
-        let close_message = Message::Settings(message::SettingsMessage::ModelDetailClose);
-        let close_btn = settings_close_button(close_message.clone());
+    let header = settings_modal_header(
+        text(model_text(locale, "模型详情")).size(20),
+        row![toggle_raw, settings_close_button(close_message.clone())]
+            .spacing(8)
+            .align_y(Alignment::Center),
+    );
+    let identity = column![
+        text(&mm.model_name).size(17).wrapping(Wrapping::WordOrGlyph),
+        text(&mm.provider_name)
+            .size(13)
+            .wrapping(Wrapping::WordOrGlyph)
+            .style(settings_muted_text_style),
+        detail_row(model_text(locale, "提供商").into(), mm.provider_id.clone()),
+        settings_divider(),
+        detail_row(
+            settings_models::connection_text::text(locale, "模型").into(),
+            mm.model_id.clone(),
+        ),
+    ]
+    .spacing(6);
 
-        // 切换显示模式的按钮（字段列表 / 原始 JSON）
-        let toggle_raw_btn = button(text(if mm.show_raw {
-            model_text(app.desktop_locale, "字段列表")
-        } else {
-            model_text(app.desktop_locale, "原始 JSON")
-        }))
-        .on_press(Message::Settings(message::SettingsMessage::ModelDetailToggleRaw))
-        .padding([6, 10])
-        .style(rounded_action_btn_style);
-
-        let header = row![
-            column![
-                text(model_text(app.desktop_locale, "模型详情")).size(16),
-                text(format!("{} / {}", mm.provider_name, mm.model_name))
-                    .size(12)
-                    .style(settings_muted_text_style),
-            ]
-            .spacing(4)
-            .width(Length::Fill),
-            toggle_raw_btn,
-            close_btn
-        ]
-        .spacing(10)
-        .align_y(Alignment::Center);
-
-        let meta_row = row![
-            settings_value_badge(format!(
-                "{} {}",
-                model_text(app.desktop_locale, "提供商"),
-                mm.provider_id
-            )),
-            settings_value_badge(format!(
-                "{} {}",
-                settings_models::connection_text::text(app.desktop_locale, "模型"),
-                mm.model_id
-            )),
-        ]
-        .spacing(8)
-        .wrap();
-
-        // 根据 show_raw 标志决定显示字段列表还是原始 JSON
-        let body: Element<'_, Message> = if mm.show_raw {
-            // 显示原始 JSON 文本
-            scrollable(container(text(&mm.raw_json).size(12)).padding([0, 12]).width(Length::Fill))
-                .direction(Direction::Vertical(Scrollbar::new().width(4).scroller_width(4)))
-                .height(Length::Fill)
-                .into()
-        } else {
-            // 显示字段列表（标签-值对）
-            let mut rows_col = column![].spacing(10);
-            for r in &mm.rows {
-                rows_col = rows_col.push(
-                    row![
-                        text(r.label.display(app.desktop_locale))
-                            .size(13)
-                            .style(settings_muted_text_style)
-                            .width(Length::Fixed(240.0)),
-                        text(r.value.display(app.desktop_locale)).size(13).width(Length::Fill)
-                    ]
-                    .spacing(10)
-                    .align_y(Alignment::Center),
-                );
+    let details = if mm.show_raw {
+        settings_group_card(
+            container(text(&mm.raw_json).size(13).wrapping(Wrapping::WordOrGlyph)).padding([14, 0]),
+        )
+    } else {
+        let mut rows = column![];
+        for (index, field) in mm.rows.iter().enumerate() {
+            if index != 0 {
+                rows = rows.push(settings_divider());
             }
-            scrollable(container(rows_col).padding([0, 12]).width(Length::Fill))
-                .direction(Direction::Vertical(Scrollbar::new().width(4).scroller_width(4)))
-                .height(Length::Fill)
-                .into()
-        };
+            rows = rows.push(detail_row(field.label.display(locale), field.value.display(locale)));
+        }
+        settings_group_card(rows)
+    };
 
-        let modal_col =
-            column![header, meta_row, settings_divider(), body].spacing(14).height(Length::Fill);
-
-        let card =
-            settings_modal_card(modal_col).width(Length::Fixed(780.0)).height(Length::Fixed(520.0));
-        base = settings_modal_overlay(Some(base), close_message, card);
-    }
-
-    base
+    let body = column![identity, details].spacing(14);
+    let card = settings_modal_layout(header, body, None)
+        .style(|theme| {
+            let mut style = settings_modal_card_style(theme);
+            // Keep catalog text from showing through the detail card.
+            if let Some(Background::Color(color)) = &mut style.background {
+                color.a = 1.0;
+            }
+            style
+        })
+        .width(780)
+        .height(520);
+    settings_modal_overlay(Some(dialog), close_message, container(card).padding(12))
 }
+
+fn detail_row(label: String, value: String) -> Element<'static, Message> {
+    container(
+        row![
+            text(label)
+                .size(13)
+                .width(Length::FillPortion(2))
+                .wrapping(Wrapping::WordOrGlyph)
+                .style(settings_muted_text_style),
+            text(value).size(13).width(Length::FillPortion(3)).wrapping(Wrapping::WordOrGlyph),
+        ]
+        .spacing(12)
+        .align_y(Alignment::Center),
+    )
+    .padding([8, 0])
+    .width(Length::Fill)
+    .into()
+}
+
 #[cfg(test)]
 #[path = "system_settings_models_tests.rs"]
 mod system_settings_models_tests;
+
+#[cfg(test)]
+#[path = "system_settings_models_ui_refresh_10_tests.rs"]
+mod ui_refresh_10_tests;

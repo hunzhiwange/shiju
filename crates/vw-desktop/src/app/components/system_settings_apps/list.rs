@@ -411,7 +411,13 @@ fn card<'a>(state: &'a AppsCatalogState, app: &'a CatalogRow) -> Element<'a, Mes
             (state.drag.source.is_none())
                 .then_some(message(AppsCatalogMessage::ToggleDetails(app.entry.id))),
         );
-    let summary = row![handle, brand(app.entry.id), description, primary, toggle]
+    let providers = button(text("供应商").size(12))
+        .padding([8, 11])
+        .style(rounded_action_btn_style)
+        .on_press(crate::app::message::app_providers::list::message(
+            crate::app::message::app_providers::list::ListMessage::Open(app.entry.id),
+        ));
+    let summary = row![handle, brand(app.entry.id), description, providers, primary, toggle]
         .spacing(12)
         .align_y(Alignment::Center);
     let mut body = column![container(summary).padding([16, 16])];

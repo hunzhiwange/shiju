@@ -1,0 +1,167 @@
+use super::super::system_settings_common::*;
+use crate::app::message::app_providers::list::{ListMessage, message};
+use crate::app::{Message, state::app_providers::list::ListState};
+use iced::{
+    Element, Length,
+    widget::{button, column, container, row, scrollable, text, text_input},
+};
+use vw_gateway_client::vw_api_types::app_providers::catalog::{
+    ProviderMembership, ProviderSelection,
+};
+fn selection(value: &ProviderSelection) -> String {
+    match value {
+        ProviderSelection::Selected { id } => id.clone(),
+        ProviderSelection::Unconfigured => "未配置".into(),
+        ProviderSelection::NotApplicable => "不适用".into(),
+        ProviderSelection::Unavailable { reason } => format!("不可读取：{reason:?}"),
+    }
+}
+fn action(label: &str, event: ListMessage, enabled: bool) -> Element<'_, Message> {
+    button(text(label))
+        .padding([8, 14])
+        .style(rounded_action_btn_style)
+        .on_press_maybe(enabled.then_some(message(event)))
+        .into()
+}
+pub(crate) fn overlay<'a>(
+    state: &'a ListState,
+    base: Element<'a, Message>,
+) -> Element<'a, Message> {
+    let Some(scope) = &state.scope else {
+        return base;
+    };
+    let mut body = column![].spacing(12);
+    if state.loading {
+        body = body.push(text("正在从执行主机读取…"));
+    }
+    if let Some(error) = &state.error {
+        body = body.push(text(error));
+    }
+    if let Some(snapshot) = &state.snapshot {
+        body = body.push(text(format!(
+            "直连：{}　原生当前：{}",
+            selection(&snapshot.catalog.direct),
+            selection(&snapshot.catalog.in_use)
+        )));
+        if let Some(reason) = snapshot.catalog.native_read {
+            body = body.push(text(format!("原生状态不可用：{reason:?}")));
+        }
+        let mut rows = snapshot.catalog.rows.iter().collect::<Vec<_>>();
+        rows.sort_by_key(|r| {
+            let p = state.presentation(&r.provider.id);
+            (
+                p.category.unwrap_or_default(),
+                p.sort_index.unwrap_or(u32::MAX),
+                r.provider.id.clone(),
+            )
+        });
+        if rows.is_empty() {
+            body = body.push(text("没有已保存的供应商"));
+        }
+        for entry in rows {
+            let p = state.presentation(&entry.provider.id);
+            let member = match entry.native_member {
+                ProviderMembership::Present => "已添加",
+                ProviderMembership::Absent => "未添加",
+                ProviderMembership::Unknown => "成员状态未知",
+            };
+            body = body.push(settings_panel(
+                column![
+                    row![
+                        column![
+                            text(&entry.provider.name).size(18),
+                            text(if entry.provider.configured {
+                                "凭据已配置"
+                            } else {
+                                "凭据未配置"
+                            })
+                            .size(12),
+                            text(format!(
+                                "{} · {}",
+                                p.category.unwrap_or_else(|| "未分类".into()),
+                                member
+                            ))
+                        ]
+                        .width(Length::Fill),
+                        action(
+                            "排序与备注",
+                            ListMessage::Edit(entry.provider.id.clone()),
+                            state.editor.is_none() && !state.loading
+                        )
+                    ]
+                    .spacing(12),
+                    text(p.notes.unwrap_or_default())
+                ]
+                .spacing(8),
+            ));
+        }
+    }
+    let content = scrollable(container(body).padding([0, 7]))
+        .direction(scrollable::Direction::Vertical(
+            scrollable::Scrollbar::new().width(4).scroller_width(4),
+        ))
+        .height(Length::Fill);
+    let card = settings_modal_card(
+        column![
+            row![
+                text(format!("应用供应商 · {:?}", scope.app)).size(22).width(Length::Fill),
+                settings_close_button(message(ListMessage::Close))
+            ]
+            .spacing(12),
+            content,
+            row![
+                action("刷新", ListMessage::Refresh, !state.loading && state.editor.is_none()),
+                action("关闭", ListMessage::Close, true)
+            ]
+            .spacing(10)
+        ]
+        .spacing(16),
+    )
+    .width(Length::Fixed(800.))
+    .height(Length::Fixed(650.));
+    let list = settings_modal_overlay(Some(base), message(ListMessage::Close), card);
+    let Some(form) = &state.editor else {
+        return list;
+    };
+    let input = |hint: &'static str, value: &'a str, event: fn(String) -> ListMessage| {
+        text_input(hint, value)
+            .padding(SETTINGS_CONTROL_PADDING)
+            .size(SETTINGS_CONTROL_TEXT_SIZE)
+            .style(settings_text_input_style)
+            .on_input_maybe((!form.saving).then_some(move |v| message(event(v))))
+    };
+    let fields = column![
+        text("排序（非负整数，留空清除）"),
+        input("排序", &form.sort, ListMessage::Sort),
+        text("分类"),
+        input("分类", &form.category, ListMessage::Category),
+        text("备注"),
+        input("备注", &form.notes, ListMessage::Notes)
+    ]
+    .spacing(10);
+    let card = settings_modal_card(
+        column![
+            row![
+                text("排序、分类与备注").size(22).width(Length::Fill),
+                settings_close_button(message(ListMessage::Cancel))
+            ],
+            scrollable(container(fields).padding([0, 7]))
+                .direction(scrollable::Direction::Vertical(
+                    scrollable::Scrollbar::new().width(4).scroller_width(4)
+                ))
+                .height(Length::Fill),
+            row![
+                action("取消", ListMessage::Cancel, !form.saving),
+                button(text(if form.saving { "保存中…" } else { "保存" }))
+                    .padding([8, 16])
+                    .style(primary_action_btn_style)
+                    .on_press_maybe((!form.saving).then_some(message(ListMessage::Save)))
+            ]
+            .spacing(12)
+        ]
+        .spacing(16),
+    )
+    .width(Length::Fixed(560.))
+    .height(Length::Fixed(480.));
+    settings_modal_overlay(Some(list), message(ListMessage::Cancel), card)
+}

@@ -250,3 +250,5 @@ mod gateway_health_tests;
 #[cfg(all(test, not(target_arch = "wasm32")))]
 #[path = "skill_hub_tests.rs"]
 mod skill_hub_tests;
+
+pub(crate) mod app_providers;

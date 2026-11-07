@@ -190,3 +190,9 @@ name = "apps-launch-window"
 path = "src/apps_launch_window_main.rs"
 harness = false
 test = false
+
+[[test]]
+name = "cc04-provider-window"
+path = "src/cc04_provider_window_main.rs"
+harness = false
+test = false

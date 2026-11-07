@@ -113,6 +113,9 @@ pub fn update(app: &mut App, message: SettingsMessage) -> Task<Message> {
     match message {
         SettingsMessage::AgentApps(message) => agent_apps::update(app, message),
         SettingsMessage::AppsCatalog(message) => apps_catalog::update(app, message),
+        SettingsMessage::AppProviders(message) => {
+            crate::app::message::app_providers::list::update(app, message)
+        }
         SettingsMessage::TabSelected(_)
         | SettingsMessage::SystemTabSelected(_)
         | SettingsMessage::SystemSearchTargetSelected(_)

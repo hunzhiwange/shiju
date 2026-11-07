@@ -714,6 +714,7 @@ pub enum GeneralSettingsMessage {
 pub enum SettingsMessage {
     AgentApps(super::AgentAppsMessage),
     AppsCatalog(super::AppsCatalogMessage),
+    AppProviders(crate::app::message::app_providers::list::ListMessage),
     TabSelected(SettingsTab),
     SystemTabSelected(SystemTab),
     SystemSearchTargetSelected(SystemSettingsSearchTarget),

@@ -2432,3 +2432,25 @@ Gateway 集成使用正式 SDK、真实回环 HTTP、真实授权 policy/租户�
 实际平台 **macOS 27.0（26A428）/ arm64**，workspace crate **0.6.0**。只使用假凭据和临时 HOME/SQLite；未使用真实用户凭据/账号。真实客户端应用消费、Keychain、Iced/UI 渲染和非 macOS **未验证**；本任务未改 UI，不将安全回归外推为这些路径验收。
 
 状态：**已完成（供应商 API 权限与脱敏回归）**。仅提交本任务共享脱敏修复、独立测试/注册及本条正式证据，排除既有 Dsh 格式差异、母任务状态、其他编号任务删除及其它计划。定向差异与暂存检查通过；各阶段自身锁释放、缓存保留。验收后删除任务 51 编号文件，不提交该删除；下一步批次 52。
+
+## 任务 52：桌面供应商列表与排序
+
+2026-11-07。依赖批次51提交 `07a0d3b9c` 及其正式证据；调度明确 provider-contracts.md 底座子计划1–93开工裁定覆盖本批，不宣称母任务2完整领域迁移完成。只读 plan.md 未修改。
+
+来源：冻结来源 `ca58c0313360eae7c851fbd7553c1614c7af03e7` 的 ProviderList/ProviderCard/presentation、App.tsx 调用及 ProviderCardLayout 相邻测试。消费来源的列表、成员状态、分类备注与排序行为；路由/聚合和激活不在本批实现。现有 SDK catalog/presentation 是唯一数据入口，不增加业务存储或API。
+
+实现：`vw-desktop/src/app/{components,state,message}/app_providers/list.rs` 和最小父注册；“应用”卡片的“供应商”按钮复用当前连接的主机/令牌，展示服务直连、原生当前、成员状态、读取不可用原因和凭据配置摘要。分类、排序、备注弹窗使用统一 settings 控件、按钮与 toast，内容区4px滚动条，两侧7px留白，标题/操作固定；中文不用等宽字体。保存成功后SDK重新读取列表，失败保留表单，取消丢弃草稿。应用/主机/网关/租户/项目上下文和单调请求代次共同拒绝过期响应；关闭窗口不会重用代次。
+
+红证据：`cargo test -p vw-desktop --lib cc04_ui_list_ -- --nocapture`，退出101，0 passed/2 failed；两个指定测试分别在过期响应覆盖断言和“排序未通过真实SDK请求保存”断言失败，非编译失败。随后修复返回校验及正式SDK调用，4项行为测试通过。初轮已设 CARGO_TARGET_DIR，但仓库 build-dir=target 仍导致中间产物共用；发现后设置 CARGO_BUILD_BUILD_DIR 同值并重跑最终测试，不以初轮作为槽位隔离证据。
+
+最终隔离验证：所有槽位均原子 mkdir 动态领取，记录任务/会话/PID；CARGO_TARGET_DIR 和 CARGO_BUILD_BUILD_DIR 均为 `/Users/xiangmin/worker/code/shiju/target/rust-slot-N`。桌面聚焦及窗口阶段槽位1；正式API相邻回归槽位4；首次Clippy槽位3。`cargo fmt --all` 退出0；`cargo test -p vw-desktop --lib cc04_ui_list_ -- --nocapture` 退出0，4 passed；`cargo test -p vw-agent --lib cc04_presentation_ -- --nocapture` 退出0，3 passed；`cargo clippy --all-targets --all-features -- -D warnings` 退出0。桌面测试真实HTTP检查PUT路径和sortIndex/category/notes；相邻正式SDK→生产路由→隔离SQLite验证重读、拒绝不写、作用域隔离及原生文件不变，不将HTTP夹具冒充真实Gateway业务。链接器既有 __eh_frame 提示不影响测试退出0，未放宽lint。
+
+macOS 27.0（26A428）/arm64，workspace 0.6.0；显式 `cc04-provider-window`（harness=false/test=false）复用隔离bootstrap和字体加载，未知case/theme直接报错。临时回环HTTP夹具仅替代服务端，使用假token及16条中文摘要，真实组件/Message/SDK均执行。无生产bootstrap、真实网关或用户配置写入。
+
+确切命令 `SHIJU_CC04_WINDOW_CASE=list SHIJU_CC04_WINDOW_THEME=dark cargo test -p vw-desktop --test cc04-provider-window` 与 light 同形命令均成功构建并启动窗口；原始无bundle进程无法通过CUA定位，主动SIGTERM结束（Cargo退出101），不将启动计通过。复制同一槽位产物到临时 `/tmp/CC04ProviderAcceptance.app` 后分别以相同case/theme运行，CUA实际操作、手动关闭均退出0；临时fixture线程随窗口退出并join。首次真实渲染发现验收base未Fill导致弹窗裁剪，已修正入口容器并重新验收。原生日志有IMK mach-port系统提示，无panic。
+
+操作：明暗主题各打开排序备注弹窗，保存数字排序、中文分类/动态备注，SDK重读后可见；浅色另保存80遍中文长备注，列表正常换行并滚动；notes=fail触发真实HTTP403，toast可见、表单保留可编辑；取消后未保存fail不覆盖此前中文备注。实际截图：[暗色保存](evidence/task-52/dark-saved.png)、[暗色失败](evidence/task-52/dark-failure.png)、[暗色取消](evidence/task-52/dark-cancel.png)、[浅色表单](evidence/task-52/light-form.png)、[浅色长备注](evidence/task-52/light-saved.png)、[浅色失败](evidence/task-52/light-failure.png)。截图均为真实原生绘制，未以Element测试替代。非macOS、真实客户端激活/消费及真实账号未验证。
+
+最终重跑阶段仍动态领取槽位1，两个Cargo目录均指向 `/Users/xiangmin/worker/code/shiju/target/rust-slot-1`；格式化、4项桌面聚焦测试及全targets/features Clippy均退出0。定向暂存审查排除既有Dsh格式差异、母任务状态、其他编号任务删除及其它计划；截图约1.6MB仅含隔离假数据。自身槽位锁在各阶段结束后清理，缓存保留。
+
+状态：**已完成（桌面列表、展示排序与过期响应隔离）**。真实窗口验收使用上述同产物临时bundle回退，Cargo原始窗口命令的101保留如实记录，不冒称其退出0。下一步批次53；任务52编号文件验收后删除且不提交该删除。

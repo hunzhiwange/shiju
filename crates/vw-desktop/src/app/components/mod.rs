@@ -429,3 +429,5 @@ mod system_settings_agent_apps_tests;
 mod system_settings_agent_apps;
 
 pub(crate) mod system_settings_apps;
+
+pub(crate) mod app_providers;

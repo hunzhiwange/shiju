@@ -877,6 +877,7 @@ pub struct App {
     /// 当前网关作用域的图标列表加载状态
     pub(crate) agent_apps: AgentAppsState,
     pub(crate) apps_catalog: AppsCatalogState,
+    pub(crate) app_providers: super::app_providers::list::ListState,
     /// 客户端网关连接设置状态
     pub(crate) gateway_client_settings: GatewayClientSettingsState,
     /// 委托代理设置状态

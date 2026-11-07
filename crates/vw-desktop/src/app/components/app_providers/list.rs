@@ -111,6 +111,14 @@ pub(crate) fn overlay<'a>(
                     enabled,
                 ));
             }
+            if scope.app == AppId::Kimi && entry.native_member != ProviderMembership::Unknown {
+                let add = entry.native_member == ProviderMembership::Absent;
+                actions = actions.push(action(
+                    if add { "添加到 Kimi" } else { "从 Kimi 移除" },
+                    ListMessage::KimiMember { id: id.clone(), add },
+                    enabled,
+                ));
+            }
             if scope.app == AppId::Mcode && entry.native_member != ProviderMembership::Unknown {
                 let add = entry.native_member == ProviderMembership::Absent;
                 actions = actions.push(action(

@@ -85,7 +85,7 @@ impl AppProviderStore {
                     self.mcode_save(tenant, &id, &p, None, None)?;
                 }
                 NativeImport::Kimi(p) => {
-                    self.kimi_save(tenant, &id, &p, None)?;
+                    self.kimi_save(tenant, &id, &p, None, None)?;
                 }
             }
             imported += 1;

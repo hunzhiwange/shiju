@@ -490,3 +490,6 @@ pub fn selection(
         None => Ok(ProviderSelection::Unconfigured),
     }
 }
+
+#[path = "kimi_form.rs"]
+pub mod form;

@@ -126,6 +126,7 @@ default = []
 serde_json = "1"
 
 [dev-dependencies]
+toml = "0.9"
 iced_runtime = "0.14"
 
 # 显式运行的原生窗口验收；不加入默认测试，避免无显示器 CI 弹窗。

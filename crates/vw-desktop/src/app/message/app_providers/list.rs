@@ -31,7 +31,7 @@ use iced::Task;
 use vw_gateway_client::vw_api_types::{
     agent_apps::AppId,
     app_providers::{
-        hermes::HermesLiveResult, mcode::McodeLiveResult, omp::OmpLiveResult,
+        hermes::HermesLiveResult, kimi::KimiLiveResult, mcode::McodeLiveResult, omp::OmpLiveResult,
         openclaw::OpenClawLiveResult, opencode::OpenCodeLiveResult, pi::PiLiveResult,
     },
 };
@@ -65,6 +65,16 @@ pub enum ListMessage {
         generation: u64,
         add: bool,
         result: Result<PiLiveResult, String>,
+    },
+    KimiMember {
+        id: String,
+        add: bool,
+    },
+    KimiMemberChanged {
+        scope: Scope,
+        generation: u64,
+        add: bool,
+        result: Result<KimiLiveResult, String>,
     },
     McodeMember {
         id: String,
@@ -180,6 +190,12 @@ pub(crate) fn update(app: &mut App, value: ListMessage) -> Task<Message> {
         }
         ListMessage::PiMemberChanged { scope, generation, add, result } => {
             return super::pi::membership_changed(app, scope, generation, add, result);
+        }
+        ListMessage::KimiMember { id, add } => {
+            return super::kimi::change_membership(app, id, add);
+        }
+        ListMessage::KimiMemberChanged { scope, generation, add, result } => {
+            return super::kimi::membership_changed(app, scope, generation, add, result);
         }
         ListMessage::McodeMember { id, add } => {
             return super::mcode::change_membership(app, id, add);

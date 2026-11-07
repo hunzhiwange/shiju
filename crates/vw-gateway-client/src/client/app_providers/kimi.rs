@@ -3,6 +3,31 @@ use super::super::agent_apps_read_api::AgentAppsReadError as Error;
 use super::GatewayClient;
 use vw_api_types::app_providers::kimi::*;
 impl GatewayClient {
+    pub async fn kimi_form_read(
+        &self,
+        id: &str,
+        body: &KimiTarget,
+        token: &str,
+    ) -> Result<KimiFormView, Error> {
+        self.kimi_request(id, "POST", "/form/read", body, token).await
+    }
+    pub async fn kimi_form_create(
+        &self,
+        id: &str,
+        body: &KimiFormWrite,
+        token: &str,
+    ) -> Result<KimiResult, Error> {
+        self.kimi_request(id, "POST", "/form", body, token).await
+    }
+    pub async fn kimi_form_update(
+        &self,
+        id: &str,
+        body: &KimiFormWrite,
+        token: &str,
+    ) -> Result<KimiResult, Error> {
+        self.kimi_request(id, "PATCH", "/form", body, token).await
+    }
+
     pub async fn kimi_provider_editor_save(
         &self,
         id: &str,

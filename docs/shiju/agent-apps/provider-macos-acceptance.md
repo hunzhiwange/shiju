@@ -2869,3 +2869,45 @@ macOS **27.0（26A428）/ arm64**，桌面 **0.6.0**。临时 app bundle 运行�
 - 浅色：[加入](evidence/task-63/light-added.png)、[滚动](evidence/task-63/light-scroll.png)、[失败](evidence/task-63/light-failure.png)、[保存](evidence/task-63/light-saved.png)、[取消前](evidence/task-63/light-cancel-draft.png)、[重开](evidence/task-63/light-cancel-reopened.png)、[移除](evidence/task-63/light-removed.png)。
 
 状态：**已完成**。只提交本任务实现、测试、必要接线和证据，排除其他会话的设置/终端变更和编号任务删除。下一步批次 64。
+
+## 任务 64：桌面 Kimi 供应商编辑
+
+2026-11-07。已核对批次 63 提交 `eccf7557a` 及上述正式验收。母任务 1、3 已完成；母任务 2 沿用 provider-contracts.md 的底座子计划 1–93 开工裁定，完整领域迁移仍未收口。复用批次 41 的 Kimi 增量事务和批次 52 的原生窗口入口；所有 plan.md 保持只读。
+
+- 来源 `/Users/xiangmin/worker/code/cc-switch` HEAD 为冻结快照 `ca58c0313360eae7c851fbd7553c1614c7af03e7`，工作区干净。阅读 `KimiProviderForm`、`ProviderForm` 的 Kimi 分支及相邻测试的 TOML 编辑、非法作用域、模型上下文、官方账号连接保护行为。RustCodeGraph status/explore 确认现有原生调用链。
+- 新增桌面 `components/state/message/app_providers/kimi.rs`，接入统一编辑弹窗、Message 分发与列表成员操作。草稿是单个 `provider` 与关联 `models` 的 TOML 声明；Iced 不解析 TOML、不决定事务策略。模型标识、显示名、上下文和原生扩展交由执行端校验。官方授权、模型发现明确暂不可用；官方/托管节点不作为可编辑连接回填。
+- `KimiFormWrite/View/Config` 与 SDK `kimi_form_read/create/update` 对应 `POST /v1/app-providers/kimi/{id}/form/read`、`POST /form`、`PATCH /form`。SDK 保留 Kimi 原有身份编码与敏感凭据头处理。执行端 `providers/kimi_form.rs` 负责脱敏投影、原位置隐藏值还原、公开目录及原生成员修订、Keep/Replace/Clear、保留凭据时的地址/协议变更拒绝；秘密值不参与返回的修订哈希。复用既有身份/原生校验、主机授权、存储 CAS、文件锁和事务所有者。
+- 新建可只存目录或同时加入；编辑可只存目录或同步现有成员。列表增删消费原 SDK；移除后目录和展示名保留。既有原生默认模型、关联模型及官方账号连接保护继续生效。
+- 回环 HTTP → 真实 SDK/Gateway → 临时 SQLite 与隔离 HOME，验证了更新同步、中文模型/基础资料、凭据及请求头保留、其他供应商/注释/默认模型/登录文件不变、422 无效 TOML、409 陈旧修订、无权限与地址变更拒绝，以及仅存目录不落原生文件。桌面单测的回环服务器仅替代执行端网络边界，接收真实 SDK 请求并返回 422，证明失败保留草稿和代次/主机过期响应被忽略。
+
+### 自动验证
+
+每阶段原子 mkdir 动态领取仓库共享槽位，记录任务/会话/PID；`CARGO_BUILD_BUILD_DIR` 与绝对 `CARGO_TARGET_DIR` 相同。Cargo 和窗口进程退出后释放自身锁，缓存保留。
+
+| 槽位 | CARGO_TARGET_DIR | 阶段 |
+|---|---|---|
+| 1 | `/Users/xiangmin/worker/code/shiju/target/rust-slot-1` | 红测、格式化、绿测、Gateway、Clippy |
+| 2 | `/Users/xiangmin/worker/code/shiju/target/rust-slot-2` | 窗口首次编译、补依赖后的格式化、深色与浅色窗口 |
+
+| 阶段 | 命令 | 退出码 | 有效数量/结果 |
+|---|---|---:|---|
+| 红 | `cargo test -p vw-desktop --lib cc04_ui_kimi_ -- --nocapture` | 101 | 0 passed / 2 failed，业务断言：草稿未送达 SDK、有效响应未结束保存 |
+| 格式化 | `cargo fmt --all` | 0 | 实现后与补窗口测试依赖后均完成 |
+| 绿 | `cargo test -p vw-desktop --lib cc04_ui_kimi_ -- --nocapture` | 0 | 2 passed |
+| Gateway | `cargo test -p vw-agent --lib gateway::api::handlers::app_providers::kimi_tests:: -- --nocapture` | 0 | 8 passed，含新增 2 项 |
+| Clippy | `cargo clippy --all-targets --all-features -- -D warnings` | 0 | 全 targets/features |
+| 深色 | `SHIJU_CC04_WINDOW_CASE=kimi SHIJU_CC04_WINDOW_THEME=dark cargo test -p vw-desktop --test cc04-provider-window` | 0 | 实际操作后关闭 |
+| 浅色 | `SHIJU_CC04_WINDOW_CASE=kimi SHIJU_CC04_WINDOW_THEME=light cargo test -p vw-desktop --test cc04-provider-window` | 0 | 实际操作后关闭 |
+
+首次深色窗口编译退出 101：夹具使用 TOML 但桌面未声明该测试依赖；仅补 `dev-dependencies` 中的既有 toml 0.9 及锁文件后，格式化并重跑成功。生产 Iced 路径没有 TOML 解析。测试链接器有既有 unwind 提示，严格 Clippy 退出 0。未执行全量单测、fmt check、wasm 或 Makefile。
+
+### macOS 原生窗口
+
+macOS **27.0（26A428）/ arm64**，桌面 **0.6.0**。显式窗口测试通过临时 app bundle runner 运行真实 Iced、Message 和 SDK，连接隔离假数据 HTTP 夹具，不改真实用户配置。真实授权、原生 TOML 落盘和事务由上述 Gateway 集成测试证明。PATH 未找到 Kimi CLI，真实安装、账号与 CLI 消费配置未验证。
+
+明暗主题分别完成：为中文供应商添加成员 → 打开编辑并拖动长表单 → 提交空 models 返回 422，中文草稿保留 → 修正中文动态模型后保存并同步 → 修改中文名称后取消 → 重开确认原名称 → 移除后档案保留。中文动态文本和长表单实际绘制，未发生字形整形 panic；默认字体、统一输入/按钮样式、4px 滚动条和内容两侧 7px 留白，标题与操作区固定。两个窗口均手动关闭、进程退出 0；日志仅出现既有 macOS sandbox extension/输入法端口提示。
+
+- 深色：[添加](evidence/task-64/dark-added.png)、[滚动](evidence/task-64/dark-scroll.png)、[失败](evidence/task-64/dark-failure.png)、[保存](evidence/task-64/dark-saved.png)、[取消草稿](evidence/task-64/dark-cancel-draft.png)、[重开](evidence/task-64/dark-cancel-reopened.png)、[移除](evidence/task-64/dark-removed.png)。
+- 浅色：[添加](evidence/task-64/light-added.png)、[滚动](evidence/task-64/light-scroll.png)、[失败](evidence/task-64/light-failure.png)、[保存](evidence/task-64/light-saved.png)、[取消草稿](evidence/task-64/light-cancel-draft.png)、[重开](evidence/task-64/light-cancel-reopened.png)、[移除](evidence/task-64/light-removed.png)。
+
+状态：**已完成**。差异审查限于本任务代码、独立测试、必要接线、测试依赖与正式证据；排除其他会话设置/终端变更、其它计划及编号任务删除。自身槽位 1、2 锁已释放，缓存保留。下一步批次 65。

@@ -52,3 +52,29 @@ pub struct KimiEditorWrite {
     pub activation: KimiActivation,
 }
 concealed!(KimiEditorWrite);
+#[derive(Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct KimiFormWrite {
+    pub target_host_id: String,
+    pub fields: super::basic::ProviderBasic,
+    pub declaration: String,
+    pub api_key: super::create::ProviderSecretWrite,
+    pub activation: KimiActivation,
+    pub revision: Option<String>,
+}
+concealed!(KimiFormWrite);
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct KimiFormView {
+    pub fields: super::basic::ProviderBasic,
+    pub config: Option<KimiFormConfig>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct KimiFormConfig {
+    pub declaration: String,
+    pub has_saved_key: bool,
+    pub revision: String,
+}

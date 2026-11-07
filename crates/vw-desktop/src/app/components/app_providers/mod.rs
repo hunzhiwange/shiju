@@ -11,3 +11,5 @@ mod opencode;
 mod pi;
 
 mod mcode;
+
+mod kimi;

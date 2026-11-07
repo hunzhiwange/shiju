@@ -12,3 +12,5 @@ pub(crate) mod omp;
 pub(crate) mod pi;
 
 pub(crate) mod mcode;
+
+pub(crate) mod kimi;

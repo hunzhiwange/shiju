@@ -22,6 +22,7 @@ fn main() {
         "pi" => (AppId::Pi, true),
         "omp" => (AppId::Omp, true),
         "mcode" => (AppId::Mcode, true),
+        "kimi" => (AppId::Kimi, true),
         _ => panic!("unknown window case"),
     };
     let edit = case == "edit";
@@ -69,6 +70,7 @@ fn main() {
         "pi" => "Pi 供应商隔离验收",
         "omp" => "OMP 供应商隔离验收",
         "mcode" => "Mcode 供应商隔离验收",
+        "kimi" => "Kimi 供应商隔离验收",
         "claude" => "Claude Code 供应商隔离验收",
         _ => "供应商基础编辑隔离验收",
     })
@@ -121,6 +123,7 @@ fn fixture(
             AppId::Pi => "pi",
             AppId::Omp => "omp",
             AppId::Mcode => "mcode",
+            AppId::Kimi => "kimi",
             _ => panic!("unknown fixture app"),
         };
         let prefix = format!("/v1/app-providers/{app}/");
@@ -154,7 +157,7 @@ fn fixture(
             }));
         }
         let incremental =
-            matches!(app, "opencode" | "openclaw" | "hermes" | "pi" | "omp" | "mcode");
+            matches!(app, "opencode" | "openclaw" | "hermes" | "pi" | "omp" | "mcode" | "kimi");
         let mut node_configs = std::collections::BTreeMap::from([(
             "provider-0".to_owned(),
             serde_json::json!({
@@ -247,6 +250,13 @@ fn fixture(
                 node_configs.insert(id.clone(),serde_json::json!({"declaration":declaration,"hasSavedKey":true,"revision":"fixture-mcode"}));
             }
         }
+        if app == "kimi" {
+            for id in basics.keys() {
+                let models = (0..18).map(|i|(format!("fixture-model-{i}"),serde_json::json!({"model":format!("fixture-{i}"),"display_name":format!("中文动态模型 {i}"),"max_context_size":8192}))).collect::<serde_json::Map<_,_>>();
+                let declaration=toml::to_string(&serde_json::json!({"provider":{"type":"openai","base_url":"https://fixture-api.example.test/v1"},"models":models})).unwrap();
+                node_configs.insert(id.clone(),serde_json::json!({"declaration":declaration,"hasSavedKey":true,"revision":"fixture-kimi"}));
+            }
+        }
         let mut node_members = std::collections::BTreeSet::from(["provider-0".to_owned()]);
         while !done.load(std::sync::atomic::Ordering::Relaxed) {
             let (mut stream, _) = match listener.accept() {
@@ -308,7 +318,9 @@ fn fixture(
                 } else {
                     assert!(line.starts_with("POST ") || line.starts_with("PATCH "));
                     let declaration = value["declaration"].as_str().unwrap();
-                    let node = if matches!(app, "omp" | "mcode") {
+                    let node = if app == "kimi" {
+                        toml::from_str::<serde_json::Value>(declaration).ok()
+                    } else if matches!(app, "omp" | "mcode") {
                         serde_yaml::from_str::<serde_json::Value>(declaration).ok()
                     } else {
                         serde_json::from_str::<serde_json::Value>(declaration).ok()
@@ -322,7 +334,7 @@ fn fixture(
                             })
                         } else {
                             models.as_object().is_some_and(|models| {
-                                if app == "mcode" {
+                                if matches!(app, "mcode" | "kimi") {
                                     !models.is_empty()
                                         && models.iter().all(|(id, model)| {
                                             !id.trim().is_empty() && model.is_object()

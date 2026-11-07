@@ -268,3 +268,94 @@ async fn cc04_kimi_editor_is_checked_by_server_and_import_never_overwrites() {
     assert_eq!(f.record("one"), record);
     assert_eq!(f.bytes(), bytes);
 }
+
+#[tokio::test]
+async fn cc04_ui_kimi_form_roundtrip_preserves_credentials_and_other_nodes() {
+    use vw_api_types::app_providers::{basic::ProviderBasic, create::ProviderSecretWrite};
+    let f = Fixture::new().await;
+    let mut seed = f.request(KimiActivation::Add);
+    seed.profile.declaration["provider"]["base_url"] = json!("https://fixture.example.test/v1");
+    seed.profile.declaration["provider"]["custom_headers"] = json!({"X-Test":"fake-header"});
+    f.client.kimi_provider_save("one", &seed, TOKEN).await.unwrap();
+    let view = f.client.kimi_form_read("one", &f.target(), TOKEN).await.unwrap();
+    let config = view.config.unwrap();
+    assert!(!config.declaration.contains("fake-secret"));
+    assert!(!config.declaration.contains("fake-header"));
+    let mut node: Value = toml::from_str(&config.declaration).unwrap();
+    node["models"]["alias"]["display_name"] = json!("中文动态模型");
+    let body = KimiFormWrite {
+        target_host_id: "host".into(),
+        fields: ProviderBasic {
+            name: "中文供应商".into(),
+            notes: Some("中文备注".into()),
+            category: None,
+            website_url: None,
+        },
+        declaration: toml::to_string(&node).unwrap(),
+        api_key: ProviderSecretWrite::Keep,
+        activation: KimiActivation::IfMember,
+        revision: Some(config.revision),
+    };
+    assert_eq!(
+        f.client.kimi_form_update("one", &body, TOKEN).await.unwrap().live,
+        KimiLiveResult::Applied
+    );
+    let native: Value = toml::from_str(std::str::from_utf8(&f.bytes()).unwrap()).unwrap();
+    assert_eq!(native["providers"]["one"]["api_key"], "fake-secret");
+    assert_eq!(native["providers"]["one"]["custom_headers"]["X-Test"], "fake-header");
+    assert_eq!(native["providers"]["other"]["api_key"], "fake-native");
+    assert_eq!(native["models"]["alias"]["display_name"], "中文动态模型");
+    assert_eq!(native["default_model"], "native");
+    assert!(String::from_utf8_lossy(&f.bytes()).contains("# keep"));
+    assert_eq!(f.record("one").unwrap()["notes"], "中文备注");
+    let before = f.bytes();
+    let record = f.record("one");
+    assert!(matches!(
+        f.client.kimi_form_update("one", &body, TOKEN).await,
+        Err(vw_gateway_client::AgentAppsReadError::Http { status: 409, .. })
+    ));
+    assert_eq!(f.bytes(), before);
+    assert_eq!(f.record("one"), record);
+    f.client.kimi_provider_remove_live("one", &f.target(), TOKEN).await.unwrap();
+    assert_eq!(f.record("one").unwrap()["name"], "中文供应商");
+}
+
+#[tokio::test]
+async fn cc04_ui_kimi_form_invalid_denied_and_redirect_leave_no_side_effects() {
+    use vw_api_types::app_providers::create::ProviderSecretWrite;
+    let f = Fixture::new().await;
+    let mut seed = f.request(KimiActivation::Add);
+    seed.profile.declaration["provider"]["base_url"] = json!("https://fixture.example.test/v1");
+    f.client.kimi_provider_save("one", &seed, TOKEN).await.unwrap();
+    let view = f.client.kimi_form_read("one", &f.target(), TOKEN).await.unwrap();
+    let config = view.config.unwrap();
+    let mut body = KimiFormWrite {
+        target_host_id: "host".into(),
+        fields: view.fields,
+        declaration: config.declaration.clone(),
+        api_key: ProviderSecretWrite::Keep,
+        activation: KimiActivation::IfMember,
+        revision: Some(config.revision),
+    };
+    let before = f.bytes();
+    let record = f.record("one");
+    assert!(f.client.kimi_form_update("one", &body, "invalid-token").await.is_err());
+    body.declaration = "[provider".into();
+    assert!(matches!(
+        f.client.kimi_form_update("one", &body, TOKEN).await,
+        Err(vw_gateway_client::AgentAppsReadError::Http { status: 422, .. })
+    ));
+    body.declaration = config
+        .declaration
+        .replace("https://fixture.example.test/v1", "https://other.example.test/v1");
+    assert!(f.client.kimi_form_update("one", &body, TOKEN).await.is_err());
+    assert_eq!(f.bytes(), before);
+    assert_eq!(f.record("one"), record);
+    body.declaration = config.declaration;
+    body.activation = KimiActivation::CatalogOnly;
+    body.revision = None;
+    body.api_key = ProviderSecretWrite::Replace { value: "fake-new".into() };
+    assert!(f.client.kimi_form_create("new", &body, TOKEN).await.unwrap().catalog_saved);
+    assert_eq!(f.bytes(), before);
+    assert_eq!(f.record("new").unwrap()["kimi"]["declaration"]["provider"]["api_key"], "fake-new");
+}

@@ -32,3 +32,8 @@ mod pi_tests;
 pub(crate) mod mcode;
 #[cfg(test)]
 mod mcode_tests;
+
+pub(crate) mod kimi;
+
+#[cfg(test)]
+mod kimi_tests;

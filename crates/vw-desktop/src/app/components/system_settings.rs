@@ -671,20 +671,9 @@ fn settings_shell(
     }
     let actions = actions.push(settings_close_button(close_message));
 
-    let header = row![
-        back,
-        column![
-            text(i18n.__("配置")).size(22),
-            text(i18n.__("管理运行、工具、模型与连接设置。"))
-                .size(12)
-                .style(settings_muted_text_style),
-        ]
-        .spacing(4)
-        .width(Length::Fill),
-        actions,
-    ]
-    .spacing(10)
-    .align_y(Alignment::Center);
+    let header = row![back, text(i18n.__("配置")).size(22).width(Length::Fill), actions,]
+        .spacing(10)
+        .align_y(Alignment::Center);
 
     let sidebar_width = (width * 0.27).clamp(120.0, 228.0);
     let body = row![settings_navigation(app, sidebar_width), settings_content(app, active_tab)]

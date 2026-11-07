@@ -1,6 +1,6 @@
 use super::gallery::{
-    GALLERY_COLUMNS, GALLERY_PAGE_SIZE, ThemeGallerySource, build_gallery_entries,
-    clamp_gallery_page, gallery_page_count, gallery_page_range, palette_hex_from_theme,
+    GALLERY_PAGE_SIZE, ThemeGallerySource, build_gallery_entries, clamp_gallery_page,
+    gallery_page_count, gallery_page_range, palette_hex_from_theme,
 };
 use crate::app::components::system_settings::SystemTab;
 use crate::app::theme_catalog::{
@@ -203,10 +203,8 @@ fn themes_gallery_exposes_cover_path_when_asset_present() {
 }
 
 #[test]
-fn themes_gallery_pages_six_cards_three_columns() {
-    assert_eq!(GALLERY_COLUMNS, 3);
+fn themes_gallery_pages_six_cards() {
     assert_eq!(GALLERY_PAGE_SIZE, 6);
-    assert_eq!(GALLERY_PAGE_SIZE % GALLERY_COLUMNS, 0);
 
     let total = 13;
     assert_eq!(gallery_page_count(total), 3);

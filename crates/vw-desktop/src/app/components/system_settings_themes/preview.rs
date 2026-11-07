@@ -110,7 +110,7 @@ pub(crate) fn theme_preview_panel(
     };
 
     let sample = column![
-        text(title).size(15).color(fg),
+        text(title).size(15).color(fg).wrapping(text::Wrapping::WordOrGlyph),
         text(crate::app::i18n::I18n::new(locale).__("这是一段预览文本，用于检查背景与文字对比。"))
             .size(12)
             .color(fg),

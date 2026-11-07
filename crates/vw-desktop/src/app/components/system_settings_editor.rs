@@ -14,13 +14,13 @@
 //! ```
 
 use crate::app::components::system_settings_common::{
-    SETTINGS_LABEL_WIDTH, settings_checkbox_style, settings_divider, settings_muted_text_style,
-    settings_page_intro, settings_pick_list_menu_style, settings_pick_list_style,
-    settings_section_card, settings_section_content, settings_value_badge,
+    settings_checkbox_style, settings_divider, settings_group_card, settings_group_heading,
+    settings_page_heading, settings_row, settings_select, settings_value_badge,
 };
+use crate::app::i18n::I18n;
 use crate::app::message::editor::{EditorMessage, metrics};
 use crate::app::{App, Message, message};
-use iced::widget::{Slider, checkbox, column, container, pick_list, row, slider, text};
+use iced::widget::{Slider, checkbox, column, responsive, row, slider};
 use iced::{Alignment, Element, Length};
 use std::ops::RangeInclusive;
 
@@ -30,29 +30,6 @@ pub(crate) fn metrics_slider(
     on_preview: impl Fn(f32) -> Message + 'static,
 ) -> Slider<'static, f32, Message> {
     slider(range, value, on_preview).on_release(Message::Editor(EditorMessage::CommitMetrics))
-}
-
-fn field_row<'a>(
-    label: &'static str,
-    description: &'static str,
-    control: impl Into<Element<'a, Message>>,
-) -> Element<'a, Message> {
-    container(
-        row![
-            column![
-                text(label).size(13),
-                text(description).size(11).style(settings_muted_text_style),
-            ]
-            .spacing(4)
-            .width(Length::Fixed(SETTINGS_LABEL_WIDTH)),
-            container(control.into()).width(Length::Fill),
-        ]
-        .spacing(22)
-        .align_y(Alignment::Center),
-    )
-    .padding([14, 0])
-    .width(Length::Fill)
-    .into()
 }
 
 /// 渲染系统设置编辑器视图
@@ -84,34 +61,46 @@ fn field_row<'a>(
 /// 5. 自动行高 - 复选框，控制是否根据字体大小自动调整行高
 /// 6. LSP 语言服务 - 复选框，控制代码补全、悬停与跳转定义
 pub(crate) fn content(app: &App) -> Element<'_, Message> {
-    let editor_theme = if app.editor_follow_system_theme {
-        app.app_theme.clone()
-    } else {
-        app.editor_theme.clone()
-    };
+    let i18n = I18n::new(app.desktop_locale);
+    let fields = responsive(move |size| editor_fields(app, (size.width * 0.40).min(250.0)))
+        .height(Length::Shrink);
 
-    let theme_pick = pick_list(iced::Theme::ALL, Some(editor_theme), |t| {
-        Message::Editor(message::EditorMessage::ThemeChanged(t))
-    })
-    .padding([10, 14])
-    .text_size(13)
-    .style(settings_pick_list_style)
-    .menu_style(settings_pick_list_menu_style)
-    .width(Length::Fixed(280.0));
+    column![
+        settings_group_heading(i18n.__("主题与显示"), i18n.__("统一编辑器主题来源及排版参数。")),
+        fields,
+    ]
+    .spacing(16)
+    .width(Length::Fill)
+    .into()
+}
+
+fn editor_fields(app: &App, control_width: f32) -> Element<'_, Message> {
+    let i18n = I18n::new(app.desktop_locale);
+    let field_row = |label, description, control: Element<'static, Message>| {
+        settings_row(label, description, control_width, control)
+    };
+    let theme_pick = settings_select(
+        iced::Theme::ALL.iter().cloned(),
+        Some(app.effective_editor_theme()),
+        |theme| Message::Editor(EditorMessage::ThemeChanged(theme)),
+    )
+    .disabled(app.editor_follow_system_theme)
+    .width(Length::Fill);
 
     let follow_system_theme = field_row(
-        crate::app::i18n::I18n::new(app.desktop_locale).__("跟随系统主题"),
-        crate::app::i18n::I18n::new(app.desktop_locale).__("启用后沿用应用当前主题。"),
+        i18n.__("跟随系统主题"),
+        i18n.__("启用后沿用应用当前主题。"),
         checkbox(app.editor_follow_system_theme)
-            .label(crate::app::i18n::I18n::new(app.desktop_locale).__("启用"))
+            .label(i18n.__("启用"))
             .on_toggle(|v| Message::Editor(message::EditorMessage::ToggleFollowSystemTheme(v)))
-            .style(settings_checkbox_style),
+            .style(settings_checkbox_style)
+            .into(),
     );
 
     let editor_theme_row = field_row(
-        crate::app::i18n::I18n::new(app.desktop_locale).__("编辑器主题"),
-        crate::app::i18n::I18n::new(app.desktop_locale).__("关闭跟随系统主题时使用的编辑器配色。"),
-        theme_pick,
+        i18n.__("编辑器主题"),
+        i18n.__("关闭跟随系统主题时使用的编辑器配色。"),
+        theme_pick.into(),
     );
 
     let displayed = metrics::displayed(app);
@@ -119,54 +108,49 @@ pub(crate) fn content(app: &App) -> Element<'_, Message> {
         metrics_slider(10.0..=30.0, displayed.font_size, |v| {
             Message::Editor(message::EditorMessage::FontSizePreview(v))
         })
-        .width(Length::Fixed(220.0)),
+        .width(Length::Fill),
         settings_value_badge(format!("{:.0}px", displayed.font_size))
     ]
-    .spacing(16)
+    .spacing(10)
     .align_y(Alignment::Center);
 
-    let size_row = field_row(
-        crate::app::i18n::I18n::new(app.desktop_locale).__("字体大小"),
-        crate::app::i18n::I18n::new(app.desktop_locale).__("调整编辑器主文本字号。"),
-        size_slider,
-    );
+    let size_row =
+        field_row(i18n.__("字体大小"), i18n.__("调整编辑器主文本字号。"), size_slider.into());
 
     let line_height_slider = row![
         metrics_slider(10.0..=60.0, displayed.line_height, |v| {
             Message::Editor(message::EditorMessage::LineHeightPreview(v))
         })
-        .width(Length::Fixed(220.0)),
+        .width(Length::Fill),
         settings_value_badge(format!("{:.1}px", displayed.line_height))
     ]
-    .spacing(16)
+    .spacing(10)
     .align_y(Alignment::Center);
 
-    let line_height_row = field_row(
-        crate::app::i18n::I18n::new(app.desktop_locale).__("行高"),
-        crate::app::i18n::I18n::new(app.desktop_locale).__("调整每一行的垂直高度。"),
-        line_height_slider,
-    );
+    let line_height_row =
+        field_row(i18n.__("行高"), i18n.__("调整每一行的垂直高度。"), line_height_slider.into());
 
     let auto_line_height = field_row(
-        crate::app::i18n::I18n::new(app.desktop_locale).__("自动行高"),
-        crate::app::i18n::I18n::new(app.desktop_locale).__("根据字体大小自动推导更合适的行高。"),
+        i18n.__("自动行高"),
+        i18n.__("根据字体大小自动推导更合适的行高。"),
         checkbox(displayed.auto_line_height)
-            .label(crate::app::i18n::I18n::new(app.desktop_locale).__("根据字体大小自动调整"))
+            .label(i18n.__("根据字体大小自动调整"))
             .on_toggle(|v| Message::Editor(message::EditorMessage::ToggleAutoLineHeight(v)))
-            .style(settings_checkbox_style),
+            .style(settings_checkbox_style)
+            .into(),
     );
 
     #[cfg(not(target_arch = "wasm32"))]
     let lsp_enabled = field_row(
-        crate::app::i18n::I18n::new(app.desktop_locale).__("LSP 语言服务"),
-        crate::app::i18n::I18n::new(app.desktop_locale)
-            .__("启用代码补全、悬停提示与跳转定义；需要对应语言服务器可用。"),
+        i18n.__("LSP 语言服务"),
+        i18n.__("启用代码补全、悬停提示与跳转定义；需要对应语言服务器可用。"),
         checkbox(!app.lsp_disabled)
-            .label(crate::app::i18n::I18n::new(app.desktop_locale).__("启用"))
+            .label(i18n.__("启用"))
             .on_toggle(|enabled| {
                 Message::Preview(message::PreviewMessage::LspToggleDisabled(!enabled))
             })
-            .style(settings_checkbox_style),
+            .style(settings_checkbox_style)
+            .into(),
     );
 
     let mut fields = column![
@@ -187,23 +171,15 @@ pub(crate) fn content(app: &App) -> Element<'_, Message> {
         fields = fields.push(settings_divider()).push(lsp_enabled);
     }
 
-    column![
-        settings_section_card(
-            crate::app::i18n::I18n::new(app.desktop_locale).__("主题与显示"),
-            crate::app::i18n::I18n::new(app.desktop_locale).__("统一编辑器主题来源及排版参数。")
-        ),
-        settings_section_content(fields)
-    ]
-    .spacing(16)
-    .into()
+    settings_group_card(fields).into()
 }
 
 pub fn view(app: &App) -> Element<'_, Message> {
+    let i18n = I18n::new(app.desktop_locale);
     column![
-        settings_page_intro(
-            crate::app::i18n::I18n::new(app.desktop_locale).__("编辑器配置"),
-            crate::app::i18n::I18n::new(app.desktop_locale)
-                .__("配置主题、字号与行高等编辑体验参数。")
+        settings_page_heading(
+            i18n.__("编辑器配置"),
+            i18n.__("配置主题、字号与行高等编辑体验参数。")
         ),
         content(app),
     ]
@@ -213,3 +189,7 @@ pub fn view(app: &App) -> Element<'_, Message> {
 #[cfg(test)]
 #[path = "system_settings_editor_tests.rs"]
 mod system_settings_editor_tests;
+
+#[cfg(all(test, not(target_arch = "wasm32")))]
+#[path = "system_settings_editor_ui_refresh_05_tests.rs"]
+mod ui_refresh_05_tests;

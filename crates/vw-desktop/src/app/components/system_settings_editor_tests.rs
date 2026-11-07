@@ -4,8 +4,6 @@
 use super::*;
 use crate::app::{App, Message};
 use iced::Element;
-use iced::advanced::widget::Tree;
-use iced::widget::text;
 
 // 默认应用提供完整主题上下文，用例仅改写编辑器设置的目标字段。
 fn test_app() -> App {
@@ -15,11 +13,6 @@ fn test_app() -> App {
 // 这些用例验证所有状态均可构建，不依赖窗口渲染后的像素结果。
 fn keep_element(element: Element<'_, Message>) {
     std::hint::black_box(element);
-}
-
-#[test]
-fn field_row_wraps_controls() {
-    keep_element(field_row("编辑器主题", "说明", text("control")));
 }
 
 #[test]
@@ -72,31 +65,11 @@ fn view_with_max_boundary_values() {
     keep_element(view(&app));
 }
 
-#[test]
-fn view_keeps_intro_section_and_six_setting_rows() {
-    let app = test_app();
-    let element = view(&app);
-    let tree = Tree::new(element.as_widget());
-
-    assert_eq!(tree.children.len(), 2);
-    assert_eq!(tree.children[0].children.len(), 2);
-    let content = &tree.children[1];
-    assert_eq!(content.children.len(), 2);
-    assert_eq!(content.children[0].children.len(), 2);
-
-    let panel_column = &content.children[1];
-    assert_eq!(panel_column.children.len(), 11);
-    for row_index in [0, 2, 4, 6, 8, 10] {
-        let field = &panel_column.children[row_index];
-        assert_eq!(field.children.len(), 2);
-    }
-}
-
 #[cfg(not(target_arch = "wasm32"))]
 #[tokio::test(flavor = "multi_thread")]
 async fn metrics_slider_previews_touch_and_wheel_and_commits_on_touch_release() {
     use iced::advanced::renderer::Headless;
-    use iced::advanced::{Layout, Shell, Widget, layout};
+    use iced::advanced::{Layout, Shell, Widget, layout, widget::Tree};
     use iced::{Event, Font, Pixels, Point, Size, keyboard, mouse, touch};
 
     let renderer =

@@ -1,9 +1,9 @@
-//! 主题画廊：内置 + 自定义主题每行三卡、每页六卡分页展示。
+//! 主题画廊：内置、预设和自定义主题按宽度分列，每页六卡。
 
 use crate::app::components::system_settings_common::{
-    danger_action_btn_style, rounded_action_btn_style, settings_error_banner,
-    settings_muted_text_style, settings_page_intro, settings_panel_style, settings_section_card,
-    settings_value_badge,
+    danger_action_btn_style, primary_action_btn_style, rounded_action_btn_style,
+    settings_error_banner, settings_group_heading, settings_muted_text_style,
+    settings_page_heading, settings_panel_style, settings_value_badge,
 };
 use crate::app::message::settings::{SettingsMessage, ThemesMessage};
 use crate::app::theme_catalog::{
@@ -12,12 +12,10 @@ use crate::app::theme_catalog::{
 };
 use crate::app::{App, Message};
 use iced::widget::image::Handle as ImageHandle;
-use iced::widget::{Image, button, column, container, row, text};
+use iced::widget::{Image, button, column, container, grid, row, text};
 use iced::{Alignment, Background, Border, Color, ContentFit, Element, Length, Theme};
 
-/// 画廊每行卡片数。
-pub const GALLERY_COLUMNS: usize = 3;
-/// 画廊每页展示的卡片数（两行 × 三列）。
+/// 画廊每页展示的卡片数。
 pub const GALLERY_PAGE_SIZE: usize = 6;
 
 /// 画廊条目来源。
@@ -223,6 +221,7 @@ fn palette_swatch_row(
         })
         .collect::<Vec<_>>())
     .spacing(6)
+    .wrap()
     .into()
 }
 
@@ -273,7 +272,7 @@ fn gallery_card<'a>(app: &'a App, entry: &'a ThemeGalleryEntry) -> Element<'a, M
     }
 
     let header = column![
-        text(entry.name.clone()).size(14),
+        text(entry.name.as_str()).size(14).wrapping(text::Wrapping::WordOrGlyph),
         text(entry.tagline.clone().unwrap_or_else(|| match entry.source {
             ThemeGallerySource::Builtin => {
                 if entry.modified {
@@ -289,9 +288,10 @@ fn gallery_card<'a>(app: &'a App, entry: &'a ThemeGalleryEntry) -> Element<'a, M
             ThemeGallerySource::Custom =>
                 crate::app::i18n::I18n::new(app.desktop_locale).__("本地自定义主题").to_string(),
         }))
-        .size(10)
+        .size(12)
+        .wrapping(text::Wrapping::WordOrGlyph)
         .style(settings_muted_text_style),
-        badges,
+        badges.wrap(),
     ]
     .spacing(6)
     .width(Length::Fill);
@@ -407,14 +407,9 @@ fn gallery_card<'a>(app: &'a App, entry: &'a ThemeGalleryEntry) -> Element<'a, M
         body = body.push(cover_thumbnail(cover_path));
     }
     body = body.push(palette_swatch_row(app.desktop_locale, &entry.palette));
-    body = body.push(actions);
+    body = body.push(actions.wrap());
 
-    container(body)
-        .padding([14, 14])
-        .width(Length::Fill)
-        .height(Length::Fill)
-        .style(gallery_card_style)
-        .into()
+    container(body).padding([14, 14]).width(Length::Fill).style(gallery_card_style).into()
 }
 
 fn pagination_controls(app: &App) -> Element<'_, Message> {
@@ -460,25 +455,6 @@ pub fn view(app: &App) -> Element<'_, Message> {
     let page = clamp_gallery_page(app.themes_settings.page_index, total);
     let (start, end) = gallery_page_range(total, page);
 
-    let mut cards: Vec<Element<'_, Message>> = app
-        .themes_settings
-        .entries
-        .get(start..end)
-        .unwrap_or(&[])
-        .iter()
-        .map(|entry| {
-            container(gallery_card(app, entry))
-                .width(Length::FillPortion(1))
-                .height(Length::Shrink)
-                .into()
-        })
-        .collect();
-
-    // 不足一页时用空白占位，保持每行三列宽度比例稳定。
-    while cards.len() < GALLERY_PAGE_SIZE && total > 0 {
-        cards.push(container(text("")).width(Length::FillPortion(1)).into());
-    }
-
     let cards_grid: Element<'_, Message> = if total == 0 {
         container(
             text(
@@ -492,14 +468,11 @@ pub fn view(app: &App) -> Element<'_, Message> {
         .width(Length::Fill)
         .into()
     } else {
-        let mut rows = column![].spacing(12).width(Length::Fill);
-        let mut remaining = cards;
-        while !remaining.is_empty() {
-            let take = remaining.len().min(GALLERY_COLUMNS);
-            let row_cards: Vec<Element<'_, Message>> = remaining.drain(..take).collect();
-            rows = rows.push(row(row_cards).spacing(12).width(Length::Fill).height(Length::Shrink));
-        }
-        rows.into()
+        grid(app.themes_settings.entries[start..end].iter().map(|entry| gallery_card(app, entry)))
+            .fluid(320)
+            .spacing(12)
+            .height(Length::Shrink)
+            .into()
     };
 
     let toolbar = row![
@@ -510,23 +483,23 @@ pub fn view(app: &App) -> Element<'_, Message> {
         button(text(crate::app::i18n::I18n::new(app.desktop_locale).__("新建主题")).size(12))
             .padding([8, 14])
             .on_press(Message::Settings(SettingsMessage::Themes(ThemesMessage::NewThemeRequested,)))
-            .style(rounded_action_btn_style),
+            .style(primary_action_btn_style),
         button(text(crate::app::i18n::I18n::new(app.desktop_locale).__("导入主题包")).size(12))
             .padding([8, 14])
             .on_press(Message::Settings(SettingsMessage::Themes(ThemesMessage::ImportPack,)))
             .style(rounded_action_btn_style),
-        container(pagination_controls(app)).width(Length::Fill),
     ]
     .spacing(8)
-    .align_y(Alignment::Center);
+    .align_y(Alignment::Center)
+    .wrap();
 
     let mut body = column![
-        settings_page_intro(
+        settings_page_heading(
             crate::app::i18n::I18n::new(app.desktop_locale).__("主题"),
             crate::app::i18n::I18n::new(app.desktop_locale)
                 .__("浏览内置、预设与自定义主题，应用或管理本地主题包。")
         ),
-        settings_section_card(
+        settings_group_heading(
             crate::app::i18n::I18n::new(app.desktop_locale).__("主题画廊"),
             crate::app::i18n::I18n::new(app.desktop_locale).__(
                 "所有主题均可导出；预设主题可编辑并恢复默认、不可删除，自定义主题可编辑或删除。"
@@ -536,7 +509,9 @@ pub fn view(app: &App) -> Element<'_, Message> {
     ]
     .spacing(12);
 
-    if let Some(error) = app.themes_settings.error.as_deref() {
+    if app.themes_settings.mode == crate::app::state::ThemesSettingsMode::List
+        && let Some(error) = app.themes_settings.error.as_deref()
+    {
         body = body.push(settings_error_banner(
             app.themes_settings
                 .error_translation
@@ -549,7 +524,7 @@ pub fn view(app: &App) -> Element<'_, Message> {
         ));
     }
 
-    body = body.push(cards_grid);
+    body = body.push(cards_grid).push(pagination_controls(app));
 
     body.spacing(12).into()
 }

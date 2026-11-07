@@ -3,12 +3,14 @@
 use crate::app::components::color_picker::{parse_color, render_color_picker};
 use crate::app::components::overlays::BelowOverlay;
 use crate::app::components::system_settings_common::{
-    SETTINGS_LABEL_WIDTH, primary_action_btn_style, rounded_action_btn_style,
-    settings_error_banner, settings_muted_text_style, settings_page_intro, settings_panel_style,
-    settings_pick_list_menu_style, settings_pick_list_style, settings_section_card,
-    settings_section_content, settings_segment_button_style, settings_text_input_style,
+    SETTINGS_CONTROL_PADDING, SETTINGS_CONTROL_TEXT_SIZE, primary_action_btn_style,
+    rounded_action_btn_style, settings_close_button, settings_divider, settings_error_banner,
+    settings_group_card, settings_group_heading, settings_modal_header, settings_modal_layout,
+    settings_muted_text_style, settings_panel_style, settings_row, settings_segment_button_style,
+    settings_select, settings_text_input_style,
 };
 use crate::app::components::system_settings_themes::preview::theme_preview_panel;
+use crate::app::i18n::I18n;
 use crate::app::message::settings::{
     SettingsMessage, ThemeChromeField, ThemeColorPickerTarget, ThemePaletteField, ThemesMessage,
 };
@@ -17,10 +19,7 @@ use crate::app::theme_catalog::{
     PanelImageFit, ThemeAssets, ThemeChrome, ThemeDefinition, ThemePaletteHex, is_bundled_preset_id,
 };
 use crate::app::{App, Message};
-use iced::widget::scrollable::{Direction, Scrollbar};
-use iced::widget::{
-    Space, button, column, container, pick_list, row, scrollable, text, text_input,
-};
+use iced::widget::{Space, button, column, container, row, text, text_input};
 use iced::{Alignment, Background, Color, Element, Length, Theme};
 
 /// 将显示名 slug 化为合法主题 id 基底。
@@ -303,22 +302,23 @@ fn field_row<'a>(
     description: &'static str,
     control: impl Into<Element<'a, Message>>,
 ) -> Element<'a, Message> {
-    container(
-        row![
-            column![
-                text(label).size(13),
-                text(description).size(11).style(settings_muted_text_style),
-            ]
-            .spacing(4)
-            .width(Length::Fixed(SETTINGS_LABEL_WIDTH)),
-            container(control.into()).width(Length::Fill),
-        ]
-        .spacing(22)
-        .align_y(Alignment::Center),
-    )
-    .padding([10, 0])
-    .width(Length::Fill)
-    .into()
+    settings_row(label, description, 156.0, control)
+}
+
+fn theme_form_group<'a>(
+    title: &'static str,
+    description: &'static str,
+    fields: impl IntoIterator<Item = Element<'a, Message>>,
+) -> Element<'a, Message> {
+    let mut fields = fields.into_iter();
+    let mut rows = column(fields.next());
+    for field in fields {
+        rows = rows.push(settings_divider()).push(field);
+    }
+    column![settings_group_heading(title, description), settings_group_card(rows)]
+        .spacing(10)
+        .width(Length::Fill)
+        .into()
 }
 
 fn text_row<'a>(
@@ -330,8 +330,8 @@ fn text_row<'a>(
 ) -> Element<'a, Message> {
     let input = text_input(placeholder, value)
         .on_input(on_input)
-        .padding([10, 12])
-        .size(13)
+        .padding(SETTINGS_CONTROL_PADDING)
+        .size(SETTINGS_CONTROL_TEXT_SIZE)
         .style(settings_text_input_style)
         .width(Length::Fill);
     field_row(label, description, input)
@@ -391,55 +391,45 @@ fn color_picker_popover<'a>(
     draft: &'a ThemeEditorDraft,
     target: ThemeColorPickerTarget,
 ) -> Element<'a, Message> {
+    let i18n = I18n::new(app.desktop_locale);
     let current = parse_draft_hex(draft_hex_for_target(draft, target))
         .unwrap_or(Color::from_rgb8(0x38, 0xbd, 0xf8));
     let title = match target {
-        ThemeColorPickerTarget::Palette(_) => {
-            crate::app::i18n::I18n::new(app.desktop_locale).__("选择调色板颜色")
-        }
-        ThemeColorPickerTarget::Chrome(_) => {
-            crate::app::i18n::I18n::new(app.desktop_locale).__("选择控件颜色")
-        }
+        ThemeColorPickerTarget::Palette(_) => i18n.__("选择调色板颜色"),
+        ThemeColorPickerTarget::Chrome(_) => i18n.__("选择控件颜色"),
     };
 
-    container(
-        column![
-            text(title).size(14),
-            Space::new().height(8.0),
-            render_color_picker(
-                current,
-                app.themes_settings.color_picker_format,
-                false,
-                |color| {
-                    Message::Settings(SettingsMessage::Themes(
-                        ThemesMessage::ColorPickerColorChanged(format_theme_hex(color)),
-                    ))
-                },
-                |format| {
-                    Message::Settings(SettingsMessage::Themes(
-                        ThemesMessage::ColorPickerFormatChanged(format),
-                    ))
-                },
-                || Message::None,
-            ),
-            Space::new().height(8.0),
-            button(text(crate::app::i18n::I18n::new(app.desktop_locale).__("确定")).size(13))
-                .on_press(Message::Settings(SettingsMessage::Themes(
-                    ThemesMessage::ColorPickerClosed,
-                )))
-                .padding([6, 16])
-                .style(primary_action_btn_style),
-        ]
-        .spacing(4),
-    )
-    .width(Length::Fixed(280.0))
-    .padding(16)
-    .style(|theme: &Theme| {
-        let mut style = settings_panel_style(theme);
-        style.border.radius = 20.0.into();
-        style
-    })
-    .into()
+    let picker = render_color_picker(
+        current,
+        app.themes_settings.color_picker_format,
+        false,
+        |color| {
+            Message::Settings(SettingsMessage::Themes(ThemesMessage::ColorPickerColorChanged(
+                format_theme_hex(color),
+            )))
+        },
+        |format| {
+            Message::Settings(SettingsMessage::Themes(ThemesMessage::ColorPickerFormatChanged(
+                format,
+            )))
+        },
+        || Message::None,
+    );
+    let confirm = button(text(i18n.__("确定")).size(13))
+        .on_press(Message::Settings(SettingsMessage::Themes(ThemesMessage::ColorPickerClosed)))
+        .padding([6, 16])
+        .style(primary_action_btn_style);
+
+    settings_modal_layout(text(title).size(14), picker, Some(confirm.into()))
+        .width(280)
+        .height(400)
+        .padding(16)
+        .style(|theme: &Theme| {
+            let mut style = settings_panel_style(theme);
+            style.border.radius = 20.0.into();
+            style
+        })
+        .into()
 }
 
 fn color_field_row<'a>(
@@ -476,8 +466,8 @@ fn color_field_row<'a>(
 
     let input = text_input(placeholder, value)
         .on_input(move |value| Message::Settings(SettingsMessage::Themes(on_manual(value))))
-        .padding([10, 12])
-        .size(13)
+        .padding(SETTINGS_CONTROL_PADDING)
+        .size(SETTINGS_CONTROL_TEXT_SIZE)
         .style(settings_text_input_style)
         .width(Length::Fill);
 
@@ -545,14 +535,14 @@ fn asset_status_label(
     if let Some(source) = source.filter(|s| !s.trim().is_empty()) {
         let name =
             std::path::Path::new(source).file_name().and_then(|n| n.to_str()).unwrap_or(source);
-        return crate::__!(crate::app::i18n::I18n::new(locale), "待复制：%s", name)
+        return crate::__!(I18n::new(locale), "待复制：%s", name)
             .expect("valid theme asset status template");
     }
     if let Some(relative) = relative.filter(|s| !s.is_empty()) {
-        return crate::__!(crate::app::i18n::I18n::new(locale), "已入库：%s", relative)
+        return crate::__!(I18n::new(locale), "已入库：%s", relative)
             .expect("valid theme asset status template");
     }
-    crate::app::i18n::I18n::new(locale).__("未选择").to_string()
+    I18n::new(locale).__("未选择").to_string()
 }
 
 #[allow(clippy::too_many_arguments)]
@@ -565,51 +555,58 @@ fn asset_picker_row<'a>(
     pick: ThemesMessage,
     clear: ThemesMessage,
 ) -> Element<'a, Message> {
+    let i18n = I18n::new(locale);
     let status = text(asset_status_label(locale, relative, source))
         .size(12)
+        .width(Length::Fill)
+        .wrapping(text::Wrapping::WordOrGlyph)
         .style(settings_muted_text_style);
-    let controls = row![
-        status,
-        button(text(crate::app::i18n::I18n::new(locale).__("选择图片")).size(12))
+    let buttons = row![
+        button(text(i18n.__("选择图片")).size(12))
             .padding([8, 12])
             .on_press(Message::Settings(SettingsMessage::Themes(pick)))
             .style(rounded_action_btn_style),
-        button(text(crate::app::i18n::I18n::new(locale).__("清除")).size(12))
+        button(text(i18n.__("清除")).size(12))
             .padding([8, 12])
             .on_press(Message::Settings(SettingsMessage::Themes(clear)))
             .style(rounded_action_btn_style),
     ]
     .spacing(8)
-    .align_y(Alignment::Center);
-    field_row(label, description, controls)
+    .align_y(Alignment::Center)
+    .wrap();
+    field_row(label, description, column![status, buttons].spacing(8).width(Length::Fill))
 }
 
-fn zone_image_fit_pick_list<'a>(
+#[derive(Clone, PartialEq)]
+struct ImageFitOption {
+    value: PanelImageFit,
+    label: &'static str,
+}
+
+impl std::fmt::Display for ImageFitOption {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        formatter.write_str(self.label)
+    }
+}
+
+fn zone_image_fit_select(
     locale: vw_config_types::ui::DesktopLocale,
-    value: &'a str,
+    value: &str,
     field: ThemeChromeField,
-) -> Element<'a, Message> {
-    let selected = PanelImageFit::parse(Some(value)).unwrap_or_default();
-    let i18n = crate::app::i18n::I18n::new(locale);
-    pick_list(
-        PanelImageFit::ALL.map(|fit| i18n.__(fit.label())),
-        Some(i18n.__(selected.label())),
-        move |label| {
-            let fit = PanelImageFit::ALL
-                .into_iter()
-                .find(|fit| i18n.__(fit.label()) == label)
-                .expect("selected image fit belongs to supplied options");
+) -> Element<'static, Message> {
+    let i18n = I18n::new(locale);
+    let option = |value: PanelImageFit| ImageFitOption { value, label: i18n.__(value.label()) };
+    settings_select(
+        PanelImageFit::ALL.map(option),
+        Some(option(PanelImageFit::parse(Some(value)).unwrap_or_default())),
+        move |fit| {
             Message::Settings(SettingsMessage::Themes(ThemesMessage::DraftChromeChanged(
                 field,
-                fit.as_str().to_string(),
+                fit.value.as_str().to_string(),
             )))
         },
     )
-    .padding([8, 12])
-    .text_size(13)
     .width(Length::Fill)
-    .style(settings_pick_list_style)
-    .menu_style(settings_pick_list_menu_style)
     .into()
 }
 
@@ -618,32 +615,29 @@ fn background_asset_card(
     locale: vw_config_types::ui::DesktopLocale,
     draft: &ThemeEditorDraft,
 ) -> Element<'_, Message> {
-    column![
-        settings_section_card(
-            crate::app::i18n::I18n::new(locale).__("窗口背景"),
-            crate::app::i18n::I18n::new(locale)
-                .__("主窗口壁纸；默认透明度供分区未单独设置时回退。"),
-        ),
-        asset_picker_row(
-            locale,
-            crate::app::i18n::I18n::new(locale).__("背景图"),
-            crate::app::i18n::I18n::new(locale).__("主窗口壁纸资源，保存后由应用层加载。"),
-            draft.background_relative.as_deref(),
-            draft.background_source.as_deref(),
-            ThemesMessage::PickBackground,
-            ThemesMessage::ClearBackground,
-        ),
-        chrome_row(
-            crate::app::i18n::I18n::new(locale).__("默认透明度"),
-            crate::app::i18n::I18n::new(locale)
-                .__("0–255；分区未单独设置时回退到此值；有壁纸/分区图时留空使用默认半透明。"),
-            ThemeChromeField::PanelAlpha,
-            &draft.chrome_panel_alpha,
-            crate::app::i18n::I18n::new(locale).__("例如 184"),
-        ),
-    ]
-    .spacing(4)
-    .into()
+    let i18n = I18n::new(locale);
+    theme_form_group(
+        i18n.__("窗口背景"),
+        i18n.__("主窗口壁纸；默认透明度供分区未单独设置时回退。"),
+        [
+            asset_picker_row(
+                locale,
+                i18n.__("背景图"),
+                i18n.__("主窗口壁纸资源，保存后由应用层加载。"),
+                draft.background_relative.as_deref(),
+                draft.background_source.as_deref(),
+                ThemesMessage::PickBackground,
+                ThemesMessage::ClearBackground,
+            ),
+            chrome_row(
+                i18n.__("默认透明度"),
+                i18n.__("0–255；分区未单独设置时回退到此值；有壁纸/分区图时留空使用默认半透明。"),
+                ThemeChromeField::PanelAlpha,
+                &draft.chrome_panel_alpha,
+                i18n.__("例如 184"),
+            ),
+        ],
+    )
 }
 
 /// 分区资源卡：选图 + 该区透明度 + 该区缩放下拉。
@@ -662,24 +656,26 @@ fn zone_asset_card<'a>(
     fit_field: ThemeChromeField,
     fit_value: &'a str,
 ) -> Element<'a, Message> {
-    column![
-        settings_section_card(title, description),
-        asset_picker_row(locale, pick_label, pick_description, relative, source, pick, clear,),
-        chrome_row(
-            crate::app::i18n::I18n::new(locale).__("透明度"),
-            crate::app::i18n::I18n::new(locale).__("0–255；仅本分区。"),
-            alpha_field,
-            alpha_value,
-            crate::app::i18n::I18n::new(locale).__("例如 184"),
-        ),
-        field_row(
-            crate::app::i18n::I18n::new(locale).__("图缩放"),
-            crate::app::i18n::I18n::new(locale).__("本分区背景图 ContentFit；默认覆盖裁剪。"),
-            zone_image_fit_pick_list(locale, fit_value, fit_field),
-        ),
-    ]
-    .spacing(4)
-    .into()
+    let i18n = I18n::new(locale);
+    theme_form_group(
+        title,
+        description,
+        [
+            asset_picker_row(locale, pick_label, pick_description, relative, source, pick, clear),
+            chrome_row(
+                i18n.__("透明度"),
+                i18n.__("0–255；仅本分区。"),
+                alpha_field,
+                alpha_value,
+                i18n.__("例如 184"),
+            ),
+            field_row(
+                i18n.__("图缩放"),
+                i18n.__("本分区背景图 ContentFit；默认覆盖裁剪。"),
+                zone_image_fit_select(locale, fit_value, fit_field),
+            ),
+        ],
+    )
 }
 
 /// 主题编辑器分段 Tab 标签（与现有 section 分组一致）。
@@ -710,137 +706,138 @@ fn basics_tab(
     locale: vw_config_types::ui::DesktopLocale,
     draft: &ThemeEditorDraft,
 ) -> Element<'_, Message> {
+    let i18n = I18n::new(locale);
     let id_hint = if draft.builtin_base.is_some() {
-        crate::app::i18n::I18n::new(locale).__("内置覆盖层标识由主题名派生，只读")
+        i18n.__("内置覆盖层标识由主题名派生，只读")
     } else if draft.id_readonly {
-        crate::app::i18n::I18n::new(locale).__("编辑已有主题时标识只读")
+        i18n.__("编辑已有主题时标识只读")
     } else {
-        crate::app::i18n::I18n::new(locale).__("由名称自动生成；冲突时追加后缀")
+        i18n.__("由名称自动生成；冲突时追加后缀")
     };
 
-    column![
-        settings_section_card(
-            crate::app::i18n::I18n::new(locale).__("基本信息"),
-            crate::app::i18n::I18n::new(locale).__("名称必填；新建时标识由名称生成。")
-        ),
-        field_row(
-            crate::app::i18n::I18n::new(locale).__("标识"),
-            id_hint,
-            text_input("", &draft.id)
-                .padding([10, 12])
-                .size(13)
-                .style(settings_text_input_style)
-                .width(Length::Fill),
-        ),
-        text_row(
-            crate::app::i18n::I18n::new(locale).__("名称"),
-            crate::app::i18n::I18n::new(locale).__("显示在画廊与主题选择中。"),
-            crate::app::i18n::I18n::new(locale).__("例如 Ocean Breeze"),
-            &draft.name,
-            |value| {
-                Message::Settings(SettingsMessage::Themes(ThemesMessage::DraftNameChanged(value)))
-            },
-        ),
-        text_row(
-            crate::app::i18n::I18n::new(locale).__("标语"),
-            crate::app::i18n::I18n::new(locale).__("可选的一句话描述。"),
-            crate::app::i18n::I18n::new(locale).__("例如 Soft blue accents"),
-            &draft.tagline,
-            |value| {
-                Message::Settings(SettingsMessage::Themes(ThemesMessage::DraftTaglineChanged(
-                    value,
-                )))
-            },
-        ),
-    ]
-    .spacing(4)
-    .into()
+    theme_form_group(
+        i18n.__("基本信息"),
+        i18n.__("名称必填；新建时标识由名称生成。"),
+        [
+            field_row(
+                i18n.__("标识"),
+                id_hint,
+                text_input("", &draft.id)
+                    .padding(SETTINGS_CONTROL_PADDING)
+                    .size(SETTINGS_CONTROL_TEXT_SIZE)
+                    .style(settings_text_input_style)
+                    .width(Length::Fill),
+            ),
+            text_row(
+                i18n.__("名称"),
+                i18n.__("显示在画廊与主题选择中。"),
+                i18n.__("例如 Ocean Breeze"),
+                &draft.name,
+                |value| {
+                    Message::Settings(SettingsMessage::Themes(ThemesMessage::DraftNameChanged(
+                        value,
+                    )))
+                },
+            ),
+            text_row(
+                i18n.__("标语"),
+                i18n.__("可选的一句话描述。"),
+                i18n.__("例如 Soft blue accents"),
+                &draft.tagline,
+                |value| {
+                    Message::Settings(SettingsMessage::Themes(ThemesMessage::DraftTaglineChanged(
+                        value,
+                    )))
+                },
+            ),
+        ],
+    )
 }
 
 fn palette_tab<'a>(app: &'a App, draft: &'a ThemeEditorDraft) -> Element<'a, Message> {
-    column![
-        settings_section_card(
-            crate::app::i18n::I18n::new(app.desktop_locale).__("调色板"),
-            crate::app::i18n::I18n::new(app.desktop_locale).__("仅支持 #rrggbb 十六进制颜色。")
-        ),
-        palette_row(
-            app,
-            draft,
-            crate::app::i18n::I18n::new(app.desktop_locale).__("背景"),
-            crate::app::i18n::I18n::new(app.desktop_locale).__("面板与页面背景色。"),
-            ThemePaletteField::Background,
-            &draft.background,
-        ),
-        palette_row(
-            app,
-            draft,
-            crate::app::i18n::I18n::new(app.desktop_locale).__("文本"),
-            crate::app::i18n::I18n::new(app.desktop_locale).__("主文字颜色，需与背景对比充足。"),
-            ThemePaletteField::Text,
-            &draft.text,
-        ),
-        palette_row(
-            app,
-            draft,
-            crate::app::i18n::I18n::new(app.desktop_locale).__("主色"),
-            crate::app::i18n::I18n::new(app.desktop_locale).__("强调按钮与链接。"),
-            ThemePaletteField::Primary,
-            &draft.primary,
-        ),
-        palette_row(
-            app,
-            draft,
-            crate::app::i18n::I18n::new(app.desktop_locale).__("成功"),
-            crate::app::i18n::I18n::new(app.desktop_locale).__("成功状态标签。"),
-            ThemePaletteField::Success,
-            &draft.success,
-        ),
-        palette_row(
-            app,
-            draft,
-            crate::app::i18n::I18n::new(app.desktop_locale).__("警告"),
-            crate::app::i18n::I18n::new(app.desktop_locale).__("警告状态标签。"),
-            ThemePaletteField::Warning,
-            &draft.warning,
-        ),
-        palette_row(
-            app,
-            draft,
-            crate::app::i18n::I18n::new(app.desktop_locale).__("危险"),
-            crate::app::i18n::I18n::new(app.desktop_locale).__("危险/错误状态标签。"),
-            ThemePaletteField::Danger,
-            &draft.danger,
-        ),
-    ]
-    .spacing(4)
-    .into()
+    let i18n = I18n::new(app.desktop_locale);
+    theme_form_group(
+        i18n.__("调色板"),
+        i18n.__("仅支持 #rrggbb 十六进制颜色。"),
+        [
+            palette_row(
+                app,
+                draft,
+                i18n.__("背景"),
+                i18n.__("面板与页面背景色。"),
+                ThemePaletteField::Background,
+                &draft.background,
+            ),
+            palette_row(
+                app,
+                draft,
+                i18n.__("文本"),
+                i18n.__("主文字颜色，需与背景对比充足。"),
+                ThemePaletteField::Text,
+                &draft.text,
+            ),
+            palette_row(
+                app,
+                draft,
+                i18n.__("主色"),
+                i18n.__("强调按钮与链接。"),
+                ThemePaletteField::Primary,
+                &draft.primary,
+            ),
+            palette_row(
+                app,
+                draft,
+                i18n.__("成功"),
+                i18n.__("成功状态标签。"),
+                ThemePaletteField::Success,
+                &draft.success,
+            ),
+            palette_row(
+                app,
+                draft,
+                i18n.__("警告"),
+                i18n.__("警告状态标签。"),
+                ThemePaletteField::Warning,
+                &draft.warning,
+            ),
+            palette_row(
+                app,
+                draft,
+                i18n.__("危险"),
+                i18n.__("危险/错误状态标签。"),
+                ThemePaletteField::Danger,
+                &draft.danger,
+            ),
+        ],
+    )
 }
 
 fn assets_tab(
     locale: vw_config_types::ui::DesktopLocale,
     draft: &ThemeEditorDraft,
 ) -> Element<'_, Message> {
+    let i18n = I18n::new(locale);
     column![
-        settings_section_card(
-            crate::app::i18n::I18n::new(locale).__("资源"),
-            crate::app::i18n::I18n::new(locale).__("封面用于画廊；背景与聊天分区图供运行时铺图。")
-        ),
-        asset_picker_row(
-            locale,
-            crate::app::i18n::I18n::new(locale).__("封面"),
-            crate::app::i18n::I18n::new(locale).__("画廊卡片缩略图，支持 png/jpg/jpeg/webp。"),
-            draft.cover_relative.as_deref(),
-            draft.cover_source.as_deref(),
-            ThemesMessage::PickCover,
-            ThemesMessage::ClearCover,
+        theme_form_group(
+            i18n.__("资源"),
+            i18n.__("封面用于画廊；背景与聊天分区图供运行时铺图。"),
+            [asset_picker_row(
+                locale,
+                i18n.__("封面"),
+                i18n.__("画廊卡片缩略图，支持 png/jpg/jpeg/webp。"),
+                draft.cover_relative.as_deref(),
+                draft.cover_source.as_deref(),
+                ThemesMessage::PickCover,
+                ThemesMessage::ClearCover,
+            )],
         ),
         background_asset_card(locale, draft),
         zone_asset_card(
             locale,
-            crate::app::i18n::I18n::new(locale).__("聊头分区"),
-            crate::app::i18n::I18n::new(locale).__("聊天顶栏选图、透明度与缩放。"),
-            crate::app::i18n::I18n::new(locale).__("聊头背景"),
-            crate::app::i18n::I18n::new(locale).__("聊天顶栏分区图，叠在窗口壁纸之上。"),
+            i18n.__("聊头分区"),
+            i18n.__("聊天顶栏选图、透明度与缩放。"),
+            i18n.__("聊头背景"),
+            i18n.__("聊天顶栏分区图，叠在窗口壁纸之上。"),
             draft.chat_header_relative.as_deref(),
             draft.chat_header_source.as_deref(),
             ThemesMessage::PickChatHeader,
@@ -852,10 +849,10 @@ fn assets_tab(
         ),
         zone_asset_card(
             locale,
-            crate::app::i18n::I18n::new(locale).__("消息区分区"),
-            crate::app::i18n::I18n::new(locale).__("消息列表选图、透明度与缩放。"),
-            crate::app::i18n::I18n::new(locale).__("消息区背景"),
-            crate::app::i18n::I18n::new(locale).__("消息列表分区图。"),
+            i18n.__("消息区分区"),
+            i18n.__("消息列表选图、透明度与缩放。"),
+            i18n.__("消息区背景"),
+            i18n.__("消息列表分区图。"),
             draft.chat_body_relative.as_deref(),
             draft.chat_body_source.as_deref(),
             ThemesMessage::PickChatBody,
@@ -867,10 +864,10 @@ fn assets_tab(
         ),
         zone_asset_card(
             locale,
-            crate::app::i18n::I18n::new(locale).__("输入区分区"),
-            crate::app::i18n::I18n::new(locale).__("输入卡选图、透明度与缩放。"),
-            crate::app::i18n::I18n::new(locale).__("输入区背景"),
-            crate::app::i18n::I18n::new(locale).__("输入卡分区图。"),
+            i18n.__("输入区分区"),
+            i18n.__("输入卡选图、透明度与缩放。"),
+            i18n.__("输入区背景"),
+            i18n.__("输入卡分区图。"),
             draft.chat_input_relative.as_deref(),
             draft.chat_input_source.as_deref(),
             ThemesMessage::PickChatInput,
@@ -881,93 +878,90 @@ fn assets_tab(
             &draft.chrome_chat_input_image_fit,
         ),
     ]
-    .spacing(4)
+    .spacing(16)
     .into()
 }
 
 fn chrome_tab<'a>(app: &'a App, draft: &'a ThemeEditorDraft) -> Element<'a, Message> {
-    column![
-        settings_section_card(
-            crate::app::i18n::I18n::new(app.desktop_locale).__("控件皮肤"),
-            crate::app::i18n::I18n::new(app.desktop_locale).__("可选覆盖；非法 hex 会阻止保存。")
-        ),
-        chrome_color_row(
-            app,
-            draft,
-            crate::app::i18n::I18n::new(app.desktop_locale).__("输入背景"),
-            crate::app::i18n::I18n::new(app.desktop_locale).__("可选；留空使用默认。"),
-            ThemeChromeField::InputBg,
-            &draft.chrome_input_bg,
-        ),
-        chrome_color_row(
-            app,
-            draft,
-            crate::app::i18n::I18n::new(app.desktop_locale).__("输入边框"),
-            crate::app::i18n::I18n::new(app.desktop_locale).__("可选。"),
-            ThemeChromeField::InputBorder,
-            &draft.chrome_input_border,
-        ),
-        chrome_color_row(
-            app,
-            draft,
-            crate::app::i18n::I18n::new(app.desktop_locale).__("输入文字"),
-            crate::app::i18n::I18n::new(app.desktop_locale).__("可选；未填时回退调色板文字色。"),
-            ThemeChromeField::InputText,
-            &draft.chrome_input_text,
-        ),
-        chrome_color_row(
-            app,
-            draft,
-            crate::app::i18n::I18n::new(app.desktop_locale).__("面板背景"),
-            crate::app::i18n::I18n::new(app.desktop_locale).__("可选。"),
-            ThemeChromeField::PanelBg,
-            &draft.chrome_panel_bg,
-        ),
-        chrome_color_row(
-            app,
-            draft,
-            crate::app::i18n::I18n::new(app.desktop_locale).__("面板边框"),
-            crate::app::i18n::I18n::new(app.desktop_locale).__("可选。"),
-            ThemeChromeField::PanelBorder,
-            &draft.chrome_panel_border,
-        ),
-        chrome_color_row(
-            app,
-            draft,
-            crate::app::i18n::I18n::new(app.desktop_locale).__("按钮背景"),
-            crate::app::i18n::I18n::new(app.desktop_locale).__("可选。"),
-            ThemeChromeField::ButtonBg,
-            &draft.chrome_button_bg,
-        ),
-        chrome_color_row(
-            app,
-            draft,
-            crate::app::i18n::I18n::new(app.desktop_locale).__("按钮文字"),
-            crate::app::i18n::I18n::new(app.desktop_locale).__("可选。"),
-            ThemeChromeField::ButtonText,
-            &draft.chrome_button_text,
-        ),
-        chrome_row(
-            crate::app::i18n::I18n::new(app.desktop_locale).__("圆角"),
-            crate::app::i18n::I18n::new(app.desktop_locale).__("像素；留空使用默认。"),
-            ThemeChromeField::RadiusPx,
-            &draft.chrome_radius_px,
-            crate::app::i18n::I18n::new(app.desktop_locale).__("例如 10"),
-        ),
-    ]
-    .spacing(4)
-    .into()
+    let i18n = I18n::new(app.desktop_locale);
+    theme_form_group(
+        i18n.__("控件皮肤"),
+        i18n.__("可选覆盖；非法 hex 会阻止保存。"),
+        [
+            chrome_color_row(
+                app,
+                draft,
+                i18n.__("输入背景"),
+                i18n.__("可选；留空使用默认。"),
+                ThemeChromeField::InputBg,
+                &draft.chrome_input_bg,
+            ),
+            chrome_color_row(
+                app,
+                draft,
+                i18n.__("输入边框"),
+                i18n.__("可选。"),
+                ThemeChromeField::InputBorder,
+                &draft.chrome_input_border,
+            ),
+            chrome_color_row(
+                app,
+                draft,
+                i18n.__("输入文字"),
+                i18n.__("可选；未填时回退调色板文字色。"),
+                ThemeChromeField::InputText,
+                &draft.chrome_input_text,
+            ),
+            chrome_color_row(
+                app,
+                draft,
+                i18n.__("面板背景"),
+                i18n.__("可选。"),
+                ThemeChromeField::PanelBg,
+                &draft.chrome_panel_bg,
+            ),
+            chrome_color_row(
+                app,
+                draft,
+                i18n.__("面板边框"),
+                i18n.__("可选。"),
+                ThemeChromeField::PanelBorder,
+                &draft.chrome_panel_border,
+            ),
+            chrome_color_row(
+                app,
+                draft,
+                i18n.__("按钮背景"),
+                i18n.__("可选。"),
+                ThemeChromeField::ButtonBg,
+                &draft.chrome_button_bg,
+            ),
+            chrome_color_row(
+                app,
+                draft,
+                i18n.__("按钮文字"),
+                i18n.__("可选。"),
+                ThemeChromeField::ButtonText,
+                &draft.chrome_button_text,
+            ),
+            chrome_row(
+                i18n.__("圆角"),
+                i18n.__("像素；留空使用默认。"),
+                ThemeChromeField::RadiusPx,
+                &draft.chrome_radius_px,
+                i18n.__("例如 10"),
+            ),
+        ],
+    )
 }
 
 fn preview_tab(
     locale: vw_config_types::ui::DesktopLocale,
     draft: &ThemeEditorDraft,
 ) -> Element<'_, Message> {
+    let i18n = I18n::new(locale);
     column![
-        settings_section_card(
-            crate::app::i18n::I18n::new(locale).__("预览"),
-            crate::app::i18n::I18n::new(locale).__("暗黑草稿下请确保文字可读。")
-        ),
+        settings_group_heading(i18n.__("预览"), i18n.__("暗黑草稿下请确保文字可读。")),
         theme_preview_panel(locale, draft),
     ]
     .spacing(4)
@@ -988,47 +982,50 @@ fn editor_tab_content<'a>(
     }
 }
 
-/// 渲染主题编辑器视图。
+/// 渲染主题编辑弹窗，固定标题、标签和底部操作。
 pub(crate) fn view(app: &App) -> Element<'_, Message> {
+    let i18n = I18n::new(app.desktop_locale);
+    let cancel = Message::Settings(SettingsMessage::Themes(ThemesMessage::CancelEdit));
     let Some(draft) = app.themes_settings.draft.as_ref() else {
-        return column![
-            settings_page_intro(
-                crate::app::i18n::I18n::new(app.desktop_locale).__("主题编辑器"),
-                crate::app::i18n::I18n::new(app.desktop_locale).__("当前没有可编辑的草稿。")
-            ),
-            button(text(crate::app::i18n::I18n::new(app.desktop_locale).__("返回画廊")).size(12))
+        let title =
+            settings_group_heading(i18n.__("主题编辑器"), i18n.__("当前没有可编辑的草稿。"));
+        return settings_modal_layout(
+            settings_modal_header(title, settings_close_button(cancel.clone())),
+            button(text(i18n.__("返回画廊")).size(12))
                 .padding([8, 14])
-                .on_press(Message::Settings(SettingsMessage::Themes(ThemesMessage::CancelEdit,)))
+                .on_press(cancel)
                 .style(rounded_action_btn_style),
-        ]
-        .spacing(12)
+            None,
+        )
+        .width(420)
+        .height(220)
         .into();
     };
 
     let title = if draft.builtin_base.is_some() {
-        crate::app::i18n::I18n::new(app.desktop_locale).__("编辑内置主题")
+        i18n.__("编辑内置主题")
     } else if draft.id_readonly {
-        crate::app::i18n::I18n::new(app.desktop_locale).__("编辑主题")
+        i18n.__("编辑主题")
     } else {
-        crate::app::i18n::I18n::new(app.desktop_locale).__("新建主题")
+        i18n.__("新建主题")
     };
     let is_bundled_preset = is_bundled_preset_id(&draft.id);
 
     let mut actions = row![
-        button(text(crate::app::i18n::I18n::new(app.desktop_locale).__("保存")).size(12))
+        button(text(i18n.__("保存")).size(12))
             .padding([8, 16])
             .on_press(Message::Settings(SettingsMessage::Themes(ThemesMessage::SaveDraft,)))
             .style(primary_action_btn_style),
-        button(text(crate::app::i18n::I18n::new(app.desktop_locale).__("取消")).size(12))
+        button(text(i18n.__("取消")).size(12))
             .padding([8, 16])
-            .on_press(Message::Settings(SettingsMessage::Themes(ThemesMessage::CancelEdit,)))
+            .on_press(cancel.clone())
             .style(rounded_action_btn_style),
     ]
     .spacing(8);
 
     if let Some(builtin_name) = draft.builtin_base.clone() {
         actions = actions.push(
-            button(text(crate::app::i18n::I18n::new(app.desktop_locale).__("恢复默认")).size(12))
+            button(text(i18n.__("恢复默认")).size(12))
                 .padding([8, 16])
                 .on_press(Message::Settings(SettingsMessage::Themes(
                     ThemesMessage::RestoreBuiltinDefault(builtin_name),
@@ -1039,7 +1036,7 @@ pub(crate) fn view(app: &App) -> Element<'_, Message> {
     if is_bundled_preset {
         let preset_id = draft.id.clone();
         actions = actions.push(
-            button(text(crate::app::i18n::I18n::new(app.desktop_locale).__("恢复默认")).size(12))
+            button(text(i18n.__("恢复默认")).size(12))
                 .padding([8, 16])
                 .on_press(Message::Settings(SettingsMessage::Themes(
                     ThemesMessage::RestorePresetDefault(preset_id),
@@ -1049,54 +1046,39 @@ pub(crate) fn view(app: &App) -> Element<'_, Message> {
     }
 
     let intro = if draft.builtin_base.is_some() {
-        crate::app::i18n::I18n::new(app.desktop_locale)
-            .__("修改将保存为本地覆盖层，可随时恢复 Iced 内置默认值。")
+        i18n.__("修改将保存为本地覆盖层，可随时恢复 Iced 内置默认值。")
     } else if is_bundled_preset {
-        crate::app::i18n::I18n::new(app.desktop_locale)
-            .__("此预设可编辑并随时恢复嵌入默认值，但不可删除。")
+        i18n.__("此预设可编辑并随时恢复嵌入默认值，但不可删除。")
     } else {
-        crate::app::i18n::I18n::new(app.desktop_locale)
-            .__("按 Tab 分段编辑命名、配色、资源与控件皮肤，预览后保存到本地仓库。")
+        i18n.__("按 Tab 分段编辑命名、配色、资源与控件皮肤，预览后保存到本地仓库。")
     };
 
     let tabs = editor_tab_labels().iter().fold(
         row![].spacing(8).align_y(Alignment::Center),
         |row, (label, tab)| {
-            row.push(editor_tab_button(
-                crate::app::i18n::I18n::new(app.desktop_locale).__(label),
-                *tab,
-                app.themes_settings.editor_tab,
-            ))
+            row.push(editor_tab_button(i18n.__(label), *tab, app.themes_settings.editor_tab))
         },
     );
 
-    let mut body = column![
-        settings_page_intro(title, intro),
-        tabs,
-        editor_tab_content(app, draft, app.themes_settings.editor_tab),
-        actions,
+    let header = column![
+        settings_modal_header(settings_group_heading(title, intro), settings_close_button(cancel)),
+        tabs.wrap(),
     ]
     .spacing(12);
 
+    let mut footer = column![].spacing(8).width(Length::Fill);
     if let Some(error) = app.themes_settings.error.as_deref() {
-        body = body.push(settings_error_banner(
+        footer = footer.push(settings_error_banner(
             app.themes_settings
                 .error_translation
                 .as_ref()
-                .map(|m| {
-                    m.render(crate::app::i18n::I18n::new(app.desktop_locale))
-                        .expect("valid theme feedback template")
-                })
+                .map(|m| m.render(i18n).expect("valid theme feedback template"))
                 .unwrap_or_else(|| error.to_string()),
         ));
     }
-
-    settings_section_content(
-        scrollable(body.width(Length::Fill))
-            .direction(Direction::Vertical(Scrollbar::new().width(4).scroller_width(4)))
-            .height(Length::Fill),
-    )
-    .into()
+    let footer = footer.push(actions.wrap());
+    let body = editor_tab_content(app, draft, app.themes_settings.editor_tab);
+    settings_modal_layout(header, body, Some(footer.into())).width(760).height(720).into()
 }
 
 #[cfg(test)]

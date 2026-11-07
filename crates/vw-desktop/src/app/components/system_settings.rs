@@ -13,6 +13,7 @@ use crate::app::components::system_settings_search::{
     SystemSettingsSearchEntry, SystemSettingsSearchTarget,
 };
 use crate::app::i18n::I18n;
+use crate::app::state::{GeneralSettingsTab, ThemesSettingsMode};
 use crate::app::{App, Message, message};
 use iced::widget::scrollable::{Direction, Scrollbar};
 use iced::widget::{button, column, container, responsive, row, scrollable, text, text_input};
@@ -478,12 +479,11 @@ pub(super) fn active_tab_save_error(app: &App, active_tab: SystemTab) -> Option<
         SystemTab::WebSearch => app.web_search_settings.save_error.as_deref(),
         SystemTab::HttpRequest => app.http_request_settings.save_error.as_deref(),
         SystemTab::Browser => app.browser_settings.save_error.as_deref(),
-        SystemTab::Themes => app.themes_settings.error.as_deref(),
-        SystemTab::General => match app.general_settings_tab {
-            crate::app::state::GeneralSettingsTab::Themes => app.themes_settings.error.as_deref(),
-            _ => None,
-        },
-        SystemTab::Apps | SystemTab::Editor | SystemTab::Projects => None,
+        SystemTab::Apps
+        | SystemTab::Editor
+        | SystemTab::General
+        | SystemTab::Projects
+        | SystemTab::Themes => None,
     }
 }
 
@@ -724,18 +724,30 @@ pub fn view(app: &App) -> Element<'_, Message> {
                 ..Default::default()
             });
 
-    let select_focus_available = active_tab == SystemTab::General
-        && app.system_settings_help_tab.is_none()
-        && matches!(
-            app.general_settings_tab,
-            crate::app::state::GeneralSettingsTab::Interface
-                | crate::app::state::GeneralSettingsTab::Terminal
-        );
+    let themes_active = active_tab == SystemTab::Themes
+        || (active_tab == SystemTab::General
+            && app.general_settings_tab == GeneralSettingsTab::Themes);
+    let editing_theme = themes_active && app.themes_settings.mode == ThemesSettingsMode::Edit;
+    let select_focus_available = app.system_settings_help_tab.is_none()
+        && (active_tab == SystemTab::Editor
+            || (active_tab == SystemTab::General
+                && matches!(
+                    app.general_settings_tab,
+                    GeneralSettingsTab::Interface
+                        | GeneralSettingsTab::Terminal
+                        | GeneralSettingsTab::Editor
+                )));
+
     let mut dialog: Element<'_, Message> = if select_focus_available {
         modal_content.id(SELECT_FOCUS_SCOPE).into()
     } else {
         modal_content.into()
     };
+
+    if editing_theme {
+        dialog = super::system_settings_themes::editor_overlay(app, dialog);
+        dialog = container(dialog).id(SELECT_FOCUS_SCOPE).into();
+    }
 
     // 为 Providers 标签页添加额外的浮层视图
     // 这些浮层用于显示自定义提供商、目录、连接等子对话框

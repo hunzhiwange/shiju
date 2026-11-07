@@ -20,7 +20,7 @@ mod extended_channels_tests;
 use crate::app::components::system_settings_common::{
     SETTINGS_CONTROL_PADDING, SETTINGS_CONTROL_TEXT_SIZE, settings_checkbox_style,
     settings_divider, settings_error_banner, settings_group_card, settings_muted_text_style,
-    settings_page_intro, settings_section_card, settings_section_content,
+    settings_page_intro, settings_section_card, settings_section_content, settings_tab_style,
     settings_text_input_style,
 };
 use crate::app::components::system_settings_search::SettingsTabDescriptor;
@@ -151,49 +151,7 @@ fn tab_button(
         .padding([7, 12])
         .width(Length::Fill)
         .on_press(Message::Settings(SettingsMessage::Channels(ChannelsMessage::TabSelected(tab))))
-        .style(move |theme: &iced::Theme, status| {
-            let palette = theme.extended_palette();
-            let is_dark = theme.palette().background.r
-                + theme.palette().background.g
-                + theme.palette().background.b
-                < 1.5;
-            let background = if active {
-                Some(Background::Color(theme.palette().primary.scale_alpha(if is_dark {
-                    0.24
-                } else {
-                    0.14
-                })))
-            } else if matches!(status, iced::widget::button::Status::Hovered) {
-                Some(Background::Color(palette.background.weak.color.scale_alpha(if is_dark {
-                    0.7
-                } else {
-                    0.9
-                })))
-            } else {
-                None
-            };
-
-            iced::widget::button::Style {
-                background,
-                text_color: if active {
-                    theme.palette().primary
-                } else {
-                    theme.palette().text.scale_alpha(0.9)
-                },
-                border: Border {
-                    radius: 12.0.into(),
-                    width: 1.0,
-                    color: if active {
-                        theme.palette().primary.scale_alpha(0.42)
-                    } else if is_dark {
-                        palette.background.strong.color.scale_alpha(0.8)
-                    } else {
-                        Color::from_rgba8(15, 23, 42, 0.1)
-                    },
-                },
-                ..Default::default()
-            }
-        })
+        .style(move |theme, status| settings_tab_style(theme, status, active))
         .into()
 }
 

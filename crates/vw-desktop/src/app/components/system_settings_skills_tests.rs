@@ -43,8 +43,8 @@ fn field_row_and_tab_buttons_build_active_and_inactive_states() {
         } else {
             SkillsSettingsTab::SystemConfig
         };
-        keep_element(settings_tab_button(label, *tab, *tab));
-        keep_element(settings_tab_button(label, *tab, inactive_tab));
+        keep_element(skills_tab_button(label, *tab, *tab));
+        keep_element(skills_tab_button(label, *tab, inactive_tab));
     }
 }
 
@@ -108,4 +108,48 @@ fn view_overlays_builds_with_help_closed_and_open() {
     let mut app = test_app();
     app.skills_settings.show_help_modal = true;
     keep_element(view_overlays(&app, text("基础对话框").into()));
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn settings_tabs_capabilities_appearance_skills() {
+    use crate::app::components::system_settings_common::tab_appearance_tests;
+    use crate::app::message::settings::SettingsMessage;
+    use crate::app::state::SkillsDirectoryScope;
+
+    tab_appearance_tests::run(
+        concat!(module_path!(), "::settings_tabs_capabilities_appearance_skills"),
+        test_app,
+        |scene, app| {
+            app.skills_settings.active_tab = SkillsSettingsTab::Skills;
+            app.skills_settings.save_error = Some("fixture skills error".into());
+            let locale = app.desktop_locale;
+
+            let scope = scene.click(view(app), tr(locale, "全局目录"));
+            assert!(matches!(
+                scope,
+                SettingsMessage::SkillsDirectoryScopeChanged(SkillsDirectoryScope::Global)
+            ));
+            let _ = app.update(Message::Settings(scope));
+
+            let tab = scene.check(
+                app,
+                view(app),
+                &["技能", "顺序", "系统配置"].map(|label| tr(locale, label)),
+                1,
+            );
+            assert!(matches!(
+                tab,
+                SettingsMessage::SkillsTabChanged(SkillsSettingsTab::DiscoveryOrder)
+            ));
+            let _ = app.update(Message::Settings(tab));
+            assert_eq!(app.skills_settings.directory_scope, SkillsDirectoryScope::Global);
+            let labels = scene.labels(view(app));
+            assert!(labels.contains(tr(
+                locale,
+                "同名技能只展示最先命中的目录，保持项目优先，避免列表重复。"
+            )));
+            assert!(labels.contains("fixture skills error"));
+        },
+    )
+    .await;
 }

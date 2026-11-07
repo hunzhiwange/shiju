@@ -10,13 +10,13 @@ use crate::app::components::system_settings_common::{
     SETTINGS_CONTROL_TEXT_SIZE, settings_checkbox_style, settings_control_with_hint,
     settings_divider, settings_error_banner, settings_field_label, settings_group_card,
     settings_group_heading, settings_help_button, settings_modal_card_style, settings_page_heading,
-    settings_segment_button_style, settings_select,
+    settings_select, settings_tab_button, settings_tab_row,
 };
 use crate::app::components::system_settings_search::SettingsTabDescriptor;
 use crate::app::i18n::settings_extensions::text as tr;
 use crate::app::state::SkillsSettingsTab;
 use crate::app::{App, Message, message};
-use iced::widget::{button, checkbox, column, container, row, text};
+use iced::widget::{checkbox, column, container, row};
 use iced::{Alignment, Element, Length};
 use vw_config_types::skills::{SkillsDirectoryProvider, SkillsPromptInjectionMode};
 
@@ -34,20 +34,17 @@ fn field_row<'a>(
     .into()
 }
 
-fn settings_tab_button(
+fn skills_tab_button(
     label: &'static str,
     tab: SkillsSettingsTab,
     active_tab: SkillsSettingsTab,
 ) -> Element<'static, Message> {
-    let is_active = tab == active_tab;
-
-    button(text(label).size(13))
-        .padding([8, 14])
-        .on_press(Message::Settings(message::SettingsMessage::SkillsTabChanged(tab)))
-        .style(move |theme: &iced::Theme, status| {
-            settings_segment_button_style(theme, status, is_active)
-        })
-        .into()
+    settings_tab_button(
+        label,
+        tab == active_tab,
+        Some(Message::Settings(message::SettingsMessage::SkillsTabChanged(tab))),
+    )
+    .into()
 }
 
 const SKILLS_TAB_LABELS: &[(&str, SkillsSettingsTab)] = &[
@@ -173,12 +170,10 @@ pub fn view(app: &App) -> Element<'_, Message> {
             help_btn,
         ]
         .align_y(Alignment::Start),
-        skills_tab_labels().iter().fold(
-            row![].spacing(8).align_y(Alignment::Center),
-            |row, (label, tab)| {
-                row.push(settings_tab_button(tr(app.desktop_locale, label), *tab, s.active_tab))
-            }
-        ),
+        settings_tab_row(skills_tab_labels().iter().map(|(label, tab)| {
+            skills_tab_button(tr(app.desktop_locale, label), *tab, s.active_tab)
+        }))
+        .wrap(),
     ]
     .spacing(16)
     .width(Length::Fill);

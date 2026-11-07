@@ -4,14 +4,13 @@
 //! 注释聚焦调用边界、返回值和错误传播方式，便于后续维护设置页与工具栏行为时快速定位职责。
 
 use crate::app::components::system_settings_common::{
-    SETTINGS_CONTROL_TEXT_SIZE, settings_muted_text_style,
-    settings_section_card as shared_settings_section_card, settings_segment_button_style,
-    settings_text_editor_style,
+    settings_muted_text_style, settings_section_card as shared_settings_section_card,
+    settings_tab_button, settings_text_editor_style,
 };
 use crate::app::message::settings::{AgentsMessage, SettingsMessage};
 use crate::app::state::{AgentSettingsEntryKind, DelegateAgentSettingsEntry};
 use crate::app::{App, Message};
-use iced::widget::{Button, button, column, text, text_editor};
+use iced::widget::{Button, column, text, text_editor};
 use iced::{Background, Border, Color, Element, Theme};
 
 /// 构建或处理 `section_card` 对应的界面片段与交互数据。
@@ -208,10 +207,7 @@ pub(super) fn agent_tab_button(
     selected: bool,
     message: Message,
 ) -> Button<'_, Message> {
-    button(text(label).size(SETTINGS_CONTROL_TEXT_SIZE))
-        .padding([8, 14])
-        .style(move |theme: &Theme, status| settings_segment_button_style(theme, status, selected))
-        .on_press(message)
+    settings_tab_button(label, selected, Some(message))
 }
 
 /// 构建或处理 `detail_tab_button` 对应的界面片段与交互数据。

@@ -5,8 +5,8 @@ use crate::app::components::system_settings_common::{
     rounded_action_btn_style, settings_checkbox_style, settings_close_button, settings_divider,
     settings_error_banner, settings_field_label, settings_modal_card_style, settings_modal_header,
     settings_modal_layout, settings_modal_overlay, settings_muted_text_style,
-    settings_page_heading, settings_panel, settings_section_card, settings_segment_button_style,
-    settings_select, settings_success_banner, settings_text_editor_style,
+    settings_page_heading, settings_panel, settings_section_card, settings_select,
+    settings_success_banner, settings_tab_button, settings_tab_row, settings_text_editor_style,
     settings_text_input_style, settings_value_badge,
 };
 use crate::app::components::system_settings_search::SettingsTabDescriptor;
@@ -103,14 +103,12 @@ fn mcp_tab_button(
     tab: McpSettingsTab,
     active_tab: McpSettingsTab,
 ) -> Element<'static, Message> {
-    let is_active = tab == active_tab;
-    button(text(tr(locale, label)).size(13))
-        .padding([8, 14])
-        .on_press(Message::Settings(SettingsMessage::Mcp(McpMessage::TabSelected(tab))))
-        .style(move |theme: &iced::Theme, status| {
-            settings_segment_button_style(theme, status, is_active)
-        })
-        .into()
+    settings_tab_button(
+        tr(locale, label),
+        tab == active_tab,
+        Some(Message::Settings(SettingsMessage::Mcp(McpMessage::TabSelected(tab)))),
+    )
+    .into()
 }
 
 fn compact_text(value: &str, max_chars: usize) -> String {
@@ -861,12 +859,12 @@ pub fn view(app: &App) -> Element<'_, Message> {
         ]
         .spacing(8)
         .align_y(Alignment::Center),
-        mcp_tab_labels()
-            .iter()
-            .fold(row![].spacing(8).align_y(Alignment::Center), |row, (label, tab)| {
-                row.push(mcp_tab_button(locale, label, *tab, s.active_tab))
-            })
-            .wrap(),
+        settings_tab_row(
+            mcp_tab_labels()
+                .iter()
+                .map(|(label, tab)| { mcp_tab_button(locale, label, *tab, s.active_tab) })
+        )
+        .wrap(),
     ]
     .spacing(16)
     .width(Length::Fill);

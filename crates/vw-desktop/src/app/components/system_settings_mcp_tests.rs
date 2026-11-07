@@ -399,3 +399,36 @@ fn delete_confirmation_uses_shared_modal_overlay_and_only_shows_on_servers_tab()
     let unchanged = view_overlays(&app, base);
     assert!(unchanged.as_widget().children().is_empty());
 }
+
+#[tokio::test(flavor = "multi_thread")]
+async fn settings_tabs_capabilities_appearance_mcp() {
+    use crate::app::App;
+    use crate::app::components::system_settings_common::tab_appearance_tests;
+    use crate::app::i18n::settings_extensions::text as tr;
+
+    tab_appearance_tests::run(
+        concat!(module_path!(), "::settings_tabs_capabilities_appearance_mcp"),
+        || App::new().0,
+        |scene, app| {
+            app.mcp_settings.active_tab = McpSettingsTab::Servers;
+            app.mcp_settings.save_error = Some("fixture MCP error".into());
+            let locale = app.desktop_locale;
+            let tab = scene.check(
+                app,
+                view(app),
+                &["全局服务器", "运行时 MCP", "高级 JSON"].map(|label| tr(locale, label)),
+                2,
+            );
+            assert!(matches!(
+                tab,
+                SettingsMessage::Mcp(McpMessage::TabSelected(McpSettingsTab::Json))
+            ));
+            let _ = app.update(Message::Settings(tab));
+            assert_eq!(app.mcp_settings.active_tab, McpSettingsTab::Json);
+            let labels = scene.labels(view(app));
+            assert!(!labels.contains(tr(locale, "当前没有全局 MCP 服务器。")));
+            assert!(labels.contains("fixture MCP error"));
+        },
+    )
+    .await;
+}

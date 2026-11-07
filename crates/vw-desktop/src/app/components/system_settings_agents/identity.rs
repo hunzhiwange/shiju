@@ -3,11 +3,11 @@
 //! 本模块主要负责把应用状态转换为桌面端可渲染的 Iced 控件，并把用户操作映射回上层消息。
 //! 注释聚焦调用边界、返回值和错误传播方式，便于后续维护设置页与工具栏行为时快速定位职责。
 
-use super::shared::editor_style;
+use super::shared::{agent_tab_button, editor_style};
 use crate::app::components::system_settings_common::{
     SETTINGS_CONTROL_PADDING, SETTINGS_CONTROL_TEXT_SIZE, rounded_action_btn_style,
     settings_checkbox_style, settings_field_label, settings_group_card, settings_group_heading,
-    settings_muted_text_style, settings_segment_button_style,
+    settings_muted_text_style, settings_tab_row,
 };
 use crate::app::i18n::settings_extensions::text as tr;
 use crate::app::message::settings::{AgentsMessage, SettingsMessage};
@@ -16,7 +16,7 @@ use crate::app::state::{
 };
 use crate::app::{App, Message};
 use iced::widget::{button, checkbox, column, container, row, text, text_editor};
-use iced::{Alignment, Element, Length, Theme};
+use iced::{Alignment, Element, Length};
 
 pub(super) fn default_workspace_identity_root(agent_key: &str) -> String {
     if agent_key == "main" {
@@ -70,14 +70,14 @@ fn prompt_tab_button<'a>(
     key: &'a str,
     active_key: &'a str,
 ) -> Element<'a, Message> {
-    let is_active = key == active_key;
-    button(text(label).size(12))
-        .padding([8, 12])
-        .style(move |theme: &Theme, status| settings_segment_button_style(theme, status, is_active))
-        .on_press(Message::Settings(SettingsMessage::Agents(AgentsMessage::PromptTabSelected(
+    agent_tab_button(
+        label,
+        key == active_key,
+        Message::Settings(SettingsMessage::Agents(AgentsMessage::PromptTabSelected(
             key.to_string(),
-        ))))
-        .into()
+        ))),
+    )
+    .into()
 }
 
 /// 构建或处理 `view` 对应的界面片段与交互数据。
@@ -115,20 +115,20 @@ pub(super) fn view<'a>(
         .padding(SETTINGS_CONTROL_PADDING)
         .style(editor_style);
 
-    let prompt_tabs = row(std::iter::once(prompt_tab_button(
-        tr(app.desktop_locale, "系统提示词"),
-        AGENT_PROMPT_SYSTEM_TAB,
-        &settings.active_prompt_tab,
-    ))
-    .chain(WORKSPACE_IDENTITY_FILES.iter().map(|(file_name, label)| {
-        prompt_tab_button(
-            crate::app::i18n::I18n::new(app.desktop_locale).__(label),
-            file_name,
+    let prompt_tabs = settings_tab_row(
+        std::iter::once(prompt_tab_button(
+            tr(app.desktop_locale, "系统提示词"),
+            AGENT_PROMPT_SYSTEM_TAB,
             &settings.active_prompt_tab,
-        )
-    }))
-    .collect::<Vec<Element<'a, Message>>>())
-    .spacing(8)
+        ))
+        .chain(WORKSPACE_IDENTITY_FILES.iter().map(|(file_name, label)| {
+            prompt_tab_button(
+                crate::app::i18n::I18n::new(app.desktop_locale).__(label),
+                file_name,
+                &settings.active_prompt_tab,
+            )
+        })),
+    )
     .wrap();
 
     let prompt_panel: Element<'_, Message> =

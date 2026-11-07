@@ -45,9 +45,11 @@ pub(super) fn controls(app: &App) -> Element<'_, Message> {
     settings_group_card(
         container(
             column![
-                row![tab(false, label("已启用智能体")), tab(true, label("官方智能体"))]
-                    .spacing(8)
-                    .wrap(),
+                settings_tab_row([
+                    tab(false, label("已启用智能体")).into(),
+                    tab(true, label("官方智能体")).into(),
+                ])
+                .wrap(),
                 settings_control_with_hint(
                     text_input(label("搜索名称、描述或标识"), &settings.catalog_query)
                         .on_input(|value| message(AgentsMessage::CatalogQueryChanged(value)))

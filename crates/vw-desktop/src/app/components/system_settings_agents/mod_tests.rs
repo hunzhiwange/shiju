@@ -146,3 +146,48 @@ fn agents_view_builds_main_enabled_disabled_and_model_metadata() {
 
     assert_eq!(element.as_widget().children().len(), 5);
 }
+
+#[tokio::test(flavor = "multi_thread")]
+async fn settings_tabs_capabilities_appearance_agents() {
+    use crate::app::components::system_settings_common::tab_appearance_tests;
+    use crate::app::message::settings::{AgentConfigTabMessage, AgentsMessage, SettingsMessage};
+    use crate::app::state::AgentConfigTab;
+    use crate::app::{App, Message};
+
+    tab_appearance_tests::run(
+        concat!(module_path!(), "::settings_tabs_capabilities_appearance_agents"),
+        || App::new().0,
+        |scene, app| {
+            app.agents_settings.config_ready = true;
+            app.agents_settings.active_config_tab = AgentConfigTab::Agents;
+            app.agents_settings.catalog_official = false;
+            app.agents_settings.save_error = Some("fixture agent error".into());
+            let locale = app.desktop_locale;
+            let tr = |label| super::tr(locale, label);
+
+            let catalog =
+                scene.check(app, super::view(app), &["已启用智能体", "官方智能体"].map(tr), 1);
+            assert!(matches!(
+                catalog,
+                SettingsMessage::Agents(AgentsMessage::CatalogTabSelected(true))
+            ));
+            let _ = app.update(Message::Settings(catalog));
+            assert!(app.agents_settings.catalog_official);
+            assert!(scene.labels(super::view(app)).contains("fixture agent error"));
+
+            let names: Vec<_> = super::AGENT_CONFIG_TABS.iter().map(|tab| tr(tab.label)).collect();
+            let config = scene.check(app, super::view(app), &names, 1);
+            assert!(matches!(
+                config,
+                SettingsMessage::AgentConfigTab(AgentConfigTabMessage::Selected(
+                    AgentConfigTab::Channels
+                ))
+            ));
+            let _ = app.update(Message::Settings(config));
+            let labels = scene.labels(super::view(app));
+            assert!(labels.contains(tr("通道配置")));
+            assert!(!labels.contains("fixture agent error"));
+        },
+    )
+    .await;
+}

@@ -729,3 +729,74 @@ async fn agent_runtime_visibility_actual_modal_renders_native_and_acp_in_both_th
         }
     }
 }
+
+#[tokio::test(flavor = "multi_thread")]
+async fn settings_tabs_capabilities_appearance_profile() {
+    use crate::app::Message;
+    use crate::app::components::system_settings_common::tab_appearance_tests;
+    use crate::app::i18n::I18n;
+    use crate::app::state::{
+        AGENT_DETAIL_BASIC_TAB, AGENT_DETAIL_IDENTITY_TAB, AGENT_PROMPT_SYSTEM_TAB,
+        WORKSPACE_IDENTITY_FILES,
+    };
+
+    fn view(app: &App) -> iced::Element<'_, Message> {
+        // A uniform surface keeps the underlying page from tinting the translucent card.
+        let base = iced::widget::Space::new().width(iced::Length::Fill).height(iced::Length::Fill);
+        super::profile_modal::overlay(app, base.into())
+    }
+
+    tab_appearance_tests::run(
+        concat!(module_path!(), "::settings_tabs_capabilities_appearance_profile"),
+        runtime_creation_draft,
+        |scene, app| {
+            let locale = app.desktop_locale;
+            let tr = |label| super::tr(locale, label);
+            let draft_name = "暂存智能体 · Profile draft";
+            dispatch(app, AgentsMessage::ProfileNameChanged(draft_name.into()));
+
+            let native_tabs = ["基础参数", "身份", "工具", "技能", "MCP"].map(tr);
+            let identity = scene.check(app, view(app), &native_tabs, 1);
+            assert!(
+                matches!(&identity, SettingsMessage::Agents(AgentsMessage::DetailTabSelected(key))
+                if key == AGENT_DETAIL_IDENTITY_TAB)
+            );
+            let _ = app.update(Message::Settings(identity));
+            assert_eq!(app.agents_settings.active_detail_tab, AGENT_DETAIL_IDENTITY_TAB);
+            app.agents_settings.active_prompt_tab = AGENT_PROMPT_SYSTEM_TAB.into();
+
+            let prompt_tabs: Vec<_> = std::iter::once(tr("系统提示词"))
+                .chain(
+                    WORKSPACE_IDENTITY_FILES.iter().map(|(_, label)| I18n::new(locale).__(label)),
+                )
+                .collect();
+            let prompt = scene.check(app, view(app), &prompt_tabs, 1);
+            let file = WORKSPACE_IDENTITY_FILES[0].0;
+            assert!(
+                matches!(&prompt, SettingsMessage::Agents(AgentsMessage::PromptTabSelected(key))
+                if key == file)
+            );
+            let _ = app.update(Message::Settings(prompt));
+            assert_eq!(app.agents_settings.active_prompt_tab, file);
+            assert!(scene.labels(view(app)).contains(tr("恢复默认")));
+            scene.check_modal_scroll(view(app), tr("智能体配置"), tr("保存配置"));
+
+            let basic = scene.click(view(app), tr("基础参数"));
+            let _ = app.update(Message::Settings(basic));
+            assert_eq!(app.agents_settings.active_detail_tab, AGENT_DETAIL_BASIC_TAB);
+            assert_eq!(app.agents_settings.profile_modal.as_ref().unwrap().label, draft_name);
+
+            dispatch(app, AgentsMessage::ProfileRuntimeChanged("codex".into()));
+            let acp_tabs = ["基础参数", "身份", "技能", "MCP"].map(tr);
+            assert!(!scene.labels(view(app)).contains(tr("工具")));
+            let skills = scene.check(app, view(app), &acp_tabs, 2);
+            let _ = app.update(Message::Settings(skills));
+            assert_eq!(
+                app.agents_settings.active_detail_tab,
+                crate::app::state::AGENT_DETAIL_SKILLS_TAB
+            );
+            assert_eq!(app.agents_settings.profile_modal.as_ref().unwrap().label, draft_name);
+        },
+    )
+    .await;
+}

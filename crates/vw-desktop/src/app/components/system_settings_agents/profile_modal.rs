@@ -25,34 +25,19 @@ pub(super) fn overlay<'a>(app: &'a App, base: Element<'a, Message>) -> Element<'
         vw_config_types::agent::AgentRuntime::Native => true,
         vw_config_types::agent::AgentRuntime::Acp { .. } => false,
     };
-    let tabs = row![
-        super::shared::detail_tab_button(
-            label("基础参数"),
-            crate::app::state::AGENT_DETAIL_BASIC_TAB,
-            &settings.active_detail_tab
-        ),
-        super::shared::detail_tab_button(
-            label("身份"),
-            crate::app::state::AGENT_DETAIL_IDENTITY_TAB,
-            &settings.active_detail_tab
-        ),
-        native.then(|| super::shared::detail_tab_button(
-            label("工具"),
-            crate::app::state::AGENT_DETAIL_TOOLS_TAB,
-            &settings.active_detail_tab
-        )),
-        super::shared::detail_tab_button(
-            label("技能"),
-            crate::app::state::AGENT_DETAIL_SKILLS_TAB,
-            &settings.active_detail_tab
-        ),
-        super::shared::detail_tab_button(
-            "MCP",
-            crate::app::state::AGENT_DETAIL_MCP_TAB,
-            &settings.active_detail_tab
-        ),
-    ]
-    .spacing(8)
+    let detail_tab =
+        |label, key| super::shared::detail_tab_button(label, key, &settings.active_detail_tab);
+    let tabs = settings_tab_row(
+        [
+            Some(detail_tab(label("基础参数"), crate::app::state::AGENT_DETAIL_BASIC_TAB)),
+            Some(detail_tab(label("身份"), crate::app::state::AGENT_DETAIL_IDENTITY_TAB)),
+            native.then(|| detail_tab(label("工具"), crate::app::state::AGENT_DETAIL_TOOLS_TAB)),
+            Some(detail_tab(label("技能"), crate::app::state::AGENT_DETAIL_SKILLS_TAB)),
+            Some(detail_tab("MCP", crate::app::state::AGENT_DETAIL_MCP_TAB)),
+        ]
+        .into_iter()
+        .flatten(),
+    )
     .wrap();
     let entry = super::shared::selected_entry(app).unwrap_or(draft);
     let fields: Element<'_, Message> = match settings.active_detail_tab.as_str() {

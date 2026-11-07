@@ -813,3 +813,48 @@ async fn ui_refresh_17_preserves_project_binding_and_qr_actions() {
         [Message::Settings(SettingsMessage::Channels(ChannelsMessage::QrSaveConfirmed))]
     ));
 }
+
+#[tokio::test(flavor = "multi_thread")]
+async fn settings_tabs_capabilities_appearance_channels() {
+    use crate::app::components::system_settings_common::tab_appearance_tests;
+
+    tab_appearance_tests::run_at_least(
+        concat!(module_path!(), "::settings_tabs_capabilities_appearance_channels"),
+        520,
+        fixture,
+        |scene, app| {
+            app.channels_settings.active_tab = ChannelsSettingsTab::Global;
+            app.channels_settings.save_error = Some("fixture channel error".into());
+            let locale = app.desktop_locale;
+            let webhook = scene.check_with_padding(
+                app,
+                view(app),
+                &["全局", "Webhook", "Email"].map(|label| tr(locale, label)),
+                1,
+                12,
+            );
+            assert!(matches!(
+                webhook,
+                SettingsMessage::Channels(ChannelsMessage::TabSelected(
+                    ChannelsSettingsTab::Webhook
+                ))
+            ));
+            let _ = app.update(Message::Settings(webhook));
+            assert_eq!(app.channels_settings.active_tab, ChannelsSettingsTab::Webhook);
+            let labels = scene.labels(view(app));
+            assert!(labels.contains("fixture channel error"));
+            assert!(labels.contains(tr(locale, "配置")));
+
+            let feishu = scene.click(view(app), tr(locale, "飞书"));
+            assert!(matches!(
+                feishu,
+                SettingsMessage::Channels(ChannelsMessage::TabSelected(
+                    ChannelsSettingsTab::Feishu
+                ))
+            ));
+            let _ = app.update(Message::Settings(feishu));
+            assert_eq!(app.channels_settings.active_tab, ChannelsSettingsTab::Feishu);
+        },
+    )
+    .await;
+}

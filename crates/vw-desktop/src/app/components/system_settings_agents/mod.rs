@@ -40,7 +40,7 @@ mod tools_tests;
 use crate::app::components::system_settings_common::{
     SETTINGS_CONTROL_PADDING, SETTINGS_CONTROL_TEXT_SIZE, primary_action_btn_style,
     rounded_action_btn_style, settings_error_banner, settings_group_card, settings_group_heading,
-    settings_muted_text_style, settings_page_heading, settings_text_input_style,
+    settings_muted_text_style, settings_page_heading, settings_tab_row, settings_text_input_style,
 };
 use crate::app::components::system_settings_search::SettingsTabDescriptor;
 use crate::app::i18n::settings_extensions::text as tr;
@@ -155,18 +155,17 @@ pub(super) fn agent_project_options(app: &App) -> Vec<String> {
 /// 本函数不直接返回错误；无法交互或缺省状态会在控件状态中显式表达。
 pub fn view(app: &App) -> Element<'_, Message> {
     let active_tab = app.agents_settings.active_config_tab;
-    let tabs = AGENT_CONFIG_TABS
-        .iter()
-        .fold(row![].spacing(8).align_y(Alignment::Center), |row, descriptor| {
-            row.push(shared::agent_tab_button(
-                tr(app.desktop_locale, descriptor.label),
-                descriptor.tab == active_tab,
-                Message::Settings(SettingsMessage::AgentConfigTab(
-                    AgentConfigTabMessage::Selected(descriptor.tab),
-                )),
-            ))
-        })
-        .wrap();
+    let tabs = settings_tab_row(AGENT_CONFIG_TABS.iter().map(|descriptor| {
+        shared::agent_tab_button(
+            tr(app.desktop_locale, descriptor.label),
+            descriptor.tab == active_tab,
+            Message::Settings(SettingsMessage::AgentConfigTab(AgentConfigTabMessage::Selected(
+                descriptor.tab,
+            ))),
+        )
+        .into()
+    }))
+    .wrap();
 
     let content = match active_tab {
         AgentConfigTab::Agents => agents_view(app),

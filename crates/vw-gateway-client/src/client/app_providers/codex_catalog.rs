@@ -27,14 +27,38 @@ impl GatewayClient {
     ) -> Result<CodexResult, Error> {
         self.codex_request(id, "POST", "/reapply", body, token).await
     }
-    async fn codex_request<B: serde::Serialize>(
+    pub async fn codex_form_read(
+        &self,
+        id: &str,
+        body: &CodexTarget,
+        token: &str,
+    ) -> Result<CodexFormView, Error> {
+        self.codex_request(id, "POST", "/form/read", body, token).await
+    }
+    pub async fn codex_form_create(
+        &self,
+        id: &str,
+        body: &CodexFormWrite,
+        token: &str,
+    ) -> Result<CodexResult, Error> {
+        self.codex_request(id, "POST", "/form", body, token).await
+    }
+    pub async fn codex_form_update(
+        &self,
+        id: &str,
+        body: &CodexFormWrite,
+        token: &str,
+    ) -> Result<CodexResult, Error> {
+        self.codex_request(id, "PATCH", "/form", body, token).await
+    }
+    async fn codex_request<B: serde::Serialize, R: serde::de::DeserializeOwned>(
         &self,
         id: &str,
         method: &str,
         action: &str,
         body: &B,
         token: &str,
-    ) -> Result<CodexResult, Error> {
+    ) -> Result<R, Error> {
         if id.is_empty()
             || id.len() > 128
             || !id.bytes().all(|c| c.is_ascii_alphanumeric() || matches!(c, b'-' | b'_'))

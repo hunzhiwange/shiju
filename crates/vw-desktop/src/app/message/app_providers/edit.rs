@@ -28,7 +28,7 @@ pub(crate) async fn save(
 mod tests;
 
 use super::{
-    claude, gemini,
+    claude, codex, gemini,
     list::{ListMessage, current},
 };
 use crate::app::state::app_providers::claude::Draft;
@@ -40,6 +40,7 @@ use vw_gateway_client::vw_api_types::{
     app_providers::{
         basic::ProviderBasic,
         claude::{ClaudeFormView, ClaudeLiveResult},
+        codex_catalog::{CodexFormView, CodexLiveResult},
         gemini::{GeminiFormView, GeminiLiveResult},
     },
 };
@@ -66,6 +67,13 @@ pub enum EditMessage {
         result: Result<ClaudeFormView, String>,
     },
     Claude(claude::Field),
+    CodexLoaded {
+        scope: Scope,
+        generation: u64,
+        id: String,
+        result: Result<CodexFormView, String>,
+    },
+    Codex(codex::Field),
     GeminiLoaded {
         scope: Scope,
         generation: u64,
@@ -87,6 +95,11 @@ pub enum EditMessage {
         scope: Scope,
         generation: u64,
         result: Result<ClaudeLiveResult, String>,
+    },
+    CodexSaved {
+        scope: Scope,
+        generation: u64,
+        result: Result<CodexLiveResult, String>,
     },
     GeminiSaved {
         scope: Scope,
@@ -126,6 +139,8 @@ pub(crate) fn update(app: &mut App, event: EditMessage) -> Task<Message> {
             );
             if claude_scope(app) {
                 form.claude = Some(Draft::new());
+            } else if app.app_providers.scope.as_ref().is_some_and(|s| s.app == AppId::Codex) {
+                form.codex = Some(crate::app::state::app_providers::codex::Draft::new());
             } else if app
                 .app_providers
                 .scope
@@ -156,6 +171,21 @@ pub(crate) fn update(app: &mut App, event: EditMessage) -> Task<Message> {
                     async move { claude::load(client, request_scope, &source, &token).await },
                     move |result| {
                         message(EditMessage::ClaudeLoaded {
+                            scope: scope.clone(),
+                            generation,
+                            id: id.clone(),
+                            result,
+                        })
+                    },
+                );
+            }
+            if scope.app == AppId::Codex && !copy && !delete {
+                let token = app.apps_catalog.token.clone();
+                let request_scope = scope.clone();
+                return Task::perform(
+                    async move { codex::load(client, request_scope, &source, &token).await },
+                    move |result| {
+                        message(EditMessage::CodexLoaded {
                             scope: scope.clone(),
                             generation,
                             id: id.clone(),
@@ -228,6 +258,22 @@ pub(crate) fn update(app: &mut App, event: EditMessage) -> Task<Message> {
                 Err(error) => return app.show_error_toast(error),
             }
         }
+        EditMessage::CodexLoaded { scope, generation, id, result } => {
+            if !app.app_providers.loading || !matches_scope(app, &scope, generation) {
+                return Task::none();
+            }
+            app.app_providers.loading = false;
+            match result {
+                Ok(view) => {
+                    let mut form = EditForm::new(Mode::Update, id, view.fields, None);
+                    form.codex =
+                        view.config.map(crate::app::state::app_providers::codex::Draft::from_view);
+                    form.codex_config_unavailable = form.codex.is_none();
+                    app.app_providers.form = Some(form);
+                }
+                Err(error) => return app.show_error_toast(error),
+            }
+        }
         EditMessage::GeminiLoaded { scope, generation, id, result } => {
             if !app.app_providers.loading || !matches_scope(app, &scope, generation) {
                 return Task::none();
@@ -262,7 +308,8 @@ pub(crate) fn update(app: &mut App, event: EditMessage) -> Task<Message> {
             }
             let claude = form.claude_editable();
             let gemini = form.gemini_editable();
-            if claude || gemini {
+            let codex = form.codex.is_some();
+            if claude || gemini || codex {
                 if !form.identified() {
                     return app.show_error_toast("请填写标识与名称");
                 }
@@ -281,6 +328,18 @@ pub(crate) fn update(app: &mut App, event: EditMessage) -> Task<Message> {
                     claude::save(client, scope.clone(), form, token),
                     move |result| {
                         message(EditMessage::ClaudeSaved {
+                            scope: scope.clone(),
+                            generation,
+                            result,
+                        })
+                    },
+                );
+            }
+            if codex {
+                return Task::perform(
+                    codex::save(client, scope.clone(), form, token),
+                    move |result| {
+                        message(EditMessage::CodexSaved {
                             scope: scope.clone(),
                             generation,
                             result,
@@ -322,6 +381,25 @@ pub(crate) fn update(app: &mut App, event: EditMessage) -> Task<Message> {
                     app.show_warning_toast("目录已保存，但应用 Claude 配置失败。")
                 }
                 Ok(ClaudeLiveResult::RecoveryRequired) => {
+                    app.show_warning_toast("目录已保存，执行端配置需要恢复。")
+                }
+            };
+            return Task::batch([toast, super::list::update(app, ListMessage::Refresh)]);
+        }
+        EditMessage::CodexSaved { scope, generation, result } => {
+            if !matches_scope(app, &scope, generation)
+                || !codex::finish(&mut app.app_providers, &scope, generation, &result)
+            {
+                return Task::none();
+            }
+            let toast = match result {
+                Err(error) => return app.show_error_toast(error),
+                Ok(CodexLiveResult::NotAttempted) => app.show_success_toast("已保存到供应商目录。"),
+                Ok(CodexLiveResult::Applied) => app.show_success_toast("已保存并应用 Codex 配置。"),
+                Ok(CodexLiveResult::Failed) => {
+                    app.show_warning_toast("目录已保存，但应用 Codex 配置失败。")
+                }
+                Ok(CodexLiveResult::RecoveryRequired) => {
                     app.show_warning_toast("目录已保存，执行端配置需要恢复。")
                 }
             };
@@ -376,6 +454,7 @@ pub(crate) fn update(app: &mut App, event: EditMessage) -> Task<Message> {
                     form.id = v
                 }
                 EditMessage::Claude(field) => claude::change(form, field),
+                EditMessage::Codex(field) => codex::change(form, field),
                 EditMessage::Gemini(field) => gemini::change(form, field),
                 EditMessage::Name(v) => form.fields.name = v,
                 EditMessage::Category(v) => form.fields.category = optional(v),

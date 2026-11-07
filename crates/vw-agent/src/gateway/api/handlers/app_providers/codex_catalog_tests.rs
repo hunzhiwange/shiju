@@ -321,3 +321,97 @@ async fn cc04_codex_catalog_missing_write_grant_and_managed_rows_are_rejected() 
     assert_eq!(std::fs::read(f.file()).unwrap(), before);
     assert_eq!(std::fs::read_dir(f.root.path().join(".codex")).unwrap().count(), 1);
 }
+
+#[tokio::test]
+async fn cc04_ui_codex_sdk_edits_mapping_and_preserves_inactive_fields_through_native_transaction()
+{
+    use vw_api_types::app_providers::{basic::ProviderBasic, create::ProviderSecretWrite};
+    let f = Fixture::new().await;
+    let mut seed = f.request(true, ClaudeActivation::First);
+    seed.profile.config.push_str(
+        "\n[mcp_servers.\"中文夹具\"]\ncommand = 'fixture-private-command' # fixture-secret-comment\n",
+    );
+    f.client.codex_provider_save("one", &seed, TOKEN).await.unwrap();
+
+    let target = f.target();
+    let initial = f.client.codex_form_read("one", &target, TOKEN).await.unwrap();
+    let mut config = initial.config.unwrap();
+    assert!(config.has_saved_key);
+    assert_eq!(config.inactive, vec![vec!["config", "mcp_servers", "中文夹具"]]);
+    let serialized = serde_json::to_string(&config).unwrap();
+    for secret in ["fake-route-secret", "fixture-private-command", "fixture-secret-comment"] {
+        assert!(!serialized.contains(secret));
+    }
+    assert_eq!(config.models.as_ref().unwrap()[0].slug, "saved");
+    config.models.as_mut().unwrap()[0].display_name = "中文显示名".into();
+    let request = CodexFormWrite {
+        target_host_id: target.target_host_id,
+        fields: ProviderBasic { name: "中文供应商".into(), ..initial.fields },
+        toml: config.toml.replace("saved", "new-default"),
+        api_key: ProviderSecretWrite::Keep,
+        models: config.models,
+        apply: true,
+    };
+    let before_native = std::fs::read(f.file()).unwrap();
+    let before_record = f.record("one").unwrap();
+    for (id, payload, token, create, status) in [
+        ("one", request.clone(), "wrong-token", false, 401),
+        ("one", request.clone(), TOKEN, true, 409),
+        ("missing", request.clone(), TOKEN, false, 404),
+        ("one", CodexFormWrite { toml: "model = [".into(), ..request.clone() }, TOKEN, false, 422),
+        (
+            "one",
+            CodexFormWrite {
+                toml: request.toml.replace("fixture.test", "different.test"),
+                ..request.clone()
+            },
+            TOKEN,
+            false,
+            422,
+        ),
+    ] {
+        let result = if create {
+            f.client.codex_form_create(id, &payload, token).await
+        } else {
+            f.client.codex_form_update(id, &payload, token).await
+        };
+        assert!(
+            matches!(result, Err(vw_gateway_client::AgentAppsReadError::Http {
+            status: actual, body: Value::Null
+        }) if actual == status),
+            "{result:?}"
+        );
+    }
+    assert_eq!(std::fs::read(f.file()).unwrap(), before_native);
+    assert_eq!(f.record("one").unwrap(), before_record);
+    assert_eq!(f.state()["pointer"]["id"], "one");
+
+    let result = f.client.codex_form_update("one", &request, TOKEN).await.unwrap();
+    assert_eq!(result.live, CodexLiveResult::Applied);
+    assert!(result.catalog_saved);
+    let record = f.record("one").unwrap();
+    assert!(record.contains("fixture-private-command"));
+    assert!(record.contains("fixture-secret-comment"));
+    let native = std::fs::read_to_string(f.file()).unwrap();
+    assert!(native.contains("new-default"));
+    assert!(native.contains("fake-route-secret"));
+    assert!(native.contains("# fixture comment"));
+    assert!(!native.contains("fixture-private-command"));
+    let catalog: Value = serde_json::from_slice(
+        &std::fs::read(f.root.path().join(".codex/shiju-model-catalog.json")).unwrap(),
+    )
+    .unwrap();
+    assert_eq!(catalog["models"][0]["display_name"], "中文显示名");
+    assert_eq!(catalog["models"][0]["base_instructions"], "fixture instruction");
+
+    let result = f.client.codex_form_create("two", &request, TOKEN).await.unwrap();
+    assert!(result.catalog_saved);
+    assert_eq!(result.live, CodexLiveResult::NotAttempted);
+    assert_eq!(std::fs::read_to_string(f.file()).unwrap(), native);
+    assert_eq!(f.state()["pointer"]["id"], "one");
+
+    let g = Fixture::new().await;
+    let result = g.client.codex_form_create("first", &request, TOKEN).await.unwrap();
+    assert_eq!(result.live, CodexLiveResult::Applied);
+    assert_eq!(g.state()["pointer"]["id"], "first");
+}

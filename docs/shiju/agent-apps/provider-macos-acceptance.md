@@ -2577,3 +2577,36 @@ macOS **27.0 (26A428) / arm64**，workspace **0.6.0**。窗口命令使用 `CARG
 明暗两次实际滚动时标题和操作区固定，滚动条宽 4px，两侧各预留 7px。中文和动态文本沿默认字体路径绘制，两次正常退出且未出现字形整形 panic。日志包含既有链接器 `__eh_frame` 及系统 sandbox extension 提示。定向差异审查排除并行终端与计划改动，自身槽位锁全部释放，缓存保留。
 
 状态：**已完成**。下一步批次 56。本编号文件验收后删除，删除不入提交。
+
+## 任务 56：桌面 Codex 配置编辑器
+
+2026-11-07。批次 55 提交 `1474abb89` 及其正式验收已核对；母任务 1、3 已完成，母任务 2 沿 `provider-contracts.md` 的底座子计划 1–93 开工裁定消费现有接口，完整领域迁移仍未收口。沿用批次 28–30 的 Codex 投影、登录处理和事务适配，以及批次 52 的显式窗口入口。
+
+- 来源：冻结上游 `ca58c0313360eae7c851fbd7553c1614c7af03e7`，工作区干净。读取 `CodexConfigEditor`、`CodexConfigSections`、`ProviderForm` 的 Codex 分支、`CodexFormFields::renderCatalogRows` 和相邻 `CommonConfigModalBehavior.test.tsx`。上游只读，未运行其测试。
+- 桌面 `vw-desktop/src/app/{components,state,message}/app_providers/codex.rs` 接供应商列表的新增和编辑。编辑第三方选路与模型 TOML、菜单显示名和请求模型；失效字段只显示执行端返回的路径。密钥单独遮蔽输入。400/422 保留草稿，作用域或代次过期的响应被忽略；目录保存和应用结果分别反馈。托管、官方和不支持的凭据形态仅可修改基础资料；官方授权、模型发现/推荐、外部目录内容与代理模型转换不在本项。
+- SDK `codex_form_{read,create,update}` 对应 `POST /v1/app-providers/codex/{id}/form/read`、`POST /form`、`PATCH /form`。Gateway 复用租户和主机读写授权，执行端 `vw-agent-apps/src/providers/codex_catalog/form.rs` 处理 TOML 安全投影、校验、同端点密钥保留、模型映射；密钥、未公开的 TOML 值和注释不进入读响应。现有映射按同端点和模型 ID 保留既有元数据；目录仍由模型目录服务持有，原生变更沿既有 Codex pending 事务。显式勾选应用时，新增仅首次激活，编辑仅应用当前直连档案。
+- 正式 SDK → 回环 HTTP → 正式 Gateway handler → 隔离 SQLite/HOME。读出失效字段 `mcp_servers.中文夹具`，未返回其值、注释或假密钥。编辑当前档案后，`config.toml` 出现新模型并保留原密钥与用户注释，失效字段仍保存在档案，未写入原生配置；`shiju-model-catalog.json` 写入中文显示名并保留模型元数据。首次激活实际更新指针；已有指针时新增只保存目录。错误令牌、重复新增、编辑缺失档案、无效 TOML、换地址且保留旧密钥分别被拒绝，档案、原生文件和指针不变。
+
+### 红绿验证
+
+原子 mkdir 动态领取：红测及首轮绿测槽位 **2**，`CARGO_TARGET_DIR=/Users/xiangmin/worker/code/shiju/target/rust-slot-2`；最终验证槽位 **1**，`CARGO_TARGET_DIR=/Users/xiangmin/worker/code/shiju/target/rust-slot-1`。`CARGO_BUILD_BUILD_DIR` 同各自槽位。红测格式化退出 0，桌面过滤命令退出 101（0 passed / 2 failed），失败在尚未通过 SDK 提交和有效响应尚不能结束保存。绿测的桌面回环 HTTP 夹具返回 422；真实执行端文件证据由 Gateway 用例给出。
+
+| 命令 | 退出码 | 有效结果 |
+| --- | --- | --- |
+| `cargo fmt --all` | 0 | 格式化 |
+| `cargo test -p vw-desktop --lib cc04_ui_codex_ -- --nocapture` | 0 | 2 passed |
+| `cargo test -p vw-agent --lib gateway::api::handlers::app_providers::codex_catalog_tests:: -- --nocapture` | 0 | 7 passed，含本任务 1 项 |
+| `cargo clippy --all-targets --all-features -- -D warnings` | 0 | 全 targets/features |
+| `SHIJU_CC04_WINDOW_CASE=codex SHIJU_CC04_WINDOW_THEME=dark cargo test -p vw-desktop --test cc04-provider-window` | 0 | 实际操作并手动关闭 |
+| `SHIJU_CC04_WINDOW_CASE=codex SHIJU_CC04_WINDOW_THEME=light cargo test -p vw-desktop --test cc04-provider-window` | 0 | 实际操作并手动关闭 |
+
+### macOS 窗口
+
+macOS **27.0 (26A428) / arm64**，workspace **0.6.0**。隔离 runner 将槽位产物放入临时 app bundle；真实 Iced 组件、Message 和 SDK 连接本机回环 HTTP 夹具，使用假档案。两种主题均从供应商列表打开现有 Codex 档案，输入中文 TOML 草稿和中文映射，提交无效 TOML 并确认错误提示及草稿保留；修正后保存，重开、改映射名后取消，再重开确认保留已保存映射。滚动查看了中文失效路径和长表单，标题与底部按钮固定，沿用 4px 滚动条和两侧各 7px 留白。两次正常关闭，未出现字形整形 panic。真实 Codex CLI/账号、外部模型目录和非 macOS 平台未验证。
+
+- 深色：[失败与映射](evidence/task-56/dark-failure.jpg)、[保存](evidence/task-56/dark-saved.jpg)、[取消后重开](evidence/task-56/dark-cancel.jpg)。
+- 浅色：[失败与映射](evidence/task-56/light-failure.jpg)、[保存](evidence/task-56/light-saved.jpg)、[取消后重开](evidence/task-56/light-cancel.jpg)。
+
+差异审查仅纳入 Codex 读写契约、桌面接线、测试和本任务证据。链接器仍提示既有 `__eh_frame` 警告，未影响行为测试；槽位锁释放，保留缓存。
+
+状态：**已完成**。

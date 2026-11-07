@@ -21,6 +21,8 @@ pub(crate) struct EditForm {
     pub saving: bool,
     pub draft: Option<AppProviderCreate>,
     pub claude: Option<Draft>,
+    pub codex: Option<super::codex::Draft>,
+    pub codex_config_unavailable: bool,
     pub gemini: Option<super::gemini::Draft>,
 }
 impl std::fmt::Debug for EditForm {
@@ -45,6 +47,8 @@ impl EditForm {
             saving: false,
             draft,
             claude: None,
+            codex: None,
+            codex_config_unavailable: false,
             gemini: None,
         }
     }

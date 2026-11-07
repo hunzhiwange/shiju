@@ -10,17 +10,20 @@ use iced::{Element, Task, Theme};
 use vw_gateway_client::vw_api_types::agent_apps::AppId;
 fn main() {
     let case = std::env::var("SHIJU_CC04_WINDOW_CASE").expect("window case");
-    assert!(matches!(case.as_str(), "list" | "edit" | "claude" | "gemini"), "unknown window case");
+    let (app, native_form) = match case.as_str() {
+        "list" | "edit" => (AppId::Claude, false),
+        "claude" => (AppId::Claude, true),
+        "codex" => (AppId::Codex, true),
+        "gemini" => (AppId::Gemini, true),
+        _ => panic!("unknown window case"),
+    };
     let edit = case == "edit";
-    let gemini = case == "gemini";
-    let app = if gemini { AppId::Gemini } else { AppId::Claude };
-    let native_form = matches!(case.as_str(), "claude" | "gemini");
     let theme = match std::env::var("SHIJU_CC04_WINDOW_THEME").as_deref() {
         Ok("dark") => Theme::Dark,
         Ok("light") => Theme::Light,
         _ => panic!("unknown theme"),
     };
-    let (port, stop, server) = fixture(native_form, gemini);
+    let (port, stop, server) = fixture(native_form, app);
     app::config::install_window_test_bootstrap(port);
     iced::application(
         move || {
@@ -50,6 +53,7 @@ fn main() {
         view,
     )
     .title(match case.as_str() {
+        "codex" => "Codex 供应商隔离验收",
         "gemini" => "Gemini CLI 供应商隔离验收",
         "claude" => "Claude Code 供应商隔离验收",
         _ => "供应商基础编辑隔离验收",
@@ -81,7 +85,7 @@ fn view(state: &App) -> Element<'_, Message> {
 }
 fn fixture(
     native_form: bool,
-    gemini: bool,
+    app: AppId,
 ) -> (u16, std::sync::Arc<std::sync::atomic::AtomicBool>, std::thread::JoinHandle<()>) {
     use std::io::{Read, Write};
     let listener = std::net::TcpListener::bind("127.0.0.1:0").unwrap();
@@ -92,12 +96,17 @@ fn fixture(
     let server = std::thread::spawn(move || {
         let mut presentation = serde_json::json!({"sortIndex":1,"category":"工作","notes":"中文动态备注：实际字体整形验收。"});
         let mut basics: std::collections::BTreeMap<String, serde_json::Value> = (0..16).map(|i| (format!("provider-{i}"), serde_json::json!({"name":format!("中文供应商 {i}"),"category":"工作","notes":"中文动态备注","websiteUrl":"https://website.example.test"}))).collect();
-        let app = if gemini { "gemini" } else { "claude" };
+        let app = match app {
+            AppId::Claude => "claude",
+            AppId::Codex => "codex",
+            AppId::Gemini => "gemini",
+            _ => panic!("unknown fixture app"),
+        };
         let prefix = format!("/v1/app-providers/{app}/");
         let mut third_party = serde_json::json!({
             "kind":"third_party","baseUrl":"https://fixture-api.example.test"
         });
-        if !gemini {
+        if app == "claude" {
             third_party["apiKeyHeader"] = false.into();
         }
         let mut profiles = std::collections::BTreeMap::from([
@@ -107,6 +116,15 @@ fn fixture(
                 (serde_json::json!({"kind":"official"}), serde_json::Value::Null),
             ),
         ]);
+        let mut codex_configs = std::collections::BTreeMap::from([(
+            "provider-0".to_owned(),
+            serde_json::json!({
+                "toml": "model_provider = \"vendor\"\nmodel = \"中文模型\"\n\n[model_providers.vendor]\nbase_url = \"https://fixture-api.example.test/v1\"\nwire_api = \"responses\"\n",
+                "hasSavedKey": true,
+                "inactive": [["config", "mcp_servers", "中文工具"], ["config", "sandbox_mode"]],
+                "models": [{"slug":"fixture-model","displayName":"中文动态映射"}]
+            }),
+        )]);
         while !done.load(std::sync::atomic::Ordering::Relaxed) {
             let (mut stream, _) = match listener.accept() {
                 Ok(v) => v,
@@ -144,11 +162,15 @@ fn fixture(
                 assert!(head.to_lowercase().contains("x-agent-apps-token: fake-host-token"));
                 let target: serde_json::Value = serde_json::from_slice(&payload).unwrap();
                 assert_eq!(target["targetHostId"], "fixture-host");
-                let (config, model) = profiles.get(id).cloned().unwrap_or((
-                    serde_json::json!({"kind":"unsupported"}),
-                    serde_json::Value::Null,
-                ));
-                serde_json::json!({"fields":basics[id],"config":config,"model":model})
+                if app == "codex" {
+                    serde_json::json!({"fields":basics[id],"config":codex_configs.get(id)})
+                } else {
+                    let (config, model) = profiles.get(id).cloned().unwrap_or((
+                        serde_json::json!({"kind":"unsupported"}),
+                        serde_json::Value::Null,
+                    ));
+                    serde_json::json!({"fields":basics[id],"config":config,"model":model})
+                }
             } else if native_form
                 && path.ends_with("/form")
                 && (line.starts_with("POST ") || line.starts_with("PATCH "))
@@ -156,20 +178,46 @@ fn fixture(
                 assert!(head.to_lowercase().contains("x-agent-apps-token: fake-host-token"));
                 let mut value: serde_json::Value = serde_json::from_slice(&payload).unwrap();
                 assert_eq!(value["targetHostId"], "fixture-host");
-                let mut config = value["config"].take();
-                if config["kind"] == "third_party"
-                    && !config["baseUrl"].as_str().is_some_and(|url| url.starts_with("https://"))
-                {
-                    status = "422 Unprocessable Entity";
-                    serde_json::Value::Null
-                } else {
-                    config.as_object_mut().unwrap().remove("apiKey");
-                    profiles.insert(id.into(), (config, value["model"].take()));
-                    basics.insert(id.into(), value["fields"].take());
-                    if line.starts_with("POST ") {
-                        status = "201 Created";
+                if app == "codex" {
+                    let toml = value["toml"].as_str().unwrap();
+                    if !toml.contains("https://fixture-api.example.test/v1")
+                        || toml.contains("model = [")
+                    {
+                        status = "422 Unprocessable Entity";
+                        serde_json::Value::Null
+                    } else {
+                        let prior = codex_configs.get(id);
+                        let has_saved_key = match value["apiKey"]["action"].as_str() {
+                            Some("replace") => true,
+                            Some("clear") => false,
+                            _ => prior.is_some_and(|p| p["hasSavedKey"] == true),
+                        };
+                        codex_configs.insert(id.into(), serde_json::json!({
+                            "toml":toml, "hasSavedKey":has_saved_key,
+                            "inactive":prior.map_or_else(|| serde_json::json!([]), |p| p["inactive"].clone()),
+                            "models":value["models"],
+                        }));
+                        basics.insert(id.into(), value["fields"].take());
+                        serde_json::json!({"catalogSaved":true,"live":if value["apply"] == true {"applied"}else{"not_attempted"}})
                     }
-                    serde_json::json!({"catalogSaved":true,"live":"not_attempted"})
+                } else {
+                    let mut config = value["config"].take();
+                    if config["kind"] == "third_party"
+                        && !config["baseUrl"]
+                            .as_str()
+                            .is_some_and(|url| url.starts_with("https://"))
+                    {
+                        status = "422 Unprocessable Entity";
+                        serde_json::Value::Null
+                    } else {
+                        config.as_object_mut().unwrap().remove("apiKey");
+                        profiles.insert(id.into(), (config, value["model"].take()));
+                        basics.insert(id.into(), value["fields"].take());
+                        if line.starts_with("POST ") {
+                            status = "201 Created";
+                        }
+                        serde_json::json!({"catalogSaved":true,"live":"not_attempted"})
+                    }
                 }
             } else if path.ends_with("/basic") && line.starts_with("GET ") {
                 basics.get(id).cloned().unwrap_or_else(|| {

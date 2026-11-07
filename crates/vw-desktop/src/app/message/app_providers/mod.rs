@@ -1,6 +1,9 @@
 pub(crate) mod claude;
 #[cfg(test)]
 mod claude_tests;
+pub(crate) mod codex;
+#[cfg(test)]
+mod codex_tests;
 pub(crate) mod edit;
 pub(crate) mod gemini;
 #[cfg(test)]

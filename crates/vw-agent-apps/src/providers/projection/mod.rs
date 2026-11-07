@@ -2,7 +2,7 @@
 use serde_json::Value;
 use vw_api_types::app_providers::preview::{PreviewParseError, PreviewUnavailable};
 mod codex;
-mod codex_route;
+pub(super) mod codex_route;
 pub(crate) mod fields;
 mod grok;
 mod json;

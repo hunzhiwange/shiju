@@ -1,4 +1,6 @@
 //! Codex adapter composes route, catalog and login preparations into the sole pending owner.
+pub mod form;
+
 use super::live::{
     commit::*,
     stage::{FileChange, WholeFile},

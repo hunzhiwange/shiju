@@ -144,7 +144,9 @@ fn toast_card_style_uses_theme_specific_background_border_and_shadow() {
     assert_eq!(light.shadow.blur_radius, 26.0);
 
     let dark = toast_card_style(&Theme::Dark, palette.accent, palette.background);
-    assert_color_close(style_background_color(dark), palette.background.scale_alpha(0.22));
+    let dark_background = style_background_color(dark);
+    assert!((dark_background.a - 1.0).abs() < f32::EPSILON);
+    assert_ne!(dark_background, Theme::Dark.extended_palette().background.base.color);
     assert_color_close(dark.border.color, palette.accent.scale_alpha(0.54));
     assert_color_close(dark.shadow.color, Color::BLACK.scale_alpha(0.18));
 }

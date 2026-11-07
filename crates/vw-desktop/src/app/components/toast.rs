@@ -5,14 +5,15 @@
 
 use crate::app::assets::{self, Icon};
 use crate::app::components::system_settings_common::{
-    danger_action_btn_style, rounded_action_btn_style, settings_modal_card, settings_modal_overlay,
-    settings_muted_text_style, settings_panel_style,
+    danger_action_btn_style, rounded_action_btn_style, settings_close_button, settings_modal_card,
+    settings_modal_header, settings_modal_overlay, settings_muted_text_style, settings_panel_style,
 };
 use crate::app::message::SkillHubMessage;
 use crate::app::state::ToastKind;
 use crate::app::{App, Message};
+use iced::widget::scrollable::{Direction, Scrollbar};
 use iced::widget::svg::{self, Svg};
-use iced::widget::{Space, button, column, container, row, text};
+use iced::widget::{Container, button, column, container, row, scrollable, text};
 use iced::{Alignment, Background, Border, Color, Element, Length, Theme, Vector};
 
 pub(super) fn is_dark_theme(theme: &Theme) -> bool {
@@ -21,10 +22,16 @@ pub(super) fn is_dark_theme(theme: &Theme) -> bool {
 }
 
 pub(super) fn icon_svg(icon: Icon, size: f32, color: Color) -> Svg<'static> {
-    Svg::new(assets::get_icon(icon))
-        .width(Length::Fixed(size))
-        .height(Length::Fixed(size))
-        .style(move |_theme: &Theme, _status| svg::Style { color: Some(color) })
+    Svg::new(assets::get_icon(icon)).width(Length::Fixed(size)).height(Length::Fixed(size)).style(
+        move |theme: &Theme, _status| {
+            let color = if is_dark_theme(theme) {
+                iced::theme::palette::mix(color, theme.palette().text, 0.30)
+            } else {
+                color
+            };
+            svg::Style { color: Some(color) }
+        },
+    )
 }
 
 pub(super) struct ToastPalette {
@@ -97,8 +104,12 @@ pub(super) fn toast_card_style(
 ) -> iced::widget::container::Style {
     let mut style = settings_panel_style(theme);
     let is_dark = is_dark_theme(theme);
-    style.background =
-        Some(Background::Color(if is_dark { background.scale_alpha(0.22) } else { background }));
+    let background = if is_dark {
+        iced::theme::palette::mix(theme.extended_palette().background.base.color, background, 0.08)
+    } else {
+        background
+    };
+    style.background = Some(Background::Color(background));
     style.border = Border {
         width: 1.0,
         color: accent.scale_alpha(if is_dark { 0.54 } else { 0.22 }),
@@ -132,7 +143,7 @@ pub(super) fn cache_sync_retry_message(app: &App) -> Option<Message> {
 /// # 错误处理
 ///
 /// 本函数不直接返回错误；无法交互或缺省状态会在控件状态中显式表达。
-pub fn view(app: &App) -> Element<'_, Message> {
+pub fn view(app: &App) -> Element<'static, Message> {
     let Some(toast) = &app.active_toast else {
         return container(text("")).width(Length::Fixed(0.0)).height(Length::Fixed(0.0)).into();
     };
@@ -151,9 +162,11 @@ pub fn view(app: &App) -> Element<'_, Message> {
     let mut content = row![
         icon_badge,
         column![
-            text(crate::app::i18n::I18n::new(app.desktop_locale).__(palette.title))
-                .size(11)
-                .style(move |_theme: &Theme| iced::widget::text::Style { color: Some(accent) }),
+            text(crate::app::i18n::I18n::new(app.desktop_locale).__(palette.title)).size(12).style(
+                |theme: &Theme| iced::widget::text::Style {
+                    color: Some(toast_message_text_color(theme)),
+                }
+            ),
             text(
                 toast
                     .localized_message
@@ -185,7 +198,22 @@ pub fn view(app: &App) -> Element<'_, Message> {
         .padding([12, 14])
         .style(move |theme: &Theme| toast_card_style(theme, accent, background))
         .width(Length::Shrink)
+        .max_width(360)
         .into()
+}
+
+/// 将询问弹窗和提示上下排布，使长提示不会盖住弹窗按钮。
+pub(crate) fn modal_with_feedback<'a>(
+    app: &App,
+    card: Container<'a, Message>,
+) -> Container<'a, Message> {
+    let mut content = column![card].spacing(8).align_x(Alignment::Center);
+    if app.active_toast.is_some() {
+        let feedback = scrollable(container(view(app)).padding([0, 7]))
+            .direction(Direction::Vertical(Scrollbar::new().width(4).scroller_width(4)));
+        content = content.push(container(feedback).max_height(116));
+    }
+    container(content).padding(12)
 }
 
 /// 构建通用确认弹层。
@@ -209,27 +237,40 @@ pub fn confirm_dialog<'a>(
     confirm_message: Message,
     cancel_message: Message,
 ) -> Element<'a, Message> {
-    let card = settings_modal_card(
-        column![
-            text(title.into()).size(18),
-            text(body.into()).size(13).style(settings_muted_text_style),
-            row![
-                Space::new().width(Length::Fill),
-                button(text(cancel_label).size(13))
-                    .style(rounded_action_btn_style)
-                    .padding([9, 14])
-                    .on_press(cancel_message.clone()),
-                button(text(confirm_label).size(13))
-                    .style(danger_action_btn_style)
-                    .padding([9, 14])
-                    .on_press(confirm_message),
-            ]
-            .spacing(10)
-            .align_y(Alignment::Center),
-        ]
-        .spacing(16),
+    let header = settings_modal_header(
+        text(title.into()).size(18),
+        settings_close_button(cancel_message.clone()),
+    );
+    let body = scrollable(
+        container(text(body.into()).size(13).style(settings_muted_text_style))
+            .padding([0, 7])
+            .width(Length::Fill),
     )
-    .width(Length::Fixed(420.0));
+    .direction(Direction::Vertical(Scrollbar::new().width(4).scroller_width(4)))
+    .width(Length::Fill);
+    let actions = container(
+        row![
+            button(text(cancel_label).size(13))
+                .style(rounded_action_btn_style)
+                .padding([8, 14])
+                .on_press(cancel_message.clone()),
+            button(text(confirm_label).size(13))
+                .style(danger_action_btn_style)
+                .padding([8, 14])
+                .on_press(confirm_message),
+        ]
+        .spacing(8)
+        .align_y(Alignment::Center)
+        .wrap(),
+    )
+    .align_right(Length::Fill);
+    let card =
+        settings_modal_card(column![header, container(body).max_height(150), actions].spacing(16))
+            .width(420);
 
-    settings_modal_overlay(None, cancel_message, card)
+    settings_modal_overlay(None, cancel_message, container(card).padding(12))
 }
+
+#[cfg(test)]
+#[path = "toast_ui_refresh_33_tests.rs"]
+mod toast_ui_refresh_33_tests;

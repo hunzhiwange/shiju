@@ -298,12 +298,20 @@ impl App {
 
         // 保留固定的 toast 宿主，避免提示显隐改变根树结构并重置页面滚动、焦点等状态。
         let root_content: Element<'_, Message> = {
+            // 询问弹窗已预留自己的反馈区，避免浮层遮住固定操作按钮。
+            let toast = if self.question_modal_request.is_some()
+                || self.permission_modal_request.is_some()
+            {
+                iced::widget::Space::new().into()
+            } else {
+                components::toast::view(self)
+            };
             let toast_layer: Element<'_, Message> = iced::widget::column![
                 iced::widget::Space::new().height(iced::Length::Fill),
                 iced::widget::container(
                     iced::widget::row![
                         iced::widget::Space::new().width(iced::Length::Fill),
-                        components::toast::view(self)
+                        toast,
                     ]
                     .width(iced::Length::Fill)
                 )

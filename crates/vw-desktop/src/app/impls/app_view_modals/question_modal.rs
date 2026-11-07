@@ -104,11 +104,12 @@ pub(crate) fn with_question_modal<'a>(
     if let Some(req) = app.question_modal_request.clone() {
         use crate::app::components::system_settings_common::{
             SETTINGS_CONTROL_PADDING, SETTINGS_CONTROL_TEXT_SIZE, primary_action_btn_style,
-            rounded_action_btn_style, settings_modal_card, settings_modal_overlay,
-            settings_text_input_style,
+            rounded_action_btn_style, settings_close_button, settings_modal_header,
+            settings_modal_layout, settings_modal_overlay, settings_muted_text_style,
+            settings_panel, settings_text_input_style,
         };
-        use iced::widget::{Space, button, column, container, row, text, text_input};
-        use iced::{Length, Theme};
+        use iced::widget::{button, column, container, row, text, text_input};
+        use iced::{Alignment, Length, Theme};
 
         let header =
             req.questions.first().map(|question| question.header.clone()).unwrap_or_else(|| {
@@ -141,7 +142,8 @@ pub(crate) fn with_question_modal<'a>(
                 ]
                 .spacing(2);
 
-                let button = button(container(button_label).width(Length::Fill).padding([6, 10]))
+                let button = button(button_label)
+                    .padding([8, 12])
                     .width(Length::Fill)
                     .on_press(Message::Chat(message::ChatMessage::QuestionOptionToggled(
                         question_index,
@@ -170,9 +172,7 @@ pub(crate) fn with_question_modal<'a>(
                     column![
                         text(crate::app::i18n::I18n::new(app.desktop_locale).__("预览"))
                             .size(11)
-                            .style(|theme: &Theme| iced::widget::text::Style {
-                                color: Some(theme.extended_palette().secondary.base.text),
-                            }),
+                            .style(settings_muted_text_style),
                         text(preview.to_string()).size(11),
                     ]
                     .spacing(4),
@@ -222,38 +222,33 @@ pub(crate) fn with_question_modal<'a>(
                 question_column = question_column.push(input);
             }
 
-            content = content.push(question_column);
+            content = content.push(settings_panel(question_column).padding([12, 14]));
         }
 
+        let cancel_message = Message::Chat(message::ChatMessage::QuestionReject);
         let cancel =
             button(text(crate::app::i18n::I18n::new(app.desktop_locale).__("取消")).size(13))
-                .on_press(Message::Chat(message::ChatMessage::QuestionReject))
-                .padding([6, 12])
+                .on_press(cancel_message.clone())
+                .padding([8, 14])
                 .style(rounded_action_btn_style);
         let submit =
             button(text(crate::app::i18n::I18n::new(app.desktop_locale).__("确定")).size(13))
                 .on_press(Message::Chat(message::ChatMessage::QuestionSubmit))
-                .padding([6, 12])
+                .padding([8, 14])
                 .style(primary_action_btn_style);
 
-        let content = column![
-            text(header).size(16),
-            iced::widget::scrollable(container(content).padding([0, 7]))
-                .height(Length::Fixed(460.0))
-                .direction(iced::widget::scrollable::Direction::Vertical(
-                    iced::widget::scrollable::Scrollbar::new().width(4).scroller_width(4),
-                )),
-            row![Space::new().width(Length::Fill), cancel, submit].spacing(8),
-        ]
-        .spacing(12);
-
-        let card = settings_modal_card(content).width(Length::Fixed(420.0));
-
-        root_content = settings_modal_overlay(
-            Some(root_content),
-            Message::Chat(message::ChatMessage::QuestionReject),
-            card,
+        let header = settings_modal_header(
+            text(header).size(18),
+            settings_close_button(cancel_message.clone()),
         );
+        let actions = container(row![cancel, submit].spacing(8).align_y(Alignment::Center).wrap())
+            .align_right(Length::Fill);
+        let card = settings_modal_layout(header, content, Some(actions.into())).width(Length::Fill);
+        let dialog = crate::app::components::toast::modal_with_feedback(app, card)
+            .width(464)
+            .max_height(580);
+
+        root_content = settings_modal_overlay(Some(root_content), cancel_message, dialog);
     }
 
     root_content

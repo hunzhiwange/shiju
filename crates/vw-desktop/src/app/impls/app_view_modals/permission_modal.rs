@@ -1,7 +1,7 @@
 //! 渲染应用视图中的模态窗口。
 //! 本模块只描述模态内容和交互消息，不直接承担持久化策略。
 
-use iced::{Element, Length, Theme};
+use iced::{Alignment, Element, Length};
 use serde_json::Value;
 
 use super::{App, Message, message};
@@ -38,7 +38,7 @@ pub(super) fn permission_modal_queue(
 /// 返回值表达处理结果；失败通过错误值、日志或任务消息显式传递。
 pub(crate) fn with_permission_modal<'a>(
     app: &App,
-    mut root_content: Element<'a, Message>,
+    root_content: Element<'a, Message>,
 ) -> Element<'a, Message> {
     let Some(req): Option<vw_gateway_client::PendingPermissionRequestDto> =
         app.permission_modal_request.clone()
@@ -47,8 +47,9 @@ pub(crate) fn with_permission_modal<'a>(
     };
 
     use crate::app::components::system_settings_common::{
-        primary_action_btn_style, rounded_action_btn_style, settings_modal_card,
-        settings_modal_overlay,
+        primary_action_btn_style, rounded_action_btn_style, settings_close_button,
+        settings_modal_header, settings_modal_layout, settings_modal_overlay,
+        settings_muted_text_style, settings_panel,
     };
     use iced::widget::{Space, button, column, container, row, text};
 
@@ -60,14 +61,12 @@ pub(crate) fn with_permission_modal<'a>(
     } = permission_modal_queue(&req, &app.permission_modal_requests);
 
     let i18n = crate::app::i18n::I18n::new(app.desktop_locale);
-    let mut content = column![
-        text(permission_modal_title_localized(
-            crate::app::i18n::I18n::new(app.desktop_locale),
-            &req
-        ))
-        .size(16)
-    ]
-    .spacing(12);
+    let reject_message = Message::Chat(message::ChatMessage::PermissionReject);
+    let header = settings_modal_header(
+        text(permission_modal_title_localized(i18n, &req)).size(18),
+        settings_close_button(reject_message.clone()),
+    );
+    let mut content = column![].width(Length::Fill).spacing(14);
 
     if pending_requests.len() > 1 {
         let mut nav_row = row![
@@ -79,11 +78,12 @@ pub(crate) fn with_permission_modal<'a>(
             .size(13),
             Space::new().width(Length::Fill)
         ]
-        .spacing(8);
+        .spacing(8)
+        .align_y(Alignment::Center);
 
         if let Some(previous_request_id) = previous_request_id {
             nav_row = nav_row.push(
-                button(text(crate::app::i18n::I18n::new(app.desktop_locale).__("上一项")).size(12))
+                button(text(i18n.__("上一项")).size(12))
                     .padding([5, 10])
                     .style(rounded_action_btn_style)
                     .on_press(Message::Chat(message::ChatMessage::PermissionSelectRequest(
@@ -93,7 +93,7 @@ pub(crate) fn with_permission_modal<'a>(
         }
         if let Some(next_request_id) = next_request_id {
             nav_row = nav_row.push(
-                button(text(crate::app::i18n::I18n::new(app.desktop_locale).__("下一项")).size(12))
+                button(text(i18n.__("下一项")).size(12))
                     .padding([5, 10])
                     .style(rounded_action_btn_style)
                     .on_press(Message::Chat(message::ChatMessage::PermissionSelectRequest(
@@ -147,74 +147,37 @@ pub(crate) fn with_permission_modal<'a>(
         content = content.push(text(reason).size(14));
     }
 
-    content = content.push(permission_meta_line(
-        crate::app::i18n::I18n::new(app.desktop_locale).__("权限"),
-        &req.permission,
-    ));
+    let mut details = column![permission_meta_line(i18n.__("权限"), &req.permission)].spacing(8);
 
     if let Some(target) = permission_argument_summary(&req) {
-        content = content.push(permission_meta_line(
-            crate::app::i18n::I18n::new(app.desktop_locale).__("目标"),
-            &target,
-        ));
+        details = details.push(permission_meta_line(i18n.__("目标"), &target));
     }
 
     if let Some(requested_by) = permission_metadata_text(&req, "requested_by") {
-        content = content.push(permission_meta_line(
-            crate::app::i18n::I18n::new(app.desktop_locale).__("发起者"),
-            &requested_by,
-        ));
+        details = details.push(permission_meta_line(i18n.__("发起者"), &requested_by));
     }
 
     if let Some(requested_channel) = permission_metadata_text(&req, "requested_channel") {
-        content = content.push(permission_meta_line(
-            crate::app::i18n::I18n::new(app.desktop_locale).__("通道"),
-            &requested_channel,
-        ));
+        details = details.push(permission_meta_line(i18n.__("通道"), &requested_channel));
     }
 
     if let Some(expires_at) = permission_metadata_text(&req, "expires_at") {
-        content = content.push(permission_meta_line(
-            crate::app::i18n::I18n::new(app.desktop_locale).__("过期"),
-            &expires_at,
-        ));
+        details = details.push(permission_meta_line(i18n.__("过期"), &expires_at));
     }
 
     if let Some(tool) = req.tool.as_ref() {
-        content = content
-            .push(permission_meta_line(
-                crate::app::i18n::I18n::new(app.desktop_locale).__("消息"),
-                &tool.message_id,
-            ))
-            .push(permission_meta_line(
-                crate::app::i18n::I18n::new(app.desktop_locale).__("调用"),
-                &tool.call_id,
-            ));
+        details = details
+            .push(permission_meta_line(i18n.__("消息"), &tool.message_id))
+            .push(permission_meta_line(i18n.__("调用"), &tool.call_id));
     }
 
+    content = content.push(settings_panel(details).padding([12, 14]));
+
     if !req.patterns.is_empty() {
-        let mut patterns =
-            column![text(crate::app::i18n::I18n::new(app.desktop_locale).__("目标")).size(13)]
-                .spacing(6);
+        let mut patterns = column![text(i18n.__("目标")).size(13)].spacing(6);
         for pattern in req.patterns.iter().map(String::as_str).take(8) {
-            let pattern_label = pattern.to_string();
-            let pattern_text: Element<'_, Message> = container(text(pattern_label).size(13))
-                .width(Length::Fill)
-                .padding([8, 10])
-                .style(|theme: &Theme| {
-                    let palette = theme.extended_palette();
-                    iced::widget::container::Style {
-                        background: Some(palette.background.weak.color.scale_alpha(0.45).into()),
-                        border: iced::Border {
-                            width: 1.0,
-                            color: palette.background.strong.color.scale_alpha(0.40),
-                            radius: 12.0.into(),
-                        },
-                        ..Default::default()
-                    }
-                })
-                .into();
-            patterns = patterns.push(pattern_text);
+            patterns =
+                patterns.push(settings_panel(text(pattern.to_owned()).size(13)).padding([8, 10]));
         }
         if req.patterns.len() > 8 {
             patterns = patterns.push(
@@ -237,58 +200,49 @@ pub(crate) fn with_permission_modal<'a>(
                 &[req.always.len().into()],
             ))
             .size(12)
-            .style(|theme: &Theme| iced::widget::text::Style {
-                color: Some(theme.extended_palette().secondary.base.text.scale_alpha(0.82)),
-            }),
+            .style(settings_muted_text_style),
         );
     }
 
     if let Some(arguments_preview) = permission_arguments_preview(&req) {
-        content = content.push(permission_detail_block(
-            crate::app::i18n::I18n::new(app.desktop_locale).__("参数"),
-            arguments_preview,
-        ));
+        content = content.push(permission_detail_block(i18n.__("参数"), arguments_preview));
     }
 
-    let reject = button(text(crate::app::i18n::I18n::new(app.desktop_locale).__("拒绝")).size(13))
-        .on_press(Message::Chat(message::ChatMessage::PermissionReject))
-        .padding([6, 12])
+    let reject = button(text(i18n.__("拒绝")).size(13))
+        .on_press(reject_message.clone())
+        .padding([8, 12])
         .style(rounded_action_btn_style);
-    let always =
-        button(text(crate::app::i18n::I18n::new(app.desktop_locale).__("始终允许")).size(13))
-            .on_press(Message::Chat(message::ChatMessage::PermissionApproveAlways))
-            .padding([6, 12])
-            .style(rounded_action_btn_style);
-    let approve_once =
-        button(text(crate::app::i18n::I18n::new(app.desktop_locale).__("仅此一次")).size(13))
-            .on_press(Message::Chat(message::ChatMessage::PermissionApproveOnce))
-            .padding([6, 12])
-            .style(primary_action_btn_style);
+    let always = button(text(i18n.__("始终允许")).size(13))
+        .on_press(Message::Chat(message::ChatMessage::PermissionApproveAlways))
+        .padding([8, 12])
+        .style(rounded_action_btn_style);
+    let approve_once = button(text(i18n.__("仅此一次")).size(13))
+        .on_press(Message::Chat(message::ChatMessage::PermissionApproveOnce))
+        .padding([8, 12])
+        .style(primary_action_btn_style);
 
-    let mut action_row = row![Space::new().width(Length::Fill), reject].spacing(8);
+    let mut action_row = row![reject].spacing(8).align_y(Alignment::Center);
     if pending_requests.len() > 1 {
         action_row = action_row.push(
-            button(
-                text(crate::app::i18n::I18n::new(app.desktop_locale).__("全部始终允许")).size(13),
-            )
-            .on_press(Message::Chat(message::ChatMessage::PermissionApproveAllAlways))
-            .padding([6, 12])
-            .style(rounded_action_btn_style),
+            button(text(i18n.__("全部始终允许")).size(13))
+                .on_press(Message::Chat(message::ChatMessage::PermissionApproveAllAlways))
+                .padding([8, 12])
+                .style(rounded_action_btn_style),
         );
     }
-    action_row = action_row.push(always).push(approve_once);
+    let actions = container(
+        action_row
+            .push(always)
+            .push(approve_once)
+            .wrap()
+            .align_x(iced::alignment::Horizontal::Right),
+    )
+    .align_right(Length::Fill);
+    let card = settings_modal_layout(header, content, Some(actions.into())).width(Length::Fill);
+    let dialog =
+        crate::app::components::toast::modal_with_feedback(app, card).width(584).max_height(620);
 
-    content = content.push(action_row);
-
-    let card = settings_modal_card(content).width(Length::Fixed(520.0));
-
-    root_content = settings_modal_overlay(
-        Some(root_content),
-        Message::Chat(message::ChatMessage::PermissionReject),
-        card,
-    );
-
-    root_content
+    settings_modal_overlay(Some(root_content), reject_message, dialog)
 }
 
 fn permission_modal_title_localized(
@@ -329,10 +283,15 @@ fn permission_request_selector_label_localized(
     truncate_chars(&format!("{} · {}", prefix, summary), 80).to_string()
 }
 
-fn permission_meta_line<'a>(label: &str, value: &str) -> iced::widget::Row<'a, Message> {
+fn permission_meta_line<'a>(label: &'a str, value: &str) -> iced::widget::Row<'a, Message> {
+    use crate::app::components::system_settings_common::settings_muted_text_style;
     use iced::widget::{row, text};
 
-    row![text(format!("{}：", label)).size(12), text(value.to_string()).size(13),].spacing(6)
+    row![
+        text(label).size(12).style(settings_muted_text_style),
+        text(value.to_owned()).size(13).width(Length::Fill),
+    ]
+    .spacing(8)
 }
 
 fn permission_metadata_text(
@@ -386,27 +345,13 @@ fn permission_arguments_preview(
 }
 
 fn permission_detail_block<'a>(label: &'a str, value: String) -> iced::widget::Column<'a, Message> {
-    use iced::widget::{column, container, text};
+    use crate::app::components::system_settings_common::{settings_field_label, settings_panel};
+    use iced::widget::{column, text};
 
-    column![
-        text(label).size(13),
-        container(text(value).size(12)).width(Length::Fill).padding([10, 12]).style(
-            |theme: &Theme| {
-                let palette = theme.extended_palette();
-                iced::widget::container::Style {
-                    background: Some(palette.background.weak.color.scale_alpha(0.45).into()),
-                    border: iced::Border {
-                        width: 1.0,
-                        color: palette.background.strong.color.scale_alpha(0.40),
-                        radius: 12.0.into(),
-                    },
-                    ..Default::default()
-                }
-            }
-        )
-    ]
-    .spacing(6)
+    column![settings_field_label(label), settings_panel(text(value).size(12)).padding([10, 12]),]
+        .spacing(6)
 }
+
 #[cfg(test)]
 #[path = "permission_modal_tests.rs"]
 mod permission_modal_tests;

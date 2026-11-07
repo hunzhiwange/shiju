@@ -21,6 +21,7 @@ impl AppProviderStore {
         id: &str,
         profile: &GrokProfile,
         before: Option<&Value>,
+        metadata: Option<Value>,
     ) -> Result<Value, String> {
         let key = Self::key(AppId::GrokBuild, id)?;
         let raw = self
@@ -34,7 +35,7 @@ impl AppProviderStore {
         if stored.as_ref() != before {
             return Err("provider changed".into());
         }
-        let mut value = stored.unwrap_or(json!({}));
+        let mut value = metadata.or(stored).unwrap_or(json!({}));
         let obj = value.as_object_mut().ok_or("invalid provider record")?;
         for key in ["apiKey", "baseUrl", "protocol", "model", "requestOptions"] {
             obj.remove(key);

@@ -28,7 +28,7 @@ pub(crate) async fn save(
 mod tests;
 
 use super::{
-    claude, codex, gemini,
+    claude, codex, gemini, grok,
     list::{ListMessage, current},
 };
 use crate::app::state::app_providers::claude::Draft;
@@ -42,6 +42,7 @@ use vw_gateway_client::vw_api_types::{
         claude::{ClaudeFormView, ClaudeLiveResult},
         codex_catalog::{CodexFormView, CodexLiveResult},
         gemini::{GeminiFormView, GeminiLiveResult},
+        grok::{GrokFormView, GrokLiveResult},
     },
 };
 #[derive(Clone)]
@@ -81,6 +82,13 @@ pub enum EditMessage {
         result: Result<GeminiFormView, String>,
     },
     Gemini(gemini::Field),
+    GrokLoaded {
+        scope: Scope,
+        generation: u64,
+        id: String,
+        result: Result<GrokFormView, String>,
+    },
+    Grok(grok::Field),
     Id(String),
     Name(String),
     Category(String),
@@ -105,6 +113,11 @@ pub enum EditMessage {
         scope: Scope,
         generation: u64,
         result: Result<GeminiLiveResult, String>,
+    },
+    GrokSaved {
+        scope: Scope,
+        generation: u64,
+        result: Result<GrokLiveResult, String>,
     },
     Saved {
         scope: Scope,
@@ -148,6 +161,13 @@ pub(crate) fn update(app: &mut App, event: EditMessage) -> Task<Message> {
                 .is_some_and(|scope| scope.app == AppId::Gemini)
             {
                 form.gemini = Some(crate::app::state::app_providers::gemini::Draft::new());
+            } else if app
+                .app_providers
+                .scope
+                .as_ref()
+                .is_some_and(|scope| scope.app == AppId::GrokBuild)
+            {
+                form.grok = Some(crate::app::state::app_providers::grok::Draft::new());
             }
             app.app_providers.form = Some(form);
         }
@@ -201,6 +221,21 @@ pub(crate) fn update(app: &mut App, event: EditMessage) -> Task<Message> {
                     async move { gemini::load(client, request_scope, &source, &token).await },
                     move |result| {
                         message(EditMessage::GeminiLoaded {
+                            scope: scope.clone(),
+                            generation,
+                            id: id.clone(),
+                            result,
+                        })
+                    },
+                );
+            }
+            if scope.app == AppId::GrokBuild && !copy && !delete {
+                let token = app.apps_catalog.token.clone();
+                let request_scope = scope.clone();
+                return Task::perform(
+                    async move { grok::load(client, request_scope, &source, &token).await },
+                    move |result| {
+                        message(EditMessage::GrokLoaded {
                             scope: scope.clone(),
                             generation,
                             id: id.clone(),
@@ -274,6 +309,22 @@ pub(crate) fn update(app: &mut App, event: EditMessage) -> Task<Message> {
                 Err(error) => return app.show_error_toast(error),
             }
         }
+        EditMessage::GrokLoaded { scope, generation, id, result } => {
+            if !app.app_providers.loading || !matches_scope(app, &scope, generation) {
+                return Task::none();
+            }
+            app.app_providers.loading = false;
+            match result {
+                Ok(view) => {
+                    let mut form = EditForm::new(Mode::Update, id, view.fields, None);
+                    form.grok =
+                        view.config.map(crate::app::state::app_providers::grok::Draft::from_view);
+                    form.grok_config_unavailable = form.grok.is_none();
+                    app.app_providers.form = Some(form);
+                }
+                Err(error) => return app.show_error_toast(error),
+            }
+        }
         EditMessage::GeminiLoaded { scope, generation, id, result } => {
             if !app.app_providers.loading || !matches_scope(app, &scope, generation) {
                 return Task::none();
@@ -309,7 +360,8 @@ pub(crate) fn update(app: &mut App, event: EditMessage) -> Task<Message> {
             let claude = form.claude_editable();
             let gemini = form.gemini_editable();
             let codex = form.codex.is_some();
-            if claude || gemini || codex {
+            let grok = form.grok.is_some();
+            if claude || gemini || codex || grok {
                 if !form.identified() {
                     return app.show_error_toast("请填写标识与名称");
                 }
@@ -356,6 +408,14 @@ pub(crate) fn update(app: &mut App, event: EditMessage) -> Task<Message> {
                             generation,
                             result,
                         })
+                    },
+                );
+            }
+            if grok {
+                return Task::perform(
+                    grok::save(client, scope.clone(), form, token),
+                    move |result| {
+                        message(EditMessage::GrokSaved { scope: scope.clone(), generation, result })
                     },
                 );
             }
@@ -428,6 +488,25 @@ pub(crate) fn update(app: &mut App, event: EditMessage) -> Task<Message> {
             };
             return Task::batch([toast, super::list::update(app, ListMessage::Refresh)]);
         }
+        EditMessage::GrokSaved { scope, generation, result } => {
+            if !matches_scope(app, &scope, generation)
+                || !grok::finish(&mut app.app_providers, &scope, generation, &result)
+            {
+                return Task::none();
+            }
+            let toast = match result {
+                Err(error) => return app.show_error_toast(error),
+                Ok(GrokLiveResult::NotAttempted) => app.show_success_toast("已保存到供应商目录。"),
+                Ok(GrokLiveResult::Applied) => app.show_success_toast("已保存并应用 Grok 配置。"),
+                Ok(GrokLiveResult::Failed) => {
+                    app.show_warning_toast("目录已保存，但应用 Grok 配置失败。")
+                }
+                Ok(GrokLiveResult::RecoveryRequired) => {
+                    app.show_warning_toast("目录已保存，执行端配置需要恢复。")
+                }
+            };
+            return Task::batch([toast, super::list::update(app, ListMessage::Refresh)]);
+        }
         EditMessage::Saved { scope, generation, result } => {
             if !matches_scope(app, &scope, generation) {
                 return Task::none();
@@ -456,6 +535,7 @@ pub(crate) fn update(app: &mut App, event: EditMessage) -> Task<Message> {
                 EditMessage::Claude(field) => claude::change(form, field),
                 EditMessage::Codex(field) => codex::change(form, field),
                 EditMessage::Gemini(field) => gemini::change(form, field),
+                EditMessage::Grok(field) => grok::change(form, field),
                 EditMessage::Name(v) => form.fields.name = v,
                 EditMessage::Category(v) => form.fields.category = optional(v),
                 EditMessage::Notes(v) => form.fields.notes = optional(v),

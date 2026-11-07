@@ -4,6 +4,9 @@ use serde_json::{Value, json};
 use toml_edit::{DocumentMut, Item};
 use vw_api_types::app_providers::grok::*;
 
+#[path = "grok_form.rs"]
+pub mod form;
+
 pub fn settings(profile: &GrokProfile) -> Result<Value, WriteError> {
     if profile.name.trim().is_empty()
         || profile.name.len() > 128

@@ -61,6 +61,13 @@ pub(crate) fn overlay<'a>(form: &'a EditForm, base: Element<'a, Message>) -> Ele
             fields = fields.push(super::codex::fields(form, draft));
         } else if let Some(draft) = &form.gemini {
             fields = fields.push(super::gemini::fields(form, draft));
+        } else if let Some(draft) = &form.grok {
+            fields = fields.push(super::grok::fields(form, draft));
+        } else if form.grok_config_unavailable {
+            fields = fields.push(
+                text("此档案的 Grok TOML 不可编辑，可修改基础资料。官方授权暂不可用。")
+                    .style(settings_muted_text_style),
+            );
         } else if form.codex_config_unavailable {
             fields = fields.push(
                 text("此档案的 Codex TOML 不可编辑，可修改基础资料。")
@@ -100,7 +107,11 @@ pub(crate) fn overlay<'a>(form: &'a EditForm, base: Element<'a, Message>) -> Ele
     }
     let enabled = !form.saving
         && (delete
-            || if form.claude_editable() || form.gemini_editable() || form.codex.is_some() {
+            || if form.claude_editable()
+                || form.gemini_editable()
+                || form.codex.is_some()
+                || form.grok.is_some()
+            {
                 form.identified()
             } else {
                 form.request().is_ok()

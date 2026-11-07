@@ -27,14 +27,38 @@ impl GatewayClient {
     ) -> Result<GrokResult, Error> {
         self.grok_request(id, "POST", "/reapply", body, token).await
     }
-    async fn grok_request<B: serde::Serialize>(
+    pub async fn grok_form_read(
+        &self,
+        id: &str,
+        body: &GrokTarget,
+        token: &str,
+    ) -> Result<GrokFormView, Error> {
+        self.grok_request(id, "POST", "/form/read", body, token).await
+    }
+    pub async fn grok_form_create(
+        &self,
+        id: &str,
+        body: &GrokFormWrite,
+        token: &str,
+    ) -> Result<GrokResult, Error> {
+        self.grok_request(id, "POST", "/form", body, token).await
+    }
+    pub async fn grok_form_update(
+        &self,
+        id: &str,
+        body: &GrokFormWrite,
+        token: &str,
+    ) -> Result<GrokResult, Error> {
+        self.grok_request(id, "PATCH", "/form", body, token).await
+    }
+    async fn grok_request<B: serde::Serialize, R: serde::de::DeserializeOwned>(
         &self,
         id: &str,
         method: &str,
         action: &str,
         body: &B,
         token: &str,
-    ) -> Result<GrokResult, Error> {
+    ) -> Result<R, Error> {
         if id.is_empty()
             || id.len() > 128
             || !id.bytes().all(|c| c.is_ascii_alphanumeric() || matches!(c, b'-' | b'_'))

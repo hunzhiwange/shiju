@@ -257,3 +257,101 @@ async fn cc04_grok_managed_rows_and_missing_write_records_are_refused() {
         "third_party"
     );
 }
+
+#[tokio::test]
+async fn cc04_ui_grok_form_keeps_inactive_values_and_uses_live_transaction() {
+    use vw_api_types::app_providers::create::ProviderSecretWrite;
+    let f = Fixture::new().await;
+    let mut original = f.request(false, GrokActivation::First);
+    let GrokConfig::ThirdParty { toml } = &mut original.profile.config else { unreachable!() };
+    toml.push_str(
+        "vendor_option = 'opaque-value'\n[legacy.'中文旧字段']\nvalue = 'opaque-inactive'\n",
+    );
+    toml.insert_str(0, "# secret in comment: fixture-private\n");
+    f.client.grok_provider_save("one", &original, TOKEN).await.unwrap();
+
+    let view = f.client.grok_form_read("one", &f.target(), TOKEN).await.unwrap();
+    let config = view.config.unwrap();
+    assert!(config.has_saved_key);
+    assert_eq!(config.inactive, vec![vec!["config", "legacy", "中文旧字段"]]);
+    for hidden in ["fake-secret", "opaque-value", "opaque-inactive", "fixture-private"] {
+        assert!(!config.toml.contains(hidden));
+    }
+
+    let mut edit = GrokFormWrite {
+        target_host_id: f.target().target_host_id,
+        fields: view.fields,
+        toml: config.toml.replace("old", "new").replace("remote", "中文模型"),
+        api_key: ProviderSecretWrite::Keep,
+        apply: true,
+    };
+    edit.fields.name = "中文供应商".into();
+    edit.fields.notes = Some("中文备注".into());
+    let before = f.record("one");
+    let live_before = std::fs::read(f.file()).unwrap();
+    let state_before = f.state();
+    let mut invalid = edit.clone();
+    invalid.toml = "model = [".into();
+    let mut moved = edit.clone();
+    moved.toml = moved.toml.replace("fixture.test", "other.test");
+    for (request, token, status) in
+        [(&invalid, TOKEN, 422), (&moved, TOKEN, 422), (&edit, "bad", 401)]
+    {
+        assert!(matches!(
+            f.client.grok_form_update("one", request, token).await,
+            Err(vw_gateway_client::AgentAppsReadError::Http { status: actual, .. }) if actual == status
+        ));
+    }
+    assert!(matches!(
+        f.client.grok_form_read("one", &f.target(), "bad").await,
+        Err(vw_gateway_client::AgentAppsReadError::Http { status: 401, .. })
+    ));
+    assert!(f.client.grok_form_create("one", &edit, TOKEN).await.is_err());
+    assert!(f.client.grok_form_update("missing", &edit, TOKEN).await.is_err());
+    assert!(f.record("missing").is_none());
+    assert_eq!(f.record("one"), before);
+    assert_eq!(std::fs::read(f.file()).unwrap(), live_before);
+    assert_eq!(f.state(), state_before);
+
+    let result = f.client.grok_form_update("one", &edit, TOKEN).await.unwrap();
+    assert!(result.catalog_saved);
+    assert_eq!(result.live, GrokLiveResult::Applied);
+    let live = std::fs::read_to_string(f.file()).unwrap();
+    assert!(live.contains("[model.new]"));
+    assert!(live.contains("中文模型"));
+    assert!(live.contains("fake-secret"));
+    assert!(live.contains("opaque-value"));
+    assert!(live.contains("# keep"));
+    assert!(!live.contains("[model.old]"));
+    assert!(!live.contains("opaque-inactive"));
+    assert!(f.record("one").unwrap().contains("opaque-inactive"));
+    let after = f.client.grok_form_read("one", &f.target(), TOKEN).await.unwrap();
+    assert_eq!(after.fields.notes.as_deref(), Some("中文备注"));
+    assert_eq!(after.config.unwrap().inactive, config.inactive);
+    assert_eq!(f.state()["pointer"]["id"], "one");
+}
+
+#[tokio::test]
+async fn cc04_ui_grok_create_activates_only_first_provider() {
+    use vw_api_types::app_providers::{basic::ProviderBasic, create::ProviderSecretWrite};
+    let f = Fixture::new().await;
+    let mut form = GrokFormWrite {
+        target_host_id: f.target().target_host_id,
+        fields: ProviderBasic { name: "中文供应商".into(), category: None, notes: None, website_url: None },
+        toml: "[models]\ndefault = 'first'\n[model.first]\nmodel = 'remote'\nname = 'Fixture'\nbase_url = 'https://fixture.test'\napi_backend = 'responses'\ncontext_window = 1000".into(),
+        api_key: ProviderSecretWrite::Replace { value: "fake-secret".into() },
+        apply: true,
+    };
+    let first = f.client.grok_form_create("first", &form, TOKEN).await.unwrap();
+    assert!(first.catalog_saved);
+    assert_eq!(first.live, GrokLiveResult::Applied);
+    let first_file = std::fs::read_to_string(f.file()).unwrap();
+    assert!(first_file.contains("[model.first]"));
+
+    form.toml = form.toml.replace("first", "next");
+    let next = f.client.grok_form_create("next", &form, TOKEN).await.unwrap();
+    assert!(next.catalog_saved);
+    assert_eq!(next.live, GrokLiveResult::NotAttempted);
+    assert_eq!(f.state()["pointer"]["id"], "first");
+    assert_eq!(std::fs::read_to_string(f.file()).unwrap(), first_file);
+}

@@ -2610,3 +2610,39 @@ macOS **27.0 (26A428) / arm64**，workspace **0.6.0**。隔离 runner 将槽位�
 差异审查仅纳入 Codex 读写契约、桌面接线、测试和本任务证据。链接器仍提示既有 `__eh_frame` 警告，未影响行为测试；槽位锁释放，保留缓存。
 
 状态：**已完成**。
+
+## 任务 57：桌面 Grok 配置编辑器
+
+2026-11-07。批次 56 提交 `7267ce2b3` 已验收。母任务 1、3 已完成。母任务 2 按 `provider-contracts.md` 的底座子计划 1–93 开工裁定执行，完整领域迁移仍待收口。沿用任务 32 的 Grok 原生事务和任务 52 的显式窗口入口。
+
+- 冻结来源 `ca58c0313360eae7c851fbd7553c1614c7af03e7` 干净。核对 `GrokBuildProviderForm::{handleRawConfigChange,handleSubmit}`、`ProviderForm` 分支、相邻 `GrokBuildProviderForm.test.tsx`、`grok_editor::{view,plan_save}`。来源只读。
+- 桌面新增和编辑复用基础弹窗。第三方档案编辑 `models.default` 及其模型表的可公开字段，使用独立遮蔽密钥输入。失效字段展示执行端投影给出的路径。目录验证失败时保留草稿，过期主机或代次的响应丢弃。官方及托管档案可编辑基础资料。官方授权、模型知识和全局配置编辑留给对应任务。
+- 正式 SDK `grok_form_{read,create,update}` 连接 `POST /v1/app-providers/grokbuild/{id}/form/read`、`POST /form` 和 `PATCH /form`。执行端 `vw-agent-apps/src/providers/grok_form.rs` 复用 Grok 模型表选择和配置校验。读取响应只返回允许编辑的字段和失效路径，保留原凭据和不公开的 TOML 字段。已存密钥和不公开的模型选项仅随相同地址保留。
+- SDK → 回环 HTTP → 正式 Gateway 鉴权和 handler → 隔离 SQLite、HOME 和 Grok pending 事务。首次激活更新指针，已有指针时只新增目录项。应用当前档案的模型表重命名会移除旧表，保留本机注释、其它表、密钥及该模型的不公开选项。旧失效字段保存在档案，未写入原生文件。错误 token、重复新增、更新缺失档案、无效 TOML 及携带旧凭据改地址均拒绝，相关档案、文件和指针保持原状。
+
+### 红绿验证
+
+红测和绿测动态领取槽位 **1**，`CARGO_TARGET_DIR=/Users/xiangmin/worker/code/shiju/target/rust-slot-1`。窗口阶段领取槽位 **2**，`CARGO_TARGET_DIR=/Users/xiangmin/worker/code/shiju/target/rust-slot-2`。`CARGO_BUILD_BUILD_DIR` 与各自槽位相同。各阶段均已释放自身锁并保留缓存。
+
+| 阶段 | 命令 | 退出码 | 有效结果 |
+| --- | --- | --- | --- |
+| 红 | `cargo fmt --all` | 0 | 格式化 |
+| 红 | `cargo test -p vw-desktop --lib cc04_ui_grok_ -- --nocapture` | 101 | 0 passed、2 failed。草稿未提交给 SDK、当前有效响应未结束保存 |
+| 绿 | `cargo fmt --all` | 0 | 格式化 |
+| 绿 | `cargo test -p vw-desktop --lib cc04_ui_grok_ -- --nocapture` | 0 | 2 passed |
+| 绿 | `cargo test -p vw-agent --lib gateway::api::handlers::app_providers::grok_tests:: -- --nocapture` | 0 | 6 passed，含本任务 2 项 |
+| 绿 | `cargo clippy --all-targets --all-features -- -D warnings` | 0 | 全 targets/features |
+| 窗口 | `cargo fmt --all` | 0 | 格式化 |
+| 窗口 | `SHIJU_CC04_WINDOW_CASE=grok SHIJU_CC04_WINDOW_THEME=dark cargo test -p vw-desktop --test cc04-provider-window` | 0 | 实际操作并关闭 |
+| 窗口 | `SHIJU_CC04_WINDOW_CASE=grok SHIJU_CC04_WINDOW_THEME=light cargo test -p vw-desktop --test cc04-provider-window` | 0 | 实际操作并关闭 |
+
+### macOS 窗口
+
+macOS **27.0 (26A428) / arm64**，桌面版本 **0.6.0**。临时 app bundle 启动真实 Iced 组件、Message 和 SDK，连接使用假档案的回环 HTTP 夹具。夹具返回实际表单契约，服务校验和原生写入另由正式 Gateway 用例验证。真实 Grok CLI/账号和非 macOS 平台未验证。
+
+深浅主题均从列表打开当前直连档案。提交 `context_window = 0` 后显示失败提示并保留中文草稿。修正数值并勾选同时应用后保存，重开后替换成另一份草稿并取消，再重开确认保存值仍在。滚动查看中文失效字段和表单顶部，标题及底部按钮固定，复用 4px 滚动条和两侧各 7px 的内容留白。两次通过窗口关闭按钮正常退出，日志无字形整形 panic。日志有既有的 `__eh_frame` 和系统 sandbox extension 提示。
+
+- 深色：[失败与保留草稿](evidence/task-57/dark-failure.jpg)、[保存反馈](evidence/task-57/dark-saved.jpg)、[取消后重开](evidence/task-57/dark-cancel.jpg)。
+- 浅色：[失败与保留草稿](evidence/task-57/light-failure.jpg)、[保存反馈](evidence/task-57/light-saved.jpg)、[取消后重开](evidence/task-57/light-cancel.jpg)。
+
+差异审查限本任务代码、独立测试、必要接线及本条证据。排除并行终端和其它计划的改动。状态为 **已完成**，下一步批次 58。

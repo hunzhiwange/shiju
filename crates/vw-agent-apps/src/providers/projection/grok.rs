@@ -6,7 +6,7 @@ use toml_edit::{DocumentMut, Item, Table, TableLike};
 fn path(p: &[&str]) -> Vec<String> {
     p.iter().map(|s| (*s).into()).collect()
 }
-fn selected(doc: &DocumentMut) -> Option<String> {
+pub(crate) fn selected(doc: &DocumentMut) -> Option<String> {
     let tables = doc.get("model")?.as_table_like()?;
     let default =
         doc.get("models").and_then(|p| p.get("default")).and_then(Item::as_str).map(str::trim);

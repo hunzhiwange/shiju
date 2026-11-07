@@ -61,7 +61,7 @@ impl AppProviderStore {
                     self.gemini_save(tenant, &id, &p, None)?;
                 }
                 NativeImport::Grok(p) => {
-                    self.grok_save(tenant, &id, &p, None)?;
+                    self.grok_save(tenant, &id, &p, None, None)?;
                 }
                 NativeImport::Agy(p) => {
                     self.agy_insert(tenant, &id, &p)?;

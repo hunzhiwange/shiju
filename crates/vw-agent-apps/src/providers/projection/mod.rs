@@ -7,7 +7,7 @@ pub(crate) mod fields;
 mod grok;
 mod json;
 pub(crate) use codex::{native as codex_native, project as codex};
-pub(crate) use grok::{document as grok_document, project as grok};
+pub(crate) use grok::{document as grok_document, project as grok, selected as grok_selected};
 pub(crate) use json::{claude, claude_with_residue, gemini};
 pub(crate) struct Projected {
     pub before: Value,

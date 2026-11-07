@@ -15,6 +15,7 @@ fn main() {
         "claude" => (AppId::Claude, true),
         "codex" => (AppId::Codex, true),
         "gemini" => (AppId::Gemini, true),
+        "grok" => (AppId::GrokBuild, true),
         _ => panic!("unknown window case"),
     };
     let edit = case == "edit";
@@ -55,6 +56,7 @@ fn main() {
     .title(match case.as_str() {
         "codex" => "Codex 供应商隔离验收",
         "gemini" => "Gemini CLI 供应商隔离验收",
+        "grok" => "Grok Build 供应商隔离验收",
         "claude" => "Claude Code 供应商隔离验收",
         _ => "供应商基础编辑隔离验收",
     })
@@ -100,6 +102,7 @@ fn fixture(
             AppId::Claude => "claude",
             AppId::Codex => "codex",
             AppId::Gemini => "gemini",
+            AppId::GrokBuild => "grokbuild",
             _ => panic!("unknown fixture app"),
         };
         let prefix = format!("/v1/app-providers/{app}/");
@@ -116,7 +119,7 @@ fn fixture(
                 (serde_json::json!({"kind":"official"}), serde_json::Value::Null),
             ),
         ]);
-        let mut codex_configs = std::collections::BTreeMap::from([(
+        let mut toml_configs = std::collections::BTreeMap::from([(
             "provider-0".to_owned(),
             serde_json::json!({
                 "toml": "model_provider = \"vendor\"\nmodel = \"中文模型\"\n\n[model_providers.vendor]\nbase_url = \"https://fixture-api.example.test/v1\"\nwire_api = \"responses\"\n",
@@ -125,6 +128,13 @@ fn fixture(
                 "models": [{"slug":"fixture-model","displayName":"中文动态映射"}]
             }),
         )]);
+        if app == "grokbuild" {
+            toml_configs.insert("provider-0".into(), serde_json::json!({
+                "toml":"[models]\ndefault = \"vendor\"\n\n[model.vendor]\nmodel = \"中文模型\"\nname = \"中文动态模型\"\nbase_url = \"https://fixture-api.example.test/v1\"\napi_backend = \"responses\"\ncontext_window = 8192\n",
+                "hasSavedKey":true,
+                "inactive":[["config","legacy","中文旧字段"],["config","ui","theme"]],
+            }));
+        }
         while !done.load(std::sync::atomic::Ordering::Relaxed) {
             let (mut stream, _) = match listener.accept() {
                 Ok(v) => v,
@@ -162,8 +172,8 @@ fn fixture(
                 assert!(head.to_lowercase().contains("x-agent-apps-token: fake-host-token"));
                 let target: serde_json::Value = serde_json::from_slice(&payload).unwrap();
                 assert_eq!(target["targetHostId"], "fixture-host");
-                if app == "codex" {
-                    serde_json::json!({"fields":basics[id],"config":codex_configs.get(id)})
+                if matches!(app, "codex" | "grokbuild") {
+                    serde_json::json!({"fields":basics[id],"config":toml_configs.get(id)})
                 } else {
                     let (config, model) = profiles.get(id).cloned().unwrap_or((
                         serde_json::json!({"kind":"unsupported"}),
@@ -178,25 +188,29 @@ fn fixture(
                 assert!(head.to_lowercase().contains("x-agent-apps-token: fake-host-token"));
                 let mut value: serde_json::Value = serde_json::from_slice(&payload).unwrap();
                 assert_eq!(value["targetHostId"], "fixture-host");
-                if app == "codex" {
+                if matches!(app, "codex" | "grokbuild") {
                     let toml = value["toml"].as_str().unwrap();
                     if !toml.contains("https://fixture-api.example.test/v1")
                         || toml.contains("model = [")
+                        || (app == "grokbuild" && toml.contains("context_window = 0"))
                     {
                         status = "422 Unprocessable Entity";
                         serde_json::Value::Null
                     } else {
-                        let prior = codex_configs.get(id);
+                        let prior = toml_configs.get(id);
                         let has_saved_key = match value["apiKey"]["action"].as_str() {
                             Some("replace") => true,
                             Some("clear") => false,
                             _ => prior.is_some_and(|p| p["hasSavedKey"] == true),
                         };
-                        codex_configs.insert(id.into(), serde_json::json!({
+                        let mut config = serde_json::json!({
                             "toml":toml, "hasSavedKey":has_saved_key,
                             "inactive":prior.map_or_else(|| serde_json::json!([]), |p| p["inactive"].clone()),
-                            "models":value["models"],
-                        }));
+                        });
+                        if app == "codex" {
+                            config["models"] = value["models"].take();
+                        }
+                        toml_configs.insert(id.into(), config);
                         basics.insert(id.into(), value["fields"].take());
                         serde_json::json!({"catalogSaved":true,"live":if value["apply"] == true {"applied"}else{"not_attempted"}})
                     }

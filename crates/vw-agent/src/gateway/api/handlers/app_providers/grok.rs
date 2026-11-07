@@ -1,13 +1,36 @@
 //! Authorized fixed Grok save/switch operations. No arbitrary command or file API.
 use super::*;
 use axum::{
-    http::HeaderMap,
+    http::{HeaderMap, Method},
     routing::{post, put},
 };
 use std::path::PathBuf;
 use vw_api_types::app_providers::grok::*;
 #[derive(Clone)]
 struct Policy(Option<PathBuf>);
+
+#[cfg_attr(not(target_os = "macos"), allow(dead_code))]
+enum Write {
+    Config(GrokWrite),
+    Form(GrokFormWrite, bool),
+}
+
+#[cfg(target_os = "macos")]
+impl Write {
+    fn target(&self) -> (&str, GrokActivation) {
+        match self {
+            Self::Config(body) => (&body.target_host_id, body.activation),
+            Self::Form(body, create) => {
+                let activation = match (body.apply, create) {
+                    (true, true) => GrokActivation::First,
+                    (true, false) => GrokActivation::IfCurrent,
+                    (false, _) => GrokActivation::CatalogOnly,
+                };
+                (&body.target_host_id, activation)
+            }
+        }
+    }
+}
 pub(super) fn router() -> Router {
     router_with_policy(std::env::var_os("SHIJU_AGENT_APPS_ACCESS_FILE").map(PathBuf::from))
 }
@@ -16,6 +39,8 @@ pub(super) fn router_with_policy(path: Option<PathBuf>) -> Router {
         .route("/app-providers/grokbuild/{id}/config", put(save))
         .route("/app-providers/grokbuild/{id}/switch", post(switch))
         .route("/app-providers/grokbuild/{id}/reapply", post(reapply))
+        .route("/app-providers/grokbuild/{id}/form/read", post(read_form))
+        .route("/app-providers/grokbuild/{id}/form", post(write_form).patch(write_form))
         .layer(DefaultBodyLimit::max(32 * 1024))
         .layer(Extension(Policy(path)))
 }
@@ -30,7 +55,7 @@ async fn save(
     let Ok(Json(request)) = body else { return StatusCode::BAD_REQUEST.into_response() };
     respond(
         tokio::task::spawn_blocking(move || {
-            execute(policy, tenant, db, headers, id, Some(request), None)
+            execute(policy, tenant, db, headers, id, Some(Write::Config(request)), None)
         })
         .await,
     )
@@ -75,7 +100,9 @@ async fn reapply(
         .await,
     )
 }
-fn respond(result: Result<Result<GrokResult, StatusCode>, tokio::task::JoinError>) -> Response {
+fn respond<T: serde::Serialize>(
+    result: Result<Result<T, StatusCode>, tokio::task::JoinError>,
+) -> Response {
     match result {
         Ok(Ok(r)) => Json(r).into_response(),
         Ok(Err(s)) => s.into_response(),
@@ -89,7 +116,7 @@ fn execute(
     _: Option<Extension<GlobalDatabase>>,
     _: HeaderMap,
     _: String,
-    _: Option<GrokWrite>,
+    _: Option<Write>,
     _: Option<(GrokTarget, GrokActivation)>,
 ) -> Result<GrokResult, StatusCode> {
     Err(StatusCode::NOT_IMPLEMENTED)
@@ -101,16 +128,16 @@ fn execute(
     db: Option<Extension<GlobalDatabase>>,
     headers: HeaderMap,
     id: String,
-    write: Option<GrokWrite>,
+    write: Option<Write>,
     operation: Option<(GrokTarget, GrokActivation)>,
 ) -> Result<GrokResult, StatusCode> {
     use vw_agent_apps::providers::{
-        grok::GrokFiles,
+        grok::{GrokFiles, form},
         live::{commit::*, write_guard::WriteError},
     };
     let (host, activation) = match (&write, &operation) {
-        (Some(w), _) => (&w.target_host_id, w.activation),
-        (_, Some((t, a))) => (&t.target_host_id, *a),
+        (Some(w), _) => w.target(),
+        (_, Some((t, a))) => (t.target_host_id.as_str(), *a),
         _ => return Err(StatusCode::BAD_REQUEST),
     };
     let (home, root) = super::super::agent_apps::provider_editor_context(
@@ -120,18 +147,32 @@ fn execute(
         host,
         true,
     )?;
-    let database = match db {
-        Some(Extension(db)) => db,
-        None => GlobalDatabase::for_home(&crate::global::paths().home)
-            .map_err(|_| StatusCode::SERVICE_UNAVAILABLE)?,
-    };
-    let store = AppProviderStore::new(database).map_err(|_| StatusCode::SERVICE_UNAVAILABLE)?;
+    let store = open_store(db, &id)?;
     let before = store.grok_record(&tenant, &id).map_err(|_| StatusCode::SERVICE_UNAVAILABLE)?;
     if before.as_ref().is_some_and(managed) {
         return Err(StatusCode::UNPROCESSABLE_ENTITY);
     }
+    let mut metadata = None;
     let profile = match &write {
-        Some(w) => w.profile.clone(),
+        Some(Write::Config(body)) => body.profile.clone(),
+        Some(Write::Form(body, create)) => {
+            match (*create, before.is_some()) {
+                (true, true) => return Err(StatusCode::CONFLICT),
+                (false, false) => return Err(StatusCode::NOT_FOUND),
+                _ => {}
+            }
+            metadata = Some(
+                vw_agent_apps::providers::basic::apply(
+                    AppId::GrokBuild,
+                    before.as_ref().unwrap_or(&serde_json::json!({})),
+                    &body.fields,
+                    &vw_api_types::app_providers::create::ProviderSecretWrite::Keep,
+                )
+                .map_err(|_| StatusCode::UNPROCESSABLE_ENTITY)?,
+            );
+            form::prepare(&id, body, before.as_ref())
+                .map_err(|_| StatusCode::UNPROCESSABLE_ENTITY)?
+        }
         None => serde_json::from_value(
             before.as_ref().and_then(|r| r.get("grok")).cloned().ok_or(StatusCode::NOT_FOUND)?,
         )
@@ -189,7 +230,7 @@ fn execute(
     }
     let saved = if write.is_some() {
         store
-            .grok_save(&tenant, &id, &profile, before.as_ref())
+            .grok_save(&tenant, &id, &profile, before.as_ref(), metadata)
             .map_err(|_| StatusCode::CONFLICT)?
     } else {
         before.ok_or(StatusCode::NOT_FOUND)?
@@ -227,4 +268,81 @@ fn execute(
 fn managed(row: &serde_json::Value) -> bool {
     row.pointer("/meta/authBinding").is_some()
         || row.pointer("/meta/liveConfigManaged").is_some_and(|v| v == true)
+}
+
+#[cfg(target_os = "macos")]
+fn open_store(
+    db: Option<Extension<GlobalDatabase>>,
+    id: &str,
+) -> Result<AppProviderStore, StatusCode> {
+    vw_agent_apps::providers::validate_identity(id).map_err(|_| StatusCode::BAD_REQUEST)?;
+    let database = match db {
+        Some(Extension(db)) => db,
+        None => GlobalDatabase::for_home(&crate::global::paths().home)
+            .map_err(|_| StatusCode::SERVICE_UNAVAILABLE)?,
+    };
+    AppProviderStore::new(database).map_err(|_| StatusCode::SERVICE_UNAVAILABLE)
+}
+
+async fn read_form(
+    Extension(policy): Extension<Policy>,
+    Extension(tenant): Extension<TenantScope>,
+    db: Option<Extension<GlobalDatabase>>,
+    headers: HeaderMap,
+    Path(id): Path<String>,
+    body: Result<Json<GrokTarget>, JsonRejection>,
+) -> Response {
+    let Ok(Json(target)) = body else { return StatusCode::BAD_REQUEST.into_response() };
+    respond(
+        tokio::task::spawn_blocking(move || -> Result<GrokFormView, StatusCode> {
+            #[cfg(target_os = "macos")]
+            {
+                super::super::agent_apps::provider_editor_context(
+                    policy.0.as_deref(),
+                    &headers,
+                    &tenant,
+                    &target.target_host_id,
+                    false,
+                )?;
+                let row = open_store(db, &id)?
+                    .grok_record(&tenant, &id)
+                    .map_err(|_| StatusCode::SERVICE_UNAVAILABLE)?
+                    .ok_or(StatusCode::NOT_FOUND)?;
+                vw_agent_apps::providers::grok::form::view(&id, &row, managed(&row))
+                    .map_err(|_| StatusCode::UNPROCESSABLE_ENTITY)
+            }
+            #[cfg(not(target_os = "macos"))]
+            {
+                let _ = (policy, tenant, db, headers, id, target);
+                Err(StatusCode::NOT_IMPLEMENTED)
+            }
+        })
+        .await,
+    )
+}
+
+async fn write_form(
+    Extension(policy): Extension<Policy>,
+    Extension(tenant): Extension<TenantScope>,
+    db: Option<Extension<GlobalDatabase>>,
+    headers: HeaderMap,
+    Path(id): Path<String>,
+    method: Method,
+    body: Result<Json<GrokFormWrite>, JsonRejection>,
+) -> Response {
+    let Ok(Json(body)) = body else { return StatusCode::BAD_REQUEST.into_response() };
+    respond(
+        tokio::task::spawn_blocking(move || {
+            execute(
+                policy,
+                tenant,
+                db,
+                headers,
+                id,
+                Some(Write::Form(body, method == Method::POST)),
+                None,
+            )
+        })
+        .await,
+    )
 }

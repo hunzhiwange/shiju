@@ -23,6 +23,8 @@ pub(crate) struct EditForm {
     pub claude: Option<Draft>,
     pub codex: Option<super::codex::Draft>,
     pub codex_config_unavailable: bool,
+    pub grok: Option<super::grok::Draft>,
+    pub grok_config_unavailable: bool,
     pub gemini: Option<super::gemini::Draft>,
 }
 impl std::fmt::Debug for EditForm {
@@ -49,6 +51,8 @@ impl EditForm {
             claude: None,
             codex: None,
             codex_config_unavailable: false,
+            grok: None,
+            grok_config_unavailable: false,
             gemini: None,
         }
     }

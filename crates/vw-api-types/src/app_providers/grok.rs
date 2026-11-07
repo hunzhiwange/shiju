@@ -43,3 +43,30 @@ macro_rules! concealed {
     })*};
 }
 concealed!(GrokConfig, GrokProfile, GrokWrite);
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct GrokFormConfig {
+    /// Only public model-table fields. The stored credential and opaque TOML stay on the host.
+    pub toml: String,
+    pub has_saved_key: bool,
+    pub inactive: Vec<Vec<String>>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct GrokFormView {
+    pub fields: super::basic::ProviderBasic,
+    pub config: Option<GrokFormConfig>,
+}
+
+#[derive(Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct GrokFormWrite {
+    pub target_host_id: String,
+    pub fields: super::basic::ProviderBasic,
+    pub toml: String,
+    pub api_key: super::create::ProviderSecretWrite,
+    pub apply: bool,
+}
+concealed!(GrokFormWrite);

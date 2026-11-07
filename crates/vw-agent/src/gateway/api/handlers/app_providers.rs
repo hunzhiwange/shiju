@@ -310,3 +310,6 @@ mod env_restore_tests;
 mod operations;
 #[cfg(all(test, target_os = "macos"))]
 mod operations_tests;
+
+#[cfg(all(test, target_os = "macos"))]
+mod api_security_tests;

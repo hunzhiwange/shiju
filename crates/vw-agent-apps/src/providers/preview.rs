@@ -192,9 +192,11 @@ pub(crate) fn redact(value: Value) -> Value {
             .into_iter()
             .map(|(k, v)| {
                 let name = k.to_ascii_lowercase();
-                let sensitive = ["key", "token", "secret", "password", "credential"]
-                    .iter()
-                    .any(|word| name.contains(word));
+                // Conceal the whole credential subtree, including non-string values and keys.
+                let sensitive =
+                    ["key", "token", "secret", "password", "credential", "authorization", "cookie"]
+                        .iter()
+                        .any(|word| name.contains(word));
                 (k, if sensitive { json!("[redacted]") } else { redact(v) })
             })
             .collect(),

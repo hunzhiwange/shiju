@@ -2394,3 +2394,41 @@ Gateway 集成使用正式 SDK、真实回环 HTTP、真实授权 policy/租户�
 实际平台 macOS **27.0（26A428）/ arm64**，workspace crate **0.6.0**。未使用真实用户配置或账号；真实客户端版本/消费、Keychain、Iced 渲染及非 macOS **未验证**。
 
 状态：**已完成（请求关联、进度与安全取消边界）**。本任务定向差异/暂存审查通过，仅提交上述实现、独立测试、必要父注册与本条证据；排除既有 Dsh 格式差异、其他任务/计划与并行桌面变更。自身 Cargo 锁释放，plan.md 只读；编号任务验收后删除且不提交该删除，下一步批次 51。
+
+## 任务 51：供应商 API 权限与脱敏回归
+
+2026-11-07。已核对批次 50 提交 `d527b8522` 与上节正式证据；母任务 1、3 为已完成，母任务 2 整体迁移未收口，沿任务 1/provider-contracts.md 已有底座子计划 1–93 开工裁定消费实际接口，不冒称母任务 2 完成。所有 plan.md 保持只读。
+
+### 来源、审查与最小修复
+
+来源 `/Users/xiangmin/worker/code/cc-switch` HEAD `ca58c0313360eae7c851fbd7553c1614c7af03e7`，rev-parse/status 退出 0、来源干净。只读 `commands/provider.rs::{get_providers,get_provider_editor_view}`、`commands/config.rs::{get_config_status,get_common_config_snippet,set_common_config_snippet}`、`commands/env.rs::{check_env_conflicts,delete_env_vars,restore_env_backup}`，以及 TS providers/env 调用、provider_commands、config 校验测试和 `ProviderService::is_sensitive_config_key` 相邻测试。来源已将 COOKIE/AUTHORIZATION 视为凭据；没有构建或修改来源。
+
+沿生产 app_providers 父注册审查目录 CRUD/复制、展示/端点/图标、统一供应商/投影、路径/预览/编辑器/片段、14 应用适配/导入/模型映射、模式、环境诊断/清理/恢复及异步操作端点。目录读取使用强类型摘要，原生适配返回状态/数量，片段复用 scrub，错误返回固定安全消息/状态，进度只返回固定 DTO；没有新增任意文件/命令入口。租户目录写入与主机配置写入仍沿既有权限边界，不擅自为目录 CRUD 添加主机权限。
+
+红测试发现 `vw-agent-apps/src/providers/preview.rs::redact` 遗漏 Authorization/Cookie：非字符串认证值、Cookie 子树中的属性名会保留。最小修复仅给既有大小写无关字段识别补充 `authorization`、`cookie`，整个凭据子树被替换为 `[redacted]`。既有所有字符串叶子脱敏策略保持；`preview::read` 与 `editor_merge::display` 复用此所有者，不新增 DTO、SDK、handler 或第二套脱敏实现。独立 Gateway 测试位于 `handlers/app_providers/api_security_tests.rs`，按 macOS test 模块注册。
+
+### 红绿与确切验证
+
+各阶段均原子 mkdir 动态领取 **槽位 1**，记录计划/任务/会话/PID；`CARGO_TARGET_DIR=/Users/xiangmin/worker/code/shiju/target/rust-slot-1`，`CARGO_BUILD_BUILD_DIR` 同值，全部 Cargo 与子进程继承。首次日志捕获测试误用未依赖的 tracing_subscriber，退出 101；已改用仓库现有 tracing::Subscriber 模式，未加依赖，不将编译失败计作红证据。
+
+纠正接线后，`cargo fmt --all` 退出 0；`cargo test -p vw-agent --lib cc04_api_security_ -- --nocapture` 在响应凭据扫描业务断言失败，**3 passed / 1 failed，退出 101**，失败为 `cc04_api_security_nested_secrets_never_reach_responses`。实现修复后增加只读 grant 拒绝断言，最终同一阶段验证如下（聚焦测试使用默认 features）：
+
+| 确切命令 | 退出码 | 有效数量 |
+| --- | --- | --- |
+| `cargo fmt --all` | 0 | 格式化 |
+| `cargo test -p vw-agent --lib cc04_api_security_ -- --nocapture` | 0 | 4 passed |
+| `cargo test -p vw-agent --lib gateway::api::handlers::app_providers:: -- --nocapture` | 0 | 145 passed |
+| `cargo clippy --all-targets --all-features -- -D warnings` | 0 | 全部 targets/features |
+
+领域 145 项已包含本任务 4 项，即额外相邻回归 141 项，去重 145 项；无忽略。测试链接器提示既有 `__eh_frame section too large`，实际测试退出 0；未改变链接配置或放宽 lint。没有运行无过滤全量 cargo test、fmt check、wasm 或 Makefile。
+
+### SDK→API→执行端、权限与平台证据
+
+- 正式 SDK `app_provider_preview` → 真实回环 HTTP/生产 preview 子路由/真实 policy 与 tenant middleware → 隔离 HOME 的实际 Claude settings.json。假 API key、混合大小写数值 Authorization、Cookie 子树属性名、嵌套数组密码均不出现在响应。预览前后整个隔离目录的目录清单、文件和 SQLite 字节一致。安装线程作用域 TRACE 捕获器，先确认捕获标记存在，再扫描本请求的 SDK/Gateway 日志，未发现假凭据；不将其外推为宿主所有线程的全局日志审计。
+- 14 应用真实 switch/add 路由分别接受有效 target DTO，外租户/外主机返回 403，错误 token 返回 401；读权限存在但写权限撤回后均返回 403。导入/操作提交/环境清理/恢复/编辑保存的外租户请求返回 403。61 个权限拒绝请求后，实际文件/目录清单与数据库字节不变，未写真实用户配置。
+- 正式 SDK `provider_operation_start/get` → API → Pi 原生配置导入真实 SQLite。终态 completed，独立读取保存记录确实含假 key，提交/进度 DTO 不含凭据；原生目录/摘要/模式读取响应、404、外租户进度 GET/取消 DELETE 403 及损坏 Claude 配置的 parseError 均扫描通过；parseError 只给位置，不返回源片段。各拒绝前后目录/数据库字节一致。
+- 另用正式 `handler_router` 与既有 Basic middleware 对 29 个读写/导入/预览/错误/进度相关请求证明无 Gateway 凭据时先返回 401，隔离数据库及目录无变化。业务 HTTP 测试注入管理员 policy 路径，全部使用生产子路由，没有替换 handler、存储、文件系统或授权逻辑。
+
+实际平台 **macOS 27.0（26A428）/ arm64**，workspace crate **0.6.0**。只使用假凭据和临时 HOME/SQLite；未使用真实用户凭据/账号。真实客户端应用消费、Keychain、Iced/UI 渲染和非 macOS **未验证**；本任务未改 UI，不将安全回归外推为这些路径验收。
+
+状态：**已完成（供应商 API 权限与脱敏回归）**。仅提交本任务共享脱敏修复、独立测试/注册及本条正式证据，排除既有 Dsh 格式差异、母任务状态、其他编号任务删除及其它计划。定向差异与暂存检查通过；各阶段自身锁释放、缓存保留。验收后删除任务 51 编号文件，不提交该删除；下一步批次 52。

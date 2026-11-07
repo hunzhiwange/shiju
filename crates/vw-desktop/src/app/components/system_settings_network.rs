@@ -2,7 +2,7 @@
 
 use crate::app::components::system_settings::SystemTab;
 use crate::app::components::system_settings_common::{
-    settings_error_banner, settings_page_intro, settings_segment_button_style,
+    settings_error_banner, settings_page_heading, settings_segment_button_style,
 };
 use crate::app::components::system_settings_search::SettingsTabDescriptor;
 use crate::app::i18n::settings_models::connection_text::text as connection_text;
@@ -101,24 +101,23 @@ pub fn view(app: &App) -> Element<'_, Message> {
             .on_press(Message::Settings(message::SettingsMessage::SystemTabSelected(tab)))
             .padding([8, 14])
             .style(move |theme: &Theme, status| {
-                settings_segment_button_style(theme, status, is_active)
+                let mut style = settings_segment_button_style(theme, status, is_active);
+                if is_active {
+                    style.text_color = theme.palette().text;
+                }
+                style
             })
     };
 
-    let tabs = NETWORK_TABS.iter().fold(
-        row![].spacing(8).align_y(Alignment::Center),
-        |row, descriptor| {
-            let key = match descriptor.tab {
-                SystemTab::WebSearch => "网页搜索",
-                SystemTab::HttpRequest => "网络请求",
-                SystemTab::Browser => "浏览器",
-                SystemTab::Proxy => "代理",
-                SystemTab::Tunnel => "隧道",
-                _ => unreachable!("network descriptor"),
-            };
-            row.push(tab_button(descriptor.tab, connection_text(app.desktop_locale, key)))
-        },
-    );
+    let tabs = NETWORK_TABS
+        .iter()
+        .fold(row![].spacing(8).align_y(Alignment::Center), |row, descriptor| {
+            row.push(tab_button(
+                descriptor.tab,
+                connection_text(app.desktop_locale, descriptor.label),
+            ))
+        })
+        .wrap();
 
     let content = match active_tab {
         SystemTab::HttpRequest => {
@@ -131,7 +130,7 @@ pub fn view(app: &App) -> Element<'_, Message> {
     };
 
     let mut sections = column![
-        settings_page_intro(
+        settings_page_heading(
             connection_text(app.desktop_locale, "网络配置"),
             connection_text(
                 app.desktop_locale,

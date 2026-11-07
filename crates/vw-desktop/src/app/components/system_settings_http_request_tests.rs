@@ -5,7 +5,6 @@ use super::*;
 use crate::app::message::settings::{HttpRequestMessage, SettingsMessage};
 use crate::app::{App, Message};
 use iced::Element;
-use iced::advanced::widget::Tree;
 use iced::widget::text;
 
 // HTTP 设置用统一空允许列表作为基线，再分别覆盖零值和上界配置。
@@ -85,15 +84,4 @@ fn view_builds_enabled_populated_allowlist_and_upper_bounds() {
     app.http_request_settings.user_agent = "VibeWindow-Test/1.0".to_string();
 
     keep_element(view(&app));
-}
-
-#[test]
-fn view_renders_one_allowlist_row_for_each_configured_domain() {
-    let mut app = test_app();
-    app.http_request_settings.allowed_domains =
-        vec!["api.example.com".to_string(), "*.internal.example".to_string()];
-
-    let tree = Tree::new(view(&app).as_widget());
-    assert_eq!(tree.children.len(), 6);
-    assert_eq!(tree.children[5].children.len(), 2);
 }

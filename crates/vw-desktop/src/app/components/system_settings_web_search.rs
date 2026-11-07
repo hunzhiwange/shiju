@@ -4,38 +4,23 @@
 //! 注释聚焦调用边界、返回值和错误传播方式，便于后续维护设置页与工具栏行为时快速定位职责。
 
 use crate::app::components::system_settings_common::{
-    SETTINGS_LABEL_WIDTH, settings_checkbox_style, settings_control_with_hint, settings_divider,
-    settings_muted_text_style, settings_page_intro, settings_panel, settings_pick_list_menu_style,
-    settings_pick_list_style, settings_section_card, settings_section_content,
-    settings_text_input_style,
+    SETTINGS_CONTROL_PADDING, SETTINGS_CONTROL_TEXT_SIZE, settings_checkbox_style,
+    settings_control_with_hint, settings_divider, settings_group_card, settings_group_heading,
+    settings_muted_text_style, settings_page_heading, settings_row_with_flexible_control,
+    settings_select, settings_text_input_style,
 };
 use crate::app::i18n::settings_extensions::text as tr;
 use crate::app::message::settings::{SettingsMessage, WebSearchMessage};
 use crate::app::{App, Message};
-use iced::widget::{checkbox, column, container, pick_list, row, text, text_input};
-use iced::{Alignment, Element, Length};
+use iced::widget::{checkbox, column, container, text, text_input};
+use iced::{Element, Length};
 
 fn field_row<'a>(
     label: &'static str,
     description: &'static str,
     control: impl Into<Element<'a, Message>>,
 ) -> Element<'a, Message> {
-    container(
-        row![
-            column![
-                text(label).size(13),
-                text(description).size(11).style(settings_muted_text_style),
-            ]
-            .spacing(4)
-            .width(Length::Fixed(SETTINGS_LABEL_WIDTH)),
-            container(control.into()).width(Length::Fill),
-        ]
-        .spacing(22)
-        .align_y(Alignment::Center),
-    )
-    .padding([14, 0])
-    .width(Length::Fill)
-    .into()
+    settings_row_with_flexible_control(label, description, 360.0, control)
 }
 
 fn bool_row<'a>(
@@ -64,8 +49,8 @@ fn text_row<'a>(
         description,
         text_input(placeholder, value)
             .on_input(on_input)
-            .padding([10, 12])
-            .size(13)
+            .padding(SETTINGS_CONTROL_PADDING)
+            .size(SETTINGS_CONTROL_TEXT_SIZE)
             .style(settings_text_input_style)
             .width(Length::Fill),
     )
@@ -85,8 +70,8 @@ fn text_row_with_hint<'a>(
         settings_control_with_hint(
             text_input(placeholder, value)
                 .on_input(on_input)
-                .padding([10, 12])
-                .size(13)
+                .padding(SETTINGS_CONTROL_PADDING)
+                .size(SETTINGS_CONTROL_TEXT_SIZE)
                 .style(settings_text_input_style)
                 .width(Length::Fill),
             hint,
@@ -121,7 +106,7 @@ fn shows_brave_api_key(provider: &str) -> bool {
 /// 本函数不直接返回错误；无法交互或缺省状态会在控件状态中显式表达。
 pub fn view(app: &App) -> Element<'_, Message> {
     column![
-        settings_page_intro(
+        settings_page_heading(
             tr(app.desktop_locale, "网页搜索配置"),
             tr(app.desktop_locale, "配置网页搜索工具的提供方、鉴权信息和请求参数。"),
         ),
@@ -145,7 +130,7 @@ pub(super) fn content(app: &App) -> Element<'_, Message> {
         },
     );
 
-    let provider_pick = pick_list(
+    let provider_pick = settings_select(
         [
             "duckduckgo".to_string(),
             "brave".to_string(),
@@ -158,10 +143,6 @@ pub(super) fn content(app: &App) -> Element<'_, Message> {
             Message::Settings(SettingsMessage::WebSearch(WebSearchMessage::ProviderChanged(value)))
         },
     )
-    .padding([10, 14])
-    .text_size(13)
-    .style(settings_pick_list_style)
-    .menu_style(settings_pick_list_menu_style)
     .width(Length::Fixed(220.0));
 
     let provider_row = field_row(
@@ -172,17 +153,20 @@ pub(super) fn content(app: &App) -> Element<'_, Message> {
 
     let provider_section: Element<'_, Message> = if s.provider == "duckduckgo" {
         column![
-            settings_section_card(
+            settings_group_heading(
                 "DuckDuckGo",
                 tr(app.desktop_locale, "公开搜索页面模式，无需额外鉴权配置。"),
             ),
-            settings_panel(column![
-                text(tr(
-                    app.desktop_locale,
-                    "当前后端会直接使用 DuckDuckGo 公开搜索页面，无需 API Key。"
-                ))
-                .size(12)
-                .style(settings_muted_text_style)
+            settings_group_card(column![
+                container(
+                    text(tr(
+                        app.desktop_locale,
+                        "当前后端会直接使用 DuckDuckGo 公开搜索页面，无需 API Key。"
+                    ))
+                    .size(12)
+                    .style(settings_muted_text_style)
+                )
+                .padding([18, 0])
             ]),
         ]
         .spacing(16)
@@ -252,26 +236,26 @@ pub(super) fn content(app: &App) -> Element<'_, Message> {
             ));
         }
 
-        column![settings_section_card(title, description), settings_panel(fields.spacing(0))]
+        column![settings_group_heading(title, description), settings_group_card(fields.spacing(0))]
             .spacing(16)
             .into()
     };
 
     let content = column![
-        settings_section_card(
+        settings_group_heading(
             tr(app.desktop_locale, "基础行为"),
             tr(app.desktop_locale, "控制开关与默认搜索后端。")
         ),
-        settings_section_content(column![enabled_row, settings_divider(), provider_row].spacing(0)),
+        settings_group_card(column![enabled_row, settings_divider(), provider_row].spacing(0)),
         provider_section,
     ]
     .spacing(16)
     .width(Length::Fill)
-    .push(settings_section_card(
+    .push(settings_group_heading(
         tr(app.desktop_locale, "请求参数"),
         tr(app.desktop_locale, "控制返回数量、超时和请求头。"),
     ))
-    .push(settings_section_content(
+    .push(settings_group_card(
         column![
             text_row_with_hint(
                 tr(app.desktop_locale, "结果数量"),

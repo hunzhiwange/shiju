@@ -5,15 +5,16 @@
 
 use crate::app::components::number_input::NumberInput;
 use crate::app::components::system_settings_common::{
-    SETTINGS_LABEL_WIDTH, rounded_action_btn_style, settings_checkbox_style,
-    settings_control_with_hint, settings_muted_text_style, settings_page_intro, settings_panel,
-    settings_section_card, settings_section_content, settings_text_input_style,
+    SETTINGS_CONTROL_PADDING, SETTINGS_CONTROL_TEXT_SIZE, primary_action_btn_style,
+    rounded_action_btn_style, settings_checkbox_style, settings_control_with_hint,
+    settings_divider, settings_group_card, settings_group_heading, settings_muted_text_style,
+    settings_page_heading, settings_row_with_flexible_control, settings_text_input_style,
     settings_value_badge,
 };
 use crate::app::i18n::settings_extensions::{domain_label, text as tr};
 use crate::app::message::settings::{HttpRequestMessage, SettingsMessage};
 use crate::app::{App, Message};
-use iced::widget::{button, checkbox, column, container, row, text, text_input};
+use iced::widget::{button, checkbox, column, container, row, text, text::Wrapping, text_input};
 use iced::{Alignment, Element, Length};
 
 fn field_row<'a>(
@@ -21,22 +22,7 @@ fn field_row<'a>(
     description: &'static str,
     control: impl Into<Element<'a, Message>>,
 ) -> Element<'a, Message> {
-    container(
-        row![
-            column![
-                text(label).size(13),
-                text(description).size(11).style(settings_muted_text_style),
-            ]
-            .spacing(4)
-            .width(Length::Fixed(SETTINGS_LABEL_WIDTH)),
-            container(control.into()).width(Length::Fill),
-        ]
-        .spacing(22)
-        .align_y(Alignment::Center),
-    )
-    .padding([14, 0])
-    .width(Length::Fill)
-    .into()
+    settings_row_with_flexible_control(label, description, 360.0, control)
 }
 
 fn text_row<'a>(
@@ -51,8 +37,8 @@ fn text_row<'a>(
         description,
         text_input(placeholder, value)
             .on_input(on_input)
-            .padding([10, 12])
-            .size(13)
+            .padding(SETTINGS_CONTROL_PADDING)
+            .size(SETTINGS_CONTROL_TEXT_SIZE)
             .style(settings_text_input_style)
             .width(Length::Fill),
     )
@@ -124,7 +110,7 @@ fn number_row<'a>(
 /// 本函数不直接返回错误；无法交互或缺省状态会在控件状态中显式表达。
 pub fn view(app: &App) -> Element<'_, Message> {
     column![
-        settings_page_intro(
+        settings_page_heading(
             tr(app.desktop_locale, "网络请求配置"),
             tr(app.desktop_locale, "配置网络请求工具的开关、超时、响应大小限制和域名白名单。"),
         ),
@@ -195,97 +181,104 @@ pub(super) fn content(app: &App) -> Element<'_, Message> {
         },
     );
 
-    let allowed_domains_section = settings_panel(
-        column![field_row(
-            tr(app.desktop_locale, "新增域名"),
-            tr(app.desktop_locale, "支持精确域名、子域模式或 *。"),
-            settings_control_with_hint(
-                row![
-                    text_input(
-                        tr(app.desktop_locale, "例如：example.com 或 *.example.org 或 *"),
-                        &s.new_allowed_domain_input
-                    )
-                    .on_input(|value| Message::Settings(SettingsMessage::HttpRequest(
-                        HttpRequestMessage::NewAllowedDomainChanged(value),
+    let add_domain_row = field_row(
+        tr(app.desktop_locale, "新增域名"),
+        tr(app.desktop_locale, "支持精确域名、子域模式或 *。"),
+        settings_control_with_hint(
+            row![
+                text_input(
+                    tr(app.desktop_locale, "例如：example.com 或 *.example.org 或 *"),
+                    &s.new_allowed_domain_input
+                )
+                .on_input(|value| Message::Settings(SettingsMessage::HttpRequest(
+                    HttpRequestMessage::NewAllowedDomainChanged(value),
+                )))
+                .padding(SETTINGS_CONTROL_PADDING)
+                .size(SETTINGS_CONTROL_TEXT_SIZE)
+                .style(settings_text_input_style)
+                .width(Length::Fill),
+                button(text(tr(app.desktop_locale, "添加")).size(SETTINGS_CONTROL_TEXT_SIZE))
+                    .padding([8, 14])
+                    .on_press(Message::Settings(SettingsMessage::HttpRequest(
+                        HttpRequestMessage::AddAllowedDomain,
                     )))
-                    .padding([10, 12])
-                    .size(13)
-                    .style(settings_text_input_style)
-                    .width(Length::Fill),
-                    button(text(tr(app.desktop_locale, "添加")))
-                        .padding([6, 12])
-                        .on_press(Message::Settings(SettingsMessage::HttpRequest(
-                            HttpRequestMessage::AddAllowedDomain,
-                        )))
-                        .style(rounded_action_btn_style),
-                ]
-                .spacing(12)
-                .align_y(Alignment::Center),
-                tr(app.desktop_locale, "支持精确域名、子域模式或 `*`；建议只放行业务 API 域名。"),
-            ),
-        )]
-        .spacing(0),
+                    .style(primary_action_btn_style),
+            ]
+            .spacing(10)
+            .align_y(Alignment::Center),
+            tr(app.desktop_locale, "支持精确域名、子域模式或 `*`；建议只放行业务 API 域名。"),
+        ),
     );
-
-    let allowed_domains_list: Element<'_, Message> = if s.allowed_domains.is_empty() {
-        settings_panel(
-            column![
+    let mut allowed_domains = column![add_domain_row, settings_divider()];
+    if s.allowed_domains.is_empty() {
+        allowed_domains = allowed_domains.push(
+            container(
                 text(tr(
                     app.desktop_locale,
-                    "当前未配置允许域名；启用工具后仍会因为白名单为空而拒绝所有请求。"
+                    "当前未配置允许域名；启用工具后仍会因为白名单为空而拒绝所有请求。",
                 ))
-                .size(12)
-                .style(settings_muted_text_style)
-            ]
-            .spacing(0),
-        )
-        .into()
+                .size(13)
+                .style(settings_muted_text_style),
+            )
+            .padding([18, 0]),
+        );
     } else {
-        let list = s.allowed_domains.iter().enumerate().fold(
-            column![].spacing(10),
-            |column, (index, domain)| {
-                column.push(
+        for (index, domain) in s.allowed_domains.iter().enumerate() {
+            if index != 0 {
+                allowed_domains = allowed_domains.push(settings_divider());
+            }
+            allowed_domains = allowed_domains.push(
+                container(
                     row![
                         text(domain_label(app.desktop_locale, index + 1))
-                            .width(Length::Fixed(SETTINGS_LABEL_WIDTH)),
-                        text(domain).width(Length::Fill),
-                        button(text(tr(app.desktop_locale, "删除")))
-                            .padding([6, 12])
-                            .on_press(Message::Settings(SettingsMessage::HttpRequest(
-                                HttpRequestMessage::RemoveAllowedDomain(index),
-                            )))
-                            .style(rounded_action_btn_style),
+                            .size(13)
+                            .style(settings_muted_text_style),
+                        text(domain)
+                            .size(SETTINGS_CONTROL_TEXT_SIZE)
+                            .width(Length::Fill)
+                            .wrapping(Wrapping::WordOrGlyph),
+                        button(
+                            text(tr(app.desktop_locale, "删除")).size(SETTINGS_CONTROL_TEXT_SIZE)
+                        )
+                        .padding([8, 14])
+                        .on_press(Message::Settings(SettingsMessage::HttpRequest(
+                            HttpRequestMessage::RemoveAllowedDomain(index),
+                        )))
+                        .style(rounded_action_btn_style),
                     ]
-                    .spacing(20)
+                    .spacing(16)
                     .align_y(Alignment::Center),
                 )
-            },
-        );
-
-        settings_panel(list).into()
-    };
+                .padding([12, 0]),
+            );
+        }
+    }
 
     let content = column![
-        settings_section_card(
+        settings_group_heading(
             tr(app.desktop_locale, "基础行为"),
             tr(
                 app.desktop_locale,
                 "控制 http_request 工具的启用状态、超时、最大响应体大小和默认 User-Agent。"
             ),
         ),
-        settings_section_content(
-            column![enabled_row, max_response_size_row, timeout_secs_row, user_agent_row]
-                .spacing(0)
-        ),
-        settings_section_card(
+        settings_group_card(column![
+            enabled_row,
+            settings_divider(),
+            max_response_size_row,
+            settings_divider(),
+            timeout_secs_row,
+            settings_divider(),
+            user_agent_row,
+        ]),
+        settings_group_heading(
             tr(app.desktop_locale, "允许域名"),
             tr(
                 app.desktop_locale,
                 "维护 http_request.allowed_domains 白名单。列表为空时默认拒绝所有外部请求。"
             ),
         ),
-        allowed_domains_section,
-        allowed_domains_list,
+        settings_group_card(allowed_domains),
     ]
     .spacing(16)
     .width(Length::Fill);
@@ -295,3 +288,7 @@ pub(super) fn content(app: &App) -> Element<'_, Message> {
 #[cfg(test)]
 #[path = "system_settings_http_request_tests.rs"]
 mod system_settings_http_request_tests;
+
+#[cfg(test)]
+#[path = "system_settings_http_request_ui_refresh_25_tests.rs"]
+mod ui_refresh_25_tests;

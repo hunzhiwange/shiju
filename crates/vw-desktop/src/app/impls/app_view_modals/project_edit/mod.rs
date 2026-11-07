@@ -9,14 +9,15 @@ mod scheduling_tab;
 
 use crate::app::components::color_picker::{parse_color, render_color_picker};
 use crate::app::components::system_settings_common::{
-    primary_action_btn_style, rounded_action_btn_style, settings_muted_text_style,
-    settings_panel_style,
+    primary_action_btn_style, rounded_action_btn_style, settings_close_button, settings_modal_card,
+    settings_modal_header, settings_modal_layout, settings_modal_overlay_with_backdrop_dismiss,
+    settings_muted_text_style,
 };
+use crate::app::i18n::I18n;
+use crate::app::message::ProjectMessage;
 use crate::app::state::ProjectEditTab;
-use iced::widget::{
-    Space, button, column, container, mouse_area, opaque, row, scrollable, stack, text,
-};
-use iced::{Background, Color, Element, Length, Theme};
+use iced::widget::{Space, button, column, row, text};
+use iced::{Alignment, Color, Element, Length};
 
 use super::{App, Message};
 use common::{format_hex_color, parse_hex_color, tab_button};
@@ -25,192 +26,121 @@ use launch_tab::launch_tab;
 use refresh_tab::refresh_tab;
 use scheduling_tab::scheduling_tab;
 
-/// 模块内可见函数，执行 with_project_edit 对应的应用流程。
-/// 返回值表达处理结果；失败通过错误值、日志或任务消息显式传递。
 pub(crate) fn with_project_edit<'a>(
     app: &'a App,
-    mut root_content: Element<'a, Message>,
+    root_content: Element<'a, Message>,
 ) -> Element<'a, Message> {
-    if app.project_edit_path.is_some() {
-        let cancel =
-            button(text(crate::app::i18n::I18n::new(app.desktop_locale).__("取消")).size(13))
-                .on_press(Message::Project(
-                    crate::app::message::project::ProjectMessage::ProjectEditCanceled,
-                ))
-                .padding([6, 12])
-                .style(rounded_action_btn_style);
-        let save =
-            button(text(crate::app::i18n::I18n::new(app.desktop_locale).__("保存")).size(13))
-                .on_press(Message::Project(
-                    crate::app::message::project::ProjectMessage::ProjectEditSaved,
-                ))
-                .padding([6, 12])
-                .style(primary_action_btn_style);
+    let Some(path) = &app.project_edit_path else {
+        return root_content;
+    };
+    let i18n = I18n::new(app.desktop_locale);
+    let cancel = Message::Project(ProjectMessage::ProjectEditCanceled);
+    let tabs = row![
+        tab_button(
+            i18n.__("基础信息"),
+            ProjectEditTab::General,
+            app.project_edit_tab == ProjectEditTab::General
+        ),
+        tab_button(
+            i18n.__("启动与工作区"),
+            ProjectEditTab::Launch,
+            app.project_edit_tab == ProjectEditTab::Launch
+        ),
+        tab_button(
+            i18n.__("刷新策略"),
+            ProjectEditTab::Refresh,
+            app.project_edit_tab == ProjectEditTab::Refresh
+        ),
+        tab_button(
+            i18n.__("调度与保护"),
+            ProjectEditTab::Scheduling,
+            app.project_edit_tab == ProjectEditTab::Scheduling
+        ),
+    ]
+    .spacing(6)
+    .align_y(Alignment::Center)
+    .wrap()
+    .vertical_spacing(6);
+    let header = column![
+        settings_modal_header(
+            text(i18n.__("编辑项目")).size(18),
+            settings_close_button(cancel.clone()),
+        ),
+        tabs,
+    ]
+    .spacing(10);
 
-        let active_tab_content: Element<'_, Message> = match app.project_edit_tab {
-            ProjectEditTab::General => general_tab(app),
-            ProjectEditTab::Launch => launch_tab(app),
-            ProjectEditTab::Refresh => refresh_tab(app),
-            ProjectEditTab::Scheduling => scheduling_tab(app),
-        };
-
-        let active_tab_hint = match app.project_edit_tab {
-            ProjectEditTab::General => {
-                crate::app::i18n::I18n::new(app.desktop_locale).__("项目名称、图标与展示信息")
-            }
-            ProjectEditTab::Launch => {
-                crate::app::i18n::I18n::new(app.desktop_locale).__("工作区启动与 worktree 行为")
-            }
-            ProjectEditTab::Refresh => {
-                crate::app::i18n::I18n::new(app.desktop_locale).__("自动刷新、代码审查与任务池联动")
-            }
-            ProjectEditTab::Scheduling => {
-                crate::app::i18n::I18n::new(app.desktop_locale).__("调度频率、并发和超时保护")
-            }
-        };
-
-        let tabs = row![
-            tab_button(
-                crate::app::i18n::I18n::new(app.desktop_locale).__("基础信息"),
-                ProjectEditTab::General,
-                app.project_edit_tab == ProjectEditTab::General,
-            ),
-            tab_button(
-                crate::app::i18n::I18n::new(app.desktop_locale).__("启动与工作区"),
-                ProjectEditTab::Launch,
-                app.project_edit_tab == ProjectEditTab::Launch,
-            ),
-            tab_button(
-                crate::app::i18n::I18n::new(app.desktop_locale).__("刷新策略"),
-                ProjectEditTab::Refresh,
-                app.project_edit_tab == ProjectEditTab::Refresh,
-            ),
-            tab_button(
-                crate::app::i18n::I18n::new(app.desktop_locale).__("调度与保护"),
-                ProjectEditTab::Scheduling,
-                app.project_edit_tab == ProjectEditTab::Scheduling,
-            ),
-        ]
-        .spacing(6)
-        .align_y(iced::Alignment::Center);
-
-        let tab_panel = scrollable(container(active_tab_content).padding([0, 7]))
-            .direction(iced::widget::scrollable::Direction::Vertical(
-                iced::widget::scrollable::Scrollbar::new().width(4).scroller_width(4),
-            ))
-            .height(Length::Fixed(420.0));
-
-        let card = container(
-            column![
-                tabs,
-                text(active_tab_hint).size(11).style(settings_muted_text_style),
-                tab_panel,
-                row![Space::new().width(Length::Fill), cancel, save].spacing(8)
-            ]
-            .spacing(14),
-        )
+    let tab = match app.project_edit_tab {
+        ProjectEditTab::General => general_tab(app),
+        ProjectEditTab::Launch => launch_tab(app),
+        ProjectEditTab::Refresh => refresh_tab(app),
+        ProjectEditTab::Scheduling => scheduling_tab(app),
+    };
+    let body = column![
+        tab,
+        text(path)
+            .size(13)
+            .wrapping(iced::widget::text::Wrapping::WordOrGlyph)
+            .style(settings_muted_text_style),
+    ]
+    .spacing(12)
+    .width(Length::Fill);
+    let actions = row![
+        Space::new().width(Length::Fill),
+        button(text(i18n.__("取消")).size(13))
+            .on_press(cancel.clone())
+            .padding([9, 14])
+            .style(rounded_action_btn_style),
+        button(text(i18n.__("保存")).size(13))
+            .on_press(Message::Project(ProjectMessage::ProjectEditSaved))
+            .padding([9, 14])
+            .style(primary_action_btn_style),
+    ]
+    .spacing(8)
+    .align_y(Alignment::Center);
+    let card = settings_modal_layout(header, body, Some(actions.into()))
         .width(Length::Fixed(760.0))
-        .padding([22, 24])
-        .style(|theme: &Theme| {
-            let mut style = settings_panel_style(theme);
-            style.border.radius = 24.0.into();
-            style
-        });
-
-        let overlay = opaque(
-            mouse_area(container(Space::new().width(Length::Fill).height(Length::Fill)).style(
-                |_| iced::widget::container::Style {
-                    background: Some(Background::Color(Color::from_rgba(0.0, 0.0, 0.0, 0.45))),
-                    ..Default::default()
-                },
-            ))
-            .on_press(Message::Project(
-                crate::app::message::project::ProjectMessage::ProjectEditCanceled,
-            )),
-        );
-
-        let modal_layer: Element<'_, Message> = container(mouse_area(card).on_press(Message::None))
-            .width(Length::Fill)
-            .height(Length::Fill)
-            .center_x(Length::Fill)
-            .center_y(Length::Fill)
-            .into();
-
-        root_content = stack![root_content, stack![overlay, modal_layer]].into();
-
-        if app.project_edit_icon_color_picker_open {
-            let current_color = parse_color(&app.project_edit_icon_color)
-                .or_else(|| parse_hex_color(&app.project_edit_icon_color))
-                .unwrap_or(Color::from_rgb8(96, 165, 250));
-            let color_picker_card = container(
-                column![
-                    text(crate::app::i18n::I18n::new(app.desktop_locale).__("选择图标颜色")).size(14),
-                    Space::new().height(8.0),
-                    render_color_picker(
-                        current_color,
-                        app.project_edit_icon_color_format,
-                        false,
-                        {
-                            move |color| {
-                                Message::Project(
-                                    crate::app::message::project::ProjectMessage::ProjectEditIconColorChanged(
-                                        format_hex_color(color),
-                                    ),
-                                )
-                            }
-                        },
-                        |format| {
-                            Message::Project(
-                                crate::app::message::project::ProjectMessage::ProjectEditIconColorFormatChanged(
-                                    format,
-                                ),
-                            )
-                        },
-                        || Message::None,
-                    ),
-                    Space::new().height(8.0),
-                    button(text(crate::app::i18n::I18n::new(app.desktop_locale).__("确定")).size(13))
-                        .on_press(Message::Project(
-                            crate::app::message::project::ProjectMessage::ProjectEditIconColorPickerClosed,
-                        ))
-                        .padding([6, 16])
-                        .style(primary_action_btn_style),
-                ]
-                .spacing(4),
-            )
-            .width(Length::Fixed(280.0))
-            .padding(16)
-            .style(|theme: &Theme| {
-                let mut style = settings_panel_style(theme);
-                style.border.radius = 20.0.into();
-                style
-            });
-
-            let color_overlay = opaque(
-                mouse_area(container(Space::new().width(Length::Fill).height(Length::Fill)).style(
-                    |_| iced::widget::container::Style {
-                        background: Some(Background::Color(Color::from_rgba(0.0, 0.0, 0.0, 0.3))),
-                        ..Default::default()
-                    },
-                ))
-                .on_press(Message::Project(
-                    crate::app::message::project::ProjectMessage::ProjectEditIconColorPickerClosed,
-                )),
-            );
-
-            let color_modal_layer: Element<'_, Message> =
-                container(mouse_area(color_picker_card).on_press(Message::None))
-                    .width(Length::Fill)
-                    .height(Length::Fill)
-                    .center_x(Length::Fill)
-                    .center_y(Length::Fill)
-                    .into();
-
-            root_content = stack![root_content, stack![color_overlay, color_modal_layer]].into();
-        }
+        .height(Length::Fixed(590.0));
+    let project_modal = settings_modal_overlay_with_backdrop_dismiss(root_content, cancel, card);
+    if !app.project_edit_icon_color_picker_open {
+        return project_modal;
     }
 
-    root_content
+    let color = parse_color(&app.project_edit_icon_color)
+        .or_else(|| parse_hex_color(&app.project_edit_icon_color))
+        .unwrap_or(Color::from_rgb8(96, 165, 250));
+    let close = Message::Project(ProjectMessage::ProjectEditIconColorPickerClosed);
+    let card = settings_modal_card(
+        column![
+            settings_modal_header(
+                text(i18n.__("选择图标颜色")).size(16),
+                settings_close_button(close.clone()),
+            ),
+            render_color_picker(
+                color,
+                app.project_edit_icon_color_format,
+                false,
+                |color| Message::Project(ProjectMessage::ProjectEditIconColorChanged(
+                    format_hex_color(color),
+                )),
+                |format| Message::Project(ProjectMessage::ProjectEditIconColorFormatChanged(
+                    format
+                )),
+                || Message::None,
+            ),
+            row![
+                Space::new().width(Length::Fill),
+                button(text(i18n.__("确定")).size(13))
+                    .on_press(close.clone())
+                    .padding([9, 14])
+                    .style(primary_action_btn_style),
+            ],
+        ]
+        .spacing(12),
+    )
+    .width(Length::Fixed(300.0));
+    settings_modal_overlay_with_backdrop_dismiss(project_modal, close, card)
 }
+
 #[cfg(test)]
 mod tests;

@@ -219,6 +219,24 @@ pub fn settings_modal_overlay<'a>(
     close_message: Message,
     card: impl Into<Element<'a, Message>>,
 ) -> Element<'a, Message> {
+    modal_overlay(base, close_message, card.into(), false)
+}
+
+/// 将遮罩点击映射为取消，同时隔离底层控件的事件与焦点。
+pub(crate) fn settings_modal_overlay_with_backdrop_dismiss<'a>(
+    base: Element<'a, Message>,
+    close_message: Message,
+    card: impl Into<Element<'a, Message>>,
+) -> Element<'a, Message> {
+    modal_overlay(Some(base), close_message, card.into(), true)
+}
+
+fn modal_overlay<'a>(
+    base: Option<Element<'a, Message>>,
+    close_message: Message,
+    card: Element<'a, Message>,
+    dismiss_on_backdrop: bool,
+) -> Element<'a, Message> {
     let overlay = opaque(
         mouse_area(
             container(Space::new().width(Length::Fill).height(Length::Fill))
@@ -227,13 +245,10 @@ pub fn settings_modal_overlay<'a>(
         .on_press(close_message.clone()),
     );
 
-    let modal_layer: Element<'a, Message> = opaque(
-        container(card.into())
-            .width(Length::Fill)
-            .height(Length::Fill)
-            .center_x(Length::Fill)
-            .center_y(Length::Fill),
-    );
+    let card = if dismiss_on_backdrop { opaque(card) } else { card };
+    let centered = container(card).center_x(Length::Fill).center_y(Length::Fill);
+    let modal_layer: Element<'_, Message> =
+        if dismiss_on_backdrop { centered.padding(12).into() } else { opaque(centered) };
 
     let modal_stack: Element<'a, Message> = stack![overlay, modal_layer].into();
 

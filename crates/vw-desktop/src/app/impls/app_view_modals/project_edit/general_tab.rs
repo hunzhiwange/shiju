@@ -3,7 +3,8 @@
 
 use crate::app::components::color_picker::parse_color;
 use crate::app::components::system_settings_common::{
-    rounded_action_btn_style, settings_muted_text_style, settings_panel, settings_section_card,
+    SETTINGS_CONTROL_PADDING, SETTINGS_CONTROL_TEXT_SIZE, rounded_action_btn_style,
+    settings_field_label, settings_group_heading, settings_muted_text_style, settings_panel,
     settings_text_input_style,
 };
 use iced::widget::{Image, Space, button, column, container, mouse_area, row, text, text_input};
@@ -12,6 +13,7 @@ use iced::{Background, Color, Element, Length, Theme};
 use super::common::{icon_image_handle, parse_hex_color};
 use super::{App, Message};
 
+const ICON_PREVIEW_SIZE: f32 = 88.0;
 const DEFAULT_ICON_COLOR: Color = Color::from_rgb8(96, 165, 250);
 
 fn icon_color_preset_is_selected(current: &str, preset: &str) -> bool {
@@ -48,31 +50,25 @@ fn icon_preview_press_message(has_preview_image: bool, hovered: bool) -> Message
 /// 模块内可见函数，执行 general_tab 对应的应用流程。
 /// 返回值表达处理结果；失败通过错误值、日志或任务消息显式传递。
 pub(super) fn general_tab<'a>(app: &'a App) -> Element<'a, Message> {
-    let name_input = text_input(
-        crate::app::i18n::I18n::new(app.desktop_locale).__("项目名称"),
-        &app.project_edit_name,
-    )
-    .on_input(|value| {
-        Message::Project(crate::app::message::project::ProjectMessage::ProjectEditNameChanged(
-            value,
-        ))
-    })
-    .padding(crate::app::components::system_settings_common::SETTINGS_CONTROL_PADDING)
-    .size(crate::app::components::system_settings_common::SETTINGS_CONTROL_TEXT_SIZE)
-    .style(settings_text_input_style);
-    let icon_input = text_input(
-        crate::app::i18n::I18n::new(app.desktop_locale)
-            .__("图标文本或图片路径（支持 file:/// 或本地绝对路径）"),
-        &app.project_edit_icon,
-    )
-    .on_input(|value| {
-        Message::Project(crate::app::message::project::ProjectMessage::ProjectEditIconChanged(
-            value,
-        ))
-    })
-    .padding(crate::app::components::system_settings_common::SETTINGS_CONTROL_PADDING)
-    .size(crate::app::components::system_settings_common::SETTINGS_CONTROL_TEXT_SIZE)
-    .style(settings_text_input_style);
+    let i18n = crate::app::i18n::I18n::new(app.desktop_locale);
+    let name_input = text_input(i18n.__("项目名称"), &app.project_edit_name)
+        .on_input(|value| {
+            Message::Project(crate::app::message::project::ProjectMessage::ProjectEditNameChanged(
+                value,
+            ))
+        })
+        .padding(SETTINGS_CONTROL_PADDING)
+        .size(SETTINGS_CONTROL_TEXT_SIZE)
+        .style(settings_text_input_style);
+    let icon_input = text_input("", &app.project_edit_icon)
+        .on_input(|value| {
+            Message::Project(crate::app::message::project::ProjectMessage::ProjectEditIconChanged(
+                value,
+            ))
+        })
+        .padding(SETTINGS_CONTROL_PADDING)
+        .size(SETTINGS_CONTROL_TEXT_SIZE)
+        .style(settings_text_input_style);
 
     let icon_color_presets = [
         "#60a5fa", "#34d399", "#f59e0b", "#f97316", "#ef4444", "#ec4899", "#8b5cf6", "#6366f1",
@@ -84,23 +80,25 @@ pub(super) fn general_tab<'a>(app: &'a App) -> Element<'a, Message> {
     for preset in icon_color_presets {
         let preset_color = parse_hex_color(preset).unwrap_or(DEFAULT_ICON_COLOR);
         let is_selected = icon_color_preset_is_selected(&app.project_edit_icon_color, preset);
-        let preset_button = button(Space::new().width(18.0).height(18.0))
+        let preset_button = button(Space::new().width(20.0).height(20.0))
             .on_press(Message::Project(
                 crate::app::message::project::ProjectMessage::ProjectEditIconColorPresetSelected(
                     preset.to_string(),
                 ),
             ))
             .padding(0)
-            .style(move |theme: &Theme, _status| {
+            .style(move |theme: &Theme, status| {
                 let palette = theme.extended_palette();
-                let border_color = if is_selected {
-                    palette.primary.base.color
+                let (width, color) = if is_selected {
+                    (2.0, palette.primary.strong.color)
+                } else if matches!(status, button::Status::Hovered | button::Status::Pressed) {
+                    (2.0, palette.background.base.text)
                 } else {
-                    palette.background.strong.color
+                    (1.0, palette.background.strong.color)
                 };
                 iced::widget::button::Style {
                     background: Some(Background::Color(preset_color)),
-                    border: iced::Border { width: 1.0, color: border_color, radius: 4.0.into() },
+                    border: iced::Border { width, color, radius: 5.0.into() },
                     ..Default::default()
                 }
             });
@@ -116,13 +114,9 @@ pub(super) fn general_tab<'a>(app: &'a App) -> Element<'a, Message> {
         preset_grid = preset_grid.push(preset_row);
     }
 
-    let icon_color_presets_row = column![
-        text(crate::app::i18n::I18n::new(app.desktop_locale).__("预设颜色"))
-            .size(12)
-            .style(settings_muted_text_style),
-        preset_grid,
-    ]
-    .spacing(4);
+    let icon_color_presets_row =
+        column![text(i18n.__("预设颜色")).size(12).style(settings_muted_text_style), preset_grid,]
+            .spacing(4);
     let current_icon_color = current_icon_color(&app.project_edit_icon_color);
     let color_preview_btn = button(
         row![
@@ -137,7 +131,7 @@ pub(super) fn general_tab<'a>(app: &'a App) -> Element<'a, Message> {
                     ..Default::default()
                 }
             }),
-            text(crate::app::i18n::I18n::new(app.desktop_locale).__("选择颜色")).size(12)
+            text(i18n.__("选择颜色")).size(12)
         ]
         .spacing(6)
         .align_y(iced::Alignment::Center),
@@ -145,7 +139,7 @@ pub(super) fn general_tab<'a>(app: &'a App) -> Element<'a, Message> {
     .on_press(Message::Project(
         crate::app::message::project::ProjectMessage::ProjectEditIconColorPickerToggled,
     ))
-    .padding([6, 10])
+    .padding([9, 12])
     .style(rounded_action_btn_style);
 
     let preview_color = preview_badge_color(&app.project_edit_icon_color);
@@ -159,11 +153,11 @@ pub(super) fn general_tab<'a>(app: &'a App) -> Element<'a, Message> {
             .height(Length::Fill)
             .into()
     } else {
-        text(preview_label).size(68).color(Color::WHITE).into()
+        text(preview_label).size(46).color(Color::WHITE).into()
     };
     let preview_badge = container(preview_badge_content)
-        .width(Length::Fixed(128.0))
-        .height(Length::Fixed(128.0))
+        .width(Length::Fixed(ICON_PREVIEW_SIZE))
+        .height(Length::Fixed(ICON_PREVIEW_SIZE))
         .clip(has_preview_image)
         .align_x(iced::alignment::Horizontal::Center)
         .align_y(iced::alignment::Vertical::Center)
@@ -193,8 +187,8 @@ pub(super) fn general_tab<'a>(app: &'a App) -> Element<'a, Message> {
                 });
             container(iced::widget::stack![preview_badge, clear_overlay])
                 .clip(true)
-                .width(Length::Fixed(128.0))
-                .height(Length::Fixed(128.0))
+                .width(Length::Fixed(ICON_PREVIEW_SIZE))
+                .height(Length::Fixed(ICON_PREVIEW_SIZE))
                 .into()
         } else {
             preview_badge.into()
@@ -209,34 +203,23 @@ pub(super) fn general_tab<'a>(app: &'a App) -> Element<'a, Message> {
         .on_press(icon_preview_press_message(has_preview_image, app.project_edit_icon_hovered));
 
     column![
-        settings_section_card(
-            crate::app::i18n::I18n::new(app.desktop_locale).__("项目展示"),
-            crate::app::i18n::I18n::new(app.desktop_locale)
-                .__("配置项目名称、图标来源与图标主题色。")
+        settings_group_heading(
+            i18n.__("项目展示"),
+            i18n.__("配置项目名称、图标来源与图标主题色。"),
         ),
         settings_panel(
             column![
-                name_input,
-                row![
-                    icon_preview,
-                    column![
-                        icon_input,
-                        icon_color_presets_row,
-                        row![
-                            text(crate::app::i18n::I18n::new(app.desktop_locale).__("图标颜色"))
-                                .size(13)
-                                .style(settings_muted_text_style)
-                                .width(Length::Fill),
-                            color_preview_btn
-                        ]
-                        .spacing(6)
-                        .align_y(iced::Alignment::Center)
-                    ]
-                    .spacing(8)
-                    .width(Length::Fill)
+                column![settings_field_label(i18n.__("项目名称")), name_input].spacing(8),
+                column![
+                    settings_field_label(
+                        i18n.__("图标文本或图片路径（支持 file:/// 或本地绝对路径）")
+                    ),
+                    icon_input,
                 ]
-                .spacing(16)
-                .align_y(iced::Alignment::Start)
+                .spacing(8),
+                row![icon_preview, column![icon_color_presets_row, color_preview_btn].spacing(10),]
+                    .spacing(16)
+                    .align_y(iced::Alignment::Center),
             ]
             .spacing(14)
         )
@@ -244,6 +227,7 @@ pub(super) fn general_tab<'a>(app: &'a App) -> Element<'a, Message> {
     .spacing(12)
     .into()
 }
+
 #[cfg(test)]
 #[path = "general_tab_tests.rs"]
 mod general_tab_tests;

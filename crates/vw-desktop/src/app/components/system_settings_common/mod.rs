@@ -37,7 +37,6 @@ pub use help::{
     settings_help_copy_state, with_settings_help_modal,
 };
 pub use icons::{icon_btn, icon_svg, provider_logo_svg};
-pub(crate) use panels::settings_modal_layout_with_scroll_id;
 pub(super) use panels::settings_row_with_flexible_control;
 pub use panels::{
     settings_control_with_hint, settings_divider, settings_error_banner, settings_group_card,
@@ -45,6 +44,9 @@ pub use panels::{
     settings_modal_overlay, settings_page_heading, settings_page_intro, settings_panel,
     settings_row, settings_section_card, settings_section_content, settings_success_banner,
     settings_value_badge,
+};
+pub(crate) use panels::{
+    settings_modal_layout_with_scroll_id, settings_modal_overlay_with_backdrop_dismiss,
 };
 pub use select::settings_select;
 pub use styles::{

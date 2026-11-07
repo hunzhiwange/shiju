@@ -1,9 +1,13 @@
 //! 渲染应用视图中的模态窗口。
 //! 本模块只描述模态内容和交互消息，不直接承担持久化策略。
 
+use crate::app::components::system_settings_common::{
+    SETTINGS_CONTROL_PADDING, SETTINGS_CONTROL_TEXT_SIZE, rounded_action_btn_style,
+    settings_field_label, settings_segment_button_style, settings_text_input_style,
+};
 use crate::app::state::ProjectEditTab;
-use iced::widget::{button, text};
-use iced::{Background, Color, Element, Theme};
+use iced::widget::{button, row, text, text_input};
+use iced::{Alignment, Color, Element, Length};
 
 use super::super::Message;
 
@@ -45,73 +49,50 @@ pub(super) fn icon_image_handle(icon: &str) -> Option<iced::widget::image::Handl
     if path.exists() { Some(iced::widget::image::Handle::from_path(path)) } else { None }
 }
 
-/// 模块内可见函数，执行 tab_button 对应的应用流程。
-/// 返回值表达处理结果；失败通过错误值、日志或任务消息显式传递。
 pub(super) fn tab_button(
     label: &'static str,
     tab: ProjectEditTab,
     selected: bool,
 ) -> Element<'static, Message> {
-    button(text(label).size(12))
+    button(text(label).size(13))
         .on_press(Message::Project(
             crate::app::message::project::ProjectMessage::ProjectEditTabSelected(tab),
         ))
-        .padding([6, 12])
-        .style(move |theme: &Theme, status| {
-            let palette = theme.extended_palette();
-            let is_dark = theme.palette().background.r
-                + theme.palette().background.g
-                + theme.palette().background.b
-                < 1.5;
-            let background = if selected {
-                Some(Background::Color(if is_dark {
-                    theme.palette().primary.scale_alpha(0.18)
-                } else {
-                    theme.palette().primary.scale_alpha(0.10)
-                }))
-            } else if matches!(status, iced::widget::button::Status::Hovered) {
-                Some(Background::Color(if is_dark {
-                    palette.background.weak.color.scale_alpha(0.84)
-                } else {
-                    Color::WHITE.scale_alpha(0.92)
-                }))
-            } else {
-                Some(Background::Color(if is_dark {
-                    palette.background.base.color.scale_alpha(0.56)
-                } else {
-                    Color::WHITE.scale_alpha(0.78)
-                }))
-            };
-            iced::widget::button::Style {
-                background,
-                text_color: if selected { theme.palette().primary } else { theme.palette().text },
-                border: iced::Border {
-                    radius: 999.0.into(),
-                    width: 1.0,
-                    color: if selected {
-                        theme.palette().primary.scale_alpha(0.45)
-                    } else {
-                        palette.background.strong.color.scale_alpha(0.62)
-                    },
-                },
-                shadow: if selected {
-                    iced::Shadow {
-                        color: theme.palette().primary.scale_alpha(if is_dark {
-                            0.18
-                        } else {
-                            0.08
-                        }),
-                        offset: iced::Vector::new(0.0, 8.0),
-                        blur_radius: 18.0,
-                    }
-                } else {
-                    iced::Shadow::default()
-                },
-                ..Default::default()
-            }
-        })
+        .padding([8, 10])
+        .style(move |theme, status| settings_segment_button_style(theme, status, selected))
         .into()
 }
+
+pub(super) fn numeric_row<'a>(
+    label: &'a str,
+    placeholder: &'a str,
+    input: &'a str,
+    on_input: impl Fn(String) -> Message + 'a,
+    decrease: Message,
+    increase: Message,
+) -> Element<'a, Message> {
+    row![
+        settings_field_label(label).width(Length::Fill),
+        button(text("−").size(14))
+            .on_press(decrease)
+            .padding([9, 12])
+            .style(rounded_action_btn_style),
+        text_input(placeholder, input)
+            .on_input(on_input)
+            .padding(SETTINGS_CONTROL_PADDING)
+            .size(SETTINGS_CONTROL_TEXT_SIZE)
+            .width(Length::Fixed(80.0))
+            .style(settings_text_input_style),
+        button(text("+").size(14))
+            .on_press(increase)
+            .padding([9, 12])
+            .style(rounded_action_btn_style),
+    ]
+    .spacing(8)
+    .align_y(Alignment::Center)
+    .into()
+}
+
 #[cfg(test)]
 #[path = "common_tests.rs"]
 mod common_tests;

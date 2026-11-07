@@ -4,9 +4,10 @@
 //! 注释聚焦调用边界、返回值和错误传播方式，便于后续维护设置页与工具栏行为时快速定位职责。
 
 use crate::app::components::system_settings_common::{
-    SETTINGS_LABEL_WIDTH, danger_action_btn_style, primary_action_btn_style,
-    rounded_action_btn_style, settings_checkbox_style, settings_muted_text_style,
-    settings_page_intro, settings_panel_style, settings_section_card, settings_section_content,
+    SETTINGS_CONTROL_PADDING, SETTINGS_CONTROL_TEXT_SIZE, danger_action_btn_style,
+    primary_action_btn_style, rounded_action_btn_style, settings_checkbox_style,
+    settings_field_label, settings_group_card, settings_group_heading, settings_muted_text_style,
+    settings_page_heading, settings_panel_style, settings_row_with_flexible_control,
     settings_text_input_style,
 };
 use crate::app::{App, Message, message};
@@ -21,22 +22,7 @@ fn field_row<'a>(
     description: &'static str,
     control: impl Into<Element<'a, Message>>,
 ) -> Element<'a, Message> {
-    container(
-        row![
-            column![
-                text(label).size(13),
-                text(description).size(11).style(settings_muted_text_style),
-            ]
-            .spacing(4)
-            .width(Length::Fixed(SETTINGS_LABEL_WIDTH)),
-            container(control.into()).width(Length::Fill),
-        ]
-        .spacing(22)
-        .align_y(Alignment::Center),
-    )
-    .padding([14, 0])
-    .width(Length::Fill)
-    .into()
+    settings_row_with_flexible_control(label, description, 310.0, control)
 }
 
 /// 构建或处理 `view` 对应的界面片段与交互数据。
@@ -53,8 +39,9 @@ fn field_row<'a>(
 ///
 /// 本函数不直接返回错误；无法交互或缺省状态会在控件状态中显式表达。
 pub fn view(app: &App) -> Element<'_, Message> {
+    let i18n = crate::app::i18n::I18n::new(app.desktop_locale);
     let open_folder_btn = button(
-        container(text(crate::app::i18n::I18n::new(app.desktop_locale).__("打开文件夹")))
+        container(text(i18n.__("打开文件夹")))
             .width(Length::Fill)
             .align_x(iced::alignment::Horizontal::Center),
     )
@@ -71,14 +58,10 @@ pub fn view(app: &App) -> Element<'_, Message> {
         .unwrap_or(false);
     let worktree_toggle: Element<'_, Message> = if let Some(project_path) = current_project {
         field_row(
-            crate::app::i18n::I18n::new(app.desktop_locale).__("启用 Worktree"),
-            crate::app::i18n::I18n::new(app.desktop_locale)
-                .__("当前项目新建会话时允许选择/创建工作区。"),
+            i18n.__("启用 Worktree"),
+            i18n.__("当前项目新建会话时允许选择/创建工作区。"),
             checkbox(current_project_worktree_enabled)
-                .label(
-                    crate::app::i18n::I18n::new(app.desktop_locale)
-                        .__("当前项目新建会话时允许选择/创建工作区"),
-                )
+                .label(i18n.__("当前项目新建会话时允许选择/创建工作区"))
                 .on_toggle(move |v| {
                     Message::Settings(message::SettingsMessage::ProjectEnableWorktreeToggled(
                         project_path.clone(),
@@ -89,35 +72,38 @@ pub fn view(app: &App) -> Element<'_, Message> {
         )
     } else {
         field_row(
-            crate::app::i18n::I18n::new(app.desktop_locale).__("启用 Worktree"),
-            crate::app::i18n::I18n::new(app.desktop_locale)
-                .__("仅在打开一个项目后才能配置该开关。"),
-            text(
-                crate::app::i18n::I18n::new(app.desktop_locale)
-                    .__("请先打开一个项目，再配置该项目的 Worktree 开关"),
-            )
-            .size(12)
-            .style(settings_muted_text_style),
+            i18n.__("启用 Worktree"),
+            i18n.__("仅在打开一个项目后才能配置该开关。"),
+            text(i18n.__("请先打开一个项目，再配置该项目的 Worktree 开关"))
+                .size(12)
+                .style(settings_muted_text_style),
         )
     };
 
+    let mut recent_heading = column![settings_group_heading(
+        i18n.__("历史项目"),
+        i18n.__("管理最近打开过的项目名称与快捷入口。"),
+    )]
+    .spacing(8);
+    if app.recent_projects_edits.is_empty() {
+        recent_heading = recent_heading
+            .push(text(i18n.__("暂无最近项目")).size(13).style(settings_muted_text_style));
+    }
+
     let mut col = column![
-        settings_page_intro(
-            crate::app::i18n::I18n::new(app.desktop_locale).__("项目配置"),
-            crate::app::i18n::I18n::new(app.desktop_locale)
-                .__("配置项目打开入口、当前项目 Worktree 行为，以及历史项目管理。")
+        settings_page_heading(
+            i18n.__("项目配置"),
+            i18n.__("配置项目打开入口、当前项目 Worktree 行为，以及历史项目管理。")
         ),
-        settings_section_card(
-            crate::app::i18n::I18n::new(app.desktop_locale).__("当前项目"),
-            crate::app::i18n::I18n::new(app.desktop_locale)
-                .__("打开项目并控制当前项目的新会话 Worktree 策略。")
+        settings_group_heading(
+            i18n.__("当前项目"),
+            i18n.__("打开项目并控制当前项目的新会话 Worktree 策略。")
         ),
-        settings_section_content(column![open_folder_btn, worktree_toggle].spacing(12)),
-        settings_section_card(
-            crate::app::i18n::I18n::new(app.desktop_locale).__("历史项目"),
-            crate::app::i18n::I18n::new(app.desktop_locale)
-                .__("管理最近打开过的项目名称与快捷入口。")
-        ),
+        settings_group_card(column![
+            worktree_toggle,
+            container(open_folder_btn).padding(iced::padding::bottom(16))
+        ]),
+        recent_heading,
     ]
     .spacing(16);
 
@@ -127,36 +113,29 @@ pub fn view(app: &App) -> Element<'_, Message> {
         let is_confirming_delete = app.recent_project_delete_confirm_idx == Some(i);
 
         let mut content = column![
+            settings_field_label(i18n.__("项目名称")),
             row![
-                container(text(crate::app::i18n::I18n::new(app.desktop_locale).__("名字")))
-                    .width(Length::Fixed(52.0))
-                    .style(|t: &iced::Theme| {
-                        iced::widget::container::Style {
-                            text_color: Some(t.palette().text.scale_alpha(0.7)),
-                            ..Default::default()
-                        }
-                    }),
-                text_input(crate::app::i18n::I18n::new(app.desktop_locale).__("项目名称"), p)
+                text_input(i18n.__("项目名称"), p)
                     .on_input(move |v| {
                         Message::Settings(message::SettingsMessage::RecentProjectRenameChanged(
                             i, v,
                         ))
                     })
-                    .padding([10, 12])
-                    .size(13)
+                    .padding(SETTINGS_CONTROL_PADDING)
+                    .size(SETTINGS_CONTROL_TEXT_SIZE)
                     .style(settings_text_input_style)
                     .width(Length::Fill),
-                button(text(crate::app::i18n::I18n::new(app.desktop_locale).__("保存")))
+                button(text(i18n.__("保存")).size(13))
                     .on_press(Message::Settings(message::SettingsMessage::RecentProjectRenameSave(
                         i
                     ),))
-                    .padding([6, 10])
-                    .style(rounded_action_btn_style),
-                button(text(crate::app::i18n::I18n::new(app.desktop_locale).__("删除")))
+                    .padding([9, 12])
+                    .style(primary_action_btn_style),
+                button(text(i18n.__("删除")).size(13))
                     .on_press(Message::Settings(
                         message::SettingsMessage::RecentProjectDeleteRequested(i),
                     ))
-                    .padding([6, 10])
+                    .padding([9, 12])
                     .style(rounded_action_btn_style),
             ]
             .spacing(10)
@@ -169,21 +148,18 @@ pub fn view(app: &App) -> Element<'_, Message> {
         if is_confirming_delete {
             content = content.push(
                 row![
-                    container(text(
-                        crate::app::i18n::I18n::new(app.desktop_locale).__("确认删除该项目？")
-                    ))
-                    .width(Length::Fill),
-                    button(text(crate::app::i18n::I18n::new(app.desktop_locale).__("取消")))
+                    container(text(i18n.__("确认删除该项目？"))).width(Length::Fill),
+                    button(text(i18n.__("取消")))
                         .on_press(Message::Settings(
                             message::SettingsMessage::RecentProjectDeleteCanceled,
                         ))
-                        .padding([6, 10])
+                        .padding([9, 12])
                         .style(rounded_action_btn_style),
-                    button(text(crate::app::i18n::I18n::new(app.desktop_locale).__("确认删除")))
+                    button(text(i18n.__("确认删除")))
                         .on_press(Message::Settings(
                             message::SettingsMessage::RecentProjectDeleteConfirmed(i),
                         ))
-                        .padding([6, 10])
+                        .padding([9, 12])
                         .style(danger_action_btn_style),
                 ]
                 .spacing(10)
@@ -193,10 +169,13 @@ pub fn view(app: &App) -> Element<'_, Message> {
         }
 
         let tip_content =
-            container(text(path.clone())).padding([6, 10]).style(settings_panel_style);
+            container(text(path).size(13).wrapping(iced::widget::text::Wrapping::WordOrGlyph))
+                .max_width(360)
+                .padding([9, 12])
+                .style(settings_panel_style);
 
         let open_btn = button(
-            container(text(crate::app::i18n::I18n::new(app.desktop_locale).__("打开项目")))
+            container(text(i18n.__("打开项目")))
                 .width(Length::Fill)
                 .align_x(iced::alignment::Horizontal::Center),
         )
@@ -207,7 +186,7 @@ pub fn view(app: &App) -> Element<'_, Message> {
 
         content = content.push(Tooltip::new(open_btn, tip_content, TooltipPosition::Top).gap(10));
 
-        let card = container(content).padding(12).width(Length::Fill).style(settings_panel_style);
+        let card = settings_group_card(container(content).padding([16, 0]));
 
         col = col.push(card);
     }
@@ -217,3 +196,7 @@ pub fn view(app: &App) -> Element<'_, Message> {
 #[cfg(test)]
 #[path = "system_settings_projects_tests.rs"]
 mod system_settings_projects_tests;
+
+#[cfg(test)]
+#[path = "system_settings_projects_ui_refresh_30_tests.rs"]
+mod system_settings_projects_ui_refresh_30_tests;

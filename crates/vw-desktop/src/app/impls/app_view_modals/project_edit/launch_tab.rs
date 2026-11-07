@@ -2,9 +2,11 @@
 //! 本模块只描述模态内容和交互消息，不直接承担持久化策略。
 
 use crate::app::components::system_settings_common::{
-    settings_muted_text_style, settings_panel, settings_section_card, settings_text_editor_style,
+    SETTINGS_CONTROL_PADDING, SETTINGS_CONTROL_TEXT_SIZE, settings_field_label,
+    settings_group_heading, settings_muted_text_style, settings_panel, settings_text_editor_style,
+    settings_toggle,
 };
-use iced::widget::{column, row, text, text_editor, toggler};
+use iced::widget::{column, row, text, text_editor};
 use iced::{Element, Length};
 
 use super::{App, Message};
@@ -24,39 +26,32 @@ fn worktree_toggled(value: bool) -> Message {
 /// 模块内可见函数，执行 launch_tab 对应的应用流程。
 /// 返回值表达处理结果；失败通过错误值、日志或任务消息显式传递。
 pub(super) fn launch_tab<'a>(app: &'a App) -> Element<'a, Message> {
+    let i18n = crate::app::i18n::I18n::new(app.desktop_locale);
     let start_script_input = column![
-        text(crate::app::i18n::I18n::new(app.desktop_locale).__("工作区启动脚本")).size(13),
-        text(
-            crate::app::i18n::I18n::new(app.desktop_locale)
-                .__("在创建工作区后执行，可填写多行命令。")
-        )
-        .size(11)
-        .style(settings_muted_text_style),
+        settings_field_label(i18n.__("工作区启动脚本")),
+        text(i18n.__("在创建工作区后执行，可填写多行命令。"))
+            .size(13)
+            .style(settings_muted_text_style),
         text_editor(&app.project_edit_start_script_editor)
-            .placeholder(
-                crate::app::i18n::I18n::new(app.desktop_locale).__("例如：\nbun install\nbun dev")
-            )
+            .placeholder(i18n.__("例如：\nbun install\nbun dev"))
             .on_action(start_script_editor_action)
             .height(Length::Fixed(96.0))
-            .padding([8, 10])
-            .size(13)
+            .padding(SETTINGS_CONTROL_PADDING)
+            .size(SETTINGS_CONTROL_TEXT_SIZE)
             .style(settings_text_editor_style)
     ]
     .spacing(6);
 
     let worktree_toggle = row![
-        text(crate::app::i18n::I18n::new(app.desktop_locale).__("启用 Worktree"))
-            .size(13)
-            .width(Length::Fill),
-        toggler(app.project_edit_worktree_enabled).on_toggle(worktree_toggled)
+        settings_field_label(i18n.__("启用 Worktree")).width(Length::Fill),
+        settings_toggle(app.project_edit_worktree_enabled).on_toggle(worktree_toggled)
     ]
     .align_y(iced::Alignment::Center);
 
     column![
-        settings_section_card(
-            crate::app::i18n::I18n::new(app.desktop_locale).__("启动与工作区"),
-            crate::app::i18n::I18n::new(app.desktop_locale)
-                .__("设置 worktree 启用策略，以及创建工作区后的启动命令。")
+        settings_group_heading(
+            i18n.__("启动与工作区"),
+            i18n.__("设置 worktree 启用策略，以及创建工作区后的启动命令。")
         ),
         settings_panel(column![start_script_input, worktree_toggle].spacing(14))
     ]

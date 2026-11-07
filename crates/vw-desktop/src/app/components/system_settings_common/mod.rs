@@ -47,6 +47,7 @@ pub use panels::{
 };
 pub(crate) use panels::{
     settings_modal_layout_with_scroll_id, settings_modal_overlay_with_backdrop_dismiss,
+    settings_modal_overlay_with_escape,
 };
 pub use select::settings_select;
 pub use styles::{

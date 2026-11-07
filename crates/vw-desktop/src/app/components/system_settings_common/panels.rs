@@ -222,6 +222,68 @@ pub fn settings_modal_overlay<'a>(
     modal_overlay(base, close_message, card.into(), false)
 }
 
+/// 让当前弹窗通过 Escape 发送和关闭按钮相同的取消消息。
+pub(crate) fn settings_modal_overlay_with_escape<'a>(
+    base: Element<'a, Message>,
+    close_message: Message,
+    card: impl Into<Element<'a, Message>>,
+) -> Element<'a, Message> {
+    stack![
+        settings_modal_overlay(Some(base), close_message.clone(), card),
+        Element::new(ModalEscape(close_message)),
+    ]
+    .into()
+}
+
+struct ModalEscape(Message);
+
+impl Widget<Message, Theme, Renderer> for ModalEscape {
+    fn size(&self) -> Size<Length> {
+        Size::new(Length::Shrink, Length::Shrink)
+    }
+
+    fn layout(&mut self, _: &mut Tree, _: &Renderer, _: &layout::Limits) -> layout::Node {
+        layout::Node::new(Size::ZERO)
+    }
+
+    fn draw(
+        &self,
+        _: &Tree,
+        _: &mut Renderer,
+        _: &Theme,
+        _: &renderer::Style,
+        _: Layout<'_>,
+        _: mouse::Cursor,
+        _: &Rectangle,
+    ) {
+    }
+
+    fn update(
+        &mut self,
+        _: &mut Tree,
+        event: &iced::Event,
+        _: Layout<'_>,
+        _: mouse::Cursor,
+        _: &Renderer,
+        _: &mut dyn iced::advanced::Clipboard,
+        shell: &mut iced::advanced::Shell<'_, Message>,
+        _: &Rectangle,
+    ) {
+        use iced::keyboard::{Event, Key, key::Named};
+        if let iced::Event::Keyboard(Event::KeyPressed {
+            key: Key::Named(Named::Escape),
+            repeat,
+            ..
+        }) = event
+        {
+            shell.capture_event();
+            if !repeat {
+                shell.publish(self.0.clone());
+            }
+        }
+    }
+}
+
 /// 将遮罩点击映射为取消，同时隔离底层控件的事件与焦点。
 pub(crate) fn settings_modal_overlay_with_backdrop_dismiss<'a>(
     base: Element<'a, Message>,

@@ -1,9 +1,20 @@
 //! 渲染应用视图中的模态窗口。
 //! 本模块只描述模态内容和交互消息，不直接承担持久化策略。
 
-use iced::Element;
-
 use super::{App, Message};
+use crate::app::components::system_settings_common::{
+    SETTINGS_CONTROL_PADDING, SETTINGS_CONTROL_TEXT_SIZE, primary_action_btn_style,
+    rounded_action_btn_style, settings_close_button, settings_field_label, settings_modal_card,
+    settings_modal_header, settings_modal_overlay_with_escape, settings_muted_text_style,
+    settings_text_input_style,
+};
+use crate::app::i18n::I18n;
+use crate::app::message::ProjectMessage;
+use iced::widget::scrollable::{Direction, Scrollbar};
+use iced::widget::{
+    Space, TextInput, button, column, container, row, scrollable, text, text_input,
+};
+use iced::{Alignment, Element, Length};
 
 fn file_tree_rename_old_name(path: Option<&str>) -> &str {
     path.and_then(|path| std::path::Path::new(path).file_name())
@@ -27,141 +38,110 @@ fn session_rename_old_title<'a>(app: &'a App, session_id: &str) -> &'a str {
         .unwrap_or("")
 }
 
-/// 模块内可见函数，执行 with_file_tree_rename 对应的应用流程。
-/// 返回值表达处理结果；失败通过错误值、日志或任务消息显式传递。
 pub(crate) fn with_file_tree_rename<'a>(
     app: &'a App,
-    mut root_content: Element<'a, Message>,
+    root_content: Element<'a, Message>,
 ) -> Element<'a, Message> {
-    if app.file_tree_rename_path.is_some() {
-        use crate::app::components::system_settings_common::{
-            primary_action_btn_style, rounded_action_btn_style, settings_modal_card,
-            settings_modal_overlay, settings_muted_text_style, settings_text_input_style,
-        };
-        use iced::Length;
-        use iced::widget::{Space, button, column, row, text, text_input};
+    let Some(path) = app.file_tree_rename_path.as_deref() else {
+        return root_content;
+    };
+    let i18n = I18n::new(app.desktop_locale);
+    let input = text_input(i18n.__("输入新名称"), &app.file_tree_rename_value)
+        .on_input(|value| Message::Project(ProjectMessage::FileTreeRenameChanged(value)));
 
-        let old_name = file_tree_rename_old_name(app.file_tree_rename_path.as_deref());
-
-        let input = text_input(
-            crate::app::i18n::I18n::new(app.desktop_locale).__("输入新名称"),
-            &app.file_tree_rename_value,
-        )
-        .on_input(|value| {
-            Message::Project(crate::app::message::project::ProjectMessage::FileTreeRenameChanged(
-                value,
-            ))
-        })
-        .on_submit(Message::Project(
-            crate::app::message::project::ProjectMessage::FileTreeRenameSave,
-        ))
-        .padding([10, 12])
-        .style(settings_text_input_style);
-
-        let cancel =
-            button(text(crate::app::i18n::I18n::new(app.desktop_locale).__("取消")).size(13))
-                .on_press(Message::Project(
-                    crate::app::message::project::ProjectMessage::FileTreeRenameCancel,
-                ))
-                .padding([8, 14])
-                .style(rounded_action_btn_style);
-        let save =
-            button(text(crate::app::i18n::I18n::new(app.desktop_locale).__("确定")).size(13))
-                .on_press(Message::Project(
-                    crate::app::message::project::ProjectMessage::FileTreeRenameSave,
-                ))
-                .padding([8, 14])
-                .style(primary_action_btn_style);
-
-        let close_message =
-            Message::Project(crate::app::message::project::ProjectMessage::FileTreeRenameCancel);
-
-        let card = settings_modal_card(
-            column![
-                text(crate::app::i18n::I18n::new(app.desktop_locale).__("重命名")).size(18),
-                text(old_name).size(12).style(settings_muted_text_style),
-                Space::new().height(8.0),
-                input,
-                Space::new().height(10.0),
-                row![Space::new().width(Length::Fill), cancel, save].spacing(8)
-            ]
-            .spacing(8),
-        )
-        .width(Length::Fixed(400.0));
-
-        root_content = settings_modal_overlay(Some(root_content), close_message, card);
-    }
-
-    root_content
+    rename_dialog(
+        i18n,
+        i18n.__("重命名"),
+        file_tree_rename_old_name(Some(path)),
+        input,
+        ProjectMessage::FileTreeRenameSave,
+        ProjectMessage::FileTreeRenameCancel,
+        root_content,
+    )
 }
 
-/// 模块内可见函数，执行 with_session_rename 对应的应用流程。
-/// 返回值表达处理结果；失败通过错误值、日志或任务消息显式传递。
 pub(crate) fn with_session_rename<'a>(
     app: &'a App,
-    mut root_content: Element<'a, Message>,
+    root_content: Element<'a, Message>,
 ) -> Element<'a, Message> {
-    if let Some(ref session_id) = app.session_rename_id {
-        use crate::app::components::system_settings_common::{
-            primary_action_btn_style, rounded_action_btn_style, settings_modal_card,
-            settings_modal_overlay, settings_muted_text_style, settings_text_input_style,
-        };
-        use iced::Length;
-        use iced::widget::{Space, button, column, row, text, text_input};
+    let Some(session_id) = app.session_rename_id.as_deref() else {
+        return root_content;
+    };
+    let i18n = I18n::new(app.desktop_locale);
+    let input = text_input(i18n.__("输入新名称"), &app.session_rename_value)
+        .on_input(|value| Message::Project(ProjectMessage::SessionRenameChanged(value)));
 
-        let old_title = session_rename_old_title(app, session_id);
+    rename_dialog(
+        i18n,
+        i18n.__("会话重命名"),
+        session_rename_old_title(app, session_id),
+        input,
+        ProjectMessage::SessionRenameSave,
+        ProjectMessage::SessionRenameCancel,
+        root_content,
+    )
+}
 
-        let input = text_input(
-            crate::app::i18n::I18n::new(app.desktop_locale).__("输入新名称"),
-            &app.session_rename_value,
-        )
-        .on_input(|value| {
-            Message::Project(crate::app::message::project::ProjectMessage::SessionRenameChanged(
-                value,
-            ))
-        })
-        .on_submit(Message::Project(
-            crate::app::message::project::ProjectMessage::SessionRenameSave,
-        ))
-        .padding([10, 12])
-        .style(settings_text_input_style);
-
-        let cancel =
-            button(text(crate::app::i18n::I18n::new(app.desktop_locale).__("取消")).size(13))
-                .on_press(Message::Project(
-                    crate::app::message::project::ProjectMessage::SessionRenameCancel,
-                ))
-                .padding([8, 14])
-                .style(rounded_action_btn_style);
-        let save =
-            button(text(crate::app::i18n::I18n::new(app.desktop_locale).__("确定")).size(13))
-                .on_press(Message::Project(
-                    crate::app::message::project::ProjectMessage::SessionRenameSave,
-                ))
-                .padding([8, 14])
-                .style(primary_action_btn_style);
-
-        let close_message =
-            Message::Project(crate::app::message::project::ProjectMessage::SessionRenameCancel);
-
-        let card = settings_modal_card(
-            column![
-                text(crate::app::i18n::I18n::new(app.desktop_locale).__("会话重命名")).size(18),
-                text(old_title).size(12).style(settings_muted_text_style),
-                Space::new().height(8.0),
-                input,
-                Space::new().height(10.0),
-                row![Space::new().width(Length::Fill), cancel, save].spacing(8)
-            ]
-            .spacing(8),
-        )
-        .width(Length::Fixed(500.0));
-
-        root_content = settings_modal_overlay(Some(root_content), close_message, card);
+fn rename_dialog<'a>(
+    i18n: I18n,
+    title: &'a str,
+    old_name: &'a str,
+    input: TextInput<'a, Message>,
+    save: ProjectMessage,
+    cancel: ProjectMessage,
+    root_content: Element<'a, Message>,
+) -> Element<'a, Message> {
+    let save = Message::Project(save);
+    let cancel = Message::Project(cancel);
+    let input = input
+        .on_submit(save.clone())
+        .padding(SETTINGS_CONTROL_PADDING)
+        .size(SETTINGS_CONTROL_TEXT_SIZE)
+        .style(settings_text_input_style)
+        .width(Length::Fill);
+    let mut content =
+        column![
+            settings_modal_header(text(title).size(20), settings_close_button(cancel.clone()),)
+        ]
+        .spacing(14);
+    if !old_name.is_empty() {
+        let old_name = text(old_name)
+            .size(13)
+            .style(settings_muted_text_style)
+            .wrapping(text::Wrapping::WordOrGlyph);
+        content = content.push(
+            container(
+                scrollable(container(old_name).padding([0, 7]).width(Length::Fill))
+                    .direction(Direction::Vertical(Scrollbar::new().width(4).scroller_width(4)))
+                    .width(Length::Fill),
+            )
+            .max_height(96),
+        );
     }
 
-    root_content
+    let actions = row![
+        Space::new().width(Length::Fill),
+        button(text(i18n.__("取消")).size(13))
+            .on_press(cancel.clone())
+            .padding([9, 14])
+            .style(rounded_action_btn_style),
+        button(text(i18n.__("确定")).size(13))
+            .on_press(save)
+            .padding([9, 14])
+            .style(primary_action_btn_style),
+    ]
+    .spacing(8)
+    .align_y(Alignment::Center);
+
+    let card = settings_modal_card(
+        content
+            .push(column![settings_field_label(i18n.__("名称")), input].spacing(6))
+            .push(actions),
+    )
+    .width(Length::Fixed(480.0));
+    settings_modal_overlay_with_escape(root_content, cancel, container(card).padding(12))
 }
+
 #[cfg(test)]
 #[path = "rename_tests.rs"]
 mod rename_tests;

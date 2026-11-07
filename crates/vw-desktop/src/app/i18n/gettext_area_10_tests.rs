@@ -65,16 +65,12 @@ async fn desktop_gettext_area_10_dynamic_feedback_retains_raw_arguments() {
     app.file_tree_rename_path = Some("/project/file".into());
     app.file_tree_rename_value = "../invalid".into();
     let _ = crate::app::message::project::update(&mut app, ProjectMessage::FileTreeRenameSave);
-    assert_eq!(app.error_message.as_deref(), Some("文件名不合法"));
+    let message = app.active_toast.as_ref().unwrap().localized_message.as_ref().unwrap();
     for (locale, expected) in [
         (DesktopLocale::SimplifiedChinese, "文件名不合法"),
         (DesktopLocale::TraditionalChinese, "檔案名稱無效"),
         (DesktopLocale::English, "Invalid file name"),
     ] {
-        app.desktop_locale = locale;
-        assert_eq!(
-            app.render_input_error(super::input::ErrorField::General, "文件名不合法"),
-            expected
-        );
+        assert_eq!(message.render(I18n::new(locale)).unwrap(), expected);
     }
 }

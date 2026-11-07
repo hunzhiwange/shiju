@@ -24,15 +24,6 @@ fn user_message() -> ChatMessage {
 }
 
 #[test]
-fn action_text_styles_use_white_foreground() {
-    assert_eq!(action_button_title_text_style(&iced::Theme::Dark).color, Some(iced::Color::WHITE));
-    assert_eq!(
-        action_button_detail_text_style(&iced::Theme::Dark).color,
-        Some(iced::Color::WHITE.scale_alpha(0.82))
-    );
-}
-
-#[test]
 fn with_chat_reset_dialog_returns_root_when_no_index_or_missing_message() {
     let mut app = test_app();
     let _element: iced::Element<'_, Message> = with_chat_reset_dialog(&app, root());

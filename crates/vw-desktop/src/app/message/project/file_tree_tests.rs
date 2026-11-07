@@ -187,8 +187,11 @@ fn rename_save_rejects_each_invalid_name_shape() {
             crate::app::message::project::ProjectMessage::FileTreeRenameSave,
         );
 
-        assert_eq!(app.error_message.as_deref(), Some("文件名不合法"));
+        let toast = app.active_toast.as_ref().expect("invalid name feedback");
+        assert!(matches!(toast.kind, crate::app::state::ToastKind::Error));
+        assert_eq!(toast.message, "文件名不合法");
         assert_eq!(app.file_tree_rename_path.as_deref(), Some("/tmp/a.txt"));
+        assert_eq!(app.file_tree_rename_value, invalid_name);
     }
 }
 

@@ -266,12 +266,11 @@ pub(crate) fn handle(app: &mut App, message: ProjectMessage) -> Option<iced::Tas
                 || new_name.contains('/')
                 || new_name.contains('\\')
             {
-                app.set_localized_input_error(
-                    crate::app::i18n::input::ErrorField::General,
+                return Some(app.show_localized_toast(
+                    crate::app::state::ToastKind::Error,
                     "文件名不合法",
                     vec![],
-                );
-                return Some(iced::Task::none());
+                ));
             }
             let old = std::path::PathBuf::from(&old_path);
             let Some(parent) = old.parent() else {

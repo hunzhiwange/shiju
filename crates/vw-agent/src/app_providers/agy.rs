@@ -116,7 +116,7 @@ impl AppProviderStore {
 }
 
 #[cfg(any(test, target_os = "macos"))]
-fn profile_from_record(row: &Value) -> Result<AgyProfile, String> {
+pub(super) fn profile_from_record(row: &Value) -> Result<AgyProfile, String> {
     if row.pointer("/meta/authBinding").is_some()
         || row.pointer("/meta/liveConfigManaged").is_some_and(|v| v == true)
     {

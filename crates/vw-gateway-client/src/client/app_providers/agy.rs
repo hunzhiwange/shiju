@@ -3,6 +3,40 @@ use super::super::agent_apps_read_api::AgentAppsReadError as Error;
 use super::GatewayClient;
 use vw_api_types::app_providers::agy::*;
 impl GatewayClient {
+    pub async fn agy_form_delete(
+        &self,
+        id: &str,
+        body: &AgyTarget,
+        token: &str,
+    ) -> Result<vw_api_types::app_providers::delete::AppProviderDeleted, Error> {
+        self.agy_request(id, "POST", "/form/delete", body, token).await
+    }
+
+    pub async fn agy_form_read(
+        &self,
+        id: &str,
+        body: &AgyTarget,
+        token: &str,
+    ) -> Result<AgyFormView, Error> {
+        self.agy_request(id, "POST", "/form/read", body, token).await
+    }
+    pub async fn agy_form_create(
+        &self,
+        id: &str,
+        body: &AgyFormWrite,
+        token: &str,
+    ) -> Result<AgySaved, Error> {
+        self.agy_request(id, "POST", "/form", body, token).await
+    }
+    pub async fn agy_form_update(
+        &self,
+        id: &str,
+        body: &AgyFormWrite,
+        token: &str,
+    ) -> Result<AgySaved, Error> {
+        self.agy_request(id, "PATCH", "/form", body, token).await
+    }
+
     pub async fn agy_provider_save(
         &self,
         id: &str,

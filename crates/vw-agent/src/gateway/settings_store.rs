@@ -257,6 +257,27 @@ impl GatewaySettingsStore {
         }
     }
 
+    /// Remove only the exact scoped record checked by the domain reference guard.
+    pub(crate) fn compare_delete(
+        &self,
+        tenant: &TenantScope,
+        namespace: &str,
+        config_key: &str,
+        expected: &str,
+    ) -> Result<bool> {
+        validate_identifier(namespace, "gateway settings namespace")?;
+        validate_identifier(config_key, "gateway settings config key")?;
+        match &self.provider {
+            GatewaySettingsStoreProvider::Sqlite(database) => {
+                let connection = database.connect_sqlite()?;
+                Ok(connection.execute("DELETE FROM gateway_settings WHERE platform_id=?1 AND company_id=?2 AND namespace=?3 AND config_key=?4 AND payload_json=?5",params![tenant.platform_id().as_ref(),tenant.company_id().as_ref(),namespace,config_key,expected])?==1)
+            }
+            GatewaySettingsStoreProvider::Postgres(store) => {
+                store.compare_delete(tenant, namespace, config_key, expected)
+            }
+        }
+    }
+
     /// 删除单条设置并返回是否命中记录。
     pub(crate) fn delete(
         &self,

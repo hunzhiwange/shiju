@@ -207,3 +207,48 @@ impl Lease {
         Ok(())
     }
 }
+
+/// Catalog deletion is exclusive with every authorized Agy launch, including native login.
+/// A separate control lock never removes or provisions a persistent session/profile.
+pub fn catalog_lease(scope: &Scope<'_>, exclusive: bool) -> Result<File, WriteError> {
+    use base64::{Engine as _, engine::general_purpose::URL_SAFE_NO_PAD};
+    use sha2::{Digest, Sha256};
+    super::super::validate_identity(scope.provider).map_err(|_| WriteError::InvalidResource)?;
+    let root = Directory::root(scope.private_root, true)?;
+    let identity = serde_json::to_vec(&(scope.tenant, scope.provider))
+        .map_err(|_| WriteError::InvalidResource)?;
+    let name = CString::new(format!(
+        ".agy-catalog-{}.lock",
+        URL_SAFE_NO_PAD.encode(Sha256::digest(identity))
+    ))
+    .map_err(|_| WriteError::InvalidResource)?;
+    let fd = unsafe {
+        libc::openat(
+            root.file.as_raw_fd(),
+            name.as_ptr(),
+            libc::O_RDWR | libc::O_CREAT | libc::O_NOFOLLOW | libc::O_NONBLOCK | libc::O_CLOEXEC,
+            0o600,
+        )
+    };
+    if fd < 0 {
+        return Err(WriteError::InvalidResource);
+    }
+    // SAFETY: openat returned a new owned descriptor without following a final symlink.
+    let lock = unsafe { File::from_raw_fd(fd) };
+    let m = lock.metadata().map_err(|_| WriteError::Io)?;
+    if !m.is_file()
+        || m.uid() != unsafe { libc::geteuid() }
+        || m.mode() & 0o077 != 0
+        || m.nlink() != 1
+    {
+        return Err(WriteError::InvalidResource);
+    }
+    if unsafe {
+        libc::flock(fd, (if exclusive { libc::LOCK_EX } else { libc::LOCK_SH }) | libc::LOCK_NB)
+    } != 0
+    {
+        return Err(WriteError::Conflict);
+    }
+    root.current()?;
+    Ok(lock)
+}

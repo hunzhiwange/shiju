@@ -166,6 +166,10 @@ fn cc04_agy_native_login_uses_only_session_model_and_invalid_inputs_do_not_write
     prepare(&scope, &p, material(t.path()))
         .unwrap()
         .run_with(|cmd| {
+            assert!(
+                catalog_lease(&scope, true).is_err(),
+                "native login process retains catalog reference"
+            );
             assert_eq!(
                 cmd.get_args().collect::<Vec<_>>(),
                 vec![std::ffi::OsStr::new("--model=Display Name")]
@@ -177,6 +181,7 @@ fn cc04_agy_native_login_uses_only_session_model_and_invalid_inputs_do_not_write
             std::process::Command::new("/usr/bin/true").status()
         })
         .unwrap();
+    assert!(catalog_lease(&scope, true).is_ok());
     assert!(!scope.directory().exists());
     for (key, url, model) in [
         (Some("bad\nkey"), None, None),

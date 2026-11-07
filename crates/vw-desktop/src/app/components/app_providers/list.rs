@@ -82,16 +82,20 @@ pub(crate) fn overlay<'a>(
         }
         for entry in rows {
             let p = state.presentation(&entry.provider.id);
-            let member = match entry.native_member {
-                ProviderMembership::Present => "已添加",
-                ProviderMembership::Absent => "未添加",
-                ProviderMembership::Unknown => "成员状态未知",
+            let member = if scope.app == AppId::Agy {
+                "成员操作不适用"
+            } else {
+                match entry.native_member {
+                    ProviderMembership::Present => "已添加",
+                    ProviderMembership::Absent => "未添加",
+                    ProviderMembership::Unknown => "成员状态未知",
+                }
             };
             let enabled = state.form.is_none() && state.editor.is_none() && !state.loading;
             let id = &entry.provider.id;
             let mut actions = row![
                 edit_action("编辑", id, false, false, enabled),
-                edit_action("复制", id, true, false, enabled),
+                edit_action("复制", id, true, false, enabled && scope.app != AppId::Agy),
                 edit_action("删除", id, false, true, enabled),
             ]
             .spacing(8);

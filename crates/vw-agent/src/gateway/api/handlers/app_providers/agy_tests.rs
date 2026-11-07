@@ -172,9 +172,108 @@ printf '%s' "$dir" > proof
         std::fs::read(home.join(".gemini/antigravity-cli/settings.json")).unwrap(),
         b"native-settings"
     );
+
+    // Real SDK -> HTTP -> tenant SQLite form editing; private settings change only on launch.
+    use vw_api_types::app_providers::{basic::ProviderBasic, create::ProviderSecretWrite};
+    let target = AgyTarget { target_host_id: "host".into() };
+    let public = client.agy_form_read("one", &target, TOKEN).await.unwrap();
+    let public_json = serde_json::to_string(&public).unwrap();
+    assert!(!public_json.contains("fake-key"));
+    let mut edit = AgyFormWrite {
+        target_host_id: "host".into(),
+        fields: ProviderBasic {
+            name: "中文档案".into(),
+            category: Some("工作".into()),
+            notes: Some("保留会话".into()),
+            website_url: None,
+        },
+        model: Some("新的中文模型".into()),
+        base_url: public.base_url.clone(),
+        api_key: ProviderSecretWrite::Keep,
+        revision: Some(public.revision.clone()),
+    };
+    let original = std::fs::read(path.join("antigravity-cli/settings.json")).unwrap();
+    let before = crate::app_providers::AppProviderStore::new(db.clone())
+        .unwrap()
+        .agy_record(&tenant, "one")
+        .unwrap();
+    edit.api_key = ProviderSecretWrite::Clear;
+    assert!(client.agy_form_update("one", &edit, TOKEN).await.is_err());
+    assert_eq!(
+        crate::app_providers::AppProviderStore::new(db.clone())
+            .unwrap()
+            .agy_record(&tenant, "one")
+            .unwrap(),
+        before
+    );
+    edit.api_key = ProviderSecretWrite::Keep;
+    edit.base_url = Some("https://other.example.test".into());
+    assert!(client.agy_form_update("one", &edit, TOKEN).await.is_err());
+    edit.base_url = public.base_url.clone();
+    assert!(client.agy_form_update("one", &edit, TOKEN).await.unwrap().catalog_saved);
+    assert_eq!(std::fs::read(path.join("antigravity-cli/settings.json")).unwrap(), original);
+    assert!(
+        client.agy_form_update("one", &edit, TOKEN).await.is_err(),
+        "stale revision must not overwrite"
+    );
+    let public = client.agy_form_read("one", &target, TOKEN).await.unwrap();
+    assert_eq!(public.model.as_deref(), Some("新的中文模型"));
+    assert!(public.has_saved_key);
+    assert_eq!(public.fields.notes.as_deref(), Some("保留会话"));
+    // Keep the actual controlled process alive while exercising the deletion guard.
+    std::fs::write(home.join("hold"), b"hold").unwrap();
+    let script = script.replace(
+        "printf '%s' session",
+        "while test -f hold; do sleep 0.02; done\nprintf '%s' session",
+    );
+    std::fs::write(home.join("bin/agy"), script).unwrap();
+    let second = client
+        .agent_apps_launch_identity_authorized("host", &launch, &identity, TOKEN)
+        .await
+        .unwrap()
+        .session_id
+        .unwrap();
+    assert!(
+        client.agy_form_delete("one", &target, TOKEN).await.is_err(),
+        "active catalog lease blocks deletion"
+    );
+    std::fs::remove_file(home.join("hold")).unwrap();
+    let mut completed = false;
+    for _ in 0..200 {
+        let status = client.agent_apps_launch_session("host", &second, TOKEN).await.unwrap();
+        if status.phase == LaunchSessionPhase::Completed {
+            completed = true;
+            break;
+        }
+        tokio::time::sleep(std::time::Duration::from_millis(10)).await;
+    }
+    assert!(completed);
+    let changed: Value =
+        serde_json::from_slice(&std::fs::read(path.join("antigravity-cli/settings.json")).unwrap())
+            .unwrap();
+    assert_eq!(changed["model"], "新的中文模型");
+    assert_eq!(std::fs::read(path.join("session.json")).unwrap(), b"session");
+    // Delete only the catalog row; retained profile/session/login remain unchanged.
+    assert!(client.agy_form_delete("one", &target, TOKEN).await.unwrap().deleted);
+    assert!(client.agy_form_read("one", &target, TOKEN).await.is_err());
+    assert!(path.join("session.json").is_file());
+    assert_eq!(std::fs::read(home.join("login")).unwrap(), b"native-login");
+    edit.revision = None;
+    edit.base_url = None;
+    edit.api_key = ProviderSecretWrite::Clear;
+    assert!(client.agy_form_create("native", &edit, TOKEN).await.unwrap().catalog_saved);
+    let native = client.agy_form_read("native", &target, TOKEN).await.unwrap();
+    assert!(!native.has_saved_key);
+    assert!(client.agy_form_delete("native", &target, "wrong-token").await.is_err());
+    assert!(client.agy_form_delete("native", &target, TOKEN).await.unwrap().deleted);
+    assert!(client.agy_form_create("read-only", &edit, TOKEN).await.unwrap().catalog_saved);
     pv["principals"][0]["grants"][0]["provider_config_write"] = json!(false);
     std::fs::write(&policy, pv.to_string()).unwrap();
+    assert!(client.agy_form_read("read-only", &target, TOKEN).await.is_ok());
+    assert!(client.agy_form_delete("read-only", &target, TOKEN).await.is_err());
     assert!(client.agy_provider_save("two", &request, TOKEN).await.is_err());
+    assert!(client.agy_form_create("two", &edit, TOKEN).await.is_err());
+    assert!(client.agy_form_delete("two", &target, TOKEN).await.is_err());
     assert!(
         crate::app_providers::AppProviderStore::new(db)
             .unwrap()
@@ -183,4 +282,70 @@ printf '%s' "$dir" > proof
             .is_none()
     );
     server.abort();
+}
+
+#[test]
+fn cc04_ui_agy_editor_preserves_metadata_and_latest_secret() {
+    use vw_api_types::app_providers::create::ProviderSecretWrite;
+    let root = tempfile::tempdir().unwrap();
+    let db = crate::global_database::GlobalDatabase::for_home(root.path()).unwrap();
+    let store = crate::app_providers::AppProviderStore::new(db.clone()).unwrap();
+    let tenant = TenantScope::new("p", "a").unwrap();
+    let settings = crate::gateway::settings_store::GatewaySettingsStore::new(db).unwrap();
+    let profile = AgyProfile {
+        name: "Fixture".into(),
+        model: Some("旧模型".into()),
+        api_key: Some("fake-key".into()),
+        base_url: Some("https://example.test".into()),
+    };
+    store.agy_save(&tenant, "one", &profile).unwrap();
+    let mut row = store.agy_record(&tenant, "one").unwrap().unwrap();
+    row["custom"] = json!({"extension":"preserved"});
+    row["settingsConfig"]["config"]["unknown"] = json!("preserved");
+    row["settingsConfig"]["env"]["UNRELATED"] = json!("preserved");
+    settings.upsert(&tenant, "app_providers.records", "\"agy\":one", &row.to_string()).unwrap();
+    let view = store.agy_form_read(&tenant, "one").unwrap();
+    let body = AgyFormWrite {
+        target_host_id: "host".into(),
+        fields: view.fields.clone(),
+        model: Some("新模型".into()),
+        base_url: view.base_url.clone(),
+        api_key: ProviderSecretWrite::Keep,
+        revision: Some(view.revision.clone()),
+    };
+    row["agy"]["apiKey"] = json!("fake-rotated-key");
+    settings.upsert(&tenant, "app_providers.records", "\"agy\":one", &row.to_string()).unwrap();
+    assert_eq!(
+        store.agy_form_read(&tenant, "one").unwrap().revision,
+        view.revision,
+        "public revision must not fingerprint secrets"
+    );
+    store.agy_form_write(&tenant, "one", &body, false).unwrap();
+    let saved = store.agy_record(&tenant, "one").unwrap().unwrap();
+    assert_eq!(saved["agy"]["apiKey"], "fake-rotated-key");
+    assert_eq!(saved["custom"], row["custom"]);
+    assert_eq!(saved["settingsConfig"]["config"]["unknown"], "preserved");
+    assert_eq!(saved["settingsConfig"]["env"]["UNRELATED"], "preserved");
+    let public = store.agy_form_read(&tenant, "one").unwrap();
+    assert!(!serde_json::to_string(&public).unwrap().contains("fake-rotated-key"));
+    let mut replace = AgyFormWrite {
+        revision: Some(public.revision),
+        api_key: ProviderSecretWrite::Replace { value: "FAKE-REPLACEMENT".into() },
+        ..body
+    };
+    store.agy_form_write(&tenant, "one", &replace, false).unwrap();
+    assert_eq!(
+        store.agy_profile(&tenant, "one").unwrap().api_key.as_deref(),
+        Some("FAKE-REPLACEMENT")
+    );
+    replace.revision = Some(store.agy_form_read(&tenant, "one").unwrap().revision);
+    replace.api_key = ProviderSecretWrite::Replace { value: "[REDACTED]".into() };
+    assert!(store.agy_form_write(&tenant, "one", &replace, false).is_err());
+    let mut referenced = store.agy_record(&tenant, "one").unwrap().unwrap();
+    referenced["meta"] = json!({"unknownReference":"retained"});
+    settings
+        .upsert(&tenant, "app_providers.records", "\"agy\":one", &referenced.to_string())
+        .unwrap();
+    assert!(store.agy_form_delete(&tenant, "one").is_err());
+    assert_eq!(store.agy_record(&tenant, "one").unwrap(), Some(referenced));
 }

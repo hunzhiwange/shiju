@@ -167,6 +167,16 @@ impl PostgresGatewaySettingsStore {
         Ok(changed == 1)
     }
 
+    pub(super) fn compare_delete(
+        &self,
+        tenant: &TenantScope,
+        namespace: &str,
+        config_key: &str,
+        expected: &str,
+    ) -> Result<bool> {
+        let mut connection = self.database.connect_postgres()?;
+        Ok(connection.execute("DELETE FROM gateway_settings WHERE platform_id=$1 AND company_id=$2 AND namespace=$3 AND config_key=$4 AND payload_json=$5", &[&tenant.platform_id().as_ref(),&tenant.company_id().as_ref(),&namespace,&config_key,&expected])?==1)
+    }
     /// 删除完整作用域主键对应的设置。
     pub(super) fn delete(
         &self,

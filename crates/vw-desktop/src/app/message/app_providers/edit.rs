@@ -7,14 +7,27 @@ pub(crate) async fn save(
     token: String,
 ) -> Result<(), String> {
     if matches!(form.mode, crate::app::state::app_providers::edit::Mode::Delete) {
-        let deleted = client
-            .app_provider_delete(
-                scope.app,
-                &form.id,
-                &AppProviderDelete { target_host_id: scope.host },
-                &token,
-            )
-            .await?;
+        let deleted = if scope.app == vw_gateway_client::vw_api_types::agent_apps::AppId::Agy {
+            client
+                .agy_form_delete(
+                    &form.id,
+                    &vw_gateway_client::vw_api_types::app_providers::agy::AgyTarget {
+                        target_host_id: scope.host,
+                    },
+                    &token,
+                )
+                .await
+                .map_err(|_| "Agy 档案未删除：请先关闭运行中的终端并检查引用。".to_string())?
+        } else {
+            client
+                .app_provider_delete(
+                    scope.app,
+                    &form.id,
+                    &AppProviderDelete { target_host_id: scope.host },
+                    &token,
+                )
+                .await?
+        };
         if !deleted.deleted {
             return Err("供应商未删除".into());
         }
@@ -28,7 +41,7 @@ pub(crate) async fn save(
 mod tests;
 
 use super::{
-    claude, codex, dsh, gemini, grok, hermes, kimi,
+    agy, claude, codex, dsh, gemini, grok, hermes, kimi,
     list::{ListMessage, current},
     mcode, omp, openclaw, opencode, pi,
 };
@@ -122,6 +135,18 @@ pub enum EditMessage {
         generation: u64,
         id: String,
         result: Result<McodeFormView, String>,
+    },
+    AgyLoaded {
+        scope: Scope,
+        generation: u64,
+        id: String,
+        result: Result<vw_gateway_client::vw_api_types::app_providers::agy::AgyFormView, String>,
+    },
+    Agy(agy::Field),
+    AgySaved {
+        scope: Scope,
+        generation: u64,
+        result: Result<(), String>,
     },
     DshLoaded {
         scope: Scope,
@@ -256,7 +281,9 @@ pub(crate) fn update(app: &mut App, event: EditMessage) -> Task<Message> {
                 },
                 app.app_providers.new_draft.clone(),
             );
-            if claude_scope(app) {
+            if app.app_providers.scope.as_ref().is_some_and(|s| s.app == AppId::Agy) {
+                form.agy = Some(crate::app::state::app_providers::agy::Draft::new());
+            } else if claude_scope(app) {
                 form.claude = Some(Draft::new());
             } else if app.app_providers.scope.as_ref().is_some_and(|s| s.app == AppId::Codex) {
                 form.codex = Some(crate::app::state::app_providers::codex::Draft::new());
@@ -441,6 +468,21 @@ pub(crate) fn update(app: &mut App, event: EditMessage) -> Task<Message> {
                     async move { mcode::load(client, request_scope, &source, &token).await },
                     move |result| {
                         message(EditMessage::McodeLoaded {
+                            scope: scope.clone(),
+                            generation,
+                            id: id.clone(),
+                            result,
+                        })
+                    },
+                );
+            }
+            if scope.app == AppId::Agy && !copy && !delete {
+                let token = app.apps_catalog.token.clone();
+                let request_scope = scope.clone();
+                return Task::perform(
+                    async move { agy::load(client, request_scope, &source, &token).await },
+                    move |result| {
+                        message(EditMessage::AgyLoaded {
                             scope: scope.clone(),
                             generation,
                             id: id.clone(),
@@ -683,6 +725,35 @@ pub(crate) fn update(app: &mut App, event: EditMessage) -> Task<Message> {
                 Err(error) => return app.show_error_toast(error),
             }
         }
+        EditMessage::AgyLoaded { scope, generation, id, result } => {
+            if !app.app_providers.loading || !matches_scope(app, &scope, generation) {
+                return Task::none();
+            }
+            app.app_providers.loading = false;
+            match result {
+                Ok(view) => {
+                    let draft = crate::app::state::app_providers::agy::Draft::from_view(&view);
+                    let mut form = EditForm::new(Mode::Update, id, view.fields, None);
+                    form.agy = Some(draft);
+                    app.app_providers.form = Some(form);
+                }
+                Err(error) => return app.show_error_toast(error),
+            }
+        }
+        EditMessage::AgySaved { scope, generation, result } => {
+            if !matches_scope(app, &scope, generation)
+                || !agy::finish(&mut app.app_providers, &scope, generation, &result)
+            {
+                return Task::none();
+            }
+            if let Err(error) = result {
+                return app.show_error_toast(error);
+            }
+            return Task::batch([
+                app.show_success_toast("已保存档案，下次授权终端启动时生效。"),
+                super::list::update(app, ListMessage::Refresh),
+            ]);
+        }
         EditMessage::DshLoaded { scope, generation, id, result } => {
             if !app.app_providers.loading || !matches_scope(app, &scope, generation) {
                 return Task::none();
@@ -783,6 +854,7 @@ pub(crate) fn update(app: &mut App, event: EditMessage) -> Task<Message> {
             let pi = form.pi.is_some();
             let kimi = form.kimi.is_some();
             let mcode = form.mcode.is_some();
+            let agy = form.agy.is_some();
             let dsh = form.dsh.is_some();
             let omp = form.omp.is_some();
             let openclaw = form.openclaw.is_some();
@@ -798,6 +870,7 @@ pub(crate) fn update(app: &mut App, event: EditMessage) -> Task<Message> {
                 || kimi
                 || mcode
                 || dsh
+                || agy
             {
                 if !form.identified() {
                     return app.show_error_toast("请填写标识与名称");
@@ -893,6 +966,14 @@ pub(crate) fn update(app: &mut App, event: EditMessage) -> Task<Message> {
                             generation,
                             result,
                         })
+                    },
+                );
+            }
+            if agy {
+                return Task::perform(
+                    agy::save(client, scope.clone(), form, token),
+                    move |result| {
+                        message(EditMessage::AgySaved { scope: scope.clone(), generation, result })
                     },
                 );
             }
@@ -1221,6 +1302,7 @@ pub(crate) fn update(app: &mut App, event: EditMessage) -> Task<Message> {
                 EditMessage::Pi(field) => pi::change(form, field),
                 EditMessage::Kimi(field) => kimi::change(form, field),
                 EditMessage::Mcode(field) => mcode::change(form, field),
+                EditMessage::Agy(field) => agy::change(form, field),
                 EditMessage::Dsh(field) => dsh::change(form, field),
                 EditMessage::Omp(field) => omp::change(form, field),
                 EditMessage::OpenClaw(field) => openclaw::change(form, field),

@@ -2957,3 +2957,44 @@ macOS **27.0（26A428）/ arm64**，桌面 **0.6.0**。`sw_vers`/`uname -m` 退�
 - 浅色：[添加](evidence/task-65/light-added.png)、[长表单](evidence/task-65/light-scroll.png)、[失败](evidence/task-65/light-failure.png)、[保存](evidence/task-65/light-saved.png)、[取消草稿](evidence/task-65/light-cancel-draft.png)、[重开](evidence/task-65/light-cancel-reopened.png)、[移除](evidence/task-65/light-removed.png)。
 
 状态：**已完成**。最终格式化后桌面 2 项复验与严格 Clippy 均退出 0，去重共 15 项行为测试通过。自身槽位 1、2、5 占用记录已清理，缓存保留；定向差异检查通过，只读 plan.md 无差异。只提交本任务领域实现、桌面接线、独立测试和正式证据，排除其它会话设置/终端变更与编号任务删除。未执行全量单元测试、fmt check、wasm 或 Makefile。下一步批次 66。
+
+## 任务 66：桌面 Agy 供应商编辑
+
+2026-11-07。核对批次 65 提交 `e8070f531` 与正式证据；母任务 1、3 已完成，母任务 2 沿用底座子计划 1–93 开工裁定，不冒称整体完成。继续指令明确沿任务 43 实现目录档案新增/编辑/删除，配置在下次授权终端启动投影至持久私有 profile；全局 current、live 成员操作不适用，OAuth 账号增删不纳入。所有 plan.md 保持只读。
+
+### 实现与边界
+
+- 冻结来源 HEAD `ca58c0313360eae7c851fbd7553c1614c7af03e7`，工作区干净。阅读 AgyOAuthSection/AgyAccountSelect、ProviderForm 直接调用点、相邻 AgyOAuthSection/ProviderForm.agyLogin 测试和 `agy_direct::{is_official,live_settings,terminal_launch,key_resume_target}`；沿任务 43 的 `prepare_checked` 持久 profile 与进程租约，不新增全局启用语义。
+- 新增桌面 components/state/message 的 `app_providers/agy.rs`，接既有列表、统一编辑弹窗、Message 与正式 SDK。编辑模型显示名、可选端点、基础资料和秘密三态；失败保留草稿，主机作用域/代次过期响应被忽略。保存提示下次授权终端启动生效；全局切换、live 成员、官方授权、模型发现明确不可用，复制按钮禁用。取消不提交；删除使用专属安全接口。
+- 新增 AgyFormView/AgyFormWrite；`POST /v1/app-providers/agy/{id}/form/read`、`POST/PATCH /form` 和 `POST /form/delete` 对应 SDK `agy_form_read/create/update/delete`。鉴权沿敏感 token 头和租户/主机读写权限，客户端没有路径、命令或环境参数。只读权限可读取，写入/删除拒绝。非 macOS 返回不支持。
+- 表单读取不返回秘密，公开修订只摘要基础字段、模型、地址和秘密存在位，不哈希秘密内容。更新用公开修订校验及数据库 CAS；Keep 读取执行端最新密钥，地址变化不得沿用旧密钥；Replace 拒绝掩码/占位符；Clear 在自定义地址仍存在时拒绝，清空地址后可使用已有原生登录，不发起授权。只更新所属字段，保留未知顶层/配置/env 字段和展示元数据；不支持的托管绑定、请求覆盖或原生形状明确拒绝。
+- Agy 启动持有授权私有根下的独立 0600 目录记录共享 flock，覆盖 API profile 和原生登录；删除取得独占租约后检查记录和未知引用元数据，以完整前像条件删除，避免删除更新后的记录。锁 no-follow/所有者/权限/硬链接检查；租约保留至实际子进程回收，异常退出随句柄释放。没有削弱通用删除 guard；没有删除持久 profile、会话、原生登录或 config 链接。保护范围是本执行端授权私有根内的 Agy 启动；不声称监测外部手工启动或其它主机进程。
+- 真实回环 HTTP + 正式 SDK/handler + 临时 SQLite + 隔离 HOME 验证保存后配置未变、下一次受控 Agy PTY 进程启动时模型更新、已有会话/登录保留、运行时删除拒绝、退出后只删目录记录、非法 Clear/端点重定向/旧修订无目录配置副作用及权限拒绝。只替代外部 Agy 程序和终端连接边界，真实文件/存储/权限/进程生命周期未 mock；凭据均为假值。
+
+### 验证记录
+
+每阶段原子 mkdir 动态领取共享槽位，记录任务/会话/PID；`CARGO_TARGET_DIR` 和 `CARGO_BUILD_BUILD_DIR` 均指向领取的绝对目录。Cargo、窗口与子进程结束后释放自身锁并保留缓存。
+
+| 槽位 | CARGO_TARGET_DIR | 阶段 |
+|---|---|---|
+| 1 | `/Users/xiangmin/worker/code/shiju/target/rust-slot-1` | 红测、初轮绿测、执行端/API 回归、浅色窗口 |
+| 2 | `/Users/xiangmin/worker/code/shiju/target/rust-slot-2` | 深色窗口、最终回归与 Clippy |
+
+- `cargo test -p vw-desktop --lib cc04_ui_agy_ -- --nocapture`：红测退出 101，0 passed / 2 failed，业务断言为草稿未交 SDK、有效响应未结束保存；接线后退出 0，2 passed。
+- 初轮 `cargo test -p vw-agent --lib cc04_agy_ -- --nocapture` 退出 0，2 passed；`cargo test -p vw-agent-apps --lib cc04_agy_ -- --nocapture` 退出 0，6 passed。第一次执行端编译发现本次新增锁名摘要 LowerHex 不受支持，改用既有 base64 编码后通过；该编译失败不计红测。
+- `cargo fmt --all` 退出 0；最终 `cargo test -p vw-agent --lib gateway::api::handlers::agent_apps::launch::agy_tests:: -- --nocapture` 退出 0、3 passed；`cargo test -p vw-agent-apps --lib cc04_agy_ -- --nocapture` 退出 0、6 passed；`cargo test -p vw-desktop --lib cc04_ui_agy_ -- --nocapture` 退出 0、2 passed，去重共 11 项。
+- `cargo clippy --all-targets --all-features -- -D warnings` 两次均退出 101：首轮被其它会话新增的 `system_settings_common/select.rs` 缺少测试模块及未使用导入阻塞；观察该处修复后重新动态领取槽位 2 重试，又被 `system_settings_common/select/tests.rs` 的 7 个 E0599（overlay Element 的 layout/update/draw 调用）阻塞。未修改或提交该无关模块，不宣称完整 Clippy 通过。
+- 最初裸二进制窗口无法由原生自动化工具识别，终止该次测试（退出 101，不计窗口通过），随后沿既有临时 app bundle runner 启动正式显式窗口命令，无仓库构建配置变更。
+
+### macOS 原生窗口
+
+macOS **27.0（26A428）/ arm64**，桌面 **0.6.0**，`sw_vers`/`uname -m` 退出 0。`command -v agy` 退出 1，真实 Agy 安装版本、真实账号/钥匙串及上游应用消费未验证；Windows/Linux、其它架构、PostgreSQL 实际服务未验收。
+
+`SHIJU_CC04_WINDOW_CASE=agy SHIJU_CC04_WINDOW_THEME=dark cargo test -p vw-desktop --test cc04-provider-window` 和对应 `light` 命令均实际操作并关闭窗口，退出 0。临时 runner 仅包装同一槽位二进制为可识别 app bundle；`agy` case 使用真实组件/Message/SDK，回环 HTTP 提供假目录数据，未知 case 仍拒绝。执行端落盘由上述真实 Gateway 测试证明，不把窗口夹具当真实上游运行。
+
+明暗主题均完成：新增中文档案 → 滚动长表单 → 非法模型返回 422 并保留草稿 → 修正中文动态模型保存 → 重开编辑 → 修改名称后取消 → 重开显示已保存名称 → 确认删除并观察列表移除。浅色额外验证既有档案 PATCH 保存名称更新。统一圆角输入/按钮/toast、固定标题与底部操作区，4px 滚动条及两侧各 7px 留白；中文与动态文本默认字体，实际绘制无整形 panic。仅有既有 macOS sandbox extension 和测试链接器 unwind 提示。
+
+- 深色：[失败与长表单](evidence/task-66/dark-failure.png)、[保存](evidence/task-66/dark-saved.png)、[取消草稿](evidence/task-66/dark-cancel-draft.png)、[重开](evidence/task-66/dark-cancel-reopened.png)、[删除后](evidence/task-66/dark-deleted.png)。
+- 浅色：[失败与长表单](evidence/task-66/light-failure.png)、[保存](evidence/task-66/light-saved.png)、[取消草稿](evidence/task-66/light-cancel-draft.png)、[重开](evidence/task-66/light-cancel-reopened.png)、[删除后](evidence/task-66/light-deleted.png)。
+
+状态：**已完成，待回归**。自身槽位 1、2 占用记录均已清理，缓存保留；其它会话重新领取的槽位不触碰。保留编号任务文件，待其它会话修复上述编译错误后重新运行严格 Clippy，通过后再完成归档。只提交本任务实现、测试和证据，排除其它会话设置/终端改动及编号任务状态；只读 plan.md 无差异。未执行全量单元测试、fmt check、wasm 或 Makefile。

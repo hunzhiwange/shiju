@@ -9,6 +9,7 @@ use vw_api_types::{agent_apps::AppId, app_providers::agy::AgyProfile, id::Tenant
 #[path = "agy_files.rs"]
 mod files;
 pub(crate) use files::Lease;
+pub use files::catalog_lease;
 
 /// Trusted execution-host context, never deserialized from a request.
 pub struct Scope<'a> {
@@ -74,6 +75,7 @@ pub fn prepare_checked(
     unchanged: impl Fn() -> bool,
 ) -> Result<ProviderLaunch, String> {
     validate(p)?;
+    let catalog = Some(catalog_lease(scope, false).map_err(safe)?);
     super::validate_identity(scope.provider)?;
     super::validate_identity(scope.host)?;
     if scope.home.to_str().is_none()
@@ -155,7 +157,15 @@ pub fn prepare_checked(
         None
     };
     args.extend(m.args);
-    Ok(ProviderLaunch { program: m.program, cwd: m.cwd, args, env, private: None, agy: lease })
+    Ok(ProviderLaunch {
+        program: m.program,
+        cwd: m.cwd,
+        args,
+        env,
+        private: None,
+        agy: lease,
+        agy_catalog: catalog,
+    })
 }
 fn safe(_: WriteError) -> String {
     "Agy profile unavailable or changed; retry after resolving conflict".into()

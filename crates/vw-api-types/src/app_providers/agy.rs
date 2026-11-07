@@ -29,3 +29,23 @@ pub struct AgyTarget {
 pub struct AgySaved {
     pub catalog_saved: bool,
 }
+
+#[derive(Clone, Debug, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct AgyFormView {
+    pub fields: super::basic::ProviderBasic,
+    pub model: Option<String>,
+    pub base_url: Option<String>,
+    pub has_saved_key: bool,
+    pub revision: String,
+}
+#[derive(Clone, Debug, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct AgyFormWrite {
+    pub target_host_id: String,
+    pub fields: super::basic::ProviderBasic,
+    pub model: Option<String>,
+    pub base_url: Option<String>,
+    pub api_key: super::create::ProviderSecretWrite,
+    pub revision: Option<String>,
+}

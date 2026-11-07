@@ -16,3 +16,5 @@ pub(crate) mod mcode;
 pub(crate) mod kimi;
 
 pub(crate) mod dsh;
+
+pub(crate) mod agy;

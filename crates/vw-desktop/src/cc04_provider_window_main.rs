@@ -22,6 +22,7 @@ fn main() {
         "pi" => (AppId::Pi, true),
         "omp" => (AppId::Omp, true),
         "mcode" => (AppId::Mcode, true),
+        "agy" => (AppId::Agy, true),
         "dsh" => (AppId::Dsh, true),
         "kimi" => (AppId::Kimi, true),
         _ => panic!("unknown window case"),
@@ -71,6 +72,7 @@ fn main() {
         "pi" => "Pi 供应商隔离验收",
         "omp" => "OMP 供应商隔离验收",
         "mcode" => "Mcode 供应商隔离验收",
+        "agy" => "Agy 供应商隔离验收",
         "dsh" => "Dsh 供应商隔离验收",
         "kimi" => "Kimi 供应商隔离验收",
         "claude" => "Claude Code 供应商隔离验收",
@@ -125,6 +127,7 @@ fn fixture(
             AppId::Pi => "pi",
             AppId::Omp => "omp",
             AppId::Mcode => "mcode",
+            AppId::Agy => "agy",
             AppId::Dsh => "dsh",
             AppId::Kimi => "kimi",
             _ => panic!("unknown fixture app"),
@@ -262,6 +265,10 @@ fn fixture(
                 node_configs.insert(id.clone(),serde_json::json!({"declaration":declaration,"hasSavedKey":true,"revision":"fixture-kimi"}));
             }
         }
+        let mut agy_forms = std::collections::BTreeMap::from([(
+            "provider-0".to_string(),
+            serde_json::json!({"model":"现有中文模型","baseUrl":"https://fixture-api.example.test","hasSavedKey":true,"revision":"fixture-initial"}),
+        )]);
         let mut node_members = std::collections::BTreeSet::from(["provider-0".to_owned()]);
         while !done.load(std::sync::atomic::Ordering::Relaxed) {
             let (mut stream, _) = match listener.accept() {
@@ -296,7 +303,54 @@ fn fixture(
             let mut status = "200 OK";
             let path = line.split_whitespace().nth(1).unwrap_or("");
             let id = path.strip_prefix(&prefix).and_then(|v| v.split('/').next()).unwrap_or("");
-            let body = if incremental
+            let body = if app == "agy"
+                && (path.ends_with("/form/read")
+                    || path.ends_with("/form")
+                    || path.ends_with("/form/delete"))
+            {
+                assert!(head.to_lowercase().contains("x-agent-apps-token: fake-host-token"));
+                let mut value: serde_json::Value = serde_json::from_slice(&payload).unwrap();
+                assert_eq!(value["targetHostId"], "fixture-host");
+                if path.ends_with("/form/delete") {
+                    basics.remove(id);
+                    agy_forms.remove(id);
+                    serde_json::json!({"deleted":true})
+                } else if path.ends_with("/form/read") {
+                    if let Some(config) = agy_forms.get(id) {
+                        let mut config = config.clone();
+                        config["fields"] = basics[id].clone();
+                        config
+                    } else {
+                        status = "422 Unprocessable Entity";
+                        serde_json::Value::Null
+                    }
+                } else {
+                    let prior = agy_forms.get(id);
+                    let has_key = match value["apiKey"]["action"].as_str() {
+                        Some("replace") => {
+                            !value["apiKey"]["value"].as_str().unwrap_or("").is_empty()
+                        }
+                        Some("clear") => false,
+                        _ => prior.is_some_and(|p| p["hasSavedKey"] == true),
+                    };
+                    if value["model"].as_str().is_some_and(|m| m.starts_with('-'))
+                        || (!value["baseUrl"].is_null()
+                            && (!has_key
+                                || !value["baseUrl"]
+                                    .as_str()
+                                    .unwrap_or("")
+                                    .starts_with("https://")))
+                    {
+                        status = "422 Unprocessable Entity";
+                        serde_json::Value::Null
+                    } else {
+                        let config = serde_json::json!({"model":value["model"],"baseUrl":value["baseUrl"],"hasSavedKey":has_key,"revision":"fixture-saved"});
+                        agy_forms.insert(id.into(), config);
+                        basics.insert(id.into(), value["fields"].take());
+                        serde_json::json!({"catalogSaved":true})
+                    }
+                }
+            } else if incremental
                 && (path.ends_with("/form/read")
                     || path.ends_with("/form")
                     || path.ends_with("/add")
@@ -480,14 +534,14 @@ fn fixture(
                 && path.starts_with(&format!("{prefix}catalog/state?"))
             {
                 assert!(head.to_lowercase().contains("x-agent-apps-token: fake-host-token"));
-                let selection = if incremental {
+                let selection = if incremental || app == "agy" {
                     serde_json::json!({"status":"not_applicable"})
                 } else {
                     serde_json::json!({"status":"selected","id":"provider-0"})
                 };
                 serde_json::json!({"appId":app,"rows":basics.iter().map(|(id, fields)|serde_json::json!({
                     "provider":{"id":id,"appId":app,"name":fields["name"],"configured":true},
-                    "nativeMember":if (incremental && node_members.contains(id)) || (!incremental && id=="provider-0") {"present"}else{"absent"}
+                    "nativeMember":if app=="agy" {"unknown"} else if (incremental && node_members.contains(id)) || (!incremental && id=="provider-0") {"present"}else{"absent"}
                 })).collect::<Vec<_>>(),"direct":selection,"inUse":selection,"nativeRead":null})
             } else if line.starts_with("GET ") && path == format!("{prefix}presentation/entries") {
                 serde_json::json!([{"id":"provider-0","presentation":presentation}])

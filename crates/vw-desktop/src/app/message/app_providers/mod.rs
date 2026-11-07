@@ -42,3 +42,7 @@ pub(crate) mod dsh;
 
 #[cfg(test)]
 mod dsh_tests;
+
+pub(crate) mod agy;
+#[cfg(test)]
+mod agy_tests;

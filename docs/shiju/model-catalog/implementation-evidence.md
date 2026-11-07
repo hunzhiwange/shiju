@@ -192,3 +192,30 @@
 | `cargo clippy --all-targets --all-features -- -D warnings` | 0 | 实际工作区全部目标及 features 通过 |
 
 差异审查与 `git diff --cached --check` 通过。各阶段的槽位锁已释放，编译缓存已保留。
+
+## 任务 8　OpenCode 与 OpenClaw 模型预设
+
+2026-11-08，macOS 27.0（26A428），arm64。批次 7 由 `1a031a7f3` 交付。本项沿用任务 4 的内嵌 JSON 读取方式。目录按应用及源名称选择预设，模型查询要求该行的精确部署地址和原始模型 ID。同域名的不同路径保留为独立部署，未声明的窗口、输出限制或模态保留为空。
+
+| 固定来源 `ca58c0313360eae7c851fbd7553c1614c7af03e7` | 实际实现 |
+| --- | --- |
+| `src/config/opencodeProviderPresets.ts::opencodeProviderPresets` | `crates/vw-agent-apps/src/models/presets/opencode_openclaw.json` 的 `opencode` 行保存 `settingsConfig.options.baseURL` 和原生 `npm` 标识。按模型键保留 `limit.context`、`limit.output`、输入与输出模态、推理标记和模型级选项 |
+| `src/config/openclawProviderPresets.ts::openclawProviderPresets` | 同一 JSON 的 `openclaw` 行保存 `settingsConfig.baseUrl` 和原生 `api` 标识。按源数组顺序保留 `contextWindow`、`maxTokens`、输入模态、推理与兼容性声明，以及建议的默认模型、回退和别名 |
+| `tests/config/opencodeProviderPresets.test.ts`、`therouterOpenCodeOpenClawPresets.test.ts`、`presetModelMetadata.test.ts` | `models/preset_catalog.rs::opencode_openclaw_presets` 和 `opencode_openclaw_preset` 提供离线入口，`models/preset_opencode_openclaw.rs::OpenCodeOpenClawPreset::model_at_endpoint` 限定部署。独立测试覆盖 MiMo 与 Qwen 模态、TheRouter 命名空间和应用隔离、TokenFactory 与模力方舟窗口差异，以及同域名的火山套餐路径隔离 |
+
+从固定 Git 对象运行两份 TypeScript 数组，独立逐行核对源预设顺序、模型 ID、部署及投影字段。OpenCode 110 条预设、107 个主端点、338 个模型，195 个模型声明上下文及输出限制，185 个声明双向模态。OpenClaw 122 条预设、122 个主端点、383 个模型，全部声明上下文，331 个声明输出限制，335 个声明输入模态，119 条预设含建议默认值。源未声明 OpenClaw 输出模态。展示网址移除查询参数与片段。模型目录范围为两个供应商预设数组，通用 OpenCode 适配器候选库、价格、凭据和运行时请求设置在本项范围之外。来源许可见 `crates/vw-agent-apps/upstream/LICENSE`（MIT，Copyright (c) 2025 Jason Young）。
+
+现有配置入口是 `vw-agent/src/gateway/api/handlers/app_providers/{opencode,openclaw}.rs` 的 `/v1/app-providers/{opencode,openclaw}/{id}/form`，SDK 对应 `vw-gateway-client/src/client/app_providers/{opencode,openclaw}.rs` 的 `*_form_{read,create,update}`，Iced 对应 `vw-desktop/src/app/components/app_providers/{opencode,openclaw}.rs::fields`。这些路径处理已保存配置。预设目录 API 与 SDK 由任务 36 接入，Iced 搜索由任务 39 接入。本项验收原生离线查询。
+
+### 验证
+
+红灯动态领取共享槽位 **2**，`CARGO_TARGET_DIR=/Users/xiangmin/worker/code/shiju/target/rust-slot-2`。绿灯与 Clippy 动态领取共享槽位 **1**，`CARGO_TARGET_DIR=/Users/xiangmin/worker/code/shiju/target/rust-slot-1`。Cargo 中间目录使用对应槽位。格式化在源码快照执行，仅回写本项四个 Rust 文件。聚焦测试和首轮 Clippy 在实际仓库根目录执行。
+
+| 命令 | 退出码 | 证据 |
+| --- | ---: | --- |
+| `cargo fmt --all`（红灯、绿灯） | 0、0 | 格式化完成 |
+| `cargo test -p vw-agent-apps catalog_presets_opencode_openclaw_ -- --nocapture`（红灯） | 101 | 5 条有效测试均按预期失败。首个指定用例实际窗口为 `(None, None)`，预期为 `(Some(1048576), Some(1000000))` |
+| `cargo test -p vw-agent-apps catalog_presets_opencode_openclaw_ -- --nocapture`（绿灯） | 0 | 5 条有效测试全部通过，535 条过滤 |
+| `cargo clippy --all-targets --all-features -- -D warnings` | 0 | 实际工作区全部目标与 features 通过 |
+
+差异仅包含原生目录入口、类型、数据、独立测试和本证据。槽位锁均已释放，编译缓存已保留。

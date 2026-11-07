@@ -27,16 +27,11 @@ pub(super) fn fields<'a>(form: &'a EditForm, draft: &'a Draft) -> Element<'a, Me
     if enabled {
         editor = editor.on_action(move |action| event(Field::Toml(action)));
     }
-    let mut fields = column![
-        settings_divider(),
-        text("Grok Build 配置 · config.toml").size(16),
-        hint("编辑 models.default 和它指向的模型表。保存时由执行端校验。"),
-        hint("官方授权和模型发现暂不可用。"),
-        editor,
-    ]
-    .spacing(9)
-    .width(Length::Fill);
-
+    let heading = settings_group_heading(
+        "Grok Build 配置 · config.toml",
+        "编辑 models.default 和它指向的模型表。保存时由执行端校验。官方授权和模型发现暂不可用。",
+    );
+    let mut fields = column![editor].spacing(10);
     if draft.has_saved_key {
         fields = fields
             .push(
@@ -54,7 +49,7 @@ pub(super) fn fields<'a>(form: &'a EditForm, draft: &'a Draft) -> Element<'a, Me
             .push(hint("默认保留原密钥。更改 API 地址时请替换或移除密钥。"));
     }
     if !draft.has_saved_key || form.replace_key {
-        fields = fields.push(text("API 密钥").size(13)).push(
+        fields = fields.push(settings_field_label("API 密钥")).push(
             text_input("如使用 env_key，可留空", &form.key)
                 .secure(true)
                 .padding(SETTINGS_CONTROL_PADDING)
@@ -64,22 +59,27 @@ pub(super) fn fields<'a>(form: &'a EditForm, draft: &'a Draft) -> Element<'a, Me
         );
     }
     if !draft.inactive.is_empty() {
-        fields = fields.push(text("不随供应商切换生效的字段").size(14));
+        fields =
+            fields.push(settings_divider()).push(settings_field_label("不随供应商切换生效的字段"));
         for path in &draft.inactive {
             let path = path.strip_prefix(&["config".into()]).unwrap_or(path).join(".");
-            fields = fields.push(text(path).size(13).style(settings_muted_text_style));
+            fields = fields.push(
+                text(path)
+                    .size(13)
+                    .wrapping(iced::widget::text::Wrapping::WordOrGlyph)
+                    .style(settings_muted_text_style),
+            );
         }
     }
-    fields
-        .push(
-            checkbox(draft.apply)
-                .label(if matches!(form.mode, Mode::Create) {
-                    "仅在尚无直连供应商时激活"
-                } else {
-                    "如果此档案正在直连，同时应用配置"
-                })
-                .style(settings_checkbox_style)
-                .on_toggle_maybe(enabled.then_some(move |v| event(Field::Apply(v)))),
-        )
-        .into()
+    let fields = fields.push(settings_divider()).push(
+        checkbox(draft.apply)
+            .label(if matches!(form.mode, Mode::Create) {
+                "仅在尚无直连供应商时激活"
+            } else {
+                "如果此档案正在直连，同时应用配置"
+            })
+            .style(settings_checkbox_style)
+            .on_toggle_maybe(enabled.then_some(move |v| event(Field::Apply(v)))),
+    );
+    column![heading, settings_panel(fields)].spacing(12).width(Length::Fill).into()
 }

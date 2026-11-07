@@ -21,6 +21,7 @@ pub(crate) struct EditForm {
     pub saving: bool,
     pub draft: Option<AppProviderCreate>,
     pub claude: Option<Draft>,
+    pub gemini: Option<super::gemini::Draft>,
 }
 impl std::fmt::Debug for EditForm {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
@@ -44,6 +45,7 @@ impl EditForm {
             saving: false,
             draft,
             claude: None,
+            gemini: None,
         }
     }
     pub fn claude_editable(&self) -> bool {
@@ -55,6 +57,23 @@ impl EditForm {
         host: String,
     ) -> Option<vw_gateway_client::vw_api_types::app_providers::claude::ClaudeFormWrite> {
         let draft = self.claude.as_ref()?;
+        draft.request(
+            host,
+            self.fields.clone(),
+            self.key.clone(),
+            self.replace_key || !draft.has_saved_key,
+        )
+    }
+
+    pub fn gemini_editable(&self) -> bool {
+        self.gemini.as_ref().is_some_and(|draft| draft.kind != super::gemini::Kind::Unsupported)
+    }
+
+    pub fn gemini_request(
+        &self,
+        host: String,
+    ) -> Option<vw_gateway_client::vw_api_types::app_providers::gemini::GeminiFormWrite> {
+        let draft = self.gemini.as_ref()?;
         draft.request(
             host,
             self.fields.clone(),

@@ -27,14 +27,38 @@ impl GatewayClient {
     ) -> Result<GeminiResult, Error> {
         self.gemini_request(id, "POST", "/reapply", body, token).await
     }
-    async fn gemini_request<B: serde::Serialize>(
+    pub async fn gemini_form_read(
+        &self,
+        id: &str,
+        body: &GeminiTarget,
+        token: &str,
+    ) -> Result<GeminiFormView, Error> {
+        self.gemini_request(id, "POST", "/form/read", body, token).await
+    }
+    pub async fn gemini_form_create(
+        &self,
+        id: &str,
+        body: &GeminiFormWrite,
+        token: &str,
+    ) -> Result<GeminiResult, Error> {
+        self.gemini_request(id, "POST", "/form", body, token).await
+    }
+    pub async fn gemini_form_update(
+        &self,
+        id: &str,
+        body: &GeminiFormWrite,
+        token: &str,
+    ) -> Result<GeminiResult, Error> {
+        self.gemini_request(id, "PATCH", "/form", body, token).await
+    }
+    async fn gemini_request<B: serde::Serialize, R: serde::de::DeserializeOwned>(
         &self,
         id: &str,
         method: &str,
         action: &str,
         body: &B,
         token: &str,
-    ) -> Result<GeminiResult, Error> {
+    ) -> Result<R, Error> {
         if id.is_empty()
             || id.len() > 128
             || !id.bytes().all(|c| c.is_ascii_alphanumeric() || matches!(c, b'-' | b'_'))

@@ -57,6 +57,8 @@ pub(crate) fn overlay<'a>(form: &'a EditForm, base: Element<'a, Message>) -> Ele
             ));
         if let Some(draft) = &form.claude {
             fields = fields.push(super::claude::fields(form, draft));
+        } else if let Some(draft) = &form.gemini {
+            fields = fields.push(super::gemini::fields(form, draft));
         } else {
             if !matches!(form.mode, Mode::Create) {
                 fields = fields
@@ -91,7 +93,11 @@ pub(crate) fn overlay<'a>(form: &'a EditForm, base: Element<'a, Message>) -> Ele
     }
     let enabled = !form.saving
         && (delete
-            || if form.claude_editable() { form.identified() } else { form.request().is_ok() });
+            || if form.claude_editable() || form.gemini_editable() {
+                form.identified()
+            } else {
+                form.request().is_ok()
+            });
     let card = settings_modal_card(
         column![
             row![

@@ -44,4 +44,43 @@ macro_rules! concealed {
         }
     })*};
 }
-concealed!(GeminiConfig, GeminiProfile, GeminiWrite);
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(
+    tag = "kind",
+    rename_all = "snake_case",
+    rename_all_fields = "camelCase",
+    deny_unknown_fields
+)]
+pub enum GeminiFormKind {
+    Official {},
+    ThirdParty { base_url: String },
+    Unsupported {},
+}
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct GeminiFormView {
+    pub fields: super::basic::ProviderBasic,
+    pub config: GeminiFormKind,
+    pub model: Option<String>,
+}
+#[derive(Clone, Serialize, Deserialize)]
+#[serde(
+    tag = "kind",
+    rename_all = "snake_case",
+    rename_all_fields = "camelCase",
+    deny_unknown_fields
+)]
+pub enum GeminiFormConfig {
+    Official {},
+    ThirdParty { base_url: String, api_key: super::create::ProviderSecretWrite },
+}
+#[derive(Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct GeminiFormWrite {
+    pub target_host_id: String,
+    pub fields: super::basic::ProviderBasic,
+    pub config: GeminiFormConfig,
+    pub model: Option<String>,
+    pub apply: bool,
+}
+concealed!(GeminiConfig, GeminiProfile, GeminiWrite, GeminiFormConfig, GeminiFormWrite);

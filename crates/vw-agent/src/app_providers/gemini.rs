@@ -22,6 +22,17 @@ impl AppProviderStore {
         profile: &GeminiProfile,
         before: Option<&Value>,
     ) -> Result<Value, String> {
+        self.gemini_save_with_metadata(tenant, id, profile, before, None)
+    }
+    #[cfg(target_os = "macos")]
+    pub(crate) fn gemini_save_with_metadata(
+        &self,
+        tenant: &TenantScope,
+        id: &str,
+        profile: &GeminiProfile,
+        before: Option<&Value>,
+        metadata: Option<Value>,
+    ) -> Result<Value, String> {
         let key = Self::key(AppId::Gemini, id)?;
         let raw = self
             .settings
@@ -34,7 +45,7 @@ impl AppProviderStore {
         if stored.as_ref() != before {
             return Err("provider changed".into());
         }
-        let mut value = stored.unwrap_or(json!({}));
+        let mut value = metadata.or(stored).unwrap_or(json!({}));
         let obj = value.as_object_mut().ok_or("invalid provider record")?;
         for key in ["apiKey", "baseUrl", "protocol", "model", "requestOptions"] {
             obj.remove(key);

@@ -2,6 +2,9 @@
 use super::live::{patch_dotenv::DotenvPatch, patch_json::JsonPatch, write_guard::WriteError};
 use serde_json::{Value, json};
 use vw_api_types::app_providers::gemini::*;
+#[path = "gemini_form.rs"]
+pub mod form;
+
 fn valid(value: &str, max: usize) -> Result<(), WriteError> {
     let s = value.trim();
     if s.is_empty()

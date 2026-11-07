@@ -1,19 +1,43 @@
 //! Authorized fixed Gemini save/switch operations. No arbitrary command or file API.
 use super::*;
 use axum::{
-    http::HeaderMap,
+    http::{HeaderMap, Method},
     routing::{post, put},
 };
 use std::path::PathBuf;
 use vw_api_types::app_providers::gemini::*;
 #[derive(Clone)]
 struct Policy(Option<PathBuf>);
+
+enum Request {
+    Save(GeminiWrite),
+    Form { body: GeminiFormWrite, create: bool },
+    Apply(GeminiTarget, GeminiActivation),
+}
+impl Request {
+    fn target(&self) -> &str {
+        match self {
+            Self::Save(body) => &body.target_host_id,
+            Self::Form { body, create } => {
+                let _ = create;
+                &body.target_host_id
+            }
+            Self::Apply(target, activation) => {
+                let _ = activation;
+                &target.target_host_id
+            }
+        }
+    }
+}
+
 pub(super) fn router() -> Router {
     router_with_policy(std::env::var_os("SHIJU_AGENT_APPS_ACCESS_FILE").map(PathBuf::from))
 }
 pub(super) fn router_with_policy(path: Option<PathBuf>) -> Router {
     Router::new()
         .route("/app-providers/gemini/{id}/config", put(save))
+        .route("/app-providers/gemini/{id}/form/read", post(read_form))
+        .route("/app-providers/gemini/{id}/form", post(write_form).patch(write_form))
         .route("/app-providers/gemini/{id}/switch", post(switch))
         .route("/app-providers/gemini/{id}/reapply", post(reapply))
         .layer(DefaultBodyLimit::max(32 * 1024))
@@ -30,7 +54,7 @@ async fn save(
     let Ok(Json(request)) = body else { return StatusCode::BAD_REQUEST.into_response() };
     respond(
         tokio::task::spawn_blocking(move || {
-            execute(policy, tenant, db, headers, id, Some(request), None)
+            execute(policy, tenant, db, headers, id, Request::Save(request))
         })
         .await,
     )
@@ -52,8 +76,7 @@ async fn switch(
                 db,
                 headers,
                 id,
-                None,
-                Some((request, GeminiActivation::Switch)),
+                Request::Apply(request, GeminiActivation::Switch),
             )
         })
         .await,
@@ -76,14 +99,15 @@ async fn reapply(
                 db,
                 headers,
                 id,
-                None,
-                Some((request, GeminiActivation::IfCurrent)),
+                Request::Apply(request, GeminiActivation::IfCurrent),
             )
         })
         .await,
     )
 }
-fn respond(result: Result<Result<GeminiResult, StatusCode>, tokio::task::JoinError>) -> Response {
+fn respond<T: serde::Serialize>(
+    result: Result<Result<T, StatusCode>, tokio::task::JoinError>,
+) -> Response {
     match result {
         Ok(Ok(r)) => Json(r).into_response(),
         Ok(Err(s)) => s.into_response(),
@@ -97,9 +121,9 @@ fn execute(
     _: Option<Extension<GlobalDatabase>>,
     _: HeaderMap,
     _: String,
-    _: Option<GeminiWrite>,
-    _: Option<(GeminiTarget, GeminiActivation)>,
+    request: Request,
 ) -> Result<GeminiResult, StatusCode> {
+    let _ = request.target();
     Err(StatusCode::NOT_IMPLEMENTED)
 }
 #[cfg(target_os = "macos")]
@@ -109,18 +133,13 @@ fn execute(
     db: Option<Extension<GlobalDatabase>>,
     headers: HeaderMap,
     id: String,
-    write: Option<GeminiWrite>,
-    operation: Option<(GeminiTarget, GeminiActivation)>,
+    request: Request,
 ) -> Result<GeminiResult, StatusCode> {
     use vw_agent_apps::providers::{
         gemini::GeminiFiles,
         live::{commit::*, write_guard::WriteError},
     };
-    let (host, activation) = match (&write, &operation) {
-        (Some(w), _) => (&w.target_host_id, w.activation),
-        (_, Some((t, a))) => (&t.target_host_id, *a),
-        _ => return Err(StatusCode::BAD_REQUEST),
-    };
+    let host = request.target();
     let (home, root) = super::super::agent_apps::provider_editor_context(
         policy.0.as_deref(),
         &headers,
@@ -128,22 +147,49 @@ fn execute(
         host,
         true,
     )?;
-    let database = match db {
-        Some(Extension(db)) => db,
-        None => GlobalDatabase::for_home(&crate::global::paths().home)
-            .map_err(|_| StatusCode::SERVICE_UNAVAILABLE)?,
-    };
-    let store = AppProviderStore::new(database).map_err(|_| StatusCode::SERVICE_UNAVAILABLE)?;
+    vw_agent_apps::providers::validate_identity(&id).map_err(|_| StatusCode::BAD_REQUEST)?;
+    let store = store(db).map_err(|_| StatusCode::SERVICE_UNAVAILABLE)?;
     let before = store.gemini_record(&tenant, &id).map_err(|_| StatusCode::SERVICE_UNAVAILABLE)?;
     if before.as_ref().is_some_and(managed) {
         return Err(StatusCode::UNPROCESSABLE_ENTITY);
     }
-    let profile = match &write {
-        Some(w) => w.profile.clone(),
-        None => serde_json::from_value(
-            before.as_ref().and_then(|r| r.get("gemini")).cloned().ok_or(StatusCode::NOT_FOUND)?,
-        )
-        .map_err(|_| StatusCode::UNPROCESSABLE_ENTITY)?,
+    let catalog_write = !matches!(request, Request::Apply(..));
+    let (profile, activation, metadata) = match &request {
+        Request::Save(body) => (body.profile.clone(), body.activation, None),
+        Request::Form { body, create } => {
+            if *create && before.is_some() {
+                return Err(StatusCode::CONFLICT);
+            }
+            if !create && before.is_none() {
+                return Err(StatusCode::NOT_FOUND);
+            }
+            let profile = vw_agent_apps::providers::gemini::form::profile(body, before.as_ref())
+                .map_err(|_| StatusCode::UNPROCESSABLE_ENTITY)?;
+            let metadata = vw_agent_apps::providers::basic::apply(
+                AppId::Gemini,
+                before.as_ref().unwrap_or(&serde_json::json!({})),
+                &body.fields,
+                &vw_api_types::app_providers::create::ProviderSecretWrite::Keep,
+            )
+            .map_err(|_| StatusCode::UNPROCESSABLE_ENTITY)?;
+            let activation = match (body.apply, create) {
+                (false, _) => GeminiActivation::CatalogOnly,
+                (true, true) => GeminiActivation::First,
+                (true, false) => GeminiActivation::IfCurrent,
+            };
+            (profile, activation, Some(metadata))
+        }
+        Request::Apply(_, activation) => {
+            let profile = serde_json::from_value(
+                before
+                    .as_ref()
+                    .and_then(|r| r.get("gemini"))
+                    .cloned()
+                    .ok_or(StatusCode::NOT_FOUND)?,
+            )
+            .map_err(|_| StatusCode::UNPROCESSABLE_ENTITY)?;
+            (profile, *activation, None)
+        }
     };
     if profile.name.trim().is_empty()
         || profile.name.len() > 128
@@ -197,16 +243,16 @@ fn execute(
     if live.as_ref().is_some_and(|(_, _, state)| state.pointer.is_some()) && previous.is_none() {
         return Err(StatusCode::CONFLICT);
     }
-    let saved = if write.is_some() {
+    let saved = if catalog_write {
         store
-            .gemini_save(&tenant, &id, &profile, before.as_ref())
+            .gemini_save_with_metadata(&tenant, &id, &profile, before.as_ref(), metadata)
             .map_err(|_| StatusCode::CONFLICT)?
     } else {
         before.ok_or(StatusCode::NOT_FOUND)?
     };
     let Some((mut files, tx, state)) = live else {
         return Ok(GeminiResult {
-            catalog_saved: write.is_some(),
+            catalog_saved: catalog_write,
             live: GeminiLiveResult::NotAttempted,
         });
     };
@@ -230,11 +276,70 @@ fn execute(
             }
         }
     };
-    Ok(GeminiResult { catalog_saved: write.is_some(), live })
+    Ok(GeminiResult { catalog_saved: catalog_write, live })
 }
 
 #[cfg(target_os = "macos")]
 fn managed(row: &serde_json::Value) -> bool {
     row.pointer("/meta/authBinding").is_some()
         || row.pointer("/meta/liveConfigManaged").is_some_and(|v| v == true)
+}
+
+async fn read_form(
+    Extension(policy): Extension<Policy>,
+    Extension(tenant): Extension<TenantScope>,
+    db: Option<Extension<GlobalDatabase>>,
+    headers: HeaderMap,
+    Path(id): Path<String>,
+    body: Result<Json<GeminiTarget>, JsonRejection>,
+) -> Response {
+    let Ok(Json(req)) = body else { return StatusCode::BAD_REQUEST.into_response() };
+    respond(
+        tokio::task::spawn_blocking(move || -> Result<GeminiFormView, StatusCode> {
+            #[cfg(target_os = "macos")]
+            {
+                super::super::agent_apps::provider_editor_context(
+                    policy.0.as_deref(),
+                    &headers,
+                    &tenant,
+                    &req.target_host_id,
+                    false,
+                )?;
+                vw_agent_apps::providers::validate_identity(&id)
+                    .map_err(|_| StatusCode::BAD_REQUEST)?;
+                let store = store(db).map_err(|_| StatusCode::SERVICE_UNAVAILABLE)?;
+                let row = store
+                    .gemini_record(&tenant, &id)
+                    .map_err(|_| StatusCode::SERVICE_UNAVAILABLE)?
+                    .ok_or(StatusCode::NOT_FOUND)?;
+                vw_agent_apps::providers::gemini::form::view(&row, managed(&row))
+                    .map_err(|_| StatusCode::UNPROCESSABLE_ENTITY)
+            }
+            #[cfg(not(target_os = "macos"))]
+            {
+                let _ = (policy, tenant, db, headers, id, req);
+                Err(StatusCode::NOT_IMPLEMENTED)
+            }
+        })
+        .await,
+    )
+}
+
+async fn write_form(
+    Extension(policy): Extension<Policy>,
+    Extension(tenant): Extension<TenantScope>,
+    db: Option<Extension<GlobalDatabase>>,
+    headers: HeaderMap,
+    Path(id): Path<String>,
+    method: Method,
+    body: Result<Json<GeminiFormWrite>, JsonRejection>,
+) -> Response {
+    let Ok(Json(body)) = body else { return StatusCode::BAD_REQUEST.into_response() };
+    let create = method == Method::POST;
+    respond(
+        tokio::task::spawn_blocking(move || {
+            execute(policy, tenant, db, headers, id, Request::Form { body, create })
+        })
+        .await,
+    )
 }

@@ -2544,3 +2544,36 @@ macOS **27.0（26A428）/ arm64**，workspace **0.6.0**。两个命令均通过 
 两个主题均实际滚动内容，标题及底部按钮固定，4px 滚动条两侧预留 7px，中文与动态文本使用默认字体。截图和正常退出证明本次操作未见字形整形 panic；仅出现既有链接器 `__eh_frame` 与系统 sandbox extension 提示。两阶段进程退出后已清理本任务锁并保留编译缓存；差异审查排除了预先存在的 Dsh 格式差异、其它任务和计划文件。
 
 状态：**已完成**。下一步批次 55；本任务编号文件按约定验收后删除，删除不入提交。
+
+## 任务 55：桌面 Gemini 供应商表单
+
+2026-11-07。批次 54 提交 `babf326d5` 及其验收记录已核对。母任务 1、3 已完成，母任务 2 沿 `provider-contracts.md` 的既有底座子计划 1–93 开工裁定消费实际接口，完整领域迁移仍待收口。沿用批次 31 Gemini 适配和批次 52 显式窗口入口。
+
+- 来源为冻结上游 `ca58c0313360eae7c851fbd7553c1614c7af03e7`，工作区干净。读取 `GeminiFormFields`、`ProviderForm` 调用分支及相邻 `GeminiFormFields.test.tsx`。相邻用例侧重 Agy 模型发现，未运行来源测试。RustCodeGraph 定位既有 SDK，再核对执行端与桌面调用者。
+- `vw-desktop/src/app/{components,state,message}/app_providers/gemini.rs` 接供应商列表的新增与编辑弹窗。第三方编辑 `GOOGLE_GEMINI_BASE_URL`、写入专用的 `GEMINI_API_KEY` 和 `settings.json` 的 `model.name`，官方使用 Gemini CLI 已有的 Google 登录。账号授权、绑定和模型发现明确暂不可用，非原生或托管档案可编辑基础资料。共享弹窗负责状态与 toast，HTTP 校验失败保留草稿，旧代次或主机响应不能关闭新表单。
+- SDK `gemini_form_{read,create,update}` 对应 `POST /v1/app-providers/gemini/{id}/form/read`、`POST /form` 和 `PATCH /form`。Gateway 在读取档案或接触原生文件前检查租户、主机和读写授权。执行端 `providers/gemini_form.rs` 返回脱敏投影，保持原密钥仅允许同一 API 地址，写入复用基础资料校验、目录 CAS 和已有双文件事务。可选应用由执行端按新增 `First` 或编辑 `IfCurrent` 判定，桌面分别反馈目录保存和执行端应用结果。
+- 正式 SDK 经回环 HTTP → Gateway → 隔离 SQLite/HOME。首次激活写入端点和假密钥，当前编辑保留同端点密钥并更新 `model.name`。保留 dotenv 注释、用户变量、MCP 和 UI 设置。第二条首次激活请求只保存目录；改为官方后写入 `oauth-personal` 并移除第三方凭据。读响应无原密钥。错误令牌、换端点且保留密钥、重复创建和编辑不存在的档案均被拒绝，目录、事务状态和原生文件无变化。
+
+### 红绿验证
+
+阶段均以原子 mkdir 动态领取 **槽位 1**，`CARGO_TARGET_DIR=/Users/xiangmin/worker/code/shiju/target/rust-slot-1`，`CARGO_BUILD_BUILD_DIR` 同路径。红测 `cargo fmt --all` 退出 0，`cargo test -p vw-desktop --lib cc04_ui_gemini_ -- --nocapture` 退出 101（1 passed / 1 failed），失败在 Gemini 草稿尚未通过 SDK 提交到校验端的行为断言。实现后桌面测试通过回环 HTTP 夹具注入 422，验证名称、地址、模型及新输入的假密钥均保留；Gateway 测试使用正式 handler 和真实文件。
+
+| 命令 | 退出码 | 有效结果 |
+| --- | --- | --- |
+| `cargo fmt --all` | 0 | 格式化 |
+| `cargo test -p vw-desktop --lib cc04_ui_gemini_ -- --nocapture` | 0 | 2 passed |
+| `cargo test -p vw-agent --lib gateway::api::handlers::app_providers::gemini_tests:: -- --nocapture` | 0 | 7 passed，含本任务 1 项 |
+| `cargo clippy --all-targets --all-features -- -D warnings` | 0 | 全 targets/features |
+| `SHIJU_CC04_WINDOW_CASE=gemini SHIJU_CC04_WINDOW_THEME=dark cargo test -p vw-desktop --test cc04-provider-window` | 0 | 实际操作并手动关闭 |
+| `SHIJU_CC04_WINDOW_CASE=gemini SHIJU_CC04_WINDOW_THEME=light cargo test -p vw-desktop --test cc04-provider-window` | 0 | 实际操作并手动关闭 |
+
+### macOS 窗口
+
+macOS **27.0 (26A428) / arm64**，workspace **0.6.0**。窗口命令使用 `CARGO_TARGET_AARCH64_APPLE_DARWIN_RUNNER=/tmp/shiju-55-window-runner.sh` 将 Cargo 传入的二进制放入隔离临时 bundle，并等待实际窗口退出。实际 Iced 组件、Message 与正式 SDK 连接回环 HTTP 假数据；窗口只替代服务端，原生双文件写入由上述独立 Gateway 测试验证。真实 Google 账号、Gemini CLI 版本及其消费配置、非 macOS 平台未验证。
+
+- 深色：新增第三方，填写中文名称、长备注和动态模型。错误地址收到 422，toast 显示失败，模型和遮蔽的假密钥仍在。改正地址后保存并重读列表，改名后取消，重开后显示原有值和保留密钥选项。[失败及长表单](evidence/task-55/dark-failure.jpg)、[保存](evidence/task-55/dark-saved.jpg)、[取消后重开](evidence/task-55/dark-cancel.jpg)。
+- 浅色：新增官方，填写中文长备注和模型后保存。重开后切换第三方并提交无效地址，收到 422，取消并重读后仍为官方和原模型。[官方表单](evidence/task-55/light-official.jpg)、[保存](evidence/task-55/light-saved.jpg)、[失败及长表单](evidence/task-55/light-failure.jpg)、[取消后重开](evidence/task-55/light-cancel.jpg)。
+
+明暗两次实际滚动时标题和操作区固定，滚动条宽 4px，两侧各预留 7px。中文和动态文本沿默认字体路径绘制，两次正常退出且未出现字形整形 panic。日志包含既有链接器 `__eh_frame` 及系统 sandbox extension 提示。定向差异审查排除并行终端与计划改动，自身槽位锁全部释放，缓存保留。
+
+状态：**已完成**。下一步批次 56。本编号文件验收后删除，删除不入提交。

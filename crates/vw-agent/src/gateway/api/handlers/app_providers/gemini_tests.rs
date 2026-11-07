@@ -306,3 +306,101 @@ async fn cc04_gemini_managed_row_is_refused_without_touching_live() {
     assert_eq!(std::fs::read(f.file()).unwrap(), before);
     assert!(!f.root.path().join(".gemini/.env").exists());
 }
+
+#[tokio::test]
+async fn cc04_ui_gemini_sdk_form_projects_env_and_settings() {
+    use vw_api_types::app_providers::{basic::ProviderBasic, create::ProviderSecretWrite};
+
+    let f = Fixture::new().await;
+    let env = f.root.path().join(".gemini/.env");
+    std::fs::write(&env, "# user comment\nGEMINI_SANDBOX=true\n").unwrap();
+    let id = "desktop";
+    let mut write = GeminiFormWrite {
+        target_host_id: "host".into(),
+        fields: ProviderBasic {
+            name: "中文供应商".into(),
+            category: Some("本地".into()),
+            notes: Some("用户备注".into()),
+            website_url: Some("https://about.example.test".into()),
+        },
+        config: GeminiFormConfig::ThirdParty {
+            base_url: "https://fixture.test".into(),
+            api_key: ProviderSecretWrite::Replace { value: "fake-desktop-secret".into() },
+        },
+        model: Some("fixture-model".into()),
+        apply: true,
+    };
+    let result = f.client.gemini_form_create(id, &write, TOKEN).await.unwrap();
+    assert!(result.catalog_saved);
+    assert_eq!(result.live, GeminiLiveResult::Applied);
+    assert_eq!(f.state()["pointer"]["id"], id);
+    let dotenv = std::fs::read_to_string(&env).unwrap();
+    assert!(dotenv.contains("GEMINI_API_KEY='fake-desktop-secret'"));
+    assert!(dotenv.contains("GOOGLE_GEMINI_BASE_URL='https://fixture.test'"));
+    assert!(dotenv.contains("# user comment\nGEMINI_SANDBOX=true"));
+    let view = f.client.gemini_form_read(id, &f.target(), TOKEN).await.unwrap();
+    assert_eq!(view.fields.notes.as_deref(), Some("用户备注"));
+    assert_eq!(view.fields.website_url, write.fields.website_url);
+    assert!(
+        matches!(&view.config, GeminiFormKind::ThirdParty { base_url } if base_url == "https://fixture.test")
+    );
+    assert!(!serde_json::to_string(&view).unwrap().contains("fake-desktop-secret"));
+
+    write.config = GeminiFormConfig::ThirdParty {
+        base_url: "https://fixture.test".into(),
+        api_key: ProviderSecretWrite::Keep,
+    };
+    write.model = Some("edited-model".into());
+    assert_eq!(
+        f.client.gemini_form_update(id, &write, TOKEN).await.unwrap().live,
+        GeminiLiveResult::Applied
+    );
+    let settings = || serde_json::from_slice::<Value>(&std::fs::read(f.file()).unwrap()).unwrap();
+    assert_eq!(settings()["model"]["name"], "edited-model");
+    assert_eq!(settings()["ui"]["theme"], "dark");
+    assert_eq!(settings()["mcpServers"]["fixture"], json!({}));
+    assert_eq!(std::fs::read_to_string(&env).unwrap(), dotenv);
+
+    let before = (f.record(id), f.state(), std::fs::read(f.file()).unwrap());
+    write.config = GeminiFormConfig::ThirdParty {
+        base_url: "https://other.test".into(),
+        api_key: ProviderSecretWrite::Keep,
+    };
+    assert!(matches!(
+        f.client.gemini_form_update(id, &write, TOKEN).await,
+        Err(vw_gateway_client::AgentAppsReadError::Http { status: 422, .. })
+    ));
+    assert!(matches!(
+        f.client.gemini_form_read(id, &f.target(), "bad-token").await,
+        Err(vw_gateway_client::AgentAppsReadError::Http { status: 401 | 403, .. })
+    ));
+    assert!(matches!(
+        f.client.gemini_form_update(id, &write, "bad-token").await,
+        Err(vw_gateway_client::AgentAppsReadError::Http { status: 401 | 403, .. })
+    ));
+    assert!(matches!(
+        f.client.gemini_form_create(id, &write, TOKEN).await,
+        Err(vw_gateway_client::AgentAppsReadError::Http { status: 409, .. })
+    ));
+    assert!(matches!(
+        f.client.gemini_form_update("missing", &write, TOKEN).await,
+        Err(vw_gateway_client::AgentAppsReadError::Http { status: 404, .. })
+    ));
+    assert_eq!((f.record(id), f.state(), std::fs::read(f.file()).unwrap()), before);
+    assert_eq!(std::fs::read_to_string(&env).unwrap(), dotenv);
+    assert!(f.record("missing").is_none());
+
+    write.config = GeminiFormConfig::Official {};
+    let second = f.client.gemini_form_create("second", &write, TOKEN).await.unwrap();
+    assert!(second.catalog_saved);
+    assert_eq!(second.live, GeminiLiveResult::NotAttempted);
+    assert_eq!(f.state(), before.1);
+    assert_eq!(std::fs::read(f.file()).unwrap(), before.2);
+    assert_eq!(
+        f.client.gemini_form_update(id, &write, TOKEN).await.unwrap().live,
+        GeminiLiveResult::Applied
+    );
+    assert_eq!(settings()["security"]["auth"]["selectedType"], "oauth-personal");
+    assert_eq!(std::fs::read_to_string(env).unwrap(), "# user comment\nGEMINI_SANDBOX=true\n");
+    assert!(!f.record(id).unwrap().contains("fake-desktop-secret"));
+}

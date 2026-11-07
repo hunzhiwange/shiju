@@ -7,27 +7,28 @@ mod fonts;
 use app::message::app_providers::list::{ListMessage, message};
 use app::{App, Message};
 use iced::{Element, Task, Theme};
+use vw_gateway_client::vw_api_types::agent_apps::AppId;
 fn main() {
     let case = std::env::var("SHIJU_CC04_WINDOW_CASE").expect("window case");
-    assert!(matches!(case.as_str(), "list" | "edit" | "claude"), "unknown window case");
+    assert!(matches!(case.as_str(), "list" | "edit" | "claude" | "gemini"), "unknown window case");
     let edit = case == "edit";
-    let claude = case == "claude";
+    let gemini = case == "gemini";
+    let app = if gemini { AppId::Gemini } else { AppId::Claude };
+    let native_form = matches!(case.as_str(), "claude" | "gemini");
     let theme = match std::env::var("SHIJU_CC04_WINDOW_THEME").as_deref() {
         Ok("dark") => Theme::Dark,
         Ok("light") => Theme::Light,
         _ => panic!("unknown theme"),
     };
-    let (port, stop, server) = fixture(claude);
+    let (port, stop, server) = fixture(native_form, gemini);
     app::config::install_window_test_bootstrap(port);
     iced::application(
         move || {
             let (mut state, _) = App::new();
             state.apps_catalog.host = "fixture-host".into();
             state.apps_catalog.token = "fake-host-token".into();
-            let task = app::message::app_providers::list::update(
-                &mut state,
-                ListMessage::Open(vw_gateway_client::vw_api_types::agent_apps::AppId::Claude),
-            );
+            let task =
+                app::message::app_providers::list::update(&mut state, ListMessage::Open(app));
             if edit {
                 use vw_gateway_client::vw_api_types::app_providers::{ProviderProtocol, create::*};
                 state.app_providers.new_draft = Some(AppProviderCreate {
@@ -48,10 +49,10 @@ fn main() {
         },
         view,
     )
-    .title(if claude {
-        "Claude Code 供应商隔离验收"
-    } else {
-        "供应商基础编辑隔离验收"
+    .title(match case.as_str() {
+        "gemini" => "Gemini CLI 供应商隔离验收",
+        "claude" => "Claude Code 供应商隔离验收",
+        _ => "供应商基础编辑隔离验收",
     })
     .theme(move |_: &App| theme.clone())
     .window_size((1000., 820.))
@@ -79,7 +80,8 @@ fn view(state: &App) -> Element<'_, Message> {
     .into()
 }
 fn fixture(
-    claude: bool,
+    native_form: bool,
+    gemini: bool,
 ) -> (u16, std::sync::Arc<std::sync::atomic::AtomicBool>, std::thread::JoinHandle<()>) {
     use std::io::{Read, Write};
     let listener = std::net::TcpListener::bind("127.0.0.1:0").unwrap();
@@ -90,16 +92,16 @@ fn fixture(
     let server = std::thread::spawn(move || {
         let mut presentation = serde_json::json!({"sortIndex":1,"category":"工作","notes":"中文动态备注：实际字体整形验收。"});
         let mut basics: std::collections::BTreeMap<String, serde_json::Value> = (0..16).map(|i| (format!("provider-{i}"), serde_json::json!({"name":format!("中文供应商 {i}"),"category":"工作","notes":"中文动态备注","websiteUrl":"https://website.example.test"}))).collect();
-        let mut claude_profiles = std::collections::BTreeMap::from([
-            (
-                "provider-0".to_owned(),
-                (
-                    serde_json::json!({
-                        "kind":"third_party","baseUrl":"https://fixture-api.example.test","apiKeyHeader":false
-                    }),
-                    serde_json::json!("现有中文模型"),
-                ),
-            ),
+        let app = if gemini { "gemini" } else { "claude" };
+        let prefix = format!("/v1/app-providers/{app}/");
+        let mut third_party = serde_json::json!({
+            "kind":"third_party","baseUrl":"https://fixture-api.example.test"
+        });
+        if !gemini {
+            third_party["apiKeyHeader"] = false.into();
+        }
+        let mut profiles = std::collections::BTreeMap::from([
+            ("provider-0".to_owned(), (third_party, serde_json::json!("现有中文模型"))),
             (
                 "provider-1".to_owned(),
                 (serde_json::json!({"kind":"official"}), serde_json::Value::Null),
@@ -137,20 +139,17 @@ fn fixture(
             stream.read_exact(&mut payload).unwrap();
             let mut status = "200 OK";
             let path = line.split_whitespace().nth(1).unwrap_or("");
-            let id = path
-                .strip_prefix("/v1/app-providers/claude/")
-                .and_then(|v| v.split('/').next())
-                .unwrap_or("");
-            let body = if claude && path.ends_with("/form/read") && line.starts_with("POST ") {
+            let id = path.strip_prefix(&prefix).and_then(|v| v.split('/').next()).unwrap_or("");
+            let body = if native_form && path.ends_with("/form/read") && line.starts_with("POST ") {
                 assert!(head.to_lowercase().contains("x-agent-apps-token: fake-host-token"));
                 let target: serde_json::Value = serde_json::from_slice(&payload).unwrap();
                 assert_eq!(target["targetHostId"], "fixture-host");
-                let (config, model) = claude_profiles.get(id).cloned().unwrap_or((
+                let (config, model) = profiles.get(id).cloned().unwrap_or((
                     serde_json::json!({"kind":"unsupported"}),
                     serde_json::Value::Null,
                 ));
                 serde_json::json!({"fields":basics[id],"config":config,"model":model})
-            } else if claude
+            } else if native_form
                 && path.ends_with("/form")
                 && (line.starts_with("POST ") || line.starts_with("PATCH "))
             {
@@ -165,7 +164,7 @@ fn fixture(
                     serde_json::Value::Null
                 } else {
                     config.as_object_mut().unwrap().remove("apiKey");
-                    claude_profiles.insert(id.into(), (config, value["model"].take()));
+                    profiles.insert(id.into(), (config, value["model"].take()));
                     basics.insert(id.into(), value["fields"].take());
                     if line.starts_with("POST ") {
                         status = "201 Created";
@@ -198,12 +197,15 @@ fn fixture(
                     basics.remove(id);
                     serde_json::json!({"deleted":true})
                 }
-            } else if line.starts_with("GET /v1/app-providers/claude/catalog/state?") {
+            } else if line.starts_with("GET ")
+                && path.starts_with(&format!("{prefix}catalog/state?"))
+            {
                 assert!(head.to_lowercase().contains("x-agent-apps-token: fake-host-token"));
-                serde_json::json!({"appId":"claude","rows":basics.iter().map(|(id, fields)|serde_json::json!({"provider":{"id":id,"appId":"claude","name":fields["name"],"configured":true},"nativeMember":if id=="provider-0"{"present"}else{"absent"}})).collect::<Vec<_>>(),"direct":{"status":"selected","id":"provider-0"},"inUse":{"status":"selected","id":"provider-0"},"nativeRead":null})
-            } else if line.starts_with("GET /v1/app-providers/claude/presentation/entries ") {
+                serde_json::json!({"appId":app,"rows":basics.iter().map(|(id, fields)|serde_json::json!({"provider":{"id":id,"appId":app,"name":fields["name"],"configured":true},"nativeMember":if id=="provider-0"{"present"}else{"absent"}})).collect::<Vec<_>>(),"direct":{"status":"selected","id":"provider-0"},"inUse":{"status":"selected","id":"provider-0"},"nativeRead":null})
+            } else if line.starts_with("GET ") && path == format!("{prefix}presentation/entries") {
                 serde_json::json!([{"id":"provider-0","presentation":presentation}])
-            } else if line.starts_with("PUT /v1/app-providers/claude/")
+            } else if line.starts_with("PUT ")
+                && path.starts_with(&prefix)
                 && line.contains("/presentation ")
             {
                 let value: serde_json::Value = serde_json::from_slice(&payload).unwrap();

@@ -62,3 +62,7 @@ mod icons_tests;
 pub(crate) mod universal;
 #[cfg(test)]
 mod universal_tests;
+
+pub(crate) mod snippets;
+#[cfg(test)]
+mod snippets_tests;

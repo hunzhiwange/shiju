@@ -26,3 +26,5 @@ pub(crate) mod endpoints;
 pub(crate) mod icons;
 
 pub(crate) mod universal;
+
+pub(crate) mod snippets;

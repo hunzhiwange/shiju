@@ -5,6 +5,7 @@ mod apps;
 mod cc04_desktop_fixture;
 mod cc04_endpoints_fixture;
 mod cc04_icons_fixture;
+mod cc04_snippets_fixture;
 mod cc04_universal_fixture;
 mod desktop_update_helper;
 mod fonts;
@@ -15,7 +16,9 @@ use vw_gateway_client::vw_api_types::agent_apps::AppId;
 fn main() {
     let case = std::env::var("SHIJU_CC04_WINDOW_CASE").expect("window case");
     let (app, native_form) = match case.as_str() {
-        "list" | "edit" | "endpoints" | "icons" | "universal" => (AppId::Claude, false),
+        "list" | "edit" | "endpoints" | "icons" | "universal" | "snippets" => {
+            (AppId::Claude, false)
+        }
         "claude" => (AppId::Claude, true),
         "codex" => (AppId::Codex, true),
         "gemini" => (AppId::Gemini, true),
@@ -82,6 +85,7 @@ fn main() {
         "endpoints" => "端点与请求选项隔离验收",
         "icons" => "供应商图标库隔离验收",
         "universal" => "统一供应商投影隔离验收",
+        "snippets" => "公共配置片段隔离验收",
         "dsh" => "Dsh 供应商隔离验收",
         "kimi" => "Kimi 供应商隔离验收",
         "claude" => "Claude Code 供应商隔离验收",
@@ -125,6 +129,7 @@ fn fixture(
     let done = stop.clone();
     let icons = case == "icons";
     let universal = case == "universal";
+    let snippets = case == "snippets";
     let server = std::thread::spawn(move || {
         let mut presentation = serde_json::json!({"sortIndex":1,"category":"工作","notes":"中文动态备注：实际字体整形验收。"});
         let mut basics: std::collections::BTreeMap<String, serde_json::Value> = (0..16).map(|i| (format!("provider-{i}"), serde_json::json!({"name":format!("中文供应商 {i}"),"category":"工作","notes":"中文动态备注","websiteUrl":"https://website.example.test"}))).collect();
@@ -282,6 +287,7 @@ fn fixture(
             serde_json::json!({"model":"现有中文模型","baseUrl":"https://fixture-api.example.test","hasSavedKey":true,"revision":"fixture-initial"}),
         )]);
         let mut universal_fixture = universal.then(cc04_universal_fixture::Fixture::default);
+        let mut snippets_fixture = snippets.then(cc04_snippets_fixture::Fixture::new);
         let mut icons_fixture = icons.then(cc04_icons_fixture::Fixture::new);
         let mut endpoints_fixture = cc04_endpoints_fixture::Fixture::default();
         let mut desktop_fixture = cc04_desktop_fixture::Fixture::new();
@@ -346,7 +352,14 @@ fn fixture(
                     &mut basics,
                 )
             });
-            let body = if let Some((code, value)) = universal_response {
+            let snippets_response = snippets_fixture.as_mut().and_then(|fixture| {
+                fixture.handle(line.split_whitespace().next().unwrap_or(""), path, &payload)
+            });
+            let body = if let Some((code, value)) = snippets_response {
+                assert!(head.to_lowercase().contains("x-agent-apps-token: fake-host-token"));
+                status = code;
+                value
+            } else if let Some((code, value)) = universal_response {
                 status = code;
                 value
             } else if let Some((code, value)) = icon_response {

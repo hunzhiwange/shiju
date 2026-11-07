@@ -3194,3 +3194,54 @@ macOS **27.0（26A428）/ arm64**，桌面 **0.6.0**。临时 Cargo runner 将�
 初次深色检查发现共享状态横幅的红绿文字对比不足，改用主题正文色与明确状态文字后重新执行明暗窗口命令。两种主题实际渲染中文动态名称、长备注和滚动结果，关闭窗口后均退出 0，窗口日志无字形整形 panic。有既有链接器 unwind 提示及测试 bundle 的 macOS sandbox extension 提示。
 
 状态：**已完成**。范围审查与暂存检查通过。下一步是批次 71。
+
+## 任务 71：桌面公共配置片段
+
+2026-11-07。已核对批次 70 提交 `090f2f2c5` 及正式验收。母任务 1、3 已完成，母任务 2 沿用底座子计划 1–93 的开工裁定，完整领域迁移待收口。
+
+### 来源与实现
+
+- 核对干净的冻结来源 `ca58c0313360eae7c851fbd7553c1614c7af03e7`。阅读 `CommonConfigEditor`、`ProviderForm` 的直接接线、`CommonConfigEditor.test.tsx` 及 `get_common_config_snippet`、`set_common_config_snippet`、`extract_common_config_snippet`。沿用任务 25 冻结片段存储语义。
+- 应用供应商列表进入公共配置片段弹窗，覆盖 Claude Code、Codex、Gemini CLI、OpenCode 和 OpenClaw。组件、状态和 Message 位于 `crates/vw-desktop/src/app/{components,state,message}/app_providers/snippets.rs`。选定已保存供应商后可提取并显式采用结果；预览与保存提交当前草稿。失败保留草稿，回包校验网关、租户、项目、主机、应用和请求代次。取消后丢弃未保存草稿。
+- SDK 复用 `app_provider_snippet_get`、`app_provider_snippet_extract`、`app_provider_snippet_save`。新增 `app_provider_snippet_preview` 调用 `POST /v1/app-providers/{app}/config/snippet/preview`，以已有强类型 `SnippetWrite` 承载待校验文本，沿用独立主机配置读权限和同一 `normalize`。预览只返回规范化内容，保存更新租户下的应用片段记录。原生文件字节不变。
+- 弹窗复用统一选择框、文本编辑器、表单按钮、错误提示卡片和 toast。标题与操作区固定，滚动条 4px，两侧各留 7px，中文和动态内容使用默认字体。
+
+### 验证记录
+
+| 槽位 | CARGO_TARGET_DIR | 阶段 |
+| --- | --- | --- |
+| 1 | `/Users/xiangmin/worker/code/shiju/target/rust-slot-1` | 桌面红绿测试、明暗原生窗口 |
+| 2 | `/Users/xiangmin/worker/code/shiju/target/rust-slot-2` | 首轮桌面编译、Gateway 回归、初次严格 Clippy |
+| 3 | `/Users/xiangmin/worker/code/shiju/target/rust-slot-3` | 对比度调整后首次桌面复验 |
+
+最终桌面、Clippy 与明暗窗口均使用槽位 1。各阶段以原子 `mkdir` 动态领取槽位，记录计划、任务、会话与 PID。`CARGO_BUILD_BUILD_DIR` 与对应绝对路径一致，使用中的槽位保持锁定，Cargo 与窗口退出后释放本任务的锁并保留缓存。
+
+| 确切命令 | 退出码 | 证据 |
+| --- | --- | --- |
+| `cargo fmt --all` | 0 | 红、绿及借用修复后执行 |
+| `cargo test -p vw-desktop --lib cc04_ui_snippets_ -- --nocapture`（红） | 101 | 0 passed / 2 failed。400 后错误反馈缺失，过期回包进入草稿更新，均在业务断言处失败 |
+| 同一桌面命令（绿） | 0 | 2 passed，`cc04_ui_snippets_validation_failure_preserves_draft`、`cc04_ui_snippets_stale_response_is_ignored` |
+| `cargo test -p vw-agent --lib snippets_ -- --nocapture` | 0 | 4 passed，含 `cc04_ui_snippets_preview_uses_read_grant_and_leaves_storage_untouched` |
+| `cargo clippy --all-targets --all-features -- -D warnings` | 0 | 全部目标和特性通过 |
+
+首轮绿测遇到本任务 toast 借用冲突 E0499（退出 101，0 项测试），修复后重新格式化并通过同一桌面命令。绿测的 Cargo 退出码已单独记录，首次记录绿测后临时外层脚本在读取并发更新的后续分支时报告语法错误，后续窗口由修复后的脚本执行。深色实操发现内联错误文字对比度不足，调整为主题正文色。对比度调整后的首次桌面复验被并行修改的 `system_settings.rs` E0603/E0308 阻断（退出 101，0 项测试），所属改动修复后同一桌面命令通过。会话中断时确认槽位 1 的持有进程、Cargo 与窗口均已退出，再释放本任务遗留锁并续跑严格 Clippy。
+
+共 **6 项**有效行为测试。桌面测试以隔离 HTTP 返回 400，校验实际 SDK 的授权头、主机和草稿，请求失败后保留草稿并解除忙碌状态。过期回包测试核对请求代次和项目，匹配的预览仅更新预览区。Gateway 通过正式 SDK → 回环 HTTP → 权限 handler → 执行端校验与临时 SQLite 测试提取、保存、读回、拒绝与清除。新增预览用只读授权返回清洗后的中文 JSON，验证非法草稿 400、越权 403、未认证 401、无存储写入与原生文件字节一致。假凭据和临时目录隔离于用户配置。
+
+### macOS 原生窗口
+
+macOS **27.0（26A428）/ arm64**，桌面 **0.6.0**。使用批次 52 的原生入口，从实际供应商列表进入弹窗，临时 Cargo runner 将同槽位窗口产物包装为独立 app bundle。隔离回环夹具返回带中文的片段和档案，模拟拒绝与保存回读。真实 Iced、Message 和 SDK 走正式路径，权限和落盘由 Gateway 聚焦测试验证。
+
+| 确切命令 | 退出码 | 原生窗口证据 |
+| --- | --- | --- |
+| `SHIJU_CC04_WINDOW_CASE=snippets SHIJU_CC04_WINDOW_THEME=dark cargo test -p vw-desktop --test cc04-provider-window` | 0 | 深色实操并关闭 |
+| `SHIJU_CC04_WINDOW_CASE=snippets SHIJU_CC04_WINDOW_THEME=light cargo test -p vw-desktop --test cc04-provider-window` | 0 | 浅色实操并关闭 |
+
+- 深色从供应商列表读取初始中文片段，保存非法 JSON 得到 HTTP 400 并保留草稿。选择档案并提取 22 行动态中文，滚至底部后采用提取结果，编辑并预览规范化 JSON，保存后再修改并取消，重开确认读回已保存值。截图见[失败草稿](evidence/task-71/dark-rejected.jpg)、[滚动提取](evidence/task-71/dark-extracted.jpg)、[服务预览](evidence/task-71/dark-preview.jpg)和[取消后读回](evidence/task-71/dark-reopened.jpg)。
+- 浅色用服务预览触发 HTTP 400 并保留非法草稿，继续提取、滚动并采用结果，编辑后预览并保存。再改草稿后取消，重开读回已保存值。截图见[失败草稿](evidence/task-71/light-rejected.jpg)、[滚动提取](evidence/task-71/light-extracted.jpg)、[服务预览](evidence/task-71/light-preview.jpg)和[取消后读回](evidence/task-71/light-reopened.jpg)。
+
+两种主题实际绘制了中文错误提示、供应商名称和长预览，标题与操作区固定，窗口日志无字形整形 panic。链接器 unwind 与 macOS sandbox extension 提示仍出现，两条窗口命令均退出 0。窗口不计入聚焦测试数。原生窗口验收使用 Claude Code 夹具，其他应用窗口、非 macOS 平台与真实第三方账号未验收。
+
+定向 `git diff --check` 与 `git diff --cached --check` 通过。只读 plan.md 无差异，任务 71 的槽位锁全部释放且缓存保留。提交范围为本任务实现、独立测试、窗口夹具、截图和本条证据。
+
+状态：**已完成**。下一步批次 72。

@@ -12,6 +12,7 @@ pub(super) fn router_with_policy(path: Option<PathBuf>) -> Router {
     Router::new()
         .route("/app-providers/{app}/config/snippet", get(read).put(write))
         .route("/app-providers/{app}/config/snippet/extract", axum::routing::post(extract))
+        .route("/app-providers/{app}/config/snippet/preview", axum::routing::post(preview))
         .layer(DefaultBodyLimit::max(128 * 1024))
         .layer(Extension(SnippetPolicy(path)))
 }
@@ -63,6 +64,27 @@ async fn write(
         Ok(response(
             store(database).and_then(|store| store.snippet_save(&tenant, app, &request.content)),
         ))
+    })
+    .await
+    .map_err(|_| StatusCode::SERVICE_UNAVAILABLE)?
+}
+async fn preview(
+    Extension(policy): Extension<SnippetPolicy>,
+    Extension(tenant): Extension<TenantScope>,
+    headers: HeaderMap,
+    Path(app): Path<AppId>,
+    body: Result<Json<SnippetWrite>, JsonRejection>,
+) -> Result<Response, StatusCode> {
+    let Json(request) = body.map_err(|_| StatusCode::BAD_REQUEST)?;
+    tokio::task::spawn_blocking(move || {
+        super::super::agent_apps::authorize_provider_snippet(
+            policy.0.as_deref(),
+            &headers,
+            &tenant,
+            &request.target_host_id,
+            false,
+        )?;
+        Ok(response(vw_agent_apps::providers::snippets::normalize(app, &request.content)))
     })
     .await
     .map_err(|_| StatusCode::SERVICE_UNAVAILABLE)?

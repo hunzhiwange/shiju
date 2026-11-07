@@ -1,6 +1,7 @@
 use super::super::system_settings_common::*;
 use crate::app::message::app_providers::{
     list::{ListMessage, message},
+    snippets::Event as SnippetEvent,
     universal::Event as UniversalEvent,
 };
 use crate::app::{Message, state::app_providers::list::ListState};
@@ -260,6 +261,14 @@ pub(crate) fn overlay<'a>(
                     ListMessage::Universal(UniversalEvent::Open),
                     !state.loading && state.editor.is_none() && state.form.is_none()
                 ),
+                action(
+                    "公共配置片段",
+                    ListMessage::Snippets(SnippetEvent::Open),
+                    crate::app::state::app_providers::snippets::available(scope.app)
+                        && !state.loading
+                        && state.editor.is_none()
+                        && state.form.is_none()
+                ),
                 action("关闭", ListMessage::Close, true)
             ]
             .spacing(10)
@@ -269,6 +278,9 @@ pub(crate) fn overlay<'a>(
     .width(Length::Fixed(800.))
     .height(Length::Fixed(650.));
     let list = settings_modal_overlay(Some(base), message(ListMessage::Close), card);
+    if let Some(form) = &state.snippets {
+        return super::snippets::overlay(state, form, scope.app, list);
+    }
     if let Some(form) = &state.universal {
         return super::universal::overlay(form, list);
     }

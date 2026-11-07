@@ -24,4 +24,5 @@ mod endpoints;
 
 mod icons;
 
+mod snippets;
 mod universal;

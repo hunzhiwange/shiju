@@ -300,6 +300,7 @@ async fn cc04_snippets_registered_gateway_rejects_unauthenticated_writes() {
         ("GET", "/app-providers/claude/config/snippet?targetHostId=host"),
         ("PUT", "/app-providers/claude/config/snippet"),
         ("POST", "/app-providers/claude/config/snippet/extract"),
+        ("POST", "/app-providers/claude/config/snippet/preview"),
     ] {
         let result = router
             .clone()
@@ -317,4 +318,44 @@ async fn cc04_snippets_registered_gateway_rejects_unauthenticated_writes() {
     }
     assert!(f.raw().is_none());
     assert_eq!(std::fs::read(f.root.path().join(".claude/settings.json")).unwrap(), live);
+}
+
+#[tokio::test]
+async fn cc04_ui_snippets_preview_uses_read_grant_and_leaves_storage_untouched() {
+    let f = Fixture::new().await;
+    let file = f.root.path().join(".claude/settings.json");
+    let live = std::fs::read(&file).unwrap();
+    let read_only = f.scoped("p", "read");
+    let request = SnippetWrite {
+        target_host_id: "host".into(),
+        content: json!({"theme":"中文主题","model":"fixture-model","env":{"ANTHROPIC_API_KEY":"fake-key"}}).to_string(),
+    };
+    let preview =
+        read_only.app_provider_snippet_preview(AppId::Claude, &request, TOKEN).await.unwrap();
+    assert_eq!(
+        serde_json::from_str::<Value>(&preview.content.unwrap()).unwrap(),
+        json!({"theme":"中文主题"})
+    );
+    let invalid = SnippetWrite { content: "{ broken".into(), ..request.clone() };
+    for (client, payload, status) in
+        [(&read_only, &invalid, 400), (&f.scoped("p", "none"), &request, 403)]
+    {
+        assert!(matches!(
+            client.app_provider_snippet_preview(AppId::Claude, payload, TOKEN).await,
+            Err(vw_gateway_client::AgentAppsReadError::Http {
+                status: actual, body: Value::Null
+            }) if actual == status
+        ));
+    }
+    let read = SnippetRead { target_host_id: "host".into() };
+    assert!(
+        read_only
+            .app_provider_snippet_get(AppId::Claude, &read, TOKEN)
+            .await
+            .unwrap()
+            .content
+            .is_none()
+    );
+    assert!(f.raw().is_none());
+    assert_eq!(std::fs::read(file).unwrap(), live);
 }

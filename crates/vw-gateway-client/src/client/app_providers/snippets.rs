@@ -18,6 +18,14 @@ impl GatewayClient {
     ) -> Result<ConfigSnippet, Error> {
         self.snippet_request(app, "save", request, token).await
     }
+    pub async fn app_provider_snippet_preview(
+        &self,
+        app: AppId,
+        request: &SnippetWrite,
+        token: &str,
+    ) -> Result<ConfigSnippet, Error> {
+        self.snippet_request(app, "preview", request, token).await
+    }
     pub async fn app_provider_snippet_extract(
         &self,
         app: AppId,
@@ -51,6 +59,7 @@ impl GatewayClient {
             let builder = match action {
                 "read" => self.dynamic_host_client.get(url).query(body),
                 "save" => self.dynamic_host_client.put(url).json(body),
+                "preview" => self.dynamic_host_client.post(format!("{url}/preview")).json(body),
                 "extract" => self.dynamic_host_client.post(format!("{url}/extract")).json(body),
                 _ => unreachable!(),
             }

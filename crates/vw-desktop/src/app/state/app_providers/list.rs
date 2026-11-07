@@ -25,6 +25,7 @@ pub(crate) struct ListState {
     pub snapshot: Option<Snapshot>,
     pub editor: Option<Editor>,
     pub form: Option<super::edit::EditForm>,
+    pub endpoints: Option<super::endpoints::Form>,
     pub desktop: Option<super::desktop::Form>,
     pub new_draft:
         Option<vw_gateway_client::vw_api_types::app_providers::create::AppProviderCreate>,
@@ -49,6 +50,7 @@ impl ListState {
         self.editor = None;
         self.form = None;
         self.desktop = None;
+        self.endpoints = None;
         self.loading = true;
         self.error = None;
         self.generation

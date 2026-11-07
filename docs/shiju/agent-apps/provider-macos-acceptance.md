@@ -3045,3 +3045,58 @@ macOS **27.0（26A428）/ arm64**，桌面 **0.6.0**。窗口命令额外继承 
 - 浅色：[映射失败](evidence/task-67/light-failure.png)、[保存长表单](evidence/task-67/light-saved.png)、[取消草稿](evidence/task-67/light-cancel-draft.png)、[取消重开](evidence/task-67/light-cancel-reopened.png)、[直连失败](evidence/task-67/light-direct-failure.png)、[应用重启提示](evidence/task-67/light-direct-applied.png)、[取消后列表](evidence/task-67/light-direct-cancel.png)。
 
 定向差异检查通过，只提交本任务实现、独立测试、原生夹具和正式证据，排除其它会话设置/终端变更和编号任务状态。编号任务证据齐备后删除，不单独提交状态变更。下一步批次 68 与计划统一回归。
+
+## 任务 68：桌面端点与请求选项
+
+2026-11-07，状态：**已完成**。已核对批次 67 提交 `3fb3ccfc5` 和本文件证据；母任务 1、3 完成，母任务 2 沿底座子计划 1–93 开工裁定，不冒称整体迁移完成。首次检查发现 Legacy PATCH 不兼容原生档案后停止；调度随后明确授权补齐 Claude/Codex 请求选项所有者契约，本轮依此完成，不修改任何 plan.md。
+
+### 来源、实现与消费边界
+
+来源 `/Users/xiangmin/worker/code/cc-switch` HEAD `ca58c0313360eae7c851fbd7553c1614c7af03e7`；读取 `EndpointField`、`RequestHeadersEditor`、`LocalProxyRequestOverridesField`，及 ClaudeFormFields/OpenCodeFormFields 调用与 `requestOverrides.test.ts` 相邻行为。导航使用 RustCodeGraph，未覆盖的新增文件定向读取；编辑前对照 system_settings_common 与 custom_model_modal。
+
+- 桌面 components/state/message 的 `app_providers/endpoints.rs` 接入供应商列表逐项“端点与请求选项”。地址簿增删、基础/完整 URL、刷新、标记使用均消费既有 SDK；完整路径及末尾斜杠原样提交，时间戳来自服务。地址簿不切换当前供应商，标记使用不代表成功请求。主机/租户/代次过期响应丢弃，忙碌时阻止重复提交；失败保留弹窗和草稿。
+- Claude/Codex 显示只写普通头与代理覆盖 JSON 输入。留空保留、`{}` 清除对应组；先要求每个非空字段是单个完整 JSON 对象，拒绝注入相邻选项；结构反序列化失败保留草稿，头名称/值、大小、受保护代理头及协议字段继续使用执行端 `providers/validation::{validate,merge}` 的唯一校验。保存成功清空草稿，刷新/重开只回读是否配置，绝不以脱敏占位值回填后覆盖秘密。Form/Event Debug 固定脱敏，SDK 凭据头标记 sensitive，错误不返回响应正文。
+- 新增强类型 `RequestOptionsTarget/Write/View`，SDK `app_provider_request_options_read/save`，API `POST /v1/app-providers/{app}/{id}/request-options/read` 与 `PUT /v1/app-providers/{app}/{id}/request-options`。先通过既有 provider_editor_context 校验 token、租户、执行主机及 read/write 权限，再访问固定档案命名空间。写入复用档案 CAS；不支持应用/非原生记录明确拒绝，不走不兼容 Legacy PATCH，不增加配置路径、命令接口或业务存储。
+- `providers/request_options.rs` 负责原生共同选项视图与合并，`AppProviderStore` 负责持久化；Claude/Codex 原生保存不再删除 `requestOptions`，并在自身 CAS 前验证它。现有档案、凭据、原生配置与其他元数据继续由原所有者处理。
+- **普通头与代理覆盖均仅保存，返回 `application: not_applied`。** 普通头供原生适配消费，但本入口尚未将它投影到原生配置；代理覆盖只用于路由/聚合代理，生产代理未接入。本任务不声称发送请求、原生消费或 live 生效，没有提前建设路由引擎。其它应用本次只开放已有端点地址簿，不新增它们的请求选项契约。
+- 弹窗复用统一输入/checkbox/按钮、toast；标题、刷新、取消、保存按钮固定，仅内容滚动，4px 滚动条、两侧各 7px 留白。重开复位滚动；所有中文、URL 与动态状态使用默认字体，无中文等宽字体。
+
+### SDK→HTTP→执行端证据
+
+新 Gateway 测试使用真实 SDK、回环 HTTP、正式 handler/权限策略与临时 SQLite；原生档案由既有 Claude/Codex 保存所有者创建。只使用假凭据和隔离 HOME，未触碰真实用户配置。
+
+1. 请求选项 PUT 携带普通 Authorization 测试头、X-Title、代理 X-Proxy 和 temperature；响应只有 `headersConfigured/overridesConfigured/application`，不含头名/值、正文或密钥。随后经 SDK 执行 Claude 原生表单更新及 Codex 原生保存，独立重读数据库确认选项完整保留、头名规范化及名称更新；重新打开数据库仍可读出配置状态。隔离 `.claude/settings.json` 和 `.codex/config.toml` 均未创建，不把目录保存当原生应用。
+2. 无效 token、错误 host、受保护代理 Authorization 被拒绝，数据库档案字节不变；普通头显式清除保留代理覆盖，再清除代理覆盖。既有端点回归另证明 Basic 认证拒绝、非法输入无副作用与跨租户/应用隔离。
+3. 原生档案地址簿通过 SDK 添加完整 `/v1/messages/`，MarkUsed 回读服务时间，独立数据库 `customEndpoints` 与响应一致，原生凭据保持；含 URL 凭据的非法端点拒绝且档案不变，删除后空列表。窗口回环 fixture 只替代远端响应，不能取代以上真实存储证据。
+
+### 验证记录
+
+每阶段依次原子 mkdir 动态领取共享槽位并记录计划/任务/会话/PID；`CARGO_TARGET_DIR` 和 `CARGO_BUILD_BUILD_DIR` 同为以下绝对路径。所有 Cargo、窗口及产物子进程结束后已释放自身锁，保留缓存。
+
+| 槽位 | CARGO_TARGET_DIR | 阶段 |
+|---|---|---|
+| 1 | `/Users/xiangmin/worker/code/shiju/target/rust-slot-1` | 红测、首次绿测、最终 API/端点回归与 Clippy、浅色窗口 |
+| 2 | `/Users/xiangmin/worker/code/shiju/target/rust-slot-2` | 格式化、桌面绿测、深色窗口、JSON 边界首次复验与最终 Clippy |
+| 3 | `/Users/xiangmin/worker/code/shiju/target/rust-slot-3` | JSON 边界补强后桌面最终复验 |
+
+| 确切命令 | 退出码 | 有效结果 |
+|---|---|---|
+| `cargo fmt --all` | 0 | 每轮 Rust 修改后执行，不计行为测试 |
+| `cargo test -p vw-desktop --lib cc04_ui_endpoints_ -- --nocapture` 红测 | 101 | 0 passed / 2 failed；SDK 未提交的业务断言，非编译失败 |
+| 同上，JSON 边界补强前绿测 | 0 | 2 passed：invalid_response_stays_in_modal、submit_keeps_full_url_choice |
+| `cargo test -p vw-agent --lib cc04_ui_endpoints_ -- --nocapture` | 0 | 3 passed：原生保存保留/脱敏、权限校验/清除、地址簿/时间戳 |
+| `cargo test -p vw-agent --lib cc04_endpoints_ -- --nocapture` | 0 | 2 passed：既有认证拒绝无副作用、SDK 持久化/隔离 |
+| `cargo clippy --all-targets --all-features -- -D warnings` | 0 | JSON 边界补强前完整严格检查通过 |
+| `SHIJU_CC04_WINDOW_CASE=endpoints SHIJU_CC04_WINDOW_THEME=dark cargo test -p vw-desktop --test cc04-provider-window` | 0 | 实际操作、绘制并手动关闭 |
+| `SHIJU_CC04_WINDOW_CASE=endpoints SHIJU_CC04_WINDOW_THEME=light cargo test -p vw-desktop --test cc04-provider-window` | 0 | 实际操作、绘制并手动关闭 |
+
+JSON 边界补强前去重通过 **7 项行为测试**（5 项新增、2 项已有回归）。补强新增 `cc04_ui_endpoints_json_field_cannot_inject_sibling_options`，最终 `cargo fmt --all` 退出 0；同一桌面过滤命令退出 101，因并行改动 `system_settings_common/mod_ui_refresh_01_tests.rs:417` 对共享引用中的 renderer 调用可变 screenshot（E0596），未执行任何测试，新增测试尚未验收。未修改该无关文件；该并行错误随后由所属会话修复；槽位 3 重跑相同过滤命令退出 0，3 passed，包含新增 JSON 注入拒绝测试。最终严格 Clippy 在槽位 2 退出 0。最终去重 **8 项行为测试**（6 项新增、2 项已有），未改窗口布局或有效输入处理，不重复窗口验收。窗口不计单元测试数。窗口命令额外继承 `CARGO_TARGET_AARCH64_APPLE_DARWIN_RUNNER=/tmp/shiju-task68-window/runner`，仅把同槽位二进制包装为临时 Endpoints68Acceptance.app；未改仓库构建设置。看到既有链接器 unwind/sandbox extension 提示，窗口命令均退出 0；没有 panic。未运行全量 cargo test、fmt check、wasm 或 Makefile。
+
+### macOS 原生绘制
+
+macOS **27.0（26A428）/ arm64**，桌面 **0.6.0**。两种主题均实际操作：供应商列表 → 端点与请求选项 → 中文无效端点返回 422、保留草稿 → 修正为完整 `/v1/messages/` 并勾选完整 URL → 添加、标记使用、刷新，显示服务返回 12345 → 滚动 9 条端点长表单 → 输入中文动态普通头、受保护代理头，返回 400 且草稿保留 → 修正并保存，状态显示两组已配置且未应用、输入框清空 → 输入清除草稿后取消 → 重开确认两组配置仍保留、没有敏感值回填。真实绘制中文、弹窗、滚动与动态文本，无字形整形 panic。
+
+- 深色：[端点失败](evidence/task-68/dark-endpoint-failure.png)、[完整 URL 与服务时间](evidence/task-68/dark-full-url-used.png)、[请求覆盖失败](evidence/task-68/dark-options-failure.png)、[保存状态](evidence/task-68/dark-options-saved.png)、[取消重开](evidence/task-68/dark-cancel-reopened.png)。
+- 浅色：[端点失败](evidence/task-68/light-endpoint-failure.png)、[完整 URL 与服务时间](evidence/task-68/light-full-url-used.png)、[请求覆盖失败](evidence/task-68/light-options-failure.png)、[保存状态](evidence/task-68/light-options-saved.png)、[取消重开](evidence/task-68/light-cancel-reopened.png)。
+
+真实第三方应用版本/账号、上游网络、普通头原生投影、代理消费和非 macOS 平台均未验收。截图中的时间及 HTTP 返回属于显式窗口 fixture；真实服务时间/权限/持久化由上述 Gateway 测试证明。差异检查通过，只提交任务实现、独立测试、夹具和本条正式证据；其它会话设置/终端改动及编号任务状态不纳入提交。下一步批次 69 与计划统一回归。

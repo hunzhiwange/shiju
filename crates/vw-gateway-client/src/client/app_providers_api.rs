@@ -276,3 +276,6 @@ mod operations_tests;
 
 #[path = "app_providers/basic.rs"]
 mod basic;
+
+#[path = "app_providers/request_options.rs"]
+mod request_options;

@@ -50,3 +50,7 @@ mod agy_tests;
 pub(crate) mod desktop;
 #[cfg(test)]
 mod desktop_tests;
+
+pub(crate) mod endpoints;
+#[cfg(test)]
+mod endpoints_tests;

@@ -3,6 +3,7 @@
 mod app;
 mod apps;
 mod cc04_desktop_fixture;
+mod cc04_endpoints_fixture;
 mod desktop_update_helper;
 mod fonts;
 use app::message::app_providers::list::{ListMessage, message};
@@ -12,7 +13,7 @@ use vw_gateway_client::vw_api_types::agent_apps::AppId;
 fn main() {
     let case = std::env::var("SHIJU_CC04_WINDOW_CASE").expect("window case");
     let (app, native_form) = match case.as_str() {
-        "list" | "edit" => (AppId::Claude, false),
+        "list" | "edit" | "endpoints" => (AppId::Claude, false),
         "claude" => (AppId::Claude, true),
         "codex" => (AppId::Codex, true),
         "gemini" => (AppId::Gemini, true),
@@ -76,6 +77,7 @@ fn main() {
         "mcode" => "Mcode 供应商隔离验收",
         "agy" => "Agy 供应商隔离验收",
         "desktop" => "Desktop 供应商隔离验收",
+        "endpoints" => "端点与请求选项隔离验收",
         "dsh" => "Dsh 供应商隔离验收",
         "kimi" => "Kimi 供应商隔离验收",
         "claude" => "Claude Code 供应商隔离验收",
@@ -272,6 +274,7 @@ fn fixture(
             "provider-0".to_string(),
             serde_json::json!({"model":"现有中文模型","baseUrl":"https://fixture-api.example.test","hasSavedKey":true,"revision":"fixture-initial"}),
         )]);
+        let mut endpoints_fixture = cc04_endpoints_fixture::Fixture::default();
         let mut desktop_fixture = cc04_desktop_fixture::Fixture::new();
         let mut node_members = std::collections::BTreeSet::from(["provider-0".to_owned()]);
         while !done.load(std::sync::atomic::Ordering::Relaxed) {
@@ -312,7 +315,20 @@ fn fixture(
             } else {
                 None
             };
-            let body = if let Some((code, value)) = desktop_response {
+            let endpoints_response = if path.starts_with(&prefix) {
+                endpoints_fixture.handle(
+                    line.split_whitespace().next().unwrap_or(""),
+                    path,
+                    id,
+                    &payload,
+                )
+            } else {
+                None
+            };
+            let body = if let Some((code, value)) = endpoints_response {
+                status = code;
+                value
+            } else if let Some((code, value)) = desktop_response {
                 assert!(head.to_lowercase().contains("x-agent-apps-token: fake-host-token"));
                 status = code;
                 value

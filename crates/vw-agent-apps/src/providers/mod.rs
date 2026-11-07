@@ -242,3 +242,5 @@ pub mod operations;
 mod operations_tests;
 
 pub mod basic;
+
+pub mod request_options;

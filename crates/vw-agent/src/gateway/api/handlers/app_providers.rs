@@ -43,6 +43,7 @@ pub(crate) fn router() -> Router {
         .merge(duplicate::router())
         .merge(presentation::router())
         .merge(endpoints::router())
+        .merge(request_options::router())
         .merge(icons::router())
         .merge(universal::router())
         .merge(universal_sync::router())
@@ -318,3 +319,7 @@ mod api_security_tests;
 mod basic;
 #[cfg(test)]
 mod basic_tests;
+
+mod request_options;
+#[cfg(all(test, target_os = "macos"))]
+mod request_options_tests;

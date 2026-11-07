@@ -20,3 +20,5 @@ pub(crate) mod dsh;
 pub(crate) mod agy;
 
 pub(crate) mod desktop;
+
+pub(crate) mod endpoints;

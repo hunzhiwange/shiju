@@ -99,6 +99,13 @@ pub(crate) fn overlay<'a>(
                 edit_action("删除", id, false, true, enabled),
             ]
             .spacing(8);
+            actions = actions.push(action(
+                "端点与请求选项",
+                ListMessage::Endpoints(crate::app::message::app_providers::endpoints::Event::Open(
+                    id.clone(),
+                )),
+                enabled,
+            ));
             if scope.app == AppId::ClaudeDesktop {
                 actions = actions.push(action(
                     "直连与映射",
@@ -247,6 +254,9 @@ pub(crate) fn overlay<'a>(
     .width(Length::Fixed(800.))
     .height(Length::Fixed(650.));
     let list = settings_modal_overlay(Some(base), message(ListMessage::Close), card);
+    if let Some(form) = &state.endpoints {
+        return super::endpoints::overlay(form, scope.app, list);
+    }
     if let Some(form) = &state.desktop {
         return super::desktop::overlay(form, list);
     }

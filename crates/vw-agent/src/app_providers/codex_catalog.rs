@@ -49,7 +49,7 @@ impl AppProviderStore {
         }
         let mut value = metadata.or(stored).unwrap_or(json!({}));
         let obj = value.as_object_mut().ok_or("invalid provider record")?;
-        for key in ["apiKey", "baseUrl", "protocol", "model", "requestOptions"] {
+        for key in ["apiKey", "baseUrl", "protocol", "model"] {
             obj.remove(key);
         }
         obj.insert("name".into(), json!(profile.name));
@@ -59,6 +59,7 @@ impl AppProviderStore {
             "settingsConfig".into(),
             vw_agent_apps::providers::codex_catalog::settings(profile),
         );
+        vw_agent_apps::providers::request_options::read(AppId::Codex, &value)?;
         let after = value.to_string();
         let saved = match raw {
             Some(raw) => self.settings.compare_exchange(tenant, NAMESPACE, &key, &raw, &after),

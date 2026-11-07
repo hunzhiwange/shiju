@@ -60,7 +60,7 @@ impl AppProviderStore {
         let mut row = metadata.or(stored).unwrap_or(json!({}));
         let object = row.as_object_mut().ok_or("invalid stored application provider profile")?;
         // Remove legacy credentials as well as provider-owned settings, retain metadata/global fields.
-        for key in ["apiKey", "baseUrl", "protocol", "model", "requestOptions"] {
+        for key in ["apiKey", "baseUrl", "protocol", "model"] {
             object.remove(key);
         }
         if let Some(meta) = object.get_mut("meta").and_then(Value::as_object_mut) {
@@ -102,6 +102,7 @@ impl AppProviderStore {
             "settingsConfig".into(),
             serde_json::from_slice(&bytes).map_err(|_| "invalid application provider profile")?,
         );
+        vw_agent_apps::providers::request_options::read(AppId::Claude, &row)?;
         let after = row.to_string();
         let saved = match raw {
             Some(raw) => self.settings.compare_exchange(tenant, NAMESPACE, &key, &raw, &after),

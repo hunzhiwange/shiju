@@ -13,6 +13,7 @@ pub(super) fn router() -> Router {
 }
 pub(super) fn router_with_policy(path: Option<PathBuf>) -> Router {
     Router::new()
+        .route("/app-providers/claude-desktop/{id}/form/read", post(read_form))
         .route("/app-providers/claude-desktop/model-mapping/defaults", post(defaults))
         .route("/app-providers/claude-desktop/providers/import-claude", post(import))
         .route("/app-providers/claude-desktop/{id}/model-mapping", put(save))
@@ -106,4 +107,40 @@ fn authorized_store(
             .map_err(|_| StatusCode::SERVICE_UNAVAILABLE)?,
     };
     AppProviderStore::new(db).map_err(|_| StatusCode::SERVICE_UNAVAILABLE)
+}
+
+async fn read_form(
+    Extension(policy): Extension<Policy>,
+    Extension(tenant): Extension<TenantScope>,
+    db: Option<Extension<GlobalDatabase>>,
+    headers: HeaderMap,
+    Path(id): Path<String>,
+    body: Result<Json<ClaudeDesktopTarget>, JsonRejection>,
+) -> Response {
+    let Ok(Json(request)) = body else { return StatusCode::BAD_REQUEST.into_response() };
+    finish(
+        tokio::task::spawn_blocking(move || {
+            super::super::agent_apps::provider_editor_context(
+                policy.0.as_deref(),
+                &headers,
+                &tenant,
+                &request.target_host_id,
+                false,
+            )?;
+            let db = match db {
+                Some(Extension(db)) => db,
+                None => GlobalDatabase::for_home(&crate::global::paths().home)
+                    .map_err(|_| StatusCode::SERVICE_UNAVAILABLE)?,
+            };
+            let store = AppProviderStore::new(db).map_err(|_| StatusCode::SERVICE_UNAVAILABLE)?;
+            let row = store
+                .claude_desktop_record(&tenant, &id)
+                .map_err(|_| StatusCode::SERVICE_UNAVAILABLE)?
+                .ok_or(StatusCode::NOT_FOUND)?;
+            let view = vw_agent_apps::providers::desktop_mapping::form_view(&row)
+                .map_err(|_| StatusCode::UNPROCESSABLE_ENTITY)?;
+            Ok(Json(view).into_response())
+        })
+        .await,
+    )
 }

@@ -41,3 +41,15 @@ pub struct DesktopDefaultRoute {
 pub struct DesktopImportResult {
     pub imported: usize,
 }
+
+/// Redacted catalog form; never returns credentials or claims runtime health.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct DesktopFormView {
+    pub name: String,
+    pub base_url: String,
+    pub official: bool,
+    pub direct_editable: bool,
+    pub mapping: DesktopMapping,
+    pub mapping_editable: bool,
+}

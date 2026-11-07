@@ -2998,3 +2998,50 @@ macOS **27.0（26A428）/ arm64**，桌面 **0.6.0**，`sw_vers`/`uname -m` 退�
 - 浅色：[失败与长表单](evidence/task-66/light-failure.png)、[保存](evidence/task-66/light-saved.png)、[取消草稿](evidence/task-66/light-cancel-draft.png)、[重开](evidence/task-66/light-cancel-reopened.png)、[删除后](evidence/task-66/light-deleted.png)。
 
 状态：**已完成，待回归**。自身槽位 1、2 占用记录均已清理，缓存保留；其它会话重新领取的槽位不触碰。保留编号任务文件，待其它会话修复上述编译错误后重新运行严格 Clippy，通过后再完成归档。只提交本任务实现、测试和证据，排除其它会话设置/终端改动及编号任务状态；只读 plan.md 无差异。未执行全量单元测试、fmt check、wasm 或 Makefile。
+
+
+## 任务 67：桌面 Desktop 直连与映射表单
+
+2026-11-07，状态：**已完成**。批次 66 实现提交 `b3f0f04e2` 已核对；调度明确允许消费其“已完成，待回归”实现，历史无关 Clippy 阻塞进入统一回归。母任务 1、3 已完成；母任务 2 沿底座子计划 1–93 开工裁定，不冒称整体完成。所有 plan.md 保持只读。
+
+### 来源与实现
+
+- 来源 `/Users/xiangmin/worker/code/cc-switch` HEAD `ca58c0313360eae7c851fbd7553c1614c7af03e7`：阅读 `ClaudeDesktopProviderForm`、`useDesktopConfigMessages`、直接调用者 ProviderForm/SwitchModePanel 与相邻测试。实现前检查统一 settings 控件及 custom_model_modal，沿任务 33 直连事务与任务 34 映射目录契约。
+- 新建 components/state/message 的 `app_providers/desktop.rs`，接入列表新增、逐条“直连与映射”、状态和 Message 分发。支持直连基础字段、已有官方登录、首次激活/当前供应商应用、默认路由、模型与中文显示名、1M 标记、兼容导入。统一弹窗、输入、按钮、toast；固定标题与保存/取消区，4px 滚动条、两侧各 7px 留白，重开滚动复位。
+- 新增脱敏 `DesktopFormView` 与 SDK `claude_desktop_form_read`，调用 `POST /v1/app-providers/claude-desktop/{id}/form/read`。执行端先验证敏感 token、租户和主机读取权限，再读目录并调用领域 `form_view`；不返回密钥，拒绝含秘密 query 等非法端点。保存密钥需重新完整输入，事件/状态 Debug 脱敏。UI 不调用文件系统或命令，所有提交走既有 SDK/API；过期主机/代次响应丢弃，忙碌时禁止重复提交。
+- 直连保存/切换消费既有事务 API，分别呈现目录保存、未应用、已应用、失败和恢复状态；只有真实返回 Applied 才提示完全退出重启 Desktop。映射保存仅写目录，明确未激活；非空路由/代理模式仍不能直接激活。路由运行时、实时诊断、模型发现、OAuth 发起尚不可用，未伪造支持。
+- Gateway 测试使用真实 SDK/HTTP/handler、临时 SQLite 与隔离 HOME，证明读取脱敏、权限拒绝无副作用、端点秘密拒绝、映射目录保存/导入、兼容原生档案到四文件事务，以及直连切换/编辑/reapply/官方配置。仅外部上游和原生窗口 HTTP 响应使用假数据，凭据均为测试值。
+
+### 验证记录
+
+每阶段以原子 mkdir 动态领取共享槽位，记录计划/任务/会话/PID；`CARGO_TARGET_DIR` 与 `CARGO_BUILD_BUILD_DIR` 同为下表绝对目录。所有 Cargo 和原生窗口子进程结束后已清理自身锁，保留缓存。
+
+| 槽位 | CARGO_TARGET_DIR | 阶段 |
+|---|---|---|
+| 1 | `/Users/xiangmin/worker/code/shiju/target/rust-slot-1` | 红绿测试、首次 API/Clippy、浅色窗口、最终严格 Clippy |
+| 2 | `/Users/xiangmin/worker/code/shiju/target/rust-slot-2` | 最终 UI/API/事务测试、最终深色窗口 |
+| 4 | `/Users/xiangmin/worker/code/shiju/target/rust-slot-4` | 最终格式化 |
+
+| 确切命令 | 退出码 | 有效行为结果 |
+|---|---|---|
+| `cargo test -p vw-desktop --lib cc04_ui_desktop_ -- --nocapture` 红测 | 101 | 0 passed / 2 failed，SDK 未提交的业务断言，非编译失败 |
+| 同上，最终绿测 | 0 | 2 passed：mapping_validation_is_visible、import_uses_compatibility_api |
+| `cargo test -p vw-agent --lib gateway::api::handlers::app_providers::desktop_mapping_tests:: -- --nocapture` | 0 | 4 passed |
+| `cargo test -p vw-agent --lib cc04_claude_desktop_sdk_api_switch_edit_reapply_and_official -- --nocapture` | 0 | 1 passed |
+| `cargo fmt --all` | 0 | 格式化，不计行为测试 |
+| `cargo clippy --all-targets --all-features -- -D warnings` | 0 | 最终完整严格检查通过，不计行为测试 |
+| `SHIJU_CC04_WINDOW_CASE=desktop SHIJU_CC04_WINDOW_THEME=dark cargo test -p vw-desktop --test cc04-provider-window` | 0 | 实际操作并手动关闭 |
+| `SHIJU_CC04_WINDOW_CASE=desktop SHIJU_CC04_WINDOW_THEME=light cargo test -p vw-desktop --test cc04-provider-window` | 0 | 实际操作并手动关闭 |
+
+去重共 **7 项行为测试**。首次实现编译因闭包参数缺少 bool 类型退出 101，补充后通过，不计红测；首次深色 fixture 错误匹配其它 `/config` 路由导致退出 101，限制应用路径前缀后完成最终明暗窗口，两次均退出 0。没有执行全量单元测试、fmt check、wasm 或 Makefile。
+
+### macOS 原生绘制
+
+macOS **27.0（26A428）/ arm64**，桌面 **0.6.0**。窗口命令额外继承 `CARGO_TARGET_AARCH64_APPLE_DARWIN_RUNNER=/tmp/shiju-task67-window/runner`，仅将同槽位二进制包装到临时 Desktop67Acceptance.app，未修改仓库构建配置。显式 desktop case 使用真实 Iced 组件、Message、SDK 与回环假 HTTP；未知 case 仍拒绝。真实 Claude Desktop 账号、安装版本与最终上游消费未验证，Windows/Linux 未验收；不把 fixture 当作真实路由运行时或上游应用通过。
+
+明暗主题均操作：打开含 12 条中文动态映射的长表单 → 非法 model 返回 422 并保留草稿 → 修正并保存中文显示名 → 再改草稿后取消 → 重开确认已保存值；新建中文直连档案 → 非法 URL 失败 → 修正后应用 → 显示完全退出重启提示 → 修改名称后取消并刷新，确认原保存名称。深色额外点击默认路由，回读显示 claude-fable-5。实际滚动、弹窗和动态中文整形无 panic；只见既有 sandbox extension 与链接器 unwind 提示。
+
+- 深色：[映射失败](evidence/task-67/dark-failure.png)、[保存长表单](evidence/task-67/dark-saved.png)、[取消重开](evidence/task-67/dark-cancel-reopened.png)、[默认路由](evidence/task-67/dark-defaults.png)、[直连失败](evidence/task-67/dark-direct-failure.png)、[应用重启提示](evidence/task-67/dark-direct-applied.png)、[取消后列表](evidence/task-67/dark-direct-cancel.png)。
+- 浅色：[映射失败](evidence/task-67/light-failure.png)、[保存长表单](evidence/task-67/light-saved.png)、[取消草稿](evidence/task-67/light-cancel-draft.png)、[取消重开](evidence/task-67/light-cancel-reopened.png)、[直连失败](evidence/task-67/light-direct-failure.png)、[应用重启提示](evidence/task-67/light-direct-applied.png)、[取消后列表](evidence/task-67/light-direct-cancel.png)。
+
+定向差异检查通过，只提交本任务实现、独立测试、原生夹具和正式证据，排除其它会话设置/终端变更和编号任务状态。编号任务证据齐备后删除，不单独提交状态变更。下一步批次 68 与计划统一回归。

@@ -99,6 +99,15 @@ pub(crate) fn overlay<'a>(
                 edit_action("删除", id, false, true, enabled),
             ]
             .spacing(8);
+            if scope.app == AppId::ClaudeDesktop {
+                actions = actions.push(action(
+                    "直连与映射",
+                    ListMessage::Desktop(crate::app::message::app_providers::desktop::Event::Open(
+                        Some(id.clone()),
+                    )),
+                    enabled,
+                ));
+            }
             if scope.app == AppId::Hermes && entry.native_member != ProviderMembership::Unknown {
                 let add = entry.native_member == ProviderMembership::Absent;
                 actions = actions.push(action(
@@ -214,9 +223,15 @@ pub(crate) fn overlay<'a>(
                     .style(rounded_action_btn_style)
                     .on_press_maybe(
                         (!state.loading && state.form.is_none() && state.editor.is_none())
-                            .then_some(crate::app::message::app_providers::edit::message(
-                                crate::app::message::app_providers::edit::EditMessage::Create
-                            ))
+                            .then_some(if scope.app == AppId::ClaudeDesktop {
+                                crate::app::message::app_providers::desktop::message(
+                                    crate::app::message::app_providers::desktop::Event::Open(None),
+                                )
+                            } else {
+                                crate::app::message::app_providers::edit::message(
+                                    crate::app::message::app_providers::edit::EditMessage::Create,
+                                )
+                            })
                     ),
                 action(
                     "刷新",
@@ -232,6 +247,9 @@ pub(crate) fn overlay<'a>(
     .width(Length::Fixed(800.))
     .height(Length::Fixed(650.));
     let list = settings_modal_overlay(Some(base), message(ListMessage::Close), card);
+    if let Some(form) = &state.desktop {
+        return super::desktop::overlay(form, list);
+    }
     if let Some(form) = &state.form {
         return super::edit::overlay(form, list);
     }

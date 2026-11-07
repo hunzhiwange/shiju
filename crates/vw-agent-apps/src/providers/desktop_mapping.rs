@@ -228,3 +228,68 @@ fn add_route(
     }
     Ok(())
 }
+
+/// Expose only editable public fields; credentials stay on the execution host.
+pub fn form_view(row: &Value) -> Result<DesktopFormView, String> {
+    let mapping = DesktopMapping {
+        mode: row
+            .pointer("/meta/claudeDesktopMode")
+            .cloned()
+            .map(serde_json::from_value)
+            .transpose()
+            .map_err(|_| "invalid mapping mode")?
+            .unwrap_or(DesktopMappingMode::Direct),
+        routes: row
+            .pointer("/meta/claudeDesktopModelRoutes")
+            .cloned()
+            .map(serde_json::from_value)
+            .transpose()
+            .map_err(|_| "invalid mapping routes")?
+            .unwrap_or_default(),
+    };
+    let native = row
+        .get("claude_desktop")
+        .cloned()
+        .map(
+            serde_json::from_value::<
+                vw_api_types::app_providers::claude_desktop::ClaudeDesktopProfile,
+            >,
+        )
+        .transpose()
+        .map_err(|_| "invalid Desktop profile")?;
+    let official = native.as_ref().is_some_and(|p| {
+        matches!(
+            p.config,
+            vw_api_types::app_providers::claude_desktop::ClaudeDesktopConfig::Official {}
+        )
+    });
+    let managed = row.pointer("/meta/authBinding").is_some()
+        || row.pointer("/meta/providerType").is_some()
+        || row.pointer("/meta/liveConfigManaged") == Some(&serde_json::json!(true))
+        || row.pointer("/meta/isFullUrl") == Some(&serde_json::json!(true));
+    let native_format = row
+        .pointer("/meta/apiFormat")
+        .and_then(Value::as_str)
+        .is_none_or(|s| s.is_empty() || s == "anthropic");
+    let direct_editable = native.is_some()
+        && !managed
+        && native_format
+        && mapping.mode == DesktopMappingMode::Direct
+        && mapping.routes.is_empty();
+    let base_url = row
+        .pointer("/settingsConfig/env/ANTHROPIC_BASE_URL")
+        .and_then(Value::as_str)
+        .unwrap_or_default()
+        .to_string();
+    if !base_url.is_empty() {
+        super::validation::endpoint(&base_url)?;
+    }
+    Ok(DesktopFormView {
+        name: row.get("name").and_then(Value::as_str).ok_or("invalid provider name")?.into(),
+        base_url,
+        official,
+        direct_editable,
+        mapping_editable: !official && import_row(row)?.is_some(),
+        mapping,
+    })
+}

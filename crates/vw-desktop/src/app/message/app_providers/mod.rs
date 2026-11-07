@@ -46,3 +46,7 @@ mod dsh_tests;
 pub(crate) mod agy;
 #[cfg(test)]
 mod agy_tests;
+
+pub(crate) mod desktop;
+#[cfg(test)]
+mod desktop_tests;

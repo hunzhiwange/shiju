@@ -204,3 +204,45 @@ async fn cc04_desktop_mapping_permissions_refuse_catalog_side_effects() {
     assert_eq!(std::fs::read(f.file()).unwrap(), before);
     assert!(!f.root.path().join("private/provider-live").exists());
 }
+
+#[tokio::test]
+async fn cc04_ui_desktop_form_read_is_redacted_and_permission_checked() {
+    let f = Fixture::new().await;
+    let write = ClaudeDesktopWrite {
+        target_host_id: "host".into(),
+        profile: ClaudeDesktopProfile {
+            name: "中文直连".into(),
+            config: ClaudeDesktopConfig::ThirdParty {
+                base_url: "https://fixture.test".into(),
+                auth_token: "fake-private-secret".into(),
+            },
+        },
+        activation: ClaudeDesktopActivation::CatalogOnly,
+    };
+    f.client.claude_desktop_provider_save("form", &write, TOKEN).await.unwrap();
+    let before = f.record("form").unwrap();
+    let view = f.client.claude_desktop_form_read("form", &f.target(), TOKEN).await.unwrap();
+    assert_eq!(view.name, "中文直连");
+    assert!(view.direct_editable && view.mapping_editable);
+    assert_eq!(view.mapping.mode, DesktopMappingMode::Direct);
+    assert!(!serde_json::to_string(&view).unwrap().contains("fake-private-secret"));
+    assert!(f.client.claude_desktop_form_read("form", &f.target(), "bad-token").await.is_err());
+    assert_eq!(f.record("form").unwrap(), before);
+    let mut unsafe_row: Value = serde_json::from_str(&before).unwrap();
+    unsafe_row["settingsConfig"]["env"]["ANTHROPIC_BASE_URL"] =
+        json!("https://fixture.test?api_key=private");
+    GatewaySettingsStore::new(f.db.clone())
+        .unwrap()
+        .upsert(
+            &TenantScope::new("p", "a").unwrap(),
+            "app_providers.records",
+            "\"claude-desktop\":form",
+            &unsafe_row.to_string(),
+        )
+        .unwrap();
+    assert!(matches!(
+        f.client.claude_desktop_form_read("form", &f.target(), TOKEN).await.unwrap_err(),
+        vw_gateway_client::AgentAppsReadError::Http { status: 422, .. }
+    ));
+    assert!(!f.root.path().join("private/provider-live").exists());
+}

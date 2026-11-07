@@ -2,6 +2,7 @@
 #![allow(dead_code, unused_imports, clippy::all, clippy::pedantic)]
 mod app;
 mod apps;
+mod cc04_desktop_fixture;
 mod desktop_update_helper;
 mod fonts;
 use app::message::app_providers::list::{ListMessage, message};
@@ -23,6 +24,7 @@ fn main() {
         "omp" => (AppId::Omp, true),
         "mcode" => (AppId::Mcode, true),
         "agy" => (AppId::Agy, true),
+        "desktop" => (AppId::ClaudeDesktop, true),
         "dsh" => (AppId::Dsh, true),
         "kimi" => (AppId::Kimi, true),
         _ => panic!("unknown window case"),
@@ -73,6 +75,7 @@ fn main() {
         "omp" => "OMP 供应商隔离验收",
         "mcode" => "Mcode 供应商隔离验收",
         "agy" => "Agy 供应商隔离验收",
+        "desktop" => "Desktop 供应商隔离验收",
         "dsh" => "Dsh 供应商隔离验收",
         "kimi" => "Kimi 供应商隔离验收",
         "claude" => "Claude Code 供应商隔离验收",
@@ -118,6 +121,7 @@ fn fixture(
         let mut basics: std::collections::BTreeMap<String, serde_json::Value> = (0..16).map(|i| (format!("provider-{i}"), serde_json::json!({"name":format!("中文供应商 {i}"),"category":"工作","notes":"中文动态备注","websiteUrl":"https://website.example.test"}))).collect();
         let app = match app {
             AppId::Claude => "claude",
+            AppId::ClaudeDesktop => "claude-desktop",
             AppId::Codex => "codex",
             AppId::Gemini => "gemini",
             AppId::GrokBuild => "grokbuild",
@@ -130,7 +134,6 @@ fn fixture(
             AppId::Agy => "agy",
             AppId::Dsh => "dsh",
             AppId::Kimi => "kimi",
-            _ => panic!("unknown fixture app"),
         };
         let prefix = format!("/v1/app-providers/{app}/");
         let mut third_party = serde_json::json!({
@@ -269,6 +272,7 @@ fn fixture(
             "provider-0".to_string(),
             serde_json::json!({"model":"现有中文模型","baseUrl":"https://fixture-api.example.test","hasSavedKey":true,"revision":"fixture-initial"}),
         )]);
+        let mut desktop_fixture = cc04_desktop_fixture::Fixture::new();
         let mut node_members = std::collections::BTreeSet::from(["provider-0".to_owned()]);
         while !done.load(std::sync::atomic::Ordering::Relaxed) {
             let (mut stream, _) = match listener.accept() {
@@ -303,7 +307,16 @@ fn fixture(
             let mut status = "200 OK";
             let path = line.split_whitespace().nth(1).unwrap_or("");
             let id = path.strip_prefix(&prefix).and_then(|v| v.split('/').next()).unwrap_or("");
-            let body = if app == "agy"
+            let desktop_response = if app == "claude-desktop" && path.starts_with(&prefix) {
+                desktop_fixture.handle(path, id, &payload, &mut basics)
+            } else {
+                None
+            };
+            let body = if let Some((code, value)) = desktop_response {
+                assert!(head.to_lowercase().contains("x-agent-apps-token: fake-host-token"));
+                status = code;
+                value
+            } else if app == "agy"
                 && (path.ends_with("/form/read")
                     || path.ends_with("/form")
                     || path.ends_with("/form/delete"))

@@ -17,3 +17,5 @@ mod kimi;
 pub(crate) mod dsh;
 
 mod agy;
+
+pub(crate) mod desktop;

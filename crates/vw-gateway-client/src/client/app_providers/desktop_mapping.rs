@@ -3,6 +3,15 @@ use super::super::agent_apps_read_api::AgentAppsReadError as Error;
 use super::GatewayClient;
 use vw_api_types::app_providers::{claude_desktop::*, desktop_mapping::*};
 impl GatewayClient {
+    pub async fn claude_desktop_form_read(
+        &self,
+        id: &str,
+        body: &ClaudeDesktopTarget,
+        token: &str,
+    ) -> Result<DesktopFormView, Error> {
+        self.claude_desktop_request(id, "POST", "/form/read", body, token).await
+    }
+
     pub async fn claude_desktop_default_routes(
         &self,
         body: &ClaudeDesktopTarget,

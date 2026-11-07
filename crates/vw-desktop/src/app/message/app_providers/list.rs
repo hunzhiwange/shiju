@@ -38,6 +38,7 @@ use vw_gateway_client::vw_api_types::{
 };
 #[derive(Clone, Debug)]
 pub enum ListMessage {
+    Desktop(super::desktop::Event),
     Open(AppId),
     Close,
     Refresh,
@@ -156,6 +157,7 @@ pub(crate) fn current(app: &App, id: AppId) -> Result<(GatewayClient, Scope), St
 }
 pub(crate) fn update(app: &mut App, value: ListMessage) -> Task<Message> {
     match value {
+        ListMessage::Desktop(event) => return super::desktop::update(app, event),
         ListMessage::Close => {
             let generation = app.app_providers.generation.wrapping_add(1);
             app.app_providers = Default::default();

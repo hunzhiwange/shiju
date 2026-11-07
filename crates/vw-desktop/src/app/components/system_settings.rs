@@ -721,6 +721,8 @@ pub fn view(app: &App) -> Element<'_, Message> {
         && (active_tab == SystemTab::Editor
             || (active_tab == SystemTab::Autonomy && !app.autonomy_settings.show_help_modal)
             || (active_tab == SystemTab::Security && !app.security_settings.show_help_modal)
+            || (active_tab == SystemTab::Observability
+                && !app.observability_settings.show_help_modal)
             || (active_tab == SystemTab::General
                 && matches!(
                     app.general_settings_tab,

@@ -1,8 +1,11 @@
 //! 连续跟手、松手后缓动吸附的推理强度滑杆；动画状态仅保存在控件树中。
 use iced::advanced::{Clipboard, Layout, Shell, Widget, layout, renderer, widget::tree};
 use iced::mouse;
+use iced::theme::palette;
 use iced::time::{Duration, Instant};
-use iced::{Border, Color, Element, Event, Length, Point, Rectangle, Size, Theme};
+use iced::{
+    Border, Color, Degrees, Element, Event, Length, Point, Rectangle, Size, Theme, gradient,
+};
 use vw_gateway_client::vw_api_types::ReasoningEffortDto;
 
 use super::{HANDLE_RADIUS, SLIDER_HEIGHT, SLIDER_WIDTH, reasoning_effort_message};
@@ -263,42 +266,41 @@ impl Widget<Message, Theme, iced::Renderer> for ReasoningSlider {
                 + state.position / self.maximum() * (bounds.width - HANDLE_RADIUS * 2.0),
             bounds.center_y(),
         );
-        let mut quad = |bounds: Rectangle, radius: f32, color: Color| {
-            renderer.fill_quad(
-                renderer::Quad {
-                    bounds,
-                    border: Border { radius: radius.into(), ..Border::default() },
-                    ..renderer::Quad::default()
-                },
-                color,
-            );
+        let quad = |bounds, radius: f32| renderer::Quad {
+            bounds,
+            border: Border { radius: radius.into(), ..Border::default() },
+            ..renderer::Quad::default()
         };
         let track = Rectangle { y: center.y - 10.0, height: 20.0, ..bounds };
-        quad(track, 10.0, theme.extended_palette().background.strong.color);
-        // 最左档不绘制填充，避免抗锯齿边缘透出蓝色；拖动时保留完整端帽。
+        let track_palette = theme.extended_palette().background.strong;
+        renderer.fill_quad(quad(track, 10.0), track_palette.color);
         if state.position > 0.0 {
-            quad(
-                Rectangle { width: (center.x - bounds.x).max(track.height), ..track },
-                10.0,
-                theme.palette().primary,
-            );
+            let fill_bounds = Rectangle { width: (center.x - track.x).max(track.height), ..track };
+            let start = Color::from_rgb8(32, 103, 216);
+            let end = Color::from_rgb8(132, 47, 185);
+            // 按填充宽度截取渐变，避免拖动时整段颜色随滑块拉伸。
+            let fill = gradient::Linear::new(Degrees(90.0))
+                .add_stop(0.0, start)
+                .add_stop(1.0, palette::mix(start, end, fill_bounds.width / track.width));
+            renderer.fill_quad(quad(fill_bounds, 10.0), fill);
         }
         for index in 0..self.options.len() {
             let x = bounds.x
                 + HANDLE_RADIUS
                 + index as f32 / self.maximum() * (bounds.width - HANDLE_RADIUS * 2.0);
-            quad(
-                Rectangle::new(Point::new(x - 2.0, center.y - 2.0), Size::new(4.0, 4.0)),
-                2.0,
-                theme.palette().text.scale_alpha(0.35),
+            renderer.fill_quad(
+                quad(Rectangle::new(Point::new(x - 3.0, center.y - 3.0), Size::new(6.0, 6.0)), 3.0),
+                if x < center.x { Color::WHITE } else { track_palette.text },
             );
         }
-        quad(
-            Rectangle::new(
-                Point::new(center.x - HANDLE_RADIUS, center.y - HANDLE_RADIUS),
-                Size::new(HANDLE_RADIUS * 2.0, HANDLE_RADIUS * 2.0),
+        renderer.fill_quad(
+            quad(
+                Rectangle::new(
+                    Point::new(center.x - HANDLE_RADIUS, center.y - HANDLE_RADIUS),
+                    Size::new(HANDLE_RADIUS * 2.0, HANDLE_RADIUS * 2.0),
+                ),
+                HANDLE_RADIUS,
             ),
-            HANDLE_RADIUS,
             Color::WHITE,
         );
     }

@@ -1,5 +1,60 @@
 use super::*;
 
+#[tokio::test(flavor = "multi_thread")]
+async fn slider_renders_a_gradient_and_contrasting_ticks_in_both_themes() {
+    use iced::advanced::renderer::Headless;
+    use iced::{Font, Pixels};
+
+    let mut slider = ReasoningSlider {
+        selected: 4,
+        options: super::super::reasoning_effort_options("codex").to_vec(),
+        identity: "model".into(),
+    };
+    let size = Size::new(256, 32);
+    let viewport = Rectangle::with_size(Size::new(size.width as f32, size.height as f32));
+    for theme in [Theme::Light, Theme::Dark] {
+        let mut renderer =
+            <iced::Renderer as Headless>::new(Font::DEFAULT, Pixels(16.0), Some("tiny-skia"))
+                .await
+                .expect("headless renderer");
+        let mut tree = tree::Tree::new(&slider as &dyn Widget<Message, Theme, iced::Renderer>);
+        let node =
+            slider.layout(&mut tree, &renderer, &layout::Limits::new(Size::ZERO, viewport.size()));
+        let bounds = node.bounds();
+        slider.draw(
+            &tree,
+            &mut renderer,
+            &theme,
+            &renderer::Style { text_color: theme.palette().text },
+            Layout::new(&node),
+            mouse::Cursor::Unavailable,
+            &viewport,
+        );
+        let pixels = renderer.screenshot(size, 1.0, Color::TRANSPARENT);
+        let pixel = |x, y| {
+            let offset = (y * size.width as usize + x) * 4;
+            Color::from_rgb8(pixels[offset], pixels[offset + 1], pixels[offset + 2])
+        };
+        let y = bounds.center_y() as usize;
+        let early_fill = pixel(26, y);
+        let late_fill = pixel(128, y);
+        assert!(late_fill.r > early_fill.r + 0.1 && late_fill.g < early_fill.g - 0.05);
+        for index in [0, 1, 2, 3, 5] {
+            let x = (HANDLE_RADIUS
+                + index as f32 / slider.maximum() * (bounds.width - 2.0 * HANDLE_RADIUS))
+                as usize;
+            let tick = pixel(x, y);
+            if index < slider.selected {
+                assert_eq!(tick, Color::WHITE, "{theme:?} passed tick {index} must stay white");
+            }
+            assert!(
+                tick.relative_contrast(pixel(x, y - 6)) >= 4.5,
+                "{theme:?} tick {index} must contrast with the track",
+            );
+        }
+    }
+}
+
 #[test]
 fn snap_eases_to_nearest_level_without_jumping_on_release() {
     let now = Instant::now();

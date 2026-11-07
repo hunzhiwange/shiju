@@ -724,3 +724,64 @@ fn agent_unified_selection_config_override_isolates_window_bootstrap() {
     assert_eq!(super::legacy_gateway_client_bootstrap_cache_path(), None);
     assert!(crate::app::project_dirs().unwrap().data_local_dir().starts_with(root.path()));
 }
+
+#[cfg(not(target_arch = "wasm32"))]
+pub(in crate::app) fn with_editor_settings_gateway(
+    test: impl FnOnce(crate::app::App, Receiver<String>, mpsc::Sender<Option<String>>),
+) {
+    use std::sync::Arc;
+    use std::sync::atomic::{AtomicBool, Ordering};
+    use std::time::Duration;
+
+    let (_lock, home, _home_guard) = temp_home();
+    let _config_guard = EnvGuard::set_os("VIBEWINDOW_CONFIG_DIR", home.path().as_os_str());
+    let listener = TcpListener::bind("127.0.0.1:0").unwrap();
+    let address = listener.local_addr().unwrap();
+    let bootstrap = gateway_config("127.0.0.1", address.port());
+    super::save_gateway_client_bootstrap_config(&bootstrap);
+    let bootstrap_path = super::gateway_client_bootstrap_cache_path().unwrap();
+    let original_bootstrap = std::fs::read(&bootstrap_path).unwrap();
+
+    let observe = Arc::new(AtomicBool::new(false));
+    let observe_requests = observe.clone();
+    let (request_tx, requests) = mpsc::channel();
+    let (responses, response_rx) = mpsc::channel::<Option<String>>();
+    let server = std::thread::spawn(move || {
+        while let Ok((mut stream, _)) = listener.accept() {
+            stream.set_read_timeout(Some(Duration::from_secs(5))).unwrap();
+            let request = read_http_request(&mut stream);
+            if request.is_empty() {
+                break;
+            }
+            let body = if observe_requests.load(Ordering::Relaxed) {
+                if request_tx.send(request).is_err() {
+                    break;
+                }
+                match response_rx.recv_timeout(Duration::from_secs(5)) {
+                    Ok(Some(body)) => body,
+                    Ok(None) => continue, // Disconnect without a response.
+                    Err(_) => break,
+                }
+            } else {
+                "{}".to_string()
+            };
+            let _ = write!(
+                stream,
+                "HTTP/1.1 200 OK\r\ncontent-type: application/json\r\ncontent-length: {}\r\nconnection: close\r\n\r\n{body}",
+                body.len()
+            );
+        }
+    });
+    let result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+        let (app, _) = crate::app::App::new();
+        observe.store(true, Ordering::Relaxed);
+        test(app, requests, responses);
+    }));
+    // Wake accept on success or panic; the response channel also closes if the test panics.
+    drop(TcpStream::connect(address));
+    server.join().unwrap();
+    if let Err(panic) = result {
+        std::panic::resume_unwind(panic);
+    }
+    assert_eq!(std::fs::read(bootstrap_path).unwrap(), original_bootstrap);
+}

@@ -8,7 +8,11 @@ use iced::{Theme, widget::Id};
 use iced_code_editor::{ArrowDirection, Message as CodeEditorMessage, i18n::Language};
 
 fn test_app() -> App {
-    App::new().0
+    let themes = tempfile::tempdir().unwrap();
+    crate::app::theme_catalog::set_test_themes_root(Some(themes.path().to_path_buf()));
+    let app = App::new().0;
+    crate::app::theme_catalog::set_test_themes_root(None);
+    app
 }
 
 fn preview_tab(path: &str, content: &str) -> PreviewTab {
@@ -301,4 +305,147 @@ fn search_dialog_actions_preserve_editor_content() {
 
     let _ = update(&mut app, EditorMessage::CloseSearch);
     assert_eq!(app.preview_tabs[0].editor.content(), "find me");
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+#[test]
+fn editor_settings_save_ignores_gateway_delay_and_persists_latest() {
+    use crate::app::{Message, config};
+    use iced_runtime::futures::futures::StreamExt;
+    use serde_json::json;
+    use std::time::Duration;
+
+    const CLEANUP_TIMEOUT: Duration = Duration::from_secs(5);
+
+    fn run_task(
+        runtime: &tokio::runtime::Runtime,
+        task: iced::Task<Message>,
+    ) -> tokio::task::JoinHandle<Message> {
+        let mut actions = iced_runtime::task::into_stream(task)
+            .expect("editor update must return a background save task");
+        runtime.spawn(async move {
+            while let Some(action) = actions.next().await {
+                if let iced_runtime::Action::Output(message) = action {
+                    return message;
+                }
+            }
+            panic!("save task did not report completion");
+        })
+    }
+
+    fn finish(
+        runtime: &tokio::runtime::Runtime,
+        task: tokio::task::JoinHandle<Message>,
+        app: &mut App,
+    ) -> iced::Task<Message> {
+        let message = runtime
+            .block_on(async { tokio::time::timeout(CLEANUP_TIMEOUT, task).await })
+            .expect("save task must finish")
+            .unwrap();
+        let Message::Editor(message) = message else {
+            panic!("save task must report an editor message");
+        };
+        update(app, message)
+    }
+
+    fn patch(request: &str) -> serde_json::Value {
+        assert!(request.starts_with("PATCH /v1/global/config "));
+        let body: serde_json::Value =
+            serde_json::from_str(request.split_once("\r\n\r\n").unwrap().1).unwrap();
+        let settings = body["app_ui"]["system_settings"].clone();
+        assert_eq!(body, json!({"app_ui": {"system_settings": settings}}));
+        settings
+    }
+
+    config::with_editor_settings_gateway(|mut app, requests, responses| {
+        let runtime = tokio::runtime::Builder::new_multi_thread()
+            .worker_threads(1)
+            .enable_all()
+            .build()
+            .unwrap();
+        app.auto_adjust_line_height = true;
+        let first = run_task(&runtime, update(&mut app, EditorMessage::FontSizeChanged(20.0)));
+        let first_patch = patch(&requests.recv_timeout(CLEANUP_TIMEOUT).unwrap());
+        assert_eq!(
+            first_patch,
+            json!({
+                "editor_font_size": 20.0,
+                "editor_line_height": 28.0,
+                "editor_auto_line_height": true
+            })
+        );
+
+        // All these updates finish before the first HTTP response is released.
+        for message in [
+            EditorMessage::FontSizeChanged(24.0),
+            EditorMessage::LineHeightChanged(27.0),
+            EditorMessage::ThemeChanged(Theme::Dark),
+            EditorMessage::ToggleFollowSystemTheme(true),
+        ] {
+            assert!(iced_runtime::task::into_stream(update(&mut app, message)).is_none());
+        }
+        assert_eq!(app.current_font_size, 24.0);
+        assert_eq!(app.current_line_height, 27.0);
+        assert!(app.editor_follow_system_theme);
+
+        let mut drain = app.editor_config_persistence.wait_for_idle().unwrap();
+        assert!(matches!(drain.try_recv(), Err(tokio::sync::oneshot::error::TryRecvError::Empty)));
+        responses.send(Some("{}".to_string())).unwrap();
+        let second = run_task(&runtime, finish(&runtime, first, &mut app));
+        let second_patch = patch(&requests.recv_timeout(CLEANUP_TIMEOUT).unwrap());
+        assert_eq!(
+            second_patch,
+            json!({
+                "editor_font_size": 24.0,
+                "editor_line_height": 27.0,
+                "editor_auto_line_height": false,
+                "editor_theme": "Dark",
+                "editor_follow_system_theme": true
+            })
+        );
+        assert!(matches!(drain.try_recv(), Err(tokio::sync::oneshot::error::TryRecvError::Empty)));
+        responses.send(Some("{}".to_string())).unwrap();
+        assert!(iced_runtime::task::into_stream(finish(&runtime, second, &mut app)).is_none());
+        assert_eq!(drain.try_recv(), Ok(()));
+
+        // The loopback fixture merges the captured patches, then answers a real settings reload.
+        let mut persisted = json!({"terminal_font_size": 19.0});
+        persisted.as_object_mut().unwrap().extend(first_patch.as_object().unwrap().clone());
+        persisted.as_object_mut().unwrap().extend(second_patch.as_object().unwrap().clone());
+        let reload = runtime.spawn(config::load_system_settings_config_async());
+        assert!(
+            requests.recv_timeout(CLEANUP_TIMEOUT).unwrap().starts_with("GET /v1/global/config ")
+        );
+        responses
+            .send(Some(json!({"app_ui": {"system_settings": persisted}}).to_string()))
+            .unwrap();
+        let loaded = runtime.block_on(reload).unwrap().unwrap();
+        assert_eq!(loaded.editor_font_size, 24.0);
+        assert_eq!(loaded.editor_line_height, 27.0);
+        assert!(!loaded.editor_auto_line_height);
+        assert_eq!(loaded.editor_theme, "Dark");
+        assert!(loaded.editor_follow_system_theme);
+        assert_eq!(loaded.terminal_font_size, 19.0);
+
+        let failed =
+            run_task(&runtime, update(&mut app, EditorMessage::ToggleFollowSystemTheme(false)));
+        assert_eq!(
+            patch(&requests.recv_timeout(CLEANUP_TIMEOUT).unwrap()),
+            json!({"editor_follow_system_theme": false})
+        );
+        responses.send(None).unwrap();
+        let _ = finish(&runtime, failed, &mut app);
+        assert!(!app.editor_follow_system_theme);
+        let toast = app.active_toast.as_ref().expect("save failure must show a toast");
+        assert!(toast.message.contains("编辑器配置保存失败"));
+
+        let retry =
+            run_task(&runtime, update(&mut app, EditorMessage::ToggleFollowSystemTheme(true)));
+        assert_eq!(
+            patch(&requests.recv_timeout(CLEANUP_TIMEOUT).unwrap()),
+            json!({"editor_follow_system_theme": true})
+        );
+        responses.send(Some("{}".to_string())).unwrap();
+        let _ = finish(&runtime, retry, &mut app);
+    });
 }

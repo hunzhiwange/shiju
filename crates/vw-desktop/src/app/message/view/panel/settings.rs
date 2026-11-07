@@ -191,9 +191,21 @@ pub fn update(app: &mut App, message: ViewMessage) -> Task<Message> {
         }
         ViewMessage::RestartApp => {
             app.active_menu = None;
-            Task::perform(async { restart_application() }, |res| {
-                Message::View(ViewMessage::RestartAppFinished(res))
-            })
+            #[cfg(not(target_arch = "wasm32"))]
+            let editor_saves = {
+                if !begin_shutdown(&mut app.shutdown_requested) {
+                    return Task::none();
+                }
+                app.editor_config_persistence.wait_for_idle()
+            };
+            Task::perform(
+                async move {
+                    #[cfg(not(target_arch = "wasm32"))]
+                    wait_for_editor_settings_saves(editor_saves).await;
+                    restart_application()
+                },
+                |res| Message::View(ViewMessage::RestartAppFinished(res)),
+            )
         }
         ViewMessage::RestartAppFinished(res) => match res {
             Ok(()) => {
@@ -208,6 +220,7 @@ pub fn update(app: &mut App, message: ViewMessage) -> Task<Message> {
                 }
             }
             Err(error) => {
+                app.shutdown_requested = false;
                 app.error_message = Some(error);
                 Task::none()
             }
@@ -549,14 +562,10 @@ pub fn update(app: &mut App, message: ViewMessage) -> Task<Message> {
                     app.cli_install_modal_message = message;
                     #[cfg(not(target_arch = "wasm32"))]
                     {
-                        if let Some(window_id) = app.main_window_id {
-                            return start_shutdown(app, window_id);
-                        }
-                        if begin_shutdown(&mut app.shutdown_requested) {
-                            arm_shutdown_exit_watchdog();
-                            return iced::exit();
-                        }
+                        let window_id = app.main_window_id;
+                        shutdown(app, window_id)
                     }
+                    #[cfg(target_arch = "wasm32")]
                     Task::none()
                 }
                 Err(error) => app_update_error(app, error),
@@ -717,12 +726,18 @@ pub fn close_requested(app: &mut App, window_id: iced::window::Id) -> Task<Messa
 
 #[cfg(not(target_arch = "wasm32"))]
 pub(crate) fn start_shutdown(app: &mut App, window_id: iced::window::Id) -> Task<Message> {
+    shutdown(app, Some(window_id))
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+fn shutdown(app: &mut App, window_id: Option<iced::window::Id>) -> Task<Message> {
     if !begin_shutdown(&mut app.shutdown_requested) {
         return Task::none();
     }
 
     arm_shutdown_exit_watchdog();
     let requests = take_shutdown_stream_requests(app);
+    let editor_saves = app.editor_config_persistence.wait_for_idle();
     app.work_browser_controller.shutdown();
     if let Some(manager) = app.lsp_manager.as_mut() {
         manager.shutdown_all();
@@ -733,11 +748,27 @@ pub(crate) fn start_shutdown(app: &mut App, window_id: iced::window::Id) -> Task
     app.independent_webview_children.clear();
 
     Task::batch([
-        iced::window::set_mode(window_id, iced::window::Mode::Hidden),
-        Task::perform(stop_shutdown_streams(requests), |_| {
-            Message::View(ViewMessage::ShutdownFinished)
-        }),
+        window_id
+            .map_or_else(Task::none, |id| iced::window::set_mode(id, iced::window::Mode::Hidden)),
+        Task::perform(
+            async move {
+                tokio::join!(
+                    stop_shutdown_streams(requests),
+                    wait_for_editor_settings_saves(editor_saves)
+                );
+            },
+            |_| Message::View(ViewMessage::ShutdownFinished),
+        ),
     ])
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+async fn wait_for_editor_settings_saves(editor_saves: Option<tokio::sync::oneshot::Receiver<()>>) {
+    if let Some(saves) = editor_saves
+        && !matches!(tokio::time::timeout(SHUTDOWN_TIMEOUT, saves).await, Ok(Ok(())))
+    {
+        tracing::warn!(target: "vw_desktop", "exiting before editor settings saves finished");
+    }
 }
 
 #[cfg(all(not(target_arch = "wasm32"), not(test)))]

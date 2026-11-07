@@ -101,6 +101,7 @@ fn replay_snapshot_message_is_ignored_by_panel_router() {
 #[test]
 fn close_request_routes_without_mutating_window_registration() {
     let mut app = test_app();
+    app.close_to_tray = false;
     let main_window_id = iced::window::Id::unique();
     let task_pet_window_id = iced::window::Id::unique();
     app.main_window_id = Some(main_window_id);

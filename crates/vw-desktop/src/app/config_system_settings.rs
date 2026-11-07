@@ -20,16 +20,29 @@ async fn patch_desktop_system_settings_via_gateway(
     client.desktop_system_settings_patch(config).await
 }
 
+pub(in crate::app) fn normalize_editor_metrics(
+    mut font_size: f32,
+    mut line_height: f32,
+    auto_line_height: bool,
+) -> (f32, f32) {
+    if !font_size.is_finite() || font_size <= 0.0 {
+        font_size = AppSystemSettingsConfig::default().editor_font_size;
+    }
+    if auto_line_height {
+        line_height = font_size * 1.4;
+    }
+    if !line_height.is_finite() || line_height <= 0.0 {
+        line_height = AppSystemSettingsConfig::default().editor_line_height;
+    }
+    (font_size, line_height)
+}
+
 fn normalize_system_settings_config(mut cfg: AppSystemSettingsConfig) -> AppSystemSettingsConfig {
-    if !cfg.editor_font_size.is_finite() || cfg.editor_font_size <= 0.0 {
-        cfg.editor_font_size = AppSystemSettingsConfig::default().editor_font_size;
-    }
-    if cfg.editor_auto_line_height {
-        cfg.editor_line_height = cfg.editor_font_size * 1.4;
-    }
-    if !cfg.editor_line_height.is_finite() || cfg.editor_line_height <= 0.0 {
-        cfg.editor_line_height = AppSystemSettingsConfig::default().editor_line_height;
-    }
+    (cfg.editor_font_size, cfg.editor_line_height) = normalize_editor_metrics(
+        cfg.editor_font_size,
+        cfg.editor_line_height,
+        cfg.editor_auto_line_height,
+    );
     cfg
 }
 
@@ -231,7 +244,7 @@ pub fn update_system_settings_config(update: impl FnOnce(&mut AppSystemSettingsC
 
 #[cfg(test)]
 #[path = "config_system_settings_tests.rs"]
-mod config_system_settings_tests;
+pub(in crate::app) mod config_system_settings_tests;
 
 /// 仅自定义窗口测试目标使用；端点必须是无生产凭据的本机临时服务。
 #[cfg(test)]

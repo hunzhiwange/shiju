@@ -6,12 +6,16 @@
 //! - 剪贴板操作（复制、剪切、粘贴、删除）
 //! - 撤销/重做操作
 //!
-//! 所有编辑器配置变更都会自动持久化到系统配置文件中。
+//! 已提交的编辑器设置会异步保存到网关。
 
-use crate::app::{App, Message, update_system_settings_config};
+use crate::app::{App, Message};
 use iced::{Task, Theme};
 use iced_code_editor::i18n::Language;
 use iced_code_editor::theme;
+
+pub(crate) mod persistence;
+
+use persistence::EditorSettingsPatch;
 
 /// 编辑器消息枚举
 ///
@@ -50,6 +54,9 @@ pub enum EditorMessage {
 
     /// 切换自动行高调整（参数：是否自动调整）
     ToggleAutoLineHeight(bool),
+
+    /// 网关保存结果
+    ConfigSaved(Result<(), String>),
 
     /// 撤销操作
     Undo,
@@ -92,6 +99,9 @@ pub enum EditorMessage {
 /// - 粘贴操作返回剪贴板读取任务
 /// - 其他操作通常返回 `Task::none()`
 pub fn update(app: &mut App, message: EditorMessage) -> Task<Message> {
+    if app.shutdown_requested && !matches!(message, EditorMessage::ConfigSaved(_)) {
+        return Task::none();
+    }
     if app
         .active_preview_path
         .as_ref()
@@ -186,16 +196,8 @@ pub fn update(app: &mut App, message: EditorMessage) -> Task<Message> {
                     .set_line_height(app.current_line_height.clamp(10.0, 60.0));
             }
 
-            // 持久化编辑器配置到系统配置文件
-            let editor_font_size = app.current_font_size;
-            let editor_line_height = app.current_line_height;
-            let editor_auto_line_height = app.auto_adjust_line_height;
-            update_system_settings_config(|system| {
-                system.editor_font_size = editor_font_size;
-                system.editor_line_height = editor_line_height;
-                system.editor_auto_line_height = editor_auto_line_height;
-            });
-            Task::none()
+            let patch = EditorSettingsPatch::metrics(app);
+            persistence::enqueue(app, patch)
         }
         // 行高变更：更新所有编辑器实例并持久化配置
         EditorMessage::LineHeightChanged(height) => {
@@ -211,16 +213,8 @@ pub fn update(app: &mut App, message: EditorMessage) -> Task<Message> {
             // 更新 Git 复制模态框中的代码编辑器行高
             app.git_copy_modal_code_editor.set_line_height(height.clamp(10.0, 60.0));
 
-            // 持久化编辑器配置到系统配置文件
-            let editor_font_size = app.current_font_size;
-            let editor_line_height = app.current_line_height;
-            let editor_auto_line_height = app.auto_adjust_line_height;
-            update_system_settings_config(|system| {
-                system.editor_font_size = editor_font_size;
-                system.editor_line_height = editor_line_height;
-                system.editor_auto_line_height = editor_auto_line_height;
-            });
-            Task::none()
+            let patch = EditorSettingsPatch::metrics(app);
+            persistence::enqueue(app, patch)
         }
 
         // 切换自动行高调整模式
@@ -237,16 +231,8 @@ pub fn update(app: &mut App, message: EditorMessage) -> Task<Message> {
                     .set_line_height(app.current_line_height.clamp(10.0, 60.0));
             }
 
-            // 持久化编辑器配置到系统配置文件
-            let editor_font_size = app.current_font_size;
-            let editor_line_height = app.current_line_height;
-            let editor_auto_line_height = app.auto_adjust_line_height;
-            update_system_settings_config(|system| {
-                system.editor_font_size = editor_font_size;
-                system.editor_line_height = editor_line_height;
-                system.editor_auto_line_height = editor_auto_line_height;
-            });
-            Task::none()
+            let patch = EditorSettingsPatch::metrics(app);
+            persistence::enqueue(app, patch)
         }
 
         // 编辑器界面语言变更：更新所有编辑器实例的语言设置
@@ -277,13 +263,7 @@ pub fn update(app: &mut App, message: EditorMessage) -> Task<Message> {
             // 更新 Git 复制模态框主题
             app.git_copy_modal_code_editor.set_theme(theme::from_iced_theme(&theme));
 
-            // 持久化编辑器主题配置到系统配置文件
-            let editor_theme = theme.to_string();
-            update_system_settings_config(|system| {
-                system.editor_theme = editor_theme;
-                system.editor_follow_system_theme = false;
-            });
-            Task::none()
+            persistence::enqueue(app, EditorSettingsPatch::theme(theme.to_string()))
         }
 
         // 切换是否跟随系统主题
@@ -301,12 +281,10 @@ pub fn update(app: &mut App, message: EditorMessage) -> Task<Message> {
             // 更新 Git 复制模态框主题
             app.git_copy_modal_code_editor.set_theme(theme::from_iced_theme(&editor_theme));
 
-            // 持久化跟随系统主题配置
-            update_system_settings_config(|system| {
-                system.editor_follow_system_theme = follow;
-            });
-            Task::none()
+            persistence::enqueue(app, EditorSettingsPatch::follow_system_theme(follow))
         }
+
+        EditorMessage::ConfigSaved(result) => persistence::save_complete(app, result),
 
         // 撤销操作（仅限当前激活的预览标签页）
         EditorMessage::Undo => {

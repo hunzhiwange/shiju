@@ -52,3 +52,6 @@ mod config_tests;
 #[cfg(test)]
 #[allow(unused_imports)] // 仅自定义窗口测试目标调用，常规 libtest 不启动窗口。
 pub(crate) use system_settings::install_window_test_bootstrap;
+
+#[cfg(all(test, not(target_arch = "wasm32")))]
+pub(super) use system_settings::config_system_settings_tests::with_editor_settings_gateway;

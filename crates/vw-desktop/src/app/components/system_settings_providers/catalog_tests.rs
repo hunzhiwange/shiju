@@ -5,7 +5,6 @@
 use crate::app::state::{ModelCatalogEntry, ProviderSummary};
 use crate::app::{App, Message};
 use iced::widget::text;
-use iced::{Background, Color, Theme, Vector};
 
 fn test_app() -> App {
     App::new().0
@@ -182,57 +181,4 @@ fn model_count_label_formats_singular_and_plural_counts() {
         ),
         "12 个模型"
     );
-}
-
-#[test]
-fn catalog_surface_style_uses_dark_theme_palette_and_expected_border() {
-    let theme = Theme::Dark;
-    let palette = theme.extended_palette();
-    let style = super::catalog::catalog_surface_style(&theme);
-
-    assert_eq!(
-        style.background,
-        Some(Background::Color(palette.background.weak.color.scale_alpha(0.16)))
-    );
-    assert_eq!(style.border.width, 1.0);
-    assert_eq!(style.border.color, palette.background.strong.color.scale_alpha(0.76));
-    assert_eq!(style.border.radius, 18.0.into());
-}
-
-#[test]
-fn catalog_list_frame_style_uses_dark_theme_palette_and_shadow() {
-    let theme = Theme::Dark;
-    let palette = theme.extended_palette();
-    let style = super::catalog::catalog_list_frame_style(&theme);
-
-    assert_eq!(
-        style.background,
-        Some(Background::Color(palette.background.base.color.scale_alpha(0.84)))
-    );
-    assert_eq!(style.border.width, 1.0);
-    assert_eq!(style.border.color, palette.background.strong.color.scale_alpha(0.92));
-    assert_eq!(style.border.radius, 20.0.into());
-    assert_eq!(style.shadow.color, Color::BLACK.scale_alpha(0.04));
-    assert_eq!(style.shadow.offset, Vector::new(0.0, 2.0));
-    assert_eq!(style.shadow.blur_radius, 8.0);
-    assert!(!style.snap);
-}
-
-#[test]
-fn catalog_item_style_uses_dark_theme_palette_and_shadow() {
-    let theme = Theme::Dark;
-    let palette = theme.extended_palette();
-    let style = super::catalog::catalog_item_style(&theme);
-
-    assert_eq!(
-        style.background,
-        Some(Background::Color(palette.background.base.color.scale_alpha(0.72)))
-    );
-    assert_eq!(style.border.width, 1.0);
-    assert_eq!(style.border.color, palette.background.strong.color.scale_alpha(0.82));
-    assert_eq!(style.border.radius, 14.0.into());
-    assert_eq!(style.shadow.color, Color::BLACK.scale_alpha(0.05));
-    assert_eq!(style.shadow.offset, Vector::new(0.0, 3.0));
-    assert_eq!(style.shadow.blur_radius, 10.0);
-    assert!(!style.snap);
 }

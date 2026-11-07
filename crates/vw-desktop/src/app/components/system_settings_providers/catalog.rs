@@ -1,19 +1,21 @@
-//! 系统设置中模型提供商配置的目录、表单与弹窗能力。
-//!
-//! 本模块主要负责把应用状态转换为桌面端可渲染的 Iced 控件，并把用户操作映射回上层消息。
-//! 注释聚焦调用边界、返回值和错误传播方式，便于后续维护设置页与工具栏行为时快速定位职责。
+//! 搜索模型供应商目录，并用稳定的供应商 ID 打开连接或加入热门。
 
 use crate::app::components::system_settings_common::{
-    primary_action_btn_style, provider_logo_svg, rounded_action_btn_style, settings_modal_card,
-    settings_modal_overlay, settings_muted_text_style, settings_text_input_style,
+    SETTINGS_CONTROL_PADDING, SETTINGS_CONTROL_TEXT_SIZE, primary_action_btn_style,
+    provider_logo_svg, rounded_action_btn_style, settings_close_button, settings_control_with_hint,
+    settings_divider, settings_error_banner, settings_group_card, settings_modal_card,
+    settings_modal_header, settings_modal_overlay, settings_muted_text_style,
+    settings_text_input_style,
 };
 use crate::app::i18n::settings_models::connection_text::text as connection_text;
+use crate::app::message::SettingsMessage;
 use crate::app::state::{ModelCatalogEntry, ProviderSummary, is_shiju_official_provider_id};
-use crate::app::{App, Message, message};
+use crate::app::{App, Message};
 use iced::widget::scrollable::{Direction, Scrollbar};
-use iced::widget::{button, column, container, row, scrollable, text, text_input};
-use iced::{Alignment, Background, Border, Color, Element, Length, Theme, Vector};
+use iced::widget::{button, column, container, row, scrollable, text, text::Wrapping, text_input};
+use iced::{Alignment, Element, Length};
 use std::collections::BTreeMap;
+use vw_config_types::ui::DesktopLocale;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub(super) struct CatalogProviderItem {
@@ -63,253 +65,133 @@ pub(super) fn visible_catalog_providers(
         .collect()
 }
 
-pub(super) fn catalog_surface_style(theme: &Theme) -> iced::widget::container::Style {
-    let palette = theme.extended_palette();
+fn provider_row(locale: DesktopLocale, provider: CatalogProviderItem) -> Element<'static, Message> {
+    let CatalogProviderItem { provider_id, provider_name, model_count, is_connected, in_popular } =
+        provider;
 
-    iced::widget::container::Style {
-        background: Some(Background::Color(palette.background.weak.color.scale_alpha(0.16))),
-        border: Border {
-            width: 1.0,
-            color: palette.background.strong.color.scale_alpha(0.76),
-            radius: 18.0.into(),
-        },
-        ..Default::default()
-    }
+    let connect = button(
+        text(connection_text(locale, if is_connected { "已连接" } else { "连接" }))
+            .size(SETTINGS_CONTROL_TEXT_SIZE),
+    )
+    .on_press_maybe(
+        (!is_connected)
+            .then(|| Message::Settings(SettingsMessage::ProviderConnectOpen(provider_id.clone()))),
+    )
+    .padding([8, 12])
+    .style(if is_connected { rounded_action_btn_style } else { primary_action_btn_style });
+    let add = button(
+        text(connection_text(locale, if in_popular { "已在热门" } else { "添加到热门" }))
+            .size(SETTINGS_CONTROL_TEXT_SIZE),
+    )
+    .on_press_maybe((!in_popular).then(|| {
+        Message::Settings(SettingsMessage::ProviderCatalogAddToPopular(provider_id.clone()))
+    }))
+    .padding([8, 12])
+    .style(rounded_action_btn_style);
+
+    let model_count = crate::app::i18n::settings_models::model_count(locale, model_count);
+    container(
+        column![
+            row![
+                container(provider_logo_svg(&provider_id, 18.0)).center_x(32).center_y(32),
+                column![
+                    text(provider_name).size(15).wrapping(Wrapping::WordOrGlyph),
+                    text(provider_id)
+                        .size(12)
+                        .wrapping(Wrapping::WordOrGlyph)
+                        .style(settings_muted_text_style),
+                    text(model_count).size(12).style(settings_muted_text_style),
+                ]
+                .spacing(4)
+                .width(Length::Fill),
+            ]
+            .spacing(10)
+            .align_y(Alignment::Center),
+            container(row![connect, add].spacing(8).align_y(Alignment::Center))
+                .align_right(Length::Fill),
+        ]
+        .spacing(8),
+    )
+    .padding([12, 0])
+    .width(Length::Fill)
+    .into()
 }
 
-pub(super) fn catalog_list_frame_style(theme: &Theme) -> iced::widget::container::Style {
-    let palette = theme.extended_palette();
-
-    iced::widget::container::Style {
-        background: Some(Background::Color(palette.background.base.color.scale_alpha(0.84))),
-        border: Border {
-            width: 1.0,
-            color: palette.background.strong.color.scale_alpha(0.92),
-            radius: 20.0.into(),
-        },
-        shadow: iced::Shadow {
-            color: Color::BLACK.scale_alpha(0.04),
-            offset: Vector::new(0.0, 2.0),
-            blur_radius: 8.0,
-        },
-        snap: false,
-        ..Default::default()
-    }
-}
-
-pub(super) fn catalog_item_style(theme: &Theme) -> iced::widget::container::Style {
-    let palette = theme.extended_palette();
-
-    iced::widget::container::Style {
-        background: Some(Background::Color(palette.background.base.color.scale_alpha(0.72))),
-        border: Border {
-            width: 1.0,
-            color: palette.background.strong.color.scale_alpha(0.82),
-            radius: 14.0.into(),
-        },
-        shadow: iced::Shadow {
-            color: Color::BLACK.scale_alpha(0.05),
-            offset: Vector::new(0.0, 3.0),
-            blur_radius: 10.0,
-        },
-        snap: false,
-        ..Default::default()
-    }
-}
-
-/// 构建或处理 `view_overlays` 对应的界面片段与交互数据。
-///
-/// # 参数
-///
-/// 参数来自调用方持有的应用状态、配置快照或控件输入，用于保持渲染结果与当前状态同步。
-///
-/// # 返回值
-///
-/// 返回可交给 Iced 渲染树使用的 `Element`，其中已绑定必要的消息回调。
-///
-/// # 错误处理
-///
-/// 本函数不直接返回错误；无法交互或缺省状态会在控件状态中显式表达。
 pub fn view_overlays<'a>(app: &'a App, dialog: Element<'a, Message>) -> Element<'a, Message> {
     let s = &app.provider_settings;
-    let mut base = dialog;
-
-    if s.catalog_open {
-        let close_btn = button(text("×").size(20))
-            .on_press(Message::Settings(message::SettingsMessage::ProviderCatalogClose))
-            .padding([4, 10])
-            .style(rounded_action_btn_style);
-
-        let catalog_items = s.catalog_items.clone();
-
-        let visible_providers = visible_catalog_providers(
-            &catalog_items,
-            &s.providers,
-            &s.popular_patterns,
-            &s.catalog_query,
-        );
-
-        let mut list = column![].spacing(8);
-        let visible_count = visible_providers.len();
-        for provider in visible_providers {
-            let CatalogProviderItem {
-                provider_id,
-                provider_name,
-                model_count,
-                is_connected,
-                in_popular,
-            } = provider;
-            let connect_btn = if is_connected {
-                button(text(connection_text(app.desktop_locale, "已连接")))
-                    .padding([6, 10])
-                    .style(rounded_action_btn_style)
-            } else {
-                button(text(connection_text(app.desktop_locale, "连接")))
-                    .on_press(Message::Settings(message::SettingsMessage::ProviderConnectOpen(
-                        provider_id.clone(),
-                    )))
-                    .padding([6, 10])
-                    .style(primary_action_btn_style)
-            };
-            let add_btn = if in_popular {
-                button(text(connection_text(app.desktop_locale, "已在热门")))
-                    .padding([6, 10])
-                    .style(rounded_action_btn_style)
-            } else {
-                button(text(connection_text(app.desktop_locale, "添加到热门")))
-                    .on_press(Message::Settings(
-                        message::SettingsMessage::ProviderCatalogAddToPopular(provider_id.clone()),
-                    ))
-                    .padding([6, 10])
-                    .style(rounded_action_btn_style)
-            };
-
-            let subtitle =
-                crate::app::i18n::settings_models::model_count(app.desktop_locale, model_count);
-            let row_item = container(
-                row![
-                    container(provider_logo_svg(&provider_id, 16.0))
-                        .center_x(Length::Fixed(36.0))
-                        .center_y(Length::Fixed(36.0))
-                        .style(catalog_surface_style),
-                    column![
-                        text(provider_name.clone()).size(14),
-                        text(subtitle).size(12).style(|t: &iced::Theme| text::Style {
-                            color: Some(t.palette().text.scale_alpha(0.65))
-                        })
-                    ]
-                    .spacing(4)
-                    .width(Length::Fill),
-                    container(text(provider_id.clone()).size(12).style(|t: &iced::Theme| {
-                        text::Style { color: Some(t.palette().text.scale_alpha(0.72)) }
-                    }))
-                    .padding([5, 10])
-                    .style(catalog_surface_style),
-                    connect_btn,
-                    add_btn
-                ]
-                .spacing(12)
-                .align_y(Alignment::Center),
-            )
-            .padding([14, 16])
-            .width(Length::Fill)
-            .style(catalog_item_style);
-
-            list = list.push(row_item);
-        }
-
-        let body_content: Element<'_, Message> = if s.catalog_loading {
-            container(
-                column![text(connection_text(app.desktop_locale, "加载中…")).size(14)].spacing(8),
-            )
-            .width(Length::Fill)
-            .height(Length::Fill)
-            .center_x(Length::Fill)
-            .center_y(Length::Fill)
-            .into()
-        } else if visible_count == 0 {
-            let empty_text = if catalog_items.is_empty() {
-                connection_text(app.desktop_locale, "暂无可用模型提供商")
-            } else {
-                connection_text(app.desktop_locale, "未找到匹配的模型提供商")
-            };
-            container(text(empty_text).size(14).style(|t: &iced::Theme| text::Style {
-                color: Some(t.palette().text.scale_alpha(0.7)),
-            }))
-            .width(Length::Fill)
-            .height(Length::Fill)
-            .center_x(Length::Fill)
-            .center_y(Length::Fill)
-            .into()
-        } else {
-            scrollable(container(list).padding(iced::Padding {
-                top: 4.0,
-                right: 12.0,
-                bottom: 12.0,
-                left: 12.0,
-            }))
-            .height(Length::Fill)
-            .direction(Direction::Vertical(Scrollbar::new().width(4).scroller_width(4)))
-            .into()
-        };
-
-        let body = container(body_content)
-            .padding(iced::Padding { top: 8.0, right: 0.0, bottom: 4.0, left: 0.0 })
-            .height(Length::Fill)
-            .style(catalog_list_frame_style);
-
-        let search_block = container(
-            column![
-                text(connection_text(app.desktop_locale, "搜索与筛选")).size(13),
-                text(connection_text(
-                    app.desktop_locale,
-                    "按 provider 名称或 provider ID 快速定位可用目录。"
-                ))
-                .size(12)
-                .style(settings_muted_text_style),
-                text_input(connection_text(app.desktop_locale, "搜索模型提供商"), &s.catalog_query)
-                    .on_input(|v| {
-                        Message::Settings(message::SettingsMessage::ProviderCatalogQueryChanged(v))
-                    })
-                    .width(Length::Fill)
-                    .style(settings_text_input_style),
-            ]
-            .spacing(8),
-        )
-        .padding([14, 16])
-        .style(catalog_surface_style);
-
-        let modal_col = column![
-            row![
-                column![
-                    text(connection_text(app.desktop_locale, "更多模型提供商")).size(18),
-                    text(connection_text(
-                        app.desktop_locale,
-                        "浏览模型目录中的 provider，并快速连接或加入热门。"
-                    ))
-                    .size(12)
-                    .style(settings_muted_text_style),
-                ]
-                .spacing(4),
-                container(text("")).width(Length::Fill),
-                close_btn,
-            ]
-            .align_y(Alignment::Center),
-            search_block,
-            body
-        ]
-        .spacing(16)
-        .height(Length::Fill);
-
-        let card =
-            settings_modal_card(modal_col).width(Length::Fixed(900.0)).height(Length::Fixed(520.0));
-
-        base = settings_modal_overlay(
-            Some(base),
-            Message::Settings(message::SettingsMessage::ProviderCatalogClose),
-            card,
-        );
+    if !s.catalog_open {
+        return dialog;
     }
 
-    base
+    let locale = app.desktop_locale;
+    let close = Message::Settings(SettingsMessage::ProviderCatalogClose);
+    let header = settings_modal_header(
+        column![
+            text(connection_text(locale, "更多模型提供商")).size(18),
+            text(connection_text(locale, "浏览模型目录中的 provider，并快速连接或加入热门。"))
+                .size(13)
+                .style(settings_muted_text_style),
+        ]
+        .spacing(6),
+        settings_close_button(close.clone()),
+    );
+    let search = text_input(connection_text(locale, "搜索模型提供商"), &s.catalog_query)
+        .on_input(|query| Message::Settings(SettingsMessage::ProviderCatalogQueryChanged(query)))
+        .padding(SETTINGS_CONTROL_PADDING)
+        .size(SETTINGS_CONTROL_TEXT_SIZE)
+        .style(settings_text_input_style);
+
+    let providers = visible_catalog_providers(
+        &s.catalog_items,
+        &s.providers,
+        &s.popular_patterns,
+        &s.catalog_query,
+    );
+    let empty_label = if s.catalog_loading {
+        Some("加载中…")
+    } else if providers.is_empty() && s.save_error.is_none() {
+        Some(if s.catalog_items.is_empty() {
+            "暂无可用模型提供商"
+        } else {
+            "未找到匹配的模型提供商"
+        })
+    } else {
+        None
+    };
+    let body: Element<'_, Message> = if let Some(label) = empty_label {
+        container(text(connection_text(locale, label)).size(14).style(settings_muted_text_style))
+            .center_x(Length::Fill)
+            .center_y(Length::Fill)
+            .into()
+    } else {
+        let mut rows = column![];
+        if !s.catalog_loading
+            && let Some(error) = &s.save_error
+        {
+            rows = rows.push(settings_error_banner(error.display(locale)));
+        }
+        if !providers.is_empty() {
+            let mut list = column![];
+            for (index, provider) in providers.into_iter().enumerate() {
+                if index != 0 {
+                    list = list.push(settings_divider());
+                }
+                list = list.push(provider_row(locale, provider));
+            }
+            rows = rows.push(settings_group_card(list));
+        }
+        scrollable(container(rows.spacing(10)).padding([0, 7]).width(Length::Fill))
+            .direction(Direction::Vertical(Scrollbar::new().width(4).scroller_width(4)))
+            .height(Length::Fill)
+            .into()
+    };
+
+    let search = settings_control_with_hint(
+        search,
+        connection_text(locale, "按 provider 名称或 provider ID 快速定位可用目录。"),
+    );
+    let card = settings_modal_card(column![header, search, body].spacing(14).height(Length::Fill))
+        .width(Length::Fixed(900.0))
+        .height(Length::Fixed(520.0));
+    settings_modal_overlay(Some(dialog), close, container(card).padding(12))
 }

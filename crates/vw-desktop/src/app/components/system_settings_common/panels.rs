@@ -487,7 +487,11 @@ pub(super) fn settings_value_badge_style(theme: &Theme) -> iced::widget::contain
 pub(super) fn settings_error_banner_style(theme: &Theme) -> iced::widget::container::Style {
     let palette = theme.extended_palette();
     iced::widget::container::Style {
-        text_color: Some(palette.danger.base.color),
+        text_color: Some(if is_dark_theme(theme) {
+            palette.background.base.text
+        } else {
+            palette.danger.base.color
+        }),
         background: Some(Background::Color(palette.danger.weak.color.scale_alpha(0.18))),
         border: Border {
             width: 1.0,

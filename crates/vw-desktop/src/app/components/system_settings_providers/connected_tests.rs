@@ -124,12 +124,6 @@ fn view_builds_loading_sync_empty_connected_popular_and_error_states() {
 }
 
 #[test]
-fn provider_action_panel_style_builds_with_dark_theme() {
-    let style = super::connected::provider_action_panel_style(&Theme::Dark);
-    std::hint::black_box(style);
-}
-
-#[test]
 fn provider_item_row_builds_with_text_control() {
     let element = super::connected::provider_item_row(
         "test-logo",
@@ -253,7 +247,7 @@ fn view_inserts_dividers_between_multiple_connected_and_popular_rows() {
 
 #[test]
 fn connected_tests_keeps_planned_coverage_targets() {
-    for name in ["provider_action_panel_style", "provider_item_row", "view"] {
+    for name in ["provider_item_row", "view"] {
         assert!(source_declares_symbol(name), "expected source to declare coverage target {name}");
     }
 }

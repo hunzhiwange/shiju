@@ -1,5 +1,11 @@
 //! Sole native saved-model projection owner. No provider-owned catalog persistence.
 use vw_api_types::model_catalog::*;
+
+pub mod identity;
+
+#[cfg(test)]
+mod identity_tests;
+
 pub fn validate(
     identity: &ModelCatalogIdentity,
     catalog: Option<&SavedCodexCatalog>,

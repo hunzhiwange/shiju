@@ -32,3 +32,28 @@
 | `cargo clippy --all-targets --all-features -- -D warnings`（最终） | 0 | 工作区全部目标和 features 通过 |
 
 差异审查只纳入共享契约、独立测试和本证据。母计划和子计划的 `plan.md` 均保持只读。各阶段完成后已释放本项持有的槽位锁并保留缓存。本项只涉及共享 DTO，无 macOS 窗口验收项。
+
+## 任务 2　部署身份与元数据匹配键
+
+2026-11-08，macOS 27.0（26A428），arm64。批次 1 由 `964708504` 交付。本项复用其精确身份 DTO，并核对了任务 1 所列的主机授权、可取消操作、应用注册与定位、供应商修订事务入口。
+
+| 固定来源 `ca58c0313360eae7c851fbd7553c1614c7af03e7` | 实际实现与下游 |
+| --- | --- |
+| `src/lib/modelMetadata.ts::endpointKey` | `crates/vw-agent-apps/src/models/identity.rs::MetadataEndpointKey::parse`。复用供应商端点校验。保留协议、非默认端口、路径大小写和内部斜杠，仅去除尾部版本与请求路径。OpenCode Zen 与 Go 各自只在规范 HTTPS 源上应用旧地址别名 |
+| `src/lib/modelMetadata.ts::findModelInMap`、`src/lib/modelsDev.ts::normalizeModelsDevModelId` | 同模块的 `find_metadata_model` 和 `metadata_model_key`。只在已选元数据候选中查找，按精确 ID、大小写折叠、去命名空间和变体的顺序匹配，同级按来源顺序取首项。后续由任务 18、19 消费 |
+| 任务 1 的共享身份及旧 Codex 保存入口 | `crates/vw-api-types/src/model_catalog.rs` 的 `ModelCatalogIdentity` 和 `ScopedModelCatalogIdentity` 继续用派生的精确比较和哈希。现有 `crates/vw-agent/src/model_catalog.rs::ModelCatalogStore` 使用原部署键。模型目录 API、SDK 和 Iced 接入由任务 36–43 交付，本项只验证业务层，无窗口验收项 |
+
+### 验证
+
+各阶段均动态领取共享槽位 **1**，`CARGO_TARGET_DIR=/Users/xiangmin/worker/code/shiju/target/rust-slot-1`。首次启动聚焦测试因仓库配置的共享中间目录等待锁，停止本项等待进程（退出 143）后将 `CARGO_BUILD_BUILD_DIR` 也指向同一槽位。两个 `cargo fmt --all` 阶段使用基于 `d42d23db3` 的源码快照，只回写本项三个 Rust 文件。聚焦测试在实际仓库根目录执行。
+
+| 命令 | 退出码 | 证据 |
+| --- | ---: | --- |
+| `cargo fmt --all`（红灯、绿灯） | 0、0 | 格式化完成 |
+| `cargo test -p vw-agent-apps catalog_identity_ -- --nocapture`（红灯） | 101 | 10 条有效测试，3 通过、7 失败。套餐用例实际命中 Coding 套餐窗口 `202752`，普通套餐预期为 `200000` |
+| `cargo test -p vw-agent-apps catalog_identity_ -- --nocapture`（绿灯） | 0 | 10 通过、0 失败。覆盖套餐、租户、执行主机、应用、供应商、模型 ID、地址变体及匹配优先级 |
+| `cargo clippy --all-targets --all-features -- -D warnings`（实际工作区） | 101 | 无关并发改动在 `crates/vw-gateway-client/src/lib.rs:116` 导入了尚未从 `session` 导出的 `GatewaySessionForkTarget`（E0432） |
+| `cargo clippy --all-targets --all-features -- -D warnings`（首次源码快照） | 101 | 槽位复用了实际工作区的 API 编译缓存，报告会话测试的 E0063、E0560。快照源码仍包含旧字段定义 |
+| `cargo clippy --all-targets --all-features -- -D warnings`（最终源码快照） | 0 | 刷新快照文件时间戳，重新检查工作区全部目标及 features。快照基于 `d42d23db3`，仅叠加本任务三个 Rust 文件 |
+
+差异审查和 `git diff --cached --check` 通过。各阶段均已释放本项持有的槽位锁并保留缓存。

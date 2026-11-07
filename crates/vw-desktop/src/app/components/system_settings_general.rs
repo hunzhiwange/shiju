@@ -9,17 +9,21 @@
 //! - 终端字体及字号配置
 
 use crate::app::components::system_settings_common::{
-    SETTINGS_LABEL_WIDTH, rounded_action_btn_style, settings_checkbox_style, settings_divider,
-    settings_muted_text_style, settings_page_intro, settings_pick_list_menu_style,
-    settings_pick_list_style, settings_section_card, settings_section_content,
-    settings_segment_button_style, settings_value_badge,
+    rounded_action_btn_style, settings_divider, settings_muted_text_style, settings_select,
+    settings_value_badge,
 };
 use crate::app::components::system_settings_search::SettingsTabDescriptor;
 use crate::app::state::GeneralSettingsTab;
 use crate::app::theme_catalog::{theme_store_from_home, to_iced_theme};
 use crate::app::{App, Message, PreviewAutoSaveMode, Shell, TerminalTheme, message};
-use iced::widget::{button, checkbox, column, container, pick_list, row, slider, text};
+use iced::widget::{button, column, container, row, slider, text, toggler};
 use iced::{Alignment, Element, Length, Theme};
+
+#[path = "system_settings_general/presentation.rs"]
+mod presentation;
+use presentation::{group_card, group_heading, tab_style, toggle_style};
+
+const TERMINAL_CONTROL_WIDTH: f32 = 280.0;
 
 pub(super) const GENERAL_TABS: &[SettingsTabDescriptor<GeneralSettingsTab>] = &[
     SettingsTabDescriptor::new(
@@ -65,17 +69,17 @@ fn setting_row<'a>(
     container(
         row![
             column![
-                text(label).size(13),
-                text(description).size(11).style(settings_muted_text_style),
+                text(label).size(15),
+                text(description).size(13).style(settings_muted_text_style),
             ]
-            .spacing(4)
-            .width(Length::Fixed(SETTINGS_LABEL_WIDTH)),
-            container(control.into()).width(Length::Fill),
+            .spacing(6)
+            .width(Length::Fill),
+            container(control.into()).align_right(TERMINAL_CONTROL_WIDTH),
         ]
-        .spacing(22)
+        .spacing(24)
         .align_y(Alignment::Center),
     )
-    .padding([14, 0])
+    .padding([20, 0])
     .width(Length::Fill)
     .into()
 }
@@ -171,7 +175,7 @@ pub fn view(app: &App) -> Element<'_, Message> {
         vw_config_types::ui::DesktopLocale::TraditionalChinese => 1,
         vw_config_types::ui::DesktopLocale::English => 2,
     };
-    let locale_pick = pick_list(locales, Some(locales[locale_index]), |label| {
+    let locale_pick = settings_select(locales, Some(locales[locale_index]), |label| {
         let locale = match label {
             "繁體中文" => vw_config_types::ui::DesktopLocale::TraditionalChinese,
             "English" => vw_config_types::ui::DesktopLocale::English,
@@ -181,30 +185,19 @@ pub fn view(app: &App) -> Element<'_, Message> {
             message::GeneralSettingsMessage::LocaleSelected(locale),
         ))
     })
-    .padding([10, 14])
-    .text_size(13)
-    .style(settings_pick_list_style)
-    .menu_style(settings_pick_list_menu_style)
     .width(Length::Fixed(280.0));
 
-    let shell_pick = pick_list(Shell::all(), Some(app.terminal.shell), terminal_shell_selected)
-        .padding([10, 14])
-        .text_size(13)
-        .style(settings_pick_list_style)
-        .menu_style(settings_pick_list_menu_style)
-        .width(Length::Fixed(280.0));
+    let shell_pick =
+        settings_select(Shell::all(), Some(app.terminal.shell), terminal_shell_selected)
+            .width(TERMINAL_CONTROL_WIDTH);
 
     let term_theme_pick =
-        pick_list([i18n.__("跟随系统")], Some(i18n.__("跟随系统")), |_| {
+        settings_select([i18n.__("跟随系统")], Some(i18n.__("跟随系统")), |_| {
             terminal_theme_selected(TerminalTheme::System)
         })
-        .padding([10, 14])
-        .text_size(13)
-        .style(settings_pick_list_style)
-        .menu_style(settings_pick_list_menu_style)
-        .width(Length::Fixed(280.0));
+        .width(TERMINAL_CONTROL_WIDTH);
 
-    let font_pick = pick_list(
+    let font_pick = settings_select(
         [
             "JetBrains Mono".to_string(),
             "Fira Code".to_string(),
@@ -214,15 +207,11 @@ pub fn view(app: &App) -> Element<'_, Message> {
         Some(app.terminal.font_family.clone()),
         terminal_font_selected,
     )
-    .padding([10, 14])
-    .text_size(13)
-    .style(settings_pick_list_style)
-    .menu_style(settings_pick_list_menu_style)
-    .width(Length::Fixed(280.0));
+    .width(TERMINAL_CONTROL_WIDTH);
 
     let auto_save_options: Vec<_> =
         PreviewAutoSaveMode::ALL.into_iter().map(|mode| i18n.__(mode.label())).collect();
-    let auto_save_pick = pick_list(
+    let auto_save_pick = settings_select(
         auto_save_options,
         Some(i18n.__(app.preview_auto_save_mode.label())),
         move |label| {
@@ -233,25 +222,17 @@ pub fn view(app: &App) -> Element<'_, Message> {
             preview_auto_save_mode_changed(mode)
         },
     )
-    .padding([10, 14])
-    .text_size(13)
-    .style(settings_pick_list_style)
-    .menu_style(settings_pick_list_menu_style)
     .width(Length::Fixed(280.0));
 
-    let timezone_pick = pick_list(
+    let timezone_pick = settings_select(
         vw_config_types::ui::timezone_options().into_iter().map(str::to_string).collect::<Vec<_>>(),
         Some(app.chat_timezone.clone()),
         timezone_selected,
     )
-    .padding([10, 14])
-    .text_size(13)
-    .style(settings_pick_list_style)
-    .menu_style(settings_pick_list_menu_style)
     .width(Length::Fixed(280.0));
 
-    let launch_toggle = checkbox(app.launch_at_login)
-        .label(i18n.__("开机启动"))
+    let launch_toggle = toggler(app.launch_at_login)
+        .size(22)
         .on_toggle_maybe((!app.launch_at_login_busy && !cfg!(target_arch = "wasm32")).then_some(
             |enabled| {
                 Message::Settings(message::SettingsMessage::General(
@@ -259,15 +240,15 @@ pub fn view(app: &App) -> Element<'_, Message> {
                 ))
             },
         ))
-        .style(settings_checkbox_style);
-    let tray_toggle = checkbox(app.close_to_tray)
-        .label(i18n.__("关闭到托盘"))
+        .style(toggle_style);
+    let tray_toggle = toggler(app.close_to_tray)
+        .size(22)
         .on_toggle_maybe((!cfg!(target_arch = "wasm32")).then_some(|enabled| {
             Message::Settings(message::SettingsMessage::General(
                 message::GeneralSettingsMessage::CloseToTrayToggled(enabled),
             ))
         }))
-        .style(settings_checkbox_style);
+        .style(toggle_style);
 
     let displayed_font_size =
         app.terminal_config_persistence.displayed_font_size(app.terminal.font_size);
@@ -278,14 +259,12 @@ pub fn view(app: &App) -> Element<'_, Message> {
     let active_tab = app.general_settings_tab;
     let tab_button = |tab, label| {
         let is_active = tab == active_tab;
-        button(text(label).size(13))
+        button(text(label).size(15))
             .on_press(Message::Settings(message::SettingsMessage::General(
                 message::GeneralSettingsMessage::TabSelected(tab),
             )))
             .padding([8, 14])
-            .style(move |theme: &Theme, status| {
-                settings_segment_button_style(theme, status, is_active)
-            })
+            .style(move |theme: &Theme, status| tab_style(theme, status, is_active))
     };
     let tabs = GENERAL_TABS
         .iter()
@@ -295,8 +274,8 @@ pub fn view(app: &App) -> Element<'_, Message> {
 
     let content: Element<'_, Message> = match active_tab {
         GeneralSettingsTab::Interface => column![
-            settings_section_card(i18n.__("界面"), i18n.__("应用外观与预览行为。")),
-            settings_section_content(
+            group_heading(i18n.__("界面"), i18n.__("应用外观与预览行为。")),
+            group_card(
                 column![
                     setting_row(
                         i18n.__("开机启动"),
@@ -324,15 +303,11 @@ pub fn view(app: &App) -> Element<'_, Message> {
                     setting_row(
                         i18n.__("应用主题"),
                         i18n.__("快速切换内置、预设和自定义主题；完整管理见「主题」标签。"),
-                        pick_list(
+                        settings_select(
                             app_theme_options(app),
                             Some(app.app_theme.clone()),
                             app_theme_selected,
                         )
-                        .padding([10, 14])
-                        .text_size(13)
-                        .style(settings_pick_list_style)
-                        .menu_style(settings_pick_list_menu_style)
                         .width(Length::Fixed(280.0)),
                     ),
                     settings_divider(),
@@ -342,10 +317,11 @@ pub fn view(app: &App) -> Element<'_, Message> {
                         column![
                             auto_save_pick,
                             text(i18n.__(app.preview_auto_save_mode.description()))
-                                .size(11)
+                                .size(12)
                                 .style(settings_muted_text_style),
                         ]
-                        .spacing(8),
+                        .spacing(8)
+                        .width(TERMINAL_CONTROL_WIDTH),
                     ),
                     settings_divider(),
                     setting_row(
@@ -356,14 +332,6 @@ pub fn view(app: &App) -> Element<'_, Message> {
                             "当前仅支持 macOS 和 Windows 桌面端。"
                         }),
                         row![
-                            checkbox(app.task_completion_notification)
-                                .label(i18n.__("启用通知"))
-                                .on_toggle_maybe(crate::app::desktop_notification::SUPPORTED.then_some(
-                                    |enabled| Message::Settings(message::SettingsMessage::General(
-                                        message::GeneralSettingsMessage::TaskCompletionNotificationToggled(enabled),
-                                    )),
-                                ))
-                                .style(settings_checkbox_style),
                             button(text(i18n.__("发送测试通知")).size(13))
                                 .on_press_maybe(crate::app::desktop_notification::SUPPORTED.then_some(
                                     Message::Settings(message::SettingsMessage::General(
@@ -372,6 +340,14 @@ pub fn view(app: &App) -> Element<'_, Message> {
                                 ))
                                 .padding([8, 14])
                                 .style(rounded_action_btn_style),
+                            toggler(app.task_completion_notification)
+                                .size(22)
+                                .on_toggle_maybe(crate::app::desktop_notification::SUPPORTED.then_some(
+                                    |enabled| Message::Settings(message::SettingsMessage::General(
+                                        message::GeneralSettingsMessage::TaskCompletionNotificationToggled(enabled),
+                                    )),
+                                ))
+                                .style(toggle_style),
                         ]
                         .spacing(12)
                         .align_y(Alignment::Center),
@@ -389,8 +365,8 @@ pub fn view(app: &App) -> Element<'_, Message> {
         .spacing(16)
         .into(),
         GeneralSettingsTab::Terminal => column![
-            settings_section_card(i18n.__("终端"), i18n.__("默认 Shell、主题与字体。")),
-            settings_section_content(
+            group_heading(i18n.__("终端"), i18n.__("默认 Shell、主题与字体。")),
+            group_card(
                 column![
                     setting_row(
                         i18n.__("终端 Shell"),
@@ -414,6 +390,7 @@ pub fn view(app: &App) -> Element<'_, Message> {
                             settings_value_badge(format!("{} pt", displayed_font_size as u32))
                         ]
                         .spacing(12)
+                        .width(TERMINAL_CONTROL_WIDTH)
                         .align_y(Alignment::Center),
                     ),
                 ]
@@ -427,11 +404,19 @@ pub fn view(app: &App) -> Element<'_, Message> {
     };
 
     column![
-        settings_page_intro(i18n.__("常规"), i18n.__("通过标签切换界面、终端、编辑器与主题配置。")),
+        column![
+            text(i18n.__("常规")).size(28),
+            text(i18n.__("通过标签切换界面、终端、编辑器与主题配置。"))
+                .size(13)
+                .style(settings_muted_text_style),
+        ]
+        .spacing(8),
         tabs,
         content,
     ]
-    .spacing(16)
+    .spacing(28)
+    .padding([8, 7])
+    .max_width(1040)
     .into()
 }
 #[cfg(test)]

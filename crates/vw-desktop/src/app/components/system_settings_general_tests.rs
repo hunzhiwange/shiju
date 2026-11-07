@@ -104,6 +104,34 @@ fn view_builds_each_general_settings_tab() {
     }
 }
 
+#[tokio::test(flavor = "multi_thread")]
+async fn terminal_font_size_control_matches_the_other_terminal_fields() {
+    use iced::advanced::{Layout, layout, renderer::Headless, widget::Tree};
+    use iced::{Font, Pixels, Size};
+
+    let renderer =
+        <iced::Renderer as Headless>::new(Font::DEFAULT, Pixels(16.0), Some("tiny-skia"))
+            .await
+            .expect("tiny-skia renderer");
+    let mut app = test_app();
+    app.general_settings_tab = GeneralSettingsTab::Terminal;
+
+    let mut element = view(&app);
+    let mut tree = Tree::new(element.as_widget());
+    let limits = layout::Limits::new(Size::ZERO, Size::new(900.0, 600.0));
+    let node = element.as_widget_mut().layout(&mut tree, &renderer, &limits);
+    let terminal_tab = Layout::new(&node).children().nth(2).expect("terminal tab");
+    let section = terminal_tab.children().nth(1).expect("terminal section");
+    let fields = section.children().next().expect("terminal fields");
+
+    for field in fields.children().step_by(2) {
+        let row = field.children().next().expect("field row");
+        let wrapper = row.children().nth(1).expect("control wrapper");
+        let control = wrapper.children().next().expect("terminal control");
+        assert_eq!(control.bounds().width, TERMINAL_CONTROL_WIDTH);
+    }
+}
+
 #[test]
 fn font_size_helper_preserves_slider_boundaries_and_fraction() {
     for font_size in [10.0, 13.5, 18.0] {
@@ -169,4 +197,89 @@ fn app_theme_options_include_local_custom_themes() {
     assert!(themes.iter().any(|theme| theme.to_string() == "Mint Night"));
 
     set_test_themes_root(None);
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn general_settings_render_chinese_in_light_and_dark_without_overflow() {
+    use iced::advanced::{Layout, layout, renderer::Headless, widget::Tree};
+    use iced::{Font, Pixels, Rectangle, Size};
+
+    let mut app = test_app();
+    app.desktop_locale = vw_config_types::ui::DesktopLocale::SimplifiedChinese;
+    for (theme, theme_name) in [(Theme::Light, "light"), (Theme::Dark, "dark")] {
+        app.app_theme = theme.clone();
+        for (tab, tab_name) in [
+            (GeneralSettingsTab::Interface, "interface"),
+            (GeneralSettingsTab::Terminal, "terminal"),
+        ] {
+            app.general_settings_tab = tab;
+            for width in [640, 960] {
+                let mut renderer = <iced::Renderer as Headless>::new(
+                    Font::DEFAULT,
+                    Pixels(16.0),
+                    Some("tiny-skia"),
+                )
+                .await
+                .expect("tiny-skia renderer");
+                let viewport = Rectangle::with_size(Size::new(width as f32, 1200.0));
+                let mut element = view(&app);
+                let mut tree = Tree::new(element.as_widget());
+                let node = element.as_widget_mut().layout(
+                    &mut tree,
+                    &renderer,
+                    &layout::Limits::new(Size::ZERO, viewport.size()),
+                );
+                fn assert_fits(layout: Layout<'_>, viewport: Rectangle) {
+                    let bounds = layout.bounds();
+                    assert!(
+                        bounds.x >= 0.0 && bounds.x + bounds.width <= viewport.width + 0.5,
+                        "horizontal overflow: {bounds:?}"
+                    );
+                    for child in layout.children() {
+                        assert_fits(child, viewport);
+                    }
+                }
+                assert_fits(Layout::new(&node), viewport);
+                // 与真实窗口一样先派发重绘，初始化开关与选择框的交互状态。
+                let mut messages = Vec::new();
+                element.as_widget_mut().update(
+                    &mut tree,
+                    &iced::Event::Window(iced::window::Event::RedrawRequested(
+                        iced::time::Instant::now(),
+                    )),
+                    Layout::new(&node),
+                    iced::mouse::Cursor::Unavailable,
+                    &renderer,
+                    &mut iced::advanced::clipboard::Null,
+                    &mut iced::advanced::Shell::new(&mut messages),
+                    &viewport,
+                );
+                assert!(messages.is_empty(), "rendering must not change settings");
+                element.as_widget().draw(
+                    &tree,
+                    &mut renderer,
+                    &theme,
+                    &iced::advanced::renderer::Style { text_color: theme.palette().text },
+                    Layout::new(&node),
+                    iced::mouse::Cursor::Unavailable,
+                    &viewport,
+                );
+                let pixels =
+                    renderer.screenshot(Size::new(width, 1200), 1.0, theme.palette().background);
+                assert!(pixels.chunks_exact(4).any(|pixel| pixel[3] > 0));
+                if let Ok(directory) = std::env::var("SHIJU_SETTINGS_PREVIEW_DIR") {
+                    std::fs::create_dir_all(&directory).expect("preview directory");
+                    image::save_buffer(
+                        std::path::Path::new(&directory)
+                            .join(format!("{tab_name}-{theme_name}-{width}.png")),
+                        &pixels,
+                        width,
+                        1200,
+                        image::ColorType::Rgba8,
+                    )
+                    .expect("save rendered settings");
+                }
+            }
+        }
+    }
 }

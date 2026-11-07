@@ -225,3 +225,7 @@ mod mode_apply_tests;
 pub mod env_diagnose;
 #[cfg(all(test, target_os = "macos"))]
 mod env_diagnose_tests;
+
+pub mod env_clean;
+#[cfg(all(test, target_os = "macos"))]
+mod env_clean_tests;

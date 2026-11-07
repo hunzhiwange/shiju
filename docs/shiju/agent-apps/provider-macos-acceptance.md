@@ -2257,3 +2257,49 @@ Gateway 测试链接阶段有 macOS ld 的 `__eh_frame section too large (max 16
 实际 macOS **27.0（26A428）/ arm64**，workspace crate **0.6.0**。没有读取或修改真实用户 shell 配置；读取本机固定系统 shell 源只用于正式执行路径的只读验收。真实客户端应用版本/消费、账号、Iced UI、完整 shell 求值、清理/恢复及非 macOS 均未验证，不将静态诊断外推为这些能力通过。
 
 状态：**已完成（macOS 只读诊断与清理资格边界）**。定向差异与暂存检查通过，plan.md 只读；仅提交本任务模块、独立测试、必要父注册和本条证据，排除既有 Dsh 格式差异、母任务状态、此前编号文件删除及其他计划。完成后删除任务 47 编号文件，不提交其删除；下一步批次 48。
+
+## 任务 48：环境冲突选择性清理
+
+2026-11-07；核对批次 47 提交 `44c17f71c` 与上节正式验收，前置诊断已交付。母任务 1、3 已完成；母任务 2 完整领域迁移仍未收口，继续沿任务 1/provider-contracts.md 的底座子计划 1–93 开工裁定消费真实接口，不将其改报完整完成。所有 plan.md 保持只读。
+
+### 来源、实现与边界
+
+只读来源 `/Users/xiangmin/worker/code/cc-switch` HEAD 为 `ca58c0313360eae7c851fbd7553c1614c7af03e7`，rev-parse/status 退出 0、来源干净。阅读 `services/env_manager.rs::{delete_env_vars,create_backup,delete_single_env}`、相邻备份目录测试，`services/env_checker.rs::{check_env_conflicts,check_shell_configs}` 及相邻测试、`commands/env.rs`、`src/lib/api/env.ts` 和 `EnvWarningBanner.tsx::handleDelete`。使用 RustCodeGraph status/explore 核对现有调用与写锁，图未覆盖的新文件定向读取；没有运行或修改来源包。
+
+- 执行端唯一业务所有者为 `vw-agent-apps/src/providers/env_clean.rs::{diagnose,clean}`。复用任务 47 的安全读取与静态 shell 解析，不复制第二套解析器，不沿用上游按变量名删除所有来源的行为。只对已诊断、整文件为简单字面量赋值的用户 shell 源提供选择标识；系统源、进程继承及复杂 shell 始终只读。不执行 shell，不修改进程环境。
+- 正式 diagnose 响应在条目 `cleanup` 中提供服务签发的 256-bit 随机 `diagnosticId` 与 `baseDigest`；内存表绑定授权租户/目标主机、应用、物理 HOME、固定 UserShellFile 和诊断行号，15 分钟过期、最多 16384 条。进程重启、标识过期或成功消费后需要重新诊断；没有新增配置或持久供应商状态。文件摘要覆盖原字节及 dev/inode、长度、权限、UID、硬链接数、mtime/ctime（纳秒）。客户端不能提交路径、行号、变量值、清理资格或租户。
+- 清理先校验全部选择与文件基底，再持久化备份，备份后复核全部基底，逐文件发布前再次复核 HOME 身份/安全权限与文件基底。复用物理目录/App 写锁，并在 HOME 描述符上持有跨进程 advisory flock。拒绝链接、非普通源、硬链接、多用户可写源、替换的 HOME/文件、重复/伪造/外属或旧诊断。按所选诊断行移除定义，保留同名其它行/其它文件、其它 export、独立及行内注释、CRLF 和非选中行末尾无换行；沿既有 atomic writer 保留源文件模式。
+- 备份固定落于授权 `credential_root/environment-backups/{opaque-id}.json`。根必须为当前用户所有且私有；固定子目录以 0700 创建并复核，文件通过描述符相对 O_EXCL/O_NOFOLLOW 以 0600 独占创建，文件及目录 sync_all 成功后才允许发布。版本 1 备份包含授权 scope、appId、每个固定文件枚举的 baseDigest/original/replacement。备份失败不修改源；发布前失败或外部变更时保留已持久备份。响应只有不透明 backupId 与实际移除定义数量，原始秘密只存在执行端私有备份。
+- 清理是逐文件、带备份与发布前复核的操作，不宣称多文件整体原子事务；发布中断可能已有部分文件更新，备份保留。外部 shell 编辑器不参与 advisory 锁，复核与原子 rename 之间仍有非协作写入竞争窗口，不承诺内核级 compare-and-swap。没有扩展为通用文件/命令 API、恢复或后台事务服务。
+- DTO 为 `vw-api-types/src/app_providers/env_clean.rs`；`POST /v1/app-providers/{app}/environment/clean` 与 SDK `GatewayClient::provider_env_clean` 沿既有分域父注册接到两类 Gateway 根。使用既有 host-config write 授权与租户边界，在标识查询、备份及文件动作前检查；400 非法选择/未知字段、401 鉴权失败、403 无写权限/外属租户、409 旧基底/重放/外属诊断、422 不支持应用/平台、503 读取/备份/写入不可用。SDK 凭据 header 标敏感，错误载荷丢弃。没有新增 UI、恢复入口、激活或 live 切换；UI/恢复分别归任务 73/49。
+
+### 红绿与验证
+
+红阶段原子 mkdir 动态领取槽位 **2**，`CARGO_TARGET_DIR=/Users/xiangmin/worker/code/shiju/target/rust-slot-2`，`CARGO_BUILD_BUILD_DIR` 同值。最初的接线编译问题修正后重新运行四条规定命令；业务包两条指定测试均在业务断言失败（未删除所选定义、备份受阻却未拒绝），**0 passed / 2 failed，退出 101**；DTO/Gateway/SDK 各 **1 passed、退出 0**。`cargo fmt --all` 退出 0，没有把缺类型、缺模块或零测试当作红证据。
+
+首轮绿阶段发现测试临时私有根默认 0755，业务 4 项及 HTTP 成功路径被生产私有权限检查拒绝；参照相邻夹具改为 0700，没有削弱安全检查。同期诊断回归 6/2 项及 Clippy 退出 0。随后完成同字节 inode 替换与备份后 HOME 替换场景，运行下列最终验证。
+
+最终动态领取 **槽位 2**，`CARGO_TARGET_DIR=/Users/xiangmin/worker/code/shiju/target/rust-slot-2`，`CARGO_BUILD_BUILD_DIR` 同值。所有 Cargo 命令及子进程继承该绝对目录，无 --target-dir 或任务独有缓存；所有测试使用默认 features：
+
+| 确切命令 | 退出码 | 有效数量 |
+| --- | --- | --- |
+| `cargo fmt --all` | 0 | 格式化 |
+| `cargo test -p vw-agent-apps --lib cc04_env_clean_ -- --nocapture` | 0 | 8 passed |
+| `cargo test -p vw-api-types --lib cc04_env_clean_ -- --nocapture` | 0 | 1 passed |
+| `cargo test -p vw-agent --lib cc04_env_clean_ -- --nocapture` | 0 | 2 passed |
+| `cargo test -p vw-gateway-client --lib cc04_env_clean_ -- --nocapture` | 0 | 1 passed |
+| `cargo test -p vw-agent-apps --lib cc04_env_diagnose_ -- --nocapture` | 0 | 6 passed |
+| `cargo test -p vw-agent --lib cc04_env_diagnose_ -- --nocapture` | 0 | 2 passed |
+| `cargo clippy --all-targets --all-features -- -D warnings` | 0 | 全仓全部 targets/features |
+
+本任务 **12** 项与诊断回归 **8** 项，去重 **20** 项通过，无忽略。Gateway 链接器沿此前任务出现 `__eh_frame section too large` 提示，测试命令仍退出 0，未改变链接配置或 lint。未运行无过滤全量 cargo test、fmt check、wasm 或 Makefile。各阶段在锁目录记录计划/任务/会话/PID，所有子进程结束后清理自身 owner 并 rmdir 释放，缓存保留。
+
+### SDK→API→执行端与 macOS 证据
+
+Gateway 集成测试使用正式 SDK、真实回环 HTTP、真实权限 policy/租户中间件与隔离 HOME/private 根：写入含同名重复定义、注释及其它 export 的 `.zshrc` 和同名 `.profile` → SDK diagnose 获得绑定诊断选择 → SDK clean → API 返回 backupId/removedDefinitions=1 → 独立读取实际源文件，只有选中定义消失，同名其它行、其它文件和其它 export 保留；实际 0600 备份的 original 与完整源字节一致，响应不含假凭据。只读授权、错 token、外属租户、同 HOME 不同目标主机、伪造摘要、不支持应用、重放及诊断后外部修改均拒绝，并断言源文件/备份目录无额外写入。正式根入口未通过 Basic 返回 401。
+
+执行端隔离文件测试还证明：备份位置受阻时源不变；持久备份完成的内部观察点能读取完整备份且源仍原样；该点中断或外部改源后保留源与备份；多文件任一旧基底导致任何发布前拒绝；有效多文件选择只清理各自所选定义；同字节 inode 替换、HOME 替换、源/备份符号链接与不私有备份目录拒绝。DTO 拒绝客户端文件坐标/秘密/权限注入，SDK 独立测试核对真实请求路径/方法/JSON/租户头与错误载荷脱敏。
+
+全部凭据为假值。没有替代权限或文件系统；业务诊断夹具只替代系统扫描根和继承枚举，内部 after_backup 观察点用于确定性模拟持久备份之后、源发布之前的中断/外部修改。正式 HTTP diagnose 仍调用真实执行端诊断路径。实际平台 macOS **27.0（26A428）/ arm64**，workspace crate **0.6.0**。没有读取或修改真实用户 shell 配置；真实客户端应用版本/消费、账号、Iced、恢复、完整 shell 求值及非 macOS **未验证**。
+
+状态：**已完成（macOS 服务端诊断选择、私有备份与选择性清理）**。定向差异/暂存审查通过，plan.md 未修改、自身 Cargo 锁已释放；只提交本任务实现、独立测试、必要父注册/诊断接线和本条正式证据，排除既有 Dsh 格式差异、母任务状态、其它编号文件删除及其它计划。本编号任务验收后删除且不提交删除；下一步批次 49。

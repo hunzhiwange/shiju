@@ -12,6 +12,7 @@ fn cc04_env_diagnose_dto_rejects_paths_values_and_foreign_scope() {
         variable: "OPENAI_API_KEY".into(),
         source: EnvSource::ProcessInherited,
         cleanup_available: false,
+        cleanup: None,
     };
     let json = serde_json::to_value(entry).unwrap();
     assert_eq!(json["source"]["kind"], "process_inherited");

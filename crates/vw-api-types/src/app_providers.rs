@@ -188,3 +188,7 @@ mod mode_apply_tests;
 pub mod env_diagnose;
 #[cfg(test)]
 mod env_diagnose_tests;
+
+pub mod env_clean;
+#[cfg(test)]
+mod env_clean_tests;

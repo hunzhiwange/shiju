@@ -38,14 +38,18 @@ async fn read(
             &tenant,
             &request.target_host_id,
         )?;
-        vw_agent_apps::providers::env_diagnose::diagnose(&home, app)
-            .map(|value| Json(value).into_response())
-            .map_err(|message| match message {
-                "unsupported environment application" | "unsupported environment platform" => {
-                    StatusCode::UNPROCESSABLE_ENTITY
-                }
-                _ => StatusCode::SERVICE_UNAVAILABLE,
-            })
+        vw_agent_apps::providers::env_clean::diagnose(
+            &home,
+            app,
+            &super::env_clean::scope(&tenant, &request.target_host_id)?,
+        )
+        .map(|value| Json(value).into_response())
+        .map_err(|message| match message {
+            "unsupported environment application" | "unsupported environment platform" => {
+                StatusCode::UNPROCESSABLE_ENTITY
+            }
+            _ => StatusCode::SERVICE_UNAVAILABLE,
+        })
     })
     .await
     .map_err(|_| StatusCode::SERVICE_UNAVAILABLE)?

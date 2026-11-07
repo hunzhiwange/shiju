@@ -20,7 +20,7 @@ pub fn diagnose(home: &Path, app: AppId) -> Result<EnvDiagnosis, &'static str> {
 pub(super) use macos::diagnose_at;
 
 #[cfg(target_os = "macos")]
-mod macos {
+pub(super) mod macos {
     use super::*;
     use std::{
         fs::{File, OpenOptions},
@@ -105,7 +105,7 @@ mod macos {
         }
         quote.is_none()
     }
-    fn open_root(root: &Path) -> Result<File, &'static str> {
+    pub(crate) fn open_root(root: &Path) -> Result<File, &'static str> {
         if !root.is_absolute() {
             return Err(UNAVAILABLE);
         }
@@ -115,7 +115,10 @@ mod macos {
             .open(root)
             .map_err(|_| UNAVAILABLE)
     }
-    fn read_source(root: &File, name: &str) -> Result<Option<String>, &'static str> {
+    pub(crate) fn read_source(
+        root: &File,
+        name: &str,
+    ) -> Result<Option<(String, std::fs::Metadata)>, &'static str> {
         let name = std::ffi::CString::new(name).map_err(|_| UNAVAILABLE)?;
         // SAFETY: the trusted root is live, and name is a fixed single component.
         let fd = unsafe {
@@ -143,9 +146,9 @@ mod macos {
         if content.len() as u64 > MAX_SOURCE {
             return Err(UNAVAILABLE);
         }
-        Ok(Some(content))
+        Ok(Some((content, metadata)))
     }
-    fn scan(
+    pub(crate) fn scan(
         content: &str,
         app: AppId,
         source: impl Fn(usize) -> EnvSource,
@@ -171,6 +174,7 @@ mod macos {
                     variable: name.into(),
                     source: source(index + 1),
                     cleanup_available: user && simple_file,
+                    cleanup: None,
                 });
             }
         }
@@ -195,7 +199,7 @@ mod macos {
             UserShellFile::Zprofile,
             UserShellFile::Profile,
         ] {
-            if let Some(content) = read_source(&home, file.filename())? {
+            if let Some((content, _)) = read_source(&home, file.filename())? {
                 scan(
                     &content,
                     app,
@@ -206,7 +210,7 @@ mod macos {
             }
         }
         for file in [SystemShellFile::Profile, SystemShellFile::Bashrc] {
-            if let Some(content) = read_source(&system, file.filename())? {
+            if let Some((content, _)) = read_source(&system, file.filename())? {
                 scan(
                     &content,
                     app,
@@ -226,6 +230,7 @@ mod macos {
                 variable: name,
                 source: EnvSource::ProcessInherited,
                 cleanup_available: false,
+                cleanup: None,
             });
         }
         Ok(EnvDiagnosis { app_id: app, entries })

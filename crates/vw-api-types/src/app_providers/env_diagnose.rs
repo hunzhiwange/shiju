@@ -56,6 +56,9 @@ pub struct EnvDiagnostic {
     pub source: EnvSource,
     /// Eligibility only; cleanup must revalidate a server-issued diagnostic and base.
     pub cleanup_available: bool,
+    /// Issued by the executor; absent for read-only sources or unscoped scans.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub cleanup: Option<super::env_clean::EnvCleanSelection>,
 }
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]

@@ -3,17 +3,18 @@
 //! 本模块主要负责把应用状态转换为桌面端可渲染的 Iced 控件，并把用户操作映射回上层消息。
 //! 注释聚焦调用边界、返回值和错误传播方式，便于后续维护设置页与工具栏行为时快速定位职责。
 
+use super::system_settings::SELECT_FOCUS_SCOPE;
 use crate::app::components::system_settings_common::{
-    SETTINGS_LABEL_WIDTH, settings_checkbox_style, settings_control_with_hint, settings_divider,
-    settings_muted_text_style, settings_page_intro, settings_pick_list_menu_style,
-    settings_pick_list_style, settings_section_card, settings_section_content,
+    SETTINGS_CONTROL_PADDING, SETTINGS_CONTROL_TEXT_SIZE, settings_checkbox_style,
+    settings_divider, settings_field_label, settings_group_card, settings_group_heading,
+    settings_muted_text_style, settings_page_heading, settings_row, settings_select,
     settings_text_input_style,
 };
 use crate::app::i18n::settings_runtime::text as runtime_text;
 use crate::app::message::settings::{RuntimeMessage, SettingsMessage};
 use crate::app::{App, Message};
-use iced::widget::{checkbox, column, container, pick_list, row, text, text_input};
-use iced::{Alignment, Element, Length};
+use iced::widget::{checkbox, column, container, text, text_input};
+use iced::{Element, Length};
 
 #[derive(Clone, PartialEq)]
 struct LabeledOption {
@@ -27,28 +28,7 @@ impl std::fmt::Display for LabeledOption {
     }
 }
 
-fn field_row<'a>(
-    label: &'static str,
-    description: &'static str,
-    control: impl Into<Element<'a, Message>>,
-) -> Element<'a, Message> {
-    container(
-        row![
-            column![
-                text(label).size(13),
-                text(description).size(11).style(settings_muted_text_style),
-            ]
-            .spacing(4)
-            .width(Length::Fixed(SETTINGS_LABEL_WIDTH)),
-            container(control.into()).width(Length::Fill),
-        ]
-        .spacing(22)
-        .align_y(Alignment::Center),
-    )
-    .padding([14, 0])
-    .width(Length::Fill)
-    .into()
-}
+const CONTROL_WIDTH: f32 = 280.0;
 
 fn text_row<'a>(
     label: &'static str,
@@ -57,71 +37,35 @@ fn text_row<'a>(
     value: &'a str,
     on_input: impl Fn(String) -> Message + 'a,
 ) -> Element<'a, Message> {
-    field_row(
+    settings_row(
         label,
         description,
+        CONTROL_WIDTH,
         text_input(placeholder, value)
             .on_input(on_input)
-            .padding([10, 12])
-            .size(13)
+            .padding(SETTINGS_CONTROL_PADDING)
+            .size(SETTINGS_CONTROL_TEXT_SIZE)
             .style(settings_text_input_style)
             .width(Length::Fill),
     )
 }
 
-fn text_row_with_hint<'a>(
-    label: &'static str,
-    description: &'static str,
-    placeholder: &'static str,
-    value: &'a str,
-    hint: &'static str,
-    on_input: impl Fn(String) -> Message + 'a,
-) -> Element<'a, Message> {
-    field_row(
-        label,
-        description,
-        settings_control_with_hint(
-            text_input(placeholder, value)
-                .on_input(on_input)
-                .padding([10, 12])
-                .size(13)
-                .style(settings_text_input_style)
-                .width(Length::Fill),
-            hint,
-        ),
-    )
-}
-
-/// 构建或处理 `view` 对应的界面片段与交互数据。
-///
-/// # 参数
-///
-/// 参数来自调用方持有的应用状态、配置快照或控件输入，用于保持渲染结果与当前状态同步。
-///
-/// # 返回值
-///
-/// 返回可交给 Iced 渲染树使用的 `Element`，其中已绑定必要的消息回调。
-///
-/// # 错误处理
-///
-/// 本函数不直接返回错误；无法交互或缺省状态会在控件状态中显式表达。
+/// 渲染运行时类型、推理覆盖和 Docker 配置。
 pub fn view(app: &App) -> Element<'_, Message> {
     let s = &app.runtime_settings;
     let locale = app.desktop_locale;
 
-    let kind_pick =
-        pick_list(["native".to_string(), "docker".to_string()], Some(s.kind.clone()), |value| {
-            Message::Settings(SettingsMessage::Runtime(RuntimeMessage::KindChanged(value)))
-        })
-        .padding([10, 14])
-        .text_size(13)
-        .style(settings_pick_list_style)
-        .menu_style(settings_pick_list_menu_style)
-        .width(Length::Fixed(280.0));
+    let kind_pick = settings_select(
+        ["native".to_string(), "docker".to_string()],
+        Some(s.kind.clone()),
+        |value| Message::Settings(SettingsMessage::Runtime(RuntimeMessage::KindChanged(value))),
+    )
+    .width(Length::Fill);
 
-    let kind_row = field_row(
+    let kind_row = settings_row(
         runtime_text(locale, "运行时类型"),
         runtime_text(locale, "选择 native 或 docker 执行环境。"),
+        CONTROL_WIDTH,
         kind_pick,
     );
 
@@ -136,20 +80,17 @@ pub fn view(app: &App) -> Element<'_, Message> {
         .cloned()
         .or_else(|| reasoning_enabled_options.first().cloned());
     let reasoning_enabled_pick =
-        pick_list(reasoning_enabled_options, reasoning_enabled_selected, |value| {
+        settings_select(reasoning_enabled_options, reasoning_enabled_selected, |value| {
             Message::Settings(SettingsMessage::Runtime(RuntimeMessage::ReasoningEnabledChanged(
                 value.value.to_string(),
             )))
         })
-        .padding([10, 14])
-        .text_size(13)
-        .style(settings_pick_list_style)
-        .menu_style(settings_pick_list_menu_style)
-        .width(Length::Fixed(280.0));
+        .width(Length::Fill);
 
-    let reasoning_enabled_row = field_row(
+    let reasoning_enabled_row = settings_row(
         runtime_text(locale, "启用推理"),
         runtime_text(locale, "覆盖 runtime.reasoning_enabled 的兼容配置。"),
+        CONTROL_WIDTH,
         reasoning_enabled_pick,
     );
 
@@ -167,29 +108,26 @@ pub fn view(app: &App) -> Element<'_, Message> {
         .cloned()
         .or_else(|| reasoning_level_options.first().cloned());
     let reasoning_level_pick =
-        pick_list(reasoning_level_options, reasoning_level_selected, |value| {
+        settings_select(reasoning_level_options, reasoning_level_selected, |value| {
             Message::Settings(SettingsMessage::Runtime(RuntimeMessage::ReasoningLevelChanged(
                 value.value.to_string(),
             )))
         })
-        .padding([10, 14])
-        .text_size(13)
-        .style(settings_pick_list_style)
-        .menu_style(settings_pick_list_menu_style)
-        .width(Length::Fixed(280.0));
+        .width(Length::Fill);
 
-    let reasoning_level_row = field_row(
+    let reasoning_level_row = settings_row(
         runtime_text(locale, "推理级别"),
         runtime_text(locale, "兼容别名 runtime.reasoning_level。"),
+        CONTROL_WIDTH,
         reasoning_level_pick,
     );
 
     let docker_section = column![
-        settings_section_card(
+        settings_group_heading(
             runtime_text(locale, "Docker 配置"),
             runtime_text(locale, "当 kind=docker 时生效，用于控制镜像、资源限制和工作区挂载。"),
         ),
-        settings_section_content(
+        settings_group_card(
             column![
                 text_row(
                     runtime_text(locale, "镜像 (image)"),
@@ -239,11 +177,13 @@ pub fn view(app: &App) -> Element<'_, Message> {
                     }
                 ),
                 settings_divider(),
-                field_row(
+                settings_row(
                     runtime_text(locale, "只读根文件系统 (read_only_rootfs)"),
                     runtime_text(locale, "限制容器根文件系统为只读。"),
+                    CONTROL_WIDTH,
                     checkbox(s.docker_read_only_rootfs)
                         .label(runtime_text(locale, "启用"))
+                        .text_size(SETTINGS_CONTROL_TEXT_SIZE)
                         .on_toggle(|value| {
                             Message::Settings(SettingsMessage::Runtime(
                                 RuntimeMessage::DockerReadOnlyRootfsToggled(value),
@@ -252,11 +192,13 @@ pub fn view(app: &App) -> Element<'_, Message> {
                         .style(settings_checkbox_style),
                 ),
                 settings_divider(),
-                field_row(
+                settings_row(
                     runtime_text(locale, "挂载工作区 (mount_workspace)"),
                     runtime_text(locale, "决定是否把工作区挂载进容器。"),
+                    CONTROL_WIDTH,
                     checkbox(s.docker_mount_workspace)
                         .label(runtime_text(locale, "启用"))
+                        .text_size(SETTINGS_CONTROL_TEXT_SIZE)
                         .on_toggle(|value| {
                             Message::Settings(SettingsMessage::Runtime(
                                 RuntimeMessage::DockerMountWorkspaceToggled(value),
@@ -265,18 +207,30 @@ pub fn view(app: &App) -> Element<'_, Message> {
                         .style(settings_checkbox_style),
                 ),
                 settings_divider(),
-                text_row_with_hint(
-                    runtime_text(locale, "允许的工作区根目录 (allowed_workspace_roots)"),
-                    runtime_text(locale, "仅放行明确需要挂载的根目录。"),
-                    runtime_text(locale, "逗号或换行分隔路径"),
-                    &s.docker_allowed_workspace_roots_input,
-                    runtime_text(locale, "建议仅放行明确需要挂载的根目录。"),
-                    |value| {
-                        Message::Settings(SettingsMessage::Runtime(
+                container(
+                    column![
+                        settings_field_label(runtime_text(
+                            locale,
+                            "允许的工作区根目录 (allowed_workspace_roots)",
+                        )),
+                        text(runtime_text(locale, "仅放行明确需要挂载的根目录。"))
+                            .size(13)
+                            .style(settings_muted_text_style),
+                        text_input(
+                            runtime_text(locale, "逗号或换行分隔路径"),
+                            &s.docker_allowed_workspace_roots_input,
+                        )
+                        .on_input(|value| Message::Settings(SettingsMessage::Runtime(
                             RuntimeMessage::DockerAllowedWorkspaceRootsChanged(value),
-                        ))
-                    },
-                ),
+                        )))
+                        .padding(SETTINGS_CONTROL_PADDING)
+                        .size(SETTINGS_CONTROL_TEXT_SIZE)
+                        .style(settings_text_input_style)
+                        .width(Length::Fill),
+                    ]
+                    .spacing(6),
+                )
+                .padding([20, 0]),
             ]
             .spacing(0)
         ),
@@ -284,23 +238,23 @@ pub fn view(app: &App) -> Element<'_, Message> {
     .spacing(16);
 
     let mut content = column![
-        settings_page_intro(
+        settings_page_heading(
             runtime_text(locale, "运行时配置"),
             runtime_text(locale, "配置 native、docker 执行环境及推理覆盖项。")
         ),
-        settings_section_card(
+        settings_group_heading(
             runtime_text(locale, "基础行为"),
             runtime_text(locale, "运行时类型。")
         ),
-        settings_section_content(column![kind_row].spacing(0)),
-        settings_section_card(
+        settings_group_card(kind_row),
+        settings_group_heading(
             runtime_text(locale, "推理覆盖"),
             runtime_text(
                 locale,
                 "该区域用于配置 runtime.reasoning_enabled 与兼容别名 runtime.reasoning_level。"
             ),
         ),
-        settings_section_content(
+        settings_group_card(
             column![reasoning_enabled_row, settings_divider(), reasoning_level_row].spacing(0),
         ),
     ]
@@ -310,7 +264,7 @@ pub fn view(app: &App) -> Element<'_, Message> {
     if s.kind == "docker" {
         content = content.push(docker_section);
     }
-    container(content).width(Length::Fill).into()
+    container(content).id(SELECT_FOCUS_SCOPE).width(Length::Fill).into()
 }
 #[cfg(test)]
 #[path = "system_settings_runtime_tests.rs"]

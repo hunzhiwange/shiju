@@ -820,7 +820,7 @@ pub fn view(app: &App) -> Element<'_, Message> {
     dialog
 }
 
-const SELECT_FOCUS_SCOPE: &str = "system-settings-select-focus";
+pub(super) const SELECT_FOCUS_SCOPE: &str = "system-settings-select-focus";
 
 pub(crate) fn traverse_select_focus(reverse: bool) -> iced::Task<Message> {
     use iced::advanced::widget::operation::{focusable, scope};

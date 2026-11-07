@@ -15,13 +15,15 @@
 //! - 提供详细的帮助文档模态框说明各参数含义
 
 use crate::app::components::system_settings_common::{
-    SETTINGS_LABEL_WIDTH, settings_help_button_with_locale as settings_help_button,
-    settings_muted_text_style, settings_page_intro, settings_section_card,
-    settings_section_content, settings_value_badge,
+    settings_divider, settings_group_card, settings_group_heading,
+    settings_help_button_with_locale, settings_modal_header, settings_page_heading, settings_row,
+    settings_value_badge, with_settings_help_modal,
 };
+use crate::app::i18n::I18n;
 use crate::app::{App, Message, message};
-use iced::widget::{column, container, row, slider, text};
+use iced::widget::{column, container, row, slider};
 use iced::{Alignment, Element, Length};
+use std::ops::RangeInclusive;
 
 const RELIABILITY_HELP_TEXT: &str = r#"可靠性配置说明
 
@@ -66,27 +68,26 @@ const RELIABILITY_HELP_TEXT: &str = r#"可靠性配置说明
 }
 "#;
 
-fn field_row<'a>(
-    label: &'static str,
-    description: &'static str,
-    control: impl Into<Element<'a, Message>>,
+fn slider_row<'a>(
+    label: &'a str,
+    description: &'a str,
+    range: RangeInclusive<f32>,
+    value: f32,
+    display_value: impl ToString,
+    on_change: fn(f32) -> Message,
 ) -> Element<'a, Message> {
-    container(
+    settings_row(
+        label,
+        description,
+        280.0,
         row![
-            column![
-                text(label).size(13),
-                text(description).size(11).style(settings_muted_text_style),
-            ]
-            .spacing(4)
-            .width(Length::Fixed(SETTINGS_LABEL_WIDTH)),
-            container(control.into()).width(Length::Fill),
+            slider(range, value, on_change).width(Length::Fill),
+            // Keep the rail steady as the number of digits changes during a drag.
+            container(settings_value_badge(display_value)).align_right(88.0),
         ]
-        .spacing(22)
+        .spacing(12)
         .align_y(Alignment::Center),
     )
-    .padding([14, 0])
-    .width(Length::Fill)
-    .into()
 }
 
 fn provider_retries_changed(v: f32) -> Message {
@@ -123,158 +124,88 @@ fn scheduler_retries_changed(v: f32) -> Message {
     )
 }
 
-/// 渲染可靠性配置设置视图
-///
-/// 创建包含多个配置项的表单界面，用户可以通过滑块调整各项可靠性参数。
-/// 每个配置项都包含标签、滑块控件和当前值显示。
-///
-/// # 参数
-/// - `app`: 应用状态引用，包含当前的可靠性配置数据
-///
-/// # 返回值
-/// 返回一个 Iced Element，表示完整的可靠性配置界面
-///
-/// # 界面组成
-/// 1. 标题和副标题区域
-/// 2. Provider 重试次数配置
-/// 3. Provider 退避时间配置
-/// 4. 频道初始退避时间配置
-/// 5. 频道最大退避时间配置
-/// 6. 调度轮询间隔配置
-/// 7. 调度重试次数配置
-/// 8. 错误提示（如果有保存错误）
-/// 9. 帮助模态框（可选显示）
+/// 渲染模型请求、频道重连和调度任务的重试设置。
 pub fn view(app: &App) -> Element<'_, Message> {
     let s = &app.reliability_settings;
-    let help_btn = settings_help_button(
+    let i18n = I18n::new(app.desktop_locale);
+    let help = settings_help_button_with_locale(
         app.desktop_locale,
         Message::Settings(message::SettingsMessage::ReliabilityHelpOpen),
     );
 
-    let provider_retries_slider =
-        slider(0.0..=20.0, s.provider_retries as f32, provider_retries_changed)
-            .width(Length::Fixed(280.0));
-
-    let provider_retries_row = field_row(
-        crate::app::i18n::I18n::new(app.desktop_locale).__("Provider 重试"),
-        crate::app::i18n::I18n::new(app.desktop_locale).__("请求失败时的最大重试次数。"),
-        row![provider_retries_slider, settings_value_badge(format!("{}", s.provider_retries)),]
-            .spacing(16)
-            .align_y(Alignment::Center),
+    let provider_retries = slider_row(
+        i18n.__("Provider 重试"),
+        i18n.__("请求失败时的最大重试次数。"),
+        0.0..=20.0,
+        s.provider_retries as f32,
+        s.provider_retries,
+        provider_retries_changed,
     );
-
-    let provider_backoff_slider =
-        slider(0.0..=60_000.0, s.provider_backoff_ms as f32, provider_backoff_ms_changed)
-            .width(Length::Fixed(280.0));
-
-    let provider_backoff_row = field_row(
-        crate::app::i18n::I18n::new(app.desktop_locale).__("Provider 退避"),
-        crate::app::i18n::I18n::new(app.desktop_locale).__("重试之间的基础退避时间。"),
-        row![
-            provider_backoff_slider,
-            settings_value_badge(format!("{} ms", s.provider_backoff_ms)),
-        ]
-        .spacing(16)
-        .align_y(Alignment::Center),
+    let provider_backoff = slider_row(
+        i18n.__("Provider 退避"),
+        i18n.__("重试之间的基础退避时间。"),
+        0.0..=60_000.0,
+        s.provider_backoff_ms as f32,
+        format!("{} ms", s.provider_backoff_ms),
+        provider_backoff_ms_changed,
     );
-
-    let channel_initial_slider = slider(
+    let channel_initial = slider_row(
+        i18n.__("频道初始退避"),
+        i18n.__("频道或守护进程重连时的初始退避秒数。"),
         1.0..=3600.0,
         s.channel_initial_backoff_secs as f32,
+        format!("{} s", s.channel_initial_backoff_secs),
         channel_initial_backoff_secs_changed,
-    )
-    .width(Length::Fixed(280.0));
-
-    let channel_initial_row = field_row(
-        crate::app::i18n::I18n::new(app.desktop_locale).__("频道初始退避"),
-        crate::app::i18n::I18n::new(app.desktop_locale).__("频道或守护进程重连时的初始退避秒数。"),
-        row![
-            channel_initial_slider,
-            settings_value_badge(format!("{} s", s.channel_initial_backoff_secs)),
-        ]
-        .spacing(16)
-        .align_y(Alignment::Center),
     );
-
-    let channel_max_slider = slider(
+    let channel_max = slider_row(
+        i18n.__("频道最大退避"),
+        i18n.__("退避算法允许增长到的最大等待时间。"),
         s.channel_initial_backoff_secs as f32..=3600.0,
         s.channel_max_backoff_secs as f32,
+        format!("{} s", s.channel_max_backoff_secs),
         channel_max_backoff_secs_changed,
-    )
-    .width(Length::Fixed(280.0));
-
-    let channel_max_row =
-        field_row(
-            crate::app::i18n::I18n::new(app.desktop_locale).__("频道最大退避"),
-            crate::app::i18n::I18n::new(app.desktop_locale)
-                .__("退避算法允许增长到的最大等待时间。"),
-            row![
-                channel_max_slider,
-                settings_value_badge(format!("{} s", s.channel_max_backoff_secs)),
-            ]
-            .spacing(16)
-            .align_y(Alignment::Center),
-        );
-
-    let scheduler_poll_slider =
-        slider(1.0..=3600.0, s.scheduler_poll_secs as f32, scheduler_poll_secs_changed)
-            .width(Length::Fixed(280.0));
-
-    let scheduler_poll_row = field_row(
-        crate::app::i18n::I18n::new(app.desktop_locale).__("调度轮询间隔"),
-        crate::app::i18n::I18n::new(app.desktop_locale).__("调度器检查任务的轮询频率。"),
-        row![scheduler_poll_slider, settings_value_badge(format!("{} s", s.scheduler_poll_secs)),]
-            .spacing(16)
-            .align_y(Alignment::Center),
+    );
+    let scheduler_poll = slider_row(
+        i18n.__("调度轮询间隔"),
+        i18n.__("调度器检查任务的轮询频率。"),
+        1.0..=3600.0,
+        s.scheduler_poll_secs as f32,
+        format!("{} s", s.scheduler_poll_secs),
+        scheduler_poll_secs_changed,
+    );
+    let scheduler_retries = slider_row(
+        i18n.__("调度重试次数"),
+        i18n.__("任务执行失败时允许的重试次数。"),
+        0.0..=20.0,
+        s.scheduler_retries as f32,
+        s.scheduler_retries,
+        scheduler_retries_changed,
     );
 
-    let scheduler_retries_slider =
-        slider(0.0..=20.0, s.scheduler_retries as f32, scheduler_retries_changed)
-            .width(Length::Fixed(280.0));
-
-    let scheduler_retries_row = field_row(
-        crate::app::i18n::I18n::new(app.desktop_locale).__("调度重试次数"),
-        crate::app::i18n::I18n::new(app.desktop_locale).__("任务执行失败时允许的重试次数。"),
-        row![scheduler_retries_slider, settings_value_badge(format!("{}", s.scheduler_retries)),]
-            .spacing(16)
-            .align_y(Alignment::Center),
-    );
-
-    let col = column![
-        row![
-            container(settings_page_intro(
-                crate::app::i18n::I18n::new(app.desktop_locale).__("可靠性配置"),
-                crate::app::i18n::I18n::new(app.desktop_locale)
-                    .__("统一配置 provider 重试、频道重连退避和调度重试策略。")
-            ))
-            .width(Length::Fill),
-            help_btn
-        ]
-        .align_y(Alignment::Start),
-        settings_section_card(
-            "Provider",
-            crate::app::i18n::I18n::new(app.desktop_locale)
-                .__("控制模型请求失败时的重试次数和退避时间。")
+    column![
+        settings_modal_header(
+            settings_page_heading(
+                i18n.__("可靠性配置"),
+                i18n.__("统一配置 provider 重试、频道重连退避和调度重试策略。"),
+            ),
+            help,
         ),
-        settings_section_content(column![provider_retries_row, provider_backoff_row].spacing(0)),
-        settings_section_card(
-            crate::app::i18n::I18n::new(app.desktop_locale).__("频道与调度"),
-            crate::app::i18n::I18n::new(app.desktop_locale).__("控制频道重连与调度器重试节奏。")
-        ),
-        settings_section_content(
-            column![
-                channel_initial_row,
-                channel_max_row,
-                scheduler_poll_row,
-                scheduler_retries_row,
-            ]
-            .spacing(0),
-        ),
+        settings_group_heading("Provider", i18n.__("控制模型请求失败时的重试次数和退避时间。")),
+        settings_group_card(column![provider_retries, settings_divider(), provider_backoff]),
+        settings_group_heading(i18n.__("频道与调度"), i18n.__("控制频道重连与调度器重试节奏。")),
+        settings_group_card(column![
+            channel_initial,
+            settings_divider(),
+            channel_max,
+            settings_divider(),
+            scheduler_poll,
+            settings_divider(),
+            scheduler_retries,
+        ]),
     ]
     .spacing(16)
-    .width(Length::Fill);
-
-    col.into()
+    .width(Length::Fill)
+    .into()
 }
 
 pub fn view_overlays<'a>(app: &'a App, dialog: Element<'a, Message>) -> Element<'a, Message> {
@@ -283,10 +214,10 @@ pub fn view_overlays<'a>(app: &'a App, dialog: Element<'a, Message>) -> Element<
         return dialog;
     }
 
-    crate::app::components::system_settings_common::with_settings_help_modal(
+    with_settings_help_modal(
         app,
         dialog,
-        crate::app::i18n::I18n::new(app.desktop_locale).__("Reliability 配置帮助"),
+        I18n::new(app.desktop_locale).__("Reliability 配置帮助"),
         RELIABILITY_HELP_TEXT,
         Message::Settings(message::SettingsMessage::ReliabilityHelpClose),
     )
@@ -294,3 +225,7 @@ pub fn view_overlays<'a>(app: &'a App, dialog: Element<'a, Message>) -> Element<
 #[cfg(test)]
 #[path = "system_settings_reliability_tests.rs"]
 mod system_settings_reliability_tests;
+
+#[cfg(test)]
+#[path = "system_settings_reliability_ui_refresh_21_tests.rs"]
+mod ui_refresh_21_tests;

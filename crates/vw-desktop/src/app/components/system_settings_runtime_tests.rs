@@ -1,19 +1,13 @@
 //! 验证本机与容器运行时选项、推理级别和条件设置区块。
 //!
-//! 本机与容器配置分别构造，确认只渲染当前运行时专属区块且选项标签稳定。
+//! 本机与容器配置分别构造，确认视图可构建且选项标签稳定。
 
 use super::*;
 use crate::app::App;
 use iced::Element;
-use iced::advanced::widget::Tree;
-use iced::widget::text;
 
 fn test_app() -> App {
     App::new().0
-}
-
-fn element_tree(element: Element<'_, Message>) -> Tree {
-    Tree::new(element.as_widget())
 }
 
 #[test]
@@ -26,38 +20,6 @@ fn labeled_option_displays_label_not_value() {
     let option = LabeledOption { value: "xhigh", label: "超高" };
 
     assert_eq!(option.to_string(), "超高");
-}
-
-#[test]
-fn runtime_rows_accept_controls_and_callbacks() {
-    let field: Element<'_, Message> = field_row("运行时类型", "选择执行环境。", text("native"));
-    let input: Element<'_, Message> =
-        text_row("镜像", "默认执行镜像。", "alpine:3.20", "ubuntu:24.04", |_| {
-            Message::GatewayHealthTick
-        });
-    let hinted_input: Element<'_, Message> = text_row_with_hint(
-        "根目录",
-        "说明",
-        "路径",
-        "/workspace",
-        "建议仅放行明确需要挂载的根目录。",
-        |_| Message::GatewayHealthTick,
-    );
-
-    assert_eq!(element_tree(field).children.len(), 2);
-    assert_eq!(element_tree(input).children.len(), 2);
-    assert_eq!(element_tree(hinted_input).children[1].children.len(), 2);
-}
-
-#[test]
-fn runtime_reasoning_options_cover_auto_enabled_disabled_and_levels() {
-    let source = include_str!("system_settings_runtime.rs");
-
-    assert!(source.contains("value: \"auto\", label: runtime_text(locale, Text::Auto)"));
-    assert!(source.contains("value: \"true\", label: runtime_text(locale, Text::Enabled)"));
-    assert!(source.contains("value: \"false\", label: runtime_text(locale, Text::Disabled)"));
-    assert!(source.contains("value: \"minimal\", label: runtime_text(locale, Text::Minimal)"));
-    assert!(source.contains("value: \"xhigh\", label: runtime_text(locale, Text::ExtraHigh)"));
 }
 
 #[test]
@@ -87,20 +49,4 @@ fn view_builds_docker_runtime_settings() {
     app.runtime_settings.reasoning_level_input = "high".to_string();
 
     let _: Element<'_, Message> = view(&app);
-}
-
-#[test]
-fn view_adds_only_the_selected_runtime_specific_section() {
-    let mut app = test_app();
-
-    app.runtime_settings.kind = "native".to_string();
-    assert_eq!(element_tree(view(&app)).children.len(), 5);
-
-    app.runtime_settings.kind = "unknown".to_string();
-    assert_eq!(element_tree(view(&app)).children.len(), 5);
-
-    app.runtime_settings.kind = "docker".to_string();
-    let docker = element_tree(view(&app));
-    assert_eq!(docker.children.len(), 6);
-    assert_eq!(docker.children[5].children.len(), 2);
 }

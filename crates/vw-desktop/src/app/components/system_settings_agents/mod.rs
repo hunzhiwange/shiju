@@ -176,12 +176,12 @@ pub fn view(app: &App) -> Element<'_, Message> {
                 .height(Length::Fill)
                 .into()
         }
-        AgentConfigTab::Runtime => {
-            scrollable(container(crate::app::components::system_settings_runtime::view(app)))
-                .direction(Direction::Vertical(Scrollbar::new().width(4).scroller_width(4)))
-                .height(Length::Fill)
-                .into()
-        }
+        AgentConfigTab::Runtime => scrollable(
+            container(crate::app::components::system_settings_runtime::view(app)).padding([0, 7]),
+        )
+        .direction(Direction::Vertical(Scrollbar::new().width(4).scroller_width(4)))
+        .height(Length::Fill)
+        .into(),
         AgentConfigTab::Acp => crate::app::components::system_settings_acp::view(app),
         AgentConfigTab::Mcp => {
             scrollable(container(crate::app::components::system_settings_mcp::view(app)))
@@ -202,12 +202,13 @@ pub fn view(app: &App) -> Element<'_, Message> {
         .direction(Direction::Vertical(Scrollbar::new().width(4).scroller_width(4)))
         .height(Length::Fill)
         .into(),
-        AgentConfigTab::Reliability => {
-            scrollable(container(crate::app::components::system_settings_reliability::view(app)))
-                .direction(Direction::Vertical(Scrollbar::new().width(4).scroller_width(4)))
-                .height(Length::Fill)
-                .into()
-        }
+        AgentConfigTab::Reliability => scrollable(
+            container(crate::app::components::system_settings_reliability::view(app))
+                .padding([0, 7]),
+        )
+        .direction(Direction::Vertical(Scrollbar::new().width(4).scroller_width(4)))
+        .height(Length::Fill)
+        .into(),
         AgentConfigTab::DialogueFlow => {
             scrollable(container(crate::app::components::system_settings_dialogue_flow::view(app)))
                 .direction(Direction::Vertical(Scrollbar::new().width(4).scroller_width(4)))

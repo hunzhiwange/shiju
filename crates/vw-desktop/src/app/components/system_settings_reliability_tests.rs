@@ -23,13 +23,6 @@ fn settings_message(message: Message) -> message::SettingsMessage {
 }
 
 #[test]
-fn field_row_accepts_reliability_control() {
-    let element: Element<'_, Message> =
-        field_row("Provider 重试", "请求失败时的最大重试次数。", text("2"));
-    drop(element);
-}
-
-#[test]
 fn reliability_view_uses_expected_bounded_ranges() {
     let source = include_str!("system_settings_reliability.rs");
 
@@ -79,7 +72,7 @@ fn reliability_help_explains_affected_features_and_omits_removed_fields() {
         "首次模型请求失败后",
         "重试次数越大",
         "首次重试前",
-        "等待越长",
+        "后续重试采用指数退避",
         "聊天通道监听断开后",
         "后续重连等待",
         "cron 扫描",

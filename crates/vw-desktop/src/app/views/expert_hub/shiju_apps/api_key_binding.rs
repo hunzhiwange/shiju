@@ -1,14 +1,14 @@
 use std::fmt;
 
-use iced::widget::scrollable::{Direction, Scrollbar};
-use iced::widget::{Space, button, column, container, pick_list, row, scrollable, text};
+use iced::widget::{Space, button, column, container, row, text};
 use iced::{Alignment, Element, Font, Length};
 use vw_gateway_client::ShijuIamApiKeyDto;
 
 use super::styles;
 use crate::app::components::system_settings_common::{
-    rounded_action_btn_style, settings_close_button, settings_modal_card, settings_modal_overlay,
-    settings_muted_text_style, settings_pick_list_menu_style, settings_pick_list_style,
+    primary_action_btn_style, rounded_action_btn_style, settings_close_button,
+    settings_control_with_hint, settings_error_banner, settings_field_label, settings_modal_header,
+    settings_modal_layout, settings_modal_overlay, settings_muted_text_style, settings_select,
 };
 use crate::app::message::ShijuAppsMessage;
 use crate::app::shiju_apps::{ShijuAppLaunchState, ShijuAppsLoadState};
@@ -169,14 +169,6 @@ fn selected_key_details(
     .into()
 }
 
-fn error_banner(message: String) -> Element<'static, Message> {
-    container(text(message).size(12).width(Length::Fill))
-        .padding([10, 12])
-        .width(Length::Fill)
-        .style(styles::binding_error_style)
-        .into()
-}
-
 fn disabled_selection(label: String) -> Element<'static, Message> {
     container(text(label).size(13).width(Length::Fill))
         .padding([10, 12])
@@ -213,15 +205,11 @@ fn selection_control(
             let selected_id = selected_key(state).map(|key| key.api_key_id);
             let selected =
                 options.iter().find(|option| Some(option.api_key_id) == selected_id).cloned();
-            pick_list(options, selected, |option| {
+            settings_select(options, selected, |option| {
                 Message::ShijuApps(select_action(option.api_key_id))
             })
             .placeholder(i18n.__("请选择 IAM API 密钥"))
-            .padding([10, 12])
-            .text_size(13)
             .width(Length::Fill)
-            .style(settings_pick_list_style)
-            .menu_style(settings_pick_list_menu_style)
             .into()
         }
         ShijuAppLaunchState::SavingApiKeyBinding { .. } => disabled_selection(
@@ -248,7 +236,7 @@ fn selection_control(
     }
 }
 
-fn body(app: &App) -> Element<'static, Message> {
+fn binding_card<'a>(app: &App) -> iced::widget::Container<'a, Message> {
     let i18n = crate::app::i18n::I18n::new(app.desktop_locale);
     let state = &app.expert_hub.shiju_apps.launch;
     let current_installation_id = installation_id(state).unwrap_or_default();
@@ -266,23 +254,16 @@ fn body(app: &App) -> Element<'static, Message> {
         refresh_button = refresh_button.on_press(Message::ShijuApps(refresh_action()));
     }
 
-    let header = row![
+    let header = settings_modal_header(
         column![
-            text(crate::app::i18n::I18n::new(app.desktop_locale).__("应用 API 密钥")).size(22),
-            text(
-                crate::app::i18n::I18n::new(app.desktop_locale)
-                    .__("仅绑定当前账户启用的 IAM API 密钥；不会展示或保存原始密钥。")
-            )
-            .size(12)
-            .style(settings_muted_text_style),
+            text(i18n.__("应用 API 密钥")).size(20),
+            text(i18n.__("仅绑定当前账户启用的 IAM API 密钥；不会展示或保存原始密钥。"))
+                .size(13)
+                .style(settings_muted_text_style),
         ]
-        .spacing(5)
-        .width(Length::Fill),
-        refresh_button,
+        .spacing(6),
         settings_close_button(close_message),
-    ]
-    .spacing(8)
-    .align_y(Alignment::Center);
+    );
 
     let summary = row![
         column![
@@ -306,14 +287,11 @@ fn body(app: &App) -> Element<'static, Message> {
     let mut content = column![
         summary,
         column![
-            text(crate::app::i18n::I18n::new(app.desktop_locale).__("IAM API 密钥")).size(12),
-            selection_control(i18n, state),
-            text(
-                crate::app::i18n::I18n::new(app.desktop_locale)
-                    .__("列表包含当前账户返回的启用与非启用项；只有启用项可以保存。")
-            )
-            .size(11)
-            .style(settings_muted_text_style),
+            settings_field_label(i18n.__("IAM API 密钥")),
+            settings_control_with_hint(
+                selection_control(i18n, state),
+                i18n.__("列表包含当前账户返回的启用与非启用项；只有启用项可以保存。"),
+            ),
         ]
         .spacing(7),
     ]
@@ -321,14 +299,14 @@ fn body(app: &App) -> Element<'static, Message> {
 
     match state {
         ShijuAppLaunchState::SelectingApiKey { error: Some(error), .. } => {
-            content = content.push(error_banner(
+            content = content.push(settings_error_banner(
                 app.expert_hub
                     .shiju_apps
                     .render_launch_error(error, crate::app::i18n::I18n::new(app.desktop_locale)),
             ));
         }
         ShijuAppLaunchState::Error { message, .. } => {
-            content = content.push(error_banner(
+            content = content.push(settings_error_banner(
                 app.expert_hub
                     .shiju_apps
                     .render_launch_error(message, crate::app::i18n::I18n::new(app.desktop_locale)),
@@ -354,7 +332,7 @@ fn body(app: &App) -> Element<'static, Message> {
                 ));
             }
             ShijuAppLaunchState::SelectingApiKey { error: None, .. } => {
-                content = content.push(error_banner(
+                content = content.push(settings_error_banner(
                     crate::app::i18n::I18n::new(app.desktop_locale)
                         .__("尚未绑定 IAM API 密钥，请选择一个已启用项。")
                         .to_string(),
@@ -371,22 +349,17 @@ fn body(app: &App) -> Element<'static, Message> {
             crate::app::i18n::I18n::new(app.desktop_locale).__("保存 API 密钥")
         },
     )))
-    .padding([11, 16])
-    .width(Length::Fill)
-    .style(styles::binding_primary_action_style);
+    .padding([9, 16])
+    .style(primary_action_btn_style);
     if save_enabled(state) {
         save_button = save_button.on_press(Message::ShijuApps(save_action()));
     }
-    content = content.push(save_button);
-
-    let scrollable_body = scrollable(
-        container(content).padding([0, styles::SCROLLABLE_SIDE_PADDING]).width(Length::Fill),
-    )
-    .direction(Direction::Vertical(
-        Scrollbar::new().width(styles::SCROLLBAR_WIDTH).scroller_width(styles::SCROLLBAR_WIDTH),
-    ))
-    .height(Length::Shrink);
-    column![header, scrollable_body].spacing(16).into()
+    let footer = row![Space::new().width(Length::Fill), refresh_button, save_button]
+        .spacing(10)
+        .align_y(Alignment::Center);
+    settings_modal_layout(header, content, Some(footer.into()))
+        .width(Length::Fixed(640.0))
+        .height(Length::Fixed(560.0))
 }
 
 pub(super) fn with_overlay<'a>(app: &'a App, base: Element<'a, Message>) -> Element<'a, Message> {
@@ -394,6 +367,5 @@ pub(super) fn with_overlay<'a>(app: &'a App, base: Element<'a, Message>) -> Elem
         return base;
     }
     let close_message = Message::ShijuApps(cancel_action());
-    let card = settings_modal_card(body(app)).width(Length::Fixed(640.0)).max_height(680.0);
-    settings_modal_overlay(Some(base), close_message, card)
+    settings_modal_overlay(Some(base), close_message, container(binding_card(app)).padding(12))
 }

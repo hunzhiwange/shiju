@@ -1,7 +1,7 @@
 //! 展示公共技能或套件详情，并收集安装范围与目标选择。
 
 use iced::widget::scrollable::{Direction, Scrollbar};
-use iced::widget::{Space, button, column, container, markdown, pick_list, row, scrollable, text};
+use iced::widget::{Space, button, column, container, markdown, row, scrollable, text};
 use iced::{Alignment, Element, Font, Length};
 use vw_gateway_client::{SkillMarketSkillDetailDto, SkillMarketSkillSetDetailDto};
 
@@ -12,8 +12,9 @@ use super::install_guide::{
 use super::public_skills::SCROLLBAR_WIDTH;
 use super::styles;
 use crate::app::components::system_settings_common::{
-    primary_action_btn_style, rounded_action_btn_style, settings_close_button, settings_modal_card,
-    settings_modal_overlay, settings_pick_list_menu_style, settings_pick_list_style,
+    primary_action_btn_style, rounded_action_btn_style, settings_close_button,
+    settings_field_label, settings_modal_card, settings_modal_header, settings_modal_overlay,
+    settings_muted_text_style, settings_segment_button_style, settings_select,
 };
 use crate::app::message::skill_hub::{PublicSkillMessage, SkillHubMessage};
 use crate::app::skill_hub::{
@@ -157,7 +158,7 @@ fn install_button(app: &App, detail: &PublicDetailState) -> Element<'static, Mes
         }
     };
     let mut action =
-        button(text(i18n.__(label)).size(13)).padding([9, 18]).style(styles::pill_button_style);
+        button(text(i18n.__(label)).size(13)).padding([9, 18]).style(primary_action_btn_style);
     if enabled {
         action = action.on_press(public_message(if expert {
             PublicSkillMessage::OpenExpertInstall
@@ -181,10 +182,9 @@ fn with_expert_install_confirmation<'a>(
     }
     let cancel = public_message(PublicSkillMessage::CancelExpertInstall);
     let selected = detail.selected_install_project_path.as_deref();
-    let has_project = selected.is_some_and(|path| {
-        !path.trim().is_empty() && install_project_options(app).iter().any(|option| option == path)
-    });
-    let title = row![
+    let projects = install_project_options(app);
+    let has_project = selected.is_some_and(|path| projects.iter().any(|option| option == path));
+    let header = settings_modal_header(
         column![
             text(crate::app::i18n::I18n::new(app.desktop_locale).__("安装专家包")).size(20),
             text(
@@ -192,13 +192,11 @@ fn with_expert_install_confirmation<'a>(
                     .__("选择项目后安装；安装器会校验每个成员和主工作流。")
             )
             .size(12)
-            .style(styles::muted_text_style),
+            .style(settings_muted_text_style),
         ]
-        .spacing(5)
-        .width(Length::Fill),
+        .spacing(5),
         settings_close_button(cancel.clone()),
-    ]
-    .align_y(Alignment::Center);
+    );
     let mut install =
         button(text(crate::app::i18n::I18n::new(app.desktop_locale).__("安装到项目")).size(13))
             .padding([9, 16])
@@ -206,32 +204,26 @@ fn with_expert_install_confirmation<'a>(
     if has_project && !detail.install_is_busy() {
         install = install.on_press(public_message(PublicSkillMessage::InstallCurrent));
     }
-    let card = settings_modal_card(
-        column![
-            title,
-            project_selector(i18n, detail, install_project_options(app)),
-            text(
-                crate::app::i18n::I18n::new(app.desktop_locale)
-                    .__("全局安装和第三方 Agent 目标暂不支持。")
-            )
+    let body = column![
+        project_selector(i18n, detail, projects),
+        text(i18n.__("全局安装和第三方 Agent 目标暂不支持。"))
             .size(12)
-            .style(styles::muted_text_style),
-            row![
-                Space::new().width(Length::Fill),
-                button(text(crate::app::i18n::I18n::new(app.desktop_locale).__("取消")).size(13))
-                    .on_press(cancel.clone())
-                    .padding([9, 16])
-                    .style(rounded_action_btn_style),
-                install,
-            ]
-            .spacing(10)
-            .align_y(Alignment::Center),
-        ]
-        .spacing(18)
-        .width(Length::Fill),
-    )
-    .width(Length::Fixed(540.0));
-    settings_modal_overlay(Some(base), cancel, card)
+            .style(settings_muted_text_style),
+    ]
+    .spacing(10);
+    let footer = row![
+        Space::new().width(Length::Fill),
+        button(text(i18n.__("取消")).size(13))
+            .on_press(cancel.clone())
+            .padding([9, 16])
+            .style(rounded_action_btn_style),
+        install,
+    ]
+    .spacing(10)
+    .align_y(Alignment::Center);
+    let card =
+        settings_modal_card(column![header, body, footer].spacing(16)).width(Length::Fixed(540.0));
+    settings_modal_overlay(Some(base), cancel, container(card).padding(12))
 }
 
 fn project_selector(
@@ -242,21 +234,22 @@ fn project_selector(
     let install_busy = detail.install_is_busy();
     let selected_project_path = detail.selected_install_project_path.clone();
     row![
-        text(i18n.__("目标项目")).size(12),
-        pick_list(options, detail.selected_install_project_path.clone(), move |project_path| {
-            detail_project_action_message(
-                selected_project_path.as_deref(),
-                install_busy,
-                project_path,
-            )
-            .unwrap_or(Message::None)
-        })
+        settings_field_label(i18n.__("目标项目")),
+        settings_select(
+            options,
+            detail.selected_install_project_path.clone(),
+            move |project_path| {
+                detail_project_action_message(
+                    selected_project_path.as_deref(),
+                    install_busy,
+                    project_path,
+                )
+                .unwrap_or(Message::None)
+            }
+        )
         .placeholder(i18n.__("选择项目"))
-        .padding([8, 12])
-        .text_size(12)
         .width(Length::Fill)
-        .style(settings_pick_list_style)
-        .menu_style(settings_pick_list_menu_style),
+        .disabled(install_busy),
     ]
     .spacing(10)
     .align_y(Alignment::Center)
@@ -271,9 +264,14 @@ fn scope_button(
     project_available: bool,
 ) -> Element<'static, Message> {
     let selected = detail.install_scope == scope;
-    let mut action = button(text(i18n.__(label)).size(12))
-        .padding([7, 13])
-        .style(move |theme, status| styles::selected_tab_style(theme, status, selected));
+    let mut action =
+        button(text(i18n.__(label)).size(12)).padding([7, 13]).style(move |theme, status| {
+            let mut style = settings_segment_button_style(theme, status, selected);
+            if selected {
+                style.text_color = theme.palette().text;
+            }
+            style
+        });
     if let Some(message) = detail_scope_action_message(detail, scope, project_available) {
         action = action.on_press(message);
     }
@@ -680,13 +678,14 @@ pub(super) fn view(app: &App) -> Element<'_, Message> {
         page = page.push(options);
     }
     page = page.push(information).push(content_panel(app, detail)).spacing(18).width(Length::Fill);
-    let base =
-        scrollable(container(page).width(Length::Fill).max_width(1180).center_x(Length::Fill))
-            .direction(Direction::Vertical(
-                Scrollbar::new().width(SCROLLBAR_WIDTH).scroller_width(SCROLLBAR_WIDTH),
-            ))
-            .width(Length::Fill)
-            .height(Length::Fill)
-            .into();
+    let base = scrollable(
+        container(page).padding([0, 7]).width(Length::Fill).max_width(1180).center_x(Length::Fill),
+    )
+    .direction(Direction::Vertical(
+        Scrollbar::new().width(SCROLLBAR_WIDTH).scroller_width(SCROLLBAR_WIDTH),
+    ))
+    .width(Length::Fill)
+    .height(Length::Fill)
+    .into();
     with_expert_install_confirmation(app, detail, base)
 }

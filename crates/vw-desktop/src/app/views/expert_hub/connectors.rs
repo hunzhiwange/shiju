@@ -4,9 +4,10 @@ use crate::app::{
     App, Message,
     components::system_settings_common::{
         SETTINGS_CONTROL_PADDING, SETTINGS_CONTROL_TEXT_SIZE, primary_action_btn_style,
-        rounded_action_btn_style, settings_close_button, settings_divider, settings_modal_card,
-        settings_modal_overlay, settings_muted_text_style, settings_section_card,
-        settings_section_content, settings_text_input_style,
+        rounded_action_btn_style, settings_close_button, settings_control_with_hint,
+        settings_divider, settings_group_card, settings_group_heading, settings_modal_header,
+        settings_modal_layout, settings_modal_overlay, settings_muted_text_style,
+        settings_text_input_style,
     },
     message::skill_hub::connectors::{ConnectorMessage, message},
     skill_hub::{
@@ -207,28 +208,20 @@ pub(super) fn with_binding_modal<'a>(
     };
     let saving = app.expert_hub.connectors.form_is_saving();
     let close = message(ConnectorMessage::Cancel);
-    let mut header = row![
+    let header = settings_modal_header(
         column![
             text(
-                crate::app::i18n::I18n::new(app.desktop_locale)
-                    .format("绑定 %s", &[(form.connector.platform_name).to_string().into()])
+                i18n.format("绑定 %s", &[form.connector.platform_name.clone().into()])
                     .expect("valid display template")
             )
             .size(20),
-            text(
-                crate::app::i18n::I18n::new(app.desktop_locale)
-                    .__("配置仅属于当前用户，密码和密钥不会回显。")
-            )
-            .size(12)
-            .style(settings_muted_text_style)
+            text(i18n.__("配置仅属于当前用户，密码和密钥不会回显。"))
+                .size(13)
+                .style(settings_muted_text_style)
         ]
-        .spacing(6)
-        .width(Length::Fill)
-    ]
-    .align_y(Alignment::Start);
-    if !saving {
-        header = header.push(settings_close_button(close.clone()));
-    }
+        .spacing(6),
+        if saving { Space::new().into() } else { settings_close_button(close.clone()) },
+    );
     let footer = row![
         Space::new().width(Length::Fill),
         button(crate::app::i18n::I18n::new(app.desktop_locale).__("取消"))
@@ -246,38 +239,23 @@ pub(super) fn with_binding_modal<'a>(
     ]
     .spacing(10)
     .align_y(Alignment::Center);
-    let body = scrollable(
-        container(binding_form(i18n, form, !saving))
-            .padding([0, SCROLLABLE_SIDE_PADDING])
-            .width(Length::Fill),
-    )
-    .direction(scrollbar())
-    .width(Length::Fill)
-    .height(Length::Fill);
-    let card = settings_modal_card(
-        column![header, settings_divider(), body, settings_divider(), footer]
-            .spacing(16)
-            .height(Length::Fill),
-    )
-    .width(Length::Fixed(720.0))
-    .height(Length::Fixed(680.0));
-    settings_modal_overlay(Some(base), close, card)
+    let card =
+        settings_modal_layout(header, binding_form(i18n, form, !saving), Some(footer.into()))
+            .width(Length::Fixed(720.0))
+            .height(Length::Fixed(680.0));
+    settings_modal_overlay(Some(base), close, container(card).padding(12))
 }
+
 fn field<'a>(
-    label: String,
+    label: impl iced::widget::text::IntoFragment<'a>,
     hint: &'static str,
     input: Element<'a, Message>,
 ) -> Element<'a, Message> {
-    row![
-        column![text(label).size(13), text(hint).size(11).style(settings_muted_text_style)]
-            .spacing(5)
-            .width(Length::Fixed(150.0)),
-        container(input).width(Length::Fill)
-    ]
-    .spacing(20)
-    .align_y(Alignment::Center)
-    .padding([12, 0])
-    .into()
+    column![text(label).size(13), settings_control_with_hint(input, hint)]
+        .spacing(6)
+        .padding([12, 0])
+        .width(Length::Fill)
+        .into()
 }
 fn binding_form(
     i18n: crate::app::i18n::I18n,
@@ -286,7 +264,7 @@ fn binding_form(
 ) -> Element<'_, Message> {
     let account_fields = column![
         field(
-            i18n.__("第三方账号 ID").into(),
+            i18n.__("第三方账号 ID"),
             i18n.__("连接器平台中的账号标识"),
             text_input(i18n.__("填写第三方账号 ID"), &form.account_id)
                 .padding(SETTINGS_CONTROL_PADDING)
@@ -300,7 +278,7 @@ fn binding_form(
         ),
         settings_divider(),
         field(
-            i18n.__("第三方账号名称").into(),
+            i18n.__("第三方账号名称"),
             i18n.__("便于识别的账号名称"),
             text_input(i18n.__("填写账号名称"), &form.account_name)
                 .padding(SETTINGS_CONTROL_PADDING)
@@ -314,8 +292,8 @@ fn binding_form(
         ),
     ];
     let mut sections = column![
-        settings_section_card(i18n.__("账号信息"), i18n.__("填写需要绑定的第三方账号")),
-        settings_section_content(account_fields)
+        settings_group_heading(i18n.__("账号信息"), i18n.__("填写需要绑定的第三方账号")),
+        settings_group_card(account_fields)
     ]
     .spacing(12);
     if !form.connector.account_binding_variables.is_empty() {
@@ -358,8 +336,12 @@ fn binding_form(
             ));
         }
         sections = sections
-            .push(settings_section_card(i18n.__("绑定配置"), i18n.__("带 * 的字段为必填项")))
-            .push(settings_section_content(variables));
+            .push(settings_group_heading(i18n.__("绑定配置"), i18n.__("带 * 的字段为必填项")))
+            .push(settings_group_card(variables));
     }
     sections.into()
 }
+
+#[cfg(test)]
+#[path = "connectors_ui_refresh_39_tests.rs"]
+mod ui_refresh_39_tests;

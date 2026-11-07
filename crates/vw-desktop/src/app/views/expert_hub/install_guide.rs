@@ -2,9 +2,10 @@
 
 use super::styles;
 use crate::app::components::system_settings_common::{
-    danger_action_btn_style, rounded_action_btn_style, settings_close_button, settings_modal_card,
-    settings_modal_overlay, settings_muted_text_style, settings_pick_list_menu_style,
-    settings_pick_list_style,
+    danger_action_btn_style, primary_action_btn_style, rounded_action_btn_style,
+    settings_close_button, settings_divider, settings_field_label, settings_modal_header,
+    settings_modal_layout, settings_modal_overlay, settings_muted_text_style,
+    settings_segment_button_style, settings_select,
 };
 use crate::app::message::SkillHubMessage;
 use crate::app::skill_hub::{
@@ -15,9 +16,7 @@ use crate::app::{App, Message};
 use iced::widget::scrollable::{Direction, Scrollbar};
 use iced::widget::text::Wrapping;
 use iced::widget::tooltip::{Position as TooltipPosition, Tooltip};
-use iced::widget::{
-    Space, button, column, container, pick_list, progress_bar, row, scrollable, text,
-};
+use iced::widget::{Space, button, column, container, progress_bar, row, scrollable, text};
 use iced::{Alignment, Background, Border, Color, Element, Font, Length, Theme};
 use vw_config_types::paths::HOME_CONFIG_DIR_NAME;
 
@@ -391,9 +390,14 @@ fn scope_selector(
         (SkillInstallScope::Project, i18n.__("项目")),
     ] {
         let selected = state.install_scope == scope;
-        let mut choice = button(text(i18n.__(label)).size(13))
-            .padding([8, 16])
-            .style(move |theme, status| target_button_style(theme, status, selected));
+        let mut choice =
+            button(text(i18n.__(label)).size(13)).padding([8, 16]).style(move |theme, status| {
+                let mut style = settings_segment_button_style(theme, status, selected);
+                if selected {
+                    style.text_color = theme.palette().text;
+                }
+                style
+            });
         if let Some(message) = scope_action_message(state, scope, project_available) {
             choice = choice.on_press(message);
         }
@@ -418,19 +422,14 @@ fn project_selector(app: &App, options: Vec<String>) -> Element<'static, Message
     let is_busy = state.is_busy();
     let selected_project_path = state.selected_project_path.clone();
     row![
-        text(crate::app::i18n::I18n::new(app.desktop_locale).__("目标项目"))
-            .size(13)
-            .width(Length::Fixed(84.0)),
-        pick_list(options, state.selected_project_path.clone(), move |project_path| {
+        settings_field_label(crate::app::i18n::I18n::new(app.desktop_locale).__("目标项目")),
+        settings_select(options, state.selected_project_path.clone(), move |project_path| {
             install_project_action_message(selected_project_path.as_deref(), is_busy, project_path)
                 .unwrap_or(Message::None)
         })
         .placeholder(crate::app::i18n::I18n::new(app.desktop_locale).__("选择项目"))
-        .padding([9, 12])
-        .text_size(12)
         .width(Length::Fill)
-        .style(settings_pick_list_style)
-        .menu_style(settings_pick_list_menu_style),
+        .disabled(is_busy),
     ]
     .spacing(10)
     .align_y(Alignment::Center)
@@ -492,6 +491,37 @@ fn target_card(
         .into()
 }
 
+fn direct_install_actions(app: &App) -> Element<'static, Message> {
+    let i18n = crate::app::i18n::I18n::new(app.desktop_locale);
+    let state = &app.expert_hub.install_guide;
+    let button_label = direct_install_button_label(i18n, state);
+    let mut install_button =
+        button(text(button_label).size(14)).padding([10, 24]).style(primary_action_btn_style);
+    if let Some(message) = direct_install_action_message(state) {
+        install_button = install_button.on_press(message);
+    }
+    let mut actions = row![install_button].spacing(10).align_y(Alignment::Center);
+    if let Some(message) = uninstall_action_message(state) {
+        actions = actions.push(
+            button(text(crate::app::i18n::I18n::new(app.desktop_locale).__("卸载")).size(13))
+                .on_press(message)
+                .padding([10, 18])
+                .style(rounded_action_btn_style),
+        );
+    }
+    if state.installed_selection_count() > 0 {
+        let mut sync_button = button(text(i18n.__(sync_button_label(state))).size(13))
+            .padding([10, 18])
+            .style(rounded_action_btn_style);
+        if let Some(message) = sync_action_message(state) {
+            sync_button = sync_button.on_press(message);
+        }
+        actions = actions
+            .push(Tooltip::new(sync_button, sync_tooltip(i18n), TooltipPosition::Top).gap(8));
+    }
+    actions.wrap().into()
+}
+
 fn direct_install_card(app: &App) -> Element<'static, Message> {
     let i18n = crate::app::i18n::I18n::new(app.desktop_locale);
     let state = &app.expert_hub.install_guide;
@@ -514,8 +544,6 @@ fn direct_install_card(app: &App) -> Element<'static, Message> {
                 .__("当前系统或架构暂不支持直接安装")
                 .to_string()
         });
-    let button_label =
-        direct_install_button_label(crate::app::i18n::I18n::new(app.desktop_locale), state);
     let (progress_label, progress) = match state.direct_install {
         ShijuDirectInstallState::Idle => (
             crate::app::i18n::I18n::new(app.desktop_locale).__("等待安装"),
@@ -538,30 +566,6 @@ fn direct_install_card(app: &App) -> Element<'static, Message> {
             direct_install_progress(state),
         ),
     };
-    let mut install_button =
-        button(text(button_label).size(14)).padding([10, 24]).style(styles::action_button_style);
-    if let Some(message) = direct_install_action_message(state) {
-        install_button = install_button.on_press(message);
-    }
-    let mut actions = row![install_button].spacing(10).align_y(Alignment::Center);
-    if let Some(message) = uninstall_action_message(state) {
-        actions = actions.push(
-            button(text(crate::app::i18n::I18n::new(app.desktop_locale).__("卸载")).size(13))
-                .on_press(message)
-                .padding([10, 18])
-                .style(styles::quiet_button_style),
-        );
-    }
-    if state.installed_selection_count() > 0 {
-        let mut sync_button = button(text(i18n.__(sync_button_label(state))).size(13))
-            .padding([10, 18])
-            .style(styles::quiet_button_style);
-        if let Some(message) = sync_action_message(state) {
-            sync_button = sync_button.on_press(message);
-        }
-        actions = actions
-            .push(Tooltip::new(sync_button, sync_tooltip(i18n), TooltipPosition::Top).gap(8));
-    }
     let current_version =
         state.installed_version.as_deref().map(|version| format!("v{version}")).unwrap_or_else(
             || {
@@ -633,7 +637,6 @@ fn direct_install_card(app: &App) -> Element<'static, Message> {
                 progress_bar(0.0..=100.0, progress).girth(Length::Fixed(8.0)),
             ]
             .spacing(7),
-            actions,
         ]
         .spacing(14),
     )
@@ -852,13 +855,21 @@ pub(super) fn view(app: &App) -> Element<'_, Message> {
     .max_width(1240.0)
     .center_x(Length::Fill);
 
-    scrollable(content)
+    let body = scrollable(container(content).padding([0, 7]).width(Length::Fill))
         .direction(Direction::Vertical(
             Scrollbar::new().width(SCROLLBAR_WIDTH).scroller_width(SCROLLBAR_WIDTH),
         ))
         .width(Length::Fill)
-        .height(Length::Fill)
-        .into()
+        .height(Length::Fill);
+    column![
+        body,
+        settings_divider(),
+        container(direct_install_actions(app)).padding([4, 7]).align_right(Length::Fill),
+    ]
+    .spacing(10)
+    .width(Length::Fill)
+    .height(Length::Fill)
+    .into()
 }
 
 /// 在用户请求卸载时为向导叠加确认对话框。
@@ -902,7 +913,7 @@ pub(super) fn with_uninstall_confirmation<'a>(
             .into()
         })
         .collect::<Vec<Element<'static, Message>>>();
-    let title_row = row![
+    let header = settings_modal_header(
         column![
             text(crate::app::i18n::I18n::new(app.desktop_locale).__("确认卸载识矩技能")).size(22),
             text(
@@ -916,12 +927,9 @@ pub(super) fn with_uninstall_confirmation<'a>(
             .size(12)
             .style(settings_muted_text_style),
         ]
-        .spacing(6)
-        .width(Length::Fill),
+        .spacing(6),
         settings_close_button(cancel.clone()),
-    ]
-    .spacing(12)
-    .align_y(Alignment::Center);
+    );
     let actions = row![
         Space::new().width(Length::Fill),
         button(text(crate::app::i18n::I18n::new(app.desktop_locale).__("取消")).size(13))
@@ -935,33 +943,21 @@ pub(super) fn with_uninstall_confirmation<'a>(
     ]
     .spacing(10)
     .align_y(Alignment::Center);
-    let card = settings_modal_card(
-        column![
-            title_row,
-            container(
-                column![
-                    text(current_version).size(13),
-                    text(crate::app::i18n::I18n::new(app.desktop_locale).__("卸载位置")).size(13),
-                    column(path_rows).spacing(6),
-                    text(
-                        crate::app::i18n::I18n::new(app.desktop_locale)
-                            .__("卸载不会删除识矩账号中的业务技能；之后可以重新安装。")
-                    )
-                    .size(12)
-                    .style(settings_muted_text_style),
-                ]
-                .spacing(8),
-            )
-            .padding([14, 16])
-            .width(Length::Fill)
-            .style(styles::inset_panel_style),
-            actions,
-        ]
-        .spacing(16)
-        .width(Length::Fill),
-    )
-    .width(Length::Fixed(520.0))
-    .max_width(560.0);
+    let body = column![
+        text(current_version).size(13),
+        text(crate::app::i18n::I18n::new(app.desktop_locale).__("卸载位置")).size(13),
+        column(path_rows).spacing(6),
+        text(
+            crate::app::i18n::I18n::new(app.desktop_locale)
+                .__("卸载不会删除识矩账号中的业务技能；之后可以重新安装。")
+        )
+        .size(12)
+        .style(settings_muted_text_style),
+    ]
+    .spacing(10);
+    let card = settings_modal_layout(header, body, Some(actions.into()))
+        .width(Length::Fixed(520.0))
+        .height(Length::Fixed(420.0));
 
-    settings_modal_overlay(Some(base), cancel, card)
+    settings_modal_overlay(Some(base), cancel, container(card).padding(12))
 }

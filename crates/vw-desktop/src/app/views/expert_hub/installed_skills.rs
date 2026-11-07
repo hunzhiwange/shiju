@@ -9,7 +9,8 @@ use super::public_skills::SCROLLBAR_WIDTH;
 use super::styles;
 use crate::app::components::system_settings_common::{
     danger_action_btn_style, rounded_action_btn_style, settings_checkbox_style,
-    settings_close_button, settings_modal_card, settings_modal_overlay, settings_muted_text_style,
+    settings_close_button, settings_modal_card, settings_modal_header, settings_modal_overlay,
+    settings_muted_text_style, settings_panel,
 };
 use crate::app::message::skill_hub::{PublicSkillMessage, SkillHubMessage};
 use crate::app::skill_hub::LoadState;
@@ -330,62 +331,40 @@ pub(super) fn with_delete_confirmation<'a>(
     if !app.expert_hub.public_market.delete_confirmation_open {
         return base;
     }
+    let i18n = crate::app::i18n::I18n::new(app.desktop_locale);
     let count = app.expert_hub.public_market.installed_selection.len();
     let cancel = public_message(PublicSkillMessage::CancelBatchDelete);
-    let card = settings_modal_card(
+    let header = settings_modal_header(
         column![
-            row![
-                column![
-                    text(crate::app::i18n::I18n::new(app.desktop_locale).__("确认批量卸载"))
-                        .size(22),
-                    text(
-                        crate::app::i18n::I18n::new(app.desktop_locale)
-                            .format(
-                                "将卸载当前选择的 %s 个本地技能。",
-                                &[(count).to_string().into()]
-                            )
-                            .expect("valid display template")
-                    )
-                    .size(12)
-                    .style(settings_muted_text_style),
-                ]
-                .spacing(6)
-                .width(Length::Fill),
-                settings_close_button(cancel.clone()),
-            ]
-            .spacing(12)
-            .align_y(Alignment::Center),
-            container(
-                text(
-                    crate::app::i18n::I18n::new(app.desktop_locale).__(
-                        "只会删除 gateway 判定可管理的本地技能目录；失败项会保留选择，便于重试。"
-                    )
-                )
-                .size(13),
+            text(i18n.__("确认批量卸载")).size(20),
+            text(
+                i18n.format("将卸载当前选择的 %s 个本地技能。", &[count.to_string().into()])
+                    .expect("valid display template")
             )
-            .padding([14, 16])
-            .width(Length::Fill)
-            .style(styles::inset_panel_style),
-            row![
-                Space::new().width(Length::Fill),
-                button(text(crate::app::i18n::I18n::new(app.desktop_locale).__("取消")).size(13))
-                    .on_press(cancel.clone())
-                    .padding([9, 14])
-                    .style(rounded_action_btn_style),
-                button(
-                    text(crate::app::i18n::I18n::new(app.desktop_locale).__("确认卸载")).size(13)
-                )
-                .on_press(public_message(PublicSkillMessage::ConfirmBatchDelete))
-                .padding([9, 14])
-                .style(danger_action_btn_style),
-            ]
-            .spacing(10)
-            .align_y(Alignment::Center),
+            .size(13)
+            .style(settings_muted_text_style),
         ]
-        .spacing(16)
-        .width(Length::Fill),
-    )
-    .width(Length::Fixed(540.0))
-    .max_width(580.0);
-    settings_modal_overlay(Some(base), cancel, card)
+        .spacing(6),
+        settings_close_button(cancel.clone()),
+    );
+    let body = settings_panel(
+        text(i18n.__("只会删除 gateway 判定可管理的本地技能目录；失败项会保留选择，便于重试。"))
+            .size(13),
+    );
+    let footer = row![
+        Space::new().width(Length::Fill),
+        button(text(i18n.__("取消")).size(13))
+            .on_press(cancel.clone())
+            .padding([9, 14])
+            .style(rounded_action_btn_style),
+        button(text(i18n.__("确认卸载")).size(13))
+            .on_press(public_message(PublicSkillMessage::ConfirmBatchDelete))
+            .padding([9, 14])
+            .style(danger_action_btn_style),
+    ]
+    .spacing(10)
+    .align_y(Alignment::Center);
+    let card =
+        settings_modal_card(column![header, body, footer].spacing(16)).width(Length::Fixed(540.0));
+    settings_modal_overlay(Some(base), cancel, container(card).padding(12))
 }

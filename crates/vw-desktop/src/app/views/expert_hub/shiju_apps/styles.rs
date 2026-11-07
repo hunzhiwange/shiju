@@ -3,8 +3,6 @@
 use iced::widget::{button, container, text};
 use iced::{Background, Border, Color, Shadow, Theme, Vector};
 
-use crate::app::components::system_settings_common::primary_action_btn_style;
-
 /// 识矩应用页面统一使用的滚动条宽度。
 pub(crate) const SCROLLBAR_WIDTH: u32 = 4;
 /// 滚动内容两侧预留与滚动条等宽的空间。
@@ -92,20 +90,6 @@ pub(super) fn binding_field_style(theme: &Theme) -> container::Style {
     }
 }
 
-pub(super) fn binding_error_style(theme: &Theme) -> container::Style {
-    let palette = theme.extended_palette();
-    container::Style {
-        background: Some(Background::Color(palette.danger.weak.color)),
-        text_color: Some(palette.danger.weak.text),
-        border: Border {
-            color: palette.danger.base.color.scale_alpha(0.45),
-            width: 1.0,
-            radius: 9.0.into(),
-        },
-        ..Default::default()
-    }
-}
-
 /// 根据密钥绑定状态是否出错选择反馈容器颜色。
 pub(super) fn binding_state_style(theme: &Theme, error: bool) -> container::Style {
     let palette = theme.extended_palette();
@@ -116,14 +100,4 @@ pub(super) fn binding_state_style(theme: &Theme, error: bool) -> container::Styl
         border: Border { radius: 999.0.into(), ..Default::default() },
         ..Default::default()
     }
-}
-
-pub(super) fn binding_primary_action_style(theme: &Theme, status: button::Status) -> button::Style {
-    let mut style = primary_action_btn_style(theme, status);
-    if status == button::Status::Disabled {
-        style.background =
-            Some(Background::Color(theme.extended_palette().background.strong.color));
-        style.text_color = theme.palette().text.scale_alpha(0.48);
-    }
-    style
 }

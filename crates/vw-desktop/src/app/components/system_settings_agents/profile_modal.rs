@@ -1,5 +1,6 @@
 //! 智能体资料草稿弹窗；持久化成功前不修改列表快照。
 use crate::app::components::system_settings_common::*;
+use crate::app::i18n::settings_extensions::text as tr;
 use crate::app::{
     App, Message,
     message::settings::{AgentsMessage, SettingsMessage},
@@ -18,6 +19,7 @@ pub(super) fn overlay<'a>(app: &'a App, base: Element<'a, Message>) -> Element<'
         return base;
     };
     let busy = app.agents_settings.profile_saving;
+    let label = |source| tr(app.desktop_locale, source);
     let fixed = builtin_agent_spec(&draft.key).is_some() || draft.key.starts_with("acp-");
     let settings = &app.agents_settings;
     let native = match draft.runtime {
@@ -26,22 +28,22 @@ pub(super) fn overlay<'a>(app: &'a App, base: Element<'a, Message>) -> Element<'
     };
     let tabs = row![
         super::shared::detail_tab_button(
-            "基础参数",
+            label("基础参数"),
             crate::app::state::AGENT_DETAIL_BASIC_TAB,
             &settings.active_detail_tab
         ),
         super::shared::detail_tab_button(
-            "身份",
+            label("身份"),
             crate::app::state::AGENT_DETAIL_IDENTITY_TAB,
             &settings.active_detail_tab
         ),
         native.then(|| super::shared::detail_tab_button(
-            "工具",
+            label("工具"),
             crate::app::state::AGENT_DETAIL_TOOLS_TAB,
             &settings.active_detail_tab
         )),
         super::shared::detail_tab_button(
-            "技能",
+            label("技能"),
             crate::app::state::AGENT_DETAIL_SKILLS_TAB,
             &settings.active_detail_tab
         ),
@@ -65,12 +67,13 @@ pub(super) fn overlay<'a>(app: &'a App, base: Element<'a, Message>) -> Element<'
         .direction(Direction::Vertical(Scrollbar::new().width(4).scroller_width(4)))
         .height(Length::Fill);
     let mut footer =
-        row![action("取消", (!busy).then_some(AgentsMessage::ProfileCancel))].spacing(10);
+        row![action(label("取消"), (!busy).then_some(AgentsMessage::ProfileCancel))].spacing(10);
     if !fixed {
-        footer = footer.push(action("删除智能体", (!busy).then_some(AgentsMessage::ProfileDelete)));
+        footer = footer
+            .push(action(label("删除智能体"), (!busy).then_some(AgentsMessage::ProfileDelete)));
     }
     footer = footer.push(
-        button(text(if busy { "保存中…" } else { "保存配置" }))
+        button(text(label(if busy { "保存中…" } else { "保存配置" })))
             .on_press_maybe((!busy).then_some(message(AgentsMessage::ProfileSave)))
             .padding([8, 14])
             .style(primary_action_btn_style),
@@ -78,14 +81,14 @@ pub(super) fn overlay<'a>(app: &'a App, base: Element<'a, Message>) -> Element<'
     let card = settings_modal_card(
         column![
             row![
-                text("智能体配置").size(20),
+                text(label("智能体配置")).size(20),
                 iced::widget::Space::new().width(Length::Fill),
                 settings_close_button(message(AgentsMessage::ProfileCancel))
             ]
             .spacing(20)
             .align_y(iced::Alignment::Center),
             tabs,
-            text("身份文件正文即时保存；其余配置点击保存后生效。")
+            text(label("身份文件正文即时保存；其余配置点击保存后生效。"))
                 .size(12)
                 .style(settings_muted_text_style),
             body,

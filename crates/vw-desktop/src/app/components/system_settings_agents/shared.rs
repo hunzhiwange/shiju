@@ -4,13 +4,14 @@
 //! 注释聚焦调用边界、返回值和错误传播方式，便于后续维护设置页与工具栏行为时快速定位职责。
 
 use crate::app::components::system_settings_common::{
-    settings_muted_text_style, settings_section_card as shared_settings_section_card,
-    settings_segment_button_style, settings_text_editor_style,
+    SETTINGS_CONTROL_TEXT_SIZE, settings_muted_text_style,
+    settings_section_card as shared_settings_section_card, settings_segment_button_style,
+    settings_text_editor_style,
 };
 use crate::app::message::settings::{AgentsMessage, SettingsMessage};
 use crate::app::state::{AgentSettingsEntryKind, DelegateAgentSettingsEntry};
 use crate::app::{App, Message};
-use iced::widget::{button, column, text, text_editor};
+use iced::widget::{Button, button, column, text, text_editor};
 use iced::{Background, Border, Color, Element, Theme};
 
 /// 构建或处理 `section_card` 对应的界面片段与交互数据。
@@ -202,6 +203,17 @@ pub(super) fn entry_kind_label(entry: &DelegateAgentSettingsEntry) -> &'static s
     }
 }
 
+pub(super) fn agent_tab_button(
+    label: &str,
+    selected: bool,
+    message: Message,
+) -> Button<'_, Message> {
+    button(text(label).size(SETTINGS_CONTROL_TEXT_SIZE))
+        .padding([8, 14])
+        .style(move |theme: &Theme, status| settings_segment_button_style(theme, status, selected))
+        .on_press(message)
+}
+
 /// 构建或处理 `detail_tab_button` 对应的界面片段与交互数据。
 ///
 /// # 参数
@@ -220,12 +232,12 @@ pub(super) fn detail_tab_button<'a>(
     key: &'a str,
     active_key: &'a str,
 ) -> Element<'a, Message> {
-    let is_active = key == active_key;
-    button(text(label).size(14))
-        .padding([10, 18])
-        .style(move |theme: &Theme, status| settings_segment_button_style(theme, status, is_active))
-        .on_press(Message::Settings(SettingsMessage::Agents(AgentsMessage::DetailTabSelected(
+    agent_tab_button(
+        label,
+        key == active_key,
+        Message::Settings(SettingsMessage::Agents(AgentsMessage::DetailTabSelected(
             key.to_string(),
-        ))))
-        .into()
+        ))),
+    )
+    .into()
 }

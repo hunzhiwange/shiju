@@ -37,11 +37,10 @@ mod tests;
 #[path = "tools_tests.rs"]
 mod tools_tests;
 
-use self::shared::section_card;
 use crate::app::components::system_settings_common::{
-    SETTINGS_CONTROL_PADDING, SETTINGS_CONTROL_TEXT_SIZE, rounded_action_btn_style,
-    settings_error_banner, settings_muted_text_style, settings_page_intro,
-    settings_segment_button_style, settings_text_input_style,
+    SETTINGS_CONTROL_PADDING, SETTINGS_CONTROL_TEXT_SIZE, primary_action_btn_style,
+    rounded_action_btn_style, settings_error_banner, settings_group_card, settings_group_heading,
+    settings_muted_text_style, settings_page_heading, settings_text_input_style,
 };
 use crate::app::components::system_settings_search::SettingsTabDescriptor;
 use crate::app::i18n::settings_extensions::text as tr;
@@ -53,7 +52,7 @@ use iced::widget::{
     scrollable::{Direction, Scrollbar},
     text, text_input,
 };
-use iced::{Alignment, Element, Length, Theme};
+use iced::{Alignment, Element, Length};
 
 pub(super) const AGENT_CONFIG_TABS: &[SettingsTabDescriptor<AgentConfigTab>] = &[
     SettingsTabDescriptor::new(
@@ -156,21 +155,16 @@ pub(super) fn agent_project_options(app: &App) -> Vec<String> {
 /// 本函数不直接返回错误；无法交互或缺省状态会在控件状态中显式表达。
 pub fn view(app: &App) -> Element<'_, Message> {
     let active_tab = app.agents_settings.active_config_tab;
-    let tab_button = |tab, label| {
-        let is_active = tab == active_tab;
-        button(text(label).size(13))
-            .on_press(Message::Settings(SettingsMessage::AgentConfigTab(
-                AgentConfigTabMessage::Selected(tab),
-            )))
-            .padding([8, 14])
-            .style(move |theme: &Theme, status| {
-                settings_segment_button_style(theme, status, is_active)
-            })
-    };
     let tabs = AGENT_CONFIG_TABS
         .iter()
         .fold(row![].spacing(8).align_y(Alignment::Center), |row, descriptor| {
-            row.push(tab_button(descriptor.tab, tr(app.desktop_locale, descriptor.label)))
+            row.push(shared::agent_tab_button(
+                tr(app.desktop_locale, descriptor.label),
+                descriptor.tab == active_tab,
+                Message::Settings(SettingsMessage::AgentConfigTab(
+                    AgentConfigTabMessage::Selected(descriptor.tab),
+                )),
+            ))
         })
         .wrap();
 
@@ -278,45 +272,47 @@ fn active_tab_save_error(app: &App) -> Option<&str> {
 
 fn agents_view(app: &App) -> Element<'_, Message> {
     let settings = &app.agents_settings;
-    if !settings.config_ready {
-        return column![
-            settings_page_intro(
-                tr(app.desktop_locale, "智能体配置"),
-                tr(
-                    app.desktop_locale,
-                    "全局管理内建与自定义智能体的模型、身份文件、工具、技能和运行参数。"
-                ),
-            ),
-            section_card(
-                tr(app.desktop_locale, "配置尚未就绪"),
-                tr(
-                    app.desktop_locale,
-                    "为防止启动默认值覆盖已保存配置，加载成功前此页面保持只读。"
-                ),
-            ),
-            text(tr(
-                app.desktop_locale,
-                "正在等待 Gateway 返回当前作用域的智能体配置；完成前不会使用默认值保存。"
-            ))
-            .size(12)
-            .style(settings_muted_text_style),
-            button(text(tr(app.desktop_locale, "重新加载")).size(12))
-                .padding([8, 14])
-                .on_press(Message::Settings(SettingsMessage::Agents(AgentsMessage::Refresh)))
-                .style(rounded_action_btn_style),
-        ]
-        .spacing(14)
-        .width(Length::Fill)
-        .into();
-    }
-
-    let title = settings_page_intro(
+    let title = settings_page_heading(
         tr(app.desktop_locale, "智能体配置"),
         tr(
             app.desktop_locale,
             "全局管理内建与自定义智能体的模型、身份文件、工具、技能和运行参数。",
         ),
     );
+    if !settings.config_ready {
+        return column![
+            title,
+            settings_group_card(
+                column![
+                    settings_group_heading(
+                        tr(app.desktop_locale, "配置尚未就绪"),
+                        tr(
+                            app.desktop_locale,
+                            "为防止启动默认值覆盖已保存配置，加载成功前此页面保持只读。"
+                        ),
+                    ),
+                    text(tr(
+                        app.desktop_locale,
+                        "正在等待 Gateway 返回当前作用域的智能体配置；完成前不会使用默认值保存。"
+                    ))
+                    .size(12)
+                    .style(settings_muted_text_style),
+                    button(
+                        text(tr(app.desktop_locale, "重新加载")).size(SETTINGS_CONTROL_TEXT_SIZE)
+                    )
+                    .padding([8, 14])
+                    .on_press(Message::Settings(SettingsMessage::Agents(AgentsMessage::Refresh)))
+                    .style(rounded_action_btn_style),
+                ]
+                .spacing(10),
+            )
+            .padding([16, 16]),
+        ]
+        .spacing(14)
+        .width(Length::Fill)
+        .into();
+    }
+
     let add_agent_bar = row![
         text_input(tr(app.desktop_locale, "新增智能体 key"), &settings.new_agent_key_input)
             .on_input(|value| {
@@ -326,10 +322,10 @@ fn agents_view(app: &App) -> Element<'_, Message> {
             .size(SETTINGS_CONTROL_TEXT_SIZE)
             .style(settings_text_input_style)
             .width(Length::Fill),
-        button(text(tr(app.desktop_locale, "新建智能体")).size(12))
+        button(text(tr(app.desktop_locale, "新建智能体")).size(SETTINGS_CONTROL_TEXT_SIZE))
             .padding([8, 14])
             .on_press(Message::Settings(SettingsMessage::Agents(AgentsMessage::AddAgentRequested,)))
-            .style(rounded_action_btn_style),
+            .style(primary_action_btn_style),
     ]
     .spacing(10)
     .align_y(Alignment::Center);
@@ -337,7 +333,7 @@ fn agents_view(app: &App) -> Element<'_, Message> {
     let mut content = column![
         title,
         catalog::controls(app),
-        add_agent_bar,
+        settings_group_card(add_agent_bar).padding([12, 16]),
         scrollable(container(catalog::grid(app)).padding([0, 7]))
             .direction(Direction::Vertical(Scrollbar::new().width(4).scroller_width(4)))
             .height(Length::Fill),

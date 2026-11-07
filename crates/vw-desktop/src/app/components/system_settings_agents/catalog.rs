@@ -2,6 +2,7 @@
 use crate::app::assets::Icon;
 use crate::app::components::input_panel::icons::acp_agent_icon;
 use crate::app::components::system_settings_common::*;
+use crate::app::i18n::settings_extensions::text as tr;
 use crate::app::message::settings::{AgentsMessage, SettingsMessage};
 use crate::app::state::{AgentsSettingsState, DelegateAgentSettingsEntry};
 use crate::app::{App, Message};
@@ -33,30 +34,40 @@ fn message(value: AgentsMessage) -> Message {
 
 pub(super) fn controls(app: &App) -> Element<'_, Message> {
     let settings = &app.agents_settings;
+    let label = |source| tr(app.desktop_locale, source);
     let tab = |official, label| {
-        let selected = settings.catalog_official == official;
-        button(text(label).size(13))
-            .padding([8, 12])
-            .style(move |theme, status| settings_segment_button_style(theme, status, selected))
-            .on_press(message(AgentsMessage::CatalogTabSelected(official)))
+        super::shared::agent_tab_button(
+            label,
+            settings.catalog_official == official,
+            message(AgentsMessage::CatalogTabSelected(official)),
+        )
     };
-    column![
-        row![tab(false, "已启用智能体"), tab(true, "官方智能体")].spacing(8),
-        text_input("搜索名称、描述或标识", &settings.catalog_query)
-            .on_input(|value| message(AgentsMessage::CatalogQueryChanged(value)))
-            .padding(SETTINGS_CONTROL_PADDING)
-            .size(SETTINGS_CONTROL_TEXT_SIZE)
-            .style(settings_text_input_style),
-        text("自定义项停用后仍保留在管理区。启用与 CLI 安装状态独立。")
-            .size(12)
-            .style(settings_muted_text_style),
-    ]
-    .spacing(8)
+    settings_group_card(
+        container(
+            column![
+                row![tab(false, label("已启用智能体")), tab(true, label("官方智能体"))]
+                    .spacing(8)
+                    .wrap(),
+                settings_control_with_hint(
+                    text_input(label("搜索名称、描述或标识"), &settings.catalog_query)
+                        .on_input(|value| message(AgentsMessage::CatalogQueryChanged(value)))
+                        .padding(SETTINGS_CONTROL_PADDING)
+                        .size(SETTINGS_CONTROL_TEXT_SIZE)
+                        .style(settings_text_input_style),
+                    label("自定义项停用后仍保留在管理区。启用与 CLI 安装状态独立。"),
+                ),
+            ]
+            .spacing(12),
+        )
+        .padding([14, 0]),
+    )
+    .padding([0, 16])
     .into()
 }
 
 pub(super) fn cards(app: &App) -> Vec<Element<'_, Message>> {
     let settings = &app.agents_settings;
+    let label = |source| tr(app.desktop_locale, source);
     let busy = settings.catalog_busy
         || settings.save_in_flight
         || settings.profile_saving
@@ -65,25 +76,25 @@ pub(super) fn cards(app: &App) -> Vec<Element<'_, Message>> {
         .into_iter()
         .map(|entry| {
             let engine = match &entry.runtime {
-                AgentRuntime::Native => "识矩原生".to_string(),
+                AgentRuntime::Native => label("识矩原生").to_string(),
                 AgentRuntime::Acp { backend } => format!("ACP · {backend}"),
             };
             let status = match &entry.runtime {
-                AgentRuntime::Native => "原生运行引擎".to_string(),
+                AgentRuntime::Native => label("原生运行引擎").to_string(),
                 AgentRuntime::Acp { backend } => app
                     .acp_settings
                     .diagnostic_results
                     .get(backend)
                     .map(|status| match status {
                         crate::app::state::AcpDiagnosticStatus::Connected => {
-                            "已安装 · 已连接".to_string()
+                            label("已安装 · 已连接").to_string()
                         }
                         crate::app::state::AcpDiagnosticStatus::AuthenticationRequired => {
-                            "已安装 · 需要认证".to_string()
+                            label("已安装 · 需要认证").to_string()
                         }
-                        _ => status.description().to_string(),
+                        _ => label(status.description()).to_string(),
                     })
-                    .unwrap_or_else(|| "网关安装 / 认证状态待检测".into()),
+                    .unwrap_or_else(|| label("网关安装 / 认证状态待检测").into()),
             };
             let action = |label, value| {
                 button(text(label).size(12))
@@ -92,19 +103,19 @@ pub(super) fn cards(app: &App) -> Vec<Element<'_, Message>> {
                     .on_press_maybe((!busy).then_some(message(value)))
             };
             let mut actions = row![
-                action("编辑配置", AgentsMessage::ProfileOpen(entry.key.clone())),
-                action("复制", AgentsMessage::CatalogCopy(entry.key.clone())),
+                action(label("编辑配置"), AgentsMessage::ProfileOpen(entry.key.clone())),
+                action(label("复制"), AgentsMessage::CatalogCopy(entry.key.clone())),
             ]
             .spacing(6);
             if entry.can_disable {
                 actions = actions.push(action(
-                    if entry.enabled { "停用" } else { "启用" },
+                    label(if entry.enabled { "停用智能体" } else { "启用智能体" }),
                     AgentsMessage::CatalogToggle(entry.key.clone(), !entry.enabled),
                 ));
             }
             if let AgentRuntime::Acp { backend } = &entry.runtime {
                 actions = actions.push(
-                    button(text("运行设置").size(12))
+                    button(text(label("运行设置")).size(12))
                         .padding([8, 10])
                         .style(rounded_action_btn_style)
                         .on_press(message(AgentsMessage::CatalogRuntimeSettings(backend.clone()))),
@@ -112,7 +123,7 @@ pub(super) fn cards(app: &App) -> Vec<Element<'_, Message>> {
             }
             if entry.can_start_session() {
                 actions = actions.push(
-                    button(text("开始会话").size(12))
+                    button(text(label("开始会话")).size(12))
                         .padding([8, 10])
                         .style(primary_action_btn_style)
                         .on_press_maybe(
@@ -135,9 +146,15 @@ pub(super) fn cards(app: &App) -> Vec<Element<'_, Message>> {
                 button(
                     row![
                         identity_icon,
-                        column![text(&entry.label).size(14), text(&entry.key).size(12)]
-                            .spacing(4)
-                            .width(Length::Fill)
+                        column![
+                            text(&entry.label).size(14).wrapping(text::Wrapping::WordOrGlyph),
+                            text(&entry.key)
+                                .size(12)
+                                .wrapping(text::Wrapping::WordOrGlyph)
+                                .style(settings_muted_text_style),
+                        ]
+                        .spacing(4)
+                        .width(Length::Fill)
                     ]
                     .spacing(8)
                     .align_y(iced::Alignment::Center)
@@ -151,18 +168,25 @@ pub(super) fn cards(app: &App) -> Vec<Element<'_, Message>> {
                     settings.selected_agent == entry.key
                 ))
                 .on_press(message(AgentsMessage::ProfileOpen(entry.key.clone()))),
-                text(&entry.description).size(12).style(settings_muted_text_style),
+                text(&entry.description)
+                    .size(12)
+                    .wrapping(text::Wrapping::WordOrGlyph)
+                    .style(settings_muted_text_style),
                 text(format!(
                     "{engine} · {} · {}",
-                    super::shared::entry_kind_label(entry),
-                    if entry.enabled { "已启用" } else { "已停用" }
+                    label(super::shared::entry_kind_label(entry)),
+                    label(if entry.enabled { "已启用" } else { "已停用" })
                 ))
-                .size(12),
-                text(status).size(12).style(settings_muted_text_style),
+                .size(12)
+                .wrapping(text::Wrapping::WordOrGlyph),
+                text(status)
+                    .size(12)
+                    .wrapping(text::Wrapping::WordOrGlyph)
+                    .style(settings_muted_text_style),
                 actions.wrap(),
             ]
-            .spacing(8);
-            container(body).padding(12).width(Length::Fill).style(settings_panel_style).into()
+            .spacing(10);
+            settings_panel(body).padding(12).into()
         })
         .collect()
 }
@@ -171,11 +195,13 @@ pub(super) fn cards(app: &App) -> Vec<Element<'_, Message>> {
 pub(super) fn grid(app: &App) -> Element<'_, Message> {
     let cards = cards(app);
     if cards.is_empty() {
-        return container(text("没有匹配的智能体").style(settings_muted_text_style))
-            .padding(24)
-            .width(Length::Fill)
-            .center_x(Length::Fill)
-            .into();
+        return settings_panel(
+            text(tr(app.desktop_locale, "没有匹配的智能体")).style(settings_muted_text_style),
+        )
+        .padding(24)
+        .width(Length::Fill)
+        .center_x(Length::Fill)
+        .into();
     }
     let mut rows = column![].spacing(12);
     let mut cards = cards.into_iter().peekable();

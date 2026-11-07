@@ -1,6 +1,7 @@
 //! HTTP 请求节点的安全可视化编辑面板。
 
 use super::*;
+use crate::app::components::system_settings_common::{settings_group_card, settings_toggle};
 use iced::widget::{column, row};
 
 fn http_message(edit: WorkflowHttpRequestEdit) -> Message {
@@ -73,32 +74,54 @@ pub(super) fn build_http_request_section<'a>(
             ),
         ]
         .spacing(8),
-        build_editor_field_validated(
-            i18n.__("鉴权类型"),
-            workflow_text_input("no-auth / basic / bearer / api-key", auth_type, |v| http_message(
-                WorkflowHttpRequestEdit::AuthType(v)
-            )),
-            validation.localized_error_for(i18n, "http.authorization")
-        ),
-        auth_fields,
-        build_editor_field(
-            i18n.__("请求头 YAML"),
-            build_embedded_text_editor(headers, i18n.__("请求头 YAML"), headers_action, 90.0)
-        ),
-        build_editor_field(
-            i18n.__("查询参数 YAML"),
-            build_embedded_text_editor(params, i18n.__("查询参数 YAML"), params_action, 90.0)
-        ),
-        build_editor_field(
-            i18n.__("请求体类型"),
-            workflow_text_input("none / json / raw-text / form-data", body_type, |v| http_message(
-                WorkflowHttpRequestEdit::BodyType(v)
-            ))
-        ),
-        build_editor_field(
-            i18n.__("请求体 YAML"),
-            build_embedded_text_editor(body, "body.data YAML", body_action, 120.0)
-        ),
+        settings_group_card(
+            column![
+                build_editor_field_validated(
+                    i18n.__("鉴权类型"),
+                    workflow_text_input("no-auth / basic / bearer / api-key", auth_type, |v| {
+                        http_message(WorkflowHttpRequestEdit::AuthType(v))
+                    }),
+                    validation.localized_error_for(i18n, "http.authorization")
+                ),
+                auth_fields,
+            ]
+            .spacing(10)
+        )
+        .padding(12),
+        settings_group_card(
+            column![
+                build_editor_field(
+                    i18n.__("请求头 YAML"),
+                    build_embedded_text_editor(
+                        headers,
+                        i18n.__("请求头 YAML"),
+                        headers_action,
+                        90.0
+                    )
+                ),
+                build_editor_field(
+                    i18n.__("查询参数 YAML"),
+                    build_embedded_text_editor(
+                        params,
+                        i18n.__("查询参数 YAML"),
+                        params_action,
+                        90.0
+                    )
+                ),
+                build_editor_field(
+                    i18n.__("请求体类型"),
+                    workflow_text_input("none / json / raw-text / form-data", body_type, |v| {
+                        http_message(WorkflowHttpRequestEdit::BodyType(v))
+                    })
+                ),
+                build_editor_field(
+                    i18n.__("请求体 YAML"),
+                    build_embedded_text_editor(body, "body.data YAML", body_action, 120.0)
+                ),
+            ]
+            .spacing(12)
+        )
+        .padding(12),
         row![
             build_editor_field_validated(
                 i18n.__("连接超时"),
@@ -124,13 +147,14 @@ pub(super) fn build_http_request_section<'a>(
         ]
         .spacing(8),
         row![
-            toggler(ssl_verify).on_toggle(|v| http_message(WorkflowHttpRequestEdit::SslVerify(v))),
+            settings_toggle(ssl_verify)
+                .on_toggle(|v| http_message(WorkflowHttpRequestEdit::SslVerify(v))),
             text(i18n.__("校验 TLS 证书")).size(12)
         ]
         .spacing(8)
         .align_y(Alignment::Center),
         row![
-            toggler(retry.enabled)
+            settings_toggle(retry.enabled)
                 .on_toggle(|v| http_message(WorkflowHttpRequestEdit::RetryEnabled(v))),
             text(
                 i18n.format(

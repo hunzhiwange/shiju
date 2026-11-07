@@ -168,15 +168,11 @@ pub(super) fn build_start_variable_type_selector(
     let options = start_variable_type_options(i18n);
     let selected = selected_start_variable_type_option(i18n, input_type);
 
-    pick_list(options, selected, |option| {
+    settings_select(options, selected, |option| {
         Message::WorkflowTool(WorkflowMessage::NodeEditorStartVariableEditorTypeChanged(
             option.input_type.to_string(),
         ))
     })
-    .padding([10, 12])
-    .text_size(13)
-    .style(settings_pick_list_style)
-    .menu_style(settings_pick_list_menu_style)
     .width(Length::Fill)
     .into()
 }

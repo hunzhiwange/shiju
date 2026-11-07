@@ -1,6 +1,9 @@
 //! 工作流起始节点输入配置视图模块，负责渲染变量默认值、选项和文件上传设置。
 
 use super::*;
+use crate::app::components::system_settings_common::{
+    icon_svg, settings_checkbox_style, settings_group_card,
+};
 use iced::widget::{column, row};
 
 /// 提供 start variable file type options 功能。
@@ -63,7 +66,7 @@ pub(super) fn build_start_variable_option_editor<'a>(
 
     build_editor_field(
         i18n.__("下拉选项"),
-        container(
+        settings_group_card(
             column![
                 option_list,
                 button(text(i18n.__("新增选项")).size(12))
@@ -75,6 +78,7 @@ pub(super) fn build_start_variable_option_editor<'a>(
             ]
             .spacing(8),
         )
+        .padding(12)
         .into(),
     )
 }
@@ -110,15 +114,14 @@ pub(super) fn build_start_variable_select_default_field<'a>(
 
     let selected =
         options.iter().find(|option| option.as_str() == variable.default_value.trim()).cloned();
-    let select_default_picker: Element<'a, Message> = pick_list(options, selected, move |value| {
-        Message::WorkflowTool(WorkflowMessage::NodeEditorStartVariableEditorDefaultChanged(value))
-    })
-    .padding([10, 12])
-    .text_size(13)
-    .style(settings_pick_list_style)
-    .menu_style(settings_pick_list_menu_style)
-    .width(Length::Fill)
-    .into();
+    let select_default_picker: Element<'a, Message> =
+        settings_select(options, selected, move |value| {
+            Message::WorkflowTool(WorkflowMessage::NodeEditorStartVariableEditorDefaultChanged(
+                value,
+            ))
+        })
+        .width(Length::Fill)
+        .into();
 
     build_editor_field(
         i18n.__("默认值"),
@@ -146,18 +149,14 @@ pub(super) fn build_start_variable_file_type_button(
     description: &'static str,
     selected: bool,
 ) -> Element<'static, Message> {
-    button(
-        column![text(label).size(12), text(description).size(11).style(settings_muted_text_style),]
-            .spacing(4)
-            .width(Length::Fill),
-    )
-    .style(if selected { primary_action_btn_style } else { rounded_action_btn_style })
-    .padding([10, 12])
-    .width(Length::Fixed(116.0))
-    .on_press(Message::WorkflowTool(WorkflowMessage::NodeEditorStartVariableEditorToggleFileType(
-        value.to_string(),
-    )))
-    .into()
+    button(column![text(label).size(12), text(description).size(11)].spacing(4).width(Length::Fill))
+        .style(if selected { primary_action_btn_style } else { rounded_action_btn_style })
+        .padding([10, 12])
+        .width(Length::Fixed(116.0))
+        .on_press(Message::WorkflowTool(
+            WorkflowMessage::NodeEditorStartVariableEditorToggleFileType(value.to_string()),
+        ))
+        .into()
 }
 
 /// 构建 start variable upload method button 对应的界面元素。
@@ -185,7 +184,9 @@ fn build_start_variable_default_file_button(
 ) -> Element<'static, Message> {
     button(
         row![
-            svg(assets::get_icon(icon)).width(Length::Fixed(14.0)).height(Length::Fixed(14.0)),
+            icon_svg(icon, 14.0).style(|theme: &Theme, _| iced::widget::svg::Style {
+                color: Some(theme.palette().text),
+            }),
             text(label).size(13),
         ]
         .spacing(8)
@@ -229,6 +230,7 @@ fn build_start_variable_file_default_value<'a>(
             ),
         ]
         .spacing(8)
+        .wrap()
         .into(),
         (true, false) => build_start_variable_default_file_button(
             Icon::CloudUpload,
@@ -314,12 +316,13 @@ fn build_start_variable_file_default_value<'a>(
                         .enumerate()
                         .map(|(index, item)| {
                             row![
-                                text(item.as_str()).size(12).width(Length::Fill),
-                                button(
-                                    svg(assets::get_icon(Icon::Trash))
-                                        .width(Length::Fixed(12.0))
-                                        .height(Length::Fixed(12.0)),
-                                )
+                                text(item.as_str())
+                                    .size(12)
+                                    .width(Length::Fill)
+                                    .wrapping(text::Wrapping::WordOrGlyph),
+                                button(icon_svg(Icon::Trash, 12.0).style(|theme: &Theme, _| {
+                                    iced::widget::svg::Style { color: Some(theme.palette().text) }
+                                }),)
                                 .padding(6)
                                 .style(round_icon_btn_style)
                                 .on_press(Message::WorkflowTool(
@@ -508,25 +511,24 @@ pub(super) fn build_start_variable_card<'a>(
     } else if matches!(variable.input_type.as_str(), "file" | "file-list") {
         build_start_variable_file_settings(i18n, start_variable_editor)
     } else if variable.input_type == "checkbox" {
-        let options = vec![i18n.__("默认勾选").to_string(), i18n.__("不默认选中").to_string()];
-        let selected = match variable.default_value.trim().to_ascii_lowercase().as_str() {
-            "true" => Some(i18n.__("默认勾选").to_string()),
-            "false" | "" => Some(i18n.__("不默认选中").to_string()),
-            _ => None,
+        let options = [
+            CheckboxDefaultOption { value: "true", label: i18n.__("默认勾选") },
+            CheckboxDefaultOption { value: "false", label: i18n.__("不默认选中") },
+        ];
+        let current = variable.default_value.trim();
+        let selected = if current.is_empty() {
+            Some(options[1])
+        } else {
+            options.iter().copied().find(|option| option.value.eq_ignore_ascii_case(current))
         };
 
         build_editor_field(
             i18n.__("默认值"),
-            pick_list(options, selected, move |value| {
-                let normalized = if value == i18n.__("默认勾选") { "true" } else { "false" };
+            settings_select(options, selected, |option| {
                 Message::WorkflowTool(WorkflowMessage::NodeEditorStartVariableEditorDefaultChanged(
-                    normalized.to_string(),
+                    option.value.to_string(),
                 ))
             })
-            .padding([10, 12])
-            .text_size(13)
-            .style(settings_pick_list_style)
-            .menu_style(settings_pick_list_menu_style)
             .width(Length::Fill)
             .into(),
         )
@@ -596,21 +598,27 @@ pub(super) fn build_start_variable_card<'a>(
             type_specific_fields,
             row![
                 row![
-                    checkbox(variable.required).label("").on_toggle(|value| {
-                        Message::WorkflowTool(
-                            WorkflowMessage::NodeEditorStartVariableEditorRequiredChanged(value),
-                        )
-                    }),
+                    checkbox(variable.required).style(settings_checkbox_style).label("").on_toggle(
+                        |value| {
+                            Message::WorkflowTool(
+                                WorkflowMessage::NodeEditorStartVariableEditorRequiredChanged(
+                                    value,
+                                ),
+                            )
+                        }
+                    ),
                     text(i18n.__("必填")).size(13),
                 ]
                 .spacing(8)
                 .align_y(Alignment::Center),
                 row![
-                    checkbox(variable.hidden).label("").on_toggle(|value| {
-                        Message::WorkflowTool(
-                            WorkflowMessage::NodeEditorStartVariableEditorHiddenChanged(value),
-                        )
-                    }),
+                    checkbox(variable.hidden).style(settings_checkbox_style).label("").on_toggle(
+                        |value| {
+                            Message::WorkflowTool(
+                                WorkflowMessage::NodeEditorStartVariableEditorHiddenChanged(value),
+                            )
+                        }
+                    ),
                     text(i18n.__("隐藏")).size(13),
                 ]
                 .spacing(8)
@@ -623,6 +631,18 @@ pub(super) fn build_start_variable_card<'a>(
         .spacing(12),
     )
     .into()
+}
+
+#[derive(Clone, Copy, PartialEq, Eq)]
+struct CheckboxDefaultOption {
+    value: &'static str,
+    label: &'static str,
+}
+
+impl std::fmt::Display for CheckboxDefaultOption {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_str(self.label)
+    }
 }
 
 #[cfg(test)]

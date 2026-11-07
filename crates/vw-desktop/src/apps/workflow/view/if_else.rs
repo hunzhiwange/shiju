@@ -1,6 +1,7 @@
 //! 条件分支节点视图模块，负责展示 if/else 节点的条件、分支和可编辑规则摘要。
 
 use super::*;
+use crate::app::components::system_settings_common::settings_group_card;
 use iced::widget::{column, row};
 
 /// 构建 if else visual section 对应的界面元素。
@@ -54,7 +55,7 @@ pub(super) fn build_if_else_case_card<'a>(
         condition_list = condition_list.push(
             text(i18n.__("当前分支还没有条件。至少新增一条条件后再保存。"))
                 .size(12)
-                .color(Color::from_rgba8(0x11, 0x18, 0x27, 0.62)),
+                .style(settings_muted_text_style),
         );
     } else {
         for (condition_index, condition) in case.conditions.iter().enumerate() {
@@ -125,46 +126,81 @@ pub(super) fn build_if_else_condition_card<'a>(
     condition: &'a super::state::WorkflowIfElseConditionDraft,
     validation: &'a super::state::WorkflowNodeEditorValidation,
 ) -> Element<'a, Message> {
-    column![
-        row![
-            text(
-                i18n.format("条件 %s", &[(condition_index + 1).to_string().into()])
-                    .expect("valid workflow display template")
-            )
-            .size(13),
-            Space::new().width(Length::Fill),
-            button(text(i18n.__("删除条件")))
-                .style(danger_action_btn_style)
-                .padding([6, 10])
-                .on_press(Message::WorkflowTool(WorkflowMessage::NodeEditorIfElseRemoveCondition(
-                    case_index,
-                    condition_index,
-                ),)),
-        ]
-        .align_y(Alignment::Center),
-        row![
-            build_editor_field_validated(
-                i18n.__("变量类型"),
-                workflow_text_input(i18n.__("例如：string"), &condition.var_type, move |value| {
-                    Message::WorkflowTool(WorkflowMessage::NodeEditorIfElseConditionVarTypeChanged(
-                        case_index,
-                        condition_index,
-                        value,
-                    ))
-                }),
-                validation.localized_error_for(
-                    i18n,
-                    &format!("if_else.cases[{case_index}].conditions[{condition_index}].var_type")
+    settings_group_card(
+        column![
+            row![
+                text(
+                    i18n.format("条件 %s", &[(condition_index + 1).to_string().into()])
+                        .expect("valid workflow display template")
+                )
+                .size(13),
+                Space::new().width(Length::Fill),
+                button(text(i18n.__("删除条件")))
+                    .style(danger_action_btn_style)
+                    .padding([6, 10])
+                    .on_press(Message::WorkflowTool(
+                        WorkflowMessage::NodeEditorIfElseRemoveCondition(
+                            case_index,
+                            condition_index,
+                        ),
+                    )),
+            ]
+            .align_y(Alignment::Center),
+            row![
+                build_editor_field_validated(
+                    i18n.__("变量类型"),
+                    workflow_text_input(
+                        i18n.__("例如：string"),
+                        &condition.var_type,
+                        move |value| {
+                            Message::WorkflowTool(
+                                WorkflowMessage::NodeEditorIfElseConditionVarTypeChanged(
+                                    case_index,
+                                    condition_index,
+                                    value,
+                                ),
+                            )
+                        }
+                    ),
+                    validation.localized_error_for(
+                        i18n,
+                        &format!(
+                            "if_else.cases[{case_index}].conditions[{condition_index}].var_type"
+                        )
+                    ),
                 ),
-            ),
+                build_editor_field_validated(
+                    i18n.__("比较符"),
+                    workflow_text_input(
+                        i18n.__("例如：contains / is / not empty"),
+                        &condition.comparison_operator,
+                        move |value| {
+                            Message::WorkflowTool(
+                                WorkflowMessage::NodeEditorIfElseConditionOperatorChanged(
+                                    case_index,
+                                    condition_index,
+                                    value,
+                                ),
+                            )
+                        },
+                    ),
+                    validation.localized_error_for(
+                        i18n,
+                        &format!(
+                            "if_else.cases[{case_index}].conditions[{condition_index}].operator"
+                        )
+                    ),
+                ),
+            ]
+            .spacing(12),
             build_editor_field_validated(
-                i18n.__("比较符"),
+                i18n.__("变量选择器"),
                 workflow_text_input(
-                    i18n.__("例如：contains / is / not empty"),
-                    &condition.comparison_operator,
+                    i18n.__("例如：1711528917469.text"),
+                    &condition.variable_selector_input,
                     move |value| {
                         Message::WorkflowTool(
-                            WorkflowMessage::NodeEditorIfElseConditionOperatorChanged(
+                            WorkflowMessage::NodeEditorIfElseConditionSelectorChanged(
                                 case_index,
                                 condition_index,
                                 value,
@@ -174,51 +210,33 @@ pub(super) fn build_if_else_condition_card<'a>(
                 ),
                 validation.localized_error_for(
                     i18n,
-                    &format!("if_else.cases[{case_index}].conditions[{condition_index}].operator")
+                    &format!("if_else.cases[{case_index}].conditions[{condition_index}].selector")
+                ),
+            ),
+            build_editor_field_validated(
+                i18n.__("比较值"),
+                workflow_text_input(
+                    i18n.__("例如：\"type\":\"orders\""),
+                    &condition.compare_value,
+                    move |value| {
+                        Message::WorkflowTool(
+                            WorkflowMessage::NodeEditorIfElseConditionValueChanged(
+                                case_index,
+                                condition_index,
+                                value,
+                            ),
+                        )
+                    },
+                ),
+                validation.localized_error_for(
+                    i18n,
+                    &format!("if_else.cases[{case_index}].conditions[{condition_index}].value")
                 ),
             ),
         ]
-        .spacing(12),
-        build_editor_field_validated(
-            i18n.__("变量选择器"),
-            workflow_text_input(
-                i18n.__("例如：1711528917469.text"),
-                &condition.variable_selector_input,
-                move |value| {
-                    Message::WorkflowTool(
-                        WorkflowMessage::NodeEditorIfElseConditionSelectorChanged(
-                            case_index,
-                            condition_index,
-                            value,
-                        ),
-                    )
-                },
-            ),
-            validation.localized_error_for(
-                i18n,
-                &format!("if_else.cases[{case_index}].conditions[{condition_index}].selector")
-            ),
-        ),
-        build_editor_field_validated(
-            i18n.__("比较值"),
-            workflow_text_input(
-                i18n.__("例如：\"type\":\"orders\""),
-                &condition.compare_value,
-                move |value| {
-                    Message::WorkflowTool(WorkflowMessage::NodeEditorIfElseConditionValueChanged(
-                        case_index,
-                        condition_index,
-                        value,
-                    ))
-                },
-            ),
-            validation.localized_error_for(
-                i18n,
-                &format!("if_else.cases[{case_index}].conditions[{condition_index}].value")
-            ),
-        ),
-    ]
-    .spacing(10)
+        .spacing(10),
+    )
+    .padding(12)
     .into()
 }
 

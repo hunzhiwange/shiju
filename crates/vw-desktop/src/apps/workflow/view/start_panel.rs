@@ -41,43 +41,31 @@ pub(super) fn build_start_variable_editor_modal(
         super::state::WorkflowStartVariableEditorMode::Edit(_) => i18n.__("编辑变量"),
     };
 
-    settings_modal_overlay(
-        None,
-        Message::None,
-        container(
-            column![
-                row![
-                    text(title).size(24),
-                    Space::new().width(Length::Fill),
-                    settings_close_button(Message::WorkflowTool(
-                        WorkflowMessage::NodeEditorStartCloseVariableEditor,
-                    )),
-                ]
-                .align_y(Alignment::Center),
-                build_start_variable_card(i18n, start_variable_editor),
-                row![
-                    Space::new().width(Length::Fill),
-                    button(text(i18n.__("取消")))
-                        .style(rounded_action_btn_style)
-                        .padding([9, 14])
-                        .on_press(Message::WorkflowTool(
-                            WorkflowMessage::NodeEditorStartCloseVariableEditor,
-                        )),
-                    button(text(i18n.__("保存")))
-                        .style(primary_action_btn_style)
-                        .padding([9, 14])
-                        .on_press(Message::WorkflowTool(
-                            WorkflowMessage::NodeEditorStartSubmitVariableEditor,
-                        )),
-                ]
-                .spacing(10),
-            ]
-            .spacing(14),
-        )
-        .width(Length::Fixed(540.0))
-        .padding([20, 22])
-        .style(modal_card_style),
+    let close = Message::WorkflowTool(WorkflowMessage::NodeEditorStartCloseVariableEditor);
+    let header = settings_modal_header(text(title).size(20), settings_close_button(close.clone()));
+    let actions = row![
+        Space::new().width(Length::Fill),
+        button(text(i18n.__("取消")))
+            .style(rounded_action_btn_style)
+            .padding([9, 14])
+            .on_press(close),
+        button(text(i18n.__("保存")))
+            .style(primary_action_btn_style)
+            .padding([9, 14])
+            .on_press(Message::WorkflowTool(WorkflowMessage::NodeEditorStartSubmitVariableEditor,)),
+    ]
+    .spacing(10)
+    .align_y(Alignment::Center);
+    let card = settings_modal_layout(
+        header,
+        build_start_variable_card(i18n, start_variable_editor),
+        Some(actions.into()),
     )
+    .width(Length::Fill)
+    .max_width(540.0)
+    .max_height(660.0);
+
+    settings_modal_overlay(None, Message::None, container(card).padding(12))
 }
 
 /// 构建 start variable section 对应的界面元素。

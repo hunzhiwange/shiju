@@ -1,6 +1,9 @@
 //! 工作流变量视图模块，负责变量面板、变量编辑器、变量卡片和校验摘要的渲染。
 
 use super::*;
+use crate::app::components::system_settings_common::{
+    settings_field_label, settings_group_heading, settings_modal_card,
+};
 use iced::widget::{column, row};
 
 /// 构建 variable panel modal 对应的界面元素。
@@ -56,33 +59,23 @@ pub(super) fn build_variable_panel_modal(
         ),
     };
 
-    let mut header_row = row![
-        column![text(title).size(24), text(subtitle).size(12).style(settings_muted_text_style),]
-            .spacing(4),
-        Space::new().width(Length::Fill),
-    ]
-    .align_y(Alignment::Center)
-    .spacing(8);
-
+    let mut actions = row![].spacing(8).align_y(Alignment::Center);
     if let Some(add_button) = add_button {
-        header_row = header_row.push(add_button);
+        actions = actions.push(add_button);
     }
+    let close = Message::WorkflowTool(WorkflowMessage::CloseVariablePanel);
+    let header = settings_modal_header(
+        settings_group_heading(title, subtitle),
+        actions.push(settings_close_button(close)),
+    );
+    let card =
+        settings_modal_card(column![header, body].spacing(14)).width(Length::Fill).max_width(780.0);
 
-    header_row = header_row
-        .push(settings_close_button(Message::WorkflowTool(WorkflowMessage::CloseVariablePanel)));
-
-    container(
-        container(column![header_row, body,].spacing(14))
-            .width(Length::Fixed(780.0))
-            .padding([20, 22])
-            .style(modal_card_style),
-    )
-    .width(Length::Fill)
-    .height(Length::Fill)
-    .align_x(iced::alignment::Horizontal::Center)
-    .align_y(iced::alignment::Vertical::Center)
-    .style(modal_backdrop_style)
-    .into()
+    container(container(card).padding(12))
+        .center_x(Length::Fill)
+        .center_y(Length::Fill)
+        .style(modal_backdrop_style)
+        .into()
 }
 
 /// 构建 variable editor modal 对应的界面元素。
@@ -119,88 +112,68 @@ pub(super) fn build_variable_editor_modal(
         ),
     };
 
-    container(
-        container(
-            column![
-                row![
-                    column![
-                        text(title).size(24),
-                        text(subtitle).size(12).style(settings_muted_text_style),
-                    ]
-                    .spacing(4),
-                    Space::new().width(Length::Fill),
-                    settings_close_button(Message::WorkflowTool(
-                        WorkflowMessage::CloseVariableEditor
-                    )),
-                ]
-                .align_y(Alignment::Center),
-                build_editor_field(
-                    i18n.__("变量名称"),
-                    workflow_text_input(
-                        i18n.__("例如：api_key / conversation_state"),
-                        &editor.name,
-                        |value| {
-                            Message::WorkflowTool(WorkflowMessage::VariableEditorNameChanged(value))
-                        }
-                    ),
-                ),
-                build_editor_field(
-                    i18n.__("变量类型"),
-                    workflow_text_input(type_hint, &editor.value_type, |value| {
-                        Message::WorkflowTool(WorkflowMessage::VariableEditorTypeChanged(value))
-                    }),
-                ),
-                build_editor_field(
-                    i18n.__("变量描述"),
-                    workflow_text_input(
-                        i18n.__("描述这个变量在工作流中的用途"),
-                        &editor.description,
-                        |value| {
-                            Message::WorkflowTool(
-                                WorkflowMessage::VariableEditorDescriptionChanged(value),
-                            )
-                        }
-                    ),
-                ),
-                build_editor_field(
-                    i18n.__("变量值 YAML"),
-                    text_editor(&editor.raw_value_editor)
-                        .placeholder(i18n.__("输入变量值，支持字符串、数字、对象或数组 YAML"))
-                        .on_action(|action| {
-                            Message::WorkflowTool(WorkflowMessage::VariableEditorValueAction(
-                                action,
-                            ))
-                        })
-                        .padding([10, 12])
-                        .height(Length::Fixed(220.0))
-                        .style(editor_style)
-                        .into(),
-                ),
-                row![
-                    Space::new().width(Length::Fill),
-                    button(text(i18n.__("取消")))
-                        .style(rounded_action_btn_style)
-                        .padding([9, 14])
-                        .on_press(Message::WorkflowTool(WorkflowMessage::CloseVariableEditor)),
-                    button(text(i18n.__("保存变量")))
-                        .style(primary_action_btn_style)
-                        .padding([9, 14])
-                        .on_press(Message::WorkflowTool(WorkflowMessage::SubmitVariableEditor)),
-                ]
-                .spacing(10),
-            ]
-            .spacing(14),
-        )
-        .width(Length::Fixed(740.0))
-        .padding([20, 22])
-        .style(modal_card_style),
-    )
-    .width(Length::Fill)
-    .height(Length::Fill)
-    .align_x(iced::alignment::Horizontal::Center)
-    .align_y(iced::alignment::Vertical::Center)
-    .style(modal_backdrop_style)
-    .into()
+    let close = Message::WorkflowTool(WorkflowMessage::CloseVariableEditor);
+    let header = settings_modal_header(
+        settings_group_heading(title, subtitle),
+        settings_close_button(close.clone()),
+    );
+    let body = column![
+        build_editor_field(
+            i18n.__("变量名称"),
+            workflow_text_input(
+                i18n.__("例如：api_key / conversation_state"),
+                &editor.name,
+                |value| {
+                    Message::WorkflowTool(WorkflowMessage::VariableEditorNameChanged(value))
+                }
+            ),
+        ),
+        build_editor_field(
+            i18n.__("变量类型"),
+            workflow_text_input(type_hint, &editor.value_type, |value| {
+                Message::WorkflowTool(WorkflowMessage::VariableEditorTypeChanged(value))
+            }),
+        ),
+        build_editor_field(
+            i18n.__("变量描述"),
+            workflow_text_input(
+                i18n.__("描述这个变量在工作流中的用途"),
+                &editor.description,
+                |value| {
+                    Message::WorkflowTool(WorkflowMessage::VariableEditorDescriptionChanged(value))
+                }
+            ),
+        ),
+        build_editor_field(
+            i18n.__("变量值 YAML"),
+            build_embedded_text_editor(
+                &editor.raw_value_editor,
+                i18n.__("输入变量值，支持字符串、数字、对象或数组 YAML"),
+                WorkflowMessage::VariableEditorValueAction,
+                220.0,
+            ),
+        ),
+    ]
+    .spacing(14);
+    let actions = row![
+        Space::new().width(Length::Fill),
+        button(text(i18n.__("取消")))
+            .style(rounded_action_btn_style)
+            .padding([9, 14])
+            .on_press(close.clone()),
+        button(text(i18n.__("保存变量")))
+            .style(primary_action_btn_style)
+            .padding([9, 14])
+            .on_press(Message::WorkflowTool(WorkflowMessage::SubmitVariableEditor)),
+    ]
+    .spacing(10)
+    .align_y(Alignment::Center);
+    let card = settings_modal_layout(header, body, Some(actions.into()))
+        .width(Length::Fill)
+        .max_width(740.0)
+        .max_height(580.0);
+
+    settings_modal_overlay(None, close, container(card).padding(12))
 }
 
 /// 构建 system variable list 对应的界面元素。
@@ -363,7 +336,7 @@ pub(super) fn variable_card(
                 container(text(value_type).size(11)).padding([4, 8]).style(value_card_style),
             ]
             .align_y(Alignment::Center),
-            text(description).size(12).color(Color::from_rgba8(0x11, 0x18, 0x27, 0.64)),
+            text(description).size(12).style(settings_muted_text_style),
             container(text(preview).size(12)).padding([8, 10]).style(value_card_style),
             actions,
         ]
@@ -415,8 +388,7 @@ pub(super) fn build_editor_field_validated<'a>(
     control: Element<'a, Message>,
     error: Option<String>,
 ) -> Element<'a, Message> {
-    let mut content =
-        column![text(label).size(12).style(settings_muted_text_style), control].spacing(6);
+    let mut content = column![settings_field_label(label), control].spacing(6);
 
     if let Some(error) = error {
         content = content.push(text(error).size(12).style(|theme: &Theme| {

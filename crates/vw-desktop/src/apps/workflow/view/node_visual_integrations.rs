@@ -1,6 +1,7 @@
 //! 工作流集成节点视图模块，负责知识库、工具、智能体和代码节点的配置面板。
 
 use super::*;
+use crate::app::components::system_settings_common::settings_toggle;
 use iced::widget::{column, row};
 
 #[cfg(test)]
@@ -91,7 +92,7 @@ pub(super) fn build_knowledge_visual_section<'a>(
             build_editor_field(
                 "Reranking",
                 row![
-                    toggler(reranking_enable).on_toggle(|value| Message::WorkflowTool(
+                    settings_toggle(reranking_enable).on_toggle(|value| Message::WorkflowTool(
                         WorkflowMessage::NodeEditorKnowledgeRerankingEnabledChanged(value),
                     )),
                     text("multiple_retrieval_config.reranking_enable")
@@ -136,9 +137,11 @@ pub(super) fn build_knowledge_visual_section<'a>(
             "Score Threshold",
             column![
                 row![
-                    toggler(score_threshold_enabled).on_toggle(|value| Message::WorkflowTool(
-                        WorkflowMessage::NodeEditorKnowledgeScoreThresholdEnabledChanged(value),
-                    )),
+                    settings_toggle(score_threshold_enabled).on_toggle(|value| {
+                        Message::WorkflowTool(
+                            WorkflowMessage::NodeEditorKnowledgeScoreThresholdEnabledChanged(value),
+                        )
+                    }),
                     text(i18n.__("启用 score_threshold")).size(12).style(settings_muted_text_style),
                 ]
                 .spacing(8)
@@ -396,7 +399,7 @@ pub(super) fn build_agent_visual_section<'a>(
             "Memory",
             column![
                 row![
-                    toggler(memory_enabled).on_toggle(|value| Message::WorkflowTool(
+                    settings_toggle(memory_enabled).on_toggle(|value| Message::WorkflowTool(
                         WorkflowMessage::NodeEditorAgentMemoryEnabledChanged(value),
                     )),
                     text(i18n.__("启用 memory.window")).size(12).style(settings_muted_text_style),
@@ -526,15 +529,11 @@ pub(super) fn build_code_visual_section<'a>(
         ),
         build_editor_field_validated(
             i18n.__("代码语言"),
-            pick_list(language_options, selected_language, |option| {
+            settings_select(language_options, selected_language, |option| {
                 Message::WorkflowTool(WorkflowMessage::NodeEditorCodeLanguageChanged(
                     option.value.to_string(),
                 ))
             })
-            .padding([10, 12])
-            .text_size(13)
-            .style(settings_pick_list_style)
-            .menu_style(settings_pick_list_menu_style)
             .width(Length::Fill)
             .into(),
             validation.localized_error_for(i18n, "code.language"),
@@ -570,7 +569,7 @@ pub(super) fn build_code_visual_section<'a>(
                 row![
                     text(i18n.__("启用失败重试")).size(12),
                     Space::new().width(Length::Fill),
-                    toggler(retry_config.enabled).on_toggle(|value| Message::WorkflowTool(
+                    settings_toggle(retry_config.enabled).on_toggle(|value| Message::WorkflowTool(
                         WorkflowMessage::NodeEditorCodeRetryEnabledChanged(value),
                     )),
                 ]
@@ -652,15 +651,11 @@ pub(super) fn build_code_visual_section<'a>(
         build_editor_field_validated(
             i18n.__("异常处理"),
             column![
-                pick_list(error_strategy_options, selected_error_strategy, |option| {
+                settings_select(error_strategy_options, selected_error_strategy, |option| {
                     Message::WorkflowTool(WorkflowMessage::NodeEditorCodeErrorStrategyChanged(
                         option.value.to_string(),
                     ))
                 })
-                .padding([10, 12])
-                .text_size(13)
-                .style(settings_pick_list_style)
-                .menu_style(settings_pick_list_menu_style)
                 .width(Length::Fill),
                 text(error_strategy_hint).size(12).style(settings_muted_text_style),
             ]
@@ -733,17 +728,13 @@ fn build_code_input_variable_row<'a>(
     let selector_control: Element<'a, Message> = if row_options.is_empty() {
         text(i18n.__("当前没有可选变量")).size(12).style(settings_muted_text_style).into()
     } else {
-        pick_list(row_options, selected, move |option| {
+        settings_select(row_options, selected, move |option| {
             Message::WorkflowTool(WorkflowMessage::NodeEditorCodeInputVariableSelectorChanged(
                 index,
                 option.selector_key.clone(),
                 option.value_type.clone(),
             ))
         })
-        .padding([10, 12])
-        .text_size(13)
-        .style(settings_pick_list_style)
-        .menu_style(settings_pick_list_menu_style)
         .width(Length::FillPortion(3))
         .into()
     };
@@ -803,17 +794,13 @@ fn build_code_output_variable_row<'a>(
                     index, value,
                 ))
             }),
-            pick_list(type_options.to_vec(), selected, move |option| {
+            settings_select(type_options.to_vec(), selected, move |option| {
                 Message::WorkflowTool(WorkflowMessage::NodeEditorCodeOutputTypeChanged(
                     index,
                     option.value.to_string(),
                 ))
             })
-            .padding([10, 12])
-            .text_size(13)
-            .style(settings_pick_list_style)
-            .menu_style(settings_pick_list_menu_style)
-            .width(Length::Fixed(196.0)),
+            .width(Length::Fill),
             button(text(i18n.__("删除")).size(12))
                 .style(danger_action_btn_style)
                 .padding([8, 10])

@@ -9,6 +9,7 @@ use super::state::{
     WorkflowParameterDraft, WorkflowStructuredNodeEdit, WorkflowVariableSelectorDraft,
 };
 use super::*;
+use crate::app::components::system_settings_common::settings_toggle;
 use iced::widget::{column, row};
 
 /// 构建 node visual section 对应的界面元素。
@@ -110,9 +111,11 @@ pub(super) fn build_node_visual_section<'a>(
                     build_editor_field(
                         i18n.__("推理开关"),
                         row![
-                            toggler(*enable_thinking).on_toggle(|value| Message::WorkflowTool(
-                                WorkflowMessage::NodeEditorLlmEnableThinkingChanged(value),
-                            )),
+                            settings_toggle(*enable_thinking).on_toggle(|value| {
+                                Message::WorkflowTool(
+                                    WorkflowMessage::NodeEditorLlmEnableThinkingChanged(value),
+                                )
+                            }),
                             text("completion_params.enable_thinking")
                                 .size(12)
                                 .style(settings_muted_text_style),
@@ -127,9 +130,11 @@ pub(super) fn build_node_visual_section<'a>(
                     i18n.__("上下文变量"),
                     column![
                         row![
-                            toggler(*context_enabled).on_toggle(|value| Message::WorkflowTool(
-                                WorkflowMessage::NodeEditorLlmContextEnabledChanged(value),
-                            )),
+                            settings_toggle(*context_enabled).on_toggle(|value| {
+                                Message::WorkflowTool(
+                                    WorkflowMessage::NodeEditorLlmContextEnabledChanged(value),
+                                )
+                            }),
                             text(i18n.__("启用上下文拼接"))
                                 .size(12)
                                 .style(settings_muted_text_style),
@@ -172,9 +177,11 @@ pub(super) fn build_node_visual_section<'a>(
                     i18n.__("视觉输入"),
                     column![
                         row![
-                            toggler(*vision_enabled).on_toggle(|value| Message::WorkflowTool(
-                                WorkflowMessage::NodeEditorLlmVisionEnabledChanged(value),
-                            )),
+                            settings_toggle(*vision_enabled).on_toggle(|value| {
+                                Message::WorkflowTool(
+                                    WorkflowMessage::NodeEditorLlmVisionEnabledChanged(value),
+                                )
+                            }),
                             text("vision.enabled").size(12).style(settings_muted_text_style),
                         ]
                         .spacing(8)
@@ -520,7 +527,7 @@ fn build_iteration_section<'a>(
         build_editor_field(
             i18n.__("并行执行"),
             row![
-                toggler(is_parallel)
+                settings_toggle(is_parallel)
                     .on_toggle(|v| data_node_message(WorkflowDataNodeEdit::IterationParallel(v))),
                 workflow_text_input(i18n.__("并行数量"), parallel_nums, |v| data_node_message(
                     WorkflowDataNodeEdit::IterationParallelNums(v)
@@ -683,7 +690,8 @@ fn build_question_classifier_section<'a>(
                             WorkflowMessage::NodeEditorClassifierRemoveClass(index),
                         )),
                 ]
-                .spacing(8),
+                .spacing(8)
+                .align_y(Alignment::Center),
             )
             .padding(10)
             .style(super::node_editor_fields::node_editor_field_card_style),
@@ -750,7 +758,8 @@ fn build_parameter_extractor_section<'a>(
                                 WorkflowMessage::NodeEditorExtractorRemoveParameter(index),
                             )),
                     ]
-                    .spacing(8),
+                    .spacing(8)
+                    .align_y(Alignment::Center),
                     workflow_text_input(
                         i18n.__("参数说明"),
                         &parameter.description,
@@ -761,14 +770,15 @@ fn build_parameter_extractor_section<'a>(
                         }
                     ),
                     row![
-                        toggler(parameter.required).on_toggle(move |value| {
+                        settings_toggle(parameter.required).on_toggle(move |value| {
                             structured_message(WorkflowStructuredNodeEdit::ParameterRequired(
                                 index, value,
                             ))
                         }),
                         text(i18n.__("必填")).size(12),
                     ]
-                    .spacing(8),
+                    .spacing(8)
+                    .align_y(Alignment::Center),
                 ]
                 .spacing(8),
             )

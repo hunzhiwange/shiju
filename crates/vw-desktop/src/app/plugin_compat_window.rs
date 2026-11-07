@@ -249,7 +249,7 @@ impl Harness {
                 .padding([0, 7]),
             )
             .direction(iced::widget::scrollable::Direction::Vertical(
-                iced::widget::scrollable::Scrollbar::new().width(4),
+                iced::widget::scrollable::Scrollbar::new().width(4).scroller_width(4),
             )),
         )
         .padding(20)

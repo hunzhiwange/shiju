@@ -7,16 +7,16 @@ mod plugin_install_modal;
 pub(crate) mod plugins;
 
 use crate::app::components::system_settings_common::{
-    SETTINGS_LABEL_WIDTH, settings_checkbox_style, settings_error_banner, settings_help_button,
-    settings_muted_text_style, settings_page_intro, settings_pick_list_menu_style,
-    settings_pick_list_style, settings_section_card, settings_section_content,
-    settings_segment_button_style,
+    SETTINGS_CONTROL_TEXT_SIZE, settings_checkbox_style, settings_control_with_hint,
+    settings_divider, settings_error_banner, settings_field_label, settings_group_card,
+    settings_group_heading, settings_help_button, settings_modal_card_style, settings_page_heading,
+    settings_segment_button_style, settings_select,
 };
 use crate::app::components::system_settings_search::SettingsTabDescriptor;
 use crate::app::i18n::settings_extensions::text as tr;
 use crate::app::state::SkillsSettingsTab;
 use crate::app::{App, Message, message};
-use iced::widget::{button, checkbox, column, container, pick_list, row, text};
+use iced::widget::{button, checkbox, column, container, row, text};
 use iced::{Alignment, Element, Length};
 use vw_config_types::skills::{SkillsDirectoryProvider, SkillsPromptInjectionMode};
 
@@ -26,17 +26,8 @@ fn field_row<'a>(
     control: impl Into<Element<'a, Message>>,
 ) -> Element<'a, Message> {
     container(
-        row![
-            column![
-                text(label).size(13),
-                text(description).size(11).style(settings_muted_text_style),
-            ]
-            .spacing(4)
-            .width(Length::Fixed(SETTINGS_LABEL_WIDTH)),
-            container(control.into()).width(Length::Fill),
-        ]
-        .spacing(22)
-        .align_y(Alignment::Center),
+        column![settings_field_label(label), settings_control_with_hint(control, description)]
+            .spacing(6),
     )
     .padding([14, 0])
     .width(Length::Fill)
@@ -90,13 +81,10 @@ fn system_config_view(app: &App) -> Element<'_, Message> {
     let s = &app.skills_settings;
 
     let provider_pick =
-        pick_list(SkillsDirectoryProvider::ALL, Some(s.directory_provider), |provider| {
+        settings_select(SkillsDirectoryProvider::ALL, Some(s.directory_provider), |provider| {
             Message::Settings(message::SettingsMessage::SkillsDirectoryProviderChanged(provider))
         })
         .placeholder("ShiJu")
-        .padding([10, 12])
-        .style(settings_pick_list_style)
-        .menu_style(settings_pick_list_menu_style)
         .width(Length::Fill);
 
     let provider_row = field_row(
@@ -116,6 +104,7 @@ fn system_config_view(app: &App) -> Element<'_, Message> {
             .on_toggle(|v| {
                 Message::Settings(message::SettingsMessage::SkillsProjectAutoLoadToggled(v))
             })
+            .text_size(SETTINGS_CONTROL_TEXT_SIZE)
             .style(settings_checkbox_style),
     );
 
@@ -134,24 +123,28 @@ fn system_config_view(app: &App) -> Element<'_, Message> {
                     },
                 ))
             })
+            .text_size(SETTINGS_CONTROL_TEXT_SIZE)
             .style(settings_checkbox_style),
     );
 
-    let config_card =
-        column![
-            settings_section_card(
-                tr(app.desktop_locale, "系统配置"),
-                tr(
-                    app.desktop_locale,
-                    "这里配置项目技能默认加载与 prompt injection；目录顺序单独展示。"
-                ),
+    let config_card = column![
+        settings_group_heading(
+            tr(app.desktop_locale, "系统配置"),
+            tr(
+                app.desktop_locale,
+                "这里配置项目技能默认加载与 prompt injection；目录顺序单独展示。"
             ),
-            settings_section_content(
-                column![provider_row, project_auto_load_row, mode_row].spacing(0),
-            ),
-        ]
-        .spacing(16)
-        .width(Length::Fill);
+        ),
+        settings_group_card(column![
+            provider_row,
+            settings_divider(),
+            project_auto_load_row,
+            settings_divider(),
+            mode_row,
+        ],),
+    ]
+    .spacing(16)
+    .width(Length::Fill);
 
     config_card.into()
 }
@@ -169,7 +162,7 @@ pub fn view(app: &App) -> Element<'_, Message> {
 
     let mut page = column![
         row![
-            container(settings_page_intro(
+            container(settings_page_heading(
                 tr(app.desktop_locale, "技能配置"),
                 tr(
                     app.desktop_locale,
@@ -244,6 +237,14 @@ pub fn plugin_dependency_summary(
     }
 }
 
+fn modal_card_style(theme: &iced::Theme) -> iced::widget::container::Style {
+    let mut style = settings_modal_card_style(theme);
+    if let Some(iced::Background::Color(color)) = &mut style.background {
+        color.a = 1.0;
+    }
+    style
+}
+
 pub(crate) fn with_plugin_install<'a>(
     app: &'a App,
     base: Element<'a, Message>,
@@ -253,3 +254,7 @@ pub(crate) fn with_plugin_install<'a>(
         None => base,
     }
 }
+
+#[cfg(test)]
+#[path = "system_settings_skills_ui_refresh_19_tests.rs"]
+mod ui_refresh_19_tests;

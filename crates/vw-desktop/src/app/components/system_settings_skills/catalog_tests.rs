@@ -232,9 +232,8 @@ fn skill_badge_emphasized_creates_styled_container() {
 #[test]
 fn catalog_item_button_style_uses_theme_text_color() {
     for theme in [iced::Theme::Light, iced::Theme::Dark] {
-        let style = catalog_item_button_style(&theme, iced::widget::button::Status::Active);
+        let style = catalog_item_button_style(&theme, iced::widget::button::Status::Active, false);
         assert_eq!(style.text_color, theme.palette().text);
-        assert_eq!(style.background, None);
     }
 }
 

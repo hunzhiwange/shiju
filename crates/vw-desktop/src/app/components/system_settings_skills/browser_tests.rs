@@ -11,8 +11,7 @@ use super::browser::{
     detail_source_note, discovery_order_text, discovery_order_view, empty_state,
     header_panel_style, loading_banner, provider_global_paths, provider_project_paths,
     refresh_button, scope_button, scope_description, scope_source_matches, scope_title,
-    search_bar_style, search_text_input_style, skill_project_options, status_banner,
-    view as browser_view, view_overlays,
+    skill_project_options, status_banner, view as browser_view, view_overlays,
 };
 use crate::app::assets::Icon;
 use crate::app::message;
@@ -21,8 +20,6 @@ use crate::app::state::{
 };
 use crate::app::{App, Message, message::SettingsMessage};
 use iced::advanced::widget::Tree;
-use iced::widget::text_input;
-use iced::{Background, Color};
 use vw_config_types::skills::SkillsDirectoryProvider;
 
 fn app() -> App {
@@ -204,26 +201,6 @@ fn scope_descriptions_include_provider_specific_paths() {
 }
 
 #[test]
-fn search_styles_preserve_transparency_and_disabled_contrast() {
-    let theme = iced::Theme::Dark;
-    let palette = theme.palette();
-    let active = search_text_input_style(&theme, text_input::Status::Active);
-    let disabled = search_text_input_style(&theme, text_input::Status::Disabled);
-
-    assert_eq!(active.background, Background::Color(Color::TRANSPARENT));
-    assert_eq!(active.border.width, 0.0);
-    assert_eq!(active.border.color, Color::TRANSPARENT);
-    assert_eq!(active.value, palette.text);
-    assert_eq!(disabled.value, palette.text.scale_alpha(0.50));
-    assert_eq!(active.placeholder, palette.text.scale_alpha(0.48));
-    assert_eq!(active.selection, palette.primary.scale_alpha(0.22));
-
-    let search_bar = search_bar_style(&theme);
-    assert_eq!(search_bar.background, Some(Background::Color(palette.background)));
-    assert_eq!(search_bar.border.radius, 12.0.into());
-}
-
-#[test]
 fn scope_descriptions_are_exact_for_each_codex_scope() {
     let provider = SkillsDirectoryProvider::Codex;
     let cases = [
@@ -287,11 +264,8 @@ fn discovery_order_view_builds_for_closed_and_open_project() {
 
 #[test]
 fn browser_widgets_build_for_status_actions_and_common_states() {
-    let _ = search_bar_style(&iced::Theme::Dark);
     let _ = header_panel_style(&iced::Theme::Dark);
     let _ = catalog_panel_style(&iced::Theme::Dark);
-    let _ = search_text_input_style(&iced::Theme::Dark, text_input::Status::Active);
-    let _ = search_text_input_style(&iced::Theme::Dark, text_input::Status::Disabled);
 
     let _ = status_banner("同步完成", false);
     let _ = status_banner("同步失败", true);
@@ -305,7 +279,7 @@ fn browser_widgets_build_for_status_actions_and_common_states() {
     );
     let _ = refresh_button(vw_config_types::ui::DesktopLocale::SimplifiedChinese, false);
     let _ = refresh_button(vw_config_types::ui::DesktopLocale::SimplifiedChinese, true);
-    let _ = loading_banner(vw_config_types::ui::DesktopLocale::SimplifiedChinese);
+    let _ = loading_banner("正在同步技能目录");
     let _ = empty_state("空", "没有结果");
     let _ = detail_source_note(
         vw_config_types::ui::DesktopLocale::SimplifiedChinese,
@@ -493,7 +467,6 @@ fn browser_view_search_can_match_source_path_and_scope_together() {
 fn browser_tests_keeps_planned_coverage_targets() {
     for name in [
         "DetailActionStyle",
-        "search_bar_style",
         "header_panel_style",
         "catalog_panel_style",
         "status_banner",

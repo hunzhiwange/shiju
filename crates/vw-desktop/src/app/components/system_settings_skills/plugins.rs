@@ -1,21 +1,21 @@
 //! 构建代理设置中的插件检索、详情与管理页面。
 
 use super::browser::{
-    DetailActionStyle, catalog_panel_style, empty_state, header_panel_style, loading_banner,
-    search_bar_style, search_text_input_style, status_banner,
+    DetailActionStyle, catalog_panel_style, detail_action_button, empty_state, header_panel_style,
+    loading_banner, status_banner,
 };
-use super::catalog::{section_card_style, skill_badge};
+use super::catalog::{catalog_item_button_style, icon_svg, section_card_style, skill_badge};
 use crate::app::assets::Icon;
 use crate::app::components::system_settings_common::{
-    danger_action_btn_style, icon_svg as base_icon_svg, primary_action_btn_style,
-    rounded_action_btn_style, settings_panel_style, settings_value_badge,
+    SETTINGS_CONTROL_PADDING, SETTINGS_CONTROL_TEXT_SIZE, settings_group_heading,
+    settings_muted_text_style, settings_text_input_style, settings_value_badge,
 };
 use crate::app::i18n::settings_extensions::text as tr;
 use crate::app::state::PluginCatalogItem;
 use crate::app::{App, Message, message};
 use iced::alignment::{Horizontal, Vertical};
 use iced::widget::scrollable::{Direction, Scrollbar};
-use iced::widget::{Space, button, column, container, row, scrollable, text, text_input};
+use iced::widget::{button, column, container, responsive, row, scrollable, text, text_input};
 use iced::{Alignment, Background, Border, Element, Length};
 use vw_config_types::ui::DesktopLocale;
 
@@ -95,7 +95,7 @@ pub(super) fn plugin_catalog_item(
             text(display_name)
                 .size(15)
                 .width(Length::Fill)
-                .wrapping(iced::widget::text::Wrapping::Word),
+                .wrapping(iced::widget::text::Wrapping::Glyph),
             skill_badge(format!("v{version}"), false),
             if is_selected {
                 skill_badge(tr(locale, "当前"), true)
@@ -109,17 +109,16 @@ pub(super) fn plugin_catalog_item(
         text(description)
             .size(12)
             .width(Length::Fill)
-            .wrapping(iced::widget::text::Wrapping::Word)
-            .style(|theme: &iced::Theme| iced::widget::text::Style {
-                color: Some(theme.palette().text.scale_alpha(0.68)),
-            }),
+            .wrapping(iced::widget::text::Wrapping::Glyph)
+            .style(settings_muted_text_style),
         row![
             skill_badge(plugin_id.clone(), false),
             skill_badge(component_text, false),
             skill_badge(status, plugin.enabled),
         ]
         .spacing(6)
-        .align_y(Alignment::Center),
+        .align_y(Alignment::Center)
+        .wrap(),
     ]
     .spacing(8)
     .width(Length::Fill);
@@ -149,34 +148,13 @@ pub(super) fn plugin_catalog_item(
         .spacing(14)
         .align_y(Alignment::Start),
     )
-    .padding([13, 15])
-    .width(Length::Fill)
-    .style(move |theme: &iced::Theme| {
-        let mut style = settings_panel_style(theme);
-        let palette = theme.extended_palette();
-        style.background = Some(Background::Color(if is_selected {
-            palette.primary.weak.color.scale_alpha(0.14)
-        } else {
-            palette.background.weak.color.scale_alpha(0.08)
-        }));
-        style.border.color = if is_selected {
-            palette.primary.base.color.scale_alpha(0.54)
-        } else {
-            palette.background.strong.color.scale_alpha(0.48)
-        };
-        style.border.radius = 14.0.into();
-        style.shadow = iced::Shadow::default();
-        style
-    });
+    .width(Length::Fill);
 
     button(content)
         .width(Length::Fill)
-        .padding(0)
+        .padding([12, 14])
         .on_press(Message::Settings(message::SettingsMessage::PluginsSelected(plugin.id)))
-        .style(|theme: &iced::Theme, _status| iced::widget::button::Style {
-            text_color: theme.palette().text,
-            ..Default::default()
-        })
+        .style(move |theme, status| catalog_item_button_style(theme, status, is_selected))
         .into()
 }
 
@@ -242,17 +220,18 @@ pub(super) fn plugin_detail_panel(
         ),
     ]
     .spacing(8)
-    .align_y(Alignment::Center);
+    .align_y(Alignment::Center)
+    .wrap();
 
     container(
         column![
             row![
                 column![
-                    text(display_name).size(20),
+                    text(display_name).size(17).wrapping(iced::widget::text::Wrapping::Glyph),
                     text(description)
                         .size(12)
                         .width(Length::Fill)
-                        .wrapping(iced::widget::text::Wrapping::Word)
+                        .wrapping(iced::widget::text::Wrapping::Glyph)
                         .style(|theme: &iced::Theme| iced::widget::text::Style {
                             color: Some(theme.palette().text.scale_alpha(0.7)),
                         }),
@@ -277,7 +256,9 @@ pub(super) fn plugin_detail_panel(
             ]
             .spacing(8)
             .align_y(Alignment::Center),
-            text(source_label(locale, plugin)).size(12),
+            text(source_label(locale, plugin))
+                .size(12)
+                .wrapping(iced::widget::text::Wrapping::Glyph),
             text(tr(locale, super::plugin_dependency_summary(&plugin.dependency_checks))).size(13),
             text(tr(locale, hook_label(&plugin.hook_review))).size(12),
             plugin_path_note(locale, path.as_deref()),
@@ -306,28 +287,23 @@ pub(crate) fn view<'a>(app: &'a App) -> Element<'a, Message> {
         .selected_plugin_id
         .as_ref()
         .and_then(|selected| s.plugin_catalog.iter().find(|plugin| plugin.id == *selected))
-        .or_else(|| plugins.first());
+        .or_else(|| plugins.first())
+        .cloned();
 
     let search_input = text_input(tr(locale, "搜索插件"), &s.query)
         .on_input(|value| Message::Settings(message::SettingsMessage::SkillsQueryChanged(value)))
-        .padding([8, 0])
-        .size(13)
-        .style(search_text_input_style)
+        .padding(SETTINGS_CONTROL_PADDING)
+        .size(SETTINGS_CONTROL_TEXT_SIZE)
+        .style(settings_text_input_style)
         .width(Length::Fill);
 
     let header = container(
         column![
+            settings_group_heading(
+                tr(locale, "插件"),
+                tr(locale, "原包来源、依赖观察与信任状态；文件存在不代表运行兼容。"),
+            ),
             row![
-                column![
-                    text(tr(locale, "插件")).size(22),
-                    text(tr(locale, "原包来源、依赖观察与信任状态；文件存在不代表运行兼容。"))
-                        .size(13)
-                        .style(|theme: &iced::Theme| iced::widget::text::Style {
-                            color: Some(theme.palette().text.scale_alpha(0.68)),
-                        }),
-                ]
-                .spacing(6)
-                .width(Length::Fill),
                 detail_action_button(
                     locale,
                     if s.plugin_loading { tr(locale, "刷新中") } else { tr(locale, "刷新") },
@@ -350,16 +326,10 @@ pub(crate) fn view<'a>(app: &'a App) -> Element<'a, Message> {
                     true
                 ),
             ]
-            .spacing(12)
-            .align_y(Alignment::Center),
-            container(
-                row![icon_svg(Icon::Search, 14.0), search_input]
-                    .spacing(8)
-                    .align_y(Alignment::Center)
-            )
-            .padding([0, 4])
-            .width(Length::Fill)
-            .style(search_bar_style),
+            .spacing(8)
+            .align_y(Alignment::Center)
+            .wrap(),
+            search_input,
         ]
         .spacing(12),
     )
@@ -383,7 +353,7 @@ pub(crate) fn view<'a>(app: &'a App) -> Element<'a, Message> {
     }
 
     if s.plugin_loading && s.plugin_catalog.is_empty() {
-        content = content.push(loading_banner(locale));
+        content = content.push(loading_banner(tr(locale, "刷新中")));
         return content.into();
     }
 
@@ -395,28 +365,34 @@ pub(crate) fn view<'a>(app: &'a App) -> Element<'a, Message> {
         return content.into();
     }
 
-    let list = plugins.iter().cloned().fold(column![].spacing(10), |column, plugin| {
-        let is_selected = selected.is_some_and(|selected| selected.id == plugin.id);
-        column.push(plugin_catalog_item(locale, plugin, is_selected))
-    });
-
-    let list_panel = container(
-        scrollable(list.padding([0, 7]))
-            .direction(Direction::Vertical(Scrollbar::new().width(4)))
-            .height(Length::Fixed(460.0)),
-    )
-    .padding([18, 20])
-    .width(Length::FillPortion(3))
-    .style(catalog_panel_style);
-
-    let detail_panel =
-        container(column![plugin_detail_panel(locale, selected, s.plugin_loading)].spacing(12))
-            .width(Length::FillPortion(2));
-
     content = content.push(
-        row![list_panel, Space::new().width(Length::Fixed(2.0)), detail_panel]
-            .spacing(14)
-            .align_y(Alignment::Start),
+        responsive(move |size| {
+            let stacked = size.width < 760.0;
+            let list = plugins.iter().cloned().fold(column![].spacing(8), |list, plugin| {
+                let is_selected =
+                    selected.as_ref().is_some_and(|selected| selected.id == plugin.id);
+                list.push(plugin_catalog_item(locale, plugin, is_selected))
+            });
+            let list_panel = container(
+                scrollable(list.padding([0, 7]))
+                    .direction(Direction::Vertical(Scrollbar::new().width(4).scroller_width(4)))
+                    .height(Length::Shrink),
+            )
+            .padding([12, 8])
+            .max_height(if stacked { 244 } else { 484 })
+            .width(Length::FillPortion(3))
+            .style(catalog_panel_style);
+            let detail_panel =
+                container(plugin_detail_panel(locale, selected.as_ref(), s.plugin_loading))
+                    .width(Length::FillPortion(2));
+
+            if stacked {
+                column![list_panel, detail_panel].spacing(14).into()
+            } else {
+                row![list_panel, detail_panel].spacing(14).align_y(Alignment::Start).into()
+            }
+        })
+        .height(Length::Shrink),
     );
 
     content.into()
@@ -477,36 +453,11 @@ fn dependency_panel(
             .spacing(3),
         )
     });
-    scrollable(content.padding([0, 7]))
-        .direction(Direction::Vertical(Scrollbar::new().width(4)))
-        .height(Length::Fixed(180.0))
-        .into()
-}
-
-fn icon_svg(icon: Icon, size: f32) -> iced::widget::Svg<'static> {
-    base_icon_svg(icon, size).style(|theme: &iced::Theme, _| iced::widget::svg::Style {
-        color: Some(theme.palette().text),
-    })
-}
-fn detail_action_button(
-    locale: DesktopLocale,
-    label: &'static str,
-    icon: Icon,
-    style: DetailActionStyle,
-    on_press: Option<Message>,
-) -> Element<'static, Message> {
-    let contrast = matches!(&style, DetailActionStyle::Primary | DetailActionStyle::Danger);
-    let icon =
-        base_icon_svg(icon, 14.).style(move |theme: &iced::Theme, _| iced::widget::svg::Style {
-            color: Some(if contrast { iced::Color::WHITE } else { theme.palette().text }),
-        });
-    let button =
-        button(row![icon, text(tr(locale, label)).size(12)].spacing(8).align_y(Alignment::Center))
-            .padding([10, 14])
-            .on_press_maybe(on_press);
-    match style {
-        DetailActionStyle::Primary => button.style(primary_action_btn_style).into(),
-        DetailActionStyle::Secondary => button.style(rounded_action_btn_style).into(),
-        DetailActionStyle::Danger => button.style(danger_action_btn_style).into(),
-    }
+    container(
+        scrollable(content.padding([0, 7]))
+            .direction(Direction::Vertical(Scrollbar::new().width(4).scroller_width(4)))
+            .height(Length::Shrink),
+    )
+    .max_height(180)
+    .into()
 }

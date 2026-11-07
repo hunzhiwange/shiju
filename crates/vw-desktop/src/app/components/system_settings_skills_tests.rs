@@ -70,7 +70,9 @@ fn system_config_view_keeps_three_config_rows_in_one_panel() {
     let tree = Tree::new(element.as_widget());
 
     assert_eq!(tree.children.len(), 2);
-    assert_eq!(tree.children[1].children.len(), 3);
+    // The field rows have controls; separators have no children.
+    let fields = tree.children[1].children.iter().filter(|child| !child.children.is_empty());
+    assert_eq!(fields.count(), 3);
 }
 
 #[test]

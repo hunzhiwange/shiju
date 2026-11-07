@@ -5,7 +5,8 @@
 
 use crate::app::assets::Icon;
 use crate::app::components::system_settings_common::{
-    icon_svg, settings_panel_style, settings_value_badge,
+    icon_svg as base_icon_svg, settings_muted_text_style, settings_panel_style,
+    settings_value_badge,
 };
 use crate::app::i18n::settings_extensions::text as tr;
 use crate::app::state::{
@@ -47,6 +48,12 @@ pub(super) fn catalog_matches_query(
         || source_label(&skill.source).to_ascii_lowercase().contains(&q)
         || tr(locale, source_label(&skill.source)).to_ascii_lowercase().contains(&q)
         || skill.source_path.as_ref().is_some_and(|path| path.to_ascii_lowercase().contains(&q))
+}
+
+pub(super) fn icon_svg(icon: Icon, size: f32) -> iced::widget::Svg<'static> {
+    base_icon_svg(icon, size).style(|theme: &iced::Theme, _| iced::widget::svg::Style {
+        color: Some(theme.palette().text),
+    })
 }
 
 /// 构建或处理 `section_card_style` 对应的界面片段与交互数据。
@@ -95,7 +102,7 @@ pub(super) fn skill_badge(label: impl Into<String>, emphasized: bool) -> Element
             let (background, border, text_color) = (
                 palette.primary.weak.color.scale_alpha(0.42),
                 palette.primary.base.color.scale_alpha(0.6),
-                palette.primary.base.color,
+                theme.palette().text,
             );
 
             iced::widget::container::Style {
@@ -145,9 +152,22 @@ pub(super) fn source_label(source: &str) -> &'static str {
 
 pub(super) fn catalog_item_button_style(
     theme: &iced::Theme,
-    _status: button::Status,
+    status: button::Status,
+    selected: bool,
 ) -> button::Style {
-    button::Style { text_color: theme.palette().text, ..Default::default() }
+    let panel = section_card_style(theme);
+    let palette = theme.extended_palette();
+    let background = match (selected, status) {
+        (_, button::Status::Pressed) => Some(palette.background.strong.color.into()),
+        (_, button::Status::Hovered) => Some(palette.background.weak.color.into()),
+        (true, _) => Some(palette.primary.weak.color.scale_alpha(0.18).into()),
+        (false, _) => panel.background,
+    };
+    let border = Border {
+        color: if selected { palette.primary.base.color } else { panel.border.color },
+        ..panel.border
+    };
+    button::Style { text_color: theme.palette().text, background, border, ..Default::default() }
 }
 
 pub(super) fn catalog_item(
@@ -179,7 +199,7 @@ pub(super) fn catalog_item(
 
     let details = column![
         row![
-            text(title).size(15).width(Length::Fill).wrapping(iced::widget::text::Wrapping::Word),
+            text(title).size(15).width(Length::Fill).wrapping(iced::widget::text::Wrapping::Glyph),
             skill_badge(
                 match kind {
                     CatalogSkillKind::Recommended => tr(locale, "推荐"),
@@ -199,10 +219,8 @@ pub(super) fn catalog_item(
         text(description)
             .size(12)
             .width(Length::Fill)
-            .wrapping(iced::widget::text::Wrapping::Word)
-            .style(|theme: &iced::Theme| iced::widget::text::Style {
-                color: Some(theme.palette().text.scale_alpha(0.68)),
-            }),
+            .wrapping(iced::widget::text::Wrapping::Glyph)
+            .style(settings_muted_text_style),
         row![
             skill_badge(skill_id, false),
             skill_badge(resource_text, false),
@@ -210,7 +228,8 @@ pub(super) fn catalog_item(
             status_badge,
         ]
         .spacing(6)
-        .align_y(Alignment::Center),
+        .align_y(Alignment::Center)
+        .wrap(),
     ]
     .spacing(8)
     .width(Length::Fill);
@@ -231,14 +250,8 @@ pub(super) fn catalog_item(
                         CatalogSkillKind::System => palette.secondary.weak.color.scale_alpha(0.55),
                         CatalogSkillKind::Personal => palette.success.weak.color.scale_alpha(0.55),
                     };
-                    let text_color = match kind {
-                        CatalogSkillKind::Recommended => palette.primary.base.color,
-                        CatalogSkillKind::System => palette.secondary.base.color,
-                        CatalogSkillKind::Personal => palette.success.base.color,
-                    };
-
                     iced::widget::container::Style {
-                        text_color: Some(text_color),
+                        text_color: Some(theme.palette().text),
                         background: Some(Background::Color(background)),
                         border: Border { radius: 12.0.into(), ..Default::default() },
                         ..Default::default()
@@ -249,39 +262,13 @@ pub(super) fn catalog_item(
         .spacing(14)
         .align_y(Alignment::Start),
     )
-    .padding([13, 15])
-    .width(Length::Fill)
-    .style(move |theme: &iced::Theme| {
-        let mut style = settings_panel_style(theme);
-        let palette = theme.extended_palette();
-        let base_border = match kind {
-            CatalogSkillKind::Recommended => palette.primary.base.color.scale_alpha(0.28),
-            CatalogSkillKind::System => palette.background.strong.color.scale_alpha(0.55),
-            CatalogSkillKind::Personal => palette.success.base.color.scale_alpha(0.24),
-        };
-        let base_background = match kind {
-            CatalogSkillKind::Recommended => palette.primary.weak.color.scale_alpha(0.06),
-            CatalogSkillKind::System => palette.background.weak.color.scale_alpha(0.08),
-            CatalogSkillKind::Personal => palette.success.weak.color.scale_alpha(0.06),
-        };
-
-        style.background = Some(Background::Color(if is_selected {
-            palette.primary.weak.color.scale_alpha(0.14)
-        } else {
-            base_background
-        }));
-        style.border.color =
-            if is_selected { palette.primary.base.color.scale_alpha(0.54) } else { base_border };
-        style.border.radius = 14.0.into();
-        style.shadow = iced::Shadow::default();
-        style
-    });
+    .width(Length::Fill);
 
     button(content)
         .width(Length::Fill)
-        .padding(0)
+        .padding([12, 14])
         .on_press(Message::Settings(message::SettingsMessage::SkillsDetailRequested(skill.id)))
-        .style(catalog_item_button_style)
+        .style(move |theme, status| catalog_item_button_style(theme, status, is_selected))
         .into()
 }
 

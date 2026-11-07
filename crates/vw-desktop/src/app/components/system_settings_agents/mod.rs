@@ -189,15 +189,16 @@ pub fn view(app: &App) -> Element<'_, Message> {
                 .height(Length::Fill)
                 .into()
         }
-        AgentConfigTab::Skills => {
-            scrollable(container(crate::app::components::system_settings_skills::view(app)))
-                .direction(Direction::Vertical(Scrollbar::new().width(4).scroller_width(4)))
-                .height(Length::Fill)
-                .into()
-        }
-        AgentConfigTab::Plugins => scrollable(container(
-            crate::app::components::system_settings_skills::plugins::view(app),
-        ))
+        AgentConfigTab::Skills => scrollable(
+            container(crate::app::components::system_settings_skills::view(app)).padding([0, 7]),
+        )
+        .direction(Direction::Vertical(Scrollbar::new().width(4).scroller_width(4)))
+        .height(Length::Fill)
+        .into(),
+        AgentConfigTab::Plugins => scrollable(
+            container(crate::app::components::system_settings_skills::plugins::view(app))
+                .padding([0, 7]),
+        )
         .direction(Direction::Vertical(Scrollbar::new().width(4).scroller_width(4)))
         .height(Length::Fill)
         .into(),

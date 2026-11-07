@@ -4,22 +4,22 @@
 //! 注释聚焦调用边界、返回值和错误传播方式，便于后续维护设置页与工具栏行为时快速定位职责。
 
 use super::catalog::{
-    catalog_group_section, catalog_matches_query, section_card_style, skill_badge,
+    catalog_group_section, catalog_matches_query, icon_svg, section_card_style, skill_badge,
 };
 use crate::app::assets::Icon;
 use crate::app::components::system_settings_common::{
-    danger_action_btn_style, icon_svg, primary_action_btn_style, rounded_action_btn_style,
-    settings_close_button, settings_error_banner, settings_modal_card, settings_modal_overlay,
-    settings_muted_text_style, settings_panel_style, settings_pick_list_menu_style,
-    settings_pick_list_style, settings_segment_button_style, settings_value_badge,
+    SETTINGS_CONTROL_PADDING, SETTINGS_CONTROL_TEXT_SIZE, danger_action_btn_style,
+    primary_action_btn_style, rounded_action_btn_style, settings_close_button,
+    settings_error_banner, settings_field_label, settings_group_heading, settings_modal_card,
+    settings_modal_header, settings_modal_overlay, settings_muted_text_style, settings_panel_style,
+    settings_segment_button_style, settings_select, settings_success_banner,
+    settings_text_input_style, settings_value_badge,
 };
 use crate::app::i18n::settings_extensions::text as tr;
 use crate::app::state::{SkillsCatalogKind as CatalogSkillKind, SkillsDirectoryScope};
 use crate::app::{App, Message, message};
 use iced::widget::scrollable::{Direction, Scrollbar};
-use iced::widget::{
-    Space, button, column, container, pick_list, row, scrollable, text, text_input,
-};
+use iced::widget::{button, column, container, row, scrollable, text, text_input};
 use iced::{Alignment, Background, Border, Element, Length};
 use vw_config_types::skills::SkillsDirectoryProvider;
 use vw_config_types::ui::DesktopLocale;
@@ -42,74 +42,19 @@ pub(super) fn skill_project_options(app: &App) -> Vec<String> {
     options
 }
 
-pub(super) fn search_bar_style(theme: &iced::Theme) -> iced::widget::container::Style {
-    let mut style = settings_panel_style(theme);
-    style.background = Some(Background::Color(theme.palette().background));
-    style.border.radius = 12.0.into();
-    style.shadow = iced::Shadow::default();
-    style
-}
-
-pub(super) fn search_text_input_style(
-    theme: &iced::Theme,
-    status: iced::widget::text_input::Status,
-) -> iced::widget::text_input::Style {
-    let palette = theme.palette();
-    let disabled = matches!(status, iced::widget::text_input::Status::Disabled);
-
-    iced::widget::text_input::Style {
-        background: Background::Color(iced::Color::TRANSPARENT),
-        border: Border { width: 0.0, color: iced::Color::TRANSPARENT, radius: 0.0.into() },
-        icon: palette.text.scale_alpha(0.65),
-        placeholder: palette.text.scale_alpha(0.48),
-        value: if disabled { palette.text.scale_alpha(0.50) } else { palette.text },
-        selection: palette.primary.scale_alpha(0.22),
-    }
-}
-
 pub(super) fn header_panel_style(theme: &iced::Theme) -> iced::widget::container::Style {
-    let mut style = settings_panel_style(theme);
-    let palette = theme.extended_palette();
-    style.background = Some(Background::Color(palette.background.weak.color.scale_alpha(0.24)));
-    style.border.color = palette.background.strong.color.scale_alpha(0.68);
-    style.border.radius = 22.0.into();
-    style
+    settings_panel_style(theme)
 }
 
 pub(super) fn catalog_panel_style(theme: &iced::Theme) -> iced::widget::container::Style {
-    let mut style = settings_panel_style(theme);
-    let palette = theme.extended_palette();
-    style.background = Some(Background::Color(palette.background.weak.color.scale_alpha(0.14)));
-    style.border.color = palette.background.strong.color.scale_alpha(0.52);
-    style.border.radius = 20.0.into();
-    style
+    section_card_style(theme)
 }
 
 pub(super) fn status_banner<'a>(
     message: impl iced::widget::text::IntoFragment<'a>,
     is_error: bool,
 ) -> Element<'a, Message> {
-    if is_error {
-        return settings_error_banner(message);
-    }
-
-    container(text(message).size(13))
-        .padding([10, 12])
-        .width(Length::Fill)
-        .style(|theme: &iced::Theme| {
-            let palette = theme.extended_palette();
-            iced::widget::container::Style {
-                text_color: Some(palette.success.base.color),
-                background: Some(Background::Color(palette.success.weak.color.scale_alpha(0.18))),
-                border: Border {
-                    width: 1.0,
-                    color: palette.success.base.color.scale_alpha(0.4),
-                    radius: 10.0.into(),
-                },
-                ..Default::default()
-            }
-        })
-        .into()
+    if is_error { settings_error_banner(message) } else { settings_success_banner(message) }
 }
 
 pub(super) fn scope_button(
@@ -316,7 +261,7 @@ pub(super) fn discovery_order_view<'a>(app: &'a App) -> Element<'a, Message> {
                 row![
                     settings_value_badge(index),
                     column![
-                        text(title).size(14),
+                        text(title).size(14).wrapping(iced::widget::text::Wrapping::Glyph),
                         text(desc).size(12).style(|theme: &iced::Theme| {
                             iced::widget::text::Style {
                                 color: Some(theme.palette().text.scale_alpha(0.64)),
@@ -365,7 +310,7 @@ pub(super) fn discovery_order_view<'a>(app: &'a App) -> Element<'a, Message> {
                 text(discovery_order_text(app))
                     .size(12)
                     .width(Length::Fill)
-                    .wrapping(iced::widget::text::Wrapping::Word)
+                    .wrapping(iced::widget::text::Wrapping::Glyph)
                     .style(|theme: &iced::Theme| iced::widget::text::Style {
                         color: Some(theme.palette().text.scale_alpha(0.68)),
                     }),
@@ -382,8 +327,8 @@ pub(super) fn discovery_order_view<'a>(app: &'a App) -> Element<'a, Message> {
     .into()
 }
 
-pub(super) fn loading_banner<'a>(locale: DesktopLocale) -> Element<'a, Message> {
-    container(text(tr(locale, "正在通过 gateway 同步技能目录...")).size(12))
+pub(super) fn loading_banner<'a>(label: &'a str) -> Element<'a, Message> {
+    container(text(label).size(12))
         .padding([10, 12])
         .width(Length::Fill)
         .style(|theme: &iced::Theme| {
@@ -420,7 +365,7 @@ pub(super) fn empty_state<'a>(title: &'a str, description: &'a str) -> Element<'
                     }
                 }
             ),
-            text(title).size(14),
+            text(title).size(14).wrapping(iced::widget::text::Wrapping::Glyph),
             text(description).size(12).style(|theme: &iced::Theme| iced::widget::text::Style {
                 color: Some(theme.palette().text.scale_alpha(0.68)),
             }),
@@ -444,7 +389,7 @@ pub(super) fn detail_source_note(
             text(path.to_string())
                 .size(11)
                 .width(Length::Fill)
-                .wrapping(iced::widget::text::Wrapping::Word)
+                .wrapping(iced::widget::text::Wrapping::Glyph)
                 .style(|theme: &iced::Theme| iced::widget::text::Style {
                     color: Some(theme.palette().text.scale_alpha(0.6)),
                 }),
@@ -469,11 +414,19 @@ pub(super) fn detail_action_button(
     style: DetailActionStyle,
     on_press: Option<Message>,
 ) -> Element<'static, Message> {
-    let content = row![icon_svg(icon, 14.0), text(tr(locale, label)).size(12)]
-        .spacing(8)
-        .align_y(Alignment::Center);
+    let on_press_enabled = on_press.is_some();
+    let icon = icon_svg(icon, 14.0).style(move |theme: &iced::Theme, _| {
+        let color = match (on_press_enabled, style) {
+            (false, _) => theme.palette().text.scale_alpha(0.45),
+            (true, DetailActionStyle::Primary | DetailActionStyle::Danger) => iced::Color::WHITE,
+            (true, DetailActionStyle::Secondary) => theme.palette().text,
+        };
+        iced::widget::svg::Style { color: Some(color) }
+    });
+    let content =
+        row![icon, text(tr(locale, label)).size(13)].spacing(8).align_y(Alignment::Center);
 
-    let mut btn = button(content).padding([10, 14]);
+    let mut btn = button(content).padding([8, 14]);
     if let Some(message) = on_press {
         btn = btn.on_press(message);
     }
@@ -490,7 +443,7 @@ pub(super) fn detail_modal_body<'a>(app: &'a App, project_open: bool) -> Element
     let s = &app.skills_settings;
 
     if s.detail_loading {
-        return loading_banner(locale);
+        return loading_banner(tr(locale, "正在通过 gateway 同步技能目录..."));
     }
 
     if let Some(err) = &s.detail_error {
@@ -552,12 +505,11 @@ pub(super) fn detail_modal_body<'a>(app: &'a App, project_open: bool) -> Element
             column![
                 row![
                     column![
-                        text(&detail.title).size(20),
-                        text(&detail.description).size(12).style(|theme: &iced::Theme| {
-                            iced::widget::text::Style {
-                                color: Some(theme.palette().text.scale_alpha(0.7)),
-                            }
-                        }),
+                        text(&detail.title).size(17).wrapping(iced::widget::text::Wrapping::Glyph),
+                        text(&detail.description)
+                            .size(12)
+                            .wrapping(iced::widget::text::Wrapping::Glyph)
+                            .style(settings_muted_text_style),
                     ]
                     .spacing(4)
                     .width(Length::Fill),
@@ -587,7 +539,8 @@ pub(super) fn detail_modal_body<'a>(app: &'a App, project_open: bool) -> Element
                     skill_badge(detail.document_name.clone(), true),
                 ]
                 .spacing(8)
-                .align_y(Alignment::Center),
+                .align_y(Alignment::Center)
+                .wrap(),
                 detail_source_note(locale, detail.source_path.as_deref()),
             ]
             .spacing(10),
@@ -606,8 +559,9 @@ pub(super) fn detail_modal_body<'a>(app: &'a App, project_open: bool) -> Element
                         text(&detail.document_content)
                             .size(12)
                             .width(Length::Fill)
-                            .wrapping(iced::widget::text::Wrapping::Word),
+                            .wrapping(iced::widget::text::Wrapping::Glyph),
                     )
+                    .padding([0, 7])
                     .width(Length::Fill),
                 )
                 .direction(Direction::Vertical(Scrollbar::new().width(4).scroller_width(4)))
@@ -624,7 +578,7 @@ pub(super) fn detail_modal_body<'a>(app: &'a App, project_open: bool) -> Element
         .style(section_card_style);
 
         let content = column![summary]
-            .push(container(actions).width(Length::Fill))
+            .push(container(actions.wrap()).width(Length::Fill))
             .push(document)
             .spacing(14)
             .width(Length::Fill)
@@ -682,32 +636,21 @@ pub(super) fn view_overlays<'a>(app: &'a App, base: Element<'a, Message>) -> Ele
 
     let card = settings_modal_card(
         column![
-            row![
-                column![
-                    text(title).size(16),
-                    text(subtitle).size(12).style(|theme: &iced::Theme| {
-                        iced::widget::text::Style {
-                            color: Some(theme.palette().text.scale_alpha(0.62)),
-                        }
-                    }),
-                ]
-                .spacing(4)
-                .width(Length::Fill),
-                Space::new().width(Length::Shrink),
+            settings_modal_header(
+                settings_group_heading(title, subtitle),
                 settings_close_button(close_message.clone()),
-            ]
-            .spacing(10)
-            .align_y(Alignment::Center),
+            ),
             detail_modal_body(app, app.project_path.is_some()),
         ]
         .spacing(14)
         .width(Length::Fill)
         .height(Length::Fill),
     )
+    .style(super::modal_card_style)
     .width(Length::Fixed(860.0))
     .height(Length::Fixed(640.0));
 
-    settings_modal_overlay(Some(base), close_message, card)
+    settings_modal_overlay(Some(base), close_message, container(card).padding(12))
 }
 
 /// 构建或处理 `view` 对应的界面片段与交互数据。
@@ -738,9 +681,9 @@ pub(super) fn view<'a>(app: &'a App) -> Element<'a, Message> {
 
     let search_input = text_input(tr(locale, "搜索技能"), &s.query)
         .on_input(|value| Message::Settings(message::SettingsMessage::SkillsQueryChanged(value)))
-        .padding([8, 0])
-        .size(13)
-        .style(search_text_input_style)
+        .padding(SETTINGS_CONTROL_PADDING)
+        .size(SETTINGS_CONTROL_TEXT_SIZE)
+        .style(settings_text_input_style)
         .width(Length::Fill);
     let project_options = skill_project_options(app);
     let project_switcher: Element<'_, Message> = if project_options.is_empty() {
@@ -750,16 +693,12 @@ pub(super) fn view<'a>(app: &'a App) -> Element<'a, Message> {
             .into()
     } else {
         row![
-            text(tr(locale, "项目目录")).size(13).width(Length::Fixed(84.0)),
-            pick_list(project_options, app.project_path.clone(), |path| {
+            settings_field_label(tr(locale, "项目目录")),
+            settings_select(project_options, app.project_path.clone(), |path| {
                 Message::Settings(message::SettingsMessage::SkillsProjectSelected(path))
             })
             .placeholder(tr(locale, "选择项目目录"))
-            .padding([9, 12])
-            .text_size(12)
-            .width(Length::Fill)
-            .style(settings_pick_list_style)
-            .menu_style(settings_pick_list_menu_style),
+            .width(Length::Fill),
             settings_value_badge(if s.loading {
                 tr(locale, "切换中")
             } else {
@@ -793,14 +732,7 @@ pub(super) fn view<'a>(app: &'a App) -> Element<'a, Message> {
             ]
             .spacing(12)
             .align_y(Alignment::Center),
-            container(
-                row![icon_svg(Icon::Search, 14.0), search_input]
-                    .spacing(8)
-                    .align_y(Alignment::Center),
-            )
-            .padding([0, 4])
-            .width(Length::Fill)
-            .style(search_bar_style),
+            search_input,
             project_switcher,
             row![
                 scope_button(
@@ -833,7 +765,11 @@ pub(super) fn view<'a>(app: &'a App) -> Element<'a, Message> {
                     s.directory_scope,
                     true
                 ),
-                Space::new().width(Length::Fill),
+            ]
+            .spacing(8)
+            .align_y(Alignment::Center)
+            .wrap(),
+            row![
                 settings_value_badge(tr(locale, active_scope_badge(s.directory_scope))),
                 settings_value_badge(if project_open {
                     tr(locale, "项目已打开")
@@ -850,11 +786,12 @@ pub(super) fn view<'a>(app: &'a App) -> Element<'a, Message> {
                 ),
             ]
             .spacing(8)
-            .align_y(Alignment::Center),
+            .align_y(Alignment::Center)
+            .wrap(),
         ]
         .spacing(12),
     )
-    .padding([18, 20])
+    .padding([16, 18])
     .width(Length::Fill)
     .style(header_panel_style);
 
@@ -899,7 +836,8 @@ pub(super) fn view<'a>(app: &'a App) -> Element<'a, Message> {
     .width(Length::Fill);
 
     if s.loading {
-        catalog_panel = catalog_panel.push(loading_banner(locale));
+        catalog_panel =
+            catalog_panel.push(loading_banner(tr(locale, "正在通过 gateway 同步技能目录...")));
     }
 
     let workspace =

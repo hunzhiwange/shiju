@@ -208,6 +208,7 @@ fn collect_revert_plan(
 /// let session_info = revert(input).await?;
 /// ```
 pub async fn revert(input: RevertInput) -> Result<super::session::Info, Error> {
+    let _history = super::message::lock_history(&input.session_id).await;
     // 获取会话中的所有消息
     let mut all = super::message::messages(&input.session_id, None).await?;
     // 按消息 ID 排序，确保时间顺序
@@ -302,6 +303,7 @@ pub async fn revert(input: RevertInput) -> Result<super::session::Info, Error> {
 /// let session_info = unrevert("session-123").await?;
 /// ```
 pub async fn unrevert(session_id: &str) -> Result<super::session::Info, Error> {
+    let _history = super::message::lock_history(session_id).await;
     // 记录撤销回退操作日志
     LOGGER.info("unreverting", Some(extra([("sessionID", Value::String(session_id.to_string()))])));
 
@@ -355,7 +357,8 @@ pub async fn cleanup(session: &super::session::Info) -> Result<(), Error> {
         return Ok(());
     };
 
-    cleanup_after_message(session.id.as_str(), &revert.message_id).await?;
+    let _history = super::message::lock_history(&session.id).await;
+    cleanup_message_range(&session.id, &revert.message_id, false).await?;
 
     if let Some(part_id) = revert.part_id.as_deref() {
         let session_id = session.id.as_str();
@@ -386,10 +389,12 @@ pub async fn cleanup(session: &super::session::Info) -> Result<(), Error> {
 }
 
 pub async fn cleanup_from_message(session_id: &str, message_id: &str) -> Result<(), Error> {
+    let _history = super::message::lock_history(session_id).await;
     cleanup_message_range(session_id, message_id, true).await
 }
 
 pub async fn cleanup_after_message(session_id: &str, message_id: &str) -> Result<(), Error> {
+    let _history = super::message::lock_history(session_id).await;
     cleanup_message_range(session_id, message_id, false).await
 }
 

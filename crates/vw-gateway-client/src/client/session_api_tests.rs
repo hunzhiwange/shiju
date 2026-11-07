@@ -173,6 +173,29 @@ async fn session_create_and_fork_send_null_for_absent_optional_bodies() {
 }
 
 #[tokio::test]
+async fn session_fork_before_turn_serializes_boundary_and_target() {
+    use vw_api_types::session::GatewaySessionForkTarget;
+
+    let server = test_support::server(vec![(200, json!({"id": "forked"}))]);
+    let body = GatewaySessionForkBody {
+        before_turn_id: Some("msg-user".to_string()),
+        target: Some(GatewaySessionForkTarget::Worktree { name: Some("topic".to_string()) }),
+        ..Default::default()
+    };
+    let result: serde_json::Value =
+        server.client().session_fork("source", Some("/repo"), &Some(body)).await.expect("fork");
+    assert_eq!(result["id"], "forked");
+    let request = server.take_request();
+    assert_eq!(request.method, "POST");
+    assert_eq!(request.path, "/v1/session/source/fork?directory=%2Frepo");
+    assert_eq!(
+        request.body,
+        json!({"beforeTurnId":"msg-user","target":{"type":"worktree","name":"topic"}})
+    );
+    server.join();
+}
+
+#[tokio::test]
 async fn session_optional_reads_distinguish_not_found_from_server_errors() {
     let server = test_support::server(vec![
         (404, json!({"message": "missing ui"})),
@@ -594,7 +617,10 @@ async fn session_api_routes_lifecycle_messages_ui_scope_and_title_calls() {
         .session_fork(
             "s1",
             Some("/repo"),
-            &Some(GatewaySessionForkBody { message_id: Some("m1".to_string()) }),
+            &Some(GatewaySessionForkBody {
+                message_id: Some("m1".to_string()),
+                ..Default::default()
+            }),
         )
         .await
         .expect("fork");

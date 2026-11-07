@@ -1853,6 +1853,7 @@ async fn persist_stream_chat_turn_for_agent(
         metadata: None,
     });
 
+    let _history = agent_session::message::lock_history(session_id).await;
     agent_session::message::update_message(&user_info)
         .await
         .map_err(|err| ApiError::internal(err.to_string()))?;

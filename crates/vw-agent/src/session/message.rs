@@ -10,6 +10,28 @@ use crate::app::agent::bus;
 use crate::app::agent::project::instance;
 use crate::app::agent::storage;
 use serde_json::json;
+use std::collections::HashMap;
+use std::sync::{Arc, LazyLock, Mutex, Weak};
+
+type HistoryLock = tokio::sync::Mutex<()>;
+static HISTORY_LOCKS: LazyLock<Mutex<HashMap<String, Weak<HistoryLock>>>> =
+    LazyLock::new(|| Mutex::new(HashMap::new()));
+
+/// Serialize a full turn write or history edit with a fork snapshot.
+pub(crate) async fn lock_history(session_id: &str) -> tokio::sync::OwnedMutexGuard<()> {
+    let lock = {
+        let mut locks = HISTORY_LOCKS.lock().unwrap_or_else(std::sync::PoisonError::into_inner);
+        if let Some(lock) = locks.get(session_id).and_then(Weak::upgrade) {
+            lock
+        } else {
+            locks.retain(|_, lock| lock.strong_count() > 0);
+            let lock = Arc::new(HistoryLock::new(()));
+            locks.insert(session_id.to_string(), Arc::downgrade(&lock));
+            lock
+        }
+    };
+    lock.lock_owned().await
+}
 
 pub mod event {
     //! 消息存储变更事件定义。
@@ -40,6 +62,13 @@ fn instance_directory_opt() -> Option<String> {
 ///
 /// 存储写入失败会返回 session 错误；事件发布失败会被忽略，因为消息持久化才是主操作。
 pub async fn update_message(info: &Info) -> Result<(), super::session::Error> {
+    write_message(info).await?;
+    let _ = bus::publish(event::UPDATED, json!({ "info": info }), instance_directory_opt());
+    Ok(())
+}
+
+/// Persist a message for an unpublished session without emitting an event.
+pub(super) async fn write_message(info: &Info) -> Result<(), super::session::Error> {
     storage::write(
         &[
             "message",
@@ -52,7 +81,6 @@ pub async fn update_message(info: &Info) -> Result<(), super::session::Error> {
         info,
     )
     .await?;
-    let _ = bus::publish(event::UPDATED, json!({ "info": info }), instance_directory_opt());
     Ok(())
 }
 
@@ -76,10 +104,14 @@ pub async fn remove_message(
 ///
 /// part 的 message id 和 part id 会从类型自身读取，避免调用方传错索引键。
 pub async fn update_part(part: &Part) -> Result<(), super::session::Error> {
-    let message_id = part.message_id().to_string();
-    let part_id = part.id().to_string();
-    storage::write(&["part", &message_id, &part_id], part).await?;
+    write_part(part).await?;
     let _ = bus::publish(event::PART_UPDATED, json!({ "part": part }), instance_directory_opt());
+    Ok(())
+}
+
+/// Persist a part for an unpublished session without emitting an event.
+pub(super) async fn write_part(part: &Part) -> Result<(), super::session::Error> {
+    storage::write(&["part", part.message_id(), part.id()], part).await?;
     Ok(())
 }
 
@@ -105,12 +137,17 @@ pub async fn remove_part(
 /// 按 storage 前缀读取所有可解析的消息片段。
 ///
 /// 单个 part 解析失败会被跳过，避免一条损坏记录阻止整个消息渲染。
-async fn read_parts_from_prefix(prefix: &[&str]) -> Result<Vec<Part>, super::session::Error> {
+async fn read_parts_from_prefix(
+    prefix: &[&str],
+    strict: bool,
+) -> Result<Vec<Part>, super::session::Error> {
     let mut out = Vec::new();
     for key in storage::list(prefix).await? {
         let key_refs = key.iter().map(|s| s.as_str()).collect::<Vec<_>>();
-        if let Ok(p) = storage::read::<Part>(&key_refs).await {
-            out.push(p);
+        match storage::read::<Part>(&key_refs).await {
+            Ok(part) => out.push(part),
+            Err(error) if strict => return Err(error.into()),
+            Err(_) => {}
         }
     }
     Ok(out)
@@ -120,10 +157,18 @@ async fn read_parts_from_prefix(prefix: &[&str]) -> Result<Vec<Part>, super::ses
 ///
 /// 会优先读取当前布局，读不到时回退到旧布局；返回结果按 part id 排序。
 pub async fn parts(session_id: &str, message_id: &str) -> Result<Vec<Part>, super::session::Error> {
-    let mut out = read_parts_from_prefix(&["part", message_id]).await?;
+    read_parts(session_id, message_id, false).await
+}
+
+async fn read_parts(
+    session_id: &str,
+    message_id: &str,
+    strict: bool,
+) -> Result<Vec<Part>, super::session::Error> {
+    let mut out = read_parts_from_prefix(&["part", message_id], strict).await?;
 
     if out.is_empty() {
-        out = read_parts_from_prefix(&["part", session_id, message_id]).await?;
+        out = read_parts_from_prefix(&["part", session_id, message_id], strict).await?;
     }
 
     out.sort_by(|a, b| a.id().cmp(b.id()));
@@ -134,8 +179,16 @@ pub async fn parts(session_id: &str, message_id: &str) -> Result<Vec<Part>, supe
 ///
 /// 任一必要存储读取失败都会返回 session 错误。
 pub async fn get(session_id: &str, message_id: &str) -> Result<WithParts, super::session::Error> {
+    read_message(session_id, message_id, false).await
+}
+
+async fn read_message(
+    session_id: &str,
+    message_id: &str,
+    strict: bool,
+) -> Result<WithParts, super::session::Error> {
     let info = storage::read::<Info>(&["message", session_id, message_id]).await?;
-    let parts = parts(session_id, message_id).await?;
+    let parts = read_parts(session_id, message_id, strict).await?;
     Ok(WithParts { info, parts })
 }
 
@@ -146,6 +199,21 @@ pub async fn get(session_id: &str, message_id: &str) -> Result<WithParts, super:
 pub async fn messages(
     session_id: &str,
     limit: Option<usize>,
+) -> Result<Vec<WithParts>, super::session::Error> {
+    read_messages(session_id, limit, false).await
+}
+
+/// Read native history for a fork while the caller holds the history lock.
+pub(super) async fn fork_snapshot(
+    session_id: &str,
+) -> Result<Vec<WithParts>, super::session::Error> {
+    read_messages(session_id, None, true).await
+}
+
+async fn read_messages(
+    session_id: &str,
+    limit: Option<usize>,
+    strict: bool,
 ) -> Result<Vec<WithParts>, super::session::Error> {
     let mut keys = storage::list(&["message", session_id]).await?;
     keys.sort();
@@ -160,7 +228,7 @@ pub async fn messages(
             continue;
         }
         let msg_id = key[2].clone();
-        match get(session_id, &msg_id).await {
+        match read_message(session_id, &msg_id, strict).await {
             Ok(msg) => out.push(msg),
             Err(error) if limit.is_none() => return Err(error),
             Err(_) => {}

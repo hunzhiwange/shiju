@@ -441,6 +441,7 @@ async fn persist_turn(
                     time: Some(message::PartTime { start: now, end: Some(now) }),
                     metadata: None,
                 });
+                let _history = message::lock_history(&session_id).await;
                 message::update_message(&user_info)
                     .await
                     .map_err(|error| BackendError::Internal(error.to_string()))?;

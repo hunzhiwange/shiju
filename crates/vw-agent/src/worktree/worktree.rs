@@ -17,6 +17,8 @@ mod ops;
 mod types;
 
 pub use ops::{create, list_directories, remove, reset};
+#[cfg(not(target_arch = "wasm32"))]
+pub(crate) use ops::{create_fork_checkout, remove_fork_checkout};
 pub use types::{CreateInput, Error, Info, RemoveInput, ResetInput};
 
 #[cfg(test)]

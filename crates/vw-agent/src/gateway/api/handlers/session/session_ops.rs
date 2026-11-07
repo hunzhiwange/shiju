@@ -12,9 +12,10 @@ use axum::extract::Query;
 use axum::extract::State;
 use axum::http::HeaderMap;
 use vw_api_types::session::{
-    GatewaySessionDiffQuery, GatewaySessionForkBody, GatewaySessionPatchBody,
-    GatewaySessionResetBody, GatewaySessionSummarizeBody, GatewaySessionTitleGenerateBody,
-    GatewaySessionTitleGenerateResponse, GatewaySessionTodoPutBody,
+    GatewaySessionDiffQuery, GatewaySessionForkBody, GatewaySessionForkTarget,
+    GatewaySessionPatchBody, GatewaySessionResetBody, GatewaySessionSummarizeBody,
+    GatewaySessionTitleGenerateBody, GatewaySessionTitleGenerateResponse,
+    GatewaySessionTodoPutBody,
 };
 
 use super::shared::{
@@ -28,6 +29,7 @@ use crate::app::agent::gateway::chat::{
 };
 use crate::app::agent::gateway::instance::InstanceQuery;
 use crate::app::agent::gateway::instance::resolve_directory;
+use crate::app::agent::project::{self, instance};
 use crate::app::agent::session as agent_session;
 use crate::app::agent::snapshot;
 use crate::session::runtime::{CreateSessionInput, SessionScope, create_session, load_session};
@@ -394,6 +396,27 @@ pub(super) async fn session_fork(
     let tenant = ui_store::current_tenant_scope();
     let dir = resolve_directory(&query, &headers);
     let body = body.unwrap_or_default();
+    if let Some(boundary) = body.before_turn_id {
+        if body.message_id.is_some() {
+            return Err(ApiError::bad_request("beforeTurnId and messageID are mutually exclusive"));
+        }
+        if boundary.trim().is_empty() {
+            return Err(ApiError::bad_request("beforeTurnId must be a persisted user message ID"));
+        }
+        let directory = has_explicit_directory(&query, &headers).then_some(dir);
+        let target = body.target.unwrap_or(GatewaySessionForkTarget::SameDirectory);
+        // A disconnected HTTP client must not cancel the operation between writes and cleanup.
+        let result = tokio::spawn(ui_store::with_tenant_scope(
+            tenant.clone(),
+            fork_before_turn(tenant, directory, session_id, boundary, target),
+        ))
+        .await
+        .map_err(|error| ApiError::internal(error.to_string()))??;
+        return Ok(Json(result));
+    }
+    if body.target.is_some() {
+        return Err(ApiError::bad_request("a fork target requires beforeTurnId"));
+    }
     let session_id_for_fork = session_id.clone();
 
     let result = with_tenant_instance(tenant, dir, move || {
@@ -559,6 +582,70 @@ pub(super) async fn session_title_generate(
     .await
     .map_err(ApiError::bad_request)?;
     Ok(Json(GatewaySessionTitleGenerateResponse { title }))
+}
+
+async fn fork_before_turn(
+    tenant: vw_api_types::id::TenantScope,
+    directory: Option<String>,
+    session_id: String,
+    boundary: String,
+    target: GatewaySessionForkTarget,
+) -> Result<agent_session::session::Info, ApiError> {
+    let directory = match directory {
+        Some(directory) => directory,
+        None => {
+            agent_session::session::get_any(&session_id).await.map_err(session_api_error)?.directory
+        }
+    };
+    let (project, worktree) = project::from_directory(&tenant, &directory)
+        .await
+        .map_err(|error| ApiError::bad_request(error.to_string()))?;
+    let context = instance::Context { directory, worktree, project };
+    instance::provide_context(context.clone(), async move {
+        let fork = agent_session::session::TurnFork::prepare(&session_id, &boundary)
+            .await
+            .map_err(|error| ApiError::bad_request(error.to_string()))?;
+        match target {
+            GatewaySessionForkTarget::SameDirectory => {
+                let context = instance::Context { directory: fork.source_directory().to_owned(), ..context };
+                instance::provide_context(context, fork.persist())
+                    .await
+                    .map_err(|error| ApiError::internal(error.to_string()))
+            }
+            GatewaySessionForkTarget::Worktree { name } => {
+                #[cfg(target_arch = "wasm32")]
+                {
+                    let _ = name;
+                    Err(ApiError::bad_request("worktree targets are unavailable on WASM"))
+                }
+                #[cfg(not(target_arch = "wasm32"))]
+                {
+                    use crate::worktree;
+
+                    let checkout = worktree::create_fork_checkout(name.as_deref())
+                        .await
+                        .map_err(|error| ApiError::bad_request(error.to_string()))?;
+                    let result = async {
+                        let (project, worktree) = project::from_directory(&tenant, &checkout.directory)
+                            .await
+                            .map_err(|error| ApiError::internal(error.to_string()))?;
+                        let context = instance::Context { directory: worktree.clone(), worktree, project };
+                        instance::provide_context(context, fork.persist())
+                            .await
+                            .map_err(|error| ApiError::internal(error.to_string()))
+                    }
+                    .await;
+                    if result.is_err()
+                        && let Err(error) = worktree::remove_fork_checkout(checkout.directory).await
+                    {
+                        tracing::warn!(%error, "failed to remove worktree after session fork failure");
+                    }
+                    result
+                }
+            }
+        }
+    })
+    .await
 }
 
 #[cfg(test)]

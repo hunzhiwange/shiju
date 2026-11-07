@@ -100,6 +100,7 @@ pub(super) async fn session_message_part_delete(
     let dir = resolve_directory(&query, &headers);
     with_tenant_instance(crate::session::ui_store::current_tenant_scope(), dir, move || {
         Box::pin(async move {
+            let _history = agent_session::message::lock_history(&session_id).await;
             agent_session::message::remove_part(&session_id, &message_id, &part_id)
                 .await
                 .map_err(|e| ApiError::bad_request(e.to_string()))?;
@@ -147,6 +148,7 @@ pub(super) async fn session_message_part_patch(
     let saved =
         with_tenant_instance(crate::session::ui_store::current_tenant_scope(), dir, move || {
             Box::pin(async move {
+                let _history = agent_session::message::lock_history(&session_id).await;
                 agent_session::message::update_part(&part)
                     .await
                     .map_err(|e| ApiError::bad_request(e.to_string()))?;

@@ -43,6 +43,10 @@ use crate::app::agent::storage;
 use crate::app::agent::util::log;
 use std::sync::LazyLock;
 
+#[path = "turn_fork.rs"]
+mod turn_fork;
+pub(crate) use turn_fork::TurnFork;
+
 use serde_json::{Map, Value, json};
 use std::fmt;
 
@@ -367,24 +371,7 @@ fn instance_directory_opt() -> Option<String> {
 /// }
 /// ```
 pub async fn create_next(input: CreateInput) -> Result<Info, Error> {
-    let now = now_ms();
-    let project_id = project_id()?;
-    let id = id::descending(id::Prefix::Session, None)?;
-
-    let info = Info {
-        id: id.clone(),
-        slug: create_slug(),
-        project_id: project_id.clone(),
-        directory: input.directory.clone(),
-        parent_id: input.parent_id.clone(),
-        summary: None,
-        share: None,
-        title: input.title.unwrap_or_else(|| create_default_title(input.parent_id.is_some())),
-        version: installation::version(),
-        time: TimeInfo { created: now, updated: now, compacting: None, archived: None },
-        permission: input.permission,
-        revert: None,
-    };
+    let info = new_info(input)?;
 
     // 记录创建日志
     LOGGER.info(
@@ -396,15 +383,41 @@ pub async fn create_next(input: CreateInput) -> Result<Info, Error> {
         ])),
     );
 
-    // 持久化到存储层
+    persist_info(&info).await?;
+
+    // 发布创建事件
+    let _ = bus::publish(event::CREATED, json!({ "info": info }), instance_directory_opt());
+    get(&info.id).await
+}
+
+fn new_info(input: CreateInput) -> Result<Info, Error> {
+    let now = now_ms();
+    let project_id = project_id()?;
+    let title = input.title.unwrap_or_else(|| create_default_title(input.parent_id.is_some()));
+    Ok(Info {
+        id: id::descending(id::Prefix::Session, None)?,
+        slug: create_slug(),
+        project_id,
+        directory: input.directory,
+        parent_id: input.parent_id,
+        summary: None,
+        share: None,
+        title,
+        version: installation::version(),
+        time: TimeInfo { created: now, updated: now, compacting: None, archived: None },
+        permission: input.permission,
+        revert: None,
+    })
+}
+
+async fn persist_info(info: &Info) -> Result<(), Error> {
     let tenant = crate::session::ui_store::current_tenant_scope();
     let save_info = info.clone();
-    let save_project_id = project_id.clone();
     crate::global_database::run_isolated(move || {
         crate::session::ui_store::save_agent_session_scoped_for_tenant(
             &tenant,
             &save_info,
-            Some(&save_project_id),
+            Some(&save_info.project_id),
         )
     })
     .await?
@@ -414,9 +427,7 @@ pub async fn create_next(input: CreateInput) -> Result<Info, Error> {
         }))
     })?;
 
-    // 发布创建事件
-    let _ = bus::publish(event::CREATED, json!({ "info": info }), instance_directory_opt());
-    Ok(get(&id).await?)
+    Ok(())
 }
 
 /// 获取会话信息
@@ -720,6 +731,7 @@ pub async fn update_any(session_id: &str, f: impl FnOnce(&mut Info)) -> Result<I
 /// - `Ok(())`: 删除成功
 /// - `Err(Error)`: 删除失败
 pub async fn remove(session_id: &str) -> Result<(), Error> {
+    let _history = super::message::lock_history(session_id).await;
     let project_id = project_id()?;
     let tenant = crate::session::ui_store::current_tenant_scope();
     // 先读取会话信息（用于事件发布）
@@ -780,6 +792,7 @@ pub async fn remove(session_id: &str) -> Result<(), Error> {
 /// - `Ok(())`: 删除成功
 /// - `Err(Error)`: 会话不存在或删除失败
 pub async fn remove_any(session_id: &str) -> Result<(), Error> {
+    let _history = super::message::lock_history(session_id).await;
     let tenant = crate::session::ui_store::current_tenant_scope();
     let session_id = session_id.to_string();
     let Some(info) = crate::global_database::run_isolated({
@@ -937,6 +950,7 @@ pub(crate) async fn fork_with_parent(
         permission: original.permission.clone(),
     })
     .await?;
+    let _history = super::message::lock_history(&created.id).await;
 
     if let Some(binding) = binding {
         crate::session::agent_binding::save_scoped(&created.project_id, &created.id, &binding)

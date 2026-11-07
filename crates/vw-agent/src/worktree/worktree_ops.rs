@@ -35,26 +35,8 @@ pub async fn create(input: Option<CreateInput>) -> Result<Info, Error> {
         return Err(Error::MissingProject("missing project id".to_string()));
     }
 
-    let root = worktree_root(&project)?;
-    tokio::fs::create_dir_all(&root).await?;
-
-    let base = input.as_ref().and_then(|value| value.name.as_deref()).map(slug).unwrap_or_default();
     let info =
-        candidate(&root, if base.trim().is_empty() { None } else { Some(base.as_str()) }).await?;
-
-    let primary = instance::worktree();
-    if primary.trim().is_empty() {
-        return Err(Error::MissingProject("missing instance worktree".to_string()));
-    }
-
-    let created = run_git(
-        &["worktree", "add", "--no-checkout", "-b", &info.branch, &info.directory],
-        &primary,
-    )
-    .await?;
-    if !created.success {
-        return Err(Error::Invalid(created.error_text("Failed to create git worktree")));
-    }
+        add_worktree(&project, input.as_ref().and_then(|input| input.name.as_deref())).await?;
 
     if let Ok(scope) = project::project_scope_for_default_tenant(project_id.as_str()) {
         let _ = project::add_sandbox(&scope, &info.directory).await;
@@ -111,6 +93,56 @@ pub async fn create(input: Option<CreateInput>) -> Result<Info, Error> {
     Ok(info)
 }
 
+#[cfg(not(target_arch = "wasm32"))]
+async fn add_worktree(project: &project::Info, name: Option<&str>) -> Result<Info, Error> {
+    let root = worktree_root(project)?;
+    tokio::fs::create_dir_all(&root).await?;
+    let base = name.map(slug).filter(|base| !base.trim().is_empty());
+    let info = candidate(&root, base.as_deref()).await?;
+
+    let primary = instance::worktree();
+    if primary.trim().is_empty() {
+        return Err(Error::MissingProject("missing instance worktree".to_string()));
+    }
+    let created = run_git(
+        &["worktree", "add", "--no-checkout", "-b", &info.branch, &info.directory],
+        &primary,
+    )
+    .await?;
+    if !created.success {
+        return Err(Error::Invalid(created.error_text("Failed to create git worktree")));
+    }
+    Ok(info)
+}
+
+/// Prepare a checked-out worktree before a fork can be published.
+#[cfg(not(target_arch = "wasm32"))]
+pub(crate) async fn create_fork_checkout(name: Option<&str>) -> Result<Info, Error> {
+    let project = ensure_git_project()?;
+    let info = add_worktree(&project, name).await?;
+    let populated = run_git(&["reset", "--hard"], &info.directory).await.and_then(|result| {
+        if result.success {
+            Ok(())
+        } else {
+            Err(Error::Invalid(result.error_text("Failed to populate worktree")))
+        }
+    });
+    if let Err(error) = populated {
+        if let Err(cleanup) = remove_fork_checkout(info.directory).await {
+            tracing::warn!(%cleanup, "failed to clean up a fork checkout");
+        }
+        return Err(error);
+    }
+    Ok(info)
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+pub(crate) async fn remove_fork_checkout(directory: String) -> Result<(), Error> {
+    let tenant = crate::session::ui_store::current_tenant_scope();
+    remove_for_tenant(RemoveInput { directory, force: true }, tenant).await?;
+    Ok(())
+}
+
 /// 删除 worktree（WASM 平台实现）
 ///
 /// Web 版本不支持 worktree 功能
@@ -122,6 +154,15 @@ pub async fn remove(_input: RemoveInput) -> Result<bool, Error> {
 /// 删除 worktree（原生平台实现）
 #[cfg(not(target_arch = "wasm32"))]
 pub async fn remove(input: RemoveInput) -> Result<bool, Error> {
+    remove_for_tenant(input, project::default_tenant_scope()).await
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+async fn remove_for_tenant(
+    input: RemoveInput,
+    tenant: vw_api_types::id::TenantScope,
+) -> Result<bool, Error> {
+    use vw_api_types::id::{ProjectId, ProjectScope};
     let project = ensure_git_project()?;
     let project_id = project.id.clone();
     let primary = instance::worktree();
@@ -160,7 +201,7 @@ pub async fn remove(input: RemoveInput) -> Result<bool, Error> {
         }
     }
 
-    if let Ok(scope) = project::project_scope_for_default_tenant(project_id.as_str()) {
+    if let Ok(scope) = ProjectScope::new(tenant, ProjectId::from(project_id.as_str())) {
         let _ = project::remove_sandbox(&scope, &entry.path).await;
     }
     Ok(true)

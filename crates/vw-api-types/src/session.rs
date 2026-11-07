@@ -239,6 +239,26 @@ pub struct GatewaySessionForkBody {
     /// 作为分叉起点的消息 ID。
     #[serde(rename = "messageID", default, skip_serializing_if = "Option::is_none")]
     pub message_id: Option<String>,
+    /// 在此持久化用户轮次之前分叉。与 `messageID` 互斥。
+    #[serde(default, rename = "beforeTurnId", skip_serializing_if = "Option::is_none")]
+    pub before_turn_id: Option<String>,
+    /// 省略时使用源会话目录。
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub target: Option<GatewaySessionForkTarget>,
+}
+
+/// 按轮次分叉的目标目录。
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(tag = "type", rename_all = "camelCase")]
+pub enum GatewaySessionForkTarget {
+    /// 使用源会话目录。
+    SameDirectory,
+    /// 使用源目录的 Git HEAD 创建并检出新工作树。
+    Worktree {
+        /// 工作树名称。省略时自动生成。
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        name: Option<String>,
+    },
 }
 
 /// 网关重置会话请求体。

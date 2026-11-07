@@ -203,6 +203,7 @@ pub async fn load_session(
     project::instance::provide(directory, None, move || {
         Box::pin(async move {
             ui_store::with_tenant_scope(tenant, async move {
+                let _history = message::lock_history(&session_id).await;
                 let info = load_info_for_scope(&scope, &expected_project_id, &session_id).await?;
                 #[cfg(not(target_arch = "wasm32"))]
                 let dynamic_tools =

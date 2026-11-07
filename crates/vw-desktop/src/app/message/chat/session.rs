@@ -1820,6 +1820,7 @@ pub fn update(app: &mut App, message: ChatMessage) -> Task<Message> {
                                     root.as_deref(),
                                     &Some(vw_gateway_client::GatewaySessionForkBody {
                                         message_id: Some(message_id),
+                                        ..Default::default()
                                     }),
                                 )
                                 .await
@@ -1837,6 +1838,7 @@ pub fn update(app: &mut App, message: ChatMessage) -> Task<Message> {
                                         Some(worktree_directory.as_str()),
                                         &Some(vw_gateway_client::GatewaySessionForkBody {
                                             message_id: Some(message_id),
+                                            ..Default::default()
                                         }),
                                     )
                                     .await

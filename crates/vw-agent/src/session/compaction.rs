@@ -172,6 +172,7 @@ fn instance_directory_opt() -> Option<String> {
 /// }
 /// ```
 pub async fn prune(session_id: &str) -> Result<(), crate::app::agent::session::session::Error> {
+    let _history = message::lock_history(session_id).await;
     let _cfg = config::get().await;
 
     // 加载会话的所有消息
@@ -679,6 +680,7 @@ pub struct CreateInput {
 /// create(input).await?;
 /// ```
 pub async fn create(input: CreateInput) -> Result<(), crate::app::agent::session::session::Error> {
+    let _history = message::lock_history(&input.session_id).await;
     // 生成压缩请求消息的 ID
     let msg_id = id::ascending(id::Prefix::Message, None)?;
 

@@ -1,11 +1,12 @@
 /// 直接透出网关会话相关类型，避免调用方重复依赖 vw-api-types。
 pub use vw_api_types::session::{
     GatewaySessionCreateBody, GatewaySessionDiffQuery, GatewaySessionForkBody,
-    GatewaySessionMessageDeltaResponse, GatewaySessionMessageListQuery, GatewaySessionMessagePage,
-    GatewaySessionMessagePageQuery, GatewaySessionPatchBody, GatewaySessionPatchTime,
-    GatewaySessionResetBody, GatewaySessionScopeBody, GatewaySessionSummarizeBody,
-    GatewaySessionTitleGenerateBody, GatewaySessionTitleGenerateResponse, GatewaySessionTodoItem,
-    GatewaySessionTodoPutBody, GatewaySessionUiSummary, SessionMessagePageDirection,
+    GatewaySessionForkTarget, GatewaySessionMessageDeltaResponse, GatewaySessionMessageListQuery,
+    GatewaySessionMessagePage, GatewaySessionMessagePageQuery, GatewaySessionPatchBody,
+    GatewaySessionPatchTime, GatewaySessionResetBody, GatewaySessionScopeBody,
+    GatewaySessionSummarizeBody, GatewaySessionTitleGenerateBody,
+    GatewaySessionTitleGenerateResponse, GatewaySessionTodoItem, GatewaySessionTodoPutBody,
+    GatewaySessionUiSummary, SessionMessagePageDirection,
 };
 
 #[deprecated(note = "use GatewaySessionCreateBody")]

@@ -146,6 +146,7 @@ fn worktree_path() -> PathBuf {
 /// - 快照差异计算失败
 /// - LLM 标题生成失败
 pub async fn summarize(input: SummarizeInput) -> Result<(), Error> {
+    let _history = super::message::lock_history(&input.session_id).await;
     // 获取会话中的所有消息
     let mut all = super::message::messages(&input.session_id, None).await?;
     // 按消息ID排序，确保时序正确

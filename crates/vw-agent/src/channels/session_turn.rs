@@ -70,6 +70,7 @@ pub(super) async fn persist_channel_turn(
         variant: route.reasoning_effort.clone(),
         finish: Some("stop".into()),
     }));
+    let _history = message::lock_history(&id).await;
     for (info, text) in [(&user, msg.content.as_str()), (&assistant, response)] {
         message::update_message(info).await?;
         message::update_part(&message::Part::Text(message::TextPart {

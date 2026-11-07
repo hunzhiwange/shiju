@@ -618,17 +618,19 @@ async fn session_ops_cover_lifecycle_filters_and_instance_boundaries() {
     assert_eq!(forked.title, "Alpha Renamed (fork #1)");
     assert_eq!(forked.directory, project_a_path.to_string_lossy());
 
-    let Json(forked_with_message) = session_fork(
+    let fork_error = session_fork(
         State(state()),
         Path(root.id.clone()),
         Query(query_for(project_a_path)),
         HeaderMap::new(),
-        Json(Some(GatewaySessionForkBody { message_id: Some("missing-message".to_string()) })),
+        Json(Some(GatewaySessionForkBody {
+            message_id: Some("missing-message".to_string()),
+            ..Default::default()
+        })),
     )
     .await
-    .expect("fork with message id should succeed for empty history");
-    assert_eq!(forked_with_message.title, "Alpha Renamed (fork #1)");
-    assert_eq!(forked_with_message.directory, project_a_path.to_string_lossy());
+    .expect_err("unknown legacy message boundary should be rejected");
+    assert_eq!(fork_error.status, axum::http::StatusCode::BAD_REQUEST);
 
     let Json(deleted) = ui_session_delete(
         State(state()),
@@ -644,16 +646,6 @@ async fn session_ops_cover_lifecycle_filters_and_instance_boundaries() {
             .await
             .is_err()
     );
-
-    let Json(deleted_fork_with_message) = ui_session_delete(
-        State(state()),
-        Path(forked_with_message.id.clone()),
-        Query(query_for(project_a_path)),
-        HeaderMap::new(),
-    )
-    .await
-    .expect("scoped delete should remove fork with message");
-    assert!(deleted_fork_with_message);
 
     let Json(deleted_other) = ui_session_delete(
         State(state()),
@@ -738,3 +730,6 @@ async fn session_ops_cover_diff_summary_reset_and_title_errors() {
     .await;
     assert!(title_result.is_err());
 }
+
+#[path = "turn_fork_tests.rs"]
+mod turn_fork_tests;

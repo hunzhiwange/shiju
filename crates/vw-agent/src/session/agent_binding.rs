@@ -132,6 +132,81 @@ pub(crate) async fn save_scoped(
     .await?
 }
 
+/// Immutable agent binding and the persisted session permission choice.
+pub(super) struct ForkSettings {
+    binding: Option<AgentBinding>,
+    full_access: Option<bool>,
+}
+
+impl ForkSettings {
+    pub(super) async fn load(project: &str, session: &str) -> Result<Self> {
+        let key = storage_key(project, session)?;
+        let tenant = crate::session::ui_store::current_tenant_scope();
+        crate::global_database::run_isolated(move || {
+            let store = store()?;
+            Ok(Self {
+                binding: store
+                    .get(&tenant, "session.agent-binding", &key)?
+                    .as_deref()
+                    .map(serde_json::from_str)
+                    .transpose()?,
+                full_access: store
+                    .get(&tenant, "session.full-access", &key)?
+                    .as_deref()
+                    .map(serde_json::from_str)
+                    .transpose()?,
+            })
+        })
+        .await?
+    }
+
+    pub(super) async fn save(&self, project: &str, session: &str) -> Result<()> {
+        let key = storage_key(project, session)?;
+        let tenant = crate::session::ui_store::current_tenant_scope();
+        let binding = self.binding.clone();
+        let full_access = self.full_access;
+        crate::global_database::run_isolated(move || {
+            let store = store()?;
+            if let Some(binding) = binding {
+                store.upsert(
+                    &tenant,
+                    "session.agent-binding",
+                    &key,
+                    &serde_json::to_string(&binding)?,
+                )?;
+            }
+            if let Some(full_access) = full_access {
+                store.upsert(
+                    &tenant,
+                    "session.full-access",
+                    &key,
+                    &serde_json::to_string(&full_access)?,
+                )?;
+            }
+            Ok(())
+        })
+        .await?
+    }
+
+    pub(super) async fn remove(&self, project: &str, session: &str) -> Result<()> {
+        let key = storage_key(project, session)?;
+        let tenant = crate::session::ui_store::current_tenant_scope();
+        let has_binding = self.binding.is_some();
+        let has_full_access = self.full_access.is_some();
+        crate::global_database::run_isolated(move || {
+            let store = store()?;
+            if has_binding {
+                store.delete(&tenant, "session.agent-binding", &key)?;
+            }
+            if has_full_access {
+                store.delete(&tenant, "session.full-access", &key)?;
+            }
+            Ok(())
+        })
+        .await?
+    }
+}
+
 // Persist the session choice separately from the immutable agent defaults snapshot.
 static FULL_ACCESS: tokio::sync::Mutex<()> = tokio::sync::Mutex::const_new(());
 

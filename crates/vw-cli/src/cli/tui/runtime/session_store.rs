@@ -107,6 +107,7 @@ impl GatewayUiRuntime {
         let session_id = self.resolve_session_id(None)?;
         let body = Some(GatewaySessionForkBody {
             message_id: normalize_optional_str_ref(message_id).map(ToOwned::to_owned),
+            ..Default::default()
         });
         let directory = self.directory_value();
         let info: UiSessionMutationInfo =

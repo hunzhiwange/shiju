@@ -54,3 +54,7 @@ mod desktop_tests;
 pub(crate) mod endpoints;
 #[cfg(test)]
 mod endpoints_tests;
+
+pub(crate) mod icons;
+#[cfg(test)]
+mod icons_tests;

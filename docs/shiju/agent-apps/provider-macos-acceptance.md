@@ -3100,3 +3100,53 @@ macOS **27.0（26A428）/ arm64**，桌面 **0.6.0**。两种主题均实际操�
 - 浅色：[端点失败](evidence/task-68/light-endpoint-failure.png)、[完整 URL 与服务时间](evidence/task-68/light-full-url-used.png)、[请求覆盖失败](evidence/task-68/light-options-failure.png)、[保存状态](evidence/task-68/light-options-saved.png)、[取消重开](evidence/task-68/light-cancel-reopened.png)。
 
 真实第三方应用版本/账号、上游网络、普通头原生投影、代理消费和非 macOS 平台均未验收。截图中的时间及 HTTP 返回属于显式窗口 fixture；真实服务时间/权限/持久化由上述 Gateway 测试证明。差异检查通过，只提交任务实现、独立测试、夹具和本条正式证据；其它会话设置/终端改动及编号任务状态不纳入提交。下一步批次 69 与计划统一回归。
+
+## 任务 69：桌面图标库选择
+
+2026-11-07。核对批次 68 的提交 `699f1ef40` 和本文件验收条目，图标库及供应商图标由批次 9 提供，原生窗口入口由批次 52 提供。母任务 1、3 已完成；母任务 2 继续按底座子计划 1–93 的既有裁定消费已验收接口，不把裁定当作母任务 2 整体完成。只读 `plan.md` 无差异。
+
+### 来源、实现与边界
+
+- 冻结上游 `ca58c0313360eae7c851fbd7553c1614c7af03e7`，状态干净。已读 `BasicFormFields::handleIconSelect`、ProviderForm 的调用、IconPicker 的命名、上传和删除逻辑、相邻 BasicFormFields/IconPicker 测试，以及 `commands/custom_icon.rs::{get_custom_icons,add_custom_icon,rename_custom_icon,delete_custom_icon}`、SDK 调用与相邻服务测试。
+- 桌面 `app/{components,state,message}/app_providers/icons.rs` 从供应商列表的「图标」入口打开统一弹窗。对已保存的档案可预览当前和待保存图标、从库选择、清除、保存、取消。使用原生文件选择器读取用户主动选中的 PNG，读取有上限；素材和名称的业务校验由执行端处理，拒绝时显示 SDK 服务错误并保留草稿，可替换素材或修改名称再试。图标库上传、重命名和确认删除与供应商选择分开保存。
+- 复用 `custom_icons_list/custom_icon_add/custom_icon_rename/custom_icon_delete` 对应 `GET/POST /v1/agent-apps/custom-icons`、`PATCH/DELETE /v1/agent-apps/custom-icons/{id}`；复用 `app_provider_icon/app_provider_icon_change` 对应 `GET/PUT /v1/app-providers/{app}/{id}/icon`。没有新增 DTO、路由、权限、持久化或原生应用事务。回包校验当前网关、租户、项目、执行主机、应用和请求代次。删除后重读库及供应商图标，剔除失效草稿，已保存 PNG 副本保留。范围是已保存档案和共享自定义 PNG 库，不扩充内置图标键或首次激活事务。
+- 弹窗、输入、操作按钮和 toast 复用统一设置组件；标题和操作区固定，内容纵向滚动，滚动条 4px、两侧各 7px。中文和动态文字使用默认字体。预览只将尺寸受限的内联 PNG 交给渲染器。
+
+### SDK、服务与执行端证据
+
+桌面红/绿用例通过真实 SDK 和回环 HTTP 检查服务拒绝的响应与草稿状态，及删除后库列表和供应商当前图标两次回读的结果。Gateway 既有回归重新执行：正式 SDK→正式路由和租户边界→临时 SQLite 文件。PNG 上传/去重、改名、选择、删除与清除的响应和重开数据库结果一致；删除库条目后已保存 PNG 副本仍可读取，跨租户引用、无权限和非法 PNG 被拒且无写入，既有原生文件内容未改变。仅使用假凭据和隔离文件。
+
+### 验证记录
+
+每阶段用原子 `mkdir` 动态领取槽位，写入计划、任务、会话及 PID。对应的 `CARGO_TARGET_DIR` 与 `CARGO_BUILD_BUILD_DIR` 相同；Cargo 及窗口退出后释放自己的锁并保留缓存。
+
+| 槽位 | CARGO_TARGET_DIR | 用途 |
+| --- | --- | --- |
+| 1 | `/Users/xiangmin/worker/code/shiju/target/rust-slot-1` | 格式化、桌面红/绿、Clippy、最终明暗窗口 |
+| 2 | `/Users/xiangmin/worker/code/shiju/target/rust-slot-2` | Gateway 和 SQLite 回归 |
+| 4 | `/Users/xiangmin/worker/code/shiju/target/rust-slot-4` | 初次深色窗口完整操作 |
+
+| 确切命令 | 退出码 | 证据 |
+| --- | --- | --- |
+| `cargo fmt --all` | 0 | Rust 改动后执行 |
+| `cargo test -p vw-desktop --lib cc04_ui_icons_ -- --nocapture`（红） | 101 | 0 passed / 2 failed；错误提示未含服务原因，删除后旧条目仍显示，均为业务断言 |
+| 同一桌面命令（最终绿） | 0 | **2 passed**：`cc04_ui_icons_failed_upload_keeps_form`、`cc04_ui_icons_delete_refreshes_references` |
+| `cargo test -p vw-agent --lib cc04_icons_ -- --nocapture` | 0 | 2 passed；正式 SDK 与 SQLite 持久化、权限和副本 |
+| `cargo test -p vw-agent --lib cc_base_icon_ -- --nocapture` | 101 | 17 passed / 14 failed；失败均为未配置 `VIBEWINDOW_TEST_POSTGRES_URL` |
+| `cargo test -p vw-agent --lib cc_base_icon_ -- --nocapture --skip postgres` | 0 | 17 passed；SQLite、输入拒绝、权限及错误边界 |
+| `cargo clippy --all-targets --all-features -- -D warnings` | 0 | 最终严格检查通过 |
+| `SHIJU_CC04_WINDOW_CASE=icons SHIJU_CC04_WINDOW_THEME=dark cargo test -p vw-desktop --test cc04-provider-window` | 0 | 深色窗口实际操作、绘制和关闭 |
+| `SHIJU_CC04_WINDOW_CASE=icons SHIJU_CC04_WINDOW_THEME=light cargo test -p vw-desktop --test cc04-provider-window` | 0 | 浅色窗口实际操作、绘制和关闭 |
+
+有效行为测试去重 **21 项**（桌面 2 项，执行端 19 项）。早期桌面绿测两次退出 101，分别因并行设置控件的 E0609 和 E0502，未执行行为测试；两处由所属改动修复。另一次复验退出 101 是 macOS 测试夹具接受连接后继承非阻塞状态；显式切换已接受的 socket 为阻塞模式后，两项均通过。未运行全量测试、fmt check、wasm 检查或 Makefile。PostgreSQL 实际服务未验收。
+
+### macOS 原生窗口
+
+macOS **27.0（26A428）/ arm64**，桌面 **0.6.0**。`icons` case 通过批次 52 的原生入口打开实际供应商列表和图标弹窗；临时 runner 只把同一槽位的窗口产物包装成可识别的 app bundle。回环 fixture 只代替服务响应，桌面组件、文件选择器、Message 和 SDK 走实际路径；未读写真实用户配置或访问外部上游。
+
+- 深色：上传无效 PNG → 显示 400 并保留中文名称 → 换成有效 PNG → 上传并保存供应商图标 → 重命名并滚到库尾 → 选择另一素材但取消 → 重开核对保留原图标及改名 → 删除库条目并观察供应商副本仍在 → 显式清除。调整错误文字对比后重验失败状态；窗口正常关闭。截图：[服务错误](evidence/task-69/dark-invalid.jpg)、[保存](evidence/task-69/dark-saved.jpg)、[滚动](evidence/task-69/dark-scroll.jpg)、[取消重开与已改名条目](evidence/task-69/dark-cancel-reopened.jpg)、[删除后保留副本](evidence/task-69/dark-deleted.jpg)、[清除](evidence/task-69/dark-cleared.jpg)。
+- 浅色：上传无效 PNG 并保留草稿 → 返回 → 从已有库选择图标并保存 → 清除草稿后取消并重开，原图标仍在 → 滚动 12 条动态素材 → 删除原库条目，确认副本保留 → 关闭。截图：[服务错误](evidence/task-69/light-invalid.jpg)、[保存](evidence/task-69/light-saved.jpg)、[取消重开](evidence/task-69/light-cancel-reopened.jpg)、[滚动](evidence/task-69/light-scroll.jpg)、[删除后保留副本](evidence/task-69/light-deleted.jpg)。
+
+两种主题均实际绘制中文名称、动态错误、预览和长列表，无字形整形 panic；日志只有既有链接器 unwind 和 macOS sandbox extension 提示。非 macOS、真实第三方账号和原生应用激活未验收。仅提交任务 69 的实现、测试、窗口夹具和本条证据，保留并行工作区改动；本任务槽位锁均已清理，缓存保留。
+
+状态：**已完成**。下一步：批次 70。

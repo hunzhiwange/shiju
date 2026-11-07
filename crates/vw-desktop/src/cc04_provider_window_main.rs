@@ -4,6 +4,7 @@ mod app;
 mod apps;
 mod cc04_desktop_fixture;
 mod cc04_endpoints_fixture;
+mod cc04_icons_fixture;
 mod desktop_update_helper;
 mod fonts;
 use app::message::app_providers::list::{ListMessage, message};
@@ -13,7 +14,7 @@ use vw_gateway_client::vw_api_types::agent_apps::AppId;
 fn main() {
     let case = std::env::var("SHIJU_CC04_WINDOW_CASE").expect("window case");
     let (app, native_form) = match case.as_str() {
-        "list" | "edit" | "endpoints" => (AppId::Claude, false),
+        "list" | "edit" | "endpoints" | "icons" => (AppId::Claude, false),
         "claude" => (AppId::Claude, true),
         "codex" => (AppId::Codex, true),
         "gemini" => (AppId::Gemini, true),
@@ -36,7 +37,7 @@ fn main() {
         Ok("light") => Theme::Light,
         _ => panic!("unknown theme"),
     };
-    let (port, stop, server) = fixture(native_form, app);
+    let (port, stop, server) = fixture(native_form, app, case == "icons");
     app::config::install_window_test_bootstrap(port);
     iced::application(
         move || {
@@ -78,6 +79,7 @@ fn main() {
         "agy" => "Agy 供应商隔离验收",
         "desktop" => "Desktop 供应商隔离验收",
         "endpoints" => "端点与请求选项隔离验收",
+        "icons" => "供应商图标库隔离验收",
         "dsh" => "Dsh 供应商隔离验收",
         "kimi" => "Kimi 供应商隔离验收",
         "claude" => "Claude Code 供应商隔离验收",
@@ -111,6 +113,7 @@ fn view(state: &App) -> Element<'_, Message> {
 fn fixture(
     native_form: bool,
     app: AppId,
+    icons: bool,
 ) -> (u16, std::sync::Arc<std::sync::atomic::AtomicBool>, std::thread::JoinHandle<()>) {
     use std::io::{Read, Write};
     let listener = std::net::TcpListener::bind("127.0.0.1:0").unwrap();
@@ -274,6 +277,7 @@ fn fixture(
             "provider-0".to_string(),
             serde_json::json!({"model":"现有中文模型","baseUrl":"https://fixture-api.example.test","hasSavedKey":true,"revision":"fixture-initial"}),
         )]);
+        let mut icons_fixture = icons.then(cc04_icons_fixture::Fixture::new);
         let mut endpoints_fixture = cc04_endpoints_fixture::Fixture::default();
         let mut desktop_fixture = cc04_desktop_fixture::Fixture::new();
         let mut node_members = std::collections::BTreeSet::from(["provider-0".to_owned()]);
@@ -286,6 +290,7 @@ fn fixture(
                 }
                 Err(e) => panic!("{e}"),
             };
+            stream.set_nonblocking(false).unwrap();
             stream.set_read_timeout(Some(std::time::Duration::from_secs(3))).unwrap();
             let mut head = Vec::new();
             while !head.ends_with(b"\r\n\r\n") {
@@ -325,7 +330,13 @@ fn fixture(
             } else {
                 None
             };
-            let body = if let Some((code, value)) = endpoints_response {
+            let icon_response = icons_fixture.as_mut().and_then(|fixture| {
+                fixture.handle(line.split_whitespace().next().unwrap_or(""), path, id, &payload)
+            });
+            let body = if let Some((code, value)) = icon_response {
+                status = code;
+                value
+            } else if let Some((code, value)) = endpoints_response {
                 status = code;
                 value
             } else if let Some((code, value)) = desktop_response {
@@ -590,7 +601,7 @@ fn fixture(
                 status = "404 Not Found";
                 serde_json::json!({"error":"unknown fixture path"})
             };
-            let body = body.to_string();
+            let body = if status == "204 No Content" { String::new() } else { body.to_string() };
             write!(stream,"HTTP/1.1 {status}\r\nContent-Type: application/json\r\nContent-Length: {}\r\nConnection: close\r\n\r\n{body}",body.len()).unwrap();
         }
     });

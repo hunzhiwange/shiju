@@ -21,3 +21,5 @@ mod agy;
 pub(crate) mod desktop;
 
 mod endpoints;
+
+mod icons;

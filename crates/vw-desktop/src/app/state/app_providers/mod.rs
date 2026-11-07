@@ -22,3 +22,5 @@ pub(crate) mod agy;
 pub(crate) mod desktop;
 
 pub(crate) mod endpoints;
+
+pub(crate) mod icons;

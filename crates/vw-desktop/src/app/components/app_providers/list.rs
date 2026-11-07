@@ -198,6 +198,13 @@ pub(crate) fn overlay<'a>(
                         ]
                         .width(Length::Fill),
                         action(
+                            "图标",
+                            ListMessage::Icons(
+                                crate::app::message::app_providers::icons::Event::Open(id.clone())
+                            ),
+                            enabled,
+                        ),
+                        action(
                             "排序与备注",
                             ListMessage::Edit(entry.provider.id.clone()),
                             state.editor.is_none() && state.form.is_none() && !state.loading
@@ -254,6 +261,9 @@ pub(crate) fn overlay<'a>(
     .width(Length::Fixed(800.))
     .height(Length::Fixed(650.));
     let list = settings_modal_overlay(Some(base), message(ListMessage::Close), card);
+    if let Some(form) = &state.icons {
+        return super::icons::overlay(form, list);
+    }
     if let Some(form) = &state.endpoints {
         return super::endpoints::overlay(form, scope.app, list);
     }

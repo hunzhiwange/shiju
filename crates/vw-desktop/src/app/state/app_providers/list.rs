@@ -25,6 +25,7 @@ pub(crate) struct ListState {
     pub snapshot: Option<Snapshot>,
     pub editor: Option<Editor>,
     pub form: Option<super::edit::EditForm>,
+    pub icons: Option<super::icons::Form>,
     pub endpoints: Option<super::endpoints::Form>,
     pub desktop: Option<super::desktop::Form>,
     pub new_draft:
@@ -51,6 +52,7 @@ impl ListState {
         self.form = None;
         self.desktop = None;
         self.endpoints = None;
+        self.icons = None;
         self.loading = true;
         self.error = None;
         self.generation

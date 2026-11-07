@@ -184,3 +184,7 @@ mod mode_state_tests;
 pub mod mode_apply;
 #[cfg(test)]
 mod mode_apply_tests;
+
+pub mod env_diagnose;
+#[cfg(test)]
+mod env_diagnose_tests;

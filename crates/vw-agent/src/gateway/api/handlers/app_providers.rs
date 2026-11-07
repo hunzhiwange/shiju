@@ -15,6 +15,7 @@ pub(crate) fn router() -> Router {
         .merge(mode_state::router())
         .merge(mode_apply::router())
         .merge(paths::router())
+        .merge(env_diagnose::router())
         .merge(preview::router())
         .merge(editor_merge::router())
         .merge(snippets::router())
@@ -290,3 +291,7 @@ mod mode_state_tests;
 pub(crate) mod mode_apply;
 #[cfg(all(test, target_os = "macos"))]
 mod mode_apply_tests;
+
+mod env_diagnose;
+#[cfg(all(test, target_os = "macos"))]
+mod env_diagnose_tests;

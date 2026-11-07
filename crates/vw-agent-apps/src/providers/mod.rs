@@ -221,3 +221,7 @@ mod mode_state_tests;
 pub mod mode_apply;
 #[cfg(all(test, target_os = "macos"))]
 mod mode_apply_tests;
+
+pub mod env_diagnose;
+#[cfg(all(test, target_os = "macos"))]
+mod env_diagnose_tests;

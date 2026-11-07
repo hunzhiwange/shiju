@@ -2214,3 +2214,46 @@ SDK Proxy → API Published → 客户端本机地址/占位凭据；换到相�
 实际平台 macOS **27.0（26A428）/ arm64**，workspace crate **0.6.0**。真实 Claude 应用版本/消费、真实账号或 Keychain、生产代理协议引擎、流式/多模态转换、Iced 渲染及非 macOS 均 **未验证**。没有读取或修改真实用户配置。后续应由母任务 8 将真实服务注入上述唯一接入点，按各自领域验收扩展应用投影/聚合/原生登录；不得将本记录扩写为全应用或生产代理通过。
 
 状态：**已完成（Claude 配置事务与显式服务边界）**。仅提交本任务实现、独立测试、必要父注册/底层策略及本条正式证据；排除既有母任务状态、此前编号文件删除、终端体验变更及 cargo fmt 产生的 Dsh 纯格式差异。所有 plan.md 保持只读；本编号任务验收后删除，不提交该删除。
+
+## 任务 47：macOS 环境冲突诊断
+
+2026-11-07；批次 46 提交 `025f1546a` 及上节正式验收已核对。母任务 1、3 已完成；母任务 2 完整领域迁移仍未收口，沿任务 1/provider-contracts.md 中底座子计划 1–93 的既有开工裁定消费实际接口，不冒称母任务 2 整体完成。所有 plan.md 保持只读。
+
+### 来源与实现边界
+
+只读来源 `/Users/xiangmin/worker/code/cc-switch` 提交 `ca58c0313360eae7c851fbd7553c1614c7af03e7`，rev-parse/status 退出 0，来源干净。阅读 `services/env_checker.rs::{check_env_conflicts,get_keywords_for_app,matches_env_keyword,check_shell_configs}`、相邻关键词与 Unix 继承环境测试，`commands/env.rs::check_env_conflicts`，直接调用者 `src/lib/api/env.ts::{checkEnvConflicts,checkAllEnvConflicts}` 与 `src/App.tsx::checkEnvOnSwitch`。RustCodeGraph status/explore 成功；未覆盖的新原生模块定向读取。
+
+- 唯一原生所有者 `vw-agent-apps/src/providers/env_diagnose.rs::diagnose`，仅 macOS，支持来源已有 Claude/Codex/Gemini/GrokBuild 关键词；其它应用/平台明确拒绝。执行端授权 HOME 固定扫描 `.bashrc/.bash_profile/.zshrc/.zprofile/.profile`，系统固定扫描 `/private/etc/profile` 与 `bashrc`（macOS `/etc` 实际目录）。缺省文件忽略，读取失败返回明确错误，不当作空诊断。目录与文件描述符使用 O_NOFOLLOW，openat 固定单组件、O_NONBLOCK，拒绝链接与非普通文件；每文件至多 1 MiB、最多 4096 条诊断。
+- 来源使用强类型 UserShell/SystemShell/ProcessInherited 和固定文件枚举、1-based 行号，不返回任意可调用路径。只记录合法有界变量名，DTO/Debug 从未持有或返回变量值、原始行或凭据；没有执行 shell/source、网络调用、配置写入或父进程环境修改。
+- 保留上游关键词规则：Claude/Codex/Gemini 为开头匹配，Grok 只精确匹配 XAI_API_KEY/GROK_DEFAULT_MODEL。继承变量单独只读展示、排序去重，不加入可清理 shell 冲突；同名用户/系统/继承来源保留为不同条目，不能据此判断最终生效顺序。
+- Shell 条目是静态定义候选，不承诺完整 shell 语义或有效值。只有整份用户文件由空行、注释及单行字面量赋值构成时，才标 `cleanupAvailable=true`；含函数、条件、source、续行、命令替换或 here-document 等复杂语法时整份文件候选均只读，可能包含示例文本。系统定义和进程继承值始终 false。此标记仅为清理资格；任务 48 必须签发并校验服务端诊断标识、基底摘要与实际写权限，不能相信客户端的路径、行号或布尔值。本任务没有清理/备份/恢复入口。
+- DTO：`vw-api-types/src/app_providers/env_diagnose.rs`；`POST /v1/app-providers/{app}/environment/diagnose` 只接受 targetHostId，未知字段拒绝。沿母任务 2 既有管理员 host-config read 授权、租户作用域与 app-providers 父注册，两类 Gateway 根复用；SDK 为 `GatewayClient::provider_env_diagnose`。权限检查在文件和环境扫描前；401 错 token/未通过 Gateway Basic、403 无授权/外属租户、503 离线/读取故障、501 远程绑定、422 不支持应用。SDK token header 敏感、错误响应载荷丢弃。没有新增 UI，不宣称编辑/首次激活/live 或后续清理已通过。
+
+### 红绿与验证
+
+红阶段通过原子 mkdir 动态领取 **槽位 2**，`CARGO_TARGET_DIR=/Users/xiangmin/worker/code/shiju/target/rust-slot-2`，`CARGO_BUILD_BUILD_DIR` 同值。`cargo fmt --all` 退出 0；四条规定默认 features 命令均完成接线编译：业务包指定两条测试在来源数量业务断言失败（0 passed/2 failed，退出 101），Gateway 的 SDK→API 来源断言失败（1 passed/1 failed，退出 101），DTO 1 passed/SDK 1 passed（均退出 0）。没有把缺类型、缺模块或零测试当作红证据。
+
+绿阶段重新原子领取 **槽位 2**，上述两个绝对目录设置相同。以下命令均继承该设置，未使用 --target-dir 或任务专属构建目录：
+
+| 确切命令 | 退出码 | 有效数量 |
+| --- | --- | --- |
+| `cargo fmt --all` | 0 | 格式化 |
+| `cargo test -p vw-agent-apps --lib cc04_env_diagnose_ -- --nocapture` | 0 | 6 passed |
+| `cargo test -p vw-api-types --lib cc04_env_diagnose_ -- --nocapture` | 0 | 1 passed |
+| `cargo test -p vw-agent --lib cc04_env_diagnose_ -- --nocapture` | 0 | 2 passed |
+| `cargo test -p vw-gateway-client --lib cc04_env_diagnose_ -- --nocapture` | 0 | 1 passed |
+| `cargo clippy --all-targets --all-features -- -D warnings` | 0 | 全仓全部 targets/features |
+
+Gateway 测试链接阶段有 macOS ld 的 `__eh_frame section too large (max 16MB)` 提示，命令仍退出 0；这是 vw-agent 测试二进制的 unwind 表大小提示，不是 Rust 编译错误，未扩展范围修改链接配置。
+
+本任务去重 **10 项**通过，无忽略；子进程额外执行一遍同名继承环境测试，不重复计数。各阶段记录计划/任务/会话/PID，在所有子进程结束后释放自己的锁，保留缓存；未运行全量 cargo test、fmt check、wasm 或 Makefile。
+
+### SDK→API→执行端与 macOS 证据
+
+真实回环 HTTP/正式 SDK/既有权限与租户中间件/隔离 HOME 文件验证：写入假凭据 `.zshrc` → SDK diagnose → API 返回 UserShell/Zshrc/line=1 和清理资格 → 执行端源文件字节保持原样，未创建事务/配置目录，响应不含假凭据。无读授权、未知主机、离线、远程、错 token、外属租户与不支持应用均拒绝，文件仍原样；正式根注册的无 Basic 请求返回 401。SDK 独立测试核对实际 POST 路径、JSON targetHostId、公司头及 403 错误载荷脱敏；DTO 拒绝 path/line/environment/tenant/value 注入。
+
+执行端隔离测试验证用户 shell 行号、同名用户/系统/继承三来源、系统与继承不可清理、关键词、复杂 shell 不执行且只读、链接/目录/超限源拒绝。真实子进程通过 Command::env 注入假继承变量，调用正式 `diagnose` 并断言 ProcessInherited、cleanup=false、无秘密值、子进程环境保持原值、临时 HOME 无文件；父进程环境不修改。仅在纯来源扫描测试替代固定系统目录与不可控继承变量枚举，真实生产边界另由子进程证明；HTTP 测试未替代权限或执行端文件系统。
+
+实际 macOS **27.0（26A428）/ arm64**，workspace crate **0.6.0**。没有读取或修改真实用户 shell 配置；读取本机固定系统 shell 源只用于正式执行路径的只读验收。真实客户端应用版本/消费、账号、Iced UI、完整 shell 求值、清理/恢复及非 macOS 均未验证，不将静态诊断外推为这些能力通过。
+
+状态：**已完成（macOS 只读诊断与清理资格边界）**。定向差异与暂存检查通过，plan.md 只读；仅提交本任务模块、独立测试、必要父注册和本条证据，排除既有 Dsh 格式差异、母任务状态、此前编号文件删除及其他计划。完成后删除任务 47 编号文件，不提交其删除；下一步批次 48。

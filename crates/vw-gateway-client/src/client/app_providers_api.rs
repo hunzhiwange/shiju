@@ -249,3 +249,9 @@ mod mode_apply;
 #[cfg(test)]
 #[path = "app_providers/mode_apply_tests.rs"]
 mod mode_apply_tests;
+
+#[path = "app_providers/env_diagnose.rs"]
+mod env_diagnose;
+#[cfg(test)]
+#[path = "app_providers/env_diagnose_tests.rs"]
+mod env_diagnose_tests;

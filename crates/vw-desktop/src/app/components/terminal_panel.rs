@@ -9,19 +9,19 @@
 //! 该模块是 VibeWindow 应用的终端 UI 层核心组件，
 //! 负责将终端状态转换为 Iced 框架的可渲染元素。
 
-use iced::widget::{
-    Space, button, center, column, container, mouse_area, row, scrollable, stack, svg, text,
-    text_input,
-};
+use iced::widget::{Space, button, column, container, row, scrollable, svg, text, text_input};
 use iced::{Background, Border, Color, Element, Font, Length, Point, Theme};
 
 use crate::app::assets::{self, Icon};
 use crate::app::components::overlays::point_below::PointBelowOverlay;
 use crate::app::components::system_settings_common::{
-    primary_action_btn_style, rounded_action_btn_style, settings_modal_backdrop_style,
-    settings_modal_card, settings_muted_text_style, settings_text_input_style,
+    SETTINGS_CONTROL_PADDING, SETTINGS_CONTROL_TEXT_SIZE, primary_action_btn_style,
+    rounded_action_btn_style, settings_close_button, settings_modal_card, settings_modal_header,
+    settings_modal_overlay_with_backdrop_dismiss, settings_muted_text_style,
+    settings_text_input_style,
 };
 use crate::app::components::widgets::RightClickArea;
+use crate::app::i18n::I18n;
 use crate::app::{App, Message, message};
 
 #[cfg(not(target_arch = "wasm32"))]
@@ -594,64 +594,55 @@ pub fn view(app: &App) -> Element<'_, Message> {
         && let Some(t) = app.terminal.tabs.iter().find(|t| t.id == active_id)
         && let Some(edit_title) = &t.edit_title
     {
-        let rename_input = text_input(
-            crate::app::i18n::I18n::new(app.desktop_locale).__("输入新名称"),
-            edit_title,
-        )
-        .on_input(move |v| Message::Terminal(message::TerminalMessage::RenameChanged(active_id, v)))
-        .on_submit(Message::Terminal(message::TerminalMessage::RenameSave(active_id)))
-        .padding([10, 12])
-        .size(14)
-        .width(Length::Fill)
-        .style(settings_text_input_style);
+        let i18n = I18n::new(app.desktop_locale);
+        let cancel = Message::Terminal(message::TerminalMessage::RenameCancel(active_id));
+        let save = Message::Terminal(message::TerminalMessage::RenameSave(active_id));
+        let mut heading = column![text(i18n.__("重命名终端")).size(18)].spacing(4);
+        // The terminal can be shortened independently of the window.
+        let compact = app.terminal.height < 190.0;
+        if !compact {
+            heading = heading.push(
+                text(i18n.__("输入一个便于识别的新名称")).size(13).style(settings_muted_text_style),
+            );
+        }
+        let header = settings_modal_header(heading, settings_close_button(cancel.clone()));
+        let rename_input = text_input(i18n.__("输入新名称"), edit_title)
+            .on_input(move |value| {
+                Message::Terminal(message::TerminalMessage::RenameChanged(active_id, value))
+            })
+            .on_submit(save.clone())
+            .padding(SETTINGS_CONTROL_PADDING)
+            .size(SETTINGS_CONTROL_TEXT_SIZE)
+            .width(Length::Fill)
+            .style(settings_text_input_style);
 
         let actions = row![
-            Space::new().width(Length::Fill),
-            button(text(crate::app::i18n::I18n::new(app.desktop_locale).__("取消")).size(14))
-                .on_press(Message::Terminal(message::TerminalMessage::RenameCancel(active_id)))
+            button(text(i18n.__("取消")).size(14))
+                .on_press(cancel.clone())
                 .padding([8, 18])
-                .height(Length::Fixed(38.0))
+                .height(38)
                 .style(rounded_action_btn_style),
-            button(text(crate::app::i18n::I18n::new(app.desktop_locale).__("确定")).size(14))
-                .on_press(Message::Terminal(message::TerminalMessage::RenameSave(active_id)))
+            button(text(i18n.__("确定")).size(14))
+                .on_press(save)
                 .padding([8, 18])
-                .height(Length::Fixed(38.0))
+                .height(38)
                 .style(primary_action_btn_style),
         ]
         .spacing(10)
         .align_y(iced::Alignment::Center);
 
-        // 与系统设置弹窗共用主题卡片、输入框和按钮样式。
-        let modal = center(
-            settings_modal_card(
-                column![
-                    text(crate::app::i18n::I18n::new(app.desktop_locale).__("重命名终端"))
-                        .size(18)
-                        .font(Font { weight: iced::font::Weight::Semibold, ..Font::DEFAULT }),
-                    text(
-                        crate::app::i18n::I18n::new(app.desktop_locale)
-                            .__("输入一个便于识别的新名称")
-                    )
-                    .size(12)
-                    .style(settings_muted_text_style),
-                    rename_input,
-                    actions,
-                ]
-                .spacing(14)
-                .width(Length::Fill),
-            )
-            .width(Length::Fixed(420.0)),
-        );
-
-        // 构建半透明遮罩层，点击可取消重命名
-        let overlay = mouse_area(
-            container(Space::new().width(Length::Fill).height(Length::Fill))
-                .style(settings_modal_backdrop_style),
-        )
-        .on_press(Message::Terminal(message::TerminalMessage::RenameCancel(active_id)));
-
-        // 使用 stack 叠加：主内容 + 遮罩 + 模态框
-        return stack![main_content, overlay, modal].into();
+        let (content, vertical_padding) = if compact {
+            let controls = row![rename_input, actions].spacing(10).align_y(iced::Alignment::Center);
+            (column![header, controls].spacing(6), 5)
+        } else {
+            let footer = container(actions).align_right(Length::Fill);
+            (column![header, rename_input, footer].spacing(10), 12)
+        };
+        let card = settings_modal_card(content)
+            .padding([vertical_padding, 20])
+            .width(Length::Fill)
+            .max_width(420.0);
+        return settings_modal_overlay_with_backdrop_dismiss(main_content.into(), cancel, card);
     }
 
     // 无模态框时直接返回主内容

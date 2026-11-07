@@ -2,10 +2,10 @@
 //!
 //! 本模块只负责视图组合与样式适配，不持有业务状态，也不扩大外部能力边界。
 
-use iced::widget::{column, container, mouse_area, opaque, row, scrollable, stack};
+use iced::widget::{column, container, mouse_area, responsive, row, scrollable, stack};
 use iced::{Background, Color, Element, Length, Theme};
 
-use crate::app::components::system_settings_common::settings_modal_backdrop_style;
+use crate::app::components::system_settings_common::settings_modal_overlay;
 use crate::app::message::TaskBoardMessage;
 use crate::app::state::TaskBoardViewMode;
 use crate::app::{App, Message};
@@ -28,6 +28,22 @@ mod panel;
 /// # 错误
 /// 此函数不返回 `Result`；不可用状态会通过空视图、禁用控件或回退文案表达。
 pub fn view(app: &App) -> Element<'_, Message> {
+    if app.task_board_create_modal_open {
+        responsive(move |size| {
+            let width = if size.width < 800.0 {
+                Length::Fill
+            } else {
+                Length::Fixed((size.width / 3.0).clamp(320.0, 600.0))
+            };
+            build_view(app, Some(width))
+        })
+        .into()
+    } else {
+        build_view(app, None)
+    }
+}
+
+fn build_view(app: &App, create_width: Option<Length>) -> Element<'_, Message> {
     let header = control::build_control_buttons(app);
     let content = if app.task_board_worktree_pixel_office {
         column![header].spacing(0).width(Length::Fill).height(Length::Fill)
@@ -64,13 +80,21 @@ pub fn view(app: &App) -> Element<'_, Message> {
 
     let drag_preview_layer = drag::build_drag_preview_layer(app);
 
-    let main_content: Element<'_, Message> = if app.task_board_create_modal_open {
+    let main_content: Element<'_, Message> = if let Some(width) = create_width {
         let panel = panel::build_task_panel(app, false);
-        let main_content = stack![base, drag_preview_layer];
-        row![container(main_content).width(Length::FillPortion(2)).height(Length::Fill), panel]
+        if width == Length::Fill {
+            panel
+        } else {
+            row![
+                container(stack![base, drag_preview_layer])
+                    .width(Length::Fill)
+                    .height(Length::Fill),
+                container(panel).width(width),
+            ]
             .width(Length::Fill)
             .height(Length::Fill)
             .into()
+        }
     } else if let Some(_task) = &app.task_board_viewing_logs {
         let detail_panel = panel::build_task_panel(app, true);
         let main_content = stack![base, drag_preview_layer];
@@ -90,24 +114,11 @@ pub fn view(app: &App) -> Element<'_, Message> {
     };
 
     if app.task_board_settings_modal_open {
-        let overlay = opaque(
-            mouse_area(
-                container(iced::widget::Space::new().width(Length::Fill).height(Length::Fill))
-                    .style(settings_modal_backdrop_style),
-            )
-            .on_press(Message::TaskBoard(TaskBoardMessage::CloseSettingsModal)),
+        return settings_modal_overlay(
+            Some(main_content),
+            Message::TaskBoard(TaskBoardMessage::CloseSettingsModal),
+            container(modals::build_task_settings_modal(app)).padding(12),
         );
-
-        let modal = modals::build_task_settings_modal(app);
-        let modal_layer: Element<'_, Message> = opaque(
-            container(modal)
-                .width(Length::Fill)
-                .height(Length::Fill)
-                .center_x(Length::Fill)
-                .center_y(Length::Fill),
-        );
-
-        return stack![main_content, stack![overlay, modal_layer]].into();
     }
 
     main_content

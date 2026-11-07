@@ -247,3 +247,7 @@ pub fn button_style_success(
 #[cfg(test)]
 #[path = "common_tests.rs"]
 mod common_tests;
+
+#[cfg(test)]
+#[path = "common_ui_refresh_34_tests.rs"]
+mod ui_refresh_34_tests;

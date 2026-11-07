@@ -1,7 +1,7 @@
 #![allow(unused_imports, dead_code)]
 
-//! 任务看板弹窗的测试，覆盖创建、导入、设置及各类确认流程。
-//! 草稿与边界值 fixture 用于验证标签区分、分页和弹出层组合状态。
+//! 任务看板弹窗的测试，覆盖设置及上下文菜单。
+//! 边界值 fixture 用于验证标签区分和分页。
 use crate::app::state::TaskBoardSettingsModalTab;
 use crate::app::task::{Task, TaskStatus};
 use crate::app::{App, Message};
@@ -34,45 +34,6 @@ fn test_module_is_wired() {
     let module = std::hint::black_box(module_path!());
 
     assert!(module.ends_with("modals_tests"));
-}
-
-#[test]
-fn create_task_modal_builds_single_and_import_modes() {
-    let mut app = test_app();
-
-    let single = super::build_create_task_modal(&app);
-    assert_eq!(single.as_widget().size().width, Length::Fill);
-    assert_eq!(single.as_widget().size().height, Length::Fixed(480.0));
-    keep_element(single);
-
-    app.task_board_is_import_mode = true;
-    let import = super::build_create_task_modal(&app);
-    assert_eq!(import.as_widget().size().width, Length::Fill);
-    assert_eq!(import.as_widget().size().height, Length::Fixed(480.0));
-    keep_element(import);
-}
-
-#[test]
-fn create_task_modal_builds_with_nondefault_draft_and_open_popovers() {
-    let mut app = test_app();
-    app.task_board_draft.priority = "42".to_string();
-    app.task_board_draft.model = "model-a".to_string();
-    app.task_board_draft.acp_agent = Some("agent:worker".to_string());
-    app.task_board_model_popover = true;
-    app.task_board_executor_popover = true;
-
-    let single = super::build_create_task_modal(&app);
-
-    assert_eq!(single.as_widget().size().height, Length::Fixed(480.0));
-    keep_element(single);
-
-    app.task_board_is_import_mode = true;
-    app.task_board_import_editor =
-        iced::widget::text_editor::Content::with_text("priority,prompt\n7,ship it");
-    let import = super::build_create_task_modal(&app);
-
-    assert_eq!(import.as_widget().size().height, Length::Fixed(480.0));
-    keep_element(import);
 }
 
 #[test]

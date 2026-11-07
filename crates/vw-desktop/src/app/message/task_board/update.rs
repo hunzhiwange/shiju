@@ -3055,8 +3055,8 @@ pub fn update(
             let imported = match parse_task_import_content(&content) {
                 Ok(imported) => imported,
                 Err(error) => {
-                    app.push_notification(error);
-                    return iced::Task::none();
+                    app.push_notification(error.clone());
+                    return app.show_error_toast(error);
                 }
             };
             for record in imported {

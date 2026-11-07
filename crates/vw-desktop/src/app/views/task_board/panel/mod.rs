@@ -11,8 +11,10 @@ use iced::widget::{
 use iced::{Alignment, Background, Border, Color, Element, Length, Theme};
 
 use crate::app::components::system_settings_common::{
-    settings_checkbox_style, settings_close_button, settings_divider, settings_muted_text_style,
-    settings_panel, settings_pick_list_menu_style, settings_pick_list_style,
+    SETTINGS_CONTROL_PADDING, SETTINGS_CONTROL_TEXT_SIZE, primary_action_btn_style,
+    rounded_action_btn_style, settings_checkbox_style, settings_close_button, settings_divider,
+    settings_field_label, settings_muted_text_style, settings_panel, settings_pick_list_menu_style,
+    settings_pick_list_style, settings_segment_button_style, settings_select,
 };
 use crate::app::message::TaskBoardMessage;
 use crate::app::state::{MAIN_AGENT_KEY, TaskBoardDetailTab};
@@ -235,7 +237,7 @@ pub fn build_task_panel<'a>(app: &'a App, is_edit_mode: bool) -> Element<'a, Mes
         close_btn,
     );
 
-    let mut main_col = column![
+    let header = column![
         header_row,
         Space::new().height(6.0),
         text(crate::app::i18n::I18n::new(app.desktop_locale).__(panel_description))
@@ -245,6 +247,9 @@ pub fn build_task_panel<'a>(app: &'a App, is_edit_mode: bool) -> Element<'a, Mes
     ]
     .spacing(0)
     .width(Length::Fill);
+
+    let (mut main_col, create_header) =
+        if is_edit_mode { (header, None) } else { (column![].width(Length::Fill), Some(header)) };
 
     if is_edit_mode {
         main_col = main_col.push(build_detail_tabs(app)).push(Space::new().height(14.0));
@@ -330,33 +335,28 @@ pub fn build_task_panel<'a>(app: &'a App, is_edit_mode: bool) -> Element<'a, Mes
                 crate::app::i18n::I18n::new(app.desktop_locale).__("任务配置"),
                 crate::app::i18n::I18n::new(app.desktop_locale)
                     .__("填写提示词并选择模型、代理、执行器、任务拆分与优先级。"),
-                column![
-                    prompt_field,
-                    settings_divider(),
-                    row![
-                        container(agent_field).width(Length::FillPortion(1)),
-                        container(executor_field).width(Length::FillPortion(1)),
-                    ]
-                    .extend(
-                        reasoning_effort_field
-                            .map(|field| container(field).width(Length::FillPortion(1)).into())
+                column![prompt_field, settings_divider(), agent_field, executor_field,]
+                    .extend(reasoning_effort_field)
+                    .push(model_field)
+                    .push(task_split_field)
+                    .push(
+                        column![
+                            settings_field_label(
+                                crate::app::i18n::I18n::new(app.desktop_locale).__("优先级")
+                            ),
+                            priority_field,
+                        ]
+                        .spacing(6),
                     )
-                    .spacing(12),
-                    row![
-                        container(model_field).width(Length::FillPortion(1)),
-                        container(task_split_field).width(Length::FillPortion(1)),
-                        container(priority_field).width(Length::FillPortion(1)),
-                    ]
-                    .spacing(12),
-                ]
-                .spacing(14),
+                    .spacing(14),
             ));
         }
         main_col = build_draft_mode_content(app, main_col);
     }
 
-    let panel_padding =
-        iced::Padding { top: 0.0, right: TASK_PANEL_SCROLLBAR_GUTTER, bottom: 0.0, left: 0.0 };
+    let panel_padding = iced::Padding::ZERO
+        .left(if is_edit_mode { 0.0 } else { 7.0 })
+        .right(TASK_PANEL_SCROLLBAR_GUTTER);
     let content: Element<'_, Message> =
         if is_edit_mode && app.task_board_detail_tab == TaskBoardDetailTab::Logs {
             container(main_col.height(Length::Fill))
@@ -375,7 +375,12 @@ pub fn build_task_panel<'a>(app: &'a App, is_edit_mode: bool) -> Element<'a, Mes
                 .height(Length::Fill)
                 .into()
         };
-    let panel_width = if is_edit_mode { Length::Fixed(560.0) } else { Length::FillPortion(1) };
+    let content: Element<'_, Message> = if let Some(header) = create_header {
+        column![header, content, build_action_buttons(app, false)].spacing(12).into()
+    } else {
+        content
+    };
+    let panel_width = if is_edit_mode { Length::Fixed(560.0) } else { Length::Fill };
 
     container(content)
         .padding(20)
@@ -675,8 +680,8 @@ fn build_priority_field<'a>(app: &'a App, is_edit_mode: bool) -> iced::Element<'
         &app.task_board_draft.priority,
     )
     .on_input(move |v| Message::TaskBoard(priority_msg(v)))
-    .padding([8, 10])
-    .size(14)
+    .padding(SETTINGS_CONTROL_PADDING)
+    .size(SETTINGS_CONTROL_TEXT_SIZE)
     .width(Length::Fill)
     .style(input_style)
     .into()
@@ -690,7 +695,7 @@ fn build_task_split_mode_selector(app: &App, is_edit_mode: bool) -> iced::Elemen
     let options = TaskSplitMode::all()
         .map(|mode| crate::app::i18n::tasks::SplitOption(mode, app.desktop_locale))
         .to_vec();
-    pick_list(options, Some(selected), move |mode| {
+    settings_select(options, Some(selected), move |mode| {
         Message::TaskBoard(if is_edit_mode {
             TaskBoardMessage::UpdateEditingTaskSplitMode(mode.0)
         } else {
@@ -698,10 +703,6 @@ fn build_task_split_mode_selector(app: &App, is_edit_mode: bool) -> iced::Elemen
         })
     })
     .placeholder(crate::app::i18n::I18n::new(app.desktop_locale).__("任务拆分"))
-    .padding([6, 10])
-    .text_size(14)
-    .style(settings_pick_list_style)
-    .menu_style(settings_pick_list_menu_style)
     .width(Length::Fill)
     .into()
 }
@@ -737,7 +738,7 @@ fn build_agent_field(app: &App, is_edit_mode: bool) -> iced::Element<'_, Message
         .cloned()
         .or_else(|| options.iter().find(|option| option.key == MAIN_AGENT_KEY).cloned());
 
-    pick_list(options, selected, move |option| {
+    settings_select(options, selected, move |option| {
         Message::TaskBoard(if is_edit_mode {
             TaskBoardMessage::UpdateEditingTaskAgent(Some(option.key))
         } else {
@@ -745,10 +746,6 @@ fn build_agent_field(app: &App, is_edit_mode: bool) -> iced::Element<'_, Message
         })
     })
     .placeholder(crate::app::i18n::I18n::new(app.desktop_locale).__("选择代理"))
-    .padding([6, 10])
-    .text_size(14)
-    .style(settings_pick_list_style)
-    .menu_style(settings_pick_list_menu_style)
     .width(Length::Fill)
     .into()
 }
@@ -813,8 +810,8 @@ fn build_prompt_field<'a>(app: &'a App) -> iced::Element<'a, Message> {
     let prompt_editor = text_editor(&app.task_board_prompt_editor)
         .placeholder(crate::app::i18n::I18n::new(app.desktop_locale).__("输入大模型提示词..."))
         .on_action(|a| Message::TaskBoard(TaskBoardMessage::PromptEditorAction(a)))
-        .size(14)
-        .padding([8, 10])
+        .size(SETTINGS_CONTROL_TEXT_SIZE)
+        .padding(SETTINGS_CONTROL_PADDING)
         .height(Length::Fixed(150.0))
         .style(editor_style);
 
@@ -833,16 +830,17 @@ fn build_mode_toggle(app: &App) -> iced::Element<'_, Message> {
             .on_press(Message::TaskBoard(TaskBoardMessage::ToggleImportMode(false)))
             .padding([6, 12])
             .style(move |theme: &Theme, status| {
-                segmented_button_style(theme, !app.task_board_is_import_mode, status)
+                settings_segment_button_style(theme, status, !app.task_board_is_import_mode)
             }),
         button(text(crate::app::i18n::I18n::new(app.desktop_locale).__("批量导入")).size(13))
             .on_press(Message::TaskBoard(TaskBoardMessage::ToggleImportMode(true)))
             .padding([6, 12])
             .style(move |theme: &Theme, status| {
-                segmented_button_style(theme, app.task_board_is_import_mode, status)
+                settings_segment_button_style(theme, status, app.task_board_is_import_mode)
             }),
     ]
     .spacing(8)
+    .wrap()
     .into()
 }
 
@@ -855,7 +853,9 @@ fn build_import_field<'a>(app: &'a App) -> iced::Element<'a, Message> {
         button(text(title).size(12))
             .on_press(Message::TaskBoard(TaskBoardMessage::SetImportPromptFormat(format)))
             .padding([5, 10])
-            .style(move |theme: &Theme, status| segmented_button_style(theme, selected, status))
+            .style(move |theme: &Theme, status| {
+                settings_segment_button_style(theme, status, selected)
+            })
     }
 
     let selected_priority = app
@@ -878,31 +878,30 @@ fn build_import_field<'a>(app: &'a App) -> iced::Element<'a, Message> {
         button(text(crate::app::i18n::I18n::new(app.desktop_locale).__("上传文件")).size(13))
             .on_press(Message::TaskBoard(TaskBoardMessage::ImportFilePick))
             .padding([6, 12])
-            .style(button_style_secondary),
-        pick_list(
-            ["JSON 示例", "CSV 示例", "TSV 示例"]
-                .map(|key| crate::app::i18n::I18n::new(app.desktop_locale).__(key))
-                .to_vec(),
-            None::<&str>,
-            move |selected| {
-                let selected = ["JSON 示例", "CSV 示例", "TSV 示例"]
-                    .into_iter()
-                    .find(|key| crate::app::i18n::I18n::new(app.desktop_locale).__(key) == selected)
-                    .expect("known example option");
-                Message::TaskBoard(TaskBoardMessage::InsertDemoData(selected.to_string()))
-            }
-        )
-        .placeholder(crate::app::i18n::I18n::new(app.desktop_locale).__("插入示例到表单"))
-        .padding([6, 10])
-        .style(settings_pick_list_style)
-        .menu_style(settings_pick_list_menu_style),
+            .style(rounded_action_btn_style),
         button(text(crate::app::i18n::I18n::new(app.desktop_locale).__("清空")).size(13))
             .on_press(Message::TaskBoard(TaskBoardMessage::ClearImportEditor))
             .padding([6, 12])
-            .style(button_style_secondary)
+            .style(rounded_action_btn_style)
     ]
     .spacing(8)
     .align_y(Alignment::Center);
+
+    let examples = settings_select(
+        ["JSON 示例", "CSV 示例", "TSV 示例"]
+            .map(|key| crate::app::i18n::I18n::new(app.desktop_locale).__(key))
+            .to_vec(),
+        None::<&str>,
+        move |selected| {
+            let selected = ["JSON 示例", "CSV 示例", "TSV 示例"]
+                .into_iter()
+                .find(|key| crate::app::i18n::I18n::new(app.desktop_locale).__(key) == selected)
+                .expect("known example option");
+            Message::TaskBoard(TaskBoardMessage::InsertDemoData(selected.to_string()))
+        },
+    )
+    .placeholder(crate::app::i18n::I18n::new(app.desktop_locale).__("插入示例到表单"))
+    .width(Length::Fill);
 
     let import_editor = text_editor(&app.task_board_import_editor)
         .placeholder(
@@ -911,8 +910,8 @@ fn build_import_field<'a>(app: &'a App) -> iced::Element<'a, Message> {
                 .to_owned(),
         )
         .on_action(|a| Message::TaskBoard(TaskBoardMessage::ImportEditorAction(a)))
-        .size(14)
-        .padding([8, 10])
+        .size(SETTINGS_CONTROL_TEXT_SIZE)
+        .padding(SETTINGS_CONTROL_PADDING)
         .height(Length::Fixed(300.0))
         .style(editor_style);
 
@@ -938,11 +937,10 @@ fn build_import_field<'a>(app: &'a App) -> iced::Element<'a, Message> {
             app.task_board_import_prompt_format == crate::app::task::TaskImportPromptFormat::Tsv,
             crate::app::task::TaskImportPromptFormat::Tsv
         ),
-        Space::new().width(Length::Fill),
         button(text(crate::app::i18n::I18n::new(app.desktop_locale).__("复制")).size(12))
             .on_press(Message::TaskBoard(TaskBoardMessage::CopyImportPromptTemplate))
             .padding([5, 10])
-            .style(button_style_secondary),
+            .style(rounded_action_btn_style),
         button(
             text(
                 crate::app::i18n::I18n::new(app.desktop_locale)
@@ -952,10 +950,11 @@ fn build_import_field<'a>(app: &'a App) -> iced::Element<'a, Message> {
         )
         .on_press(Message::TaskBoard(TaskBoardMessage::ToggleImportPromptCollapsed))
         .padding([5, 10])
-        .style(button_style_secondary)
+        .style(rounded_action_btn_style)
     ]
     .spacing(6)
-    .align_y(Alignment::Center);
+    .align_y(Alignment::Center)
+    .wrap();
 
     let prompt_template_text = text(prompt_template)
         .size(12)
@@ -1006,11 +1005,12 @@ fn build_import_field<'a>(app: &'a App) -> iced::Element<'a, Message> {
     column![
         input_label(crate::app::i18n::I18n::new(app.desktop_locale).__("批量导入内容")),
         import_tools,
+        examples,
+        import_editor,
+        help_text,
         input_label(crate::app::i18n::I18n::new(app.desktop_locale).__("大模型提示词模板")),
         prompt_tabs,
         prompt_template_block,
-        import_editor,
-        help_text
     ]
     .spacing(6)
     .width(Length::Fill)
@@ -1065,7 +1065,8 @@ fn build_create_options_row(app: &App) -> iced::Element<'_, Message> {
         crate::app::i18n::I18n::new(app.desktop_locale).__("控制创建完成后的默认收尾动作。"),
         row![build_close_after_create_checkbox(app), build_clear_prompt_checkbox(app),]
             .spacing(16)
-            .align_y(Alignment::Center),
+            .align_y(Alignment::Center)
+            .wrap(),
     )
 }
 
@@ -1096,7 +1097,7 @@ fn build_action_buttons(app: &App, is_edit_mode: bool) -> iced::Element<'static,
     } else if app.task_board_create_submit_success {
         button_style_success
     } else {
-        button_style_primary
+        primary_action_btn_style
     };
 
     row![
@@ -1106,12 +1107,12 @@ fn build_action_buttons(app: &App, is_edit_mode: bool) -> iced::Element<'static,
             } else {
                 TaskBoardMessage::CreateTaskCancelled
             }))
-            .padding([10, 20])
-            .style(button_style_secondary),
+            .padding([8, 14])
+            .style(rounded_action_btn_style),
         Space::new().width(Length::Fill),
         button(text(crate::app::i18n::I18n::new(app.desktop_locale).__(submit_text)).size(14))
             .on_press(Message::TaskBoard(submit_msg))
-            .padding([10, 20])
+            .padding([8, 14])
             .style(submit_style),
     ]
     .spacing(8)
@@ -1152,20 +1153,17 @@ fn build_edit_mode_content<'a>(
 
 fn build_draft_mode_content<'a>(
     app: &'a App,
-    mut main_col: iced::widget::Column<'a, Message>,
+    main_col: iced::widget::Column<'a, Message>,
 ) -> iced::widget::Column<'a, Message> {
     if app.task_board_is_import_mode {
-        main_col = main_col.push(Space::new().height(16.0)).push(build_action_buttons(app, false));
+        main_col
     } else {
-        main_col = main_col
+        main_col
             .push(Space::new().height(12.0))
             .push(build_create_options_row(app))
             .push(Space::new().height(8.0))
             .push(build_draft_mode_subtasks(app))
-            .push(Space::new().height(16.0))
-            .push(build_action_buttons(app, false));
     }
-    main_col
 }
 
 #[cfg(test)]

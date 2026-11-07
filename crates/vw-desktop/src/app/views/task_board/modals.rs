@@ -1,322 +1,23 @@
-//! 任务看板模态窗口组件模块
-//!
-//! 本模块提供了任务看板中使用的各种模态窗口和弹出菜单的构建函数。
-//! 主要包含以下功能：
-//!
-//! - **新建任务模态窗口**：支持单个任务创建和批量导入两种模式
-//! - **任务设置模态窗口**：配置任务执行的相关参数
-//! - **上下文菜单**：任务项的右键操作菜单
-//!
-//! ## 模块结构
-//!
-//! 所有模态窗口都基于 `iced` UI 框架构建，返回 `Element<Message>` 类型的 UI 组件。
-//! 模态窗口的样式遵循应用程序的整体主题设计，包括按钮、输入框、容器等组件。
+//! 任务看板的设置弹窗与任务上下文菜单。
 
-use iced::widget::{
-    Space, button, column, container, pick_list, row, scrollable, text, text_editor, text_input,
-    toggler,
-};
+use iced::widget::{Space, button, column, container, row, text, text_input};
 use iced::{Alignment, Background, Border, Color, Element, Length, Theme};
 
 use crate::app::components::system_settings_common::{
-    settings_close_button, settings_modal_card, settings_muted_text_style, settings_panel,
-    settings_pick_list_menu_style, settings_pick_list_style, settings_section_card,
-    settings_text_editor_style, settings_text_input_style,
+    SETTINGS_CONTROL_PADDING, SETTINGS_CONTROL_TEXT_SIZE, rounded_action_btn_style,
+    settings_close_button, settings_divider, settings_field_label, settings_group_card,
+    settings_group_heading, settings_modal_header, settings_modal_layout,
+    settings_muted_text_style, settings_segment_button_style, settings_text_input_style,
+    settings_toggle,
 };
+use crate::app::i18n::I18n;
 use crate::app::message::TaskBoardMessage;
 use crate::app::state::TaskBoardSettingsModalTab;
-use crate::app::task::{Task, TaskSplitMode};
+use crate::app::task::Task;
 use crate::app::{App, Message};
 use vw_gateway_client::vw_api_types::agent_scheduler::AgentSchedulerDispatchModeDto;
 
-use super::common::{button_style_primary, button_style_secondary};
-use super::panel::{build_executor_selector, build_model_selector};
-
-/// 构建新建任务模态窗口
-///
-/// 该函数创建一个完整的任务创建模态窗口，支持两种模式：
-/// - **单个任务模式**：通过表单输入单个任务的详细信息
-/// - **批量导入模式**：通过 JSON 或 CSV 格式批量导入多个任务
-///
-/// # 功能特性
-///
-/// - 模型选择：支持自动模型选择和手动指定模型
-/// - ACP 智能体选择：支持默认 ACP 或指定具体 ACP 智能体
-/// - 优先级设置：支持 1-99999 的优先级值
-/// - 提示词编辑：内置文本编辑器用于编写大模型提示词
-/// - 批量导入：支持 JSON 数组和 CSV/TSV 格式的批量任务导入
-///
-/// # 参数
-///
-/// * `app` - 应用程序状态的不可变引用，用于获取当前任务草稿状态
-///
-/// # 返回值
-///
-/// 返回构建好的模态窗口 UI 元素，类型为 `Element<'_, Message>`
-///
-/// # 示例
-///
-/// ```ignore
-/// let modal = build_create_task_modal(&app);
-/// // 将 modal 添加到 UI 树中进行渲染
-/// ```
-#[allow(dead_code)]
-pub fn build_create_task_modal(app: &App) -> Element<'_, Message> {
-    // 创建输入字段标签
-    //
-    // 生成带有主题适配样式的标签文本组件
-    //
-    // # 参数
-    //
-    // * `label` - 标签文本内容
-    //
-    // # 返回值
-    //
-    // 返回样式化后的标签 UI 元素
-    fn input_label(label: &str) -> Element<'_, Message> {
-        text(label)
-            .size(12)
-            .style(|theme: &Theme| iced::widget::text::Style {
-                color: Some(theme.extended_palette().background.base.text),
-            })
-            .into()
-    }
-
-    // 定义文本输入框的样式
-    //
-    // 根据当前主题生成文本输入框的视觉样式，包括背景色、边框、图标颜色等
-    //
-    // # 参数
-    //
-    // * `theme` - 当前 iced 主题
-    // * `_status` - 文本输入框的当前状态（未使用）
-    //
-    // # 返回值
-    //
-    // 返回文本输入框的样式配置
-    fn input_style(theme: &Theme, status: text_input::Status) -> text_input::Style {
-        settings_text_input_style(theme, status)
-    }
-
-    // 定义文本编辑器的样式
-    //
-    // 根据当前主题生成文本编辑器的视觉样式，用于提示词和批量导入内容的编辑
-    //
-    // # 参数
-    //
-    // * `theme` - 当前 iced 主题
-    // * `_status` - 文本编辑器的当前状态（未使用）
-    //
-    // # 返回值
-    //
-    // 返回文本编辑器的样式配置
-    fn editor_style(theme: &Theme, status: text_editor::Status) -> text_editor::Style {
-        settings_text_editor_style(theme, status)
-    }
-
-    // 构建模态窗口标题栏
-    // 包含标题文本、填充空间和关闭按钮
-    let header = row![
-        text(crate::app::i18n::I18n::new(app.desktop_locale).__("新建任务"))
-            .size(18)
-            .font(iced::Font { weight: iced::font::Weight::Bold, ..Default::default() }),
-        Space::new().width(Length::Fill),
-        settings_close_button(Message::TaskBoard(TaskBoardMessage::CreateTaskCancelled)),
-    ]
-    .spacing(8)
-    .align_y(Alignment::Center)
-    .width(Length::Fill);
-
-    // 构建优先级输入框
-    // 允许用户输入 1-99999 范围的优先级值
-    let priority_input = text_input(
-        crate::app::i18n::I18n::new(app.desktop_locale).__("1-99999，默认999"),
-        &app.task_board_draft.priority,
-    )
-    .on_input(|v| Message::TaskBoard(TaskBoardMessage::UpdateDraftPriority(v)))
-    .padding([8, 10])
-    .size(14)
-    .width(Length::Fill)
-    .style(input_style);
-
-    let priority_field = priority_input;
-    let model_field = build_model_selector(app, false);
-    let executor_field = build_executor_selector(app, false);
-    let task_split_field = pick_list(
-        TaskSplitMode::all()
-            .map(|mode| crate::app::i18n::tasks::SplitOption(mode, app.desktop_locale))
-            .to_vec(),
-        Some(crate::app::i18n::tasks::SplitOption(
-            app.task_board_draft.task_split_mode,
-            app.desktop_locale,
-        )),
-        |mode| Message::TaskBoard(TaskBoardMessage::UpdateDraftTaskSplitMode(mode.0)),
-    )
-    .placeholder(crate::app::i18n::I18n::new(app.desktop_locale).__("任务拆分"))
-    .padding([6, 10])
-    .text_size(14)
-    .style(settings_pick_list_style)
-    .menu_style(settings_pick_list_menu_style)
-    .width(Length::Fill);
-
-    // 构建模式切换按钮组：单个任务 / 批量导入
-    let mode_toggle = row![
-        button(text(crate::app::i18n::I18n::new(app.desktop_locale).__("单个任务")).size(13))
-            .on_press(Message::TaskBoard(TaskBoardMessage::ToggleImportMode(false)))
-            .padding([6, 12])
-            .style(move |theme: &Theme, status| {
-                let p = theme.extended_palette();
-                let active = !app.task_board_is_import_mode;
-                let bg = if active {
-                    Some(Background::Color(p.background.strong.color))
-                } else {
-                    match status {
-                        iced::widget::button::Status::Hovered => {
-                            Some(Background::Color(p.background.weak.color.scale_alpha(0.5)))
-                        }
-                        _ => None,
-                    }
-                };
-                iced::widget::button::Style {
-                    background: bg,
-                    text_color: theme.palette().text,
-                    border: Border { radius: 6.0.into(), ..Default::default() },
-                    ..Default::default()
-                }
-            }),
-        button(text(crate::app::i18n::I18n::new(app.desktop_locale).__("批量导入")).size(13))
-            .on_press(Message::TaskBoard(TaskBoardMessage::ToggleImportMode(true)))
-            .padding([6, 12])
-            .style(move |theme: &Theme, status| {
-                let p = theme.extended_palette();
-                let active = app.task_board_is_import_mode;
-                let bg = if active {
-                    Some(Background::Color(p.background.strong.color))
-                } else {
-                    match status {
-                        iced::widget::button::Status::Hovered => {
-                            Some(Background::Color(p.background.weak.color.scale_alpha(0.5)))
-                        }
-                        _ => None,
-                    }
-                };
-                iced::widget::button::Style {
-                    background: bg,
-                    text_color: theme.palette().text,
-                    border: Border { radius: 6.0.into(), ..Default::default() },
-                    ..Default::default()
-                }
-            }),
-    ]
-    .spacing(8);
-
-    // 根据当前模式构建主体内容
-    let body_content: Element<'_, Message> = if app.task_board_is_import_mode {
-        // 批量导入模式：显示文本编辑器和帮助文本
-        let import_editor = text_editor(&app.task_board_import_editor)
-            .placeholder(
-                crate::app::i18n::I18n::new(app.desktop_locale).__("粘贴 JSON 数组或 CSV 内容..."),
-            )
-            .on_action(|a| Message::TaskBoard(TaskBoardMessage::ImportEditorAction(a)))
-            .size(14)
-            .padding([8, 10])
-            .height(Length::Fixed(300.0))
-            .style(editor_style);
-
-        let help_text = text(crate::app::i18n::I18n::new(app.desktop_locale).__("支持 JSON 数组格式（包含 priority, prompt, model, acp_agent, task_split_mode 字段）\n或 CSV/TSV 格式（首行需包含 priority, prompt 表头）"))
-            .size(12)
-            .style(|theme: &Theme| iced::widget::text::Style {
-                color: Some(theme.extended_palette().background.base.text.scale_alpha(0.8)),
-            });
-
-        column![
-            input_label(crate::app::i18n::I18n::new(app.desktop_locale).__("批量导入内容")),
-            import_editor,
-            help_text
-        ]
-        .spacing(6)
-        .width(Length::Fill)
-        .into()
-    } else {
-        // 单个任务模式：显示提示词编辑器和配置字段
-        let prompt_editor = text_editor(&app.task_board_prompt_editor)
-            .placeholder(crate::app::i18n::I18n::new(app.desktop_locale).__("输入大模型提示词..."))
-            .on_action(|a| Message::TaskBoard(TaskBoardMessage::PromptEditorAction(a)))
-            .size(14)
-            .padding([8, 10])
-            .height(Length::Fixed(200.0))
-            .style(editor_style);
-
-        let prompt_field = column![
-            input_label(crate::app::i18n::I18n::new(app.desktop_locale).__("大模型提示词")),
-            prompt_editor
-        ]
-        .spacing(6)
-        .width(Length::Fill);
-
-        column![
-            prompt_field,
-            Space::new().height(12.0),
-            // 模型、ACP 智能体和优先级字段并排显示
-            row![
-                container(model_field).width(Length::FillPortion(1)),
-                container(executor_field).width(Length::FillPortion(1)),
-                container(task_split_field).width(Length::FillPortion(1)),
-                container(priority_field).width(Length::FillPortion(1)),
-            ]
-            .spacing(12),
-        ]
-        .spacing(0)
-        .into()
-    };
-
-    // 根据当前模式确定提交按钮的文本和消息
-    let submit_btn_text =
-        if app.task_board_is_import_mode { "导入任务" } else { "创建任务" };
-    let submit_btn_msg = if app.task_board_is_import_mode {
-        Message::TaskBoard(TaskBoardMessage::ImportTasksSubmitted)
-    } else {
-        Message::TaskBoard(TaskBoardMessage::CreateTaskSubmitted)
-    };
-
-    // 构建底部按钮组：取消和提交
-    let buttons = row![
-        button(text(crate::app::i18n::I18n::new(app.desktop_locale).__("取消")).size(14))
-            .on_press(Message::TaskBoard(TaskBoardMessage::CreateTaskCancelled))
-            .padding([10, 20])
-            .style(button_style_secondary),
-        Space::new().width(Length::Fill),
-        button(text(crate::app::i18n::I18n::new(app.desktop_locale).__(submit_btn_text)).size(14))
-            .on_press(submit_btn_msg)
-            .padding([10, 20])
-            .style(button_style_primary),
-    ]
-    .spacing(8)
-    .width(Length::Fill);
-
-    // 组装完整的模态窗口内容
-    let modal_content = scrollable(
-        column![
-            header,
-            Space::new().height(16.0),
-            mode_toggle,
-            Space::new().height(16.0),
-            body_content,
-            Space::new().height(20.0),
-            buttons,
-        ]
-        .spacing(0)
-        .width(Length::Fixed(480.0)),
-    )
-    .height(Length::Fill);
-
-    // 返回带有容器样式的完整模态窗口
-    settings_modal_card(modal_content)
-        .width(Length::Fill)
-        .height(Length::Fixed(480.0))
-        .center_x(Length::Fill)
-        .into()
-}
+use super::common::button_style_secondary;
 
 /// 构建任务设置模态窗口
 ///
@@ -345,120 +46,25 @@ pub fn build_create_task_modal(app: &App) -> Element<'_, Message> {
 /// // 将 settings_modal 添加到 UI 树中进行渲染
 /// ```
 pub fn build_task_settings_modal(app: &App) -> Element<'_, Message> {
-    fn input_label(label: &str) -> Element<'_, Message> {
-        text(label).size(12).style(settings_muted_text_style).into()
-    }
-
-    // 定义文本输入框的样式
-    //
-    // 根据当前主题生成文本输入框的视觉样式
-    //
-    // # 参数
-    //
-    // * `theme` - 当前 iced 主题
-    // * `_status` - 文本输入框的当前状态（未使用）
-    //
-    // # 返回值
-    //
-    // 返回文本输入框的样式配置
-    fn input_style(theme: &Theme, status: text_input::Status) -> text_input::Style {
-        settings_text_input_style(theme, status)
-    }
-
     fn field_row<'a>(
-        i18n: crate::app::i18n::I18n,
-        label: &'static str,
+        label: &'a str,
         control: impl Into<Element<'a, Message>>,
     ) -> Element<'a, Message> {
-        row![
-            column![
-                text(i18n.__(label)).size(13),
-                input_label(i18n.__("数值会立即作用于当前项目任务看板。")),
-            ]
-            .spacing(4)
-            .width(Length::Fixed(168.0)),
-            container(control.into()).width(Length::Fill),
-        ]
-        .spacing(20)
-        .align_y(Alignment::Center)
-        .into()
+        row![container(settings_field_label(label)).width(Length::Fill), control.into(),]
+            .spacing(12)
+            .align_y(Alignment::Center)
+            .padding([10, 0])
+            .into()
     }
 
-    let tab_button = |label: &'static str, tab: TaskBoardSettingsModalTab, selected: bool| {
-        button(text(crate::app::i18n::I18n::new(app.desktop_locale).__(label)).size(12))
+    let i18n = I18n::new(app.desktop_locale);
+    let tab_button = |label: &'static str, tab: TaskBoardSettingsModalTab| {
+        let selected = app.task_board_settings_modal_tab == tab;
+        button(text(i18n.__(label)).size(13))
             .on_press(Message::TaskBoard(TaskBoardMessage::SelectSettingsModalTab(tab)))
-            .padding([6, 12])
-            .style(move |theme: &Theme, status| {
-                let palette = theme.extended_palette();
-                let is_dark = theme.palette().background.r
-                    + theme.palette().background.g
-                    + theme.palette().background.b
-                    < 1.5;
-                let background = if selected {
-                    Some(Background::Color(if is_dark {
-                        theme.palette().primary.scale_alpha(0.18)
-                    } else {
-                        theme.palette().primary.scale_alpha(0.10)
-                    }))
-                } else if matches!(status, iced::widget::button::Status::Hovered) {
-                    Some(Background::Color(if is_dark {
-                        palette.background.weak.color.scale_alpha(0.84)
-                    } else {
-                        Color::WHITE.scale_alpha(0.92)
-                    }))
-                } else {
-                    Some(Background::Color(if is_dark {
-                        palette.background.base.color.scale_alpha(0.56)
-                    } else {
-                        Color::WHITE.scale_alpha(0.78)
-                    }))
-                };
-
-                iced::widget::button::Style {
-                    background,
-                    text_color: if selected {
-                        theme.palette().primary
-                    } else {
-                        theme.palette().text
-                    },
-                    border: Border {
-                        radius: 999.0.into(),
-                        width: 1.0,
-                        color: if selected {
-                            theme.palette().primary.scale_alpha(0.45)
-                        } else {
-                            palette.background.strong.color.scale_alpha(0.62)
-                        },
-                    },
-                    shadow: if selected {
-                        iced::Shadow {
-                            color: theme.palette().primary.scale_alpha(if is_dark {
-                                0.18
-                            } else {
-                                0.08
-                            }),
-                            offset: iced::Vector::new(0.0, 8.0),
-                            blur_radius: 18.0,
-                        }
-                    } else {
-                        iced::Shadow::default()
-                    },
-                    ..Default::default()
-                }
-            })
+            .padding([8, 12])
+            .style(move |theme, status| settings_segment_button_style(theme, status, selected))
     };
-
-    // 构建设置模态窗口标题栏
-    let header = row![
-        text(crate::app::i18n::I18n::new(app.desktop_locale).__("任务设置"))
-            .size(18)
-            .font(iced::Font { weight: iced::font::Weight::Bold, ..Default::default() }),
-        Space::new().width(Length::Fill),
-        settings_close_button(Message::TaskBoard(TaskBoardMessage::CloseSettingsModal)),
-    ]
-    .spacing(8)
-    .align_y(Alignment::Center)
-    .width(Length::Fill);
 
     // 构建并发数设置行
     // 包含减少按钮、输入框和增加按钮，值范围为 1-10
@@ -474,525 +80,443 @@ pub fn build_task_settings_modal(app: &App) -> Element<'_, Message> {
         app.task_board_settings.auto_promote_tick_interval_seconds.clamp(1, 3600);
     let auto_promote_tick_interval_seconds_text =
         current_auto_promote_tick_interval_seconds.to_string();
-    let max_concurrent_row = row![
-        input_label(crate::app::i18n::I18n::new(app.desktop_locale).__("并发数")),
-        Space::new().width(Length::Fill),
-        button(text("-").size(12))
-            .on_press(Message::TaskBoard(TaskBoardMessage::SetMaxConcurrent(
-                max_concurrent.saturating_sub(1).max(1),
-            )))
-            .padding([4, 8])
-            .style(button_style_secondary),
-        text_input(
-            crate::app::i18n::I18n::new(app.desktop_locale).__("数量"),
-            &max_concurrent_text
-        )
-        .on_input(move |value| {
-            // 解析输入值并限制在有效范围内
-            let count = value
-                .trim()
-                .parse::<u32>()
-                .ok()
-                .map(|v| v.clamp(1, 10))
-                .unwrap_or(max_concurrent.clamp(1, 10));
-            Message::TaskBoard(TaskBoardMessage::SetMaxConcurrent(count))
-        })
-        .padding([4, 8])
-        .size(12)
-        .width(Length::Fixed(52.0))
-        .style(input_style),
-        button(text("+").size(12))
-            .on_press(Message::TaskBoard(TaskBoardMessage::SetMaxConcurrent(
-                max_concurrent.saturating_add(1).min(10),
-            )))
-            .padding([4, 8])
-            .style(button_style_secondary),
-    ]
-    .spacing(8)
-    .align_y(Alignment::Center);
+    let max_concurrent_row = field_row(
+        i18n.__("并发数"),
+        row![
+            button(text("-").size(12))
+                .on_press(Message::TaskBoard(TaskBoardMessage::SetMaxConcurrent(
+                    max_concurrent.saturating_sub(1).max(1),
+                )))
+                .padding([8, 10])
+                .style(rounded_action_btn_style),
+            text_input(i18n.__("数量"), &max_concurrent_text)
+                .on_input(move |value| {
+                    // 解析输入值并限制在有效范围内
+                    let count = value
+                        .trim()
+                        .parse::<u32>()
+                        .ok()
+                        .map(|v| v.clamp(1, 10))
+                        .unwrap_or(max_concurrent.clamp(1, 10));
+                    Message::TaskBoard(TaskBoardMessage::SetMaxConcurrent(count))
+                })
+                .padding(SETTINGS_CONTROL_PADDING)
+                .size(SETTINGS_CONTROL_TEXT_SIZE)
+                .width(Length::Fixed(76.0))
+                .style(settings_text_input_style),
+            button(text("+").size(12))
+                .on_press(Message::TaskBoard(TaskBoardMessage::SetMaxConcurrent(
+                    max_concurrent.saturating_add(1).min(10),
+                )))
+                .padding([8, 10])
+                .style(rounded_action_btn_style),
+        ]
+        .spacing(8)
+        .align_y(Alignment::Center),
+    );
 
-    let auto_refresh_toggle_row = row![
-        input_label(crate::app::i18n::I18n::new(app.desktop_locale).__("自动刷新")),
-        Space::new().width(Length::Fill),
-        toggler(app.task_board_settings.auto_refresh)
-            .on_toggle(|enabled| Message::TaskBoard(TaskBoardMessage::ToggleAutoRefresh(enabled))),
-    ]
-    .spacing(8)
-    .align_y(Alignment::Center);
+    let auto_refresh_toggle_row = field_row(
+        i18n.__("自动刷新"),
+        row![settings_toggle(app.task_board_settings.auto_refresh).on_toggle(|enabled| {
+            Message::TaskBoard(TaskBoardMessage::ToggleAutoRefresh(enabled))
+        }),]
+        .spacing(8)
+        .align_y(Alignment::Center),
+    );
 
     let dispatch_mode = app.task_board_settings.agent_scheduler_dispatch_mode;
     let dispatch_mode_button = |label: &'static str, mode: AgentSchedulerDispatchModeDto| {
         let active = dispatch_mode == mode;
         button(text(label).size(12))
             .on_press(Message::TaskBoard(TaskBoardMessage::SetAgentSchedulerDispatchMode(mode)))
-            .padding([4, 10])
-            .style(move |theme, status| {
-                if active {
-                    button_style_primary(theme, status)
-                } else {
-                    button_style_secondary(theme, status)
-                }
-            })
+            .padding([8, 12])
+            .style(move |theme, status| settings_segment_button_style(theme, status, active))
     };
-    let dispatch_mode_row = row![
-        input_label(crate::app::i18n::I18n::new(app.desktop_locale).__("调度方式")),
-        Space::new().width(Length::Fill),
-        dispatch_mode_button(
-            crate::app::i18n::I18n::new(app.desktop_locale).__("本地"),
-            AgentSchedulerDispatchModeDto::Local
-        ),
-        dispatch_mode_button(
-            crate::app::i18n::I18n::new(app.desktop_locale).__("自动"),
-            AgentSchedulerDispatchModeDto::Auto
-        ),
-    ]
-    .spacing(8)
-    .align_y(Alignment::Center);
+    let dispatch_mode_row = field_row(
+        i18n.__("调度方式"),
+        row![
+            dispatch_mode_button(i18n.__("本地"), AgentSchedulerDispatchModeDto::Local),
+            dispatch_mode_button(i18n.__("自动"), AgentSchedulerDispatchModeDto::Auto),
+        ]
+        .spacing(8)
+        .align_y(Alignment::Center),
+    );
 
-    let refresh_interval_row = row![
-        input_label(crate::app::i18n::I18n::new(app.desktop_locale).__("刷新间隔(秒)")),
-        Space::new().width(Length::Fill),
-        button(text("-").size(12))
-            .on_press(Message::TaskBoard(TaskBoardMessage::SetRefreshIntervalSeconds(
-                current_refresh_interval_seconds.saturating_sub(5).max(1),
-            )))
-            .padding([4, 8])
-            .style(button_style_secondary),
-        text_input(
-            crate::app::i18n::I18n::new(app.desktop_locale).__("秒"),
-            &refresh_interval_seconds_text
-        )
-        .on_input(move |value| {
-            let seconds = value
-                .trim()
-                .parse::<u64>()
-                .ok()
-                .map(|v| v.clamp(1, 3600))
-                .unwrap_or(current_refresh_interval_seconds);
-            Message::TaskBoard(TaskBoardMessage::SetRefreshIntervalSeconds(seconds))
-        })
-        .padding([4, 8])
-        .size(12)
-        .width(Length::Fixed(52.0))
-        .style(input_style),
-        button(text("+").size(12))
-            .on_press(Message::TaskBoard(TaskBoardMessage::SetRefreshIntervalSeconds(
-                current_refresh_interval_seconds.saturating_add(5).min(3600),
-            )))
-            .padding([4, 8])
-            .style(button_style_secondary),
-    ]
-    .spacing(8)
-    .align_y(Alignment::Center);
+    let refresh_interval_row = field_row(
+        i18n.__("刷新间隔(秒)"),
+        row![
+            button(text("-").size(12))
+                .on_press(Message::TaskBoard(TaskBoardMessage::SetRefreshIntervalSeconds(
+                    current_refresh_interval_seconds.saturating_sub(5).max(1),
+                )))
+                .padding([8, 10])
+                .style(rounded_action_btn_style),
+            text_input(i18n.__("秒"), &refresh_interval_seconds_text)
+                .on_input(move |value| {
+                    let seconds = value
+                        .trim()
+                        .parse::<u64>()
+                        .ok()
+                        .map(|v| v.clamp(1, 3600))
+                        .unwrap_or(current_refresh_interval_seconds);
+                    Message::TaskBoard(TaskBoardMessage::SetRefreshIntervalSeconds(seconds))
+                })
+                .padding(SETTINGS_CONTROL_PADDING)
+                .size(SETTINGS_CONTROL_TEXT_SIZE)
+                .width(Length::Fixed(76.0))
+                .style(settings_text_input_style),
+            button(text("+").size(12))
+                .on_press(Message::TaskBoard(TaskBoardMessage::SetRefreshIntervalSeconds(
+                    current_refresh_interval_seconds.saturating_add(5).min(3600),
+                )))
+                .padding([8, 10])
+                .style(rounded_action_btn_style),
+        ]
+        .spacing(8)
+        .align_y(Alignment::Center),
+    );
 
-    let scheduler_tick_interval_row = row![
-        input_label(crate::app::i18n::I18n::new(app.desktop_locale).__("执行唤醒间隔(秒)")),
-        Space::new().width(Length::Fill),
-        button(text("-").size(12))
-            .on_press(Message::TaskBoard(TaskBoardMessage::SetSchedulerTickIntervalSeconds(
-                current_scheduler_tick_interval_seconds.saturating_sub(1).max(1),
-            )))
-            .padding([4, 8])
-            .style(button_style_secondary),
-        text_input(
-            crate::app::i18n::I18n::new(app.desktop_locale).__("秒"),
-            &scheduler_tick_interval_seconds_text
-        )
-        .on_input(move |value| {
-            let seconds = value
-                .trim()
-                .parse::<u64>()
-                .ok()
-                .map(|v| v.clamp(1, 60))
-                .unwrap_or(current_scheduler_tick_interval_seconds);
-            Message::TaskBoard(TaskBoardMessage::SetSchedulerTickIntervalSeconds(seconds))
-        })
-        .padding([4, 8])
-        .size(12)
-        .width(Length::Fixed(52.0))
-        .style(input_style),
-        button(text("+").size(12))
-            .on_press(Message::TaskBoard(TaskBoardMessage::SetSchedulerTickIntervalSeconds(
-                current_scheduler_tick_interval_seconds.saturating_add(1).min(60),
-            )))
-            .padding([4, 8])
-            .style(button_style_secondary),
-    ]
-    .spacing(8)
-    .align_y(Alignment::Center);
+    let scheduler_tick_interval_row = field_row(
+        i18n.__("执行唤醒间隔(秒)"),
+        row![
+            button(text("-").size(12))
+                .on_press(Message::TaskBoard(TaskBoardMessage::SetSchedulerTickIntervalSeconds(
+                    current_scheduler_tick_interval_seconds.saturating_sub(1).max(1),
+                )))
+                .padding([8, 10])
+                .style(rounded_action_btn_style),
+            text_input(i18n.__("秒"), &scheduler_tick_interval_seconds_text)
+                .on_input(move |value| {
+                    let seconds = value
+                        .trim()
+                        .parse::<u64>()
+                        .ok()
+                        .map(|v| v.clamp(1, 60))
+                        .unwrap_or(current_scheduler_tick_interval_seconds);
+                    Message::TaskBoard(TaskBoardMessage::SetSchedulerTickIntervalSeconds(seconds))
+                })
+                .padding(SETTINGS_CONTROL_PADDING)
+                .size(SETTINGS_CONTROL_TEXT_SIZE)
+                .width(Length::Fixed(76.0))
+                .style(settings_text_input_style),
+            button(text("+").size(12))
+                .on_press(Message::TaskBoard(TaskBoardMessage::SetSchedulerTickIntervalSeconds(
+                    current_scheduler_tick_interval_seconds.saturating_add(1).min(60),
+                )))
+                .padding([8, 10])
+                .style(rounded_action_btn_style),
+        ]
+        .spacing(8)
+        .align_y(Alignment::Center),
+    );
 
-    let auto_promote_tick_interval_row = row![
-        input_label(crate::app::i18n::I18n::new(app.desktop_locale).__("任务池回推间隔(秒)")),
-        Space::new().width(Length::Fill),
-        button(text("-").size(12))
-            .on_press(Message::TaskBoard(TaskBoardMessage::SetAutoPromoteTickIntervalSeconds(
-                current_auto_promote_tick_interval_seconds.saturating_sub(5).max(1),
-            )))
-            .padding([4, 8])
-            .style(button_style_secondary),
-        text_input(
-            crate::app::i18n::I18n::new(app.desktop_locale).__("秒"),
-            &auto_promote_tick_interval_seconds_text
-        )
-        .on_input(move |value| {
-            let seconds = value
-                .trim()
-                .parse::<u64>()
-                .ok()
-                .map(|v| v.clamp(1, 3600))
-                .unwrap_or(current_auto_promote_tick_interval_seconds);
-            Message::TaskBoard(TaskBoardMessage::SetAutoPromoteTickIntervalSeconds(seconds))
-        })
-        .padding([4, 8])
-        .size(12)
-        .width(Length::Fixed(52.0))
-        .style(input_style),
-        button(text("+").size(12))
-            .on_press(Message::TaskBoard(TaskBoardMessage::SetAutoPromoteTickIntervalSeconds(
-                current_auto_promote_tick_interval_seconds.saturating_add(5).min(3600),
-            )))
-            .padding([4, 8])
-            .style(button_style_secondary),
-    ]
-    .spacing(8)
-    .align_y(Alignment::Center);
+    let auto_promote_tick_interval_row = field_row(
+        i18n.__("任务池回推间隔(秒)"),
+        row![
+            button(text("-").size(12))
+                .on_press(Message::TaskBoard(TaskBoardMessage::SetAutoPromoteTickIntervalSeconds(
+                    current_auto_promote_tick_interval_seconds.saturating_sub(5).max(1),
+                )))
+                .padding([8, 10])
+                .style(rounded_action_btn_style),
+            text_input(i18n.__("秒"), &auto_promote_tick_interval_seconds_text)
+                .on_input(move |value| {
+                    let seconds = value
+                        .trim()
+                        .parse::<u64>()
+                        .ok()
+                        .map(|v| v.clamp(1, 3600))
+                        .unwrap_or(current_auto_promote_tick_interval_seconds);
+                    Message::TaskBoard(TaskBoardMessage::SetAutoPromoteTickIntervalSeconds(seconds))
+                })
+                .padding(SETTINGS_CONTROL_PADDING)
+                .size(SETTINGS_CONTROL_TEXT_SIZE)
+                .width(Length::Fixed(76.0))
+                .style(settings_text_input_style),
+            button(text("+").size(12))
+                .on_press(Message::TaskBoard(TaskBoardMessage::SetAutoPromoteTickIntervalSeconds(
+                    current_auto_promote_tick_interval_seconds.saturating_add(5).min(3600),
+                )))
+                .padding([8, 10])
+                .style(rounded_action_btn_style),
+        ]
+        .spacing(8)
+        .align_y(Alignment::Center),
+    );
 
     // 构建失败回推时间设置行
     // 值范围为 1-1440 分钟（最多 24 小时）
     let current_retry_minutes = app.task_board_settings.failed_retry_minutes;
     let retry_minutes_text = current_retry_minutes.to_string();
-    let retry_row = row![
-        input_label(crate::app::i18n::I18n::new(app.desktop_locale).__("失败回推(分)")),
-        Space::new().width(Length::Fill),
-        button(text("-").size(12))
-            .on_press(Message::TaskBoard(TaskBoardMessage::SetFailedRetryMinutes(
-                current_retry_minutes.saturating_sub(1).max(1),
-            )))
-            .padding([4, 8])
-            .style(button_style_secondary),
-        text_input(crate::app::i18n::I18n::new(app.desktop_locale).__("分钟"), &retry_minutes_text)
-            .on_input(move |value| {
-                // 解析输入值并限制在有效范围内
-                let minutes = value
-                    .trim()
-                    .parse::<u32>()
-                    .ok()
-                    .map(|v| v.clamp(1, 1440))
-                    .unwrap_or(current_retry_minutes.clamp(1, 1440));
-                Message::TaskBoard(TaskBoardMessage::SetFailedRetryMinutes(minutes))
-            })
-            .padding([4, 8])
-            .size(12)
-            .width(Length::Fixed(52.0))
-            .style(input_style),
-        button(text("+").size(12))
-            .on_press(Message::TaskBoard(TaskBoardMessage::SetFailedRetryMinutes(
-                current_retry_minutes.saturating_add(1).min(1440),
-            )))
-            .padding([4, 8])
-            .style(button_style_secondary),
-    ]
-    .spacing(8)
-    .align_y(Alignment::Center);
+    let retry_row = field_row(
+        i18n.__("失败回推(分)"),
+        row![
+            button(text("-").size(12))
+                .on_press(Message::TaskBoard(TaskBoardMessage::SetFailedRetryMinutes(
+                    current_retry_minutes.saturating_sub(1).max(1),
+                )))
+                .padding([8, 10])
+                .style(rounded_action_btn_style),
+            text_input(i18n.__("分钟"), &retry_minutes_text)
+                .on_input(move |value| {
+                    // 解析输入值并限制在有效范围内
+                    let minutes = value
+                        .trim()
+                        .parse::<u32>()
+                        .ok()
+                        .map(|v| v.clamp(1, 1440))
+                        .unwrap_or(current_retry_minutes.clamp(1, 1440));
+                    Message::TaskBoard(TaskBoardMessage::SetFailedRetryMinutes(minutes))
+                })
+                .padding(SETTINGS_CONTROL_PADDING)
+                .size(SETTINGS_CONTROL_TEXT_SIZE)
+                .width(Length::Fixed(76.0))
+                .style(settings_text_input_style),
+            button(text("+").size(12))
+                .on_press(Message::TaskBoard(TaskBoardMessage::SetFailedRetryMinutes(
+                    current_retry_minutes.saturating_add(1).min(1440),
+                )))
+                .padding([8, 10])
+                .style(rounded_action_btn_style),
+        ]
+        .spacing(8)
+        .align_y(Alignment::Center),
+    );
 
     let current_retry_max_attempts = app.task_board_settings.failed_retry_max_attempts;
     let retry_max_attempts_text = current_retry_max_attempts.to_string();
-    let retry_max_attempts_row = row![
-        input_label(crate::app::i18n::I18n::new(app.desktop_locale).__("最大重试(次)")),
-        Space::new().width(Length::Fill),
-        button(text("-").size(12))
-            .on_press(Message::TaskBoard(TaskBoardMessage::SetFailedRetryMaxAttempts(
-                current_retry_max_attempts.saturating_sub(1),
-            )))
-            .padding([4, 8])
-            .style(button_style_secondary),
-        text_input("0-10", &retry_max_attempts_text)
-            .on_input(move |value| {
-                let attempts = value
-                    .trim()
-                    .parse::<u32>()
-                    .ok()
-                    .map(|v| v.clamp(0, 10))
-                    .unwrap_or(current_retry_max_attempts.clamp(0, 10));
-                Message::TaskBoard(TaskBoardMessage::SetFailedRetryMaxAttempts(attempts))
-            })
-            .padding([4, 8])
-            .size(12)
-            .width(Length::Fixed(52.0))
-            .style(input_style),
-        button(text("+").size(12))
-            .on_press(Message::TaskBoard(TaskBoardMessage::SetFailedRetryMaxAttempts(
-                current_retry_max_attempts.saturating_add(1).min(10),
-            )))
-            .padding([4, 8])
-            .style(button_style_secondary),
-    ]
-    .spacing(8)
-    .align_y(Alignment::Center);
+    let retry_max_attempts_row = field_row(
+        i18n.__("最大重试(次)"),
+        row![
+            button(text("-").size(12))
+                .on_press(Message::TaskBoard(TaskBoardMessage::SetFailedRetryMaxAttempts(
+                    current_retry_max_attempts.saturating_sub(1),
+                )))
+                .padding([8, 10])
+                .style(rounded_action_btn_style),
+            text_input("0-10", &retry_max_attempts_text)
+                .on_input(move |value| {
+                    let attempts = value
+                        .trim()
+                        .parse::<u32>()
+                        .ok()
+                        .map(|v| v.clamp(0, 10))
+                        .unwrap_or(current_retry_max_attempts.clamp(0, 10));
+                    Message::TaskBoard(TaskBoardMessage::SetFailedRetryMaxAttempts(attempts))
+                })
+                .padding(SETTINGS_CONTROL_PADDING)
+                .size(SETTINGS_CONTROL_TEXT_SIZE)
+                .width(Length::Fixed(76.0))
+                .style(settings_text_input_style),
+            button(text("+").size(12))
+                .on_press(Message::TaskBoard(TaskBoardMessage::SetFailedRetryMaxAttempts(
+                    current_retry_max_attempts.saturating_add(1).min(10),
+                )))
+                .padding([8, 10])
+                .style(rounded_action_btn_style),
+        ]
+        .spacing(8)
+        .align_y(Alignment::Center),
+    );
 
     // 构建执行超时时间设置行
     // 值范围为 1-1440 分钟（最多 24 小时）
     let current_timeout_minutes = app.task_board_settings.running_timeout_minutes;
     let timeout_minutes_text = current_timeout_minutes.to_string();
-    let timeout_row = row![
-        input_label(crate::app::i18n::I18n::new(app.desktop_locale).__("执行超时(分)")),
-        Space::new().width(Length::Fill),
-        button(text("-").size(12))
-            .on_press(Message::TaskBoard(TaskBoardMessage::SetRunningTimeoutMinutes(
-                current_timeout_minutes.saturating_sub(1).max(1),
-            )))
-            .padding([4, 8])
-            .style(button_style_secondary),
-        text_input(
-            crate::app::i18n::I18n::new(app.desktop_locale).__("分钟"),
-            &timeout_minutes_text
-        )
-        .on_input(move |value| {
-            // 解析输入值并限制在有效范围内
-            let minutes = value
-                .trim()
-                .parse::<u32>()
-                .ok()
-                .map(|v| v.clamp(1, 1440))
-                .unwrap_or(current_timeout_minutes.clamp(1, 1440));
-            Message::TaskBoard(TaskBoardMessage::SetRunningTimeoutMinutes(minutes))
-        })
-        .padding([4, 8])
-        .size(12)
-        .width(Length::Fixed(52.0))
-        .style(input_style),
-        button(text("+").size(12))
-            .on_press(Message::TaskBoard(TaskBoardMessage::SetRunningTimeoutMinutes(
-                current_timeout_minutes.saturating_add(1).min(1440),
-            )))
-            .padding([4, 8])
-            .style(button_style_secondary),
-    ]
-    .spacing(8)
-    .align_y(Alignment::Center);
+    let timeout_row = field_row(
+        i18n.__("执行超时(分)"),
+        row![
+            button(text("-").size(12))
+                .on_press(Message::TaskBoard(TaskBoardMessage::SetRunningTimeoutMinutes(
+                    current_timeout_minutes.saturating_sub(1).max(1),
+                )))
+                .padding([8, 10])
+                .style(rounded_action_btn_style),
+            text_input(i18n.__("分钟"), &timeout_minutes_text)
+                .on_input(move |value| {
+                    // 解析输入值并限制在有效范围内
+                    let minutes = value
+                        .trim()
+                        .parse::<u32>()
+                        .ok()
+                        .map(|v| v.clamp(1, 1440))
+                        .unwrap_or(current_timeout_minutes.clamp(1, 1440));
+                    Message::TaskBoard(TaskBoardMessage::SetRunningTimeoutMinutes(minutes))
+                })
+                .padding(SETTINGS_CONTROL_PADDING)
+                .size(SETTINGS_CONTROL_TEXT_SIZE)
+                .width(Length::Fixed(76.0))
+                .style(settings_text_input_style),
+            button(text("+").size(12))
+                .on_press(Message::TaskBoard(TaskBoardMessage::SetRunningTimeoutMinutes(
+                    current_timeout_minutes.saturating_add(1).min(1440),
+                )))
+                .padding([8, 10])
+                .style(rounded_action_btn_style),
+        ]
+        .spacing(8)
+        .align_y(Alignment::Center),
+    );
 
-    let recycle_on_finish_row = row![
-        input_label(crate::app::i18n::I18n::new(app.desktop_locale).__("完成后回收 worktree")),
-        Space::new().width(Length::Fill),
-        button(
-            text(crate::app::i18n::I18n::new(app.desktop_locale).__(
-                if app.task_board_settings.recycle_worktree_on_task_finish {
+    let recycle_on_finish_row = field_row(
+        i18n.__("完成后回收 worktree"),
+        row![
+            button(
+                text(i18n.__(if app.task_board_settings.recycle_worktree_on_task_finish {
                     "开启"
                 } else {
                     "关闭"
-                }
-            ))
-            .size(12)
-        )
-        .on_press(Message::TaskBoard(TaskBoardMessage::ToggleRecycleWorktreeOnTaskFinish(
-            !app.task_board_settings.recycle_worktree_on_task_finish,
-        )))
-        .padding([4, 10])
-        .style(button_style_secondary),
-    ]
-    .spacing(8)
-    .align_y(Alignment::Center);
+                }))
+                .size(12)
+            )
+            .on_press(Message::TaskBoard(TaskBoardMessage::ToggleRecycleWorktreeOnTaskFinish(
+                !app.task_board_settings.recycle_worktree_on_task_finish,
+            )))
+            .padding([8, 12])
+            .style(rounded_action_btn_style),
+        ]
+        .spacing(8)
+        .align_y(Alignment::Center),
+    );
 
     let current_pr_stall_timeout_seconds =
         app.task_board_settings.pr_submitted_stall_timeout_seconds;
     let pr_stall_timeout_seconds_text = current_pr_stall_timeout_seconds.to_string();
-    let pr_stall_timeout_row = row![
-        input_label(crate::app::i18n::I18n::new(app.desktop_locale).__("合并锁超时(秒)")),
-        Space::new().width(Length::Fill),
-        button(text("-").size(12))
-            .on_press(Message::TaskBoard(TaskBoardMessage::SetPrSubmittedStallTimeoutSeconds(
-                current_pr_stall_timeout_seconds.saturating_sub(5).max(5),
-            )))
-            .padding([4, 8])
-            .style(button_style_secondary),
-        text_input(
-            crate::app::i18n::I18n::new(app.desktop_locale).__("秒"),
-            &pr_stall_timeout_seconds_text
-        )
-        .on_input(move |value| {
-            let seconds = value
-                .trim()
-                .parse::<u32>()
-                .ok()
-                .map(|v| v.clamp(5, 3600))
-                .unwrap_or(current_pr_stall_timeout_seconds.clamp(5, 3600));
-            Message::TaskBoard(TaskBoardMessage::SetPrSubmittedStallTimeoutSeconds(seconds))
-        })
-        .padding([4, 8])
-        .size(12)
-        .width(Length::Fixed(52.0))
-        .style(input_style),
-        button(text("+").size(12))
-            .on_press(Message::TaskBoard(TaskBoardMessage::SetPrSubmittedStallTimeoutSeconds(
-                current_pr_stall_timeout_seconds.saturating_add(5).min(3600),
-            )))
-            .padding([4, 8])
-            .style(button_style_secondary),
-    ]
-    .spacing(8)
-    .align_y(Alignment::Center);
+    let pr_stall_timeout_row = field_row(
+        i18n.__("合并锁超时(秒)"),
+        row![
+            button(text("-").size(12))
+                .on_press(Message::TaskBoard(TaskBoardMessage::SetPrSubmittedStallTimeoutSeconds(
+                    current_pr_stall_timeout_seconds.saturating_sub(5).max(5),
+                )))
+                .padding([8, 10])
+                .style(rounded_action_btn_style),
+            text_input(i18n.__("秒"), &pr_stall_timeout_seconds_text)
+                .on_input(move |value| {
+                    let seconds = value
+                        .trim()
+                        .parse::<u32>()
+                        .ok()
+                        .map(|v| v.clamp(5, 3600))
+                        .unwrap_or(current_pr_stall_timeout_seconds.clamp(5, 3600));
+                    Message::TaskBoard(TaskBoardMessage::SetPrSubmittedStallTimeoutSeconds(seconds))
+                })
+                .padding(SETTINGS_CONTROL_PADDING)
+                .size(SETTINGS_CONTROL_TEXT_SIZE)
+                .width(Length::Fixed(76.0))
+                .style(settings_text_input_style),
+            button(text("+").size(12))
+                .on_press(Message::TaskBoard(TaskBoardMessage::SetPrSubmittedStallTimeoutSeconds(
+                    current_pr_stall_timeout_seconds.saturating_add(5).min(3600),
+                )))
+                .padding([8, 10])
+                .style(rounded_action_btn_style),
+        ]
+        .spacing(8)
+        .align_y(Alignment::Center),
+    );
 
     // 构建自动回推延迟设置行
     // 值范围为 0-3600 秒（最多 1 小时）
     let current_delay_seconds = app.task_board_settings.auto_promote_delay_seconds;
     let delay_seconds_text = current_delay_seconds.to_string();
-    let delay_row = row![
-        input_label(crate::app::i18n::I18n::new(app.desktop_locale).__("自动回推延迟(秒)")),
-        Space::new().width(Length::Fill),
-        button(text("-").size(12))
-            .on_press(Message::TaskBoard(TaskBoardMessage::SetAutoPromoteDelay(
-                current_delay_seconds.saturating_sub(5),
-            )))
-            .padding([4, 8])
-            .style(button_style_secondary),
-        text_input(crate::app::i18n::I18n::new(app.desktop_locale).__("秒"), &delay_seconds_text)
-            .on_input(move |value| {
-                // 解析输入值并限制在有效范围内
-                let seconds = value
-                    .trim()
-                    .parse::<u64>()
-                    .ok()
-                    .map(|v| v.clamp(0, 3600))
-                    .unwrap_or(current_delay_seconds.clamp(0, 3600));
-                Message::TaskBoard(TaskBoardMessage::SetAutoPromoteDelay(seconds))
-            })
-            .padding([4, 8])
-            .size(12)
-            .width(Length::Fixed(52.0))
-            .style(input_style),
-        button(text("+").size(12))
-            .on_press(Message::TaskBoard(TaskBoardMessage::SetAutoPromoteDelay(
-                current_delay_seconds.saturating_add(5).min(3600),
-            )))
-            .padding([4, 8])
-            .style(button_style_secondary),
-    ]
-    .spacing(8)
-    .align_y(Alignment::Center);
+    let delay_row = field_row(
+        i18n.__("自动回推延迟(秒)"),
+        row![
+            button(text("-").size(12))
+                .on_press(Message::TaskBoard(TaskBoardMessage::SetAutoPromoteDelay(
+                    current_delay_seconds.saturating_sub(5),
+                )))
+                .padding([8, 10])
+                .style(rounded_action_btn_style),
+            text_input(i18n.__("秒"), &delay_seconds_text)
+                .on_input(move |value| {
+                    // 解析输入值并限制在有效范围内
+                    let seconds = value
+                        .trim()
+                        .parse::<u64>()
+                        .ok()
+                        .map(|v| v.clamp(0, 3600))
+                        .unwrap_or(current_delay_seconds.clamp(0, 3600));
+                    Message::TaskBoard(TaskBoardMessage::SetAutoPromoteDelay(seconds))
+                })
+                .padding(SETTINGS_CONTROL_PADDING)
+                .size(SETTINGS_CONTROL_TEXT_SIZE)
+                .width(Length::Fixed(76.0))
+                .style(settings_text_input_style),
+            button(text("+").size(12))
+                .on_press(Message::TaskBoard(TaskBoardMessage::SetAutoPromoteDelay(
+                    current_delay_seconds.saturating_add(5).min(3600),
+                )))
+                .padding([8, 10])
+                .style(rounded_action_btn_style),
+        ]
+        .spacing(8)
+        .align_y(Alignment::Center),
+    );
 
-    let refresh_tab = column![
-        settings_section_card(
-            crate::app::i18n::I18n::new(app.desktop_locale).__("刷新与自动化"),
-            crate::app::i18n::I18n::new(app.desktop_locale)
-                .__("统一管理自动刷新、Agent Scheduler 唤醒与任务池回推节奏。"),
-        ),
-        settings_panel(
-            column![
-                field_row(
-                    crate::app::i18n::I18n::new(app.desktop_locale),
-                    "自动刷新",
-                    auto_refresh_toggle_row
-                ),
-                field_row(
-                    crate::app::i18n::I18n::new(app.desktop_locale),
-                    "调度方式",
-                    dispatch_mode_row
-                ),
-                field_row(
-                    crate::app::i18n::I18n::new(app.desktop_locale),
-                    "刷新间隔",
-                    refresh_interval_row
-                ),
-                field_row(
-                    crate::app::i18n::I18n::new(app.desktop_locale),
-                    "执行唤醒间隔",
-                    scheduler_tick_interval_row
-                ),
-                field_row(
-                    crate::app::i18n::I18n::new(app.desktop_locale),
-                    "任务池回推间隔",
-                    auto_promote_tick_interval_row
-                ),
-                field_row(
-                    crate::app::i18n::I18n::new(app.desktop_locale),
-                    "自动回推延迟",
-                    delay_row
-                ),
-            ]
-            .spacing(12)
-        ),
-    ]
-    .spacing(12);
-
-    let scheduling_tab = column![
-        settings_section_card(
-            crate::app::i18n::I18n::new(app.desktop_locale).__("并发与保护"),
-            crate::app::i18n::I18n::new(app.desktop_locale)
-                .__("控制任务吞吐、失败重试、超时与 worktree 回收策略。"),
-        ),
-        settings_panel(
-            column![
-                field_row(
-                    crate::app::i18n::I18n::new(app.desktop_locale),
-                    "并发数",
-                    max_concurrent_row
-                ),
-                field_row(crate::app::i18n::I18n::new(app.desktop_locale), "失败回推", retry_row),
-                field_row(
-                    crate::app::i18n::I18n::new(app.desktop_locale),
-                    "最大重试",
-                    retry_max_attempts_row
-                ),
-                field_row(crate::app::i18n::I18n::new(app.desktop_locale), "执行超时", timeout_row),
-                field_row(
-                    crate::app::i18n::I18n::new(app.desktop_locale),
-                    "完成后回收",
-                    recycle_on_finish_row
-                ),
-                field_row(
-                    crate::app::i18n::I18n::new(app.desktop_locale),
-                    "合并锁超时",
-                    pr_stall_timeout_row
-                ),
-            ]
-            .spacing(12)
-        ),
-    ]
-    .spacing(12);
-
-    let active_tab_content: Element<'_, Message> = match app.task_board_settings_modal_tab {
-        TaskBoardSettingsModalTab::Refresh => refresh_tab.into(),
-        TaskBoardSettingsModalTab::Scheduling => scheduling_tab.into(),
-    };
-
-    let active_tab_hint = match app.task_board_settings_modal_tab {
-        TaskBoardSettingsModalTab::Refresh => "自动刷新、执行唤醒与任务池回推参数",
-        TaskBoardSettingsModalTab::Scheduling => "并发、失败重试、超时与 worktree 回收策略",
-    };
-
-    let tabs = row![
-        tab_button(
+    let (heading, description, rows) = match app.task_board_settings_modal_tab {
+        TaskBoardSettingsModalTab::Refresh => (
             "刷新与自动化",
-            TaskBoardSettingsModalTab::Refresh,
-            app.task_board_settings_modal_tab == TaskBoardSettingsModalTab::Refresh,
+            "统一管理自动刷新、Agent Scheduler 唤醒与任务池回推节奏。",
+            column![
+                auto_refresh_toggle_row,
+                settings_divider(),
+                dispatch_mode_row,
+                settings_divider(),
+                refresh_interval_row,
+                settings_divider(),
+                scheduler_tick_interval_row,
+                settings_divider(),
+                auto_promote_tick_interval_row,
+                settings_divider(),
+                delay_row,
+            ],
         ),
-        tab_button(
+        TaskBoardSettingsModalTab::Scheduling => (
             "并发与保护",
-            TaskBoardSettingsModalTab::Scheduling,
-            app.task_board_settings_modal_tab == TaskBoardSettingsModalTab::Scheduling,
+            "控制任务吞吐、失败重试、超时与 worktree 回收策略。",
+            column![
+                max_concurrent_row,
+                settings_divider(),
+                retry_row,
+                settings_divider(),
+                retry_max_attempts_row,
+                settings_divider(),
+                timeout_row,
+                settings_divider(),
+                recycle_on_finish_row,
+                settings_divider(),
+                pr_stall_timeout_row,
+            ],
         ),
-    ]
-    .spacing(6)
-    .align_y(Alignment::Center);
+    };
 
-    let settings_content = column![
-        header,
-        tabs,
-        text(crate::app::i18n::I18n::new(app.desktop_locale).__(active_tab_hint))
-            .size(11)
-            .style(settings_muted_text_style),
-        scrollable(container(active_tab_content).width(Length::Fixed(492.0)))
-            .direction(iced::widget::scrollable::Direction::Vertical(
-                iced::widget::scrollable::Scrollbar::new().width(4).scroller_width(4),
-            ))
-            .width(Length::Fill)
-            .height(Length::Fixed(340.0)),
+    let header = column![
+        settings_modal_header(
+            column![
+                text(i18n.__("任务设置")).size(20),
+                text(i18n.__("数值会立即作用于当前项目任务看板。"))
+                    .size(13)
+                    .style(settings_muted_text_style),
+            ]
+            .spacing(4),
+            settings_close_button(Message::TaskBoard(TaskBoardMessage::CloseSettingsModal)),
+        ),
+        row![
+            tab_button("刷新与自动化", TaskBoardSettingsModalTab::Refresh),
+            tab_button("并发与保护", TaskBoardSettingsModalTab::Scheduling),
+        ]
+        .spacing(8)
+        .wrap(),
     ]
-    .spacing(14)
-    .width(Length::Fixed(520.0));
-
-    // 返回带有容器样式和阴影效果的完整设置模态窗口
-    settings_modal_card(settings_content).width(Length::Fixed(580.0)).into()
+    .spacing(12);
+    let body = column![
+        settings_group_heading(i18n.__(heading), i18n.__(description)),
+        settings_group_card(rows),
+    ]
+    .spacing(12);
+    settings_modal_layout(header, body, None).width(580).height(520).into()
 }
 
 /// 构建任务上下文菜单

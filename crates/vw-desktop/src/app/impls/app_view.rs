@@ -306,6 +306,16 @@ impl App {
             } else {
                 components::toast::view(self)
             };
+            // Leave the creation panel's fixed actions below the toast.
+            let toast_bottom = if self.screen == Screen::TaskBoard
+                && !self.show_system_settings
+                && self.task_board_create_modal_open
+                && !self.task_board_settings_modal_open
+            {
+                98
+            } else {
+                44
+            };
             let toast_layer: Element<'_, Message> = iced::widget::column![
                 iced::widget::Space::new().height(iced::Length::Fill),
                 iced::widget::container(
@@ -317,7 +327,7 @@ impl App {
                 )
                 .width(iced::Length::Fill)
                 .height(iced::Length::Shrink)
-                .padding(iced::Padding::default().top(0).right(12).bottom(44).left(0))
+                .padding(iced::Padding::default().top(0).right(12).bottom(toast_bottom).left(0))
             ]
             .width(iced::Length::Fill)
             .height(iced::Length::Fill)

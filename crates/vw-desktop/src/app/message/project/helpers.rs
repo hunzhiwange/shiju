@@ -1193,23 +1193,13 @@ pub(crate) fn load_prepared_session_open_from_gateway_task(
                 "loading prepared session history from gateway"
             );
             let client = crate::app::gateway_client()?;
-            let (summary, page) =
-                crate::app::session_gateway::gateway_bounded_session_open_with_client(
-                    &client,
-                    &session_id,
-                    &project_path,
-                )
-                .await?;
-
-            crate::app::message::spawn_blocking_opt(move || {
-                Some(crate::app::session::prepare_bounded_session_open(
-                    summary,
-                    page,
-                    show_reasoning_summary,
-                ))
-            })
+            prepare_gateway_session_open(
+                &client,
+                &session_id,
+                &project_path,
+                show_reasoning_summary,
+            )
             .await
-            .ok_or_else(|| "session history preparation task did not complete".to_string())
         },
         move |result| {
             Message::Project(ProjectMessage::SessionOpenPrepared {
@@ -1221,6 +1211,30 @@ pub(crate) fn load_prepared_session_open_from_gateway_task(
             })
         },
     )
+}
+
+pub(crate) async fn prepare_gateway_session_open(
+    client: &vw_gateway_client::GatewayClient,
+    session_id: &str,
+    directory: &str,
+    show_reasoning_summary: bool,
+) -> Result<crate::app::session::PreparedSessionOpen, String> {
+    let (summary, page) = crate::app::session_gateway::gateway_bounded_session_open_with_client(
+        client, session_id, directory,
+    )
+    .await?;
+    if summary.id != session_id {
+        return Err("Gateway returned history for a different session".into());
+    }
+    crate::app::message::spawn_blocking_opt(move || {
+        Some(crate::app::session::prepare_bounded_session_open(
+            summary,
+            page,
+            show_reasoning_summary,
+        ))
+    })
+    .await
+    .ok_or_else(|| "session history preparation task did not complete".to_string())
 }
 
 pub(crate) fn load_session_history_page_task(

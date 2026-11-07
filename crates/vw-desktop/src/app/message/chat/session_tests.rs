@@ -962,10 +962,10 @@ fn recovered_message_ids_ignore_stale_session_and_store_exact_match() {
 
     super::update(
         &mut app,
-        super::ChatMessage::MessageIdsRecoveredForAction {
+        super::ChatMessage::ResetMessageIdsRecovered {
             session_id: "stale".to_string(),
             msg_idx: 1,
-            action: super::MessageIndexedSessionAction::Reset { revert_code: false },
+            revert_code: false,
             result: Ok(vec![Some("stale-1".to_string()), Some("stale-2".to_string())]),
         },
     );
@@ -974,10 +974,10 @@ fn recovered_message_ids_ignore_stale_session_and_store_exact_match() {
     let recovered = vec![Some("msg-1".to_string()), Some("msg-2".to_string())];
     super::update(
         &mut app,
-        super::ChatMessage::MessageIdsRecoveredForAction {
+        super::ChatMessage::ResetMessageIdsRecovered {
             session_id: "active".to_string(),
             msg_idx: 1,
-            action: super::MessageIndexedSessionAction::Fork(super::ForkSessionTarget::Local),
+            revert_code: false,
             result: Ok(recovered.clone()),
         },
     );
@@ -986,22 +986,8 @@ fn recovered_message_ids_ignore_stale_session_and_store_exact_match() {
 }
 
 #[test]
-fn session_action_failures_report_operation_specific_notifications() {
+fn reset_session_failure_reports_operation_specific_notification() {
     let (mut app, _task) = crate::app::App::new();
-
-    super::update(
-        &mut app,
-        super::ChatMessage::ForkSessionFinished { result: Err("fork-error".to_string()) },
-    );
-    super::update(
-        &mut app,
-        super::ChatMessage::LocalForkSessionCreated {
-            result: Err("local-error".to_string()),
-            target: super::ForkSessionTarget::Local,
-            retained_chat: Vec::new(),
-            retained_message_ids: Vec::new(),
-        },
-    );
     super::update(
         &mut app,
         super::ChatMessage::ResetSessionFinished {
@@ -1012,41 +998,69 @@ fn session_action_failures_report_operation_specific_notifications() {
             directory: None,
         },
     );
-
-    let messages = app
-        .notifications
-        .iter()
-        .map(|notification| notification.message.as_str())
-        .collect::<Vec<_>>();
     assert_eq!(
-        messages,
-        vec![
-            "分叉会话失败: fork-error",
-            "本地分叉会话失败: local-error",
-            "重置会话失败: reset-error",
-        ]
+        app.notifications.last().map(|notification| notification.message.as_str()),
+        Some("重置会话失败: reset-error")
     );
 }
 
 #[test]
-fn fork_to_worktree_without_project_directory_is_rejected_before_gateway_access() {
-    let (mut app, _task) = crate::app::App::new();
-    app.active_session_id = Some("s1".to_string());
-    app.chat = vec![chat_message(crate::app::models::ChatRole::User, "question")];
-    app.chat_message_ids = vec![Some("msg-1".to_string())];
+fn fork_desktop_missing_second_user_id_cannot_borrow_an_earlier_id() {
+    use crate::app::message::chat::ForkSessionAnchor;
+    use crate::app::models::ChatRole::{Tool, User};
 
-    super::update(
+    let (mut app, _) = crate::app::App::new();
+    app.active_session_id = Some("source".into());
+    app.sessions = vec![session_info("source", "Source", "/repo")];
+    app.chat =
+        vec![chat_message(User, "same"), chat_message(Tool, "tool"), chat_message(User, "same")];
+    app.chat_message_ids = vec![Some("first-turn".into()), Some("tool-id".into()), None];
+
+    assert!(ForkSessionAnchor::from_user_row(&app, 1).is_none());
+    let anchor = ForkSessionAnchor::from_user_row(&app, 2);
+    assert!(anchor.is_none());
+    crate::app::message::chat::update(&mut app, super::ChatMessage::OpenForkSessionDialog(anchor));
+    assert!(app.chat_fork_anchor.is_none());
+    assert_eq!(
+        app.active_toast.as_ref().map(|toast| toast.message.as_str()),
+        Some("无法确认此消息的轮次，请重新打开源会话后再试")
+    );
+
+    app.chat_message_ids[2] = Some("second-turn".into());
+    app.sessions.clear();
+    assert!(ForkSessionAnchor::from_user_row(&app, 2).is_none());
+}
+
+#[test]
+fn fork_desktop_ignores_confirmation_after_switching_sessions() {
+    use crate::app::message::chat::ForkSessionAnchor;
+    use crate::app::models::ChatRole::User;
+
+    let (mut app, _) = crate::app::App::new();
+    app.active_session_id = Some("source".into());
+    app.sessions = vec![session_info("source", "Source", "/repo")];
+    app.chat = vec![chat_message(User, "same")];
+    app.chat_message_ids = vec![Some("first-turn".into())];
+    let anchor = ForkSessionAnchor::from_user_row(&app, 0).unwrap();
+    app.chat_fork_anchor = Some(anchor.clone());
+
+    app.active_session_id = Some("other".into());
+    let task = super::update(
         &mut app,
         super::ChatMessage::ForkSessionAt {
-            msg_idx: 0,
+            anchor: anchor.clone(),
             target: super::ForkSessionTarget::NewWorktree,
         },
     );
+    assert!(iced_runtime::task::into_stream(task).is_none());
 
-    assert_eq!(
-        app.notifications.last().map(|notification| notification.message.as_str()),
-        Some("当前项目目录为空，无法创建新 worktree")
+    app.active_session_id = Some("source".into());
+    app.session_view_cache.begin_open("source");
+    let task = super::update(
+        &mut app,
+        super::ChatMessage::ForkSessionAt { anchor, target: super::ForkSessionTarget::Local },
     );
+    assert!(iced_runtime::task::into_stream(task).is_none());
 }
 
 #[test]
@@ -1741,66 +1755,6 @@ fn active_session_is_plan_run_child_detects_parent_id() {
 }
 
 #[test]
-fn fork_and_local_fork_success_update_sessions_chat_cache_and_notifications() {
-    let (mut app, _task) = crate::app::App::new();
-    app.active_session_id = Some("source".to_string());
-    app.chat = vec![chat_message(crate::app::models::ChatRole::User, "source")];
-    app.chat_message_ids = vec![Some("source-msg".to_string())];
-    let fork_info = session_info("forked", "Forked", "/repo");
-
-    super::update(
-        &mut app,
-        super::ChatMessage::ForkSessionFinished {
-            result: Ok(super::ForkSessionLoaded {
-                info: fork_info.clone(),
-                target: super::ForkSessionTarget::Local,
-                messages: Vec::new(),
-                usage: crate::app::models::TokenUsage {
-                    input_tokens: 1,
-                    output_tokens: 2,
-                    cached_tokens: 3,
-                    reasoning_tokens: 4,
-                },
-            }),
-        },
-    );
-
-    assert_eq!(app.active_session_id.as_deref(), Some("forked"));
-    assert!(app.chat.is_empty());
-    assert!(app.chat_message_ids.is_empty());
-    assert_eq!(app.usage.input_tokens, 1);
-    assert!(app.sessions.iter().any(|session| session.id == "forked"));
-    assert!(
-        app.project_sessions.get("/repo").unwrap().iter().any(|session| session.id == "forked")
-    );
-    assert_eq!(
-        app.notifications.last().map(|notification| notification.message.as_str()),
-        Some("已分叉到新会话")
-    );
-
-    let retained_chat = vec![chat_message(crate::app::models::ChatRole::User, "retained")];
-    let local_info = session_info("local-fork", "Local Fork", "/repo");
-    super::update(
-        &mut app,
-        super::ChatMessage::LocalForkSessionCreated {
-            result: Ok((local_info.clone(), Some("/repo".to_string()))),
-            target: super::ForkSessionTarget::NewWorktree,
-            retained_chat,
-            retained_message_ids: vec![Some("wrong-len".to_string()), None],
-        },
-    );
-
-    assert_eq!(app.active_session_id.as_deref(), Some("local-fork"));
-    assert_eq!(app.chat.len(), 1);
-    assert_eq!(app.chat_message_ids, vec![None]);
-    assert!(app.sessions.iter().any(|session| session.id == "local-fork"));
-    assert_eq!(
-        app.notifications.last().map(|notification| notification.message.as_str()),
-        Some("已从本地历史分叉到新工作树会话")
-    );
-}
-
-#[test]
 fn recovered_reset_mismatch_falls_back_to_local_history_with_revert_notice() {
     let (mut app, _task) = crate::app::App::new();
     app.active_session_id = Some("s1".to_string());
@@ -1813,10 +1767,10 @@ fn recovered_reset_mismatch_falls_back_to_local_history_with_revert_notice() {
 
     super::update(
         &mut app,
-        super::ChatMessage::MessageIdsRecoveredForAction {
+        super::ChatMessage::ResetMessageIdsRecovered {
             session_id: "s1".to_string(),
             msg_idx: 0,
-            action: super::MessageIndexedSessionAction::Reset { revert_code: true },
+            revert_code: true,
             result: Ok(Vec::new()),
         },
     );

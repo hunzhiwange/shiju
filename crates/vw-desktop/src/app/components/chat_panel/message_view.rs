@@ -482,7 +482,11 @@ pub(crate) fn message_view_with_runtime<'a>(
     let session_id = app.active_session_id.as_deref().unwrap_or_default();
     let copy_message = copy_chat_message_action(session_id, idx);
 
-    let fork_press = Message::Chat(message::ChatMessage::OpenForkSessionDialog(idx));
+    let fork_press = Message::Chat(message::ChatMessage::OpenForkSessionDialog(
+        can_branch_or_reset
+            .then(|| message::chat::ForkSessionAnchor::from_user_row(app, idx))
+            .flatten(),
+    ));
     let reset_press = Message::Chat(message::ChatMessage::ToggleResetMenu(idx));
 
     let body = if assistant_like && !prefer_attachment_card_render {

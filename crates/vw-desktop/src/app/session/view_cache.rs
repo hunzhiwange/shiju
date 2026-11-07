@@ -391,6 +391,10 @@ impl SessionViewCache {
         generation
     }
 
+    pub(crate) fn open_generation(&self) -> u64 {
+        self.next_open_generation
+    }
+
     pub(crate) fn is_current_open(&self, session_id: &str, generation: u64) -> bool {
         generation == 0
             || self.active_open.as_ref().is_some_and(|active_open| {

@@ -1058,7 +1058,6 @@ impl App {
         self.tool_detail_dialog = None;
         self.chat_think_scroll_ids.clear();
         self.chat_reset_menu_idx = None;
-        self.chat_fork_dialog_idx = None;
         self.rebuild_chat_message_estimated_heights();
     }
 

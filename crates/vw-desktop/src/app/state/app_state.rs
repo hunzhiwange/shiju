@@ -261,7 +261,7 @@ pub struct App {
     /// 当前打开的“重置到此点”菜单消息索引
     pub(crate) chat_reset_menu_idx: Option<usize>,
     /// 当前打开的“分叉到新会话”对话框消息索引
-    pub(crate) chat_fork_dialog_idx: Option<usize>,
+    pub(crate) chat_fork_anchor: Option<crate::app::message::chat::ForkSessionAnchor>,
     /// Todo 面板是否展开
     pub(crate) chat_todo_expanded: bool,
     /// Todo 面板动画进度

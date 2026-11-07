@@ -16,20 +16,17 @@ pub(crate) fn with_chat_fork_dialog<'a>(
     app: &App,
     root_content: Element<'a, Message>,
 ) -> Element<'a, Message> {
-    let Some(msg_idx) = app.chat_fork_dialog_idx else {
+    let Some(anchor) = app.chat_fork_anchor.as_ref().filter(|anchor| anchor.is_current(app)) else {
         return root_content;
     };
-    if app.chat.get(msg_idx).is_none() {
-        return root_content;
-    }
 
     let close_message = Message::Chat(message::ChatMessage::CloseForkSessionDialog);
     let local_message = Message::Chat(message::ChatMessage::ForkSessionAt {
-        msg_idx,
+        anchor: anchor.clone(),
         target: ForkSessionTarget::Local,
     });
     let worktree_message = Message::Chat(message::ChatMessage::ForkSessionAt {
-        msg_idx,
+        anchor: anchor.clone(),
         target: ForkSessionTarget::NewWorktree,
     });
 
@@ -40,23 +37,29 @@ pub(crate) fn with_chat_fork_dialog<'a>(
                 text(i18n.__("分叉到新会话")).size(20),
                 settings_close_button(close_message.clone()),
             ),
-            text(
-                i18n.__("会复制当前消息及之前的聊天历史。选择新工作树时，会先创建隔离 worktree，再把会话复制过去。")
+            text(i18n.__("新会话保留所选轮次之前的历史。"))
+                .size(13)
+                .style(settings_muted_text_style),
+            button(
+                column![
+                    text(i18n.__("分叉到新会话")).size(14),
+                    text(i18n.__("在当前目录中打开新会话")).size(12),
+                ]
+                .spacing(4)
             )
-            .size(13)
-            .style(settings_muted_text_style),
-            button(column![
-                text(i18n.__("分叉到新会话")).size(14),
-                text(i18n.__("打开一个新会话，并复制到当前消息为止")).size(12),
-            ].spacing(4))
             .width(Length::Fill)
             .padding([12, 14])
             .style(primary_action_btn_style)
             .on_press(local_message),
-            button(column![
-                text(i18n.__("分叉到新工作树")).size(14),
-                text(i18n.__("先创建 git worktree，再在其中复制会话")).size(12).style(settings_muted_text_style),
-            ].spacing(4))
+            button(
+                column![
+                    text(i18n.__("分叉到新工作树")).size(14),
+                    text(i18n.__("在新的 Git 工作树中打开新会话"))
+                        .size(12)
+                        .style(settings_muted_text_style),
+                ]
+                .spacing(4)
+            )
             .width(Length::Fill)
             .padding([12, 14])
             .style(rounded_action_btn_style)

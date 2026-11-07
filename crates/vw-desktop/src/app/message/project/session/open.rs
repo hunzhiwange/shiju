@@ -31,6 +31,146 @@ fn merge_project_sessions(
     merged
 }
 
+pub(crate) fn open_project_session(
+    app: &mut App,
+    path: String,
+    id: String,
+    prepared: Option<crate::app::session::PreparedSessionOpen>,
+) -> iced::Task<Message> {
+    app.show_recommended_prompt_menu = false;
+    app.show_agent_sessions_popover = false;
+    let resolved_path = app
+        .known_session_directory(&id)
+        .filter(|directory| !directory.trim().is_empty())
+        .unwrap_or_else(|| path.clone());
+    if resolved_path != path {
+        tracing::warn!(
+            target: "vw_desktop",
+            session_directory_corrected = true,
+            "corrected project session open path"
+        );
+    }
+    app.hovered_recent_project = None;
+    app.session_menu_id = None;
+    app.session_menu_anchor = None;
+    app.stash_active_session_view();
+
+    let open_task = if app.project_path.as_ref() == Some(&resolved_path) {
+        iced::Task::none()
+    } else {
+        app.open_project(resolved_path.clone())
+    };
+
+    app.prepare_historical_session_model(&id);
+    app.chat_fork_anchor = None;
+    app.active_session_id = Some(id.clone());
+    let open_generation = app.session_view_cache.begin_open(&id);
+    app.mark_active_session_viewed();
+    // plan-run 子会话进入后关闭 workflow_mode，避免续聊误触发 plan-run。
+    let is_plan_run_child = app
+        .sessions
+        .iter()
+        .find(|session| session.id == id)
+        .and_then(|session| session.parent_id.as_deref())
+        .or_else(|| {
+            app.project_sessions
+                .values()
+                .flat_map(|sessions| sessions.iter())
+                .find(|session| session.id == id)
+                .and_then(|session| session.parent_id.as_deref())
+        })
+        .is_some_and(|parent_id| !parent_id.trim().is_empty());
+    if is_plan_run_child {
+        app.get_session_runtime_mut(&id).workflow_mode_enabled = false;
+        app.get_session_runtime_mut(&id).goal_mode_enabled = false;
+    }
+    if let Some(snapshot) = app.session_view_cache.take(&id) {
+        let commit_started_at = Instant::now();
+        snapshot.restore_into(app);
+        app.close_session_transient_ui();
+        app.sync_active_session_preferences();
+        let scroll_offset_y = app.chat_scroll_offset_y;
+        if let Some(summary) = app.session_view_cache.record_open_commit(
+            &id,
+            open_generation,
+            crate::app::session::view_cache::SessionOpenUiCommit::HotRestore,
+            app.chat.len(),
+            commit_started_at.elapsed(),
+            true,
+        ) {
+            summary.emit();
+        }
+        let restore_scroll_task = iced::widget::operation::snap_to(
+            app.chat_scroll_id.clone(),
+            iced::widget::scrollable::RelativeOffset { x: Some(0.0), y: Some(scroll_offset_y) },
+        )
+        .map(|_: ()| Message::CopyDone);
+        return iced::Task::batch(vec![
+            open_task,
+            restore_scroll_task,
+            iced::Task::done(Message::Chat(crate::app::message::ChatMessage::LoadInputPanelTodos)),
+        ]);
+    }
+
+    app.chat_scroll_id = iced::widget::Id::unique();
+    app.restore_chat_for_session(&id);
+    app.usage = models::TokenUsage::default();
+    app.active_session_view_state.updated_ms = 0;
+    app.clear_active_session_steps();
+    app.active_session_view_state.ui_preparing = true;
+    app.active_session_view_state.base_ready = false;
+    app.sync_active_session_preferences();
+    let has_requesting_cache =
+        app.session_is_requesting(&id) && app.session_chat_cache.contains_key(&id);
+    let requesting_cache_prewarm_task = if has_requesting_cache && !app.chat.is_empty() {
+        let base_chunk_start = app.preferred_base_chat_ui_chunk_start();
+        app.pin_chat_ui_chunk(Some(base_chunk_start));
+        app.mark_chat_ui_chunks_preparing(&[base_chunk_start]);
+        prepare_session_ui_task(
+            id.clone(),
+            app.active_shared_chat_messages(),
+            base_chunk_start,
+            true,
+            app.dialogue_flow_show_reasoning_summary,
+        )
+    } else {
+        if has_requesting_cache {
+            app.active_session_view_state.ui_preparing = false;
+            app.active_session_view_state.base_ready = true;
+            app.pin_chat_ui_chunk(None);
+        }
+        iced::Task::none()
+    };
+    let history_load_task = if let Some(prepared) = prepared {
+        super::lifecycle::handle(
+            app,
+            ProjectMessage::SessionOpenPrepared {
+                target_session_id: id,
+                project_path: resolved_path,
+                open_generation,
+                source: super::super::PreparedSessionOpenSource::RemoteHistory,
+                result: Ok(prepared),
+            },
+        )
+        .unwrap_or_else(iced::Task::none)
+    } else if !has_requesting_cache {
+        load_prepared_session_open_from_gateway_task(
+            resolved_path.clone(),
+            id.clone(),
+            open_generation,
+            app.dialogue_flow_show_reasoning_summary,
+        )
+    } else {
+        iced::Task::none()
+    };
+    iced::Task::batch(vec![
+        open_task,
+        requesting_cache_prewarm_task,
+        history_load_task,
+        iced::Task::done(Message::Chat(crate::app::message::ChatMessage::LoadInputPanelTodos)),
+    ])
+}
+
 /// handle 处理当前模块对应的消息或状态转换。
 ///
 /// 参数由调用方提供应用状态、用户输入或后台任务结果；返回值会交给上层消息循环继续处理。
@@ -53,132 +193,7 @@ pub(crate) fn handle(app: &mut App, message: ProjectMessage) -> Option<iced::Tas
             Some(app.switch_work_space_preserving_chat(path))
         }
         ProjectMessage::OpenProjectSessionPressed(path, id) => {
-            app.show_recommended_prompt_menu = false;
-            app.show_agent_sessions_popover = false;
-            let resolved_path = app
-                .known_session_directory(&id)
-                .filter(|directory| !directory.trim().is_empty())
-                .unwrap_or_else(|| path.clone());
-            if resolved_path != path {
-                tracing::warn!(
-                    target: "vw_desktop",
-                    session_directory_corrected = true,
-                    "corrected project session open path"
-                );
-            }
-            app.hovered_recent_project = None;
-            app.session_menu_id = None;
-            app.session_menu_anchor = None;
-            app.stash_active_session_view();
-
-            let open_task = if app.project_path.as_ref() == Some(&resolved_path) {
-                iced::Task::none()
-            } else {
-                app.open_project(resolved_path.clone())
-            };
-
-            app.prepare_historical_session_model(&id);
-            app.active_session_id = Some(id.clone());
-            let open_generation = app.session_view_cache.begin_open(&id);
-            app.mark_active_session_viewed();
-            // plan-run 子会话进入后关闭 workflow_mode，避免续聊误触发 plan-run。
-            let is_plan_run_child = app
-                .sessions
-                .iter()
-                .find(|session| session.id == id)
-                .and_then(|session| session.parent_id.as_deref())
-                .or_else(|| {
-                    app.project_sessions
-                        .values()
-                        .flat_map(|sessions| sessions.iter())
-                        .find(|session| session.id == id)
-                        .and_then(|session| session.parent_id.as_deref())
-                })
-                .is_some_and(|parent_id| !parent_id.trim().is_empty());
-            if is_plan_run_child {
-                app.get_session_runtime_mut(&id).workflow_mode_enabled = false;
-                app.get_session_runtime_mut(&id).goal_mode_enabled = false;
-            }
-            if let Some(snapshot) = app.session_view_cache.take(&id) {
-                let commit_started_at = Instant::now();
-                snapshot.restore_into(app);
-                app.close_session_transient_ui();
-                app.sync_active_session_preferences();
-                let scroll_offset_y = app.chat_scroll_offset_y;
-                if let Some(summary) = app.session_view_cache.record_open_commit(
-                    &id,
-                    open_generation,
-                    crate::app::session::view_cache::SessionOpenUiCommit::HotRestore,
-                    app.chat.len(),
-                    commit_started_at.elapsed(),
-                    true,
-                ) {
-                    summary.emit();
-                }
-                let restore_scroll_task = iced::widget::operation::snap_to(
-                    app.chat_scroll_id.clone(),
-                    iced::widget::scrollable::RelativeOffset {
-                        x: Some(0.0),
-                        y: Some(scroll_offset_y),
-                    },
-                )
-                .map(|_: ()| Message::CopyDone);
-                return Some(iced::Task::batch(vec![
-                    open_task,
-                    restore_scroll_task,
-                    iced::Task::done(Message::Chat(
-                        crate::app::message::ChatMessage::LoadInputPanelTodos,
-                    )),
-                ]));
-            }
-
-            app.chat_scroll_id = iced::widget::Id::unique();
-            app.restore_chat_for_session(&id);
-            app.usage = models::TokenUsage::default();
-            app.active_session_view_state.updated_ms = 0;
-            app.clear_active_session_steps();
-            app.active_session_view_state.ui_preparing = true;
-            app.active_session_view_state.base_ready = false;
-            app.sync_active_session_preferences();
-            let has_requesting_cache =
-                app.session_is_requesting(&id) && app.session_chat_cache.contains_key(&id);
-            let requesting_cache_prewarm_task = if has_requesting_cache && !app.chat.is_empty() {
-                let base_chunk_start = app.preferred_base_chat_ui_chunk_start();
-                app.pin_chat_ui_chunk(Some(base_chunk_start));
-                app.mark_chat_ui_chunks_preparing(&[base_chunk_start]);
-                prepare_session_ui_task(
-                    id.clone(),
-                    app.active_shared_chat_messages(),
-                    base_chunk_start,
-                    true,
-                    app.dialogue_flow_show_reasoning_summary,
-                )
-            } else {
-                if has_requesting_cache {
-                    app.active_session_view_state.ui_preparing = false;
-                    app.active_session_view_state.base_ready = true;
-                    app.pin_chat_ui_chunk(None);
-                }
-                iced::Task::none()
-            };
-            let history_load_task = if !has_requesting_cache {
-                load_prepared_session_open_from_gateway_task(
-                    resolved_path.clone(),
-                    id.clone(),
-                    open_generation,
-                    app.dialogue_flow_show_reasoning_summary,
-                )
-            } else {
-                iced::Task::none()
-            };
-            Some(iced::Task::batch(vec![
-                open_task,
-                requesting_cache_prewarm_task,
-                history_load_task,
-                iced::Task::done(Message::Chat(
-                    crate::app::message::ChatMessage::LoadInputPanelTodos,
-                )),
-            ]))
+            Some(open_project_session(app, path, id, None))
         }
         ProjectMessage::RecentHovered(id) => {
             app.hovered_recent_project = id.clone();

@@ -14,18 +14,9 @@ fn think_block_key_packs_message_and_think_indexes() {
 }
 
 #[test]
-fn fork_session_target_and_actions_keep_expected_equality() {
+fn fork_session_targets_distinguish_destinations() {
     assert_eq!(super::ForkSessionTarget::Local, super::ForkSessionTarget::Local);
     assert_ne!(super::ForkSessionTarget::Local, super::ForkSessionTarget::NewWorktree);
-
-    assert_eq!(
-        super::MessageIndexedSessionAction::Reset { revert_code: true },
-        super::MessageIndexedSessionAction::Reset { revert_code: true }
-    );
-    assert_ne!(
-        super::MessageIndexedSessionAction::Reset { revert_code: true },
-        super::MessageIndexedSessionAction::Reset { revert_code: false }
-    );
 }
 
 #[test]

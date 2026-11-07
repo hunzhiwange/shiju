@@ -21,7 +21,6 @@ use crate::app::{App, Message, TodoPanelPlacement, message, models};
 use iced::Task;
 use iced::widget::{scrollable, text_editor};
 use std::time::Duration;
-use vw_shared::message::types as agent_message;
 
 mod acp_options;
 pub mod context;
@@ -177,18 +176,46 @@ pub enum ForkSessionTarget {
     NewWorktree,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum MessageIndexedSessionAction {
-    Fork(ForkSessionTarget),
-    Reset { revert_code: bool },
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct ForkSessionAnchor {
+    pub(crate) session_id: String,
+    pub(crate) directory: String,
+    pub(crate) user_message_id: String,
+    pub(crate) open_generation: u64,
+}
+
+impl ForkSessionAnchor {
+    pub(crate) fn from_user_row(app: &App, index: usize) -> Option<Self> {
+        if app.chat.get(index)?.role != models::ChatRole::User
+            || app.chat_message_ids.len() != app.chat.len()
+        {
+            return None;
+        }
+        let session_id = app.active_session_id.as_ref()?;
+        let directory = app.known_session_directory(session_id)?;
+        let user_message_id = app.chat_message_ids.get(index)?.as_ref()?;
+        if directory.trim().is_empty() || user_message_id.trim().is_empty() {
+            return None;
+        }
+        Some(Self {
+            session_id: session_id.clone(),
+            directory,
+            user_message_id: user_message_id.clone(),
+            open_generation: app.session_view_cache.open_generation(),
+        })
+    }
+
+    pub(crate) fn is_current(&self, app: &App) -> bool {
+        app.active_session_id.as_ref() == Some(&self.session_id)
+            && app.session_view_cache.open_generation() == self.open_generation
+            && app.known_session_directory(&self.session_id).as_ref() == Some(&self.directory)
+    }
 }
 
 #[derive(Debug, Clone)]
 pub struct ForkSessionLoaded {
-    pub info: vw_shared::session::info::Info,
-    pub target: ForkSessionTarget,
-    pub messages: Vec<agent_message::WithParts>,
-    pub usage: models::TokenUsage,
+    pub(crate) info: vw_shared::session::info::Info,
+    pub(crate) prepared: crate::app::session::PreparedSessionOpen,
 }
 
 /// 聊天消息枚举
@@ -982,31 +1009,26 @@ pub enum ChatMessage {
 
     CloseResetMenu,
 
-    OpenForkSessionDialog(usize),
+    OpenForkSessionDialog(Option<ForkSessionAnchor>),
 
     CloseForkSessionDialog,
 
     ForkSessionAt {
-        msg_idx: usize,
+        anchor: ForkSessionAnchor,
         target: ForkSessionTarget,
     },
 
-    MessageIdsRecoveredForAction {
+    ResetMessageIdsRecovered {
         session_id: String,
         msg_idx: usize,
-        action: MessageIndexedSessionAction,
+        revert_code: bool,
         result: Result<Vec<Option<String>>, String>,
     },
 
     ForkSessionFinished {
-        result: Result<ForkSessionLoaded, String>,
-    },
-
-    LocalForkSessionCreated {
-        result: Result<(vw_shared::session::info::Info, Option<String>), String>,
+        anchor: ForkSessionAnchor,
         target: ForkSessionTarget,
-        retained_chat: Vec<crate::app::models::ChatMessage>,
-        retained_message_ids: Vec<Option<String>>,
+        result: Result<Box<ForkSessionLoaded>, String>,
     },
 
     ResetSessionToMessage {
@@ -1419,9 +1441,8 @@ pub fn update(app: &mut App, message: ChatMessage) -> Task<Message> {
         | ChatMessage::QueueCopy(_)
         | ChatMessage::SubmitTick
         | ChatMessage::ForkSessionAt { .. }
-        | ChatMessage::MessageIdsRecoveredForAction { .. }
+        | ChatMessage::ResetMessageIdsRecovered { .. }
         | ChatMessage::ForkSessionFinished { .. }
-        | ChatMessage::LocalForkSessionCreated { .. }
         | ChatMessage::ResetSessionToMessage { .. }
         | ChatMessage::ResetSessionFinished { .. } => session::update(app, message),
     };

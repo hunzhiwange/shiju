@@ -8,8 +8,8 @@ use super::{
     handle_append_context_menu_text, handle_clipboard_paste_resolved,
     handle_close_fork_session_dialog, handle_close_input_context_menu,
     handle_close_message_context_menu, handle_close_reset_menu, handle_copy_context_menu_text,
-    handle_copy_input_selection, handle_cut_input_selection, handle_open_fork_session_dialog,
-    handle_open_input_context_menu, handle_open_message_context_menu, handle_paste_into_input,
+    handle_copy_input_selection, handle_cut_input_selection, handle_open_input_context_menu,
+    handle_open_message_context_menu, handle_paste_into_input,
     handle_search_context_menu_with_baidu, handle_search_context_menu_with_bing,
     handle_search_context_menu_with_google, handle_select_all_input, handle_toggle_reset_menu,
 };
@@ -239,20 +239,26 @@ fn message_context_menu_close_and_reset_dialog_state_are_local() {
     assert_eq!(app.chat_context_menu_pos, None);
     assert!(app.chat_context_menu_text.is_empty());
 
-    handle_open_fork_session_dialog(&mut app, 3);
-    assert_eq!(app.chat_fork_dialog_idx, Some(3));
+    let anchor = crate::app::message::chat::ForkSessionAnchor {
+        session_id: "source".into(),
+        directory: "/repo".into(),
+        user_message_id: "user-3".into(),
+        open_generation: 0,
+    };
+    app.chat_fork_anchor = Some(anchor.clone());
+    assert_eq!(app.chat_fork_anchor, Some(anchor.clone()));
     assert_eq!(app.chat_reset_menu_idx, None);
 
     handle_toggle_reset_menu(&mut app, 4);
-    assert_eq!(app.chat_fork_dialog_idx, None);
+    assert_eq!(app.chat_fork_anchor, None);
     assert_eq!(app.chat_reset_menu_idx, Some(4));
 
     handle_toggle_reset_menu(&mut app, 4);
     assert_eq!(app.chat_reset_menu_idx, None);
 
-    handle_open_fork_session_dialog(&mut app, 2);
+    app.chat_fork_anchor = Some(anchor);
     handle_close_fork_session_dialog(&mut app);
-    assert_eq!(app.chat_fork_dialog_idx, None);
+    assert_eq!(app.chat_fork_anchor, None);
 
     app.chat_reset_menu_idx = Some(9);
     handle_close_reset_menu(&mut app);

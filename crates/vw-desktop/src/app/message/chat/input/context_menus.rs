@@ -181,25 +181,34 @@ fn handle_search_context_menu(app: &mut App, base_url: &str) -> Task<Message> {
     }
 }
 
-/// 模块内可见函数，执行 handle_open_fork_session_dialog 对应的应用流程。
-/// 返回值表达处理结果；失败通过错误值、日志或任务消息显式传递。
-pub(super) fn handle_open_fork_session_dialog(app: &mut App, msg_idx: usize) -> Task<Message> {
-    app.chat_fork_dialog_idx = Some(msg_idx);
+pub(super) fn handle_open_fork_session_dialog(
+    app: &mut App,
+    anchor: Option<crate::app::message::chat::ForkSessionAnchor>,
+) -> Task<Message> {
     app.chat_reset_menu_idx = None;
-    Task::none()
+    app.chat_fork_anchor = anchor.filter(|anchor| anchor.is_current(app));
+    if app.chat_fork_anchor.is_some() {
+        Task::none()
+    } else {
+        app.show_localized_toast(
+            crate::app::state::ToastKind::Warning,
+            "无法确认此消息的轮次，请重新打开源会话后再试",
+            vec![],
+        )
+    }
 }
 
 /// 模块内可见函数，执行 handle_close_fork_session_dialog 对应的应用流程。
 /// 返回值表达处理结果；失败通过错误值、日志或任务消息显式传递。
 pub(super) fn handle_close_fork_session_dialog(app: &mut App) -> Task<Message> {
-    app.chat_fork_dialog_idx = None;
+    app.chat_fork_anchor = None;
     Task::none()
 }
 
 /// 模块内可见函数，执行 handle_toggle_reset_menu 对应的应用流程。
 /// 返回值表达处理结果；失败通过错误值、日志或任务消息显式传递。
 pub(super) fn handle_toggle_reset_menu(app: &mut App, msg_idx: usize) -> Task<Message> {
-    app.chat_fork_dialog_idx = None;
+    app.chat_fork_anchor = None;
     app.chat_reset_menu_idx =
         if app.chat_reset_menu_idx == Some(msg_idx) { None } else { Some(msg_idx) };
     Task::none()

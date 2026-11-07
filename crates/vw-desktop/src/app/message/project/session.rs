@@ -11,7 +11,8 @@ mod lifecycle;
 mod open;
 mod worktree;
 
-pub(crate) use lifecycle::{cache_external_session, loaded_chat_from_gateway_messages};
+pub(crate) use lifecycle::cache_external_session;
+pub(crate) use open::open_project_session;
 
 #[cfg(test)]
 mod lifecycle_tests;

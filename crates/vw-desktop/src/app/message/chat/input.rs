@@ -746,8 +746,8 @@ pub fn update(app: &mut App, message: ChatMessage) -> Task<Message> {
         ChatMessage::CloseMessageContextMenu => {
             context_menus::handle_close_message_context_menu(app)
         }
-        ChatMessage::OpenForkSessionDialog(msg_idx) => {
-            context_menus::handle_open_fork_session_dialog(app, msg_idx)
+        ChatMessage::OpenForkSessionDialog(anchor) => {
+            context_menus::handle_open_fork_session_dialog(app, anchor)
         }
         ChatMessage::CloseForkSessionDialog => context_menus::handle_close_fork_session_dialog(app),
         ChatMessage::ToggleResetMenu(msg_idx) => {

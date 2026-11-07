@@ -4,7 +4,7 @@
 use super::ChatMessage;
 use super::ForkSessionLoaded;
 use super::ForkSessionTarget;
-use super::MessageIndexedSessionAction;
+
 #[cfg(not(target_arch = "wasm32"))]
 use crate::app::config::{save_project_chat_preferences, set_config_field};
 use crate::app::message::TaskBoardMessage;
@@ -20,8 +20,6 @@ use std::sync::Arc;
 use std::time::Duration;
 use tracing::{debug, info};
 use vw_gateway_client::vw_api_types::acp_model_source::AcpModelSource;
-use vw_gateway_client::vw_api_types::project::ResolveProjectRequest;
-use vw_gateway_client::vw_api_types::worktree::CreateWorktreeRequest;
 use vw_shared::id;
 use vw_shared::message::types as agent_message;
 use vw_shared::session::info as session;
@@ -88,37 +86,6 @@ fn gateway_endpoint(app: &App) -> (String, u16) {
     let host = app.gateway_settings.host_input.trim();
     let host = if host.is_empty() { "127.0.0.1" } else { host };
     (host.to_string(), app.gateway_settings.port)
-}
-
-async fn create_fork_worktree_directory(
-    client: &vw_gateway_client::GatewayClient,
-    project_directory: &str,
-) -> Result<String, String> {
-    let project = client
-        .project_resolve(
-            &crate::app::session_gateway::active_tenant_scope(),
-            &ResolveProjectRequest {
-                directory: project_directory.to_string(),
-                create_if_missing: true,
-            },
-        )
-        .await?
-        .project;
-    let project_scope = crate::app::session_gateway::active_project_scope(project.id.clone())?;
-    let requested_name = format!("fork-{}", create_slug().to_ascii_lowercase());
-    let worktree = client
-        .project_worktree_create(
-            &project_scope,
-            &CreateWorktreeRequest {
-                name: requested_name.clone(),
-                branch: format!("vibewindow/{requested_name}"),
-                from_ref: None,
-                checkout: true,
-            },
-        )
-        .await?
-        .worktree;
-    Ok(worktree.directory)
 }
 
 fn current_session_directory(app: &App) -> Option<String> {
@@ -489,12 +456,12 @@ fn recovered_message_ids_from_gateway_messages(
     ids
 }
 
-fn recover_message_ids_for_action_task(
+fn recover_reset_message_ids_task(
     endpoint: (String, u16),
     session_id: String,
     directory: Option<String>,
     msg_idx: usize,
-    action: MessageIndexedSessionAction,
+    revert_code: bool,
 ) -> Task<Message> {
     Task::perform(
         async move {
@@ -511,7 +478,7 @@ fn recover_message_ids_for_action_task(
                 Ok(recovered_message_ids_from_gateway_messages(msgs))
             }
             .await;
-            ChatMessage::MessageIdsRecoveredForAction { session_id, msg_idx, action, result }
+            ChatMessage::ResetMessageIdsRecovered { session_id, msg_idx, revert_code, result }
         },
         Message::Chat,
     )
@@ -547,7 +514,7 @@ fn reset_session_locally(app: &mut App, session_id: String, msg_idx: usize) -> T
         .unwrap_or_else(|| "重置会话".to_string());
 
     app.chat_reset_menu_idx = None;
-    app.chat_fork_dialog_idx = None;
+    app.chat_fork_anchor = None;
     app.mark_session_acp_rebuild_required(&session_id);
     app.active_session_id = Some(session_id.clone());
     app.chat = retained_chat;
@@ -579,72 +546,6 @@ fn reset_session_locally(app: &mut App, session_id: String, msg_idx: usize) -> T
         updated_ms: now,
     };
     save_session_task(local, root)
-}
-
-fn fork_session_locally(
-    app: &mut App,
-    session_id: String,
-    msg_idx: usize,
-    target: ForkSessionTarget,
-) -> Task<Message> {
-    let root = current_session_directory(app).or_else(|| app.project_path.clone());
-    if target == ForkSessionTarget::NewWorktree && root.is_none() {
-        app.push_localized_notification("当前项目目录为空，无法创建新 worktree", vec![]);
-        return Task::none();
-    }
-
-    let retain_end = msg_idx.saturating_add(1);
-    let retained_chat = app.chat.get(..retain_end).map(|slice| slice.to_vec()).unwrap_or_default();
-    let retained_message_ids =
-        app.chat_message_ids.get(..retain_end).map(|slice| slice.to_vec()).unwrap_or_default();
-    let title = app
-        .sessions
-        .iter()
-        .find(|session| session.id == session_id)
-        .map(|session| session.title.clone())
-        .unwrap_or_else(|| "分叉会话".to_string());
-    let endpoint = gateway_endpoint(app);
-
-    app.chat_fork_dialog_idx = None;
-    Task::perform(
-        async move {
-            let result = async {
-                let client = vw_gateway_client::GatewayClient::new(
-                    vw_gateway_client::GatewayEndpoint::new(endpoint.0, endpoint.1),
-                )?;
-                let fork_root = match target {
-                    ForkSessionTarget::Local => root.clone(),
-                    ForkSessionTarget::NewWorktree => {
-                        let project_directory = root
-                            .as_deref()
-                            .ok_or_else(|| "当前项目目录为空，无法创建新 worktree".to_string())?;
-                        Some(create_fork_worktree_directory(&client, project_directory).await?)
-                    }
-                };
-                let directory = fork_root
-                    .as_deref()
-                    .ok_or_else(|| "当前项目目录为空，无法保存分叉会话".to_string())?;
-                let info = client
-                    .session_create::<session::Info>(
-                        directory,
-                        &Some(vw_gateway_client::GatewaySessionCreateBody {
-                            parent_id: Some(session_id),
-                            title: Some(title),
-                        }),
-                    )
-                    .await?;
-                Ok((info, fork_root))
-            }
-            .await;
-            ChatMessage::LocalForkSessionCreated {
-                result,
-                target,
-                retained_chat,
-                retained_message_ids,
-            }
-        },
-        Message::Chat,
-    )
 }
 
 fn save_session_task(session: models::ChatSession, directory: Option<String>) -> Task<Message> {
@@ -1783,298 +1684,121 @@ pub fn update(app: &mut App, message: ChatMessage) -> Task<Message> {
             runtime.submit_anim = (runtime.submit_anim + 1) % 3;
             message::after(Duration::from_millis(200), Message::Chat(ChatMessage::SubmitTick))
         }
-        ChatMessage::ForkSessionAt { msg_idx, target } => {
-            let Some(session_id) = app.active_session_id.clone() else {
-                return Task::none();
-            };
-            let Some(message_id) = message_id_for_index(app, msg_idx) else {
-                let root = current_session_directory(app).or_else(|| app.project_path.clone());
-                return recover_message_ids_for_action_task(
-                    gateway_endpoint(app),
-                    session_id,
-                    root,
-                    msg_idx,
-                    MessageIndexedSessionAction::Fork(target),
-                );
-            };
-            if app.chat.get(msg_idx).is_none() {
+        ChatMessage::ForkSessionAt { anchor, target } => {
+            if app.chat_fork_anchor.as_ref() != Some(&anchor) || !anchor.is_current(app) {
                 return Task::none();
             }
-            let root = current_session_directory(app).or_else(|| app.project_path.clone());
-            if target == ForkSessionTarget::NewWorktree && root.is_none() {
-                app.push_localized_notification("当前项目目录为空，无法创建新 worktree", vec![]);
-                return Task::none();
-            }
-            let endpoint = gateway_endpoint(app);
-            app.chat_fork_dialog_idx = None;
+            app.chat_fork_anchor = None;
+            let endpoint = crate::app::gateway_client_endpoint();
+            let show_reasoning_summary = app.dialogue_flow_show_reasoning_summary;
             Task::perform(
                 async move {
                     let result = async {
-                        let client = vw_gateway_client::GatewayClient::new(
-                            vw_gateway_client::GatewayEndpoint::new(endpoint.0, endpoint.1),
-                        )?;
-                        let (info, fork_root) = match target {
-                            ForkSessionTarget::Local => client
-                                .session_fork::<session::Info>(
-                                    &session_id,
-                                    root.as_deref(),
-                                    &Some(vw_gateway_client::GatewaySessionForkBody {
-                                        message_id: Some(message_id),
-                                        ..Default::default()
-                                    }),
-                                )
-                                .await
-                                .map(|info| (info, root.clone()))?,
+                        use vw_gateway_client::{
+                            GatewayClient, GatewaySessionForkBody, GatewaySessionForkTarget,
+                        };
+
+                        let client = GatewayClient::new(endpoint)?;
+                        let destination = match target {
+                            ForkSessionTarget::Local => GatewaySessionForkTarget::SameDirectory,
                             ForkSessionTarget::NewWorktree => {
-                                let project_directory = root.as_deref().ok_or_else(|| {
-                                    "当前项目目录为空，无法创建新 worktree".to_string()
-                                })?;
-                                let worktree_directory =
-                                    create_fork_worktree_directory(&client, project_directory)
-                                        .await?;
-                                client
-                                    .session_fork::<session::Info>(
-                                        &session_id,
-                                        Some(worktree_directory.as_str()),
-                                        &Some(vw_gateway_client::GatewaySessionForkBody {
-                                            message_id: Some(message_id),
-                                            ..Default::default()
-                                        }),
-                                    )
-                                    .await
-                                    .map(|info| (info, Some(worktree_directory)))?
+                                GatewaySessionForkTarget::Worktree { name: None }
                             }
                         };
-                        let messages = client
-                            .session_messages::<Vec<agent_message::WithParts>>(
-                                &info.id,
-                                fork_root.as_deref(),
+                        let info = client
+                            .session_fork::<session::Info>(
+                                &anchor.session_id,
+                                Some(&anchor.directory),
+                                &Some(GatewaySessionForkBody {
+                                    before_turn_id: Some(anchor.user_message_id.clone()),
+                                    target: Some(destination),
+                                    ..Default::default()
+                                }),
                             )
                             .await?;
-                        let mut usage = models::TokenUsage::default();
-                        for message in &messages {
-                            if let agent_message::Info::Assistant(assistant) = &message.info {
-                                usage.input_tokens += assistant.tokens.input;
-                                usage.output_tokens += assistant.tokens.output;
-                                usage.cached_tokens +=
-                                    assistant.tokens.cache.read + assistant.tokens.cache.write;
-                                usage.reasoning_tokens += assistant.tokens.reasoning;
-                            }
-                        }
-                        Ok(ForkSessionLoaded { info, target, messages, usage })
+                        let prepared =
+                            crate::app::message::project::helpers::prepare_gateway_session_open(
+                                &client,
+                                &info.id,
+                                &info.directory,
+                                show_reasoning_summary,
+                            )
+                            .await?;
+                        Ok(Box::new(ForkSessionLoaded { info, prepared }))
                     }
                     .await;
-                    ChatMessage::ForkSessionFinished { result }
+                    ChatMessage::ForkSessionFinished { anchor, target, result }
                 },
                 Message::Chat,
             )
         }
-        ChatMessage::ForkSessionFinished { result } => match result {
-            Ok(ForkSessionLoaded { info, target, messages, usage }) => {
-                app.cache_active_session_chat();
-                if !app.sessions.iter().any(|session| session.id == info.id) {
-                    app.sessions.insert(0, info.clone());
-                }
-                if let Some(list) = app.project_sessions.get_mut(&info.directory) {
-                    if !list.iter().any(|session| session.id == info.id) {
-                        list.insert(0, info.clone());
-                    }
-                } else {
-                    app.project_sessions.insert(info.directory.clone(), vec![info.clone()]);
-                }
-                app.active_session_id = Some(info.id.clone());
-                let (next_chat, next_ids) =
-                    crate::app::message::project::loaded_chat_from_gateway_messages(messages);
-                let shared_chat = crate::app::session::shared_chat_messages(next_chat);
-                app.chat = shared_chat.iter().cloned().collect();
-                app.chat_message_ids = if app.chat.len() == next_ids.len() {
-                    next_ids
-                } else {
-                    vec![None; app.chat.len()]
-                };
-                app.usage = usage;
-                app.chat_reset_menu_idx = None;
-                app.invalidate_chat_ui_state();
-                app.sync_active_session_preferences();
-                app.store_session_chat_snapshot(
-                    info.id.clone(),
-                    shared_chat,
-                    app.chat_message_ids.clone(),
-                );
-                app.push_localized_notification(
-                    match target {
-                        ForkSessionTarget::Local => "已分叉到新会话",
-                        ForkSessionTarget::NewWorktree => "已分叉到新工作树会话",
-                    },
-                    vec![],
-                );
-                Task::none()
+        ChatMessage::ForkSessionFinished { anchor, target, result } => {
+            if !anchor.is_current(app) {
+                return Task::none();
             }
-            Err(error) => {
-                app.push_localized_notification(
-                    "分叉会话失败: %s",
-                    vec![format!("{}", error).into()],
-                );
-                Task::none()
-            }
-        },
-        ChatMessage::LocalForkSessionCreated {
-            result,
-            target,
-            retained_chat,
-            retained_message_ids,
-        } => match result {
-            Ok((info, directory)) => {
-                app.cache_active_session_chat();
-                if !app.sessions.iter().any(|session| session.id == info.id) {
-                    app.sessions.insert(0, info.clone());
+            use crate::app::state::ToastKind;
+            let ForkSessionLoaded { info, prepared } = match result {
+                Ok(loaded) => *loaded,
+                Err(error) => {
+                    return app.show_localized_toast(
+                        ToastKind::Error,
+                        "分叉会话失败: %s",
+                        vec![error.into()],
+                    );
                 }
-                if let Some(list) = app.project_sessions.get_mut(&info.directory) {
-                    if !list.iter().any(|session| session.id == info.id) {
-                        list.insert(0, info.clone());
-                    }
-                } else {
-                    app.project_sessions.insert(info.directory.clone(), vec![info.clone()]);
-                }
-
-                let shared_chat = crate::app::session::shared_chat_messages(retained_chat);
-                app.active_session_id = Some(info.id.clone());
-                app.chat = shared_chat.iter().cloned().collect();
-                app.chat_message_ids = if app.chat.len() == retained_message_ids.len() {
-                    retained_message_ids
-                } else {
-                    vec![None; app.chat.len()]
-                };
-                app.usage = models::TokenUsage::default();
-                app.chat_reset_menu_idx = None;
-                app.chat_fork_dialog_idx = None;
-                app.invalidate_chat_ui_state();
-                app.sync_active_session_preferences();
-                app.rebuild_active_session_message_meta();
-                app.store_session_chat_snapshot(
-                    info.id.clone(),
-                    shared_chat,
-                    app.chat_message_ids.clone(),
-                );
-                app.push_localized_notification(
-                    match target {
-                        ForkSessionTarget::Local => "已从本地历史分叉到新会话",
-                        ForkSessionTarget::NewWorktree => "已从本地历史分叉到新工作树会话",
-                    },
-                    vec![],
-                );
-
-                let now = crate::app::time::now_ms();
-                let local = models::ChatSession {
-                    id: info.id.clone(),
-                    title: info.title,
-                    messages: app.chat.clone(),
-                    message_ids: app.chat_message_ids.clone(),
-                    calls: Vec::new(),
-                    steps: Vec::new(),
-                    created_ms: now,
-                    updated_ms: now,
-                };
-                save_session_task(local, directory.or_else(|| Some(info.directory)))
-            }
-            Err(error) => {
-                app.push_localized_notification(
-                    "本地分叉会话失败: %s",
-                    vec![format!("{}", error).into()],
-                );
-                Task::none()
-            }
-        },
-        ChatMessage::MessageIdsRecoveredForAction { session_id, msg_idx, action, result } => {
+            };
+            let id = info.id.clone();
+            let directory = info.directory.clone();
+            let open = crate::app::message::project::open_project_session(
+                app,
+                directory,
+                id,
+                Some(prepared),
+            );
+            // Opening a different directory clears the current session list.
+            crate::app::message::project::cache_external_session(app, info);
+            let toast = app.show_localized_toast(
+                ToastKind::Success,
+                match target {
+                    ForkSessionTarget::Local => "已分叉到新会话",
+                    ForkSessionTarget::NewWorktree => "已分叉到新工作树会话",
+                },
+                vec![],
+            );
+            Task::batch([open, toast])
+        }
+        ChatMessage::ResetMessageIdsRecovered { session_id, msg_idx, revert_code, result } => {
             if app.active_session_id.as_deref() != Some(session_id.as_str()) {
                 return Task::none();
             }
-
-            match result {
-                Ok(ids) if ids.len() == app.chat.len() => {
-                    app.chat_message_ids = ids;
-                    app.store_session_chat_snapshot(
-                        session_id.clone(),
-                        crate::app::session::shared_chat_messages(app.chat.clone()),
-                        app.chat_message_ids.clone(),
-                    );
-                    match action {
-                        MessageIndexedSessionAction::Fork(target) => {
-                            Task::done(Message::Chat(ChatMessage::ForkSessionAt {
-                                msg_idx,
-                                target,
-                            }))
-                        }
-                        MessageIndexedSessionAction::Reset { revert_code } => {
-                            Task::done(Message::Chat(ChatMessage::ResetSessionToMessage {
-                                msg_idx,
-                                revert_code,
-                            }))
-                        }
-                    }
-                }
-                Ok(ids) => {
-                    if message_id_for_index_in_ids(&ids, msg_idx).is_some() {
-                        app.chat_message_ids = ids;
-                        app.store_session_chat_snapshot(
-                            session_id.clone(),
-                            crate::app::session::shared_chat_messages(app.chat.clone()),
-                            app.chat_message_ids.clone(),
-                        );
-                        match action {
-                            MessageIndexedSessionAction::Fork(target) => {
-                                return Task::done(Message::Chat(ChatMessage::ForkSessionAt {
-                                    msg_idx,
-                                    target,
-                                }));
-                            }
-                            MessageIndexedSessionAction::Reset { revert_code } => {
-                                return Task::done(Message::Chat(
-                                    ChatMessage::ResetSessionToMessage { msg_idx, revert_code },
-                                ));
-                            }
-                        }
-                    }
-                    match action {
-                        MessageIndexedSessionAction::Reset { revert_code } => {
-                            if revert_code {
-                                app.push_localized_notification(
-                                    "网关没有可回滚历史，已仅重置本地会话历史",
-                                    vec![],
-                                );
-                            }
-                            reset_session_locally(app, session_id, msg_idx)
-                        }
-                        MessageIndexedSessionAction::Fork(target) => {
-                            app.push_localized_notification(
-                                "无法恢复消息 ID: 本地 %s 条，网关 %s 条，改用本地历史分叉",
-                                vec![
-                                    format!("{}", app.chat.len()).into(),
-                                    format!("{}", ids.len()).into(),
-                                ],
-                            );
-                            fork_session_locally(app, session_id, msg_idx, target)
-                        }
-                    }
-                }
-                Err(error) => {
-                    if let MessageIndexedSessionAction::Reset { revert_code } = action {
-                        if revert_code {
-                            app.push_localized_notification(
-                                "网关历史不可用，已仅重置本地会话历史: %s",
-                                vec![format!("{}", error).into()],
-                            );
-                        }
-                        reset_session_locally(app, session_id, msg_idx)
-                    } else {
-                        app.push_localized_notification(
-                            "恢复消息 ID 失败: %s",
-                            vec![format!("{}", error).into()],
-                        );
-                        Task::none()
-                    }
+            if let Ok(ids) = &result
+                && (ids.len() == app.chat.len()
+                    || message_id_for_index_in_ids(ids, msg_idx).is_some())
+            {
+                app.chat_message_ids.clone_from(ids);
+                app.store_session_chat_snapshot(
+                    session_id,
+                    crate::app::session::shared_chat_messages(app.chat.clone()),
+                    app.chat_message_ids.clone(),
+                );
+                return Task::done(Message::Chat(ChatMessage::ResetSessionToMessage {
+                    msg_idx,
+                    revert_code,
+                }));
+            }
+            if revert_code {
+                match result {
+                    Ok(_) => app.push_localized_notification(
+                        "网关没有可回滚历史，已仅重置本地会话历史",
+                        vec![],
+                    ),
+                    Err(error) => app.push_localized_notification(
+                        "网关历史不可用，已仅重置本地会话历史: %s",
+                        vec![error.into()],
+                    ),
                 }
             }
+            reset_session_locally(app, session_id, msg_idx)
         }
         ChatMessage::ResetSessionToMessage { msg_idx, revert_code } => {
             let Some(session_id) = app.active_session_id.clone() else {
@@ -2082,12 +1806,12 @@ pub fn update(app: &mut App, message: ChatMessage) -> Task<Message> {
             };
             let Some(message_id) = message_id_for_index(app, msg_idx) else {
                 let root = current_session_directory(app).or_else(|| app.project_path.clone());
-                return recover_message_ids_for_action_task(
+                return recover_reset_message_ids_task(
                     gateway_endpoint(app),
                     session_id,
                     root,
                     msg_idx,
-                    MessageIndexedSessionAction::Reset { revert_code },
+                    revert_code,
                 );
             };
             let root = current_session_directory(app).or_else(|| app.project_path.clone());

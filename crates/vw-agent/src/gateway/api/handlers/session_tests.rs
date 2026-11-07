@@ -67,7 +67,7 @@ fn state() -> AppState {
     }
 }
 
-fn test_app() -> Router {
+pub(super) fn test_app() -> Router {
     router().layer(Extension(TenantScope::default())).with_state(state())
 }
 

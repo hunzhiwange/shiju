@@ -351,6 +351,36 @@ async fn next_output(task: iced::Task<Message>, matches: impl Fn(&Message) -> bo
     .expect("gateway fixture timed out")
 }
 
+// Same first turn and tool block as the gateway fork acceptance fixture.
+const FORK_USER: &str = "fork-retained-user";
+const FORK_ANSWER: &str = "fork-retained-answer";
+const FORK_SECOND: &str = "fork-discarded-second";
+const FORK_THIRD: &str = "fork-discarded-third";
+
+fn fork_tool_block() -> String {
+    let tool = serde_json::json!({
+        "tool_call_id": "fork-retained-call",
+        "status": "completed",
+        "input": r#"{"path":"tracked.txt"}"#,
+        "output": "fork-retained-result",
+    });
+    format!("tool file_read\n{tool}\n{FORK_ANSWER}")
+}
+
+fn assert_projected_fork(app: &App) {
+    let [user, assistant] = app.chat.as_slice() else {
+        panic!("expected only the retained user and assistant");
+    };
+    assert_eq!(user.role, ChatRole::User);
+    assert_eq!(user.content, FORK_USER);
+    assert_eq!(assistant.role, ChatRole::Assistant);
+    assert_eq!(assistant.content, fork_tool_block());
+    assert_eq!(
+        app.chat_message_ids,
+        [Some("retained-user".into()), Some("retained-assistant".into())]
+    );
+}
+
 #[derive(Debug)]
 struct FixtureRequest {
     method: String,
@@ -411,10 +441,10 @@ async fn serve_fork_gateway(
                 json!({
                     "items": [
                         {"seq_no": 1, "message_id": "retained-user", "message": {
-                            "role": "User", "content": "Server history"
+                            "role": "User", "content": FORK_USER
                         }},
-                        {"seq_no": 2, "message_id": "retained-tool", "message": {
-                            "role": "Tool", "content": "Server tool result"
+                        {"seq_no": 2, "message_id": "retained-assistant", "message": {
+                            "role": "Assistant", "content": fork_tool_block()
                         }}
                     ],
                     "total_count": 2
@@ -498,6 +528,33 @@ async fn fork_desktop_clicks_send_frozen_turn_and_open_gateway_history() {
         let server = tokio::spawn(serve_fork_gateway(listener, id, directory, reject, tx));
         prepare_chat(&mut app);
         app.chat_fork_anchor = None;
+        app.chat = [
+            (ChatRole::User, FORK_USER.to_owned()),
+            (ChatRole::Assistant, fork_tool_block()),
+            (ChatRole::User, FORK_SECOND.to_owned()),
+            (ChatRole::Assistant, format!("{FORK_SECOND}-answer")),
+            (ChatRole::User, FORK_THIRD.to_owned()),
+            (ChatRole::Assistant, format!("{FORK_THIRD}-answer")),
+        ]
+        .into_iter()
+        .map(|(role, content)| TranscriptMessage {
+            role,
+            content,
+            model: None,
+            think_timing: Vec::new(),
+            processing_timing: None,
+        })
+        .collect();
+        app.chat_message_ids = [
+            "retained-user",
+            "retained-assistant",
+            "second-turn",
+            "second-assistant",
+            "third-turn",
+            "third-assistant",
+        ]
+        .map(|id| Some(id.into()))
+        .to_vec();
 
         // A missing user ID must not trigger any writes or borrow the tool row's ID.
         app.chat_message_ids[2] = None;
@@ -542,7 +599,7 @@ async fn fork_desktop_clicks_send_frozen_turn_and_open_gateway_history() {
             assert_eq!(app.active_session_id.as_deref(), Some("other"));
         } else if reject {
             assert_eq!(app.active_session_id.as_deref(), Some("source"));
-            assert_eq!(app.chat_message_ids.last().unwrap().as_deref(), Some("second-turn"));
+            assert_eq!(app.chat_message_ids[1].as_deref(), Some("second-turn"));
             assert_eq!(
                 app.active_toast.as_ref().unwrap().kind,
                 crate::app::state::ToastKind::Error
@@ -552,9 +609,7 @@ async fn fork_desktop_clicks_send_frozen_turn_and_open_gateway_history() {
             assert_eq!(app.project_path.as_deref(), Some(directory));
             assert!(app.sessions.iter().any(|info| info.id == id));
             assert!(app.project_sessions[directory].iter().any(|info| info.id == id));
-            assert_eq!(app.chat[0].content, "Server history");
-            assert_eq!(app.chat[1].content, "Server tool result");
-            assert_eq!(app.chat_message_ids[0].as_deref(), Some("retained-user"));
+            assert_projected_fork(&app);
             assert_eq!(
                 app.active_toast.as_ref().unwrap().kind,
                 crate::app::state::ToastKind::Success
@@ -578,8 +633,7 @@ async fn fork_desktop_clicks_send_frozen_turn_and_open_gateway_history() {
             };
             let _ = project::update(&mut app, loaded);
             assert_fork_readback(&mut requests, id, directory);
-            assert_eq!(app.chat[0].content, "Server history");
-            assert_eq!(app.chat_message_ids[0].as_deref(), Some("retained-user"));
+            assert_projected_fork(&app);
         }
         server.abort();
         let _ = server.await;

@@ -49,6 +49,8 @@ mod turn_policy;
 mod types;
 mod utils;
 
+pub(super) use utils::compact_tool_output;
+
 pub(crate) use prefetch::app_session_scope_from_root_async;
 pub(crate) use types::ToolSessionState;
 

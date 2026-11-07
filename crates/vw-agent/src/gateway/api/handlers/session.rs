@@ -115,6 +115,11 @@ mod tests;
 #[path = "session/agent_profile_acceptance_tests.rs"]
 mod agent_profile_acceptance_tests;
 
+// The subprocess isolates Git worktrees through the Unix HOME override.
+#[cfg(all(test, unix))]
+#[path = "session/fork_acceptance_tests.rs"]
+mod fork_acceptance_tests;
+
 #[cfg(test)]
 #[path = "session/acp_source_tests.rs"]
 mod acp_source_tests;

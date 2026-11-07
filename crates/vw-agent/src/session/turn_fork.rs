@@ -7,6 +7,7 @@ use std::path::Path;
 
 use super::{CreateInput, Error, Info, event, forked_title};
 use crate::project::instance;
+use crate::session::processor::compact_tool_output;
 use crate::session::{agent_binding, compaction_checkpoint, message};
 use crate::{bus, id, storage};
 use serde_json::{Value, json};
@@ -140,6 +141,12 @@ fn model_history(messages: &[message::WithParts]) -> Vec<Value> {
                         "id":tool.call_id, "type":"function",
                         "function":{"name":tool.tool, "arguments":Value::Object(input.clone()).to_string()},
                     }]}));
+                    // Stored tool results can include UI-only details such as absolute file links.
+                    let output = if matches!(&tool.state, message::ToolState::Completed(_)) {
+                        compact_tool_output(&tool.tool, output)
+                    } else {
+                        output.to_owned()
+                    };
                     history.push(
                         json!({"role":"tool", "tool_call_id":tool.call_id, "content":output}),
                     );

@@ -4,20 +4,50 @@
 //! 注释聚焦调用边界、返回值和错误传播方式，便于后续维护设置页与工具栏行为时快速定位职责。
 
 use crate::app::components::system_settings_common::{
-    SETTINGS_CONTROL_PADDING, SETTINGS_CONTROL_TEXT_SIZE, SETTINGS_LABEL_WIDTH,
-    primary_action_btn_style, rounded_action_btn_style, settings_checkbox_style,
-    settings_close_button, settings_divider, settings_error_banner, settings_modal_header,
-    settings_modal_layout, settings_modal_overlay, settings_muted_text_style, settings_page_intro,
-    settings_section_card, settings_section_content, settings_segment_button_style,
-    settings_text_input_style,
+    SETTINGS_CONTROL_PADDING, SETTINGS_CONTROL_TEXT_SIZE, primary_action_btn_style,
+    rounded_action_btn_style, settings_checkbox_style, settings_close_button,
+    settings_control_with_hint, settings_divider, settings_error_banner, settings_field_label,
+    settings_group_card, settings_group_heading, settings_modal_card_style, settings_modal_header,
+    settings_modal_layout, settings_modal_overlay, settings_muted_text_style,
+    settings_segment_button_style, settings_text_input_style,
 };
 use crate::app::i18n::settings_models::connection_text::text as connection_text;
 use crate::app::state::CustomProviderModelTab;
 use crate::app::{App, Message, message};
-use iced::widget::{button, checkbox, column, container, row, text, text_input};
-use iced::{Alignment, Element, Length};
+use iced::widget::{Space, button, checkbox, column, container, row, text, text_input};
+use iced::{Alignment, Background, Element, Length, Theme};
 
 const MODALITIES: [&str; 5] = ["text", "image", "audio", "video", "pdf"];
+
+pub(super) fn custom_modal_card_style(theme: &Theme) -> container::Style {
+    let mut style = settings_modal_card_style(theme);
+    // Keep the provider dialog from showing through the active model dialog.
+    if let Some(Background::Color(color)) = &mut style.background {
+        color.a = 1.0;
+    }
+    style
+}
+
+pub(super) fn custom_segment_style(
+    theme: &Theme,
+    status: button::Status,
+    is_active: bool,
+) -> button::Style {
+    let mut style = settings_segment_button_style(theme, status, is_active);
+    if is_active {
+        style.text_color = theme.palette().text;
+    }
+    style
+}
+
+pub(super) fn custom_modal_heading<'a>(
+    title: &'a str,
+    description: &'a str,
+) -> Element<'a, Message> {
+    column![text(title).size(20), text(description).size(13).style(settings_muted_text_style)]
+        .spacing(4)
+        .into()
+}
 
 pub(super) fn field_row<'a>(
     label: &'a str,
@@ -25,17 +55,8 @@ pub(super) fn field_row<'a>(
     control: impl Into<Element<'a, Message>>,
 ) -> Element<'a, Message> {
     container(
-        row![
-            column![
-                text(label).size(13),
-                text(description).size(11).style(settings_muted_text_style),
-            ]
-            .spacing(4)
-            .width(Length::Fixed(SETTINGS_LABEL_WIDTH)),
-            container(control.into()).width(Length::Fill),
-        ]
-        .spacing(22)
-        .align_y(Alignment::Start),
+        column![settings_field_label(label), settings_control_with_hint(control, description)]
+            .spacing(6),
     )
     .padding([14, 0])
     .width(Length::Fill)
@@ -89,9 +110,9 @@ fn model_tab_button(
 ) -> Element<'static, Message> {
     let is_active = tab == active_tab;
     button(text(label).size(13))
-        .padding([8, 14])
+        .padding([8, 12])
         .on_press(Message::Settings(message::SettingsMessage::CustomProviderModelTabSelected(tab)))
-        .style(move |theme, status| settings_segment_button_style(theme, status, is_active))
+        .style(move |theme, status| custom_segment_style(theme, status, is_active))
         .into()
 }
 
@@ -260,7 +281,10 @@ pub fn view_overlays<'a>(app: &'a App, dialog: Element<'a, Message>) -> Element<
                 app.desktop_locale,
                 "未显式设置时沿用基线；新模型默认支持文本和工具调用。",
             ),
-            row![reasoning, tool_call, temperature, attachment, interleaved].spacing(16),
+            row![reasoning, tool_call, temperature, attachment, interleaved]
+                .spacing(14)
+                .align_y(Alignment::Center)
+                .wrap(),
         );
 
         let input_modality_checks = MODALITIES.into_iter().map(|modality| {
@@ -322,7 +346,7 @@ pub fn view_overlays<'a>(app: &'a App, dialog: Element<'a, Message>) -> Element<
                     app.desktop_locale,
                     "选择 provider 接受的输入类型；留空时按文本模型默认值处理。"
                 ),
-                row(input_modality_checks).spacing(12),
+                row(input_modality_checks).spacing(12).align_y(Alignment::Center).wrap(),
             ),
             settings_divider(),
             field_row(
@@ -331,34 +355,34 @@ pub fn view_overlays<'a>(app: &'a App, dialog: Element<'a, Message>) -> Element<
                     app.desktop_locale,
                     "选择 provider 返回的输出类型；留空时按文本模型默认值处理。"
                 ),
-                row(output_modality_checks).spacing(12),
+                row(output_modality_checks).spacing(12).align_y(Alignment::Center).wrap(),
             ),
         ]
         .spacing(0);
 
         let info_tab = column![
-            settings_section_card(
+            settings_group_heading(
                 connection_text(app.desktop_locale, "模型信息"),
                 connection_text(
                     app.desktop_locale,
                     "模型 ID 会直接用于请求；显示名称和家族仅用于元数据。"
                 )
             ),
-            settings_section_content(
+            settings_group_card(
                 column![id_row, settings_divider(), name_row, settings_divider(), family_row]
                     .spacing(0),
             ),
         ]
         .spacing(16);
         let limits_tab = column![
-            settings_section_card(
+            settings_group_heading(
                 connection_text(app.desktop_locale, "限制"),
                 connection_text(
                     app.desktop_locale,
                     "空值明确表示沿用内置基线或安全默认值，数值单位为 token。"
                 )
             ),
-            settings_section_content(
+            settings_group_card(
                 column![
                     context_limit_row,
                     settings_divider(),
@@ -371,14 +395,14 @@ pub fn view_overlays<'a>(app: &'a App, dialog: Element<'a, Message>) -> Element<
         ]
         .spacing(16);
         let capabilities_tab = column![
-            settings_section_card(
+            settings_group_heading(
                 connection_text(app.desktop_locale, "能力与模态"),
                 connection_text(
                     app.desktop_locale,
                     "只保存用户显式设置的覆盖，保持自动发现模型的其它配置。"
                 )
             ),
-            settings_section_content(
+            settings_group_card(
                 column![capabilities_row, settings_divider(), modalities_row].spacing(0)
             ),
         ]
@@ -402,7 +426,8 @@ pub fn view_overlays<'a>(app: &'a App, dialog: Element<'a, Message>) -> Element<
             ),
         ]
         .spacing(8)
-        .align_y(Alignment::Center);
+        .align_y(Alignment::Center)
+        .wrap();
 
         let body: Element<'_, Message> = match mm.active_tab {
             CustomProviderModelTab::Info => info_tab.into(),
@@ -410,27 +435,23 @@ pub fn view_overlays<'a>(app: &'a App, dialog: Element<'a, Message>) -> Element<
             CustomProviderModelTab::Capabilities => capabilities_tab.into(),
         };
 
-        let error_banner: Element<'_, Message> = s
-            .save_error
-            .as_ref()
-            .map(|error| settings_error_banner(error.display(app.desktop_locale)))
-            .unwrap_or_else(|| container(text("")).height(0).into());
-
-        let header = column![
+        let mut header = column![
             settings_modal_header(
-                settings_page_intro(
+                custom_modal_heading(
                     title,
                     connection_text(app.desktop_locale, "填写模型 ID 和展示名称。"),
                 ),
                 close_btn,
             ),
             tabs,
-            error_banner,
         ]
-        .spacing(16);
+        .spacing(12);
+        if let Some(error) = &s.save_error {
+            header = header.push(settings_error_banner(error.display(app.desktop_locale)));
+        }
 
         let actions = row![
-            container(text("")).width(Length::Fill),
+            Space::new().width(Length::Fill),
             button(text(connection_text(app.desktop_locale, "取消")))
                 .on_press(close_message.clone())
                 .padding([8, 14])
@@ -443,9 +464,16 @@ pub fn view_overlays<'a>(app: &'a App, dialog: Element<'a, Message>) -> Element<
         .spacing(10)
         .align_y(Alignment::Center);
 
-        let card = settings_modal_layout(header, body, Some(actions.into())).width(840).height(680);
-        base = settings_modal_overlay(Some(base), close_message, card);
+        let card = settings_modal_layout(header, body, Some(actions.into()))
+            .style(custom_modal_card_style)
+            .width(840)
+            .height(680);
+        base = settings_modal_overlay(Some(base), close_message, container(card).padding(12));
     }
 
     base
 }
+
+#[cfg(test)]
+#[path = "custom_model_modal_ui_refresh_09_tests.rs"]
+mod ui_refresh_09_tests;

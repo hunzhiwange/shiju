@@ -11,68 +11,25 @@
 //! - 支持动态添加/移除模型配置
 //! - 提供表单验证和错误提示
 
+use super::custom_model_modal::{
+    custom_modal_card_style, custom_modal_heading, custom_segment_style,
+};
+pub(super) use super::custom_model_modal::{field_row, text_row};
 use crate::app::assets::Icon;
 use crate::app::components::system_settings_common::{
-    SETTINGS_CONTROL_PADDING, SETTINGS_CONTROL_TEXT_SIZE, SETTINGS_LABEL_WIDTH, icon_btn,
-    primary_action_btn_style, rounded_action_btn_style, settings_close_button, settings_divider,
-    settings_error_banner, settings_modal_card, settings_modal_overlay, settings_muted_text_style,
-    settings_page_intro, settings_section_card, settings_section_content,
-    settings_segment_button_style, settings_text_input_style, settings_value_badge,
+    SETTINGS_CONTROL_PADDING, SETTINGS_CONTROL_TEXT_SIZE, icon_btn, primary_action_btn_style,
+    rounded_action_btn_style, settings_close_button, settings_divider, settings_error_banner,
+    settings_group_card, settings_group_heading, settings_modal_header, settings_modal_layout,
+    settings_modal_overlay, settings_muted_text_style, settings_text_input_style, settings_toggle,
+    settings_value_badge,
 };
 use crate::app::i18n::settings_models::connection_text::text as connection_text;
 use crate::app::i18n::settings_models::messages::render as owned_text;
 use crate::app::state::{CustomProviderModelFilter, CustomProviderTab};
 use crate::app::{App, Message, message};
-use iced::widget::scrollable::{Direction, Scrollbar};
-use iced::widget::{button, column, container, row, scrollable, text, text_input, toggler};
+use iced::widget::text::Wrapping;
+use iced::widget::{Space, button, column, container, row, text, text_input};
 use iced::{Alignment, Element, Length};
-
-const SCROLLBAR_WIDTH: f32 = 4.0;
-const SCROLLBAR_GUTTER: u16 = 3;
-// 两侧同时预留滚动条宽度与内容间隔，避免内容贴住 4px 滚动条。
-const SCROLLABLE_SIDE_PADDING: u16 = SCROLLBAR_WIDTH as u16 + SCROLLBAR_GUTTER;
-
-pub(super) fn field_row<'a>(
-    label: &'a str,
-    description: &'a str,
-    control: impl Into<Element<'a, Message>>,
-) -> Element<'a, Message> {
-    container(
-        row![
-            column![
-                text(label).size(13),
-                text(description).size(11).style(settings_muted_text_style),
-            ]
-            .spacing(4)
-            .width(Length::Fixed(SETTINGS_LABEL_WIDTH)),
-            container(control.into()).width(Length::Fill),
-        ]
-        .spacing(22)
-        .align_y(Alignment::Start),
-    )
-    .padding([14, 0])
-    .width(Length::Fill)
-    .into()
-}
-
-pub(super) fn text_row<'a>(
-    label: &'a str,
-    description: &'a str,
-    placeholder: &'a str,
-    value: &'a str,
-    on_input: impl Fn(String) -> Message + 'a,
-) -> Element<'a, Message> {
-    field_row(
-        label,
-        description,
-        text_input(placeholder, value)
-            .on_input(on_input)
-            .padding(SETTINGS_CONTROL_PADDING)
-            .size(SETTINGS_CONTROL_TEXT_SIZE)
-            .style(settings_text_input_style)
-            .width(Length::Fill),
-    )
-}
 
 pub(super) fn secure_text_row<'a>(
     label: &'a str,
@@ -101,9 +58,9 @@ fn provider_tab_button(
 ) -> Element<'static, Message> {
     let is_active = tab == active_tab;
     button(text(label).size(13))
-        .padding([8, 14])
+        .padding([8, 12])
         .on_press(Message::Settings(message::SettingsMessage::CustomProviderTabSelected(tab)))
-        .style(move |theme, status| settings_segment_button_style(theme, status, is_active))
+        .style(move |theme, status| custom_segment_style(theme, status, is_active))
         .into()
 }
 
@@ -118,7 +75,7 @@ fn model_filter_button(
         .on_press(Message::Settings(message::SettingsMessage::CustomProviderModelFilterSelected(
             filter,
         )))
-        .style(move |theme, status| settings_segment_button_style(theme, status, is_active))
+        .style(move |theme, status| custom_segment_style(theme, status, is_active))
         .into()
 }
 
@@ -162,8 +119,8 @@ pub fn view_overlays<'a>(app: &'a App, dialog: Element<'a, Message>) -> Element<
         let close_message = Message::Settings(message::SettingsMessage::CustomProviderClose);
         let close_btn = settings_close_button(close_message.clone());
 
-        let header_row = row![
-            container(settings_page_intro(
+        let header_row = settings_modal_header(
+            custom_modal_heading(
                 if is_editing {
                     connection_text(app.desktop_locale, "编辑提供商")
                 } else {
@@ -180,11 +137,9 @@ pub fn view_overlays<'a>(app: &'a App, dialog: Element<'a, Message>) -> Element<
                         "按 base URL 接入一个与 OpenAI 兼容的 provider；模型可稍后配置。",
                     )
                 },
-            ))
-            .width(Length::Fill),
+            ),
             close_btn,
-        ]
-        .align_y(Alignment::Start);
+        );
 
         let provider_id_row = if is_editing {
             field_row(
@@ -257,7 +212,7 @@ pub fn view_overlays<'a>(app: &'a App, dialog: Element<'a, Message>) -> Element<
                 ))
                 .size(12)
                 .style(settings_muted_text_style),
-                container(text(" ")).width(Length::Fill),
+                Space::new().width(Length::Fill),
                 icon_btn(
                     Icon::Plus,
                     connection_text(app.desktop_locale, "添加请求头"),
@@ -323,17 +278,12 @@ pub fn view_overlays<'a>(app: &'a App, dialog: Element<'a, Message>) -> Element<
             .count();
         let total_count =
             s.custom.models.iter().filter(|model| !model.model_id.trim().is_empty()).count();
-        let mut model_actions = row![
+        let model_actions = row![
             settings_value_badge(crate::app::i18n::settings_models::enabled_count(
                 app.desktop_locale,
                 enabled_count,
                 total_count
             )),
-            container(text(" ")).width(Length::Fill),
-        ]
-        .spacing(10)
-        .align_y(Alignment::Center);
-        model_actions = model_actions.push(
             button(text(if s.custom_models_discovering {
                 connection_text(app.desktop_locale, "发现中…")
             } else {
@@ -343,17 +293,16 @@ pub fn view_overlays<'a>(app: &'a App, dialog: Element<'a, Message>) -> Element<
                 message::SettingsMessage::CustomProviderModelsDiscover,
             )))
             .padding([7, 12])
-            .style(if s.custom_models_discovering {
-                rounded_action_btn_style
-            } else {
-                primary_action_btn_style
-            }),
-        );
-        model_actions = model_actions.push(icon_btn(
-            Icon::Plus,
-            connection_text(app.desktop_locale, "添加模型"),
-            Some(Message::Settings(message::SettingsMessage::CustomProviderModelOpen(None))),
-        ));
+            .style(primary_action_btn_style),
+            icon_btn(
+                Icon::Plus,
+                connection_text(app.desktop_locale, "添加模型"),
+                Some(Message::Settings(message::SettingsMessage::CustomProviderModelOpen(None))),
+            ),
+        ]
+        .spacing(10)
+        .align_y(Alignment::Center)
+        .wrap();
 
         let filter_row = row![
             model_filter_button(
@@ -373,7 +322,8 @@ pub fn view_overlays<'a>(app: &'a App, dialog: Element<'a, Message>) -> Element<
             ),
         ]
         .spacing(8)
-        .align_y(Alignment::Center);
+        .align_y(Alignment::Center)
+        .wrap();
 
         let mut models_panel = column![
             field_row(
@@ -429,16 +379,20 @@ pub fn view_overlays<'a>(app: &'a App, dialog: Element<'a, Message>) -> Element<
                 container(
                     row![
                         column![
-                            text(title).size(13).style(move |theme: &iced::Theme| text::Style {
-                                color: Some(theme.palette().text.scale_alpha(title_alpha)),
-                            }),
-                            text(subtitle).size(11).style(move |theme: &iced::Theme| text::Style {
-                                color: Some(theme.palette().text.scale_alpha(subtitle_alpha),),
-                            }),
+                            text(title).size(14).wrapping(Wrapping::WordOrGlyph).style(
+                                move |theme: &iced::Theme| text::Style {
+                                    color: Some(theme.palette().text.scale_alpha(title_alpha)),
+                                }
+                            ),
+                            text(subtitle).size(12).wrapping(Wrapping::WordOrGlyph).style(
+                                move |theme: &iced::Theme| text::Style {
+                                    color: Some(theme.palette().text.scale_alpha(subtitle_alpha),),
+                                }
+                            ),
                         ]
                         .spacing(4)
                         .width(Length::Fill),
-                        toggler(enabled).on_toggle(move |value| {
+                        settings_toggle(enabled).on_toggle(move |value| {
                             Message::Settings(
                                 message::SettingsMessage::CustomProviderModelEnabledToggled(
                                     i, value,
@@ -493,14 +447,14 @@ pub fn view_overlays<'a>(app: &'a App, dialog: Element<'a, Message>) -> Element<
         }
 
         let basic_tab = column![
-            settings_section_card(
+            settings_group_heading(
                 connection_text(app.desktop_locale, "基础信息"),
                 connection_text(
                     app.desktop_locale,
                     "命名 provider，并指定展示名称与 OpenAI 兼容接口地址。"
                 ),
             ),
-            settings_section_content(
+            settings_group_card(
                 column![
                     provider_id_row,
                     settings_divider(),
@@ -513,27 +467,25 @@ pub fn view_overlays<'a>(app: &'a App, dialog: Element<'a, Message>) -> Element<
         ]
         .spacing(16);
         let authentication_tab = column![
-            settings_section_card(
+            settings_group_heading(
                 connection_text(app.desktop_locale, "认证与请求头"),
                 connection_text(
                     app.desktop_locale,
                     "设置默认 API Key，并为需要额外 header 的网关场景补充请求头。"
                 ),
             ),
-            settings_section_content(
-                column![api_key_row, settings_divider(), headers_row].spacing(0)
-            ),
+            settings_group_card(column![api_key_row, settings_divider(), headers_row].spacing(0)),
         ]
         .spacing(16);
         let models_tab = column![
-            settings_section_card(
+            settings_group_heading(
                 connection_text(app.desktop_locale, "模型"),
                 connection_text(
                     app.desktop_locale,
                     "维护该 provider 的模型列表，后续聊天与生成界面会复用这里的配置。"
                 ),
             ),
-            settings_section_content(models_panel),
+            settings_group_card(models_panel),
         ]
         .spacing(16);
 
@@ -555,7 +507,8 @@ pub fn view_overlays<'a>(app: &'a App, dialog: Element<'a, Message>) -> Element<
             ),
         ]
         .spacing(8)
-        .align_y(Alignment::Center);
+        .align_y(Alignment::Center)
+        .wrap();
 
         let body_col: Element<'_, Message> = match s.custom_provider_tab {
             CustomProviderTab::Basic => basic_tab.into(),
@@ -565,11 +518,11 @@ pub fn view_overlays<'a>(app: &'a App, dialog: Element<'a, Message>) -> Element<
 
         let footer_row =
             row![
+                Space::new().width(Length::Fill),
                 button(text(connection_text(app.desktop_locale, "取消")))
                     .on_press(close_message.clone())
                     .padding([8, 14])
                     .style(rounded_action_btn_style),
-                container(text(" ")).width(Length::Fill),
                 button(text(connection_text(app.desktop_locale, "保存")))
                     .on_press_maybe((!s.custom_models_discovering).then_some(Message::Settings(
                         message::SettingsMessage::CustomProviderSave,
@@ -581,24 +534,16 @@ pub fn view_overlays<'a>(app: &'a App, dialog: Element<'a, Message>) -> Element<
             .align_y(Alignment::Center)
             .width(Length::Fill);
 
-        let scroll_body = scrollable(
-            container(body_col).padding([0, SCROLLABLE_SIDE_PADDING]).width(Length::Fill),
-        )
-        .direction(Direction::Vertical(
-            Scrollbar::new().width(SCROLLBAR_WIDTH).scroller_width(SCROLLBAR_WIDTH),
-        ))
-        .height(Length::Fill);
-
-        let mut modal_col = column![header_row, tabs].spacing(16).height(Length::Fill);
-        if let Some(err) = &s.save_error {
-            modal_col = modal_col.push(settings_error_banner(err.display(app.desktop_locale)));
+        let mut header = column![header_row, tabs].spacing(12);
+        if let Some(error) = &s.save_error {
+            header = header.push(settings_error_banner(error.display(app.desktop_locale)));
         }
-        modal_col = modal_col.push(scroll_body).push(footer_row);
 
-        let card =
-            settings_modal_card(modal_col).width(Length::Fixed(780.0)).height(Length::Fixed(620.0));
-
-        base = settings_modal_overlay(Some(base), close_message, card);
+        let card = settings_modal_layout(header, body_col, Some(footer_row.into()))
+            .style(custom_modal_card_style)
+            .width(780)
+            .height(620);
+        base = settings_modal_overlay(Some(base), close_message, container(card).padding(12));
     }
 
     base

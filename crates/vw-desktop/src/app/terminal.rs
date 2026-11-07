@@ -749,12 +749,13 @@ fi
 
 impl Default for TerminalState {
     fn default() -> Self {
+        let settings = vw_config_types::ui::AppSystemSettingsConfig::default();
         Self::blank_with_settings(
             false,
             Shell::Bash,
             TerminalTheme::System,
-            "JetBrains Mono".to_string(),
-            15.0,
+            settings.terminal_font_family,
+            settings.terminal_font_size,
             200.0,
         )
     }

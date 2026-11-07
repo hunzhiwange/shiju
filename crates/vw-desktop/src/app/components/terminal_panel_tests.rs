@@ -352,7 +352,7 @@ async fn terminal_typography_draws_mixed_text_and_cursor_on_the_same_grid() {
         assert!(started.elapsed() < Duration::from_secs(5), "PTY output was not received");
         tokio::time::sleep(Duration::from_millis(20)).await;
     }
-    for size in [12.0_f32, 15.0, 20.0] {
+    for size in [12.0_f32, 15.0, 16.0, 20.0] {
         state.set_font_size(size);
         state.tabs[0].term.handle(resize());
         for theme in [Theme::Dark, Theme::Light] {

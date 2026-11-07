@@ -7,7 +7,7 @@ use super::shared::{label_col, section_card};
 use crate::app::components::number_input::NumberInput;
 use crate::app::components::system_settings_common::{
     SETTINGS_CONTROL_PADDING, SETTINGS_CONTROL_TEXT_SIZE, settings_checkbox_style,
-    settings_text_input_style,
+    settings_divider, settings_group_card, settings_group_heading, settings_text_input_style,
 };
 use crate::app::i18n::settings_extensions::text as tr;
 use crate::app::message::settings::{AgentsMessage, SettingsMessage};
@@ -50,7 +50,8 @@ pub(super) fn view<'a>(
         label_col(
             tr(app.desktop_locale, "API 密钥"),
             tr(app.desktop_locale, "可选覆盖该代理的提供商凭证。")
-        ),
+        )
+        .width(Length::Fill),
         text_input(tr(app.desktop_locale, "可选"), &entry.api_key_input)
             .secure(true)
             .on_input({
@@ -84,7 +85,8 @@ pub(super) fn view<'a>(
         label_col(
             tr(app.desktop_locale, "温度"),
             tr(app.desktop_locale, "控制生成发散度，范围 0.0 - 2.0。")
-        ),
+        )
+        .width(Length::Fill),
         column![
             temperature_slider,
             text(format!("{:.2}", entry.temperature)).size(12).style(|theme: &Theme| {
@@ -118,28 +120,16 @@ pub(super) fn view<'a>(
     .spacing(16)
     .align_y(Alignment::Center);
 
-    let registration_rows = {
-        let mut rows = Vec::<Element<'_, Message>>::new();
-        if shows_registration_controls(entry) {
-            rows.push(enabled_row.into());
-        }
-        rows
-    };
-    let registration_section: Option<Element<'_, Message>> = if registration_rows.is_empty() {
-        None
-    } else {
-        Some(
-            column![
-                section_card(
-                    tr(app.desktop_locale, "可用性"),
-                    tr(app.desktop_locale, "控制该智能体是否作为可用 Agent 暴露。")
-                ),
-                column(registration_rows).spacing(14),
-            ]
-            .spacing(14)
-            .into(),
-        )
-    };
+    let registration_section = shows_registration_controls(entry).then(|| {
+        column![
+            settings_group_heading(
+                tr(app.desktop_locale, "可用性"),
+                tr(app.desktop_locale, "控制该智能体是否作为可用 Agent 暴露。")
+            ),
+            settings_group_card(enabled_row).padding([14, 16]),
+        ]
+        .spacing(8)
+    });
 
     let allow_as_subagent_row = row![
         label_col(
@@ -165,7 +155,8 @@ pub(super) fn view<'a>(
         label_col(
             tr(app.desktop_locale, "子智能体数量"),
             tr(app.desktop_locale, "该 Agent 每轮最多同时启动的子智能体数量。")
-        ),
+        )
+        .width(Length::Fill),
         NumberInput::new(entry.max_parallel_subagents as f32, 1.0, 32.0, 1.0, 0, 1.0, {
             let key = entry.key.clone();
             move |value| {
@@ -179,37 +170,12 @@ pub(super) fn view<'a>(
     .spacing(16)
     .align_y(Alignment::Center);
 
-    let delegation_section: Element<'_, Message> = if shows_delegation_controls(entry) {
-        column![
-            section_card(
-                tr(app.desktop_locale, "子智能体委托"),
-                tr(
-                    app.desktop_locale,
-                    "控制该 Agent 是否可被平台委托；原生引擎还可配置发起委托的并发上限。"
-                )
-            ),
-            column![allow_as_subagent_row, native.then_some(max_parallel_subagents_row)]
-                .spacing(14),
-        ]
-        .spacing(14)
-        .into()
-    } else {
-        column![section_card(
-            tr(app.desktop_locale, "角色边界"),
-            tr(
-                app.desktop_locale,
-                "委托资格、并发上限和递归深度由内置角色目录固定，不能在此放宽。"
-            )
-        ),]
-        .spacing(14)
-        .into()
-    };
-
     let max_depth_row = row![
         label_col(
             tr(app.desktop_locale, "最大深度"),
             tr(app.desktop_locale, "委托嵌套深度上限，防止无限递归。")
-        ),
+        )
+        .width(Length::Fill),
         NumberInput::new(entry.max_depth as f32, 1.0, 32.0, 1.0, 0, 1.0, {
             let key = entry.key.clone();
             move |value| {
@@ -248,7 +214,8 @@ pub(super) fn view<'a>(
         label_col(
             tr(app.desktop_locale, "历史消息上限"),
             tr(app.desktop_locale, "该智能体保留给模型的会话历史消息上限。")
-        ),
+        )
+        .width(Length::Fill),
         NumberInput::new(entry.max_history_messages as f32, 1.0, 1000.0, 1.0, 0, 1.0, {
             let key = entry.key.clone();
             move |value| {
@@ -287,7 +254,8 @@ pub(super) fn view<'a>(
         label_col(
             tr(app.desktop_locale, "最大迭代次数"),
             tr(app.desktop_locale, "智能体模式下最多运行多少轮工具循环。")
-        ),
+        )
+        .width(Length::Fill),
         NumberInput::new(entry.max_iterations as f32, 1.0, u32::MAX as f32, 1.0, 0, 1.0, {
             let key = entry.key.clone();
             move |value| {
@@ -323,20 +291,73 @@ pub(super) fn view<'a>(
     .spacing(16)
     .align_y(Alignment::Center);
 
+    let delegation_section: Element<'_, Message> = if shows_delegation_controls(entry) {
+        column![
+            settings_group_heading(
+                tr(app.desktop_locale, "子智能体委托"),
+                tr(
+                    app.desktop_locale,
+                    "控制该 Agent 是否可被平台委托；原生引擎还可配置发起委托的并发上限。"
+                )
+            ),
+            settings_group_card(
+                column![
+                    allow_as_subagent_row,
+                    native.then(settings_divider),
+                    native.then_some(max_parallel_subagents_row),
+                    native.then(settings_divider),
+                    native.then_some(max_depth_row),
+                ]
+                .spacing(12),
+            )
+            .padding([14, 16]),
+        ]
+        .spacing(8)
+        .into()
+    } else {
+        section_card(
+            tr(app.desktop_locale, "角色边界"),
+            tr(
+                app.desktop_locale,
+                "委托资格、并发上限和递归深度由内置角色目录固定，不能在此放宽。",
+            ),
+        )
+        .into()
+    };
+
+    let runtime_section = native.then(|| {
+        settings_group_card(
+            column![
+                api_key_row,
+                settings_divider(),
+                temperature_row,
+                settings_divider(),
+                max_iterations_row,
+                settings_divider(),
+                agentic_row,
+                settings_divider(),
+                compact_context_row,
+                settings_divider(),
+                max_history_messages_row,
+                settings_divider(),
+                parallel_tools_row,
+            ]
+            .spacing(12),
+        )
+        .padding([14, 16])
+    });
+
     column![
         super::basic_profile::view(app, entry),
         super::defaults::view(app, entry),
         registration_section,
         delegation_section,
-        native.then_some(api_key_row),
-        native.then_some(temperature_row),
-        (native && shows_delegation_controls(entry)).then_some(max_depth_row),
-        native.then_some(max_iterations_row),
-        native.then_some(agentic_row),
-        native.then_some(compact_context_row),
-        native.then_some(max_history_messages_row),
-        native.then_some(parallel_tools_row),
+        runtime_section,
     ]
-    .spacing(14)
+    .spacing(16)
     .into()
 }
+
+#[cfg(test)]
+#[path = "basic_ui_refresh_16_tests.rs"]
+mod ui_refresh_16_tests;

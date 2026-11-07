@@ -3,10 +3,11 @@
 //! 本模块主要负责把应用状态转换为桌面端可渲染的 Iced 控件，并把用户操作映射回上层消息。
 //! 注释聚焦调用边界、返回值和错误传播方式，便于后续维护设置页与工具栏行为时快速定位职责。
 
-use super::shared::{editor_style, section_card};
+use super::shared::editor_style;
 use crate::app::components::system_settings_common::{
     SETTINGS_CONTROL_PADDING, SETTINGS_CONTROL_TEXT_SIZE, rounded_action_btn_style,
-    settings_checkbox_style, settings_muted_text_style, settings_segment_button_style,
+    settings_checkbox_style, settings_field_label, settings_group_card, settings_group_heading,
+    settings_muted_text_style, settings_segment_button_style,
 };
 use crate::app::i18n::settings_extensions::text as tr;
 use crate::app::message::settings::{AgentsMessage, SettingsMessage};
@@ -133,7 +134,7 @@ pub(super) fn view<'a>(
     let prompt_panel: Element<'_, Message> =
         if settings.active_prompt_tab == AGENT_PROMPT_SYSTEM_TAB {
             column![
-                text(tr(app.desktop_locale, "系统提示词")),
+                settings_field_label(tr(app.desktop_locale, "系统提示词")),
                 text(tr(app.desktop_locale, "多行系统提示，将作为该 Agent 的专用角色提示。"))
                     .size(12)
                     .style(settings_muted_text_style),
@@ -156,8 +157,10 @@ pub(super) fn view<'a>(
                         ))
                     }
                 })
+                .font(iced::Font::DEFAULT)
+                .size(SETTINGS_CONTROL_TEXT_SIZE)
                 .height(Length::Fixed(320.0))
-                .padding(10)
+                .padding(SETTINGS_CONTROL_PADDING)
                 .style(editor_style);
 
             let workspace_hint = workspace_identity_hint(
@@ -189,7 +192,7 @@ pub(super) fn view<'a>(
                     })
                     .style(settings_checkbox_style);
             let restore_default_button = button(text(tr(app.desktop_locale, "恢复默认")).size(12))
-                .padding([6, 10])
+                .padding([8, 14])
                 .on_press(Message::Settings(SettingsMessage::Agents(
                     AgentsMessage::WorkspaceIdentityRestoreDefaultRequested(
                         file_state.file_name.clone(),
@@ -199,32 +202,39 @@ pub(super) fn view<'a>(
 
             column![
                 row![
-                    text(file_state.file_name.clone()),
+                    settings_field_label(&file_state.file_name),
                     identity_load_checkbox,
                     restore_default_button
                 ]
                 .spacing(10)
-                .align_y(Alignment::Center),
+                .align_y(Alignment::Center)
+                .wrap(),
                 text(crate::app::i18n::I18n::new(app.desktop_locale).__(&file_state.label))
                     .size(12)
                     .style(settings_muted_text_style),
                 workspace_meta.map(|meta| text(meta).size(12).style(settings_muted_text_style)),
-                text(workspace_hint).size(12).style(settings_muted_text_style),
+                text(workspace_hint)
+                    .size(12)
+                    .wrapping(text::Wrapping::WordOrGlyph)
+                    .style(settings_muted_text_style),
                 container(workspace_editor).width(Length::Fill),
             ]
             .spacing(8)
             .into()
         } else {
-            container(text(tr(app.desktop_locale, "未找到对应的身份文件页签"))).into()
+            text(tr(app.desktop_locale, "未找到对应的身份文件页签"))
+                .size(12)
+                .style(settings_muted_text_style)
+                .into()
         };
 
     column![
-        section_card(
+        settings_group_heading(
             tr(app.desktop_locale, "身份与提示词"),
             tr(app.desktop_locale, "管理当前 Agent 的系统提示词，以及独立工作区身份文件。"),
         ),
         prompt_tabs,
-        prompt_panel,
+        settings_group_card(prompt_panel).padding([14, 16]),
     ]
     .spacing(14)
     .into()

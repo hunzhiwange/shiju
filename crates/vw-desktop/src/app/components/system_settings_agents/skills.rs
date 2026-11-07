@@ -2,19 +2,20 @@
 //!
 //! 本模块只负责把已发现的技能目录映射成代理级默认注入选择控件。
 
-use super::shared::{is_dark_theme, section_card};
+use super::shared::is_dark_theme;
 use crate::app::components::system_settings_common::{
-    SETTINGS_CONTROL_PADDING, SETTINGS_CONTROL_TEXT_SIZE, rounded_action_btn_style,
-    settings_muted_text_style, settings_panel_style, settings_pick_list_menu_style,
-    settings_pick_list_style, settings_segment_button_style, settings_value_badge,
+    rounded_action_btn_style, settings_error_banner, settings_field_label, settings_group_card,
+    settings_group_heading, settings_muted_text_style, settings_panel_style,
+    settings_segment_button_style, settings_select, settings_value_badge,
 };
 use crate::app::i18n::settings_extensions::text as tr;
 use crate::app::message::settings::{AgentsMessage, SettingsMessage};
 use crate::app::state::{DelegateAgentSettingsEntry, SkillsCatalogItem, SkillsDirectoryScope};
 use crate::app::{App, Message};
 use iced::widget::tooltip::{Position as TooltipPosition, Tooltip};
-use iced::widget::{button, column, container, pick_list, row, text};
+use iced::widget::{button, column, container, row, text};
 use iced::{Alignment, Background, Border, Color, Element, Length, Theme};
+use std::fmt;
 use vw_config_types::agent::{AgentDefault, DelegateCapabilityPolicy};
 use vw_config_types::ui::DesktopLocale;
 
@@ -265,6 +266,21 @@ fn skill_card<'a>(
     .into()
 }
 
+#[derive(Clone, PartialEq)]
+enum SkillDirectory {
+    Global(&'static str),
+    Project(String),
+}
+
+impl fmt::Display for SkillDirectory {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Self::Global(label) => f.write_str(label),
+            Self::Project(path) => f.write_str(path),
+        }
+    }
+}
+
 pub(super) fn view<'a>(
     app: &'a App,
     entry: &'a DelegateAgentSettingsEntry,
@@ -283,31 +299,33 @@ pub(super) fn view<'a>(
         .count();
     let fixed = matches!(entry.defaults.skills, AgentDefault::Fixed(_));
     let project_open = app.agents_settings.skill_directory.is_some();
-    let mut directories = vec!["全局目录".to_string()];
-    directories.extend(super::agent_project_options(app));
+    let global = SkillDirectory::Global(tr(app.desktop_locale, "全局目录"));
+    let mut projects = super::agent_project_options(app);
     if let Some(path) = &app.agents_settings.skill_directory {
-        if !directories.contains(path) {
-            directories.push(path.clone());
+        if !projects.contains(path) {
+            projects.push(path.clone());
         }
     }
-    let selected = app.agents_settings.skill_directory.clone().unwrap_or_else(|| "全局目录".into());
-    let directory_picker = pick_list(directories, Some(selected), |value| {
-        Message::Settings(SettingsMessage::Agents(AgentsMessage::SkillDirectorySelected(
-            if value == "全局目录" { None } else { Some(value) },
-        )))
+    let selected = app
+        .agents_settings
+        .skill_directory
+        .clone()
+        .map(SkillDirectory::Project)
+        .unwrap_or_else(|| global.clone());
+    let directories =
+        std::iter::once(global).chain(projects.into_iter().map(SkillDirectory::Project));
+    let directory_picker = settings_select(directories, Some(selected), |value| {
+        let path = match value {
+            SkillDirectory::Global(_) => None,
+            SkillDirectory::Project(path) => Some(path),
+        };
+        Message::Settings(SettingsMessage::Agents(AgentsMessage::SkillDirectorySelected(path)))
     })
-    .padding(SETTINGS_CONTROL_PADDING)
-    .text_size(SETTINGS_CONTROL_TEXT_SIZE)
-    .style(settings_pick_list_style)
-    .menu_style(settings_pick_list_menu_style)
     .width(Length::Fill);
     let scope_filter = column![
-        row![text(tr(app.desktop_locale, "技能目录")).size(13), directory_picker]
-            .spacing(10)
-            .align_y(Alignment::Center),
-        text(app.agents_settings.skill_catalog_error.as_deref().unwrap_or_default())
-            .size(12)
-            .style(settings_muted_text_style),
+        settings_field_label(tr(app.desktop_locale, "技能目录")),
+        directory_picker,
+        app.agents_settings.skill_catalog_error.as_ref().map(settings_error_banner),
         row![
             scope_button(
                 tr(app.desktop_locale, "项目目录"),
@@ -342,7 +360,7 @@ pub(super) fn view<'a>(
         text(discovery_order_text(app))
             .size(11)
             .width(Length::Fill)
-            .wrapping(iced::widget::text::Wrapping::Word)
+            .wrapping(text::Wrapping::WordOrGlyph)
             .style(settings_muted_text_style),
     ]
     .spacing(8);
@@ -399,32 +417,19 @@ pub(super) fn view<'a>(
                 ),
             ]
             .spacing(10)
-            .align_y(Alignment::Center),
+            .align_y(Alignment::Center)
+            .wrap(),
             row(cards).spacing(12).wrap(),
         ]
         .spacing(12)
         .into()
     };
     let original = entry.defaults.clone();
-    let mode = pick_list(
-        vec!["继承", "固定选择"],
-        Some(if fixed { "固定选择" } else { "继承" }),
-        move |mode| {
-            let mut defaults = original.clone();
-            defaults.skills = if mode == "固定选择" {
-                AgentDefault::Fixed(vec![])
-            } else {
-                AgentDefault::Inherit
-            };
-            Message::Settings(SettingsMessage::Agents(AgentsMessage::ProfileDefaultsChanged(
-                defaults,
-            )))
-        },
-    )
-    .padding(SETTINGS_CONTROL_PADDING)
-    .text_size(SETTINGS_CONTROL_TEXT_SIZE)
-    .style(settings_pick_list_style)
-    .menu_style(settings_pick_list_menu_style);
+    let mode = super::defaults::selection_mode(app.desktop_locale, fixed, move |fixed| {
+        let mut defaults = original.clone();
+        defaults.skills = if fixed { AgentDefault::Fixed(vec![]) } else { AgentDefault::Inherit };
+        Message::Settings(SettingsMessage::Agents(AgentsMessage::ProfileDefaultsChanged(defaults)))
+    });
     let policy_controls = row![
         skill_policy_button(app.desktop_locale, entry, DelegateCapabilityPolicy::Strict),
         skill_policy_button(app.desktop_locale, entry, DelegateCapabilityPolicy::Unrestricted),
@@ -433,31 +438,34 @@ pub(super) fn view<'a>(
     .wrap();
 
     column![
-        section_card(
+        settings_group_heading(
             tr(app.desktop_locale, "默认技能"),
             tr(
                 app.desktop_locale,
                 "继承预览原有允许技能；固定空列表不预选技能。默认选择不会扩大严格访问范围。"
             ),
         ),
-        column![
-            mode,
-            text(tr(app.desktop_locale, "技能访问策略")).size(14),
-            text(tr(app.desktop_locale, "严格限制保留原有允许范围；不限制允许会话临时选择。"))
-                .size(12)
-                .style(settings_muted_text_style),
-            policy_controls,
-            button(text("前往技能库管理").size(12))
-                .padding([8, 14])
-                .style(rounded_action_btn_style)
-                .on_press(Message::Settings(SettingsMessage::AgentConfigTab(
-                    crate::app::message::settings::AgentConfigTabMessage::Selected(
-                        crate::app::state::AgentConfigTab::Skills,
-                    ),
-                ))),
-        ]
-        .spacing(8),
-        scope_filter,
+        settings_group_card(
+            column![
+                mode,
+                settings_field_label(tr(app.desktop_locale, "技能访问策略")),
+                text(tr(app.desktop_locale, "严格限制保留原有允许范围；不限制允许会话临时选择。"))
+                    .size(12)
+                    .style(settings_muted_text_style),
+                policy_controls,
+                button(text(tr(app.desktop_locale, "前往技能库管理")).size(12))
+                    .padding([8, 14])
+                    .style(rounded_action_btn_style)
+                    .on_press(Message::Settings(SettingsMessage::AgentConfigTab(
+                        crate::app::message::settings::AgentConfigTabMessage::Selected(
+                            crate::app::state::AgentConfigTab::Skills,
+                        ),
+                    ))),
+            ]
+            .spacing(8)
+        )
+        .padding([14, 16]),
+        settings_group_card(scope_filter).padding([14, 16]),
         skills_list,
     ]
     .spacing(14)

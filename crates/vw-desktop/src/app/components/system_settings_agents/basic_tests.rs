@@ -16,13 +16,12 @@ fn view_tree(
 
 fn assert_common_field_structure(tree: &Tree, has_registration: bool) {
     let offset = usize::from(has_registration);
-    assert_eq!(tree.children.len(), 10 + offset);
+    assert_eq!(tree.children.len(), 4 + offset);
     // Profile fields and the single defaults/model group precede runtime controls.
-    assert_eq!(tree.children[0].children.len(), 4);
-    assert!(tree.children[1].children.len() >= 4);
-    for row_index in (3 + offset)..=(6 + offset) {
-        assert_eq!(tree.children[row_index].children.len(), 2);
-    }
+    assert_eq!(tree.children[0].children.len(), 5);
+    assert_eq!(tree.children[1].children.len(), 2);
+    let runtime = &tree.children[3 + offset];
+    assert_eq!(runtime.children.len(), 13); // Seven rows and six dividers.
 }
 
 #[test]
@@ -90,8 +89,7 @@ fn basic_view_worker_shows_availability_and_common_runtime_controls() {
 
     assert_common_field_structure(&tree, true);
     assert_eq!(tree.children[2].children.len(), 2);
-    assert_eq!(tree.children[2].children[1].children.len(), 1);
-    assert_eq!(tree.children[2].children[1].children[0].children.len(), 2);
+    assert_eq!(tree.children[2].children[1].children.len(), 2);
 }
 
 #[test]
@@ -167,8 +165,8 @@ fn agent_runtime_visibility_acp_preserves_profile_defaults_and_delegation_eligib
         );
         let tree = view_tree(&app, &entry, Vec::new());
         assert_eq!(tree.children.len(), 4);
-        assert_eq!(tree.children[0].children.len(), 4);
-        assert!(tree.children[1].children.len() >= 4);
+        assert_eq!(tree.children[0].children.len(), 5);
+        assert_eq!(tree.children[1].children.len(), 2);
         assert_eq!(tree.children[3].children[1].children.len(), 1);
     }
 }

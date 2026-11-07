@@ -5,9 +5,8 @@ use crate::app::{
     App, Message,
     message::settings::{AgentsMessage, SettingsMessage},
 };
-use iced::widget::scrollable::{Direction, Scrollbar};
-use iced::widget::{button, column, container, row, scrollable, text};
-use iced::{Element, Length};
+use iced::widget::{button, column, container, row, text};
+use iced::{Alignment, Element, Length};
 use vw_config_types::agent::builtin_agent_spec;
 
 fn message(value: AgentsMessage) -> Message {
@@ -63,9 +62,6 @@ pub(super) fn overlay<'a>(app: &'a App, base: Element<'a, Message>) -> Element<'
         crate::app::state::AGENT_DETAIL_MCP_TAB => super::mcp::view(app, entry),
         _ => super::basic::view(app, entry, Vec::new()),
     };
-    let body = scrollable(container(fields).padding([0, 7]))
-        .direction(Direction::Vertical(Scrollbar::new().width(4).scroller_width(4)))
-        .height(Length::Fill);
     let mut footer =
         row![action(label("取消"), (!busy).then_some(AgentsMessage::ProfileCancel))].spacing(10);
     if !fixed {
@@ -78,28 +74,27 @@ pub(super) fn overlay<'a>(app: &'a App, base: Element<'a, Message>) -> Element<'
             .padding([8, 14])
             .style(primary_action_btn_style),
     );
-    let card = settings_modal_card(
-        column![
-            row![
-                text(label("智能体配置")).size(20),
-                iced::widget::Space::new().width(Length::Fill),
-                settings_close_button(message(AgentsMessage::ProfileCancel))
-            ]
-            .spacing(20)
-            .align_y(iced::Alignment::Center),
-            tabs,
-            text(label("身份文件正文即时保存；其余配置点击保存后生效。"))
-                .size(12)
-                .style(settings_muted_text_style),
-            body,
-            footer,
-        ]
-        .spacing(16),
+    let header = column![
+        settings_modal_header(
+            text(label("智能体配置")).size(20),
+            settings_close_button(message(AgentsMessage::ProfileCancel)),
+        ),
+        tabs,
+        text(label("身份文件正文即时保存；其余配置点击保存后生效。"))
+            .size(12)
+            .style(settings_muted_text_style),
+    ]
+    .spacing(12);
+    let footer = container(footer.align_y(Alignment::Center).wrap()).align_right(Length::Fill);
+    let card = settings_modal_layout(header, fields, Some(footer.into()))
+        .width(Length::Fixed(1000.0))
+        .height(Length::Fill)
+        .max_height(820);
+    settings_modal_overlay(
+        Some(base),
+        message(AgentsMessage::ProfileCancel),
+        container(card).padding(12),
     )
-    .width(Length::Fixed(1000.0))
-    .height(Length::Fill)
-    .max_height(820);
-    settings_modal_overlay(Some(base), message(AgentsMessage::ProfileCancel), card)
 }
 
 fn action(label: &'static str, value: Option<AgentsMessage>) -> Element<'static, Message> {

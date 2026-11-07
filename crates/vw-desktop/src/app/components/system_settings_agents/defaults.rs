@@ -1,12 +1,15 @@
 //! 默认配置草稿、候选与保存校验；实际权限上限仍由网关执行。
 use crate::app::components::system_settings_common::*;
+use crate::app::i18n::settings_extensions::text as tr;
 use crate::app::message::settings::{AgentsMessage, SettingsMessage};
 use crate::app::{App, Message, state::DelegateAgentSettingsEntry};
 use iced::{
-    Alignment, Element, Length,
-    widget::{checkbox, column, pick_list, row, text},
+    Element, Length,
+    widget::{checkbox, column, text},
 };
+use std::fmt;
 use vw_config_types::agent::{AgentDefault, AgentDefaults, AgentModelReference, AgentRuntime};
+use vw_config_types::ui::DesktopLocale;
 
 pub(crate) fn patch(defaults: &AgentDefaults) -> serde_json::Value {
     let mut value = serde_json::to_value(defaults).expect("typed defaults serialize");
@@ -145,45 +148,62 @@ fn changed(defaults: AgentDefaults) -> Message {
     Message::Settings(SettingsMessage::Agents(AgentsMessage::ProfileDefaultsChanged(defaults)))
 }
 
+pub(super) fn selection_mode(
+    locale: DesktopLocale,
+    fixed: bool,
+    on_selected: impl Fn(bool) -> Message + 'static,
+) -> Element<'static, Message> {
+    let inherit = tr(locale, "继承");
+    let explicit = tr(locale, "固定选择");
+    settings_select(
+        [inherit, explicit],
+        Some(if fixed { explicit } else { inherit }),
+        move |value| on_selected(value == explicit),
+    )
+    .width(Length::Fill)
+    .into()
+}
+
+#[derive(Clone, PartialEq)]
+enum ModelChoice {
+    Inherit(&'static str),
+    Fixed(AgentModelReference),
+}
+
+impl fmt::Display for ModelChoice {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Self::Inherit(label) => f.write_str(label),
+            Self::Fixed(model) => write!(f, "{}/{}", model.provider, model.model),
+        }
+    }
+}
+
 pub(super) fn view<'a>(
     app: &'a App,
     draft: &'a DelegateAgentSettingsEntry,
 ) -> Element<'a, Message> {
     let (models, _, _) = catalogs(app, &draft.runtime);
     let defaults = &draft.defaults;
-    let mut body = column![
-        text("默认配置").size(16),
-        text("固定空列表表示不选择任何条目。权限始终受安全上限约束。")
-            .style(settings_muted_text_style)
-    ]
-    .spacing(10);
-    let mut model_options = vec!["继承会话模型".to_string()];
-    model_options.extend(models.iter().map(|model| format!("{}/{}", model.provider, model.model)));
+    let label = |source| tr(app.desktop_locale, source);
+    let inherit = ModelChoice::Inherit(label("继承会话模型"));
     let selected = match &defaults.model {
-        AgentDefault::Inherit => "继承会话模型".into(),
-        AgentDefault::Fixed(model) => format!("{}/{}", model.provider, model.model),
+        AgentDefault::Inherit => inherit.clone(),
+        AgentDefault::Fixed(model) => ModelChoice::Fixed(model.clone()),
     };
+    let options = std::iter::once(inherit).chain(models.into_iter().map(ModelChoice::Fixed));
     let mut model_controls = column![
-        pick_list(model_options, Some(selected), move |value| {
-            let model = models
-                .iter()
-                .find(|model| format!("{}/{}", model.provider, model.model) == value)
-                .cloned()
-                .map(AgentDefault::Fixed)
-                .unwrap_or_default();
+        settings_field_label(label("模型")),
+        settings_select(options, Some(selected), |value| {
+            let model = match value {
+                ModelChoice::Inherit(_) => AgentDefault::Inherit,
+                ModelChoice::Fixed(model) => AgentDefault::Fixed(model),
+            };
             Message::Settings(SettingsMessage::Agents(AgentsMessage::ProfileModelChanged(model)))
         })
-        .padding(SETTINGS_CONTROL_PADDING)
-        .text_size(SETTINGS_CONTROL_TEXT_SIZE)
-        .style(settings_pick_list_style)
-        .menu_style(settings_pick_list_menu_style)
         .width(Length::Fill),
-    ]
-    .spacing(10)
-    .width(Length::Fill);
-    model_controls = model_controls.push(
         checkbox(draft.force_model_selection)
-            .label("强制使用所选模型")
+            .label(label("强制使用所选模型"))
             .on_toggle_maybe(matches!(defaults.model, AgentDefault::Fixed(_)).then(|| {
                 let key = draft.key.clone();
                 move |value| {
@@ -193,36 +213,38 @@ pub(super) fn view<'a>(
                 }
             }))
             .style(settings_checkbox_style),
-    );
+    ]
+    .spacing(8)
+    .width(Length::Fill);
     if matches!(draft.runtime, AgentRuntime::Acp { .. }) {
         model_controls = model_controls.push(
-            text("会话模型来源下，显式选择优先于智能体默认；继承会话模型在无选择时使用环境默认。CLI 本地配置是独立来源，由会话单独选择。仅已声明会话模型能力的引擎可固定模型。")
+            text(label("会话模型来源下，显式选择优先于智能体默认；继承会话模型在无选择时使用环境默认。CLI 本地配置是独立来源，由会话单独选择。仅已声明会话模型能力的引擎可固定模型。"))
+                .size(12)
                 .style(settings_muted_text_style),
         );
     }
-    body = body.push(
-        row![text("模型").width(Length::Fixed(SETTINGS_LABEL_WIDTH)), model_controls]
-            .spacing(16)
-            .align_y(Alignment::Start),
-    );
     let original = defaults.clone();
-    body = body.push(
-        row![
-            text("权限").width(Length::Fixed(SETTINGS_LABEL_WIDTH)),
-            checkbox(defaults.full_access)
-                .label("完全访问权限")
-                .on_toggle(move |enabled| {
-                    let mut next = original.clone();
-                    next.full_access = enabled;
-                    changed(next)
-                })
-                .style(settings_checkbox_style),
-        ]
-        .spacing(16)
-        .align_y(Alignment::Center),
-    );
-    if let Some(error) = validation_error(app, draft) {
-        body = body.push(settings_error_banner(error));
-    }
-    body.into()
+    let permission = column![
+        settings_field_label(label("权限")),
+        checkbox(defaults.full_access)
+            .label(label("完全访问权限"))
+            .on_toggle(move |enabled| {
+                let mut next = original.clone();
+                next.full_access = enabled;
+                changed(next)
+            })
+            .style(settings_checkbox_style),
+    ]
+    .spacing(8);
+    column![
+        settings_group_heading(
+            label("默认配置"),
+            label("固定空列表表示不选择任何条目。权限始终受安全上限约束。"),
+        ),
+        settings_group_card(column![model_controls, settings_divider(), permission].spacing(12))
+            .padding([14, 16]),
+        validation_error(app, draft).map(settings_error_banner),
+    ]
+    .spacing(8)
+    .into()
 }

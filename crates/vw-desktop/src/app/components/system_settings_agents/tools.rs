@@ -3,10 +3,10 @@
 //! 本模块主要负责把应用状态转换为桌面端可渲染的 Iced 控件，并把用户操作映射回上层消息。
 //! 注释聚焦调用边界、返回值和错误传播方式，便于后续维护设置页与工具栏行为时快速定位职责。
 
-use super::shared::{is_dark_theme, section_card};
+use super::shared::is_dark_theme;
 use crate::app::components::system_settings_common::{
-    rounded_action_btn_style, settings_muted_text_style, settings_panel_style,
-    settings_segment_button_style, settings_value_badge,
+    rounded_action_btn_style, settings_group_heading, settings_muted_text_style,
+    settings_panel_style, settings_segment_button_style, settings_value_badge,
 };
 use crate::app::i18n::settings_extensions::text as tr;
 use crate::app::message::settings::{AgentsMessage, SettingsMessage};
@@ -659,7 +659,10 @@ pub(super) fn view<'a>(
     let visible_tools: Vec<String> = visible_tool_ids.iter().map(|id| (*id).to_string()).collect();
 
     let tools_list: Element<'_, Message> = if settings.available_tools.is_empty() {
-        text(tr(app.desktop_locale, "暂无可用工具列表")).size(12).into()
+        text(tr(app.desktop_locale, "暂无可用工具列表"))
+            .size(12)
+            .style(settings_muted_text_style)
+            .into()
     } else {
         let tabs_row = row![
             tools_list_tab_button(
@@ -887,8 +890,9 @@ pub(super) fn view<'a>(
                     ),
                 ]
                 .spacing(10)
-                .align_y(Alignment::Center),
-                section_card(
+                .align_y(Alignment::Center)
+                .wrap(),
+                settings_group_heading(
                     tr(app.desktop_locale, "快捷预选"),
                     tr(app.desktop_locale, "按当前可用工具自动套用常见权限组合。")
                 ),
@@ -901,7 +905,7 @@ pub(super) fn view<'a>(
     };
 
     column![
-        section_card(
+        settings_group_heading(
             tr(app.desktop_locale, "注册工具"),
             tr(app.desktop_locale, "选择在对话开始时注册给模型的工具。未选择的工具不可调用。")
         ),

@@ -42,3 +42,31 @@ pub struct HermesImportResult {
 pub use super::claude::{ClaudeLiveResult as HermesLiveResult, ClaudeResult as HermesResult};
 macro_rules! concealed { ($($t:ty),*) => {$(impl std::fmt::Debug for $t { fn fmt(&self,f:&mut std::fmt::Formatter<'_>)->std::fmt::Result { f.write_str("Hermes([redacted])") } })*}; }
 concealed!(HermesProfile, HermesWrite);
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct HermesFormView {
+    pub fields: super::basic::ProviderBasic,
+    pub config: Option<HermesFormConfig>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct HermesFormConfig {
+    pub declaration: String,
+    pub has_saved_key: bool,
+    pub revision: String,
+}
+
+#[derive(Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct HermesFormWrite {
+    pub target_host_id: String,
+    pub fields: super::basic::ProviderBasic,
+    pub declaration: String,
+    pub api_key: super::create::ProviderSecretWrite,
+    pub activation: HermesActivation,
+    pub revision: Option<String>,
+}
+
+concealed!(HermesFormWrite);

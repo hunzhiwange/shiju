@@ -18,6 +18,7 @@ fn main() {
         "grok" => (AppId::GrokBuild, true),
         "opencode" => (AppId::OpenCode, true),
         "openclaw" => (AppId::OpenClaw, true),
+        "hermes" => (AppId::Hermes, true),
         _ => panic!("unknown window case"),
     };
     let edit = case == "edit";
@@ -61,6 +62,7 @@ fn main() {
         "grok" => "Grok Build 供应商隔离验收",
         "opencode" => "OpenCode 供应商隔离验收",
         "openclaw" => "OpenClaw 供应商隔离验收",
+        "hermes" => "Hermes 供应商隔离验收",
         "claude" => "Claude Code 供应商隔离验收",
         _ => "供应商基础编辑隔离验收",
     })
@@ -109,6 +111,7 @@ fn fixture(
             AppId::GrokBuild => "grokbuild",
             AppId::OpenCode => "opencode",
             AppId::OpenClaw => "openclaw",
+            AppId::Hermes => "hermes",
             _ => panic!("unknown fixture app"),
         };
         let prefix = format!("/v1/app-providers/{app}/");
@@ -141,7 +144,7 @@ fn fixture(
                 "inactive":[["config","legacy","中文旧字段"],["config","ui","theme"]],
             }));
         }
-        let incremental = matches!(app, "opencode" | "openclaw");
+        let incremental = matches!(app, "opencode" | "openclaw" | "hermes");
         let mut node_configs = std::collections::BTreeMap::from([(
             "provider-0".to_owned(),
             serde_json::json!({
@@ -168,6 +171,22 @@ fn fixture(
                 "userAgent": true,
                 "revision": "fixture-1"
             }));
+        }
+        if app == "hermes" {
+            node_configs.insert(
+                "provider-0".into(),
+                serde_json::json!({
+                    "declaration": serde_json::to_string_pretty(&serde_json::json!({
+                        "base_url":"https://fixture-api.example.test/v1",
+                        "api_mode":"chat_completions",
+                        "models":[{"id":"fixture-model","name":"中文动态模型","context_length":8192,
+                            "supports_vision":true}],
+                        "rate_limit_delay":0.5
+                    })).unwrap(),
+                    "hasSavedKey":true,
+                    "revision":"fixture-1"
+                }),
+            );
         }
         let mut node_members = std::collections::BTreeSet::from(["provider-0".to_owned()]);
         while !done.load(std::sync::atomic::Ordering::Relaxed) {
@@ -234,7 +253,7 @@ fn fixture(
                         .ok()
                         .and_then(|node| node.get("models").cloned())
                         .is_some_and(|models| {
-                            if app == "openclaw" {
+                            if matches!(app, "openclaw" | "hermes") {
                                 models.as_array().is_some_and(|models| {
                                     models.iter().all(|model| {
                                         model["id"].as_str().is_some_and(|id| !id.trim().is_empty())
@@ -272,8 +291,11 @@ fn fixture(
                             "hasSavedKey": has_saved_key,
                             "revision": "fixture-saved"
                         });
-                        let field = if app == "openclaw" { "userAgent" } else { "format" };
-                        config[field] = value[field].clone();
+                        match app {
+                            "openclaw" => config["userAgent"] = value["userAgent"].clone(),
+                            "opencode" => config["format"] = value["format"].clone(),
+                            _ => {}
+                        }
                         node_configs.insert(id.into(), config);
                         basics.insert(id.into(), value["fields"].take());
                         serde_json::json!({"catalogSaved":true,"live":live})

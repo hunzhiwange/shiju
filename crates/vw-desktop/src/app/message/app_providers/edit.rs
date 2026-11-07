@@ -28,7 +28,7 @@ pub(crate) async fn save(
 mod tests;
 
 use super::{
-    claude, codex, gemini, grok,
+    claude, codex, gemini, grok, hermes,
     list::{ListMessage, current},
     openclaw, opencode,
 };
@@ -45,6 +45,7 @@ use vw_gateway_client::vw_api_types::{
         codex_catalog::{CodexFormView, CodexLiveResult},
         gemini::{GeminiFormView, GeminiLiveResult},
         grok::{GrokFormView, GrokLiveResult},
+        hermes::{HermesFormView, HermesLiveResult},
         openclaw::{OpenClawFormView, OpenClawLiveResult},
         opencode::{OpenCodeFormView, OpenCodeLiveResult},
     },
@@ -93,6 +94,12 @@ pub enum EditMessage {
         result: Result<GrokFormView, String>,
     },
     Grok(grok::Field),
+    HermesLoaded {
+        scope: Scope,
+        generation: u64,
+        id: String,
+        result: Result<HermesFormView, String>,
+    },
     OpenClawLoaded {
         scope: Scope,
         generation: u64,
@@ -106,6 +113,7 @@ pub enum EditMessage {
         result: Result<OpenCodeFormView, String>,
     },
     OpenCode(opencode::Field),
+    Hermes(hermes::Field),
     OpenClaw(openclaw::Field),
     Id(String),
     Name(String),
@@ -136,6 +144,11 @@ pub enum EditMessage {
         scope: Scope,
         generation: u64,
         result: Result<GrokLiveResult, String>,
+    },
+    HermesSaved {
+        scope: Scope,
+        generation: u64,
+        result: Result<HermesLiveResult, String>,
     },
     OpenClawSaved {
         scope: Scope,
@@ -203,6 +216,13 @@ pub(crate) fn update(app: &mut App, event: EditMessage) -> Task<Message> {
                 .is_some_and(|scope| scope.app == AppId::OpenCode)
             {
                 form.opencode = Some(crate::app::state::app_providers::opencode::Draft::new());
+            } else if app
+                .app_providers
+                .scope
+                .as_ref()
+                .is_some_and(|scope| scope.app == AppId::Hermes)
+            {
+                form.hermes = Some(crate::app::state::app_providers::hermes::Draft::new());
             } else if app
                 .app_providers
                 .scope
@@ -278,6 +298,21 @@ pub(crate) fn update(app: &mut App, event: EditMessage) -> Task<Message> {
                     async move { grok::load(client, request_scope, &source, &token).await },
                     move |result| {
                         message(EditMessage::GrokLoaded {
+                            scope: scope.clone(),
+                            generation,
+                            id: id.clone(),
+                            result,
+                        })
+                    },
+                );
+            }
+            if scope.app == AppId::Hermes && !copy && !delete {
+                let token = app.apps_catalog.token.clone();
+                let request_scope = scope.clone();
+                return Task::perform(
+                    async move { hermes::load(client, request_scope, &source, &token).await },
+                    move |result| {
+                        message(EditMessage::HermesLoaded {
                             scope: scope.clone(),
                             generation,
                             id: id.clone(),
@@ -414,6 +449,25 @@ pub(crate) fn update(app: &mut App, event: EditMessage) -> Task<Message> {
                 Err(error) => return app.show_error_toast(error),
             }
         }
+        EditMessage::HermesLoaded { scope, generation, id, result } => {
+            if !app.app_providers.loading || !matches_scope(app, &scope, generation) {
+                return Task::none();
+            }
+            app.app_providers.loading = false;
+            match result {
+                Ok(view) => {
+                    let member =
+                        hermes::membership(&app.app_providers, &id) == ProviderMembership::Present;
+                    let mut form = EditForm::new(Mode::Update, id, view.fields, None);
+                    form.hermes = view.config.map(|config| {
+                        crate::app::state::app_providers::hermes::Draft::from_view(config, member)
+                    });
+                    form.hermes_config_unavailable = form.hermes.is_none();
+                    app.app_providers.form = Some(form);
+                }
+                Err(error) => return app.show_error_toast(error),
+            }
+        }
         EditMessage::OpenClawLoaded { scope, generation, id, result } => {
             if !app.app_providers.loading || !matches_scope(app, &scope, generation) {
                 return Task::none();
@@ -472,8 +526,9 @@ pub(crate) fn update(app: &mut App, event: EditMessage) -> Task<Message> {
             let codex = form.codex.is_some();
             let grok = form.grok.is_some();
             let opencode = form.opencode.is_some();
+            let hermes = form.hermes.is_some();
             let openclaw = form.openclaw.is_some();
-            if claude || gemini || codex || grok || opencode || openclaw {
+            if claude || gemini || codex || grok || opencode || openclaw || hermes {
                 if !form.identified() {
                     return app.show_error_toast("请填写标识与名称");
                 }
@@ -528,6 +583,18 @@ pub(crate) fn update(app: &mut App, event: EditMessage) -> Task<Message> {
                     grok::save(client, scope.clone(), form, token),
                     move |result| {
                         message(EditMessage::GrokSaved { scope: scope.clone(), generation, result })
+                    },
+                );
+            }
+            if hermes {
+                return Task::perform(
+                    hermes::save(client, scope.clone(), form, token),
+                    move |result| {
+                        message(EditMessage::HermesSaved {
+                            scope: scope.clone(),
+                            generation,
+                            result,
+                        })
                     },
                 );
             }
@@ -643,6 +710,29 @@ pub(crate) fn update(app: &mut App, event: EditMessage) -> Task<Message> {
             };
             return Task::batch([toast, super::list::update(app, ListMessage::Refresh)]);
         }
+        EditMessage::HermesSaved { scope, generation, result } => {
+            if !matches_scope(app, &scope, generation)
+                || !hermes::finish(&mut app.app_providers, &scope, generation, &result)
+            {
+                return Task::none();
+            }
+            let toast = match result {
+                Err(error) => return app.show_error_toast(error),
+                Ok(HermesLiveResult::NotAttempted) => {
+                    app.show_success_toast("已保存到供应商目录。")
+                }
+                Ok(HermesLiveResult::Applied) => {
+                    app.show_success_toast("已保存并应用 Hermes 配置。")
+                }
+                Ok(HermesLiveResult::Failed) => {
+                    app.show_warning_toast("目录已保存，但应用 Hermes 配置失败。")
+                }
+                Ok(HermesLiveResult::RecoveryRequired) => {
+                    app.show_warning_toast("目录已保存，执行端配置需要恢复。")
+                }
+            };
+            return Task::batch([toast, super::list::update(app, ListMessage::Refresh)]);
+        }
         EditMessage::OpenClawSaved { scope, generation, result } => {
             if !matches_scope(app, &scope, generation)
                 || !openclaw::finish(&mut app.app_providers, &scope, generation, &result)
@@ -718,6 +808,7 @@ pub(crate) fn update(app: &mut App, event: EditMessage) -> Task<Message> {
                 EditMessage::Codex(field) => codex::change(form, field),
                 EditMessage::Gemini(field) => gemini::change(form, field),
                 EditMessage::Grok(field) => grok::change(form, field),
+                EditMessage::Hermes(field) => hermes::change(form, field),
                 EditMessage::OpenClaw(field) => openclaw::change(form, field),
                 EditMessage::OpenCode(field) => opencode::change(form, field),
                 EditMessage::Name(v) => form.fields.name = v,

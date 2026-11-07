@@ -95,6 +95,14 @@ pub(crate) fn overlay<'a>(
                 edit_action("删除", id, false, true, enabled),
             ]
             .spacing(8);
+            if scope.app == AppId::Hermes && entry.native_member != ProviderMembership::Unknown {
+                let add = entry.native_member == ProviderMembership::Absent;
+                actions = actions.push(action(
+                    if add { "添加到 Hermes" } else { "从 Hermes 移除" },
+                    ListMessage::HermesMember { id: id.clone(), add },
+                    enabled,
+                ));
+            }
             if scope.app == AppId::OpenClaw && entry.native_member != ProviderMembership::Unknown {
                 let add = entry.native_member == ProviderMembership::Absent;
                 actions = actions.push(action(

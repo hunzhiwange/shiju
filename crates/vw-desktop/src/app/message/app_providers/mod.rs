@@ -11,6 +11,9 @@ mod gemini_tests;
 pub(crate) mod grok;
 #[cfg(test)]
 mod grok_tests;
+pub(crate) mod hermes;
+#[cfg(test)]
+mod hermes_tests;
 pub(crate) mod list;
 pub(crate) mod openclaw;
 #[cfg(test)]

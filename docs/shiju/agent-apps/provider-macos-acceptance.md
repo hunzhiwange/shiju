@@ -2715,3 +2715,37 @@ macOS **27.0 (26A428) / arm64**，桌面 **0.6.0**。临时 app bundle 通过实
 - 浅色 [失败保留](evidence/task-59/light-failure.png)、[保存](evidence/task-59/light-saved.png)、[取消前](evidence/task-59/light-cancel-draft.png)、[取消后重开](evidence/task-59/light-cancel.png)、[滚动](evidence/task-59/light-scroll.png)、[移除](evidence/task-59/light-removed.png)、[重新添加](evidence/task-59/light-added.png)。
 
 差异审查限本任务实现、独立测试、必要接线及证据。状态为 **已完成**，下一步批次 60。
+
+## 任务 60：桌面 Hermes 供应商编辑
+
+2026-11-07。核对批次 59 提交 `a76f7f120` 及正式验收。母任务 1、3 已完成，母任务 2 沿用 `provider-contracts.md` 的底座子计划 1–93 开工裁定，完整领域迁移仍待收口。沿用批次 37 的 Hermes 增量事务与批次 52 的原生窗口入口。
+
+- 核对冻结来源 `ca58c0313360eae7c851fbd7553c1614c7af03e7` 的 `HermesFormFields`、`ProviderForm` 的 Hermes 分支、`useHermesFormState` 和相邻 `HermesFormFields.test.tsx`。桌面复用供应商弹窗及设置控件，使用单节点 JSON 表单编辑 API 地址、协议、模型及请求间隔。模型上下文和图片输入标志随节点保存。官方授权和模型发现暂不可用。
+- 桌面 `components/state/message/app_providers/hermes.rs` 接入新增、编辑、保存及列表成员操作。草稿原文经 SDK `hermes_form_read`、`hermes_form_create`、`hermes_form_update` 调用 `POST /v1/app-providers/hermes/{id}/form/read`、`POST /form`、`PATCH /form`。Gateway 按租户和目标主机检查读写权限，执行端 `providers/hermes/form.rs` 校验草稿、投影公开字段和修订。API 密钥支持保留、替换、清除，`key_env` 与未知字段留在执行端。涉及已保存凭据的地址或协议变更由执行端拒绝不安全的复用。托管或只读字典节点不可编辑。仅在原生文件存在的可写成员可直接同步编辑并建立目录档案。
+- 新建可同时添加到原生文件。编辑可只保存目录或同步现有成员。列表使用既有 `hermes_provider_add` 和 `hermes_provider_remove_live`，移除已入目录的成员后保留档案。执行端复用批次 37 的 YAML 补丁、目录 CAS、文件前像校验及恢复。真实 SDK → 回环 HTTP → Gateway → 临时 SQLite/HOME 用例确认，`applied` 后只有指定成员改变，保留相邻节点、注释、根字段和受保护的配置。授权失败、非法模型和过期修订均保留目录及文件前像。
+
+### 红绿验证
+
+红绿阶段动态领取槽位 **1**，`CARGO_TARGET_DIR=/Users/xiangmin/worker/code/shiju/target/rust-slot-1`。窗口阶段动态领取槽位 **2**，`CARGO_TARGET_DIR=/Users/xiangmin/worker/code/shiju/target/rust-slot-2`。各阶段的 `CARGO_BUILD_BUILD_DIR` 与相应槽位一致。退出后释放本任务的锁并保留缓存。
+
+| 阶段 | 确切命令 | 退出码 | 有效结果 |
+| --- | --- | --- | --- |
+| 红 | `cargo fmt --all` | 0 | 格式化 |
+| 红 | `cargo test -p vw-desktop --lib cc04_ui_hermes_ -- --nocapture` | 101 | 两项业务断言失败，草稿未提交给 SDK，有效响应未结束保存 |
+| 绿 | `cargo fmt --all` | 0 | 格式化 |
+| 绿 | `cargo test -p vw-desktop --lib cc04_ui_hermes_ -- --nocapture` | 0 | 2 passed，服务拒绝保留草稿，旧代或其它主机响应被忽略 |
+| 绿 | `cargo test -p vw-agent --lib gateway::api::handlers::app_providers::hermes_tests:: -- --nocapture` | 0 | 8 passed，含本任务 3 项 |
+| 绿 | `cargo clippy --all-targets --all-features -- -D warnings` | 0 | 全 targets/features |
+| 窗口 | `SHIJU_CC04_WINDOW_CASE=hermes SHIJU_CC04_WINDOW_THEME=dark cargo test -p vw-desktop --test cc04-provider-window` | 0 | 实际操作并关闭 |
+| 窗口 | `SHIJU_CC04_WINDOW_CASE=hermes SHIJU_CC04_WINDOW_THEME=light cargo test -p vw-desktop --test cc04-provider-window` | 0 | 实际操作并关闭 |
+
+### macOS 原生窗口
+
+macOS **27.0 (26A428) / arm64**，桌面 **0.6.0**。临时 app bundle 通过真实 Iced 组件、Message 与 SDK 调用使用假数据的回环 HTTP 夹具。上表的 Gateway 集成用例另行验证真实授权、目录和 YAML 写入。PATH 未发现 Hermes CLI，真实安装版本、账号及 CLI 消费配置未验证。
+
+两种主题均从供应商列表打开已添加的中文档案，提交空模型 ID 后收到 422，中文草稿保留。修正后保存并同步，修改模型后取消，再打开仍显示已保存的模型。实际拖动 4px 滚动条，内容两侧各留 7px，标题及底部操作固定。移除成员后档案仍在目录，重新添加后状态恢复。中文动态模型、名称和备注均正常绘制，窗口正常退出，无字形整形 panic。日志含既有链接提示和系统 sandbox extension 提示，深色窗口另有一条 macOS 输入法端口提示。
+
+- 深色 [校验失败](evidence/task-60/dark-failure.png)、[保存同步](evidence/task-60/dark-saved.png)、[取消后重开](evidence/task-60/dark-cancel.png)、[滚动](evidence/task-60/dark-scroll.png)、[移除](evidence/task-60/dark-removed.png)、[重新添加](evidence/task-60/dark-added.png)。
+- 浅色 [校验失败](evidence/task-60/light-failure.png)、[保存同步](evidence/task-60/light-saved.png)、[取消后重开](evidence/task-60/light-cancel.png)、[滚动](evidence/task-60/light-scroll.png)、[移除](evidence/task-60/light-removed.png)、[重新添加](evidence/task-60/light-added.png)。
+
+差异审查限本任务实现、必要接线、独立测试及证据。状态为 **已完成**，下一步批次 61。

@@ -63,6 +63,13 @@ pub(crate) fn overlay<'a>(form: &'a EditForm, base: Element<'a, Message>) -> Ele
             fields = fields.push(super::gemini::fields(form, draft));
         } else if let Some(draft) = &form.grok {
             fields = fields.push(super::grok::fields(form, draft));
+        } else if let Some(draft) = &form.hermes {
+            fields = fields.push(super::hermes::fields(form, draft));
+        } else if form.hermes_config_unavailable {
+            fields = fields.push(
+                text("此档案的 Hermes 节点不可编辑，可修改基础资料。官方授权暂不可用。")
+                    .style(settings_muted_text_style),
+            );
         } else if let Some(draft) = &form.openclaw {
             fields = fields.push(super::openclaw::fields(form, draft));
         } else if form.openclaw_config_unavailable {
@@ -126,6 +133,7 @@ pub(crate) fn overlay<'a>(form: &'a EditForm, base: Element<'a, Message>) -> Ele
                 || form.codex.is_some()
                 || form.grok.is_some()
                 || form.opencode.is_some()
+                || form.hermes.is_some()
                 || form.openclaw.is_some()
             {
                 form.identified()

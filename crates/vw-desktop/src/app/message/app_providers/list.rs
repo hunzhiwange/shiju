@@ -30,7 +30,9 @@ use crate::app::{App, Message, message::SettingsMessage};
 use iced::Task;
 use vw_gateway_client::vw_api_types::{
     agent_apps::AppId,
-    app_providers::{openclaw::OpenClawLiveResult, opencode::OpenCodeLiveResult},
+    app_providers::{
+        hermes::HermesLiveResult, openclaw::OpenClawLiveResult, opencode::OpenCodeLiveResult,
+    },
 };
 #[derive(Clone, Debug)]
 pub enum ListMessage {
@@ -43,6 +45,16 @@ pub enum ListMessage {
         result: Result<Snapshot, String>,
     },
     Edit(String),
+    HermesMember {
+        id: String,
+        add: bool,
+    },
+    HermesMemberChanged {
+        scope: Scope,
+        generation: u64,
+        add: bool,
+        result: Result<HermesLiveResult, String>,
+    },
     OpenClawMember {
         id: String,
         add: bool,
@@ -125,6 +137,12 @@ pub(crate) fn update(app: &mut App, value: ListMessage) -> Task<Message> {
                     return app.show_error_toast(e);
                 }
             }
+        }
+        ListMessage::HermesMember { id, add } => {
+            return super::hermes::change_membership(app, id, add);
+        }
+        ListMessage::HermesMemberChanged { scope, generation, add, result } => {
+            return super::hermes::membership_changed(app, scope, generation, add, result);
         }
         ListMessage::OpenClawMember { id, add } => {
             return super::openclaw::change_membership(app, id, add);

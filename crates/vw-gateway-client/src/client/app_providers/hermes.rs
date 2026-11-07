@@ -3,6 +3,31 @@ use super::super::agent_apps_read_api::AgentAppsReadError as Error;
 use super::GatewayClient;
 use vw_api_types::app_providers::hermes::*;
 impl GatewayClient {
+    pub async fn hermes_form_read(
+        &self,
+        id: &str,
+        body: &HermesTarget,
+        token: &str,
+    ) -> Result<HermesFormView, Error> {
+        self.hermes_request(id, "POST", "/form/read", body, token).await
+    }
+    pub async fn hermes_form_create(
+        &self,
+        id: &str,
+        body: &HermesFormWrite,
+        token: &str,
+    ) -> Result<HermesResult, Error> {
+        self.hermes_request(id, "POST", "/form", body, token).await
+    }
+    pub async fn hermes_form_update(
+        &self,
+        id: &str,
+        body: &HermesFormWrite,
+        token: &str,
+    ) -> Result<HermesResult, Error> {
+        self.hermes_request(id, "PATCH", "/form", body, token).await
+    }
+
     pub async fn hermes_provider_save(
         &self,
         id: &str,

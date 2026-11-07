@@ -3,6 +3,8 @@ use super::live::write_guard::WriteError;
 use serde_json::{Value, json};
 use std::{collections::BTreeMap, ffi::OsStr, path::Path};
 use vw_api_types::{agent_apps::AppId, app_providers::hermes::*};
+pub mod form;
+
 fn invalid<T>() -> Result<T, WriteError> {
     Err(WriteError::InvalidResource)
 }

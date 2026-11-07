@@ -227,3 +227,133 @@ async fn cc04_hermes_partial_catalog_edit_preserves_credentials_and_future_field
     assert_eq!(row["key_env"], "FIXTURE_KEY");
     assert_eq!(row["future"], json!({"keep":true}));
 }
+
+fn editor_request(activation: HermesActivation) -> HermesFormWrite {
+    use vw_api_types::app_providers::{basic::ProviderBasic, create::ProviderSecretWrite};
+    HermesFormWrite {
+        target_host_id: "host".into(),
+        fields: ProviderBasic {
+            name: "中文供应商".into(),
+            category: Some("工作".into()),
+            notes: Some("中文动态备注".into()),
+            website_url: None,
+        },
+        declaration: json!({
+            "base_url":"https://fixture.example.test/v1",
+            "api_mode":"chat_completions",
+            "models":[{"id":"first", "name":"中文模型","context_length":8192,"supports_vision":true}],
+            "rate_limit_delay":0.5
+        }).to_string(),
+        api_key: ProviderSecretWrite::Replace { value: "fake-form-key".into() },
+        activation,
+        revision: None,
+    }
+}
+
+#[tokio::test]
+async fn cc04_ui_hermes_sdk_form_edits_one_native_member_and_keeps_secrets() {
+    use vw_api_types::app_providers::create::ProviderSecretWrite;
+    let f = Fixture::new().await;
+    let mut req = editor_request(HermesActivation::Add);
+    let result = f.client.hermes_form_create("native", &req, TOKEN).await.unwrap();
+    assert!(result.catalog_saved);
+    assert_eq!(result.live, HermesLiveResult::Applied);
+    let mut native = f.request(HermesActivation::IfMember);
+    native.profile.declaration = json!({
+        "base_url":"https://fixture.example.test/v1", "api_mode":"chat_completions",
+        "api_key":"fake-form-key","key_env":"FIXTURE_KEY", "future":"opaque",
+        "models":{"first":{"name":"中文模型","extra":"fake-private-model-field"}}
+    });
+    f.client.hermes_provider_save("native", &native, TOKEN).await.unwrap();
+    let view = f.client.hermes_form_read("native", &f.target(), TOKEN).await.unwrap();
+    assert_eq!(view.fields.notes.as_deref(), Some("中文动态备注"));
+    let config = view.config.unwrap();
+    assert!(config.has_saved_key);
+    for concealed in ["fake-form-key", "FIXTURE_KEY", "fake-private-model-field", "opaque"] {
+        assert!(!config.declaration.contains(concealed));
+    }
+    req.activation = HermesActivation::IfMember;
+    req.api_key = ProviderSecretWrite::Keep;
+    req.revision = Some(config.revision);
+    req.fields.notes = Some("已编辑".into());
+    let result = f.client.hermes_form_update("native", &req, TOKEN).await.unwrap();
+    assert!(result.catalog_saved);
+    assert_eq!(result.live, HermesLiveResult::Applied);
+    let file = String::from_utf8(f.bytes()).unwrap();
+    assert!(file.starts_with("# keep\nagent: {max_turns: 50}\ncustom_providers:\n  - name: other\n    models: {small: {}}\n"));
+    for expected in [
+        "fake-form-key",
+        "FIXTURE_KEY",
+        "fake-private-model-field",
+        "opaque",
+        "context_length: 8192",
+        "rate_limit_delay: 0.5",
+        "supports_vision: true",
+    ] {
+        assert!(file.contains(expected), "{expected}");
+    }
+    assert_eq!(f.record("native").unwrap()["notes"], "已编辑");
+    let before = f.bytes();
+    assert!(matches!(
+        f.client.hermes_form_update("native", &req, TOKEN).await,
+        Err(vw_gateway_client::AgentAppsReadError::Http { status: 409, .. })
+    ));
+    assert_eq!(f.bytes(), before);
+
+    assert_eq!(
+        f.client.hermes_provider_remove_live("native", &f.target(), TOKEN).await.unwrap().live,
+        HermesLiveResult::Applied
+    );
+    assert!(f.record("native").is_some());
+    assert_eq!(
+        f.client.hermes_provider_add("native", &f.target(), TOKEN).await.unwrap().live,
+        HermesLiveResult::Applied
+    );
+    assert_eq!(
+        f.client.hermes_state(&f.target(), TOKEN).await.unwrap().members,
+        vec!["native", "other"]
+    );
+}
+
+#[tokio::test]
+async fn cc04_ui_hermes_sdk_form_rejects_invalid_and_unauthorized_writes() {
+    let f = Fixture::new().await;
+    let mut req = editor_request(HermesActivation::Add);
+    let before = f.bytes();
+    assert!(f.client.hermes_form_create("native", &req, "denied").await.is_err());
+    req.declaration = r#"{"models":[{"id":"","name":"中文模型"}]}"#.into();
+    assert!(matches!(
+        f.client.hermes_form_create("native", &req, TOKEN).await,
+        Err(vw_gateway_client::AgentAppsReadError::Http { status: 422, .. })
+    ));
+    assert!(f.record("native").is_none());
+    assert_eq!(f.bytes(), before);
+}
+
+#[tokio::test]
+async fn cc04_ui_hermes_sdk_can_edit_an_unimported_native_member() {
+    use vw_api_types::app_providers::create::ProviderSecretWrite;
+    let f = Fixture::new().await;
+    assert!(f.record("other").is_none());
+    let view = f.client.hermes_form_read("other", &f.target(), TOKEN).await.unwrap();
+    assert_eq!(view.fields.name, "other");
+    let mut req = editor_request(HermesActivation::IfMember);
+    req.api_key = ProviderSecretWrite::Keep;
+    req.revision = Some(view.config.unwrap().revision);
+    let changed = String::from_utf8(f.bytes()).unwrap().replace("small", "external");
+    std::fs::write(f.file(), &changed).unwrap();
+    assert!(matches!(
+        f.client.hermes_form_update("other", &req, TOKEN).await,
+        Err(vw_gateway_client::AgentAppsReadError::Http { status: 409, .. })
+    ));
+    assert_eq!(f.bytes(), changed.as_bytes());
+    assert!(f.record("other").is_none());
+
+    let view = f.client.hermes_form_read("other", &f.target(), TOKEN).await.unwrap();
+    req.revision = Some(view.config.unwrap().revision);
+    let result = f.client.hermes_form_update("other", &req, TOKEN).await.unwrap();
+    assert!(result.catalog_saved);
+    assert_eq!(result.live, HermesLiveResult::Applied);
+    assert_eq!(f.client.hermes_state(&f.target(), TOKEN).await.unwrap().members, vec!["other"]);
+    assert!(String::from_utf8(f.bytes()).unwrap().contains("中文模型"));
+}

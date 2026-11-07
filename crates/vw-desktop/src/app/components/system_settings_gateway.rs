@@ -7,11 +7,13 @@ use crate::app::assets::Icon;
 use crate::app::components::number_input::NumberInput;
 use crate::app::components::overlays::BelowOverlay;
 use crate::app::components::system_settings_common::{
-    SETTINGS_CONTROL_PADDING, SETTINGS_CONTROL_TEXT_SIZE, SETTINGS_LABEL_WIDTH,
-    danger_action_btn_style, icon_svg, rounded_action_btn_style, settings_checkbox_style,
-    settings_control_with_hint, settings_divider, settings_error_banner, settings_help_button,
-    settings_modal_card, settings_modal_overlay, settings_muted_text_style, settings_page_intro,
-    settings_panel, settings_section_card, settings_section_content, settings_segment_button_style,
+    SETTINGS_CONTROL_PADDING, SETTINGS_CONTROL_TEXT_SIZE, danger_action_btn_style, icon_svg,
+    primary_action_btn_style, rounded_action_btn_style, settings_checkbox_style,
+    settings_close_button, settings_control_with_hint, settings_divider, settings_error_banner,
+    settings_field_label, settings_group_card, settings_group_heading,
+    settings_help_button_with_locale, settings_modal_card_style, settings_modal_header,
+    settings_modal_layout, settings_modal_overlay, settings_muted_text_style,
+    settings_page_heading, settings_row_with_flexible_control, settings_segment_button_style,
     settings_text_input_style, settings_value_badge,
 };
 use crate::app::components::system_settings_search::SettingsTabDescriptor;
@@ -44,20 +46,19 @@ fn field_row<'a>(
     description: &'static str,
     control: impl Into<Element<'a, Message>>,
 ) -> Element<'a, Message> {
+    settings_row_with_flexible_control(label, description, 460.0, control)
+}
+
+fn skey_field<'a>(
+    label: &'static str,
+    description: &'static str,
+    control: impl Into<Element<'a, Message>>,
+) -> Element<'a, Message> {
     container(
-        row![
-            column![
-                text(label).size(13),
-                text(description).size(11).style(settings_muted_text_style),
-            ]
-            .spacing(4)
-            .width(Length::Fixed(SETTINGS_LABEL_WIDTH)),
-            container(control.into()).width(Length::Fill),
-        ]
-        .spacing(22)
-        .align_y(Alignment::Center),
+        column![settings_field_label(label), settings_control_with_hint(control, description)]
+            .spacing(6),
     )
-    .padding([14, 0])
+    .padding([16, 0])
     .width(Length::Fill)
     .into()
 }
@@ -177,7 +178,11 @@ fn gateway_tab_button(
         .padding([8, 14])
         .on_press(Message::Settings(SettingsMessage::Gateway(GatewayMessage::TabSelected(tab))))
         .style(move |theme: &iced::Theme, status| {
-            settings_segment_button_style(theme, status, is_active)
+            let mut style = settings_segment_button_style(theme, status, is_active);
+            if is_active {
+                style.text_color = theme.palette().text;
+            }
+            style
         })
         .into()
 }
@@ -228,7 +233,7 @@ fn service_action_button(
             .center_x(Length::Fill)
             .center_y(Length::Fill),
     )
-    .padding([11, 16])
+    .padding([6, 8])
     .width(Length::Fill)
     .height(Length::Fixed(44.0));
     let btn = if is_danger_service_command(command) {
@@ -264,7 +269,11 @@ fn service_command_copy_button(
     let label = if copied { "✓".to_string() } else { cli_command.clone() };
     let icon = if copied { Icon::Check } else { Icon::Copy };
     let content = row![
-        text(label).size(11).height(Length::Fill).align_y(iced::alignment::Vertical::Center),
+        text(label)
+            .size(11)
+            .height(Length::Fill)
+            .align_y(iced::alignment::Vertical::Center)
+            .wrapping(iced::widget::text::Wrapping::WordOrGlyph),
         Space::new().width(Length::Fill),
         icon_svg(icon, 13.0).style(|theme: &iced::Theme, _status| iced::widget::svg::Style {
             color: Some(theme.palette().text),
@@ -276,7 +285,7 @@ fn service_command_copy_button(
     button(container(content).width(Length::Fill).height(Length::Fill).center_y(Length::Fill))
         .padding([4, 8])
         .width(Length::Fill)
-        .height(Length::Fixed(30.0))
+        .height(Length::Fixed(40.0))
         .on_press(Message::Settings(SettingsMessage::Gateway(GatewayMessage::CopyServiceCommand(
             cli_command,
         ))))
@@ -355,14 +364,17 @@ fn service_controls_content(app: &App) -> Element<'_, Message> {
     {
         content = content.push(
             container(
-                text(output.display(app.desktop_locale)).size(12).style(settings_muted_text_style),
+                text(output.display(app.desktop_locale))
+                    .size(13)
+                    .style(settings_muted_text_style)
+                    .wrapping(iced::widget::text::Wrapping::WordOrGlyph),
             )
             .padding([10, 12])
             .width(Length::Fill),
         );
     }
 
-    settings_section_content(content).into()
+    settings_group_card(content).padding([16, 22]).into()
 }
 
 fn parse_skey_date(raw: &str) -> Option<NaiveDate> {
@@ -409,7 +421,10 @@ fn skey_calendar_popover(app: &App) -> Element<'_, Message> {
                 GatewayMessage::NewSkeyExpiresMonthChanged(-1)
             )))
             .style(rounded_action_btn_style),
-        text(month.format("%Y-%m").to_string()).size(13).width(Length::Fixed(96.0)),
+        text(month.format("%Y-%m").to_string())
+            .size(13)
+            .width(Length::Fill)
+            .align_x(Alignment::Center),
         button(text(">"))
             .padding([6, 10])
             .on_press(Message::Settings(SettingsMessage::Gateway(
@@ -423,8 +438,9 @@ fn skey_calendar_popover(app: &App) -> Element<'_, Message> {
             )))
             .style(rounded_action_btn_style),
     ]
-    .spacing(10)
-    .align_y(Alignment::Center);
+    .spacing(8)
+    .align_y(Alignment::Center)
+    .width(Length::Fill);
 
     let weekdays = [
         connection_text(app.desktop_locale, "一"),
@@ -447,7 +463,7 @@ fn skey_calendar_popover(app: &App) -> Element<'_, Message> {
     let first_weekday = month.weekday().num_days_from_monday() as i32;
     let days = days_in_month(month.year(), month.month()) as i32;
     let mut calendar = column![header, weekdays].spacing(8);
-    for week in 0..6 {
+    for week in 0..(first_weekday + days + 6) / 7 {
         let mut days_row = row![].spacing(6);
         for weekday in 0..7 {
             let day = week * 7 + weekday - first_weekday + 1;
@@ -462,24 +478,37 @@ fn skey_calendar_popover(app: &App) -> Element<'_, Message> {
 
             let date =
                 NaiveDate::from_ymd_opt(month.year(), month.month(), day as u32).unwrap_or(month);
-            let label =
-                if selected_date == Some(date) { format!("[{day}]") } else { day.to_string() };
+            let is_selected = selected_date == Some(date);
             days_row = days_row.push(
-                button(text(label).size(12))
-                    .padding([6, 0])
-                    .width(Length::Fixed(GATEWAY_SKEY_CALENDAR_CELL_SIZE))
-                    .on_press(Message::Settings(SettingsMessage::Gateway(
-                        GatewayMessage::NewSkeyExpiresDateSelected(
-                            date.format("%Y-%m-%d").to_string(),
-                        ),
-                    )))
-                    .style(rounded_action_btn_style),
+                button(
+                    text(day.to_string())
+                        .size(12)
+                        .width(Length::Fill)
+                        .height(Length::Fill)
+                        .center(),
+                )
+                .padding(0)
+                .width(Length::Fixed(GATEWAY_SKEY_CALENDAR_CELL_SIZE))
+                .height(Length::Fixed(GATEWAY_SKEY_CALENDAR_CELL_SIZE))
+                .on_press(Message::Settings(SettingsMessage::Gateway(
+                    GatewayMessage::NewSkeyExpiresDateSelected(date.format("%Y-%m-%d").to_string()),
+                )))
+                .style(move |theme, status| {
+                    if is_selected {
+                        primary_action_btn_style(theme, status)
+                    } else {
+                        rounded_action_btn_style(theme, status)
+                    }
+                }),
             );
         }
         calendar = calendar.push(days_row);
     }
 
-    settings_panel(calendar).width(Length::Fixed(340.0)).into()
+    settings_group_card(calendar.align_x(Alignment::Center))
+        .padding([14, 18])
+        .width(Length::Fixed(340.0))
+        .into()
 }
 
 fn skey_date_picker(app: &App) -> Element<'_, Message> {
@@ -503,8 +532,8 @@ fn skey_date_picker(app: &App) -> Element<'_, Message> {
         .size(SETTINGS_CONTROL_TEXT_SIZE)
         .style(settings_text_input_style)
         .width(Length::Fill),
-        button(text(action_label))
-            .padding([6, 12])
+        button(text(action_label).size(13))
+            .padding([10, 12])
             .on_press(Message::Settings(SettingsMessage::Gateway(
                 GatewayMessage::NewSkeyCalendarToggled
             )))
@@ -514,8 +543,8 @@ fn skey_date_picker(app: &App) -> Element<'_, Message> {
     .align_y(Alignment::Center);
     if selected_date.is_some() {
         trigger = trigger.push(
-            button(text(connection_text(app.desktop_locale, "永不过期")))
-                .padding([6, 12])
+            button(text(connection_text(app.desktop_locale, "永不过期")).size(13))
+                .padding([10, 12])
                 .on_press(Message::Settings(SettingsMessage::Gateway(
                     GatewayMessage::NewSkeyExpiresAtCleared,
                 )))
@@ -548,8 +577,10 @@ fn skey_date_picker(app: &App) -> Element<'_, Message> {
 pub fn view(app: &App) -> Element<'_, Message> {
     let s = &app.gateway_settings;
 
-    let help_btn =
-        settings_help_button(Message::Settings(SettingsMessage::Gateway(GatewayMessage::HelpOpen)));
+    let help_btn = settings_help_button_with_locale(
+        app.desktop_locale,
+        Message::Settings(SettingsMessage::Gateway(GatewayMessage::HelpOpen)),
+    );
 
     let port_row = number_row(
         connection_text(app.desktop_locale, "端口"),
@@ -610,9 +641,9 @@ pub fn view(app: &App) -> Element<'_, Message> {
         },
     );
 
-    let skeys_section = settings_panel(
+    let skeys_section = settings_group_card(
         column![
-            field_row(
+            skey_field(
                 connection_text(app.desktop_locale, "skey 名称"),
                 connection_text(app.desktop_locale, "用于列表展示和识别该 skey。"),
                 row![
@@ -627,18 +658,18 @@ pub fn view(app: &App) -> Element<'_, Message> {
                     .size(SETTINGS_CONTROL_TEXT_SIZE)
                     .style(settings_text_input_style)
                     .width(Length::Fill),
-                    button(text(connection_text(app.desktop_locale, "生成 skey")))
-                        .padding([6, 12])
+                    button(text(connection_text(app.desktop_locale, "生成 skey")).size(13))
+                        .padding([10, 14])
                         .on_press(Message::Settings(SettingsMessage::Gateway(
                             GatewayMessage::AddSkey
                         )))
-                        .style(rounded_action_btn_style),
+                        .style(primary_action_btn_style),
                 ]
                 .spacing(12)
                 .align_y(Alignment::Center)
             ),
             settings_divider(),
-            field_row(
+            skey_field(
                 connection_text(app.desktop_locale, "过期日期"),
                 connection_text(
                     app.desktop_locale,
@@ -656,46 +687,36 @@ pub fn view(app: &App) -> Element<'_, Message> {
         } else {
             connection_text(app.desktop_locale, "复制")
         };
-        settings_panel(
+        settings_group_card(skey_field(
+            connection_text(app.desktop_locale, "原始 skey"),
+            connection_text(app.desktop_locale, "仅展示一次，请立即复制。"),
             row![
-                column![
-                    text(connection_text(app.desktop_locale, "原始 skey")).size(13),
-                    text(connection_text(app.desktop_locale, "仅展示一次，请立即复制。"))
-                        .size(11)
-                        .style(settings_muted_text_style),
-                ]
-                .spacing(4)
-                .width(Length::Fixed(SETTINGS_LABEL_WIDTH)),
-                row![
-                    container(text(raw_skey.as_str()).size(12)).width(Length::Fill),
-                    button(text(copy_label))
-                        .padding([6, 12])
-                        .on_press(Message::Settings(SettingsMessage::Gateway(
-                            GatewayMessage::CopyLastCreatedSkey
-                        )))
-                        .style(rounded_action_btn_style),
-                ]
-                .spacing(12)
-                .align_y(Alignment::Center)
-                .width(Length::Fill),
+                text(raw_skey.as_str())
+                    .size(13)
+                    .wrapping(iced::widget::text::Wrapping::WordOrGlyph)
+                    .width(Length::Fill),
+                button(text(copy_label).size(13))
+                    .padding([8, 12])
+                    .on_press(Message::Settings(SettingsMessage::Gateway(
+                        GatewayMessage::CopyLastCreatedSkey
+                    )))
+                    .style(rounded_action_btn_style),
             ]
-            .spacing(22)
+            .spacing(12)
             .align_y(Alignment::Center),
-        )
+        ))
     });
 
     let skeys_list: Element<'_, Message> = if s.skeys.is_empty() {
-        settings_panel(
-            column![
-                text(connection_text(
-                    app.desktop_locale,
-                    "当前没有 skey。开启 skey 鉴权后，缺少有效 skey 的请求会被拒绝。"
-                ),)
-                .size(12)
-                .style(settings_muted_text_style)
-            ]
-            .spacing(0),
+        settings_group_card(
+            text(connection_text(
+                app.desktop_locale,
+                "当前没有 skey。开启 skey 鉴权后，缺少有效 skey 的请求会被拒绝。",
+            ))
+            .size(13)
+            .style(settings_muted_text_style),
         )
+        .padding([16, 22])
         .into()
     } else {
         let list = s.skeys.iter().enumerate().fold(
@@ -732,44 +753,46 @@ pub fn view(app: &App) -> Element<'_, Message> {
                                     ))
                                 })
                                 .style(settings_checkbox_style)
-                                .width(Length::Fixed(84.0)),
-                            text(name).size(13).width(Length::Fixed(SETTINGS_LABEL_WIDTH)),
-                            text(format!("{skey_display} · {expires_at}")).width(Length::Fill),
-                            button(text(connection_text(app.desktop_locale, "删除")))
+                                .width(Length::Shrink),
+                            text(name)
+                                .size(13)
+                                .width(Length::FillPortion(2))
+                                .wrapping(iced::widget::text::Wrapping::WordOrGlyph),
+                            text(format!("{skey_display} · {expires_at}"))
+                                .size(12)
+                                .width(Length::FillPortion(3))
+                                .wrapping(iced::widget::text::Wrapping::WordOrGlyph)
+                                .style(settings_muted_text_style),
+                            button(text(connection_text(app.desktop_locale, "删除")).size(13))
                                 .padding([6, 12])
+                                .height(30)
                                 .on_press(Message::Settings(SettingsMessage::Gateway(
                                     GatewayMessage::RemoveSkey(index),
                                 )))
                                 .style(rounded_action_btn_style),
                         ]
-                        .spacing(20)
+                        .spacing(12)
                         .align_y(Alignment::Center),
                     )
-                    .height(Length::Fixed(GATEWAY_PAIRED_TOKEN_ROW_HEIGHT)),
+                    .padding([3, 0]),
                 )
             },
         );
 
         let list_height = paired_token_list_max_height(s.skeys.len());
         let scrollable_list = container(
-            scrollable(
-                container(list)
-                    .padding(
-                        iced::Padding::default().right(GATEWAY_PAIRED_TOKEN_SCROLLBAR_WIDTH as f32),
-                    )
-                    .width(Length::Fill),
-            )
-            .direction(Direction::Vertical(
-                Scrollbar::new()
-                    .width(GATEWAY_PAIRED_TOKEN_SCROLLBAR_WIDTH)
-                    .scroller_width(GATEWAY_PAIRED_TOKEN_SCROLLBAR_WIDTH),
-            ))
-            .height(Length::Shrink),
+            scrollable(container(list).padding([0, 7]).width(Length::Fill))
+                .direction(Direction::Vertical(
+                    Scrollbar::new()
+                        .width(GATEWAY_PAIRED_TOKEN_SCROLLBAR_WIDTH)
+                        .scroller_width(GATEWAY_PAIRED_TOKEN_SCROLLBAR_WIDTH),
+                ))
+                .height(Length::Shrink),
         )
         .width(Length::Fill)
         .max_height(list_height);
 
-        settings_panel(scrollable_list).into()
+        settings_group_card(scrollable_list).padding([16, 15]).into()
     };
 
     let webhook_rate_row = number_row(
@@ -892,7 +915,7 @@ pub fn view(app: &App) -> Element<'_, Message> {
     );
 
     let config_content: Element<'_, Message> = column![
-        settings_section_card(
+        settings_group_heading(
             connection_text(app.desktop_locale, "服务管理"),
             connection_text(
                 app.desktop_locale,
@@ -900,19 +923,19 @@ pub fn view(app: &App) -> Element<'_, Message> {
             )
         ),
         service_controls_content(app),
-        settings_section_card(
+        settings_group_heading(
             connection_text(app.desktop_locale, "监听地址"),
             connection_text(
                 app.desktop_locale,
                 "控制网关监听 host / port。默认仅绑定回环地址，避免意外暴露到公网。"
             )
         ),
-        settings_section_content(column![port_row, settings_divider(), host_row,].spacing(0)),
-        settings_section_card(
+        settings_group_card(column![port_row, settings_divider(), host_row,].spacing(0)),
+        settings_group_heading(
             connection_text(app.desktop_locale, "安全开关"),
             connection_text(app.desktop_locale, "控制 skey 鉴权、公网绑定与反向代理头信任策略。")
         ),
-        settings_section_content(
+        settings_group_card(
             column![
                 auth_enabled_row,
                 settings_divider(),
@@ -922,31 +945,31 @@ pub fn view(app: &App) -> Element<'_, Message> {
             ]
             .spacing(0),
         ),
-        settings_section_card(
+        settings_group_heading(
             connection_text(app.desktop_locale, "速率限制"),
             connection_text(
                 app.desktop_locale,
                 "限制 /webhook 请求频率，并约束网关内部 key map 规模。"
             )
         ),
-        settings_section_content(
+        settings_group_card(
             column![webhook_rate_row, settings_divider(), rate_limit_max_keys_row].spacing(0),
         ),
-        settings_section_card(
+        settings_group_heading(
             connection_text(app.desktop_locale, "幂等性"),
             connection_text(app.desktop_locale, "控制 webhook 幂等 key 的存活时间与内存上限。")
         ),
-        settings_section_content(
+        settings_group_card(
             column![idempotency_ttl_row, settings_divider(), idempotency_max_keys_row].spacing(0)
         ),
-        settings_section_card(
+        settings_group_heading(
             "Node Control",
             connection_text(
                 app.desktop_locale,
                 "配置实验性的 node-control 协议，包括额外鉴权和允许的远端节点 ID。"
             )
         ),
-        settings_section_content(
+        settings_group_card(
             column![
                 node_control_enabled_row,
                 settings_divider(),
@@ -962,7 +985,7 @@ pub fn view(app: &App) -> Element<'_, Message> {
     .into();
 
     let skeys_content: Element<'_, Message> = column![
-        settings_section_card(
+        settings_group_heading(
             connection_text(app.desktop_locale, "skey 管理"),
             connection_text(
                 app.desktop_locale,
@@ -982,7 +1005,7 @@ pub fn view(app: &App) -> Element<'_, Message> {
 
     let mut content = column![
         row![
-            container(settings_page_intro(
+            container(settings_page_heading(
                 connection_text(app.desktop_locale, "服务端网关配置"),
                 connection_text(
                     app.desktop_locale,
@@ -1035,32 +1058,40 @@ pub fn view_overlays<'a>(app: &'a App, dialog: Element<'a, Message>) -> Element<
         let confirm_message = Message::Settings(SettingsMessage::Gateway(
             GatewayMessage::ConfirmDangerServiceCommand(command.to_string()),
         ));
-        let card = settings_modal_card(
-            column![
-                text(owned_text(app.desktop_locale, "确认%s", &[label.to_string()])).size(18),
-                text(body).size(13).style(settings_muted_text_style),
-                row![
-                    container(text(" ")).width(Length::Fill),
-                    button(text(connection_text(app.desktop_locale, "取消")).size(13))
-                        .padding([9, 14])
-                        .style(rounded_action_btn_style)
-                        .on_press(cancel_message.clone()),
-                    button(
-                        text(owned_text(app.desktop_locale, "确认%s", &[label.to_string()]))
-                            .size(13)
-                    )
-                    .padding([9, 14])
-                    .style(danger_action_btn_style)
-                    .on_press(confirm_message),
-                ]
-                .spacing(10)
-                .align_y(Alignment::Center),
-            ]
-            .spacing(16),
+        let title = owned_text(app.desktop_locale, "确认%s", &[label.to_string()]);
+        let header = settings_modal_header(
+            text(title.clone()).size(18),
+            settings_close_button(cancel_message.clone()),
+        );
+        let actions = row![
+            Space::new().width(Length::Fill),
+            button(text(connection_text(app.desktop_locale, "取消")).size(13))
+                .padding([9, 14])
+                .style(rounded_action_btn_style)
+                .on_press(cancel_message.clone()),
+            button(text(title).size(13))
+                .padding([9, 14])
+                .style(danger_action_btn_style)
+                .on_press(confirm_message),
+        ]
+        .spacing(10)
+        .align_y(Alignment::Center);
+        let card = settings_modal_layout(
+            header,
+            text(body).size(13).style(settings_muted_text_style),
+            Some(actions.into()),
         )
-        .width(Length::Fixed(480.0));
+        .width(480)
+        .height(310)
+        .style(|theme| {
+            let mut style = settings_modal_card_style(theme);
+            if let Some(iced::Background::Color(color)) = &mut style.background {
+                color.a = 1.0;
+            }
+            style
+        });
 
-        return settings_modal_overlay(Some(dialog), cancel_message, card);
+        return settings_modal_overlay(Some(dialog), cancel_message, container(card).padding(12));
     }
 
     if !s.show_help_modal {
@@ -1096,3 +1127,7 @@ fn service_display_label(
     };
     connection_text(locale, key)
 }
+
+#[cfg(test)]
+#[path = "system_settings_gateway_ui_refresh_23_tests.rs"]
+mod ui_refresh_23_tests;

@@ -6,12 +6,15 @@ use super::{
 use serde_json::{Value, json};
 use vw_api_types::app_providers::claude::*;
 
+#[path = "claude_form.rs"]
+pub mod form;
+
 fn valid(value: &str, max: usize) -> Result<(), WriteError> {
     let s = value.trim();
     if s.is_empty()
         || value.len() > max
         || value.chars().any(char::is_control)
-        || matches!(s, "[redacted]" | "<redacted>")
+        || (s.eq_ignore_ascii_case("[redacted]") || s.eq_ignore_ascii_case("<redacted>"))
         || s.chars().all(|c| c == '*' || c == '•')
     {
         return Err(WriteError::InvalidResource);

@@ -2507,3 +2507,40 @@ SHIJU_CC04_WINDOW_CASE=edit SHIJU_CC04_WINDOW_THEME=light cargo test -p vw-deskt
 边界：窗口服务端是本地假数据夹具，真实持久化由上述隔离 HTTP/SQLite 测试证明；不将二者合称真实生产 Gateway/账号/原生客户端消费通过。54–67 专属配置表单、14 应用完整新增与原生密钥变体、当前供应商 live/首次激活、真实账号/Keychain、非 macOS 均未在本任务验收。
 
 状态：**已完成（统一基础壳、组合草稿及正式基础元数据接口）**。最终格式化、6/4/3 项聚焦验证及 Clippy 均退出 0；明暗窗口均退出 0。自身所有阶段槽位 1/3 锁已清理，缓存保留。仅提交本任务实现、独立测试、必要接线及本条证据/截图。排除既有 Dsh 格式差异、母任务状态、其他编号任务删除和其它计划；计划文件保持只读。本编号文件在最终证据齐备后删除，不提交该删除；下一步批次 54。
+
+## 任务 54：桌面 Claude 供应商表单
+
+2026-11-07。批次 53 提交 `ffb6a2d9d` 及其正式证据已核对，沿用批次 52 的窗口入口和批次 26 的 Claude 执行端适配。母任务 1、3 已完成，母任务 2 依 `provider-contracts.md` 的底座子计划 1–93 开工裁定消费实际接口，完整领域迁移未收口。所有 plan.md 保持只读。
+
+来源：冻结上游 `ca58c0313360eae7c851fbd7553c1614c7af03e7`，核对 `ClaudeFormFields` 的 `apiKeySection`、`endpointSection`、`authFieldSelect`、主模型输入及 `ProviderForm` 的 Claude 分支与相邻 `ClaudeFormFields.test.tsx`。上游仅作为行为来源，未运行其测试。代码导航使用 RustCodeGraph，桌面编辑前对照统一设置控件和 custom_model_modal。
+
+- `vw-desktop/src/app/{components,state,message}/app_providers/claude.rs` 接现有新增、编辑弹窗。官方使用 Claude Code 已有登录；账号绑定及模型发现明确暂不可用。第三方可编辑 `ANTHROPIC_BASE_URL`、`ANTHROPIC_AUTH_TOKEN` 或 `ANTHROPIC_API_KEY`、`ANTHROPIC_MODEL`；不回显已存密钥。云配置、托管账号或旧格式不做隐式转换，保留基础资料编辑。失败保留草稿；过期代次、主机和工作上下文响应不覆盖当前表单。目录写入和执行端应用结果分别展示。
+- 新增强类型 `ClaudeFormView/ClaudeFormWrite`、SDK `claude_form_{read,create,update}`，走既有 Claude Gateway 鉴权、租户及主机授权。读仅返回表单投影；写经 `providers/claude_form.rs` 还原专属 profile，复用现有字段校验、基础资料校验、catalog CAS、Claude JSON 投影、执行端事务。换 API 地址必须替换旧密钥，避免把原凭据发给另一上游。客户端未实现地址/密钥策略，也不能提交任意配置文件或命令。
+- 可选应用只接现有 `First` 或 `IfCurrent`，由执行端判断是否实际应用。真实回环 SDK → 生产 Gateway handler/授权 → 临时 SQLite/HOME 用例证明：首次激活写入地址、密钥和模型，保留用户 env/hook；当前编辑复用原密钥、切换认证键后清掉旧字段；改为官方后移除第三方字段和目录密钥；第二条首激活请求仅存目录，文件字节保持一致。坏网址、换地址且保留密钥、错误 token 和外租户均拒绝，目录记录、事务状态和原生文件保持一致。读响应不含假密钥。
+
+### 红绿验证
+
+各阶段从仓库根用 mkdir 原子动态领取槽位，记录任务/计划/会话/PID。红绿及自动回归使用 **槽位 1**，`CARGO_TARGET_DIR=/Users/xiangmin/worker/code/shiju/target/rust-slot-1`；窗口使用 **槽位 3**，`CARGO_TARGET_DIR=/Users/xiangmin/worker/code/shiju/target/rust-slot-3`。两阶段的 `CARGO_BUILD_BUILD_DIR` 同设对应绝对路径，避免仓库 build-dir 合用中间产物。
+
+初次红测夹具在未启动服务时初始化 App，等待后终止；不计验证。改为独立回环夹具后，`cargo fmt --all` 退出 0；`cargo test -p vw-desktop --lib cc04_ui_claude_ -- --nocapture` 退出 **101**，1 passed / 1 failed，失败在 Claude 草稿未通过正式 SDK 触达校验的业务断言。实现后真实 SDK 收到 HTTP 422，名称、模型和本次新密钥草稿保留；旧主机或代次的返回不能关闭新表单。
+
+| 命令 | 退出码 | 有效结果 |
+| --- | --- | --- |
+| `cargo fmt --all` | 0 | 格式化 |
+| `cargo test -p vw-desktop --lib cc04_ui_claude_ -- --nocapture` | 0 | 2 passed |
+| `cargo test -p vw-desktop --lib cc04_ui_edit_ -- --nocapture` | 0 | 6 passed |
+| `cargo test -p vw-agent --lib gateway::api::handlers::app_providers::claude_tests:: -- --nocapture` | 0 | 13 passed，含本任务 2 项 |
+| `cargo clippy --all-targets --all-features -- -D warnings` | 0 | 全 targets/features |
+| `SHIJU_CC04_WINDOW_CASE=claude SHIJU_CC04_WINDOW_THEME=dark cargo test -p vw-desktop --test cc04-provider-window` | 0 | 实际交互并关闭 |
+| `SHIJU_CC04_WINDOW_CASE=claude SHIJU_CC04_WINDOW_THEME=light cargo test -p vw-desktop --test cc04-provider-window` | 0 | 实际交互并关闭 |
+
+### macOS 窗口
+
+macOS **27.0（26A428）/ arm64**，workspace **0.6.0**。两个命令均通过 `CARGO_TARGET_AARCH64_APPLE_DARWIN_RUNNER=/tmp/shiju-54-window-runner.sh` 在同一槽位构建后将 Cargo 传入的二进制放到隔离临时 bundle，Cargo 等待实际窗口退出。真实 Iced 组件、Message 和正式 SDK 接回环 HTTP 假数据，窗口夹具只替代服务端；真实事务和文件结果由上述独立 Gateway 测试验证。未使用真实 Claude 账号、Keychain、用户配置或 CLI 消费；非 macOS 未验收。
+
+- 暗色：新增第三方，输入中文名称、长备注和长模型，切换认证键。无效地址触发 HTTP 422，toast 可见，草稿及遮蔽的假密钥仍在；修正地址后保存，列表重读；再次编辑后取消并重开，仍为已保存值，未回显密钥。[失败及长表单](evidence/task-54/dark-failure.jpg)、[保存](evidence/task-54/dark-saved.jpg)、[取消重读](evidence/task-54/dark-cancel.jpg)。
+- 浅色：新增官方并保存中文动态备注和模型，重读后切换第三方、填入坏地址触发 HTTP 422，取消并重开，官方选项和原模型仍在。[官方表单](evidence/task-54/light-official.jpg)、[保存](evidence/task-54/light-saved.jpg)、[失败及长表单](evidence/task-54/light-failure.jpg)、[取消重读](evidence/task-54/light-cancel.jpg)。
+
+两个主题均实际滚动内容，标题及底部按钮固定，4px 滚动条两侧预留 7px，中文与动态文本使用默认字体。截图和正常退出证明本次操作未见字形整形 panic；仅出现既有链接器 `__eh_frame` 与系统 sandbox extension 提示。两阶段进程退出后已清理本任务锁并保留编译缓存；差异审查排除了预先存在的 Dsh 格式差异、其它任务和计划文件。
+
+状态：**已完成**。下一步批次 55；本任务编号文件按约定验收后删除，删除不入提交。

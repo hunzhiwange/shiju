@@ -112,3 +112,51 @@ pub struct ClaudeSync {
     #[serde(default)]
     pub activation: ClaudeActivation,
 }
+
+/// Only the fields editable by the Claude Code form. Stored credentials and account bindings
+/// are never present in this response.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct ClaudeFormView {
+    pub fields: super::basic::ProviderBasic,
+    pub config: ClaudeFormKind,
+    pub model: Option<String>,
+}
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(
+    tag = "kind",
+    rename_all = "snake_case",
+    rename_all_fields = "camelCase",
+    deny_unknown_fields
+)]
+pub enum ClaudeFormKind {
+    Official {},
+    ThirdParty { base_url: String, api_key_header: bool },
+    Unsupported {},
+}
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct ClaudeFormWrite {
+    pub target_host_id: String,
+    pub fields: super::basic::ProviderBasic,
+    pub config: ClaudeFormConfig,
+    pub model: Option<String>,
+    /// First selection on create, or reapply only if current on edit.
+    pub apply: bool,
+}
+#[derive(Clone, Serialize, Deserialize)]
+#[serde(
+    tag = "kind",
+    rename_all = "snake_case",
+    rename_all_fields = "camelCase",
+    deny_unknown_fields
+)]
+pub enum ClaudeFormConfig {
+    Official {},
+    ThirdParty {
+        base_url: String,
+        api_key_header: bool,
+        api_key: super::create::ProviderSecretWrite,
+    },
+}
+concealed!(ClaudeFormConfig);

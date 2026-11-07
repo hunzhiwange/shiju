@@ -3,6 +3,33 @@ use super::super::agent_apps_read_api::AgentAppsReadError as Error;
 use super::GatewayClient;
 use vw_api_types::app_providers::claude::*;
 impl GatewayClient {
+    pub async fn claude_form_read(
+        &self,
+        id: &str,
+        target: &ClaudeTarget,
+        token: &str,
+    ) -> Result<ClaudeFormView, Error> {
+        self.claude_request(id, "POST", "/form/read", target, token).await
+    }
+
+    pub async fn claude_form_create(
+        &self,
+        id: &str,
+        body: &ClaudeFormWrite,
+        token: &str,
+    ) -> Result<ClaudeResult, Error> {
+        self.claude_request(id, "POST", "/form", body, token).await
+    }
+
+    pub async fn claude_form_update(
+        &self,
+        id: &str,
+        body: &ClaudeFormWrite,
+        token: &str,
+    ) -> Result<ClaudeResult, Error> {
+        self.claude_request(id, "PATCH", "/form", body, token).await
+    }
+
     pub async fn claude_provider_create(
         &self,
         id: &str,
@@ -59,14 +86,14 @@ impl GatewayClient {
     ) -> Result<ClaudeResult, Error> {
         self.claude_request(id, "POST", "/sync/claude", body, token).await
     }
-    async fn claude_request<B: serde::Serialize>(
+    async fn claude_request<B: serde::Serialize, T: serde::de::DeserializeOwned>(
         &self,
         id: &str,
         method: &str,
         action: &str,
         body: &B,
         token: &str,
-    ) -> Result<ClaudeResult, Error> {
+    ) -> Result<T, Error> {
         if id.is_empty()
             || id.len() > 128
             || !id.bytes().all(|c| c.is_ascii_alphanumeric() || matches!(c, b'-' | b'_'))

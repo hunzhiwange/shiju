@@ -1,3 +1,4 @@
+use super::claude::{Draft, Kind};
 use vw_gateway_client::vw_api_types::app_providers::{
     basic::*,
     create::{AppProviderCreate, ProviderSecretWrite},
@@ -19,6 +20,7 @@ pub(crate) struct EditForm {
     pub clear_key: bool,
     pub saving: bool,
     pub draft: Option<AppProviderCreate>,
+    pub claude: Option<Draft>,
 }
 impl std::fmt::Debug for EditForm {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
@@ -41,8 +43,30 @@ impl EditForm {
             clear_key: false,
             saving: false,
             draft,
+            claude: None,
         }
     }
+    pub fn claude_editable(&self) -> bool {
+        self.claude.as_ref().is_some_and(|draft| draft.kind != Kind::Unsupported)
+    }
+
+    pub fn claude_request(
+        &self,
+        host: String,
+    ) -> Option<vw_gateway_client::vw_api_types::app_providers::claude::ClaudeFormWrite> {
+        let draft = self.claude.as_ref()?;
+        draft.request(
+            host,
+            self.fields.clone(),
+            self.key.clone(),
+            self.replace_key || !draft.has_saved_key,
+        )
+    }
+
+    pub fn identified(&self) -> bool {
+        !self.id.trim().is_empty() && !self.fields.name.trim().is_empty()
+    }
+
     pub fn draft_ready(&self) -> bool {
         self.draft.as_ref().is_some_and(|draft| {
             !draft.model.trim().is_empty()
@@ -51,7 +75,7 @@ impl EditForm {
         })
     }
     pub fn request(&self) -> Result<ProviderBasicWrite, String> {
-        if self.id.trim().is_empty() || self.fields.name.trim().is_empty() {
+        if !self.identified() {
             return Err("请填写标识与名称".into());
         }
         if matches!(self.mode, Mode::Create) && !self.draft_ready() {

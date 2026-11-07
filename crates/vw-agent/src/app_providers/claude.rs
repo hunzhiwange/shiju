@@ -25,6 +25,18 @@ impl AppProviderStore {
         before: Option<&Value>,
         create: bool,
     ) -> Result<Value, String> {
+        self.claude_save_with_metadata(tenant, id, profile, before, create, None)
+    }
+
+    pub(crate) fn claude_save_with_metadata(
+        &self,
+        tenant: &TenantScope,
+        id: &str,
+        profile: &ClaudeProfile,
+        before: Option<&Value>,
+        create: bool,
+        metadata: Option<Value>,
+    ) -> Result<Value, String> {
         let settings = vw_agent_apps::providers::claude::settings(profile)
             .map_err(|_| "invalid application provider profile")?;
         let key = Self::key(AppId::Claude, id)?;
@@ -44,7 +56,8 @@ impl AppProviderStore {
         if create && stored.is_some() {
             return Err("application provider already exists".into());
         }
-        let mut row = stored.unwrap_or(json!({}));
+        let preserve_category = metadata.is_some();
+        let mut row = metadata.or(stored).unwrap_or(json!({}));
         let object = row.as_object_mut().ok_or("invalid stored application provider profile")?;
         // Remove legacy credentials as well as provider-owned settings, retain metadata/global fields.
         for key in ["apiKey", "baseUrl", "protocol", "model", "requestOptions"] {
@@ -55,17 +68,24 @@ impl AppProviderStore {
             meta.remove("claudeAccountId");
         }
         object.insert("name".into(), json!(profile.name));
-        object.insert(
-            "category".into(),
-            json!(if matches!(
-                profile.config,
-                vw_api_types::app_providers::claude::ClaudeConfig::Official { .. }
-            ) {
-                "official"
-            } else {
-                "custom"
-            }),
-        );
+        if !preserve_category
+            || !object
+                .get("category")
+                .and_then(Value::as_str)
+                .is_some_and(|value| !matches!(value, "official" | "custom"))
+        {
+            object.insert(
+                "category".into(),
+                json!(if matches!(
+                    profile.config,
+                    vw_api_types::app_providers::claude::ClaudeConfig::Official { .. }
+                ) {
+                    "official"
+                } else {
+                    "custom"
+                }),
+            );
+        }
         object.insert(
             "claude".into(),
             serde_json::to_value(profile).map_err(|_| "invalid application provider profile")?,

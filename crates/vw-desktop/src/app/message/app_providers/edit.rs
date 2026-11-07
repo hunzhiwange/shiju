@@ -27,11 +27,21 @@ pub(crate) async fn save(
 #[path = "edit_tests.rs"]
 mod tests;
 
-use super::list::{ListMessage, current};
+use super::{
+    claude,
+    list::{ListMessage, current},
+};
+use crate::app::state::app_providers::claude::Draft;
 use crate::app::state::app_providers::edit::Mode;
 use crate::app::{App, Message, message::SettingsMessage};
 use iced::Task;
-use vw_gateway_client::vw_api_types::app_providers::basic::ProviderBasic;
+use vw_gateway_client::vw_api_types::{
+    agent_apps::AppId,
+    app_providers::{
+        basic::ProviderBasic,
+        claude::{ClaudeFormView, ClaudeLiveResult},
+    },
+};
 #[derive(Clone)]
 pub enum EditMessage {
     Create,
@@ -48,6 +58,13 @@ pub enum EditMessage {
         delete: bool,
         result: Result<ProviderBasic, String>,
     },
+    ClaudeLoaded {
+        scope: Scope,
+        generation: u64,
+        id: String,
+        result: Result<ClaudeFormView, String>,
+    },
+    Claude(claude::Field),
     Id(String),
     Name(String),
     Category(String),
@@ -58,6 +75,11 @@ pub enum EditMessage {
     Clear(bool),
     Cancel,
     Save,
+    ClaudeSaved {
+        scope: Scope,
+        generation: u64,
+        result: Result<ClaudeLiveResult, String>,
+    },
     Saved {
         scope: Scope,
         generation: u64,
@@ -78,7 +100,7 @@ pub(crate) fn update(app: &mut App, event: EditMessage) -> Task<Message> {
             if app.app_providers.loading || app.app_providers.form.is_some() {
                 return Task::none();
             }
-            app.app_providers.form = Some(EditForm::new(
+            let mut form = EditForm::new(
                 Mode::Create,
                 String::new(),
                 ProviderBasic {
@@ -88,7 +110,11 @@ pub(crate) fn update(app: &mut App, event: EditMessage) -> Task<Message> {
                     website_url: None,
                 },
                 app.app_providers.new_draft.clone(),
-            ));
+            );
+            if claude_scope(app) {
+                form.claude = Some(Draft::new());
+            }
+            app.app_providers.form = Some(form);
         }
         EditMessage::Open { id, copy, delete } => {
             let Some(scope) = app.app_providers.scope.clone() else { return Task::none() };
@@ -103,6 +129,21 @@ pub(crate) fn update(app: &mut App, event: EditMessage) -> Task<Message> {
             let generation = app.app_providers.generation;
             app.app_providers.loading = true;
             let source = id.clone();
+            if claude_scope(app) && !copy && !delete {
+                let token = app.apps_catalog.token.clone();
+                let request_scope = scope.clone();
+                return Task::perform(
+                    async move { claude::load(client, request_scope, &source, &token).await },
+                    move |result| {
+                        message(EditMessage::ClaudeLoaded {
+                            scope: scope.clone(),
+                            generation,
+                            id: id.clone(),
+                            result,
+                        })
+                    },
+                );
+            }
             return Task::perform(
                 async move { client.app_provider_basic(scope.app, &source).await },
                 move |result| {
@@ -138,6 +179,20 @@ pub(crate) fn update(app: &mut App, event: EditMessage) -> Task<Message> {
                 Err(e) => return app.show_error_toast(e),
             }
         }
+        EditMessage::ClaudeLoaded { scope, generation, id, result } => {
+            if !app.app_providers.loading || !matches_scope(app, &scope, generation) {
+                return Task::none();
+            }
+            app.app_providers.loading = false;
+            match result {
+                Ok(view) => {
+                    let mut form = EditForm::new(Mode::Update, id, view.fields, None);
+                    form.claude = Some(Draft::from_view(view.config, view.model));
+                    app.app_providers.form = Some(form);
+                }
+                Err(error) => return app.show_error_toast(error),
+            }
+        }
         EditMessage::Cancel => {
             if app.app_providers.form.as_ref().is_some_and(|f| !f.saving) {
                 app.app_providers.form = None;
@@ -153,7 +208,12 @@ pub(crate) fn update(app: &mut App, event: EditMessage) -> Task<Message> {
             if form.saving {
                 return Task::none();
             }
-            if !matches!(form.mode, Mode::Delete) {
+            let native = form.claude_editable();
+            if native {
+                if !form.identified() {
+                    return app.show_error_toast("请填写标识与名称");
+                }
+            } else if !matches!(form.mode, Mode::Delete) {
                 if let Err(e) = form.request() {
                     return app.show_error_toast(e);
                 }
@@ -163,9 +223,44 @@ pub(crate) fn update(app: &mut App, event: EditMessage) -> Task<Message> {
             let token = app.apps_catalog.token.clone();
             app.app_providers.generation = app.app_providers.generation.wrapping_add(1);
             let generation = app.app_providers.generation;
+            if native {
+                return Task::perform(
+                    claude::save(client, scope.clone(), form, token),
+                    move |result| {
+                        message(EditMessage::ClaudeSaved {
+                            scope: scope.clone(),
+                            generation,
+                            result,
+                        })
+                    },
+                );
+            }
             return Task::perform(save(client, scope.clone(), form, token), move |result| {
                 message(EditMessage::Saved { scope: scope.clone(), generation, result })
             });
+        }
+        EditMessage::ClaudeSaved { scope, generation, result } => {
+            if !matches_scope(app, &scope, generation)
+                || !claude::finish(&mut app.app_providers, &scope, generation, &result)
+            {
+                return Task::none();
+            }
+            let toast = match result {
+                Err(error) => return app.show_error_toast(error),
+                Ok(ClaudeLiveResult::NotAttempted) => {
+                    app.show_success_toast("已保存到供应商目录。")
+                }
+                Ok(ClaudeLiveResult::Applied) => {
+                    app.show_success_toast("已保存并应用 Claude 配置。")
+                }
+                Ok(ClaudeLiveResult::Failed) => {
+                    app.show_warning_toast("目录已保存，但应用 Claude 配置失败。")
+                }
+                Ok(ClaudeLiveResult::RecoveryRequired) => {
+                    app.show_warning_toast("目录已保存，执行端配置需要恢复。")
+                }
+            };
+            return Task::batch([toast, super::list::update(app, ListMessage::Refresh)]);
         }
         EditMessage::Saved { scope, generation, result } => {
             if !matches_scope(app, &scope, generation) {
@@ -192,6 +287,7 @@ pub(crate) fn update(app: &mut App, event: EditMessage) -> Task<Message> {
                 EditMessage::Id(v) if matches!(form.mode, Mode::Create | Mode::Copy { .. }) => {
                     form.id = v
                 }
+                EditMessage::Claude(field) => claude::change(form, field),
                 EditMessage::Name(v) => form.fields.name = v,
                 EditMessage::Category(v) => form.fields.category = optional(v),
                 EditMessage::Notes(v) => form.fields.notes = optional(v),
@@ -217,4 +313,10 @@ fn matches_scope(app: &App, scope: &Scope, generation: u64) -> bool {
     app.app_providers.scope.as_ref() == Some(scope)
         && app.app_providers.generation == generation
         && current(app, scope.app).ok().map(|(_, s)| s).as_ref() == Some(scope)
+}
+
+// The basic editor's isolated fixture (and composed drafts) supply their own complete profile.
+fn claude_scope(app: &App) -> bool {
+    app.app_providers.scope.as_ref().is_some_and(|scope| scope.app == AppId::Claude)
+        && app.app_providers.new_draft.is_none()
 }

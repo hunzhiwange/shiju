@@ -3,6 +3,9 @@ use super::*;
 use axum::{http::HeaderMap, routing::post};
 use std::path::PathBuf;
 use vw_api_types::app_providers::claude::*;
+
+#[path = "claude_form.rs"]
+mod form;
 #[derive(Clone)]
 pub(super) struct Policy(
     pub(super) Option<PathBuf>,
@@ -26,6 +29,8 @@ pub(super) fn router_with_policy(policy: Option<PathBuf>) -> Router {
 }
 pub(super) fn router_with_context(policy: Policy) -> Router {
     Router::new()
+        .route("/app-providers/claude/{id}/form/read", post(form::read))
+        .route("/app-providers/claude/{id}/form", post(form::write).patch(form::write))
         .route("/app-providers/claude/{id}/switch", post(switch))
         .route("/app-providers/claude/{id}/reapply", post(reapply))
         .route("/app-providers/claude/{id}/import", post(import))
@@ -62,6 +67,30 @@ pub(super) async fn write_with_policy(
     kind: WriteKind,
     policy: Policy,
 ) -> Response {
+    write_input(tenant, db, headers, id, WriteInput::Profile(req), kind, policy).await
+}
+
+enum WriteInput {
+    Profile(ClaudeWrite),
+    Form(ClaudeFormWrite),
+}
+impl WriteInput {
+    fn target(&self) -> &str {
+        match self {
+            Self::Profile(req) => &req.target_host_id,
+            Self::Form(req) => &req.target_host_id,
+        }
+    }
+}
+async fn write_input(
+    tenant: TenantScope,
+    db: Option<Extension<GlobalDatabase>>,
+    headers: HeaderMap,
+    id: String,
+    req: WriteInput,
+    kind: WriteKind,
+    policy: Policy,
+) -> Response {
     let status =
         if matches!(kind, WriteKind::Create) { StatusCode::CREATED } else { StatusCode::OK };
     match tokio::task::spawn_blocking(move || -> Result<ClaudeResult, StatusCode> {
@@ -80,7 +109,7 @@ fn write_sync(
     db: Option<Extension<GlobalDatabase>>,
     headers: HeaderMap,
     id: String,
-    req: ClaudeWrite,
+    input: WriteInput,
     kind: WriteKind,
     policy: Policy,
 ) -> Result<ClaudeResult, StatusCode> {
@@ -88,13 +117,18 @@ fn write_sync(
         policy.0.as_deref(),
         &headers,
         &tenant,
-        &req.target_host_id,
+        input.target(),
         true,
     )?;
-    authorize_login(&policy, &headers, &tenant, &req.target_host_id, &req.claude.config)?;
+    if let WriteInput::Profile(req) = &input {
+        authorize_login(&policy, &headers, &tenant, &req.target_host_id, &req.claude.config)?;
+        vw_agent_apps::providers::claude::settings(&req.claude)
+            .map_err(|_| StatusCode::UNPROCESSABLE_ENTITY)?;
+    }
+    if matches!(input, WriteInput::Form(_)) {
+        vw_agent_apps::providers::validate_identity(&id).map_err(|_| StatusCode::BAD_REQUEST)?;
+    }
     let store = store(db).map_err(|_| StatusCode::SERVICE_UNAVAILABLE)?;
-    vw_agent_apps::providers::claude::settings(&req.claude)
-        .map_err(|_| StatusCode::UNPROCESSABLE_ENTITY)?;
     let before = store.claude_record(&tenant, &id).map_err(|_| StatusCode::SERVICE_UNAVAILABLE)?;
     if matches!(kind, WriteKind::Update) && before.is_none() {
         return Err(StatusCode::NOT_FOUND);
@@ -102,9 +136,36 @@ fn write_sync(
     if matches!(kind, WriteKind::Create) && before.is_some() {
         return Err(StatusCode::CONFLICT);
     }
+    let (req, metadata) = match input {
+        WriteInput::Profile(req) => (req, None),
+        WriteInput::Form(req) => {
+            let claude = vw_agent_apps::providers::claude::form::profile(&req, before.as_ref())
+                .map_err(|_| StatusCode::UNPROCESSABLE_ENTITY)?;
+            let metadata = vw_agent_apps::providers::basic::apply(
+                AppId::Claude,
+                before.as_ref().unwrap_or(&serde_json::json!({})),
+                &req.fields,
+                &vw_api_types::app_providers::create::ProviderSecretWrite::Keep,
+            )
+            .map_err(|_| StatusCode::UNPROCESSABLE_ENTITY)?;
+            let activation = match (req.apply, kind) {
+                (false, _) => ClaudeActivation::CatalogOnly,
+                (true, WriteKind::Create) => ClaudeActivation::First,
+                (true, _) => ClaudeActivation::IfCurrent,
+            };
+            (ClaudeWrite { target_host_id: req.target_host_id, claude, activation }, Some(metadata))
+        }
+    };
     let host = Host::open(&home, &root, &req.target_host_id, &tenant, req.activation, &store, &id)?;
     let row = store
-        .claude_save(&tenant, &id, &req.claude, before.as_ref(), matches!(kind, WriteKind::Create))
+        .claude_save_with_metadata(
+            &tenant,
+            &id,
+            &req.claude,
+            before.as_ref(),
+            matches!(kind, WriteKind::Create),
+            metadata,
+        )
         .map_err(|_| StatusCode::CONFLICT)?;
     let live = if let Some(host) = host {
         host.apply(&store, &tenant, &id, &row, req.activation, policy.1.as_ref())
@@ -119,10 +180,11 @@ fn write_sync(
     _: Option<Extension<GlobalDatabase>>,
     _: HeaderMap,
     _: String,
-    _: ClaudeWrite,
+    req: WriteInput,
     _: WriteKind,
     _: Policy,
 ) -> Result<ClaudeResult, StatusCode> {
+    let _ = req.target();
     Err(StatusCode::NOT_IMPLEMENTED)
 }
 #[cfg(target_os = "macos")]

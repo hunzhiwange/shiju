@@ -37,15 +37,16 @@ pub(crate) fn overlay<'a>(form: &'a EditForm, base: Element<'a, Message>) -> Ele
                 EditMessage::Id,
             ));
         }
-        fields = fields
-            .push(text("名称"))
-            .push(input("名称", &form.fields.name, EditMessage::Name))
-            .push(text("分类"))
-            .push(input(
+        fields =
+            fields.push(text("名称")).push(input("名称", &form.fields.name, EditMessage::Name));
+        if !form.claude_editable() {
+            fields = fields.push(text("分类")).push(input(
                 "分类",
                 form.fields.category.as_deref().unwrap_or(""),
                 EditMessage::Category,
-            ))
+            ));
+        }
+        fields = fields
             .push(text("备注"))
             .push(input("备注", form.fields.notes.as_deref().unwrap_or(""), EditMessage::Notes))
             .push(text("网址（展示网址，与 API 地址分开保存）"))
@@ -54,36 +55,43 @@ pub(crate) fn overlay<'a>(form: &'a EditForm, base: Element<'a, Message>) -> Ele
                 form.fields.website_url.as_deref().unwrap_or(""),
                 EditMessage::Website,
             ));
-        if !matches!(form.mode, Mode::Create) {
-            fields = fields
-                .push(text("默认保留执行端密钥，界面不读取原值。"))
-                .push(
-                    checkbox(form.replace_key)
-                        .label("替换密钥")
-                        .style(settings_checkbox_style)
-                        .on_toggle_maybe(
-                            (!form.saving).then_some(|v| message(EditMessage::Replace(v))),
-                        ),
-                )
-                .push(
-                    checkbox(form.clear_key)
-                        .label("明确清除密钥（必需凭据将由执行端拒绝）")
-                        .style(settings_checkbox_style)
-                        .on_toggle_maybe(
-                            (!form.saving).then_some(|v| message(EditMessage::Clear(v))),
-                        ),
-                );
-        }
-        if form.replace_key || matches!(form.mode, Mode::Create) {
-            fields = fields
-                .push(text("新的完整密钥"))
-                .push(input("输入新密钥", &form.key, EditMessage::Key).secure(true));
-        }
-        if matches!(form.mode, Mode::Create) && !form.draft_ready() {
-            fields = fields.push(text("待补完整应用配置：请先完成应用专属表单，保存暂不可用。"));
+        if let Some(draft) = &form.claude {
+            fields = fields.push(super::claude::fields(form, draft));
+        } else {
+            if !matches!(form.mode, Mode::Create) {
+                fields = fields
+                    .push(text("默认保留执行端密钥，界面不读取原值。"))
+                    .push(
+                        checkbox(form.replace_key)
+                            .label("替换密钥")
+                            .style(settings_checkbox_style)
+                            .on_toggle_maybe(
+                                (!form.saving).then_some(|v| message(EditMessage::Replace(v))),
+                            ),
+                    )
+                    .push(
+                        checkbox(form.clear_key)
+                            .label("明确清除密钥（必需凭据将由执行端拒绝）")
+                            .style(settings_checkbox_style)
+                            .on_toggle_maybe(
+                                (!form.saving).then_some(|v| message(EditMessage::Clear(v))),
+                            ),
+                    );
+            }
+            if form.replace_key || matches!(form.mode, Mode::Create) {
+                fields = fields
+                    .push(text("新的完整密钥"))
+                    .push(input("输入新密钥", &form.key, EditMessage::Key).secure(true));
+            }
+            if matches!(form.mode, Mode::Create) && !form.draft_ready() {
+                fields =
+                    fields.push(text("待补完整应用配置：请先完成应用专属表单，保存暂不可用。"));
+            }
         }
     }
-    let enabled = !form.saving && (delete || form.request().is_ok());
+    let enabled = !form.saving
+        && (delete
+            || if form.claude_editable() { form.identified() } else { form.request().is_ok() });
     let card = settings_modal_card(
         column![
             row![

@@ -9,14 +9,15 @@ use app::{App, Message};
 use iced::{Element, Task, Theme};
 fn main() {
     let case = std::env::var("SHIJU_CC04_WINDOW_CASE").expect("window case");
-    assert!(matches!(case.as_str(), "list" | "edit"), "unknown window case");
+    assert!(matches!(case.as_str(), "list" | "edit" | "claude"), "unknown window case");
     let edit = case == "edit";
+    let claude = case == "claude";
     let theme = match std::env::var("SHIJU_CC04_WINDOW_THEME").as_deref() {
         Ok("dark") => Theme::Dark,
         Ok("light") => Theme::Light,
         _ => panic!("unknown theme"),
     };
-    let (port, stop, server) = fixture();
+    let (port, stop, server) = fixture(claude);
     app::config::install_window_test_bootstrap(port);
     iced::application(
         move || {
@@ -47,7 +48,11 @@ fn main() {
         },
         view,
     )
-    .title("供应商基础编辑隔离验收")
+    .title(if claude {
+        "Claude Code 供应商隔离验收"
+    } else {
+        "供应商基础编辑隔离验收"
+    })
     .theme(move |_: &App| theme.clone())
     .window_size((1000., 820.))
     .settings(iced::Settings {
@@ -73,7 +78,9 @@ fn view(state: &App) -> Element<'_, Message> {
     ]
     .into()
 }
-fn fixture() -> (u16, std::sync::Arc<std::sync::atomic::AtomicBool>, std::thread::JoinHandle<()>) {
+fn fixture(
+    claude: bool,
+) -> (u16, std::sync::Arc<std::sync::atomic::AtomicBool>, std::thread::JoinHandle<()>) {
     use std::io::{Read, Write};
     let listener = std::net::TcpListener::bind("127.0.0.1:0").unwrap();
     let port = listener.local_addr().unwrap().port();
@@ -83,6 +90,21 @@ fn fixture() -> (u16, std::sync::Arc<std::sync::atomic::AtomicBool>, std::thread
     let server = std::thread::spawn(move || {
         let mut presentation = serde_json::json!({"sortIndex":1,"category":"工作","notes":"中文动态备注：实际字体整形验收。"});
         let mut basics: std::collections::BTreeMap<String, serde_json::Value> = (0..16).map(|i| (format!("provider-{i}"), serde_json::json!({"name":format!("中文供应商 {i}"),"category":"工作","notes":"中文动态备注","websiteUrl":"https://website.example.test"}))).collect();
+        let mut claude_profiles = std::collections::BTreeMap::from([
+            (
+                "provider-0".to_owned(),
+                (
+                    serde_json::json!({
+                        "kind":"third_party","baseUrl":"https://fixture-api.example.test","apiKeyHeader":false
+                    }),
+                    serde_json::json!("现有中文模型"),
+                ),
+            ),
+            (
+                "provider-1".to_owned(),
+                (serde_json::json!({"kind":"official"}), serde_json::Value::Null),
+            ),
+        ]);
         while !done.load(std::sync::atomic::Ordering::Relaxed) {
             let (mut stream, _) = match listener.accept() {
                 Ok(v) => v,
@@ -119,7 +141,38 @@ fn fixture() -> (u16, std::sync::Arc<std::sync::atomic::AtomicBool>, std::thread
                 .strip_prefix("/v1/app-providers/claude/")
                 .and_then(|v| v.split('/').next())
                 .unwrap_or("");
-            let body = if path.ends_with("/basic") && line.starts_with("GET ") {
+            let body = if claude && path.ends_with("/form/read") && line.starts_with("POST ") {
+                assert!(head.to_lowercase().contains("x-agent-apps-token: fake-host-token"));
+                let target: serde_json::Value = serde_json::from_slice(&payload).unwrap();
+                assert_eq!(target["targetHostId"], "fixture-host");
+                let (config, model) = claude_profiles.get(id).cloned().unwrap_or((
+                    serde_json::json!({"kind":"unsupported"}),
+                    serde_json::Value::Null,
+                ));
+                serde_json::json!({"fields":basics[id],"config":config,"model":model})
+            } else if claude
+                && path.ends_with("/form")
+                && (line.starts_with("POST ") || line.starts_with("PATCH "))
+            {
+                assert!(head.to_lowercase().contains("x-agent-apps-token: fake-host-token"));
+                let mut value: serde_json::Value = serde_json::from_slice(&payload).unwrap();
+                assert_eq!(value["targetHostId"], "fixture-host");
+                let mut config = value["config"].take();
+                if config["kind"] == "third_party"
+                    && !config["baseUrl"].as_str().is_some_and(|url| url.starts_with("https://"))
+                {
+                    status = "422 Unprocessable Entity";
+                    serde_json::Value::Null
+                } else {
+                    config.as_object_mut().unwrap().remove("apiKey");
+                    claude_profiles.insert(id.into(), (config, value["model"].take()));
+                    basics.insert(id.into(), value["fields"].take());
+                    if line.starts_with("POST ") {
+                        status = "201 Created";
+                    }
+                    serde_json::json!({"catalogSaved":true,"live":"not_attempted"})
+                }
+            } else if path.ends_with("/basic") && line.starts_with("GET ") {
                 basics.get(id).cloned().unwrap_or_else(|| {
                     status = "404 Not Found";
                     serde_json::json!({"message":"missing"})

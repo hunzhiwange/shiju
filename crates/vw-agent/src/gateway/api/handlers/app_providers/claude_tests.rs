@@ -439,3 +439,124 @@ async fn cc04_claude_committed_exclusives_survive_catalog_edits_until_switch_cle
 
 #[path = "claude_login_tests.rs"]
 mod claude_login_tests;
+
+#[tokio::test]
+async fn cc04_ui_claude_sdk_round_trip_projects_key_fields_on_the_authorized_host() {
+    use vw_api_types::app_providers::{basic::ProviderBasic, create::ProviderSecretWrite};
+    let f = Fixture::new().await;
+    let mut request = ClaudeFormWrite {
+        target_host_id: "host".into(),
+        fields: ProviderBasic {
+            name: "中文供应商".into(),
+            category: Some("团队".into()),
+            notes: Some("表单备注".into()),
+            website_url: Some("https://docs.example.test".into()),
+        },
+        config: ClaudeFormConfig::ThirdParty {
+            base_url: "https://api.example.test".into(),
+            api_key_header: false,
+            api_key: ProviderSecretWrite::Replace { value: "fake-claude-key".into() },
+        },
+        model: Some("fixture-model".into()),
+        apply: true,
+    };
+    let saved = f.client.claude_form_create("form", &request, TOKEN).await.unwrap();
+    assert!(saved.catalog_saved);
+    assert_eq!(saved.live, ClaudeLiveResult::Applied);
+    assert_eq!(f.live()["env"]["ANTHROPIC_BASE_URL"], "https://api.example.test");
+    assert_eq!(f.live()["env"]["ANTHROPIC_AUTH_TOKEN"], "fake-claude-key");
+    assert_eq!(f.live()["env"]["ANTHROPIC_MODEL"], "fixture-model");
+    assert_eq!(f.live()["env"]["USER_FLAG"], "yes");
+
+    let view = f.client.claude_form_read("form", &f.target(), TOKEN).await.unwrap();
+    assert_eq!(view.fields, request.fields);
+    assert_eq!(view.model, request.model);
+    assert!(!serde_json::to_string(&view).unwrap().contains("fake-claude-key"));
+    assert!(matches!(view.config, ClaudeFormKind::ThirdParty { api_key_header: false, .. }));
+
+    request.config = ClaudeFormConfig::ThirdParty {
+        base_url: "https://api.example.test".into(),
+        api_key_header: true,
+        api_key: ProviderSecretWrite::Keep,
+    };
+    let saved = f.client.claude_form_update("form", &request, TOKEN).await.unwrap();
+    assert_eq!(saved.live, ClaudeLiveResult::Applied);
+    assert_eq!(f.live()["env"]["ANTHROPIC_API_KEY"], "fake-claude-key");
+    assert!(f.live()["env"].get("ANTHROPIC_AUTH_TOKEN").is_none());
+
+    request.config = ClaudeFormConfig::Official {};
+    request.model = None;
+    let saved = f.client.claude_form_update("form", &request, TOKEN).await.unwrap();
+    assert_eq!(saved.live, ClaudeLiveResult::Applied);
+    for field in ["ANTHROPIC_API_KEY", "ANTHROPIC_BASE_URL", "ANTHROPIC_MODEL"] {
+        assert!(f.live()["env"].get(field).is_none());
+    }
+    assert_eq!(f.live()["hooks"]["x"], true);
+    assert!(!f.record("form").unwrap().contains("fake-claude-key"));
+    let view = f.client.claude_form_read("form", &f.target(), TOKEN).await.unwrap();
+    assert!(matches!(view.config, ClaudeFormKind::Official {}));
+    assert_eq!(view.fields.website_url, request.fields.website_url);
+
+    let before = std::fs::read(f.file()).unwrap();
+    let saved = f.client.claude_form_create("another", &request, TOKEN).await.unwrap();
+    assert_eq!(saved.live, ClaudeLiveResult::NotAttempted);
+    assert_eq!(std::fs::read(f.file()).unwrap(), before);
+}
+
+#[tokio::test]
+async fn cc04_ui_claude_sdk_validation_and_permission_failures_do_not_write() {
+    use vw_api_types::app_providers::{basic::ProviderBasic, create::ProviderSecretWrite};
+    use vw_gateway_client::AgentAppsReadError;
+    let f = Fixture::new().await;
+    let mut request = ClaudeFormWrite {
+        target_host_id: "host".into(),
+        fields: ProviderBasic {
+            name: "fixture".into(),
+            category: None,
+            notes: None,
+            website_url: None,
+        },
+        config: ClaudeFormConfig::ThirdParty {
+            base_url: "https://api.example.test".into(),
+            api_key_header: false,
+            api_key: ProviderSecretWrite::Replace { value: "fake-claude-key".into() },
+        },
+        model: None,
+        apply: true,
+    };
+    f.client.claude_form_create("form", &request, TOKEN).await.unwrap();
+    let file = std::fs::read(f.file()).unwrap();
+    let record = f.record("form");
+    let state = f.state();
+
+    request.config = ClaudeFormConfig::ThirdParty {
+        base_url: "https://different.example.test".into(),
+        api_key_header: false,
+        api_key: ProviderSecretWrite::Keep,
+    };
+    assert!(matches!(
+        f.client.claude_form_update("form", &request, TOKEN).await,
+        Err(AgentAppsReadError::Http { status: 422, .. })
+    ));
+    assert!(matches!(
+        f.client.claude_form_read("form", &f.target(), "wrong-token").await,
+        Err(AgentAppsReadError::Http { status: 401, .. })
+    ));
+    let foreign = GatewayClient::new(
+        f.client.endpoint().clone().with_tenant_scope(TenantScope::new("p", "foreign").unwrap()),
+    )
+    .unwrap();
+    assert!(matches!(
+        foreign.claude_form_update("form", &request, TOKEN).await,
+        Err(AgentAppsReadError::Http { status: 403, .. })
+    ));
+    request.config = ClaudeFormConfig::Official {};
+    request.fields.website_url = Some("file:///tmp/not-allowed".into());
+    assert!(matches!(
+        f.client.claude_form_update("form", &request, TOKEN).await,
+        Err(AgentAppsReadError::Http { status: 422, .. })
+    ));
+    assert_eq!(std::fs::read(f.file()).unwrap(), file);
+    assert_eq!(f.record("form"), record);
+    assert_eq!(f.state(), state);
+}

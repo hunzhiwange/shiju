@@ -4,7 +4,7 @@ use serde_json::{Value, json};
 use sha2::{Digest, Sha256};
 use std::{os::unix::fs::PermissionsExt, path::PathBuf};
 use vw_api_types::{app_providers::omp::*, id::TenantScope};
-use vw_gateway_client::{GatewayClient, GatewayEndpoint};
+use vw_gateway_client::{AgentAppsReadError, GatewayClient, GatewayEndpoint};
 const TOKEN: &str = "fixture-omp-token-with-at-least-32-chars";
 struct Fixture {
     root: tempfile::TempDir,
@@ -238,4 +238,113 @@ async fn cc04_omp_disabled_edits_and_native_read_failure_are_explicit() {
     assert!(f.client.omp_import(&f.target(), TOKEN).await.is_err());
     assert_eq!(f.record("one").unwrap(), record);
     assert_eq!(f.bytes(), before);
+}
+
+#[tokio::test]
+async fn cc04_ui_omp_sdk_edits_native_yaml_without_exposing_credentials() {
+    let f = Fixture::new().await;
+    std::fs::write(
+        f.file(),
+        "# keep\nfuture: true\nproviders:\n  other:\n    baseUrl: https://other.example\n    api: openai-completions\n    apiKey: fake-retained\n    headers: {Authorization: fake-header}\n    future: {keep: true}\n    discovery: {type: openai-models-list, injectV1: true}\n",
+    )
+    .unwrap();
+    let view = f.client.omp_form_read("other", &f.target(), TOKEN).await.unwrap();
+    let config = view.config.unwrap();
+    assert!(config.has_saved_key);
+    assert!(!config.declaration.contains("fake-"));
+    assert!(!config.declaration.contains("headers"));
+    let mut fields = view.fields;
+    fields.name = "中文显示名".into();
+    fields.notes = Some("中文备注".into());
+    let mut body = OmpFormWrite {
+        target_host_id: "host".into(),
+        fields,
+        declaration: format!("{}models:\n  - id: sample\n    name: 中文模型\n", config.declaration),
+        api_key: vw_api_types::app_providers::create::ProviderSecretWrite::Keep,
+        activation: OmpActivation::IfMember,
+        revision: Some(config.revision),
+    };
+    let result = f.client.omp_form_update("other", &body, TOKEN).await.unwrap();
+    assert!(result.catalog_saved);
+    assert_eq!(result.live, OmpLiveResult::Applied);
+    let record = f.record("other").unwrap();
+    assert_eq!(record["name"], "中文显示名");
+    let bytes = f.bytes();
+    let text = std::str::from_utf8(&bytes).unwrap();
+    assert!(text.starts_with("# keep\nfuture: true\nproviders:\n"));
+    for expected in ["中文模型", "fake-retained", "fake-header", "injectV1: true", "keep: true"]
+    {
+        assert!(text.contains(expected), "expected preserved native value {expected}");
+    }
+    assert_eq!(
+        f.client.omp_form_read("other", &f.target(), TOKEN).await.unwrap().fields.notes.as_deref(),
+        Some("中文备注")
+    );
+    assert!(matches!(
+        f.client.omp_form_update("other", &body, TOKEN).await,
+        Err(AgentAppsReadError::Http { status: 409, .. })
+    ));
+    body.revision = Some(
+        f.client.omp_form_read("other", &f.target(), TOKEN).await.unwrap().config.unwrap().revision,
+    );
+    body.declaration = body.declaration.replace("https://other.example", "https://new.example");
+    assert!(matches!(
+        f.client.omp_form_update("other", &body, TOKEN).await,
+        Err(AgentAppsReadError::Http { status: 422, .. })
+    ));
+    assert_eq!(f.record("other").unwrap(), record);
+    assert_eq!(f.bytes(), bytes);
+    assert_eq!(
+        f.client.omp_provider_remove_live("other", &f.target(), TOKEN).await.unwrap().live,
+        OmpLiveResult::Applied
+    );
+    assert_eq!(f.record("other").unwrap()["name"], "中文显示名");
+    assert_eq!(
+        f.client.omp_provider_add("other", &f.target(), TOKEN).await.unwrap().live,
+        OmpLiveResult::Applied
+    );
+    assert!(std::str::from_utf8(&f.bytes()).unwrap().contains("fake-retained"));
+}
+
+#[tokio::test]
+async fn cc04_ui_omp_sdk_rejects_invalid_and_unauthorized_yaml_before_writes() {
+    let f = Fixture::new().await;
+    let before = f.bytes();
+    let mut body = OmpFormWrite {
+        target_host_id: "host".into(),
+        fields: vw_api_types::app_providers::basic::ProviderBasic {
+            name: "中文供应商".into(), category: None, notes: None, website_url: None,
+        },
+        declaration: "baseUrl: https://fixture.example/v1\napi: openai-completions\nauth: none\nmodels:\n  - id: sample\n".into(),
+        api_key: vw_api_types::app_providers::create::ProviderSecretWrite::Keep,
+        activation: OmpActivation::Add,
+        revision: None,
+    };
+    for invalid in [
+        "providers:\n  another: {}",
+        "models:\n  - id: ''",
+        "apiKey: hidden-in-yaml",
+        "api: openai-completions\ndiscovery: {type: ollama, injectV1: true}",
+    ] {
+        let valid = std::mem::replace(&mut body.declaration, invalid.into());
+        assert!(matches!(
+            f.client.omp_form_create("draft", &body, TOKEN).await,
+            Err(AgentAppsReadError::Http { status: 422, .. })
+        ));
+        body.declaration = valid;
+    }
+    assert!(matches!(
+        f.client.omp_form_create("draft", &body, "bad-token").await,
+        Err(AgentAppsReadError::Http { status: 401 | 403, .. })
+    ));
+    assert_eq!(f.bytes(), before);
+    assert!(f.record("draft").is_none());
+    assert!(!f.root.path().join("private/provider-live").exists());
+    let result = f.client.omp_form_create("draft", &body, TOKEN).await.unwrap();
+    assert!(result.catalog_saved);
+    assert_eq!(result.live, OmpLiveResult::Applied);
+    let text = String::from_utf8(f.bytes()).unwrap();
+    assert!(text.contains("  draft:"));
+    assert!(text.contains("  other:"));
+    assert!(text.starts_with("# keep\nfuture: true\n"));
 }

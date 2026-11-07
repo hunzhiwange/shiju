@@ -2785,3 +2785,44 @@ macOS **27.0 (26A428) / arm64**，桌面 **0.6.0**。临时 app bundle 经真实
 - 浅色 [校验失败](evidence/task-61/light-failure.jpg)、[保存同步](evidence/task-61/light-saved.jpg)、[取消前](evidence/task-61/light-cancel-draft.jpg)、[取消后重开](evidence/task-61/light-cancel.jpg)、[滚动](evidence/task-61/light-scroll.jpg)、[移除](evidence/task-61/light-removed.jpg)、[重新添加](evidence/task-61/light-added.jpg)。
 
 差异审查限本任务的实现、独立测试、必要接线及上述证据。状态为 **已完成**，下一步批次 62。
+
+## 任务 62：桌面 OMP 供应商编辑
+
+2026-11-07。核对批次 61 提交 `d621fc325` 及正式验收。母任务 1、3 已完成，母任务 2 沿用 `provider-contracts.md` 的底座子计划 1–93 开工裁定。复用批次 39 的 OMP 增量事务和批次 52 的原生窗口入口。
+
+- 核对冻结来源 `ca58c0313360eae7c851fbd7553c1614c7af03e7` 的 `PiProviderForm`、`handleOmpTextChange`、`ProviderForm` 的 OMP 分支，以及 `PiProviderForm.test.tsx` 的 OMP 作用域与发现配置用例。桌面 `components/state/message/app_providers/omp.rs` 复用统一弹窗，编辑 `models.yml` 中由当前供应商标识确定的单个 YAML 节点。可修改地址、协议、认证类型、模型和发现配置。官方授权及桌面模型发现请求暂不可用。
+- `OmpFormWrite/View` 通过 SDK `omp_form_read/create/update` 调用 `POST /v1/app-providers/omp/{id}/form/read`、`POST /form`、`PATCH /form`。Gateway 先检查租户、执行主机及读写权限。执行端 `providers/omp/form.rs` 校验 YAML 作用域、字段和公开修订，合并原节点中保留的字段。根 API 密钥通过单独的保留、替换、清除操作处理。地址、协议、认证或发现配置变更受保留凭据约束，原请求头和兼容选项留在执行端。
+- 新增可同时加入，编辑可只存目录或同步现有成员。列表复用 `omp_provider_add`、`omp_provider_remove_live`，移除保留档案与展示名。真实 SDK → 回环 HTTP → Gateway → 临时 SQLite 和隔离 HOME 验证了 200 保存及应用、422 拒绝无效 YAML 或不安全变更、409 拒绝过期修订，以及授权拒绝。仅目标成员变化，其他成员、根字段、外部注释、设置与登录文件保留。桌面测试通过回环夹具注入 422，验证草稿保持和旧作用域或请求代次不会覆盖当前草稿。
+
+### 自动验证
+
+各阶段原子领取槽位并记录任务、会话和 PID，`CARGO_BUILD_BUILD_DIR` 同各阶段的绝对 `CARGO_TARGET_DIR`。
+
+| 槽位 | CARGO_TARGET_DIR | 用途 |
+|---|---|---|
+| 1 | `/Users/xiangmin/worker/code/shiju/target/rust-slot-1` | 首轮红测尝试、最终桌面聚焦及窗口 |
+| 2 | `/Users/xiangmin/worker/code/shiju/target/rust-slot-2` | 有效红测、最终 Gateway |
+| 4 | `/Users/xiangmin/worker/code/shiju/target/rust-slot-4` | 首轮绿测及最终严格 Clippy |
+
+| 阶段 | 命令 | 退出码 | 行为证据 |
+|---|---|---:|---|
+| 红 | `cargo test -p vw-desktop --lib cc04_ui_omp_ -- --nocapture` | 101 | 0 passed / 2 failed，失败在草稿未提交给 SDK、有效响应未结束保存 |
+| 格式化 | `cargo fmt --all` | 0 | 格式化检查步骤 |
+| 绿 | `cargo test -p vw-desktop --lib cc04_ui_omp_ -- --nocapture` | 0 | 2 passed，失败保留草稿、忽略过期响应 |
+| 绿 | `cargo test -p vw-agent --lib gateway::api::handlers::app_providers::omp_tests:: -- --nocapture` | 0 | 7 passed，含本任务新增 2 项 |
+| 静态检查 | `cargo clippy --all-targets --all-features -- -D warnings` | 0 | 全 targets/features |
+| 深色 | `SHIJU_CC04_WINDOW_CASE=omp SHIJU_CC04_WINDOW_THEME=dark cargo test -p vw-desktop --test cc04-provider-window` | 0 | 实际操作后正常退出 |
+| 浅色 | `SHIJU_CC04_WINDOW_CASE=omp SHIJU_CC04_WINDOW_THEME=light cargo test -p vw-desktop --test cc04-provider-window` | 0 | 实际操作后正常退出 |
+
+槽位 1 首轮红测和窗口尝试遇到旧依赖产物，退出 101。有效红测由槽位 2 获得，窗口重试刷新了 `iced_term` 依赖。首次 Gateway 编译的 OMP 类型导入错误及首次 Clippy 检出的 OMP 保存响应接线错误已修正。替换前的窗口编译主动中断并释放槽位，退出 143。各阶段退出后释放自身锁，保留编译缓存。
+
+### macOS 原生窗口
+
+macOS **27.0 (26A428) / arm64**，桌面 **0.6.0**。临时 app bundle 运行真实 Iced 组件、Message 和 SDK，连接使用假档案的隔离回环 HTTP 夹具。真实 Gateway 授权、事务与 YAML 落盘由集成用例验证。PATH 未找到 OMP CLI，真实安装、账号及 CLI 消费配置未验证。
+
+两种主题均从列表加入假档案，进入编辑，拖动长表单的 4px 滚动条。内容两侧各留 7px，标题及底部按钮固定。提交空模型 ID 收到 422 并保留中文草稿，修正后保存并同步。再次修改后取消，重开保留已保存的中文模型，再从 OMP 移除成员，档案仍在列表。中文动态文本实际绘制，无字形整形 panic。深色首次操作遇到窗口点击定位错误，重启后完成同一操作序列。浅色补拍时并行改动一度导致 `app_init/new/settings.rs` 编译错误，退出 101。改用同槽位已通过窗口命令构建的测试二进制补拍，退出 0。日志有既有链接器、macOS sandbox extension 和输入法端口提示。
+
+- 深色 [滚动](evidence/task-62/dark-scroll.jpg)、[校验失败](evidence/task-62/dark-failure.jpg)、[保存同步](evidence/task-62/dark-saved.jpg)、[取消前](evidence/task-62/dark-cancel-draft.jpg)、[取消后重开](evidence/task-62/dark-cancel-reopened.jpg)、[加入](evidence/task-62/dark-added.jpg)、[移除](evidence/task-62/dark-removed.jpg)。
+- 浅色 [滚动](evidence/task-62/light-scroll.jpg)、[校验失败](evidence/task-62/light-failure.jpg)、[保存同步](evidence/task-62/light-saved.jpg)、[取消前](evidence/task-62/light-cancel-draft.jpg)、[取消后重开](evidence/task-62/light-cancel-reopened.jpg)、[加入](evidence/task-62/light-added.jpg)、[移除](evidence/task-62/light-removed.jpg)。
+
+状态 **已完成**。差异审查限于本任务实现、测试、接线和证据。下一步批次 63。

@@ -79,7 +79,7 @@ impl AppProviderStore {
                     self.pi_save(tenant, &id, &p, None, None)?;
                 }
                 NativeImport::Omp(p) => {
-                    self.omp_save(tenant, &id, &p, None)?;
+                    self.omp_save(tenant, &id, &p, None, None)?;
                 }
                 NativeImport::Mcode(p) => {
                     self.mcode_save(tenant, &id, &p, None)?;

@@ -8,4 +8,5 @@ pub(crate) mod list;
 pub(crate) mod openclaw;
 pub(crate) mod opencode;
 
+pub(crate) mod omp;
 pub(crate) mod pi;

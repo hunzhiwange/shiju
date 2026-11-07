@@ -20,6 +20,7 @@ fn main() {
         "openclaw" => (AppId::OpenClaw, true),
         "hermes" => (AppId::Hermes, true),
         "pi" => (AppId::Pi, true),
+        "omp" => (AppId::Omp, true),
         _ => panic!("unknown window case"),
     };
     let edit = case == "edit";
@@ -65,6 +66,7 @@ fn main() {
         "openclaw" => "OpenClaw 供应商隔离验收",
         "hermes" => "Hermes 供应商隔离验收",
         "pi" => "Pi 供应商隔离验收",
+        "omp" => "OMP 供应商隔离验收",
         "claude" => "Claude Code 供应商隔离验收",
         _ => "供应商基础编辑隔离验收",
     })
@@ -115,6 +117,7 @@ fn fixture(
             AppId::OpenClaw => "openclaw",
             AppId::Hermes => "hermes",
             AppId::Pi => "pi",
+            AppId::Omp => "omp",
             _ => panic!("unknown fixture app"),
         };
         let prefix = format!("/v1/app-providers/{app}/");
@@ -147,7 +150,7 @@ fn fixture(
                 "inactive":[["config","legacy","中文旧字段"],["config","ui","theme"]],
             }));
         }
-        let incremental = matches!(app, "opencode" | "openclaw" | "hermes" | "pi");
+        let incremental = matches!(app, "opencode" | "openclaw" | "hermes" | "pi" | "omp");
         let mut node_configs = std::collections::BTreeMap::from([(
             "provider-0".to_owned(),
             serde_json::json!({
@@ -205,6 +208,33 @@ fn fixture(
                     "revision":"fixture-1"
                 }),
             );
+        }
+        if app == "omp" {
+            for id in basics.keys() {
+                let models = (0..18)
+                    .map(|i| {
+                        serde_json::json!({
+                            "id": format!("fixture-model-{i}"), "name": format!("中文动态模型 {i}"),
+                            "contextWindow": 8192, "maxTokens": 2048
+                        })
+                    })
+                    .collect::<Vec<_>>();
+                let declaration = serde_yaml::to_string(&serde_json::json!({
+                    "baseUrl": "https://fixture-api.example.test/v1",
+                    "api": "openai-completions",
+                    "discovery": {"type": "openai-models-list", "injectV1": true},
+                    "models": models
+                }))
+                .unwrap();
+                node_configs.insert(
+                    id.clone(),
+                    serde_json::json!({
+                        "declaration": declaration,
+                        "hasSavedKey": true,
+                        "revision": "fixture-omp"
+                    }),
+                );
+            }
         }
         let mut node_members = std::collections::BTreeSet::from(["provider-0".to_owned()]);
         while !done.load(std::sync::atomic::Ordering::Relaxed) {
@@ -267,23 +297,24 @@ fn fixture(
                 } else {
                     assert!(line.starts_with("POST ") || line.starts_with("PATCH "));
                     let declaration = value["declaration"].as_str().unwrap();
-                    if !serde_json::from_str::<serde_json::Value>(declaration)
-                        .ok()
-                        .and_then(|node| node.get("models").cloned())
-                        .is_some_and(|models| {
-                            if matches!(app, "openclaw" | "hermes" | "pi") {
-                                models.as_array().is_some_and(|models| {
-                                    models.iter().all(|model| {
-                                        model["id"].as_str().is_some_and(|id| !id.trim().is_empty())
-                                    })
+                    let node = if app == "omp" {
+                        serde_yaml::from_str::<serde_json::Value>(declaration).ok()
+                    } else {
+                        serde_json::from_str::<serde_json::Value>(declaration).ok()
+                    };
+                    if !node.and_then(|node| node.get("models").cloned()).is_some_and(|models| {
+                        if matches!(app, "openclaw" | "hermes" | "pi" | "omp") {
+                            models.as_array().is_some_and(|models| {
+                                models.iter().all(|model| {
+                                    model["id"].as_str().is_some_and(|id| !id.trim().is_empty())
                                 })
-                            } else {
-                                models.as_object().is_some_and(|models| {
-                                    models.values().all(serde_json::Value::is_object)
-                                })
-                            }
-                        })
-                    {
+                            })
+                        } else {
+                            models.as_object().is_some_and(|models| {
+                                models.values().all(serde_json::Value::is_object)
+                            })
+                        }
+                    }) {
                         status = "422 Unprocessable Entity";
                         serde_json::Value::Null
                     } else {

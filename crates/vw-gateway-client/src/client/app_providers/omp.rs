@@ -3,6 +3,31 @@ use super::super::agent_apps_read_api::AgentAppsReadError as Error;
 use super::GatewayClient;
 use vw_api_types::app_providers::omp::*;
 impl GatewayClient {
+    pub async fn omp_form_read(
+        &self,
+        id: &str,
+        body: &OmpTarget,
+        token: &str,
+    ) -> Result<OmpFormView, Error> {
+        self.omp_request(id, "POST", "/form/read", body, token).await
+    }
+    pub async fn omp_form_create(
+        &self,
+        id: &str,
+        body: &OmpFormWrite,
+        token: &str,
+    ) -> Result<OmpResult, Error> {
+        self.omp_request(id, "POST", "/form", body, token).await
+    }
+    pub async fn omp_form_update(
+        &self,
+        id: &str,
+        body: &OmpFormWrite,
+        token: &str,
+    ) -> Result<OmpResult, Error> {
+        self.omp_request(id, "PATCH", "/form", body, token).await
+    }
+
     pub async fn omp_provider_save(
         &self,
         id: &str,

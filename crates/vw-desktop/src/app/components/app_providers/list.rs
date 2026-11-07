@@ -111,6 +111,14 @@ pub(crate) fn overlay<'a>(
                     enabled,
                 ));
             }
+            if scope.app == AppId::Omp && entry.native_member != ProviderMembership::Unknown {
+                let add = entry.native_member == ProviderMembership::Absent;
+                actions = actions.push(action(
+                    if add { "添加到 OMP" } else { "从 OMP 移除" },
+                    ListMessage::OmpMember { id: id.clone(), add },
+                    enabled,
+                ));
+            }
             if scope.app == AppId::OpenClaw && entry.native_member != ProviderMembership::Unknown {
                 let add = entry.native_member == ProviderMembership::Absent;
                 actions = actions.push(action(

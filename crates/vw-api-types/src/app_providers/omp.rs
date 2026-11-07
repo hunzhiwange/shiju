@@ -41,3 +41,30 @@ pub struct OmpImportResult {
 pub use super::claude::{ClaudeLiveResult as OmpLiveResult, ClaudeResult as OmpResult};
 macro_rules! concealed { ($($t:ty),*) => {$(impl std::fmt::Debug for $t { fn fmt(&self,f:&mut std::fmt::Formatter<'_>)->std::fmt::Result { f.write_str("Omp([redacted])") } })*}; }
 concealed!(OmpProfile, OmpWrite);
+
+#[derive(Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct OmpFormWrite {
+    pub target_host_id: String,
+    pub fields: super::basic::ProviderBasic,
+    pub declaration: String,
+    pub api_key: super::create::ProviderSecretWrite,
+    pub activation: OmpActivation,
+    pub revision: Option<String>,
+}
+concealed!(OmpFormWrite);
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct OmpFormView {
+    pub fields: super::basic::ProviderBasic,
+    pub config: Option<OmpFormConfig>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct OmpFormConfig {
+    pub declaration: String,
+    pub has_saved_key: bool,
+    pub revision: String,
+}

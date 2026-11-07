@@ -247,3 +247,34 @@
 | `cargo clippy --all-targets --all-features -- -D warnings`（复验） | 0 | 实际工作区全部目标与 features 通过 |
 
 差异只包含原生目录入口、类型、数据、独立测试和本证据。`git diff --cached --check` 通过。各阶段的槽位锁均已释放，编译缓存已保留。
+
+## 任务 10　Kimi 与 DSH 模型预设
+
+2026-11-08，macOS 27.0（26A428），arm64。批次 9 由 `61a467630` 交付。本项沿用任务 4 的内嵌 JSON 读取方式。`models/preset_catalog.rs::kimi_dsh_presets` 按应用枚举，官方账号独立列在首位。`kimi_dsh_preset` 按应用及来源供应商键精确选择预设。两个应用的 `model_at_endpoint` 都要求所选预设的精确部署地址。
+
+| 固定来源 `ca58c0313360eae7c851fbd7553c1614c7af03e7` | 实际实现 |
+| --- | --- |
+| `src/config/kimiProviderPresets.ts::kimiProviderPresets`、`kimiAccountPreset` | `crates/vw-agent-apps/src/models/presets/kimi_dsh.json` 的 Kimi 行保留按 `供应商键/模型ID` 索引的原生 `models`、`max_context_size`、能力和推理字段。保留 Kimi Coding 的 `/v1` 端点与官方账号的空模型映射 |
+| `src/config/dshProviderPresets.ts::dshProviderPresets`、`dshAccountPreset` | 同一 JSON 的 DSH 行取自来源执行后的派生结果，保留三种受支持协议、原始模型 ID、双向模态、窗口与输出上限、按协议筛选的兼容字段和原生推理档位。保留 `off: null`、禁用后省略的 `off` 和非推理的 `false`。官方账号的模型映射为空 |
+| `src/config/{kimi,dsh}ProviderPresets.test.ts` | `models/preset_kimi_dsh_tests.rs` 验证两个账号独立、Kimi 原生能力及 Anthropic 输出上限、DSH 协议和推理档位、精确部署隔离及完整条数 |
+
+执行固定 Git 对象中的两个 TypeScript 模块，对嵌入数据逐条核对行顺序、标识、端点、请求头及全部模型字段，并与 Pi 来源数组交叉验证窗口和模态。两个应用各有 114 条供应商预设及 1 条官方账号，共 410 条模型记录，各有 310 条支持图片输入、399 条支持推理。DSH 有 115 条模型记录含兼容字段。展示网址移除查询参数和片段。离线目录仅保留预设声明，密钥字段（含本地占位符）、推广元数据与账号流程由各自配置或账号层处理。来源许可见 `crates/vw-agent-apps/upstream/LICENSE`（MIT，Copyright (c) 2025 Jason Young）。
+
+现有供应商配置由 `vw-agent/src/gateway/api/handlers/app_providers/{kimi,dsh}.rs` 的 `/v1/app-providers/{kimi,dsh}/{id}/form` 与 `/form/read` 提供，SDK 对应 `vw-gateway-client/src/client/app_providers/{kimi,dsh}.rs` 的 `*_form_{read,create,update}`，Iced 对应 `vw-desktop/src/app/components/app_providers/{kimi,dsh}.rs::fields`。目录 API 和 SDK 由任务 36 接入，Iced 搜索由任务 39 接入。本项验证原生离线查询，未涉及窗口渲染或账号登录。
+
+### 验证
+
+红灯、绿灯和首轮 Clippy 分别动态领取槽位 **2**，`CARGO_TARGET_DIR=/Users/xiangmin/worker/code/shiju/target/rust-slot-2`。全仓复验和 crate 检查每次均动态领取槽位 **1**，`CARGO_TARGET_DIR=/Users/xiangmin/worker/code/shiju/target/rust-slot-1`。Cargo 中间目录使用对应槽位。格式化在基于 `7739bc1ca` 的源码快照执行，只回写本任务的四个 Rust 文件。聚焦测试和 Clippy 在实际仓库根目录执行。
+
+| 命令 | 退出码 | 证据 |
+| --- | ---: | --- |
+| `cargo fmt --all`（红灯、绿灯） | 0、0 | 格式化完成 |
+| `cargo test -p vw-agent-apps catalog_presets_kimi_dsh_ -- --nocapture`（红灯） | 101 | 5 条有效测试按预期失败。首个指定用例中两个官方账号的模型计数实际为 `[None, None]`，预期为 `[Some(0), Some(0)]` |
+| `cargo test -p vw-agent-apps catalog_presets_kimi_dsh_ -- --nocapture`（绿灯） | 0 | 5 条有效测试全部通过，545 条过滤 |
+| `cargo clippy --all-targets --all-features -- -D warnings`（首轮） | 101 | 同期会话重置变更触发 E0063，`vw-desktop/src/app/message/chat/session.rs:1821` 和 `vw-agent/src/gateway/api/handlers/session/session_ops_tests.rs:699` 的构造器缺少 `revert_code` |
+| `cargo clippy --all-targets --all-features -- -D warnings`（复验） | 101 | 会话重置错误消失，同期 `vw-agent/src/gateway/api/handlers/session.rs:120` 声明的 `fork_acceptance_tests.rs` 尚未写入 |
+| `cargo clippy -p vw-agent-apps --all-targets --all-features -- -D warnings` | 0 | 本任务所属 crate 全目标及 features 通过 |
+| `cargo clippy --all-targets --all-features -- -D warnings`（第二次复验） | 101 | 同期会话测试文件已写入，但其第 233 行通过错误的模块路径调用 `load_fork_history`，触发 E0433 |
+| `cargo clippy --all-targets --all-features -- -D warnings`（最终复验） | 0 | 同期会话模块引用已修正，实际工作区全部目标及 features 通过 |
+
+`git diff --cached --check` 通过。差异包含原生目录入口、类型、数据、独立测试和本证据。各阶段的槽位锁已释放，编译缓存已保留。

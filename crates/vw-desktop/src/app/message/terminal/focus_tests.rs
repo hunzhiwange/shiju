@@ -248,3 +248,17 @@ async fn terminal_focus_rename_modal_does_not_type_into_terminal_or_editor() {
     assert_eq!(h.app.preview_tabs[0].editor.content(), before);
     assert_ne!(h.app.terminal.tabs[0].edit_title, title_before);
 }
+
+#[tokio::test(flavor = "multi_thread")]
+async fn terminal_focus_repeated_clicks_and_keys_preserve_tab_and_pty_identity() {
+    let mut h = Harness::new().await;
+    let widget_id = h.app.terminal.tabs[0].term.widget_id().clone();
+    let id = h.app.terminal.tabs[0].id;
+    for _ in 0..20 {
+        h.click(Point::new(120.0, 360.0)).await;
+        assert_eq!(h.key().await, vec![b"x".to_vec()]);
+        assert_eq!(h.app.terminal.tabs.len(), 1);
+        assert_eq!(h.app.terminal.active_id, Some(id));
+        assert_eq!(h.app.terminal.tabs[0].term.widget_id(), &widget_id);
+    }
+}

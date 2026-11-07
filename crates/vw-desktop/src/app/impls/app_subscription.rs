@@ -10,6 +10,14 @@ use super::{App, Message, Screen};
 use crate::app::components::status_animation::ACTIVITY_ANIMATION_INTERVAL_MS;
 use crate::apps::workflow::state::WorkflowRunSubscriptionRequest;
 
+#[cfg(not(target_arch = "wasm32"))]
+fn terminal_subscription(term: &iced_term::Terminal) -> Subscription<Message> {
+    // Tab numbers restart for each project; subscriptions must follow the PTY instance.
+    term.subscription()
+        .with(term.widget_id().clone())
+        .map(|(_, event)| Message::Terminal(message::TerminalMessage::Event(event)))
+}
+
 fn needs_activity_animation_tick(app: &App, startup_transition_active: bool) -> bool {
     startup_transition_active
         || (app.show_cli_install_modal
@@ -159,11 +167,7 @@ impl App {
         let terminal_subs = {
             let mut subs: Vec<Subscription<Message>> = Vec::new();
             for t in &self.terminal.tabs {
-                subs.push(
-                    t.term
-                        .subscription()
-                        .map(|e| Message::Terminal(message::TerminalMessage::Event(e))),
-                );
+                subs.push(terminal_subscription(&t.term));
             }
             Subscription::batch(subs)
         };

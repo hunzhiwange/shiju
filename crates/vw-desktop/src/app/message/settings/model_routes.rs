@@ -1,19 +1,27 @@
-//! 处理系统设置页面中对应功能区的消息、校验和配置持久化。
-
-use crate::app::config::server_config_unreachable_error;
-use crate::app::config::update_system_settings_config;
+//! 模型路由草稿校验与共享异步保存。
+use super::messages::{ModelRoutesMessage, SettingsMessage};
+use super::routing_persistence;
 use crate::app::i18n::settings_models::messages::Feedback;
 use crate::app::{
-    App, Message, load_model_routes_config, load_query_classification_config,
+    App, Message,
     state::{ModelRoute, QueryClassificationRuleInput},
-    update_model_routes_config_result, update_query_classification_config_result,
 };
 use iced::Task;
 use vw_config_types::routing::{ClassificationRule, ModelRouteConfig};
 
-use super::messages::{ModelRoutesMessage, SettingsMessage};
+#[cfg(test)]
+#[path = "model_routes_tests.rs"]
+mod model_routes_tests;
 
-fn sync_to_config(app: &mut App) {
+fn queue_valid_routes(app: &mut App) -> Task<Message> {
+    if let Err(error) = validate_routes(app) {
+        app.model_routes_settings.persistence.route_invalid = true;
+        app.model_routes_settings.save_error = Some(error);
+        return Task::none();
+    }
+    app.model_routes_settings.persistence.route_invalid = false;
+    app.model_routes_settings.persistence.classification_invalid = false;
+    app.model_routes_settings.save_error = None;
     let ui_routes = app
         .model_routes_settings
         .routes
@@ -43,21 +51,6 @@ fn sync_to_config(app: &mut App) {
         })
         .collect::<Vec<_>>();
 
-    update_system_settings_config(|system| {
-        system.model_routes = ui_routes;
-    });
-    if let Err(err) = update_model_routes_config_result(|routes| {
-        *routes = model_routes;
-    }) {
-        app.model_routes_settings.save_error = Some((server_config_unreachable_error(err)).into());
-    }
-}
-
-#[cfg(test)]
-#[path = "model_routes_tests.rs"]
-mod model_routes_tests;
-
-fn sync_query_classification(app: &mut App) {
     let rules = app
         .model_routes_settings
         .routes
@@ -94,12 +87,15 @@ fn sync_query_classification(app: &mut App) {
         .collect();
     app.query_classification_settings.save_error = None;
 
-    if let Err(err) = update_query_classification_config_result(|cfg| {
-        cfg.rules = rules;
-        cfg.enabled = !cfg.rules.is_empty();
-    }) {
-        app.query_classification_settings.save_error = Some(server_config_unreachable_error(err));
-    }
+    app.query_classification_settings.save_error_translation = None;
+    routing_persistence::enqueue(
+        app,
+        serde_json::json!({
+            "app_ui": {"system_settings": {"model_routes": ui_routes}},
+            "model_routes": model_routes,
+            "query_classification": {"enabled": !rules.is_empty(), "rules": rules}
+        }),
+    )
 }
 
 fn validate_routes(app: &App) -> Result<Vec<ModelRouteConfig>, Feedback> {
@@ -140,135 +136,99 @@ fn validate_routes(app: &App) -> Result<Vec<ModelRouteConfig>, Feedback> {
     Ok(routes)
 }
 
-/// 处理 `update` 对应的用户输入、异步结果或状态转换。
-///
-/// 参数来自已匹配的消息载荷或当前设置状态，函数只在当前消息边界内产生状态变更。
-/// 返回的 `Task` 用于继续执行异步保存、加载或通知清理；没有后续动作时返回空任务。
 pub fn update(app: &mut App, message: SettingsMessage) -> Task<Message> {
     let SettingsMessage::ModelRoutes(message) = message else {
         return Task::none();
     };
-
     match message {
-        ModelRoutesMessage::Refresh => {
-            let routes = load_model_routes_config();
-            let query_classification = load_query_classification_config();
-            app.model_routes_settings.routes = routes
-                .into_iter()
-                .map(|route| {
-                    let hint = route.hint;
-                    ModelRoute {
-                        pattern: hint.clone(),
-                        provider: route.provider,
-                        model: route.model,
-                        priority_input: query_classification
-                            .rules
-                            .iter()
-                            .find(|rule| rule.hint == hint)
-                            .map(|rule| rule.priority.to_string())
-                            .unwrap_or_else(|| "0".to_string()),
-                    }
-                })
-                .collect();
-            app.query_classification_settings.enabled = query_classification.enabled;
-            app.query_classification_settings.rules = query_classification
-                .rules
-                .iter()
-                .map(|rule| QueryClassificationRuleInput {
-                    pattern: rule
-                        .patterns
-                        .first()
-                        .cloned()
-                        .or_else(|| rule.keywords.first().cloned())
-                        .unwrap_or_else(|| rule.hint.clone()),
-                    category: rule.hint.clone(),
-                    priority_input: rule.priority.to_string(),
-                })
-                .collect();
-            app.query_classification_settings.save_error = None;
-            app.model_routes_settings.save_error = if app.model_routes_settings.routes.is_empty()
-                && !query_classification.rules.is_empty()
+        ModelRoutesMessage::Refresh => return routing_persistence::refresh(app),
+        ModelRoutesMessage::SaveDue(revision) => {
+            return routing_persistence::save_due(app, revision);
+        }
+        ModelRoutesMessage::Saved(revision, result) => {
+            return routing_persistence::saved(app, revision, result);
+        }
+        ModelRoutesMessage::Loaded(revision, result) => {
+            if app.model_routes_settings.persistence.revision != revision
+                || app.model_routes_settings.persistence.dirty
+                || !app.model_routes_settings.persistence.load_is_current()
             {
-                Some(Feedback::owned(
-                    "已检测到 query_classification 规则，但桌面模型路由列表为空",
-                    vec![],
-                ))
-            } else {
-                None
-            };
-            Task::none()
+                return Task::none();
+            }
+            match result {
+                Ok((routes, classification)) => {
+                    app.model_routes_settings.routes = routes
+                        .into_iter()
+                        .map(|route| ModelRoute {
+                            priority_input: classification
+                                .rules
+                                .iter()
+                                .find(|rule| rule.hint == route.hint)
+                                .map(|rule| rule.priority.to_string())
+                                .unwrap_or_else(|| "0".into()),
+                            pattern: route.hint,
+                            provider: route.provider,
+                            model: route.model,
+                        })
+                        .collect();
+                    app.model_routes_settings.save_error =
+                        if app.model_routes_settings.routes.is_empty()
+                            && !classification.rules.is_empty()
+                        {
+                            Some(Feedback::owned(
+                                "已检测到 query_classification 规则，但桌面模型路由列表为空",
+                                vec![],
+                            ))
+                        } else {
+                            None
+                        };
+                    app.query_classification_settings.enabled = classification.enabled;
+                    app.query_classification_settings.rules = classification
+                        .rules
+                        .into_iter()
+                        .map(super::query_classification::rule_input_from_config)
+                        .collect();
+                    app.query_classification_settings.save_error = None;
+                    app.query_classification_settings.save_error_translation = None;
+                }
+                Err(error) => {
+                    let error = crate::app::config::server_config_unreachable_error(error);
+                    app.model_routes_settings.save_error = Some(error.clone().into());
+                    app.query_classification_settings.save_error = Some(error);
+                    app.query_classification_settings.save_error_translation = None;
+                }
+            }
+            return Task::none();
         }
         ModelRoutesMessage::AddRoute => {
-            app.model_routes_settings.routes.push(ModelRoute::default());
-            app.model_routes_settings.save_error = None;
-            sync_to_config(app);
-            sync_query_classification(app);
-            Task::none()
+            app.model_routes_settings.routes.push(ModelRoute::default())
         }
-        ModelRoutesMessage::RemoveRoute(idx) => {
-            if idx < app.model_routes_settings.routes.len() {
-                app.model_routes_settings.routes.remove(idx);
+        ModelRoutesMessage::RemoveRoute(index) => {
+            if index < app.model_routes_settings.routes.len() {
+                app.model_routes_settings.routes.remove(index);
             }
-            app.model_routes_settings.save_error = None;
-            sync_to_config(app);
-            sync_query_classification(app);
-            Task::none()
         }
-        ModelRoutesMessage::PatternChanged(idx, value) => {
-            if let Some(route) = app.model_routes_settings.routes.get_mut(idx) {
+        ModelRoutesMessage::PatternChanged(index, value) => {
+            if let Some(route) = app.model_routes_settings.routes.get_mut(index) {
                 route.pattern = value;
             }
-            match validate_routes(app) {
-                Ok(_) => {
-                    app.model_routes_settings.save_error = None;
-                    sync_to_config(app);
-                    sync_query_classification(app);
-                }
-                Err(err) => app.model_routes_settings.save_error = Some((err).into()),
-            }
-            Task::none()
         }
-        ModelRoutesMessage::ProviderChanged(idx, value) => {
-            if let Some(route) = app.model_routes_settings.routes.get_mut(idx) {
+        ModelRoutesMessage::ProviderChanged(index, value) => {
+            if let Some(route) = app.model_routes_settings.routes.get_mut(index) {
                 route.provider = value;
             }
-            match validate_routes(app) {
-                Ok(_) => {
-                    app.model_routes_settings.save_error = None;
-                    sync_to_config(app);
-                    sync_query_classification(app);
-                }
-                Err(err) => app.model_routes_settings.save_error = Some((err).into()),
-            }
-            Task::none()
         }
-        ModelRoutesMessage::ModelChanged(idx, value) => {
-            if let Some(route) = app.model_routes_settings.routes.get_mut(idx) {
+        ModelRoutesMessage::ModelChanged(index, value) => {
+            if let Some(route) = app.model_routes_settings.routes.get_mut(index) {
                 route.model = value;
             }
-            match validate_routes(app) {
-                Ok(_) => {
-                    app.model_routes_settings.save_error = None;
-                    sync_to_config(app);
-                    sync_query_classification(app);
-                }
-                Err(err) => app.model_routes_settings.save_error = Some((err).into()),
-            }
-            Task::none()
         }
-        ModelRoutesMessage::PriorityChanged(idx, value) => {
-            if let Some(route) = app.model_routes_settings.routes.get_mut(idx) {
+        ModelRoutesMessage::PriorityChanged(index, value) => {
+            if let Some(route) = app.model_routes_settings.routes.get_mut(index) {
                 route.priority_input = value;
             }
-            match validate_routes(app) {
-                Ok(_) => {
-                    app.model_routes_settings.save_error = None;
-                    sync_to_config(app);
-                    sync_query_classification(app);
-                }
-                Err(err) => app.model_routes_settings.save_error = Some((err).into()),
-            }
-            Task::none()
         }
     }
+    app.model_routes_settings.persistence.edited();
+    queue_valid_routes(app)
 }

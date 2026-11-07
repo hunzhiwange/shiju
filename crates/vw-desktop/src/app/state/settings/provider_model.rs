@@ -477,6 +477,7 @@ pub(crate) struct ModelRoute {
 /// 模型路由设置面板状态。
 #[derive(Debug, Clone, Default)]
 pub(crate) struct ModelRoutesSettingsState {
+    pub(crate) persistence: crate::app::message::settings::routing_persistence::RoutingPersistence,
     /// 路由列表。
     pub(crate) routes: Vec<ModelRoute>,
     /// 保存错误信息。

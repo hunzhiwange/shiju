@@ -31,6 +31,7 @@ mod proxy;
 mod query_classification;
 mod quick_messages;
 mod reliability;
+pub(crate) mod routing_persistence;
 mod runtime;
 mod scheduler;
 mod security;

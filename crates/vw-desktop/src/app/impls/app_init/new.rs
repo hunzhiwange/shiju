@@ -824,6 +824,7 @@ impl App {
                 save_success: false,
             },
             model_routes_settings: super::state::ModelRoutesSettingsState {
+                persistence: Default::default(),
                 routes: model_routes_cfg
                     .iter()
                     .map(|route| super::state::ModelRoute {

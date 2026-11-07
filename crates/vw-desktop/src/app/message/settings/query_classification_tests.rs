@@ -263,24 +263,42 @@ fn valid_field_edits_clear_validation_error_and_preserve_updated_values() {
 }
 
 #[test]
-fn refresh_reloads_default_config_and_clears_error_when_gateway_is_unavailable() {
+fn refresh_failure_preserves_draft_and_reports_error() {
     let mut app = app();
     app.query_classification_settings.enabled = true;
     app.query_classification_settings.rules = vec![QueryClassificationRuleInput {
-        pattern: "stale".to_string(),
-        category: "stale".to_string(),
-        priority_input: "9".to_string(),
+        pattern: "keep".into(),
+        category: "keep".into(),
+        priority_input: "9".into(),
     }];
-    app.query_classification_settings.save_error = Some("old".to_string());
-
     let _ =
         update(&mut app, SettingsMessage::QueryClassification(QueryClassificationMessage::Refresh));
-
-    assert!(app.query_classification_settings.save_error.is_none());
-    assert_eq!(
-        app.query_classification_settings.enabled,
-        load_query_classification_config().enabled
+    let revision = app.model_routes_settings.persistence.revision;
+    let _ = super::super::model_routes::update(
+        &mut app,
+        SettingsMessage::ModelRoutes(super::super::messages::ModelRoutesMessage::Loaded(
+            revision,
+            Err("offline".into()),
+        )),
     );
+    assert!(app.query_classification_settings.enabled);
+    assert_eq!(app.query_classification_settings.rules[0].category, "keep");
+    assert!(app.query_classification_settings.save_error.is_some());
+    let _ = update(
+        &mut app,
+        SettingsMessage::QueryClassification(QueryClassificationMessage::CategoryChanged(
+            0,
+            "new".into(),
+        )),
+    );
+    let _ = super::super::model_routes::update(
+        &mut app,
+        SettingsMessage::ModelRoutes(super::super::messages::ModelRoutesMessage::Loaded(
+            revision,
+            Ok((vec![], Default::default())),
+        )),
+    );
+    assert_eq!(app.query_classification_settings.rules[0].category, "new");
 }
 
 // 失败与边界：覆盖非法、缺失、过期或冲突场景的既定处理规则。

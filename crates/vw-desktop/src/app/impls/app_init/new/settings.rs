@@ -38,6 +38,7 @@ pub(super) fn build_model_routes_settings(
     let model_routes_cfg = &full_agent_cfg.model_routes;
 
     crate::app::state::ModelRoutesSettingsState {
+        persistence: Default::default(),
         routes: model_routes_cfg
             .iter()
             .map(|route| crate::app::state::ModelRoute {

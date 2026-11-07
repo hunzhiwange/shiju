@@ -80,6 +80,18 @@ mod messages_tests;
 /// 模型路由设置页消息。
 #[derive(Debug, Clone)]
 pub enum ModelRoutesMessage {
+    SaveDue(u64),
+    Saved(u64, Result<(), String>),
+    Loaded(
+        u64,
+        Result<
+            (
+                Vec<vw_config_types::routing::ModelRouteConfig>,
+                vw_config_types::routing::QueryClassificationConfig,
+            ),
+            String,
+        >,
+    ),
     Refresh,
     AddRoute,
     RemoveRoute(usize),

@@ -205,3 +205,166 @@ fn update_ignores_messages_for_other_settings_sections() {
     assert_eq!(app.model_routes_settings.routes[0].priority_input, "3");
     assert_eq!(app.model_routes_settings.save_error.as_deref(), Some("keep"));
 }
+
+#[cfg(not(target_arch = "wasm32"))]
+#[test]
+fn route_and_classification_edits_coalesce_without_blocking() {
+    use super::super::messages::QueryClassificationMessage as Q;
+    use super::super::query_classification;
+    use iced_runtime::futures::futures::StreamExt;
+    use serde_json::{Value, json};
+    use std::time::{Duration, Instant};
+    const TIMEOUT: Duration = Duration::from_secs(4);
+
+    fn run(
+        runtime: &tokio::runtime::Runtime,
+        task: Task<Message>,
+    ) -> tokio::task::JoinHandle<Message> {
+        let mut stream = iced_runtime::task::into_stream(task).expect("background task");
+        runtime.spawn(async move {
+            while let Some(action) = stream.next().await {
+                if let iced_runtime::Action::Output(message) = action {
+                    return message;
+                }
+            }
+            panic!("missing task result");
+        })
+    }
+    fn finish(
+        runtime: &tokio::runtime::Runtime,
+        task: tokio::task::JoinHandle<Message>,
+        app: &mut App,
+    ) -> Task<Message> {
+        let message =
+            runtime.block_on(async { tokio::time::timeout(TIMEOUT, task).await }).unwrap().unwrap();
+        let Message::Settings(message) = message else {
+            panic!("settings result");
+        };
+        update(app, message)
+    }
+    fn patch(request: String) -> Value {
+        assert!(request.starts_with("PATCH /v1/global/config "));
+        serde_json::from_str(request.split_once("\r\n\r\n").unwrap().1).unwrap()
+    }
+    crate::app::config::with_editor_settings_gateway(|mut app, requests, responses| {
+        let runtime = tokio::runtime::Builder::new_multi_thread()
+            .worker_threads(1)
+            .enable_all()
+            .build()
+            .unwrap();
+        app.model_routes_settings.routes = vec![route("chat", "openai", "gpt-5", "1")];
+        let started = Instant::now();
+        let stale = update(
+            &mut app,
+            SettingsMessage::ModelRoutes(ModelRoutesMessage::PatternChanged(0, "cod".into())),
+        );
+        let _ = update(
+            &mut app,
+            SettingsMessage::ModelRoutes(ModelRoutesMessage::PatternChanged(0, "code".into())),
+        );
+        let _ = update(
+            &mut app,
+            SettingsMessage::ModelRoutes(ModelRoutesMessage::PriorityChanged(0, "invalid".into())),
+        );
+        let _ = update(&mut app, SettingsMessage::ModelRoutes(ModelRoutesMessage::Refresh));
+        let latest = query_classification::update(
+            &mut app,
+            SettingsMessage::QueryClassification(Q::CategoryChanged(0, "latest".into())),
+        );
+        assert!(started.elapsed() < Duration::from_millis(200), "input blocked on gateway");
+        assert!(requests.try_recv().is_err(), "typing must not GET or PATCH");
+        assert!(
+            iced_runtime::task::into_stream(finish(&runtime, run(&runtime, stale), &mut app))
+                .is_none()
+        );
+        let save = finish(&runtime, run(&runtime, latest), &mut app);
+        let first = run(&runtime, save);
+        let first_patch = patch(requests.recv_timeout(TIMEOUT).unwrap());
+        assert_eq!(first_patch["app_ui"]["system_settings"]["model_routes"][0]["pattern"], "code");
+        assert_eq!(first_patch["app_ui"]["system_settings"]["model_routes"][0]["priority"], 1);
+        assert_eq!(first_patch["model_routes"][0]["hint"], "code");
+        assert_eq!(first_patch["query_classification"]["rules"][0]["hint"], "latest");
+        assert_eq!(first_patch.as_object().unwrap().len(), 3);
+        assert_eq!(first_patch["query_classification"].as_object().unwrap().len(), 2);
+
+        // The first PATCH remains behind the HTTP gate while the next batch and
+        // tab refresh are processed. Invalid drafts never replace valid snapshots.
+        let started = Instant::now();
+        let _ = query_classification::update(
+            &mut app,
+            SettingsMessage::QueryClassification(Q::AddRule),
+        );
+        let _ = query_classification::update(
+            &mut app,
+            SettingsMessage::QueryClassification(Q::RemoveRule(1)),
+        );
+        let pending = query_classification::update(
+            &mut app,
+            SettingsMessage::QueryClassification(Q::EnabledToggled(false)),
+        );
+        let _ = query_classification::update(
+            &mut app,
+            SettingsMessage::QueryClassification(Q::CategoryChanged(0, "".into())),
+        );
+        let _ = query_classification::update(
+            &mut app,
+            SettingsMessage::QueryClassification(Q::Refresh),
+        );
+        assert!(started.elapsed() < Duration::from_millis(200));
+        assert!(
+            iced_runtime::task::into_stream(finish(&runtime, run(&runtime, pending), &mut app))
+                .is_none()
+        );
+        assert!(requests.try_recv().is_err(), "only one request may be in flight");
+        responses.send(Some("{}".into())).unwrap();
+        let second_task = finish(&runtime, first, &mut app);
+        let second = run(&runtime, second_task);
+        let second_patch = patch(requests.recv_timeout(TIMEOUT).unwrap());
+        assert_eq!(second_patch.as_object().unwrap().len(), 1);
+        assert_eq!(second_patch["query_classification"]["enabled"], false);
+        assert_eq!(second_patch["query_classification"]["rules"][0]["hint"], "latest");
+        responses.send(None).unwrap();
+        let _ = finish(&runtime, second, &mut app);
+        assert_eq!(app.query_classification_settings.rules[0].category, "");
+        assert!(
+            app.query_classification_settings.save_error.as_deref().unwrap().contains("category")
+        );
+        assert_eq!(app.model_routes_settings.routes[0].priority_input, "invalid");
+        assert!(requests.try_recv().is_err(), "failed save must not retry indefinitely");
+
+        // Explicit refresh retries the saved valid snapshot, retaining invalid UI text.
+        let retry = run(
+            &runtime,
+            update(&mut app, SettingsMessage::ModelRoutes(ModelRoutesMessage::Refresh)),
+        );
+        let retry_patch = patch(requests.recv_timeout(TIMEOUT).unwrap());
+        assert_eq!(retry_patch, second_patch);
+        responses.send(Some("{}".into())).unwrap();
+        let _ = finish(&runtime, retry, &mut app);
+        assert_eq!(app.query_classification_settings.rules[0].category, "");
+
+        // Read back via the real gateway client, including unrelated configuration.
+        let mut persisted = json!({
+            "model_routes": first_patch["model_routes"],
+            "app_ui": {"system_settings": {"model_routes": first_patch["app_ui"]["system_settings"]["model_routes"], "terminal_font_size": 19}},
+            "query_classification": second_patch["query_classification"],
+            "embedding_routes": [{"hint": "keep", "provider": "local", "model": "embed"}]
+        });
+        persisted["query_classification"]["unmanaged"] = json!("keep");
+        let reload = runtime.spawn(crate::app::config::load_global_config_value_async());
+        assert!(requests.recv_timeout(TIMEOUT).unwrap().starts_with("GET /v1/global/config "));
+        responses.send(Some(persisted.to_string())).unwrap();
+        let loaded = runtime.block_on(reload).unwrap().unwrap();
+        assert_eq!(loaded["query_classification"]["unmanaged"], "keep");
+        let loaded: vw_config_types::config::Config = serde_json::from_value(loaded).unwrap();
+        assert!(!loaded.query_classification.enabled);
+        assert_eq!(loaded.query_classification.rules[0].hint, "latest");
+        assert_eq!(loaded.model_routes[0].hint, "code");
+        assert_eq!(loaded.embedding_routes[0].hint, "keep");
+        assert_eq!(loaded.app_ui.system_settings.model_routes[0].priority, 1);
+        assert_eq!(loaded.app_ui.system_settings.terminal_font_size, 19.0);
+        eprintln!(
+            "typing GET/PATCH=0/0; first batch PATCH=1; in-flight coalesced PATCH=1; retry PATCH=1; readback GET=1; latest classification=latest/disabled; invalid drafts preserved"
+        );
+    });
+}

@@ -42,6 +42,7 @@ impl Fixture {
         }
         let router = Router::new()
             .merge(super::claude::router_with_context(context.clone()))
+            .merge(super::paths::router_with_policy(Some(policy.clone())))
             .route(
                 "/app-providers/{app}/{id}",
                 post(super::create::create).put(super::save).patch(super::update::update),
@@ -94,6 +95,73 @@ impl Fixture {
             )
             .unwrap()
     }
+}
+
+#[tokio::test]
+async fn cc04_ui_paths_saved_directory_is_used_by_native_activation_and_import() {
+    use vw_api_types::app_providers::paths::*;
+    use vw_gateway_client::AgentAppsReadError;
+
+    let f = Fixture::new().await;
+    let original = std::fs::read(f.file()).unwrap();
+    let directory = f.root.path().join("供应商配置");
+    std::fs::create_dir(&directory).unwrap();
+    let host = ProviderDirectoryQuery { target_host_id: "host".into() };
+    let update = ProviderDirectoryUpdate {
+        target_host_id: host.target_host_id.clone(),
+        action: DirectoryOverride::Set { directory: "~/供应商配置".into() },
+    };
+    let mut denied = update.clone();
+    denied.target_host_id = "other-host".into();
+    assert!(matches!(
+        f.client.app_provider_directory_save(AppId::Claude, &denied, TOKEN).await,
+        Err(AgentAppsReadError::Http { status: 403, .. })
+    ));
+    assert!(!f.root.path().join("private/provider-live").exists());
+    let stored = f.client.app_provider_directory_save(AppId::Claude, &update, TOKEN).await.unwrap();
+    assert_eq!(stored.paths.directory, directory.to_str().unwrap());
+    assert_eq!(stored.paths.files[0].state, ConfigPathState::Absent);
+
+    let new_client = GatewayClient::new(f.client.endpoint().clone()).unwrap();
+    let stored = new_client.app_provider_directory(AppId::Claude, &host, TOKEN).await.unwrap();
+    assert_eq!(stored.directory_override.as_deref(), directory.to_str());
+    let first = f.request(
+        ClaudeConfig::ThirdParty {
+            base_url: "https://fixture.example".into(),
+            api_key: "fake-override-key".into(),
+            api_key_header: false,
+        },
+        ClaudeActivation::First,
+    );
+    assert_eq!(
+        new_client.claude_provider_create("override", &first, TOKEN).await.unwrap().live,
+        ClaudeLiveResult::Applied
+    );
+    let live: Value =
+        serde_json::from_slice(&std::fs::read(directory.join("settings.json")).unwrap()).unwrap();
+    assert_eq!(live["env"]["ANTHROPIC_AUTH_TOKEN"], "fake-override-key");
+    new_client
+        .claude_provider_import(
+            "imported",
+            &ClaudeImport { target_host_id: "host".into(), name: "Imported".into() },
+            TOKEN,
+        )
+        .await
+        .unwrap();
+    assert_eq!(
+        serde_json::from_str::<Value>(&f.record("imported").unwrap()).unwrap()["settingsConfig"]["env"]
+            ["ANTHROPIC_AUTH_TOKEN"],
+        "fake-override-key"
+    );
+    let reset = ProviderDirectoryUpdate {
+        target_host_id: host.target_host_id.clone(),
+        action: DirectoryOverride::Reset {},
+    };
+    assert!(matches!(
+        new_client.app_provider_directory_save(AppId::Claude, &reset, TOKEN).await,
+        Err(AgentAppsReadError::Http { status: 409, .. })
+    ));
+    assert_eq!(std::fs::read(f.file()).unwrap(), original);
 }
 #[tokio::test]
 async fn cc04_claude_sdk_api_switches_four_variants_and_cleans_credentials() {

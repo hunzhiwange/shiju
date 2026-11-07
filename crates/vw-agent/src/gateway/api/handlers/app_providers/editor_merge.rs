@@ -154,8 +154,10 @@ fn open_sync(
     }
     let current = state.pointer.as_ref().is_some_and(|p| p.id == id);
     let (base, identity) = if current {
-        let file =
-            business::ClaudeFile::open(&home).map_err(|_| StatusCode::UNPROCESSABLE_ENTITY)?;
+        let directory =
+            super::paths::saved_claude_directory(Some(&root), &req.target_host_id, &tenant)?;
+        let file = business::ClaudeFile::open_selected(&home, directory.as_ref())
+            .map_err(|_| StatusCode::UNPROCESSABLE_ENTITY)?;
         (
             business::project(&file.bytes, row).map_err(|_| StatusCode::UNPROCESSABLE_ENTITY)?,
             Some(file.identity),
@@ -231,7 +233,12 @@ pub(super) fn save_sync(
         return Err(StatusCode::CONFLICT);
     }
     let mut file = if ctx.current {
-        Some(business::ClaudeFile::open(&home).map_err(|_| StatusCode::UNPROCESSABLE_ENTITY)?)
+        let directory =
+            super::paths::saved_claude_directory(Some(&root), &req.target_host_id, &tenant)?;
+        Some(
+            business::ClaudeFile::open_selected(&home, directory.as_ref())
+                .map_err(|_| StatusCode::UNPROCESSABLE_ENTITY)?,
+        )
     } else {
         None
     };

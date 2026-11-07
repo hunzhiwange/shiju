@@ -47,7 +47,7 @@ fn profile(raw: Option<&str>) -> Result<Option<&str>, &'static str> {
     }
     Ok(Some(name))
 }
-fn bounded(home: &Path, raw: &str) -> Result<PathBuf, &'static str> {
+pub(crate) fn bounded(home: &Path, raw: &str) -> Result<PathBuf, &'static str> {
     if raw.is_empty() || raw.len() > 4096 || raw.chars().any(char::is_control) {
         return Err("invalid configuration directory");
     }
@@ -72,6 +72,18 @@ fn bounded(home: &Path, raw: &str) -> Result<PathBuf, &'static str> {
 /// The trusted HOME is opened once, so replacing a descendant cannot redirect traversal.
 #[cfg(unix)]
 fn probe(home: &Path, path: &Path, directory: bool) -> ConfigPathState {
+    match open_beneath(home, path, directory) {
+        Ok(_) => ConfigPathState::Present,
+        Err(state) => state,
+    }
+}
+
+#[cfg(unix)]
+pub(crate) fn open_beneath(
+    home: &Path,
+    path: &Path,
+    directory: bool,
+) -> Result<std::fs::File, ConfigPathState> {
     use ConfigPathState::*;
     use std::{
         fs::OpenOptions,
@@ -81,22 +93,22 @@ fn probe(home: &Path, path: &Path, directory: bool) -> ConfigPathState {
         },
     };
     let Ok(relative) = path.strip_prefix(home) else {
-        return Inaccessible;
+        return Err(Inaccessible);
     };
     let Ok(mut file) = OpenOptions::new()
         .read(true)
         .custom_flags(libc::O_DIRECTORY | libc::O_NOFOLLOW | libc::O_CLOEXEC)
         .open(home)
     else {
-        return Inaccessible;
+        return Err(Inaccessible);
     };
     let parts: Vec<_> = relative.components().collect();
     for (index, part) in parts.iter().enumerate() {
         let Component::Normal(name) = part else {
-            return Inaccessible;
+            return Err(Inaccessible);
         };
         let Ok(name) = std::ffi::CString::new(name.as_bytes()) else {
-            return Inaccessible;
+            return Err(Inaccessible);
         };
         let last = index + 1 == parts.len();
         let flags = libc::O_RDONLY
@@ -107,18 +119,20 @@ fn probe(home: &Path, path: &Path, directory: bool) -> ConfigPathState {
         // SAFETY: file owns a live directory descriptor; name is one NUL-terminated component.
         let fd = unsafe { libc::openat(file.as_raw_fd(), name.as_ptr(), flags) };
         if fd < 0 {
-            return if std::io::Error::last_os_error().kind() == std::io::ErrorKind::NotFound {
-                Absent
-            } else {
-                Inaccessible
-            };
+            return Err(
+                if std::io::Error::last_os_error().kind() == std::io::ErrorKind::NotFound {
+                    Absent
+                } else {
+                    Inaccessible
+                },
+            );
         }
         // SAFETY: openat returned a fresh descriptor, consumed exactly once.
         file = unsafe { std::fs::File::from_raw_fd(fd) };
     }
     match file.metadata() {
-        Ok(meta) if if directory { meta.is_dir() } else { meta.is_file() } => Present,
-        _ => Inaccessible,
+        Ok(meta) if if directory { meta.is_dir() } else { meta.is_file() } => Ok(file),
+        _ => Err(Inaccessible),
     }
 }
 #[cfg(not(unix))]

@@ -76,3 +76,6 @@ mod env_tests;
 pub(crate) mod mode;
 #[cfg(test)]
 mod mode_tests;
+pub(crate) mod paths;
+#[cfg(test)]
+mod paths_tests;

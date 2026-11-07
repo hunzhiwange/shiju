@@ -193,7 +193,8 @@ struct Host {
     tx: vw_agent_apps::providers::live::commit::ProviderTransactions,
     state: vw_agent_apps::providers::live::commit::AppState,
     previous: Option<serde_json::Value>,
-    login: vw_agent_apps::providers::claude_login::LoginHost,
+    login: Option<vw_agent_apps::providers::claude_login::LoginHost>,
+    _directory_lock: std::fs::File,
     root: PathBuf,
     host_id: String,
 }
@@ -208,26 +209,17 @@ impl Host {
         store: &AppProviderStore,
         id: &str,
     ) -> Result<Option<Self>, StatusCode> {
-        use vw_agent_apps::providers::live::commit::*;
+        use vw_agent_apps::providers::live::commit::AppState;
         if activation == ClaudeActivation::CatalogOnly {
             return Ok(None);
         }
-        let observed = ProviderTransactions::open_existing(
-            root,
-            ExecutionHostId::new(host).map_err(|_| StatusCode::BAD_REQUEST)?,
-        )
-        .map_err(|_| StatusCode::CONFLICT)?;
-        let observed_state = observed
-            .as_ref()
-            .map(|tx| tx.state(AppId::Claude))
-            .transpose()
-            .map_err(|_| StatusCode::CONFLICT)?
-            .unwrap_or_default();
+        let tx = super::paths::transactions(root, host)?;
+        let directory_lock = tx.lock_claude_directory().map_err(super::paths::directory_error)?;
+        let directory = tx.claude_directory(tenant).map_err(super::paths::directory_error)?;
+        let observed_state = tx.state(AppId::Claude).map_err(|_| StatusCode::CONFLICT)?;
         if observed_state.mode.as_ref().is_some_and(|m| m.attached)
             || observed_state.pointer.as_ref().is_some_and(|p| p.tenant != *tenant)
-            || observed
-                .as_ref()
-                .is_some_and(|tx| tx.pending(AppId::Claude).map_or(true, |p| p.is_some()))
+            || tx.pending(AppId::Claude).map_or(true, |p| p.is_some())
         {
             return Err(StatusCode::CONFLICT);
         }
@@ -241,13 +233,12 @@ impl Host {
         if !eligible(&observed_state) {
             return Ok(None);
         }
-        let file = vw_agent_apps::providers::claude::ClaudeFile::open(home, true)
-            .map_err(|_| StatusCode::UNPROCESSABLE_ENTITY)?;
-        let tx = ProviderTransactions::new(
-            root,
-            ExecutionHostId::new(host).map_err(|_| StatusCode::BAD_REQUEST)?,
+        let file = vw_agent_apps::providers::claude::ClaudeFile::open_selected(
+            home,
+            directory.as_ref(),
+            true,
         )
-        .map_err(|_| StatusCode::CONFLICT)?;
+        .map_err(|_| StatusCode::UNPROCESSABLE_ENTITY)?;
         // commit recovers under its host lock; do not overwrite a pending intent with new catalog data.
         if tx.pending(AppId::Claude).map_err(|_| StatusCode::CONFLICT)?.is_some() {
             return Err(StatusCode::CONFLICT);
@@ -271,9 +262,24 @@ impl Host {
         if state.pointer.is_some() && previous.is_none() {
             return Err(StatusCode::CONFLICT);
         }
-        let login = vw_agent_apps::providers::claude_login::LoginHost::open(home)
-            .map_err(|_| StatusCode::CONFLICT)?;
-        Ok(Some(Self { file, tx, state, previous, login, root: root.into(), host_id: host.into() }))
+        let login = if directory.is_none() {
+            Some(
+                vw_agent_apps::providers::claude_login::LoginHost::open(home)
+                    .map_err(|_| StatusCode::CONFLICT)?,
+            )
+        } else {
+            None
+        };
+        Ok(Some(Self {
+            file,
+            tx,
+            state,
+            previous,
+            login,
+            _directory_lock: directory_lock,
+            root: root.into(),
+            host_id: host.into(),
+        }))
     }
 }
 async fn switch(
@@ -380,7 +386,7 @@ async fn import(
     let result = tokio::task::spawn_blocking(move || -> Result<ClaudeResult, StatusCode> {
         #[cfg(target_os = "macos")]
         {
-            let (home, _) = super::super::agent_apps::provider_editor_context(
+            let (home, root) = super::super::agent_apps::provider_editor_context(
                 policy.0.as_deref(),
                 &headers,
                 &tenant,
@@ -395,8 +401,14 @@ async fn import(
                 &req.target_host_id,
                 false,
             )?;
-            let file = vw_agent_apps::providers::claude::ClaudeFile::open(&home, false)
-                .map_err(|_| StatusCode::UNPROCESSABLE_ENTITY)?;
+            let directory =
+                super::paths::saved_claude_directory(Some(&root), &req.target_host_id, &tenant)?;
+            let file = vw_agent_apps::providers::claude::ClaudeFile::open_selected(
+                &home,
+                directory.as_ref(),
+                false,
+            )
+            .map_err(|_| StatusCode::UNPROCESSABLE_ENTITY)?;
             let profile = vw_agent_apps::providers::claude::import(
                 &req.name,
                 file.bytes.as_deref().ok_or(StatusCode::NOT_FOUND)?,

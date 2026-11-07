@@ -319,7 +319,11 @@ impl ProviderTransactions {
         self.directory.sync_all().map_err(|_| WriteError::Io)
     }
     pub(super) fn lock(&self, app: AppId) -> Result<File, WriteError> {
-        let name = CString::new(filename(app, "lock")).map_err(|_| WriteError::InvalidResource)?;
+        self.lock_named(app, "lock")
+    }
+
+    pub(super) fn lock_named(&self, app: AppId, kind: &str) -> Result<File, WriteError> {
+        let name = CString::new(filename(app, kind)).map_err(|_| WriteError::InvalidResource)?;
         // SAFETY: retained directory and validated generated name; owns returned fd.
         let fd = unsafe {
             libc::openat(

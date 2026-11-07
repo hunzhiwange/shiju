@@ -32,7 +32,7 @@ pub(crate) async fn connect(
 }
 
 /// Only our private local grant may default to this machine's existing CLI configuration.
-pub(super) fn launch_directory(
+pub(crate) fn launch_directory(
     client: &GatewayClient,
     host: &str,
     token: &str,

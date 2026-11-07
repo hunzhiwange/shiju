@@ -197,6 +197,17 @@ pub struct ClaudeFile {
 }
 #[cfg(target_os = "macos")]
 impl ClaudeFile {
+    pub fn open_selected(
+        home: &std::path::Path,
+        selected: Option<&super::live::claude_directory::ClaudeDirectory>,
+        create: bool,
+    ) -> Result<Self, WriteError> {
+        match selected {
+            Some(selected) => Self::from_directory(selected.open(home)?),
+            None => Self::open(home, create),
+        }
+    }
+
     pub fn open(home: &std::path::Path, create: bool) -> Result<Self, WriteError> {
         use std::os::{
             fd::{AsRawFd, FromRawFd},
@@ -227,6 +238,10 @@ impl ClaudeFile {
             return Err(WriteError::InvalidResource);
         }
         let directory = unsafe { std::fs::File::from_raw_fd(fd) };
+        Self::from_directory(directory)
+    }
+
+    fn from_directory(directory: std::fs::File) -> Result<Self, WriteError> {
         let guard = super::live::write_guard::lock_directory(
             vw_api_types::agent_apps::AppId::Claude,
             directory,

@@ -32,3 +32,4 @@ mod preview;
 mod env;
 
 mod mode;
+mod paths;

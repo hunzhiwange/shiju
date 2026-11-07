@@ -7,6 +7,7 @@ mod cc04_endpoints_fixture;
 mod cc04_env_fixture;
 mod cc04_icons_fixture;
 mod cc04_mode_fixture;
+mod cc04_paths_fixture;
 mod cc04_preview_fixture;
 mod cc04_snippets_fixture;
 mod cc04_universal_fixture;
@@ -20,7 +21,7 @@ fn main() {
     let case = std::env::var("SHIJU_CC04_WINDOW_CASE").expect("window case");
     let (app, native_form) = match case.as_str() {
         "list" | "edit" | "endpoints" | "icons" | "universal" | "snippets" | "preview" | "env"
-        | "mode" => (AppId::Claude, false),
+        | "mode" | "paths" => (AppId::Claude, false),
         "claude" => (AppId::Claude, true),
         "codex" => (AppId::Codex, true),
         "gemini" => (AppId::Gemini, true),
@@ -91,6 +92,7 @@ fn main() {
         "preview" => "配置预览与冲突确认隔离验收",
         "env" => "环境诊断隔离验收",
         "mode" => "供应商模式隔离验收",
+        "paths" => "配置目录隔离验收",
         "dsh" => "Dsh 供应商隔离验收",
         "kimi" => "Kimi 供应商隔离验收",
         "claude" => "Claude Code 供应商隔离验收",
@@ -138,6 +140,7 @@ fn fixture(
     let preview = case == "preview";
     let env = case == "env";
     let mode = case == "mode";
+    let paths = case == "paths";
     let server = std::thread::spawn(move || {
         let mut presentation = serde_json::json!({"sortIndex":1,"category":"工作","notes":"中文动态备注：实际字体整形验收。"});
         let provider_count = if mode { 26 } else { 16 };
@@ -298,6 +301,7 @@ fn fixture(
         let mut universal_fixture = universal.then(cc04_universal_fixture::Fixture::default);
         let mut snippets_fixture = snippets.then(cc04_snippets_fixture::Fixture::new);
         let mut mode_fixture = mode.then(cc04_mode_fixture::Fixture::default);
+        let mut paths_fixture = paths.then(cc04_paths_fixture::Fixture::default);
         let mut env_fixture = env.then(cc04_env_fixture::Fixture::default);
         let mut preview_fixture = preview.then(cc04_preview_fixture::Fixture::default);
         let mut icons_fixture = icons.then(cc04_icons_fixture::Fixture::new);
@@ -376,8 +380,14 @@ fn fixture(
             let mode_response = mode_fixture.as_mut().and_then(|fixture| {
                 fixture.handle(line.split_whitespace().next().unwrap_or(""), path, &payload)
             });
-            let body = if let Some((code, value)) =
-                mode_response.or(env_response).or(preview_response).or(snippets_response)
+            let paths_response = paths_fixture.as_mut().and_then(|fixture| {
+                fixture.handle(line.split_whitespace().next().unwrap_or(""), path, &payload)
+            });
+            let body = if let Some((code, value)) = paths_response
+                .or(mode_response)
+                .or(env_response)
+                .or(preview_response)
+                .or(snippets_response)
             {
                 assert!(head.to_lowercase().contains("x-agent-apps-token: fake-host-token"));
                 status = code;

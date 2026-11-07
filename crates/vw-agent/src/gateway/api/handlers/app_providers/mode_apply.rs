@@ -64,7 +64,7 @@ fn execute(
     app: AppId,
     request: ModeApplyRequest,
 ) -> Result<ModeApplyResult, StatusCode> {
-    use vw_agent_apps::providers::{claude::ClaudeFile, live::commit::*, mode_apply::*};
+    use vw_agent_apps::providers::{claude::ClaudeFile, mode_apply::*};
     if app != AppId::Claude {
         return Err(StatusCode::UNPROCESSABLE_ENTITY);
     }
@@ -81,17 +81,10 @@ fn execute(
     let store = crate::app_providers::AppProviderStore::new(database)
         .map_err(|_| StatusCode::SERVICE_UNAVAILABLE)?;
     // Inspect the existing owner before provisioning any native or state directory.
-    let existing = ProviderTransactions::open_existing(
-        root,
-        ExecutionHostId::new(&request.target_host_id).map_err(|_| StatusCode::BAD_REQUEST)?,
-    )
-    .map_err(|_| StatusCode::CONFLICT)?;
-    let state = existing
-        .as_ref()
-        .map(|tx| tx.state(app))
-        .transpose()
-        .map_err(|_| StatusCode::CONFLICT)?
-        .unwrap_or_default();
+    let tx = super::paths::transactions(root, &request.target_host_id)?;
+    let _directory_lock = tx.lock_claude_directory().map_err(super::paths::directory_error)?;
+    let directory = tx.claude_directory(&tenant).map_err(super::paths::directory_error)?;
+    let state = tx.state(app).map_err(|_| StatusCode::CONFLICT)?;
     vw_agent_apps::providers::mode_state::observe(&state, &tenant)
         .map_err(|_| StatusCode::FORBIDDEN)?;
     // Keep a restorable direct row pinned while attaching. Native-account
@@ -127,12 +120,8 @@ fn execute(
         return Err(StatusCode::UNPROCESSABLE_ENTITY);
     }
     let settings = row.get("settingsConfig").ok_or(StatusCode::UNPROCESSABLE_ENTITY)?;
-    let mut file = ClaudeFile::open(home, true).map_err(|_| StatusCode::UNPROCESSABLE_ENTITY)?;
-    let tx = ProviderTransactions::new(
-        root,
-        ExecutionHostId::new(&request.target_host_id).map_err(|_| StatusCode::BAD_REQUEST)?,
-    )
-    .map_err(|_| StatusCode::CONFLICT)?;
+    let mut file = ClaudeFile::open_selected(home, directory.as_ref(), true)
+        .map_err(|_| StatusCode::UNPROCESSABLE_ENTITY)?;
     if tx.state(app).map_err(|_| StatusCode::CONFLICT)? != state {
         return Err(StatusCode::CONFLICT);
     }

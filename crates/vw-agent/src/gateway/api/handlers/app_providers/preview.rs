@@ -96,6 +96,17 @@ async fn read(
             &tenant,
             &request.target_host_id,
         )?;
+        #[cfg(target_os = "macos")]
+        if app == AppId::Claude && request.directory_override.is_none() {
+            request.directory_override = super::paths::saved_claude_directory(
+                private_root.as_deref(),
+                &request.target_host_id,
+                &tenant,
+            )?
+            .map(|directory| directory.validated_path(&home).map(str::to_owned))
+            .transpose()
+            .map_err(super::paths::directory_error)?;
+        }
         let owner = owner(
             private_root.as_deref(),
             &request.target_host_id,

@@ -3396,3 +3396,46 @@ macOS **27.0（26A428）/ arm64**，桌面 **0.6.0**。批次 52 窗口新增 `m
 - 浅色：[状态](evidence/task-74/light-status.jpg)、[长列表](evidence/task-74/light-scroll.jpg)、[取消](evidence/task-74/light-cancel.jpg)、[校验失败](evidence/task-74/light-rejected.jpg)、[恢复直连](evidence/task-74/light-direct.jpg)。
 
 差异审查及暂存检查通过，仅提交任务 74 的桌面源码、独立测试、窗口夹具和本条证据。只读 `plan.md` 无差异，槽位 1、2 的本任务锁已释放，缓存保留。状态为 **已完成**。下一步批次 75。
+
+## 任务 75：桌面配置路径覆盖
+
+2026-11-08。核对批次 74（`58d3a0509`）、批次 12 的路径契约及批次 52 的原生窗口入口。母任务 1、3 已完成，母任务 2 沿用底座子计划 1–93 的开工裁定。来源快照 `ca58c0313360eae7c851fbd7553c1614c7af03e7`，核对 `get_config_status`、`get_config_dir`、`open_config_folder`、设置保存、目录钩子及相邻测试。
+
+- macOS Claude Code 的供应商列表新增“配置目录”。桌面经 `GatewayClient::app_provider_directory` / `app_provider_directory_save` 调用 `GET/PUT /v1/app-providers/claude/config/directory`。读取需配置读取授权，设置和清除另需配置写授权。Gateway 从授权执行主机的 HOME 解析目录，复用无符号链接遍历，在私有主机事务根持久化目录和物理身份，并校验租户归属。外主机、无授权、越界或目录被替换时拒绝。
+- 同一目录选择接到路径状态、预览、原生激活、重新应用、导入、冲突编辑及模式操作。目录切换与原生写入使用主机锁串行化。已有生效供应商或未完成事务时拒绝改目录，旧事务继续按登记的物理目录恢复。第三方供应商可使用覆盖目录。绑定账号的原生登录仍由既有登录适配器负责。没有迁移现有文件或改变外部终端启动的 Claude Code 环境。
+- 本机打开重新读取当前授权路径，对照本机私有租户凭据，并验证目录仍位于本机 HOME 后调用 Finder。远端结果不能触发本机打开。其余应用的写入位置仍由各自适配器管理。
+
+### 验证记录
+
+实际槽位按原子 `mkdir` 动态领取，`CARGO_BUILD_BUILD_DIR` 与对应的 `CARGO_TARGET_DIR` 设为同一绝对路径。
+
+| 槽位 | CARGO_TARGET_DIR | 用途 |
+| --- | --- | --- |
+| 1 | `/Users/xiangmin/worker/code/shiju/target/rust-slot-1` | 初次窗口构建与重试 |
+| 2 | `/Users/xiangmin/worker/code/shiju/target/rust-slot-2` | 桌面红测、原生聚焦、严格 Clippy |
+| 3 | `/Users/xiangmin/worker/code/shiju/target/rust-slot-3` | 桌面绿测、真实 Gateway 聚焦及相关回归 |
+| 4 | `/Users/xiangmin/worker/code/shiju/target/rust-slot-4` | 明暗原生窗口 |
+| 7 | `/Users/xiangmin/worker/code/shiju/target/rust-slot-7` | 隔离检出复核 Gateway、相关回归与严格 Clippy |
+
+| 确切命令 | 退出码 | 有效结果 |
+| --- | --- | --- |
+| `cargo fmt --all` | 0 | 红测前及实现后 |
+| `cargo test -p vw-desktop --lib cc04_ui_paths_ -- --nocapture`（红） | 101 | 2 项业务断言失败，分别复现失败丢草稿和过期响应被接受 |
+| 同一桌面命令（绿） | 0 | 2 通过 |
+| `cargo test -p vw-agent-apps --lib cc04_ui_paths_ -- --nocapture` | 0 | 1 通过，持久目录回读、租户隔离、拒绝替换后的目录和清除覆盖 |
+| `cargo test -p vw-agent --lib cc04_ui_paths_ -- --nocapture` | 0 | 1 通过，共享检出与隔离检出结果相同 |
+| `cargo test -p vw-agent --lib cc04_claude -- --nocapture` | 0 | 15 通过 |
+| `cargo test -p vw-agent --lib cc04_mode_apply_ -- --nocapture` | 0 | 4 通过 |
+| `cargo test -p vw-agent --lib cc04_editor_ -- --nocapture` | 0 | 6 通过 |
+| `cargo clippy --all-targets --all-features -- -D warnings` | 0 | 全部 targets/features |
+| `SHIJU_CC04_WINDOW_CASE=paths SHIJU_CC04_WINDOW_THEME=dark cargo test -p vw-desktop --test cc04-provider-window` | 0 | 深色实操后关闭 |
+| `SHIJU_CC04_WINDOW_CASE=paths SHIJU_CC04_WINDOW_THEME=light cargo test -p vw-desktop --test cc04-provider-window` | 0 | 浅色实操后关闭 |
+
+真实回环 HTTP 测试使用隔离 SQLite、私有事务根、临时 HOME 和假凭据。SDK 对外主机保存得 403，拒绝发生在创建事务目录之前。保存 `~/供应商配置` 后，新 SDK 实例读回绝对路径。首次激活在该目录写入 `settings.json`，从同一文件导入可以读到刚写入的假密钥，默认目录文件字节一致。激活后尝试清除覆盖得 409。早期检查曾遇到共享工作区并行变更造成的编译失败，复核时以以上成功命令为准。链接器既有 unwind 提示不影响测试结果。
+
+macOS **27.0（26A428）/ arm64**，桌面 **0.6.0**。两个窗口命令使用临时 Cargo runner 包装槽位内同一测试产物，真实 Iced 组件经生产 Message 和 SDK 调用隔离的回环夹具。明暗两种主题均执行了越界保存失败、保留中文草稿、修正后保存、改稿取消及重开回读。滚到第 22 条中文动态路径时标题和操作区固定，采用统一的 4px 滚动条及两侧 7px 留白。两次运行均无字形整形 panic。夹具目标不是可信本机，打开按钮保持禁用。未对真实用户目录执行 Finder 打开，未验收外部 Claude CLI、第三方账号及非 macOS 平台。
+
+- 深色：[校验失败](evidence/task-75/dark-rejected.jpg)、[保存](evidence/task-75/dark-saved.jpg)、[长列表](evidence/task-75/dark-scroll.jpg)、[取消后回读](evidence/task-75/dark-readback.jpg)。
+- 浅色：[校验失败](evidence/task-75/light-rejected.jpg)、[保存](evidence/task-75/light-saved.jpg)、[长列表](evidence/task-75/light-scroll.jpg)、[取消后回读](evidence/task-75/light-readback.jpg)。
+
+定向差异检查通过，只读 `plan.md` 无差异。本任务的全部槽位锁已释放，保留编译缓存。任务 75 已完成。下一步批次 76。

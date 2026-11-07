@@ -32,7 +32,7 @@ impl super::Host {
         {
             return ClaudeLiveResult::Failed;
         }
-        if self.login.recover(&self.tx, keychain).is_err() {
+        if self.login.as_ref().is_some_and(|login| login.recover(&self.tx, keychain).is_err()) {
             return ClaudeLiveResult::RecoveryRequired;
         }
         let profile: Option<ClaudeProfile> = match row.get("claude") {
@@ -49,6 +49,9 @@ impl super::Host {
             ..
         }) = profile
         {
+            let Some(login) = &self.login else {
+                return ClaudeLiveResult::Failed;
+            };
             let Ok(accounts) = store.claude_accounts(&self.root) else {
                 return ClaudeLiveResult::Failed;
             };
@@ -58,12 +61,12 @@ impl super::Host {
                 return ClaudeLiveResult::Failed;
             };
             account_lease = Some(lease);
-            match self.login.begin(&self.tx, tenant, directory.path(), keychain, |material| {
+            match login.begin(&self.tx, tenant, directory.path(), keychain, |material| {
                 accounts.archive_claude_default(tenant, &self.host_id, material, keychain)
             }) {
                 Ok(op) => operation = op,
                 Err(_) => {
-                    return if self.login.has_journal().unwrap_or(true) {
+                    return if login.has_journal().unwrap_or(true) {
                         ClaudeLiveResult::RecoveryRequired
                     } else {
                         ClaudeLiveResult::Failed
@@ -84,7 +87,7 @@ impl super::Host {
             unchanged,
             operation,
         );
-        let settled = self.login.settle(&self.tx, keychain);
+        let settled = self.login.as_ref().map(|login| login.settle(&self.tx, keychain)).transpose();
         drop(account_lease);
         if settled.is_err() {
             return ClaudeLiveResult::RecoveryRequired;

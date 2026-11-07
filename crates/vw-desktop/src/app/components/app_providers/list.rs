@@ -3,6 +3,7 @@ use crate::app::message::app_providers::{
     env::Event as EnvEvent,
     list::{ListMessage, message},
     mode::{self, Event as ModeEvent},
+    paths::{self, Event as PathsEvent},
     preview::Event as PreviewEvent,
     snippets::Event as SnippetEvent,
     universal::Event as UniversalEvent,
@@ -270,6 +271,9 @@ pub(crate) fn overlay<'a>(
     if mode::available(scope.app) {
         actions = actions.push(action("供应商模式", ListMessage::Mode(ModeEvent::Open), ready));
     }
+    if paths::available(scope.app) {
+        actions = actions.push(action("配置目录", ListMessage::Paths(PathsEvent::Open), ready));
+    }
     let actions = actions
         .push(action("关闭", ListMessage::Close, true))
         .spacing(10)
@@ -277,6 +281,9 @@ pub(crate) fn overlay<'a>(
         .wrap();
     let card = settings_modal_layout(header, body, Some(actions.into())).width(800).height(650);
     let list = settings_modal_overlay(Some(base), close, container(card).padding(12));
+    if let Some(form) = &state.paths {
+        return super::paths::overlay(form, list);
+    }
     if let Some(form) = &state.mode {
         return super::mode::overlay(state, form, list);
     }

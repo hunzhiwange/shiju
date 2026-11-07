@@ -58,3 +58,7 @@ mod endpoints_tests;
 pub(crate) mod icons;
 #[cfg(test)]
 mod icons_tests;
+
+pub(crate) mod universal;
+#[cfg(test)]
+mod universal_tests;

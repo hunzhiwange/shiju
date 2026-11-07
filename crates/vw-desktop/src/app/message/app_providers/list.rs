@@ -41,6 +41,7 @@ pub enum ListMessage {
     Desktop(super::desktop::Event),
     Endpoints(super::endpoints::Event),
     Icons(super::icons::Event),
+    Universal(super::universal::Event),
     Open(AppId),
     Close,
     Refresh,
@@ -160,6 +161,7 @@ pub(crate) fn current(app: &App, id: AppId) -> Result<(GatewayClient, Scope), St
 pub(crate) fn update(app: &mut App, value: ListMessage) -> Task<Message> {
     match value {
         ListMessage::Icons(event) => return super::icons::update(app, event),
+        ListMessage::Universal(event) => return super::universal::update(app, event),
         ListMessage::Endpoints(event) => return super::endpoints::update(app, event),
         ListMessage::Desktop(event) => return super::desktop::update(app, event),
         ListMessage::Close => {

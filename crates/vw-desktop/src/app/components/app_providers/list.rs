@@ -1,5 +1,8 @@
 use super::super::system_settings_common::*;
-use crate::app::message::app_providers::list::{ListMessage, message};
+use crate::app::message::app_providers::{
+    list::{ListMessage, message},
+    universal::Event as UniversalEvent,
+};
 use crate::app::{Message, state::app_providers::list::ListState};
 use iced::{
     Element, Length,
@@ -252,6 +255,11 @@ pub(crate) fn overlay<'a>(
                     ListMessage::Refresh,
                     !state.loading && state.editor.is_none() && state.form.is_none()
                 ),
+                action(
+                    "统一供应商投影",
+                    ListMessage::Universal(UniversalEvent::Open),
+                    !state.loading && state.editor.is_none() && state.form.is_none()
+                ),
                 action("关闭", ListMessage::Close, true)
             ]
             .spacing(10)
@@ -261,6 +269,9 @@ pub(crate) fn overlay<'a>(
     .width(Length::Fixed(800.))
     .height(Length::Fixed(650.));
     let list = settings_modal_overlay(Some(base), message(ListMessage::Close), card);
+    if let Some(form) = &state.universal {
+        return super::universal::overlay(form, list);
+    }
     if let Some(form) = &state.icons {
         return super::icons::overlay(form, list);
     }

@@ -5,6 +5,7 @@ mod apps;
 mod cc04_desktop_fixture;
 mod cc04_endpoints_fixture;
 mod cc04_icons_fixture;
+mod cc04_universal_fixture;
 mod desktop_update_helper;
 mod fonts;
 use app::message::app_providers::list::{ListMessage, message};
@@ -14,7 +15,7 @@ use vw_gateway_client::vw_api_types::agent_apps::AppId;
 fn main() {
     let case = std::env::var("SHIJU_CC04_WINDOW_CASE").expect("window case");
     let (app, native_form) = match case.as_str() {
-        "list" | "edit" | "endpoints" | "icons" => (AppId::Claude, false),
+        "list" | "edit" | "endpoints" | "icons" | "universal" => (AppId::Claude, false),
         "claude" => (AppId::Claude, true),
         "codex" => (AppId::Codex, true),
         "gemini" => (AppId::Gemini, true),
@@ -37,7 +38,7 @@ fn main() {
         Ok("light") => Theme::Light,
         _ => panic!("unknown theme"),
     };
-    let (port, stop, server) = fixture(native_form, app, case == "icons");
+    let (port, stop, server) = fixture(native_form, app, &case);
     app::config::install_window_test_bootstrap(port);
     iced::application(
         move || {
@@ -80,6 +81,7 @@ fn main() {
         "desktop" => "Desktop 供应商隔离验收",
         "endpoints" => "端点与请求选项隔离验收",
         "icons" => "供应商图标库隔离验收",
+        "universal" => "统一供应商投影隔离验收",
         "dsh" => "Dsh 供应商隔离验收",
         "kimi" => "Kimi 供应商隔离验收",
         "claude" => "Claude Code 供应商隔离验收",
@@ -113,7 +115,7 @@ fn view(state: &App) -> Element<'_, Message> {
 fn fixture(
     native_form: bool,
     app: AppId,
-    icons: bool,
+    case: &str,
 ) -> (u16, std::sync::Arc<std::sync::atomic::AtomicBool>, std::thread::JoinHandle<()>) {
     use std::io::{Read, Write};
     let listener = std::net::TcpListener::bind("127.0.0.1:0").unwrap();
@@ -121,6 +123,8 @@ fn fixture(
     listener.set_nonblocking(true).unwrap();
     let stop = std::sync::Arc::new(std::sync::atomic::AtomicBool::new(false));
     let done = stop.clone();
+    let icons = case == "icons";
+    let universal = case == "universal";
     let server = std::thread::spawn(move || {
         let mut presentation = serde_json::json!({"sortIndex":1,"category":"工作","notes":"中文动态备注：实际字体整形验收。"});
         let mut basics: std::collections::BTreeMap<String, serde_json::Value> = (0..16).map(|i| (format!("provider-{i}"), serde_json::json!({"name":format!("中文供应商 {i}"),"category":"工作","notes":"中文动态备注","websiteUrl":"https://website.example.test"}))).collect();
@@ -277,6 +281,7 @@ fn fixture(
             "provider-0".to_string(),
             serde_json::json!({"model":"现有中文模型","baseUrl":"https://fixture-api.example.test","hasSavedKey":true,"revision":"fixture-initial"}),
         )]);
+        let mut universal_fixture = universal.then(cc04_universal_fixture::Fixture::default);
         let mut icons_fixture = icons.then(cc04_icons_fixture::Fixture::new);
         let mut endpoints_fixture = cc04_endpoints_fixture::Fixture::default();
         let mut desktop_fixture = cc04_desktop_fixture::Fixture::new();
@@ -333,7 +338,18 @@ fn fixture(
             let icon_response = icons_fixture.as_mut().and_then(|fixture| {
                 fixture.handle(line.split_whitespace().next().unwrap_or(""), path, id, &payload)
             });
-            let body = if let Some((code, value)) = icon_response {
+            let universal_response = universal_fixture.as_mut().and_then(|fixture| {
+                fixture.handle(
+                    line.split_whitespace().next().unwrap_or(""),
+                    path,
+                    &payload,
+                    &mut basics,
+                )
+            });
+            let body = if let Some((code, value)) = universal_response {
+                status = code;
+                value
+            } else if let Some((code, value)) = icon_response {
                 status = code;
                 value
             } else if let Some((code, value)) = endpoints_response {

@@ -3150,3 +3150,47 @@ macOS **27.0（26A428）/ arm64**，桌面 **0.6.0**。`icons` case 通过批次
 两种主题均实际绘制中文名称、动态错误、预览和长列表，无字形整形 panic；日志只有既有链接器 unwind 和 macOS sandbox extension 提示。非 macOS、真实第三方账号和原生应用激活未验收。仅提交任务 69 的实现、测试、窗口夹具和本条证据，保留并行工作区改动；本任务槽位锁均已清理，缓存保留。
 
 状态：**已完成**。下一步：批次 70。
+
+## 任务 70：桌面统一供应商投影
+
+2026-11-07。已核对批次 69 提交 `464651279` 和正式验收，批次 10–11 已交付统一记录查询与目录投影。母任务 1、3 已完成，母任务 2 按底座子计划 1–93 的既有开工裁定执行，完整领域迁移待收口。
+
+### 来源与实现
+
+- 冻结来源 `ca58c0313360eae7c851fbd7553c1614c7af03e7` 工作区干净。核对 `ProviderPresetSelector.tsx` 中 `PresetPicker` 的跨应用选择和管理入口、`ProviderForm` 与 `AddProviderDialog` 的直接调用、相邻 `ProviderPresetSelector.test.tsx`，以及任务 11 的 `sync_universal_to_apps` 业务映射。
+- 从应用供应商列表打开 `app/{components,state,message}/app_providers/universal.rs`。选择已保存记录，显式勾选 Claude Code、Codex 或 Gemini CLI；勾选项随 SDK 请求提交，是否可投影由服务决定。整体请求失败时保留记录与勾选，逐项结果展示目录状态、失败原因、档案标识和原生状态。当前应用目录有更新时，返回列表自动刷新。
+- 复用 SDK `universal_providers_list` 和 `universal_provider_sync`，分别请求 `GET /v1/universal-providers` 和 `POST /v1/universal-providers/{id}/sync`。完成消息校验网关、租户、项目、执行主机、应用和请求代次。沿用现有 DTO、鉴权与持久化，原生状态来自服务的 `not_attempted`。本界面范围为目录投影；真实第三方账号、动态模型知识、原生激活和非 macOS 平台未验收。
+- 复用统一选择框、复选框、弹窗、操作按钮和 toast。标题与底部操作区固定，滚动条 4px，两侧各留 7px。动态中文使用默认字体。
+
+### 验证记录
+
+| 槽位 | CARGO_TARGET_DIR | 阶段 |
+| --- | --- | --- |
+| 1 | `/Users/xiangmin/worker/code/shiju/target/rust-slot-1` | 桌面红测、明暗原生窗口 |
+| 2 | `/Users/xiangmin/worker/code/shiju/target/rust-slot-2` | 首轮桌面绿测、Gateway 回归、Clippy |
+| 3 | `/Users/xiangmin/worker/code/shiju/target/rust-slot-3` | 调整结果文字对比度后的桌面绿测、Gateway 回归、Clippy |
+
+各阶段用原子 `mkdir` 领取槽位并记录计划、任务、会话和 PID。`CARGO_BUILD_BUILD_DIR` 与对应绝对路径一致。窗口及 Cargo 子进程退出后释放本任务的锁，保留缓存。
+
+| 确切命令 | 退出码 | 证据 |
+| --- | --- | --- |
+| `cargo fmt --all` | 0 | 红、绿及对比度调整后分别执行 |
+| `cargo test -p vw-desktop --lib cc04_ui_universal_ -- --nocapture`（红） | 101 | 0 passed / 2 failed；HTTP 400 后目标选择被清空，过期回包改写忙碌草稿 |
+| 同一桌面命令（绿） | 0 | 2 passed，`cc04_ui_universal_validation_failure_preserves_draft`、`cc04_ui_universal_stale_response_is_ignored` |
+| `cargo test -p vw-agent --lib cc04_universal_sync_ -- --nocapture` | 0 | 2 passed，正式 SDK、Gateway、隔离 SQLite 和拒绝无副作用 |
+| `cargo clippy --all-targets --all-features -- -D warnings` | 0 | 严格检查通过 |
+| `SHIJU_CC04_WINDOW_CASE=universal SHIJU_CC04_WINDOW_THEME=dark cargo test -p vw-desktop --test cc04-provider-window` | 0 | 深色窗口实际操作并关闭 |
+| `SHIJU_CC04_WINDOW_CASE=universal SHIJU_CC04_WINDOW_THEME=light cargo test -p vw-desktop --test cc04-provider-window` | 0 | 浅色窗口实际操作并关闭 |
+
+共 **4 项**有效行为测试。桌面红绿测试的回环 HTTP 断言发送的记录标识和目标 JSON，返回 400 并检查草稿。过期响应测试覆盖旧代次、其他项目和本次混合结果。Gateway 回归走正式 SDK → POST handler → 临时 SQLite，重开数据库核对成功档案和保留字段，检查损坏子档案逐项失败、未选档案无记录、跨租户及未认证拒绝后无写入。临时原生文件字节一致。测试使用隔离目录和假数据。
+
+### macOS 原生窗口
+
+macOS **27.0（26A428）/ arm64**，桌面 **0.6.0**。临时 Cargo runner 将槽位窗口产物包装为独立 app bundle。批次 52 的 `universal` case 从应用供应商列表进入实际组件，经过正式 Message 与 SDK，隔离回环 fixture 提供记录列表、首个 400、逐项结果及目录回读。持久化和权限由上面的正式 Gateway 回归核对。
+
+- 深色选择「跨应用中文供应商」，滚动长备注并勾选 Claude Code 和 Codex。首次提交返回 400，两个选择保留。重试后 Claude 目录更新并显示子档案标识，Codex 显示记录未启用，两项均显示原生未写入。返回后在自动刷新的列表中找到投影档案。[错误与保留选择](evidence/task-70/dark-error.jpg) · [逐项结果](evidence/task-70/dark-results.jpg) · [目录回读](evidence/task-70/dark-catalog.jpg)
+- 浅色选择「备用中文供应商」并勾选 Gemini CLI，通过「返回」取消，重开后选择为空、保存禁用。再选择备用记录并勾选 Claude Code 与 Gemini CLI，检查 400 后选择保留，重试保存后显示两个子档案标识。[取消前](evidence/task-70/light-draft.jpg) · [取消后重开](evidence/task-70/light-cancel.jpg) · [错误与保留选择](evidence/task-70/light-error.jpg) · [逐项结果](evidence/task-70/light-results.jpg)
+
+初次深色检查发现共享状态横幅的红绿文字对比不足，改用主题正文色与明确状态文字后重新执行明暗窗口命令。两种主题实际渲染中文动态名称、长备注和滚动结果，关闭窗口后均退出 0，窗口日志无字形整形 panic。有既有链接器 unwind 提示及测试 bundle 的 macOS sandbox extension 提示。
+
+状态：**已完成**。范围审查与暂存检查通过。下一步是批次 71。

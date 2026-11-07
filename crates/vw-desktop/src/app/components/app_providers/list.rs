@@ -127,6 +127,14 @@ pub(crate) fn overlay<'a>(
                     enabled,
                 ));
             }
+            if scope.app == AppId::Dsh && entry.native_member != ProviderMembership::Unknown {
+                let add = entry.native_member == ProviderMembership::Absent;
+                actions = actions.push(action(
+                    if add { "添加到 Dsh" } else { "从 Dsh 移除" },
+                    ListMessage::DshMember { id: id.clone(), add },
+                    enabled,
+                ));
+            }
             if scope.app == AppId::Omp && entry.native_member != ProviderMembership::Unknown {
                 let add = entry.native_member == ProviderMembership::Absent;
                 actions = actions.push(action(

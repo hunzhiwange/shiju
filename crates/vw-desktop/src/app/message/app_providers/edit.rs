@@ -28,7 +28,7 @@ pub(crate) async fn save(
 mod tests;
 
 use super::{
-    claude, codex, gemini, grok, hermes, kimi,
+    claude, codex, dsh, gemini, grok, hermes, kimi,
     list::{ListMessage, current},
     mcode, omp, openclaw, opencode, pi,
 };
@@ -43,6 +43,7 @@ use vw_gateway_client::vw_api_types::{
         catalog::ProviderMembership,
         claude::{ClaudeFormView, ClaudeLiveResult},
         codex_catalog::{CodexFormView, CodexLiveResult},
+        dsh::{DshFormView, DshLiveResult},
         gemini::{GeminiFormView, GeminiLiveResult},
         grok::{GrokFormView, GrokLiveResult},
         hermes::{HermesFormView, HermesLiveResult},
@@ -122,6 +123,12 @@ pub enum EditMessage {
         id: String,
         result: Result<McodeFormView, String>,
     },
+    DshLoaded {
+        scope: Scope,
+        generation: u64,
+        id: String,
+        result: Result<DshFormView, String>,
+    },
     OmpLoaded {
         scope: Scope,
         generation: u64,
@@ -145,6 +152,7 @@ pub enum EditMessage {
     Pi(pi::Field),
     Kimi(kimi::Field),
     Mcode(mcode::Field),
+    Dsh(dsh::Field),
     Omp(omp::Field),
     OpenClaw(openclaw::Field),
     Id(String),
@@ -196,6 +204,11 @@ pub enum EditMessage {
         scope: Scope,
         generation: u64,
         result: Result<McodeLiveResult, String>,
+    },
+    DshSaved {
+        scope: Scope,
+        generation: u64,
+        result: Result<DshLiveResult, String>,
     },
     OmpSaved {
         scope: Scope,
@@ -284,6 +297,9 @@ pub(crate) fn update(app: &mut App, event: EditMessage) -> Task<Message> {
                 .is_some_and(|scope| scope.app == AppId::Mcode)
             {
                 form.mcode = Some(crate::app::state::app_providers::mcode::Draft::new());
+            } else if app.app_providers.scope.as_ref().is_some_and(|scope| scope.app == AppId::Dsh)
+            {
+                form.dsh = Some(crate::app::state::app_providers::dsh::Draft::new());
             } else if app.app_providers.scope.as_ref().is_some_and(|scope| scope.app == AppId::Kimi)
             {
                 form.kimi = Some(crate::app::state::app_providers::kimi::Draft::new());
@@ -425,6 +441,21 @@ pub(crate) fn update(app: &mut App, event: EditMessage) -> Task<Message> {
                     async move { mcode::load(client, request_scope, &source, &token).await },
                     move |result| {
                         message(EditMessage::McodeLoaded {
+                            scope: scope.clone(),
+                            generation,
+                            id: id.clone(),
+                            result,
+                        })
+                    },
+                );
+            }
+            if scope.app == AppId::Dsh && !copy && !delete {
+                let token = app.apps_catalog.token.clone();
+                let request_scope = scope.clone();
+                return Task::perform(
+                    async move { dsh::load(client, request_scope, &source, &token).await },
+                    move |result| {
+                        message(EditMessage::DshLoaded {
                             scope: scope.clone(),
                             generation,
                             id: id.clone(),
@@ -652,6 +683,25 @@ pub(crate) fn update(app: &mut App, event: EditMessage) -> Task<Message> {
                 Err(error) => return app.show_error_toast(error),
             }
         }
+        EditMessage::DshLoaded { scope, generation, id, result } => {
+            if !app.app_providers.loading || !matches_scope(app, &scope, generation) {
+                return Task::none();
+            }
+            app.app_providers.loading = false;
+            match result {
+                Ok(view) => {
+                    let member =
+                        dsh::membership(&app.app_providers, &id) == ProviderMembership::Present;
+                    let mut form = EditForm::new(Mode::Update, id, view.fields, None);
+                    form.dsh = view.config.map(|config| {
+                        crate::app::state::app_providers::dsh::Draft::from_view(config, member)
+                    });
+                    form.dsh_config_unavailable = form.dsh.is_none();
+                    app.app_providers.form = Some(form);
+                }
+                Err(error) => return app.show_error_toast(error),
+            }
+        }
         EditMessage::OmpLoaded { scope, generation, id, result } => {
             if !app.app_providers.loading || !matches_scope(app, &scope, generation) {
                 return Task::none();
@@ -733,6 +783,7 @@ pub(crate) fn update(app: &mut App, event: EditMessage) -> Task<Message> {
             let pi = form.pi.is_some();
             let kimi = form.kimi.is_some();
             let mcode = form.mcode.is_some();
+            let dsh = form.dsh.is_some();
             let omp = form.omp.is_some();
             let openclaw = form.openclaw.is_some();
             if claude
@@ -746,6 +797,7 @@ pub(crate) fn update(app: &mut App, event: EditMessage) -> Task<Message> {
                 || omp
                 || kimi
                 || mcode
+                || dsh
             {
                 if !form.identified() {
                     return app.show_error_toast("请填写标识与名称");
@@ -841,6 +893,14 @@ pub(crate) fn update(app: &mut App, event: EditMessage) -> Task<Message> {
                             generation,
                             result,
                         })
+                    },
+                );
+            }
+            if dsh {
+                return Task::perform(
+                    dsh::save(client, scope.clone(), form, token),
+                    move |result| {
+                        message(EditMessage::DshSaved { scope: scope.clone(), generation, result })
                     },
                 );
             }
@@ -1044,6 +1104,25 @@ pub(crate) fn update(app: &mut App, event: EditMessage) -> Task<Message> {
             };
             return Task::batch([toast, super::list::update(app, ListMessage::Refresh)]);
         }
+        EditMessage::DshSaved { scope, generation, result } => {
+            if !matches_scope(app, &scope, generation)
+                || !dsh::finish(&mut app.app_providers, &scope, generation, &result)
+            {
+                return Task::none();
+            }
+            let toast = match result {
+                Err(error) => return app.show_error_toast(error),
+                Ok(DshLiveResult::NotAttempted) => app.show_success_toast("已保存到供应商目录。"),
+                Ok(DshLiveResult::Applied) => app.show_success_toast("已保存并应用 Dsh 配置。"),
+                Ok(DshLiveResult::Failed) => {
+                    app.show_warning_toast("目录已保存，但应用 Dsh 配置失败。")
+                }
+                Ok(DshLiveResult::RecoveryRequired) => {
+                    app.show_warning_toast("目录已保存，执行端配置需要恢复。")
+                }
+            };
+            return Task::batch([toast, super::list::update(app, ListMessage::Refresh)]);
+        }
         EditMessage::OmpSaved { scope, generation, result } => {
             if !matches_scope(app, &scope, generation)
                 || !omp::finish(&mut app.app_providers, &scope, generation, &result)
@@ -1142,6 +1221,7 @@ pub(crate) fn update(app: &mut App, event: EditMessage) -> Task<Message> {
                 EditMessage::Pi(field) => pi::change(form, field),
                 EditMessage::Kimi(field) => kimi::change(form, field),
                 EditMessage::Mcode(field) => mcode::change(form, field),
+                EditMessage::Dsh(field) => dsh::change(form, field),
                 EditMessage::Omp(field) => omp::change(form, field),
                 EditMessage::OpenClaw(field) => openclaw::change(form, field),
                 EditMessage::OpenCode(field) => opencode::change(form, field),

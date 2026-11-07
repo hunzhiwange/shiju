@@ -22,6 +22,7 @@ fn main() {
         "pi" => (AppId::Pi, true),
         "omp" => (AppId::Omp, true),
         "mcode" => (AppId::Mcode, true),
+        "dsh" => (AppId::Dsh, true),
         "kimi" => (AppId::Kimi, true),
         _ => panic!("unknown window case"),
     };
@@ -70,6 +71,7 @@ fn main() {
         "pi" => "Pi 供应商隔离验收",
         "omp" => "OMP 供应商隔离验收",
         "mcode" => "Mcode 供应商隔离验收",
+        "dsh" => "Dsh 供应商隔离验收",
         "kimi" => "Kimi 供应商隔离验收",
         "claude" => "Claude Code 供应商隔离验收",
         _ => "供应商基础编辑隔离验收",
@@ -123,6 +125,7 @@ fn fixture(
             AppId::Pi => "pi",
             AppId::Omp => "omp",
             AppId::Mcode => "mcode",
+            AppId::Dsh => "dsh",
             AppId::Kimi => "kimi",
             _ => panic!("unknown fixture app"),
         };
@@ -156,8 +159,10 @@ fn fixture(
                 "inactive":[["config","legacy","中文旧字段"],["config","ui","theme"]],
             }));
         }
-        let incremental =
-            matches!(app, "opencode" | "openclaw" | "hermes" | "pi" | "omp" | "mcode" | "kimi");
+        let incremental = matches!(
+            app,
+            "opencode" | "openclaw" | "hermes" | "pi" | "omp" | "mcode" | "kimi" | "dsh"
+        );
         let mut node_configs = std::collections::BTreeMap::from([(
             "provider-0".to_owned(),
             serde_json::json!({
@@ -243,7 +248,7 @@ fn fixture(
                 );
             }
         }
-        if app == "mcode" {
+        if matches!(app, "mcode" | "dsh") {
             for id in basics.keys() {
                 let models = (0..18).map(|i|(format!("fixture-model-{i}"),serde_json::json!({"name":format!("中文动态模型 {i}"),"limit":{"context":8192,"output":2048}}))).collect::<serde_json::Map<_,_>>();
                 let declaration=serde_yaml::to_string(&serde_json::json!({"kind":"custom","api":"openai-completions","options":{"baseURL":"https://fixture-api.example.test/v1"},"models":models})).unwrap();
@@ -320,7 +325,7 @@ fn fixture(
                     let declaration = value["declaration"].as_str().unwrap();
                     let node = if app == "kimi" {
                         toml::from_str::<serde_json::Value>(declaration).ok()
-                    } else if matches!(app, "omp" | "mcode") {
+                    } else if matches!(app, "omp" | "mcode" | "dsh") {
                         serde_yaml::from_str::<serde_json::Value>(declaration).ok()
                     } else {
                         serde_json::from_str::<serde_json::Value>(declaration).ok()
@@ -334,7 +339,7 @@ fn fixture(
                             })
                         } else {
                             models.as_object().is_some_and(|models| {
-                                if matches!(app, "mcode" | "kimi") {
+                                if matches!(app, "mcode" | "kimi" | "dsh") {
                                     !models.is_empty()
                                         && models.iter().all(|(id, model)| {
                                             !id.trim().is_empty() && model.is_object()

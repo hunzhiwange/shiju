@@ -187,3 +187,72 @@ fn cc04_dsh_symlinks_native_locks_and_external_edits_are_rejected() {
     std::os::unix::fs::symlink("/tmp", another.path().join(".dsh")).unwrap();
     assert!(DshFiles::open(another.path()).is_err());
 }
+
+#[test]
+fn cc04_ui_dsh_removal_preserves_profiles_and_rejects_references() {
+    let pre = Snapshot::from([
+        ("web".into(), None),
+        ("desktop".into(), None),
+        ("credentials".into(), None),
+        ("home".into(), None),
+    ]);
+    let added = plan(&pre, "one", &profile(), DshActivation::Add).unwrap();
+    let sibling = plan(&added, "other", &profile(), DshActivation::Add).unwrap();
+    let removed = remove(&sibling, "one").unwrap();
+    assert_eq!(state(&removed).unwrap().members, vec!["other"]);
+    assert_eq!(removed["credentials"], sibling["credentials"]);
+    assert!(member(&removed, "other").unwrap().is_some());
+    let mut referenced = sibling.clone();
+    let mut text = String::from_utf8(referenced["web"].clone().unwrap()).unwrap();
+    text.push_str("- id: selection\n  config:\n    defaultModel: one/model\n");
+    referenced.insert("web".into(), Some(text.into_bytes()));
+    assert!(remove(&referenced, "one").is_err());
+    let mut divergent = sibling.clone();
+    divergent.insert(
+        "desktop".into(),
+        Some(
+            String::from_utf8(divergent["desktop"].clone().unwrap())
+                .unwrap()
+                .replace("Fixture", "Changed")
+                .into_bytes(),
+        ),
+    );
+    assert!(member(&divergent, "one").is_err());
+    assert!(remove(&divergent, "one").is_err());
+}
+
+#[test]
+fn cc04_ui_dsh_form_keeps_or_replaces_native_reference_without_disclosing_it() {
+    use vw_api_types::app_providers::create::ProviderSecretWrite;
+    let pre = Snapshot::from([
+        ("web".into(), None),
+        ("desktop".into(), None),
+        ("credentials".into(), None),
+        ("home".into(), None),
+    ]);
+    let added = plan(&pre, "one", &profile(), DshActivation::Add).unwrap();
+    let native = member(&added, "one").unwrap().unwrap();
+    let view = form::view("one", None, Some(&native)).unwrap();
+    let config = view.config.unwrap();
+    assert!(!config.declaration.contains("SHIJU_DSH_ONE"));
+    assert!(!config.declaration.contains("fake-secret"));
+    let mut body = DshFormWrite {
+        target_host_id: "host".into(),
+        fields: view.fields,
+        declaration: config.declaration,
+        api_key: ProviderSecretWrite::Keep,
+        activation: DshActivation::IfMember,
+        revision: Some(config.revision),
+    };
+    let (kept, _) = form::prepare("one", &body, None, Some(&native)).unwrap();
+    assert_eq!(kept.declaration["apiKeyEnv"], "SHIJU_DSH_ONE");
+    body.declaration = body.declaration.replace("example.com", "other.example");
+    assert!(form::prepare("one", &body, None, Some(&native)).is_err());
+    body.api_key = ProviderSecretWrite::Replace { value: "fake-replaced".into() };
+    let (replaced, _) = form::prepare("one", &body, None, Some(&native)).unwrap();
+    assert!(replaced.declaration.get("apiKeyEnv").is_none());
+    let next = plan(&added, "one", &replaced, DshActivation::IfMember).unwrap();
+    let creds: serde_yaml::Value =
+        serde_yaml::from_slice(next["credentials"].as_ref().unwrap()).unwrap();
+    assert_eq!(creds["refs"]["SHIJU_DSH_ONE"], "fake-replaced");
+}

@@ -47,3 +47,30 @@ pub enum DshErrorCode {
 pub struct DshError {
     pub code: DshErrorCode,
 }
+
+#[derive(Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct DshFormWrite {
+    pub target_host_id: String,
+    pub fields: super::basic::ProviderBasic,
+    pub declaration: String,
+    pub api_key: super::create::ProviderSecretWrite,
+    pub activation: DshActivation,
+    pub revision: Option<String>,
+}
+concealed!(DshFormWrite);
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct DshFormView {
+    pub fields: super::basic::ProviderBasic,
+    pub config: Option<DshFormConfig>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct DshFormConfig {
+    pub declaration: String,
+    pub has_saved_key: bool,
+    pub revision: String,
+}

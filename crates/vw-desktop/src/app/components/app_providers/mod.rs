@@ -13,3 +13,5 @@ mod pi;
 mod mcode;
 
 mod kimi;
+
+pub(crate) mod dsh;

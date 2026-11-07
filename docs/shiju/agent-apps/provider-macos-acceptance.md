@@ -2911,3 +2911,49 @@ macOS **27.0（26A428）/ arm64**，桌面 **0.6.0**。显式窗口测试通过�
 - 浅色：[添加](evidence/task-64/light-added.png)、[滚动](evidence/task-64/light-scroll.png)、[失败](evidence/task-64/light-failure.png)、[保存](evidence/task-64/light-saved.png)、[取消草稿](evidence/task-64/light-cancel-draft.png)、[重开](evidence/task-64/light-cancel-reopened.png)、[移除](evidence/task-64/light-removed.png)。
 
 状态：**已完成**。差异审查限于本任务代码、独立测试、必要接线、测试依赖与正式证据；排除其他会话设置/终端变更、其它计划及编号任务删除。自身槽位 1、2 锁已释放，缓存保留。下一步批次 65。
+
+## 任务 65：桌面 Dsh 供应商编辑
+
+2026-11-07。批次 64 提交 `4e32b597d` 与上节正式验收已核对。母任务 1、3 已完成；母任务 2 沿用底座子计划 1–93 开工裁定，不冒称完整迁移完成。本任务初次登记缺少原生读取/移除依赖，继续指令明确授权在 Dsh 领域所有者补齐这些最小能力；所有 plan.md 保持只读。
+
+### 实现与边界
+
+- 来源冻结快照 `ca58c0313360eae7c851fbd7553c1614c7af03e7`，工作区干净。阅读 `DshAccountCard`/`DshAccountLogin`、ProviderList/AuthCenterPanel 调用者和相邻账号卡测试；官方账号卡不作为可编辑供应商。原生编辑/移除沿 `dsh_config::{save_and_commit,remove_provider,provider_key_exists}` 和批次 42 的真实 profile 集合、凭据引用、多目录事务。
+- 新增 `components/state/message/app_providers/dsh.rs`，接入既有列表、编辑弹窗、Message 和 SDK；Iced 只维护 YAML 草稿，不解析原生配置、不实现事务策略。支持新建、编辑、保存到目录或同步现有成员、添加与移除；官方授权和模型发现明确暂不可用。失败保留草稿；主机作用域/代次过期响应被忽略。
+- 新增 `DshFormWrite/View/Config`，SDK `dsh_form_read/create/update` 对应 `POST /v1/app-providers/dsh/{id}/form/read`、`POST/PATCH /form`；`dsh_provider_remove_live` 对应 `POST /remove-live`。沿用敏感凭据头、租户/主机读写权限和错误白名单；不添加客户端路径、环境或任意命令参数。
+- `providers/dsh_edit.rs` 在执行端把原生 models 数组、安全容量字段与供应商节点转换为编辑声明，核对反向投影一致性；不同 profile 同名节点分歧、不支持的原生布局或凭据引用明确拒绝。`dsh_form.rs` 仅投影安全可编辑字段，API 密钥不出站，apiKeyEnv/请求头/未知扩展以原位置保留标记回填；支持 Keep/Replace/Clear，未满足必需凭据的 Clear 仍由原校验拒绝。公开修订不哈希秘密值；写入时重新读取锁内原生节点并还原最新隐藏值，保留凭据时拒绝地址/协议变更。
+- 移除只补丁选中成员，保留其它节点、插件、周围注释、共享凭据 refs 与原生账号/device records。保留目录档案及展示名，允许重新添加。存在默认选择/引用、动态标签等无法安全确认的配置时拒绝移除；不重写默认字段或擅自清理共享凭据。既有文件锁、目录 CAS、前像复核、多文件 pending/恢复继续由 `DshFiles` 与 `ProviderTransactions` 负责。
+- Gateway 新用例使用真实回环 HTTP、正式 SDK/handler、临时 SQLite 和隔离 HOME：中文模型更新同步、凭据/请求头/未知字段保留且不出站、陈旧修订和非法草稿拒绝、原生独有节点读取、只读权限允许读取但拒绝写入/移除、移除保留兄弟成员/凭据/档案且可重新添加。无真实用户配置或凭据参与。
+
+### 自动验证
+
+各阶段原子 mkdir 动态领取仓库共享槽位，记录计划、任务、会话和 PID；绝对 `CARGO_TARGET_DIR` 与 `CARGO_BUILD_BUILD_DIR` 相同。Cargo、窗口及子进程结束后清理自身锁，保留缓存。
+
+| 槽位 | CARGO_TARGET_DIR | 阶段 |
+|---|---|---|
+| 1 | `/Users/xiangmin/worker/code/shiju/target/rust-slot-1` | 红测、格式化、桌面绿测、执行端/Gateway、Clippy |
+| 2 | `/Users/xiangmin/worker/code/shiju/target/rust-slot-2` | 深色原生窗口 |
+| 5 | `/Users/xiangmin/worker/code/shiju/target/rust-slot-5` | 浅色原生窗口 |
+
+| 命令 | 退出码 | 有效数量/证据 |
+|---|---:|---|
+| `cargo test -p vw-desktop --lib cc04_ui_dsh_ -- --nocapture`（红） | 101 | 0 passed / 2 failed：草稿未交给 SDK、有效响应未结束保存 |
+| 同上（绿） | 0 | 2 passed，失败保留草稿与陈旧响应隔离 |
+| `cargo fmt --all` | 0 | 格式化，无全量 fmt check |
+| `cargo test -p vw-agent-apps --lib providers::dsh_tests:: -- --nocapture` | 0 | 8 passed，含新增 2 项及既有多 profile/恢复/外部改动用例 |
+| `cargo test -p vw-agent --lib cc04_dsh_ -- --nocapture` | 0 | 既有 3 项回归 |
+| `cargo test -p vw-agent --lib gateway::api::handlers::app_providers::dsh_tests:: -- --nocapture` | 0 | 5 passed，含新增 2 项；与上行去重 |
+| `cargo clippy --all-targets --all-features -- -D warnings` | 0 | 全 targets/features，不计行为测试 |
+| `SHIJU_CC04_WINDOW_CASE=dsh SHIJU_CC04_WINDOW_THEME=dark cargo test -p vw-desktop --test cc04-provider-window` | 0 | 实际操作并手动关闭 |
+| `SHIJU_CC04_WINDOW_CASE=dsh SHIJU_CC04_WINDOW_THEME=light cargo test -p vw-desktop --test cc04-provider-window` | 0 | 实际操作并手动关闭 |
+
+### macOS 原生窗口
+
+macOS **27.0（26A428）/ arm64**，桌面 **0.6.0**。`sw_vers`/`uname -m` 退出 0。PATH 未找到 Dsh CLI（`command -v dsh` 退出 1），真实 Dsh 安装版本、账号登录和应用消费未验证；不将窗口夹具等同真实上游运行。Windows/Linux、其它架构和 PostgreSQL 实际服务未验收。
+
+显式窗口入口的 `dsh` case 使用临时 app bundle runner，真实 Iced/Message/SDK 接假档案回环 HTTP；执行端真实落盘由上述 Gateway 测试证明。明暗主题分别完成：列表添加中文供应商 → 打开编辑、拖动长表单 → 空 models 返回 422、保留中文失败草稿 → 修正中文动态模型、保存并同步 → 修改中文名称后取消 → 重开显示原名称 → 移除后档案仍在列表。统一弹窗/输入/按钮/toast，4px 滚动条、内容两侧各 7px 留白、固定标题和操作区；中文及动态文本使用默认字体，实际整形无 panic。两个窗口正常关闭、Cargo 退出 0；仅出现既有 macOS sandbox extension 提示，测试链接器有既有 unwind 提示。
+
+- 深色：[添加](evidence/task-65/dark-added.png)、[长表单](evidence/task-65/dark-scroll.png)、[失败](evidence/task-65/dark-failure.png)、[保存](evidence/task-65/dark-saved.png)、[取消草稿](evidence/task-65/dark-cancel-draft.png)、[重开](evidence/task-65/dark-cancel-reopened.png)、[移除](evidence/task-65/dark-removed.png)。
+- 浅色：[添加](evidence/task-65/light-added.png)、[长表单](evidence/task-65/light-scroll.png)、[失败](evidence/task-65/light-failure.png)、[保存](evidence/task-65/light-saved.png)、[取消草稿](evidence/task-65/light-cancel-draft.png)、[重开](evidence/task-65/light-cancel-reopened.png)、[移除](evidence/task-65/light-removed.png)。
+
+状态：**已完成**。最终格式化后桌面 2 项复验与严格 Clippy 均退出 0，去重共 15 项行为测试通过。自身槽位 1、2、5 占用记录已清理，缓存保留；定向差异检查通过，只读 plan.md 无差异。只提交本任务领域实现、桌面接线、独立测试和正式证据，排除其它会话设置/终端变更与编号任务删除。未执行全量单元测试、fmt check、wasm 或 Makefile。下一步批次 66。

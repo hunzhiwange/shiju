@@ -15,12 +15,19 @@ pub(super) fn router_with_policy(path: Option<PathBuf>) -> Router {
     Router::new()
         .route("/app-providers/dsh/{id}/config", put(save))
         .route("/app-providers/dsh/{id}/add", post(add))
+        .route("/app-providers/dsh/{id}/remove-live", post(remove))
+        .route("/app-providers/dsh/{id}/form/read", post(form_read))
+        .route("/app-providers/dsh/{id}/form", post(form_create).patch(form_update))
         .route("/app-providers/dsh/config/state", post(state))
         .layer(DefaultBodyLimit::max(1024 * 1024))
         .layer(Extension(Policy(path)))
 }
 enum Operation {
     Save(DshWrite),
+    FormRead(DshTarget),
+    FormCreate(DshFormWrite),
+    FormUpdate(DshFormWrite),
+    Remove(DshTarget),
     Add(DshTarget),
     State(DshTarget),
 }
@@ -34,6 +41,50 @@ async fn save(
 ) -> Response {
     let Ok(Json(b)) = body else { return StatusCode::BAD_REQUEST.into_response() };
     run(p, t, db, h, id, Operation::Save(b)).await
+}
+async fn form_read(
+    Extension(p): Extension<Policy>,
+    Extension(t): Extension<TenantScope>,
+    db: Option<Extension<GlobalDatabase>>,
+    h: HeaderMap,
+    Path(id): Path<String>,
+    body: Result<Json<DshTarget>, JsonRejection>,
+) -> Response {
+    let Ok(Json(b)) = body else { return StatusCode::BAD_REQUEST.into_response() };
+    run(p, t, db, h, id, Operation::FormRead(b)).await
+}
+async fn form_create(
+    Extension(p): Extension<Policy>,
+    Extension(t): Extension<TenantScope>,
+    db: Option<Extension<GlobalDatabase>>,
+    h: HeaderMap,
+    Path(id): Path<String>,
+    body: Result<Json<DshFormWrite>, JsonRejection>,
+) -> Response {
+    let Ok(Json(b)) = body else { return StatusCode::BAD_REQUEST.into_response() };
+    run(p, t, db, h, id, Operation::FormCreate(b)).await
+}
+async fn form_update(
+    Extension(p): Extension<Policy>,
+    Extension(t): Extension<TenantScope>,
+    db: Option<Extension<GlobalDatabase>>,
+    h: HeaderMap,
+    Path(id): Path<String>,
+    body: Result<Json<DshFormWrite>, JsonRejection>,
+) -> Response {
+    let Ok(Json(b)) = body else { return StatusCode::BAD_REQUEST.into_response() };
+    run(p, t, db, h, id, Operation::FormUpdate(b)).await
+}
+async fn remove(
+    Extension(p): Extension<Policy>,
+    Extension(t): Extension<TenantScope>,
+    db: Option<Extension<GlobalDatabase>>,
+    h: HeaderMap,
+    Path(id): Path<String>,
+    body: Result<Json<DshTarget>, JsonRejection>,
+) -> Response {
+    let Ok(Json(b)) = body else { return StatusCode::BAD_REQUEST.into_response() };
+    run(p, t, db, h, id, Operation::Remove(b)).await
 }
 async fn add(
     Extension(p): Extension<Policy>,
@@ -111,14 +162,17 @@ fn execute_inner(
     };
     let host = match &op {
         Operation::Save(w) => &w.target_host_id,
-        Operation::Add(t) | Operation::State(t) => &t.target_host_id,
+        Operation::FormCreate(w) | Operation::FormUpdate(w) => &w.target_host_id,
+        Operation::FormRead(t) | Operation::Remove(t) | Operation::Add(t) | Operation::State(t) => {
+            &t.target_host_id
+        }
     };
     let (home, root) = super::super::agent_apps::provider_editor_context(
         policy.0.as_deref(),
         &headers,
         &tenant,
         host,
-        !matches!(op, Operation::State(_)),
+        !matches!(op, Operation::State(_) | Operation::FormRead(_)),
     )?;
     if matches!(op, Operation::State(_)) {
         return encode(
@@ -137,32 +191,72 @@ fn execute_inner(
     if !valid_binding(before.as_ref()) {
         return Ok(invalid_binding());
     }
-    let profile = match &op {
-        Operation::Save(w) => w.profile.clone(),
-        Operation::Add(_) => serde_json::from_value(
-            before.as_ref().and_then(|v| v.get("dsh")).cloned().ok_or(StatusCode::NOT_FOUND)?,
-        )
-        .map_err(|_| StatusCode::UNPROCESSABLE_ENTITY)?,
-        Operation::State(_) => unreachable!(),
+    let observation = read(&home).map_err(form_error)?;
+    let observed_member = member(&observation, &id).map_err(form_error)?;
+    if matches!(op, Operation::FormRead(_)) {
+        if before.is_none() && observed_member.is_none() {
+            return Err(StatusCode::NOT_FOUND);
+        }
+        return encode(
+            &form::view(&id, before.as_ref(), observed_member.as_ref()).map_err(form_error)?,
+        );
+    }
+    let form_write = match &op {
+        Operation::FormCreate(body) => {
+            if before.is_some() || observed_member.is_some() || body.revision.is_some() {
+                return Err(StatusCode::CONFLICT);
+            }
+            if body.activation == DshActivation::IfMember {
+                return Err(StatusCode::UNPROCESSABLE_ENTITY);
+            }
+            Some(body)
+        }
+        Operation::FormUpdate(body) => {
+            if body.revision.is_none() {
+                return Err(StatusCode::CONFLICT);
+            }
+            if body.activation == DshActivation::Add {
+                return Err(StatusCode::UNPROCESSABLE_ENTITY);
+            }
+            Some(body)
+        }
+        _ => None,
     };
-    validate(&id, &profile).map_err(|_| StatusCode::UNPROCESSABLE_ENTITY)?;
-    let writing = matches!(op, Operation::Save(_));
+    let mut metadata = None;
+    let mut profile = match &op {
+        Operation::Save(w) => Some(w.profile.clone()),
+        Operation::Add(_) => Some(
+            serde_json::from_value(
+                before.as_ref().and_then(|v| v.get("dsh")).cloned().ok_or(StatusCode::NOT_FOUND)?,
+            )
+            .map_err(|_| StatusCode::UNPROCESSABLE_ENTITY)?,
+        ),
+        _ => None,
+    };
+    if let Some(body) = form_write {
+        let (prepared, fields) =
+            form::prepare(&id, body, before.as_ref(), observed_member.as_ref())
+                .map_err(form_error)?;
+        profile = Some(prepared);
+        metadata = Some(fields);
+    }
+    if let Some(profile) = &profile {
+        validate(&id, profile).map_err(form_error)?;
+        if !credential_binding_valid(&observation, profile) {
+            return Ok(invalid_binding());
+        }
+    }
+    let writing =
+        matches!(op, Operation::Save(_) | Operation::FormCreate(_) | Operation::FormUpdate(_));
     let activation = match &op {
         Operation::Save(w) => w.activation,
-        _ => DshActivation::Add,
+        _ => form_write.map_or(DshActivation::Add, |w| w.activation),
     };
     let catalog_only = activation == DshActivation::CatalogOnly;
-    // All checks that could reject a profile happen before saving its catalog row.
-    let observation = read(&home).map_err(|_| StatusCode::UNPROCESSABLE_ENTITY)?;
-    if !credential_binding_valid(&observation, &profile) {
-        return Ok(invalid_binding());
-    }
-    if writing
-        && before.is_none()
-        && state(&observation).map_err(|_| StatusCode::UNPROCESSABLE_ENTITY)?.members.contains(&id)
-    {
+    if matches!(op, Operation::Save(_)) && before.is_none() && observed_member.is_some() {
         return Err(StatusCode::CONFLICT);
     }
+    let mut removed_profile = None;
     let live = if catalog_only {
         None
     } else {
@@ -186,29 +280,53 @@ fn execute_inner(
             return Err(StatusCode::CONFLICT);
         }
         let pre = files.snapshot().map_err(|_| StatusCode::CONFLICT)?;
-        if !credential_binding_valid(&pre, &profile) {
-            return Ok(invalid_binding());
+        let locked_member = member(&pre, &id).map_err(form_error)?;
+        if let Some(body) = form_write {
+            let (prepared, fields) =
+                form::prepare(&id, body, before.as_ref(), locked_member.as_ref())
+                    .map_err(form_error)?;
+            profile = Some(prepared);
+            metadata = Some(fields);
         }
-        let next = plan(&pre, &id, &profile, activation).map_err(|e| {
-            if e == WriteError::Conflict {
-                StatusCode::CONFLICT
-            } else {
-                StatusCode::UNPROCESSABLE_ENTITY
+        let next = if matches!(op, Operation::Remove(_)) {
+            let next = remove(&pre, &id).map_err(form_error)?;
+            removed_profile = locked_member.map(|mut p| {
+                if let Some(name) = before.as_ref().and_then(|v| v["name"].as_str()) {
+                    p.name = name.to_owned();
+                }
+                p
+            });
+            next
+        } else {
+            let profile = profile.as_ref().ok_or(StatusCode::BAD_REQUEST)?;
+            if !credential_binding_valid(&pre, profile) {
+                return Ok(invalid_binding());
             }
-        })?;
+            plan(&pre, &id, profile, activation).map_err(form_error)?
+        };
         if next == pre { None } else { Some((files, tx, expected, pre, next)) }
     };
-    let saved = if writing {
+    let catalog_saved = writing || removed_profile.is_some();
+    if let Some(removed) = removed_profile {
+        profile = Some(removed);
+    }
+    let saved = if catalog_saved {
         Some(
             store
-                .dsh_save(&tenant, &id, &profile, before.as_ref())
+                .dsh_save(
+                    &tenant,
+                    &id,
+                    profile.as_ref().ok_or(StatusCode::BAD_REQUEST)?,
+                    before.as_ref(),
+                    metadata,
+                )
                 .map_err(|_| StatusCode::CONFLICT)?,
         )
     } else {
         before
     };
     let Some((mut files, tx, expected, pre, next)) = live else {
-        return encode(&DshResult { catalog_saved: writing, live: DshLiveResult::NotAttempted });
+        return encode(&DshResult { catalog_saved, live: DshLiveResult::NotAttempted });
     };
     let result = files.apply(&tx, &tenant, &expected, &pre, &next, || {
         read(&home).ok().as_ref() == Some(&pre)
@@ -225,11 +343,20 @@ fn execute_inner(
             }
         }
     };
-    encode(&DshResult { catalog_saved: writing, live })
+    encode(&DshResult { catalog_saved, live })
 }
 fn encode(value: &impl serde::Serialize) -> Result<serde_json::Value, StatusCode> {
     serde_json::to_value(value).map_err(|_| StatusCode::SERVICE_UNAVAILABLE)
 }
 fn invalid_binding() -> serde_json::Value {
     serde_json::json!({"code":"invalid_binding"})
+}
+
+#[cfg(target_os = "macos")]
+fn form_error(error: vw_agent_apps::providers::live::write_guard::WriteError) -> StatusCode {
+    use vw_agent_apps::providers::live::write_guard::WriteError;
+    match error {
+        WriteError::Conflict => StatusCode::CONFLICT,
+        _ => StatusCode::UNPROCESSABLE_ENTITY,
+    }
 }

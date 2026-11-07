@@ -91,6 +91,13 @@ pub(crate) fn overlay<'a>(form: &'a EditForm, base: Element<'a, Message>) -> Ele
                 text("此档案的 Mcode 节点不可编辑，可修改基础资料。官方授权暂不可用。")
                     .style(settings_muted_text_style),
             );
+        } else if let Some(draft) = &form.dsh {
+            fields = fields.push(super::dsh::fields(form, draft));
+        } else if form.dsh_config_unavailable {
+            fields = fields.push(
+                text("此档案的 Dsh 节点不可编辑，可修改基础资料。官方授权暂不可用。")
+                    .style(settings_muted_text_style),
+            );
         } else if let Some(draft) = &form.omp {
             fields = fields.push(super::omp::fields(form, draft));
         } else if form.omp_config_unavailable {
@@ -165,6 +172,7 @@ pub(crate) fn overlay<'a>(form: &'a EditForm, base: Element<'a, Message>) -> Ele
                 || form.pi.is_some()
                 || form.kimi.is_some()
                 || form.mcode.is_some()
+                || form.dsh.is_some()
                 || form.omp.is_some()
                 || form.openclaw.is_some()
             {

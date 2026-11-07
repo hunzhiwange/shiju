@@ -68,10 +68,8 @@ pub fn validate(id: &str, p: &DshProfile) -> Result<(), WriteError> {
         if id.trim().is_empty() || !m.is_object() {
             return invalid();
         }
-        for field in ["context", "output"] {
-            if m.pointer(&format!("/limit/{field}"))
-                .is_some_and(|v| !v.is_null() && v.as_u64().is_none_or(|n| n == 0))
-            {
+        for field in ["/limit/context", "/limit/output", "/contextWindow", "/maxTokens"] {
+            if m.pointer(field).is_some_and(|v| !v.is_null() && v.as_u64().is_none_or(|n| n == 0)) {
                 return invalid();
             }
         }
@@ -217,7 +215,11 @@ fn native(id: &str, p: &DshProfile) -> Value {
     node
 }
 /// Splice only the llm-pi-ai config's provider mapping. Other plugin bytes survive, including !!js.
-fn patch_profile(bytes: Option<&[u8]>, id: &str, node: &Value) -> Result<Vec<u8>, WriteError> {
+fn patch_profile(
+    bytes: Option<&[u8]>,
+    id: &str,
+    node: Option<&Value>,
+) -> Result<Vec<u8>, WriteError> {
     let text =
         std::str::from_utf8(bytes.unwrap_or_default()).map_err(|_| WriteError::InvalidResource)?;
     let parsed = entries(bytes)?;
@@ -253,7 +255,7 @@ fn patch_profile(bytes: Option<&[u8]>, id: &str, node: &Value) -> Result<Vec<u8>
             Some(body.as_bytes()),
             super::live::patch_yaml::ProviderSection::Providers,
             id,
-            Some(node),
+            node,
         )
         .map_err(|_| WriteError::InvalidResource)?;
         let mut result = lines[..config + 1].concat();
@@ -267,6 +269,9 @@ fn patch_profile(bytes: Option<&[u8]>, id: &str, node: &Value) -> Result<Vec<u8>
         result.push_str(&lines[config_end..].concat());
         result
     } else {
+        let Some(node) = node else {
+            return Ok(bytes.unwrap_or_default().to_vec());
+        };
         let entry =
             serde_yaml::to_string(&json!([{"id":"llm-pi-ai","config":{"providers":{id:node}}}]))
                 .map_err(|_| WriteError::InvalidResource)?;
@@ -283,10 +288,14 @@ fn patch_profile(bytes: Option<&[u8]>, id: &str, node: &Value) -> Result<Vec<u8>
         }
     };
     let mut expected = providers(bytes)?;
-    expected
-        .as_mapping_mut()
-        .unwrap()
-        .insert(id.into(), serde_yaml::to_value(node).map_err(|_| WriteError::InvalidResource)?);
+    if let Some(node) = node {
+        expected.as_mapping_mut().unwrap().insert(
+            id.into(),
+            serde_yaml::to_value(node).map_err(|_| WriteError::InvalidResource)?,
+        );
+    } else {
+        expected.as_mapping_mut().unwrap().remove(Yaml::from(id));
+    }
     if providers(Some(replacement.as_bytes()))? != expected {
         return invalid();
     }
@@ -334,7 +343,7 @@ pub fn plan(
     let node = native(id, p);
     for (key, bytes) in pre {
         if !matches!(key.as_str(), "credentials" | "home") {
-            next.insert(key.clone(), Some(patch_profile(bytes.as_deref(), id, &node)?));
+            next.insert(key.clone(), Some(patch_profile(bytes.as_deref(), id, Some(&node))?));
         }
     }
     if let Some(key) = p
@@ -381,3 +390,9 @@ pub fn plan(
 #[path = "dsh_files.rs"]
 mod files;
 pub use files::{DshFiles, read};
+
+#[path = "dsh_edit.rs"]
+mod edit;
+pub use edit::{member, remove};
+#[path = "dsh_form.rs"]
+pub mod form;

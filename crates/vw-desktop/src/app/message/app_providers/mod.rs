@@ -37,3 +37,8 @@ pub(crate) mod kimi;
 
 #[cfg(test)]
 mod kimi_tests;
+
+pub(crate) mod dsh;
+
+#[cfg(test)]
+mod dsh_tests;

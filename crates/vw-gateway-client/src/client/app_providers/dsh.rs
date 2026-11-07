@@ -3,6 +3,40 @@ use super::super::agent_apps_read_api::AgentAppsReadError as Error;
 use super::GatewayClient;
 use vw_api_types::app_providers::dsh::*;
 impl GatewayClient {
+    pub async fn dsh_form_read(
+        &self,
+        id: &str,
+        body: &DshTarget,
+        token: &str,
+    ) -> Result<DshFormView, Error> {
+        self.dsh_request(id, "POST", "/form/read", body, token).await
+    }
+    pub async fn dsh_form_create(
+        &self,
+        id: &str,
+        body: &DshFormWrite,
+        token: &str,
+    ) -> Result<DshResult, Error> {
+        self.dsh_request(id, "POST", "/form", body, token).await
+    }
+    pub async fn dsh_form_update(
+        &self,
+        id: &str,
+        body: &DshFormWrite,
+        token: &str,
+    ) -> Result<DshResult, Error> {
+        self.dsh_request(id, "PATCH", "/form", body, token).await
+    }
+
+    pub async fn dsh_provider_remove_live(
+        &self,
+        id: &str,
+        body: &DshTarget,
+        token: &str,
+    ) -> Result<DshResult, Error> {
+        self.dsh_request(id, "POST", "/remove-live", body, token).await
+    }
+
     pub async fn dsh_provider_save(
         &self,
         id: &str,

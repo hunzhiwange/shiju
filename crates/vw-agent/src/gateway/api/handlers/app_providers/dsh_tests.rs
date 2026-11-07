@@ -211,3 +211,98 @@ async fn cc04_dsh_catalog_first_add_and_current_edit_use_all_profiles() {
     assert!(f.record("parked").is_some());
     assert_eq!(f.bytes(), before);
 }
+
+#[tokio::test]
+async fn cc04_ui_dsh_native_form_preserves_credentials_and_removes_only_member() {
+    use vw_api_types::app_providers::create::ProviderSecretWrite;
+    let f = Fixture::new().await;
+    let mut original = f.request(DshActivation::Add);
+    original.profile.declaration["options"]["headers"] =
+        json!({"Authorization":"fake-hidden-header"});
+    original.profile.declaration["future"] = json!({"secret":"fake-hidden-extension"});
+    f.client.dsh_provider_save("one", &original, TOKEN).await.unwrap();
+    f.client.dsh_provider_save("sibling", &f.request(DshActivation::Add), TOKEN).await.unwrap();
+    let creds = f.root.path().join(".dsh/.credentials.yaml");
+    let credentials = std::fs::read(&creds).unwrap();
+    let view = f.client.dsh_form_read("one", &f.target(), TOKEN).await.unwrap();
+    let wire = serde_json::to_string(&view).unwrap();
+    for secret in ["fake-secret", "fake-hidden-header", "fake-hidden-extension", "SHIJU_DSH_ONE"] {
+        assert!(!wire.contains(secret));
+    }
+    let config = view.config.unwrap();
+    let mut declaration: Value = serde_yaml::from_str(&config.declaration).unwrap();
+    declaration["models"]["one"]["name"] = json!("中文动态模型");
+    let mut body = DshFormWrite {
+        target_host_id: "host".into(),
+        fields: view.fields,
+        declaration: serde_yaml::to_string(&declaration).unwrap(),
+        api_key: ProviderSecretWrite::Keep,
+        activation: DshActivation::IfMember,
+        revision: Some(config.revision),
+    };
+    body.fields.name = "中文供应商".into();
+    assert_eq!(
+        f.client.dsh_form_update("one", &body, TOKEN).await.unwrap().live,
+        DshLiveResult::Applied
+    );
+    assert_eq!(std::fs::read(&creds).unwrap(), credentials);
+    let after = f.bytes();
+    let text = String::from_utf8_lossy(&after);
+    assert!(
+        text.contains("中文动态模型")
+            && text.contains("fake-hidden-header")
+            && text.contains("fake-hidden-extension")
+    );
+    assert!(text.contains("# keep") && text.contains("native-plugin"));
+    assert!(f.client.dsh_form_update("one", &body, TOKEN).await.is_err());
+    assert_eq!(f.bytes(), after);
+    let view = f.client.dsh_form_read("one", &f.target(), TOKEN).await.unwrap();
+    let config = view.config.unwrap();
+    body.revision = Some(config.revision);
+    body.declaration = "models: {}".into();
+    assert!(f.client.dsh_form_update("one", &body, TOKEN).await.is_err());
+    assert_eq!(f.bytes(), after);
+    assert_eq!(
+        f.client.dsh_provider_remove_live("one", &f.target(), TOKEN).await.unwrap().live,
+        DshLiveResult::Applied
+    );
+    assert_eq!(f.client.dsh_state(&f.target(), TOKEN).await.unwrap().members, vec!["sibling"]);
+    assert_eq!(std::fs::read(&creds).unwrap(), credentials);
+    assert_eq!(f.record("one").unwrap()["name"], "中文供应商");
+    assert_eq!(
+        f.client.dsh_provider_add("one", &f.target(), TOKEN).await.unwrap().live,
+        DshLiveResult::Applied
+    );
+    assert!(String::from_utf8_lossy(&f.bytes()).contains("中文动态模型"));
+}
+
+#[tokio::test]
+async fn cc04_ui_dsh_native_only_read_and_permission_denial_are_safe() {
+    use vw_api_types::app_providers::{basic::ProviderBasic, create::ProviderSecretWrite};
+    let f = Fixture::new().await;
+    let body = DshFormWrite {
+        target_host_id:"host".into(), fields:ProviderBasic {name:"Native".into(),category:None,notes:None,website_url:None},
+        declaration:"api: openai-completions\noptions:\n  baseURL: https://example.com\nmodels:\n  model: {}".into(),
+        api_key:ProviderSecretWrite::Replace {value:"fake-secret".into()},activation:DshActivation::Add,revision:None,
+    };
+    assert_eq!(
+        f.client.dsh_form_create("native", &body, TOKEN).await.unwrap().live,
+        DshLiveResult::Applied
+    );
+    GatewaySettingsStore::new(f.db.clone())
+        .unwrap()
+        .delete(&TenantScope::new("p", "a").unwrap(), "app_providers.records", "\"dsh\":native")
+        .unwrap();
+    let view = f.client.dsh_form_read("native", &f.target(), TOKEN).await.unwrap();
+    assert!(view.config.unwrap().has_saved_key);
+    let before = f.bytes();
+    let mut policy: Value =
+        serde_json::from_slice(&std::fs::read(f.root.path().join("access.json")).unwrap()).unwrap();
+    policy["principals"][0]["grants"][0]["provider_config_write"] = json!(false);
+    std::fs::write(f.root.path().join("access.json"), policy.to_string()).unwrap();
+    assert!(f.client.dsh_form_read("native", &f.target(), TOKEN).await.is_ok());
+    assert!(f.client.dsh_provider_remove_live("native", &f.target(), TOKEN).await.is_err());
+    assert!(f.client.dsh_form_create("other", &body, TOKEN).await.is_err());
+    assert_eq!(f.bytes(), before);
+    assert!(f.record("native").is_none());
+}

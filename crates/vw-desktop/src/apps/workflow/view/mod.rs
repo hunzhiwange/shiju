@@ -23,9 +23,10 @@ use crate::app::components::system_settings_common::{
     SETTINGS_CONTROL_PADDING, SETTINGS_CONTROL_TEXT_SIZE, danger_action_btn_style,
     primary_action_btn_style, round_icon_btn_style, rounded_action_btn_style,
     settings_close_button, settings_modal_backdrop_style, settings_modal_card_style,
-    settings_modal_overlay, settings_muted_text_style, settings_panel_style,
-    settings_pick_list_menu_style, settings_pick_list_style, settings_section_card,
-    settings_text_editor_style, settings_text_input_style, settings_value_badge,
+    settings_modal_header, settings_modal_layout, settings_modal_overlay,
+    settings_muted_text_style, settings_panel_style, settings_pick_list_menu_style,
+    settings_pick_list_style, settings_section_card, settings_segment_button_style,
+    settings_select, settings_text_editor_style, settings_text_input_style, settings_value_badge,
 };
 use iced::widget::{
     Space, button, checkbox, container, image, mouse_area, pick_list, scrollable,
@@ -107,7 +108,7 @@ fn is_dark_theme(theme: &Theme) -> bool {
 
 fn workflow_text_input<'a>(
     placeholder: &'a str,
-    value: &'a str,
+    value: &str,
     on_input: impl Fn(String) -> Message + 'static,
 ) -> Element<'a, Message> {
     text_input(placeholder, value)
@@ -117,76 +118,6 @@ fn workflow_text_input<'a>(
         .style(settings_text_input_style)
         .width(Length::Fill)
         .into()
-}
-
-fn node_editor_title_input_style(
-    theme: &Theme,
-    status: iced::widget::text_input::Status,
-) -> iced::widget::text_input::Style {
-    let palette = theme.palette();
-    let extended = theme.extended_palette();
-    let is_dark = is_dark_theme(theme);
-    let is_focused = matches!(status, iced::widget::text_input::Status::Focused { .. });
-    let is_hovered = matches!(status, iced::widget::text_input::Status::Hovered)
-        || matches!(status, iced::widget::text_input::Status::Focused { is_hovered: true });
-
-    iced::widget::text_input::Style {
-        background: Background::Color(if is_focused {
-            palette.primary.scale_alpha(if is_dark { 0.10 } else { 0.08 })
-        } else if is_hovered {
-            extended.background.weak.color.scale_alpha(if is_dark { 0.54 } else { 0.72 })
-        } else {
-            Color::TRANSPARENT
-        }),
-        border: Border {
-            width: 1.0,
-            color: if is_focused {
-                palette.primary.scale_alpha(0.88)
-            } else if is_hovered {
-                extended.background.strong.color.scale_alpha(if is_dark { 0.72 } else { 0.28 })
-            } else {
-                Color::TRANSPARENT
-            },
-            radius: 12.0.into(),
-        },
-        icon: palette.text.scale_alpha(0.65),
-        placeholder: palette.text.scale_alpha(0.42),
-        value: palette.text,
-        selection: palette.primary.scale_alpha(0.20),
-    }
-}
-
-fn node_editor_description_style(theme: &Theme, status: text_editor::Status) -> text_editor::Style {
-    let palette = theme.palette();
-    let extended = theme.extended_palette();
-    let is_dark = is_dark_theme(theme);
-    let is_focused = matches!(status, text_editor::Status::Focused { .. });
-    let is_hovered = matches!(status, text_editor::Status::Hovered)
-        || matches!(status, text_editor::Status::Focused { is_hovered: true });
-
-    text_editor::Style {
-        background: Background::Color(if is_focused {
-            palette.primary.scale_alpha(if is_dark { 0.08 } else { 0.06 })
-        } else if is_hovered {
-            extended.background.weak.color.scale_alpha(if is_dark { 0.50 } else { 0.68 })
-        } else {
-            Color::TRANSPARENT
-        }),
-        border: Border {
-            width: 1.0,
-            color: if is_focused {
-                palette.primary.scale_alpha(0.84)
-            } else if is_hovered {
-                extended.background.strong.color.scale_alpha(if is_dark { 0.70 } else { 0.24 })
-            } else {
-                Color::TRANSPARENT
-            },
-            radius: 12.0.into(),
-        },
-        placeholder: palette.text.scale_alpha(0.42),
-        value: palette.text,
-        selection: palette.primary.scale_alpha(0.18),
-    }
 }
 
 fn next_step_jump_card_style(
@@ -338,7 +269,7 @@ fn build_app_switcher(
             .width(Length::Fill)
             .into()
     } else {
-        pick_list(options, selected, |option| match option.source {
+        settings_select(options, selected, |option| match option.source {
             WorkflowAppSwitchSource::SavedUuid(uuid) => {
                 Message::WorkflowTool(WorkflowMessage::OpenSavedApp(uuid))
             }
@@ -346,10 +277,6 @@ fn build_app_switcher(
                 Message::WorkflowTool(WorkflowMessage::SelectApp(id))
             }
         })
-        .padding([10, 14])
-        .text_size(13)
-        .style(settings_pick_list_style)
-        .menu_style(settings_pick_list_menu_style)
         .width(Length::Fill)
         .into()
     }
@@ -479,3 +406,7 @@ pub fn view(i18n: crate::app::i18n::I18n, state: &WorkflowState) -> Element<'_, 
 #[cfg(test)]
 #[path = "tests.rs"]
 mod tests;
+
+#[cfg(all(test, not(target_arch = "wasm32")))]
+#[path = "mod_ui_refresh_36_tests.rs"]
+mod ui_refresh_36_tests;

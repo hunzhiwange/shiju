@@ -436,18 +436,12 @@ pub(super) fn build_node_validation_summary(
 ) -> Element<'_, Message> {
     let mut items = column![
         text(i18n.__("当前节点还有未修正的字段")).size(14),
-        text(i18n.__("请先处理下面这些错误，再保存节点。"))
-            .size(12)
-            .color(Color::from_rgba8(0x7F, 0x1D, 0x1D, 0.80)),
+        text(i18n.__("请先处理下面这些错误，再保存节点。")).size(12),
     ]
     .spacing(6);
 
     for error in validation.field_errors.iter().take(8) {
-        items = items.push(text(format!("- {}", error.message.render(i18n))).size(12).style(
-            |theme: &Theme| iced::widget::text::Style {
-                color: Some(theme.extended_palette().danger.base.color),
-            },
-        ));
+        items = items.push(text(format!("- {}", error.message.render(i18n))).size(12));
     }
 
     if validation.field_errors.len() > 8 {
@@ -459,8 +453,7 @@ pub(super) fn build_node_validation_summary(
                 )
                 .expect("valid workflow display template"),
             )
-            .size(12)
-            .color(Color::from_rgba8(0x7F, 0x1D, 0x1D, 0.72)),
+            .size(12),
         );
     }
 

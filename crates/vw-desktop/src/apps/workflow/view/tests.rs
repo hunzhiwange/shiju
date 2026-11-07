@@ -9,7 +9,7 @@ use crate::apps::workflow::state::{
     WorkflowRunStatus, WorkflowSavedAppSummary, WorkflowVariableEditorDraft,
     WorkflowVariableEditorMode,
 };
-use iced::widget::{button, text_editor, text_input};
+use iced::widget::{button, text_editor};
 use iced::{Point, Size, Theme};
 use serde_yaml::Value;
 
@@ -175,22 +175,6 @@ fn style_helpers_cover_light_dark_and_input_statuses() {
 
         let _ = editor_style(&theme, text_editor::Status::Active);
         let _ = editor_style(&theme, text_editor::Status::Hovered);
-        let description_focused = node_editor_description_style(
-            &theme,
-            text_editor::Status::Focused { is_hovered: true },
-        );
-        assert!(description_focused.border.width > 0.0);
-
-        let title_active = node_editor_title_input_style(&theme, text_input::Status::Active);
-        let title_hovered = node_editor_title_input_style(&theme, text_input::Status::Hovered);
-        let title_focused = node_editor_title_input_style(
-            &theme,
-            text_input::Status::Focused { is_hovered: false },
-        );
-        assert_eq!(title_active.border.width, 1.0);
-        assert_eq!(title_hovered.border.width, 1.0);
-        assert_eq!(title_focused.border.width, 1.0);
-
         let jump_active = next_step_jump_card_style(&theme, button::Status::Active);
         let jump_hovered = next_step_jump_card_style(&theme, button::Status::Hovered);
         let jump_pressed = next_step_jump_card_style(&theme, button::Status::Pressed);

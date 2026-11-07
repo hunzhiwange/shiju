@@ -8,7 +8,6 @@ use iced::widget::{column, mouse_area, opaque, row};
 
 const NODE_EDITOR_CANVAS_PORTION: u16 = 3;
 const NODE_EDITOR_DRAWER_PORTION: u16 = 2;
-const NODE_EDITOR_SCROLLBAR_GUTTER: f32 = 12.0;
 
 /// 构建 node editor modal 对应的界面元素。
 ///
@@ -51,37 +50,21 @@ pub(super) fn build_node_editor_modal(
         }
     }
 
-    let scroll_content = container(content).width(Length::Fill).padding(iced::Padding {
-        top: 0.0,
-        right: NODE_EDITOR_SCROLLBAR_GUTTER,
-        bottom: 0.0,
-        left: 0.0,
-    });
-
-    let validation_summary = editor
-        .validation
-        .has_errors()
-        .then(|| build_node_validation_summary(i18n, &editor.validation))
-        .unwrap_or_else(|| container(Space::new().height(0)).into());
-
+    let mut header = column![
+        build_node_editor_header(i18n, editor),
+        build_node_editor_tabs(i18n, has_visual_tab, active_tab),
+    ]
+    .spacing(12);
+    if editor.validation.has_errors() {
+        header = header.push(build_node_validation_summary(i18n, &editor.validation));
+    }
     let drawer = opaque(
         mouse_area(
-            container(
-                column![
-                    build_node_editor_header(i18n, editor),
-                    build_node_editor_tabs(i18n, has_visual_tab, active_tab),
-                    validation_summary,
-                    scrollable(scroll_content)
-                        .direction(Direction::Vertical(Scrollbar::new().width(4).scroller_width(4)))
-                        .height(Length::Fill),
-                ]
-                .spacing(14)
-                .height(Length::Fill),
-            )
-            .width(Length::Fill)
-            .height(Length::Fill)
-            .padding([18, 20])
-            .style(node_editor_drawer_style),
+            settings_modal_layout(header, content, None)
+                .width(Length::Fill)
+                .height(Length::Fill)
+                .padding([18, 20])
+                .style(node_editor_drawer_style),
         )
         .on_scroll(|_| Message::WorkflowTool(WorkflowMessage::NodeEditorScrollCaptured)),
     );
@@ -110,7 +93,8 @@ where
     text_editor(content)
         .placeholder(placeholder)
         .on_action(move |action| Message::WorkflowTool(map_message(action)))
-        .padding([10, 12])
+        .padding(SETTINGS_CONTROL_PADDING)
+        .size(SETTINGS_CONTROL_TEXT_SIZE)
         .height(Length::Fixed(height))
         .style(editor_style)
         .into()
@@ -152,32 +136,25 @@ pub(super) fn build_node_editor_header(
 ) -> Element<'_, Message> {
     let accent = workflow_node_accent_color(&editor.block_type);
 
-    container(
-        column![
-            row![
-                workflow_node_icon_badge(workflow_node_icon(&editor.block_type), accent, 16.0),
-                text_input(i18n.__("输入节点名称"), &editor.title)
-                    .on_input(|value| {
-                        Message::WorkflowTool(WorkflowMessage::NodeEditorTitleChanged(value))
-                    })
-                    .padding([8, 10])
-                    .size(20)
-                    .style(node_editor_title_input_style)
-                    .width(Length::Fill),
-                Space::new().width(Length::Fill),
-                button(text(i18n.__("保存")).size(12))
-                    .style(primary_action_btn_style)
-                    .padding([7, 11])
-                    .on_press(Message::WorkflowTool(WorkflowMessage::SubmitNodeEditor)),
-                settings_close_button(Message::WorkflowTool(WorkflowMessage::CloseNodeEditor)),
-            ]
-            .spacing(12)
-            .align_y(Alignment::Center),
+    settings_modal_header(
+        row![
+            workflow_node_icon_badge(workflow_node_icon(&editor.block_type), accent, 16.0),
+            workflow_text_input(i18n.__("输入节点名称"), &editor.title, |value| {
+                Message::WorkflowTool(WorkflowMessage::NodeEditorTitleChanged(value))
+            }),
         ]
-        .spacing(10),
+        .spacing(8)
+        .align_y(Alignment::Center),
+        row![
+            button(text(i18n.__("保存")).size(SETTINGS_CONTROL_TEXT_SIZE))
+                .style(primary_action_btn_style)
+                .padding([10, 12])
+                .on_press(Message::WorkflowTool(WorkflowMessage::SubmitNodeEditor)),
+            settings_close_button(Message::WorkflowTool(WorkflowMessage::CloseNodeEditor)),
+        ]
+        .spacing(8)
+        .align_y(Alignment::Center),
     )
-    .padding([2, 2])
-    .into()
 }
 
 fn build_node_description_section(
@@ -189,9 +166,10 @@ fn build_node_description_section(
         .on_action(|action| {
             Message::WorkflowTool(WorkflowMessage::NodeEditorDescriptionAction(action))
         })
-        .padding([10, 12])
+        .padding(SETTINGS_CONTROL_PADDING)
+        .size(SETTINGS_CONTROL_TEXT_SIZE)
         .height(Length::Fixed(78.0))
-        .style(node_editor_description_style)
+        .style(settings_text_editor_style)
         .into()
 }
 
@@ -244,7 +222,7 @@ pub(super) fn build_node_editor_tabs(
             active_tab,
         ));
 
-    container(tabs).padding([0, 2]).into()
+    tabs.wrap().into()
 }
 
 /// 构建 node editor tab button 对应的界面元素。
@@ -258,8 +236,14 @@ pub(super) fn build_node_editor_tab_button(
     let active = tab == active_tab;
 
     button(text(label).size(12))
-        .style(if active { primary_action_btn_style } else { rounded_action_btn_style })
-        .padding([8, 12])
+        .style(move |theme, status| {
+            let mut style = settings_segment_button_style(theme, status, active);
+            if active {
+                style.text_color = theme.palette().text;
+            }
+            style
+        })
+        .padding([8, 8])
         .on_press(Message::WorkflowTool(WorkflowMessage::NodeEditorTabSelected(tab)))
         .into()
 }
@@ -277,10 +261,11 @@ pub(super) fn build_node_advanced_dsl_section<'a>(
         .placeholder(i18n.__("输入节点 data 的 YAML，支持各类型特有字段"))
         .on_action(|action| Message::WorkflowTool(WorkflowMessage::NodeEditorDataAction(action)))
         .key_binding(node_editor_dsl_key_binding)
-        .padding([10, 12])
+        .padding(SETTINGS_CONTROL_PADDING)
+        .size(SETTINGS_CONTROL_TEXT_SIZE)
         .height(Length::Fixed(360.0))
         .style(editor_style);
-    let editor = wrap_with_context_menu(
+    wrap_with_context_menu(
         i18n,
         editor,
         TextEditorContextMenuState {
@@ -302,9 +287,7 @@ pub(super) fn build_node_advanced_dsl_section<'a>(
             paste: Message::WorkflowTool(WorkflowMessage::NodeEditorDslContextMenuPaste),
             delete: Message::WorkflowTool(WorkflowMessage::NodeEditorDslContextMenuDelete),
         },
-    );
-
-    container(editor).padding(0).style(value_card_style).into()
+    )
 }
 
 fn node_editor_dsl_key_binding(

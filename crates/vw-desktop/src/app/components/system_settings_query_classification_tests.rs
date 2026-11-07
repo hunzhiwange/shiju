@@ -34,7 +34,8 @@ fn view_empty_rules_adds_empty_panel_after_base_sections() {
 
     assert_eq!(tree.children.len(), 5);
     assert_eq!(tree.children[0].children.len(), 3);
-    assert_eq!(tree.children[2].children.len(), 1);
+    let enabled_row = &tree.children[2];
+    assert_eq!(enabled_row.children.len(), 2); // Label and checkbox in the group card.
     assert_eq!(tree.children[4].children.len(), 1);
 }
 
@@ -117,6 +118,6 @@ fn source_wires_each_editor_action_to_query_classification_message() {
     assert!(source.contains("QueryClassificationMessage::PatternChanged(idx, value)"));
     assert!(source.contains("QueryClassificationMessage::CategoryChanged(idx, value)"));
     assert!(source.contains("QueryClassificationMessage::PriorityChanged(idx, value)"));
-    assert!(source.contains("pick_list"));
+    assert!(source.contains("settings_select"));
     assert!(source.contains("ModelConfigTabMessage::Selected(ModelConfigTab::ModelRoutes)"));
 }

@@ -4,10 +4,10 @@
 //! 注释聚焦调用边界、返回值和错误传播方式，便于后续维护设置页与工具栏行为时快速定位职责。
 
 use crate::app::components::system_settings_common::{
-    SETTINGS_LABEL_WIDTH, danger_action_btn_style, primary_action_btn_style,
-    rounded_action_btn_style, settings_error_banner, settings_muted_text_style, settings_panel,
-    settings_panel_style, settings_section_card, settings_success_banner,
-    settings_text_input_style,
+    SETTINGS_CONTROL_PADDING, SETTINGS_CONTROL_TEXT_SIZE, danger_action_btn_style,
+    primary_action_btn_style, rounded_action_btn_style, settings_error_banner, settings_group_card,
+    settings_group_heading, settings_muted_text_style, settings_panel, settings_row,
+    settings_section_content, settings_success_banner, settings_text_input_style,
 };
 use crate::app::i18n::settings_models::connection_text::text as connection_text;
 use crate::app::message::settings::EmbeddingRoutesMessage;
@@ -22,27 +22,17 @@ fn field_row<'a>(
     value: &'a str,
     on_input: impl Fn(String) -> Message + 'a,
 ) -> Element<'a, Message> {
-    container(
-        row![
-            column![
-                text(label).size(13),
-                text(description).size(11).style(settings_muted_text_style),
-            ]
-            .spacing(4)
-            .width(Length::Fixed(SETTINGS_LABEL_WIDTH)),
-            text_input(placeholder, value)
-                .on_input(on_input)
-                .padding([10, 12])
-                .size(13)
-                .style(settings_text_input_style)
-                .width(Length::Fill),
-        ]
-        .spacing(22)
-        .align_y(Alignment::Center),
+    settings_row(
+        label,
+        description,
+        220.0,
+        text_input(placeholder, value)
+            .on_input(on_input)
+            .padding(SETTINGS_CONTROL_PADDING)
+            .size(SETTINGS_CONTROL_TEXT_SIZE)
+            .style(settings_text_input_style)
+            .width(Length::Fill),
     )
-    .padding([14, 0])
-    .width(Length::Fill)
-    .into()
 }
 
 fn secure_field_row<'a>(
@@ -52,28 +42,18 @@ fn secure_field_row<'a>(
     value: &'a str,
     on_input: impl Fn(String) -> Message + 'a,
 ) -> Element<'a, Message> {
-    container(
-        row![
-            column![
-                text(label).size(13),
-                text(description).size(11).style(settings_muted_text_style),
-            ]
-            .spacing(4)
-            .width(Length::Fixed(SETTINGS_LABEL_WIDTH)),
-            text_input(placeholder, value)
-                .secure(true)
-                .on_input(on_input)
-                .padding([10, 12])
-                .size(13)
-                .style(settings_text_input_style)
-                .width(Length::Fill),
-        ]
-        .spacing(22)
-        .align_y(Alignment::Center),
+    settings_row(
+        label,
+        description,
+        220.0,
+        text_input(placeholder, value)
+            .secure(true)
+            .on_input(on_input)
+            .padding(SETTINGS_CONTROL_PADDING)
+            .size(SETTINGS_CONTROL_TEXT_SIZE)
+            .style(settings_text_input_style)
+            .width(Length::Fill),
     )
-    .padding([14, 0])
-    .width(Length::Fill)
-    .into()
 }
 
 fn template_button<'a>(
@@ -82,11 +62,18 @@ fn template_button<'a>(
     message: EmbeddingRoutesMessage,
 ) -> Element<'a, Message> {
     button(
-        column![text(label).size(13), text(description).size(11).style(settings_muted_text_style),]
-            .spacing(4),
+        column![
+            text(label).size(13),
+            text(description)
+                .size(12)
+                .wrapping(iced::widget::text::Wrapping::WordOrGlyph)
+                .style(settings_muted_text_style),
+        ]
+        .spacing(4),
     )
     .on_press(Message::Settings(message::SettingsMessage::EmbeddingRoutes(message)))
     .padding([10, 12])
+    .width(Length::Fill)
     .style(rounded_action_btn_style)
     .into()
 }
@@ -128,13 +115,13 @@ pub fn embedded_view(app: &App) -> Element<'_, Message> {
 
     let templates_panel = settings_panel(
         column![
-            text(connection_text(app.desktop_locale, "快捷模板")).size(13),
-            text(connection_text(
-                app.desktop_locale,
-                "一键插入常用配置，插入后仍可按需改 provider、模型、维度和 API Key。"
-            ))
-            .size(11)
-            .style(settings_muted_text_style),
+            settings_group_heading(
+                connection_text(app.desktop_locale, "快捷模板"),
+                connection_text(
+                    app.desktop_locale,
+                    "一键插入常用配置，插入后仍可按需改 provider、模型、维度和 API Key。"
+                ),
+            ),
             row![
                 template_button(
                     connection_text(app.desktop_locale, "阿里 DashScope"),
@@ -153,15 +140,15 @@ pub fn embedded_view(app: &App) -> Element<'_, Message> {
                 ),
             ]
             .spacing(8)
-            .align_y(Alignment::Center),
+            .align_y(Alignment::Start),
         ]
-        .spacing(10),
+        .spacing(12),
     );
 
     let mut content = column![
         header,
         templates_panel,
-        settings_section_card(
+        settings_group_heading(
             connection_text(app.desktop_locale, "路由规则"),
             connection_text(
                 app.desktop_locale,
@@ -255,11 +242,9 @@ pub fn embedded_view(app: &App) -> Element<'_, Message> {
         let route_title = row![
             text(crate::app::i18n::settings_models::route_title(app.desktop_locale, index + 1))
                 .size(14),
-            text(connection_text(app.desktop_locale, "匹配模式 -> 提供商/模型")).size(12).style(
-                |t: &iced::Theme| {
-                    iced::widget::text::Style { color: Some(t.palette().text.scale_alpha(0.65)) }
-                }
-            ),
+            text(connection_text(app.desktop_locale, "匹配模式 -> 提供商/模型"))
+                .size(12)
+                .style(settings_muted_text_style),
             container(text(" ")).width(Length::Fill),
             button(text(connection_text(app.desktop_locale, "删除")))
                 .on_press(Message::Settings(message::SettingsMessage::EmbeddingRoutes(
@@ -271,19 +256,17 @@ pub fn embedded_view(app: &App) -> Element<'_, Message> {
         .spacing(10)
         .align_y(Alignment::Center);
 
-        let card = container(
+        let card = settings_group_card(
             column![
                 route_title,
-                settings_panel(
+                settings_section_content(
                     column![pattern_row, provider_row, model_row, dimensions_row, api_key_row]
                         .spacing(0)
                 )
             ]
             .spacing(12),
         )
-        .padding(14)
-        .width(Length::Fill)
-        .style(settings_panel_style);
+        .padding([10, 22]);
 
         content = content.push(card);
     }
@@ -296,7 +279,7 @@ pub fn embedded_view(app: &App) -> Element<'_, Message> {
                     EmbeddingRoutesMessage::Save,
                 )))
                 .padding([8, 12])
-                .style(rounded_action_btn_style),
+                .style(primary_action_btn_style),
         ]
         .spacing(8)
         .align_y(Alignment::Center),
@@ -307,3 +290,7 @@ pub fn embedded_view(app: &App) -> Element<'_, Message> {
 #[cfg(test)]
 #[path = "system_settings_embedding_routes_tests.rs"]
 mod system_settings_embedding_routes_tests;
+
+#[cfg(test)]
+#[path = "system_settings_embedding_routes_ui_refresh_11_tests.rs"]
+mod ui_refresh_11_tests;

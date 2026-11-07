@@ -5,17 +5,17 @@
 
 use crate::app::assets::Icon;
 use crate::app::components::system_settings_common::{
-    SETTINGS_LABEL_WIDTH, icon_btn, primary_action_btn_style, settings_checkbox_style,
-    settings_muted_text_style, settings_page_intro, settings_panel, settings_panel_style,
-    settings_pick_list_menu_style, settings_pick_list_style, settings_section_card,
-    settings_section_content, settings_text_input_style,
+    SETTINGS_CONTROL_PADDING, SETTINGS_CONTROL_TEXT_SIZE, icon_btn, primary_action_btn_style,
+    rounded_action_btn_style, settings_checkbox_style, settings_group_card, settings_group_heading,
+    settings_muted_text_style, settings_page_heading, settings_panel, settings_row,
+    settings_section_content, settings_select, settings_text_input_style,
 };
 use crate::app::message::settings::{
     ModelConfigTabMessage, QueryClassificationMessage, SettingsMessage,
 };
 use crate::app::state::ModelConfigTab;
 use crate::app::{App, Message};
-use iced::widget::{button, checkbox, column, container, pick_list, row, text, text_input};
+use iced::widget::{button, checkbox, column, container, row, text, text_input};
 use iced::{Alignment, Element, Length};
 
 fn field_row<'a>(
@@ -23,22 +23,7 @@ fn field_row<'a>(
     description: &'static str,
     control: impl Into<Element<'a, Message>>,
 ) -> Element<'a, Message> {
-    container(
-        row![
-            column![
-                text(label).size(13),
-                text(description).size(11).style(settings_muted_text_style),
-            ]
-            .spacing(4)
-            .width(Length::Fixed(SETTINGS_LABEL_WIDTH)),
-            container(control.into()).width(Length::Fill),
-        ]
-        .spacing(22)
-        .align_y(Alignment::Center),
-    )
-    .padding([14, 0])
-    .width(Length::Fill)
-    .into()
+    settings_row(label, description, 220.0, control)
 }
 
 /// 构建或处理 `view` 对应的界面片段与交互数据。
@@ -65,7 +50,7 @@ pub fn view(app: &App) -> Element<'_, Message> {
     }
 
     let header = row![
-        container(settings_page_intro(
+        container(settings_page_heading(
             crate::app::i18n::I18n::new(app.desktop_locale).__("查询模型分类"),
             crate::app::i18n::I18n::new(app.desktop_locale)
                 .__("将请求 pattern 映射到已配置的模型路由。")
@@ -76,7 +61,7 @@ pub fn view(app: &App) -> Element<'_, Message> {
                 ModelConfigTabMessage::Selected(ModelConfigTab::ModelRoutes),
             )))
             .padding([8, 12])
-            .style(primary_action_btn_style),
+            .style(rounded_action_btn_style),
         button(text(crate::app::i18n::I18n::new(app.desktop_locale).__("新增规则")))
             .on_press(Message::Settings(SettingsMessage::QueryClassification(
                 QueryClassificationMessage::AddRule,
@@ -92,6 +77,8 @@ pub fn view(app: &App) -> Element<'_, Message> {
         crate::app::i18n::I18n::new(app.desktop_locale).__("控制是否开启查询模型分类规则。"),
         checkbox(s.enabled)
             .label(crate::app::i18n::I18n::new(app.desktop_locale).__("启用查询模型分类"))
+            .size(16)
+            .text_size(SETTINGS_CONTROL_TEXT_SIZE)
             .on_toggle(|value| {
                 Message::Settings(SettingsMessage::QueryClassification(
                     QueryClassificationMessage::EnabledToggled(value),
@@ -102,19 +89,20 @@ pub fn view(app: &App) -> Element<'_, Message> {
 
     let mut list = column![
         header,
-        settings_section_card(
+        settings_group_heading(
             crate::app::i18n::I18n::new(app.desktop_locale).__("基础行为"),
             crate::app::i18n::I18n::new(app.desktop_locale)
                 .__("控制查询模型分类总开关以及规则优先级行为。")
         ),
-        settings_section_content(column![enabled_row].spacing(0)),
-        settings_section_card(
+        settings_group_card(enabled_row),
+        settings_group_heading(
             crate::app::i18n::I18n::new(app.desktop_locale).__("模型分类规则"),
             crate::app::i18n::I18n::new(app.desktop_locale)
                 .__("pattern 会匹配用户请求；模型分类从已配置的模型路由中选择。")
         ),
     ]
-    .spacing(16);
+    .spacing(16)
+    .width(Length::Fill);
 
     if s.rules.is_empty() {
         list = list.push(settings_panel(
@@ -144,17 +132,16 @@ pub fn view(app: &App) -> Element<'_, Message> {
                 .iter()
                 .find(|option| option.as_str() == rule.category.trim())
                 .cloned();
-            pick_list(category_options.clone(), selected, move |value| {
+            settings_select(category_options.clone(), selected, move |value| {
                 Message::Settings(SettingsMessage::QueryClassification(
                     QueryClassificationMessage::CategoryChanged(idx, value),
                 ))
             })
-            .style(settings_pick_list_style)
-            .menu_style(settings_pick_list_menu_style)
+            .placeholder(crate::app::i18n::I18n::new(app.desktop_locale).__("请选择"))
             .width(Length::Fill)
             .into()
         };
-        let card = container(
+        let card = settings_group_card(
             column![
                 row![
                     text(
@@ -176,7 +163,7 @@ pub fn view(app: &App) -> Element<'_, Message> {
                     ),
                 ]
                 .align_y(Alignment::Center),
-                settings_panel(
+                settings_section_content(
                     column![
                         field_row(
                             "pattern",
@@ -192,8 +179,8 @@ pub fn view(app: &App) -> Element<'_, Message> {
                                     QueryClassificationMessage::PatternChanged(idx, value),
                                 )
                             ))
-                            .padding([10, 12])
-                            .size(13)
+                            .padding(SETTINGS_CONTROL_PADDING)
+                            .size(SETTINGS_CONTROL_TEXT_SIZE)
                             .style(settings_text_input_style)
                             .width(Length::Fill),
                         ),
@@ -213,10 +200,10 @@ pub fn view(app: &App) -> Element<'_, Message> {
                                         QueryClassificationMessage::PriorityChanged(idx, value),
                                     )
                                 ))
-                                .padding([10, 12])
-                                .size(13)
+                                .padding(SETTINGS_CONTROL_PADDING)
+                                .size(SETTINGS_CONTROL_TEXT_SIZE)
                                 .style(settings_text_input_style)
-                                .width(Length::Fixed(180.0)),
+                                .width(Length::Fill),
                         ),
                     ]
                     .spacing(0),
@@ -224,9 +211,7 @@ pub fn view(app: &App) -> Element<'_, Message> {
             ]
             .spacing(12),
         )
-        .padding(14)
-        .width(Length::Fill)
-        .style(settings_panel_style);
+        .padding([10, 22]);
 
         list = list.push(card);
     }

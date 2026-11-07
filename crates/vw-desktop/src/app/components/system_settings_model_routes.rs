@@ -5,9 +5,9 @@
 
 use crate::app::assets::Icon;
 use crate::app::components::system_settings_common::{
-    SETTINGS_LABEL_WIDTH, icon_btn, primary_action_btn_style, settings_muted_text_style,
-    settings_page_intro, settings_panel, settings_panel_style, settings_section_card,
-    settings_text_input_style,
+    SETTINGS_CONTROL_PADDING, SETTINGS_CONTROL_TEXT_SIZE, icon_btn, primary_action_btn_style,
+    settings_group_card, settings_group_heading, settings_muted_text_style, settings_page_heading,
+    settings_panel, settings_row, settings_section_content, settings_text_input_style,
 };
 use crate::app::i18n::settings_models::{self, text as model_text};
 use crate::app::message::settings::{ModelRoutesMessage, SettingsMessage};
@@ -20,22 +20,7 @@ fn field_row<'a>(
     description: &'static str,
     control: impl Into<Element<'a, Message>>,
 ) -> Element<'a, Message> {
-    container(
-        row![
-            column![
-                text(label).size(13),
-                text(description).size(11).style(settings_muted_text_style),
-            ]
-            .spacing(4)
-            .width(Length::Fixed(SETTINGS_LABEL_WIDTH)),
-            container(control.into()).width(Length::Fill),
-        ]
-        .spacing(22)
-        .align_y(Alignment::Center),
-    )
-    .padding([14, 0])
-    .width(Length::Fill)
-    .into()
+    settings_row(label, description, 220.0, control)
 }
 
 /// 构建或处理 `view` 对应的界面片段与交互数据。
@@ -55,7 +40,7 @@ pub fn view(app: &App) -> Element<'_, Message> {
     let s = &app.model_routes_settings;
 
     let header = row![
-        container(settings_page_intro(
+        container(settings_page_heading(
             model_text(app.desktop_locale, "模型路由"),
             model_text(
                 app.desktop_locale,
@@ -75,7 +60,7 @@ pub fn view(app: &App) -> Element<'_, Message> {
 
     let mut list = column![
         header,
-        settings_section_card(
+        settings_group_heading(
             model_text(app.desktop_locale, "路由规则"),
             model_text(
                 app.desktop_locale,
@@ -83,7 +68,8 @@ pub fn view(app: &App) -> Element<'_, Message> {
             )
         ),
     ]
-    .spacing(16);
+    .spacing(16)
+    .width(Length::Fill);
 
     if s.routes.is_empty() {
         list = list.push(settings_panel(
@@ -97,7 +83,7 @@ pub fn view(app: &App) -> Element<'_, Message> {
     }
 
     for (idx, route) in s.routes.iter().enumerate() {
-        let card = container(
+        let card = settings_group_card(
             column![
                 row![
                     text(settings_models::route_title(app.desktop_locale, idx + 1)).size(14),
@@ -111,7 +97,7 @@ pub fn view(app: &App) -> Element<'_, Message> {
                     ),
                 ]
                 .align_y(Alignment::Center),
-                settings_panel(
+                settings_section_content(
                     column![
                         field_row(
                             model_text(app.desktop_locale, "匹配模式"),
@@ -126,8 +112,8 @@ pub fn view(app: &App) -> Element<'_, Message> {
                             .on_input(move |value| Message::Settings(SettingsMessage::ModelRoutes(
                                 ModelRoutesMessage::PatternChanged(idx, value),
                             )))
-                            .padding([10, 12])
-                            .size(13)
+                            .padding(SETTINGS_CONTROL_PADDING)
+                            .size(SETTINGS_CONTROL_TEXT_SIZE)
                             .style(settings_text_input_style)
                             .width(Length::Fill),
                         ),
@@ -141,8 +127,8 @@ pub fn view(app: &App) -> Element<'_, Message> {
                             .on_input(move |value| Message::Settings(SettingsMessage::ModelRoutes(
                                 ModelRoutesMessage::ProviderChanged(idx, value),
                             )))
-                            .padding([10, 12])
-                            .size(13)
+                            .padding(SETTINGS_CONTROL_PADDING)
+                            .size(SETTINGS_CONTROL_TEXT_SIZE)
                             .style(settings_text_input_style)
                             .width(Length::Fill),
                         ),
@@ -155,8 +141,8 @@ pub fn view(app: &App) -> Element<'_, Message> {
                                         idx, value
                                     ),)
                                 ))
-                                .padding([10, 12])
-                                .size(13)
+                                .padding(SETTINGS_CONTROL_PADDING)
+                                .size(SETTINGS_CONTROL_TEXT_SIZE)
                                 .style(settings_text_input_style)
                                 .width(Length::Fill),
                         ),
@@ -172,10 +158,10 @@ pub fn view(app: &App) -> Element<'_, Message> {
                                         ModelRoutesMessage::PriorityChanged(idx, value),
                                     )
                                 ))
-                                .padding([10, 12])
-                                .size(13)
+                                .padding(SETTINGS_CONTROL_PADDING)
+                                .size(SETTINGS_CONTROL_TEXT_SIZE)
                                 .style(settings_text_input_style)
-                                .width(Length::Fixed(180.0)),
+                                .width(Length::Fill),
                         ),
                     ]
                     .spacing(0),
@@ -183,9 +169,7 @@ pub fn view(app: &App) -> Element<'_, Message> {
             ]
             .spacing(12),
         )
-        .padding(14)
-        .width(Length::Fill)
-        .style(settings_panel_style);
+        .padding([10, 22]);
 
         list = list.push(card);
     }

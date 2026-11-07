@@ -5,13 +5,13 @@
 
 use crate::app::components::number_input::NumberInput;
 use crate::app::components::system_settings_common::{
-    SETTINGS_LABEL_WIDTH, settings_checkbox_style, settings_muted_text_style, settings_page_intro,
-    settings_pick_list_menu_style, settings_pick_list_style, settings_section_card,
-    settings_section_content, settings_value_badge,
+    SETTINGS_CONTROL_TEXT_SIZE, settings_checkbox_style, settings_divider, settings_group_card,
+    settings_group_heading, settings_muted_text_style, settings_page_heading, settings_row,
+    settings_select, settings_value_badge,
 };
 use crate::app::message::settings::{MultimodalMessage, SettingsMessage};
 use crate::app::{App, Message};
-use iced::widget::{checkbox, column, container, pick_list, row, text};
+use iced::widget::{checkbox, column, row, text};
 use iced::{Alignment, Element, Length};
 
 const NO_IMAGE_MODEL_OPTION: &str = "请选择";
@@ -21,22 +21,7 @@ fn field_row<'a>(
     description: &'static str,
     control: impl Into<Element<'a, Message>>,
 ) -> Element<'a, Message> {
-    container(
-        row![
-            column![
-                text(label).size(13),
-                text(description).size(11).style(settings_muted_text_style),
-            ]
-            .spacing(4)
-            .width(Length::Fixed(SETTINGS_LABEL_WIDTH)),
-            container(control.into()).width(Length::Fill),
-        ]
-        .spacing(22)
-        .align_y(Alignment::Center),
-    )
-    .padding([14, 0])
-    .width(Length::Fill)
-    .into()
+    settings_row(label, description, 220.0, control)
 }
 
 fn number_row<'a>(
@@ -75,7 +60,12 @@ fn bool_row<'a>(
     field_row(
         label,
         description,
-        checkbox(checked).label(checkbox_label).on_toggle(on_toggle).style(settings_checkbox_style),
+        checkbox(checked)
+            .label(checkbox_label)
+            .size(16)
+            .text_size(SETTINGS_CONTROL_TEXT_SIZE)
+            .on_toggle(on_toggle)
+            .style(settings_checkbox_style),
     )
 }
 
@@ -115,7 +105,7 @@ fn image_model_control(app: &App) -> Element<'_, Message> {
     let has_options = options.len() > 1;
     let configured_is_available = selected.is_some();
 
-    let picker = pick_list(options, selected, move |value| {
+    let picker = settings_select(options, selected, move |value| {
         let model = (value
             != crate::app::i18n::I18n::new(app.desktop_locale).__(NO_IMAGE_MODEL_OPTION))
         .then_some(value)
@@ -123,11 +113,7 @@ fn image_model_control(app: &App) -> Element<'_, Message> {
         Message::Settings(SettingsMessage::Multimodal(MultimodalMessage::OcrModelChanged(model)))
     })
     .placeholder(crate::app::i18n::I18n::new(app.desktop_locale).__("请选择支持图片输入的模型"))
-    .padding([10, 14])
-    .text_size(13)
-    .style(settings_pick_list_style)
-    .menu_style(settings_pick_list_menu_style)
-    .width(Length::Fixed(320.0));
+    .width(Length::Fill);
 
     let mut status = column![picker].spacing(6);
     if app.model_settings.loading {
@@ -148,6 +134,7 @@ fn image_model_control(app: &App) -> Element<'_, Message> {
                 .expect("valid image status template"),
             )
             .size(11)
+            .wrapping(iced::widget::text::Wrapping::WordOrGlyph)
             .style(settings_muted_text_style),
         );
     }
@@ -162,6 +149,7 @@ fn image_model_control(app: &App) -> Element<'_, Message> {
                 .expect("valid image status template"),
             )
             .size(11)
+            .wrapping(iced::widget::text::Wrapping::WordOrGlyph)
             .style(settings_muted_text_style),
         );
     } else if !configured.is_empty() && !configured_is_available {
@@ -175,6 +163,7 @@ fn image_model_control(app: &App) -> Element<'_, Message> {
                 .expect("valid image status template"),
             )
             .size(11)
+            .wrapping(iced::widget::text::Wrapping::WordOrGlyph)
             .style(settings_muted_text_style),
         );
     } else if !has_options {
@@ -184,6 +173,7 @@ fn image_model_control(app: &App) -> Element<'_, Message> {
                     .__("暂无已启用且明确支持图片输入的模型。"),
             )
             .size(11)
+            .wrapping(iced::widget::text::Wrapping::WordOrGlyph)
             .style(settings_muted_text_style),
         );
     }
@@ -208,26 +198,28 @@ pub fn view(app: &App) -> Element<'_, Message> {
     let s = &app.multimodal_settings;
 
     let content = column![
-        settings_page_intro(
+        settings_page_heading(
             crate::app::i18n::I18n::new(app.desktop_locale).__("多模态配置"),
             crate::app::i18n::I18n::new(app.desktop_locale).__("配置本地图片附件的数量与大小上限，并决定是否允许抓取远程图片 URL。"),
         ),
-        settings_section_card(
+        settings_group_heading(
             crate::app::i18n::I18n::new(app.desktop_locale).__("图像输入限制"),
             crate::app::i18n::I18n::new(app.desktop_locale).__("输入框附件优先使用本地文件；这里控制单次请求最多允许的图片数量、每张图片大小上限，以及是否允许抓取远程图片 URL。"),
         ),
-        settings_section_content(
+        settings_group_card(
             column![
                 number_row(crate::app::i18n::I18n::new(app.desktop_locale).__("最大图片数量"), crate::app::i18n::I18n::new(app.desktop_locale).__("单次请求最多允许上传的图片数。"), s.max_images, 1, 16, crate::app::i18n::I18n::new(app.desktop_locale).__("张"), |value| {
                     Message::Settings(SettingsMessage::Multimodal(MultimodalMessage::MaxImagesChanged(
                         value,
                     )))
                 }),
+                settings_divider(),
                 number_row(crate::app::i18n::I18n::new(app.desktop_locale).__("单张图片大小上限"), crate::app::i18n::I18n::new(app.desktop_locale).__("每张图片允许的最大体积。"), s.max_image_size_mb, 1, 20, "MB", |value| {
                     Message::Settings(SettingsMessage::Multimodal(
                         MultimodalMessage::MaxImageSizeMbChanged(value),
                     ))
                 }),
+                settings_divider(),
                 bool_row(
                     crate::app::i18n::I18n::new(app.desktop_locale).__("允许远程抓取"),
                     crate::app::i18n::I18n::new(app.desktop_locale).__("本地附件始终可用；开启后才允许抓取 http/https 远程图片 URL。"),
@@ -242,11 +234,11 @@ pub fn view(app: &App) -> Element<'_, Message> {
             ]
             .spacing(0),
         ),
-        settings_section_card(
+        settings_group_heading(
             crate::app::i18n::I18n::new(app.desktop_locale).__("大模型视觉理解（含文字识别）"),
             crate::app::i18n::I18n::new(app.desktop_locale).__("使用多模态大模型识别图片文字并生成视觉摘要，再交给主模型处理。分析结果为有界、不可信的附件数据，可能省略图片细节。"),
         ),
-        settings_section_content(
+        settings_group_card(
             column![
                 bool_row(
                     crate::app::i18n::I18n::new(app.desktop_locale).__("模型支持图片"),
@@ -259,6 +251,7 @@ pub fn view(app: &App) -> Element<'_, Message> {
                         ))
                     },
                 ),
+                settings_divider(),
                 bool_row(
                     crate::app::i18n::I18n::new(app.desktop_locale).__("启用视觉模型分析"),
                     crate::app::i18n::I18n::new(app.desktop_locale).__("关闭“模型支持图片”后，使用下方多模态大模型识别文字并理解图片，无需本地 Python OCR 库。"),
@@ -270,6 +263,7 @@ pub fn view(app: &App) -> Element<'_, Message> {
                         ))
                     },
                 ),
+                settings_divider(),
                 field_row(
                     crate::app::i18n::I18n::new(app.desktop_locale).__("图片模型"),
                     crate::app::i18n::I18n::new(app.desktop_locale).__("选择用于文字识别和视觉摘要的多模态大模型；只显示已启用且明确支持图片输入的 provider/model。"),

@@ -14,12 +14,14 @@ use crate::app::{
 };
 use iced::{
     Alignment, Element, Length, Theme,
-    widget::{button, column, container, mouse_area, row, svg, text, text_input, tooltip},
+    widget::{
+        button, column, container, mouse_area, row, svg, text, text::Wrapping, text_input, tooltip,
+    },
 };
 use vw_gateway_client::vw_api_types::agent_apps::*;
 
 fn pill<'a>(label: impl Into<String>, tone: Tone) -> Element<'a, Message> {
-    container(text(label.into()).size(11))
+    container(text(label.into()).size(12).wrapping(Wrapping::Glyph))
         .padding([3, 7])
         .style(move |theme| styles::badge(theme, tone))
         .into()
@@ -33,11 +35,15 @@ fn action<'a>(
     event: AppsCatalogMessage,
     enabled: bool,
 ) -> Element<'a, Message> {
-    button(row![icon(glyph, 14.), text(label).size(12)].spacing(6).align_y(Alignment::Center))
-        .padding([8, 11])
-        .style(rounded_action_btn_style)
-        .on_press_maybe(enabled.then_some(message(event)))
-        .into()
+    button(
+        row![icon(glyph, 14.), text(label).size(SETTINGS_CONTROL_TEXT_SIZE)]
+            .spacing(6)
+            .align_y(Alignment::Center),
+    )
+    .padding([8, 11])
+    .style(rounded_action_btn_style)
+    .on_press_maybe(enabled.then_some(message(event)))
+    .into()
 }
 
 pub(super) fn view(state: &AppsCatalogState) -> Element<'_, Message> {
@@ -53,14 +59,8 @@ pub(super) fn view(state: &AppsCatalogState) -> Element<'_, Message> {
         &state.host
     };
     let heading = row![
-        column![
-            row![text("应用").size(24), pill(location, Tone::Neutral)]
-                .spacing(10)
-                .align_y(Alignment::Center),
-            text("发现你的 AI 工具，随时开始工作。").size(12).style(settings_muted_text_style),
-        ]
-        .spacing(6)
-        .width(Length::Fill),
+        container(settings_page_heading("应用", "发现你的 AI 工具，随时开始工作。"))
+            .width(Length::Fill),
         action(
             if state.error.is_some() { "重试" } else { "刷新" },
             Icon::ArrowClockwise,
@@ -80,24 +80,26 @@ pub(super) fn view(state: &AppsCatalogState) -> Element<'_, Message> {
         .padding(SETTINGS_CONTROL_PADDING)
         .size(SETTINGS_CONTROL_TEXT_SIZE)
         .style(settings_text_input_style)
-        .on_input(|q| message(AppsCatalogMessage::QueryInput(q)));
-    let toolbar = row![
-        container(row![icon(Icon::Search, 15.), search].spacing(8).align_y(Alignment::Center))
-            .width(Length::Fill),
+        .on_input(|q| message(AppsCatalogMessage::QueryInput(q)))
+        .width(Length::Fill);
+    let search_row = row![
+        icon(Icon::Search, 16.),
+        search,
         icon_btn(Icon::Link, "高级连接", Some(message(AppsCatalogMessage::ConnectionOpen))),
     ]
-    .spacing(12)
+    .spacing(10)
     .align_y(Alignment::Center);
-    let mut content = column![
-        heading,
-        row![
-            pill(format!("已安装 {installed}"), Tone::Success),
-            pill(format!("待安装 {missing}"), Tone::Neutral)
-        ]
-        .spacing(8),
-        toolbar
+    let status = row![
+        pill(format!("执行主机 · {location}"), Tone::Neutral),
+        pill(format!("已安装 {installed}"), Tone::Success),
+        pill(format!("待安装 {missing}"), Tone::Neutral),
     ]
-    .spacing(18);
+    .spacing(8)
+    .align_y(Alignment::Center)
+    .wrap();
+    let filters =
+        settings_group_card(container(column![search_row, status].spacing(12)).padding([14, 0]));
+    let mut content = column![heading, filters].spacing(20);
     if let Some(error) = &state.error {
         content = content.push(settings_error_banner(error.clone()));
     }
@@ -146,18 +148,16 @@ pub(super) fn view(state: &AppsCatalogState) -> Element<'_, Message> {
                 continue;
             }
             found += apps.len();
+            let description = if state.drag.source.is_some() && presence == Presence::Installed {
+                "松开鼠标完成排序 · Esc 取消"
+            } else if state.preferences.busy && presence == Presence::Installed {
+                "正在同步设置…"
+            } else {
+                note
+            };
             let section_title = row![
-                text(format!("{title}  ·  {}", apps.len())).size(13),
-                container(text("")).width(Length::Fill),
-                text(if state.drag.source.is_some() && presence == Presence::Installed {
-                    "松开鼠标完成排序 · Esc 取消"
-                } else if state.preferences.busy && presence == Presence::Installed {
-                    "正在同步设置…"
-                } else {
-                    note
-                })
-                .size(11)
-                .style(settings_muted_text_style)
+                container(settings_group_heading(title, description)).width(Length::Fill),
+                settings_value_badge(apps.len()),
             ]
             .spacing(8)
             .align_y(Alignment::Center);
@@ -182,7 +182,7 @@ pub(super) fn view(state: &AppsCatalogState) -> Element<'_, Message> {
             ));
         }
     }
-    container(content).padding([6, 7]).width(Length::Fill).into()
+    settings_section_content(content).into()
 }
 
 fn empty<'a>(title: &'a str, description: &'a str, glyph: Icon) -> Element<'a, Message> {
@@ -190,7 +190,7 @@ fn empty<'a>(title: &'a str, description: &'a str, glyph: Icon) -> Element<'a, M
         column![
             container(icon(glyph, 26.)).padding(16).style(styles::icon_tile),
             text(title).size(16),
-            text(description).size(12).style(settings_muted_text_style)
+            text(description).size(13).center().style(settings_muted_text_style)
         ]
         .spacing(12)
         .align_x(Alignment::Center),
@@ -333,7 +333,8 @@ fn card<'a>(state: &'a AppsCatalogState, app: &'a CatalogRow) -> Element<'a, Mes
             .push(pill(presentation::source_label(installation.source), Tone::Neutral))
             .push(
                 text(installation.version.as_deref().unwrap_or("版本待确认"))
-                    .size(11)
+                    .size(12)
+                    .wrapping(Wrapping::Glyph)
                     .style(settings_muted_text_style),
             )
             .push(pill(
@@ -350,11 +351,16 @@ fn card<'a>(state: &'a AppsCatalogState, app: &'a CatalogRow) -> Element<'a, Mes
         meta = meta.push(text(label).size(12).style(settings_muted_text_style));
     }
     let description =
-        column![text(&app.entry.name).size(15), meta.wrap()].spacing(6).width(Length::Fill);
+        column![text(&app.entry.name).size(16).wrapping(Wrapping::Glyph), meta.wrap(),]
+            .spacing(8)
+            .width(Length::Fill);
     let primary: Element<'_, Message> = if ready {
         let installation = presentation::preferred(app).unwrap();
         button(
-            text("启动").size(12).width(Length::Fill).align_x(iced::alignment::Horizontal::Center),
+            text("启动")
+                .size(SETTINGS_CONTROL_TEXT_SIZE)
+                .width(Length::Fill)
+                .align_x(iced::alignment::Horizontal::Center),
         )
         .width(68.)
         .padding([8, 12])
@@ -411,16 +417,17 @@ fn card<'a>(state: &'a AppsCatalogState, app: &'a CatalogRow) -> Element<'a, Mes
             (state.drag.source.is_none())
                 .then_some(message(AppsCatalogMessage::ToggleDetails(app.entry.id))),
         );
-    let providers = button(text("供应商").size(12))
+    let providers = button(text("供应商").size(SETTINGS_CONTROL_TEXT_SIZE))
         .padding([8, 11])
         .style(rounded_action_btn_style)
         .on_press(crate::app::message::app_providers::list::message(
             crate::app::message::app_providers::list::ListMessage::Open(app.entry.id),
         ));
-    let summary = row![handle, brand(app.entry.id), description, providers, primary, toggle]
+    let actions = row![providers, primary, toggle].spacing(8).align_y(Alignment::Center);
+    let summary = row![handle, brand(app.entry.id), description, actions]
         .spacing(12)
         .align_y(Alignment::Center);
-    let mut body = column![container(summary).padding([16, 16])];
+    let mut body = column![container(summary).padding([16, 18])];
     if expanded {
         body = body.push(settings_divider()).push(details::view(state, app));
     }

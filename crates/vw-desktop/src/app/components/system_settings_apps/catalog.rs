@@ -87,3 +87,7 @@ pub(crate) fn runtime_status(row: &CatalogRow, kind: AppRuntimeKind) -> String {
         .collect::<Vec<_>>()
         .join(" / ")
 }
+
+#[cfg(test)]
+#[path = "catalog_ui_refresh_06_tests.rs"]
+mod ui_refresh_06_tests;

@@ -1,17 +1,21 @@
 //! Expanded installation details keep diagnostics and destructive actions out of the overview.
 use super::{catalog, launch, lifecycle, message, uninstall};
 use crate::app::components::system_settings_common::*;
-use crate::app::{Message, message::settings::AppsCatalogMessage, state::AppsCatalogState};
+use crate::app::{
+    Message,
+    message::settings::{AppsCatalogMessage, apps_lifecycle::LifecycleMessage},
+    state::AppsCatalogState,
+};
 use iced::{
     Element, Length,
-    widget::{button, column, container, row, text},
+    widget::{button, column, container, row, text, text::Wrapping},
 };
 
 pub(super) fn view<'a>(
     state: &'a AppsCatalogState,
     app: &'a catalog::CatalogRow,
 ) -> Element<'a, Message> {
-    let mut details = column![].spacing(10);
+    let mut details = column![text("运行状态").size(15)].spacing(10);
     for kind in &app.entry.runtime_kinds {
         details = details.push(
             text(format!(
@@ -19,7 +23,8 @@ pub(super) fn view<'a>(
                 catalog::runtime_label(*kind),
                 catalog::runtime_status(app, *kind)
             ))
-            .size(13),
+            .size(13)
+            .wrapping(Wrapping::Glyph),
         );
     }
     if let Ok(observation) = &app.observation {
@@ -52,7 +57,9 @@ pub(super) fn view<'a>(
                         !state.lifecycle.active() && state.lifecycle.preview.is_none()
                     ),
                 ]
-                .spacing(10),
+                .spacing(8)
+                .align_y(iced::Alignment::Center)
+                .wrap(),
             );
         }
         for installation in &observation.installations {
@@ -62,42 +69,31 @@ pub(super) fn view<'a>(
                 AppInstallationEnvironment::Linux => "Linux".to_string(),
                 AppInstallationEnvironment::Wsl { distribution } => format!("WSL · {distribution}"),
             };
-            details = details.push(
+            let mut installation_details = column![
                 text(format!(
                     "{} · {} · {}",
                     super::presentation::source_label(installation.source),
                     environment,
                     installation.version.as_deref().unwrap_or("版本待确认")
                 ))
-                .size(12)
-                .style(settings_muted_text_style),
-            );
-            details = details.push(
-                column![
-                    text("安装位置").size(11).style(settings_muted_text_style),
-                    text(&installation.path).size(12)
-                ]
-                .spacing(4),
-            );
+                .size(14)
+                .wrapping(Wrapping::Glyph),
+                path_field("安装位置", &installation.path),
+            ]
+            .spacing(10);
             if let Some(real) = &installation.real_path {
                 if real != &installation.path {
-                    details = details.push(
-                        column![
-                            text("真实位置").size(11).style(settings_muted_text_style),
-                            text(real).size(12)
-                        ]
-                        .spacing(4),
-                    );
+                    installation_details = installation_details.push(path_field("真实位置", real));
                 }
             } else {
-                details = details
-                    .push(text("真实位置尚未确认").size(11).style(settings_muted_text_style));
+                installation_details = installation_details
+                    .push(text("真实位置尚未确认").size(12).style(settings_muted_text_style));
             }
             let enabled = !state.lifecycle.active()
                 && state.lifecycle.preview.is_none()
                 && state.drag.source.is_none();
             let mut actions = row![
-                button(text("终端启动").size(12))
+                button(text("终端启动").size(SETTINGS_CONTROL_TEXT_SIZE))
                     .padding([8, 12])
                     .style(primary_action_btn_style)
                     .on_press_maybe(enabled.then(|| message(AppsCatalogMessage::Launch(
@@ -115,21 +111,36 @@ pub(super) fn view<'a>(
                     enabled
                 ),
             ]
-            .spacing(8);
+            .spacing(8)
+            .align_y(iced::Alignment::Center);
             if installation.source != AppInstallationSource::Unknown {
-                actions = actions.push(button(text("卸载").size(12)).padding([8,12]).style(danger_action_btn_style)
-                    .on_press_maybe(enabled.then(||message(AppsCatalogMessage::Lifecycle(crate::app::message::settings::apps_lifecycle::LifecycleMessage::Preview(AppActionPreviewRequest {app_id:app.entry.id,action:AppLifecycleAction::Uninstall,target:AppActionTarget::Installation {installation_id:installation.id.clone()}}))))));
-            }
-            details = details.push(actions.wrap());
-            if installation.source == AppInstallationSource::Unknown {
-                details = details.push(
-                    text(uninstall::MANUAL_GUIDANCE).size(11).style(settings_muted_text_style),
+                let request = AppActionPreviewRequest {
+                    app_id: app.entry.id,
+                    action: AppLifecycleAction::Uninstall,
+                    target: AppActionTarget::Installation {
+                        installation_id: installation.id.clone(),
+                    },
+                };
+                actions = actions.push(
+                    button(text("卸载").size(SETTINGS_CONTROL_TEXT_SIZE))
+                        .padding([8, 12])
+                        .style(danger_action_btn_style)
+                        .on_press_maybe(enabled.then_some(message(AppsCatalogMessage::Lifecycle(
+                            LifecycleMessage::Preview(request),
+                        )))),
                 );
             }
+            installation_details = installation_details.push(actions.wrap());
+            if installation.source == AppInstallationSource::Unknown {
+                installation_details = installation_details.push(
+                    text(uninstall::MANUAL_GUIDANCE).size(12).style(settings_muted_text_style),
+                );
+            }
+            details = details.push(settings_divider()).push(installation_details);
         }
         if let Some(desktop) = &observation.desktop {
             for path in desktop.app_bundles.iter().flatten() {
-                details = details.push(text(path).size(12));
+                details = details.push(path_field("安装位置", path));
             }
         }
     }
@@ -137,8 +148,8 @@ pub(super) fn view<'a>(
         details = details
             .push(text("请从 Claude 官网手动下载安装到目标主机的 Applications 文件夹，然后刷新应用列表。下载页将在当前客户端浏览器打开；远程主机需在该主机上安装。")
                 .size(12).style(settings_muted_text_style))
-            .push(text("https://claude.com/download").size(12))
-            .push(button(text("打开 Claude 官方下载页").size(12))
+            .push(text("https://claude.com/download").size(13).wrapping(Wrapping::Glyph))
+            .push(button(text("打开 Claude 官方下载页").size(SETTINGS_CONTROL_TEXT_SIZE))
                 .padding([8, 12])
                 .style(rounded_action_btn_style)
                 .on_press(Message::View(crate::app::message::ViewMessage::OpenUrlExternal(
@@ -146,4 +157,13 @@ pub(super) fn view<'a>(
                 ))));
     }
     container(details).padding([16, 18]).width(Length::Fill).into()
+}
+
+fn path_field<'a>(label: &'a str, path: &'a str) -> Element<'a, Message> {
+    column![
+        text(label).size(12).style(settings_muted_text_style),
+        text(path).size(13).wrapping(Wrapping::Glyph),
+    ]
+    .spacing(4)
+    .into()
 }

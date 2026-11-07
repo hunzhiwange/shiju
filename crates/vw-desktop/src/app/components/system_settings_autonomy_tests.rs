@@ -21,9 +21,9 @@ fn keep_element(element: Element<'_, Message>) {
 }
 
 #[test]
-fn tab_button_builds_active_and_inactive_states() {
-    keep_element(tab_button("只读", true, Message::GatewayHealthTick).into());
-    keep_element(tab_button("完全", false, Message::GatewayHealthTick).into());
+fn segment_button_builds_active_and_inactive_states() {
+    keep_element(segment_button("只读", true, Message::GatewayHealthTick).into());
+    keep_element(segment_button("完全", false, Message::GatewayHealthTick).into());
 }
 
 #[test]
@@ -205,4 +205,27 @@ fn view_renders_only_selected_autonomy_tab() {
         assert_eq!(tree.children.len(), 4);
         assert_eq!(tree.children[3].children.len(), panel_children);
     }
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+#[tokio::test(flavor = "multi_thread")]
+async fn settings_tabs_core_appearance_autonomy() {
+    use super::super::system_settings_common::tab_appearance_tests;
+    use crate::app::i18n::I18n;
+    use crate::app::message::settings::SettingsMessage;
+
+    tab_appearance_tests::run(
+        concat!(module_path!(), "::settings_tabs_core_appearance_autonomy"),
+        test_app,
+        |scene, app| {
+            app.autonomy_settings.active_tab = AutonomySettingsTab::Permissions;
+            let i18n = I18n::new(app.desktop_locale);
+            let labels: Vec<_> = AUTONOMY_TABS.iter().map(|tab| i18n.__(tab.label)).collect();
+            assert!(matches!(
+                scene.check(app, view(app), &labels, 3),
+                SettingsMessage::AutonomyTabSelected(AutonomySettingsTab::NonCli)
+            ));
+        },
+    )
+    .await;
 }

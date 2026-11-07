@@ -8,7 +8,7 @@ use crate::app::components::system_settings_common::{
     SETTINGS_CONTROL_PADDING, SETTINGS_CONTROL_TEXT_SIZE, rounded_action_btn_style,
     settings_checkbox_style, settings_divider, settings_error_banner, settings_field_label,
     settings_group_card, settings_group_heading, settings_muted_text_style, settings_page_heading,
-    settings_segment_button_style, settings_select, settings_text_input_style,
+    settings_select, settings_tab_button, settings_tab_row, settings_text_input_style,
 };
 use crate::app::components::system_settings_search::SettingsTabDescriptor;
 use crate::app::i18n::settings_runtime::text as runtime_text;
@@ -116,24 +116,6 @@ fn bool_row<'a>(
             .on_toggle(on_toggle)
             .style(settings_checkbox_style),
     )
-}
-
-fn tab_button<'a>(
-    label: &'static str,
-    tab: MemorySettingsTab,
-    active_tab: MemorySettingsTab,
-) -> iced::widget::Button<'a, Message> {
-    button(text(label).size(SETTINGS_CONTROL_TEXT_SIZE))
-        .on_press(Message::Settings(SettingsMessage::Memory(MemoryMessage::TabSelected(tab))))
-        .padding([8, 14])
-        .style(move |theme: &iced::Theme, status| {
-            let is_active = tab == active_tab;
-            let mut style = settings_segment_button_style(theme, status, is_active);
-            if is_active {
-                style.text_color = theme.palette().text;
-            }
-            style
-        })
 }
 
 fn parse_bounded_number(value: &str, min: f32, max: f32) -> f32 {
@@ -604,23 +586,18 @@ pub fn view(app: &App) -> Element<'_, Message> {
         None
     };
 
-    let mut tabs =
-        MEMORY_TABS.iter().fold(row![].spacing(8).align_y(Alignment::Center), |row, descriptor| {
-            row.push(tab_button(
-                memory_tab_label(locale, descriptor.tab),
-                descriptor.tab,
-                s.active_tab,
-            ))
-        });
-
-    if s.backend == "qdrant" {
-        let descriptor = QDRANT_TAB[0];
-        tabs = tabs.push(tab_button(
+    let qdrant_tabs = if s.backend == "qdrant" { QDRANT_TAB } else { &[] };
+    let tabs = settings_tab_row(MEMORY_TABS.iter().chain(qdrant_tabs).map(|descriptor| {
+        settings_tab_button(
             memory_tab_label(locale, descriptor.tab),
-            descriptor.tab,
-            s.active_tab,
-        ));
-    }
+            descriptor.tab == s.active_tab,
+            Some(Message::Settings(SettingsMessage::Memory(MemoryMessage::TabSelected(
+                descriptor.tab,
+            )))),
+        )
+        .into()
+    }))
+    .wrap();
 
     let selected_section: Element<'_, Message> = match s.active_tab {
         MemorySettingsTab::General => general_section.into(),
@@ -642,7 +619,7 @@ pub fn view(app: &App) -> Element<'_, Message> {
             runtime_text(locale, "记忆系统配置"),
             runtime_text(locale, "统一配置后端、保留策略、缓存和向量检索参数。")
         ),
-        tabs.wrap(),
+        tabs,
     ]
     .spacing(16)
     .width(Length::Fill);

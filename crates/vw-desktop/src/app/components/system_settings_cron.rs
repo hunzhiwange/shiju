@@ -11,8 +11,8 @@ use crate::app::components::system_settings_common::{
     settings_modal_card_style, settings_modal_header, settings_modal_layout,
     settings_modal_overlay, settings_muted_text_style, settings_page_heading, settings_panel,
     settings_row_with_flexible_control, settings_segment_button_style, settings_select,
-    settings_success_banner, settings_text_editor_style, settings_text_input_style,
-    settings_value_badge,
+    settings_success_banner, settings_tab_button, settings_tab_row, settings_text_editor_style,
+    settings_text_input_style, settings_value_badge,
 };
 use crate::app::components::system_settings_search::SettingsTabDescriptor;
 use crate::app::state::{CronAddJobType, CronAddScheduleKind, CronSettingsTab};
@@ -88,12 +88,12 @@ fn tab_button(
     active_tab: CronSettingsTab,
     label: &'static str,
 ) -> Element<'static, Message> {
-    let is_active = tab == active_tab;
-    button(text(label).size(13))
-        .padding([8, 14])
-        .style(move |theme: &Theme, status| cron_segment_style(theme, status, is_active))
-        .on_press(Message::Settings(message::SettingsMessage::CronTabSelected(tab)))
-        .into()
+    settings_tab_button(
+        label,
+        tab == active_tab,
+        Some(Message::Settings(message::SettingsMessage::CronTabSelected(tab))),
+    )
+    .into()
 }
 
 fn segment_button<'a>(
@@ -1303,13 +1303,13 @@ pub fn view(app: &App) -> Element<'_, Message> {
         app.desktop_locale,
         Message::Settings(message::SettingsMessage::CronHelpOpen),
     );
-    let tabs = CRON_TABS.iter().fold(row![].spacing(8), |row, descriptor| {
-        row.push(tab_button(
-            descriptor.tab,
-            s.active_tab,
-            crate::app::i18n::I18n::new(app.desktop_locale).__(descriptor.label),
-        ))
-    });
+    let i18n = crate::app::i18n::I18n::new(app.desktop_locale);
+    let tabs = settings_tab_row(
+        CRON_TABS
+            .iter()
+            .map(|descriptor| tab_button(descriptor.tab, s.active_tab, i18n.__(descriptor.label))),
+    )
+    .wrap();
 
     let tab_content = match s.active_tab {
         CronSettingsTab::Jobs => jobs_tab(app),

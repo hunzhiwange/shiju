@@ -288,7 +288,6 @@ fn system_settings_security_tests_keep_planned_coverage_targets() {
         "field_row",
         "text_row",
         "list_editor",
-        "tab_button",
         "bool_row",
         "slider_row",
         "sandbox_enabled_options",
@@ -299,4 +298,28 @@ fn system_settings_security_tests_keep_planned_coverage_targets() {
     ] {
         assert!(source_declares_symbol(name), "expected source to declare coverage target {name}");
     }
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+#[tokio::test(flavor = "multi_thread")]
+async fn settings_tabs_core_appearance_security() {
+    use super::super::system_settings_common::tab_appearance_tests;
+    use crate::app::message::settings::SettingsMessage;
+
+    tab_appearance_tests::run(
+        concat!(module_path!(), "::settings_tabs_core_appearance_security"),
+        test_app,
+        |scene, app| {
+            app.security_settings.active_tab = SecuritySettingsTab::Bash;
+            let labels: Vec<_> = SECURITY_TABS
+                .iter()
+                .map(|tab| security_tab_label(app.desktop_locale, tab.tab))
+                .collect();
+            assert!(matches!(
+                scene.check(app, view(app), &labels, 5),
+                SettingsMessage::SecurityTabSelected(SecuritySettingsTab::Guard)
+            ));
+        },
+    )
+    .await;
 }

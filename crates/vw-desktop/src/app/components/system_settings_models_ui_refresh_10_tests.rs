@@ -474,3 +474,33 @@ impl Operation for ScrollOffset {
         self.0 = translation.y;
     }
 }
+
+#[cfg(not(target_arch = "wasm32"))]
+#[tokio::test(flavor = "multi_thread")]
+async fn settings_tabs_core_appearance_models() {
+    use super::super::system_settings_common::tab_appearance_tests;
+    use crate::app::i18n::settings_models::text;
+
+    tab_appearance_tests::run(
+        concat!(module_path!(), "::settings_tabs_core_appearance_models"),
+        fixture,
+        |scene, app| {
+            app.model_settings.active_tab = ModelConfigTab::Models;
+            let locale = app.desktop_locale;
+            let labels: Vec<_> = MODEL_TABS.iter().map(|tab| text(locale, tab.label)).collect();
+            let content = text(locale, "路由规则");
+            assert!(!scene.labels(view(app)).contains(content));
+            let message = scene.check(app, view(app), &labels, 1);
+            assert!(matches!(
+                message,
+                SettingsMessage::ModelConfigTab(ModelConfigTabMessage::Selected(
+                    ModelConfigTab::ModelRoutes
+                ))
+            ));
+            apply(app, vec![Message::Settings(message)]);
+            assert_eq!(app.model_settings.active_tab, ModelConfigTab::ModelRoutes);
+            assert!(scene.labels(view(app)).contains(content));
+        },
+    )
+    .await;
+}

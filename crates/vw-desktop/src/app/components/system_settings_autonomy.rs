@@ -23,7 +23,7 @@ use crate::app::components::system_settings_common::{
     settings_error_banner, settings_field_label, settings_group_card, settings_group_heading,
     settings_help_button_with_locale as settings_help_button, settings_muted_text_style,
     settings_page_heading, settings_row_with_flexible_control, settings_segment_button_style,
-    settings_select, settings_text_input_style,
+    settings_select, settings_tab_button, settings_tab_row, settings_text_input_style,
 };
 use crate::app::components::system_settings_search::SettingsTabDescriptor;
 use crate::app::state::{AutonomyListKind, AutonomySettingsTab};
@@ -60,10 +60,8 @@ pub(super) const AUTONOMY_TABS: &[SettingsTabDescriptor<AutonomySettingsTab>] = 
     ),
 ];
 
-/// 构建与可观测性配置一致的 Tab 风格按钮。
-///
-/// 当前选中项使用主题主色高亮，悬停项显示弱背景，未选中项保持透明背景。
-fn tab_button<'a>(
+/// 构建表单中切换枚举值的分段按钮。
+fn segment_button<'a>(
     label: &'static str,
     is_active: bool,
     message: Message,
@@ -245,21 +243,21 @@ pub fn view(app: &App) -> Element<'_, Message> {
             crate::app::i18n::I18n::new(app.desktop_locale).__("级别"),
             crate::app::i18n::I18n::new(app.desktop_locale).__("决定代理默认可执行的动作范围。"),
             row![
-                tab_button(
+                segment_button(
                     crate::app::i18n::I18n::new(app.desktop_locale).__("只读"),
                     s.level == AutonomyLevel::ReadOnly,
                     Message::Settings(message::SettingsMessage::AutonomyLevelChanged(
                         AutonomyLevel::ReadOnly,
                     )),
                 ),
-                tab_button(
+                segment_button(
                     crate::app::i18n::I18n::new(app.desktop_locale).__("监督"),
                     s.level == AutonomyLevel::Supervised,
                     Message::Settings(message::SettingsMessage::AutonomyLevelChanged(
                         AutonomyLevel::Supervised,
                     )),
                 ),
-                tab_button(
+                segment_button(
                     crate::app::i18n::I18n::new(app.desktop_locale).__("完全"),
                     s.level == AutonomyLevel::Full,
                     Message::Settings(message::SettingsMessage::AutonomyLevelChanged(
@@ -354,7 +352,7 @@ pub fn view(app: &App) -> Element<'_, Message> {
             crate::app::i18n::I18n::new(app.desktop_locale)
                 .__("控制 shell 命令中的输出重定向如何处理。"),
             row![
-                tab_button(
+                segment_button(
                     crate::app::i18n::I18n::new(app.desktop_locale).__("阻断"),
                     s.shell_redirect_policy == ShellRedirectPolicy::Block,
                     Message::Settings(
@@ -363,7 +361,7 @@ pub fn view(app: &App) -> Element<'_, Message> {
                         ),
                     ),
                 ),
-                tab_button(
+                segment_button(
                     crate::app::i18n::I18n::new(app.desktop_locale).__("移除"),
                     s.shell_redirect_policy == ShellRedirectPolicy::Strip,
                     Message::Settings(
@@ -372,7 +370,7 @@ pub fn view(app: &App) -> Element<'_, Message> {
                         ),
                     ),
                 ),
-                tab_button(
+                segment_button(
                     crate::app::i18n::I18n::new(app.desktop_locale).__("直接执行"),
                     s.shell_redirect_policy == ShellRedirectPolicy::Allow,
                     Message::Settings(
@@ -394,7 +392,7 @@ pub fn view(app: &App) -> Element<'_, Message> {
             crate::app::i18n::I18n::new(app.desktop_locale)
                 .__("控制非 CLI 场景下自然语言请求的执行方式。"),
             row![
-                tab_button(
+                segment_button(
                     crate::app::i18n::I18n::new(app.desktop_locale).__("禁用"),
                     s.non_cli_natural_language_approval_mode
                         == NonCliNaturalLanguageApprovalMode::Disabled,
@@ -404,7 +402,7 @@ pub fn view(app: &App) -> Element<'_, Message> {
                         ),
                     ),
                 ),
-                tab_button(
+                segment_button(
                     crate::app::i18n::I18n::new(app.desktop_locale).__("请求确认"),
                     s.non_cli_natural_language_approval_mode
                         == NonCliNaturalLanguageApprovalMode::RequestConfirm,
@@ -414,7 +412,7 @@ pub fn view(app: &App) -> Element<'_, Message> {
                         ),
                     ),
                 ),
-                tab_button(
+                segment_button(
                     crate::app::i18n::I18n::new(app.desktop_locale).__("直接执行"),
                     s.non_cli_natural_language_approval_mode
                         == NonCliNaturalLanguageApprovalMode::Direct,
@@ -558,16 +556,16 @@ pub fn view(app: &App) -> Element<'_, Message> {
         )
     };
 
-    let tabs = AUTONOMY_TABS.iter().fold(
-        row![].spacing(8).align_y(Alignment::Center),
-        |row, descriptor| {
-            row.push(tab_button(
-                crate::app::i18n::I18n::new(app.desktop_locale).__(descriptor.label),
-                s.active_tab == descriptor.tab,
-                Message::Settings(message::SettingsMessage::AutonomyTabSelected(descriptor.tab)),
-            ))
-        },
-    );
+    let i18n = crate::app::i18n::I18n::new(app.desktop_locale);
+    let tabs = settings_tab_row(AUTONOMY_TABS.iter().map(|descriptor| {
+        settings_tab_button(
+            i18n.__(descriptor.label),
+            s.active_tab == descriptor.tab,
+            Some(Message::Settings(message::SettingsMessage::AutonomyTabSelected(descriptor.tab))),
+        )
+        .into()
+    }))
+    .wrap();
 
     let (section, panel): (Element<'_, Message>, Element<'_, Message>) = match s.active_tab {
         AutonomySettingsTab::Permissions => (
@@ -664,7 +662,7 @@ pub fn view(app: &App) -> Element<'_, Message> {
         ]
         .spacing(12)
         .align_y(Alignment::Start),
-        tabs.wrap(),
+        tabs,
     ]
     .spacing(16)
     .width(Length::Fill);

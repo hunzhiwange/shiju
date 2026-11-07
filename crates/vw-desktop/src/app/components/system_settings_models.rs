@@ -30,7 +30,7 @@ use crate::app::components::system_settings_common::{
     provider_logo_svg, rounded_action_btn_style, settings_close_button, settings_divider,
     settings_error_banner, settings_group_card, settings_group_heading, settings_modal_card_style,
     settings_modal_header, settings_modal_layout, settings_modal_overlay,
-    settings_muted_text_style, settings_page_heading, settings_segment_button_style,
+    settings_muted_text_style, settings_page_heading, settings_tab_button, settings_tab_row,
     settings_text_input_style, settings_toggle, settings_value_badge,
 };
 use crate::app::components::system_settings_search::SettingsTabDescriptor;
@@ -40,7 +40,7 @@ use crate::app::state::ModelConfigTab;
 use crate::app::{App, Message, message};
 use iced::widget::text::Wrapping;
 use iced::widget::{button, column, container, row, text, text_input};
-use iced::{Alignment, Background, Element, Length, Theme};
+use iced::{Alignment, Background, Element, Length};
 
 pub(super) const MODEL_TABS: &[SettingsTabDescriptor<ModelConfigTab>] = &[
     SettingsTabDescriptor::new(
@@ -98,34 +98,17 @@ pub(super) fn active_tab_save_error(app: &App) -> Option<&str> {
 /// 渲染模型配置页及其内部标签。
 pub fn view(app: &App) -> Element<'_, Message> {
     let active_tab = app.model_settings.active_tab;
-    let tab_button = |tab, label| {
-        let is_active = tab == active_tab;
-        button(text(label).size(SETTINGS_CONTROL_TEXT_SIZE))
-            .on_press(Message::Settings(SettingsMessage::ModelConfigTab(
-                ModelConfigTabMessage::Selected(tab),
-            )))
-            .padding([8, 14])
-            .style(move |theme: &Theme, status| {
-                let mut style = settings_segment_button_style(theme, status, is_active);
-                if is_active {
-                    style.text_color = theme.palette().text;
-                }
-                style
-            })
-    };
-
-    let tabs = MODEL_TABS
-        .iter()
-        .fold(row![].spacing(8).align_y(Alignment::Center), |row, descriptor| {
-            let key = match descriptor.tab {
-                ModelConfigTab::Models => "模型",
-                ModelConfigTab::ModelRoutes => "模型路由",
-                ModelConfigTab::QueryClassification => "模型分类",
-                ModelConfigTab::Multimodal => "多模态",
-            };
-            row.push(tab_button(descriptor.tab, model_text(app.desktop_locale, key)))
-        })
-        .wrap();
+    let tabs = settings_tab_row(MODEL_TABS.iter().map(|descriptor| {
+        settings_tab_button(
+            model_text(app.desktop_locale, descriptor.label),
+            descriptor.tab == active_tab,
+            Some(Message::Settings(SettingsMessage::ModelConfigTab(
+                ModelConfigTabMessage::Selected(descriptor.tab),
+            ))),
+        )
+        .into()
+    }))
+    .wrap();
     let content = match active_tab {
         ModelConfigTab::Models => main_view(app),
         ModelConfigTab::ModelRoutes => {

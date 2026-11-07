@@ -13,8 +13,8 @@ use crate::app::components::system_settings_common::{
     settings_field_label, settings_group_card, settings_group_heading,
     settings_help_button_with_locale, settings_modal_card_style, settings_modal_header,
     settings_modal_layout, settings_modal_overlay, settings_muted_text_style,
-    settings_page_heading, settings_row_with_flexible_control, settings_segment_button_style,
-    settings_text_input_style, settings_value_badge,
+    settings_page_heading, settings_row_with_flexible_control, settings_tab_button,
+    settings_tab_row, settings_text_input_style, settings_value_badge,
 };
 use crate::app::components::system_settings_search::SettingsTabDescriptor;
 use crate::app::i18n::settings_models::connection_text::text as connection_text;
@@ -165,26 +165,6 @@ fn number_row<'a>(
         .spacing(16)
         .align_y(Alignment::Center),
     )
-}
-
-fn gateway_tab_button(
-    label: &'static str,
-    tab: GatewaySettingsTab,
-    active_tab: GatewaySettingsTab,
-) -> Element<'static, Message> {
-    let is_active = tab == active_tab;
-
-    button(text(label).size(13))
-        .padding([8, 14])
-        .on_press(Message::Settings(SettingsMessage::Gateway(GatewayMessage::TabSelected(tab))))
-        .style(move |theme: &iced::Theme, status| {
-            let mut style = settings_segment_button_style(theme, status, is_active);
-            if is_active {
-                style.text_color = theme.palette().text;
-            }
-            style
-        })
-        .into()
 }
 
 const GATEWAY_TAB_LABELS: &[(&str, GatewaySettingsTab)] =
@@ -899,20 +879,15 @@ pub fn view(app: &App) -> Element<'_, Message> {
     }
     skey_management = skey_management.push(skeys_list);
 
-    let tab_bar = gateway_tab_labels().iter().fold(
-        row![].spacing(8).align_y(Alignment::Center),
-        |row, (_label, tab)| {
-            let key = match tab {
-                GatewaySettingsTab::Config => "配置",
-                GatewaySettingsTab::Skeys => "skey 管理",
-            };
-            row.push(gateway_tab_button(
-                connection_text(app.desktop_locale, key),
-                *tab,
-                s.active_tab,
-            ))
-        },
-    );
+    let tab_bar = settings_tab_row(gateway_tab_labels().iter().map(|(label, tab)| {
+        settings_tab_button(
+            connection_text(app.desktop_locale, label),
+            *tab == s.active_tab,
+            Some(Message::Settings(SettingsMessage::Gateway(GatewayMessage::TabSelected(*tab)))),
+        )
+        .into()
+    }))
+    .wrap();
 
     let config_content: Element<'_, Message> = column![
         settings_group_heading(

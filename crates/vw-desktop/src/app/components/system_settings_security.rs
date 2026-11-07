@@ -22,8 +22,8 @@ use crate::app::components::system_settings_common::{
     primary_action_btn_style, rounded_action_btn_style, settings_checkbox_style, settings_divider,
     settings_error_banner, settings_field_label, settings_group_card, settings_group_heading,
     settings_help_button_with_locale as settings_help_button, settings_muted_text_style,
-    settings_page_heading, settings_row_with_flexible_control, settings_segment_button_style,
-    settings_select, settings_text_input_style, settings_value_badge,
+    settings_page_heading, settings_row_with_flexible_control, settings_select,
+    settings_tab_button, settings_tab_row, settings_text_input_style, settings_value_badge,
 };
 use crate::app::components::system_settings_search::SettingsTabDescriptor;
 use crate::app::i18n::settings_security::text as security_text;
@@ -74,16 +74,6 @@ impl std::fmt::Display for LabeledOption {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(f, "{}", self.label)
     }
-}
-
-fn tab_button<'a>(
-    label: &'static str,
-    is_active: bool,
-    message: Message,
-) -> iced::widget::Button<'a, Message> {
-    button(text(label)).on_press(message).padding([8, 14]).style(
-        move |theme: &iced::Theme, status| settings_segment_button_style(theme, status, is_active),
-    )
 }
 
 fn field_row<'a>(
@@ -969,16 +959,15 @@ pub fn view(app: &App) -> Element<'_, Message> {
         sandbox_rows = sandbox_rows.push(settings_divider()).push(firejail_args_row);
     }
 
-    let tabs = SECURITY_TABS.iter().fold(
-        row![].spacing(8).align_y(Alignment::Center),
-        |row, descriptor| {
-            row.push(tab_button(
-                security_tab_label(locale, descriptor.tab),
-                s.active_tab == descriptor.tab,
-                Message::Settings(message::SettingsMessage::SecurityTabSelected(descriptor.tab)),
-            ))
-        },
-    );
+    let tabs = settings_tab_row(SECURITY_TABS.iter().map(|descriptor| {
+        settings_tab_button(
+            security_tab_label(locale, descriptor.tab),
+            s.active_tab == descriptor.tab,
+            Some(Message::Settings(message::SettingsMessage::SecurityTabSelected(descriptor.tab))),
+        )
+        .into()
+    }))
+    .wrap();
 
     let content: Element<'_, Message> = match s.active_tab {
         SecuritySettingsTab::Bash => column![
@@ -1149,7 +1138,7 @@ pub fn view(app: &App) -> Element<'_, Message> {
         ]
         .spacing(12)
         .align_y(Alignment::Start),
-        tabs.wrap(),
+        tabs,
     ]
     .spacing(16)
     .width(Length::Fill);

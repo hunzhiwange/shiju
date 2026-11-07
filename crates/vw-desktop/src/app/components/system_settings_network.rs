@@ -2,13 +2,13 @@
 
 use crate::app::components::system_settings::SystemTab;
 use crate::app::components::system_settings_common::{
-    settings_error_banner, settings_page_heading, settings_segment_button_style,
+    settings_error_banner, settings_page_heading, settings_tab_button, settings_tab_row,
 };
 use crate::app::components::system_settings_search::SettingsTabDescriptor;
 use crate::app::i18n::settings_models::connection_text::text as connection_text;
 use crate::app::{App, Message, message};
-use iced::widget::{button, column, row, text};
-use iced::{Alignment, Element, Length, Theme};
+use iced::widget::column;
+use iced::{Element, Length};
 
 pub(super) const NETWORK_TABS: &[SettingsTabDescriptor<SystemTab>] = &[
     SettingsTabDescriptor::new(
@@ -95,29 +95,15 @@ pub(super) const NETWORK_TABS: &[SettingsTabDescriptor<SystemTab>] = &[
 /// 渲染网络配置及其内部标签。
 pub fn view(app: &App) -> Element<'_, Message> {
     let active_tab = app.system_settings_tab;
-    let tab_button = |tab, label| {
-        let is_active = tab == active_tab;
-        button(text(label).size(13))
-            .on_press(Message::Settings(message::SettingsMessage::SystemTabSelected(tab)))
-            .padding([8, 14])
-            .style(move |theme: &Theme, status| {
-                let mut style = settings_segment_button_style(theme, status, is_active);
-                if is_active {
-                    style.text_color = theme.palette().text;
-                }
-                style
-            })
-    };
-
-    let tabs = NETWORK_TABS
-        .iter()
-        .fold(row![].spacing(8).align_y(Alignment::Center), |row, descriptor| {
-            row.push(tab_button(
-                descriptor.tab,
-                connection_text(app.desktop_locale, descriptor.label),
-            ))
-        })
-        .wrap();
+    let tabs = settings_tab_row(NETWORK_TABS.iter().map(|descriptor| {
+        settings_tab_button(
+            connection_text(app.desktop_locale, descriptor.label),
+            descriptor.tab == active_tab,
+            Some(Message::Settings(message::SettingsMessage::SystemTabSelected(descriptor.tab))),
+        )
+        .into()
+    }))
+    .wrap();
 
     let content = match active_tab {
         SystemTab::HttpRequest => {

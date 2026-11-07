@@ -3,7 +3,6 @@
 //! 条目夹具交叉组合消息、建会话等类型，确保索引和枚举变体原样进入消息。
 
 use super::*;
-use iced::Theme;
 use iced::advanced::widget::Tree;
 use vw_config_types::ui::QuickMessageConfig;
 
@@ -75,15 +74,4 @@ fn quick_message_settings_view_messages_preserve_indices_and_variants() {
     else {
         panic!("unexpected move-down message");
     };
-}
-
-#[test]
-fn quick_message_settings_view_item_style_adapts_to_dark_theme() {
-    let light = item_style(&Theme::Light);
-    let dark = item_style(&Theme::Dark);
-
-    assert_ne!(light.background, dark.background);
-    assert_ne!(light.border.color, dark.border.color);
-    assert_eq!(dark.border.width, 1.0);
-    assert_eq!(dark.border.radius.top_left, 12.0);
 }

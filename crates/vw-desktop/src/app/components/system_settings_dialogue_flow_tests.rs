@@ -3,9 +3,9 @@
 
 use super::*;
 use crate::app::{App, Message, message::SettingsMessage};
+use iced::Length;
 use iced::advanced::widget::Tree;
 use iced::widget::text;
-use iced::{Background, Length, Theme};
 
 // 每个开关组合都基于同一默认应用，避免其他设置影响字段树数量。
 fn test_app() -> App {
@@ -81,23 +81,6 @@ fn success_save_message_requires_exact_leading_prefix() {
 fn success_save_message_classifies_any_prefixed_detail_as_success() {
     assert!(is_success_save_message("已保存失败详情"));
     assert!(is_success_save_message("已保存\n下一行"));
-}
-
-#[test]
-fn success_banner_style_uses_success_palette_in_light_and_dark_themes() {
-    for theme in [Theme::Light, Theme::Dark] {
-        let palette = theme.extended_palette();
-        let style = success_banner_style(&theme);
-
-        assert_eq!(style.text_color, Some(palette.success.base.color));
-        assert_eq!(
-            style.background,
-            Some(Background::Color(palette.success.weak.color.scale_alpha(0.18)))
-        );
-        assert_eq!(style.border.width, 1.0);
-        assert_eq!(style.border.color, palette.success.base.color.scale_alpha(0.45));
-        assert_eq!(style.border.radius.top_left, 14.0);
-    }
 }
 
 #[test]

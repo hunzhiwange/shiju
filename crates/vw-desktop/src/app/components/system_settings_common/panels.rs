@@ -524,7 +524,11 @@ pub(super) fn settings_error_banner_style(theme: &Theme) -> iced::widget::contai
 pub(super) fn settings_success_banner_style(theme: &Theme) -> iced::widget::container::Style {
     let palette = theme.extended_palette();
     iced::widget::container::Style {
-        text_color: Some(palette.success.base.color),
+        text_color: Some(if is_dark_theme(theme) {
+            theme.palette().text
+        } else {
+            palette.success.base.color
+        }),
         background: Some(Background::Color(palette.success.weak.color.scale_alpha(0.18))),
         border: Border {
             width: 1.0,

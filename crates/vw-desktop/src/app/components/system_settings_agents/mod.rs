@@ -209,17 +209,18 @@ pub fn view(app: &App) -> Element<'_, Message> {
         .direction(Direction::Vertical(Scrollbar::new().width(4).scroller_width(4)))
         .height(Length::Fill)
         .into(),
-        AgentConfigTab::DialogueFlow => {
-            scrollable(container(crate::app::components::system_settings_dialogue_flow::view(app)))
-                .direction(Direction::Vertical(Scrollbar::new().width(4).scroller_width(4)))
-                .height(Length::Fill)
-                .into()
-        }
+        AgentConfigTab::DialogueFlow => scrollable(
+            container(crate::app::components::system_settings_dialogue_flow::view(app))
+                .padding([0, 7]),
+        )
+        .direction(Direction::Vertical(Scrollbar::new().width(4).scroller_width(4).spacing(0)))
+        .height(Length::Fill)
+        .into(),
         AgentConfigTab::QuickMessages => scrollable(
             container(crate::app::components::system_settings_quick_messages::view(app))
-                .padding(iced::Padding { left: 8.0, right: 16.0, ..Default::default() }),
+                .padding([0, 7]),
         )
-        .direction(Direction::Vertical(Scrollbar::new().width(4).scroller_width(4)))
+        .direction(Direction::Vertical(Scrollbar::new().width(4).scroller_width(4).spacing(0)))
         .height(Length::Fill)
         .into(),
         AgentConfigTab::Heartbeat => scrollable(

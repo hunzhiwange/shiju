@@ -181,7 +181,7 @@ fn settings_success_banner_style_uses_success_palette() {
     let style = settings_success_banner_style(&Theme::Dark);
 
     assert!(style.background.is_some());
-    assert!(style.text_color.is_some());
+    assert_eq!(style.text_color, Some(Theme::Dark.palette().text));
     assert_eq!(style.border.width, 1.0);
     assert_eq!(style.border.radius, 14.0.into());
 

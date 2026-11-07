@@ -594,8 +594,8 @@ pub fn settings_checkbox_style(theme: &Theme, status: checkbox::Status) -> check
             width: 1.0,
             color: if is_checked {
                 palette.primary.scale_alpha(if is_disabled { 0.36 } else { 0.84 })
-            } else if is_hovered {
-                extended.background.strong.color.scale_alpha(0.92)
+            } else if !is_disabled {
+                palette.text.scale_alpha(if is_hovered { 0.66 } else { 0.50 })
             } else if is_dark {
                 extended.background.strong.color.scale_alpha(0.82)
             } else {

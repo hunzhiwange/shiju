@@ -342,6 +342,28 @@ fn checkbox_style_covers_unchecked_light_active_and_dark_disabled() {
 }
 
 #[test]
+fn unchecked_checkbox_outline_contrasts_with_the_background() {
+    fn luminance(color: Color) -> f32 {
+        let [red, green, blue, _] = color.into_linear();
+        red * 0.2126 + green * 0.7152 + blue * 0.0722
+    }
+
+    for theme in [Theme::Light, Theme::Dark] {
+        let background = theme.palette().background;
+        let style = settings_checkbox_style(&theme, checkbox::Status::Active { is_checked: false });
+        let border = style.border.color;
+        let blend = |ink, surface| ink * border.a + surface * (1.0 - border.a);
+        let outline = Color::from_rgb(
+            blend(border.r, background.r),
+            blend(border.g, background.g),
+            blend(border.b, background.b),
+        );
+        let (a, b) = (luminance(outline), luminance(background));
+        assert!((a.max(b) + 0.05) / (a.min(b) + 0.05) >= 3.0, "{theme:?}");
+    }
+}
+
+#[test]
 fn checkbox_style_dims_text_only_when_disabled() {
     let theme = Theme::Dark;
     let active = settings_checkbox_style(&theme, checkbox::Status::Active { is_checked: false });

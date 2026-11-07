@@ -18,13 +18,13 @@
 //! - `services`: 仅对指定服务选择器生效
 
 use crate::app::components::system_settings_common::{
-    SETTINGS_LABEL_WIDTH, settings_checkbox_style, settings_divider,
-    settings_help_button_with_locale as settings_help_button, settings_muted_text_style,
-    settings_page_intro, settings_pick_list_menu_style, settings_pick_list_style,
-    settings_section_card, settings_section_content, settings_text_input_style,
+    SETTINGS_CONTROL_PADDING, SETTINGS_CONTROL_TEXT_SIZE, settings_checkbox_style,
+    settings_divider, settings_group_card, settings_group_heading,
+    settings_help_button_with_locale as settings_help_button, settings_page_heading,
+    settings_row_with_flexible_control, settings_select, settings_text_input_style,
 };
 use crate::app::{App, Message, message};
-use iced::widget::{checkbox, column, container, pick_list, row, text, text_input};
+use iced::widget::{checkbox, column, container, row, text, text_input};
 use iced::{Alignment, Element, Length};
 use vw_config_types::proxy::ProxyScope;
 
@@ -43,27 +43,12 @@ fn field_row<'a>(
     description: &'static str,
     control: impl Into<Element<'a, Message>>,
 ) -> Element<'a, Message> {
-    container(
-        row![
-            column![
-                text(label).size(13),
-                text(description).size(11).style(settings_muted_text_style),
-            ]
-            .spacing(4)
-            .width(Length::Fixed(SETTINGS_LABEL_WIDTH)),
-            container(control.into()).width(Length::Fill),
-        ]
-        .spacing(22)
-        .align_y(Alignment::Center),
-    )
-    .padding([14, 0])
-    .width(Length::Fill)
-    .into()
+    settings_row_with_flexible_control(label, description, 360.0, control)
 }
 
 pub fn view(app: &App) -> Element<'_, Message> {
     column![
-        settings_page_intro(
+        settings_page_heading(
             crate::app::i18n::I18n::new(app.desktop_locale).__("代理配置"),
             crate::app::i18n::I18n::new(app.desktop_locale)
                 .__("配置 HTTP、HTTPS、SOCKS5 代理以及生效范围。"),
@@ -92,7 +77,7 @@ pub(super) fn content(app: &App) -> Element<'_, Message> {
             .style(settings_checkbox_style),
     );
 
-    let scope_pick = pick_list(
+    let scope_pick = settings_select(
         PROXY_SCOPE_OPTIONS.map(|v| crate::app::i18n::I18n::new(app.desktop_locale).__(v)),
         Some(crate::app::i18n::I18n::new(app.desktop_locale).__(proxy_scope_label(s.scope))),
         move |v| {
@@ -105,11 +90,7 @@ pub(super) fn content(app: &App) -> Element<'_, Message> {
             ))
         },
     )
-    .padding([10, 14])
-    .text_size(13)
-    .style(settings_pick_list_style)
-    .menu_style(settings_pick_list_menu_style)
-    .width(Length::Fixed(280.0));
+    .width(Length::Fill);
 
     let scope_row = field_row(
         crate::app::i18n::I18n::new(app.desktop_locale).__("生效范围"),
@@ -123,8 +104,8 @@ pub(super) fn content(app: &App) -> Element<'_, Message> {
         crate::app::i18n::I18n::new(app.desktop_locale).__("HTTP 请求代理地址。"),
         text_input("http://127.0.0.1:7890", &s.http_proxy)
             .on_input(|v| Message::Settings(message::SettingsMessage::ProxyHttpChanged(v)))
-            .padding([10, 12])
-            .size(13)
+            .padding(SETTINGS_CONTROL_PADDING)
+            .size(SETTINGS_CONTROL_TEXT_SIZE)
             .style(settings_text_input_style)
             .width(Length::Fill),
     );
@@ -134,8 +115,8 @@ pub(super) fn content(app: &App) -> Element<'_, Message> {
         crate::app::i18n::I18n::new(app.desktop_locale).__("HTTPS 请求代理地址。"),
         text_input("http://127.0.0.1:7890", &s.https_proxy)
             .on_input(|v| Message::Settings(message::SettingsMessage::ProxyHttpsChanged(v)))
-            .padding([10, 12])
-            .size(13)
+            .padding(SETTINGS_CONTROL_PADDING)
+            .size(SETTINGS_CONTROL_TEXT_SIZE)
             .style(settings_text_input_style)
             .width(Length::Fill),
     );
@@ -146,8 +127,8 @@ pub(super) fn content(app: &App) -> Element<'_, Message> {
             .__("当未命中 HTTP/HTTPS 时使用的兜底代理。"),
         text_input("socks5://127.0.0.1:7891", &s.all_proxy)
             .on_input(|v| Message::Settings(message::SettingsMessage::ProxyAllChanged(v)))
-            .padding([10, 12])
-            .size(13)
+            .padding(SETTINGS_CONTROL_PADDING)
+            .size(SETTINGS_CONTROL_TEXT_SIZE)
             .style(settings_text_input_style)
             .width(Length::Fill),
     );
@@ -158,8 +139,8 @@ pub(super) fn content(app: &App) -> Element<'_, Message> {
             .__("支持逗号或换行分隔，格式与 NO_PROXY 一致。"),
         text_input("localhost, 127.0.0.1, *.internal", &s.no_proxy_input)
             .on_input(|v| Message::Settings(message::SettingsMessage::ProxyNoProxyChanged(v)))
-            .padding([10, 12])
-            .size(13)
+            .padding(SETTINGS_CONTROL_PADDING)
+            .size(SETTINGS_CONTROL_TEXT_SIZE)
             .style(settings_text_input_style)
             .width(Length::Fill),
     );
@@ -169,8 +150,8 @@ pub(super) fn content(app: &App) -> Element<'_, Message> {
         crate::app::i18n::I18n::new(app.desktop_locale).__("仅在范围为指定服务时生效。"),
         text_input("provider.openai, tool.http_request", &s.services_input)
             .on_input(|v| Message::Settings(message::SettingsMessage::ProxyServicesChanged(v)))
-            .padding([10, 12])
-            .size(13)
+            .padding(SETTINGS_CONTROL_PADDING)
+            .size(SETTINGS_CONTROL_TEXT_SIZE)
             .style(settings_text_input_style)
             .width(Length::Fill),
     );
@@ -184,27 +165,25 @@ pub(super) fn content(app: &App) -> Element<'_, Message> {
             help_btn
         ]
         .align_y(Alignment::Center),
-        settings_section_card(
+        settings_group_heading(
             crate::app::i18n::I18n::new(app.desktop_locale).__("基础行为"),
             crate::app::i18n::I18n::new(app.desktop_locale).__("控制代理开关与作用域选择。")
         ),
-        settings_section_content(column![enabled_row, settings_divider(), scope_row].spacing(0)),
-        settings_section_card(
+        settings_group_card(column![enabled_row, settings_divider(), scope_row].spacing(0)),
+        settings_group_heading(
             crate::app::i18n::I18n::new(app.desktop_locale).__("代理地址"),
             crate::app::i18n::I18n::new(app.desktop_locale)
                 .__("分别配置 HTTP、HTTPS 与兜底代理地址。")
         ),
-        settings_section_content(
+        settings_group_card(
             column![http_row, settings_divider(), https_row, settings_divider(), all_row]
                 .spacing(0),
         ),
-        settings_section_card(
+        settings_group_heading(
             crate::app::i18n::I18n::new(app.desktop_locale).__("排除与路由"),
             crate::app::i18n::I18n::new(app.desktop_locale).__("配置 NO_PROXY 和指定服务选择器。")
         ),
-        settings_section_content(
-            column![no_proxy_row, settings_divider(), services_row].spacing(0),
-        ),
+        settings_group_card(column![no_proxy_row, settings_divider(), services_row].spacing(0),),
     ]
     .spacing(16)
     .width(Length::Fill);

@@ -4,15 +4,16 @@
 //! 注释聚焦调用边界、返回值和错误传播方式，便于后续维护设置页与工具栏行为时快速定位职责。
 
 use crate::app::components::system_settings_common::{
-    SETTINGS_LABEL_WIDTH, settings_checkbox_style, settings_divider, settings_muted_text_style,
-    settings_page_intro, settings_panel, settings_pick_list_menu_style, settings_pick_list_style,
-    settings_section_card, settings_section_content, settings_text_input_style,
+    SETTINGS_CONTROL_PADDING, SETTINGS_CONTROL_TEXT_SIZE, settings_checkbox_style,
+    settings_divider, settings_group_card, settings_group_heading, settings_muted_text_style,
+    settings_page_heading, settings_row_with_flexible_control, settings_select,
+    settings_text_input_style,
 };
 use crate::app::i18n::settings_extensions::text as tr;
 use crate::app::message::settings::{SettingsMessage, TunnelMessage};
 use crate::app::{App, Message};
-use iced::widget::{checkbox, column, container, pick_list, row, text, text_input};
-use iced::{Alignment, Element, Length};
+use iced::widget::{checkbox, column, container, text, text_input};
+use iced::{Element, Length};
 
 #[derive(Clone, Copy, PartialEq, Eq)]
 struct LabeledOption {
@@ -87,22 +88,7 @@ fn field_row<'a>(
     description: &'static str,
     control: impl Into<Element<'a, Message>>,
 ) -> Element<'a, Message> {
-    container(
-        row![
-            column![
-                text(label).size(13),
-                text(description).size(11).style(settings_muted_text_style),
-            ]
-            .spacing(4)
-            .width(Length::Fixed(SETTINGS_LABEL_WIDTH)),
-            container(control.into()).width(Length::Fill),
-        ]
-        .spacing(22)
-        .align_y(Alignment::Center),
-    )
-    .padding([14, 0])
-    .width(Length::Fill)
-    .into()
+    settings_row_with_flexible_control(label, description, 360.0, control)
 }
 
 fn text_row<'a>(
@@ -117,8 +103,8 @@ fn text_row<'a>(
         description,
         text_input(placeholder, value)
             .on_input(on_input)
-            .padding([10, 12])
-            .size(13)
+            .padding(SETTINGS_CONTROL_PADDING)
+            .size(SETTINGS_CONTROL_TEXT_SIZE)
             .style(settings_text_input_style)
             .width(Length::Fill),
     )
@@ -153,7 +139,7 @@ fn bool_row<'a>(
 /// 本函数不直接返回错误；无法交互或缺省状态会在控件状态中显式表达。
 pub fn view(app: &App) -> Element<'_, Message> {
     column![
-        settings_page_intro(
+        settings_page_heading(
             tr(app.desktop_locale, "隧道配置"),
             tr(app.desktop_locale, "配置网关的暴露方式与 provider 细节。修改后需重启网关生效。"),
         ),
@@ -167,18 +153,14 @@ pub fn view(app: &App) -> Element<'_, Message> {
 pub(super) fn content(app: &App) -> Element<'_, Message> {
     let s = &app.tunnel_settings;
 
-    let provider_pick = pick_list(
+    let provider_pick = settings_select(
         PROVIDER_OPTIONS
             .map(|option| LabeledOption { label: tr(app.desktop_locale, option.label), ..option }),
         selected_provider(&s.provider)
             .map(|option| LabeledOption { label: tr(app.desktop_locale, option.label), ..option }),
         provider_changed,
     )
-    .padding([10, 14])
-    .text_size(13)
-    .style(settings_pick_list_style)
-    .menu_style(settings_pick_list_menu_style)
-    .width(Length::Fixed(300.0));
+    .width(Length::Fill);
 
     let provider_row = field_row(
         tr(app.desktop_locale, "提供者"),
@@ -188,11 +170,11 @@ pub(super) fn content(app: &App) -> Element<'_, Message> {
 
     let provider_section: Element<'_, Message> = match s.provider.as_str() {
         "cloudflare" => column![
-            settings_section_card(
+            settings_group_heading(
                 "Cloudflare Tunnel",
                 tr(app.desktop_locale, "使用 cloudflared token 将本地网关安全暴露到公网。"),
             ),
-            settings_panel(
+            settings_group_card(
                 column![text_row(
                     tr(app.desktop_locale, "令牌"),
                     tr(app.desktop_locale, "Zero Trust 侧下发的 tunnel token。"),
@@ -206,11 +188,11 @@ pub(super) fn content(app: &App) -> Element<'_, Message> {
         .spacing(16)
         .into(),
         "tailscale" => column![
-            settings_section_card(
+            settings_group_heading(
                 "Tailscale",
                 tr(app.desktop_locale, "配置 tailscale serve 或 funnel，将网关发布到 tailnet 或公网。保存后需重启网关生效。"),
             ),
-            settings_panel(
+            settings_group_card(
                 column![
                     bool_row(
                         tr(app.desktop_locale, "漏斗"),
@@ -242,11 +224,11 @@ pub(super) fn content(app: &App) -> Element<'_, Message> {
         .spacing(16)
         .into(),
         "ngrok" => column![
-            settings_section_card(
+            settings_group_heading(
                 "ngrok",
                 tr(app.desktop_locale, "配置 ngrok token，并可选绑定自定义 domain。"),
             ),
-            settings_panel(
+            settings_group_card(
                 column![
                     text_row(
                         tr(app.desktop_locale, "认证令牌"),
@@ -270,11 +252,11 @@ pub(super) fn content(app: &App) -> Element<'_, Message> {
         .spacing(16)
         .into(),
         "custom" => column![
-            settings_section_card(
+            settings_group_heading(
                 tr(app.desktop_locale, "自定义隧道"),
                 tr(app.desktop_locale, "当前运行时使用命令型自定义隧道，因此这里配置 start_command / health_url / url_pattern。"),
             ),
-            settings_panel(
+            settings_group_card(
                 column![
                     text_row(
                         tr(app.desktop_locale, "启动命令"),
@@ -306,34 +288,34 @@ pub(super) fn content(app: &App) -> Element<'_, Message> {
         .spacing(16)
         .into(),
         _ => column![
-            settings_section_card(
+            settings_group_heading(
                 tr(app.desktop_locale, "未启用隧道"),
                 tr(app.desktop_locale, "保持 provider=none 时，网关不会自动创建公网隧道。"),
             ),
-            settings_panel(
-                column![
+            settings_group_card(column![
+                container(
                     text(tr(app.desktop_locale, "当前仅监听本地网关地址，不会主动创建公网或 tailnet 暴露。"))
-                        .size(12)
-                        .style(settings_muted_text_style)
-                ]
-            ),
+                        .size(13)
+                        .style(settings_muted_text_style),
+                )
+                .padding([20, 0])
+            ]),
         ]
         .spacing(16)
         .into(),
     };
 
-    let content = column![
-        settings_section_card(
+    column![
+        settings_group_heading(
             tr(app.desktop_locale, "接入方式"),
             tr(app.desktop_locale, "选择隧道 provider，并根据 provider 展开对应参数。")
         ),
-        settings_section_content(column![provider_row].spacing(0)),
+        settings_group_card(column![provider_row].spacing(0)),
         provider_section,
     ]
     .spacing(16)
-    .width(Length::Fill);
-
-    container(content).width(Length::Fill).into()
+    .width(Length::Fill)
+    .into()
 }
 #[cfg(test)]
 #[path = "system_settings_tunnel_tests.rs"]

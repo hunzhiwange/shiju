@@ -49,9 +49,8 @@ fn backend_options_keep_stable_config_values_and_labels() {
 }
 
 #[test]
-fn row_helpers_build_aligned_top_text_and_boolean_controls() {
+fn row_helpers_build_text_and_boolean_controls() {
     keep_element(field_row("标签", "说明", text("control")));
-    keep_element(field_row_top("多行标签", "说明", text("multiline control")));
     keep_element(text_row("会话", "说明", "placeholder", "session", |value| {
         Message::Settings(SettingsMessage::Browser(BrowserMessage::SessionNameChanged(value)))
     }));
@@ -104,17 +103,17 @@ fn view_only_adds_native_section_for_native_backend() {
     let mut app = test_app();
     app.browser_settings.backend = "agent_browser".to_string();
     let default_tree = {
-        let default = view(&app);
+        let default = content(&app);
         Tree::new(default.as_widget())
     };
-    assert_eq!(default_tree.children.len(), 4);
+    assert_eq!(default_tree.children.len(), 3);
 
     app.browser_settings.backend = "native".to_string();
-    let native = view(&app);
+    let native = content(&app);
     let native_tree = Tree::new(native.as_widget());
-    assert_eq!(native_tree.children.len(), 5);
+    assert_eq!(native_tree.children.len(), 4);
+    assert_eq!(native_tree.children[2].children.len(), 2);
     assert_eq!(native_tree.children[3].children.len(), 2);
-    assert_eq!(native_tree.children[4].children.len(), 2);
 }
 
 #[test]
@@ -123,9 +122,9 @@ fn view_keeps_computer_use_section_without_native_section_for_computer_use_backe
     app.browser_settings.backend = "computer_use".to_string();
     app.browser_settings.computer_use_endpoint = "http://127.0.0.1:8787/v1/actions".to_string();
 
-    let element = view(&app);
+    let element = content(&app);
     let tree = Tree::new(element.as_widget());
 
-    assert_eq!(tree.children.len(), 4);
-    assert_eq!(tree.children[3].children.len(), 2);
+    assert_eq!(tree.children.len(), 3);
+    assert_eq!(tree.children[2].children.len(), 2);
 }

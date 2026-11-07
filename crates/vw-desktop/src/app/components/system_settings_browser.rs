@@ -4,15 +4,15 @@
 //! 注释聚焦调用边界、返回值和错误传播方式，便于后续维护设置页与工具栏行为时快速定位职责。
 
 use crate::app::components::system_settings_common::{
-    SETTINGS_LABEL_WIDTH, settings_checkbox_style, settings_divider, settings_muted_text_style,
-    settings_page_intro, settings_panel, settings_pick_list_menu_style, settings_pick_list_style,
-    settings_section_card, settings_section_content, settings_text_editor_style,
-    settings_text_input_style,
+    SETTINGS_CONTROL_PADDING, SETTINGS_CONTROL_TEXT_SIZE, settings_checkbox_style,
+    settings_control_with_hint, settings_divider, settings_group_card, settings_group_heading,
+    settings_page_heading, settings_row_with_flexible_control, settings_select,
+    settings_text_editor_style, settings_text_input_style,
 };
 use crate::app::message::settings::{BrowserMessage, SettingsMessage};
 use crate::app::{App, Message};
-use iced::widget::{checkbox, column, container, pick_list, row, text, text_editor, text_input};
-use iced::{Alignment, Element, Length};
+use iced::widget::{checkbox, column, container, text_editor, text_input};
+use iced::{Element, Length};
 
 #[derive(Clone, PartialEq)]
 struct LabeledOption {
@@ -48,45 +48,7 @@ fn field_row<'a>(
     description: &'static str,
     control: impl Into<Element<'a, Message>>,
 ) -> Element<'a, Message> {
-    container(
-        row![
-            column![
-                text(label).size(13),
-                text(description).size(11).style(settings_muted_text_style),
-            ]
-            .spacing(4)
-            .width(Length::Fixed(SETTINGS_LABEL_WIDTH)),
-            container(control.into()).width(Length::Fill),
-        ]
-        .spacing(22)
-        .align_y(Alignment::Center),
-    )
-    .padding([14, 0])
-    .width(Length::Fill)
-    .into()
-}
-
-fn field_row_top<'a>(
-    label: &'static str,
-    description: &'static str,
-    control: impl Into<Element<'a, Message>>,
-) -> Element<'a, Message> {
-    container(
-        row![
-            column![
-                text(label).size(13),
-                text(description).size(11).style(settings_muted_text_style),
-            ]
-            .spacing(4)
-            .width(Length::Fixed(SETTINGS_LABEL_WIDTH)),
-            container(control.into()).width(Length::Fill),
-        ]
-        .spacing(22)
-        .align_y(Alignment::Start),
-    )
-    .padding([14, 0])
-    .width(Length::Fill)
-    .into()
+    settings_row_with_flexible_control(label, description, 360.0, control)
 }
 
 fn text_row<'a>(
@@ -101,8 +63,8 @@ fn text_row<'a>(
         description,
         text_input(placeholder, value)
             .on_input(on_input)
-            .padding([10, 12])
-            .size(13)
+            .padding(SETTINGS_CONTROL_PADDING)
+            .size(SETTINGS_CONTROL_TEXT_SIZE)
             .style(settings_text_input_style)
             .width(Length::Fill),
     )
@@ -137,7 +99,7 @@ fn bool_row<'a>(
 /// 本函数不直接返回错误；无法交互或缺省状态会在控件状态中显式表达。
 pub fn view(app: &App) -> Element<'_, Message> {
     column![
-        settings_page_intro(
+        settings_page_heading(
             crate::app::i18n::I18n::new(app.desktop_locale).__("浏览器配置"),
             crate::app::i18n::I18n::new(app.desktop_locale)
                 .__("配置允许站点、打开方式与浏览器自动化后端。")
@@ -160,34 +122,27 @@ pub(super) fn content(app: &App) -> Element<'_, Message> {
         |value| Message::Settings(SettingsMessage::Browser(BrowserMessage::EnabledToggled(value))),
     );
 
-    let allowed_domains_row = field_row_top(
+    let allowed_domains_row = field_row(
         crate::app::i18n::I18n::new(app.desktop_locale).__("允许域名"),
         crate::app::i18n::I18n::new(app.desktop_locale).__("限定浏览器工具可以访问的站点范围。"),
-        column![
-            container(
-                text_editor(&s.allowed_domains_editor)
-                    .placeholder(
-                        crate::app::i18n::I18n::new(app.desktop_locale)
-                            .__("每行一个域名，或使用逗号分隔，例: example.com\n*.example.org")
-                    )
-                    .on_action(|action| {
-                        Message::Settings(SettingsMessage::Browser(
-                            BrowserMessage::AllowedDomainsEditorAction(action),
-                        ))
-                    })
-                    .padding([9, 12])
-                    .height(Length::Fixed(96.0))
-                    .style(settings_text_editor_style),
-            )
-            .width(Length::Fill),
-            text(
-                crate::app::i18n::I18n::new(app.desktop_locale)
-                    .__("为空时将拒绝所有站点；可使用 `*` 允许全部公网域名。")
-            )
-            .size(11)
-            .style(settings_muted_text_style),
-        ]
-        .spacing(8),
+        settings_control_with_hint(
+            text_editor(&s.allowed_domains_editor)
+                .placeholder(
+                    crate::app::i18n::I18n::new(app.desktop_locale)
+                        .__("每行一个域名，或使用逗号分隔，例: example.com\n*.example.org"),
+                )
+                .on_action(|action| {
+                    Message::Settings(SettingsMessage::Browser(
+                        BrowserMessage::AllowedDomainsEditorAction(action),
+                    ))
+                })
+                .padding(SETTINGS_CONTROL_PADDING)
+                .size(SETTINGS_CONTROL_TEXT_SIZE)
+                .height(Length::Fixed(96.0))
+                .style(settings_text_editor_style),
+            crate::app::i18n::I18n::new(app.desktop_locale)
+                .__("为空时将拒绝所有站点；可使用 `*` 允许全部公网域名。"),
+        ),
     );
 
     let browser_open_options = browser_open_options().map(|mut option| {
@@ -196,31 +151,22 @@ pub(super) fn content(app: &App) -> Element<'_, Message> {
     });
     let browser_open_selected =
         browser_open_options.iter().find(|opt| opt.value == s.browser_open).cloned();
-    let browser_open_pick = pick_list(browser_open_options, browser_open_selected, |value| {
+    let browser_open_pick = settings_select(browser_open_options, browser_open_selected, |value| {
         Message::Settings(SettingsMessage::Browser(BrowserMessage::BrowserOpenChanged(
             value.value.to_string(),
         )))
     })
-    .padding([10, 14])
-    .text_size(13)
-    .style(settings_pick_list_style)
-    .menu_style(settings_pick_list_menu_style)
-    .width(Length::Fixed(300.0));
+    .width(Length::Fill);
 
     let browser_open_row = field_row(
         crate::app::i18n::I18n::new(app.desktop_locale).__("打开方式"),
         crate::app::i18n::I18n::new(app.desktop_locale)
             .__("决定 `browser_open` 默认尝试的窗口行为。"),
-        column![
+        settings_control_with_hint(
             browser_open_pick,
-            text(
-                crate::app::i18n::I18n::new(app.desktop_locale)
-                    .__("当前运行时完整支持 default；其余选项会先写入配置。")
-            )
-            .size(11)
-            .style(settings_muted_text_style),
-        ]
-        .spacing(8),
+            crate::app::i18n::I18n::new(app.desktop_locale)
+                .__("当前运行时完整支持 default；其余选项会先写入配置。"),
+        ),
     );
 
     let session_name_row = text_row(
@@ -238,39 +184,30 @@ pub(super) fn content(app: &App) -> Element<'_, Message> {
         option
     });
     let backend_selected = backend_options.iter().find(|opt| opt.value == s.backend).cloned();
-    let backend_pick = pick_list(backend_options, backend_selected, |value| {
+    let backend_pick = settings_select(backend_options, backend_selected, |value| {
         Message::Settings(SettingsMessage::Browser(BrowserMessage::BackendChanged(
             value.value.to_string(),
         )))
     })
-    .padding([10, 14])
-    .text_size(13)
-    .style(settings_pick_list_style)
-    .menu_style(settings_pick_list_menu_style)
-    .width(Length::Fixed(300.0));
+    .width(Length::Fill);
 
     let backend_row = field_row(
         crate::app::i18n::I18n::new(app.desktop_locale).__("后端实现"),
         crate::app::i18n::I18n::new(app.desktop_locale).__("选择浏览器工具背后的执行能力。"),
-        column![
+        settings_control_with_hint(
             backend_pick,
-            text(
-                crate::app::i18n::I18n::new(app.desktop_locale)
-                    .__("默认使用代理浏览器；原生浏览器需要可用 WebDriver；系统控制需要 sidecar。")
-            )
-            .size(11)
-            .style(settings_muted_text_style),
-        ]
-        .spacing(8),
+            crate::app::i18n::I18n::new(app.desktop_locale)
+                .__("默认使用代理浏览器；原生浏览器需要可用 WebDriver；系统控制需要 sidecar。"),
+        ),
     );
 
     let native_section = column![
-        settings_section_card(
+        settings_group_heading(
             crate::app::i18n::I18n::new(app.desktop_locale).__("Rust Native 后端"),
             crate::app::i18n::I18n::new(app.desktop_locale)
                 .__("当后端为 native 时，使用 WebDriver 驱动浏览器自动化。"),
         ),
-        settings_panel(
+        settings_group_card(
             column![
                 bool_row(
                     crate::app::i18n::I18n::new(app.desktop_locale).__("无头模式"),
@@ -314,15 +251,16 @@ pub(super) fn content(app: &App) -> Element<'_, Message> {
             ]
             .spacing(0)
         ),
-    ];
+    ]
+    .spacing(16);
 
     let computer_use_section = column![
-        settings_section_card(
+        settings_group_heading(
             crate::app::i18n::I18n::new(app.desktop_locale).__("系统级控制"),
             crate::app::i18n::I18n::new(app.desktop_locale)
                 .__("配置本地 sidecar 端点，用于鼠标、键盘、截图等系统级浏览器操作。"),
         ),
-        settings_panel(
+        settings_group_card(
             column![
                 text_row(
                     crate::app::i18n::I18n::new(app.desktop_locale).__("操作端点"),
@@ -423,11 +361,11 @@ pub(super) fn content(app: &App) -> Element<'_, Message> {
     .spacing(16);
 
     let mut content = column![
-        settings_section_card(
+        settings_group_heading(
             crate::app::i18n::I18n::new(app.desktop_locale).__("基础行为"),
             crate::app::i18n::I18n::new(app.desktop_locale).__("域名范围、窗口行为与运行后端。")
         ),
-        settings_section_content(
+        settings_group_card(
             column![
                 enabled_row,
                 settings_divider(),
@@ -456,3 +394,7 @@ pub(super) fn content(app: &App) -> Element<'_, Message> {
 #[cfg(test)]
 #[path = "system_settings_browser_tests.rs"]
 mod system_settings_browser_tests;
+
+#[cfg(test)]
+#[path = "system_settings_browser_ui_refresh_26_tests.rs"]
+mod ui_refresh_26_tests;

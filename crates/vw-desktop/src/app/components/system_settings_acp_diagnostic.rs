@@ -1,11 +1,13 @@
 //! ACP 卡片与配置弹窗共用的连接测试状态。
 
-use iced::widget::{container, row, text};
+use iced::widget::{column, container, row, text};
 use iced::{Alignment, Color, Element, Length, Theme};
 
 use crate::app::Message;
 use crate::app::components::status_animation::spinner_frame;
+use crate::app::i18n::I18n;
 use crate::app::state::AcpDiagnosticStatus;
+use vw_config_types::ui::DesktopLocale;
 
 fn status_color(theme: &Theme, status: AcpDiagnosticStatus) -> Color {
     let palette = theme.extended_palette();
@@ -22,6 +24,7 @@ fn status_color(theme: &Theme, status: AcpDiagnosticStatus) -> Color {
 pub(super) fn diagnostic_status(
     status: AcpDiagnosticStatus,
     frame: usize,
+    locale: DesktopLocale,
 ) -> Element<'static, Message> {
     let (icon, label) = match status {
         AcpDiagnosticStatus::Running => (spinner_frame(frame), "测试中"),
@@ -30,6 +33,7 @@ pub(super) fn diagnostic_status(
         AcpDiagnosticStatus::Cancelled => ("■", "已取消"),
         _ => ("×", "测试失败"),
     };
+    let i18n = I18n::new(locale);
     container(
         row![
             container(text(icon).size(18).style(move |theme: &Theme| {
@@ -37,8 +41,9 @@ pub(super) fn diagnostic_status(
             }))
             .width(24)
             .center_x(24),
-            text(label).size(13),
-            text(status.description()).size(12).width(Length::Fill),
+            column![text(i18n.__(label)).size(14), text(i18n.__(status.description())).size(13),]
+                .spacing(3)
+                .width(Length::Fill),
         ]
         .spacing(8)
         .align_y(Alignment::Center),

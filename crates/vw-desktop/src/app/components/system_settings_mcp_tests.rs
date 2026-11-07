@@ -321,11 +321,7 @@ fn server_panels_build_configured_runtime_and_new_server_states() {
     );
 
     app.mcp_settings.new_server_expanded = false;
-    let _: iced::Element<'_, Message> = new_server_panel(
-        vw_config_types::ui::DesktopLocale::SimplifiedChinese,
-        &app.mcp_settings,
-        true,
-    );
+    let _: iced::Element<'_, Message> = view_overlays(&app, iced::widget::text("base").into());
     app.mcp_settings.new_server_expanded = true;
     for transport in
         [McpNewServerTransport::Stdio, McpNewServerTransport::Http, McpNewServerTransport::Sse]
@@ -334,7 +330,6 @@ fn server_panels_build_configured_runtime_and_new_server_states() {
         let _: iced::Element<'_, Message> = new_server_panel(
             vw_config_types::ui::DesktopLocale::SimplifiedChinese,
             &app.mcp_settings,
-            false,
         );
     }
 }

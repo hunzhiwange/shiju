@@ -1,10 +1,12 @@
 //! 系统设置中 MCP 配置页面的界面拼装与交互消息转换。
 
 use crate::app::components::system_settings_common::{
-    primary_action_btn_style, rounded_action_btn_style, settings_checkbox_style, settings_divider,
-    settings_error_banner, settings_muted_text_style, settings_page_intro, settings_panel,
-    settings_pick_list_menu_style, settings_pick_list_style, settings_section_card,
-    settings_segment_button_style, settings_success_banner, settings_text_editor_style,
+    SETTINGS_CONTROL_PADDING, SETTINGS_CONTROL_TEXT_SIZE, primary_action_btn_style,
+    rounded_action_btn_style, settings_checkbox_style, settings_close_button, settings_divider,
+    settings_error_banner, settings_field_label, settings_modal_card_style, settings_modal_header,
+    settings_modal_layout, settings_modal_overlay, settings_muted_text_style,
+    settings_page_heading, settings_panel, settings_section_card, settings_segment_button_style,
+    settings_select, settings_success_banner, settings_text_editor_style,
     settings_text_input_style, settings_value_badge,
 };
 use crate::app::components::system_settings_search::SettingsTabDescriptor;
@@ -13,7 +15,7 @@ use crate::app::message::settings::{McpMessage, SettingsMessage};
 use crate::app::state::{McpNewServerTransport, McpSettingsState, McpSettingsTab};
 use crate::app::{App, Message};
 use iced::widget::{
-    button, checkbox, column, container, pick_list, row, text, text_editor, text_input,
+    Space, button, checkbox, column, container, row, text, text_editor, text_input,
 };
 use iced::{Alignment, Background, Border, Color, Element, Length};
 use serde_json::Value;
@@ -54,10 +56,7 @@ fn form_field<'a>(
     label: &'static str,
     control: impl Into<Element<'a, Message>>,
 ) -> Element<'a, Message> {
-    column![text(label).size(11).style(settings_muted_text_style), control.into()]
-        .spacing(6)
-        .width(Length::Fill)
-        .into()
+    column![settings_field_label(label), control.into()].spacing(6).width(Length::Fill).into()
 }
 
 const MCP_TAB_LABELS: &[(&str, McpSettingsTab)] = &[
@@ -513,24 +512,22 @@ fn configured_server_panel<'a>(
         .then(|| Message::Settings(SettingsMessage::Mcp(McpMessage::RequestDelete(server_index))));
 
     let mut content = column![
+        column![
+            text(server.name).size(16),
+            text(format!("mcpServers[{}]", server.index)).size(12).style(settings_muted_text_style),
+        ]
+        .spacing(4),
+        badges.wrap(),
         row![
             enabled_checkbox,
-            column![
-                text(server.name.clone()).size(14),
-                text(format!("mcpServers[{}]", server.index))
-                    .size(11)
-                    .style(settings_muted_text_style),
-            ]
-            .spacing(4)
-            .width(Length::Fill),
-            badges,
             toolbar_button(tr(locale, "编辑"), edit_message),
             toolbar_button(tr(locale, "删除"), delete_message),
             toolbar_button(preview_label, preview_action_message(preview_enabled)),
             toolbar_button(preview_toggle_label, preview_toggle_message),
         ]
-        .spacing(16)
+        .spacing(8)
         .align_y(Alignment::Center)
+        .wrap(),
     ]
     .spacing(12);
     if preview_expanded {
@@ -545,160 +542,153 @@ fn configured_server_panel<'a>(
     settings_panel(content).into()
 }
 
-fn new_server_panel_header(
-    locale: DesktopLocale,
-    expanded: bool,
-    editing: bool,
-) -> Element<'static, Message> {
-    let toggle_label = if expanded { tr(locale, "收起") } else { tr(locale, "展开") };
-    let title = if editing {
-        tr(locale, "编辑 MCP 服务器")
+fn server_form_heading(locale: DesktopLocale, editing: bool) -> (&'static str, &'static str) {
+    if editing {
+        (
+            tr(locale, "编辑 MCP 服务器"),
+            tr(locale, "修改当前服务器；高级 JSON 字段会在传输类型不变时保留。"),
+        )
     } else {
-        tr(locale, "新增 MCP 服务器")
-    };
-    let description = if editing {
-        tr(locale, "修改当前服务器；高级 JSON 字段会在传输类型不变时保留。")
-    } else {
-        tr(locale, "按服务器逐项添加；复杂字段可继续在高级 JSON 中编辑。")
-    };
-    row![
-        column![text(title).size(14), text(description).size(11).style(settings_muted_text_style),]
-            .spacing(4)
-            .width(Length::Fill),
-        settings_value_badge(tr(locale, "全局配置")),
-        toolbar_button(
-            toggle_label,
-            Some(Message::Settings(SettingsMessage::Mcp(McpMessage::NewServerPanelToggled,))),
-        ),
-    ]
-    .spacing(12)
-    .align_y(Alignment::Center)
-    .into()
+        (
+            tr(locale, "新增 MCP 服务器"),
+            tr(locale, "按服务器逐项添加；复杂字段可继续在高级 JSON 中编辑。"),
+        )
+    }
 }
 
-fn new_server_panel(
-    locale: DesktopLocale,
-    s: &McpSettingsState,
-    controls_enabled: bool,
-) -> Element<'_, Message> {
-    let editing = s.editing_server_index.is_some();
-    if !s.new_server_expanded {
-        return settings_panel(
-            column![new_server_panel_header(locale, false, editing)].spacing(12),
-        )
-        .into();
-    }
+fn server_form_toggle() -> Message {
+    Message::Settings(SettingsMessage::Mcp(McpMessage::NewServerPanelToggled))
+}
 
-    let input_style = |placeholder, value: &String, on_input: fn(String) -> McpMessage| {
+fn new_server_panel(locale: DesktopLocale, s: &McpSettingsState) -> Element<'_, Message> {
+    let editing = s.editing_server_index.is_some();
+    let (title, description) = server_form_heading(locale, editing);
+    let controls_enabled = !s.loading && !s.saving;
+    let input = |placeholder, value: &str, on_input: fn(String) -> McpMessage| {
         text_input(placeholder, value)
             .on_input(move |next| Message::Settings(SettingsMessage::Mcp(on_input(next))))
-            .padding([10, 12])
-            .size(13)
+            .padding(SETTINGS_CONTROL_PADDING)
+            .size(SETTINGS_CONTROL_TEXT_SIZE)
             .style(settings_text_input_style)
-            .width(Length::Fill)
     };
 
-    let name_input =
-        input_style(tr(locale, "例如 local-filesystem"), &s.new_server.name_input, |value| {
-            McpMessage::NewServerNameChanged(value)
-        });
-    let timeout_input = input_style("30", &s.new_server.timeout_input, |value| {
-        McpMessage::NewServerTimeoutChanged(value)
-    });
-
-    let transport_pick =
-        pick_list(McpNewServerTransport::ALL, Some(s.new_server.transport), |value| {
+    let name_input = input(
+        tr(locale, "例如 local-filesystem"),
+        &s.new_server.name_input,
+        McpMessage::NewServerNameChanged,
+    );
+    let timeout_input =
+        input("30", &s.new_server.timeout_input, McpMessage::NewServerTimeoutChanged);
+    let transport =
+        settings_select(McpNewServerTransport::ALL, Some(s.new_server.transport), |value| {
             Message::Settings(SettingsMessage::Mcp(McpMessage::NewServerTransportChanged(value)))
         })
-        .padding([10, 14])
-        .text_size(13)
-        .style(settings_pick_list_style)
-        .menu_style(settings_pick_list_menu_style)
         .width(Length::Fill);
-
-    let detail_fields: Element<'_, Message> = match s.new_server.transport {
+    let mut fields = column![
+        form_field(tr(locale, "名称"), name_input),
+        form_field(tr(locale, "类型"), transport),
+    ]
+    .spacing(12);
+    match s.new_server.transport {
         McpNewServerTransport::Stdio => {
-            let command_input =
-                input_style("npx / uvx / python", &s.new_server.command_input, |value| {
-                    McpMessage::NewServerCommandChanged(value)
-                });
-            let args_input = input_style(
-                "-y, @modelcontextprotocol/server-filesystem, /tmp",
-                &s.new_server.args_input,
-                |value| McpMessage::NewServerArgsChanged(value),
-            );
-            row![
-                container(form_field(tr(locale, "命令"), command_input))
-                    .width(Length::FillPortion(1)),
-                container(form_field(tr(locale, "参数"), args_input)).width(Length::FillPortion(2)),
-            ]
-            .spacing(12)
-            .into()
+            fields = fields
+                .push(form_field(
+                    tr(locale, "命令"),
+                    input(
+                        "npx / uvx / python",
+                        &s.new_server.command_input,
+                        McpMessage::NewServerCommandChanged,
+                    ),
+                ))
+                .push(form_field(
+                    tr(locale, "参数"),
+                    input(
+                        "-y, @modelcontextprotocol/server-filesystem, /tmp",
+                        &s.new_server.args_input,
+                        McpMessage::NewServerArgsChanged,
+                    ),
+                ));
         }
         McpNewServerTransport::Http | McpNewServerTransport::Sse => {
-            let url_input =
-                input_style("https://example.com/mcp", &s.new_server.url_input, |value| {
-                    McpMessage::NewServerUrlChanged(value)
-                });
-            row![container(form_field("URL", url_input)).width(Length::Fill)].into()
+            fields = fields.push(form_field(
+                "URL",
+                input(
+                    "https://example.com/mcp",
+                    &s.new_server.url_input,
+                    McpMessage::NewServerUrlChanged,
+                ),
+            ));
         }
-    };
+    }
+    fields = fields.push(form_field(tr(locale, "超时"), timeout_input)).push(
+        row![
+            checkbox(s.new_server.enabled)
+                .label(tr(locale, "启用"))
+                .on_toggle(|value| {
+                    Message::Settings(SettingsMessage::Mcp(McpMessage::NewServerEnabledToggled(
+                        value,
+                    )))
+                })
+                .style(settings_checkbox_style),
+            checkbox(s.new_server.required)
+                .label(tr(locale, "必需"))
+                .on_toggle(|value| {
+                    Message::Settings(SettingsMessage::Mcp(McpMessage::NewServerRequiredToggled(
+                        value,
+                    )))
+                })
+                .style(settings_checkbox_style),
+        ]
+        .spacing(16)
+        .align_y(Alignment::Center)
+        .wrap(),
+    );
+    let mut body = column![].spacing(12);
+    if let Some(error) = server_save_error(locale, s) {
+        body = body.push(settings_error_banner(error));
+    }
+    body = body.push(settings_panel(fields));
 
+    let header = settings_modal_header(
+        column![text(title).size(20), text(description).size(13).style(settings_muted_text_style)]
+            .spacing(4),
+        settings_close_button(server_form_toggle()),
+    );
     let submit_label =
         if editing { tr(locale, "保存修改") } else { tr(locale, "新增服务器") };
     let submit_message = if editing { McpMessage::SaveServerEdit } else { McpMessage::AddServer };
-    let mut add_button =
-        button(text(submit_label).size(13)).padding([8, 16]).style(primary_action_btn_style);
-    if controls_enabled {
-        add_button = add_button.on_press(Message::Settings(SettingsMessage::Mcp(submit_message)));
-    }
-    let cancel_button = editing.then(|| {
-        toolbar_button(
+    let mut footer = row![Space::new().width(Length::Fill)];
+    if editing {
+        footer = footer.push(toolbar_button(
             tr(locale, "取消编辑"),
             controls_enabled
                 .then(|| Message::Settings(SettingsMessage::Mcp(McpMessage::ServerEditCanceled))),
-        )
-    });
-
-    let mut actions = row![
-        checkbox(s.new_server.enabled)
-            .label(tr(locale, "启用"))
-            .on_toggle(|value| {
-                Message::Settings(SettingsMessage::Mcp(McpMessage::NewServerEnabledToggled(value)))
-            })
-            .style(settings_checkbox_style),
-        checkbox(s.new_server.required)
-            .label(tr(locale, "必需"))
-            .on_toggle(|value| {
-                Message::Settings(SettingsMessage::Mcp(McpMessage::NewServerRequiredToggled(value)))
-            })
-            .style(settings_checkbox_style),
-        add_button,
-    ]
-    .spacing(16)
-    .align_y(Alignment::Center);
-    if let Some(cancel_button) = cancel_button {
-        actions = actions.push(cancel_button);
+        ));
     }
-
-    settings_panel(
-        column![
-            new_server_panel_header(locale, true, editing),
-            settings_divider(),
-            row![
-                container(form_field(tr(locale, "名称"), name_input)).width(Length::FillPortion(2)),
-                container(form_field(tr(locale, "类型"), transport_pick))
-                    .width(Length::FillPortion(1)),
-                container(form_field(tr(locale, "超时"), timeout_input))
-                    .width(Length::FillPortion(1)),
-            ]
-            .spacing(12),
-            detail_fields,
-            actions,
-        ]
-        .spacing(12),
-    )
-    .into()
+    let footer = footer
+        .push(toolbar_button(tr(locale, "收起"), Some(server_form_toggle())))
+        .push(
+            button(text(submit_label).size(13))
+                .padding([8, 16])
+                .style(primary_action_btn_style)
+                .on_press_maybe(
+                    controls_enabled
+                        .then(|| Message::Settings(SettingsMessage::Mcp(submit_message))),
+                ),
+        )
+        .spacing(8)
+        .align_y(Alignment::Center);
+    settings_modal_layout(header, body, Some(footer.into()))
+        .style(|theme| {
+            let mut style = settings_modal_card_style(theme);
+            if let Some(iced::Background::Color(color)) = &mut style.background {
+                color.a = 1.0;
+            }
+            style
+        })
+        .width(640)
+        .height(590)
+        .into()
 }
 
 fn runtime_server_panel(
@@ -763,20 +753,20 @@ fn runtime_server_panel(
     )));
 
     let mut content = column![
+        column![
+            text(server.name.as_str()).size(16),
+            text(tr(locale, "插件或项目级 MCP")).size(12).style(settings_muted_text_style),
+        ]
+        .spacing(4),
+        badges.wrap(),
         row![
             enabled_checkbox,
-            column![
-                text(server.name.as_str()).size(14),
-                text(tr(locale, "插件或项目级 MCP")).size(11).style(settings_muted_text_style),
-            ]
-            .spacing(4)
-            .width(Length::Fill),
-            badges,
             toolbar_button(preview_label, preview_action_message(preview_enabled)),
             toolbar_button(preview_toggle_label, preview_toggle_message),
         ]
-        .spacing(16)
+        .spacing(8)
         .align_y(Alignment::Center)
+        .wrap(),
     ]
     .spacing(12);
     if preview_expanded {
@@ -789,6 +779,24 @@ fn runtime_server_panel(
     }
 
     settings_panel(content).into()
+}
+
+fn server_save_error(locale: DesktopLocale, s: &McpSettingsState) -> Option<String> {
+    s.save_error.as_ref().map(|error| {
+        s.save_error_translation
+            .as_ref()
+            .filter(|message| {
+                message
+                    .render(crate::app::i18n::I18n::new(DesktopLocale::SimplifiedChinese))
+                    .is_ok_and(|source| source == *error)
+            })
+            .map(|message| {
+                message
+                    .render(crate::app::i18n::I18n::new(locale))
+                    .expect("valid MCP error template")
+            })
+            .unwrap_or_else(|| crate::app::i18n::I18n::new(locale).__(error).to_owned())
+    })
 }
 
 /// 构建 MCP 系统设置页。
@@ -831,16 +839,11 @@ pub fn view(app: &App) -> Element<'_, Message> {
     action_row = action_row.push(save_button);
 
     let mut content = column![
-        row![
-            container(settings_page_intro(
-                tr(locale, "MCP 配置"),
-                tr(locale, "配置全局 mcpServers；插件声明的 MCP 会随插件启用状态在运行时合并。")
-            ))
-            .width(Length::Fill),
-            action_row,
-        ]
-        .align_y(Alignment::Start)
-        .spacing(12),
+        settings_page_heading(
+            tr(locale, "MCP 配置"),
+            tr(locale, "配置全局 mcpServers；插件声明的 MCP 会随插件启用状态在运行时合并。"),
+        ),
+        action_row.wrap(),
         row![
             settings_value_badge(
                 crate::__!(crate::app::i18n::I18n::new(locale), "%u 个服务器", s.server_count)
@@ -862,7 +865,8 @@ pub fn view(app: &App) -> Element<'_, Message> {
             .iter()
             .fold(row![].spacing(8).align_y(Alignment::Center), |row, (label, tab)| {
                 row.push(mcp_tab_button(locale, label, *tab, s.active_tab))
-            }),
+            })
+            .wrap(),
     ]
     .spacing(16)
     .width(Length::Fill);
@@ -870,22 +874,10 @@ pub fn view(app: &App) -> Element<'_, Message> {
     if let Some(message) = &s.status_message {
         content = content.push(settings_success_banner(message));
     }
-    if let Some(error) = &s.save_error {
-        let rendered = s
-            .save_error_translation
-            .as_ref()
-            .filter(|message| {
-                message
-                    .render(crate::app::i18n::I18n::new(DesktopLocale::SimplifiedChinese))
-                    .is_ok_and(|source| source == *error)
-            })
-            .map(|message| {
-                message
-                    .render(crate::app::i18n::I18n::new(locale))
-                    .expect("valid MCP error template")
-            })
-            .unwrap_or_else(|| crate::app::i18n::I18n::new(locale).__(error).to_owned());
-        content = content.push(settings_error_banner(rendered));
+    if !(s.active_tab == McpSettingsTab::Servers && s.new_server_expanded)
+        && let Some(error) = server_save_error(locale, s)
+    {
+        content = content.push(settings_error_banner(error));
     }
     if let Some(error) = &s.inspect_error {
         content = content.push(settings_panel(
@@ -909,7 +901,8 @@ pub fn view(app: &App) -> Element<'_, Message> {
                 tr(locale, "全局 MCP 服务器"),
                 tr(locale, "逐条启用、禁用和预览全局 mcpServers。"),
             ));
-            content = content.push(new_server_panel(locale, s, !s.loading && !s.saving));
+            let (title, _) = server_form_heading(locale, s.editing_server_index.is_some());
+            content = content.push(toolbar_button(title, Some(server_form_toggle())));
             if configured_rows.is_empty() {
                 content = content.push(settings_panel(
                     text(tr(locale, "当前没有全局 MCP 服务器。"))
@@ -997,7 +990,8 @@ pub fn view(app: &App) -> Element<'_, Message> {
                                 action,
                             )))
                         })
-                        .padding([10, 12])
+                        .padding(SETTINGS_CONTROL_PADDING)
+                        .size(SETTINGS_CONTROL_TEXT_SIZE)
                         .height(Length::Fixed(360.0))
                         .style(settings_text_editor_style),
                     text(
@@ -1011,18 +1005,27 @@ pub fn view(app: &App) -> Element<'_, Message> {
         }
     }
 
-    content.into()
+    container(content).padding([0, 7]).width(Length::Fill).into()
 }
 
-/// 在 MCP 设置页上叠加统一的删除确认模态框。
+/// 在 MCP 设置页上叠加服务器表单或删除确认。
 pub fn view_overlays<'a>(app: &'a App, dialog: Element<'a, Message>) -> Element<'a, Message> {
     let locale = app.desktop_locale;
     if app.mcp_settings.active_tab != McpSettingsTab::Servers {
         return dialog;
     }
 
-    let Some(index) = app.mcp_settings.delete_pending else {
-        return dialog;
+    let s = &app.mcp_settings;
+    let Some(index) = s.delete_pending else {
+        return if s.new_server_expanded {
+            settings_modal_overlay(
+                Some(container(dialog).width(Length::Fill).height(Length::Fill).into()),
+                server_form_toggle(),
+                container(new_server_panel(locale, s)).padding(12),
+            )
+        } else {
+            dialog
+        };
     };
     let server_name = configured_mcp_server_rows(locale, &app.mcp_settings.editor.text())
         .ok()

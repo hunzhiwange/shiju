@@ -37,6 +37,7 @@ pub use help::{
     settings_help_copy_state, with_settings_help_modal,
 };
 pub use icons::{icon_btn, icon_svg, provider_logo_svg};
+pub(crate) use panels::settings_modal_layout_with_scroll_id;
 pub use panels::{
     settings_control_with_hint, settings_divider, settings_error_banner, settings_group_card,
     settings_group_heading, settings_modal_card, settings_modal_header, settings_modal_layout,

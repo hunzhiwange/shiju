@@ -45,8 +45,8 @@ use crate::app::{
     message::settings::{AppsCatalogMessage, apps_lifecycle::LifecycleMessage},
 };
 use iced::{
-    Element, Length,
-    widget::{button, column, container, row, text},
+    Alignment, Element, Length,
+    widget::{Space, button, column, container, row, text},
 };
 fn event(value: LifecycleMessage) -> Message {
     message(AppsCatalogMessage::Lifecycle(value))
@@ -121,81 +121,63 @@ pub(crate) fn overlay<'a>(
         return base;
     };
     let close = event(LifecycleMessage::Close);
+    let (title, guidance, confirm_label) = match preview.request.action {
+        AppLifecycleAction::Install => {
+            ("确认安装", "确认后由网关重新检查目标与 Node 依赖；排队不表示安装成功。", "确认提交")
+        }
+        AppLifecycleAction::Update => {
+            ("确认升级", "确认后由网关重新检查目标与 Node 依赖；排队不表示升级成功。", "确认提交")
+        }
+        AppLifecycleAction::Uninstall => {
+            ("确认卸载所选实例", super::uninstall::guidance(preview.request.app_id), "确认卸载")
+        }
+    };
     let uninstalling = preview.request.action == AppLifecycleAction::Uninstall;
-    let content = column![
-        row![
-            container(
-                text(if uninstalling {
-                    "确认卸载所选实例"
-                } else {
-                    "确认安装 / 升级"
-                })
-                .size(22)
-            )
-            .width(Length::Fill),
-            settings_close_button(close.clone())
-        ],
-        iced::widget::scrollable(
-            container(
-                column![
-                    text(format!("执行主机：{host}")),
-                    text(format!("来源：{:?}", preview.source)),
-                    text(&state.target_label),
-                    text(&preview.summary),
-                    text(if uninstalling {
-                        super::uninstall::guidance(preview.request.app_id)
-                    } else {
-                        "确认后由网关重新检查目标与 Node 依赖；排队不表示安装成功。"
-                    })
-                    .size(12),
-                    text(if uninstalling {
-                        "计划或路径变化时拒绝执行；请重新预检并确认，不会自动重试删除。"
-                    } else {
-                        ""
-                    })
-                    .size(12),
-                ]
-                .spacing(12)
-            )
-            .padding([0, 7])
-        )
-        .height(Length::Fill)
-        .direction(iced::widget::scrollable::Direction::Vertical(
-            iced::widget::scrollable::Scrollbar::new().width(4).scroller_width(4)
-        )),
-        row![
-            container(text("")).width(Length::Fill),
-            button(text("取消"))
-                .padding([8, 16])
-                .style(rounded_action_btn_style)
-                .on_press(close.clone()),
-            button(
-                text(if state.busy {
-                    "处理中…"
-                } else if uninstalling {
-                    "确认卸载"
-                } else {
-                    "确认提交"
-                })
-                .size(16)
-            )
-            .padding([8, 16])
-            .style(primary_action_btn_style)
-            .on_press_maybe(
-                (!state.busy
-                    && !state.uncertain
-                    && state.request.as_ref() == Some(&preview.request)
-                    && preview.source != AppInstallationSource::Unknown)
-                    .then_some(event(LifecycleMessage::Confirm))
-            )
-        ]
-        .spacing(10),
+    let header = settings_modal_header(
+        settings_page_heading(title, "请核对执行主机和预检目标。"),
+        settings_close_button(close.clone()),
+    );
+    let mut body = column![
+        text(format!("执行主机：{host}")).size(14),
+        text(format!("来源：{:?}", preview.source)).size(13).style(settings_muted_text_style),
+        text(&state.target_label).size(14).wrapping(iced::widget::text::Wrapping::WordOrGlyph),
+        settings_divider(),
+        text(&preview.summary).size(14).wrapping(iced::widget::text::Wrapping::WordOrGlyph),
+        text(guidance).size(13).style(settings_muted_text_style),
     ]
-    .spacing(12)
-    .height(Length::Fixed(440.0));
-    settings_modal_overlay(
-        Some(base),
-        close,
-        settings_modal_card(content).width(Length::Fixed(520.0)).max_height(540),
-    )
+    .spacing(12);
+    if uninstalling {
+        body = body.push(
+            text("计划或路径变化时拒绝执行；请重新预检并确认，不会自动重试删除。")
+                .size(13)
+                .style(settings_muted_text_style),
+        );
+    }
+    let footer = row![
+        Space::new().width(Length::Fill),
+        button(text("取消").size(SETTINGS_CONTROL_TEXT_SIZE))
+            .padding([8, 16])
+            .style(rounded_action_btn_style)
+            .on_press(close.clone()),
+        button(
+            text(if state.busy { "处理中…" } else { confirm_label })
+                .size(SETTINGS_CONTROL_TEXT_SIZE)
+        )
+        .padding([8, 16])
+        .style(if uninstalling { danger_action_btn_style } else { primary_action_btn_style })
+        .on_press_maybe(
+            (!state.busy
+                && !state.uncertain
+                && state.request.as_ref() == Some(&preview.request)
+                && preview.source != AppInstallationSource::Unknown)
+                .then_some(event(LifecycleMessage::Confirm)),
+        ),
+    ]
+    .align_y(Alignment::Center)
+    .spacing(10);
+    let card = settings_modal_layout(header, body, Some(footer.into()))
+        .width(Length::Fill)
+        .max_width(520.0)
+        .max_height(484.0);
+    settings_modal_overlay(Some(base), close, container(card).padding(12).center(Length::Fill))
 }

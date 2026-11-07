@@ -138,10 +138,24 @@ pub fn settings_modal_layout<'a>(
     body: impl Into<Element<'a, Message>>,
     footer: Option<Element<'a, Message>>,
 ) -> iced::widget::Container<'a, Message> {
+    settings_modal_layout_with_scroll_id(header, body, footer, None)
+}
+
+/// 保留可定位的内容区，供需要恢复或检查滚动位置的调用者使用。
+pub(crate) fn settings_modal_layout_with_scroll_id<'a>(
+    header: impl Into<Element<'a, Message>>,
+    body: impl Into<Element<'a, Message>>,
+    footer: Option<Element<'a, Message>>,
+    scroll_id: Option<&'static str>,
+) -> iced::widget::Container<'a, Message> {
     let body = scrollable(container(body.into()).padding([0, 7]).width(Length::Fill))
         .direction(Direction::Vertical(Scrollbar::new().width(4).scroller_width(4)))
         .width(Length::Fill)
         .height(Length::Fill);
+    let body = match scroll_id {
+        Some(id) => body.id(id),
+        None => body,
+    };
     let mut content = column![header.into(), body].spacing(16).width(Length::Fill);
     if let Some(footer) = footer {
         content = content.push(footer);

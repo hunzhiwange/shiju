@@ -11,7 +11,7 @@
 use crate::app::components::system_settings_common::{
     rounded_action_btn_style, settings_divider, settings_group_card, settings_group_heading,
     settings_muted_text_style, settings_page_heading, settings_row, settings_select,
-    settings_toggle, settings_value_badge,
+    settings_tab_button, settings_tab_row, settings_toggle, settings_value_badge,
 };
 use crate::app::components::system_settings_search::SettingsTabDescriptor;
 use crate::app::state::GeneralSettingsTab;
@@ -19,10 +19,6 @@ use crate::app::theme_catalog::{theme_store_from_home, to_iced_theme};
 use crate::app::{App, Message, PreviewAutoSaveMode, Shell, TerminalTheme, message};
 use iced::widget::{button, column, row, slider, text};
 use iced::{Alignment, Element, Length, Theme};
-
-#[path = "system_settings_general/presentation.rs"]
-mod presentation;
-use presentation::tab_style;
 
 const GENERAL_CONTROL_WIDTH: f32 = 280.0;
 
@@ -231,20 +227,16 @@ pub fn view(app: &App) -> Element<'_, Message> {
         .width(Length::Fill);
 
     let active_tab = app.general_settings_tab;
-    let tab_button = |tab, label| {
-        let is_active = tab == active_tab;
-        button(text(label).size(15))
-            .on_press(Message::Settings(message::SettingsMessage::General(
-                message::GeneralSettingsMessage::TabSelected(tab),
-            )))
-            .padding([8, 14])
-            .style(move |theme: &Theme, status| tab_style(theme, status, is_active))
-    };
-    let tabs = GENERAL_TABS
-        .iter()
-        .fold(row![].spacing(8).align_y(Alignment::Center), |row, descriptor| {
-            row.push(tab_button(descriptor.tab, i18n.__(descriptor.label)))
-        });
+    let tabs = settings_tab_row(GENERAL_TABS.iter().map(|descriptor| {
+        settings_tab_button(
+            i18n.__(descriptor.label),
+            descriptor.tab == active_tab,
+            Some(Message::Settings(message::SettingsMessage::General(
+                message::GeneralSettingsMessage::TabSelected(descriptor.tab),
+            ))),
+        )
+        .into()
+    }));
 
     let content: Element<'_, Message> = match active_tab {
         GeneralSettingsTab::Interface => column![

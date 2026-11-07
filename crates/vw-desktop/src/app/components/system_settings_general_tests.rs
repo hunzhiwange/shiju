@@ -283,3 +283,284 @@ async fn general_settings_render_chinese_in_light_and_dark_without_overflow() {
         }
     }
 }
+
+#[cfg(not(target_arch = "wasm32"))]
+mod tab_appearance {
+    use super::*;
+    use crate::app::i18n::I18n;
+    use iced::advanced::{
+        Layout, clipboard, layout,
+        renderer::{Headless, Style},
+        widget::{Id, Operation, Tree},
+    };
+    use iced::{Color, Event, Font, Point, Rectangle, Renderer, Size, mouse};
+    use iced_runtime::user_interface::{Cache, UserInterface};
+    use vw_config_types::ui::{DesktopLocale, GatewayClientSystemSettingsConfig};
+
+    const SIZE: Size<u32> = Size::new(960, 640);
+    type Ui<'a> = UserInterface<'a, Message, Theme, Renderer>;
+
+    fn run_isolated() -> bool {
+        const CHILD: &str = "SHIJU_GENERAL_TABS_TEST_CHILD";
+        if std::env::var_os(CHILD).is_some() {
+            return true;
+        }
+        let home = tempfile::tempdir().expect("isolated settings directory");
+        let config = GatewayClientSystemSettingsConfig {
+            host: "[".into(),
+            servers: Vec::new(),
+            ..Default::default()
+        };
+        std::fs::write(
+            home.path().join("gateway-client-bootstrap.json"),
+            serde_json::to_vec(&config).unwrap(),
+        )
+        .unwrap();
+        let module = module_path!().split_once("::").unwrap().1;
+        let output = std::process::Command::new(std::env::current_exe().unwrap())
+            .args(["--exact", &format!("{module}::settings_tabs_general_appearance")])
+            .env(CHILD, "1")
+            .env("HOME", home.path())
+            .env("VIBEWINDOW_CONFIG_DIR", home.path())
+            .env("VIBEWINDOW_WORKSPACE", home.path())
+            .current_dir(home.path())
+            .output()
+            .unwrap();
+        let stdout = String::from_utf8_lossy(&output.stdout);
+        assert!(
+            output.status.success() && stdout.contains("1 passed; 0 failed"),
+            "{stdout}\n{}",
+            String::from_utf8_lossy(&output.stderr),
+        );
+        false
+    }
+
+    #[derive(Default)]
+    struct Labels(Vec<String>);
+
+    impl Operation for Labels {
+        fn traverse(&mut self, children: &mut dyn FnMut(&mut dyn Operation)) {
+            children(self);
+        }
+
+        fn text(&mut self, _: Option<&Id>, _: Rectangle, value: &str) {
+            self.0.push(value.into());
+        }
+    }
+
+    fn tab_bounds(element: &mut Element<'_, Message>, renderer: &Renderer) -> Vec<Rectangle> {
+        let mut tree = Tree::new(element.as_widget());
+        let limits = layout::Limits::new(Size::ZERO, Size::from((SIZE.width, SIZE.height)));
+        let node = element.as_widget_mut().layout(&mut tree, renderer, &limits);
+        let row = Layout::new(&node).children().nth(1).expect("tab row");
+        row.children()
+            .map(|button| {
+                let bounds = button.bounds();
+                let label = button.children().next().expect("tab label").bounds();
+                assert_eq!(label.x - bounds.x, 14.0);
+                assert_eq!(label.y - bounds.y, 8.0);
+                bounds
+            })
+            .collect()
+    }
+
+    fn send(
+        ui: &mut Ui<'_>,
+        renderer: &mut Renderer,
+        cursor: mouse::Cursor,
+        event: Event,
+    ) -> Vec<Message> {
+        let mut messages = Vec::new();
+        ui.update(&[event], cursor, renderer, &mut clipboard::Null, &mut messages);
+        messages
+    }
+
+    fn capture(
+        ui: &mut Ui<'_>,
+        renderer: &mut Renderer,
+        theme: &Theme,
+        cursor: mouse::Cursor,
+    ) -> image::RgbaImage {
+        assert!(
+            send(
+                ui,
+                renderer,
+                cursor,
+                Event::Window(iced::window::Event::RedrawRequested(iced::time::Instant::now())),
+            )
+            .is_empty()
+        );
+        ui.draw(renderer, theme, &Style { text_color: theme.palette().text }, cursor);
+        let pixels = renderer.screenshot(SIZE, 1.0, theme.palette().background);
+        image::RgbaImage::from_raw(SIZE.width, SIZE.height, pixels).expect("screenshot")
+    }
+
+    fn save_tabs(pixels: &image::RgbaImage, tabs: &[Rectangle], name: &str) {
+        if let Some(directory) = std::env::var_os("SHIJU_GENERAL_TABS_SCREENSHOTS") {
+            let directory = std::path::PathBuf::from(directory);
+            std::fs::create_dir_all(&directory).expect("screenshot directory");
+            let first = tabs[0];
+            let last = tabs[3];
+            image::imageops::crop_imm(
+                pixels,
+                first.x as u32,
+                first.y as u32,
+                (last.x + last.width - first.x).ceil() as u32,
+                first.height.ceil() as u32,
+            )
+            .to_image()
+            .save(directory.join(format!("{name}.png")))
+            .expect("save tab screenshot");
+        }
+    }
+
+    fn assert_color(pixel: &image::Rgba<u8>, expected: Color) {
+        for (actual, expected) in pixel.0.into_iter().zip(expected.into_rgba8()) {
+            assert!(actual.abs_diff(expected) <= 2, "pixel {pixel:?}, expected {expected}");
+        }
+    }
+
+    fn fill_pixel(pixels: &image::RgbaImage, bounds: Rectangle) -> &image::Rgba<u8> {
+        pixels.get_pixel(bounds.x as u32 + 5, bounds.center_y() as u32)
+    }
+
+    #[tokio::test(flavor = "multi_thread")]
+    async fn settings_tabs_general_appearance() {
+        if !run_isolated() {
+            return;
+        }
+        assert_eq!(crate::app::config::gateway_client_endpoint().normalized_host(), "[");
+        {
+            let mut fonts = iced::advanced::graphics::text::font_system().write().unwrap();
+            for font in crate::fonts::load_all() {
+                fonts.load_font(font);
+            }
+        }
+        let mut renderer =
+            Renderer::new(Font::with_name("Noto Sans CJK SC"), 16.0.into(), Some("tiny-skia"))
+                .await
+                .expect("tiny-skia renderer");
+        let mut app = test_app();
+        let tabs = [
+            (GeneralSettingsTab::Interface, "应用外观与预览行为。"),
+            (GeneralSettingsTab::Terminal, "终端 Shell"),
+            (GeneralSettingsTab::Editor, "主题与显示"),
+            (GeneralSettingsTab::Themes, "主题画廊"),
+        ];
+
+        for (locale, locale_name, names) in [
+            (DesktopLocale::SimplifiedChinese, "zh-CN", ["界面", "终端", "编辑器", "主题"]),
+            (DesktopLocale::TraditionalChinese, "zh-TW", ["介面", "終端機", "編輯器", "主題"]),
+            (DesktopLocale::English, "en", ["Interface", "Terminal", "Editor", "Themes"]),
+        ] {
+            app.desktop_locale = locale;
+            let i18n = I18n::new(locale);
+            for (theme, theme_name) in [(Theme::Light, "light"), (Theme::Dark, "dark")] {
+                app.app_theme = theme.clone();
+                app.general_settings_tab = GeneralSettingsTab::Interface;
+                let background = theme.palette().background;
+                let palette = theme.extended_palette();
+                let strong = palette.background.strong.color;
+                let neutral = Color::from_rgba(
+                    (strong.r + background.r) / 2.0,
+                    (strong.g + background.g) / 2.0,
+                    (strong.b + background.b) / 2.0,
+                    1.0,
+                );
+
+                for (index, (active, content)) in tabs.into_iter().enumerate() {
+                    assert_eq!(app.general_settings_tab, active);
+                    let mut element = view(&app);
+                    let bounds = tab_bounds(&mut element, &renderer);
+                    assert_eq!(bounds.len(), 4);
+                    for pair in bounds.windows(2) {
+                        assert!((pair[1].x - pair[0].x - pair[0].width - 8.0).abs() < 0.01);
+                        assert_eq!(pair[0].center_y(), pair[1].center_y());
+                    }
+                    let mut ui = UserInterface::build(
+                        element,
+                        Size::from((SIZE.width, SIZE.height)),
+                        Cache::new(),
+                        &mut renderer,
+                    );
+                    let mut labels = Labels::default();
+                    ui.operate(&renderer, &mut labels);
+                    assert_eq!(&labels.0[2..6], &names);
+                    assert!(
+                        labels.0[6..].iter().any(|label| label == &i18n.__(content)),
+                        "{content:?} missing from {active:?}"
+                    );
+
+                    let idle = capture(&mut ui, &mut renderer, &theme, mouse::Cursor::Unavailable);
+                    for (tab_index, bounds) in bounds.iter().copied().enumerate() {
+                        assert_color(
+                            fill_pixel(&idle, bounds),
+                            if tab_index == index { neutral } else { background },
+                        );
+                    }
+                    let selected = bounds[index];
+                    assert_color(
+                        idle.get_pixel(selected.x as u32 + 1, selected.y as u32 + 1),
+                        background,
+                    );
+                    save_tabs(&idle, &bounds, &format!("{locale_name}-{theme_name}-{index}-idle"));
+
+                    let Some(&(next, _)) = tabs.get(index + 1) else {
+                        continue;
+                    };
+                    let target = bounds[index + 1];
+                    let point = Point::new(target.center_x(), target.center_y());
+                    let cursor = mouse::Cursor::Available(point);
+                    assert!(
+                        send(
+                            &mut ui,
+                            &mut renderer,
+                            cursor,
+                            Event::Mouse(mouse::Event::CursorMoved { position: point })
+                        )
+                        .is_empty()
+                    );
+                    let hovered = capture(&mut ui, &mut renderer, &theme, cursor);
+                    assert_color(fill_pixel(&hovered, target), palette.background.weak.color);
+                    save_tabs(
+                        &hovered,
+                        &bounds,
+                        &format!("{locale_name}-{theme_name}-{index}-hover"),
+                    );
+
+                    assert!(
+                        send(
+                            &mut ui,
+                            &mut renderer,
+                            cursor,
+                            Event::Mouse(mouse::Event::ButtonPressed(mouse::Button::Left))
+                        )
+                        .is_empty()
+                    );
+                    let pressed = capture(&mut ui, &mut renderer, &theme, cursor);
+                    assert_color(fill_pixel(&pressed, target), neutral);
+                    save_tabs(
+                        &pressed,
+                        &bounds,
+                        &format!("{locale_name}-{theme_name}-{index}-pressed"),
+                    );
+
+                    let messages = send(
+                        &mut ui,
+                        &mut renderer,
+                        cursor,
+                        Event::Mouse(mouse::Event::ButtonReleased(mouse::Button::Left)),
+                    );
+                    assert!(
+                        matches!(messages.as_slice(), [Message::Settings(message::SettingsMessage::General(
+                        message::GeneralSettingsMessage::TabSelected(tab),
+                    ))] if *tab == next),
+                        "{messages:?}"
+                    );
+                    drop(ui);
+                    let _ = app.update(messages.into_iter().next().unwrap());
+                }
+            }
+        }
+    }
+}

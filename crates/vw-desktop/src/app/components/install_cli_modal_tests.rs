@@ -299,3 +299,54 @@ async fn app_update_modal_draws_chinese_selection_and_dynamic_path_in_both_theme
         }
     }
 }
+
+#[tokio::test(flavor = "multi_thread")]
+async fn settings_tabs_peripheral_appearance_cli_commands() {
+    use super::cli_command_help::CliCommandsTab;
+    use super::install_cli_modal::view_app_update;
+    use super::system_settings_common::tab_appearance_tests;
+    use crate::app::App;
+    use crate::app::i18n::I18n;
+    use crate::app::message::ViewMessage;
+
+    tab_appearance_tests::run_at_least(
+        concat!(module_path!(), "::settings_tabs_peripheral_appearance_cli_commands"),
+        420,
+        || App::new().0,
+        |scene, app| {
+            app.show_cli_install_modal = true;
+            app.cli_install_modal_show_update_action = true;
+            app.cli_install_modal_show_install_action = true;
+            app.cli_install_modal_use_app_update_action = false;
+            app.cli_install_modal_is_checking_update = true;
+            app.cli_install_modal_title = "CLI 更新检测".into();
+            app.cli_install_modal_message = "下方命令可直接复制。".into();
+            app.cli_commands_tab = CliCommandsTab::Common;
+            let i18n = I18n::new(app.desktop_locale);
+            let tabs = ["常用命令", "服务管理", "全部命令"].map(|label| i18n.__(label));
+            scene.save_preview(app, view_app_update(app), "cli-commands");
+            let message = scene.check_message(app, view_app_update(app), &tabs, 1, 14);
+            assert!(matches!(
+                message,
+                Message::View(ViewMessage::CliCommandsTabSelected(CliCommandsTab::Service))
+            ));
+            let _ = app.update(message);
+            assert_eq!(app.cli_commands_tab, CliCommandsTab::Service);
+            let copy = scene.click_message(view_app_update(app), i18n.__("复制"));
+            assert!(
+                matches!(copy, Message::CopyCode(command) if command == "shiju service status")
+            );
+            scene.check_disabled(view_app_update(app), i18n.__("安装 CLI"));
+            scene.check_modal_scroll(
+                view_app_update(app),
+                i18n.__("CLI 更新检测"),
+                i18n.__("关闭"),
+            );
+            let close = scene.click_message(view_app_update(app), i18n.__("关闭"));
+            assert!(matches!(close, Message::View(ViewMessage::CloseInstallCliModal)));
+            let _ = app.update(close);
+            assert!(!app.show_cli_install_modal);
+        },
+    )
+    .await;
+}

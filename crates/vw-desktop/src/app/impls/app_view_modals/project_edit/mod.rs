@@ -11,7 +11,7 @@ use crate::app::components::color_picker::{parse_color, render_color_picker};
 use crate::app::components::system_settings_common::{
     primary_action_btn_style, rounded_action_btn_style, settings_close_button, settings_modal_card,
     settings_modal_header, settings_modal_layout, settings_modal_overlay_with_backdrop_dismiss,
-    settings_muted_text_style,
+    settings_muted_text_style, settings_tab_row,
 };
 use crate::app::i18n::I18n;
 use crate::app::message::ProjectMessage;
@@ -35,32 +35,30 @@ pub(crate) fn with_project_edit<'a>(
     };
     let i18n = I18n::new(app.desktop_locale);
     let cancel = Message::Project(ProjectMessage::ProjectEditCanceled);
-    let tabs = row![
+    let tabs = settings_tab_row([
         tab_button(
             i18n.__("基础信息"),
             ProjectEditTab::General,
-            app.project_edit_tab == ProjectEditTab::General
+            app.project_edit_tab == ProjectEditTab::General,
         ),
         tab_button(
             i18n.__("启动与工作区"),
             ProjectEditTab::Launch,
-            app.project_edit_tab == ProjectEditTab::Launch
+            app.project_edit_tab == ProjectEditTab::Launch,
         ),
         tab_button(
             i18n.__("刷新策略"),
             ProjectEditTab::Refresh,
-            app.project_edit_tab == ProjectEditTab::Refresh
+            app.project_edit_tab == ProjectEditTab::Refresh,
         ),
         tab_button(
             i18n.__("调度与保护"),
             ProjectEditTab::Scheduling,
-            app.project_edit_tab == ProjectEditTab::Scheduling
+            app.project_edit_tab == ProjectEditTab::Scheduling,
         ),
-    ]
-    .spacing(6)
-    .align_y(Alignment::Center)
+    ])
     .wrap()
-    .vertical_spacing(6);
+    .vertical_spacing(8);
     let header = column![
         settings_modal_header(
             text(i18n.__("编辑项目")).size(18),

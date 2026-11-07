@@ -1,7 +1,7 @@
 //! CLI 命令速查：仅展示与复制，不执行命令。
 use super::install_cli_modal::hash_copy_text;
 use super::system_settings_common::{
-    rounded_action_btn_style, settings_muted_text_style, settings_segment_button_style,
+    rounded_action_btn_style, settings_muted_text_style, settings_tab_button, settings_tab_row,
 };
 use crate::app::{Message, message::ViewMessage};
 use iced::widget::{button, column, row, text};
@@ -82,28 +82,31 @@ pub(crate) fn view(
     tab: CliCommandsTab,
     copied_hash: Option<u64>,
 ) -> Element<'static, Message> {
-    let mut tabs = row![].spacing(6);
-    for (value, label) in [
-        (CliCommandsTab::Common, "常用命令"),
-        (CliCommandsTab::Service, "服务管理"),
-        (CliCommandsTab::All, "全部命令"),
-    ] {
-        tabs = tabs.push(
-            button(i18n.__(label))
-                .on_press(Message::View(ViewMessage::CliCommandsTabSelected(value)))
-                .padding([7, 12])
-                .style(move |theme, status| {
-                    settings_segment_button_style(theme, status, tab == value)
-                }),
-        );
-    }
+    let tabs = settings_tab_row(
+        [
+            (CliCommandsTab::Common, "常用命令"),
+            (CliCommandsTab::Service, "服务管理"),
+            (CliCommandsTab::All, "全部命令"),
+        ]
+        .into_iter()
+        .map(|(value, label)| {
+            settings_tab_button(
+                i18n.__(label),
+                tab == value,
+                Some(Message::View(ViewMessage::CliCommandsTabSelected(value))),
+            )
+            .into()
+        }),
+    )
+    .wrap()
+    .vertical_spacing(8);
     let commands = match tab {
         CliCommandsTab::Common => COMMON_COMMANDS,
         CliCommandsTab::Service => SERVICE_COMMANDS,
         CliCommandsTab::All => ALL_COMMANDS,
     };
     let mut content = column![
-        tabs.align_y(Alignment::Center).wrap(),
+        tabs,
         text(i18n.__(
             "在终端运行；点击标签页切换。全部命令页提供各入口的帮助，可继续查看子命令与参数。"
         ))

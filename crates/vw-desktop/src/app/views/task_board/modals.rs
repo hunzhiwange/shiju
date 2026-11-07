@@ -7,8 +7,8 @@ use crate::app::components::system_settings_common::{
     SETTINGS_CONTROL_PADDING, SETTINGS_CONTROL_TEXT_SIZE, rounded_action_btn_style,
     settings_close_button, settings_divider, settings_field_label, settings_group_card,
     settings_group_heading, settings_modal_header, settings_modal_layout,
-    settings_muted_text_style, settings_segment_button_style, settings_text_input_style,
-    settings_toggle,
+    settings_muted_text_style, settings_segment_button_style, settings_tab_button,
+    settings_tab_row, settings_text_input_style, settings_toggle,
 };
 use crate::app::i18n::I18n;
 use crate::app::message::TaskBoardMessage;
@@ -59,11 +59,12 @@ pub fn build_task_settings_modal(app: &App) -> Element<'_, Message> {
 
     let i18n = I18n::new(app.desktop_locale);
     let tab_button = |label: &'static str, tab: TaskBoardSettingsModalTab| {
-        let selected = app.task_board_settings_modal_tab == tab;
-        button(text(i18n.__(label)).size(13))
-            .on_press(Message::TaskBoard(TaskBoardMessage::SelectSettingsModalTab(tab)))
-            .padding([8, 12])
-            .style(move |theme, status| settings_segment_button_style(theme, status, selected))
+        settings_tab_button(
+            i18n.__(label),
+            app.task_board_settings_modal_tab == tab,
+            Some(Message::TaskBoard(TaskBoardMessage::SelectSettingsModalTab(tab))),
+        )
+        .into()
     };
 
     // 构建并发数设置行
@@ -503,12 +504,12 @@ pub fn build_task_settings_modal(app: &App) -> Element<'_, Message> {
             .spacing(4),
             settings_close_button(Message::TaskBoard(TaskBoardMessage::CloseSettingsModal)),
         ),
-        row![
+        settings_tab_row([
             tab_button("刷新与自动化", TaskBoardSettingsModalTab::Refresh),
             tab_button("并发与保护", TaskBoardSettingsModalTab::Scheduling),
-        ]
-        .spacing(8)
-        .wrap(),
+        ])
+        .wrap()
+        .vertical_spacing(8),
     ]
     .spacing(12);
     let body = column![

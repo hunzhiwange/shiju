@@ -3,7 +3,7 @@
 
 use crate::app::components::system_settings_common::{
     SETTINGS_CONTROL_PADDING, SETTINGS_CONTROL_TEXT_SIZE, rounded_action_btn_style,
-    settings_field_label, settings_segment_button_style, settings_text_input_style,
+    settings_field_label, settings_tab_button, settings_text_input_style,
 };
 use crate::app::state::ProjectEditTab;
 use iced::widget::{button, row, text, text_input};
@@ -54,13 +54,14 @@ pub(super) fn tab_button(
     tab: ProjectEditTab,
     selected: bool,
 ) -> Element<'static, Message> {
-    button(text(label).size(13))
-        .on_press(Message::Project(
+    settings_tab_button(
+        label,
+        selected,
+        Some(Message::Project(
             crate::app::message::project::ProjectMessage::ProjectEditTabSelected(tab),
-        ))
-        .padding([8, 10])
-        .style(move |theme, status| settings_segment_button_style(theme, status, selected))
-        .into()
+        )),
+    )
+    .into()
 }
 
 pub(super) fn numeric_row<'a>(

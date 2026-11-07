@@ -25,7 +25,7 @@ mod panels_tests;
 #[path = "styles_tests.rs"]
 mod styles_tests;
 #[cfg(all(test, not(target_arch = "wasm32")))]
-pub(super) mod tab_appearance_tests;
+pub(in crate::app) mod tab_appearance_tests;
 #[cfg(test)]
 mod tests;
 #[cfg(test)]

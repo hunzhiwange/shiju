@@ -160,3 +160,42 @@ fn context_menu_builds_regular_and_failed_task_variants() {
     assert_eq!(running_menu.as_widget().children().len(), 3);
     keep_element(running_menu);
 }
+
+#[tokio::test(flavor = "multi_thread")]
+async fn settings_tabs_peripheral_appearance_task_board() {
+    use crate::app::components::system_settings_common::tab_appearance_tests;
+    use crate::app::i18n::I18n;
+    use crate::app::message::TaskBoardMessage;
+
+    tab_appearance_tests::run_at_least(
+        concat!(module_path!(), "::settings_tabs_peripheral_appearance_task_board"),
+        420,
+        test_app,
+        |scene, app| {
+            let _ = app.update(Message::TaskBoard(TaskBoardMessage::OpenSettingsModal));
+            app.task_board_settings.agent_scheduler_dispatch_mode =
+                AgentSchedulerDispatchModeDto::Local;
+            let i18n = I18n::new(app.desktop_locale);
+            let tabs = ["刷新与自动化", "并发与保护"].map(|label| i18n.__(label));
+            scene.check_selected_segment(super::super::view(app), i18n.__("本地"));
+            scene.save_preview(app, super::super::view(app), "task-settings");
+            let message = scene.check_message(app, super::super::view(app), &tabs, 1, 14);
+            assert!(matches!(
+                message,
+                Message::TaskBoard(TaskBoardMessage::SelectSettingsModalTab(
+                    TaskBoardSettingsModalTab::Scheduling
+                ))
+            ));
+            let _ = app.update(message);
+            assert_eq!(app.task_board_settings_modal_tab, TaskBoardSettingsModalTab::Scheduling);
+            assert_eq!(
+                app.task_board_settings.agent_scheduler_dispatch_mode,
+                AgentSchedulerDispatchModeDto::Local
+            );
+            let message = scene.click_message(super::super::view(app), tabs[0]);
+            let _ = app.update(message);
+            assert_eq!(app.task_board_settings_modal_tab, TaskBoardSettingsModalTab::Refresh);
+        },
+    )
+    .await;
+}

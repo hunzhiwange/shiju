@@ -236,6 +236,25 @@ fn scroll(ui: &mut Ui<'_>, renderer: &mut Renderer, point: Point, lines: f32) {
     );
 }
 
+fn assert_visible_in_project_body(
+    ui: &mut Ui<'_>,
+    renderer: &mut Renderer,
+    viewport: Rectangle,
+    field: Rectangle,
+) {
+    let bottom = viewport.y + viewport.height;
+    let hidden_height = field.y + field.height - bottom;
+    if hidden_height > 0.0 {
+        let event = Event::Mouse(mouse::Event::WheelScrolled {
+            delta: mouse::ScrollDelta::Pixels { x: 0.0, y: -(hidden_height + 1.0) },
+        });
+        assert!(send(ui, renderer, at(viewport.center()), &[event]).is_empty());
+    }
+    let offset = geometry(ui, renderer).scroll[0].1.y;
+    assert!(field.y - offset >= viewport.y);
+    assert!(field.y + field.height - offset <= bottom);
+}
+
 fn key_at(ui: &mut Ui<'_>, renderer: &mut Renderer, name: Named) -> Vec<Message> {
     send(ui, renderer, mouse::Cursor::Unavailable, &[key(name)])
 }
@@ -342,7 +361,7 @@ async fn ui_refresh_30_layout_and_interaction() {
             assert!(viewport.y + viewport.height < save.y);
             if tab == ProjectEditTab::General {
                 let name = positions.input(NAME);
-                assert!(name.y + name.height <= viewport.y + viewport.height);
+                assert_visible_in_project_body(&mut ui, &mut renderer, viewport, name);
             }
             redraw_project(
                 &mut ui,
@@ -365,12 +384,13 @@ async fn ui_refresh_30_layout_and_interaction() {
                 assert_centered(positions.focusables[0], positions.label(i18n.__("管理工作流")));
                 let header = positions.label(i18n.__("编辑项目"));
                 let select = positions.focusables[0];
-                assert!(select.y + select.height <= viewport.y + viewport.height);
+                assert_visible_in_project_body(&mut ui, &mut renderer, viewport, select);
                 scroll(&mut ui, &mut renderer, viewport.center(), -40.0);
                 let after = geometry(&mut ui, &renderer);
                 let translation = after.scroll[0].1.y;
                 assert!(translation > 0.0);
-                assert!(path.y + path.height - translation <= viewport.y + viewport.height + 0.1);
+                // Iced rounds the scroll offset to whole pixels.
+                assert!(path.y + path.height - translation <= viewport.y + viewport.height + 1.0);
                 assert_eq!(after.label(i18n.__("编辑项目")), header);
                 assert_eq!(after.label(i18n.__("保存")), save);
                 assert_eq!(after.label(i18n.__("取消")), cancel);
@@ -660,4 +680,42 @@ async fn ui_refresh_30_preserves_values_and_disabled_states() {
     let mut ui = scene(view(&app), &mut renderer, size);
     assert_fits(geometry(&mut ui, &renderer).label(i18n.__("暂无最近项目")), size);
     redraw_project(&mut ui, &mut renderer, &Theme::Light, size, "projects-empty-640");
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn settings_tabs_peripheral_appearance_project() {
+    use crate::app::components::system_settings_common::tab_appearance_tests;
+    use crate::app::impls::with_project_edit;
+
+    fn overlay(app: &App) -> Element<'_, Message> {
+        let background =
+            iced::widget::Space::new().width(iced::Length::Fill).height(iced::Length::Fill);
+        with_project_edit(app, background.into())
+    }
+
+    tab_appearance_tests::run_at_least(
+        concat!(module_path!(), "::settings_tabs_peripheral_appearance_project"),
+        420,
+        fixture,
+        |scene, app| {
+            set_project_draft(app);
+            app.project_edit_tab = ProjectEditTab::General;
+            let i18n = I18n::new(app.desktop_locale);
+            let tabs =
+                ["基础信息", "启动与工作区", "刷新策略", "调度与保护"].map(|label| i18n.__(label));
+            scene.save_preview(app, overlay(app), "project-edit");
+            let message = scene.check_message(app, overlay(app), &tabs, 3, 14);
+            assert!(matches!(
+                message,
+                Message::Project(ProjectMessage::ProjectEditTabSelected(
+                    ProjectEditTab::Scheduling
+                ))
+            ));
+            let _ = app.update(message);
+            assert_eq!(app.project_edit_tab, ProjectEditTab::Scheduling);
+            assert_eq!(app.project_edit_start_script, SCRIPT);
+            scene.check_modal_scroll(overlay(app), i18n.__("编辑项目"), i18n.__("保存"));
+        },
+    )
+    .await;
 }

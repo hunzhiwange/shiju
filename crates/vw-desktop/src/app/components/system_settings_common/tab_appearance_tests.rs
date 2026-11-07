@@ -106,7 +106,7 @@ struct TabPixels {
     pressed: Rgba<u8>,
 }
 
-pub(in crate::app::components) struct TabAppearance<'a> {
+pub(in crate::app) struct TabAppearance<'a> {
     renderer: &'a mut Renderer,
     theme: Theme,
     width: u32,
@@ -118,7 +118,7 @@ impl TabAppearance<'_> {
         self.geometry(&mut ui)
     }
 
-    pub(in crate::app::components) fn save_preview(
+    pub(in crate::app) fn save_preview(
         &mut self,
         app: &App,
         element: Element<'_, Message>,
@@ -163,6 +163,17 @@ impl TabAppearance<'_> {
         target: usize,
         padding: u32,
     ) -> SettingsMessage {
+        settings_message(self.check_message(app, element, names, target, padding))
+    }
+
+    pub(in crate::app) fn check_message(
+        &mut self,
+        app: &App,
+        element: Element<'_, Message>,
+        names: &[&str],
+        target: usize,
+        padding: u32,
+    ) -> Message {
         let mut ui = self.scene(element);
         let tabs = self.geometry(&mut ui).tabs(names);
         let selected = tabs[0];
@@ -210,6 +221,14 @@ impl TabAppearance<'_> {
         element: Element<'_, Message>,
         label: &str,
     ) -> SettingsMessage {
+        settings_message(self.click_message(element, label))
+    }
+
+    pub(in crate::app) fn click_message(
+        &mut self,
+        element: Element<'_, Message>,
+        label: &str,
+    ) -> Message {
         let mut ui = self.scene(element);
         let position = self.geometry(&mut ui).bounds(label).center();
         let cursor = mouse::Cursor::Available(position);
@@ -217,14 +236,36 @@ impl TabAppearance<'_> {
         self.release(&mut ui, cursor)
     }
 
-    fn release(&mut self, ui: &mut Ui<'_>, cursor: mouse::Cursor) -> SettingsMessage {
+    fn release(&mut self, ui: &mut Ui<'_>, cursor: mouse::Cursor) -> Message {
         let mut messages =
             self.send(ui, cursor, Event::Mouse(mouse::Event::ButtonReleased(mouse::Button::Left)));
         assert_eq!(messages.len(), 1);
-        match messages.pop().unwrap() {
-            Message::Settings(message) => message,
-            message => panic!("expected settings message, got {message:?}"),
-        }
+        messages.pop().unwrap()
+    }
+
+    pub(in crate::app) fn check_selected_segment(
+        &mut self,
+        element: Element<'_, Message>,
+        label: &str,
+    ) {
+        use iced::widget::{Space, button, row, text};
+
+        let mut ui = self.scene(element);
+        let bounds = self.geometry(&mut ui).bounds(label);
+        let actual = self.capture(&mut ui, mouse::Cursor::Unavailable);
+        let Rgba([r, g, b, _]) = *actual.get_pixel(bounds.x as u32 - 14, bounds.center_y() as u32);
+        let reference = row![
+            Space::new().width(24),
+            button(text(label).size(12))
+                .padding([8, 12])
+                .on_press(Message::None)
+                .style(|theme, status| super::settings_segment_button_style(theme, status, true)),
+        ];
+        let mut ui = self.scene(reference.into());
+        let reference_bounds = self.geometry(&mut ui).bounds(label);
+        let expected =
+            self.capture_on(&mut ui, mouse::Cursor::Unavailable, Color::from_rgb8(r, g, b));
+        assert_pixel(fill(&actual, bounds), fill(&expected, reference_bounds), label);
     }
 
     pub(in crate::app::components) fn check_modal_scroll(
@@ -352,6 +393,13 @@ impl TabAppearance<'_> {
     }
 }
 
+fn settings_message(message: Message) -> SettingsMessage {
+    match message {
+        Message::Settings(message) => message,
+        message => panic!("expected settings message, got {message:?}"),
+    }
+}
+
 fn press() -> Event {
     Event::Mouse(mouse::Event::ButtonPressed(mouse::Button::Left))
 }
@@ -381,7 +429,7 @@ pub(in crate::app::components) async fn run(
     run_at_least(test, 320, fixture, check).await;
 }
 
-pub(in crate::app::components) async fn run_at_least(
+pub(in crate::app) async fn run_at_least(
     test: &str,
     min_width: u32,
     fixture: impl Fn() -> App,

@@ -24,6 +24,8 @@ mod app_update;
 pub(crate) use app_update::copy_chat_message;
 mod app_view;
 mod app_view_modals;
+#[cfg(test)]
+pub(super) use app_view_modals::with_project_edit;
 mod app_view_status;
 pub(crate) use app_view_status::STATUS_BAR_HEIGHT;
 #[cfg(test)]

@@ -3467,3 +3467,131 @@ macOS **27.0（26A428）/ arm64**，桌面 **0.6.0**。两个窗口命令使用�
 红测使用已实现功能的阴性对照。仅在重启阶段将夹具主机标为离线，让生产 Gateway 跳过该主机的恢复，随后恢复策略的在线状态。绿测按正常在线策略启动。两阶段共用真实文件故障与相同的行为断言。筛选排除了仅供子进程启动的测试入口。链接器提示体积较大的 DWARF unwind 区段，测试正常执行。
 
 定向差异检查通过。仅新增集成测试目标及本条证据。只读 `plan.md` 无差异。本任务的槽位锁已释放，状态为 **已完成**。下一步批次 77。
+
+## 任务 77：核对 macOS 来源覆盖与证据
+
+2026-11-08。审查基线 `a717c6424`。只读对照本批任务、计划、执行索引和来源映射。第 76 批的正式提交、测试源码及本文件记录一致，生产 Gateway 经 SDK 的两项用例通过。母任务 1 来源快照、母任务 3 应用目录已验收；母任务 2 沿用任务 1 批准的底座子计划 1–93 开工裁定，原生包、存储、DTO、Gateway、SDK、主机权限和操作协议均有实际调用者，完整领域迁移仍待收口。母任务 4 的真实应用验收仍开放。
+
+### 来源与实际接线
+
+上游 cc-switch 快照 `ca58c0313360eae7c851fbd7553c1614c7af03e7`，审查时 HEAD 一致、工作区干净。核对 `src/App.tsx` 的 `useProviderActions`、`ProviderList` 和应用专用成员回调，`useProviderActions.ts` 的增删改/切换 mutation 及结果通知，`ProviderList.tsx` 的排序、成员状态和导入分派，以及 `src/lib/api/providers.ts` → `src-tauri/src/lib.rs` 注册 → `commands/provider.rs` → `ProviderService` 的调用链。相邻证据包括 `tests/hooks/useProviderActions.test.tsx` 的路由告警、刷新及默认模型，`tests/components/ProviderList.test.tsx` 的成员与列表分区，`src-tauri/tests/provider_commands.rs` 的 Claude/Codex 切换和导入拒绝，以及 `src-tauri/tests/provider_service.rs` 的关键字段、外部编辑冲突和 OMP 定点更新。上游测试只读审查。
+
+识矩的配置业务由 `crates/vw-agent-apps/src/providers/` 和 `crates/vw-agent/src/app_providers/` 的 `AppProviderStore` 承接。下表所称 Gateway、SDK、Iced 模块分别位于 `crates/vw-agent/src/gateway/api/handlers/app_providers/`、`crates/vw-gateway-client/src/client/app_providers/` 和 `crates/vw-desktop/src/app/components/app_providers/`；类型位于 `crates/vw-api-types/src/app_providers/`。Gateway 的 `app_providers::router` 在 `gateway/router.rs` 与 `gateway/bootstrap.rs` 注册，Iced `app/message/app_providers/list.rs` 经 `app_provider_catalog` 读目录，状态区分直连、使用中、路由和增量成员。文件事务通过 `live/commit.rs::ProviderTransactions`，生产启动从 `agent_apps::recover_providers_on_startup` 恢复。任务 13–21 的补丁、锁、暂存、并发和前滚由业务包测试与任务 76 的集成测试分别佐证。任务 50 的 `operations` Gateway 和 SDK `provider_operation_start/get/cancel` 验证发布前可取消、发布后需前滚，Iced `preview` 消费此协议。HTTP 授权、隔离与脱敏实测见任务 51。
+
+### 55 条命令候选
+
+按来源映射的函数名逐项核对。表中每组给出主责和已有证据范围，应用特有分支见 14 应用矩阵。应用配置接口位于 `/v1/app-providers`，共享图标库与统一记录使用各自的路由。
+
+| 来源命令 | 承接链与证据 |
+| --- | --- |
+| `get_claude_config_status`、`get_claude_code_config_path`、`get_config_status`、`get_config_dir`、`get_app_config_path` | 12/75 路径 resolver → `paths` Gateway → `app_provider_paths`、`app_provider_directory` → Iced `paths`。路径观察、Claude 目录覆盖和授权有证据。完整安装/账号状态和其它应用的桌面写覆盖未验证。 |
+| `open_config_folder`、`open_app_config_folder`、`pick_directory`、`reveal_app_log_file` | 75 实现授权本机 Claude 目录打开，窗口夹具验证按钮受限，实际 Finder 打开未验证。通用目录选择、日志揭示和系统集成由母 20 承接。 |
+| `get_claude_common_config_snippet`、`set_claude_common_config_snippet`、`get_common_config_snippet`、`set_common_config_snippet`、`extract_common_config_snippet` | 25/71 共用 `snippets` 的读取、保存、提取和预览，SDK `app_provider_snippet_*`、Iced `snippets`。按应用能力与脱敏规则验证。 |
+| `get_custom_icons`、`add_custom_icon`、`rename_custom_icon`、`delete_custom_icon` | 9/69 图标库及档案关联由同一存储所有者处理，库走 `/v1/agent-apps/custom-icons` 与 SDK `custom_icons_list`、`custom_icon_add`、`custom_icon_rename`、`custom_icon_delete`，档案关联走 `app_provider_icon` / `app_provider_icon_change`，Iced 使用 `icons`，有持久化与窗口证据。 |
+| `check_env_conflicts`、`delete_env_vars`、`restore_env_backup` | 47/48/49/73 `env_diagnose`、`env_clean`、`env_restore`、私有 `env_backup` → 同名 Gateway 与 SDK `provider_env_*` → Iced `env`。隔离 shell 文件检测、选中清理和恢复已测，继承环境只诊断。 |
+| `get_providers`、`get_current_provider` | 2/52 `AppProviderStore`、`catalog` → SDK `app_provider_list` / `app_provider_catalog` → Iced `list`。当前身份从状态读取，增量成员单独观察。 |
+| `add_provider`、`update_provider`、`delete_provider` | 分别由 3、4、5 负责，`create/update/delete` Gateway、SDK `app_provider_create/update/delete`、53 Iced 基础表单及 54–67 专属表单。6 的复制通过 `app_provider_duplicate`，53 有窗口证据。目录 CRUD 与原生激活分离。 |
+| `get_provider_editor_view`、`read_live_provider_settings` | 22/24/72 通过 `preview`、`editor_merge` 与专属表单构造脱敏视图；SDK `app_provider_preview`、`app_provider_editor_open/save`，Iced `preview` 经操作协议保存。76 对 Claude 三方冲突有生产入口证据。任意原始文件读取未开放。 |
+| `add_provider_to_live_config`、`remove_provider_from_live_config` | 35–42 增量适配器及其 Gateway/SDK add、remove-live 和应用表单。成员移除与目录删除分开，默认模型和登录操作须按应用契约判断。 |
+| `switch_provider` | 26–43 的应用专属 activate/switch/add，45/46/74 的 `provider_mode_state` / `provider_mode_apply` 与 Iced `mode`。Claude 配置与受控路由服务有 HTTP 证据；76 复核 Codex 直连往返及启动前滚。生产路由缺项见下。 |
+| `import_default_config` | 44 `import.rs` 与 `AppProviderStore::import_native`，经 `provider_import` 和授权启动策略调用。应用专用 Iced 入口见矩阵，通用导入按钮未找到对应窗口证据。Dsh 明确返回 `dsh_native_profile_import_unsupported`，Desktop 走专用导入。 |
+| `get_claude_desktop_status`、`get_claude_desktop_default_routes`、`import_claude_desktop_providers_from_claude`、`ensure_claude_desktop_official_provider` | 33/34/67 `ClaudeDesktopFiles` 与 `desktop_mapping` → `claude_desktop_form_read/default_routes/import_claude/mapping_save` → Iced `desktop`。有配置、默认路由及兼容导入证据。独立上游安装状态与官方档案补种未取得等价证据，账号与内建知识分别交母 6、5。 |
+| `ensure_codex_official_provider`、`ensure_grokbuild_official_provider` | 28–30/32/44/56/57 对应 `codex_catalog`、`grok` 原生投影、导入与 Iced 表单；Grok 主动导入种子有测试，Codex 原生官方档案与登录暂存有隔离证据。独立官方档案补种、真实授权和模型知识按母 6/5 边界处理。 |
+| `queryProviderUsage`、`testUsageScript` | 母 7 用量执行。供应商记录或 Pi 用量元数据保存只证明配置维护。 |
+| `test_api_endpoints` | 母 9 网络测速。端点地址簿证据见下一行。 |
+| `get_custom_endpoints`、`add_custom_endpoint`、`remove_custom_endpoint`、`update_endpoint_last_used` | 8/68 `endpoints` → `app_provider_endpoints`、`app_provider_endpoint_change` → Iced `endpoints`；请求选项归 23/68，含授权与脱敏证据。 |
+| `update_providers_sort_order` | 7/52 `presentation` → `app_provider_presentation_list/set` → Iced `list`；持久排序、分类和备注经 SDK 与窗口验证。 |
+| `get_universal_providers`、`get_universal_provider`、`upsert_universal_provider`、`delete_universal_provider`、`sync_universal_provider` | CRUD 归 10，向目标应用投影归 11。Gateway/SDK `universal`、`universal_sync` → 70 Iced `universal`；证明目录投影，实际代理和聚合交母 8/10。 |
+| `import_opencode_providers_from_live`、`get_opencode_live_provider_ids`、`get_opencode_default_model`、`set_opencode_default_model` | 35/58 `OpenCodeFiles` → `opencode_import/state/default_model` → Iced `opencode` 与列表。状态读回成员和默认模型，独立写默认模型由 API/SDK 用例验证，真实 CLI 消费未验证。 |
+
+### 121 条文件索引
+
+同一行列出的路径按职责归并。每条原始索引路径仅列一次。遇到聚合入口、测试或多语言文档，按所指行为分派到上表或应用矩阵，测试文件只提供断言线索。
+
+| 责任与证据 | 来源文件（相对快照根） |
+| --- | --- |
+| 28/56 配置投影与提示；真实协议/模型知识分别交母 8/5 | `docs/images/claude-codex-routing/01-claude-providers-require-routing.png`、`docs/images/claude-codex-routing/02-responses-provider-form.png`、`docs/images/codex-claude-routing/01-codex-providers-require-routing.png`、`docs/images/codex-claude-routing/02-claude-codex-provider-form.png`、`docs/images/codex-deepseek-routing/01-codex-providers-require-routing.png`、`docs/images/codex-kimi-routing/01-codex-providers-require-routing.png` |
+| 38/61 Pi 成员读写及窗口 | `docs/pi-live-provider-sync-requirements-zh.md`、`src-tauri/src/services/provider/pi.rs`、`tests/config/piProviderPresets.test.ts` |
+| 3/4/53 新增、编辑及应用表单 | `docs/user-manual/en/2-providers/2.1-add.md`、`docs/user-manual/en/2-providers/2.3-edit.md`、`docs/user-manual/ja/2-providers/2.1-add.md`、`docs/user-manual/ja/2-providers/2.3-edit.md`、`docs/user-manual/zh/2-providers/2.1-add.md`、`docs/user-manual/zh/2-providers/2.3-edit.md`、`tests/hooks/useAddProviderMutation.test.tsx`、`tests/hooks/useUpdateProviderMutation.test.tsx` |
+| 26–43/74 直连、增量及模式；应用矩阵区分支持范围 | `docs/user-manual/en/2-providers/2.2-switch.md`、`docs/user-manual/ja/2-providers/2.2-switch.md`、`docs/user-manual/zh/2-providers/2.2-switch.md`、`tests/hooks/useSwitchProviderResult.test.tsx` |
+| 6/7/52/53 复制与排序 | `docs/user-manual/en/2-providers/2.4-sort-duplicate.md`、`docs/user-manual/ja/2-providers/2.4-sort-duplicate.md`、`docs/user-manual/zh/2-providers/2.4-sort-duplicate.md` |
+| 母 7 用量查询 | `docs/user-manual/en/2-providers/2.5-usage-query.md`、`docs/user-manual/ja/2-providers/2.5-usage-query.md`、`docs/user-manual/zh/2-providers/2.5-usage-query.md`、`src-tauri/src/services/provider/usage.rs` |
+| 33/34/67 Desktop 直连和映射；母 5 负责预设知识 | `docs/user-manual/en/2-providers/2.6-claude-desktop.md`、`docs/user-manual/ja/2-providers/2.6-claude-desktop.md`、`docs/user-manual/zh/2-providers/2.6-claude-desktop.md`、`tests/config/claudeDesktopProviderPresets.test.ts` |
+| 43/66 Agy profile 与启动 | `src-tauri/src/agy_config.rs`、`src-tauri/src/services/provider/agy_direct.rs` |
+| 12/25/75 路径与公共片段；本机系统动作交母 20 | `src-tauri/src/app_config.rs`、`src-tauri/src/commands/config.rs`、`src-tauri/src/config.rs` |
+| 28–30/56 Codex 路由、配置与登录暂存；母 5/6 负责知识和账号 | `src-tauri/src/codex_config.rs`、`src-tauri/src/live/project/codex.rs`、`src-tauri/src/services/provider/codex_direct.rs`、`src-tauri/src/services/provider/codex_editor.rs`、`src-tauri/src/services/provider/codex_login.rs`、`src-tauri/src/services/provider/codex_official_models.rs`、`src-tauri/src/services/provider/codex_terminal.rs`、`tests/config/codexChatProviderPresets.test.ts`、`tests/utils/providerConfigUtils.codex.test.ts` |
+| 9/69 自定义图标库与档案关联 | `src-tauri/src/commands/custom_icon.rs`、`src-tauri/src/services/provider/icon.rs`、`src/utils/providerIcon.test.ts`、`src/utils/providerIcon.ts` |
+| 47–49/73 环境诊断、清理、恢复 | `src-tauri/src/commands/env.rs`、`src-tauri/src/services/env_checker.rs`、`src-tauri/src/services/env_manager.rs`、`src/lib/api/env.ts` |
+| 按命令表和应用矩阵分派。2–8/22–24/26–44/52–68 目录、编辑和切换；母 7/9 为查询与测速 | `src-tauri/src/commands/provider.rs`、`src-tauri/src/services/provider/mod.rs`、`src-tauri/tests/provider_commands.rs`、`src-tauri/tests/provider_service.rs`、`src/hooks/useProviderActions.ts`、`src/lib/api/providers.ts` |
+| 2–7/23/52/53 目录和字段校验；内建种子和预设目录交母 5 | `src-tauri/src/database/dao/providers.rs`、`src-tauri/src/database/dao/providers_seed.rs`、`src-tauri/src/database/dao/providers_tests.rs`、`src-tauri/src/live/project/mod.rs`、`src-tauri/src/provider.rs`、`src/lib/schemas/provider.ts`、`src/utils/providerCapabilities.test.ts`、`src/utils/providerCapabilities.ts`、`src/utils/providerConfigUtils.test.ts`、`src/utils/providerConfigUtils.ts`、`src/utils/providerMetaUtils.ts`、`tests/config/commandCodeProviderPresets.test.ts`、`tests/config/longcatProviderPresets.test.ts`、`tests/config/moarkProviderPresets.test.ts`、`tests/config/subrouterProviderPresets.test.ts`、`tests/config/therouterProviderPresets.test.ts`、`tests/config/tokenPlanProviderPresets.test.ts`、`tests/hooks/useProviderActions.test.tsx`、`tests/utils/providerConfigUtils.baseUrl.test.ts`、`tests/utils/providerConfigUtils.bedrock.test.ts`、`tests/utils/providerMetaUtils.test.ts` |
+| 10/11/70 统一记录与投影 | `src-tauri/src/database/dao/universal_providers.rs` |
+| 3/23 承接校验与目录写入；母 20 系统入口协作，深链接收与导入等价行为未验证 | `src-tauri/src/deeplink/provider.rs` |
+| 42/65 Dsh 多 profile 写入及成员编辑 | `src-tauri/src/dsh_config.rs` |
+| 31/55 Gemini 双文件与表单，登录交母 6 | `src-tauri/src/gemini_config.rs`、`src-tauri/src/live/project/gemini.rs`、`src-tauri/src/services/provider/gemini_auth.rs`、`src-tauri/src/services/provider/gemini_direct.rs`、`src-tauri/src/services/provider/gemini_editor.rs` |
+| 32/57 Grok 模型表及表单，登录交母 6 | `src-tauri/src/grok_config.rs`、`src-tauri/src/live/project/grok.rs`、`src-tauri/src/services/provider/grok_direct.rs`、`src-tauri/src/services/provider/grok_editor.rs` |
+| 13–16/17–21/76 文本补丁、事务与恢复；内部步骤由应用接口消费 | `src-tauri/src/jsonc_document.rs`、`src-tauri/src/live/engine.rs`、`src-tauri/src/live/floor.rs`、`src-tauri/src/live/mod.rs`、`src-tauri/src/live/patch/dotenv.rs`、`src-tauri/src/live/patch/json.rs`、`src-tauri/src/live/patch/mod.rs`、`src-tauri/src/live/patch/toml.rs`、`src-tauri/src/mode/operation.rs` |
+| 26/27/54 Claude 关键字段与既有登录引用；内建预设、托管授权交母 5/6 | `src-tauri/src/live/project/claude.rs`、`src-tauri/src/services/provider/claude_direct.rs`、`src-tauri/src/services/provider/claude_editor.rs`、`src-tauri/src/services/provider/claude_official.rs`、`tests/config/claudeProviderPresets.test.ts` |
+| 45/46/74 状态、模式和残留清理；生产协议和聚合分别交母 8/10 | `src-tauri/src/live/residue.rs`、`src-tauri/src/mode/contract.rs`、`src-tauri/src/mode/controller.rs`、`src-tauri/src/mode/current.rs`、`src-tauri/src/mode/mod.rs`、`src-tauri/src/mode/state.rs` |
+| 40/63 Mcode 增量与表单 | `src-tauri/src/mcode_config.rs` |
+| 35/58 OpenCode 增量、导入和默认模型 | `src-tauri/src/opencode_config.rs`、`src-tauri/src/services/provider/opencode_tests.rs`、`tests/config/opencodeProviderPresets.test.ts` |
+| 22/24/72 草稿、定点保存与冲突确认 | `src-tauri/src/services/provider/editor_toml.rs` |
+| 8/68 自定义端点维护 | `src-tauri/src/services/provider/endpoints.rs` |
+| 44 导入分派，具体原生读取归应用适配器 | `src-tauri/src/services/provider/live.rs` |
+| 41/64 Kimi 增量与表单 | `src-tauri/src/kimi_config.rs` |
+
+来源映射之外还核对了 `src/components/providers/ProviderList.tsx` 和上述相邻测试。列表与表单由 52–67 承接，拖动排序、当前/增量分区、导入和切换按各自责任核对。上游托盘刷新、Claude 插件同步、OpenCode OMO 切换、流式检查等独立副作用未纳入供应商配置通过数，系统动作交母 20，协议和诊断交相应领域。上游路由截图用于界定配置输入，当前识矩原生截图以各任务自己的证据为准。
+
+### 14 应用 macOS 矩阵
+
+所有行的测试平台为 **macOS 27.0（26A428），arm64**，识矩 Gateway/SDK/Iced **0.6.0**。表中“隔离文件”指正式 Gateway 和 SDK 调用执行端处理临时 HOME/SQLite 等夹具。“窗口”指真实 Iced 组件和 SDK 对接隔离回环 HTTP 夹具，并有明暗主题截图。窗口与隔离文件证据分别取得。版本列引用历史实测查询，真实客户端读取与使用配置的验收 **0/14**。应用版本、账号或真实应用操作缺失的行均保留未验证。
+
+| 应用 | 上游版本证据 | 执行端与 API/SDK 已验证范围 | Iced 窗口证据 | 真实应用 |
+| --- | --- | --- | --- | --- |
+| Claude Code | 2.1.316（76，仅查询） | 26/27/75/76，`ClaudeFile`、`claude_provider_create/switch`、配置目录覆盖、编辑冲突与隔离登录引用 | 54 `claude` [深色](evidence/task-54/dark-failure.jpg) / [浅色](evidence/task-54/light-official.jpg)，72/75 另有冲突和路径窗口 | 未验证 CLI 消费、真实账号和 Keychain |
+| Claude Desktop | 33/34 查询默认安装位置未取得版本 | 33/34，`ClaudeDesktopFiles`、`claude_desktop_provider_save` 和 `desktop_mapping`，多目录直连、恢复与模型映射 | 67 `desktop` [深色](evidence/task-67/dark-failure.png) / [浅色](evidence/task-67/light-failure.png) | 未验证安装版本、客户端重启读取、账号与真实路由 |
+| Codex | 0.167.0-alpha.3.2（76，仅查询） | 28–30/76，`CodexFiles`、`codex_provider_save/switch`，TOML 路由、假登录暂存、四次往返和启动前滚 | 56 `codex` [深色](evidence/task-56/dark-failure.jpg) / [浅色](evidence/task-56/light-failure.jpg) | 未验证 CLI 消费、真实账号轮换与外部模型目录 |
+| Gemini | 0.66.0（31，仅查询） | 31/44，`GeminiFiles`、`gemini_provider_save/switch`，dotenv 与 settings.json 双文件事务、原生导入 | 55 `gemini` [深色](evidence/task-55/dark-failure.jpg) / [浅色](evidence/task-55/light-official.jpg) | 未验证 CLI 消费、Google 登录 |
+| Grok Build | 1.0.77（50ca579fa996，stable，任务 32，仅查询） | 32/44，`GrokFiles`、`grok_provider_save/switch`，TOML 模型表、官方清理和导入策略 | 57 `grok` [深色](evidence/task-57/dark-failure.jpg) / [浅色](evidence/task-57/light-failure.jpg) | 未验证 CLI 消费、账号 |
+| OpenCode | 35/58 未找到 CLI，版本未知 | 35，`OpenCodeFiles`、`opencode_provider_add/remove_live`，JSONC 成员、导入、默认模型 | 58 `opencode` [深色](evidence/task-58/dark-failure.jpg) / [浅色](evidence/task-58/light-failure.jpg) | 未验证安装、CLI 消费、账号 |
+| OpenClaw | 36/59 未找到 CLI，版本未知 | 36，`OpenClawFiles`、`openclaw_provider_add/remove_live`，成员和默认模型操作 | 59 `openclaw` [深色](evidence/task-59/dark-failure.png) / [浅色](evidence/task-59/light-failure.png) | 未验证安装、CLI 消费、账号 |
+| Hermes | 37/60 未找到 CLI，版本未知 | 37，`HermesFiles`、`hermes_provider_add/remove_live`，YAML 成员、保留未知字段 | 60 `hermes` [深色](evidence/task-60/dark-failure.png) / [浅色](evidence/task-60/light-failure.png) | 未验证安装、CLI 消费、账号和覆盖目录部署 |
+| Pi | 38/61 未找到 CLI，版本未知 | 38，`PiFiles`、`pi_provider_add/remove_live`，JSONC 成员、导入与独立状态 | 61 `pi` [深色](evidence/task-61/dark-failure.jpg) / [浅色](evidence/task-61/light-failure.jpg) | 未验证安装、CLI 消费、账号和覆盖目录部署 |
+| Mcode | 40/63 未找到 CLI，版本未知 | 40/63，`McodeFiles`、`mcode_provider_save/add/remove_live`，YAML 成员及原生账号节点保护 | 63 `mcode` [深色](evidence/task-63/dark-added.png) / [浅色](evidence/task-63/light-added.png) | 未验证安装、CLI 消费、账号 |
+| Kimi | 41/64 未找到 CLI，版本未知 | 41/64，`KimiFiles`、`kimi_provider_save/add/remove_live`，TOML 成员与已有官方节点的受限编辑 | 64 `kimi` [深色](evidence/task-64/dark-added.png) / [浅色](evidence/task-64/light-added.png) | 未验证安装、CLI 消费、OAuth |
+| Dsh | 42/65 未找到 CLI，版本未知 | 42/44/65，`DshFiles`、`dsh_provider_save/add/remove_live`，多 profile 和凭据引用；通用导入明确拒绝 | 65 `dsh` [深色](evidence/task-65/dark-added.png) / [浅色](evidence/task-65/light-added.png) | 未验证安装、CLI 消费、真实设备授权 |
+| Agy | 43/66 未找到 CLI，版本未知 | 43/44/66，`agy.rs`、`agy_provider_save`、授权 `agent-apps/launch`，私有 profile 与启动夹具；通用 switch 明确拒绝 | 66 `agy` [深色](evidence/task-66/dark-failure.png) / [浅色](evidence/task-66/light-failure.png) | 未验证安装、CLI 消费、真实登录和 Keychain |
+| OMP | 39/62 未找到 CLI，版本未知 | 39/62，`OmpFiles`、`omp_provider_add/remove_live`，YAML 成员、导入及定点编辑 | 62 `omp` [深色](evidence/task-62/dark-scroll.jpg) / [浅色](evidence/task-62/light-scroll.jpg) | 未验证安装、CLI 消费、真实账号与默认模型 |
+
+### 待补证据
+
+- 真实应用消费、真实用户配置的切换和重启读取、账号登录、钥匙串或真实上游交互仍未验证。只引用已记录的 4 个上游客户端版本，其余 10 个版本待取证。
+- 生产路由的 `ProviderRouteRuntime` 尚未装配。46/74 仅证明 Claude 与受控运行时的模式/文件契约及 UI，生产 Proxy 返回 503，其他应用 Proxy、流式与协议转换、聚合目录、托管登录交母 8、10、6。独立官方档案补种与内建预设知识亦缺生产证据。
+- 配置路径的生产覆盖仅验证 Claude 事务。实际 Finder 打开、通用目录选择、日志揭示、深链等价导入及应用专用未支持路径保留上述归属。Dsh 通用导入、Desktop 泛导入、Agy 全局切换保留各自的明确拒绝。
+- 第 76 批对 Claude/Codex 提供生产 Gateway 启动、临时文件和授权证据。对其余 12 个应用，保留各自独立集成用例的范围。尚无覆盖 14 个已安装应用的全链实测。其它架构及 Windows/Linux 不在本验收范围。
+
+### 本轮检查
+
+| 确切命令 | 退出码 | 证据 |
+| --- | --- | --- |
+| `git -C ../cc-switch rev-parse HEAD` / `git -C ../cc-switch status --short` | 0 / 0 | 冻结提交匹配，来源无差异 |
+| `git show --stat --oneline a717c6424` | 0 | 批次 76 提交含正式证据和两项生产入口集成测试 |
+| `sw_vers` / `uname -m` | 0 / 0 | 本次审查主机 macOS 27.0（26A428），arm64 |
+| `rustcodegraph status` / `rustcodegraph explore 'ProviderTransactions app_provider_editor_open app_provider_editor_save AppProviderStore app_providers router' --limit 6` | 0 / 0 | 图索引可用，定向源码核实截断的注册与调用 |
+| `git diff --check -- docs/shiju/agent-apps/provider-macos-acceptance.md` | 0 | 仅追加本条验收证据 |
+| `git diff --exit-code HEAD -- ':(glob)**/plan.md'` | 0 | 已跟踪计划无差异 |
+
+任务指定的轻量检查命令，退出 0：
+
+```bash
+python3 - <<'PY'
+from pathlib import Path
+p=Path('docs/shiju/agent-apps/provider-macos-acceptance.md')
+s=p.read_text()
+assert s.strip()
+for key in ['macOS', 'API', 'SDK', 'Iced']:
+    assert key in s, key
+print('文档关键项检查通过；仍需人工逐项审查')
+PY
+```
+
+人工逐组核对来源主责、注册/调用和历史记录。另一次 Python 结构检查退出 0，核对 55 条命令定义及 Tauri 注册、121 个来源文件各登记一次、14 行矩阵及版本字段、28 张截图的文件签名和全篇 284 处相对链接。历史 Cargo 和窗口结果按原条目引用，本轮为只读行为审查与文档检查，TDD 和 Cargo 不适用。状态 **已完成**（覆盖证据审查）。母任务 4 保留上列实机与生产集成缺项。

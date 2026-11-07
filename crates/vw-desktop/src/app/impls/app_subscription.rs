@@ -139,6 +139,14 @@ fn map_global_event(
             if status == iced::event::Status::Captured {
                 return None;
             }
+            if matches!(key, iced::keyboard::Key::Named(iced::keyboard::key::Named::Tab))
+                && (modifiers - iced::keyboard::Modifiers::SHIFT).is_empty()
+            {
+                return Some(Message::View(message::ViewMessage::TraverseSettingsFocus(
+                    id,
+                    modifiers.shift(),
+                )));
+            }
             Some(Message::View(message::ViewMessage::GlobalKeyPressed(key, modifiers)))
         }
         _ => None,

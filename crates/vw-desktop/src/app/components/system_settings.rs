@@ -928,8 +928,18 @@ pub fn view(app: &App) -> Element<'_, Message> {
         }
     });
 
-    // 将模态内容转换为 Element
-    let mut dialog: Element<'_, Message> = modal_content.into();
+    let select_focus_available = active_tab == SystemTab::General
+        && app.system_settings_help_tab.is_none()
+        && matches!(
+            app.general_settings_tab,
+            crate::app::state::GeneralSettingsTab::Interface
+                | crate::app::state::GeneralSettingsTab::Terminal
+        );
+    let mut dialog: Element<'_, Message> = if select_focus_available {
+        modal_content.id(SELECT_FOCUS_SCOPE).into()
+    } else {
+        modal_content.into()
+    };
 
     // 为 Providers 标签页添加额外的浮层视图
     // 这些浮层用于显示自定义提供商、目录、连接等子对话框
@@ -1011,4 +1021,18 @@ pub fn view(app: &App) -> Element<'_, Message> {
     );
 
     dialog
+}
+
+const SELECT_FOCUS_SCOPE: &str = "system-settings-select-focus";
+
+pub(crate) fn traverse_select_focus(reverse: bool) -> iced::Task<Message> {
+    use iced::advanced::widget::operation::{focusable, scope};
+    use iced::advanced::widget::{Id, operate};
+
+    let scope_id = Id::from(SELECT_FOCUS_SCOPE);
+    if reverse {
+        operate(scope(scope_id, focusable::focus_previous::<()>())).discard()
+    } else {
+        operate(scope(scope_id, focusable::focus_next::<()>())).discard()
+    }
 }

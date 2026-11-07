@@ -6,6 +6,7 @@
 mod help;
 mod icons;
 mod panels;
+mod select;
 mod styles;
 mod theme;
 mod utils;
@@ -41,6 +42,7 @@ pub use panels::{
     settings_modal_overlay, settings_page_intro, settings_panel, settings_section_card,
     settings_section_content, settings_success_banner, settings_value_badge,
 };
+pub use select::settings_select;
 pub use styles::{
     danger_action_btn_style, primary_action_btn_style, round_icon_btn_style,
     rounded_action_btn_style, settings_checkbox_style, settings_modal_backdrop_style,
@@ -52,3 +54,7 @@ pub use utils::{
     SETTINGS_CONTROL_PADDING, SETTINGS_CONTROL_TEXT_SIZE, SETTINGS_LABEL_WIDTH, bool_support_label,
     format_context_limit, url_encode,
 };
+
+#[cfg(test)]
+#[path = "mod_ui_refresh_01_tests.rs"]
+mod ui_refresh_01_tests;

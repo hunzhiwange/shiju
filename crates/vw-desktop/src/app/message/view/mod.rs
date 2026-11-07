@@ -428,6 +428,7 @@ pub enum ViewMessage {
     WindowMoved(iced::window::Id, f32, f32),
     /// 全局未捕获键盘按下事件
     GlobalKeyPressed(iced::keyboard::Key, iced::keyboard::Modifiers),
+    TraverseSettingsFocus(iced::window::Id, bool),
     /// 返回首页
     GoHome,
     /// 选择应用主题
@@ -702,6 +703,16 @@ pub fn update(app: &mut App, message: ViewMessage) -> Task<Message> {
         #[cfg(not(target_arch = "wasm32"))]
         msg @ ViewMessage::AppUpdatePrepared(_) => panel::update(app, msg),
         ViewMessage::GlobalKeyPressed(key, modifiers) => handle_global_key(app, key, modifiers),
+        ViewMessage::TraverseSettingsFocus(window, reverse) => {
+            if app.show_system_settings
+                && app.task_pet_window_id != Some(window)
+                && app.main_window_id.is_none_or(|id| id == window)
+            {
+                crate::app::components::system_settings::traverse_select_focus(reverse)
+            } else {
+                Task::none()
+            }
+        }
         ViewMessage::ActivityAnimationTick => {
             app.advance_status_animation_frame();
             if let Some(window_id) = app.task_pet_window_id

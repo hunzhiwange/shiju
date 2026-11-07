@@ -118,6 +118,33 @@ impl TabAppearance<'_> {
         self.geometry(&mut ui)
     }
 
+    pub(in crate::app::components) fn save_preview(
+        &mut self,
+        app: &App,
+        element: Element<'_, Message>,
+        name: &str,
+    ) {
+        if let Some(directory) = std::env::var_os("SHIJU_SETTINGS_PREVIEW_DIR") {
+            let mut ui = self.scene(element);
+            let preview = self.capture(&mut ui, mouse::Cursor::Unavailable);
+            let filename =
+                format!("{name}-{:?}-{}-{}.png", app.desktop_locale, self.theme, self.width);
+            preview.save(std::path::PathBuf::from(directory).join(filename)).unwrap();
+        }
+    }
+
+    pub(in crate::app::components) fn check_disabled(
+        &mut self,
+        element: Element<'_, Message>,
+        label: &str,
+    ) {
+        let mut ui = self.scene(element);
+        let cursor = mouse::Cursor::Available(self.geometry(&mut ui).bounds(label).center());
+        assert!(self.send(&mut ui, cursor, press()).is_empty());
+        let release = Event::Mouse(mouse::Event::ButtonReleased(mouse::Button::Left));
+        assert!(self.send(&mut ui, cursor, release).is_empty(), "{label} must be disabled");
+    }
+
     pub(in crate::app::components) fn check(
         &mut self,
         app: &App,

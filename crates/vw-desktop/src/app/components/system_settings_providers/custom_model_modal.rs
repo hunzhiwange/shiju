@@ -9,7 +9,8 @@ use crate::app::components::system_settings_common::{
     settings_control_with_hint, settings_divider, settings_error_banner, settings_field_label,
     settings_group_card, settings_group_heading, settings_modal_card_style, settings_modal_header,
     settings_modal_layout, settings_modal_overlay, settings_muted_text_style,
-    settings_segment_button_style, settings_text_input_style,
+    settings_segment_button_style, settings_tab_button, settings_tab_row,
+    settings_text_input_style,
 };
 use crate::app::i18n::settings_models::connection_text::text as connection_text;
 use crate::app::state::CustomProviderModelTab;
@@ -108,12 +109,12 @@ fn model_tab_button(
     tab: CustomProviderModelTab,
     active_tab: CustomProviderModelTab,
 ) -> Element<'static, Message> {
-    let is_active = tab == active_tab;
-    button(text(label).size(13))
-        .padding([8, 12])
-        .on_press(Message::Settings(message::SettingsMessage::CustomProviderModelTabSelected(tab)))
-        .style(move |theme, status| custom_segment_style(theme, status, is_active))
-        .into()
+    settings_tab_button(
+        label,
+        tab == active_tab,
+        Some(Message::Settings(message::SettingsMessage::CustomProviderModelTabSelected(tab))),
+    )
+    .into()
 }
 
 /// 构建或处理 `view_overlays` 对应的界面片段与交互数据。
@@ -408,25 +409,23 @@ pub fn view_overlays<'a>(app: &'a App, dialog: Element<'a, Message>) -> Element<
         ]
         .spacing(16);
 
-        let tabs = row![
+        let tabs = settings_tab_row([
             model_tab_button(
                 connection_text(app.desktop_locale, "模型信息"),
                 CustomProviderModelTab::Info,
-                mm.active_tab
+                mm.active_tab,
             ),
             model_tab_button(
                 connection_text(app.desktop_locale, "限制"),
                 CustomProviderModelTab::Limits,
-                mm.active_tab
+                mm.active_tab,
             ),
             model_tab_button(
                 connection_text(app.desktop_locale, "能力与模态"),
                 CustomProviderModelTab::Capabilities,
                 mm.active_tab,
             ),
-        ]
-        .spacing(8)
-        .align_y(Alignment::Center)
+        ])
         .wrap();
 
         let body: Element<'_, Message> = match mm.active_tab {

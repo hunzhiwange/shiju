@@ -6,8 +6,8 @@ use crate::app::components::system_settings_common::{
     SETTINGS_CONTROL_PADDING, SETTINGS_CONTROL_TEXT_SIZE, primary_action_btn_style,
     rounded_action_btn_style, settings_close_button, settings_divider, settings_error_banner,
     settings_group_card, settings_group_heading, settings_modal_header, settings_modal_layout,
-    settings_muted_text_style, settings_panel_style, settings_row, settings_segment_button_style,
-    settings_select, settings_text_input_style,
+    settings_muted_text_style, settings_panel_style, settings_row, settings_select,
+    settings_tab_button, settings_tab_row, settings_text_input_style,
 };
 use crate::app::components::system_settings_themes::preview::theme_preview_panel;
 use crate::app::i18n::I18n;
@@ -694,12 +694,12 @@ fn editor_tab_button(
     tab: ThemeEditorTab,
     active_tab: ThemeEditorTab,
 ) -> Element<'static, Message> {
-    let is_active = tab == active_tab;
-    button(text(label).size(13))
-        .padding([8, 14])
-        .on_press(Message::Settings(SettingsMessage::Themes(ThemesMessage::EditorTabSelected(tab))))
-        .style(move |theme: &Theme, status| settings_segment_button_style(theme, status, is_active))
-        .into()
+    settings_tab_button(
+        label,
+        tab == active_tab,
+        Some(Message::Settings(SettingsMessage::Themes(ThemesMessage::EditorTabSelected(tab)))),
+    )
+    .into()
 }
 
 fn basics_tab(
@@ -1053,12 +1053,9 @@ pub(crate) fn view(app: &App) -> Element<'_, Message> {
         i18n.__("按 Tab 分段编辑命名、配色、资源与控件皮肤，预览后保存到本地仓库。")
     };
 
-    let tabs = editor_tab_labels().iter().fold(
-        row![].spacing(8).align_y(Alignment::Center),
-        |row, (label, tab)| {
-            row.push(editor_tab_button(i18n.__(label), *tab, app.themes_settings.editor_tab))
-        },
-    );
+    let tabs = settings_tab_row(editor_tab_labels().iter().map(|(label, tab)| {
+        editor_tab_button(i18n.__(label), *tab, app.themes_settings.editor_tab)
+    }));
 
     let header = column![
         settings_modal_header(settings_group_heading(title, intro), settings_close_button(cancel)),

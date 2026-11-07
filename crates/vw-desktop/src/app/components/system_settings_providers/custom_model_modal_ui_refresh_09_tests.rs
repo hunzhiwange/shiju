@@ -578,3 +578,66 @@ fn key(key: Named) -> Event {
         repeat: false,
     })
 }
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 1)]
+async fn settings_tabs_editors_appearance_model() {
+    use crate::app::components::system_settings_common::tab_appearance_tests;
+    use crate::app::i18n::settings_models::connection_text::text as tr;
+
+    fn active(app: &App) -> Element<'_, Message> {
+        let background =
+            iced::widget::Space::new().width(iced::Length::Fill).height(iced::Length::Fill);
+        view_overlays(app, background.into())
+    }
+
+    tab_appearance_tests::run_at_least(
+        concat!(module_path!(), "::settings_tabs_editors_appearance_model"),
+        420,
+        || App::new().0,
+        |scene, app| {
+            apply(app, vec![Message::Settings(SettingsMessage::CustomProviderOpen)]);
+            apply(app, vec![Message::Settings(SettingsMessage::CustomProviderModelOpen(None))]);
+            let name = "模型草稿 · Model draft";
+            apply(
+                app,
+                vec![Message::Settings(SettingsMessage::CustomProviderModelModalNameChanged(
+                    name.into(),
+                ))],
+            );
+            let [info, limits, capabilities, title, save, cancel] =
+                ["模型信息", "限制", "能力与模态", "添加模型", "保存", "取消"]
+                    .map(|label| tr(app.desktop_locale, label));
+            scene.save_preview(app, view(app), "model");
+            let message = scene.check(app, view(app), &[info, limits, capabilities], 1);
+            assert!(matches!(
+                message,
+                SettingsMessage::CustomProviderModelTabSelected(CustomProviderModelTab::Limits)
+            ));
+            apply(app, vec![Message::Settings(message)]);
+            assert_eq!(
+                app.provider_settings.custom_model_modal.as_ref().unwrap().active_tab,
+                CustomProviderModelTab::Limits
+            );
+
+            for (label, tab) in [
+                (capabilities, CustomProviderModelTab::Capabilities),
+                (info, CustomProviderModelTab::Info),
+            ] {
+                let message = scene.click(view(app), label);
+                apply(app, vec![Message::Settings(message)]);
+                let draft = app.provider_settings.custom_model_modal.as_ref().unwrap();
+                assert_eq!(draft.active_tab, tab);
+                assert_eq!(draft.display_name, name);
+            }
+            // The overlay below the model belongs to the provider. Inspect only the active
+            // card for footer actions and scroll bounds, then exercise cancel in the stack.
+            scene.check_modal_scroll(active(app), title, save);
+            let message = scene.click(active(app), cancel);
+            assert!(matches!(message, SettingsMessage::CustomProviderModelClose));
+            apply(app, vec![Message::Settings(message)]);
+            assert!(app.provider_settings.custom_model_modal.is_none());
+            assert!(app.provider_settings.custom_provider_modal_open);
+        },
+    )
+    .await;
+}

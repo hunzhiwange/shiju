@@ -20,8 +20,8 @@ use crate::app::components::system_settings_common::{
     SETTINGS_CONTROL_PADDING, SETTINGS_CONTROL_TEXT_SIZE, icon_btn, primary_action_btn_style,
     rounded_action_btn_style, settings_close_button, settings_divider, settings_error_banner,
     settings_group_card, settings_group_heading, settings_modal_header, settings_modal_layout,
-    settings_modal_overlay, settings_muted_text_style, settings_text_input_style, settings_toggle,
-    settings_value_badge,
+    settings_modal_overlay, settings_muted_text_style, settings_tab_button, settings_tab_row,
+    settings_text_input_style, settings_toggle, settings_value_badge,
 };
 use crate::app::i18n::settings_models::connection_text::text as connection_text;
 use crate::app::i18n::settings_models::messages::render as owned_text;
@@ -56,12 +56,12 @@ fn provider_tab_button(
     tab: CustomProviderTab,
     active_tab: CustomProviderTab,
 ) -> Element<'static, Message> {
-    let is_active = tab == active_tab;
-    button(text(label).size(13))
-        .padding([8, 12])
-        .on_press(Message::Settings(message::SettingsMessage::CustomProviderTabSelected(tab)))
-        .style(move |theme, status| custom_segment_style(theme, status, is_active))
-        .into()
+    settings_tab_button(
+        label,
+        tab == active_tab,
+        Some(Message::Settings(message::SettingsMessage::CustomProviderTabSelected(tab))),
+    )
+    .into()
 }
 
 fn model_filter_button(
@@ -489,11 +489,11 @@ pub fn view_overlays<'a>(app: &'a App, dialog: Element<'a, Message>) -> Element<
         ]
         .spacing(16);
 
-        let tabs = row![
+        let tabs = settings_tab_row([
             provider_tab_button(
                 connection_text(app.desktop_locale, "基础信息"),
                 CustomProviderTab::Basic,
-                s.custom_provider_tab
+                s.custom_provider_tab,
             ),
             provider_tab_button(
                 connection_text(app.desktop_locale, "认证与请求头"),
@@ -503,11 +503,9 @@ pub fn view_overlays<'a>(app: &'a App, dialog: Element<'a, Message>) -> Element<
             provider_tab_button(
                 connection_text(app.desktop_locale, "模型"),
                 CustomProviderTab::Models,
-                s.custom_provider_tab
+                s.custom_provider_tab,
             ),
-        ]
-        .spacing(8)
-        .align_y(Alignment::Center)
+        ])
         .wrap();
 
         let body_col: Element<'_, Message> = match s.custom_provider_tab {

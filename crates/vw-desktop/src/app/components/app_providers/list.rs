@@ -1,5 +1,6 @@
 use super::super::system_settings_common::*;
 use crate::app::message::app_providers::{
+    env::Event as EnvEvent,
     list::{ListMessage, message},
     preview::Event as PreviewEvent,
     snippets::Event as SnippetEvent,
@@ -249,7 +250,7 @@ pub(crate) fn overlay<'a>(
             super::super::super::message::app_providers::edit::EditMessage::Create,
         )
     };
-    let actions = row![
+    let mut actions = row![
         button(text("新增"))
             .padding([8, 14])
             .style(primary_action_btn_style)
@@ -261,13 +262,20 @@ pub(crate) fn overlay<'a>(
             ListMessage::Snippets(SnippetEvent::Open),
             ready && crate::app::state::app_providers::snippets::available(scope.app),
         ),
-        action("关闭", ListMessage::Close, true),
-    ]
-    .spacing(10)
-    .align_y(Alignment::Center)
-    .wrap();
+    ];
+    if crate::app::state::app_providers::env::available(scope.app) {
+        actions = actions.push(action("环境诊断", ListMessage::Env(EnvEvent::Open), ready));
+    }
+    let actions = actions
+        .push(action("关闭", ListMessage::Close, true))
+        .spacing(10)
+        .align_y(Alignment::Center)
+        .wrap();
     let card = settings_modal_layout(header, body, Some(actions.into())).width(800).height(650);
     let list = settings_modal_overlay(Some(base), close, container(card).padding(12));
+    if let Some(form) = &state.env {
+        return super::env::overlay(form, list);
+    }
     if let Some(form) = &state.preview {
         return super::preview::overlay(form, list);
     }

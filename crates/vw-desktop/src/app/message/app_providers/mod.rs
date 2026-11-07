@@ -68,3 +68,7 @@ pub(crate) mod snippets;
 mod snippets_tests;
 
 pub(crate) mod preview;
+
+pub(crate) mod env;
+#[cfg(test)]
+mod env_tests;

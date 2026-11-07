@@ -3301,3 +3301,53 @@ macOS **27.0（26A428）/ arm64**，桌面 **0.6.0**。批次 52 的原生入口
 定向差异和暂存检查通过。只读 `plan.md` 无差异。提交范围为本任务源码、独立测试、窗口夹具和本节证据。
 
 状态为 **已完成**。下一步批次 73。
+
+## 任务 73：桌面环境诊断清理恢复
+
+2026-11-07。核对批次 72 的提交 `3fa4a7680` 及上节验收。母任务 1、3 已完成，母任务 2 沿用 `provider-contracts.md` 的底座子计划 1–93 开工裁定，完整领域迁移待收口。执行端和接口沿用批次 47–49，窗口沿用批次 52。
+
+- 来源快照 `ca58c0313360eae7c851fbd7553c1614c7af03e7`。核对 `commands/env.rs` 的 `check_env_conflicts`、`delete_env_vars`、`restore_env_backup`，`services/env_checker.rs` 的应用关键字和来源扫描，`services/env_manager.rs` 的备份恢复及其相邻测试，以及 `App.tsx`、`EnvWarningBanner.tsx` 的调用链。来源测试未执行。
+- macOS 从 Claude Code、Codex、Gemini CLI 或 Grok Build 供应商列表打开“环境诊断”。生产视图、状态和分发位于 `crates/vw-desktop/src/app/{components,state,message}/app_providers/env.rs`。只有执行端标为可清理并签发回执的用户文件项可勾选。系统文件、继承环境、缺回执或不可清理的用户定义显示为只读。诊断展示变量名、文件类型和行号，值保留在执行端。
+- 清理确认只提交所选回执及基础摘要。成功后自动填入备份编号并重新诊断。恢复前要求确认，按文件显示执行端结果。编号可保留供稍后恢复。桌面按 Gateway、租户、项目、主机、应用和请求代次过滤响应，配置写请求发出后等待结果。弹窗沿用统一控件与 toast，标题和底部操作固定，滚动条 4px，内容两侧各留 7px，中文使用默认字体。
+- 复用 SDK `provider_env_diagnose`、`provider_env_clean`、`provider_env_restore` 及 `POST /v1/app-providers/{app}/environment/{diagnose,clean,restore}`。读取和写入分别由现有 Gateway 授权，清理校验回执及文件版本，恢复只接收受授权的备份编号。未新增 API 或执行端所有者。
+
+### 红绿与回归
+
+| 实际槽位 | CARGO_TARGET_DIR | 阶段 |
+| --- | --- | --- |
+| 1 | `/Users/xiangmin/worker/code/shiju/target/rust-slot-1` | 格式化、桌面红绿、Gateway、Clippy |
+| 3 | `/Users/xiangmin/worker/code/shiju/target/rust-slot-3` | 明暗原生窗口 |
+
+从仓库根用原子 `mkdir` 动态领取，锁内记录计划、任务、会话和 PID。`CARGO_BUILD_BUILD_DIR` 继承相同绝对路径。各阶段结束后释放本任务锁并保留缓存。
+
+| 确切命令 | 退出码 | 有效结果 |
+| --- | --- | --- |
+| `cargo fmt --all` | 0 | 红测前、实现后及末轮格式化 |
+| `cargo test -p vw-desktop --lib cc04_ui_env_ -- --nocapture`（红） | 101 | 两项业务断言失败，分别是只读用户文件仍可提供清理选项和缺少备份编号请求 |
+| 同一桌面命令（绿） | 0 | `cc04_ui_env_readonly_source_has_no_delete`、`cc04_ui_env_restore_uses_backup_id`，2 项通过 |
+| `cargo test -p vw-agent --lib cc04_env_ -- --nocapture` | 0 | 6 项通过，包括三条注册路由的认证门槛 |
+| `cargo clippy --all-targets --all-features -- -D warnings` | 0 | 全目标及特性通过 |
+
+第一轮实现后编译发现滚动定位类型错误。改用现有弹窗的定位操作后绿测通过，随后消除新增消息类型的可见性警告。测试的既有链接器 unwind 警告仍出现。
+
+桌面测试验证系统文件、继承来源及不可清理的用户定义无法加入请求，且恢复请求将保留的编号按 `backupId` 发送到隔离回环 HTTP。Gateway 回归走正式 SDK、Axum 路由和真实授权策略。诊断响应只含名称、来源及可清理回执。清理只删除临时 `.zshrc` 选中的定义，保留同名未选项及另一用户文件，生成权限为 0600 的备份。恢复按返回编号还原原始字节，重复请求返回已恢复，外部改动返回冲突并保留文件。错误凭据、只读授权、外租户、外主机作用域及伪造回执或编号被拒绝，相关文件及备份保持原样。
+
+### macOS 原生窗口
+
+macOS **27.0（26A428）/ arm64**，桌面 **0.6.0**。现有显式窗口入口加 `env` case，通过 `cc04_env_fixture.rs` 返回隔离的回环 HTTP 响应。真实 Iced 组件通过生产 Message 和 SDK 路径发送请求。夹具核对授权头、请求主机、唯一清理回执和恢复编号，并模拟一次 409、成功清理和恢复后重新诊断。真实权限和文件变更证据来自上面的 Gateway 回归。临时 Cargo runner 将槽位产物包装为独立 app bundle。
+
+| 确切命令 | 退出码 | 结果 |
+| --- | --- | --- |
+| `SHIJU_CC04_WINDOW_CASE=env SHIJU_CC04_WINDOW_THEME=dark cargo test -p vw-desktop --test cc04-provider-window` | 0 | 深色实际操作并关闭 |
+| `SHIJU_CC04_WINDOW_CASE=env SHIJU_CC04_WINDOW_THEME=light cargo test -p vw-desktop --test cc04-provider-window` | 0 | 浅色实际操作并关闭 |
+
+两种主题均从 Claude 供应商列表进入环境诊断。系统和继承行显示只读，长列表可滚到第 26 行，标题和底部按钮固定。勾选两行并取消一行，确认显示选中一项。取消清理确认后保留选择，再提交时看到 409 提示与选择清空。重新诊断和选择后清理成功，编号自动填入，所选项消失。深色用自动填入的编号恢复，浅色关闭并重开诊断后粘贴同一编号恢复。两种窗口均显示 `.zshrc · 已恢复` 并重新列出被清理项。
+
+- 深色：[只读来源](evidence/task-73/dark-diagnosis.jpg)、[长列表](evidence/task-73/dark-scroll.jpg)、[取消](evidence/task-73/dark-cancelled.jpg)、[冲突](evidence/task-73/dark-conflict.jpg)、[清理](evidence/task-73/dark-cleaned.jpg)、[恢复](evidence/task-73/dark-restored.jpg)。
+- 浅色：[只读来源](evidence/task-73/light-diagnosis.jpg)、[长列表](evidence/task-73/light-scroll.jpg)、[取消](evidence/task-73/light-cancelled.jpg)、[冲突](evidence/task-73/light-conflict.jpg)、[清理](evidence/task-73/light-cleaned.jpg)、[恢复](evidence/task-73/light-restored.jpg)。
+
+中文行号、确认数量、冲突提示和恢复状态实际完成字体整形，两次窗口均无整形 panic。系统 sandbox extension 提示出现后仍正常完成。窗口不计入行为测试数量。原生窗口范围为 Claude 隔离夹具。其他应用的原生窗口、真实用户配置和第三方账号、非 macOS 平台未验收。
+
+定向差异与暂存检查通过。提交范围为任务 73 的桌面源码、独立测试、窗口夹具、本节证据和截图。只读 `plan.md` 无差异。
+
+状态为 **已完成**。下一步批次 74。

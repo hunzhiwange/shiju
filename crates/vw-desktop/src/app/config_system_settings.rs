@@ -3,6 +3,7 @@
 
 use crate::app::Message;
 use iced::Task;
+use serde_json::Value;
 use vw_config_types::ui::{AppSystemSettingsConfig, GatewayClientSystemSettingsConfig};
 
 use super::gateway::{gateway_client, run_gateway_call, spawn_gateway_task};
@@ -14,10 +15,10 @@ async fn fetch_desktop_system_settings_via_gateway()
 }
 
 async fn patch_desktop_system_settings_via_gateway(
-    config: &AppSystemSettingsConfig,
+    patch: &impl serde::Serialize,
 ) -> Result<(), String> {
     let client = gateway_client()?;
-    client.desktop_system_settings_patch(config).await
+    client.desktop_system_settings_patch(patch).await
 }
 
 pub(in crate::app) fn normalize_editor_metrics(
@@ -44,6 +45,23 @@ fn normalize_system_settings_config(mut cfg: AppSystemSettingsConfig) -> AppSyst
         cfg.editor_auto_line_height,
     );
     cfg
+}
+
+// The gateway merges objects recursively. Null deletes an object key, while arrays
+// and scalars are replaced as a whole.
+fn retain_changed_settings(before: &Value, after: &mut Value) -> bool {
+    match (before, after) {
+        (Value::Object(before), Value::Object(after)) => {
+            for key in before.keys() {
+                after.entry(key.clone()).or_insert(Value::Null);
+            }
+            after.retain(|key, value| {
+                before.get(key).is_none_or(|previous| retain_changed_settings(previous, value))
+            });
+            !after.is_empty()
+        }
+        (before, after) => before != after,
+    }
 }
 
 #[cfg(not(target_arch = "wasm32"))]
@@ -146,9 +164,11 @@ pub fn update_gateway_client_config(
     let mut gateway_client = load_gateway_client_bootstrap_config();
     update(&mut gateway_client);
     save_gateway_client_bootstrap_config(&gateway_client);
-    update_system_settings_config(move |system| {
-        system.gateway_client = gateway_client;
-    });
+    // Select the new connection from the cache and persist its settings at that endpoint.
+    let patch = std::collections::BTreeMap::from([("gateway_client", gateway_client)]);
+    log_system_settings_update_error(run_gateway_call(patch_desktop_system_settings_via_gateway(
+        &patch,
+    )));
 }
 
 /// 公开函数，执行 load_system_settings_config_async 对应的应用流程。
@@ -184,10 +204,17 @@ pub async fn update_system_settings_config_result_async(
     update: impl FnOnce(&mut AppSystemSettingsConfig) + Send,
 ) -> Result<(), String> {
     let mut cfg = load_system_settings_config_async().await?;
+    let before = serde_json::to_value(&cfg).map_err(|err| err.to_string())?;
     update(&mut cfg);
     cfg = normalize_system_settings_config(cfg);
-    patch_desktop_system_settings_via_gateway(&cfg).await?;
-    save_gateway_client_bootstrap_config(&cfg.gateway_client);
+    let mut patch = serde_json::to_value(&cfg).map_err(|err| err.to_string())?;
+    if !retain_changed_settings(&before, &mut patch) {
+        return Ok(());
+    }
+    patch_desktop_system_settings_via_gateway(&patch).await?;
+    if patch.get("gateway_client").is_some() {
+        save_gateway_client_bootstrap_config(&cfg.gateway_client);
+    }
     Ok(())
 }
 
@@ -231,8 +258,12 @@ pub fn load_system_settings_config() -> AppSystemSettingsConfig {
 /// 公开函数，执行 update_system_settings_config 对应的应用流程。
 /// 返回值表达处理结果；失败通过错误值、日志或任务消息显式传递。
 pub fn update_system_settings_config(update: impl FnOnce(&mut AppSystemSettingsConfig) + Send) {
-    let outcome = run_gateway_call(update_system_settings_config_result_async(update));
+    log_system_settings_update_error(run_gateway_call(update_system_settings_config_result_async(
+        update,
+    )));
+}
 
+fn log_system_settings_update_error(outcome: Result<(), String>) {
     if let Err(err) = outcome {
         if vw_gateway_client::is_gateway_unavailable_error(&err) {
             tracing::debug!(target: "vw_desktop", error = %err, "desktop system settings patch skipped because gateway is unavailable");

@@ -527,10 +527,92 @@ fn load_system_settings_config_runs_gateway_load_synchronously() {
 
 #[test]
 #[cfg(not(target_arch = "wasm32"))]
+fn system_settings_update_preserves_concurrent_editor_fields() {
+    let (_lock, home, _home_guard) = temp_home();
+    let _config_guard = EnvGuard::set_os("VIBEWINDOW_CONFIG_DIR", home.path().as_os_str());
+    let snapshot = serde_json::json!({"app_ui": {"system_settings": {
+        "editor_font_size": 14.0,
+        "terminal_font_size": 14.0,
+    }}});
+    let (port, requests, join) = serve_global_config(vec![
+        (200, snapshot.to_string()),
+        (200, "{}".into()),
+        (200, "{}".into()),
+    ]);
+    super::save_gateway_client_bootstrap_config(&gateway_config("127.0.0.1", port));
+
+    replay_stale_system_settings_update();
+    join.join().expect("stub should stop");
+    let requests = requests.into_iter().collect::<Vec<_>>();
+    assert_eq!(requests.len(), 3);
+    assert!(requests[0].starts_with("GET /v1/global/config "));
+    assert!(requests[1].starts_with("PATCH /v1/global/config "));
+    assert!(requests[2].starts_with("PATCH /v1/global/config "));
+    let patch = request_json_body(&requests[2]);
+    let settings = patch["app_ui"]["system_settings"].as_object().unwrap();
+    assert!(!settings.contains_key("editor_font_size"), "patch included the stale editor size");
+    assert_eq!(settings.len(), 2);
+    assert_eq!(settings["terminal_font_size"], 19.0);
+    assert_eq!(settings["lsp_enabled"], true);
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+fn replay_stale_system_settings_update() {
+    test_runtime()
+        .block_on(super::update_system_settings_config_result_async(|config| {
+            assert_eq!(config.editor_font_size, 14.0);
+            assert_eq!(config.terminal_font_size, 14.0);
+            // Hold the fetched snapshot while a separate client completes the editor write.
+            std::thread::spawn(|| {
+                let editor_patch = serde_json::json!({"editor_font_size": 24.0});
+                test_runtime()
+                    .block_on(async {
+                        super::gateway_client()?.desktop_system_settings_patch(&editor_patch).await
+                    })
+                    .expect("editor patch should succeed");
+            })
+            .join()
+            .expect("editor update should finish");
+            config.terminal_font_size = 19.0;
+            config.lsp_enabled = true;
+        }))
+        .expect("legacy settings patch should succeed");
+}
+
+#[test]
+#[cfg(not(target_arch = "wasm32"))]
+#[ignore = "requires an authenticated throwaway gateway seeded with both font sizes at 14"]
+fn stale_system_settings_replay_on_live_gateway() {
+    let (_lock, home, _home_guard) = temp_home();
+    let _config_guard = EnvGuard::set_os("VIBEWINDOW_CONFIG_DIR", home.path().as_os_str());
+    let fixture = std::env::var_os("VIBEWINDOW_TEST_SYSTEM_SETTINGS_BOOTSTRAP")
+        .expect("the live test requires a bootstrap fixture path");
+    let bootstrap: GatewayClientSystemSettingsConfig =
+        serde_json::from_slice(&std::fs::read(fixture).expect("read bootstrap fixture"))
+            .expect("parse bootstrap fixture");
+    super::save_gateway_client_bootstrap_config(&bootstrap);
+
+    replay_stale_system_settings_update();
+    let settings = test_runtime()
+        .block_on(super::fetch_desktop_system_settings_via_gateway())
+        .expect("read live gateway settings")
+        .expect("system settings should exist");
+    assert_eq!(settings.editor_font_size, 24.0);
+    assert_eq!(settings.terminal_font_size, 19.0);
+    assert!(settings.lsp_enabled);
+}
+
+#[test]
+#[cfg(not(target_arch = "wasm32"))]
 fn update_system_settings_config_result_async_normalizes_and_patches_settings() {
     let (_lock, _home, _guard) = temp_home();
+    let settings = AppSystemSettingsConfig {
+        editor_font_size: 18.0,
+        editor_line_height: 24.0,
+        ..AppSystemSettingsConfig::default()
+    };
     let body = serde_json::json!({
-        "app_ui": {"system_settings": AppSystemSettingsConfig::default()}
+        "app_ui": {"system_settings": settings}
     })
     .to_string();
     let (port, requests, join) =
@@ -552,12 +634,55 @@ fn update_system_settings_config_result_async_normalizes_and_patches_settings() 
 
     assert!(get_request.starts_with("GET /v1/global/config "));
     assert!(patch_request.starts_with("PATCH /v1/global/config "));
-    assert_eq!(patch["app_ui"]["system_settings"]["editor_font_size"], 16.0);
     assert_eq!(
-        patch["app_ui"]["system_settings"]["editor_line_height"],
-        serde_json::json!(19.6_f32)
+        patch["app_ui"]["system_settings"],
+        serde_json::json!({"editor_font_size": 16.0, "editor_line_height": 19.6_f32})
     );
     assert_eq!(super::load_gateway_client_bootstrap_config(), bootstrap);
+}
+
+#[test]
+#[cfg(not(target_arch = "wasm32"))]
+fn update_system_settings_config_result_async_clears_arrays_and_removes_object_keys() {
+    let (_lock, _home, _guard) = temp_home();
+    let body = serde_json::json!({"app_ui": {"system_settings": {
+        "project_worktree_enabled": {"/remove": true, "/keep": true},
+        "quick_messages": [{"text": "hello", "group": "git", "kind": "createNewSession"}],
+    }}});
+    let (port, requests, join) =
+        serve_global_config(vec![(200, body.to_string()), (200, "{}".into())]);
+    super::save_gateway_client_bootstrap_config(&gateway_config("127.0.0.1", port));
+
+    test_runtime()
+        .block_on(super::update_system_settings_config_result_async(|config| {
+            config.project_worktree_enabled.remove("/remove");
+            config.quick_messages.clear();
+        }))
+        .expect("settings patch should succeed");
+    join.join().expect("stub should stop");
+    let requests = requests.into_iter().collect::<Vec<_>>();
+    assert_eq!(requests.len(), 2);
+    let patch = request_json_body(&requests[1]);
+    assert_eq!(
+        patch["app_ui"]["system_settings"],
+        serde_json::json!({"project_worktree_enabled": {"/remove": null}, "quick_messages": []})
+    );
+}
+
+#[test]
+#[cfg(not(target_arch = "wasm32"))]
+fn update_system_settings_config_result_async_skips_unchanged_settings() {
+    let (_lock, _home, _guard) = temp_home();
+    let (port, requests, join) = serve_global_config(vec![(200, "{}".into())]);
+    super::save_gateway_client_bootstrap_config(&gateway_config("127.0.0.1", port));
+
+    test_runtime()
+        .block_on(super::update_system_settings_config_result_async(|_| {}))
+        .expect("unchanged settings should succeed with just a read");
+    join.join().expect("stub should stop");
+    let requests = requests.into_iter().collect::<Vec<_>>();
+    assert_eq!(requests.len(), 1);
+    assert!(requests[0].starts_with("GET /v1/global/config "));
 }
 
 #[test]
@@ -634,25 +759,21 @@ fn update_system_settings_config_result_async_does_not_cache_gateway_after_patch
 #[cfg(not(target_arch = "wasm32"))]
 fn update_gateway_client_config_persists_and_patches_updated_snapshot() {
     let (_lock, _home, _guard) = temp_home();
-    let body = serde_json::json!({
-        "app_ui": {"system_settings": AppSystemSettingsConfig::default()}
-    })
-    .to_string();
-    let (port, requests, join) =
-        serve_global_config(vec![(200, body), (200, serde_json::json!({}).to_string())]);
+    let (port, requests, join) = serve_global_config(vec![(200, "{}".into())]);
     let bootstrap = gateway_config("127.0.0.1", port);
     super::save_gateway_client_bootstrap_config(&bootstrap);
 
     super::update_gateway_client_config(|config| {
         config.username = "desktop-user".to_string();
     });
-    let _get_request = requests.recv().expect("GET request should be captured");
     let patch_request = requests.recv().expect("PATCH request should be captured");
     join.join().expect("stub should stop");
     let patch = request_json_body(&patch_request);
     let loaded = super::load_gateway_client_bootstrap_config();
 
     assert_eq!(loaded.username, "desktop-user");
+    assert!(patch_request.starts_with("PATCH /v1/global/config "));
+    assert_eq!(patch["app_ui"]["system_settings"].as_object().unwrap().len(), 1);
     assert_eq!(patch["app_ui"]["system_settings"]["gateway_client"]["username"], "desktop-user");
 }
 

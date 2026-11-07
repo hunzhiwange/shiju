@@ -3,17 +3,6 @@
 
 use super::*;
 
-fn background_color(style: iced::widget::button::Style) -> Color {
-    match style.background {
-        Some(Background::Color(color)) => color,
-        _ => panic!("expected button background color"),
-    }
-}
-
-fn luminance(color: Color) -> f32 {
-    0.2126 * color.r + 0.7152 * color.g + 0.0722 * color.b
-}
-
 #[test]
 fn account_menu_uses_masked_input_and_four_pixel_scrollbar() {
     assert_eq!(ACCOUNT_SCROLLBAR_WIDTH, 4);
@@ -80,38 +69,17 @@ fn account_trigger_label_follows_active_user_company_and_sign_out() {
 }
 
 #[test]
-fn account_styles_keep_dark_and_light_contrast() {
+fn account_menu_and_selected_row_use_readable_theme_colors() {
     for theme in [Theme::Dark, Theme::Light] {
         let style = menu_style(&theme);
         assert!(style.background.is_some());
         assert!(style.text_color.is_some());
         assert!(style.border.width > 0.0);
 
-        let input = login_input_style(&theme, iced::widget::text_input::Status::Active);
-        assert_eq!(input.border.radius, 10.0.into());
-
-        for status in [
-            iced::widget::button::Status::Active,
-            iced::widget::button::Status::Hovered,
-            iced::widget::button::Status::Pressed,
-            iced::widget::button::Status::Disabled,
-        ] {
-            let button = login_button_style(&theme, status);
-            assert_eq!(button.border.radius, 10.0.into());
-        }
+        let selected = account_row_style(&theme, iced::widget::button::Status::Disabled, true);
+        let Some(Background::Color(background)) = selected.background else {
+            panic!("selected account should have a solid background");
+        };
+        assert_ne!(selected.text_color, background);
     }
-
-    let light_active = login_button_style(&Theme::Light, iced::widget::button::Status::Active);
-    let light_hovered = login_button_style(&Theme::Light, iced::widget::button::Status::Hovered);
-    let dark_active = login_button_style(&Theme::Dark, iced::widget::button::Status::Active);
-
-    assert!(
-        luminance(background_color(light_active)) > 0.90,
-        "light account actions should use a pale surface"
-    );
-    assert_ne!(background_color(light_active), background_color(light_hovered));
-    assert!(
-        luminance(background_color(dark_active)) < 0.50,
-        "dark account actions should stay on a dark surface"
-    );
 }

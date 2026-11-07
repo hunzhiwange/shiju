@@ -41,6 +41,7 @@ pub fn settings_select<'a, T: Clone + PartialEq + ToString + 'static>(
         selected: selected_index,
         enabled,
         on_selected: Box::new(move |index| on_selected(values[index].clone())),
+        on_open: None,
         width: Length::Fixed(280.0),
     }
 }
@@ -54,6 +55,7 @@ pub struct SettingsSelect<'a, T> {
     selected: Option<usize>,
     enabled: bool,
     on_selected: Box<dyn Fn(usize) -> Message + 'a>,
+    on_open: Option<(String, Message)>,
     width: Length,
 }
 
@@ -73,6 +75,12 @@ impl<T> SettingsSelect<'_, T> {
     pub fn disabled(mut self, disabled: bool) -> Self {
         self.enabled = !disabled && !self.options.is_empty();
         self.rebuild_trigger();
+        self
+    }
+
+    /// Reloads options when opened. The menu stays open as results arrive for the same key.
+    pub fn reload_on_open(mut self, key: String, message: Message) -> Self {
+        self.on_open = Some((key, message));
         self
     }
 
@@ -121,6 +129,7 @@ struct State<T> {
     focused: bool,
     options: Rc<[T]>,
     selected: Option<usize>,
+    reload_key: Option<String>,
 }
 
 impl<T> Focusable for State<T> {
@@ -149,6 +158,7 @@ impl<T: PartialEq + 'static> Widget<Message, Theme, Renderer> for SettingsSelect
             focused: false,
             options: Rc::clone(&self.options),
             selected: self.selected,
+            reload_key: self.on_open.as_ref().map(|(key, _)| key.clone()),
         })
     }
 
@@ -158,16 +168,25 @@ impl<T: PartialEq + 'static> Widget<Message, Theme, Renderer> for SettingsSelect
 
     fn diff(&self, tree: &mut widget::Tree) {
         let state = tree.state.downcast_mut::<State<T>>();
-        if state.options != self.options || state.selected != self.selected || !self.enabled {
+        let reload_key = self.on_open.as_ref().map(|(key, _)| key);
+        let same_source = state.reload_key.as_ref() == reload_key;
+        if !same_source
+            || state.options != self.options
+            || state.selected != self.selected
+            || !self.enabled
+        {
             // An in-flight press or keyboard index must never select a newly supplied value.
-            state.menu = MenuState::default();
+            let keep_open = self.enabled && same_source && reload_key.is_some() && state.menu.open;
+            state.menu = MenuState { open: keep_open, ..MenuState::default() };
             state.options = Rc::clone(&self.options);
             state.selected = self.selected;
+            state.reload_key = reload_key.cloned();
             tree.children[0] = widget::Tree::new(self.trigger.as_widget());
+            tree.children[1] = widget::Tree::empty();
         } else {
             tree.children[0].diff(self.trigger.as_widget());
         }
-        if !self.enabled {
+        if !self.enabled || !same_source {
             state.unfocus();
         }
     }
@@ -272,6 +291,9 @@ impl<T: PartialEq + 'static> Widget<Message, Theme, Renderer> for SettingsSelect
             };
             // Discard an unfinished press and scroll offset from the previous menu.
             tree.children[1] = widget::Tree::empty();
+            if let Some((_, message)) = &self.on_open {
+                shell.publish(message.clone());
+            }
             shell.capture_event();
             shell.invalidate_layout();
             shell.request_redraw();

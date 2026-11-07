@@ -4,12 +4,13 @@
 //! 注释聚焦调用边界、返回值和错误传播方式，便于后续维护设置页与工具栏行为时快速定位职责。
 
 use crate::app::components::system_settings_common::{
-    rounded_action_btn_style, settings_muted_text_style, settings_section_card,
+    SETTINGS_CONTROL_TEXT_SIZE, primary_action_btn_style, rounded_action_btn_style,
+    settings_error_banner, settings_group_card, settings_group_heading, settings_muted_text_style,
 };
 use crate::app::i18n::settings_extensions::text as tr;
 use crate::app::message::settings::{ChannelsMessage, SettingsMessage};
 use crate::app::{App, Message};
-use iced::widget::{Image, button, column, row, text};
+use iced::widget::{Image, button, column, container, row, text};
 use iced::{Element, Length};
 
 use super::common::{
@@ -23,7 +24,7 @@ fn qr_authorization<'a>(app: &'a App, channel: &'static str) -> Element<'a, Mess
     let flow = &app.channels_settings.qr_flow;
     let is_current = flow.channel.as_deref() == Some(channel);
     let mut content = column![
-        settings_section_card(
+        settings_group_heading(
             tr(app.desktop_locale, "扫码授权"),
             tr(app.desktop_locale, "使用手机端扫描二维码；授权成功后请明确保存。")
         ),
@@ -33,8 +34,9 @@ fn qr_authorization<'a>(app: &'a App, channel: &'static str) -> Element<'a, Mess
             } else {
                 tr(app.desktop_locale, "获取二维码")
             })
-            .size(12)
+            .size(SETTINGS_CONTROL_TEXT_SIZE)
         )
+        .padding([8, 12])
         .on_press(Message::Settings(SettingsMessage::Channels(ChannelsMessage::QrRequested(
             channel.to_string()
         ),)))
@@ -45,7 +47,7 @@ fn qr_authorization<'a>(app: &'a App, channel: &'static str) -> Element<'a, Mess
     if is_current {
         if let Some(handle) = flow.qrcode_image.as_ref() {
             content = content.push(
-                Image::new(handle.clone()).width(Length::Fixed(220.0)).height(Length::Fixed(220.0)),
+                container(Image::new(handle.clone()).width(220).height(220)).center_x(Length::Fill),
             );
         }
         let status = match flow.status {
@@ -66,7 +68,13 @@ fn qr_authorization<'a>(app: &'a App, channel: &'static str) -> Element<'a, Mess
             }
             None => tr(app.desktop_locale, "正在获取二维码"),
         };
-        content = content.push(text(status).size(12).style(settings_muted_text_style));
+        content = content.push(match flow.status {
+            Some(
+                vw_gateway_client::ChannelQrStatusDto::Failed
+                | vw_gateway_client::ChannelQrStatusDto::Expired,
+            ) => settings_error_banner(status),
+            _ => text(status).size(13).style(settings_muted_text_style).into(),
+        });
         if let Some(expires_at) = flow.expires_at.as_deref() {
             content = content.push(
                 row![
@@ -77,23 +85,27 @@ fn qr_authorization<'a>(app: &'a App, channel: &'static str) -> Element<'a, Mess
             );
         }
         let mut actions = row![
-            button(text(tr(app.desktop_locale, "关闭")).size(12))
+            button(text(tr(app.desktop_locale, "关闭")).size(SETTINGS_CONTROL_TEXT_SIZE))
+                .padding([8, 12])
                 .on_press(Message::Settings(SettingsMessage::Channels(ChannelsMessage::QrClosed)))
                 .style(rounded_action_btn_style),
         ]
         .spacing(8);
         if flow.credentials_ready {
             actions = actions.push(
-                button(text(tr(app.desktop_locale, "保存授权配置")).size(12))
-                    .on_press(Message::Settings(SettingsMessage::Channels(
-                        ChannelsMessage::QrSaveConfirmed,
-                    )))
-                    .style(rounded_action_btn_style),
+                button(
+                    text(tr(app.desktop_locale, "保存授权配置")).size(SETTINGS_CONTROL_TEXT_SIZE),
+                )
+                .padding([8, 12])
+                .on_press(Message::Settings(SettingsMessage::Channels(
+                    ChannelsMessage::QrSaveConfirmed,
+                )))
+                .style(primary_action_btn_style),
             );
         }
         content = content.push(actions);
     }
-    content.into()
+    settings_group_card(container(content).padding([14, 0])).into()
 }
 
 /// 构建或处理 `lark_panel` 对应的界面片段与交互数据。
@@ -247,7 +259,7 @@ pub(super) fn feishu_panel(app: &App) -> Element<'_, Message> {
     if let Some(cfg) = s.feishu.as_ref() {
         body = body
             .push(default_project_selector(app, "feishu:default".into()))
-            .push(settings_section_card(
+            .push(settings_group_heading(
                 tr(app.desktop_locale, "飞书详细配置"),
                 tr(
                     app.desktop_locale,
@@ -366,8 +378,7 @@ pub(super) fn feishu_panel(app: &App) -> Element<'_, Message> {
             )
             .expect("valid channel instance template")
         };
-        body = body
-            .push(instance_title_row(app.desktop_locale, title, "feishu", index))
+        let fields = column![instance_title_row(app.desktop_locale, title, "feishu", index)]
             .push(default_project_selector(app, format!("feishu:{}", instance.id)))
             .push(text_row_with_key(
                 app,
@@ -466,6 +477,7 @@ pub(super) fn feishu_panel(app: &App) -> Element<'_, Message> {
                 "",
                 format!("{key_prefix}.max_draft_edits"),
             ));
+        body = body.push(settings_group_card(container(fields.spacing(12)).padding([14, 0])));
     }
 
     body = body.push(add_instance_row("feishu", tr(app.desktop_locale, "新增飞书实例")));
@@ -544,8 +556,7 @@ pub(super) fn dingtalk_panel(app: &App) -> Element<'_, Message> {
             )
             .expect("valid channel instance template")
         };
-        body = body
-            .push(instance_title_row(app.desktop_locale, title, "dingtalk", index))
+        let fields = column![instance_title_row(app.desktop_locale, title, "dingtalk", index)]
             .push(default_project_selector(app, format!("dingtalk:{}", instance.id)))
             .push(text_row_with_key(
                 app,
@@ -579,6 +590,7 @@ pub(super) fn dingtalk_panel(app: &App) -> Element<'_, Message> {
                 format!("{key_prefix}.allowed_users"),
                 false,
             ));
+        body = body.push(settings_group_card(container(fields.spacing(12)).padding([14, 0])));
     }
 
     body = body.push(add_instance_row("dingtalk", tr(app.desktop_locale, "新增钉钉实例")));

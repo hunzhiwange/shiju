@@ -18,7 +18,8 @@ mod enterprise_channels_tests;
 mod extended_channels_tests;
 
 use crate::app::components::system_settings_common::{
-    settings_checkbox_style, settings_divider, settings_error_banner, settings_muted_text_style,
+    SETTINGS_CONTROL_PADDING, SETTINGS_CONTROL_TEXT_SIZE, settings_checkbox_style,
+    settings_divider, settings_error_banner, settings_group_card, settings_muted_text_style,
     settings_page_intro, settings_section_card, settings_section_content,
     settings_text_input_style,
 };
@@ -31,7 +32,7 @@ use iced::widget::{button, checkbox, column, container, row, svg, text, text_inp
 use iced::{Alignment, Background, Border, Color, Element, Length};
 use vw_config_types::ui::DesktopLocale;
 
-use self::common::{LABEL_WIDTH, enabled_channels, number_row};
+use self::common::{enabled_channels, field_row, number_row};
 
 const CHANNEL_TAB_COLUMNS: usize = 5;
 const CHINA_CHANNEL_CARD_COLUMNS: usize = 3;
@@ -96,51 +97,45 @@ pub(super) fn channel_tab_descriptors() -> Vec<SettingsTabDescriptor<ChannelsSet
 fn global_settings_content(app: &App) -> Element<'_, Message> {
     let s = &app.channels_settings;
 
-    settings_section_content(
-        column![
-            row![
-                text(tr(app.desktop_locale, "CLI 通道")).size(13).width(Length::Fixed(LABEL_WIDTH)),
-                checkbox(s.cli)
-                    .label(tr(app.desktop_locale, "启用 CLI 通道"))
-                    .on_toggle(|next| {
-                        Message::Settings(SettingsMessage::Channels(ChannelsMessage::CliToggled(
-                            next,
-                        )))
-                    })
-                    .style(settings_checkbox_style),
-            ]
-            .spacing(16)
-            .align_y(Alignment::Center),
-            settings_divider(),
-            row![
-                text(tr(app.desktop_locale, "项目目录")).size(13).width(Length::Fixed(LABEL_WIDTH)),
-                text_input(tr(app.desktop_locale, "留空时按 workspace 推断"), &s.project_dir_input)
-                    .on_input(|next| {
-                        Message::Settings(SettingsMessage::Channels(
-                            ChannelsMessage::ProjectDirChanged(next),
-                        ))
-                    })
-                    .padding([10, 12])
-                    .size(13)
-                    .style(settings_text_input_style)
-                    .width(Length::Fill),
-            ]
-            .spacing(16)
-            .align_y(Alignment::Center),
-            settings_divider(),
-            number_row(
-                app.desktop_locale,
-                tr(app.desktop_locale, "消息超时"),
-                s.message_timeout_secs.max(1),
-                1,
-                86_400,
-                tr(app.desktop_locale, "秒"),
-                "global.message_timeout_secs",
-            ),
-        ]
-        .spacing(12),
-    )
-    .into()
+    let content = column![
+        field_row(
+            tr(app.desktop_locale, "CLI 通道"),
+            checkbox(s.cli)
+                .label(tr(app.desktop_locale, "启用 CLI 通道"))
+                .text_size(SETTINGS_CONTROL_TEXT_SIZE)
+                .on_toggle(|next| {
+                    Message::Settings(SettingsMessage::Channels(ChannelsMessage::CliToggled(next)))
+                })
+                .style(settings_checkbox_style),
+        ),
+        settings_divider(),
+        field_row(
+            tr(app.desktop_locale, "项目目录"),
+            text_input(tr(app.desktop_locale, "留空时按 workspace 推断"), &s.project_dir_input)
+                .on_input(|next| {
+                    Message::Settings(SettingsMessage::Channels(
+                        ChannelsMessage::ProjectDirChanged(next),
+                    ))
+                })
+                .padding(SETTINGS_CONTROL_PADDING)
+                .size(SETTINGS_CONTROL_TEXT_SIZE)
+                .style(settings_text_input_style)
+                .width(Length::Fill),
+        ),
+        settings_divider(),
+        number_row(
+            app.desktop_locale,
+            tr(app.desktop_locale, "消息超时"),
+            s.message_timeout_secs.max(1),
+            1,
+            86_400,
+            tr(app.desktop_locale, "秒"),
+            "global.message_timeout_secs",
+        ),
+    ]
+    .spacing(14);
+
+    settings_group_card(container(content).padding([16, 0])).into()
 }
 
 fn tab_button(
@@ -267,15 +262,18 @@ fn china_channel_card(
     );
     let content = row![
         icon,
-        text(tr(locale, descriptor.label)).size(16),
-        container(text("")).width(Length::Fill),
-        text(tr(locale, "配置")).size(13).style(settings_muted_text_style),
+        column![
+            text(tr(locale, descriptor.label)).size(15),
+            text(tr(locale, "配置")).size(12).style(settings_muted_text_style),
+        ]
+        .spacing(4)
+        .width(Length::Fill),
     ]
     .spacing(12)
     .align_y(Alignment::Center);
 
     button(content)
-        .padding([14, 18])
+        .padding([10, 12])
         .height(Length::Fixed(78.0))
         .width(Length::Fill)
         .on_press(Message::Settings(SettingsMessage::Channels(ChannelsMessage::TabSelected(
@@ -477,3 +475,7 @@ pub fn view(app: &App) -> Element<'_, Message> {
 #[cfg(test)]
 #[path = "system_settings_channels_tests.rs"]
 mod system_settings_channels_tests;
+
+#[cfg(test)]
+#[path = "system_settings_channels_ui_refresh_17_tests.rs"]
+mod ui_refresh_17_tests;

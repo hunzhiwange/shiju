@@ -130,7 +130,8 @@ fn channels_error_banner_follows_channel_tabs() {
         let clean_children = {
             let clean = view(&app);
             let clean_tree = Tree::new(clean.as_widget());
-            clean_tree.children[0].children.len()
+            // The outer Container forwards the content Column's widget tree.
+            clean_tree.children.len()
         };
         assert_eq!(clean_children, 6);
 
@@ -138,7 +139,7 @@ fn channels_error_banner_follows_channel_tabs() {
         let error_children = {
             let error = view(&app);
             let error_tree = Tree::new(error.as_widget());
-            error_tree.children[0].children.len()
+            error_tree.children.len()
         };
         assert_eq!(error_children, 7);
         app.channels_settings.save_error = None;

@@ -5,25 +5,19 @@
 
 use crate::app::components::number_input::NumberInput;
 use crate::app::components::system_settings_common::{
-    SETTINGS_LABEL_WIDTH, rounded_action_btn_style, settings_checkbox_style,
-    settings_control_with_hint, settings_divider, settings_muted_text_style, settings_panel,
-    settings_pick_list_menu_style, settings_pick_list_style, settings_text_editor_style,
-    settings_text_input_style, settings_value_badge,
+    SETTINGS_CONTROL_PADDING, SETTINGS_CONTROL_TEXT_SIZE, rounded_action_btn_style,
+    settings_checkbox_style, settings_control_with_hint, settings_divider, settings_field_label,
+    settings_group_card, settings_group_heading, settings_muted_text_style, settings_select,
+    settings_text_editor_style, settings_text_input_style, settings_value_badge,
 };
 use crate::app::i18n::settings_extensions::text as tr;
 use crate::app::message::settings::{ChannelsMessage, SettingsMessage};
 use crate::app::{App, Message};
-use iced::widget::{
-    button, checkbox, column, container, pick_list, row, text, text_editor, text_input,
-};
+use iced::widget::{button, checkbox, column, container, row, text, text_editor, text_input};
 use iced::{Alignment, Element, Length};
 use vw_config_types::channels::{GroupReplyConfig, LarkReceiveMode, QQReceiveMode};
 use vw_config_types::ui::DesktopLocale;
 
-/// `LABEL_WIDTH` 常量，用于表达本模块对该领域对象的建模。
-///
-/// 该定义保持在当前模块职责内，调用方应通过显式字段、变体或别名理解其语义。
-pub(super) const LABEL_WIDTH: f32 = SETTINGS_LABEL_WIDTH;
 const MULTILINE_EDITOR_HEIGHT: f32 = 92.0;
 
 #[derive(Clone, Copy, PartialEq, Eq)]
@@ -133,10 +127,6 @@ pub(super) fn qq_receive_mode_value(mode: QQReceiveMode) -> &'static str {
         QQReceiveMode::Webhook => "webhook",
         QQReceiveMode::Websocket => "websocket",
     }
-}
-
-fn editor_style(theme: &iced::Theme, status: text_editor::Status) -> text_editor::Style {
-    settings_text_editor_style(theme, status)
 }
 
 pub(super) fn is_multiline_list_key(key: &str) -> bool {
@@ -255,6 +245,13 @@ pub(super) fn multiline_placeholder(placeholder: &'static str) -> &'static str {
     }
 }
 
+pub(super) fn field_row<'a>(
+    label: &'a str,
+    control: impl Into<Element<'a, Message>>,
+) -> Element<'a, Message> {
+    column![settings_field_label(label), control.into()].spacing(6).width(Length::Fill).into()
+}
+
 /// 构建或处理 `text_row` 对应的界面片段与交互数据。
 ///
 /// # 参数
@@ -294,21 +291,18 @@ pub(super) fn text_row_with_key<'a>(
             .text_editors
             .get(&key)
             .expect("multiline channel editor should be initialized");
-        let key_for_action = key.clone();
-        let editor = container(
-            text_editor(editor)
-                .placeholder(tr(app.desktop_locale, multiline_placeholder(placeholder)))
-                .on_action(move |action| {
-                    Message::Settings(SettingsMessage::Channels(ChannelsMessage::TextEditorAction(
-                        key_for_action.clone(),
-                        action,
-                    )))
-                })
-                .padding([9, 12])
-                .height(Length::Fixed(MULTILINE_EDITOR_HEIGHT))
-                .style(editor_style),
-        )
-        .width(Length::Fill);
+        let editor = text_editor(editor)
+            .placeholder(tr(app.desktop_locale, multiline_placeholder(placeholder)))
+            .on_action(move |action| {
+                Message::Settings(SettingsMessage::Channels(ChannelsMessage::TextEditorAction(
+                    key.clone(),
+                    action,
+                )))
+            })
+            .padding(SETTINGS_CONTROL_PADDING)
+            .size(SETTINGS_CONTROL_TEXT_SIZE)
+            .height(Length::Fixed(MULTILINE_EDITOR_HEIGHT))
+            .style(settings_text_editor_style);
         let editor: Element<'a, Message> = if placeholder == "逗号或换行分隔，支持 *" {
             let hint = if label == "group_reply.allowed_sender_ids" {
                 "填写 * 表示允许所有发送者，推荐使用。"
@@ -319,32 +313,25 @@ pub(super) fn text_row_with_key<'a>(
         } else {
             editor.into()
         };
-        return row![text(display_label).size(13).width(Length::Fixed(LABEL_WIDTH)), editor,]
-            .spacing(16)
-            .align_y(Alignment::Start)
-            .into();
+        return field_row(display_label, editor);
     }
 
-    let key_for_input = key.clone();
-    let mut input = text_input(tr(app.desktop_locale, placeholder), input_value(app, &key, value))
-        .on_input(move |next| {
-            Message::Settings(SettingsMessage::Channels(ChannelsMessage::TextChanged(
-                key_for_input.clone(),
-                next,
-            )))
-        })
-        .padding([10, 12])
-        .size(13)
-        .style(settings_text_input_style)
-        .width(Length::Fill);
-    if secure {
-        input = input.secure(true);
-    }
-
-    row![text(display_label).size(13).width(Length::Fixed(LABEL_WIDTH)), input,]
-        .spacing(16)
-        .align_y(Alignment::Center)
-        .into()
+    let value = input_value(app, &key, value);
+    field_row(
+        display_label,
+        text_input(tr(app.desktop_locale, placeholder), value)
+            .on_input(move |next| {
+                Message::Settings(SettingsMessage::Channels(ChannelsMessage::TextChanged(
+                    key.clone(),
+                    next,
+                )))
+            })
+            .padding(SETTINGS_CONTROL_PADDING)
+            .size(SETTINGS_CONTROL_TEXT_SIZE)
+            .style(settings_text_input_style)
+            .width(Length::Fill)
+            .secure(secure),
+    )
 }
 
 /// 构建或处理 `bool_row` 对应的界面片段与交互数据。
@@ -377,22 +364,19 @@ pub(super) fn bool_row_with_key<'a>(
     description: &'static str,
     key: String,
 ) -> Element<'a, Message> {
-    let key_for_toggle = key.clone();
-    row![
-        text(tr(locale, localized_label(label))).size(13).width(Length::Fixed(LABEL_WIDTH)),
+    field_row(
+        tr(locale, localized_label(label)),
         checkbox(checked)
             .label(description)
+            .text_size(SETTINGS_CONTROL_TEXT_SIZE)
             .on_toggle(move |next| {
                 Message::Settings(SettingsMessage::Channels(ChannelsMessage::BoolToggled(
-                    key_for_toggle.clone(),
+                    key.clone(),
                     next,
                 )))
             })
             .style(settings_checkbox_style),
-    ]
-    .spacing(16)
-    .align_y(Alignment::Center)
-    .into()
+    )
 }
 
 /// 构建或处理 `number_row` 对应的界面片段与交互数据。
@@ -430,30 +414,10 @@ pub(super) fn number_row_with_hint<'a>(
     key: &'static str,
     hint: &'static str,
 ) -> Element<'a, Message> {
-    let display = if suffix.is_empty() { value.to_string() } else { format!("{value} {suffix}") };
-    let key = key.to_string();
-
-    row![
-        text(tr(locale, localized_label(label))).size(13).width(Length::Fixed(LABEL_WIDTH)),
-        settings_control_with_hint(
-            row![
-                NumberInput::new(value as f32, min as f32, max as f32, 1.0, 0, 0.15, move |raw| {
-                    Message::Settings(SettingsMessage::Channels(ChannelsMessage::NumberChanged(
-                        key.clone(),
-                        raw.round() as u32,
-                    )))
-                },)
-                .settings_style(),
-                settings_value_badge(display),
-            ]
-            .spacing(16)
-            .align_y(Alignment::Center),
-            hint,
-        ),
-    ]
-    .spacing(16)
-    .align_y(Alignment::Center)
-    .into()
+    field_row(
+        tr(locale, localized_label(label)),
+        settings_control_with_hint(number_control(value, min, max, suffix, key.to_string()), hint),
+    )
 }
 
 pub(super) fn number_row_with_key<'a>(
@@ -465,21 +429,28 @@ pub(super) fn number_row_with_key<'a>(
     suffix: &'static str,
     key: String,
 ) -> Element<'a, Message> {
-    let display = if suffix.is_empty() { value.to_string() } else { format!("{value} {suffix}") };
-    let key_for_change = key.clone();
+    field_row(tr(locale, localized_label(label)), number_control(value, min, max, suffix, key))
+}
 
+fn number_control(
+    value: u32,
+    min: u32,
+    max: u32,
+    suffix: &str,
+    key: String,
+) -> Element<'static, Message> {
+    let display = if suffix.is_empty() { value.to_string() } else { format!("{value} {suffix}") };
     row![
-        text(tr(locale, localized_label(label))).size(13).width(Length::Fixed(LABEL_WIDTH)),
         NumberInput::new(value as f32, min as f32, max as f32, 1.0, 0, 0.15, move |raw| {
             Message::Settings(SettingsMessage::Channels(ChannelsMessage::NumberChanged(
-                key_for_change.clone(),
+                key.clone(),
                 raw.round() as u32,
             )))
         })
         .settings_style(),
         settings_value_badge(display),
     ]
-    .spacing(16)
+    .spacing(12)
     .align_y(Alignment::Center)
     .into()
 }
@@ -519,24 +490,16 @@ pub(super) fn pick_row_with_key<'a>(
         .map(|option| LabeledOption { label: tr(locale, option.label), ..*option })
         .collect();
     let selected = options.iter().find(|option| option.value == selected).copied();
-    let key_for_pick = key.clone();
-    row![
-        text(tr(locale, localized_label(label))).size(13).width(Length::Fixed(LABEL_WIDTH)),
-        pick_list(options, selected, move |next| {
+    field_row(
+        tr(locale, localized_label(label)),
+        settings_select(options, selected, move |next| {
             Message::Settings(SettingsMessage::Channels(ChannelsMessage::ReceiveModeChanged(
-                key_for_pick.clone(),
+                key.clone(),
                 next.value.to_string(),
             )))
         })
-        .padding([10, 14])
-        .text_size(13)
-        .style(settings_pick_list_style)
-        .menu_style(settings_pick_list_menu_style)
-        .width(Length::Fixed(260.0)),
-    ]
-    .spacing(16)
-    .align_y(Alignment::Center)
-    .into()
+        .width(Length::Fill),
+    )
 }
 
 pub(super) fn instance_title_row<'a>(
@@ -546,9 +509,9 @@ pub(super) fn instance_title_row<'a>(
     index: usize,
 ) -> Element<'a, Message> {
     row![
-        text(title).size(13).width(Length::Fill),
-        button(text(tr(locale, "删除")).size(12))
-            .padding([6, 10])
+        text(title).size(15).width(Length::Fill),
+        button(text(tr(locale, "删除")).size(SETTINGS_CONTROL_TEXT_SIZE))
+            .padding([8, 12])
             .on_press(Message::Settings(SettingsMessage::Channels(
                 ChannelsMessage::InstanceRemoved(channel.to_string(), index),
             )))
@@ -563,18 +526,13 @@ pub(super) fn add_instance_row<'a>(
     channel: &'static str,
     label: &'static str,
 ) -> Element<'a, Message> {
-    row![
-        container(text("")).width(Length::Fixed(LABEL_WIDTH)),
-        button(text(label).size(12))
-            .padding([7, 12])
-            .on_press(Message::Settings(SettingsMessage::Channels(ChannelsMessage::InstanceAdded(
-                channel.to_string()
-            ),)))
-            .style(rounded_action_btn_style),
-    ]
-    .spacing(16)
-    .align_y(Alignment::Center)
-    .into()
+    button(text(label).size(SETTINGS_CONTROL_TEXT_SIZE))
+        .padding([8, 12])
+        .on_press(Message::Settings(SettingsMessage::Channels(ChannelsMessage::InstanceAdded(
+            channel.to_string(),
+        ))))
+        .style(rounded_action_btn_style)
+        .into()
 }
 
 /// 构建或处理 `hint_row` 对应的界面片段与交互数据。
@@ -591,13 +549,7 @@ pub(super) fn add_instance_row<'a>(
 ///
 /// 本函数不直接返回错误；无法交互或缺省状态会在控件状态中显式表达。
 pub(super) fn hint_row<'a>(message: &'a str) -> Element<'a, Message> {
-    row![
-        container(text("")).width(Length::Fixed(LABEL_WIDTH)),
-        text(message).size(12).style(settings_muted_text_style),
-    ]
-    .spacing(16)
-    .align_y(Alignment::Center)
-    .into()
+    text(message).size(13).style(settings_muted_text_style).into()
 }
 
 /// 构建或处理 `panel` 对应的界面片段与交互数据。
@@ -622,11 +574,10 @@ pub(super) fn panel<'a>(
     body: Element<'a, Message>,
 ) -> Element<'a, Message> {
     let header = row![
-        column![text(title).size(14), text(description).size(12).style(settings_muted_text_style),]
-            .spacing(4)
-            .width(Length::Fill),
+        container(settings_group_heading(title, description)).width(Length::Fill),
         checkbox(enabled)
             .label(tr(app.desktop_locale, "启用"))
+            .text_size(SETTINGS_CONTROL_TEXT_SIZE)
             .on_toggle(move |next| {
                 Message::Settings(SettingsMessage::Channels(ChannelsMessage::EnabledToggled(
                     id.to_string(),
@@ -639,20 +590,18 @@ pub(super) fn panel<'a>(
     .align_y(Alignment::Center);
 
     let content = if enabled {
-        {
-            let mut content = column![header, settings_divider()].spacing(12);
-            if !matches!(id, "feishu" | "dingtalk" | "qq" | "wecom" | "wechat") {
-                let channel = if id == "lark"
-                    && app.channels_settings.lark.as_ref().is_some_and(|cfg| cfg.use_feishu)
-                {
-                    "feishu"
-                } else {
-                    id
-                };
-                content = content.push(default_project_selector(app, format!("{channel}:default")));
-            }
-            content.push(body)
+        let mut content = column![header, settings_divider()].spacing(16);
+        if !matches!(id, "feishu" | "dingtalk" | "qq" | "wecom" | "wechat") {
+            let channel = if id == "lark"
+                && app.channels_settings.lark.as_ref().is_some_and(|cfg| cfg.use_feishu)
+            {
+                "feishu"
+            } else {
+                id
+            };
+            content = content.push(default_project_selector(app, format!("{channel}:default")));
         }
+        content.push(body)
     } else {
         column![
             header,
@@ -662,7 +611,7 @@ pub(super) fn panel<'a>(
         .spacing(12)
     };
 
-    settings_panel(content).into()
+    settings_group_card(container(content).padding([16, 0])).into()
 }
 
 /// 构建或处理 `enabled_channels` 对应的界面片段与交互数据。
@@ -791,32 +740,24 @@ pub(super) fn default_project_selector(app: &App, key: String) -> Element<'_, Me
         },
     };
     let instance = key.clone();
-    let picker = pick_list(options, Some(selected), move |option| {
+    let picker = settings_select(options, Some(selected), move |option| {
         Message::Settings(SettingsMessage::Channels(ChannelsMessage::DefaultProjectSelected {
             instance: instance.clone(),
             project: option.id,
         }))
     })
-    .padding([10, 14])
-    .text_size(13)
     .width(Length::Fill)
-    .style(settings_pick_list_style)
-    .menu_style(settings_pick_list_menu_style)
-    .on_open(Message::Settings(SettingsMessage::Channels(
-        ChannelsMessage::ProjectChoicesRequested(key.clone()),
-    )));
-    let mut content = column![
-        row![
-            text(tr(app.desktop_locale, "工作项目")).size(13).width(Length::Fixed(LABEL_WIDTH)),
-            picker
-        ]
-        .spacing(16)
-        .align_y(Alignment::Center),
-        hint_row(tr(
-            app.desktop_locale,
-            "从系统项目列表选择，该连接的聊天将在所选项目下工作；可不选。"
-        )),
-    ]
+    .reload_on_open(
+        key.clone(),
+        Message::Settings(SettingsMessage::Channels(ChannelsMessage::ProjectChoicesRequested(key))),
+    );
+    let mut content = column![field_row(
+        tr(app.desktop_locale, "工作项目"),
+        settings_control_with_hint(
+            picker,
+            tr(app.desktop_locale, "从系统项目列表选择，该连接的聊天将在所选项目下工作；可不选。"),
+        ),
+    ),]
     .spacing(8);
     if active && s.project_choices_loading {
         content = content.push(hint_row(tr(app.desktop_locale, "正在加载项目…")));

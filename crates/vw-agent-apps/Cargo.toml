@@ -26,6 +26,9 @@ vw-acp = { path = "../vw-acp" }
 [target.'cfg(not(target_arch = "wasm32"))'.dependencies]
 vw-provider-resolver = { path = "../vw-provider-resolver", version = "0.6.0" }
 
+[target.'cfg(target_os = "macos")'.dependencies]
+tokio = { version = "1", features = ["io-util", "process", "time"] }
+
 [target.'cfg(unix)'.dependencies]
 libc = "0.2"
 

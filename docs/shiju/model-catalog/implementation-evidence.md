@@ -569,3 +569,29 @@ Pi 供应商表单的现有网关入口为 `vw-agent/src/gateway/api/handlers/ap
 | `cargo clippy --all-targets --all-features -- -D warnings` | 0 | 全工作区、全目标及 features 通过 |
 
 审查后差异限于原生 HTTP 发现、共用传输与解析、头部保护、独立测试、Tokio feature 声明和本记录。`git diff --cached --check` 通过。两个阶段的占用锁已释放，缓存已保留。
+
+## 任务 22　迁移 OpenCode 运行时模型发现
+
+2026-11-08，macOS 27.0（26A428），arm64。批次 21 由 `511859e82` 交付。已核对 `TenantScope`、`LocalReadEnvironment`、`Operation`、`ProviderOperation`、供应商路径与 `ProviderTransactions::commit_checked`。本入口只读取运行时目录。
+
+| 固定来源 `ca58c0313360eae7c851fbd7553c1614c7af03e7` | 实际路径 |
+| --- | --- |
+| `src-tauri/src/commands/model_fetch.rs::get_opencode_models` | `crates/vw-agent-apps/src/models/discovery_opencode.rs::discover` 接收调用方授权后的主机环境、已保存的目录覆写和任务取消信号。母任务 3 的 `apps::discovery::read` 与新定位入口共用应用注册和有序可信路径扫描。模型发现直接执行首个路径默认的可执行文件，无版本探测子进程。复用 `apps::launch::host::command` 隔离环境，复用 `providers::paths` 解析配置目录。固定参数为 `models`，设置 `OPENCODE_CONFIG_DIR` 和 `OPENCODE_DISABLE_PROJECT_CONFIG=true`，配置目录缺失时以授权主机主目录为工作目录 |
+| `get_opencode_models` 的超时与错误处理 | 原生入口限时 20 秒，stdout 最多 1 MiB。预取消时不启动进程，运行中取消、超时或读取失败时终止子进程组并等待主进程退出。stderr 直接丢弃，错误仅返回稳定类别 |
+| `parse_opencode_models` | 同模块 `parse` 在第一个斜杠处分隔，按供应商和完整模型 ID 排序去重，过滤空字段、控制字符和格式不合法的行 |
+| 调用者及后续接点 | 现有网关 `crates/vw-agent/src/gateway/api/handlers/agent_apps/read.rs` 提供授权主机环境的构建范例，`app_providers/paths.rs` 提供目录覆写读取范例。下游 DTO 为 `crates/vw-api-types/src/model_catalog.rs::ModelDiscoveryMethod::OpenCode`。目录发现的网关、SDK 和 Iced 接线属于后续批次 |
+
+### 验证
+
+各阶段均动态领取槽位 **1**，`CARGO_TARGET_DIR=/Users/xiangmin/worker/code/shiju/target/rust-slot-1`。Cargo 中间目录使用同一槽位。格式化在 Git 源码快照中运行，只回写本项文件。验证在实际工作区执行。
+
+| 命令 | 退出码 | 证据 |
+| --- | ---: | --- |
+| `cargo fmt --all`（红灯、绿灯） | 0、0 | 格式化完成 |
+| `cargo test -p vw-agent-apps catalog_discovery_opencode_ -- --nocapture`（红灯） | 101 | 11 条有效用例，2 项通过，9 项失败，627 项过滤。首个指定用例实际返回 `Err("unavailable")`，预期唯一模型为 `provider` / `vendor/model` |
+| `cargo test -p vw-agent-apps catalog_discovery_opencode_ -- --nocapture`（绿灯） | 0 | 11 项通过，627 项过滤。覆盖固定参数及目标配置、控制字符、排序去重、错误脱敏、坏编码及体积限制、预取消、运行中杀进程组和实际 20 秒超时 |
+| `cargo clippy --all-targets --all-features -- -D warnings` | 0 | 全工作区、全目标及 features 通过 |
+| `cargo test -p vw-agent-apps apps::discovery:: -- --nocapture` | 0 | 27 项相邻发现测试通过，611 项过滤 |
+| `cargo test -p vw-agent-apps --test task22_real_opencode -- --nocapture` | 0 | 1 项通过。完整 OpenCode 1.19.5 Darwin arm64 包通过 npm SHA-512 完整性和 Mach-O 签名校验。临时集成测试以 `TASK22_OPENCODE_BIN` 指定可执行文件，在禁网沙箱和临时 HOME 中调用原生入口，用仅启用 `fixture` 供应商的配置得到唯一的 `fixture` / `vendor/nested-model` |
+
+审查后差异限于 OpenCode 原生发现、共用 CLI 路径扫描、模块注册、独立测试、macOS Tokio feature 声明和本记录。`git diff --cached --check` 通过。临时真机测试入口已清理，各阶段占用锁已释放，编译缓存已保留。

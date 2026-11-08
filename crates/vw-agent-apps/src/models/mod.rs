@@ -4,6 +4,8 @@ use vw_api_types::model_catalog::*;
 pub mod codex_template;
 #[cfg(not(target_arch = "wasm32"))]
 pub mod discovery_http;
+#[cfg(target_os = "macos")]
+pub mod discovery_opencode;
 pub mod discovery_url;
 pub mod identity;
 #[cfg(not(target_arch = "wasm32"))]
@@ -27,6 +29,8 @@ mod vendor_fallback;
 mod codex_template_tests;
 #[cfg(all(test, not(target_arch = "wasm32")))]
 mod discovery_http_tests;
+#[cfg(all(test, target_os = "macos"))]
+mod discovery_opencode_tests;
 #[cfg(test)]
 mod discovery_url_tests;
 #[cfg(test)]

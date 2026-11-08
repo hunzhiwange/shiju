@@ -17,8 +17,7 @@ pub struct LocalReadEnvironment {
     pub applications: PathBuf,
 }
 
-/// Blocking host IO. Caller must authenticate and authorize this exact environment first.
-pub fn read(app: AppId, env: &LocalReadEnvironment) -> io::Result<AppReadResponse> {
+fn validate_roots(env: &LocalReadEnvironment) -> io::Result<()> {
     if !env.home.is_absolute()
         || !env.applications.is_absolute()
         || env.search_paths.len() > 64
@@ -29,6 +28,52 @@ pub fn read(app: AppId, env: &LocalReadEnvironment) -> io::Result<AppReadRespons
     if !env.home.is_dir() {
         return Err(io::Error::new(io::ErrorKind::NotFound, "execution host home unavailable"));
     }
+    Ok(())
+}
+
+fn cli_command(app: AppId) -> io::Result<String> {
+    crate::apps::catalog::catalog()
+        .into_iter()
+        .find(|c| c.metadata.id == app)
+        .and_then(|c| c.metadata.cli_command)
+        .ok_or_else(|| io::Error::new(io::ErrorKind::Unsupported, "no CLI for application"))
+}
+
+fn cli_entries<'a>(
+    command: &'a str,
+    env: &'a LocalReadEnvironment,
+) -> impl Iterator<Item = io::Result<PathBuf>> + 'a {
+    env.search_paths.iter().filter_map(move |directory| {
+        let path = directory.join(command);
+        match path.symlink_metadata() {
+            Ok(_) => Some(Ok(path)),
+            Err(error) if error.kind() == io::ErrorKind::NotFound => None,
+            Err(error) => Some(Err(error)),
+        }
+    })
+}
+
+/// Resolve the path-default CLI without a version subprocess or ambient PATH.
+#[cfg(target_os = "macos")]
+pub(crate) fn locate_cli(app: AppId, env: &LocalReadEnvironment) -> io::Result<PathBuf> {
+    use std::os::unix::fs::PermissionsExt;
+
+    validate_roots(env)?;
+    let command = cli_command(app)?;
+    let path = cli_entries(&command, env)
+        .next()
+        .ok_or_else(|| io::Error::new(io::ErrorKind::NotFound, "CLI not installed"))??
+        .canonicalize()?;
+    let metadata = path.metadata()?;
+    if !metadata.is_file() || metadata.permissions().mode() & 0o111 == 0 {
+        return Err(io::Error::new(io::ErrorKind::PermissionDenied, "CLI is not executable"));
+    }
+    Ok(path)
+}
+
+/// Blocking host IO. Caller must authenticate and authorize this exact environment first.
+pub fn read(app: AppId, env: &LocalReadEnvironment) -> io::Result<AppReadResponse> {
+    validate_roots(env)?;
     if app == AppId::ClaudeDesktop {
         let platform =
             if cfg!(target_os = "macos") { DesktopPlatform::Macos } else { DesktopPlatform::Linux };
@@ -50,19 +95,10 @@ pub fn read(app: AppId, env: &LocalReadEnvironment) -> io::Result<AppReadRespons
             }),
         });
     }
-    let command = crate::apps::catalog::catalog()
-        .into_iter()
-        .find(|c| c.metadata.id == app)
-        .and_then(|c| c.metadata.cli_command)
-        .ok_or_else(|| io::Error::new(io::ErrorKind::Unsupported, "no CLI for application"))?;
+    let command = cli_command(app)?;
     let mut installations = Vec::new();
-    for directory in &env.search_paths {
-        let path = directory.join(&command);
-        match path.symlink_metadata() {
-            Ok(_) => {}
-            Err(error) if error.kind() == io::ErrorKind::NotFound => continue,
-            Err(error) => return Err(error),
-        }
+    for path in cli_entries(&command, env) {
+        let path = path?;
         let probe = version::probe_local_version(&path, Duration::from_secs(2))?;
         let entry = path.to_string_lossy().into_owned();
         // Length-delimited components avoid collisions across host/path boundaries.

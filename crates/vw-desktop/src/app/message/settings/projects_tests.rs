@@ -1,8 +1,8 @@
-// 验证最近项目重命名、元数据创建与删除确认状态。
+// 验证最近项目搜索和删除确认状态。
 // 测试夹具围绕目标分支构造可控状态；跨模块行为由对应集成测试负责。
 
 use super::*;
-use crate::app::App;
+use crate::app::{App, state::RecentProjectMeta};
 
 fn app() -> App {
     App::new().0
@@ -21,83 +21,17 @@ fn recent_project_meta(path: &str, name: &str) -> RecentProjectMeta {
     }
 }
 
-// 失败与边界：覆盖非法、缺失、过期或冲突场景的既定处理规则。
-// 重点确认现有状态与错误反馈不会被意外的部分更新污染。
 #[test]
-fn rename_changed_updates_existing_edit_and_rejects_out_of_bounds_index() {
+fn search_updates_query_and_dismisses_previous_row_actions() {
     let mut app = app();
-    app.recent_projects_edits = vec!["Original".to_string()];
+    app.project_tools_menu_path = Some("/workspace/project-a".into());
+    app.recent_project_delete_confirm_idx = Some(0);
 
-    let _task =
-        update(&mut app, SettingsMessage::RecentProjectRenameChanged(0, "Renamed".to_string()));
-    let _task =
-        update(&mut app, SettingsMessage::RecentProjectRenameChanged(1, "Ignored".to_string()));
+    let _task = update(&mut app, SettingsMessage::RecentProjectQueryChanged("project-b".into()));
 
-    assert_eq!(app.recent_projects_edits, vec!["Renamed"]);
-}
-
-#[test]
-fn rename_save_updates_matching_metadata_without_replacing_other_fields() {
-    let mut app = app();
-    app.recent_projects = vec!["/workspace/project-a".to_string()];
-    app.recent_projects_edits = vec!["Project A".to_string()];
-    app.recent_projects_meta = vec![recent_project_meta("/workspace/project-a", "Old name")];
-
-    let _task = update(&mut app, SettingsMessage::RecentProjectRenameSave(0));
-
-    assert_eq!(app.recent_projects_meta.len(), 1);
-    let meta = &app.recent_projects_meta[0];
-    assert_eq!(meta.name, "Project A");
-    assert!(!meta.session_auto_refresh);
-    assert_eq!(meta.session_refresh_interval_seconds, 120);
-    assert_eq!(meta.icon.as_deref(), Some("folder"));
-    assert_eq!(meta.icon_color.as_deref(), Some("blue"));
-    assert_eq!(meta.worktree_start_command.as_deref(), Some("prepare"));
-}
-
-#[test]
-fn rename_save_creates_metadata_with_session_defaults_for_unknown_project() {
-    let mut app = app();
-    app.recent_projects = vec!["/workspace/project-a".to_string()];
-    app.recent_projects_edits = vec!["Project A".to_string()];
-    app.recent_projects_meta.clear();
-
-    let _task = update(&mut app, SettingsMessage::RecentProjectRenameSave(0));
-
-    assert_eq!(app.recent_projects_meta.len(), 1);
-    let meta = &app.recent_projects_meta[0];
-    assert_eq!(meta.path, "/workspace/project-a");
-    assert_eq!(meta.name, "Project A");
-    assert_eq!(meta.session_auto_refresh, default_recent_project_session_auto_refresh());
-    assert_eq!(
-        meta.session_refresh_interval_seconds,
-        default_recent_project_session_refresh_interval_seconds()
-    );
-    assert!(meta.task_board_settings.is_none());
-    assert!(meta.icon.is_none());
-    assert!(meta.icon_color.is_none());
-    assert!(meta.worktree_start_command.is_none());
-}
-
-#[test]
-fn rename_save_rejects_indices_missing_from_either_project_collection() {
-    let mut missing_edit = app();
-    missing_edit.recent_projects = vec!["/workspace/project-a".to_string()];
-    missing_edit.recent_projects_edits.clear();
-    missing_edit.recent_projects_meta.clear();
-
-    let _task = update(&mut missing_edit, SettingsMessage::RecentProjectRenameSave(0));
-
-    assert!(missing_edit.recent_projects_meta.is_empty());
-
-    let mut missing_project = app();
-    missing_project.recent_projects.clear();
-    missing_project.recent_projects_edits = vec!["Project A".to_string()];
-    missing_project.recent_projects_meta.clear();
-
-    let _task = update(&mut missing_project, SettingsMessage::RecentProjectRenameSave(0));
-
-    assert!(missing_project.recent_projects_meta.is_empty());
+    assert_eq!(app.recent_project_query, "project-b");
+    assert!(app.project_tools_menu_path.is_none());
+    assert!(app.recent_project_delete_confirm_idx.is_none());
 }
 
 // 提交与删除：覆盖保存、安装或移除操作前后的状态衔接。
@@ -137,6 +71,7 @@ fn delete_confirmed_current_project_selects_first_remaining_project() {
     app.recent_projects =
         vec!["/workspace/project-a".to_string(), "/workspace/project-b".to_string()];
     app.recent_projects_edits = vec!["Project A".to_string(), "Project B".to_string()];
+    app.recent_projects_meta = vec![recent_project_meta("/workspace/project-b", "Project B")];
     app.project_path = Some("/workspace/project-a".to_string());
     app.recent_project_delete_confirm_idx = Some(0);
 

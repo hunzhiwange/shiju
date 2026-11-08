@@ -2,13 +2,7 @@
 
 use crate::app::config::update_system_settings_config;
 use crate::app::projects::{save_recent_projects_background, save_recent_projects_meta_background};
-use crate::app::{
-    App, Message,
-    state::{
-        RecentProjectMeta, default_recent_project_session_auto_refresh,
-        default_recent_project_session_refresh_interval_seconds,
-    },
-};
+use crate::app::{App, Message};
 use iced::Task;
 
 use super::messages::SettingsMessage;
@@ -19,36 +13,14 @@ use super::messages::SettingsMessage;
 /// 返回的 `Task` 用于继续执行异步保存、加载或通知清理；没有后续动作时返回空任务。
 pub fn update(app: &mut App, message: SettingsMessage) -> Task<Message> {
     match message {
-        SettingsMessage::RecentProjectRenameChanged(idx, name) => {
-            if idx < app.recent_projects_edits.len() {
-                app.recent_projects_edits[idx] = name;
-            }
-            Task::none()
-        }
-        SettingsMessage::RecentProjectRenameSave(idx) => {
-            if idx < app.recent_projects_edits.len() && idx < app.recent_projects.len() {
-                let path = app.recent_projects[idx].clone();
-                let name = app.recent_projects_edits[idx].clone();
-                if let Some(m) = app.recent_projects_meta.iter_mut().find(|m| m.path == path) {
-                    m.name = name;
-                } else {
-                    app.recent_projects_meta.push(RecentProjectMeta {
-                        path,
-                        name,
-                        task_board_settings: None,
-                        session_auto_refresh: default_recent_project_session_auto_refresh(),
-                        session_refresh_interval_seconds:
-                            default_recent_project_session_refresh_interval_seconds(),
-                        icon: None,
-                        icon_color: None,
-                        worktree_start_command: None,
-                    });
-                }
-                save_recent_projects_meta_background(app.recent_projects_meta.clone());
-            }
+        SettingsMessage::RecentProjectQueryChanged(query) => {
+            app.recent_project_query = query;
+            app.project_tools_menu_path = None;
+            app.recent_project_delete_confirm_idx = None;
             Task::none()
         }
         SettingsMessage::RecentProjectDeleteRequested(idx) => {
+            app.project_tools_menu_path = None;
             app.recent_project_delete_confirm_idx = Some(idx);
             Task::none()
         }

@@ -147,6 +147,7 @@ pub fn update(app: &mut App, message: ViewMessage) -> Task<Message> {
         }
         ViewMessage::ToggleSystemSettings => {
             app.show_system_settings = !app.show_system_settings;
+            app.project_tools_menu_path = None;
             app.system_settings_help_tab = None;
             if app.show_system_settings {
                 Task::none()

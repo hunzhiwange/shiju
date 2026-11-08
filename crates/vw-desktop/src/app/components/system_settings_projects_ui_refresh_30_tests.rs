@@ -518,42 +518,42 @@ async fn ui_refresh_30_preserves_values_and_disabled_states() {
     let positions = geometry(&mut ui, &renderer);
     let disabled = positions.label(i18n.__("请先打开一个项目，再配置该项目的 Worktree 开关"));
     assert!(click(&mut ui, &mut renderer, disabled.center()).is_empty());
-    let input = positions.input(NAME);
-    assert_fits(input, size);
-    assert_centered(input, positions.label(i18n.__("保存")));
-    assert!(click(&mut ui, &mut renderer, input.center()).is_empty());
-    assert!(key_at(&mut ui, &mut renderer, Named::End).is_empty());
-    assert!(matches!(
-        key_at(&mut ui, &mut renderer, Named::Backspace).as_slice(),
-        [Message::Settings(SettingsMessage::RecentProjectRenameChanged(0, name))]
-            if name == NAME.strip_suffix('案').unwrap()
-    ));
-    assert!(key_at(&mut ui, &mut renderer, Named::Enter).is_empty());
-    assert!(matches!(
-        label_click(&mut ui, &mut renderer, i18n.__("保存")).as_slice(),
-        [Message::Settings(SettingsMessage::RecentProjectRenameSave(0))]
-    ));
-    assert!(matches!(
-        label_click(&mut ui, &mut renderer, i18n.__("删除")).as_slice(),
-        [Message::Settings(SettingsMessage::RecentProjectDeleteRequested(0))]
-    ));
-    let open = positions.label(i18n.__("打开项目")).center();
+    assert_fits(positions.input(i18n.__("搜索项目")), size);
+    let open = positions.label(NAME).center();
     assert!(matches!(
         click(&mut ui, &mut renderer, open).as_slice(),
         [Message::Project(ProjectMessage::OpenRecentPressed(path))] if path == PATH
     ));
+    assert_fits(positions.label(PATH), size);
     redraw_project(&mut ui, &mut renderer, &Theme::Dark, size, "projects-640");
-    assert!(
-        send(
-            &mut ui,
-            &mut renderer,
-            at(open),
-            &[Event::Mouse(mouse::Event::CursorMoved { position: open })]
-        )
-        .is_empty()
-    );
-    capture(&mut ui, &mut renderer, &Theme::Dark, size, "projects-path-640", at(open));
+    let actions = Point::new(size.width as f32 - 21.0, open.y + 7.0);
+    assert!(matches!(
+        click(&mut ui, &mut renderer, actions).as_slice(),
+        [Message::Project(ProjectMessage::ProjectToolsMenuToggled(path))] if path == PATH
+    ));
     drop(ui);
+
+    app.recent_projects.insert(0, "/fixture/another-project".into());
+    app.recent_projects_edits.insert(0, "Another project".into());
+    app.recent_project_query = "  fIXTURE 專案  ".into();
+    app.project_tools_menu_path = Some(PATH.into());
+    let mut ui = scene(view(&app), &mut renderer, size);
+    let positions = geometry(&mut ui, &renderer);
+    assert!(!positions.labels.iter().any(|(label, _)| label == "Another project"));
+    redraw_project(&mut ui, &mut renderer, &Theme::Light, size, "projects-menu-640");
+    assert!(matches!(
+        label_click(&mut ui, &mut renderer, i18n.__("编辑项目")).as_slice(),
+        [Message::Project(ProjectMessage::ProjectEditOpened(path))] if path == PATH
+    ));
+    assert!(matches!(
+        label_click(&mut ui, &mut renderer, i18n.__("删除")).as_slice(),
+        [Message::Settings(SettingsMessage::RecentProjectDeleteRequested(1))]
+    ));
+    drop(ui);
+    app.project_tools_menu_path = None;
+    app.recent_project_query.clear();
+    app.recent_projects.remove(0);
+    app.recent_projects_edits.remove(0);
 
     app.recent_project_delete_confirm_idx = Some(0);
     let mut ui = scene(view(&app), &mut renderer, size);

@@ -281,8 +281,7 @@ pub fn update(app: &mut App, message: SettingsMessage) -> Task<Message> {
         | SettingsMessage::DialogueFlowExpandEditToolSectionToggled(_) => {
             dialogue_flow::update(app, message)
         }
-        SettingsMessage::RecentProjectRenameChanged(_, _)
-        | SettingsMessage::RecentProjectRenameSave(_)
+        SettingsMessage::RecentProjectQueryChanged(_)
         | SettingsMessage::RecentProjectDeleteRequested(_)
         | SettingsMessage::RecentProjectDeleteCanceled
         | SettingsMessage::RecentProjectDeleteConfirmed(_)

@@ -1,4 +1,4 @@
-//! 验证项目设置及最近项目编辑、删除确认和工作树选项的界面状态。
+//! 验证项目列表和 Worktree 选项的界面状态。
 //!
 //! 项目夹具主动清空最近记录与编辑状态，用于隔离缺失路径和确认框边界。
 
@@ -61,21 +61,14 @@ fn view_with_project_builds_worktree_toggle_for_default_and_enabled_states() {
 }
 
 #[test]
-fn recent_project_cards_follow_edit_rows_and_tolerate_missing_paths() {
+fn project_paths_drive_the_list_even_without_custom_names() {
     let mut app = test_app();
-    app.recent_projects = vec!["/tmp/vibe-window-one".to_string()];
-    app.recent_projects_edits = vec!["One".to_string(), "Missing path".to_string()];
+    let empty = view_shape(&app);
+    app.recent_projects_edits = vec!["Orphan name".into()];
+    assert_eq!(view_shape(&app), empty);
 
-    assert_eq!(view_shape(&app).0, 6);
-}
-
-#[test]
-fn recent_project_paths_without_edit_rows_do_not_render_cards() {
-    let mut app = test_app();
-    app.recent_projects =
-        vec!["/tmp/vibe-window-one".to_string(), "/tmp/vibe-window-two".to_string()];
-
-    assert_eq!(view_shape(&app).0, 4);
+    app.recent_projects = vec!["/tmp/one".into(), "/tmp/two".into()];
+    assert!(view_shape(&app).1 > empty.1);
 }
 
 #[test]
@@ -97,7 +90,6 @@ fn delete_confirmation_only_expands_matching_recent_project() {
     out_of_range.recent_project_delete_confirm_idx = Some(1);
     let out_of_range_shape = view_shape(&out_of_range);
 
-    assert_eq!(ordinary_shape.0, 5);
     assert_eq!(matching_shape.0, ordinary_shape.0);
     assert!(matching_shape.1 > ordinary_shape.1);
     assert_eq!(out_of_range_shape, ordinary_shape);

@@ -911,6 +911,8 @@ pub struct App {
     pub(crate) recent_projects_edits: Vec<String>,
     /// 确认删除的最近项目索引
     pub(crate) recent_project_delete_confirm_idx: Option<usize>,
+    /// 最近项目列表的搜索词
+    pub(crate) recent_project_query: String,
     /// 确认从列表移除的最近项目路径
     pub(crate) recent_project_remove_confirm_path: Option<String>,
     /// 对话流权限编辑器内容

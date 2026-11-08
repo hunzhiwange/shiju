@@ -1906,6 +1906,8 @@
   "管理最近打开过的项目名称与快捷入口。": "Manage names and shortcuts for recently opened projects.",
   "名字": "Name",
   "项目名称": "Project name",
+  "搜索项目": "Search projects",
+  "项目操作": "Project actions",
   "确认删除该项目？": "Remove this project?",
   "打开项目": "Open project",
   "查询模型分类": "Query model classification",

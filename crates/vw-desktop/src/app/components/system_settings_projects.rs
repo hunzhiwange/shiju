@@ -1,21 +1,19 @@
-//! 系统设置中 projects 配置页面的界面拼装与交互消息转换。
-//!
-//! 本模块主要负责把应用状态转换为桌面端可渲染的 Iced 控件，并把用户操作映射回上层消息。
-//! 注释聚焦调用边界、返回值和错误传播方式，便于后续维护设置页与工具栏行为时快速定位职责。
+//! 项目设置中的最近项目列表与当前项目的 Worktree 选项。
 
+use crate::app::assets::Icon;
+use crate::app::components::overlays::BelowOverlay;
 use crate::app::components::system_settings_common::{
-    SETTINGS_CONTROL_PADDING, SETTINGS_CONTROL_TEXT_SIZE, danger_action_btn_style,
-    primary_action_btn_style, rounded_action_btn_style, settings_checkbox_style,
-    settings_field_label, settings_group_card, settings_group_heading, settings_muted_text_style,
-    settings_page_heading, settings_panel_style, settings_row_with_flexible_control,
-    settings_text_input_style,
+    SETTINGS_CONTROL_PADDING, SETTINGS_CONTROL_TEXT_SIZE, danger_action_btn_style, icon_btn,
+    icon_svg, primary_action_btn_style, rounded_action_btn_style, settings_checkbox_style,
+    settings_divider, settings_group_card, settings_muted_text_style, settings_panel_style,
+    settings_row_with_flexible_control, settings_text_input_style,
 };
-use crate::app::{App, Message, message};
-use iced::widget::{
-    button, checkbox, column, container, row, text, text_input,
-    tooltip::{Position as TooltipPosition, Tooltip},
-};
-use iced::{Alignment, Element, Length};
+use crate::app::i18n::I18n;
+use crate::app::message::{ProjectMessage, SettingsMessage};
+use crate::app::{App, Message};
+use iced::widget::tooltip::{Position as TooltipPosition, Tooltip};
+use iced::widget::{button, checkbox, column, container, row, svg, text, text_input};
+use iced::{Alignment, Element, Length, Theme};
 
 fn field_row<'a>(
     label: &'static str,
@@ -25,47 +23,18 @@ fn field_row<'a>(
     settings_row_with_flexible_control(label, description, 310.0, control)
 }
 
-/// 构建或处理 `view` 对应的界面片段与交互数据。
-///
-/// # 参数
-///
-/// 参数来自调用方持有的应用状态、配置快照或控件输入，用于保持渲染结果与当前状态同步。
-///
-/// # 返回值
-///
-/// 返回可交给 Iced 渲染树使用的 `Element`，其中已绑定必要的消息回调。
-///
-/// # 错误处理
-///
-/// 本函数不直接返回错误；无法交互或缺省状态会在控件状态中显式表达。
-pub fn view(app: &App) -> Element<'_, Message> {
-    let i18n = crate::app::i18n::I18n::new(app.desktop_locale);
-    let open_folder_btn = button(
-        container(text(i18n.__("打开文件夹")))
-            .width(Length::Fill)
-            .align_x(iced::alignment::Horizontal::Center),
-    )
-    .on_press(Message::Project(message::ProjectMessage::OpenFolderPressed))
-    .width(Length::Fill)
-    .padding([10, 12])
-    .style(primary_action_btn_style);
-
-    let current_project = app.project_path.clone();
-    let current_project_worktree_enabled = current_project
-        .as_ref()
-        .and_then(|p| app.project_worktree_enabled.get(p))
-        .copied()
-        .unwrap_or(false);
-    let worktree_toggle: Element<'_, Message> = if let Some(project_path) = current_project {
+fn current_project_worktree(app: &App, i18n: I18n) -> Element<'_, Message> {
+    if let Some(path) = &app.project_path {
+        let checked = app.project_worktree_enabled.get(path).copied().unwrap_or(false);
         field_row(
             i18n.__("启用 Worktree"),
             i18n.__("当前项目新建会话时允许选择/创建工作区。"),
-            checkbox(current_project_worktree_enabled)
+            checkbox(checked)
                 .label(i18n.__("当前项目新建会话时允许选择/创建工作区"))
-                .on_toggle(move |v| {
-                    Message::Settings(message::SettingsMessage::ProjectEnableWorktreeToggled(
-                        project_path.clone(),
-                        v,
+                .on_toggle(move |value| {
+                    Message::Settings(SettingsMessage::ProjectEnableWorktreeToggled(
+                        path.clone(),
+                        value,
                     ))
                 })
                 .style(settings_checkbox_style),
@@ -78,121 +47,227 @@ pub fn view(app: &App) -> Element<'_, Message> {
                 .size(12)
                 .style(settings_muted_text_style),
         )
+    }
+}
+
+fn quiet_button_style(theme: &Theme, status: button::Status) -> button::Style {
+    let palette = theme.extended_palette();
+    let background = match status {
+        button::Status::Hovered => Some(palette.background.weak.color.scale_alpha(0.58).into()),
+        button::Status::Pressed => Some(palette.background.strong.color.into()),
+        _ => None,
+    };
+    button::Style {
+        background,
+        text_color: theme.palette().text,
+        border: iced::Border { radius: 8.0.into(), ..Default::default() },
+        ..Default::default()
+    }
+}
+
+fn project_icon(icon: Icon) -> svg::Svg<'static> {
+    icon_svg(icon, 15.0).style(|theme: &Theme, _| svg::Style {
+        color: Some(theme.palette().text.scale_alpha(0.78)),
+    })
+}
+
+fn menu_item(icon: Icon, label: &'static str, message: Message) -> Element<'static, Message> {
+    button(row![project_icon(icon), text(label).size(13)].spacing(9).align_y(Alignment::Center))
+        .padding([8, 9])
+        .width(Length::Fill)
+        .on_press(message)
+        .style(quiet_button_style)
+        .into()
+}
+
+fn project_row<'a>(
+    app: &App,
+    i18n: I18n,
+    index: usize,
+    path: &'a str,
+    name: &'a str,
+) -> Element<'a, Message> {
+    let is_current = app.project_path.as_deref() == Some(path);
+    let is_menu_open = app.project_tools_menu_path.as_deref() == Some(path);
+    let project = button(
+        row![
+            project_icon(Icon::FolderOpen),
+            column![
+                text(name).size(14).wrapping(text::Wrapping::None),
+                text(path).size(12).wrapping(text::Wrapping::None).style(settings_muted_text_style),
+            ]
+            .spacing(3)
+            .width(Length::Fill),
+            project_icon(Icon::ChevronRight),
+        ]
+        .align_y(Alignment::Center)
+        .spacing(10)
+        .clip(true),
+    )
+    .clip(true)
+    .padding([9, 10])
+    .width(Length::Fill)
+    .on_press(Message::Project(ProjectMessage::OpenRecentPressed(path.to_owned())))
+    .style(quiet_button_style);
+
+    let trigger = icon_btn(
+        Icon::DotsThreeVertical,
+        i18n.__("项目操作"),
+        Some(Message::Project(ProjectMessage::ProjectToolsMenuToggled(path.to_owned()))),
+    );
+    let actions = if is_menu_open {
+        let menu = container(
+            column![
+                menu_item(
+                    Icon::Pencil,
+                    i18n.__("编辑项目"),
+                    Message::Project(ProjectMessage::ProjectEditOpened(path.to_owned())),
+                ),
+                settings_divider(),
+                menu_item(
+                    Icon::Trash,
+                    i18n.__("删除"),
+                    Message::Settings(SettingsMessage::RecentProjectDeleteRequested(index)),
+                ),
+            ]
+            .spacing(3),
+        )
+        .width(168)
+        .padding(5)
+        .style(settings_panel_style);
+        Element::from(
+            BelowOverlay::new(trigger, menu)
+                .show(true)
+                .gap(4.0)
+                .on_close(Message::Project(ProjectMessage::ProjectToolsMenuClosed)),
+        )
+    } else {
+        trigger
     };
 
-    let mut recent_heading = column![settings_group_heading(
-        i18n.__("历史项目"),
-        i18n.__("管理最近打开过的项目名称与快捷入口。"),
-    )]
-    .spacing(8);
-    if app.recent_projects_edits.is_empty() {
-        recent_heading = recent_heading
-            .push(text(i18n.__("暂无最近项目")).size(13).style(settings_muted_text_style));
+    let path_tip = container(text(path).size(12).wrapping(text::Wrapping::WordOrGlyph))
+        .max_width(360)
+        .padding([7, 10])
+        .style(settings_panel_style);
+    let project = Tooltip::new(project, path_tip, TooltipPosition::Top).gap(6);
+    let badge = text(i18n.__("当前项目")).size(11).style(settings_muted_text_style);
+    let mut line = row![project].align_y(Alignment::Center).spacing(6);
+    if is_current {
+        line = line.push(badge);
     }
+    let line = line.push(container(actions).padding(iced::padding::right(8)));
+    let mut entry = column![container(line).width(Length::Fill).style(move |theme: &Theme| {
+        container::Style {
+            background: is_current
+                .then(|| theme.extended_palette().background.weak.color.scale_alpha(0.52).into()),
+            border: iced::Border { radius: 8.0.into(), ..Default::default() },
+            ..Default::default()
+        }
+    })];
 
-    let mut col = column![
-        settings_page_heading(
-            i18n.__("项目配置"),
-            i18n.__("配置项目打开入口、当前项目 Worktree 行为，以及历史项目管理。")
-        ),
-        settings_group_heading(
-            i18n.__("当前项目"),
-            i18n.__("打开项目并控制当前项目的新会话 Worktree 策略。")
-        ),
-        settings_group_card(column![
-            worktree_toggle,
-            container(open_folder_btn).padding(iced::padding::bottom(16))
-        ]),
-        recent_heading,
-    ]
-    .spacing(16);
-
-    for (i, p) in app.recent_projects_edits.iter().enumerate() {
-        let path = app.recent_projects.get(i).cloned().unwrap_or_default();
-        let open_path = path.clone();
-        let is_confirming_delete = app.recent_project_delete_confirm_idx == Some(i);
-
-        let mut content = column![
-            settings_field_label(i18n.__("项目名称")),
-            row![
-                text_input(i18n.__("项目名称"), p)
-                    .on_input(move |v| {
-                        Message::Settings(message::SettingsMessage::RecentProjectRenameChanged(
-                            i, v,
-                        ))
-                    })
-                    .padding(SETTINGS_CONTROL_PADDING)
-                    .size(SETTINGS_CONTROL_TEXT_SIZE)
-                    .style(settings_text_input_style)
-                    .width(Length::Fill),
-                button(text(i18n.__("保存")).size(13))
-                    .on_press(Message::Settings(message::SettingsMessage::RecentProjectRenameSave(
-                        i
-                    ),))
-                    .padding([9, 12])
-                    .style(primary_action_btn_style),
-                button(text(i18n.__("删除")).size(13))
-                    .on_press(Message::Settings(
-                        message::SettingsMessage::RecentProjectDeleteRequested(i),
-                    ))
-                    .padding([9, 12])
-                    .style(rounded_action_btn_style),
-            ]
-            .spacing(10)
-            .align_y(Alignment::Center)
-            .width(Length::Fill),
-        ]
-        .spacing(8)
-        .width(Length::Fill);
-
-        if is_confirming_delete {
-            content = content.push(
+    if app.recent_project_delete_confirm_idx == Some(index) {
+        entry = entry.push(
+            container(
                 row![
-                    container(text(i18n.__("确认删除该项目？"))).width(Length::Fill),
-                    button(text(i18n.__("取消")))
-                        .on_press(Message::Settings(
-                            message::SettingsMessage::RecentProjectDeleteCanceled,
-                        ))
-                        .padding([9, 12])
+                    text(i18n.__("确认删除该项目？")).size(13).width(Length::Fill),
+                    button(text(i18n.__("取消")).size(13))
+                        .on_press(Message::Settings(SettingsMessage::RecentProjectDeleteCanceled))
+                        .padding([7, 10])
                         .style(rounded_action_btn_style),
-                    button(text(i18n.__("确认删除")))
-                        .on_press(Message::Settings(
-                            message::SettingsMessage::RecentProjectDeleteConfirmed(i),
-                        ))
-                        .padding([9, 12])
+                    button(text(i18n.__("确认删除")).size(13))
+                        .on_press(Message::Settings(SettingsMessage::RecentProjectDeleteConfirmed(
+                            index
+                        )))
+                        .padding([7, 10])
                         .style(danger_action_btn_style),
                 ]
-                .spacing(10)
-                .align_y(Alignment::Center)
-                .width(Length::Fill),
-            );
+                .spacing(8)
+                .align_y(Alignment::Center),
+            )
+            .padding([6, 8]),
+        );
+    }
+    entry.push(settings_divider()).into()
+}
+
+/// 渲染项目管理、搜索和 Worktree 快捷设置。
+pub fn view(app: &App) -> Element<'_, Message> {
+    let i18n = I18n::new(app.desktop_locale);
+    let open_folder = button(text(i18n.__("打开文件夹")).size(13))
+        .on_press(Message::Project(ProjectMessage::OpenFolderPressed))
+        .padding([8, 14])
+        .style(|theme, status| {
+            let mut style = primary_action_btn_style(theme, status);
+            style.border.radius = 18.0.into();
+            style
+        });
+
+    let search = text_input(i18n.__("搜索项目"), &app.recent_project_query)
+        .on_input(|query| Message::Settings(SettingsMessage::RecentProjectQueryChanged(query)))
+        .padding(SETTINGS_CONTROL_PADDING)
+        .size(SETTINGS_CONTROL_TEXT_SIZE)
+        .style(|theme, status| {
+            let mut style = settings_text_input_style(theme, status);
+            style.border.radius = 18.0.into();
+            style
+        });
+    let search = row![project_icon(Icon::Search), search].spacing(7).align_y(Alignment::Center);
+    let toolbar = row![
+        text(i18n.__("历史项目")).size(17),
+        container(container(search).max_width(248)).align_right(Length::Fill),
+    ]
+    .spacing(10)
+    .align_y(Alignment::Center);
+
+    let query = app.recent_project_query.trim().to_lowercase();
+    let mut projects = column![
+        container(text(i18n.__("名称")).size(12).style(settings_muted_text_style)).padding([5, 10]),
+        settings_divider(),
+    ];
+    let mut has_results = false;
+    for (index, path) in app.recent_projects.iter().enumerate() {
+        let name = app
+            .recent_projects_edits
+            .get(index)
+            .map(|name| name.trim())
+            .filter(|name| !name.is_empty())
+            .or_else(|| std::path::Path::new(path).file_name().and_then(|name| name.to_str()))
+            .unwrap_or(path);
+        if !query.is_empty()
+            && !name.to_lowercase().contains(&query)
+            && !path.to_lowercase().contains(&query)
+        {
+            continue;
         }
-
-        let tip_content =
-            container(text(path).size(13).wrapping(iced::widget::text::Wrapping::WordOrGlyph))
-                .max_width(360)
-                .padding([9, 12])
-                .style(settings_panel_style);
-
-        let open_btn = button(
-            container(text(i18n.__("打开项目")))
-                .width(Length::Fill)
-                .align_x(iced::alignment::Horizontal::Center),
-        )
-        .on_press(Message::Project(message::ProjectMessage::OpenRecentPressed(open_path)))
-        .width(Length::Fill)
-        .padding([10, 12])
-        .style(primary_action_btn_style);
-
-        content = content.push(Tooltip::new(open_btn, tip_content, TooltipPosition::Top).gap(10));
-
-        let card = settings_group_card(container(content).padding([16, 0]));
-
-        col = col.push(card);
+        has_results = true;
+        projects = projects.push(project_row(app, i18n, index, path, name));
+    }
+    if !has_results {
+        let label = if app.recent_projects.is_empty() {
+            i18n.__("暂无最近项目")
+        } else {
+            i18n.__("没有匹配的项目")
+        };
+        projects = projects.push(
+            container(text(label).size(13).style(settings_muted_text_style))
+                .center_x(Length::Fill)
+                .padding([20, 8]),
+        );
     }
 
-    col.into()
+    column![
+        row![text(i18n.__("项目配置")).size(28).width(Length::Fill), open_folder,]
+            .spacing(12)
+            .align_y(Alignment::Center),
+        column![toolbar, projects].spacing(8),
+        text(i18n.__("当前项目")).size(17),
+        settings_group_card(current_project_worktree(app, i18n)),
+    ]
+    .spacing(16)
+    .width(Length::Fill)
+    .into()
 }
+
 #[cfg(test)]
 #[path = "system_settings_projects_tests.rs"]
 mod system_settings_projects_tests;

@@ -643,3 +643,26 @@ Pi 供应商表单的现有网关入口为 `vw-agent/src/gateway/api/handlers/ap
 | `cargo clippy --all-targets --all-features -- -D warnings` | 0 | 全工作区、全目标及 features 通过 |
 
 审查后差异限于补空投影、独立测试、模块注册及本记录。`git diff --cached --check` 通过。两个阶段的占用锁已释放，编译缓存已保留。
+
+## 任务 25　迁移 OpenClaw 补空投影
+
+2026-11-08，macOS 27.0（26A428），arm64。批次 24 由 `636d7a15e` 交付。已核对租户作用域、授权主机环境、应用注册与可信 CLI 定位、可取消供应商操作和 `ProviderTransactions::commit_checked` 契约。
+
+| 固定来源 `ca58c0313360eae7c851fbd7553c1614c7af03e7` | 实际路径 |
+| --- | --- |
+| `src/components/providers/forms/modelMetadataFill.ts::fillOpenClawModel` | `crates/vw-agent-apps/src/models/fill_openclaw.rs::fill_openclaw_model` 接收母任务 4 的 `OpenClawProfile::declaration.models` JSON 对象行及按应用、端点和模型解析的 `ModelMetadataDto`。投影补齐空的 `contextWindow`、`maxTokens` 和 `cost`，保留已有数值和整个价格对象。确认支持推理时允许升级为 `true`，确认不支持时只为缺失字段补 `false`。空输入列表按 OpenClaw 规则补文字或文字和图片，已有列表只追加缺失的图片能力。返回原生字段差异及贡献字段的来源和时间，整个过程在内存完成 |
+| `tests/components/modelMetadataFill.test.ts` 的 OpenClaw 场景 | `crates/vw-agent-apps/src/models/fill_openclaw_tests.rs` 验证已有窗口及价格、空字段、能力升级和防降级、原生字段名、来源筛选和部署价格边界。部署用例通过真实 `models::metadata::resolve_model_metadata` 解析受控快照，验证原厂回退贡献窗口时也只允许匹配端点贡献价格 |
+| `OpenClawFormFields.tsx` 的补全调用者 | 现有原生配置读取和准备路径为 `providers/openclaw_form.rs::view` 和 `prepare`，发布由 `providers/openclaw.rs::OpenClawFiles` 处理。现有档案网关、SDK、Iced 表单分别为 `crates/vw-agent/src/gateway/api/handlers/app_providers/openclaw.rs`、`crates/vw-gateway-client/src/client/app_providers/openclaw.rs` 和 `crates/vw-desktop/src/app/components/app_providers/openclaw.rs`。本批次验证原生内存投影。目录补全预览和修订提交由任务 32 组装，网关和 SDK 由任务 38 接线，Iced 来源展示由任务 41 接线 |
+
+### 验证
+
+两个阶段均动态领取槽位 **1**，`CARGO_TARGET_DIR=/Users/xiangmin/worker/code/shiju/target/rust-slot-1`。Cargo 中间目录使用同一槽位。格式化在 Git 源码快照执行，仅回写本项 Rust 文件。测试和 Clippy 在实际工作区执行。
+
+| 命令 | 退出码 | 证据 |
+| --- | ---: | --- |
+| `cargo fmt --all`（红灯、绿灯） | 0、0 | 两阶段格式化完成 |
+| `cargo test -p vw-agent-apps catalog_fill_openclaw_ -- --nocapture`（红灯） | 101 | 7 条有效用例，2 项通过、5 项失败、655 项过滤。指定用例实际返回空差异，预期只建议 `maxTokens: 32768`、`reasoning: true` 和 `input: ["text", "image"]` |
+| `cargo test -p vw-agent-apps catalog_fill_openclaw_ -- --nocapture`（绿灯） | 0 | 7 项通过，655 项过滤 |
+| `cargo clippy --all-targets --all-features -- -D warnings` | 0 | 全工作区、全目标及 features 通过 |
+
+审查后差异限于 OpenClaw 投影、独立测试、模块注册和本记录。`git diff --cached --check` 通过。两个阶段的锁已释放，编译缓存已保留。

@@ -1,4 +1,5 @@
 //! Common write validation. Errors contain no request data, paths or upstream parser details.
+use reqwest::header::{HeaderName, HeaderValue};
 use std::collections::BTreeMap;
 use vw_api_types::{agent_apps::AppId, app_providers::validation::ProviderRequestOptions};
 const PROTECTED: &[&str] = &[
@@ -69,6 +70,13 @@ pub fn endpoint(raw: &str) -> Result<(), String> {
     }
     Ok(())
 }
+pub(crate) fn header_value(value: &str) -> Result<HeaderValue, &'static str> {
+    if value.len() > 8192 {
+        return Err("invalid provider request header value");
+    }
+    HeaderValue::from_bytes(value.as_bytes()).map_err(|_| "invalid provider request header value")
+}
+
 fn headers(input: &BTreeMap<String, String>, proxy: bool) -> Result<(), String> {
     let mut seen = std::collections::BTreeSet::new();
     if input.len() > 64 {
@@ -78,9 +86,8 @@ fn headers(input: &BTreeMap<String, String>, proxy: bool) -> Result<(), String> 
         let name = raw.trim();
         if raw.starts_with("draft-header:")
             || name.len() > 256
-            || value.len() > 8192
-            || reqwest::header::HeaderName::from_bytes(name.as_bytes()).is_err()
-            || reqwest::header::HeaderValue::from_bytes(value.as_bytes()).is_err()
+            || HeaderName::from_bytes(name.as_bytes()).is_err()
+            || header_value(value).is_err()
             || !seen.insert(name.to_ascii_lowercase())
             || (proxy && PROTECTED.contains(&name.to_ascii_lowercase().as_str()))
         {

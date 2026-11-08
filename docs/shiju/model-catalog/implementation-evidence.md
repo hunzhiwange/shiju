@@ -388,3 +388,29 @@ Pi 供应商表单的现有网关入口为 `vw-agent/src/gateway/api/handlers/ap
 | `cargo clippy --all-targets --all-features -- -D warnings` | 0 | 全 workspace、全目标及 features 通过 |
 
 `git diff --cached --check` 通过。提交范围为模板、模块注册、独立测试和本记录。各阶段的槽位锁均已释放，编译缓存已保留。
+
+## 任务 15　用户代理预设
+
+2026-11-08，macOS 27.0（26A428），arm64。批次 14 由 `8d7d29d56` 交付。已与固定来源逐字节核对 5 条预设的值和顺序。
+
+| 固定来源 `ca58c0313360eae7c851fbd7553c1614c7af03e7` | 实际实现 |
+| --- | --- |
+| `src/config/userAgentPresets.ts::USER_AGENT_PRESETS` | `crates/vw-agent-apps/src/models/user_agent_presets.rs::USER_AGENT_PRESETS`，按来源顺序公开静态列表 |
+| `src/lib/userAgent.ts::isValidUserAgentHeader`、`src-tauri/src/provider.rs::parse_custom_user_agent` | `models/user_agent_presets.rs::custom_user_agent` 将显式选择的预设或自定义值转成可选 HTTP 头值。未指定或为空白时返回 `None`。沿用母任务 4 的 `providers/validation.rs::header_value` 字节校验及 8192 字节上限。裁剪空白时保留非法控制字符交由校验拒绝，覆盖值边缘的 CR/LF |
+| `tests/lib/userAgent.test.ts` | `models/user_agent_presets_tests.rs` 验证无选择、全部预设显式可选、自定义 UTF-8 与内部制表符、控制字符和超限拒绝 |
+
+当前验收边界为原生目录读取及可选头值解析。发现 HTTP 请求由任务 21 接线，目录读取 API 与 SDK 由任务 36 接线。现有供应商请求选项路径为 `vw-agent/src/gateway/api/handlers/app_providers/request_options.rs`、`vw-gateway-client/src/client/app_providers/request_options.rs` 及 `vw-desktop/src/app/message/app_providers/endpoints.rs`。这条路径复用同一供应商校验，预设选择界面及网关入口尚未接入。本项无 HTTP 请求、账号访问或窗口验收。来源许可见 `crates/vw-agent-apps/upstream/LICENSE`（MIT，Copyright (c) 2025 Jason Young）。
+
+### 验证
+
+红灯和绿灯阶段均动态领取槽位 **1**，`CARGO_TARGET_DIR=/Users/xiangmin/worker/code/shiju/target/rust-slot-1`。Cargo 中间目录使用同一槽位。格式化在 Git 源码快照执行，只回写本项 Rust 文件。聚焦测试和 Clippy 在实际工作区执行。
+
+| 命令 | 退出码 | 证据 |
+| --- | ---: | --- |
+| `cargo fmt --all`（红灯、绿灯） | 0、0 | 格式化完成 |
+| `cargo test -p vw-agent-apps catalog_user_agent_ -- --nocapture`（红灯） | 101 | 4 条有效测试按预期失败，570 条过滤。首个指定用例中未选择时实际返回 `Some("")`，预期为 `None` |
+| `cargo test -p vw-agent-apps catalog_user_agent_ -- --nocapture`（绿灯） | 0 | 4 条有效测试通过，0 失败，570 条过滤 |
+| `cargo test -p vw-agent-apps cc04_validation_ -- --nocapture` | 0 | 6 条供应商校验回归通过，0 失败，568 条过滤 |
+| `cargo clippy --all-targets --all-features -- -D warnings` | 0 | 全 workspace、全目标及 features 通过 |
+
+差异限于预设、独立测试、模块注册、复用供应商请求头值校验和本记录。各阶段槽位锁已释放，编译缓存已保留。

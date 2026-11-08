@@ -14,6 +14,7 @@ pub mod preset_omp;
 pub mod preset_opencode_openclaw;
 pub mod preset_pi;
 pub mod preset_search;
+pub mod user_agent_presets;
 
 #[cfg(test)]
 mod codex_template_tests;
@@ -41,6 +42,8 @@ mod preset_opencode_openclaw_tests;
 mod preset_pi_tests;
 #[cfg(test)]
 mod preset_search_tests;
+#[cfg(test)]
+mod user_agent_presets_tests;
 
 pub fn validate(
     identity: &ModelCatalogIdentity,

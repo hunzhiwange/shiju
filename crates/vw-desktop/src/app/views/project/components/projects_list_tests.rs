@@ -82,13 +82,16 @@ fn icon_image_handle_accepts_file_urls_and_plain_paths() {
 #[test]
 fn project_badge_button_builds_default_text_icon() {
     let element: Element<'_, Message> = project_badge_button(
-        "/tmp/project-a".to_string(),
-        "Alpha Project".to_string(),
+        ProjectBadge {
+            path: "/tmp/project-a".to_string(),
+            title: "Alpha Project".to_string(),
+            selected: false,
+            has_attention: false,
+            is_hovered: false,
+            custom_icon: None,
+            custom_color: None,
+        },
         false,
-        false,
-        false,
-        None,
-        None,
     );
 
     std::hint::black_box(element);
@@ -97,13 +100,16 @@ fn project_badge_button_builds_default_text_icon() {
 #[test]
 fn project_badge_button_builds_selected_attention_custom_color_icon() {
     let element: Element<'_, Message> = project_badge_button(
-        "/tmp/project-b".to_string(),
-        "项目乙".to_string(),
-        true,
-        true,
-        true,
-        Some("字".to_string()),
-        Some(Color::from_rgb8(24, 144, 255)),
+        ProjectBadge {
+            path: "/tmp/project-b".to_string(),
+            title: "项目乙".to_string(),
+            selected: true,
+            has_attention: true,
+            is_hovered: true,
+            custom_icon: Some("字".to_string()),
+            custom_color: Some(Color::from_rgb8(24, 144, 255)),
+        },
+        false,
     );
 
     std::hint::black_box(element);
@@ -116,13 +122,16 @@ fn project_badge_button_builds_image_icon_branch() {
     fs::write(&icon_path, b"not decoded until render").unwrap();
 
     let element: Element<'_, Message> = project_badge_button(
-        "/tmp/project-c".to_string(),
-        "Gamma".to_string(),
+        ProjectBadge {
+            path: "/tmp/project-c".to_string(),
+            title: "Gamma".to_string(),
+            selected: false,
+            has_attention: true,
+            is_hovered: false,
+            custom_icon: Some(icon_path.to_string_lossy().to_string()),
+            custom_color: Some(Color::from_rgb8(180, 40, 80)),
+        },
         false,
-        true,
-        false,
-        Some(icon_path.to_string_lossy().to_string()),
-        Some(Color::from_rgb8(180, 40, 80)),
     );
 
     std::hint::black_box(element);
@@ -216,13 +225,16 @@ fn projects_list_falls_back_to_current_sessions_for_attention() {
 fn project_badge_button_builds_with_custom_color_only() {
     // custom_color provided without custom_icon → use_custom_bg = true
     let element: Element<'_, Message> = project_badge_button(
-        "/tmp/project-d".to_string(),
-        "Delta".to_string(),
-        true,
+        ProjectBadge {
+            path: "/tmp/project-d".to_string(),
+            title: "Delta".to_string(),
+            selected: true,
+            has_attention: false,
+            is_hovered: true,
+            custom_icon: None,
+            custom_color: Some(Color::from_rgb8(100, 200, 50)),
+        },
         false,
-        true,
-        None,
-        Some(Color::from_rgb8(100, 200, 50)),
     );
 
     std::hint::black_box(element);
@@ -295,13 +307,16 @@ fn icon_image_handle_trims_surrounding_whitespace_from_existing_path() {
 #[test]
 fn project_badge_button_ignores_blank_custom_icon() {
     let element: Element<'_, Message> = project_badge_button(
-        "/tmp/blank-icon".to_string(),
-        "Blank Icon".to_string(),
+        ProjectBadge {
+            path: "/tmp/blank-icon".to_string(),
+            title: "Blank Icon".to_string(),
+            selected: false,
+            has_attention: false,
+            is_hovered: false,
+            custom_icon: Some("   ".to_string()),
+            custom_color: Some(Color::from_rgb8(40, 80, 120)),
+        },
         false,
-        false,
-        false,
-        Some("   ".to_string()),
-        Some(Color::from_rgb8(40, 80, 120)),
     );
 
     std::hint::black_box(element);
@@ -349,4 +364,117 @@ fn projects_list_ignores_recent_project_meta_for_other_paths() {
     let element: Element<'_, Message> = projects_list(&app, false);
 
     std::hint::black_box(element);
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+#[test]
+fn code_projects_rail_renders_titles_and_opens_the_four_column_grid() {
+    use iced::advanced::{
+        clipboard,
+        renderer::{Headless, Style},
+    };
+    use iced::widget::row;
+    use iced::{Event, Font, Point, Renderer, Size, mouse};
+    use iced_runtime::user_interface::{Cache, UserInterface};
+
+    let mut app = App::new().0;
+    app.recent_projects = (0..7).map(|index| format!("/tmp/project-{index}")).collect();
+    app.recent_projects_edits =
+        (0..7).map(|index| format!("项目 {index} 的完整中文名称 Mixed Project Name")).collect();
+    for font in crate::fonts::load_all() {
+        iced::advanced::graphics::text::font_system().write().unwrap().load_font(font);
+    }
+    let mut renderer = iced::futures::executor::block_on(Renderer::new(
+        Font::with_name("Noto Sans CJK SC"),
+        14.0.into(),
+        Some("tiny-skia"),
+    ))
+    .unwrap();
+    let size = Size::new(640.0, 600.0);
+    let rail = |app: &App| {
+        row![container(projects_list(app, false)).width(56), Space::new().width(Length::Fill)]
+    };
+    let update = |ui: &mut UserInterface<'_, Message, Theme, Renderer>,
+                  renderer: &mut Renderer,
+                  point: Point,
+                  events: &[Event]| {
+        let mut messages = Vec::new();
+        ui.update(
+            events,
+            mouse::Cursor::Available(point),
+            renderer,
+            &mut clipboard::Null,
+            &mut messages,
+        );
+        messages
+    };
+    let click = [
+        Event::Mouse(mouse::Event::ButtonPressed(mouse::Button::Left)),
+        Event::Mouse(mouse::Event::ButtonReleased(mouse::Button::Left)),
+    ];
+    let move_to = |point| [Event::Mouse(mouse::Event::CursorMoved { position: point })];
+    let menu_changed = |message: &Message, open| {
+        matches!(
+            message,
+            Message::Project(message::ProjectMessage::CodeProjectsMenuChanged(value))
+                if *value == open
+        )
+    };
+    let trigger = Point::new(28.0, 327.0);
+    let gap = Point::new(54.0, 327.0);
+    let last_project = Point::new(331.0, 450.0);
+    let outside = Point::new(560.0, 327.0);
+
+    let seventh_name = app.recent_projects_edits.pop().unwrap();
+    let mut six_projects = UserInterface::build(rail(&app), size, Cache::new(), &mut renderer);
+    assert!(update(&mut six_projects, &mut renderer, trigger, &click).iter().any(|message| {
+        matches!(message, Message::Project(message::ProjectMessage::OpenFolderPressed))
+    }));
+    drop(six_projects);
+    app.recent_projects_edits.push(seventh_name);
+
+    for theme in [Theme::Light, Theme::Dark] {
+        app.code_projects_menu_open = false;
+        let mut ui = UserInterface::build(rail(&app), size, Cache::new(), &mut renderer);
+        let style = Style { text_color: theme.palette().text };
+        let first_project = Point::new(28.0, 26.0);
+        update(&mut ui, &mut renderer, first_project, &move_to(first_project));
+        ui.draw(&mut renderer, &theme, &style, mouse::Cursor::Available(first_project));
+        let pixels = renderer.screenshot(Size::new(640, 600), 1.0, theme.palette().background);
+        let background = &pixels[..4];
+        let tooltip_pixel = (26 * 640 + 100) * 4;
+        assert_ne!(&pixels[tooltip_pixel..tooltip_pixel + 4], background);
+        assert!(
+            update(&mut ui, &mut renderer, trigger, &move_to(trigger))
+                .iter()
+                .any(|message| menu_changed(message, true))
+        );
+        drop(ui);
+
+        app.code_projects_menu_open = true;
+        let mut ui = UserInterface::build(rail(&app), size, Cache::new(), &mut renderer);
+        for point in [gap, last_project] {
+            assert!(
+                !update(&mut ui, &mut renderer, point, &move_to(point))
+                    .iter()
+                    .any(|message| menu_changed(message, false))
+            );
+        }
+        ui.draw(&mut renderer, &theme, &style, mouse::Cursor::Available(last_project));
+        let pixels = renderer.screenshot(Size::new(640, 600), 1.0, theme.palette().background);
+        let grid_pixel = (365 * 640 + 440) * 4;
+        assert_ne!(&pixels[grid_pixel..grid_pixel + 4], &pixels[..4]);
+        assert!(update(&mut ui, &mut renderer, last_project, &click).iter().any(|message| {
+            matches!(
+                message,
+                Message::Project(message::ProjectMessage::OpenRecentPressed(path))
+                    if path == "/tmp/project-6"
+            )
+        }));
+        assert!(
+            update(&mut ui, &mut renderer, outside, &move_to(outside))
+                .iter()
+                .any(|message| menu_changed(message, false))
+        );
+    }
 }

@@ -21,18 +21,29 @@
 //! ```
 
 use iced::widget::image::Handle as ImageHandle;
+use iced::widget::scrollable::{Direction, Scrollbar};
 use iced::widget::tooltip::{Position as TooltipPosition, Tooltip};
 use iced::widget::{Image, Space, button, column, container, mouse_area, scrollable, text};
 use iced::{Background, Color, ContentFit, Element, Length, Theme};
 
 use crate::app::components::input_panel::styles::tooltip_dark_style;
-use crate::app::{Message, message};
+use crate::app::components::widgets::SingleLineLabel;
+use crate::app::{App, Message, message};
 use vw_shared::session::info as session;
 
 use super::super::styles::project_item_button_style;
 use super::super::utils::{
     contrast_text_color, lighten_color, mix_color, project_accent_color, project_badge_label,
 };
+
+mod overflow;
+
+const VISIBLE_PROJECTS: usize = 6;
+const PROJECT_SCROLLBAR_GUTTER: u16 = 7;
+
+fn project_scroll_direction() -> Direction {
+    Direction::Vertical(Scrollbar::new().width(4).scroller_width(4))
+}
 
 pub(super) fn title_tooltip<'a>(
     content: impl Into<Element<'a, Message>>,
@@ -127,38 +138,7 @@ fn icon_image_handle(icon: &str) -> Option<ImageHandle> {
     if path.exists() { Some(ImageHandle::from_path(path)) } else { None }
 }
 
-/// 创建项目徽章按钮元素
-///
-/// 渲染单个项目的徽章按钮，显示在项目列表中。徽章可以是：
-/// - 自定义图片图标（如果配置且文件存在）
-/// - 单个文字字符（来自自定义图标字符串的首字符，如果无法作为图片加载）
-/// - 项目名称首字母缩写（默认行为）
-///
-/// # 参数
-///
-/// - `path`: 项目的文件系统路径，用作唯一标识符
-/// - `title`: 项目的显示标题，优先使用用户编辑的名称
-/// - `selected`: 是否为当前选中的项目（影响边框高亮）
-/// - `has_attention`: 是否需要显示注意力提示（绿点）
-/// - `is_hovered`: 鼠标是否悬停在该项目上（影响视觉反馈）
-/// - `custom_icon`: 可选的自定义图标路径
-/// - `custom_color`: 可选的自定义主题色
-///
-/// # 返回值
-///
-/// 返回一个 `Element<Message>`，可嵌入到 Iced 布局中
-///
-/// # 视觉特性
-///
-/// - 徽章尺寸：32×32 像素（内容），按钮总尺寸 36×36 像素
-/// - 圆角半径：13 像素
-/// - 选中状态：使用强调色边框
-/// - 注意力提示：右上角显示绿色圆点
-///
-/// # 交互行为
-///
-/// 点击按钮会触发 `Message::Project(message::ProjectMessage::OpenRecentPressed)` 消息
-pub fn project_badge_button<'a>(
+struct ProjectBadge {
     path: String,
     title: String,
     selected: bool,
@@ -166,7 +146,18 @@ pub fn project_badge_button<'a>(
     is_hovered: bool,
     custom_icon: Option<String>,
     custom_color: Option<Color>,
-) -> Element<'a, Message> {
+}
+
+fn project_badge_button<'a>(project: ProjectBadge, show_name: bool) -> Element<'a, Message> {
+    let ProjectBadge {
+        path,
+        title,
+        selected,
+        has_attention,
+        is_hovered,
+        custom_icon,
+        custom_color,
+    } = project;
     // 清理自定义图标字符串，去除首尾空白
     let custom_icon_trimmed = custom_icon.as_deref().map(str::trim).filter(|v| !v.is_empty());
     // 如果自定义图标无法作为图片加载，则取首字符作为文字图标
@@ -340,12 +331,22 @@ pub fn project_badge_button<'a>(
         badge.into()
     };
 
-    // 包装为按钮，绑定点击事件
-    button(badge_content)
-        .on_press(Message::Project(message::ProjectMessage::OpenRecentPressed(path)))
-        .padding(0)
-        .width(Length::Fixed(button_size))
-        .height(Length::Fixed(button_size))
+    let content = if show_name {
+        column![badge_content, SingleLineLabel::new(title, 12.0).centered()]
+            .align_x(iced::Alignment::Center)
+            .spacing(6)
+            .into()
+    } else {
+        badge_content
+    };
+    let button = button(content)
+        .on_press(Message::Project(message::ProjectMessage::OpenRecentPressed(path)));
+    let button = if show_name {
+        button.padding(8).width(Length::FillPortion(1))
+    } else {
+        button.padding(0).width(button_size).height(button_size)
+    };
+    button
         .style(move |theme: &Theme, status| {
             // 悬停状态覆盖：确保视觉反馈与 is_hovered 参数一致
             let effective_status =
@@ -380,27 +381,27 @@ fn navigation_badge_button<'a>(
     tooltip: &'static str,
     message: Message,
 ) -> Element<'a, Message> {
-    // 定义徽章和按钮的尺寸常量
-    let badge_size = 36.0;
-    let button_size = 42.0;
-
-    // 构建徽章容器，显示单字符导航标识
     let badge = container(
         text(label)
             .size(20)
             .font(iced::Font { weight: iced::font::Weight::Bold, ..Default::default() }),
     )
-    .width(Length::Fixed(badge_size))
-    .height(Length::Fixed(badge_size))
+    .width(36)
+    .height(36)
     .align_x(iced::alignment::Horizontal::Center)
     .align_y(iced::alignment::Vertical::Center);
+    title_tooltip(navigation_badge(badge, message), tooltip, TooltipPosition::Right)
+}
 
-    // 包装为按钮，应用样式和点击事件
-    let button = button(badge)
+fn navigation_badge<'a>(
+    badge: impl Into<Element<'a, Message>>,
+    message: Message,
+) -> Element<'a, Message> {
+    button(badge)
         .on_press(message)
         .padding(0)
-        .width(Length::Fixed(button_size))
-        .height(Length::Fixed(button_size))
+        .width(42)
+        .height(42)
         .style(|theme: &Theme, status| {
             let p = theme.extended_palette();
             let is_dark = super::super::styles::is_dark_theme(theme);
@@ -457,11 +458,8 @@ fn navigation_badge_button<'a>(
                 },
                 ..Default::default()
             }
-        });
-    let tooltip_content =
-        container(text(tooltip).size(12)).padding([6, 10]).style(tooltip_dark_style);
-
-    Tooltip::new(button, tooltip_content, TooltipPosition::Right).gap(8.0).into()
+        })
+        .into()
 }
 
 pub fn open_project_badge_button<'a>(i18n: crate::app::i18n::I18n) -> Element<'a, Message> {
@@ -526,121 +524,66 @@ pub(crate) fn project_list_action_order() -> [&'static str; 4] {
     })
 }
 
-/// 渲染完整的项目列表组件
-///
-/// 构建包含所有最近项目徽章按钮和"打开新项目"按钮的可滚动列表。
-/// 列表垂直排列，居中对齐，支持悬停状态跟踪。
-///
-/// # 参数
-///
-/// - `app`: 应用状态引用，包含项目列表、会话状态和悬停信息
-/// - `collapsed_hover_mode`: 是否为折叠悬停模式
-///   - `true`: 项目悬停时不发送退出消息（适用于侧边栏折叠时的展开预览）
-///   - `false`: 鼠标离开项目时发送退出悬停消息
-///
-/// # 返回值
-///
-/// 返回一个 `Element<Message>`，可嵌入到 Iced 布局中
-///
-/// # 内部逻辑
-///
-/// 1. 遍历 `app.recent_projects_edits`（用户编辑的项目名称）
-/// 2. 从 `app.recent_projects` 获取对应路径
-/// 3. 从 `app.recent_projects_meta` 获取自定义图标和颜色
-/// 4. 检查项目是否选中（当前打开的项目）
-/// 5. 检查项目是否有注意力提示（有正在进行的请求或未读成功消息）
-/// 6. 检查项目是否悬停（用于高亮显示）
-/// 7. 为每个项目创建徽章按钮，添加悬停事件处理
-/// 8. 在列表末尾添加"打开新项目"按钮
-///
-/// # 注意力提示逻辑
-///
-/// 项目显示注意力绿点当且仅当该项目下存在会话满足以下任一条件：
-/// - `is_requesting`: 正在请求中
-/// - `queue` 非空：有待处理的队列
-/// - `has_unseen_success`: 有未查看的成功消息
-pub fn projects_list<'a>(
-    app: &crate::app::App,
-    collapsed_hover_mode: bool,
-) -> Element<'a, Message> {
-    /// 检查会话列表是否有注意力状态
-    ///
-    /// 遍历会话列表，检查是否存在正在请求、队列非空或有未查看成功的会话。
-    ///
-    /// # 参数
-    ///
-    /// - `app`: 应用状态引用，用于查询会话运行时状态
-    /// - `sessions`: 要检查的会话信息列表
-    ///
-    /// # 返回值
-    ///
-    /// - `true`: 至少有一个会话处于注意力状态
-    /// - `false`: 所有会话都无注意力状态
-    fn has_attention_badge(app: &crate::app::App, sessions: &[session::Info]) -> bool {
-        sessions.iter().any(|s| {
-            app.session_runtime_states.get(&s.id).is_some_and(|runtime| {
-                runtime.is_requesting || !runtime.queue.is_empty() || runtime.has_unseen_success
-            })
+fn has_attention_badge(app: &App, sessions: &[session::Info]) -> bool {
+    sessions.iter().any(|session| {
+        app.session_runtime_states.get(&session.id).is_some_and(|runtime| {
+            runtime.is_requesting || !runtime.queue.is_empty() || runtime.has_unseen_success
         })
+    })
+}
+
+fn recent_project_badge(app: &App, index: usize, name: &str) -> ProjectBadge {
+    let path = app.recent_projects.get(index).cloned().unwrap_or_default();
+    let title = if name.trim().is_empty() { path.clone() } else { name.to_owned() };
+    let meta = app.recent_projects_meta.iter().find(|meta| meta.path == path);
+    let selected = app.project_path.as_ref() == Some(&path);
+    let has_attention = app
+        .project_sessions
+        .get(&path)
+        .map(|sessions| has_attention_badge(app, sessions))
+        .unwrap_or_else(|| selected && has_attention_badge(app, &app.sessions));
+    let is_hovered = app.hovered_recent_project.as_ref() == Some(&path);
+    ProjectBadge {
+        path,
+        title,
+        selected,
+        has_attention,
+        is_hovered,
+        custom_icon: meta.and_then(|meta| meta.icon.clone()),
+        custom_color: meta.and_then(|meta| meta.icon_color.as_deref()).and_then(parse_hex_color),
+    }
+}
+
+/// 渲染代码模式的最近项目徽章和侧栏导航。
+pub fn projects_list<'a>(app: &App, collapsed_hover_mode: bool) -> Element<'a, Message> {
+    use message::ProjectMessage;
+
+    let menu_open =
+        app.code_projects_menu_open && app.recent_projects_edits.len() > VISIBLE_PROJECTS;
+    let mut projects_col = column![].spacing(8).align_x(iced::Alignment::Center);
+    for (index, name) in app.recent_projects_edits.iter().take(VISIBLE_PROJECTS).enumerate() {
+        let project = recent_project_badge(app, index, name);
+        let title = project.title.clone();
+        let path = project.path.clone();
+        let button =
+            title_tooltip(project_badge_button(project, false), title, TooltipPosition::Right);
+        if menu_open {
+            projects_col = projects_col.push(button);
+            continue;
+        }
+
+        let hover = mouse_area(button)
+            .on_enter(Message::Project(ProjectMessage::RecentHovered(Some(path.clone()))))
+            .on_move(move |_| Message::Project(ProjectMessage::RecentHovered(Some(path.clone()))));
+        projects_col = if collapsed_hover_mode {
+            projects_col.push(hover)
+        } else {
+            projects_col.push(hover.on_exit(Message::Project(ProjectMessage::RecentHovered(None))))
+        };
     }
 
-    // 创建垂直列布局，项目间距 6 像素，水平居中
-    let mut projects_col = column![].spacing(8).align_x(iced::alignment::Horizontal::Center);
-    // 遍历所有最近项目
-    for (i, p) in app.recent_projects_edits.iter().enumerate() {
-        // 获取项目路径
-        let path = app.recent_projects.get(i).cloned().unwrap_or_default();
-        // 确定显示标题：优先使用编辑后的名称，否则使用路径
-        let title = if p.trim().is_empty() { path.clone() } else { p.as_str().to_owned() };
-        // 查找项目的元数据（图标、颜色等）
-        let project_meta = app.recent_projects_meta.iter().find(|meta| meta.path == path);
-        let custom_icon = project_meta.and_then(|meta| meta.icon.clone());
-        let custom_color =
-            project_meta.and_then(|meta| meta.icon_color.as_deref()).and_then(parse_hex_color);
-        // 判断是否为当前选中的项目
-        let selected = app.project_path.as_ref().is_some_and(|pp| pp == &path);
-        // 判断项目是否有注意力提示
-        let has_attention = app
-            .project_sessions
-            .get(&path)
-            .map(|sessions| has_attention_badge(app, sessions))
-            .unwrap_or_else(|| {
-                // 如果项目没有专门的会话列表，检查当前会话列表（针对当前打开的项目）
-                app.project_path.as_ref() == Some(&path) && has_attention_badge(app, &app.sessions)
-            });
-        // 判断鼠标是否悬停在该项目上
-        let is_hovered = app.hovered_recent_project.as_ref() == Some(&path);
-        // 创建项目徽章按钮
-        let btn = project_badge_button(
-            path.clone(),
-            title.clone(),
-            selected,
-            has_attention,
-            is_hovered,
-            custom_icon,
-            custom_color,
-        );
-
-        // 添加鼠标悬停事件处理
-        let btn_with_hover = mouse_area(btn)
-            .on_enter(Message::Project(message::ProjectMessage::RecentHovered(Some(path.clone()))))
-            .on_move({
-                let path = path.clone();
-                move |_| {
-                    Message::Project(message::ProjectMessage::RecentHovered(Some(path.clone())))
-                }
-            });
-        // 根据模式决定是否添加退出悬停事件
-        if collapsed_hover_mode {
-            // 折叠悬停模式：不发送退出消息，避免频繁切换
-            projects_col = projects_col.push(btn_with_hover);
-        } else {
-            // 正常模式：鼠标离开时清除悬停状态
-            projects_col = projects_col.push(
-                btn_with_hover
-                    .on_exit(Message::Project(message::ProjectMessage::RecentHovered(None))),
-            );
-        }
+    if app.recent_projects_edits.len() > VISIBLE_PROJECTS {
+        projects_col = projects_col.push(overflow::view(app, menu_open));
     }
 
     #[cfg(not(target_arch = "wasm32"))]
@@ -670,9 +613,10 @@ pub fn projects_list<'a>(
     scrollable(
         container(projects_col)
             .width(Length::Fill)
-            .padding([6u16, 0u16])
+            .padding([6, PROJECT_SCROLLBAR_GUTTER])
             .align_x(iced::alignment::Horizontal::Center),
     )
+    .direction(project_scroll_direction())
     .width(Length::Fill)
     .height(Length::Fill)
     .into()

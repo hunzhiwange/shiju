@@ -492,7 +492,6 @@ where
             Some(overlay::Element::new(Box::new(SideOverlayElement {
                 position: layout.position() + translation,
                 target_bounds: layout.bounds(),
-                viewport: *viewport,
                 gap: self.gap,
                 min_x: self.min_x,
                 min_y: self.min_y,
@@ -555,8 +554,6 @@ struct SideOverlayElement<'a, 'b, Message, ThemeT, RendererT> {
     position: Point,
     /// 目标元素的边界矩形
     target_bounds: Rectangle,
-    /// 视口矩形
-    viewport: Rectangle,
     /// 覆盖层与目标元素之间的间距
     gap: f32,
     /// 覆盖层最小X坐标限制
@@ -605,6 +602,7 @@ where
     ///
     /// 返回布局节点，包含计算后的位置和尺寸
     fn layout(&mut self, renderer: &RendererT, bounds: Size) -> layout::Node {
+        // 父级滚动区域只裁剪触发控件，浮层按窗口空间定位。
         let viewport = Rectangle::with_size(bounds);
 
         // 如果启用视口内吸附，布局时使用两侧更大的可用宽度；否则使用整个视口宽度。
@@ -628,7 +626,7 @@ where
         let position = compute_side_overlay_position(
             self.position,
             self.target_bounds,
-            self.viewport,
+            viewport,
             size,
             self.gap,
             self.min_x,
@@ -639,6 +637,20 @@ where
 
         // 将布局节点移动到计算的位置
         node.move_to(position)
+    }
+
+    fn overlay<'a>(
+        &'a mut self,
+        layout: Layout<'a>,
+        renderer: &RendererT,
+    ) -> Option<overlay::Element<'a, Message, ThemeT, RendererT>> {
+        self.overlay.as_widget_mut().overlay(
+            self.tree,
+            layout,
+            renderer,
+            &layout.bounds(),
+            Vector::ZERO,
+        )
     }
 
     /// 处理覆盖层的事件更新
@@ -692,7 +704,7 @@ where
         if let Event::Mouse(mouse::Event::ButtonPressed(mouse::Button::Left)) = event
             && let Some(on_close) = &self.on_close
             && let Some(cursor_position) = cursor.position()
-            && !self.target_bounds.contains(cursor_position)
+            && !target_bounds.contains(cursor_position)
         {
             // 如果点击不在覆盖层内，触发关闭消息
             if !bounds.contains(cursor_position) {

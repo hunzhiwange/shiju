@@ -7,6 +7,7 @@ use iced::Task;
 fn select_workspace_mode(app: &mut App, mode: crate::app::state::WorkspaceMode) {
     app.workspace_mode = mode;
     app.show_workspace_mode_popover = false;
+    app.code_projects_menu_open = false;
 }
 
 pub(super) fn update(app: &mut App, message: ViewMessage) -> Task<Message> {

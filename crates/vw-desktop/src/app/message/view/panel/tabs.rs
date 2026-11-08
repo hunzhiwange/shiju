@@ -54,6 +54,7 @@ pub fn update(app: &mut App, message: ViewMessage) -> Task<Message> {
             .map(|_: ()| Message::None)
         }
         ViewMessage::TabSelected(id) => {
+            app.code_projects_menu_open = false;
             let previous_project_path = app.project_path.as_deref().map(str::to_owned);
             if let Some(prev_path) = previous_project_path.clone() {
                 app.project_preview_tabs

@@ -70,6 +70,7 @@ pub enum ProjectMessage {
     SwitchWorkSpacePressed(String),
     OpenProjectSessionPressed(String, String),
     RecentHovered(Option<String>),
+    CodeProjectsMenuChanged(bool),
     RecentOverlayClosed,
     ProjectToolsMenuToggled(String),
     ProjectToolsMenuClosed,

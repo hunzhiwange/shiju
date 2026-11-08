@@ -1595,6 +1595,7 @@ impl App {
             active_tab_id: Some("home".to_string()),
             hovered_tab_id: None,
             hovered_recent_project: None,
+            code_projects_menu_open: false,
             open_tabs: vec![AppTab {
                 id: "home".to_string(),
                 title: "首页".to_string(),

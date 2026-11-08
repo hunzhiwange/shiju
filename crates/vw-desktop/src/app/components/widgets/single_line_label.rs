@@ -10,6 +10,7 @@ pub(crate) struct SingleLineLabel {
     value: String,
     size: Pixels,
     font: Option<Font>,
+    centered: bool,
 }
 
 impl SingleLineLabel {
@@ -21,11 +22,16 @@ impl SingleLineLabel {
         } else {
             value
         };
-        Self { value, size: Pixels(size), font: None }
+        Self { value, size: Pixels(size), font: None, centered: false }
     }
 
     pub(crate) fn font(mut self, font: Font) -> Self {
         self.font = Some(font);
+        self
+    }
+
+    pub(crate) fn centered(mut self) -> Self {
+        self.centered = true;
         self
     }
 }
@@ -132,7 +138,11 @@ impl<Message> Widget<Message, Theme, Renderer> for SingleLineLabel {
         let bounds = layout.bounds();
         if let Some(clip) = bounds.intersection(viewport) {
             let paragraph = &tree.state.downcast_ref::<State>().paragraph;
-            renderer.fill_paragraph(paragraph, layout.position(), style.text_color, clip);
+            let mut position = layout.position();
+            if self.centered {
+                position.x += (bounds.width - paragraph.min_width()) / 2.0;
+            }
+            renderer.fill_paragraph(paragraph, position, style.text_color, clip);
         }
     }
 }

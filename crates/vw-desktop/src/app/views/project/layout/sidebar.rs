@@ -43,7 +43,7 @@ pub fn sidebar_group(
             )
             .width(Length::Fill)
             .height(Length::Fill)
-            .padding(iced::Padding { top: 10.0, right: 6.0, bottom: 10.0, left: 6.0 })
+            .padding([10, 0])
             .style(left_rail_style),
         )
         .width(Length::Fixed(left_rail_width))
@@ -79,7 +79,7 @@ pub fn sidebar_group(
             container(projects_list)
                 .width(Length::Fill)
                 .height(Length::Fill)
-                .padding(iced::Padding { top: 10.0, right: 6.0, bottom: 10.0, left: 6.0 })
+                .padding([10, 0])
                 .style(left_rail_style),
         )
         .width(Length::Fixed(left_rail_width))

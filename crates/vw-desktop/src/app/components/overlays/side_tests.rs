@@ -162,7 +162,6 @@ fn update_overlay_once(
     let mut overlay = SideOverlayElement {
         position: Point::new(20.0, 30.0),
         target_bounds: Rectangle { x: 20.0, y: 30.0, width: 60.0, height: 24.0 },
-        viewport: Rectangle::with_size(Size::new(240.0, 180.0)),
         gap: 8.0,
         min_x: 0.0,
         min_y: 0.0,
@@ -430,7 +429,6 @@ fn overlay_element_layout_positions_content() {
     let mut overlay = SideOverlayElement {
         position: Point::new(20.0, 30.0),
         target_bounds: Rectangle { x: 20.0, y: 30.0, width: 60.0, height: 24.0 },
-        viewport: Rectangle::with_size(Size::new(240.0, 180.0)),
         gap: 8.0,
         min_x: 12.0,
         min_y: 16.0,
@@ -455,7 +453,6 @@ fn overlay_element_layout_uses_left_side_when_right_is_tight() {
     let mut overlay = SideOverlayElement {
         position: Point::new(220.0, 50.0),
         target_bounds: Rectangle { x: 220.0, y: 50.0, width: 70.0, height: 24.0 },
-        viewport: Rectangle::with_size(Size::new(320.0, 220.0)),
         gap: 8.0,
         min_x: 0.0,
         min_y: 0.0,
@@ -484,7 +481,6 @@ fn overlay_element_click_outside_publishes_close_and_captures() {
     let mut overlay = SideOverlayElement {
         position: Point::new(20.0, 30.0),
         target_bounds: Rectangle { x: 20.0, y: 30.0, width: 60.0, height: 24.0 },
-        viewport: Rectangle::with_size(Size::new(240.0, 180.0)),
         gap: 8.0,
         min_x: 0.0,
         min_y: 0.0,
@@ -523,7 +519,6 @@ fn overlay_element_click_inside_target_does_not_close() {
     let mut overlay = SideOverlayElement {
         position: Point::new(20.0, 30.0),
         target_bounds: Rectangle { x: 20.0, y: 30.0, width: 60.0, height: 24.0 },
-        viewport: Rectangle::with_size(Size::new(240.0, 180.0)),
         gap: 8.0,
         min_x: 0.0,
         min_y: 0.0,
@@ -562,7 +557,6 @@ fn overlay_element_mouse_inside_overlay_captures_without_close() {
     let mut overlay = SideOverlayElement {
         position: Point::new(20.0, 30.0),
         target_bounds: Rectangle { x: 20.0, y: 30.0, width: 60.0, height: 24.0 },
-        viewport: Rectangle::with_size(Size::new(240.0, 180.0)),
         gap: 8.0,
         min_x: 0.0,
         min_y: 0.0,
@@ -705,7 +699,6 @@ fn overlay_element_interaction_and_draw_delegate_to_content() {
     let overlay = SideOverlayElement {
         position: Point::new(20.0, 30.0),
         target_bounds: Rectangle { x: 20.0, y: 30.0, width: 60.0, height: 24.0 },
-        viewport: Rectangle::with_size(Size::new(240.0, 180.0)),
         gap: 8.0,
         min_x: 0.0,
         min_y: 0.0,

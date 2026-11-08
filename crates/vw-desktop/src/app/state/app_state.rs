@@ -1096,6 +1096,7 @@ pub struct App {
     pub(crate) hovered_tab_id: Option<String>,
     /// 悬停的最近项目路径
     pub(crate) hovered_recent_project: Option<String>,
+    pub(crate) code_projects_menu_open: bool,
     /// 打开的标签页列表
     pub(crate) open_tabs: Vec<AppTab>,
     /// 应用搜索查询

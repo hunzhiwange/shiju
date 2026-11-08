@@ -179,6 +179,7 @@ pub(crate) fn handle(app: &mut App, message: ProjectMessage) -> Option<iced::Tas
     // 所有界面事件在一个入口显式匹配，方便审计状态变更和异步任务边界。
     match message {
         ProjectMessage::OpenRecentPressed(path) => {
+            app.code_projects_menu_open = false;
             app.hovered_recent_project = None;
             app.session_menu_id = None;
             app.session_menu_anchor = None;
@@ -194,6 +195,11 @@ pub(crate) fn handle(app: &mut App, message: ProjectMessage) -> Option<iced::Tas
         }
         ProjectMessage::OpenProjectSessionPressed(path, id) => {
             Some(open_project_session(app, path, id, None))
+        }
+        ProjectMessage::CodeProjectsMenuChanged(open) => {
+            app.code_projects_menu_open = open;
+            app.hovered_recent_project = None;
+            Some(iced::Task::none())
         }
         ProjectMessage::RecentHovered(id) => {
             app.hovered_recent_project = id.clone();

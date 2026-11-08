@@ -58,11 +58,43 @@ impl KimiDeviceAuth {
         self.use_account_with(credentials, account, native, |_| {}).await
     }
 
+    /// Consume a provider binding only while its catalog connection and native binding agree.
+    pub async fn use_bound_account(
+        &self,
+        credentials: &CredentialFileStore,
+        account: KimiAccountTarget<'_>,
+        native: KimiNativeTarget<'_>,
+        catalog_connection: &Value,
+        catalog_unchanged: impl Fn() -> bool + Send + 'static,
+    ) -> Result<(), AuthErrorCode> {
+        self.select_account(
+            credentials,
+            account,
+            native,
+            Some(catalog_connection),
+            catalog_unchanged,
+            |_| {},
+        )
+        .await
+    }
+
     pub(super) async fn use_account_with(
         &self,
         credentials: &CredentialFileStore,
         account: KimiAccountTarget<'_>,
         native: KimiNativeTarget<'_>,
+        route: impl FnMut(&mut Request),
+    ) -> Result<(), AuthErrorCode> {
+        self.select_account(credentials, account, native, None, || true, route).await
+    }
+
+    pub(super) async fn select_account(
+        &self,
+        credentials: &CredentialFileStore,
+        account: KimiAccountTarget<'_>,
+        native: KimiNativeTarget<'_>,
+        catalog_connection: Option<&Value>,
+        catalog_unchanged: impl Fn() -> bool + Send + 'static,
         mut route: impl FnMut(&mut Request),
     ) -> Result<(), AuthErrorCode> {
         let KimiAccountTarget { scope, account_id, region, identity_sha256 } = account;
@@ -99,8 +131,16 @@ impl KimiDeviceAuth {
         {
             return Err(AuthErrorCode::Conflict);
         }
+        let binding = native.binding(&expected, scope.tenant, scope.principal)?;
+        if let Some(connection) = catalog_connection {
+            binding.ok_or(AuthErrorCode::NotFound)?;
+            binding::check_catalog(&before, native.provider_id, connection)?;
+            if !catalog_unchanged() {
+                return Err(AuthErrorCode::Conflict);
+            }
+        }
         let (slot, next_config) = select_model(&before, native.provider_id, region)?;
-        if native.binding(&expected, scope.tenant, scope.principal)?.is_some_and(|binding| {
+        if binding.is_some_and(|binding| {
             binding.account_id != account_id || binding.region != region || binding.slot != slot
         }) {
             return Err(AuthErrorCode::IdentityMismatch);
@@ -116,6 +156,9 @@ impl KimiDeviceAuth {
         let transactions = Arc::clone(native.transactions);
         tokio::task::spawn_blocking(move || {
             let mut files = KimiFiles::open(&home).map_err(write_error)?;
+            if !catalog_unchanged() {
+                return Err(AuthErrorCode::Conflict);
+            }
             if rotated {
                 // Only synchronize a rotation from a slot that started with the
                 // managed grant. A separately signed-in CLI account stays separate.
@@ -145,7 +188,8 @@ impl KimiDeviceAuth {
                     Some(&before),
                     next_config,
                     || {
-                        utc_now().is_ok_and(|now| expires_at > now.0 / 1_000)
+                        catalog_unchanged()
+                            && utc_now().is_ok_and(|now| expires_at > now.0 / 1_000)
                             && slot.read().is_ok_and(|latest| latest == current)
                     },
                 )

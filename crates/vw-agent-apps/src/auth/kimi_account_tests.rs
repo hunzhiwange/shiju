@@ -315,3 +315,6 @@ async fn auth6_kimi_account_rejects_invalid_or_stale_input() {
 
 #[path = "kimi_account/binding_tests.rs"]
 mod binding_tests;
+
+#[path = "binding_tests.rs"]
+mod scoped_binding_tests;

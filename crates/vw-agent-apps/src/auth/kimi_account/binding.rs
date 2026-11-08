@@ -174,7 +174,11 @@ impl KimiNativeTarget<'_> {
     }
 }
 
-fn check_catalog(config: &[u8], id: &str, catalog_connection: &Value) -> Result<(), AuthErrorCode> {
+pub(super) fn check_catalog(
+    config: &[u8],
+    id: &str,
+    catalog_connection: &Value,
+) -> Result<(), AuthErrorCode> {
     let profiles = kimi::declarations(Some(config)).map_err(write_error)?;
     let native = profiles.get(id).ok_or(AuthErrorCode::NotFound)?;
     if &native.declaration["provider"] != catalog_connection {

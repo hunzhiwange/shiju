@@ -4,7 +4,7 @@ use crate::agent_apps::auth_accounts::{AuthAccountScope, AuthAccountStore};
 use crate::global_database::run_sync_database;
 use serde_json::Value;
 use std::path::Path;
-use vw_agent_apps::auth::{kimi::KimiDeviceAuth, kimi_account::KimiNativeTarget};
+use vw_agent_apps::auth::kimi_account::KimiNativeTarget;
 use vw_api_types::{
     agent_apps_auth::{AuthErrorCode, AuthService},
     id::TenantScope,
@@ -25,10 +25,8 @@ impl AppProviderStore {
         let row = binding_row(self, scope, native.provider_id)?;
         let connection = connection(&row)?;
         let accounts = self.binding_accounts(credential_root)?;
-        let tenant = scope.tenant.clone();
-        let key = kimi_key(native.provider_id).map_err(|_| AuthErrorCode::InvalidInput)?;
-        let settings = self.settings.clone();
-        let unchanged_row = row.clone();
+        let catalog_unchanged =
+            self.binding_catalog_unchanged(scope.tenant, native.provider_id, &row)?;
         accounts
             .bind_kimi_provider(
                 scope,
@@ -36,16 +34,7 @@ impl AppProviderStore {
                 native,
                 expected_account,
                 connection,
-                move || {
-                    run_sync_database(|| {
-                        let current = settings.get(&tenant, NAMESPACE, &key)?;
-                        Ok(current
-                            .and_then(|raw| serde_json::from_str::<Value>(&raw).ok())
-                            .as_ref()
-                            == Some(&unchanged_row))
-                    })
-                    .unwrap_or(false)
-                },
+                catalog_unchanged,
             )
             .await
     }
@@ -75,11 +64,35 @@ impl AppProviderStore {
         credential_root: &Path,
         native: KimiNativeTarget<'_>,
     ) -> Result<(), AuthErrorCode> {
-        let id = self
-            .kimi_account_binding(scope, credential_root, &native)?
-            .ok_or(AuthErrorCode::NotFound)?;
-        let adapter = KimiDeviceAuth::new().map_err(|_| AuthErrorCode::ExecutionHostUnavailable)?;
-        self.binding_accounts(credential_root)?.use_kimi_account(&adapter, scope, &id, native).await
+        native.check_scope(scope)?;
+        let row = binding_row(self, scope, native.provider_id)?;
+        let connection = connection(&row)?;
+        let id = native.bound_account(scope, connection)?.ok_or(AuthErrorCode::NotFound)?;
+        let catalog_unchanged =
+            self.binding_catalog_unchanged(scope.tenant, native.provider_id, &row)?;
+        self.binding_accounts(credential_root)?
+            .use_bound_kimi_account(scope, &id, native, connection, catalog_unchanged)
+            .await
+    }
+
+    fn binding_catalog_unchanged(
+        &self,
+        tenant: &TenantScope,
+        provider_id: &str,
+        row: &Value,
+    ) -> Result<impl Fn() -> bool + Send + use<>, AuthErrorCode> {
+        let tenant = tenant.clone();
+        let key = kimi_key(provider_id).map_err(|_| AuthErrorCode::InvalidInput)?;
+        let settings = self.settings.clone();
+        let row = row.clone();
+        Ok(move || {
+            run_sync_database(|| {
+                let current = settings.get(&tenant, NAMESPACE, &key)?;
+                Ok(current.and_then(|raw| serde_json::from_str::<Value>(&raw).ok()).as_ref()
+                    == Some(&row))
+            })
+            .unwrap_or(false)
+        })
     }
 
     fn binding_accounts(&self, root: &Path) -> Result<AuthAccountStore, AuthErrorCode> {

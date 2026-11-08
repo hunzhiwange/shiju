@@ -482,8 +482,33 @@ impl AuthAccountStore {
         account_id: &str,
         native: vw_agent_apps::auth::kimi_account::KimiNativeTarget<'_>,
     ) -> Result<(), AuthErrorCode> {
-        use vw_agent_apps::auth::kimi_account::KimiAccountTarget;
+        let account = self.kimi_account_target(scope, account_id)?;
+        adapter.use_account(&self.credentials, account, native).await
+    }
 
+    #[cfg(target_os = "macos")]
+    pub(crate) async fn use_bound_kimi_account(
+        &self,
+        scope: AuthAccountScope<'_>,
+        account_id: &str,
+        native: vw_agent_apps::auth::kimi_account::KimiNativeTarget<'_>,
+        connection: &serde_json::Value,
+        catalog_unchanged: impl Fn() -> bool + Send + 'static,
+    ) -> Result<(), AuthErrorCode> {
+        let account = self.kimi_account_target(scope, account_id)?;
+        let adapter = KimiDeviceAuth::new().map_err(|_| AuthErrorCode::ExecutionHostUnavailable)?;
+        adapter
+            .use_bound_account(&self.credentials, account, native, connection, catalog_unchanged)
+            .await
+    }
+
+    #[cfg(target_os = "macos")]
+    fn kimi_account_target<'a>(
+        &self,
+        scope: AuthAccountScope<'a>,
+        account_id: &'a str,
+    ) -> Result<vw_agent_apps::auth::kimi_account::KimiAccountTarget<'a>, AuthErrorCode> {
+        use vw_agent_apps::auth::kimi_account::KimiAccountTarget;
         if scope.service != AuthService::KimiOauth {
             return Err(AuthErrorCode::Unsupported);
         }
@@ -492,13 +517,12 @@ impl AuthAccountStore {
                 || Ok(self.read_metadata(&scope, account_id)),
             )
             .map_err(|_| AuthErrorCode::StorageUnavailable)??;
-        let account = KimiAccountTarget {
+        Ok(KimiAccountTarget {
             scope,
             account_id,
             region: metadata.region.ok_or(AuthErrorCode::StorageUnavailable)?,
             identity_sha256: metadata.external_identity_sha256,
-        };
-        adapter.use_account(&self.credentials, account, native).await
+        })
     }
 
     #[cfg(target_os = "macos")]

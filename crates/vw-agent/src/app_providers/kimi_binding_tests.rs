@@ -57,10 +57,15 @@ struct Fixture {
 impl Fixture {
     fn new() -> Self {
         let home = tempfile::tempdir().unwrap();
+        let database = GlobalDatabase::for_home(home.path()).unwrap();
+        Self::with_database(home, database)
+    }
+
+    fn with_database(home: tempfile::TempDir, database: GlobalDatabase) -> Self {
         let root = home.path().join("private");
         fs::create_dir(&root).unwrap();
         fs::set_permissions(&root, fs::Permissions::from_mode(0o700)).unwrap();
-        let store = AppProviderStore::new(GlobalDatabase::for_home(home.path()).unwrap()).unwrap();
+        let store = AppProviderStore::new(database).unwrap();
         let tenant = TenantScope::new("platform", "company").unwrap();
         let tx = Arc::new(
             ProviderTransactions::new(&root, ExecutionHostId::new(HOST).unwrap()).unwrap(),
@@ -271,6 +276,48 @@ async fn provider_kimi_binding_recovers_publication_and_preserves_external_edits
         f.bind(scope, None, ACCOUNT).await.unwrap();
         assert_eq!(f.binding(scope), Ok(Some(ACCOUNT.into())));
     }
+}
+
+#[test]
+fn provider_kimi_binding_scope_postgres() {
+    use crate::global_database::test_support::PostgresTestDatabase;
+
+    let database = PostgresTestDatabase::from_environment().unwrap();
+    let f = Fixture::with_database(tempfile::tempdir().unwrap(), database.database().clone());
+    let scope = f.scope();
+    let foreign = TenantScope::new("platform", "other-company").unwrap();
+    let profile = kimi::declarations(Some(CONFIG.as_bytes())).unwrap().remove(PROVIDER).unwrap();
+    f.store.kimi_save(&foreign, PROVIDER, &profile, None, None).unwrap();
+    f.register(scope, ACCOUNT, "fixture", AuthRegion::Global);
+    tokio::runtime::Builder::new_current_thread().enable_all().build().unwrap().block_on(async {
+        assert_eq!(f.binding(scope), Ok(None));
+        assert_eq!(
+            f.store.use_kimi_account_binding(scope, &f.root, f.target()).await,
+            Err(AuthErrorCode::NotFound)
+        );
+        assert_eq!(
+            f.bind(AuthAccountScope { tenant: &foreign, ..scope }, None, ACCOUNT).await,
+            Err(AuthErrorCode::NotFound)
+        );
+        assert_eq!(
+            f.bind(AuthAccountScope { host: "other-host", ..scope }, None, ACCOUNT).await,
+            Err(AuthErrorCode::Forbidden)
+        );
+        assert_eq!(
+            f.bind(AuthAccountScope { service: AuthService::CodexOauth, ..scope }, None, ACCOUNT)
+                .await,
+            Err(AuthErrorCode::Unsupported)
+        );
+        assert_eq!(fs::read_to_string(f.config()).unwrap(), CONFIG);
+        f.bind(scope, None, ACCOUNT).await.unwrap();
+        assert_eq!(f.binding(scope), Ok(Some(ACCOUNT.into())));
+        assert_eq!(
+            f.binding(AuthAccountScope { principal: "other-owner", ..scope }),
+            Err(AuthErrorCode::Forbidden)
+        );
+    });
+    drop(f);
+    database.cleanup().unwrap();
 }
 
 fn chflags(flag: &str, path: &Path) {

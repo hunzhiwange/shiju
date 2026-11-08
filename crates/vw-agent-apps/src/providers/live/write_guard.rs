@@ -239,6 +239,16 @@ fn read_child(directory: &File, name: &CString) -> Result<Option<Vec<u8>>, Write
     Ok(Some(bytes))
 }
 
+#[cfg(target_os = "macos")]
+/// Stage a private replacement in a directory already anchored by its owner.
+pub(crate) fn prepare_private_child<'a>(
+    directory: &'a File,
+    name: &OsStr,
+    bytes: &[u8],
+) -> Result<PreparedWrite<'a>, WriteError> {
+    prepare(directory, name, bytes, FilePrivacy::Private)
+}
+
 pub(super) fn prepare<'a>(
     directory: &'a File,
     name: &OsStr,
@@ -334,7 +344,7 @@ fn checked_name(name: &OsStr) -> Result<CString, WriteError> {
 }
 
 /// Borrows the retained directory; the caller's guard cannot be released first.
-pub(super) struct PreparedWrite<'a> {
+pub(crate) struct PreparedWrite<'a> {
     pub(super) directory: &'a File,
     pub(super) temp: CString,
     pub(super) name: CString,
@@ -342,7 +352,7 @@ pub(super) struct PreparedWrite<'a> {
     pub(super) delete: bool,
 }
 impl PreparedWrite<'_> {
-    pub(super) fn commit(self) -> Result<(), WriteError> {
+    pub(crate) fn commit(self) -> Result<(), WriteError> {
         self.publish()
     }
     pub(super) fn publish(&self) -> Result<(), WriteError> {

@@ -473,6 +473,34 @@ impl AuthAccountStore {
             .await
     }
 
+    /// Select an existing Kimi profile on the authorized execution host.
+    #[cfg(target_os = "macos")]
+    pub async fn use_kimi_account(
+        &self,
+        adapter: &KimiDeviceAuth,
+        scope: AuthAccountScope<'_>,
+        account_id: &str,
+        native: vw_agent_apps::auth::kimi_account::KimiNativeTarget<'_>,
+    ) -> Result<(), AuthErrorCode> {
+        use vw_agent_apps::auth::kimi_account::KimiAccountTarget;
+
+        if scope.service != AuthService::KimiOauth {
+            return Err(AuthErrorCode::Unsupported);
+        }
+        let metadata =
+            crate::global_database::run_sync_database(
+                || Ok(self.read_metadata(&scope, account_id)),
+            )
+            .map_err(|_| AuthErrorCode::StorageUnavailable)??;
+        let account = KimiAccountTarget {
+            scope,
+            account_id,
+            region: metadata.region.ok_or(AuthErrorCode::StorageUnavailable)?,
+            identity_sha256: metadata.external_identity_sha256,
+        };
+        adapter.use_account(&self.credentials, account, native).await
+    }
+
     /// Resolve a targeted re-login only from the same authorized host account.
     #[cfg(not(target_arch = "wasm32"))]
     pub async fn start_kimi_device(

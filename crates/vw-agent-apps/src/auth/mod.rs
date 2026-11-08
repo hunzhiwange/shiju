@@ -71,3 +71,9 @@ pub mod kimi;
 
 #[cfg(all(test, unix, not(target_arch = "wasm32")))]
 mod kimi_tests;
+
+#[cfg(target_os = "macos")]
+pub mod kimi_account;
+
+#[cfg(all(test, target_os = "macos"))]
+mod kimi_account_tests;

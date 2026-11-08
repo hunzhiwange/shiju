@@ -27,10 +27,10 @@ use vw_api_types::{
     id::TenantScope,
 };
 
-const CLIENT_ID: &str = "17e5f671-d194-4dfb-9706-5516cb48c098";
+pub(super) const CLIENT_ID: &str = "17e5f671-d194-4dfb-9706-5516cb48c098";
 const DEVICE_GRANT: &str = "urn:ietf:params:oauth:grant-type:device_code";
-const MAX_RESPONSE_BYTES: usize = 64 * 1024;
-const MAX_TOKEN_LIFETIME: u64 = 31_536_000;
+pub(super) const MAX_RESPONSE_BYTES: usize = 64 * 1024;
+pub(super) const MAX_TOKEN_LIFETIME: u64 = 31_536_000;
 const MAX_FLOW_LIFETIME: u64 = 86_400;
 const MAX_INTERVAL: u64 = 300;
 
@@ -40,7 +40,7 @@ type StartSlot = Arc<AsyncMutex<Option<AuthFlowId>>>;
 /// Keep one adapter alongside the host's flow registry. Starts serialize only
 /// with other starts from the same owner and execution host.
 pub struct KimiDeviceAuth {
-    client: Client,
+    pub(super) client: Client,
     starts: Mutex<HashMap<ScopeKey, StartSlot>>,
 }
 
@@ -63,14 +63,14 @@ struct DeviceGrant {
     code: String,
 }
 
-struct Endpoints {
-    oauth: &'static str,
-    api: &'static str,
+pub(super) struct Endpoints {
+    pub(super) oauth: &'static str,
+    pub(super) api: &'static str,
     domain: &'static str,
-    identity_prefix: &'static str,
+    pub(super) identity_prefix: &'static str,
 }
 
-fn endpoints(region: AuthRegion) -> Endpoints {
+pub(super) fn endpoints(region: AuthRegion) -> Endpoints {
     match region {
         AuthRegion::MainlandCn => Endpoints {
             oauth: "https://auth.kimi.com",
@@ -375,7 +375,7 @@ impl KimiDeviceAuth {
     }
 }
 
-fn identify(request: RequestBuilder, device_id: &str) -> RequestBuilder {
+pub(super) fn identify(request: RequestBuilder, device_id: &str) -> RequestBuilder {
     request
         .header("Accept", "application/json")
         .header("X-Msh-Platform", "kimi_code_cli")
@@ -389,11 +389,11 @@ fn identify(request: RequestBuilder, device_id: &str) -> RequestBuilder {
         .header("X-Msh-Os-Version", std::env::consts::OS)
 }
 
-fn token<'a>(payload: &'a Value, field: &str) -> Result<&'a str, AuthErrorCode> {
+pub(super) fn token<'a>(payload: &'a Value, field: &str) -> Result<&'a str, AuthErrorCode> {
     payload[field].as_str().filter(|value| valid_token(value)).ok_or(AuthErrorCode::UpstreamFailure)
 }
 
-fn seconds(
+pub(super) fn seconds(
     payload: &Value,
     field: &str,
     default: Option<u64>,
@@ -427,7 +427,7 @@ fn verification_url(uri: &str, endpoints: &Endpoints, grant: &str) -> Result<Url
     Ok(url)
 }
 
-fn identity_field(value: &Value) -> Option<String> {
+pub(super) fn identity_field(value: &Value) -> Option<String> {
     match value {
         Value::Number(number) => Some(number.to_string()),
         Value::String(value) => {

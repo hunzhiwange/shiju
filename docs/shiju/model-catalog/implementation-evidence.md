@@ -666,3 +666,26 @@ Pi 供应商表单的现有网关入口为 `vw-agent/src/gateway/api/handlers/ap
 | `cargo clippy --all-targets --all-features -- -D warnings` | 0 | 全工作区、全目标及 features 通过 |
 
 审查后差异限于 OpenClaw 投影、独立测试、模块注册和本记录。`git diff --cached --check` 通过。两个阶段的锁已释放，编译缓存已保留。
+
+## 任务 26　迁移 Hermes 补空投影
+
+2026-11-08，macOS 27.0（26A428），arm64。批次 25 由 `e1014e153` 交付。已核对 `TenantScope`、`LocalReadEnvironment`、应用注册与可信 CLI 定位、`ProviderOperation` 和 `ProviderTransactions::commit_checked` 的现有契约。
+
+| 固定来源 `ca58c0313360eae7c851fbd7553c1614c7af03e7` | 实际路径 |
+| --- | --- |
+| `src/components/providers/forms/modelMetadataFill.ts::fillHermesModel` | `crates/vw-agent-apps/src/models/fill_hermes.rs::fill_hermes_model` 接收 `HermesProfile::declaration.models` 的原生对象行和已按应用、端点及模型解析的 `ModelMetadataDto`。缺失、为 null 或仅含空白的 `context_length` 可补入正数窗口。只有模型行缺少 `supports_vision` 且元数据确认支持图片输入时才建议 `true`。用户显式设定的 `false` 和 `true` 均保留。返回内存差异与贡献字段的来源和抓取时间 |
+| `tests/components/modelMetadataFill.test.ts` 的 Hermes 场景 | `crates/vw-agent-apps/src/models/fill_hermes_tests.rs` 验证空窗口、用户设置、文字和其他模态、无效窗口、来源筛选，以及用 `providers::hermes::normalize_declaration` 取得原生模型行后合并差异时保留用户自定义参数 |
+| `HermesFormFields.tsx` 的补全调用者 | 现有原生表单读取和写入准备由 `providers/hermes/form.rs::view` 和 `prepare` 负责，发布由 `providers/hermes.rs::HermesFiles` 处理。现有 Hermes 表单网关、SDK 和 Iced 分别位于 `crates/vw-agent/src/gateway/api/handlers/app_providers/hermes.rs`、`crates/vw-gateway-client/src/client/app_providers/hermes.rs` 和 `crates/vw-desktop/src/app/components/app_providers/hermes.rs`。本批次验证原生纯投影。目录补全预览及修订提交由任务 32 组装，网关和 SDK 由任务 38 接线，Iced 来源展示由任务 41 接线 |
+
+### 验证
+
+红灯与绿灯均动态领取槽位 **1**，`CARGO_TARGET_DIR=/Users/xiangmin/worker/code/shiju/target/rust-slot-1`。Cargo 中间目录使用同一槽位。格式化在 Git 源码快照中执行，仅回写本项 Rust 文件。测试和 Clippy 在实际工作区执行。
+
+| 命令 | 退出码 | 证据 |
+| --- | ---: | --- |
+| `cargo fmt --all`（红灯、绿灯） | 0、0 | 两阶段格式化完成 |
+| `cargo test -p vw-agent-apps catalog_fill_hermes_ -- --nocapture`（红灯） | 101 | 5 条有效用例，1 项通过、4 项失败、662 项过滤。指定用例实际返回空差异 `{}`，预期为 `{"context_length":262144}` |
+| `cargo test -p vw-agent-apps catalog_fill_hermes_ -- --nocapture`（绿灯） | 0 | 5 项通过、662 项过滤 |
+| `cargo clippy --all-targets --all-features -- -D warnings` | 0 | 全工作区、全目标及 features 通过 |
+
+审查后差异限于 Hermes 投影、独立测试、模块注册和本记录。`git diff --cached --check` 通过。两个阶段的锁已释放，编译缓存已保留。

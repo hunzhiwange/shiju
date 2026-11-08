@@ -2,11 +2,10 @@
 //! 本模块只描述模态内容和交互消息，不直接承担持久化策略。
 
 use crate::app::components::system_settings_common::{
-    SETTINGS_CONTROL_PADDING, SETTINGS_CONTROL_TEXT_SIZE, rounded_action_btn_style,
-    settings_field_label, settings_tab_button, settings_text_input_style,
+    rounded_action_btn_style, settings_field_label, settings_tab_button, settings_text_input,
 };
 use crate::app::state::ProjectEditTab;
-use iced::widget::{button, row, text, text_input};
+use iced::widget::{button, row, text};
 use iced::{Alignment, Color, Element, Length};
 
 use super::super::Message;
@@ -78,12 +77,7 @@ pub(super) fn numeric_row<'a>(
             .on_press(decrease)
             .padding([9, 12])
             .style(rounded_action_btn_style),
-        text_input(placeholder, input)
-            .on_input(on_input)
-            .padding(SETTINGS_CONTROL_PADDING)
-            .size(SETTINGS_CONTROL_TEXT_SIZE)
-            .width(Length::Fixed(80.0))
-            .style(settings_text_input_style),
+        settings_text_input(placeholder, input).on_input(on_input).width(Length::Fixed(80.0)),
         button(text("+").size(14))
             .on_press(increase)
             .padding([9, 12])

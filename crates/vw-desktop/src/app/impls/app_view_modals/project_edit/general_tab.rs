@@ -3,11 +3,10 @@
 
 use crate::app::components::color_picker::parse_color;
 use crate::app::components::system_settings_common::{
-    SETTINGS_CONTROL_PADDING, SETTINGS_CONTROL_TEXT_SIZE, rounded_action_btn_style,
-    settings_field_label, settings_group_heading, settings_muted_text_style, settings_panel,
-    settings_text_input_style,
+    rounded_action_btn_style, settings_field_label, settings_group_heading,
+    settings_muted_text_style, settings_panel, settings_text_input,
 };
-use iced::widget::{Image, Space, button, column, container, mouse_area, row, text, text_input};
+use iced::widget::{Image, Space, button, column, container, mouse_area, row, text};
 use iced::{Background, Color, Element, Length, Theme};
 
 use super::common::{icon_image_handle, parse_hex_color};
@@ -51,24 +50,17 @@ fn icon_preview_press_message(has_preview_image: bool, hovered: bool) -> Message
 /// 返回值表达处理结果；失败通过错误值、日志或任务消息显式传递。
 pub(super) fn general_tab<'a>(app: &'a App) -> Element<'a, Message> {
     let i18n = crate::app::i18n::I18n::new(app.desktop_locale);
-    let name_input = text_input(i18n.__("项目名称"), &app.project_edit_name)
-        .on_input(|value| {
+    let name_input =
+        settings_text_input(i18n.__("项目名称"), &app.project_edit_name).on_input(|value| {
             Message::Project(crate::app::message::project::ProjectMessage::ProjectEditNameChanged(
                 value,
             ))
-        })
-        .padding(SETTINGS_CONTROL_PADDING)
-        .size(SETTINGS_CONTROL_TEXT_SIZE)
-        .style(settings_text_input_style);
-    let icon_input = text_input("", &app.project_edit_icon)
-        .on_input(|value| {
-            Message::Project(crate::app::message::project::ProjectMessage::ProjectEditIconChanged(
-                value,
-            ))
-        })
-        .padding(SETTINGS_CONTROL_PADDING)
-        .size(SETTINGS_CONTROL_TEXT_SIZE)
-        .style(settings_text_input_style);
+        });
+    let icon_input = settings_text_input("", &app.project_edit_icon).on_input(|value| {
+        Message::Project(crate::app::message::project::ProjectMessage::ProjectEditIconChanged(
+            value,
+        ))
+    });
 
     let icon_color_presets = [
         "#60a5fa", "#34d399", "#f59e0b", "#f97316", "#ef4444", "#ec4899", "#8b5cf6", "#6366f1",

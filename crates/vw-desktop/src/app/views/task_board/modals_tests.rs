@@ -199,3 +199,42 @@ async fn settings_tabs_peripheral_appearance_task_board() {
     )
     .await;
 }
+
+#[tokio::test]
+async fn task_board_modal_form_controls_render_and_apply_settings() {
+    use crate::app::components::system_settings_common::tab_appearance_tests;
+    use crate::app::i18n::I18n;
+    use crate::app::message::TaskBoardMessage;
+
+    tab_appearance_tests::run_at_least(
+        concat!(module_path!(), "::task_board_modal_form_controls_render_and_apply_settings"),
+        420,
+        test_app,
+        |scene, app| {
+            let _ = app.update(Message::TaskBoard(TaskBoardMessage::OpenSettingsModal));
+            app.project_path = None;
+            let i18n = I18n::new(app.desktop_locale);
+            let view = super::super::view;
+
+            app.task_board_settings.refresh_interval_seconds = 37;
+            let message = scene.edit_modal_input(view(app), "37", "45");
+            assert!(matches!(
+                message,
+                Message::TaskBoard(TaskBoardMessage::SetRefreshIntervalSeconds(45))
+            ));
+            let _ = app.update(message);
+            assert_eq!(app.task_board_settings.refresh_interval_seconds, 45);
+
+            let message = scene.click_message(view(app), i18n.__("并发与保护"));
+            let _ = app.update(message);
+            assert_eq!(app.task_board_settings_modal_tab, TaskBoardSettingsModalTab::Scheduling);
+            app.task_board_settings.max_concurrent = 4;
+            let message = scene.edit_modal_input(view(app), "4", "99");
+            assert!(matches!(message, Message::TaskBoard(TaskBoardMessage::SetMaxConcurrent(10))));
+            let _ = app.update(message);
+            assert_eq!(app.task_board_settings.max_concurrent, 10);
+            scene.check_modal_scroll(view(app), i18n.__("任务设置"), None);
+        },
+    )
+    .await;
+}

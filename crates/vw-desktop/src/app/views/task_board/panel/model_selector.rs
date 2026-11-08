@@ -3,7 +3,7 @@
 use iced::widget::scrollable::{Direction, Scrollbar};
 use iced::widget::svg;
 use iced::widget::{
-    Space, button, column, container, mouse_area, row, scrollable, stack, text, text_input,
+    Space, button, column, container, mouse_area, row, scrollable, stack, text,
     tooltip::{Position as TooltipPosition, Tooltip},
 };
 use iced::{Alignment, Color, Element, Length, Theme};
@@ -11,8 +11,8 @@ use iced::{Alignment, Color, Element, Length, Theme};
 use crate::app::assets::{self, Icon};
 use crate::app::components::overlays::BelowOverlay;
 use crate::app::components::system_settings_common::{
-    SETTINGS_CONTROL_PADDING, SETTINGS_CONTROL_TEXT_SIZE, SettingsSelectLabel,
-    settings_field_label, settings_muted_text_style, settings_text_input_style, settings_toggle,
+    SettingsSelectLabel, settings_field_label, settings_muted_text_style, settings_text_input,
+    settings_toggle,
 };
 use crate::app::message::{SettingsMessage, TaskBoardMessage, ViewMessage};
 use crate::app::task::normalize_task_model_input;
@@ -216,14 +216,11 @@ fn build_model_popover<'a>(
         }
     };
 
-    let search = text_input(
+    let search = settings_text_input(
         crate::app::i18n::I18n::new(app.desktop_locale).__("搜索模型…"),
         &app.model_settings.query,
     )
-    .on_input(|v| Message::Settings(SettingsMessage::ModelQueryChanged(v)))
-    .padding(SETTINGS_CONTROL_PADDING)
-    .size(SETTINGS_CONTROL_TEXT_SIZE)
-    .style(settings_text_input_style);
+    .on_input(|v| Message::Settings(SettingsMessage::ModelQueryChanged(v)));
 
     let mut model_list = column![].spacing(2);
     let mut any_models = false;
@@ -474,7 +471,7 @@ fn build_model_popover<'a>(
                 settings_field_label(
                     crate::app::i18n::I18n::new(app.desktop_locale).__("手工填写模型")
                 ),
-                text_input(
+                settings_text_input(
                     crate::app::i18n::I18n::new(app.desktop_locale)
                         .__("auto / provider/model / 自定义模型"),
                     model
@@ -484,10 +481,7 @@ fn build_model_popover<'a>(
                     move |value| {
                         Message::TaskBoard(kind.input_message(normalize_task_model_input(&value)))
                     }
-                })
-                .padding(SETTINGS_CONTROL_PADDING)
-                .size(SETTINGS_CONTROL_TEXT_SIZE)
-                .style(settings_text_input_style),
+                }),
                 text(
                     crate::app::i18n::I18n::new(app.desktop_locale)
                         .__("兼容特殊调度器或未出现在列表中的模型 ID")

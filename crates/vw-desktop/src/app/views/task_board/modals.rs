@@ -1,14 +1,13 @@
 //! 任务看板的设置弹窗与任务上下文菜单。
 
-use iced::widget::{Space, button, checkbox, column, container, row, text, text_input};
+use iced::widget::{Space, button, checkbox, column, container, row, text};
 use iced::{Alignment, Background, Border, Color, Element, Length, Theme};
 
 use crate::app::components::system_settings_common::{
-    SETTINGS_CONTROL_PADDING, SETTINGS_CONTROL_TEXT_SIZE, rounded_action_btn_style,
-    settings_checkbox_style, settings_close_button, settings_divider, settings_field_label,
-    settings_group_card, settings_group_heading, settings_modal_header, settings_modal_layout,
-    settings_muted_text_style, settings_segment_button_style, settings_tab_button,
-    settings_tab_row, settings_text_input_style, settings_toggle,
+    rounded_action_btn_style, settings_checkbox_style, settings_close_button, settings_divider,
+    settings_field_label, settings_group_card, settings_group_heading, settings_modal_header,
+    settings_modal_layout, settings_muted_text_style, settings_segment_button_style,
+    settings_tab_button, settings_tab_row, settings_text_input, settings_toggle,
 };
 use crate::app::i18n::I18n;
 use crate::app::message::TaskBoardMessage;
@@ -90,7 +89,7 @@ pub fn build_task_settings_modal(app: &App) -> Element<'_, Message> {
                 )))
                 .padding([8, 10])
                 .style(rounded_action_btn_style),
-            text_input(i18n.__("数量"), &max_concurrent_text)
+            settings_text_input(i18n.__("数量"), &max_concurrent_text)
                 .on_input(move |value| {
                     // 解析输入值并限制在有效范围内
                     let count = value
@@ -101,10 +100,7 @@ pub fn build_task_settings_modal(app: &App) -> Element<'_, Message> {
                         .unwrap_or(max_concurrent.clamp(1, 10));
                     Message::TaskBoard(TaskBoardMessage::SetMaxConcurrent(count))
                 })
-                .padding(SETTINGS_CONTROL_PADDING)
-                .size(SETTINGS_CONTROL_TEXT_SIZE)
-                .width(Length::Fixed(76.0))
-                .style(settings_text_input_style),
+                .width(Length::Fixed(76.0)),
             button(text("+").size(12))
                 .on_press(Message::TaskBoard(TaskBoardMessage::SetMaxConcurrent(
                     max_concurrent.saturating_add(1).min(10),
@@ -152,7 +148,7 @@ pub fn build_task_settings_modal(app: &App) -> Element<'_, Message> {
                 )))
                 .padding([8, 10])
                 .style(rounded_action_btn_style),
-            text_input(i18n.__("秒"), &refresh_interval_seconds_text)
+            settings_text_input(i18n.__("秒"), &refresh_interval_seconds_text)
                 .on_input(move |value| {
                     let seconds = value
                         .trim()
@@ -162,10 +158,7 @@ pub fn build_task_settings_modal(app: &App) -> Element<'_, Message> {
                         .unwrap_or(current_refresh_interval_seconds);
                     Message::TaskBoard(TaskBoardMessage::SetRefreshIntervalSeconds(seconds))
                 })
-                .padding(SETTINGS_CONTROL_PADDING)
-                .size(SETTINGS_CONTROL_TEXT_SIZE)
-                .width(Length::Fixed(76.0))
-                .style(settings_text_input_style),
+                .width(Length::Fixed(76.0)),
             button(text("+").size(12))
                 .on_press(Message::TaskBoard(TaskBoardMessage::SetRefreshIntervalSeconds(
                     current_refresh_interval_seconds.saturating_add(5).min(3600),
@@ -186,7 +179,7 @@ pub fn build_task_settings_modal(app: &App) -> Element<'_, Message> {
                 )))
                 .padding([8, 10])
                 .style(rounded_action_btn_style),
-            text_input(i18n.__("秒"), &scheduler_tick_interval_seconds_text)
+            settings_text_input(i18n.__("秒"), &scheduler_tick_interval_seconds_text)
                 .on_input(move |value| {
                     let seconds = value
                         .trim()
@@ -196,10 +189,7 @@ pub fn build_task_settings_modal(app: &App) -> Element<'_, Message> {
                         .unwrap_or(current_scheduler_tick_interval_seconds);
                     Message::TaskBoard(TaskBoardMessage::SetSchedulerTickIntervalSeconds(seconds))
                 })
-                .padding(SETTINGS_CONTROL_PADDING)
-                .size(SETTINGS_CONTROL_TEXT_SIZE)
-                .width(Length::Fixed(76.0))
-                .style(settings_text_input_style),
+                .width(Length::Fixed(76.0)),
             button(text("+").size(12))
                 .on_press(Message::TaskBoard(TaskBoardMessage::SetSchedulerTickIntervalSeconds(
                     current_scheduler_tick_interval_seconds.saturating_add(1).min(60),
@@ -220,7 +210,7 @@ pub fn build_task_settings_modal(app: &App) -> Element<'_, Message> {
                 )))
                 .padding([8, 10])
                 .style(rounded_action_btn_style),
-            text_input(i18n.__("秒"), &auto_promote_tick_interval_seconds_text)
+            settings_text_input(i18n.__("秒"), &auto_promote_tick_interval_seconds_text)
                 .on_input(move |value| {
                     let seconds = value
                         .trim()
@@ -230,10 +220,7 @@ pub fn build_task_settings_modal(app: &App) -> Element<'_, Message> {
                         .unwrap_or(current_auto_promote_tick_interval_seconds);
                     Message::TaskBoard(TaskBoardMessage::SetAutoPromoteTickIntervalSeconds(seconds))
                 })
-                .padding(SETTINGS_CONTROL_PADDING)
-                .size(SETTINGS_CONTROL_TEXT_SIZE)
-                .width(Length::Fixed(76.0))
-                .style(settings_text_input_style),
+                .width(Length::Fixed(76.0)),
             button(text("+").size(12))
                 .on_press(Message::TaskBoard(TaskBoardMessage::SetAutoPromoteTickIntervalSeconds(
                     current_auto_promote_tick_interval_seconds.saturating_add(5).min(3600),
@@ -258,7 +245,7 @@ pub fn build_task_settings_modal(app: &App) -> Element<'_, Message> {
                 )))
                 .padding([8, 10])
                 .style(rounded_action_btn_style),
-            text_input(i18n.__("分钟"), &retry_minutes_text)
+            settings_text_input(i18n.__("分钟"), &retry_minutes_text)
                 .on_input(move |value| {
                     // 解析输入值并限制在有效范围内
                     let minutes = value
@@ -269,10 +256,7 @@ pub fn build_task_settings_modal(app: &App) -> Element<'_, Message> {
                         .unwrap_or(current_retry_minutes.clamp(1, 1440));
                     Message::TaskBoard(TaskBoardMessage::SetFailedRetryMinutes(minutes))
                 })
-                .padding(SETTINGS_CONTROL_PADDING)
-                .size(SETTINGS_CONTROL_TEXT_SIZE)
-                .width(Length::Fixed(76.0))
-                .style(settings_text_input_style),
+                .width(Length::Fixed(76.0)),
             button(text("+").size(12))
                 .on_press(Message::TaskBoard(TaskBoardMessage::SetFailedRetryMinutes(
                     current_retry_minutes.saturating_add(1).min(1440),
@@ -295,7 +279,7 @@ pub fn build_task_settings_modal(app: &App) -> Element<'_, Message> {
                 )))
                 .padding([8, 10])
                 .style(rounded_action_btn_style),
-            text_input("0-10", &retry_max_attempts_text)
+            settings_text_input("0-10", &retry_max_attempts_text)
                 .on_input(move |value| {
                     let attempts = value
                         .trim()
@@ -305,10 +289,7 @@ pub fn build_task_settings_modal(app: &App) -> Element<'_, Message> {
                         .unwrap_or(current_retry_max_attempts.clamp(0, 10));
                     Message::TaskBoard(TaskBoardMessage::SetFailedRetryMaxAttempts(attempts))
                 })
-                .padding(SETTINGS_CONTROL_PADDING)
-                .size(SETTINGS_CONTROL_TEXT_SIZE)
-                .width(Length::Fixed(76.0))
-                .style(settings_text_input_style),
+                .width(Length::Fixed(76.0)),
             button(text("+").size(12))
                 .on_press(Message::TaskBoard(TaskBoardMessage::SetFailedRetryMaxAttempts(
                     current_retry_max_attempts.saturating_add(1).min(10),
@@ -333,7 +314,7 @@ pub fn build_task_settings_modal(app: &App) -> Element<'_, Message> {
                 )))
                 .padding([8, 10])
                 .style(rounded_action_btn_style),
-            text_input(i18n.__("分钟"), &timeout_minutes_text)
+            settings_text_input(i18n.__("分钟"), &timeout_minutes_text)
                 .on_input(move |value| {
                     // 解析输入值并限制在有效范围内
                     let minutes = value
@@ -344,10 +325,7 @@ pub fn build_task_settings_modal(app: &App) -> Element<'_, Message> {
                         .unwrap_or(current_timeout_minutes.clamp(1, 1440));
                     Message::TaskBoard(TaskBoardMessage::SetRunningTimeoutMinutes(minutes))
                 })
-                .padding(SETTINGS_CONTROL_PADDING)
-                .size(SETTINGS_CONTROL_TEXT_SIZE)
-                .width(Length::Fixed(76.0))
-                .style(settings_text_input_style),
+                .width(Length::Fixed(76.0)),
             button(text("+").size(12))
                 .on_press(Message::TaskBoard(TaskBoardMessage::SetRunningTimeoutMinutes(
                     current_timeout_minutes.saturating_add(1).min(1440),
@@ -380,7 +358,7 @@ pub fn build_task_settings_modal(app: &App) -> Element<'_, Message> {
                 )))
                 .padding([8, 10])
                 .style(rounded_action_btn_style),
-            text_input(i18n.__("秒"), &pr_stall_timeout_seconds_text)
+            settings_text_input(i18n.__("秒"), &pr_stall_timeout_seconds_text)
                 .on_input(move |value| {
                     let seconds = value
                         .trim()
@@ -390,10 +368,7 @@ pub fn build_task_settings_modal(app: &App) -> Element<'_, Message> {
                         .unwrap_or(current_pr_stall_timeout_seconds.clamp(5, 3600));
                     Message::TaskBoard(TaskBoardMessage::SetPrSubmittedStallTimeoutSeconds(seconds))
                 })
-                .padding(SETTINGS_CONTROL_PADDING)
-                .size(SETTINGS_CONTROL_TEXT_SIZE)
-                .width(Length::Fixed(76.0))
-                .style(settings_text_input_style),
+                .width(Length::Fixed(76.0)),
             button(text("+").size(12))
                 .on_press(Message::TaskBoard(TaskBoardMessage::SetPrSubmittedStallTimeoutSeconds(
                     current_pr_stall_timeout_seconds.saturating_add(5).min(3600),
@@ -418,7 +393,7 @@ pub fn build_task_settings_modal(app: &App) -> Element<'_, Message> {
                 )))
                 .padding([8, 10])
                 .style(rounded_action_btn_style),
-            text_input(i18n.__("秒"), &delay_seconds_text)
+            settings_text_input(i18n.__("秒"), &delay_seconds_text)
                 .on_input(move |value| {
                     // 解析输入值并限制在有效范围内
                     let seconds = value
@@ -429,10 +404,7 @@ pub fn build_task_settings_modal(app: &App) -> Element<'_, Message> {
                         .unwrap_or(current_delay_seconds.clamp(0, 3600));
                     Message::TaskBoard(TaskBoardMessage::SetAutoPromoteDelay(seconds))
                 })
-                .padding(SETTINGS_CONTROL_PADDING)
-                .size(SETTINGS_CONTROL_TEXT_SIZE)
-                .width(Length::Fixed(76.0))
-                .style(settings_text_input_style),
+                .width(Length::Fixed(76.0)),
             button(text("+").size(12))
                 .on_press(Message::TaskBoard(TaskBoardMessage::SetAutoPromoteDelay(
                     current_delay_seconds.saturating_add(5).min(3600),

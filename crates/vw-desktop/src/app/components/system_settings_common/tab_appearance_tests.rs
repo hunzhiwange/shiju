@@ -8,7 +8,10 @@ use crate::app::{App, Message};
 use iced::advanced::{
     clipboard,
     renderer::{Headless, Style},
-    widget::{Id, Operation, operation::Scrollable},
+    widget::{
+        Id, Operation,
+        operation::{Scrollable, TextInput},
+    },
 };
 use iced::{Color, Element, Event, Font, Rectangle, Renderer, Size, Theme, Vector, mouse};
 use iced_runtime::user_interface::{Cache, UserInterface};
@@ -56,6 +59,8 @@ fn isolated(test: &str) -> bool {
 pub(in crate::app::components) struct Labels {
     text: Vec<(String, Rectangle)>,
     scrolls: Vec<(Rectangle, Rectangle, Vector)>,
+    inputs: Vec<(String, Rectangle)>,
+    select_input: Option<Rectangle>,
 }
 
 impl Operation for Labels {
@@ -65,6 +70,12 @@ impl Operation for Labels {
 
     fn text(&mut self, _: Option<&Id>, bounds: Rectangle, label: &str) {
         self.text.push((label.into(), bounds));
+    }
+    fn text_input(&mut self, _: Option<&Id>, bounds: Rectangle, state: &mut dyn TextInput) {
+        if self.select_input == Some(bounds) {
+            state.select_all();
+        }
+        self.inputs.push((state.text().into(), bounds));
     }
     fn scrollable(
         &mut self,
@@ -268,12 +279,55 @@ impl TabAppearance<'_> {
         assert_pixel(fill(&actual, bounds), fill(&expected, reference_bounds), label);
     }
 
-    pub(in crate::app::components) fn check_modal_scroll(
+    pub(in crate::app) fn edit_modal_input(
+        &mut self,
+        element: Element<'_, Message>,
+        current: &str,
+        replacement: &str,
+    ) -> Message {
+        let mut ui = self.scene(element);
+        let geometry = self.geometry(&mut ui);
+        let (_, bounds) = geometry
+            .inputs
+            .iter()
+            .find(|(value, _)| value == current)
+            .unwrap_or_else(|| panic!("missing modal input {current:?}"));
+        assert_eq!(bounds.height, super::utils::SETTINGS_CONTROL_HEIGHT);
+        assert!(
+            geometry.scrolls.iter().any(|(viewport, _, _)| {
+                bounds.x >= viewport.x + 7.0
+                    && bounds.x + bounds.width <= viewport.x + viewport.width - 7.0
+                    && bounds.y >= viewport.y
+                    && bounds.y + bounds.height <= viewport.y + viewport.height
+            }),
+            "modal input must fit within the visible body gutters: {bounds:?}"
+        );
+
+        let cursor = mouse::Cursor::Available(bounds.center());
+        let idle = self.capture(&mut ui, mouse::Cursor::Unavailable);
+        assert!(self.send(&mut ui, cursor, press()).is_empty());
+        let focused = self.capture(&mut ui, cursor);
+        let border_x = bounds.x.round() as u32;
+        let border_y = bounds.center_y().round() as u32;
+        assert_ne!(idle.get_pixel(border_x, border_y), focused.get_pixel(border_x, border_y));
+
+        ui.operate(self.renderer, &mut Labels { select_input: Some(*bounds), ..Labels::default() });
+        let mut messages = self.send(
+            &mut ui,
+            cursor,
+            Event::InputMethod(iced::advanced::input_method::Event::Commit(replacement.into())),
+        );
+        assert_eq!(messages.len(), 1);
+        messages.pop().unwrap()
+    }
+
+    pub(in crate::app) fn check_modal_scroll<'a>(
         &mut self,
         element: Element<'_, Message>,
         header: &str,
-        footer: &str,
+        footer: impl Into<Option<&'a str>>,
     ) {
+        let footer = footer.into();
         let mut ui = self.scene_with_height(element, 460.0);
         let before = self.geometry(&mut ui);
         let (viewport, _, _) = before
@@ -283,8 +337,10 @@ impl TabAppearance<'_> {
             .find(|(viewport, content, _)| content.height > viewport.height)
             .expect("long modal body must scroll");
         assert!(before.bounds(header).y < viewport.y);
-        assert!(before.bounds(footer).y > viewport.y + viewport.height);
-        assert!(before.bounds(footer).y + before.bounds(footer).height <= 460.0);
+        if let Some(footer) = footer {
+            assert!(before.bounds(footer).y > viewport.y + viewport.height);
+            assert!(before.bounds(footer).y + before.bounds(footer).height <= 460.0);
+        }
         // Wheel over the body gutter so the nested text editor does not consume it.
         let cursor =
             mouse::Cursor::Available(iced::Point::new(viewport.x + 2.0, viewport.center_y()));
@@ -306,7 +362,9 @@ impl TabAppearance<'_> {
                 .any(|(bounds, _, offset)| { *bounds == viewport && offset.y != 0.0 })
         );
         assert_eq!(before.bounds(header), after.bounds(header));
-        assert_eq!(before.bounds(footer), after.bounds(footer));
+        if let Some(footer) = footer {
+            assert_eq!(before.bounds(footer), after.bounds(footer));
+        }
         let _ = self.capture(&mut ui, cursor);
     }
 

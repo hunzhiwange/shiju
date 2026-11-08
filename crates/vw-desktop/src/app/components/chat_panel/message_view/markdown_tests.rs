@@ -8,7 +8,7 @@ use super::markdown::{
     markdown_editor_text, markdown_visual_contract, parse_markdown_blocks, selection_actions,
     strip_inline_markdown,
 };
-use super::markdown_rich::link_click_message;
+use super::markdown_links::{LinkTarget, link_click_message};
 use crate::app::components::chat_panel::tool_text_support::selected_chat_text_for_message;
 use crate::app::message::ViewMessage;
 use crate::app::{App, Message};
@@ -189,7 +189,7 @@ fn markdown_editor_text_separates_blocks_and_keeps_list_items_compact() {
 
 #[test]
 fn link_click_maps_to_external_open() {
-    let message = link_click_message("https://example.com".to_string());
+    let message = link_click_message(LinkTarget::Web("https://example.com".to_string()), None);
     assert!(matches!(
         message,
         Message::View(ViewMessage::OpenUrlExternal(url)) if url == "https://example.com"
@@ -334,23 +334,30 @@ fn table_parses_cells_and_keeps_code_fences_verbatim() {
     };
     assert_eq!(table.rows[0][0][0].text, "名称");
     assert_eq!(table.rows[1][0][0].text, "A | B");
-    assert_eq!(table.rows[1][1][0].url.as_deref(), Some("https://example.com/docs"));
+    assert_eq!(
+        table.rows[1][1][0].target,
+        Some(LinkTarget::Web("https://example.com/docs".into()))
+    );
     assert!(matches!(blocks[2].kind, MarkdownBlockKind::CodeBlock(_)));
     assert_eq!(blocks[3].text, "结尾");
 }
 
 #[test]
-fn links_keep_web_destinations_and_ignore_code_and_local_schemes() {
+fn links_keep_web_destinations_and_ignore_code_and_remote_file_schemes() {
     let blocks = parse_markdown_blocks(concat!(
         "请看[**文档**](https://example.com/docs_(zh))、",
         "<https://example.com/autolink> 和网址https://example.com/bare。\n",
-        "`https://example.com/code` [本地](file:///tmp/test) ",
+        "`https://example.com/code` [远程](file://server/tmp/test) ",
         "[https://example.com/label](javascript:alert(1))",
     ));
     let links: Vec<_> = blocks[0]
         .inline
         .iter()
-        .filter_map(|span| span.url.as_deref().map(|url| (span.text.as_str(), url)))
+        .filter_map(|span| match &span.target {
+            Some(LinkTarget::Web(url)) => Some((span.text.as_str(), url.as_str())),
+            Some(LinkTarget::File(path)) => panic!("unexpected local path: {path}"),
+            None => None,
+        })
         .collect();
 
     assert_eq!(
@@ -370,7 +377,15 @@ fn bare_urls_keep_balanced_paths_and_complete_queries() {
 ",
         "（WWW.example.com/path），再看 (https://example.com/other).",
     ));
-    let links: Vec<_> = blocks[0].inline.iter().filter_map(|span| span.url.as_deref()).collect();
+    let links: Vec<_> = blocks[0]
+        .inline
+        .iter()
+        .filter_map(|span| match &span.target {
+            Some(LinkTarget::Web(url)) => Some(url.as_str()),
+            Some(LinkTarget::File(path)) => panic!("unexpected local path: {path}"),
+            None => None,
+        })
+        .collect();
     assert_eq!(
         links,
         [
@@ -411,7 +426,9 @@ fn table_link_renders_and_emits_open_message_in_both_themes() {
     let size = Size::new(340.0, 120.0);
     for theme in [Theme::Light, Theme::Dark] {
         let mut ui = UserInterface::build(
-            super::markdown_rich::table_view(table, &theme, theme.palette().text),
+            super::markdown_rich::table_view(table, &theme, theme.palette().text, |target| {
+                link_click_message(target, None)
+            }),
             size,
             Cache::new(),
             &mut renderer,
@@ -577,7 +594,7 @@ fn markdown_styles_inline_text_in_paragraphs_and_tables() {
     assert!(spans.iter().any(|part| part.text == "删除" && part.style.strike));
     assert!(spans.iter().any(|part| part.text == "中文代码" && part.style.code));
     assert!(spans.iter().any(|part| {
-        part.text == "文档" && part.url.as_deref() == Some("https://example.com/guide")
+        part.text == "文档" && matches!(&part.target, Some(LinkTarget::Web(url)) if url == "https://example.com/guide")
     }));
 
     let MarkdownBlockKind::Table(table) = &blocks[1].kind else {
@@ -633,7 +650,10 @@ fn markdown_table_fills_available_width_and_overflows_only_when_needed() {
 
     for width in [240.0, 480.0, 800.0] {
         let theme = Theme::Dark;
-        let mut element = super::markdown_rich::table_view(table, &theme, theme.palette().text);
+        let mut element =
+            super::markdown_rich::table_view(table, &theme, theme.palette().text, |target| {
+                link_click_message(target, None)
+            });
         let mut tree = Tree::new(element.as_widget());
         let limits = layout::Limits::new(Size::ZERO, Size::new(width, 300.0));
         let node = element.as_widget_mut().layout(&mut tree, &renderer, &limits);
@@ -645,4 +665,81 @@ fn markdown_table_fills_available_width_and_overflows_only_when_needed() {
             assert!((grid.size().width - width).abs() < 0.01);
         }
     }
+}
+
+#[cfg(unix)]
+#[test]
+fn markdown_recognizes_local_paths_without_turning_web_or_commands_into_files() {
+    let blocks = parse_markdown_blocks(concat!(
+        "目录 /Users/example/project，文件 `/tmp/中文 文件.rs:12:4`。\n",
+        "[带空格](/tmp/My%20File.rs#L42) 和 <file:///tmp/a%2520b.rs#L2>。\n",
+        "相对文件 `src/main.rs`、[文档目录](docs)，以及 \"~/My Folder\"。\n",
+        "`cat /tmp/test`、`https://example.com/x`、https://example.com/x",
+    ));
+    let files: Vec<_> = blocks[0]
+        .inline
+        .iter()
+        .filter_map(|span| match &span.target {
+            Some(LinkTarget::File(path)) => Some(path.as_str()),
+            _ => None,
+        })
+        .collect();
+    assert_eq!(
+        files,
+        [
+            "/Users/example/project",
+            "/tmp/中文 文件.rs",
+            "/tmp/My File.rs",
+            "/tmp/a%20b.rs",
+            "src/main.rs",
+            "docs",
+            "~/My Folder",
+        ]
+    );
+}
+
+#[cfg(unix)]
+#[test]
+fn markdown_file_link_click_uses_the_finder_action_and_workspace() {
+    use iced::advanced::clipboard;
+    use iced::advanced::renderer::Headless;
+    use iced::{Event, Font, Point, Renderer, Size, Theme, mouse};
+    use iced_runtime::user_interface::{Cache, UserInterface};
+
+    let blocks = parse_markdown_blocks("[Open](<./a%20b%25.rs#L3>)");
+    let theme = Theme::Light;
+    let view = super::markdown_rich::inline_view(
+        &blocks[0].inline,
+        15.0,
+        theme.palette().text,
+        &theme,
+        |target| link_click_message(target, Some("/workspace/session")),
+    );
+    let mut renderer = iced::futures::executor::block_on(Renderer::new(
+        Font::DEFAULT,
+        15.0.into(),
+        Some("tiny-skia"),
+    ))
+    .expect("headless renderer");
+    let mut ui = UserInterface::build(view, Size::new(200.0, 40.0), Cache::new(), &mut renderer);
+    let cursor = mouse::Cursor::Available(Point::new(12.0, 10.0));
+    let mut messages = Vec::new();
+    for event in [
+        mouse::Event::ButtonPressed(mouse::Button::Left),
+        mouse::Event::ButtonReleased(mouse::Button::Left),
+    ] {
+        ui.update(
+            &[Event::Mouse(event)],
+            cursor,
+            &mut renderer,
+            &mut clipboard::Null,
+            &mut messages,
+        );
+    }
+
+    assert!(matches!(
+        messages.as_slice(),
+        [Message::View(ViewMessage::OpenPathInFinder(url))]
+            if url == "file:///workspace/session/a%20b%25.rs"
+    ));
 }

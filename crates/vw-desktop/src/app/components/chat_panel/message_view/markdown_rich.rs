@@ -12,15 +12,15 @@ use pulldown_cmark::{Alignment, BrokenLink, Event, Options, Parser, Tag, TagEnd}
 use regex::Regex;
 
 use crate::app::Message;
-use crate::app::message::ViewMessage;
 
 use super::super::tool_text_support::chat_text_font;
+use super::markdown_links::LinkTarget;
 use super::styles::MESSAGE_TEXT_SIZE;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub(super) struct Inline {
     pub(super) text: String,
-    pub(super) url: Option<String>,
+    pub(super) target: Option<LinkTarget>,
     pub(super) style: InlineStyle,
 }
 
@@ -46,27 +46,21 @@ impl MarkdownTable {
 
 impl Inline {
     pub(super) fn stored_bytes(&self) -> usize {
-        std::mem::size_of::<Self>() + self.text.len() + self.url.as_ref().map_or(0, String::len)
+        std::mem::size_of::<Self>()
+            + self.text.len()
+            + self.target.as_ref().map_or(0, LinkTarget::len)
     }
 }
 
-static BARE_URL: LazyLock<Regex> = LazyLock::new(|| {
-    Regex::new(r#"(?i)(?-u:\b)(?:https?://|www\.)[^\s<>"`|，。；：！？、（）【】《》“”‘’]+"#)
-        .expect("web URL pattern")
+static BARE_LINK: LazyLock<Regex> = LazyLock::new(|| {
+    Regex::new(concat!(
+        r#"(?i)"#,
+        r#""(?:~/|\.\.?/|/)[^"\r\n]+"|'(?:~/|\.\.?/|/)[^'\r\n]+'|"#,
+        r#"(?:(?-u:\b)(?:https?://|file://|www\.)|(?:~/|\.\.?/|/))"#,
+        r#"[^\s<>"`|，。；：！？、（）【】《》“”‘’]+"#,
+    ))
+    .expect("link and path pattern")
 });
-
-fn web_url(target: &str) -> Option<String> {
-    let url = reqwest::Url::parse(target).ok()?;
-    if matches!(url.scheme(), "http" | "https")
-        && url.has_host()
-        && url.username().is_empty()
-        && url.password().is_none()
-    {
-        Some(url.into())
-    } else {
-        None
-    }
-}
 
 fn trim_url_punctuation(mut candidate: &str) -> &str {
     let mut balances = [('(', ')'), ('[', ']'), ('{', '}')].map(|(open, close)| {
@@ -89,7 +83,7 @@ fn trim_url_punctuation(mut candidate: &str) -> &str {
 struct InlineBuilder {
     spans: Vec<Inline>,
     // An invalid Markdown link still suppresses detection inside its label.
-    link: Option<Option<String>>,
+    link: Option<Option<LinkTarget>>,
     image_depth: usize,
     pending_text: String,
     bold: usize,
@@ -98,11 +92,11 @@ struct InlineBuilder {
 }
 
 impl InlineBuilder {
-    fn push(&mut self, text: &str, url: Option<String>) {
-        self.push_span(text, url, false);
+    fn push(&mut self, text: &str, target: Option<LinkTarget>) {
+        self.push_span(text, target, false);
     }
 
-    fn push_span(&mut self, text: &str, url: Option<String>, code: bool) {
+    fn push_span(&mut self, text: &str, target: Option<LinkTarget>, code: bool) {
         if text.is_empty() {
             return;
         }
@@ -113,12 +107,12 @@ impl InlineBuilder {
             code,
         };
         if let Some(previous) = self.spans.last_mut()
-            && previous.url == url
+            && previous.target == target
             && previous.style == style
         {
             previous.text.push_str(text);
         } else {
-            self.spans.push(Inline { text: text.to_owned(), url, style });
+            self.spans.push(Inline { text: text.to_owned(), target, style });
         }
     }
 
@@ -132,20 +126,31 @@ impl InlineBuilder {
             return;
         }
         let mut offset = 0;
-        for matched in BARE_URL.find_iter(text) {
-            if text[..matched.start()].ends_with('@') {
+        for matched in BARE_LINK.find_iter(text) {
+            let shown = matched.as_str();
+            let quoted = shown.starts_with(['"', '\'']);
+            let candidate =
+                if quoted { &shown[1..shown.len() - 1] } else { trim_url_punctuation(shown) };
+            let preceding = text[..matched.start()].chars().next_back();
+            if preceding == Some('@')
+                || (!quoted
+                    && candidate.starts_with(['/', '~', '.'])
+                    && preceding
+                        .is_some_and(|ch| ch.is_ascii_alphanumeric() || "/:_.-".contains(ch)))
+            {
                 continue;
             }
-            let target = trim_url_punctuation(matched.as_str());
-            let url = if target.get(..4).is_some_and(|prefix| prefix.eq_ignore_ascii_case("www.")) {
-                web_url(&format!("https://{target}"))
-            } else {
-                web_url(target)
-            };
-            if let Some(url) = url {
+            let target =
+                if candidate.get(..4).is_some_and(|prefix| prefix.eq_ignore_ascii_case("www.")) {
+                    LinkTarget::parse(&format!("https://{candidate}"))
+                } else {
+                    LinkTarget::parse(candidate)
+                };
+            if let Some(target) = target {
                 self.push(&text[offset..matched.start()], None);
-                self.push(target, Some(url));
-                offset = matched.start() + target.len();
+                let shown = if quoted { shown } else { candidate };
+                self.push(shown, Some(target));
+                offset = matched.start() + shown.len();
             }
         }
         self.push(&text[offset..], None);
@@ -176,11 +181,20 @@ impl InlineBuilder {
             Event::End(TagEnd::Emphasis) => self.italic -= 1,
             Event::Start(Tag::Strikethrough) => self.strike += 1,
             Event::End(TagEnd::Strikethrough) => self.strike -= 1,
-            Event::Start(Tag::Link { dest_url, .. }) => self.link = Some(web_url(&dest_url)),
+            Event::Start(Tag::Link { dest_url, .. }) => {
+                self.link = Some(LinkTarget::markdown_target(&dest_url))
+            }
             Event::End(TagEnd::Link) => self.link = None,
             Event::Start(Tag::Image { .. }) => self.image_depth += 1,
             Event::End(TagEnd::Image) => self.image_depth -= 1,
-            Event::Code(text) => self.push_span(&text, self.link.clone().flatten(), true),
+            Event::Code(text) => {
+                let target = match &self.link {
+                    Some(target) => target.clone(),
+                    None if self.image_depth == 0 => LinkTarget::code_path(&text),
+                    None => None,
+                };
+                self.push_span(&text, target, true);
+            }
             Event::Html(text) | Event::InlineHtml(text) => {
                 self.push(&text, self.link.clone().flatten());
             }
@@ -191,7 +205,7 @@ impl InlineBuilder {
 }
 
 pub(super) fn parse_inline(source: &str, references: &BTreeMap<String, String>) -> Vec<Inline> {
-    if !source.bytes().any(|byte| b"*_`~[<&\\:".contains(&byte))
+    if !source.bytes().any(|byte| b"*_`~[<&\\:/".contains(&byte))
         && !source.as_bytes().windows(4).any(|window| window.eq_ignore_ascii_case(b"www."))
     {
         return Vec::new();
@@ -264,23 +278,20 @@ pub(super) fn parse_document(input: &str) -> MarkdownDocument {
     document
 }
 
-pub(super) fn link_click_message(url: String) -> Message {
-    Message::View(ViewMessage::OpenUrlExternal(url))
-}
-
 pub(super) fn inline_view<'a>(
     spans: &'a [Inline],
     size: f32,
     body_color: Color,
     theme: &Theme,
-) -> iced::widget::text::Rich<'a, String, Message> {
+    on_link: impl Fn(LinkTarget) -> Message + 'a,
+) -> iced::widget::text::Rich<'a, LinkTarget, Message> {
     let (link_color, emphasis_color) = if super::styles::is_dark_theme(theme) {
         (Color::from_rgb8(147, 197, 253), Color::from_rgb8(216, 180, 254))
     } else {
         (Color::from_rgb8(29, 78, 216), Color::from_rgb8(107, 33, 168))
     };
     let code_background = theme.palette().text.scale_alpha(0.08);
-    let spans: Vec<Span<'_, String>> = spans
+    let spans: Vec<Span<'_, LinkTarget>> = spans
         .iter()
         .map(|part| {
             let style = part.style;
@@ -309,8 +320,8 @@ pub(super) fn inline_view<'a>(
                 }
                 value = value.font(font);
             }
-            if let Some(url) = &part.url {
-                value = value.link(url.clone()).underline(true).color(link_color);
+            if let Some(target) = &part.target {
+                value = value.link(target.clone()).underline(true).color(link_color);
             }
             value
         })
@@ -321,13 +332,14 @@ pub(super) fn inline_view<'a>(
         .color(body_color)
         .line_height(LineHeight::Relative(1.6))
         .wrapping(Wrapping::WordOrGlyph)
-        .on_link_click(link_click_message)
+        .on_link_click(on_link)
 }
 
 pub(super) fn table_view<'a>(
     data: &'a MarkdownTable,
     theme: &Theme,
     body_color: Color,
+    on_link: impl Fn(LinkTarget) -> Message + Clone + 'a,
 ) -> Element<'a, Message> {
     let theme = theme.clone();
     responsive(move |size| {
@@ -340,17 +352,24 @@ pub(super) fn table_view<'a>(
             Length::Fixed(((size.width - decoration_width) / count).max(MIN_CELL_WIDTH));
         let columns = data.alignments.iter().enumerate().map(|(index, &alignment)| {
             let theme = &theme;
+            let cell_link = on_link.clone();
             let cell = move |row: &'a Vec<Vec<Inline>>| -> Element<'a, Message> {
                 let content = row.get(index).map_or(&[][..], Vec::as_slice);
-                inline_view(content, MESSAGE_TEXT_SIZE, body_color, theme)
+                inline_view(content, MESSAGE_TEXT_SIZE, body_color, theme, cell_link.clone())
                     .width(cell_width)
                     .align_x(alignment)
                     .into()
             };
-            let header = inline_view(&data.rows[0][index], MESSAGE_TEXT_SIZE, body_color, theme)
-                .width(cell_width)
-                .align_x(alignment)
-                .font(Font { weight: iced::font::Weight::Bold, ..chat_text_font() });
+            let header = inline_view(
+                &data.rows[0][index],
+                MESSAGE_TEXT_SIZE,
+                body_color,
+                theme,
+                on_link.clone(),
+            )
+            .width(cell_width)
+            .align_x(alignment)
+            .font(Font { weight: iced::font::Weight::Bold, ..chat_text_font() });
             table::column(header, cell).width(cell_width)
         });
         scrollable(table(columns, &data.rows[1..]).padding_x(PADDING_X).separator_x(SEPARATOR))

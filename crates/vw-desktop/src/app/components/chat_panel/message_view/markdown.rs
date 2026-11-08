@@ -22,6 +22,7 @@ use super::super::tool_text_support::{
 };
 use super::super::utils::markdown_code_fence;
 use super::markdown_code::{code_block_view, is_package_command};
+use super::markdown_links::{LinkTarget, link_click_message};
 use super::markdown_rich::{self, Inline, MarkdownTable};
 use super::styles::{MARKDOWN_BLOCK_SPACING, MESSAGE_TEXT_SIZE, message_body_text_color};
 
@@ -69,7 +70,7 @@ impl MarkdownBlock {
         } else {
             inline.iter().map(|span| span.text.as_str()).collect()
         };
-        if inline.iter().all(|span| span.url.is_none() && span.style == Default::default()) {
+        if inline.iter().all(|span| span.target.is_none() && span.style == Default::default()) {
             inline = Vec::new();
         }
         Self { kind, text, inline }
@@ -599,16 +600,27 @@ fn markdown_block_view<'a>(
     };
     let body_color = message_body_text_color(&theme, false);
 
+    let on_link = move |target| {
+        let session_directory = if matches!(
+            &target,
+            LinkTarget::File(path) if !std::path::Path::new(path).is_absolute() && !path.starts_with("~/")
+        ) {
+            app.active_session_id.as_deref().and_then(|id| app.known_session_directory(id))
+        } else {
+            None
+        };
+        link_click_message(target, session_directory.as_deref().or(app.project_path.as_deref()))
+    };
     match &block.kind {
         MarkdownBlockKind::Table(table) => {
-            return markdown_rich::table_view(table, &theme, body_color);
+            return markdown_rich::table_view(table, &theme, body_color, on_link);
         }
         MarkdownBlockKind::Rule => return rule::horizontal(1).into(),
         _ => {}
     }
 
     let editor: Element<'a, Message> = if !block.inline.is_empty() {
-        markdown_rich::inline_view(&block.inline, size, body_color, &theme)
+        markdown_rich::inline_view(&block.inline, size, body_color, &theme, on_link)
             .font(font)
             .width(Length::Fill)
             .into()

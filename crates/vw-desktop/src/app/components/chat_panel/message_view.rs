@@ -21,6 +21,7 @@ mod assistant_body;
 mod assistant_error;
 mod markdown;
 mod markdown_code;
+mod markdown_links;
 mod markdown_rich;
 mod parse;
 mod render_cache;

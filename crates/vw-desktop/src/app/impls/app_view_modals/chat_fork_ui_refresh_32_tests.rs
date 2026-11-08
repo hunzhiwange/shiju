@@ -784,13 +784,11 @@ async fn fork_desktop_layout_and_interaction() {
             );
             assert!(key(&mut reset, &mut renderer, Key::Named(Named::Enter), None).is_empty());
             assert!(click(&mut reset, &mut renderer, Point::new(5.0, 5.0)).is_empty());
-            for (title, revert) in [("仅重置会话历史", false), ("回滚代码并重置", true)]
-            {
-                let point = label(&bounds, i18n.__(title)).center();
-                assert!(matches!(click(&mut reset, &mut renderer, point).as_slice(), [
-                    Message::Chat(ChatMessage::ResetSessionToMessage { msg_idx: 1, revert_code })
-                ] if *revert_code == revert));
-            }
+            let confirm = label(&bounds, i18n.__("确认")).center();
+            assert!(matches!(
+                click(&mut reset, &mut renderer, confirm).as_slice(),
+                [Message::Chat(ChatMessage::ResetSessionToMessage { msg_idx: 1 })]
+            ));
             let cancel = label(&bounds, i18n.__("取消")).center();
             assert!(matches!(
                 click(&mut reset, &mut renderer, cancel).as_slice(),

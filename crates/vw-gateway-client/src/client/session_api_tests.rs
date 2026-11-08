@@ -630,7 +630,7 @@ async fn session_api_routes_lifecycle_messages_ui_scope_and_title_calls() {
         .session_reset(
             "s1",
             Some("/repo"),
-            &GatewaySessionResetBody { message_id: "m1".to_string(), revert_code: true },
+            &GatewaySessionResetBody { message_id: "m1".to_string() },
         )
         .await
         .expect("reset");
@@ -774,7 +774,7 @@ async fn session_api_routes_lifecycle_messages_ui_scope_and_title_calls() {
     assert_eq!(request.body["messageID"], "m1");
     let request = server.take_request();
     assert_eq!(request.path, "/v1/session/s1/reset?directory=%2Frepo");
-    assert_eq!(request.body["revertCode"], true);
+    assert_eq!(request.body, serde_json::json!({"messageID": "m1"}));
     assert_eq!(server.take_request().path, "/v1/session/s1/summarize?directory=%2Frepo");
     let request = server.take_request();
     assert_eq!(request.method, "PUT");

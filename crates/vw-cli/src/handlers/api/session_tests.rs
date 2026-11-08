@@ -36,7 +36,7 @@ async fn api_session_commands_cover_core_lifecycle_routes() {
     let todo =
         br#"{"todos":[{"id":"todo-1","content":"Ship","status":"pending","priority":"high"}]}"#;
     let fork = br#"{"messageID":"m/1"}"#;
-    let reset = br#"{"messageID":"m/1","revertCode":true}"#;
+    let reset = br#"{"messageID":"m/1"}"#;
     let summarize = br#"{"messageID":"m/1"}"#;
     let title = br#"{"content":"hello","preferred_model":"gpt"}"#;
 

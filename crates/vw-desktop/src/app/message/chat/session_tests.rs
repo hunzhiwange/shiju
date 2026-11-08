@@ -965,7 +965,6 @@ fn recovered_message_ids_ignore_stale_session_and_store_exact_match() {
         super::ChatMessage::ResetMessageIdsRecovered {
             session_id: "stale".to_string(),
             msg_idx: 1,
-            revert_code: false,
             result: Ok(vec![Some("stale-1".to_string()), Some("stale-2".to_string())]),
         },
     );
@@ -977,7 +976,6 @@ fn recovered_message_ids_ignore_stale_session_and_store_exact_match() {
         super::ChatMessage::ResetMessageIdsRecovered {
             session_id: "active".to_string(),
             msg_idx: 1,
-            revert_code: false,
             result: Ok(recovered.clone()),
         },
     );
@@ -1755,7 +1753,7 @@ fn active_session_is_plan_run_child_detects_parent_id() {
 }
 
 #[test]
-fn recovered_reset_mismatch_falls_back_to_local_history_with_revert_notice() {
+fn recovered_reset_mismatch_falls_back_to_local_history() {
     let (mut app, _task) = crate::app::App::new();
     app.active_session_id = Some("s1".to_string());
     app.sessions = vec![session_info("s1", "Session", "/repo")];
@@ -1770,7 +1768,6 @@ fn recovered_reset_mismatch_falls_back_to_local_history_with_revert_notice() {
         super::ChatMessage::ResetMessageIdsRecovered {
             session_id: "s1".to_string(),
             msg_idx: 0,
-            revert_code: true,
             result: Ok(Vec::new()),
         },
     );
@@ -1778,10 +1775,6 @@ fn recovered_reset_mismatch_falls_back_to_local_history_with_revert_notice() {
     assert_eq!(app.chat.len(), 1);
     assert_eq!(app.chat[0].content, "keep");
     assert_eq!(app.session_history_reset_boundary("s1").unwrap(), &[None]);
-    assert_eq!(
-        app.notifications.last().map(|notification| notification.message.as_str()),
-        Some("网关没有可回滚历史，已仅重置本地会话历史")
-    );
 }
 
 #[test]

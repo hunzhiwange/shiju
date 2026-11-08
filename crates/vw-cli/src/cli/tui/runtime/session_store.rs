@@ -123,8 +123,7 @@ impl GatewayUiRuntime {
     async fn session_reset_to(&self, message_id: &str) -> Result<(), String> {
         let session_id = self.resolve_session_id(None)?;
         let message_id = required_message_id("reset", message_id)?;
-        let body =
-            GatewaySessionResetBody { message_id: message_id.to_string(), revert_code: true };
+        let body = GatewaySessionResetBody { message_id: message_id.to_string() };
         let directory = self.directory_value();
         let info: UiSessionMutationInfo =
             self.client().session_reset(session_id, directory.as_deref(), &body).await?;

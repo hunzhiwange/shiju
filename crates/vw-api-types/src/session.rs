@@ -267,9 +267,6 @@ pub struct GatewaySessionResetBody {
     /// 重置到指定消息。
     #[serde(rename = "messageID")]
     pub message_id: String,
-    /// 是否回滚生成的代码变更。
-    #[serde(rename = "revertCode")]
-    pub revert_code: bool,
 }
 
 /// 网关触发摘要生成请求体。

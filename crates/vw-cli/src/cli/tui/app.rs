@@ -2772,11 +2772,9 @@ impl V3GatewayApp {
         let message_id = self.require_persisted_message_id(message_id)?.to_string();
         self.push_session_confirmation(UiConfirmOverlay {
             request_id: format!("session-confirm:reset:{message_id}"),
-            title: "确认回退会话".to_string(),
-            body: format!(
-                "将会话和生成的代码变更回退到消息 {message_id}。此操作不可在 TUI 内撤销。"
-            ),
-            confirm_label: "确认回退".to_string(),
+            title: "确认重置会话".to_string(),
+            body: format!("将会话历史截断到消息 {message_id}。此操作不可在 TUI 内撤销。"),
+            confirm_label: "确认".to_string(),
             cancel_label: "取消".to_string(),
             destructive: true,
             intent: UiConfirmIntent::ResetSession { message_id },

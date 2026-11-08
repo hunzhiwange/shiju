@@ -27,7 +27,7 @@
 | `/new` | 已实现 | `session_create` → canonical snapshot | 创建失败不切换本地状态 |
 | `/rename <title>` | 已实现 | `session_rename` → snapshot reload | 空标题、Gateway 失败显式报错 |
 | `/fork [message-id]` | 已实现 | `session_fork` → 切换新会话 | 锚点必须来自当前持久化快照 |
-| `/reset <message-id>`、`/rewind <message-id>` | 已实现；后者为解析别名 | 选择锚点 → 类型确认 → `session_reset` | 忙碌、外部 ID、失败均不改本地快照 |
+| `/reset <message-id>`、`/rewind <message-id>` | 已实现；后者为解析别名 | 选择锚点 → 类型确认 → `session_reset` | 仅截断会话历史。忙碌、外部 ID、失败均不改本地快照 |
 | `/compact <message-id>`、`/summarize <message-id>` | 已实现；后者为解析别名 | 选择锚点 → 类型确认 → `session_summarize` | 只接受持久化消息 ID |
 | `/archive` | 已实现 | 类型确认 → `session_archive` | 活动流或排队输入存在时拒绝 |
 | `/model [id]` | 已实现 | provider/model 能力目录 → `SessionOptions` | 只接受 Gateway 声明的模型 |

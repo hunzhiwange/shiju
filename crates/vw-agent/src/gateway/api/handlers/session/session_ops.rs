@@ -434,13 +434,13 @@ pub(super) async fn session_fork(
     Ok(Json(result))
 }
 
-/// 重置会话到指定消息，并可选择回滚代码变更。
+/// 将会话历史截断到指定消息。
 ///
 /// # 参数
 ///
 /// * `state` - 网关状态，用于失效查询引擎缓存。
 /// * `session_id` - 目标会话 id。
-/// * `body` - 重置目标消息和是否回滚代码。
+/// * `body` - 重置目标消息。
 ///
 /// # 返回值
 ///
@@ -457,33 +457,12 @@ pub(super) async fn session_reset(
     let session_id_for_reset = session_id.clone();
     let result = with_tenant_instance(tenant, dir, move || {
         Box::pin(async move {
-            let info = if body.revert_code {
-                // 回滚代码后立即清理 revert 产物，保证 UI 看到的是已收敛的会话状态。
-                let reverted = agent_session::revert::revert(agent_session::revert::RevertInput {
-                    session_id: session_id_for_reset.clone(),
-                    message_id: body.message_id.clone(),
-                    part_id: None,
-                })
+            agent_session::revert::cleanup_after_message(&session_id_for_reset, &body.message_id)
                 .await
                 .map_err(|e| ApiError::bad_request(e.to_string()))?;
-                agent_session::revert::cleanup(&reverted)
-                    .await
-                    .map_err(|e| ApiError::bad_request(e.to_string()))?;
-                agent_session::session::get(&session_id_for_reset)
-                    .await
-                    .map_err(|e| ApiError::bad_request(e.to_string()))?
-            } else {
-                agent_session::revert::cleanup_after_message(
-                    &session_id_for_reset,
-                    &body.message_id,
-                )
+            agent_session::session::get(&session_id_for_reset)
                 .await
-                .map_err(|e| ApiError::bad_request(e.to_string()))?;
-                agent_session::session::get(&session_id_for_reset)
-                    .await
-                    .map_err(|e| ApiError::bad_request(e.to_string()))?
-            };
-            Ok(info)
+                .map_err(|e| ApiError::bad_request(e.to_string()))
         })
     })
     .await?;

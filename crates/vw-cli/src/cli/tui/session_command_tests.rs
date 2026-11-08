@@ -173,7 +173,7 @@ impl SuccessCase {
                     ExpectedRequest::new(
                         "POST",
                         "/v1/session/current/reset?directory=%2Fworkspace",
-                        json!({"messageID": "current-user", "revertCode": true}),
+                        json!({"messageID": "current-user"}),
                     ),
                     ExpectedRequest::get("/v1/session/current/ui?directory=%2Fworkspace"),
                 ],

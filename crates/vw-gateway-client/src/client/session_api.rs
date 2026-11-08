@@ -451,7 +451,7 @@ impl GatewayClient {
         .await
     }
 
-    /// 将会话重置到指定消息节点或初始状态。
+    /// 截断指定消息之后的会话历史。
     pub async fn session_reset<T: DeserializeOwned>(
         &self,
         session_id: &str,

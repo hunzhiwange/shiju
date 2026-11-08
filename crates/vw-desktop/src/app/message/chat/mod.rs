@@ -1021,7 +1021,6 @@ pub enum ChatMessage {
     ResetMessageIdsRecovered {
         session_id: String,
         msg_idx: usize,
-        revert_code: bool,
         result: Result<Vec<Option<String>>, String>,
     },
 
@@ -1033,7 +1032,6 @@ pub enum ChatMessage {
 
     ResetSessionToMessage {
         msg_idx: usize,
-        revert_code: bool,
     },
 
     ResetSessionFinished {

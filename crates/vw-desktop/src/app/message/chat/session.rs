@@ -461,7 +461,6 @@ fn recover_reset_message_ids_task(
     session_id: String,
     directory: Option<String>,
     msg_idx: usize,
-    revert_code: bool,
 ) -> Task<Message> {
     Task::perform(
         async move {
@@ -478,7 +477,7 @@ fn recover_reset_message_ids_task(
                 Ok(recovered_message_ids_from_gateway_messages(msgs))
             }
             .await;
-            ChatMessage::ResetMessageIdsRecovered { session_id, msg_idx, revert_code, result }
+            ChatMessage::ResetMessageIdsRecovered { session_id, msg_idx, result }
         },
         Message::Chat,
     )
@@ -1767,7 +1766,7 @@ pub fn update(app: &mut App, message: ChatMessage) -> Task<Message> {
             );
             Task::batch([open, toast])
         }
-        ChatMessage::ResetMessageIdsRecovered { session_id, msg_idx, revert_code, result } => {
+        ChatMessage::ResetMessageIdsRecovered { session_id, msg_idx, result } => {
             if app.active_session_id.as_deref() != Some(session_id.as_str()) {
                 return Task::none();
             }
@@ -1781,26 +1780,11 @@ pub fn update(app: &mut App, message: ChatMessage) -> Task<Message> {
                     crate::app::session::shared_chat_messages(app.chat.clone()),
                     app.chat_message_ids.clone(),
                 );
-                return Task::done(Message::Chat(ChatMessage::ResetSessionToMessage {
-                    msg_idx,
-                    revert_code,
-                }));
-            }
-            if revert_code {
-                match result {
-                    Ok(_) => app.push_localized_notification(
-                        "网关没有可回滚历史，已仅重置本地会话历史",
-                        vec![],
-                    ),
-                    Err(error) => app.push_localized_notification(
-                        "网关历史不可用，已仅重置本地会话历史: %s",
-                        vec![error.into()],
-                    ),
-                }
+                return Task::done(Message::Chat(ChatMessage::ResetSessionToMessage { msg_idx }));
             }
             reset_session_locally(app, session_id, msg_idx)
         }
-        ChatMessage::ResetSessionToMessage { msg_idx, revert_code } => {
+        ChatMessage::ResetSessionToMessage { msg_idx } => {
             let Some(session_id) = app.active_session_id.clone() else {
                 return Task::none();
             };
@@ -1811,7 +1795,6 @@ pub fn update(app: &mut App, message: ChatMessage) -> Task<Message> {
                     session_id,
                     root,
                     msg_idx,
-                    revert_code,
                 );
             };
             let root = current_session_directory(app).or_else(|| app.project_path.clone());
@@ -1835,10 +1818,7 @@ pub fn update(app: &mut App, message: ChatMessage) -> Task<Message> {
                                 .session_reset::<session::Info>(
                                     &session_id,
                                     root.as_deref(),
-                                    &vw_gateway_client::GatewaySessionResetBody {
-                                        message_id,
-                                        revert_code,
-                                    },
+                                    &vw_gateway_client::GatewaySessionResetBody { message_id },
                                 )
                                 .await
                         }

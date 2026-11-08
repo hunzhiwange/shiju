@@ -696,28 +696,11 @@ async fn session_ops_cover_diff_summary_reset_and_title_errors() {
         Path(info.id.clone()),
         Query(query_for(project_path)),
         HeaderMap::new(),
-        Json(GatewaySessionResetBody {
-            message_id: "missing-message".to_string(),
-            revert_code: false,
-        }),
+        Json(GatewaySessionResetBody { message_id: "missing-message".to_string() }),
     )
     .await
-    .expect("reset without revert should safely handle a missing message");
+    .expect("reset should safely handle a missing message");
     assert_eq!(reset.id, info.id);
-
-    let Json(reset_with_revert) = session_reset(
-        State(state()),
-        Path(info.id.clone()),
-        Query(query_for(project_path)),
-        HeaderMap::new(),
-        Json(GatewaySessionResetBody {
-            message_id: "missing-message".to_string(),
-            revert_code: true,
-        }),
-    )
-    .await
-    .expect("reset with revert should safely handle an empty history");
-    assert_eq!(reset_with_revert.id, info.id);
 
     let title_result = session_title_generate(
         Path(info.id),

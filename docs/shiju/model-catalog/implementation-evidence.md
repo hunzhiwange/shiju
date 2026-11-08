@@ -814,3 +814,29 @@ Pi 供应商表单的现有网关入口为 `vw-agent/src/gateway/api/handlers/ap
 任务差异集中在目录编辑、DTO 字段说明、独立测试和本记录。本批次验收到请求配置。
 
 `git diff --cached --check` 通过。各阶段已释放槽位锁，保留编译缓存。
+
+## 任务 32　实现补全预览与修订提交
+
+2026-11-08，macOS 27.0（26A428），arm64。批次 31 已由 `0fa4558d5` 交付。已核对 `TenantScope`、`LocalReadEnvironment`、应用注册和可信 CLI 定位、可取消 `ProviderOperation` 及供应商条件写入契约。本批次复用租户作用域和条件写入，在调用方授权后的业务层使用可选 models.dev 快照。
+
+| 来源与接点 | 实际路径 |
+| --- | --- |
+| 固定来源 `ca58c0313360eae7c851fbd7553c1614c7af03e7` 的 `src/hooks/useModelMetadataFill.ts::useModelMetadataFill` | `crates/vw-agent-apps/src/models/fill_service.rs::preview` 以当前授权部署及已保存行的精确 ID 解析 `models/metadata.rs::resolve_model_metadata`。无快照时立即使用同端点预设。预览返回将补入的字段、实际来源、抓取时间和目录修订。 |
+| `useModelMetadataFill.ts` 的 `apply` 和 `notify` | `fill_service.rs::commit` 比对请求与当前授权租户、应用、供应商、主机和端点，检查 `expected_revision` 后重新计算。保留手工字段、显式禁用、显式空列表和别名。跳过冲突窗口或不支持的模态。由 `models/edits.rs::save` 条件替换原记录。最近一次成功补全的精确重试和空差异都返回 `changed: false`，批量调用方可按 `changed` 汇总实际变更。 |
+| `tests/hooks/useModelMetadataFill.test.tsx` | `crates/vw-agent-apps/src/models/fill_service_tests.rs` 使用真实目录编辑和补全解析、临时文件重开、受控 models.dev 快照及条件写入测试，覆盖离线、晚到、修订冲突、精确行、端点和主机隔离、重试及非法候选。 |
+| 下游 API、SDK 与 Iced | 请求和响应沿用 `crates/vw-api-types/src/model_catalog.rs` 的 `ModelCatalogFillPreviewRequest`、`ModelCatalogFillPreviewResponse`、`ModelCatalogFillCommitRequest` 和 `ModelCatalogWriteResponse`。网关和 SDK 在任务 38 接线。预览来源、时间和提醒由任务 41 接入桌面。现有供应商写入接点为 `crates/vw-agent/src/app_providers/model_edits.rs::AppProviderStore`。 |
+
+### 验证
+
+各阶段动态领取槽位 **1**，`CARGO_TARGET_DIR=/Users/xiangmin/worker/code/shiju/target/rust-slot-1`，Cargo 中间目录也在该槽位。格式化使用 Git 源码快照，仅回写本任务 Rust 文件。测试和 Clippy 在实际工作区执行。
+
+| 命令 | 退出码 | 证据 |
+| --- | ---: | --- |
+| `cargo fmt --all`（红灯、绿灯及复核） | 0、0、0 | 格式化成功。 |
+| `cargo test -p vw-agent-apps catalog_fill_revision_ -- --nocapture`（红灯） | 101 | 8 项失败，702 项过滤。首个指定用例实际收到 `model fill commit unavailable`，预期为 `model catalog changed`。 |
+| `cargo test -p vw-agent-apps catalog_fill_revision_ -- --nocapture`（绿灯及复核） | 0、0 | 每次 8 项通过，702 项过滤。复核增加高精度价格落盘重开后的精确重试及同修订跨行重试检查。 |
+| `cargo test -p vw-agent-apps catalog_edits_ -- --nocapture`（绿灯及复核） | 0、0 | 每次 7 项通过，703 项过滤。 |
+| `cargo test -p vw-agent-apps catalog_defaults_ -- --nocapture`（绿灯及复核） | 0、0 | 每次 6 项通过，704 项过滤。 |
+| `cargo clippy --all-targets --all-features -- -D warnings`（绿灯及复核） | 0、0 | 全工作区、全目标和全 features 通过。 |
+
+审查后的差异仅包含补全服务、共享目录写入和校验逻辑、独立测试、模块注册及本记录。`git diff --cached --check` 通过。槽位锁已释放，编译缓存已保留。

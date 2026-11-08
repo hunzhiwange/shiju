@@ -18,21 +18,21 @@ const CATALOGS: &str = "deploymentModelCatalogs";
 
 #[derive(Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
-struct SavedCatalog {
-    revision: String,
+pub(super) struct SavedCatalog {
+    pub(super) revision: String,
     default_model_id: Option<ModelId>,
-    models: Vec<SavedModel>,
+    pub(super) models: Vec<SavedModel>,
 }
 
 #[derive(PartialEq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
-struct SavedModel {
-    id: ModelId,
+pub(super) struct SavedModel {
+    pub(super) id: ModelId,
     display_alias: Option<String>,
-    metadata: ModelMetadataDto,
+    pub(super) metadata: ModelMetadataDto,
 }
 
-fn deployment_key(deployment: &ModelCatalogIdentity) -> Result<String, String> {
+pub(super) fn deployment_key(deployment: &ModelCatalogIdentity) -> Result<String, String> {
     validate_identity(&deployment.target_host_id)?;
     validate_identity(&deployment.provider_id)?;
     endpoint(&deployment.endpoint)?;
@@ -41,12 +41,12 @@ fn deployment_key(deployment: &ModelCatalogIdentity) -> Result<String, String> {
         .map_err(|_| "invalid model catalog deployment".into())
 }
 
-fn revision(parts: &impl Serialize) -> Result<String, String> {
+pub(super) fn revision(parts: &impl Serialize) -> Result<String, String> {
     let bytes = serde_json::to_vec(parts).map_err(|_| "invalid model catalog")?;
     Ok(URL_SAFE_NO_PAD.encode(Sha256::digest(bytes)))
 }
 
-fn load(
+pub(super) fn load(
     tenant: &TenantScope,
     deployment: &ModelCatalogIdentity,
     stored: &Value,
@@ -190,14 +190,23 @@ pub fn edit(
 
     if changed {
         saved.revision = revision(&(saved.revision, &saved.default_model_id, &saved.models))?;
-        let mut updated = stored.clone();
-        updated[CATALOGS][key] =
-            serde_json::to_value(&saved).map_err(|_| "invalid model catalog")?;
-        if !commit(&updated)? {
-            return Err("model catalog changed".into());
-        }
+        save(stored, &key, &saved, commit)?;
     }
     Ok(ModelCatalogWriteResponse { revision: saved.revision, changed })
+}
+
+pub(super) fn save(
+    stored: &Value,
+    key: &str,
+    saved: &SavedCatalog,
+    commit: impl FnOnce(&Value) -> Result<bool, String>,
+) -> Result<(), String> {
+    let mut updated = stored.clone();
+    updated[CATALOGS][key] = serde_json::to_value(saved).map_err(|_| "invalid model catalog")?;
+    if !commit(&updated)? {
+        return Err("model catalog changed".into());
+    }
+    Ok(())
 }
 
 fn validate_model_id(id: &ModelId) -> Result<(), String> {
@@ -216,8 +225,6 @@ fn validate_model_id(id: &ModelId) -> Result<(), String> {
 fn validate_metadata(metadata: &ModelMetadataDto) -> Result<(), String> {
     let context = metadata.context_window;
     let output = metadata.max_output_tokens;
-    // Keep explicit limits representable in the native JSON and TOML projections.
-    let valid_limit = |limit| (1..=i64::MAX as u64).contains(&limit);
     if !context.into_iter().chain(output).all(valid_limit)
         || context.zip(output).is_some_and(|(context, output)| output > context)
     {
@@ -227,12 +234,8 @@ fn validate_metadata(metadata: &ModelMetadataDto) -> Result<(), String> {
     for modalities in
         [&metadata.input_modalities, &metadata.output_modalities].into_iter().flatten()
     {
-        for (index, modality) in modalities.iter().enumerate() {
-            if !matches!(modality.as_str(), "text" | "image" | "audio" | "video" | "pdf")
-                || modalities[..index].contains(modality)
-            {
-                return Err("invalid model modalities".into());
-            }
+        if !valid_modalities(modalities) {
+            return Err("invalid model modalities".into());
         }
     }
 
@@ -245,4 +248,16 @@ fn validate_metadata(metadata: &ModelMetadataDto) -> Result<(), String> {
         return Err("invalid model cost".into());
     }
     Ok(())
+}
+
+// Keep explicit limits representable in the native JSON and TOML projections.
+pub(super) fn valid_limit(limit: u64) -> bool {
+    (1..=i64::MAX as u64).contains(&limit)
+}
+
+pub(super) fn valid_modalities(modalities: &[String]) -> bool {
+    modalities.iter().enumerate().all(|(index, modality)| {
+        matches!(modality.as_str(), "text" | "image" | "audio" | "video" | "pdf")
+            && !modalities[..index].contains(modality)
+    })
 }

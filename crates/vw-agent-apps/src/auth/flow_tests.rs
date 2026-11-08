@@ -1,6 +1,6 @@
 use super::{
     credential_file::{AccountCredential, CredentialFileStore},
-    flow::{AuthAccountScope, AuthFlowTiming, AuthFlows},
+    flow::{AuthAccountScope, AuthDevicePoll, AuthFlowTiming, AuthFlows},
 };
 use std::{
     sync::{
@@ -520,4 +520,230 @@ fn auth6_cancel_rejects_invalid_or_stale_input() {
     assert_eq!(attempts.load(Ordering::Relaxed), 2);
     assert!(reaped, "successful cancellation must reap the local CLI process");
     assert!(matches!(flows.snapshot(owner, &id, || deadline), Ok(AuthFlow::Cancelled { .. })));
+}
+
+#[tokio::test]
+async fn auth6_expiry_commits_expected_scoped_result() {
+    use std::cell::Cell;
+
+    let flows = AuthFlows::default();
+    let tenant = TenantScope::new("platform", "company").unwrap();
+    let owner = scope(&tenant);
+    let before_start = Instant::now();
+    let mut expiry = timing(before_start);
+    expiry.deadline += Duration::from_secs(120);
+    let id = pending(flows.start(owner, request("target"), expiry).unwrap());
+    let registered = Instant::now();
+    let first_due = registered + Duration::from_secs(5);
+    let now = Cell::new(registered);
+    let exchanges = Cell::new(0);
+    let no_write = |_: AuthAccountScope<'_>, _: &AuthStartRequest, _: &AuthAccount, ()| {
+        panic!("a pending or expired exchange must not enter the commit operation")
+    };
+    let early_poll = async |at| {
+        flows
+            .poll_device(
+                owner,
+                &id,
+                || at,
+                || async { panic!("an early or concurrent poll must not send an exchange") },
+                no_write,
+            )
+            .await
+    };
+    let expect_pending = |seconds| {
+        Ok(AuthFlow::Pending {
+            flow_id: id.clone(),
+            expires_at: timing(before_start).expires_at,
+            retry_after_seconds: seconds,
+        })
+    };
+
+    assert_eq!(
+        early_poll(now.get()).await,
+        expect_pending(5),
+        "first poll must wait for the interval"
+    );
+    for (sent, received, outcome, interval) in [
+        (0, 0, AuthDevicePoll::Pending, 5),
+        (5, 7, AuthDevicePoll::SlowDown, 10),
+        (17, 18, AuthDevicePoll::SlowDown, 15),
+        (33, 33, AuthDevicePoll::Pending, 15),
+    ] {
+        now.set(first_due + Duration::from_secs(sent));
+        let polled = flows
+            .poll_device(
+                owner,
+                &id,
+                || now.get(),
+                || async {
+                    exchanges.set(exchanges.get() + 1);
+                    if sent == 0 {
+                        // Even a due request cannot run while one is in flight.
+                        assert_eq!(
+                            early_poll(now.get() + Duration::from_secs(5)).await,
+                            expect_pending(5)
+                        );
+                    }
+                    now.set(first_due + Duration::from_secs(received));
+                    outcome
+                },
+                no_write,
+            )
+            .await;
+        assert_eq!(polled, expect_pending(interval));
+        now.set(now.get() + Duration::from_secs(interval - 1));
+        assert_eq!(early_poll(now.get()).await, expect_pending(interval));
+    }
+    assert_eq!(exchanges.get(), 4);
+    now.set(first_due + Duration::from_secs(48));
+    assert_eq!(
+        flows
+            .poll_device(owner, &id, || now.get(), || async { AuthDevicePoll::Expired }, no_write)
+            .await,
+        Ok(AuthFlow::Expired { flow_id: id.clone(), expires_at: timing(before_start).expires_at })
+    );
+    assert!(matches!(flows.snapshot(owner, &id, || now.get()), Ok(AuthFlow::Expired { .. })));
+}
+
+#[tokio::test]
+async fn auth6_expiry_rejects_invalid_or_stale_input() {
+    use std::cell::Cell;
+    use tokio::{
+        io::{AsyncBufReadExt, AsyncReadExt, AsyncWriteExt, BufReader},
+        net::TcpListener,
+    };
+
+    let flows = AuthFlows::default();
+    let tenant = TenantScope::new("platform", "company").unwrap();
+    let owner = AuthAccountScope { service: AuthService::KimiOauth, ..scope(&tenant) };
+    let before_start = Instant::now();
+    let deadline = timing(before_start).deadline;
+    let root = tempfile::tempdir().unwrap();
+    let challenge = root.path().join("pending");
+    let credential = root.path().join("credential.json");
+    let metadata = root.path().join("account.json");
+    std::fs::write(&challenge, b"fixture-device-code").unwrap();
+    let mut first_cleanup = true;
+    let id = pending(
+        flows
+            .start_with_cleanup(owner, request("target"), timing(before_start), {
+                let challenge = challenge.clone();
+                move || {
+                    if std::mem::take(&mut first_cleanup) {
+                        return Err(AuthErrorCode::ExecutionHostUnavailable);
+                    }
+                    std::fs::remove_file(&challenge)
+                        .map_err(|_| AuthErrorCode::ExecutionHostUnavailable)
+                }
+            })
+            .unwrap(),
+    );
+
+    // No request from the client is needed to release the host resource.
+    flows.reap_expired(deadline - Duration::from_millis(1)).unwrap();
+    assert!(challenge.exists());
+    assert_eq!(
+        flows.reap_expired(deadline),
+        Err(AuthErrorCode::ExecutionHostUnavailable),
+        "expiry must attempt host cleanup even when no client polls"
+    );
+    assert!(matches!(flows.snapshot(owner, &id, || deadline), Ok(AuthFlow::Expired { .. })));
+    assert!(challenge.exists());
+    flows.reap_expired(deadline).unwrap();
+    assert!(!challenge.exists(), "the next host sweep must retry cleanup");
+    flows.reap_expired(deadline).unwrap();
+
+    let late_id = pending(flows.start(owner, request("target"), timing(before_start)).unwrap());
+    let wrong_owner = AuthAccountScope { principal: "oidc:other", ..owner };
+    let now = Cell::new(Instant::now() + Duration::from_secs(5));
+    let persist = |_: AuthAccountScope<'_>,
+                   _: &AuthStartRequest,
+                   approved: &AuthAccount,
+                   tokens: serde_json::Value| {
+        std::fs::write(&credential, serde_json::to_vec(&tokens).unwrap())
+            .and_then(|()| std::fs::write(&metadata, serde_json::to_vec(approved).unwrap()))
+            .map_err(|_| AuthErrorCode::StorageUnavailable)
+    };
+    assert_eq!(
+        flows
+            .poll_device(
+                wrong_owner,
+                &late_id,
+                || now.get(),
+                || async { panic!("a different owner must not start a device exchange") },
+                persist
+            )
+            .await,
+        Err(AuthErrorCode::NotFound)
+    );
+    let endpoint = TcpListener::bind("127.0.0.1:0").await.unwrap();
+    let token_url = format!("http://{}/api/oauth/token", endpoint.local_addr().unwrap());
+    let body = "client_id=17e5f671-d194-4dfb-9706-5516cb48c098&device_code=fixture-device-code&grant_type=urn%3Aietf%3Aparams%3Aoauth%3Agrant-type%3Adevice_code";
+    let server = async {
+        let (stream, _) = endpoint.accept().await.unwrap();
+        let mut stream = BufReader::new(stream);
+        let mut line = String::new();
+        stream.read_line(&mut line).await.unwrap();
+        assert_eq!(line, "POST /api/oauth/token HTTP/1.1\r\n");
+        let mut headers = Vec::new();
+        loop {
+            line.clear();
+            assert_ne!(stream.read_line(&mut line).await.unwrap(), 0);
+            if line == "\r\n" {
+                break;
+            }
+            headers.push(line.trim().to_ascii_lowercase());
+        }
+        assert!(headers.contains(&"content-type: application/x-www-form-urlencoded".into()));
+        assert!(headers.contains(&format!("content-length: {}", body.len())));
+        let mut sent = vec![0; body.len()];
+        stream.read_exact(&mut sent).await.unwrap();
+        assert_eq!(sent, body.as_bytes());
+        // The exchange started before expiry. Advance the host clock before
+        // releasing the successful upstream response.
+        now.set(deadline);
+        let tokens = r#"{"access_token":"fixture-access","refresh_token":"fixture-refresh","expires_in":3600}"#;
+        stream.get_mut().write_all(format!(
+            "HTTP/1.1 200 OK\r\nContent-Type: application/json\r\nContent-Length: {}\r\n\r\n{tokens}", tokens.len()
+        ).as_bytes()).await.unwrap();
+    };
+    let poll = flows.poll_device(
+        owner,
+        &late_id,
+        || now.get(),
+        || async {
+            let tokens = reqwest::Client::builder()
+                .no_proxy()
+                .build()
+                .unwrap()
+                .post(token_url)
+                .header("Content-Type", "application/x-www-form-urlencoded")
+                .body(body)
+                .send()
+                .await
+                .unwrap()
+                .error_for_status()
+                .unwrap()
+                .json::<serde_json::Value>()
+                .await
+                .unwrap();
+            assert_eq!(tokens["expires_in"], 3600);
+            AuthDevicePoll::Complete(Ok((
+                AuthAccount { service: owner.service, ..account("target") },
+                tokens,
+            )))
+        },
+        persist,
+    );
+    let ((), polled) =
+        tokio::time::timeout(Duration::from_secs(10), async { tokio::join!(server, poll) })
+            .await
+            .expect("loopback exchange should finish");
+    assert!(matches!(polled, Ok(AuthFlow::Expired { .. })));
+    assert_eq!(
+        std::fs::read_dir(root.path()).unwrap().count(),
+        0,
+        "a token response at the deadline must not persist credentials or metadata"
+    );
 }

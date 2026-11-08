@@ -3,15 +3,16 @@
 use crate::providers::validate_identity;
 use std::{
     collections::{HashMap, hash_map::Entry},
-    sync::{Arc, Mutex, MutexGuard},
-    time::Instant,
+    future::Future,
+    sync::{Arc, Mutex, MutexGuard, TryLockError},
+    time::{Duration, Instant},
 };
 use uuid::Uuid;
 use vw_api_types::{
     TimestampMs,
     agent_apps_auth::{
         AuthAccount, AuthCredentialState, AuthError, AuthErrorCode, AuthFlow, AuthFlowId,
-        AuthService, AuthStartRequest,
+        AuthLoginMethod, AuthService, AuthStartRequest,
     },
     id::TenantScope,
 };
@@ -42,11 +43,30 @@ pub struct AuthFlowTiming {
     pub retry_after_seconds: u64,
 }
 
-type CancelCleanup = Box<dyn FnMut() -> Result<(), AuthErrorCode> + Send>;
+/// The host adapter translates the upstream response before returning it.
+/// A successful exchange may carry private data for the scoped commit only.
+pub enum AuthDevicePoll<T> {
+    Pending,
+    SlowDown,
+    Expired,
+    Complete(Result<(AuthAccount, T), AuthErrorCode>),
+}
+
+type FlowCleanup = Box<dyn FnMut() -> Result<(), AuthErrorCode> + Send>;
 
 struct FlowState {
     snapshot: AuthFlow,
     cancelling: bool,
+    polling: bool,
+    next_poll: Instant,
+}
+
+impl FlowState {
+    fn expire(&mut self) {
+        if let AuthFlow::Pending { flow_id, expires_at, .. } = &self.snapshot {
+            self.snapshot = AuthFlow::Expired { flow_id: flow_id.clone(), expires_at: *expires_at };
+        }
+    }
 }
 
 struct FlowRecord {
@@ -57,7 +77,7 @@ struct FlowRecord {
     request: AuthStartRequest,
     deadline: Instant,
     state: Mutex<FlowState>,
-    cancel_cleanup: Mutex<Option<CancelCleanup>>,
+    cleanup: Mutex<Option<FlowCleanup>>,
 }
 
 impl FlowRecord {
@@ -73,16 +93,46 @@ impl FlowRecord {
     fn state_at(
         &self,
         clock: impl FnOnce() -> Instant,
-    ) -> Result<MutexGuard<'_, FlowState>, AuthErrorCode> {
+    ) -> Result<(MutexGuard<'_, FlowState>, Instant), AuthErrorCode> {
         let mut state = self.state.lock().map_err(|_| AuthErrorCode::ExecutionHostUnavailable)?;
-        if !state.cancelling
+        let now = clock();
+        if !state.cancelling && now >= self.deadline {
+            state.expire();
+        }
+        Ok((state, now))
+    }
+
+    fn reap_expired(&self, now: Instant) -> Result<(), AuthErrorCode> {
+        {
+            let (state, _) = self.state_at(|| now)?;
+            if !(matches!(state.snapshot, AuthFlow::Expired { .. })
+                || state.cancelling && now >= self.deadline)
+            {
+                return Ok(());
+            }
+        }
+        // Another sweep or explicit cancellation can be stopping this flow.
+        // Do not wait for that work before processing other records.
+        let mut cleanup = match self.cleanup.try_lock() {
+            Ok(cleanup) => cleanup,
+            Err(TryLockError::WouldBlock) => return Ok(()),
+            Err(TryLockError::Poisoned(_)) => return Err(AuthErrorCode::ExecutionHostUnavailable),
+        };
+        // No state lock while stopping a worker that might still return a result.
+        if let Some(stop) = cleanup.as_mut() {
+            stop()?;
+        }
+        *cleanup = None;
+
+        let mut state = self.state.lock().map_err(|_| AuthErrorCode::ExecutionHostUnavailable)?;
+        if state.cancelling
             && let AuthFlow::Pending { flow_id, expires_at, .. } = &state.snapshot
-            && clock() >= self.deadline
         {
             state.snapshot =
-                AuthFlow::Expired { flow_id: flow_id.clone(), expires_at: *expires_at };
+                AuthFlow::Cancelled { flow_id: flow_id.clone(), expires_at: *expires_at };
+            state.cancelling = false;
         }
-        Ok(state)
+        Ok(())
     }
 
     fn validate_account(&self, account: &AuthAccount) -> Result<(), AuthErrorCode> {
@@ -103,6 +153,56 @@ impl FlowRecord {
         }
         Ok(())
     }
+
+    fn commit(
+        &self,
+        state: &mut FlowState,
+        flow_id: &AuthFlowId,
+        result: Result<AuthAccount, AuthErrorCode>,
+        persist: impl FnOnce(
+            AuthAccountScope<'_>,
+            &AuthStartRequest,
+            &AuthAccount,
+        ) -> Result<(), AuthErrorCode>,
+    ) -> Result<AuthFlow, AuthErrorCode> {
+        if state.cancelling {
+            return Err(AuthErrorCode::Conflict);
+        }
+        let AuthFlow::Pending { expires_at, .. } = state.snapshot else {
+            return Err(AuthErrorCode::Conflict);
+        };
+        state.snapshot = match result.and_then(|account| {
+            self.validate_account(&account)?;
+            persist(self.scope(), &self.request, &account)?;
+            Ok(account)
+        }) {
+            Ok(account) => AuthFlow::Approved { flow_id: flow_id.clone(), expires_at, account },
+            Err(code) => AuthFlow::Failed {
+                flow_id: flow_id.clone(),
+                expires_at,
+                error: AuthError {
+                    code,
+                    message: "Authorization could not be completed.".into(),
+                    correlation_id: Uuid::new_v4().to_string(),
+                },
+            },
+        };
+        Ok(state.snapshot.clone())
+    }
+}
+
+struct InFlightPoll<'a>(&'a FlowRecord);
+
+impl Drop for InFlightPoll<'_> {
+    fn drop(&mut self) {
+        if let Ok(mut state) = self.0.state.lock() {
+            state.polling = false;
+        }
+    }
+}
+
+fn next_poll(now: Instant, interval: u64, deadline: Instant) -> Instant {
+    now.checked_add(Duration::from_secs(interval)).map_or(deadline, |next| next.min(deadline))
 }
 
 /// One registry per host runtime. Challenges and upstream secrets stay in
@@ -113,6 +213,87 @@ pub struct AuthFlows {
 }
 
 impl AuthFlows {
+    /// Run from the execution host's maintenance loop, independent of client
+    /// requests. Keep terminal snapshots readable and retry failed cleanup on
+    /// the next tick. Cleanup can block, so do not call on an async worker.
+    pub fn reap_expired(&self, now: Instant) -> Result<(), AuthErrorCode> {
+        let records: Vec<_> = self
+            .records
+            .lock()
+            .map_err(|_| AuthErrorCode::ExecutionHostUnavailable)?
+            .values()
+            .cloned()
+            .collect();
+        let mut first_error = None;
+        for record in records {
+            if let Err(error) = record.reap_expired(now) {
+                first_error.get_or_insert(error);
+            }
+        }
+        first_error.map_or(Ok(()), Err)
+    }
+
+    /// Advance a due device exchange on the execution host. Status reads use
+    /// `snapshot` and never send a request. Do not hold locks across HTTP;
+    /// check cancellation and expiry again at the scoped commit.
+    pub async fn poll_device<T, F: Future<Output = AuthDevicePoll<T>>>(
+        &self,
+        scope: AuthAccountScope<'_>,
+        flow_id: &AuthFlowId,
+        clock: impl Fn() -> Instant,
+        exchange: impl FnOnce() -> F,
+        persist: impl FnOnce(
+            AuthAccountScope<'_>,
+            &AuthStartRequest,
+            &AuthAccount,
+            T,
+        ) -> Result<(), AuthErrorCode>,
+    ) -> Result<AuthFlow, AuthErrorCode> {
+        let record = self.find(scope, flow_id)?;
+        if record.request.method != AuthLoginMethod::DeviceCode {
+            return Err(AuthErrorCode::Unsupported);
+        }
+        {
+            let (mut state, now) = record.state_at(&clock)?;
+            let AuthFlow::Pending { retry_after_seconds, .. } = state.snapshot else {
+                return Ok(state.snapshot.clone());
+            };
+            if state.cancelling || state.polling || now < state.next_poll {
+                return Ok(state.snapshot.clone());
+            }
+            state.next_poll = next_poll(now, retry_after_seconds, record.deadline);
+            state.polling = true;
+        }
+        let _in_flight = InFlightPoll(&record);
+        let outcome = exchange().await;
+        let (mut state, now) = record.state_at(clock)?;
+        if state.cancelling {
+            return Err(AuthErrorCode::Conflict);
+        }
+        if let AuthFlow::Pending { retry_after_seconds, .. } = &mut state.snapshot {
+            match outcome {
+                AuthDevicePoll::Pending => {}
+                AuthDevicePoll::SlowDown => {
+                    *retry_after_seconds = retry_after_seconds.saturating_add(5);
+                    state.next_poll = next_poll(now, *retry_after_seconds, record.deadline);
+                }
+                AuthDevicePoll::Expired => state.expire(),
+                AuthDevicePoll::Complete(Ok((account, payload))) => {
+                    return record.commit(
+                        &mut state,
+                        flow_id,
+                        Ok(account),
+                        |scope, request, account| persist(scope, request, account, payload),
+                    );
+                }
+                AuthDevicePoll::Complete(Err(error)) => {
+                    return record.commit(&mut state, flow_id, Err(error), |_, _, _| Ok(()));
+                }
+            }
+        }
+        Ok(state.snapshot.clone())
+    }
+
     /// Register a start with no local resources to stop on cancellation.
     pub fn start(
         &self,
@@ -129,7 +310,7 @@ impl AuthFlows {
     /// Bind the adapter's local resource handles to this attempt. Cleanup must
     /// stop the listener or process and wait for it to exit before returning
     /// success. It may be retried after an error and must not call `cancel` on
-    /// the same flow. The adapter owns teardown on paths other than cancellation.
+    /// the same flow. The host also runs it when reaping expired attempts.
     pub fn start_with_cleanup(
         &self,
         scope: AuthAccountScope<'_>,
@@ -145,14 +326,18 @@ impl AuthFlows {
         scope: AuthAccountScope<'_>,
         request: AuthStartRequest,
         timing: AuthFlowTiming,
-        cancel_cleanup: Option<CancelCleanup>,
+        cleanup: Option<FlowCleanup>,
     ) -> Result<AuthFlow, AuthErrorCode> {
         scope.validate()?;
         request.validate_for(scope.service)?;
         if let Some(id) = &request.target_account_id {
             validate_identity(id).map_err(|_| AuthErrorCode::InvalidInput)?;
         }
-        if timing.deadline <= Instant::now() || timing.expires_at.0 <= 0 {
+        let now = Instant::now();
+        if timing.deadline <= now
+            || timing.expires_at.0 <= 0
+            || request.method == AuthLoginMethod::DeviceCode && timing.retry_after_seconds == 0
+        {
             return Err(AuthErrorCode::InvalidInput);
         }
 
@@ -173,8 +358,13 @@ impl AuthFlows {
                     service: scope.service,
                     request,
                     deadline: timing.deadline,
-                    state: Mutex::new(FlowState { snapshot: state.clone(), cancelling: false }),
-                    cancel_cleanup: Mutex::new(cancel_cleanup),
+                    state: Mutex::new(FlowState {
+                        snapshot: state.clone(),
+                        cancelling: false,
+                        polling: false,
+                        next_poll: next_poll(now, timing.retry_after_seconds, timing.deadline),
+                    }),
+                    cleanup: Mutex::new(cleanup),
                 }));
                 return Ok(state);
             }
@@ -200,7 +390,7 @@ impl AuthFlows {
         flow_id: &AuthFlowId,
         clock: impl FnOnce() -> Instant,
     ) -> Result<AuthFlow, AuthErrorCode> {
-        Ok(self.find(scope, flow_id)?.state_at(clock)?.snapshot.clone())
+        Ok(self.find(scope, flow_id)?.state_at(clock)?.0.snapshot.clone())
     }
 
     /// Invalidate the attempt before teardown and report cancellation only
@@ -214,9 +404,9 @@ impl AuthFlows {
     ) -> Result<(), AuthErrorCode> {
         let record = self.find(scope, flow_id)?;
         let mut cleanup =
-            record.cancel_cleanup.lock().map_err(|_| AuthErrorCode::ExecutionHostUnavailable)?;
+            record.cleanup.lock().map_err(|_| AuthErrorCode::ExecutionHostUnavailable)?;
         let expires_at = {
-            let mut state = record.state_at(clock)?;
+            let (mut state, _) = record.state_at(clock)?;
             match state.snapshot {
                 AuthFlow::Pending { expires_at, .. } => {
                     state.cancelling = true;
@@ -256,30 +446,10 @@ impl AuthFlows {
         ) -> Result<(), AuthErrorCode>,
     ) -> Result<AuthFlow, AuthErrorCode> {
         let record = self.find(scope, flow_id)?;
-        let mut state = record.state_at(clock)?;
-        if state.cancelling {
+        let (mut state, _) = record.state_at(clock)?;
+        if state.polling {
             return Err(AuthErrorCode::Conflict);
         }
-        let AuthFlow::Pending { expires_at, .. } = state.snapshot else {
-            return Err(AuthErrorCode::Conflict);
-        };
-
-        state.snapshot = match result.and_then(|account| {
-            record.validate_account(&account)?;
-            persist(record.scope(), &record.request, &account)?;
-            Ok(account)
-        }) {
-            Ok(account) => AuthFlow::Approved { flow_id: flow_id.clone(), expires_at, account },
-            Err(code) => AuthFlow::Failed {
-                flow_id: flow_id.clone(),
-                expires_at,
-                error: AuthError {
-                    code,
-                    message: "Authorization could not be completed.".into(),
-                    correlation_id: Uuid::new_v4().to_string(),
-                },
-            },
-        };
-        Ok(state.snapshot.clone())
+        record.commit(&mut state, flow_id, result, persist)
     }
 }

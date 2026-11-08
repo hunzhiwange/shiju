@@ -1,7 +1,10 @@
 //! 处理系统设置页面中对应功能区的消息、校验和配置持久化。
 
+use crate::app::components::system_settings::{
+    SETTINGS_CONTENT_SCROLL, SETTINGS_NAVIGATION_SCROLL, SystemTab, reveal_field,
+};
 use crate::app::components::system_settings_search::SystemSettingsSearchTarget;
-use crate::app::{App, Message, components::system_settings::SystemTab};
+use crate::app::{App, Message};
 use iced::Task;
 
 use super::messages::{
@@ -122,22 +125,7 @@ pub fn update(app: &mut App, message: SettingsMessage) -> Task<Message> {
             }
         }
         SettingsMessage::SystemSearchTargetSelected(target) => {
-            let parent = match target {
-                SystemSettingsSearchTarget::TopLevel(tab)
-                | SystemSettingsSearchTarget::Network(tab) => tab,
-                SystemSettingsSearchTarget::General(_) => SystemTab::General,
-                SystemSettingsSearchTarget::Models(_) => SystemTab::Models,
-                SystemSettingsSearchTarget::Cron(_) => SystemTab::Cron,
-                SystemSettingsSearchTarget::Agents(_)
-                | SystemSettingsSearchTarget::AgentMcp(_)
-                | SystemSettingsSearchTarget::AgentSkills(_) => SystemTab::Agents,
-                SystemSettingsSearchTarget::Channels(_) => SystemTab::Agents,
-                SystemSettingsSearchTarget::Memory(_) => SystemTab::Memory,
-                SystemSettingsSearchTarget::Autonomy(_) => SystemTab::Autonomy,
-                SystemSettingsSearchTarget::Security(_) => SystemTab::Security,
-                SystemSettingsSearchTarget::Gateway(_) => SystemTab::Gateway,
-            };
-            let mut tasks = vec![update(app, SettingsMessage::SystemTabSelected(parent))];
+            let mut tasks = vec![update(app, SettingsMessage::SystemTabSelected(target.page()))];
 
             let child_task = match target {
                 SystemSettingsSearchTarget::TopLevel(_)
@@ -145,6 +133,10 @@ pub fn update(app: &mut App, message: SettingsMessage) -> Task<Message> {
                 SystemSettingsSearchTarget::General(tab) => super::general::update(
                     app,
                     SettingsMessage::General(GeneralSettingsMessage::TabSelected(tab)),
+                ),
+                SystemSettingsSearchTarget::GeneralField(field) => super::general::update(
+                    app,
+                    SettingsMessage::General(GeneralSettingsMessage::TabSelected(field.tab)),
                 ),
                 SystemSettingsSearchTarget::Models(tab) => update(
                     app,
@@ -203,6 +195,14 @@ pub fn update(app: &mut App, message: SettingsMessage) -> Task<Message> {
                 }
             };
             tasks.push(child_task);
+            let scroll = match target {
+                SystemSettingsSearchTarget::GeneralField(field) => reveal_field(field.id),
+                _ => iced::widget::operation::snap_to(
+                    SETTINGS_CONTENT_SCROLL,
+                    iced::widget::scrollable::RelativeOffset::START,
+                ),
+            };
+            tasks.push(scroll);
             Task::batch(tasks)
         }
         SettingsMessage::ModelConfigTab(ModelConfigTabMessage::Selected(tab)) => {
@@ -273,7 +273,10 @@ pub fn update(app: &mut App, message: SettingsMessage) -> Task<Message> {
         }
         SettingsMessage::SystemTabQueryChanged(query) => {
             app.system_settings_query = query;
-            Task::none()
+            iced::widget::operation::snap_to(
+                SETTINGS_NAVIGATION_SCROLL,
+                iced::widget::scrollable::RelativeOffset::START,
+            )
         }
         SettingsMessage::SystemHelpOpen(tab) => {
             app.system_settings_help_tab = Some(tab);

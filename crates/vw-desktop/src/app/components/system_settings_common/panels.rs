@@ -104,6 +104,7 @@ pub fn settings_row<'a>(
     control: impl Into<Element<'a, Message>>,
 ) -> Element<'a, Message> {
     settings_row_layout(label, description, container(control.into()).align_right(control_width))
+        .into()
 }
 
 /// 在窄内容区为说明保留一半可用宽度，宽屏仍限制控件的最大宽度。
@@ -113,15 +114,24 @@ pub(crate) fn settings_row_with_flexible_control<'a>(
     max_control_width: f32,
     control: impl Into<Element<'a, Message>>,
 ) -> Element<'a, Message> {
+    settings_flexible_row(label, description, max_control_width, control).into()
+}
+
+pub(crate) fn settings_flexible_row<'a>(
+    label: &'a str,
+    description: &'a str,
+    max_control_width: f32,
+    control: impl Into<Element<'a, Message>>,
+) -> iced::widget::Container<'a, Message> {
     let control = container(control.into()).align_right(Length::Fill).max_width(max_control_width);
     settings_row_layout(label, description, container(control).align_right(Length::Fill))
 }
 
-fn settings_row_layout<'a>(
+pub(crate) fn settings_row_layout<'a>(
     label: &'a str,
     description: &'a str,
     control: impl Into<Element<'a, Message>>,
-) -> Element<'a, Message> {
+) -> iced::widget::Container<'a, Message> {
     container(
         row![
             column![
@@ -137,7 +147,6 @@ fn settings_row_layout<'a>(
     )
     .padding([20, 0])
     .width(Length::Fill)
-    .into()
 }
 
 /// 弹窗标题占用可用宽度，操作区和关闭按钮固定在右侧。

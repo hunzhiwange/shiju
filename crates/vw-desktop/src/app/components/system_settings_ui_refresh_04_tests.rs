@@ -1,4 +1,5 @@
 use super::*;
+use crate::app::components::system_settings_search::SystemSettingsSearchTarget;
 use crate::app::message::{SettingsMessage, ViewMessage};
 use crate::app::state::ModelConfigTab;
 use iced::advanced::renderer::Headless;
@@ -17,9 +18,9 @@ fn fixture() -> App {
     app
 }
 
-const HEADER: &[usize] = &[0, 0, 0, 0, 0];
-const SIDEBAR: &[usize] = &[0, 0, 0, 0, 1, 0];
-const PANEL: &[usize] = &[0, 0, 0, 0, 1, 1];
+const SIDEBAR: &[usize] = &[0, 0, 0];
+const ACTIONS: &[usize] = &[0, 0, 2, 0, 0];
+const PANEL: &[usize] = &[0, 0, 2, 1];
 const HELP_CARD: &[usize] = &[1, 1, 0];
 
 struct Scene<'a> {
@@ -196,9 +197,7 @@ async fn ui_refresh_04_layout_and_interaction() {
         ] {
             app.desktop_locale = locale;
             app.app_theme = theme.clone();
-            for (window_width, content_width) in
-                [(420, 218.0), (800, 502.0), (950, 640.0), (1270, 960.0)]
-            {
+            for window_width in [420, 800, 950, 1270, 1720] {
                 let mut scene = Scene::new(&app, window_width, 760).await;
                 scene.snapshot(
                     &theme,
@@ -208,21 +207,24 @@ async fn ui_refresh_04_layout_and_interaction() {
                 let sidebar = scene.bounds(SIDEBAR, &[]);
                 let panel = scene.bounds(PANEL, &[]);
                 let body = scene.bounds(PANEL, &[0, 0, 0]);
-                assert!(sidebar.x + sidebar.width <= panel.x);
-                assert!(panel.width >= window_width as f32 * 0.6);
-                assert!((body.width - content_width).abs() < 0.5, "{body:?}");
-                assert_eq!(sidebar.y, panel.y);
-                let back = scene.bounds(HEADER, &[0]);
-                let close = scene.bounds(HEADER, &[2, 1]);
-                assert!((back.center_y() - close.center_y()).abs() < 0.5);
+                assert_eq!(sidebar.x, 0.0);
+                assert_eq!(sidebar.y, 0.0);
+                assert!((sidebar.width + 1.0 - panel.x).abs() < 0.5);
+                assert_eq!(panel.x + panel.width, window_width as f32);
+                assert!((body.center_x() - panel.center_x()).abs() < 0.5);
+                let expected_width = (panel.width - 2.0 * f32::from(SETTINGS_SCROLL_GUTTER))
+                    .min(SETTINGS_CONTENT_MAX_WIDTH);
+                assert!((body.width - expected_width).abs() < 0.5, "{body:?}");
+                let label = scene.bounds(PANEL, &[0, 0, 0, 0, 0, 2, 1, 0, 0, 0, 0]);
+                assert!(label.width > 90.0, "settings row label is cramped: {label:?}");
             }
         }
     }
 
     app.desktop_locale = DesktopLocale::English;
     let mut scene = Scene::new(&app, 950, 410).await;
-    let first = scene.bounds(SIDEBAR, &[0, 2, 0, 0, 0]).center();
-    let second = scene.bounds(SIDEBAR, &[0, 2, 0, 0, 1]).center();
+    let first = scene.bounds(SIDEBAR, &[0, 2, 0, 0, 0, 1, 0]).center();
+    let second = scene.bounds(SIDEBAR, &[0, 2, 0, 0, 0, 1, 1]).center();
     let idle = scene.snapshot(&Theme::Dark, mouse::Cursor::Unavailable, "");
     for (index, point) in [first, second].into_iter().enumerate() {
         let cursor = mouse::Cursor::Available(point);
@@ -269,13 +271,13 @@ async fn ui_refresh_04_layout_and_interaction() {
         "wheel must move the result list under the pointer"
     );
 
-    for action in [scene.bounds(HEADER, &[0]), scene.bounds(HEADER, &[2, 1])] {
+    for action in [scene.bounds(SIDEBAR, &[0, 0, 0, 0]), scene.bounds(ACTIONS, &[1])] {
         assert!(matches!(
             scene.click(action.center()).as_slice(),
             [Message::View(ViewMessage::ToggleSystemSettings)]
         ));
     }
-    let help = scene.bounds(HEADER, &[2, 0]);
+    let help = scene.bounds(ACTIONS, &[0]);
     assert!(matches!(
         scene.click(help.center()).as_slice(),
         [Message::Settings(SettingsMessage::SystemHelpOpen(SystemTab::General))]
@@ -288,7 +290,7 @@ async fn ui_refresh_04_preserves_values_and_disabled_states() {
     app.desktop_locale = DesktopLocale::English;
     app.system_settings_query = "OC".into();
     let mut scene = Scene::new(&app, 950, 760).await;
-    let input = scene.bounds(SIDEBAR, &[0, 1]);
+    let input = scene.bounds(SIDEBAR, &[0, 1, 0, 0]);
     assert!(scene.click(Point::new(input.x + 45.0, input.center_y())).is_empty());
     assert!(scene.key(Key::Named(Named::End), None).is_empty());
     let typed = scene.key(Key::Character("R".into()), Some("R"));
@@ -317,6 +319,18 @@ async fn ui_refresh_04_preserves_values_and_disabled_states() {
     assert_eq!(app.system_settings_tab, SystemTab::Models);
     assert_eq!(app.model_settings.active_tab, ModelConfigTab::Multimodal);
 
+    let mut scene = Scene::new(&app, 950, 760).await;
+    let clear = scene.bounds(SIDEBAR, &[0, 1, 0, 1, 2, 0]).center();
+    let cleared = scene.click(clear);
+    assert!(matches!(cleared.as_slice(), [
+        Message::Settings(SettingsMessage::SystemTabQueryChanged(query))
+    ] if query.is_empty()));
+    drop(scene);
+    let Message::Settings(clear) = cleared.into_iter().next().unwrap() else { unreachable!() };
+    let _ = message::settings::update(&mut app, clear);
+    assert!(app.system_settings_query.is_empty());
+    assert_eq!(app.model_settings.active_tab, ModelConfigTab::Multimodal);
+
     app.system_settings_query = "unmatched-fixture-entry".into();
     let mut scene = Scene::new(&app, 950, 760).await;
     scene.snapshot(&Theme::Light, mouse::Cursor::Unavailable, "search-empty");
@@ -328,9 +342,9 @@ async fn ui_refresh_04_preserves_values_and_disabled_states() {
     app.apps_catalog.loading = true;
     let mut scene = Scene::new(&app, 950, 760).await;
     scene.snapshot(&Theme::Light, mouse::Cursor::Unavailable, "apps-loading");
-    let refresh_path = &[0, 0, 0, 0, 0, 0, 1];
+    let refresh_path = &[0, 0, 0, 0, 0, 0, 0, 1];
     let refresh = scene.bounds(PANEL, refresh_path);
-    let preferences = scene.bounds(PANEL, &[0, 0, 0, 0, 0, 0, 2]);
+    let preferences = scene.bounds(PANEL, &[0, 0, 0, 0, 0, 0, 0, 2]);
     assert!(scene.click(refresh.center()).is_empty());
     assert!(scene.click(preferences.center()).is_empty());
     drop(scene);
@@ -355,17 +369,19 @@ async fn ui_refresh_04_preserves_values_and_disabled_states() {
 async fn ui_refresh_04_renders_each_page_and_preserves_help_close() {
     let mut app = fixture();
     let mut scene = Scene::new(&app, 1270, 980).await;
-    for (index, tab) in SystemTab::all().into_iter().enumerate() {
-        let entry = scene.bounds(SIDEBAR, &[0, 2, 0, 0, index]);
-        assert!(matches!(scene.click(entry.center()).as_slice(), [
-            Message::Settings(SettingsMessage::SystemSearchTargetSelected(
-                SystemSettingsSearchTarget::TopLevel(target)
-            ))
-        ] if *target == tab));
+    for (group, (_, tabs)) in navigation::GROUPS.iter().enumerate() {
+        for (index, tab) in tabs.iter().enumerate() {
+            let entry = scene.bounds(SIDEBAR, &[0, 2, 0, 0, group, 1, index]);
+            assert!(matches!(scene.click(entry.center()).as_slice(), [
+                Message::Settings(SettingsMessage::SystemSearchTargetSelected(
+                    SystemSettingsSearchTarget::TopLevel(target)
+                ))
+            ] if target == tab));
+        }
     }
     drop(scene);
 
-    let tabs = SystemTab::all().into_iter().chain([
+    let tabs = SystemTab::all().chain([
         SystemTab::Themes,
         SystemTab::Editor,
         SystemTab::Channels,
@@ -409,7 +425,7 @@ async fn ui_refresh_04_keeps_general_select_overlay_interactive() {
     let mut app = fixture();
     app.desktop_locale = DesktopLocale::SimplifiedChinese;
     let mut scene = Scene::new(&app, 950, 760).await;
-    let trigger = scene.bounds(PANEL, &[0, 0, 0, 0, 2, 1, 0, 4, 0, 1, 0]).center();
+    let trigger = scene.bounds(PANEL, &[0, 0, 0, 0, 0, 2, 1, 0, 4, 0, 1, 0, 0]).center();
     assert!(scene.click(trigger).is_empty());
     let menu = scene.overlay_bounds().expect("locale menu opens");
     assert!(menu.x >= 0.0 && menu.x + menu.width <= scene.viewport.width + 0.5);
@@ -427,4 +443,56 @@ async fn ui_refresh_04_keeps_general_select_overlay_interactive() {
         )))]
     ));
     assert!(scene.overlay_bounds().is_none());
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn ui_refresh_04_search_opens_the_language_control_row() {
+    use iced::advanced::widget::operation::Outcome;
+    use iced::futures::StreamExt;
+
+    let mut app = fixture();
+    app.desktop_locale = DesktopLocale::SimplifiedChinese;
+    app.general_settings_tab = GeneralSettingsTab::Terminal;
+    app.system_settings_query = "语言".into();
+    let mut scene = Scene::new(&app, 420, 400).await;
+    scene.snapshot(&Theme::Dark, mouse::Cursor::Unavailable, "search-language-dark");
+    let result = scene.bounds(SIDEBAR, &[0, 2, 0, 0, 0]);
+    let messages = scene.click(result.center());
+    assert!(matches!(
+        messages.as_slice(),
+        [Message::Settings(SettingsMessage::SystemSearchTargetSelected(
+            SystemSettingsSearchTarget::GeneralField(field)
+        ))] if **field == general_fields::LANGUAGE
+    ));
+    drop(scene);
+    let Message::Settings(selected) = messages.into_iter().next().unwrap() else { unreachable!() };
+    let task = message::settings::update(&mut app, selected);
+    assert_eq!(app.general_settings_tab, GeneralSettingsTab::Interface);
+
+    let mut scene = Scene::new(&app, 420, 400).await;
+    let row_path = &[0, 0, 0, 0, 0, 2, 1, 0, 4];
+    let field = scene.bounds(PANEL, row_path);
+    let trigger = scene.bounds(PANEL, &[0, 0, 0, 0, 0, 2, 1, 0, 4, 0, 1, 0, 0]).center();
+    assert!(trigger.y > scene.viewport.height);
+
+    let mut actions = iced_runtime::task::into_stream(task).expect("scroll operation");
+    let Some(iced_runtime::Action::Widget(mut operation)) = actions.next().await else {
+        panic!("expected a widget operation");
+    };
+    loop {
+        scene.element.as_widget_mut().operate(
+            &mut scene.tree,
+            Layout::new(&scene.node),
+            &scene.renderer,
+            operation.as_mut(),
+        );
+        let Outcome::Chain(next) = operation.finish() else { break };
+        operation = next;
+    }
+
+    scene.snapshot(&Theme::Light, mouse::Cursor::Unavailable, "search-language-positioned");
+    let scroll_top = scene.bounds(PANEL, &[0]).y;
+    let visible_trigger = Point::new(trigger.x, scroll_top + 12.0 + trigger.y - field.y);
+    assert!(scene.click(visible_trigger).is_empty());
+    assert!(scene.overlay_bounds().is_some(), "the revealed language picker opens");
 }

@@ -8,12 +8,14 @@
 //! - 终端主题选择
 //! - 终端字体及字号配置
 
+use crate::app::components::system_settings::general_fields::{self, GeneralSettingField};
 use crate::app::components::system_settings_common::{
-    rounded_action_btn_style, settings_divider, settings_group_card, settings_group_heading,
-    settings_muted_text_style, settings_page_heading, settings_row, settings_select,
+    rounded_action_btn_style, settings_divider, settings_flexible_row, settings_group_card,
+    settings_group_heading, settings_muted_text_style, settings_page_heading, settings_select,
     settings_tab_button, settings_tab_row, settings_toggle, settings_value_badge,
 };
 use crate::app::components::system_settings_search::SettingsTabDescriptor;
+use crate::app::i18n::I18n;
 use crate::app::state::GeneralSettingsTab;
 use crate::app::theme_catalog::{theme_store_from_home, to_iced_theme};
 use crate::app::{App, Message, PreviewAutoSaveMode, Shell, TerminalTheme, message};
@@ -23,40 +25,26 @@ use iced::{Alignment, Element, Length, Theme};
 const GENERAL_CONTROL_WIDTH: f32 = 280.0;
 
 pub(super) const GENERAL_TABS: &[SettingsTabDescriptor<GeneralSettingsTab>] = &[
-    SettingsTabDescriptor::new(
-        GeneralSettingsTab::Interface,
-        "界面",
-        &[
-            "语言",
-            "应用主题",
-            "自动保存",
-            "开机启动",
-            "关闭到托盘",
-            "后台运行",
-            "startup",
-            "tray",
-            "preview auto save",
-            "通知",
-            "任务完成",
-            "notification",
-        ],
-    ),
-    SettingsTabDescriptor::new(
-        GeneralSettingsTab::Terminal,
-        "终端",
-        &["Shell", "终端主题", "终端字体", "字体大小"],
-    ),
-    SettingsTabDescriptor::new(
-        GeneralSettingsTab::Editor,
-        "编辑器",
-        &["editor", "code", "编辑器主题", "行高"],
-    ),
+    SettingsTabDescriptor::new(GeneralSettingsTab::Interface, "界面", &[]),
+    SettingsTabDescriptor::new(GeneralSettingsTab::Terminal, "终端", &[]),
+    SettingsTabDescriptor::new(GeneralSettingsTab::Editor, "编辑器", &["editor", "code"]),
     SettingsTabDescriptor::new(
         GeneralSettingsTab::Themes,
         "主题",
         &["themes", "gallery", "palette", "custom", "builtin", "画廊", "配色", "色板"],
     ),
 ];
+
+fn general_field_row<'a>(
+    i18n: I18n,
+    field: &GeneralSettingField,
+    description: &'a str,
+    control: impl Into<Element<'a, Message>>,
+) -> Element<'a, Message> {
+    settings_flexible_row(i18n.__(field.label), description, GENERAL_CONTROL_WIDTH, control)
+        .id(field.id)
+        .into()
+}
 
 fn app_theme_selected(theme: iced::Theme) -> Message {
     Message::View(message::ViewMessage::AppThemeSelected(theme))
@@ -142,7 +130,7 @@ fn terminal_font_size_changed(font_size: f32) -> Message {
 /// // 返回的 Element 可直接用于 iced 应用的视图渲染
 /// ```
 pub fn view(app: &App) -> Element<'_, Message> {
-    let i18n = crate::app::i18n::I18n::new(app.desktop_locale);
+    let i18n = I18n::new(app.desktop_locale);
     let locales = ["简体中文", "繁體中文", "English"];
     let locale_index = match app.desktop_locale {
         vw_config_types::ui::DesktopLocale::SimplifiedChinese => 0,
@@ -236,43 +224,43 @@ pub fn view(app: &App) -> Element<'_, Message> {
             ))),
         )
         .into()
-    }));
+    }))
+    .wrap();
 
     let content: Element<'_, Message> = match active_tab {
         GeneralSettingsTab::Interface => column![
             settings_group_heading(i18n.__("界面"), i18n.__("应用外观与预览行为。")),
             settings_group_card(
                 column![
-                    settings_row(
-                        i18n.__("开机启动"),
+                    general_field_row(
+                        i18n,
+                        &general_fields::LAUNCH_ON_LOGIN,
                         i18n.__("随系统自动启动识矩，仅对当前设备生效。"),
-                        GENERAL_CONTROL_WIDTH,
                         launch_toggle,
                     ),
                     settings_divider(),
-                    settings_row(
-                        i18n.__("关闭到托盘"),
+                    general_field_row(
+                        i18n,
+                        &general_fields::CLOSE_TO_TRAY,
                         i18n.__(if cfg!(target_os = "macos") {
                             "点击红色关闭按钮后继续运行；从屏幕顶部菜单栏的识矩图标显示窗口或退出。"
                         } else {
                             "关闭主窗口后在后台运行，可从托盘显示窗口或退出。"
                         }),
-                        GENERAL_CONTROL_WIDTH,
                         tray_toggle,
                     ),
                     settings_divider(),
-                    settings_row(
-                        crate::app::i18n::I18n::new(app.desktop_locale).__("语言"),
-                        crate::app::i18n::I18n::new(app.desktop_locale)
-                            .__("当前桌面端使用的界面语言。"),
-                        GENERAL_CONTROL_WIDTH,
+                    general_field_row(
+                        i18n,
+                        &general_fields::LANGUAGE,
+                        i18n.__("当前桌面端使用的界面语言。"),
                         locale_pick,
                     ),
                     settings_divider(),
-                    settings_row(
-                        i18n.__("应用主题"),
+                    general_field_row(
+                        i18n,
+                        &general_fields::APP_THEME,
                         i18n.__("快速切换内置、预设和自定义主题；完整管理见「主题」标签。"),
-                        GENERAL_CONTROL_WIDTH,
                         settings_select(
                             app_theme_options(app),
                             Some(app.app_theme.clone()),
@@ -281,10 +269,10 @@ pub fn view(app: &App) -> Element<'_, Message> {
                         .width(GENERAL_CONTROL_WIDTH),
                     ),
                     settings_divider(),
-                    settings_row(
-                        i18n.__("自动保存"),
+                    general_field_row(
+                        i18n,
+                        &general_fields::AUTO_SAVE,
                         i18n.__("控制预览编辑器自动保存的时机。"),
-                        GENERAL_CONTROL_WIDTH,
                         column![
                             auto_save_pick,
                             text(i18n.__(app.preview_auto_save_mode.description()))
@@ -295,14 +283,14 @@ pub fn view(app: &App) -> Element<'_, Message> {
                         .width(GENERAL_CONTROL_WIDTH),
                     ),
                     settings_divider(),
-                    settings_row(
-                        i18n.__("任务完成通知"),
+                    general_field_row(
+                        i18n,
+                        &general_fields::TASK_NOTIFICATION,
                         i18n.__(if crate::app::desktop_notification::SUPPORTED {
                             "本轮对话成功完成后发送系统通知，需在系统中允许通知。"
                         } else {
                             "当前仅支持 macOS 和 Windows 桌面端。"
                         }),
-                        GENERAL_CONTROL_WIDTH,
                         row![
                             button(text(i18n.__("发送测试通知")).size(13))
                                 .on_press_maybe(crate::app::desktop_notification::SUPPORTED.then_some(
@@ -320,13 +308,14 @@ pub fn view(app: &App) -> Element<'_, Message> {
                                 )),
                         ]
                         .spacing(12)
-                        .align_y(Alignment::Center),
+                        .align_y(Alignment::Center)
+                        .wrap(),
                     ),
                     settings_divider(),
-                    settings_row(
-                        i18n.__("聊天时区"),
+                    general_field_row(
+                        i18n,
+                        &general_fields::CHAT_TIMEZONE,
                         i18n.__("用于模型时间上下文，新会话生效。"),
-                        GENERAL_CONTROL_WIDTH,
                         timezone_pick,
                     ),
                 ]
@@ -339,31 +328,31 @@ pub fn view(app: &App) -> Element<'_, Message> {
             settings_group_heading(i18n.__("终端"), i18n.__("默认 Shell、主题与字体。")),
             settings_group_card(
                 column![
-                    settings_row(
-                        i18n.__("终端 Shell"),
+                    general_field_row(
+                        i18n,
+                        &general_fields::TERMINAL_SHELL,
                         i18n.__("新终端默认使用的 Shell。"),
-                        GENERAL_CONTROL_WIDTH,
                         shell_pick
                     ),
                     settings_divider(),
-                    settings_row(
-                        i18n.__("终端主题"),
+                    general_field_row(
+                        i18n,
+                        &general_fields::TERMINAL_THEME,
                         i18n.__("当前仅跟随系统主题。"),
-                        GENERAL_CONTROL_WIDTH,
                         term_theme_pick
                     ),
                     settings_divider(),
-                    settings_row(
-                        i18n.__("终端字体"),
+                    general_field_row(
+                        i18n,
+                        &general_fields::TERMINAL_FONT,
                         i18n.__("选择终端字体家族。"),
-                        GENERAL_CONTROL_WIDTH,
                         font_pick,
                     ),
                     settings_divider(),
-                    settings_row(
-                        i18n.__("字体大小"),
+                    general_field_row(
+                        i18n,
+                        &general_fields::TERMINAL_FONT_SIZE,
                         i18n.__("在 10pt 到 18pt 之间调整终端字号。"),
-                        GENERAL_CONTROL_WIDTH,
                         row![
                             size_slider,
                             settings_value_badge(format!("{} pt", displayed_font_size as u32))

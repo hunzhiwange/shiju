@@ -2,22 +2,23 @@
 //!
 //! 分类列表和搜索结果共用跳转目标，具体配置及浮层状态由各设置页维护。
 
-use crate::app::assets::Icon;
 use crate::app::components::system_settings_common::{
-    SETTINGS_CONTROL_PADDING, SETTINGS_CONTROL_TEXT_SIZE, icon_btn, settings_close_button,
-    settings_error_banner, settings_muted_text_style, settings_panel_style,
-    settings_segment_button_style, settings_text_input_style,
+    settings_close_button, settings_error_banner,
 };
 use crate::app::components::system_settings_help;
-use crate::app::components::system_settings_search::{
-    SystemSettingsSearchEntry, SystemSettingsSearchTarget,
-};
-use crate::app::i18n::I18n;
 use crate::app::state::{GeneralSettingsTab, ThemesSettingsMode};
 use crate::app::{App, Message, message};
 use iced::widget::scrollable::{Direction, Scrollbar};
-use iced::widget::{button, column, container, responsive, row, scrollable, text, text_input};
-use iced::{Alignment, Color, Element, Length, Theme};
+use iced::widget::{column, container, responsive, row, rule, scrollable};
+use iced::{Alignment, Element, Length, Theme};
+
+mod field_scroll;
+pub(super) mod general_fields;
+mod navigation;
+
+pub(crate) use field_scroll::reveal_field;
+
+pub(crate) use navigation::SETTINGS_NAVIGATION_SCROLL;
 
 /// 系统设置标签页枚举
 ///
@@ -133,38 +134,9 @@ impl SystemTab {
             SystemTab::Browser => "浏览器配置",
         }
     }
-    /// 返回所有系统设置标签页的数组
-    ///
-    /// # 返回值
-    ///
-    /// 包含所有 `SystemTab` 变体的固定大小数组，按显示顺序排列。
-    ///
-    /// # 示例
-    ///
-    /// ```ignore
-    /// let all_tabs = SystemTab::all();
-    /// for tab in all_tabs.iter() {
-    ///     println!("{}", tab);
-    /// }
-    /// ```
-    pub(super) fn all() -> [SystemTab; 15] {
-        [
-            SystemTab::General,
-            SystemTab::Apps,
-            SystemTab::Providers,
-            SystemTab::Models,
-            SystemTab::Agents,
-            SystemTab::Cron,
-            SystemTab::Memory,
-            SystemTab::Projects,
-            SystemTab::GatewayClient,
-            SystemTab::Gateway,
-            SystemTab::WebSearch,
-            SystemTab::Security,
-            SystemTab::Autonomy,
-            SystemTab::Hooks,
-            SystemTab::Observability,
-        ]
+    /// 按侧边栏分组顺序列出一级设置页。
+    pub(super) fn all() -> impl Iterator<Item = SystemTab> {
+        navigation::GROUPS.iter().flat_map(|(_, tabs)| tabs.iter().copied())
     }
 }
 
@@ -299,98 +271,6 @@ pub(super) fn system_tab_matches_query(tab: SystemTab, query: &str) -> bool {
     }
 }
 
-fn search_target_parent_tab(target: SystemSettingsSearchTarget) -> SystemTab {
-    match target {
-        SystemSettingsSearchTarget::TopLevel(tab) => tab,
-        SystemSettingsSearchTarget::General(_) => SystemTab::General,
-        SystemSettingsSearchTarget::Models(_) => SystemTab::Models,
-        SystemSettingsSearchTarget::Cron(_) => SystemTab::Cron,
-        SystemSettingsSearchTarget::Agents(_)
-        | SystemSettingsSearchTarget::AgentMcp(_)
-        | SystemSettingsSearchTarget::AgentSkills(_) => SystemTab::Agents,
-        SystemSettingsSearchTarget::Channels(_) => SystemTab::Agents,
-        SystemSettingsSearchTarget::Memory(_) => SystemTab::Memory,
-        SystemSettingsSearchTarget::Autonomy(_) => SystemTab::Autonomy,
-        SystemSettingsSearchTarget::Security(_) => SystemTab::Security,
-        SystemSettingsSearchTarget::Gateway(_) => SystemTab::Gateway,
-        SystemSettingsSearchTarget::Network(_) => SystemTab::WebSearch,
-    }
-}
-
-pub(super) fn search_results(app: &App, query: &str) -> Vec<SystemSettingsSearchEntry> {
-    let query = query.trim();
-    let mut results = crate::app::components::system_settings_search::catalog(app)
-        .into_iter()
-        .filter(|entry| {
-            if query.is_empty() {
-                matches!(entry.target, SystemSettingsSearchTarget::TopLevel(_))
-            } else {
-                entry.matches(query)
-            }
-        })
-        .collect::<Vec<_>>();
-
-    results.sort_by_key(|entry| {
-        let parent = search_target_parent_tab(entry.target);
-        SystemTab::all().iter().position(|tab| *tab == parent).unwrap_or(usize::MAX)
-    });
-    results
-}
-
-fn search_target_is_active(app: &App, target: SystemSettingsSearchTarget) -> bool {
-    match target {
-        SystemSettingsSearchTarget::TopLevel(tab) => {
-            tab == app.system_settings_tab
-                || (tab == SystemTab::WebSearch && is_network_tab(app.system_settings_tab))
-        }
-        SystemSettingsSearchTarget::General(tab) => {
-            app.system_settings_tab == SystemTab::General && app.general_settings_tab == tab
-        }
-        SystemSettingsSearchTarget::Models(tab) => {
-            app.system_settings_tab == SystemTab::Models && app.model_settings.active_tab == tab
-        }
-        SystemSettingsSearchTarget::Cron(tab) => {
-            app.system_settings_tab == SystemTab::Cron && app.cron_settings.active_tab == tab
-        }
-        SystemSettingsSearchTarget::Agents(tab) => {
-            app.system_settings_tab == SystemTab::Agents
-                && app.agents_settings.active_config_tab == tab
-        }
-        SystemSettingsSearchTarget::Channels(tab) => {
-            app.system_settings_tab == SystemTab::Agents
-                && app.agents_settings.active_config_tab
-                    == crate::app::state::AgentConfigTab::Channels
-                && app.channels_settings.active_tab == tab
-        }
-        SystemSettingsSearchTarget::Memory(tab) => {
-            app.system_settings_tab == SystemTab::Memory && app.memory_settings.active_tab == tab
-        }
-        SystemSettingsSearchTarget::Autonomy(tab) => {
-            app.system_settings_tab == SystemTab::Autonomy
-                && app.autonomy_settings.active_tab == tab
-        }
-        SystemSettingsSearchTarget::Security(tab) => {
-            app.system_settings_tab == SystemTab::Security
-                && app.security_settings.active_tab == tab
-        }
-        SystemSettingsSearchTarget::Gateway(tab) => {
-            app.system_settings_tab == SystemTab::Gateway && app.gateway_settings.active_tab == tab
-        }
-        SystemSettingsSearchTarget::Network(tab) => app.system_settings_tab == tab,
-        SystemSettingsSearchTarget::AgentMcp(tab) => {
-            app.system_settings_tab == SystemTab::Agents
-                && app.agents_settings.active_config_tab == crate::app::state::AgentConfigTab::Mcp
-                && app.mcp_settings.active_tab == tab
-        }
-        SystemSettingsSearchTarget::AgentSkills(tab) => {
-            app.system_settings_tab == SystemTab::Agents
-                && app.agents_settings.active_config_tab
-                    == crate::app::state::AgentConfigTab::Skills
-                && app.skills_settings.active_tab == tab
-        }
-    }
-}
-
 pub(super) fn active_tab_help_modal_open(app: &App, active_tab: SystemTab) -> bool {
     let help_tab = active_settings_help_tab(app, active_tab);
     crate::app::components::system_settings_help::help_open_for_tab(
@@ -506,73 +386,9 @@ pub(super) fn tabbed_page_owns_save_error(active_tab: SystemTab) -> bool {
     )
 }
 
-const SETTINGS_SHELL_MAX_WIDTH: f32 = 1280.0;
+const SETTINGS_CONTENT_MAX_WIDTH: f32 = 860.0;
 const SETTINGS_SCROLL_GUTTER: u16 = 7;
-
-fn settings_navigation(app: &App, width: f32) -> Element<'_, Message> {
-    let i18n = I18n::new(app.desktop_locale);
-    let query_input = text_input(i18n.__("搜索配置"), &app.system_settings_query)
-        .on_input(|value| Message::Settings(message::SettingsMessage::SystemTabQueryChanged(value)))
-        .padding(SETTINGS_CONTROL_PADDING)
-        .size(SETTINGS_CONTROL_TEXT_SIZE)
-        .style(settings_text_input_style);
-    let results = search_results(app, &app.system_settings_query);
-    let entries = if results.is_empty() {
-        column![text(i18n.__("没有匹配的配置")).size(12).style(settings_muted_text_style),]
-            .padding([8, 10])
-    } else {
-        column(results.into_iter().map(|entry| settings_navigation_entry(app, entry))).spacing(4)
-    };
-    let entries =
-        scrollable(container(entries).padding([0, SETTINGS_SCROLL_GUTTER]).width(Length::Fill))
-            .direction(Direction::Vertical(Scrollbar::new().width(4).scroller_width(4)))
-            .height(Length::Fill);
-
-    container(
-        column![
-            text(i18n.__("分类")).size(12).style(settings_muted_text_style),
-            query_input,
-            entries,
-        ]
-        .spacing(10),
-    )
-    .width(width)
-    .height(Length::Fill)
-    .padding([14, 10])
-    .style(settings_panel_style)
-    .into()
-}
-
-fn settings_navigation_entry(
-    app: &App,
-    entry: SystemSettingsSearchEntry,
-) -> Element<'static, Message> {
-    let is_active = search_target_is_active(app, entry.target);
-    let mut label = column![text(entry.label).size(SETTINGS_CONTROL_TEXT_SIZE)].spacing(3);
-    if let Some(parent) = entry.parent_label {
-        label = label.push(text(parent).size(11).style(settings_muted_text_style));
-    }
-
-    button(label.width(Length::Fill))
-        .width(Length::Fill)
-        .padding([8, 10])
-        .on_press(Message::Settings(message::SettingsMessage::SystemSearchTargetSelected(
-            entry.target,
-        )))
-        .style(move |theme, status| {
-            let mut style = settings_segment_button_style(theme, status, is_active);
-            style.border.radius = 8.0.into();
-            style.text_color = theme.palette().text;
-            if !is_active {
-                style.border.width = 0.0;
-                if status == button::Status::Active {
-                    style.background = None;
-                }
-            }
-            style
-        })
-        .into()
-}
+pub(crate) const SETTINGS_CONTENT_SCROLL: &str = "system-settings-content-scroll";
 
 fn settings_content(app: &App, active_tab: SystemTab) -> Element<'_, Message> {
     let content: Element<'_, Message> = match active_tab {
@@ -637,23 +453,24 @@ fn settings_content(app: &App, active_tab: SystemTab) -> Element<'_, Message> {
     let content_column = content_column.push(content);
     let page: Element<'_, Message> =
         if active_tab == SystemTab::Agents || active_tab_help_modal_open(app, active_tab) {
-            content_column.height(Length::Fill).into()
+            centered_content(content_column.height(Length::Fill)).height(Length::Fill).into()
         } else {
-            scrollable(
-                container(content_column).padding([0, SETTINGS_SCROLL_GUTTER]).width(Length::Fill),
-            )
-            .direction(Direction::Vertical(Scrollbar::new().width(4).scroller_width(4)))
-            .height(Length::Fill)
-            .into()
+            scrollable(centered_content(content_column))
+                .id(SETTINGS_CONTENT_SCROLL)
+                .direction(Direction::Vertical(Scrollbar::new().width(4).scroller_width(4)))
+                .height(Length::Fill)
+                .into()
         };
 
-    container(page)
-        .width(Length::Fill)
-        .height(Length::Fill)
-        .padding([14, 12])
-        .clip(true)
-        .style(settings_panel_style)
-        .into()
+    container(page).width(Length::Fill).height(Length::Fill).clip(true).into()
+}
+
+fn centered_content<'a>(
+    content: impl Into<Element<'a, Message>>,
+) -> iced::widget::Container<'a, Message> {
+    container(container(content).width(Length::Fill).max_width(SETTINGS_CONTENT_MAX_WIDTH))
+        .padding([0, SETTINGS_SCROLL_GUTTER])
+        .center_x(Length::Fill)
 }
 
 fn settings_shell(
@@ -662,26 +479,24 @@ fn settings_shell(
     active_tab: SystemTab,
     help_tab: SystemTab,
 ) -> Element<'_, Message> {
-    let i18n = I18n::new(app.desktop_locale);
     let close_message = Message::View(message::ViewMessage::ToggleSystemSettings);
-    let back = icon_btn(Icon::ArrowLeft, i18n.__("返回"), Some(close_message.clone()));
     let mut actions = row![].spacing(6).align_y(Alignment::Center);
     if let Some(help) = system_settings_help::help_button(app.desktop_locale, help_tab) {
         actions = actions.push(help);
     }
-    let actions = actions.push(settings_close_button(close_message));
+    let actions = container(actions.push(settings_close_button(close_message)))
+        .align_right(Length::Fill)
+        .padding([8, 12]);
 
-    let header = row![back, text(i18n.__("配置")).size(22).width(Length::Fill), actions,]
-        .spacing(10)
-        .align_y(Alignment::Center);
-
-    let sidebar_width = (width * 0.27).clamp(120.0, 228.0);
-    let body = row![settings_navigation(app, sidebar_width), settings_content(app, active_tab)]
-        .spacing(12)
+    let sidebar_width = (width * 0.24).clamp(112.0, 300.0);
+    let divider = rule::vertical(1).style(|theme: &Theme| rule::Style {
+        color: theme.palette().text.scale_alpha(0.12),
+        ..rule::default(theme)
+    });
+    let content = column![actions, settings_content(app, active_tab)]
         .width(Length::Fill)
         .height(Length::Fill);
-    container(column![header, body].spacing(12).height(Length::Fill))
-        .padding([12, 16])
+    row![navigation::view(app, sidebar_width), divider, content]
         .width(Length::Fill)
         .height(Length::Fill)
         .into()
@@ -697,21 +512,13 @@ pub fn view(app: &App) -> Element<'_, Message> {
     let help_tab = active_settings_help_tab(app, active_tab);
     let shell = responsive(move |size| settings_shell(app, size.width, active_tab, help_tab));
     let modal_content =
-        container(container(shell).width(Length::Fill).max_width(SETTINGS_SHELL_MAX_WIDTH))
-            .center_x(Length::Fill)
-            .height(Length::Fill)
-            .style(|theme: &Theme| container::Style {
+        container(shell).width(Length::Fill).height(Length::Fill).style(|theme: &Theme| {
+            container::Style {
                 text_color: Some(theme.palette().text),
-                background: Some(
-                    if theme.extended_palette().is_dark {
-                        theme.extended_palette().background.weak.color.scale_alpha(0.28)
-                    } else {
-                        Color::from_rgba8(248, 250, 252, 0.96)
-                    }
-                    .into(),
-                ),
+                background: Some(theme.palette().background.into()),
                 ..Default::default()
-            });
+            }
+        });
 
     let themes_active = active_tab == SystemTab::Themes
         || (active_tab == SystemTab::General

@@ -1,9 +1,16 @@
 //! 为系统设置建立稳定的搜索条目、拼音匹配与页面跳转目标。
 
+use std::borrow::Cow;
+
 use pinyin::ToPinyin;
+use vw_config_types::ui::DesktopLocale;
 
 use crate::app::App;
-use crate::app::components::system_settings::SystemTab;
+use crate::app::components::system_settings::{
+    SystemTab,
+    general_fields::{self, GeneralSettingField},
+};
+use crate::app::i18n::I18n;
 use crate::app::state::{
     AgentConfigTab, AutonomySettingsTab, ChannelsSettingsTab, CronSettingsTab, GatewaySettingsTab,
     GeneralSettingsTab, McpSettingsTab, MemorySettingsTab, ModelConfigTab, SecuritySettingsTab,
@@ -15,6 +22,7 @@ use crate::app::state::{
 pub enum SystemSettingsSearchTarget {
     TopLevel(SystemTab),
     General(GeneralSettingsTab),
+    GeneralField(&'static GeneralSettingField),
     Models(ModelConfigTab),
     Cron(CronSettingsTab),
     Agents(AgentConfigTab),
@@ -26,6 +34,24 @@ pub enum SystemSettingsSearchTarget {
     Network(SystemTab),
     AgentMcp(McpSettingsTab),
     AgentSkills(SkillsSettingsTab),
+}
+
+impl SystemSettingsSearchTarget {
+    pub(crate) fn page(self) -> SystemTab {
+        match self {
+            Self::TopLevel(tab) | Self::Network(tab) => tab,
+            Self::General(_) | Self::GeneralField(_) => SystemTab::General,
+            Self::Models(_) => SystemTab::Models,
+            Self::Cron(_) => SystemTab::Cron,
+            Self::Agents(_) | Self::Channels(_) | Self::AgentMcp(_) | Self::AgentSkills(_) => {
+                SystemTab::Agents
+            }
+            Self::Memory(_) => SystemTab::Memory,
+            Self::Autonomy(_) => SystemTab::Autonomy,
+            Self::Security(_) => SystemTab::Security,
+            Self::Gateway(_) => SystemTab::Gateway,
+        }
+    }
 }
 
 /// 单个设置页签共享的界面标签与搜索关键词。
@@ -50,6 +76,7 @@ impl<T> SettingsTabDescriptor<T> {
 pub struct SystemSettingsSearchEntry {
     original_label: &'static str,
     original_parent_label: Option<&'static str>,
+    ancestor_label: Option<&'static str>,
     /// 搜索结果的主标签。
     pub label: &'static str,
     /// 可选的上级设置分区标签。
@@ -71,33 +98,83 @@ impl SystemSettingsSearchEntry {
             label,
             original_label: label,
             original_parent_label: parent_label,
+            ancestor_label: None,
             parent_label,
             keywords,
             target,
         }
     }
 
-    /// 使用文字、拼音全拼和首字母形式匹配查询；空查询匹配全部条目。
+    /// 使用文字、拼音全拼和首字母形式匹配查询。空查询匹配全部条目。
     pub fn matches(&self, query: &str) -> bool {
-        let query_forms = literal_search_forms(query);
-        if query_forms.is_empty() {
-            return true;
-        }
+        let forms = literal_search_forms(query);
+        forms.is_empty() || self.match_rank(&forms).is_some()
+    }
 
-        self.searchable_texts().any(|text| {
-            let candidate_forms = search_forms(text);
-            query_forms.iter().any(|query_form| {
-                candidate_forms.iter().any(|candidate| candidate.contains(query_form))
-            })
+    pub(super) fn parent_path(&self) -> Option<Cow<'static, str>> {
+        let parent = self.parent_label?;
+        Some(match self.ancestor_label {
+            Some(ancestor) => Cow::Owned(format!("{parent} > {ancestor}")),
+            None => Cow::Borrowed(parent),
         })
     }
 
-    fn searchable_texts(&self) -> impl Iterator<Item = &'static str> + '_ {
-        std::iter::once(self.label)
-            .chain(std::iter::once(self.original_label))
-            .chain(self.parent_label)
-            .chain(self.original_parent_label)
-            .chain(self.keywords.iter().copied())
+    fn match_rank(&self, query_forms: &[String]) -> Option<u8> {
+        let contains_query =
+            |candidate: &str| query_forms.iter().any(|query| candidate.contains(query));
+        let label_rank = [self.label, self.original_label]
+            .into_iter()
+            .filter_map(|label| {
+                let forms = search_forms(label);
+                if forms.iter().any(|candidate| query_forms.contains(candidate)) {
+                    Some(0)
+                } else {
+                    forms.iter().any(|candidate| contains_query(candidate)).then_some(1)
+                }
+            })
+            .min();
+        let matches = |text| search_forms(text).iter().any(|form| contains_query(form));
+        if label_rank.is_some() {
+            label_rank
+        } else if self.keywords.iter().copied().any(matches) {
+            Some(2)
+        } else if self.ancestor_label.is_none()
+            && self.parent_label.into_iter().chain(self.original_parent_label).any(matches)
+        {
+            Some(3)
+        } else {
+            None
+        }
+    }
+}
+
+/// 按标签、关键词、上级路径的命中顺序显示可跳转的设置页。
+pub(super) fn search_results(app: &App, query: &str) -> Vec<SystemSettingsSearchEntry> {
+    let forms = literal_search_forms(query);
+    if forms.is_empty() {
+        return Vec::new();
+    }
+
+    let mut matches: Vec<_> = catalog(app)
+        .into_iter()
+        .filter_map(|entry| entry.match_rank(&forms).map(|rank| (rank, entry)))
+        .collect();
+    matches.sort_by_key(|&(rank, entry)| {
+        (rank, !matches!(entry.target, SystemSettingsSearchTarget::GeneralField(_)))
+    });
+    matches.into_iter().map(|(_, entry)| entry).collect()
+}
+
+pub(super) fn navigation_label(locale: DesktopLocale, tab: SystemTab) -> &'static str {
+    match tab {
+        SystemTab::Memory => crate::app::i18n::settings_runtime::text(locale, "记忆系统配置"),
+        SystemTab::Runtime => crate::app::i18n::settings_runtime::text(locale, "运行时配置"),
+        SystemTab::Observability => {
+            crate::app::i18n::settings_runtime::text(locale, "可观测性配置")
+        }
+        SystemTab::Security => crate::app::i18n::settings_security::text(locale, "安全配置"),
+        _ => connection_target_label(locale, SystemSettingsSearchTarget::TopLevel(tab))
+            .unwrap_or_else(|| I18n::new(locale).__(tab.label())),
     }
 }
 
@@ -111,7 +188,6 @@ pub fn catalog(app: &App) -> Vec<SystemSettingsSearchEntry> {
     };
 
     let mut entries = SystemTab::all()
-        .into_iter()
         .map(|tab| {
             SystemSettingsSearchEntry::new(
                 tab.label(),
@@ -151,6 +227,7 @@ pub fn catalog(app: &App) -> Vec<SystemSettingsSearchEntry> {
     extend_tabs!(system_settings_network::NETWORK_TABS, "网络配置", Network);
     extend_tabs!(system_settings_mcp::MCP_TABS, "智能体 / MCP", AgentMcp);
     extend_tabs!(system_settings_skills::SKILLS_TABS, "智能体 / 技能", AgentSkills);
+    let i18n = I18n::new(app.desktop_locale);
     for entry in &mut entries {
         use crate::app::i18n::settings_runtime::text as runtime_text;
         use crate::app::i18n::settings_security::text as security_text;
@@ -163,36 +240,22 @@ pub fn catalog(app: &App) -> Vec<SystemSettingsSearchEntry> {
                 entry.label = system_settings_security::security_tab_label(app.desktop_locale, tab);
                 entry.parent_label = Some(security_text(app.desktop_locale, "安全配置"));
             }
-            SystemSettingsSearchTarget::TopLevel(SystemTab::Memory) => {
-                entry.label = runtime_text(app.desktop_locale, "记忆系统配置")
+            SystemSettingsSearchTarget::TopLevel(tab) => {
+                entry.label = navigation_label(app.desktop_locale, tab);
             }
-            SystemSettingsSearchTarget::Agents(crate::app::state::AgentConfigTab::Runtime)
-            | SystemSettingsSearchTarget::TopLevel(SystemTab::Runtime) => {
-                entry.label = runtime_text(app.desktop_locale, "运行时配置")
-            }
-            SystemSettingsSearchTarget::TopLevel(SystemTab::Observability) => {
-                entry.label = runtime_text(app.desktop_locale, "可观测性配置")
-            }
-            SystemSettingsSearchTarget::TopLevel(SystemTab::Security) => {
-                entry.label = security_text(app.desktop_locale, "安全配置")
-            }
-            SystemSettingsSearchTarget::Agents(_)
-            | SystemSettingsSearchTarget::Channels(_)
-            | SystemSettingsSearchTarget::AgentMcp(_)
-            | SystemSettingsSearchTarget::AgentSkills(_)
-            | SystemSettingsSearchTarget::TopLevel(SystemTab::Agents | SystemTab::Channels) => {
-                let i18n = crate::app::i18n::I18n::new(app.desktop_locale);
-                entry.label = i18n.__(entry.original_label);
+            SystemSettingsSearchTarget::Agents(crate::app::state::AgentConfigTab::Runtime) => {
+                entry.label = runtime_text(app.desktop_locale, "运行时配置");
                 entry.parent_label = entry.original_parent_label.map(|label| i18n.__(label));
             }
             _ => {
-                let i18n = crate::app::i18n::I18n::new(app.desktop_locale);
                 entry.label = i18n.__(entry.original_label);
                 entry.parent_label = entry.original_parent_label.map(|label| i18n.__(label));
             }
         }
 
-        if let Some(label) = connection_target_label(app.desktop_locale, entry.target) {
+        if !matches!(entry.target, SystemSettingsSearchTarget::TopLevel(_))
+            && let Some(label) = connection_target_label(app.desktop_locale, entry.target)
+        {
             entry.label = label;
             use crate::app::i18n::settings_models::{self, connection_text::text};
             entry.parent_label = match entry.target {
@@ -208,6 +271,21 @@ pub fn catalog(app: &App) -> Vec<SystemSettingsSearchEntry> {
                 _ => entry.parent_label,
             };
         }
+    }
+    for descriptor in system_settings_general::GENERAL_TABS {
+        entries.extend(general_fields::ALL.iter().filter(|field| field.tab == descriptor.tab).map(
+            |&field| {
+                let mut entry = SystemSettingsSearchEntry::new(
+                    field.label,
+                    Some(i18n.__(descriptor.label)),
+                    field.keywords,
+                    SystemSettingsSearchTarget::GeneralField(field),
+                );
+                entry.label = i18n.__(field.label);
+                entry.ancestor_label = Some(i18n.__("常规"));
+                entry
+            },
+        ));
     }
     entries
 }
@@ -284,7 +362,7 @@ fn push_unique(forms: &mut Vec<String>, form: String) {
 }
 
 fn connection_target_label(
-    locale: vw_config_types::ui::DesktopLocale,
+    locale: DesktopLocale,
     target: SystemSettingsSearchTarget,
 ) -> Option<&'static str> {
     use crate::app::i18n::settings_models::{self};
@@ -310,7 +388,8 @@ fn connection_target_label(
         }
         TopLevel(SystemTab::Gateway) => "服务端网关配置",
         TopLevel(SystemTab::GatewayClient) => "客户端网关",
-        Network(SystemTab::WebSearch) | TopLevel(SystemTab::WebSearch) => "网页搜索",
+        Network(SystemTab::WebSearch) => "网页搜索",
+        TopLevel(SystemTab::WebSearch) => "网络配置",
         Network(SystemTab::HttpRequest) | TopLevel(SystemTab::HttpRequest) => "网络请求",
         Network(SystemTab::Browser) | TopLevel(SystemTab::Browser) => "浏览器",
         Network(SystemTab::Proxy) | TopLevel(SystemTab::Proxy) => "代理",

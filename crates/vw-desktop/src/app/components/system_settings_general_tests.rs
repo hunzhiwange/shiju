@@ -26,7 +26,13 @@ fn system_settings_general_tests_are_wired() {
 
 #[test]
 fn setting_row_builds_text_and_control_columns() {
-    keep_element(settings_row("标签", "设置说明", GENERAL_CONTROL_WIDTH, text("control")));
+    let app = test_app();
+    keep_element(general_field_row(
+        I18n::new(app.desktop_locale),
+        &general_fields::LANGUAGE,
+        "设置说明",
+        text("control"),
+    ));
 }
 
 #[test]
@@ -127,7 +133,13 @@ async fn terminal_font_size_control_matches_the_other_terminal_fields() {
     for field in fields.children().step_by(2) {
         let row = field.children().next().expect("field row");
         let wrapper = row.children().nth(1).expect("control wrapper");
-        let control = wrapper.children().next().expect("terminal control");
+        let control = wrapper
+            .children()
+            .next()
+            .expect("bounded control")
+            .children()
+            .next()
+            .expect("terminal control");
         assert_eq!(control.bounds().width, GENERAL_CONTROL_WIDTH);
     }
 }

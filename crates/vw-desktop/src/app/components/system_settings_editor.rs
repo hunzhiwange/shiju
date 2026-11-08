@@ -13,14 +13,15 @@
 //! let settings_view = system_settings_editor::view(&app);
 //! ```
 
+use crate::app::components::system_settings::general_fields::{self, GeneralSettingField};
 use crate::app::components::system_settings_common::{
     settings_checkbox_style, settings_divider, settings_group_card, settings_group_heading,
-    settings_page_heading, settings_row, settings_select, settings_value_badge,
+    settings_page_heading, settings_row_layout, settings_select, settings_value_badge,
 };
 use crate::app::i18n::I18n;
 use crate::app::message::editor::{EditorMessage, metrics};
 use crate::app::{App, Message, message};
-use iced::widget::{Slider, checkbox, column, responsive, row, slider};
+use iced::widget::{Slider, checkbox, column, container, responsive, row, slider};
 use iced::{Alignment, Element, Length};
 use std::ops::RangeInclusive;
 
@@ -76,9 +77,15 @@ pub(crate) fn content(app: &App) -> Element<'_, Message> {
 
 fn editor_fields(app: &App, control_width: f32) -> Element<'_, Message> {
     let i18n = I18n::new(app.desktop_locale);
-    let field_row = |label, description, control: Element<'static, Message>| {
-        settings_row(label, description, control_width, control)
-    };
+    let field_row =
+        |field: &GeneralSettingField, description, control: Element<'static, Message>| {
+            settings_row_layout(
+                i18n.__(field.label),
+                description,
+                container(control).align_right(control_width),
+            )
+            .id(field.id)
+        };
     let theme_pick = settings_select(
         iced::Theme::ALL.iter().cloned(),
         Some(app.effective_editor_theme()),
@@ -88,7 +95,7 @@ fn editor_fields(app: &App, control_width: f32) -> Element<'_, Message> {
     .width(Length::Fill);
 
     let follow_system_theme = field_row(
-        i18n.__("跟随系统主题"),
+        &general_fields::EDITOR_FOLLOW_THEME,
         i18n.__("启用后沿用应用当前主题。"),
         checkbox(app.editor_follow_system_theme)
             .label(i18n.__("启用"))
@@ -98,7 +105,7 @@ fn editor_fields(app: &App, control_width: f32) -> Element<'_, Message> {
     );
 
     let editor_theme_row = field_row(
-        i18n.__("编辑器主题"),
+        &general_fields::EDITOR_THEME,
         i18n.__("关闭跟随系统主题时使用的编辑器配色。"),
         theme_pick.into(),
     );
@@ -114,8 +121,11 @@ fn editor_fields(app: &App, control_width: f32) -> Element<'_, Message> {
     .spacing(10)
     .align_y(Alignment::Center);
 
-    let size_row =
-        field_row(i18n.__("字体大小"), i18n.__("调整编辑器主文本字号。"), size_slider.into());
+    let size_row = field_row(
+        &general_fields::EDITOR_FONT_SIZE,
+        i18n.__("调整编辑器主文本字号。"),
+        size_slider.into(),
+    );
 
     let line_height_slider = row![
         metrics_slider(10.0..=60.0, displayed.line_height, |v| {
@@ -127,11 +137,14 @@ fn editor_fields(app: &App, control_width: f32) -> Element<'_, Message> {
     .spacing(10)
     .align_y(Alignment::Center);
 
-    let line_height_row =
-        field_row(i18n.__("行高"), i18n.__("调整每一行的垂直高度。"), line_height_slider.into());
+    let line_height_row = field_row(
+        &general_fields::EDITOR_LINE_HEIGHT,
+        i18n.__("调整每一行的垂直高度。"),
+        line_height_slider.into(),
+    );
 
     let auto_line_height = field_row(
-        i18n.__("自动行高"),
+        &general_fields::EDITOR_AUTO_LINE_HEIGHT,
         i18n.__("根据字体大小自动推导更合适的行高。"),
         checkbox(displayed.auto_line_height)
             .label(i18n.__("根据字体大小自动调整"))
@@ -142,7 +155,7 @@ fn editor_fields(app: &App, control_width: f32) -> Element<'_, Message> {
 
     #[cfg(not(target_arch = "wasm32"))]
     let lsp_enabled = field_row(
-        i18n.__("LSP 语言服务"),
+        &general_fields::EDITOR_LSP,
         i18n.__("启用代码补全、悬停提示与跳转定义；需要对应语言服务器可用。"),
         checkbox(!app.lsp_disabled)
             .label(i18n.__("启用"))

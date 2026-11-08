@@ -280,7 +280,7 @@ pub fn from_models_dev_model(provider: &RawProvider, model: &RawModel) -> Model 
             reasoning: model.reasoning.unwrap_or_default(),
             reasoning_options: model.reasoning_options.clone(),
             attachment: model.attachment,
-            toolcall: model.tool_call,
+            toolcall: model.tool_call.unwrap_or(false),
             input,
             output,
             interleaved,

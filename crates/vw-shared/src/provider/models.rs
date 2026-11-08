@@ -87,8 +87,8 @@ pub struct Model {
     pub reasoning_options: Option<Vec<super::reasoning::ReasoningOption>>,
     #[serde(default)]
     pub temperature: bool,
-    #[serde(default)]
-    pub tool_call: bool,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub tool_call: Option<bool>,
     #[serde(default)]
     pub interleaved: Option<ModelInterleaved>,
     #[serde(default)]

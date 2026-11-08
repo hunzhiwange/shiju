@@ -467,3 +467,31 @@ Pi 供应商表单的现有网关入口为 `vw-agent/src/gateway/api/handlers/ap
 | `cargo clippy --all-targets --all-features -- -D warnings` | 0 | 全工作区、全目标及 features 通过 |
 
 `git diff --cached --check` 通过。各阶段的占用记录与锁已清理，编译缓存已保留。
+
+## 任务 18　实现同端点元数据优先级
+
+2026-11-08，macOS 27.0（26A428），arm64。批次 17 由 `62b98d10a` 交付。本项为只读原生查询，使用既有端点键与模型 ID 匹配规则。保留部署的协议、端口和路径区分。MiniMax 与 Umans 的按量和订阅条目可共用端点及模型 ID，缺少套餐标识时跳过有歧义的 models.dev 候选，保留已匹配的预设字段。
+
+| 固定来源 `ca58c0313360eae7c851fbd7553c1614c7af03e7` | 实际实现 |
+| --- | --- |
+| `src/config/presetModelMetadata.ts` 的七种预设源 | `vw-agent-apps/src/models/metadata.rs::preset_metadata` 复用现有预设。按「预设数 / 模型行数」统计，Codex 137 / 213、OpenCode 110 / 338、OpenClaw 122 / 383、Hermes 121 / 400、Mcode 115 / 406、Pi 115 / 416、Kimi 115 / 410。OpenClaw 的 214 行价格按源预设顺序、名称、端点和模型 ID 逐行核对，原目录其他字段一致。Pi 的原生档位随原预设端点、协议和模型兼容性声明返回 |
+| `src/lib/modelMetadata.ts::resolveModelMetadata` 同端点阶段 | `metadata.rs::resolve_model_metadata` 接收 `vw-provider-resolver/src/models.rs::ModelsSnapshot`，在 `vw-api-types/src/model_catalog.rs::ModelMetadataDto` 中按字段登记实际贡献来源和快照获取时间。价格作为一个字段取自匹配部署，保留零价。缺省工具能力与显式关闭分开，既有运行时投影继续将缺省工具能力视为关闭。识矩内置叠加项属于本地数据，不标为 models.dev |
+| 现有下游路径 | 公共基线经 `vw-agent/src/provider/models.rs`、`vw-agent/src/gateway/api/handlers/provider.rs::provider_list`、`vw-gateway-client/src/client/provider_api.rs::provider_list` 暴露给现有供应商目录。Iced 在 `vw-desktop/src/app/message/settings/providers/helpers.rs::build_catalog_from_sources` 合并现有来源。后续目录补全服务使用 `ModelCatalogFillPreviewRequest` 和 `ModelCatalogFillPreviewResponse` 接入本项 DTO，本项验收原生查询 |
+
+### 验证
+
+各阶段动态领取槽位 **1**，`CARGO_TARGET_DIR=/Users/xiangmin/worker/code/shiju/target/rust-slot-1`，Cargo 中间目录使用同一槽位。格式化在 Git 源码快照执行，只回写本项 Rust 文件。测试和 Clippy 在实际工作区执行，测试只读本机固定数据。
+
+| 命令 | 退出码 | 证据 |
+| --- | ---: | --- |
+| `cargo fmt --all` | 0 | 各阶段格式化完成 |
+| `cargo test -p vw-agent-apps catalog_metadata_endpoint_ -- --nocapture`（红灯） | 101 | 1 条通过、9 条失败，574 条过滤。首个指定用例的实际值为 `(None, None)`，预期为 `(Some(500000), Some(98304))` |
+| `cargo test -p vw-agent-apps catalog_metadata_endpoint_ -- --nocapture`（歧义回归红灯） | 101 | 10 条通过、1 条失败，574 条过滤。两个套餐共享地址时实际返回一项，预期无匹配 |
+| `cargo test -p vw-agent-apps catalog_metadata_endpoint_ -- --nocapture`（绿灯） | 0 | 11 条通过，574 条过滤。覆盖同端点优先、来源及时间、空值、端点别名、套餐与端口隔离、七应用投影及 Pi 档位绑定 |
+| `cargo test -p vw-shared provider::state:: -- --nocapture` | 0 | 26 条通过，384 条过滤 |
+| `cargo test -p vw-provider-resolver catalog_modelsdev_ -- --nocapture` | 0 | 21 条通过，111 条过滤 |
+| `cargo clippy --all-targets --all-features -- -D warnings` | 0 | 全工作区、全目标及 features 通过 |
+
+首轮绿灯尝试中，应用隔离用例误将同时出现在 Codex 与 OpenCode 的模型当作只存在于 Codex。更换为同端点同模型在 Codex 和 Mcode 各自声明不同窗口的真实预设后通过。
+
+审查确认差异限于本项原生解析、七应用投影、OpenClaw 价格、原始工具能力缺省值、模块连线、独立测试及本记录。`git diff --cached --check` 通过。各阶段已释放占用锁并保留构建缓存。

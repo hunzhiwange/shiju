@@ -12251,6 +12251,7 @@ dependencies = [
  "toml_edit 0.22.27",
  "vw-acp",
  "vw-api-types",
+ "vw-provider-resolver",
 ]
 
 [[package]]

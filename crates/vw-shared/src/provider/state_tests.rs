@@ -28,7 +28,7 @@ fn raw_model(id: &str) -> RawModel {
         reasoning: Some(true),
         reasoning_options: None,
         temperature: true,
-        tool_call: true,
+        tool_call: Some(true),
         interleaved: None,
         cost: None,
         limit: models::ModelLimit { context: 128_000, input: Some(64_000), output: 8_192 },

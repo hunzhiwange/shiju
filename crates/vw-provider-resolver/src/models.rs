@@ -28,6 +28,8 @@ pub use vw_shared::provider::models::{
     ModelProviderInfo, Provider,
 };
 
+pub use vw_shared::provider::reasoning::ReasoningOption;
+
 /// 打包内置的模型元数据，作为本地兜底数据源。
 const BUNDLED_MODELS_TEXT: &str = include_str!("../assets/model/api.json");
 /// 仓库自有的识矩 provider 与离线模型目录。

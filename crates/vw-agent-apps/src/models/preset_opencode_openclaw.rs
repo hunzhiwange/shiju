@@ -4,7 +4,7 @@ use super::preset_search::{PresetPlan, PresetRegion};
 use serde::Deserialize;
 use serde_json::Value;
 use std::collections::BTreeMap;
-use vw_api_types::agent_apps::AppId;
+use vw_api_types::{agent_apps::AppId, model_catalog::ModelTokenCost};
 
 #[derive(Debug, Deserialize)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
@@ -41,6 +41,8 @@ pub struct OpenCodeOpenClawPresetModel {
     pub input_modalities: Option<Vec<String>>,
     pub output_modalities: Option<Vec<String>>,
     pub reasoning: Option<bool>,
+    /// Reviewed per-deployment prices, when declared by the OpenClaw preset.
+    pub cost: Option<ModelTokenCost>,
     /// Native OpenCode model options preserved as source data.
     pub options: Option<Value>,
     /// Native OpenCode variant settings keyed by their source names.

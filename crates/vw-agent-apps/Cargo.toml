@@ -23,6 +23,9 @@ png = "0.18"
 vw-api-types = { path = "../vw-api-types" }
 vw-acp = { path = "../vw-acp" }
 
+[target.'cfg(not(target_arch = "wasm32"))'.dependencies]
+vw-provider-resolver = { path = "../vw-provider-resolver", version = "0.6.0" }
+
 [target.'cfg(unix)'.dependencies]
 libc = "0.2"
 

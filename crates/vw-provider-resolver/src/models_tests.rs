@@ -382,7 +382,7 @@ fn audit_provider_models(label: &str, providers: &HashMap<String, Provider>) -> 
             if modalities.input.is_empty() {
                 return Err(format!("{label}/{provider_id}/{model_id}: missing input modalities"));
             }
-            if (model.tool_call || model.reasoning == Some(true))
+            if (model.tool_call == Some(true) || model.reasoning == Some(true))
                 && modalities.output.iter().any(|item| item == "text")
                 && !modalities.input.iter().any(|item| item == "text")
             {

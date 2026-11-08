@@ -3,6 +3,8 @@ use vw_api_types::model_catalog::*;
 
 pub mod codex_template;
 pub mod identity;
+#[cfg(not(target_arch = "wasm32"))]
+pub mod metadata;
 pub mod pi_thinking;
 pub mod preset_catalog;
 pub mod preset_claude;
@@ -20,6 +22,8 @@ pub mod user_agent_presets;
 mod codex_template_tests;
 #[cfg(test)]
 mod identity_tests;
+#[cfg(all(test, not(target_arch = "wasm32")))]
+mod metadata_tests;
 #[cfg(test)]
 mod pi_thinking_tests;
 #[cfg(test)]

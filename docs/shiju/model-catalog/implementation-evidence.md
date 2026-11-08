@@ -689,3 +689,26 @@ Pi 供应商表单的现有网关入口为 `vw-agent/src/gateway/api/handlers/ap
 | `cargo clippy --all-targets --all-features -- -D warnings` | 0 | 全工作区、全目标及 features 通过 |
 
 审查后差异限于 Hermes 投影、独立测试、模块注册和本记录。`git diff --cached --check` 通过。两个阶段的锁已释放，编译缓存已保留。
+
+## 任务 27　迁移 OpenCode 补空投影
+
+2026-11-08，macOS 27.0（26A428），arm64。批次 26 由 `e87c7f0cc` 交付。已核对 `TenantScope`、授权主机环境 `LocalReadEnvironment`、应用目录与可信 CLI 定位、可取消 `ProviderOperation` 和 `ProviderTransactions::commit_checked`。
+
+| 固定来源 `ca58c0313360eae7c851fbd7553c1614c7af03e7` | 实际路径 |
+| --- | --- |
+| `src/components/providers/forms/modelMetadataFill.ts::fillOpenCodeModel` | `crates/vw-agent-apps/src/models/fill_opencode.rs::fill_opencode_model` 接收母任务 4 的 OpenCode、Mcode 或 DSH 档案中 `declaration.models` 的对象行和为同一部署及模型解析的 `ModelMetadataDto`。分别补空的 `limit.context` 和 `limit.output`，保留 `limit` 的其他键。缺少模态配置且已知输入时填入模态，缺少输出元数据时默认文字。推理仅在缺失且确认支持时建议 `true`。返回内存中的字段差异和实际贡献来源及抓取时间 |
+| `tests/components/modelMetadataFill.test.ts` 的 OpenCode 场景 | `crates/vw-agent-apps/src/models/fill_opencode_tests.rs` 验证原生字段范围、已有和额外字段、未知及越界数值、模态默认值、实际来源和合并后幂等。沿用已有 OpenCode V2 `capabilities` 时保留其显式模态。DSH 还保护 `contextWindow`、`maxTokens`、`input`、`reasoningEfforts`，通过真实 `providers::dsh::plan` 验证合并后的发布配置 |
+| `OpenCodeFormFields.tsx` 的补全调用者 | 原生档案表单的 `view` 和 `prepare` 分别位于 `crates/vw-agent-apps/src/providers/{opencode,mcode,dsh}_form.rs`。现有档案网关、SDK 和 Iced 分别位于 `crates/vw-agent/src/gateway/api/handlers/app_providers/{opencode,mcode,dsh}.rs`、`crates/vw-gateway-client/src/client/app_providers/{opencode,mcode,dsh}.rs` 和 `crates/vw-desktop/src/app/components/app_providers/{opencode,mcode,dsh}.rs`。本批次交付内存投影。目录补全预览与修订提交由任务 32 组装，网关和 SDK 由任务 38 接线，Iced 来源展示由任务 41 接线 |
+
+### 验证
+
+红灯与绿灯均动态领取槽位 **1**，`CARGO_TARGET_DIR=/Users/xiangmin/worker/code/shiju/target/rust-slot-1`。Cargo 中间目录使用同一槽位。格式化在 Git 源码快照执行，仅回写本项 Rust 文件。测试和 Clippy 在实际工作区执行。
+
+| 命令 | 退出码 | 证据 |
+| --- | ---: | --- |
+| `cargo fmt --all`（红灯、绿灯） | 0、0 | 两阶段格式化完成 |
+| `cargo test -p vw-agent-apps catalog_fill_opencode_ -- --nocapture`（红灯） | 101 | 7 条有效用例，1 项通过、6 项失败、667 项过滤。指定用例合并后缺少 `limit.output`，预期补入 `32768` 并保留已设模态、推理和扩展键 |
+| `cargo test -p vw-agent-apps catalog_fill_opencode_ -- --nocapture`（绿灯） | 0 | 7 项通过、667 项过滤。覆盖用户扩展与显式设置、逐字段来源及 DSH 发布计划 |
+| `cargo clippy --all-targets --all-features -- -D warnings` | 0 | 全工作区、全目标及 features 通过 |
+
+审查后差异限于 OpenCode 补空投影、独立测试、模块注册和本记录。`git diff --cached --check` 通过。两个阶段的占用锁已释放，编译缓存已保留。

@@ -14,6 +14,7 @@ pub mod discovery_url;
 pub mod fill_codex;
 pub mod fill_hermes;
 pub mod fill_openclaw;
+pub mod fill_opencode;
 pub mod identity;
 #[cfg(not(target_arch = "wasm32"))]
 pub mod metadata;
@@ -48,6 +49,8 @@ mod fill_codex_tests;
 mod fill_hermes_tests;
 #[cfg(test)]
 mod fill_openclaw_tests;
+#[cfg(test)]
+mod fill_opencode_tests;
 #[cfg(test)]
 mod identity_tests;
 #[cfg(all(test, not(target_arch = "wasm32")))]

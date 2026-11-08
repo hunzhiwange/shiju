@@ -24,13 +24,13 @@ fn element_tree(element: Element<'_, Message>) -> Tree {
 #[test]
 fn proxy_scope_label_returns_stable_user_labels() {
     assert_eq!(proxy_scope_label(ProxyScope::Environment), "系统环境");
-    assert_eq!(proxy_scope_label(ProxyScope::Vibewindow), "VibeWindow");
+    assert_eq!(proxy_scope_label(ProxyScope::Vibewindow), "ShiJu");
     assert_eq!(proxy_scope_label(ProxyScope::Services), "指定服务");
 }
 
 #[test]
 fn proxy_scope_options_match_scope_labels() {
-    assert_eq!(PROXY_SCOPE_OPTIONS, ["系统环境", "VibeWindow", "指定服务"]);
+    assert_eq!(PROXY_SCOPE_OPTIONS, ["系统环境", "ShiJu", "指定服务"]);
 
     for scope in [ProxyScope::Environment, ProxyScope::Vibewindow, ProxyScope::Services] {
         assert!(PROXY_SCOPE_OPTIONS.contains(&proxy_scope_label(scope)));

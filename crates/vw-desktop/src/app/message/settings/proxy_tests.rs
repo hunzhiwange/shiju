@@ -74,7 +74,7 @@ fn scope_change_accepts_services_aliases_case_and_whitespace() {
 fn scope_change_falls_back_to_vibewindow_for_other_inputs() {
     let mut app = app();
 
-    for input in ["vibewindow", "unknown", "  "] {
+    for input in ["ShiJu", "vibewindow", "unknown", "  "] {
         app.proxy_settings.scope = ProxyScope::Environment;
         app.proxy_settings.save_error = Some("old error".to_string());
         let _ = update(&mut app, SettingsMessage::ProxyScopeTextChanged(input.to_string()));

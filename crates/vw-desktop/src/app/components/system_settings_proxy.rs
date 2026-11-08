@@ -28,13 +28,13 @@ use iced::widget::{checkbox, column, container, row, text, text_input};
 use iced::{Alignment, Element, Length};
 use vw_config_types::proxy::ProxyScope;
 
-const PROXY_SCOPE_OPTIONS: [&str; 3] = ["系统环境", "VibeWindow", "指定服务"];
+const PROXY_SCOPE_OPTIONS: [&str; 3] = ["系统环境", "ShiJu", "指定服务"];
 
 fn proxy_scope_label(scope: ProxyScope) -> &'static str {
     match scope {
         ProxyScope::Environment => "系统环境",
         ProxyScope::Services => "指定服务",
-        ProxyScope::Vibewindow => "VibeWindow",
+        ProxyScope::Vibewindow => "ShiJu",
     }
 }
 

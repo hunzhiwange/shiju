@@ -24,7 +24,7 @@ use vw_api_types::{
     },
 };
 
-const CLIENT_ID: &str = "app_EMoamEEZ73f0CkXaXp7hrann";
+pub(super) const CLIENT_ID: &str = "app_EMoamEEZ73f0CkXaXp7hrann";
 const USER_AGENT: &str = "cc-switch-codex-oauth";
 const USER_CODE_URL: &str = "https://auth.openai.com/api/accounts/deviceauth/usercode";
 const POLL_URL: &str = "https://auth.openai.com/api/accounts/deviceauth/token";
@@ -64,7 +64,7 @@ struct AuthorizationCode {
 }
 
 #[derive(Deserialize)]
-struct TokenResponse {
+pub(super) struct TokenResponse {
     access_token: String,
     refresh_token: String,
     id_token: String,
@@ -83,13 +83,7 @@ enum Exchange {
 
 impl CodexDeviceAuth {
     pub fn new() -> Result<Self, AuthErrorCode> {
-        let client = Client::builder()
-            .redirect(reqwest::redirect::Policy::none())
-            .timeout(Duration::from_secs(30))
-            .user_agent(USER_AGENT)
-            .build()
-            .map_err(|_| AuthErrorCode::ExecutionHostUnavailable)?;
-        Ok(Self { client })
+        Ok(Self { client: oauth_client()? })
     }
 
     pub async fn start(
@@ -120,12 +114,12 @@ impl CodexDeviceAuth {
 
         let sent_at = Instant::now();
         let sent_at_utc = utc_now()?;
-        let response = self
-            .send(
-                self.client.post(USER_CODE_URL).json(&json!({"client_id": CLIENT_ID})),
-                &mut route,
-            )
-            .await?;
+        let response = send(
+            &self.client,
+            self.client.post(USER_CODE_URL).json(&json!({"client_id": CLIENT_ID})),
+            &mut route,
+        )
+        .await?;
         if !response.status().is_success() {
             return Err(AuthErrorCode::UpstreamFailure);
         }
@@ -253,15 +247,15 @@ impl CodexDeviceAuth {
         grant: &DeviceGrant,
         route: &mut impl FnMut(&mut Request),
     ) -> Result<Exchange, AuthErrorCode> {
-        let response = self
-            .send(
-                self.client.post(POLL_URL).json(&json!({
-                    "device_auth_id": grant.device_auth_id,
-                    "user_code": grant.user_code,
-                })),
-                route,
-            )
-            .await?;
+        let response = send(
+            &self.client,
+            self.client.post(POLL_URL).json(&json!({
+                "device_auth_id": grant.device_auth_id,
+                "user_code": grant.user_code,
+            })),
+            route,
+        )
+        .await?;
         let code: AuthorizationCode = match response.status() {
             StatusCode::GONE => return Ok(Exchange::Expired),
             StatusCode::UNAUTHORIZED => return Err(AuthErrorCode::AuthorizationDenied),
@@ -279,37 +273,62 @@ impl CodexDeviceAuth {
         if !valid_token(&code.authorization_code) || !valid_token(&code.code_verifier) {
             return Err(AuthErrorCode::UpstreamFailure);
         }
-        let response = self
-            .send(
-                self.client.post(TOKEN_URL).form(&[
-                    ("grant_type", "authorization_code"),
-                    ("code", &code.authorization_code),
-                    ("redirect_uri", REDIRECT_URI),
-                    ("client_id", CLIENT_ID),
-                    ("code_verifier", &code.code_verifier),
-                ]),
-                route,
-            )
-            .await?;
-        match response.status() {
-            StatusCode::UNAUTHORIZED | StatusCode::FORBIDDEN => {
-                Err(AuthErrorCode::AuthorizationDenied)
-            }
-            status if status.is_success() => read_json(response).await.map(Exchange::Authorized),
-            _ if access_denied(response).await => Err(AuthErrorCode::AuthorizationDenied),
-            _ => Err(AuthErrorCode::UpstreamFailure),
-        }
+        exchange_code(
+            &self.client,
+            &code.authorization_code,
+            &code.code_verifier,
+            REDIRECT_URI,
+            route,
+        )
+        .await
+        .map(Exchange::Authorized)
     }
+}
 
-    async fn send(
-        &self,
-        builder: reqwest::RequestBuilder,
-        route: &mut impl FnMut(&mut Request),
-    ) -> Result<Response, AuthErrorCode> {
-        let mut request = builder.build().map_err(|_| AuthErrorCode::UpstreamFailure)?;
-        route(&mut request);
-        self.client.execute(request).await.map_err(|_| AuthErrorCode::UpstreamFailure)
+pub(super) fn oauth_client() -> Result<Client, AuthErrorCode> {
+    Client::builder()
+        .redirect(reqwest::redirect::Policy::none())
+        .timeout(Duration::from_secs(30))
+        .user_agent(USER_AGENT)
+        .build()
+        .map_err(|_| AuthErrorCode::ExecutionHostUnavailable)
+}
+
+pub(super) async fn exchange_code(
+    client: &Client,
+    code: &str,
+    verifier: &str,
+    redirect_uri: &str,
+    route: &mut impl FnMut(&mut Request),
+) -> Result<TokenResponse, AuthErrorCode> {
+    let response = send(
+        client,
+        client.post(TOKEN_URL).form(&[
+            ("grant_type", "authorization_code"),
+            ("code", code),
+            ("redirect_uri", redirect_uri),
+            ("client_id", CLIENT_ID),
+            ("code_verifier", verifier),
+        ]),
+        route,
+    )
+    .await?;
+    match response.status() {
+        StatusCode::UNAUTHORIZED | StatusCode::FORBIDDEN => Err(AuthErrorCode::AuthorizationDenied),
+        status if status.is_success() => read_json(response).await,
+        _ if access_denied(response).await => Err(AuthErrorCode::AuthorizationDenied),
+        _ => Err(AuthErrorCode::UpstreamFailure),
     }
+}
+
+async fn send(
+    client: &Client,
+    builder: reqwest::RequestBuilder,
+    route: &mut impl FnMut(&mut Request),
+) -> Result<Response, AuthErrorCode> {
+    let mut request = builder.build().map_err(|_| AuthErrorCode::UpstreamFailure)?;
+    route(&mut request);
+    client.execute(request).await.map_err(|_| AuthErrorCode::UpstreamFailure)
 }
 
 async fn access_denied(response: Response) -> bool {
@@ -323,7 +342,7 @@ fn workspace_id(claims: &Value) -> Option<&str> {
         .or_else(|| claims.get("https://api.openai.com/auth")?.get("chatgpt_account_id")?.as_str())
 }
 
-fn complete_account(
+pub(super) fn complete_account(
     scope: AuthAccountScope<'_>,
     tokens: TokenResponse,
 ) -> Result<(AuthAccount, (String, AccountCredential)), AuthErrorCode> {

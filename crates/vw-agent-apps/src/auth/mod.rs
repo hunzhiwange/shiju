@@ -1,5 +1,11 @@
 //! Host-owned account authorization flows and credentials.
 #[cfg(not(target_arch = "wasm32"))]
+pub mod codex_browser;
+
+#[cfg(all(test, unix, not(target_arch = "wasm32")))]
+mod codex_browser_tests;
+
+#[cfg(not(target_arch = "wasm32"))]
 pub mod codex_device;
 
 #[cfg(all(test, unix, not(target_arch = "wasm32")))]

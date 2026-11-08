@@ -6,6 +6,7 @@ use std::path::{Path, PathBuf};
 pub use vw_agent_apps::auth::flow::AuthAccountScope;
 #[cfg(not(target_arch = "wasm32"))]
 use vw_agent_apps::auth::{
+    codex_browser::CodexBrowserStart,
     codex_device::{CodexDeviceAuth, CodexDeviceStart},
     copilot::{CopilotAuth, CopilotDeviceStart},
     copilot_token::CopilotSession,
@@ -167,16 +168,42 @@ impl AuthAccountStore {
     ) -> Result<AuthFlow, AuthErrorCode> {
         adapter
             .poll(flows, scope, started, |bound, account, identity, credential| {
-                crate::global_database::run_sync_database(|| {
-                    Ok(self.store_codex_device(bound, account, identity, credential))
-                })
-                .map_err(|_| AuthErrorCode::StorageUnavailable)?
+                self.commit_codex_account(bound, account, identity, credential)
+            })
+            .await
+    }
+
+    /// Advance a browser callback using the same scoped Codex account transaction.
+    #[cfg(not(target_arch = "wasm32"))]
+    pub async fn poll_codex_browser(
+        &self,
+        flows: &AuthFlows,
+        scope: AuthAccountScope<'_>,
+        started: &CodexBrowserStart,
+    ) -> Result<AuthFlow, AuthErrorCode> {
+        started
+            .poll(flows, scope, |bound, account, identity, credential| {
+                self.commit_codex_account(bound, account, identity, credential)
             })
             .await
     }
 
     #[cfg(not(target_arch = "wasm32"))]
-    fn store_codex_device(
+    fn commit_codex_account(
+        &self,
+        scope: AuthAccountScope<'_>,
+        account: &AuthAccount,
+        identity: &str,
+        credential: &AccountCredential,
+    ) -> Result<(), AuthErrorCode> {
+        crate::global_database::run_sync_database(|| {
+            Ok(self.store_codex_account(scope, account, identity, credential))
+        })
+        .map_err(|_| AuthErrorCode::StorageUnavailable)?
+    }
+
+    #[cfg(not(target_arch = "wasm32"))]
+    fn store_codex_account(
         &self,
         scope: AuthAccountScope<'_>,
         account: &AuthAccount,

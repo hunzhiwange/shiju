@@ -682,7 +682,7 @@ fn assert_codex_device_commit(open: impl Fn() -> GlobalDatabase) {
     let identity = r#"["fixture-account","fixture-subject"]"#;
     let credential = codex_auth();
     let store = AuthAccountStore::new(open(), root.path()).unwrap();
-    store.store_codex_device(scope, &account, identity, &credential).unwrap();
+    store.store_codex_account(scope, &account, identity, &credential).unwrap();
     drop(store);
 
     let store = AuthAccountStore::new(open(), root.path()).unwrap();
@@ -694,7 +694,7 @@ fn assert_codex_device_commit(open: impl Fn() -> GlobalDatabase) {
         serde_json::json!({"tokens":{"access_token":"replacement-access", "refresh_token":"replacement-refresh", "id_token":"replacement-id", "account_id":"fixture-account"}}),
     );
     assert_eq!(
-        store.store_codex_device(scope, &account, identity, &replacement),
+        store.store_codex_account(scope, &account, identity, &replacement),
         Err(AuthErrorCode::CodexOauthDuplicateAccount)
     );
     let owner = store.credentials.for_owner(scope.principal).unwrap();
@@ -755,7 +755,7 @@ fn auth6_codex_device_store_rolls_back_failed_metadata_insert() {
     };
     let credential = codex_auth();
     assert_eq!(
-        store.store_codex_device(scope, &account, "fixture-identity", &credential),
+        store.store_codex_account(scope, &account, "fixture-identity", &credential),
         Err(AuthErrorCode::StorageUnavailable)
     );
     assert_eq!(store.read_metadata(&scope, ACCOUNT_ID), Err(AuthErrorCode::NotFound));
@@ -764,5 +764,5 @@ fn auth6_codex_device_store_rolls_back_failed_metadata_insert() {
         matches!(owner.read(&tenant, scope.host, AppId::Codex, ACCOUNT_ID), Err(error) if error == "official account not found")
     );
     connection.execute_batch("DROP TRIGGER reject_auth_insert;").unwrap();
-    store.store_codex_device(scope, &account, "fixture-identity", &credential).unwrap();
+    store.store_codex_account(scope, &account, "fixture-identity", &credential).unwrap();
 }

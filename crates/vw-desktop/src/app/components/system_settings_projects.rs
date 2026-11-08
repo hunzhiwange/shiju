@@ -11,7 +11,6 @@ use crate::app::components::system_settings_common::{
 use crate::app::i18n::I18n;
 use crate::app::message::{ProjectMessage, SettingsMessage};
 use crate::app::{App, Message};
-use iced::widget::tooltip::{Position as TooltipPosition, Tooltip};
 use iced::widget::{button, checkbox, column, container, row, svg, text, text_input};
 use iced::{Alignment, Element, Length, Theme};
 
@@ -145,11 +144,6 @@ fn project_row<'a>(
         trigger
     };
 
-    let path_tip = container(text(path).size(12).wrapping(text::Wrapping::WordOrGlyph))
-        .max_width(360)
-        .padding([7, 10])
-        .style(settings_panel_style);
-    let project = Tooltip::new(project, path_tip, TooltipPosition::Top).gap(6);
     let badge = text(i18n.__("当前项目")).size(11).style(settings_muted_text_style);
     let mut line = row![project].align_y(Alignment::Center).spacing(6);
     if is_current {

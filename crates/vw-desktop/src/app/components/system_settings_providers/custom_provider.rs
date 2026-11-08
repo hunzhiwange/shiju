@@ -17,19 +17,18 @@ use super::custom_model_modal::{
 pub(super) use super::custom_model_modal::{field_row, text_row};
 use crate::app::assets::Icon;
 use crate::app::components::system_settings_common::{
-    SETTINGS_CONTROL_PADDING, SETTINGS_CONTROL_TEXT_SIZE, icon_btn, primary_action_btn_style,
-    rounded_action_btn_style, settings_close_button, settings_divider, settings_error_banner,
-    settings_group_card, settings_group_heading, settings_modal_header, settings_modal_layout,
-    settings_modal_overlay, settings_muted_text_style, settings_responsive_row,
-    settings_tab_button, settings_tab_row, settings_text_input_style, settings_toggle,
-    settings_value_badge,
+    icon_btn, primary_action_btn_style, rounded_action_btn_style, settings_close_button,
+    settings_divider, settings_error_banner, settings_group_card, settings_group_heading,
+    settings_modal_header, settings_modal_layout, settings_modal_overlay,
+    settings_muted_text_style, settings_responsive_row, settings_tab_button, settings_tab_row,
+    settings_text_input, settings_toggle, settings_value_badge,
 };
 use crate::app::i18n::settings_models::connection_text::text as connection_text;
 use crate::app::i18n::settings_models::messages::render as owned_text;
 use crate::app::state::{CustomProviderModelFilter, CustomProviderTab};
 use crate::app::{App, Message, message};
 use iced::widget::text::Wrapping;
-use iced::widget::{Space, button, column, container, row, text, text_input};
+use iced::widget::{Space, button, column, container, row, text};
 use iced::{Alignment, Element, Length};
 
 pub(super) fn secure_text_row<'a>(
@@ -40,12 +39,9 @@ pub(super) fn secure_text_row<'a>(
     on_input: impl Fn(String) -> Message + Clone + 'a,
 ) -> Element<'a, Message> {
     settings_responsive_row(label, description, move || {
-        text_input(placeholder, value)
+        settings_text_input(placeholder, value)
             .secure(true)
             .on_input(on_input.clone())
-            .padding(SETTINGS_CONTROL_PADDING)
-            .size(SETTINGS_CONTROL_TEXT_SIZE)
-            .style(settings_text_input_style)
             .width(Length::Fill)
     })
 }
@@ -232,21 +228,15 @@ pub fn view_overlays<'a>(app: &'a App, dialog: Element<'a, Message>) -> Element<
         for (i, h) in s.custom.headers.iter().enumerate() {
             headers_controls = headers_controls.push(
                 row![
-                    text_input(connection_text(app.desktop_locale, "请求头名称"), &h.key)
+                    settings_text_input(connection_text(app.desktop_locale, "请求头名称"), &h.key)
                         .on_input(move |v| Message::Settings(
                             message::SettingsMessage::CustomProviderHeaderKeyChanged(i, v)
                         ))
-                        .padding(SETTINGS_CONTROL_PADDING)
-                        .size(SETTINGS_CONTROL_TEXT_SIZE)
-                        .style(settings_text_input_style)
                         .width(Length::Fill),
-                    text_input(connection_text(app.desktop_locale, "请求头值"), &h.value)
+                    settings_text_input(connection_text(app.desktop_locale, "请求头值"), &h.value)
                         .on_input(move |v| Message::Settings(
                             message::SettingsMessage::CustomProviderHeaderValueChanged(i, v)
                         ))
-                        .padding(SETTINGS_CONTROL_PADDING)
-                        .size(SETTINGS_CONTROL_TEXT_SIZE)
-                        .style(settings_text_input_style)
                         .width(Length::Fill),
                     if s.custom.headers.len() > 1 {
                         icon_btn(

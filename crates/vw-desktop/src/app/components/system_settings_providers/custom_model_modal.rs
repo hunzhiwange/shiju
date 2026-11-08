@@ -4,18 +4,17 @@
 //! 注释聚焦调用边界、返回值和错误传播方式，便于后续维护设置页与工具栏行为时快速定位职责。
 
 use crate::app::components::system_settings_common::{
-    SETTINGS_CONTROL_PADDING, SETTINGS_CONTROL_TEXT_SIZE, primary_action_btn_style,
-    rounded_action_btn_style, settings_checkbox_style, settings_close_button,
-    settings_control_with_hint, settings_divider, settings_error_banner, settings_field_label,
-    settings_group_card, settings_group_heading, settings_modal_card_style, settings_modal_header,
-    settings_modal_layout, settings_modal_overlay, settings_muted_text_style,
-    settings_responsive_row, settings_segment_button_style, settings_tab_button, settings_tab_row,
-    settings_text_input_style,
+    primary_action_btn_style, rounded_action_btn_style, settings_checkbox_style,
+    settings_close_button, settings_control_with_hint, settings_divider, settings_error_banner,
+    settings_field_label, settings_group_card, settings_group_heading, settings_modal_card_style,
+    settings_modal_header, settings_modal_layout, settings_modal_overlay,
+    settings_muted_text_style, settings_responsive_row, settings_segment_button_style,
+    settings_tab_button, settings_tab_row, settings_text_input,
 };
 use crate::app::i18n::settings_models::connection_text::text as connection_text;
 use crate::app::state::CustomProviderModelTab;
 use crate::app::{App, Message, message};
-use iced::widget::{Space, button, checkbox, column, container, row, text, text_input};
+use iced::widget::{Space, button, checkbox, column, container, row, text};
 use iced::{Alignment, Background, Element, Length, Theme};
 
 const MODALITIES: [&str; 5] = ["text", "image", "audio", "video", "pdf"];
@@ -72,12 +71,7 @@ pub(super) fn text_row<'a>(
     on_input: impl Fn(String) -> Message + Clone + 'a,
 ) -> Element<'a, Message> {
     settings_responsive_row(label, description, move || {
-        text_input(placeholder, value)
-            .on_input(on_input.clone())
-            .padding(SETTINGS_CONTROL_PADDING)
-            .size(SETTINGS_CONTROL_TEXT_SIZE)
-            .style(settings_text_input_style)
-            .width(Length::Fill)
+        settings_text_input(placeholder, value).on_input(on_input.clone()).width(Length::Fill)
     })
 }
 

@@ -1,14 +1,16 @@
 use super::{
-    SETTINGS_CONTROL_PADDING, SETTINGS_CONTROL_TEXT_SIZE, settings_select, settings_text_input_style,
+    SETTINGS_CONTROL_PADDING, SETTINGS_CONTROL_TEXT_SIZE, settings_select, settings_text_editor,
+    settings_text_input, settings_text_input_style,
 };
 use crate::app::Message;
-use crate::app::message::{GeneralSettingsMessage, SettingsMessage};
+use crate::app::message::{GeneralSettingsMessage, GitMessage, SettingsMessage};
 use iced::advanced::{
     Clipboard, Layout, Shell, Widget, clipboard, layout, mouse,
     renderer::{self, Headless},
     widget,
 };
 use iced::keyboard::{self, Key, key::Named};
+use iced::widget::text_editor;
 use iced::{Event, Font, Length, Pixels, Point, Rectangle, Renderer, Size, Theme, Vector};
 
 fn selected(value: String) -> Message {
@@ -156,6 +158,11 @@ impl Ui {
 
     fn draw(&mut self, control: &mut SelectWidget<'_>, theme: &Theme, cursor: mouse::Cursor) {
         use iced::advanced::Renderer as _;
+        self.update(
+            control,
+            Event::Window(iced::window::Event::RedrawRequested(iced::time::Instant::now())),
+            cursor,
+        );
         self.renderer.reset(self.viewport);
         let defaults = renderer::Style { text_color: theme.palette().text };
         control.draw(
@@ -206,6 +213,122 @@ async fn settings_text_input_matches_select_height() {
     let select = Ui::new(&mut select, renderer().await);
 
     assert!((input.node.size().height - select.node.size().height).abs() < 0.01);
+}
+
+async fn form_renderer() -> Renderer {
+    static FONTS: std::sync::Once = std::sync::Once::new();
+    FONTS.call_once(|| {
+        let mut fonts = iced::advanced::graphics::text::font_system().write().unwrap();
+        for font in crate::fonts::load_all() {
+            fonts.load_font(font);
+        }
+    });
+    Renderer::new(Font::with_name("Noto Sans CJK SC"), 14.0.into(), Some("tiny-skia"))
+        .await
+        .unwrap()
+}
+
+#[tokio::test]
+async fn shared_form_controls_match_input_and_select_height() {
+    use iced::widget::column;
+
+    for (locale, sample) in [("zh", "示例说明"), ("zh-hant", "範例說明"), ("en", "Example")]
+    {
+        let content = text_editor::Content::with_text(&format!("{sample}\n{sample}"));
+        for (theme, mode) in [(Theme::Light, "light"), (Theme::Dark, "dark")] {
+            for width in [320, 640] {
+                let mut form = column![
+                    settings_text_input(sample, sample).on_input(selected),
+                    settings_text_input(sample, "sk-fixture").secure(true).on_input(selected),
+                    settings_select([sample.to_owned()], Some(sample.to_owned()), selected)
+                        .width(Length::Fill),
+                    settings_text_editor(&content).on_action(editor_action),
+                ]
+                .spacing(8);
+                let size = Size::new(width as f32, 240.0);
+                let mut ui = Ui::at_size(&mut form, form_renderer().await, size);
+                let [input, password, select, editor] = Layout::new(&ui.node)
+                    .children()
+                    .map(|child| child.bounds())
+                    .collect::<Vec<_>>()
+                    .try_into()
+                    .unwrap();
+                for field in [input, password, select, editor] {
+                    assert_eq!(field.width, size.width);
+                    assert!(field.y + field.height <= size.height);
+                }
+                assert!((input.height - select.height).abs() < 0.01);
+                assert!((password.height - input.height).abs() < 0.01);
+                assert!(editor.height > input.height);
+                ui.draw(&mut form, &theme, mouse::Cursor::Unavailable);
+                save_preview(&mut ui, &theme, &format!("shared-form-{locale}-{mode}-{width}.png"));
+            }
+        }
+    }
+}
+
+fn editor_action(action: text_editor::Action) -> Message {
+    Message::Git(GitMessage::CommitDescriptionEditorAction(action))
+}
+
+fn ime_commit(value: &str) -> Event {
+    Event::InputMethod(iced::advanced::input_method::Event::Commit(value.into()))
+}
+
+#[tokio::test]
+async fn shared_form_controls_preserve_native_input_events() {
+    async fn render_value(value: &str, secure: bool, theme: &Theme) -> Vec<u8> {
+        let mut input = settings_text_input("API Key", value).secure(secure).on_input(selected);
+        let mut ui = Ui::at_size(&mut input, form_renderer().await, Size::new(320.0, 80.0));
+        ui.draw(&mut input, theme, mouse::Cursor::Unavailable);
+        ui.renderer.screenshot(Size::new(320, 80), 1.0, theme.palette().background)
+    }
+
+    for theme in [Theme::Light, Theme::Dark] {
+        let masked = render_value("abcd", true, &theme).await;
+        assert!(masked == render_value("WWWW", true, &theme).await);
+        assert!(masked != render_value("abcd", false, &theme).await);
+    }
+
+    for secure in [false, true] {
+        let mut input = settings_text_input("输入", "")
+            .secure(secure)
+            .on_input(selected)
+            .on_submit(selected("submitted".into()));
+        let mut ui = Ui::new(&mut input, form_renderer().await);
+        ui.click_trigger(&mut input);
+        assert!(ui.update(&mut input, ime_commit("測試"), mouse::Cursor::Unavailable));
+        ui.assert_selection("測試");
+        assert!(ui.press(&mut input, Named::Enter));
+        ui.assert_selection("submitted");
+
+        let mut disabled = settings_text_input::<Message>("输入", "測試")
+            .secure(secure)
+            .on_input_maybe(None::<fn(String) -> Message>);
+        let mut ui = Ui::new(&mut disabled, form_renderer().await);
+        ui.click_trigger(&mut disabled);
+        assert!(!ui.update(&mut disabled, ime_commit("ignored"), mouse::Cursor::Unavailable));
+        assert!(ui.messages.is_empty());
+    }
+
+    let content = text_editor::Content::new();
+    let mut editor = settings_text_editor(&content).on_action(editor_action);
+    let mut ui = Ui::new(&mut editor, form_renderer().await);
+    ui.click_trigger(&mut editor);
+    ui.messages.clear(); // The native editor also reports the cursor movement on click.
+    ui.update(&mut editor, ime_commit("第一行\nSecond line"), mouse::Cursor::Unavailable);
+    assert!(matches!(
+        ui.messages.as_slice(),
+        [Message::Git(GitMessage::CommitDescriptionEditorAction(text_editor::Action::Edit(
+            text_editor::Edit::Paste(value)
+        )))] if value.as_str() == "第一行\nSecond line"
+    ));
+
+    let mut disabled = settings_text_editor::<Message>(&content);
+    let mut ui = Ui::new(&mut disabled, form_renderer().await);
+    ui.click_trigger(&mut disabled);
+    ui.update(&mut disabled, ime_commit("ignored"), mouse::Cursor::Unavailable);
+    assert!(ui.messages.is_empty());
 }
 
 #[tokio::test]

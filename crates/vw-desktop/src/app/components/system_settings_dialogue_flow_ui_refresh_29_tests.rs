@@ -306,18 +306,14 @@ async fn ui_refresh_29_layout_and_interaction() {
             mouse::Cursor::Unavailable,
         );
 
-        for (index, expected_label, description) in [
-            (0, "显示推理摘要", "在时间线中显示模型推理摘要。"),
-            (1, "展开 shell 工具", "默认在时间线中展开 shell 工具部分。"),
-            (2, "展开编辑工具", "默认在时间线中展开 edit、write、patch 工具部分。"),
-        ] {
+        for (index, expected_label) in
+            [(0, "显示推理摘要"), (1, "展开 shell 工具"), (2, "展开编辑工具")]
+        {
             let checkbox = positions.label_at(i18n.__("启用"), index);
             assert_fits(checkbox, size);
             let label = positions.label(i18n.__(expected_label));
-            let hint = positions.label(i18n.__(description));
             assert_fits(label, size);
-            assert_fits(hint, size);
-            assert!((checkbox.center_y() - (label.y + hint.y + hint.height) / 2.0).abs() < 0.5);
+            assert!((checkbox.center_y() - label.center_y()).abs() < 0.5);
             let messages = click(&mut ui, &mut renderer, checkbox.center());
             assert!(matches!(
                 (index, messages.as_slice()),
@@ -571,4 +567,43 @@ async fn ui_refresh_29_preserves_values_and_disabled_states() {
         "quick-empty-en-640",
         mouse::Cursor::Unavailable,
     );
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn help_rollout_20_renders_contextual_help() {
+    use crate::app::components::system_settings_proxy::system_settings_proxy_tests::rollout::{
+        MODES, Scene,
+    };
+
+    if !isolated("help_rollout_20_renders_contextual_help") {
+        return;
+    }
+    let mut renderer = renderer().await;
+    let mut app = fixture();
+    app.dialogue_flow_settings_save_message = Some(FAILURE.into());
+
+    for (locale, theme) in MODES {
+        app.desktop_locale = locale;
+        app.app_theme = theme;
+        let i18n = I18n::new(locale);
+        let mut settings = Scene::new(&app, &mut renderer, "dialogue-flow", view(&app));
+        settings.label(FAILURE);
+        for (title, description) in [
+            ("显示推理摘要", "在时间线中显示模型推理摘要。"),
+            ("对话流", "配置时间线中的推理摘要、工具展开和跟进行为。"),
+            ("展开 shell 工具", "默认在时间线中展开 shell 工具部分。"),
+        ] {
+            settings.help(i18n.__(title), i18n.__(description));
+        }
+        let description = i18n.__("默认在时间线中展开 edit、write、patch 工具部分。");
+        let icon = settings.help(i18n.__("展开编辑工具"), description);
+        settings.actions(icon, description);
+
+        let toggle = settings.label(i18n.__("启用")).center();
+        assert!(matches!(
+            settings.click(toggle).as_slice(),
+            [Message::Settings(SettingsMessage::DialogueFlowShowReasoningSummaryToggled(value))]
+                if *value != app.dialogue_flow_show_reasoning_summary
+        ));
+    }
 }

@@ -550,3 +550,64 @@ async fn ui_refresh_28_preserves_values_and_disabled_states() {
         capture(&mut ui, &mut renderer, &theme, size, name, mouse::Cursor::Unavailable);
     }
 }
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn help_rollout_20_renders_contextual_help() {
+    use crate::app::components::system_settings_proxy::system_settings_proxy_tests::rollout::{
+        MODES, Scene,
+    };
+
+    if !isolated("help_rollout_20_renders_contextual_help") {
+        return;
+    }
+    let mut renderer = renderer().await;
+    let mut app = fixture();
+    app.hooks_settings.enabled = true;
+    app.hooks_settings.catalog_error = Some(FAILURE.into());
+    app.hooks_settings.catalog = vec![vw_gateway_client::HookCatalogEntryDto {
+        plugin_id: PLUGIN_ID.into(),
+        event: "before_tool_call".into(),
+        command: COMMAND.into(),
+        args: vec!["--fixture".into()],
+        working_dir: TRACE_PATH.into(),
+        mode: "blocking".into(),
+        hook_hash: HOOK_HASH.into(),
+        trusted: false,
+    }];
+
+    for (locale, theme) in MODES {
+        app.desktop_locale = locale;
+        app.app_theme = theme;
+        let mut settings = Scene::new(&app, &mut renderer, "hooks", view(&app));
+        for value in [FAILURE, COMMAND, TRACE_PATH, "before_tool_call", "blocking"] {
+            settings.label(value);
+        }
+        for value in [
+            "关闭总开关后将暂停 hooks 执行，但会保留内置钩子的具体启用状态。",
+            "仅加载已发现且已信任的插件 hook 声明。",
+            "待审核声明不会执行；信任与撤销均由服务端按当前稳定哈希校验。",
+            "待审核",
+        ] {
+            settings.label(tr(locale, value));
+        }
+        for (title, description) in [
+            ("启用", "控制是否开启运行时 hooks 执行。"),
+            ("钩子配置", "配置运行时 hooks 总开关与内置钩子的启用状态。"),
+            ("内置钩子", "当前提供审计类内置 hooks。后续新增内置项时会继续在这里扩展。"),
+            ("插件 hooks", "控制可信插件 hooks 的执行并审核当前声明。"),
+            ("插件 hook 审核", "查看插件声明并管理当前哈希对应的信任状态。"),
+            ("审计记录", "仅显示时间、工具名、耗时和成功状态，不包含参数或结果正文。"),
+        ] {
+            settings.help(tr(locale, title), tr(locale, description));
+        }
+        let description = tr(locale, "记录命令调用信息，便于审计与问题回溯。");
+        let icon = settings.help("command_logger", description);
+        settings.actions(icon, description);
+
+        let toggle = settings.label(tr(locale, "开启运行时 hooks 执行")).center();
+        assert!(matches!(
+            settings.click(toggle).as_slice(),
+            [Message::Settings(SettingsMessage::Hooks(HooksMessage::EnabledToggled(false)))]
+        ));
+    }
+}

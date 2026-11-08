@@ -24,8 +24,8 @@ fn assert_field_tree(tree: &Tree) {
 }
 
 #[test]
-fn field_row_keeps_label_description_and_control_in_separate_columns() {
-    let element = field_row("显示推理摘要", "说明", text("control"));
+fn field_row_keeps_label_help_and_control_in_separate_columns() {
+    let element = field_row(&test_app(), "显示推理摘要", "说明", text("control"));
     assert_eq!(element.as_widget().size().width, Length::Fill);
 
     let tree = Tree::new(element.as_widget());

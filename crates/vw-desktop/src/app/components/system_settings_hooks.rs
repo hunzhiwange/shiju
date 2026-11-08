@@ -5,13 +5,14 @@
 
 use crate::app::components::system_settings_common::{
     primary_action_btn_style, rounded_action_btn_style, settings_checkbox_style,
-    settings_control_with_hint, settings_error_banner, settings_group_card, settings_group_heading,
-    settings_muted_text_style, settings_page_heading, settings_panel,
+    settings_control_with_hint, settings_error_banner, settings_flexible_row_with_help,
+    settings_group_card, settings_group_heading, settings_group_heading_with_help,
+    settings_muted_text_style, settings_page_heading_with_help, settings_panel,
     settings_row_with_flexible_control, settings_value_badge,
 };
 use crate::app::i18n::settings_extensions::text as tr;
 use crate::app::message::settings::HooksMessage;
-use crate::app::{App, Message, message};
+use crate::app::{App, Message, i18n::I18n, message};
 use iced::widget::scrollable::{Direction, Scrollbar};
 use iced::widget::{button, checkbox, column, container, row, scrollable, text, text::Wrapping};
 use iced::{Alignment, Element, Length};
@@ -203,11 +204,16 @@ fn audit_panel(app: &App) -> Element<'_, Message> {
 
 pub fn view(app: &App) -> Element<'_, Message> {
     let locale = app.desktop_locale;
+    let i18n = I18n::new(locale);
+    let theme = &app.app_theme;
     let s = &app.hooks_settings;
 
-    let enabled_row = field_row(
+    let enabled_row = settings_flexible_row_with_help(
+        i18n,
+        theme,
         tr(locale, "启用"),
         tr(locale, "控制是否开启运行时 hooks 执行。"),
+        320.0,
         settings_control_with_hint(
             checkbox(s.enabled)
                 .label(tr(locale, "开启运行时 hooks 执行"))
@@ -217,14 +223,19 @@ pub fn view(app: &App) -> Element<'_, Message> {
         ),
     );
 
-    let builtin_header = settings_group_heading(
+    let builtin_header = settings_group_heading_with_help(
+        i18n,
+        theme,
         tr(locale, "内置钩子"),
         tr(locale, "当前提供审计类内置 hooks。后续新增内置项时会继续在这里扩展。"),
     );
 
-    let command_logger_row = field_row(
+    let command_logger_row = settings_flexible_row_with_help(
+        i18n,
+        theme,
         "command_logger",
         tr(locale, "记录命令调用信息，便于审计与问题回溯。"),
+        320.0,
         checkbox(s.command_logger).on_toggle(command_logger_toggled).style(settings_checkbox_style),
     );
 
@@ -241,7 +252,9 @@ pub fn view(app: &App) -> Element<'_, Message> {
     );
 
     let catalog_header = row![
-        container(settings_group_heading(
+        container(settings_group_heading_with_help(
+            i18n,
+            theme,
             tr(locale, "插件 hook 审核"),
             tr(locale, "查看插件声明并管理当前哈希对应的信任状态。")
         ))
@@ -257,7 +270,9 @@ pub fn view(app: &App) -> Element<'_, Message> {
     .align_y(Alignment::Center);
 
     let audit_header = row![
-        container(settings_group_heading(
+        container(settings_group_heading_with_help(
+            i18n,
+            theme,
             tr(locale, "审计记录"),
             tr(locale, "仅显示时间、工具名、耗时和成功状态，不包含参数或结果正文。"),
         ))
@@ -268,7 +283,9 @@ pub fn view(app: &App) -> Element<'_, Message> {
     .align_y(Alignment::Center);
 
     let mut content = column![
-        settings_page_heading(
+        settings_page_heading_with_help(
+            i18n,
+            theme,
             tr(locale, "钩子配置"),
             tr(locale, "配置运行时 hooks 总开关与内置钩子的启用状态。")
         ),
@@ -279,7 +296,9 @@ pub fn view(app: &App) -> Element<'_, Message> {
         settings_group_card(enabled_row),
         builtin_header,
         settings_group_card(command_logger_row),
-        settings_group_heading(
+        settings_group_heading_with_help(
+            i18n,
+            theme,
             tr(locale, "插件 hooks"),
             tr(locale, "控制可信插件 hooks 的执行并审核当前声明。")
         ),

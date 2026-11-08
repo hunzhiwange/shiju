@@ -2,18 +2,28 @@
 
 use crate::app::components::system_settings_common::{
     SETTINGS_CONTROL_TEXT_SIZE, settings_checkbox_style, settings_divider, settings_error_banner,
-    settings_group_card, settings_page_heading, settings_row, settings_success_banner,
+    settings_flexible_row_with_help, settings_group_card, settings_page_heading_with_help,
+    settings_success_banner,
 };
 use crate::app::{App, Message, i18n::I18n, message};
 use iced::widget::{checkbox, column};
 use iced::{Element, Length};
 
 fn field_row<'a>(
+    app: &App,
     label: &'static str,
     description: &'static str,
     control: impl Into<Element<'a, Message>>,
 ) -> Element<'a, Message> {
-    settings_row(label, description, 112.0, control)
+    settings_flexible_row_with_help(
+        I18n::new(app.desktop_locale),
+        &app.app_theme,
+        label,
+        description,
+        112.0,
+        control,
+    )
+    .into()
 }
 
 fn show_reasoning_summary_toggled(value: bool) -> Message {
@@ -36,6 +46,7 @@ fn is_success_save_message(message: &str) -> bool {
 pub fn view(app: &App) -> Element<'_, Message> {
     let i18n = I18n::new(app.desktop_locale);
     let reasoning_row = field_row(
+        app,
         i18n.__("显示推理摘要"),
         i18n.__("在时间线中显示模型推理摘要。"),
         checkbox(app.dialogue_flow_show_reasoning_summary)
@@ -46,6 +57,7 @@ pub fn view(app: &App) -> Element<'_, Message> {
     );
 
     let expand_shell_row = field_row(
+        app,
         i18n.__("展开 shell 工具"),
         i18n.__("默认在时间线中展开 shell 工具部分。"),
         checkbox(app.dialogue_flow_expand_shell_tool_section)
@@ -56,6 +68,7 @@ pub fn view(app: &App) -> Element<'_, Message> {
     );
 
     let expand_edit_row = field_row(
+        app,
         i18n.__("展开编辑工具"),
         i18n.__("默认在时间线中展开 edit、write、patch 工具部分。"),
         checkbox(app.dialogue_flow_expand_edit_tool_section)
@@ -66,7 +79,9 @@ pub fn view(app: &App) -> Element<'_, Message> {
     );
 
     let mut col = column![
-        settings_page_heading(
+        settings_page_heading_with_help(
+            i18n,
+            &app.app_theme,
             i18n.__("对话流"),
             i18n.__("配置时间线中的推理摘要、工具展开和跟进行为。")
         ),

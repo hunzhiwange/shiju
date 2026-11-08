@@ -21,10 +21,6 @@ use super::RecentProjectMeta;
 use super::project_dirs;
 use super::{Screen, message};
 use crate::app::Message;
-#[cfg(target_arch = "wasm32")]
-use crate::app::config::load_project_chat_preferences_async;
-#[cfg(not(target_arch = "wasm32"))]
-use crate::app::load_project_chat_preferences;
 use crate::app::{App, AppTab};
 use iced::Task;
 
@@ -52,33 +48,6 @@ fn load_project_branches(path: String) -> ProjectBranchSnapshot {
     let selected_branch = super::components::git_panel::current_branch(&path);
     let branches = super::components::git_panel::list_branches(&path).unwrap_or_default();
     ProjectBranchSnapshot { project_path: path, selected_branch, branches }
-}
-
-fn project_chat_preferences_task(path: String) -> Task<Message> {
-    #[cfg(target_arch = "wasm32")]
-    {
-        Task::perform(
-            async move {
-                let preferences =
-                    load_project_chat_preferences_async(&path).await.unwrap_or_else(|err| {
-                        tracing::warn!(
-                            target: "vw_desktop",
-                            error = %err,
-                            project_path = %path,
-                            "failed to load project chat preferences via gateway"
-                        );
-                        None
-                    });
-                (path, preferences)
-            },
-            |(path, preferences)| Message::ProjectChatPreferencesLoaded(path, preferences),
-        )
-    }
-    #[cfg(not(target_arch = "wasm32"))]
-    {
-        let _ = path;
-        Task::none()
-    }
 }
 
 pub(crate) fn project_settings_refresh_task(project_path: String) -> Task<Message> {
@@ -661,11 +630,6 @@ impl App {
                 crate::app::message::preview::lsp::sync_lsp_for_path(self, &active_preview_path);
         }
 
-        // 加载项目特定的聊天模型偏好
-        #[cfg(not(target_arch = "wasm32"))]
-        if let Some((model, auto_model, acp_agent)) = load_project_chat_preferences(&path) {
-            self.apply_project_chat_preferences(model, auto_model, acp_agent);
-        }
         // 切换到该项目的终端状态
         self.switch_project_terminal(previous_project_path, self.project_path.clone());
         let reap_task = crate::app::message::terminal::reap_retired_task(self);
@@ -718,8 +682,8 @@ impl App {
             Task::done(Message::Project(message::ProjectMessage::StartDeferredTasks {
                 project_path: deferred_path,
             }));
-        let settings_refresh_task = project_settings_refresh_task(path.clone());
-        let preferences_task = project_chat_preferences_task(path);
+        let settings_refresh_task = project_settings_refresh_task(path);
+        let preferences_task = self.reload_project_chat_preferences(project_changed);
         Task::batch(vec![
             reap_task,
             reload_task,

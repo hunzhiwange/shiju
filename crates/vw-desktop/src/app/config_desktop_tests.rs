@@ -14,13 +14,13 @@ use vw_config_types::ui::{GatewayClientServerConfig, GatewayClientSystemSettings
 const SOURCE: &str = include_str!("config_desktop.rs");
 
 #[derive(Debug, Clone)]
-struct RecordedRequest {
-    method: String,
-    path: String,
-    body: String,
+pub(crate) struct RecordedRequest {
+    pub(crate) method: String,
+    pub(crate) path: String,
+    pub(crate) body: String,
 }
 
-struct EnvGuard {
+pub(crate) struct EnvGuard {
     key: &'static str,
     previous: Option<std::ffi::OsString>,
 }
@@ -42,15 +42,23 @@ impl Drop for EnvGuard {
     }
 }
 
-struct TestServer {
-    port: u16,
+pub(crate) struct TestServer {
+    pub(crate) port: u16,
     requests: Arc<Mutex<Vec<RecordedRequest>>>,
     handle: Option<JoinHandle<()>>,
 }
 
 impl TestServer {
-    fn start(
+    pub(crate) fn start(
         expected_requests: usize,
+        handler: impl Fn(&RecordedRequest) -> (u16, &'static str) + Send + Sync + 'static,
+    ) -> Self {
+        Self::start_matching(expected_requests, |_| true, handler)
+    }
+
+    pub(crate) fn start_matching(
+        expected_requests: usize,
+        matches: impl Fn(&RecordedRequest) -> bool + Send + 'static,
         handler: impl Fn(&RecordedRequest) -> (u16, &'static str) + Send + Sync + 'static,
     ) -> Self {
         let listener = TcpListener::bind("127.0.0.1:0").expect("test server should bind");
@@ -59,19 +67,28 @@ impl TestServer {
         let server_requests = Arc::clone(&requests);
         let handler = Arc::new(handler);
         let handle = std::thread::spawn(move || {
-            for stream in listener.incoming().take(expected_requests) {
+            let mut remaining = expected_requests;
+            for stream in listener.incoming() {
                 let mut stream = stream.expect("request stream should open");
                 let request = read_http_request(&mut stream);
+                if !matches(&request) {
+                    write_http_response(&mut stream, 500, "{}");
+                    continue;
+                }
                 let (status, body) = handler(&request);
                 server_requests.lock().expect("requests lock should not be poisoned").push(request);
                 write_http_response(&mut stream, status, body);
+                remaining -= 1;
+                if remaining == 0 {
+                    break;
+                }
             }
         });
 
         Self { port, requests, handle: Some(handle) }
     }
 
-    fn take_requests(mut self) -> Vec<RecordedRequest> {
+    pub(crate) fn take_requests(mut self) -> Vec<RecordedRequest> {
         if let Some(handle) = self.handle.take() {
             handle.join().expect("test server should finish");
         }
@@ -142,7 +159,7 @@ fn env_lock() -> MutexGuard<'static, ()> {
     crate::app::TEST_PROCESS_STATE_LOCK.lock().unwrap_or_else(|poison| poison.into_inner())
 }
 
-fn temp_home() -> (MutexGuard<'static, ()>, TempDir, EnvGuard) {
+pub(crate) fn temp_home() -> (MutexGuard<'static, ()>, TempDir, EnvGuard) {
     let lock = env_lock();
     let home = tempfile::tempdir().expect("temp home should be created");
     let guard = EnvGuard::set_os("HOME", home.path().as_os_str());
@@ -167,8 +184,12 @@ fn gateway_config(port: u16) -> GatewayClientSystemSettingsConfig {
 
 fn configure_gateway(port: u16) -> (MutexGuard<'static, ()>, TempDir, EnvGuard) {
     let home = temp_home();
-    super::super::system_settings::save_gateway_client_bootstrap_config(&gateway_config(port));
+    set_gateway_port(port);
     home
+}
+
+pub(crate) fn set_gateway_port(port: u16) {
+    super::super::system_settings::save_gateway_client_bootstrap_config(&gateway_config(port));
 }
 
 fn source_declares_symbol(name: &str) -> bool {
@@ -745,4 +766,174 @@ fn preference_writes_are_serialized_per_endpoint_and_tenant() {
     assert!(!has_task(queue.enqueue(same_endpoint, fields())));
     assert!(has_task(queue.enqueue(other_endpoint, fields())));
     assert!(has_task(queue.enqueue(other_tenant, fields())));
+}
+
+async fn collect_preference_messages(
+    task: iced::Task<crate::app::Message>,
+) -> Vec<crate::app::Message> {
+    use iced_runtime::futures::futures::StreamExt;
+
+    let Some(mut stream) = iced_runtime::task::into_stream(task) else {
+        return Vec::new();
+    };
+    tokio::time::timeout(std::time::Duration::from_secs(5), async {
+        let mut messages = Vec::new();
+        while let Some(action) = stream.next().await {
+            if let iced_runtime::Action::Output(message) = action {
+                messages.push(message);
+            }
+        }
+        messages
+    })
+    .await
+    .expect("preference tasks should finish")
+}
+
+#[test]
+fn project_puts_keep_the_original_gateway_and_drain_after_a_failed_save() {
+    use crate::app::{App, Message, message::ChatMessage};
+    use serde_json::{Value, json};
+    use std::sync::atomic::{AtomicUsize, Ordering};
+
+    let (_lock, _home, _guard) = temp_home();
+    let (mut app, _) = App::new();
+    let writes = AtomicUsize::new(0);
+    let first_gateway = TestServer::start(4, move |request| match request.method.as_str() {
+        "PATCH" => (200, "{}"),
+        "PUT" if writes.fetch_add(1, Ordering::SeqCst) == 0 => (500, "{}"),
+        "PUT" => (200, "{}"),
+        _ => panic!("unexpected desktop request {request:?}"),
+    });
+    let second_gateway = TestServer::start(1, |request| {
+        assert_eq!(request.method, "PATCH");
+        (200, "{}")
+    });
+    set_gateway_port(first_gateway.port);
+    app.project_path = Some("/repo/a".to_string());
+
+    let first = app.update(Message::Chat(ChatMessage::ModelSelected("first".into())));
+    let next = app.update(Message::Chat(ChatMessage::ModelSelected("last".into())));
+    let idle = app.desktop_preferences_persistence.wait_for_idle().unwrap();
+    assert!(!*idle.borrow());
+
+    set_gateway_port(second_gateway.port);
+    app.project_path = None;
+    let other = app.update(Message::Chat(ChatMessage::ModelSelected("other".into())));
+    tokio::runtime::Runtime::new().unwrap().block_on(async {
+        assert!(collect_preference_messages(next).await.is_empty());
+        let messages = collect_preference_messages(other).await;
+        assert_eq!(messages.len(), 1);
+        for message in messages {
+            let _ = app.update(message);
+        }
+        assert!(!*idle.borrow());
+        let messages = collect_preference_messages(first).await;
+        assert_eq!(messages.len(), 2);
+        let follow_up = iced::Task::batch(messages.into_iter().map(|message| app.update(message)));
+        assert!(!*idle.borrow());
+        assert!(app.active_toast.as_ref().unwrap().message.contains("项目聊天偏好未保存"));
+        let messages = collect_preference_messages(follow_up).await;
+        assert_eq!(
+            messages
+                .iter()
+                .filter(|message| matches!(
+                    message,
+                    Message::DesktopPreferencesSaved(..) | Message::ProjectChatPreferencesSaved(..)
+                ))
+                .count(),
+            2
+        );
+        for message in messages {
+            let _ = app.update(message);
+        }
+    });
+
+    assert!(*idle.borrow());
+    assert_eq!(app.model, "other");
+    let requests = first_gateway.take_requests();
+    let projects: Vec<_> = requests.iter().filter(|request| request.method == "PUT").collect();
+    assert_eq!(projects.len(), 2);
+    for (request, model) in projects.into_iter().zip(["first", "last"]) {
+        assert_eq!(request.path, "/v1/desktop/project-preferences?project_path=%2Frepo%2Fa");
+        assert_eq!(
+            serde_json::from_str::<Value>(&request.body).unwrap(),
+            json!({"model":model,"auto_model":false,"acp_agent":null})
+        );
+    }
+    assert_eq!(second_gateway.take_requests().len(), 1);
+}
+
+#[test]
+fn reasoning_and_send_preferences_preserve_unrelated_sessions_and_remove_legacy_key() {
+    use crate::app::{
+        App, Message,
+        message::{ChatMessage, ViewMessage},
+        state::ChatSendBehavior,
+    };
+    use iced_runtime::futures::futures::StreamExt;
+    use serde_json::{Value, json};
+    use std::sync::mpsc;
+    use std::time::Duration;
+    use vw_gateway_client::vw_api_types::ReasoningEffortDto;
+
+    let (_lock, _home, _guard) = temp_home();
+    let (mut app, _) = App::new();
+    let (release_send_save, allow_send_save) = mpsc::channel();
+    let allow_send_save = Mutex::new(allow_send_save);
+    let server = TestServer::start(3, move |request| {
+        assert_eq!(request.path, "/v1/desktop/preferences");
+        match request.method.as_str() {
+            "GET" => (200, r#"{"session_reasoning_efforts":{"unopened":"future","one":"high"}}"#),
+            "PATCH" => {
+                if request.body.contains("chat_send_behavior") {
+                    allow_send_save.lock().unwrap().recv_timeout(Duration::from_secs(5)).unwrap();
+                }
+                (200, "{}")
+            }
+            _ => panic!("unexpected desktop request {request:?}"),
+        }
+    });
+    set_gateway_port(server.port);
+    app.active_session_id = Some("active".into());
+    app.current_session_runtime_mut().is_requesting = true;
+    let behavior =
+        app.update(Message::View(ViewMessage::SelectChatSendBehavior(ChatSendBehavior::Queue)));
+    app.active_session_id = Some("one".into());
+    let _ = app.update(Message::Chat(ChatMessage::ReasoningEffortSelected(None)));
+    app.active_session_id = Some("two".into());
+    let _ = app.update(Message::Chat(ChatMessage::ReasoningEffortSelected(Some(
+        ReasoningEffortDto::High,
+    ))));
+
+    tokio::runtime::Runtime::new().unwrap().block_on(async {
+        let mut actions = iced_runtime::task::into_stream(behavior).unwrap();
+        let send = tokio::time::timeout(Duration::from_secs(5), actions.next()).await.unwrap();
+        assert!(matches!(
+            send,
+            Some(iced_runtime::Action::Output(Message::Chat(ChatMessage::SendPressed)))
+        ));
+        release_send_save.send(()).unwrap();
+        let saved = tokio::time::timeout(Duration::from_secs(5), actions.next()).await.unwrap();
+        let Some(iced_runtime::Action::Output(save @ Message::DesktopPreferencesSaved(..))) = saved
+        else {
+            panic!("missing send preference save completion");
+        };
+        let reasoning = app.update(save);
+        let messages = collect_preference_messages(reasoning).await;
+        assert_eq!(messages.len(), 1);
+        let _ = app.update(messages.into_iter().next().unwrap());
+    });
+    let requests = server.take_requests();
+    assert_eq!(
+        requests.iter().map(|req| req.method.as_str()).collect::<Vec<_>>(),
+        ["PATCH", "GET", "PATCH"]
+    );
+    assert_eq!(
+        serde_json::from_str::<Value>(&requests[0].body).unwrap(),
+        json!({"chat_send_behavior":"queue","dialogue_flow_follow_up_behavior":null})
+    );
+    assert_eq!(
+        serde_json::from_str::<Value>(&requests[2].body).unwrap(),
+        json!({"session_reasoning_efforts":{"unopened":"future","one":null,"two":"high"}})
+    );
 }

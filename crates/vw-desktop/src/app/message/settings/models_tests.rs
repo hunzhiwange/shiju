@@ -272,6 +272,8 @@ fn disabling_selected_model_switches_back_to_auto_model() {
     let mut app = app();
     app.auto_model = false;
     app.model = "openai/gpt-5".to_string();
+    app.current_session_runtime_mut().auto_model = false;
+    app.model_settings.providers = vec![provider_summary()];
 
     let _ = update(
         &mut app,
@@ -279,6 +281,8 @@ fn disabling_selected_model_switches_back_to_auto_model() {
     );
 
     assert!(app.auto_model);
+    assert!(app.current_session_runtime().auto_model);
+    assert!(app.model_settings.saving);
 }
 
 // 失败与边界：覆盖非法、缺失、过期或冲突场景的既定处理规则。

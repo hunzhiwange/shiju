@@ -29,6 +29,8 @@ pub use agent::*;
 #[cfg(not(target_arch = "wasm32"))]
 pub use cli_bootstrap::*;
 pub use cron_jobs::*;
+#[cfg(test)]
+pub(super) use desktop::config_desktop_tests as desktop_test_gateway;
 /// 重新导出 `desktop::*`，作为本模块对外暴露的稳定入口。
 ///
 /// 调用方通过该入口使用配置或组件能力，无需依赖内部文件布局。

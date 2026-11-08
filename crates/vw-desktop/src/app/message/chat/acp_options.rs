@@ -9,6 +9,7 @@ pub(super) fn update(app: &mut App, message: ChatMessage) -> Task<Message> {
             let runtime = app.current_session_runtime_mut();
             if !runtime.is_requesting && runtime.acp_source_pending.is_none() {
                 runtime.acp_model_input_draft = Some(value);
+                app.invalidate_project_chat_preferences_read();
             }
             Task::none()
         }
@@ -284,6 +285,7 @@ pub(super) fn select_source(
     };
     runtime.acp_source_pending = Some(update.clone());
     runtime.acp_source_request_id = Some(request_id);
+    app.invalidate_project_chat_preferences_read();
     let new_session = app.active_session_id.is_none();
     Task::perform(
         async move {

@@ -13,7 +13,17 @@ use std::collections::hash_map::Entry;
 use tokio::sync::watch;
 use vw_gateway_client::{GatewayClient, GatewayEndpoint, vw_api_types::id::TenantScope};
 
+#[path = "config_project_chat.rs"]
+mod project_chat;
+pub use project_chat::{ChatModelPreferences, ProjectPreferencesScope};
+
 type PreferencesScope = (String, TenantScope);
+
+fn preferences_scope(endpoint: &GatewayEndpoint) -> PreferencesScope {
+    (endpoint.base_url().to_ascii_lowercase(), endpoint.tenant_scope().clone())
+}
+
+const REASONING_EFFORTS: &str = "session_reasoning_efforts";
 
 struct PreferencesPatch {
     endpoint: GatewayEndpoint,
@@ -24,13 +34,18 @@ struct PreferencesPatch {
 pub(crate) struct DesktopPreferencesPersistence {
     // Each entry represents an in-flight PATCH and any edits that arrived after it started.
     in_flight: HashMap<PreferencesScope, Option<PreferencesPatch>>,
+    project_chat: project_chat::ProjectChatPreferences,
     #[cfg(not(target_arch = "wasm32"))]
     idle: Option<watch::Sender<bool>>,
 }
 
 impl DesktopPreferencesPersistence {
-    fn enqueue(&mut self, endpoint: GatewayEndpoint, fields: Map<String, Value>) -> Task<Message> {
-        let scope = (endpoint.base_url().to_ascii_lowercase(), endpoint.tenant_scope().clone());
+    fn enqueue(
+        &mut self,
+        endpoint: GatewayEndpoint,
+        mut fields: Map<String, Value>,
+    ) -> Task<Message> {
+        let scope = preferences_scope(&endpoint);
         match self.in_flight.entry(scope.clone()) {
             Entry::Vacant(entry) => {
                 entry.insert(None);
@@ -39,6 +54,13 @@ impl DesktopPreferencesPersistence {
             Entry::Occupied(mut entry) => {
                 if let Some(pending) = entry.get_mut() {
                     pending.endpoint = endpoint;
+                    if let Some(Value::Object(edits)) = fields.get_mut(REASONING_EFFORTS)
+                        && let Some(Value::Object(mut earlier)) =
+                            pending.fields.remove(REASONING_EFFORTS)
+                    {
+                        earlier.append(edits);
+                        *edits = earlier;
+                    }
                     pending.fields.extend(fields);
                 } else {
                     entry.insert(Some(PreferencesPatch { endpoint, fields }));
@@ -52,7 +74,30 @@ impl DesktopPreferencesPersistence {
         Task::perform(
             async move {
                 let client = GatewayClient::new(patch.endpoint)?;
-                client.desktop_preferences_patch(&Value::Object(patch.fields)).await.map(|_| ())
+                let mut fields = patch.fields;
+                let mut reasoning_result = Ok(());
+                if let Some(Value::Object(edits)) = fields.get_mut(REASONING_EFFORTS) {
+                    // PATCH replaces this entire object. Preserve all other sessions, including
+                    // values this desktop cannot decode.
+                    match client.desktop_preferences_get().await {
+                        Ok(mut current) => {
+                            if let Some(Value::Object(mut saved)) =
+                                current.get_mut(REASONING_EFFORTS).map(Value::take)
+                            {
+                                saved.append(edits);
+                                *edits = saved;
+                            }
+                        }
+                        Err(error) => {
+                            fields.remove(REASONING_EFFORTS);
+                            reasoning_result = Err(error);
+                        }
+                    }
+                }
+                if !fields.is_empty() {
+                    client.desktop_preferences_patch(&Value::Object(fields)).await?;
+                }
+                reasoning_result
             },
             move |result| Message::DesktopPreferencesSaved(scope, result),
         )
@@ -63,18 +108,27 @@ impl DesktopPreferencesPersistence {
             return Self::send(scope, pending);
         }
         self.in_flight.remove(&scope);
-        #[cfg(not(target_arch = "wasm32"))]
-        if self.in_flight.is_empty()
-            && let Some(idle) = self.idle.take()
-        {
-            idle.send_replace(true);
-        }
+        self.notify_if_idle();
         Task::none()
     }
 
     #[cfg(not(target_arch = "wasm32"))]
+    fn is_idle(&self) -> bool {
+        self.in_flight.is_empty() && !self.project_chat.has_pending_writes()
+    }
+
+    fn notify_if_idle(&mut self) {
+        #[cfg(not(target_arch = "wasm32"))]
+        if self.is_idle()
+            && let Some(idle) = self.idle.take()
+        {
+            idle.send_replace(true);
+        }
+    }
+
+    #[cfg(not(target_arch = "wasm32"))]
     pub(crate) fn wait_for_idle(&mut self) -> Option<watch::Receiver<bool>> {
-        if self.in_flight.is_empty() {
+        if self.is_idle() {
             return None;
         }
         let idle = self.idle.get_or_insert_with(|| watch::channel(false).0);
@@ -115,7 +169,7 @@ pub(crate) fn session_reasoning_efforts_from_config(
     cfg: &serde_json::Value,
 ) -> std::collections::HashMap<String, Option<vw_gateway_client::vw_api_types::ReasoningEffortDto>>
 {
-    cfg.get("session_reasoning_efforts")
+    cfg.get(REASONING_EFFORTS)
         .and_then(serde_json::Value::as_object)
         .into_iter()
         .flatten()
@@ -443,4 +497,4 @@ async fn save_tool_content_async(tool_type: &str, content: &str) -> Result<(), S
 
 #[cfg(test)]
 #[path = "config_desktop_tests.rs"]
-mod config_desktop_tests;
+pub(in crate::app) mod config_desktop_tests;

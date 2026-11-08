@@ -5,8 +5,6 @@
 
 use super::ViewMessage;
 use crate::app::{App, Message};
-#[cfg(not(target_arch = "wasm32"))]
-use crate::app::{load_app_config, save_app_config};
 use iced::Task;
 
 /// 执行 update 对应的领域操作。
@@ -252,62 +250,17 @@ pub fn update(app: &mut App, message: ViewMessage) -> Task<Message> {
         ViewMessage::SelectChatSendBehavior(behavior) => {
             app.chat_send_behavior = behavior;
             app.show_send_mode_popover = false;
-            let should_send = app.current_session_is_requesting();
-            #[cfg(target_arch = "wasm32")]
-            {
-                let save_task = Task::perform(
-                    async move {
-                        let mut cfg = crate::app::config::load_app_config_async().await?;
-                        if let Some(obj) = cfg.as_object_mut() {
-                            obj.insert(
-                                "chat_send_behavior".to_string(),
-                                serde_json::Value::String(behavior.as_str().to_string()),
-                            );
-                            obj.remove("dialogue_flow_follow_up_behavior");
-                        } else {
-                            cfg = serde_json::json!({
-                                "chat_send_behavior": behavior.as_str(),
-                            });
-                        }
-                        crate::app::config::save_app_config_async(cfg).await
-                    },
-                    |result| {
-                        if let Err(error) = result {
-                            tracing::warn!(target: "vw_desktop", error = %error, "failed to save chat send behavior");
-                        }
-                        Message::None
-                    },
-                );
-                if should_send {
-                    return Task::batch([
-                        save_task,
-                        Task::done(Message::Chat(crate::app::message::ChatMessage::SendPressed)),
-                    ]);
-                }
-                return save_task;
-            }
-            #[cfg(not(target_arch = "wasm32"))]
-            {
-                let mut cfg: serde_json::Value = load_app_config();
-                if !cfg.is_object() {
-                    cfg = serde_json::json!({
-                        "chat_send_behavior": behavior.as_str(),
-                    });
-                } else {
-                    let obj: &mut serde_json::Map<String, serde_json::Value> =
-                        cfg.as_object_mut().expect("checked object above");
-                    obj.insert(
-                        "chat_send_behavior".to_string(),
-                        serde_json::Value::String(behavior.as_str().to_string()),
-                    );
-                    obj.remove("dialogue_flow_follow_up_behavior");
-                }
-                save_app_config(&cfg);
-                if should_send {
-                    Task::done(Message::Chat(crate::app::message::ChatMessage::SendPressed))
-                } else {
-                    Task::none()
-                }
+            let save_task = app.save_desktop_preferences(serde_json::Map::from_iter([
+                ("chat_send_behavior".to_owned(), serde_json::json!(behavior.as_str())),
+                ("dialogue_flow_follow_up_behavior".to_owned(), serde_json::Value::Null),
+            ]));
+            if app.current_session_is_requesting() {
+                Task::batch([
+                    save_task,
+                    Task::done(Message::Chat(crate::app::message::ChatMessage::SendPressed)),
+                ])
+            } else {
+                save_task
             }
         }
         ViewMessage::ModelPopoverHoverChanged(v) => {

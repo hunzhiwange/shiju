@@ -5,8 +5,6 @@ use super::ChatMessage;
 use super::ForkSessionLoaded;
 use super::ForkSessionTarget;
 
-#[cfg(not(target_arch = "wasm32"))]
-use crate::app::config::{save_project_chat_preferences, set_config_field};
 use crate::app::message::TaskBoardMessage;
 use crate::app::message::chat::stream;
 use crate::app::state::{
@@ -257,32 +255,10 @@ fn persist_acp_history_preferences(
     app.acp_history_mode = mode;
     app.acp_recent_count = recent_count.clamp(1, 20);
 
-    #[cfg(target_arch = "wasm32")]
-    {
-        return Task::batch([
-            save_config_field_task(
-                "acp_history_strategy",
-                serde_json::Value::String(mode.as_str().to_string()),
-            ),
-            save_config_field_task(
-                "acp_history_recent_count",
-                serde_json::Value::Number((app.acp_recent_count as u64).into()),
-            ),
-        ]);
-    }
-
-    #[cfg(not(target_arch = "wasm32"))]
-    {
-        set_config_field(
-            "acp_history_strategy",
-            serde_json::Value::String(mode.as_str().to_string()),
-        );
-        set_config_field(
-            "acp_history_recent_count",
-            serde_json::Value::Number((app.acp_recent_count as u64).into()),
-        );
-        Task::none()
-    }
+    app.save_desktop_preferences(serde_json::Map::from_iter([
+        ("acp_history_strategy".to_string(), serde_json::json!(mode.as_str())),
+        ("acp_history_recent_count".to_string(), serde_json::json!(app.acp_recent_count)),
+    ]))
 }
 
 fn persist_session_reasoning_effort(app: &mut App) -> Task<Message> {
@@ -290,112 +266,10 @@ fn persist_session_reasoning_effort(app: &mut App) -> Task<Message> {
         return Task::none();
     };
     let effort = app.current_session_runtime().reasoning_effort;
-    app.session_reasoning_efforts.insert(session_id, effort);
-    let value = serde_json::json!(app.session_reasoning_efforts);
-    #[cfg(target_arch = "wasm32")]
-    {
-        save_config_field_task("session_reasoning_efforts", value)
-    }
-    #[cfg(not(target_arch = "wasm32"))]
-    {
-        crate::app::config::save_app_config(&serde_json::json!({
-            "session_reasoning_efforts": value,
-        }));
-        Task::none()
-    }
-}
-
-fn persist_chat_preferences(
-    app: &App,
-    model: &str,
-    auto_model: bool,
-    acp_agent: Option<&str>,
-) -> Task<Message> {
-    #[cfg(target_arch = "wasm32")]
-    {
-        let mut tasks = vec![
-            save_config_field_task("model", serde_json::Value::String(model.to_string())),
-            save_config_field_task("auto_model", serde_json::Value::Bool(auto_model)),
-            save_config_field_task(
-                "acp_agent",
-                acp_agent
-                    .map(|value| serde_json::Value::String(value.to_string()))
-                    .unwrap_or(serde_json::Value::Null),
-            ),
-        ];
-        if let Some(project_path) = app.project_path.clone() {
-            tasks.push(save_project_chat_preferences_task(
-                project_path,
-                model.to_string(),
-                auto_model,
-                acp_agent.map(str::to_string),
-            ));
-        }
-        return Task::batch(tasks);
-    }
-
-    #[cfg(not(target_arch = "wasm32"))]
-    {
-        set_config_field("model", serde_json::Value::String(model.to_string()));
-        set_config_field("auto_model", serde_json::Value::Bool(auto_model));
-        set_config_field(
-            "acp_agent",
-            acp_agent
-                .map(|value| serde_json::Value::String(value.to_string()))
-                .unwrap_or(serde_json::Value::Null),
-        );
-        if let Some(project_path) = app.project_path.clone() {
-            save_project_chat_preferences(&project_path, model, auto_model, acp_agent);
-        }
-        Task::none()
-    }
-}
-
-#[cfg(target_arch = "wasm32")]
-fn save_config_field_task(key: &'static str, value: serde_json::Value) -> Task<Message> {
-    let key_owned = key.to_string();
-    Task::perform(
-        async move {
-            let mut cfg = crate::app::config::load_app_config_async().await?;
-            if let Some(obj) = cfg.as_object_mut() {
-                obj.insert(key_owned.clone(), value);
-            } else {
-                cfg = serde_json::json!({ key_owned: value });
-            }
-            crate::app::config::save_app_config_async(cfg).await
-        },
-        move |result| {
-            if let Err(error) = result {
-                tracing::warn!(target: "vw_desktop", key = key, error = %error, "failed to save desktop preference field");
-            }
-            Message::Chat(ChatMessage::SessionSaveAck)
-        },
-    )
-}
-
-#[cfg(target_arch = "wasm32")]
-fn save_project_chat_preferences_task(
-    project_path: String,
-    model: String,
-    auto_model: bool,
-    acp_agent: Option<String>,
-) -> Task<Message> {
-    Task::perform(
-        async move {
-            crate::app::config::save_project_chat_preferences_async(
-                &project_path,
-                &model,
-                auto_model,
-                acp_agent.as_deref(),
-            )
-            .await
-        },
-        move |result: Result<(), String>| {
-            if let Err(error) = result {
-                tracing::warn!(target: "vw_desktop", error = %error, "failed to save project chat preferences");
-            }
-            Message::Chat(ChatMessage::SessionSaveAck)
-        },
+    app.session_reasoning_efforts.insert(session_id.clone(), effort);
+    app.save_desktop_preference(
+        "session_reasoning_efforts",
+        serde_json::json!({session_id: effort}),
     )
 }
 
@@ -1214,7 +1088,7 @@ pub fn update(app: &mut App, message: ChatMessage) -> Task<Message> {
                 (runtime.model.clone(), runtime.auto_model)
             };
             app.auto_model = auto_model;
-            persist_chat_preferences(app, &model, auto_model, app.acp_agent.as_deref())
+            app.save_chat_model_preferences(model, auto_model)
         }
         ChatMessage::ReasoningEffortSelected(reasoning_effort) => {
             if app.current_session_runtime().acp_agent.is_some() {
@@ -1337,6 +1211,7 @@ pub fn update(app: &mut App, message: ChatMessage) -> Task<Message> {
                 runtime.acp_model_source = Default::default();
                 runtime.tool_selector.reset();
             }
+            app.invalidate_project_chat_preferences_read();
             app.acp_agent = acp_agent.clone();
             app.show_acp_popover = false;
             app.show_reasoning_effort_popover = false;
@@ -1389,7 +1264,9 @@ pub fn update(app: &mut App, message: ChatMessage) -> Task<Message> {
             };
             let options = crate::app::components::input_panel::reasoning_selector::model_reasoning_effort_options(app, &model);
             let runtime = app.current_session_runtime_mut();
-            if runtime.acp_agent.is_none() && !options.contains(&runtime.reasoning_effort) {
+            let reset_effort =
+                runtime.reasoning_effort.is_some() && !options.contains(&runtime.reasoning_effort);
+            if reset_effort {
                 runtime.reasoning_effort = None;
             }
             if runtime.task_mode_executor.is_none()
@@ -1402,11 +1279,9 @@ pub fn update(app: &mut App, message: ChatMessage) -> Task<Message> {
             app.show_model_popover = false;
             app.show_mode_popover = false;
             app.reasoning_effort = app.current_session_runtime().reasoning_effort;
-            let reasoning_task = persist_session_reasoning_effort(app);
-            Task::batch([
-                reasoning_task,
-                persist_chat_preferences(app, &model, auto_model, app.acp_agent.as_deref()),
-            ])
+            let reasoning_task =
+                if reset_effort { persist_session_reasoning_effort(app) } else { Task::none() };
+            Task::batch([reasoning_task, app.save_chat_model_preferences(model, auto_model)])
         }
         ChatMessage::ModelInputChanged(m) => {
             if app.current_session_runtime().acp_agent.is_some() {
@@ -1430,7 +1305,9 @@ pub fn update(app: &mut App, message: ChatMessage) -> Task<Message> {
             };
             let options = crate::app::components::input_panel::reasoning_selector::model_reasoning_effort_options(app, &model);
             let runtime = app.current_session_runtime_mut();
-            if runtime.acp_agent.is_none() && !options.contains(&runtime.reasoning_effort) {
+            let reset_effort =
+                runtime.reasoning_effort.is_some() && !options.contains(&runtime.reasoning_effort);
+            if reset_effort {
                 runtime.reasoning_effort = None;
             }
             if runtime.task_mode_executor.is_none()
@@ -1441,11 +1318,9 @@ pub fn update(app: &mut App, message: ChatMessage) -> Task<Message> {
             app.model = model.clone();
             app.auto_model = auto_model;
             app.reasoning_effort = app.current_session_runtime().reasoning_effort;
-            let reasoning_task = persist_session_reasoning_effort(app);
-            Task::batch([
-                reasoning_task,
-                persist_chat_preferences(app, &model, auto_model, app.acp_agent.as_deref()),
-            ])
+            let reasoning_task =
+                if reset_effort { persist_session_reasoning_effort(app) } else { Task::none() };
+            Task::batch([reasoning_task, app.save_chat_model_preferences(model, auto_model)])
         }
         ChatMessage::SessionToolBucketToggled(bucket) => {
             let base_tools = base_tools_without_delegate_agent(app);
@@ -1920,6 +1795,7 @@ pub(super) fn start(app: &mut App, item: QueueItem, keep: bool) -> Task<Message>
     app.cache_active_session_chat();
 
     if app.active_session_id.is_none() {
+        app.invalidate_project_chat_preferences_read();
         let id = id::descending(id::Prefix::Session, None)
             .unwrap_or_else(|_| format!("ses_{}", stream_id));
         let title = initial_session_title_for_input(&item.query);

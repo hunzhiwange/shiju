@@ -145,14 +145,20 @@ fn apply_external_apps_state_falls_back_when_duplicate_marks_current_unavailable
 }
 
 #[test]
-fn apply_project_chat_preferences_updates_current_and_empty_runtime_state() {
+fn apply_project_chat_preferences_preserves_active_session_and_updates_draft() {
     let mut app = test_app();
+    app.active_session_id = Some("active".into());
+    let runtime = app.current_session_runtime_mut();
+    runtime.model = "session-model".into();
+    runtime.acp_agent = Some("session-agent".into());
+    app.sync_active_session_preferences();
 
     app.apply_project_chat_preferences("gpt-test".to_string(), true, Some("codex".to_string()));
 
     assert_eq!(app.model, "gpt-test");
     assert!(app.auto_model);
-    assert_eq!(app.acp_agent.as_deref(), Some("codex"));
+    assert_eq!(app.acp_agent.as_deref(), Some("session-agent"));
+    assert_eq!(app.current_session_runtime().model, "session-model");
 
     let runtime = app.session_runtime_states.get("__empty__").expect("empty runtime state");
     assert_eq!(runtime.model, "gpt-test");
@@ -496,7 +502,7 @@ fn failed_bootstrap_results_preserve_existing_state() {
 }
 
 #[test]
-fn update_loads_acp_agents_archived_sessions_and_preferences_conditionally() {
+fn update_loads_acp_agents_and_archived_sessions() {
     let mut app = test_app();
     app.project_path = Some("/workspace/app".to_string());
 
@@ -510,20 +516,6 @@ fn update_loads_acp_agents_archived_sessions_and_preferences_conditionally() {
     let archived = std::collections::HashSet::from(["session-1".to_string()]);
     let _ = app.update(Message::BootstrapArchivedSessions(Ok(archived.clone())));
     assert_eq!(app.archived_session_ids, archived);
-
-    let _ = app.update(Message::ProjectChatPreferencesLoaded(
-        "/workspace/other".to_string(),
-        Some(("ignored".to_string(), true, None)),
-    ));
-    assert_ne!(app.model, "ignored");
-
-    let _ = app.update(Message::ProjectChatPreferencesLoaded(
-        "/workspace/app".to_string(),
-        Some(("matched".to_string(), false, Some("codex".to_string()))),
-    ));
-    assert_eq!(app.model, "matched");
-    assert!(!app.auto_model);
-    assert_eq!(app.acp_agent.as_deref(), Some("codex"));
 }
 
 #[test]

@@ -68,6 +68,177 @@ fn open_project_immediately_moves_agent_settings_to_new_project_scope() {
     assert!(app.agents_settings.loading);
 }
 
+#[test]
+fn open_project_does_not_wait_for_chat_preferences() {
+    use crate::app::config::desktop_test_gateway::{TestServer, set_gateway_port, temp_home};
+    use std::sync::atomic::{AtomicBool, Ordering};
+    use std::sync::{Arc, Mutex, mpsc};
+    use std::time::Duration;
+
+    let (_lock, home, _guard) = temp_home();
+    let (mut app, _) = crate::app::App::new();
+    let (returned, release) = mpsc::channel();
+    let release = Mutex::new(release);
+    let blocked = Arc::new(AtomicBool::new(false));
+    let observed = Arc::clone(&blocked);
+    let server = TestServer::start_matching(
+        1,
+        |request| request.path.starts_with("/v1/desktop/project-preferences?"),
+        move |request| {
+            assert_eq!(request.method, "GET");
+            observed.store(
+                release.lock().unwrap().recv_timeout(Duration::from_secs(2)).is_err(),
+                Ordering::SeqCst,
+            );
+            (200, r#"{"model":"project-model","auto_model":false}"#)
+        },
+    );
+    set_gateway_port(server.port);
+
+    app.project_path_input = home.path().display().to_string();
+    let task = app.update(crate::app::Message::Project(
+        crate::app::message::ProjectMessage::OpenProjectPressed,
+    ));
+    returned.send(()).unwrap();
+    assert!(!blocked.load(Ordering::SeqCst), "opening waited for the project preference GET");
+
+    let received = project_preferences_loaded(task);
+    let _ = app.update(received);
+    assert_eq!(app.model, "project-model");
+    assert_eq!(server.take_requests().len(), 1);
+}
+
+fn project_preferences_loaded(task: iced::Task<crate::app::Message>) -> crate::app::Message {
+    tokio::runtime::Runtime::new().unwrap().block_on(wait_for_project_preferences(task))
+}
+
+async fn wait_for_project_preferences(
+    task: iced::Task<crate::app::Message>,
+) -> crate::app::Message {
+    use iced_runtime::futures::futures::StreamExt;
+    let mut stream = iced_runtime::task::into_stream(task).unwrap();
+    tokio::time::timeout(std::time::Duration::from_secs(5), async {
+        while let Some(action) = stream.next().await {
+            if let iced_runtime::Action::Output(
+                message @ crate::app::Message::ProjectChatPreferencesLoaded(..),
+            ) = action
+            {
+                return message;
+            }
+        }
+        panic!("project preference task emitted no result");
+    })
+    .await
+    .expect("project preference task should finish")
+}
+
+#[test]
+fn project_preferences_ignore_an_earlier_visit_and_keep_the_draft() {
+    use crate::app::config::desktop_test_gateway::{TestServer, set_gateway_port, temp_home};
+    use crate::app::{App, Message, message::ViewMessage};
+    use std::sync::atomic::{AtomicUsize, Ordering};
+
+    let (_lock, _home, _guard) = temp_home();
+    let (mut app, _) = App::new();
+    let visits = AtomicUsize::new(0);
+    let server = TestServer::start_matching(
+        3,
+        |request| request.path.starts_with("/v1/desktop/project-preferences?"),
+        move |_| match visits.fetch_add(1, Ordering::SeqCst) {
+            0 => (200, r#"{"model":"first-a","auto_model":false}"#),
+            1 => (200, r#"{"model":"project-b","auto_model":false}"#),
+            _ => (200, r#"{"model":"latest-a","auto_model":false}"#),
+        },
+    );
+    set_gateway_port(server.port);
+    let first_a = project_preferences_loaded(app.open_project("/repo/a".into()));
+    let project_b = project_preferences_loaded(app.open_project("/repo/b".into()));
+    let latest_a = project_preferences_loaded(
+        app.update(Message::View(ViewMessage::TabSelected("project_/repo/a".into()))),
+    );
+    app.current_session_runtime_mut().input_editor =
+        iced::widget::text_editor::Content::with_text("draft kept");
+
+    let _ = app.update(latest_a);
+    let _ = app.update(project_b);
+    let _ = app.update(first_a);
+
+    assert_eq!(app.model, "latest-a");
+    assert_eq!(app.current_session_runtime().model, "latest-a");
+    assert_eq!(app.current_session_runtime().input_editor.text(), "draft kept");
+    assert_eq!(server.take_requests().len(), 3);
+}
+
+#[test]
+fn late_project_read_preserves_a_manual_model_selection() {
+    use crate::app::config::desktop_test_gateway::{TestServer, set_gateway_port, temp_home};
+    use crate::app::{App, Message, message::ChatMessage};
+    use serde_json::{Value, json};
+    use std::sync::{Mutex, mpsc};
+    use std::time::Duration;
+
+    let (_lock, _home, _guard) = temp_home();
+    let (mut app, _) = App::new();
+    app.model = "global-default".into();
+    let (get_started, get_seen) = tokio::sync::oneshot::channel();
+    let get_started = Mutex::new(Some(get_started));
+    let (release_get, allow_response) = mpsc::channel();
+    let allow_response = Mutex::new(allow_response);
+    let server = TestServer::start_matching(
+        4,
+        |request| request.path.starts_with("/v1/desktop/"),
+        move |request| match request.method.as_str() {
+            "GET" if request.path.ends_with("%2Fa") => {
+                (200, r#"{"model":"project-a","auto_model":false,"acp_agent":"coder"}"#)
+            }
+            "GET" if request.path.ends_with("%2Fb") => {
+                get_started.lock().unwrap().take().unwrap().send(()).unwrap();
+                allow_response.lock().unwrap().recv_timeout(Duration::from_secs(5)).unwrap();
+                (200, r#"{"model":"project-b","auto_model":true}"#)
+            }
+            "PUT" | "PATCH" => (200, "{}"),
+            _ => panic!("unexpected desktop request {request:?}"),
+        },
+    );
+    set_gateway_port(server.port);
+    let first = project_preferences_loaded(app.open_project("/repo/a".into()));
+    let _ = app.update(first);
+    assert_eq!(app.model, "project-a");
+    assert_eq!(app.acp_agent.as_deref(), Some("coder"));
+    let load = app.open_project("/repo/b".into());
+    assert_eq!(app.current_session_runtime().model, "global-default");
+    assert_eq!(app.current_session_runtime().acp_agent, None);
+
+    let messages = tokio::runtime::Runtime::new().unwrap().block_on(async {
+        let load = wait_for_project_preferences(load);
+        tokio::pin!(load);
+        tokio::select! {
+            result = &mut load => panic!("GET finished before local selection: {result:?}"),
+            seen = tokio::time::timeout(Duration::from_secs(5), get_seen) => seen.unwrap().unwrap(),
+        }
+        let saves = app.update(Message::Chat(ChatMessage::ModelSelected("local-model".into())));
+        release_get.send(()).unwrap();
+        let _ = app.update(load.await);
+        assert_eq!(app.current_session_runtime().model, "local-model");
+        assert!(!app.current_session_runtime().auto_model);
+        tokio::time::timeout(Duration::from_secs(5), collect_task_messages(saves)).await.unwrap()
+    });
+    assert_eq!(messages.len(), 2);
+    for message in messages {
+        let _ = app.update(message);
+    }
+    let requests = server.take_requests();
+    let global = requests.iter().find(|request| request.method == "PATCH").unwrap();
+    assert_eq!(global.path, "/v1/desktop/preferences");
+    let project = requests.iter().find(|request| request.method == "PUT").unwrap();
+    assert!(project.path.ends_with("%2Fb"));
+    for request in [global, project] {
+        let patch: Value = serde_json::from_str(&request.body).unwrap();
+        assert_eq!(patch, json!({"model":"local-model","auto_model":false,"acp_agent":null}));
+    }
+    assert!(app.desktop_preferences_persistence.wait_for_idle().is_none());
+}
+
 fn recent_meta(path: &str) -> super::RecentProjectMeta {
     super::RecentProjectMeta {
         path: path.to_string(),

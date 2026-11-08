@@ -222,6 +222,7 @@ pub fn update(app: &mut App, message: SettingsMessage) -> Task<Message> {
         }
     }
 
+    let old_endpoint = refresh_health.then(crate::app::gateway_client_endpoint);
     if let Err(error) = persist_gateway_client_settings(app) {
         return tenant_validation_failure(app, error);
     }
@@ -229,5 +230,16 @@ pub fn update(app: &mut App, message: SettingsMessage) -> Task<Message> {
     app.gateway_client_settings.host_input =
         normalize_host(&app.gateway_client_settings.host_input);
     app.gateway_client_settings.save_error = None;
-    if refresh_health { Task::done(Message::GatewayHealthTick) } else { Task::none() }
+    let Some(old_endpoint) = old_endpoint else {
+        return Task::none();
+    };
+    let endpoint = crate::app::gateway_client_endpoint();
+    let preferences = if old_endpoint.base_url() != endpoint.base_url()
+        || old_endpoint.tenant_scope() != endpoint.tenant_scope()
+    {
+        app.reload_project_chat_preferences(true)
+    } else {
+        Task::none()
+    };
+    Task::batch([preferences, Task::done(Message::GatewayHealthTick)])
 }

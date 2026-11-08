@@ -244,10 +244,29 @@ impl App {
     ) {
         self.model = model.clone();
         self.auto_model = auto_model;
-        self.acp_agent = acp_agent;
-        let mut runtime = crate::app::state::SessionRuntimeState::with_defaults(model, auto_model);
-        runtime.acp_agent = self.acp_agent.clone();
-        self.session_runtime_states.insert("__empty__".to_string(), runtime);
+        if self.active_session_id.is_none() {
+            self.acp_agent = acp_agent.clone();
+        }
+
+        // Existing sessions keep their own model. Updating the draft defaults must also preserve
+        // text and task settings entered while the project GET was in flight.
+        let runtime = self.get_session_runtime_mut("__empty__");
+        if runtime.task_mode_executor.is_none() && runtime.task_mode_model == runtime.model {
+            runtime.task_mode_model = model.clone();
+        }
+        runtime.model = model;
+        runtime.auto_model = auto_model;
+        if runtime.acp_agent != acp_agent {
+            runtime.acp_agent = acp_agent;
+            runtime.agent = None;
+            runtime.agent_label = None;
+            runtime.acp_model_source = Default::default();
+            runtime.acp_options = Default::default();
+            runtime.acp_options_pending = false;
+            runtime.acp_model_input_draft = None;
+            runtime.acp_source_pending = None;
+            runtime.acp_source_request_id = None;
+        }
     }
 
     fn apply_bootstrap_app_config(&mut self, cfg: serde_json::Value) {
@@ -272,14 +291,7 @@ impl App {
         }
         self.session_reasoning_efforts = efforts;
         self.reasoning_effort = self.current_session_runtime().reasoning_effort;
-        self.auto_model =
-            cfg.get("auto_model").and_then(|v| v.as_bool()).unwrap_or(self.auto_model);
-        self.model = cfg.get("model").and_then(|v| v.as_str()).unwrap_or(&self.model).to_string();
-        self.acp_agent = cfg
-            .get("acp_agent")
-            .and_then(|v| v.as_str())
-            .map(ToString::to_string)
-            .or(self.acp_agent.clone());
+        self.apply_bootstrap_chat_preferences(&cfg);
         self.auto_max_mode =
             cfg.get("auto_max_mode").and_then(|v| v.as_bool()).unwrap_or(self.auto_max_mode);
         if let Some(workspace_mode) = cfg
@@ -672,13 +684,11 @@ impl App {
                 }
                 Task::none()
             }
-            Message::ProjectChatPreferencesLoaded(project_path, preferences) => {
-                if self.project_path.as_deref() == Some(project_path.as_str())
-                    && let Some((model, auto_model, acp_agent)) = preferences
-                {
-                    self.apply_project_chat_preferences(model, auto_model, acp_agent);
-                }
-                Task::none()
+            Message::ProjectChatPreferencesLoaded(scope, revision, result) => {
+                self.project_chat_preferences_loaded(scope, revision, result)
+            }
+            Message::ProjectChatPreferencesSaved(scope, result) => {
+                self.project_chat_preferences_saved(scope, result)
             }
             Message::DesktopPreferencesSaved(scope, result) => {
                 self.desktop_preferences_saved(scope, result)

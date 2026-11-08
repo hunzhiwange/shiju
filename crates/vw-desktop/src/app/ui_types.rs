@@ -84,7 +84,12 @@ pub enum Message {
     BootstrapArchivedSessions(Result<std::collections::HashSet<String>, String>),
     ExternalAppsLoaded(Result<vw_gateway_client::ExternalAppsStateDto, String>),
     SessionPreviewsLoaded(Result<Vec<crate::app::models::ChatSessionMeta>, String>),
-    ProjectChatPreferencesLoaded(String, Option<(String, bool, Option<String>)>),
+    ProjectChatPreferencesLoaded(
+        crate::app::config::ProjectPreferencesScope,
+        u64,
+        Result<Option<crate::app::config::ChatModelPreferences>, String>,
+    ),
+    ProjectChatPreferencesSaved(crate::app::config::ProjectPreferencesScope, Result<(), String>),
     SessionPinsLoaded(u64, Result<std::collections::HashSet<(String, String)>, String>),
     DesktopPreferencesSaved(
         (String, vw_gateway_client::vw_api_types::id::TenantScope),

@@ -184,15 +184,16 @@ fn changes_disable_selected_model(app: &App, changes: &[ModelStatusChange]) -> b
     })
 }
 
-fn begin_model_status_save(app: &mut App, changes: &[ModelStatusChange]) -> bool {
+fn begin_model_status_save(app: &mut App, changes: &[ModelStatusChange]) -> Option<Task<Message>> {
     if changes.is_empty() || app.model_settings.loading || app.model_settings.saving {
-        return false;
+        return None;
     }
 
-    if !app.auto_model && changes_disable_selected_model(app, changes) {
-        app.auto_model = true;
-        crate::app::set_config_field("auto_model", Value::Bool(true));
-    }
+    let preferences = if !app.auto_model && changes_disable_selected_model(app, changes) {
+        app.save_automatic_model_preference()
+    } else {
+        Task::none()
+    };
 
     for change in changes {
         set_local_model_status(&mut app.model_settings.providers, change, change.enabled);
@@ -200,14 +201,14 @@ fn begin_model_status_save(app: &mut App, changes: &[ModelStatusChange]) -> bool
     app.model_settings.saving = true;
     app.model_settings.save_error = None;
     app.model_settings.detail_modal = None;
-    true
+    Some(preferences)
 }
 
 fn save_model_statuses(app: &mut App, changes: Vec<ModelStatusChange>) -> Task<Message> {
-    if !begin_model_status_save(app, &changes) {
+    let Some(preferences) = begin_model_status_save(app, &changes) else {
         return Task::none();
-    }
-    Task::perform(
+    };
+    let save = Task::perform(
         async move {
             let patch = model_status_patch(&changes);
             let result =
@@ -215,7 +216,8 @@ fn save_model_statuses(app: &mut App, changes: Vec<ModelStatusChange>) -> Task<M
             (changes, result)
         },
         |(changes, result)| Message::Settings(SettingsMessage::ModelStatusesSaved(changes, result)),
-    )
+    );
+    Task::batch([preferences, save])
 }
 
 fn reset_provider_model_statuses(
@@ -223,11 +225,11 @@ fn reset_provider_model_statuses(
     provider_id: String,
     changes: Vec<ModelStatusChange>,
 ) -> Task<Message> {
-    if !begin_model_status_save(app, &changes) {
+    let Some(preferences) = begin_model_status_save(app, &changes) else {
         return Task::none();
-    }
+    };
 
-    Task::perform(
+    let save = Task::perform(
         async move {
             let result = async {
                 let full_config =
@@ -245,7 +247,8 @@ fn reset_provider_model_statuses(
         |(changes, result)| {
             Message::Settings(SettingsMessage::ProviderModelsResetCompleted(changes, result))
         },
-    )
+    );
+    Task::batch([preferences, save])
 }
 
 #[cfg(test)]

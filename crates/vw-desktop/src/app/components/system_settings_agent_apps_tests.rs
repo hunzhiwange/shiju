@@ -33,5 +33,9 @@ fn cc_base_icon_desktop_list_chinese_name() {
         created_at: 0,
     });
     assert_eq!(status_text(&state), None);
-    let _: iced::Element<'_, Message> = super::system_settings_agent_apps::view(&state);
+    let _: iced::Element<'_, Message> = super::system_settings_agent_apps::view(
+        &state,
+        crate::app::i18n::I18n::new(vw_config_types::ui::DesktopLocale::SimplifiedChinese),
+        &iced::Theme::Light,
+    );
 }

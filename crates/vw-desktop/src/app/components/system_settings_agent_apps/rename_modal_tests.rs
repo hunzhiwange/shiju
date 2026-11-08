@@ -14,6 +14,10 @@ fn cc_base_icon_desktop_rename_modal_chinese_input() {
         },
         generation: 1,
     };
-    let _: iced::Element<'_, Message> =
-        rename_modal::view(&form, iced::widget::text("base").into());
+    let _: iced::Element<'_, Message> = rename_modal::view(
+        &form,
+        I18n::new(vw_config_types::ui::DesktopLocale::SimplifiedChinese),
+        &Theme::Light,
+        iced::widget::text("base").into(),
+    );
 }

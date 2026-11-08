@@ -2,16 +2,17 @@
 mod rename_modal;
 use super::system_settings_common::{
     rounded_action_btn_style, settings_divider, settings_error_banner, settings_group_card,
-    settings_group_heading, settings_muted_text_style,
+    settings_group_heading_with_help, settings_muted_text_style,
 };
 use crate::app::{
     Message,
+    i18n::I18n,
     message::{SettingsMessage, settings::AgentAppsMessage},
     state::AgentAppsState,
 };
 use base64::{Engine as _, engine::general_purpose::STANDARD};
 use iced::widget::{button, column, container, image, row, text, text::Wrapping};
-use iced::{Alignment, Element, Length};
+use iced::{Alignment, Element, Length, Theme};
 
 pub(super) fn refresh_message() -> Message {
     Message::Settings(SettingsMessage::AgentApps(AgentAppsMessage::Refresh))
@@ -29,14 +30,23 @@ pub(super) fn status_text(state: &AgentAppsState) -> Option<&str> {
     }
 }
 
-pub(super) fn view(state: &AgentAppsState) -> Element<'_, Message> {
+pub(super) fn view<'a>(
+    state: &'a AgentAppsState,
+    i18n: I18n,
+    theme: &Theme,
+) -> Element<'a, Message> {
     let refresh = button(text(if state.error.is_some() { "重试" } else { "刷新" }).size(13))
         .padding([8, 14])
         .style(rounded_action_btn_style)
         .on_press_maybe((!state.loading).then(refresh_message));
     let header = row![
-        container(settings_group_heading("我的图标", "读取当前网关与公司的图标库"))
-            .width(Length::Fill),
+        container(settings_group_heading_with_help(
+            i18n,
+            theme,
+            i18n.__("我的图标"),
+            i18n.__("读取当前网关与公司的图标库"),
+        ))
+        .width(Length::Fill),
         refresh,
     ]
     .spacing(12)
@@ -94,10 +104,12 @@ mod rename_modal_tests;
 
 pub(super) fn view_overlays<'a>(
     state: &'a AgentAppsState,
+    i18n: I18n,
+    theme: &Theme,
     base: Element<'a, Message>,
 ) -> Element<'a, Message> {
     match &state.rename {
-        Some(form) => rename_modal::view(form, base),
+        Some(form) => rename_modal::view(form, i18n, theme, base),
         None => base,
     }
 }

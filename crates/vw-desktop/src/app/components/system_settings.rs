@@ -409,7 +409,11 @@ fn settings_content(app: &App, active_tab: SystemTab) -> Element<'_, Message> {
         SystemTab::Autonomy => crate::app::components::system_settings_autonomy::view(app),
         SystemTab::Security => crate::app::components::system_settings_security::view(app),
         SystemTab::GatewayClient => column![
-            super::system_settings_agent_apps::view(&app.agent_apps),
+            super::system_settings_agent_apps::view(
+                &app.agent_apps,
+                crate::app::i18n::I18n::new(app.desktop_locale),
+                &app.app_theme,
+            ),
             crate::app::components::system_settings_gateway_client::view(app),
         ]
         .spacing(16)
@@ -618,7 +622,12 @@ pub fn view(app: &App) -> Element<'_, Message> {
     }
     if app.system_settings_tab == SystemTab::GatewayClient {
         dialog = crate::app::components::system_settings_gateway_client::view_overlays(app, dialog);
-        dialog = super::system_settings_agent_apps::view_overlays(&app.agent_apps, dialog);
+        dialog = super::system_settings_agent_apps::view_overlays(
+            &app.agent_apps,
+            crate::app::i18n::I18n::new(app.desktop_locale),
+            &app.app_theme,
+            dialog,
+        );
     }
 
     if app.system_settings_tab == SystemTab::Gateway {

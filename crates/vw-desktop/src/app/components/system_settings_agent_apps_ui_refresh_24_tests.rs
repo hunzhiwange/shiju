@@ -308,9 +308,7 @@ async fn ui_refresh_24_layout_and_interaction() {
         assert_fits(host, size);
         assert!(host.width >= 240.0, "{host:?}");
         let label = positions.label(tr(locale, "目标主机"));
-        let hint = positions.label(tr(locale, "桌面端请求所连接的 Gateway 主机。"));
-        let label_block_center = (label.y + hint.y + hint.height) / 2.0;
-        assert!((host.center_y() - label_block_center).abs() < 0.5, "{host:?} {label:?} {hint:?}");
+        assert!((host.center_y() - label.center_y()).abs() < 0.5, "{host:?} {label:?}");
         let target = positions.label(&remote.name);
         assert_fits(target, size);
         for (theme, mode) in [(&Theme::Light, "light"), (&Theme::Dark, "dark")] {
@@ -519,4 +517,82 @@ async fn ui_refresh_24_preserves_values_and_disabled_states() {
         "gateway-empty-light",
         mouse::Cursor::Unavailable,
     );
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn help_rollout_19_renders_contextual_help() {
+    use crate::app::components::system_settings_proxy::system_settings_proxy_tests::rollout::{
+        MODES, Scene,
+    };
+    use crate::app::i18n::settings_models::connection_text::text as tr;
+    use crate::app::message::settings::GatewayClientMessage;
+
+    if !isolated("help_rollout_19_renders_contextual_help") {
+        return;
+    }
+    let mut renderer = renderer().await;
+    let mut app = fixture();
+    for (locale, theme) in MODES {
+        app.desktop_locale = locale;
+        app.app_theme = theme;
+        let mut settings = Scene::new(&app, &mut renderer, "gateway-client", gateway::view(&app));
+        settings.label("fixture.gateway.invalid:42167");
+        for (title, description) in [
+            (
+                "客户端网关",
+                "配置 Desktop 作为客户端访问一个或多个 Gateway 时使用的地址与认证信息。",
+            ),
+            ("网关服务", "可以维护多个客户端网关，当前选中的网关会用于 Desktop 的 Gateway 请求。"),
+            ("网关名称", "用于区分多个客户端网关。"),
+            ("目标端口", "桌面端请求所连接的 Gateway 端口。"),
+            ("平台 ID", "当前网关请求所属的平台租户。"),
+            ("公司 ID", "当前网关请求所属的公司租户。"),
+            ("skey", "可选 skey，会作为 Authorization: Bearer 发送。"),
+        ] {
+            settings.help(tr(locale, title), tr(locale, description));
+        }
+        let description = tr(locale, "桌面端请求所连接的 Gateway 主机。");
+        let host_help = settings.help(tr(locale, "目标主机"), description);
+        settings.actions(host_help, description);
+        assert!(matches!(
+            settings.edit(HOST).as_slice(),
+            [Message::Settings(SettingsMessage::GatewayClient(GatewayClientMessage::HostChanged(host)))]
+                if host == "fixture.gateway.invali"
+        ));
+    }
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn help_rollout_19_icon_library() {
+    use crate::app::components::system_settings_proxy::system_settings_proxy_tests::rollout::{
+        MODES, Scene,
+    };
+
+    if !isolated("help_rollout_19_icon_library") {
+        return;
+    }
+    let mut renderer = renderer().await;
+    let mut app = fixture();
+    let error = "Fixture: icon service unavailable";
+    app.agent_apps.error = Some(error.into());
+    for (locale, theme) in MODES {
+        app.desktop_locale = locale;
+        app.app_theme = theme;
+        let i18n = I18n::new(locale);
+        let mut settings = Scene::new(
+            &app,
+            &mut renderer,
+            "gateway-icons",
+            view(&app.agent_apps, i18n, &app.app_theme),
+        );
+        settings.label(error);
+        let description = i18n.__("读取当前网关与公司的图标库");
+        let help = settings.help(i18n.__("我的图标"), description);
+        settings.actions(help, description);
+        let retry = settings.label("重试").center();
+        assert!(matches!(
+            settings.click(retry).as_slice(),
+            [Message::Settings(SettingsMessage::AgentApps(AgentAppsMessage::Refresh))]
+        ));
+    }
 }

@@ -38,13 +38,15 @@ fn system_settings_gateway_client_tests_are_wired() {
 
 #[test]
 fn field_helpers_fill_width_for_text_secure_and_number_controls() {
-    let field = field_row("Label", "Description", iced::widget::text("control"));
-    let text =
-        text_row("Text", "Description", "placeholder", "value", |_| Message::GatewayHealthTick);
-    let secure = secure_text_row("Secret", "Description", "placeholder", "value", |_| {
+    let app = test_app();
+    let field = field_row(&app, "Label", "Description", iced::widget::text("control"));
+    let text = text_row(&app, "Text", "Description", "placeholder", "value", |_| {
         Message::GatewayHealthTick
     });
-    let number = number_row("Port", "Description", 42617, 1, u16::MAX as u32, |_| {
+    let secure = secure_text_row(&app, "Secret", "Description", "placeholder", "value", |_| {
+        Message::GatewayHealthTick
+    });
+    let number = number_row(&app, "Port", "Description", 42617, 1, u16::MAX as u32, |_| {
         Message::GatewayHealthTick
     });
 

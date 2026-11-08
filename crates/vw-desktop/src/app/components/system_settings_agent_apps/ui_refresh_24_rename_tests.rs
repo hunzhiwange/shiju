@@ -18,8 +18,8 @@ fn rename_form() -> IconRenameState {
     }
 }
 
-fn base(state: &AgentAppsState) -> Element<'_, Message> {
-    container(view(state)).width(Length::Fill).height(Length::Fill).into()
+fn base<'a>(state: &'a AgentAppsState, i18n: I18n, theme: &Theme) -> Element<'a, Message> {
+    container(view(state, i18n, theme)).width(Length::Fill).height(Length::Fill).into()
 }
 
 #[tokio::test(flavor = "multi_thread")]
@@ -31,6 +31,8 @@ async fn ui_refresh_24_icon_rows_and_rename_overlay() {
 
     let mut renderer = renderer().await;
     let mut state = fixture().agent_apps;
+    let i18n = I18n::new(DesktopLocale::SimplifiedChinese);
+    let theme = &Theme::Dark;
     let long_name = format!("{}{}", "简体中文繁體中文".repeat(6), "LongEnglishName".repeat(10));
     state.icons.insert(0, CustomIconEntry {
         id: "long-icon".into(),
@@ -39,7 +41,7 @@ async fn ui_refresh_24_icon_rows_and_rename_overlay() {
         created_at: 0,
     });
     let size = Size::new(640, 310);
-    let mut ui = scene(view(&state), &mut renderer, size);
+    let mut ui = scene(view(&state, i18n, theme), &mut renderer, size);
     let positions = geometry(&mut ui, &renderer);
     let rename = positions
         .labels
@@ -76,9 +78,9 @@ async fn ui_refresh_24_icon_rows_and_rename_overlay() {
     drop(ui);
 
     state.icons.clear();
-    snapshot(view(&state), &mut renderer, &Theme::Light, size, "icons-empty-light");
+    snapshot(view(&state, i18n, theme), &mut renderer, &Theme::Light, size, "icons-empty-light");
     state.loading = true;
-    let mut ui = scene(view(&state), &mut renderer, size);
+    let mut ui = scene(view(&state, i18n, theme), &mut renderer, size);
     let positions = geometry(&mut ui, &renderer);
     assert_fits(positions.label("正在加载图标…"), size);
     assert!(click(&mut ui, &mut renderer, positions.label("刷新").center()).is_empty());
@@ -94,7 +96,7 @@ async fn ui_refresh_24_icon_rows_and_rename_overlay() {
 
     state.loading = false;
     state.error = Some("图标服务不可用 · 圖標服務不可用 · Fixture icon service unavailable".into());
-    let mut ui = scene(view(&state), &mut renderer, size);
+    let mut ui = scene(view(&state, i18n, theme), &mut renderer, size);
     let positions = geometry(&mut ui, &renderer);
     assert_fits(positions.label(state.error.as_deref().unwrap()), size);
     let retry = positions.label("重试").center();
@@ -108,11 +110,12 @@ async fn ui_refresh_24_icon_rows_and_rename_overlay() {
 
     state.error = None;
     let size = Size::new(420, 450);
-    let mut background = scene(base(&state), &mut renderer, size);
+    let mut background = scene(base(&state, i18n, theme), &mut renderer, size);
     let refresh = geometry(&mut background, &renderer).label("刷新").center();
     drop(background);
     state.rename = Some(rename_form());
-    let mut ui = scene(view_overlays(&state, base(&state)), &mut renderer, size);
+    let mut ui =
+        scene(view_overlays(&state, i18n, theme, base(&state, i18n, theme)), &mut renderer, size);
     let positions = geometry(&mut ui, &renderer);
     let (viewport, _) = positions.scroll.unwrap();
     let input = positions.input(NAME);
@@ -162,7 +165,8 @@ async fn ui_refresh_24_icon_rows_and_rename_overlay() {
     let form = state.rename.as_mut().unwrap();
     form.name.clear();
     form.error = Some("/fixture/示例/測試/".repeat(48).replace("/fixture", "\n/fixture"));
-    let mut ui = scene(view_overlays(&state, base(&state)), &mut renderer, size);
+    let mut ui =
+        scene(view_overlays(&state, i18n, theme, base(&state, i18n, theme)), &mut renderer, size);
     let positions = geometry(&mut ui, &renderer);
     let input = positions.input("请输入图标名称");
     assert!(click(&mut ui, &mut renderer, input.center()).is_empty());
@@ -202,7 +206,8 @@ async fn ui_refresh_24_icon_rows_and_rename_overlay() {
     let form = state.rename.as_mut().unwrap();
     form.saving = true;
     form.error = None;
-    let mut ui = scene(view_overlays(&state, base(&state)), &mut renderer, size);
+    let mut ui =
+        scene(view_overlays(&state, i18n, theme, base(&state, i18n, theme)), &mut renderer, size);
     let positions = geometry(&mut ui, &renderer);
     for label in ["保存中…", "取消"] {
         assert!(click(&mut ui, &mut renderer, positions.label(label).center()).is_empty());
@@ -218,4 +223,60 @@ async fn ui_refresh_24_icon_rows_and_rename_overlay() {
         "rename-saving-dark",
         mouse::Cursor::Unavailable,
     );
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn help_rollout_19_icon_rename() {
+    use crate::app::components::system_settings_proxy::system_settings_proxy_tests::rollout::MODES;
+
+    if !isolated("rename_tests::help_rollout_19_icon_rename") {
+        return;
+    }
+    let mut renderer = renderer().await;
+    let mut app = fixture();
+    app.agent_apps.rename = Some(rename_form());
+    let size = Size::new(420, 450);
+    for (locale, theme) in MODES {
+        let i18n = I18n::new(locale);
+        let state = &app.agent_apps;
+        let dialog = view_overlays(state, i18n, &theme, base(state, i18n, &theme));
+        let mut ui = scene(dialog, &mut renderer, size);
+        let positions = geometry(&mut ui, &renderer);
+        let form = state.rename.as_ref().unwrap();
+        assert_fits(positions.label(form.error.as_deref().unwrap()), size);
+        assert_fits(positions.label("最多 64 个字符，名称由网关校验。"), size);
+        assert!(
+            positions.labels.iter().all(|(label, _)| label != i18n.__("修改当前公司图标的名称。")),
+            "rename description is still inline"
+        );
+        let title = positions.label(i18n.__("图标改名"));
+        let icon = iced::Point::new(title.x + title.width + 15.0, title.center_y());
+        let away = mouse::Cursor::Unavailable;
+        let frame = |ui: &mut Ui<'_>, renderer: &mut Renderer, tag, cursor| {
+            capture(ui, renderer, &theme, size, &format!("rename-help-{locale:?}-{tag}"), cursor)
+        };
+        let idle = frame(&mut ui, &mut renderer, "idle", away);
+        move_mouse(&mut ui, &mut renderer, icon);
+        assert!(frame(&mut ui, &mut renderer, "hover", cursor(icon)) != idle);
+        assert!(click(&mut ui, &mut renderer, icon).is_empty());
+        assert!(frame(&mut ui, &mut renderer, "open", away) != idle);
+        assert!(
+            send(&mut ui, &mut renderer, away, &[key(iced::keyboard::key::Named::Escape)])
+                .is_empty()
+        );
+        assert!(frame(&mut ui, &mut renderer, "closed", away) == idle);
+
+        let cancel = positions.label("取消");
+        let save = positions.label("保存");
+        assert_fits(cancel, size);
+        assert_fits(save, size);
+        assert!(matches!(
+            click(&mut ui, &mut renderer, cancel.center()).as_slice(),
+            [Message::Settings(SettingsMessage::AgentApps(AgentAppsMessage::RenameClose))]
+        ));
+        assert!(matches!(
+            click(&mut ui, &mut renderer, save.center()).as_slice(),
+            [Message::Settings(SettingsMessage::AgentApps(AgentAppsMessage::RenameSubmit))]
+        ));
+    }
 }

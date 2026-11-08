@@ -1,16 +1,18 @@
 //! 图标改名只维护输入和提交状态，最终名称校验由网关负责。
 use crate::app::components::system_settings_common::{
     primary_action_btn_style, rounded_action_btn_style, settings_close_button,
-    settings_control_with_hint, settings_error_banner, settings_field_label, settings_modal_header,
-    settings_modal_layout, settings_modal_overlay, settings_muted_text_style, settings_text_input,
+    settings_control_with_hint, settings_error_banner, settings_field_label,
+    settings_hover_help_label, settings_modal_header, settings_modal_layout,
+    settings_modal_overlay, settings_text_input,
 };
 use crate::app::{
     Message,
+    i18n::I18n,
     message::{SettingsMessage, settings::AgentAppsMessage},
     state::IconRenameState,
 };
 use iced::widget::{Space, button, column, container, row, text};
-use iced::{Alignment, Element, Length};
+use iced::{Alignment, Element, Length, Theme};
 
 fn message(value: AgentAppsMessage) -> Message {
     Message::Settings(SettingsMessage::AgentApps(value))
@@ -18,6 +20,8 @@ fn message(value: AgentAppsMessage) -> Message {
 
 pub(super) fn view<'a>(
     form: &'a IconRenameState,
+    i18n: I18n,
+    theme: &Theme,
     base: Element<'a, Message>,
 ) -> Element<'a, Message> {
     let close = message(AgentAppsMessage::RenameClose);
@@ -43,12 +47,16 @@ pub(super) fn view<'a>(
         .padding([8, 14])
         .style(primary_action_btn_style)
         .on_press_maybe((!form.saving).then_some(message(AgentAppsMessage::RenameSubmit)));
+    let title = i18n.__("图标改名");
     let header = settings_modal_header(
-        column![
-            text("图标改名").size(20),
-            text("修改当前公司图标的名称。").size(13).style(settings_muted_text_style),
-        ]
-        .spacing(4),
+        settings_hover_help_label(
+            i18n,
+            theme,
+            title,
+            text(title).size(20),
+            i18n.__("修改当前公司图标的名称。"),
+        )
+        .wrap(),
         settings_close_button(if form.saving { Message::None } else { close.clone() }),
     );
     let actions =

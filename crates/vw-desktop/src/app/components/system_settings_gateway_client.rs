@@ -5,11 +5,12 @@
 
 use crate::app::components::number_input::NumberInput;
 use crate::app::components::system_settings_common::{
-    primary_action_btn_style, rounded_action_btn_style, settings_divider, settings_group_card,
-    settings_group_heading, settings_help_button_with_locale, settings_muted_text_style,
-    settings_page_heading, settings_row_with_flexible_control, settings_text_input,
-    with_settings_help_modal,
+    primary_action_btn_style, rounded_action_btn_style, settings_divider,
+    settings_flexible_row_with_help, settings_group_card, settings_group_heading_with_help,
+    settings_help_button_with_locale, settings_muted_text_style, settings_page_heading_with_help,
+    settings_text_input, with_settings_help_modal,
 };
+use crate::app::i18n::I18n;
 use crate::app::i18n::settings_models::connection_text::text as connection_text;
 use crate::app::i18n::settings_models::messages::render as owned_text;
 use crate::app::message::settings::{GatewayClientMessage, SettingsMessage};
@@ -18,14 +19,24 @@ use iced::widget::{Space, button, column, container, row, text, text::Wrapping};
 use iced::{Alignment, Color, Element, Length, Theme};
 
 fn field_row<'a>(
+    app: &App,
     label: &'static str,
     description: &'static str,
     control: impl Into<Element<'a, Message>>,
 ) -> Element<'a, Message> {
-    settings_row_with_flexible_control(label, description, 460.0, control)
+    settings_flexible_row_with_help(
+        I18n::new(app.desktop_locale),
+        &app.app_theme,
+        label,
+        description,
+        460.0,
+        control,
+    )
+    .into()
 }
 
 fn text_row<'a>(
+    app: &App,
     label: &'static str,
     description: &'static str,
     placeholder: &'static str,
@@ -33,6 +44,7 @@ fn text_row<'a>(
     on_input: impl Fn(String) -> Message + 'a,
 ) -> Element<'a, Message> {
     field_row(
+        app,
         label,
         description,
         settings_text_input(placeholder, value).on_input(on_input).width(Length::Fill),
@@ -40,6 +52,7 @@ fn text_row<'a>(
 }
 
 fn secure_text_row<'a>(
+    app: &App,
     label: &'static str,
     description: &'static str,
     placeholder: &'static str,
@@ -47,6 +60,7 @@ fn secure_text_row<'a>(
     on_input: impl Fn(String) -> Message + 'a,
 ) -> Element<'a, Message> {
     field_row(
+        app,
         label,
         description,
         settings_text_input(placeholder, value).secure(true).on_input(on_input).width(Length::Fill),
@@ -54,6 +68,7 @@ fn secure_text_row<'a>(
 }
 
 fn number_row<'a>(
+    app: &App,
     label: &'static str,
     description: &'static str,
     value: u32,
@@ -62,6 +77,7 @@ fn number_row<'a>(
     on_change: impl Fn(u32) -> Message + 'a,
 ) -> Element<'a, Message> {
     field_row(
+        app,
         label,
         description,
         NumberInput::new(value as f32, min as f32, max as f32, 1.0, 0, 0.15, move |raw| {
@@ -151,6 +167,8 @@ fn server_healthy(app: &App, server: &crate::app::state::GatewayClientServerDraf
 /// 本函数不直接返回错误；无法交互或缺省状态会在控件状态中显式表达。
 pub fn view(app: &App) -> Element<'_, Message> {
     let s = &app.gateway_client_settings;
+    let i18n = I18n::new(app.desktop_locale);
+    let theme = &app.app_theme;
 
     let help_btn = settings_help_button_with_locale(
         app.desktop_locale,
@@ -206,6 +224,7 @@ pub fn view(app: &App) -> Element<'_, Message> {
         .on_press(Message::GatewayHealthTick);
 
     let name_row = text_row(
+        app,
         connection_text(app.desktop_locale, "网关名称"),
         connection_text(app.desktop_locale, "用于区分多个客户端网关。"),
         connection_text(app.desktop_locale, "本地网关"),
@@ -217,6 +236,7 @@ pub fn view(app: &App) -> Element<'_, Message> {
         },
     );
     let host_row = text_row(
+        app,
         connection_text(app.desktop_locale, "目标主机"),
         connection_text(app.desktop_locale, "桌面端请求所连接的 Gateway 主机。"),
         "127.0.0.1",
@@ -228,6 +248,7 @@ pub fn view(app: &App) -> Element<'_, Message> {
         },
     );
     let port_row = number_row(
+        app,
         connection_text(app.desktop_locale, "目标端口"),
         connection_text(app.desktop_locale, "桌面端请求所连接的 Gateway 端口。"),
         s.port as u32,
@@ -240,6 +261,7 @@ pub fn view(app: &App) -> Element<'_, Message> {
         },
     );
     let platform_id_row = text_row(
+        app,
         connection_text(app.desktop_locale, "平台 ID"),
         connection_text(app.desktop_locale, "当前网关请求所属的平台租户。"),
         "10000",
@@ -251,6 +273,7 @@ pub fn view(app: &App) -> Element<'_, Message> {
         },
     );
     let company_id_row = text_row(
+        app,
         connection_text(app.desktop_locale, "公司 ID"),
         connection_text(app.desktop_locale, "当前网关请求所属的公司租户。"),
         "100000000",
@@ -262,6 +285,7 @@ pub fn view(app: &App) -> Element<'_, Message> {
         },
     );
     let skey_row = secure_text_row(
+        app,
         "skey",
         connection_text(app.desktop_locale, "可选 skey，会作为 Authorization: Bearer 发送。"),
         connection_text(app.desktop_locale, "可选 skey"),
@@ -275,7 +299,9 @@ pub fn view(app: &App) -> Element<'_, Message> {
 
     let content = column![
         row![
-            container(settings_page_heading(
+            container(settings_page_heading_with_help(
+                i18n,
+                theme,
                 connection_text(app.desktop_locale, "客户端网关"),
                 connection_text(
                     app.desktop_locale,
@@ -286,7 +312,9 @@ pub fn view(app: &App) -> Element<'_, Message> {
             help_btn
         ]
         .align_y(Alignment::Start),
-        settings_group_heading(
+        settings_group_heading_with_help(
+            i18n,
+            theme,
             connection_text(app.desktop_locale, "网关服务"),
             connection_text(
                 app.desktop_locale,
@@ -318,13 +346,7 @@ pub fn view(app: &App) -> Element<'_, Message> {
             settings_divider(),
             company_id_row,
         ]),
-        settings_group_heading(
-            connection_text(app.desktop_locale, "认证"),
-            connection_text(
-                app.desktop_locale,
-                "可选填写 skey。请求会通过 Authorization: Bearer <skey> 发送。"
-            ),
-        ),
+        text(connection_text(app.desktop_locale, "认证")).size(17),
         settings_group_card(skey_row),
     ]
     .spacing(16)

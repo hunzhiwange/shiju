@@ -34,6 +34,25 @@ use super::super::utils::{
     contrast_text_color, lighten_color, mix_color, project_accent_color, project_badge_label,
 };
 
+pub(super) fn title_tooltip<'a>(
+    content: impl Into<Element<'a, Message>>,
+    title: impl Into<String>,
+    position: TooltipPosition,
+) -> Element<'a, Message> {
+    let label = text(title.into())
+        .size(12)
+        .shaping(iced::widget::text::Shaping::Advanced)
+        .wrapping(iced::widget::text::Wrapping::WordOrGlyph);
+    Tooltip::new(
+        content,
+        container(label).max_width(360).padding([6, 10]).style(tooltip_dark_style),
+        position,
+    )
+    .padding(0)
+    .gap(8)
+    .into()
+}
+
 /// 解析十六进制颜色字符串为 Iced Color
 ///
 /// 将格式为 `#RRGGBB` 或 `RRGGBB` 的十六进制字符串转换为 `Color` 枚举值。

@@ -296,7 +296,6 @@ fn header_builds_clickable_and_static_variants() {
         crate::app::i18n::I18n::new(vw_config_types::ui::DesktopLocale::SimplifiedChinese),
         "项目".to_string(),
         "/tmp/project".to_string(),
-        12,
         true,
         true,
     ));
@@ -304,10 +303,74 @@ fn header_builds_clickable_and_static_variants() {
         crate::app::i18n::I18n::new(vw_config_types::ui::DesktopLocale::SimplifiedChinese),
         "项目".to_string(),
         "/tmp/project".to_string(),
-        8,
         false,
         false,
     ));
+}
+
+#[tokio::test]
+async fn long_project_header_renders_one_line_per_label_and_shows_right_tooltips() {
+    use iced::advanced::{
+        Layout, Renderer as _, Shell, clipboard, layout, mouse, renderer, text::LineHeight,
+        widget::Tree,
+    };
+    use iced::{Event, Font, Pixels, Rectangle, Renderer, Size, Vector};
+    use renderer::Headless;
+
+    let mut renderer = Renderer::new(Font::DEFAULT, Pixels(16.0), Some("tiny-skia")).await.unwrap();
+    let i18n = crate::app::i18n::I18n::new(vw_config_types::ui::DesktopLocale::SimplifiedChinese);
+    let window = Size::new(640.0, 240.0);
+    let viewport = Rectangle::with_size(window);
+    let limits = layout::Limits::new(Size::ZERO, Size::new(180.0, window.height));
+    let mut header = project_sessions_header(
+        i18n,
+        "中文长项目名称 create-task-plan-skills".to_owned(),
+        "/Users/项目/very-long-directory/with/a/long/project/path".to_owned(),
+        false,
+        false,
+    );
+    let mut tree = Tree::new(header.as_widget());
+    let node = header.as_widget_mut().layout(&mut tree, &renderer, &limits);
+    let layout = Layout::new(&node);
+    let mut header_rows = layout.children();
+    let title = header_rows.next().unwrap().children().next().unwrap().bounds();
+    let path = header_rows.next().unwrap().bounds();
+
+    for (label, size, theme) in [(title, 16.0, Theme::Light), (path, 11.0, Theme::Dark)] {
+        let line_height = LineHeight::default().to_absolute(Pixels(size));
+        assert_eq!(label.height, f32::from(line_height));
+
+        renderer.reset(viewport);
+        let point = label.center();
+        let cursor = mouse::Cursor::Available(point);
+        header.as_widget_mut().update(
+            &mut tree,
+            &Event::Mouse(mouse::Event::CursorMoved { position: point }),
+            layout,
+            cursor,
+            &renderer,
+            &mut clipboard::Null,
+            &mut Shell::new(&mut Vec::new()),
+            &viewport,
+        );
+        let style = renderer::Style { text_color: theme.palette().text };
+        header.as_widget().draw(&tree, &mut renderer, &theme, &style, layout, cursor, &viewport);
+        let mut overlay = header
+            .as_widget_mut()
+            .overlay(&mut tree, layout, &renderer, &viewport, Vector::ZERO)
+            .expect("hover should show the full project label");
+        let overlay_node = overlay.as_overlay_mut().layout(&renderer, window);
+        overlay.as_overlay().draw(
+            &mut renderer,
+            &theme,
+            &style,
+            Layout::new(&overlay_node),
+            cursor,
+        );
+        let pixels = renderer.screenshot(Size::new(640, 240), 1.0, theme.palette().background);
+        let tooltip_pixel = (point.y as usize * 640 + 220) * 4;
+        assert_ne!(&pixels[tooltip_pixel..tooltip_pixel + 4], &pixels[..4]);
+    }
 }
 
 #[test]
@@ -603,7 +666,6 @@ fn standalone_panel_fragments_build_inactive_and_pressed_variants() {
         crate::app::i18n::I18n::new(vw_config_types::ui::DesktopLocale::SimplifiedChinese),
         "长项目标题".to_string(),
         "/tmp/project/with/a/very/long/path".to_string(),
-        4,
         true,
         false,
     ));

@@ -9,6 +9,9 @@
 use iced::advanced::{Clipboard, Layout, Shell, Widget, layout, mouse, renderer, widget};
 use iced::{Element, Event, Length, Point, Rectangle, Size, Theme};
 
+mod single_line_label;
+pub(crate) use single_line_label::SingleLineLabel;
+
 /// 右键点击区域组件
 ///
 /// 该组件包装任意 Iced 元素，为其添加右键点击事件处理能力。

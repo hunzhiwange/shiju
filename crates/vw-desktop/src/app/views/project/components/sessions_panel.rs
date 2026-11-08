@@ -4,6 +4,7 @@
 
 use std::collections::HashSet;
 
+use iced::widget::tooltip::{Position, Tooltip};
 use iced::widget::{button, column, container, row, scrollable, text};
 use iced::{Background, Color, Element, Length, Point, Theme};
 
@@ -14,7 +15,7 @@ use crate::app::components::status_animation::spinner_frame;
 use crate::app::components::system_settings_common::{
     round_icon_btn_style, rounded_action_btn_style, settings_muted_text_style, settings_panel_style,
 };
-use crate::app::components::widgets::RightClickArea;
+use crate::app::components::widgets::{RightClickArea, SingleLineLabel};
 use crate::app::message::TaskBoardMessage;
 use crate::app::{Message, message};
 use vw_shared::session::info as session;
@@ -22,6 +23,7 @@ use vw_shared::session::info as session;
 use super::super::styles::{is_dark_theme, session_row_highlight_color, tooltip_bubble};
 use super::super::utils::{mix_color, session_title_max_chars, truncate_display_width};
 use super::new_session::new_session_button;
+use super::projects_list::title_tooltip;
 
 fn icon_action_button_style(
     theme: &Theme,
@@ -453,7 +455,6 @@ pub fn build_project_tools_menu<'a>(
 /// # 参数
 /// - `title`: 当前视图构建所需的状态、配置或消息。
 /// - `path`: 当前视图构建所需的状态、配置或消息。
-/// - `path_max_chars`: 当前视图构建所需的状态、配置或消息。
 /// - `clickable`: 当前视图构建所需的状态、配置或消息。
 /// - `show_tools_menu`: 当前视图构建所需的状态、配置或消息。
 ///
@@ -466,35 +467,24 @@ pub fn project_sessions_header<'a>(
     i18n: crate::app::i18n::I18n,
     title: String,
     path: String,
-    path_max_chars: usize,
     clickable: bool,
     show_tools_menu: bool,
 ) -> Element<'a, Message> {
-    let title_text: Element<'a, Message> = if clickable {
-        iced::widget::mouse_area(
-            container(
-                text(title)
-                    .size(16)
-                    .font(iced::Font { weight: iced::font::Weight::Bold, ..Default::default() }),
-            )
-            .width(Length::Fill),
-        )
-        .on_press(Message::Project(message::ProjectMessage::OpenRecentPressed(path.clone())))
-        .into()
+    let title_label = SingleLineLabel::new(title.clone(), 16.0)
+        .font(iced::Font { weight: iced::font::Weight::Bold, ..Default::default() });
+    let title_label: Element<'a, Message> = if clickable {
+        iced::widget::mouse_area(title_label)
+            .on_press(Message::Project(message::ProjectMessage::OpenRecentPressed(path.clone())))
+            .into()
     } else {
-        container(
-            text(title)
-                .size(16)
-                .font(iced::Font { weight: iced::font::Weight::Bold, ..Default::default() }),
-        )
-        .width(Length::Fill)
-        .into()
+        title_label.into()
     };
+    let title_text = title_tooltip(title_label, title, Position::Right);
 
     let path_for_refresh = path.clone();
     let path_for_toggle = path.clone();
     let path_for_menu = path.clone();
-    let refresh_btn = iced::widget::tooltip::Tooltip::new(
+    let refresh_btn = Tooltip::new(
         button(
             container(icon_svg(Icon::ArrowRepeat, 12.0))
                 .width(Length::Fixed(26.0))
@@ -506,7 +496,7 @@ pub fn project_sessions_header<'a>(
         .padding(0)
         .style(icon_action_button_style),
         tooltip_bubble(i18n.__("刷新会话").to_string()),
-        iced::widget::tooltip::Position::Top,
+        Position::Top,
     )
     .gap(8);
     let more_btn = button(
@@ -528,16 +518,19 @@ pub fn project_sessions_header<'a>(
             .into();
 
     let action_buttons = row![refresh_btn, tools].spacing(6).align_y(iced::Alignment::Center);
+    let path_label = container(SingleLineLabel::new(path.clone(), 11.0)).style(|theme| {
+        iced::widget::container::Style {
+            text_color: settings_muted_text_style(theme).color,
+            ..Default::default()
+        }
+    });
 
     column![
         row![title_text, action_buttons]
             .spacing(8)
             .align_y(iced::Alignment::Center)
             .width(Length::Fill),
-        text(vw_shared::util::truncate(&path, path_max_chars))
-            .size(11)
-            .style(settings_muted_text_style)
-            .width(Length::Fill),
+        title_tooltip(path_label, path, Position::Right),
     ]
     .spacing(3)
     .width(Length::Fill)
@@ -909,14 +902,12 @@ pub fn project_sessions_panel(
         let session_list_width_reduction = if has_vertical_scrollbar { 5.0 } else { 0.0 };
         let sessions = app.project_sessions.get(&path);
         let inner_w = (panel_w - horizontal_padding * 2.0).max(0.0);
-        let path_max_chars = (inner_w / 5.5).max(8.0) as usize;
         let title_max_chars =
             session_title_max_chars((inner_w - session_list_width_reduction).max(0.0));
         let header = project_sessions_header(
             crate::app::i18n::I18n::new(app.desktop_locale),
             title,
             path.clone(),
-            path_max_chars,
             false,
             app.project_tools_menu_path.as_ref() == Some(&path),
         );

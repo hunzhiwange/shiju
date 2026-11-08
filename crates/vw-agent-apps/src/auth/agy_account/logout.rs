@@ -1,6 +1,6 @@
 use super::{
     AgyNativeTarget, KeychainEntry, credential_account_id, decode, keychain_error, locked_keychain,
-    macos::{managed_record, same_grant},
+    macos::{managed_record, read_keychain, same_grant},
     native_home, running, save_managed, validate_account_id,
 };
 use crate::auth::{
@@ -12,7 +12,7 @@ use security_framework::{
     item::{ItemClass, ItemSearchOptions, Limit},
     os::macos::keychain::SecKeychain,
 };
-use vw_api_types::agent_apps_auth::{AuthCredentialState, AuthErrorCode};
+use vw_api_types::agent_apps_auth::{AuthAccount, AuthCredentialState, AuthErrorCode};
 
 /// Invalidate the owned AGY records and any matching native login.
 pub fn logout_accounts(
@@ -59,7 +59,10 @@ pub(in crate::auth) fn logout_accounts_in(
     let (_lock, keychain) = locked_keychain(&home)?;
     let ids = match selected {
         Some(id) => vec![id],
-        None => scoped_account_ids(&keychain, scope)?,
+        None => scoped_accounts(&keychain, scope)?
+            .into_iter()
+            .map(|account| account.account_id)
+            .collect(),
     };
     let current = entry.read().map_err(keychain_error)?;
     let live =
@@ -100,10 +103,53 @@ pub(super) fn signed_out_owner(scope: AuthAccountScope<'_>) -> Result<String, Au
     account_id_for(scope, "signed-out-owner")
 }
 
-fn scoped_account_ids(
+/// Read only the requested owner’s managed records and compare them with the authorized live slot.
+pub fn read_accounts(
+    scope: AuthAccountScope<'_>,
+    native: AgyNativeTarget<'_>,
+) -> Result<Vec<AuthAccount>, AuthErrorCode> {
+    let entry = KeychainEntry::new("gemini", "antigravity").map_err(keychain_error)?;
+    read_accounts_in(scope, native, &entry)
+}
+
+/// Confirm a scoped AGY reference without resolving the native default.
+pub fn require_account(
+    scope: AuthAccountScope<'_>,
+    native: AgyNativeTarget<'_>,
+    id: &str,
+) -> Result<(), AuthErrorCode> {
+    let home = native_home(scope, native)?;
+    // The public API already validated the general ID syntax. A different service's
+    // opaque ID is absent in this keychain namespace.
+    validate_account_id(id).map_err(|_| AuthErrorCode::NotFound)?;
+    let (_lock, keychain) = read_keychain(&home)?;
+    managed_record(&keychain, scope, id).map(|_| ())
+}
+
+pub(in crate::auth) fn read_accounts_in(
+    scope: AuthAccountScope<'_>,
+    native: AgyNativeTarget<'_>,
+    entry: &KeychainEntry<'_>,
+) -> Result<Vec<AuthAccount>, AuthErrorCode> {
+    let home = native_home(scope, native)?;
+    let (_lock, keychain) = read_keychain(&home)?;
+    let mut accounts = scoped_accounts(&keychain, scope)?;
+    if let Some(raw) = entry.read().map_err(keychain_error)? {
+        let live = decode(&raw).ok_or(AuthErrorCode::Conflict)?;
+        if let Some(id) = credential_account_id(scope, &live)
+            && let Some(account) = accounts.iter_mut().find(|account| account.account_id == id)
+        {
+            let (record, _, _) = managed_record(&keychain, scope, &id)?;
+            account.is_default = same_grant(&live, &record.credential);
+        }
+    }
+    Ok(accounts)
+}
+
+fn scoped_accounts(
     keychain: &SecKeychain,
     scope: AuthAccountScope<'_>,
-) -> Result<Vec<String>, AuthErrorCode> {
+) -> Result<Vec<AuthAccount>, AuthErrorCode> {
     let found = ItemSearchOptions::new()
         .keychains(std::slice::from_ref(keychain))
         .class(ItemClass::generic_password())
@@ -116,16 +162,21 @@ fn scoped_account_ids(
         Err(error) if error.code() == KEYCHAIN_ITEM_NOT_FOUND => return Ok(Vec::new()),
         Err(_) => return Err(AuthErrorCode::KeychainUnavailable),
     };
-    let mut ids = Vec::new();
+    let mut accounts = Vec::new();
     for entry in entries {
         let mut attributes = entry.simplify_dict().ok_or(AuthErrorCode::KeychainUnavailable)?;
         let id = attributes.remove("acct").ok_or(AuthErrorCode::KeychainUnavailable)?;
         validate_account_id(&id)?;
         match managed_record(keychain, scope, &id) {
-            Ok(_) => ids.push(id),
+            Ok((record, _, _)) => {
+                let mut account = record.account;
+                account.is_default = false;
+                accounts.push(account);
+            }
             Err(AuthErrorCode::NotFound) => {}
             Err(error) => return Err(error),
         }
     }
-    Ok(ids)
+    accounts.sort_by(|left, right| left.account_id.cmp(&right.account_id));
+    Ok(accounts)
 }

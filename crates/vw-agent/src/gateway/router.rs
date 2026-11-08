@@ -99,6 +99,16 @@ use crate::app::agent::gateway::middleware::tenant_scope_middleware;
 /// 每个子模块负责定义自己的路径前缀和具体路由处理器。
 /// 合并顺序不影响路由匹配逻辑，但建议按功能域组织。
 pub(crate) fn build_router(cors_whitelist: Vec<String>) -> Router {
+    use crate::app::agent::flag;
+    let auth = handlers::agent_apps_auth_read::router(
+        flag::VIBEWINDOW_SERVER_PASSWORD.as_deref(),
+        flag::VIBEWINDOW_SERVER_USERNAME.as_deref().unwrap_or("vibewindow"),
+        std::env::var_os("SHIJU_AGENT_APPS_ACCESS_FILE").map(Into::into),
+    );
+    build_router_with_auth(cors_whitelist, auth)
+}
+
+pub(super) fn build_router_with_auth(cors_whitelist: Vec<String>, auth: Router) -> Router {
     // 将 CORS 白名单包装为 Arc，以便在 CORS 谓词闭包中安全共享
     // 避免每次请求时克隆整个列表
     let whitelist = Arc::new(cors_whitelist);
@@ -122,6 +132,7 @@ pub(crate) fn build_router(cors_whitelist: Vec<String>) -> Router {
         .nest("/v1", handler_router().layer(middleware::from_fn(tenant_scope_middleware)))
         // Basic 认证在租户解析前执行；OPTIONS 由各中间件放行。
         .layer(middleware::from_fn(basic_auth_middleware))
+        .merge(auth)
         // CORS 中间件：处理跨域请求（最外层）
         .layer(cors)
 }

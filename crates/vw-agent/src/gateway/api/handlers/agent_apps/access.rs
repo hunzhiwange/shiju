@@ -34,6 +34,8 @@ struct Grant {
     #[serde(default)]
     provider_config_write: bool,
     #[serde(default)]
+    auth_account_read: Vec<AuthService>,
+    #[serde(default)]
     launch: bool,
     #[serde(default)]
     identities: Vec<IdentityPermit>,
@@ -170,6 +172,25 @@ enum Capability {
     Launch,
     ProviderConfigRead,
     ProviderConfigWrite,
+    AuthAccountRead { service: AuthService, bindings: bool },
+}
+
+pub(super) fn authorize_auth_account_read(
+    path: Option<&Path>,
+    headers: &HeaderMap,
+    tenant: &TenantScope,
+    target: &str,
+    service: AuthService,
+    bindings: bool,
+) -> Result<Authorization, StatusCode> {
+    authorize_scoped(
+        path,
+        headers,
+        tenant,
+        target,
+        None,
+        Capability::AuthAccountRead { service, bindings },
+    )
 }
 
 fn authorize_scoped(
@@ -225,6 +246,10 @@ fn authorize_scoped(
                     Capability::Launch => g.launch,
                     Capability::ProviderConfigRead => g.provider_config_read,
                     Capability::ProviderConfigWrite => g.provider_config_write,
+                    Capability::AuthAccountRead { service, bindings } => {
+                        g.auth_account_read.contains(&service)
+                            && (!bindings || g.provider_config_read)
+                    }
                 }
         })
         .collect();
@@ -332,6 +357,8 @@ fn load(path: &Path) -> Result<Policy, ()> {
                             AuthService::ClaudeOfficial
                                 | AuthService::AgyOauth
                                 | AuthService::CodexOauth
+                                | AuthService::KimiOauth
+                                | AuthService::DshAccount
                         )
                         || !policy.principals.iter().any(|principal| {
                             principal.id == owner.principal

@@ -7,9 +7,9 @@ use vw_api_types::agent_apps_auth::AuthErrorCode;
 #[cfg(target_os = "macos")]
 mod logout;
 #[cfg(target_os = "macos")]
-pub use logout::logout_accounts;
+pub use logout::{logout_accounts, read_accounts, require_account};
 #[cfg(all(test, target_os = "macos"))]
-pub(super) use logout::logout_accounts_in;
+pub(super) use logout::{logout_accounts_in, read_accounts_in};
 
 /// The execution host's trusted policy for the one physical AGY login slot.
 #[derive(Clone, Copy)]
@@ -326,6 +326,17 @@ mod macos {
     // Shared by sign-in and switching. All logical scopes using the same local
     // keychain user contend on the same physical directory, even across processes.
     pub(in crate::auth) fn lock_keychain(home: &Path) -> Result<File, AuthErrorCode> {
+        lock_keychain_directory(home, libc::LOCK_EX)
+    }
+
+    pub(super) fn read_keychain(home: &Path) -> Result<(File, SecKeychain), AuthErrorCode> {
+        let lock = lock_keychain_directory(home, libc::LOCK_SH | libc::LOCK_NB)?;
+        let keychain = SecKeychain::default_for_domain(SecPreferencesDomain::User)
+            .map_err(|_| AuthErrorCode::KeychainUnavailable)?;
+        Ok((lock, keychain))
+    }
+
+    fn lock_keychain_directory(home: &Path, operation: libc::c_int) -> Result<File, AuthErrorCode> {
         let directory = open_beneath(home, &home.join("Library/Keychains"), true)
             .map_err(|_| AuthErrorCode::KeychainUnavailable)?;
         let metadata = directory.metadata().map_err(|_| AuthErrorCode::KeychainUnavailable)?;
@@ -334,8 +345,12 @@ mod macos {
             return Err(AuthErrorCode::KeychainUnavailable);
         }
         // SAFETY: flock borrows the open descriptor. Dropping directory releases the lock.
-        if unsafe { libc::flock(directory.as_raw_fd(), libc::LOCK_EX) } != 0 {
-            return Err(AuthErrorCode::KeychainUnavailable);
+        if unsafe { libc::flock(directory.as_raw_fd(), operation) } != 0 {
+            return if std::io::Error::last_os_error().kind() == std::io::ErrorKind::WouldBlock {
+                Err(AuthErrorCode::AccountInUse)
+            } else {
+                Err(AuthErrorCode::KeychainUnavailable)
+            };
         }
         Ok(directory)
     }

@@ -140,6 +140,39 @@ mod read_tests;
 
 mod access;
 
+pub(super) struct AuthReadHost {
+    pub id: String,
+    pub home: std::path::PathBuf,
+    pub credential_root: std::path::PathBuf,
+    pub principal: String,
+    pub owns_native_slot: bool,
+}
+
+pub(super) fn authorize_auth_account_read(
+    path: Option<&std::path::Path>,
+    headers: &axum::http::HeaderMap,
+    tenant: &TenantScope,
+    target: &str,
+    service: vw_api_types::agent_apps_auth::AuthService,
+    bindings: bool,
+) -> Result<AuthReadHost, axum::http::StatusCode> {
+    use axum::http::StatusCode;
+    use vw_api_types::agent_apps_auth::AuthService;
+    let authorized =
+        access::authorize_auth_account_read(path, headers, tenant, target, service, bindings)?;
+    let owns_native_slot = path.is_some() && authorized.native_login_owner(service) == Some(true);
+    if matches!(service, AuthService::AgyOauth | AuthService::DshAccount) && !owns_native_slot {
+        return Err(StatusCode::FORBIDDEN);
+    }
+    Ok(AuthReadHost {
+        id: authorized.host.id,
+        home: authorized.host.home,
+        credential_root: authorized.host.credential_root.ok_or(StatusCode::SERVICE_UNAVAILABLE)?,
+        principal: authorized.principal,
+        owns_native_slot,
+    })
+}
+
 mod lifecycle;
 #[cfg(all(test, unix))]
 mod lifecycle_tests;

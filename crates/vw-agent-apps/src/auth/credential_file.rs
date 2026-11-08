@@ -406,6 +406,40 @@ impl CredentialFileStore {
         self.lease(tenant, host, AppId::Claude, id, true)?.register_claude_directory()
     }
 
+    /// Observe managed material without acquiring a write lease or adopting a native login.
+    pub fn read_managed_account(
+        &self,
+        scope: AuthAccountScope<'_>,
+        id: &str,
+    ) -> Result<Option<AccountCredential>, vw_api_types::agent_apps_auth::AuthErrorCode> {
+        use vw_api_types::agent_apps_auth::AuthErrorCode;
+        scope.validate()?;
+        validate_account_location(scope.host, id).map_err(|_| AuthErrorCode::InvalidInput)?;
+        #[cfg(unix)]
+        {
+            let (service, kind) = match scope.service {
+                AuthService::GithubCopilot => ("github_copilot", CredentialKind::Copilot),
+                AuthService::CodexOauth => ("codex", CredentialKind::App(AppId::Codex)),
+                AuthService::XaiOauth => ("xai_oauth", CredentialKind::Xai),
+                AuthService::KimiOauth => ("kimi_oauth", CredentialKind::Kimi),
+                AuthService::ClaudeOfficial => ("claude", CredentialKind::App(AppId::Claude)),
+                _ => return Err(AuthErrorCode::Unsupported),
+            };
+            let owner = self.for_owner(scope.principal).map_err(|_| AuthErrorCode::InvalidInput)?;
+            let path = owner
+                .service_location(scope.tenant, scope.host, service, id)
+                .map_err(|_| AuthErrorCode::InvalidInput)?;
+            let location = owner.scoped_path(path);
+            match location.directory(false).and_then(|dir| read_from(&dir, &location.path, kind)) {
+                Ok(credential) => Ok(Some(credential)),
+                Err(error) if error == "official account not found" => Ok(None),
+                Err(_) => Err(AuthErrorCode::StorageUnavailable),
+            }
+        }
+        #[cfg(not(unix))]
+        Err(AuthErrorCode::Unsupported)
+    }
+
     pub fn read(
         &self,
         tenant: &TenantScope,

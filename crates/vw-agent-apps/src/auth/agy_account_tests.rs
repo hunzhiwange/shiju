@@ -255,3 +255,42 @@ fn auth6_agy_switch_rejects_invalid_or_stale_input() {
 
 #[path = "agy_provider_binding_tests.rs"]
 mod provider_binding_tests;
+
+#[test]
+fn auth6_agy_read_filters_real_keychain_and_reports_native_default() {
+    use super::agy_account::{lock_keychain, read_accounts_in, require_account};
+    use vw_api_types::agent_apps_auth::AuthCredentialState;
+
+    let mut fixture = Fixture::new();
+    let mut foreign = Fixture::new();
+    let ready = fixture.managed("owner", &credential("owner", 1), "ready");
+    let stale = fixture.managed("stale", &credential("stale", 1), "reauth_required");
+    let other = foreign.managed("owner", &credential("owner", 2), "ready");
+    fixture.switch(&ready).unwrap();
+    let scope = scope(&fixture.tenant);
+    let accounts = read_accounts_in(scope, fixture.target(Some(scope)), &fixture.entry()).unwrap();
+    assert_eq!(accounts.len(), 2);
+    assert!(!accounts.iter().any(|account| account.account_id == other));
+    assert!(accounts.iter().any(|account| account.account_id == ready && account.is_default));
+    assert!(accounts.iter().any(|account| {
+        account.account_id == stale
+            && account.credential_state == AuthCredentialState::ReauthRequired
+    }));
+    assert_eq!(
+        read_accounts_in(scope, fixture.target(None), &fixture.entry()),
+        Err(AuthErrorCode::Forbidden)
+    );
+    assert_eq!(require_account(scope, fixture.target(Some(scope)), &ready), Ok(()));
+    assert_eq!(
+        require_account(scope, fixture.target(Some(scope)), &other),
+        Err(AuthErrorCode::NotFound)
+    );
+    let lock = lock_keychain(&fixture.home).unwrap();
+    assert_eq!(
+        read_accounts_in(scope, fixture.target(Some(scope)), &fixture.entry()),
+        Err(AuthErrorCode::AccountInUse)
+    );
+    drop(lock);
+    fixture.remove_entries();
+    foreign.remove_entries();
+}

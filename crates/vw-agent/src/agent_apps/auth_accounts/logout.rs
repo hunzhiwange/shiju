@@ -2,7 +2,7 @@
 
 use super::{
     AuthAccountScope, AuthAccountStore, AuthErrorCode, AuthFlows, AuthService,
-    MANAGED_ACCOUNT_NAMESPACE, defaults::MANAGED_DEFAULT_NAMESPACE,
+    defaults::MANAGED_DEFAULT_NAMESPACE,
 };
 use vw_agent_apps::auth::{
     accounts::managed_default_key,
@@ -105,20 +105,7 @@ impl AuthAccountStore {
         &self,
         scope: AuthAccountScope<'_>,
     ) -> Result<Vec<String>, AuthErrorCode> {
-        let rows = self
-            .metadata
-            .list(scope.tenant, MANAGED_ACCOUNT_NAMESPACE)
-            .map_err(|_| AuthErrorCode::StorageUnavailable)?;
-        let mut ids = Vec::new();
-        for row in rows {
-            let (principal, host, service, id): (String, String, AuthService, String) =
-                serde_json::from_str(&row.config_key)
-                    .map_err(|_| AuthErrorCode::StorageUnavailable)?;
-            if principal == scope.principal && host == scope.host && service == scope.service {
-                ids.push(id);
-            }
-        }
-        Ok(ids)
+        Ok(self.scoped_account_rows(scope)?.into_iter().map(|(id, _)| id).collect())
     }
 
     fn logout_managed_account(

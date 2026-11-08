@@ -114,6 +114,60 @@ impl<'a> DshAccount<'a> {
         })
     }
 
+    /// Read an authorized native slot without provisioning transaction storage.
+    /// The executor must prove the scope owns the native slot before calling.
+    pub async fn read_account(
+        home: &'a Path,
+        transactions: Option<&'a ProviderTransactions>,
+        owner: AuthAccountScope<'a>,
+    ) -> Result<Option<AuthAccount>, AuthErrorCode> {
+        Self::status_from(
+            owner,
+            "en-US",
+            0,
+            || Self::read_authorized_document(home, transactions, owner),
+            |_| {},
+        )
+        .await
+    }
+
+    /// Confirm that this scope owns the requested local grant without sending it upstream.
+    pub fn require_account(
+        home: &'a Path,
+        transactions: Option<&'a ProviderTransactions>,
+        owner: AuthAccountScope<'a>,
+        id: &str,
+    ) -> Result<(), AuthErrorCode> {
+        if account(owner, AuthCredentialState::Ready, None)?.account_id != id {
+            return Err(AuthErrorCode::NotFound);
+        }
+        let document = Self::read_authorized_document(home, transactions, owner)?;
+        stored_grant(&document)
+            .map_err(|_| AuthErrorCode::StorageUnavailable)?
+            .map(|_| ())
+            .ok_or(AuthErrorCode::NotFound)
+    }
+
+    fn read_authorized_document(
+        home: &'a Path,
+        transactions: Option<&'a ProviderTransactions>,
+        owner: AuthAccountScope<'a>,
+    ) -> Result<Yaml, AuthErrorCode> {
+        if let Some(transactions) = transactions {
+            return Self::new(home, transactions, owner)?.read_document();
+        }
+        owner.validate()?;
+        if owner.service != AuthService::DshAccount {
+            return Err(AuthErrorCode::Unsupported);
+        }
+        let bytes = DshCredentials::open(home, false)
+            .map_err(storage_error)?
+            .map(|files| files.read().map_err(storage_error))
+            .transpose()?
+            .flatten();
+        credential_document(bytes.as_deref()).map_err(storage_error)
+    }
+
     /// Reads the current native grant and checks it against the fixed platform.
     /// Only the scoped account DTO and a stable credential state are returned.
     pub async fn status(
@@ -130,8 +184,25 @@ impl<'a> DshAccount<'a> {
         timezone_offset_seconds: i32,
         route: impl FnOnce(&mut Request),
     ) -> Result<Option<AuthAccount>, AuthErrorCode> {
+        Self::status_from(
+            self.owner,
+            locale,
+            timezone_offset_seconds,
+            || self.read_document(),
+            route,
+        )
+        .await
+    }
+
+    async fn status_from(
+        owner: AuthAccountScope<'_>,
+        locale: &str,
+        timezone_offset_seconds: i32,
+        read_document: impl Fn() -> Result<Yaml, AuthErrorCode>,
+        route: impl FnOnce(&mut Request),
+    ) -> Result<Option<AuthAccount>, AuthErrorCode> {
         let (mut token, revision) = {
-            let document = self.read_document()?;
+            let document = read_document()?;
             let Some(grant) = stored_grant(&document)? else {
                 return Ok(None);
             };
@@ -166,10 +237,10 @@ impl<'a> DshAccount<'a> {
         } else {
             return Err(AuthErrorCode::UpstreamFailure);
         };
-        if grant_revision(&self.read_document()?)? != revision {
+        if grant_revision(&read_document()?)? != revision {
             return Err(AuthErrorCode::Conflict);
         }
-        account(self.owner, state, None).map(Some)
+        account(owner, state, None).map(Some)
     }
 
     /// Removes the local login from both profiles. A valid foreign-issuer grant

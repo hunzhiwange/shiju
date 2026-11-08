@@ -241,6 +241,10 @@ mod agent_apps_read_tests;
 
 pub(crate) mod agent_apps;
 
+pub(crate) mod agent_apps_auth_read;
+#[cfg(all(test, target_os = "macos"))]
+mod agent_apps_auth_read_tests;
+
 #[cfg(test)]
 mod agent_apps_add_tests;
 

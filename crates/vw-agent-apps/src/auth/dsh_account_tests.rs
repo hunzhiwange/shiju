@@ -431,3 +431,30 @@ fn auth6_remove_dsh_clears_only_the_authorized_shared_grant() {
     assert_eq!(fixture.read(), expected);
     assert_eq!(account.remove_account(scope, &id), Err(AuthErrorCode::NotFound));
 }
+
+#[tokio::test]
+async fn auth6_dsh_read_checks_local_scope_and_rejects_foreign_issuer() {
+    let fixture = Fixture::new();
+    let owner = fixture.scope();
+    assert_eq!(DshAccount::read_account(&fixture.home, None, owner).await, Ok(None));
+    let account_id =
+        super::dsh_login::account(owner, AuthCredentialState::Ready, None).unwrap().account_id;
+    assert_eq!(
+        DshAccount::require_account(&fixture.home, None, owner, &account_id),
+        Err(AuthErrorCode::NotFound)
+    );
+
+    let mut config = document();
+    config["records"][GRANT] = grant(OLD_TOKEN, "https://untrusted.invalid");
+    fixture.write(&config);
+    assert_eq!(
+        DshAccount::read_account(&fixture.home, None, owner).await,
+        Err(AuthErrorCode::ReauthRequired)
+    );
+    assert_eq!(DshAccount::require_account(&fixture.home, None, owner, &account_id), Ok(()));
+    assert_eq!(
+        DshAccount::require_account(&fixture.home, None, owner, "unrelated"),
+        Err(AuthErrorCode::NotFound)
+    );
+    assert_eq!(fixture.read(), config);
+}

@@ -13,3 +13,8 @@ mod credential_lease_tests;
 pub mod claude_keychain;
 #[cfg(target_os = "macos")]
 pub(crate) mod claude_login_files;
+
+#[cfg(target_os = "macos")]
+mod keychain;
+#[cfg(all(test, target_os = "macos"))]
+mod keychain_tests;

@@ -15,9 +15,9 @@
 //! - 提供详细的帮助文档模态框说明各参数含义
 
 use crate::app::components::system_settings_common::{
-    settings_divider, settings_group_card, settings_group_heading,
-    settings_help_button_with_locale, settings_modal_header, settings_page_heading, settings_row,
-    settings_value_badge, with_settings_help_modal,
+    settings_divider, settings_flexible_row_with_help, settings_group_card,
+    settings_group_heading_with_help, settings_help_button_with_locale, settings_modal_header,
+    settings_page_heading_with_help, settings_value_badge, with_settings_help_modal,
 };
 use crate::app::i18n::I18n;
 use crate::app::{App, Message, message};
@@ -69,6 +69,7 @@ const RELIABILITY_HELP_TEXT: &str = r#"可靠性配置说明
 "#;
 
 fn slider_row<'a>(
+    app: &App,
     label: &'a str,
     description: &'a str,
     range: RangeInclusive<f32>,
@@ -76,7 +77,9 @@ fn slider_row<'a>(
     display_value: impl ToString,
     on_change: fn(f32) -> Message,
 ) -> Element<'a, Message> {
-    settings_row(
+    settings_flexible_row_with_help(
+        I18n::new(app.desktop_locale),
+        &app.app_theme,
         label,
         description,
         280.0,
@@ -88,6 +91,7 @@ fn slider_row<'a>(
         .spacing(12)
         .align_y(Alignment::Center),
     )
+    .into()
 }
 
 fn provider_retries_changed(v: f32) -> Message {
@@ -128,12 +132,14 @@ fn scheduler_retries_changed(v: f32) -> Message {
 pub fn view(app: &App) -> Element<'_, Message> {
     let s = &app.reliability_settings;
     let i18n = I18n::new(app.desktop_locale);
+    let theme = &app.app_theme;
     let help = settings_help_button_with_locale(
         app.desktop_locale,
         Message::Settings(message::SettingsMessage::ReliabilityHelpOpen),
     );
 
     let provider_retries = slider_row(
+        app,
         i18n.__("Provider 重试"),
         i18n.__("请求失败时的最大重试次数。"),
         0.0..=20.0,
@@ -142,6 +148,7 @@ pub fn view(app: &App) -> Element<'_, Message> {
         provider_retries_changed,
     );
     let provider_backoff = slider_row(
+        app,
         i18n.__("Provider 退避"),
         i18n.__("重试之间的基础退避时间。"),
         0.0..=60_000.0,
@@ -150,6 +157,7 @@ pub fn view(app: &App) -> Element<'_, Message> {
         provider_backoff_ms_changed,
     );
     let channel_initial = slider_row(
+        app,
         i18n.__("频道初始退避"),
         i18n.__("频道或守护进程重连时的初始退避秒数。"),
         1.0..=3600.0,
@@ -158,6 +166,7 @@ pub fn view(app: &App) -> Element<'_, Message> {
         channel_initial_backoff_secs_changed,
     );
     let channel_max = slider_row(
+        app,
         i18n.__("频道最大退避"),
         i18n.__("退避算法允许增长到的最大等待时间。"),
         s.channel_initial_backoff_secs as f32..=3600.0,
@@ -166,6 +175,7 @@ pub fn view(app: &App) -> Element<'_, Message> {
         channel_max_backoff_secs_changed,
     );
     let scheduler_poll = slider_row(
+        app,
         i18n.__("调度轮询间隔"),
         i18n.__("调度器检查任务的轮询频率。"),
         1.0..=3600.0,
@@ -174,6 +184,7 @@ pub fn view(app: &App) -> Element<'_, Message> {
         scheduler_poll_secs_changed,
     );
     let scheduler_retries = slider_row(
+        app,
         i18n.__("调度重试次数"),
         i18n.__("任务执行失败时允许的重试次数。"),
         0.0..=20.0,
@@ -184,15 +195,27 @@ pub fn view(app: &App) -> Element<'_, Message> {
 
     column![
         settings_modal_header(
-            settings_page_heading(
+            settings_page_heading_with_help(
+                i18n,
+                theme,
                 i18n.__("可靠性配置"),
                 i18n.__("统一配置 provider 重试、频道重连退避和调度重试策略。"),
             ),
             help,
         ),
-        settings_group_heading("Provider", i18n.__("控制模型请求失败时的重试次数和退避时间。")),
+        settings_group_heading_with_help(
+            i18n,
+            theme,
+            "Provider",
+            i18n.__("控制模型请求失败时的重试次数和退避时间。"),
+        ),
         settings_group_card(column![provider_retries, settings_divider(), provider_backoff]),
-        settings_group_heading(i18n.__("频道与调度"), i18n.__("控制频道重连与调度器重试节奏。")),
+        settings_group_heading_with_help(
+            i18n,
+            theme,
+            i18n.__("频道与调度"),
+            i18n.__("控制频道重连与调度器重试节奏。"),
+        ),
         settings_group_card(column![
             channel_initial,
             settings_divider(),

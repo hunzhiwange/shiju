@@ -303,7 +303,8 @@ async fn ui_refresh_20_layout_and_interaction() {
     app.desktop_locale = DesktopLocale::SimplifiedChinese;
     app.memory_settings.active_tab = MemorySettingsTab::General;
     app.memory_settings.backend = "sqlite".into();
-    let size = Size::new(640, 460);
+    // Keep the backend menu tall enough to hover multiple items, with some below the viewport.
+    let size = Size::new(640, 380);
     let mut ui = scene(view(&app), &mut renderer, size);
     let positions = geometry(&mut ui, &renderer);
     let qdrant_tab = memory_tab_label(app.desktop_locale, MemorySettingsTab::Qdrant);
@@ -311,10 +312,9 @@ async fn ui_refresh_20_layout_and_interaction() {
 
     let trigger = positions.focusable[0];
     let label = positions.label("存储后端");
-    let hint = positions.label("选择记忆系统使用的持久化后端。");
     let auto_save = positions.label("自动保存用户输入到记忆");
     assert!((auto_save.x + auto_save.width - trigger.x - trigger.width).abs() < 0.5);
-    assert!((trigger.center_y() - (label.y + hint.y + hint.height) / 2.0).abs() < 0.5);
+    assert!((trigger.center_y() - label.center_y()).abs() < 0.5);
     assert!((trigger.height - 38.0).abs() < 0.5);
     assert!(click(&mut ui, &mut renderer, trigger.center()).is_empty());
 
@@ -368,9 +368,16 @@ async fn ui_refresh_20_layout_and_interaction() {
         )
         .is_empty()
     );
-    assert_ne!(
-        unhovered,
-        capture(&mut ui, &mut renderer, &Theme::Light, size, "backend-menu-scrolled", cursor),
+    assert!(
+        unhovered
+            != capture(
+                &mut ui,
+                &mut renderer,
+                &Theme::Light,
+                size,
+                "backend-menu-scrolled",
+                cursor
+            ),
         "scroll should reveal the last backend"
     );
 
@@ -549,4 +556,101 @@ async fn settings_tabs_core_appearance_memory() {
         },
     )
     .await;
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn help_rollout_13_renders_contextual_help() {
+    if !isolated("help_rollout_13_renders_contextual_help") {
+        return;
+    }
+    let mut renderer = renderer().await;
+    let mut app = fixture();
+    app.memory_settings.save_error = Some("fixture memory backend unavailable".into());
+    app.memory_settings.auto_save = false;
+
+    for (locale, theme, width) in [
+        (DesktopLocale::SimplifiedChinese, Theme::Light, 440),
+        (DesktopLocale::TraditionalChinese, Theme::Dark, 440),
+        (DesktopLocale::English, Theme::Dark, 640),
+    ] {
+        app.desktop_locale = locale;
+        app.app_theme = theme.clone();
+        let size = Size::new(width, 900);
+        for (tab, title, explanation) in [
+            (MemorySettingsTab::General, "存储后端", "选择记忆系统使用的持久化后端。"),
+            (
+                MemorySettingsTab::RetentionAndCache,
+                "保留与缓存",
+                "配置归档、清理、SQLite 打开超时与缓存容量。",
+            ),
+            (
+                MemorySettingsTab::Embedding,
+                "嵌入提供者",
+                "阿里建议在嵌入路由里配置 alibaba-cn、text-embedding-v4 和 DashScope API Key。",
+            ),
+            (MemorySettingsTab::Qdrant, "Qdrant 地址", "Qdrant 服务的 HTTP 地址。"),
+        ] {
+            app.memory_settings.active_tab = tab;
+            let mut ui = scene(view(&app), &mut renderer, size);
+            let positions = geometry(&mut ui, &renderer);
+            positions.label("fixture memory backend unavailable");
+            if tab == MemorySettingsTab::RetentionAndCache {
+                positions.label(runtime_text(locale, "秒（0 表示无限等待）"));
+            }
+            let title = runtime_text(locale, title);
+            let explanation = runtime_text(locale, explanation);
+            let idle = capture(
+                &mut ui,
+                &mut renderer,
+                &theme,
+                size,
+                &format!("rollout-{locale:?}-{tab:?}-idle"),
+                mouse::Cursor::Unavailable,
+            );
+            assert!(
+                positions.labels.iter().all(|(label, _)| label != explanation),
+                "{title}: static explanation is visible before opening help"
+            );
+            // The retention heading follows the tab with the same title.
+            let label = positions.labels.iter().rfind(|(label, _)| label == title).unwrap().1;
+            let icon = iced::Point::new(label.x + label.width + 15.0, label.center_y());
+            assert!(click(&mut ui, &mut renderer, icon).is_empty());
+            let open = capture(
+                &mut ui,
+                &mut renderer,
+                &theme,
+                size,
+                &format!("rollout-{locale:?}-{tab:?}-open"),
+                mouse::Cursor::Unavailable,
+            );
+            assert!(idle != open, "{title}: pinned help card must render");
+            assert!(
+                send(
+                    &mut ui,
+                    &mut renderer,
+                    mouse::Cursor::Unavailable,
+                    &[key(iced::keyboard::key::Named::Escape)],
+                )
+                .is_empty()
+            );
+            let closed = capture(
+                &mut ui,
+                &mut renderer,
+                &theme,
+                size,
+                &format!("rollout-{locale:?}-{tab:?}-closed"),
+                mouse::Cursor::Unavailable,
+            );
+            assert!(idle == closed, "{title}: Escape must restore the initial frame");
+            if tab == MemorySettingsTab::General {
+                let toggle = positions.label(runtime_text(locale, "自动保存用户输入到记忆"));
+                assert!(matches!(
+                    click(&mut ui, &mut renderer, toggle.center()).as_slice(),
+                    [Message::Settings(SettingsMessage::Memory(MemoryMessage::AutoSaveToggled(
+                        true
+                    )))]
+                ));
+            }
+        }
+    }
 }

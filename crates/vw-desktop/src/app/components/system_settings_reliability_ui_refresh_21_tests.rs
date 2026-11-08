@@ -310,12 +310,6 @@ impl Geometry {
             .unwrap_or_else(|| panic!("missing fixture input {value}"))
             .1
     }
-
-    fn assert_centered(&self, control: iced::Rectangle, label: &str, hint: &str) {
-        let hint = self.label(hint);
-        let center = (self.label(label).y + hint.y + hint.height) / 2.0;
-        assert!((control.center_y() - center).abs() < 0.5, "{label}: {control:?}, center={center}");
-    }
 }
 
 fn geometry(ui: &mut Ui<'_>, renderer: &Renderer) -> Geometry {
@@ -478,7 +472,7 @@ async fn ui_refresh_21_preserves_values_and_disabled_states() {
     let mut ui = scene(view(&app), &mut renderer, size);
     let positions = geometry(&mut ui, &renderer);
     let badge = positions.label("60 s");
-    positions.assert_centered(badge, "频道最大退避", "退避算法允许增长到的最大等待时间。");
+    assert!((badge.center_y() - positions.label("频道最大退避").center_y()).abs() < 0.5);
     let point = Point::new(badge.x - 70.0, badge.center_y());
     let press = send(
         &mut ui,
@@ -536,4 +530,121 @@ async fn ui_refresh_21_preserves_values_and_disabled_states() {
         click(&mut ui, &mut renderer, Point::new(382.0, 36.0)).as_slice(),
         [Message::Settings(SettingsMessage::ReliabilityHelpClose)]
     ));
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn help_rollout_13_renders_contextual_help() {
+    use iced::{Point, keyboard::key::Named};
+    if !isolated("help_rollout_13_renders_contextual_help") {
+        return;
+    }
+    let mut renderer = renderer().await;
+    let mut app = fixture();
+    for (locale, theme, width) in [
+        (DesktopLocale::SimplifiedChinese, Theme::Light, 440),
+        (DesktopLocale::TraditionalChinese, Theme::Dark, 440),
+        (DesktopLocale::English, Theme::Dark, 640),
+    ] {
+        app.desktop_locale = locale;
+        app.app_theme = theme.clone();
+        let i18n = I18n::new(locale);
+        let size = Size::new(width, 680);
+        let mut ui = scene(view(&app), &mut renderer, size);
+        let positions = geometry(&mut ui, &renderer);
+        positions.label("60 s");
+        positions.label("60000 ms");
+        let title = i18n.__("Provider 重试");
+        let explanation = i18n.__("请求失败时的最大重试次数。");
+        let idle = capture(
+            &mut ui,
+            &mut renderer,
+            &theme,
+            size,
+            &format!("rollout-{locale:?}-idle"),
+            mouse::Cursor::Unavailable,
+        );
+        assert!(
+            positions.labels.iter().all(|(label, _)| label != explanation),
+            "{title}: static explanation is visible before opening help"
+        );
+        let label = positions.label(title);
+        let icon = Point::new(label.x + label.width + 15.0, label.center_y());
+        let cursor = mouse::Cursor::Available(icon);
+        assert!(
+            send(
+                &mut ui,
+                &mut renderer,
+                cursor,
+                &[Event::Mouse(mouse::Event::CursorMoved { position: icon })],
+            )
+            .is_empty()
+        );
+        let preview = capture(
+            &mut ui,
+            &mut renderer,
+            &theme,
+            size,
+            &format!("rollout-{locale:?}-hover"),
+            cursor,
+        );
+        assert!(idle != preview, "{title}: hover preview must render");
+        assert!(click(&mut ui, &mut renderer, icon).is_empty());
+        let open = capture(
+            &mut ui,
+            &mut renderer,
+            &theme,
+            size,
+            &format!("rollout-{locale:?}-open"),
+            mouse::Cursor::Unavailable,
+        );
+        assert!(idle != open, "{title}: pinned help card must render");
+
+        if locale == DesktopLocale::English {
+            let body = Point::new(icon.x + 29.0, icon.y + 5.0);
+            let line_height = iced::advanced::text::LineHeight::default().to_absolute(12.0.into());
+            let item_height = f32::from(line_height) + 10.0;
+            let search =
+                format!("https://www.google.com/search?q={}", urlencoding::encode(explanation));
+            for index in [0.0, 3.0] {
+                assert!(
+                    send(
+                        &mut ui,
+                        &mut renderer,
+                        mouse::Cursor::Available(body),
+                        &[Event::Mouse(mouse::Event::ButtonPressed(mouse::Button::Right))],
+                    )
+                    .is_empty()
+                );
+                let item = Point::new(body.x + 24.0, body.y + 3.0 + item_height * (index + 0.5));
+                let messages = click(&mut ui, &mut renderer, item);
+                assert!(
+                    match messages.as_slice() {
+                        [Message::CopyCode(value)] if index == 0.0 => value == explanation,
+                        [Message::View(crate::app::message::ViewMessage::OpenUrlExternal(url))]
+                            if index == 3.0 =>
+                            url == &search,
+                        _ => false,
+                    },
+                    "{title}: {messages:?}"
+                );
+            }
+        }
+        assert!(
+            send(&mut ui, &mut renderer, mouse::Cursor::Unavailable, &[key(Named::Escape)])
+                .is_empty()
+        );
+        let closed = capture(
+            &mut ui,
+            &mut renderer,
+            &theme,
+            size,
+            &format!("rollout-{locale:?}-closed"),
+            mouse::Cursor::Unavailable,
+        );
+        assert!(idle == closed, "{title}: Escape must restore the initial frame");
+        assert!(matches!(
+            click(&mut ui, &mut renderer, Point::new(width as f32 - 16.0, 16.0)).as_slice(),
+            [Message::Settings(message::SettingsMessage::ReliabilityHelpOpen)]
+        ));
+    }
 }

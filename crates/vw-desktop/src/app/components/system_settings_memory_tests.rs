@@ -52,9 +52,10 @@ fn row_helpers_build_expected_control_structure() {
     }));
     assert!(text.children[1].children.is_empty());
 
-    let boolean = element_tree(bool_row("启用", "说明", true, "启用记忆", |value| {
-        Message::Settings(SettingsMessage::Memory(MemoryMessage::AutoSaveToggled(value)))
-    }));
+    let boolean =
+        element_tree(bool_row(&test_app(), "启用", "说明", true, "启用记忆", |value| {
+            Message::Settings(SettingsMessage::Memory(MemoryMessage::AutoSaveToggled(value)))
+        }));
     assert!(boolean.children[1].children.is_empty());
 
     let number = element_tree(number_row(

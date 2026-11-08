@@ -7,11 +7,12 @@ use crate::app::components::number_input::NumberInput;
 use crate::app::components::system_settings_common::{
     SETTINGS_CONTROL_TEXT_SIZE, rounded_action_btn_style, settings_checkbox_style,
     settings_divider, settings_error_banner, settings_field_label, settings_group_card,
-    settings_group_heading, settings_muted_text_style, settings_page_heading, settings_select,
+    settings_group_heading, settings_group_heading_with_help, settings_hover_help_label,
+    settings_muted_text_style, settings_page_heading_with_help, settings_select,
     settings_tab_button, settings_tab_row, settings_text_input,
 };
 use crate::app::components::system_settings_search::SettingsTabDescriptor;
-use crate::app::i18n::settings_runtime::text as runtime_text;
+use crate::app::i18n::{I18n, settings_runtime::text as runtime_text};
 use crate::app::message::settings::{MemoryMessage, SettingsMessage};
 use crate::app::state::MemorySettingsTab;
 use crate::app::{App, Message};
@@ -64,6 +65,26 @@ pub(super) fn field_row<'a>(
     aligned_field_row(labels, control)
 }
 
+fn field_row_with_help<'a>(
+    app: &App,
+    label: &'static str,
+    description: &'static str,
+    control: impl Into<Element<'a, Message>>,
+) -> Element<'a, Message> {
+    if description.is_empty() {
+        return field_row(label, description, control);
+    }
+    let heading = settings_hover_help_label(
+        I18n::new(app.desktop_locale),
+        &app.app_theme,
+        label,
+        settings_field_label(label),
+        description,
+    )
+    .wrap();
+    aligned_field_row(column![heading], control)
+}
+
 fn aligned_field_row<'a>(
     labels: iced::widget::Column<'a, Message>,
     control: impl Into<Element<'a, Message>>,
@@ -95,14 +116,32 @@ pub(super) fn text_row<'a>(
     )
 }
 
+fn text_row_with_help<'a>(
+    app: &App,
+    label: &'static str,
+    description: &'static str,
+    placeholder: &'static str,
+    value: &'a str,
+    on_input: impl Fn(String) -> Message + 'a,
+) -> Element<'a, Message> {
+    field_row_with_help(
+        app,
+        label,
+        description,
+        settings_text_input(placeholder, value).on_input(on_input).width(Length::Fill),
+    )
+}
+
 fn bool_row<'a>(
+    app: &App,
     label: &'static str,
     description: &'static str,
     checked: bool,
     checkbox_label: &'static str,
     on_toggle: impl Fn(bool) -> Message + 'a,
 ) -> Element<'a, Message> {
-    field_row(
+    field_row_with_help(
+        app,
         label,
         description,
         checkbox(checked)
@@ -166,6 +205,8 @@ fn number_row<'a>(
 /// 本函数不直接返回错误；无法交互或缺省状态会在控件状态中显式表达。
 pub fn view(app: &App) -> Element<'_, Message> {
     let locale = app.desktop_locale;
+    let i18n = I18n::new(locale);
+    let theme = &app.app_theme;
     let s = &app.memory_settings;
 
     let backend_pick = settings_select(
@@ -182,14 +223,17 @@ pub fn view(app: &App) -> Element<'_, Message> {
     )
     .width(Length::Fill);
 
-    let backend_row: Element<'_, Message> = field_row(
+    let backend_row = field_row_with_help(
+        app,
         runtime_text(locale, "存储后端"),
         runtime_text(locale, "选择记忆系统使用的持久化后端。"),
         backend_pick,
     );
 
     let general_section = column![
-        settings_group_heading(
+        settings_group_heading_with_help(
+            i18n,
+            theme,
             runtime_text(locale, "基础行为"),
             runtime_text(locale, "控制持久化、清理、快照和自动恢复等核心记忆行为。")
         ),
@@ -198,8 +242,9 @@ pub fn view(app: &App) -> Element<'_, Message> {
                 backend_row,
                 settings_divider(),
                 bool_row(
+                    app,
                     runtime_text(locale, "自动保存"),
-                    runtime_text(locale, "自动保存用户输入到记忆。"),
+                    "",
                     s.auto_save,
                     runtime_text(locale, "自动保存用户输入到记忆"),
                     |value| {
@@ -210,6 +255,7 @@ pub fn view(app: &App) -> Element<'_, Message> {
                 ),
                 settings_divider(),
                 bool_row(
+                    app,
                     runtime_text(locale, "记忆卫生清理"),
                     runtime_text(locale, "定期清理低价值或陈旧记忆。"),
                     s.hygiene_enabled,
@@ -222,6 +268,7 @@ pub fn view(app: &App) -> Element<'_, Message> {
                 ),
                 settings_divider(),
                 bool_row(
+                    app,
                     runtime_text(locale, "响应缓存"),
                     runtime_text(locale, "缓存部分响应结果以减少重复开销。"),
                     s.response_cache_enabled,
@@ -234,8 +281,9 @@ pub fn view(app: &App) -> Element<'_, Message> {
                 ),
                 settings_divider(),
                 bool_row(
+                    app,
                     runtime_text(locale, "记忆快照"),
-                    runtime_text(locale, "启用记忆快照导出。"),
+                    "",
                     s.snapshot_enabled,
                     runtime_text(locale, "启用记忆快照导出"),
                     |value| {
@@ -246,6 +294,7 @@ pub fn view(app: &App) -> Element<'_, Message> {
                 ),
                 settings_divider(),
                 bool_row(
+                    app,
                     runtime_text(locale, "清理时快照"),
                     runtime_text(locale, "执行卫生清理时同步生成快照。"),
                     s.snapshot_on_hygiene,
@@ -258,8 +307,9 @@ pub fn view(app: &App) -> Element<'_, Message> {
                 ),
                 settings_divider(),
                 bool_row(
+                    app,
                     runtime_text(locale, "自动恢复"),
-                    runtime_text(locale, "数据库缺失时自动从快照恢复。"),
+                    "",
                     s.auto_hydrate,
                     runtime_text(locale, "数据库缺失时自动从快照恢复"),
                     |value| {
@@ -275,7 +325,9 @@ pub fn view(app: &App) -> Element<'_, Message> {
     .spacing(16);
 
     let retention_section = column![
-        settings_group_heading(
+        settings_group_heading_with_help(
+            i18n,
+            theme,
             runtime_text(locale, "保留与缓存"),
             runtime_text(locale, "配置归档、清理、SQLite 打开超时与缓存容量。")
         ),
@@ -407,13 +459,16 @@ pub fn view(app: &App) -> Element<'_, Message> {
     .spacing(16);
 
     let embedding_section = column![
-        settings_group_heading(
+        settings_group_heading_with_help(
+            i18n,
+            theme,
             runtime_text(locale, "嵌入与检索"),
             runtime_text(locale, "配置 embedding provider/model、维度和混合检索权重。")
         ),
         settings_group_card(
             column![
-                text_row(
+                text_row_with_help(
+                    app,
                     runtime_text(locale, "嵌入提供者"),
                     runtime_text(locale, "阿里建议在嵌入路由里配置 alibaba-cn、text-embedding-v4 和 DashScope API Key。"),
                     "none / openai / alibaba-cn / custom:URL",
@@ -533,7 +588,8 @@ pub fn view(app: &App) -> Element<'_, Message> {
                 ),
                 settings_group_card(
                     column![
-                        text_row(
+                        text_row_with_help(
+                            app,
                             runtime_text(locale, "Qdrant 地址"),
                             runtime_text(locale, "Qdrant 服务的 HTTP 地址。"),
                             "http://localhost:6333",
@@ -545,7 +601,8 @@ pub fn view(app: &App) -> Element<'_, Message> {
                             }
                         ),
                         settings_divider(),
-                        text_row(
+                        text_row_with_help(
+                            app,
                             runtime_text(locale, "Qdrant 集合"),
                             runtime_text(locale, "记忆向量集合名称。"),
                             "vibewindow_memories",
@@ -557,7 +614,8 @@ pub fn view(app: &App) -> Element<'_, Message> {
                             },
                         ),
                         settings_divider(),
-                        text_row(
+                        text_row_with_help(
+                            app,
                             runtime_text(locale, "Qdrant API 密钥"),
                             runtime_text(locale, "可选的鉴权密钥。"),
                             runtime_text(locale, "可选"),
@@ -607,7 +665,9 @@ pub fn view(app: &App) -> Element<'_, Message> {
     };
 
     let mut sections = column![
-        settings_page_heading(
+        settings_page_heading_with_help(
+            i18n,
+            theme,
             runtime_text(locale, "记忆系统配置"),
             runtime_text(locale, "统一配置后端、保留策略、缓存和向量检索参数。")
         ),

@@ -15,6 +15,7 @@ const MAX_OUTPUT: u64 = 100_000;
 
 #[derive(Debug, PartialEq, Eq)]
 pub(super) enum EntryError {
+    Conflict,
     InvalidIdentity,
     InvalidPayload,
     InvalidKeychainPath,
@@ -71,21 +72,54 @@ impl<'a> KeychainEntry<'a> {
         if payload.is_empty() || payload.len() > MAX_LINE / 2 {
             return Err(EntryError::InvalidPayload);
         }
-        let (path, existing) = self.write_target()?;
-        let update = if existing { " -U" } else { "" };
-        let prefix = format!(
-            "add-generic-password{update} -a \"{}\" -s \"{}\" -X \"",
-            self.account, self.service
-        );
-        let suffix = format!("\" \"{path}\"\n");
-        if prefix.len() + payload.len() * 2 + suffix.len() > MAX_LINE {
+        let hex: String = payload.bytes().map(|byte| format!("{byte:02x}")).collect();
+        let expected = if payload.bytes().all(|b| b.is_ascii_graphic() || b == b' ') {
+            payload.as_bytes()
+        } else {
+            hex.as_bytes()
+        };
+        self.write_password("-X", &hex, expected, None)
+    }
+
+    /// go-keyring's restricted ASCII representation fits without doubling it to hex.
+    /// The old value is checked again in the located keychain just before the write.
+    pub(super) fn replace_base64(
+        &self,
+        before: Option<&[u8]>,
+        payload: &str,
+    ) -> Result<(), EntryError> {
+        if payload.is_empty()
+            || !payload.bytes().all(|byte| byte.is_ascii_alphanumeric() || b"+/=:-".contains(&byte))
+        {
             return Err(EntryError::InvalidPayload);
         }
-        if existing && self.read_in(Some(&path))?.is_none() {
-            return Err(EntryError::VerificationFailed);
+        self.write_password("-w", payload, payload.as_bytes(), Some(before))
+    }
+
+    fn write_password(
+        &self,
+        flag: &str,
+        value: &str,
+        expected: &[u8],
+        compare: Option<Option<&[u8]>>,
+    ) -> Result<(), EntryError> {
+        let (path, existing) = self.write_target()?;
+        let update = if existing { " -U" } else { "" };
+        let line = format!(
+            "add-generic-password{update} -a \"{}\" -s \"{}\" {flag} \"{value}\" \"{path}\"\n",
+            self.account, self.service
+        );
+        if line.len() > MAX_LINE {
+            return Err(EntryError::InvalidPayload);
         }
-        let hex: String = payload.bytes().map(|byte| format!("{byte:02x}")).collect();
-        let line = format!("{prefix}{hex}{suffix}");
+        if existing || compare.is_some() {
+            let current = self.read_in(Some(&path))?;
+            match compare {
+                Some(before) if current.as_deref() != before => return Err(EntryError::Conflict),
+                None if current.is_none() => return Err(EntryError::VerificationFailed),
+                _ => {}
+            }
+        }
         let output = run(&["-q", "-i"], Some(line.as_bytes()), false)?;
         if output.code != 0 {
             return Err(EntryError::CommandFailed { operation: "write", code: output.code });
@@ -94,11 +128,6 @@ impl<'a> KeychainEntry<'a> {
         if output.has_diagnostic {
             return Err(EntryError::WriteRejected);
         }
-        let expected = if payload.bytes().all(|b| b.is_ascii_graphic() || b == b' ') {
-            payload.as_bytes()
-        } else {
-            hex.as_bytes()
-        };
         if self.read_in(Some(&path))?.as_deref() != Some(expected) {
             return Err(EntryError::VerificationFailed);
         }

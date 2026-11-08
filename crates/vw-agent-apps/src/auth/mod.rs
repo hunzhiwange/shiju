@@ -98,3 +98,8 @@ mod claude_snapshot_tests;
 pub mod agy_login;
 #[cfg(all(test, target_os = "macos"))]
 mod agy_login_tests;
+
+#[cfg(not(target_arch = "wasm32"))]
+pub mod agy_account;
+#[cfg(all(test, target_os = "macos"))]
+mod agy_account_tests;

@@ -1,6 +1,7 @@
 //! AGY OAuth on the authorized macOS execution host.
 
 use super::{
+    agy_account::lock_keychain,
     browser_callback::{CallbackChallenge, CallbackCode, LoopbackCallback},
     copilot::{read_json_limited, utc_now, valid_token},
     flow::{AuthAccountScope, AuthFlowTiming, AuthFlows},
@@ -33,7 +34,7 @@ const SCOPES: &str = concat!(
 );
 const LOGIN_LIFETIME: Duration = Duration::from_secs(600);
 const MAX_TOKEN_RESPONSE_BYTES: usize = 64 * 1024;
-const KEYCHAIN_ITEM_NOT_FOUND: i32 = -25300;
+pub(super) const KEYCHAIN_ITEM_NOT_FOUND: i32 = -25300;
 
 pub(super) const MANAGED_SERVICE: &str = "shiju.agy.oauth";
 
@@ -232,8 +233,8 @@ struct TokenResponse {
 }
 
 #[derive(Deserialize)]
-struct Identity {
-    sub: String,
+pub(super) struct Identity {
+    pub(super) sub: String,
     email: Option<String>,
     name: Option<String>,
 }
@@ -276,21 +277,7 @@ impl TokenResponse {
         }
 
         // Google returned this ID token directly over the fixed HTTPS exchange.
-        let mut jwt = id_token.split('.');
-        let header = jwt.next().filter(|part| !part.is_empty());
-        let claims = jwt.next().ok_or(AuthErrorCode::UpstreamFailure)?;
-        let signature = jwt.next().filter(|part| !part.is_empty());
-        if header.is_none() || signature.is_none() || jwt.next().is_some() {
-            return Err(AuthErrorCode::UpstreamFailure);
-        }
-        let decoded = URL_SAFE_NO_PAD
-            .decode(claims.trim_end_matches('='))
-            .map_err(|_| AuthErrorCode::UpstreamFailure)?;
-        let identity: Identity =
-            serde_json::from_slice(&decoded).map_err(|_| AuthErrorCode::UpstreamFailure)?;
-        if !valid_token(&identity.sub) || identity.sub.len() > 255 {
-            return Err(AuthErrorCode::UpstreamFailure);
-        }
+        let identity = token_identity(&id_token).ok_or(AuthErrorCode::UpstreamFailure)?;
 
         let now = utc_now()?;
         let expires_in = self.expires_in.unwrap_or(3599);
@@ -300,21 +287,13 @@ impl TokenResponse {
             .and_then(|duration| now.0.checked_add(duration))
             .and_then(chrono::DateTime::from_timestamp_millis)
             .ok_or(AuthErrorCode::UpstreamFailure)?;
-        let scoped_identity = serde_json::to_vec(&(
-            scope.tenant,
-            scope.principal,
-            scope.host,
-            scope.service,
-            &identity.sub,
-        ))
-        .map_err(|_| AuthErrorCode::ExecutionHostUnavailable)?;
         let label = identity
             .email
             .filter(|label| valid_label(label))
             .or_else(|| identity.name.filter(|label| valid_label(label)))
             .unwrap_or_else(|| "Antigravity".into());
         let account = AuthAccount {
-            account_id: URL_SAFE_NO_PAD.encode(Sha256::digest(scoped_identity)),
+            account_id: account_id_for(scope, &identity.sub)?,
             service: scope.service,
             label,
             credential_state: AuthCredentialState::Ready,
@@ -339,12 +318,39 @@ impl TokenResponse {
     }
 }
 
+pub(super) fn token_identity(id_token: &str) -> Option<Identity> {
+    let mut jwt = id_token.split('.');
+    jwt.next().filter(|part| !part.is_empty())?;
+    let claims = jwt.next()?;
+    jwt.next().filter(|part| !part.is_empty())?;
+    if jwt.next().is_some() {
+        return None;
+    }
+    let decoded = URL_SAFE_NO_PAD.decode(claims.trim_end_matches('=')).ok()?;
+    let identity: Identity = serde_json::from_slice(&decoded).ok()?;
+    (valid_token(&identity.sub) && identity.sub.len() <= 255).then_some(identity)
+}
+
+pub(super) fn account_id_for(
+    scope: AuthAccountScope<'_>,
+    subject: &str,
+) -> Result<String, AuthErrorCode> {
+    let identity =
+        serde_json::to_vec(&(scope.tenant, scope.principal, scope.host, scope.service, subject))
+            .map_err(|_| AuthErrorCode::ExecutionHostUnavailable)?;
+    Ok(URL_SAFE_NO_PAD.encode(Sha256::digest(identity)))
+}
+
 fn valid_label(label: &str) -> bool {
     !label.trim().is_empty() && label.len() <= 256 && !label.chars().any(char::is_control)
 }
 
 impl ManagedAccount {
     fn save(&self, keychain: &SecKeychain) -> Result<(), AuthErrorCode> {
+        let home = std::env::var_os("HOME")
+            .and_then(|path| std::fs::canonicalize(path).ok())
+            .ok_or(AuthErrorCode::KeychainUnavailable)?;
+        let _lock = lock_keychain(&home)?;
         // One keychain record publishes the projection and its material together.
         let payload = serde_json::to_vec(self).map_err(|_| AuthErrorCode::StorageUnavailable)?;
         let id = &self.account.account_id;

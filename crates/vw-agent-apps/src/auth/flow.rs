@@ -42,6 +42,13 @@ pub struct AuthFlowTiming {
     pub retry_after_seconds: u64,
 }
 
+type CancelCleanup = Box<dyn FnMut() -> Result<(), AuthErrorCode> + Send>;
+
+struct FlowState {
+    snapshot: AuthFlow,
+    cancelling: bool,
+}
+
 struct FlowRecord {
     tenant: TenantScope,
     principal: String,
@@ -49,7 +56,8 @@ struct FlowRecord {
     service: AuthService,
     request: AuthStartRequest,
     deadline: Instant,
-    state: Mutex<AuthFlow>,
+    state: Mutex<FlowState>,
+    cancel_cleanup: Mutex<Option<CancelCleanup>>,
 }
 
 impl FlowRecord {
@@ -65,12 +73,14 @@ impl FlowRecord {
     fn state_at(
         &self,
         clock: impl FnOnce() -> Instant,
-    ) -> Result<MutexGuard<'_, AuthFlow>, AuthErrorCode> {
+    ) -> Result<MutexGuard<'_, FlowState>, AuthErrorCode> {
         let mut state = self.state.lock().map_err(|_| AuthErrorCode::ExecutionHostUnavailable)?;
-        if let AuthFlow::Pending { flow_id, expires_at, .. } = &*state
+        if !state.cancelling
+            && let AuthFlow::Pending { flow_id, expires_at, .. } = &state.snapshot
             && clock() >= self.deadline
         {
-            *state = AuthFlow::Expired { flow_id: flow_id.clone(), expires_at: *expires_at };
+            state.snapshot =
+                AuthFlow::Expired { flow_id: flow_id.clone(), expires_at: *expires_at };
         }
         Ok(state)
     }
@@ -103,13 +113,39 @@ pub struct AuthFlows {
 }
 
 impl AuthFlows {
-    /// Register a start after the service validates its challenge and policy
-    /// (including any normalized domain or region, and the target's ownership).
+    /// Register a start with no local resources to stop on cancellation.
     pub fn start(
         &self,
         scope: AuthAccountScope<'_>,
         request: AuthStartRequest,
         timing: AuthFlowTiming,
+    ) -> Result<AuthFlow, AuthErrorCode> {
+        self.register(scope, request, timing, None)
+    }
+
+    /// Register a start after the service validates its challenge and policy
+    /// (including any normalized domain or region, and the target's ownership).
+    ///
+    /// Bind the adapter's local resource handles to this attempt. Cleanup must
+    /// stop the listener or process and wait for it to exit before returning
+    /// success. It may be retried after an error and must not call `cancel` on
+    /// the same flow. The adapter owns teardown on paths other than cancellation.
+    pub fn start_with_cleanup(
+        &self,
+        scope: AuthAccountScope<'_>,
+        request: AuthStartRequest,
+        timing: AuthFlowTiming,
+        cleanup: impl FnMut() -> Result<(), AuthErrorCode> + Send + 'static,
+    ) -> Result<AuthFlow, AuthErrorCode> {
+        self.register(scope, request, timing, Some(Box::new(cleanup)))
+    }
+
+    fn register(
+        &self,
+        scope: AuthAccountScope<'_>,
+        request: AuthStartRequest,
+        timing: AuthFlowTiming,
+        cancel_cleanup: Option<CancelCleanup>,
     ) -> Result<AuthFlow, AuthErrorCode> {
         scope.validate()?;
         request.validate_for(scope.service)?;
@@ -137,7 +173,8 @@ impl AuthFlows {
                     service: scope.service,
                     request,
                     deadline: timing.deadline,
-                    state: Mutex::new(state.clone()),
+                    state: Mutex::new(FlowState { snapshot: state.clone(), cancelling: false }),
+                    cancel_cleanup: Mutex::new(cancel_cleanup),
                 }));
                 return Ok(state);
             }
@@ -163,10 +200,12 @@ impl AuthFlows {
         flow_id: &AuthFlowId,
         clock: impl FnOnce() -> Instant,
     ) -> Result<AuthFlow, AuthErrorCode> {
-        Ok(self.find(scope, flow_id)?.state_at(clock)?.clone())
+        Ok(self.find(scope, flow_id)?.state_at(clock)?.snapshot.clone())
     }
 
-    /// Invalidate the state before the service adapter tears down its resources.
+    /// Invalidate the attempt before teardown and report cancellation only
+    /// after local cleanup succeeds. A failed teardown leaves the attempt
+    /// ineligible for completion and allows cancellation to be retried.
     pub fn cancel(
         &self,
         scope: AuthAccountScope<'_>,
@@ -174,15 +213,30 @@ impl AuthFlows {
         clock: impl FnOnce() -> Instant,
     ) -> Result<(), AuthErrorCode> {
         let record = self.find(scope, flow_id)?;
-        let mut state = record.state_at(clock)?;
-        match &*state {
-            AuthFlow::Pending { flow_id, expires_at, .. } => {
-                *state = AuthFlow::Cancelled { flow_id: flow_id.clone(), expires_at: *expires_at };
-                Ok(())
+        let mut cleanup =
+            record.cancel_cleanup.lock().map_err(|_| AuthErrorCode::ExecutionHostUnavailable)?;
+        let expires_at = {
+            let mut state = record.state_at(clock)?;
+            match state.snapshot {
+                AuthFlow::Pending { expires_at, .. } => {
+                    state.cancelling = true;
+                    expires_at
+                }
+                AuthFlow::Cancelled { .. } => return Ok(()),
+                _ => return Err(AuthErrorCode::Conflict),
             }
-            AuthFlow::Cancelled { .. } => Ok(()),
-            _ => Err(AuthErrorCode::Conflict),
+        };
+
+        // A worker being stopped may itself be trying to complete this flow.
+        if let Some(stop) = cleanup.as_mut() {
+            stop()?;
         }
+        *cleanup = None;
+
+        let mut state = record.state.lock().map_err(|_| AuthErrorCode::ExecutionHostUnavailable)?;
+        state.snapshot = AuthFlow::Cancelled { flow_id: flow_id.clone(), expires_at };
+        state.cancelling = false;
+        Ok(())
     }
 
     /// Complete a host exchange at most once. The adapter must verify the
@@ -203,11 +257,14 @@ impl AuthFlows {
     ) -> Result<AuthFlow, AuthErrorCode> {
         let record = self.find(scope, flow_id)?;
         let mut state = record.state_at(clock)?;
-        let AuthFlow::Pending { expires_at, .. } = *state else {
+        if state.cancelling {
+            return Err(AuthErrorCode::Conflict);
+        }
+        let AuthFlow::Pending { expires_at, .. } = state.snapshot else {
             return Err(AuthErrorCode::Conflict);
         };
 
-        *state = match result.and_then(|account| {
+        state.snapshot = match result.and_then(|account| {
             record.validate_account(&account)?;
             persist(record.scope(), &record.request, &account)?;
             Ok(account)
@@ -223,6 +280,6 @@ impl AuthFlows {
                 },
             },
         };
-        Ok(state.clone())
+        Ok(state.snapshot.clone())
     }
 }

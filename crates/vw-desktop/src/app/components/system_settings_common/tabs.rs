@@ -2,7 +2,8 @@
 
 use super::rounded_action_btn_style;
 use iced::widget::{Button, Row, button, row, text};
-use iced::{Alignment, Border, Element, Theme};
+use iced::alignment::Vertical;
+use iced::{Alignment, Border, Element, Padding, Theme};
 
 /// 使用常规设置的中性色调绘制标签。
 pub fn settings_tab_style(theme: &Theme, status: button::Status, active: bool) -> button::Style {
@@ -26,8 +27,33 @@ pub fn settings_tab_button<'a, Message: Clone + 'a>(
     selected: bool,
     on_press: Option<Message>,
 ) -> Button<'a, Message> {
-    button(text(label).size(15))
-        .padding([8, 14])
+    tab_button(label, selected, on_press, 15.0, [8, 14].into())
+}
+
+/// 创建适用于紧凑布局的标签按钮。
+pub(crate) fn settings_compact_tab_button<'a, Message: Clone + 'a>(
+    label: impl text::IntoFragment<'a>,
+    selected: bool,
+    on_press: Message,
+) -> Button<'a, Message> {
+    tab_button(label, selected, Some(on_press), 12.0, [7, 12].into())
+}
+
+fn tab_button<'a, Message: Clone + 'a>(
+    label: impl text::IntoFragment<'a>,
+    selected: bool,
+    on_press: Option<Message>,
+    size: f32,
+    mut padding: Padding,
+) -> Button<'a, Message> {
+    // macOS 默认的 Noto Sans CJK 字形略低于行框中心。
+    if cfg!(target_os = "macos") {
+        padding.top -= 0.5;
+        padding.bottom += 0.5;
+    }
+
+    button(text(label).size(size).align_y(Vertical::Center))
+        .padding(padding)
         .style(move |theme, status| settings_tab_style(theme, status, selected))
         .on_press_maybe(on_press)
 }

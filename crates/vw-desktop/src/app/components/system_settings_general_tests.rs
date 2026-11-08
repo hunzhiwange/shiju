@@ -369,8 +369,10 @@ mod tab_appearance {
             .map(|button| {
                 let bounds = button.bounds();
                 let label = button.children().next().expect("tab label").bounds();
+                let offset = if cfg!(target_os = "macos") { 0.5 } else { 0.0 };
                 assert_eq!(label.x - bounds.x, 14.0);
-                assert_eq!(label.y - bounds.y, 8.0);
+                assert_eq!(label.center_y(), bounds.center_y() - offset);
+                assert_eq!(bounds.height - label.height, 16.0);
                 bounds
             })
             .collect()

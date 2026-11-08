@@ -64,6 +64,7 @@ pub use styles::{
     settings_pick_list_menu_style, settings_pick_list_style, settings_segment_button_style,
     settings_text_editor_style, settings_text_editor_style_for, settings_text_input_style,
 };
+pub(crate) use tabs::settings_compact_tab_button;
 pub use tabs::{settings_tab_button, settings_tab_row, settings_tab_style};
 pub use utils::{
     SETTINGS_CONTROL_PADDING, SETTINGS_CONTROL_TEXT_SIZE, SETTINGS_LABEL_WIDTH, bool_support_label,

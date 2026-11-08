@@ -19,9 +19,9 @@ mod extended_channels_tests;
 
 use crate::app::components::system_settings_common::{
     SETTINGS_CONTROL_PADDING, SETTINGS_CONTROL_TEXT_SIZE, settings_checkbox_style,
-    settings_divider, settings_error_banner, settings_group_card, settings_muted_text_style,
-    settings_page_intro, settings_responsive_row, settings_section_card, settings_section_content,
-    settings_tab_style, settings_text_input_style,
+    settings_compact_tab_button, settings_divider, settings_error_banner, settings_group_card,
+    settings_muted_text_style, settings_page_intro, settings_responsive_row, settings_section_card,
+    settings_section_content, settings_text_input_style,
 };
 use crate::app::components::system_settings_search::SettingsTabDescriptor;
 use crate::app::i18n::settings_extensions::text as tr;
@@ -145,12 +145,13 @@ fn tab_button(
     let active = tab == active_tab;
     debug_assert_eq!(label, tab.label());
 
-    button(text(tr(locale, label)).size(12))
-        .padding([7, 12])
-        .width(Length::Fill)
-        .on_press(Message::Settings(SettingsMessage::Channels(ChannelsMessage::TabSelected(tab))))
-        .style(move |theme, status| settings_tab_style(theme, status, active))
-        .into()
+    settings_compact_tab_button(
+        tr(locale, label),
+        active,
+        Message::Settings(SettingsMessage::Channels(ChannelsMessage::TabSelected(tab))),
+    )
+    .width(Length::Fill)
+    .into()
 }
 
 fn china_channel_icon(tab: ChannelsSettingsTab) -> svg::Svg<'static> {

@@ -20,12 +20,14 @@
 use crate::app::components::system_settings_common::{
     danger_action_btn_style, primary_action_btn_style, rounded_action_btn_style,
     settings_checkbox_style, settings_divider, settings_error_banner, settings_field_label,
-    settings_group_card, settings_group_heading,
-    settings_help_button_with_locale as settings_help_button, settings_muted_text_style,
-    settings_page_heading, settings_row_with_flexible_control, settings_select,
-    settings_tab_button, settings_tab_row, settings_text_input, settings_value_badge,
+    settings_flexible_row_with_help, settings_group_card, settings_group_heading,
+    settings_group_heading_with_help, settings_help_button_with_locale as settings_help_button,
+    settings_muted_text_style, settings_page_heading_with_help, settings_row_with_flexible_control,
+    settings_select, settings_tab_button, settings_tab_row, settings_text_input,
+    settings_value_badge,
 };
 use crate::app::components::system_settings_search::SettingsTabDescriptor;
+use crate::app::i18n::I18n;
 use crate::app::i18n::settings_security::text as security_text;
 use crate::app::state::{SecurityListKind, SecuritySettingsTab};
 use crate::app::{App, Message, message};
@@ -83,17 +85,22 @@ fn field_row<'a>(
 }
 
 fn text_row<'a>(
+    app: &App,
     label: &'static str,
     description: &'static str,
     placeholder: &'static str,
     value: &'a str,
     on_input: impl Fn(String) -> Message + 'a,
 ) -> Element<'a, Message> {
-    field_row(
+    settings_flexible_row_with_help(
+        I18n::new(app.desktop_locale),
+        &app.app_theme,
         label,
         description,
+        CONTROL_WIDTH,
         settings_text_input(placeholder, value).on_input(on_input).width(Length::Fill),
     )
+    .into()
 }
 
 fn list_editor<'a>(
@@ -326,6 +333,8 @@ fn sandbox_backend_description(locale: DesktopLocale, backend: &str) -> &'static
 /// ```
 pub fn view(app: &App) -> Element<'_, Message> {
     let locale = app.desktop_locale;
+    let i18n = I18n::new(locale);
+    let theme = &app.app_theme;
     let s = &app.security_settings;
     let bash_security_row = bool_row(
         security_text(locale, "Bash 安全检查"),
@@ -679,6 +688,7 @@ pub fn view(app: &App) -> Element<'_, Message> {
     );
 
     let audit_log_path_row = text_row(
+        app,
         security_text(locale, "审计日志路径"),
         security_text(locale, "指定审计日志文件的写入位置。"),
         "audit.log",
@@ -714,12 +724,12 @@ pub fn view(app: &App) -> Element<'_, Message> {
         |v| Message::Settings(message::SettingsMessage::SecurityOtpEnabledToggled(v)),
     );
 
-    let otp_method_row = text_row(
+    let otp_method_row = field_row(
         security_text(locale, "OTP 方法"),
         security_text(locale, "支持 totp、pairing、cli-prompt。"),
-        "totp | pairing | cli-prompt",
-        &s.otp_method_input,
-        |v| Message::Settings(message::SettingsMessage::SecurityOtpMethodChanged(v)),
+        settings_text_input("totp | pairing | cli-prompt", &s.otp_method_input)
+            .on_input(|v| Message::Settings(message::SettingsMessage::SecurityOtpMethodChanged(v)))
+            .width(Length::Fill),
     );
 
     let otp_ttl_row = slider_row(
@@ -788,6 +798,7 @@ pub fn view(app: &App) -> Element<'_, Message> {
     );
 
     let estop_state_file_row = text_row(
+        app,
         security_text(locale, "E-Stop 状态文件"),
         security_text(locale, "指定紧急停止状态文件位置。"),
         vw_config_types::paths::ESTOP_STATE_FILE_PATH,
@@ -888,6 +899,7 @@ pub fn view(app: &App) -> Element<'_, Message> {
     );
 
     let syscall_log_path_row = text_row(
+        app,
         security_text(locale, "系统调用日志路径"),
         security_text(locale, "指定系统调用异常日志的写入位置。"),
         "syscall-anomalies.log",
@@ -923,6 +935,7 @@ pub fn view(app: &App) -> Element<'_, Message> {
     );
 
     let semantic_collection_row = text_row(
+        app,
         security_text(locale, "语义集合"),
         security_text(locale, "指定用于语义分析的数据集合。"),
         "semantic_guard",
@@ -969,12 +982,16 @@ pub fn view(app: &App) -> Element<'_, Message> {
                 )
             ),
             settings_group_card(bash_security_row),
-            settings_group_heading(
+            settings_group_heading_with_help(
+                i18n,
+                theme,
                 security_text(locale, "策略检查"),
                 security_text(locale, "命令、路径、风险与重定向策略。")
             ),
             settings_group_card(policy_rows),
-            settings_group_heading(
+            settings_group_heading_with_help(
+                i18n,
+                theme,
                 security_text(locale, "Shell 语法检测"),
                 security_text(locale, "按 validator 独立控制 Shell 语法检查。")
             ),
@@ -983,13 +1000,17 @@ pub fn view(app: &App) -> Element<'_, Message> {
         .spacing(16)
         .into(),
         SecuritySettingsTab::SandboxAndResources => column![
-            settings_group_heading(
+            settings_group_heading_with_help(
+                i18n,
+                theme,
                 security_text(locale, "沙箱"),
                 security_text(locale, "控制是否启用沙箱以及选择具体后端。")
             ),
             settings_group_card(sandbox_rows),
             sandbox_backend_note,
-            settings_group_heading(
+            settings_group_heading_with_help(
+                i18n,
+                theme,
                 security_text(locale, "资源限制"),
                 security_text(locale, "约束进程的内存、CPU 与子进程数量。")
             ),
@@ -1009,7 +1030,9 @@ pub fn view(app: &App) -> Element<'_, Message> {
         .spacing(16)
         .into(),
         SecuritySettingsTab::Audit => column![
-            settings_group_heading(
+            settings_group_heading_with_help(
+                i18n,
+                theme,
                 security_text(locale, "审计日志"),
                 security_text(locale, "记录并限制安全事件日志。")
             ),
@@ -1029,7 +1052,7 @@ pub fn view(app: &App) -> Element<'_, Message> {
         .spacing(16)
         .into(),
         SecuritySettingsTab::OtpAndEstop => column![
-            settings_group_heading("OTP", security_text(locale, "对敏感动作启用二次验证。")),
+            text("OTP").size(17),
             settings_group_card(
                 column![
                     otp_enabled_row,
@@ -1048,7 +1071,9 @@ pub fn view(app: &App) -> Element<'_, Message> {
                 ]
                 .spacing(0)
             ),
-            settings_group_heading(
+            settings_group_heading_with_help(
+                i18n,
+                theme,
                 security_text(locale, "紧急停止"),
                 security_text(locale, "配置 E-Stop 状态与恢复要求。")
             ),
@@ -1066,7 +1091,9 @@ pub fn view(app: &App) -> Element<'_, Message> {
         .spacing(16)
         .into(),
         SecuritySettingsTab::Syscall => column![
-            settings_group_heading(
+            settings_group_heading_with_help(
+                i18n,
+                theme,
                 security_text(locale, "系统调用异常检测"),
                 security_text(locale, "监控系统调用行为并限制告警节奏。")
             ),
@@ -1096,7 +1123,9 @@ pub fn view(app: &App) -> Element<'_, Message> {
         .spacing(16)
         .into(),
         SecuritySettingsTab::Guard => column![
-            settings_group_heading(
+            settings_group_heading_with_help(
+                i18n,
+                theme,
                 security_text(locale, "防护"),
                 security_text(locale, "配置 Canary Token 与语义注入防护。")
             ),
@@ -1119,7 +1148,9 @@ pub fn view(app: &App) -> Element<'_, Message> {
 
     let mut col = column![
         row![
-            container(settings_page_heading(
+            container(settings_page_heading_with_help(
+                i18n,
+                theme,
                 security_text(locale, "安全配置"),
                 security_text(locale, "配置沙箱、资源限制、审计与安全门控策略。")
             ))

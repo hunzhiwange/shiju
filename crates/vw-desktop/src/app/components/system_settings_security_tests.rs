@@ -137,8 +137,10 @@ fn sandbox_backend_description_covers_known_and_fallback_backends() {
 
 #[test]
 fn common_rows_accept_security_controls() {
+    let app = test_app();
     let field: Element<'_, Message> = field_row("沙箱启用", "选择策略。", text("auto"));
     let input: Element<'_, Message> = text_row(
+        &app,
         "审计日志路径",
         "指定审计日志文件。",
         "audit.log",

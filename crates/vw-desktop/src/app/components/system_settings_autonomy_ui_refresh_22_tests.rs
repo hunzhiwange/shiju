@@ -258,11 +258,9 @@ async fn ui_refresh_22_layout_and_interaction() {
     app.security_settings.active_tab = SecuritySettingsTab::Audit;
     let mut ui = scene(security::view(&app), &mut renderer, Size::new(640, 620));
     let positions = geometry(&mut ui, &renderer);
-    positions.assert_centered(
-        positions.input(&app.security_settings.audit_log_path),
-        "审计日志路径",
-        "指定审计日志文件的写入位置。",
-    );
+    let input = positions.input(&app.security_settings.audit_log_path);
+    let label = positions.label("审计日志路径");
+    assert!((input.center_y() - label.center_y()).abs() < 0.5);
 }
 
 fn key(name: iced::keyboard::key::Named) -> Event {
@@ -638,4 +636,281 @@ async fn ui_refresh_22_tool_menu_hover_scroll_and_add_keep_original_ids() {
         click(&mut ui, &mut renderer, positions.label("添加").center()).as_slice(),
         [Message::Settings(SettingsMessage::AutonomyListAdd(AutonomyListKind::AutoApprove))]
     ));
+}
+
+fn assert_contextual_help(
+    app: &App,
+    element: Element<'_, Message>,
+    renderer: &mut Renderer,
+    height: u32,
+    persistent: &[&str],
+    help: &[(&str, usize, &str)],
+) {
+    let locale = app.desktop_locale;
+    let theme = &app.app_theme;
+    let width = if locale == DesktopLocale::English { 680 } else { 480 };
+    let size = Size::new(width, height);
+    let mut ui = scene(element, renderer, size);
+    let positions = geometry(&mut ui, renderer);
+    for label in persistent {
+        positions.label(label);
+    }
+    for &(title, occurrence, explanation) in help {
+        assert!(
+            positions.labels.iter().all(|(label, _)| label != explanation),
+            "{title}: static explanation is visible before opening help"
+        );
+        let bounds = positions
+            .labels
+            .iter()
+            .filter(|(label, _)| label == title)
+            .nth(occurrence)
+            .unwrap_or_else(|| panic!("missing help label {title}"))
+            .1;
+        let icon = iced::Point::new(bounds.x + bounds.width + 15.0, bounds.center_y());
+        let prefix = format!("rollout-14-{locale:?}-{title}");
+        let cursor = mouse::Cursor::Unavailable;
+        let idle = capture(&mut ui, renderer, theme, size, &format!("{prefix}-idle"), cursor);
+        let hover = mouse::Cursor::Available(icon);
+        assert!(
+            send(
+                &mut ui,
+                renderer,
+                hover,
+                &[Event::Mouse(mouse::Event::CursorMoved { position: icon })]
+            )
+            .is_empty()
+        );
+        let preview = capture(&mut ui, renderer, theme, size, &format!("{prefix}-hover"), hover);
+        assert!(idle != preview, "{title}: hover preview must render");
+        assert!(click(&mut ui, renderer, icon).is_empty());
+        let open = capture(&mut ui, renderer, theme, size, &format!("{prefix}-open"), cursor);
+        assert!(idle != open, "{title}: pinned help must render away from the cursor");
+
+        if locale == DesktopLocale::English
+            && title == crate::app::i18n::I18n::new(locale).__("自治配置")
+        {
+            assert_help_menu(&mut ui, renderer, icon, explanation);
+        }
+
+        assert!(
+            send(&mut ui, renderer, cursor, &[key(iced::keyboard::key::Named::Escape)]).is_empty()
+        );
+        let closed = capture(&mut ui, renderer, theme, size, &format!("{prefix}-closed"), cursor);
+        assert!(idle == closed, "{title}: Escape must restore the initial frame");
+    }
+}
+
+fn assert_help_menu(
+    ui: &mut Ui<'_>,
+    renderer: &mut Renderer,
+    icon: iced::Point,
+    explanation: &str,
+) {
+    let body = iced::Point::new(icon.x + 29.0, icon.y + 5.0);
+    let line_height = iced::advanced::text::LineHeight::default().to_absolute(12.0.into());
+    let item_height = f32::from(line_height) + 10.0;
+    let search = format!("https://www.google.com/search?q={}", urlencoding::encode(explanation));
+    for (index, expected) in [
+        (0.0, Message::CopyCode(explanation.into())),
+        (3.0, Message::View(crate::app::message::ViewMessage::OpenUrlExternal(search))),
+    ] {
+        assert!(
+            send(
+                ui,
+                renderer,
+                mouse::Cursor::Available(body),
+                &[Event::Mouse(mouse::Event::ButtonPressed(mouse::Button::Right))],
+            )
+            .is_empty()
+        );
+        let item = iced::Point::new(body.x + 24.0, body.y + 3.0 + item_height * (index + 0.5));
+        let messages = click(ui, renderer, item);
+        assert!(
+            match (messages.as_slice(), expected) {
+                ([Message::CopyCode(value)], Message::CopyCode(expected)) => *value == expected,
+                (
+                    [Message::View(crate::app::message::ViewMessage::OpenUrlExternal(url))],
+                    Message::View(crate::app::message::ViewMessage::OpenUrlExternal(expected)),
+                ) => *url == expected,
+                _ => false,
+            },
+            "unexpected contextual help action: {messages:?}"
+        );
+    }
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn help_rollout_14_renders_contextual_help() {
+    use crate::app::i18n::I18n;
+    if !isolated("help_rollout_14_renders_contextual_help") {
+        return;
+    }
+    let mut renderer = renderer().await;
+    let mut app = fixture();
+    let error = "fixture autonomy save failed";
+    app.autonomy_settings.save_error = Some(error.into());
+    app.autonomy_settings.level = AutonomyLevel::Full;
+    app.autonomy_settings.list_editor.request_remove(AutonomyListKind::AllowedCommands, 0);
+
+    for (locale, theme) in [
+        (DesktopLocale::SimplifiedChinese, Theme::Light),
+        (DesktopLocale::TraditionalChinese, Theme::Dark),
+        (DesktopLocale::English, Theme::Dark),
+    ] {
+        app.desktop_locale = locale;
+        app.app_theme = theme;
+        let i18n = I18n::new(locale);
+        let t = |key: &'static str| i18n.__(key);
+        for (tab, persistent, help) in [
+            (
+                AutonomySettingsTab::Permissions,
+                &[
+                    "完全",
+                    "仅允许在工作区路径内操作，除非显式加入 allowed_roots。",
+                    "对中风险动作触发审批，而不是直接执行。",
+                    "直接执行",
+                ][..],
+                &[
+                    ("自治配置", 0, "配置代理的权限边界、预算限制与审批规则。"),
+                    ("权限与审批", 1, "核心执行级别、审批阈值与重定向策略。"),
+                ][..],
+            ),
+            (
+                AutonomySettingsTab::Budget,
+                &[][..],
+                &[
+                    ("预算", 1, "限制单位时间的动作量与成本。"),
+                    ("每小时动作上限", 0, "限制自治过程中每小时可执行的动作数量。"),
+                    ("每日成本上限(分)", 0, "限制自治行为每天可消耗的成本预算。"),
+                ][..],
+            ),
+            (
+                AutonomySettingsTab::ToolsAndPaths,
+                &[
+                    "确认删除该列表项？",
+                    "取消",
+                    "确认删除",
+                    "从现有工具中选择无需额外审批即可执行的工具。",
+                ][..],
+                &[("工具与路径", 1, "为 shell 命令、路径访问和自动审批设置边界。")][..],
+            ),
+            (
+                AutonomySettingsTab::NonCli,
+                &["格式为 channel:user，支持逗号或换行分隔。"][..],
+                &[("非 CLI 暴露", 0, "控制外部通道中的工具暴露与审批人。")][..],
+            ),
+        ] {
+            app.autonomy_settings.active_tab = tab;
+            let persistent: Vec<_> =
+                [error].into_iter().chain(persistent.iter().map(|s| t(s))).collect();
+            let help: Vec<_> =
+                help.iter().map(|&(title, index, body)| (t(title), index, t(body))).collect();
+            assert_contextual_help(&app, view(&app), &mut renderer, 1300, &persistent, &help);
+        }
+    }
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn help_rollout_14_security_renders_contextual_help() {
+    use crate::app::components::system_settings_security as security;
+    use crate::app::i18n::settings_security::text;
+    use crate::app::state::SecuritySettingsTab;
+
+    if !isolated("help_rollout_14_security_renders_contextual_help") {
+        return;
+    }
+    let mut renderer = renderer().await;
+    let mut app = fixture();
+    let error = "fixture security save failed";
+    app.security_settings.save_error = Some(error.into());
+    app.security_settings.sandbox_enabled_input = "false".into();
+    app.security_settings.sandbox_backend_input = "none".into();
+
+    for (locale, theme) in [
+        (DesktopLocale::SimplifiedChinese, Theme::Light),
+        (DesktopLocale::TraditionalChinese, Theme::Dark),
+        (DesktopLocale::English, Theme::Dark),
+    ] {
+        app.desktop_locale = locale;
+        app.app_theme = theme;
+        let t = |key: &'static str| text(locale, key);
+        for (tab, persistent, help) in [
+            (
+                SecuritySettingsTab::Bash,
+                &[
+                    "优先级为总开关 → 分组开关 → 单项开关；关闭父级不会改写已保存的子项。",
+                    "统一控制命令、路径、风险、重定向与 Shell 语法审计；完全访问始终绕过。",
+                    "关闭后保留各单项值，但命令、路径、风险和重定向策略均不生效。",
+                    "已保存，当前不生效",
+                ][..],
+                &[
+                    ("安全配置", 0, "配置沙箱、资源限制、审计与安全门控策略。"),
+                    ("策略检查", 0, "命令、路径、风险与重定向策略。"),
+                    ("Shell 语法检测", 0, "按 validator 独立控制 Shell 语法检查。"),
+                ][..],
+            ),
+            (
+                SecuritySettingsTab::SandboxAndResources,
+                &[
+                    "选择自动检测、强制启用或强制禁用沙箱。",
+                    "不使用任何沙箱。仅在你明确接受更低隔离级别时使用。",
+                ][..],
+                &[
+                    ("沙箱", 0, "控制是否启用沙箱以及选择具体后端。"),
+                    ("资源限制", 0, "约束进程的内存、CPU 与子进程数量。"),
+                ][..],
+            ),
+            (
+                SecuritySettingsTab::Audit,
+                &["为审计事件添加签名，提高完整性。"][..],
+                &[
+                    ("审计日志", 0, "记录并限制安全事件日志。"),
+                    ("审计日志路径", 0, "指定审计日志文件的写入位置。"),
+                ][..],
+            ),
+            (
+                SecuritySettingsTab::OtpAndEstop,
+                &[
+                    "启用敏感动作的二次验证。",
+                    "支持 totp、pairing、cli-prompt。",
+                    "从 E-Stop 恢复时要求额外 OTP 验证。",
+                ][..],
+                &[
+                    ("紧急停止", 0, "配置 E-Stop 状态与恢复要求。"),
+                    ("E-Stop 状态文件", 0, "指定紧急停止状态文件位置。"),
+                ][..],
+            ),
+            (
+                SecuritySettingsTab::Syscall,
+                &["使用更严格的异常检测规则。"][..],
+                &[
+                    ("系统调用异常检测", 0, "监控系统调用行为并限制告警节奏。"),
+                    ("系统调用日志路径", 0, "指定系统调用异常日志的写入位置。"),
+                ][..],
+            ),
+            (
+                SecuritySettingsTab::Guard,
+                &["启用蜜罐令牌与外泄检测。"][..],
+                &[
+                    ("防护", 1, "配置 Canary Token 与语义注入防护。"),
+                    ("语义集合", 0, "指定用于语义分析的数据集合。"),
+                ][..],
+            ),
+        ] {
+            app.security_settings.active_tab = tab;
+            let persistent: Vec<_> =
+                [error].into_iter().chain(persistent.iter().map(|s| t(s))).collect();
+            let help: Vec<_> =
+                help.iter().map(|&(title, index, body)| (t(title), index, t(body))).collect();
+            assert_contextual_help(
+                &app,
+                security::view(&app),
+                &mut renderer,
+                1450,
+                &persistent,
+                &help,
+            );
+        }
+    }
 }

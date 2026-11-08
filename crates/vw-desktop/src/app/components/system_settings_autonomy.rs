@@ -20,12 +20,14 @@ use crate::app::components::number_input::NumberInput;
 use crate::app::components::system_settings_common::{
     danger_action_btn_style, primary_action_btn_style, rounded_action_btn_style,
     settings_checkbox_style, settings_divider, settings_error_banner, settings_field_label,
-    settings_group_card, settings_group_heading,
+    settings_flexible_row_with_help, settings_group_card, settings_group_heading_with_help,
     settings_help_button_with_locale as settings_help_button, settings_muted_text_style,
-    settings_page_heading, settings_row_with_flexible_control, settings_segment_button_style,
-    settings_select, settings_tab_button, settings_tab_row, settings_text_input,
+    settings_page_heading_with_help, settings_row_with_flexible_control,
+    settings_segment_button_style, settings_select, settings_tab_button, settings_tab_row,
+    settings_text_input,
 };
 use crate::app::components::system_settings_search::SettingsTabDescriptor;
+use crate::app::i18n::I18n;
 use crate::app::state::{AutonomyListKind, AutonomySettingsTab};
 use crate::app::{App, Message, message};
 use iced::widget::scrollable::{Direction, Scrollbar};
@@ -224,6 +226,8 @@ fn bool_row<'a>(
 /// 渲染当前自治设置标签及其权限、预算或列表控件。
 pub fn view(app: &App) -> Element<'_, Message> {
     let s = &app.autonomy_settings;
+    let i18n = I18n::new(app.desktop_locale);
+    let theme = &app.app_theme;
     let available_tools = &app.agents_settings.available_tools;
     let help_btn = settings_help_button(
         app.desktop_locale,
@@ -275,10 +279,12 @@ pub fn view(app: &App) -> Element<'_, Message> {
     };
 
     let max_actions_row = || {
-        field_row(
-            crate::app::i18n::I18n::new(app.desktop_locale).__("每小时动作上限"),
-            crate::app::i18n::I18n::new(app.desktop_locale)
-                .__("限制自治过程中每小时可执行的动作数量。"),
+        settings_flexible_row_with_help(
+            i18n,
+            theme,
+            i18n.__("每小时动作上限"),
+            i18n.__("限制自治过程中每小时可执行的动作数量。"),
+            CONTROL_WIDTH,
             NumberInput::new(s.max_actions_per_hour as f32, 1.0, 1_000_000.0, 1.0, 0, 1.0, |v| {
                 Message::Settings(message::SettingsMessage::AutonomyMaxActionsPerHourChanged(
                     v.round() as u32,
@@ -289,10 +295,12 @@ pub fn view(app: &App) -> Element<'_, Message> {
     };
 
     let max_cost_row = || {
-        field_row(
-            crate::app::i18n::I18n::new(app.desktop_locale).__("每日成本上限(分)"),
-            crate::app::i18n::I18n::new(app.desktop_locale)
-                .__("限制自治行为每天可消耗的成本预算。"),
+        settings_flexible_row_with_help(
+            i18n,
+            theme,
+            i18n.__("每日成本上限(分)"),
+            i18n.__("限制自治行为每天可消耗的成本预算。"),
+            CONTROL_WIDTH,
             NumberInput::new(
                 s.max_cost_per_day_cents as f32,
                 1.0,
@@ -548,7 +556,6 @@ pub fn view(app: &App) -> Element<'_, Message> {
         )
     };
 
-    let i18n = crate::app::i18n::I18n::new(app.desktop_locale);
     let tabs = settings_tab_row(AUTONOMY_TABS.iter().map(|descriptor| {
         settings_tab_button(
             i18n.__(descriptor.label),
@@ -561,12 +568,12 @@ pub fn view(app: &App) -> Element<'_, Message> {
 
     let (section, panel): (Element<'_, Message>, Element<'_, Message>) = match s.active_tab {
         AutonomySettingsTab::Permissions => (
-            settings_group_heading(
-                crate::app::i18n::I18n::new(app.desktop_locale).__("权限与审批"),
-                crate::app::i18n::I18n::new(app.desktop_locale)
-                    .__("核心执行级别、审批阈值与重定向策略。"),
-            )
-            .into(),
+            settings_group_heading_with_help(
+                i18n,
+                theme,
+                i18n.__("权限与审批"),
+                i18n.__("核心执行级别、审批阈值与重定向策略。"),
+            ),
             settings_group_card(
                 column![
                     level_row(),
@@ -586,23 +593,24 @@ pub fn view(app: &App) -> Element<'_, Message> {
             .into(),
         ),
         AutonomySettingsTab::Budget => (
-            settings_group_heading(
-                crate::app::i18n::I18n::new(app.desktop_locale).__("预算"),
-                crate::app::i18n::I18n::new(app.desktop_locale).__("限制单位时间的动作量与成本。"),
-            )
-            .into(),
+            settings_group_heading_with_help(
+                i18n,
+                theme,
+                i18n.__("预算"),
+                i18n.__("限制单位时间的动作量与成本。"),
+            ),
             settings_group_card(
                 column![max_actions_row(), settings_divider(), max_cost_row()].spacing(0),
             )
             .into(),
         ),
         AutonomySettingsTab::ToolsAndPaths => (
-            settings_group_heading(
-                crate::app::i18n::I18n::new(app.desktop_locale).__("工具与路径"),
-                crate::app::i18n::I18n::new(app.desktop_locale)
-                    .__("为 shell 命令、路径访问和自动审批设置边界。"),
-            )
-            .into(),
+            settings_group_heading_with_help(
+                i18n,
+                theme,
+                i18n.__("工具与路径"),
+                i18n.__("为 shell 命令、路径访问和自动审批设置边界。"),
+            ),
             settings_group_card(
                 column![
                     allowed_commands_row(),
@@ -622,12 +630,12 @@ pub fn view(app: &App) -> Element<'_, Message> {
             .into(),
         ),
         AutonomySettingsTab::NonCli => (
-            settings_group_heading(
-                crate::app::i18n::I18n::new(app.desktop_locale).__("非 CLI 暴露"),
-                crate::app::i18n::I18n::new(app.desktop_locale)
-                    .__("控制外部通道中的工具暴露与审批人。"),
-            )
-            .into(),
+            settings_group_heading_with_help(
+                i18n,
+                theme,
+                i18n.__("非 CLI 暴露"),
+                i18n.__("控制外部通道中的工具暴露与审批人。"),
+            ),
             settings_group_card(
                 column![
                     excluded_tools_row(),
@@ -644,10 +652,11 @@ pub fn view(app: &App) -> Element<'_, Message> {
 
     let mut col = column![
         row![
-            container(settings_page_heading(
-                crate::app::i18n::I18n::new(app.desktop_locale).__("自治配置"),
-                crate::app::i18n::I18n::new(app.desktop_locale)
-                    .__("配置代理的权限边界、预算限制与审批规则。")
+            container(settings_page_heading_with_help(
+                i18n,
+                theme,
+                i18n.__("自治配置"),
+                i18n.__("配置代理的权限边界、预算限制与审批规则。")
             ))
             .width(Length::Fill),
             help_btn,

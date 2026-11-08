@@ -620,3 +620,26 @@ Pi 供应商表单的现有网关入口为 `vw-agent/src/gateway/api/handlers/ap
 | `cargo clippy --all-targets --all-features -- -D warnings` | 0 | 全工作区、全目标及 features 通过 |
 
 审查后差异限于 AGY 原生发现、独立测试、模块注册、共用的 macOS 进程执行逻辑和本记录。`git diff --cached --check` 通过。两个阶段的占用锁已释放，编译缓存已保留。
+
+## 任务 24　迁移 Codex 补空投影
+
+2026-11-08，macOS 27.0（26A428），arm64。批次 23 由 `6c8a20c0c` 交付。已核对 `TenantScope`、授权主机环境 `LocalReadEnvironment`、应用注册和可信 CLI 定位、`ProviderOperation` 及 `ProviderTransactions::commit_checked`。
+
+| 固定来源 `ca58c0313360eae7c851fbd7553c1614c7af03e7` | 实际路径 |
+| --- | --- |
+| `src/components/providers/forms/modelMetadataFill.ts::fillCodexCatalogModel` 和 `CodexFormFields.tsx::CODEX_REASONING_LEVELS` | `crates/vw-agent-apps/src/models/fill_codex.rs::fill_codex_catalog_model` 接收母任务 4 的 `CodexNativeModel`、当前目录元数据和批次 18–19 已按应用、端点与模型解析的 `ModelMetadataDto`。现有数值字段用 `None` 表示空窗口，补空差异中用十进制字符串表示建议值。档位按 Codex 顺序去重并过滤未知值。模态字段未设且确认支持图片时建议 `["text", "image"]`，文字输入能力不会产生关闭图片的建议。已设的模态列表，包括显式空列表，保持原样 |
+| `tests/components/modelMetadataFill.test.ts` 中的 Codex 行为 | `crates/vw-agent-apps/src/models/fill_codex_tests.rs` 验证用户窗口、档位和模态、纯文字结果、不可用窗口、仅补允许字段，以及逐字段保留实际来源与抓取时间。返回值是内存中的建议差异 |
+| 下游接点 | 补全预览 DTO 已定义于 `crates/vw-api-types/src/model_catalog.rs`，预览和修订提交由任务 32 组装，网关和 SDK 接线由任务 38 处理，Iced 来源展示由任务 41 接线。现有发布路径 `providers/codex_catalog.rs::CodexFiles::apply` 经 `models::codex_projection` 序列化已保存行。现有 Codex 档案网关、SDK 和桌面表单分别位于 `crates/vw-agent/src/gateway/api/handlers/app_providers/codex_catalog.rs`、`crates/vw-gateway-client/src/client/app_providers/codex_catalog.rs` 和 `crates/vw-desktop/src/app/components/app_providers/codex.rs`。本项在 macOS 验证原生纯投影 |
+
+### 验证
+
+两个阶段均动态领取槽位 **1**，`CARGO_TARGET_DIR=/Users/xiangmin/worker/code/shiju/target/rust-slot-1`。Cargo 中间目录使用同一槽位。格式化在 Git 源码快照中执行，只回写本项 Rust 文件。测试和 Clippy 在实际工作区执行。
+
+| 命令 | 退出码 | 证据 |
+| --- | ---: | --- |
+| `cargo fmt --all`（红灯、绿灯） | 0、0 | 两阶段格式化完成 |
+| `cargo test -p vw-agent-apps catalog_fill_codex_ -- --nocapture`（红灯） | 101 | 6 条有效用例，2 项通过、4 项失败、649 项过滤。指定用例保留了用户窗口，但档位和档位来源为空，预期档位为 `minimal, low, high, max, ultra`，来源为带抓取时间的 models.dev |
+| `cargo test -p vw-agent-apps catalog_fill_codex_ -- --nocapture`（绿灯） | 0 | 6 项通过，649 项过滤 |
+| `cargo clippy --all-targets --all-features -- -D warnings` | 0 | 全工作区、全目标及 features 通过 |
+
+审查后差异限于补空投影、独立测试、模块注册及本记录。`git diff --cached --check` 通过。两个阶段的占用锁已释放，编译缓存已保留。

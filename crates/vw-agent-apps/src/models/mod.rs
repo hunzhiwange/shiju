@@ -11,6 +11,7 @@ pub mod discovery_opencode;
 #[cfg(target_os = "macos")]
 mod discovery_process;
 pub mod discovery_url;
+pub mod fill_codex;
 pub mod identity;
 #[cfg(not(target_arch = "wasm32"))]
 pub mod metadata;
@@ -39,6 +40,8 @@ mod discovery_http_tests;
 mod discovery_opencode_tests;
 #[cfg(test)]
 mod discovery_url_tests;
+#[cfg(test)]
+mod fill_codex_tests;
 #[cfg(test)]
 mod identity_tests;
 #[cfg(all(test, not(target_arch = "wasm32")))]

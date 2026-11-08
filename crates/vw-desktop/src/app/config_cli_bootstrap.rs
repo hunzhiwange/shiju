@@ -354,7 +354,7 @@ fn sync_gateway_client_bootstrap_from_runtime_config(
     }
 
     cfg.set_servers(servers, next.id);
-    super::system_settings::save_gateway_client_bootstrap_config(&cfg);
+    super::system_settings::save_gateway_client_bootstrap_config(&cfg)?;
     Ok(endpoint)
 }
 

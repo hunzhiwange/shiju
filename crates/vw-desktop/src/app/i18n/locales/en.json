@@ -88,6 +88,8 @@
   "第 %s 条路由缺少 model": "Route %s is missing model",
   "第 %s 条路由的 priority 不是有效数字": "Route %s priority is not a valid number",
   "已检测到 query_classification 规则，但桌面模型路由列表为空": "query_classification rules were found, but the Desktop model route list is empty",
+  "无法保存本机网关连接。": "Could not save the local gateway connection.",
+  "网关连接已在本机保存，远端同步失败。": "Gateway connection saved locally. Remote sync failed.",
   "租户配置无效：%s": "Invalid tenant configuration: %s",
   "skey 名称不能为空": "skey name must not be empty",
   "skey 名称不能超过 80 个字符": "skey name must be 80 characters or fewer",

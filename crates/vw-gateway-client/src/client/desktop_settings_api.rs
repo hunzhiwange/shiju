@@ -3,6 +3,7 @@ use serde::{Deserialize, Serialize};
 use serde_json::Value;
 
 use super::GatewayClient;
+use crate::http::apply_request_context;
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 pub struct DesktopSkillCatalogEntryDto {
@@ -667,6 +668,27 @@ impl GatewayClient {
         T: Serialize,
     {
         let value = serde_json::to_value(patch).map_err(|err| err.to_string())?;
+        if value.get("gateway_client").is_some() {
+            // A rejected connection snapshot may be echoed in the response.
+            // Keep both the payload and the server's error text out of logs and UI messages.
+            let request = self
+                .client
+                .patch(format!("{}/v1/global/config", self.endpoint.base_url()))
+                .json(&serde_json::json!({"app_ui": {"system_settings": value}}));
+            let response = apply_request_context(request, &self.endpoint)
+                .send()
+                .await
+                .map_err(|_| "gateway connection sync request failed".to_string())?;
+            let status = response.status();
+            if !status.is_success() {
+                return Err(format!("gateway connection sync failed: {status}"));
+            }
+            response
+                .json::<Value>()
+                .await
+                .map_err(|_| "invalid gateway connection sync response".to_string())?;
+            return Ok(());
+        }
         self.global_config_patch_path(&["app_ui", "system_settings"], value).await
     }
 

@@ -80,8 +80,7 @@ fn next_server_id(config: &GatewayClientSystemSettingsConfig) -> String {
     "gateway-new".to_string()
 }
 
-fn persist_gateway_client_settings(app: &mut App) -> Result<(), Feedback> {
-    sync_selected_server_from_inputs(app)?;
+fn persist_gateway_client_settings(app: &App) -> Result<GatewayClientSystemSettingsConfig, String> {
     let servers = app
         .gateway_client_settings
         .servers
@@ -92,12 +91,11 @@ fn persist_gateway_client_settings(app: &mut App) -> Result<(), Feedback> {
 
     update_gateway_client_config(|cfg| {
         cfg.set_servers(servers, active_server_id);
-    });
-    Ok(())
+    })
 }
 
-fn tenant_validation_failure(app: &mut App, error: Feedback) -> Task<Message> {
-    app.gateway_client_settings.save_error = Some((error.clone()).into());
+fn show_save_error(app: &mut App, error: Feedback) -> Task<Message> {
+    app.gateway_client_settings.save_error = Some(error.clone());
     app.show_error_toast(error.display(app.desktop_locale))
 }
 
@@ -118,12 +116,20 @@ pub fn update(app: &mut App, message: SettingsMessage) -> Task<Message> {
             | GatewayClientMessage::PortChanged(_)
             | GatewayClientMessage::PlatformIdChanged(_)
             | GatewayClientMessage::CompanyIdChanged(_)
+            | GatewayClientMessage::SkeyChanged(_)
     );
+    let changes_selection = matches!(
+        &message,
+        GatewayClientMessage::SelectServer(_)
+            | GatewayClientMessage::AddServer
+            | GatewayClientMessage::RemoveServerConfirmed(_)
+    );
+    let previous = app.gateway_client_settings.clone();
 
     match message {
         GatewayClientMessage::SelectServer(server_id) => {
             if let Err(error) = sync_selected_server_from_inputs(app) {
-                return tenant_validation_failure(app, error);
+                return show_save_error(app, error);
             }
             if app.gateway_client_settings.servers.iter().any(|server| server.id == server_id) {
                 app.gateway_client_settings.selected_server_id = server_id;
@@ -132,7 +138,7 @@ pub fn update(app: &mut App, message: SettingsMessage) -> Task<Message> {
         }
         GatewayClientMessage::AddServer => {
             if let Err(error) = sync_selected_server_from_inputs(app) {
-                return tenant_validation_failure(app, error);
+                return show_save_error(app, error);
             }
             let id = {
                 let mut cfg = GatewayClientSystemSettingsConfig::default();
@@ -222,24 +228,35 @@ pub fn update(app: &mut App, message: SettingsMessage) -> Task<Message> {
         }
     }
 
-    let old_endpoint = refresh_health.then(crate::app::gateway_client_endpoint);
-    if let Err(error) = persist_gateway_client_settings(app) {
-        return tenant_validation_failure(app, error);
+    if let Err(error) = sync_selected_server_from_inputs(app) {
+        return show_save_error(app, error);
     }
-    load_selected_server_into_inputs(app);
-    app.gateway_client_settings.host_input =
-        normalize_host(&app.gateway_client_settings.host_input);
-    app.gateway_client_settings.save_error = None;
-    let Some(old_endpoint) = old_endpoint else {
-        return Task::none();
+    let old_endpoint = refresh_health.then(crate::app::gateway_client_endpoint);
+    let config = match persist_gateway_client_settings(app) {
+        Ok(config) => config,
+        Err(_) => {
+            if changes_selection {
+                app.gateway_client_settings = previous;
+            } else {
+                // Keep the text available for correction or retry, while probes use saved servers.
+                app.gateway_client_settings.servers = previous.servers;
+            }
+            return show_save_error(app, Feedback::owned("无法保存本机网关连接。", vec![]));
+        }
     };
-    let endpoint = crate::app::gateway_client_endpoint();
+    load_selected_server_into_inputs(app);
+    app.gateway_client_settings.save_error = None;
+    let (endpoint, save) = app.queue_gateway_client_snapshot(config);
+    let Some(old_endpoint) = old_endpoint else {
+        return save;
+    };
     let preferences = if old_endpoint.base_url() != endpoint.base_url()
         || old_endpoint.tenant_scope() != endpoint.tenant_scope()
+        || old_endpoint.auth.and_then(|auth| auth.skey) != endpoint.auth.and_then(|auth| auth.skey)
     {
         app.reload_project_chat_preferences(true)
     } else {
         Task::none()
     };
-    Task::batch([preferences, Task::done(Message::GatewayHealthTick)])
+    Task::batch([save, preferences, Task::done(Message::GatewayHealthTick)])
 }

@@ -57,5 +57,6 @@ pub(crate) use system_settings::install_window_test_bootstrap;
 
 #[cfg(all(test, not(target_arch = "wasm32")))]
 pub(super) use system_settings::config_system_settings_tests::{
-    drive_system_settings_patch, with_editor_settings_gateway,
+    drive_system_settings_patch, isolated_settings, read_http_request, request_json_body,
+    with_editor_settings_gateway,
 };

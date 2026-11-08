@@ -441,9 +441,23 @@ impl App {
             tab.editor.set_theme(editor_theme.clone());
         }
         self.git_copy_modal_code_editor.set_theme(theme::from_iced_theme(&editor_theme));
-        let active_gateway_client = system.gateway_client.active_server();
-        self.gateway_client_settings.servers = system
-            .gateway_client
+        if !self.system_settings_edited(SystemSettingsSection::GatewayClient)
+            && self.gateway_client_settings.save_error.is_none()
+        {
+            self.apply_bootstrap_gateway_client(system.gateway_client);
+        }
+        #[cfg(not(target_arch = "wasm32"))]
+        if self.terminal.theme == crate::app::TerminalTheme::System {
+            self.terminal.apply_app_theme(&self.app_theme);
+        }
+    }
+
+    fn apply_bootstrap_gateway_client(
+        &mut self,
+        config: vw_config_types::ui::GatewayClientSystemSettingsConfig,
+    ) {
+        let active_gateway_client = config.active_server();
+        self.gateway_client_settings.servers = config
             .normalized_servers()
             .iter()
             .map(crate::app::state::GatewayClientServerDraft::from_config)
@@ -465,10 +479,6 @@ impl App {
         self.gateway_client_settings.platform_id_input = active_gateway_client.platform_id;
         self.gateway_client_settings.company_id_input = active_gateway_client.company_id;
         self.gateway_client_settings.skey_input = active_gateway_client.skey;
-        #[cfg(not(target_arch = "wasm32"))]
-        if self.terminal.theme == crate::app::TerminalTheme::System {
-            self.terminal.apply_app_theme(&self.app_theme);
-        }
     }
 
     fn apply_bootstrap_browser_settings(&mut self, browser: vw_config_types::tools::BrowserConfig) {

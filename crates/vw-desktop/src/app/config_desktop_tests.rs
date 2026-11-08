@@ -189,7 +189,8 @@ fn configure_gateway(port: u16) -> (MutexGuard<'static, ()>, TempDir, EnvGuard) 
 }
 
 pub(crate) fn set_gateway_port(port: u16) {
-    super::super::system_settings::save_gateway_client_bootstrap_config(&gateway_config(port));
+    super::super::system_settings::save_gateway_client_bootstrap_config(&gateway_config(port))
+        .unwrap();
 }
 
 fn source_declares_symbol(name: &str) -> bool {

@@ -6,7 +6,9 @@ use iced::Task;
 use serde::de::DeserializeOwned;
 #[cfg(not(target_arch = "wasm32"))]
 use std::sync::OnceLock;
-use vw_config_types::{config::Config, security::IdentityConfig};
+use vw_config_types::{
+    config::Config, security::IdentityConfig, ui::GatewayClientSystemSettingsConfig,
+};
 use vw_gateway_client::vw_api_types::id::TenantScope;
 use vw_gateway_client::{GatewayClient, GatewayEndpoint};
 
@@ -146,11 +148,13 @@ pub fn spawn_gateway_task(
 
 /// 从当前活动服务配置构造带认证与租户范围的网关端点。
 pub fn gateway_client_endpoint() -> GatewayEndpoint {
-    #[cfg(not(target_arch = "wasm32"))]
-    let cfg = load_gateway_client_bootstrap_config();
-    #[cfg(target_arch = "wasm32")]
-    let cfg = load_gateway_client_bootstrap_config();
-    let active = cfg.active_server();
+    gateway_client_endpoint_from_config(&load_gateway_client_bootstrap_config())
+}
+
+pub(super) fn gateway_client_endpoint_from_config(
+    config: &GatewayClientSystemSettingsConfig,
+) -> GatewayEndpoint {
+    let active = config.active_server();
     let host = normalize_gateway_host(&active.host);
     let skey = if active.skey.trim().is_empty() {
         active.bearer_token.trim().to_string()

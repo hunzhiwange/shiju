@@ -113,7 +113,7 @@ impl TestGateway {
             }],
             "test".to_string(),
         );
-        super::super::system_settings::save_gateway_client_bootstrap_config(&config);
+        super::super::system_settings::save_gateway_client_bootstrap_config(&config).unwrap();
 
         Self { _home: home, _home_env: home_env, requests }
     }

@@ -19,7 +19,7 @@ use vw_config_types::ui::{
 const SOURCE: &str = include_str!("config_system_settings.rs");
 static CONFIG_SYSTEM_SETTINGS_ENV_LOCK: LazyLock<Mutex<()>> = LazyLock::new(|| Mutex::new(()));
 
-struct EnvGuard {
+pub(in crate::app) struct EnvGuard {
     key: &'static str,
     previous: Option<std::ffi::OsString>,
 }
@@ -56,6 +56,14 @@ fn temp_home() -> (MutexGuard<'static, ()>, TempDir, EnvGuard) {
     let home = tempfile::tempdir().expect("temp home should be created");
     let guard = EnvGuard::set_os("HOME", home.path().as_os_str());
     (lock, home, guard)
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+pub(in crate::app) fn isolated_settings() -> (MutexGuard<'static, ()>, TempDir, EnvGuard) {
+    let lock = env_lock();
+    let root = tempfile::tempdir().expect("temp settings directory");
+    let guard = EnvGuard::set_os("VIBEWINDOW_CONFIG_DIR", root.path().as_os_str());
+    (lock, root, guard)
 }
 
 fn source_declares_symbol(name: &str) -> bool {
@@ -111,7 +119,7 @@ fn serve_global_config(
 }
 
 #[cfg(not(target_arch = "wasm32"))]
-fn read_http_request(stream: &mut TcpStream) -> String {
+pub(in crate::app) fn read_http_request(stream: &mut TcpStream) -> String {
     let mut request = Vec::new();
     let mut buffer = [0_u8; 512];
     loop {
@@ -147,7 +155,7 @@ fn http_content_length(headers: &str) -> usize {
 }
 
 #[cfg(not(target_arch = "wasm32"))]
-fn request_json_body(request: &str) -> serde_json::Value {
+pub(in crate::app) fn request_json_body(request: &str) -> serde_json::Value {
     let (_, body) = request.split_once("\r\n\r\n").expect("request should contain a body");
     serde_json::from_str(body).expect("request body should be json")
 }
@@ -311,7 +319,7 @@ fn save_gateway_client_bootstrap_config_writes_loadable_json() {
     let (_lock, home, _guard) = temp_home();
     let config = gateway_config("10.0.0.8", 49152);
 
-    super::save_gateway_client_bootstrap_config(&config);
+    super::save_gateway_client_bootstrap_config(&config).unwrap();
 
     let path =
         vw_config_types::paths::home_config_dir(home.path()).join("gateway-client-bootstrap.json");
@@ -365,7 +373,7 @@ fn load_gateway_client_bootstrap_config_prefers_home_cache_over_legacy_cache() {
     std::fs::write(&legacy_path, serde_json::to_string(&legacy).expect("config should serialize"))
         .expect("legacy cache should be written");
     let current = gateway_config("current.gateway", 8888);
-    super::save_gateway_client_bootstrap_config(&current);
+    super::save_gateway_client_bootstrap_config(&current).unwrap();
 
     let loaded = super::load_gateway_client_bootstrap_config();
 
@@ -399,7 +407,7 @@ fn load_gateway_client_bootstrap_config_does_not_fall_back_after_invalid_home_ca
 fn load_gateway_client_config_returns_bootstrap_cache() {
     let (_lock, _home, _guard) = temp_home();
     let config = gateway_config("gateway.internal", 9090);
-    super::save_gateway_client_bootstrap_config(&config);
+    super::save_gateway_client_bootstrap_config(&config).unwrap();
 
     let loaded = super::load_gateway_client_config();
 
@@ -421,7 +429,7 @@ fn load_system_settings_config_async_restores_gateway_snapshot() {
     .to_string();
     let (port, requests, join) = serve_global_config(vec![(200, body)]);
     let bootstrap = gateway_config("127.0.0.1", port);
-    super::save_gateway_client_bootstrap_config(&bootstrap);
+    super::save_gateway_client_bootstrap_config(&bootstrap).unwrap();
     std::fs::write(
         home.path().join("vibewindow.json"),
         serde_json::json!({
@@ -450,7 +458,7 @@ fn load_system_settings_config_async_uses_defaults_when_gateway_path_is_missing(
     let (port, requests, join) =
         serve_global_config(vec![(200, serde_json::json!({"app_ui": {}}).to_string())]);
     let bootstrap = gateway_config("127.0.0.1", port);
-    super::save_gateway_client_bootstrap_config(&bootstrap);
+    super::save_gateway_client_bootstrap_config(&bootstrap).unwrap();
 
     let loaded = test_runtime()
         .block_on(super::load_system_settings_config_async())
@@ -472,7 +480,7 @@ fn load_system_settings_config_async_uses_defaults_for_malformed_gateway_setting
     .to_string();
     let (port, requests, join) = serve_global_config(vec![(200, body)]);
     let bootstrap = gateway_config("127.0.0.1", port);
-    super::save_gateway_client_bootstrap_config(&bootstrap);
+    super::save_gateway_client_bootstrap_config(&bootstrap).unwrap();
 
     let loaded = test_runtime()
         .block_on(super::load_system_settings_config_async())
@@ -492,7 +500,7 @@ fn load_system_settings_config_async_uses_defaults_when_gateway_is_unavailable()
     let port = listener.local_addr().expect("unused address should exist").port();
     drop(listener);
     let bootstrap = gateway_config("127.0.0.1", port);
-    super::save_gateway_client_bootstrap_config(&bootstrap);
+    super::save_gateway_client_bootstrap_config(&bootstrap).unwrap();
 
     let loaded = test_runtime()
         .block_on(super::load_system_settings_config_async())
@@ -513,7 +521,7 @@ fn load_system_settings_config_runs_gateway_load_synchronously() {
     let body = serde_json::json!({"app_ui": {"system_settings": settings}}).to_string();
     let (port, requests, join) = serve_global_config(vec![(200, body)]);
     let bootstrap = gateway_config("127.0.0.1", port);
-    super::save_gateway_client_bootstrap_config(&bootstrap);
+    super::save_gateway_client_bootstrap_config(&bootstrap).unwrap();
 
     let loaded = super::load_system_settings_config();
     let request = requests.recv().expect("GET request should be captured");
@@ -539,7 +547,7 @@ fn system_settings_update_preserves_concurrent_editor_fields() {
         (200, "{}".into()),
         (200, "{}".into()),
     ]);
-    super::save_gateway_client_bootstrap_config(&gateway_config("127.0.0.1", port));
+    super::save_gateway_client_bootstrap_config(&gateway_config("127.0.0.1", port)).unwrap();
 
     replay_stale_system_settings_update();
     join.join().expect("stub should stop");
@@ -590,7 +598,7 @@ fn stale_system_settings_replay_on_live_gateway() {
     let bootstrap: GatewayClientSystemSettingsConfig =
         serde_json::from_slice(&std::fs::read(fixture).expect("read bootstrap fixture"))
             .expect("parse bootstrap fixture");
-    super::save_gateway_client_bootstrap_config(&bootstrap);
+    super::save_gateway_client_bootstrap_config(&bootstrap).unwrap();
 
     replay_stale_system_settings_update();
     let settings = test_runtime()
@@ -618,7 +626,7 @@ fn update_system_settings_config_result_async_normalizes_and_patches_settings() 
     let (port, requests, join) =
         serve_global_config(vec![(200, body), (200, serde_json::json!({}).to_string())]);
     let bootstrap = gateway_config("127.0.0.1", port);
-    super::save_gateway_client_bootstrap_config(&bootstrap);
+    super::save_gateway_client_bootstrap_config(&bootstrap).unwrap();
 
     test_runtime()
         .block_on(super::update_system_settings_config_result_async(|config| {
@@ -651,7 +659,7 @@ fn update_system_settings_config_result_async_clears_arrays_and_removes_object_k
     }}});
     let (port, requests, join) =
         serve_global_config(vec![(200, body.to_string()), (200, "{}".into())]);
-    super::save_gateway_client_bootstrap_config(&gateway_config("127.0.0.1", port));
+    super::save_gateway_client_bootstrap_config(&gateway_config("127.0.0.1", port)).unwrap();
 
     test_runtime()
         .block_on(super::update_system_settings_config_result_async(|config| {
@@ -674,7 +682,7 @@ fn update_system_settings_config_result_async_clears_arrays_and_removes_object_k
 fn update_system_settings_config_result_async_skips_unchanged_settings() {
     let (_lock, _home, _guard) = temp_home();
     let (port, requests, join) = serve_global_config(vec![(200, "{}".into())]);
-    super::save_gateway_client_bootstrap_config(&gateway_config("127.0.0.1", port));
+    super::save_gateway_client_bootstrap_config(&gateway_config("127.0.0.1", port)).unwrap();
 
     test_runtime()
         .block_on(super::update_system_settings_config_result_async(|_| {}))
@@ -698,7 +706,7 @@ fn update_system_settings_config_result_async_patches_quick_messages() {
     let (port, requests, join) =
         serve_global_config(vec![(200, body), (200, serde_json::json!({}).to_string())]);
     let bootstrap = gateway_config("127.0.0.1", port);
-    super::save_gateway_client_bootstrap_config(&bootstrap);
+    super::save_gateway_client_bootstrap_config(&bootstrap).unwrap();
 
     test_runtime()
         .block_on(super::update_system_settings_config_result_async(|config| {
@@ -726,55 +734,39 @@ fn update_system_settings_config_result_async_patches_quick_messages() {
 
 #[test]
 #[cfg(not(target_arch = "wasm32"))]
-fn update_system_settings_config_result_async_does_not_cache_gateway_after_patch_error() {
+fn update_system_settings_config_result_async_rejects_gateway_connection_edits() {
     let (_lock, _home, _guard) = temp_home();
-    let body = serde_json::json!({
-        "app_ui": {"system_settings": AppSystemSettingsConfig::default()}
-    })
-    .to_string();
-    let (port, requests, join) = serve_global_config(vec![
-        (200, body),
-        (500, serde_json::json!({"error": "patch rejected"}).to_string()),
-    ]);
-    let mut bootstrap = gateway_config("127.0.0.1", port);
-    bootstrap.username = "cached-user".to_string();
-    super::save_gateway_client_bootstrap_config(&bootstrap);
+    let (port, requests, join) = serve_global_config(vec![(200, "{}".into())]);
+    let bootstrap = gateway_config("127.0.0.1", port);
+    super::save_gateway_client_bootstrap_config(&bootstrap).unwrap();
 
     let error = test_runtime()
         .block_on(super::update_system_settings_config_result_async(|config| {
             config.gateway_client.username = "pending-user".to_string();
         }))
-        .expect_err("rejected patch should be reported");
-    let _get_request = requests.recv().expect("GET request should be captured");
-    let patch_request = requests.recv().expect("PATCH request should be captured");
+        .expect_err("gateway connections use the dedicated local save path");
     join.join().expect("stub should stop");
-    let patch = request_json_body(&patch_request);
 
-    assert!(error.contains("patch rejected") || error.contains("500"));
-    assert_eq!(patch["app_ui"]["system_settings"]["gateway_client"]["username"], "pending-user");
+    let requests = requests.into_iter().collect::<Vec<_>>();
+    assert_eq!(requests.len(), 1);
+    assert!(requests[0].starts_with("GET /v1/global/config "));
+    assert!(error.contains("gateway connections"));
     assert_eq!(super::load_gateway_client_bootstrap_config(), bootstrap);
 }
 
 #[test]
 #[cfg(not(target_arch = "wasm32"))]
-fn update_gateway_client_config_persists_and_patches_updated_snapshot() {
+fn update_gateway_client_config_persists_without_a_gateway() {
     let (_lock, _home, _guard) = temp_home();
-    let (port, requests, join) = serve_global_config(vec![(200, "{}".into())]);
-    let bootstrap = gateway_config("127.0.0.1", port);
-    super::save_gateway_client_bootstrap_config(&bootstrap);
+    let bootstrap = gateway_config("127.0.0.1", 1);
+    super::save_gateway_client_bootstrap_config(&bootstrap).unwrap();
 
-    super::update_gateway_client_config(|config| {
+    let snapshot = super::update_gateway_client_config(|config| {
         config.username = "desktop-user".to_string();
-    });
-    let patch_request = requests.recv().expect("PATCH request should be captured");
-    join.join().expect("stub should stop");
-    let patch = request_json_body(&patch_request);
-    let loaded = super::load_gateway_client_bootstrap_config();
-
-    assert_eq!(loaded.username, "desktop-user");
-    assert!(patch_request.starts_with("PATCH /v1/global/config "));
-    assert_eq!(patch["app_ui"]["system_settings"].as_object().unwrap().len(), 1);
-    assert_eq!(patch["app_ui"]["system_settings"]["gateway_client"]["username"], "desktop-user");
+    })
+    .expect("local save should succeed with no Gateway");
+    assert_eq!(snapshot.username, "desktop-user");
+    assert_eq!(super::load_gateway_client_bootstrap_config(), snapshot);
 }
 
 #[test]
@@ -832,7 +824,7 @@ pub(in crate::app) fn with_editor_settings_gateway(
     let listener = TcpListener::bind("127.0.0.1:0").unwrap();
     let address = listener.local_addr().unwrap();
     let bootstrap = gateway_config("127.0.0.1", address.port());
-    super::save_gateway_client_bootstrap_config(&bootstrap);
+    super::save_gateway_client_bootstrap_config(&bootstrap).unwrap();
     let bootstrap_path = super::gateway_client_bootstrap_cache_path().unwrap();
     let original_bootstrap = std::fs::read(&bootstrap_path).unwrap();
 

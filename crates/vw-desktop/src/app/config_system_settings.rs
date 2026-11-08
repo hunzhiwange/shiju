@@ -1,15 +1,18 @@
 //! 读写桌面系统设置并维护网关客户端启动缓存。
 //! 本模块负责配置归一化；系统设置通过 Gateway 读写，启动阶段仅单独缓存 Gateway 连接信息。
 
+use crate::app::i18n::settings_models::messages::Feedback;
 use crate::app::message::SettingsMessage;
 use crate::app::{App, Message};
 use iced::Task;
 use serde_json::{Map, Value};
 use vw_config_types::ui::{AppSystemSettingsConfig, GatewayClientSystemSettingsConfig};
+use vw_gateway_client::GatewayEndpoint;
 
 use super::desktop::{PreferencesScope, preferences_scope};
 use super::gateway::{
-    gateway_client, gateway_client_endpoint, run_gateway_call, spawn_gateway_task,
+    gateway_client, gateway_client_endpoint, gateway_client_endpoint_from_config, run_gateway_call,
+    spawn_gateway_task,
 };
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
@@ -17,6 +20,7 @@ pub enum SystemSettingsSection {
     Theme,
     Timezone,
     DialogueFlow,
+    GatewayClient,
 }
 
 impl App {
@@ -32,6 +36,26 @@ impl App {
         )
     }
 
+    pub(in crate::app) fn queue_gateway_client_snapshot(
+        &mut self,
+        config: GatewayClientSystemSettingsConfig,
+    ) -> (GatewayEndpoint, Task<Message>) {
+        let endpoint = gateway_client_endpoint_from_config(&config);
+        let mut snapshot = serde_json::json!(config);
+        // The Gateway merges objects. Explicitly remove cleared or migrated credentials.
+        for key in ["skey", "bearer_token", "username", "password"] {
+            if snapshot.get(key).is_none() {
+                snapshot[key] = Value::Null;
+            }
+        }
+        let task = self.desktop_preferences_persistence.enqueue_system_settings(
+            endpoint.clone(),
+            SystemSettingsSection::GatewayClient,
+            Map::from_iter([("gateway_client".to_string(), snapshot)]),
+        );
+        (endpoint, task)
+    }
+
     pub(in crate::app) fn system_settings_edited(&self, section: SystemSettingsSection) -> bool {
         self.desktop_preferences_persistence.edited_system_settings.contains(&section)
     }
@@ -45,6 +69,19 @@ impl App {
         let next = self
             .desktop_preferences_persistence
             .finish_system_settings_save(scope.clone(), section);
+        if section == SystemSettingsSection::GatewayClient {
+            if result.is_err()
+                && scope == preferences_scope(&gateway_client_endpoint())
+                && !self.desktop_preferences_persistence.has_system_settings_write(&scope, section)
+                && self.gateway_client_settings.save_error.is_none()
+            {
+                let error = Feedback::owned("网关连接已在本机保存，远端同步失败。", vec![]);
+                let toast = self.show_error_toast(error.display(self.desktop_locale));
+                self.gateway_client_settings.save_error = Some(error);
+                return Task::batch([next, toast]);
+            }
+            return next;
+        }
         if section == SystemSettingsSection::DialogueFlow
             && scope == preferences_scope(&gateway_client_endpoint())
         {
@@ -177,33 +214,33 @@ pub(super) fn load_gateway_client_bootstrap_config() -> GatewayClientSystemSetti
         .unwrap_or_default()
 }
 
-/// 模块内可见函数，执行 save_gateway_client_bootstrap_config 对应的应用流程。
-/// 返回值表达处理结果；失败通过错误值、日志或任务消息显式传递。
-pub(super) fn save_gateway_client_bootstrap_config(config: &GatewayClientSystemSettingsConfig) {
+/// 保存供原生启动或浏览器重载使用的本机连接配置。
+pub(super) fn save_gateway_client_bootstrap_config(
+    config: &GatewayClientSystemSettingsConfig,
+) -> Result<(), String> {
     #[cfg(test)]
     assert!(WINDOW_TEST_BOOTSTRAP.get().is_none(), "window fixture must not write bootstrap files");
+
     #[cfg(target_arch = "wasm32")]
     {
-        if let Some(storage) =
-            web_sys::window().and_then(|window| window.local_storage().ok().flatten())
-            && let Ok(content) = serde_json::to_string(config)
-        {
-            let _ = storage.set_item(GATEWAY_CLIENT_BOOTSTRAP_STORAGE_KEY, &content);
-        }
-        return;
+        let storage = web_sys::window()
+            .and_then(|window| window.local_storage().ok().flatten())
+            .ok_or("gateway bootstrap storage is unavailable")?;
+        let content = serde_json::to_string(config).map_err(|err| err.to_string())?;
+        storage
+            .set_item(GATEWAY_CLIENT_BOOTSTRAP_STORAGE_KEY, &content)
+            .map_err(|_| "gateway bootstrap storage write failed".to_string())
     }
 
     #[cfg(not(target_arch = "wasm32"))]
     {
-        let Some(path) = gateway_client_bootstrap_cache_path() else {
-            return;
-        };
-        if let Some(dir) = path.parent() {
-            let _ = std::fs::create_dir_all(dir);
-        }
-        if let Ok(content) = serde_json::to_string(config) {
-            let _ = std::fs::write(path, content);
-        }
+        let path = gateway_client_bootstrap_cache_path().ok_or("missing gateway bootstrap path")?;
+        let parent = path.parent().ok_or("missing gateway bootstrap directory")?;
+        std::fs::create_dir_all(parent).map_err(|err| err.to_string())?;
+        let mut file = tempfile::NamedTempFile::new_in(parent).map_err(|err| err.to_string())?;
+        serde_json::to_writer(file.as_file_mut(), config).map_err(|err| err.to_string())?;
+        file.persist(path).map_err(|err| err.to_string())?;
+        Ok(())
     }
 }
 
@@ -213,19 +250,14 @@ pub fn load_gateway_client_config() -> GatewayClientSystemSettingsConfig {
     load_gateway_client_bootstrap_config()
 }
 
-/// 公开函数，执行 update_gateway_client_config 对应的应用流程。
-/// 返回值表达处理结果；失败通过错误值、日志或任务消息显式传递。
+/// 先持久化本机连接，返回该次保存的快照供远端任务使用。
 pub fn update_gateway_client_config(
-    update: impl FnOnce(&mut GatewayClientSystemSettingsConfig) + Send,
-) {
-    let mut gateway_client = load_gateway_client_bootstrap_config();
-    update(&mut gateway_client);
-    save_gateway_client_bootstrap_config(&gateway_client);
-    // Select the new connection from the cache and persist its settings at that endpoint.
-    let patch = std::collections::BTreeMap::from([("gateway_client", gateway_client)]);
-    log_system_settings_update_error(run_gateway_call(patch_desktop_system_settings_via_gateway(
-        &patch,
-    )));
+    update: impl FnOnce(&mut GatewayClientSystemSettingsConfig),
+) -> Result<GatewayClientSystemSettingsConfig, String> {
+    let mut config = load_gateway_client_bootstrap_config();
+    update(&mut config);
+    save_gateway_client_bootstrap_config(&config)?;
+    Ok(config)
 }
 
 /// 公开函数，执行 load_system_settings_config_async 对应的应用流程。
@@ -268,11 +300,12 @@ pub async fn update_system_settings_config_result_async(
     if !retain_changed_settings(&before, &mut patch) {
         return Ok(());
     }
-    patch_desktop_system_settings_via_gateway(&patch).await?;
     if patch.get("gateway_client").is_some() {
-        save_gateway_client_bootstrap_config(&cfg.gateway_client);
+        return Err(
+            "gateway connections must be saved through the desktop connection settings".into()
+        );
     }
-    Ok(())
+    patch_desktop_system_settings_via_gateway(&patch).await
 }
 
 /// 公开函数，执行 update_system_settings_config_async 对应的应用流程。
@@ -310,16 +343,6 @@ pub fn load_system_settings_config() -> AppSystemSettingsConfig {
         config.gateway_client = load_gateway_client_bootstrap_config();
         config
     })
-}
-
-fn log_system_settings_update_error(outcome: Result<(), String>) {
-    if let Err(err) = outcome {
-        if vw_gateway_client::is_gateway_unavailable_error(&err) {
-            tracing::debug!(target: "vw_desktop", error = %err, "desktop system settings patch skipped because gateway is unavailable");
-        } else {
-            tracing::warn!(target: "vw_desktop", error = %err, "failed to patch desktop system settings via gateway");
-        }
-    }
 }
 
 #[cfg(test)]

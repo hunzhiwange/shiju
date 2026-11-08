@@ -25,6 +25,7 @@
 //! let model = provider::get_model("openai", "gpt-4").await?;
 //! ```
 
+use super::model_catalog;
 use crate::app::agent::auth;
 use crate::app::agent::config;
 use crate::app::agent::env;
@@ -62,7 +63,7 @@ static LOGGER: LazyLock<log::Logger> = LazyLock::new(|| {
     }))
 });
 
-#[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
+#[derive(Clone, Copy, Debug, Default, Eq, PartialEq, Hash)]
 struct ConfigFingerprint(u64);
 
 /// 目录读取失败和真实模型缺失是不同的边界，调用者无需匹配错误文字。
@@ -76,11 +77,12 @@ pub enum CatalogError {
 
 struct CatalogSnapshot {
     fingerprint: ConfigFingerprint,
-    filtered: Arc<State>,
-    settings: Arc<State>,
+    filtered: State,
+    settings: State,
+    defaults: HashMap<String, String>,
 }
 
-type CatalogCell = tokio::sync::Mutex<Option<CatalogSnapshot>>;
+type CatalogCell = tokio::sync::Mutex<Option<Arc<CatalogSnapshot>>>;
 
 // Provider 能力必须来自当前租户及项目；目录相同的不同租户也不能共用缓存。
 fn provider_scope_key() -> String {
@@ -141,38 +143,48 @@ fn instance_state()
     )
 }
 
-async fn catalog_state(apply_enabled_filter: bool) -> Result<Arc<State>, CatalogError> {
+async fn catalog_state() -> Result<Arc<CatalogSnapshot>, CatalogError> {
     let cell = instance_state()().await;
     // 同作用域从读取到发布串行执行；旧初始化不能覆盖较新的配置快照。
     let mut cached = cell.lock().await;
     let config = provider_config().await?;
-    let fingerprint = config_fingerprint(&config);
+    let catalogs = model_catalog::read(&config).await?;
+    let mut hasher = std::collections::hash_map::DefaultHasher::new();
+    config_fingerprint(&config).hash(&mut hasher);
+    for revision in model_catalog::revisions(&catalogs) {
+        revision.hash(&mut hasher);
+    }
+    let fingerprint = ConfigFingerprint(hasher.finish());
     if cached.as_ref().is_none_or(|state| state.fingerprint != fingerprint) {
         // 指纹和目录构建共用本次读取，失败不会初始化为空目录。
-        let settings = Arc::new(load_state_from_config(config, false).await);
-        let mut providers = settings.providers.clone();
-        providers.retain(|_, provider| {
+        let mut runtime = load_state_from_config(config, false).await;
+        let defaults = model_catalog::project_runtime(&mut runtime, &catalogs);
+        let mut settings = State { providers: runtime.providers.clone() };
+        model_catalog::project_aliases(&mut settings, &catalogs);
+        runtime.providers.retain(|_, provider| {
             provider.models.retain(|_, model| model.status == "active");
             !provider.models.is_empty()
         });
-        *cached = Some(CatalogSnapshot {
-            fingerprint,
-            filtered: Arc::new(State { providers }),
-            settings,
-        });
+        *cached =
+            Some(Arc::new(CatalogSnapshot { fingerprint, filtered: runtime, settings, defaults }));
     }
-    let snapshot = cached.as_ref().expect("successful catalog initialization");
-    Ok(if apply_enabled_filter { snapshot.filtered.clone() } else { snapshot.settings.clone() })
+    Ok(cached.as_ref().expect("successful catalog initialization").clone())
 }
 
 /// 获取当前作用域内已启用的提供商；配置读取失败时返回原始配置错误。
 pub async fn list() -> Result<HashMap<String, Info>, CatalogError> {
-    Ok(catalog_state(true).await?.providers.clone())
+    Ok(catalog_state().await?.filtered.providers.clone())
 }
 
 /// 获取包含未启用模型的设置页目录。
 pub async fn list_for_settings() -> Result<HashMap<String, Info>, CatalogError> {
-    Ok(catalog_state(false).await?.providers.clone())
+    Ok(catalog_state().await?.settings.providers.clone())
+}
+
+pub(crate) async fn settings_provider_list()
+-> Result<(HashMap<String, Info>, HashMap<String, String>), CatalogError> {
+    let snapshot = catalog_state().await?;
+    Ok((snapshot.settings.providers.clone(), snapshot.defaults.clone()))
 }
 
 /// 撤销当前作用域的目录缓存；等待进行中的初始化结束后再清除。
@@ -206,7 +218,7 @@ fn config_fingerprint_with_shiju_auth(
 ///
 /// 配置加载成功时返回 `Ok(Some(Info))` 或 `Ok(None)`；加载失败返回配置错误。
 pub async fn get_provider(provider_id: &str) -> Result<Option<Info>, CatalogError> {
-    Ok(catalog_state(true).await?.providers.get(provider_id).cloned())
+    Ok(catalog_state().await?.filtered.providers.get(provider_id).cloned())
 }
 
 /// 获取指定模型信息
@@ -228,7 +240,8 @@ pub async fn get_provider(provider_id: &str) -> Result<Option<Info>, CatalogErro
 /// - 提供商不存在时返回错误，并包含相似提供商建议
 /// - 模型不存在时返回错误，并包含相似模型建议
 pub async fn get_model(provider_id: &str, model_id: &str) -> Result<Model, CatalogError> {
-    let state = catalog_state(true).await?;
+    let snapshot = catalog_state().await?;
+    let state = &snapshot.filtered;
 
     // 首先查找提供商
     let Some(provider) = state.providers.get(provider_id) else {
@@ -299,13 +312,17 @@ pub async fn default_model() -> Result<ParsedModelRef, String> {
     }
 
     // 回退到第一个可用提供商的第一个模型
-    let providers = list().await.map_err(|error| error.to_string())?;
-    let mut candidates = providers.values().collect::<Vec<_>>();
+    let snapshot = catalog_state().await.map_err(|error| error.to_string())?;
+    let mut candidates = snapshot.filtered.providers.values().collect::<Vec<_>>();
     candidates.sort_by(|a, b| a.id.cmp(&b.id));
 
     let Some(p) = candidates.first() else {
         return Err("没有可用的 provider".to_string());
     };
+
+    if let Some(model_id) = snapshot.defaults.get(&p.id) {
+        return Ok(ParsedModelRef { provider_id: p.id.clone(), model_id: model_id.clone() });
+    }
 
     let mut models = p.models.values().cloned().collect::<Vec<_>>();
     models = sort(models);
@@ -338,7 +355,8 @@ pub async fn default_model() -> Result<ParsedModelRef, String> {
 ///
 /// 对于特定提供商会有调整（如 GitHub Copilot 会优先使用 GPT Mini）
 pub async fn get_small_model(provider_id: &str) -> Result<Option<Model>, CatalogError> {
-    let state = catalog_state(true).await?;
+    let snapshot = catalog_state().await?;
+    let state = &snapshot.filtered;
     let Some(provider) = state.providers.get(provider_id) else { return Ok(None) };
 
     // 根据提供商类型设置优先级列表
@@ -678,6 +696,10 @@ async fn load_state_from_config(config: config::Config, apply_enabled_filter: bo
             .iter()
             .find(|(configured_id, _)| configured_id == provider_id)
             .map(|(_, value)| value);
+        // Bound deployments use their saved catalog and do not probe legacy remote models.
+        if configured.is_some_and(|value| value.get("model_catalog").is_some()) {
+            continue;
+        }
         let configured_api = configured
             .and_then(|value| value.get("api"))
             .and_then(Value::as_str)

@@ -27,6 +27,7 @@ pub mod models {
     pub use vw_provider_resolver::models::*;
 }
 
+mod model_catalog;
 pub mod provider;
 
 pub mod transform;
@@ -34,3 +35,6 @@ pub mod transform;
 #[cfg(test)]
 #[path = "tests.rs"]
 mod tests;
+
+#[cfg(all(test, not(target_arch = "wasm32")))]
+mod model_catalog_tests;

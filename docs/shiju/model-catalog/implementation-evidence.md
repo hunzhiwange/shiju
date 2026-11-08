@@ -864,3 +864,32 @@ Pi 供应商表单的现有网关入口为 `vw-agent/src/gateway/api/handlers/ap
 | `cargo clippy --all-targets --all-features -- -D warnings` | 0 | 全工作区、全目标和全 features 通过。 |
 
 审查后的差异仅包含能力判定、独立测试、模块注册及本记录。暂存差异通过 `git diff --cached --check`。两个阶段结束后均释放槽位锁并保留缓存。
+
+## 任务 34　接通 resolver 模型目录投影
+
+2026-11-08，macOS 27.0（26A428），arm64。批次 33 由 `333c4dde0` 交付。复用租户作用域、应用和可信 CLI 注册、可取消操作、供应商修订事务及已保存目录。固定来源 `ca58c0313360eae7c851fbd7553c1614c7af03e7` 的实际供应商模块位于 `src-tauri/src/provider.rs`。本仓库的兼容查询入口位于 `crates/vw-provider-resolver/src/provider.rs`。
+
+应用供应商身份和运行供应商身份分别管理。通过运行配置中的 `providers.<运行供应商 ID>.model_catalog` 显式绑定已有应用目录。该字段使用 `ModelCatalogIdentity` 的 `targetHostId`、`appId`、`providerId` 和 `endpoint`，其中 `endpoint` 必须与同一运行供应商的 `api` 完全相同，`adapter` 使用该供应商配置的 OpenAI 或 Anthropic 传输。绑定读取当前租户下指定部署的目录，并以保存的行作为该运行供应商的可选模型。应用配置的读写授权和运行供应商的鉴权分别沿用现有入口。解除绑定即可恢复旧模型配置。
+
+| 来源与接点 | 实际路径 |
+| --- | --- |
+| `vw-provider-resolver/src/provider.rs::list_for_settings` 和 `get_model` 的兼容模型类型 | `crates/vw-agent/src/provider/model_catalog.rs` 把 `models::edits::read` 读取的应用目录投影为共享 resolver 类型。保留完整请求 ID、端点、能力、窗口和成本。展示别名只写入设置视图，来源由原生目录 DTO 保留并可查。 |
+| `catalog_state`、`list_for_settings`、`get_model` 与 `default_model` | `crates/vw-agent/src/provider/provider.rs` 使用租户、项目、配置及目录修订隔离快照。选中、修改或移除模型在下一次读取时生效。全局显式默认值优先，同一供应商内优先选用该部署保存的默认值。 |
+| 现有选择器和兼容网关 | `crates/vw-agent/src/gateway/api/handlers/provider.rs::provider_list` 在请求租户下读取设置视图和默认模型。响应仍使用 `all/default/connected`，未绑定的供应商沿用原有排序与默认规则。复用 `crates/vw-gateway-client/src/client/provider_api.rs::provider_list`，以及桌面 `app/message/settings/models.rs::load_models_for_settings` 和 `app/components/input_panel/model_popover.rs`。本项验收到真实 Gateway 和 SDK，Iced 实机验收由批次 43 负责。 |
+| 内置入口 | 聚焦用例核对 `shiju/deepseek-v4.1-flash` 仍在目录。静态核对 `crates/vw-acp/src/agent_registry.rs::BUILT_IN_AGENT_DEFINITIONS` 有 22 项。 |
+
+### 验证
+
+有效红灯、绿灯及 Clippy 阶段动态领取槽位 **1**，`CARGO_TARGET_DIR=/Users/xiangmin/worker/code/shiju/target/rust-slot-1`，Cargo 中间目录同槽。首次红灯修复私有中间件引用后，预备格式化曾领取槽位 **2**，`CARGO_TARGET_DIR=/Users/xiangmin/worker/code/shiju/target/rust-slot-2`。该阶段在启动测试前中断，退出码为 143，待槽位 1 释放后串行复跑。格式化在 Git 源码快照运行，只回写本项 Rust 文件。聚焦测试和 Clippy 在实际工作区运行。
+
+| 命令 | 退出码 | 证据 |
+| --- | ---: | --- |
+| `cargo fmt --all` | 0 | 各次格式化完成。 |
+| `cargo test -p vw-agent catalog_resolver_projection_ -- --nocapture`（首次红灯） | 101 | 0 项有效用例。测试改用生产鉴权路由装配夹具，修复 E0603。 |
+| `cargo test -p vw-agent catalog_resolver_projection_ -- --nocapture`（断言红灯） | 101 | 0 项通过、6 项失败、11685 项过滤。指定重开用例能在存储层读取原样部署，选择器实际没有该模型，预期展示 `目录展示名`。 |
+| `cargo test -p vw-agent catalog_resolver_projection_ -- --nocapture` 和 `cargo clippy --all-targets --all-features -- -D warnings`（首次绿灯） | 101、101 | 0 项有效用例。修复 `ModelId` 不实现 `Display` 的编译错误 E0599。 |
+| `cargo test -p vw-agent catalog_resolver_projection_ -- --nocapture`（绿灯复验） | 0 | 6 项通过、11685 项过滤。覆盖 SQLite 重开、请求 ID、默认值、能力与来源、主机和端点隔离、提交后刷新、解除绑定及跨租户 SDK 读取。macOS 链接器报告既有的 `__eh_frame` 大小警告。 |
+| `cargo clippy --all-targets --all-features -- -D warnings`（绿灯复验） | 0 | 全工作区、全目标和全 features 通过。 |
+| `cargo test -p vw-agent --lib gateway::api::handlers::provider::provider_tests:: -- --nocapture` | 0 | 15 项兼容测试通过、11676 项过滤，覆盖旧响应、默认排序、连接状态及 OAuth 路由。 |
+
+审查后的差异集中在 agent 目录投影、Gateway 接线、独立测试及本记录。各阶段已释放槽位锁，保留编译缓存。

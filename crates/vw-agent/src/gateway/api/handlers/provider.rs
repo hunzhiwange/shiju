@@ -2,12 +2,13 @@
 
 use std::collections::HashMap;
 
-use axum::Json;
 use axum::Router;
 use axum::extract::{Path, Query};
 use axum::http::HeaderMap;
 use axum::routing::{get, post};
+use axum::{Extension, Json};
 use serde::{Deserialize, Serialize};
+use vw_api_types::id::TenantScope;
 
 use crate::app::agent::gateway::ApiError;
 use crate::app::agent::gateway::instance::{InstanceQuery, resolve_directory, with_instance};
@@ -32,33 +33,39 @@ struct ProviderListResponse {
 }
 
 async fn provider_list(
+    Extension(tenant): Extension<TenantScope>,
     Query(query): Query<InstanceQuery>,
     headers: HeaderMap,
 ) -> Result<Json<ProviderListResponse>, ApiError> {
     let dir = resolve_directory(&query, &headers);
-    let result = with_instance(dir, move || {
-        Box::pin(async move {
-            let providers = provider::provider::list_for_settings()
-                .await
-                .map_err(|error| ApiError::internal(error.to_string()))?;
-            let mut out = Vec::new();
-            let mut defaults = HashMap::new();
-            let mut connected = Vec::new();
-            for p in providers.values() {
-                out.push(p.clone());
-                if p.key.as_deref().is_some_and(|k| !k.trim().is_empty()) {
-                    connected.push(p.id.clone());
+    let result = crate::session::ui_store::with_tenant_scope(
+        tenant,
+        with_instance(dir, move || {
+            Box::pin(async move {
+                let (providers, mut defaults) = provider::provider::settings_provider_list()
+                    .await
+                    .map_err(|error| ApiError::internal(error.to_string()))?;
+                let mut out = Vec::new();
+                let mut connected = Vec::new();
+                for p in providers.into_values() {
+                    if p.key.as_deref().is_some_and(|k| !k.trim().is_empty()) {
+                        connected.push(p.id.clone());
+                    }
+                    if !defaults.contains_key(&p.id) {
+                        let models = provider::provider::sort(
+                            p.models.values().cloned().collect::<Vec<_>>(),
+                        );
+                        if let Some(m) = models.first() {
+                            defaults.insert(p.id.clone(), m.id.clone());
+                        }
+                    }
+                    out.push(p);
                 }
-                let models =
-                    provider::provider::sort(p.models.values().cloned().collect::<Vec<_>>());
-                if let Some(m) = models.first() {
-                    defaults.insert(p.id.clone(), m.id.clone());
-                }
-            }
-            connected.sort();
-            Ok(ProviderListResponse { all: out, default: defaults, connected })
-        })
-    })
+                connected.sort();
+                Ok(ProviderListResponse { all: out, default: defaults, connected })
+            })
+        }),
+    )
     .await?;
     Ok(Json(result))
 }

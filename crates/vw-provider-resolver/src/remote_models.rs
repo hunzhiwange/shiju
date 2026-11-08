@@ -341,6 +341,7 @@ fn safe_remote_model(provider_id: &str, api_base: &str, model_id: String) -> Mod
         family: None,
         capabilities: Capabilities {
             native_tool_search: false,
+            catalog_execution: None,
             temperature: false,
             reasoning: false,
             reasoning_options: None,

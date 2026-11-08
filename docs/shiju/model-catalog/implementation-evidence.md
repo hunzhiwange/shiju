@@ -893,3 +893,29 @@ Pi 供应商表单的现有网关入口为 `vw-agent/src/gateway/api/handlers/ap
 | `cargo test -p vw-agent --lib gateway::api::handlers::provider::provider_tests:: -- --nocapture` | 0 | 15 项兼容测试通过、11676 项过滤，覆盖旧响应、默认排序、连接状态及 OAuth 路由。 |
 
 审查后的差异集中在 agent 目录投影、Gateway 接线、独立测试及本记录。各阶段已释放槽位锁，保留编译缓存。
+
+## 任务 35　执行边界拒绝不支持的能力
+
+2026-11-08，macOS 27.0（26A428），arm64。依赖批次 34 的 `5b4cb62ac`。复用按租户和部署读取的原生目录，以及运行供应商与目录端点的精确绑定。
+
+| 来源与接点 | 实际路径 |
+| --- | --- |
+| 固定来源 `ca58c0313360eae7c851fbd7553c1614c7af03e7` 的 `src-tauri/src/model_capabilities.rs::resolve_image_input_capability` 与 `image_input_capability_from_modalities` | `crates/vw-agent/src/provider/model_catalog.rs::project_model` 使用批次 33 的能力判定，并随已解析模型保留当前部署的输入声明和工具否定声明。运行证据仅驻留内存，选择器读取独立的布尔字段。 |
+| 会话流与直接 AI SDK 请求 | `crates/vw-agent/src/session/llm/stream.rs::stream_inner` 在加载图片前、`aisdk/request.rs::do_stream_request_aisdk` 在转换消息前调用 `aisdk/driver.rs::validate_catalog_request`。拒绝明确不支持的输入及工具定义或历史。显式 effort 沿用 `aisdk/reasoning.rs::validate_reasoning`，要求当前模型声明所选档位。媒体或工具状态未知时进入既有传输处理。 |
+| 聊天、委派、SDK 与桌面 | 直接聊天进入 `gateway/api/handlers/session/stream.rs::start_gateway_chat_producer`。委派经 `tools/delegate/execution.rs`、`providers::create_provider_with_options` 和 `providers/session_llm.rs::SessionLlmProvider` 回到同一 Gateway 会话链。`multimodal/ocr.rs::image_preprocessing_config` 在 OCR 前识别目录拒绝。现有 SDK `vw-gateway-client/src/client/mod.rs::GatewayClient::stream_chat` 承载能力错误，Iced 消费既有 `app/impls/agent_stream.rs` 会话错误路径。 |
+
+### 验证
+
+红灯和绿灯阶段各自动态领取槽位 **1**，`CARGO_TARGET_DIR=/Users/xiangmin/worker/code/shiju/target/rust-slot-1`，Cargo 中间目录同槽。格式化在源码快照运行，只回写本项 Rust 文件。测试与 Clippy 在实际工作区运行。各阶段均已释放锁并保留编译缓存。
+
+| 命令 | 退出码 | 证据 |
+| --- | ---: | --- |
+| `cargo fmt --all` | 0 | 红灯和绿灯各阶段均完成格式化。 |
+| `cargo test -p vw-agent catalog_execution_gate_ -- --nocapture`（首次红灯） | 101 | 测试断言使用了缺少 `Display` 的错误类型，修正后取得下列断言红灯。 |
+| `cargo test -p vw-agent catalog_execution_gate_ -- --nocapture`（断言红灯） | 101 | 10 项有效用例，5 项通过、5 项按预期失败。首例 `catalog_execution_gate_blocks_before_network` 实际发出 1 次上游请求，预期为 0。 |
+| `cargo test -p vw-agent catalog_execution_gate_ -- --nocapture`（绿灯） | 0 | 首轮 10 项通过，最终 11 项通过、0 项失败、11691 项过滤。拒绝用例的上游 POST 均为 0。允许用例核对原样模型 ID、图片、工具、effort 和响应增量。Gateway 用例经 SDK、临时 SQLite 和真实 Gateway 返回能力错误，启用 OCR 时也没有生成响应增量或打开上游流。 |
+| `cargo clippy --all-targets --all-features -- -D warnings` | 0 | 首轮与最终复验均通过。 |
+| `cargo test -p vw-agent --lib multimodal::ocr_tests:: -- --nocapture` | 0 | 10 项通过。 |
+| `cargo test -p vw-agent --lib catalog_resolver_projection_ -- --nocapture` | 0 | 6 项通过。 |
+
+聚焦测试仍报告既有 macOS 链接器 `__eh_frame` 大小警告。差异经审查，集中在目录投影、运行校验、OCR 边界、独立测试和共享类型初始化。ACP 路由与公共模型 relay 的代码位于本次差异之外。

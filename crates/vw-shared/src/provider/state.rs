@@ -95,6 +95,7 @@ pub fn is_default_model_limit(limit: &ModelLimit) -> bool {
 pub fn default_model_capabilities() -> Capabilities {
     Capabilities {
         native_tool_search: false,
+        catalog_execution: None,
         temperature: false,
         reasoning: false,
         reasoning_options: None,
@@ -276,6 +277,7 @@ pub fn from_models_dev_model(provider: &RawProvider, model: &RawModel) -> Model 
         family: model.family.clone(),
         capabilities: Capabilities {
             native_tool_search: false,
+            catalog_execution: None,
             temperature: model.temperature,
             reasoning: model.reasoning.unwrap_or_default(),
             reasoning_options: model.reasoning_options.clone(),

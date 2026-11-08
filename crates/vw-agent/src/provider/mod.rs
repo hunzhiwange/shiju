@@ -27,7 +27,7 @@ pub mod models {
     pub use vw_provider_resolver::models::*;
 }
 
-mod model_catalog;
+pub(crate) mod model_catalog;
 pub mod provider;
 
 pub mod transform;

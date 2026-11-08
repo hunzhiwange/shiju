@@ -11,6 +11,7 @@ use vw_api_types::model_catalog::{
 };
 use vw_shared::provider::reasoning::ReasoningOption;
 use vw_shared::provider::state::{DEFAULT_MODEL_CONTEXT_LIMIT, DEFAULT_MODEL_OUTPUT_LIMIT};
+use vw_shared::provider::types::CatalogExecutionCapabilities;
 
 pub(super) struct DeploymentCatalog {
     adapter: String,
@@ -128,7 +129,7 @@ pub(super) fn project_aliases(state: &mut State, catalogs: &DeploymentCatalogs) 
     }
 }
 
-fn project_model(provider_id: &str, adapter: &str, row: &ModelCatalogEntry) -> Model {
+pub(crate) fn project_model(provider_id: &str, adapter: &str, row: &ModelCatalogEntry) -> Model {
     let id = row.identity.model_id.as_ref();
     let metadata = &row.metadata;
     let declared =
@@ -153,6 +154,10 @@ fn project_model(provider_id: &str, adapter: &str, row: &ModelCatalogEntry) -> M
     if let Some(output) = &metadata.output_modalities {
         capabilities.output = modalities(output);
     }
+    capabilities.catalog_execution = Some(CatalogExecutionCapabilities {
+        input: metadata.input_modalities.as_ref().map(|_| capabilities.input.clone()),
+        tool_calls_unsupported: declared.tool_calls == ModelCapabilityState::Unsupported,
+    });
     let cost = metadata.cost.as_ref();
     let context = metadata.context_window.unwrap_or_else(|| {
         DEFAULT_MODEL_CONTEXT_LIMIT

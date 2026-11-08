@@ -25,6 +25,7 @@ pub(crate) fn model_with_limits(context: u64, input: Option<u64>, output: u64) -
         family: None,
         capabilities: provider::Capabilities {
             native_tool_search: false,
+            catalog_execution: None,
             temperature: true,
             reasoning: false,
             reasoning_options: None,

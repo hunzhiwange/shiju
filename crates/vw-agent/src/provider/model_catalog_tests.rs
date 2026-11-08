@@ -67,12 +67,16 @@ struct Fixture {
 
 impl Fixture {
     async fn new(tenant_name: &str) -> Self {
+        Self::with_endpoint(tenant_name, ENDPOINT).await
+    }
+
+    async fn with_endpoint(tenant_name: &str, endpoint: &str) -> Self {
         let tenant = TenantScope::new("catalog-projection", tenant_name).unwrap();
         let deployment = ModelCatalogIdentity {
             target_host_id: "mac-fixture".into(),
             app_id: AppId::Codex,
             provider_id: APP_PROVIDER.into(),
-            endpoint: ENDPOINT.into(),
+            endpoint: endpoint.into(),
         };
         let database = GlobalDatabase::for_home(&crate::global::paths().home).unwrap();
         let fixture = Self { tenant, deployment, database };
@@ -86,13 +90,13 @@ impl Fixture {
                     name: "Native fixture".into(),
                     protocol: ProviderProtocol::OpenaiResponses,
                     api_key: "fixture-private-secret".into(),
-                    base_url: ENDPOINT.into(),
+                    base_url: endpoint.into(),
                     model: "old".into(),
                     request_options: None,
                 },
             )
             .unwrap();
-        fixture.bind(&fixture.tenant, &fixture.deployment, ENDPOINT).await;
+        fixture.bind(&fixture.tenant, &fixture.deployment, endpoint).await;
         fixture
     }
 
@@ -363,4 +367,83 @@ async fn catalog_resolver_projection_keeps_gateway_picker_in_tenant() {
     }
     server.abort();
     let _ = server.await;
+}
+
+#[tokio::test]
+async fn catalog_execution_gate_rejects_gateway_image_before_ocr() {
+    use std::sync::{
+        Arc,
+        atomic::{AtomicUsize, Ordering},
+    };
+    use vw_gateway_client::{
+        GatewayAuth, GatewayChatStreamEvent, GatewayChatStreamRequest, GatewayClient,
+        GatewayEndpoint,
+    };
+
+    if run_isolated("catalog_execution_gate_rejects_gateway_image_before_ocr").await {
+        return;
+    }
+    let upstream = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
+    let url = format!("http://{}/v1", upstream.local_addr().unwrap());
+    let calls = Arc::new(AtomicUsize::new(0));
+    let observed = Arc::clone(&calls);
+    let upstream_app = axum::Router::new().route(
+        "/v1/responses",
+        axum::routing::post(move || async move {
+            observed.fetch_add(1, Ordering::Relaxed);
+            axum::http::StatusCode::BAD_REQUEST
+        }),
+    );
+    let upstream = tokio::spawn(async move { axum::serve(upstream, upstream_app).await.unwrap() });
+    let fixture = Fixture::with_endpoint("execution-gateway", &url).await;
+    fixture.select(
+        ALIAS,
+        ModelMetadataDto { input_modalities: Some(vec!["text".into()]), ..Default::default() },
+    );
+    let model = format!("{PROVIDER}/{REQUEST_ID}");
+    config::update_global_for_tenant(
+        &fixture.tenant,
+        json!({"multimodal": {"ocr": {"enabled": true, "model": model}}}),
+    )
+    .await
+    .unwrap();
+
+    let workspace = tempfile::tempdir().unwrap();
+    let gateway = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
+    let endpoint = GatewayEndpoint::new("127.0.0.1", gateway.local_addr().unwrap().port())
+        .with_tenant_scope(fixture.tenant)
+        .with_auth(GatewayAuth { skey: Some("dynamic-acceptance-skey".into()) });
+    let gateway = tokio::spawn(async move {
+        axum::serve(gateway, crate::gateway::dynamic_tools_acceptance_router()).await.unwrap();
+    });
+    let body = GatewayChatStreamRequest {
+        model: Some(model.clone()),
+        messages: vec![json!({"role":"user","content":[
+            {"type":"text","text":"Describe the image"},
+            {"type":"image","mimeType":"image/png","data":"aW1hZ2U="}
+        ]})],
+        ..Default::default()
+    };
+    let mut events = Vec::new();
+    let result = tokio::time::timeout(
+        std::time::Duration::from_secs(20),
+        GatewayClient::stream_chat(&endpoint, workspace.path().to_str(), &body, |event| {
+            events.push(event);
+            true
+        }),
+    )
+    .await;
+    gateway.abort();
+    upstream.abort();
+    let _ = tokio::join!(gateway, upstream);
+    assert_eq!(calls.load(Ordering::Relaxed), 0);
+    result.expect("gateway capability rejection timed out").unwrap();
+    assert!(
+        events.iter().any(|event| matches!(
+            event, GatewayChatStreamEvent::Error(error)
+                if error.contains(&model) && error.contains("does not support image input")
+        )),
+        "{events:?}"
+    );
+    assert!(!events.iter().any(|event| matches!(event, GatewayChatStreamEvent::Delta(_))));
 }

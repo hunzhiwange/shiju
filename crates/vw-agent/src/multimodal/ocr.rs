@@ -38,6 +38,11 @@ pub trait ImageTextExtractor: ProviderBounds {
     /// 查询完整模型引用是否支持图片输入。
     async fn supports_image_input(&self, model_ref: &str) -> anyhow::Result<bool>;
 
+    /// Whether a chat model should receive images without OCR substitution.
+    async fn accepts_chat_images(&self, model_ref: &str) -> anyhow::Result<bool> {
+        self.supports_image_input(model_ref).await
+    }
+
     /// 从已归一化的单张图片 data URI 中提取可见文字（兼容旧调用方）。
     async fn extract_text(&self, model_ref: &str, image_data_uri: &str) -> anyhow::Result<String>;
 
@@ -76,7 +81,7 @@ pub(crate) async fn image_preprocessing_config(
     model_ref: &str,
     extractor: &dyn ImageTextExtractor,
 ) -> anyhow::Result<Option<MultimodalConfig>> {
-    if extractor.supports_image_input(model_ref).await? {
+    if extractor.accepts_chat_images(model_ref).await? {
         return Ok(None);
     }
     if !config.ocr.enabled {
@@ -94,6 +99,19 @@ impl ImageTextExtractor for SessionImageTextExtractor {
     async fn supports_image_input(&self, model_ref: &str) -> anyhow::Result<bool> {
         let parsed = model_catalog::parse_model(model_ref);
         let model = model_catalog::get_model(&parsed.provider_id, &parsed.model_id).await?;
+        Ok(model.capabilities.input.image)
+    }
+
+    async fn accepts_chat_images(&self, model_ref: &str) -> anyhow::Result<bool> {
+        let parsed = model_catalog::parse_model(model_ref);
+        let model = model_catalog::get_model(&parsed.provider_id, &parsed.model_id).await?;
+        if let Some(declared) = &model.capabilities.catalog_execution {
+            anyhow::ensure!(
+                declared.input.as_ref().is_none_or(|input| input.image),
+                "model {model_ref} does not support image input"
+            );
+            return Ok(true);
+        }
         Ok(model.capabilities.input.image)
     }
 

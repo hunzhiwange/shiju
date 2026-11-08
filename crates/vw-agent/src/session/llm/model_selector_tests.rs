@@ -32,6 +32,7 @@ fn model(
         family: None,
         capabilities: provider::Capabilities {
             native_tool_search: false,
+            catalog_execution: None,
             temperature: true,
             reasoning,
             reasoning_options: None,

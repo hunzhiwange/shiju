@@ -300,6 +300,7 @@ fn model(id: &str) -> super::Model {
         family: None,
         capabilities: super::Capabilities {
             native_tool_search: false,
+            catalog_execution: None,
             temperature: true,
             reasoning: false,
             reasoning_options: None,

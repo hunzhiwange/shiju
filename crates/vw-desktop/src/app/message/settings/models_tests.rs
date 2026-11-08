@@ -28,6 +28,7 @@ fn model(provider_id: &str, id: &str, name: &str, status: &str) -> Model {
         family: None,
         capabilities: Capabilities {
             native_tool_search: false,
+            catalog_execution: None,
             temperature: true,
             reasoning: false,
             reasoning_options: None,

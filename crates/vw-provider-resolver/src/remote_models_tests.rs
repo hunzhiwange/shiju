@@ -87,6 +87,7 @@ fn test_model(id: &str, status: &str) -> Model {
         family: Some("static-family".to_string()),
         capabilities: Capabilities {
             native_tool_search: false,
+            catalog_execution: None,
             temperature: true,
             reasoning: true,
             reasoning_options: None,

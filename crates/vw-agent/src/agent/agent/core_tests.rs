@@ -107,6 +107,7 @@ fn selectable_model(provider_id: &str, id: &str) -> provider::Model {
         family: None,
         capabilities: provider::Capabilities {
             native_tool_search: false,
+            catalog_execution: None,
             temperature: true,
             reasoning: false,
             reasoning_options: None,

@@ -35,7 +35,7 @@ use crate::app::agent::tools;
 #[cfg(not(target_arch = "wasm32"))]
 use super::convert::compute_request_info;
 #[cfg(not(target_arch = "wasm32"))]
-use super::driver::dispatch_stream_request;
+use super::driver::{dispatch_stream_request, validate_catalog_request};
 
 #[cfg(not(target_arch = "wasm32"))]
 fn redact_bearer_for_log(secret: &str) -> String {
@@ -195,6 +195,14 @@ pub async fn do_stream_request_aisdk(
             },
         ));
     };
+
+    validate_catalog_request(
+        model,
+        chat_messages.as_array().map(Vec::as_slice).unwrap_or_default(),
+        tools,
+        merged_options,
+    )
+    .map_err(Error::Api)?;
 
     // 计算请求信息，包括基础 URL、请求 URL、路径覆盖和消息转换
     let request_info = compute_request_info(model, chat_messages)?;

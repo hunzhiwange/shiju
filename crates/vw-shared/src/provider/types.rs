@@ -34,6 +34,13 @@ pub enum InterleavedCapability {
     Field { field: String },
 }
 
+/// Execution evidence from the selected deployment, separate from selector defaults.
+#[derive(Debug, Clone)]
+pub struct CatalogExecutionCapabilities {
+    pub input: Option<CapabilityIO>,
+    pub tool_calls_unsupported: bool,
+}
+
 /// 模型能力声明。
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Capabilities {
@@ -46,6 +53,9 @@ pub struct Capabilities {
     /// Explicit model declaration; ordinary tool calling never implies native search.
     #[serde(default)]
     pub native_tool_search: bool,
+    /// Runtime-only evidence attached by the agent's tenant-scoped catalog projection.
+    #[serde(skip)]
+    pub catalog_execution: Option<CatalogExecutionCapabilities>,
     pub input: CapabilityIO,
     pub output: CapabilityIO,
     pub interleaved: InterleavedCapability,

@@ -513,6 +513,7 @@ fn summarize_models_keeps_builtin_provider_models_even_when_all_disabled() {
         family: None,
         capabilities: Capabilities {
             native_tool_search: false,
+            catalog_execution: None,
             temperature: true,
             reasoning: false,
             reasoning_options: None,
@@ -747,6 +748,7 @@ fn summarize_models_projects_active_capabilities_limits_and_detail() {
         family: None,
         capabilities: Capabilities {
             native_tool_search: false,
+            catalog_execution: None,
             temperature: true,
             reasoning: true,
             reasoning_options: None,

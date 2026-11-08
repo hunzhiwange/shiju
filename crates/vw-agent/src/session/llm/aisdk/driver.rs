@@ -18,7 +18,11 @@ use crate::app::agent::provider::provider;
 #[cfg(not(target_arch = "wasm32"))]
 use crate::app::agent::session::llm::logging::LOGGER;
 #[cfg(not(target_arch = "wasm32"))]
+use crate::app::agent::session::llm::messages::has_tool_calls;
+#[cfg(not(target_arch = "wasm32"))]
 use crate::app::agent::session::llm::types::{Error, StreamEvent};
+#[cfg(not(target_arch = "wasm32"))]
+use crate::app::agent::session::message::AssistantError;
 #[cfg(not(target_arch = "wasm32"))]
 use crate::app::agent::tools;
 
@@ -65,6 +69,74 @@ fn log_build_failed(
     Error::Api(assistant_error)
 }
 
+/// Check the selected catalog row before message conversion or image preparation.
+#[cfg(not(target_arch = "wasm32"))]
+pub(crate) fn validate_catalog_request(
+    model: &provider::Model,
+    messages: &[Value],
+    tools: &HashMap<String, tools::ToolSpec>,
+    options: &Value,
+) -> Result<(), AssistantError> {
+    let Some(declared) = &model.capabilities.catalog_execution else {
+        return Ok(());
+    };
+    let capability_error = |capability| {
+        assistant_error_from_aisdk(
+            &model.provider_id,
+            aisdk::Error::InvalidInput(format!(
+                "model {}/{} does not support {capability}",
+                model.provider_id, model.api.id
+            )),
+        )
+    };
+
+    if declared.tool_calls_unsupported
+        && (!tools.is_empty()
+            || has_tool_calls(messages)
+            || messages
+                .iter()
+                .any(|message| matches!(message["role"].as_str(), Some("tool" | "native"))))
+    {
+        return Err(capability_error("tool calls"));
+    }
+    if let Some(input) = &declared.input {
+        for message in messages.iter().filter(|message| message["role"] == "user") {
+            if let Some(modality) = unsupported_input(input, &message["content"]) {
+                return Err(capability_error(modality));
+            }
+        }
+    }
+    super::reasoning::validate_reasoning(model, options)
+        .map_err(|error| assistant_error_from_aisdk(&model.provider_id, error))
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+fn unsupported_input(input: &provider::CapabilityIO, content: &Value) -> Option<&'static str> {
+    if let Some(content) = content.as_str() {
+        if input.image && input.text {
+            return None;
+        }
+        let (text, images) = crate::multimodal::parse_image_markers(content);
+        if !input.image && !images.is_empty() {
+            return Some("image input");
+        }
+        return (!input.text && !text.is_empty()).then_some("text input");
+    }
+
+    content.as_array()?.iter().find_map(|part| match part["type"].as_str()? {
+        "image_url" | "image" | "input_image" if !input.image => Some("image input"),
+        "audio" | "input_audio" if !input.audio => Some("audio input"),
+        "video" | "video_url" | "input_video" if !input.video => Some("video input"),
+        "pdf" | "file" | "input_file" | "document" if !input.pdf => Some("PDF input"),
+        "text" | "input_text"
+            if !input.text && part["text"].as_str().is_some_and(|text| !text.trim().is_empty()) =>
+        {
+            Some("text input")
+        }
+        _ => None,
+    })
+}
+
 /// 解析提供方模型并分派 AI SDK 流式请求。
 ///
 /// 模型构建和流处理错误会转换为统一助手错误，同时避免在日志中输出认证令牌。
@@ -83,8 +155,11 @@ pub(crate) async fn dispatch_stream_request(
     abort: Option<&tokio::sync::watch::Receiver<bool>>,
     on_event: &mut (impl FnMut(StreamEvent) + Send),
 ) -> Result<(), Error> {
-    super::reasoning::validate_reasoning(model, merged_options)
-        .map_err(|error| log_build_failed(provider_id, model, &request_info.request_url, error))?;
+    if model.capabilities.catalog_execution.is_none() {
+        super::reasoning::validate_reasoning(model, merged_options).map_err(|error| {
+            log_build_failed(provider_id, model, &request_info.request_url, error)
+        })?;
+    }
     macro_rules! send_model {
         ($resolved:expr) => {{
             let lm = $resolved.map_err(|error| {

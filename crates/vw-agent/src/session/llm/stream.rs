@@ -52,7 +52,7 @@ use std::time::Duration;
 #[cfg(not(target_arch = "wasm32"))]
 use super::acp::request::do_stream_request_acp;
 #[cfg(not(target_arch = "wasm32"))]
-use super::aisdk::do_stream_request_aisdk;
+use super::aisdk::{do_stream_request_aisdk, validate_catalog_request};
 use super::logging::LOGGER;
 use super::messages::{build_chat_messages, build_system_messages, has_tool_calls, resolve_tools};
 use super::options::merge_deep_value;
@@ -403,11 +403,16 @@ async fn stream_inner(
 
     // ========== 工具准备 ==========
 
-    // 解析并过滤工具定义：
-    // - 根据权限和用户设置过滤工具
-    // - 如果模型不支持工具调用（toolcall capability），清空工具列表
+    let adapter = input.model.api.adapter.trim();
+    let force_acp = request_options_value_enable_acp(&merged_options);
+    let is_acp_adapter =
+        force_acp || matches!(adapter, "acp" | "agent-client-protocol" | "agent_client_protocol");
+
+    // Keep authorized tool definitions for the catalog gate to validate.
     let mut tools = resolve_tools(&input.tools, &input.agent.permission, &input.user);
-    if !input.model.capabilities.toolcall {
+    if !input.model.capabilities.toolcall
+        && (is_acp_adapter || input.model.capabilities.catalog_execution.is_none())
+    {
         tools.clear();
     }
 
@@ -464,10 +469,6 @@ async fn stream_inner(
 
     // 验证 adapter 类型：Responses 与 Chat Completions 共用 AI SDK 请求入口。
     // 特例：zai-coding-plan 和 zhipuai-coding-plan 提供商不受此限制
-    let adapter = input.model.api.adapter.trim();
-    let force_acp = request_options_value_enable_acp(&merged_options);
-    let is_acp_adapter =
-        force_acp || matches!(adapter, "acp" | "agent-client-protocol" | "agent_client_protocol");
     let request_retries = if is_acp_adapter || input.retry_in_caller { 0 } else { retries };
     if is_acp_adapter {
         tracing::info!(
@@ -521,6 +522,14 @@ async fn stream_inner(
 
     #[cfg(not(target_arch = "wasm32"))]
     {
+        if !is_acp_adapter
+            && let Err(error) =
+                validate_catalog_request(&input.model, &input.messages, &tools, &merged_options)
+        {
+            on_event(StreamEvent::Error(error.clone()));
+            return Err(Error::Api(error));
+        }
+
         // 构建完整的聊天消息列表（系统消息 + 用户/助手消息）
         let chat_messages = build_chat_messages(&system_msgs, &input.messages, &input.model);
         // 将用户消息中的 `[IMAGE:...]` 本地/远程引用归一化为 data URI，供 aisdk 多模态转换使用。

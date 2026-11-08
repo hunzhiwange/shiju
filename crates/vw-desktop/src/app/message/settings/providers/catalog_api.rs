@@ -1,11 +1,12 @@
 //! Read and edit models in a saved application's exact deployment through the SDK.
 
+use super::metadata_fill;
 use crate::app::{
     App, Message,
     message::app_providers::list::{self, ListMessage},
     state::app_providers::{
         list::Scope,
-        model_catalog::{CatalogContext, CatalogForm},
+        model_catalog::{CatalogContext, CatalogForm, FillState},
     },
 };
 use iced::Task;
@@ -40,6 +41,7 @@ pub enum Event {
     LoadCatalog,
     CatalogLoaded { generation: u64, result: Result<ModelCatalogReadResponse, String> },
     Save,
+    Fill(metadata_fill::Event),
     Searched { generation: u64, result: Result<Vec<ModelCatalogPreset>, String> },
     Saved { generation: u64, result: Result<(), String> },
 }
@@ -115,7 +117,7 @@ async fn search(
     }
 }
 
-async fn read_catalog(
+pub(super) async fn read_catalog(
     client: &GatewayClient,
     context: &CatalogContext,
     deployment: ModelCatalogIdentity,
@@ -251,6 +253,9 @@ pub(crate) fn update(app: &mut App, event: Event) -> Task<Message> {
         Ok(value) => value,
         Err(error) => {
             app.app_providers.model_catalog = None;
+            if matches!(&event, Event::Fill(event) if event.is_response()) {
+                return Task::none();
+            }
             return app.show_error_toast(error);
         }
     };
@@ -312,6 +317,7 @@ pub(crate) fn update(app: &mut App, event: Event) -> Task<Message> {
                 }
             }
         }
+        Event::Fill(event) => return metadata_fill::update(app, client, event),
         _ if form.busy() => {}
         Event::Query(query) => {
             *generation = generation.wrapping_add(1);
@@ -355,6 +361,7 @@ pub(crate) fn update(app: &mut App, event: Event) -> Task<Message> {
         Event::MakeDefault(value) => form.default_override = Some(value),
         Event::EditModel { generation: request, model_id } if *generation == request => {
             form.edit_model(model_id);
+            return metadata_fill::update(app, client, metadata_fill::Event::Preview);
         }
         Event::CancelEdit => form.clear_model_draft(),
         Event::LoadCatalog => {
@@ -366,6 +373,7 @@ pub(crate) fn update(app: &mut App, event: Event) -> Task<Message> {
             let request = *generation;
             form.loading = false;
             form.catalog_loading = true;
+            form.fill = FillState::Idle;
             form.notice = None;
             let token = token.clone();
             return Task::perform(
@@ -395,6 +403,7 @@ pub(crate) fn update(app: &mut App, event: Event) -> Task<Message> {
             let request = *generation;
             form.loading = false;
             form.saving = true;
+            form.fill = FillState::Idle;
             form.notice = None;
             let token = token.clone();
             return Task::perform(

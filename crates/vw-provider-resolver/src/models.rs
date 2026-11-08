@@ -181,6 +181,15 @@ pub struct ModelsSnapshot {
 }
 
 #[cfg(not(target_arch = "wasm32"))]
+impl ModelsSnapshot {
+    /// Returns no freshness status for bundled or custom snapshots without a download time.
+    pub fn cache_is_stale(&self) -> Option<bool> {
+        let elapsed = self.fetched_at?.elapsed().ok()?;
+        Some(elapsed >= native::STALE_TIME)
+    }
+}
+
+#[cfg(not(target_arch = "wasm32"))]
 static CACHE: Lazy<Arc<native::ModelsCache>> = Lazy::new(|| {
     Arc::new(native::ModelsCache::new(
         cache_path(),

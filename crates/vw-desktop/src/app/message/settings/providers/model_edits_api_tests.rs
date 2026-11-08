@@ -24,15 +24,15 @@ const ENDPOINT: &str = "https://fixture.example/v1";
 const MODEL: &str = "Vendor/Manual[1m]";
 const TIMEOUT: Duration = Duration::from_secs(5);
 
-struct Fixture {
-    app: App,
-    requests: Receiver<String>,
-    responses: Sender<Option<String>>,
+pub(super) struct Fixture {
+    pub(super) app: App,
+    pub(super) requests: Receiver<String>,
+    pub(super) responses: Sender<Option<String>>,
     runtime: tokio::runtime::Runtime,
 }
 
 impl Fixture {
-    fn with(test: impl FnOnce(&mut Self)) {
+    pub(super) fn with(test: impl FnOnce(&mut Self)) {
         crate::app::config::with_editor_settings_gateway(|mut app, requests, responses| {
             app.project_id = Some("model-edit-fixture".into());
             app.project_path = Some("/fixture/project".into());
@@ -62,11 +62,11 @@ impl Fixture {
         });
     }
 
-    fn event(&mut self, event: Event) -> iced::Task<Message> {
+    pub(super) fn event(&mut self, event: Event) -> iced::Task<Message> {
         catalog_api::update(&mut self.app, event)
     }
 
-    fn run(&self, task: iced::Task<Message>) -> tokio::task::JoinHandle<Event> {
+    pub(super) fn run(&self, task: iced::Task<Message>) -> tokio::task::JoinHandle<Event> {
         let mut stream = iced_runtime::task::into_stream(task).expect("HTTP task");
         self.runtime.spawn(async move {
             while let Some(action) = stream.next().await {
@@ -81,7 +81,7 @@ impl Fixture {
         })
     }
 
-    fn finish(&mut self, run: tokio::task::JoinHandle<Event>) -> iced::Task<Message> {
+    pub(super) fn finish(&mut self, run: tokio::task::JoinHandle<Event>) -> iced::Task<Message> {
         let event = self
             .runtime
             .block_on(async { tokio::time::timeout(TIMEOUT, run).await })
@@ -90,7 +90,7 @@ impl Fixture {
         self.event(event)
     }
 
-    fn request(&self, route: &str) -> Option<Value> {
+    pub(super) fn request(&self, route: &str) -> Option<Value> {
         let request = self.requests.recv_timeout(TIMEOUT).expect("SDK request");
         assert!(request.starts_with(route), "{request}");
         assert!(request.contains("projectId=model-edit-fixture"));
@@ -99,11 +99,11 @@ impl Fixture {
         (!body.is_empty()).then(|| serde_json::from_str(body).unwrap())
     }
 
-    fn reply(&self, value: Value) {
+    pub(super) fn reply(&self, value: Value) {
         self.responses.send(Some(value.to_string())).unwrap();
     }
 
-    fn form(&self) -> &CatalogForm {
+    pub(super) fn form(&self) -> &CatalogForm {
         self.app.app_providers.model_catalog.as_ref().expect("draft still open")
     }
 }
@@ -128,7 +128,7 @@ fn catalog_desktop_edits_retains_draft_after_save_error() {
     });
 }
 
-fn row(fixture: &Fixture, id: &str, alias: Option<&str>) -> Value {
+pub(super) fn row(fixture: &Fixture, id: &str, alias: Option<&str>) -> Value {
     json!({
         "identity": {
             "scope": fixture.form().context.scope.context.tenant,
@@ -140,7 +140,7 @@ fn row(fixture: &Fixture, id: &str, alias: Option<&str>) -> Value {
     })
 }
 
-fn load(fixture: &mut Fixture, response: Value) {
+pub(super) fn load(fixture: &mut Fixture, response: Value) {
     let task = fixture.event(Event::LoadCatalog);
     let load = fixture.run(task);
     assert!(fixture.request("GET /v1/model-catalog?").is_none());
@@ -148,7 +148,7 @@ fn load(fixture: &mut Fixture, response: Value) {
     let _ = fixture.finish(load);
 }
 
-fn select(fixture: &mut Fixture, model_id: &str) {
+pub(super) fn select(fixture: &mut Fixture, model_id: &str) {
     let _ = fixture.event(Event::EditModel {
         generation: fixture.app.app_providers.generation,
         model_id: model_id.into(),

@@ -4,8 +4,8 @@ use super::list::Scope;
 use vw_gateway_client::vw_api_types::{
     id::ModelId,
     model_catalog::{
-        ModelCatalogIdentity, ModelCatalogPreset, ModelCatalogProject, ModelCatalogReadResponse,
-        ScopedModelCatalogIdentity,
+        ModelCatalogFillPreviewResponse, ModelCatalogIdentity, ModelCatalogPreset,
+        ModelCatalogProject, ModelCatalogReadResponse, ScopedModelCatalogIdentity,
     },
 };
 
@@ -14,6 +14,16 @@ pub(crate) struct CatalogContext {
     pub scope: Scope,
     pub project: ModelCatalogProject,
     pub access_generation: u64,
+}
+
+#[derive(Clone, Debug, Default)]
+pub(crate) enum FillState {
+    #[default]
+    Idle,
+    Loading(u64),
+    Preview(Box<ModelCatalogFillPreviewResponse>),
+    Committing(u64),
+    Notice(&'static str),
 }
 
 #[derive(Clone, Debug)]
@@ -35,6 +45,8 @@ pub(crate) struct CatalogForm {
     pub searched: bool,
     pub saving: bool,
     pub notice: Option<String>,
+    pub fill: FillState,
+    pub fill_silent: bool,
 }
 
 impl CatalogForm {
@@ -57,6 +69,8 @@ impl CatalogForm {
             searched: false,
             saving: false,
             notice: None,
+            fill: FillState::Idle,
+            fill_silent: false,
         }
     }
 
@@ -102,6 +116,8 @@ impl CatalogForm {
         self.alias.clear();
         self.alias_dirty = false;
         self.default_override = None;
+        self.fill = FillState::Idle;
+        self.fill_silent = false;
     }
 
     pub fn apply_catalog(&mut self, catalog: ModelCatalogReadResponse) {

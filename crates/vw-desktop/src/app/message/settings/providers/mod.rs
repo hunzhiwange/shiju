@@ -3,6 +3,7 @@
 pub(crate) mod catalog_api;
 mod helpers;
 pub(crate) mod managed_shiju;
+pub(crate) mod metadata_fill;
 mod models;
 mod tasks;
 mod updates;
@@ -30,3 +31,6 @@ mod catalog_api_tests;
 
 #[cfg(test)]
 mod model_edits_api_tests;
+
+#[cfg(test)]
+mod metadata_fill_tests;

@@ -8,7 +8,7 @@ use serde_json::Value;
 use vw_api_types::{
     id::TenantScope,
     model_catalog::{
-        ModelCapabilityState::Unknown, ModelCatalogFillCommitRequest,
+        ModelCapabilityState::Unknown, ModelCatalogCacheStatus, ModelCatalogFillCommitRequest,
         ModelCatalogFillPreviewRequest, ModelCatalogFillPreviewResponse, ModelCatalogIdentity,
         ModelCatalogWriteResponse, ModelMetadataDto, ModelMetadataField,
         ScopedModelCatalogIdentity,
@@ -33,6 +33,11 @@ pub fn preview(
         identity: identity.clone(),
         revision: saved.revision,
         proposed,
+        models_dev_cache: Some(match snapshot.and_then(ModelsSnapshot::cache_is_stale) {
+            Some(true) => ModelCatalogCacheStatus::Stale,
+            Some(false) => ModelCatalogCacheStatus::Fresh,
+            None => ModelCatalogCacheStatus::Undated,
+        }),
     })
 }
 

@@ -221,6 +221,17 @@ pub struct ModelCatalogFillPreviewResponse {
     pub identity: ScopedModelCatalogIdentity,
     pub revision: String,
     pub proposed: ModelMetadataDto,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub models_dev_cache: Option<ModelCatalogCacheStatus>,
+}
+
+/// Freshness of the snapshot consulted by preview, independent of which fields it supplied.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum ModelCatalogCacheStatus {
+    Fresh,
+    Stale,
+    Undated,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]

@@ -104,8 +104,10 @@ fn catalog_contract_fill_commit_requires_revision_for_exact_identity() {
         identity: identity(),
         revision: "revision-5".into(),
         proposed: ModelMetadataDto { context_window: Some(65_536), ..Default::default() },
+        models_dev_cache: Some(ModelCatalogCacheStatus::Stale),
     };
     let preview: ModelCatalogFillPreviewResponse = from_value(to_value(preview).unwrap()).unwrap();
+    assert_eq!(preview.models_dev_cache, Some(ModelCatalogCacheStatus::Stale));
     let commit = ModelCatalogFillCommitRequest {
         identity: preview.identity,
         expected_revision: preview.revision,

@@ -1,5 +1,7 @@
 //! 搜索模型供应商目录，并用稳定的供应商 ID 打开连接或加入热门。
 
+mod metadata_fill;
+
 use crate::app::components::system_settings_common::{
     SETTINGS_CONTROL_PADDING, SETTINGS_CONTROL_TEXT_SIZE, primary_action_btn_style,
     provider_logo_svg, rounded_action_btn_style, settings_close_button, settings_control_with_hint,
@@ -303,12 +305,14 @@ pub(crate) fn deployments<'a>(
     ]
     .spacing(8);
     if form.edit_id.is_some() {
-        fields = fields.push(
-            button(text("取消编辑"))
-                .on_press_maybe(editable.then(|| message(Event::CancelEdit)))
-                .padding([8, 12])
-                .style(rounded_action_btn_style),
-        );
+        fields = fields
+            .push(
+                button(text("取消编辑"))
+                    .on_press_maybe(editable.then(|| message(Event::CancelEdit)))
+                    .padding([8, 12])
+                    .style(rounded_action_btn_style),
+            )
+            .push(metadata_fill::view(form, editable));
     }
     let mut body = column![settings_group_card(container(fields).padding([12, 0]))].spacing(10);
 

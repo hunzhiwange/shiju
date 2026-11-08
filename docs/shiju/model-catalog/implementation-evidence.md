@@ -1085,3 +1085,47 @@ POST 返回 202 与排队快照。任务依次进入发现、解析及终态，�
 | 编辑别名为「窗口草稿 Beta」，第二客户端先保存「并发更新」，再在窗口保存 | 窗口保留「窗口草稿 Beta」，显示冲突横幅和错误 toast。拒绝前后网关回读字节相同，保留「并发更新」与其修订号。以过期修订重放请求，HTTP 409，回读保持一致。 |
 | 刷新已保存模型、重试、关闭并重开弹窗 | 刷新保留编辑草稿。重试后重新输入同一端点并刷新，模型卡显示「窗口草稿 Beta」、请求 ID 与默认标记。 |
 | 暗色窗口清除默认后重新设置 | 清除后「默认」标记消失，回读无默认值。重新设置后标记恢复，回读默认值为 `Vendor/Manual[1m]`，别名仍为「窗口草稿 Beta」。 |
+
+## 任务 41　桌面展示补全来源与时间
+
+2026-11-08，macOS 27.0（26A428），arm64，识矩桌面 0.6.0。批次 40 由 `a8def18ec` 交付。
+
+| 来源与接点 | 实际实现 |
+| --- | --- |
+| 固定来源 `ca58c0313360eae7c851fbd7553c1614c7af03e7` 的 `src/hooks/useModelMetadataFill.ts::useModelMetadataFill` 及对应 hook 测试 | 补全仍由 `vw-agent-apps/src/models/fill_service.rs::preview/commit` 按当前部署和修订执行；只填空白字段。预览透传字段来源和获取时间，并通过 resolver 的缓存有效期返回 models.dev 缓存状态。 |
+| 网关和 SDK | 复用 `vw-agent/src/gateway/api/handlers/model_catalog_edits.rs` 的 `POST /v1/model-catalog/fill-preview` 与 `fill-commit`，以及 `vw-gateway-client/src/client/model_catalog_edits_api.rs` 的同名 SDK 方法；桌面仅在确认后提交预览的身份和修订。 |
+| 实际桌面路径 | 复用批次 40 的 `components/system_settings_providers/catalog.rs::deployments` 弹窗和自定义模型卡片样式。`components/system_settings_providers/catalog/metadata_fill.rs` 分区显示已保存参数和本次新增项。`state/app_providers/model_catalog.rs` 与 `message/settings/providers/metadata_fill.rs` 约束请求代次、主机、项目、租户、端点、模型及修订，保留编辑草稿。网关离线提示留在弹窗内；只有确认写入变更才出一条成功提示，也可只在弹窗显示。 |
+
+### 命令与槽位
+
+| 槽位 | `CARGO_TARGET_DIR` | 阶段 |
+| --- | --- | --- |
+| 1 | `/Users/xiangmin/worker/code/shiju/target/rust-slot-1` | 隔离 Gateway、当前 Gateway 与桌面构建及窗口 |
+| 2 | `/Users/xiangmin/worker/code/shiju/target/rust-slot-2` | 初始红灯、旧版窗口、绿灯、回归及 Clippy |
+| 3 | `/Users/xiangmin/worker/code/shiju/target/rust-slot-3` | 对迟到响应的断言红灯 |
+
+| 命令 | 退出码 | 有效证据 |
+| --- | ---: | --- |
+| `cargo fmt --all`（初始红灯、竞态红灯、绿灯） | 0、0、0 | 在源代码快照格式化，只回写本任务的 Rust 文件。 |
+| `cargo test -p vw-desktop catalog_desktop_fill_ -- --nocapture`（初始红灯） | 101 | 1 项按预期失败，8874 项过滤。选中已保存模型后未发起预览。 |
+| `cargo test -p vw-desktop catalog_desktop_fill_ -- --nocapture`（竞态红灯） | 101 | 6 项通过、1 项按预期失败，8874 项过滤。暂时放宽代次比较后，`catalog_desktop_fill_ignores_fill_after_model_change` 的断言 `late preview must not replace the new model's pending preview` 失败。 |
+| `cargo test -p vw-desktop catalog_desktop_fill_ -- --nocapture`（绿灯） | 0 | 7 项通过，8874 项过滤。真实 SDK 对接本机受控 HTTP，覆盖空白字段和来源时间、精确身份与修订、模型/端点/主机切换、离线、无变更、一次提示及静默。 |
+| `cargo test -p vw-desktop catalog_desktop_edits_ -- --nocapture` | 0 | 6 项通过，8875 项过滤。批次 40 保存与草稿回归。 |
+| `cargo test -p vw-api-types catalog_contract_fill_commit_requires_revision_for_exact_identity -- --nocapture` | 0 | 1 项通过，126 项过滤。验证缓存状态序列化与修订约束。 |
+| `cargo test -p vw-agent catalog_api_edits_ -- --nocapture` | 0 | 8 项通过，11718 项过滤。真实 HTTP、SDK 与临时数据库验证预览只读、提交保留手工值、过期修订和其他端点拒绝。 |
+| `cargo clippy --all-targets --all-features -- -D warnings` | 0 | 全工作区、全目标和全 features 通过。 |
+| `cargo build -p vw-cli --bin shiju` | 0 | 构建用于窗口验收的真实 Gateway。 |
+| `cargo run -p vw-desktop --bin shi-ju` | 143 | 通过临时 app bundle 打开窗口，操作和回读结束后仅向验收进程发送 SIGTERM。 |
+
+链接时报告既有 macOS `__eh_frame` 大小警告。所有阶段槽位锁均已释放，缓存保留。暂存差异通过 `git diff --cached --check`。
+
+### macOS 窗口与网关回读日志
+
+临时项目、应用配置、令牌、models.dev 夹具和 Gateway SQLite 均隔离；禁用远端 models.dev 下载。路径为「设置 → 应用列表 → Codex → 供应商 → 模型目录 → 编辑」。旧窗口选中同一模型时仅显示别名和默认设置，未显示参数或补全入口。新版明暗两种主题均渲染中文来源、英文模型 ID 与动态时间，无字形异常；滚动只移动内容，标题、搜索框和底部操作保持固定。沿用 4px 滚动条及左右 7px 留白。
+
+| 操作 | 窗口观测与真实网关回读 |
+| --- | --- |
+| 浅色，编辑 `kimi-k3` | 预览显示缓存已陈旧，手工上下文 24000 单列于已保存参数。六项补全字段包括来源为预设的工具调用和推理档位，以及来源为 models.dev 的最大输出 4096 等字段。后者显示 `2024-10-27 03:33:20 UTC`。 |
+| 浅色，应用并再次预览 | 显示一条成功 toast。回读修订改变，原模型身份、中文别名和上下文 24000 保持；写入值和字段来源逐项匹配预览。再次预览为零差异，没有应用按钮或新 toast。 |
+| 深色，输入 319 字符端点、编辑 `gpt-4o` | 输入在控件内横向移动，不覆盖刷新按钮。滚动后可读到最大输出 8192、models.dev 来源、时间和缓存状态。勾选「只在此处显示结果」并应用，弹窗显示已补全，无 toast；回读原上下文 24000 与别名保留，五项新值匹配预览，再次请求为零差异。 |
+| 停止隔离 Gateway 后再次预览 | 弹窗显示「网关离线，暂时无法预览。已保存参数和当前草稿均保留。」仍显示刚回读的参数与时间，无错误 toast。 |

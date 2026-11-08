@@ -5,7 +5,7 @@
 use super::{GitMessage, SelectedCommitRequest};
 use crate::app::message::project::ProjectMessage;
 use crate::app::{
-    App, Message, set_config_field,
+    App, Message,
     state::{ConventionalCommitType, GitDiffLineRange, GitDiffSelectedLine, GitWorktreeOption},
 };
 use iced::Font;
@@ -765,13 +765,6 @@ pub(super) fn invert_stage_selection_for_file_lines(
     }
 }
 
-/// persist_file_tree_expanded 处理当前模块对应的消息或状态转换。
-///
-/// 参数由调用方提供应用状态、用户输入或后台任务结果；返回值会交给上层消息循环继续处理。
-/// 变更范围限制在当前消息处理路径内，不引入额外的流程分支。
-pub(super) fn persist_file_tree_expanded(app: &App) {
-    let arr = serde_json::Value::Array(
-        app.file_tree_expanded.iter().cloned().map(serde_json::Value::String).collect(),
-    );
-    set_config_field("file_tree_expanded", arr);
+pub(super) fn persist_file_tree_expanded(app: &mut App) -> Task<Message> {
+    app.save_desktop_preference("file_tree_expanded", serde_json::json!(app.file_tree_expanded))
 }

@@ -262,7 +262,7 @@ fn open_existing_tab_outside_project_creates_one_selected_top_level_tab() {
 }
 
 #[test]
-fn open_new_instant_preview_creates_tab_without_loading_task() {
+fn open_new_instant_preview_creates_tab_and_only_schedules_preferences_save() {
     let mut app = app();
     app.workspace_mode = crate::app::state::WorkspaceMode::Code;
     app.screen = Screen::Project;
@@ -278,7 +278,7 @@ fn open_new_instant_preview_creates_tab_without_loading_task() {
     assert!(app.show_file_manager);
     assert!(!app.file_manager_show_changes);
     assert!(app.show_diff);
-    assert!(!has_scheduled_action(task));
+    assert_eq!(task.units(), 1);
 }
 
 #[test]

@@ -809,3 +809,66 @@ fn file_tree_empty_directory_old_local_load_does_not_pollute_current_project() {
     assert!(app.current_file_index().is_empty());
     assert!(!app.has_file_index("/current"));
 }
+
+#[cfg(not(target_arch = "wasm32"))]
+#[test]
+fn project_file_preferences_update_before_gateway_reply() {
+    use crate::app::message::project::ProjectMessage;
+    use crate::app::{Message, config};
+    use serde_json::json;
+    use std::time::Duration;
+
+    const TIMEOUT: Duration = Duration::from_secs(4);
+
+    config::with_editor_settings_gateway(|mut app, requests, responses| {
+        let runtime = tokio::runtime::Builder::new_multi_thread()
+            .worker_threads(1)
+            .enable_all()
+            .build()
+            .unwrap();
+        let update = |app: &mut crate::app::App, message| app.update(Message::Project(message));
+        let finish = |handle: tokio::task::JoinHandle<Vec<Message>>| {
+            runtime
+                .block_on(async { tokio::time::timeout(TIMEOUT, handle).await.unwrap().unwrap() })
+        };
+        let capture_patch = |expected| {
+            let request = requests.recv_timeout(TIMEOUT).expect("preference PATCH");
+            assert!(request.starts_with("PATCH /v1/desktop/preferences "));
+            let fields: serde_json::Value =
+                serde_json::from_str(request.split_once("\r\n\r\n").unwrap().1).unwrap();
+            assert_eq!(fields, expected);
+        };
+
+        app.show_file_manager = false;
+        let first = update(&mut app, ProjectMessage::FileManagerShowChanges(true));
+        assert!(app.show_file_manager && app.file_manager_show_changes);
+        assert!(requests.try_recv().is_err(), "the update already contacted Gateway");
+
+        let first = runtime.spawn(collect_task_messages(first));
+        capture_patch(json!({
+            "show_file_manager": true, "file_manager_show_changes": true, "file_tree_expanded": []
+        }));
+
+        let toggle = || ProjectMessage::ToggleTreeDir("src".into());
+        let expanded = update(&mut app, toggle());
+        assert!(app.is_file_tree_dir_expanded("src"));
+        assert!(iced_runtime::task::into_stream(expanded).is_none());
+        let collapsed = update(&mut app, toggle());
+        assert!(app.file_tree_expanded.is_empty());
+        assert!(iced_runtime::task::into_stream(collapsed).is_none());
+        let files = update(&mut app, ProjectMessage::FileManagerShowChanges(false));
+        assert!(!app.file_manager_show_changes);
+        assert!(iced_runtime::task::into_stream(files).is_none());
+
+        responses.send(Some("{}".into())).unwrap();
+        let [saved] = finish(first).try_into().ok().expect("one save completion");
+        let second = runtime.spawn(collect_task_messages(app.update(saved)));
+        capture_patch(json!({
+            "show_file_manager": true, "file_manager_show_changes": false, "file_tree_expanded": []
+        }));
+        responses.send(Some("{}".into())).unwrap();
+        let [saved] = finish(second).try_into().ok().expect("one save completion");
+        assert!(iced_runtime::task::into_stream(app.update(saved)).is_none());
+        assert!(requests.try_recv().is_err());
+    });
+}

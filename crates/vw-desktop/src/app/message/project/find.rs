@@ -29,7 +29,7 @@
 use crate::app::message::project::ProjectMessage;
 use crate::app::message::project::helpers::{now_ms, run_find_task};
 use crate::app::{
-    App, AppTab, Message, Screen, set_config_field,
+    App, AppTab, Message, Screen,
     state::{FindInFolderTab, find_results_page_bounds},
 };
 use iced::widget::text_editor;
@@ -405,7 +405,6 @@ pub(crate) fn handle(app: &mut App, message: ProjectMessage) -> Option<iced::Tas
 
             // 确保文件管理器可见
             app.show_file_manager = true;
-            set_config_field("show_file_manager", serde_json::Value::Bool(true));
 
             // 生成打开标签页的 ID（格式：find:{tab_id}）
             let open_tab_id = format!("find:{}", tab_id);
@@ -424,7 +423,7 @@ pub(crate) fn handle(app: &mut App, message: ProjectMessage) -> Option<iced::Tas
             app.active_tab_id = Some(open_tab_id);
             app.screen = Screen::Project;
 
-            Some(iced::Task::none())
+            Some(app.save_desktop_preference("show_file_manager", serde_json::Value::Bool(true)))
         }
 
         // 处理查找任务完成的结果
@@ -495,7 +494,6 @@ pub(crate) fn handle(app: &mut App, message: ProjectMessage) -> Option<iced::Tas
 
             // 确保文件管理器可见
             app.show_file_manager = true;
-            set_config_field("show_file_manager", serde_json::Value::Bool(true));
 
             // 如果打开标签页列表中不存在此标签页，则添加
             if !app.open_tabs.iter().any(|t| t.id == open_tab_id) {
@@ -511,7 +509,7 @@ pub(crate) fn handle(app: &mut App, message: ProjectMessage) -> Option<iced::Tas
             app.active_tab_id = Some(open_tab_id);
             app.screen = Screen::Project;
 
-            Some(iced::Task::none())
+            Some(app.save_desktop_preference("show_file_manager", serde_json::Value::Bool(true)))
         }
 
         // 打开匹配文件并定位到对应位置

@@ -2,9 +2,7 @@
 //!
 //! 注释聚焦模块职责、消息边界和失败处理方式，帮助维护者在不改变逻辑的前提下理解代码。
 
-use super::common::{
-    clear_new_session_picker_messages, reset_new_session_picker_state, save_config_field_task,
-};
+use super::common::{clear_new_session_picker_messages, reset_new_session_picker_state};
 use crate::app::message::project::ProjectMessage;
 use crate::app::message::project::helpers::{
     create_gateway_session_in_directory, create_gateway_worktree_session, delete_gateway_worktree,
@@ -63,7 +61,7 @@ pub(crate) fn handle(app: &mut App, message: ProjectMessage) -> Option<iced::Tas
             }
             app.new_session_creating = true;
             app.new_session_last_directory = Some(directory.clone());
-            let save_last_directory_task = save_config_field_task(
+            let save_last_directory_task = app.save_desktop_preference(
                 "new_session_last_directory",
                 serde_json::Value::String(directory.clone()),
             );
@@ -223,7 +221,7 @@ pub(crate) fn handle(app: &mut App, message: ProjectMessage) -> Option<iced::Tas
                     if app.new_session_last_directory.as_ref() == Some(&directory) {
                         app.new_session_last_directory = None;
                         return Some(iced::Task::batch(vec![
-                            save_config_field_task(
+                            app.save_desktop_preference(
                                 "new_session_last_directory",
                                 serde_json::Value::Null,
                             ),

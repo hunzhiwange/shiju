@@ -13,7 +13,8 @@ use crate::app::message::project::ProjectMessage;
 use crate::app::message::project::helpers::{append_local_attachments, load_project_info_task};
 use crate::app::state::{WorkResourceMode, WorkspaceMode};
 
-use crate::app::{App, Message, Screen, set_config_field};
+use crate::app::{App, Message, Screen};
+use serde_json::{Map, Value, json};
 use std::time::Duration;
 
 fn schedule_file_manager_refresh_tick() -> iced::Task<Message> {
@@ -50,12 +51,12 @@ fn reveal_work_workspace_files(app: &mut App) -> Option<iced::Task<Message>> {
 fn ensure_file_manager_changes_expanded(
     app: &mut App,
     extra_paths: impl IntoIterator<Item = String>,
-) {
+) -> iced::Task<Message> {
     app.show_file_manager = true;
-    set_config_field("show_file_manager", serde_json::Value::Bool(true));
+    let mut fields = Map::from_iter([("show_file_manager".into(), Value::Bool(true))]);
     if !app.file_manager_show_changes {
         app.file_manager_show_changes = true;
-        set_config_field("file_manager_show_changes", serde_json::Value::Bool(true));
+        fields.insert("file_manager_show_changes".into(), Value::Bool(true));
     }
     let mut paths = app.git_changed_files.clone();
     paths.extend(extra_paths);
@@ -67,10 +68,8 @@ fn ensure_file_manager_changes_expanded(
     for key in keys {
         app.ensure_file_tree_dir_expanded(key);
     }
-    let arr = serde_json::Value::Array(
-        app.file_tree_expanded.iter().cloned().map(serde_json::Value::String).collect(),
-    );
-    set_config_field("file_tree_expanded", arr);
+    fields.insert("file_tree_expanded".into(), json!(app.file_tree_expanded));
+    app.save_desktop_preferences(fields)
 }
 
 #[cfg(test)]
@@ -276,11 +275,7 @@ pub(crate) fn handle(app: &mut App, message: ProjectMessage) -> Option<iced::Tas
         ProjectMessage::ToggleTreeDir(dir) => {
             app.toggle_file_tree_dir_expanded(dir);
             // 将展开的目录列表序列化并保存到配置
-            let arr = serde_json::Value::Array(
-                app.file_tree_expanded.iter().cloned().map(serde_json::Value::String).collect(),
-            );
-            set_config_field("file_tree_expanded", arr);
-            Some(iced::Task::none())
+            Some(app.save_desktop_preference("file_tree_expanded", json!(app.file_tree_expanded)))
         }
         // 处理文件管理器显示模式切换事件
         // 切换文件管理器在"文件浏览"和"Git 变更"模式之间
@@ -292,28 +287,30 @@ pub(crate) fn handle(app: &mut App, message: ProjectMessage) -> Option<iced::Tas
                 // 以便右侧面板可以渲染 Git diff 面板而不是停留在已打开的预览标签页
                 app.active_preview_path = None;
             }
-            // 保存显示模式到配置
-            set_config_field("file_manager_show_changes", serde_json::Value::Bool(b));
             app.show_file_manager = true;
-            set_config_field("show_file_manager", serde_json::Value::Bool(true));
-            let mut tasks = Vec::new();
-            if b {
+            let mut fields = Map::from_iter([
+                ("file_manager_show_changes".into(), Value::Bool(b)),
+                ("show_file_manager".into(), Value::Bool(true)),
+            ]);
+            let reveal = if b {
                 // 工作模式：立刻切到「工作空间文件」，避免变更列表藏在概览/浏览器后面
-                if let Some(task) = reveal_work_workspace_files(app) {
-                    tasks.push(task);
-                }
+                let reveal = reveal_work_workspace_files(app);
                 // 自动展开包含变更文件的目录（键需带 chg: 前缀，并覆盖每一层祖先）
                 for key in crate::app::components::file_tree::change_list_expand_keys(
                     app.git_changed_files.iter().map(String::as_str),
                 ) {
                     app.ensure_file_tree_dir_expanded(key);
                 }
-                let arr = serde_json::Value::Array(
-                    app.file_tree_expanded.iter().cloned().map(serde_json::Value::String).collect(),
-                );
-                set_config_field("file_tree_expanded", arr);
-            }
-            Some(if tasks.is_empty() { iced::Task::none() } else { iced::Task::batch(tasks) })
+                fields.insert("file_tree_expanded".into(), json!(app.file_tree_expanded));
+                reveal
+            } else {
+                None
+            };
+            let save = app.save_desktop_preferences(fields);
+            Some(match reveal {
+                Some(reveal) => iced::Task::batch([reveal, save]),
+                None => save,
+            })
         }
         ProjectMessage::FileManagerRefreshChanges => {
             if app.git_changed_files_loading || app.file_manager_changes_refreshing {
@@ -357,7 +354,7 @@ pub(crate) fn handle(app: &mut App, message: ProjectMessage) -> Option<iced::Tas
                 tasks.push(task);
             }
             app.active_find_results_tab_id = None;
-            ensure_file_manager_changes_expanded(app, std::iter::once(path.clone()));
+            tasks.push(ensure_file_manager_changes_expanded(app, std::iter::once(path.clone())));
             tasks.push(iced::Task::done(Message::Git(crate::app::message::GitMessage::FocusFile(
                 path,
             ))));

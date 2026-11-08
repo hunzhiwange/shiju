@@ -2,7 +2,6 @@
 //!
 //! 注释聚焦模块职责、消息边界和失败处理方式，帮助维护者在不改变逻辑的前提下理解代码。
 
-use super::common::save_config_field_task;
 use crate::app::message::project::PreparedSessionOpenSource;
 use crate::app::message::project::ProjectMessage;
 use crate::app::message::project::helpers::{
@@ -1107,7 +1106,7 @@ pub(crate) fn handle(app: &mut App, message: ProjectMessage) -> Option<iced::Tas
 
             app.new_session_creating = false;
             app.new_session_last_directory = Some(info.directory.clone());
-            let save_last_directory_task = save_config_field_task(
+            let save_last_directory_task = app.save_desktop_preference(
                 "new_session_last_directory",
                 serde_json::Value::String(info.directory.clone()),
             );

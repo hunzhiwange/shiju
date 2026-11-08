@@ -7,7 +7,7 @@ use crate::app::git::{
     git_discard_file, git_discard_hunk, git_revert_line_delete, git_revert_line_restore,
 };
 use crate::app::{
-    App, Message, set_config_field,
+    App, Message,
     state::{
         GitDiffCommentDraft, GitDiffContextMenuState, GitDiffFileMenuState, GitDiffLineRange,
         GitDiffSelectedLine,
@@ -35,8 +35,7 @@ pub(super) fn update(app: &mut App, message: GitMessage) -> Task<Message> {
     match message {
         GitMessage::ToggleDiffHighlight(enabled) => {
             app.show_git_diff_highlight = enabled;
-            set_config_field("show_git_diff_highlight", serde_json::Value::Bool(enabled));
-            Task::none()
+            app.save_desktop_preference("show_git_diff_highlight", serde_json::Value::Bool(enabled))
         }
         GitMessage::ToggleDiffLineSelection(file, line, is_old, text) => {
             app.git_diff_selected_range = None;

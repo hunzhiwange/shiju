@@ -209,23 +209,28 @@ pub(super) fn update(app: &mut App, message: GitMessage) -> Task<Message> {
             app.git_diff_selected_range = None;
             app.git_diff_comment_draft = None;
 
-            if app.file_manager_show_changes {
+            let save_task = if app.file_manager_show_changes {
                 for key in crate::app::components::file_tree::change_list_expand_keys(
                     app.git_changed_files.iter().map(String::as_str),
                 ) {
                     app.ensure_file_tree_dir_expanded(key);
                 }
-                persist_file_tree_expanded(app);
-            }
-
-            if was_manual_refresh {
-                app.show_localized_toast(
-                    crate::app::state::ToastKind::Success,
-                    "Git 更改已刷新",
-                    vec![],
-                )
+                persist_file_tree_expanded(app)
             } else {
                 Task::none()
+            };
+
+            if was_manual_refresh {
+                Task::batch([
+                    save_task,
+                    app.show_localized_toast(
+                        crate::app::state::ToastKind::Success,
+                        "Git 更改已刷新",
+                        vec![],
+                    ),
+                ])
+            } else {
+                save_task
             }
         }
         GitMessage::DiffFileMetasReady { repo_path, metas } => {

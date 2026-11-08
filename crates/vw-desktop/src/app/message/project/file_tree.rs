@@ -32,7 +32,7 @@ use crate::app::message::project::helpers::{
 };
 use crate::app::message::project::{FileTreeAction, ProjectMessage};
 use crate::app::{
-    App, AppTab, Message, Screen, set_config_field,
+    App, AppTab, Message, Screen,
     state::{FileTreeClipboard, FileTreeClipboardMode, FindInFolderTab},
 };
 #[path = "file_tree_external_drop.rs"]
@@ -372,9 +372,11 @@ pub(crate) fn handle(app: &mut App, message: ProjectMessage) -> Option<iced::Tas
                             if app.terminal.add_terminal(Some(dir.to_path_buf())) {
                                 app.terminal.apply_app_theme(&app.app_theme);
                                 app.terminal.is_visible = true;
-                                // 保存终端显示状态到配置
-                                set_config_field("show_terminal", serde_json::Value::Bool(true));
                                 app.focus_area = FocusArea::Terminal;
+                                return Some(app.save_desktop_preference(
+                                    "show_terminal",
+                                    serde_json::Value::Bool(true),
+                                ));
                             }
                         }
                     }
@@ -445,7 +447,6 @@ pub(crate) fn handle(app: &mut App, message: ProjectMessage) -> Option<iced::Tas
 
                     // 显示文件管理器面板
                     app.show_file_manager = true;
-                    set_config_field("show_file_manager", serde_json::Value::Bool(true));
 
                     // 创建并打开查找结果标签页
                     let open_tab_id = format!("find:{}", tab_id);
@@ -461,6 +462,10 @@ pub(crate) fn handle(app: &mut App, message: ProjectMessage) -> Option<iced::Tas
                     // 切换到新创建的查找标签页
                     app.active_tab_id = Some(open_tab_id);
                     app.screen = Screen::Project;
+                    return Some(app.save_desktop_preference(
+                        "show_file_manager",
+                        serde_json::Value::Bool(true),
+                    ));
                 }
                 // 剪切：将文件/文件夹路径保存到剪贴板，模式为剪切
                 FileTreeAction::Cut => {

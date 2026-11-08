@@ -3,11 +3,12 @@
 use super::PreviewMessage;
 use crate::app::message::ViewMessage;
 use crate::app::{
-    App, AppTab, FocusArea, Message, PreviewAutoSaveMode, PreviewTab, Screen, set_config_field,
+    App, AppTab, FocusArea, Message, PreviewAutoSaveMode, PreviewTab, Screen,
     state::{WorkResourceMode, WorkspaceMode},
 };
 use iced::Task;
 use iced::{Font, widget};
+use serde_json::{Map, Value};
 
 const TRACE_HISTORY_LIMIT: usize = 256;
 
@@ -187,17 +188,16 @@ pub fn update(app: &mut App, message: PreviewMessage) -> Task<Message> {
             {
                 record_trace_before_jump(app, &(pending_path, line, col));
             }
+            let mut fields = Map::new();
             if app.file_manager_show_changes {
                 app.file_manager_show_changes = false;
-                set_config_field(
-                    "file_manager_show_changes",
-                    serde_json::Value::Bool(app.file_manager_show_changes),
-                );
+                fields.insert("file_manager_show_changes".into(), Value::Bool(false));
             }
             if !app.show_file_manager {
                 app.show_file_manager = true;
-                set_config_field("show_file_manager", serde_json::Value::Bool(true));
+                fields.insert("show_file_manager".into(), Value::Bool(true));
             }
+            let save_task = app.save_desktop_preferences(fields);
             app.show_diff = true;
             let mut load_task = Task::none();
 
@@ -321,14 +321,15 @@ pub fn update(app: &mut App, message: PreviewMessage) -> Task<Message> {
             }
             if matches!(app.screen, Screen::Project) {
                 return if reveal_work_resources {
-                    Task::batch(vec![
+                    Task::batch([
                         load_task,
+                        save_task,
                         Task::done(Message::View(ViewMessage::WorkResourceModeSelected(
                             WorkResourceMode::WorkspaceFiles,
                         ))),
                     ])
                 } else {
-                    load_task
+                    Task::batch([load_task, save_task])
                 };
             }
             // Add a top-level Preview tab for this file and select it
@@ -349,7 +350,7 @@ pub fn update(app: &mut App, message: PreviewMessage) -> Task<Message> {
             }
             app.active_tab_id = Some(id);
             app.screen = Screen::Preview;
-            load_task
+            Task::batch([load_task, save_task])
         }
         PreviewMessage::OpenFailed { path, error } => {
             if app.preview_tabs.iter().any(|tab| tab.path == path) {

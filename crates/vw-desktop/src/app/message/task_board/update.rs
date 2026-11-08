@@ -1635,27 +1635,24 @@ pub fn update(
         }
         TaskBoardMessage::ToggleClearPromptAfterCreate(enabled) => {
             app.task_board_clear_prompt_after_create = enabled;
-            crate::app::set_config_field(
+            app.save_desktop_preference(
                 "task_board_clear_prompt_after_create",
                 serde_json::Value::Bool(enabled),
-            );
-            iced::Task::none()
+            )
         }
         TaskBoardMessage::ToggleCloseAfterCreate(enabled) => {
             app.task_board_close_after_create = enabled;
-            crate::app::set_config_field(
+            app.save_desktop_preference(
                 "task_board_close_after_create",
                 serde_json::Value::Bool(enabled),
-            );
-            iced::Task::none()
+            )
         }
         TaskBoardMessage::ToggleCloseAfterEdit(enabled) => {
             app.task_board_close_after_edit = enabled;
-            crate::app::set_config_field(
+            app.save_desktop_preference(
                 "task_board_close_after_edit",
                 serde_json::Value::Bool(enabled),
-            );
-            iced::Task::none()
+            )
         }
         TaskBoardMessage::ToggleTaskSelection { task_id, selected } => {
             if selected {
@@ -2247,11 +2244,10 @@ pub fn update(
         }
         TaskBoardMessage::ToggleWorktreePixelOffice(enabled) => {
             app.task_board_worktree_pixel_office = enabled;
-            crate::app::set_config_field(
+            app.save_desktop_preference(
                 "task_board_worktree_pixel_office",
                 serde_json::Value::Bool(enabled),
-            );
-            iced::Task::none()
+            )
         }
         TaskBoardMessage::CleanAllWorktreesPressed => {
             let Some(project_path) = app.project_path.clone() else {

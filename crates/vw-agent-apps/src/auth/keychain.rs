@@ -163,6 +163,26 @@ impl<'a> KeychainEntry<'a> {
         Ok((path.to_owned(), existing))
     }
 
+    /// Remove the located entry only if it still holds the observed grant.
+    pub(super) fn delete_matching(&self, before: &[u8]) -> Result<(), EntryError> {
+        let (path, exists) = self.write_target()?;
+        if !exists || self.read_in(Some(&path))?.as_deref() != Some(before) {
+            return Err(EntryError::Conflict);
+        }
+        let args = ["delete-generic-password", "-a", self.account, "-s", self.service, &path];
+        let output = run(&args, None, false)?;
+        if output.code != 0 {
+            return Err(EntryError::CommandFailed { operation: "delete", code: output.code });
+        }
+        if self.read_in(Some(&path))?.is_some() {
+            return Err(EntryError::VerificationFailed);
+        }
+        if self.read()?.is_some() {
+            return Err(EntryError::Conflict);
+        }
+        Ok(())
+    }
+
     pub(super) fn delete(&self) -> Result<(), EntryError> {
         let output =
             run(&["delete-generic-password", "-a", self.account, "-s", self.service], None, false)?;

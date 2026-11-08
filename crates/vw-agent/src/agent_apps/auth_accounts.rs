@@ -39,6 +39,10 @@ use vw_api_types::{
 #[cfg(not(target_arch = "wasm32"))]
 mod defaults;
 #[cfg(target_os = "macos")]
+mod logout;
+#[cfg(target_os = "macos")]
+pub use logout::NativeAccountLogout;
+#[cfg(target_os = "macos")]
 mod removal;
 #[cfg(not(target_arch = "wasm32"))]
 pub use defaults::NativeAccountDefault;

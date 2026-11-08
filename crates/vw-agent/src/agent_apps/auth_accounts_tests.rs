@@ -1399,3 +1399,131 @@ fn auth6_remove_store_rolls_back_on_sqlite_and_file_errors() {
     assert!(read_secret().is_ok());
     assert_eq!(providers.remove_auth_account(scope, root, id, None), Ok(()));
 }
+
+#[cfg(target_os = "macos")]
+#[test]
+fn auth6_logout_store_sqlite() {
+    let home = tempfile::tempdir().unwrap();
+    assert_scoped_logout(|| GlobalDatabase::for_home(home.path()).unwrap());
+}
+
+#[cfg(target_os = "macos")]
+#[test]
+fn auth6_logout_store_postgres() {
+    let fixture = PostgresTestDatabase::from_environment().unwrap();
+    assert_scoped_logout(|| fixture.reopen().unwrap());
+    fixture.cleanup().unwrap();
+}
+
+#[cfg(target_os = "macos")]
+fn assert_scoped_logout(open: impl Fn() -> GlobalDatabase) {
+    use std::time::{Duration, Instant};
+    use vw_agent_apps::auth::{flow::AuthFlowTiming, logout::LogoutSelection};
+    use vw_api_types::agent_apps_auth::AuthLoginMethod;
+
+    let credentials = private_credentials_root();
+    let tenant = TenantScope::new("platform", "company").unwrap();
+    let scope = AuthAccountScope { service: AuthService::CodexOauth, ..account_scope(&tenant) };
+    let neighbor = AuthAccountScope { principal: "other", ..scope };
+    let store = AuthAccountStore::new(open(), credentials.path()).unwrap();
+    for (owner, id) in
+        [(scope, "selected"), (scope, "spare"), (scope, "last"), (neighbor, "selected")]
+    {
+        insert_default_fixture(&store, owner, id);
+    }
+    for owner in [scope, neighbor] {
+        store.set_managed_default_account(owner, "selected").unwrap();
+    }
+
+    let flows = AuthFlows::default();
+    let start = |owner, target: Option<&str>| {
+        let flow = flows
+            .start(
+                owner,
+                AuthStartRequest {
+                    method: AuthLoginMethod::DeviceCode,
+                    target_account_id: target.map(str::to_owned),
+                    github_domain: None,
+                    region: None,
+                },
+                AuthFlowTiming {
+                    expires_at: TimestampMs(5000),
+                    deadline: Instant::now() + Duration::from_secs(60),
+                    retry_after_seconds: 1,
+                },
+            )
+            .unwrap();
+        let AuthFlow::Pending { flow_id, .. } = flow else { panic!("expected pending flow") };
+        flow_id
+    };
+    let selected = start(scope, Some("selected"));
+    let spare = start(scope, Some("spare"));
+    let untargeted = start(scope, None);
+    let foreign = start(neighbor, Some("selected"));
+    let pending =
+        |owner, id| matches!(flows.snapshot(owner, id, Instant::now), Ok(AuthFlow::Pending { .. }));
+    let cancelled =
+        |id| matches!(flows.snapshot(scope, id, Instant::now), Ok(AuthFlow::Cancelled { .. }));
+
+    let credential = |store: &AuthAccountStore, owner: AuthAccountScope<'_>, id: &str| {
+        store
+            .credentials
+            .for_owner(owner.principal)
+            .unwrap()
+            .lease(owner.tenant, owner.host, AppId::Codex, id, false)
+            .unwrap()
+            .read()
+    };
+    assert_eq!(
+        store.logout_accounts(&flows, scope, LogoutSelection::Account("unknown"), None),
+        Err(AuthErrorCode::NotFound)
+    );
+    assert!(pending(scope, &selected));
+    assert_eq!(store.logout_accounts(&flows, scope, LogoutSelection::Default, None), Ok(()));
+    assert!(cancelled(&selected));
+    assert_eq!(
+        flows.complete(
+            scope,
+            &selected,
+            Instant::now,
+            Err(AuthErrorCode::UpstreamFailure),
+            |_, _, _| { panic!("cancelled authorization must never publish") }
+        ),
+        Err(AuthErrorCode::Conflict)
+    );
+    assert!(pending(scope, &spare));
+    assert!(pending(scope, &untargeted));
+    assert!(pending(neighbor, &foreign));
+    assert_eq!(
+        credential(&store, scope, "selected").err().as_deref(),
+        Some("official account not found")
+    );
+    assert!(credential(&store, scope, "spare").is_ok());
+    assert!(store.read_metadata(&scope, "selected").is_ok());
+    assert_eq!(store.managed_default_account(scope), Ok(None));
+    assert_eq!(
+        store.logout_accounts(&flows, scope, LogoutSelection::Default, None),
+        Err(AuthErrorCode::NotFound)
+    );
+    assert_eq!(
+        store.logout_accounts(&flows, scope, LogoutSelection::Account("spare"), None),
+        Ok(())
+    );
+    assert!(cancelled(&spare));
+    assert!(pending(scope, &untargeted));
+    assert!(credential(&store, scope, "last").is_ok());
+    assert_eq!(store.logout_accounts(&flows, scope, LogoutSelection::All, None), Ok(()));
+    assert!(cancelled(&untargeted));
+    assert!(pending(neighbor, &foreign));
+    let reopened = AuthAccountStore::new(open(), credentials.path()).unwrap();
+    for id in ["selected", "spare", "last"] {
+        assert!(reopened.read_metadata(&scope, id).is_ok());
+        assert_eq!(
+            credential(&reopened, scope, id).err().as_deref(),
+            Some("official account not found")
+        );
+    }
+    assert_eq!(reopened.managed_default_account(scope), Ok(None));
+    assert_eq!(reopened.managed_default_account(neighbor), Ok(Some("selected".into())));
+    assert!(credential(&reopened, neighbor, "selected").is_ok());
+}

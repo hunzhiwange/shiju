@@ -2,7 +2,7 @@
 
 use super::write_error;
 use crate::{
-    auth::credential_file::{PrivateDirectory, check_private, same_file},
+    auth::credential_file::{PrivateDirectory, check_private, remove_credential_file, same_file},
     providers::{live::write_guard::prepare_private_child, paths::open_beneath},
 };
 use serde_json::Value;
@@ -82,6 +82,15 @@ impl NativeSlot {
         let id = id.trim();
         uuid::Uuid::parse_str(id).map_err(|_| AuthErrorCode::StorageUnavailable)?;
         Ok(id.to_owned())
+    }
+
+    pub(super) fn remove(&self, before: &Value) -> Result<(), AuthErrorCode> {
+        if self.read()? != *before {
+            return Err(AuthErrorCode::Conflict);
+        }
+        let name = Path::new(OsStr::from_bytes(self.filename.as_bytes()));
+        remove_credential_file(&self.credentials, name)
+            .map_err(|_| AuthErrorCode::StorageUnavailable)
     }
 
     pub(super) fn replace(&self, before: &Value, after: &Value) -> Result<(), AuthErrorCode> {

@@ -184,14 +184,51 @@ impl<'a> DshAccount<'a> {
         scope: AuthAccountScope<'_>,
         account_id: &str,
     ) -> Result<(), AuthErrorCode> {
+        self.check_logout_scope(scope)?;
+        self.check_account_id(account_id)?;
+        self.clear_grant(true)
+    }
+
+    pub(super) fn check_logout_scope(
+        &self,
+        scope: AuthAccountScope<'_>,
+    ) -> Result<(), AuthErrorCode> {
         if self.owner != scope {
             return Err(AuthErrorCode::Forbidden);
         }
+        Ok(())
+    }
+
+    pub(super) fn check_account_id(&self, account_id: &str) -> Result<(), AuthErrorCode> {
         crate::providers::validate_identity(account_id).map_err(|_| AuthErrorCode::InvalidInput)?;
         if account(self.owner, AuthCredentialState::Ready, None)?.account_id != account_id {
             return Err(AuthErrorCode::NotFound);
         }
-        self.clear_grant(true)
+        Ok(())
+    }
+
+    pub(super) fn revocable_revision(&self) -> Result<[u8; 32], AuthErrorCode> {
+        let document = self.read_document()?;
+        revocable_grant(&document)?;
+        grant_revision(&document)?.ok_or(AuthErrorCode::Conflict)
+    }
+
+    pub(super) fn take_revocable_grant(
+        &self,
+        revision: [u8; 32],
+    ) -> Result<HeaderValue, AuthErrorCode> {
+        let files = self.credentials(false)?.ok_or(AuthErrorCode::Conflict)?;
+        let before = files.read().map_err(storage_error)?;
+        let mut document = credential_document(before.as_deref()).map_err(storage_error)?;
+        if grant_revision(&document)? != Some(revision) {
+            return Err(AuthErrorCode::Conflict);
+        }
+        let mut token = HeaderValue::from_str(revocable_grant(&document)?.token)
+            .map_err(|_| AuthErrorCode::InvalidInput)?;
+        token.set_sensitive(true);
+        records_mut(&mut document).remove(Yaml::from(GRANT_RECORD));
+        write_document(&files, before.as_deref(), &document)?;
+        Ok(token)
     }
 
     fn clear_grant(&self, require_present: bool) -> Result<(), AuthErrorCode> {
@@ -312,6 +349,14 @@ fn stored_grant(document: &Yaml) -> Result<Option<StoredGrant<'_>>, AuthErrorCod
         }
         _ => Err(AuthErrorCode::InvalidInput),
     }
+}
+
+fn revocable_grant(document: &Yaml) -> Result<StoredGrant<'_>, AuthErrorCode> {
+    let grant = stored_grant(document)?.ok_or(AuthErrorCode::Conflict)?;
+    if grant.issuer.trim_end_matches('/') != PLATFORM_ORIGIN {
+        return Err(AuthErrorCode::ReauthRequired);
+    }
+    Ok(grant)
 }
 
 fn grant_revision(document: &Yaml) -> Result<Option<[u8; 32]>, AuthErrorCode> {

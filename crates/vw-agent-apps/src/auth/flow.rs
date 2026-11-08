@@ -468,6 +468,59 @@ impl AuthFlows {
         Ok(())
     }
 
+    /// Cancel the already registered attempts for this authorized selection.
+    /// A targeted logout leaves attempts without an assigned account pending.
+    #[cfg(target_os = "macos")]
+    pub fn cancel_for_logout(
+        &self,
+        scope: AuthAccountScope<'_>,
+        target: Option<&str>,
+    ) -> Result<(), AuthErrorCode> {
+        scope.validate()?;
+        if let Some(id) = target {
+            validate_identity(id).map_err(|_| AuthErrorCode::InvalidInput)?;
+        }
+        let records: Vec<_> = self
+            .records
+            .lock()
+            .map_err(|_| AuthErrorCode::ExecutionHostUnavailable)?
+            .iter()
+            .filter(|(_, record)| {
+                record.scope() == scope
+                    && target
+                        .is_none_or(|id| record.request.target_account_id.as_deref() == Some(id))
+            })
+            .map(|(id, record)| (AuthFlowId(id.clone()), Arc::clone(record)))
+            .collect();
+        let now = Instant::now();
+        let mut first_error = None;
+        for (id, record) in records {
+            let (state, _) = record.state_at(|| now)?;
+            let pending = matches!(state.snapshot, AuthFlow::Pending { .. });
+            drop(state);
+            let result = if pending {
+                match self.cancel(scope, &id, || now) {
+                    // A concurrently completed attempt's credentials are removed by logout.
+                    Err(AuthErrorCode::Conflict)
+                        if !matches!(
+                            record.state_at(|| now)?.0.snapshot,
+                            AuthFlow::Pending { .. }
+                        ) =>
+                    {
+                        Ok(())
+                    }
+                    result => result,
+                }
+            } else {
+                record.reap_expired(now)
+            };
+            if let Err(error) = result {
+                first_error.get_or_insert(error);
+            }
+        }
+        first_error.map_or(Ok(()), Err)
+    }
+
     /// Complete a host exchange at most once. The adapter must verify the
     /// canonical upstream identity and any account generation against the bound
     /// scope and request, then commit credentials and metadata before returning

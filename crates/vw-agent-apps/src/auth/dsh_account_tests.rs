@@ -22,23 +22,23 @@ use vw_api_types::{
     id::TenantScope,
 };
 
-const ISSUER: &str = "https://platform.deepseek.com";
-const GRANT: &str = "deepseek-account-platform/default";
+pub(super) const ISSUER: &str = "https://platform.deepseek.com";
+pub(super) const GRANT: &str = "deepseek-account-platform/default";
 const DEVICE: &str = "deepseek-account-platform/device";
 const DEVICE_ID: &str = "4826593b-e124-4af4-8c75-eb740b7318b7";
-const OLD_TOKEN: &str = "fixture-previous-grant";
+pub(super) const OLD_TOKEN: &str = "fixture-previous-grant";
 const NEW_TOKEN: &str = "fixture-next-grant";
 
-struct Fixture {
+pub(super) struct Fixture {
     _directory: tempfile::TempDir,
     home: PathBuf,
-    credentials: PathBuf,
+    pub(super) credentials: PathBuf,
     tenant: TenantScope,
     transactions: ProviderTransactions,
 }
 
 impl Fixture {
-    fn new() -> Self {
+    pub(super) fn new() -> Self {
         let directory = tempfile::tempdir().unwrap();
         let home = directory.path().join("home");
         let native = home.join(".dsh");
@@ -60,7 +60,7 @@ impl Fixture {
         }
     }
 
-    fn scope(&self) -> AuthAccountScope<'_> {
+    pub(super) fn scope(&self) -> AuthAccountScope<'_> {
         AuthAccountScope {
             tenant: &self.tenant,
             principal: "oidc:owner",
@@ -69,15 +69,15 @@ impl Fixture {
         }
     }
 
-    fn account(&self) -> DshAccount<'_> {
+    pub(super) fn account(&self) -> DshAccount<'_> {
         DshAccount::new(&self.home, &self.transactions, self.scope()).unwrap()
     }
 
-    fn write(&self, document: &Value) {
+    pub(super) fn write(&self, document: &Value) {
         write_private(&self.credentials, serde_yaml::to_string(document).unwrap().as_bytes());
     }
 
-    fn read(&self) -> Value {
+    pub(super) fn read(&self) -> Value {
         serde_yaml::from_slice(&fs::read(&self.credentials).unwrap()).unwrap()
     }
 }
@@ -95,11 +95,11 @@ fn write_private(path: &Path, bytes: &[u8]) {
         .unwrap();
 }
 
-fn grant(token: &str, issuer: &str) -> Value {
+pub(super) fn grant(token: &str, issuer: &str) -> Value {
     json!({"kind": "grant", "payload": {"version": 1, "token": token, "issuer": issuer}})
 }
 
-fn document() -> Value {
+pub(super) fn document() -> Value {
     json!({
         "version": 1,
         "refs": {"OTHER": "fixture-api-key"},
@@ -116,7 +116,7 @@ fn envelope(data: Value) -> Value {
     json!({"code": 0, "data": {"biz_code": 0, "biz_data": data}})
 }
 
-fn start_request() -> AuthStartRequest {
+pub(super) fn start_request() -> AuthStartRequest {
     AuthStartRequest {
         method: AuthLoginMethod::Browser,
         github_domain: None,
@@ -125,7 +125,7 @@ fn start_request() -> AuthStartRequest {
     }
 }
 
-async fn init_server() -> (Url, tokio::task::JoinHandle<String>) {
+pub(super) async fn init_server() -> (Url, tokio::task::JoinHandle<String>) {
     oauth_server(
         "200 OK",
         "",
@@ -138,7 +138,7 @@ async fn init_server() -> (Url, tokio::task::JoinHandle<String>) {
     .await
 }
 
-fn route(
+pub(super) fn route(
     path: &'static str,
     mut target: Url,
 ) -> impl Fn(&mut Request) + Clone + Send + Sync + 'static {

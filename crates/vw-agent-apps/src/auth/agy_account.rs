@@ -4,6 +4,13 @@ use super::flow::AuthAccountScope;
 use std::path::Path;
 use vw_api_types::agent_apps_auth::AuthErrorCode;
 
+#[cfg(target_os = "macos")]
+mod logout;
+#[cfg(target_os = "macos")]
+pub use logout::logout_accounts;
+#[cfg(all(test, target_os = "macos"))]
+pub(super) use logout::logout_accounts_in;
+
 /// The execution host's trusted policy for the one physical AGY login slot.
 #[derive(Clone, Copy)]
 pub struct AgyNativeTarget<'a> {
@@ -154,6 +161,8 @@ mod macos {
     pub(in crate::auth) struct ManagedRecord {
         pub(in crate::auth) account: AuthAccount,
         pub(in crate::auth) credential: Value,
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        pub(in crate::auth) signed_out_owner: Option<String>,
     }
 
     pub(in crate::auth) fn switch_account_in(
@@ -345,7 +354,7 @@ mod macos {
         Ok(result)
     }
 
-    fn managed_record(
+    pub(super) fn managed_record(
         keychain: &SecKeychain,
         scope: AuthAccountScope<'_>,
         id: &str,
@@ -362,7 +371,13 @@ mod macos {
             serde_json::from_slice(&bytes).map_err(|_| AuthErrorCode::StorageUnavailable)?;
         if record.account.account_id != id
             || record.account.service != scope.service
-            || credential_account_id(scope, &record.credential).as_deref() != Some(id)
+            || if record.account.credential_state == AuthCredentialState::SignedOut {
+                !record.credential.is_null()
+                    || record.signed_out_owner.as_deref()
+                        != Some(&super::logout::signed_out_owner(scope)?)
+            } else {
+                credential_account_id(scope, &record.credential).as_deref() != Some(id)
+            }
         {
             return Err(AuthErrorCode::NotFound);
         }
@@ -419,7 +434,7 @@ mod macos {
         Ok(live_expiry > managed_expiry)
     }
 
-    fn same_grant(left: &Value, right: &Value) -> bool {
+    pub(super) fn same_grant(left: &Value, right: &Value) -> bool {
         left.pointer("/token/refresh_token") == right.pointer("/token/refresh_token")
     }
 

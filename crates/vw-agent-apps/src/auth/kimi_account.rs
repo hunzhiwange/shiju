@@ -1,6 +1,7 @@
 //! Host-owned selection and refresh of an existing Kimi OAuth profile.
 
 mod binding;
+mod logout;
 mod native;
 
 use super::{

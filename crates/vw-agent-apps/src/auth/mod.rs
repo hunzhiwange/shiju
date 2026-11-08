@@ -122,3 +122,8 @@ mod dsh_login_tests;
 pub mod dsh_account;
 #[cfg(all(test, target_os = "macos"))]
 mod dsh_account_tests;
+
+#[cfg(target_os = "macos")]
+pub mod logout;
+#[cfg(all(test, target_os = "macos"))]
+mod logout_tests;

@@ -1,7 +1,7 @@
 //! Unix host file operations for the credential store.
 use super::{
-    AccountCredential, ClaudeAccountDirectory, DIRECTORY_MARKER, INVALID_MATERIAL, MAX_BYTES,
-    managed_config_path,
+    AccountCredential, ClaudeAccountDirectory, CredentialKind, DIRECTORY_MARKER, INVALID_MATERIAL,
+    MAX_BYTES, managed_config_path,
 };
 #[cfg(target_os = "macos")]
 use std::ffi::OsStr;
@@ -208,16 +208,16 @@ pub(in crate::auth) fn same_file(a: &File, b: &File) -> Result<bool, String> {
 pub(in crate::auth) fn read_from(
     directory: &PrivateDirectory,
     path: &Path,
-    app: AppId,
+    kind: CredentialKind,
 ) -> Result<AccountCredential, String> {
     let file = directory.file(&child_name(path)?)?.ok_or(NOT_FOUND)?;
-    decode(directory, path, app, &file)
+    decode(directory, path, kind, &file)
 }
 
 fn decode(
     directory: &PrivateDirectory,
     path: &Path,
-    app: AppId,
+    kind: CredentialKind,
     file: &File,
 ) -> Result<AccountCredential, String> {
     let mut bytes = Vec::new();
@@ -225,45 +225,79 @@ fn decode(
     if bytes.len() > MAX_BYTES {
         return Err(INVALID_MATERIAL.into());
     }
-    let credential = match app {
-        AppId::Claude if bytes == DIRECTORY_MARKER => {
+    let credential = match kind {
+        CredentialKind::App(AppId::Claude) if bytes == DIRECTORY_MARKER => {
             let path = managed_config_path(path);
             directory.child_directory(&child_name(&path)?, false)?;
             return Ok(AccountCredential::ClaudeDirectory(ClaudeAccountDirectory { path }));
         }
-        AppId::Claude => {
+        CredentialKind::App(AppId::Claude) => {
             AccountCredential::ClaudeToken(String::from_utf8(bytes).map_err(|_| INVALID_MATERIAL)?)
         }
-        AppId::Codex => AccountCredential::CodexAuth(
+        CredentialKind::App(AppId::Codex) => AccountCredential::CodexAuth(
             serde_json::from_slice(&bytes).map_err(|_| INVALID_MATERIAL)?,
         ),
+        CredentialKind::Copilot => {
+            AccountCredential::CopilotToken(String::from_utf8(bytes).map_err(|_| INVALID_MATERIAL)?)
+        }
         _ => return Err("official account service is not implemented".into()),
     };
-    credential.validate(app)?;
+    validate_kind(kind, &credential)?;
     Ok(credential)
+}
+
+fn validate_kind(kind: CredentialKind, credential: &AccountCredential) -> Result<(), String> {
+    match (kind, credential) {
+        (CredentialKind::App(app), _) => credential.validate(app),
+        (CredentialKind::Copilot, AccountCredential::CopilotToken(token))
+            if !token.is_empty()
+                && token.len() <= 16_384
+                && token.bytes().all(|byte| byte.is_ascii_graphic()) =>
+        {
+            Ok(())
+        }
+        (CredentialKind::Copilot, _) => Err(INVALID_MATERIAL.into()),
+    }
+}
+
+pub(in crate::auth) fn remove_copilot(
+    directory: &PrivateDirectory,
+    path: &Path,
+) -> Result<(), String> {
+    let name = child_name(path)?;
+    if directory.file(&name)?.is_some() {
+        // SAFETY: name is a single validated child of the leased directory.
+        if unsafe { libc::unlinkat(directory.0.as_raw_fd(), name.as_ptr(), 0) } != 0 {
+            return Err(UNAVAILABLE.into());
+        }
+    }
+    Ok(())
 }
 
 pub(in crate::auth) fn write_to(
     directory: &PrivateDirectory,
     path: &Path,
-    app: AppId,
+    kind: CredentialKind,
     credential: &AccountCredential,
     recheck: impl FnOnce() -> Result<(), String>,
 ) -> Result<(), String> {
     if let AccountCredential::ClaudeDirectory(config) = credential {
-        if app != AppId::Claude || config.path() != managed_config_path(path) {
+        if !matches!(kind, CredentialKind::App(AppId::Claude))
+            || config.path() != managed_config_path(path)
+        {
             return Err("managed Claude directory scope mismatch".into());
         }
         directory.child_directory(&child_name(config.path())?, false)?;
     } else {
-        credential.validate(app)?;
+        validate_kind(kind, credential)?;
     }
 
     let name = child_name(path)?;
     let previous = directory.file(&name)?;
     if let Some(file) = &previous {
-        match (decode(directory, path, app, file)?, credential) {
+        match (decode(directory, path, kind, file)?, credential) {
             (AccountCredential::ClaudeToken(_), AccountCredential::ClaudeToken(_))
+            | (AccountCredential::CopilotToken(_), AccountCredential::CopilotToken(_))
             | (AccountCredential::ClaudeDirectory(_), AccountCredential::ClaudeDirectory(_)) => {}
             (AccountCredential::CodexAuth(before), AccountCredential::CodexAuth(after))
                 if before["tokens"]["account_id"] == after["tokens"]["account_id"] => {}
@@ -319,7 +353,7 @@ pub(in crate::auth) fn register_claude_directory(
     let config = managed_config_path(path);
     let name = child_name(&config)?;
     if let Some(file) = directory.file(&child_name(path)?)? {
-        return match decode(directory, path, AppId::Claude, &file)? {
+        return match decode(directory, path, CredentialKind::App(AppId::Claude), &file)? {
             AccountCredential::ClaudeDirectory(_) => Ok(()),
             _ => Err("official account already exists".into()),
         };
@@ -331,7 +365,8 @@ pub(in crate::auth) fn register_claude_directory(
         return Err("cannot create managed Claude directory".into());
     }
     let credential = AccountCredential::ClaudeDirectory(ClaudeAccountDirectory { path: config });
-    let result = write_to(directory, path, AppId::Claude, &credential, recheck);
+    let result =
+        write_to(directory, path, CredentialKind::App(AppId::Claude), &credential, recheck);
     if result.is_err() {
         // SAFETY: remove only the empty directory created by this call.
         unsafe { libc::unlinkat(fd, name.as_ptr(), libc::AT_REMOVEDIR) };

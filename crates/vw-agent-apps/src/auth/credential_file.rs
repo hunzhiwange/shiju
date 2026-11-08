@@ -1,9 +1,9 @@
 //! Host-owned credential files; never discovers or adopts ambient CLI logins.
-use super::credential_lease::CredentialLease;
+use super::{credential_lease::CredentialLease, flow::AuthAccountScope};
 use base64::{Engine as _, engine::general_purpose::URL_SAFE_NO_PAD};
 use sha2::{Digest, Sha256};
 use std::path::{Path, PathBuf};
-use vw_api_types::{agent_apps::AppId, id::TenantScope};
+use vw_api_types::{agent_apps::AppId, agent_apps_auth::AuthService, id::TenantScope};
 
 #[cfg(unix)]
 mod host;
@@ -12,7 +12,7 @@ use host::open_root;
 #[cfg(unix)]
 pub(super) use host::{
     PrivateDirectory, ScopedCredentialPath, check_private, child_name, read_from,
-    register_claude_directory, same_file, write_to,
+    register_claude_directory, remove_copilot, same_file, write_to,
 };
 #[cfg(unix)]
 use std::{path::Component, sync::Arc};
@@ -34,6 +34,14 @@ pub enum AccountCredential {
     ClaudeToken(String),
     ClaudeDirectory(ClaudeAccountDirectory),
     CodexAuth(serde_json::Value),
+    CopilotToken(String),
+}
+
+#[cfg(unix)]
+#[derive(Clone, Copy)]
+pub(super) enum CredentialKind {
+    App(AppId),
+    Copilot,
 }
 impl AccountCredential {
     pub fn validate(&self, app: AppId) -> Result<(), String> {
@@ -109,7 +117,7 @@ impl AccountCredential {
     #[cfg(unix)]
     fn bytes(&self) -> Vec<u8> {
         match self {
-            Self::ClaudeToken(s) => s.as_bytes().to_vec(),
+            Self::ClaudeToken(s) | Self::CopilotToken(s) => s.as_bytes().to_vec(),
             Self::ClaudeDirectory(_) => DIRECTORY_MARKER.to_vec(),
             Self::CodexAuth(v) => v.to_string().into_bytes(),
         }
@@ -176,10 +184,7 @@ impl CredentialFileStore {
         app: AppId,
         id: &str,
     ) -> Result<PathBuf, String> {
-        for value in [host, id] {
-            crate::providers::validate_identity(value)
-                .map_err(|_| "invalid official account identity")?;
-        }
+        validate_account_location(host, id)?;
         let service = match app {
             AppId::Claude => "claude",
             AppId::Codex => "codex",
@@ -190,6 +195,16 @@ impl CredentialFileStore {
             }
             _ => return Err("official account service is not implemented".into()),
         };
+        self.service_location(tenant, host, service, id)
+    }
+
+    fn service_location(
+        &self,
+        tenant: &TenantScope,
+        host: &str,
+        service: &str,
+        id: &str,
+    ) -> Result<PathBuf, String> {
         let [platform, company] = [tenant.platform_id().as_ref(), tenant.company_id().as_ref()];
         if [platform, company].iter().any(|value| value.len() > 128) {
             return Err("invalid official account scope".into());
@@ -257,7 +272,31 @@ impl CredentialFileStore {
         let path = self.location(tenant, host, app, id)?;
         #[cfg(unix)]
         {
-            CredentialLease::new(self.scoped_path(path), app, create)
+            CredentialLease::new(self.scoped_path(path), CredentialKind::App(app), create)
+        }
+        #[cfg(not(unix))]
+        {
+            let _ = (path, create);
+            Err(UNSUPPORTED.into())
+        }
+    }
+
+    /// Copilot has a managed authorization service without a launch application.
+    pub fn lease_copilot(
+        &self,
+        scope: AuthAccountScope<'_>,
+        id: &str,
+        create: bool,
+    ) -> Result<CredentialLease, String> {
+        if scope.service != AuthService::GithubCopilot {
+            return Err("official credential service mismatch".into());
+        }
+        validate_account_location(scope.host, id)?;
+        let owner = self.for_owner(scope.principal)?;
+        let path = owner.service_location(scope.tenant, scope.host, "github_copilot", id)?;
+        #[cfg(unix)]
+        {
+            CredentialLease::new(owner.scoped_path(path), CredentialKind::Copilot, create)
         }
         #[cfg(not(unix))]
         {
@@ -287,7 +326,7 @@ impl CredentialFileStore {
         #[cfg(unix)]
         {
             let location = self.scoped_path(path);
-            read_from(&location.directory(false)?, &location.path, app)
+            read_from(&location.directory(false)?, &location.path, CredentialKind::App(app))
         }
         #[cfg(not(unix))]
         {
@@ -295,6 +334,14 @@ impl CredentialFileStore {
             Err(UNSUPPORTED.into())
         }
     }
+}
+
+fn validate_account_location(host: &str, id: &str) -> Result<(), String> {
+    for value in [host, id] {
+        crate::providers::validate_identity(value)
+            .map_err(|_| "invalid official account identity")?;
+    }
+    Ok(())
 }
 
 fn scope_component(value: &str) -> String {
@@ -311,7 +358,7 @@ pub(crate) fn read_credential(path: &Path, app: AppId) -> Result<AccountCredenti
     #[cfg(unix)]
     {
         let parent = path.parent().ok_or("unsafe official credential path")?;
-        read_from(&PrivateDirectory::open(parent)?, path, app)
+        read_from(&PrivateDirectory::open(parent)?, path, CredentialKind::App(app))
     }
     #[cfg(not(unix))]
     {

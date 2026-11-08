@@ -4,6 +4,11 @@ use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
 use std::path::{Path, PathBuf};
 pub use vw_agent_apps::auth::flow::AuthAccountScope;
+#[cfg(not(target_arch = "wasm32"))]
+use vw_agent_apps::auth::{
+    copilot::{CopilotAuth, CopilotDeviceStart},
+    flow::AuthFlows,
+};
 use vw_agent_apps::{
     apps::launch::{
         account::{AccountLaunch, prepare_account_launch},
@@ -14,6 +19,8 @@ use vw_agent_apps::{
         credential_lease::CredentialLease,
     },
 };
+#[cfg(not(target_arch = "wasm32"))]
+use vw_api_types::agent_apps_auth::{AuthAccount, AuthFlow};
 use vw_api_types::{
     TimestampMs,
     agent_apps::{AppId, AppInstallation, LaunchRequest},
@@ -30,6 +37,10 @@ const MANAGED_ACCOUNT_NAMESPACE: &str = "agent_apps.auth_accounts.v2";
 pub struct AuthAccountMetadata {
     pub external_identity_sha256: [u8; 32],
     pub authenticated_at: TimestampMs,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub github_domain: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub label: Option<String>,
 }
 
 impl AuthAccountMetadata {
@@ -44,6 +55,8 @@ impl AuthAccountMetadata {
         Ok(Self {
             external_identity_sha256: Sha256::digest(external_identity).into(),
             authenticated_at,
+            github_domain: None,
+            label: None,
         })
     }
 }
@@ -119,6 +132,83 @@ impl AuthAccountStore {
             .map_err(|_| AuthErrorCode::StorageUnavailable)?
             .ok_or(AuthErrorCode::NotFound)?;
         serde_json::from_str(&payload).map_err(|_| AuthErrorCode::StorageUnavailable)
+    }
+
+    /// Advance a due Copilot attempt on the authorized execution host.
+    #[cfg(not(target_arch = "wasm32"))]
+    pub async fn poll_copilot(
+        &self,
+        adapter: &CopilotAuth,
+        flows: &AuthFlows,
+        scope: AuthAccountScope<'_>,
+        started: &CopilotDeviceStart,
+    ) -> Result<AuthFlow, AuthErrorCode> {
+        adapter
+            .poll(flows, scope, started, |bound, account, identity, token| {
+                self.commit_copilot(bound, account, identity, token)
+            })
+            .await
+    }
+
+    #[cfg(not(target_arch = "wasm32"))]
+    fn commit_copilot(
+        &self,
+        scope: AuthAccountScope<'_>,
+        account: &AuthAccount,
+        identity: &str,
+        token: &str,
+    ) -> Result<(), AuthErrorCode> {
+        crate::global_database::run_sync_database(|| {
+            Ok(self.store_copilot(scope, account, identity, token))
+        })
+        .map_err(|_| AuthErrorCode::StorageUnavailable)?
+    }
+
+    #[cfg(not(target_arch = "wasm32"))]
+    fn store_copilot(
+        &self,
+        scope: AuthAccountScope<'_>,
+        account: &AuthAccount,
+        identity: &str,
+        token: &str,
+    ) -> Result<(), AuthErrorCode> {
+        let authenticated_at = account.authenticated_at.ok_or(AuthErrorCode::InvalidInput)?;
+        let mut metadata = AuthAccountMetadata::new(identity, authenticated_at)?;
+        metadata.github_domain =
+            Some(account.github_domain.clone().ok_or(AuthErrorCode::InvalidInput)?);
+        metadata.label = Some(account.label.clone());
+        let id = &account.account_id;
+        let lease = self
+            .credentials
+            .lease_copilot(scope, id, true)
+            .map_err(|_| AuthErrorCode::StorageUnavailable)?;
+        let existing = match self.read_metadata(&scope, id) {
+            Ok(saved) if saved.external_identity_sha256 == metadata.external_identity_sha256 => {
+                true
+            }
+            Ok(_) => return Err(AuthErrorCode::IdentityMismatch),
+            Err(AuthErrorCode::NotFound) => false,
+            Err(error) => return Err(error),
+        };
+
+        lease
+            .save(&AccountCredential::CopilotToken(token.to_owned()))
+            .map_err(|_| AuthErrorCode::StorageUnavailable)?;
+        if !existing && let Err(error) = self.insert_metadata(&scope, id, &metadata) {
+            // Confirm ambiguous database errors before removing a published credential.
+            match self.read_metadata(&scope, id) {
+                Ok(saved) if saved == metadata => return Ok(()),
+                Ok(_) | Err(AuthErrorCode::NotFound) => {
+                    lease.remove_copilot().map_err(|_| AuthErrorCode::StorageUnavailable)?
+                }
+                Err(_) => {
+                    // Preserve the private file if the database cannot tell us whether
+                    // it committed. A later attempt checks the same account under its lease.
+                }
+            }
+            return Err(error);
+        }
+        Ok(())
     }
 
     fn managed_key(

@@ -170,6 +170,9 @@ pub fn prepare_account_launch(
     }
     let mut codex_account_id = None;
     match credential {
+        AccountCredential::CopilotToken(_) => {
+            return Err("Copilot authorization has no launch application".into());
+        }
         AccountCredential::ClaudeToken(token) => {
             command
                 .env("CLAUDE_CONFIG_DIR", private.path())

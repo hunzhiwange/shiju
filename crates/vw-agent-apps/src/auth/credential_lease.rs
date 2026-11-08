@@ -2,19 +2,17 @@
 use super::credential_file::AccountCredential;
 #[cfg(unix)]
 use super::credential_file::{
-    PrivateDirectory, ScopedCredentialPath, check_private, child_name, read_from,
-    register_claude_directory, same_file, write_to,
+    CredentialKind, PrivateDirectory, ScopedCredentialPath, check_private, child_name, read_from,
+    register_claude_directory, remove_copilot, same_file, write_to,
 };
 #[cfg(unix)]
 use std::{fs::File, os::fd::AsRawFd, sync::Mutex};
-#[cfg(unix)]
-use vw_api_types::agent_apps::AppId;
 
 #[cfg(unix)]
 pub struct CredentialLease {
     location: ScopedCredentialPath,
     directory: PrivateDirectory,
-    app: AppId,
+    kind: CredentialKind,
     lock: File,
     write: Mutex<()>,
 }
@@ -23,7 +21,7 @@ pub struct CredentialLease {
 impl CredentialLease {
     pub(super) fn new(
         location: ScopedCredentialPath,
-        app: AppId,
+        kind: CredentialKind,
         create: bool,
     ) -> Result<Self, String> {
         let directory = location.directory(create)?;
@@ -36,7 +34,7 @@ impl CredentialLease {
         if unsafe { libc::flock(lock.as_raw_fd(), libc::LOCK_EX | libc::LOCK_NB) } != 0 {
             return Err("official account is in use".into());
         }
-        let lease = Self { location, directory, app, lock, write: Mutex::new(()) };
+        let lease = Self { location, directory, kind, lock, write: Mutex::new(()) };
         lease.check()?;
         Ok(lease)
     }
@@ -59,13 +57,23 @@ impl CredentialLease {
 
     pub fn read(&self) -> Result<AccountCredential, String> {
         self.check()?;
-        read_from(&self.directory, &self.location.path, self.app)
+        read_from(&self.directory, &self.location.path, self.kind)
     }
 
     pub fn save(&self, credential: &AccountCredential) -> Result<(), String> {
         let _write = self.write.lock().map_err(|_| "official account lock unavailable")?;
         self.check()?;
-        write_to(&self.directory, &self.location.path, self.app, credential, || self.check())
+        write_to(&self.directory, &self.location.path, self.kind, credential, || self.check())
+    }
+
+    /// Roll back an unpublished Copilot credential under this account's lease.
+    pub fn remove_copilot(&self) -> Result<(), String> {
+        if !matches!(self.kind, CredentialKind::Copilot) {
+            return Err("official credential service mismatch".into());
+        }
+        let _write = self.write.lock().map_err(|_| "official account lock unavailable")?;
+        self.check()?;
+        remove_copilot(&self.directory, &self.location.path)
     }
 
     pub(super) fn register_claude_directory(&self) -> Result<(), String> {
@@ -85,6 +93,10 @@ impl CredentialLease {
     }
 
     pub fn save(&self, _credential: &AccountCredential) -> Result<(), String> {
+        Err("official account locking requires a reviewed host adapter".into())
+    }
+
+    pub fn remove_copilot(&self) -> Result<(), String> {
         Err("official account locking requires a reviewed host adapter".into())
     }
 

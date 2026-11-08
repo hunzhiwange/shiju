@@ -513,3 +513,107 @@ fn cc_apps_launch_identity_list_official_host_tenant_and_missing_material() {
         "missing secret material is not advertised"
     );
 }
+
+#[cfg(unix)]
+fn copilot_account() -> AuthAccount {
+    use vw_api_types::agent_apps_auth::AuthCredentialState;
+
+    AuthAccount {
+        account_id: ACCOUNT_ID.into(),
+        service: AuthService::GithubCopilot,
+        label: "octocat".into(),
+        credential_state: AuthCredentialState::Ready,
+        is_default: false,
+        authenticated_at: Some(TimestampMs(1)),
+        login_expires_at: None,
+        github_domain: Some("github.com".into()),
+        region: None,
+    }
+}
+
+#[cfg(unix)]
+fn assert_copilot_commit(open: impl Fn() -> GlobalDatabase) {
+    let root = private_credentials_root();
+    let tenant = TenantScope::new("platform", "company").unwrap();
+    let owner = AuthAccountScope { service: AuthService::GithubCopilot, ..account_scope(&tenant) };
+    let account = copilot_account();
+    let store = AuthAccountStore::new(open(), root.path()).unwrap();
+
+    let runtime = tokio::runtime::Builder::new_current_thread().build().unwrap();
+    runtime
+        .block_on(async { store.commit_copilot(owner, &account, "github.com/42", "first-token") })
+        .unwrap();
+    drop(store);
+    let store = AuthAccountStore::new(open(), root.path()).unwrap();
+    let saved = store.read_metadata(&owner, ACCOUNT_ID).unwrap();
+    let expected = AuthAccountMetadata::new("github.com/42", TimestampMs(1)).unwrap();
+    assert_eq!(saved.external_identity_sha256, expected.external_identity_sha256);
+    assert_eq!(saved.authenticated_at, expected.authenticated_at);
+    assert_eq!(saved.github_domain.as_deref(), Some("github.com"));
+    assert_eq!(saved.label.as_deref(), Some("octocat"));
+    for unrelated in [
+        AuthAccountScope { principal: "other", ..owner },
+        AuthAccountScope { host: "other", ..owner },
+    ] {
+        assert_eq!(store.read_metadata(&unrelated, ACCOUNT_ID), Err(AuthErrorCode::NotFound));
+        assert!(store.credentials.lease_copilot(unrelated, ACCOUNT_ID, false).is_err());
+    }
+
+    store.commit_copilot(owner, &account, "github.com/42", "new-token").unwrap();
+    assert_eq!(
+        store.commit_copilot(owner, &account, "other.ghe.com/42", "foreign-token"),
+        Err(AuthErrorCode::IdentityMismatch),
+    );
+    let credential =
+        store.credentials.lease_copilot(owner, ACCOUNT_ID, false).unwrap().read().unwrap();
+    assert!(matches!(credential, AccountCredential::CopilotToken(token) if token == "new-token"));
+    let rows = store.metadata.list(&tenant, MANAGED_ACCOUNT_NAMESPACE).unwrap();
+    assert_eq!(rows.len(), 1);
+    assert!(!rows[0].payload_json.contains("token"));
+    assert!(store.metadata.list(&tenant, "agent_apps.auth_defaults").unwrap().is_empty());
+}
+
+#[cfg(unix)]
+#[test]
+fn auth6_copilot_store_commits_scoped_credentials_sqlite() {
+    let home = tempfile::tempdir().unwrap();
+    assert_copilot_commit(|| GlobalDatabase::for_home(home.path()).unwrap());
+}
+
+#[cfg(unix)]
+#[test]
+fn auth6_copilot_store_commits_scoped_credentials_postgres() {
+    let fixture = PostgresTestDatabase::from_environment().unwrap();
+    assert_copilot_commit(|| fixture.reopen().unwrap());
+    fixture.cleanup().unwrap();
+}
+
+#[cfg(unix)]
+#[test]
+fn auth6_copilot_store_rolls_back_on_metadata_failure() {
+    let home = tempfile::tempdir().unwrap();
+    let root = private_credentials_root();
+    let database = GlobalDatabase::for_home(home.path()).unwrap();
+    let store = AuthAccountStore::new(database.clone(), root.path()).unwrap();
+    let connection = database.connect_sqlite().unwrap();
+    connection
+        .execute_batch(
+            "CREATE TRIGGER reject_auth_insert BEFORE INSERT ON gateway_settings
+         BEGIN SELECT RAISE(ABORT, 'fixture metadata write failure'); END;",
+        )
+        .unwrap();
+
+    let tenant = TenantScope::new("platform", "company").unwrap();
+    let owner = AuthAccountScope { service: AuthService::GithubCopilot, ..account_scope(&tenant) };
+    let account = copilot_account();
+    assert_eq!(
+        store.commit_copilot(owner, &account, "github.com/42", "fixture-token"),
+        Err(AuthErrorCode::StorageUnavailable),
+    );
+    assert_eq!(store.read_metadata(&owner, ACCOUNT_ID), Err(AuthErrorCode::NotFound));
+    let lease = store.credentials.lease_copilot(owner, ACCOUNT_ID, false).unwrap();
+    assert!(matches!(lease.read(), Err(error) if error == "official account not found"));
+    drop(lease);
+    connection.execute_batch("DROP TRIGGER reject_auth_insert;").unwrap();
+    store.commit_copilot(owner, &account, "github.com/42", "fixture-token").unwrap();
+}

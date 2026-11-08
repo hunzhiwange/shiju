@@ -660,8 +660,23 @@ mod snippets;
 
 mod claude;
 
+#[cfg(target_os = "macos")]
+mod claude_binding;
+#[cfg(target_os = "macos")]
+pub use claude_binding::ClaudeBindingHost;
+#[cfg(target_os = "macos")]
+pub(crate) use claude_binding::{managed_claude_binding, same_scope as claude_binding_matches};
+
+#[cfg(target_os = "macos")]
+mod codex_binding;
+#[cfg(all(test, target_os = "macos"))]
+mod codex_binding_tests;
 mod codex_catalog;
+#[cfg(target_os = "macos")]
+pub(crate) use codex_binding::has_codex_binding;
 mod model_edits;
+#[cfg(target_os = "macos")]
+mod official_launch;
 
 mod gemini;
 
@@ -689,6 +704,9 @@ mod kimi_binding_tests;
 mod dsh;
 
 mod agy;
+
+#[cfg(target_os = "macos")]
+mod agy_binding;
 
 #[cfg(target_os = "macos")]
 mod import;

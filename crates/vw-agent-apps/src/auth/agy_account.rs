@@ -5,6 +5,7 @@ use std::path::Path;
 use vw_api_types::agent_apps_auth::AuthErrorCode;
 
 /// The execution host's trusted policy for the one physical AGY login slot.
+#[derive(Clone, Copy)]
 pub struct AgyNativeTarget<'a> {
     pub home: &'a Path,
     pub exclusive_owner: Option<AuthAccountScope<'a>>,
@@ -30,27 +31,66 @@ pub fn switch_default_account(
     }
 }
 
+/// Check the managed record and run a catalog operation under the native slot lock.
+#[cfg(target_os = "macos")]
+pub fn with_provider_account<T>(
+    scope: AuthAccountScope<'_>,
+    account_id: Option<&str>,
+    native: AgyNativeTarget<'_>,
+    check_live: bool,
+    operation: impl FnOnce(bool) -> Result<T, AuthErrorCode>,
+) -> Result<T, AuthErrorCode> {
+    let entry = KeychainEntry::new("gemini", "antigravity").map_err(keychain_error)?;
+    macos::with_provider_account_in(scope, account_id, native, &entry, check_live, operation)
+}
+
+/// Hold the physical slot through the provider process so another checkout
+/// cannot replace its account between preparation and execution.
+#[cfg(target_os = "macos")]
+pub fn checkout_provider_account(
+    scope: AuthAccountScope<'_>,
+    account_id: &str,
+    native: AgyNativeTarget<'_>,
+    unchanged: impl FnOnce() -> bool,
+) -> Result<std::fs::File, AuthErrorCode> {
+    let entry = KeychainEntry::new("gemini", "antigravity").map_err(keychain_error)?;
+    macos::checkout_account_in(scope, account_id, native, &entry, || {
+        if !unchanged() {
+            return Err(AuthErrorCode::Conflict);
+        }
+        if running()? {
+            return Err(AuthErrorCode::AccountInUse);
+        }
+        Ok(())
+    })
+}
+
 /// Whether AGY is running and may write its old credentials back after a switch.
 pub fn agy_account_is_running() -> bool {
     #[cfg(unix)]
     {
-        let Ok(output) = std::process::Command::new("/bin/ps")
-            .args(["-axww", "-o", "comm="])
-            .stdin(std::process::Stdio::null())
-            .stderr(std::process::Stdio::null())
-            .output()
-        else {
-            return false;
-        };
-        output.status.success()
-            && String::from_utf8_lossy(&output.stdout)
-                .lines()
-                .any(|line| Path::new(line.trim()).file_name().is_some_and(|name| name == "agy"))
+        running().unwrap_or(false)
     }
     #[cfg(not(unix))]
     {
         false
     }
+}
+
+#[cfg(unix)]
+fn running() -> Result<bool, AuthErrorCode> {
+    let output = std::process::Command::new("/bin/ps")
+        .args(["-axww", "-o", "comm="])
+        .stdin(std::process::Stdio::null())
+        .stderr(std::process::Stdio::null())
+        .output()
+        .map_err(|_| AuthErrorCode::ExecutionHostUnavailable)?;
+    if !output.status.success() {
+        return Err(AuthErrorCode::ExecutionHostUnavailable);
+    }
+    Ok(String::from_utf8_lossy(&output.stdout)
+        .lines()
+        .any(|line| Path::new(line.trim()).file_name().is_some_and(|name| name == "agy")))
 }
 
 #[cfg(target_os = "macos")]
@@ -63,6 +103,9 @@ pub(super) use macos::{
     native_home, rotation_is_newer, save_managed, switch_account_in, validate_account_id,
     validate_scope,
 };
+
+#[cfg(all(test, target_os = "macos"))]
+pub(super) use macos::{checkout_account_in, with_provider_account_in};
 
 #[cfg(target_os = "macos")]
 mod macos {
@@ -104,17 +147,51 @@ mod macos {
         native: AgyNativeTarget<'_>,
         entry: &KeychainEntry<'_>,
     ) -> Result<(), AuthErrorCode> {
+        checkout_account_in(scope, account_id, native, entry, || Ok(())).map(drop)
+    }
+
+    pub(in crate::auth) fn with_provider_account_in<T>(
+        scope: AuthAccountScope<'_>,
+        account_id: Option<&str>,
+        native: AgyNativeTarget<'_>,
+        entry: &KeychainEntry<'_>,
+        check_live: bool,
+        operation: impl FnOnce(bool) -> Result<T, AuthErrorCode>,
+    ) -> Result<T, AuthErrorCode> {
+        let home = native_home(scope, native)?;
+        let (_lock, keychain) = locked_keychain(&home)?;
+        let mut active = false;
+        if let Some(account_id) = account_id {
+            validate_account_id(account_id)?;
+            managed(&keychain, scope, account_id)?;
+            if check_live && let Some(raw) = entry.read().map_err(keychain_error)? {
+                let live = decode(&raw).ok_or(AuthErrorCode::Conflict)?;
+                active = credential_account_id(scope, &live).ok_or(AuthErrorCode::Conflict)?
+                    == account_id;
+            }
+        }
+        operation(active)
+    }
+
+    pub(in crate::auth) fn checkout_account_in(
+        scope: AuthAccountScope<'_>,
+        account_id: &str,
+        native: AgyNativeTarget<'_>,
+        entry: &KeychainEntry<'_>,
+        before_checkout: impl FnOnce() -> Result<(), AuthErrorCode>,
+    ) -> Result<File, AuthErrorCode> {
         let home = native_home(scope, native)?;
         validate_account_id(account_id)?;
-        let (_lock, keychain) = locked_keychain(&home)?;
+        let (lock, keychain) = locked_keychain(&home)?;
         let (target, _, _) = managed(&keychain, scope, account_id)?;
+        before_checkout()?;
         let before = entry.read().map_err(keychain_error)?;
         if let Some(raw) = &before {
             let live = decode(raw).ok_or(AuthErrorCode::Conflict)?;
             let live_id = credential_account_id(scope, &live).ok_or(AuthErrorCode::Conflict)?;
             if live_id == account_id {
                 return if same_grant(&live, &target.credential) {
-                    Ok(())
+                    Ok(lock)
                 } else {
                     Err(AuthErrorCode::Conflict)
                 };
@@ -139,7 +216,8 @@ mod macos {
         let serialized = serde_json::to_vec(&target.credential)
             .map_err(|_| AuthErrorCode::StorageUnavailable)?;
         let encoded = format!("{KEYRING_PREFIX}{}", STANDARD.encode(serialized));
-        entry.replace_base64(before.as_deref(), &encoded).map_err(keychain_error)
+        entry.replace_base64(before.as_deref(), &encoded).map_err(keychain_error)?;
+        Ok(lock)
     }
 
     pub(in crate::auth) fn validate_scope(

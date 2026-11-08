@@ -281,6 +281,32 @@ impl ClaudeFile {
         unchanged: impl Fn() -> bool,
         login_operation: Option<String>,
     ) -> Result<(), WriteError> {
+        self.apply_with_managed_login(
+            tx,
+            tenant,
+            state,
+            previous,
+            target,
+            pointer,
+            unchanged,
+            login_operation,
+            None,
+        )
+    }
+
+    #[allow(clippy::too_many_arguments)]
+    pub fn apply_with_managed_login(
+        &mut self,
+        tx: &super::live::commit::ProviderTransactions,
+        tenant: &vw_api_types::id::TenantScope,
+        state: &super::live::commit::AppState,
+        previous: Option<&Value>,
+        target: &Value,
+        pointer: Option<String>,
+        unchanged: impl Fn() -> bool,
+        login_operation: Option<String>,
+        claude_managed_login: Option<super::live::commit::ClaudeManagedLogin>,
+    ) -> Result<(), WriteError> {
         use super::live::{
             commit::{Contract, Mode, ModeState, PendingTarget},
             stage::FileChange,
@@ -328,7 +354,7 @@ impl ClaudeFile {
             }
             patch(pre, previous, target)
         };
-        tx.commit(
+        tx.commit_checked(
             tenant,
             &mut self.guard,
             &[FileChange {
@@ -336,7 +362,14 @@ impl ClaudeFile {
                 privacy: FilePrivacy::Private,
                 patch: &change,
             }],
-            PendingTarget { pointer, mode: Some(mode), ..Default::default() },
+            PendingTarget { pointer, mode: Some(mode), claude_managed_login, ..Default::default() },
+            || {
+                if unchanged() && tx.state(vw_api_types::agent_apps::AppId::Claude)? == *state {
+                    Ok(())
+                } else {
+                    Err(WriteError::Conflict)
+                }
+            },
         )
     }
 }

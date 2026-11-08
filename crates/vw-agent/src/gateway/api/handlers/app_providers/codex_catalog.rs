@@ -344,7 +344,8 @@ fn execute(
 
 #[cfg(target_os = "macos")]
 fn managed(row: &serde_json::Value) -> bool {
-    row.pointer("/meta/authBinding").is_some()
+    crate::app_providers::has_codex_binding(row)
+        || row.pointer("/meta/authBinding").is_some()
         || row.pointer("/meta/codexAccountId").is_some()
         || row.pointer("/meta/liveConfigManaged").is_some_and(|v| v == true)
 }

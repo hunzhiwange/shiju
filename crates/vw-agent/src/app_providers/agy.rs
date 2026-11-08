@@ -13,6 +13,10 @@ impl AppProviderStore {
     #[cfg(any(test, target_os = "macos"))]
     pub(crate) fn agy_profile(&self, t: &TenantScope, id: &str) -> Result<AgyProfile, String> {
         let row = self.agy_record(t, id)?.ok_or("application provider not found")?;
+        #[cfg(target_os = "macos")]
+        if super::agy_binding::has_agy_binding(&row) {
+            return Err("Agy bound model discovery requires an authorized account".into());
+        }
         profile_from_record(&row)
     }
 
@@ -58,6 +62,8 @@ impl AppProviderStore {
         {
             return Err("Agy managed binding is unsupported".into());
         }
+        #[cfg(target_os = "macos")]
+        super::agy_binding::check_profile_edit(&row, p)?;
         let obj = row.as_object_mut().ok_or("invalid provider record")?;
         for k in ["apiKey", "baseUrl", "protocol", "model", "requestOptions"] {
             obj.remove(k);
@@ -85,33 +91,42 @@ impl AppProviderStore {
 
 #[cfg(target_os = "macos")]
 impl AppProviderStore {
-    #[allow(clippy::too_many_arguments)]
     pub(crate) fn prepare_agy_launch(
         &self,
-        tenant: &TenantScope,
+        scope: crate::agent_apps::auth_accounts::AuthAccountScope<'_>,
+        native: vw_agent_apps::auth::agy_account::AgyNativeTarget<'_>,
         id: &str,
-        host: &str,
-        home: &Path,
         private_root: &Path,
         material: vw_agent_apps::apps::launch::request::LaunchMaterial,
     ) -> Result<ProviderLaunch, String> {
-        let before = self.agy_record(tenant, id)?.ok_or("application provider not found")?;
+        let before = self.agy_record(scope.tenant, id)?.ok_or("application provider not found")?;
         if before.get("requestOptions").is_some_and(|v| !v.is_null()) {
             return Err("Agy request overrides are unsupported".into());
         }
         let profile = profile_from_record(&before)?;
-        vw_agent_apps::providers::agy::prepare_checked(
+        let account =
+            super::agy_binding::account(&before, scope).map_err(|_| "Agy binding unavailable")?;
+        let unchanged = || matches!(self.agy_record(scope.tenant,id),Ok(Some(row)) if row==before);
+        let mut launch = vw_agent_apps::providers::agy::prepare_checked(
             &vw_agent_apps::providers::agy::Scope {
-                home,
+                home: native.home,
                 private_root,
-                host,
-                tenant,
+                host: scope.host,
+                tenant: scope.tenant,
                 provider: id,
             },
             &profile,
             material,
-            || matches!(self.agy_record(tenant,id),Ok(Some(row)) if row==before),
-        )
+            unchanged,
+        )?;
+        if let Some(account) = account {
+            let lease = vw_agent_apps::auth::agy_account::checkout_provider_account(
+                scope, &account, native, unchanged,
+            )
+            .map_err(|_| "Agy bound account unavailable")?;
+            launch.hold_agy_account(lease);
+        }
+        Ok(launch)
     }
 }
 

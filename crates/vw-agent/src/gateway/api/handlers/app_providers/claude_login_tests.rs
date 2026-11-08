@@ -133,3 +133,6 @@ async fn cc04_claude_login_sdk_api_denial_missing_account_and_write_failure_pres
     assert_eq!(k.read(None).unwrap().unwrap(), secret("original"));
     assert!(!f.root.path().join("private/provider-live/aG9zdA/claude.state.json").exists());
 }
+
+#[path = "claude_managed_binding_tests.rs"]
+mod managed_binding_tests;

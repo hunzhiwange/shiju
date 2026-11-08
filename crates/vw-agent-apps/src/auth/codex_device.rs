@@ -369,6 +369,28 @@ pub(super) fn token_subject(claims: &Value) -> Option<&str> {
         .filter(|subject| !subject.is_empty() && !subject.chars().any(char::is_control))
 }
 
+/// Revalidate a persisted bundle's workspace and subject before provider consumption.
+pub fn managed_identity(auth: &Value) -> Result<String, AuthErrorCode> {
+    let tokens = &auth["tokens"];
+    let claims = tokens["id_token"]
+        .as_str()
+        .and_then(parse_codex_jwt_claims)
+        .ok_or(AuthErrorCode::ReauthRequired)?;
+    let subject = token_subject(&claims).ok_or(AuthErrorCode::ReauthRequired)?;
+    let workspace = tokens["account_id"]
+        .as_str()
+        .filter(|value| !value.trim().is_empty())
+        .ok_or(AuthErrorCode::ReauthRequired)?;
+    let access_claims = tokens["access_token"].as_str().and_then(parse_codex_jwt_claims);
+    if workspace_id(&claims).or_else(|| access_claims.as_ref().and_then(workspace_id))
+        != Some(workspace)
+        || access_claims.as_ref().and_then(workspace_id).is_some_and(|value| value != workspace)
+    {
+        return Err(AuthErrorCode::IdentityMismatch);
+    }
+    serde_json::to_string(&(workspace, subject)).map_err(|_| AuthErrorCode::ReauthRequired)
+}
+
 pub(super) fn complete_account(
     scope: AuthAccountScope<'_>,
     target_account_id: Option<&str>,

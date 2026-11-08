@@ -84,6 +84,7 @@ struct Journal {
 #[derive(Clone, Copy, PartialEq, Eq)]
 enum SnapshotAction {
     CheckOut,
+    Managed([u8; 32]),
     ReplaceLive,
 }
 pub struct LoginHost {
@@ -216,6 +217,26 @@ impl LoginHost {
     ) -> Result<Option<String>, WriteError> {
         self.begin_snapshot(tx, tenant, target, keychain, SnapshotAction::CheckOut, archive)
     }
+    /// Verify the scoped login identity under the native account locks.
+    pub fn begin_managed(
+        &self,
+        tx: &ProviderTransactions,
+        tenant: &TenantScope,
+        target: &Path,
+        keychain: &dyn ClaudeKeychain,
+        identity: [u8; 32],
+        archive: impl FnOnce(&LoginMaterial) -> Result<(), WriteError>,
+    ) -> Result<Option<String>, WriteError> {
+        self.begin_snapshot(
+            tx,
+            tenant,
+            target,
+            keychain,
+            SnapshotAction::Managed(identity),
+            archive,
+        )
+    }
+
     /// Install new sign-in material only if this managed account already owns the live slot.
     /// The caller holds the account lease, as for a provider-bound checkout.
     pub fn replace_live(
@@ -257,12 +278,33 @@ impl LoginHost {
         let Some(identity) = account.identity()? else {
             return Err(WriteError::InvalidResource);
         };
-        let same_account = before.identity()?.as_ref() == Some(&identity);
+        if let SnapshotAction::Managed(expected) = action {
+            use sha2::{Digest, Sha256};
+            let actual: [u8; 32] = Sha256::digest(identity.as_bytes()).into();
+            if actual != expected {
+                return Err(WriteError::Conflict);
+            }
+        }
+        let previous_identity = before.identity()?;
+        if matches!(action, SnapshotAction::Managed(_))
+            && previous_identity.is_none()
+            && before.oauth().is_some()
+        {
+            return Err(WriteError::Conflict);
+        }
+        let same_account = previous_identity.as_ref() == Some(&identity);
+        if same_account
+            && matches!(action, SnapshotAction::Managed(_))
+            && before.oauth().and_then(|oauth| oauth.get("refreshToken"))
+                != account.oauth().and_then(|oauth| oauth.get("refreshToken"))
+        {
+            return Err(WriteError::Conflict);
+        }
         if same_account != (action == SnapshotAction::ReplaceLive) {
             return Ok(None);
         }
         let after = merge(&before, &account)?;
-        if action == SnapshotAction::CheckOut {
+        if action != SnapshotAction::ReplaceLive {
             archive(&before)?;
         }
         // Archival can wait for the OS. Never overwrite a login rotated in that interval.

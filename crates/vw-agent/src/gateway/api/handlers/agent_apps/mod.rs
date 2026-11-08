@@ -264,6 +264,24 @@ pub(super) fn provider_editor_authorization(
     Ok((host.home, root, authorization.principal))
 }
 
+/// Native Claude checkout requires a separately authorized default login slot.
+#[cfg(target_os = "macos")]
+pub(super) fn claude_editor_authorization(
+    path: Option<&std::path::Path>,
+    headers: &axum::http::HeaderMap,
+    tenant: &TenantScope,
+    target: &str,
+) -> Result<(std::path::PathBuf, std::path::PathBuf, String, Option<bool>), axum::http::StatusCode>
+{
+    let authorization = access::authorize_provider_editor(path, headers, tenant, target, true)?;
+    let owns_slot = authorization
+        .native_login_owner(vw_api_types::agent_apps_auth::AuthService::ClaudeOfficial)
+        .map(|owns| owns && path.is_some());
+    let host = authorization.host;
+    let root = host.credential_root.ok_or(axum::http::StatusCode::SERVICE_UNAVAILABLE)?;
+    Ok((host.home, root, authorization.principal, owns_slot))
+}
+
 /// Database-only provider operations require a host grant without opening its private file root.
 pub(super) fn authorize_provider_config_access(
     path: Option<&std::path::Path>,

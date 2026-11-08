@@ -3643,3 +3643,59 @@ PY
 `Ok(None)`，预期为 `Ok(Some("managed-account"))`。恢复提交字段后绿灯通过。
 早期构建曾因新增事务字段缺少显式初始化而退出 101、执行 0 项，已修复。
 链接器报告既有 DWARF unwind 体积提示，聚焦用例正常执行。两个槽位锁均已释放。
+
+## 母任务 4 补充：官方卡绑定与账号删除引用
+
+2026-11-09。核对冻结来源 `ca58c0313360eae7c851fbd7553c1614c7af03e7` 的供应商消费及
+`findManagedAccountUsers`。入口和范围见 [官方卡账号引用与删除事务交接](provider-contracts.md#官方卡账号引用与删除事务交接)。
+
+- Claude 供应商切换从同一次主机策略授权读取主体和默认槽权限。受管账号租约与原生 CLI 锁覆盖身份核验、
+  登录日志及供应商提交。默认槽引用随配置意图恢复，即使切离卡片并解除目录引用仍可拦截删除。已知
+  上一账号归档到同作用域的原目录，无法确认的现有登录保持原样。旧命名空间的授权和旧卡消费保留。
+- AGY 官方卡在启动前核对目标作用域并切换独占原生槽。进程完成前持有钥匙串目录锁。账号侧回调同时
+  检查目录引用和当前原生槽。绑定卡的模型发现暂时明确拒绝，避免以环境登录替代账号选择。
+- Codex 只接受内置 OpenAI 选路和已识别的模型字段。正式启动适配沿用隔离账户进程和轮换租约，
+  同一 workspace 的另一主体无法替代目标。直接切换全局配置时拒绝消费这类绑定。
+- Kimi 删除引用复用现有凭据租约，检查主机全部绑定及待恢复状态。账号删除、默认清除及 HTTP 接入
+  分别保留在已有批次范围内。
+
+### 红灯与隔离边界
+
+红灯仅关闭被验证的业务检查，分别得到以下失败。三个控制已恢复。
+
+| 命令 | 退出码 | 有效结果 |
+| --- | ---: | --- |
+| `cargo test -p vw-agent --lib provider_claude_managed_binding -- --nocapture` | 101 | 1 通过、1 失败、11760 过滤。目录仍有引用时实际返回 `Ok(())` |
+| `cargo test -p vw-agent-apps --lib provider_agy_binding -- --nocapture` | 101 | 0 通过、1 失败、784 过滤。陈旧输入未返回 `Conflict` |
+| `cargo test -p vw-agent --lib provider_codex_managed_binding -- --nocapture` | 101 | 0 通过、1 失败、11762 过滤。目录仍有引用时实际返回 `Ok(())` |
+
+隔离验证使用临时 HOME、SQLite、合成账号和实际子进程。Claude SDK 切换测试替代默认钥匙串，
+相邻快照及恢复测试使用独立命名的系统钥匙串项。AGY 使用真实系统钥匙串及独立测试项，
+未切换 `gemini/antigravity`。Codex 用可执行夹具读取私有 `CODEX_HOME`，校验真实文件和 CLI
+参数。环境未找到 AGY CLI，三款真实账号及生产客户端消费归专项验收。
+
+### 最终验证
+
+macOS 27.0（26A428），arm64。红灯和绿灯均按原子 `mkdir` 动态取得槽位 1。
+`CARGO_TARGET_DIR` 与 `CARGO_BUILD_BUILD_DIR` 均为 `/Users/xiangmin/worker/code/shiju/target/rust-slot-1`。
+
+| 命令 | 退出码 | 有效结果 |
+| --- | ---: | --- |
+| `cargo fmt --all` | 0 | 通过 |
+| `cargo test -p vw-agent-apps --lib provider_agy_binding -- --nocapture` | 0 | 1 通过、784 过滤 |
+| `cargo test -p vw-agent-apps --lib auth6_agy_switch -- --nocapture` | 0 | 2 通过、783 过滤 |
+| `cargo test -p vw-agent-apps --lib auth6_claude_ -- --nocapture` | 0 | 14 通过、771 过滤 |
+| `cargo test -p vw-agent --lib provider_claude_managed_binding -- --nocapture` | 0 | 2 通过、11761 过滤 |
+| `cargo test -p vw-agent --lib provider_codex_managed_binding -- --nocapture` | 0 | 1 通过、11762 过滤 |
+| `cargo test -p vw-agent --lib cc04_claude_login_ -- --nocapture` | 0 | 2 通过、11761 过滤 |
+| `cargo test -p vw-agent --lib cc04_agy_ -- --nocapture` | 0 | 2 通过、11761 过滤 |
+| `cargo test -p vw-agent --lib cc_apps_account_launch_isolation -- --nocapture` | 0 | 4 通过、11759 过滤 |
+| `cargo test -p vw-agent --test cc04_accept_transactions cc04_accept_transactions_ -- --nocapture` | 0 | 2 通过、1 过滤 |
+| `cargo test -p vw-agent --lib provider_kimi_binding -- --nocapture`（首次） | 101 | 3 通过、1 失败、11759 过滤。缺少 PostgreSQL 测试 URL |
+| `cargo test -p vw-agent --lib provider_kimi_binding -- --nocapture`（补验） | 0 | SQLite 3 通过、PostgreSQL 1 通过、11759 过滤 |
+| `cargo clippy --all-targets --all-features -- -D warnings` | 0 | 全目标及全特性检查通过 |
+| `git diff --check`、`git diff --cached --check` | 0／0 | 差异检查通过 |
+
+Claude 聚焦用例另用 `uchg` 阻断文件发布或状态替换，验证登录回滚、发布后恢复引用，以及切走后
+原账号可通过无引用检查。最终源码复跑两项均通过。临时回环 PostgreSQL 已停止，槽位锁已释放。
+macOS 链接器仍报告既有 DWARF unwind 体积提示，测试正常执行。

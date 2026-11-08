@@ -252,3 +252,6 @@ fn auth6_agy_switch_rejects_invalid_or_stale_input() {
     assert_eq!(fixture.record(&first)["credential"], credential("first", 1));
     fixture.remove_entries();
 }
+
+#[path = "agy_provider_binding_tests.rs"]
+mod provider_binding_tests;

@@ -160,6 +160,7 @@ impl ProviderTransactions {
             verify(resource, &open_directory(Path::new(OsStr::from_bytes(&resource.path)))?)?;
         }
         validate_target(app, &pending.target)?;
+        self.validate_claude_login(&pending.tenant, &pending.target)?;
         // Validate all records before modifying any file. Targets and temporary
         // names occupy disjoint namespaces; duplicates could corrupt cleanup.
         let mut targets = HashSet::new();

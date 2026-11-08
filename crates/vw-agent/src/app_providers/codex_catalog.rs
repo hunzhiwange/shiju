@@ -47,6 +47,7 @@ impl AppProviderStore {
         if stored.as_ref() != before {
             return Err("provider changed".into());
         }
+        let reference = stored.as_ref().and_then(super::codex_binding::saved_reference).cloned();
         let mut value = metadata.or(stored).unwrap_or(json!({}));
         let obj = value.as_object_mut().ok_or("invalid provider record")?;
         for key in ["apiKey", "baseUrl", "protocol", "model"] {
@@ -59,6 +60,7 @@ impl AppProviderStore {
             "settingsConfig".into(),
             vw_agent_apps::providers::codex_catalog::settings(profile),
         );
+        super::codex_binding::preserve_reference(reference, &mut value)?;
         vw_agent_apps::providers::request_options::read(AppId::Codex, &value)?;
         let after = value.to_string();
         let saved = match raw {

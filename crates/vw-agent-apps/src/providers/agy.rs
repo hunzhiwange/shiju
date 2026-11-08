@@ -165,6 +165,7 @@ pub fn prepare_checked(
         private: None,
         agy: lease,
         agy_catalog: catalog,
+        agy_account: None,
     })
 }
 fn safe(_: WriteError) -> String {

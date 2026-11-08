@@ -113,12 +113,11 @@ fn write_sync(
     kind: WriteKind,
     policy: Policy,
 ) -> Result<ClaudeResult, StatusCode> {
-    let (home, root) = super::super::agent_apps::provider_editor_context(
+    let (home, root, principal, owns_slot) = super::super::agent_apps::claude_editor_authorization(
         policy.0.as_deref(),
         &headers,
         &tenant,
         input.target(),
-        true,
     )?;
     if let WriteInput::Profile(req) = &input {
         authorize_login(&policy, &headers, &tenant, &req.target_host_id, &req.claude.config)?;
@@ -168,7 +167,15 @@ fn write_sync(
         )
         .map_err(|_| StatusCode::CONFLICT)?;
     let live = if let Some(host) = host {
-        host.apply(&store, &tenant, &id, &row, req.activation, policy.1.as_ref())
+        host.apply(
+            &store,
+            &tenant,
+            (&principal, owns_slot),
+            &id,
+            &row,
+            req.activation,
+            policy.1.as_ref(),
+        )
     } else {
         ClaudeLiveResult::NotAttempted
     };
@@ -335,13 +342,13 @@ async fn operation(
     let result = tokio::task::spawn_blocking(move || -> Result<ClaudeResult, StatusCode> {
         #[cfg(target_os = "macos")]
         {
-            let (home, root) = super::super::agent_apps::provider_editor_context(
-                policy.0.as_deref(),
-                &headers,
-                &tenant,
-                &host,
-                true,
-            )?;
+            let (home, root, principal, owns_slot) =
+                super::super::agent_apps::claude_editor_authorization(
+                    policy.0.as_deref(),
+                    &headers,
+                    &tenant,
+                    &host,
+                )?;
             let store = store(db).map_err(|_| StatusCode::SERVICE_UNAVAILABLE)?;
             let row = store
                 .claude_record(&tenant, &id)
@@ -356,7 +363,15 @@ async fn operation(
                 .ok_or(StatusCode::CONFLICT)?;
             Ok(ClaudeResult {
                 catalog_saved: false,
-                live: host.apply(&store, &tenant, &id, &row, activation, policy.1.as_ref()),
+                live: host.apply(
+                    &store,
+                    &tenant,
+                    (&principal, owns_slot),
+                    &id,
+                    &row,
+                    activation,
+                    policy.1.as_ref(),
+                ),
             })
         }
         #[cfg(not(target_os = "macos"))]
@@ -447,13 +462,13 @@ async fn sync(
     let result = tokio::task::spawn_blocking(move || -> Result<ClaudeResult, StatusCode> {
         #[cfg(target_os = "macos")]
         {
-            let (home, root) = super::super::agent_apps::provider_editor_context(
-                policy.0.as_deref(),
-                &headers,
-                &tenant,
-                &req.target_host_id,
-                true,
-            )?;
+            let (home, root, principal, owns_slot) =
+                super::super::agent_apps::claude_editor_authorization(
+                    policy.0.as_deref(),
+                    &headers,
+                    &tenant,
+                    &req.target_host_id,
+                )?;
             let store = store(db).map_err(|_| StatusCode::SERVICE_UNAVAILABLE)?;
             let child = vw_agent_apps::providers::universal_sync::child_id(AppId::Claude, &id)
                 .map_err(|_| StatusCode::BAD_REQUEST)?;
@@ -483,9 +498,15 @@ async fn sync(
             }
             let live = if let Some(host) = host {
                 match store.claude_record(&tenant, &child) {
-                    Ok(Some(row)) => {
-                        host.apply(&store, &tenant, &child, &row, req.activation, policy.1.as_ref())
-                    }
+                    Ok(Some(row)) => host.apply(
+                        &store,
+                        &tenant,
+                        (&principal, owns_slot),
+                        &child,
+                        &row,
+                        req.activation,
+                        policy.1.as_ref(),
+                    ),
                     _ => ClaudeLiveResult::Failed,
                 }
             } else {

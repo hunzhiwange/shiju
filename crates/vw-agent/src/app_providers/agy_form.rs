@@ -91,6 +91,7 @@ impl AppProviderStore {
             api_key,
         };
         vw_agent_apps::providers::agy::validate(&profile)?;
+        super::agy_binding::check_profile_edit(&before, &profile)?;
         let mut next = vw_agent_apps::providers::basic::apply(
             AppId::Agy,
             &before,
@@ -153,6 +154,9 @@ impl AppProviderStore {
             .ok_or("application provider not found")?;
         let row: Value = serde_json::from_str(&raw).map_err(|_| "invalid profile")?;
         view(&row)?;
+        if super::agy_binding::has_agy_binding(&row) {
+            return Err("Agy provider is referenced".into());
+        }
         // Unknown metadata can carry bindings; refuse rather than guess reference semantics.
         if row
             .get("meta")

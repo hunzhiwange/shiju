@@ -1,10 +1,24 @@
 //! Bound native login orchestration for the existing Claude transaction.
 use super::*;
+use crate::{
+    agent_apps::auth_accounts::{AuthAccountScope, AuthAccountStore},
+    app_providers::{claude_binding_matches, managed_claude_binding},
+};
+use vw_agent_apps::{
+    auth::claude_keychain::ClaudeKeychain,
+    providers::{
+        claude_login::LoginMaterial,
+        live::{commit::ClaudeManagedLogin, write_guard::WriteError},
+    },
+};
+use vw_api_types::agent_apps_auth::AuthService;
 impl super::Host {
+    #[allow(clippy::too_many_arguments)]
     pub(super) fn apply(
         mut self,
         store: &AppProviderStore,
         tenant: &TenantScope,
+        (principal, owns_slot): (&str, Option<bool>),
         id: &str,
         row: &serde_json::Value,
         activation: ClaudeActivation,
@@ -32,9 +46,6 @@ impl super::Host {
         {
             return ClaudeLiveResult::Failed;
         }
-        if self.login.as_ref().is_some_and(|login| login.recover(&self.tx, keychain).is_err()) {
-            return ClaudeLiveResult::RecoveryRequired;
-        }
         let profile: Option<ClaudeProfile> = match row.get("claude") {
             Some(value) => match serde_json::from_value(value.clone()) {
                 Ok(profile) => Some(profile),
@@ -42,28 +53,91 @@ impl super::Host {
             },
             None => None,
         };
+        let scope = AuthAccountScope {
+            tenant,
+            principal,
+            host: &self.host_id,
+            service: AuthService::ClaudeOfficial,
+        };
+        let Ok(managed) = managed_claude_binding(row) else {
+            return ClaudeLiveResult::Failed;
+        };
+        let previous_owner = self.state.claude_managed_login.as_ref();
+        if owns_slot == Some(false)
+            || (managed.is_some() || previous_owner.is_some()) && owns_slot != Some(true)
+        {
+            return ClaudeLiveResult::Failed;
+        }
+        if managed
+            .as_ref()
+            .into_iter()
+            .chain(previous_owner)
+            .any(|binding| !claude_binding_matches(binding, scope))
+        {
+            return ClaudeLiveResult::Failed;
+        }
+        let legacy = match profile {
+            Some(ClaudeProfile { config: ClaudeConfig::Official { account }, .. }) => account,
+            _ => None,
+        };
+        if legacy.is_some() && previous_owner.is_some() {
+            return ClaudeLiveResult::Failed;
+        }
+
+        if self.login.as_ref().is_some_and(|login| login.recover(&self.tx, keychain).is_err()) {
+            return ClaudeLiveResult::RecoveryRequired;
+        }
         let mut operation = None;
         let mut account_lease = None;
-        if let Some(ClaudeProfile {
-            config: ClaudeConfig::Official { account: Some(binding) },
-            ..
-        }) = profile
-        {
+        if managed.is_some() || legacy.is_some() {
             let Some(login) = &self.login else {
                 return ClaudeLiveResult::Failed;
             };
             let Ok(accounts) = store.claude_accounts(&self.root) else {
                 return ClaudeLiveResult::Failed;
             };
-            let Ok((lease, directory)) =
-                accounts.claude_login_account(tenant, &self.host_id, &binding.account_id)
-            else {
+            let checkout = if let Some(binding) = &managed {
+                let Ok(lease) = accounts.managed_official_lease(scope, &binding.account_id) else {
+                    return ClaudeLiveResult::Failed;
+                };
+                let Ok(directory) = accounts.claude_managed_directory(&lease) else {
+                    return ClaudeLiveResult::Failed;
+                };
+                let Ok(metadata) = accounts.read_metadata(&scope, &binding.account_id) else {
+                    return ClaudeLiveResult::Failed;
+                };
+                account_lease = Some(lease);
+                login.begin_managed(
+                    &self.tx,
+                    tenant,
+                    directory.path(),
+                    keychain,
+                    metadata.external_identity_sha256,
+                    |material| {
+                        archive_managed_previous(
+                            &accounts,
+                            scope,
+                            previous_owner,
+                            binding,
+                            material,
+                            keychain,
+                        )
+                    },
+                )
+            } else if let Some(binding) = legacy {
+                let Ok((lease, directory)) =
+                    accounts.claude_login_account(tenant, &self.host_id, &binding.account_id)
+                else {
+                    return ClaudeLiveResult::Failed;
+                };
+                account_lease = Some(lease);
+                login.begin(&self.tx, tenant, directory.path(), keychain, |material| {
+                    accounts.archive_claude_default(tenant, &self.host_id, material, keychain)
+                })
+            } else {
                 return ClaudeLiveResult::Failed;
             };
-            account_lease = Some(lease);
-            match login.begin(&self.tx, tenant, directory.path(), keychain, |material| {
-                accounts.archive_claude_default(tenant, &self.host_id, material, keychain)
-            }) {
+            match checkout {
                 Ok(op) => operation = op,
                 Err(_) => {
                     return if login.has_journal().unwrap_or(true) {
@@ -77,7 +151,7 @@ impl super::Host {
         let pointer =
             if activation == ClaudeActivation::IfCurrent { None } else { Some(id.to_owned()) };
         let unchanged = || store.claude_record(tenant, id).ok().flatten().as_ref() == Some(row);
-        let result = self.file.apply_with_login(
+        let result = self.file.apply_with_managed_login(
             &self.tx,
             tenant,
             &self.state,
@@ -86,6 +160,7 @@ impl super::Host {
             pointer,
             unchanged,
             operation,
+            managed,
         );
         let settled = self.login.as_ref().map(|login| login.settle(&self.tx, keychain)).transpose();
         drop(account_lease);
@@ -100,4 +175,32 @@ impl super::Host {
             Err(_) => ClaudeLiveResult::Failed,
         }
     }
+}
+
+fn archive_managed_previous(
+    accounts: &AuthAccountStore,
+    scope: AuthAccountScope<'_>,
+    previous: Option<&ClaudeManagedLogin>,
+    target: &ClaudeManagedLogin,
+    material: &LoginMaterial,
+    keychain: &dyn ClaudeKeychain,
+) -> Result<(), WriteError> {
+    use sha2::{Digest, Sha256};
+    let Some(identity) = material.identity()? else {
+        return Ok(());
+    };
+    let previous = previous
+        .filter(|previous| previous.account_id != target.account_id)
+        .ok_or(WriteError::Conflict)?;
+    let lease = accounts
+        .managed_official_lease(scope, &previous.account_id)
+        .map_err(|_| WriteError::Conflict)?;
+    let metadata =
+        accounts.read_metadata(&scope, &previous.account_id).map_err(|_| WriteError::Conflict)?;
+    let actual: [u8; 32] = Sha256::digest(identity.as_bytes()).into();
+    if actual != metadata.external_identity_sha256 {
+        return Err(WriteError::Conflict);
+    }
+    let directory = accounts.claude_managed_directory(&lease).map_err(|_| WriteError::Conflict)?;
+    material.archive(directory.path(), keychain)
 }

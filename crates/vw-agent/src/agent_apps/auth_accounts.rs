@@ -931,6 +931,89 @@ mod tests;
 
 #[cfg(target_os = "macos")]
 impl AuthAccountStore {
+    pub(crate) fn managed_official_lease(
+        &self,
+        scope: AuthAccountScope<'_>,
+        id: &str,
+    ) -> Result<CredentialLease, AuthErrorCode> {
+        let app = match scope.service {
+            AuthService::ClaudeOfficial => AppId::Claude,
+            AuthService::CodexOauth => AppId::Codex,
+            _ => return Err(AuthErrorCode::Unsupported),
+        };
+        self.read_metadata(&scope, id)?;
+        let lease = self
+            .credentials
+            .for_owner(scope.principal)
+            .and_then(|owner| owner.lease(scope.tenant, scope.host, app, id, false))
+            .map_err(|error| {
+                if error == "official account is in use" {
+                    AuthErrorCode::AccountInUse
+                } else {
+                    AuthErrorCode::StorageUnavailable
+                }
+            })?;
+        self.read_metadata(&scope, id)?;
+        Ok(lease)
+    }
+
+    pub(crate) fn claude_managed_directory(
+        &self,
+        lease: &CredentialLease,
+    ) -> Result<vw_agent_apps::auth::credential_file::ClaudeAccountDirectory, AuthErrorCode> {
+        match lease.read().map_err(|_| AuthErrorCode::StorageUnavailable)? {
+            AccountCredential::ClaudeDirectory(directory) => Ok(directory),
+            _ => Err(AuthErrorCode::ReauthRequired),
+        }
+    }
+
+    pub(crate) fn prepare_bound_official_launch(
+        &self,
+        scope: AuthAccountScope<'_>,
+        id: &str,
+        model: Option<&str>,
+        material: vw_agent_apps::apps::launch::request::LaunchMaterial,
+        unchanged: impl FnOnce() -> bool,
+    ) -> Result<AuthAccountLaunch, AuthErrorCode> {
+        let lease = self.managed_official_lease(scope, id)?;
+        let metadata = self.read_metadata(&scope, id)?;
+        let credential = lease.read().map_err(|_| AuthErrorCode::ReauthRequired)?;
+        let (app, identity) = match &credential {
+            AccountCredential::ClaudeDirectory(directory)
+                if scope.service == AuthService::ClaudeOfficial =>
+            {
+                let identity = vw_agent_apps::providers::claude_login::LoginMaterial::from_account(
+                    directory.path(),
+                    &vw_agent_apps::auth::claude_keychain::MacOsKeychain,
+                )
+                .and_then(|material| material.identity())
+                .map_err(|_| AuthErrorCode::KeychainUnavailable)?
+                .ok_or(AuthErrorCode::ReauthRequired)?;
+                (AppId::Claude, identity)
+            }
+            AccountCredential::CodexAuth(auth) if scope.service == AuthService::CodexOauth => {
+                (AppId::Codex, vw_agent_apps::auth::codex_device::managed_identity(auth)?)
+            }
+            _ => return Err(AuthErrorCode::Unsupported),
+        };
+        let actual: [u8; 32] = Sha256::digest(identity.as_bytes()).into();
+        if actual != metadata.external_identity_sha256 {
+            return Err(AuthErrorCode::IdentityMismatch);
+        }
+        if !unchanged() {
+            return Err(AuthErrorCode::Conflict);
+        }
+        let launch = vw_agent_apps::apps::launch::account::prepare_account_launch_with_model(
+            app,
+            credential,
+            material,
+            Path::new("/tmp"),
+            model,
+        )
+        .map_err(|_| AuthErrorCode::InvalidInput)?;
+        Ok(AuthAccountLaunch { launch, lease })
+    }
+
     /// Resolve only a pre-existing tenant/host account and retain the owner's launch lease.
     pub(crate) fn claude_login_account(
         &self,

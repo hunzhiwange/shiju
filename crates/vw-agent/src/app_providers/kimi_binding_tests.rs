@@ -159,6 +159,10 @@ async fn provider_kimi_binding_commits_and_survives_ordinary_edits() {
         Err(AuthErrorCode::NotFound)
     );
     f.bind(scope, None, ACCOUNT).await.unwrap();
+    assert_eq!(
+        f.store.with_kimi_provider_unreferenced(scope, &f.root, ACCOUNT, |_| Ok(())),
+        Err(AuthErrorCode::AccountInUse)
+    );
     assert_eq!(f.binding(scope), Ok(Some(ACCOUNT.into())));
     let selected = CONFIG.replacen("\"original\"", "\"chosen\"", 1);
     assert_eq!(fs::read_to_string(f.config()).unwrap(), selected);

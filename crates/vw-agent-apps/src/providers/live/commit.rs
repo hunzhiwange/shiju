@@ -54,8 +54,19 @@ pub struct PendingTarget {
     pub stack: Option<crate::providers::mode_state::StackState>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub kimi_binding: Option<KimiBinding>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub claude_managed_login: Option<ClaudeManagedLogin>,
     pub pointer: Option<String>,
     pub mode: Option<ModeState>,
+}
+/// Scoped reference to the account whose login occupies the default Claude slot.
+#[derive(Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct ClaudeManagedLogin {
+    pub tenant: TenantScope,
+    pub principal: String,
+    pub host: String,
+    pub account_id: String,
 }
 /// Reference only. Account credentials remain with the managed and native login owners.
 #[derive(Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -80,10 +91,22 @@ pub struct AppState {
     pub stack_tenant: Option<TenantScope>,
     #[serde(default, skip_serializing_if = "std::collections::BTreeMap::is_empty")]
     pub kimi_bindings: std::collections::BTreeMap<String, KimiBinding>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub claude_managed_login: Option<ClaudeManagedLogin>,
     pub pointer: Option<ScopedProvider>,
     pub mode: Option<ModeState>,
     pub mode_tenant: Option<TenantScope>,
 }
+impl AppState {
+    pub fn uses_kimi_account(&self, tenant: &TenantScope, principal: &str, account: &str) -> bool {
+        self.mode_tenant.as_ref() == Some(tenant)
+            && self
+                .kimi_bindings
+                .values()
+                .any(|binding| binding.principal == principal && binding.account_id == account)
+    }
+}
+
 #[derive(Clone, Serialize, Deserialize)]
 pub struct PendingFile {
     /// Index into the executor registration; legacy intents use the primary directory.
@@ -186,7 +209,8 @@ impl ProviderTransactions {
             .map(|b| serde_json::from_slice(&b).map_err(|_| WriteError::InvalidResource))
             .transpose()?;
         if pending.as_ref().is_some_and(|p| {
-            !matches!(p.version, 1..=5)
+            !matches!(p.version, 1..=6)
+                || (p.version == 6) != p.target.claude_managed_login.is_some()
                 || (p.version == 5) != p.target.kimi_binding.is_some()
                 || (p.version < 4 && p.target.stack.is_some())
                 || (p.version < 3 && p.files.iter().any(|f| f.directory != 0))
@@ -228,6 +252,7 @@ impl ProviderTransactions {
     ) -> Result<(), WriteError> {
         let app = guard.app();
         validate_target(app, &target)?;
+        self.validate_claude_login(tenant, &target)?;
         let _lock = self.lock(app)?;
         if self.recover_locked(guard)?.is_some() {
             // Recovery can move state. The caller must re-read and replan.
@@ -256,7 +281,9 @@ impl ProviderTransactions {
         }
         let mut pending = Pending {
             // Older executors must reject multi-directory intents and actual deletions.
-            version: if target.kimi_binding.is_some() {
+            version: if target.claude_managed_login.is_some() {
+                6
+            } else if target.kimi_binding.is_some() {
                 5
             } else if target.stack.is_some() {
                 4
@@ -307,6 +334,19 @@ impl ProviderTransactions {
         self.clear_pending(app)?;
         for _ in changes {
             crate::providers::operations::advanced();
+        }
+        Ok(())
+    }
+
+    pub(super) fn validate_claude_login(
+        &self,
+        tenant: &TenantScope,
+        target: &PendingTarget,
+    ) -> Result<(), WriteError> {
+        if let Some(login) = &target.claude_managed_login
+            && (&login.tenant != tenant || ExecutionHostId::new(&login.host)? != self.host)
+        {
+            return Err(WriteError::Conflict);
         }
         Ok(())
     }
@@ -413,6 +453,19 @@ fn private_child(parent: &File, name: &str) -> Result<File, WriteError> {
     Ok(file)
 }
 pub(super) fn validate_target(app: AppId, target: &PendingTarget) -> Result<(), WriteError> {
+    if let Some(login) = &target.claude_managed_login {
+        if app != AppId::Claude
+            || target.kimi_binding.is_some()
+            || target.stack.is_some()
+            || login.principal.trim().is_empty()
+            || login.principal.chars().any(char::is_control)
+            || !target.mode.as_ref().is_some_and(|mode| mode.mode == Mode::Direct && !mode.attached)
+        {
+            return Err(WriteError::InvalidResource);
+        }
+        crate::providers::validate_identity(&login.account_id)
+            .map_err(|_| WriteError::InvalidResource)?;
+    }
     if let Some(binding) = &target.kimi_binding {
         if app != AppId::Kimi
             || target.pointer.is_some()
@@ -472,6 +525,9 @@ pub(super) fn apply_target(state: &mut AppState, tenant: &TenantScope, target: &
     if let Some(stack) = &target.stack {
         state.stack = stack.clone();
         state.stack_tenant = Some(tenant.clone());
+    }
+    if let Some(login) = &target.claude_managed_login {
+        state.claude_managed_login = Some(login.clone());
     }
     if let Some(binding) = &target.kimi_binding {
         state.kimi_bindings.insert(binding.provider_id.clone(), binding.clone());

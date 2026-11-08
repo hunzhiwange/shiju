@@ -65,6 +65,17 @@ async fn launch(
         if (request.provider_id.is_some() && request.account_id.is_some()) || request.launch.skip_permissions { return Err(StatusCode::UNPROCESSABLE_ENTITY); }
         if let Some(id) = &request.provider_id && !authorization.permits(request.launch.app_id, vw_api_types::agent_apps::LaunchIdentityKind::Provider, id) { return Err(StatusCode::FORBIDDEN); }
         if let Some(id) = &request.account_id && !authorization.permits(request.launch.app_id, vw_api_types::agent_apps::LaunchIdentityKind::OfficialAccount, id) { return Err(StatusCode::FORBIDDEN); }
+        // An explicitly scoped native slot must not be reachable through ordinary launch.
+        let native_service = match request.launch.app_id {
+            vw_api_types::agent_apps::AppId::Claude => Some(vw_api_types::agent_apps_auth::AuthService::ClaudeOfficial),
+            vw_api_types::agent_apps::AppId::Agy => Some(vw_api_types::agent_apps_auth::AuthService::AgyOauth),
+            _ => None,
+        };
+        if native_service.is_some_and(|service| authorization.native_login_owner(service) == Some(false)) {
+            return Err(StatusCode::FORBIDDEN);
+        }
+        #[cfg(target_os="macos")]
+        let agy_owner = context.policy.is_some() && authorization.native_login_owner(vw_api_types::agent_apps_auth::AuthService::AgyOauth) == Some(true);
         let host = authorization.host; let principal = authorization.principal;
         let cwd = PathBuf::from(&request.launch.cwd);
         let root = host.home.canonicalize().map_err(|_| StatusCode::SERVICE_UNAVAILABLE)?;
@@ -112,9 +123,34 @@ async fn launch(
                 if let Some(provider_id) = request.provider_id {
                     let store=crate::app_providers::AppProviderStore::new(db).map_err(|_|StatusCode::SERVICE_UNAVAILABLE)?;
                     #[cfg(target_os="macos")]
+                    let bound = match request.launch.app_id {
+                        vw_api_types::agent_apps::AppId::Claude | vw_api_types::agent_apps::AppId::Codex => {
+                            let service = match request.launch.app_id {
+                                vw_api_types::agent_apps::AppId::Claude => vw_api_types::agent_apps_auth::AuthService::ClaudeOfficial,
+                                _ => vw_api_types::agent_apps_auth::AuthService::CodexOauth,
+                            };
+                            let binding_scope = crate::agent_apps::auth_accounts::AuthAccountScope { tenant: &tenant, principal: &scope.principal, host: &host.id, service };
+                            let material = validate_launch_request(&request.launch,&host.id,&observed.installations,std::slice::from_ref(&root),false)
+                                .map_err(|_|StatusCode::UNPROCESSABLE_ENTITY)?;
+                            store.prepare_bound_official_launch(binding_scope, &provider_id, host.credential_root.as_deref(), material)
+                                .map_err(|_|StatusCode::UNPROCESSABLE_ENTITY)?
+                        }
+                        _ => None,
+                    };
+                    #[cfg(not(target_os="macos"))]
+                    let bound: Option<crate::agent_apps::auth_accounts::AuthAccountLaunch> = None;
+                    if let Some(prepared) = bound {
+                        Some(context.sessions.start(scope, move |ready| {
+                            let transport = vw_agent_apps::apps::launch::terminal_session::TerminalSession::connect_with(Path::new("/tmp"), |_, material| terminal(preferred.as_deref(), Path::new("/bin/sh"), material))?;
+                            prepared.run_with(|command| transport.run(command, move || { let _ = ready.send(()); }))
+                        })?)
+                    } else {
+                    #[cfg(target_os="macos")]
                     let agy=if request.launch.app_id==vw_api_types::agent_apps::AppId::Agy {
                         let material=validate_launch_request(&request.launch,&host.id,&observed.installations,std::slice::from_ref(&root),false).map_err(|_|StatusCode::UNPROCESSABLE_ENTITY)?;
-                        Some(store.prepare_agy_launch(&tenant,&provider_id,&host.id,&host.home,host.credential_root.as_deref().ok_or(StatusCode::SERVICE_UNAVAILABLE)?,material).map_err(|_|StatusCode::UNPROCESSABLE_ENTITY)?)
+                        let account_scope = crate::agent_apps::auth_accounts::AuthAccountScope { tenant: &tenant, principal: &scope.principal, host: &host.id, service: vw_api_types::agent_apps_auth::AuthService::AgyOauth };
+                        let native = vw_agent_apps::auth::agy_account::AgyNativeTarget { home: &host.home, exclusive_owner: agy_owner.then_some(account_scope) };
+                        Some(store.prepare_agy_launch(account_scope,native,&provider_id,host.credential_root.as_deref().ok_or(StatusCode::SERVICE_UNAVAILABLE)?,material).map_err(|_|StatusCode::UNPROCESSABLE_ENTITY)?)
                     }else{None};
                     #[cfg(not(target_os="macos"))]
                     let agy: Option<vw_agent_apps::apps::launch::provider::ProviderLaunch>=None;
@@ -124,6 +160,7 @@ async fn launch(
                         let transport = vw_agent_apps::apps::launch::terminal_session::TerminalSession::connect_with(Path::new("/tmp"), |_, material| terminal(preferred.as_deref(), Path::new("/bin/sh"), material))?;
                         prepared.run_with(|command| transport.run(command, move || { let _ = ready.send(()); }))
                     })?)
+                    }
                 } else {
                     let credential_root = host.credential_root.ok_or(StatusCode::NOT_IMPLEMENTED)?;
                     let prepared = crate::agent_apps::auth_accounts::AuthAccountStore::new(db, &credential_root)

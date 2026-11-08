@@ -7,7 +7,7 @@ use std::{
     io::Read,
     path::{Path, PathBuf},
 };
-use vw_api_types::id::TenantScope;
+use vw_api_types::{agent_apps_auth::AuthService, id::TenantScope};
 
 #[derive(Deserialize)]
 #[serde(deny_unknown_fields)]
@@ -52,8 +52,13 @@ pub(super) struct Authorization {
     pub host: Host,
     pub principal: String,
     pub identities: Vec<IdentityPermit>,
+    native_slots: Vec<(AuthService, bool)>,
 }
 impl Authorization {
+    pub(super) fn native_login_owner(&self, service: AuthService) -> Option<bool> {
+        self.native_slots.iter().find(|(candidate, _)| *candidate == service).map(|(_, owns)| *owns)
+    }
+
     pub fn permits(
         &self,
         app: vw_api_types::agent_apps::AppId,
@@ -65,6 +70,15 @@ impl Authorization {
 }
 #[derive(Clone, Deserialize)]
 #[serde(deny_unknown_fields)]
+struct NativeLoginOwner {
+    service: AuthService,
+    platform_id: String,
+    company_id: String,
+    principal: String,
+}
+
+#[derive(Clone, Deserialize)]
+#[serde(deny_unknown_fields)]
 pub(super) struct Host {
     pub id: String,
     pub online: bool,
@@ -74,6 +88,8 @@ pub(super) struct Host {
     pub applications: PathBuf,
     #[serde(default)]
     pub credential_root: Option<PathBuf>,
+    #[serde(default)]
+    native_login_owners: Vec<NativeLoginOwner>,
     #[serde(default)]
     pub lifecycle: Option<Lifecycle>,
 }
@@ -216,6 +232,19 @@ fn authorize_scoped(
         return Err(StatusCode::FORBIDDEN);
     }
     let identities = grants.into_iter().flat_map(|g| g.identities.clone()).collect();
+    let native_slots = policy
+        .hosts
+        .iter()
+        .flat_map(|host| {
+            host.native_login_owners.iter().map(|owner| {
+                let owns = host.id == target
+                    && owner.principal == principal.id
+                    && owner.platform_id == tenant.platform_id().as_ref()
+                    && owner.company_id == tenant.company_id().as_ref();
+                (owner.service, owns)
+            })
+        })
+        .collect();
     let host = policy.hosts.into_iter().find(|h| h.id == target).ok_or(StatusCode::NOT_FOUND)?;
     if !host.online {
         return Err(StatusCode::SERVICE_UNAVAILABLE);
@@ -223,7 +252,7 @@ fn authorize_scoped(
     if matches!(host.binding, Binding::Remote) {
         return Err(StatusCode::NOT_IMPLEMENTED);
     }
-    Ok(Authorization { host, principal: principal.id.clone(), identities })
+    Ok(Authorization { host, principal: principal.id.clone(), identities, native_slots })
 }
 
 fn load(path: &Path) -> Result<Policy, ()> {
@@ -287,12 +316,32 @@ fn load(path: &Path) -> Result<Policy, ()> {
         }
         let policy: Policy = serde_json::from_slice(&bytes).map_err(|_| ())?;
         let mut ids = HashSet::new();
+        let mut services = Vec::new();
         for host in &policy.hosts {
             if host.id.trim().is_empty()
                 || !ids.insert(&host.id)
                 || !host.home.is_absolute()
                 || !host.applications.is_absolute()
                 || host.credential_root.as_ref().is_some_and(|root| !root.is_absolute())
+                || host.native_login_owners.iter().any(|owner| {
+                    let unique = !services.contains(&owner.service);
+                    services.push(owner.service);
+                    !unique
+                        || !matches!(
+                            owner.service,
+                            AuthService::ClaudeOfficial
+                                | AuthService::AgyOauth
+                                | AuthService::CodexOauth
+                        )
+                        || !policy.principals.iter().any(|principal| {
+                            principal.id == owner.principal
+                                && principal.grants.iter().any(|grant| {
+                                    grant.host_id == host.id
+                                        && grant.platform_id == owner.platform_id
+                                        && grant.company_id == owner.company_id
+                                })
+                        })
+                })
                 || host.search_paths.len() > 64
                 || host.search_paths.iter().any(|p| !p.is_absolute())
             {

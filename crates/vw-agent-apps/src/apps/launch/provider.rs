@@ -20,8 +20,15 @@ pub struct ProviderLaunch {
     pub(crate) agy: Option<crate::providers::agy::Lease>,
     #[cfg(target_os = "macos")]
     pub(crate) agy_catalog: Option<std::fs::File>,
+    #[cfg(target_os = "macos")]
+    pub(crate) agy_account: Option<std::fs::File>,
 }
 impl ProviderLaunch {
+    #[cfg(target_os = "macos")]
+    pub fn hold_agy_account(&mut self, lease: std::fs::File) {
+        self.agy_account = Some(lease);
+    }
+
     /// Retain configuration until child exit; Agy sessions persist, temporary profiles are removed.
     /// Returns only a fixed error, never child output (which may contain credentials).
     pub fn run(self) -> Result<(), String> {
@@ -64,7 +71,7 @@ impl ProviderLaunch {
         }
         let result = execute(&mut command);
         #[cfg(target_os = "macos")]
-        drop(self.agy_catalog);
+        drop((self.agy_account, self.agy_catalog));
         // The private profile must outlive the process, even though it is not read here.
         if let Some(private) = self.private {
             private.close().map_err(|_| "private provider configuration cleanup failed")?;
@@ -274,5 +281,7 @@ pub fn prepare_provider_launch(
         agy: None,
         #[cfg(target_os = "macos")]
         agy_catalog: None,
+        #[cfg(target_os = "macos")]
+        agy_account: None,
     })
 }

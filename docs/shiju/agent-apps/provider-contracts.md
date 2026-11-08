@@ -206,3 +206,36 @@ macOS 的 Kimi 官方 OAuth 供应商已接入主机事务。执行端使用
 消费时由现有 Kimi 适配器重新核验原生 grant 身份，然后选择模型。无绑定时读取返回空，
 消费返回 `NotFound`。当前支持范围为已存在原生官方 profile 和匹配的受管 grant。
 统一账号语义和 HTTP 接入分别由批次 33、42 负责。
+
+## 官方卡账号引用与删除事务交接
+
+冻结来源为 cc-switch `ca58c0313360eae7c851fbd7553c1614c7af03e7`。
+`src/lib/managedAccountUsage.ts::findManagedAccountUsers` 汇总 Claude、Claude Desktop、
+Codex 和 AGY 的托管引用。Claude 官方卡的本机快照和隔离启动见
+`services/provider/claude_official.rs`，Codex 官方卡和解除引用见
+`services/provider/codex_direct.rs`、`commands/auth.rs::remove_codex_oauth_account_with_switch_lock`，
+AGY 启动前切号见 `commands/misc.rs::switch_agy_to_bound_account`。
+本地冻结合同采用显式绑定，账号仍被引用时返回 `account_in_use`。
+
+| 应用与服务 | 执行端入口 | 参考范围与消费 |
+| --- | --- | --- |
+| Claude 官方卡，`claude_official` | `app_providers/claude_binding.rs` 的 `bind_claude_account`、`claude_account_binding`、`with_claude_provider_unreferenced` | 同租户、主体、主机、服务的 v2 元数据及独立目录。现有供应商切换和隔离启动消费绑定。目录引用与默认槽引用分别保护 |
+| AGY 官方卡，`agy_oauth` | `app_providers/agy_binding.rs` 的 `bind_agy_account`、`agy_account_binding`、`with_agy_provider_unreferenced` | 同作用域钥匙串记录及原生独占槽。正式供应商启动切换所选账号，并持有槽锁至进程退出 |
+| 原生 OpenAI 配置的 Codex 卡，`codex_oauth` | `app_providers/codex_binding.rs` 的 `bind_codex_account`、`codex_account_binding`、`with_codex_provider_unreferenced` | 同作用域 v2 元数据及 workspace、subject 凭据核验。使用隔离 `CODEX_HOME` 和原有轮换回写，不写主机默认 `auth.json` |
+| Kimi 官方卡，`kimi_oauth` | 上节入口及 `app_providers/kimi_binding.rs::with_kimi_provider_unreferenced` | Kimi 主机状态、进行中的事务及受管账号租约 |
+
+各 `with_*_provider_unreferenced` 在绑定写入方使用的账号租约或钥匙串锁内检查引用，
+由账号删除方提供同锁回调。拒绝只返回稳定错误码。Claude 默认槽保持被引用，直至切换到另一份
+已验证的受管登录。当前卡的绑定改动需先切离该卡。未知来源的既有默认登录保留并拒绝托管切换。
+历史 Claude 绑定继续沿旧入口和旧授权读取原记录，历史 ID 不自动映射 v2 主体。
+
+Claude 默认槽切换和 AGY 托管启动要求共同的管理员访问策略文件明确登记独占槽。
+在 `SHIJU_AGENT_APPS_ACCESS_FILE` 所指文件的执行主机条目中使用 `native_login_owners`，
+为每种服务仅登记一个已有主机授权的 `service`、`platform_id`、`company_id` 和 `principal`。
+其他逻辑主机或主体的同应用启动无法借用该槽。后续统一账号接入从同一策略决定解析主体与路径。
+现有启动和供应商路由继续使用原 API、SDK 和 UI。
+
+Codex 官方卡的全局直连 checkout 尚缺默认 `auth.json` 的可证明归属和外部轮换对账，
+现有直连入口拒绝隔离绑定。GitHub Copilot、xAI 及 Claude Desktop 的代理注入路径依赖
+生产 `ProviderRouteRuntime`，当前执行端没有该消费者。DSH 为单一共享 grant。
+这些路径未创建可用绑定或退回受管默认账号。

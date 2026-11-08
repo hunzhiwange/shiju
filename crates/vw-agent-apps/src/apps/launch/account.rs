@@ -104,6 +104,17 @@ pub fn prepare_account_launch(
     material: LaunchMaterial,
     temp: &Path,
 ) -> Result<AccountLaunch, String> {
+    prepare_account_launch_with_model(app, credential, material, temp, None)
+}
+
+/// An executor-validated official provider may select a model in the private process.
+pub fn prepare_account_launch_with_model(
+    app: AppId,
+    credential: AccountCredential,
+    material: LaunchMaterial,
+    temp: &Path,
+    model: Option<&str>,
+) -> Result<AccountLaunch, String> {
     credential.validate(app)?;
     if !material.program.is_absolute()
         || !material.program.is_file()
@@ -223,6 +234,16 @@ pub fn prepare_account_launch(
             )?;
             command.env("CODEX_HOME", private.path());
         }
+    }
+    if let Some(model) = model {
+        if model.is_empty()
+            || model.len() > 256
+            || model.starts_with('-')
+            || model.chars().any(char::is_control)
+        {
+            return Err("invalid official provider model".into());
+        }
+        command.args(["--model", model]);
     }
     command.args(material.args);
     Ok(AccountLaunch { command, private, codex_auth })

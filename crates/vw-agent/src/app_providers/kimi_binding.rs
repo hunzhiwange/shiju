@@ -75,6 +75,57 @@ impl AppProviderStore {
             .await
     }
 
+    /// Share the account lease with binding and use while checking every host-local reference.
+    pub fn with_kimi_provider_unreferenced<T>(
+        &self,
+        scope: AuthAccountScope<'_>,
+        root: &Path,
+        account: &str,
+        mutate: impl FnOnce(
+            &vw_agent_apps::auth::credential_lease::CredentialLease,
+        ) -> Result<T, AuthErrorCode>,
+    ) -> Result<T, AuthErrorCode> {
+        use vw_agent_apps::{
+            auth::credential_file::CredentialFileStore,
+            providers::live::commit::{ExecutionHostId, ProviderTransactions},
+        };
+        use vw_api_types::agent_apps::AppId;
+        scope.validate()?;
+        if scope.service != AuthService::KimiOauth {
+            return Err(AuthErrorCode::Unsupported);
+        }
+        let accounts = self.binding_accounts(root)?;
+        run_sync_database(|| Ok(accounts.read_metadata(&scope, account)))
+            .map_err(|_| AuthErrorCode::StorageUnavailable)??;
+        let credentials =
+            CredentialFileStore::new(root).map_err(|_| AuthErrorCode::StorageUnavailable)?;
+        let lease = credentials.lease_kimi(scope, account, false).map_err(|error| {
+            if error == "official account is in use" {
+                AuthErrorCode::AccountInUse
+            } else {
+                AuthErrorCode::StorageUnavailable
+            }
+        })?;
+        run_sync_database(|| Ok(accounts.read_metadata(&scope, account)))
+            .map_err(|_| AuthErrorCode::StorageUnavailable)??;
+        let host = ExecutionHostId::new(scope.host).map_err(|_| AuthErrorCode::InvalidInput)?;
+        if let Some(tx) = ProviderTransactions::open_existing(root, host)
+            .map_err(|_| AuthErrorCode::StorageUnavailable)?
+        {
+            if tx.pending(AppId::Kimi).map_err(|_| AuthErrorCode::StorageUnavailable)?.is_some() {
+                return Err(AuthErrorCode::Conflict);
+            }
+            if tx
+                .state(AppId::Kimi)
+                .map_err(|_| AuthErrorCode::StorageUnavailable)?
+                .uses_kimi_account(scope.tenant, scope.principal, account)
+            {
+                return Err(AuthErrorCode::AccountInUse);
+            }
+        }
+        mutate(&lease)
+    }
+
     fn binding_catalog_unchanged(
         &self,
         tenant: &TenantScope,

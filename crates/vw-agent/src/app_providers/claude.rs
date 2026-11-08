@@ -57,7 +57,9 @@ impl AppProviderStore {
             return Err("application provider already exists".into());
         }
         let preserve_category = metadata.is_some();
-        let mut row = metadata.or(stored).unwrap_or(json!({}));
+        let mut row = metadata.or_else(|| stored.clone()).unwrap_or(json!({}));
+        #[cfg(target_os = "macos")]
+        super::claude_binding::preserve_managed_binding(stored.as_ref(), profile, &mut row)?;
         let object = row.as_object_mut().ok_or("invalid stored application provider profile")?;
         // Remove legacy credentials as well as provider-owned settings, retain metadata/global fields.
         for key in ["apiKey", "baseUrl", "protocol", "model"] {

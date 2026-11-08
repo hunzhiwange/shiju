@@ -4,11 +4,12 @@
 //! 注释聚焦调用边界、返回值和错误传播方式，便于后续维护设置页与工具栏行为时快速定位职责。
 
 use crate::app::components::system_settings_common::{
-    settings_checkbox_style, settings_divider, settings_group_card, settings_group_heading,
+    settings_checkbox_style, settings_divider, settings_flexible_row_with_help,
+    settings_group_card, settings_group_heading, settings_group_heading_with_help,
     settings_muted_text_style, settings_page_heading, settings_row_with_flexible_control,
     settings_select, settings_text_input,
 };
-use crate::app::i18n::settings_extensions::text as tr;
+use crate::app::i18n::{I18n, settings_extensions::text as tr};
 use crate::app::message::settings::{SettingsMessage, TunnelMessage};
 use crate::app::{App, Message};
 use iced::widget::{checkbox, column, container, text};
@@ -91,17 +92,22 @@ fn field_row<'a>(
 }
 
 fn text_row<'a>(
+    app: &App,
     label: &'static str,
     description: &'static str,
     placeholder: &'static str,
     value: &'a str,
     on_input: impl Fn(String) -> Message + 'a,
 ) -> Element<'a, Message> {
-    field_row(
+    settings_flexible_row_with_help(
+        I18n::new(app.desktop_locale),
+        &app.app_theme,
         label,
         description,
+        360.0,
         settings_text_input(placeholder, value).on_input(on_input).width(Length::Fill),
     )
+    .into()
 }
 
 fn bool_row<'a>(
@@ -146,6 +152,7 @@ pub fn view(app: &App) -> Element<'_, Message> {
 
 pub(super) fn content(app: &App) -> Element<'_, Message> {
     let s = &app.tunnel_settings;
+    let i18n = I18n::new(app.desktop_locale);
 
     let provider_pick = settings_select(
         PROVIDER_OPTIONS
@@ -164,12 +171,15 @@ pub(super) fn content(app: &App) -> Element<'_, Message> {
 
     let provider_section: Element<'_, Message> = match s.provider.as_str() {
         "cloudflare" => column![
-            settings_group_heading(
+            settings_group_heading_with_help(
+                i18n,
+                &app.app_theme,
                 "Cloudflare Tunnel",
                 tr(app.desktop_locale, "使用 cloudflared token 将本地网关安全暴露到公网。"),
             ),
             settings_group_card(
                 column![text_row(
+                    app,
                     tr(app.desktop_locale, "令牌"),
                     tr(app.desktop_locale, "Zero Trust 侧下发的 tunnel token。"),
                     "Cloudflare Zero Trust token",
@@ -197,6 +207,7 @@ pub(super) fn content(app: &App) -> Element<'_, Message> {
                     ),
                     settings_divider(),
                     text_row(
+                        app,
                         tr(app.desktop_locale, "主机名"),
                         tr(app.desktop_locale, "留空时将使用当前 Tailscale 节点名。"),
                         tr(app.desktop_locale, "可选：my-node.tailnet.ts.net"),
@@ -218,13 +229,16 @@ pub(super) fn content(app: &App) -> Element<'_, Message> {
         .spacing(16)
         .into(),
         "ngrok" => column![
-            settings_group_heading(
+            settings_group_heading_with_help(
+                i18n,
+                &app.app_theme,
                 "ngrok",
                 tr(app.desktop_locale, "配置 ngrok token，并可选绑定自定义 domain。"),
             ),
             settings_group_card(
                 column![
                     text_row(
+                        app,
                         tr(app.desktop_locale, "认证令牌"),
                         tr(app.desktop_locale, "ngrok 控制台生成的 auth token。"),
                         "ngrok auth token",
@@ -233,6 +247,7 @@ pub(super) fn content(app: &App) -> Element<'_, Message> {
                     ),
                     settings_divider(),
                     text_row(
+                        app,
                         tr(app.desktop_locale, "域名"),
                         tr(app.desktop_locale, "可选，绑定预留的自定义域名。"),
                         tr(app.desktop_locale, "可选：my-app.ngrok.app"),
@@ -246,13 +261,16 @@ pub(super) fn content(app: &App) -> Element<'_, Message> {
         .spacing(16)
         .into(),
         "custom" => column![
-            settings_group_heading(
+            settings_group_heading_with_help(
+                i18n,
+                &app.app_theme,
                 tr(app.desktop_locale, "自定义隧道"),
                 tr(app.desktop_locale, "当前运行时使用命令型自定义隧道，因此这里配置 start_command / health_url / url_pattern。"),
             ),
             settings_group_card(
                 column![
                     text_row(
+                        app,
                         tr(app.desktop_locale, "启动命令"),
                         tr(app.desktop_locale, "支持在命令中使用 {host} 与 {port} 占位符。"),
                         tr(app.desktop_locale, "例如：bore local {port} --to bore.pub"),
@@ -261,6 +279,7 @@ pub(super) fn content(app: &App) -> Element<'_, Message> {
                     ),
                     settings_divider(),
                     text_row(
+                        app,
                         tr(app.desktop_locale, "健康检查 URL"),
                         tr(app.desktop_locale, "可选，用于确认隧道服务是否已准备就绪。"),
                         tr(app.desktop_locale, "可选：http://127.0.0.1:4040/api/tunnels"),
@@ -269,6 +288,7 @@ pub(super) fn content(app: &App) -> Element<'_, Message> {
                     ),
                     settings_divider(),
                     text_row(
+                        app,
                         tr(app.desktop_locale, "URL 模式"),
                         tr(app.desktop_locale, "可选，可填前缀或正则片段用于提取公网地址。"),
                         tr(app.desktop_locale, "可选：https:// 或正则片段"),
@@ -282,7 +302,9 @@ pub(super) fn content(app: &App) -> Element<'_, Message> {
         .spacing(16)
         .into(),
         _ => column![
-            settings_group_heading(
+            settings_group_heading_with_help(
+                i18n,
+                &app.app_theme,
                 tr(app.desktop_locale, "未启用隧道"),
                 tr(app.desktop_locale, "保持 provider=none 时，网关不会自动创建公网隧道。"),
             ),
@@ -300,7 +322,9 @@ pub(super) fn content(app: &App) -> Element<'_, Message> {
     };
 
     column![
-        settings_group_heading(
+        settings_group_heading_with_help(
+            i18n,
+            &app.app_theme,
             tr(app.desktop_locale, "接入方式"),
             tr(app.desktop_locale, "选择隧道 provider，并根据 provider 展开对应参数。")
         ),

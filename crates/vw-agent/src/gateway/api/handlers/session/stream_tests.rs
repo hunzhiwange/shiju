@@ -1300,6 +1300,22 @@ fn make_docs_workspace() -> tempfile::TempDir {
     temp
 }
 
+#[tokio::test]
+async fn chat_stream_rejects_missing_workspace_without_retryable_status() {
+    let workspace = tempfile::tempdir().unwrap();
+    let missing = workspace.path().join("deleted-worktree");
+    let result = chat_stream(
+        Query(InstanceQuery { directory: Some(missing.to_string_lossy().into_owned()) }),
+        HeaderMap::new(),
+        Json(docs_stream_request(None)),
+    )
+    .await;
+
+    let error = result.err().expect("missing workspace must reject the request");
+    assert_eq!(error.status, StatusCode::BAD_REQUEST);
+    assert!(error.message.contains("无法访问会话工作目录"));
+}
+
 #[tokio::test(flavor = "multi_thread")]
 async fn native_workflow_gateway_persists_bound_graph_without_llm_artifacts() {
     let _env = crate::test_support::global_async_env_lock().lock().await;

@@ -1166,6 +1166,18 @@ async fn start_gateway_chat_producer(
         }
         None => (dir, None),
     };
+    #[cfg(not(target_arch = "wasm32"))]
+    {
+        let metadata = tokio::fs::metadata(&dir).await.map_err(|error| {
+            ApiError::bad_request(format!("无法访问会话工作目录 {dir}：{error}"))
+        })?;
+        if !metadata.is_dir() {
+            return Err(ApiError::bad_request(format!("会话工作目录不是目录：{dir}")));
+        }
+    }
+    let (session_project, _) = crate::project::from_directory(&tenant, &dir)
+        .await
+        .map_err(|error| ApiError::bad_request(format!("无法解析会话项目：{error}")))?;
     let delegate_overrides = match delegate_overrides {
         Some(overrides) => overrides,
         None => prepare_gateway_agent_request(&mut body).await?,
@@ -1228,14 +1240,7 @@ async fn start_gateway_chat_producer(
                 .map_err(|error| ApiError::internal(error.to_string()))?,
         };
     let should_persist_app_session_artifacts = !goal_evaluation;
-    let app_session_scope = if should_persist_app_session_artifacts || goal_evaluation {
-        crate::app::agent::session::processor::app_session_scope_from_root_async(Some(
-            root_dir.as_str(),
-        ))
-        .await
-    } else {
-        None
-    };
+    let app_session_scope = Some(session_project.id);
     let stream_message_ids = if !should_persist_app_session_artifacts {
         None
     } else {

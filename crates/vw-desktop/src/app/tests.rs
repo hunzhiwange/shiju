@@ -10,8 +10,11 @@ fn test_module_is_wired() {
 
 #[test]
 fn project_dirs_points_at_current_application_namespace() {
+    let _lock = super::TEST_PROCESS_STATE_LOCK.lock().unwrap_or_else(|e| e.into_inner());
     let dirs = super::project_dirs().expect("project dirs should resolve on desktop platforms");
 
     let config_dir = dirs.config_dir().to_string_lossy();
     assert!(config_dir.ends_with("vibe-window-dev") || config_dir.ends_with("vibe-window"));
+    #[cfg(not(target_arch = "wasm32"))]
+    assert!(dirs.data_local_dir().starts_with(std::env::temp_dir()));
 }

@@ -87,6 +87,15 @@ pub(crate) fn project_dirs() -> Option<directories::ProjectDirs> {
     #[cfg(not(debug_assertions))]
     const APP_NAME: &str = "vibe-window";
 
+    // UI tests can persist project state from background threads. Keep their default
+    // storage separate from the running desktop, including in those threads.
+    #[cfg(all(test, not(target_arch = "wasm32")))]
+    {
+        static TEST_PROJECT_ROOT: std::sync::LazyLock<tempfile::TempDir> =
+            std::sync::LazyLock::new(|| tempfile::tempdir().expect("create desktop test storage"));
+        directories::ProjectDirs::from_path(TEST_PROJECT_ROOT.path().join(APP_NAME))
+    }
+    #[cfg(not(all(test, not(target_arch = "wasm32"))))]
     directories::ProjectDirs::from("dev", "VibeWindow", APP_NAME)
 }
 

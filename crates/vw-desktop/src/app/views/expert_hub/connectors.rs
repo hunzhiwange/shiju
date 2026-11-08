@@ -5,10 +5,12 @@ use crate::app::{
     components::system_settings_common::{
         SETTINGS_CONTROL_PADDING, SETTINGS_CONTROL_TEXT_SIZE, primary_action_btn_style,
         rounded_action_btn_style, settings_close_button, settings_control_with_hint,
-        settings_divider, settings_group_card, settings_group_heading, settings_modal_header,
+        settings_divider, settings_group_card, settings_group_heading,
+        settings_group_heading_with_help, settings_hover_help_label, settings_modal_header,
         settings_modal_layout, settings_modal_overlay, settings_muted_text_style,
         settings_text_input_style,
     },
+    i18n::I18n,
     message::skill_hub::connectors::{ConnectorMessage, message},
     skill_hub::{
         ExpertHubSection, LoadState,
@@ -17,7 +19,7 @@ use crate::app::{
 };
 use iced::widget::scrollable::{Direction, Scrollbar};
 use iced::widget::{Space, button, column, container, row, scrollable, text, text_input};
-use iced::{Alignment, Element, Length};
+use iced::{Alignment, Element, Length, Theme};
 use vw_gateway_client::ShijuConnector;
 
 const GRID_COLUMNS: usize = 3;
@@ -29,18 +31,18 @@ fn scrollbar() -> Direction {
     Direction::Vertical(Scrollbar::new().width(SCROLLBAR_WIDTH).scroller_width(SCROLLBAR_WIDTH))
 }
 pub(super) fn view(app: &App) -> Element<'_, Message> {
+    let i18n = I18n::new(app.desktop_locale);
     let state = &app.expert_hub.connectors;
+    let title = i18n.__("连接器账号");
     let header = row![
-        column![
-            text(crate::app::i18n::I18n::new(app.desktop_locale).__("连接器账号")).size(22),
-            text(
-                crate::app::i18n::I18n::new(app.desktop_locale)
-                    .__("查看并授权你自己的连接器账号。")
-            )
-            .size(14)
-            .style(settings_muted_text_style)
-        ]
-        .spacing(6),
+        settings_hover_help_label(
+            i18n,
+            &app.app_theme,
+            title,
+            text(title).size(22),
+            i18n.__("查看并授权你自己的连接器账号。"),
+        )
+        .wrap(),
         Space::new().width(Length::Fill),
         button(
             text(crate::app::i18n::I18n::new(app.desktop_locale).__(if state.list_loading {
@@ -239,33 +241,41 @@ pub(super) fn with_binding_modal<'a>(
     ]
     .spacing(10)
     .align_y(Alignment::Center);
-    let card =
-        settings_modal_layout(header, binding_form(i18n, form, !saving), Some(footer.into()))
-            .width(Length::Fixed(720.0))
-            .height(Length::Fixed(680.0));
+    let card = settings_modal_layout(
+        header,
+        binding_form(i18n, &app.app_theme, form, !saving),
+        Some(footer.into()),
+    )
+    .width(Length::Fixed(720.0))
+    .height(Length::Fixed(680.0));
     settings_modal_overlay(Some(base), close, container(card).padding(12))
 }
 
 fn field<'a>(
-    label: impl iced::widget::text::IntoFragment<'a>,
-    hint: &'static str,
-    input: Element<'a, Message>,
+    label: impl Into<Element<'a, Message>>,
+    control: impl Into<Element<'a, Message>>,
 ) -> Element<'a, Message> {
-    column![text(label).size(13), settings_control_with_hint(input, hint)]
-        .spacing(6)
-        .padding([12, 0])
-        .width(Length::Fill)
-        .into()
+    column![label.into(), control.into()].spacing(6).padding([12, 0]).width(Length::Fill).into()
 }
-fn binding_form(
-    i18n: crate::app::i18n::I18n,
-    form: &ConnectorForm,
+
+fn binding_form<'a>(
+    i18n: I18n,
+    theme: &Theme,
+    form: &'a ConnectorForm,
     editable: bool,
-) -> Element<'_, Message> {
+) -> Element<'a, Message> {
+    let account_id = i18n.__("第三方账号 ID");
+    let account_name = i18n.__("第三方账号名称");
     let account_fields = column![
         field(
-            i18n.__("第三方账号 ID"),
-            i18n.__("连接器平台中的账号标识"),
+            settings_hover_help_label(
+                i18n,
+                theme,
+                account_id,
+                text(account_id).size(13),
+                i18n.__("连接器平台中的账号标识"),
+            )
+            .wrap(),
             text_input(i18n.__("填写第三方账号 ID"), &form.account_id)
                 .padding(SETTINGS_CONTROL_PADDING)
                 .size(SETTINGS_CONTROL_TEXT_SIZE)
@@ -274,12 +284,17 @@ fn binding_form(
                 .on_input_maybe(
                     editable.then_some(|value| message(ConnectorMessage::AccountId(value)))
                 )
-                .into()
         ),
         settings_divider(),
         field(
-            i18n.__("第三方账号名称"),
-            i18n.__("便于识别的账号名称"),
+            settings_hover_help_label(
+                i18n,
+                theme,
+                account_name,
+                text(account_name).size(13),
+                i18n.__("便于识别的账号名称"),
+            )
+            .wrap(),
             text_input(i18n.__("填写账号名称"), &form.account_name)
                 .padding(SETTINGS_CONTROL_PADDING)
                 .size(SETTINGS_CONTROL_TEXT_SIZE)
@@ -288,15 +303,20 @@ fn binding_form(
                 .on_input_maybe(
                     editable.then_some(|value| message(ConnectorMessage::AccountName(value)))
                 )
-                .into()
         ),
     ];
     let mut sections = column![
-        settings_group_heading(i18n.__("账号信息"), i18n.__("填写需要绑定的第三方账号")),
+        settings_group_heading_with_help(
+            i18n,
+            theme,
+            i18n.__("账号信息"),
+            i18n.__("填写需要绑定的第三方账号"),
+        ),
         settings_group_card(account_fields)
     ]
     .spacing(12);
     if !form.connector.account_binding_variables.is_empty() {
+        let binding_title = i18n.__("绑定配置");
         let mut variables = column![];
         for (index, variable) in form.connector.account_binding_variables.iter().enumerate() {
             if index > 0 {
@@ -315,11 +335,6 @@ fn binding_form(
             } else {
                 i18n.__("填写绑定变量")
             };
-            let hint = if secret {
-                i18n.__("已有密钥不回显；选填项留空保留原值")
-            } else {
-                i18n.__("仅用于此账号的连接器配置")
-            };
             let input = text_input(placeholder, value)
                 .secure(secret)
                 .padding(SETTINGS_CONTROL_PADDING)
@@ -329,14 +344,33 @@ fn binding_form(
                 .on_input_maybe(editable.then_some(move |value| {
                     message(ConnectorMessage::Variable(name.clone(), value))
                 }));
-            variables = variables.push(field(
-                format!("{label}{}", if variable.required { " *" } else { "" }),
-                hint,
-                input.into(),
-            ));
+            let label =
+                text(format!("{label}{}", if variable.required { " *" } else { "" })).size(13);
+            let field = if secret {
+                field(
+                    label,
+                    settings_control_with_hint(
+                        input,
+                        i18n.__("已有密钥不回显；选填项留空保留原值"),
+                    ),
+                )
+            } else {
+                field(
+                    settings_hover_help_label(
+                        i18n,
+                        theme,
+                        binding_title,
+                        label,
+                        i18n.__("仅用于此账号的连接器配置"),
+                    )
+                    .wrap(),
+                    input,
+                )
+            };
+            variables = variables.push(field);
         }
         sections = sections
-            .push(settings_group_heading(i18n.__("绑定配置"), i18n.__("带 * 的字段为必填项")))
+            .push(settings_group_heading(binding_title, i18n.__("带 * 的字段为必填项")))
             .push(settings_group_card(variables));
     }
     sections.into()

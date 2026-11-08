@@ -9,8 +9,8 @@ use super::public_skills::SCROLLBAR_WIDTH;
 use super::styles;
 use crate::app::components::system_settings_common::{
     danger_action_btn_style, rounded_action_btn_style, settings_checkbox_style,
-    settings_close_button, settings_modal_card, settings_modal_header, settings_modal_overlay,
-    settings_muted_text_style, settings_panel,
+    settings_close_button, settings_hover_help_label, settings_modal_card, settings_modal_header,
+    settings_modal_overlay, settings_muted_text_style, settings_panel,
 };
 use crate::app::message::skill_hub::{PublicSkillMessage, SkillHubMessage};
 use crate::app::skill_hub::LoadState;
@@ -232,6 +232,7 @@ fn toolbar(app: &App, count: usize) -> Element<'static, Message> {
 
 /// 展示本地技能目录，并只允许选择具有可管理来源路径的条目。
 pub(super) fn view(app: &App) -> Element<'_, Message> {
+    let i18n = crate::app::i18n::I18n::new(app.desktop_locale);
     let state = &app.expert_hub.public_market;
     let installed = match &state.installed {
         LoadState::Loaded(items) => items
@@ -284,32 +285,28 @@ pub(super) fn view(app: &App) -> Element<'_, Message> {
         .into(),
         LoadState::Loaded(_) => card_grid(app, installed.clone()),
     };
-    let page = column![
-        row![
-            column![
-                text(crate::app::i18n::I18n::new(app.desktop_locale).__("我安装的技能"))
-                    .size(25)
-                    .font(Font { weight: iced::font::Weight::Bold, ..Font::default() }),
-                text(
-                    crate::app::i18n::I18n::new(app.desktop_locale)
-                        .__("管理当前目录范围内可启用、关闭或卸载的本地技能")
-                )
-                .size(13)
-                .style(styles::muted_text_style),
-            ]
-            .spacing(5)
-            .width(Length::Fill),
-            button(text(crate::app::i18n::I18n::new(app.desktop_locale).__("返回市场")).size(12))
-                .on_press(public_message(PublicSkillMessage::CloseInstalled))
-                .padding([8, 13])
-                .style(styles::quiet_button_style),
-        ]
-        .align_y(Alignment::Center),
-        toolbar(app, installed.len()),
-        content,
-    ]
-    .spacing(16)
-    .width(Length::Fill);
+    let title = i18n.__("我安装的技能");
+    let header = responsive(move |size| {
+        let heading = settings_hover_help_label(
+            i18n,
+            &app.app_theme,
+            title,
+            text(title).size(25).font(Font { weight: iced::font::Weight::Bold, ..Font::default() }),
+            i18n.__("管理当前目录范围内可启用、关闭或卸载的本地技能"),
+        );
+        let back = button(text(i18n.__("返回市场")).size(12))
+            .on_press(public_message(PublicSkillMessage::CloseInstalled))
+            .padding([8, 13])
+            .style(styles::quiet_button_style);
+        if size.width < 460.0 {
+            column![heading.wrap(), container(back).align_right(Length::Fill)].spacing(6).into()
+        } else {
+            row![heading.width(Length::Fill).wrap(), back].align_y(Alignment::Center).into()
+        }
+    })
+    .height(Length::Shrink);
+    let page =
+        column![header, toolbar(app, installed.len()), content].spacing(16).width(Length::Fill);
     scrollable(container(page).padding(iced::Padding {
         left: 7.0,
         right: SCROLLBAR_WIDTH as f32 + 7.0,

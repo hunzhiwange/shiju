@@ -620,3 +620,231 @@ async fn ui_refresh_39_guide_and_skill_confirmations_keep_original_actions() {
         });
     }
 }
+
+fn check_contextual_help(
+    ui: &mut Ui<'_>,
+    renderer: &mut Renderer,
+    app: &App,
+    size: Size<u32>,
+    title: &str,
+    description: &str,
+    preview: &str,
+) -> Point {
+    let geometry = bounds(ui, renderer);
+    assert!(
+        geometry.labels.iter().all(|(label, _)| label != description),
+        "{title}: static explanation is still inline: {description}"
+    );
+    let label = position(&geometry.labels, title);
+    let icon = Point::new(label.x + label.width + 15.0, label.center_y());
+    assert!(Rectangle::with_size(Size::new(size.width as f32, size.height as f32)).contains(icon));
+
+    let theme = &app.app_theme;
+    let idle = capture(ui, renderer, theme, size, &format!("{preview}-idle"), Point::ORIGIN);
+    assert!(
+        send(ui, renderer, icon, &[Event::Mouse(mouse::Event::CursorMoved { position: icon })])
+            .is_empty()
+    );
+    let hover = capture(ui, renderer, theme, size, &format!("{preview}-hover"), icon);
+    assert!(idle != hover, "{title}: hovering the question mark must show help");
+    assert!(click(ui, renderer, icon).is_empty());
+    let pinned = capture(ui, renderer, theme, size, &format!("{preview}-pinned"), Point::ORIGIN);
+    assert!(idle != pinned, "{title}: clicking the question mark must pin help");
+    assert!(key(ui, renderer, Key::Named(Named::Escape), None).is_empty());
+    let closed = capture(ui, renderer, theme, size, &format!("{preview}-closed"), Point::ORIGIN);
+    assert!(idle == closed, "{title}: Escape must close only the help card");
+    icon
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn help_rollout_23_renders_contextual_help() {
+    if !isolated("help_rollout_23_renders_contextual_help") {
+        return;
+    }
+    let mut app = fixture();
+    app.expert_hub.section = ExpertHubSection::Connectors;
+    let connector: ShijuConnector = serde_json::from_value(serde_json::json!({
+        "platform_id": 17,
+        "company_platform_id": 73,
+        "platform_code": "fixture",
+        "platform_name": "Fixture Platform",
+        "authorization_available": false,
+        "account_binding_variables": [
+            {"name":"token", "description":"Fixture token", "type":"password", "required":true},
+            {"name":"region", "description":"Fixture region", "type":"string"}
+        ]
+    }))
+    .unwrap();
+    app.expert_hub.connectors.list = LoadState::Loaded(vec![connector.clone()]);
+    let mut form = ConnectorForm::new(connector);
+    form.account_id = "fixture-account".into();
+    form.values.insert("token".into(), "fixture-secret".into());
+    app.expert_hub.connectors.form = Some(form);
+
+    let mut renderer = renderer().await;
+    for (locale, theme, width) in [
+        (DesktopLocale::SimplifiedChinese, Theme::Dark, 420),
+        (DesktopLocale::English, Theme::Light, 420),
+        (DesktopLocale::TraditionalChinese, Theme::Light, 960),
+    ] {
+        app.desktop_locale = locale;
+        app.app_theme = theme;
+        let i18n = I18n::new(locale);
+        let size = Size::new(width, 720);
+        let mut ui = scene(super::super::view(&app), &mut renderer, size);
+        for (id, title, description) in [
+            ("account-group", "账号信息", "填写需要绑定的第三方账号"),
+            ("account-id", "第三方账号 ID", "连接器平台中的账号标识"),
+            ("account-name", "第三方账号名称", "便于识别的账号名称"),
+            ("region", "Fixture region", "仅用于此账号的连接器配置"),
+        ] {
+            check_contextual_help(
+                &mut ui,
+                &mut renderer,
+                &app,
+                size,
+                i18n.__(title),
+                i18n.__(description),
+                &format!("connector-{locale:?}-{id}"),
+            );
+        }
+        let geometry = bounds(&mut ui, &renderer);
+        for label in [
+            "配置仅属于当前用户，密码和密钥不会回显。",
+            "带 * 的字段为必填项",
+            "已有密钥不回显；选填项留空保留原值",
+        ] {
+            position(&geometry.labels, i18n.__(label));
+        }
+        position(&geometry.labels, "Fixture token *");
+        position(&geometry.inputs, "fixture-account");
+        position(&geometry.inputs, &"•".repeat("fixture-secret".len()));
+        for (label, action) in
+            [("取消", ConnectorMessage::Cancel), ("保存绑定", ConnectorMessage::Save)]
+        {
+            let point = position(&geometry.labels, i18n.__(label)).center();
+            assert!(matches!(
+                click(&mut ui, &mut renderer, point).as_slice(),
+                [Message::SkillHub(SkillHubMessage::Connectors(actual))]
+                    if std::mem::discriminant(actual) == std::mem::discriminant(&action)
+            ));
+        }
+    }
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn help_rollout_23_connector_page_uses_only_static_menu_text() {
+    if !isolated("help_rollout_23_connector_page_uses_only_static_menu_text") {
+        return;
+    }
+    let mut app = fixture();
+    app.desktop_locale = DesktopLocale::English;
+    app.app_theme = Theme::Light;
+    app.expert_hub.section = ExpertHubSection::Connectors;
+    let i18n = I18n::new(app.desktop_locale);
+    let description = i18n.__("查看并授权你自己的连接器账号。");
+    let mut renderer = renderer().await;
+    let size = Size::new(960, 600);
+    let mut ui = scene(super::super::view(&app), &mut renderer, size);
+    let icon = check_contextual_help(
+        &mut ui,
+        &mut renderer,
+        &app,
+        size,
+        i18n.__("连接器账号"),
+        description,
+        "connector-page",
+    );
+
+    assert!(click(&mut ui, &mut renderer, icon).is_empty());
+    let body = Point::new(icon.x + 29.0, icon.y + 5.0);
+    let line_height = iced::advanced::text::LineHeight::default().to_absolute(12.0.into());
+    let item_height = f32::from(line_height) + 10.0;
+    for index in [0, 3] {
+        assert!(
+            send(
+                &mut ui,
+                &mut renderer,
+                body,
+                &[Event::Mouse(mouse::Event::ButtonPressed(mouse::Button::Right))]
+            )
+            .is_empty()
+        );
+        let item = Point::new(body.x + 24.0, body.y + 3.0 + item_height * (index as f32 + 0.5));
+        let messages = click(&mut ui, &mut renderer, item);
+        match (index, messages.as_slice()) {
+            (0, [Message::CopyCode(value)]) => assert_eq!(value, description),
+            (3, [Message::View(crate::app::message::ViewMessage::OpenUrlExternal(url))]) => {
+                assert_eq!(
+                    url,
+                    &format!(
+                        "https://www.google.com/search?q={}",
+                        urlencoding::encode(description)
+                    )
+                );
+            }
+            _ => panic!("unexpected help action: {messages:?}"),
+        }
+    }
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn help_rollout_23_installed_skills_renders_contextual_help() {
+    if !isolated("help_rollout_23_installed_skills_renders_contextual_help") {
+        return;
+    }
+    let mut app = fixture();
+    app.expert_hub.section = ExpertHubSection::Skills;
+    let state = &mut app.expert_hub.public_market;
+    state.installed_open = true;
+    state.installed = LoadState::Loaded(vec![vw_gateway_client::DesktopSkillCatalogEntryDto {
+        id: "fixture".into(),
+        title: "Fixture Skill".into(),
+        description: "Fixture skill description".into(),
+        kind: "personal".into(),
+        resource_count: 1,
+        installed: true,
+        enabled: true,
+        source: "workspace".into(),
+        source_path: Some("/fixture/skill".into()),
+        origin: None,
+        namespace: None,
+        package_type: None,
+        source_pack: None,
+    }]);
+    let mut renderer = renderer().await;
+    let size = Size::new(420, 600);
+    for (locale, theme) in [
+        (DesktopLocale::SimplifiedChinese, Theme::Light),
+        (DesktopLocale::English, Theme::Dark),
+        (DesktopLocale::TraditionalChinese, Theme::Dark),
+    ] {
+        app.desktop_locale = locale;
+        app.app_theme = theme;
+        let i18n = I18n::new(locale);
+        let mut ui = scene(super::super::view(&app), &mut renderer, size);
+        check_contextual_help(
+            &mut ui,
+            &mut renderer,
+            &app,
+            size,
+            i18n.__("我安装的技能"),
+            i18n.__("管理当前目录范围内可启用、关闭或卸载的本地技能"),
+            &format!("installed-skills-{locale:?}"),
+        );
+        let geometry = bounds(&mut ui, &renderer);
+        position(&geometry.labels, i18n.__("已启用"));
+        let all = position(&geometry.labels, i18n.__("全选")).center();
+        let uninstall = position(&geometry.labels, i18n.__("卸载")).center();
+        let back = position(&geometry.labels, i18n.__("返回市场")).center();
+        assert!(matches!(
+            click(&mut ui, &mut renderer, all).as_slice(),
+            [Message::SkillHub(SkillHubMessage::Public(PublicSkillMessage::SelectAllInstalled))]
+        ));
+        assert!(click(&mut ui, &mut renderer, uninstall).is_empty());
+        assert!(matches!(
+            click(&mut ui, &mut renderer, back).as_slice(),
+            [Message::SkillHub(SkillHubMessage::Public(PublicSkillMessage::CloseInstalled))]
+        ));
+    }
+}

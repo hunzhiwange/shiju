@@ -18,7 +18,8 @@ fn element_tree(element: Element<'_, Message>) -> Tree {
 
 #[test]
 fn field_row_builds_label_description_and_control_structure() {
-    let tree = element_tree(field_row("pattern", "匹配关键字或模式。", text("bug")));
+    let app = test_app();
+    let tree = element_tree(field_row(&app, "pattern", "匹配关键字或模式。", text("bug")));
 
     assert_eq!(tree.children.len(), 2);
     assert_eq!(tree.children[0].children.len(), 2);

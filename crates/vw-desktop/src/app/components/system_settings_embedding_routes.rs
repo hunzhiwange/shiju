@@ -5,10 +5,12 @@
 
 use crate::app::components::system_settings_common::{
     danger_action_btn_style, primary_action_btn_style, rounded_action_btn_style,
-    settings_error_banner, settings_group_card, settings_group_heading, settings_muted_text_style,
-    settings_panel, settings_row, settings_section_content, settings_success_banner,
-    settings_text_input,
+    settings_error_banner, settings_flexible_row_with_help, settings_group_card,
+    settings_group_heading_with_help, settings_hover_help_label, settings_muted_text_style,
+    settings_page_heading_with_help, settings_panel, settings_section_content,
+    settings_success_banner, settings_text_input,
 };
+use crate::app::i18n::I18n;
 use crate::app::i18n::settings_models::connection_text::text as connection_text;
 use crate::app::message::settings::EmbeddingRoutesMessage;
 use crate::app::{App, Message, message};
@@ -16,33 +18,41 @@ use iced::widget::{button, column, container, row, text};
 use iced::{Alignment, Element, Length};
 
 fn field_row<'a>(
+    app: &App,
     label: &'static str,
     description: &'static str,
     placeholder: &'static str,
     value: &'a str,
     on_input: impl Fn(String) -> Message + 'a,
 ) -> Element<'a, Message> {
-    settings_row(
+    settings_flexible_row_with_help(
+        I18n::new(app.desktop_locale),
+        &app.app_theme,
         label,
         description,
         220.0,
         settings_text_input(placeholder, value).on_input(on_input).width(Length::Fill),
     )
+    .into()
 }
 
 fn secure_field_row<'a>(
+    app: &App,
     label: &'static str,
     description: &'static str,
     placeholder: &'static str,
     value: &'a str,
     on_input: impl Fn(String) -> Message + 'a,
 ) -> Element<'a, Message> {
-    settings_row(
+    settings_flexible_row_with_help(
+        I18n::new(app.desktop_locale),
+        &app.app_theme,
         label,
         description,
         220.0,
         settings_text_input(placeholder, value).secure(true).on_input(on_input).width(Length::Fill),
     )
+    .into()
 }
 
 fn template_button<'a>(
@@ -82,15 +92,18 @@ fn template_button<'a>(
 /// 本函数不直接返回错误；无法交互或缺省状态会在控件状态中显式表达。
 pub fn embedded_view(app: &App) -> Element<'_, Message> {
     let s = &app.embedding_routes_settings;
+    let i18n = I18n::new(app.desktop_locale);
 
     let header = row![
-        container(
-            text(connection_text(
+        container(settings_page_heading_with_help(
+            i18n,
+            &app.app_theme,
+            i18n.__("嵌入路由"),
+            connection_text(
                 app.desktop_locale,
                 "按场景配置嵌入提供商、模型、维度和 API Key；在“嵌入与检索”中用 hint:模式名 引用。"
-            ))
-            .style(settings_muted_text_style)
-        )
+            ),
+        ))
         .width(Length::Fill),
         button(text(connection_text(app.desktop_locale, "添加路由")))
             .on_press(Message::Settings(message::SettingsMessage::EmbeddingRoutes(
@@ -104,7 +117,9 @@ pub fn embedded_view(app: &App) -> Element<'_, Message> {
 
     let templates_panel = settings_panel(
         column![
-            settings_group_heading(
+            settings_group_heading_with_help(
+                i18n,
+                &app.app_theme,
                 connection_text(app.desktop_locale, "快捷模板"),
                 connection_text(
                     app.desktop_locale,
@@ -137,7 +152,9 @@ pub fn embedded_view(app: &App) -> Element<'_, Message> {
     let mut content = column![
         header,
         templates_panel,
-        settings_group_heading(
+        settings_group_heading_with_help(
+            i18n,
+            &app.app_theme,
             connection_text(app.desktop_locale, "路由规则"),
             connection_text(
                 app.desktop_locale,
@@ -173,6 +190,7 @@ pub fn embedded_view(app: &App) -> Element<'_, Message> {
 
     for (index, route) in s.routes.iter().enumerate() {
         let pattern_row = field_row(
+            app,
             connection_text(app.desktop_locale, "匹配模式"),
             connection_text(app.desktop_locale, "用于匹配业务或任务场景。"),
             "semantic",
@@ -184,6 +202,7 @@ pub fn embedded_view(app: &App) -> Element<'_, Message> {
             },
         );
         let provider_row = field_row(
+            app,
             connection_text(app.desktop_locale, "提供商"),
             connection_text(app.desktop_locale, "嵌入请求所使用的 provider。"),
             "alibaba-cn",
@@ -195,6 +214,7 @@ pub fn embedded_view(app: &App) -> Element<'_, Message> {
             },
         );
         let model_row = field_row(
+            app,
             connection_text(app.desktop_locale, "模型"),
             connection_text(app.desktop_locale, "具体使用的 embedding 模型。"),
             "text-embedding-v4",
@@ -206,6 +226,7 @@ pub fn embedded_view(app: &App) -> Element<'_, Message> {
             },
         );
         let dimensions_row = field_row(
+            app,
             connection_text(app.desktop_locale, "维度"),
             connection_text(app.desktop_locale, "留空时按模型默认维度运行。"),
             "1024",
@@ -217,6 +238,7 @@ pub fn embedded_view(app: &App) -> Element<'_, Message> {
             },
         );
         let api_key_row = secure_field_row(
+            app,
             "API Key",
             connection_text(app.desktop_locale, "可选覆盖凭据；阿里填 DashScope API Key。"),
             "DASHSCOPE_API_KEY",
@@ -229,11 +251,15 @@ pub fn embedded_view(app: &App) -> Element<'_, Message> {
         );
 
         let route_title = row![
-            text(crate::app::i18n::settings_models::route_title(app.desktop_locale, index + 1))
-                .size(14),
-            text(connection_text(app.desktop_locale, "匹配模式 -> 提供商/模型"))
-                .size(12)
-                .style(settings_muted_text_style),
+            settings_hover_help_label(
+                i18n,
+                &app.app_theme,
+                connection_text(app.desktop_locale, "路由规则"),
+                text(crate::app::i18n::settings_models::route_title(app.desktop_locale, index + 1))
+                    .size(14),
+                connection_text(app.desktop_locale, "匹配模式 -> 提供商/模型"),
+            )
+            .wrap(),
             container(text(" ")).width(Length::Fill),
             button(text(connection_text(app.desktop_locale, "删除")))
                 .on_press(Message::Settings(message::SettingsMessage::EmbeddingRoutes(

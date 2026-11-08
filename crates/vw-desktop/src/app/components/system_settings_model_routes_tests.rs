@@ -19,7 +19,8 @@ fn element_tree(element: Element<'_, Message>) -> Tree {
 
 #[test]
 fn field_row_builds_label_description_and_control_structure() {
-    let tree = element_tree(field_row("模型", "命中后优先使用的模型。", text("gpt-5")));
+    let app = test_app();
+    let tree = element_tree(field_row(&app, "模型", "命中后优先使用的模型。", text("gpt-5")));
 
     assert_eq!(tree.children.len(), 2);
     assert_eq!(tree.children[0].children.len(), 2);

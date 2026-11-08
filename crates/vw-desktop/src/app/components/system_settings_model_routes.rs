@@ -5,10 +5,11 @@
 
 use crate::app::assets::Icon;
 use crate::app::components::system_settings_common::{
-    icon_btn, primary_action_btn_style, settings_group_card, settings_group_heading,
-    settings_muted_text_style, settings_page_heading, settings_panel, settings_row,
-    settings_section_content, settings_text_input,
+    icon_btn, primary_action_btn_style, settings_flexible_row_with_help, settings_group_card,
+    settings_group_heading_with_help, settings_muted_text_style, settings_page_heading_with_help,
+    settings_panel, settings_section_content, settings_text_input,
 };
+use crate::app::i18n::I18n;
 use crate::app::i18n::settings_models::{self, text as model_text};
 use crate::app::message::settings::{ModelRoutesMessage, SettingsMessage};
 use crate::app::{App, Message};
@@ -16,11 +17,20 @@ use iced::widget::{button, column, container, row, text};
 use iced::{Alignment, Element, Length};
 
 fn field_row<'a>(
+    app: &App,
     label: &'static str,
     description: &'static str,
     control: impl Into<Element<'a, Message>>,
 ) -> Element<'a, Message> {
-    settings_row(label, description, 220.0, control)
+    settings_flexible_row_with_help(
+        I18n::new(app.desktop_locale),
+        &app.app_theme,
+        label,
+        description,
+        220.0,
+        control,
+    )
+    .into()
 }
 
 /// 构建或处理 `view` 对应的界面片段与交互数据。
@@ -39,8 +49,11 @@ fn field_row<'a>(
 pub fn view(app: &App) -> Element<'_, Message> {
     let s = &app.model_routes_settings;
 
+    let i18n = I18n::new(app.desktop_locale);
     let header = row![
-        container(settings_page_heading(
+        container(settings_page_heading_with_help(
+            i18n,
+            &app.app_theme,
             model_text(app.desktop_locale, "模型路由"),
             model_text(
                 app.desktop_locale,
@@ -60,7 +73,9 @@ pub fn view(app: &App) -> Element<'_, Message> {
 
     let mut list = column![
         header,
-        settings_group_heading(
+        settings_group_heading_with_help(
+            i18n,
+            &app.app_theme,
             model_text(app.desktop_locale, "路由规则"),
             model_text(
                 app.desktop_locale,
@@ -100,6 +115,7 @@ pub fn view(app: &App) -> Element<'_, Message> {
                 settings_section_content(
                     column![
                         field_row(
+                            app,
                             model_text(app.desktop_locale, "匹配模式"),
                             model_text(
                                 app.desktop_locale,
@@ -115,6 +131,7 @@ pub fn view(app: &App) -> Element<'_, Message> {
                             .width(Length::Fill),
                         ),
                         field_row(
+                            app,
                             model_text(app.desktop_locale, "提供商"),
                             model_text(app.desktop_locale, "命中后要切换到的 provider。"),
                             settings_text_input(
@@ -127,6 +144,7 @@ pub fn view(app: &App) -> Element<'_, Message> {
                             .width(Length::Fill),
                         ),
                         field_row(
+                            app,
                             model_text(app.desktop_locale, "模型"),
                             model_text(app.desktop_locale, "命中后优先使用的模型。"),
                             settings_text_input(
@@ -139,6 +157,7 @@ pub fn view(app: &App) -> Element<'_, Message> {
                             .width(Length::Fill),
                         ),
                         field_row(
+                            app,
                             model_text(app.desktop_locale, "优先级"),
                             model_text(
                                 app.desktop_locale,

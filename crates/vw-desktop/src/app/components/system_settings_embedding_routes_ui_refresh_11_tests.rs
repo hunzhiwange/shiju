@@ -2,12 +2,14 @@ use super::embedded_view;
 use crate::app::components::{
     system_settings_model_routes, system_settings_multimodal, system_settings_query_classification,
 };
+use crate::app::i18n::I18n;
+use crate::app::message::ViewMessage;
 use crate::app::message::settings::{
     EmbeddingRoutesMessage, ModelRoutesMessage, MultimodalMessage, QueryClassificationMessage,
     SettingsMessage,
 };
 use crate::app::state::{
-    EmbeddingRouteDraft, ModelRoute, ModelSummary, ProviderModelsSummary,
+    EmbeddingRouteDraft, ModelConfigTab, ModelRoute, ModelSummary, ProviderModelsSummary,
     QueryClassificationRuleInput,
 };
 use crate::app::{App, Message};
@@ -159,7 +161,7 @@ impl<'a> Scene<'a> {
         theme: &Theme,
         cursor: mouse::Cursor,
         name: &str,
-    ) {
+    ) -> Vec<u8> {
         assert!(
             self.send(
                 renderer,
@@ -180,6 +182,7 @@ impl<'a> Scene<'a> {
             )
             .expect("save screenshot");
         }
+        pixels
     }
 }
 
@@ -191,9 +194,9 @@ fn assert_centered(a: Rectangle, b: Rectangle) {
     assert!((a.center().y - b.center().y).abs() < 0.5, "{a:?} vs {b:?}");
 }
 
-fn assert_row(scene: &Scene<'_>, path: &[usize], width: u32) {
+fn assert_row(scene: &Scene<'_>, path: &[usize], width: u32, control_path: &[usize]) {
     let label = scene.bounds(&child(path, &[0]));
-    let control = scene.bounds(&child(path, &[1, 0]));
+    let control = scene.bounds(&child(path, control_path));
     assert_centered(label, control);
     assert!(label.width > 0.0 && label.x + label.width < control.x);
     assert!(control.x + control.width <= width as f32);
@@ -238,7 +241,12 @@ async fn ui_refresh_11_layout_and_interaction() {
                 &mut renderer,
                 Size::new(width, if width == 420 { 1500 } else { 1300 }),
             );
-            assert_row(&scene, field, width);
+            assert_row(
+                &scene,
+                field,
+                width,
+                if page == "multimodal" { &[1, 0] } else { &[1, 0, 0] },
+            );
             if page == "multimodal" {
                 let picker = scene.bounds(OCR_PICKER);
                 assert_centered(picker, scene.bounds(&child(OCR_PICKER, &[0, 0])));
@@ -303,13 +311,13 @@ async fn ui_refresh_11_draft_messages_keep_route_indices_and_values() {
 
     let mut embedding = Scene::new(embedded_view(&app), &mut renderer, size);
     assert!(matches!(
-        embedding.edit(&mut renderer, &child(EMBEDDING_DIMENSIONS, &[1, 0]), "1536").as_slice(),
+        embedding.edit(&mut renderer, &child(EMBEDDING_DIMENSIONS, &[1, 0, 0]), "1536").as_slice(),
         [Message::Settings(SettingsMessage::EmbeddingRoutes(
             EmbeddingRoutesMessage::DimensionsChanged(0, value)
         ))] if value == "1536"
     ));
     assert!(matches!(
-        embedding.edit(&mut renderer, &[0, 3, 0, 1, 0, 4, 0, 1, 0], "synthetic-edit").as_slice(),
+        embedding.edit(&mut renderer, &[0, 3, 0, 1, 0, 4, 0, 1, 0, 0], "synthetic-edit").as_slice(),
         [Message::Settings(SettingsMessage::EmbeddingRoutes(
             EmbeddingRoutesMessage::ApiKeyChanged(0, value)
         ))] if value == "synthetic-edit"
@@ -322,7 +330,7 @@ async fn ui_refresh_11_draft_messages_keep_route_indices_and_values() {
 
     let mut routing = Scene::new(system_settings_model_routes::view(&app), &mut renderer, size);
     assert!(matches!(
-        routing.edit(&mut renderer, &child(MODEL_PRIORITY, &[1, 0]), "-12").as_slice(),
+        routing.edit(&mut renderer, &child(MODEL_PRIORITY, &[1, 0, 0]), "-12").as_slice(),
         [Message::Settings(SettingsMessage::ModelRoutes(
             ModelRoutesMessage::PriorityChanged(1, value)
         ))] if value == "-12"
@@ -331,12 +339,12 @@ async fn ui_refresh_11_draft_messages_keep_route_indices_and_values() {
     let mut classification =
         Scene::new(system_settings_query_classification::view(&app), &mut renderer, size);
     assert!(matches!(
-        classification.edit(&mut renderer, &child(RULE_PRIORITY, &[1, 0]), "-6").as_slice(),
+        classification.edit(&mut renderer, &child(RULE_PRIORITY, &[1, 0, 0]), "-6").as_slice(),
         [Message::Settings(SettingsMessage::QueryClassification(
             QueryClassificationMessage::PriorityChanged(0, value)
         ))] if value == "-6"
     ));
-    let enabled = classification.bounds(&[2, 0, 0, 1, 0]).center();
+    let enabled = classification.bounds(&[2, 0, 0, 1, 0, 0]).center();
     assert!(matches!(
         classification.click(&mut renderer, enabled).as_slice(),
         [Message::Settings(SettingsMessage::QueryClassification(
@@ -344,7 +352,7 @@ async fn ui_refresh_11_draft_messages_keep_route_indices_and_values() {
         ))]
     ));
 
-    let category = classification.bounds(&child(CATEGORY_ROW, &[1, 0]));
+    let category = classification.bounds(&child(CATEGORY_ROW, &[1, 0, 0]));
     assert!(classification.click(&mut renderer, category.center()).is_empty());
     assert!(
         classification
@@ -392,7 +400,7 @@ async fn ui_refresh_11_long_menu_scrolls_and_cancel_does_not_click_through() {
     let size = Size::new(420, 940);
     let mut scene =
         Scene::new(system_settings_query_classification::view(&app), &mut renderer, size);
-    let picker = scene.bounds(&child(CATEGORY_ROW, &[1, 0])).center();
+    let picker = scene.bounds(&child(CATEGORY_ROW, &[1, 0, 0])).center();
     assert!(scene.click(&mut renderer, picker).is_empty());
 
     let mut scroll = MenuScroll::default();
@@ -452,7 +460,7 @@ async fn ui_refresh_11_empty_catalog_and_numeric_limits_keep_existing_actions() 
     let size = Size::new(640, 1100);
     let mut classification =
         Scene::new(system_settings_query_classification::view(&app), &mut renderer, size);
-    let placeholder = classification.bounds(&child(CATEGORY_ROW, &[1, 0])).center();
+    let placeholder = classification.bounds(&child(CATEGORY_ROW, &[1, 0, 0])).center();
     assert!(classification.click(&mut renderer, placeholder).is_empty());
     assert!(
         classification
@@ -510,4 +518,164 @@ async fn ui_refresh_11_empty_catalog_and_numeric_limits_keep_existing_actions() 
             if *value != current
     ));
     assert_eq!(app.multimodal_settings.ocr_model, FIRST_MODEL);
+}
+
+struct InlineExplanation<'a> {
+    description: &'a str,
+    visible: bool,
+}
+
+impl Operation for InlineExplanation<'_> {
+    fn traverse(&mut self, children: &mut dyn FnMut(&mut dyn Operation)) {
+        children(self);
+    }
+
+    fn text(&mut self, _: Option<&iced::advanced::widget::Id>, _: Rectangle, value: &str) {
+        self.visible |= value == self.description;
+    }
+}
+
+fn assert_api_key_help_actions(scene: &mut Scene<'_>, renderer: &mut Renderer, icon: Rectangle) {
+    // The API key label sits on the left, with space for the help card and menu on its right.
+    let card_text = Point::new(icon.x + icon.width + 22.0, icon.y + 16.0);
+    let row_height =
+        f32::from(iced::advanced::text::LineHeight::default().to_absolute(12.0.into())) + 10.0;
+    let description = "可选覆盖凭据；阿里填 DashScope API Key。";
+    let url = format!("https://www.google.com/search?q={}", urlencoding::encode(description));
+    for (row, expected) in [
+        (0.0, Message::CopyCode(description.into())),
+        (3.0, Message::View(ViewMessage::OpenUrlExternal(url))),
+    ] {
+        assert!(
+            scene
+                .send(
+                    renderer,
+                    &[Event::Mouse(mouse::Event::ButtonPressed(mouse::Button::Right))],
+                    mouse::Cursor::Available(card_text),
+                )
+                .is_empty(),
+            "opening help's text menu must not trigger an external action"
+        );
+        let item = Point::new(card_text.x + 24.0, card_text.y + 3.0 + row_height * (row + 0.5));
+        let messages = scene.click(renderer, item);
+        assert!(
+            match (messages.as_slice(), expected) {
+                ([Message::CopyCode(text)], Message::CopyCode(expected)) => text == &expected,
+                (
+                    [Message::View(ViewMessage::OpenUrlExternal(url))],
+                    Message::View(ViewMessage::OpenUrlExternal(expected)),
+                ) => url == &expected,
+                _ => false,
+            },
+            "{messages:?}"
+        );
+    }
+}
+
+async fn assert_contextual_help(tab: Option<ModelConfigTab>, count: usize, description: &str) {
+    fn collect_icons(layout: Layout<'_>, icons: &mut Vec<Rectangle>) {
+        let bounds = layout.bounds();
+        if bounds.size() == Size::new(22.0, 22.0) && !icons.contains(&bounds) {
+            icons.push(bounds);
+        }
+        for child in layout.children() {
+            collect_icons(child, icons);
+        }
+    }
+
+    let mut renderer = renderer().await;
+    let mut app = fixture();
+    app.model_routes_settings.routes.truncate(1);
+    for (locale, theme, width) in [
+        (DesktopLocale::English, Theme::Light, 420),
+        (DesktopLocale::SimplifiedChinese, Theme::Dark, 640),
+        (DesktopLocale::TraditionalChinese, Theme::Light, 520),
+    ] {
+        app.desktop_locale = locale;
+        app.app_theme = theme.clone();
+        let element = if let Some(tab) = tab {
+            app.model_settings.active_tab = tab;
+            crate::app::components::system_settings_models::view(&app)
+        } else {
+            embedded_view(&app)
+        };
+        let name = format!("help-07-{tab:?}-{locale:?}");
+        let size = Size::new(width, 940);
+        let mut scene = Scene::new(element, &mut renderer, size);
+        let mut explanation =
+            InlineExplanation { description: I18n::new(locale).__(description), visible: false };
+        scene.ui.operate(&renderer, &mut explanation);
+        assert!(!explanation.visible, "{name}: explanation must be hidden while idle");
+        let mut icons = Vec::new();
+        collect_icons(Layout::new(&scene.layout), &mut icons);
+        assert_eq!(icons.len(), count, "{name}: each explanation has a question mark");
+        let frame = |scene: &mut Scene<'_>, renderer: &mut Renderer, suffix: &str| {
+            scene.capture(renderer, &theme, mouse::Cursor::Unavailable, &format!("{name}-{suffix}"))
+        };
+        let idle = frame(&mut scene, &mut renderer, "idle");
+        for (index, icon) in icons.into_iter().enumerate() {
+            let point = icon.center();
+            assert!(Rectangle::with_size(Size::new(width as f32, 940.0)).contains(point));
+            assert!(scene.click(&mut renderer, point).is_empty());
+            assert!(
+                scene
+                    .send(
+                        &mut renderer,
+                        &[Event::Mouse(mouse::Event::CursorLeft)],
+                        mouse::Cursor::Unavailable,
+                    )
+                    .is_empty()
+            );
+            assert!(idle != frame(&mut scene, &mut renderer, &format!("open-{index}")));
+            if tab.is_none() && locale == DesktopLocale::SimplifiedChinese && index + 1 == count {
+                assert_api_key_help_actions(&mut scene, &mut renderer, icon);
+            }
+            assert!(
+                scene
+                    .send(&mut renderer, &[key(Named::Escape)], mouse::Cursor::Unavailable)
+                    .is_empty()
+            );
+            assert!(idle == frame(&mut scene, &mut renderer, "dismissed"));
+        }
+    }
+}
+
+#[tokio::test]
+async fn help_rollout_07_renders_contextual_help() {
+    assert_contextual_help(
+        Some(ModelConfigTab::Models),
+        3,
+        "浏览已连接 provider 的模型目录，搜索、筛选并切换模型可用状态。",
+    )
+    .await;
+}
+
+#[tokio::test]
+async fn help_rollout_07_model_route_renders_contextual_help() {
+    assert_contextual_help(
+        Some(ModelConfigTab::ModelRoutes),
+        6,
+        "将匹配模式映射到指定 provider/model，并与查询分类优先级保持一致。",
+    )
+    .await;
+}
+
+#[tokio::test]
+async fn help_rollout_07_query_classification_renders_contextual_help() {
+    assert_contextual_help(
+        Some(ModelConfigTab::QueryClassification),
+        7,
+        "将请求 pattern 映射到已配置的模型路由。",
+    )
+    .await;
+}
+
+#[tokio::test]
+async fn help_rollout_07_embedding_route_renders_contextual_help() {
+    assert_contextual_help(
+        None,
+        9,
+        "按场景配置嵌入提供商、模型、维度和 API Key；在“嵌入与检索”中用 hint:模式名 引用。",
+    )
+    .await;
 }

@@ -6,10 +6,11 @@
 use crate::app::assets::Icon;
 use crate::app::components::system_settings_common::{
     SETTINGS_CONTROL_TEXT_SIZE, icon_btn, primary_action_btn_style, rounded_action_btn_style,
-    settings_checkbox_style, settings_group_card, settings_group_heading,
-    settings_muted_text_style, settings_page_heading, settings_panel, settings_row,
-    settings_section_content, settings_select, settings_text_input,
+    settings_checkbox_style, settings_flexible_row_with_help, settings_group_card,
+    settings_group_heading_with_help, settings_muted_text_style, settings_page_heading_with_help,
+    settings_panel, settings_section_content, settings_select, settings_text_input,
 };
+use crate::app::i18n::I18n;
 use crate::app::message::settings::{
     ModelConfigTabMessage, QueryClassificationMessage, SettingsMessage,
 };
@@ -19,11 +20,20 @@ use iced::widget::{button, checkbox, column, container, row, text};
 use iced::{Alignment, Element, Length};
 
 fn field_row<'a>(
+    app: &App,
     label: &'static str,
     description: &'static str,
     control: impl Into<Element<'a, Message>>,
 ) -> Element<'a, Message> {
-    settings_row(label, description, 220.0, control)
+    settings_flexible_row_with_help(
+        I18n::new(app.desktop_locale),
+        &app.app_theme,
+        label,
+        description,
+        220.0,
+        control,
+    )
+    .into()
 }
 
 /// 构建或处理 `view` 对应的界面片段与交互数据。
@@ -49,20 +59,22 @@ pub fn view(app: &App) -> Element<'_, Message> {
         }
     }
 
+    let i18n = I18n::new(app.desktop_locale);
     let header = row![
-        container(settings_page_heading(
-            crate::app::i18n::I18n::new(app.desktop_locale).__("查询模型分类"),
-            crate::app::i18n::I18n::new(app.desktop_locale)
-                .__("将请求 pattern 映射到已配置的模型路由。")
+        container(settings_page_heading_with_help(
+            i18n,
+            &app.app_theme,
+            i18n.__("查询模型分类"),
+            i18n.__("将请求 pattern 映射到已配置的模型路由。")
         ))
         .width(Length::Fill),
-        button(text(crate::app::i18n::I18n::new(app.desktop_locale).__("前往模型路由")))
+        button(text(i18n.__("前往模型路由")))
             .on_press(Message::Settings(SettingsMessage::ModelConfigTab(
                 ModelConfigTabMessage::Selected(ModelConfigTab::ModelRoutes),
             )))
             .padding([8, 12])
             .style(rounded_action_btn_style),
-        button(text(crate::app::i18n::I18n::new(app.desktop_locale).__("新增规则")))
+        button(text(i18n.__("新增规则")))
             .on_press(Message::Settings(SettingsMessage::QueryClassification(
                 QueryClassificationMessage::AddRule,
             )))
@@ -73,10 +85,11 @@ pub fn view(app: &App) -> Element<'_, Message> {
     .align_y(Alignment::Start);
 
     let enabled_row = field_row(
-        crate::app::i18n::I18n::new(app.desktop_locale).__("启用"),
-        crate::app::i18n::I18n::new(app.desktop_locale).__("控制是否开启查询模型分类规则。"),
+        app,
+        i18n.__("启用"),
+        i18n.__("控制是否开启查询模型分类规则。"),
         checkbox(s.enabled)
-            .label(crate::app::i18n::I18n::new(app.desktop_locale).__("启用查询模型分类"))
+            .label(i18n.__("启用查询模型分类"))
             .size(16)
             .text_size(SETTINGS_CONTROL_TEXT_SIZE)
             .on_toggle(|value| {
@@ -89,16 +102,18 @@ pub fn view(app: &App) -> Element<'_, Message> {
 
     let mut list = column![
         header,
-        settings_group_heading(
-            crate::app::i18n::I18n::new(app.desktop_locale).__("基础行为"),
-            crate::app::i18n::I18n::new(app.desktop_locale)
-                .__("控制查询模型分类总开关以及规则优先级行为。")
+        settings_group_heading_with_help(
+            i18n,
+            &app.app_theme,
+            i18n.__("基础行为"),
+            i18n.__("控制查询模型分类总开关以及规则优先级行为。")
         ),
         settings_group_card(enabled_row),
-        settings_group_heading(
-            crate::app::i18n::I18n::new(app.desktop_locale).__("模型分类规则"),
-            crate::app::i18n::I18n::new(app.desktop_locale)
-                .__("pattern 会匹配用户请求；模型分类从已配置的模型路由中选择。")
+        settings_group_heading_with_help(
+            i18n,
+            &app.app_theme,
+            i18n.__("模型分类规则"),
+            i18n.__("pattern 会匹配用户请求；模型分类从已配置的模型路由中选择。")
         ),
     ]
     .spacing(16)
@@ -107,12 +122,9 @@ pub fn view(app: &App) -> Element<'_, Message> {
     if s.rules.is_empty() {
         list = list.push(settings_panel(
             column![
-                text(
-                    crate::app::i18n::I18n::new(app.desktop_locale)
-                        .__("暂无模型分类规则，点击右上角“新增规则”开始配置")
-                )
-                .size(13)
-                .style(settings_muted_text_style)
+                text(i18n.__("暂无模型分类规则，点击右上角“新增规则”开始配置"))
+                    .size(13)
+                    .style(settings_muted_text_style)
             ]
             .spacing(0),
         ));
@@ -120,13 +132,10 @@ pub fn view(app: &App) -> Element<'_, Message> {
 
     for (idx, rule) in s.rules.iter().enumerate() {
         let category_control: Element<'_, Message> = if category_options.is_empty() {
-            text(
-                crate::app::i18n::I18n::new(app.desktop_locale)
-                    .__("暂无模型路由，请先点击“前往模型路由”添加。"),
-            )
-            .size(13)
-            .style(settings_muted_text_style)
-            .into()
+            text(i18n.__("暂无模型路由，请先点击“前往模型路由”添加。"))
+                .size(13)
+                .style(settings_muted_text_style)
+                .into()
         } else {
             let selected = category_options
                 .iter()
@@ -137,26 +146,19 @@ pub fn view(app: &App) -> Element<'_, Message> {
                     QueryClassificationMessage::CategoryChanged(idx, value),
                 ))
             })
-            .placeholder(crate::app::i18n::I18n::new(app.desktop_locale).__("请选择"))
+            .placeholder(i18n.__("请选择"))
             .width(Length::Fill)
             .into()
         };
         let card = settings_group_card(
             column![
                 row![
-                    text(
-                        crate::__!(
-                            crate::app::i18n::I18n::new(app.desktop_locale),
-                            "规则 %u",
-                            idx + 1
-                        )
-                        .expect("valid rule count template")
-                    )
-                    .size(14),
+                    text(crate::__!(i18n, "规则 %u", idx + 1).expect("valid rule count template"))
+                        .size(14),
                     container(text(" ")).width(Length::Fill),
                     icon_btn(
                         Icon::Trash,
-                        crate::app::i18n::I18n::new(app.desktop_locale).__("删除规则"),
+                        i18n.__("删除规则"),
                         Some(Message::Settings(SettingsMessage::QueryClassification(
                             QueryClassificationMessage::RemoveRule(idx),
                         ))),
@@ -166,31 +168,27 @@ pub fn view(app: &App) -> Element<'_, Message> {
                 settings_section_content(
                     column![
                         field_row(
+                            app,
                             "pattern",
-                            crate::app::i18n::I18n::new(app.desktop_locale)
-                                .__("匹配关键字或模式，例如 bug / test / code。"),
-                            settings_text_input(
-                                crate::app::i18n::I18n::new(app.desktop_locale)
-                                    .__("例如 bug / test / code"),
-                                &rule.pattern
-                            )
-                            .on_input(move |value| Message::Settings(
-                                SettingsMessage::QueryClassification(
-                                    QueryClassificationMessage::PatternChanged(idx, value),
-                                )
-                            ))
-                            .width(Length::Fill),
+                            i18n.__("匹配关键字或模式，例如 bug / test / code。"),
+                            settings_text_input(i18n.__("例如 bug / test / code"), &rule.pattern)
+                                .on_input(move |value| Message::Settings(
+                                    SettingsMessage::QueryClassification(
+                                        QueryClassificationMessage::PatternChanged(idx, value),
+                                    )
+                                ))
+                                .width(Length::Fill),
                         ),
                         field_row(
-                            crate::app::i18n::I18n::new(app.desktop_locale).__("模型分类"),
-                            crate::app::i18n::I18n::new(app.desktop_locale)
-                                .__("选择命中后使用的模型路由；可在“模型路由”页新增选项。"),
+                            app,
+                            i18n.__("模型分类"),
+                            i18n.__("选择命中后使用的模型路由；可在“模型路由”页新增选项。"),
                             category_control,
                         ),
                         field_row(
+                            app,
                             "priority",
-                            crate::app::i18n::I18n::new(app.desktop_locale)
-                                .__("越大优先级越高；匹配成功后使用所选模型分类对应的路由。"),
+                            i18n.__("越大优先级越高；匹配成功后使用所选模型分类对应的路由。"),
                             settings_text_input("0", &rule.priority_input)
                                 .on_input(move |value| Message::Settings(
                                     SettingsMessage::QueryClassification(

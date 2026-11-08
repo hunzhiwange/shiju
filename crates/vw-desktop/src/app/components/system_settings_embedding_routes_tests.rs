@@ -26,16 +26,19 @@ fn content_tree(tree: &Tree) -> &Tree {
 
 #[test]
 fn field_rows_build_label_description_and_input_structure() {
-    let plain = element_tree(field_row("匹配模式", "说明", "semantic", "memory", |value| {
-        Message::Settings(message::SettingsMessage::EmbeddingRoutes(
-            EmbeddingRoutesMessage::PatternChanged(0, value),
-        ))
-    }));
-    let secure = element_tree(secure_field_row("API Key", "说明", "KEY", "secret", |value| {
-        Message::Settings(message::SettingsMessage::EmbeddingRoutes(
-            EmbeddingRoutesMessage::ApiKeyChanged(0, value),
-        ))
-    }));
+    let app = test_app();
+    let plain =
+        element_tree(field_row(&app, "匹配模式", "说明", "semantic", "memory", |value| {
+            Message::Settings(message::SettingsMessage::EmbeddingRoutes(
+                EmbeddingRoutesMessage::PatternChanged(0, value),
+            ))
+        }));
+    let secure =
+        element_tree(secure_field_row(&app, "API Key", "说明", "KEY", "secret", |value| {
+            Message::Settings(message::SettingsMessage::EmbeddingRoutes(
+                EmbeddingRoutesMessage::ApiKeyChanged(0, value),
+            ))
+        }));
 
     for tree in [&plain, &secure] {
         let row = content_tree(tree);
@@ -106,7 +109,7 @@ fn embedded_view_route_cards_replace_empty_state_and_keep_one_card_per_route() {
     assert_eq!(content.children.len(), 6);
     for card in &content.children[3..5] {
         assert_eq!(card.children.len(), 2);
-        assert_eq!(card.children[0].children.len(), 4);
+        assert_eq!(card.children[0].children.len(), 3);
         assert_eq!(card.children[1].children.len(), 5);
     }
     assert_eq!(content.children[5].children.len(), 2);

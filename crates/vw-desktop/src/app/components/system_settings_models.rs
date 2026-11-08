@@ -28,12 +28,14 @@ use crate::app::assets::Icon;
 use crate::app::components::system_settings_common::{
     SETTINGS_CONTROL_PADDING, SETTINGS_CONTROL_TEXT_SIZE, format_context_limit, icon_btn,
     provider_logo_svg, rounded_action_btn_style, settings_close_button, settings_divider,
-    settings_error_banner, settings_group_card, settings_group_heading, settings_modal_card_style,
-    settings_modal_header, settings_modal_layout, settings_modal_overlay,
-    settings_muted_text_style, settings_page_heading, settings_tab_button, settings_tab_row,
+    settings_error_banner, settings_group_card, settings_group_heading,
+    settings_group_heading_with_help, settings_modal_card_style, settings_modal_header,
+    settings_modal_layout, settings_modal_overlay, settings_muted_text_style,
+    settings_page_heading_with_help, settings_tab_button, settings_tab_row,
     settings_text_input_style, settings_toggle, settings_value_badge,
 };
 use crate::app::components::system_settings_search::SettingsTabDescriptor;
+use crate::app::i18n::I18n;
 use crate::app::i18n::settings_models::{self, text as model_text};
 use crate::app::message::settings::{ModelConfigTabMessage, SettingsMessage};
 use crate::app::state::ModelConfigTab;
@@ -180,6 +182,7 @@ pub fn view(app: &App) -> Element<'_, Message> {
 /// - 提供商匹配时：显示该提供商下所有模型
 pub fn main_view(app: &App) -> Element<'_, Message> {
     let s = &app.model_settings;
+    let i18n = I18n::new(app.desktop_locale);
     let q = s.query.trim().to_ascii_lowercase();
     let busy = s.loading || s.saving;
     let enabled_model_count = s
@@ -414,7 +417,9 @@ pub fn main_view(app: &App) -> Element<'_, Message> {
 
     let mut content = column![
         row![
-            container(settings_page_heading(
+            container(settings_page_heading_with_help(
+                i18n,
+                &app.app_theme,
                 model_text(app.desktop_locale, "模型配置"),
                 model_text(
                     app.desktop_locale,
@@ -426,7 +431,9 @@ pub fn main_view(app: &App) -> Element<'_, Message> {
         ]
         .spacing(12)
         .align_y(Alignment::Center),
-        settings_group_heading(
+        settings_group_heading_with_help(
+            i18n,
+            &app.app_theme,
             model_text(app.desktop_locale, "搜索与过滤"),
             model_text(
                 app.desktop_locale,
@@ -454,20 +461,26 @@ pub fn main_view(app: &App) -> Element<'_, Message> {
             .on_press(Message::Settings(message::SettingsMessage::ModelsSetAll(false)));
     }
 
+    let mut connected_heading = column![settings_group_heading_with_help(
+        i18n,
+        &app.app_theme,
+        model_text(app.desktop_locale, "已连接模型"),
+        model_text(
+            app.desktop_locale,
+            "按 provider 分组展示可用模型，可单独或一次性切换启用状态。",
+        ),
+    )]
+    .spacing(6);
+    if s.saving {
+        connected_heading = connected_heading.push(
+            text(model_text(app.desktop_locale, "正在保存模型状态，完成后即可继续操作。"))
+                .size(13)
+                .style(settings_muted_text_style),
+        );
+    }
     content = content.push(
         row![
-            container(settings_group_heading(
-                model_text(app.desktop_locale, "已连接模型"),
-                if s.saving {
-                    model_text(app.desktop_locale, "正在保存模型状态，完成后即可继续操作。")
-                } else {
-                    model_text(
-                        app.desktop_locale,
-                        "按 provider 分组展示可用模型，可单独或一次性切换启用状态。",
-                    )
-                },
-            ))
-            .width(Length::Fill),
+            container(connected_heading).width(Length::Fill),
             row![enable_all_btn, disable_all_btn].spacing(8).align_y(Alignment::Center),
         ]
         .spacing(12)

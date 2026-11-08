@@ -6,7 +6,7 @@ use super::{
     flow::{AuthAccountScope, AuthFlowTiming, AuthFlows},
 };
 use base64::{Engine as _, engine::general_purpose::URL_SAFE_NO_PAD};
-use reqwest::{Client, Request, Url};
+use reqwest::{Client, Request, RequestBuilder, Url};
 use serde::Deserialize;
 use serde_json::{Value, json};
 use sha2::{Digest, Sha256};
@@ -24,7 +24,8 @@ use vw_api_types::{
     },
 };
 
-const PLATFORM_ORIGIN: &str = "https://platform.deepseek.com";
+pub(super) const PLATFORM_ORIGIN: &str = "https://platform.deepseek.com";
+pub(super) const GRANT_RECORD: &str = "deepseek-account-platform/default";
 const CALLBACK_PATH: &str = "/oauth/callback";
 const LOGIN_LIFETIME: Duration = Duration::from_secs(600);
 const MAX_RESPONSE_BYTES: usize = 64 * 1024;
@@ -36,10 +37,8 @@ pub struct DshDevice {
     pub timezone_offset_seconds: i32,
 }
 
-impl DshDevice {
-    fn wire_locale(&self) -> &'static str {
-        if self.locale.starts_with("zh") { "zh_CN" } else { "en_US" }
-    }
+fn wire_locale(locale: &str) -> &'static str {
+    if locale.starts_with("zh") { "zh_CN" } else { "en_US" }
 }
 
 /// Host-private material handed to the scoped grant writer.
@@ -116,12 +115,7 @@ impl DshLogin {
             return Err(AuthErrorCode::CallbackUnreachable);
         }
 
-        let client = Client::builder()
-            .no_proxy()
-            .redirect(reqwest::redirect::Policy::none())
-            .timeout(Duration::from_secs(10))
-            .build()
-            .map_err(|_| AuthErrorCode::ExecutionHostUnavailable)?;
+        let client = platform_client()?;
         let (prepared, challenge) = PreparedCallback::bind(0)?;
         let redirect_uri = format!("http://127.0.0.1:{}{CALLBACK_PATH}", challenge.port);
         let init = platform_call(
@@ -133,7 +127,7 @@ impl DshLogin {
                 "code_challenge_method": "S256",
                 "state": challenge.state,
                 "redirect_uri": redirect_uri,
-                "locale": device.wire_locale(),
+                "locale": wire_locale(&device.locale),
                 "login_source": "web",
             }),
             &route,
@@ -249,7 +243,7 @@ impl DshLogin {
                 scope,
                 &self.flow_id,
                 Instant::now,
-                account(scope),
+                utc_now().and_then(|now| account(scope, AuthCredentialState::Ready, Some(now))),
                 |bound, _, account| persist(bound, account, &grant),
             ),
             Err(error) => {
@@ -339,26 +333,51 @@ fn authorization_url(value: &str) -> Result<String, AuthErrorCode> {
     Ok(url.into())
 }
 
-fn account(scope: AuthAccountScope<'_>) -> Result<AuthAccount, AuthErrorCode> {
+pub(super) fn account(
+    scope: AuthAccountScope<'_>,
+    credential_state: AuthCredentialState,
+    authenticated_at: Option<TimestampMs>,
+) -> Result<AuthAccount, AuthErrorCode> {
     let identity = serde_json::to_vec(&(
         scope.tenant,
         scope.principal,
         scope.host,
         scope.service,
-        "deepseek-account-platform/default",
+        GRANT_RECORD,
     ))
     .map_err(|_| AuthErrorCode::ExecutionHostUnavailable)?;
     Ok(AuthAccount {
         account_id: URL_SAFE_NO_PAD.encode(Sha256::digest(identity)),
         service: scope.service,
         label: "DeepSeek".into(),
-        credential_state: AuthCredentialState::Ready,
+        credential_state,
         is_default: false,
-        authenticated_at: Some(utc_now()?),
+        authenticated_at,
         login_expires_at: None,
         github_domain: None,
         region: None,
     })
+}
+
+pub(super) fn platform_client() -> Result<Client, AuthErrorCode> {
+    Client::builder()
+        .no_proxy()
+        .redirect(reqwest::redirect::Policy::none())
+        .timeout(Duration::from_secs(10))
+        .build()
+        .map_err(|_| AuthErrorCode::ExecutionHostUnavailable)
+}
+
+pub(super) fn platform_identity(
+    request: RequestBuilder,
+    locale: &str,
+    timezone_offset_seconds: i32,
+) -> RequestBuilder {
+    request
+        .header("x-client-platform", "web")
+        .header("x-client-bundle-id", "")
+        .header("x-client-locale", wire_locale(locale))
+        .header("x-client-timezone-offset", timezone_offset_seconds)
 }
 
 async fn platform_call(
@@ -370,15 +389,14 @@ async fn platform_call(
 ) -> Result<Value, AuthErrorCode> {
     // The three login RPCs carry their PKCE material in JSON. Authenticated
     // account operations use the grant as x-dsh-auth-token and are separate.
-    let mut request = client
-        .post(format!("{PLATFORM_ORIGIN}/auth-api/v0/dsh/{method}"))
-        .header("x-client-platform", "web")
-        .header("x-client-bundle-id", "")
-        .header("x-client-locale", device.wire_locale())
-        .header("x-client-timezone-offset", device.timezone_offset_seconds)
-        .json(&body)
-        .build()
-        .map_err(|_| AuthErrorCode::UpstreamFailure)?;
+    let mut request = platform_identity(
+        client.post(format!("{PLATFORM_ORIGIN}/auth-api/v0/dsh/{method}")),
+        &device.locale,
+        device.timezone_offset_seconds,
+    )
+    .json(&body)
+    .build()
+    .map_err(|_| AuthErrorCode::UpstreamFailure)?;
     route(&mut request);
     let response = client.execute(request).await.map_err(|_| AuthErrorCode::UpstreamFailure)?;
     if !response.status().is_success() {

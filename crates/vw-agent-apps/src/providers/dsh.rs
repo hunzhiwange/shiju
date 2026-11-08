@@ -4,6 +4,8 @@ use serde_json::{Value, json};
 use serde_yaml::Value as Yaml;
 use std::collections::BTreeMap;
 use vw_api_types::app_providers::dsh::*;
+const MAX_YAML_BYTES: usize = 1024 * 1024;
+
 pub type Snapshot = BTreeMap<String, Option<Vec<u8>>>;
 fn invalid<T>() -> Result<T, WriteError> {
     Err(WriteError::InvalidResource)
@@ -85,7 +87,7 @@ pub fn valid_binding(record: Option<&Value>) -> bool {
 }
 fn yaml(bytes: Option<&[u8]>) -> Result<Yaml, WriteError> {
     let bytes = bytes.unwrap_or_default();
-    if bytes.len() > 1024 * 1024 {
+    if bytes.len() > MAX_YAML_BYTES {
         return invalid();
     }
     serde_yaml::from_slice(bytes).map_err(|_| WriteError::InvalidResource)
@@ -127,8 +129,8 @@ pub fn state(pre: &Snapshot) -> Result<DshState, WriteError> {
     }
     Ok(DshState { members: ids.into_iter().collect() })
 }
-fn credentials(pre: &Snapshot) -> Result<Yaml, WriteError> {
-    let v = yaml(pre.get("credentials").and_then(|v| v.as_deref()))?;
+pub(crate) fn credential_document(bytes: Option<&[u8]>) -> Result<Yaml, WriteError> {
+    let v = yaml(bytes)?;
     if v.is_null() {
         return Ok(serde_yaml::from_str("version: 1\nrefs: {}\n").unwrap());
     }
@@ -150,7 +152,7 @@ pub fn credential_binding_valid(pre: &Snapshot, p: &DshProfile) -> bool {
         return true;
     }
     let reference = p.declaration.get("apiKeyEnv").and_then(Value::as_str).unwrap_or_default();
-    credentials(pre)
+    credential_document(pre.get("credentials").and_then(|v| v.as_deref()))
         .is_ok_and(|v| v["refs"][reference].as_str().is_some_and(|k| !k.trim().is_empty()))
 }
 fn native(id: &str, p: &DshProfile) -> Value {
@@ -352,7 +354,7 @@ pub fn plan(
         .and_then(Value::as_str)
         .filter(|k| !k.trim().is_empty())
     {
-        let mut creds = credentials(pre)?;
+        let mut creds = credential_document(pre.get("credentials").and_then(|v| v.as_deref()))?;
         if creds["refs"].is_null() {
             creds["refs"] = Yaml::Mapping(Default::default());
         }
@@ -389,6 +391,8 @@ pub fn plan(
 
 #[path = "dsh_files.rs"]
 mod files;
+#[cfg(target_os = "macos")]
+pub(crate) use files::DshCredentials;
 pub use files::{DshFiles, read};
 
 #[path = "dsh_edit.rs"]

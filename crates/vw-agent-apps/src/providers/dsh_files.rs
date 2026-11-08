@@ -71,16 +71,25 @@ fn components(home: &Path) -> Result<Vec<String>, WriteError> {
     }
     Ok(parts)
 }
+fn open_root(home: &Path, create: bool) -> Result<Option<File>, WriteError> {
+    let components = components(home)?;
+    let mut root = OpenOptions::new()
+        .read(true)
+        .custom_flags(libc::O_DIRECTORY | libc::O_NOFOLLOW | libc::O_CLOEXEC)
+        .open(home)
+        .map_err(|_| WriteError::InvalidResource)?;
+    for component in components {
+        let Some(directory) = child(&root, &component, create)? else {
+            return Ok(None);
+        };
+        root = directory;
+    }
+    Ok(Some(root))
+}
+
 impl DshFiles {
     pub fn open(home: &Path) -> Result<Self, WriteError> {
-        let mut root = OpenOptions::new()
-            .read(true)
-            .custom_flags(libc::O_DIRECTORY | libc::O_NOFOLLOW | libc::O_CLOEXEC)
-            .open(home)
-            .map_err(|_| WriteError::InvalidResource)?;
-        for component in components(home)? {
-            root = child(&root, &component, true)?.unwrap();
-        }
+        let root = open_root(home, true)?.ok_or(WriteError::Io)?;
         let profiles = child(&root, "profiles", true)?.unwrap();
         let mut dirs = vec![];
         let mut targets = vec![
@@ -195,6 +204,58 @@ impl DshFiles {
         )
     }
 }
+/// The account slot shares the provider adapter's physical application guard
+/// and the native DSH lock, without opening or provisioning any profile files.
+#[cfg(target_os = "macos")]
+pub(crate) struct DshCredentials<'a> {
+    home: &'a Path,
+    root: File,
+    guard: AppWriteGuard,
+    lock: NativeLock,
+}
+
+#[cfg(target_os = "macos")]
+impl<'a> DshCredentials<'a> {
+    const FILE: &'static str = ".credentials.yaml";
+
+    pub(crate) fn open(home: &'a Path, create: bool) -> Result<Option<Self>, WriteError> {
+        let Some(root) = open_root(home, create)? else {
+            return Ok(None);
+        };
+        let lock = NativeLock::acquire(&root, ".credentials.yaml.lock")?;
+        let guard = crate::providers::live::write_guard::lock_directory(
+            AppId::Dsh,
+            root.try_clone().map_err(|_| WriteError::Io)?,
+        )?;
+        Ok(Some(Self { home, root, guard, lock }))
+    }
+
+    pub(crate) fn read(&self) -> Result<Option<Vec<u8>>, WriteError> {
+        self.guard.read(OsStr::new(Self::FILE))
+    }
+
+    pub(crate) fn replace(&self, before: Option<&[u8]>, after: &[u8]) -> Result<(), WriteError> {
+        if after.len() > super::MAX_YAML_BYTES {
+            return Err(WriteError::InvalidResource);
+        }
+        let staged = crate::providers::live::write_guard::prepare_private_child(
+            &self.root,
+            OsStr::new(Self::FILE),
+            after,
+        )?;
+        let current = open_root(self.home, false)?.ok_or(WriteError::Conflict)?;
+        let retained = self.root.metadata().map_err(|_| WriteError::Io)?;
+        let current = current.metadata().map_err(|_| WriteError::Io)?;
+        if (current.dev(), current.ino()) != (retained.dev(), retained.ino())
+            || !self.lock.is_current()
+            || self.read()?.as_deref() != before
+        {
+            return Err(WriteError::Conflict);
+        }
+        staged.commit()
+    }
+}
+
 /// Dsh's exclusive-create `<file>.lock` protocol; never remove an unknown or live owner's lock.
 struct NativeLock {
     parent: File,

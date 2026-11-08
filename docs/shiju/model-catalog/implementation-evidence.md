@@ -595,3 +595,28 @@ Pi 供应商表单的现有网关入口为 `vw-agent/src/gateway/api/handlers/ap
 | `cargo test -p vw-agent-apps --test task22_real_opencode -- --nocapture` | 0 | 1 项通过。完整 OpenCode 1.19.5 Darwin arm64 包通过 npm SHA-512 完整性和 Mach-O 签名校验。临时集成测试以 `TASK22_OPENCODE_BIN` 指定可执行文件，在禁网沙箱和临时 HOME 中调用原生入口，用仅启用 `fixture` 供应商的配置得到唯一的 `fixture` / `vendor/nested-model` |
 
 审查后差异限于 OpenCode 原生发现、共用 CLI 路径扫描、模块注册、独立测试、macOS Tokio feature 声明和本记录。`git diff --cached --check` 通过。临时真机测试入口已清理，各阶段占用锁已释放，编译缓存已保留。
+
+## 任务 23　迁移 AGY 运行时模型发现
+
+2026-11-08，macOS 27.0（26A428），arm64。批次 22 由 `cefd22229` 交付。已核对授权主机、可信 CLI 定位、任务取消和租户供应商档案契约。本入口仅读取运行时目录。
+
+| 固定来源 `ca58c0313360eae7c851fbd7553c1614c7af03e7` | 实际路径 |
+| --- | --- |
+| `src-tauri/src/commands/model_fetch.rs::get_agy_models` | `crates/vw-agent-apps/src/models/discovery_agy.rs::discover` 接收调用方已授权的 `LocalReadEnvironment` 和可选的已保存 `AgyProfile`。用 `apps::discovery::read::locate_cli` 选择可信路径中的 AGY。无 key 时在目标主机 HOME 下运行固定 `models`，已有原生 settings 须可安全读取且为有效对象，缺文件时仍使用目标主机登录态 |
+| `get_agy_models` 的 key 模式和进程清理 | 复用 `providers::agy::validate` 校验供应商档案。key 模式使用独立 HOME 和 `--gemini_dir`，只写 `antigravity-cli/settings.json` 的 `modelProvider`。`apps::launch::host::command` 清空继承环境，只有已保存的 key 和可选地址进入认证环境。AGY 与 OpenCode 共用 `discovery_process::output` 的 20 秒限时、1 MiB stdout 上限、错误脱敏、取消时终止进程组并等待 CLI 退出。临时目录在进程退出后移除 |
+| `parse_agy_models` | 同模块 `parse` 从制表符分列输出中提取原生显示名，过滤非法别名、空名称、控制字符和不符合原生长度的值，按显示名排序去重。CLI 别名仅用于验证行格式 |
+| 调用者及后续接点 | 现有授权接点为 `crates/vw-agent/src/gateway/api/handlers/agent_apps/read.rs`。租户凭据沿用 `crates/vw-agent/src/app_providers/agy.rs` 的 `AppProviderStore::agy_record` / `profile_from_record`。发现 DTO 为 `crates/vw-api-types/src/model_catalog.rs::ModelDiscoveryMethod::Agy`。发现网关、SDK 及 Iced 由后续批次接线。本项使用 macOS 受控 CLI 进程验证，无真实 AGY 登录或生产账号验证 |
+
+### 验证
+
+红灯和绿灯均动态领取槽位 **1**，`CARGO_TARGET_DIR=/Users/xiangmin/worker/code/shiju/target/rust-slot-1`。Cargo 中间目录使用同一槽位。格式化在 Git 源码快照执行，只回写本项 Rust 文件。验证在实际工作区执行，绿灯阶段向父进程注入了测试用认证环境值以检查继承隔离。
+
+| 命令 | 退出码 | 证据 |
+| --- | ---: | --- |
+| `cargo fmt --all`（红灯、绿灯） | 0、0 | 格式化完成 |
+| `cargo test -p vw-agent-apps catalog_discovery_agy_ -- --nocapture`（红灯） | 101 | 11 条有效用例，1 项通过、10 项失败、638 项过滤。首个指定用例实际返回 `Err("unavailable")`，预期为 `Ok(["Gemini 3.8 Flash (High)"])` |
+| `cargo test -p vw-agent-apps catalog_discovery_agy_ -- --nocapture`（绿灯） | 0 | 11 项通过，638 项过滤。覆盖显示名去重、目标主机登录态、key 模式隔离、坏配置、缺 CLI、输出边界、取消和 20 秒超时后清理 |
+| `cargo test -p vw-agent-apps catalog_discovery_opencode_ -- --nocapture` | 0 | 共用执行逻辑的 11 项 OpenCode 回归通过，638 项过滤 |
+| `cargo clippy --all-targets --all-features -- -D warnings` | 0 | 全工作区、全目标及 features 通过 |
+
+审查后差异限于 AGY 原生发现、独立测试、模块注册、共用的 macOS 进程执行逻辑和本记录。`git diff --cached --check` 通过。两个阶段的占用锁已释放，编译缓存已保留。

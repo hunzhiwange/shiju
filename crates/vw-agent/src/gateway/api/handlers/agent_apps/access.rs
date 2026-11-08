@@ -355,6 +355,7 @@ pub(super) fn recover_provider_policy(path: &Path) -> Result<(), ()> {
     use vw_agent_apps::providers::live::{
         commit::{ExecutionHostId, ProviderTransactions},
         recovery::RecoveryOutcome,
+        write_guard::WriteError,
     };
     for host in load(path)?.hosts {
         if !host.online || !matches!(host.binding, Binding::Local) {
@@ -386,6 +387,14 @@ pub(super) fn recover_provider_policy(path: &Path) -> Result<(), ()> {
             );
             continue;
         }
+        let keychain = vw_agent_apps::auth::claude_keychain::MacOsKeychain;
+        // Validate the login journal before provider recovery can publish the pointer.
+        let settle_login = match login.as_ref().map(|login| login.recover(&transactions, &keychain))
+        {
+            Some(Err(WriteError::Recovered)) => login.as_ref(),
+            Some(Err(_)) => return Err(()),
+            Some(Ok(())) | None => None,
+        };
         for (app, outcome) in transactions.recover_on_startup() {
             match outcome {
                 Ok(RecoveryOutcome::Discarded) => {
@@ -402,10 +411,8 @@ pub(super) fn recover_provider_policy(path: &Path) -> Result<(), ()> {
                 Err(_) => tracing::warn!(?app, "provider recovery failed; pending intent retained"),
             }
         }
-        if let Some(login) = login {
-            login
-                .recover(&transactions, &vw_agent_apps::auth::claude_keychain::MacOsKeychain)
-                .map_err(|_| ())?;
+        if let Some(login) = settle_login {
+            login.recover(&transactions, &keychain).map_err(|_| ())?;
         }
     }
     Ok(())

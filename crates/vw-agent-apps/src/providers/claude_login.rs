@@ -27,6 +27,25 @@ const ACCOUNT_CACHE_KEYS: &[&str] = &[
     "penguinModeOrgEnabled",
 ];
 const JOURNAL: &str = ".shiju-login.json";
+#[cfg(test)]
+#[derive(Clone, Copy, PartialEq, Eq)]
+pub(crate) enum LoginPhase {
+    Journal,
+    Keychain,
+    Fallback,
+    Profile,
+    Cleared,
+}
+#[cfg(test)]
+thread_local! {
+    pub(crate) static LOGIN_CHECKPOINT: std::cell::Cell<Option<LoginPhase>> = const { std::cell::Cell::new(None) };
+}
+#[cfg(test)]
+fn checkpoint(phase: LoginPhase) {
+    if LOGIN_CHECKPOINT.get() == Some(phase) {
+        std::process::exit(86);
+    }
+}
 /// Configuration-only operations must not bypass the login owner's unfinished journal.
 pub(crate) fn configuration_has_pending_login(
     guard: &super::live::write_guard::AppWriteGuard,
@@ -106,11 +125,18 @@ impl LoginHost {
     ) -> Result<(), WriteError> {
         keychain.authorize_home(&self.home_path).map_err(|_| WriteError::InvalidResource)?;
         keychain.write(None, material.keychain.as_ref()).map_err(|_| WriteError::Io)?;
+        #[cfg(test)]
+        checkpoint(LoginPhase::Keychain);
         if keychain.read(None).map_err(|_| WriteError::Io)? != material.keychain {
             return Err(WriteError::Io);
         }
         self.default.write(".credentials.json", material.fallback.as_deref())?;
-        self.home.write(".claude.json", material.profile.as_deref())
+        #[cfg(test)]
+        checkpoint(LoginPhase::Fallback);
+        self.home.write(".claude.json", material.profile.as_deref())?;
+        #[cfg(test)]
+        checkpoint(LoginPhase::Profile);
+        Ok(())
     }
     /// A shared HOME must never let a different executor consume this login intent.
     pub fn journal_matches_host(&self, tx: &ProviderTransactions) -> Result<bool, WriteError> {
@@ -137,39 +163,39 @@ impl LoginHost {
         if &journal.host != tx.execution_host() {
             return Err(WriteError::Conflict);
         }
-        let pending = tx.pending(AppId::Claude)?;
-        let state = tx.state(AppId::Claude)?;
-        let operation = |mode: &super::live::commit::ModeState| {
+        let matches_operation = |mode: &super::live::commit::ModeState| {
             mode.contract
                 .as_ref()
                 .and_then(|c| c.claude_login_operation.as_deref())
                 .is_some_and(|op| op == journal.operation)
         };
-        let forward = pending.as_ref().is_some_and(|p| {
-            p.tenant == journal.tenant
-                && p.published
-                && p.target.mode.as_ref().is_some_and(operation)
-        }) || (state.mode_tenant.as_ref() == Some(&journal.tenant)
-            && state.mode.as_ref().is_some_and(operation));
-        // A different tenant/operation cannot borrow the old journal to alter the global login.
-        if pending.as_ref().is_some_and(|p| p.tenant != journal.tenant) {
-            return Err(WriteError::Conflict);
-        }
         let current = self.material(keychain)?;
-        let account_part = |material: &LoginMaterial| -> Vec<Option<Value>> {
-            ACCOUNT_KEYS
-                .iter()
-                .map(|key| material.secret.as_ref().and_then(|v| v.get(*key)).cloned())
-                .collect()
-        };
-        if account_part(&current) != account_part(&journal.before)
-            && account_part(&current) != account_part(&journal.after)
-        {
+        // Each physical write can survive independently, including during rollback.
+        // The effective secret alone cannot distinguish an absent fallback from a later login.
+        let Journal { before, after, .. } = &journal;
+        let known_keychain =
+            current.keychain == before.keychain || current.keychain == after.keychain;
+        let known_fallback =
+            current.fallback == before.fallback || current.fallback == after.fallback;
+        let known_profile = current.profile == before.profile || current.profile == after.profile;
+        if !known_keychain || !known_fallback || !known_profile {
             return Err(WriteError::Conflict);
         }
-        self.install(keychain, if forward { &journal.after } else { &journal.before })?;
-        if pending.is_some() {
+        if let Some(pending) = tx.pending(AppId::Claude)? {
+            if pending.tenant != journal.tenant
+                || !pending.target.mode.as_ref().is_some_and(matches_operation)
+            {
+                return Err(WriteError::Conflict);
+            }
+            // Settle the provider intent first so the durable state decides the direction.
             return Err(WriteError::Recovered);
+        }
+        let state = tx.state(AppId::Claude)?;
+        let forward = state.mode_tenant.as_ref() == Some(&journal.tenant)
+            && state.mode.as_ref().is_some_and(matches_operation);
+        let expected = if forward { after } else { before };
+        if &current != expected {
+            self.install(keychain, expected)?;
         }
         self.default.write(JOURNAL, None)
     }
@@ -200,6 +226,8 @@ impl LoginHost {
         }
         // The snapshot is complete. Unlike checkout, no provider publication is required.
         self.default.write(JOURNAL, None)?;
+        #[cfg(test)]
+        checkpoint(LoginPhase::Cleared);
         Ok(true)
     }
     fn begin_snapshot(
@@ -262,6 +290,8 @@ impl LoginHost {
         };
         self.default
             .write(JOURNAL, Some(&serde_json::to_vec(&journal).map_err(|_| WriteError::Io)?))?;
+        #[cfg(test)]
+        checkpoint(LoginPhase::Journal);
         if let Err(error) = self.install(keychain, &journal.after) {
             // A rejected keychain write can leave everything intact. Avoid a second
             // write to the rejected destination when no rollback is needed.

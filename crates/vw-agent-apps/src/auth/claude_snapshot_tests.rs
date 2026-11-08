@@ -16,10 +16,10 @@ use vw_api_types::{agent_apps::AppId, id::TenantScope};
 
 // Map the default slot to a unique directory-derived service, so the real macOS
 // adapter never reads or writes the user's live Claude entry.
-struct Keychain {
-    live: PathBuf,
-    target: PathBuf,
-    parked: PathBuf,
+pub(super) struct Keychain {
+    pub(super) live: PathBuf,
+    pub(super) target: PathBuf,
+    pub(super) parked: PathBuf,
 }
 impl ClaudeKeychain for Keychain {
     fn authorize_home(&self, home: &Path) -> Result<(), KeychainError> {

@@ -47,6 +47,10 @@ const PROTECTED: &[&str] = &[
     "traceparent",
     "tracestate",
 ];
+pub(crate) fn protected_header(name: &str) -> bool {
+    PROTECTED.contains(&name)
+}
+
 pub fn endpoint(raw: &str) -> Result<(), String> {
     if raw.is_empty()
         || raw.len() > 2048
@@ -89,7 +93,7 @@ fn headers(input: &BTreeMap<String, String>, proxy: bool) -> Result<(), String> 
             || HeaderName::from_bytes(name.as_bytes()).is_err()
             || header_value(value).is_err()
             || !seen.insert(name.to_ascii_lowercase())
-            || (proxy && PROTECTED.contains(&name.to_ascii_lowercase().as_str()))
+            || (proxy && protected_header(&name.to_ascii_lowercase()))
         {
             return Err("invalid or protected provider request header".into());
         }

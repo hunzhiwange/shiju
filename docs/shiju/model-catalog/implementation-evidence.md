@@ -544,3 +544,28 @@ Pi 供应商表单的现有网关入口为 `vw-agent/src/gateway/api/handlers/ap
 | `cargo clippy --all-targets --all-features -- -D warnings` | 0 | 全工作区、全目标及 features 通过 |
 
 差异审查限于 URL 规则、独立测试、模块注册及本记录。`git diff --cached --check` 通过。
+
+## 任务 21　实现受限 HTTP 模型发现
+
+2026-11-08，macOS 27.0（26A428），arm64。批次 20 由 `36c6baaee` 交付。已核对 `TenantScope`、`apps::launch::host::command`、`ProviderOperation` 以及 `ProviderTransactions::commit_checked`。本次读取已授权供应商的 HTTP 目录，无配置写入或 CLI 调用。
+
+| 固定来源 `ca58c0313360eae7c851fbd7553c1614c7af03e7` | 实际路径 |
+| --- | --- |
+| `src-tauri/src/services/model_fetch.rs::fetch_models`、`build_model_fetch_headers` | `crates/vw-agent-apps/src/models/discovery_http.rs::discover` 接收上层授权解析后的供应商部署和取消 future。调用批次 20 的 `discovery_url::build_models_url_candidates`，同源覆写来自已授权的供应商配置，跨源覆写必须精确匹配该供应商获授权的地址。按协议发送 Bearer、`x-api-key` 或 `x-goog-api-key`。UA 由独立配置显式提供，自定义头限制数量、名称、值和总大小，拒绝保护头及大小写重复。取消前不发请求，取消中丢弃请求或响应体读取 |
+| `fetch_models` 的 HTTP 限制与错误分支 | `crates/vw-provider-resolver/src/remote_models.rs::discover_catalog_models` 与既有连接供应商发现共用 `fetch_at` 和 `read_body`。新入口直连，每候选限时 15 秒，声明长度和流式读取均限制 1 MiB，禁止重定向。仅 404/405 切到下一候选，401/403 立即返回 `unauthorized`。错误只含稳定类别，舍弃 URL、响应正文、解析细节和底层网络错误内容 |
+| `ModelsResponse`、`catalog_model_ids` | 同一 resolver 模块的 `parse_models` 优先使用 `data[].id` 并保留可用的 `owned_by`。没有 `data` 时依次使用 `models[].slug`、`id`、带 `models/` 前缀的 `name`。去除空 ID，按 ID 排序、去重。旧 `discover_openai_compatible_models` 仍读取 `data`，沿用 3 秒超时及错误类别 |
+| 调用者及后续接点 | 既有连接供应商加载 `crates/vw-agent/src/provider/provider.rs` 与 Iced 自定义供应商 `crates/vw-desktop/src/app/message/settings/providers/models.rs::discover_custom_provider_models` 继续使用原 resolver 入口。应用目录的 DTO 已在 `crates/vw-api-types/src/model_catalog.rs` 定义，发现 API、SDK 及 Iced 接线由后续批次实施。本项的行为验收使用 macOS 回环 HTTP 服务 |
+
+### 验证
+
+红灯和绿灯均动态领取槽位 **1**，`CARGO_TARGET_DIR=/Users/xiangmin/worker/code/shiju/target/rust-slot-1`。Cargo 中间目录使用同一槽位。格式化在 Git 源码快照执行，只回写本项 Rust 文件。测试和 Clippy 在实际工作区运行。
+
+| 命令 | 退出码 | 证据 |
+| --- | ---: | --- |
+| `cargo fmt --all`（红灯、绿灯） | 0、0 | 格式化完成 |
+| `cargo test -p vw-agent-apps catalog_discovery_http_ -- --nocapture`（红灯） | 101 | 14 个有效用例，4 项通过、10 项失败，613 项过滤。首个指定用例在 401 后只发出一次请求且无泄露，但实际错误为 `http_status`，预期为 `unauthorized` |
+| `cargo test -p vw-agent-apps catalog_discovery_http_ -- --nocapture`（绿灯） | 0 | 14 项通过，0 失败，613 项过滤。断言了 401/403 停止、404/405 按序回退、授权和凭据隔离、三种认证、响应形状、声明及流式上限、脱敏与取消时连接关闭 |
+| `cargo test -p vw-provider-resolver remote_models -- --nocapture` | 0 | 12 项通过，0 失败，120 项过滤，包括共用 HTTP 读取超时、大小限制和旧调用者行为 |
+| `cargo clippy --all-targets --all-features -- -D warnings` | 0 | 全工作区、全目标及 features 通过 |
+
+审查后差异限于原生 HTTP 发现、共用传输与解析、头部保护、独立测试、Tokio feature 声明和本记录。`git diff --cached --check` 通过。两个阶段的占用锁已释放，缓存已保留。

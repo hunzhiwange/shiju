@@ -735,3 +735,27 @@ Pi 供应商表单的现有网关入口为 `vw-agent/src/gateway/api/handlers/ap
 | `cargo clippy --all-targets --all-features -- -D warnings` | 0 | 全工作区、全目标及 features 通过 |
 
 审查后差异限于 Kimi 投影、独立测试、模块注册和本记录。`git diff --cached --check` 通过。槽位锁已释放，编译缓存已保留。
+
+## 任务 29　迁移 Pi 协议限定补空
+
+2026-11-08，macOS 27.0（26A428），arm64。批次 28 由 `c3d799c8a` 交付。已核对 `TenantScope`、`LocalReadEnvironment`、应用注册与可信 CLI 定位、可取消的 `ProviderOperation` 及 `ProviderTransactions::commit_checked`。
+
+| 固定来源 `ca58c0313360eae7c851fbd7553c1614c7af03e7` | 实际路径 |
+| --- | --- |
+| `src/components/providers/forms/modelMetadataFill.ts::piPresetThinkingFor` | `crates/vw-agent-apps/src/models/fill_pi.rs::fill_pi_model` 使用 `PiProfile::declaration` 与原生模型行，模型级协议、端点和 compat 优先。预设映射沿用 `models/metadata.rs::ResolvedModelMetadata::pi_thinking`，要求协议、端点的来源和部署路径一致，并在 Chat Completions 检查补入缺失 compat 后的探测行为。已设置的映射（包括空对象）和显式禁用的推理均保留。绑定冲突时返回空差异。成功时返回 `thinkingLevelMap` 和仅需合入模型的缺失 compat 键。 |
+| `modelMetadataFill.ts::piSendsReasoningEffort`、`piThinkingLevelMapFromEfforts` | 缺少已核对的映射时，Responses 和使用 OpenAI 格式且发送 effort 的 Chat Completions 才可按档位列表生成映射。Completions 沿用 Pi 按供应商 ID 和 URL 字串探测的规则，显式 compat 优先。`none` 映射到 `off`，缺少的档位写为 null，全部未知时返回空差异。映射的实际来源记录在 `ReasoningEfforts` 下，保留来源时间。Pi 补空在应用入口排除 OMP。 |
+| `tests/components/modelMetadataFill.test.ts` 与 `PiProviderForm.tsx::fillPiModelDraft` | 独立测试位于 `crates/vw-agent-apps/src/models/fill_pi_tests.rs`，包含真实 `providers::pi::declarations` 和 `patch` 的内存 JSON 往返。本批次交付内存投影。现有原生表单和发布分别由 `crates/vw-agent-apps/src/providers/pi/form.rs` 和 `providers/pi.rs::PiFiles` 处理，档案网关、SDK 和 Iced 表单分别位于 `crates/vw-agent/src/gateway/api/handlers/app_providers/pi.rs`、`crates/vw-gateway-client/src/client/app_providers/pi.rs` 和 `crates/vw-desktop/src/app/components/app_providers/pi.rs`。目录预览 DTO 位于 `crates/vw-api-types/src/model_catalog.rs`。预览与修订提交由任务 32 组装，网关与 SDK 由任务 38 接线，Iced 来源展示由任务 41 接线。 |
+
+### 验证
+
+各阶段动态领取槽位 **1**，`CARGO_TARGET_DIR=/Users/xiangmin/worker/code/shiju/target/rust-slot-1`。Cargo 中间目录使用同一槽位。格式化在 Git 源码快照中执行，只回写本项 Rust 文件。测试和 Clippy 在实际工作区执行。
+
+| 命令 | 退出码 | 证据 |
+| --- | ---: | --- |
+| `cargo fmt --all`（红灯、绿灯首次、绿灯重跑） | 0、0、0 | 三次格式化完成 |
+| `cargo test -p vw-agent-apps catalog_fill_pi_ -- --nocapture`（红灯） | 101 | 9 条有效用例，1 项通过、8 项失败、680 项过滤。指定冲突用例实际返回含 `thinkingLevelMap` 的差异，预期差异、缺失 compat 和来源均为空。 |
+| `cargo test -p vw-agent-apps catalog_fill_pi_ -- --nocapture`（绿灯首次） | 101 | 0 条有效用例。修复 `serde_json::Map` 需要通过迭代构建的编译错误 E0277 后重跑。 |
+| `cargo test -p vw-agent-apps catalog_fill_pi_ -- --nocapture`（绿灯重跑） | 0 | 9 项通过，680 项过滤。 |
+| `cargo clippy --all-targets --all-features -- -D warnings` | 0 | 全工作区、全目标及 features 通过。 |
+
+审查后差异限于 Pi 补空投影、独立测试、模块注册及本记录。`git diff --cached --check` 通过。槽位锁均已释放，编译缓存已保留。

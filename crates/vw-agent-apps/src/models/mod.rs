@@ -16,6 +16,8 @@ pub mod fill_hermes;
 pub mod fill_kimi;
 pub mod fill_openclaw;
 pub mod fill_opencode;
+#[cfg(not(target_arch = "wasm32"))]
+pub mod fill_pi;
 pub mod identity;
 #[cfg(not(target_arch = "wasm32"))]
 pub mod metadata;
@@ -54,6 +56,8 @@ mod fill_kimi_tests;
 mod fill_openclaw_tests;
 #[cfg(test)]
 mod fill_opencode_tests;
+#[cfg(all(test, not(target_arch = "wasm32")))]
+mod fill_pi_tests;
 #[cfg(test)]
 mod identity_tests;
 #[cfg(all(test, not(target_arch = "wasm32")))]

@@ -2,6 +2,7 @@
 use vw_api_types::model_catalog::*;
 
 pub mod codex_template;
+pub mod discovery_url;
 pub mod identity;
 #[cfg(not(target_arch = "wasm32"))]
 pub mod metadata;
@@ -22,6 +23,8 @@ mod vendor_fallback;
 
 #[cfg(test)]
 mod codex_template_tests;
+#[cfg(test)]
+mod discovery_url_tests;
 #[cfg(test)]
 mod identity_tests;
 #[cfg(all(test, not(target_arch = "wasm32")))]

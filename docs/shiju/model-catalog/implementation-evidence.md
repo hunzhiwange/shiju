@@ -520,3 +520,27 @@ Pi 供应商表单的现有网关入口为 `vw-agent/src/gateway/api/handlers/ap
 | `cargo clippy --all-targets --all-features -- -D warnings` | 0 | 全工作区、全目标及 features 通过 |
 
 审查后差异限于原厂查询、元数据连线、独立测试和本记录。`git diff --cached --check` 通过。本项使用固定本地快照，未迁移预设或公共目录数据，未涉及生产请求、配置写入或界面变更。
+
+## 任务 20　迁移模型发现 URL 规则
+
+2026-11-08，macOS 27.0（26A428），arm64。批次 19 由 `5735258f3` 交付。已核对租户作用域 `TenantScope`、`apps::catalog::catalog`、可信主机命令 `apps::launch::host::command`、`ProviderOperation` 以及修订发布 `ProviderTransactions::commit_checked`。
+
+| 固定来源 `ca58c0313360eae7c851fbd7553c1614c7af03e7` | 实际路径 |
+| --- | --- |
+| `src-tauri/src/services/model_fetch.rs::build_models_url_candidates` | `crates/vw-agent-apps/src/models/discovery_url.rs::build_models_url_candidates` 使用现有 `AppProviderEndpointKind` 和 `ProviderProtocol`。显式覆写独占结果。完整 URL 按首个 `/v1/` 或末段的父路径派生。普通 URL 优先使用已有版本段，再按源顺序添加兼容回退并去重。保留智谱 / Z.ai 版本路径及百炼 / 千问 Token Plan 的 `/compatible-mode/v1/models` 等站点规则 |
+| `src-tauri/src/services/model_fetch.rs::fetch_models` 中的 Google URL 分支 | 同一原生入口对 Gemini 基础 URL 使用 `/v1beta/models`，同时保留显式覆写和完整 URL 的优先级。空白覆写统一视为缺省 |
+| 端点授权 | 基础 URL 由调用方从已授权供应商解析。派生地址只修改 URL 路径。跨源覆写要求与调用方已授权的完整端点精确匹配。入口复用 `providers::validation::endpoint`，拒绝凭据、查询串、片段和非回环 HTTP。地址簿由 `AppProviderStore::list_endpoints` 在租户范围内读取，条目本身不授予网络访问。元数据匹配键仅供元数据解析 |
+| 下游接点 | URL 候选由本项原生入口提供给后续受限 HTTP 发现。已存在的公开 DTO 位于 `crates/vw-api-types/src/model_catalog.rs`，包括 `ModelDiscoveryRequest` 和 `ModelDiscoveryStatus`。已有地址簿网关和 SDK 位于各自的 `app_providers/endpoints.rs`。发现网关、SDK 与 Iced 由后续批次接线。本项验收为纯 URL 派生，使用固定测试输入，无网络请求或界面操作 |
+
+### 验证
+
+红灯和绿灯均动态领取槽位 **1**，`CARGO_TARGET_DIR=/Users/xiangmin/worker/code/shiju/target/rust-slot-1`。Cargo 中间目录使用同一槽位。格式化在 Git 源码快照运行，只回写本项 Rust 文件。测试和 Clippy 在实际工作区运行。两阶段占用锁已释放，编译缓存已保留。
+
+| 命令 | 退出码 | 证据 |
+| --- | ---: | --- |
+| `cargo fmt --all`（红灯、绿灯） | 0、0 | 两阶段均完成格式化 |
+| `cargo test -p vw-agent-apps catalog_discovery_url_ -- --nocapture`（红灯） | 101 | 16 条有效用例，2 条通过，14 条失败，597 条过滤。首个指定用例实际得到 `/apps/anthropic/v1/models`，预期唯一地址为 `/exact/models/` |
+| `cargo test -p vw-agent-apps catalog_discovery_url_ -- --nocapture`（绿灯） | 0 | 16 条通过，0 条失败，597 条过滤 |
+| `cargo clippy --all-targets --all-features -- -D warnings` | 0 | 全工作区、全目标及 features 通过 |
+
+差异审查限于 URL 规则、独立测试、模块注册及本记录。`git diff --cached --check` 通过。

@@ -56,9 +56,13 @@ pub fn agy_account_is_running() -> bool {
 #[cfg(target_os = "macos")]
 use super::keychain::KeychainEntry;
 #[cfg(target_os = "macos")]
-use macos::keychain_error;
+pub(super) use macos::keychain_error;
 #[cfg(target_os = "macos")]
-pub(super) use macos::{lock_keychain, switch_account_in};
+pub(super) use macos::{
+    credential_account_id, decode, execution_home, lock_keychain, locked_keychain, managed,
+    native_home, rotation_is_newer, save_managed, switch_account_in, validate_account_id,
+    validate_scope,
+};
 
 #[cfg(target_os = "macos")]
 mod macos {
@@ -79,6 +83,7 @@ mod macos {
     };
     use serde::{Deserialize, Serialize};
     use serde_json::Value;
+    use sha2::{Digest, Sha256};
     use std::{
         fs::File,
         os::{fd::AsRawFd, unix::fs::MetadataExt},
@@ -88,9 +93,9 @@ mod macos {
     const KEYRING_PREFIX: &str = "go-keyring-base64:";
 
     #[derive(Deserialize, Serialize)]
-    struct ManagedRecord {
-        account: AuthAccount,
-        credential: Value,
+    pub(in crate::auth) struct ManagedRecord {
+        pub(in crate::auth) account: AuthAccount,
+        pub(in crate::auth) credential: Value,
     }
 
     pub(in crate::auth) fn switch_account_in(
@@ -99,29 +104,10 @@ mod macos {
         native: AgyNativeTarget<'_>,
         entry: &KeychainEntry<'_>,
     ) -> Result<(), AuthErrorCode> {
-        scope.validate()?;
-        if scope.service != AuthService::AgyOauth {
-            return Err(AuthErrorCode::Unsupported);
-        }
-        if native.exclusive_owner != Some(scope) {
-            return Err(AuthErrorCode::Forbidden);
-        }
-        let home = std::env::var_os("HOME")
-            .and_then(|path| std::fs::canonicalize(path).ok())
-            .ok_or(AuthErrorCode::KeychainUnavailable)?;
-        if std::fs::canonicalize(native.home).ok().as_deref() != Some(home.as_path()) {
-            return Err(AuthErrorCode::Forbidden);
-        }
-        if account_id.len() != 43
-            || !account_id.bytes().all(|byte| byte.is_ascii_alphanumeric() || b"-_".contains(&byte))
-        {
-            return Err(AuthErrorCode::InvalidInput);
-        }
-
-        let _lock = lock_keychain(&home)?;
-        let keychain = SecKeychain::default_for_domain(SecPreferencesDomain::User)
-            .map_err(|_| AuthErrorCode::KeychainUnavailable)?;
-        let (target, _) = managed(&keychain, scope, account_id)?;
+        let home = native_home(scope, native)?;
+        validate_account_id(account_id)?;
+        let (_lock, keychain) = locked_keychain(&home)?;
+        let (target, _, _) = managed(&keychain, scope, account_id)?;
         let before = entry.read().map_err(keychain_error)?;
         if let Some(raw) = &before {
             let live = decode(raw).ok_or(AuthErrorCode::Conflict)?;
@@ -135,42 +121,74 @@ mod macos {
             }
             // An external subject can be shared by different scopes. Preserve a
             // rotation only when the live grant belongs to this managed account.
-            let (mut previous, mut item) =
+            let (mut previous, item, _) =
                 managed(&keychain, scope, &live_id).map_err(|error| match error {
                     AuthErrorCode::NotFound | AuthErrorCode::ReauthRequired => {
                         AuthErrorCode::Conflict
                     }
                     error => error,
                 })?;
-            let live_expiry = expiry(&live).ok_or(AuthErrorCode::Conflict)?;
-            let previous_expiry = expiry(&previous.credential).ok_or(AuthErrorCode::Conflict)?;
-            if !same_grant(&live, &previous.credential)
-                || (live_expiry == previous_expiry
-                    && live.pointer("/token/access_token")
-                        != previous.credential.pointer("/token/access_token"))
-            {
-                return Err(AuthErrorCode::Conflict);
-            }
-            if live_expiry > previous_expiry {
+            if rotation_is_newer(&live, &previous.credential)? {
                 if entry.read().map_err(keychain_error)? != before {
                     return Err(AuthErrorCode::Conflict);
                 }
                 previous.credential = live;
-                let saved =
-                    serde_json::to_vec(&previous).map_err(|_| AuthErrorCode::StorageUnavailable)?;
-                item.set_password(&saved).map_err(|_| AuthErrorCode::KeychainUnavailable)?;
-                let (readback, _) = keychain
-                    .find_generic_password(MANAGED_SERVICE, &live_id)
-                    .map_err(|_| AuthErrorCode::KeychainUnavailable)?;
-                if *readback != saved {
-                    return Err(AuthErrorCode::KeychainUnavailable);
-                }
+                save_managed(&keychain, previous, item)?;
             }
         }
         let serialized = serde_json::to_vec(&target.credential)
             .map_err(|_| AuthErrorCode::StorageUnavailable)?;
         let encoded = format!("{KEYRING_PREFIX}{}", STANDARD.encode(serialized));
         entry.replace_base64(before.as_deref(), &encoded).map_err(keychain_error)
+    }
+
+    pub(in crate::auth) fn validate_scope(
+        scope: AuthAccountScope<'_>,
+    ) -> Result<(), AuthErrorCode> {
+        scope.validate()?;
+        if scope.service != AuthService::AgyOauth {
+            return Err(AuthErrorCode::Unsupported);
+        }
+        Ok(())
+    }
+
+    pub(in crate::auth) fn validate_account_id(account_id: &str) -> Result<(), AuthErrorCode> {
+        if account_id.len() != 43
+            || !account_id.bytes().all(|byte| byte.is_ascii_alphanumeric() || b"-_".contains(&byte))
+        {
+            return Err(AuthErrorCode::InvalidInput);
+        }
+        Ok(())
+    }
+
+    pub(in crate::auth) fn execution_home() -> Result<std::path::PathBuf, AuthErrorCode> {
+        std::env::var_os("HOME")
+            .and_then(|path| std::fs::canonicalize(path).ok())
+            .ok_or(AuthErrorCode::KeychainUnavailable)
+    }
+
+    pub(in crate::auth) fn native_home(
+        scope: AuthAccountScope<'_>,
+        native: AgyNativeTarget<'_>,
+    ) -> Result<std::path::PathBuf, AuthErrorCode> {
+        validate_scope(scope)?;
+        if native.exclusive_owner != Some(scope) {
+            return Err(AuthErrorCode::Forbidden);
+        }
+        let home = execution_home()?;
+        if std::fs::canonicalize(native.home).ok().as_deref() != Some(home.as_path()) {
+            return Err(AuthErrorCode::Forbidden);
+        }
+        Ok(home)
+    }
+
+    pub(in crate::auth) fn locked_keychain(
+        home: &Path,
+    ) -> Result<(File, SecKeychain), AuthErrorCode> {
+        let lock = lock_keychain(home)?;
+        let keychain = SecKeychain::default_for_domain(SecPreferencesDomain::User)
+            .map_err(|_| AuthErrorCode::KeychainUnavailable)?;
+        Ok((lock, keychain))
     }
 
     // Shared by sign-in and switching. All logical scopes using the same local
@@ -190,11 +208,11 @@ mod macos {
         Ok(directory)
     }
 
-    fn managed(
+    pub(in crate::auth) fn managed(
         keychain: &SecKeychain,
         scope: AuthAccountScope<'_>,
         id: &str,
-    ) -> Result<(ManagedRecord, SecKeychainItem), AuthErrorCode> {
+    ) -> Result<(ManagedRecord, SecKeychainItem, [u8; 32]), AuthErrorCode> {
         let (bytes, item) =
             keychain.find_generic_password(MANAGED_SERVICE, id).map_err(|error| {
                 if error.code() == KEYCHAIN_ITEM_NOT_FOUND {
@@ -216,10 +234,10 @@ mod macos {
         {
             return Err(AuthErrorCode::ReauthRequired);
         }
-        Ok((record, item))
+        Ok((record, item, Sha256::digest(&*bytes).into()))
     }
 
-    fn decode(raw: &[u8]) -> Option<Value> {
+    pub(in crate::auth) fn decode(raw: &[u8]) -> Option<Value> {
         let raw = std::str::from_utf8(raw).ok()?.trim();
         match raw.strip_prefix(KEYRING_PREFIX) {
             Some(encoded) => serde_json::from_slice(&STANDARD.decode(encoded).ok()?).ok(),
@@ -227,12 +245,46 @@ mod macos {
         }
     }
 
-    fn credential_account_id(scope: AuthAccountScope<'_>, value: &Value) -> Option<String> {
+    pub(in crate::auth) fn credential_account_id(
+        scope: AuthAccountScope<'_>,
+        value: &Value,
+    ) -> Option<String> {
         for field in ["/token/access_token", "/token/refresh_token"] {
             value.pointer(field)?.as_str().filter(|token| valid_token(token))?;
         }
         let identity = token_identity(value["id_token"].as_str()?)?;
         account_id_for(scope, &identity.sub).ok()
+    }
+
+    pub(in crate::auth) fn save_managed(
+        keychain: &SecKeychain,
+        record: ManagedRecord,
+        mut item: SecKeychainItem,
+    ) -> Result<(), AuthErrorCode> {
+        let saved = serde_json::to_vec(&record).map_err(|_| AuthErrorCode::StorageUnavailable)?;
+        item.set_password(&saved).map_err(|_| AuthErrorCode::KeychainUnavailable)?;
+        let (readback, _) = keychain
+            .find_generic_password(MANAGED_SERVICE, &record.account.account_id)
+            .map_err(|_| AuthErrorCode::KeychainUnavailable)?;
+        if *readback != saved {
+            return Err(AuthErrorCode::KeychainUnavailable);
+        }
+        Ok(())
+    }
+
+    pub(in crate::auth) fn rotation_is_newer(
+        live: &Value,
+        managed: &Value,
+    ) -> Result<bool, AuthErrorCode> {
+        let live_expiry = expiry(live).ok_or(AuthErrorCode::Conflict)?;
+        let managed_expiry = expiry(managed).ok_or(AuthErrorCode::Conflict)?;
+        if !same_grant(live, managed)
+            || (live_expiry == managed_expiry
+                && live.pointer("/token/access_token") != managed.pointer("/token/access_token"))
+        {
+            return Err(AuthErrorCode::Conflict);
+        }
+        Ok(live_expiry > managed_expiry)
     }
 
     fn same_grant(left: &Value, right: &Value) -> bool {
@@ -243,7 +295,7 @@ mod macos {
         DateTime::parse_from_rfc3339(value.pointer("/token/expiry")?.as_str()?).ok()
     }
 
-    pub(super) fn keychain_error(error: EntryError) -> AuthErrorCode {
+    pub(in crate::auth) fn keychain_error(error: EntryError) -> AuthErrorCode {
         match error {
             EntryError::Conflict => AuthErrorCode::Conflict,
             _ => AuthErrorCode::KeychainUnavailable,

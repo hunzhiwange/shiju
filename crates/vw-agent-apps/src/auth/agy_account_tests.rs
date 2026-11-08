@@ -23,7 +23,7 @@ use vw_api_types::{
     id::TenantScope,
 };
 
-fn scope(tenant: &TenantScope) -> AuthAccountScope<'_> {
+pub(super) fn scope(tenant: &TenantScope) -> AuthAccountScope<'_> {
     AuthAccountScope {
         tenant,
         principal: "oidc:agy-test-owner",
@@ -32,7 +32,7 @@ fn scope(tenant: &TenantScope) -> AuthAccountScope<'_> {
     }
 }
 
-fn credential(subject: &str, generation: u8) -> Value {
+pub(super) fn credential(subject: &str, generation: u8) -> Value {
     let claims = URL_SAFE_NO_PAD.encode(json!({"sub": subject}).to_string());
     json!({
         "token": {
@@ -48,20 +48,20 @@ fn credential(subject: &str, generation: u8) -> Value {
     })
 }
 
-fn encode(credential: &Value) -> String {
+pub(super) fn encode(credential: &Value) -> String {
     format!("go-keyring-base64:{}", STANDARD.encode(credential.to_string()))
 }
 
-struct Fixture {
-    tenant: TenantScope,
+pub(super) struct Fixture {
+    pub(super) tenant: TenantScope,
     keychain: SecKeychain,
-    native_service: String,
+    pub(super) native_service: String,
     home: PathBuf,
     ids: Vec<String>,
 }
 
 impl Fixture {
-    fn new() -> Self {
+    pub(super) fn new() -> Self {
         let nonce = Uuid::new_v4().simple();
         Self {
             tenant: TenantScope::new("platform", format!("agy-test-{nonce}")).unwrap(),
@@ -72,7 +72,7 @@ impl Fixture {
         }
     }
 
-    fn managed(&mut self, subject: &str, credential: &Value, state: &str) -> String {
+    pub(super) fn managed(&mut self, subject: &str, credential: &Value, state: &str) -> String {
         let scope = scope(&self.tenant);
         let identity = serde_json::to_vec(&(
             scope.tenant,
@@ -100,25 +100,25 @@ impl Fixture {
         id
     }
 
-    fn record(&self, id: &str) -> Value {
+    pub(super) fn record(&self, id: &str) -> Value {
         let (data, _) = self.keychain.find_generic_password(MANAGED_SERVICE, id).unwrap();
         serde_json::from_slice(&data).unwrap()
     }
 
-    fn entry(&self) -> KeychainEntry<'_> {
+    pub(super) fn entry(&self) -> KeychainEntry<'_> {
         KeychainEntry::new(&self.native_service, "antigravity").unwrap()
     }
 
-    fn target<'a>(&'a self, owner: Option<AuthAccountScope<'a>>) -> AgyNativeTarget<'a> {
+    pub(super) fn target<'a>(&'a self, owner: Option<AuthAccountScope<'a>>) -> AgyNativeTarget<'a> {
         AgyNativeTarget { home: &self.home, exclusive_owner: owner }
     }
 
-    fn switch(&self, id: &str) -> Result<(), AuthErrorCode> {
+    pub(super) fn switch(&self, id: &str) -> Result<(), AuthErrorCode> {
         let scope = scope(&self.tenant);
         switch_account_in(scope, id, self.target(Some(scope)), &self.entry())
     }
 
-    fn remove_entries(&mut self) {
+    pub(super) fn remove_entries(&mut self) {
         self.entry().delete().unwrap();
         assert!(self.entry().read().unwrap().is_none());
         for id in self.ids.drain(..) {

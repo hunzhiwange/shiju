@@ -1,7 +1,7 @@
 //! AGY OAuth on the authorized macOS execution host.
 
 use super::{
-    agy_account::lock_keychain,
+    agy_account::{execution_home, lock_keychain},
     browser_callback::{CallbackChallenge, CallbackCode, LoopbackCallback},
     copilot::{read_json_limited, utc_now, valid_token},
     flow::{AuthAccountScope, AuthFlowTiming, AuthFlows},
@@ -76,11 +76,7 @@ impl AgyLogin {
             return Err(AuthErrorCode::CallbackUnreachable);
         }
 
-        let client = Client::builder()
-            .redirect(reqwest::redirect::Policy::none())
-            .timeout(Duration::from_secs(30))
-            .build()
-            .map_err(|_| AuthErrorCode::ExecutionHostUnavailable)?;
+        let client = token_client()?;
         let keychain = SecKeychain::default_for_domain(SecPreferencesDomain::User)
             .map_err(|_| AuthErrorCode::KeychainUnavailable)?;
         let deadline = Instant::now() + lifetime;
@@ -171,35 +167,53 @@ impl AgyLogin {
         grant: CallbackCode,
         route: impl FnOnce(&mut Request),
     ) -> Result<TokenResponse, AuthErrorCode> {
-        let client_secret = CLIENT_SECRET_PARTS.concat();
-        let mut request = self
-            .client
-            .post(TOKEN_ENDPOINT)
-            .form(&[
+        post_token(
+            &self.client,
+            &[
                 ("grant_type", "authorization_code"),
                 ("code", grant.code.as_str()),
                 ("redirect_uri", self.redirect_uri.as_str()),
-                ("client_id", CLIENT_ID),
-                ("client_secret", client_secret.as_str()),
                 ("code_verifier", grant.verifier.as_str()),
-            ])
-            .build()
-            .map_err(|_| AuthErrorCode::UpstreamFailure)?;
-        route(&mut request);
-        let response =
-            self.client.execute(request).await.map_err(|_| AuthErrorCode::UpstreamFailure)?;
-        if !response.status().is_success() {
-            if response.status() == StatusCode::BAD_REQUEST {
-                let error: TokenError =
-                    read_json_limited(response, MAX_TOKEN_RESPONSE_BYTES).await?;
-                if error.error == "invalid_grant" {
-                    return Err(AuthErrorCode::ReauthRequired);
-                }
-            }
-            return Err(AuthErrorCode::UpstreamFailure);
-        }
-        read_json_limited(response, MAX_TOKEN_RESPONSE_BYTES).await
+            ],
+            route,
+        )
+        .await
     }
+}
+
+pub(super) fn token_client() -> Result<Client, AuthErrorCode> {
+    Client::builder()
+        .redirect(reqwest::redirect::Policy::none())
+        .timeout(Duration::from_secs(30))
+        .build()
+        .map_err(|_| AuthErrorCode::ExecutionHostUnavailable)
+}
+
+pub(super) async fn post_token(
+    client: &Client,
+    grant: &[(&str, &str)],
+    route: impl FnOnce(&mut Request),
+) -> Result<TokenResponse, AuthErrorCode> {
+    let client_secret = CLIENT_SECRET_PARTS.concat();
+    let mut form = grant.to_vec();
+    form.extend([("client_id", CLIENT_ID), ("client_secret", client_secret.as_str())]);
+    let mut request = client
+        .post(TOKEN_ENDPOINT)
+        .form(&form)
+        .build()
+        .map_err(|_| AuthErrorCode::UpstreamFailure)?;
+    route(&mut request);
+    let response = client.execute(request).await.map_err(|_| AuthErrorCode::UpstreamFailure)?;
+    if !response.status().is_success() {
+        if response.status() == StatusCode::BAD_REQUEST {
+            let error: TokenError = read_json_limited(response, MAX_TOKEN_RESPONSE_BYTES).await?;
+            if error.error == "invalid_grant" {
+                return Err(AuthErrorCode::ReauthRequired);
+            }
+        }
+        return Err(AuthErrorCode::UpstreamFailure);
+    }
+    read_json_limited(response, MAX_TOKEN_RESPONSE_BYTES).await
 }
 
 fn authorization_url(redirect_uri: &str, challenge: &CallbackChallenge) -> String {
@@ -224,12 +238,12 @@ struct TokenError {
 }
 
 #[derive(Deserialize)]
-struct TokenResponse {
-    access_token: String,
-    token_type: Option<String>,
-    expires_in: Option<i64>,
-    refresh_token: Option<String>,
-    id_token: Option<String>,
+pub(super) struct TokenResponse {
+    pub(super) access_token: String,
+    pub(super) token_type: Option<String>,
+    pub(super) expires_in: Option<i64>,
+    pub(super) refresh_token: Option<String>,
+    pub(super) id_token: Option<String>,
 }
 
 #[derive(Deserialize)]
@@ -280,13 +294,7 @@ impl TokenResponse {
         let identity = token_identity(&id_token).ok_or(AuthErrorCode::UpstreamFailure)?;
 
         let now = utc_now()?;
-        let expires_in = self.expires_in.unwrap_or(3599);
-        let expiry = expires_in
-            .checked_mul(1000)
-            .filter(|duration| *duration > 0)
-            .and_then(|duration| now.0.checked_add(duration))
-            .and_then(chrono::DateTime::from_timestamp_millis)
-            .ok_or(AuthErrorCode::UpstreamFailure)?;
+        let (expires_in, expiry) = token_expiry(now, self.expires_in)?;
         let label = identity
             .email
             .filter(|label| valid_label(label))
@@ -308,7 +316,7 @@ impl TokenResponse {
                 access_token: self.access_token,
                 refresh_token,
                 token_type,
-                expiry: expiry.to_rfc3339_opts(chrono::SecondsFormat::Micros, false),
+                expiry,
                 expires_in,
             },
             auth_method: "consumer",
@@ -316,6 +324,20 @@ impl TokenResponse {
         };
         Ok(ManagedAccount { account, credential })
     }
+}
+
+pub(super) fn token_expiry(
+    now: TimestampMs,
+    expires_in: Option<i64>,
+) -> Result<(i64, String), AuthErrorCode> {
+    let expires_in = expires_in.unwrap_or(3599);
+    let expiry = expires_in
+        .checked_mul(1000)
+        .filter(|duration| *duration > 0)
+        .and_then(|duration| now.0.checked_add(duration))
+        .and_then(chrono::DateTime::from_timestamp_millis)
+        .ok_or(AuthErrorCode::UpstreamFailure)?;
+    Ok((expires_in, expiry.to_rfc3339_opts(chrono::SecondsFormat::Micros, false)))
 }
 
 pub(super) fn token_identity(id_token: &str) -> Option<Identity> {
@@ -347,10 +369,7 @@ fn valid_label(label: &str) -> bool {
 
 impl ManagedAccount {
     fn save(&self, keychain: &SecKeychain) -> Result<(), AuthErrorCode> {
-        let home = std::env::var_os("HOME")
-            .and_then(|path| std::fs::canonicalize(path).ok())
-            .ok_or(AuthErrorCode::KeychainUnavailable)?;
-        let _lock = lock_keychain(&home)?;
+        let _lock = lock_keychain(&execution_home()?)?;
         // One keychain record publishes the projection and its material together.
         let payload = serde_json::to_vec(self).map_err(|_| AuthErrorCode::StorageUnavailable)?;
         let id = &self.account.account_id;

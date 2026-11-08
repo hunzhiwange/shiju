@@ -103,3 +103,8 @@ mod agy_login_tests;
 pub mod agy_account;
 #[cfg(all(test, target_os = "macos"))]
 mod agy_account_tests;
+
+#[cfg(target_os = "macos")]
+pub mod agy_refresh;
+#[cfg(all(test, target_os = "macos"))]
+mod agy_refresh_tests;

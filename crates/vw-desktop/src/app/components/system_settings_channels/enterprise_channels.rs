@@ -5,9 +5,10 @@
 
 use crate::app::components::system_settings_common::{
     SETTINGS_CONTROL_TEXT_SIZE, primary_action_btn_style, rounded_action_btn_style,
-    settings_error_banner, settings_group_card, settings_group_heading, settings_muted_text_style,
+    settings_error_banner, settings_group_card, settings_group_heading,
+    settings_group_heading_with_help, settings_muted_text_style,
 };
-use crate::app::i18n::settings_extensions::text as tr;
+use crate::app::i18n::{I18n, settings_extensions::text as tr};
 use crate::app::message::settings::{ChannelsMessage, SettingsMessage};
 use crate::app::{App, Message};
 use iced::widget::{Image, button, column, container, row, text};
@@ -17,7 +18,8 @@ use super::common::{
     GROUP_REPLY_MODE_OPTIONS, LARK_RECEIVE_MODE_OPTIONS, QQ_RECEIVE_MODE_OPTIONS, add_instance_row,
     bool_row, default_project_selector, group_reply_mode_value, instance_title_row,
     lark_receive_mode_value, number_row, number_row_with_hint, number_row_with_key, panel,
-    pick_row, pick_row_with_key, qq_receive_mode_value, text_row, text_row_with_key,
+    panel_with_heading, pick_row, pick_row_with_key, qq_receive_mode_value, text_row,
+    text_row_with_key,
 };
 
 fn qr_authorization<'a>(app: &'a App, channel: &'static str) -> Element<'a, Message> {
@@ -259,7 +261,9 @@ pub(super) fn feishu_panel(app: &App) -> Element<'_, Message> {
     if let Some(cfg) = s.feishu.as_ref() {
         body = body
             .push(default_project_selector(app, "feishu:default".into()))
-            .push(settings_group_heading(
+            .push(settings_group_heading_with_help(
+                I18n::new(app.desktop_locale),
+                &app.app_theme,
                 tr(app.desktop_locale, "飞书详细配置"),
                 tr(
                     app.desktop_locale,
@@ -595,13 +599,15 @@ pub(super) fn dingtalk_panel(app: &App) -> Element<'_, Message> {
 
     body = body.push(add_instance_row("dingtalk", tr(app.desktop_locale, "新增钉钉实例")));
 
-    panel(
+    panel_with_heading(
         app,
         "dingtalk",
-        tr(app.desktop_locale, "钉钉"),
-        tr(
-            app.desktop_locale,
-            "钉钉 Stream 模式鉴权；白名单为空时拒绝所有用户，* 表示允许所有用户。",
+        settings_group_heading(
+            tr(app.desktop_locale, "钉钉"),
+            tr(
+                app.desktop_locale,
+                "钉钉 Stream 模式鉴权；白名单为空时拒绝所有用户，* 表示允许所有用户。",
+            ),
         ),
         enabled,
         body.into(),

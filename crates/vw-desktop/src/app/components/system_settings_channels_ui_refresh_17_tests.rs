@@ -122,7 +122,7 @@ fn screenshot(
     size: Size<u32>,
     name: &str,
     cursor: mouse::Cursor,
-) {
+) -> Vec<u8> {
     let mut messages = Vec::new();
     ui.update(
         &[Event::Window(iced::window::Event::RedrawRequested(iced::time::Instant::now()))],
@@ -144,6 +144,7 @@ fn screenshot(
         )
         .unwrap();
     }
+    pixels
 }
 
 fn snapshot(
@@ -953,4 +954,220 @@ async fn settings_tabs_capabilities_appearance_channels() {
         },
     )
     .await;
+}
+
+fn assert_channel_help(
+    ui: &mut UserInterface<'_, Message, Theme, Renderer>,
+    renderer: &mut Renderer,
+    (size, theme, locale): (Size<u32>, &Theme, DesktopLocale),
+    scene_name: &str,
+    title: &'static str,
+    description: &'static str,
+) -> iced::Point {
+    let positions = geometry(ui, renderer);
+    let label = positions
+        .labels
+        .iter()
+        .rev()
+        .find(|(label, _)| label == tr(locale, title))
+        .unwrap_or_else(|| panic!("missing help title {title}"))
+        .1;
+    let frame = |ui: &mut UserInterface<'_, Message, Theme, Renderer>,
+                 renderer: &mut Renderer,
+                 suffix,
+                 cursor| {
+        screenshot(
+            ui,
+            renderer,
+            theme,
+            size,
+            &format!("help-11-{locale:?}-{scene_name}-{title}-{suffix}"),
+            cursor,
+        )
+    };
+    let idle = frame(ui, renderer, "idle", mouse::Cursor::Unavailable);
+    assert!(
+        positions.labels.iter().all(|(label, _)| label != tr(locale, description)),
+        "{scene_name}/{title}: static explanation is visible before opening help"
+    );
+    let icon = iced::Point::new(label.x + label.width + 15.0, label.center_y());
+    let cursor = mouse::Cursor::Available(icon);
+    assert!(
+        send(ui, renderer, cursor, &[Event::Mouse(mouse::Event::CursorMoved { position: icon })])
+            .is_empty()
+    );
+    assert!(idle != frame(ui, renderer, "hover", cursor), "{scene_name}/{title}: hover preview");
+    assert!(click(ui, renderer, icon).is_empty());
+    assert!(
+        idle != frame(ui, renderer, "open", mouse::Cursor::Unavailable),
+        "{scene_name}/{title}: pinned card"
+    );
+    assert!(
+        send(ui, renderer, mouse::Cursor::Unavailable, &[key(iced::keyboard::key::Named::Escape)])
+            .is_empty()
+    );
+    assert!(
+        idle == frame(ui, renderer, "closed", mouse::Cursor::Unavailable),
+        "{scene_name}/{title}: Escape should close the help card"
+    );
+    icon
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn help_rollout_11_renders_contextual_help() {
+    if !isolated("help_rollout_11_renders_contextual_help") {
+        return;
+    }
+    let mut renderer = renderer().await;
+    let mut app = fixture();
+    const ERROR: &str = "Fixture channel validation error";
+    const FEISHU_PORT_CONDITION: &str =
+        "Webhook 模式需要公网 HTTPS 入口；WebSocket 模式会忽略 port。";
+    const DINGTALK_ALLOWLIST: &str =
+        "钉钉 Stream 模式鉴权；白名单为空时拒绝所有用户，* 表示允许所有用户。";
+    const WORKING_PROJECT_HELP: &str =
+        "从系统项目列表选择，该连接的聊天将在所选项目下工作；可不选。";
+    app.channels_settings.save_error = Some(ERROR.into());
+
+    for (locale, theme, width) in [
+        (DesktopLocale::English, Theme::Light, 760),
+        (DesktopLocale::SimplifiedChinese, Theme::Dark, 420),
+        (DesktopLocale::TraditionalChinese, Theme::Dark, 640),
+    ] {
+        app.desktop_locale = locale;
+        app.app_theme = theme.clone();
+        let size = Size::new(width, 1450);
+        let context = (size, &theme, locale);
+        app.channels_settings.active_tab = ChannelsSettingsTab::Global;
+        let mut ui = scene(view(&app), &mut renderer, size);
+        for (title, description) in [
+            ("通道配置", "集中配置 CLI 与外部消息通道的接入参数。"),
+            ("已启用通道", "快速查看当前已打开的入口，便于核对多通道部署状态。"),
+            ("通道", "选择一个通道进行配置。"),
+        ] {
+            assert_channel_help(&mut ui, &mut renderer, context, "global", title, description);
+        }
+        let positions = geometry(&mut ui, &renderer);
+        positions.label(ERROR);
+        let cli = positions.label(tr(locale, "启用 CLI 通道")).center();
+        assert!(matches!(
+            click(&mut ui, &mut renderer, cli).as_slice(),
+            [Message::Settings(SettingsMessage::Channels(ChannelsMessage::CliToggled(_)))]
+        ));
+        drop(ui);
+
+        for (channel, title, description) in [
+            ("telegram", "Telegram", "机器人令牌、群聊行为与白名单控制。"),
+            ("discord", "Discord", "机器人令牌、服务器限制与群聊回复控制。"),
+            ("slack", "Slack", "机器人令牌、Socket Mode 应用令牌与频道限制。"),
+            ("mattermost", "Mattermost", "服务器地址、机器人令牌、线程回复与仅提及时回复。"),
+            ("webhook", "Webhook", "接收入站网络事件的轻量端点。"),
+            ("imessage", "iMessage", "macOS 下允许接入的联系人列表。"),
+            ("signal", "Signal", "signal-cli HTTP daemon 地址与来源过滤。"),
+            ("lark", "Lark", "国际版 Lark 的 app、接收模式与草稿编辑节流。"),
+            ("feishu", "飞书", "国内版飞书详细配置。"),
+            ("qq", "QQ", "QQ 官方机器人 app 信息与接收模式。"),
+            ("wecom", "企业微信", "企业微信 AI 机器人长连接凭据。"),
+            ("wechat", "微信", "微信 iLink 机器人凭据与可信平台地址。"),
+            ("nostr", "Nostr", "私钥、中继列表和允许的公钥白名单。"),
+            ("clawdtalk", "ClawdTalk", "Telnyx 语音通道的 API 鉴权与目的地限制。"),
+            ("whatsapp", "WhatsApp", "Cloud API 或 Web 模式字段共用一组表单。"),
+            ("linq", "Linq", "Partner API、发信号码与签名校验。"),
+            ("wati", "WATI", "第三方 WhatsApp Business API 集成。"),
+            ("nextcloud_talk", "Nextcloud Talk", "基础地址、应用 token 与 webhook 密钥。"),
+            ("email", "Email", "IMAP / SMTP 收发邮件配置。"),
+            ("irc", "IRC", "IRC over TLS、自动加入频道和认证口令。"),
+        ] {
+            app.channels_settings.active_tab =
+                ChannelsSettingsTab::from_channel_id(channel).unwrap();
+            let context = if channel == "feishu" {
+                (Size::new(width, 2200), &theme, locale)
+            } else {
+                context
+            };
+            let size = context.0;
+            let mut ui = scene(view(&app), &mut renderer, size);
+            let icon =
+                assert_channel_help(&mut ui, &mut renderer, context, channel, title, description);
+            if matches!(channel, "telegram" | "feishu" | "email") {
+                assert_channel_help(
+                    &mut ui,
+                    &mut renderer,
+                    context,
+                    channel,
+                    "工作项目",
+                    WORKING_PROJECT_HELP,
+                );
+            }
+            if channel == "webhook" && locale == DesktopLocale::English {
+                assert_channel_help_menu(&mut ui, &mut renderer, icon, tr(locale, description));
+            }
+            if channel == "feishu" {
+                assert_channel_help(
+                    &mut ui,
+                    &mut renderer,
+                    context,
+                    channel,
+                    "飞书详细配置",
+                    "覆盖 app_id、app_secret、加密字段、接收模式、端口和草稿编辑参数。",
+                );
+                let positions = geometry(&mut ui, &renderer);
+                positions.input(&"•".repeat("fixture-secret".len()));
+                let condition = positions.label(tr(locale, FEISHU_PORT_CONDITION));
+                assert!(condition.y + condition.height < size.height as f32);
+                let qr = positions.label(tr(locale, "获取二维码")).center();
+                assert!(matches!(
+                    click(&mut ui, &mut renderer, qr).as_slice(),
+                    [Message::Settings(SettingsMessage::Channels(ChannelsMessage::QrRequested(id)))]
+                        if id == "feishu"
+                ));
+            }
+        }
+
+        app.channels_settings.active_tab = ChannelsSettingsTab::DingTalk;
+        let mut ui = scene(view(&app), &mut renderer, size);
+        let positions = geometry(&mut ui, &renderer);
+        positions.label(tr(locale, DINGTALK_ALLOWLIST));
+        positions.label(tr(locale, "使用手机端扫描二维码；授权成功后请明确保存。"));
+    }
+}
+
+fn assert_channel_help_menu(
+    ui: &mut UserInterface<'_, Message, Theme, Renderer>,
+    renderer: &mut Renderer,
+    icon: iced::Point,
+    description: &str,
+) {
+    assert!(click(ui, renderer, icon).is_empty());
+    let body = iced::Point::new(icon.x + 29.0, icon.y + 5.0);
+    let item_height =
+        f32::from(iced::advanced::text::LineHeight::default().to_absolute(12.0.into())) + 10.0;
+    let search = format!("https://www.google.com/search?q={}", urlencoding::encode(description));
+    for index in [0.0, 3.0] {
+        assert!(
+            send(
+                ui,
+                renderer,
+                mouse::Cursor::Available(body),
+                &[Event::Mouse(mouse::Event::ButtonPressed(mouse::Button::Right))],
+            )
+            .is_empty()
+        );
+        let item = iced::Point::new(body.x + 24.0, body.y + 3.0 + item_height * (index + 0.5));
+        let messages = click(ui, renderer, item);
+        assert!(
+            match messages.as_slice() {
+                [Message::CopyCode(text)] if index == 0.0 => text == description,
+                [Message::View(crate::app::message::ViewMessage::OpenUrlExternal(url))]
+                    if index == 3.0 =>
+                    url == &search,
+                _ => false,
+            },
+            "{messages:?}"
+        );
+    }
+    assert!(
+        send(ui, renderer, mouse::Cursor::Unavailable, &[key(iced::keyboard::key::Named::Escape)])
+            .is_empty()
+    );
 }

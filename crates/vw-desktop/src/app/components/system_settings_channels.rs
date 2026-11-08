@@ -19,12 +19,12 @@ mod extended_channels_tests;
 
 use crate::app::components::system_settings_common::{
     SETTINGS_CONTROL_TEXT_SIZE, settings_checkbox_style, settings_compact_tab_button,
-    settings_divider, settings_error_banner, settings_group_card, settings_muted_text_style,
-    settings_page_intro, settings_responsive_row, settings_section_card, settings_section_content,
+    settings_divider, settings_error_banner, settings_group_card, settings_hover_help_label,
+    settings_muted_text_style, settings_responsive_row, settings_section_content,
     settings_text_input,
 };
 use crate::app::components::system_settings_search::SettingsTabDescriptor;
-use crate::app::i18n::settings_extensions::text as tr;
+use crate::app::i18n::{I18n, settings_extensions::text as tr};
 use crate::app::message::settings::{ChannelsMessage, SettingsMessage};
 use crate::app::state::ChannelsSettingsTab;
 use crate::app::{App, Message};
@@ -352,6 +352,8 @@ fn channel_tabs(
 ///
 /// 本函数不直接返回错误；无法交互或缺省状态会在控件状态中显式表达。
 pub fn view(app: &App) -> Element<'_, Message> {
+    let locale = app.desktop_locale;
+    let i18n = I18n::new(locale);
     let enabled = enabled_channels(app);
     let enabled_text = if enabled.is_empty() {
         tr(app.desktop_locale, "当前未启用任何通道").to_string()
@@ -397,23 +399,36 @@ pub fn view(app: &App) -> Element<'_, Message> {
         ChannelsSettingsTab::ClawdTalk => enterprise_channels::clawdtalk_panel(app),
     };
 
+    let page_title = tr(locale, "通道配置");
+    let section = |title, description| {
+        let heading = settings_hover_help_label(
+            i18n,
+            &app.app_theme,
+            title,
+            text(title).size(14),
+            description,
+        )
+        .wrap();
+        settings_group_card(container(heading).padding([14, 0]))
+    };
     let mut content = column![
-        settings_page_intro(
-            tr(app.desktop_locale, "通道配置"),
-            tr(app.desktop_locale, "集中配置 CLI 与外部消息通道的接入参数。")
-        ),
-        settings_section_card(
-            tr(app.desktop_locale, "已启用通道"),
-            tr(app.desktop_locale, "快速查看当前已打开的入口，便于核对多通道部署状态。")
+        settings_hover_help_label(
+            i18n,
+            &app.app_theme,
+            page_title,
+            text(page_title).size(18),
+            tr(locale, "集中配置 CLI 与外部消息通道的接入参数。")
+        )
+        .wrap(),
+        section(
+            tr(locale, "已启用通道"),
+            tr(locale, "快速查看当前已打开的入口，便于核对多通道部署状态。")
         ),
         settings_section_content(column![
             text(enabled_text).size(12).style(settings_muted_text_style)
         ]),
-        settings_section_card(
-            tr(app.desktop_locale, "通道"),
-            tr(app.desktop_locale, "选择一个通道进行配置。")
-        ),
-        channel_tabs(app.desktop_locale, active_tab),
+        section(tr(locale, "通道"), tr(locale, "选择一个通道进行配置。")),
+        channel_tabs(locale, active_tab),
     ]
     .spacing(16)
     .width(Length::Fill);

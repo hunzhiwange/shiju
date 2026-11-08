@@ -6,14 +6,15 @@
 use crate::app::components::number_input::NumberInput;
 use crate::app::components::system_settings_common::{
     SETTINGS_CONTROL_TEXT_SIZE, rounded_action_btn_style, settings_checkbox_style,
-    settings_control_with_hint, settings_divider, settings_field_label, settings_group_card,
-    settings_group_heading, settings_muted_text_style, settings_responsive_row, settings_select,
+    settings_control_with_hint, settings_divider, settings_field_label,
+    settings_flexible_row_with_help, settings_group_card, settings_group_heading_with_help,
+    settings_hover_help_label, settings_muted_text_style, settings_responsive_row, settings_select,
     settings_text_editor, settings_text_input, settings_value_badge,
 };
-use crate::app::i18n::settings_extensions::text as tr;
+use crate::app::i18n::{I18n, settings_extensions::text as tr};
 use crate::app::message::settings::{ChannelsMessage, SettingsMessage};
 use crate::app::{App, Message};
-use iced::widget::{button, checkbox, column, container, row, text};
+use iced::widget::{button, checkbox, column, container, responsive, row, text};
 use iced::{Alignment, Element, Length};
 use vw_config_types::channels::{GroupReplyConfig, LarkReceiveMode, QQReceiveMode};
 use vw_config_types::ui::DesktopLocale;
@@ -564,8 +565,24 @@ pub(super) fn panel<'a>(
     enabled: bool,
     body: Element<'a, Message>,
 ) -> Element<'a, Message> {
+    let heading = settings_group_heading_with_help(
+        I18n::new(app.desktop_locale),
+        &app.app_theme,
+        title,
+        description,
+    );
+    panel_with_heading(app, id, heading, enabled, body)
+}
+
+pub(super) fn panel_with_heading<'a>(
+    app: &'a App,
+    id: &'static str,
+    heading: Element<'a, Message>,
+    enabled: bool,
+    body: Element<'a, Message>,
+) -> Element<'a, Message> {
     let header = row![
-        container(settings_group_heading(title, description)).width(Length::Fill),
+        container(heading).width(Length::Fill),
         checkbox(enabled)
             .label(tr(app.desktop_locale, "启用"))
             .text_size(SETTINGS_CONTROL_TEXT_SIZE)
@@ -730,11 +747,14 @@ pub(super) fn default_project_selector(app: &App, key: String) -> Element<'_, Me
             .expect("valid project template"),
         },
     };
-    let project = settings_responsive_row(
-        tr(app.desktop_locale, "工作项目"),
-        tr(app.desktop_locale, "从系统项目列表选择，该连接的聊天将在所选项目下工作；可不选。"),
-        move || {
-            let instance = key.clone();
+    let locale = app.desktop_locale;
+    let i18n = I18n::new(locale);
+    let theme = &app.app_theme;
+    let label = tr(locale, "工作项目");
+    let description = tr(locale, "从系统项目列表选择，该连接的聊天将在所选项目下工作；可不选。");
+    let project = responsive(move |size| {
+        let instance = key.clone();
+        let picker =
             settings_select(options.iter().cloned(), Some(selected.clone()), move |option| {
                 Message::Settings(SettingsMessage::Channels(
                     ChannelsMessage::DefaultProjectSelected {
@@ -749,9 +769,29 @@ pub(super) fn default_project_selector(app: &App, key: String) -> Element<'_, Me
                 Message::Settings(SettingsMessage::Channels(
                     ChannelsMessage::ProjectChoicesRequested(key.clone()),
                 )),
-            )
-        },
-    );
+            );
+        if size.width >= 600.0 {
+            settings_flexible_row_with_help(i18n, theme, label, description, 460.0, picker)
+                .padding([6, 0])
+                .into()
+        } else {
+            column![
+                settings_hover_help_label(
+                    i18n,
+                    theme,
+                    label,
+                    settings_field_label(label),
+                    description
+                )
+                .wrap(),
+                picker
+            ]
+            .spacing(6)
+            .width(Length::Fill)
+            .into()
+        }
+    })
+    .height(Length::Shrink);
     let mut content = column![project].spacing(8);
     if active && s.project_choices_loading {
         content = content.push(hint_row(tr(app.desktop_locale, "正在加载项目…")));

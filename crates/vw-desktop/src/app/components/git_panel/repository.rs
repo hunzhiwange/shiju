@@ -28,13 +28,24 @@ pub(super) fn ellipsize(value: &str, cells: usize) -> String {
     result
 }
 
-fn hint<'a>(trigger: impl Into<Element<'a, Message>>, label: String) -> Element<'a, Message> {
+fn hint<'a>(
+    trigger: impl Into<Element<'a, Message>>,
+    label: String,
+    available_width: f32,
+) -> Element<'a, Message> {
+    const GAP: f32 = 6.0;
+    const PADDING: f32 = 5.0;
+    let max_width = (available_width - GAP - 2.0 * PADDING).clamp(0.0, 520.0);
     tooltip(
         trigger,
-        container(text(label).size(12)).padding(10).max_width(520).style(container::bordered_box),
-        tooltip::Position::Bottom,
+        container(text(label).size(12))
+            .padding(10)
+            .max_width(max_width)
+            .style(container::bordered_box),
+        tooltip::Position::Right,
     )
-    .gap(6)
+    .gap(GAP)
+    .padding(PADDING)
     .into()
 }
 
@@ -213,10 +224,11 @@ pub(super) fn view(app: &App) -> Element<'_, Message> {
             .center_y(Length::Fill)
             .into();
     }
-    responsive(move |size| columns(app, (size.width * 0.23).clamp(140.0, 240.0))).into()
+    responsive(move |size| columns(app, size.width)).into()
 }
 
-fn columns(app: &App, log_width: f32) -> Element<'_, Message> {
+fn columns(app: &App, width: f32) -> Element<'_, Message> {
+    let log_width = (width * 0.23).clamp(140.0, 240.0);
     let state = &app.git_repository;
     let cells = ((log_width - 34.0) / 7.0).max(10.0) as usize;
     let mut commits =
@@ -241,6 +253,7 @@ fn columns(app: &App, log_width: f32) -> Element<'_, Message> {
             .style(selected_style(selected))
             .on_press(Message::Git(GitMessage::SelectHistoryCommit(commit.sha.clone()))),
             full,
+            width - log_width,
         ));
     }
     if state.loading {

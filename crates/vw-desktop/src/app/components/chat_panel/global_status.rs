@@ -200,7 +200,7 @@ pub(crate) fn chat_global_status_view(app: &App) -> Element<'_, Message> {
     container(line)
         .width(Length::Fill)
         .height(Length::Fixed(GLOBAL_STATUS_HEIGHT))
-        .padding(iced::Padding { top: 4.0, right: 28.0, bottom: 6.0, left: 12.0 })
+        .padding(iced::Padding { top: 4.0, right: 28.0, bottom: 6.0, left: 0.0 })
         .into()
 }
 

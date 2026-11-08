@@ -877,7 +877,6 @@ pub(super) fn view(app: &App) -> Option<Element<'_, Message>> {
     }
     Some(
         container(controls.wrap())
-            .padding([0, 8])
             .width(Length::Fill)
             .align_x(iced::alignment::Horizontal::Left)
             .align_y(iced::alignment::Vertical::Center)

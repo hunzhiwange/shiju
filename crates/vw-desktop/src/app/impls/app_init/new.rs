@@ -42,44 +42,22 @@ impl App {
         &mut self,
         config: &vw_config_types::config::Config,
     ) {
-        settings::apply_bootstrap_agent_config(self, config);
+        settings::apply_bootstrap_agent_config(self, config, &config.gateway);
+        self.acp_agents = sort_acp_agents(&config.acp);
     }
 
-    /// 创建并初始化应用程序实例
-    ///
-    /// 此方法是应用程序的入口点，负责完成所有初始化工作。
-    ///
-    /// # 初始化流程
-    ///
-    /// 1. **配置加载**: 从配置文件加载应用程序、系统设置和各子系统配置
-    /// 2. **时间戳初始化**: 获取当前时间并格式化为多种表示形式
-    /// 3. **UI状态初始化**: 设置终端、主题、编辑器等UI组件的初始状态
-    /// 4. **外部应用检测**: 检测系统中可用的外部编辑器和终端应用
-    /// 5. **会话初始化**: 加载历史会话和归档会话ID
-    /// 6. **子系统配置**: 初始化心跳、定时任务、调度器、安全等子系统配置
-    ///
-    /// # 返回值
-    ///
-    /// 返回一个元组：
-    /// - `Self`: 完全初始化的应用程序实例
-    /// - `Task<Message>`: 初始任务（当前为空任务）
-    ///
-    /// # 示例
-    ///
-    /// ```ignore
-    /// let (app, task) = App::new();
-    /// // app 已经完成所有初始化
-    /// ```
+    #[cfg(not(target_arch = "wasm32"))]
+    pub(crate) fn apply_startup_agent_config(
+        &mut self,
+        config: &vw_config_types::config::Config,
+        gateway: &vw_config_types::gateway::GatewayConfig,
+    ) {
+        settings::apply_bootstrap_agent_config(self, config, gateway);
+    }
+
+    /// 使用本机连接配置和默认值构造首屏，由启动任务在服务就绪后回填配置。
     pub fn new() -> (Self, Task<Message>) {
-        // 加载应用程序主配置文件
-        #[cfg(not(target_arch = "wasm32"))]
-        let cfg = config::load_app_config();
-        // 加载系统设置配置（包含终端、编辑器等用户偏好设置）
-        #[cfg(target_arch = "wasm32")]
         let cfg = serde_json::json!({});
-        #[cfg(not(target_arch = "wasm32"))]
-        let mut system_settings_cfg = config::load_system_settings_config();
-        #[cfg(target_arch = "wasm32")]
         let mut system_settings_cfg = vw_config_types::ui::AppSystemSettingsConfig::default();
         vw_config_types::ui::upgrade_legacy_quick_message_actions(
             &mut system_settings_cfg.quick_messages,
@@ -235,23 +213,12 @@ impl App {
         let cfg_project_worktree_enabled = system_settings_cfg.project_worktree_enabled.clone();
         let gateway_client_cfg = config::load_gateway_client_config();
 
-        // 加载各子系统的配置文件
         #[cfg(not(target_arch = "wasm32"))]
-        let full_agent_cfg = config::load_full_agent_config();
+        let full_agent_cfg = config::load_local_agent_config().unwrap_or_default();
         #[cfg(target_arch = "wasm32")]
         let full_agent_cfg = vw_config_types::config::Config::default();
-        #[cfg(not(target_arch = "wasm32"))]
-        let global_acp_cfg = config::load_enabled_acp_config_result().unwrap_or_else(|err| {
-            if vw_gateway_client::is_gateway_unavailable_error(&err) {
-                tracing::debug!(target: "vw_desktop", error = %err, "failed to load ACP config via gateway");
-            } else {
-                tracing::warn!(target: "vw_desktop", error = %err, "failed to load ACP config via gateway");
-            }
-            full_agent_cfg.acp.clone()
-        });
-        #[cfg(target_arch = "wasm32")]
-        let global_acp_cfg = full_agent_cfg.acp.clone();
-        let acp_agents = sort_acp_agents(&global_acp_cfg);
+        let global_acp_cfg = &full_agent_cfg.acp;
+        let acp_agents = sort_acp_agents(global_acp_cfg);
         let cfg_acp_agent =
             cfg_acp_agent.filter(|agent| acp_agents.iter().any(|candidate| candidate == agent));
         let heartbeat_cfg = full_agent_cfg.heartbeat.clone();
@@ -262,9 +229,6 @@ impl App {
         let memory_cfg = full_agent_cfg.memory.clone();
         let reliability_cfg = full_agent_cfg.reliability.clone();
         let security_cfg = full_agent_cfg.security.clone();
-        #[cfg(not(target_arch = "wasm32"))]
-        let gateway_cfg_result = config::load_gateway_config_result();
-        #[cfg(target_arch = "wasm32")]
         let gateway_cfg_result: Result<_, String> = Ok(full_agent_cfg.gateway.clone());
         let gateway_cfg = gateway_cfg_result.clone().unwrap_or_default();
         let channels_cfg = full_agent_cfg.channels_config.clone();
@@ -292,10 +256,6 @@ impl App {
 
         // 初始化会话相关状态
         let sessions = Vec::new();
-        #[cfg(not(target_arch = "wasm32"))]
-        let cfg_archived_session_ids =
-            crate::app::session_gateway::gateway_load_archived_session_ids(None);
-        #[cfg(target_arch = "wasm32")]
         let cfg_archived_session_ids = HashSet::new();
         let active_session_id = None;
         let chat = Vec::new();
@@ -338,6 +298,8 @@ impl App {
             startup_state: state::NativeStartupState::Starting,
             #[cfg(not(target_arch = "wasm32"))]
             startup_started_at: std::time::Instant::now(),
+            #[cfg(not(target_arch = "wasm32"))]
+            startup_configuration: Default::default(),
             workspace_mode: cfg_workspace_mode,
             work_resource_mode: state::WorkResourceMode::default(),
             work_resources_visible: false,
@@ -701,6 +663,8 @@ impl App {
             project_edit_start_script: String::new(),
             project_edit_start_script_editor: iced::widget::text_editor::Content::new(),
             project_edit_worktree_enabled: false,
+            #[cfg(not(target_arch = "wasm32"))]
+            project_edit_worktree_dirty: false,
             project_edit_task_board_settings: crate::app::task::TaskBoardSettings::new(),
             project_edit_max_concurrent_input: String::new(),
             project_edit_task_board_auto_refresh: true,
@@ -1161,18 +1125,7 @@ impl App {
             },
 
             agents_settings: {
-                let mut entries = super::state::agent_settings_entries_from_config(&full_agent_cfg);
-                let loaded_tools = config::load_tools_list_via_gateway();
-                let tool_catalog_ready = !loaded_tools.is_empty();
-                let registered_tools = tool_catalog_ready
-                    .then(|| super::state::normalize_available_tool_catalog(loaded_tools));
-                let available_tools = super::state::filter_mcp_from_available_tools(
-                    registered_tools.clone().unwrap_or_default(),
-                );
-                super::state::apply_default_allowed_tools(&mut entries, &available_tools);
-                if let Some(registered_tools) = registered_tools.as_deref() {
-                    super::state::retain_available_allowed_tools(&mut entries, registered_tools);
-                }
+                let entries = super::state::agent_settings_entries_from_config(&full_agent_cfg);
                 super::state::AgentsSettingsState {
                     catalog_official: false,
                     catalog_query: String::new(),
@@ -1209,8 +1162,8 @@ impl App {
                         })
                         .collect(),
                     workspace_identity_root_path: None,
-                    registered_tools,
-                    available_tools,
+                    registered_tools: None,
+                    available_tools: Vec::new(),
                     save_error: None,
                     save_error_translation: None,
                     save_in_flight: false,

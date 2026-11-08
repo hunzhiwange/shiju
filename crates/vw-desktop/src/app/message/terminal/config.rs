@@ -162,6 +162,17 @@ pub fn update(app: &mut App, mut message: TerminalMessage) -> Task<Message> {
         _ => {}
     }
     if let Some(update) = apply_update(&mut app.terminal, &app.app_theme, message) {
+        #[cfg(not(target_arch = "wasm32"))]
+        match &update {
+            TerminalConfigUpdate::Shell(_) => app.note_startup_setting_edit("terminal_shell"),
+            TerminalConfigUpdate::FontFamily(_) => {
+                app.note_startup_setting_edit("terminal_font_family")
+            }
+            TerminalConfigUpdate::FontSize(_) => {
+                app.note_startup_setting_edit("terminal_font_size")
+            }
+            TerminalConfigUpdate::Theme(_) => {}
+        }
         let generation = app.terminal_config_persistence.enqueue(update);
         return crate::app::message::after(
             std::time::Duration::from_millis(200),

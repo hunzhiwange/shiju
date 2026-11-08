@@ -18,6 +18,10 @@ mod agent_stream;
 pub(crate) use agent_stream::{desktop_stream_request_id, task_plan_run_active};
 mod app_basic;
 mod app_init;
+#[cfg(not(target_arch = "wasm32"))]
+pub(in crate::app) use app_init::startup::StartupConfiguration;
+#[cfg(not(target_arch = "wasm32"))]
+pub use app_init::startup::StartupGatewaySnapshot;
 mod app_subscription;
 mod app_update;
 #[cfg(test)]

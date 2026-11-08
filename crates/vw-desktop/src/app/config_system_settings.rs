@@ -57,7 +57,10 @@ impl App {
     }
 
     pub(in crate::app) fn system_settings_edited(&self, section: SystemSettingsSection) -> bool {
-        self.desktop_preferences_persistence.edited_system_settings.contains(&section)
+        self.desktop_preferences_persistence
+            .edited_system_settings
+            .get(&preferences_scope(&gateway_client_endpoint()))
+            .is_some_and(|sections| sections.contains(&section))
     }
 
     pub(in crate::app) fn system_settings_saved(
@@ -132,7 +135,9 @@ pub(in crate::app) fn normalize_editor_metrics(
     (font_size, line_height)
 }
 
-fn normalize_system_settings_config(mut cfg: AppSystemSettingsConfig) -> AppSystemSettingsConfig {
+pub(in crate::app) fn normalize_system_settings_config(
+    mut cfg: AppSystemSettingsConfig,
+) -> AppSystemSettingsConfig {
     (cfg.editor_font_size, cfg.editor_line_height) = normalize_editor_metrics(
         cfg.editor_font_size,
         cfg.editor_line_height,

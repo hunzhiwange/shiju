@@ -151,6 +151,14 @@ async fn load_catalog_config() -> Result<vw_config_types::config::Config, String
         serde_json::from_value(crate::app::config::load_global_config_value_async().await?)
             .map_err(|error| error.to_string())?;
     let value = crate::app::config::gateway_client()?.agent_profiles(None, true).await?;
+    merge_catalog_profiles(&mut config, value)?;
+    Ok(config)
+}
+
+pub(in crate::app) fn merge_catalog_profiles(
+    config: &mut vw_config_types::config::Config,
+    value: serde_json::Value,
+) -> Result<(), String> {
     let catalog: Vec<CatalogAgent> =
         serde_json::from_value(value).map_err(|error| format!("智能体目录响应无效：{error}"))?;
     for mut agent in catalog {
@@ -161,7 +169,7 @@ async fn load_catalog_config() -> Result<vw_config_types::config::Config, String
         }
         config.agents.insert(agent.key, agent.definition);
     }
-    Ok(config)
+    Ok(())
 }
 
 fn apply_config(app: &mut App, config: &vw_config_types::config::Config) {
@@ -626,6 +634,8 @@ fn persist_agents_settings(app: &mut App) -> Task<Message> {
         return Task::none();
     }
 
+    #[cfg(not(target_arch = "wasm32"))]
+    app.note_startup_setting_edit("agents_settings");
     app.agents_settings.save_in_flight = true;
     app.agents_settings.dirty = false;
     app.agents_settings.save_error = None;
@@ -938,17 +948,20 @@ pub fn update(app: &mut App, message: SettingsMessage) -> Task<Message> {
                     let available_tools = crate::app::state::filter_mcp_from_available_tools(
                         registered_tools.clone(),
                     );
-                    if app.agents_settings.available_tools.is_empty() && !available_tools.is_empty()
-                    {
-                        crate::app::state::apply_default_allowed_tools(
+                    if !app.agents_settings.dirty && !app.agents_settings.save_in_flight {
+                        if app.agents_settings.available_tools.is_empty()
+                            && !available_tools.is_empty()
+                        {
+                            crate::app::state::apply_default_allowed_tools(
+                                &mut app.agents_settings.entries,
+                                &available_tools,
+                            );
+                        }
+                        crate::app::state::retain_available_allowed_tools(
                             &mut app.agents_settings.entries,
-                            &available_tools,
+                            &registered_tools,
                         );
                     }
-                    crate::app::state::retain_available_allowed_tools(
-                        &mut app.agents_settings.entries,
-                        &registered_tools,
-                    );
                     app.agents_settings.available_tools = available_tools;
                     app.agents_settings.registered_tools = Some(registered_tools);
                 }

@@ -13,6 +13,10 @@ pub fn update(app: &mut App, message: SettingsMessage) -> Task<Message> {
         return Task::none();
     };
 
+    #[cfg(not(target_arch = "wasm32"))]
+    if !matches!(&message, QuickMessagesMessage::Saved(_)) {
+        app.note_startup_setting_edit("quick_messages");
+    }
     match message {
         QuickMessagesMessage::Add => {
             app.quick_messages.push(QuickMessageConfig {

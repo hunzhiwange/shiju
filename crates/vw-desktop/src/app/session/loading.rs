@@ -276,33 +276,31 @@ impl App {
         }
         let path_clone = path.clone();
         let project_id = self.project_id.clone();
+        let endpoint = crate::app::config::gateway_client_endpoint();
 
         iced::Task::perform(
             async move {
                 use crate::app::views::project::utils::truncate_display_width;
 
-                let client = crate::app::gateway_client().map_err(anyhow::Error::msg)?;
-                let scope_id = crate::app::session_gateway::gateway_resolve_session_scope_id_async(
-                    path_clone.as_deref(),
-                    project_id.as_deref(),
-                )
-                .await
-                .map_err(anyhow::Error::msg)?;
-                crate::app::session_gateway::gateway_set_session_scope_async(scope_id.as_deref())
+                // Scope reads and writes belong to the endpoint selected when this load began.
+                let client =
+                    vw_gateway_client::GatewayClient::new(endpoint).map_err(anyhow::Error::msg)?;
+                let scope_id = client
+                    .session_scope_get(path_clone.as_deref(), project_id.as_deref())
                     .await
                     .map_err(anyhow::Error::msg)?;
+                client.session_scope_put(scope_id.as_deref()).await.map_err(anyhow::Error::msg)?;
 
-                let previews = crate::app::session_gateway::gateway_load_sessions_scoped_async(
-                    scope_id.as_deref(),
-                )
-                .await
-                .map_err(anyhow::Error::msg)?;
-                let archived_session_ids =
-                    crate::app::session_gateway::gateway_load_archived_session_ids_async(
-                        scope_id.as_deref(),
-                    )
+                let previews = client
+                    .session_ui_previews(scope_id.as_deref())
                     .await
                     .map_err(anyhow::Error::msg)?;
+                let archived_session_ids = client
+                    .session_archived_get(scope_id.as_deref())
+                    .await
+                    .map_err(anyhow::Error::msg)?
+                    .into_iter()
+                    .collect();
 
                 let preview_map = previews
                     .into_iter()

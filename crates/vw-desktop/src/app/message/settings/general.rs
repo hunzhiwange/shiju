@@ -140,6 +140,8 @@ pub(super) fn update(app: &mut App, message: SettingsMessage) -> Task<Message> {
                 return Task::none();
             }
             app.task_completion_notification = enabled;
+            #[cfg(not(target_arch = "wasm32"))]
+            app.note_startup_setting_edit("task_completion_notification");
             let save = if !app.task_completion_notification_saving {
                 app.task_completion_notification_saving = true;
                 save_task_completion_notification(enabled)

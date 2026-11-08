@@ -50,7 +50,7 @@ fn default_enabled_acp_config(
         .collect()
 }
 
-fn resolve_enabled_acp_config(
+pub(in crate::app) fn resolve_enabled_acp_config(
     catalog: &HashMap<String, AcpAgentConfig>,
     enabled: HashMap<String, AcpAgentConfig>,
 ) -> HashMap<String, AcpAgentConfig> {
@@ -223,7 +223,7 @@ async fn fetch_global_config_value_via_gateway() -> Result<serde_json::Value, St
 }
 
 #[cfg(not(target_arch = "wasm32"))]
-fn load_local_agent_config() -> Option<Config> {
+pub(in crate::app) fn load_local_agent_config() -> Option<Config> {
     let mut config = load_config_value_at_path::<Config>(&[])?;
     config.gateway.skeys.clear();
     apply_main_agent_overrides(&mut config);

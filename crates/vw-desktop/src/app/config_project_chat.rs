@@ -31,6 +31,7 @@ pub(super) struct ProjectChatPreferences {
     revision: u64,
     global: Option<(PreferencesScope, ChatModelPreferences)>,
     edited_global: bool,
+    selection_override: bool,
     writes: HashMap<ProjectPreferencesScope, ProjectChatWrite>,
 }
 
@@ -111,15 +112,20 @@ impl App {
     }
 
     pub(crate) fn invalidate_project_chat_preferences_read(&mut self) {
-        let revision = &mut self.desktop_preferences_persistence.project_chat.revision;
-        *revision = revision.wrapping_add(1);
+        let state = &mut self.desktop_preferences_persistence.project_chat;
+        state.revision = state.revision.wrapping_add(1);
+        state.selection_override = true;
     }
 
     pub(crate) fn reload_project_chat_preferences(
         &mut self,
         project_changed: bool,
     ) -> Task<Message> {
-        self.invalidate_project_chat_preferences_read();
+        let state = &mut self.desktop_preferences_persistence.project_chat;
+        state.revision = state.revision.wrapping_add(1);
+        if project_changed {
+            state.selection_override = false;
+        }
         let endpoint = gateway_client_endpoint();
         let defaults = self.chat_model_defaults(&endpoint).clone();
         if project_changed {
@@ -130,10 +136,11 @@ impl App {
             return Task::none();
         };
         let scope = ProjectPreferencesScope::new(&endpoint, path.clone());
-        let state = &self.desktop_preferences_persistence.project_chat;
+        let state = &mut self.desktop_preferences_persistence.project_chat;
         if let Some(write) = state.writes.get(&scope) {
             // The server may still return the value preceding our latest PUT.
             let (model, auto_model, acp_agent) = write.latest.clone();
+            state.selection_override = true;
             self.apply_project_chat_preferences(model, auto_model, acp_agent);
             return Task::none();
         }
@@ -158,6 +165,7 @@ impl App {
         }
         match result {
             Ok(Some((model, auto_model, acp_agent))) => {
+                self.desktop_preferences_persistence.project_chat.selection_override = true;
                 self.apply_project_chat_preferences(model, auto_model, acp_agent);
                 Task::none()
             }
@@ -223,7 +231,9 @@ impl App {
         if let Some(acp_agent) = cfg.get("acp_agent").and_then(Value::as_str) {
             defaults.2 = Some(acp_agent.to_string());
         }
-        if self.project_path.is_none() {
+        // A project opened while the startup snapshot was pending still inherits defaults
+        // until its own preferences arrive or the user makes a project-specific choice.
+        if !state.selection_override {
             let (model, auto_model, acp_agent) = defaults.clone();
             self.apply_project_chat_preferences(model, auto_model, acp_agent);
         }

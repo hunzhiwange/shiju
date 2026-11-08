@@ -73,6 +73,10 @@ impl std::fmt::Display for SettingsTab {
 pub enum Message {
     #[cfg(not(target_arch = "wasm32"))]
     StartupCliServiceBootstrapped(Result<(), String>),
+    #[cfg(not(target_arch = "wasm32"))]
+    StartupGatewaySnapshotLoaded(u64, Box<crate::app::impls::StartupGatewaySnapshot>),
+    #[cfg(not(target_arch = "wasm32"))]
+    StartupSessionsLoaded(u64, Box<crate::app::message::ProjectMessage>),
     StartupAppConfigLoaded(Result<serde_json::Value, String>),
     StartupSystemSettingsLoaded(Result<vw_config_types::ui::AppSystemSettingsConfig, String>),
     StartupAgentConfigLoaded(Result<Box<vw_config_types::config::Config>, String>),

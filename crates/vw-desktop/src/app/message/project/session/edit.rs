@@ -96,6 +96,10 @@ pub(crate) fn handle(app: &mut App, message: ProjectMessage) -> Option<iced::Tas
                 iced::widget::text_editor::Content::with_text(&app.project_edit_start_script);
             app.project_edit_worktree_enabled =
                 app.project_worktree_enabled.get(&path).copied().unwrap_or(false);
+            #[cfg(not(target_arch = "wasm32"))]
+            {
+                app.project_edit_worktree_dirty = false;
+            }
             app.project_edit_task_board_settings = task_board_settings.sanitized();
             let (session_auto_refresh, session_refresh_interval_seconds) = app
                 .recent_projects_meta
@@ -238,6 +242,10 @@ pub(crate) fn handle(app: &mut App, message: ProjectMessage) -> Option<iced::Tas
         }
         ProjectMessage::ProjectEditWorktreeToggled(enabled) => {
             app.project_edit_worktree_enabled = enabled;
+            #[cfg(not(target_arch = "wasm32"))]
+            {
+                app.project_edit_worktree_dirty = true;
+            }
             Some(iced::Task::none())
         }
         ProjectMessage::ProjectEditTaskBoardAutoRefreshToggled(enabled) => {

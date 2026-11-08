@@ -103,6 +103,8 @@ pub(crate) fn set_worktree_enabled(app: &mut App, path: String, enabled: bool) -
         return Task::none();
     }
 
+    #[cfg(not(target_arch = "wasm32"))]
+    app.note_startup_worktree_edit(&path);
     let endpoint = gateway_client_endpoint();
     // The gateway recursively merges the patch. Null removes the project key.
     let value = if enabled { Value::Bool(true) } else { Value::Null };

@@ -35,6 +35,8 @@ pub(super) use desktop::config_desktop_tests as desktop_test_gateway;
 ///
 /// 调用方通过该入口使用配置或组件能力，无需依赖内部文件布局。
 pub use desktop::*;
+#[cfg(not(target_arch = "wasm32"))]
+pub(in crate::app) use gateway::apply_main_agent_overrides;
 /// 重新导出 `gateway::{gateway_client, gateway_client_endpoint, load_tools_list_via_gateway, server_config_unreachable_error, spawn_gateway_task}`，作为本模块对外暴露的稳定入口。
 ///
 /// 调用方通过该入口使用配置或组件能力，无需依赖内部文件布局。
@@ -58,5 +60,5 @@ pub(crate) use system_settings::install_window_test_bootstrap;
 #[cfg(all(test, not(target_arch = "wasm32")))]
 pub(super) use system_settings::config_system_settings_tests::{
     drive_system_settings_patch, isolated_settings, read_http_request, request_json_body,
-    with_editor_settings_gateway,
+    with_editor_settings_gateway, with_settings_gateway,
 };

@@ -2,7 +2,7 @@
 
 mod acp;
 mod agent_apps;
-mod agents;
+pub(in crate::app) mod agents;
 mod apps_catalog;
 pub(crate) mod apps_lifecycle;
 mod autonomy;
@@ -64,6 +64,7 @@ pub(crate) use projects::set_worktree_enabled;
 #[cfg(not(target_arch = "wasm32"))]
 pub(crate) use projects::wait_for_worktree_saves;
 
+#[cfg(target_arch = "wasm32")]
 pub(crate) fn reload_agents_config_task(project_path: Option<String>) -> Task<Message> {
     agents::config_task(project_path)
 }
@@ -110,6 +111,18 @@ fn apply_agent_config_saved(app: &mut App, tag: &'static str, result: Result<(),
     }
 }
 
+// These panels keep their form values in App state while the user edits them.
+fn update_config_panel(
+    app: &mut App,
+    message: SettingsMessage,
+    _field: &'static str,
+    update: fn(&mut App, SettingsMessage) -> Task<Message>,
+) -> Task<Message> {
+    #[cfg(not(target_arch = "wasm32"))]
+    app.note_startup_setting_edit(_field);
+    update(app, message)
+}
+
 /// 处理 `update` 对应的用户输入、异步结果或状态转换。
 ///
 /// 参数来自已匹配的消息载荷或当前设置状态，函数只在当前消息边界内产生状态变更。
@@ -134,23 +147,54 @@ pub fn update(app: &mut App, message: SettingsMessage) -> Task<Message> {
         | SettingsMessage::SystemHelpClose
         | SettingsMessage::ToggleSettingsSidebar => tabs::update(app, message),
         SettingsMessage::General(_) => general::update(app, message),
-        SettingsMessage::EmbeddingRoutes(_) => embedding_routes::update(app, message),
-        SettingsMessage::Hooks(_) => hooks::update(app, message),
-        SettingsMessage::Storage(_) => storage::update(app, message),
-        SettingsMessage::ModelRoutes(_) => model_routes::update(app, message),
-        SettingsMessage::QueryClassification(_) => query_classification::update(app, message),
-        SettingsMessage::Runtime(_) => runtime::update(app, message),
-        SettingsMessage::Browser(_) => browser::update(app, message),
-        SettingsMessage::WebSearch(_) => web_search::update(app, message),
-        SettingsMessage::HttpRequest(_) => http_request::update(app, message),
-        SettingsMessage::Memory(_) => memory::update(app, message),
-        SettingsMessage::Channels(_) => channels::update(app, message),
-        SettingsMessage::Multimodal(_) => multimodal::update(app, message),
+        SettingsMessage::EmbeddingRoutes(_) => {
+            update_config_panel(app, message, "embedding_routes_settings", embedding_routes::update)
+        }
+        SettingsMessage::Hooks(_) => {
+            update_config_panel(app, message, "hooks_settings", hooks::update)
+        }
+        SettingsMessage::Storage(_) => {
+            update_config_panel(app, message, "storage_settings", storage::update)
+        }
+        SettingsMessage::ModelRoutes(_) => {
+            update_config_panel(app, message, "model_routes_settings", model_routes::update)
+        }
+        SettingsMessage::QueryClassification(_) => update_config_panel(
+            app,
+            message,
+            "query_classification_settings",
+            query_classification::update,
+        ),
+        SettingsMessage::Runtime(_) => {
+            update_config_panel(app, message, "runtime_settings", runtime::update)
+        }
+        SettingsMessage::Browser(_) => {
+            update_config_panel(app, message, "browser_settings", browser::update)
+        }
+        SettingsMessage::WebSearch(_) => {
+            update_config_panel(app, message, "web_search_settings", web_search::update)
+        }
+        SettingsMessage::HttpRequest(_) => {
+            update_config_panel(app, message, "http_request_settings", http_request::update)
+        }
+        SettingsMessage::Memory(_) => {
+            update_config_panel(app, message, "memory_settings", memory::update)
+        }
+        SettingsMessage::Channels(_) => {
+            update_config_panel(app, message, "channels_settings", channels::update)
+        }
+        SettingsMessage::Multimodal(_) => {
+            update_config_panel(app, message, "multimodal_settings", multimodal::update)
+        }
         SettingsMessage::Acp(_) => acp::update(app, message),
         SettingsMessage::Mcp(_) => mcp::update(app, message),
         SettingsMessage::GatewayClient(_) => gateway_client::update(app, message),
-        SettingsMessage::Gateway(_) => gateway::update(app, message),
-        SettingsMessage::Tunnel(_) => tunnel::update(app, message),
+        SettingsMessage::Gateway(_) => {
+            update_config_panel(app, message, "gateway_settings", gateway::update)
+        }
+        SettingsMessage::Tunnel(_) => {
+            update_config_panel(app, message, "tunnel_settings", tunnel::update)
+        }
         SettingsMessage::Themes(_) => themes::update(app, message),
         SettingsMessage::Agents(_) => agents::update(app, message),
         SettingsMessage::QuickMessages(_) => quick_messages::update(app, message),
@@ -243,6 +287,12 @@ pub fn update(app: &mut App, message: SettingsMessage) -> Task<Message> {
         | SettingsMessage::PluginsInstallCompleted { .. }
         | SettingsMessage::PluginsInstallClose
         | SettingsMessage::PluginsPreviewDiscarded(_) => plugin_install::update(app, message),
+        SettingsMessage::SkillsDirectoryProviderChanged(_)
+        | SettingsMessage::SkillsProjectAutoLoadToggled(_)
+        | SettingsMessage::SkillsPromptInjectionModeChanged(_)
+        | SettingsMessage::SkillsSave => {
+            update_config_panel(app, message, "skills_settings", skills::update)
+        }
         SettingsMessage::SkillsProjectSelected(_)
         | SettingsMessage::SkillsRefresh
         | SettingsMessage::SkillsLoaded(_)
@@ -268,10 +318,6 @@ pub fn update(app: &mut App, message: SettingsMessage) -> Task<Message> {
         | SettingsMessage::SkillsSetEnabledCompleted { .. }
         | SettingsMessage::SkillsDeleteRequested(_)
         | SettingsMessage::SkillsDeleteCompleted { .. }
-        | SettingsMessage::SkillsDirectoryProviderChanged(_)
-        | SettingsMessage::SkillsProjectAutoLoadToggled(_)
-        | SettingsMessage::SkillsPromptInjectionModeChanged(_)
-        | SettingsMessage::SkillsSave
         | SettingsMessage::SkillsHelpOpen
         | SettingsMessage::SkillsHelpClose => skills::update(app, message),
         SettingsMessage::DialogueFlowPermissionRefresh
@@ -301,7 +347,9 @@ pub fn update(app: &mut App, message: SettingsMessage) -> Task<Message> {
         | SettingsMessage::HeartbeatToChanged(_)
         | SettingsMessage::HeartbeatSave
         | SettingsMessage::HeartbeatHelpOpen
-        | SettingsMessage::HeartbeatHelpClose => heartbeat::update(app, message),
+        | SettingsMessage::HeartbeatHelpClose => {
+            update_config_panel(app, message, "heartbeat_settings", heartbeat::update)
+        }
         SettingsMessage::CronEnabledToggled(_)
         | SettingsMessage::CronMaxRunHistoryChanged(_)
         | SettingsMessage::CronTabSelected(_)
@@ -377,13 +425,17 @@ pub fn update(app: &mut App, message: SettingsMessage) -> Task<Message> {
         | SettingsMessage::CronJobMutationCompleted(_)
         | SettingsMessage::CronSave
         | SettingsMessage::CronHelpOpen
-        | SettingsMessage::CronHelpClose => cron::update(app, message),
+        | SettingsMessage::CronHelpClose => {
+            update_config_panel(app, message, "cron_settings", cron::update)
+        }
         SettingsMessage::SchedulerEnabledToggled(_)
         | SettingsMessage::SchedulerMaxTasksChanged(_)
         | SettingsMessage::SchedulerMaxConcurrentChanged(_)
         | SettingsMessage::SchedulerSave
         | SettingsMessage::SchedulerHelpOpen
-        | SettingsMessage::SchedulerHelpClose => scheduler::update(app, message),
+        | SettingsMessage::SchedulerHelpClose => {
+            update_config_panel(app, message, "scheduler_settings", scheduler::update)
+        }
         SettingsMessage::ReliabilityProviderRetriesChanged(_)
         | SettingsMessage::ReliabilityProviderBackoffMsChanged(_)
         | SettingsMessage::ReliabilityChannelInitialBackoffSecsChanged(_)
@@ -392,7 +444,9 @@ pub fn update(app: &mut App, message: SettingsMessage) -> Task<Message> {
         | SettingsMessage::ReliabilitySchedulerRetriesChanged(_)
         | SettingsMessage::ReliabilitySave
         | SettingsMessage::ReliabilityHelpOpen
-        | SettingsMessage::ReliabilityHelpClose => reliability::update(app, message),
+        | SettingsMessage::ReliabilityHelpClose => {
+            update_config_panel(app, message, "reliability_settings", reliability::update)
+        }
         SettingsMessage::SecurityBashSecurityEnabledToggled(_)
         | SettingsMessage::SecurityBashPolicyCheckToggled(_, _)
         | SettingsMessage::SecurityBashValidatorCheckToggled(_, _)
@@ -433,7 +487,9 @@ pub fn update(app: &mut App, message: SettingsMessage) -> Task<Message> {
         | SettingsMessage::SecuritySemanticGuardThresholdChanged(_)
         | SettingsMessage::SecuritySave
         | SettingsMessage::SecurityHelpOpen
-        | SettingsMessage::SecurityHelpClose => security::update(app, message),
+        | SettingsMessage::SecurityHelpClose => {
+            update_config_panel(app, message, "security_settings", security::update)
+        }
         SettingsMessage::AutonomyTabSelected(_)
         | SettingsMessage::AutonomyLevelChanged(_)
         | SettingsMessage::AutonomyWorkspaceOnlyToggled(_)
@@ -452,7 +508,9 @@ pub fn update(app: &mut App, message: SettingsMessage) -> Task<Message> {
         | SettingsMessage::AutonomyNonCliNaturalLanguageApprovalModeByChannelChanged(_)
         | SettingsMessage::AutonomySave
         | SettingsMessage::AutonomyHelpOpen
-        | SettingsMessage::AutonomyHelpClose => autonomy::update(app, message),
+        | SettingsMessage::AutonomyHelpClose => {
+            update_config_panel(app, message, "autonomy_settings", autonomy::update)
+        }
         SettingsMessage::ObservabilityBackendChanged(_)
         | SettingsMessage::ObservabilityOtelEndpointChanged(_)
         | SettingsMessage::ObservabilityOtelServiceNameChanged(_)
@@ -460,7 +518,9 @@ pub fn update(app: &mut App, message: SettingsMessage) -> Task<Message> {
         | SettingsMessage::ObservabilityRuntimeTracePathChanged(_)
         | SettingsMessage::ObservabilityRuntimeTraceMaxEntriesChanged(_)
         | SettingsMessage::ObservabilityHelpOpen
-        | SettingsMessage::ObservabilityHelpClose => observability::update(app, message),
+        | SettingsMessage::ObservabilityHelpClose => {
+            update_config_panel(app, message, "observability_settings", observability::update)
+        }
         SettingsMessage::ProxyEnabledToggled(_)
         | SettingsMessage::ProxyScopeTextChanged(_)
         | SettingsMessage::ProxyHttpChanged(_)
@@ -469,6 +529,8 @@ pub fn update(app: &mut App, message: SettingsMessage) -> Task<Message> {
         | SettingsMessage::ProxyNoProxyChanged(_)
         | SettingsMessage::ProxyServicesChanged(_)
         | SettingsMessage::ProxyHelpOpen
-        | SettingsMessage::ProxyHelpClose => proxy::update(app, message),
+        | SettingsMessage::ProxyHelpClose => {
+            update_config_panel(app, message, "proxy_settings", proxy::update)
+        }
     }
 }

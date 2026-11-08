@@ -415,6 +415,8 @@ pub fn update(app: &mut App, message: PreviewMessage) -> Task<Message> {
         PreviewMessage::TraceBack => navigate_trace_back(app),
         PreviewMessage::TraceForward => navigate_trace_forward(app),
         PreviewMessage::AutoSaveModeChanged(mode) => {
+            #[cfg(not(target_arch = "wasm32"))]
+            app.note_startup_setting_edit("preview_auto_save");
             app.preview_auto_save_mode = mode;
             crate::app::config::update_system_settings_config_async(move |system| {
                 system.preview_auto_save = mode;

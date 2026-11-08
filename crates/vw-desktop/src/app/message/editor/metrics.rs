@@ -82,6 +82,22 @@ pub(crate) fn commit(app: &mut App, auto: Option<bool>) -> Task<Message> {
         || next.line_height != previous.line_height)
         .then_some(next.line_height.clamp(10.0, 60.0));
 
+    apply_to_open_editors(app, font_size, line_height);
+    app.current_font_size = next.font_size;
+    app.current_line_height = next.line_height;
+    app.auto_adjust_line_height = next.auto_line_height;
+    persistence::enqueue(app, EditorSettingsPatch::metrics(app))
+}
+
+pub(crate) fn apply_snapshot(app: &mut App, size: f32, height: f32, auto: bool) {
+    let (size, height) = crate::app::config::normalize_editor_metrics(size, height, auto);
+    app.current_font_size = size.max(1.0);
+    app.current_line_height = height.max(1.0);
+    app.auto_adjust_line_height = auto;
+    apply_to_open_editors(app, Some(app.current_font_size), Some(app.current_line_height));
+}
+
+fn apply_to_open_editors(app: &mut App, font_size: Option<f32>, line_height: Option<f32>) {
     for tab in &mut app.preview_tabs {
         apply(&mut tab.editor.inner, font_size, line_height);
     }
@@ -90,11 +106,6 @@ pub(crate) fn commit(app: &mut App, auto: Option<bool>) -> Task<Message> {
         font_size.map(|size| size.clamp(10.0, 30.0)),
         line_height,
     );
-
-    app.current_font_size = next.font_size;
-    app.current_line_height = next.line_height;
-    app.auto_adjust_line_height = next.auto_line_height;
-    persistence::enqueue(app, EditorSettingsPatch::metrics(app))
 }
 
 fn apply(editor: &mut CodeEditor, font_size: Option<f32>, line_height: Option<f32>) {

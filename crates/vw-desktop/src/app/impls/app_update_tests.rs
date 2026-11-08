@@ -761,3 +761,65 @@ fn bootstrap_reasoning_effort_restores_open_history_and_preserves_local_default_
     assert_eq!(app.reasoning_effort, None);
     assert_eq!(app.get_session_runtime("other").reasoning_effort, Some(ReasoningEffortDto::Max));
 }
+
+#[cfg(not(target_arch = "wasm32"))]
+#[test]
+fn native_startup_rejects_an_old_snapshot_after_switching_tenants_and_back() {
+    use crate::app::impls::StartupGatewaySnapshot;
+    use crate::app::message::{SettingsMessage, settings::GatewayClientMessage};
+    use iced_runtime::task::into_stream;
+
+    crate::app::config::with_settings_gateway(|_, _| {
+        let mut app = test_app();
+        let original = crate::app::config::load_gateway_client_config();
+        let original_company = app.gateway_client_settings.company_id_input.clone();
+        assert!(into_stream(app.update(Message::StartupCliServiceBootstrapped(Ok(())))).is_some());
+        for company in ["100000001".to_string(), original_company] {
+            let _ = app.update(Message::Settings(SettingsMessage::GatewayClient(
+                GatewayClientMessage::CompanyIdChanged(company),
+            )));
+        }
+        let stale = StartupGatewaySnapshot {
+            preferences: Some(Ok(json!({"model": "stale"}))),
+            system: None,
+            agent: None,
+            catalog: None,
+            tools: None,
+            external_apps: None,
+        };
+        let _ = app.update(Message::StartupGatewaySnapshotLoaded(1, Box::new(stale)));
+        assert_eq!(app.model, "auto");
+        assert!(into_stream(app.startup_configuration.load()).is_some());
+        crate::app::config::update_gateway_client_config(|config| *config = original).unwrap();
+    });
+}
+
+#[test]
+fn startup_model_backfills_an_open_project_until_the_project_has_its_own_choice() {
+    let mut app = test_app();
+    app.project_path = Some("/workspace/project".into());
+    let _ = app.reload_project_chat_preferences(true);
+    let _ = app.update(Message::StartupAppConfigLoaded(Ok(json!({"model": "restored"}))));
+    assert_eq!(app.model, "restored");
+
+    app.invalidate_project_chat_preferences_read();
+    app.apply_project_chat_preferences("local".into(), true, None);
+    let _ = app.update(Message::StartupAppConfigLoaded(Ok(json!({"model": "older"}))));
+    assert_eq!(app.model, "local");
+}
+
+#[test]
+fn startup_chat_defaults_preserve_an_unsubmitted_home_selection() {
+    let mut app = test_app();
+    app.invalidate_project_chat_preferences_read();
+    app.apply_project_chat_preferences("local".into(), false, Some("local-agent".into()));
+
+    let _ = app.update(Message::StartupAppConfigLoaded(Ok(json!({
+        "model": "remote",
+        "auto_model": true,
+        "acp_agent": "remote-agent",
+    }))));
+
+    assert_eq!(app.model, "local");
+    assert_eq!(app.acp_agent.as_deref(), Some("local-agent"));
+}

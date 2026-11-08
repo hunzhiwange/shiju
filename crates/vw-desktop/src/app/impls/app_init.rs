@@ -26,7 +26,7 @@ pub(super) use crate::app::lsp::LspServiceManager;
 mod external_apps;
 mod new;
 mod settings_builders;
-mod startup;
+pub(in crate::app) mod startup;
 
 pub(super) fn sort_acp_agents(
     acp_cfg: &HashMap<String, vw_config_types::config::AcpAgentConfig>,

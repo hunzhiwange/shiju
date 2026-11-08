@@ -96,6 +96,8 @@ pub struct App {
     pub(crate) startup_state: NativeStartupState,
     #[cfg(not(target_arch = "wasm32"))]
     pub(crate) startup_started_at: std::time::Instant,
+    #[cfg(not(target_arch = "wasm32"))]
+    pub(crate) startup_configuration: crate::app::impls::StartupConfiguration,
     /// 当前项目工作区的界面呈现模式
     pub(crate) workspace_mode: WorkspaceMode,
     /// 工作模式右侧资源区的呈现模式
@@ -594,6 +596,8 @@ pub struct App {
     pub(crate) project_edit_start_script_editor: text_editor::Content,
     /// 项目是否启用 worktree
     pub(crate) project_edit_worktree_enabled: bool,
+    #[cfg(not(target_arch = "wasm32"))]
+    pub(crate) project_edit_worktree_dirty: bool,
     /// 项目任务看板设置
     pub(crate) project_edit_task_board_settings: crate::app::task::TaskBoardSettings,
     /// 项目最大并发数输入

@@ -247,6 +247,8 @@ pub fn update(app: &mut App, message: SettingsMessage) -> Task<Message> {
     load_selected_server_into_inputs(app);
     app.gateway_client_settings.save_error = None;
     let (endpoint, save) = app.queue_gateway_client_snapshot(config);
+    #[cfg(not(target_arch = "wasm32"))]
+    app.startup_configuration.select_endpoint(&endpoint);
     let Some(old_endpoint) = old_endpoint else {
         return save;
     };

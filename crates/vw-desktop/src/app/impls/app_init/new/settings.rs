@@ -735,33 +735,55 @@ pub(super) fn build_tunnel_settings(
 pub(super) fn apply_bootstrap_agent_config(
     app: &mut App,
     full_agent_cfg: &vw_config_types::config::Config,
+    gateway: &vw_config_types::gateway::GatewayConfig,
 ) {
-    let gateway_cfg_result = Ok(full_agent_cfg.gateway.clone());
+    let gateway_cfg_result = Ok(gateway.clone());
 
-    app.embedding_routes_settings =
-        build_embedding_routes_settings(full_agent_cfg, &gateway_cfg_result);
-    app.model_routes_settings = build_model_routes_settings(full_agent_cfg);
-    app.query_classification_settings = build_query_classification_settings(full_agent_cfg);
-    app.heartbeat_settings = build_heartbeat_settings(full_agent_cfg);
-    app.cron_settings = build_cron_settings(full_agent_cfg);
-    app.scheduler_settings = build_scheduler_settings(full_agent_cfg);
-    app.hooks_settings = build_hooks_settings(full_agent_cfg);
-    app.runtime_settings = build_runtime_settings(full_agent_cfg);
-    app.skills_settings = build_skills_settings(full_agent_cfg);
-    app.web_search_settings = build_web_search_settings(full_agent_cfg);
-    app.browser_settings = build_browser_settings(full_agent_cfg);
-    app.http_request_settings = build_http_request_settings(full_agent_cfg);
-    app.gateway_settings = build_gateway_settings(&gateway_cfg_result);
-    app.memory_settings = build_memory_settings(full_agent_cfg);
-    app.channels_settings =
-        super::settings_builders::build_channels_settings(&full_agent_cfg.channels_config);
-    app.reliability_settings = build_reliability_settings(full_agent_cfg);
-    app.multimodal_settings = build_multimodal_settings(full_agent_cfg);
-    app.security_settings = build_security_settings(full_agent_cfg);
-    app.autonomy_settings = build_autonomy_settings(full_agent_cfg);
-    app.observability_settings = build_observability_settings(full_agent_cfg);
-    app.storage_settings = build_storage_settings(full_agent_cfg);
-    app.proxy_settings = build_proxy_settings(full_agent_cfg);
-    app.tunnel_settings = build_tunnel_settings(full_agent_cfg);
-    app.acp_agents = super::sort_acp_agents(&full_agent_cfg.acp);
+    #[cfg(not(target_arch = "wasm32"))]
+    let scope = super::config::preferences_scope(&super::config::gateway_client_endpoint());
+    macro_rules! apply_section {
+        ($field:ident, $value:expr) => {
+            #[cfg(not(target_arch = "wasm32"))]
+            if !app.startup_configuration.setting_edited(&scope, stringify!($field)) {
+                app.$field = $value;
+            }
+            #[cfg(target_arch = "wasm32")]
+            {
+                app.$field = $value;
+            }
+        };
+    }
+
+    apply_section!(
+        embedding_routes_settings,
+        build_embedding_routes_settings(full_agent_cfg, &gateway_cfg_result)
+    );
+    apply_section!(model_routes_settings, build_model_routes_settings(full_agent_cfg));
+    apply_section!(
+        query_classification_settings,
+        build_query_classification_settings(full_agent_cfg)
+    );
+    apply_section!(heartbeat_settings, build_heartbeat_settings(full_agent_cfg));
+    apply_section!(cron_settings, build_cron_settings(full_agent_cfg));
+    apply_section!(scheduler_settings, build_scheduler_settings(full_agent_cfg));
+    apply_section!(hooks_settings, build_hooks_settings(full_agent_cfg));
+    apply_section!(runtime_settings, build_runtime_settings(full_agent_cfg));
+    apply_section!(skills_settings, build_skills_settings(full_agent_cfg));
+    apply_section!(web_search_settings, build_web_search_settings(full_agent_cfg));
+    apply_section!(browser_settings, build_browser_settings(full_agent_cfg));
+    apply_section!(http_request_settings, build_http_request_settings(full_agent_cfg));
+    apply_section!(gateway_settings, build_gateway_settings(&gateway_cfg_result));
+    apply_section!(memory_settings, build_memory_settings(full_agent_cfg));
+    apply_section!(
+        channels_settings,
+        super::settings_builders::build_channels_settings(&full_agent_cfg.channels_config)
+    );
+    apply_section!(reliability_settings, build_reliability_settings(full_agent_cfg));
+    apply_section!(multimodal_settings, build_multimodal_settings(full_agent_cfg));
+    apply_section!(security_settings, build_security_settings(full_agent_cfg));
+    apply_section!(autonomy_settings, build_autonomy_settings(full_agent_cfg));
+    apply_section!(observability_settings, build_observability_settings(full_agent_cfg));
+    apply_section!(storage_settings, build_storage_settings(full_agent_cfg));
+    apply_section!(proxy_settings, build_proxy_settings(full_agent_cfg));
+    apply_section!(tunnel_settings, build_tunnel_settings(full_agent_cfg));
 }

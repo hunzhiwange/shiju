@@ -41,7 +41,8 @@ struct PreferencesPatch {
 pub(crate) struct DesktopPreferencesPersistence {
     // Each entry represents an in-flight PATCH and any edits that arrived after it started.
     in_flight: HashMap<(PreferencesScope, PatchTarget), Option<PreferencesPatch>>,
-    pub(super) edited_system_settings: HashSet<SystemSettingsSection>,
+    edited_desktop_fields: HashMap<PreferencesScope, HashSet<String>>,
+    pub(super) edited_system_settings: HashMap<PreferencesScope, HashSet<SystemSettingsSection>>,
     pub(in crate::app) dialogue_flow_load_revision: u64,
     project_chat: project_chat::ProjectChatPreferences,
     #[cfg(not(target_arch = "wasm32"))]
@@ -50,6 +51,10 @@ pub(crate) struct DesktopPreferencesPersistence {
 
 impl DesktopPreferencesPersistence {
     fn enqueue(&mut self, endpoint: GatewayEndpoint, fields: Map<String, Value>) -> Task<Message> {
+        self.edited_desktop_fields
+            .entry(preferences_scope(&endpoint))
+            .or_default()
+            .extend(fields.keys().filter(|key| key.as_str() != REASONING_EFFORTS).cloned());
         self.enqueue_patch(endpoint, PatchTarget::Desktop, fields)
     }
 
@@ -59,7 +64,10 @@ impl DesktopPreferencesPersistence {
         section: SystemSettingsSection,
         fields: Map<String, Value>,
     ) -> Task<Message> {
-        self.edited_system_settings.insert(section);
+        self.edited_system_settings
+            .entry(preferences_scope(&endpoint))
+            .or_default()
+            .insert(section);
         self.enqueue_patch(endpoint, PatchTarget::System(section), fields)
     }
 
@@ -201,6 +209,25 @@ impl App {
         }
         // Bind the destination before yielding to Iced. A server switch must not redirect queued edits.
         self.desktop_preferences_persistence.enqueue(gateway_client_endpoint(), fields)
+    }
+
+    #[cfg(not(target_arch = "wasm32"))]
+    pub(crate) fn desktop_preference_edited(&self, scope: &PreferencesScope, key: &str) -> bool {
+        self.desktop_preferences_persistence
+            .edited_desktop_fields
+            .get(scope)
+            .is_some_and(|fields| fields.contains(key))
+    }
+
+    pub(crate) fn retain_unedited_desktop_preferences(&self, cfg: &mut Value) {
+        if let Some(fields) = cfg.as_object_mut()
+            && let Some(edited) = self
+                .desktop_preferences_persistence
+                .edited_desktop_fields
+                .get(&preferences_scope(&gateway_client_endpoint()))
+        {
+            fields.retain(|key, _| !edited.contains(key));
+        }
     }
 
     pub(crate) fn desktop_preferences_saved(

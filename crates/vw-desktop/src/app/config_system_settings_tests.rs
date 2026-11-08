@@ -815,8 +815,16 @@ fn agent_unified_selection_config_override_isolates_window_bootstrap() {
 pub(in crate::app) fn with_editor_settings_gateway(
     test: impl FnOnce(crate::app::App, Receiver<String>, mpsc::Sender<Option<String>>),
 ) {
-    use std::sync::Arc;
-    use std::sync::atomic::{AtomicBool, Ordering};
+    with_settings_gateway(|requests, responses| {
+        let (app, _) = crate::app::App::new();
+        test(app, requests, responses);
+    });
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+pub(in crate::app) fn with_settings_gateway(
+    test: impl FnOnce(Receiver<String>, mpsc::Sender<Option<String>>),
+) {
     use std::time::Duration;
 
     let (_lock, home, _home_guard) = temp_home();
@@ -828,8 +836,6 @@ pub(in crate::app) fn with_editor_settings_gateway(
     let bootstrap_path = super::gateway_client_bootstrap_cache_path().unwrap();
     let original_bootstrap = std::fs::read(&bootstrap_path).unwrap();
 
-    let observe = Arc::new(AtomicBool::new(false));
-    let observe_requests = observe.clone();
     let (request_tx, requests) = mpsc::channel();
     let (responses, response_rx) = mpsc::channel::<Option<String>>();
     let server = std::thread::spawn(move || {
@@ -839,17 +845,13 @@ pub(in crate::app) fn with_editor_settings_gateway(
             if request.is_empty() {
                 break;
             }
-            let body = if observe_requests.load(Ordering::Relaxed) {
-                if request_tx.send(request).is_err() {
-                    break;
-                }
-                match response_rx.recv_timeout(Duration::from_secs(5)) {
-                    Ok(Some(body)) => body,
-                    Ok(None) => continue, // Disconnect without a response.
-                    Err(_) => break,
-                }
-            } else {
-                "{}".to_string()
+            if request_tx.send(request).is_err() {
+                break;
+            }
+            let body = match response_rx.recv_timeout(Duration::from_secs(5)) {
+                Ok(Some(body)) => body,
+                Ok(None) => continue, // Disconnect without a response.
+                Err(_) => break,
             };
             let _ = write!(
                 stream,
@@ -859,9 +861,7 @@ pub(in crate::app) fn with_editor_settings_gateway(
         }
     });
     let result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
-        let (app, _) = crate::app::App::new();
-        observe.store(true, Ordering::Relaxed);
-        test(app, requests, responses);
+        test(requests, responses);
     }));
     // Wake accept on success or panic; the response channel also closes if the test panics.
     drop(TcpStream::connect(address));

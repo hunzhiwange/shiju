@@ -742,6 +742,7 @@ pub fn update(app: &mut App, message: PreviewMessage) -> Task<Message> {
 
         #[cfg(not(target_arch = "wasm32"))]
         PreviewMessage::LspToggleDisabled(disabled) => {
+            app.note_startup_setting_edit("lsp_enabled");
             if disabled {
                 lsp::disable_lsp(app);
             } else {

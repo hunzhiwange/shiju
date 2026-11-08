@@ -30,7 +30,7 @@ fn should_attempt_tools_list_request(_endpoint: &GatewayEndpoint) -> bool {
 }
 
 /// 将 `main` 代理的显式配置覆盖到桌面端默认模型与工具选择。
-pub(super) fn apply_main_agent_overrides(config: &mut Config) {
+pub(in crate::app) fn apply_main_agent_overrides(config: &mut Config) {
     let Some(main) = config.agents.get("main") else {
         return;
     };

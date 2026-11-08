@@ -116,6 +116,16 @@ fn same_gateway(left: &GatewayEndpoint, right: &GatewayEndpoint) -> bool {
 }
 
 pub(super) fn enqueue(app: &mut App, patch: EditorSettingsPatch) -> Task<Message> {
+    #[cfg(not(target_arch = "wasm32"))]
+    for (edited, field) in [
+        (patch.metrics.is_some(), "editor_metrics"),
+        (patch.editor_theme.is_some(), "editor_theme"),
+        (patch.editor_follow_system_theme.is_some(), "editor_follow_system_theme"),
+    ] {
+        if edited {
+            app.note_startup_setting_edit(field);
+        }
+    }
     // Capture the active gateway at the time of the edit, even if it has to wait.
     let endpoint = gateway_client_endpoint();
     let persistence = &mut app.editor_config_persistence;

@@ -29,6 +29,8 @@ fn refresh_task() -> Task<Message> {
 }
 
 fn apply_snapshot(app: &mut App, snapshot: AcpSettingsSnapshot) {
+    #[cfg(not(target_arch = "wasm32"))]
+    app.note_startup_setting_edit("acp_agents");
     app.acp_settings.diagnostic_results.retain(|agent, _| {
         app.acp_settings.catalog.get(agent).zip(snapshot.catalog.get(agent)).is_some_and(
             |(old, new)| old.command == new.command && old.args == new.args && old.env == new.env,

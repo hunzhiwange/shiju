@@ -32,7 +32,7 @@ async fn read(
 ) -> Result<Response, StatusCode> {
     let Query(request) = query.map_err(|_| StatusCode::BAD_REQUEST)?;
     tokio::task::spawn_blocking(move || {
-        super::super::agent_apps::authorize_provider_snippet(
+        super::super::agent_apps::authorize_provider_config_access(
             policy.0.as_deref(),
             &headers,
             &tenant,
@@ -54,7 +54,7 @@ async fn write(
 ) -> Result<Response, StatusCode> {
     let Json(request) = body.map_err(|_| StatusCode::BAD_REQUEST)?;
     tokio::task::spawn_blocking(move || {
-        super::super::agent_apps::authorize_provider_snippet(
+        super::super::agent_apps::authorize_provider_config_access(
             policy.0.as_deref(),
             &headers,
             &tenant,
@@ -77,7 +77,7 @@ async fn preview(
 ) -> Result<Response, StatusCode> {
     let Json(request) = body.map_err(|_| StatusCode::BAD_REQUEST)?;
     tokio::task::spawn_blocking(move || {
-        super::super::agent_apps::authorize_provider_snippet(
+        super::super::agent_apps::authorize_provider_config_access(
             policy.0.as_deref(),
             &headers,
             &tenant,
@@ -99,7 +99,7 @@ async fn extract(
 ) -> Result<Response, StatusCode> {
     let Json(request) = body.map_err(|_| StatusCode::BAD_REQUEST)?;
     tokio::task::spawn_blocking(move || {
-        super::super::agent_apps::authorize_provider_snippet(
+        super::super::agent_apps::authorize_provider_config_access(
             policy.0.as_deref(),
             &headers,
             &tenant,

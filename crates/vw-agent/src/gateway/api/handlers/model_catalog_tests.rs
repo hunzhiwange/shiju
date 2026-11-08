@@ -16,12 +16,14 @@ use vw_api_types::{
 use vw_gateway_client::{AgentAppsReadError, GatewayClient, GatewayEndpoint};
 
 const TOKEN: &str = "model-catalog-test-application-credential";
+const EDITOR_TOKEN: &str = "model-catalog-test-editor-credential";
 const SECRET: &str = "fixture-provider-credential-value";
 
 struct Fixture {
     _root: tempfile::TempDir,
     server: tokio::task::JoinHandle<()>,
     endpoint: GatewayEndpoint,
+    db_path: std::path::PathBuf,
     project: ModelCatalogProject,
     query: ModelCatalogQuery,
 }
@@ -69,7 +71,10 @@ impl Fixture {
         }
         let policy = root.path().join("access.json");
         std::fs::write(&policy, json!({
-            "principals": [{"id":"reader", "token_sha256":hex::encode(Sha256::digest(TOKEN)),
+            "principals": [{"id":"editor", "token_sha256":hex::encode(Sha256::digest(EDITOR_TOKEN)),
+                "grants":[{"platform_id":"platform","company_id":"company","host_id":"mac",
+                    "provider_config_read":true,"provider_config_write":true}]},
+                {"id":"reader", "token_sha256":hex::encode(Sha256::digest(TOKEN)),
                 "grants":[{"platform_id":"platform","company_id":"company","host_id":"mac","provider_config_read":true},
                           {"platform_id":"platform","company_id":"other-company","host_id":"mac","provider_config_read":true}]}],
             "hosts":[{"id":"mac","online":true,"binding":"local","home":root.path(),
@@ -132,6 +137,23 @@ impl Fixture {
             )
             .unwrap();
 
+        let db_path = db.sqlite_path().unwrap().to_path_buf();
+        let (server, endpoint) = Self::serve(db, policy, tenant).await;
+        Self {
+            _root: root,
+            server,
+            endpoint,
+            db_path,
+            project,
+            query: ModelCatalogQuery { deployment, search: None, page: None },
+        }
+    }
+
+    async fn serve(
+        db: GlobalDatabase,
+        policy: std::path::PathBuf,
+        tenant: TenantScope,
+    ) -> (tokio::task::JoinHandle<()>, GatewayEndpoint) {
         let router = Router::new()
             .nest("/v1", super::model_catalog::router_with_policy(Some(policy)))
             .layer(Extension(db))
@@ -140,13 +162,7 @@ impl Fixture {
         let endpoint = GatewayEndpoint::new("127.0.0.1", listener.local_addr().unwrap().port())
             .with_tenant_scope(tenant);
         let server = tokio::spawn(async move { axum::serve(listener, router).await.unwrap() });
-        Self {
-            _root: root,
-            server,
-            endpoint,
-            project,
-            query: ModelCatalogQuery { deployment, search: None, page: None },
-        }
+        (server, endpoint)
     }
 
     fn client(&self) -> GatewayClient {
@@ -284,3 +300,6 @@ async fn catalog_api_read_resolves_only_the_exact_model_deployment() {
         404,
     );
 }
+
+#[path = "model_catalog_edits_tests.rs"]
+mod edits;

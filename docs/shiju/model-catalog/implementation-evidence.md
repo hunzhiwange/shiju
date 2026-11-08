@@ -976,3 +976,30 @@ POST 返回 202 与排队快照。任务依次进入发现、解析及终态，�
 | `cargo test -p vw-agent catalog_api_read_ -- --nocapture` | 0 | 批次 36 的目录读取回归 6 项通过。 |
 
 差异限于发现任务路由、授权及原生接线、SDK、独立测试和本记录。暂存差异通过 `git diff --cached --check`。聚焦测试仍报告既有 macOS 链接器 `__eh_frame` 大小警告。
+
+## 任务 38　模型编辑和补全 API 与 SDK
+
+2026-11-08，macOS 27.0（26A428），arm64。依赖批次 37 的 `7d88e9ff0`，复用批次 30–32 的部署目录和修订事务，以及批次 36 的项目与主机授权。
+
+| 来源与接点 | 实际实现 |
+| --- | --- |
+| 固定来源 `ca58c0313360eae7c851fbd7553c1614c7af03e7` 的 `src-tauri/src/commands/provider.rs::update_provider` 和供应商编辑事务 | `crates/vw-agent-apps/src/models/edits.rs::edit` 更新部署模型、别名和默认值。`crates/vw-agent/src/app_providers/model_edits.rs` 通过 `GatewaySettingsStore::compare_exchange` 条件更新同一个租户供应商记录。 |
+| `src/hooks/useModelMetadataFill.ts::useModelMetadataFill` 和 `src/components/providers/forms/modelMetadataFill.ts` 的同部署补空规则 | `crates/vw-agent-apps/src/models/fill_service.rs` 经 `AppProviderStore::{preview_model_catalog_fill,commit_model_catalog_fill}` 读取精确部署与模型。复用 `vw-provider-resolver::models::snapshot` 读取现有离线目录。预览返回建议字段、来源和修订。提交在期望修订上重新计算，只补当前空值，并保留已确认的手工字段。 |
+| Gateway、SDK 与桌面 | `crates/vw-agent/src/gateway/api/handlers/model_catalog_edits.rs` 经现有目录路由注册 POST `/v1/model-catalog/{edits,defaults,fill-preview,fill-commit}`，复用 `vw-api-types/src/model_catalog.rs` 的 DTO。`crates/vw-gateway-client/src/client/model_catalog_edits_api.rs` 提供 `edit_model_catalog`、`set_model_catalog_default`、`preview_model_catalog_fill` 和 `commit_model_catalog_fill`。桌面调用归批次 40–41。 |
+
+网关通过认证租户、应用凭据和目标主机检查配置权限，并核对注册项目的工作树或 sandbox。预览要求读取权限，其他三个操作要求写入权限。补全请求中的租户必须和认证租户一致。过期修订与并发写入冲突返回 409，越权返回 403，缺失资源返回 404，业务校验失败返回 422。SDK 保留状态码并丢弃错误响应正文。
+
+### 验证
+
+红灯、绿灯动态领取槽位 **1**，`CARGO_TARGET_DIR=/Users/xiangmin/worker/code/shiju/target/rust-slot-1`，Cargo 中间目录同槽。格式化在源码快照运行，仅回写本项 Rust 文件。聚焦测试与 Clippy 在实际工作区运行。
+
+| 命令 | 退出码 | 证据 |
+| --- | ---: | --- |
+| `cargo fmt --all`（红灯、绿灯） | 0、0 | 两阶段格式化完成。 |
+| `cargo test -p vw-agent catalog_api_edits_ -- --nocapture`（红灯） | 101 | 8 项按预期失败，11718 项过滤。首个指定用例 `catalog_api_edits_conflict_keeps_persisted_model` 收到 404，预期为 409。 |
+| `cargo test -p vw-gateway-client catalog_api_edits_ -- --nocapture`（红灯） | 101 | 1 项通过、1 项失败，362 项过滤。请求路径缺少 `projectId` 和 `directory`。 |
+| `cargo test -p vw-agent catalog_api_edits_ -- --nocapture`（绿灯） | 0 | 8 项通过，11718 项过滤。真实 HTTP、SDK 与临时 SQLite 验证过期编辑返回 409 并保留新版本、并发写入只有一个成功、主机及项目和租户隔离、只读授权、重开后读回别名和默认值、非法默认值批量回滚，以及预览无写入、补全保留手工值、重试幂等与过期提交拒绝。 |
+| `cargo test -p vw-gateway-client catalog_api_edits_ -- --nocapture`（绿灯） | 0 | 2 项通过，362 项过滤。核对四个请求的项目、租户、凭据和序列化，以及 409 错误正文脱敏。 |
+| `cargo clippy --all-targets --all-features -- -D warnings` | 0 | 全工作区、全目标、全 features 通过。 |
+
+两阶段槽位锁已释放，编译缓存保留。聚焦测试报告既有 macOS 链接器 `__eh_frame` 大小警告。暂存差异通过 `git diff --cached --check`，限于编辑与补全路由、存储接线、授权复用、SDK、独立测试及本记录。

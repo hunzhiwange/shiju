@@ -65,7 +65,8 @@ pub(super) fn router_with_policy(path: Option<PathBuf>) -> Router {
         .route("/model-catalog/presets", get(read).layer(Extension(View::Presets)))
         .route("/model-catalog/templates", get(read).layer(Extension(View::Templates)))
         .route("/model-catalog/capabilities", get(read).layer(Extension(View::Capabilities)))
-        .layer(Extension(Policy(path.clone())));
+        .layer(Extension(Policy(path.clone())))
+        .merge(super::model_catalog_edits::router_with_policy(path.clone()));
     #[cfg(target_os = "macos")]
     let router = router.merge(super::model_discovery::router_with_policy(path));
     router

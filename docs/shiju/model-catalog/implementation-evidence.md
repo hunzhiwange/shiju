@@ -759,3 +759,30 @@ Pi 供应商表单的现有网关入口为 `vw-agent/src/gateway/api/handlers/ap
 | `cargo clippy --all-targets --all-features -- -D warnings` | 0 | 全工作区、全目标及 features 通过。 |
 
 审查后差异限于 Pi 补空投影、独立测试、模块注册及本记录。`git diff --cached --check` 通过。槽位锁均已释放，编译缓存已保留。
+
+## 任务 30　实现手工与批量模型编辑
+
+2026-11-08，macOS 27.0（26A428），arm64。批次 29 由 `5c9038bfc` 交付。已核对 `TenantScope`、`LocalReadEnvironment`、应用注册与可信 CLI 定位、可取消 `ProviderOperation` 和母任务 4 的供应商条件写入。目录编辑只修改保存的供应商记录。
+
+| 来源与接点 | 实际路径 |
+| --- | --- |
+| 固定来源 `ca58c0313360eae7c851fbd7553c1614c7af03e7` 的 `src/components/providers/forms/FetchedModelPicker.tsx::apply` 和 `OpenCodeFormFields.tsx::handleApplyFetchedModels` | `crates/vw-agent-apps/src/models/edits.rs::edit` 在同一修订中处理添加和移除。以完整模型 ID 精确去重。重复选择保留已存元数据，重复空操作保留修订，相同 ID 的冲突操作拒绝整批。 |
+| 桌面 `crates/vw-desktop/src/app/message/settings/providers/models.rs::merge_discovered_model_drafts` 及手工模型草稿 | 使用 `crates/vw-api-types/src/model_catalog.rs::ModelCatalogEditRequest` 的相同入口。手工 ID 无需发现或联网，保留大小写、命名空间和后缀。服务校验 ID、正整数窗口、窗口与输出关系、模态值及重复模态。未填写的能力仍为未知。 |
+| 母任务 4 的 `GatewaySettingsStore::compare_exchange` | `crates/vw-agent/src/app_providers/model_edits.rs` 给 `AppProviderStore` 增加读写接线，复用租户、应用和供应商的记录键及一次条件写入。记录内按精确主机 ID 和端点分区。校验失败、过期修订及竞争写入均不会提交草稿。Codex 专用发布快照继续由 `crates/vw-agent/src/model_catalog.rs` 处理。 |
+| 下游 API、SDK 与 Iced | 本批次在业务层和实际 SQLite 适配器验收。默认模型和别名由任务 31 接入，HTTP 和 SDK 编辑入口由任务 38 接入，Iced 草稿由任务 39–40 接入。 |
+
+### 验证
+
+各阶段动态领取槽位 **1**，`CARGO_TARGET_DIR=/Users/xiangmin/worker/code/shiju/target/rust-slot-1`。Cargo 中间目录使用同一槽位。格式化在 Git 源码快照执行，仅回写本项 Rust 文件。测试和 Clippy 在实际工作区执行。
+
+| 命令 | 退出码 | 证据 |
+| --- | ---: | --- |
+| `cargo fmt --all`（红灯和绿灯各两次） | 0、0、0、0 | 格式化完成。 |
+| `cargo test -p vw-agent-apps catalog_edits_ -- --nocapture`（初次红灯） | 101 | 0 条有效用例。修订摘要类型不支持 `LowerHex`，改用母任务 4 已使用的 URL-safe Base64 编码后复跑。 |
+| `cargo test -p vw-agent-apps catalog_edits_ -- --nocapture`（红灯断言） | 101 | 7 条有效用例，5 项通过、2 项失败、689 项过滤。指定用例包含一条非法 ID，实际返回 `changed: true`，预期返回 `invalid model ID` 且重开后数据一致。零窗口用例也实际提交成功。 |
+| `cargo test -p vw-agent-apps catalog_edits_ -- --nocapture`（两次绿灯） | 0、0 | 每次 7 项通过、689 项过滤。验证重开一致、未知能力、原样 ID、重复选择、过期修订、冲突和端点隔离。 |
+| `cargo clippy --all-targets --all-features -- -D warnings`（绿灯首次和复跑） | 101、0 | 修正成本校验的 `collapsible_if` 后，全工作区、全目标和全 features 通过。 |
+| `cargo test -p vw-agent catalog_edits_provider_transaction_ -- --nocapture`（首次） | 101 | 0 条有效用例。修正并发测试闭包生命周期错误 E0373 后改用 `--lib` 定向复跑。 |
+| `cargo test -p vw-agent --lib catalog_edits_provider_transaction_ -- --nocapture` | 0 | 2 项通过、11682 项过滤。实际 SQLite 验证重开、租户隔离、非法批次无写入，以及同一修订的两个竞争提交仅一个成功。macOS 链接器输出既有 `__eh_frame` 体积警告。 |
+
+审查后的差异包括业务校验与事务准备、供应商存储接线、独立测试及本记录。`git diff --cached --check` 通过。各阶段的锁均已释放，编译缓存已保留。

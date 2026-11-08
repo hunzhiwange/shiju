@@ -1,4 +1,4 @@
-//! Sole native saved-model projection owner. No provider-owned catalog persistence.
+//! Native model catalog logic. Storage and native publication are owned by callers.
 use vw_api_types::model_catalog::*;
 
 pub mod codex_template;
@@ -11,6 +11,7 @@ pub mod discovery_opencode;
 #[cfg(target_os = "macos")]
 mod discovery_process;
 pub mod discovery_url;
+pub mod edits;
 pub mod fill_codex;
 pub mod fill_hermes;
 pub mod fill_kimi;
@@ -46,6 +47,8 @@ mod discovery_http_tests;
 mod discovery_opencode_tests;
 #[cfg(test)]
 mod discovery_url_tests;
+#[cfg(test)]
+mod edits_tests;
 #[cfg(test)]
 mod fill_codex_tests;
 #[cfg(test)]

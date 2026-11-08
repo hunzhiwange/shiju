@@ -661,6 +661,7 @@ mod snippets;
 mod claude;
 
 mod codex_catalog;
+mod model_edits;
 
 mod gemini;
 

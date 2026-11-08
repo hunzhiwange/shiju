@@ -614,6 +614,7 @@ impl App {
             main_window_id: None,
             task_pet_window_id: None,
             shutdown_requested: false,
+            desktop_preferences_persistence: Default::default(),
 
             // ========== 最近项目编辑 ==========
             recent_projects_edits: {

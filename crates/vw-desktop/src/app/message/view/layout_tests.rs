@@ -544,3 +544,84 @@ fn terminal_resize_tiny_window_keeps_height_within_window_limit() {
     let _ = super::update(&mut app, super::ViewMessage::PointerMoved(10.0, -100.0));
     assert_eq!(app.terminal.height, 80.0);
 }
+
+#[cfg(not(target_arch = "wasm32"))]
+#[test]
+fn shutdown_waits_for_pending_layout_preferences() {
+    use super::ViewMessage;
+    use crate::app::{Message, config, message::view::panel};
+    use iced_runtime::Action;
+    use iced_runtime::futures::futures::{StreamExt, future::ready, poll};
+    use serde_json::json;
+    use std::time::Duration;
+
+    const TIMEOUT: Duration = Duration::from_secs(4);
+
+    fn outputs(
+        task: iced::Task<Message>,
+    ) -> impl iced_runtime::futures::futures::Stream<Item = Message> {
+        iced_runtime::task::into_stream(task).expect("expected a task").filter_map(|action| {
+            ready(match action {
+                Action::Output(message) => Some(message),
+                _ => None,
+            })
+        })
+    }
+
+    config::with_editor_settings_gateway(|mut app, requests, responses| {
+        let runtime = tokio::runtime::Builder::new_multi_thread()
+            .worker_threads(1)
+            .enable_all()
+            .build()
+            .unwrap();
+        let run_save = |task| {
+            let mut stream = outputs(task);
+            runtime.spawn(async move { stream.next().await.unwrap() })
+        };
+        let finish_save = |handle: tokio::task::JoinHandle<Message>| {
+            runtime
+                .block_on(async { tokio::time::timeout(TIMEOUT, handle).await.unwrap().unwrap() })
+        };
+        let capture_patch = |expected| {
+            let request = requests.recv_timeout(TIMEOUT).expect("preference PATCH");
+            assert!(request.starts_with("PATCH /v1/desktop/preferences "));
+            let fields: serde_json::Value =
+                serde_json::from_str(request.split_once("\r\n\r\n").unwrap().1).unwrap();
+            assert_eq!(fields, expected);
+        };
+
+        let _ = super::update(&mut app, ViewMessage::FileManagerDragStarted);
+        app.file_manager_width = 320.0;
+        let first = run_save(super::update(&mut app, ViewMessage::GlobalMouseReleased));
+        capture_patch(json!({"file_manager_width": 320.0}));
+
+        let queued = panel::update(&mut app, ViewMessage::FileManagerPanelVisible(false));
+        assert!(iced_runtime::task::into_stream(queued).is_none());
+        let queued = panel::update(&mut app, ViewMessage::FileManagerPanelVisible(true));
+        assert!(iced_runtime::task::into_stream(queued).is_none());
+        let _ = super::update(&mut app, ViewMessage::FileManagerDragStarted);
+        app.file_manager_width = 340.0;
+        let queued = super::update(&mut app, ViewMessage::GlobalMouseReleased);
+        assert!(iced_runtime::task::into_stream(queued).is_none());
+
+        let window = iced::window::Id::unique();
+        app.main_window_id = Some(window);
+        app.close_to_tray = false;
+        let mut shutdown = outputs(panel::update(&mut app, ViewMessage::CloseRequested(window)));
+        assert!(runtime.block_on(async { poll!(shutdown.next()).is_pending() }));
+        responses.send(Some("{}".into())).unwrap();
+
+        let next = app.update(finish_save(first));
+        let second = run_save(next);
+        capture_patch(json!({"file_manager_width": 340.0, "show_file_manager": true}));
+        assert!(runtime.block_on(async { poll!(shutdown.next()).is_pending() }));
+        responses.send(Some("{}".into())).unwrap();
+
+        let done = app.update(finish_save(second));
+        assert!(iced_runtime::task::into_stream(done).is_none());
+        let message =
+            runtime.block_on(async { tokio::time::timeout(TIMEOUT, shutdown.next()).await });
+        assert!(matches!(message, Ok(Some(Message::View(ViewMessage::ShutdownFinished)))));
+        assert!(requests.try_recv().is_err());
+    });
+}

@@ -1,7 +1,7 @@
 //! 处理代码/工作界面模式的弹层与选择状态。
 
 use super::ViewMessage;
-use crate::app::{App, Message, set_config_field};
+use crate::app::{App, Message};
 use iced::Task;
 
 fn select_workspace_mode(app: &mut App, mode: crate::app::state::WorkspaceMode) {
@@ -23,10 +23,7 @@ pub(super) fn update(app: &mut App, message: ViewMessage) -> Task<Message> {
         }
         ViewMessage::WorkspaceModeSelected(mode) => {
             select_workspace_mode(app, mode);
-            set_config_field(
-                "workspace_mode",
-                serde_json::Value::String(mode.as_str().to_string()),
-            );
+            return app.save_desktop_preference("workspace_mode", mode.as_str().into());
         }
         _ => {}
     }

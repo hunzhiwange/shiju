@@ -4,7 +4,7 @@ use super::ViewMessage;
 use crate::app::message::settings::McpMessage;
 use crate::app::message::{ProjectMessage, SettingsMessage};
 use crate::app::state::WorkspaceMode;
-use crate::app::{App, Message, SettingsTab, set_config_field};
+use crate::app::{App, Message, SettingsTab};
 use iced::Task;
 #[cfg(not(target_arch = "wasm32"))]
 use std::ffi::OsString;
@@ -84,7 +84,7 @@ pub fn update(app: &mut App, message: ViewMessage) -> Task<Message> {
                 return Task::done(Message::View(ViewMessage::WorkSidebarToggled));
             }
             app.show_settings = !app.show_settings;
-            set_config_field("show_settings", serde_json::Value::Bool(app.show_settings));
+            let save = app.save_desktop_preference("show_settings", app.show_settings.into());
             if app.show_settings
                 && let Some(path) = app.project_path.as_deref().map(str::to_owned)
                 && !app.project_sessions.contains_key(&path)
@@ -92,7 +92,7 @@ pub fn update(app: &mut App, message: ViewMessage) -> Task<Message> {
             {
                 app.project_sessions_loading.insert(path.clone());
                 let project_path_clone = path.clone();
-                return Task::perform(
+                let sessions = Task::perform(
                     async move {
                         let client = crate::app::gateway_client().map_err(|err| err.to_string())?;
                         client
@@ -103,8 +103,9 @@ pub fn update(app: &mut App, message: ViewMessage) -> Task<Message> {
                     },
                     |res| Message::Project(ProjectMessage::ProjectSessionsLoaded(path, res)),
                 );
+                return Task::batch([save, sessions]);
             }
-            Task::none()
+            save
         }
         ViewMessage::ProjectFileNewSession => {
             if let Some(path) = app.project_path.as_deref().map(str::to_owned) {
@@ -118,15 +119,13 @@ pub fn update(app: &mut App, message: ViewMessage) -> Task<Message> {
         }
         ViewMessage::ProjectFileShowSessions => {
             app.show_settings = true;
-            set_config_field("show_settings", serde_json::Value::Bool(app.show_settings));
             app.settings_tab = SettingsTab::Sessions;
-            Task::none()
+            app.save_desktop_preference("show_settings", true.into())
         }
         ViewMessage::ProjectFileShowProjects => {
             app.show_settings = true;
-            set_config_field("show_settings", serde_json::Value::Bool(app.show_settings));
             app.settings_tab = SettingsTab::Projects;
-            Task::none()
+            app.save_desktop_preference("show_settings", true.into())
         }
         ViewMessage::ProjectFileSaveAll => {
             app.show_preview_context_menu = false;
@@ -197,7 +196,14 @@ pub fn update(app: &mut App, message: ViewMessage) -> Task<Message> {
         ViewMessage::RestartApp => {
             app.active_menu = None;
             #[cfg(not(target_arch = "wasm32"))]
-            let (editor_commit, editor_saves, routing_commit, routing_saves, worktree_saves) = {
+            let (
+                editor_commit,
+                editor_saves,
+                routing_commit,
+                routing_saves,
+                worktree_saves,
+                preference_saves,
+            ) = {
                 if !begin_shutdown(&mut app.shutdown_requested) {
                     return Task::none();
                 }
@@ -209,6 +215,7 @@ pub fn update(app: &mut App, message: ViewMessage) -> Task<Message> {
                     routing_commit,
                     routing_saves,
                     crate::app::message::settings::wait_for_worktree_saves(app),
+                    app.desktop_preferences_persistence.wait_for_idle(),
                 )
             };
             #[cfg(target_arch = "wasm32")]
@@ -222,7 +229,8 @@ pub fn update(app: &mut App, message: ViewMessage) -> Task<Message> {
                         tokio::join!(
                             wait_for_editor_settings_saves(editor_saves),
                             wait_for_settings_saves(routing_saves),
-                            wait_for_settings_saves(worktree_saves)
+                            wait_for_settings_saves(worktree_saves),
+                            wait_for_settings_saves(preference_saves)
                         );
                         restart_application()
                     },
@@ -627,11 +635,7 @@ pub fn update(app: &mut App, message: ViewMessage) -> Task<Message> {
         }
         ViewMessage::ToggleGitDiffSummary => {
             app.show_git_diff_summary = !app.show_git_diff_summary;
-            set_config_field(
-                "show_git_diff_summary",
-                serde_json::Value::Bool(app.show_git_diff_summary),
-            );
-            Task::none()
+            app.save_desktop_preference("show_git_diff_summary", app.show_git_diff_summary.into())
         }
         ViewMessage::ToggleTerminalPanel => {
             #[cfg(not(target_arch = "wasm32"))]
@@ -651,12 +655,13 @@ pub fn update(app: &mut App, message: ViewMessage) -> Task<Message> {
                 #[cfg(not(target_arch = "wasm32"))]
                 app.terminal.apply_app_theme(&app.app_theme);
             }
-            set_config_field("show_terminal", serde_json::Value::Bool(app.terminal.is_visible));
+            let save = app.save_desktop_preference("show_terminal", app.terminal.is_visible.into());
             #[cfg(not(target_arch = "wasm32"))]
             if app.terminal.is_visible {
-                return crate::app::message::terminal::event::focus_active_terminal(app);
+                let focus = crate::app::message::terminal::event::focus_active_terminal(app);
+                return Task::batch([save, focus]);
             }
-            Task::none()
+            save
         }
         ViewMessage::FileManagerPanelVisible(b) => {
             app.show_file_manager = b;
@@ -664,8 +669,7 @@ pub fn update(app: &mut App, message: ViewMessage) -> Task<Message> {
                 app.dragging_file_manager = false;
                 app.file_manager_drag_anchor_x = None;
             }
-            set_config_field("show_file_manager", serde_json::Value::Bool(b));
-            Task::none()
+            app.save_desktop_preference("show_file_manager", b.into())
         }
         ViewMessage::OpenTerminalPressed => {
             if let Some(_path) = crate::app::components::git_panel::git_repo_path_for_app(app) {
@@ -678,8 +682,7 @@ pub fn update(app: &mut App, message: ViewMessage) -> Task<Message> {
         }
         ViewMessage::AutoMaxToggled(b) => {
             app.auto_max_mode = b;
-            set_config_field("auto_max_mode", serde_json::Value::Bool(b));
-            Task::none()
+            app.save_desktop_preference("auto_max_mode", b.into())
         }
         ViewMessage::ToggleMenu(menu) => {
             if let Some(m) = menu {
@@ -768,6 +771,7 @@ fn shutdown(app: &mut App, window_id: Option<iced::window::Id>) -> Task<Message>
     let editor_saves = app.editor_config_persistence.wait_for_idle();
     let (routing_commit, routing_saves) = app.model_routes_settings.persistence.flush();
     let worktree_saves = crate::app::message::settings::wait_for_worktree_saves(app);
+    let preference_saves = app.desktop_preferences_persistence.wait_for_idle();
     app.work_browser_controller.shutdown();
     if let Some(manager) = app.lsp_manager.as_mut() {
         manager.shutdown_all();
@@ -788,7 +792,8 @@ fn shutdown(app: &mut App, window_id: Option<iced::window::Id>) -> Task<Message>
                     stop_shutdown_streams(requests),
                     wait_for_editor_settings_saves(editor_saves),
                     wait_for_settings_saves(routing_saves),
-                    wait_for_settings_saves(worktree_saves)
+                    wait_for_settings_saves(worktree_saves),
+                    wait_for_settings_saves(preference_saves)
                 );
             },
             |_| Message::View(ViewMessage::ShutdownFinished),

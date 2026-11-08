@@ -22,15 +22,9 @@ pub(super) fn update(app: &mut App, message: ViewMessage) -> Task<Message> {
             app.work_sidebar_filter_open = false;
             app.work_sidebar_more_open = false;
             app.work_sidebar_collapsed = !app.work_sidebar_collapsed;
-            let patch = serde_json::json!({
-                "work_sidebar_collapsed": app.work_sidebar_collapsed,
-            });
-            #[cfg(not(target_arch = "wasm32"))]
-            crate::app::config::save_app_config(&patch);
-            #[cfg(target_arch = "wasm32")]
-            return crate::app::config::spawn_gateway_task(
+            return app.save_desktop_preference(
                 "work_sidebar_collapsed",
-                crate::app::config::save_app_config_async(patch),
+                app.work_sidebar_collapsed.into(),
             );
         }
         ViewMessage::WorkProjectHome => {

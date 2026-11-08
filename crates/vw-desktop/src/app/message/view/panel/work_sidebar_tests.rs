@@ -204,3 +204,83 @@ fn work_sidebar_project_nav_hover_shows_create_entry_and_clears_on_collapse() {
     assert!(app.work_sidebar_collapsed);
     assert!(!app.work_sidebar_project_nav_hovered);
 }
+
+#[cfg(not(target_arch = "wasm32"))]
+#[test]
+fn work_sidebar_updates_before_gateway_reply() {
+    use crate::app::{Message, config};
+    use iced_runtime::futures::futures::StreamExt;
+    use serde_json::json;
+    use std::sync::mpsc;
+    use std::time::Duration;
+
+    const TIMEOUT: Duration = Duration::from_secs(3);
+
+    config::with_editor_settings_gateway(|mut app, requests, responses| {
+        app.work_sidebar_collapsed = false;
+        let (states, observed_states) = mpsc::channel();
+        let (click_again, second_click) = mpsc::channel();
+        let gateway = std::thread::spawn(move || {
+            let first = requests.recv_timeout(TIMEOUT).expect("first PATCH");
+            let collapsed = observed_states.recv_timeout(TIMEOUT);
+            click_again.send(()).unwrap();
+            let expanded = collapsed.is_ok().then(|| observed_states.recv_timeout(TIMEOUT));
+            // Release the response even on failure so a synchronous handler can return.
+            responses.send(Some("{}".into())).unwrap();
+            assert_eq!(collapsed, Ok(true), "first update must return before the PATCH reply");
+            assert_eq!(
+                expanded,
+                Some(Ok(false)),
+                "second update must return before the PATCH reply"
+            );
+
+            let second = requests.recv_timeout(TIMEOUT).expect("second PATCH");
+            responses.send(Some("{}".into())).unwrap();
+            for (request, value) in [(first, true), (second, false)] {
+                assert!(request.starts_with("PATCH /v1/desktop/preferences "));
+                let body: serde_json::Value =
+                    serde_json::from_str(request.split_once("\r\n\r\n").unwrap().1).unwrap();
+                assert_eq!(body, json!({"work_sidebar_collapsed": value}));
+            }
+        });
+
+        let runtime = tokio::runtime::Builder::new_multi_thread()
+            .worker_threads(1)
+            .enable_all()
+            .build()
+            .unwrap();
+        let first = update_panel(&mut app, ViewMessage::WorkSidebarToggled);
+        states.send(app.work_sidebar_collapsed).ok();
+        let save = |task| {
+            iced_runtime::task::into_stream(task).map(|mut actions| {
+                runtime.spawn(async move {
+                    while let Some(action) = actions.next().await {
+                        if let iced_runtime::Action::Output(message) = action {
+                            return message;
+                        }
+                    }
+                    panic!("expected a save completion");
+                })
+            })
+        };
+        let first = save(first);
+        second_click.recv_timeout(TIMEOUT).unwrap();
+        let mut next = update_panel(&mut app, ViewMessage::WorkSidebarToggled);
+        states.send(app.work_sidebar_collapsed).ok();
+
+        if let Some(first) = first {
+            assert!(iced_runtime::task::into_stream(next).is_none());
+            let mut pending = Some(first);
+            while let Some(task) = pending {
+                let message: Message = runtime
+                    .block_on(async { tokio::time::timeout(TIMEOUT, task).await })
+                    .unwrap()
+                    .unwrap();
+                next = app.update(message);
+                pending = save(next);
+            }
+        }
+        gateway.join().unwrap();
+        assert!(!app.work_sidebar_collapsed);
+    });
+}

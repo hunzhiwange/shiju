@@ -675,6 +675,9 @@ impl App {
                 }
                 Task::none()
             }
+            Message::DesktopPreferencesSaved(scope, result) => {
+                self.desktop_preferences_saved(scope, result)
+            }
             Message::GatewayHealthTick => {
                 let servers = self.gateway_client_settings.servers.clone();
                 if servers.is_empty() {

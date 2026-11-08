@@ -664,3 +664,85 @@ fn app_update_source_gateway_save_failure_reaches_unsaved_toast() {
     assert!(app.active_toast.as_ref().unwrap().message.contains("未保存"));
     assert_eq!(server.take_requests().len(), 1);
 }
+
+#[cfg(not(target_arch = "wasm32"))]
+#[test]
+fn preference_save_failure_keeps_new_edits_and_preserves_unrelated_fields() {
+    use crate::app::{App, Message};
+    use iced_runtime::futures::futures::StreamExt;
+    use serde_json::{Value, json};
+    use std::time::Duration;
+
+    let mut app = App::new().0;
+    let stored = Arc::new(Mutex::new(json!({"theme": "dark", "obsolete": true})));
+    let server_state = stored.clone();
+    let server = TestServer::start(2, move |request| {
+        assert_eq!(request.method, "PATCH");
+        assert_eq!(request.path, "/v1/desktop/preferences");
+        let fields: Value = serde_json::from_str(&request.body).unwrap();
+        if fields == json!({"show_settings": true}) {
+            return (500, r#"{"error":"preference rejected"}"#);
+        }
+        assert_eq!(fields, json!({"show_settings": false, "obsolete": null}));
+        let mut stored = server_state.lock().unwrap();
+        let stored = stored.as_object_mut().unwrap();
+        for (key, value) in fields.as_object().unwrap() {
+            if value.is_null() {
+                stored.remove(key);
+            } else {
+                stored.insert(key.clone(), value.clone());
+            }
+        }
+        (200, "{}")
+    });
+    let (_lock, _home, _guard) = configure_gateway(server.port);
+    let receive_save = |task| {
+        super::super::gateway::run_gateway_call(async {
+            let mut actions = iced_runtime::task::into_stream(task).expect("save task");
+            match tokio::time::timeout(Duration::from_secs(4), actions.next()).await {
+                Ok(Some(iced_runtime::Action::Output(
+                    message @ Message::DesktopPreferencesSaved(..),
+                ))) => Ok(message),
+                _ => Err("missing desktop preference save result".to_string()),
+            }
+        })
+        .unwrap()
+    };
+
+    let first = app.save_desktop_preference("show_settings", true.into());
+    let queued = app.save_desktop_preferences(
+        json!({"show_settings": false, "obsolete": null}).as_object().unwrap().clone(),
+    );
+    assert!(iced_runtime::task::into_stream(queued).is_none());
+    let failed = receive_save(first);
+    assert!(matches!(&failed, Message::DesktopPreferencesSaved(_, Err(_))));
+    let second = app.update(failed);
+    assert!(app.active_toast.as_ref().unwrap().message.contains("未保存"));
+
+    let saved = receive_save(second);
+    assert!(matches!(&saved, Message::DesktopPreferencesSaved(_, Ok(()))));
+    let done = app.update(saved);
+    assert!(iced_runtime::task::into_stream(done).is_none());
+    assert_eq!(*stored.lock().unwrap(), json!({"theme": "dark", "show_settings": false}));
+    assert_eq!(server.take_requests().len(), 2);
+}
+
+#[test]
+fn preference_writes_are_serialized_per_endpoint_and_tenant() {
+    use super::{DesktopPreferencesPersistence, GatewayEndpoint, TenantScope};
+    use serde_json::Map;
+
+    let mut queue = DesktopPreferencesPersistence::default();
+    let endpoint = GatewayEndpoint::new("localhost", 7777);
+    let same_endpoint = GatewayEndpoint::new("LOCALHOST", 7777);
+    let other_endpoint = GatewayEndpoint::new("localhost", 7778);
+    let other_tenant =
+        endpoint.clone().with_tenant_scope(TenantScope::new("test", "other").unwrap());
+    let fields = || Map::from_iter([("show_settings".into(), true.into())]);
+    let has_task = |task| iced_runtime::task::into_stream(task).is_some();
+
+    assert!(has_task(queue.enqueue(endpoint, fields())));
+    assert!(!has_task(queue.enqueue(same_endpoint, fields())));
+    assert!(has_task(queue.enqueue(other_endpoint, fields())));
+    assert!(has_task(queue.enqueue(other_tenant, fields())));
+}

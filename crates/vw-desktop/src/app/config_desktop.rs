@@ -1,9 +1,114 @@
 //! 通过网关读写桌面偏好配置。
 //! 本模块把历史本地配置调用收敛到显式的桌面偏好接口，并在网关失败时提供安全空配置回退。
 
-use super::gateway::{gateway_client, run_gateway_call, spawn_gateway_task};
-use crate::app::Message;
+use super::gateway::{
+    gateway_client, gateway_client_endpoint, run_gateway_call, spawn_gateway_task,
+};
+use crate::app::{App, Message};
 use iced::Task;
+use serde_json::{Map, Value};
+use std::collections::HashMap;
+use std::collections::hash_map::Entry;
+#[cfg(not(target_arch = "wasm32"))]
+use tokio::sync::watch;
+use vw_gateway_client::{GatewayClient, GatewayEndpoint, vw_api_types::id::TenantScope};
+
+type PreferencesScope = (String, TenantScope);
+
+struct PreferencesPatch {
+    endpoint: GatewayEndpoint,
+    fields: Map<String, Value>,
+}
+
+#[derive(Default)]
+pub(crate) struct DesktopPreferencesPersistence {
+    // Each entry represents an in-flight PATCH and any edits that arrived after it started.
+    in_flight: HashMap<PreferencesScope, Option<PreferencesPatch>>,
+    #[cfg(not(target_arch = "wasm32"))]
+    idle: Option<watch::Sender<bool>>,
+}
+
+impl DesktopPreferencesPersistence {
+    fn enqueue(&mut self, endpoint: GatewayEndpoint, fields: Map<String, Value>) -> Task<Message> {
+        let scope = (endpoint.base_url().to_ascii_lowercase(), endpoint.tenant_scope().clone());
+        match self.in_flight.entry(scope.clone()) {
+            Entry::Vacant(entry) => {
+                entry.insert(None);
+                Self::send(scope, PreferencesPatch { endpoint, fields })
+            }
+            Entry::Occupied(mut entry) => {
+                if let Some(pending) = entry.get_mut() {
+                    pending.endpoint = endpoint;
+                    pending.fields.extend(fields);
+                } else {
+                    entry.insert(Some(PreferencesPatch { endpoint, fields }));
+                }
+                Task::none()
+            }
+        }
+    }
+
+    fn send(scope: PreferencesScope, patch: PreferencesPatch) -> Task<Message> {
+        Task::perform(
+            async move {
+                let client = GatewayClient::new(patch.endpoint)?;
+                client.desktop_preferences_patch(&Value::Object(patch.fields)).await.map(|_| ())
+            },
+            move |result| Message::DesktopPreferencesSaved(scope, result),
+        )
+    }
+
+    fn finished(&mut self, scope: PreferencesScope) -> Task<Message> {
+        if let Some(pending) = self.in_flight.get_mut(&scope).and_then(Option::take) {
+            return Self::send(scope, pending);
+        }
+        self.in_flight.remove(&scope);
+        #[cfg(not(target_arch = "wasm32"))]
+        if self.in_flight.is_empty()
+            && let Some(idle) = self.idle.take()
+        {
+            idle.send_replace(true);
+        }
+        Task::none()
+    }
+
+    #[cfg(not(target_arch = "wasm32"))]
+    pub(crate) fn wait_for_idle(&mut self) -> Option<watch::Receiver<bool>> {
+        if self.in_flight.is_empty() {
+            return None;
+        }
+        let idle = self.idle.get_or_insert_with(|| watch::channel(false).0);
+        Some(idle.subscribe())
+    }
+}
+
+impl App {
+    pub(crate) fn save_desktop_preference(&mut self, key: &str, value: Value) -> Task<Message> {
+        self.save_desktop_preferences(Map::from_iter([(key.to_owned(), value)]))
+    }
+
+    pub(crate) fn save_desktop_preferences(&mut self, fields: Map<String, Value>) -> Task<Message> {
+        if fields.is_empty() {
+            return Task::none();
+        }
+        // Bind the destination before yielding to Iced. A server switch must not redirect queued edits.
+        self.desktop_preferences_persistence.enqueue(gateway_client_endpoint(), fields)
+    }
+
+    pub(crate) fn desktop_preferences_saved(
+        &mut self,
+        scope: PreferencesScope,
+        result: Result<(), String>,
+    ) -> Task<Message> {
+        let next = self.desktop_preferences_persistence.finished(scope);
+        match result {
+            Ok(()) => next,
+            Err(error) => {
+                Task::batch([next, self.show_error_toast(format!("桌面偏好未保存：{error}"))])
+            }
+        }
+    }
+}
 
 /// 独立解码每个会话，避免未知值影响其它会话的偏好恢复。
 pub(crate) fn session_reasoning_efforts_from_config(

@@ -4,7 +4,7 @@
 //! 不改变任何运行时行为。
 
 use super::ViewMessage;
-use crate::app::{App, FocusArea, Message, set_config_field};
+use crate::app::{App, FocusArea, Message};
 use iced::Task;
 
 const MIN_WORK_SIDEBAR_WIDTH: f32 = 220.0;
@@ -292,16 +292,16 @@ pub fn update(app: &mut App, message: ViewMessage) -> Task<Message> {
                 app.dragging_settings = false;
                 app.settings_drag_anchor_x = None;
             }
-            if app.dragging_file_manager {
+            let save = if app.dragging_file_manager {
                 app.dragging_file_manager = false;
                 app.file_manager_drag_anchor_x = None;
-                set_config_field(
+                app.save_desktop_preference(
                     "file_manager_width",
-                    serde_json::Value::Number(
-                        serde_json::Number::from_f64(app.file_manager_width as f64).unwrap(),
-                    ),
-                );
-            }
+                    serde_json::json!(app.file_manager_width),
+                )
+            } else {
+                Task::none()
+            };
             if app.dragging_split {
                 app.dragging_split = false;
             }
@@ -321,12 +321,18 @@ pub fn update(app: &mut App, message: ViewMessage) -> Task<Message> {
                 app.terminal.drag_anchor_y = None;
             }
             if app.git_diff_dragging {
-                return Task::done(Message::Git(
-                    crate::app::message::git::GitMessage::DiffDragSelectEnd,
-                ));
+                return Task::batch([
+                    save,
+                    Task::done(Message::Git(
+                        crate::app::message::git::GitMessage::DiffDragSelectEnd,
+                    )),
+                ]);
             }
             if app.file_tree_drag_source.is_some() && app.file_tree_drop_target.is_some() {
-                return crate::app::message::project::file_tree::release_tree_drop(app);
+                return Task::batch([
+                    save,
+                    crate::app::message::project::file_tree::release_tree_drop(app),
+                ]);
             }
             app.file_tree_drag_source = None;
             app.file_tree_drop_target = None;
@@ -341,15 +347,18 @@ pub fn update(app: &mut App, message: ViewMessage) -> Task<Message> {
 
             if input_drop_hovered && !app.pending_drop_file_paths.is_empty() {
                 app.focus_area = FocusArea::None;
-                return Task::done(Message::Chat(
-                    crate::app::message::chat::ChatMessage::InputAreaDragDrop,
-                ));
+                return Task::batch([
+                    save,
+                    Task::done(Message::Chat(
+                        crate::app::message::chat::ChatMessage::InputAreaDragDrop,
+                    )),
+                ]);
             }
 
             app.pending_drop_file_paths.clear();
             app.pending_drop_file_position = None;
 
-            Task::none()
+            save
         }
         ViewMessage::GlobalCursorLeft => {
             if app.file_tree_drag_source.is_some() {

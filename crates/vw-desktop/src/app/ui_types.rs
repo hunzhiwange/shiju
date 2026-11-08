@@ -86,6 +86,10 @@ pub enum Message {
     SessionPreviewsLoaded(Result<Vec<crate::app::models::ChatSessionMeta>, String>),
     ProjectChatPreferencesLoaded(String, Option<(String, bool, Option<String>)>),
     SessionPinsLoaded(u64, Result<std::collections::HashSet<(String, String)>, String>),
+    DesktopPreferencesSaved(
+        (String, vw_gateway_client::vw_api_types::id::TenantScope),
+        Result<(), String>,
+    ),
     GatewayHealthTick,
     GatewayHealthChecked(Vec<(String, bool)>),
     #[cfg(not(target_arch = "wasm32"))]

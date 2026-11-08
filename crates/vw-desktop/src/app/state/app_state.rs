@@ -355,6 +355,7 @@ pub struct App {
     pub(crate) task_pet_window_id: Option<iced::window::Id>,
     /// 主窗口是否已进入一次性关机流程
     pub(crate) shutdown_requested: bool,
+    pub(crate) desktop_preferences_persistence: crate::app::config::DesktopPreferencesPersistence,
     /// 是否显示设置面板
     pub(crate) show_settings: bool,
     /// 设置侧边栏是否折叠

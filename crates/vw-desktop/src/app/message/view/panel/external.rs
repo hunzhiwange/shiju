@@ -4,7 +4,7 @@
 //! 不改变任何运行时行为。
 
 use super::ViewMessage;
-use crate::app::{App, Message, set_config_field, state::ExternalOpenApp};
+use crate::app::{App, Message, state::ExternalOpenApp};
 use iced::Task;
 
 /// 执行 update 对应的领域操作。
@@ -52,17 +52,14 @@ pub fn update(app: &mut App, message: ViewMessage) -> Task<Message> {
         ViewMessage::OpenProjectInExternalWith(target) => {
             app.active_menu = None;
             app.open_external_app = target;
-            set_config_field(
-                "open_external_app",
-                serde_json::Value::String(target.as_str().to_string()),
-            );
+            let save = app.save_desktop_preference("open_external_app", target.as_str().into());
             let Some(path) = app.project_path.as_deref().map(str::to_owned) else {
-                return Task::none();
+                return save;
             };
             if !can_open_external(app, target) {
-                return Task::none();
+                return save;
             }
-            Task::perform(
+            let open = Task::perform(
                 async move {
                     let _ = crate::app::session_gateway::gateway_external_open_async(
                         &path,
@@ -71,7 +68,8 @@ pub fn update(app: &mut App, message: ViewMessage) -> Task<Message> {
                     .await;
                 },
                 |_| Message::None,
-            )
+            );
+            Task::batch([save, open])
         }
         ViewMessage::CopyProjectPath => {
             app.active_menu = None;

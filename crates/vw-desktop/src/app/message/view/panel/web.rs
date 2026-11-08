@@ -1,7 +1,7 @@
 //! 处理网页书签、独立 WebView 启动与书签 Cookie 配置消息。
 
 use super::ViewMessage;
-use crate::app::{App, Message, set_config_field};
+use crate::app::{App, Message};
 use iced::Task;
 
 const WEB_BOOKMARK_COOKIE_CONFIG_EXAMPLE: &str = r#"[
@@ -12,6 +12,36 @@ const WEB_BOOKMARK_COOKIE_CONFIG_EXAMPLE: &str = r#"[
     "url_filter": "https://example.com/"
   }
 ]"#;
+
+fn save_bookmarks(app: &mut App) -> Task<Message> {
+    let bookmarks = serde_json::Value::Array(
+        app.web_bookmarks
+            .iter()
+            .map(|b| {
+                let mut obj = serde_json::Map::new();
+                obj.insert("title".to_string(), serde_json::Value::String(b.title.clone()));
+                obj.insert("url".to_string(), serde_json::Value::String(b.url.clone()));
+                if let Some(w) = b.width
+                    && let Some(nn) = serde_json::Number::from_f64(w as f64)
+                {
+                    obj.insert("width".to_string(), serde_json::Value::Number(nn));
+                }
+                if let Some(h) = b.height
+                    && let Some(nn) = serde_json::Number::from_f64(h as f64)
+                {
+                    obj.insert("height".to_string(), serde_json::Value::Number(nn));
+                }
+                if let Some(configs) = &b.cookie_configs
+                    && let Ok(v) = serde_json::to_value(configs)
+                {
+                    obj.insert("cookie_configs".to_string(), v);
+                }
+                serde_json::Value::Object(obj)
+            })
+            .collect(),
+    );
+    app.save_desktop_preference("web_bookmarks", bookmarks)
+}
 
 /// 处理网页打开与书签 Cookie 配置；独立 WebView 不可用时回退系统浏览器。
 pub fn update(app: &mut App, message: ViewMessage) -> Task<Message> {
@@ -174,40 +204,11 @@ pub fn update(app: &mut App, message: ViewMessage) -> Task<Message> {
                     cookie_configs: None,
                 };
                 app.web_bookmarks.push(bm);
-                let arr = serde_json::Value::Array(
-                    app.web_bookmarks
-                        .iter()
-                        .map(|b| {
-                            let mut obj = serde_json::Map::new();
-                            obj.insert(
-                                "title".to_string(),
-                                serde_json::Value::String(b.title.clone()),
-                            );
-                            obj.insert("url".to_string(), serde_json::Value::String(b.url.clone()));
-                            if let Some(w) = b.width
-                                && let Some(nn) = serde_json::Number::from_f64(w as f64)
-                            {
-                                obj.insert("width".to_string(), serde_json::Value::Number(nn));
-                            }
-                            if let Some(h) = b.height
-                                && let Some(nn) = serde_json::Number::from_f64(h as f64)
-                            {
-                                obj.insert("height".to_string(), serde_json::Value::Number(nn));
-                            }
-                            if let Some(configs) = &b.cookie_configs
-                                && let Ok(v) = serde_json::to_value(configs)
-                            {
-                                obj.insert("cookie_configs".to_string(), v);
-                            }
-                            serde_json::Value::Object(obj)
-                        })
-                        .collect(),
-                );
-                set_config_field("web_bookmarks", arr);
                 app.web_bookmark_title_input.clear();
                 app.web_bookmark_url_input.clear();
                 app.web_bookmark_width_input.clear();
                 app.web_bookmark_height_input.clear();
+                return save_bookmarks(app);
             }
             Task::none()
         }
@@ -262,6 +263,7 @@ pub fn update(app: &mut App, message: ViewMessage) -> Task<Message> {
             Task::none()
         }
         ViewMessage::WebBookmarkEditSave => {
+            let mut save = Task::none();
             if let Some(idx) = app.editing_web_bookmark {
                 let title = app.edit_web_bookmark_title_input.trim().to_string();
                 let url = app.edit_web_bookmark_url_input.trim().to_string();
@@ -277,39 +279,7 @@ pub fn update(app: &mut App, message: ViewMessage) -> Task<Message> {
                         bm.height = app.edit_web_bookmark_height_input.trim().parse::<i32>().ok();
                         bm.cookie_configs = cookie_configs;
                     }
-                    let arr = serde_json::Value::Array(
-                        app.web_bookmarks
-                            .iter()
-                            .map(|b| {
-                                let mut obj = serde_json::Map::new();
-                                obj.insert(
-                                    "title".to_string(),
-                                    serde_json::Value::String(b.title.clone()),
-                                );
-                                obj.insert(
-                                    "url".to_string(),
-                                    serde_json::Value::String(b.url.clone()),
-                                );
-                                if let Some(w) = b.width
-                                    && let Some(nn) = serde_json::Number::from_f64(w as f64)
-                                {
-                                    obj.insert("width".to_string(), serde_json::Value::Number(nn));
-                                }
-                                if let Some(h) = b.height
-                                    && let Some(nn) = serde_json::Number::from_f64(h as f64)
-                                {
-                                    obj.insert("height".to_string(), serde_json::Value::Number(nn));
-                                }
-                                if let Some(configs) = &b.cookie_configs
-                                    && let Ok(v) = serde_json::to_value(configs)
-                                {
-                                    obj.insert("cookie_configs".to_string(), v);
-                                }
-                                serde_json::Value::Object(obj)
-                            })
-                            .collect(),
-                    );
-                    set_config_field("web_bookmarks", arr);
+                    save = save_bookmarks(app);
                 }
             }
             app.editing_web_bookmark = None;
@@ -318,7 +288,7 @@ pub fn update(app: &mut App, message: ViewMessage) -> Task<Message> {
             app.edit_web_bookmark_width_input.clear();
             app.edit_web_bookmark_height_input.clear();
             app.edit_web_bookmark_cookie_configs_editor = iced::widget::text_editor::Content::new();
-            Task::none()
+            save
         }
         ViewMessage::WebBookmarkEditCancel => {
             app.editing_web_bookmark = None;
@@ -330,38 +300,10 @@ pub fn update(app: &mut App, message: ViewMessage) -> Task<Message> {
             Task::none()
         }
         ViewMessage::WebBookmarkRemove(idx) => {
+            let mut save = Task::none();
             if idx < app.web_bookmarks.len() {
                 app.web_bookmarks.remove(idx);
-                let arr = serde_json::Value::Array(
-                    app.web_bookmarks
-                        .iter()
-                        .map(|b| {
-                            let mut obj = serde_json::Map::new();
-                            obj.insert(
-                                "title".to_string(),
-                                serde_json::Value::String(b.title.clone()),
-                            );
-                            obj.insert("url".to_string(), serde_json::Value::String(b.url.clone()));
-                            if let Some(w) = b.width
-                                && let Some(nn) = serde_json::Number::from_f64(w as f64)
-                            {
-                                obj.insert("width".to_string(), serde_json::Value::Number(nn));
-                            }
-                            if let Some(h) = b.height
-                                && let Some(nn) = serde_json::Number::from_f64(h as f64)
-                            {
-                                obj.insert("height".to_string(), serde_json::Value::Number(nn));
-                            }
-                            if let Some(configs) = &b.cookie_configs
-                                && let Ok(v) = serde_json::to_value(configs)
-                            {
-                                obj.insert("cookie_configs".to_string(), v);
-                            }
-                            serde_json::Value::Object(obj)
-                        })
-                        .collect(),
-                );
-                set_config_field("web_bookmarks", arr);
+                save = save_bookmarks(app);
             }
             if app.editing_web_bookmark == Some(idx) {
                 app.editing_web_bookmark = None;
@@ -372,7 +314,7 @@ pub fn update(app: &mut App, message: ViewMessage) -> Task<Message> {
                 app.edit_web_bookmark_cookie_configs_editor =
                     iced::widget::text_editor::Content::new();
             }
-            Task::none()
+            save
         }
         _ => Task::none(),
     }

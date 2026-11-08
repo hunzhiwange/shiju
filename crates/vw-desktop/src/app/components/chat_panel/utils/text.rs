@@ -76,6 +76,15 @@ pub fn truncate_lines_middle(s: &str, max_lines: usize, per_line_max_chars: usiz
     out.join("\n")
 }
 
+/// 拆出 Markdown 围栏及其后缀，供正文清理和代码块解析使用。
+pub(crate) fn markdown_code_fence(line: &str) -> Option<(&str, &str)> {
+    let line = line.trim_start();
+    let marker @ ('`' | '~') = line.chars().next()? else { return None };
+    let suffix = line.trim_start_matches(marker);
+    let fence = &line[..line.len() - suffix.len()];
+    (fence.len() >= 3).then_some((fence, suffix))
+}
+
 /// 归一化 display text，让后续路径或文本比较保持确定性。
 ///
 /// # 参数
@@ -103,13 +112,20 @@ pub fn normalize_display_text<'a>(s: &'a str) -> Cow<'a, str> {
 
     let mut out = String::with_capacity(s.len());
     let mut prev_blank = false;
-    let mut in_fence = false;
+    let mut open_fence = None;
     for raw_line in s.split('\n') {
         let line = raw_line.trim_end_matches('\r');
-        if line.trim_start().starts_with("```") {
-            in_fence = !in_fence;
-        }
-        if in_fence {
+        let fence = markdown_code_fence(line);
+        if open_fence.is_some() || fence.is_some() {
+            match (open_fence, fence) {
+                (None, Some((fence, _))) => open_fence = Some(fence),
+                (Some(open), Some((close, suffix)))
+                    if close.starts_with(open) && suffix.trim().is_empty() =>
+                {
+                    open_fence = None;
+                }
+                _ => {}
+            }
             out.push_str(line);
             out.push('\n');
             prev_blank = false;

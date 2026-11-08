@@ -139,7 +139,7 @@ impl SessionViewSnapshot {
         let message_id_bytes =
             self.chat_message_ids.iter().filter_map(Option::as_deref).map(str::len);
         let markdown_bytes =
-            self.chat_markdown_blocks.values().flatten().map(|block| block.text.len());
+            self.chat_markdown_blocks.values().flatten().map(MarkdownBlock::stored_bytes);
         let editor_bytes = self
             .chat_message_editors
             .iter()

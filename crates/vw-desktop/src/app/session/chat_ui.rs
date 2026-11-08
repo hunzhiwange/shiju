@@ -365,16 +365,37 @@ fn sync_chat_explore_summary_animations_for_message(
 ///
 /// 块结构存入 `chat_markdown_blocks`，对应编辑器存入 `chat_markdown_block_editors`，
 /// 二者键方案分别按消息+文本块索引、消息+文本块+块索引。
-fn sync_markdown_blocks_for_text(app: &mut App, msg_idx: usize, text_idx: usize, text: &str) {
+fn sync_markdown_blocks_for_text(
+    app: &mut App,
+    msg_idx: usize,
+    text_idx: usize,
+    text: &str,
+    is_large_message: bool,
+) {
     use crate::app::components::chat_panel::message_view;
 
     let blocks = message_view::parse_markdown_blocks(text);
-    let editor_text = message_view::markdown_editor_text(&blocks);
-    if let Some(editor) = read_only_chat_editor_content(&editor_text) {
-        let key = message_view::markdown_block_key(msg_idx, text_idx, 0);
-        app.chat_markdown_block_editors.insert(key, editor);
-    }
     let block_key = ((msg_idx as u64) << 32) | (text_idx as u64);
+    if app.chat_markdown_blocks.contains_key(&block_key) {
+        app.chat_markdown_block_editors.retain(|key, _| (*key >> 32) != u128::from(block_key));
+    }
+    for (section_idx, section) in message_view::markdown_sections(&blocks).enumerate() {
+        if !section[0].uses_editor() {
+            continue;
+        }
+        let text = match section {
+            [block] => std::borrow::Cow::Borrowed(block.text.as_str()),
+            _ => std::borrow::Cow::Owned(message_view::markdown_editor_text(section)),
+        };
+        if let Some(editor) = read_only_chat_editor_content(&text) {
+            let key = message_view::markdown_block_key(msg_idx, text_idx, section_idx);
+            app.chat_markdown_block_editors.insert(key, editor);
+            // 大回复折叠时也会准备缓存，避免为大量代码和段落预建编辑器。
+            if is_large_message {
+                break;
+            }
+        }
+    }
     app.chat_markdown_blocks.insert(block_key, blocks);
 }
 
@@ -421,7 +442,13 @@ impl App {
                     if let Some(editor) = read_only_chat_editor_content(text) {
                         self.chat_special_text_editors.insert(key, editor);
                     }
-                    sync_markdown_blocks_for_text(self, msg_idx, current_idx, text);
+                    sync_markdown_blocks_for_text(
+                        self,
+                        msg_idx,
+                        current_idx,
+                        text,
+                        entry.is_large_message,
+                    );
                 }
                 ParsedChatBlock::Think { content, open } => {
                     let key = ((msg_idx as u64) << 32) | think_idx as u64;
@@ -481,7 +508,13 @@ fn sync_chat_aux_text_editors_for_message(
             app.chat_special_text_editors.insert(key, editor);
         }
         if is_assistant_message && !reuse_markdown_cache {
-            sync_markdown_blocks_for_text(app, msg_idx, text_idx, text);
+            sync_markdown_blocks_for_text(
+                app,
+                msg_idx,
+                text_idx,
+                text,
+                render_entry.is_large_message,
+            );
         }
     }
 
@@ -491,7 +524,13 @@ fn sync_chat_aux_text_editors_for_message(
         && !render_entry.display_text.trim().is_empty()
         && !reuse_markdown_cache
     {
-        sync_markdown_blocks_for_text(app, msg_idx, 0, &render_entry.display_text);
+        sync_markdown_blocks_for_text(
+            app,
+            msg_idx,
+            0,
+            &render_entry.display_text,
+            render_entry.is_large_message,
+        );
     }
 
     for (tool_idx, source) in render_entry.tool_card_text_blocks.iter().enumerate() {

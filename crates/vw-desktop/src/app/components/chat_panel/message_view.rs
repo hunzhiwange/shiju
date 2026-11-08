@@ -20,6 +20,8 @@
 mod assistant_body;
 mod assistant_error;
 mod markdown;
+mod markdown_code;
+mod markdown_rich;
 mod parse;
 mod render_cache;
 mod styles;
@@ -89,7 +91,8 @@ pub(crate) use self::assistant_body::deduped_tool_last_indices;
 #[cfg(test)]
 pub(crate) use self::assistant_body::should_highlight_pending_permission_tool;
 pub(crate) use self::markdown::{
-    MarkdownBlock, markdown_block_key, markdown_editor_text, parse_markdown_blocks,
+    MarkdownBlock, markdown_block_key, markdown_editor_text, markdown_sections,
+    parse_markdown_blocks,
 };
 pub(crate) use self::parse::hash_chat_content;
 pub(crate) use self::render_cache::{

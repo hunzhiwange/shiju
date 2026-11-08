@@ -37,6 +37,7 @@ pub use path::{
     normalize_file_reference_to_path, normalize_file_url_to_path, relative_to_project_root,
     resolve_path,
 };
+pub(crate) use text::markdown_code_fence;
 pub use text::{
     normalize_display_text, single_line_preview, strip_internal_tool_trace, truncate_chars,
     truncate_lines_middle,

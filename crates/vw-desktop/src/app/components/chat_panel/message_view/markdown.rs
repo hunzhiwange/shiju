@@ -1,16 +1,15 @@
 //! 助手消息正文的轻量 Markdown 渲染。
 //!
-//! iced 自带的 markdown widget 基于 rich_text，无法划选复制。为兼顾块级格式与
-//! 复制能力，这里自实现一个简易块级解析：把正文切成标题/段落/列表/代码块/引用，
-//! 每个块用只读 `text_editor` 渲染（原生支持划选复制），行内 `**`、`` ` ``、链接
-//! 等标记被清理为纯文本，仅保留块级排版。
+//! 普通正文保留只读编辑器，代码块、表格和包含链接的块单独渲染。
+
+use std::collections::BTreeMap;
 
 use iced::advanced::layout;
 use iced::advanced::renderer;
 use iced::advanced::widget::{self, Operation, Tree};
 use iced::advanced::{Clipboard, Layout, Shell, Widget};
 use iced::mouse;
-use iced::widget::{Space, column, container, row, text, text_editor};
+use iced::widget::{Space, column, container, row, rule, text, text_editor};
 use iced::{
     Background, Border, Color, Element, Event, Length, Padding, Point, Rectangle, Size, Theme,
 };
@@ -21,13 +20,14 @@ use crate::app::{App, Message, message};
 use super::super::tool_text_support::{
     READ_ONLY_EDITOR_MAX_HEIGHT, chat_text_font, read_only_text_style,
 };
-use super::styles::{
-    MARKDOWN_BLOCK_SPACING, MESSAGE_TEXT_SIZE, is_dark_theme, message_body_text_color,
-};
+use super::super::utils::markdown_code_fence;
+use super::markdown_code::{code_block_view, is_package_command};
+use super::markdown_rich::{self, Inline, MarkdownTable};
+use super::styles::{MARKDOWN_BLOCK_SPACING, MESSAGE_TEXT_SIZE, message_body_text_color};
 
 /// Markdown 块类型。
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub(crate) enum MarkdownBlockKind {
+pub(super) enum MarkdownBlockKind {
     /// 标题，携带级别（1-6）。
     Heading(u8),
     /// 普通段落。
@@ -40,13 +40,63 @@ pub(crate) enum MarkdownBlockKind {
     CodeBlock(Option<String>),
     /// 引用块。
     Quote,
+    Rule,
+    TaskItem {
+        indent: u8,
+        number: Option<String>,
+        checked: bool,
+    },
+    Table(MarkdownTable),
 }
 
 /// 单个 Markdown 块：类型 + 已清理为纯文本的内容。
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub(crate) struct MarkdownBlock {
-    pub(crate) kind: MarkdownBlockKind,
+    pub(super) kind: MarkdownBlockKind,
     pub(crate) text: String,
+    pub(super) inline: Vec<Inline>,
+}
+
+impl MarkdownBlock {
+    fn from_text(
+        kind: MarkdownBlockKind,
+        source: &str,
+        references: &BTreeMap<String, String>,
+    ) -> Self {
+        let mut inline = markdown_rich::parse_inline(source, references);
+        let text = if inline.is_empty() {
+            strip_inline_markdown(source)
+        } else {
+            inline.iter().map(|span| span.text.as_str()).collect()
+        };
+        if inline.iter().all(|span| span.url.is_none() && span.style == Default::default()) {
+            inline = Vec::new();
+        }
+        Self { kind, text, inline }
+    }
+
+    pub(crate) fn stored_bytes(&self) -> usize {
+        let table_bytes = match &self.kind {
+            MarkdownBlockKind::Table(table) => table.stored_bytes(),
+            _ => 0,
+        };
+        self.text.len() + table_bytes + self.inline.iter().map(Inline::stored_bytes).sum::<usize>()
+    }
+
+    pub(crate) fn uses_editor(&self) -> bool {
+        self.inline.is_empty()
+            && !matches!(self.kind, MarkdownBlockKind::Table(_) | MarkdownBlockKind::Rule)
+    }
+
+    fn joins_prose(&self) -> bool {
+        self.uses_editor() && matches!(self.kind, MarkdownBlockKind::Paragraph)
+    }
+}
+
+pub(crate) fn markdown_sections(
+    blocks: &[MarkdownBlock],
+) -> impl Iterator<Item = &[MarkdownBlock]> {
+    blocks.chunk_by(|left, right| left.joins_prose() && right.joins_prose())
 }
 
 #[derive(Debug, Clone, Copy, PartialEq)]
@@ -88,15 +138,6 @@ pub(crate) fn markdown_visual_contract() -> MarkdownVisualContract {
 /// Markdown 块编辑器键：消息索引 + 文本块索引 + 块索引。
 pub(crate) fn markdown_block_key(msg_idx: usize, text_idx: usize, block_idx: usize) -> u128 {
     ((msg_idx as u128) << 64) | ((text_idx as u128) << 32) | (block_idx as u128)
-}
-
-/// 把 Markdown 链接 URI 映射为外部打开消息。
-///
-/// 当前块级渲染把链接清理为纯文本（仅保留标签），暂未提供可点击链接；
-/// 该映射保留给后续“可点击链接”能力与测试复用。
-#[cfg(test)]
-pub(crate) fn link_click_message(url: String) -> Message {
-    Message::View(message::ViewMessage::OpenUrlExternal(url))
 }
 
 /// 去除行内 Markdown 标记，仅保留可读纯文本。
@@ -218,12 +259,23 @@ fn parse_autolink(chars: &[char]) -> Option<(String, usize)> {
 
 /// 把一段正文解析为 Markdown 块列表。
 ///
-/// 仅识别常见块级语法：ATX 标题、围栏代码块、无序/有序列表、引用、空行分段。
-/// 不支持表格、缩进式代码块等复杂结构（退化为普通段落）。
+/// 识别常见块级语法和 GFM 表格。
 pub(crate) fn parse_markdown_blocks(input: &str) -> Vec<MarkdownBlock> {
     let mut blocks: Vec<MarkdownBlock> = Vec::new();
     let mut paragraph: Vec<String> = Vec::new();
-    let lines: Vec<&str> = input.lines().collect();
+    let lines: Vec<(usize, &str)> = input
+        .split_inclusive('\n')
+        .scan(0, |offset, line| {
+            let start = *offset;
+            *offset += line.len();
+            Some((start, line.trim_end_matches(['\r', '\n'])))
+        })
+        .collect();
+    let document = markdown_rich::parse_document(input);
+    let mut tables = document.tables;
+    let mut definitions = document.definitions;
+    let from_text =
+        |kind, source: &str| MarkdownBlock::from_text(kind, source, &document.references);
     let mut i = 0;
 
     let flush_paragraph = |blocks: &mut Vec<MarkdownBlock>, paragraph: &mut Vec<String>| {
@@ -232,36 +284,52 @@ pub(crate) fn parse_markdown_blocks(input: &str) -> Vec<MarkdownBlock> {
         }
         let joined = paragraph.join("\n");
         paragraph.clear();
-        let cleaned = strip_inline_markdown(joined.trim());
-        if !cleaned.trim().is_empty() {
-            blocks.push(MarkdownBlock { kind: MarkdownBlockKind::Paragraph, text: cleaned });
+        let block = from_text(MarkdownBlockKind::Paragraph, joined.trim());
+        if !block.text.trim().is_empty() || !block.inline.is_empty() {
+            blocks.push(block);
         }
     };
 
     while i < lines.len() {
-        let line = lines[i];
+        let (start, line) = lines[i];
         let trimmed = line.trim_start();
 
-        // 围栏代码块。
-        if let Some(lang) = trimmed.strip_prefix("```").or_else(|| trimmed.strip_prefix("~~~")) {
+        if let Some(end) = definitions.remove(&start) {
             flush_paragraph(&mut blocks, &mut paragraph);
-            let fence = if trimmed.starts_with("```") { "```" } else { "~~~" };
-            let language = lang.trim();
-            let language = (!language.is_empty()).then(|| language.to_string());
-            let mut code_lines: Vec<&str> = Vec::new();
+            i += lines[i..].partition_point(|(offset, _)| *offset < end);
+            continue;
+        }
+
+        if let Some((end, table)) = tables.remove(&start) {
+            flush_paragraph(&mut blocks, &mut paragraph);
+            blocks.push(MarkdownBlock {
+                kind: MarkdownBlockKind::Table(table),
+                text: input[start..end].trim_end().to_owned(),
+                inline: Vec::new(),
+            });
+            i += lines[i..].partition_point(|(offset, _)| *offset < end);
+            continue;
+        }
+
+        // 围栏代码块。闭合围栏须使用相同符号且至少与开头一样长。
+        if let Some((fence, info)) = markdown_code_fence(line) {
+            flush_paragraph(&mut blocks, &mut paragraph);
+            let language = info.split_whitespace().next().map(str::to_owned);
             i += 1;
-            while i < lines.len() && !lines[i].trim_start().starts_with(fence) {
-                code_lines.push(lines[i]);
-                i += 1;
-            }
-            // 跳过闭合围栏。
-            if i < lines.len() {
+            let start = i;
+            while i < lines.len()
+                && !markdown_code_fence(lines[i].1).is_some_and(|(close, suffix)| {
+                    close.starts_with(fence) && suffix.trim().is_empty()
+                })
+            {
                 i += 1;
             }
             blocks.push(MarkdownBlock {
                 kind: MarkdownBlockKind::CodeBlock(language),
-                text: code_lines.join("\n"),
+                text: lines[start..i].iter().map(|(_, line)| *line).collect::<Vec<_>>().join("\n"),
+                inline: Vec::new(),
             });
+            i += usize::from(i < lines.len());
             continue;
         }
 
@@ -272,9 +340,23 @@ pub(crate) fn parse_markdown_blocks(input: &str) -> Vec<MarkdownBlock> {
             continue;
         }
 
-        // 水平分割线视为空段落分隔（不单独渲染）。
+        if !paragraph.is_empty()
+            && let Some(level) = setext_level(trimmed.trim_end())
+        {
+            let title = paragraph.join("\n");
+            paragraph.clear();
+            blocks.push(from_text(MarkdownBlockKind::Heading(level), title.trim()));
+            i += 1;
+            continue;
+        }
+
         if is_thematic_break(trimmed) {
             flush_paragraph(&mut blocks, &mut paragraph);
+            blocks.push(MarkdownBlock {
+                kind: MarkdownBlockKind::Rule,
+                text: String::new(),
+                inline: Vec::new(),
+            });
             i += 1;
             continue;
         }
@@ -282,10 +364,7 @@ pub(crate) fn parse_markdown_blocks(input: &str) -> Vec<MarkdownBlock> {
         // ATX 标题。
         if let Some((level, rest)) = parse_atx_heading(trimmed) {
             flush_paragraph(&mut blocks, &mut paragraph);
-            blocks.push(MarkdownBlock {
-                kind: MarkdownBlockKind::Heading(level),
-                text: strip_inline_markdown(rest.trim()),
-            });
+            blocks.push(from_text(MarkdownBlockKind::Heading(level), rest));
             i += 1;
             continue;
         }
@@ -296,7 +375,7 @@ pub(crate) fn parse_markdown_blocks(input: &str) -> Vec<MarkdownBlock> {
             let mut quote_lines = vec![rest];
             i += 1;
             while i < lines.len() {
-                let q = lines[i].trim_start();
+                let q = lines[i].1.trim_start();
                 if let Some(rest) = q.strip_prefix("> ").or_else(|| q.strip_prefix(">")) {
                     quote_lines.push(rest);
                     i += 1;
@@ -304,32 +383,57 @@ pub(crate) fn parse_markdown_blocks(input: &str) -> Vec<MarkdownBlock> {
                     break;
                 }
             }
-            blocks.push(MarkdownBlock {
-                kind: MarkdownBlockKind::Quote,
-                text: strip_inline_markdown(quote_lines.join("\n").trim()),
-            });
+            blocks.push(from_text(MarkdownBlockKind::Quote, quote_lines.join("\n").trim()));
             continue;
         }
 
-        // 无序列表项。
         if let Some((indent, rest)) = parse_bullet_item(line) {
             flush_paragraph(&mut blocks, &mut paragraph);
-            blocks.push(MarkdownBlock {
-                kind: MarkdownBlockKind::BulletItem(indent),
-                text: strip_inline_markdown(rest.trim()),
-            });
+            let (kind, label) = if let Some((checked, label)) = task_marker(rest) {
+                (MarkdownBlockKind::TaskItem { indent, number: None, checked }, label)
+            } else {
+                (MarkdownBlockKind::BulletItem(indent), rest.trim())
+            };
+            blocks.push(from_text(kind, label));
             i += 1;
             continue;
         }
 
-        // 有序列表项。
         if let Some((marker, rest)) = parse_ordered_item(trimmed) {
             flush_paragraph(&mut blocks, &mut paragraph);
-            blocks.push(MarkdownBlock {
-                kind: MarkdownBlockKind::OrderedItem(marker),
-                text: strip_inline_markdown(rest.trim()),
-            });
+            let (kind, label) = if let Some((checked, label)) = task_marker(rest) {
+                (
+                    MarkdownBlockKind::TaskItem {
+                        indent: list_indent(line),
+                        number: Some(marker),
+                        checked,
+                    },
+                    label,
+                )
+            } else {
+                (MarkdownBlockKind::OrderedItem(marker), rest.trim())
+            };
+            blocks.push(from_text(kind, label));
             i += 1;
+            continue;
+        }
+
+        // 连续出现的裸包管理器命令共享一个代码块。
+        if is_package_command(line) {
+            flush_paragraph(&mut blocks, &mut paragraph);
+            let start = i;
+            while i < lines.len() && is_package_command(lines[i].1) {
+                i += 1;
+            }
+            blocks.push(MarkdownBlock {
+                kind: MarkdownBlockKind::CodeBlock(Some("shell".to_owned())),
+                text: lines[start..i]
+                    .iter()
+                    .map(|(_, line)| line.trim_start())
+                    .collect::<Vec<_>>()
+                    .join("\n"),
+                inline: Vec::new(),
+            });
             continue;
         }
 
@@ -350,26 +454,54 @@ fn is_thematic_break(trimmed: &str) -> bool {
             || compact.chars().all(|c| c == '_'))
 }
 
+fn setext_level(marker: &str) -> Option<u8> {
+    let first = marker.as_bytes().first()?;
+    if marker.bytes().all(|byte| byte == *first) {
+        match first {
+            b'=' => Some(1),
+            b'-' => Some(2),
+            _ => None,
+        }
+    } else {
+        None
+    }
+}
+
 fn parse_atx_heading(trimmed: &str) -> Option<(u8, &str)> {
-    let hashes = trimmed.chars().take_while(|&c| c == '#').count();
-    if hashes == 0 || hashes > 6 {
+    let hashes = trimmed.bytes().take_while(|&byte| byte == b'#').count();
+    if !(1..=6).contains(&hashes) {
         return None;
     }
-    let rest = &trimmed[hashes..];
-    // 标题井号后必须是空格，否则视为普通文本（如 "#标签"）。
-    if rest.starts_with(' ') { Some((hashes as u8, rest.trim_start())) } else { None }
+    let rest = trimmed[hashes..].strip_prefix([' ', '\t'])?.trim_end();
+    let without_closing = rest.trim_end_matches('#');
+    let title = if without_closing.ends_with([' ', '\t']) { without_closing } else { rest };
+    Some((hashes as u8, title.trim()))
+}
+
+fn list_indent(line: &str) -> u8 {
+    ((line.len().saturating_sub(line.trim_start().len()) / 2).min(4)) as u8
 }
 
 fn parse_bullet_item(line: &str) -> Option<(u8, &str)> {
-    let indent_spaces = line.len() - line.trim_start().len();
     let trimmed = line.trim_start();
     let rest = trimmed
         .strip_prefix("- ")
         .or_else(|| trimmed.strip_prefix("* "))
         .or_else(|| trimmed.strip_prefix("+ "))?;
-    // 每 2 空格算一级缩进，最多 4 级。
-    let level = ((indent_spaces / 2).min(4)) as u8;
-    Some((level, rest))
+    Some((list_indent(line), rest))
+}
+
+fn task_marker(source: &str) -> Option<(bool, &str)> {
+    let source = source.trim_start();
+    let (marker, rest) = source.split_at_checked(3)?;
+    if !rest.is_empty() && !rest.starts_with(char::is_whitespace) {
+        return None;
+    }
+    match marker {
+        "[ ]" => Some((false, rest.trim())),
+        "[x]" | "[X]" => Some((true, rest.trim())),
+        _ => None,
+    }
 }
 
 fn parse_ordered_item(trimmed: &str) -> Option<(String, &str)> {
@@ -408,7 +540,12 @@ pub(crate) fn markdown_editor_text(blocks: &[MarkdownBlock]) -> String {
     for (index, block) in blocks.iter().enumerate() {
         if index > 0 {
             let is_list_item = |kind: &MarkdownBlockKind| {
-                matches!(kind, MarkdownBlockKind::BulletItem(_) | MarkdownBlockKind::OrderedItem(_))
+                matches!(
+                    kind,
+                    MarkdownBlockKind::BulletItem(_)
+                        | MarkdownBlockKind::OrderedItem(_)
+                        | MarkdownBlockKind::TaskItem { .. }
+                )
             };
             if is_list_item(&blocks[index - 1].kind) && is_list_item(&block.kind) {
                 output.push('\n');
@@ -421,12 +558,21 @@ pub(crate) fn markdown_editor_text(blocks: &[MarkdownBlock]) -> String {
                 format!("{}• {}", "  ".repeat(usize::from(*level)), block.text)
             }
             MarkdownBlockKind::OrderedItem(marker) => format!("{marker} {}", block.text),
+            MarkdownBlockKind::TaskItem { indent, number, checked } => format!(
+                "{}{}[{}] {}",
+                "  ".repeat(usize::from(*indent)),
+                number.as_ref().map_or(String::new(), |number| format!("{number} ")),
+                if *checked { 'x' } else { ' ' },
+                block.text,
+            ),
+            MarkdownBlockKind::Rule => "---".to_owned(),
             MarkdownBlockKind::Quote => {
                 block.text.lines().map(|line| format!("│ {line}")).collect::<Vec<_>>().join("\n")
             }
             MarkdownBlockKind::Heading(_)
             | MarkdownBlockKind::Paragraph
-            | MarkdownBlockKind::CodeBlock(_) => block.text.clone(),
+            | MarkdownBlockKind::CodeBlock(_)
+            | MarkdownBlockKind::Table(_) => block.text.clone(),
         };
         output.push_str(&text);
     }
@@ -440,52 +586,66 @@ fn markdown_block_view<'a>(
     text_idx: usize,
     block_idx: usize,
     block: &'a MarkdownBlock,
-    whole_response: bool,
 ) -> Element<'a, Message> {
+    let join_prose = block.joins_prose();
     let contract = markdown_visual_contract();
     let theme = app.theme();
     let key = markdown_block_key(msg_idx, text_idx, block_idx);
-    let size = if whole_response { MESSAGE_TEXT_SIZE } else { block_text_size(&block.kind) };
-    let font = if whole_response { chat_text_font() } else { markdown_block_font(block) };
+    let size = block_text_size(&block.kind);
+    let font = if matches!(block.kind, MarkdownBlockKind::Heading(_)) {
+        iced::Font { weight: iced::font::Weight::Bold, ..chat_text_font() }
+    } else {
+        markdown_block_font(block)
+    };
     let body_color = message_body_text_color(&theme, false);
 
-    let editor: Element<'a, Message> =
-        if let Some(content) = app.chat_markdown_block_editors.get(&key) {
-            pass_wheel_to_parent(
-                text_editor(content)
-                    .on_action(move |action| {
-                        Message::Chat(message::ChatMessage::MarkdownBlockEditorAction(
-                            msg_idx, text_idx, block_idx, action,
-                        ))
-                    })
-                    .size(size)
-                    .line_height(iced::widget::text::LineHeight::Relative(contract.line_height))
-                    .padding(0)
-                    .height(Length::Shrink)
-                    .max_height(READ_ONLY_EDITOR_MAX_HEIGHT)
-                    .font(font)
-                    .style(move |theme: &Theme, _status| read_only_text_style(theme, body_color)),
-            )
-        } else {
-            // 编辑器缺失时回退为静态文本，仍可被气泡复制按钮覆盖。
-            text(block.text.clone())
-                .size(size)
-                .font(font)
-                .line_height(iced::widget::text::LineHeight::Relative(contract.line_height))
-                .style(move |_theme: &Theme| iced::widget::text::Style { color: Some(body_color) })
-                .into()
-        };
+    match &block.kind {
+        MarkdownBlockKind::Table(table) => {
+            return markdown_rich::table_view(table, &theme, body_color);
+        }
+        MarkdownBlockKind::Rule => return rule::horizontal(1).into(),
+        _ => {}
+    }
 
-    if whole_response {
+    let editor: Element<'a, Message> = if !block.inline.is_empty() {
+        markdown_rich::inline_view(&block.inline, size, body_color, &theme)
+            .font(font)
+            .width(Length::Fill)
+            .into()
+    } else if let Some(content) = app.chat_markdown_block_editors.get(&key) {
+        pass_wheel_to_parent(
+            text_editor(content)
+                .on_action(move |action| {
+                    Message::Chat(message::ChatMessage::MarkdownBlockEditorAction(
+                        msg_idx, text_idx, block_idx, action,
+                    ))
+                })
+                .size(size)
+                .line_height(iced::widget::text::LineHeight::Relative(contract.line_height))
+                .padding(0)
+                .height(Length::Shrink)
+                .max_height(READ_ONLY_EDITOR_MAX_HEIGHT)
+                .font(font)
+                .style(move |theme: &Theme, _status| read_only_text_style(theme, body_color)),
+        )
+    } else {
+        // 编辑器缺失时回退为静态文本，仍可被气泡复制按钮覆盖。
+        text(block.text.as_str())
+            .size(size)
+            .font(font)
+            .line_height(iced::widget::text::LineHeight::Relative(contract.line_height))
+            .style(move |_theme: &Theme| iced::widget::text::Style { color: Some(body_color) })
+            .into()
+    };
+
+    if join_prose {
         return container(editor).width(Length::Fill).into();
     }
 
     match &block.kind {
-        MarkdownBlockKind::CodeBlock(_) => container(editor)
-            .padding(contract.code_padding)
-            .width(Length::Fill)
-            .style(move |theme: &Theme| code_block_style(theme))
-            .into(),
+        MarkdownBlockKind::CodeBlock(language) => {
+            code_block_view(app, language.as_deref(), &block.text, editor)
+        }
         MarkdownBlockKind::Quote => {
             let line_count = block.text.lines().count().max(1) as f32;
             let quote_bar_height = size * 1.52 * line_count;
@@ -506,18 +666,14 @@ fn markdown_block_view<'a>(
             .into()
         }
         MarkdownBlockKind::BulletItem(level) => {
-            let indent =
-                contract.list_base_indent + f32::from(*level) * contract.list_nested_indent;
-            row![
-                container(text("•").size(size).style(move |_theme: &Theme| {
-                    iced::widget::text::Style { color: Some(body_color) }
-                }))
-                .padding(iced::Padding { top: 0.0, right: 6.0, bottom: 0.0, left: 0.0 })
-                .width(Length::Fixed(indent))
-                .align_x(iced::alignment::Horizontal::Right),
-                container(editor).width(Length::Fill),
-            ]
-            .into()
+            list_item_view(editor, *level, "•".to_owned(), body_color)
+        }
+        MarkdownBlockKind::TaskItem { indent, number, checked } => {
+            let marker = if *checked { "☑" } else { "☐" };
+            let marker = number
+                .as_ref()
+                .map_or_else(|| marker.to_owned(), |number| format!("{number} {marker}"));
+            list_item_view(editor, *indent, marker, body_color)
         }
         MarkdownBlockKind::OrderedItem(marker) => row![
             container(text(marker.clone()).size(size).font(chat_text_font()).style(
@@ -528,32 +684,27 @@ fn markdown_block_view<'a>(
             container(editor).width(Length::Fill),
         ]
         .into(),
-        MarkdownBlockKind::Heading(_) | MarkdownBlockKind::Paragraph => {
-            container(editor).width(Length::Fill).into()
-        }
+        MarkdownBlockKind::Heading(_)
+        | MarkdownBlockKind::Paragraph
+        | MarkdownBlockKind::Table(_)
+        | MarkdownBlockKind::Rule => container(editor).width(Length::Fill).into(),
     }
 }
 
-fn code_block_style(theme: &Theme) -> iced::widget::container::Style {
+fn list_item_view<'a>(
+    body: Element<'a, Message>,
+    level: u8,
+    marker: String,
+    color: Color,
+) -> Element<'a, Message> {
     let contract = markdown_visual_contract();
-    let is_dark = is_dark_theme(theme);
-    iced::widget::container::Style {
-        background: Some(Background::Color(if is_dark {
-            Color::from_rgba8(255, 255, 255, 0.06)
-        } else {
-            Color::from_rgba8(15, 23, 42, 0.05)
-        })),
-        border: Border {
-            width: contract.code_border_width,
-            color: if is_dark {
-                Color::from_rgba8(255, 255, 255, 0.10)
-            } else {
-                Color::from_rgba8(15, 23, 42, 0.10)
-            },
-            radius: contract.code_corner_radius.into(),
-        },
-        ..Default::default()
-    }
+    row![
+        Space::new().width(f32::from(level) * contract.list_nested_indent),
+        text(marker).size(MESSAGE_TEXT_SIZE).font(chat_text_font()).color(color),
+        container(body).width(Length::Fill),
+    ]
+    .spacing(6)
+    .into()
 }
 
 fn quote_bar_style(theme: &Theme) -> iced::widget::container::Style {
@@ -564,7 +715,7 @@ fn quote_bar_style(theme: &Theme) -> iced::widget::container::Style {
     }
 }
 
-/// 使用单个只读编辑器渲染整段助手正文。
+/// 保留相邻普通块的连续选区，代码块、表格和链接块使用独立视图。
 pub(crate) fn markdown_body_view<'a>(
     app: &'a App,
     msg_idx: usize,
@@ -572,14 +723,17 @@ pub(crate) fn markdown_body_view<'a>(
     blocks: &'a [MarkdownBlock],
 ) -> Element<'a, Message> {
     let mut body = column![].spacing(markdown_visual_contract().block_spacing).width(Length::Fill);
-    if let Some(block) = blocks.first() {
-        let key = markdown_block_key(msg_idx, text_idx, 0);
-        if app.chat_markdown_block_editors.contains_key(&key) {
-            body = body.push(markdown_block_view(app, msg_idx, text_idx, 0, block, true));
+    let mut block_count = 0;
+    for (section_idx, section) in markdown_sections(blocks).enumerate() {
+        block_count += 1;
+        let block = &section[0];
+        let key = markdown_block_key(msg_idx, text_idx, section_idx);
+        if !block.joins_prose() || app.chat_markdown_block_editors.contains_key(&key) {
+            body = body.push(markdown_block_view(app, msg_idx, text_idx, section_idx, block));
         } else {
             let body_color = message_body_text_color(&app.theme(), false);
             body = body.push(
-                text(markdown_editor_text(blocks))
+                text(markdown_editor_text(section))
                     .size(MESSAGE_TEXT_SIZE)
                     .font(chat_text_font())
                     .line_height(iced::widget::text::LineHeight::Relative(
@@ -591,12 +745,7 @@ pub(crate) fn markdown_body_view<'a>(
             );
         }
     }
-    Element::new(MarkdownSelectionArea {
-        content: body.into(),
-        msg_idx,
-        text_idx,
-        block_count: usize::from(!blocks.is_empty()),
-    })
+    Element::new(MarkdownSelectionArea { content: body.into(), msg_idx, text_idx, block_count })
 }
 
 #[derive(Debug, Default)]

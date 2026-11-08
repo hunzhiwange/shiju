@@ -12346,6 +12346,7 @@ dependencies = [
  "parking_lot",
  "pinyin",
  "portable-pty",
+ "pulldown-cmark 0.13.4",
  "rand 0.10.3",
  "regex",
  "reqwest 0.13.4",

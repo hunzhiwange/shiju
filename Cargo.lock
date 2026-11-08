@@ -12242,6 +12242,7 @@ dependencies = [
  "libc",
  "png 0.18.1",
  "reqwest 0.13.4",
+ "security-framework",
  "semver",
  "serde",
  "serde_json",

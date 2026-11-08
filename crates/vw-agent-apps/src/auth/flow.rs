@@ -211,6 +211,8 @@ fn next_poll(now: Instant, interval: u64, deadline: Instant) -> Instant {
 #[derive(Default)]
 pub struct AuthFlows {
     records: Mutex<HashMap<String, Arc<FlowRecord>>>,
+    #[cfg(target_os = "macos")]
+    replacement: Mutex<()>,
 }
 
 impl AuthFlows {
@@ -324,6 +326,38 @@ impl AuthFlows {
         cleanup: impl FnMut() -> Result<(), AuthErrorCode> + Send + 'static,
     ) -> Result<AuthFlow, AuthErrorCode> {
         self.register(scope, request, timing, Some(Box::new(cleanup)))
+    }
+
+    /// Preserve providers' single pending attempt within the authorized scope.
+    #[cfg(target_os = "macos")]
+    pub(super) fn replace_with_cleanup(
+        &self,
+        scope: AuthAccountScope<'_>,
+        request: AuthStartRequest,
+        timing: AuthFlowTiming,
+        cleanup: impl FnMut() -> Result<(), AuthErrorCode> + Send + 'static,
+    ) -> Result<AuthFlow, AuthErrorCode> {
+        let _replace =
+            self.replacement.lock().map_err(|_| AuthErrorCode::ExecutionHostUnavailable)?;
+        let candidates: Vec<_> = self
+            .records
+            .lock()
+            .map_err(|_| AuthErrorCode::ExecutionHostUnavailable)?
+            .iter()
+            .filter(|(_, record)| record.scope() == scope)
+            .map(|(id, record)| (AuthFlowId(id.clone()), Arc::clone(record)))
+            .collect();
+        for (id, record) in candidates {
+            let pending =
+                matches!(record.state_at(Instant::now)?.0.snapshot, AuthFlow::Pending { .. });
+            if pending {
+                match self.cancel(scope, &id, Instant::now) {
+                    Ok(()) | Err(AuthErrorCode::Conflict) => {}
+                    Err(error) => return Err(error),
+                }
+            }
+        }
+        self.start_with_cleanup(scope, request, timing, cleanup)
     }
 
     fn register(

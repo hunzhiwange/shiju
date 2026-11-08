@@ -1,5 +1,8 @@
 //! Host-owned account authorization flows and credentials.
 #[cfg(not(target_arch = "wasm32"))]
+mod browser_callback;
+
+#[cfg(not(target_arch = "wasm32"))]
 pub mod codex_browser;
 
 #[cfg(all(test, unix, not(target_arch = "wasm32")))]
@@ -90,3 +93,8 @@ mod kimi_account_tests;
 
 #[cfg(all(test, target_os = "macos"))]
 mod claude_snapshot_tests;
+
+#[cfg(target_os = "macos")]
+pub mod agy_login;
+#[cfg(all(test, target_os = "macos"))]
+mod agy_login_tests;

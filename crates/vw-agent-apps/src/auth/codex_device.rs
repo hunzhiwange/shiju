@@ -5,7 +5,7 @@ use super::{
     credential_file::AccountCredential,
     flow::{AuthAccountScope, AuthDevicePoll, AuthFlowTiming, AuthFlows},
 };
-use crate::providers::codex_login_material::parse_codex_jwt_claims;
+use crate::providers::{codex_login_material::parse_codex_jwt_claims, validate_identity};
 use base64::{Engine as _, engine::general_purpose::URL_SAFE_NO_PAD};
 use reqwest::{Client, Request, Response, StatusCode};
 use serde::Deserialize;
@@ -40,6 +40,7 @@ pub struct CodexDeviceAuth {
 pub struct CodexDeviceStart {
     pub response: AuthStartResponse,
     flow_id: AuthFlowId,
+    target_account_id: Option<String>,
     grant: Arc<Mutex<Option<DeviceGrant>>>,
 }
 
@@ -67,7 +68,7 @@ struct AuthorizationCode {
 pub(super) struct TokenResponse {
     access_token: String,
     refresh_token: String,
-    id_token: String,
+    id_token: Option<String>,
 }
 
 #[derive(Deserialize)]
@@ -102,14 +103,7 @@ impl CodexDeviceAuth {
         request: AuthStartRequest,
         mut route: impl FnMut(&mut Request),
     ) -> Result<CodexDeviceStart, AuthErrorCode> {
-        scope.validate()?;
-        if scope.service != AuthService::CodexOauth
-            || request.method != AuthLoginMethod::DeviceCode
-            || request.target_account_id.is_some()
-        {
-            return Err(AuthErrorCode::Unsupported);
-        }
-        request.validate_for(scope.service)?;
+        validate_start(scope, &request, AuthLoginMethod::DeviceCode)?;
         flows.reap_expired(Instant::now())?;
 
         let sent_at = Instant::now();
@@ -158,6 +152,7 @@ impl CodexDeviceAuth {
             user_code: challenge.user_code.clone(),
         })));
         let cleanup = Arc::clone(&grant);
+        let target_account_id = request.target_account_id.clone();
         let flow = flows.start_with_cleanup(scope, request, timing, move || {
             *cleanup.lock().map_err(|_| AuthErrorCode::ExecutionHostUnavailable)? = None;
             Ok(())
@@ -173,7 +168,7 @@ impl CodexDeviceAuth {
             user_code: Some(challenge.user_code),
             can_paste: None,
         };
-        Ok(CodexDeviceStart { response, flow_id, grant })
+        Ok(CodexDeviceStart { response, flow_id, target_account_id, grant })
     }
 
     /// Commit only within the original flow's scope, after upstream authorization.
@@ -184,6 +179,7 @@ impl CodexDeviceAuth {
         started: &CodexDeviceStart,
         persist: impl FnOnce(
             AuthAccountScope<'_>,
+            Option<&str>,
             &AuthAccount,
             &str,
             &AccountCredential,
@@ -201,6 +197,7 @@ impl CodexDeviceAuth {
         mut route: impl FnMut(&mut Request),
         persist: impl FnOnce(
             AuthAccountScope<'_>,
+            Option<&str>,
             &AuthAccount,
             &str,
             &AccountCredential,
@@ -223,14 +220,20 @@ impl CodexDeviceAuth {
                     match self.exchange(&grant, &mut route).await {
                         Ok(Exchange::Pending) => AuthDevicePoll::Pending,
                         Ok(Exchange::Expired) => AuthDevicePoll::Expired,
-                        Ok(Exchange::Authorized(tokens)) => {
-                            AuthDevicePoll::Complete(complete_account(scope, tokens))
-                        }
+                        Ok(Exchange::Authorized(tokens)) => AuthDevicePoll::Complete(
+                            complete_account(scope, started.target_account_id.as_deref(), tokens),
+                        ),
                         Err(error) => AuthDevicePoll::Complete(Err(error)),
                     }
                 },
-                |bound, _, account, (identity, credential)| {
-                    persist(bound, account, &identity, &credential)
+                |bound, request, account, (identity, credential)| {
+                    persist(
+                        bound,
+                        request.target_account_id.as_deref(),
+                        account,
+                        &identity,
+                        &credential,
+                    )
                 },
             )
             .await?;
@@ -283,6 +286,22 @@ impl CodexDeviceAuth {
         .await
         .map(Exchange::Authorized)
     }
+}
+
+pub(super) fn validate_start(
+    scope: AuthAccountScope<'_>,
+    request: &AuthStartRequest,
+    method: AuthLoginMethod,
+) -> Result<(), AuthErrorCode> {
+    scope.validate()?;
+    if scope.service != AuthService::CodexOauth || request.method != method {
+        return Err(AuthErrorCode::Unsupported);
+    }
+    request.validate_for(scope.service)?;
+    if let Some(id) = &request.target_account_id {
+        validate_identity(id).map_err(|_| AuthErrorCode::InvalidInput)?;
+    }
+    Ok(())
 }
 
 pub(super) fn oauth_client() -> Result<Client, AuthErrorCode> {
@@ -344,10 +363,12 @@ fn workspace_id(claims: &Value) -> Option<&str> {
 
 pub(super) fn complete_account(
     scope: AuthAccountScope<'_>,
+    target_account_id: Option<&str>,
     tokens: TokenResponse,
 ) -> Result<(AuthAccount, (String, AccountCredential)), AuthErrorCode> {
-    let id_claims =
-        parse_codex_jwt_claims(&tokens.id_token).ok_or(AuthErrorCode::UpstreamFailure)?;
+    let id_token =
+        tokens.id_token.filter(|token| !token.is_empty()).ok_or(AuthErrorCode::ReauthRequired)?;
+    let id_claims = parse_codex_jwt_claims(&id_token).ok_or(AuthErrorCode::UpstreamFailure)?;
     let subject = id_claims
         .get("sub")
         .and_then(Value::as_str)
@@ -361,15 +382,6 @@ pub(super) fn complete_account(
     // A ChatGPT workspace can contain multiple users. Neither claim alone identifies an account.
     let identity =
         serde_json::to_string(&(workspace, subject)).map_err(|_| AuthErrorCode::UpstreamFailure)?;
-    let scoped_identity = serde_json::to_vec(&(
-        scope.tenant.platform_id(),
-        scope.tenant.company_id(),
-        scope.principal,
-        scope.host,
-        scope.service,
-        &identity,
-    ))
-    .map_err(|_| AuthErrorCode::ExecutionHostUnavailable)?;
     let now = utc_now()?;
     let last_refresh = chrono::DateTime::from_timestamp_millis(now.0)
         .ok_or(AuthErrorCode::ExecutionHostUnavailable)?
@@ -380,13 +392,16 @@ pub(super) fn complete_account(
         "tokens": {
             "access_token": tokens.access_token,
             "refresh_token": tokens.refresh_token,
-            "id_token": tokens.id_token,
+            "id_token": id_token,
             "account_id": workspace,
         },
     }));
     credential.validate(AppId::Codex).map_err(|_| AuthErrorCode::UpstreamFailure)?;
     let account = AuthAccount {
-        account_id: URL_SAFE_NO_PAD.encode(Sha256::digest(scoped_identity)),
+        account_id: match target_account_id {
+            Some(id) => id.to_owned(),
+            None => codex_account_id(scope, &identity)?,
+        },
         service: AuthService::CodexOauth,
         label: "ChatGPT".into(),
         credential_state: AuthCredentialState::Ready,
@@ -397,4 +412,21 @@ pub(super) fn complete_account(
         region: None,
     };
     Ok((account, (identity, credential)))
+}
+
+/// Canonical ID for a new Codex account in this execution scope.
+pub fn codex_account_id(
+    scope: AuthAccountScope<'_>,
+    identity: &str,
+) -> Result<String, AuthErrorCode> {
+    let scoped_identity = serde_json::to_vec(&(
+        scope.tenant.platform_id(),
+        scope.tenant.company_id(),
+        scope.principal,
+        scope.host,
+        scope.service,
+        identity,
+    ))
+    .map_err(|_| AuthErrorCode::ExecutionHostUnavailable)?;
+    Ok(URL_SAFE_NO_PAD.encode(Sha256::digest(scoped_identity)))
 }

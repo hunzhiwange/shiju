@@ -1,7 +1,7 @@
 //! Host-owned Codex authorization-code flow with an IPv4 loopback callback.
 
 use super::{
-    codex_device::{CLIENT_ID, complete_account, exchange_code, oauth_client},
+    codex_device::{CLIENT_ID, complete_account, exchange_code, oauth_client, validate_start},
     copilot::{utc_now, valid_token},
     credential_file::AccountCredential,
     flow::{AuthAccountScope, AuthFlowTiming, AuthFlows},
@@ -24,8 +24,8 @@ use uuid::Uuid;
 use vw_api_types::{
     TimestampMs,
     agent_apps_auth::{
-        AuthAccount, AuthErrorCode, AuthFlow, AuthFlowId, AuthLoginMethod, AuthService,
-        AuthStartRequest, AuthStartResponse,
+        AuthAccount, AuthErrorCode, AuthFlow, AuthFlowId, AuthLoginMethod, AuthStartRequest,
+        AuthStartResponse,
     },
 };
 
@@ -70,6 +70,7 @@ impl Drop for CallbackWorker {
 pub struct CodexBrowserStart {
     pub response: AuthStartResponse,
     flow_id: AuthFlowId,
+    target_account_id: Option<String>,
     redirect_uri: String,
     client: Client,
     grant: Arc<Mutex<Option<BrowserGrant>>>,
@@ -104,14 +105,7 @@ impl CodexBrowserStart {
         port: u16,
         lifetime: Duration,
     ) -> Result<Self, AuthErrorCode> {
-        scope.validate()?;
-        if scope.service != AuthService::CodexOauth
-            || request.method != AuthLoginMethod::Browser
-            || request.target_account_id.is_some()
-        {
-            return Err(AuthErrorCode::Unsupported);
-        }
-        request.validate_for(scope.service)?;
+        validate_start(scope, &request, AuthLoginMethod::Browser)?;
         if !browser_on_execution_host {
             return Err(AuthErrorCode::CallbackUnreachable);
         }
@@ -150,6 +144,7 @@ impl CodexBrowserStart {
             .map_err(|_| AuthErrorCode::ExecutionHostUnavailable)?;
         let worker = Arc::new(Mutex::new(CallbackWorker { stop, join: Some(join) }));
         let cleanup = Arc::clone(&worker);
+        let target_account_id = request.target_account_id.clone();
         let flow = flows.start_with_cleanup(
             scope,
             request,
@@ -170,6 +165,7 @@ impl CodexBrowserStart {
         Ok(Self {
             response,
             flow_id,
+            target_account_id,
             redirect_uri,
             client,
             grant,
@@ -184,6 +180,7 @@ impl CodexBrowserStart {
         scope: AuthAccountScope<'_>,
         persist: impl FnOnce(
             AuthAccountScope<'_>,
+            Option<&str>,
             &AuthAccount,
             &str,
             &AccountCredential,
@@ -199,6 +196,7 @@ impl CodexBrowserStart {
         mut route: impl FnMut(&mut Request),
         persist: impl FnOnce(
             AuthAccountScope<'_>,
+            Option<&str>,
             &AuthAccount,
             &str,
             &AccountCredential,
@@ -228,7 +226,7 @@ impl CodexBrowserStart {
             let tokens =
                 exchange_code(&self.client, &code, &verifier, &self.redirect_uri, &mut route)
                     .await?;
-            complete_account(scope, tokens)
+            complete_account(scope, self.target_account_id.as_deref(), tokens)
         }
         .await;
         let completed = match result {
@@ -237,7 +235,15 @@ impl CodexBrowserStart {
                 &self.flow_id,
                 Instant::now,
                 Ok(account),
-                |bound, _, account| persist(bound, account, &identity, &credential),
+                |bound, request, account| {
+                    persist(
+                        bound,
+                        request.target_account_id.as_deref(),
+                        account,
+                        &identity,
+                        &credential,
+                    )
+                },
             ),
             Err(error) => {
                 flows.complete(scope, &self.flow_id, Instant::now, Err(error), |_, _, _| Ok(()))

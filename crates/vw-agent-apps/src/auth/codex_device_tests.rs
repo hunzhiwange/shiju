@@ -104,7 +104,7 @@ async fn auth6_codex_device_commits_expected_scoped_result() {
             &started,
             Instant::now,
             |_| panic!("early poll sent HTTP"),
-            |_, _, _, _| panic!("early poll persisted"),
+            |_, _, _, _, _| panic!("early poll persisted"),
         )
         .await
         .unwrap();
@@ -125,7 +125,7 @@ async fn auth6_codex_device_commits_expected_scoped_result() {
                 |outbound| {
                     route_to(outbound, "/api/accounts/deviceauth/token", route.clone());
                 },
-                |_, _, _, _| panic!("pending authorization attempted to persist"),
+                |_, _, _, _, _| panic!("pending authorization attempted to persist"),
             )
             .await
             .unwrap();
@@ -162,8 +162,9 @@ async fn auth6_codex_device_commits_expected_scoped_result() {
                 let (path, route) = routes.pop_front().unwrap();
                 route_to(outbound, path, route);
             },
-            |bound, account, identity, material| {
+            |bound, target_account_id, account, identity, material| {
                 assert!(bound == scope);
+                assert_eq!(target_account_id, None);
                 assert_eq!(identity, r#"["fixture-workspace","fixture-user"]"#);
                 assert!(!account.is_default);
                 store
@@ -240,15 +241,15 @@ async fn auth6_codex_device_rejects_invalid_or_stale_input() {
         Some(AuthErrorCode::UpstreamFailure),
         "empty device grant must be rejected"
     );
-    for request in [
-        AuthStartRequest { method: AuthLoginMethod::Browser, ..request() },
-        AuthStartRequest { target_account_id: Some("existing".into()), ..request() },
-    ] {
-        let unsupported = auth
-            .start_with(&flows, scope, request, |_| panic!("unsupported request sent HTTP"))
-            .await;
-        assert_eq!(unsupported.err(), Some(AuthErrorCode::Unsupported));
-    }
+    let unsupported = auth
+        .start_with(
+            &flows,
+            scope,
+            AuthStartRequest { method: AuthLoginMethod::Browser, ..request() },
+            |_| panic!("unsupported request sent HTTP"),
+        )
+        .await;
+    assert_eq!(unsupported.err(), Some(AuthErrorCode::Unsupported));
 
     let started = start(&auth, &flows, scope).await;
     let due = Instant::now() + Duration::from_secs(9);
@@ -260,7 +261,7 @@ async fn auth6_codex_device_rejects_invalid_or_stale_input() {
             &started,
             || due,
             |_| panic!("foreign poll sent HTTP"),
-            |_, _, _, _| panic!("foreign poll persisted"),
+            |_, _, _, _, _| panic!("foreign poll persisted"),
         )
         .await;
     assert_eq!(result, Err(AuthErrorCode::NotFound));
@@ -280,7 +281,7 @@ async fn auth6_codex_device_rejects_invalid_or_stale_input() {
             |outbound| {
                 route_to(outbound, "/api/accounts/deviceauth/token", route.clone());
             },
-            |_, _, _, _| panic!("denial persisted"),
+            |_, _, _, _, _| panic!("denial persisted"),
         )
         .await
         .unwrap();
@@ -296,7 +297,7 @@ async fn auth6_codex_device_rejects_invalid_or_stale_input() {
             &started,
             || due,
             |_| panic!("terminal poll sent HTTP"),
-            |_, _, _, _| panic!("terminal poll persisted")
+            |_, _, _, _, _| panic!("terminal poll persisted")
         )
         .await,
         Ok(denied)
@@ -313,7 +314,7 @@ async fn auth6_codex_device_rejects_invalid_or_stale_input() {
             |outbound| {
                 route_to(outbound, "/api/accounts/deviceauth/token", route.clone());
             },
-            |_, _, _, _| panic!("expired poll persisted"),
+            |_, _, _, _, _| panic!("expired poll persisted"),
         )
         .await
         .unwrap();
@@ -357,7 +358,7 @@ async fn auth6_codex_device_rejects_invalid_or_stale_input() {
                     }
                     route_to(outbound, path, route);
                 },
-                |_, _, _, _| panic!("incomplete or cancelled exchange persisted"),
+                |_, _, _, _, _| panic!("incomplete or cancelled exchange persisted"),
             )
             .await
             .unwrap();
@@ -369,6 +370,184 @@ async fn auth6_codex_device_rejects_invalid_or_stale_input() {
             assert!(
                 matches!(result, AuthFlow::Failed { error, .. } if error.code == AuthErrorCode::UpstreamFailure)
             );
+        }
+    }
+}
+
+#[tokio::test]
+async fn auth6_codex_reauth_commits_expected_scoped_result() {
+    let auth = CodexDeviceAuth::new().unwrap();
+    let flows = AuthFlows::default();
+    let tenant = TenantScope::new("platform", "company").unwrap();
+    let scope = scope(&tenant);
+    let target = "existing-account";
+    let root = tempfile::tempdir().unwrap();
+    std::fs::set_permissions(root.path(), std::fs::Permissions::from_mode(0o700)).unwrap();
+    let store = CredentialFileStore::new(root.path()).unwrap();
+    let owner = store.for_owner(scope.principal).unwrap();
+    let old_tokens = json!({
+        "access_token":"old-access",
+        "refresh_token":"old-refresh",
+        "id_token":jwt(json!({"sub":"fixture-user","email":"old@example.test"})),
+        "account_id":"fixture-workspace",
+    });
+    let old = AccountCredential::CodexAuth(json!({"tokens":old_tokens}));
+    for id in [target, "other-account"] {
+        owner.save(scope.tenant, scope.host, AppId::Codex, id, &old).unwrap();
+    }
+
+    let (route, received) = oauth_server("200 OK", "", challenge()).await;
+    let started = auth
+        .start_with(
+            &flows,
+            scope,
+            AuthStartRequest { target_account_id: Some(target.into()), ..request() },
+            |outbound| route_to(outbound, "/api/accounts/deviceauth/usercode", route.clone()),
+        )
+        .await;
+    assert_eq!(started.as_ref().err(), None, "targeted device authorization should start");
+    assert!(received.await.unwrap().ends_with(r#"{"client_id":"app_EMoamEEZ73f0CkXaXp7hrann"}"#));
+    let started = started.unwrap();
+    let (poll, polled) = oauth_server(
+        "200 OK",
+        "",
+        json!({"authorization_code":"fixture-code","code_verifier":"fixture-verifier"}),
+    )
+    .await;
+    let tokens = json!({
+        "access_token":"replacement-access",
+        "refresh_token":"replacement-refresh",
+        "id_token":jwt(json!({
+            "sub":"fixture-user","email":"new@example.test","chatgpt_account_id":"fixture-workspace",
+        })),
+    });
+    let (exchange, exchanged) = oauth_server("200 OK", "", tokens).await;
+    let mut routes =
+        VecDeque::from([("/api/accounts/deviceauth/token", poll), ("/oauth/token", exchange)]);
+    let due = Instant::now() + Duration::from_secs(9);
+    let result = auth
+        .poll_with(
+            &flows,
+            scope,
+            &started,
+            || due,
+            |outbound| {
+                let (path, route) = routes.pop_front().unwrap();
+                route_to(outbound, path, route);
+            },
+            |bound, target_account_id, account, identity, credential| {
+                assert!(bound == scope);
+                assert_eq!(target_account_id, Some(target));
+                assert_eq!(account.account_id, target);
+                assert_eq!(identity, r#"["fixture-workspace","fixture-user"]"#);
+                owner
+                    .save(bound.tenant, bound.host, AppId::Codex, &account.account_id, credential)
+                    .unwrap();
+                Ok(())
+            },
+        )
+        .await
+        .unwrap();
+    let sent = polled.await.unwrap();
+    assert!(
+        sent.ends_with(r#"{"device_auth_id":"fixture-private-device","user_code":"ABCD-EFGH"}"#)
+    );
+    let sent = exchanged.await.unwrap();
+    assert!(sent.ends_with("&code_verifier=fixture-verifier"));
+    assert!(matches!(result, AuthFlow::Approved { account, .. } if account.account_id == target));
+    for (id, refresh) in [(target, "replacement-refresh"), ("other-account", "old-refresh")] {
+        let AccountCredential::CodexAuth(saved) =
+            owner.read(scope.tenant, scope.host, AppId::Codex, id).unwrap()
+        else {
+            panic!("expected a Codex credential");
+        };
+        assert_eq!(saved["tokens"]["refresh_token"], refresh);
+    }
+}
+
+#[tokio::test]
+async fn auth6_codex_reauth_rejects_invalid_or_stale_input() {
+    let flows = AuthFlows::default();
+    let tenant = TenantScope::new("platform", "company").unwrap();
+    let scope = scope(&tenant);
+    let invalid = CodexDeviceAuth::new()
+        .unwrap()
+        .start_with(
+            &flows,
+            scope,
+            AuthStartRequest { target_account_id: Some("../foreign".into()), ..request() },
+            |_| panic!("an invalid target must be rejected before sending HTTP"),
+        )
+        .await;
+    assert_eq!(invalid.err(), Some(AuthErrorCode::InvalidInput));
+
+    let mut tokens = json!({
+        "access_token":"fixture-access",
+        "refresh_token":"fixture-refresh",
+        "id_token":jwt(json!({"sub":"fixture-user","chatgpt_account_id":"fixture-workspace"})),
+    });
+    let valid_tokens = tokens.clone();
+    tokens.as_object_mut().unwrap().remove("id_token");
+    let target = "existing-account";
+    let client =
+        reqwest::Client::builder().no_proxy().timeout(Duration::from_secs(5)).build().unwrap();
+    for (tokens, expected_error) in [
+        (tokens, Some(AuthErrorCode::ReauthRequired)),
+        (valid_tokens.clone(), Some(AuthErrorCode::CodexOauthDuplicateAccount)),
+        (valid_tokens, None),
+    ] {
+        let started = super::codex_browser::CodexBrowserStart::start_on(
+            &flows,
+            scope,
+            AuthStartRequest {
+                method: AuthLoginMethod::Browser,
+                target_account_id: Some(target.into()),
+                ..request()
+            },
+            true,
+            0,
+            Duration::from_secs(60),
+        );
+        assert_eq!(started.as_ref().err(), None, "targeted browser authorization should start");
+        let started = started.unwrap();
+        let AuthStartResponse::Pending { verification_url, .. } = &started.response;
+        let authorization = Url::parse(verification_url).unwrap();
+        let params: std::collections::HashMap<_, _> = authorization.query_pairs().collect();
+        let mut callback = Url::parse(&params["redirect_uri"]).unwrap();
+        callback.set_host(Some("127.0.0.1")).unwrap();
+        callback
+            .query_pairs_mut()
+            .append_pair("state", &params["state"])
+            .append_pair("code", "fixture-code");
+        let response = client.get(callback).send().await.unwrap();
+        assert!(response.status().is_success());
+
+        let (exchange, exchanged) = oauth_server("200 OK", "", tokens).await;
+        let result = started
+            .poll_with(
+                &flows,
+                scope,
+                |outbound| route_to(outbound, "/oauth/token", exchange.clone()),
+                |bound, target_account_id, account, identity, _| {
+                    assert_ne!(expected_error, Some(AuthErrorCode::ReauthRequired));
+                    assert!(bound == scope);
+                    assert_eq!(target_account_id, Some(target));
+                    assert_eq!(account.account_id, target);
+                    assert_eq!(identity, r#"["fixture-workspace","fixture-user"]"#);
+                    expected_error.map_or(Ok(()), Err)
+                },
+            )
+            .await
+            .unwrap();
+        let sent = exchanged.await.unwrap();
+        assert!(sent.contains("grant_type=authorization_code&code=fixture-code&redirect_uri="));
+        match expected_error {
+            Some(expected) => {
+                assert!(matches!(result, AuthFlow::Failed { error, .. } if error.code == expected))
+            }
+            None => assert!(
+                matches!(result, AuthFlow::Approved { account, .. } if account.account_id == target)
+            ),
         }
     }
 }

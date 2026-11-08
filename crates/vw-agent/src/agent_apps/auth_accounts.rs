@@ -7,7 +7,7 @@ pub use vw_agent_apps::auth::flow::AuthAccountScope;
 #[cfg(not(target_arch = "wasm32"))]
 use vw_agent_apps::auth::{
     codex_browser::CodexBrowserStart,
-    codex_device::{CodexDeviceAuth, CodexDeviceStart},
+    codex_device::{CodexDeviceAuth, CodexDeviceStart, codex_account_id},
     copilot::{CopilotAuth, CopilotDeviceStart},
     copilot_token::CopilotSession,
     flow::AuthFlows,
@@ -167,8 +167,8 @@ impl AuthAccountStore {
         started: &CodexDeviceStart,
     ) -> Result<AuthFlow, AuthErrorCode> {
         adapter
-            .poll(flows, scope, started, |bound, account, identity, credential| {
-                self.commit_codex_account(bound, account, identity, credential)
+            .poll(flows, scope, started, |bound, target, account, identity, credential| {
+                self.commit_codex_account(bound, target, account, identity, credential)
             })
             .await
     }
@@ -182,8 +182,8 @@ impl AuthAccountStore {
         started: &CodexBrowserStart,
     ) -> Result<AuthFlow, AuthErrorCode> {
         started
-            .poll(flows, scope, |bound, account, identity, credential| {
-                self.commit_codex_account(bound, account, identity, credential)
+            .poll(flows, scope, |bound, target, account, identity, credential| {
+                self.commit_codex_account(bound, target, account, identity, credential)
             })
             .await
     }
@@ -192,12 +192,13 @@ impl AuthAccountStore {
     fn commit_codex_account(
         &self,
         scope: AuthAccountScope<'_>,
+        target: Option<&str>,
         account: &AuthAccount,
         identity: &str,
         credential: &AccountCredential,
     ) -> Result<(), AuthErrorCode> {
         crate::global_database::run_sync_database(|| {
-            Ok(self.store_codex_account(scope, account, identity, credential))
+            Ok(self.store_codex_account(scope, target, account, identity, credential))
         })
         .map_err(|_| AuthErrorCode::StorageUnavailable)?
     }
@@ -206,6 +207,7 @@ impl AuthAccountStore {
     fn store_codex_account(
         &self,
         scope: AuthAccountScope<'_>,
+        target: Option<&str>,
         account: &AuthAccount,
         identity: &str,
         credential: &AccountCredential,
@@ -214,21 +216,137 @@ impl AuthAccountStore {
         let mut metadata = AuthAccountMetadata::new(identity, authenticated_at)?;
         metadata.label = Some(account.label.clone());
         let id = &account.account_id;
-        let lease = self
+        if target.is_some_and(|target| target != id) {
+            return Err(AuthErrorCode::IdentityMismatch);
+        }
+        let owner = self
             .credentials
             .for_owner(scope.principal)
-            .and_then(|owner| owner.lease(scope.tenant, scope.host, AppId::Codex, id, true))
             .map_err(|_| AuthErrorCode::StorageUnavailable)?;
-        match self.read_metadata(&scope, id) {
-            Ok(saved) if saved.external_identity_sha256 == metadata.external_identity_sha256 => {
+        let canonical_id = codex_account_id(scope, identity)?;
+        // Serialize commits for this identity even when an existing account uses a different ID.
+        let acquire = |id| {
+            owner
+                .lease(scope.tenant, scope.host, AppId::Codex, id, true)
+                .map_err(|_| AuthErrorCode::StorageUnavailable)
+        };
+        let identity_lease = acquire(&canonical_id)?;
+        let account_lease;
+        let lease = if *id == canonical_id {
+            &identity_lease
+        } else {
+            account_lease = acquire(id)?;
+            &account_lease
+        };
+        let key = Self::managed_key(&scope, id)?;
+        let previous = self
+            .metadata
+            .get(scope.tenant, MANAGED_ACCOUNT_NAMESPACE, &key)
+            .map_err(|_| AuthErrorCode::StorageUnavailable)?;
+        if target.is_some() && previous.is_none() {
+            return Err(AuthErrorCode::NotFound);
+        }
+        if self.codex_identity_exists_elsewhere(scope, id, metadata.external_identity_sha256)? {
+            return Err(AuthErrorCode::CodexOauthDuplicateAccount);
+        }
+        if let Some(previous) = previous {
+            let saved: AuthAccountMetadata =
+                serde_json::from_str(&previous).map_err(|_| AuthErrorCode::StorageUnavailable)?;
+            if saved.external_identity_sha256 != metadata.external_identity_sha256 {
+                return Err(AuthErrorCode::IdentityMismatch);
+            }
+            if target.is_none() {
                 return Err(AuthErrorCode::CodexOauthDuplicateAccount);
             }
-            Ok(_) => return Err(AuthErrorCode::IdentityMismatch),
-            Err(AuthErrorCode::NotFound) => {}
-            Err(error) => return Err(error),
+            if saved.authenticated_at > authenticated_at {
+                return Err(AuthErrorCode::Conflict);
+            }
+            // Identity, display preferences and bindings belong to the existing account.
+            let updated = AuthAccountMetadata { authenticated_at, ..saved };
+            let updated =
+                serde_json::to_string(&updated).map_err(|_| AuthErrorCode::StorageUnavailable)?;
+            return self.replace_codex_credential(
+                scope.tenant,
+                &key,
+                &previous,
+                &updated,
+                lease,
+                credential,
+            );
         }
 
-        self.publish_oauth_credential(&scope, id, &metadata, &lease, credential)
+        self.publish_oauth_credential(&scope, id, &metadata, lease, credential)
+    }
+
+    #[cfg(not(target_arch = "wasm32"))]
+    fn codex_identity_exists_elsewhere(
+        &self,
+        scope: AuthAccountScope<'_>,
+        id: &str,
+        identity_hash: [u8; 32],
+    ) -> Result<bool, AuthErrorCode> {
+        let rows = self
+            .metadata
+            .list(scope.tenant, MANAGED_ACCOUNT_NAMESPACE)
+            .map_err(|_| AuthErrorCode::StorageUnavailable)?;
+        for row in rows {
+            let (principal, host, service, other_id): (String, String, AuthService, String) =
+                serde_json::from_str(&row.config_key)
+                    .map_err(|_| AuthErrorCode::StorageUnavailable)?;
+            if principal == scope.principal
+                && host == scope.host
+                && service == scope.service
+                && other_id != id
+            {
+                let other: AuthAccountMetadata = serde_json::from_str(&row.payload_json)
+                    .map_err(|_| AuthErrorCode::StorageUnavailable)?;
+                if other.external_identity_sha256 == identity_hash {
+                    return Ok(true);
+                }
+            }
+        }
+        Ok(false)
+    }
+
+    #[cfg(not(target_arch = "wasm32"))]
+    fn replace_codex_credential(
+        &self,
+        tenant: &TenantScope,
+        key: &str,
+        previous: &str,
+        updated: &str,
+        lease: &CredentialLease,
+        credential: &AccountCredential,
+    ) -> Result<(), AuthErrorCode> {
+        let old_credential = match lease.read() {
+            Ok(saved) => Some(saved),
+            Err(error) if error == "official account not found" => None,
+            Err(_) => return Err(AuthErrorCode::StorageUnavailable),
+        };
+        lease.save(credential).map_err(|_| AuthErrorCode::StorageUnavailable)?;
+        let error = match self.metadata.compare_exchange(
+            tenant,
+            MANAGED_ACCOUNT_NAMESPACE,
+            key,
+            previous,
+            updated,
+        ) {
+            Ok(true) => return Ok(()),
+            Ok(false) => AuthErrorCode::Conflict,
+            Err(_) => match self.metadata.get(tenant, MANAGED_ACCOUNT_NAMESPACE, key) {
+                Ok(Some(current)) if current == updated => return Ok(()),
+                Ok(_) => AuthErrorCode::StorageUnavailable,
+                // Publication may have succeeded. As with new accounts, keep the file when
+                // the database cannot confirm the state of its metadata.
+                Err(_) => return Err(AuthErrorCode::StorageUnavailable),
+            },
+        };
+        match old_credential {
+            Some(saved) => lease.save(&saved),
+            None => lease.remove_unpublished_oauth(),
+        }
+        .map_err(|_| AuthErrorCode::StorageUnavailable)?;
+        Err(error)
     }
 
     /// Advance a due Copilot attempt on the authorized execution host.

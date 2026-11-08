@@ -682,7 +682,7 @@ fn assert_codex_device_commit(open: impl Fn() -> GlobalDatabase) {
     let identity = r#"["fixture-account","fixture-subject"]"#;
     let credential = codex_auth();
     let store = AuthAccountStore::new(open(), root.path()).unwrap();
-    store.store_codex_account(scope, &account, identity, &credential).unwrap();
+    store.store_codex_account(scope, None, &account, identity, &credential).unwrap();
     drop(store);
 
     let store = AuthAccountStore::new(open(), root.path()).unwrap();
@@ -694,7 +694,7 @@ fn assert_codex_device_commit(open: impl Fn() -> GlobalDatabase) {
         serde_json::json!({"tokens":{"access_token":"replacement-access", "refresh_token":"replacement-refresh", "id_token":"replacement-id", "account_id":"fixture-account"}}),
     );
     assert_eq!(
-        store.store_codex_account(scope, &account, identity, &replacement),
+        store.store_codex_account(scope, None, &account, identity, &replacement),
         Err(AuthErrorCode::CodexOauthDuplicateAccount)
     );
     let owner = store.credentials.for_owner(scope.principal).unwrap();
@@ -755,7 +755,7 @@ fn auth6_codex_device_store_rolls_back_failed_metadata_insert() {
     };
     let credential = codex_auth();
     assert_eq!(
-        store.store_codex_account(scope, &account, "fixture-identity", &credential),
+        store.store_codex_account(scope, None, &account, "fixture-identity", &credential),
         Err(AuthErrorCode::StorageUnavailable)
     );
     assert_eq!(store.read_metadata(&scope, ACCOUNT_ID), Err(AuthErrorCode::NotFound));
@@ -764,5 +764,143 @@ fn auth6_codex_device_store_rolls_back_failed_metadata_insert() {
         matches!(owner.read(&tenant, scope.host, AppId::Codex, ACCOUNT_ID), Err(error) if error == "official account not found")
     );
     connection.execute_batch("DROP TRIGGER reject_auth_insert;").unwrap();
-    store.store_codex_account(scope, &account, "fixture-identity", &credential).unwrap();
+    store.store_codex_account(scope, None, &account, "fixture-identity", &credential).unwrap();
+}
+
+#[cfg(unix)]
+fn assert_codex_reauth_store(database: GlobalDatabase) {
+    let root = private_credentials_root();
+    let tenant = TenantScope::new("platform", "company").unwrap();
+    let scope = AuthAccountScope { service: AuthService::CodexOauth, ..account_scope(&tenant) };
+    let mut target = AuthAccount {
+        service: scope.service,
+        label: "ChatGPT".into(),
+        github_domain: None,
+        authenticated_at: Some(TimestampMs(10)),
+        ..copilot_account()
+    };
+    let other = AuthAccount { account_id: "other-account".into(), ..target.clone() };
+    let identity = r#"["fixture-account","fixture-subject"]"#;
+    let other_identity = r#"["fixture-account","other-subject"]"#;
+    let original = codex_auth();
+    let replacement = AccountCredential::CodexAuth(
+        serde_json::json!({"tokens":{"access_token":"replacement-access", "refresh_token":"replacement-refresh", "id_token":"replacement-id", "account_id":"fixture-account"}}),
+    );
+    let store = AuthAccountStore::new(database.clone(), root.path()).unwrap();
+    store.store_codex_account(scope, None, &target, identity, &original).unwrap();
+    store.store_codex_account(scope, None, &other, other_identity, &original).unwrap();
+    let foreign = AuthAccountScope { host: "other-host", ..scope };
+    store.store_codex_account(foreign, None, &target, identity, &original).unwrap();
+
+    let attempt = |account: &AuthAccount, incoming| {
+        store.commit_codex_account(
+            scope,
+            Some(&account.account_id),
+            account,
+            incoming,
+            &replacement,
+        )
+    };
+    let before = store.read_metadata(&scope, ACCOUNT_ID).unwrap();
+    let other_before = store.read_metadata(&scope, &other.account_id).unwrap();
+    let assert_refresh = |store: &AuthAccountStore, bound: AuthAccountScope<'_>, id, refresh| {
+        let owner = store.credentials.for_owner(bound.principal).unwrap();
+        let AccountCredential::CodexAuth(saved) =
+            owner.read(bound.tenant, bound.host, AppId::Codex, id).unwrap()
+        else {
+            panic!("expected a Codex credential");
+        };
+        assert_eq!(saved["tokens"]["refresh_token"], refresh);
+    };
+    target.authenticated_at = Some(TimestampMs(20));
+    for mismatch in
+        [r#"["fixture-account","unknown-subject"]"#, r#"["other-workspace","fixture-subject"]"#]
+    {
+        assert_eq!(attempt(&target, mismatch), Err(AuthErrorCode::IdentityMismatch));
+    }
+    assert_eq!(attempt(&target, other_identity), Err(AuthErrorCode::CodexOauthDuplicateAccount));
+    let missing = AuthAccount { account_id: "missing".into(), ..target.clone() };
+    let unknown_identity = r#"["fixture-account","unknown-subject"]"#;
+    assert_eq!(attempt(&missing, unknown_identity), Err(AuthErrorCode::NotFound));
+
+    // Even a matching target must be rejected if an older row also owns its identity.
+    let duplicate_id = "duplicate-account";
+    store.insert_metadata(&scope, duplicate_id, &before).unwrap();
+    assert_eq!(attempt(&target, identity), Err(AuthErrorCode::CodexOauthDuplicateAccount));
+    let duplicate_key = AuthAccountStore::managed_key(&scope, duplicate_id).unwrap();
+    store.metadata.delete(&tenant, MANAGED_ACCOUNT_NAMESPACE, &duplicate_key).unwrap();
+    assert_eq!(store.read_metadata(&scope, ACCOUNT_ID), Ok(before));
+    assert_refresh(&store, scope, ACCOUNT_ID, "fixture-refresh");
+    assert_refresh(&store, scope, &other.account_id, "fixture-refresh");
+
+    assert_eq!(attempt(&target, identity), Ok(()));
+    target.authenticated_at = Some(TimestampMs(19));
+    assert_eq!(attempt(&target, identity), Err(AuthErrorCode::Conflict));
+    drop(store);
+
+    let store = AuthAccountStore::new(database, root.path()).unwrap();
+    let metadata = store.read_metadata(&scope, ACCOUNT_ID).unwrap();
+    assert_eq!(metadata.authenticated_at, TimestampMs(20));
+    assert_eq!(metadata.label.as_deref(), Some("ChatGPT"));
+    assert_eq!(store.read_metadata(&scope, &other.account_id), Ok(other_before));
+    assert_refresh(&store, scope, ACCOUNT_ID, "replacement-refresh");
+    assert_refresh(&store, scope, &other.account_id, "fixture-refresh");
+    assert_refresh(&store, foreign, ACCOUNT_ID, "fixture-refresh");
+    assert_eq!(store.metadata.list(&tenant, MANAGED_ACCOUNT_NAMESPACE).unwrap().len(), 3);
+}
+
+#[cfg(unix)]
+#[test]
+fn auth6_codex_reauth_store_sqlite() {
+    let home = tempfile::tempdir().unwrap();
+    assert_codex_reauth_store(GlobalDatabase::for_home(home.path()).unwrap());
+}
+
+#[cfg(unix)]
+#[test]
+fn auth6_codex_reauth_store_postgres() {
+    let fixture = PostgresTestDatabase::from_environment().unwrap();
+    assert_codex_reauth_store(fixture.reopen().unwrap());
+    fixture.cleanup().unwrap();
+}
+
+#[cfg(unix)]
+#[test]
+fn auth6_codex_reauth_store_rolls_back_failed_metadata_update() {
+    let home = tempfile::tempdir().unwrap();
+    let root = private_credentials_root();
+    let database = GlobalDatabase::for_home(home.path()).unwrap();
+    let store = AuthAccountStore::new(database.clone(), root.path()).unwrap();
+    let tenant = TenantScope::new("platform", "company").unwrap();
+    let scope = AuthAccountScope { service: AuthService::CodexOauth, ..account_scope(&tenant) };
+    let mut target = AuthAccount {
+        service: scope.service,
+        label: "ChatGPT".into(),
+        github_domain: None,
+        ..copilot_account()
+    };
+    let identity = r#"["fixture-account","fixture-subject"]"#;
+    let original = codex_auth();
+    store.store_codex_account(scope, None, &target, identity, &original).unwrap();
+    let saved = store.read_metadata(&scope, ACCOUNT_ID).unwrap();
+    let connection = database.connect_sqlite().unwrap();
+    connection
+        .execute_batch(
+            "CREATE TRIGGER reject_auth_update BEFORE UPDATE ON gateway_settings
+             BEGIN SELECT RAISE(ABORT, 'fixture metadata update failure'); END;",
+        )
+        .unwrap();
+    target.authenticated_at = Some(TimestampMs(20));
+    let replacement = AccountCredential::CodexAuth(
+        serde_json::json!({"tokens":{"access_token":"replacement-access", "refresh_token":"replacement-refresh", "id_token":"replacement-id", "account_id":"fixture-account"}}),
+    );
+    assert_eq!(
+        store.commit_codex_account(scope, Some(ACCOUNT_ID), &target, identity, &replacement),
+        Err(AuthErrorCode::StorageUnavailable)
+    );
+    assert_eq!(store.read_metadata(&scope, ACCOUNT_ID), Ok(saved));
+    let owner = store.credentials.for_owner(scope.principal).unwrap();
+    let current = owner.read(&tenant, scope.host, AppId::Codex, ACCOUNT_ID).unwrap();
+    assert!(matches!((current, original),
+        (AccountCredential::CodexAuth(current), AccountCredential::CodexAuth(original)) if current == original));
 }

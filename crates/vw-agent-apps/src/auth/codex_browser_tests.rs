@@ -125,7 +125,7 @@ async fn auth6_codex_browser_commits_expected_scoped_result() {
                 &flows,
                 foreign,
                 |_| panic!("foreign poll exchanged a code"),
-                |_, _, _, _| panic!("foreign poll persisted"),
+                |_, _, _, _, _| panic!("foreign poll persisted"),
             )
             .await,
         Err(AuthErrorCode::NotFound)
@@ -153,8 +153,9 @@ async fn auth6_codex_browser_commits_expected_scoped_result() {
                 endpoint.set_path("/oauth/token");
                 *outbound.url_mut() = endpoint;
             },
-            |bound, account, identity, material| {
+            |bound, target_account_id, account, identity, material| {
                 assert!(bound == scope);
+                assert_eq!(target_account_id, None);
                 assert_eq!(identity, r#"["fixture-workspace","fixture-user"]"#);
                 store
                     .for_owner(bound.principal)
@@ -218,7 +219,7 @@ async fn auth6_codex_browser_commits_expected_scoped_result() {
                 &flows,
                 scope,
                 |_| panic!("replayed exchange"),
-                |_, _, _, _| { panic!("replayed commit") }
+                |_, _, _, _, _| { panic!("replayed commit") }
             )
             .await,
         Ok(result)
@@ -291,7 +292,7 @@ async fn auth6_codex_browser_rejects_invalid_or_stale_input() {
             &flows,
             scope,
             |_| panic!("invalid callback exchanged a code"),
-            |_, _, _, _| panic!("invalid callback persisted"),
+            |_, _, _, _, _| panic!("invalid callback persisted"),
         )
         .await
         .unwrap();
@@ -321,7 +322,7 @@ async fn auth6_codex_browser_rejects_invalid_or_stale_input() {
             &flows,
             scope,
             |_| panic!("denial exchanged a code"),
-            |_, _, _, _| panic!("denial persisted"),
+            |_, _, _, _, _| panic!("denial persisted"),
         )
         .await
         .unwrap();
@@ -351,7 +352,7 @@ async fn auth6_codex_browser_rejects_invalid_or_stale_input() {
             &flows,
             scope,
             |_| panic!("cancelled flow exchanged a code"),
-            |_, _, _, _| panic!("cancelled flow persisted"),
+            |_, _, _, _, _| panic!("cancelled flow persisted"),
         )
         .await
         .unwrap();
@@ -376,7 +377,7 @@ async fn auth6_codex_browser_rejects_invalid_or_stale_input() {
             &flows,
             scope,
             |_| panic!("expired flow exchanged a code"),
-            |_, _, _, _| panic!("expired flow persisted"),
+            |_, _, _, _, _| panic!("expired flow persisted"),
         )
         .await
         .unwrap();

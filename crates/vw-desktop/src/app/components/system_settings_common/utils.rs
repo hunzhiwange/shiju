@@ -8,10 +8,10 @@ pub const SETTINGS_LABEL_WIDTH: f32 = 232.0;
 ///
 /// 该定义保持在当前模块职责内，调用方应通过显式字段、变体或别名理解其语义。
 pub const SETTINGS_CONTROL_TEXT_SIZE: f32 = 14.0;
-/// `SETTINGS_CONTROL_PADDING` 常量，用于表达本模块对该领域对象的建模。
-///
-/// 该定义保持在当前模块职责内，调用方应通过显式字段、变体或别名理解其语义。
-pub const SETTINGS_CONTROL_PADDING: [u16; 2] = [12, 14];
+pub(super) const SETTINGS_CONTROL_HEIGHT: f32 = 38.0;
+/// Iced 单行输入框的默认行高为字号的 1.3 倍，剩余高度均分给上下内边距。
+pub const SETTINGS_CONTROL_PADDING: [f32; 2] =
+    [(SETTINGS_CONTROL_HEIGHT - SETTINGS_CONTROL_TEXT_SIZE * 1.3) / 2.0, 14.0];
 
 /// 设置行使用默认字体，支持中英文混排及换行。
 pub fn settings_field_label(label: &str) -> iced::widget::Text<'_> {

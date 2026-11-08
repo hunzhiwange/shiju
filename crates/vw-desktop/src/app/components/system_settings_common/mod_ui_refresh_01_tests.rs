@@ -1,4 +1,6 @@
-use super::settings_select;
+use super::{
+    SETTINGS_CONTROL_PADDING, SETTINGS_CONTROL_TEXT_SIZE, settings_select, settings_text_input_style,
+};
 use crate::app::Message;
 use crate::app::message::{GeneralSettingsMessage, SettingsMessage};
 use iced::advanced::{
@@ -190,6 +192,20 @@ impl Ui {
         );
         self.messages.clear();
     }
+}
+
+#[tokio::test]
+async fn settings_text_input_matches_select_height() {
+    let mut input = iced::widget::text_input("搜索", "示例")
+        .padding(SETTINGS_CONTROL_PADDING)
+        .size(SETTINGS_CONTROL_TEXT_SIZE)
+        .style(settings_text_input_style);
+    let mut select = settings_select(["示例".to_owned()], None, selected);
+
+    let input = Ui::new(&mut input, renderer().await);
+    let select = Ui::new(&mut select, renderer().await);
+
+    assert!((input.node.size().height - select.node.size().height).abs() < 0.01);
 }
 
 #[tokio::test]

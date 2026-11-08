@@ -11,6 +11,7 @@ mod tests;
 
 pub(crate) use label::Label as SettingsSelectLabel;
 
+use super::utils::SETTINGS_CONTROL_HEIGHT;
 use super::{SETTINGS_CONTROL_TEXT_SIZE, icon_svg};
 use crate::app::{Message, assets::Icon};
 use iced::advanced::widget::operation::focusable::Focusable;
@@ -111,7 +112,7 @@ fn trigger(value: String, placeholder: bool, enabled: bool) -> Element<'static, 
     .on_press_maybe(enabled.then_some(()))
     .padding([9, 12])
     .width(Length::Fill)
-    .height(38)
+    .height(SETTINGS_CONTROL_HEIGHT)
     .style(move |theme: &Theme, _| button::Style {
         text_color: styles::label(theme, placeholder, enabled),
         ..Default::default()

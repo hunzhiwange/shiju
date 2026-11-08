@@ -2325,7 +2325,6 @@ fn completed_stream_blocks_are_selectable_before_request_finishes() {
     use crate::app::components::chat_panel::{
         message_view::markdown_block_key, tool_text_support::selected_chat_text_for_message,
     };
-    use iced::widget::text_editor::Action;
     let (mut app, _) = crate::app::App::new();
     let session_id = "selectable-stream".to_string();
     app.active_session_id = Some(session_id.clone());
@@ -2341,8 +2340,12 @@ fn completed_stream_blocks_are_selectable_before_request_finishes() {
         "tool bash\n{\"id\":\"cmd-1\",\"name\":\"bash\",\"status\":\"running\"}".into(),
     );
     assert!(app.get_session_runtime(&session_id).is_requesting);
-    let key = markdown_block_key(0, 0, 0);
-    app.chat_markdown_block_editors.get_mut(&key).unwrap().perform(Action::SelectAll);
+    let _ = app.update(crate::app::Message::ChatMarkdownSelectionChanged {
+        session_id: session_id.clone(),
+        message_idx: 0,
+        text_idx: 0,
+        text: Some("阶段 说明".into()),
+    });
     assert_eq!(selected_chat_text_for_message(&app, 0).as_deref(), Some("阶段 说明"));
     let _ = super::handle_agent_stream_delta(&mut app, 42, "\n\n继续处理".into());
     let _ = super::handle_agent_workflow_node_update(
@@ -2359,9 +2362,7 @@ fn completed_stream_blocks_are_selectable_before_request_finishes() {
     let _ = super::handle_agent_stream_delta(&mut app, 42, "\n\n最终 **结论**".into());
     let _ = super::handle_agent_stream_done(&mut app, 42, Default::default(), None, None);
     assert!(!app.get_session_runtime(&session_id).is_requesting);
-    let editor = app.chat_markdown_block_editors.get_mut(&markdown_block_key(0, 2, 0)).unwrap();
-    editor.perform(Action::SelectAll);
-    assert_eq!(editor.selection().as_deref(), Some("最终 结论"));
+    assert_eq!(app.chat_markdown_blocks[&2][0].text, "最终 结论");
 }
 
 #[test]

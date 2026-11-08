@@ -67,7 +67,9 @@ fn preserves_projection(message: &Message) -> bool {
             | ViewMessage::WorkSidebarMoreOpened
             | ViewMessage::WorkSidebarMoreClosed,
         ) => true,
-        Message::Preview(_) | Message::Editor(_) => true,
+        Message::Preview(_) | Message::Editor(_) | Message::ChatMarkdownSelectionChanged { .. } => {
+            true
+        }
         Message::Chat(
             ChatMessage::ScrollChanged { .. }
             | ChatMessage::VisibleMessageMeasurements(_)

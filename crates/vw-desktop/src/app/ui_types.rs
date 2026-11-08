@@ -127,6 +127,12 @@ pub enum Message {
         input_focused: bool,
     },
     CopyCode(String),
+    ChatMarkdownSelectionChanged {
+        session_id: String,
+        message_idx: usize,
+        text_idx: usize,
+        text: Option<String>,
+    },
     CopyChatMessage {
         session_id: String,
         message_idx: usize,
@@ -137,6 +143,13 @@ pub enum Message {
     CloseError,
     None,
     Batch(Vec<Message>),
+}
+
+pub(crate) struct ChatMarkdownSelection {
+    pub(crate) session_id: String,
+    pub(crate) message_idx: usize,
+    pub(crate) text_idx: usize,
+    pub(crate) text: String,
 }
 
 /// 公开的 DiffTheme 枚举，描述该模块支持的一组离散状态或事件。

@@ -503,7 +503,7 @@ fn stale_prepared_stream_message_is_ignored() {
 #[test]
 fn markdown_cache_reuses_unchanged_message() {
     let (mut app, _task) = super::App::new();
-    app.chat = vec![message(super::ChatRole::Assistant, "# 标题\n\n第一段\n\n- 列表项")];
+    app.chat = vec![message(super::ChatRole::Assistant, "第一段\n\n第二段")];
     let first = super::prepare_chat_ui_message_phase(&app.chat[0], 0, false);
     app.apply_prepared_chat_ui_phase(first);
 
@@ -516,10 +516,10 @@ fn markdown_cache_reuses_unchanged_message() {
     let unchanged = super::prepare_chat_ui_message_phase(&app.chat[0], 0, false);
     app.apply_prepared_chat_ui_phase(unchanged);
 
-    assert_eq!(app.chat_markdown_blocks[&0].len(), 3);
+    assert_eq!(app.chat_markdown_blocks[&0].len(), 2);
     assert_eq!(
         app.chat_markdown_block_editors[&first_key].selection().as_deref(),
-        Some("标题"),
+        Some("第一段\n\n第二段"),
         "unchanged content should retain the existing editor instead of rebuilding it"
     );
 }

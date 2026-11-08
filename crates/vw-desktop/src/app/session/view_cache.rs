@@ -54,6 +54,7 @@ pub(crate) struct SessionViewSnapshot {
 impl SessionViewSnapshot {
     /// 通过移动而非克隆，将当前聊天工作集从 `App` 中取出。
     pub(crate) fn take_from(app: &mut App) -> Self {
+        app.chat_markdown_selection = None;
         let content_signature = session_content_signature(&app.chat, &app.chat_message_ids);
         Self {
             content_signature,

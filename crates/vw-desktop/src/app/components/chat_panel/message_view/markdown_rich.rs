@@ -15,6 +15,7 @@ use crate::app::Message;
 
 use super::super::tool_text_support::chat_text_font;
 use super::markdown_links::LinkTarget;
+use super::markdown_selection::{self, FragmentId, FragmentStyle, Selection};
 use super::styles::MESSAGE_TEXT_SIZE;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -278,20 +279,14 @@ pub(super) fn parse_document(input: &str) -> MarkdownDocument {
     document
 }
 
-pub(super) fn inline_view<'a>(
-    spans: &'a [Inline],
-    size: f32,
-    body_color: Color,
-    theme: &Theme,
-    on_link: impl Fn(LinkTarget) -> Message + 'a,
-) -> iced::widget::text::Rich<'a, LinkTarget, Message> {
+pub(super) fn inline_spans<'a>(spans: &'a [Inline], theme: &Theme) -> Vec<Span<'a, LinkTarget>> {
     let (link_color, emphasis_color) = if super::styles::is_dark_theme(theme) {
         (Color::from_rgb8(147, 197, 253), Color::from_rgb8(216, 180, 254))
     } else {
         (Color::from_rgb8(29, 78, 216), Color::from_rgb8(107, 33, 168))
     };
     let code_background = theme.palette().text.scale_alpha(0.08);
-    let spans: Vec<Span<'_, LinkTarget>> = spans
+    spans
         .iter()
         .map(|part| {
             let style = part.style;
@@ -325,8 +320,18 @@ pub(super) fn inline_view<'a>(
             }
             value
         })
-        .collect();
-    rich_text(spans)
+        .collect()
+}
+
+#[cfg(test)]
+pub(super) fn inline_view<'a>(
+    spans: &'a [Inline],
+    size: f32,
+    body_color: Color,
+    theme: &Theme,
+    on_link: impl Fn(LinkTarget) -> Message + 'a,
+) -> iced::widget::text::Rich<'a, LinkTarget, Message> {
+    rich_text(inline_spans(spans, theme))
         .size(size)
         .font(chat_text_font())
         .color(body_color)
@@ -340,6 +345,7 @@ pub(super) fn table_view<'a>(
     theme: &Theme,
     body_color: Color,
     on_link: impl Fn(LinkTarget) -> Message + Clone + 'a,
+    selection: Option<(Selection, usize)>,
 ) -> Element<'a, Message> {
     let theme = theme.clone();
     responsive(move |size| {
@@ -350,34 +356,60 @@ pub(super) fn table_view<'a>(
         let decoration_width = count * (2.0 * PADDING_X + SEPARATOR) - SEPARATOR;
         let cell_width =
             Length::Fixed(((size.width - decoration_width) / count).max(MIN_CELL_WIDTH));
-        let columns = data.alignments.iter().enumerate().map(|(index, &alignment)| {
+        let columns = data.alignments.iter().enumerate().map(|(column, &alignment)| {
             let theme = &theme;
-            let cell_link = on_link.clone();
-            let cell = move |row: &'a Vec<Vec<Inline>>| -> Element<'a, Message> {
-                let content = row.get(index).map_or(&[][..], Vec::as_slice);
-                inline_view(content, MESSAGE_TEXT_SIZE, body_color, theme, cell_link.clone())
-                    .width(cell_width)
-                    .align_x(alignment)
-                    .into()
+            let selection = &selection;
+            let on_link = &on_link;
+            let cell = move |row: usize, content: &'a [Inline]| -> Element<'a, Message> {
+                let font = if row == 0 {
+                    Font { weight: iced::font::Weight::Bold, ..chat_text_font() }
+                } else {
+                    chat_text_font()
+                };
+                let spans = inline_spans(content, theme);
+                if let Some((selection, section)) = selection {
+                    markdown_selection::fragment(
+                        selection.clone(),
+                        FragmentId { section: *section, row, column },
+                        spans,
+                        FragmentStyle {
+                            size: MESSAGE_TEXT_SIZE,
+                            color: body_color,
+                            font,
+                            width: cell_width,
+                            align: alignment.into(),
+                        },
+                        on_link.clone(),
+                    )
+                } else {
+                    rich_text(spans)
+                        .size(MESSAGE_TEXT_SIZE)
+                        .color(body_color)
+                        .font(font)
+                        .width(cell_width)
+                        .align_x(alignment)
+                        .line_height(LineHeight::Relative(1.6))
+                        .wrapping(Wrapping::WordOrGlyph)
+                        .on_link_click(on_link.clone())
+                        .into()
+                }
             };
-            let header = inline_view(
-                &data.rows[0][index],
-                MESSAGE_TEXT_SIZE,
-                body_color,
-                theme,
-                on_link.clone(),
+            table::column(
+                cell(0, &data.rows[0][column]),
+                move |(row, data): (usize, &'a Vec<Vec<Inline>>)| {
+                    cell(row + 1, data.get(column).map_or(&[][..], Vec::as_slice))
+                },
             )
             .width(cell_width)
-            .align_x(alignment)
-            .font(Font { weight: iced::font::Weight::Bold, ..chat_text_font() });
-            table::column(header, cell).width(cell_width)
         });
-        scrollable(table(columns, &data.rows[1..]).padding_x(PADDING_X).separator_x(SEPARATOR))
-            .direction(Direction::Horizontal(
-                Scrollbar::new().width(4).scroller_width(4).spacing(3),
-            ))
-            .width(Length::Fill)
-            .into()
+        scrollable(
+            table(columns, data.rows[1..].iter().enumerate())
+                .padding_x(PADDING_X)
+                .separator_x(SEPARATOR),
+        )
+        .direction(Direction::Horizontal(Scrollbar::new().width(4).scroller_width(4).spacing(3)))
+        .width(Length::Fill)
+        .into()
     })
     .height(Length::Shrink)
     .into()

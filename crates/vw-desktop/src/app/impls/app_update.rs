@@ -91,6 +91,11 @@ fn copy_shortcut_without_input(app: &mut App) -> Task<Message> {
         && !app.git_diff_selected_lines.is_empty()
     {
         message::git::update(app, message::GitMessage::CopyDiffSelection)
+    } else if app.screen == Screen::Project
+        && let Some(selection) = &app.chat_markdown_selection
+        && app.active_session_id.as_deref() == Some(selection.session_id.as_str())
+    {
+        Task::done(Message::CopyCode(selection.text.clone()))
     } else {
         message::editor::update(app, message::EditorMessage::Copy)
     }
@@ -798,6 +803,26 @@ impl App {
 
             // 复制代码到剪贴板
             Message::CopyCode(s) => copy_code(self, s),
+            Message::ChatMarkdownSelectionChanged { session_id, message_idx, text_idx, text } => {
+                if self.active_session_id.as_deref() == Some(session_id.as_str()) {
+                    if let Some(text) = text {
+                        self.chat_markdown_selection =
+                            Some(crate::app::ui_types::ChatMarkdownSelection {
+                                session_id,
+                                message_idx,
+                                text_idx,
+                                text,
+                            });
+                    } else if self.chat_markdown_selection.as_ref().is_some_and(|selection| {
+                        selection.session_id == session_id
+                            && selection.message_idx == message_idx
+                            && selection.text_idx == text_idx
+                    }) {
+                        self.chat_markdown_selection = None;
+                    }
+                }
+                Task::none()
+            }
 
             Message::CopyChatMessage { session_id, message_idx } => {
                 copy_chat_message(self, session_id, message_idx)

@@ -99,7 +99,14 @@ pub fn read_only_text_style(theme: &Theme, value: Color) -> iced::widget::text_e
 ///
 /// 参数含义保持与函数签名一致；返回值用于调用方继续组合处理，错误由返回类型显式表达。
 pub fn selected_chat_text_for_message(app: &App, msg_idx: usize) -> Option<String> {
-    selected_markdown_text_for_message(app, msg_idx)
+    app.chat_markdown_selection
+        .as_ref()
+        .filter(|selection| {
+            selection.message_idx == msg_idx
+                && app.active_session_id.as_deref() == Some(selection.session_id.as_str())
+        })
+        .map(|selection| selection.text.clone())
+        .or_else(|| selected_markdown_text_for_message(app, msg_idx))
         .or_else(|| app.chat_message_editors.get(msg_idx).and_then(selected_text))
         .or_else(|| {
             app.chat_special_text_editors

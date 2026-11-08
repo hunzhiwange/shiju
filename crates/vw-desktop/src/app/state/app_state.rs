@@ -212,6 +212,7 @@ pub struct App {
     /// 助手消息正文的 Markdown 块结构缓存（消息索引 + 文本块索引 -> 块列表）
     pub(crate) chat_markdown_blocks:
         HashMap<u64, Vec<crate::app::components::chat_panel::message_view::MarkdownBlock>>,
+    pub(crate) chat_markdown_selection: Option<crate::app::ui_types::ChatMarkdownSelection>,
     /// Markdown 块的可划选只读编辑器映射（消息索引 + 文本块索引 + 块索引 -> 编辑器内容）
     pub(crate) chat_markdown_block_editors: HashMap<u128, text_editor::Content>,
     /// 工具卡片文本编辑器映射（消息索引 + 工具索引 + 文本索引 -> 编辑器内容）

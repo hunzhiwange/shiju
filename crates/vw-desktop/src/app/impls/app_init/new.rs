@@ -406,6 +406,7 @@ impl App {
             chat_message_editors,
             chat_special_text_editors: HashMap::new(),
             chat_markdown_blocks: HashMap::new(),
+            chat_markdown_selection: None,
             chat_markdown_block_editors: HashMap::new(),
             chat_tool_text_editors: HashMap::new(),
             chat_think_editors: HashMap::new(),

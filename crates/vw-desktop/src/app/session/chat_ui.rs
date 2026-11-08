@@ -361,40 +361,29 @@ fn sync_chat_explore_summary_animations_for_message(
     });
 }
 
-/// 解析一段助手正文为 Markdown 块，并为每个块建立可划选只读编辑器。
+/// 解析助手正文。纯段落沿用只读编辑器，结构化内容由渲染层共享选区。
 ///
 /// 块结构存入 `chat_markdown_blocks`，对应编辑器存入 `chat_markdown_block_editors`，
 /// 二者键方案分别按消息+文本块索引、消息+文本块+块索引。
-fn sync_markdown_blocks_for_text(
-    app: &mut App,
-    msg_idx: usize,
-    text_idx: usize,
-    text: &str,
-    is_large_message: bool,
-) {
+fn sync_markdown_blocks_for_text(app: &mut App, msg_idx: usize, text_idx: usize, text: &str) {
     use crate::app::components::chat_panel::message_view;
 
     let blocks = message_view::parse_markdown_blocks(text);
     let block_key = ((msg_idx as u64) << 32) | (text_idx as u64);
-    if app.chat_markdown_blocks.contains_key(&block_key) {
-        app.chat_markdown_block_editors.retain(|key, _| (*key >> 32) != u128::from(block_key));
+    let editor_key = message_view::markdown_block_key(msg_idx, text_idx, 0);
+    app.chat_markdown_block_editors.remove(&editor_key);
+    if blocks.iter().all(message_view::MarkdownBlock::joins_prose)
+        && let Some(editor) =
+            read_only_chat_editor_content(&message_view::markdown_editor_text(&blocks))
+    {
+        app.chat_markdown_block_editors.insert(editor_key, editor);
     }
-    for (section_idx, section) in message_view::markdown_sections(&blocks).enumerate() {
-        if !section[0].uses_editor() {
-            continue;
-        }
-        let text = match section {
-            [block] => std::borrow::Cow::Borrowed(block.text.as_str()),
-            _ => std::borrow::Cow::Owned(message_view::markdown_editor_text(section)),
-        };
-        if let Some(editor) = read_only_chat_editor_content(&text) {
-            let key = message_view::markdown_block_key(msg_idx, text_idx, section_idx);
-            app.chat_markdown_block_editors.insert(key, editor);
-            // 大回复折叠时也会准备缓存，避免为大量代码和段落预建编辑器。
-            if is_large_message {
-                break;
-            }
-        }
+    if app
+        .chat_markdown_selection
+        .as_ref()
+        .is_some_and(|selection| selection.message_idx == msg_idx && selection.text_idx == text_idx)
+    {
+        app.chat_markdown_selection = None;
     }
     app.chat_markdown_blocks.insert(block_key, blocks);
 }
@@ -442,13 +431,7 @@ impl App {
                     if let Some(editor) = read_only_chat_editor_content(text) {
                         self.chat_special_text_editors.insert(key, editor);
                     }
-                    sync_markdown_blocks_for_text(
-                        self,
-                        msg_idx,
-                        current_idx,
-                        text,
-                        entry.is_large_message,
-                    );
+                    sync_markdown_blocks_for_text(self, msg_idx, current_idx, text);
                 }
                 ParsedChatBlock::Think { content, open } => {
                     let key = ((msg_idx as u64) << 32) | think_idx as u64;
@@ -508,13 +491,7 @@ fn sync_chat_aux_text_editors_for_message(
             app.chat_special_text_editors.insert(key, editor);
         }
         if is_assistant_message && !reuse_markdown_cache {
-            sync_markdown_blocks_for_text(
-                app,
-                msg_idx,
-                text_idx,
-                text,
-                render_entry.is_large_message,
-            );
+            sync_markdown_blocks_for_text(app, msg_idx, text_idx, text);
         }
     }
 
@@ -524,13 +501,7 @@ fn sync_chat_aux_text_editors_for_message(
         && !render_entry.display_text.trim().is_empty()
         && !reuse_markdown_cache
     {
-        sync_markdown_blocks_for_text(
-            app,
-            msg_idx,
-            0,
-            &render_entry.display_text,
-            render_entry.is_large_message,
-        );
+        sync_markdown_blocks_for_text(app, msg_idx, 0, &render_entry.display_text);
     }
 
     for (tool_idx, source) in render_entry.tool_card_text_blocks.iter().enumerate() {
@@ -859,6 +830,13 @@ impl App {
 
         self.chat_special_text_editors.retain(|key, _| keep_message((*key >> 32) as usize));
         self.chat_markdown_blocks.retain(|key, _| keep_message((*key >> 32) as usize));
+        if self
+            .chat_markdown_selection
+            .as_ref()
+            .is_some_and(|selection| !keep_message(selection.message_idx))
+        {
+            self.chat_markdown_selection = None;
+        }
         self.chat_markdown_block_editors.retain(|key, _| keep_message((*key >> 64) as usize));
         self.chat_tool_text_editors.retain(|key, _| {
             let message_idx = (*key >> 64) as usize;
@@ -1082,6 +1060,7 @@ impl App {
         self.chat_message_editors.clear();
         self.chat_special_text_editors.clear();
         self.chat_markdown_blocks.clear();
+        self.chat_markdown_selection = None;
         self.chat_markdown_block_editors.clear();
         self.chat_tool_text_editors.clear();
         self.chat_think_editors.clear();

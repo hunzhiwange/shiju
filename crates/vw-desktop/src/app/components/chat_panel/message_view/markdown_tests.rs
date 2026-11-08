@@ -5,8 +5,7 @@
 
 use super::markdown::{
     MarkdownBlock, MarkdownBlockKind, markdown_block_font, markdown_block_key, markdown_body_view,
-    markdown_editor_text, markdown_visual_contract, parse_markdown_blocks, selection_actions,
-    strip_inline_markdown,
+    markdown_editor_text, markdown_visual_contract, parse_markdown_blocks, strip_inline_markdown,
 };
 use super::markdown_links::{LinkTarget, link_click_message};
 use crate::app::components::chat_panel::tool_text_support::selected_chat_text_for_message;
@@ -122,43 +121,6 @@ fn block_key_is_unique_per_index_triplet() {
     assert_ne!(markdown_block_key(1, 0, 0), markdown_block_key(1, 0, 1));
     assert_ne!(markdown_block_key(1, 0, 0), markdown_block_key(1, 1, 0));
     assert_ne!(markdown_block_key(1, 0, 0), markdown_block_key(2, 0, 0));
-}
-
-#[test]
-fn cross_block_drag_selects_boundaries_and_intermediate_blocks() {
-    let actions = selection_actions(
-        0,
-        2,
-        iced::Point::new(40.0, 12.0),
-        iced::Rectangle::new(iced::Point::new(10.0, 10.0), iced::Size::new(100.0, 30.0)),
-        4,
-    );
-
-    assert!(actions.contains(&(1, text_editor::Action::SelectAll)));
-    assert!(actions.contains(&(3, text_editor::Action::Click(iced::Point::ORIGIN))));
-    assert!(
-        actions.contains(&(0, text_editor::Action::Drag(iced::Point::new(f32::MAX, f32::MAX))))
-    );
-    assert!(actions.contains(&(2, text_editor::Action::Click(iced::Point::ORIGIN))));
-    assert!(actions.contains(&(2, text_editor::Action::Drag(iced::Point::new(30.0, 2.0)))));
-}
-
-#[test]
-fn reverse_cross_block_drag_selects_from_current_end() {
-    let actions = selection_actions(
-        2,
-        0,
-        iced::Point::new(25.0, 18.0),
-        iced::Rectangle::new(iced::Point::new(5.0, 8.0), iced::Size::new(100.0, 30.0)),
-        3,
-    );
-
-    assert!(actions.contains(&(1, text_editor::Action::SelectAll)));
-    assert!(actions.contains(&(2, text_editor::Action::Drag(iced::Point::ORIGIN))));
-    assert!(
-        actions.contains(&(0, text_editor::Action::Click(iced::Point::new(f32::MAX, f32::MAX))))
-    );
-    assert!(actions.contains(&(0, text_editor::Action::Drag(iced::Point::new(20.0, 10.0)))));
 }
 
 #[test]
@@ -426,9 +388,13 @@ fn table_link_renders_and_emits_open_message_in_both_themes() {
     let size = Size::new(340.0, 120.0);
     for theme in [Theme::Light, Theme::Dark] {
         let mut ui = UserInterface::build(
-            super::markdown_rich::table_view(table, &theme, theme.palette().text, |target| {
-                link_click_message(target, None)
-            }),
+            super::markdown_rich::table_view(
+                table,
+                &theme,
+                theme.palette().text,
+                |target| link_click_message(target, None),
+                None,
+            ),
             size,
             Cache::new(),
             &mut renderer,
@@ -650,10 +616,13 @@ fn markdown_table_fills_available_width_and_overflows_only_when_needed() {
 
     for width in [240.0, 480.0, 800.0] {
         let theme = Theme::Dark;
-        let mut element =
-            super::markdown_rich::table_view(table, &theme, theme.palette().text, |target| {
-                link_click_message(target, None)
-            });
+        let mut element = super::markdown_rich::table_view(
+            table,
+            &theme,
+            theme.palette().text,
+            |target| link_click_message(target, None),
+            None,
+        );
         let mut tree = Tree::new(element.as_widget());
         let limits = layout::Limits::new(Size::ZERO, Size::new(width, 300.0));
         let node = element.as_widget_mut().layout(&mut tree, &renderer, &limits);

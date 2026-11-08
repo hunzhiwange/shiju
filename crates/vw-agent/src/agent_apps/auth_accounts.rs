@@ -8,6 +8,7 @@ pub use vw_agent_apps::auth::flow::AuthAccountScope;
 use vw_agent_apps::auth::{
     codex_browser::CodexBrowserStart,
     codex_device::{CodexDeviceAuth, CodexDeviceStart, codex_account_id},
+    codex_refresh::CodexRefresh,
     copilot::{CopilotAuth, CopilotDeviceStart},
     copilot_token::CopilotSession,
     flow::AuthFlows,
@@ -155,6 +156,22 @@ impl AuthAccountStore {
             .map_err(|_| AuthErrorCode::StorageUnavailable)??;
         let authority = metadata.github_domain.ok_or(AuthErrorCode::StorageUnavailable)?;
         adapter.session(&self.credentials, scope, account_id, &authority).await
+    }
+
+    /// Resolve a managed Codex account's access token on the authorized execution host.
+    #[cfg(not(target_arch = "wasm32"))]
+    pub async fn codex_access_token(
+        &self,
+        adapter: &CodexRefresh,
+        scope: AuthAccountScope<'_>,
+        account_id: &str,
+    ) -> Result<String, AuthErrorCode> {
+        if scope.service != AuthService::CodexOauth {
+            return Err(AuthErrorCode::Unsupported);
+        }
+        crate::global_database::run_sync_database(|| Ok(self.read_metadata(&scope, account_id)))
+            .map_err(|_| AuthErrorCode::StorageUnavailable)??;
+        adapter.access_token(&self.credentials, scope, account_id).await
     }
 
     /// Advance a due Codex attempt and publish its token bundle on the execution host.

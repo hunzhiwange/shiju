@@ -904,3 +904,58 @@ fn auth6_codex_reauth_store_rolls_back_failed_metadata_update() {
     assert!(matches!((current, original),
         (AccountCredential::CodexAuth(current), AccountCredential::CodexAuth(original)) if current == original));
 }
+
+#[cfg(unix)]
+fn assert_codex_access_requires_scoped_metadata(database: GlobalDatabase) {
+    use base64::{Engine as _, engine::general_purpose::URL_SAFE_NO_PAD};
+
+    let root = private_credentials_root();
+    let store = AuthAccountStore::new(database, root.path()).unwrap();
+    let tenant = TenantScope::new("platform", "company").unwrap();
+    let scope = AuthAccountScope { service: AuthService::CodexOauth, ..account_scope(&tenant) };
+    let foreign = AuthAccountScope { principal: "oidc:other", ..scope };
+    let adapter = CodexRefresh::new().unwrap();
+    let runtime = tokio::runtime::Builder::new_current_thread().enable_all().build().unwrap();
+    let access = |scope| runtime.block_on(store.codex_access_token(&adapter, scope, ACCOUNT_ID));
+    let token = format!(
+        "{}.{}.fixture",
+        URL_SAFE_NO_PAD.encode(br#"{"alg":"RS256"}"#),
+        URL_SAFE_NO_PAD.encode(br#"{"exp":4102444800}"#),
+    );
+    let credential = AccountCredential::CodexAuth(serde_json::json!({
+        "tokens": {
+            "access_token": token,
+            "refresh_token": "fixture-refresh",
+            "id_token": "fixture-id",
+            "account_id": "fixture-account",
+        }
+    }));
+    store
+        .credentials
+        .for_owner(scope.principal)
+        .unwrap()
+        .save(&tenant, scope.host, AppId::Codex, ACCOUNT_ID, &credential)
+        .unwrap();
+
+    assert_eq!(access(scope), Err(AuthErrorCode::NotFound));
+    let metadata = AuthAccountMetadata::new(EXTERNAL_IDENTITY, TimestampMs(1)).unwrap();
+    store.insert_metadata(&scope, ACCOUNT_ID, &metadata).unwrap();
+    assert_eq!(access(foreign), Err(AuthErrorCode::NotFound));
+    assert_eq!(access(scope), Ok(token));
+    assert_eq!(store.read_metadata(&scope, ACCOUNT_ID), Ok(metadata));
+}
+
+#[cfg(unix)]
+#[test]
+fn auth6_codex_refresh_access_scope_sqlite() {
+    let home = tempfile::tempdir().unwrap();
+    assert_codex_access_requires_scoped_metadata(GlobalDatabase::for_home(home.path()).unwrap());
+}
+
+#[cfg(unix)]
+#[test]
+fn auth6_codex_refresh_access_scope_postgres() {
+    let fixture = PostgresTestDatabase::from_environment().unwrap();
+    assert_codex_access_requires_scoped_metadata(fixture.reopen().unwrap());
+    fixture.cleanup().unwrap();
+}

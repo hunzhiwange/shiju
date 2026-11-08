@@ -28,7 +28,7 @@ pub(super) const CLIENT_ID: &str = "app_EMoamEEZ73f0CkXaXp7hrann";
 const USER_AGENT: &str = "cc-switch-codex-oauth";
 const USER_CODE_URL: &str = "https://auth.openai.com/api/accounts/deviceauth/usercode";
 const POLL_URL: &str = "https://auth.openai.com/api/accounts/deviceauth/token";
-const TOKEN_URL: &str = "https://auth.openai.com/oauth/token";
+pub(super) const TOKEN_URL: &str = "https://auth.openai.com/oauth/token";
 const VERIFY_URL: &str = "https://auth.openai.com/codex/device";
 const REDIRECT_URI: &str = "https://auth.openai.com/deviceauth/callback";
 
@@ -340,7 +340,7 @@ pub(super) async fn exchange_code(
     }
 }
 
-async fn send(
+pub(super) async fn send(
     client: &Client,
     builder: reqwest::RequestBuilder,
     route: &mut impl FnMut(&mut Request),
@@ -354,11 +354,19 @@ async fn access_denied(response: Response) -> bool {
     read_json::<OAuthError>(response).await.is_ok_and(|error| error.error == "access_denied")
 }
 
-fn workspace_id(claims: &Value) -> Option<&str> {
+pub(super) fn workspace_id(claims: &Value) -> Option<&str> {
     claims
         .get("chatgpt_account_id")
         .and_then(Value::as_str)
         .or_else(|| claims.get("https://api.openai.com/auth")?.get("chatgpt_account_id")?.as_str())
+}
+
+pub(super) fn token_subject(claims: &Value) -> Option<&str> {
+    claims
+        .get("sub")
+        .and_then(Value::as_str)
+        .map(str::trim)
+        .filter(|subject| !subject.is_empty() && !subject.chars().any(char::is_control))
 }
 
 pub(super) fn complete_account(
@@ -369,12 +377,7 @@ pub(super) fn complete_account(
     let id_token =
         tokens.id_token.filter(|token| !token.is_empty()).ok_or(AuthErrorCode::ReauthRequired)?;
     let id_claims = parse_codex_jwt_claims(&id_token).ok_or(AuthErrorCode::UpstreamFailure)?;
-    let subject = id_claims
-        .get("sub")
-        .and_then(Value::as_str)
-        .map(str::trim)
-        .filter(|subject| !subject.is_empty() && !subject.chars().any(char::is_control))
-        .ok_or(AuthErrorCode::UpstreamFailure)?;
+    let subject = token_subject(&id_claims).ok_or(AuthErrorCode::UpstreamFailure)?;
     let access_claims = parse_codex_jwt_claims(&tokens.access_token);
     let workspace = workspace_id(&id_claims)
         .or_else(|| access_claims.as_ref().and_then(workspace_id))

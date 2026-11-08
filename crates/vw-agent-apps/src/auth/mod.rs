@@ -12,6 +12,12 @@ pub mod codex_device;
 mod codex_device_tests;
 
 #[cfg(not(target_arch = "wasm32"))]
+pub mod codex_refresh;
+
+#[cfg(all(test, unix, not(target_arch = "wasm32")))]
+mod codex_refresh_tests;
+
+#[cfg(not(target_arch = "wasm32"))]
 pub mod copilot;
 
 #[cfg(all(test, not(target_arch = "wasm32")))]

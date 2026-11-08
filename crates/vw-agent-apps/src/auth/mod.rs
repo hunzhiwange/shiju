@@ -1,4 +1,10 @@
 //! Host-owned account authorization flows and credentials.
+#[cfg(not(target_arch = "wasm32"))]
+pub mod copilot;
+
+#[cfg(all(test, not(target_arch = "wasm32")))]
+mod copilot_tests;
+
 pub mod credential_file;
 
 #[cfg(all(test, unix))]

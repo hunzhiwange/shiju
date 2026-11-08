@@ -1,12 +1,12 @@
 //! 任务看板的设置弹窗与任务上下文菜单。
 
-use iced::widget::{Space, button, column, container, row, text, text_input};
+use iced::widget::{Space, button, checkbox, column, container, row, text, text_input};
 use iced::{Alignment, Background, Border, Color, Element, Length, Theme};
 
 use crate::app::components::system_settings_common::{
     SETTINGS_CONTROL_PADDING, SETTINGS_CONTROL_TEXT_SIZE, rounded_action_btn_style,
-    settings_close_button, settings_divider, settings_field_label, settings_group_card,
-    settings_group_heading, settings_modal_header, settings_modal_layout,
+    settings_checkbox_style, settings_close_button, settings_divider, settings_field_label,
+    settings_group_card, settings_group_heading, settings_modal_header, settings_modal_layout,
     settings_muted_text_style, settings_segment_button_style, settings_tab_button,
     settings_tab_row, settings_text_input_style, settings_toggle,
 };
@@ -361,23 +361,11 @@ pub fn build_task_settings_modal(app: &App) -> Element<'_, Message> {
 
     let recycle_on_finish_row = field_row(
         i18n.__("完成后回收 worktree"),
-        row![
-            button(
-                text(i18n.__(if app.task_board_settings.recycle_worktree_on_task_finish {
-                    "开启"
-                } else {
-                    "关闭"
-                }))
-                .size(12)
-            )
-            .on_press(Message::TaskBoard(TaskBoardMessage::ToggleRecycleWorktreeOnTaskFinish(
-                !app.task_board_settings.recycle_worktree_on_task_finish,
-            )))
-            .padding([8, 12])
-            .style(rounded_action_btn_style),
-        ]
-        .spacing(8)
-        .align_y(Alignment::Center),
+        checkbox(app.task_board_settings.recycle_worktree_on_task_finish)
+            .on_toggle(|enabled| {
+                Message::TaskBoard(TaskBoardMessage::ToggleRecycleWorktreeOnTaskFinish(enabled))
+            })
+            .style(settings_checkbox_style),
     );
 
     let current_pr_stall_timeout_seconds =

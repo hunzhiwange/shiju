@@ -170,13 +170,18 @@ pub(super) fn scheduling_tab<'a>(app: &'a App) -> Element<'a, Message> {
         )),
     );
 
-    let recycle_worktree_on_finish_toggle = checkbox(settings.recycle_worktree_on_task_finish)
-        .label(i18n.__("完成后回收 worktree"))
-        .spacing(8)
-        .on_toggle(|enabled| {
-            Message::Project(ProjectMessage::ProjectEditRecycleWorktreeOnTaskFinishToggled(enabled))
-        })
-        .style(settings_checkbox_style);
+    let recycle_worktree_on_finish_row = row![
+        settings_field_label(i18n.__("完成后回收 worktree")).width(Length::Fill),
+        checkbox(settings.recycle_worktree_on_task_finish)
+            .on_toggle(|enabled| {
+                Message::Project(ProjectMessage::ProjectEditRecycleWorktreeOnTaskFinishToggled(
+                    enabled,
+                ))
+            })
+            .style(settings_checkbox_style),
+    ]
+    .spacing(8)
+    .align_y(iced::Alignment::Center);
 
     let pr_stall_timeout_row = numeric_row(
         i18n.__("合并锁超时(秒)"),
@@ -209,7 +214,7 @@ pub(super) fn scheduling_tab<'a>(app: &'a App) -> Element<'a, Message> {
                 failed_retry_row,
                 failed_retry_max_attempts_row,
                 running_timeout_row,
-                recycle_worktree_on_finish_toggle,
+                recycle_worktree_on_finish_row,
                 pr_stall_timeout_row,
             ]
             .spacing(14)

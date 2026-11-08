@@ -11,7 +11,9 @@ use vw_agent_apps::auth::{
     codex_refresh::CodexRefresh,
     copilot::{CopilotAuth, CopilotDeviceStart},
     copilot_token::CopilotSession,
+    credential_file::XaiCredential,
     flow::AuthFlows,
+    xai::{XaiDeviceAuth, XaiDeviceStart},
 };
 use vw_agent_apps::{
     apps::launch::{
@@ -282,7 +284,7 @@ impl AuthAccountStore {
             let updated = AuthAccountMetadata { authenticated_at, ..saved };
             let updated =
                 serde_json::to_string(&updated).map_err(|_| AuthErrorCode::StorageUnavailable)?;
-            return self.replace_codex_credential(
+            return self.replace_oauth_credential(
                 scope.tenant,
                 &key,
                 &previous,
@@ -326,7 +328,7 @@ impl AuthAccountStore {
     }
 
     #[cfg(not(target_arch = "wasm32"))]
-    fn replace_codex_credential(
+    fn replace_oauth_credential(
         &self,
         tenant: &TenantScope,
         key: &str,
@@ -429,6 +431,70 @@ impl AuthAccountStore {
         } else {
             self.publish_oauth_credential(&scope, id, &metadata, &lease, &credential)
         }
+    }
+
+    /// Advance xAI device authorization and publish the scoped account and private tokens.
+    #[cfg(not(target_arch = "wasm32"))]
+    pub async fn poll_xai_device(
+        &self,
+        adapter: &XaiDeviceAuth,
+        flows: &AuthFlows,
+        scope: AuthAccountScope<'_>,
+        started: &XaiDeviceStart,
+    ) -> Result<AuthFlow, AuthErrorCode> {
+        adapter
+            .poll(flows, scope, started, |bound, account, identity, credential| {
+                crate::global_database::run_sync_database(|| {
+                    Ok(self.store_xai_device_account(bound, account, identity, credential))
+                })
+                .map_err(|_| AuthErrorCode::StorageUnavailable)?
+            })
+            .await
+    }
+
+    #[cfg(not(target_arch = "wasm32"))]
+    fn store_xai_device_account(
+        &self,
+        scope: AuthAccountScope<'_>,
+        account: &AuthAccount,
+        identity: &str,
+        credential: XaiCredential,
+    ) -> Result<(), AuthErrorCode> {
+        let authenticated_at = account.authenticated_at.ok_or(AuthErrorCode::InvalidInput)?;
+        let mut metadata = AuthAccountMetadata::new(identity, authenticated_at)?;
+        metadata.label = Some(account.label.clone());
+        let id = &account.account_id;
+        let key = Self::managed_key(&scope, id)?;
+        let lease = self
+            .credentials
+            .lease_xai(scope, id, true)
+            .map_err(|_| AuthErrorCode::StorageUnavailable)?;
+        let credential = AccountCredential::XaiOauth(credential);
+        if let Some(previous) = self
+            .metadata
+            .get(scope.tenant, MANAGED_ACCOUNT_NAMESPACE, &key)
+            .map_err(|_| AuthErrorCode::StorageUnavailable)?
+        {
+            let saved: AuthAccountMetadata =
+                serde_json::from_str(&previous).map_err(|_| AuthErrorCode::StorageUnavailable)?;
+            if saved.external_identity_sha256 != metadata.external_identity_sha256 {
+                return Err(AuthErrorCode::IdentityMismatch);
+            }
+            if saved.authenticated_at > authenticated_at {
+                return Err(AuthErrorCode::Conflict);
+            }
+            let updated =
+                serde_json::to_string(&metadata).map_err(|_| AuthErrorCode::StorageUnavailable)?;
+            return self.replace_oauth_credential(
+                scope.tenant,
+                &key,
+                &previous,
+                &updated,
+                &lease,
+                &credential,
+            );
+        }
+        self.publish_oauth_credential(&scope, id, &metadata, &lease, &credential)
     }
 
     #[cfg(not(target_arch = "wasm32"))]

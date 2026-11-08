@@ -959,3 +959,77 @@ fn auth6_codex_refresh_access_scope_postgres() {
     assert_codex_access_requires_scoped_metadata(fixture.reopen().unwrap());
     fixture.cleanup().unwrap();
 }
+
+#[cfg(unix)]
+fn assert_xai_device_commit(open: impl Fn() -> GlobalDatabase) {
+    let root = private_credentials_root();
+    let tenant = TenantScope::new("platform", "company").unwrap();
+    let scope = AuthAccountScope { service: AuthService::XaiOauth, ..account_scope(&tenant) };
+    let account = AuthAccount {
+        service: scope.service,
+        label: "xAI".into(),
+        github_domain: None,
+        ..copilot_account()
+    };
+    let identity = "fixture-subject";
+    let tokens = |refresh: &str| XaiCredential {
+        access_token: "fixture-access".into(),
+        refresh_token: refresh.into(),
+        expires_at: TimestampMs(3_600_000),
+    };
+    let store = AuthAccountStore::new(open(), root.path()).unwrap();
+    store.store_xai_device_account(scope, &account, identity, tokens("fixture-refresh")).unwrap();
+    drop(store);
+
+    let store = AuthAccountStore::new(open(), root.path()).unwrap();
+    let mut expected = AuthAccountMetadata::new(identity, TimestampMs(1)).unwrap();
+    expected.label = Some("xAI".into());
+    assert_eq!(store.read_metadata(&scope, ACCOUNT_ID), Ok(expected));
+
+    for foreign in [
+        AuthAccountScope { principal: "oidc:other", ..scope },
+        AuthAccountScope { host: "other", ..scope },
+        AuthAccountScope { service: AuthService::GithubCopilot, ..scope },
+    ] {
+        assert_eq!(store.read_metadata(&foreign, ACCOUNT_ID), Err(AuthErrorCode::NotFound));
+        assert!(store.credentials.lease_xai(foreign, ACCOUNT_ID, false).is_err());
+    }
+    let updated = AuthAccount {
+        authenticated_at: Some(TimestampMs(2)),
+        label: "xAI owner".into(),
+        ..account.clone()
+    };
+    store.store_xai_device_account(scope, &updated, identity, tokens("new-refresh")).unwrap();
+    assert_eq!(
+        store.store_xai_device_account(scope, &account, identity, tokens("stale-refresh")),
+        Err(AuthErrorCode::Conflict)
+    );
+    assert_eq!(
+        store.store_xai_device_account(scope, &updated, "other-subject", tokens("foreign-refresh")),
+        Err(AuthErrorCode::IdentityMismatch)
+    );
+    let saved = store.credentials.lease_xai(scope, ACCOUNT_ID, false).unwrap().read().unwrap();
+    assert!(
+        matches!(saved, AccountCredential::XaiOauth(saved) if saved.refresh_token == "new-refresh")
+    );
+    let rows = store.metadata.list(&tenant, MANAGED_ACCOUNT_NAMESPACE).unwrap();
+    assert_eq!(rows.len(), 1);
+    assert!(!rows[0].payload_json.contains("fixture-"));
+    assert!(!rows[0].payload_json.contains("new-refresh"));
+    assert_eq!(store.read_metadata(&scope, ACCOUNT_ID).unwrap().authenticated_at, TimestampMs(2));
+}
+
+#[cfg(unix)]
+#[test]
+fn auth6_xai_device_store_sqlite() {
+    let home = tempfile::tempdir().unwrap();
+    assert_xai_device_commit(|| GlobalDatabase::for_home(home.path()).unwrap());
+}
+
+#[cfg(unix)]
+#[test]
+fn auth6_xai_device_store_postgres() {
+    let fixture = PostgresTestDatabase::from_environment().unwrap();
+    assert_xai_device_commit(|| fixture.reopen().unwrap());
+    fixture.cleanup().unwrap();
+}

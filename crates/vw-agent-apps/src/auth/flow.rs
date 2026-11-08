@@ -48,6 +48,7 @@ pub struct AuthFlowTiming {
 pub enum AuthDevicePoll<T> {
     Pending,
     SlowDown,
+    SlowDownCapped(u64),
     Expired,
     Complete(Result<(AuthAccount, T), AuthErrorCode>),
 }
@@ -273,8 +274,12 @@ impl AuthFlows {
         if let AuthFlow::Pending { retry_after_seconds, .. } = &mut state.snapshot {
             match outcome {
                 AuthDevicePoll::Pending => {}
-                AuthDevicePoll::SlowDown => {
-                    *retry_after_seconds = retry_after_seconds.saturating_add(5);
+                outcome @ (AuthDevicePoll::SlowDown | AuthDevicePoll::SlowDownCapped(_)) => {
+                    let limit = match outcome {
+                        AuthDevicePoll::SlowDownCapped(limit) => limit,
+                        _ => u64::MAX,
+                    };
+                    *retry_after_seconds = retry_after_seconds.saturating_add(5).min(limit);
                     state.next_poll = next_poll(now, *retry_after_seconds, record.deadline);
                 }
                 AuthDevicePoll::Expired => state.expire(),

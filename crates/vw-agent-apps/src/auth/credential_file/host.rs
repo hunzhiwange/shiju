@@ -240,6 +240,9 @@ fn decode(
         CredentialKind::Copilot => {
             AccountCredential::CopilotToken(String::from_utf8(bytes).map_err(|_| INVALID_MATERIAL)?)
         }
+        CredentialKind::Xai => AccountCredential::XaiOauth(
+            serde_json::from_slice(&bytes).map_err(|_| INVALID_MATERIAL)?,
+        ),
         _ => return Err("official account service is not implemented".into()),
     };
     validate_kind(kind, &credential)?;
@@ -256,7 +259,15 @@ fn validate_kind(kind: CredentialKind, credential: &AccountCredential) -> Result
         {
             Ok(())
         }
-        (CredentialKind::Copilot, _) => Err(INVALID_MATERIAL.into()),
+        (CredentialKind::Xai, AccountCredential::XaiOauth(tokens))
+            if tokens.expires_at.0 > 0
+                && [&tokens.access_token, &tokens.refresh_token].into_iter().all(|token| {
+                    !token.is_empty() && token.bytes().all(|byte| byte.is_ascii_graphic())
+                }) =>
+        {
+            Ok(())
+        }
+        (CredentialKind::Copilot | CredentialKind::Xai, _) => Err(INVALID_MATERIAL.into()),
     }
 }
 
@@ -298,6 +309,7 @@ pub(in crate::auth) fn write_to(
         match (decode(directory, path, kind, file)?, credential) {
             (AccountCredential::ClaudeToken(_), AccountCredential::ClaudeToken(_))
             | (AccountCredential::CopilotToken(_), AccountCredential::CopilotToken(_))
+            | (AccountCredential::XaiOauth(_), AccountCredential::XaiOauth(_))
             | (AccountCredential::ClaudeDirectory(_), AccountCredential::ClaudeDirectory(_)) => {}
             (AccountCredential::CodexAuth(before), AccountCredential::CodexAuth(after))
                 if before["tokens"]["account_id"] == after["tokens"]["account_id"] => {}
@@ -323,7 +335,7 @@ pub(in crate::auth) fn write_to(
     let result = (|| {
         file.set_permissions(fs::Permissions::from_mode(0o600)).map_err(|_| UNAVAILABLE)?;
         check_private(&file, 0o600)?;
-        file.write_all(&credential.bytes())
+        file.write_all(&credential.bytes()?)
             .and_then(|_| file.sync_all())
             .map_err(|_| UNAVAILABLE)?;
         recheck()?;

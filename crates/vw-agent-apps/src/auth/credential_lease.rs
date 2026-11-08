@@ -90,7 +90,10 @@ impl CredentialLease {
 
     /// Roll back an unpublished OAuth credential under this account's lease.
     pub fn remove_unpublished_oauth(&self) -> Result<(), String> {
-        if !matches!(self.kind, CredentialKind::Copilot | CredentialKind::App(AppId::Codex)) {
+        if !matches!(
+            self.kind,
+            CredentialKind::Copilot | CredentialKind::Xai | CredentialKind::App(AppId::Codex)
+        ) {
             return Err("official credential service mismatch".into());
         }
         let _write = self.write.lock().map_err(|_| "official account lock unavailable")?;

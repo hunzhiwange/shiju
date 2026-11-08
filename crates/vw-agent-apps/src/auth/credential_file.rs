@@ -1,9 +1,10 @@
 //! Host-owned credential files; never discovers or adopts ambient CLI logins.
 use super::{credential_lease::CredentialLease, flow::AuthAccountScope};
 use base64::{Engine as _, engine::general_purpose::URL_SAFE_NO_PAD};
+use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
 use std::path::{Path, PathBuf};
-use vw_api_types::{agent_apps::AppId, agent_apps_auth::AuthService, id::TenantScope};
+use vw_api_types::{TimestampMs, agent_apps::AppId, agent_apps_auth::AuthService, id::TenantScope};
 
 #[cfg(unix)]
 mod host;
@@ -30,11 +31,21 @@ impl ClaudeAccountDirectory {
 #[cfg(unix)]
 const DIRECTORY_MARKER: &[u8] = b"shiju-managed-claude-directory-v1\n";
 
+/// Host-private xAI token material. Store only under the authorized xAI account lease.
+#[derive(Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct XaiCredential {
+    pub access_token: String,
+    pub refresh_token: String,
+    pub expires_at: TimestampMs,
+}
+
 pub enum AccountCredential {
     ClaudeToken(String),
     ClaudeDirectory(ClaudeAccountDirectory),
     CodexAuth(serde_json::Value),
     CopilotToken(String),
+    XaiOauth(XaiCredential),
 }
 
 #[cfg(unix)]
@@ -42,6 +53,7 @@ pub enum AccountCredential {
 pub(super) enum CredentialKind {
     App(AppId),
     Copilot,
+    Xai,
 }
 impl AccountCredential {
     pub fn validate(&self, app: AppId) -> Result<(), String> {
@@ -115,12 +127,16 @@ impl AccountCredential {
         }
     }
     #[cfg(unix)]
-    fn bytes(&self) -> Vec<u8> {
-        match self {
+    fn bytes(&self) -> Result<Vec<u8>, String> {
+        Ok(match self {
             Self::ClaudeToken(s) | Self::CopilotToken(s) => s.as_bytes().to_vec(),
             Self::ClaudeDirectory(_) => DIRECTORY_MARKER.to_vec(),
             Self::CodexAuth(v) => v.to_string().into_bytes(),
-        }
+            Self::XaiOauth(tokens) => serde_json::to_vec(tokens)
+                .ok()
+                .filter(|bytes| bytes.len() <= MAX_BYTES)
+                .ok_or(INVALID_MATERIAL)?,
+        })
     }
 }
 
@@ -297,6 +313,30 @@ impl CredentialFileStore {
         #[cfg(unix)]
         {
             CredentialLease::new(owner.scoped_path(path), CredentialKind::Copilot, create)
+        }
+        #[cfg(not(unix))]
+        {
+            let _ = (path, create);
+            Err(UNSUPPORTED.into())
+        }
+    }
+
+    /// Lease xAI OAuth credentials in the authenticated execution-host scope.
+    pub fn lease_xai(
+        &self,
+        scope: AuthAccountScope<'_>,
+        id: &str,
+        create: bool,
+    ) -> Result<CredentialLease, String> {
+        if scope.service != AuthService::XaiOauth {
+            return Err("official credential service mismatch".into());
+        }
+        validate_account_location(scope.host, id)?;
+        let owner = self.for_owner(scope.principal)?;
+        let path = owner.service_location(scope.tenant, scope.host, "xai_oauth", id)?;
+        #[cfg(unix)]
+        {
+            CredentialLease::new(owner.scoped_path(path), CredentialKind::Xai, create)
         }
         #[cfg(not(unix))]
         {

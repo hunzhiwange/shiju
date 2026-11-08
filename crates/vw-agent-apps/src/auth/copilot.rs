@@ -382,12 +382,17 @@ impl CopilotAuth {
     }
 }
 
-pub(super) async fn read_json<T: DeserializeOwned>(
+pub(super) async fn read_json<T: DeserializeOwned>(response: Response) -> Result<T, AuthErrorCode> {
+    read_json_limited(response, MAX_RESPONSE_BYTES).await
+}
+
+pub(super) async fn read_json_limited<T: DeserializeOwned>(
     mut response: Response,
+    max_bytes: usize,
 ) -> Result<T, AuthErrorCode> {
     let mut body = Vec::new();
     while let Some(chunk) = response.chunk().await.map_err(|_| AuthErrorCode::UpstreamFailure)? {
-        if chunk.len() > MAX_RESPONSE_BYTES - body.len() {
+        if chunk.len() > max_bytes - body.len() {
             return Err(AuthErrorCode::UpstreamFailure);
         }
         body.extend_from_slice(&chunk);

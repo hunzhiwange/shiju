@@ -53,3 +53,9 @@ pub(crate) mod claude_login_files;
 mod keychain;
 #[cfg(all(test, target_os = "macos"))]
 mod keychain_tests;
+
+#[cfg(not(target_arch = "wasm32"))]
+pub mod xai;
+
+#[cfg(all(test, unix, not(target_arch = "wasm32")))]
+mod xai_tests;

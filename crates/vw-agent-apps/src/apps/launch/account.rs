@@ -199,6 +199,9 @@ pub fn prepare_account_launch(
         AccountCredential::CopilotToken(_) => {
             return Err("Copilot authorization has no launch application".into());
         }
+        AccountCredential::XaiOauth(_) => {
+            return Err("xAI authorization has no launch application".into());
+        }
         AccountCredential::ClaudeToken(token) => {
             command
                 .env("CLAUDE_CONFIG_DIR", private.path())

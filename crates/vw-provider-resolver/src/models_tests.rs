@@ -7,16 +7,11 @@ use super::*;
 use serde_json::{Value, json};
 use std::collections::HashMap;
 use std::collections::HashSet;
-use std::fs;
-use std::io::{Read, Write};
-use std::net::TcpListener;
-use std::path::PathBuf;
-use std::thread;
 use vw_shared::provider::state::from_models_dev_model;
 
 #[cfg(not(target_arch = "wasm32"))]
-// 进程缓存和活动缓存文件是共享状态，相关异步用例必须串行修改并负责恢复。
-static MODELS_STATE_TEST_LOCK: tokio::sync::Mutex<()> = tokio::sync::Mutex::const_new(());
+#[path = "models_cache_tests.rs"]
+mod cache;
 
 fn provider_json(id: &str) -> String {
     format!(
@@ -44,122 +39,6 @@ fn assert_provider(map: &HashMap<String, Provider>, id: &str) {
     assert_eq!(provider.id, id);
     assert_eq!(provider.name, format!("{id} provider"));
     assert!(provider.models.contains_key(&format!("{id}-model")));
-}
-
-#[cfg(not(target_arch = "wasm32"))]
-fn spawn_http_response(status: &str, body: String) -> (String, thread::JoinHandle<()>) {
-    let listener = TcpListener::bind("127.0.0.1:0").expect("test server should bind");
-    let addr = listener.local_addr().expect("test server address should be available");
-    let status = status.to_string();
-    let handle = thread::spawn(move || {
-        let Ok((mut stream, _)) = listener.accept() else {
-            return;
-        };
-        let mut request = [0_u8; 1024];
-        let _ = stream.read(&mut request);
-        let response = format!(
-            "HTTP/1.1 {status}\r\nContent-Length: {}\r\nConnection: close\r\n\r\n{body}",
-            body.len()
-        );
-        let _ = stream.write_all(response.as_bytes());
-    });
-
-    (format!("http://{addr}/api.json"), handle)
-}
-
-#[cfg(not(target_arch = "wasm32"))]
-fn spawn_incomplete_http_body() -> (String, thread::JoinHandle<()>) {
-    let listener = TcpListener::bind("127.0.0.1:0").expect("test server should bind");
-    let addr = listener.local_addr().expect("test server address should be available");
-    let handle = thread::spawn(move || {
-        let Ok((mut stream, _)) = listener.accept() else {
-            return;
-        };
-        let mut request = [0_u8; 1024];
-        let _ = stream.read(&mut request);
-        let response = "HTTP/1.1 200 OK\r\nContent-Length: 100\r\nConnection: close\r\n\r\nshort";
-        let _ = stream.write_all(response.as_bytes());
-    });
-
-    (format!("http://{addr}/api.json"), handle)
-}
-
-#[cfg(not(target_arch = "wasm32"))]
-fn unused_local_url() -> String {
-    let listener = TcpListener::bind("127.0.0.1:0").expect("test port should bind");
-    let addr = listener.local_addr().expect("test server address should be available");
-    drop(listener);
-    format!("http://{addr}/api.json")
-}
-
-#[cfg(not(target_arch = "wasm32"))]
-fn refresh_test_path(name: &str) -> PathBuf {
-    global::paths().cache.join(format!("{name}-{}.json", std::process::id()))
-}
-
-#[cfg(not(target_arch = "wasm32"))]
-#[tokio::test]
-async fn refresh_from_url_writes_successful_body_and_invalidates_cache() {
-    let _state_lock = MODELS_STATE_TEST_LOCK.lock().await;
-    let path = refresh_test_path("models-refresh-success");
-    let body = provider_map_json("remote");
-    let (url, handle) = spawn_http_response("200 OK", body.clone());
-
-    {
-        let mut lock = CACHE.lock().expect("cache lock should be available");
-        *lock = Some(HashMap::new());
-    }
-
-    refresh_from_url(path.clone(), url).await;
-    handle.join().expect("test server should finish");
-
-    assert_eq!(fs::read_to_string(&path).unwrap(), body);
-    let lock = CACHE.lock().expect("cache lock should be available");
-    assert!(lock.is_none());
-    drop(lock);
-    let _ = fs::remove_file(path);
-}
-
-#[cfg(not(target_arch = "wasm32"))]
-#[tokio::test]
-async fn refresh_from_url_keeps_file_when_status_is_not_successful() {
-    let path = refresh_test_path("models-refresh-status");
-    let original = "original";
-    fs::write(&path, original).expect("refresh test file should be written");
-    let (url, handle) = spawn_http_response("500 Internal Server Error", "ignored".to_string());
-
-    refresh_from_url(path.clone(), url).await;
-    handle.join().expect("test server should finish");
-
-    assert_eq!(fs::read_to_string(&path).unwrap(), original);
-    let _ = fs::remove_file(path);
-}
-
-#[cfg(not(target_arch = "wasm32"))]
-#[tokio::test]
-async fn refresh_from_url_returns_when_request_fails() {
-    let path = refresh_test_path("models-refresh-error");
-
-    refresh_from_url(path.clone(), unused_local_url()).await;
-
-    assert!(!path.exists());
-}
-
-#[cfg(not(target_arch = "wasm32"))]
-#[tokio::test]
-async fn refresh_from_url_returns_when_body_read_fails() {
-    let path = refresh_test_path("models-refresh-body");
-    let (url, handle) = spawn_incomplete_http_body();
-
-    refresh_from_url(path.clone(), url).await;
-    handle.join().expect("test server should finish");
-
-    assert!(!path.exists());
-}
-
-#[cfg(not(target_arch = "wasm32"))]
-fn active_models_path() -> PathBuf {
-    flag::VIBEWINDOW_MODELS_PATH.clone().map(PathBuf::from).unwrap_or_else(cache_path)
 }
 
 #[test]
@@ -652,117 +531,6 @@ fn bundled_api_models_have_typed_limits_and_non_text_outputs_are_not_text_models
                     "{provider_id}/{model_id} must keep media-only output non-text"
                 );
             }
-        }
-    }
-}
-
-#[tokio::test]
-async fn get_returns_process_cache_until_invalidated() {
-    let _state_lock = MODELS_STATE_TEST_LOCK.lock().await;
-    let mut cached = HashMap::new();
-    let provider = Provider {
-        api: None,
-        name: "cached provider".to_string(),
-        env: Vec::new(),
-        id: "cached".to_string(),
-        adapter: None,
-        models: HashMap::new(),
-    };
-    cached.insert(provider.id.clone(), provider);
-
-    {
-        let mut lock = CACHE.lock().expect("cache lock should be available");
-        *lock = Some(cached);
-    }
-
-    let data = get().await;
-    assert_eq!(data.len(), 1);
-    assert_eq!(data["cached"].name, "cached provider");
-
-    invalidate_cache();
-    let lock = CACHE.lock().expect("cache lock should be available");
-    assert!(lock.is_none());
-}
-
-#[cfg(not(target_arch = "wasm32"))]
-#[tokio::test]
-async fn get_loads_and_stores_data_when_process_cache_is_empty() {
-    let _state_lock = MODELS_STATE_TEST_LOCK.lock().await;
-    let path = active_models_path();
-    let original = fs::read(&path).ok();
-
-    if let Some(parent) = path.parent() {
-        fs::create_dir_all(parent).expect("cache directory should be created");
-    }
-    fs::write(&path, provider_map_json("loaded")).expect("cache file should be written");
-    invalidate_cache();
-
-    let data = get().await;
-    assert_provider(&data, "loaded");
-
-    let lock = CACHE.lock().expect("cache lock should be available");
-    assert!(lock.as_ref().is_some_and(|cache| cache.contains_key("loaded")));
-    drop(lock);
-    invalidate_cache();
-
-    match original {
-        Some(bytes) => fs::write(&path, bytes).expect("cache file should be restored"),
-        None => {
-            let _ = fs::remove_file(&path);
-        }
-    }
-}
-
-#[cfg(not(target_arch = "wasm32"))]
-#[tokio::test]
-async fn load_reads_non_empty_cache_before_bundled_fallback() {
-    let _state_lock = MODELS_STATE_TEST_LOCK.lock().await;
-    let path = active_models_path();
-    let original = fs::read(&path).ok();
-
-    if let Some(parent) = path.parent() {
-        fs::create_dir_all(parent).expect("cache directory should be created");
-    }
-    fs::write(&path, provider_map_json("disk")).expect("cache file should be written");
-
-    let data = load().await;
-    assert_provider(&data, "disk");
-    assert!(data.contains_key("shiju"));
-
-    match original {
-        Some(bytes) => fs::write(&path, bytes).expect("cache file should be restored"),
-        None => {
-            let _ = fs::remove_file(&path);
-        }
-    }
-}
-
-#[cfg(not(target_arch = "wasm32"))]
-#[tokio::test]
-async fn load_falls_back_to_bundled_models_for_empty_or_invalid_cache() {
-    let _state_lock = MODELS_STATE_TEST_LOCK.lock().await;
-    let path = active_models_path();
-    let original = fs::read(&path).ok();
-
-    if let Some(parent) = path.parent() {
-        fs::create_dir_all(parent).expect("cache directory should be created");
-    }
-    fs::write(&path, "{}").expect("cache file should be written");
-
-    let data = load().await;
-    assert!(!data.is_empty());
-    assert_eq!(fs::read_to_string(&path).unwrap(), BUNDLED_MODELS_TEXT);
-
-    fs::write(&path, "{").expect("cache file should be written");
-
-    let data = load().await;
-    assert!(!data.is_empty());
-    assert_eq!(fs::read_to_string(&path).unwrap(), BUNDLED_MODELS_TEXT);
-
-    match original {
-        Some(bytes) => fs::write(&path, bytes).expect("cache file should be restored"),
-        None => {
-            let _ = fs::remove_file(&path);
         }
     }
 }

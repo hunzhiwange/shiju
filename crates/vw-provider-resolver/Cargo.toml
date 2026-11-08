@@ -22,6 +22,7 @@ vw-config-types = { path = "../vw-config-types", version = "0.6.0" }
 [target.'cfg(not(target_arch = "wasm32"))'.dependencies]
 reqwest = { version = "0.13", default-features = false, features = ["json", "rustls"] }
 tokio = { version = "1", default-features = false, features = ["rt-multi-thread", "fs"] }
+tempfile = "3"
 
 [target.'cfg(target_arch = "wasm32")'.dependencies]
 reqwest = { version = "0.13", features = ["json"] }

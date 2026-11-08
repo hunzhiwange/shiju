@@ -442,3 +442,28 @@ Pi 供应商表单的现有网关入口为 `vw-agent/src/gateway/api/handlers/ap
 | `cargo clippy --all-targets --all-features -- -D warnings` | 0 | 全工作区、全目标和全 features 通过 |
 
 `git diff --cached --check` 通过。提交范围为原始模型字段、兼容转换、独立测试和本记录。额外审计的既有失败保持在本批次范围外。
+
+## 任务 17　加固模型缓存刷新与离线读取
+
+2026-11-08，macOS 27.0（26A428），arm64。批次 16 由 `3c03ca93b` 交付。已核对原生 `vw-agent-apps` 的应用注册与主机命令、网关 `TenantScope`、`ProviderOperation` 的取消与发布阶段，以及 `ProviderTransactions::commit_checked`。本次处理公开基线快照，沿用 resolver 的本地缓存所有权。
+
+| 固定来源 `ca58c0313360eae7c851fbd7553c1614c7af03e7` | 实际实现 |
+| --- | --- |
+| `src/lib/modelsDev.ts::fetchModelsDev`、`modelsDevQueryOptions` | `vw-provider-resolver/src/models.rs::refresh` 返回刷新状态、`fetched_at` 和 `last_error`。同一进程及配置源的并发刷新共享结果，成功结果在 1 小时内复用。失败后允许重试 |
+| `src-tauri/src/commands/usage.rs::fetch_models_dev`、`services/model_pricing.rs::fetch_models_dev` | `vw-provider-resolver/src/models_cache.rs::download` 保留原 resolver 的 10 秒超时，限制响应声明和流式读取至 32 MiB。同源重定向有跳数限制，拒绝跨源及带凭据的重定向目标，不发送 Referer。错误信息省略 URL 和响应内容 |
+| 源体积测试及原 resolver 磁盘格式 | `models_cache.rs::install_snapshot` 在 UTF-8、结构及模型条目检查后，同目录暂存并原子替换 `models.json`。已有缓存的获取时间从同一文件句柄的修改时间读取。离线读取合并内置 Shiju 目录，缺少可用磁盘缓存时使用内置基线，避免回写覆盖正在发布的快照。自定义路径继续优先读取，显式下载仍写入托管缓存 |
+| 原生调用方及后续接点 | `models::snapshot` 为目录与价格消费方提供同一原生快照。现有模型读取经 `vw-agent/src/provider/models.rs`、`gateway/api/handlers/provider.rs::provider_list` 和 `vw-gateway-client/src/client/provider_api.rs::provider_list`。Iced 现有同步入口 `vw-desktop/src/app/message/settings/providers/tasks.rs::sync_remote_task` 继续调用 resolver。刷新状态的服务及 SDK 投影由后续任务接入。当前范围没有界面变更或价格自动同步 |
+
+### 验证
+
+红灯和绿灯均动态领取槽位 **1**，`CARGO_TARGET_DIR=/Users/xiangmin/worker/code/shiju/target/rust-slot-1`，Cargo 中间目录使用同一槽位。格式化在 Git 源码快照执行，只回写本项 Rust 文件。测试使用临时目录与回环 HTTP，无生产请求。初次红灯编译命中旧 `vw-shared` 产物，退出 101。更新原字段文件的 mtime 触发依赖重编译后取得行为红灯，文件内容保持一致。
+
+| 命令 | 退出码 | 证据 |
+| --- | ---: | --- |
+| `cargo fmt --all`（红灯、绿灯） | 0、0 | 格式化完成，审查差异仅涉及本项 |
+| `cargo test -p vw-provider-resolver catalog_modelsdev_cache_ -- --nocapture`（红灯） | 101 | 1 条通过，5 条失败，122 条过滤。首个指定用例重开后实际读到 `{`，预期读到旧有效目录 |
+| `cargo test -p vw-provider-resolver catalog_modelsdev_cache_ -- --nocapture`（绿灯） | 0 | 18 条通过，114 条过滤。覆盖快照及时间保留、离线重开、写入失败、声明与流式超限、超时、凭据与重定向、并发合并、失败重试和环境变量优先级 |
+| `cargo test -p vw-provider-resolver catalog_modelsdev_parse_ -- --nocapture` | 0 | 3 条通过，129 条过滤 |
+| `cargo clippy --all-targets --all-features -- -D warnings` | 0 | 全工作区、全目标及 features 通过 |
+
+`git diff --cached --check` 通过。各阶段的占用记录与锁已清理，编译缓存已保留。

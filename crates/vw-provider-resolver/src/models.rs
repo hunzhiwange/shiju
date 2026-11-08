@@ -8,18 +8,20 @@
 
 use crate::flag;
 use crate::global;
-#[cfg(not(target_arch = "wasm32"))]
-use crate::installation;
 use once_cell::sync::Lazy;
 use serde_json::Value;
 use std::collections::HashMap;
 use std::path::PathBuf;
+#[cfg(not(target_arch = "wasm32"))]
+use std::sync::Arc;
+#[cfg(target_arch = "wasm32")]
 use std::sync::Mutex;
+use std::time::SystemTime;
+use tracing::debug;
+
 #[cfg(not(target_arch = "wasm32"))]
-use std::time::Duration;
-#[cfg(not(target_arch = "wasm32"))]
-use tracing::error;
-use tracing::{debug, info};
+#[path = "models_cache.rs"]
+mod native;
 
 pub use vw_shared::provider::models::{
     Model, ModelCost, ModelCostOver200k, ModelInterleaved, ModelLimit, ModelModalities,
@@ -80,24 +82,15 @@ fn cache_path() -> PathBuf {
 fn parse_models_text(label: &str, text: &str) -> Option<HashMap<String, Provider>> {
     let value = match serde_json::from_str::<Value>(text) {
         Ok(v) => v,
-        Err(err) => {
-            debug!(
-                error = %err,
-                "{label}_parse_invalid"
-            );
+        Err(_) => {
+            debug!("{label}_parse_invalid");
             return None;
         }
     };
 
     match &value {
         Value::Object(obj) => {
-            let keys: Vec<&String> = obj.keys().take(5).collect();
-            debug!(
-                kind = "object",
-                keys_count = obj.len(),
-                keys = ?keys,
-                "{label}_parse_shape"
-            );
+            debug!(kind = "object", keys_count = obj.len(), "{label}_parse_shape");
 
             if let Some(providers) = obj.get("providers")
                 && let Ok(json) =
@@ -119,12 +112,7 @@ fn parse_models_text(label: &str, text: &str) -> Option<HashMap<String, Provider
                     debug!(providers = json.len(), "{label}_parsed");
                     return Some(json);
                 }
-                Err(err) => {
-                    debug!(
-                        error = %err,
-                        "{label}_parse_failed"
-                    );
-                }
+                Err(_) => debug!("{label}_parse_failed"),
             }
         }
         Value::Array(arr) => {
@@ -165,28 +153,64 @@ fn merge_bundled_shiju(providers: &mut HashMap<String, Provider>, label: &str) {
     providers.insert("shiju".to_string(), shiju);
 }
 
-#[allow(dead_code)]
-/// 进程内缓存，避免重复解析模型元数据。
+/// The result of explicitly requesting a models.dev refresh.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum ModelsRefreshStatus {
+    Updated,
+    Fresh,
+    Disabled,
+    Failed,
+}
+
+/// Fetch metadata for the shared remote cache. Failed attempts leave `fetched_at` unchanged.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct ModelsRefresh {
+    pub status: ModelsRefreshStatus,
+    pub fetched_at: Option<SystemTime>,
+    pub last_error: Option<String>,
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+/// Catalog used by the resolver, including the bundled Shiju overlay.
+pub struct ModelsSnapshot {
+    pub providers: HashMap<String, Provider>,
+    /// Modification time of the managed models.json file, including legacy caches.
+    pub fetched_at: Option<SystemTime>,
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+static CACHE: Lazy<Arc<native::ModelsCache>> = Lazy::new(|| {
+    Arc::new(native::ModelsCache::new(
+        cache_path(),
+        flag::VIBEWINDOW_MODELS_PATH.as_ref().map(PathBuf::from),
+        format!("{}/api.json", url()),
+    ))
+});
+
+#[cfg(target_arch = "wasm32")]
 static CACHE: Lazy<Mutex<Option<HashMap<String, Provider>>>> = Lazy::new(|| Mutex::new(None));
 
-/// 清空进程内模型元数据缓存。
-///
-/// 下次调用 [`get`] 时会重新从磁盘缓存或内置资源加载，适合在设置页需要
-/// 立即反映最新 `models.json` 内容时使用。
+/// 清空进程内模型元数据缓存，使下一次读取重新加载磁盘目录。
 pub fn invalidate_cache() {
+    #[cfg(not(target_arch = "wasm32"))]
+    CACHE.invalidate();
+    #[cfg(target_arch = "wasm32")]
     if let Ok(mut lock) = CACHE.lock() {
         *lock = None;
     }
 }
 
-#[cfg(target_arch = "wasm32")]
-/// wasm 环境下当前无需主动刷新模型缓存。
-pub async fn refresh() {}
+/// Refresh the shared models.dev cache and report the outcome to the caller.
+pub async fn refresh() -> ModelsRefresh {
+    #[cfg(not(target_arch = "wasm32"))]
+    return CACHE.refresh(*flag::VIBEWINDOW_DISABLE_MODELS_FETCH).await;
+
+    #[cfg(target_arch = "wasm32")]
+    ModelsRefresh { status: ModelsRefreshStatus::Disabled, fetched_at: None, last_error: None }
+}
 
 #[cfg(target_arch = "wasm32")]
-/// 读取模型元数据，优先复用进程内缓存。
-///
-/// 若缓存为空，则触发实际加载并回填缓存。
+/// 读取内置目录并复用进程内缓存。
 pub async fn get() -> HashMap<String, Provider> {
     if let Ok(lock) = CACHE.lock() {
         if let Some(v) = lock.clone() {
@@ -194,126 +218,25 @@ pub async fn get() -> HashMap<String, Provider> {
         }
     }
 
-    let data = load().await;
+    let data = bundled_models("load_bundled");
 
     if let Ok(mut lock) = CACHE.lock() {
         *lock = Some(data.clone());
     }
 
     data
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+/// Read the effective catalog and its fetch time without using the network.
+pub async fn snapshot() -> Arc<ModelsSnapshot> {
+    CACHE.snapshot().await
 }
 
 #[cfg(not(target_arch = "wasm32"))]
 /// 读取模型元数据，优先复用进程内缓存。
-///
-/// 若缓存为空，则触发实际加载并回填缓存。
 pub async fn get() -> HashMap<String, Provider> {
-    if let Ok(lock) = CACHE.lock()
-        && let Some(v) = lock.clone()
-    {
-        return v;
-    }
-
-    let data = load().await;
-
-    if let Ok(mut lock) = CACHE.lock() {
-        *lock = Some(data.clone());
-    }
-    data
-}
-
-#[cfg(not(target_arch = "wasm32"))]
-/// 从远端刷新模型元数据，并在成功后清空进程内缓存。
-pub async fn refresh() {
-    if *flag::VIBEWINDOW_DISABLE_MODELS_FETCH {
-        return;
-    }
-
-    refresh_from_url(cache_path(), format!("{}/api.json", url())).await;
-}
-
-#[cfg(not(target_arch = "wasm32"))]
-async fn refresh_from_url(path: PathBuf, api_url: String) {
-    info!(
-        path = %path.to_string_lossy(),
-        url = api_url,
-        "refresh"
-    );
-
-    let client = reqwest::Client::new();
-    let resp = client
-        .get(api_url)
-        .header("User-Agent", installation::user_agent())
-        .timeout(Duration::from_secs(10))
-        .send()
-        .await;
-
-    let Ok(resp) = resp else {
-        error!("Failed to fetch models.dev");
-        return;
-    };
-
-    info!(status = resp.status().as_u16(), "refresh_status");
-
-    if !resp.status().is_success() {
-        return;
-    }
-
-    let Ok(text) = resp.text().await else {
-        return;
-    };
-
-    info!(bytes = text.len(), "refresh_body");
-
-    let _ = tokio::fs::write(&path, text).await;
-
-    if let Ok(mut lock) = CACHE.lock() {
-        *lock = None;
-    }
-}
-
-#[cfg(not(target_arch = "wasm32"))]
-/// 按“本地缓存 -> 内置数据”的顺序加载模型元数据。
-///
-/// 当本地缓存不存在或解析失败时，会回退到内置数据；若当前未指定自定义
-/// models 路径，还会把内置数据写回缓存文件，作为后续启动的基线。
-async fn load() -> HashMap<String, Provider> {
-    let path = flag::VIBEWINDOW_MODELS_PATH.clone().map(PathBuf::from).unwrap_or_else(cache_path);
-    let custom_path = flag::VIBEWINDOW_MODELS_PATH.is_some();
-
-    debug!(
-        path = %path.to_string_lossy(),
-        models_path_env = custom_path,
-        disable_fetch = *flag::VIBEWINDOW_DISABLE_MODELS_FETCH,
-        url = format!("{}/api.json", url()),
-        "load"
-    );
-
-    if let Ok(content) = tokio::fs::read_to_string(&path).await
-        && let Some(mut json) = parse_models_text("load_cache", &content)
-        && !json.is_empty()
-    {
-        merge_bundled_shiju(&mut json, "load_cache");
-        return json;
-    }
-
-    let bundled = bundled_models("load_bundled");
-    if bundled.is_empty() {
-        info!("load_bundled_empty");
-        return HashMap::new();
-    }
-
-    if !custom_path {
-        let _ = tokio::fs::write(&path, BUNDLED_MODELS_TEXT).await;
-    }
-
-    bundled
-}
-
-#[cfg(target_arch = "wasm32")]
-/// wasm 环境仅使用内置模型数据。
-async fn load() -> HashMap<String, Provider> {
-    bundled_models("load_bundled")
+    snapshot().await.providers.clone()
 }
 
 #[cfg(target_arch = "wasm32")]

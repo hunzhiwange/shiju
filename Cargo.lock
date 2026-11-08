@@ -12408,6 +12408,7 @@ dependencies = [
  "serde",
  "serde_json",
  "strsim",
+ "tempfile",
  "tokio",
  "tracing",
  "vw-config-types",

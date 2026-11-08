@@ -1,6 +1,9 @@
 //! Official account credentials. Separate owner from application/provider projections.
 pub mod credential_file;
 
+#[cfg(all(test, unix))]
+mod credential_file_tests;
+
 pub mod credential_lease;
 
 #[cfg(all(test, unix))]

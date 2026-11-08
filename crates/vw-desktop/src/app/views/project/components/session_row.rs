@@ -8,7 +8,7 @@ use iced::widget::{Space, button, column, container, hover, row, svg, text};
 use iced::{Alignment, Background, Border, Color, Element, Length, Theme};
 use vw_shared::session::info::Info;
 
-use crate::app::components::status_animation::spinner_frame;
+use crate::app::components::status_animation::{session_running_dot, session_spinner};
 use crate::app::components::system_settings_common::{
     settings_muted_text_style, settings_panel_style,
 };
@@ -128,11 +128,8 @@ fn status_icon(id: &str, status: SessionRowStatus, frame: usize) -> Element<'sta
     let breathe = ((phase.sin() + 1.0) * 0.5) as f32;
     let indicator = match status {
         SessionRowStatus::Running => row![
-            text(spinner_frame(frame))
-                .size(11)
-                .line_height(text::LineHeight::Relative(1.0))
-                .color(Color::from_rgb8(239, 68, 68)),
-            text("●").size(12).color(running_status_color(breathe)),
+            session_spinner(frame, 11.0, Color::from_rgb8(239, 68, 68)),
+            session_running_dot(running_status_color(breathe)),
         ],
         SessionRowStatus::Queued(_) => {
             row![text("●").size(8.5).color(queued_status_color(breathe))]

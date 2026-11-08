@@ -32,7 +32,7 @@ use crate::app::components::input_panel::usage::{
     UsageRing, get_usage_details, get_usage_rate_percent,
 };
 use crate::app::components::overlays::BelowOverlay;
-use crate::app::components::status_animation::spinner_frame;
+use crate::app::components::status_animation::{session_running_dot, session_spinner};
 use crate::app::state::{ChatPanelMode, WorkspaceMode};
 use crate::app::theme_catalog::with_panel_background;
 use crate::app::{App, Message, message};
@@ -505,7 +505,7 @@ pub fn chat_header_view(app: &App) -> Element<'_, Message> {
 
     let status_icon: Element<'_, Message> = {
         if is_running {
-            text("●").size(12.0).style(move |_: &Theme| colored_text_style(running_color)).into()
+            session_running_dot(running_color).into()
         } else if queued > 0 {
             let queued_color = mix_color(
                 Color::from_rgb8(245, 158, 11),
@@ -525,15 +525,13 @@ pub fn chat_header_view(app: &App) -> Element<'_, Message> {
 
     let mut status_badges: Element<'_, Message> = Space::new().width(Length::Fixed(0.0)).into();
     if is_running || queued > 0 {
-        let mut badges_row = row![].spacing(4);
+        let mut badges_row = row![].spacing(4).align_y(Alignment::Center);
         if is_running {
             let running_badge_color = Color::from_rgb8(239, 68, 68);
             badges_row = badges_row.push(
                 container(
                     row![
-                        text(spinner_frame(app.status_animation_frame))
-                            .size(9)
-                            .style(move |_: &Theme| colored_text_style(running_badge_color)),
+                        session_spinner(app.status_animation_frame, 9.0, running_badge_color),
                         text(crate::app::i18n::I18n::new(app.desktop_locale).__("运行中")).size(9)
                     ]
                     .spacing(4)

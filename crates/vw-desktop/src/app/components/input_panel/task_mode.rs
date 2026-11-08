@@ -30,6 +30,7 @@ use crate::app::components::input_panel::styles::{
     selector_pill_button_style, selector_text_color,
 };
 use crate::app::components::overlays::AboveOverlay;
+use crate::app::i18n::I18n;
 use crate::app::state::SessionRuntimeState;
 use crate::app::task::TaskSplitMode;
 use crate::app::{App, Message, message};
@@ -37,8 +38,8 @@ use vw_gateway_client::vw_api_types::ReasoningEffortDto;
 
 use crate::app::components::system_settings_common::{
     SETTINGS_CONTROL_PADDING, SETTINGS_CONTROL_TEXT_SIZE, rounded_action_btn_style,
-    settings_field_label, settings_panel_style, settings_select, settings_text_editor_style,
-    settings_text_input_style,
+    settings_field_label, settings_hover_help_label, settings_panel_style, settings_select,
+    settings_text_editor_style, settings_text_input_style,
 };
 
 const ACP_SELECTOR_MAX_HEIGHT: f32 = 240.0;
@@ -122,21 +123,23 @@ pub fn task_mode_form<'a>(
         return Space::new().into();
     }
 
-    // 构建优先级输入框
-    // 提示用户输入数字，数字越小代表优先级越高
-    let priority_input = text_input(
-        crate::app::i18n::I18n::new(app.desktop_locale).__("数字越小越优先"),
-        task_mode_priority,
-    )
-    .on_input(|v| Message::Chat(message::ChatMessage::TaskModePriorityChanged(v)))
-    .padding(SETTINGS_CONTROL_PADDING)
-    .size(SETTINGS_CONTROL_TEXT_SIZE)
-    .style(settings_text_input_style)
-    .width(Length::Fixed(180.0));
+    let i18n = I18n::new(app.desktop_locale);
+    let priority_label = i18n.__("优先级");
+    let priority_input = text_input("", task_mode_priority)
+        .on_input(|v| Message::Chat(message::ChatMessage::TaskModePriorityChanged(v)))
+        .padding(SETTINGS_CONTROL_PADDING)
+        .size(SETTINGS_CONTROL_TEXT_SIZE)
+        .style(settings_text_input_style)
+        .width(Length::Fixed(180.0));
 
-    // 优先级行布局：左侧标签，右侧输入框
     let priority_row = row![
-        settings_field_label(crate::app::i18n::I18n::new(app.desktop_locale).__("优先级")),
+        settings_hover_help_label(
+            i18n,
+            &app.app_theme,
+            priority_label,
+            settings_field_label(priority_label),
+            i18n.__("数字越小越优先"),
+        ),
         Space::new().width(Length::Fill),
         priority_input
     ]

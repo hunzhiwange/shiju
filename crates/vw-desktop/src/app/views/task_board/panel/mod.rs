@@ -12,9 +12,10 @@ use iced::{Alignment, Background, Border, Color, Element, Length, Theme};
 use crate::app::components::system_settings_common::{
     SETTINGS_CONTROL_PADDING, SETTINGS_CONTROL_TEXT_SIZE, primary_action_btn_style,
     rounded_action_btn_style, settings_checkbox_style, settings_close_button, settings_divider,
-    settings_field_label, settings_muted_text_style, settings_panel, settings_segment_button_style,
+    settings_field_label, settings_hover_help_label, settings_panel, settings_segment_button_style,
     settings_select,
 };
+use crate::app::i18n::I18n;
 use crate::app::message::TaskBoardMessage;
 use crate::app::state::{MAIN_AGENT_KEY, TaskBoardDetailTab};
 use crate::app::task::{Task, TaskSplitMode};
@@ -128,19 +129,19 @@ fn segmented_button_style(
 }
 
 fn section_block<'a>(
+    app: &'a App,
     title: &'a str,
     description: &'a str,
     content: impl Into<Element<'a, Message>>,
 ) -> Element<'a, Message> {
-    column![
-        text(title)
-            .size(13)
-            .font(iced::Font { weight: iced::font::Weight::Bold, ..Default::default() }),
-        text(description).size(12).style(settings_muted_text_style),
-        settings_panel(content.into()),
-    ]
-    .spacing(8)
-    .into()
+    let i18n = I18n::new(app.desktop_locale);
+    let title = i18n.__(title);
+    let label = text(title)
+        .size(13)
+        .font(iced::Font { weight: iced::font::Weight::Bold, ..Default::default() });
+    let heading =
+        settings_hover_help_label(i18n, &app.app_theme, title, label, i18n.__(description));
+    column![heading, settings_panel(content.into())].spacing(8).into()
 }
 
 /// 构建对应界面片段。
@@ -174,27 +175,21 @@ pub fn build_task_panel<'a>(app: &'a App, is_edit_mode: bool) -> Element<'a, Mes
         )
     };
 
-    let close_btn = build_close_button(close_msg);
-    let header_row = build_header_row(
-        crate::app::i18n::I18n::new(app.desktop_locale),
-        panel_title,
-        task_id_text,
-        current_task,
-        close_btn,
+    let i18n = I18n::new(app.desktop_locale);
+    let title = i18n.__(panel_title);
+    let title_label = text(title)
+        .size(16)
+        .font(iced::Font { weight: iced::font::Weight::Bold, ..Default::default() });
+    let title = settings_hover_help_label(
+        i18n,
+        &app.app_theme,
+        title,
+        title_label,
+        i18n.__(panel_description),
     );
-
-    let header = column![
-        header_row,
-        Space::new().height(6.0),
-        text(crate::app::i18n::I18n::new(app.desktop_locale).__(panel_description))
-            .size(12)
-            .style(settings_muted_text_style),
-        Space::new().height(18.0)
-    ]
-    .spacing(0)
-    .width(Length::Fill);
-
-    let mut header = header;
+    let header_row =
+        build_header_row(i18n, title, task_id_text, current_task, build_close_button(close_msg));
+    let mut header = column![header_row, Space::new().height(18.0)].width(Length::Fill);
     let mut main_col = column![].width(Length::Fill);
 
     if is_edit_mode {
@@ -241,9 +236,9 @@ pub fn build_task_panel<'a>(app: &'a App, is_edit_mode: bool) -> Element<'a, Mes
             let prompt_field = build_prompt_field(app);
 
             main_col = main_col.push(section_block(
-                crate::app::i18n::I18n::new(app.desktop_locale).__("任务配置"),
-                crate::app::i18n::I18n::new(app.desktop_locale)
-                    .__("编辑提示词、模型、代理、执行器、任务拆分与优先级。"),
+                app,
+                "任务配置",
+                "编辑提示词、模型、代理、执行器、任务拆分与优先级。",
                 column![
                     prompt_field,
                     settings_divider(),
@@ -266,9 +261,9 @@ pub fn build_task_panel<'a>(app: &'a App, is_edit_mode: bool) -> Element<'a, Mes
         main_col = main_col.push(build_mode_toggle(app)).push(Space::new().height(12.0));
         if app.task_board_is_import_mode {
             main_col = main_col.push(section_block(
-                crate::app::i18n::I18n::new(app.desktop_locale).__("批量导入"),
-                crate::app::i18n::I18n::new(app.desktop_locale)
-                    .__("支持 JSON、CSV、TSV，适合一次性导入多条任务。"),
+                app,
+                "批量导入",
+                "支持 JSON、CSV、TSV，适合一次性导入多条任务。",
                 build_import_field(app),
             ));
         } else {
@@ -280,9 +275,9 @@ pub fn build_task_panel<'a>(app: &'a App, is_edit_mode: bool) -> Element<'a, Mes
             let task_split_field = build_task_split_mode_selector(app, false);
             let prompt_field = build_prompt_field(app);
             main_col = main_col.push(section_block(
-                crate::app::i18n::I18n::new(app.desktop_locale).__("任务配置"),
-                crate::app::i18n::I18n::new(app.desktop_locale)
-                    .__("填写提示词并选择模型、代理、执行器、任务拆分与优先级。"),
+                app,
+                "任务配置",
+                "填写提示词并选择模型、代理、执行器、任务拆分与优先级。",
                 column![prompt_field, settings_divider(), agent_field, executor_field,]
                     .extend(reasoning_effort_field)
                     .push(model_field)
@@ -377,7 +372,7 @@ fn build_detail_tab_button(
 
 fn build_header_row<'a>(
     i18n: crate::app::i18n::I18n,
-    panel_title: &'a str,
+    title: impl Into<Element<'a, Message>>,
     task_id_text: Option<&'a str>,
     task: Option<&'a Task>,
     close_btn: iced::Element<'a, Message>,
@@ -391,11 +386,7 @@ fn build_header_row<'a>(
         }));
     }
 
-    title_row = title_row.push(
-        text(i18n.__(panel_title))
-            .size(16)
-            .font(iced::Font { weight: iced::font::Weight::Bold, ..Default::default() }),
-    );
+    title_row = title_row.push(title.into());
 
     if let Some(status) = task.map(|value| value.status) {
         let (status_color, status_bg_color) = task_status_tag_colors(status);
@@ -996,8 +987,9 @@ fn build_close_after_edit_checkbox(app: &App) -> iced::Element<'_, Message> {
 
 fn build_create_options_row(app: &App) -> iced::Element<'_, Message> {
     section_block(
-        crate::app::i18n::I18n::new(app.desktop_locale).__("创建行为"),
-        crate::app::i18n::I18n::new(app.desktop_locale).__("控制创建完成后的默认收尾动作。"),
+        app,
+        "创建行为",
+        "控制创建完成后的默认收尾动作。",
         row![build_close_after_create_checkbox(app), build_clear_prompt_checkbox(app),]
             .spacing(16)
             .align_y(Alignment::Center)
@@ -1007,8 +999,9 @@ fn build_create_options_row(app: &App) -> iced::Element<'_, Message> {
 
 fn build_edit_options_row(app: &App) -> iced::Element<'_, Message> {
     section_block(
-        crate::app::i18n::I18n::new(app.desktop_locale).__("编辑行为"),
-        crate::app::i18n::I18n::new(app.desktop_locale).__("保存成功后的面板处理策略。"),
+        app,
+        "编辑行为",
+        "保存成功后的面板处理策略。",
         row![build_close_after_edit_checkbox(app)].spacing(16).align_y(Alignment::Center),
     )
 }

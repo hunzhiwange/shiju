@@ -5,9 +5,10 @@ use iced::{Alignment, Background, Border, Color, Element, Length, Theme};
 
 use crate::app::components::system_settings_common::{
     rounded_action_btn_style, settings_checkbox_style, settings_close_button, settings_divider,
-    settings_field_label, settings_group_card, settings_group_heading, settings_modal_header,
-    settings_modal_layout, settings_muted_text_style, settings_segment_button_style,
-    settings_tab_button, settings_tab_row, settings_text_input, settings_toggle,
+    settings_field_label, settings_group_card, settings_group_heading_with_help,
+    settings_modal_header, settings_modal_layout, settings_muted_text_style,
+    settings_segment_button_style, settings_tab_button, settings_tab_row, settings_text_input,
+    settings_toggle,
 };
 use crate::app::i18n::I18n;
 use crate::app::message::TaskBoardMessage;
@@ -473,7 +474,12 @@ pub fn build_task_settings_modal(app: &App) -> Element<'_, Message> {
     ]
     .spacing(12);
     let body = column![
-        settings_group_heading(i18n.__(heading), i18n.__(description)),
+        settings_group_heading_with_help(
+            i18n,
+            &app.app_theme,
+            i18n.__(heading),
+            i18n.__(description)
+        ),
         settings_group_card(rows),
     ]
     .spacing(12);
@@ -577,4 +583,4 @@ pub fn build_context_menu(i18n: crate::app::i18n::I18n, task: Task) -> Element<'
 
 #[cfg(test)]
 #[path = "modals_tests.rs"]
-mod modals_tests;
+pub(super) mod modals_tests;

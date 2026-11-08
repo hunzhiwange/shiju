@@ -189,3 +189,20 @@ JSONC/JSON5、TOML、YAML、dotenv 的保注释和未知字段要求均需原生
 本任务清单已完成：14 ID/格式/路径/限制、管理与主机读写权限、秘密写入/脱敏、错误体与状态/路由差异、底座证据和全部拟文件注册均有来源。没有无法定位的必需底座入口；尚缺的是本计划要实现的完整 DTO/CRUD/显式秘密编辑（2–12、23）、授权路径和写锁（12、17）、补丁与 pending（13–24）、应用适配（26–44）、模式（45–46）、环境恢复（47–49）、操作进度（50）、权限脱敏回归（51）、真实供应商 Iced 与 macOS 交叉验收（52–77）。这些标为待实现，不因本任务完成而改为通过。
 
 母任务 2 完整迁移/母任务 8 代理/母任务 10 聚合/母任务 6 OAuth 的完整领域验收仍未由此收口。后续遇到真实依赖缺失应给出明确拒绝和对应责任，不创建伪支持。任务 77 不得把未验证交叉项记作母任务完整。
+
+## 供应商事务交接给统一账号授权批次 33
+
+macOS 的 Kimi 官方 OAuth 供应商已接入主机事务。执行端使用
+`crates/vw-agent/src/app_providers/kimi_binding.rs` 的
+`AppProviderStore::{bind_kimi_account,kimi_account_binding,use_kimi_account_binding}`。
+接入方从同一授权决策取得租户、主体、目标主机、HOME 和私有根。现有
+`gateway/api/handlers/agent_apps/mod.rs::provider_editor_authorization` 同时返回主体和执行路径，
+分别按配置读写权限检查。将这些值用于 `AuthAccountScope`、`ExecutionHostId` 和
+`KimiNativeTarget`。账号 ID 只查询该作用域的 `agent_apps.auth_accounts.v2`。
+
+首绑传空预期账号，替换传当前绑定的账号 ID。提交前对照目录与主机原生连接，核验 Kimi 官方
+区域端点和 OAuth 槽。绑定要求有效 grant。同一 grant 直接比较，独立登录通过官方身份接口验证同一身份。提交通过
+`KimiFiles` 和 `ProviderTransactions` 同步原生模型选择与绑定引用。相同绑定重试只确认已提交结果。
+消费时由现有 Kimi 适配器重新核验原生 grant 身份，然后选择模型。无绑定时读取返回空，
+消费返回 `NotFound`。当前支持范围为已存在原生官方 profile 和匹配的受管 grant。
+统一账号语义和 HTTP 接入分别由批次 33、42 负责。

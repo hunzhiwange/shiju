@@ -338,6 +338,24 @@ fn execute(
             live = Some((files, tx, expected, name, pre, next));
         }
     }
+    let catalog_profile = if writing { profile.as_ref() } else { removed_profile.as_ref() };
+    if let Some(profile) = catalog_profile
+        && before.as_ref().and_then(|row| row.pointer("/kimi/declaration/provider"))
+            != profile.declaration.get("provider")
+        && let Some(tx) = ProviderTransactions::open_existing(
+            &root,
+            ExecutionHostId::new(host).map_err(|_| StatusCode::BAD_REQUEST)?,
+        )
+        .map_err(|_| StatusCode::CONFLICT)?
+        && (tx
+            .state(AppId::Kimi)
+            .map_err(|_| StatusCode::CONFLICT)?
+            .kimi_bindings
+            .contains_key(&id)
+            || tx.pending(AppId::Kimi).map_err(|_| StatusCode::CONFLICT)?.is_some())
+    {
+        return Err(StatusCode::CONFLICT);
+    }
     let catalog_saved = writing || removed_profile.is_some();
     let saved = if let Some(profile) = removed_profile {
         Some(

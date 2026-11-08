@@ -424,8 +424,19 @@ pub(super) fn authorize_provider_write(
     tenant: &TenantScope,
     target: &str,
 ) -> Result<Host, StatusCode> {
-    authorize_scoped(path, headers, tenant, target, None, Capability::ProviderConfigWrite)
-        .map(|a| a.host)
+    authorize_provider_editor(path, headers, tenant, target, true).map(|a| a.host)
+}
+
+pub(super) fn authorize_provider_editor(
+    path: Option<&Path>,
+    headers: &HeaderMap,
+    tenant: &TenantScope,
+    target: &str,
+    write: bool,
+) -> Result<Authorization, StatusCode> {
+    let capability =
+        if write { Capability::ProviderConfigWrite } else { Capability::ProviderConfigRead };
+    authorize_scoped(path, headers, tenant, target, None, capability)
 }
 
 /// Configuration writes do not grant access to every registered official identity.

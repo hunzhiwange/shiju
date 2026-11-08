@@ -43,6 +43,7 @@ fn cc04_mode_state_distinguishes_direct_route_and_stack() {
             pointer: Some("direct".into()),
             mode: Some(mode()),
             stack: Some(stack.clone()),
+            ..Default::default()
         },
     )
     .unwrap();

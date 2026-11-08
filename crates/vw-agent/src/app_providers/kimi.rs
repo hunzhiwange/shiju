@@ -56,7 +56,7 @@ impl AppProviderStore {
     }
 }
 
-fn kimi_key(id: &str) -> Result<String, String> {
+pub(super) fn kimi_key(id: &str) -> Result<String, String> {
     if id.trim().is_empty()
         || id.len() > 128
         || id.chars().any(char::is_control)

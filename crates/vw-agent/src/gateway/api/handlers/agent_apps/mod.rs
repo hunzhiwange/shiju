@@ -246,12 +246,22 @@ pub(super) fn provider_editor_context(
     target: &str,
     write: bool,
 ) -> Result<(std::path::PathBuf, std::path::PathBuf), axum::http::StatusCode> {
-    let host = if write {
-        access::authorize_provider_write(path, headers, tenant, target)?
-    } else {
-        access::authorize_provider_config(path, headers, tenant, target)?
-    };
-    Ok((host.home, host.credential_root.ok_or(axum::http::StatusCode::SERVICE_UNAVAILABLE)?))
+    provider_editor_authorization(path, headers, tenant, target, write)
+        .map(|(home, root, _)| (home, root))
+}
+
+/// Resolves the principal alongside the execution paths under a single policy decision.
+pub(super) fn provider_editor_authorization(
+    path: Option<&std::path::Path>,
+    headers: &axum::http::HeaderMap,
+    tenant: &TenantScope,
+    target: &str,
+    write: bool,
+) -> Result<(std::path::PathBuf, std::path::PathBuf, String), axum::http::StatusCode> {
+    let authorization = access::authorize_provider_editor(path, headers, tenant, target, write)?;
+    let host = authorization.host;
+    let root = host.credential_root.ok_or(axum::http::StatusCode::SERVICE_UNAVAILABLE)?;
+    Ok((host.home, root, authorization.principal))
 }
 
 /// Database-only provider operations require a host grant without opening its private file root.

@@ -3595,3 +3595,51 @@ PY
 ```
 
 人工逐组核对来源主责、注册/调用和历史记录。另一次 Python 结构检查退出 0，核对 55 条命令定义及 Tauri 注册、121 个来源文件各登记一次、14 行矩阵及版本字段、28 张截图的文件签名和全篇 284 处相对链接。历史 Cargo 和窗口结果按原条目引用，本轮为只读行为审查与文档检查，TDD 和 Cargo 不适用。状态 **已完成**（覆盖证据审查）。母任务 4 保留上列实机与生产集成缺项。
+
+## 母任务 4 补充：Kimi 受管账号绑定事务
+
+2026-11-09，macOS 27.0（26A428）arm64。范围为已有官方 Kimi OAuth profile，包含
+`managed:kimi-code` 等原生供应商键。
+
+- 批次 33 可调用 `crates/vw-agent/src/app_providers/kimi_binding.rs` 的
+  `AppProviderStore::bind_kimi_account`、`kimi_account_binding`、`use_kimi_account_binding`。
+  `crates/vw-agent/src/gateway/api/handlers/agent_apps/mod.rs::provider_editor_authorization`
+  一次性解析配置权限、可信主体及主机执行路径。现有 Kimi 供应商接口消费同一主机状态保护普通编辑。
+- `crates/vw-agent/src/agent_apps/auth_accounts.rs::bind_kimi_provider` 只读取受管账号 v2 的
+  租户、主体、主机及服务作用域。供应商目录的官方连接须与主机原生配置一致，区域端点和 OAuth
+  槽由执行端解析。相同且有效的 grant 可直接比较，独立登录需通过 Kimi 的身份接口核验。
+  缺失绑定时消费返回 `NotFound`。
+- `crates/vw-agent-apps/src/auth/kimi_account/binding.rs` 复用凭据租约、原生 OAuth 槽锁、
+  `KimiFiles` 和 `ProviderTransactions`，发布模型选择并提交不含凭据的账号引用。
+  发布前复核目录和账号记录、配置和 grant。普通模型及展示编辑保留绑定，普通写入拒绝替换已绑定连接。
+  已提交的相同绑定可重试，替换需要预期账号。旧状态可直接读取。
+- 隔离故障使用临时状态文件的 macOS `uchg`。配置发布后状态提交失败时，读取拒绝返回进行中的结果。
+  解除故障后，原生文件仍匹配时前滚绑定，已被外部编辑时保留编辑并放弃该绑定。原生模型选择通过
+  相同事务应用。独立登录及后续消费测试通过隔离回环 HTTP 替代 Kimi 身份接口。
+- 证据覆盖真实 SQLite、私有临时 HOME、文件系统及现有 Kimi Gateway/SDK 编辑路径。环境 PATH
+  未发现 Kimi CLI，已安装客户端消费、真实账号和公网 OAuth 未验收。统一账号语义和 HTTP 绑定仍归
+  批次 33 和 42，其他应用沿用各自的受管账号能力边界。
+
+### 验证记录
+
+按原子 `mkdir` 动态领取共享槽位。红灯使用槽位 1，
+`CARGO_TARGET_DIR=/Users/xiangmin/worker/code/shiju/target/rust-slot-1`。
+最终验证使用槽位 2，`CARGO_TARGET_DIR=/Users/xiangmin/worker/code/shiju/target/rust-slot-2`。
+两阶段的 `CARGO_BUILD_BUILD_DIR` 与实际槽位绝对路径相同。
+
+| 确切命令 | 退出码 | 有效用例 |
+| --- | --- | --- |
+| `cargo fmt --all` | 0 | 格式化，含红灯和最终源码 |
+| `cargo test -p vw-agent-apps --lib provider_kimi_binding_consumer -- --nocapture`（红） | 101 | 0 通过，1 失败，779 过滤 |
+| `cargo test -p vw-agent-apps --lib provider_kimi_binding_consumer -- --nocapture`（绿） | 0 | 1 通过，779 过滤 |
+| `cargo test -p vw-agent-apps --lib auth6_kimi_account -- --nocapture` | 0 | 2 通过，778 过滤 |
+| `cargo test -p vw-agent --lib provider_kimi_binding -- --nocapture` | 0 | 3 通过，11753 过滤 |
+| `cargo test -p vw-agent --lib cc04_kimi_ -- --nocapture` | 0 | 7 通过，11749 过滤 |
+| `cargo test -p vw-agent --test cc04_accept_transactions cc04_accept_transactions_ -- --nocapture` | 0 | 2 通过，1 过滤 |
+| `cargo clippy --all-targets --all-features -- -D warnings` | 0 | 检查通过 |
+| `git diff --check` | 0 | 差异检查通过 |
+
+红灯控制仅移除 Kimi 生效事务提交的绑定引用。原生配置完成写入后，测试实际读到
+`Ok(None)`，预期为 `Ok(Some("managed-account"))`。恢复提交字段后绿灯通过。
+早期构建曾因新增事务字段缺少显式初始化而退出 101、执行 0 项，已修复。
+链接器报告既有 DWARF unwind 体积提示，聚焦用例正常执行。两个槽位锁均已释放。

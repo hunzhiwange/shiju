@@ -681,6 +681,11 @@ mod omp;
 
 mod kimi;
 
+#[cfg(target_os = "macos")]
+mod kimi_binding;
+#[cfg(all(test, target_os = "macos"))]
+mod kimi_binding_tests;
+
 mod dsh;
 
 mod agy;

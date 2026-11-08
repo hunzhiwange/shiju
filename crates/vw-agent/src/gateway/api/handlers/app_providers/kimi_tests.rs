@@ -359,3 +359,94 @@ async fn cc04_ui_kimi_form_invalid_denied_and_redirect_leave_no_side_effects() {
     assert_eq!(f.bytes(), before);
     assert_eq!(f.record("new").unwrap()["kimi"]["declaration"]["provider"]["api_key"], "fake-new");
 }
+
+#[tokio::test]
+async fn cc04_kimi_bound_official_connection_survives_gateway_edits() {
+    use crate::{
+        agent_apps::auth_accounts::{AuthAccountMetadata, AuthAccountScope, AuthAccountStore},
+        app_providers::AppProviderStore,
+    };
+    use vw_agent_apps::{
+        auth::{
+            credential_file::{AccountCredential, CredentialFileStore, KimiCredential},
+            kimi_account::KimiNativeTarget,
+        },
+        providers::live::commit::{ExecutionHostId, ProviderTransactions},
+    };
+    use vw_api_types::{
+        TimestampMs,
+        agent_apps_auth::{AuthRegion, AuthService},
+    };
+    const ID: &str = "managed:kimi-code";
+    const ACCOUNT: &str = "fixture-account";
+    let f = Fixture::new().await;
+    let native = "default_model='native'\n[providers.'managed:kimi-code']\ntype='kimi'\nbase_url='https://api.kimi.com/coding/v1'\n[providers.'managed:kimi-code'.oauth]\nkey='oauth/kimi-code'\nstorage='file'\n[models.native]\nprovider='managed:kimi-code'\nmodel='native'\nmax_context_size=32000\n";
+    std::fs::write(f.file(), native).unwrap();
+    assert_eq!(f.client.kimi_import(&f.target(), TOKEN).await.unwrap().imported, 1);
+
+    let tenant = TenantScope::new("p", "a").unwrap();
+    let mut headers = axum::http::HeaderMap::new();
+    headers.insert("x-agent-apps-token", TOKEN.parse().unwrap());
+    let (home, root, principal) = super::super::agent_apps::provider_editor_authorization(
+        Some(&f.root.path().join("access.json")),
+        &headers,
+        &tenant,
+        "host",
+        true,
+    )
+    .unwrap();
+    let scope = AuthAccountScope {
+        tenant: &tenant,
+        host: "host",
+        principal: &principal,
+        service: AuthService::KimiOauth,
+    };
+    let accounts = AuthAccountStore::new(f.db.clone(), &root).unwrap();
+    let mut metadata = AuthAccountMetadata::new("fixture-subject", TimestampMs(1)).unwrap();
+    metadata.region = Some(AuthRegion::MainlandCn);
+    accounts.insert_metadata(&scope, ACCOUNT, &metadata).unwrap();
+    let grant = KimiCredential {
+        access_token: "fixture-access".into(),
+        refresh_token: "fixture-refresh".into(),
+        expires_at: TimestampMs(4_102_444_800_000),
+        device_id: "d8c8a37b-175c-4e59-9501-07351b0da278".into(),
+        region: AuthRegion::MainlandCn,
+    };
+    let native_directory = home.join(".kimi-code");
+    std::fs::create_dir(native_directory.join("credentials")).unwrap();
+    std::fs::create_dir(native_directory.join("oauth")).unwrap();
+    let slot = native_directory.join("credentials/kimi-code.json");
+    std::fs::write(&slot, json!({
+        "access_token": grant.access_token, "refresh_token": grant.refresh_token, "expires_at": grant.expires_at.0 / 1_000,
+    }).to_string()).unwrap();
+    std::fs::set_permissions(slot, std::fs::Permissions::from_mode(0o600)).unwrap();
+    CredentialFileStore::new(&root)
+        .unwrap()
+        .lease_kimi(scope, ACCOUNT, true)
+        .unwrap()
+        .save(&AccountCredential::KimiOauth(grant))
+        .unwrap();
+    let tx = std::sync::Arc::new(
+        ProviderTransactions::new(&root, ExecutionHostId::new("host").unwrap()).unwrap(),
+    );
+    let target = KimiNativeTarget { home: &home, transactions: &tx, provider_id: ID };
+    let store = AppProviderStore::new(f.db.clone()).unwrap();
+    store.bind_kimi_account(scope, &root, &target, None, ACCOUNT).await.unwrap();
+
+    let mut request = f.request(KimiActivation::IfMember);
+    request.profile.declaration["models"] =
+        json!({"native":{"model":"edited","max_context_size":64000}});
+    assert_eq!(
+        f.client.kimi_provider_save(ID, &request, TOKEN).await.unwrap().live,
+        KimiLiveResult::Applied
+    );
+    assert_eq!(store.kimi_account_binding(scope, &root, &target), Ok(Some(ACCOUNT.into())));
+    let row = f.record(ID).unwrap();
+    let altered =
+        String::from_utf8(f.bytes()).unwrap().replace("oauth/kimi-code", "oauth/other-slot");
+    std::fs::write(f.file(), &altered).unwrap();
+    request.activation = KimiActivation::CatalogOnly;
+    assert!(f.client.kimi_provider_save(ID, &request, TOKEN).await.is_err());
+    assert_eq!(f.record(ID), Some(row));
+    assert_eq!(f.bytes(), altered.into_bytes());
+}

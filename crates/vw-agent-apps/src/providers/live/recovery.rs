@@ -159,7 +159,7 @@ impl ProviderTransactions {
             }
             verify(resource, &open_directory(Path::new(OsStr::from_bytes(&resource.path)))?)?;
         }
-        validate_target(&pending.target)?;
+        validate_target(app, &pending.target)?;
         // Validate all records before modifying any file. Targets and temporary
         // names occupy disjoint namespaces; duplicates could corrupt cleanup.
         let mut targets = HashSet::new();
@@ -217,8 +217,11 @@ impl ProviderTransactions {
                 guard.directory_at(file.directory)?.sync_all().map_err(|_| WriteError::Io)?;
             }
             let mut state = self.state(app)?;
-            apply_target(&mut state, &pending.tenant, &pending.target);
-            self.save(app, "state", &state)?;
+            // A Kimi binding is contingent on publishing its native selection.
+            if pending.target.kimi_binding.is_none() || skipped.is_empty() {
+                apply_target(&mut state, &pending.tenant, &pending.target);
+                self.save(app, "state", &state)?;
+            }
         }
         for file in &pending.files {
             unlink(guard.directory_at(file.directory)?, &file.staged)?;

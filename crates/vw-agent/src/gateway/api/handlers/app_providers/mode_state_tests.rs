@@ -99,6 +99,7 @@ fn seed(f: &Fixture) -> (ProviderTransactions, std::path::PathBuf, Vec<u8>) {
                 members: vec!["route".into()],
                 keys: Default::default(),
             }),
+            ..Default::default()
         },
     )
     .unwrap();

@@ -501,6 +501,44 @@ impl AuthAccountStore {
         adapter.use_account(&self.credentials, account, native).await
     }
 
+    #[cfg(target_os = "macos")]
+    pub(crate) async fn bind_kimi_provider(
+        &self,
+        scope: AuthAccountScope<'_>,
+        account_id: &str,
+        native: &vw_agent_apps::auth::kimi_account::KimiNativeTarget<'_>,
+        expected_account: Option<&str>,
+        connection: &serde_json::Value,
+        catalog_unchanged: impl Fn() -> bool + Send + 'static,
+    ) -> Result<(), AuthErrorCode> {
+        use vw_agent_apps::auth::kimi_account::KimiAccountTarget;
+
+        let key = Self::managed_key(&scope, account_id)?;
+        let read = || self.metadata.get(scope.tenant, MANAGED_ACCOUNT_NAMESPACE, &key);
+        let raw = crate::global_database::run_sync_database(read)
+            .map_err(|_| AuthErrorCode::StorageUnavailable)?
+            .ok_or(AuthErrorCode::NotFound)?;
+        let metadata: AuthAccountMetadata =
+            serde_json::from_str(&raw).map_err(|_| AuthErrorCode::StorageUnavailable)?;
+        let target = KimiAccountTarget {
+            scope,
+            account_id,
+            region: metadata.region.ok_or(AuthErrorCode::StorageUnavailable)?,
+            identity_sha256: metadata.external_identity_sha256,
+        };
+        let store = self.metadata.clone();
+        let tenant = scope.tenant.clone();
+        native
+            .bind_account(&self.credentials, target, expected_account, connection, move || {
+                catalog_unchanged()
+                    && crate::global_database::run_sync_database(|| {
+                        store.get(&tenant, MANAGED_ACCOUNT_NAMESPACE, &key)
+                    })
+                    .is_ok_and(|latest| latest.as_ref() == Some(&raw))
+            })
+            .await
+    }
+
     /// Resolve a targeted re-login only from the same authorized host account.
     #[cfg(not(target_arch = "wasm32"))]
     pub async fn start_kimi_device(

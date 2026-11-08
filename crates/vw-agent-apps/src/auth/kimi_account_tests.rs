@@ -312,3 +312,6 @@ async fn auth6_kimi_account_rejects_invalid_or_stale_input() {
     assert_eq!(fs::read_to_string(fixture.config()).unwrap(), CONFIG);
     assert!(!fixture.lock().exists());
 }
+
+#[path = "kimi_account/binding_tests.rs"]
+mod binding_tests;

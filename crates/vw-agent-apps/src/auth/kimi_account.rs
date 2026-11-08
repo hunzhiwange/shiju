@@ -1,5 +1,6 @@
 //! Host-owned selection and refresh of an existing Kimi OAuth profile.
 
+mod binding;
 mod native;
 
 use super::{
@@ -65,26 +66,10 @@ impl KimiDeviceAuth {
         mut route: impl FnMut(&mut Request),
     ) -> Result<(), AuthErrorCode> {
         let KimiAccountTarget { scope, account_id, region, identity_sha256 } = account;
-        scope.validate()?;
-        if scope.service != AuthService::KimiOauth
-            || std::env::var_os("KIMI_DISABLE_OAUTH_LOCK").as_deref() == Some("1".as_ref())
-        {
-            return Err(AuthErrorCode::Unsupported);
-        }
-        if &ExecutionHostId::new(scope.host).map_err(write_error)?
-            != native.transactions.execution_host()
-        {
-            return Err(AuthErrorCode::Forbidden);
-        }
+        native.check_scope(scope)?;
         crate::providers::validate_identity(account_id).map_err(|_| AuthErrorCode::InvalidInput)?;
-        kimi::validate_identity(native.provider_id).map_err(write_error)?;
-        let lease = credentials.lease_kimi(scope, account_id, false).map_err(|error| {
-            if error == "official account is in use" {
-                AuthErrorCode::AccountInUse
-            } else {
-                AuthErrorCode::StorageUnavailable
-            }
-        })?;
+        let lease =
+            credentials.lease_kimi(scope, account_id, false).map_err(binding::lease_error)?;
         let AccountCredential::KimiOauth(saved) =
             lease.read().map_err(|_| AuthErrorCode::StorageUnavailable)?
         else {
@@ -115,6 +100,11 @@ impl KimiDeviceAuth {
             return Err(AuthErrorCode::Conflict);
         }
         let (slot, next_config) = select_model(&before, native.provider_id, region)?;
+        if native.binding(&expected, scope.tenant, scope.principal)?.is_some_and(|binding| {
+            binding.account_id != account_id || binding.region != region || binding.slot != slot
+        }) {
+            return Err(AuthErrorCode::IdentityMismatch);
+        }
         let slot = NativeSlot::open(native.home, &slot)?;
         let original = slot.read()?;
         let current =

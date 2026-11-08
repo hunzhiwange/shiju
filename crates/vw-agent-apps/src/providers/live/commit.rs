@@ -16,7 +16,7 @@ use std::{
     },
     path::Path,
 };
-use vw_api_types::{agent_apps::AppId, id::TenantScope};
+use vw_api_types::{agent_apps::AppId, agent_apps_auth::AuthRegion, id::TenantScope};
 
 #[derive(Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct ExecutionHostId(String);
@@ -52,8 +52,20 @@ pub struct ModeState {
 pub struct PendingTarget {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub stack: Option<crate::providers::mode_state::StackState>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub kimi_binding: Option<KimiBinding>,
     pub pointer: Option<String>,
     pub mode: Option<ModeState>,
+}
+/// Reference only. Account credentials remain with the managed and native login owners.
+#[derive(Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct KimiBinding {
+    pub(crate) provider_id: String,
+    pub(crate) principal: String,
+    pub(crate) account_id: String,
+    pub(crate) region: AuthRegion,
+    pub(crate) slot: String,
 }
 #[derive(Clone, PartialEq, Serialize, Deserialize)]
 pub struct ScopedProvider {
@@ -66,6 +78,8 @@ pub struct AppState {
     pub stack: crate::providers::mode_state::StackState,
     #[serde(default)]
     pub stack_tenant: Option<TenantScope>,
+    #[serde(default, skip_serializing_if = "std::collections::BTreeMap::is_empty")]
+    pub kimi_bindings: std::collections::BTreeMap<String, KimiBinding>,
     pub pointer: Option<ScopedProvider>,
     pub mode: Option<ModeState>,
     pub mode_tenant: Option<TenantScope>,
@@ -172,7 +186,8 @@ impl ProviderTransactions {
             .map(|b| serde_json::from_slice(&b).map_err(|_| WriteError::InvalidResource))
             .transpose()?;
         if pending.as_ref().is_some_and(|p| {
-            !matches!(p.version, 1..=4)
+            !matches!(p.version, 1..=5)
+                || (p.version == 5) != p.target.kimi_binding.is_some()
                 || (p.version < 4 && p.target.stack.is_some())
                 || (p.version < 3 && p.files.iter().any(|f| f.directory != 0))
                 || (p.version == 1 && p.files.iter().any(|f| f.planned.is_none()))
@@ -211,8 +226,8 @@ impl ProviderTransactions {
         target: PendingTarget,
         validate: impl Fn() -> Result<(), WriteError>,
     ) -> Result<(), WriteError> {
-        validate_target(&target)?;
         let app = guard.app();
+        validate_target(app, &target)?;
         let _lock = self.lock(app)?;
         if self.recover_locked(guard)?.is_some() {
             // Recovery can move state. The caller must re-read and replan.
@@ -241,7 +256,9 @@ impl ProviderTransactions {
         }
         let mut pending = Pending {
             // Older executors must reject multi-directory intents and actual deletions.
-            version: if target.stack.is_some() {
+            version: if target.kimi_binding.is_some() {
+                5
+            } else if target.stack.is_some() {
                 4
             } else if multi {
                 3
@@ -395,7 +412,21 @@ fn private_child(parent: &File, name: &str) -> Result<File, WriteError> {
     parent.sync_all().map_err(|_| WriteError::Io)?;
     Ok(file)
 }
-pub(super) fn validate_target(target: &PendingTarget) -> Result<(), WriteError> {
+pub(super) fn validate_target(app: AppId, target: &PendingTarget) -> Result<(), WriteError> {
+    if let Some(binding) = &target.kimi_binding {
+        if app != AppId::Kimi
+            || target.pointer.is_some()
+            || target.stack.is_some()
+            || !target.mode.as_ref().is_some_and(|m| m.mode == Mode::Direct && !m.attached)
+            || binding.principal.trim().is_empty()
+            || binding.principal.chars().any(char::is_control)
+        {
+            return Err(WriteError::InvalidResource);
+        }
+        crate::providers::kimi::validate_identity(&binding.provider_id)?;
+        crate::providers::validate_identity(&binding.account_id)
+            .map_err(|_| WriteError::InvalidResource)?;
+    }
     for id in target.pointer.iter().chain(target.mode.iter().filter_map(|m| m.proxy_route.as_ref()))
     {
         crate::providers::validate_identity(id).map_err(|_| WriteError::InvalidResource)?;
@@ -441,6 +472,9 @@ pub(super) fn apply_target(state: &mut AppState, tenant: &TenantScope, target: &
     if let Some(stack) = &target.stack {
         state.stack = stack.clone();
         state.stack_tenant = Some(tenant.clone());
+    }
+    if let Some(binding) = &target.kimi_binding {
+        state.kimi_bindings.insert(binding.provider_id.clone(), binding.clone());
     }
     if let Some(mode) = &target.mode {
         state.mode = Some(mode.clone());

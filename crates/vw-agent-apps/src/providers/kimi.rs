@@ -437,6 +437,21 @@ impl KimiFiles {
         next: Vec<u8>,
         unchanged: impl Fn() -> bool,
     ) -> Result<(), WriteError> {
+        self.apply_with_binding(tx, tenant, expected, name, pre, next, None, unchanged)
+    }
+
+    #[allow(clippy::too_many_arguments)]
+    pub(crate) fn apply_with_binding(
+        &mut self,
+        tx: &super::live::commit::ProviderTransactions,
+        tenant: &vw_api_types::id::TenantScope,
+        expected: &super::live::commit::AppState,
+        name: &str,
+        pre: Option<&[u8]>,
+        next: Vec<u8>,
+        binding: Option<super::live::commit::KimiBinding>,
+        unchanged: impl Fn() -> bool,
+    ) -> Result<(), WriteError> {
         use super::live::{
             commit::*,
             stage::{FileChange, WholeFile},
@@ -451,6 +466,15 @@ impl KimiFiles {
         {
             return Err(WriteError::Conflict);
         }
+        if !expected.kimi_bindings.is_empty() {
+            let before = document(pre)?;
+            let after = document(Some(&next))?;
+            for id in expected.kimi_bindings.keys() {
+                if before["providers"].get(id) != after["providers"].get(id) {
+                    return Err(WriteError::Conflict);
+                }
+            }
+        }
         let after = if pre.is_none() && next.is_empty() { None } else { Some(next) };
         let patch = WholeFile::new(pre, after);
         tx.commit_checked(
@@ -459,6 +483,7 @@ impl KimiFiles {
             &[FileChange { name: OsStr::new(name), privacy: FilePrivacy::Private, patch: &patch }],
             PendingTarget {
                 pointer: None,
+                kimi_binding: binding,
                 mode: Some(ModeState {
                     mode: Mode::Direct,
                     attached: false,

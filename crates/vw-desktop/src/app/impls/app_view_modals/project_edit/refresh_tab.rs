@@ -2,7 +2,7 @@
 //! 本模块只描述模态内容和交互消息，不直接承担持久化策略。
 
 use crate::app::components::system_settings_common::{
-    settings_field_label, settings_group_heading, settings_panel, settings_toggle,
+    settings_field_label, settings_group_heading_with_help, settings_panel, settings_toggle,
 };
 use crate::app::i18n::I18n;
 use iced::widget::{column, row};
@@ -111,7 +111,12 @@ pub(super) fn refresh_tab<'a>(app: &'a App) -> Element<'a, Message> {
     );
 
     column![
-        settings_group_heading(i18n.__("刷新策略"), i18n.__("统一项目会话与任务看板刷新策略。")),
+        settings_group_heading_with_help(
+            i18n,
+            &app.app_theme,
+            i18n.__("刷新策略"),
+            i18n.__("统一项目会话与任务看板刷新策略。"),
+        ),
         settings_panel(
             column![
                 task_board_auto_refresh_toggle,

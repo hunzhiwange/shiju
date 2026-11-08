@@ -447,8 +447,12 @@ async fn ui_refresh_30_layout_and_interaction() {
     assert_fits(menu, size);
     let workflows = crate::app::task::all_task_workflows();
     assert!(workflows.len() >= 2);
+    // A shorter menu may show only the upper part of the second option.
+    let second_offset = 54.0_f32.min(menu.height - 1.0);
+    assert!(second_offset > 38.0, "the second option should be partially visible: {menu:?}");
     let mut previous = None;
-    for (offset, name) in [(18.0, "workflow-hover-first"), (54.0, "workflow-hover-second")] {
+    for (offset, name) in [(18.0, "workflow-hover-first"), (second_offset, "workflow-hover-second")]
+    {
         let point = Point::new(menu.center_x(), menu.y + offset);
         assert!(point.y < menu.y + menu.height);
         assert!(
@@ -722,4 +726,153 @@ async fn settings_tabs_peripheral_appearance_project() {
         },
     )
     .await;
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn help_rollout_21_project_settings_render_contextual_help() {
+    use crate::app::components::system_settings_proxy::system_settings_proxy_tests::rollout::Scene;
+
+    if !isolated("help_rollout_21_project_settings_render_contextual_help") {
+        return;
+    }
+    let mut app = fixture();
+    let mut renderer = renderer().await;
+    let path = "/fixture/项目";
+    app.recent_projects = vec![path.into()];
+    for (locale, theme, has_project) in [
+        (DesktopLocale::SimplifiedChinese, Theme::Light, true),
+        (DesktopLocale::English, Theme::Dark, false),
+        (DesktopLocale::TraditionalChinese, Theme::Dark, true),
+    ] {
+        app.desktop_locale = locale;
+        app.app_theme = theme;
+        app.project_path = has_project.then(|| path.into());
+        let i18n = I18n::new(locale);
+        let mut settings = Scene::new(&app, &mut renderer, "project-settings", view(&app));
+        settings.label(path);
+        let description = i18n.__("新建会话时可选工作区。");
+        let icon = settings.help(i18n.__("启用 Worktree"), description);
+        settings.actions(icon, description);
+        let label = i18n.__(if has_project { "启用" } else { "请先打开项目" });
+        let control = settings.label(label).center();
+        let messages = settings.click(control);
+        if has_project {
+            assert!(matches!(
+                messages.as_slice(),
+                [Message::Settings(SettingsMessage::ProjectEnableWorktreeToggled(value, true))]
+                    if value == path
+            ));
+        } else {
+            assert!(messages.is_empty());
+        }
+    }
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn help_rollout_21_renders_contextual_help() {
+    if !isolated("help_rollout_21_renders_contextual_help") {
+        return;
+    }
+    let mut app = fixture();
+    set_project_draft(&mut app);
+    let mut renderer = renderer().await;
+    for (locale, size, theme) in [
+        (DesktopLocale::SimplifiedChinese, Size::new(640, 580), Theme::Light),
+        (DesktopLocale::English, Size::new(420, 450), Theme::Dark),
+        (DesktopLocale::TraditionalChinese, Size::new(420, 480), Theme::Dark),
+    ] {
+        app.desktop_locale = locale;
+        app.app_theme = theme.clone();
+        let i18n = I18n::new(locale);
+        for (tab, title, description) in [
+            (ProjectEditTab::General, "项目展示", "配置项目名称、图标来源与图标主题色。"),
+            (
+                ProjectEditTab::Launch,
+                "启动与工作区",
+                "设置 worktree 启用策略，以及创建工作区后的启动命令。",
+            ),
+            (ProjectEditTab::Refresh, "刷新策略", "统一项目会话与任务看板刷新策略。"),
+            (
+                ProjectEditTab::Scheduling,
+                "调度与保护",
+                "限制并发、设置重试与超时，并控制 worktree 回收与合并锁。",
+            ),
+        ] {
+            app.project_edit_tab = tab;
+            let mut ui = scene(app.view(), &mut renderer, size);
+            let positions = geometry(&mut ui, &renderer);
+            let viewport = positions.scroll[0].0;
+            positions.label(PATH);
+            let mut targets = vec![(title, description)];
+            if tab == ProjectEditTab::Launch {
+                targets.push(("工作区启动脚本", "在创建工作区后执行，可填写多行命令。"));
+            }
+
+            for (index, (title, description)) in targets.into_iter().enumerate() {
+                let title = i18n.__(title);
+                let description = i18n.__(description);
+                assert!(
+                    positions.labels.iter().all(|(label, _)| label != description),
+                    "{tab:?}: static help is still inline: {description}"
+                );
+                let label = positions
+                    .labels
+                    .iter()
+                    .find(|(label, bounds)| label == title && viewport.contains(bounds.center()))
+                    .unwrap_or_else(|| panic!("missing body label {title}"))
+                    .1;
+                let icon = Point::new(label.x + label.width + 15.0, label.center_y());
+                assert!(viewport.contains(icon), "{tab:?}: help icon is outside the viewport");
+                let name = format!("project-help-{locale:?}-{tab:?}-{index}");
+                let frame = |ui: &mut Ui<'_>, renderer: &mut Renderer, phase, cursor| {
+                    capture(ui, renderer, &theme, size, &format!("{name}-{phase}"), cursor)
+                };
+                let idle = frame(&mut ui, &mut renderer, "idle", mouse::Cursor::Unavailable);
+                assert!(
+                    send(
+                        &mut ui,
+                        &mut renderer,
+                        at(icon),
+                        &[Event::Mouse(mouse::Event::CursorMoved { position: icon })],
+                    )
+                    .is_empty()
+                );
+                let hover = frame(&mut ui, &mut renderer, "hover", at(icon));
+                assert!(hover != idle, "{tab:?}: hover must open help for {title}");
+                assert!(click(&mut ui, &mut renderer, icon).is_empty());
+                let pinned = frame(&mut ui, &mut renderer, "pinned", mouse::Cursor::Unavailable);
+                assert!(pinned != idle, "{tab:?}: help must stay open after clicking {title}");
+                assert!(key_at(&mut ui, &mut renderer, Named::Escape).is_empty());
+                let closed = frame(&mut ui, &mut renderer, "closed", mouse::Cursor::Unavailable);
+                assert!(closed == idle, "{tab:?}: Escape must close only help");
+            }
+
+            if tab == ProjectEditTab::General {
+                positions.input(NAME);
+                positions.label(i18n.__("图标文本或图片路径（支持 file:/// 或本地绝对路径）"));
+                let color = positions.label(i18n.__("选择颜色"));
+                assert_visible_in_project_body(&mut ui, &mut renderer, viewport, color);
+                let offset = geometry(&mut ui, &renderer).scroll[0].1.y.round();
+                assert!(matches!(
+                    click(&mut ui, &mut renderer, color.center() - iced::Vector::new(0.0, offset))
+                        .as_slice(),
+                    [Message::Project(ProjectMessage::ProjectEditIconColorPickerToggled)]
+                ));
+            } else if tab == ProjectEditTab::Refresh {
+                positions.input("123");
+                positions.input("321");
+            } else if tab == ProjectEditTab::Scheduling {
+                positions.input("27");
+                positions.label(i18n.__("管理工作流"));
+            }
+            assert!(matches!(
+                label_click(&mut ui, &mut renderer, i18n.__("保存")).as_slice(),
+                [Message::Project(ProjectMessage::ProjectEditSaved)]
+            ));
+            assert!(matches!(
+                label_click(&mut ui, &mut renderer, i18n.__("取消")).as_slice(),
+                [Message::Project(ProjectMessage::ProjectEditCanceled)]
+            ));
+        }
+    }
 }

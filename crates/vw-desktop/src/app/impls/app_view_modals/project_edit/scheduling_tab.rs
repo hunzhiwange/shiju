@@ -3,7 +3,7 @@
 
 use crate::app::components::system_settings_common::{
     rounded_action_btn_style, settings_checkbox_style, settings_field_label,
-    settings_group_heading, settings_muted_text_style, settings_panel, settings_select,
+    settings_group_heading_with_help, settings_muted_text_style, settings_panel, settings_select,
 };
 use crate::app::i18n::I18n;
 use crate::app::message::ProjectMessage;
@@ -201,7 +201,9 @@ pub(super) fn scheduling_tab<'a>(app: &'a App) -> Element<'a, Message> {
     );
 
     column![
-        settings_group_heading(
+        settings_group_heading_with_help(
+            i18n,
+            &app.app_theme,
             i18n.__("调度与保护"),
             i18n.__("限制并发、设置重试与超时，并控制 worktree 回收与合并锁。")
         ),

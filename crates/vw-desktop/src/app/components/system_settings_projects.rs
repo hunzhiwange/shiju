@@ -5,22 +5,14 @@ use crate::app::components::overlays::BelowOverlay;
 use crate::app::components::system_settings_common::{
     SETTINGS_CONTROL_PADDING, SETTINGS_CONTROL_TEXT_SIZE, danger_action_btn_style, icon_btn,
     icon_svg, primary_action_btn_style, rounded_action_btn_style, settings_checkbox_style,
-    settings_divider, settings_group_card, settings_muted_text_style, settings_panel_style,
-    settings_row_with_flexible_control, settings_text_input_style,
+    settings_divider, settings_flexible_row_with_help, settings_group_card,
+    settings_muted_text_style, settings_panel_style, settings_text_input_style,
 };
 use crate::app::i18n::I18n;
 use crate::app::message::{ProjectMessage, SettingsMessage};
 use crate::app::{App, Message};
 use iced::widget::{button, checkbox, column, container, row, svg, text, text_input};
 use iced::{Alignment, Element, Length, Theme};
-
-fn field_row<'a>(
-    label: &'static str,
-    description: &'static str,
-    control: impl Into<Element<'a, Message>>,
-) -> Element<'a, Message> {
-    settings_row_with_flexible_control(label, description, 110.0, control)
-}
 
 fn current_project_worktree(app: &App, i18n: I18n) -> Element<'_, Message> {
     let control: Element<'_, Message> = if let Some(path) = &app.project_path {
@@ -38,7 +30,15 @@ fn current_project_worktree(app: &App, i18n: I18n) -> Element<'_, Message> {
     } else {
         text(i18n.__("请先打开项目")).size(12).style(settings_muted_text_style).into()
     };
-    field_row(i18n.__("启用 Worktree"), i18n.__("新建会话时可选工作区。"), control)
+    settings_flexible_row_with_help(
+        i18n,
+        &app.app_theme,
+        i18n.__("启用 Worktree"),
+        i18n.__("新建会话时可选工作区。"),
+        110.0,
+        control,
+    )
+    .into()
 }
 
 fn quiet_button_style(theme: &Theme, status: button::Status) -> button::Style {

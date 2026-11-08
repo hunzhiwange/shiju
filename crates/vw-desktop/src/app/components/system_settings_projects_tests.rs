@@ -29,8 +29,9 @@ fn view_shape(app: &App) -> (usize, usize) {
 }
 
 #[test]
-fn field_row_builds_fill_width_label_description_and_control_layout() {
-    let element = field_row("标签", "说明", text("控件"));
+fn worktree_row_builds_fill_width_help_label_and_control_layout() {
+    let app = test_app();
+    let element = current_project_worktree(&app, I18n::new(app.desktop_locale));
 
     assert_eq!(element.as_widget().size(), Size::new(Length::Fill, Length::Shrink));
 

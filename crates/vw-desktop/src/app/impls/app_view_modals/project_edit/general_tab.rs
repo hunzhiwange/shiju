@@ -3,7 +3,7 @@
 
 use crate::app::components::color_picker::parse_color;
 use crate::app::components::system_settings_common::{
-    rounded_action_btn_style, settings_field_label, settings_group_heading,
+    rounded_action_btn_style, settings_field_label, settings_group_heading_with_help,
     settings_muted_text_style, settings_panel, settings_text_input,
 };
 use iced::widget::{Image, Space, button, column, container, mouse_area, row, text};
@@ -195,7 +195,9 @@ pub(super) fn general_tab<'a>(app: &'a App) -> Element<'a, Message> {
         .on_press(icon_preview_press_message(has_preview_image, app.project_edit_icon_hovered));
 
     column![
-        settings_group_heading(
+        settings_group_heading_with_help(
+            i18n,
+            &app.app_theme,
             i18n.__("项目展示"),
             i18n.__("配置项目名称、图标来源与图标主题色。"),
         ),

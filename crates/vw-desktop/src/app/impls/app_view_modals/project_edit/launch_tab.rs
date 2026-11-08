@@ -3,10 +3,10 @@
 
 use crate::app::components::system_settings_common::{
     SETTINGS_CONTROL_PADDING, SETTINGS_CONTROL_TEXT_SIZE, settings_field_label,
-    settings_group_heading, settings_muted_text_style, settings_panel, settings_text_editor_style,
-    settings_toggle,
+    settings_group_heading_with_help, settings_hover_help_label, settings_panel,
+    settings_text_editor_style, settings_toggle,
 };
-use iced::widget::{column, row, text, text_editor};
+use iced::widget::{column, row, text_editor};
 use iced::{Element, Length};
 
 use super::{App, Message};
@@ -27,11 +27,16 @@ fn worktree_toggled(value: bool) -> Message {
 /// 返回值表达处理结果；失败通过错误值、日志或任务消息显式传递。
 pub(super) fn launch_tab<'a>(app: &'a App) -> Element<'a, Message> {
     let i18n = crate::app::i18n::I18n::new(app.desktop_locale);
+    let start_script_label = i18n.__("工作区启动脚本");
     let start_script_input = column![
-        settings_field_label(i18n.__("工作区启动脚本")),
-        text(i18n.__("在创建工作区后执行，可填写多行命令。"))
-            .size(13)
-            .style(settings_muted_text_style),
+        settings_hover_help_label(
+            i18n,
+            &app.app_theme,
+            start_script_label,
+            settings_field_label(start_script_label),
+            i18n.__("在创建工作区后执行，可填写多行命令。"),
+        )
+        .wrap(),
         text_editor(&app.project_edit_start_script_editor)
             .placeholder(i18n.__("例如：\nbun install\nbun dev"))
             .on_action(start_script_editor_action)
@@ -49,7 +54,9 @@ pub(super) fn launch_tab<'a>(app: &'a App) -> Element<'a, Message> {
     .align_y(iced::Alignment::Center);
 
     column![
-        settings_group_heading(
+        settings_group_heading_with_help(
+            i18n,
+            &app.app_theme,
             i18n.__("启动与工作区"),
             i18n.__("设置 worktree 启用策略，以及创建工作区后的启动命令。")
         ),

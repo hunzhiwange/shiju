@@ -21,11 +21,12 @@ pub(crate) mod uninstall;
 use super::system_settings_common::*;
 use crate::app::{
     Message,
+    i18n::I18n,
     message::{SettingsMessage, settings::AppsCatalogMessage},
     state::AppsCatalogState,
 };
 use iced::widget::{button, column, container, row, text};
-use iced::{Element, Length};
+use iced::{Element, Length, Theme};
 
 fn message(value: AppsCatalogMessage) -> Message {
     Message::Settings(SettingsMessage::AppsCatalog(value))
@@ -37,12 +38,21 @@ pub(crate) fn view(state: &AppsCatalogState) -> Element<'_, Message> {
 
 pub(crate) fn view_overlays<'a>(
     state: &'a AppsCatalogState,
+    i18n: I18n,
+    theme: &Theme,
     base: Element<'a, Message>,
 ) -> Element<'a, Message> {
     if !state.connection_open {
         return launch::overlay(
             state,
-            preferences::overlay(state, lifecycle::overlay(&state.lifecycle, &state.host, base)),
+            i18n,
+            theme,
+            preferences::overlay(
+                state,
+                i18n,
+                theme,
+                lifecycle::overlay(&state.lifecycle, &state.host, base),
+            ),
         );
     }
     let close = message(AppsCatalogMessage::ConnectionClose);
@@ -90,7 +100,7 @@ mod uninstall_tests;
 
 pub(crate) mod preferences;
 #[cfg(test)]
-mod preferences_tests;
+pub(crate) mod preferences_tests;
 
 pub(crate) mod launch;
 #[cfg(test)]

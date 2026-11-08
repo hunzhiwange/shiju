@@ -1,14 +1,16 @@
 use super::{LaunchChoice, LaunchMessage, event};
 use crate::app::components::system_settings_common::*;
-use crate::app::{Message, state::AppsCatalogState};
+use crate::app::{Message, i18n::I18n, state::AppsCatalogState};
 use iced::{
-    Alignment, Element, Length,
+    Alignment, Element, Length, Theme,
     widget::{Space, button, column, container, row, text},
 };
 use vw_gateway_client::vw_api_types::agent_apps::{LaunchIdentityKind, LaunchSessionPhase};
 
 pub(crate) fn overlay<'a>(
     catalog: &'a AppsCatalogState,
+    i18n: I18n,
+    theme: &Theme,
     base: Element<'a, Message>,
 ) -> Element<'a, Message> {
     let state = &catalog.launch;
@@ -69,9 +71,13 @@ pub(crate) fn overlay<'a>(
         identities = identities.push(text(selected.to_string()).size(13));
     }
 
-    let mut args =
-        column![settings_group_heading("附加参数", "每项一个参数，原样传递；不解释 shell。",)]
-            .spacing(8);
+    let mut args = column![settings_group_heading_with_help(
+        i18n,
+        theme,
+        i18n.__("附加参数"),
+        i18n.__("每项一个参数，原样传递；不解释 shell。"),
+    )]
+    .spacing(8);
     for (index, value) in state.args.iter().enumerate() {
         args = args.push(
             row![

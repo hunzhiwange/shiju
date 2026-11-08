@@ -1,6 +1,6 @@
 //! Explicit native shaping and screenshot evidence for production launch form.
 use crate::app::components::system_settings_apps;
-use crate::app::{Message as AppMessage, state::AppsCatalogState};
+use crate::app::{Message as AppMessage, i18n::I18n, state::AppsCatalogState};
 use iced::{Element, Task, Theme, window};
 use vw_gateway_client::vw_api_types::agent_apps::*;
 #[derive(Clone, Debug)]
@@ -118,12 +118,22 @@ impl Harness {
         }
         Task::none()
     }
+    fn theme(&self) -> Theme {
+        if self.case < 6 { Theme::Light } else { Theme::Dark }
+    }
+
     fn view(&self, _: window::Id) -> Element<'_, Message> {
         let base = iced::widget::container(iced::widget::text("终端启动实际渲染验收"))
             .width(iced::Length::Fill)
             .height(iced::Length::Fill)
             .into();
-        system_settings_apps::launch::overlay(&self.state, base).map(Message::Ui)
+        system_settings_apps::launch::overlay(
+            &self.state,
+            I18n::new(Default::default()),
+            &self.theme(),
+            base,
+        )
+        .map(Message::Ui)
     }
 }
 pub fn run() {
@@ -151,7 +161,7 @@ pub fn run() {
         Harness::view,
     )
     .title("终端启动实际渲染验收")
-    .theme(|state: &Harness, _| if state.case < 6 { Theme::Light } else { Theme::Dark })
+    .theme(|state: &Harness, _| state.theme())
     .subscription(|_| window::frames().map(|_| Message::Frame))
     .settings(iced::Settings {
         fonts: crate::fonts::load_all(),

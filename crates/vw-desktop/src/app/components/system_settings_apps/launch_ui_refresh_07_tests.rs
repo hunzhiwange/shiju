@@ -1,4 +1,5 @@
 use super::super::{catalog::CatalogRow, preferences};
+use crate::app::i18n::I18n;
 use crate::app::{
     Message,
     message::settings::{AppsCatalogMessage, SettingsMessage, apps_lifecycle::LifecycleMessage},
@@ -11,6 +12,10 @@ use iced::keyboard::{self, Key, key::Named};
 use iced::{Element, Event, Font, Length, Point, Rectangle, Renderer, Size, Theme, Vector, mouse};
 use iced_runtime::user_interface::{Cache, UserInterface};
 use vw_gateway_client::vw_api_types::agent_apps::*;
+
+fn default_i18n() -> I18n {
+    I18n::new(vw_config_types::ui::DesktopLocale::SimplifiedChinese)
+}
 
 fn fixture() -> AppsCatalogState {
     let mut state =
@@ -118,14 +123,14 @@ async fn ui_refresh_07_busy_terminal_does_not_open_a_menu() {
     let mut state = fixture();
     state.preferences.busy = true;
     capture(
-        preferences::overlay(&state, base()),
+        preferences::overlay(&state, default_i18n(), &Theme::Light, base()),
         &mut renderer,
         Size::new(420, 280),
         "busy-preferences",
     );
     let size = Size::new(640.0, 640.0);
     let viewport = Rectangle::with_size(size);
-    let mut element = preferences::overlay(&state, base());
+    let mut element = preferences::overlay(&state, default_i18n(), &Theme::Light, base());
     let mut tree = Tree::new(element.as_widget());
     let widget = element.as_widget_mut();
     let node = widget.layout(&mut tree, &renderer, &layout::Limits::new(Size::ZERO, size));
@@ -215,7 +220,7 @@ async fn ui_refresh_07_renders_modal_states() {
     let mut launch = launch_fixture();
     for (width, height) in [(420, 280), (640, 640), (960, 640)] {
         capture(
-            super::overlay(&launch, base()),
+            super::overlay(&launch, default_i18n(), &Theme::Light, base()),
             &mut renderer,
             Size::new(width, height),
             &format!("launch-{width}"),
@@ -225,15 +230,25 @@ async fn ui_refresh_07_renders_modal_states() {
     launch.launch.identities_ready = false;
     launch.launch.selected = None;
     launch.launch.identities.clear();
-    capture(super::overlay(&launch, base()), &mut renderer, Size::new(420, 350), "launch-loading");
+    capture(
+        super::overlay(&launch, default_i18n(), &Theme::Light, base()),
+        &mut renderer,
+        Size::new(420, 350),
+        "launch-loading",
+    );
     launch.launch.identities_loading = false;
     launch.launch.identities_ready = true;
     launch.launch.error = Some("虚构错误：无法读取目录；請重新選擇。 Fixture failure. ".repeat(8));
-    capture(super::overlay(&launch, base()), &mut renderer, Size::new(420, 350), "launch-error");
+    capture(
+        super::overlay(&launch, default_i18n(), &Theme::Light, base()),
+        &mut renderer,
+        Size::new(420, 350),
+        "launch-error",
+    );
 
     let mut preferences = fixture();
     capture(
-        super::super::preferences::overlay(&preferences, base()),
+        super::super::preferences::overlay(&preferences, default_i18n(), &Theme::Light, base()),
         &mut renderer,
         Size::new(420, 400),
         "preferences",
@@ -241,7 +256,7 @@ async fn ui_refresh_07_renders_modal_states() {
     preferences.rows.clear();
     preferences.preferences.draft.as_mut().unwrap().capabilities = None;
     capture(
-        super::super::preferences::overlay(&preferences, base()),
+        super::super::preferences::overlay(&preferences, default_i18n(), &Theme::Light, base()),
         &mut renderer,
         Size::new(640, 400),
         "preferences-empty",
@@ -456,7 +471,11 @@ async fn ui_refresh_07_preserves_launch_identity_and_literal_parameters() {
     let mut renderer = renderer().await;
     let mut state = launch_fixture();
     let size = Size::new(640.0, 640.0);
-    let mut scene = Scene::new(super::overlay(&state, base()), &mut renderer, size);
+    let mut scene = Scene::new(
+        super::overlay(&state, default_i18n(), &Theme::Light, base()),
+        &mut renderer,
+        size,
+    );
     let select_path = &[0, 1, 0, 0, 2, 1];
     let select = scene.bounds(select_path);
     let center = select.center();
@@ -508,7 +527,11 @@ async fn ui_refresh_07_preserves_launch_identity_and_literal_parameters() {
     drop(scene);
 
     state.launch.busy = true;
-    let mut scene = Scene::new(super::overlay(&state, base()), &mut renderer, size);
+    let mut scene = Scene::new(
+        super::overlay(&state, default_i18n(), &Theme::Light, base()),
+        &mut renderer,
+        size,
+    );
     assert!(scene.click(&mut renderer, &[0, 2, 1, 2]).is_empty());
 }
 
@@ -518,7 +541,11 @@ async fn ui_refresh_07_preserves_preferences_and_disabled_states() {
     let mut renderer = renderer().await;
     let mut state = fixture();
     let size = Size::new(640.0, 640.0);
-    let mut scene = Scene::new(preferences::overlay(&state, base()), &mut renderer, size);
+    let mut scene = Scene::new(
+        preferences::overlay(&state, default_i18n(), &Theme::Light, base()),
+        &mut renderer,
+        size,
+    );
     let select_path = &[0, 1, 0, 0, 3, 1, 1];
     assert!(scene.click(&mut renderer, select_path).is_empty());
     let select = scene.bounds(select_path).center();
@@ -572,18 +599,59 @@ async fn ui_refresh_07_preserves_preferences_and_disabled_states() {
     drop(scene);
 
     state.preferences.busy = true;
-    let mut scene = Scene::new(preferences::overlay(&state, base()), &mut renderer, size);
+    let mut scene = Scene::new(
+        preferences::overlay(&state, default_i18n(), &Theme::Light, base()),
+        &mut renderer,
+        size,
+    );
     for index in 1..=3 {
         assert!(scene.click(&mut renderer, &[0, 2, index]).is_empty());
     }
 
     let mut state = lifecycle_fixture(AppLifecycleAction::Uninstall);
     state.lifecycle.busy = true;
-    let mut scene = Scene::new(super::super::view_overlays(&state, base()), &mut renderer, size);
+    let mut scene = Scene::new(
+        super::super::view_overlays(&state, default_i18n(), &Theme::Light, base()),
+        &mut renderer,
+        size,
+    );
     assert!(scene.click(&mut renderer, &[0, 2, 2]).is_empty());
     drop(scene);
     state.lifecycle.busy = false;
     state.lifecycle.preview.as_mut().unwrap().source = AppInstallationSource::Unknown;
-    let mut scene = Scene::new(super::super::view_overlays(&state, base()), &mut renderer, size);
+    let mut scene = Scene::new(
+        super::super::view_overlays(&state, default_i18n(), &Theme::Light, base()),
+        &mut renderer,
+        size,
+    );
     assert!(scene.click(&mut renderer, &[0, 2, 2]).is_empty());
+}
+
+#[tokio::test]
+async fn help_rollout_04_launch_renders_contextual_help() {
+    use super::super::preferences_tests::{HELP_LOCALES, verify_help};
+
+    let mut state = launch_fixture();
+    state.launch.error = Some("Fixture launch error".into());
+    for mode in &HELP_LOCALES {
+        let messages = verify_help(
+            super::super::view_overlays(&state, I18n::new(mode.0), &mode.1, base()),
+            "launch-help",
+            mode,
+            &[("附加参数", "每项一个参数，原样传递；不解释 shell。")],
+            &[
+                "默认保留权限检查；此表单不提供跳过权限。",
+                "工作目录（由执行主机验证）",
+                "Fixture launch error",
+            ],
+            "关闭",
+        )
+        .await;
+        assert!(matches!(
+            messages.as_slice(),
+            [Message::Settings(SettingsMessage::AppsCatalog(AppsCatalogMessage::Launch(
+                super::LaunchMessage::Close
+            )))]
+        ));
+    }
 }

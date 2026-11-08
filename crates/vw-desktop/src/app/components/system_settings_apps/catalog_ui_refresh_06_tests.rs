@@ -1,5 +1,6 @@
 use super::super::{drag, launch, view, view_overlays};
 use super::CatalogRow;
+use crate::app::i18n::I18n;
 use crate::app::{
     Message,
     message::settings::{AppsCatalogMessage, SettingsMessage, apps_lifecycle::LifecycleMessage},
@@ -137,7 +138,7 @@ async fn ui_refresh_06_renders_catalog_states_and_narrow_connection() {
     for (theme, name) in [(Theme::Light, "light"), (Theme::Dark, "dark")] {
         screenshot(
             &mut renderer,
-            view_overlays(&state, view(&state)),
+            view_overlays(&state, I18n::new(Default::default()), &iced::Theme::Light, view(&state)),
             &theme,
             420,
             480,
@@ -446,14 +447,22 @@ async fn ui_refresh_06_preserves_values_and_disabled_states() {
     state.drag = Default::default();
     state.connection_open = true;
     for size in [Size::new(420.0, 480.0), Size::new(960.0, 640.0)] {
-        let scene = Scene::new(view_overlays(&state, view(&state)), &mut renderer, size);
+        let scene = Scene::new(
+            view_overlays(&state, I18n::new(Default::default()), &iced::Theme::Light, view(&state)),
+            &mut renderer,
+            size,
+        );
         let card = scene.bounds(CONNECTION);
         assert!((card.width - (size.width - 24.0).min(520.0)).abs() < 0.5);
         assert!((card.center_x() - size.width / 2.0).abs() < 0.5);
         assert!((card.center_y() - size.height / 2.0).abs() < 0.5);
     }
     let modal_size = Size::new(420.0, 250.0);
-    let mut scene = Scene::new(view_overlays(&state, view(&state)), &mut renderer, modal_size);
+    let mut scene = Scene::new(
+        view_overlays(&state, I18n::new(Default::default()), &iced::Theme::Light, view(&state)),
+        &mut renderer,
+        modal_size,
+    );
     let card = scene.bounds(CONNECTION);
     assert!(card.x >= 12.0 && card.x + card.width <= modal_size.width - 12.0);
     let scroll = scene.bounds(&[CONNECTION, &[0, 1]].concat());
@@ -486,8 +495,11 @@ async fn ui_refresh_06_preserves_values_and_disabled_states() {
         catalog_messages(scene.click(&mut renderer, cancel)).as_slice(),
         [AppsCatalogMessage::ConnectionClose]
     ));
-    let mut roomy =
-        Scene::new(view_overlays(&state, view(&state)), &mut renderer, Size::new(960.0, 640.0));
+    let mut roomy = Scene::new(
+        view_overlays(&state, I18n::new(Default::default()), &iced::Theme::Light, view(&state)),
+        &mut renderer,
+        Size::new(960.0, 640.0),
+    );
     let refresh = roomy.bounds(&[&[0][..], REFRESH].concat()).center();
     assert!(!roomy.bounds(CONNECTION).contains(refresh));
     assert!(roomy.click(&mut renderer, refresh).is_empty());
@@ -500,7 +512,11 @@ async fn ui_refresh_06_preserves_values_and_disabled_states() {
 
     drop(scene);
     state.token = "fake-fixture-token".into();
-    let mut scene = Scene::new(view_overlays(&state, view(&state)), &mut renderer, modal_size);
+    let mut scene = Scene::new(
+        view_overlays(&state, I18n::new(Default::default()), &iced::Theme::Light, view(&state)),
+        &mut renderer,
+        modal_size,
+    );
     assert!(matches!(
         catalog_messages(scene.click(&mut renderer, confirm)).as_slice(),
         [AppsCatalogMessage::Refresh]

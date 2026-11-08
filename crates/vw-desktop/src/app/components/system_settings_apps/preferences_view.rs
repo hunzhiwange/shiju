@@ -1,8 +1,8 @@
 use super::{PreferencesMessage, event};
 use crate::app::components::system_settings_common::*;
-use crate::app::{Message, state::AppsCatalogState};
+use crate::app::{Message, i18n::I18n, state::AppsCatalogState};
 use iced::{
-    Alignment, Element, Length,
+    Alignment, Element, Length, Theme,
     widget::{Space, button, checkbox, column, container, row, text},
 };
 use vw_gateway_client::vw_api_types::agent_apps::*;
@@ -20,6 +20,8 @@ impl std::fmt::Display for TerminalChoice {
 
 pub(crate) fn overlay<'a>(
     catalog: &'a AppsCatalogState,
+    i18n: I18n,
+    theme: &Theme,
     base: Element<'a, Message>,
 ) -> Element<'a, Message> {
     let state = &catalog.preferences;
@@ -36,11 +38,12 @@ pub(crate) fn overlay<'a>(
         body = body.push(text("正在等待网关确认…").size(13));
     }
     if let Some(draft) = &state.draft {
-        let mut visibility = column![settings_group_heading(
-            "可见应用与顺序",
-            "显示或隐藏应用，并调整它们在目录中的顺序。",
-        )]
-        .spacing(10);
+        let group_heading = |title, description| {
+            settings_group_heading_with_help(i18n, theme, i18n.__(title), i18n.__(description))
+        };
+        let mut visibility =
+            column![group_heading("可见应用与顺序", "显示或隐藏应用，并调整它们在目录中的顺序。",)]
+                .spacing(10);
         for (index, id) in draft.user.app_order.iter().enumerate() {
             if let Some(app) = catalog.rows.iter().find(|r| {
                 serde_json::to_value(r.entry.id)
@@ -78,8 +81,7 @@ pub(crate) fn overlay<'a>(
         body = body.push(visibility).push(settings_divider());
 
         let mut host =
-            column![settings_group_heading("主机终端设置", "这些偏好仅用于所选执行主机。",)]
-                .spacing(10);
+            column![group_heading("主机终端设置", "这些偏好仅用于所选执行主机。")].spacing(10);
         if let Some(capabilities) = &draft.capabilities {
             let options = std::iter::once(String::new())
                 .chain(capabilities.terminals.iter().cloned())
@@ -98,7 +100,7 @@ pub(crate) fn overlay<'a>(
                 .spacing(6),
             );
             if capabilities.wsl_preferences {
-                host = host.push(settings_group_heading(
+                host = host.push(group_heading(
                     "WSL",
                     "发行版由所选安装实例决定；只保存各应用的 shell 与 flag。留空表示自动。",
                 ));
@@ -172,7 +174,12 @@ pub(crate) fn overlay<'a>(
         }
     }
     let header = settings_modal_header(
-        settings_page_heading("应用设置", "分别保存用户偏好和主机设置。"),
+        settings_page_heading_with_help(
+            i18n,
+            theme,
+            i18n.__("应用设置"),
+            i18n.__("分别保存用户偏好和主机设置。"),
+        ),
         settings_close_button(close.clone()),
     );
     let actions = row![

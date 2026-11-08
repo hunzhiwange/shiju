@@ -4,7 +4,7 @@ use super::ui;
 use crate::app::components::system_settings_common::{
     SETTINGS_CONTROL_PADDING, SETTINGS_CONTROL_TEXT_SIZE, primary_action_btn_style,
     rounded_action_btn_style, settings_close_button, settings_field_label, settings_group_card,
-    settings_group_heading, settings_modal_header, settings_modal_layout,
+    settings_group_heading_with_help, settings_modal_header, settings_modal_layout,
     settings_text_editor_style, settings_text_input_style,
 };
 use crate::app::i18n::I18n;
@@ -133,12 +133,16 @@ fn edit_web_bookmark_modal(app: &App) -> Option<(Element<'_, Message>, Message)>
         .padding([12, 0]),
     );
     let body = column![
-        settings_group_heading(
+        settings_group_heading_with_help(
+            i18n,
+            &app.app_theme,
             i18n.__("书签信息"),
             i18n.__("设置标题、网址以及独立窗口的默认尺寸。")
         ),
         fields,
-        settings_group_heading(
+        settings_group_heading_with_help(
+            i18n,
+            &app.app_theme,
             i18n.__("Cookie 配置"),
             i18n.__("支持按 JSON 为指定站点注入 Cookie。")
         ),
@@ -203,7 +207,9 @@ fn add_web_bookmark_modal(app: &App) -> Option<(Element<'_, Message>, Message)> 
         .padding([12, 0]),
     );
     let body = column![
-        settings_group_heading(
+        settings_group_heading_with_help(
+            i18n,
+            &app.app_theme,
             i18n.__("新增网址书签"),
             i18n.__("保存一个可在应用中心快速打开的网页入口。"),
         ),

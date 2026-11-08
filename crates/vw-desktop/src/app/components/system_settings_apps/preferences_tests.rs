@@ -169,3 +169,195 @@ fn cc_apps_desktop_preferences_state_list_uses_saved_order_and_visibility() {
         vec![AppId::Gemini]
     );
 }
+
+use crate::app::i18n::I18n;
+use crate::app::{Message, components::system_settings_apps};
+use iced::advanced::clipboard;
+use iced::advanced::renderer::{Headless, Style};
+use iced::advanced::widget::{Id, Operation};
+use iced::{Element, Event, Font, Length, Point, Rectangle, Renderer, Size, Theme, mouse};
+use iced_runtime::user_interface::{Cache, UserInterface};
+use vw_config_types::ui::DesktopLocale;
+
+pub(crate) const HELP_LOCALES: [(DesktopLocale, Theme, u32); 3] = [
+    (DesktopLocale::SimplifiedChinese, Theme::Dark, 420),
+    (DesktopLocale::English, Theme::Light, 640),
+    (DesktopLocale::TraditionalChinese, Theme::Light, 420),
+];
+
+#[derive(Default)]
+struct Labels(Vec<(String, Rectangle)>);
+
+impl Operation for Labels {
+    fn traverse(&mut self, children: &mut dyn FnMut(&mut dyn Operation)) {
+        children(self);
+    }
+
+    fn text(&mut self, _: Option<&Id>, bounds: Rectangle, value: &str) {
+        self.0.push((value.into(), bounds));
+    }
+}
+
+pub(crate) async fn verify_help(
+    view: Element<'_, Message>,
+    name: &str,
+    mode: &(DesktopLocale, Theme, u32),
+    help: &[(&str, &str)],
+    visible: &[&str],
+    action: &str,
+) -> Vec<Message> {
+    {
+        let mut fonts = iced::advanced::graphics::text::font_system().write().unwrap();
+        for font in crate::fonts::load_all() {
+            fonts.load_font(font);
+        }
+    }
+    let mut renderer =
+        Renderer::new(Font::with_name("Noto Sans CJK SC"), 14.0.into(), Some("tiny-skia"))
+            .await
+            .unwrap();
+    let (locale, theme, width) = mode;
+    let size = Size::new(*width, 650);
+    let mut ui = UserInterface::build(
+        view,
+        Size::from((size.width, size.height)),
+        Cache::new(),
+        &mut renderer,
+    );
+    let i18n = I18n::new(*locale);
+    let mut labels = Labels::default();
+    ui.operate(&renderer, &mut labels);
+    let bounds = |label| {
+        labels
+            .0
+            .iter()
+            .rfind(|(text, _)| text == label)
+            .unwrap_or_else(|| panic!("{name}: missing label {label:?}"))
+            .1
+    };
+    let visible_label = |source| {
+        if labels.0.iter().any(|(label, _)| label == source) { source } else { i18n.__(source) }
+    };
+    for label in visible {
+        bounds(visible_label(label));
+    }
+
+    let mut messages = Vec::new();
+    let mut send = |ui: &mut UserInterface<'_, Message, Theme, Renderer>,
+                    renderer: &mut Renderer,
+                    cursor,
+                    events: &[Event]| {
+        ui.update(events, cursor, renderer, &mut clipboard::Null, &mut messages);
+    };
+    let snapshot = |ui: &mut UserInterface<'_, Message, Theme, Renderer>,
+                    renderer: &mut Renderer,
+                    cursor,
+                    frame: &str| {
+        ui.draw(renderer, theme, &Style { text_color: theme.palette().text }, cursor);
+        let pixels = renderer.screenshot(size, 1.0, theme.palette().background);
+        if let Some(directory) = std::env::var_os("SHIJU_SETTINGS_PREVIEW_DIR") {
+            image::save_buffer(
+                std::path::PathBuf::from(directory).join(format!("{name}-{locale:?}-{frame}.png")),
+                &pixels,
+                size.width,
+                size.height,
+                image::ColorType::Rgba8,
+            )
+            .unwrap();
+        }
+        pixels
+    };
+    let idle = snapshot(&mut ui, &mut renderer, mouse::Cursor::Unavailable, "idle");
+    for (index, (title, description)) in help.iter().enumerate() {
+        assert!(
+            labels.0.iter().all(|(label, _)| label != description && label != i18n.__(description)),
+            "{name}: optional explanation {description:?} must be hidden while idle"
+        );
+        let title_bounds = bounds(i18n.__(title));
+        let point = Point::new(title_bounds.x + title_bounds.width + 15.0, title_bounds.center_y());
+        assert!(Rectangle::with_size(Size::from((size.width, size.height))).contains(point));
+        let cursor = mouse::Cursor::Available(point);
+        send(
+            &mut ui,
+            &mut renderer,
+            cursor,
+            &[Event::Mouse(mouse::Event::CursorMoved { position: point })],
+        );
+        let opened = snapshot(&mut ui, &mut renderer, cursor, &format!("open-{index}"));
+        assert!(
+            opened != idle,
+            "{name}: hovering over the question mark beside {title:?} must open help"
+        );
+        send(
+            &mut ui,
+            &mut renderer,
+            mouse::Cursor::Unavailable,
+            &[Event::Mouse(mouse::Event::CursorLeft)],
+        );
+        let closed = snapshot(
+            &mut ui,
+            &mut renderer,
+            mouse::Cursor::Unavailable,
+            &format!("closed-{index}"),
+        );
+        assert!(closed == idle, "{name}: leaving the question mark must close unpinned help");
+    }
+
+    let point = bounds(visible_label(action)).center();
+    send(
+        &mut ui,
+        &mut renderer,
+        mouse::Cursor::Available(point),
+        &[
+            Event::Mouse(mouse::Event::ButtonPressed(mouse::Button::Left)),
+            Event::Mouse(mouse::Event::ButtonReleased(mouse::Button::Left)),
+        ],
+    );
+    messages
+}
+
+#[tokio::test]
+async fn help_rollout_04_renders_contextual_help() {
+    use crate::app::message::settings::{AppsCatalogMessage, SettingsMessage};
+    use crate::app::state::AppsCatalogState;
+
+    let mut state = AppsCatalogState { host: "fixture-host".into(), ..Default::default() };
+    state.preferences.open = true;
+    let mut draft = value();
+    draft.capabilities = Some(AppPreferencesCapabilities {
+        terminals: vec!["fixture-terminal".into()],
+        wsl_preferences: true,
+    });
+    state.preferences.draft = Some(draft);
+    state.preferences.error = Some("Fixture preferences error".into());
+    for mode in &HELP_LOCALES {
+        let messages = verify_help(
+            system_settings_apps::view_overlays(
+                &state,
+                I18n::new(mode.0),
+                &mode.1,
+                iced::widget::container(system_settings_apps::view(&state))
+                    .width(Length::Fill)
+                    .height(Length::Fill)
+                    .into(),
+            ),
+            "preferences-help",
+            mode,
+            &[
+                ("应用设置", "分别保存用户偏好和主机设置。"),
+                ("可见应用与顺序", "显示或隐藏应用，并调整它们在目录中的顺序。"),
+                ("主机终端设置", "这些偏好仅用于所选执行主机。"),
+                ("WSL", "发行版由所选安装实例决定；只保存各应用的 shell 与 flag。留空表示自动。"),
+            ],
+            &["执行主机：fixture-host", "Fixture preferences error"],
+            "保存主机设置",
+        )
+        .await;
+        assert!(matches!(
+            messages.as_slice(),
+            [Message::Settings(SettingsMessage::AppsCatalog(AppsCatalogMessage::Preferences(
+                PreferencesMessage::SaveHost
+            )))]
+        ));
+    }
+}

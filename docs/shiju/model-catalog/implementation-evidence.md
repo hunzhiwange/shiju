@@ -1129,3 +1129,47 @@ POST 返回 202 与排队快照。任务依次进入发现、解析及终态，�
 | 浅色，应用并再次预览 | 显示一条成功 toast。回读修订改变，原模型身份、中文别名和上下文 24000 保持；写入值和字段来源逐项匹配预览。再次预览为零差异，没有应用按钮或新 toast。 |
 | 深色，输入 319 字符端点、编辑 `gpt-4o` | 输入在控件内横向移动，不覆盖刷新按钮。滚动后可读到最大输出 8192、models.dev 来源、时间和缓存状态。勾选「只在此处显示结果」并应用，弹窗显示已补全，无 toast；回读原上下文 24000 与别名保留，五项新值匹配预览，再次请求为零差异。 |
 | 停止隔离 Gateway 后再次预览 | 弹窗显示「网关离线，暂时无法预览。已保存参数和当前草稿均保留。」仍显示刚回读的参数与时间，无错误 toast。 |
+
+## 任务 42　桌面接入发现进度与取消
+
+2026-11-08，macOS 27.0（26A428），arm64，识矩桌面 0.6.0。批次 41 已由 `f1d811d4a` 交付；本项未与其他模型目录批次并行。
+
+| 来源与接点 | 实际实现 |
+| --- | --- |
+| CC Switch `src-tauri/src/commands/model_fetch.rs::fetch_models_for_config/get_opencode_models/get_agy_models` 与 `src-tauri/src/services/model_fetch.rs::fetch_models` | 原生实现沿用 `vw-agent-apps/src/models/discovery_{http,opencode,agy}.rs::discover`。执行主机负责读取授权配置、发送供应商请求或定位并执行 CLI。 |
+| 网关与 SDK | `vw-agent/src/gateway/api/handlers/model_discovery.rs` 的 `POST /v1/model-catalog/discoveries` 与 `GET/DELETE /v1/model-catalog/discoveries/{id}`；桌面只调用 `vw-gateway-client/src/client/model_discovery_api.rs` 的 `start_model_discovery/model_discovery/cancel_model_discovery`。 |
+| 桌面 | 已保存应用供应商的入口位于 `components/system_settings_providers/catalog.rs::deployments`，复用自定义模型弹窗样式。发现卡片在 `components/system_settings_providers/catalog/discovery.rs`；按部署管理发现状态和轮询的实现位于 `state/app_providers/model_catalog.rs` 与 `message/settings/providers/discovery.rs`。旧的 models.dev 同步入口不变。 |
+| 取消和写入 | 取消会停止轮询。即使关闭弹窗时尚未收到任务 ID，也会用原网关、原授权和原部署发送 DELETE。UI 校验本轮任务代次、部署和租户，丢弃取消后的完成结果。发现结果作为可勾选草稿展示，只能通过已有修订保存入口写入目录。 |
+
+### 命令与槽位
+
+| 槽位 | `CARGO_TARGET_DIR` | 阶段 |
+| --- | --- | --- |
+| 1 | `/Users/xiangmin/worker/code/shiju/target/rust-slot-1` | 初始红灯、macOS 旧版与新版窗口、桌面目录回归 |
+| 2 | `/Users/xiangmin/worker/code/shiju/target/rust-slot-2` | 聚焦测试、竞态红灯及修复复验、Clippy、网关回归 |
+
+| 命令 | 退出码 | 有效证据 |
+| --- | ---: | --- |
+| `cargo fmt --all` | 0 | 在源码快照执行，只回写任务 42 的文件；初始红灯、竞态红灯和恢复后的版本均成功。 |
+| `cargo test -p vw-desktop catalog_desktop_discovery_ -- --nocapture`（初始红灯） | 101 | 1 项预期失败，8881 项过滤：保存的部署无法发起发现。 |
+| 同命令（竞态红灯） | 101 | 临时移除任务代次检查后，6 项通过、1 项预期失败，8881 项过滤：旧完成消息覆盖了新一轮的 `Starting` 状态。 |
+| 同命令（最终） | 0 | 7 项通过，8881 项过滤。覆盖真实阶段、取消时的迟到结果、提交期间关闭、主机切换、重试隔离、跨部署结果和取消未确认。恢复后的源码与初次通过版本逐字节一致。 |
+| `cargo test -p vw-desktop catalog_desktop_ -- --nocapture` | 0 | 24 项通过，8864 项过滤；包括搜索、保存和补全回归。 |
+| `cargo test -p vw-agent catalog_api_discovery_ -- --nocapture` | 0 | 10 项通过，11716 项过滤。真实网关、SDK 和临时存储，HTTP 在本机受控；OpenCode 和 AGY 使用固定输入输出的进程。 |
+| `cargo clippy --all-targets --all-features -- -D warnings` | 0 | 全工作区、全目标和全部 features 通过。 |
+| `cargo build -p vw-cli --bin shiju`；`cargo build -p vw-desktop --bin shi-ju` | 0、0 | 构建本机隔离网关与桌面。 |
+| `cargo run -p vw-desktop --bin shi-ju` | 143 | 通过临时 app bundle 打开窗口，完成操作后向该验收进程发送 SIGTERM。 |
+
+链接器报告既有 macOS `__eh_frame` 大小警告。差异检查通过；所有本项槽位锁释放，缓存保留。
+
+### macOS 窗口与网关回读日志
+
+使用隔离项目、临时用户配置、SQLite、执行主机授权与本地 HTTP 端点，禁用远端 models.dev 获取。路径为「设置 → 应用列表 → Codex / OpenCode → 供应商 → 模型目录」。旧窗口没有发现、取消、重试和进度。新版窗口实际渲染了浅色、深色、动态中文状态及模型 ID，未见字形异常。滚动只移动弹窗内容，标题、搜索和底栏固定；沿用 4px 滚动条及两侧 7px 留白。
+
+| 窗口操作 | 窗口与服务观测 |
+| --- | --- |
+| 浅色，启动 HTTP 发现并取消；随后放行延迟响应 | 窗口出现「正在从供应商或 CLI 发现模型…」和「取消发现」；取消后显示「发现已取消，已保存模型保持不变」。上游日志记录响应已发送，`Vendor/Late` 未显示为发现结果。 |
+| 浅色，重试，随后只勾选并显式保存 `Vendor/Retry[1m]` | 重试显示「发现已完成」及 `Vendor/Retry[1m]`、`Vendor/发现`。保存前的网关回读逐字节不变；保存后只有勾选的 ID 加入目录，`Vendor/Saved` 的中文别名和上下文 24000 保持。 |
+| 深色，使用 OpenCode CLI 发现 | 真实网关经受信定位器运行隔离主机上的固定输出 CLI 进程。窗口显示 `fixture/CLI-Model`、中文完成状态和重试入口；已保存目录仍为空。正式 OpenCode/AGY CLI 及真实账号未验证：本机未找到对应安装，也未使用生产账号。 |
+
+Codex 同部署 `GET /v1/model-catalog` 原始回读 SHA-256：开始前、取消后、重试后均为 `95689b2326ba476e35fa6a2713b2500b4edff9a27aa868a5bc5494fa6c400049`；显式保存后为 `1a8c5fadb226924e419c50a652b4c4a4910bea08265ebaff3a7b8bb84ce6d5da`。

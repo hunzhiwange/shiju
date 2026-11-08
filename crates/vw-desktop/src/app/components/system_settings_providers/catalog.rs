@@ -1,5 +1,6 @@
 //! 搜索模型供应商目录，并用稳定的供应商 ID 打开连接或加入热门。
 
+mod discovery;
 mod metadata_fill;
 
 use crate::app::components::system_settings_common::{
@@ -315,6 +316,8 @@ pub(crate) fn deployments<'a>(
             .push(metadata_fill::view(form, editable));
     }
     let mut body = column![settings_group_card(container(fields).padding([12, 0]))].spacing(10);
+
+    body = body.push(discovery::view(form));
 
     if let Some(notice) = &form.notice {
         body = body.push(settings_error_banner(notice.as_str()));

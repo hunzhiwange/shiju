@@ -28,7 +28,7 @@ pub(super) struct Fixture {
     pub(super) app: App,
     pub(super) requests: Receiver<String>,
     pub(super) responses: Sender<Option<String>>,
-    runtime: tokio::runtime::Runtime,
+    pub(super) runtime: tokio::runtime::Runtime,
 }
 
 impl Fixture {

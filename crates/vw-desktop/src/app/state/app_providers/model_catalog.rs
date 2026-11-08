@@ -1,11 +1,13 @@
 //! State for selecting exact model deployments returned by the gateway.
 
 use super::list::Scope;
+use std::sync::Arc;
 use vw_gateway_client::vw_api_types::{
     id::ModelId,
     model_catalog::{
         ModelCatalogFillPreviewResponse, ModelCatalogIdentity, ModelCatalogPreset,
-        ModelCatalogProject, ModelCatalogReadResponse, ScopedModelCatalogIdentity,
+        ModelCatalogProject, ModelCatalogReadResponse, ModelDiscoveryFailure, ModelDiscoveryMethod,
+        ScopedModelCatalogIdentity,
     },
 };
 
@@ -24,6 +26,44 @@ pub(crate) enum FillState {
     Preview(Box<ModelCatalogFillPreviewResponse>),
     Committing(u64),
     Notice(&'static str),
+}
+
+#[derive(Clone, Debug, Default)]
+pub enum DiscoveryPhase {
+    #[default]
+    Idle,
+    Starting,
+    Queued,
+    Discovering,
+    Parsing,
+    Stopping,
+    Cancelled,
+    CancelUnconfirmed,
+    ServiceFailed(ModelDiscoveryFailure),
+    Failed(String),
+    Completed(Arc<[ScopedModelCatalogIdentity]>),
+}
+
+impl DiscoveryPhase {
+    pub(crate) fn running(&self) -> bool {
+        matches!(self, Self::Starting | Self::Queued | Self::Discovering | Self::Parsing)
+    }
+
+    pub(crate) fn active(&self) -> bool {
+        self.running() || matches!(self, Self::Stopping)
+    }
+}
+
+#[derive(Clone, Debug, Default)]
+pub(crate) struct DiscoveryState {
+    pub run: u64,
+    pub method: Option<ModelDiscoveryMethod>,
+    // Dropping the last sender when a form closes or changes deployment also
+    // tells the worker to cancel using its original credentials and scope.
+    pub cancel: Option<tokio::sync::watch::Sender<bool>>,
+    pub phase: DiscoveryPhase,
+    pub results_run: u64,
+    pub results: Arc<[ScopedModelCatalogIdentity]>,
 }
 
 #[derive(Clone, Debug)]
@@ -47,6 +87,7 @@ pub(crate) struct CatalogForm {
     pub notice: Option<String>,
     pub fill: FillState,
     pub fill_silent: bool,
+    pub discovery: DiscoveryState,
 }
 
 impl CatalogForm {
@@ -71,6 +112,7 @@ impl CatalogForm {
             notice: None,
             fill: FillState::Idle,
             fill_silent: false,
+            discovery: DiscoveryState::default(),
         }
     }
 
@@ -90,6 +132,7 @@ impl CatalogForm {
 
     pub fn set_endpoint(&mut self, endpoint: String) {
         if self.endpoint.trim() != endpoint.trim() {
+            self.discovery = DiscoveryState::default();
             self.selected.clear();
             self.clear_model_draft();
             self.catalog = None;
@@ -166,6 +209,15 @@ impl CatalogForm {
             deployment,
             model_id: model_id.clone(),
         };
+        self.toggle_identity(identity, selected);
+    }
+
+    pub(crate) fn toggle_identity(&mut self, identity: ScopedModelCatalogIdentity, selected: bool) {
+        if identity.deployment != self.deployment()
+            || identity.scope != self.context.scope.context.tenant
+        {
+            return;
+        }
         if selected {
             if !self.selected.contains(&identity) {
                 self.selected.push(identity);

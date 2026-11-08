@@ -1,6 +1,7 @@
 //! 处理模型提供商设置子模块的目录、认证和连接状态。
 
 pub(crate) mod catalog_api;
+pub(crate) mod discovery;
 mod helpers;
 pub(crate) mod managed_shiju;
 pub(crate) mod metadata_fill;
@@ -34,3 +35,6 @@ mod model_edits_api_tests;
 
 #[cfg(test)]
 mod metadata_fill_tests;
+
+#[cfg(test)]
+mod discovery_tests;

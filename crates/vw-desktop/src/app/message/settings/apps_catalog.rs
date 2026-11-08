@@ -70,6 +70,7 @@ pub(super) fn update(app: &mut App, message: AppsCatalogMessage) -> Task<Message
                 project: app.project_path.clone(),
             };
             let generation = app.apps_catalog.begin(context.clone());
+            app.app_providers.model_catalog = None;
             app.apps_catalog.token.clear();
             app.apps_catalog.host.clear();
             return Task::perform(
@@ -116,6 +117,7 @@ pub(super) fn update(app: &mut App, message: AppsCatalogMessage) -> Task<Message
         }
         AppsCatalogMessage::ConnectionClose => app.apps_catalog.connection_open = false,
         AppsCatalogMessage::HostInput(host) => {
+            app.app_providers.model_catalog = None;
             app.apps_catalog.lifecycle.invalidate();
             app.apps_catalog.preferences.invalidate();
             app.apps_catalog.launch.invalidate();
@@ -128,6 +130,7 @@ pub(super) fn update(app: &mut App, message: AppsCatalogMessage) -> Task<Message
             app.apps_catalog.error = None;
         }
         AppsCatalogMessage::TokenInput(token) => {
+            app.app_providers.model_catalog = None;
             app.apps_catalog.context =
                 crate::app::config::gateway_client().ok().map(|client| AgentAppsContext {
                     gateway: client.endpoint().base_url(),

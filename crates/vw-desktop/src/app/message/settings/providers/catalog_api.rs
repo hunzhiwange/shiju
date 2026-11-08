@@ -1,6 +1,6 @@
 //! Read and edit models in a saved application's exact deployment through the SDK.
 
-use super::metadata_fill;
+use super::{discovery, metadata_fill};
 use crate::app::{
     App, Message,
     message::app_providers::list::{self, ListMessage},
@@ -42,6 +42,7 @@ pub enum Event {
     CatalogLoaded { generation: u64, result: Result<ModelCatalogReadResponse, String> },
     Save,
     Fill(metadata_fill::Event),
+    Discovery(discovery::Event),
     Searched { generation: u64, result: Result<Vec<ModelCatalogPreset>, String> },
     Saved { generation: u64, result: Result<(), String> },
 }
@@ -253,7 +254,9 @@ pub(crate) fn update(app: &mut App, event: Event) -> Task<Message> {
         Ok(value) => value,
         Err(error) => {
             app.app_providers.model_catalog = None;
-            if matches!(&event, Event::Fill(event) if event.is_response()) {
+            if matches!(&event, Event::Fill(event) if event.is_response())
+                || matches!(&event, Event::Discovery(event) if event.is_response())
+            {
                 return Task::none();
             }
             return app.show_error_toast(error);
@@ -318,6 +321,7 @@ pub(crate) fn update(app: &mut App, event: Event) -> Task<Message> {
             }
         }
         Event::Fill(event) => return metadata_fill::update(app, client, event),
+        Event::Discovery(event) => return discovery::update(app, client, event),
         _ if form.busy() => {}
         Event::Query(query) => {
             *generation = generation.wrapping_add(1);

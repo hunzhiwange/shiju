@@ -312,7 +312,7 @@ mod tab_appearance {
     const SIZE: Size<u32> = Size::new(960, 640);
     type Ui<'a> = UserInterface<'a, Message, Theme, Renderer>;
 
-    fn run_isolated() -> bool {
+    fn run_isolated(test: &str) -> bool {
         const CHILD: &str = "SHIJU_GENERAL_TABS_TEST_CHILD";
         if std::env::var_os(CHILD).is_some() {
             return true;
@@ -330,7 +330,7 @@ mod tab_appearance {
         .unwrap();
         let module = module_path!().split_once("::").unwrap().1;
         let output = std::process::Command::new(std::env::current_exe().unwrap())
-            .args(["--exact", &format!("{module}::settings_tabs_general_appearance")])
+            .args(["--exact", &format!("{module}::{test}")])
             .env(CHILD, "1")
             .env("HOME", home.path())
             .env("VIBEWINDOW_CONFIG_DIR", home.path())
@@ -403,11 +403,12 @@ mod tab_appearance {
         messages
     }
 
-    fn capture(
+    fn capture_at_size(
         ui: &mut Ui<'_>,
         renderer: &mut Renderer,
         theme: &Theme,
         cursor: mouse::Cursor,
+        size: Size<u32>,
     ) -> image::RgbaImage {
         assert!(
             send(
@@ -419,8 +420,17 @@ mod tab_appearance {
             .is_empty()
         );
         ui.draw(renderer, theme, &Style { text_color: theme.palette().text }, cursor);
-        let pixels = renderer.screenshot(SIZE, 1.0, theme.palette().background);
-        image::RgbaImage::from_raw(SIZE.width, SIZE.height, pixels).expect("screenshot")
+        let pixels = renderer.screenshot(size, 1.0, theme.palette().background);
+        image::RgbaImage::from_raw(size.width, size.height, pixels).expect("screenshot")
+    }
+
+    fn capture(
+        ui: &mut Ui<'_>,
+        renderer: &mut Renderer,
+        theme: &Theme,
+        cursor: mouse::Cursor,
+    ) -> image::RgbaImage {
+        capture_at_size(ui, renderer, theme, cursor, SIZE)
     }
 
     fn save_tabs(pixels: &image::RgbaImage, tabs: &[Rectangle], name: &str) {
@@ -652,9 +662,268 @@ mod tab_appearance {
         );
     }
 
+    #[derive(Default)]
+    struct TextBounds(Vec<(String, Rectangle)>);
+
+    impl Operation for TextBounds {
+        fn traverse(&mut self, children: &mut dyn FnMut(&mut dyn Operation)) {
+            children(self);
+        }
+
+        fn text(&mut self, _: Option<&Id>, bounds: Rectangle, value: &str) {
+            self.0.push((value.into(), bounds));
+        }
+    }
+
+    async fn check_contextual_help<'a>(
+        app: &App,
+        view: impl Fn() -> Element<'a, Message>,
+        name: &str,
+        title: &str,
+        description: &str,
+        visible: &str,
+    ) {
+        {
+            let mut fonts = iced::advanced::graphics::text::font_system().write().unwrap();
+            for font in crate::fonts::load_all() {
+                fonts.load_font(font);
+            }
+        }
+        let mut renderer =
+            Renderer::new(Font::with_name("Noto Sans CJK SC"), 16.0.into(), Some("tiny-skia"))
+                .await
+                .expect("tiny-skia renderer");
+        let i18n = I18n::new(app.desktop_locale);
+        let size = Size::new(520, 780);
+        let mut ui = UserInterface::build(
+            iced::widget::responsive(|_| view()),
+            Size::from((size.width, size.height)),
+            Cache::new(),
+            &mut renderer,
+        );
+        let mut labels = TextBounds::default();
+        ui.operate(&renderer, &mut labels);
+        let title_bounds = labels.0.iter().rfind(|(label, _)| label == i18n.__(title)).unwrap().1;
+        let point = Point::new(title_bounds.x + title_bounds.width + 15.0, title_bounds.center_y());
+        let cursor = mouse::Cursor::Available(point);
+        let idle = capture_at_size(
+            &mut ui,
+            &mut renderer,
+            &app.app_theme,
+            mouse::Cursor::Unavailable,
+            size,
+        );
+        assert!(
+            send(
+                &mut ui,
+                &mut renderer,
+                cursor,
+                Event::Mouse(mouse::Event::CursorMoved { position: point })
+            )
+            .is_empty()
+        );
+        let opened = capture_at_size(&mut ui, &mut renderer, &app.app_theme, cursor, size);
+        if let Some(directory) = std::env::var_os("SHIJU_HELP_ROLLOUT_03_SCREENSHOTS") {
+            let directory = std::path::PathBuf::from(directory);
+            idle.save(directory.join(format!("{name}-idle.png"))).unwrap();
+            opened.save(directory.join(format!("{name}-open.png"))).unwrap();
+        }
+        assert!(idle != opened, "{name}: hovering beside {title:?} must draw the help card");
+        assert!(
+            labels.0.iter().all(|(label, _)| label != i18n.__(description)),
+            "{name}: optional explanation is visible while idle"
+        );
+        assert!(
+            labels.0.iter().any(|(label, _)| label == i18n.__(visible)),
+            "{name}: {visible:?} must remain visible"
+        );
+    }
+
+    #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+    async fn help_rollout_03_terminal_renders_contextual_help() {
+        if !run_isolated("help_rollout_03_terminal_renders_contextual_help") {
+            return;
+        }
+        let mut app = test_app();
+        app.general_settings_tab = GeneralSettingsTab::Terminal;
+        app.terminal.font_size = 14.0;
+        for (locale, theme, name) in [
+            (DesktopLocale::English, Theme::Light, "terminal-en-light"),
+            (DesktopLocale::SimplifiedChinese, Theme::Dark, "terminal-zh-dark"),
+        ] {
+            app.desktop_locale = locale;
+            app.app_theme = theme;
+            check_contextual_help(
+                &app,
+                || view(&app),
+                name,
+                "字体大小",
+                "在 10pt 到 18pt 之间调整终端字号。",
+                "14 pt",
+            )
+            .await;
+        }
+    }
+
+    #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+    async fn help_rollout_03_preview_renders_contextual_help() {
+        if !run_isolated("help_rollout_03_preview_renders_contextual_help") {
+            return;
+        }
+        let mut app = test_app();
+        for (locale, theme, name) in [
+            (DesktopLocale::English, Theme::Light, "preview-en-light"),
+            (DesktopLocale::SimplifiedChinese, Theme::Dark, "preview-zh-dark"),
+        ] {
+            app.desktop_locale = locale;
+            app.app_theme = theme;
+            check_contextual_help(
+                &app,
+                || {
+                    crate::app::components::preview_panel::build_settings_overlay(
+                        &app,
+                        iced::widget::container(text("Preview"))
+                            .width(Length::Fill)
+                            .height(Length::Fill)
+                            .into(),
+                    )
+                },
+                name,
+                "编辑器设置",
+                "统一调整字号、行高、语言与主题。",
+                "完成",
+            )
+            .await;
+        }
+    }
+
+    #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+    async fn help_rollout_03_editor_renders_contextual_help() {
+        use crate::app::components::system_settings_editor;
+
+        if !run_isolated("help_rollout_03_editor_renders_contextual_help") {
+            return;
+        }
+        let mut app = test_app();
+        app.desktop_locale = DesktopLocale::English;
+        app.app_theme = Theme::Light;
+        check_contextual_help(
+            &app,
+            || system_settings_editor::view(&app),
+            "editor-standalone-en-light",
+            "编辑器配置",
+            "配置主题、字号与行高等编辑体验参数。",
+            "主题与显示",
+        )
+        .await;
+
+        app.desktop_locale = DesktopLocale::SimplifiedChinese;
+        app.app_theme = Theme::Dark;
+        app.general_settings_tab = GeneralSettingsTab::Editor;
+        check_contextual_help(
+            &app,
+            || view(&app),
+            "editor-tab-zh-dark",
+            "主题与显示",
+            "统一编辑器主题来源及排版参数。",
+            "启用代码补全、悬停提示与跳转定义；需要对应语言服务器可用。",
+        )
+        .await;
+    }
+
+    #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+    async fn help_rollout_03_themes_render_contextual_help() {
+        use crate::app::components::system_settings::{self, SystemTab};
+        use crate::app::components::system_settings_themes::{self, editor, gallery};
+        use crate::app::state::{ThemeEditorTab, ThemesSettingsMode};
+
+        if !run_isolated("help_rollout_03_themes_render_contextual_help") {
+            return;
+        }
+        let mut app = test_app();
+        app.desktop_locale = DesktopLocale::English;
+        app.app_theme = Theme::Light;
+        app.themes_settings.entries = vec![gallery::ThemeGalleryEntry {
+            id: "fixture-theme".into(),
+            name: "Fixture theme".into(),
+            tagline: Some("Fixture swatches".into()),
+            source: gallery::ThemeGallerySource::Custom,
+            palette: gallery::palette_hex_from_theme(&Theme::Dark),
+            cover_path: None,
+            modified: false,
+        }];
+        check_contextual_help(
+            &app,
+            || system_settings_themes::view(&app),
+            "theme-gallery-en-light",
+            "主题",
+            "浏览内置、预设与自定义主题，应用或管理本地主题包。",
+            "Fixture theme",
+        )
+        .await;
+
+        app.desktop_locale = DesktopLocale::SimplifiedChinese;
+        app.app_theme = Theme::Dark;
+        app.show_system_settings = true;
+        app.system_settings_tab = SystemTab::General;
+        app.general_settings_tab = GeneralSettingsTab::Themes;
+        app.themes_settings.mode = ThemesSettingsMode::Edit;
+        app.themes_settings.draft = Some(editor::new_theme_draft(&[]));
+        app.themes_settings.error = Some("Fixture: invalid color".into());
+
+        for (tab, name, title, description, visible) in [
+            (
+                ThemeEditorTab::Basics,
+                "theme-basics-zh-dark",
+                "名称",
+                "显示在画廊与主题选择中。",
+                "名称必填；新建时标识由名称生成。",
+            ),
+            (
+                ThemeEditorTab::Palette,
+                "theme-palette-zh-dark",
+                "背景",
+                "面板与页面背景色。",
+                "仅支持 #rrggbb 十六进制颜色。",
+            ),
+            (
+                ThemeEditorTab::Assets,
+                "theme-assets-zh-dark",
+                "窗口背景",
+                "主窗口壁纸；默认透明度供分区未单独设置时回退。",
+                "画廊卡片缩略图，支持 png/jpg/jpeg/webp。",
+            ),
+            (
+                ThemeEditorTab::Chrome,
+                "theme-chrome-zh-dark",
+                "输入背景",
+                "可选；留空使用默认。",
+                "Fixture: invalid color",
+            ),
+            (
+                ThemeEditorTab::Preview,
+                "theme-preview-zh-dark",
+                "预览",
+                "暗黑草稿下请确保文字可读。",
+                "取消",
+            ),
+        ] {
+            app.themes_settings.editor_tab = tab;
+            check_contextual_help(
+                &app,
+                || system_settings::view(&app),
+                name,
+                title,
+                description,
+                visible,
+            )
+            .await;
+        }
+    }
+
     #[tokio::test(flavor = "multi_thread")]
     async fn settings_tabs_general_appearance() {
-        if !run_isolated() {
+        if !run_isolated("settings_tabs_general_appearance") {
             return;
         }
         assert_eq!(crate::app::config::gateway_client_endpoint().normalized_host(), "[");

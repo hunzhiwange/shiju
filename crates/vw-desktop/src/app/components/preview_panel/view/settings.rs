@@ -2,9 +2,9 @@
 
 use crate::app::components::system_settings_common::{
     primary_action_btn_style, settings_checkbox_style, settings_close_button, settings_divider,
-    settings_group_card, settings_modal_header, settings_modal_layout, settings_modal_overlay,
-    settings_muted_text_style, settings_row_with_flexible_control, settings_select,
-    settings_value_badge,
+    settings_flexible_row_with_help, settings_group_card, settings_hover_help_label,
+    settings_modal_header, settings_modal_layout, settings_modal_overlay,
+    settings_row_with_flexible_control, settings_select, settings_value_badge,
 };
 use crate::app::components::system_settings_editor::metrics_slider;
 use crate::app::i18n::I18n;
@@ -71,7 +71,7 @@ pub fn build_settings_overlay<'a>(
 ) -> Element<'a, Message> {
     let i18n = I18n::new(app.desktop_locale);
     let setting_row = |label, description, control: Element<'static, Message>| {
-        settings_row_with_flexible_control(label, description, 240.0, control)
+        settings_flexible_row_with_help(i18n, &app.app_theme, label, description, 240.0, control)
     };
     let displayed = metrics::displayed(app);
     let close_message = control_message(SettingsControl::Close);
@@ -88,14 +88,16 @@ pub fn build_settings_overlay<'a>(
     )
     .width(Length::Fill);
 
+    let title = i18n.__("编辑器设置");
     let header = settings_modal_header(
-        column![
-            text(i18n.__("编辑器设置")).size(20),
-            text(i18n.__("统一调整字号、行高、语言与主题。"))
-                .size(13)
-                .style(settings_muted_text_style),
-        ]
-        .spacing(4),
+        settings_hover_help_label(
+            i18n,
+            &app.app_theme,
+            title,
+            text(title).size(20),
+            i18n.__("统一调整字号、行高、语言与主题。"),
+        )
+        .wrap(),
         settings_close_button(close_message.clone()),
     );
 
@@ -125,9 +127,10 @@ pub fn build_settings_overlay<'a>(
                 .into(),
         ),
         settings_divider(),
-        setting_row(
+        settings_row_with_flexible_control(
             i18n.__("行高"),
             i18n.__("关闭自动行高后可手动微调阅读密度。"),
+            240.0,
             row![
                 metrics_slider(10.0..=50.0, displayed.line_height, |value| {
                     control_message(SettingsControl::LineHeight(value))
@@ -136,8 +139,7 @@ pub fn build_settings_overlay<'a>(
                 settings_value_badge(line_height_badge_label(displayed.line_height)),
             ]
             .spacing(12)
-            .align_y(Alignment::Center)
-            .into(),
+            .align_y(Alignment::Center),
         ),
         settings_divider(),
         setting_row(i18n.__("语言"), i18n.__("选择编辑器语法与显示语言。"), language_pick.into()),
@@ -154,10 +156,11 @@ pub fn build_settings_overlay<'a>(
                 .into(),
         ),
         settings_divider(),
-        setting_row(
+        settings_row_with_flexible_control(
             i18n.__("主题"),
             i18n.__("关闭跟随后可单独指定编辑器主题。"),
-            theme_pick.into(),
+            240.0,
+            theme_pick,
         ),
     ]);
     let footer = container(

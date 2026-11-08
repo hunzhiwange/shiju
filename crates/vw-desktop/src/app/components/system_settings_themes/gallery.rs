@@ -3,7 +3,7 @@
 use crate::app::components::system_settings_common::{
     danger_action_btn_style, primary_action_btn_style, rounded_action_btn_style,
     settings_error_banner, settings_group_heading, settings_muted_text_style,
-    settings_page_heading, settings_panel_style, settings_value_badge,
+    settings_page_heading_with_help, settings_panel_style, settings_value_badge,
 };
 use crate::app::message::settings::{SettingsMessage, ThemesMessage};
 use crate::app::theme_catalog::{
@@ -451,6 +451,7 @@ fn pagination_controls(app: &App) -> Element<'_, Message> {
 
 /// 渲染主题画廊视图。
 pub fn view(app: &App) -> Element<'_, Message> {
+    let i18n = crate::app::i18n::I18n::new(app.desktop_locale);
     let total = app.themes_settings.entries.len();
     let page = clamp_gallery_page(app.themes_settings.page_index, total);
     let (start, end) = gallery_page_range(total, page);
@@ -494,10 +495,11 @@ pub fn view(app: &App) -> Element<'_, Message> {
     .wrap();
 
     let mut body = column![
-        settings_page_heading(
-            crate::app::i18n::I18n::new(app.desktop_locale).__("主题"),
-            crate::app::i18n::I18n::new(app.desktop_locale)
-                .__("浏览内置、预设与自定义主题，应用或管理本地主题包。")
+        settings_page_heading_with_help(
+            i18n,
+            &app.app_theme,
+            i18n.__("主题"),
+            i18n.__("浏览内置、预设与自定义主题，应用或管理本地主题包。"),
         ),
         settings_group_heading(
             crate::app::i18n::I18n::new(app.desktop_locale).__("主题画廊"),

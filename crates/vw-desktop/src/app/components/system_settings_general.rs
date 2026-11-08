@@ -11,9 +11,9 @@
 use crate::app::components::system_settings::general_fields::{self, GeneralSettingField};
 use crate::app::components::system_settings_common::{
     rounded_action_btn_style, settings_divider, settings_flexible_row,
-    settings_flexible_row_with_help, settings_group_card, settings_group_heading,
-    settings_group_heading_with_help, settings_page_heading_with_help, settings_select,
-    settings_tab_button, settings_tab_row, settings_toggle, settings_value_badge,
+    settings_flexible_row_with_help, settings_group_card, settings_group_heading_with_help,
+    settings_page_heading_with_help, settings_select, settings_tab_button, settings_tab_row,
+    settings_toggle, settings_value_badge,
 };
 use crate::app::components::system_settings_search::SettingsTabDescriptor;
 use crate::app::i18n::I18n;
@@ -48,12 +48,12 @@ fn general_field_row<'a>(
         .into()
 }
 
-fn interface_field_row<'a>(
+fn general_field_with_help<'a>(
     app: &App,
     field: &GeneralSettingField,
     description: impl Into<Cow<'a, str>>,
     control: impl Into<Element<'a, Message>>,
-) -> Element<'a, Message> {
+) -> iced::widget::Container<'a, Message> {
     let i18n = I18n::new(app.desktop_locale);
     settings_flexible_row_with_help(
         i18n,
@@ -63,9 +63,16 @@ fn interface_field_row<'a>(
         GENERAL_CONTROL_WIDTH,
         control,
     )
-    .padding([12, 0])
     .id(field.id)
-    .into()
+}
+
+fn interface_field_row<'a>(
+    app: &App,
+    field: &GeneralSettingField,
+    description: impl Into<Cow<'a, str>>,
+    control: impl Into<Element<'a, Message>>,
+) -> Element<'a, Message> {
+    general_field_with_help(app, field, description, control).padding([12, 0]).into()
 }
 
 fn app_theme_selected(theme: iced::Theme) -> Message {
@@ -349,11 +356,13 @@ pub fn view(app: &App) -> Element<'_, Message> {
         .spacing(16)
         .into(),
         GeneralSettingsTab::Terminal => column![
-            settings_group_heading(i18n.__("终端"), i18n.__("默认 Shell、主题与字体。")),
+            settings_group_heading_with_help(
+                i18n, &app.app_theme, i18n.__("终端"), i18n.__("默认 Shell、主题与字体。")
+            ),
             settings_group_card(
                 column![
-                    general_field_row(
-                        i18n,
+                    general_field_with_help(
+                        app,
                         &general_fields::TERMINAL_SHELL,
                         i18n.__("新终端默认使用的 Shell。"),
                         shell_pick
@@ -366,15 +375,15 @@ pub fn view(app: &App) -> Element<'_, Message> {
                         term_theme_pick
                     ),
                     settings_divider(),
-                    general_field_row(
-                        i18n,
+                    general_field_with_help(
+                        app,
                         &general_fields::TERMINAL_FONT,
                         i18n.__("选择终端字体家族。"),
                         font_pick,
                     ),
                     settings_divider(),
-                    general_field_row(
-                        i18n,
+                    general_field_with_help(
+                        app,
                         &general_fields::TERMINAL_FONT_SIZE,
                         i18n.__("在 10pt 到 18pt 之间调整终端字号。"),
                         row![

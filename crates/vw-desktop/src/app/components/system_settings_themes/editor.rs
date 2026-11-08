@@ -4,7 +4,8 @@ use crate::app::components::color_picker::{parse_color, render_color_picker};
 use crate::app::components::overlays::BelowOverlay;
 use crate::app::components::system_settings_common::{
     primary_action_btn_style, rounded_action_btn_style, settings_close_button, settings_divider,
-    settings_error_banner, settings_group_card, settings_group_heading, settings_modal_header,
+    settings_error_banner, settings_flexible_row_with_help, settings_group_card,
+    settings_group_heading, settings_group_heading_with_help, settings_modal_header,
     settings_modal_layout, settings_muted_text_style, settings_panel_style, settings_row,
     settings_select, settings_tab_button, settings_tab_row, settings_text_input,
 };
@@ -296,17 +297,25 @@ pub(crate) fn existing_custom_ids(app: &App, exclude: Option<&str>) -> Vec<Strin
         .collect()
 }
 
-fn field_row<'a>(
+fn field_row_with_help<'a>(
+    app: &App,
     label: &'static str,
     description: &'static str,
     control: impl Into<Element<'a, Message>>,
 ) -> Element<'a, Message> {
-    settings_row(label, description, 156.0, control)
+    settings_flexible_row_with_help(
+        I18n::new(app.desktop_locale),
+        &app.app_theme,
+        label,
+        description,
+        156.0,
+        control,
+    )
+    .into()
 }
 
 fn theme_form_group<'a>(
-    title: &'static str,
-    description: &'static str,
+    heading: Element<'a, Message>,
     fields: impl IntoIterator<Item = Element<'a, Message>>,
 ) -> Element<'a, Message> {
     let mut fields = fields.into_iter();
@@ -314,13 +323,11 @@ fn theme_form_group<'a>(
     for field in fields {
         rows = rows.push(settings_divider()).push(field);
     }
-    column![settings_group_heading(title, description), settings_group_card(rows)]
-        .spacing(10)
-        .width(Length::Fill)
-        .into()
+    column![heading, settings_group_card(rows)].spacing(10).width(Length::Fill).into()
 }
 
-fn text_row<'a>(
+fn text_row_with_help<'a>(
+    app: &App,
     label: &'static str,
     description: &'static str,
     placeholder: &'static str,
@@ -328,7 +335,7 @@ fn text_row<'a>(
     on_input: impl Fn(String) -> Message + 'a,
 ) -> Element<'a, Message> {
     let input = settings_text_input(placeholder, value).on_input(on_input).width(Length::Fill);
-    field_row(label, description, input)
+    field_row_with_help(app, label, description, input)
 }
 
 fn parse_draft_hex(value: &str) -> Option<Color> {
@@ -463,7 +470,7 @@ fn color_field_row<'a>(
         .width(Length::Fill);
 
     let control = row![swatch, input].spacing(8).align_y(Alignment::Center);
-    field_row(label, description, control)
+    field_row_with_help(app, label, description, control)
 }
 
 fn palette_row<'a>(
@@ -513,9 +520,18 @@ fn chrome_row<'a>(
     value: &'a str,
     placeholder: &'static str,
 ) -> Element<'a, Message> {
-    text_row(label, description, placeholder, value, move |value| {
-        Message::Settings(SettingsMessage::Themes(ThemesMessage::DraftChromeChanged(field, value)))
-    })
+    settings_row(
+        label,
+        description,
+        156.0,
+        settings_text_input(placeholder, value)
+            .on_input(move |value| {
+                Message::Settings(SettingsMessage::Themes(ThemesMessage::DraftChromeChanged(
+                    field, value,
+                )))
+            })
+            .width(Length::Fill),
+    )
 }
 
 fn asset_status_label(
@@ -536,16 +552,13 @@ fn asset_status_label(
     I18n::new(locale).__("未选择").to_string()
 }
 
-#[allow(clippy::too_many_arguments)]
-fn asset_picker_row<'a>(
+fn asset_picker_control(
     locale: vw_config_types::ui::DesktopLocale,
-    label: &'static str,
-    description: &'static str,
-    relative: Option<&'a str>,
-    source: Option<&'a str>,
+    relative: Option<&str>,
+    source: Option<&str>,
     pick: ThemesMessage,
     clear: ThemesMessage,
-) -> Element<'a, Message> {
+) -> Element<'static, Message> {
     let i18n = I18n::new(locale);
     let status = text(asset_status_label(locale, relative, source))
         .size(12)
@@ -565,7 +578,7 @@ fn asset_picker_row<'a>(
     .spacing(8)
     .align_y(Alignment::Center)
     .wrap();
-    field_row(label, description, column![status, buttons].spacing(8).width(Length::Fill))
+    column![status, buttons].spacing(8).width(Length::Fill).into()
 }
 
 #[derive(Clone, PartialEq)]
@@ -602,23 +615,27 @@ fn zone_image_fit_select(
 }
 
 /// 窗口背景卡：选图 + 默认透明度（分区未单独设置时回退）。
-fn background_asset_card(
-    locale: vw_config_types::ui::DesktopLocale,
-    draft: &ThemeEditorDraft,
-) -> Element<'_, Message> {
-    let i18n = I18n::new(locale);
+fn background_asset_card<'a>(app: &App, draft: &'a ThemeEditorDraft) -> Element<'a, Message> {
+    let i18n = I18n::new(app.desktop_locale);
     theme_form_group(
-        i18n.__("窗口背景"),
-        i18n.__("主窗口壁纸；默认透明度供分区未单独设置时回退。"),
+        settings_group_heading_with_help(
+            i18n,
+            &app.app_theme,
+            i18n.__("窗口背景"),
+            i18n.__("主窗口壁纸；默认透明度供分区未单独设置时回退。"),
+        ),
         [
-            asset_picker_row(
-                locale,
+            field_row_with_help(
+                app,
                 i18n.__("背景图"),
                 i18n.__("主窗口壁纸资源，保存后由应用层加载。"),
-                draft.background_relative.as_deref(),
-                draft.background_source.as_deref(),
-                ThemesMessage::PickBackground,
-                ThemesMessage::ClearBackground,
+                asset_picker_control(
+                    app.desktop_locale,
+                    draft.background_relative.as_deref(),
+                    draft.background_source.as_deref(),
+                    ThemesMessage::PickBackground,
+                    ThemesMessage::ClearBackground,
+                ),
             ),
             chrome_row(
                 i18n.__("默认透明度"),
@@ -633,7 +650,7 @@ fn background_asset_card(
 
 /// 分区资源卡：选图 + 该区透明度 + 该区缩放下拉。
 fn zone_asset_card<'a>(
-    locale: vw_config_types::ui::DesktopLocale,
+    app: &App,
     title: &'static str,
     description: &'static str,
     pick_label: &'static str,
@@ -647,12 +664,16 @@ fn zone_asset_card<'a>(
     fit_field: ThemeChromeField,
     fit_value: &'a str,
 ) -> Element<'a, Message> {
-    let i18n = I18n::new(locale);
+    let i18n = I18n::new(app.desktop_locale);
     theme_form_group(
-        title,
-        description,
+        settings_group_heading_with_help(i18n, &app.app_theme, title, description),
         [
-            asset_picker_row(locale, pick_label, pick_description, relative, source, pick, clear),
+            field_row_with_help(
+                app,
+                pick_label,
+                pick_description,
+                asset_picker_control(app.desktop_locale, relative, source, pick, clear),
+            ),
             chrome_row(
                 i18n.__("透明度"),
                 i18n.__("0–255；仅本分区。"),
@@ -660,10 +681,11 @@ fn zone_asset_card<'a>(
                 alpha_value,
                 i18n.__("例如 184"),
             ),
-            field_row(
+            field_row_with_help(
+                app,
                 i18n.__("图缩放"),
                 i18n.__("本分区背景图 ContentFit；默认覆盖裁剪。"),
-                zone_image_fit_select(locale, fit_value, fit_field),
+                zone_image_fit_select(app.desktop_locale, fit_value, fit_field),
             ),
         ],
     )
@@ -693,11 +715,8 @@ fn editor_tab_button(
     .into()
 }
 
-fn basics_tab(
-    locale: vw_config_types::ui::DesktopLocale,
-    draft: &ThemeEditorDraft,
-) -> Element<'_, Message> {
-    let i18n = I18n::new(locale);
+fn basics_tab<'a>(app: &App, draft: &'a ThemeEditorDraft) -> Element<'a, Message> {
+    let i18n = I18n::new(app.desktop_locale);
     let id_hint = if draft.builtin_base.is_some() {
         i18n.__("内置覆盖层标识由主题名派生，只读")
     } else if draft.id_readonly {
@@ -707,15 +726,16 @@ fn basics_tab(
     };
 
     theme_form_group(
-        i18n.__("基本信息"),
-        i18n.__("名称必填；新建时标识由名称生成。"),
+        settings_group_heading(i18n.__("基本信息"), i18n.__("名称必填；新建时标识由名称生成。")),
         [
-            field_row(
+            settings_row(
                 i18n.__("标识"),
                 id_hint,
+                156.0,
                 settings_text_input("", &draft.id).width(Length::Fill),
             ),
-            text_row(
+            text_row_with_help(
+                app,
                 i18n.__("名称"),
                 i18n.__("显示在画廊与主题选择中。"),
                 i18n.__("例如 Ocean Breeze"),
@@ -726,7 +746,8 @@ fn basics_tab(
                     )))
                 },
             ),
-            text_row(
+            text_row_with_help(
+                app,
                 i18n.__("标语"),
                 i18n.__("可选的一句话描述。"),
                 i18n.__("例如 Soft blue accents"),
@@ -744,8 +765,7 @@ fn basics_tab(
 fn palette_tab<'a>(app: &'a App, draft: &'a ThemeEditorDraft) -> Element<'a, Message> {
     let i18n = I18n::new(app.desktop_locale);
     theme_form_group(
-        i18n.__("调色板"),
-        i18n.__("仅支持 #rrggbb 十六进制颜色。"),
+        settings_group_heading(i18n.__("调色板"), i18n.__("仅支持 #rrggbb 十六进制颜色。")),
         [
             palette_row(
                 app,
@@ -799,28 +819,32 @@ fn palette_tab<'a>(app: &'a App, draft: &'a ThemeEditorDraft) -> Element<'a, Mes
     )
 }
 
-fn assets_tab(
-    locale: vw_config_types::ui::DesktopLocale,
-    draft: &ThemeEditorDraft,
-) -> Element<'_, Message> {
-    let i18n = I18n::new(locale);
+fn assets_tab<'a>(app: &App, draft: &'a ThemeEditorDraft) -> Element<'a, Message> {
+    let i18n = I18n::new(app.desktop_locale);
     column![
         theme_form_group(
-            i18n.__("资源"),
-            i18n.__("封面用于画廊；背景与聊天分区图供运行时铺图。"),
-            [asset_picker_row(
-                locale,
+            settings_group_heading_with_help(
+                i18n,
+                &app.app_theme,
+                i18n.__("资源"),
+                i18n.__("封面用于画廊；背景与聊天分区图供运行时铺图。"),
+            ),
+            [settings_row(
                 i18n.__("封面"),
                 i18n.__("画廊卡片缩略图，支持 png/jpg/jpeg/webp。"),
-                draft.cover_relative.as_deref(),
-                draft.cover_source.as_deref(),
-                ThemesMessage::PickCover,
-                ThemesMessage::ClearCover,
+                156.0,
+                asset_picker_control(
+                    app.desktop_locale,
+                    draft.cover_relative.as_deref(),
+                    draft.cover_source.as_deref(),
+                    ThemesMessage::PickCover,
+                    ThemesMessage::ClearCover,
+                ),
             )],
         ),
-        background_asset_card(locale, draft),
+        background_asset_card(app, draft),
         zone_asset_card(
-            locale,
+            app,
             i18n.__("聊头分区"),
             i18n.__("聊天顶栏选图、透明度与缩放。"),
             i18n.__("聊头背景"),
@@ -835,7 +859,7 @@ fn assets_tab(
             &draft.chrome_chat_header_image_fit,
         ),
         zone_asset_card(
-            locale,
+            app,
             i18n.__("消息区分区"),
             i18n.__("消息列表选图、透明度与缩放。"),
             i18n.__("消息区背景"),
@@ -850,7 +874,7 @@ fn assets_tab(
             &draft.chrome_chat_body_image_fit,
         ),
         zone_asset_card(
-            locale,
+            app,
             i18n.__("输入区分区"),
             i18n.__("输入卡选图、透明度与缩放。"),
             i18n.__("输入区背景"),
@@ -872,8 +896,7 @@ fn assets_tab(
 fn chrome_tab<'a>(app: &'a App, draft: &'a ThemeEditorDraft) -> Element<'a, Message> {
     let i18n = I18n::new(app.desktop_locale);
     theme_form_group(
-        i18n.__("控件皮肤"),
-        i18n.__("可选覆盖；非法 hex 会阻止保存。"),
+        settings_group_heading(i18n.__("控件皮肤"), i18n.__("可选覆盖；非法 hex 会阻止保存。")),
         [
             chrome_color_row(
                 app,
@@ -931,25 +954,33 @@ fn chrome_tab<'a>(app: &'a App, draft: &'a ThemeEditorDraft) -> Element<'a, Mess
                 ThemeChromeField::ButtonText,
                 &draft.chrome_button_text,
             ),
-            chrome_row(
+            text_row_with_help(
+                app,
                 i18n.__("圆角"),
                 i18n.__("像素；留空使用默认。"),
-                ThemeChromeField::RadiusPx,
-                &draft.chrome_radius_px,
                 i18n.__("例如 10"),
+                &draft.chrome_radius_px,
+                |value| {
+                    Message::Settings(SettingsMessage::Themes(ThemesMessage::DraftChromeChanged(
+                        ThemeChromeField::RadiusPx,
+                        value,
+                    )))
+                },
             ),
         ],
     )
 }
 
-fn preview_tab(
-    locale: vw_config_types::ui::DesktopLocale,
-    draft: &ThemeEditorDraft,
-) -> Element<'_, Message> {
-    let i18n = I18n::new(locale);
+fn preview_tab<'a>(app: &App, draft: &'a ThemeEditorDraft) -> Element<'a, Message> {
+    let i18n = I18n::new(app.desktop_locale);
     column![
-        settings_group_heading(i18n.__("预览"), i18n.__("暗黑草稿下请确保文字可读。")),
-        theme_preview_panel(locale, draft),
+        settings_group_heading_with_help(
+            i18n,
+            &app.app_theme,
+            i18n.__("预览"),
+            i18n.__("暗黑草稿下请确保文字可读。"),
+        ),
+        theme_preview_panel(app.desktop_locale, draft),
     ]
     .spacing(4)
     .into()
@@ -961,11 +992,11 @@ fn editor_tab_content<'a>(
     active_tab: ThemeEditorTab,
 ) -> Element<'a, Message> {
     match active_tab {
-        ThemeEditorTab::Basics => basics_tab(app.desktop_locale, draft),
+        ThemeEditorTab::Basics => basics_tab(app, draft),
         ThemeEditorTab::Palette => palette_tab(app, draft),
-        ThemeEditorTab::Assets => assets_tab(app.desktop_locale, draft),
+        ThemeEditorTab::Assets => assets_tab(app, draft),
         ThemeEditorTab::Chrome => chrome_tab(app, draft),
-        ThemeEditorTab::Preview => preview_tab(app.desktop_locale, draft),
+        ThemeEditorTab::Preview => preview_tab(app, draft),
     }
 }
 
@@ -1032,23 +1063,29 @@ pub(crate) fn view(app: &App) -> Element<'_, Message> {
         );
     }
 
-    let intro = if draft.builtin_base.is_some() {
-        i18n.__("修改将保存为本地覆盖层，可随时恢复 Iced 内置默认值。")
+    let heading = if draft.builtin_base.is_some() {
+        settings_group_heading(
+            title,
+            i18n.__("修改将保存为本地覆盖层，可随时恢复 Iced 内置默认值。"),
+        )
     } else if is_bundled_preset {
-        i18n.__("此预设可编辑并随时恢复嵌入默认值，但不可删除。")
+        settings_group_heading(title, i18n.__("此预设可编辑并随时恢复嵌入默认值，但不可删除。"))
     } else {
-        i18n.__("按 Tab 分段编辑命名、配色、资源与控件皮肤，预览后保存到本地仓库。")
+        settings_group_heading_with_help(
+            i18n,
+            &app.app_theme,
+            title,
+            i18n.__("按 Tab 分段编辑命名、配色、资源与控件皮肤，预览后保存到本地仓库。"),
+        )
     };
 
     let tabs = settings_tab_row(editor_tab_labels().iter().map(|(label, tab)| {
         editor_tab_button(i18n.__(label), *tab, app.themes_settings.editor_tab)
     }));
 
-    let header = column![
-        settings_modal_header(settings_group_heading(title, intro), settings_close_button(cancel)),
-        tabs.wrap(),
-    ]
-    .spacing(12);
+    let header =
+        column![settings_modal_header(heading, settings_close_button(cancel)), tabs.wrap(),]
+            .spacing(12);
 
     let mut footer = column![].spacing(8).width(Length::Fill);
     if let Some(error) = app.themes_settings.error.as_deref() {

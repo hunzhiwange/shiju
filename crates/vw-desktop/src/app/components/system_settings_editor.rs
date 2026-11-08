@@ -15,8 +15,9 @@
 
 use crate::app::components::system_settings::general_fields::{self, GeneralSettingField};
 use crate::app::components::system_settings_common::{
-    settings_checkbox_style, settings_divider, settings_group_card, settings_group_heading,
-    settings_page_heading, settings_row_layout, settings_select, settings_value_badge,
+    settings_checkbox_style, settings_divider, settings_flexible_row_with_help,
+    settings_group_card, settings_group_heading_with_help, settings_page_heading_with_help,
+    settings_row_layout, settings_select, settings_value_badge,
 };
 use crate::app::i18n::I18n;
 use crate::app::message::editor::{EditorMessage, metrics};
@@ -67,7 +68,12 @@ pub(crate) fn content(app: &App) -> Element<'_, Message> {
         .height(Length::Shrink);
 
     column![
-        settings_group_heading(i18n.__("主题与显示"), i18n.__("统一编辑器主题来源及排版参数。")),
+        settings_group_heading_with_help(
+            i18n,
+            &app.app_theme,
+            i18n.__("主题与显示"),
+            i18n.__("统一编辑器主题来源及排版参数。")
+        ),
         fields,
     ]
     .spacing(16)
@@ -79,10 +85,13 @@ fn editor_fields(app: &App, control_width: f32) -> Element<'_, Message> {
     let i18n = I18n::new(app.desktop_locale);
     let field_row =
         |field: &GeneralSettingField, description, control: Element<'static, Message>| {
-            settings_row_layout(
+            settings_flexible_row_with_help(
+                i18n,
+                &app.app_theme,
                 i18n.__(field.label),
                 description,
-                container(control).align_right(control_width),
+                control_width,
+                control,
             )
             .id(field.id)
         };
@@ -104,11 +113,12 @@ fn editor_fields(app: &App, control_width: f32) -> Element<'_, Message> {
             .into(),
     );
 
-    let editor_theme_row = field_row(
-        &general_fields::EDITOR_THEME,
+    let editor_theme_row = settings_row_layout(
+        i18n.__(general_fields::EDITOR_THEME.label),
         i18n.__("关闭跟随系统主题时使用的编辑器配色。"),
-        theme_pick.into(),
-    );
+        container(theme_pick).align_right(control_width),
+    )
+    .id(general_fields::EDITOR_THEME.id);
 
     let displayed = metrics::displayed(app);
     let size_slider = row![
@@ -154,17 +164,20 @@ fn editor_fields(app: &App, control_width: f32) -> Element<'_, Message> {
     );
 
     #[cfg(not(target_arch = "wasm32"))]
-    let lsp_enabled = field_row(
-        &general_fields::EDITOR_LSP,
+    let lsp_enabled = settings_row_layout(
+        i18n.__(general_fields::EDITOR_LSP.label),
         i18n.__("启用代码补全、悬停提示与跳转定义；需要对应语言服务器可用。"),
-        checkbox(!app.lsp_disabled)
-            .label(i18n.__("启用"))
-            .on_toggle(|enabled| {
-                Message::Preview(message::PreviewMessage::LspToggleDisabled(!enabled))
-            })
-            .style(settings_checkbox_style)
-            .into(),
-    );
+        container(
+            checkbox(!app.lsp_disabled)
+                .label(i18n.__("启用"))
+                .on_toggle(|enabled| {
+                    Message::Preview(message::PreviewMessage::LspToggleDisabled(!enabled))
+                })
+                .style(settings_checkbox_style),
+        )
+        .align_right(control_width),
+    )
+    .id(general_fields::EDITOR_LSP.id);
 
     let mut fields = column![
         follow_system_theme,
@@ -190,7 +203,9 @@ fn editor_fields(app: &App, control_width: f32) -> Element<'_, Message> {
 pub fn view(app: &App) -> Element<'_, Message> {
     let i18n = I18n::new(app.desktop_locale);
     column![
-        settings_page_heading(
+        settings_page_heading_with_help(
+            i18n,
+            &app.app_theme,
             i18n.__("编辑器配置"),
             i18n.__("配置主题、字号与行高等编辑体验参数。")
         ),

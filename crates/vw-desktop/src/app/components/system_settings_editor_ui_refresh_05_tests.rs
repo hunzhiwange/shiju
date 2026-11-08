@@ -220,8 +220,8 @@ impl<'a> Scene<'a> {
 }
 
 const TRIGGER: &[usize] = &[0, 2, 0, 1, 0];
-const FONT_SLIDER: &[usize] = &[0, 4, 0, 1, 0, 0];
-const HEIGHT_SLIDER: &[usize] = &[0, 6, 0, 1, 0, 0];
+const FONT_SLIDER: &[usize] = &[0, 4, 0, 1, 0, 0, 0];
+const HEIGHT_SLIDER: &[usize] = &[0, 6, 0, 1, 0, 0, 0];
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn ui_refresh_05_preserves_values_and_disabled_states() {
@@ -239,7 +239,7 @@ async fn ui_refresh_05_preserves_values_and_disabled_states() {
     assert!(scene.key(Named::Enter).is_empty());
     assert!(scene.overlay_bounds().is_none(), "following system must disable manual theme");
 
-    let toggle = scene.bounds(&[0, 0, 0, 1, 0]).center();
+    let toggle = scene.bounds(&[0, 0, 0, 1, 0, 0]).center();
     assert!(matches!(
         scene.click(toggle).as_slice(),
         [Message::Editor(EditorMessage::ToggleFollowSystemTheme(false))]
@@ -482,7 +482,7 @@ async fn ui_refresh_05_image_fit_keeps_canonical_value() {
     app.themes_settings.draft = Some(draft);
     let mut scene = Scene::new(editor::view(&app), 420, 620).await;
     let viewport = scene.bounds(&[0, 1]);
-    let trigger = scene.bounds(&[0, 1, 0, 0, 2, 1, 0, 4, 0, 1, 0]);
+    let trigger = scene.bounds(&[0, 1, 0, 0, 2, 1, 0, 4, 0, 1, 0, 0]);
     let offset = trigger.center_y() - viewport.center_y();
     assert!(scene.scroll(viewport.center(), -offset).is_empty());
     let point = Point::new(trigger.center_x(), viewport.center_y());
@@ -508,9 +508,8 @@ async fn ui_refresh_05_theme_name_and_color_picker_keep_original_messages() {
     app.themes_settings.mode = ThemesSettingsMode::Edit;
     app.themes_settings.draft = Some(editor::new_theme_draft(&[]));
     let mut scene = Scene::new(editor::view(&app), 420, 650).await;
-    let name_field = &[0, 1, 0, 0, 1, 0, 2, 0, 1, 0];
-    let input = scene.bounds(name_field);
-    let text = scene.bounds(&[0, 1, 0, 0, 1, 0, 2, 0, 1, 0, 0]);
+    let input = scene.bounds(&[0, 1, 0, 0, 1, 0, 2, 0, 1, 0, 0]);
+    let text = scene.bounds(&[0, 1, 0, 0, 1, 0, 2, 0, 1, 0, 0, 0]);
     assert!((input.center_y() - text.center_y()).abs() < 0.5);
     let id = scene.bounds(&[0, 1, 0, 0, 1, 0, 0, 0, 1, 0]);
     let ime_commit = Event::InputMethod(iced::advanced::input_method::Event::Commit("示例".into()));
@@ -526,7 +525,7 @@ async fn ui_refresh_05_theme_name_and_color_picker_keep_original_messages() {
     app.themes_settings.editor_tab = ThemeEditorTab::Palette;
     let target = ThemeColorPickerTarget::Palette(ThemePaletteField::Background);
     let mut scene = Scene::new(editor::view(&app), 420, 650).await;
-    let swatch = scene.bounds(&[0, 1, 0, 0, 1, 0, 0, 0, 1, 0, 0]);
+    let swatch = scene.bounds(&[0, 1, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0]);
     assert!(matches!(
         scene.click(swatch.center()).as_slice(),
         [Message::Settings(SettingsMessage::Themes(ThemesMessage::ColorPickerToggled(value)))] if *value == target

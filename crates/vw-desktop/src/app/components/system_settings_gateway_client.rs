@@ -109,19 +109,14 @@ fn server_button<'a>(
         .width(Length::Fill)
         .style(move |theme, status| {
             let mut style = rounded_action_btn_style(theme, status);
-            let accent = theme.palette().primary;
             if selected {
+                let accent = theme.palette().primary;
                 style.border.color = accent.scale_alpha(0.42);
-            }
-            let tint = match (selected, status) {
-                (true, button::Status::Pressed) => 0.28,
-                (true, button::Status::Hovered) => 0.21,
-                (true, _) => 0.14,
-                (false, button::Status::Pressed) => 0.14,
-                (false, button::Status::Hovered) => 0.08,
-                (false, _) => 0.0,
-            };
-            if tint > 0.0 {
+                let tint = match status {
+                    button::Status::Pressed => 0.28,
+                    button::Status::Hovered => 0.21,
+                    _ => 0.14,
+                };
                 style.background = Some(accent.scale_alpha(tint).into());
             }
             style

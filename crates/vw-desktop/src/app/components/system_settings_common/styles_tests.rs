@@ -57,6 +57,17 @@ fn action_button_styles_cover_light_hovered_pressed_and_disabled_statuses() {
         assert_eq!(primary_action_btn_style(&theme, status).border.radius.top_left, 8.0);
         assert_eq!(danger_action_btn_style(&theme, status).border.radius.top_left, 8.0);
     }
+
+    let hovered = [
+        rounded_action_btn_style(&theme, button::Status::Hovered),
+        round_icon_btn_style(&theme, button::Status::Hovered),
+        settings_segment_button_style(&theme, button::Status::Hovered, false),
+    ];
+    for style in hovered {
+        let background = background_color(style.background);
+        assert!(background.relative_luminance() < theme.palette().background.relative_luminance());
+        assert!(style.text_color.is_readable_on(background));
+    }
 }
 
 #[test]
@@ -85,6 +96,26 @@ fn primary_and_danger_action_button_styles_adjust_for_pressed_state() {
         background_color(danger_action_btn_style(&theme, button::Status::Active).background),
         background_color(danger_action_btn_style(&theme, button::Status::Pressed).background)
     );
+}
+
+#[test]
+fn primary_action_button_hover_keeps_the_active_text_readable() {
+    let theme = Theme::custom(
+        "Dark primary",
+        iced::theme::Palette {
+            primary: Color::from_rgb8(96, 96, 96),
+            text: Color::WHITE,
+            ..Theme::Dark.palette()
+        },
+    );
+    let active = primary_action_btn_style(&theme, button::Status::Active);
+    let hovered = primary_action_btn_style(&theme, button::Status::Hovered);
+    let background = background_color(hovered.background);
+
+    assert_eq!(hovered.text_color, Color::WHITE);
+    assert_eq!(hovered.text_color, active.text_color);
+    assert_ne!(hovered.background, active.background);
+    assert!(hovered.text_color.is_readable_on(background));
 }
 
 #[test]

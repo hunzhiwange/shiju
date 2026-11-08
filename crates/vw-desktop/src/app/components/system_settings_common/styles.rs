@@ -4,6 +4,7 @@
 //! 注释聚焦调用边界、返回值和错误传播方式，便于后续维护设置页与工具栏行为时快速定位职责。
 
 use crate::app::components::system_settings_common::theme::is_dark_theme;
+use iced::theme::palette;
 use iced::widget::{button, checkbox, pick_list, text_editor, text_input, toggler};
 use iced::{Background, Border, Color, Shadow, Theme, Vector};
 
@@ -28,7 +29,7 @@ pub fn rounded_action_btn_style(theme: &Theme, status: button::Status) -> button
             if is_dark {
                 palette.background.weak.color.scale_alpha(0.9)
             } else {
-                Color::WHITE.scale_alpha(0.88)
+                palette.background.weak.color
             }
             .into(),
         ),
@@ -36,7 +37,7 @@ pub fn rounded_action_btn_style(theme: &Theme, status: button::Status) -> button
             if is_dark {
                 palette.background.strong.color.scale_alpha(0.94)
             } else {
-                palette.background.weak.color.scale_alpha(0.92)
+                palette.background.strong.color
             }
             .into(),
         ),
@@ -92,7 +93,7 @@ pub fn round_icon_btn_style(theme: &Theme, status: button::Status) -> button::St
             if is_dark {
                 palette.background.weak.color.scale_alpha(0.92)
             } else {
-                Color::WHITE.scale_alpha(0.94)
+                palette.background.weak.color
             }
             .into(),
         ),
@@ -100,7 +101,7 @@ pub fn round_icon_btn_style(theme: &Theme, status: button::Status) -> button::St
             if is_dark {
                 palette.background.strong.color.scale_alpha(0.96)
             } else {
-                palette.background.weak.color.scale_alpha(0.96)
+                palette.background.strong.color
             }
             .into(),
         ),
@@ -176,9 +177,23 @@ pub fn danger_action_btn_style(theme: &Theme, status: button::Status) -> button:
 /// 本函数不直接返回错误；无法交互或缺省状态会在控件状态中显式表达。
 pub fn primary_action_btn_style(theme: &Theme, status: button::Status) -> button::Style {
     let palette = theme.extended_palette();
+    let base = palette.primary.base;
     let (background, text_color) = match status {
-        button::Status::Active => (palette.primary.base.color, palette.primary.base.text),
-        button::Status::Hovered => (palette.primary.strong.color, palette.primary.strong.text),
+        button::Status::Active => (base.color, base.text),
+        button::Status::Hovered => {
+            let strong = palette.primary.strong.color;
+            let background = if base.text.is_readable_on(strong) {
+                strong
+            } else {
+                let shade = if base.text.relative_luminance() > base.color.relative_luminance() {
+                    Color::BLACK
+                } else {
+                    Color::WHITE
+                };
+                palette::mix(base.color, shade, 0.12)
+            };
+            (background, base.text)
+        }
         button::Status::Pressed => (palette.primary.weak.color, palette.primary.weak.text),
         button::Status::Disabled => {
             (palette.background.weak.color, theme.palette().text.scale_alpha(0.55))
@@ -643,12 +658,12 @@ pub fn settings_segment_button_style(
             button::Status::Hovered => Some(Background::Color(if is_dark {
                 palette.background.weak.color.scale_alpha(0.70)
             } else {
-                Color::WHITE.scale_alpha(0.82)
+                palette.background.weak.color
             })),
             button::Status::Pressed => Some(Background::Color(if is_dark {
                 palette.background.strong.color.scale_alpha(0.86)
             } else {
-                palette.background.weak.color.scale_alpha(0.92)
+                palette.background.strong.color
             })),
             _ => Some(Background::Color(if is_dark {
                 palette.background.base.color.scale_alpha(0.40)

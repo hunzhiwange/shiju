@@ -165,7 +165,11 @@ fn tab_label(
         .on_press(Message::View(message::ViewMessage::GatewayServicesTabSelected(tab)))
         .padding([4, 8])
         .style(move |theme: &Theme, status| iced::widget::button::Style {
-            background: None,
+            background: match status {
+                button::Status::Hovered => Some(theme.palette().text.scale_alpha(0.10).into()),
+                button::Status::Pressed => Some(theme.palette().text.scale_alpha(0.15).into()),
+                _ => None,
+            },
             text_color: label_text(theme, status).color.unwrap_or(theme.palette().text),
             border: iced::Border { width: 0.0, color: Color::TRANSPARENT, radius: 4.0.into() },
             ..Default::default()

@@ -692,7 +692,7 @@ pub fn chat_header_view(app: &App) -> Element<'_, Message> {
     let usage_rate_btn: Element<'_, Message> =
         Tooltip::new(usage_btn, usage_tooltip_content, TooltipPosition::Bottom).into();
 
-    let session_menu_icon = icon_svg(Icon::Gear)
+    let session_menu_icon = icon_svg(Icon::DotsThreeVertical)
         .width(Length::Fixed(13.0))
         .height(Length::Fixed(13.0))
         .style(|theme: &Theme, _status| svg::Style { color: Some(theme.palette().text) });
@@ -775,7 +775,8 @@ pub fn chat_header_view(app: &App) -> Element<'_, Message> {
 fn session_actions_button<'a>(label: &str, msg: Option<Message>) -> Element<'a, Message> {
     let label = label.to_string();
 
-    let button = button(container(text(label).size(13)).width(Length::Fill).padding([2, 6]))
+    let button = button(text(label).size(13))
+        .padding([7, 6])
         .width(Length::Fill)
         .style(session_actions_button_style);
     match msg {
@@ -882,7 +883,7 @@ fn session_actions_popover(app: &App) -> Element<'_, Message> {
     container(content)
         .padding([6, 8])
         .style(session_actions_popover_style)
-        .width(Length::Fixed(120.0))
+        .width(Length::Fixed(164.0))
         .into()
 }
 

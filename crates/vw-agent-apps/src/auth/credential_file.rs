@@ -38,6 +38,8 @@ pub struct XaiCredential {
     pub access_token: String,
     pub refresh_token: String,
     pub expires_at: TimestampMs,
+    #[serde(default)]
+    pub requires_reauth: bool,
 }
 
 pub enum AccountCredential {

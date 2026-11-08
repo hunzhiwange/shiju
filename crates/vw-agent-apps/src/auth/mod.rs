@@ -59,3 +59,9 @@ pub mod xai;
 
 #[cfg(all(test, unix, not(target_arch = "wasm32")))]
 mod xai_tests;
+
+#[cfg(not(target_arch = "wasm32"))]
+pub mod xai_refresh;
+
+#[cfg(all(test, unix, not(target_arch = "wasm32")))]
+mod xai_refresh_tests;

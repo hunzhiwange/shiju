@@ -975,7 +975,8 @@ fn assert_xai_device_commit(open: impl Fn() -> GlobalDatabase) {
     let tokens = |refresh: &str| XaiCredential {
         access_token: "fixture-access".into(),
         refresh_token: refresh.into(),
-        expires_at: TimestampMs(3_600_000),
+        expires_at: TimestampMs(i64::MAX),
+        requires_reauth: false,
     };
     let store = AuthAccountStore::new(open(), root.path()).unwrap();
     store.store_xai_device_account(scope, &account, identity, tokens("fixture-refresh")).unwrap();
@@ -985,6 +986,10 @@ fn assert_xai_device_commit(open: impl Fn() -> GlobalDatabase) {
     let mut expected = AuthAccountMetadata::new(identity, TimestampMs(1)).unwrap();
     expected.label = Some("xAI".into());
     assert_eq!(store.read_metadata(&scope, ACCOUNT_ID), Ok(expected));
+    let refresh = XaiRefresh::new().unwrap();
+    let runtime = tokio::runtime::Builder::new_current_thread().enable_all().build().unwrap();
+    let access = |scope| runtime.block_on(store.xai_access_token(&refresh, scope, ACCOUNT_ID));
+    assert_eq!(access(scope).as_deref(), Ok("fixture-access"));
 
     for foreign in [
         AuthAccountScope { principal: "oidc:other", ..scope },
@@ -993,13 +998,30 @@ fn assert_xai_device_commit(open: impl Fn() -> GlobalDatabase) {
     ] {
         assert_eq!(store.read_metadata(&foreign, ACCOUNT_ID), Err(AuthErrorCode::NotFound));
         assert!(store.credentials.lease_xai(foreign, ACCOUNT_ID, false).is_err());
+        let error = if foreign.service == scope.service {
+            AuthErrorCode::NotFound
+        } else {
+            AuthErrorCode::Unsupported
+        };
+        assert_eq!(access(foreign), Err(error));
     }
+    let mut rejected = tokens("fixture-refresh");
+    rejected.requires_reauth = true;
+    store
+        .credentials
+        .lease_xai(scope, ACCOUNT_ID, false)
+        .unwrap()
+        .save(&AccountCredential::XaiOauth(rejected))
+        .unwrap();
+    assert_eq!(access(scope), Err(AuthErrorCode::ReauthRequired));
+
     let updated = AuthAccount {
         authenticated_at: Some(TimestampMs(2)),
         label: "xAI owner".into(),
         ..account.clone()
     };
     store.store_xai_device_account(scope, &updated, identity, tokens("new-refresh")).unwrap();
+    assert_eq!(access(scope).as_deref(), Ok("fixture-access"));
     assert_eq!(
         store.store_xai_device_account(scope, &account, identity, tokens("stale-refresh")),
         Err(AuthErrorCode::Conflict)
@@ -1016,6 +1038,7 @@ fn assert_xai_device_commit(open: impl Fn() -> GlobalDatabase) {
     assert_eq!(rows.len(), 1);
     assert!(!rows[0].payload_json.contains("fixture-"));
     assert!(!rows[0].payload_json.contains("new-refresh"));
+    assert!(!rows[0].payload_json.contains("requires_reauth"));
     assert_eq!(store.read_metadata(&scope, ACCOUNT_ID).unwrap().authenticated_at, TimestampMs(2));
 }
 

@@ -387,9 +387,17 @@ pub(super) async fn read_json<T: DeserializeOwned>(response: Response) -> Result
 }
 
 pub(super) async fn read_json_limited<T: DeserializeOwned>(
-    mut response: Response,
+    response: Response,
     max_bytes: usize,
 ) -> Result<T, AuthErrorCode> {
+    let body = read_body_limited(response, max_bytes).await?;
+    serde_json::from_slice(&body).map_err(|_| AuthErrorCode::UpstreamFailure)
+}
+
+pub(super) async fn read_body_limited(
+    mut response: Response,
+    max_bytes: usize,
+) -> Result<Vec<u8>, AuthErrorCode> {
     let mut body = Vec::new();
     while let Some(chunk) = response.chunk().await.map_err(|_| AuthErrorCode::UpstreamFailure)? {
         if chunk.len() > max_bytes - body.len() {
@@ -397,7 +405,7 @@ pub(super) async fn read_json_limited<T: DeserializeOwned>(
         }
         body.extend_from_slice(&chunk);
     }
-    serde_json::from_slice(&body).map_err(|_| AuthErrorCode::UpstreamFailure)
+    Ok(body)
 }
 
 pub(super) fn valid_token(value: &str) -> bool {

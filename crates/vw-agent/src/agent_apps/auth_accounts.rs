@@ -14,6 +14,7 @@ use vw_agent_apps::auth::{
     credential_file::XaiCredential,
     flow::AuthFlows,
     xai::{XaiDeviceAuth, XaiDeviceStart},
+    xai_refresh::XaiRefresh,
 };
 use vw_agent_apps::{
     apps::launch::{
@@ -169,6 +170,22 @@ impl AuthAccountStore {
         account_id: &str,
     ) -> Result<String, AuthErrorCode> {
         if scope.service != AuthService::CodexOauth {
+            return Err(AuthErrorCode::Unsupported);
+        }
+        crate::global_database::run_sync_database(|| Ok(self.read_metadata(&scope, account_id)))
+            .map_err(|_| AuthErrorCode::StorageUnavailable)??;
+        adapter.access_token(&self.credentials, scope, account_id).await
+    }
+
+    /// Resolve a managed xAI account's access token on the authorized execution host.
+    #[cfg(not(target_arch = "wasm32"))]
+    pub async fn xai_access_token(
+        &self,
+        adapter: &XaiRefresh,
+        scope: AuthAccountScope<'_>,
+        account_id: &str,
+    ) -> Result<String, AuthErrorCode> {
+        if scope.service != AuthService::XaiOauth {
             return Err(AuthErrorCode::Unsupported);
         }
         crate::global_database::run_sync_database(|| Ok(self.read_metadata(&scope, account_id)))

@@ -2,18 +2,18 @@
 //! 通过文件、区块和新旧行选择验证提交就绪状态的优先级。
 
 use crate::app::components::system_settings_common::settings_select;
+use crate::app::i18n::I18n;
 use crate::app::message::{GitMessage, ViewMessage, git, view};
 use crate::app::state::ConventionalCommitType;
 use crate::app::{App, Message};
 use iced::advanced::renderer::{Headless, Style};
+use iced::advanced::widget::Id;
 use iced::advanced::widget::operation::{Operation, Outcome, focusable};
 use iced::advanced::{Layout, clipboard, layout, widget::Tree};
 use iced::futures::StreamExt;
 use iced::keyboard::{self, Key, key::Named};
-use iced::widget::{button, container, svg};
-use iced::{
-    Background, Color, Element, Event, Font, Point, Rectangle, Renderer, Size, Theme, mouse,
-};
+use iced::widget::container;
+use iced::{Element, Event, Font, Point, Rectangle, Renderer, Size, Theme, mouse};
 use iced_runtime::user_interface::{Cache, UserInterface};
 use vw_config_types::ui::DesktopLocale;
 
@@ -157,37 +157,6 @@ fn commit_panel_state_is_ready_for_complete_conventional_commit() {
         "已满足提交条件，可直接提交",
         super::left_panel::CommitButtonState::Ready,
     );
-}
-
-#[test]
-fn help_icon_style_uses_muted_text_color_for_all_statuses() {
-    let theme = Theme::Dark;
-    let expected = Some(theme.palette().text.scale_alpha(0.78));
-
-    assert_eq!(super::left_panel::help_icon_style(&theme, svg::Status::Idle).color, expected);
-    assert_eq!(super::left_panel::help_icon_style(&theme, svg::Status::Hovered).color, expected);
-}
-
-#[test]
-fn help_button_style_covers_idle_hovered_pressed_and_disabled_statuses() {
-    let theme = Theme::Dark;
-    let active = super::left_panel::help_button_style(&theme, button::Status::Active);
-    let hovered = super::left_panel::help_button_style(&theme, button::Status::Hovered);
-    let pressed = super::left_panel::help_button_style(&theme, button::Status::Pressed);
-    let disabled = super::left_panel::help_button_style(&theme, button::Status::Disabled);
-
-    assert!(active.background.is_none());
-    assert!(disabled.background.is_none());
-    assert_eq!(
-        hovered.background,
-        Some(Background::Color(theme.extended_palette().background.weak.color.scale_alpha(0.72)))
-    );
-    assert_eq!(
-        pressed.background,
-        Some(Background::Color(theme.extended_palette().background.weak.color.scale_alpha(0.72)))
-    );
-    assert_eq!(pressed.text_color, theme.palette().text);
-    assert_eq!(pressed.border.color, Color::TRANSPARENT);
 }
 
 #[test]
@@ -381,17 +350,21 @@ impl<'a> FormScene<'a> {
     }
 
     fn capture(&mut self, renderer: &mut Renderer, theme: &Theme) -> Vec<u8> {
+        self.capture_at(renderer, theme, mouse::Cursor::Unavailable)
+    }
+
+    fn capture_at(
+        &mut self,
+        renderer: &mut Renderer,
+        theme: &Theme,
+        cursor: mouse::Cursor,
+    ) -> Vec<u8> {
         self.send(
             renderer,
             Event::Window(iced::window::Event::RedrawRequested(iced::time::Instant::now())),
-            mouse::Cursor::Unavailable,
+            cursor,
         );
-        self.ui.draw(
-            renderer,
-            theme,
-            &Style { text_color: theme.palette().text },
-            mouse::Cursor::Unavailable,
-        );
+        self.ui.draw(renderer, theme, &Style { text_color: theme.palette().text }, cursor);
         renderer.screenshot(self.size, 1.0, theme.palette().background)
     }
 }
@@ -600,4 +573,177 @@ async fn git_commit_form_preserves_messages_and_validation() {
     apply_form_message(&mut app, summary);
     assert_eq!(app.git_commit_message, "S");
     assert_panel_state(&app, "已满足提交条件，可直接提交", CommitButtonState::Ready);
+}
+
+const HELP_MODES: [(bool, &str); 2] = [
+    (true, "按约定式提交规范组织标题、作用域与描述。"),
+    (false, "快速填写摘要并提交当前已选变更。"),
+];
+
+fn visible_label(form: &mut FormScene<'_>, renderer: &Renderer, label: &str) -> Option<Rectangle> {
+    struct FindLabel<'a>(&'a str, Option<Rectangle>);
+
+    impl Operation for FindLabel<'_> {
+        fn traverse(&mut self, children: &mut dyn FnMut(&mut dyn Operation)) {
+            children(self);
+        }
+
+        fn text(&mut self, _: Option<&Id>, bounds: Rectangle, value: &str) {
+            if self.0 == value {
+                self.1 = Some(bounds);
+            }
+        }
+    }
+
+    let mut find = FindLabel(label, None);
+    form.ui.operate(renderer, &mut find);
+    find.1
+}
+
+fn help_point(form: &mut FormScene<'_>, renderer: &Renderer, i18n: I18n) -> Point {
+    let title = visible_label(form, renderer, i18n.__("提交所选变更")).expect("commit form title");
+    Point::new(title.x + title.width + 15.0, title.center_y())
+}
+
+fn save_help_frame(name: &str, pixels: &[u8], size: Size<u32>) {
+    if let Some(directory) = std::env::var_os("SHIJU_HELP_ROLLOUT_26_SCREENSHOTS") {
+        ::image::save_buffer(
+            std::path::PathBuf::from(directory).join(format!("{name}.png")),
+            pixels,
+            size.width,
+            size.height,
+            ::image::ColorType::Rgba8,
+        )
+        .expect("save Git commit help frame");
+    }
+}
+
+#[tokio::test]
+async fn help_rollout_26_renders_contextual_help() {
+    let mut renderer = form_renderer().await;
+    let mut app = test_app();
+    app.staged_files_selected.push("fixture.txt".into());
+    for (locale, theme, width) in [
+        (DesktopLocale::SimplifiedChinese, Theme::Dark, 320),
+        (DesktopLocale::English, Theme::Light, 320),
+        (DesktopLocale::TraditionalChinese, Theme::Dark, 640),
+    ] {
+        app.desktop_locale = locale;
+        app.app_theme = theme.clone();
+        let i18n = I18n::new(locale);
+        for (conventional, explanation) in HELP_MODES {
+            app.show_git_diff_summary = conventional;
+            let view = if conventional { super::view(&app) } else { super::left_panel::view(&app) };
+            let mut form = FormScene::new(view, &mut renderer, width);
+            let idle = form.capture(&mut renderer, &theme);
+            let name = format!("{locale:?}-{conventional}");
+            save_help_frame(&format!("{name}-idle"), &idle, form.size);
+            assert!(
+                visible_label(&mut form, &renderer, i18n.__(explanation)).is_none(),
+                "static mode explanation is visible before opening help: {explanation}"
+            );
+            for label in ["详细描述", "填写摘要后即可提交"] {
+                assert!(visible_label(&mut form, &renderer, i18n.__(label)).is_some(), "{label}");
+            }
+
+            let icon = help_point(&mut form, &renderer, i18n);
+            let cursor = mouse::Cursor::Available(icon);
+            assert!(
+                form.send(
+                    &mut renderer,
+                    Event::Mouse(mouse::Event::CursorMoved { position: icon }),
+                    cursor
+                )
+                .is_empty()
+            );
+            let hovered = form.capture_at(&mut renderer, &theme, cursor);
+            assert!(idle != hovered, "hover should preview the mode explanation");
+            let actions = form.click(&mut renderer, icon);
+            assert!(
+                actions
+                    .iter()
+                    .all(|action| matches!(action, Message::Git(GitMessage::DiffDragSelectEnd))),
+                "pin help without a commit or guide action: {actions:?}"
+            );
+            let open = form.capture(&mut renderer, &theme);
+            save_help_frame(&format!("{name}-open"), &open, form.size);
+            assert!(idle != open, "the explanation should stay open after the cursor leaves");
+            assert!(form.key(&mut renderer, Named::Escape).is_empty());
+            assert!(idle == form.capture(&mut renderer, &theme), "Escape should close the card");
+
+            let guide = Point::new(icon.x + 30.0, icon.y);
+            assert!(matches!(
+                form.click(&mut renderer, guide).as_slice(),
+                [Message::Git(GitMessage::CommitHelpOpen)]
+            ));
+
+            let button =
+                if conventional { form.bounds(&[2, 0, 1, 1]) } else { form.bounds(&[0, 1, 1]) };
+            assert!(
+                form.click(&mut renderer, button.center()).iter().all(|action| {
+                    matches!(action, Message::Git(GitMessage::DiffDragSelectEnd))
+                }),
+                "the commit button is disabled until the summary is filled"
+            );
+        }
+    }
+}
+
+#[tokio::test]
+async fn help_rollout_26_menu_uses_static_explanations() {
+    let mut renderer = form_renderer().await;
+    let mut app = test_app();
+    app.desktop_locale = DesktopLocale::English;
+    app.staged_files_selected.push("fixture.txt".into());
+    app.git_commit_type = Some(ConventionalCommitType::Fix);
+    app.git_commit_message = "Fixture summary".into();
+    app.git_commit_scope = "Fixture scope".into();
+    app.git_commit_description_editor =
+        iced::widget::text_editor::Content::with_text("Fixture body");
+    let i18n = I18n::new(app.desktop_locale);
+    for (conventional, explanation) in HELP_MODES {
+        app.show_git_diff_summary = conventional;
+        let mut form = FormScene::new(super::left_panel::view(&app), &mut renderer, 640);
+        let icon = help_point(&mut form, &renderer, i18n);
+        assert!(form.click(&mut renderer, icon).is_empty(), "pin help without a Git action");
+        let open = form.capture(&mut renderer, &Theme::Light);
+        save_help_frame(&format!("menu-{conventional}-open"), &open, form.size);
+        let card = Point::new(icon.x + 29.0, icon.y + 8.0);
+        let line_height = iced::advanced::text::LineHeight::default().to_absolute(12.0.into());
+        let item_height = f32::from(line_height) + 10.0;
+        let explanation = i18n.__(explanation);
+        for index in [0, 3] {
+            assert!(
+                form.send(
+                    &mut renderer,
+                    Event::Mouse(mouse::Event::ButtonPressed(mouse::Button::Right)),
+                    mouse::Cursor::Available(card),
+                )
+                .is_empty(),
+                "opening the menu should leave the clipboard and browser untouched"
+            );
+            let item = Point::new(card.x + 24.0, card.y + 3.0 + item_height * (index as f32 + 0.5));
+            let messages = form.click(&mut renderer, item);
+            match (index, messages.as_slice()) {
+                (0, [Message::CopyCode(value)]) => assert_eq!(value, explanation),
+                (3, [Message::View(ViewMessage::OpenUrlExternal(url))]) => {
+                    assert_eq!(
+                        url,
+                        &format!(
+                            "https://www.google.com/search?q={}",
+                            urlencoding::encode(explanation)
+                        )
+                    );
+                }
+                _ => panic!("unexpected help action: {messages:?}"),
+            }
+        }
+
+        assert!(form.key(&mut renderer, Named::Escape).is_empty());
+        let commit = form.bounds(&[0, 1, 1]).center();
+        assert!(matches!(
+            form.click(&mut renderer, commit).as_slice(),
+            [Message::Git(GitMessage::CommitSelected)]
+        ));
+    }
 }

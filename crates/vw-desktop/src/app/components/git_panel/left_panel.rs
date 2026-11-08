@@ -22,15 +22,16 @@
 
 use iced::advanced::widget::operation::{focusable, scope};
 use iced::advanced::widget::{Id, operate};
-use iced::widget::{button, column, container, row, svg, text};
-use iced::{Alignment, Border, Color, Element, Length, Theme};
+use iced::widget::{column, container, row, text};
+use iced::{Alignment, Element, Length};
 
 use crate::app::assets::Icon;
 use crate::app::components::status_animation::spinner_frame;
 use crate::app::components::system_settings_common::{
-    icon_svg, settings_muted_text_style, settings_panel_style, settings_select,
-    settings_text_editor, settings_text_input,
+    icon_btn, settings_hover_help_label, settings_muted_text_style, settings_panel_style,
+    settings_select, settings_text_editor, settings_text_input,
 };
+use crate::app::i18n::I18n;
 use crate::app::state::ConventionalCommitType;
 use crate::app::{App, Message, message};
 
@@ -152,28 +153,6 @@ pub(super) fn commit_panel_state(app: &App) -> CommitPanelState {
     }
 }
 
-pub(super) fn help_icon_style(theme: &Theme, _status: svg::Status) -> svg::Style {
-    svg::Style { color: Some(theme.palette().text.scale_alpha(0.78)) }
-}
-
-pub(super) fn help_button_style(
-    theme: &Theme,
-    status: iced::widget::button::Status,
-) -> iced::widget::button::Style {
-    let palette = theme.extended_palette();
-    let is_hovered = matches!(
-        status,
-        iced::widget::button::Status::Hovered | iced::widget::button::Status::Pressed
-    );
-
-    iced::widget::button::Style {
-        background: is_hovered.then(|| palette.background.weak.color.scale_alpha(0.72).into()),
-        text_color: theme.palette().text,
-        border: Border { width: 0.0, color: Color::TRANSPARENT, radius: 999.0.into() },
-        ..Default::default()
-    }
-}
-
 /// 构建 Git 面板左侧面板视图
 ///
 /// 该函数创建包含提交表单的完整左侧面板，根据应用状态动态调整界面布局：
@@ -215,7 +194,7 @@ pub fn view(app: &App) -> Element<'_, Message> {
         "快速填写摘要并提交当前已选变更。"
     };
 
-    let i18n = crate::app::i18n::I18n::new(app.desktop_locale);
+    let i18n = I18n::new(app.desktop_locale);
     let type_and_scope = app.show_git_diff_summary.then(|| {
         let commit_type_pick =
             settings_select(ConventionalCommitType::all(), app.git_commit_type, |commit_type| {
@@ -269,45 +248,23 @@ pub fn view(app: &App) -> Element<'_, Message> {
             Message::Git(message::GitMessage::CommitSelected),
         ),
     };
-    // 构建帮助按钮，点击后显示约定式提交规范弹窗。
-    let help_btn = button(
-        container(icon_svg(Icon::QuestionCircle, 14.0).style(help_icon_style))
-            .width(Length::Fill)
-            .height(Length::Fill)
-            .align_x(iced::alignment::Horizontal::Center)
-            .align_y(iced::alignment::Vertical::Center),
-    )
-    .padding(0)
-    .width(Length::Fixed(24.0))
-    .height(Length::Fixed(24.0))
-    .style(help_button_style)
-    .on_press(Message::Git(message::GitMessage::CommitHelpOpen));
-
-    // 构建主内容列，按顺序添加摘要输入、描述编辑器和底部操作区
-    let header_block = container(
-        row![
-            container(
-                column![
-                    row![
-                        text(crate::app::i18n::I18n::new(app.desktop_locale).__("提交所选变更"))
-                            .size(14),
-                        container(help_btn).center_x(Length::Shrink).center_y(Length::Shrink),
-                    ]
-                    .spacing(6)
-                    .align_y(Alignment::Center),
-                    text(crate::app::i18n::I18n::new(app.desktop_locale).__(mode_description))
-                        .size(11)
-                        .style(settings_muted_text_style),
-                ]
-                .spacing(4),
-            )
-            .width(Length::Fill)
-            .center_y(Length::Shrink),
-        ]
-        .align_y(Alignment::Center),
-    )
-    .width(Length::Fill)
-    .center_y(Length::Shrink);
+    let title = i18n.__("提交所选变更");
+    let header_block = row![
+        settings_hover_help_label(
+            i18n,
+            None,
+            title,
+            text(title).size(14),
+            i18n.__(mode_description)
+        ),
+        icon_btn(
+            Icon::FileText,
+            i18n.__(COMMIT_HELP_TITLE),
+            Some(Message::Git(message::GitMessage::CommitHelpOpen)),
+        ),
+    ]
+    .spacing(6)
+    .align_y(Alignment::Center);
 
     let mut form_col = column![header_block].spacing(12);
     if let Some(type_and_scope) = type_and_scope {

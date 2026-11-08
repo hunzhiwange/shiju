@@ -175,14 +175,36 @@ impl<'a> DshAccount<'a> {
     /// Removes the local login from both profiles. A valid foreign-issuer grant
     /// can be cleared locally without sending its token anywhere.
     pub fn sign_out(&self) -> Result<(), AuthErrorCode> {
+        self.clear_grant(false)
+    }
+
+    /// Delete the selected shared grant without contacting the issuer.
+    pub fn remove_account(
+        &self,
+        scope: AuthAccountScope<'_>,
+        account_id: &str,
+    ) -> Result<(), AuthErrorCode> {
+        if self.owner != scope {
+            return Err(AuthErrorCode::Forbidden);
+        }
+        crate::providers::validate_identity(account_id).map_err(|_| AuthErrorCode::InvalidInput)?;
+        if account(self.owner, AuthCredentialState::Ready, None)?.account_id != account_id {
+            return Err(AuthErrorCode::NotFound);
+        }
+        self.clear_grant(true)
+    }
+
+    fn clear_grant(&self, require_present: bool) -> Result<(), AuthErrorCode> {
         let Some(files) = self.credentials(false)? else {
-            return Ok(());
+            return if require_present { Err(AuthErrorCode::NotFound) } else { Ok(()) };
         };
         let before = files.read().map_err(storage_error)?;
         let mut document = credential_document(before.as_deref()).map_err(storage_error)?;
         if stored_grant(&document)?.is_some() {
             records_mut(&mut document).remove(Yaml::from(GRANT_RECORD));
             write_document(&files, before.as_deref(), &document)?;
+        } else if require_present {
+            return Err(AuthErrorCode::NotFound);
         }
         Ok(())
     }

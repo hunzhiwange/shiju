@@ -94,6 +94,8 @@ test "$2" = "fixture-model"
         store.with_codex_provider_unreferenced(scope, &root, id, |_| Ok(())),
         Err(AuthErrorCode::AccountInUse)
     );
+    assert_eq!(store.remove_auth_account(scope, &root, id, None), Err(AuthErrorCode::AccountInUse));
+    assert!(accounts.read_metadata(&scope, id).is_ok());
     let launch = store
         .prepare_bound_official_launch(scope, "official", Some(&root), material())
         .unwrap()
@@ -111,4 +113,8 @@ test "$2" = "fixture-model"
         store.bind_codex_account(scope, &root, "custom", None, Some(id)),
         Err(AuthErrorCode::Unsupported)
     );
+    assert_eq!(store.remove_auth_account(scope, &root, id, None), Ok(()));
+    assert_eq!(accounts.read_metadata(&scope, id), Err(AuthErrorCode::NotFound));
+    assert!(owner.lease(&tenant, scope.host, AppId::Codex, id, false).unwrap().read().is_err());
+    assert_eq!(fs::read(native.join("auth.json")).unwrap(), b"{}");
 }

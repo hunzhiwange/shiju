@@ -15,6 +15,8 @@ use vw_api_types::{
 mod host;
 #[cfg(unix)]
 use host::open_root;
+#[cfg(target_os = "macos")]
+pub(super) use host::remove_account_directory;
 #[cfg(unix)]
 pub(super) use host::{
     PrivateDirectory, ScopedCredentialPath, check_private, child_name, read_from,
@@ -437,7 +439,7 @@ fn scope_component(value: &str) -> String {
     Sha256::digest(value.as_bytes()).iter().map(|byte| format!("{byte:02x}")).collect()
 }
 
-fn managed_config_path(path: &Path) -> PathBuf {
+pub(super) fn managed_config_path(path: &Path) -> PathBuf {
     path.with_extension("claude-config")
 }
 

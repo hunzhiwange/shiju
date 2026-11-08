@@ -90,6 +90,10 @@ impl CredentialLease {
 
     /// Roll back an unpublished OAuth credential under this account's lease.
     pub fn remove_unpublished_oauth(&self) -> Result<(), String> {
+        self.remove_oauth_file()
+    }
+
+    pub(super) fn remove_oauth_file(&self) -> Result<(), String> {
         if !matches!(
             self.kind,
             CredentialKind::Copilot
@@ -102,6 +106,83 @@ impl CredentialLease {
         let _write = self.write.lock().map_err(|_| "official account lock unavailable")?;
         self.check()?;
         remove_credential_file(&self.directory, &self.location.path)
+    }
+
+    #[cfg(target_os = "macos")]
+    pub(super) fn remove_claude(
+        &self,
+        keychain: &dyn super::claude_keychain::ClaudeKeychain,
+        identity_sha256: [u8; 32],
+    ) -> Result<(), vw_api_types::agent_apps_auth::AuthErrorCode> {
+        use super::credential_file::{managed_config_path, remove_account_directory};
+        use crate::providers::{
+            claude_login::{LoginMaterial, lock_account},
+            live::write_guard::WriteError,
+        };
+        use sha2::{Digest, Sha256};
+        use std::os::unix::fs::MetadataExt;
+        use vw_api_types::agent_apps_auth::AuthErrorCode;
+        let storage = |_| AuthErrorCode::StorageUnavailable;
+        if !matches!(self.kind, CredentialKind::App(AppId::Claude)) {
+            return Err(AuthErrorCode::Unsupported);
+        }
+        let _write = self.write.lock().map_err(|_| AuthErrorCode::StorageUnavailable)?;
+        self.check().map_err(storage)?;
+        let path = managed_config_path(&self.location.path);
+        let name = child_name(&path).map_err(storage)?;
+        let directory =
+            match self.directory.open_child(&name, libc::O_RDONLY | libc::O_DIRECTORY, 0) {
+                Ok(directory) => {
+                    check_private(&directory, 0o700).map_err(storage)?;
+                    if directory.metadata().map_err(|_| AuthErrorCode::StorageUnavailable)?.dev()
+                        != self
+                            .directory
+                            .0
+                            .metadata()
+                            .map_err(|_| AuthErrorCode::StorageUnavailable)?
+                            .dev()
+                    {
+                        return Err(AuthErrorCode::Conflict);
+                    }
+                    let (locked, locks) = lock_account(&path).map_err(|error| match error {
+                        WriteError::Conflict => AuthErrorCode::AccountInUse,
+                        _ => AuthErrorCode::StorageUnavailable,
+                    })?;
+                    if !same_file(&directory, &locked.0).map_err(storage)? {
+                        return Err(AuthErrorCode::Conflict);
+                    }
+                    Some((directory, locks))
+                }
+                Err(error) if error.kind() == std::io::ErrorKind::NotFound => None,
+                Err(_) => return Err(AuthErrorCode::StorageUnavailable),
+            };
+        self.check().map_err(storage)?;
+        let read_keychain =
+            || keychain.read(Some(&path)).map_err(|_| AuthErrorCode::KeychainUnavailable);
+        if let Some(previous) = read_keychain()? {
+            if directory.is_none() {
+                return Err(AuthErrorCode::Conflict);
+            }
+            let identity = LoginMaterial::from_account(&path, keychain)
+                .and_then(|material| material.identity())
+                .map_err(|_| AuthErrorCode::IdentityMismatch)?
+                .ok_or(AuthErrorCode::IdentityMismatch)?;
+            let actual: [u8; 32] = Sha256::digest(identity.as_bytes()).into();
+            if actual != identity_sha256 {
+                return Err(AuthErrorCode::IdentityMismatch);
+            }
+            if read_keychain()?.as_ref() != Some(&previous) {
+                return Err(AuthErrorCode::Conflict);
+            }
+            keychain.write(Some(&path), None).map_err(|_| AuthErrorCode::KeychainUnavailable)?;
+            if read_keychain()?.is_some() {
+                return Err(AuthErrorCode::KeychainUnavailable);
+            }
+        }
+        if let Some((directory, _locks)) = directory {
+            remove_account_directory(&self.directory, &directory, &path).map_err(storage)?;
+        }
+        remove_credential_file(&self.directory, &self.location.path).map_err(storage)
     }
 
     pub(super) fn register_claude_directory(&self) -> Result<(), String> {
@@ -133,6 +214,10 @@ impl CredentialLease {
     }
 
     pub fn remove_unpublished_oauth(&self) -> Result<(), String> {
+        self.remove_oauth_file()
+    }
+
+    pub(super) fn remove_oauth_file(&self) -> Result<(), String> {
         Err("official account locking requires a reviewed host adapter".into())
     }
 

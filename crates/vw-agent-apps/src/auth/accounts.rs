@@ -1,9 +1,24 @@
-//! Scoped default authorization account selection.
+//! Scoped authorization account selection and removal.
 
 use super::{
     credential_file::{AccountCredential, CredentialFileStore},
+    credential_lease::CredentialLease,
     flow::AuthAccountScope,
 };
+
+/// Remove a managed OAuth file while the caller holds its reference guard.
+pub fn remove_managed_oauth_file(lease: &CredentialLease) -> Result<(), AuthErrorCode> {
+    lease.remove_oauth_file().map_err(credential_error)
+}
+
+/// Delete the private Claude directory and its scoped keychain item under its lease.
+#[cfg(target_os = "macos")]
+pub fn remove_managed_claude(
+    lease: &CredentialLease,
+    identity_sha256: [u8; 32],
+) -> Result<(), AuthErrorCode> {
+    lease.remove_claude(&super::claude_keychain::MacOsKeychain, identity_sha256)
+}
 use vw_api_types::{
     agent_apps::AppId,
     agent_apps_auth::{AuthErrorCode, AuthService},

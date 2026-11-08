@@ -455,7 +455,7 @@ impl LoginMaterial {
         Ok(())
     }
 }
-fn lock_account(path: &Path) -> Result<(Directory, Vec<CliLock>), WriteError> {
+pub(crate) fn lock_account(path: &Path) -> Result<(Directory, Vec<CliLock>), WriteError> {
     let directory = Directory::open(path)?;
     let parent = Directory::open(path.parent().ok_or(WriteError::InvalidResource)?)?;
     let legacy = format!(

@@ -44,6 +44,21 @@ pub fn with_provider_account<T>(
     macos::with_provider_account_in(scope, account_id, native, &entry, check_live, operation)
 }
 
+/// Delete only an unreferenced managed copy under the same lock as provider checkout.
+#[cfg(target_os = "macos")]
+pub fn remove_managed_account(
+    scope: AuthAccountScope<'_>,
+    account_id: &str,
+    native: AgyNativeTarget<'_>,
+    check_references: impl FnOnce() -> Result<(), AuthErrorCode>,
+) -> Result<(), AuthErrorCode> {
+    let entry = KeychainEntry::new("gemini", "antigravity").map_err(keychain_error)?;
+    macos::remove_managed_account_in(scope, account_id, native, &entry, check_references)
+}
+
+#[cfg(all(test, target_os = "macos"))]
+pub(super) use macos::remove_managed_account_in;
+
 /// Hold the physical slot through the provider process so another checkout
 /// cannot replace its account between preparation and execution.
 #[cfg(target_os = "macos")]
@@ -220,6 +235,36 @@ mod macos {
         Ok(lock)
     }
 
+    pub(in crate::auth) fn remove_managed_account_in(
+        scope: AuthAccountScope<'_>,
+        account_id: &str,
+        native: AgyNativeTarget<'_>,
+        entry: &KeychainEntry<'_>,
+        check_references: impl FnOnce() -> Result<(), AuthErrorCode>,
+    ) -> Result<(), AuthErrorCode> {
+        let home = native_home(scope, native)?;
+        validate_account_id(account_id)?;
+        let (_lock, keychain) = locked_keychain(&home)?;
+        let (_, item, _) = managed_record(&keychain, scope, account_id)?;
+        let before = entry.read().map_err(keychain_error)?;
+        if let Some(raw) = &before {
+            let live = decode(raw).ok_or(AuthErrorCode::Conflict)?;
+            let live_id = credential_account_id(scope, &live).ok_or(AuthErrorCode::Conflict)?;
+            if live_id == account_id {
+                return Err(AuthErrorCode::AccountInUse);
+            }
+        }
+        check_references()?;
+        if entry.read().map_err(keychain_error)? != before {
+            return Err(AuthErrorCode::Conflict);
+        }
+        item.delete();
+        match keychain.find_generic_password(MANAGED_SERVICE, account_id) {
+            Err(error) if error.code() == KEYCHAIN_ITEM_NOT_FOUND => Ok(()),
+            _ => Err(AuthErrorCode::KeychainUnavailable),
+        }
+    }
+
     pub(in crate::auth) fn validate_scope(
         scope: AuthAccountScope<'_>,
     ) -> Result<(), AuthErrorCode> {
@@ -291,6 +336,20 @@ mod macos {
         scope: AuthAccountScope<'_>,
         id: &str,
     ) -> Result<(ManagedRecord, SecKeychainItem, [u8; 32]), AuthErrorCode> {
+        let result = managed_record(keychain, scope, id)?;
+        if result.0.account.credential_state != AuthCredentialState::Ready
+            || expiry(&result.0.credential).is_none()
+        {
+            return Err(AuthErrorCode::ReauthRequired);
+        }
+        Ok(result)
+    }
+
+    fn managed_record(
+        keychain: &SecKeychain,
+        scope: AuthAccountScope<'_>,
+        id: &str,
+    ) -> Result<(ManagedRecord, SecKeychainItem, [u8; 32]), AuthErrorCode> {
         let (bytes, item) =
             keychain.find_generic_password(MANAGED_SERVICE, id).map_err(|error| {
                 if error.code() == KEYCHAIN_ITEM_NOT_FOUND {
@@ -306,11 +365,6 @@ mod macos {
             || credential_account_id(scope, &record.credential).as_deref() != Some(id)
         {
             return Err(AuthErrorCode::NotFound);
-        }
-        if record.account.credential_state != AuthCredentialState::Ready
-            || expiry(&record.credential).is_none()
-        {
-            return Err(AuthErrorCode::ReauthRequired);
         }
         Ok((record, item, Sha256::digest(&*bytes).into()))
     }

@@ -106,26 +106,33 @@ impl AppProviderStore {
             if active {
                 return Err(AuthErrorCode::AccountInUse);
             }
-            for row in self
-                .settings
-                .list(scope.tenant, NAMESPACE)
-                .map_err(|_| AuthErrorCode::StorageUnavailable)?
-            {
-                if !row.config_key.starts_with("\"agy\":") {
-                    continue;
-                }
-                let row: Value = serde_json::from_str(&row.payload_json)
-                    .map_err(|_| AuthErrorCode::StorageUnavailable)?;
-                if binding(&row)?.is_some_and(|b| {
-                    b.host == scope.host
-                        && b.principal == scope.principal
-                        && b.account_id == account_id
-                }) {
-                    return Err(AuthErrorCode::AccountInUse);
-                }
-            }
+            self.check_agy_references(scope, account_id)?;
             mutate()
         })
+    }
+
+    pub(super) fn check_agy_references(
+        &self,
+        scope: AuthAccountScope<'_>,
+        account_id: &str,
+    ) -> Result<(), AuthErrorCode> {
+        for row in self
+            .settings
+            .list(scope.tenant, NAMESPACE)
+            .map_err(|_| AuthErrorCode::StorageUnavailable)?
+        {
+            if !row.config_key.starts_with("\"agy\":") {
+                continue;
+            }
+            let row: Value = serde_json::from_str(&row.payload_json)
+                .map_err(|_| AuthErrorCode::StorageUnavailable)?;
+            if binding(&row)?.is_some_and(|b| {
+                b.host == scope.host && b.principal == scope.principal && b.account_id == account_id
+            }) {
+                return Err(AuthErrorCode::AccountInUse);
+            }
+        }
+        Ok(())
     }
 }
 

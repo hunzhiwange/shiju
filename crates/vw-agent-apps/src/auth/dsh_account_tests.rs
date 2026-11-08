@@ -410,3 +410,24 @@ async fn auth6_dsh_account_rejects_invalid_or_stale_input() {
     assert_eq!(fs::read(&external).unwrap(), invalid);
     assert!(fixture.credentials.is_symlink());
 }
+
+#[test]
+fn auth6_remove_dsh_clears_only_the_authorized_shared_grant() {
+    let fixture = Fixture::new();
+    let mut expected = document();
+    fixture.write(&expected);
+    let scope = fixture.scope();
+    let account = fixture.account();
+    let id = super::dsh_login::account(scope, AuthCredentialState::Ready, None).unwrap().account_id;
+
+    assert_eq!(account.remove_account(scope, "different"), Err(AuthErrorCode::NotFound));
+    assert_eq!(
+        account.remove_account(AuthAccountScope { principal: "foreign", ..scope }, &id),
+        Err(AuthErrorCode::Forbidden)
+    );
+    assert_eq!(fixture.read(), expected);
+    assert_eq!(account.remove_account(scope, &id), Ok(()));
+    expected["records"].as_object_mut().unwrap().remove(GRANT);
+    assert_eq!(fixture.read(), expected);
+    assert_eq!(account.remove_account(scope, &id), Err(AuthErrorCode::NotFound));
+}

@@ -1,7 +1,7 @@
 use super::*;
 use crate::{
     agent_apps::auth_accounts::{AuthAccountMetadata, AuthAccountScope, AuthAccountStore},
-    app_providers::{AppProviderStore, ClaudeBindingHost},
+    app_providers::{AppProviderStore, ClaudeBindingHost, NativeAccountRemoval},
 };
 use vw_agent_apps::auth::credential_file::CredentialFileStore;
 use vw_api_types::{
@@ -76,6 +76,14 @@ async fn provider_claude_managed_binding_retains_catalog_and_live_references_und
     let owner = scope(&tenant);
     let foreign = AuthAccountScope { principal: "other", ..owner };
     let store = AppProviderStore::new(f.db.clone()).unwrap();
+    let remove = || {
+        store.remove_auth_account(
+            owner,
+            &root,
+            "same",
+            Some(NativeAccountRemoval::Claude { home: f.root.path() }),
+        )
+    };
     register_managed(&f, &root, owner, &keychain, "same");
     register_managed(&f, &root, foreign, &keychain, "same");
     save_card(&f, "bound").await;
@@ -88,6 +96,7 @@ async fn provider_claude_managed_binding_retains_catalog_and_live_references_und
     );
     assert_eq!(store.claude_account_binding(owner, "bound"), Ok(Some("same".into())));
     assert_eq!(store.claude_account_binding(foreign, "bound"), Err(AuthErrorCode::Forbidden));
+    assert_eq!(remove(), Err(AuthErrorCode::AccountInUse));
     assert_eq!(
         store.with_claude_provider_unreferenced(owner, host(&f, &root), "same", |_| Ok(())),
         Err(AuthErrorCode::AccountInUse)
@@ -136,6 +145,7 @@ async fn provider_claude_managed_binding_retains_catalog_and_live_references_und
     );
     store.bind_claude_account(owner, host(&f, &root), "bound", Some("same"), None).unwrap();
     assert_eq!(store.claude_account_binding(owner, "bound"), Ok(None));
+    assert_eq!(remove(), Err(AuthErrorCode::AccountInUse));
     assert_eq!(
         store.with_claude_provider_unreferenced(owner, host(&f, &root), "same", |_| Ok(())),
         Err(AuthErrorCode::AccountInUse)

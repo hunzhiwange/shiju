@@ -661,6 +661,11 @@ mod snippets;
 mod claude;
 
 #[cfg(target_os = "macos")]
+mod account_removal;
+#[cfg(target_os = "macos")]
+pub use account_removal::NativeAccountRemoval;
+
+#[cfg(target_os = "macos")]
 mod claude_binding;
 #[cfg(target_os = "macos")]
 pub use claude_binding::ClaudeBindingHost;

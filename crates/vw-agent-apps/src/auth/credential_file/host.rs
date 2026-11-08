@@ -296,6 +296,66 @@ pub(in crate::auth) fn remove_credential_file(
             return Err(UNAVAILABLE.into());
         }
     }
+    directory.0.sync_all().map_err(|_| UNAVAILABLE.into())
+}
+
+#[cfg(target_os = "macos")]
+pub(in crate::auth) fn remove_account_directory(
+    parent: &PrivateDirectory,
+    directory: &File,
+    path: &Path,
+) -> Result<(), String> {
+    let metadata = directory.metadata().map_err(|_| UNAVAILABLE)?;
+    remove_directory_children(directory, path, metadata.dev(), metadata.uid())?;
+    unlink_directory(parent.0.as_raw_fd(), &child_name(path)?)
+}
+
+#[cfg(target_os = "macos")]
+fn remove_directory_children(
+    directory: &File,
+    path: &Path,
+    device: u64,
+    owner: u32,
+) -> Result<(), String> {
+    // The path supplies names for enumeration only. All opens and mutations
+    // stay beneath the descriptor retained from the leased parent.
+    let fd = directory.as_raw_fd();
+    for entry in fs::read_dir(path).map_err(|_| UNAVAILABLE)? {
+        let entry = entry.map_err(|_| UNAVAILABLE)?;
+        let name = child_name(&entry.path())?;
+        // SAFETY: the name is a single validated child and fd remains live.
+        if unsafe { libc::unlinkat(fd, name.as_ptr(), 0) } == 0 {
+            continue;
+        }
+        // SAFETY: directory traversal uses a fresh descriptor and never follows symlinks.
+        let child_fd = unsafe {
+            libc::openat(
+                fd,
+                name.as_ptr(),
+                libc::O_RDONLY | libc::O_DIRECTORY | libc::O_NOFOLLOW | libc::O_CLOEXEC,
+            )
+        };
+        if child_fd < 0 {
+            return Err(UNAVAILABLE.into());
+        }
+        // SAFETY: openat returned a new owned descriptor.
+        let child = unsafe { File::from_raw_fd(child_fd) };
+        let metadata = child.metadata().map_err(|_| UNAVAILABLE)?;
+        if metadata.dev() != device || metadata.uid() != owner {
+            return Err(UNSAFE_PATH.into());
+        }
+        remove_directory_children(&child, &entry.path(), device, owner)?;
+        unlink_directory(fd, &name)?;
+    }
+    Ok(())
+}
+
+#[cfg(target_os = "macos")]
+fn unlink_directory(parent: std::os::fd::RawFd, name: &CStr) -> Result<(), String> {
+    // SAFETY: the parent remains open and name is its validated direct child.
+    if unsafe { libc::unlinkat(parent, name.as_ptr(), libc::AT_REMOVEDIR) } != 0 {
+        return Err(UNAVAILABLE.into());
+    }
     Ok(())
 }
 

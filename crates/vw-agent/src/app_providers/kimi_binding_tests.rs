@@ -163,6 +163,15 @@ async fn provider_kimi_binding_commits_and_survives_ordinary_edits() {
         f.store.with_kimi_provider_unreferenced(scope, &f.root, ACCOUNT, |_| Ok(())),
         Err(AuthErrorCode::AccountInUse)
     );
+    assert_eq!(
+        f.store.remove_auth_account(scope, &f.root, ACCOUNT, None),
+        Err(AuthErrorCode::AccountInUse)
+    );
+    f.register(scope, "unbound", "independent", AuthRegion::Global);
+    let grant = f.config().with_file_name("credentials").join("kimi-code-fixture.json");
+    let before = fs::read(&grant).unwrap();
+    assert_eq!(f.store.remove_auth_account(scope, &f.root, "unbound", None), Ok(()));
+    assert_eq!(fs::read(&grant).unwrap(), before);
     assert_eq!(f.binding(scope), Ok(Some(ACCOUNT.into())));
     let selected = CONFIG.replacen("\"original\"", "\"chosen\"", 1);
     assert_eq!(fs::read_to_string(f.config()).unwrap(), selected);

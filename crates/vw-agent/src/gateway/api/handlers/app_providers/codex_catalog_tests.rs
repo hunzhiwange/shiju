@@ -415,3 +415,72 @@ async fn cc04_ui_codex_sdk_edits_mapping_and_preserves_inactive_fields_through_n
     assert_eq!(result.live, CodexLiveResult::Applied);
     assert_eq!(g.state()["pointer"]["id"], "first");
 }
+
+#[tokio::test]
+async fn auth6_remove_codex_reference_is_private_and_global_switch_is_rejected() {
+    use crate::{
+        agent_apps::auth_accounts::{AuthAccountMetadata, AuthAccountScope, AuthAccountStore},
+        app_providers::AppProviderStore,
+    };
+    use base64::{Engine as _, engine::general_purpose::URL_SAFE_NO_PAD};
+    use vw_agent_apps::auth::credential_file::{AccountCredential, CredentialFileStore};
+    use vw_api_types::{
+        TimestampMs,
+        agent_apps::AppId,
+        agent_apps_auth::{AuthErrorCode, AuthService},
+    };
+
+    let f = Fixture::new().await;
+    let root = f.root.path().join("private");
+    let tenant = TenantScope::new("p", "a").unwrap();
+    let scope = AuthAccountScope {
+        tenant: &tenant,
+        principal: "codex",
+        host: "host",
+        service: AuthService::CodexOauth,
+    };
+    let store = AppProviderStore::new(f.db.clone()).unwrap();
+    let accounts = AuthAccountStore::new(f.db.clone(), &root).unwrap();
+    let id = "fixture-account";
+    let owner = CredentialFileStore::new(&root).unwrap().for_owner(scope.principal).unwrap();
+    let header = URL_SAFE_NO_PAD.encode(br#"{"alg":"none"}"#);
+    let claims = URL_SAFE_NO_PAD.encode(br#"{"sub":"subject","chatgpt_account_id":"workspace"}"#);
+    owner
+        .lease(&tenant, scope.host, AppId::Codex, id, true)
+        .unwrap()
+        .save(&AccountCredential::CodexAuth(json!({
+            "auth_mode": "chatgpt",
+            "tokens": {
+                "access_token": "fixture-access",
+                "refresh_token": "fixture-refresh",
+                "account_id": "workspace",
+                    "id_token": format!("{header}.{claims}.signature")
+            }
+        })))
+        .unwrap();
+    accounts
+        .insert_metadata(
+            &scope,
+            id,
+            &AuthAccountMetadata::new(r#"["workspace","subject"]"#, TimestampMs(1)).unwrap(),
+        )
+        .unwrap();
+    let profile = vw_agent_apps::providers::codex_catalog::import(
+        Some(b"model_provider='openai'\nmodel='fixture-model'\n"),
+        Some(b"{}"),
+    )
+    .unwrap();
+    store.codex_save(&tenant, "bound", &profile, None, None).unwrap();
+    store.bind_codex_account(scope, &root, "bound", None, Some(id)).unwrap();
+
+    let config_before = std::fs::read(f.file()).unwrap();
+    let global_auth = f.file().with_file_name("auth.json");
+    std::fs::write(&global_auth, b"{}").unwrap();
+    assert!(matches!(
+        f.client.codex_provider_switch("bound", &f.target(), TOKEN).await,
+        Err(vw_gateway_client::AgentAppsReadError::Http { status: 422, body: Value::Null })
+    ));
+    assert_eq!(store.remove_auth_account(scope, &root, id, None), Err(AuthErrorCode::AccountInUse));
+    assert_eq!(std::fs::read(f.file()).unwrap(), config_before);
+    assert_eq!(std::fs::read(global_auth).unwrap(), b"{}");
+}

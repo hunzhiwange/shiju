@@ -6,7 +6,7 @@ use vw_agent_apps::auth::{
     agy_account::{AgyNativeTarget, switch_default_account},
 };
 
-const MANAGED_DEFAULT_NAMESPACE: &str = "agent_apps.auth_defaults.v2";
+pub(super) const MANAGED_DEFAULT_NAMESPACE: &str = "agent_apps.auth_defaults.v2";
 
 /// The execution host resolves native targets from trusted host policy.
 pub enum NativeAccountDefault<'a> {

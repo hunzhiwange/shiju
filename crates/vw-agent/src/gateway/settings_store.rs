@@ -312,6 +312,51 @@ impl GatewaySettingsStore {
         }
     }
 
+    /// Remove a record and its matching reference together. A failed host
+    /// cleanup leaves both settings available for diagnosis and retry.
+    #[cfg(target_os = "macos")]
+    pub(crate) fn delete_with_reference<E>(
+        &self,
+        tenant: &TenantScope,
+        record: (&str, &str),
+        reference: Option<(&str, &str, &str)>,
+        cleanup: impl FnOnce() -> Result<(), E>,
+    ) -> Result<Result<(), E>> {
+        let (namespace, key) = record;
+        validate_identifier(namespace, "gateway settings namespace")?;
+        validate_identifier(key, "gateway settings config key")?;
+        let (ref_ns, ref_key, ref_value) = reference
+            .map_or((None, None, None), |(ns, key, value)| (Some(ns), Some(key), Some(value)));
+        match &self.provider {
+            GatewaySettingsStoreProvider::Sqlite(database) => {
+                let mut connection = database.connect_sqlite()?;
+                let tx = connection.transaction()?;
+                tx.execute(
+                    "DELETE FROM gateway_settings WHERE platform_id = ?1 AND company_id = ?2
+                     AND ((namespace = ?3 AND config_key = ?4)
+                          OR (namespace = ?5 AND config_key = ?6 AND payload_json = ?7))",
+                    params![
+                        tenant.platform_id().as_ref(),
+                        tenant.company_id().as_ref(),
+                        namespace,
+                        key,
+                        ref_ns,
+                        ref_key,
+                        ref_value,
+                    ],
+                )?;
+                if let Err(error) = cleanup() {
+                    return Ok(Err(error));
+                }
+                tx.commit()?;
+                Ok(Ok(()))
+            }
+            GatewaySettingsStoreProvider::Postgres(store) => {
+                store.delete_with_reference(tenant, record, reference, cleanup)
+            }
+        }
+    }
+
     /// 按配置键排序列出命名空间内全部设置。
     pub(crate) fn list(
         &self,

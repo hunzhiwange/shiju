@@ -18,6 +18,7 @@ toml_edit = "0.22"
 semver = "1"
 sha2 = "0.11"
 base64 = "0.23"
+uuid = { version = "1.11", features = ["v4", "js"] }
 tempfile = "3"
 png = "0.18"
 vw-api-types = { path = "../vw-api-types" }

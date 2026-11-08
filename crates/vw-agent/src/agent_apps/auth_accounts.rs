@@ -3,6 +3,7 @@ use crate::{gateway::settings_store::GatewaySettingsStore, global_database::Glob
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
 use std::path::{Path, PathBuf};
+pub use vw_agent_apps::auth::flow::AuthAccountScope;
 use vw_agent_apps::{
     apps::launch::{
         account::{AccountLaunch, prepare_account_launch},
@@ -16,21 +17,12 @@ use vw_agent_apps::{
 use vw_api_types::{
     TimestampMs,
     agent_apps::{AppId, AppInstallation, LaunchRequest},
-    agent_apps_auth::{AuthErrorCode, AuthService},
+    agent_apps_auth::AuthErrorCode,
     id::TenantScope,
 };
 
 // Launch-only rows lack a principal and are never read as managed accounts.
 const MANAGED_ACCOUNT_NAMESPACE: &str = "agent_apps.auth_accounts.v2";
-
-/// Ownership resolved by the caller from trusted tenant membership and host policy.
-/// Construct only after authorizing the selected service and execution host.
-pub struct AuthAccountScope<'a> {
-    pub tenant: &'a TenantScope,
-    pub principal: &'a str,
-    pub host: &'a str,
-    pub service: AuthService,
-}
 
 /// Persisted account identity from a verified upstream login, without credential material.
 #[derive(Debug, PartialEq, Eq, Serialize, Deserialize)]
@@ -133,13 +125,9 @@ impl AuthAccountStore {
         scope: &AuthAccountScope<'_>,
         account_id: &str,
     ) -> Result<String, AuthErrorCode> {
-        if scope.principal.trim().is_empty() || scope.principal.chars().any(char::is_control) {
-            return Err(AuthErrorCode::InvalidInput);
-        }
-        for value in [scope.host, account_id] {
-            vw_agent_apps::providers::validate_identity(value)
-                .map_err(|_| AuthErrorCode::InvalidInput)?;
-        }
+        scope.validate()?;
+        vw_agent_apps::providers::validate_identity(account_id)
+            .map_err(|_| AuthErrorCode::InvalidInput)?;
         serde_json::to_string(&(scope.principal, scope.host, scope.service, account_id))
             .map_err(|_| AuthErrorCode::InvalidInput)
     }

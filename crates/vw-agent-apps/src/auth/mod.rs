@@ -1,4 +1,4 @@
-//! Official account credentials. Separate owner from application/provider projections.
+//! Host-owned account authorization flows and credentials.
 pub mod credential_file;
 
 #[cfg(all(test, unix))]
@@ -8,6 +8,11 @@ pub mod credential_lease;
 
 #[cfg(all(test, unix))]
 mod credential_lease_tests;
+
+pub mod flow;
+
+#[cfg(all(test, unix))]
+mod flow_tests;
 
 #[cfg(target_os = "macos")]
 pub mod claude_keychain;

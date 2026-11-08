@@ -1,6 +1,7 @@
 use super::*;
 use crate::global_database::test_support::PostgresTestDatabase;
 use vw_api_types::agent_apps::*;
+use vw_api_types::agent_apps_auth::AuthService;
 
 const ACCOUNT_ID: &str = "managed-account";
 const EXTERNAL_IDENTITY: &str = "fixture-external-identity";

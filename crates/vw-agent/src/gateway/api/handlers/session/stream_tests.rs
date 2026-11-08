@@ -4,6 +4,118 @@ use super::*;
 use crate::config::DelegateAgentConfig;
 use axum::http::header;
 
+#[tokio::test(flavor = "multi_thread")]
+async fn gateway_chat_persists_and_reports_session_git_line_counts() {
+    use crate::session::llm::{StreamEvent, ToolCall};
+
+    let _env = crate::test_support::global_async_env_lock().lock().await;
+    let _fixture = crate::session::llm::recovery_test_support::RecoveryConfig::new(
+        "https://example.test/v1",
+        None,
+    )
+    .await;
+    let _streams = agent_session::processor::test_llm_stream_guard();
+    let workspace = tempfile::tempdir().unwrap();
+    let directory = workspace.path().canonicalize().unwrap();
+    let file = directory.join("example.txt");
+    std::fs::write(&file, "keep\nold\n").unwrap();
+    {
+        let repo = git2::Repository::init(&directory).unwrap();
+        let mut index = repo.index().unwrap();
+        index.add_path(Path::new("example.txt")).unwrap();
+        index.write().unwrap();
+        let tree = repo.find_tree(index.write_tree().unwrap()).unwrap();
+        let author = git2::Signature::now("Test", "test@example.com").unwrap();
+        repo.commit(Some("HEAD"), &author, &author, "initial", &tree, &[]).unwrap();
+    }
+    crate::config::update(serde_json::json!({
+        "agents": {
+            "main": {
+                "provider": "model-recovery", "model": "original",
+                "allowed_tools": ["apply_patch"]
+            }
+        }
+    }))
+    .await
+    .unwrap();
+
+    agent_session::processor::enqueue_test_llm_stream(vec![
+        StreamEvent::ToolCalls(vec![ToolCall {
+            kind: Default::default(),
+            namespace: None,
+            id: "edit-example".into(),
+            name: "apply_patch".into(),
+            arguments: serde_json::json!({
+                "patchText": "*** Begin Patch\n*** Update File: example.txt\n@@\n keep\n-old\n+new\n+extra\n*** End Patch"
+            })
+            .to_string(),
+        }]),
+        StreamEvent::Done { usage: Default::default(), finish_reason: Some("tool_calls".into()) },
+    ]);
+    agent_session::processor::enqueue_test_llm_stream(vec![
+        StreamEvent::Delta("updated the example".into()),
+        StreamEvent::Done { usage: Default::default(), finish_reason: Some("stop".into()) },
+    ]);
+
+    let session_id = format!("ses_git_stats_{}", uuid::Uuid::new_v4());
+    let request = GatewayChatStreamRequest {
+        session_id: Some(session_id.clone().into()),
+        messages: vec![serde_json::json!({"role":"user","content":"Update the example text."})],
+        model: Some("model-recovery/original".into()),
+        agent: Some("main".into()),
+        allowed_tools: Some(vec!["apply_patch".into()]),
+        options: Some(serde_json::json!({"full_access":true})),
+        ..Default::default()
+    };
+    let directory = directory.to_string_lossy().into_owned();
+    let mut reported = None;
+    let mut reported_during_tools = false;
+    tokio::time::timeout(
+        std::time::Duration::from_secs(20),
+        collect_gateway_chat_stream_with_observer(directory.clone(), request, |event| {
+            if event["type"] == "chat.session_updated" {
+                assert_eq!(event["session_id"], session_id);
+                reported = Some(event["session"]["summary"].clone());
+            }
+            if event["type"] == "chat.post_tool_round" {
+                let summary =
+                    reported.as_ref().expect("counts must arrive before the next model round");
+                assert_eq!(summary["additions"], 2);
+                assert_eq!(summary["deletions"], 1);
+                reported_during_tools = true;
+            }
+        }),
+    )
+    .await
+    .expect("stream should finish")
+    .unwrap();
+
+    assert!(reported_during_tools);
+    assert_eq!(std::fs::read_to_string(file).unwrap(), "keep\nnew\nextra\n");
+    let reported = reported.expect("stream should report the persisted summary");
+    assert_eq!(
+        (reported["additions"].as_i64(), reported["deletions"].as_i64()),
+        (Some(2), Some(1))
+    );
+
+    let tenant = crate::session::ui_store::current_tenant_scope();
+    let scope = crate::session::ui_store::resolve_session_scope_id_for_tenant(
+        &tenant,
+        Some(&directory),
+        None,
+    )
+    .unwrap();
+    let stored = crate::session::ui_store::load_agent_session_scoped_for_tenant(
+        &tenant,
+        &session_id,
+        Some(&scope),
+    )
+    .unwrap()
+    .summary
+    .expect("persisted summary");
+    assert_eq!((stored.additions, stored.deletions, stored.files), (2, 1, 1));
+}
+
 #[test]
 fn codex_skills_defaults_gateway_main_and_child_preload_before_first_request() {
     let runtime = tokio::runtime::Runtime::new().unwrap();
@@ -304,7 +416,7 @@ fn stream_payload_for_non_done_event_encodes_delta_step_finish_and_error_state()
     let mut assistant_text = String::new();
     let mut finish_reason = None;
     let mut assistant_model = Some("provider/old".to_string());
-    let mut recorder = StreamPatchRecorder::default();
+    let mut current_step_index = None;
 
     let context = stream_payload_for_non_done_event(
         agent_session::processor::StreamEvent::ContextLoaded {
@@ -313,10 +425,8 @@ fn stream_payload_for_non_done_event_encodes_delta_step_finish_and_error_state()
         &mut assistant_text,
         &mut finish_reason,
         &mut assistant_model,
-        &mut recorder,
+        &mut current_step_index,
         "",
-        None,
-        "/unused",
     )
     .expect("context payload");
     assert_eq!(
@@ -332,10 +442,8 @@ fn stream_payload_for_non_done_event_encodes_delta_step_finish_and_error_state()
         &mut assistant_text,
         &mut finish_reason,
         &mut assistant_model,
-        &mut recorder,
+        &mut current_step_index,
         "",
-        None,
-        "/unused",
     )
     .expect("delta payload");
     assert_eq!(delta, serde_json::json!({"type": "chat.delta", "delta": "hello"}));
@@ -358,10 +466,8 @@ fn stream_payload_for_non_done_event_encodes_delta_step_finish_and_error_state()
         &mut assistant_text,
         &mut finish_reason,
         &mut assistant_model,
-        &mut recorder,
+        &mut current_step_index,
         "",
-        None,
-        "/unused",
     )
     .expect("finish payload");
     assert_eq!(finish["type"], "chat.step_finish");
@@ -376,10 +482,8 @@ fn stream_payload_for_non_done_event_encodes_delta_step_finish_and_error_state()
         &mut assistant_text,
         &mut finish_reason,
         &mut assistant_model,
-        &mut recorder,
+        &mut current_step_index,
         "",
-        None,
-        "/unused",
     )
     .expect("error payload");
     assert_eq!(error, serde_json::json!({"type": "chat.error", "error": "failed"}));
@@ -390,17 +494,15 @@ fn compaction_lifecycle_events_encode_stable_gateway_payloads() {
     let mut assistant_text = String::new();
     let mut finish_reason = None;
     let mut assistant_model = None;
-    let mut recorder = StreamPatchRecorder::default();
+    let mut current_step_index = None;
     let mut encode = |phase| {
         stream_payload_for_non_done_event(
             agent_session::processor::StreamEvent::Compaction { phase },
             &mut assistant_text,
             &mut finish_reason,
             &mut assistant_model,
-            &mut recorder,
+            &mut current_step_index,
             "session-id",
-            None,
-            "/unused",
         )
         .expect("compaction payload")
     };
@@ -421,7 +523,7 @@ fn gateway_stream_preserves_existing_tool_payloads() {
     let mut assistant_text = String::new();
     let mut finish_reason = None;
     let mut assistant_model = None;
-    let mut recorder = StreamPatchRecorder::default();
+    let mut current_step_index = None;
     let payload = serde_json::json!({
         "status": "completed",
         "input": "{\"command\":\"pwd\"}",
@@ -441,10 +543,8 @@ fn gateway_stream_preserves_existing_tool_payloads() {
         &mut assistant_text,
         &mut finish_reason,
         &mut assistant_model,
-        &mut recorder,
+        &mut current_step_index,
         "",
-        None,
-        "/unused",
     )
     .expect("tool payload");
     let legacy_delta = format!("tool shell\n{payload}\n");
@@ -458,7 +558,7 @@ fn gateway_tool_event_preserves_step_and_payload() {
     let mut assistant_text = String::new();
     let mut finish_reason = None;
     let mut assistant_model = None;
-    let mut recorder = StreamPatchRecorder::default();
+    let mut current_step_index = None;
 
     let _ = stream_payload_for_non_done_event(
         agent_session::processor::StreamEvent::StepStart {
@@ -469,10 +569,8 @@ fn gateway_tool_event_preserves_step_and_payload() {
         &mut assistant_text,
         &mut finish_reason,
         &mut assistant_model,
-        &mut recorder,
+        &mut current_step_index,
         "session-id",
-        None,
-        "/unused",
     );
 
     let start_payload = serde_json::json!({
@@ -491,10 +589,8 @@ fn gateway_tool_event_preserves_step_and_payload() {
         &mut assistant_text,
         &mut finish_reason,
         &mut assistant_model,
-        &mut recorder,
+        &mut current_step_index,
         "session-id",
-        None,
-        "/unused",
     )
     .expect("tool start payload");
 
@@ -515,10 +611,8 @@ fn gateway_tool_event_preserves_step_and_payload() {
         &mut assistant_text,
         &mut finish_reason,
         &mut assistant_model,
-        &mut recorder,
+        &mut current_step_index,
         "session-id",
-        None,
-        "/unused",
     )
     .expect("tool complete payload");
 
@@ -545,12 +639,10 @@ fn gateway_tool_event_preserves_step_and_payload() {
 
 #[test]
 fn stream_payload_for_non_done_event_handles_step_start_post_tool_round_and_done() {
-    let root = tempfile::tempdir().expect("temporary root");
-    let ids = StreamTurnMessageIds::new("assistant-id", "user-id");
     let mut assistant_text = String::new();
     let mut finish_reason = None;
     let mut assistant_model = None;
-    let mut recorder = StreamPatchRecorder::default();
+    let mut current_step_index = None;
 
     let start = stream_payload_for_non_done_event(
         agent_session::processor::StreamEvent::StepStart {
@@ -561,10 +653,8 @@ fn stream_payload_for_non_done_event_handles_step_start_post_tool_round_and_done
         &mut assistant_text,
         &mut finish_reason,
         &mut assistant_model,
-        &mut recorder,
+        &mut current_step_index,
         "session-id",
-        Some(&ids),
-        &root.path().to_string_lossy(),
     )
     .expect("start payload");
 
@@ -572,18 +662,15 @@ fn stream_payload_for_non_done_event_handles_step_start_post_tool_round_and_done
     assert_eq!(start["step_index"], 3);
     assert_eq!(start["created_ms"], 11);
     assert_eq!(start["model"], "provider/model");
-    assert_eq!(recorder.active_step.as_ref().map(|step| step.step_index), Some(3));
-    assert_eq!(recorder.parts.len(), 1);
+    assert_eq!(current_step_index, Some(3));
 
     let post_tool = stream_payload_for_non_done_event(
         agent_session::processor::StreamEvent::PostToolRound { step_index: 3 },
         &mut assistant_text,
         &mut finish_reason,
         &mut assistant_model,
-        &mut recorder,
+        &mut current_step_index,
         "session-id",
-        Some(&ids),
-        &root.path().to_string_lossy(),
     )
     .expect("post tool payload");
     assert_eq!(post_tool, serde_json::json!({"type": "chat.post_tool_round", "step_index": 3}));
@@ -593,10 +680,8 @@ fn stream_payload_for_non_done_event_handles_step_start_post_tool_round_and_done
         &mut assistant_text,
         &mut finish_reason,
         &mut assistant_model,
-        &mut recorder,
+        &mut current_step_index,
         "session-id",
-        Some(&ids),
-        &root.path().to_string_lossy(),
     );
     assert!(done.is_none());
 }
@@ -1091,7 +1176,6 @@ fn stream_patch_recorder_begin_step_records_start_and_active_step() {
 #[test]
 fn stream_patch_recorder_mismatched_step_discards_active_step_without_snapshot_io() {
     let mut recorder = StreamPatchRecorder {
-        current_step_index: Some(2),
         active_step: Some(StreamStepSnapshot {
             step_index: 2,
             snapshot: Some("snapshot-before".to_string()),
@@ -1115,8 +1199,7 @@ fn stream_patch_recorder_take_parts_drains_recorded_parts() {
         vec!["src/lib.rs".to_string()],
         None,
     );
-    let mut recorder =
-        StreamPatchRecorder { current_step_index: None, active_step: None, parts: vec![part] };
+    let mut recorder = StreamPatchRecorder { active_step: None, parts: vec![part] };
 
     let first = recorder.take_parts();
     let second = recorder.take_parts();
@@ -1506,7 +1589,7 @@ async fn stream_processing_elapsed_persists_and_reloads_explicit_request_bounds(
                 cached_tokens: 0,
                 reasoning_tokens: 0,
             };
-            let (assistant_id, _) = persist_stream_chat_turn_for_agent(
+            let (assistant_id, _, _) = persist_stream_chat_turn_for_agent(
                 &session_id,
                 "question",
                 "answer",
@@ -1778,7 +1861,7 @@ fn recovery_event_preserves_status_without_assistant_content() {
         let mut text = String::from("answer");
         let mut finish = None;
         let mut model = None;
-        let mut patches = StreamPatchRecorder::default();
+        let mut current_step_index = None;
         let payload = stream_payload_for_non_done_event(
             StreamEvent::ModelRecovery(ModelRecovery {
                 attempt: 2,
@@ -1791,10 +1874,8 @@ fn recovery_event_preserves_status_without_assistant_content() {
             &mut text,
             &mut finish,
             &mut model,
-            &mut patches,
+            &mut current_step_index,
             "session-recovery",
-            None,
-            ".",
         )
         .expect("recovery status must be transmitted");
         assert_eq!(
@@ -1803,7 +1884,7 @@ fn recovery_event_preserves_status_without_assistant_content() {
         );
         assert_eq!(text, "answer");
         assert!(finish.is_none() && model.is_none());
-        assert!(patches.parts.is_empty());
+        assert_eq!(current_step_index, None);
     }
 }
 
@@ -2602,10 +2683,8 @@ fn native_tool_search_core_loop_gateway_encodes_typed_model_calls() {
         &mut text,
         &mut None,
         &mut None,
-        &mut StreamPatchRecorder::default(),
+        &mut None,
         "session-id",
-        None,
-        "/unused",
     )
     .unwrap();
     assert_eq!(payload["type"], "chat.tool_calls");

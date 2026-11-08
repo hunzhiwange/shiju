@@ -668,6 +668,8 @@ pub enum ChatMessage {
     ///
     /// 标记本轮工具执行已结束，下一轮模型请求尚未开始。
     AgentPostToolRound(u64, String, u32),
+    AgentSessionDiffSummary(u64, String, vw_shared::session::info::Summary),
+    SessionSummaryReloaded(Result<vw_shared::session::info::Info, String>),
 
     /// 会话保存完成
     ///
@@ -1362,6 +1364,8 @@ pub fn update(app: &mut App, message: ChatMessage) -> Task<Message> {
         | ChatMessage::AgentStepFinish(_, _, _, _, _, _, _)
         | ChatMessage::AgentStepCostLoaded(_, _, _, _, _)
         | ChatMessage::AgentPostToolRound(_, _, _)
+        | ChatMessage::AgentSessionDiffSummary(_, _, _)
+        | ChatMessage::SessionSummaryReloaded(_)
         | ChatMessage::SessionSaveAck
         | ChatMessage::SessionSaveFailed(_)
         | ChatMessage::AgentStreamDone(_, _, _, _)

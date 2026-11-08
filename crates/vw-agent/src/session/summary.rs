@@ -198,34 +198,54 @@ fn summary_from_diffs(diffs: &[snapshot::FileDiff]) -> super::session::Summary {
 fn summary_from_persisted_patch_stats(
     messages: &[super::message::WithParts],
 ) -> Option<super::session::Summary> {
+    summary_from_patch_parts(messages.iter().flat_map(|message| &message.parts))
+}
+
+fn summary_from_patch_parts<'a>(
+    parts: impl IntoIterator<Item = &'a super::message::Part>,
+) -> Option<super::session::Summary> {
     let mut additions = 0_i64;
     let mut deletions = 0_i64;
     let mut files = HashSet::<&str>::new();
     let mut has_complete_stats = false;
 
-    for item in messages {
-        for part in &item.parts {
-            let super::message::Part::Patch(patch) = part else {
-                continue;
-            };
-            let (Some(patch_additions), Some(patch_deletions)) = (patch.additions, patch.deletions)
-            else {
-                continue;
-            };
+    for part in parts {
+        let super::message::Part::Patch(patch) = part else {
+            continue;
+        };
+        let (Some(patch_additions), Some(patch_deletions)) = (patch.additions, patch.deletions)
+        else {
+            continue;
+        };
 
-            has_complete_stats = true;
-            additions = additions.saturating_add(patch_additions);
-            deletions = deletions.saturating_add(patch_deletions);
-            files.extend(patch.files.iter().map(String::as_str));
-        }
+        has_complete_stats = true;
+        additions = additions.saturating_add(patch_additions);
+        deletions = deletions.saturating_add(patch_deletions);
+        files.extend(patch.files.iter().map(String::as_str));
     }
-
     has_complete_stats.then_some(super::session::Summary {
         additions,
         deletions,
         files: files.len() as i64,
         diffs: None,
     })
+}
+
+/// Publish cumulative counts while the current assistant turn is still running.
+pub(crate) async fn refresh_stream_diff_summary(
+    session_id: &str,
+    parts: &[super::message::Part],
+) -> Result<Option<super::session::Summary>, Error> {
+    let messages = super::message::messages(session_id, None).await?;
+    let summary =
+        summary_from_patch_parts(messages.iter().flat_map(|message| &message.parts).chain(parts));
+    if let Some(summary) = &summary {
+        super::session::update(session_id, |draft| {
+            draft.summary = Some(summary.clone());
+        })
+        .await?;
+    }
+    Ok(summary)
 }
 
 async fn persist_session_diff_summary(

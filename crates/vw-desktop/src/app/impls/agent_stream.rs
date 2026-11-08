@@ -2495,6 +2495,19 @@ fn gateway_agent_stream(req: AgentRequest) -> AgentBoxStream<Message> {
                                         .unwrap_or_default()
                                     {
                                         "chat.tool" => chat_tool_message(req.id, &payload),
+                                        "chat.session_updated" => payload
+                                            .get("session")
+                                            .and_then(|session| session.get("summary"))
+                                            .and_then(|summary| {
+                                                serde_json::from_value(summary.clone()).ok()
+                                            })
+                                            .map(|summary| {
+                                                Message::Chat(
+                                                    message::ChatMessage::AgentSessionDiffSummary(
+                                                        req.id, req.session.clone(), summary,
+                                                    ),
+                                                )
+                                            }),
                                         "chat.model_recovery" => chat_model_recovery_message(
                                             req.id,
                                             &req.session,

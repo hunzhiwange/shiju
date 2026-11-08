@@ -63,6 +63,55 @@ fn agent_request(id: u64, session_id: &str) -> std::sync::Arc<crate::app::state:
 }
 
 #[test]
+fn completed_session_summary_reload_refreshes_both_lists_without_an_active_request() {
+    let (mut app, _) = crate::app::App::new();
+    let mut info = session_info("finished", "Finished", "/project");
+    app.sessions = vec![info.clone()];
+    app.project_sessions.insert("/project".into(), vec![info.clone()]);
+    info.summary = Some(vw_shared::session::info::Summary {
+        additions: 1434,
+        deletions: 7,
+        files: 16,
+        diffs: None,
+    });
+    info.time.updated += 1;
+    let _ = super::update(&mut app, super::ChatMessage::SessionSummaryReloaded(Ok(info)));
+    for sessions in [&app.sessions, &app.project_sessions["/project"]] {
+        let summary = sessions[0].summary.as_ref().unwrap();
+        assert_eq!((summary.additions, summary.deletions, summary.files), (1434, 7, 16));
+    }
+}
+
+#[test]
+fn stream_diff_summary_updates_the_request_session_in_both_lists() {
+    let (mut app, _) = crate::app::App::new();
+    let info = session_info("edited", "Edited", "/project");
+    app.sessions = vec![info.clone(), session_info("other", "Other", "/project")];
+    app.project_sessions.insert("/project".into(), app.sessions.clone());
+    app.active_session_id = Some("other".into());
+    app.get_session_runtime_mut("edited").active_agent_request = Some(agent_request(42, "edited"));
+    let summary =
+        vw_shared::session::info::Summary { additions: 2, deletions: 1, files: 1, diffs: None };
+
+    let _ = super::update(
+        &mut app,
+        super::ChatMessage::AgentSessionDiffSummary(41, "edited".into(), summary.clone()),
+    );
+    assert!(app.sessions[0].summary.is_none());
+    app.get_session_runtime_mut("edited").active_agent_request = None;
+    let _ = super::update(
+        &mut app,
+        super::ChatMessage::AgentSessionDiffSummary(42, "edited".into(), summary),
+    );
+
+    for sessions in [&app.sessions, &app.project_sessions["/project"]] {
+        let summary = sessions[0].summary.as_ref().unwrap();
+        assert_eq!((summary.additions, summary.deletions), (2, 1));
+        assert!(sessions[1].summary.is_none());
+    }
+}
+
+#[test]
 fn desktop_plan_run_waiting_and_cancelled_events_keep_session_lifecycle_consistent_in_chat_stream()
 {
     let (mut app, _task) = crate::app::App::new();

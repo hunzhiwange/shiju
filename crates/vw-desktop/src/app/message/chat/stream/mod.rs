@@ -577,6 +577,38 @@ pub fn update(app: &mut App, message: ChatMessage) -> Task<Message> {
         ChatMessage::AgentPostToolRound(id, session_id, step_index) => {
             stream_events::handle_agent_post_tool_round(app, id, session_id, step_index)
         }
+        ChatMessage::SessionSummaryReloaded(result) => {
+            match result {
+                Ok(info) => {
+                    for session in
+                        app.sessions.iter_mut().chain(app.project_sessions.values_mut().flatten())
+                    {
+                        if session.id == info.id {
+                            session.summary = info.summary.clone();
+                            session.time.updated = session.time.updated.max(info.time.updated);
+                        }
+                    }
+                }
+                Err(error) => tracing::warn!(%error, "failed to reload session summary"),
+            }
+            Task::none()
+        }
+        ChatMessage::AgentSessionDiffSummary(id, session_id, summary) => {
+            let active_request = app
+                .session_runtime_states
+                .get(&session_id)
+                .and_then(|runtime| runtime.active_agent_request.as_ref());
+            if active_request.is_none_or(|request| request.id == id) {
+                for session in
+                    app.sessions.iter_mut().chain(app.project_sessions.values_mut().flatten())
+                {
+                    if session.id == session_id {
+                        session.summary = Some(summary.clone());
+                    }
+                }
+            }
+            Task::none()
+        }
         ChatMessage::AgentStreamDone(id, usage, assistant_message_id, parent_message_id) => {
             stream_events::handle_agent_stream_done(
                 app,

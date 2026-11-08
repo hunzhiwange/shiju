@@ -1570,12 +1570,23 @@ pub(super) fn handle_agent_stream_done(
         Task::none()
     };
 
+    let summary_session = session_id.clone();
+    let summary_directory = app.known_session_directory(&session_id);
+    let refresh_summary = Task::perform(
+        async move {
+            crate::app::gateway_client()?
+                .session_get::<session_info::Info>(&summary_session, summary_directory.as_deref())
+                .await
+        },
+        |result| Message::Chat(super::ChatMessage::SessionSummaryReloaded(result)),
+    );
     let completion = if is_active_session && app.chat_auto_scroll {
         scroll_chat_to_bottom_task(app)
     } else {
         Task::none()
     }
     .chain(session_todos_task)
+    .chain(refresh_summary)
     .chain(refresh_message_ids)
     .chain(save_task)
     .chain(trajectory_raw_task)

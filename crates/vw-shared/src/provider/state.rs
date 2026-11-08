@@ -212,8 +212,8 @@ pub fn from_models_dev_model(provider: &RawProvider, model: &RawModel) -> Model 
     };
 
     let cost = ModelCost {
-        input: model.cost.as_ref().map(|c| c.input).unwrap_or(0.0),
-        output: model.cost.as_ref().map(|c| c.output).unwrap_or(0.0),
+        input: model.cost.as_ref().and_then(|c| c.input).unwrap_or(0.0),
+        output: model.cost.as_ref().and_then(|c| c.output).unwrap_or(0.0),
         cache: ModelCostCache {
             read: model.cost.as_ref().and_then(|c| c.cache_read).unwrap_or(0.0),
             write: model.cost.as_ref().and_then(|c| c.cache_write).unwrap_or(0.0),
@@ -277,7 +277,7 @@ pub fn from_models_dev_model(provider: &RawProvider, model: &RawModel) -> Model 
         capabilities: Capabilities {
             native_tool_search: false,
             temperature: model.temperature,
-            reasoning: model.reasoning,
+            reasoning: model.reasoning.unwrap_or_default(),
             reasoning_options: model.reasoning_options.clone(),
             attachment: model.attachment,
             toolcall: model.tool_call,

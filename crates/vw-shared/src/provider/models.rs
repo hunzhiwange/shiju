@@ -18,10 +18,10 @@ pub struct ModelCostOver200k {
 /// 模型输入、输出与缓存相关的成本信息。
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]
 pub struct ModelCost {
-    #[serde(default)]
-    pub input: f64,
-    #[serde(default)]
-    pub output: f64,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub input: Option<f64>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub output: Option<f64>,
     #[serde(default)]
     pub cache_read: Option<f64>,
     #[serde(default)]
@@ -70,6 +70,9 @@ pub struct ModelProviderInfo {
 pub struct Model {
     #[serde(default)]
     pub id: String,
+    /// 原厂目录条目的指向，保留原样。部署身份仍由所属供应商与模型 ID 决定。
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub canonical_model_id: Option<String>,
     #[serde(default)]
     pub name: String,
     #[serde(default)]
@@ -78,8 +81,8 @@ pub struct Model {
     pub release_date: String,
     #[serde(default)]
     pub attachment: bool,
-    #[serde(default)]
-    pub reasoning: bool,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub reasoning: Option<bool>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub reasoning_options: Option<Vec<super::reasoning::ReasoningOption>>,
     #[serde(default)]

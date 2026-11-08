@@ -414,3 +414,31 @@ Pi 供应商表单的现有网关入口为 `vw-agent/src/gateway/api/handlers/ap
 | `cargo clippy --all-targets --all-features -- -D warnings` | 0 | 全 workspace、全目标及 features 通过 |
 
 差异限于预设、独立测试、模块注册、复用供应商请求头值校验和本记录。各阶段槽位锁已释放，编译缓存已保留。
+
+## 任务 16　保留 models.dev 原厂指向字段
+
+2026-11-08，macOS 27.0（26A428），arm64。前置批次 15 由 `977ecd849` 交付。批次 16 复用 `vw-provider-resolver` 的内置目录和磁盘缓存解析入口。随仓库提供的 `assets/model/api.json` 中已有 7580 个带指向的条目，未迁移或改写数据文件。
+
+| 固定来源 `ca58c0313360eae7c851fbd7553c1614c7af03e7` | 实际实现 |
+| --- | --- |
+| `src/lib/modelsDev.ts::ModelsDevModel` | `vw-shared/src/provider/models.rs::Model` 反序列化并原样保留可选 `canonical_model_id`，以 `Option` 区分推理缺省与显式关闭、输入和输出价格缺省与显式零价。复用档位、模态、窗口和价格结构 |
+| `src/lib/modelMetadata.ts::indexModelsDev` 的供应商归属 | `vw-provider-resolver/src/models.rs::parse_models_text` 保留供应商映射键、模型映射键和原始 `id`。原厂指向独立于部署身份。实际查找和回退策略归任务 18、19 |
+| 运行时转换和下游 | `vw-shared/src/provider/state.rs::from_models_dev_model` 保留现有运行时默认值。现有路径经 `vw-agent/src/provider/provider.rs` → `gateway/api/handlers/provider.rs::provider_list` → `vw-gateway-client/src/client/provider_api.rs::provider_list` 提供 `GET /v1/provider`。Iced 的 `vw-desktop/src/app/message/settings/providers/helpers.rs::build_catalog_from_sources` 合并本地原始目录和供应商响应。本次验收原始目录层，目录元数据的 API、SDK 和界面接入由后续任务交付 |
+
+### 验证
+
+红灯、绿灯及基线对照均动态领取槽位 **1**，`CARGO_TARGET_DIR=/Users/xiangmin/worker/code/shiju/target/rust-slot-1`，中间构建目录使用同一槽位。格式化在源码快照中执行，只回写本次涉及的 Rust 文件。各阶段已释放锁并保留缓存。
+
+| 命令 | 退出码 | 证据 |
+| --- | ---: | --- |
+| `cargo fmt --all`（红灯、绿灯） | 0、0 | 格式化完成，审查差异无无关格式化 |
+| `cargo test -p vw-provider-resolver catalog_modelsdev_parse_ -- --nocapture`（红灯） | 101 | 3 条有效测试因指向丢失而失败，119 条过滤。首个指定用例解析结果为 `Null`，预期为 `"vendor/Flagship/2026-11"` |
+| `cargo test -p vw-shared catalog_modelsdev_parse_ -- --nocapture`（红灯） | 101 | 2 条有效测试失败，408 条过滤。缺省推理为 `false`，缺省输出价格为 `0.0`，预期均为 `Null` |
+| `cargo test -p vw-provider-resolver catalog_modelsdev_parse_ -- --nocapture`（绿灯） | 0 | 3 条有效测试通过，119 条过滤。覆盖直接映射、两种包装、同名部署隔离、内置目录及识矩叠加 |
+| `cargo test -p vw-shared catalog_modelsdev_parse_ -- --nocapture`（绿灯） | 0 | 2 条有效测试通过，408 条过滤 |
+| `cargo test -p vw-shared provider::state:: -- --nocapture` | 0 | 26 条运行时转换相关测试通过，384 条过滤 |
+| `cargo test -p vw-provider-resolver bundled_ -- --nocapture` | 101 | 6 条通过，3 条既有失败，113 条过滤。既有两条目录审计分别遇到 `scaleway/whisper-large-v3` 缺上下文和 `novita-ai/baai/bge-m3` 缺输出限制。Qwen3.7 Plus 输入价格实际为 `0.276`，断言预期 `0.5` |
+| `cargo test -p vw-provider-resolver models::models_tests::bundled_ -- --nocapture`（批次 15 源码快照） | 101 | 3 条通过，同 3 条既有用例失败，113 条过滤。两项审计按映射遍历顺序命中 `openrouter/respan/span-01` 和 `aihubmix/gpt-image-1.5` 的缺省限制，Qwen 价格差异一致 |
+| `cargo clippy --all-targets --all-features -- -D warnings` | 0 | 全工作区、全目标和全 features 通过 |
+
+`git diff --cached --check` 通过。提交范围为原始模型字段、兼容转换、独立测试和本记录。额外审计的既有失败保持在本批次范围外。

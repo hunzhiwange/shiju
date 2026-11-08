@@ -20,11 +20,12 @@ fn raw_provider() -> RawProvider {
 fn raw_model(id: &str) -> RawModel {
     RawModel {
         id: id.to_string(),
+        canonical_model_id: None,
         name: "Example Model".to_string(),
         family: Some("example-family".to_string()),
         release_date: "2026-01-02".to_string(),
         attachment: true,
-        reasoning: true,
+        reasoning: Some(true),
         reasoning_options: None,
         temperature: true,
         tool_call: true,
@@ -176,8 +177,8 @@ fn from_models_dev_model_converts_full_model_metadata() {
     let mut model = raw_model("model-full");
     model.interleaved = Some(models::ModelInterleaved::Field { field: "messages".to_string() });
     model.cost = Some(models::ModelCost {
-        input: 1.25,
-        output: 2.5,
+        input: Some(1.25),
+        output: Some(2.5),
         cache_read: Some(0.25),
         cache_write: Some(0.5),
         context_over_200k: Some(models::ModelCostOver200k {
@@ -299,8 +300,8 @@ fn from_models_dev_model_defaults_missing_cache_costs() {
     let provider = raw_provider();
     let mut model = raw_model("model-cost-defaults");
     model.cost = Some(models::ModelCost {
-        input: 1.0,
-        output: 2.0,
+        input: Some(1.0),
+        output: Some(2.0),
         cache_read: None,
         cache_write: None,
         context_over_200k: Some(models::ModelCostOver200k {

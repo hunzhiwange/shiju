@@ -255,6 +255,56 @@ fn parse_models_text_rejects_array_items_with_invalid_provider_shape() {
 }
 
 #[test]
+fn catalog_modelsdev_parse_preserves_canonical_pointer() {
+    let text = r#"{"relay":{"id":"relay","models":{"vendor/Flagship:fast":{
+        "id":"vendor/Flagship:fast","canonical_model_id":"vendor/Flagship/2026-11"
+    }}}}"#;
+    let parsed = parse_models_text("canonical_pointer", text).unwrap();
+    let model = &parsed["relay"].models["vendor/Flagship:fast"];
+    assert_eq!(model.id, "vendor/Flagship:fast");
+    assert_eq!(
+        serde_json::to_value(model).unwrap()["canonical_model_id"],
+        "vendor/Flagship/2026-11"
+    );
+}
+
+#[test]
+fn catalog_modelsdev_parse_keeps_original_provider_ownership_in_wrappers() {
+    let providers = json!({
+        "relay": {"id": "relay-api", "models": {"Flagship": {
+            "id": "Flagship", "canonical_model_id": "vendor/Flagship", "reasoning": false
+        }}},
+        "vendor": {"id": "vendor-api", "models": {"Flagship": {
+            "id": "Flagship", "reasoning": true
+        }}}
+    });
+    for wrapper in ["providers", "data"] {
+        let wrapped = json!({(wrapper): providers});
+        let parsed = parse_models_text(wrapper, &wrapped.to_string()).unwrap();
+        assert_eq!(parsed["relay"].id, "relay-api");
+        assert_eq!(parsed["vendor"].id, "vendor-api");
+        let relay = serde_json::to_value(&parsed["relay"].models["Flagship"]).unwrap();
+        let vendor = serde_json::to_value(&parsed["vendor"].models["Flagship"]).unwrap();
+        assert_eq!(relay["canonical_model_id"], "vendor/Flagship");
+        assert!(vendor["canonical_model_id"].is_null());
+        assert_eq!(relay["reasoning"], false);
+        assert_eq!(vendor["reasoning"], true);
+    }
+}
+
+#[test]
+fn catalog_modelsdev_parse_preserves_bundled_pointer_and_local_overlay() {
+    let parsed = bundled_models("canonical_bundled");
+    let relay = &parsed["deepinfra"].models["stepfun-ai/Step-3.7-Flash"];
+    assert_eq!(
+        serde_json::to_value(relay).unwrap()["canonical_model_id"],
+        "stepfun/step-3.7-flash"
+    );
+    assert!(parsed["stepfun"].models.contains_key("step-3.7-flash"));
+    assert!(!parsed["shiju"].models.is_empty());
+}
+
+#[test]
 fn bundled_models_loads_included_metadata() {
     let bundled = bundled_models("bundled");
 
@@ -277,8 +327,8 @@ fn bundled_models_include_qwen37_plus_multimodal_metadata() {
     assert_eq!(modalities.output.iter().map(String::as_str).collect::<Vec<_>>(), vec!["text"]);
     assert_eq!(model.limit.context, 1_000_000);
     assert_eq!(model.limit.output, 64_000);
-    assert_eq!(cost.input, 0.5);
-    assert_eq!(cost.output, 3.0);
+    assert_eq!(cost.input, Some(0.5));
+    assert_eq!(cost.output, Some(3.0));
     assert_eq!(cost.cache_read, Some(0.05));
     assert_eq!(cost.cache_write, Some(0.625));
 }
@@ -453,7 +503,7 @@ fn audit_provider_models(label: &str, providers: &HashMap<String, Provider>) -> 
             if modalities.input.is_empty() {
                 return Err(format!("{label}/{provider_id}/{model_id}: missing input modalities"));
             }
-            if (model.tool_call || model.reasoning)
+            if (model.tool_call || model.reasoning == Some(true))
                 && modalities.output.iter().any(|item| item == "text")
                 && !modalities.input.iter().any(|item| item == "text")
             {
@@ -543,7 +593,7 @@ fn model_asset_audit_rejects_missing_limits_bad_modalities_and_textless_text_mod
     let model = &provider.models["broken"];
     assert!(model.modalities.as_ref().unwrap().input.iter().all(|item| item != "text"));
     assert!(
-        model.reasoning
+        model.reasoning == Some(true)
             && model.modalities.as_ref().unwrap().output.iter().any(|item| item == "text")
     );
     let error = audit_provider_models(

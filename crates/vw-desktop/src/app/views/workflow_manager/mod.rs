@@ -1,19 +1,20 @@
 //! 管理任务生命周期工作流的列表、编辑、校验与保存界面。
 
+#[cfg(test)]
+mod form_controls_tests;
+
 use std::collections::HashSet;
 use std::fmt;
 
 use anyhow::Result;
 use iced::widget::scrollable::{Direction, Scrollbar};
-use iced::widget::{
-    Space, button, column, container, pick_list, row, scrollable, text, text_input,
-};
+use iced::widget::{Space, button, column, container, row, scrollable, text};
 use iced::{Alignment, Element, Length, Task, Theme};
 
 use crate::app::components::system_settings_common::{
     danger_action_btn_style, primary_action_btn_style, rounded_action_btn_style,
-    settings_muted_text_style, settings_panel, settings_pick_list_menu_style,
-    settings_pick_list_style, settings_text_input_style, settings_value_badge,
+    settings_muted_text_style, settings_panel, settings_select, settings_text_input,
+    settings_value_badge,
 };
 use crate::app::components::toast::confirm_dialog;
 use crate::app::task::workflow::TaskWorkflowRegistry;
@@ -2006,25 +2007,19 @@ fn build_draft_editor(i18n: crate::app::i18n::I18n, draft: &WorkflowDraft) -> El
         input_row(
             "ID",
             i18n.__("小写字母、数字、下划线或连字符。"),
-            text_input("handoff_flow", &draft.id)
+            settings_text_input("handoff_flow", &draft.id)
                 .on_input(|value| {
                     Message::WorkflowManager(WorkflowManagerMessage::DraftIdChanged(value))
                 })
-                .padding([10, 12])
-                .size(13)
-                .style(settings_text_input_style)
                 .width(Length::Fill),
         ),
         input_row(
             i18n.__("名称"),
             i18n.__("显示在项目工作流选择和管理列表中。"),
-            text_input("Handoff Flow", &draft.label)
+            settings_text_input("Handoff Flow", &draft.label)
                 .on_input(|value| {
                     Message::WorkflowManager(WorkflowManagerMessage::DraftLabelChanged(value))
                 })
-                .padding([10, 12])
-                .size(13)
-                .style(settings_text_input_style)
                 .width(Length::Fill),
         ),
         row![
@@ -2071,7 +2066,7 @@ fn build_status_row<'a>(
     status: &'a WorkflowDraftStatus,
     draft: &'a WorkflowDraft,
 ) -> Element<'a, Message> {
-    let role_pick = pick_list(
+    let role_pick = settings_select(
         StatusRoleOption::all(i18n),
         Some(StatusRoleOption::new(status.role, i18n)),
         move |role| {
@@ -2081,9 +2076,7 @@ fn build_status_row<'a>(
             })
         },
     )
-    .padding([8, 10])
-    .style(settings_pick_list_style)
-    .menu_style(settings_pick_list_menu_style);
+    .width(Length::Fill);
 
     let route_options = next_options(draft);
     let default_success_key = draft.statuses.get(index + 1).map(|next| next.key.trim().to_string());
@@ -2143,31 +2136,25 @@ fn build_status_row<'a>(
             input_row(
                 i18n.__("状态 key"),
                 i18n.__("自定义状态会按 key 持久化。"),
-                text_input("ready_for_qa", &status.key)
+                settings_text_input("ready_for_qa", &status.key)
                     .on_input(move |key| {
                         Message::WorkflowManager(WorkflowManagerMessage::DraftStatusKeyChanged {
                             index,
                             key,
                         })
                     })
-                    .padding([10, 12])
-                    .size(13)
-                    .style(settings_text_input_style)
                     .width(Length::Fill),
             ),
             input_row(
                 i18n.__("标签"),
                 i18n.__("用于看板列和状态展示。"),
-                text_input("Ready for QA", &status.label)
+                settings_text_input("Ready for QA", &status.label)
                     .on_input(move |label| {
                         Message::WorkflowManager(WorkflowManagerMessage::DraftStatusLabelChanged {
                             index,
                             label,
                         })
                     })
-                    .padding([10, 12])
-                    .size(13)
-                    .style(settings_text_input_style)
                     .width(Length::Fill),
             ),
             input_row(i18n.__("语义角色"), i18n.__("调度和执行只依赖角色语义。"), role_pick),
@@ -2216,7 +2203,7 @@ fn build_route_row<'a>(
     let name_control: Element<'a, Message> = if route.is_builtin() {
         settings_value_badge(i18n.__(&outcome.label()).to_string())
     } else {
-        text_input(i18n.__("平台驳回"), &route.label)
+        settings_text_input(i18n.__("平台驳回"), &route.label)
             .on_input(move |label| {
                 Message::WorkflowManager(WorkflowManagerMessage::DraftStatusRouteLabelChanged {
                     status_index,
@@ -2224,16 +2211,13 @@ fn build_route_row<'a>(
                     label,
                 })
             })
-            .padding([8, 10])
-            .size(12)
-            .style(settings_text_input_style)
             .width(Length::Fill)
             .into()
     };
     let key_control: Element<'a, Message> = if route.is_builtin() {
         settings_value_badge(outcome.key().to_string())
     } else {
-        text_input("manual_review", &route.outcome_key)
+        settings_text_input("manual_review", &route.outcome_key)
             .on_input(move |outcome_key| {
                 Message::WorkflowManager(WorkflowManagerMessage::DraftStatusRouteOutcomeChanged {
                     status_index,
@@ -2241,9 +2225,6 @@ fn build_route_row<'a>(
                     outcome_key,
                 })
             })
-            .padding([8, 10])
-            .size(12)
-            .style(settings_text_input_style)
             .width(Length::Fill)
             .into()
     };
@@ -2264,23 +2245,22 @@ fn build_route_row<'a>(
         column![
             text(i18n.__("结果名字")).size(12),
             text(i18n.__("给人看的名称")).size(11).style(settings_muted_text_style),
+            name_control,
         ]
         .spacing(3)
-        .width(Length::Fixed(120.0)),
-        container(name_control).width(Length::FillPortion(2)),
+        .width(Length::Fill),
         column![
             text(i18n.__("结果 key")).size(12),
             text(i18n.__("程序匹配用")).size(11).style(settings_muted_text_style),
+            key_control,
         ]
         .spacing(3)
-        .width(Length::Fixed(110.0)),
-        container(key_control).width(Length::FillPortion(2)),
-        container(route_picker(i18n, status_index, route_index, options, selected_key))
-            .width(Length::FillPortion(2)),
+        .width(Length::Fill),
+        route_picker(i18n, status_index, route_index, options, selected_key),
         remove,
     ]
     .spacing(10)
-    .align_y(Alignment::Center)
+    .align_y(Alignment::End)
     .into()
 }
 
@@ -2301,16 +2281,14 @@ fn route_picker<'a>(
         })
         .collect::<Vec<_>>();
     let selected = NextStatusOption::selected(&options, selected_key);
-    pick_list(options, Some(selected), move |target| {
+    settings_select(options, Some(selected), move |target| {
         Message::WorkflowManager(WorkflowManagerMessage::SetDraftStatusRoute {
             status_index,
             route_index,
             target_key: target.target_key,
         })
     })
-    .padding([8, 10])
-    .style(settings_pick_list_style)
-    .menu_style(settings_pick_list_menu_style)
+    .width(Length::Fill)
     .into()
 }
 

@@ -99,7 +99,10 @@ fn catalog_metadata_endpoint_keeps_sibling_paths_ports_and_costs_separate() {
     assert!(coding.metadata.cost.is_none());
     assert!(!coding.metadata.provenance.contains_key(&Cost));
     for url in ["https://api.z.ai/api", "https://api.z.ai:8443/api/paas/v4"] {
-        assert!(resolve_model_metadata(Codex, url, "model", Some(&data)).is_none());
+        let fallback = resolve_model_metadata(Codex, url, "model", Some(&data)).unwrap().metadata;
+        assert_eq!(fallback.context_window, Some(200_000));
+        assert!(fallback.cost.is_none());
+        assert!(!fallback.provenance.contains_key(&Cost));
     }
 }
 

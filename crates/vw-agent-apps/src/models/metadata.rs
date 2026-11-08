@@ -1,4 +1,4 @@
-//! Offline model metadata lookup scoped to the selected application and endpoint.
+//! Offline model metadata lookup with deployment-specific fields and vendor fallback.
 
 use super::{
     identity::{MetadataEndpointKey, find_metadata_model},
@@ -9,6 +9,7 @@ use super::{
     },
     preset_kimi_dsh::KimiDshCatalog,
     preset_pi::{PiModelInput, PiPresetCompatValue, PiPresetProtocol},
+    vendor_fallback,
 };
 use std::{collections::BTreeMap, time::UNIX_EPOCH};
 use vw_api_types::{
@@ -36,8 +37,9 @@ pub struct PiThinkingMetadata {
     pub compat: Option<BTreeMap<String, PiPresetCompatValue>>,
 }
 
-/// Fill from a matching built-in preset first, then from the same endpoint in the resolver
-/// snapshot. Endpoint and model normalization here are only for metadata lookup.
+/// Fill from a matching preset, then from the same endpoint in the resolver snapshot.
+/// An unambiguous original vendor can fill remaining fields other than price.
+/// Endpoint and model normalization here are only for metadata lookup.
 pub fn resolve_model_metadata(
     app: AppId,
     endpoint: &str,
@@ -55,19 +57,32 @@ pub fn resolve_model_metadata(
         fill_missing(&mut result.metadata, preset.metadata, ModelMetadataSource::Preset, None);
         result.pi_thinking = preset.pi_thinking;
     }
-    if let Some(snapshot) = snapshot
-        && let Some(model) = provider_model(snapshot, &key, id)
-    {
+    if let Some(snapshot) = snapshot {
         let fetched_at = snapshot.fetched_at.and_then(|time| {
             let millis = time.duration_since(UNIX_EPOCH).ok()?.as_millis();
             i64::try_from(millis).ok().map(TimestampMs)
         });
-        fill_missing(
-            &mut result.metadata,
-            models_dev_metadata(model),
-            ModelMetadataSource::ModelsDev,
-            fetched_at,
-        );
+        if let Some(model) = provider_model(snapshot, &key, id) {
+            fill_missing(
+                &mut result.metadata,
+                models_dev_metadata(model),
+                ModelMetadataSource::ModelsDev,
+                fetched_at,
+            );
+        }
+        if let Some(model) = vendor_fallback::find(snapshot, id) {
+            let mut borrowed = models_dev_metadata(model);
+            borrowed.cost = None;
+            borrowed.context_window = borrowed
+                .context_window
+                .map(|window| vendor_fallback::cap_gpt_context_window(id, window));
+            fill_missing(
+                &mut result.metadata,
+                borrowed,
+                ModelMetadataSource::ModelsDev,
+                fetched_at,
+            );
+        }
     }
     (!result.metadata.provenance.is_empty() || result.pi_thinking.is_some()).then_some(result)
 }

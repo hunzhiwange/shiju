@@ -495,3 +495,28 @@ Pi 供应商表单的现有网关入口为 `vw-agent/src/gateway/api/handlers/ap
 首轮绿灯尝试中，应用隔离用例误将同时出现在 Codex 与 OpenCode 的模型当作只存在于 Codex。更换为同端点同模型在 Codex 和 Mcode 各自声明不同窗口的真实预设后通过。
 
 审查确认差异限于本项原生解析、七应用投影、OpenClaw 价格、原始工具能力缺省值、模块连线、独立测试及本记录。`git diff --cached --check` 通过。各阶段已释放占用锁并保留构建缓存。
+
+## 任务 19　原厂兜底与 GPT 窗口上限
+
+2026-11-08，macOS 27.0（26A428），arm64。前置批次 18 由 `a854674af` 交付。已核对 `TenantScope`、应用注册 `apps::catalog::catalog`、可信主机命令 `apps::launch::host::command`、可取消的 `ProviderOperation` 及修订发布 `ProviderTransactions::commit_checked`。本项沿用只读快照解析入口。
+
+| 固定来源 `ca58c0313360eae7c851fbd7553c1614c7af03e7` | 实际实现 |
+| --- | --- |
+| `src/lib/modelMetadata.ts::findByVendor` | `crates/vw-agent-apps/src/models/vendor_fallback.rs::find` 按归一模型 ID 查找，优先使用精确的原厂指向。多条记录指向同一目标只算一个候选。没有有效指向时，要求唯一自有条目。悬空的跨厂指向不能使托管条目成为自有条目。识矩本地叠加项不参与 |
+| `src/lib/modelMetadata.ts::capGptContextWindow`、`resolveModelMetadata` | `models/metadata.rs::resolve_model_metadata` 按预设、同端点 models.dev、原厂兜底的顺序补空。借用的 GPT 上下文上限为 272,000，预设和同端点已知窗口沿用原值。用户值由调用方持有，当前查询无用户值输入或写入。价格及其来源记录仅取自同部署，供母任务 17 消费 |
+| `tests/lib/modelMetadata.test.ts` | `models/vendor_fallback_tests.rs` 经真实解析入口覆盖 12 个场景。原同端点端口及路径隔离测试同时断言兜底值可用且价格仍隔离 |
+| 下游接点 | 原生输出使用 `crates/vw-api-types/src/model_catalog.rs::ModelMetadataDto`，目录补全的 API 接点为同文件的 `ModelCatalogFillPreviewResponse::proposed`。现有公开基线的网关路径为 `vw-agent/src/gateway/api/handlers/provider.rs::provider_list`，SDK 为 `vw-gateway-client/src/client/provider_api.rs::provider_list`，Iced 为 `vw-desktop/src/app/message/settings/providers/helpers.rs::build_catalog_from_sources`。本项的兜底由原生入口验收，补全 API、SDK 和 Iced 由后续批次接线 |
+
+### 验证
+
+红灯和绿灯均动态领取槽位 **1**，`CARGO_TARGET_DIR=/Users/xiangmin/worker/code/shiju/target/rust-slot-1`。Cargo 中间目录使用同一槽位。格式化在 Git 源码快照执行，只回写本项 Rust 文件。测试及 Clippy 在实际工作区执行。两阶段占用锁已释放，编译缓存已保留。
+
+| 命令 | 退出码 | 证据 |
+| --- | ---: | --- |
+| `cargo fmt --all`（红灯、绿灯） | 0、0 | 格式化完成 |
+| `cargo test -p vw-agent-apps catalog_metadata_vendor_ -- --nocapture`（红灯） | 101 | 12 条有效用例，4 条通过、8 条失败，585 条过滤。首个指定用例的价格和窗口实际为 `(None, None)`，预期为 `(None, Some(272000))` |
+| `cargo test -p vw-agent-apps catalog_metadata_vendor_ -- --nocapture`（绿灯） | 0 | 12 条通过，0 失败，585 条过滤 |
+| `cargo test -p vw-agent-apps catalog_metadata_endpoint_ -- --nocapture` | 0 | 11 条通过，0 失败，586 条过滤 |
+| `cargo clippy --all-targets --all-features -- -D warnings` | 0 | 全工作区、全目标及 features 通过 |
+
+审查后差异限于原厂查询、元数据连线、独立测试和本记录。`git diff --cached --check` 通过。本项使用固定本地快照，未迁移预设或公共目录数据，未涉及生产请求、配置写入或界面变更。

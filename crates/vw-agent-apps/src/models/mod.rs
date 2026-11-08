@@ -17,6 +17,8 @@ pub mod preset_opencode_openclaw;
 pub mod preset_pi;
 pub mod preset_search;
 pub mod user_agent_presets;
+#[cfg(not(target_arch = "wasm32"))]
+mod vendor_fallback;
 
 #[cfg(test)]
 mod codex_template_tests;
@@ -48,6 +50,8 @@ mod preset_pi_tests;
 mod preset_search_tests;
 #[cfg(test)]
 mod user_agent_presets_tests;
+#[cfg(all(test, not(target_arch = "wasm32")))]
+mod vendor_fallback_tests;
 
 pub fn validate(
     identity: &ModelCatalogIdentity,

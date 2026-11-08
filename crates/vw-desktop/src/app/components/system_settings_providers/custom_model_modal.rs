@@ -9,8 +9,8 @@ use crate::app::components::system_settings_common::{
     settings_field_label, settings_flexible_row_with_help, settings_group_card,
     settings_group_heading, settings_group_heading_with_help, settings_hover_help_label,
     settings_modal_card_style, settings_modal_header, settings_modal_layout,
-    settings_modal_overlay, settings_muted_text_style, settings_responsive_row,
-    settings_segment_button_style, settings_tab_button, settings_tab_row, settings_text_input,
+    settings_modal_overlay, settings_responsive_row, settings_segment_button_style,
+    settings_tab_button, settings_tab_row, settings_text_input,
 };
 use crate::app::i18n::I18n;
 use crate::app::i18n::settings_models::connection_text::text as connection_text;
@@ -43,15 +43,6 @@ pub(super) fn custom_segment_style(
     style
 }
 
-pub(super) fn custom_modal_heading<'a>(
-    title: &'a str,
-    description: &'a str,
-) -> Element<'a, Message> {
-    column![text(title).size(20), text(description).size(13).style(settings_muted_text_style)]
-        .spacing(4)
-        .into()
-}
-
 pub(super) fn field_row<'a>(
     label: &'a str,
     description: &'a str,
@@ -60,7 +51,7 @@ pub(super) fn field_row<'a>(
     stacked_field_row(settings_field_label(label), settings_control_with_hint(control, description))
 }
 
-fn stacked_field_row<'a>(
+pub(super) fn stacked_field_row<'a>(
     label: impl Into<Element<'a, Message>>,
     control: impl Into<Element<'a, Message>>,
 ) -> Element<'a, Message> {
@@ -90,12 +81,26 @@ fn text_row_with_help<'a>(
     value: &'a str,
     on_input: fn(String) -> SettingsMessage,
 ) -> Element<'a, Message> {
+    responsive_field_with_help(app, label, description, move || {
+        settings_text_input(placeholder, value)
+            .on_input(move |value| Message::Settings(on_input(value)))
+            .width(Length::Fill)
+    })
+}
+
+pub(super) fn responsive_field_with_help<'a, Control>(
+    app: &'a App,
+    label: &'a str,
+    description: &'a str,
+    control: impl Fn() -> Control + 'a,
+) -> Element<'a, Message>
+where
+    Control: Into<Element<'a, Message>>,
+{
     let i18n = I18n::new(app.desktop_locale);
     let theme = &app.app_theme;
     responsive(move |size| {
-        let control = settings_text_input(placeholder, value)
-            .on_input(move |value| Message::Settings(on_input(value)))
-            .width(Length::Fill);
+        let control = control().into();
         if size.width >= 600.0 {
             settings_flexible_row_with_help(i18n, theme, label, description, 460.0, control)
                 .padding([6, 0])

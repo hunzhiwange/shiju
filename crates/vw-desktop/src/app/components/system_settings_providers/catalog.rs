@@ -6,10 +6,11 @@ mod metadata_fill;
 use crate::app::components::system_settings_common::{
     SETTINGS_CONTROL_PADDING, SETTINGS_CONTROL_TEXT_SIZE, primary_action_btn_style,
     provider_logo_svg, rounded_action_btn_style, settings_close_button, settings_control_with_hint,
-    settings_divider, settings_error_banner, settings_group_card, settings_modal_card,
-    settings_modal_header, settings_modal_overlay, settings_muted_text_style, settings_text_input,
-    settings_text_input_style,
+    settings_divider, settings_error_banner, settings_group_card, settings_hover_help_label,
+    settings_modal_card, settings_modal_header, settings_modal_overlay, settings_muted_text_style,
+    settings_text_input, settings_text_input_style,
 };
+use crate::app::i18n::I18n;
 use crate::app::i18n::settings_models::connection_text::text as connection_text;
 use crate::app::message::SettingsMessage;
 use crate::app::state::{ModelCatalogEntry, ProviderSummary, is_shiju_official_provider_id};
@@ -130,14 +131,18 @@ pub fn view_overlays<'a>(app: &'a App, dialog: Element<'a, Message>) -> Element<
 
     let locale = app.desktop_locale;
     let close = Message::Settings(SettingsMessage::ProviderCatalogClose);
+    let title = connection_text(locale, "更多模型提供商");
+    let description = connection_text(locale, "浏览模型目录中的 provider，并快速连接或加入热门。");
+    let search_hint = connection_text(locale, "按 provider 名称或 provider ID 快速定位可用目录。");
     let header = settings_modal_header(
-        column![
-            text(connection_text(locale, "更多模型提供商")).size(18),
-            text(connection_text(locale, "浏览模型目录中的 provider，并快速连接或加入热门。"))
-                .size(13)
-                .style(settings_muted_text_style),
-        ]
-        .spacing(6),
+        settings_hover_help_label(
+            I18n::new(locale),
+            &app.app_theme,
+            title,
+            text(title).size(18),
+            format!("{description}\n\n{search_hint}"),
+        )
+        .wrap(),
         settings_close_button(close.clone()),
     );
     let search = text_input(connection_text(locale, "搜索模型提供商"), &s.catalog_query)
@@ -191,10 +196,6 @@ pub fn view_overlays<'a>(app: &'a App, dialog: Element<'a, Message>) -> Element<
             .into()
     };
 
-    let search = settings_control_with_hint(
-        search,
-        connection_text(locale, "按 provider 名称或 provider ID 快速定位可用目录。"),
-    );
     let card = settings_modal_card(column![header, search, body].spacing(14).height(Length::Fill))
         .width(Length::Fixed(900.0))
         .height(Length::Fixed(520.0));

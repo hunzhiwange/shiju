@@ -3,7 +3,7 @@
 //! 请求头和模型集合包含空集与多项数据，用于确认动态编辑行按配置数量生成。
 
 use crate::app::state::{CustomProviderModelDraft, ProviderHeaderDraft};
-use crate::app::{App, Message, message};
+use crate::app::{App, Message};
 use iced::advanced::widget::Tree;
 use iced::widget::text;
 
@@ -44,25 +44,6 @@ fn overlays_build_create_modal_with_single_and_empty_collections() {
     app.provider_settings.custom.headers.clear();
     app.provider_settings.custom.models.clear();
     keep_element(super::custom_provider::view_overlays(&app, text("dialog").into()));
-}
-
-#[test]
-fn helper_rows_build_label_plain_input_and_secure_input_controls() {
-    keep_element(super::custom_provider::field_row("标签", "说明", text("control")));
-    keep_element(super::custom_provider::text_row(
-        "显示名称",
-        "展示给用户的 provider 名称。",
-        "我是 AI 提供商",
-        "Local AI",
-        |v| Message::Settings(message::SettingsMessage::CustomProviderNameChanged(v)),
-    ));
-    keep_element(super::custom_provider::secure_text_row(
-        "API Key",
-        "可选默认密钥；填写后会作为 Authorization 头使用。",
-        "sk-...",
-        "test-key",
-        |v| Message::Settings(message::SettingsMessage::CustomProviderApiKeyChanged(v)),
-    ));
 }
 
 #[test]

@@ -1,4 +1,4 @@
-use super::{catalog, connect, connected};
+use super::{catalog, connect, connected, custom_provider};
 use crate::app::message::SettingsMessage;
 use crate::app::state::{ModelCatalogEntry, ProviderConnectState, ProviderSummary};
 use crate::app::{App, Message};
@@ -84,6 +84,261 @@ fn capture(
 }
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 1)]
+async fn help_rollout_05_renders_contextual_help() {
+    use crate::app::state::CustomProviderTab;
+
+    let mut renderer = renderer().await;
+    let mut app = fixture();
+    for (locale, theme, mode) in [
+        (DesktopLocale::English, Theme::Light, "en-light"),
+        (DesktopLocale::SimplifiedChinese, Theme::Dark, "zh-dark"),
+        (DesktopLocale::TraditionalChinese, Theme::Light, "zh-hant-light"),
+    ] {
+        app.desktop_locale = locale;
+        app.app_theme = theme.clone();
+        assert_help(connected::view(&app), &mut renderer, &theme, Size::new(560, 940), 5, mode);
+
+        app.provider_settings.catalog_open = true;
+        assert_help(
+            catalog::view_overlays(&app, background()),
+            &mut renderer,
+            &theme,
+            Size::new(420, 620),
+            1,
+            &format!("catalog-{mode}"),
+        );
+        app.provider_settings.catalog_open = false;
+
+        app.provider_settings.connect_modal = Some(ProviderConnectState {
+            provider_id: "fixture".into(),
+            provider_name: "Fixture 提供商".into(),
+            api_key: "secret-fixture".into(),
+        });
+        app.provider_settings.connect_error = Some("Fixture credential error".into());
+        assert_help(
+            connect::view_overlays(&app, background()),
+            &mut renderer,
+            &theme,
+            Size::new(320, 440),
+            1,
+            &format!("connect-{mode}"),
+        );
+        app.provider_settings.connect_modal = None;
+
+        app.provider_settings.custom_provider_modal_open = true;
+        app.provider_settings.custom.provider_id = "fixture".into();
+        app.provider_settings.custom.base_url = "https://private-fixture.invalid/v1".into();
+        app.provider_settings.custom.api_key = "secret-fixture".into();
+        for (tab, count) in [
+            (CustomProviderTab::Basic, 4),
+            (CustomProviderTab::Authentication, 4),
+            (CustomProviderTab::Models, 4),
+        ] {
+            app.provider_settings.custom_provider_tab = tab;
+            assert_help(
+                custom_provider::view_overlays(&app, background()),
+                &mut renderer,
+                &theme,
+                Size::new(420, 620),
+                count,
+                &format!("custom-{tab:?}-{mode}"),
+            );
+        }
+        app.provider_settings.custom_editing_provider_id = Some("fixture".into());
+        app.provider_settings.custom_provider_tab = CustomProviderTab::Basic;
+        assert_help(
+            custom_provider::view_overlays(&app, background()),
+            &mut renderer,
+            &theme,
+            Size::new(420, 620),
+            4,
+            &format!("edit-{mode}"),
+        );
+        app.provider_settings.custom_editing_provider_id = None;
+        app.provider_settings.custom_provider_modal_open = false;
+    }
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 1)]
+async fn help_rollout_05_keeps_credentials_and_validation_outside_help() {
+    use crate::app::i18n::settings_models::connection_text::text as tr;
+    use crate::app::message::ViewMessage;
+
+    let mut renderer = renderer().await;
+    let mut app = fixture();
+    app.app_theme = Theme::Light;
+    app.provider_settings.connect_modal = Some(ProviderConnectState {
+        provider_id: "fixture-private-id".into(),
+        provider_name: "Fixture Private Provider".into(),
+        api_key: "fixture-private-key".into(),
+    });
+
+    let mut scene = Scene::new(
+        connect::view_overlays(&app, background()),
+        &mut renderer,
+        Size::new(700.0, 620.0),
+    );
+    let icon = scene.bounds(&modal_path(&[1, 0, 0, 0, 0, 1]));
+    assert!(scene.click(&mut renderer, icon.center()).is_empty());
+    let card_text = Point::new(icon.x + icon.width + 4.0 + 18.0, icon.y + 16.0);
+    let menu_row_height =
+        f32::from(iced::advanced::text::LineHeight::default().to_absolute(12.0.into())) + 10.0;
+    let menu_item = |row: f32| {
+        Point::new(card_text.x + 24.0, card_text.y + 3.0 + menu_row_height * (row + 0.5))
+    };
+    let description = tr(app.desktop_locale, "录入并保存当前 Provider 的 API 密钥。");
+    let expected_url =
+        format!("https://www.google.com/search?q={}", urlencoding::encode(description));
+    for (row, copy) in [(0.0, true), (3.0, false)] {
+        assert!(
+            scene
+                .send(
+                    &mut renderer,
+                    &[Event::Mouse(mouse::Event::ButtonPressed(mouse::Button::Right))],
+                    card_text,
+                )
+                .is_empty(),
+            "opening the menu has no external action"
+        );
+        let messages = scene.click(&mut renderer, menu_item(row));
+        assert!(match messages.as_slice() {
+            [Message::CopyCode(text)] if copy => text == description,
+            [Message::View(ViewMessage::OpenUrlExternal(url))] if !copy => url == &expected_url,
+            _ => false,
+        });
+    }
+    assert!(scene.send(&mut renderer, &[key(Named::Escape)], icon.center()).is_empty());
+    drop(scene);
+
+    app.provider_settings.connect_modal.as_mut().unwrap().api_key.clear();
+    let mut scene = Scene::new(
+        connect::view_overlays(&app, background()),
+        &mut renderer,
+        Size::new(420.0, 440.0),
+    );
+    let save = scene.bounds(&modal_path(&[2, 0, 1])).center();
+    let messages = scene.click(&mut renderer, save);
+    assert!(matches!(
+        messages.as_slice(),
+        [Message::Settings(SettingsMessage::ProviderConnectSubmit)]
+    ));
+    drop(scene);
+    for message in messages {
+        let _ = app.update(message);
+    }
+    assert_eq!(
+        app.provider_settings.connect_error.as_ref().unwrap().display(app.desktop_locale),
+        tr(app.desktop_locale, "请输入 API 密钥")
+    );
+    assert!(app.provider_settings.connect_modal.is_some());
+
+    app.provider_settings.connect_modal = None;
+    app.provider_settings.custom_provider_modal_open = true;
+    for (id, editing, expected_error) in [
+        ("INVALID", None, "提供商 ID 仅支持小写字母、数字、连字符或下划线"),
+        ("fixture", Some("fixture".into()), "基础 URL 不能为空"),
+    ] {
+        app.provider_settings.custom.provider_id = id.into();
+        app.provider_settings.custom.base_url.clear();
+        app.provider_settings.custom_editing_provider_id = editing;
+        let mut scene = Scene::new(
+            custom_provider::view_overlays(&app, background()),
+            &mut renderer,
+            Size::new(420.0, 620.0),
+        );
+        let save = scene.bounds(&modal_path(&[2, 2])).center();
+        let messages = scene.click(&mut renderer, save);
+        assert!(matches!(
+            messages.as_slice(),
+            [Message::Settings(SettingsMessage::CustomProviderSave)]
+        ));
+        drop(scene);
+        for message in messages {
+            let _ = app.update(message);
+        }
+        assert_eq!(
+            app.provider_settings.save_error.as_ref().unwrap().display(app.desktop_locale),
+            tr(app.desktop_locale, expected_error)
+        );
+        assert!(app.provider_settings.custom_provider_modal_open);
+    }
+    app.provider_settings.custom_models_discovering = true;
+    let mut scene = Scene::new(
+        custom_provider::view_overlays(&app, background()),
+        &mut renderer,
+        Size::new(420.0, 620.0),
+    );
+    let save = scene.bounds(&modal_path(&[2, 2])).center();
+    let cancel = scene.bounds(&modal_path(&[2, 1])).center();
+    assert!(scene.click(&mut renderer, save).is_empty());
+    assert!(matches!(
+        scene.click(&mut renderer, cancel).as_slice(),
+        [Message::Settings(SettingsMessage::CustomProviderClose)]
+    ));
+}
+
+fn assert_help(
+    element: Element<'_, Message>,
+    renderer: &mut Renderer,
+    theme: &Theme,
+    size: Size<u32>,
+    count: usize,
+    name: &str,
+) {
+    fn collect_icons(layout: Layout<'_>, icons: &mut Vec<Rectangle>) {
+        let bounds = layout.bounds();
+        if bounds.size() == Size::new(22.0, 22.0) && !icons.contains(&bounds) {
+            icons.push(bounds);
+        }
+        for child in layout.children() {
+            collect_icons(child, icons);
+        }
+    }
+
+    let mut scene = Scene::new(element, renderer, Size::new(size.width as f32, size.height as f32));
+    let mut icons = Vec::new();
+    collect_icons(Layout::new(&scene.layout), &mut icons);
+    assert_eq!(icons.len(), count, "{name} contextual help targets");
+    let frame = |scene: &mut Scene<'_>, renderer: &mut Renderer, cursor, suffix: &str| {
+        scene.draw(renderer, theme, cursor);
+        let pixels = renderer.screenshot(size, 1.0, theme.palette().background);
+        if let Some(directory) = std::env::var_os("SHIJU_SETTINGS_PREVIEW_DIR") {
+            image::save_buffer(
+                std::path::PathBuf::from(directory).join(format!("help-05-{name}-{suffix}.png")),
+                &pixels,
+                size.width,
+                size.height,
+                image::ColorType::Rgba8,
+            )
+            .unwrap();
+        }
+        pixels
+    };
+    let idle = frame(&mut scene, renderer, mouse::Cursor::Unavailable, "idle");
+    for (index, icon) in icons.into_iter().enumerate() {
+        let point = icon.center();
+        assert!(point.x >= 0.0 && point.x <= size.width as f32, "{name} icon in window");
+        assert!(
+            scene
+                .send(
+                    renderer,
+                    &[Event::Mouse(mouse::Event::CursorMoved { position: point })],
+                    point
+                )
+                .is_empty()
+        );
+        let open =
+            frame(&mut scene, renderer, mouse::Cursor::Available(point), &format!("open-{index}"));
+        assert!(idle != open, "{name} icon {index} opens a rendered help card");
+        assert!(scene.send(renderer, &[key(Named::Escape)], point).is_empty());
+        assert!(
+            idle == frame(&mut scene, renderer, mouse::Cursor::Unavailable, "dismissed"),
+            "{name} icon {index} dismisses without changing the parent",
+        );
+    }
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 1)]
 async fn ui_refresh_08_layout_and_interaction() {
     let mut renderer = renderer().await;
     let mut app = fixture();
@@ -165,9 +420,9 @@ async fn ui_refresh_08_layout_and_interaction() {
         &mut renderer,
         Size::new(420.0, 620.0),
     );
-    let search = scene.bounds(&modal_path(&[1, 0]));
+    let search = scene.bounds(&modal_path(&[1]));
     assert!(search.width >= 340.0);
-    let search_text = scene.bounds(&modal_path(&[1, 0, 0]));
+    let search_text = scene.bounds(&modal_path(&[1, 0]));
     assert!((search.center().y - search_text.center().y).abs() < 0.5);
     assert!(scene.click(&mut renderer, search.center()).is_empty());
     assert!(matches!(

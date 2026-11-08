@@ -12,17 +12,19 @@
 //! - 提供表单验证和错误提示
 
 use super::custom_model_modal::{
-    custom_modal_card_style, custom_modal_heading, custom_segment_style,
+    custom_modal_card_style, custom_segment_style, responsive_field_with_help, stacked_field_row,
+    text_row,
 };
-pub(super) use super::custom_model_modal::{field_row, text_row};
 use crate::app::assets::Icon;
 use crate::app::components::system_settings_common::{
     icon_btn, primary_action_btn_style, rounded_action_btn_style, settings_close_button,
-    settings_divider, settings_error_banner, settings_group_card, settings_group_heading,
-    settings_modal_header, settings_modal_layout, settings_modal_overlay,
-    settings_muted_text_style, settings_responsive_row, settings_tab_button, settings_tab_row,
-    settings_text_input, settings_toggle, settings_value_badge,
+    settings_divider, settings_error_banner, settings_field_label, settings_group_card,
+    settings_group_heading_with_help, settings_hover_help_label, settings_modal_header,
+    settings_modal_layout, settings_modal_overlay, settings_muted_text_style,
+    settings_responsive_row, settings_tab_button, settings_tab_row, settings_text_input,
+    settings_toggle, settings_value_badge,
 };
+use crate::app::i18n::I18n;
 use crate::app::i18n::settings_models::connection_text::text as connection_text;
 use crate::app::i18n::settings_models::messages::render as owned_text;
 use crate::app::state::{CustomProviderModelFilter, CustomProviderTab};
@@ -30,21 +32,6 @@ use crate::app::{App, Message, message};
 use iced::widget::text::Wrapping;
 use iced::widget::{Space, button, column, container, row, text};
 use iced::{Alignment, Element, Length};
-
-pub(super) fn secure_text_row<'a>(
-    label: &'a str,
-    description: &'a str,
-    placeholder: &'a str,
-    value: &'a str,
-    on_input: impl Fn(String) -> Message + Clone + 'a,
-) -> Element<'a, Message> {
-    settings_responsive_row(label, description, move || {
-        settings_text_input(placeholder, value)
-            .secure(true)
-            .on_input(on_input.clone())
-            .width(Length::Fill)
-    })
-}
 
 fn provider_tab_button(
     label: &'static str,
@@ -114,27 +101,27 @@ pub fn view_overlays<'a>(app: &'a App, dialog: Element<'a, Message>) -> Element<
         let close_message = Message::Settings(message::SettingsMessage::CustomProviderClose);
         let close_btn = settings_close_button(close_message.clone());
 
+        let locale = app.desktop_locale;
+        let i18n = I18n::new(locale);
+        let theme = &app.app_theme;
+        let title = connection_text(locale, if is_editing { "编辑提供商" } else { "自定义提供商" });
+        let description = connection_text(
+            locale,
+            if is_editing {
+                "调整现有 provider 的连接地址、默认鉴权信息和模型列表。"
+            } else {
+                "按 base URL 接入一个与 OpenAI 兼容的 provider；模型可稍后配置。"
+            },
+        );
         let header_row = settings_modal_header(
-            custom_modal_heading(
-                if is_editing {
-                    connection_text(app.desktop_locale, "编辑提供商")
-                } else {
-                    connection_text(app.desktop_locale, "自定义提供商")
-                },
-                if is_editing {
-                    connection_text(
-                        app.desktop_locale,
-                        "调整现有 provider 的连接地址、默认鉴权信息和模型列表。",
-                    )
-                } else {
-                    connection_text(
-                        app.desktop_locale,
-                        "按 base URL 接入一个与 OpenAI 兼容的 provider；模型可稍后配置。",
-                    )
-                },
-            ),
+            settings_hover_help_label(i18n, theme, title, text(title).size(20), description).wrap(),
             close_btn,
         );
+
+        let field_label = |label, description| {
+            settings_hover_help_label(i18n, theme, label, settings_field_label(label), description)
+                .wrap()
+        };
 
         let provider_id_row = if is_editing {
             settings_responsive_row(
@@ -158,23 +145,35 @@ pub fn view_overlays<'a>(app: &'a App, dialog: Element<'a, Message>) -> Element<
             )
         };
 
-        let display_name_row = text_row(
-            connection_text(app.desktop_locale, "显示名称"),
-            connection_text(app.desktop_locale, "展示给用户的 provider 名称。"),
-            connection_text(app.desktop_locale, "我是 AI 提供商"),
-            &s.custom.display_name,
-            |v| Message::Settings(message::SettingsMessage::CustomProviderNameChanged(v)),
+        let display_name_row = responsive_field_with_help(
+            app,
+            connection_text(locale, "显示名称"),
+            connection_text(locale, "展示给用户的 provider 名称。"),
+            move || {
+                settings_text_input(
+                    connection_text(locale, "我是 AI 提供商"),
+                    &s.custom.display_name,
+                )
+                .on_input(|value| {
+                    Message::Settings(message::SettingsMessage::CustomProviderNameChanged(value))
+                })
+                .width(Length::Fill)
+            },
         );
 
-        let base_url_row = text_row(
-            connection_text(app.desktop_locale, "基础 URL"),
-            connection_text(
-                app.desktop_locale,
-                "OpenAI 兼容 API 根地址，例如 https://api.example.com/v1。",
-            ),
-            "https://api.example.com/v1",
-            &s.custom.base_url,
-            |v| Message::Settings(message::SettingsMessage::CustomProviderBaseUrlChanged(v)),
+        let base_url_row = responsive_field_with_help(
+            app,
+            connection_text(locale, "基础 URL"),
+            connection_text(locale, "OpenAI 兼容 API 根地址，例如 https://api.example.com/v1。"),
+            || {
+                settings_text_input("https://api.example.com/v1", &s.custom.base_url)
+                    .on_input(|value| {
+                        Message::Settings(message::SettingsMessage::CustomProviderBaseUrlChanged(
+                            value,
+                        ))
+                    })
+                    .width(Length::Fill)
+            },
         );
 
         let api_key_row = if crate::app::state::is_shiju_official_provider_id(&s.custom.provider_id)
@@ -191,15 +190,25 @@ pub fn view_overlays<'a>(app: &'a App, dialog: Element<'a, Message>) -> Element<
                 },
             )
         } else {
-            secure_text_row(
+            responsive_field_with_help(
+                app,
                 "API Key",
-                connection_text(
-                    app.desktop_locale,
-                    "可选默认密钥；填写后会作为 Authorization 头使用。",
-                ),
-                "sk-...",
-                &s.custom.api_key,
-                |v| Message::Settings(message::SettingsMessage::CustomProviderApiKeyChanged(v)),
+                connection_text(locale, "可选默认密钥；填写后会作为 Authorization 头使用。"),
+                move || {
+                    column![
+                        settings_text_input("sk-...", &s.custom.api_key)
+                            .secure(true)
+                            .on_input(|value| Message::Settings(
+                                message::SettingsMessage::CustomProviderApiKeyChanged(value)
+                            ))
+                            .width(Length::Fill),
+                        text(connection_text(locale, "可选"))
+                            .size(12)
+                            .style(settings_muted_text_style),
+                    ]
+                    .spacing(6)
+                    .width(Length::Fill)
+                },
             )
         };
 
@@ -255,11 +264,13 @@ pub fn view_overlays<'a>(app: &'a App, dialog: Element<'a, Message>) -> Element<
             );
         }
 
-        let headers_row = field_row(
-            connection_text(app.desktop_locale, "请求头"),
-            connection_text(
-                app.desktop_locale,
-                "为特殊鉴权场景补充额外 header，例如代理网关或自定义令牌头。",
+        let headers_row = stacked_field_row(
+            field_label(
+                connection_text(locale, "请求头"),
+                connection_text(
+                    locale,
+                    "为特殊鉴权场景补充额外 header，例如代理网关或自定义令牌头。",
+                ),
             ),
             headers_controls,
         );
@@ -320,19 +331,23 @@ pub fn view_overlays<'a>(app: &'a App, dialog: Element<'a, Message>) -> Element<
         .wrap();
 
         let mut models_panel = column![
-            field_row(
-                connection_text(app.desktop_locale, "模型"),
-                connection_text(
-                    app.desktop_locale,
-                    "可留空，或自动发现该 provider 的模型；也可手动添加并启用/禁用。"
+            stacked_field_row(
+                field_label(
+                    connection_text(locale, "模型"),
+                    connection_text(
+                        locale,
+                        "可留空，或自动发现该 provider 的模型；也可手动添加并启用/禁用。"
+                    ),
                 ),
                 model_actions,
             ),
             settings_divider(),
-            field_row(
-                connection_text(app.desktop_locale, "过滤"),
-                connection_text(app.desktop_locale, "按启用状态筛选模型列表。"),
-                filter_row
+            stacked_field_row(
+                field_label(
+                    connection_text(locale, "过滤"),
+                    connection_text(locale, "按启用状态筛选模型列表。"),
+                ),
+                filter_row,
             ),
         ]
         .spacing(0);
@@ -441,7 +456,9 @@ pub fn view_overlays<'a>(app: &'a App, dialog: Element<'a, Message>) -> Element<
         }
 
         let basic_tab = column![
-            settings_group_heading(
+            settings_group_heading_with_help(
+                i18n,
+                theme,
                 connection_text(app.desktop_locale, "基础信息"),
                 connection_text(
                     app.desktop_locale,
@@ -461,7 +478,9 @@ pub fn view_overlays<'a>(app: &'a App, dialog: Element<'a, Message>) -> Element<
         ]
         .spacing(16);
         let authentication_tab = column![
-            settings_group_heading(
+            settings_group_heading_with_help(
+                i18n,
+                theme,
                 connection_text(app.desktop_locale, "认证与请求头"),
                 connection_text(
                     app.desktop_locale,
@@ -472,7 +491,9 @@ pub fn view_overlays<'a>(app: &'a App, dialog: Element<'a, Message>) -> Element<
         ]
         .spacing(16);
         let models_tab = column![
-            settings_group_heading(
+            settings_group_heading_with_help(
+                i18n,
+                theme,
                 connection_text(app.desktop_locale, "模型"),
                 connection_text(
                     app.desktop_locale,

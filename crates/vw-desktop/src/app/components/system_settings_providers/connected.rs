@@ -11,9 +11,10 @@
 use crate::app::components::system_settings_common::{
     SETTINGS_CONTROL_TEXT_SIZE, danger_action_btn_style, primary_action_btn_style,
     provider_logo_svg, rounded_action_btn_style, settings_divider, settings_group_card,
-    settings_group_heading, settings_muted_text_style, settings_page_heading, settings_panel,
-    settings_value_badge,
+    settings_group_heading_with_help, settings_hover_help_label, settings_muted_text_style,
+    settings_page_heading_with_help, settings_panel, settings_value_badge,
 };
+use crate::app::i18n::I18n;
 use crate::app::i18n::settings_models::connection_text::text as connection_text;
 use crate::app::i18n::settings_models::messages::render as owned_text;
 use crate::app::state::{
@@ -35,20 +36,21 @@ pub(super) fn provider_item_row<'a>(
     let logo_id = logo_id.into();
     let title = title.into();
     let description = description.into();
+    let mut labels = column![text(title).size(15).wrapping(Wrapping::WordOrGlyph)].spacing(5);
+    if !description.is_empty() {
+        labels = labels.push(
+            text(description)
+                .size(12)
+                .wrapping(Wrapping::WordOrGlyph)
+                .style(settings_muted_text_style),
+        );
+    }
 
     container(
         row![
             row![
                 container(provider_logo_svg(&logo_id, 18.0)).center_x(32).center_y(32),
-                column![
-                    text(title).size(15).wrapping(Wrapping::WordOrGlyph),
-                    text(description)
-                        .size(12)
-                        .wrapping(Wrapping::WordOrGlyph)
-                        .style(settings_muted_text_style),
-                ]
-                .spacing(5)
-                .width(Length::Fill)
+                labels.width(Length::Fill)
             ]
             .spacing(10)
             .align_y(Alignment::Center)
@@ -143,10 +145,14 @@ pub(super) fn popular_provider_match(
 /// - 自定义区块：引导添加与 OpenAI 兼容的自定义提供商。
 pub fn view(app: &App) -> Element<'_, Message> {
     let s = &app.provider_settings;
+    let i18n = I18n::new(app.desktop_locale);
+    let theme = &app.app_theme;
     let header_busy = s.loading || s.models_syncing;
 
     let header = row![
-        container(settings_page_heading(
+        container(settings_page_heading_with_help(
+            i18n,
+            theme,
             connection_text(app.desktop_locale, "模型提供商"),
             connection_text(app.desktop_locale, "统一管理已连接、热门和自定义的模型提供商入口。"),
         ))
@@ -206,7 +212,9 @@ pub fn view(app: &App) -> Element<'_, Message> {
         ));
     }
 
-    root = root.push(settings_group_heading(
+    root = root.push(settings_group_heading_with_help(
+        i18n,
+        theme,
         connection_text(app.desktop_locale, "已连接的提供商"),
         connection_text(
             app.desktop_locale,
@@ -312,7 +320,9 @@ pub fn view(app: &App) -> Element<'_, Message> {
         root = root.push(settings_group_card(connected_panel));
     }
 
-    root = root.push(settings_group_heading(
+    root = root.push(settings_group_heading_with_help(
+        i18n,
+        theme,
         connection_text(app.desktop_locale, "热门提供商"),
         connection_text(
             app.desktop_locale,
@@ -403,19 +413,21 @@ pub fn view(app: &App) -> Element<'_, Message> {
         ));
     }
 
+    let discover_title = connection_text(app.desktop_locale, "发现更多提供商");
     let popular_action = settings_panel(
         row![
-            column![
-                text(connection_text(app.desktop_locale, "发现更多提供商")).size(13),
-                text(connection_text(
+            settings_hover_help_label(
+                i18n,
+                theme,
+                discover_title,
+                text(discover_title).size(13),
+                connection_text(
                     app.desktop_locale,
                     "从模型目录中浏览更多 provider，并快速加入热门或直接连接。"
-                ))
-                .size(12)
-                .style(settings_muted_text_style),
-            ]
-            .spacing(4)
-            .width(Length::Fill),
+                ),
+            )
+            .width(Length::Fill)
+            .wrap(),
             button(
                 text(connection_text(app.desktop_locale, "更多模型提供商"))
                     .size(SETTINGS_CONTROL_TEXT_SIZE)
@@ -431,14 +443,16 @@ pub fn view(app: &App) -> Element<'_, Message> {
     root = root.push(settings_group_card(popular_panel));
     root = root.push(popular_action);
 
-    root = root.push(settings_group_heading(
+    root = root.push(settings_group_heading_with_help(
+        i18n,
+        theme,
         connection_text(app.desktop_locale, "自定义提供商"),
         connection_text(app.desktop_locale, "按 base URL 接入 OpenAI 兼容 provider。"),
     ));
     root = root.push(settings_group_card(provider_item_row(
         "agent",
         connection_text(app.desktop_locale, "OpenAI 兼容 provider"),
-        connection_text(app.desktop_locale, "添加一个自定义 provider，并在后续编辑连接参数。"),
+        "",
         row![
             button(
                 text(connection_text(app.desktop_locale, "添加提供商"))

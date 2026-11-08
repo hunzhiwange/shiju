@@ -20,14 +20,16 @@
 //! [可选详细描述]
 //! ```
 
-use iced::widget::{button, column, container, pick_list, row, svg, text, text_editor, text_input};
+use iced::advanced::widget::operation::{focusable, scope};
+use iced::advanced::widget::{Id, operate};
+use iced::widget::{button, column, container, row, svg, text};
 use iced::{Alignment, Border, Color, Element, Length, Theme};
 
 use crate::app::assets::Icon;
 use crate::app::components::status_animation::spinner_frame;
 use crate::app::components::system_settings_common::{
-    icon_svg, settings_muted_text_style, settings_panel_style, settings_pick_list_menu_style,
-    settings_pick_list_style, settings_text_editor_style, settings_text_input_style,
+    icon_svg, settings_muted_text_style, settings_panel_style, settings_select,
+    settings_text_editor, settings_text_input,
 };
 use crate::app::state::ConventionalCommitType;
 use crate::app::{App, Message, message};
@@ -35,6 +37,17 @@ use crate::app::{App, Message, message};
 use super::ui::{
     disabled_square_content_button_tiny, disabled_square_icon_button_tiny, square_icon_button_tiny,
 };
+
+const COMMIT_FOCUS_SCOPE: &str = "git-commit-form";
+
+pub(crate) fn traverse_commit_focus(reverse: bool) -> iced::Task<Message> {
+    let id = Id::from(COMMIT_FOCUS_SCOPE);
+    if reverse {
+        operate(scope(id, focusable::focus_previous::<()>())).discard()
+    } else {
+        operate(scope(id, focusable::focus_next::<()>())).discard()
+    }
+}
 
 pub(super) const COMMIT_HELP_TITLE: &str = "约定式提交";
 
@@ -202,68 +215,29 @@ pub fn view(app: &App) -> Element<'_, Message> {
         "快速填写摘要并提交当前已选变更。"
     };
 
-    // 构建摘要输入区域，根据模式决定显示完整表单还是简化输入框
-    let summary_input: Option<Element<'_, Message>> = if app.show_git_diff_summary {
-        // 约定式提交模式：显示类型选择器、作用域输入和摘要输入
-        let commit_type_pick = pick_list(ConventionalCommitType::all(), app.git_commit_type, |t| {
-            Message::Git(message::GitMessage::CommitTypeSelected(t))
+    let i18n = crate::app::i18n::I18n::new(app.desktop_locale);
+    let type_and_scope = app.show_git_diff_summary.then(|| {
+        let commit_type_pick =
+            settings_select(ConventionalCommitType::all(), app.git_commit_type, |commit_type| {
+                Message::Git(message::GitMessage::CommitTypeSelected(commit_type))
+            })
+            .placeholder(i18n.__("类型（必选）"))
+            .width(Length::Fixed(148.0));
+        let scope = settings_text_input(i18n.__("scope（可选）"), &app.git_commit_scope)
+            .on_input(|value| Message::Git(message::GitMessage::CommitScopeChanged(value)))
+            .width(Length::Fill);
+        row![commit_type_pick, scope].spacing(8).align_y(Alignment::Center)
+    });
+
+    let summary_input = settings_text_input(i18n.__("摘要（Summary）"), &app.git_commit_message)
+        .on_input(|value| Message::Git(message::GitMessage::CommitMessageChanged(value)))
+        .width(Length::Fill);
+    let desc_input = settings_text_editor(&app.git_commit_description_editor)
+        .placeholder(i18n.__("描述（可选）"))
+        .on_action(|action| {
+            Message::Git(message::GitMessage::CommitDescriptionEditorAction(action))
         })
-        .placeholder(crate::app::i18n::I18n::new(app.desktop_locale).__("类型（必选）"))
-        .text_size(13)
-        .padding([10, 12])
-        .style(settings_pick_list_style)
-        .menu_style(settings_pick_list_menu_style)
-        .width(Length::Fixed(110.0));
-        Some(
-            row![
-                commit_type_pick,
-                text_input(
-                    crate::app::i18n::I18n::new(app.desktop_locale).__("scope（可选）"),
-                    &app.git_commit_scope
-                )
-                .on_input(|v| Message::Git(message::GitMessage::CommitScopeChanged(v)))
-                .padding([10, 12])
-                .size(13)
-                .style(settings_text_input_style)
-                .width(Length::Fixed(120.0)),
-                text_input(
-                    crate::app::i18n::I18n::new(app.desktop_locale).__("摘要（Summary）"),
-                    &app.git_commit_message
-                )
-                .on_input(|v| Message::Git(message::GitMessage::CommitMessageChanged(v)))
-                .padding([10, 12])
-                .size(13)
-                .style(settings_text_input_style)
-                .width(Length::Fill),
-            ]
-            .spacing(8)
-            .align_y(Alignment::Center)
-            .into(),
-        )
-    } else {
-        // 简化模式：仅显示摘要输入框
-        Some(
-            text_input(
-                crate::app::i18n::I18n::new(app.desktop_locale).__("摘要（Summary）"),
-                &app.git_commit_message,
-            )
-            .on_input(|v| Message::Git(message::GitMessage::CommitMessageChanged(v)))
-            .padding([10, 12])
-            .size(13)
-            .style(settings_text_input_style)
-            .width(Length::Fill)
-            .into(),
-        )
-    };
-    // 构建描述编辑器，支持多行文本输入
-    // 固定高度为 2 行（每行约 22 像素），提供简洁的描述输入体验
-    let desc_input = text_editor(&app.git_commit_description_editor)
-        .placeholder(crate::app::i18n::I18n::new(app.desktop_locale).__("描述（可选）"))
-        .on_action(|a| Message::Git(message::GitMessage::CommitDescriptionEditorAction(a)))
-        .padding([10, 12])
-        .size(13.0)
-        .height(Length::Fixed(88.0))
-        .style(settings_text_editor_style);
+        .height(Length::Fixed(88.0));
 
     let commit_state = commit_panel_state(app);
 
@@ -336,10 +310,10 @@ pub fn view(app: &App) -> Element<'_, Message> {
     .center_y(Length::Shrink);
 
     let mut form_col = column![header_block].spacing(12);
-    if let Some(summary_input) = summary_input {
-        form_col = form_col.push(summary_input);
+    if let Some(type_and_scope) = type_and_scope {
+        form_col = form_col.push(type_and_scope);
     }
-    form_col = form_col.push(
+    form_col = form_col.push(summary_input).push(
         column![
             text(crate::app::i18n::I18n::new(app.desktop_locale).__("详细描述"))
                 .size(11)
@@ -367,5 +341,10 @@ pub fn view(app: &App) -> Element<'_, Message> {
     .spacing(12);
 
     // 包装为容器并应用最终样式，返回完整的面板元素
-    container(col).width(Length::Fill).padding([14, 16]).style(settings_panel_style).into()
+    container(col)
+        .id(COMMIT_FOCUS_SCOPE)
+        .width(Length::Fill)
+        .padding([14, 16])
+        .style(settings_panel_style)
+        .into()
 }

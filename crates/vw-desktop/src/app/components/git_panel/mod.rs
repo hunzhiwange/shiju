@@ -66,6 +66,7 @@ mod ui_tests;
 #[path = "utils_tests.rs"]
 mod utils_tests;
 
+pub(crate) use left_panel::traverse_commit_focus;
 pub use ops::{DiffFileMeta, checkout_branch, current_branch, list_branches, open_terminal};
 
 pub(crate) fn diff_comment_modal<'a>(app: &'a App) -> Option<Element<'a, Message>> {

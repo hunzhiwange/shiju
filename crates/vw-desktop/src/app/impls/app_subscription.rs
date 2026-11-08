@@ -142,7 +142,7 @@ fn map_global_event(
             if matches!(key, iced::keyboard::Key::Named(iced::keyboard::key::Named::Tab))
                 && (modifiers - iced::keyboard::Modifiers::SHIFT).is_empty()
             {
-                return Some(Message::View(message::ViewMessage::TraverseSettingsFocus(
+                return Some(Message::View(message::ViewMessage::TraverseFormFocus(
                     id,
                     modifiers.shift(),
                 )));

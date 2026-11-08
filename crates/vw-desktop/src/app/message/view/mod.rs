@@ -430,7 +430,7 @@ pub enum ViewMessage {
     WindowMoved(iced::window::Id, f32, f32),
     /// 全局未捕获键盘按下事件
     GlobalKeyPressed(iced::keyboard::Key, iced::keyboard::Modifiers),
-    TraverseSettingsFocus(iced::window::Id, bool),
+    TraverseFormFocus(iced::window::Id, bool),
     /// 返回首页
     GoHome,
     /// 选择应用主题
@@ -706,12 +706,22 @@ pub fn update(app: &mut App, message: ViewMessage) -> Task<Message> {
         #[cfg(not(target_arch = "wasm32"))]
         msg @ ViewMessage::AppUpdatePrepared(_) => panel::update(app, msg),
         ViewMessage::GlobalKeyPressed(key, modifiers) => handle_global_key(app, key, modifiers),
-        ViewMessage::TraverseSettingsFocus(window, reverse) => {
-            if app.show_system_settings
-                && app.task_pet_window_id != Some(window)
-                && app.main_window_id.is_none_or(|id| id == window)
+        ViewMessage::TraverseFormFocus(window, reverse) => {
+            if app.task_pet_window_id == Some(window)
+                || app.main_window_id.is_some_and(|id| id != window)
             {
+                Task::none()
+            } else if app.show_system_settings {
                 crate::app::components::system_settings::traverse_select_focus(reverse)
+            } else if app.file_manager_show_changes
+                && app.show_git_diff_summary
+                && !app.show_git_commit_help_modal
+                && !app.show_git_filter_help_modal
+                && !app.show_git_custom_diff_modal
+                && !app.show_git_copy_modal
+                && app.file_to_discard.is_none()
+            {
+                crate::app::components::git_panel::traverse_commit_focus(reverse)
             } else {
                 Task::none()
             }

@@ -60,6 +60,10 @@ pub(crate) use messages::{
     ThemeColorPickerTarget, ThemePaletteField, ThemesMessage, TunnelMessage, WebSearchMessage,
 };
 
+pub(crate) use projects::set_worktree_enabled;
+#[cfg(not(target_arch = "wasm32"))]
+pub(crate) use projects::wait_for_worktree_saves;
+
 pub(crate) fn reload_agents_config_task(project_path: Option<String>) -> Task<Message> {
     agents::config_task(project_path)
 }
@@ -285,7 +289,8 @@ pub fn update(app: &mut App, message: SettingsMessage) -> Task<Message> {
         | SettingsMessage::RecentProjectDeleteRequested(_)
         | SettingsMessage::RecentProjectDeleteCanceled
         | SettingsMessage::RecentProjectDeleteConfirmed(_)
-        | SettingsMessage::ProjectEnableWorktreeToggled(_, _) => projects::update(app, message),
+        | SettingsMessage::ProjectEnableWorktreeToggled(_, _)
+        | SettingsMessage::ProjectWorktreeSaved(_) => projects::update(app, message),
         SettingsMessage::SessionDelete(_) | SettingsMessage::SessionCopy(_) => {
             sessions::update(app, message)
         }

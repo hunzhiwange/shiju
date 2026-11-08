@@ -5,7 +5,6 @@
 #[cfg(not(target_arch = "wasm32"))]
 use crate::app::config::set_config_field;
 use crate::app::{App, Message};
-use std::collections::HashMap;
 
 /// parse_clamped_u32 处理当前模块对应的消息或状态转换。
 ///
@@ -106,43 +105,5 @@ pub(super) fn save_config_field_task(
     value: serde_json::Value,
 ) -> iced::Task<Message> {
     set_config_field(key, value);
-    iced::Task::none()
-}
-
-#[cfg(target_arch = "wasm32")]
-/// save_project_worktree_enabled_task 处理当前模块对应的消息或状态转换。
-///
-/// 参数由调用方提供应用状态、用户输入或后台任务结果；返回值会交给上层消息循环继续处理。
-/// 变更范围限制在当前消息处理路径内，不引入额外的流程分支。
-pub(super) fn save_project_worktree_enabled_task(
-    project_worktree_enabled: HashMap<String, bool>,
-) -> iced::Task<Message> {
-    iced::Task::perform(
-        async move {
-            crate::app::config::update_system_settings_config_result_async(|system| {
-                system.project_worktree_enabled = project_worktree_enabled;
-            })
-            .await
-        },
-        |result| {
-            if let Err(error) = result {
-                tracing::warn!(target: "vw_desktop", error = %error, "failed to save project worktree system settings");
-            }
-            Message::None
-        },
-    )
-}
-
-#[cfg(not(target_arch = "wasm32"))]
-/// save_project_worktree_enabled_task 处理当前模块对应的消息或状态转换。
-///
-/// 参数由调用方提供应用状态、用户输入或后台任务结果；返回值会交给上层消息循环继续处理。
-/// 变更范围限制在当前消息处理路径内，不引入额外的流程分支。
-pub(super) fn save_project_worktree_enabled_task(
-    project_worktree_enabled: HashMap<String, bool>,
-) -> iced::Task<Message> {
-    crate::app::update_system_settings_config(|system| {
-        system.project_worktree_enabled = project_worktree_enabled;
-    });
     iced::Task::none()
 }

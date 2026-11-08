@@ -1896,6 +1896,7 @@
   "启用 Worktree": "Enable Worktree",
   "请先打开项目": "Open a project",
   "新建会话时可选工作区。": "Choose a worktree when starting a session.",
+  "Worktree 设置保存失败。": "Failed to save the Worktree setting.",
   "项目配置": "Project configuration",
   "配置项目打开入口、当前项目 Worktree 行为，以及历史项目管理。": "Configure project opening, the current project's Worktree behavior and recent projects.",
   "当前项目": "Current project",

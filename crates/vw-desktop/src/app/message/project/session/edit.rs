@@ -2,9 +2,7 @@
 //!
 //! 注释聚焦模块职责、消息边界和失败处理方式，帮助维护者在不改变逻辑的前提下理解代码。
 
-use super::common::{
-    parse_clamped_u32, parse_clamped_u64, save_project_worktree_enabled_task, trim_to_option,
-};
+use super::common::{parse_clamped_u32, parse_clamped_u64, trim_to_option};
 use crate::app::message::project::ProjectMessage;
 use crate::app::projects::{save_recent_projects_background, save_recent_projects_meta_background};
 use crate::app::{
@@ -431,14 +429,11 @@ pub(crate) fn handle(app: &mut App, message: ProjectMessage) -> Option<iced::Tas
             let start_command = trim_to_option(app.project_edit_start_script.clone());
             let final_name_for_runtime = final_name.clone();
 
-            if app.project_edit_worktree_enabled {
-                app.project_worktree_enabled.insert(path.clone(), true);
-            } else {
-                app.project_worktree_enabled.remove(&path);
-            }
-            let project_worktree_enabled = app.project_worktree_enabled.clone();
-            let save_project_worktree_task =
-                save_project_worktree_enabled_task(project_worktree_enabled);
+            let save_project_worktree_task = crate::app::message::settings::set_worktree_enabled(
+                app,
+                path.clone(),
+                app.project_edit_worktree_enabled,
+            );
 
             if let Some(idx) = app.recent_projects.iter().position(|p| p == &path)
                 && idx < app.recent_projects_edits.len()

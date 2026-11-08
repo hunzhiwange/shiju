@@ -118,6 +118,50 @@ fn delete_confirmed_removes_associated_state_and_rebuilds_display_names() {
     assert_eq!(app.recent_project_delete_confirm_idx, None);
 }
 
+#[cfg(not(target_arch = "wasm32"))]
+#[test]
+fn worktree_toggles_patch_one_project_in_click_order() {
+    use iced::futures::StreamExt;
+    use std::time::Duration;
+
+    crate::app::config::with_editor_settings_gateway(|mut app, requests, responses| {
+        let runtime = tokio::runtime::Builder::new_current_thread().enable_all().build().unwrap();
+        let path = "/workspace/project-a";
+        let enable =
+            update(&mut app, SettingsMessage::ProjectEnableWorktreeToggled(path.into(), true));
+        let disable =
+            update(&mut app, SettingsMessage::ProjectEnableWorktreeToggled(path.into(), false));
+        assert_eq!(disable.units(), 0);
+        assert!(!app.project_worktree_enabled.contains_key(path));
+        assert!(requests.try_recv().is_err());
+
+        let idle = wait_for_worktree_saves(&mut app).expect("pending saves");
+        assert!(!*idle.borrow());
+        let mut task = enable;
+        for value in [json!(true), Value::Null] {
+            responses.send(Some("null".into())).unwrap();
+            let mut stream = iced_runtime::task::into_stream(task).expect("background save");
+            let Some(iced_runtime::Action::Output(Message::Settings(saved))) =
+                runtime.block_on(stream.next())
+            else {
+                panic!("expected worktree save completion");
+            };
+            assert!(matches!(saved, SettingsMessage::ProjectWorktreeSaved(Ok(()))));
+            let request = requests.recv_timeout(Duration::from_secs(1)).unwrap();
+            assert!(request.starts_with("PATCH "));
+            let (_, body) = request.split_once("\r\n\r\n").unwrap();
+            assert_eq!(
+                serde_json::from_str::<Value>(body).unwrap(),
+                json!({"app_ui": {"system_settings": {"project_worktree_enabled": {path: value}}}})
+            );
+            task = update(&mut app, saved);
+        }
+        assert_eq!(task.units(), 0);
+        assert!(!app.project_worktree_save_running);
+        assert!(*idle.borrow());
+    });
+}
+
 // 失败与边界：覆盖非法、缺失、过期或冲突场景的既定处理规则。
 // 重点确认现有状态与错误反馈不会被意外的部分更新污染。
 #[test]

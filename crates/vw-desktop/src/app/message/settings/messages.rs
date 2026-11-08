@@ -887,6 +887,7 @@ pub enum SettingsMessage {
     RecentProjectDeleteCanceled,
     RecentProjectDeleteConfirmed(usize),
     ProjectEnableWorktreeToggled(String, bool),
+    ProjectWorktreeSaved(Result<(), String>),
     SessionDelete(String),
     SessionCopy(String),
     DialogueFlowPermissionRefresh,

@@ -673,6 +673,10 @@ impl App {
             new_session_creating: false,
             new_session_picker_options: Vec::new(),
             project_worktree_enabled: cfg_project_worktree_enabled,
+            project_worktree_save_queue: Default::default(),
+            project_worktree_save_running: false,
+            #[cfg(not(target_arch = "wasm32"))]
+            project_worktree_save_idle: None,
             new_session_last_directory: cfg_new_session_last_directory,
             new_session_worktree_name: String::new(),
             new_session_confirm_delete_directory: None,

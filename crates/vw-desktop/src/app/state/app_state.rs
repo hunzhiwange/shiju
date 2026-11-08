@@ -546,6 +546,12 @@ pub struct App {
     pub(crate) new_session_picker_options: Vec<(String, String)>,
     /// 项目 worktree 启用状态映射
     pub(crate) project_worktree_enabled: HashMap<String, bool>,
+    /// 等待保存的 Worktree 更改，按操作顺序提交。
+    pub(crate) project_worktree_save_queue:
+        std::collections::VecDeque<iced::Task<crate::app::Message>>,
+    pub(crate) project_worktree_save_running: bool,
+    #[cfg(not(target_arch = "wasm32"))]
+    pub(crate) project_worktree_save_idle: Option<tokio::sync::watch::Sender<bool>>,
     /// 新建会话的上次选择目录
     pub(crate) new_session_last_directory: Option<String>,
     /// 新建会话的 worktree 名称

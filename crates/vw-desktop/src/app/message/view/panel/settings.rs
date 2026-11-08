@@ -197,7 +197,7 @@ pub fn update(app: &mut App, message: ViewMessage) -> Task<Message> {
         ViewMessage::RestartApp => {
             app.active_menu = None;
             #[cfg(not(target_arch = "wasm32"))]
-            let (editor_commit, editor_saves, routing_commit, routing_saves) = {
+            let (editor_commit, editor_saves, routing_commit, routing_saves, worktree_saves) = {
                 if !begin_shutdown(&mut app.shutdown_requested) {
                     return Task::none();
                 }
@@ -208,6 +208,7 @@ pub fn update(app: &mut App, message: ViewMessage) -> Task<Message> {
                     app.editor_config_persistence.wait_for_idle(),
                     routing_commit,
                     routing_saves,
+                    crate::app::message::settings::wait_for_worktree_saves(app),
                 )
             };
             #[cfg(target_arch = "wasm32")]
@@ -220,7 +221,8 @@ pub fn update(app: &mut App, message: ViewMessage) -> Task<Message> {
                         #[cfg(not(target_arch = "wasm32"))]
                         tokio::join!(
                             wait_for_editor_settings_saves(editor_saves),
-                            wait_for_routing_settings_saves(routing_saves)
+                            wait_for_settings_saves(routing_saves),
+                            wait_for_settings_saves(worktree_saves)
                         );
                         restart_application()
                     },
@@ -765,6 +767,7 @@ fn shutdown(app: &mut App, window_id: Option<iced::window::Id>) -> Task<Message>
     let editor_commit = crate::app::message::editor::metrics::commit(app, None);
     let editor_saves = app.editor_config_persistence.wait_for_idle();
     let (routing_commit, routing_saves) = app.model_routes_settings.persistence.flush();
+    let worktree_saves = crate::app::message::settings::wait_for_worktree_saves(app);
     app.work_browser_controller.shutdown();
     if let Some(manager) = app.lsp_manager.as_mut() {
         manager.shutdown_all();
@@ -784,7 +787,8 @@ fn shutdown(app: &mut App, window_id: Option<iced::window::Id>) -> Task<Message>
                 tokio::join!(
                     stop_shutdown_streams(requests),
                     wait_for_editor_settings_saves(editor_saves),
-                    wait_for_routing_settings_saves(routing_saves)
+                    wait_for_settings_saves(routing_saves),
+                    wait_for_settings_saves(worktree_saves)
                 );
             },
             |_| Message::View(ViewMessage::ShutdownFinished),
@@ -793,7 +797,7 @@ fn shutdown(app: &mut App, window_id: Option<iced::window::Id>) -> Task<Message>
 }
 
 #[cfg(not(target_arch = "wasm32"))]
-async fn wait_for_routing_settings_saves(saves: Option<tokio::sync::watch::Receiver<bool>>) {
+async fn wait_for_settings_saves(saves: Option<tokio::sync::watch::Receiver<bool>>) {
     if let Some(mut saves) = saves {
         let _ = tokio::time::timeout(SHUTDOWN_TIMEOUT, async {
             while !*saves.borrow_and_update() {

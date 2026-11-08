@@ -82,7 +82,7 @@ fn tool_detail_from_raw_falls_back_to_trimmed_rest_for_non_json() {
 }
 
 #[test]
-fn tool_detail_from_raw_preserves_trimmed_json_without_output_or_error() {
+fn tool_detail_from_raw_formats_json_without_output_or_error() {
     let raw = "  tool shell  \n  {\"status\":\"success\",\"metadata\":{\"attempt\":1}}  ";
 
     let (title, content) = super::tool_detail_from_raw(
@@ -93,7 +93,23 @@ fn tool_detail_from_raw_preserves_trimmed_json_without_output_or_error() {
 
     assert!(!title.ends_with("失败"));
     assert!(!title.ends_with("运行中"));
-    assert_eq!(content, r#"{"status":"success","metadata":{"attempt":1}}"#);
+    assert!(content.contains("\n  \"metadata\": {\n    \"attempt\": 1\n  }"));
+    assert!(content.contains("\"status\": \"success\""));
+}
+
+#[test]
+fn tool_detail_from_raw_formats_bash_wait_json_output() {
+    let raw = r#"tool bash_wait
+{"status":"success","output":"{\"process_id\":\"abc123\",\"output\":\"执行完成\"}"}"#;
+
+    let (_, content) = super::tool_detail_from_raw(
+        crate::app::i18n::I18n::new(vw_config_types::ui::DesktopLocale::SimplifiedChinese),
+        raw,
+    )
+    .expect("valid tool detail");
+
+    assert!(content.contains("\n  \"process_id\": \"abc123\""));
+    assert!(content.contains("\n  \"output\": \"执行完成\""));
 }
 
 #[test]

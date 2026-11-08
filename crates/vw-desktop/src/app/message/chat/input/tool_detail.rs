@@ -3,8 +3,8 @@
 
 use super::ChatMessage;
 use crate::app::components::chat_panel::tools::{
-    format_mcp_detail_content, is_mcp_tool_raw, tool_error_text, tool_header_label,
-    tool_output_text, tool_status, workflow_node_detail_body,
+    is_mcp_tool_raw, tool_error_text, tool_header_label, tool_output_text, tool_status,
+    workflow_node_detail_body,
 };
 use crate::app::components::text_editor_context_menu::{
     focus_editor_task, paste_action, paste_task, selection_copy_task, selection_cut_task,
@@ -312,7 +312,15 @@ fn tool_detail_from_raw(i18n: crate::app::i18n::I18n, raw: &str) -> Option<(Stri
             .and_then(tool_output_text)
             .or_else(|| value.as_ref().and_then(tool_error_text))
             .unwrap_or_else(|| rest.trim().to_string());
-        if is_mcp { format_mcp_detail_content(&content) } else { content }
+        let trimmed = content.trim();
+        if is_mcp || trimmed.starts_with(['{', '[']) {
+            serde_json::from_str::<serde_json::Value>(trimmed)
+                .ok()
+                .and_then(|value| serde_json::to_string_pretty(&value).ok())
+                .unwrap_or_else(|| if is_mcp { content.trim().to_string() } else { content })
+        } else {
+            content
+        }
     };
     Some((title, content))
 }

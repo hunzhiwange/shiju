@@ -25,7 +25,7 @@ use super::tool_parse::{
 use super::{canonical_tool_name, tool_permission_state, tool_permission_summary};
 use crate::app::components::chat_panel::utils::{
     copy_tooltip_content, eye_icon_button_style, eye_icon_svg_style, icon_svg,
-    simplified_block_style, truncate_chars,
+    simplified_block_style, single_line_preview,
 };
 
 pub(super) fn tool_text_header_label(
@@ -199,7 +199,7 @@ pub fn tool_text_view<'a>(
         .unwrap_or_default();
     }
     if summary.is_empty() && !is_error && !display_text.is_empty() {
-        summary = truncate_chars(display_text, 96).to_string();
+        summary = single_line_preview(display_text, 96);
     }
 
     let has_detail = is_error || (!is_question_tool && !display_text.is_empty());

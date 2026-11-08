@@ -387,18 +387,18 @@ pub fn tool_header_title<'a>(
     title: impl Into<String>,
     visual: ToolVisual,
 ) -> Element<'a, Message> {
-    let title = title.into();
+    let title = title.into().replace(['\r', '\n'], " ");
     row![
         tool_icon_badge(tool_name, visual),
-        text(title).size(13).font(bold_font()).style(move |theme: &Theme| {
-            iced::widget::text::Style {
+        text(title).size(13).font(bold_font()).wrapping(Wrapping::None).style(
+            move |theme: &Theme| iced::widget::text::Style {
                 color: Some(if visual.state == ToolVisualState::Failed {
                     theme.extended_palette().danger.base.color
                 } else {
                     chat_secondary_text_color(theme)
                 }),
             }
-        })
+        )
     ]
     .spacing(4)
     .align_y(Alignment::Center)
@@ -428,7 +428,8 @@ pub fn tool_activity_header<'a>(
     visual: ToolVisual,
     action: Element<'a, Message>,
 ) -> iced::widget::Row<'a, Message> {
-    let summary = summary.into();
+    // 禁止自动折行仍会渲染文本里的显式换行。
+    let summary = summary.into().replace(['\r', '\n'], " ");
     let summary_view: Element<'a, Message> = if summary.trim().is_empty() {
         Space::new().width(Length::Shrink).into()
     } else {

@@ -342,6 +342,10 @@ async fn shared_tool_headers_dark_chinese_render_path_is_safe() {
 {"status":"failed","input":"{\"query\":\"中文符号\"}","error":"诊断请求失败"}"#,
         r#"tool file_write
 {"status":"cancelled","input":"{\"path\":\"src/中文路径.rs\",\"content\":\"\"}"}"#,
+        r#"tool bash_wait
+{"status":"running","output":"waiting"}"#,
+        r#"tool bash_wait
+{"status":"running","output":"{\n  \"success\": true,\n  \"output\": \"等待命令\",\n  \"error\": null,\n  \"process_id\": \"abc123\"\n}"}"#,
     ];
 
     let mut rows = column![].spacing(12).width(Length::Fill);
@@ -365,6 +369,12 @@ async fn shared_tool_headers_dark_chinese_render_path_is_safe() {
         &renderer,
         &layout::Limits::new(Size::ZERO, bounds),
     );
+    let layout = Layout::new(&node);
+    let mut row_layouts = layout.children().next().expect("tool rows").children();
+    let plain_wait = row_layouts.nth(payloads.len() - 2).expect("plain tool row").bounds();
+    let json_wait = row_layouts.next().expect("JSON tool row").bounds();
+    assert_eq!(json_wait.height, plain_wait.height);
+
     let viewport = Rectangle::with_size(bounds);
     element.as_widget().draw(
         &tree,

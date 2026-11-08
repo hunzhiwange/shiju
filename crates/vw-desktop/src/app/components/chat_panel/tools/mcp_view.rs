@@ -189,11 +189,3 @@ pub(super) fn mcp_server_name(value: &Value) -> Option<&str> {
         _ => None,
     }
 }
-
-pub(crate) fn format_mcp_detail_content(content: &str) -> String {
-    let content = content.trim();
-    serde_json::from_str::<Value>(content)
-        .ok()
-        .and_then(|value| serde_json::to_string_pretty(&value).ok())
-        .unwrap_or_else(|| content.to_string())
-}

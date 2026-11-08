@@ -1,9 +1,8 @@
-//! 验证 MCP 工具识别、服务端摘要、详情格式化与生命周期状态行。
-//! 服务名允许从受支持的嵌套结果读取，但详情只对合法 JSON 做美化输出。
+//! 验证 MCP 工具识别、服务端摘要与生命周期状态行。
 
 use super::mcp_view::{
-    format_mcp_detail_content, is_mcp_tool_name, is_mcp_tool_raw, looks_like_mcp_payload,
-    mcp_display_name, mcp_server_name, tool_mcp_view,
+    is_mcp_tool_name, is_mcp_tool_raw, looks_like_mcp_payload, mcp_display_name, mcp_server_name,
+    tool_mcp_view,
 };
 use super::tool_meta::{tool_header_label, tool_icon};
 use crate::app::App;
@@ -86,15 +85,6 @@ fn mcp_server_name_walks_supported_result_shapes() {
         Some("github")
     );
     assert_eq!(mcp_server_name(&json!({"server":{"name":" "}})), None);
-}
-
-#[test]
-fn mcp_detail_content_pretty_prints_json_only() {
-    assert_eq!(
-        format_mcp_detail_content(r#"[{"server":{"name":"docs"}}]"#),
-        "[\n  {\n    \"server\": {\n      \"name\": \"docs\"\n    }\n  }\n]"
-    );
-    assert_eq!(format_mcp_detail_content(" plain output "), "plain output");
 }
 
 #[test]

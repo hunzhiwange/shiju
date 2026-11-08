@@ -779,33 +779,6 @@ fn update_gateway_client_config_persists_and_patches_updated_snapshot() {
 
 #[test]
 #[cfg(not(target_arch = "wasm32"))]
-fn update_system_settings_config_returns_after_patch_error() {
-    let (_lock, _home, _guard) = temp_home();
-    let body = serde_json::json!({
-        "app_ui": {"system_settings": AppSystemSettingsConfig::default()}
-    })
-    .to_string();
-    let (port, requests, join) = serve_global_config(vec![
-        (200, body),
-        (500, serde_json::json!({"error": "patch rejected"}).to_string()),
-    ]);
-    let bootstrap = gateway_config("127.0.0.1", port);
-    super::save_gateway_client_bootstrap_config(&bootstrap);
-
-    super::update_system_settings_config(|config| {
-        config.editor_font_size = 22.0;
-    });
-    let _get_request = requests.recv().expect("GET request should be captured");
-    let patch_request = requests.recv().expect("PATCH request should be captured");
-    join.join().expect("stub should stop");
-    let patch = request_json_body(&patch_request);
-
-    assert!(patch_request.starts_with("PATCH /v1/global/config "));
-    assert_eq!(patch["app_ui"]["system_settings"]["editor_font_size"], 22.0);
-}
-
-#[test]
-#[cfg(not(target_arch = "wasm32"))]
 fn load_gateway_client_bootstrap_config_does_not_read_legacy_system_settings() {
     let lock = env_lock();
     let home = tempfile::tempdir().expect("temp home should be created");
@@ -905,4 +878,38 @@ pub(in crate::app) fn with_editor_settings_gateway(
         std::panic::resume_unwind(panic);
     }
     assert_eq!(std::fs::read(bootstrap_path).unwrap(), original_bootstrap);
+}
+
+/// Poll the Iced save task while holding its HTTP reply until the caller has exercised the UI.
+#[cfg(not(target_arch = "wasm32"))]
+pub(in crate::app) fn drive_system_settings_patch(
+    task: iced::Task<crate::app::Message>,
+    requests: &Receiver<String>,
+    responses: &mpsc::Sender<Option<String>>,
+    expected: serde_json::Value,
+    reply: Option<&str>,
+    while_waiting: impl FnOnce(),
+) -> crate::app::Message {
+    use iced_runtime::{Action, futures::futures::StreamExt, task::into_stream};
+    use std::time::Duration;
+
+    const TIMEOUT: Duration = Duration::from_secs(4);
+    let runtime =
+        tokio::runtime::Builder::new_multi_thread().worker_threads(1).enable_all().build().unwrap();
+    let completion = runtime.spawn(async move {
+        let mut stream = into_stream(task).expect("Iced save task");
+        let Some(Action::Output(message)) = stream.next().await else {
+            panic!("expected a save result");
+        };
+        message
+    });
+    let request = requests.recv_timeout(TIMEOUT).expect("system settings PATCH");
+    assert!(request.starts_with("PATCH /v1/global/config "), "{request}");
+    assert_eq!(
+        request_json_body(&request),
+        serde_json::json!({"app_ui": {"system_settings": expected}})
+    );
+    while_waiting();
+    responses.send(reply.map(str::to_owned)).unwrap();
+    runtime.block_on(async { tokio::time::timeout(TIMEOUT, completion).await.unwrap().unwrap() })
 }

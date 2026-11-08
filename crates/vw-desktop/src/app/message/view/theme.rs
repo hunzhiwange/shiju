@@ -4,43 +4,14 @@
 //! 不改变任何运行时行为。
 
 use super::ViewMessage;
+use crate::app::config::SystemSettingsSection;
 use crate::app::theme_catalog::{
     config_value_for_theme, find_custom_theme_id, theme_store_from_home,
 };
-#[cfg(not(test))]
-use crate::app::update_system_settings_config;
 use crate::app::{App, Message, TerminalTheme};
 use iced::Task;
 use iced::Theme;
 use iced_code_editor::theme;
-
-#[cfg(test)]
-use std::cell::RefCell;
-
-#[cfg(test)]
-thread_local! {
-    static LAST_PERSISTED_APP_THEME: RefCell<Option<String>> = const { RefCell::new(None) };
-}
-
-#[cfg(not(test))]
-fn persist_app_theme(app_theme: String) {
-    update_system_settings_config(|system| {
-        system.app_theme = app_theme;
-    });
-}
-
-#[cfg(test)]
-fn persist_app_theme(app_theme: String) {
-    LAST_PERSISTED_APP_THEME.with(|slot| {
-        *slot.borrow_mut() = Some(app_theme);
-    });
-}
-
-/// 测试辅助：取出并清空最近一次持久化的应用主题配置值。
-#[cfg(test)]
-pub(super) fn take_last_persisted_app_theme() -> Option<String> {
-    LAST_PERSISTED_APP_THEME.with(|slot| slot.borrow_mut().take())
-}
 
 fn sync_active_custom_theme_id(app: &mut App) {
     if !matches!(app.app_theme, Theme::Custom(_)) {
@@ -82,8 +53,10 @@ pub fn update(app: &mut App, message: ViewMessage) -> Task<Message> {
 
             let app_theme =
                 config_value_for_theme(&app.app_theme, app.active_custom_theme_id.as_deref());
-            persist_app_theme(app_theme);
-            Task::none()
+            app.save_system_settings_fields(
+                SystemSettingsSection::Theme,
+                serde_json::Map::from_iter([("app_theme".into(), app_theme.into())]),
+            )
         }
         _ => Task::none(),
     }

@@ -1,12 +1,69 @@
 //! 读写桌面系统设置并维护网关客户端启动缓存。
 //! 本模块负责配置归一化；系统设置通过 Gateway 读写，启动阶段仅单独缓存 Gateway 连接信息。
 
-use crate::app::Message;
+use crate::app::message::SettingsMessage;
+use crate::app::{App, Message};
 use iced::Task;
-use serde_json::Value;
+use serde_json::{Map, Value};
 use vw_config_types::ui::{AppSystemSettingsConfig, GatewayClientSystemSettingsConfig};
 
-use super::gateway::{gateway_client, run_gateway_call, spawn_gateway_task};
+use super::desktop::{PreferencesScope, preferences_scope};
+use super::gateway::{
+    gateway_client, gateway_client_endpoint, run_gateway_call, spawn_gateway_task,
+};
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub enum SystemSettingsSection {
+    Theme,
+    Timezone,
+    DialogueFlow,
+}
+
+impl App {
+    pub(in crate::app) fn save_system_settings_fields(
+        &mut self,
+        section: SystemSettingsSection,
+        fields: Map<String, Value>,
+    ) -> Task<Message> {
+        self.desktop_preferences_persistence.enqueue_system_settings(
+            gateway_client_endpoint(),
+            section,
+            fields,
+        )
+    }
+
+    pub(in crate::app) fn system_settings_edited(&self, section: SystemSettingsSection) -> bool {
+        self.desktop_preferences_persistence.edited_system_settings.contains(&section)
+    }
+
+    pub(in crate::app) fn system_settings_saved(
+        &mut self,
+        scope: PreferencesScope,
+        section: SystemSettingsSection,
+        result: Result<(), String>,
+    ) -> Task<Message> {
+        let next = self
+            .desktop_preferences_persistence
+            .finish_system_settings_save(scope.clone(), section);
+        if section == SystemSettingsSection::DialogueFlow
+            && scope == preferences_scope(&gateway_client_endpoint())
+        {
+            return Task::batch([
+                next,
+                crate::app::message::settings::update(
+                    self,
+                    SettingsMessage::DialogueFlowUiSettingsSaved(result),
+                ),
+            ]);
+        }
+        match result {
+            Ok(()) => next,
+            Err(error) => {
+                Task::batch([next, self.show_error_toast(format!("系统设置未保存：{error}"))])
+            }
+        }
+    }
+}
 
 async fn fetch_desktop_system_settings_via_gateway()
 -> Result<Option<AppSystemSettingsConfig>, String> {
@@ -253,14 +310,6 @@ pub fn load_system_settings_config() -> AppSystemSettingsConfig {
         config.gateway_client = load_gateway_client_bootstrap_config();
         config
     })
-}
-
-/// 公开函数，执行 update_system_settings_config 对应的应用流程。
-/// 返回值表达处理结果；失败通过错误值、日志或任务消息显式传递。
-pub fn update_system_settings_config(update: impl FnOnce(&mut AppSystemSettingsConfig) + Send) {
-    log_system_settings_update_error(run_gateway_call(update_system_settings_config_result_async(
-        update,
-    )));
 }
 
 fn log_system_settings_update_error(outcome: Result<(), String>) {

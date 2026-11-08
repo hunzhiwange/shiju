@@ -1,24 +1,10 @@
 //! 处理通用设置页签切换与时区持久化消息。
 
+use crate::app::config::SystemSettingsSection;
 use crate::app::{App, Message};
 use iced::Task;
 
 use super::{GeneralSettingsMessage, SettingsMessage};
-
-#[cfg(test)]
-static LAST_PERSISTED_TIMEZONE: std::sync::Mutex<Option<String>> = std::sync::Mutex::new(None);
-
-#[cfg(test)]
-fn persist_timezone(timezone: String) {
-    *LAST_PERSISTED_TIMEZONE.lock().expect("timezone recorder lock") = Some(timezone);
-}
-
-#[cfg(not(test))]
-fn persist_timezone(timezone: String) {
-    crate::app::update_system_settings_config(move |system| {
-        system.timezone = timezone;
-    });
-}
 
 /// 仅消费通用设置消息；其它设置分支保持不变并返回空任务。
 pub(super) fn update(app: &mut App, message: SettingsMessage) -> Task<Message> {
@@ -216,20 +202,13 @@ pub(super) fn update(app: &mut App, message: SettingsMessage) -> Task<Message> {
             }
 
             app.chat_timezone = timezone.clone();
-            persist_timezone(timezone);
+            return app.save_system_settings_fields(
+                SystemSettingsSection::Timezone,
+                serde_json::Map::from_iter([("timezone".into(), timezone.into())]),
+            );
         }
     }
     Task::none()
-}
-
-#[cfg(test)]
-fn clear_last_persisted_timezone() {
-    *LAST_PERSISTED_TIMEZONE.lock().expect("timezone recorder lock") = None;
-}
-
-#[cfg(test)]
-fn last_persisted_timezone() -> Option<String> {
-    LAST_PERSISTED_TIMEZONE.lock().expect("timezone recorder lock").clone()
 }
 
 #[cfg(test)]

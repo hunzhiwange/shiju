@@ -277,7 +277,7 @@ pub fn update(app: &mut App, message: SettingsMessage) -> Task<Message> {
         SettingsMessage::DialogueFlowPermissionRefresh
         | SettingsMessage::DialogueFlowPermissionLoaded(_)
         | SettingsMessage::DialogueFlowPermissionReset
-        | SettingsMessage::DialogueFlowUiSettingsLoaded(_)
+        | SettingsMessage::DialogueFlowUiSettingsLoaded(..)
         | SettingsMessage::DialogueFlowUiSettingsSave
         | SettingsMessage::DialogueFlowUiSettingsSaved(_)
         | SettingsMessage::DialogueFlowShowReasoningSummaryToggled(_)

@@ -1,14 +1,21 @@
 //! 主题消息测试，验证应用主题、编辑器跟随策略与自定义主题持久化。
 //! 切换视觉主题时，已打开编辑器的内容和标签状态必须完整保留。
 
-use super::{ViewMessage, take_last_persisted_app_theme, update};
+use super::{ViewMessage, update};
 use crate::app::components::editor::Editor;
 use crate::app::theme_catalog::{
     ThemeAssets, ThemeChrome, ThemeDefinition, ThemePaletteHex, ThemeStore, config_value_for_theme,
     set_test_themes_root, to_iced_theme,
 };
 use crate::app::{App, PreviewTab};
+#[cfg(not(target_arch = "wasm32"))]
+use crate::app::{
+    Message,
+    config::{drive_system_settings_patch, with_editor_settings_gateway},
+};
 use iced::{Theme, widget::Id};
+#[cfg(not(target_arch = "wasm32"))]
+use serde_json::json;
 
 fn test_app() -> App {
     App::new().0
@@ -101,6 +108,7 @@ fn unrelated_view_message_leaves_theme_state_unchanged() {
     assert!(!app.editor_follow_system_theme);
 }
 
+#[cfg(not(target_arch = "wasm32"))]
 #[test]
 fn app_theme_selected_persists_custom_prefix_for_custom_theme() {
     let definition = ThemeDefinition {
@@ -127,22 +135,77 @@ fn app_theme_selected_persists_custom_prefix_for_custom_theme() {
     store.save(&definition).expect("save theme for persist lookup");
     set_test_themes_root(Some(temp.path().to_path_buf()));
 
-    let mut app = test_app();
-    app.app_theme = Theme::Light;
-    app.active_custom_theme_id = None;
-    let _ = take_last_persisted_app_theme();
+    with_editor_settings_gateway(|mut app, requests, responses| {
+        app.app_theme = Theme::Light;
+        app.active_custom_theme_id = None;
+        let save = app.update(Message::View(ViewMessage::AppThemeSelected(theme.clone())));
 
-    let _ = update(&mut app, ViewMessage::AppThemeSelected(theme.clone()));
+        assert!(matches!(app.app_theme, Theme::Custom(_)));
+        assert_eq!(app.app_theme.to_string(), "Mint Night");
+        assert_eq!(app.app_theme.palette(), theme.palette());
+        assert_eq!(app.active_custom_theme_id.as_deref(), Some("mint-night"));
 
-    assert!(matches!(app.app_theme, Theme::Custom(_)));
-    assert_eq!(app.app_theme.to_string(), "Mint Night");
-    assert_eq!(app.app_theme.palette(), theme.palette());
-    assert_eq!(app.active_custom_theme_id.as_deref(), Some("mint-night"));
-    assert_eq!(take_last_persisted_app_theme().as_deref(), Some("custom:mint-night"));
+        let saved = drive_system_settings_patch(
+            save,
+            &requests,
+            &responses,
+            json!({"app_theme": "custom:mint-night"}),
+            Some("{}"),
+            || {},
+        );
+        assert!(matches!(&saved, Message::SystemSettingsSaved(_, _, Ok(()))));
+        assert_eq!(app.update(saved).units(), 0);
 
-    let _ = update(&mut app, ViewMessage::AppThemeSelected(Theme::Dark));
-    assert!(app.active_custom_theme_id.is_none());
-    assert_eq!(take_last_persisted_app_theme().as_deref(), Some("Dark"));
+        let _ = app.update(Message::View(ViewMessage::AppThemeSelected(Theme::Dark)));
+        assert!(app.active_custom_theme_id.is_none());
+    });
 
     set_test_themes_root(None);
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+#[test]
+fn theme_selection_does_not_wait_for_system_settings_gateway() {
+    with_editor_settings_gateway(|mut app, requests, responses| {
+        let select =
+            |app: &mut App, theme| app.update(Message::View(ViewMessage::AppThemeSelected(theme)));
+        app.app_theme = Theme::Light;
+        let task = select(&mut app, Theme::Dark);
+
+        assert_eq!(app.app_theme, Theme::Dark);
+        assert!(
+            matches!(requests.try_recv(), Err(std::sync::mpsc::TryRecvError::Empty)),
+            "theme selection contacted the Gateway before returning its Iced task"
+        );
+
+        let saved = drive_system_settings_patch(
+            task,
+            &requests,
+            &responses,
+            json!({"app_theme": "Dark"}),
+            Some("{}"),
+            || {
+                assert_eq!(select(&mut app, Theme::Dracula).units(), 0);
+                assert_eq!(select(&mut app, Theme::Light).units(), 0);
+                assert_eq!(app.app_theme, Theme::Light);
+            },
+        );
+        assert!(matches!(&saved, Message::SystemSettingsSaved(_, _, Ok(()))));
+        let idle = app.desktop_preferences_persistence.wait_for_idle().unwrap();
+        let last = app.update(saved);
+        assert!(!*idle.borrow());
+        let saved = drive_system_settings_patch(
+            last,
+            &requests,
+            &responses,
+            json!({"app_theme": "Light"}),
+            Some("{}"),
+            || {},
+        );
+        assert!(matches!(&saved, Message::SystemSettingsSaved(_, _, Ok(()))));
+        assert_eq!(app.update(saved).units(), 0);
+        assert!(*idle.borrow());
+        assert_eq!(app.app_theme, Theme::Light);
+        assert!(requests.try_recv().is_err());
+    });
 }

@@ -38,32 +38,48 @@ fn theme_tab_selection_clears_error_and_refreshes_gallery() {
 
 // 数据边界：覆盖规范化、默认值以及相关状态字段的既定规则。
 // 这里固定可观察结果，避免依赖处理过程中的临时实现细节。
+#[cfg(not(target_arch = "wasm32"))]
 #[test]
-fn timezone_selection_updates_state_and_persists_config() {
-    let mut app = App::new().0;
-    clear_last_persisted_timezone();
+fn timezone_selection_updates_immediately_and_persists_last_choice() {
+    use crate::app::config::{drive_system_settings_patch, with_editor_settings_gateway};
+    use serde_json::json;
 
-    let _ = update(
-        &mut app,
-        SettingsMessage::General(GeneralSettingsMessage::TimezoneSelected(
-            "America/New_York".to_string(),
-        )),
-    );
+    with_editor_settings_gateway(|mut app, requests, responses| {
+        let select = |app: &mut App, timezone: &str| {
+            app.update(Message::Settings(SettingsMessage::General(
+                GeneralSettingsMessage::TimezoneSelected(timezone.to_owned()),
+            )))
+        };
+        let task = select(&mut app, "America/New_York");
+        assert_eq!(app.chat_timezone, "America/New_York");
+        assert!(requests.try_recv().is_err());
 
-    assert_eq!(app.chat_timezone, "America/New_York");
-    assert_eq!(last_persisted_timezone().as_deref(), Some("America/New_York"));
-    clear_last_persisted_timezone();
-    let original = app.chat_timezone.clone();
-
-    let _ = update(
-        &mut app,
-        SettingsMessage::General(GeneralSettingsMessage::TimezoneSelected(
-            "Mars/Olympus_Mons".to_string(),
-        )),
-    );
-
-    assert_eq!(app.chat_timezone, original);
-    assert_eq!(last_persisted_timezone(), None);
+        let saved = drive_system_settings_patch(
+            task,
+            &requests,
+            &responses,
+            json!({"timezone": "America/New_York"}),
+            Some("{}"),
+            || {
+                assert_eq!(select(&mut app, "Asia/Shanghai").units(), 0);
+                assert_eq!(select(&mut app, "UTC").units(), 0);
+                assert_eq!(select(&mut app, "Mars/Olympus_Mons").units(), 0);
+                assert_eq!(app.chat_timezone, "UTC");
+            },
+        );
+        assert!(matches!(&saved, Message::SystemSettingsSaved(_, _, Ok(()))));
+        let saved = drive_system_settings_patch(
+            app.update(saved),
+            &requests,
+            &responses,
+            json!({"timezone": "UTC"}),
+            Some("{}"),
+            || {},
+        );
+        assert!(matches!(&saved, Message::SystemSettingsSaved(_, _, Ok(()))));
+        assert_eq!(app.update(saved).units(), 0);
+        assert_eq!(app.chat_timezone, "UTC");
+    });
 }
 
 #[test]

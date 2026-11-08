@@ -8,6 +8,14 @@ fn app() -> App {
     App::new().0
 }
 
+fn loaded(result: Result<(bool, bool, bool), String>) -> SettingsMessage {
+    SettingsMessage::DialogueFlowUiSettingsLoaded(
+        preferences_scope(&gateway_client_endpoint()),
+        0,
+        result,
+    )
+}
+
 fn has_scheduled_action(task: Task<Message>) -> bool {
     task.units() > 0
 }
@@ -229,8 +237,7 @@ fn dialogue_flow_loaded_messages_update_ui_state() {
         update(&mut app, SettingsMessage::DialogueFlowPermissionLoaded(Err("boom".to_string())));
     assert!(app.dialogue_flow_permission_editor.text().contains("读取失败: boom"));
 
-    let _ =
-        update(&mut app, SettingsMessage::DialogueFlowUiSettingsLoaded(Ok((false, true, true))));
+    let _ = update(&mut app, loaded(Ok((false, true, true))));
     assert!(!app.dialogue_flow_show_reasoning_summary);
     assert!(app.dialogue_flow_expand_shell_tool_section);
     assert!(app.dialogue_flow_expand_edit_tool_section);
@@ -240,10 +247,7 @@ fn dialogue_flow_loaded_messages_update_ui_state() {
 fn dialogue_flow_toggle_and_save_feedback_update_messages() {
     let mut app = app();
 
-    let _ = update(
-        &mut app,
-        SettingsMessage::DialogueFlowUiSettingsLoaded(Err("bad config".to_string())),
-    );
+    let _ = update(&mut app, loaded(Err("bad config".to_string())));
     assert_eq!(
         app.dialogue_flow_settings_save_message.as_deref(),
         Some("读取配置失败: bad config")
@@ -275,18 +279,6 @@ fn action_messages_schedule_follow_up_work() {
     ));
     assert!(has_scheduled_action(update(&mut app, SettingsMessage::DialogueFlowPermissionReset,)));
     assert!(has_scheduled_action(update(&mut app, SettingsMessage::DialogueFlowUiSettingsSave,)));
-    assert!(has_scheduled_action(update(
-        &mut app,
-        SettingsMessage::DialogueFlowShowReasoningSummaryToggled(false),
-    )));
-    assert!(has_scheduled_action(update(
-        &mut app,
-        SettingsMessage::DialogueFlowExpandShellToolSectionToggled(true),
-    )));
-    assert!(has_scheduled_action(update(
-        &mut app,
-        SettingsMessage::DialogueFlowExpandEditToolSectionToggled(true),
-    )));
 }
 
 #[test]
@@ -294,15 +286,11 @@ fn loaded_success_preserves_existing_feedback_and_loaded_error_preserves_toggles
     let mut app = app();
     app.dialogue_flow_settings_save_message = Some("existing feedback".to_string());
 
-    let success_task =
-        update(&mut app, SettingsMessage::DialogueFlowUiSettingsLoaded(Ok((false, true, false))));
+    let success_task = update(&mut app, loaded(Ok((false, true, false))));
     assert!(!has_scheduled_action(success_task));
     assert_eq!(app.dialogue_flow_settings_save_message.as_deref(), Some("existing feedback"));
 
-    let error_task = update(
-        &mut app,
-        SettingsMessage::DialogueFlowUiSettingsLoaded(Err("unavailable".to_string())),
-    );
+    let error_task = update(&mut app, loaded(Err("unavailable".to_string())));
     assert!(!has_scheduled_action(error_task));
     assert!(!app.dialogue_flow_show_reasoning_summary);
     assert!(app.dialogue_flow_expand_shell_tool_section);
@@ -333,4 +321,85 @@ fn unrelated_message_leaves_dialogue_flow_state_unchanged_and_stays_idle() {
     assert!(app.dialogue_flow_expand_edit_tool_section);
     assert_eq!(app.dialogue_flow_settings_save_message.as_deref(), Some("keep"));
     assert_eq!(app.dialogue_flow_permission_editor.text(), "keep permission");
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+#[test]
+fn dialogue_flow_patch_failure_reaches_localized_feedback_and_queued_edits_save() {
+    use crate::app::config::{drive_system_settings_patch, with_editor_settings_gateway};
+    use crate::app::i18n::I18n;
+    use serde_json::json;
+    use vw_config_types::ui::DesktopLocale;
+
+    with_editor_settings_gateway(|mut app, requests, responses| {
+        app.dialogue_flow_show_reasoning_summary = true;
+        app.dialogue_flow_expand_shell_tool_section = false;
+        app.dialogue_flow_expand_edit_tool_section = true;
+        let stale_read = loaded(Ok((true, false, false)));
+        let save = app.update(Message::Settings(SettingsMessage::DialogueFlowUiSettingsSave));
+        assert!(requests.try_recv().is_err());
+        let failed = drive_system_settings_patch(
+            save,
+            &requests,
+            &responses,
+            json!({
+                "dialogue_flow_show_reasoning_summary": true,
+                "dialogue_flow_expand_shell_tool_section": false,
+                "dialogue_flow_expand_edit_tool_section": true
+            }),
+            None,
+            || {
+                assert_eq!(
+                    app.update(Message::Settings(
+                        SettingsMessage::DialogueFlowExpandShellToolSectionToggled(true)
+                    ))
+                    .units(),
+                    0
+                );
+                assert_eq!(
+                    app.update(Message::Settings(
+                        SettingsMessage::DialogueFlowExpandShellToolSectionToggled(false)
+                    ))
+                    .units(),
+                    0
+                );
+                assert_eq!(
+                    app.update(Message::Settings(
+                        SettingsMessage::DialogueFlowShowReasoningSummaryToggled(false)
+                    ))
+                    .units(),
+                    0
+                );
+                let _ = app.update(Message::Settings(stale_read));
+                assert!(!app.dialogue_flow_show_reasoning_summary);
+                assert!(!app.dialogue_flow_expand_shell_tool_section);
+                assert!(app.dialogue_flow_expand_edit_tool_section);
+            },
+        );
+        assert!(matches!(&failed, Message::SystemSettingsSaved(_, _, Err(_))));
+        let pending = app.update(failed);
+        assert!(
+            app.dialogue_flow_settings_translation
+                .as_ref()
+                .unwrap()
+                .render(I18n::new(DesktopLocale::English))
+                .unwrap()
+                .starts_with("Failed to save:")
+        );
+
+        let saved = drive_system_settings_patch(
+            pending,
+            &requests,
+            &responses,
+            json!({
+                "dialogue_flow_show_reasoning_summary": false,
+                "dialogue_flow_expand_shell_tool_section": false
+            }),
+            Some("{}"),
+            || {},
+        );
+        assert!(matches!(&saved, Message::SystemSettingsSaved(_, _, Ok(()))));
+        assert_eq!(app.update(saved).units(), 0);
+        assert_eq!(app.dialogue_flow_settings_save_message.as_deref(), Some("已保存对话流配置"));
+    });
 }

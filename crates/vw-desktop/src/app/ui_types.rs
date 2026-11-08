@@ -95,6 +95,11 @@ pub enum Message {
         (String, vw_gateway_client::vw_api_types::id::TenantScope),
         Result<(), String>,
     ),
+    SystemSettingsSaved(
+        crate::app::config::PreferencesScope,
+        crate::app::config::SystemSettingsSection,
+        Result<(), String>,
+    ),
     GatewayHealthTick,
     GatewayHealthChecked(Vec<(String, bool)>),
     #[cfg(not(target_arch = "wasm32"))]

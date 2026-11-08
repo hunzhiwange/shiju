@@ -128,9 +128,8 @@ pub use self::config::{
     update_security_config, update_security_config_async, update_security_config_result,
     update_skills_config, update_skills_config_async, update_skills_config_result,
     update_storage_config, update_storage_config_async, update_storage_config_result,
-    update_system_settings_config, update_tunnel_config, update_tunnel_config_async,
-    update_tunnel_config_result, update_web_search_config, update_web_search_config_async,
-    update_web_search_config_result,
+    update_tunnel_config, update_tunnel_config_async, update_tunnel_config_result,
+    update_web_search_config, update_web_search_config_async, update_web_search_config_result,
 };
 /// 对外暴露当前模块需要复用的能力。
 pub use self::files::{FileIndexLoadResult, load_file_index, refresh_file_index};

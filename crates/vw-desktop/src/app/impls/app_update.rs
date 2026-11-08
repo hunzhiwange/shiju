@@ -348,6 +348,8 @@ impl App {
         &mut self,
         system: vw_config_types::ui::AppSystemSettingsConfig,
     ) {
+        use crate::app::config::SystemSettingsSection;
+
         if !self.desktop_locale_selected {
             self.desktop_locale = system.desktop_locale;
             crate::app::i18n::editor::refresh(self);
@@ -374,15 +376,20 @@ impl App {
 
         self.terminal.font_family = system.terminal_font_family.clone();
         self.terminal.font_size = system.terminal_font_size;
-        self.chat_timezone = system.timezone.clone();
+        if !self.system_settings_edited(SystemSettingsSection::Timezone) {
+            self.chat_timezone = system.timezone.clone();
+        }
         if !self.task_completion_notification_saving {
             self.task_completion_notification = system.task_completion_notification;
         }
         self.project_worktree_enabled = system.project_worktree_enabled.clone();
-        self.dialogue_flow_show_reasoning_summary = system.dialogue_flow_show_reasoning_summary;
-        self.dialogue_flow_expand_shell_tool_section =
-            system.dialogue_flow_expand_shell_tool_section;
-        self.dialogue_flow_expand_edit_tool_section = system.dialogue_flow_expand_edit_tool_section;
+        if !self.system_settings_edited(SystemSettingsSection::DialogueFlow) {
+            self.dialogue_flow_show_reasoning_summary = system.dialogue_flow_show_reasoning_summary;
+            self.dialogue_flow_expand_shell_tool_section =
+                system.dialogue_flow_expand_shell_tool_section;
+            self.dialogue_flow_expand_edit_tool_section =
+                system.dialogue_flow_expand_edit_tool_section;
+        }
         self.quick_messages = system.quick_messages.clone();
         vw_config_types::ui::upgrade_legacy_quick_message_actions(&mut self.quick_messages);
         vw_config_types::ui::append_missing_builtin_general_quick_messages(
@@ -403,23 +410,25 @@ impl App {
             }
         }
         let theme_store = crate::app::theme_catalog::theme_store_from_home();
-        match crate::app::theme_catalog::resolve_app_theme_name(
-            &system.app_theme,
-            theme_store.as_ref(),
-        ) {
-            Some(theme) => {
-                self.app_theme = theme;
-                self.active_custom_theme_id =
-                    crate::app::theme_catalog::custom_theme_id_from_config(&system.app_theme)
-                        .map(str::to_string);
-                crate::app::theme_catalog::sync_active_theme_skin(self);
-            }
-            None => {
-                tracing::warn!(
-                    target: "vw_desktop",
-                    theme = %system.app_theme,
-                    "bootstrap could not resolve app theme; keeping current theme"
-                );
+        if !self.system_settings_edited(SystemSettingsSection::Theme) {
+            match crate::app::theme_catalog::resolve_app_theme_name(
+                &system.app_theme,
+                theme_store.as_ref(),
+            ) {
+                Some(theme) => {
+                    self.app_theme = theme;
+                    self.active_custom_theme_id =
+                        crate::app::theme_catalog::custom_theme_id_from_config(&system.app_theme)
+                            .map(str::to_string);
+                    crate::app::theme_catalog::sync_active_theme_skin(self);
+                }
+                None => {
+                    tracing::warn!(
+                        target: "vw_desktop",
+                        theme = %system.app_theme,
+                        "bootstrap could not resolve app theme; keeping current theme"
+                    );
+                }
             }
         }
         self.editor_theme = crate::app::theme_catalog::resolve_app_theme_name(
@@ -692,6 +701,9 @@ impl App {
             }
             Message::DesktopPreferencesSaved(scope, result) => {
                 self.desktop_preferences_saved(scope, result)
+            }
+            Message::SystemSettingsSaved(scope, section, result) => {
+                self.system_settings_saved(scope, section, result)
             }
             Message::GatewayHealthTick => {
                 let servers = self.gateway_client_settings.servers.clone();

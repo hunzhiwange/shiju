@@ -4,11 +4,12 @@
 use super::gateway::{
     gateway_client, gateway_client_endpoint, run_gateway_call, spawn_gateway_task,
 };
+use super::system_settings::SystemSettingsSection;
 use crate::app::{App, Message};
 use iced::Task;
 use serde_json::{Map, Value};
-use std::collections::HashMap;
 use std::collections::hash_map::Entry;
+use std::collections::{HashMap, HashSet};
 #[cfg(not(target_arch = "wasm32"))]
 use tokio::sync::watch;
 use vw_gateway_client::{GatewayClient, GatewayEndpoint, vw_api_types::id::TenantScope};
@@ -17,13 +18,19 @@ use vw_gateway_client::{GatewayClient, GatewayEndpoint, vw_api_types::id::Tenant
 mod project_chat;
 pub use project_chat::{ChatModelPreferences, ProjectPreferencesScope};
 
-type PreferencesScope = (String, TenantScope);
+pub(crate) type PreferencesScope = (String, TenantScope);
 
-fn preferences_scope(endpoint: &GatewayEndpoint) -> PreferencesScope {
+pub(in crate::app) fn preferences_scope(endpoint: &GatewayEndpoint) -> PreferencesScope {
     (endpoint.base_url().to_ascii_lowercase(), endpoint.tenant_scope().clone())
 }
 
 const REASONING_EFFORTS: &str = "session_reasoning_efforts";
+
+#[derive(Clone, Copy, Eq, Hash, PartialEq)]
+enum PatchTarget {
+    Desktop,
+    System(SystemSettingsSection),
+}
 
 struct PreferencesPatch {
     endpoint: GatewayEndpoint,
@@ -33,28 +40,54 @@ struct PreferencesPatch {
 #[derive(Default)]
 pub(crate) struct DesktopPreferencesPersistence {
     // Each entry represents an in-flight PATCH and any edits that arrived after it started.
-    in_flight: HashMap<PreferencesScope, Option<PreferencesPatch>>,
+    in_flight: HashMap<(PreferencesScope, PatchTarget), Option<PreferencesPatch>>,
+    pub(super) edited_system_settings: HashSet<SystemSettingsSection>,
+    pub(in crate::app) dialogue_flow_load_revision: u64,
     project_chat: project_chat::ProjectChatPreferences,
     #[cfg(not(target_arch = "wasm32"))]
     idle: Option<watch::Sender<bool>>,
 }
 
 impl DesktopPreferencesPersistence {
-    fn enqueue(
+    fn enqueue(&mut self, endpoint: GatewayEndpoint, fields: Map<String, Value>) -> Task<Message> {
+        self.enqueue_patch(endpoint, PatchTarget::Desktop, fields)
+    }
+
+    pub(super) fn enqueue_system_settings(
         &mut self,
         endpoint: GatewayEndpoint,
+        section: SystemSettingsSection,
+        fields: Map<String, Value>,
+    ) -> Task<Message> {
+        self.edited_system_settings.insert(section);
+        self.enqueue_patch(endpoint, PatchTarget::System(section), fields)
+    }
+
+    pub(in crate::app) fn has_system_settings_write(
+        &self,
+        scope: &PreferencesScope,
+        section: SystemSettingsSection,
+    ) -> bool {
+        self.in_flight.contains_key(&(scope.clone(), PatchTarget::System(section)))
+    }
+
+    fn enqueue_patch(
+        &mut self,
+        endpoint: GatewayEndpoint,
+        target: PatchTarget,
         mut fields: Map<String, Value>,
     ) -> Task<Message> {
         let scope = preferences_scope(&endpoint);
-        match self.in_flight.entry(scope.clone()) {
+        match self.in_flight.entry((scope.clone(), target)) {
             Entry::Vacant(entry) => {
                 entry.insert(None);
-                Self::send(scope, PreferencesPatch { endpoint, fields })
+                Self::send(scope, target, PreferencesPatch { endpoint, fields })
             }
             Entry::Occupied(mut entry) => {
                 if let Some(pending) = entry.get_mut() {
                     pending.endpoint = endpoint;
-                    if let Some(Value::Object(edits)) = fields.get_mut(REASONING_EFFORTS)
+                    if target == PatchTarget::Desktop
+                        && let Some(Value::Object(edits)) = fields.get_mut(REASONING_EFFORTS)
                         && let Some(Value::Object(mut earlier)) =
                             pending.fields.remove(REASONING_EFFORTS)
                     {
@@ -70,10 +103,17 @@ impl DesktopPreferencesPersistence {
         }
     }
 
-    fn send(scope: PreferencesScope, patch: PreferencesPatch) -> Task<Message> {
+    fn send(
+        scope: PreferencesScope,
+        target: PatchTarget,
+        patch: PreferencesPatch,
+    ) -> Task<Message> {
         Task::perform(
             async move {
                 let client = GatewayClient::new(patch.endpoint)?;
+                if let PatchTarget::System(_) = target {
+                    return client.desktop_system_settings_patch(&patch.fields).await;
+                }
                 let mut fields = patch.fields;
                 let mut reasoning_result = Ok(());
                 if let Some(Value::Object(edits)) = fields.get_mut(REASONING_EFFORTS) {
@@ -99,17 +139,31 @@ impl DesktopPreferencesPersistence {
                 }
                 reasoning_result
             },
-            move |result| Message::DesktopPreferencesSaved(scope, result),
+            move |result| match target {
+                PatchTarget::Desktop => Message::DesktopPreferencesSaved(scope, result),
+                PatchTarget::System(section) => {
+                    Message::SystemSettingsSaved(scope, section, result)
+                }
+            },
         )
     }
 
-    fn finished(&mut self, scope: PreferencesScope) -> Task<Message> {
-        if let Some(pending) = self.in_flight.get_mut(&scope).and_then(Option::take) {
-            return Self::send(scope, pending);
+    fn finished(&mut self, scope: PreferencesScope, target: PatchTarget) -> Task<Message> {
+        let key = (scope.clone(), target);
+        if let Some(pending) = self.in_flight.get_mut(&key).and_then(Option::take) {
+            return Self::send(scope, target, pending);
         }
-        self.in_flight.remove(&scope);
+        self.in_flight.remove(&key);
         self.notify_if_idle();
         Task::none()
+    }
+
+    pub(super) fn finish_system_settings_save(
+        &mut self,
+        scope: PreferencesScope,
+        section: SystemSettingsSection,
+    ) -> Task<Message> {
+        self.finished(scope, PatchTarget::System(section))
     }
 
     #[cfg(not(target_arch = "wasm32"))]
@@ -154,7 +208,7 @@ impl App {
         scope: PreferencesScope,
         result: Result<(), String>,
     ) -> Task<Message> {
-        let next = self.desktop_preferences_persistence.finished(scope);
+        let next = self.desktop_preferences_persistence.finished(scope, PatchTarget::Desktop);
         match result {
             Ok(()) => next,
             Err(error) => {

@@ -7,6 +7,9 @@
 //! 该模块主要与 Iced UI 框架集成，通过 `Task` 异步执行文件操作，
 //! 并通过消息（Message）机制与主应用进行通信。
 
+use crate::app::config::{
+    PreferencesScope, SystemSettingsSection, gateway_client_endpoint, preferences_scope,
+};
 use crate::app::{App, Message};
 use iced::Task;
 #[cfg(not(target_arch = "wasm32"))]
@@ -194,40 +197,32 @@ fn dialogue_flow_permission_reset_task(project_path: Option<String>) -> Task<Mes
     )
 }
 
-/// 加载对话流 UI 设置的任务
-///
-/// 该函数从系统配置中读取对话流相关的 UI 行为设置。
-///
-/// # 返回值
-///
-/// 返回一个 `Task<Message>`，该任务会：
-/// - 成功时：发送 `DialogueFlowUiSettingsLoaded(Ok((show_reasoning_summary, expand_shell_tool_section, expand_edit_tool_section)))` 消息
-/// - 失败时：发送 `DialogueFlowUiSettingsLoaded(Err(error_message))` 消息
-///
-/// # 行为说明
-///
-/// - 在 WASM32 架构下，返回默认 UI 设置
-/// - 在非 WASM32 架构下，从系统配置文件中读取对话流设置
-///
-/// # 示例
-///
-/// ```ignore
-/// let task = dialogue_flow_ui_settings_load_task();
-/// ```
-fn dialogue_flow_ui_settings_load_task() -> Task<Message> {
+const REASONING_SUMMARY: &str = "dialogue_flow_show_reasoning_summary";
+const SHELL_SECTION: &str = "dialogue_flow_expand_shell_tool_section";
+const EDIT_SECTION: &str = "dialogue_flow_expand_edit_tool_section";
+
+fn dialogue_flow_ui_settings_load_task(app: &mut App) -> Task<Message> {
+    let endpoint = gateway_client_endpoint();
+    let scope = preferences_scope(&endpoint);
+    let persistence = &mut app.desktop_preferences_persistence;
+    if persistence.has_system_settings_write(&scope, SystemSettingsSection::DialogueFlow) {
+        return Task::none();
+    }
+    persistence.dialogue_flow_load_revision =
+        persistence.dialogue_flow_load_revision.wrapping_add(1);
+    let revision = persistence.dialogue_flow_load_revision;
     Task::perform(
         async move {
-            // WASM32 平台不支持文件系统操作，返回默认设置
             #[cfg(target_arch = "wasm32")]
             {
-                return Ok((true, false, false));
+                Ok((true, false, false))
             }
-            // 非 WASM32 平台：从系统配置中读取对话流 UI 设置
             #[cfg(not(target_arch = "wasm32"))]
             {
-                let cfg = tokio::task::spawn_blocking(crate::app::load_system_settings_config)
-                    .await
-                    .map_err(|e| e.to_string())?;
+                let cfg = vw_gateway_client::GatewayClient::new(endpoint)?
+                    .desktop_system_settings_get::<vw_config_types::ui::AppSystemSettingsConfig>()
+                    .await?
+                    .unwrap_or_default();
                 Ok((
                     cfg.dialogue_flow_show_reasoning_summary,
                     cfg.dialogue_flow_expand_shell_tool_section,
@@ -235,67 +230,36 @@ fn dialogue_flow_ui_settings_load_task() -> Task<Message> {
                 ))
             }
         },
-        |res| Message::Settings(SettingsMessage::DialogueFlowUiSettingsLoaded(res)),
+        move |result| {
+            Message::Settings(SettingsMessage::DialogueFlowUiSettingsLoaded(
+                scope, revision, result,
+            ))
+        },
     )
 }
 
-/// 保存对话流 UI 设置的任务
-///
-/// 该函数将对话流相关的 UI 行为设置保存到系统配置中。
-///
-/// # 参数
-///
-/// - `show_reasoning_summary`: 是否显示推理摘要
-/// - `expand_shell_tool_section`: 是否默认展开 shell 工具部分
-/// - `expand_edit_tool_section`: 是否默认展开编辑工具部分
-///
-/// # 返回值
-///
-/// 返回一个 `Task<Message>`，该任务会：
-/// - 成功时：发送 `DialogueFlowUiSettingsSaved(Ok(()))` 消息
-/// - 失败时：发送 `DialogueFlowUiSettingsSaved(Err(error_message))` 消息
-///
-/// # 行为说明
-///
-/// - 在 WASM32 架构下，不执行任何操作并返回成功
-/// - 在非 WASM32 架构下，更新系统配置文件中的对话流设置
-///
-/// # 示例
-///
-/// ```ignore
-/// let task = dialogue_flow_ui_settings_save_task(true, false, false);
-/// ```
-fn dialogue_flow_ui_settings_save_task(
-    show_reasoning_summary: bool,
-    expand_shell_tool_section: bool,
-    expand_edit_tool_section: bool,
+fn save_dialogue_flow_settings(
+    app: &mut App,
+    fields: impl IntoIterator<Item = (&'static str, bool)>,
 ) -> Task<Message> {
-    Task::perform(
-        async move {
-            // WASM32 平台不支持文件系统操作，直接返回成功
-            #[cfg(target_arch = "wasm32")]
-            {
-                let _ =
-                    (show_reasoning_summary, expand_shell_tool_section, expand_edit_tool_section);
-                return Ok(());
-            }
-            // 非 WASM32 平台：保存对话流 UI 设置
-            #[cfg(not(target_arch = "wasm32"))]
-            {
-                tokio::task::spawn_blocking(move || {
-                    crate::app::update_system_settings_config(|cfg| {
-                        cfg.dialogue_flow_show_reasoning_summary = show_reasoning_summary;
-                        cfg.dialogue_flow_expand_shell_tool_section = expand_shell_tool_section;
-                        cfg.dialogue_flow_expand_edit_tool_section = expand_edit_tool_section;
-                    });
-                })
-                .await
-                .map_err(|e| e.to_string())?;
-                Ok(())
-            }
-        },
-        |res| Message::Settings(SettingsMessage::DialogueFlowUiSettingsSaved(res)),
-    )
+    let revision = &mut app.desktop_preferences_persistence.dialogue_flow_load_revision;
+    *revision = revision.wrapping_add(1);
+    #[cfg(target_arch = "wasm32")]
+    {
+        let _ = fields;
+        Task::done(Message::Settings(SettingsMessage::DialogueFlowUiSettingsSaved(Ok(()))))
+    }
+    #[cfg(not(target_arch = "wasm32"))]
+    {
+        let fields =
+            fields.into_iter().map(|(key, value)| (key.to_owned(), value.into())).collect();
+        app.save_system_settings_fields(SystemSettingsSection::DialogueFlow, fields)
+    }
+}
+
+fn dialogue_flow_load_is_current(app: &App, scope: PreferencesScope, revision: u64) -> bool {
+    revision == app.desktop_preferences_persistence.dialogue_flow_load_revision
+        && scope == preferences_scope(&gateway_client_endpoint())
 }
 
 /// 处理对话流设置相关的消息更新
@@ -339,7 +303,7 @@ pub fn update(app: &mut App, message: SettingsMessage) -> Task<Message> {
         // 刷新权限配置和对话流 UI 设置（同时触发两个加载任务）
         SettingsMessage::DialogueFlowPermissionRefresh => Task::batch(vec![
             dialogue_flow_permission_text_task(app.project_path.clone()),
-            dialogue_flow_ui_settings_load_task(),
+            dialogue_flow_ui_settings_load_task(app),
         ]),
         // 权限配置加载完成，更新编辑器内容
         SettingsMessage::DialogueFlowPermissionLoaded(res) => {
@@ -355,7 +319,10 @@ pub fn update(app: &mut App, message: SettingsMessage) -> Task<Message> {
             dialogue_flow_permission_reset_task(app.project_path.clone())
         }
         // 对话流设置加载完成，更新状态或显示错误消息
-        SettingsMessage::DialogueFlowUiSettingsLoaded(res) => {
+        SettingsMessage::DialogueFlowUiSettingsLoaded(scope, revision, res) => {
+            if !dialogue_flow_load_is_current(app, scope, revision) {
+                return Task::none();
+            }
             match res {
                 Ok((
                     show_reasoning_summary,
@@ -378,34 +345,25 @@ pub fn update(app: &mut App, message: SettingsMessage) -> Task<Message> {
             Task::none()
         }
         // 手动触发对话流设置保存
-        SettingsMessage::DialogueFlowUiSettingsSave => dialogue_flow_ui_settings_save_task(
-            app.dialogue_flow_show_reasoning_summary,
-            app.dialogue_flow_expand_shell_tool_section,
-            app.dialogue_flow_expand_edit_tool_section,
+        SettingsMessage::DialogueFlowUiSettingsSave => save_dialogue_flow_settings(
+            app,
+            [
+                (REASONING_SUMMARY, app.dialogue_flow_show_reasoning_summary),
+                (SHELL_SECTION, app.dialogue_flow_expand_shell_tool_section),
+                (EDIT_SECTION, app.dialogue_flow_expand_edit_tool_section),
+            ],
         ),
         SettingsMessage::DialogueFlowShowReasoningSummaryToggled(value) => {
             app.dialogue_flow_show_reasoning_summary = value;
-            dialogue_flow_ui_settings_save_task(
-                app.dialogue_flow_show_reasoning_summary,
-                app.dialogue_flow_expand_shell_tool_section,
-                app.dialogue_flow_expand_edit_tool_section,
-            )
+            save_dialogue_flow_settings(app, [(REASONING_SUMMARY, value)])
         }
         SettingsMessage::DialogueFlowExpandShellToolSectionToggled(value) => {
             app.dialogue_flow_expand_shell_tool_section = value;
-            dialogue_flow_ui_settings_save_task(
-                app.dialogue_flow_show_reasoning_summary,
-                app.dialogue_flow_expand_shell_tool_section,
-                app.dialogue_flow_expand_edit_tool_section,
-            )
+            save_dialogue_flow_settings(app, [(SHELL_SECTION, value)])
         }
         SettingsMessage::DialogueFlowExpandEditToolSectionToggled(value) => {
             app.dialogue_flow_expand_edit_tool_section = value;
-            dialogue_flow_ui_settings_save_task(
-                app.dialogue_flow_show_reasoning_summary,
-                app.dialogue_flow_expand_shell_tool_section,
-                app.dialogue_flow_expand_edit_tool_section,
-            )
+            save_dialogue_flow_settings(app, [(EDIT_SECTION, value)])
         }
         // 对话流设置保存完成，显示成功或失败消息
         SettingsMessage::DialogueFlowUiSettingsSaved(res) => {

@@ -893,7 +893,11 @@ pub enum SettingsMessage {
     DialogueFlowPermissionRefresh,
     DialogueFlowPermissionLoaded(DialogueFlowPermissionLoaded),
     DialogueFlowPermissionReset,
-    DialogueFlowUiSettingsLoaded(DialogueFlowUiSettingsLoaded),
+    DialogueFlowUiSettingsLoaded(
+        crate::app::config::PreferencesScope,
+        u64,
+        DialogueFlowUiSettingsLoaded,
+    ),
     DialogueFlowUiSettingsSave,
     DialogueFlowUiSettingsSaved(Result<(), String>),
     DialogueFlowShowReasoningSummaryToggled(bool),

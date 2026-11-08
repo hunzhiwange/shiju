@@ -397,3 +397,64 @@ fn skill_cards_use_responsive_equal_width_columns() {
     assert_eq!(grid_column_count(612.0), 2);
     assert_eq!(grid_column_count(924.0), 3);
 }
+
+#[tokio::test]
+async fn skill_form_controls_render_system_tag_menu() {
+    use super::public_skills_tests::{CONTROL_LOCALES, SkillControls, control_renderer};
+    use crate::app::skill_hub::SystemSkill;
+    use iced::keyboard::key::Named;
+
+    let mut renderer = control_renderer().await;
+    let (mut app, _) = App::new();
+    app.expert_hub.skill_tab = SkillTab::System;
+    app.expert_hub.system_filter.keyword_draft = "fixture".into();
+    for (locale, name) in CONTROL_LOCALES {
+        app.desktop_locale = locale;
+        app.expert_hub.system = LoadState::Loaded(Page {
+            items: vec![SystemSkill {
+                id: 1,
+                slug: "fixture".into(),
+                name: name.into(),
+                description: name.into(),
+                is_all_company_accessible: 1,
+                tags: vec![SkillTag { id: 57, name: name.into(), sort_order: 0 }],
+            }],
+            page: 1,
+            page_size: 20,
+            total: 1,
+        });
+        for theme in [Theme::Light, Theme::Dark] {
+            for width in [420, 760] {
+                let mut controls =
+                    SkillControls::new(super::list::view(&app), &mut renderer, width);
+                let input = controls.bounds(&[3, 0]);
+                let tag = controls.bounds(&[3, 1]);
+                let submit = controls.bounds(&[3, 2, 0]);
+                let reset = controls.bounds(&[3, 2, 1]);
+                assert!(input.width >= 300.0);
+                assert!(matches!(
+                    controls.choose_second(&mut renderer, &theme, tag, "tag").as_slice(),
+                    [Message::SkillHub(SkillHubMessage::FilterTagChanged(Some(57)))]
+                ));
+                assert!(controls.enter(&mut renderer, tag).is_empty());
+                assert!(matches!(
+                    controls.key(&mut renderer, Named::Enter).as_slice(),
+                    [Message::SkillHub(SkillHubMessage::FilterTagChanged(None))]
+                ));
+                for messages in [
+                    controls.enter(&mut renderer, input),
+                    controls.click(&mut renderer, submit.center()),
+                ] {
+                    assert!(matches!(
+                        messages.as_slice(),
+                        [Message::SkillHub(SkillHubMessage::FiltersSubmitted)]
+                    ));
+                }
+                assert!(matches!(
+                    controls.click(&mut renderer, reset.center()).as_slice(),
+                    [Message::SkillHub(SkillHubMessage::FiltersReset)]
+                ));
+            }
+        }
+    }
+}

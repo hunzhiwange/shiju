@@ -4,9 +4,7 @@ use std::fmt;
 
 use iced::widget::scrollable::{Direction, Scrollbar};
 use iced::widget::tooltip::{Position as TooltipPosition, Tooltip};
-use iced::widget::{
-    Space, button, column, container, pick_list, responsive, row, scrollable, text, text_input,
-};
+use iced::widget::{Space, button, column, container, responsive, row, scrollable, text};
 use iced::{Alignment, Element, Font, Length};
 use vw_gateway_client::{
     SkillMarketSkillDto, SkillMarketSkillLocatorDto, SkillMarketSkillSetDto, SkillMarketSort,
@@ -15,9 +13,7 @@ use vw_gateway_client::{
 
 use super::list::{description_preview, description_tooltip};
 use super::styles;
-use crate::app::components::system_settings_common::{
-    settings_pick_list_menu_style, settings_pick_list_style,
-};
+use crate::app::components::system_settings_common::{settings_select, settings_text_input};
 use crate::app::message::skill_hub::{PublicSkillMessage, SkillHubMessage};
 use crate::app::skill_hub::{LoadState, PublicSkillMarketState, PublicSkillTab};
 use crate::app::{App, Message};
@@ -117,14 +113,10 @@ pub(super) fn source_selector(
         .iter()
         .find(|option| state.current_source.as_deref() == Some(&option.source))
         .cloned();
-    pick_list(options, selected, |option| {
+    settings_select(options, selected, |option| {
         public_message(PublicSkillMessage::SelectSource(option.source))
     })
     .placeholder(i18n.__("选择来源"))
-    .padding([8, 12])
-    .text_size(13)
-    .style(settings_pick_list_style)
-    .menu_style(settings_pick_list_menu_style)
     .width(Length::Fixed(160.0))
     .into()
 }
@@ -137,16 +129,12 @@ fn search_header(app: &App) -> Element<'_, Message> {
         .map(|(label, tab)| tab_button(i18n, label, *tab, state.tab == *tab))
         .collect::<Vec<_>>())
     .spacing(6)
+    .width(Length::Fill)
     .wrap();
-    let search = text_input(
-        crate::app::i18n::I18n::new(app.desktop_locale).__("搜索技能或套件"),
-        &state.query.keyword_draft,
-    )
-    .on_input(|query| public_message(PublicSkillMessage::QueryDraftChanged(query)))
-    .on_submit(public_message(PublicSkillMessage::SubmitQuery))
-    .padding([10, 14])
-    .style(styles::search_input_style)
-    .width(Length::Fixed(340.0));
+    let search = settings_text_input(i18n.__("搜索技能或套件"), &state.query.keyword_draft)
+        .on_input(|query| public_message(PublicSkillMessage::QueryDraftChanged(query)))
+        .on_submit(public_message(PublicSkillMessage::SubmitQuery))
+        .width(Length::Fixed(340.0));
     column![
         row![
             column![
@@ -168,9 +156,7 @@ fn search_header(app: &App) -> Element<'_, Message> {
                 .style(styles::quiet_button_style),
         ]
         .align_y(Alignment::Center),
-        row![tabs, Space::new().width(Length::Fill), source_selector(i18n, state),]
-            .spacing(10)
-            .align_y(Alignment::Center),
+        row![tabs, source_selector(i18n, state)].spacing(10).align_y(Alignment::Center),
         row![
             search,
             button(text(crate::app::i18n::I18n::new(app.desktop_locale).__("搜索")).size(13))
@@ -488,15 +474,10 @@ fn category_controls(
         SORT_OPTIONS.map(|option| SortOption { label: i18n.__(option.label), ..option });
     let selected_sort = sort_options.iter().copied().find(|option| option.sort == state.query.sort);
     row![
-        categories.wrap(),
-        Space::new().width(Length::Fill),
-        pick_list(sort_options, selected_sort, |option| {
+        categories.width(Length::Fill).wrap(),
+        settings_select(sort_options, selected_sort, |option| {
             public_message(PublicSkillMessage::SelectSort(option.sort))
         })
-        .padding([8, 12])
-        .text_size(12)
-        .style(settings_pick_list_style)
-        .menu_style(settings_pick_list_menu_style)
         .width(Length::Fixed(130.0)),
     ]
     .spacing(10)

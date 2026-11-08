@@ -4,7 +4,7 @@ use super::styles;
 use crate::app::assets::Icon;
 use crate::app::components::overlays::PointBelowOverlay;
 use crate::app::components::system_settings_common::{
-    icon_svg, settings_checkbox_style, settings_pick_list_menu_style, settings_pick_list_style,
+    icon_svg, settings_checkbox_style, settings_select, settings_text_input,
 };
 use crate::app::message::{AccountMessage, SkillHubMessage};
 use crate::app::skill_hub::{
@@ -15,8 +15,7 @@ use crate::app::{App, Message};
 use iced::widget::scrollable::{Direction, Scrollbar};
 use iced::widget::tooltip::{Position as TooltipPosition, Tooltip};
 use iced::widget::{
-    Space, button, checkbox, column, container, pick_list, responsive, row, scrollable, text,
-    text_input,
+    Space, button, checkbox, column, container, responsive, row, scrollable, text, text_input,
 };
 use iced::{
     Alignment, Background, Border, Color, Element, Font, Length, Point, Shadow, Theme, Vector,
@@ -903,11 +902,9 @@ fn list_search_input<'a>(
     i18n: crate::app::i18n::I18n,
     value: &'a str,
 ) -> iced::widget::TextInput<'a, Message> {
-    text_input(i18n.__("搜索技能名称或描述"), value)
+    settings_text_input(i18n.__("搜索技能名称或描述"), value)
         .on_input(|value| Message::SkillHub(SkillHubMessage::FilterKeywordChanged(value)))
         .on_submit(Message::SkillHub(SkillHubMessage::FiltersSubmitted))
-        .padding([10, 14])
-        .style(styles::search_input_style)
         .width(Length::Fixed(360.0))
 }
 
@@ -978,14 +975,10 @@ fn search_controls(app: &App) -> Element<'_, Message> {
             let filter = &app.expert_hub.system_filter;
             let options = current_tag_options(app, filter.tag_id_draft);
             let selected = options.iter().find(|option| option.id == filter.tag_id_draft).cloned();
-            let tag_picker = pick_list(options, selected, |option| {
+            let tag_picker = settings_select(options, selected, |option| {
                 Message::SkillHub(SkillHubMessage::FilterTagChanged(option.id))
             })
-            .placeholder(crate::app::i18n::I18n::new(app.desktop_locale).__("全部标签"))
-            .padding([9, 12])
-            .text_size(13)
-            .style(settings_pick_list_style)
-            .menu_style(settings_pick_list_menu_style)
+            .placeholder(i18n.__("全部标签"))
             .width(Length::Fixed(150.0));
             row![list_search_input(i18n, &filter.keyword_draft), tag_picker, filter_buttons(i18n)]
                 .spacing(8)

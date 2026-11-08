@@ -24,6 +24,7 @@ mod markdown_code;
 mod markdown_links;
 mod markdown_rich;
 mod markdown_selection;
+pub(in crate::app::components) use markdown_selection::selectable_titled_text;
 mod parse;
 mod render_cache;
 mod styles;

@@ -10,9 +10,10 @@
 
 use crate::app::components::system_settings::general_fields::{self, GeneralSettingField};
 use crate::app::components::system_settings_common::{
-    rounded_action_btn_style, settings_divider, settings_flexible_row, settings_group_card,
-    settings_group_heading, settings_muted_text_style, settings_page_heading, settings_select,
-    settings_tab_button, settings_tab_row, settings_toggle, settings_value_badge,
+    rounded_action_btn_style, settings_divider, settings_field_label, settings_flexible_row,
+    settings_flexible_row_with_label, settings_group_card, settings_group_heading,
+    settings_hover_help_label, settings_select, settings_tab_button, settings_tab_row,
+    settings_toggle, settings_value_badge,
 };
 use crate::app::components::system_settings_search::SettingsTabDescriptor;
 use crate::app::i18n::I18n;
@@ -21,6 +22,7 @@ use crate::app::theme_catalog::{theme_store_from_home, to_iced_theme};
 use crate::app::{App, Message, PreviewAutoSaveMode, Shell, TerminalTheme, message};
 use iced::widget::{button, column, row, slider, text};
 use iced::{Alignment, Element, Length, Theme};
+use std::borrow::Cow;
 
 const GENERAL_CONTROL_WIDTH: f32 = 280.0;
 
@@ -42,6 +44,20 @@ fn general_field_row<'a>(
     control: impl Into<Element<'a, Message>>,
 ) -> Element<'a, Message> {
     settings_flexible_row(i18n.__(field.label), description, GENERAL_CONTROL_WIDTH, control)
+        .id(field.id)
+        .into()
+}
+
+fn interface_field_row<'a>(
+    app: &App,
+    field: &GeneralSettingField,
+    description: impl Into<Cow<'a, str>>,
+    control: impl Into<Element<'a, Message>>,
+) -> Element<'a, Message> {
+    let title = I18n::new(app.desktop_locale).__(field.label);
+    let label = settings_hover_help_label(app, title, settings_field_label(title), description);
+    settings_flexible_row_with_label(label.width(Length::Fill), GENERAL_CONTROL_WIDTH, control)
+        .padding([12, 0])
         .id(field.id)
         .into()
 }
@@ -229,18 +245,23 @@ pub fn view(app: &App) -> Element<'_, Message> {
 
     let content: Element<'_, Message> = match active_tab {
         GeneralSettingsTab::Interface => column![
-            settings_group_heading(i18n.__("界面"), i18n.__("应用外观与预览行为。")),
+            settings_hover_help_label(
+                app,
+                i18n.__("界面"),
+                text(i18n.__("界面")).size(17),
+                i18n.__("应用外观与预览行为。"),
+            ),
             settings_group_card(
                 column![
-                    general_field_row(
-                        i18n,
+                    interface_field_row(
+                        app,
                         &general_fields::LAUNCH_ON_LOGIN,
                         i18n.__("随系统自动启动识矩，仅对当前设备生效。"),
                         launch_toggle,
                     ),
                     settings_divider(),
-                    general_field_row(
-                        i18n,
+                    interface_field_row(
+                        app,
                         &general_fields::CLOSE_TO_TRAY,
                         i18n.__(if cfg!(target_os = "macos") {
                             "点击红色关闭按钮后继续运行；从屏幕顶部菜单栏的识矩图标显示窗口或退出。"
@@ -250,15 +271,15 @@ pub fn view(app: &App) -> Element<'_, Message> {
                         tray_toggle,
                     ),
                     settings_divider(),
-                    general_field_row(
-                        i18n,
+                    interface_field_row(
+                        app,
                         &general_fields::LANGUAGE,
                         i18n.__("当前桌面端使用的界面语言。"),
                         locale_pick,
                     ),
                     settings_divider(),
-                    general_field_row(
-                        i18n,
+                    interface_field_row(
+                        app,
                         &general_fields::APP_THEME,
                         i18n.__("快速切换内置、预设和自定义主题；完整管理见「主题」标签。"),
                         settings_select(
@@ -269,22 +290,19 @@ pub fn view(app: &App) -> Element<'_, Message> {
                         .width(GENERAL_CONTROL_WIDTH),
                     ),
                     settings_divider(),
-                    general_field_row(
-                        i18n,
+                    interface_field_row(
+                        app,
                         &general_fields::AUTO_SAVE,
-                        i18n.__("控制预览编辑器自动保存的时机。"),
-                        column![
-                            auto_save_pick,
-                            text(i18n.__(app.preview_auto_save_mode.description()))
-                                .size(12)
-                                .style(settings_muted_text_style),
-                        ]
-                        .spacing(8)
-                        .width(GENERAL_CONTROL_WIDTH),
+                        format!(
+                            "{}\n{}",
+                            i18n.__("控制预览编辑器自动保存的时机。"),
+                            i18n.__(app.preview_auto_save_mode.description()),
+                        ),
+                        auto_save_pick,
                     ),
                     settings_divider(),
-                    general_field_row(
-                        i18n,
+                    interface_field_row(
+                        app,
                         &general_fields::TASK_NOTIFICATION,
                         i18n.__(if crate::app::desktop_notification::SUPPORTED {
                             "本轮对话成功完成后发送系统通知，需在系统中允许通知。"
@@ -312,8 +330,8 @@ pub fn view(app: &App) -> Element<'_, Message> {
                         .wrap(),
                     ),
                     settings_divider(),
-                    general_field_row(
-                        i18n,
+                    interface_field_row(
+                        app,
                         &general_fields::CHAT_TIMEZONE,
                         i18n.__("用于模型时间上下文，新会话生效。"),
                         timezone_pick,
@@ -372,8 +390,10 @@ pub fn view(app: &App) -> Element<'_, Message> {
     };
 
     column![
-        settings_page_heading(
+        settings_hover_help_label(
+            app,
             i18n.__("常规"),
+            text(i18n.__("常规")).size(28),
             i18n.__("通过标签切换界面、终端、编辑器与主题配置。"),
         ),
         tabs,

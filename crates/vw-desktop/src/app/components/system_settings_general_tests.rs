@@ -305,7 +305,7 @@ mod tab_appearance {
         renderer::{Headless, Style},
         widget::{Id, Operation, Tree},
     };
-    use iced::{Color, Event, Font, Point, Rectangle, Renderer, Size, mouse};
+    use iced::{Color, Event, Font, Point, Rectangle, Renderer, Size, keyboard, mouse};
     use iced_runtime::user_interface::{Cache, UserInterface};
     use vw_config_types::ui::{DesktopLocale, GatewayClientSystemSettingsConfig};
 
@@ -378,6 +378,20 @@ mod tab_appearance {
             .collect()
     }
 
+    fn page_help_bounds(element: &mut Element<'_, Message>, renderer: &Renderer) -> Rectangle {
+        let mut tree = Tree::new(element.as_widget());
+        let limits = layout::Limits::new(Size::ZERO, Size::from((SIZE.width, SIZE.height)));
+        let node = element.as_widget_mut().layout(&mut tree, renderer, &limits);
+        Layout::new(&node)
+            .children()
+            .next()
+            .expect("page heading")
+            .children()
+            .nth(1)
+            .expect("help icon")
+            .bounds()
+    }
+
     fn send(
         ui: &mut Ui<'_>,
         renderer: &mut Renderer,
@@ -438,6 +452,206 @@ mod tab_appearance {
         pixels.get_pixel(bounds.x as u32 + 5, bounds.center_y() as u32)
     }
 
+    fn assert_hover_help(
+        ui: &mut Ui<'_>,
+        renderer: &mut Renderer,
+        theme: &Theme,
+        idle: &image::RgbaImage,
+        icon: Rectangle,
+        title: &str,
+        description: &str,
+    ) {
+        let mut hover = |ui: &mut Ui<'_>, point| {
+            let cursor = mouse::Cursor::Available(point);
+            assert!(
+                send(
+                    ui,
+                    renderer,
+                    cursor,
+                    Event::Mouse(mouse::Event::CursorMoved { position: point })
+                )
+                .is_empty()
+            );
+        };
+        let trigger = icon.center();
+        let gap = Point::new(icon.x + icon.width + 2.0, trigger.y);
+        let card = Point::new(gap.x + 20.0, trigger.y);
+        hover(ui, trigger);
+        hover(ui, gap);
+        hover(ui, card);
+        let cursor = mouse::Cursor::Available(card);
+        let open = capture(ui, renderer, theme, cursor);
+        assert!(open != *idle, "hover help is drawn");
+        let outside = Point::new(icon.x, 0.0);
+        assert!(
+            send(
+                ui,
+                renderer,
+                mouse::Cursor::Available(outside),
+                Event::Mouse(mouse::Event::CursorMoved { position: outside }),
+            )
+            .is_empty()
+        );
+        assert!(
+            capture(ui, renderer, theme, mouse::Cursor::Unavailable) == *idle,
+            "help closes on pointer exit"
+        );
+
+        let left = mouse::Button::Left;
+        assert!(
+            send(
+                ui,
+                renderer,
+                mouse::Cursor::Available(trigger),
+                Event::Mouse(mouse::Event::ButtonPressed(left))
+            )
+            .is_empty()
+        );
+        assert!(
+            send(
+                ui,
+                renderer,
+                mouse::Cursor::Available(outside),
+                Event::Mouse(mouse::Event::CursorMoved { position: outside })
+            )
+            .is_empty()
+        );
+        let pinned = capture(ui, renderer, theme, mouse::Cursor::Available(outside));
+        assert!(pinned != *idle, "left click pins help");
+
+        let start = Point::new(icon.x + icon.width + 4.0 + 12.5, icon.y + 16.0);
+        let end = Point::new(start.x + 250.0, start.y + 150.0);
+        for (point, event) in [
+            (start, mouse::Event::ButtonPressed(left)),
+            (end, mouse::Event::CursorMoved { position: end }),
+            (end, mouse::Event::ButtonReleased(left)),
+        ] {
+            assert!(
+                send(ui, renderer, mouse::Cursor::Available(point), Event::Mouse(event)).is_empty()
+            );
+        }
+        let selected = capture(ui, renderer, theme, mouse::Cursor::Available(outside));
+        assert!(selected != pinned, "drag highlights the text");
+        for (point, event) in [
+            (outside, mouse::Event::CursorMoved { position: outside }),
+            (start, mouse::Event::CursorMoved { position: start }),
+            (
+                start,
+                mouse::Event::WheelScrolled {
+                    delta: mouse::ScrollDelta::Pixels { x: 0.0, y: -1.0 },
+                },
+            ),
+        ] {
+            assert!(
+                send(ui, renderer, mouse::Cursor::Available(point), Event::Mouse(event)).is_empty()
+            );
+        }
+        assert!(
+            capture(ui, renderer, theme, mouse::Cursor::Available(outside)) == selected,
+            "moving and incidental scrolling preserve the selection"
+        );
+        let expected = format!("{title}\n{description}");
+        let copy_key = keyboard::Key::Character("c".into());
+        let shortcut = Event::Keyboard(keyboard::Event::KeyPressed {
+            key: copy_key.clone(),
+            modified_key: copy_key,
+            physical_key: keyboard::key::Physical::Code(keyboard::key::Code::KeyC),
+            location: keyboard::Location::Standard,
+            modifiers: if cfg!(target_os = "macos") {
+                keyboard::Modifiers::LOGO
+            } else {
+                keyboard::Modifiers::CTRL
+            },
+            text: None,
+            repeat: false,
+        });
+        assert!(matches!(
+            send(ui, renderer, mouse::Cursor::Available(outside), shortcut).as_slice(),
+            [Message::CopyCode(help)] if help == &expected
+        ));
+
+        let query = urlencoding::encode(&expected);
+        let actions = [
+            Message::CopyCode(expected.clone()),
+            Message::Chat(message::ChatMessage::AppendText(expected.clone())),
+            Message::View(message::ViewMessage::OpenUrlExternal(format!(
+                "https://www.baidu.com/s?wd={query}"
+            ))),
+            Message::View(message::ViewMessage::OpenUrlExternal(format!(
+                "https://www.google.com/search?q={query}"
+            ))),
+            Message::View(message::ViewMessage::OpenUrlExternal(format!(
+                "https://www.bing.com/search?q={query}"
+            ))),
+        ];
+        let line_height = iced::advanced::text::LineHeight::default().to_absolute(12.0.into());
+        let row_height = f32::from(line_height) + 10.0;
+        for (index, action) in actions.into_iter().enumerate() {
+            let cursor = mouse::Cursor::Available(start);
+            assert!(
+                send(
+                    ui,
+                    renderer,
+                    cursor,
+                    Event::Mouse(mouse::Event::ButtonPressed(mouse::Button::Right))
+                )
+                .is_empty(),
+                "right click opens a menu without running an action"
+            );
+            let menu_idle = capture(ui, renderer, theme, cursor);
+            assert!(menu_idle != selected, "menu is visible");
+            let item =
+                Point::new(start.x + 24.0, start.y + 3.0 + row_height * (index as f32 + 0.5));
+            let item_cursor = mouse::Cursor::Available(item);
+            assert!(
+                send(
+                    ui,
+                    renderer,
+                    item_cursor,
+                    Event::Mouse(mouse::Event::CursorMoved { position: item })
+                )
+                .is_empty()
+            );
+            assert!(
+                capture(ui, renderer, theme, item_cursor) != menu_idle,
+                "menu item is highlighted"
+            );
+            assert!(
+                send(ui, renderer, item_cursor, Event::Mouse(mouse::Event::ButtonPressed(left)))
+                    .is_empty()
+            );
+            let messages =
+                send(ui, renderer, item_cursor, Event::Mouse(mouse::Event::ButtonReleased(left)));
+            assert!(
+                matches!(
+                    (messages.as_slice(), &action),
+                    ([Message::CopyCode(actual)], Message::CopyCode(expected))
+                    | ([Message::Chat(message::ChatMessage::AppendText(actual))], Message::Chat(message::ChatMessage::AppendText(expected)))
+                    | ([Message::View(message::ViewMessage::OpenUrlExternal(actual))], Message::View(message::ViewMessage::OpenUrlExternal(expected)))
+                        if actual == expected
+                ),
+                "{messages:?} did not match {action:?}"
+            );
+            assert!(
+                capture(ui, renderer, theme, mouse::Cursor::Available(outside)) == selected,
+                "the menu closes and the selection stays visible after choosing an action"
+            );
+        }
+        assert!(
+            send(
+                ui,
+                renderer,
+                mouse::Cursor::Available(outside),
+                Event::Mouse(mouse::Event::ButtonPressed(left))
+            )
+            .is_empty()
+        );
+        assert!(
+            capture(ui, renderer, theme, mouse::Cursor::Unavailable) == *idle,
+            "outside click closes pinned help"
+        );
+    }
+
     #[tokio::test(flavor = "multi_thread")]
     async fn settings_tabs_general_appearance() {
         if !run_isolated() {
@@ -456,7 +670,7 @@ mod tab_appearance {
                 .expect("tiny-skia renderer");
         let mut app = test_app();
         let tabs = [
-            (GeneralSettingsTab::Interface, "应用外观与预览行为。"),
+            (GeneralSettingsTab::Interface, "开机启动"),
             (GeneralSettingsTab::Terminal, "终端 Shell"),
             (GeneralSettingsTab::Editor, "主题与显示"),
             (GeneralSettingsTab::Themes, "主题画廊"),
@@ -484,28 +698,49 @@ mod tab_appearance {
 
                 for (index, (active, content)) in tabs.into_iter().enumerate() {
                     assert_eq!(app.general_settings_tab, active);
-                    let mut element = view(&app);
-                    let bounds = tab_bounds(&mut element, &renderer);
+                    let (bounds, help) = {
+                        let mut element = view(&app);
+                        (
+                            tab_bounds(&mut element, &renderer),
+                            page_help_bounds(&mut element, &renderer),
+                        )
+                    };
                     assert_eq!(bounds.len(), 4);
                     for pair in bounds.windows(2) {
                         assert!((pair[1].x - pair[0].x - pair[0].width - 8.0).abs() < 0.01);
                         assert_eq!(pair[0].center_y(), pair[1].center_y());
                     }
                     let mut ui = UserInterface::build(
-                        element,
+                        iced::widget::responsive(|_| view(&app)),
                         Size::from((SIZE.width, SIZE.height)),
                         Cache::new(),
                         &mut renderer,
                     );
                     let mut labels = Labels::default();
                     ui.operate(&renderer, &mut labels);
-                    assert_eq!(&labels.0[2..6], &names);
+                    assert_eq!(&labels.0[1..5], &names);
                     assert!(
-                        labels.0[6..].iter().any(|label| label == &i18n.__(content)),
+                        labels.0[5..].iter().any(|label| label == &i18n.__(content)),
                         "{content:?} missing from {active:?}"
                     );
 
                     let idle = capture(&mut ui, &mut renderer, &theme, mouse::Cursor::Unavailable);
+                    if active == GeneralSettingsTab::Interface {
+                        let description = i18n.__("通过标签切换界面、终端、编辑器与主题配置。");
+                        assert!(!labels.0.iter().any(|label| label == description));
+                        assert!(
+                            !labels.0.iter().any(|label| label == i18n.__("应用外观与预览行为。"))
+                        );
+                        assert_hover_help(
+                            &mut ui,
+                            &mut renderer,
+                            &theme,
+                            &idle,
+                            help,
+                            i18n.__("常规"),
+                            description,
+                        );
+                    }
                     for (tab_index, bounds) in bounds.iter().copied().enumerate() {
                         assert_color(
                             fill_pixel(&idle, bounds),

@@ -6,6 +6,7 @@ use super::shared::{
 };
 use super::{ChatMessage, ClipboardPastePayload};
 use crate::app::components::chat_panel::tool_text_support::selected_chat_text_for_target;
+use crate::app::components::text_editor_context_menu::TextContextAction;
 use crate::app::message::chat::input::clipboard::read_clipboard_for_input;
 use crate::app::message::project::helpers::append_local_attachments;
 use crate::app::{App, Message};
@@ -127,58 +128,39 @@ pub(super) fn handle_close_message_context_menu(app: &mut App) -> Task<Message> 
 /// 模块内可见函数，执行 handle_copy_context_menu_text 对应的应用流程。
 /// 返回值表达处理结果；失败通过错误值、日志或任务消息显式传递。
 pub(super) fn handle_copy_context_menu_text(app: &mut App) -> Task<Message> {
-    let text = app.chat_context_menu_text.clone();
-    clear_message_context_menu(app);
-    if text.is_empty() { Task::none() } else { Task::done(Message::CopyCode(text)) }
+    handle_text_context_action(app, TextContextAction::Copy)
 }
 
 /// 模块内可见函数，执行 handle_append_context_menu_text 对应的应用流程。
 /// 返回值表达处理结果；失败通过错误值、日志或任务消息显式传递。
 pub(super) fn handle_append_context_menu_text(app: &mut App) -> Task<Message> {
-    let text = app.chat_context_menu_text.clone();
-    clear_message_context_menu(app);
-    if text.is_empty() {
-        Task::none()
-    } else {
-        Task::done(Message::Chat(ChatMessage::AppendText(text)))
-    }
+    handle_text_context_action(app, TextContextAction::Append)
 }
 
 /// 模块内可见函数，执行 handle_search_context_menu_with_baidu 对应的应用流程。
 /// 返回值表达处理结果；失败通过错误值、日志或任务消息显式传递。
 pub(super) fn handle_search_context_menu_with_baidu(app: &mut App) -> Task<Message> {
-    handle_search_context_menu(app, "https://www.baidu.com/s?wd=")
+    handle_text_context_action(app, TextContextAction::Baidu)
 }
 
 /// 模块内可见函数，执行 handle_search_context_menu_with_google 对应的应用流程。
 /// 返回值表达处理结果；失败通过错误值、日志或任务消息显式传递。
 pub(super) fn handle_search_context_menu_with_google(app: &mut App) -> Task<Message> {
-    handle_search_context_menu(app, "https://www.google.com/search?q=")
+    handle_text_context_action(app, TextContextAction::Google)
 }
 
 /// 模块内可见函数，执行 handle_search_context_menu_with_bing 对应的应用流程。
 /// 返回值表达处理结果；失败通过错误值、日志或任务消息显式传递。
 pub(super) fn handle_search_context_menu_with_bing(app: &mut App) -> Task<Message> {
-    handle_search_context_menu(app, "https://www.bing.com/search?q=")
+    handle_text_context_action(app, TextContextAction::Bing)
 }
 
-fn clear_message_context_menu(app: &mut App) {
+fn handle_text_context_action(app: &mut App, action: TextContextAction) -> Task<Message> {
     app.chat_context_menu_target = None;
     app.chat_context_menu_pos = None;
-    app.chat_context_menu_text.clear();
-}
-
-fn handle_search_context_menu(app: &mut App, base_url: &str) -> Task<Message> {
-    let query = app.chat_context_menu_text.trim().to_string();
-    clear_message_context_menu(app);
-    if query.is_empty() {
-        Task::none()
-    } else {
-        Task::done(Message::View(crate::app::message::ViewMessage::OpenUrlExternal(format!(
-            "{base_url}{}",
-            urlencoding::encode(&query)
-        ))))
-    }
+    action
+        .message(std::mem::take(&mut app.chat_context_menu_text))
+        .map_or_else(Task::none, Task::done)
 }
 
 pub(super) fn handle_open_fork_session_dialog(

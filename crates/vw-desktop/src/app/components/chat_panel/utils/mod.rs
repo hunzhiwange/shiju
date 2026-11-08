@@ -53,6 +53,7 @@ pub use time::{
     format_chat_time_label, project_last_modified_ms, relative_modified_label,
     relative_time_bucket, relative_time_label, relative_time_label_for_bucket,
 };
+pub(crate) use ui::text_context_menu;
 pub use ui::{
     bold_font, capped_scroll_height, chat_context_menu, chat_context_target_key,
     copy_tooltip_content,

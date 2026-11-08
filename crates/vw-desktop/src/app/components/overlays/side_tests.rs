@@ -171,6 +171,7 @@ fn update_overlay_once(
         tree: &mut tree,
         on_close,
         on_mouse_exit,
+        hover: None,
     };
 
     overlay::Overlay::update(
@@ -438,6 +439,7 @@ fn overlay_element_layout_positions_content() {
         tree: &mut tree,
         on_close: None,
         on_mouse_exit: None,
+        hover: None,
     };
 
     let node = overlay::Overlay::layout(&mut overlay, &renderer, Size::new(240.0, 180.0));
@@ -462,6 +464,7 @@ fn overlay_element_layout_uses_left_side_when_right_is_tight() {
         tree: &mut tree,
         on_close: None,
         on_mouse_exit: None,
+        hover: None,
     };
 
     let node = overlay::Overlay::layout(&mut overlay, &renderer, Size::new(320.0, 220.0));
@@ -490,6 +493,7 @@ fn overlay_element_click_outside_publishes_close_and_captures() {
         tree: &mut tree,
         on_close: Some(TestMessage::Close),
         on_mouse_exit: None,
+        hover: None,
     };
 
     overlay::Overlay::update(
@@ -528,6 +532,7 @@ fn overlay_element_click_inside_target_does_not_close() {
         tree: &mut tree,
         on_close: Some(TestMessage::Close),
         on_mouse_exit: None,
+        hover: None,
     };
 
     overlay::Overlay::update(
@@ -566,6 +571,7 @@ fn overlay_element_mouse_inside_overlay_captures_without_close() {
         tree: &mut tree,
         on_close: Some(TestMessage::Close),
         on_mouse_exit: None,
+        hover: None,
     };
 
     overlay::Overlay::update(
@@ -708,6 +714,7 @@ fn overlay_element_interaction_and_draw_delegate_to_content() {
         tree: &mut tree,
         on_close: None,
         on_mouse_exit: None,
+        hover: None,
     };
 
     let interaction = overlay::Overlay::mouse_interaction(

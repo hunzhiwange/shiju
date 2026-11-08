@@ -29,7 +29,7 @@
 
 use iced::advanced::{Clipboard, Layout, Shell, Widget, layout, mouse, overlay, renderer, widget};
 use iced::{Element, Length};
-use iced::{Event, Point, Rectangle, Size, Theme, Vector};
+use iced::{Event, Point, Rectangle, Size, Theme, Vector, keyboard};
 
 pub(super) fn side_overlay_max_width(
     bounds: Size,
@@ -134,6 +134,15 @@ pub struct SideOverlay<'a, Message, ThemeT = Theme, RendererT = iced::Renderer> 
     align_y_start: bool,
     on_close: Option<Message>,
     on_mouse_exit: Option<Message>,
+    hover_and_click: bool,
+}
+
+#[derive(Clone, Copy, Default, PartialEq, Eq)]
+enum HoverState {
+    #[default]
+    Closed,
+    Hovered,
+    Pinned,
 }
 
 impl<'a, Message, ThemeT, RendererT> SideOverlay<'a, Message, ThemeT, RendererT> {
@@ -177,6 +186,7 @@ impl<'a, Message, ThemeT, RendererT> SideOverlay<'a, Message, ThemeT, RendererT>
             align_y_start: false,
             on_close: None,
             on_mouse_exit: None,
+            hover_and_click: false,
         }
     }
 
@@ -278,6 +288,12 @@ impl<'a, Message, ThemeT, RendererT> SideOverlay<'a, Message, ThemeT, RendererT>
         self
     }
 
+    /// Opens on hover and lets a click keep the overlay open for interaction.
+    pub fn hover_and_click(mut self) -> Self {
+        self.hover_and_click = true;
+        self
+    }
+
     /// 设置是否将覆盖层吸附在视口内
     ///
     /// 启用时，覆盖层位置将被限制在视口范围内，避免超出屏幕边界。
@@ -306,6 +322,22 @@ where
     RendererT: iced::advanced::Renderer,
     Message: Clone,
 {
+    fn tag(&self) -> widget::tree::Tag {
+        if self.hover_and_click {
+            widget::tree::Tag::of::<HoverState>()
+        } else {
+            widget::tree::Tag::stateless()
+        }
+    }
+
+    fn state(&self) -> widget::tree::State {
+        if self.hover_and_click {
+            widget::tree::State::new(HoverState::default())
+        } else {
+            widget::tree::State::None
+        }
+    }
+
     /// 获取组件的子元素树
     ///
     /// 返回包含主内容和覆盖层两个子元素的树结构。
@@ -409,6 +441,31 @@ where
         shell: &mut Shell<'_, Message>,
         viewport: &Rectangle,
     ) {
+        if self.hover_and_click && cursor.is_over(*viewport) && cursor.is_over(layout.bounds()) {
+            let hover = tree.state.downcast_mut::<HoverState>();
+            let next = match event {
+                Event::Mouse(mouse::Event::CursorMoved { .. }) if *hover == HoverState::Closed => {
+                    HoverState::Hovered
+                }
+                Event::Mouse(mouse::Event::ButtonPressed(mouse::Button::Left)) => {
+                    if *hover == HoverState::Pinned {
+                        HoverState::Closed
+                    } else {
+                        HoverState::Pinned
+                    }
+                }
+                _ => *hover,
+            };
+            if next != *hover {
+                *hover = next;
+                if next == HoverState::Closed {
+                    tree.children[1] = widget::Tree::new(&self.overlay);
+                }
+                shell.invalidate_layout();
+                shell.request_redraw();
+            }
+        }
+
         self.content.as_widget_mut().update(
             &mut tree.children[0],
             event,
@@ -488,9 +545,20 @@ where
         );
 
         // 如果启用了显示，创建侧边覆盖层元素
-        let side = if self.show {
+        let position = layout.position() + translation;
+        let mut hover = self.hover_and_click.then(|| tree.state.downcast_mut::<HoverState>());
+        let overlay_tree = children.next().unwrap();
+        if let Some(hover) = &mut hover
+            && **hover != HoverState::Closed
+            && !viewport.intersects(&Rectangle::new(position, layout.bounds().size()))
+        {
+            **hover = HoverState::Closed;
+            *overlay_tree = widget::Tree::new(&self.overlay);
+        }
+        let side = if self.show || hover.as_ref().is_some_and(|hover| **hover != HoverState::Closed)
+        {
             Some(overlay::Element::new(Box::new(SideOverlayElement {
-                position: layout.position() + translation,
+                position,
                 target_bounds: layout.bounds(),
                 gap: self.gap,
                 min_x: self.min_x,
@@ -498,9 +566,10 @@ where
                 snap_within_viewport: self.snap_within_viewport,
                 align_y_start: self.align_y_start,
                 overlay: &mut self.overlay,
-                tree: children.next().unwrap(),
+                tree: overlay_tree,
                 on_close: self.on_close.clone(),
                 on_mouse_exit: self.on_mouse_exit.clone(),
+                hover,
             })))
         } else {
             None
@@ -572,6 +641,7 @@ struct SideOverlayElement<'a, 'b, Message, ThemeT, RendererT> {
     on_close: Option<Message>,
     /// 指针离开目标与覆盖层共同区域时的消息
     on_mouse_exit: Option<Message>,
+    hover: Option<&'b mut HoverState>,
 }
 
 /// 为 `SideOverlayElement` 实现 `overlay::Overlay` trait
@@ -685,17 +755,53 @@ where
             height: self.target_bounds.height,
         };
 
-        if let Some(on_mouse_exit) = &self.on_mouse_exit {
-            match event {
-                Event::Mouse(mouse::Event::CursorMoved { position })
-                    if !side_overlay_hover_contains(target_bounds, bounds, *position) =>
-                {
-                    shell.publish(on_mouse_exit.clone());
+        let pointer_exited = match event {
+            Event::Mouse(mouse::Event::CursorMoved { position }) => {
+                !side_overlay_hover_contains(target_bounds, bounds, *position)
+            }
+            Event::Mouse(mouse::Event::CursorLeft) => true,
+            _ => false,
+        };
+        if pointer_exited && let Some(on_mouse_exit) = &self.on_mouse_exit {
+            shell.publish(on_mouse_exit.clone());
+        }
+        if let Some(hover) = &mut self.hover {
+            let left_press =
+                matches!(event, Event::Mouse(mouse::Event::ButtonPressed(mouse::Button::Left)));
+            let escape = matches!(
+                event,
+                Event::Keyboard(keyboard::Event::KeyPressed {
+                    key: keyboard::Key::Named(keyboard::key::Named::Escape),
+                    ..
+                })
+            );
+            let scrolling = matches!(event, Event::Mouse(mouse::Event::WheelScrolled { .. }));
+            let click_outside = left_press
+                && cursor.position().is_some()
+                && !cursor.is_over(bounds)
+                && !cursor.is_over(target_bounds);
+            if (**hover == HoverState::Hovered && (pointer_exited || scrolling))
+                || escape
+                || click_outside
+                || matches!(event, Event::Window(iced::window::Event::Unfocused))
+            {
+                **hover = HoverState::Closed;
+                *self.tree = widget::Tree::new(&*self.overlay);
+                shell.invalidate_layout();
+                shell.request_redraw();
+                if escape {
+                    shell.capture_event();
                 }
-                Event::Mouse(mouse::Event::CursorLeft) => {
-                    shell.publish(on_mouse_exit.clone());
-                }
-                _ => {}
+                return;
+            }
+            if matches!(
+                event,
+                Event::Mouse(mouse::Event::ButtonPressed(
+                    mouse::Button::Left | mouse::Button::Right
+                ))
+            ) && cursor.is_over(bounds)
+            {
+                **hover = HoverState::Pinned;
             }
         }
 

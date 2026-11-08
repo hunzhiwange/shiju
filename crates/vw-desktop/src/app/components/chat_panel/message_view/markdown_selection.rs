@@ -7,12 +7,19 @@ use std::sync::Arc;
 use iced::advanced::graphics::text::{Paragraph, cosmic_text::Cursor as TextCursor};
 use iced::advanced::text::{self, Paragraph as _, Span};
 use iced::advanced::widget::{Operation, Tree, operation, tree};
-use iced::advanced::{Clipboard, Layout, Renderer as _, Shell, Widget, layout, renderer};
-use iced::{Element, Event, Font, Length, Point, Rectangle, Renderer, Size, Theme, Vector, mouse};
+use iced::advanced::{Clipboard, Layout, Renderer as _, Shell, Widget, layout, overlay, renderer};
+use iced::widget::{column, span};
+use iced::{
+    Color, Element, Event, Font, Length, Point, Rectangle, Renderer, Size, Theme, Vector, font,
+    keyboard, mouse,
+};
 
+use crate::app::components::text_editor_context_menu::TextContextAction;
+use crate::app::i18n::I18n;
 use crate::app::{App, Message};
 
 use super::super::tool_text_support::chat_text_selection_color;
+use super::super::utils::text_context_menu;
 use super::markdown_links::LinkTarget;
 
 #[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
@@ -43,6 +50,20 @@ struct AreaState {
     gesture: Gesture,
     press: Option<Point>,
     selected: bool,
+    text_menu: TextMenuState,
+}
+
+#[derive(Default)]
+struct TextMenuState {
+    tree: Option<Tree>,
+    request: Option<(Vector, String)>,
+    modifiers: keyboard::Modifiers,
+}
+
+struct TextMenu<'a> {
+    full_text: std::borrow::Cow<'a, str>,
+    i18n: I18n,
+    content: Option<Element<'static, TextContextAction>>,
 }
 
 pub(super) fn area<'a>(
@@ -52,12 +73,50 @@ pub(super) fn area<'a>(
     message_idx: usize,
     text_idx: usize,
 ) -> Element<'a, Message> {
-    Element::new(Area { content, selection, app, message_idx, text_idx })
+    Element::new(Area {
+        content,
+        selection,
+        chat: Some(ChatOwner { app, message_idx, text_idx }),
+        text_menu: None,
+    })
+}
+
+/// Reuses Markdown hit testing and highlights for plain text with a bold title.
+pub(in crate::app::components) fn selectable_titled_text<'a>(
+    title: &'a str,
+    body: impl Into<std::borrow::Cow<'a, str>>,
+    color: Color,
+    i18n: I18n,
+) -> Element<'a, Message> {
+    let selection = Selection::default();
+    let render = |row, content, size, font| {
+        fragment(
+            selection.clone(),
+            FragmentId { section: 0, row, column: 0 },
+            vec![span(content)],
+            FragmentStyle { size, color, font, width: Length::Fill, align: text::Alignment::Left },
+            |_| Message::None,
+        )
+    };
+    let title = render(0, title.into(), 14.0, Font { weight: font::Weight::Bold, ..Font::DEFAULT });
+    let full_text = body.into();
+    let body = render(1, full_text.clone(), 13.0, Font::DEFAULT);
+    Element::new(Area {
+        content: column![title, body].spacing(3).into(),
+        selection,
+        chat: None,
+        text_menu: Some(TextMenu { full_text, i18n, content: None }),
+    })
 }
 
 struct Area<'a> {
     content: Element<'a, Message>,
     selection: Selection,
+    chat: Option<ChatOwner<'a>>,
+    text_menu: Option<TextMenu<'a>>,
+}
+
+struct ChatOwner<'a> {
     app: &'a App,
     message_idx: usize,
     text_idx: usize,
@@ -69,7 +128,8 @@ impl Widget<Message, Theme, Renderer> for Area<'_> {
     }
 
     fn state(&self) -> tree::State {
-        tree::State::new(AreaState { owner: self.owner(), ..AreaState::default() })
+        let owner = self.chat.as_ref().map(ChatOwner::key).unwrap_or_default();
+        tree::State::new(AreaState { owner, ..AreaState::default() })
     }
 
     fn children(&self) -> Vec<Tree> {
@@ -91,21 +151,17 @@ impl Widget<Message, Theme, Renderer> for Area<'_> {
         limits: &layout::Limits,
     ) -> layout::Node {
         let state = tree.state.downcast_mut::<AreaState>();
-        if state.owner.0.as_deref() != self.app.active_session_id.as_deref()
-            || state.owner.1 != self.message_idx
-            || state.owner.2 != self.text_idx
-        {
-            *state = AreaState { owner: self.owner(), ..AreaState::default() };
-        }
-        if state.press.is_none()
-            && !self.app.chat_markdown_selection.as_ref().is_some_and(|selection| {
-                selection.message_idx == self.message_idx
-                    && selection.text_idx == self.text_idx
-                    && self.app.active_session_id.as_deref() == Some(selection.session_id.as_str())
-            })
-        {
-            state.gesture = Gesture::default();
-            state.selected = false;
+        if let Some(chat) = &self.chat {
+            if state.owner.0.as_deref() != chat.app.active_session_id.as_deref()
+                || state.owner.1 != chat.message_idx
+                || state.owner.2 != chat.text_idx
+            {
+                *state = AreaState { owner: chat.key(), ..AreaState::default() };
+            }
+            if state.press.is_none() && !chat.has_selection() {
+                state.gesture = Gesture::default();
+                state.selected = false;
+            }
         }
         self.selection.0.set(state.gesture);
         self.content.as_widget_mut().layout(&mut tree.children[0], renderer, limits)
@@ -138,6 +194,48 @@ impl Widget<Message, Theme, Renderer> for Area<'_> {
         let child = &mut tree.children[0];
         let position = cursor.position();
         let mut fragments = Fragments::new(*viewport);
+        if let Some(menu) = &self.text_menu {
+            let menu_state = &mut state.text_menu;
+            if let Event::Keyboard(keyboard::Event::ModifiersChanged(modifiers)) = event {
+                menu_state.modifiers = *modifiers;
+            }
+            let secondary_click =
+                matches!(event, Event::Mouse(ButtonPressed(mouse::Button::Right)))
+                    || (cfg!(target_os = "macos")
+                        && menu_state.modifiers.control()
+                        && matches!(event, Event::Mouse(ButtonPressed(Left))));
+            let menu_position =
+                if secondary_click { cursor.position_over(*viewport) } else { None };
+            let copy_shortcut = matches!(event, Event::Keyboard(keyboard::Event::KeyPressed { key, modifiers, .. })
+                if modifiers.command() && !modifiers.alt()
+                    && matches!(key.as_ref(), keyboard::Key::Character("c" | "C")));
+            if menu_position.is_some() || (copy_shortcut && state.selected) {
+                let selected = state.gesture.range.and_then(|(a, b)| {
+                    self.content.as_widget_mut().operate(child, layout, renderer, &mut fragments);
+                    fragments.selected(a, b)
+                });
+                if let Some(position) = menu_position {
+                    let text = selected.unwrap_or_else(|| menu.full_text.to_string());
+                    menu_state.request = Some((position - layout.position(), text));
+                    menu_state.tree = None;
+                } else if let Some(text) = selected {
+                    menu_state.request = None;
+                    shell.publish(Message::CopyCode(text));
+                }
+                shell.invalidate_layout();
+                shell.request_redraw();
+                shell.capture_event();
+                return;
+            }
+            if matches!(event, Event::Mouse(ButtonPressed(Left)))
+                && menu_state.request.take().is_some()
+            {
+                shell.invalidate_layout();
+                shell.request_redraw();
+                shell.capture_event();
+                return;
+            }
+        }
         let relevant = match event {
             Event::Mouse(ButtonPressed(Left)) => {
                 position.is_some_and(|point| layout.bounds().contains(point))
@@ -152,7 +250,9 @@ impl Widget<Message, Theme, Renderer> for Area<'_> {
         match event {
             Event::Mouse(ButtonPressed(Left)) => {
                 if state.selected {
-                    self.publish_selection(shell, None);
+                    if let Some(chat) = &self.chat {
+                        chat.publish_selection(shell, None);
+                    }
                     shell.request_redraw();
                 }
                 state.gesture = Gesture::default();
@@ -189,7 +289,9 @@ impl Widget<Message, Theme, Renderer> for Area<'_> {
             let selected = state.gesture.range.and_then(|(a, b)| fragments.selected(a, b));
             state.selected = selected.is_some();
             if state.selected {
-                self.publish_selection(shell, selected);
+                if let Some(chat) = &self.chat {
+                    chat.publish_selection(shell, selected);
+                }
                 shell.capture_event();
             }
         }
@@ -241,6 +343,20 @@ impl Widget<Message, Theme, Renderer> for Area<'_> {
         viewport: &Rectangle,
         translation: Vector,
     ) -> Option<iced::advanced::overlay::Element<'a, Message, Theme, Renderer>> {
+        if let Some(config) = &mut self.text_menu {
+            let state = &mut tree.state.downcast_mut::<AreaState>().text_menu;
+            let offset = state.request.as_ref()?.0;
+            let content = config
+                .content
+                .get_or_insert_with(|| text_context_menu(config.i18n, |action| action));
+            let tree = state.tree.get_or_insert_with(|| Tree::new(&*content));
+            return Some(overlay::Element::new(Box::new(TextMenuOverlay {
+                content,
+                tree,
+                anchor: layout.position() + offset + translation,
+                request: &mut state.request,
+            })));
+        }
         self.content.as_widget_mut().overlay(
             &mut tree.children[0],
             layout,
@@ -251,9 +367,113 @@ impl Widget<Message, Theme, Renderer> for Area<'_> {
     }
 }
 
-impl Area<'_> {
-    fn owner(&self) -> (Option<String>, usize, usize) {
+struct TextMenuOverlay<'a> {
+    content: &'a mut Element<'static, TextContextAction>,
+    tree: &'a mut Tree,
+    anchor: Point,
+    request: &'a mut Option<(Vector, String)>,
+}
+
+impl overlay::Overlay<Message, Theme, Renderer> for TextMenuOverlay<'_> {
+    fn layout(&mut self, renderer: &Renderer, bounds: Size) -> layout::Node {
+        let node = self.content.as_widget_mut().layout(
+            self.tree,
+            renderer,
+            &layout::Limits::new(Size::ZERO, bounds),
+        );
+        let size = node.size();
+        let x = self.anchor.x.clamp(0.0, (bounds.width - size.width).max(0.0));
+        let y = if self.anchor.y + size.height <= bounds.height {
+            self.anchor.y
+        } else {
+            (self.anchor.y - size.height).max(0.0)
+        };
+        node.move_to(Point::new(x, y))
+    }
+
+    fn update(
+        &mut self,
+        event: &Event,
+        layout: Layout<'_>,
+        cursor: mouse::Cursor,
+        renderer: &Renderer,
+        clipboard: &mut dyn Clipboard,
+        shell: &mut Shell<'_, Message>,
+    ) {
+        let bounds = layout.bounds();
+        let mut actions = Vec::new();
+        let mut menu_shell = Shell::new(&mut actions);
+        self.content.as_widget_mut().update(
+            self.tree,
+            event,
+            layout,
+            cursor,
+            renderer,
+            clipboard,
+            &mut menu_shell,
+            &bounds,
+        );
+        shell.request_redraw_at(menu_shell.redraw_request());
+        if matches!(event, Event::Mouse(_)) && cursor.is_over(bounds) {
+            shell.capture_event();
+        }
+        if let Some(action) = actions.into_iter().next()
+            && let Some((_, text)) = self.request.take()
+        {
+            if let Some(message) = action.message(text) {
+                shell.publish(message);
+            }
+            shell.invalidate_layout();
+            shell.request_redraw();
+        }
+    }
+
+    fn draw(
+        &self,
+        renderer: &mut Renderer,
+        theme: &Theme,
+        style: &renderer::Style,
+        layout: Layout<'_>,
+        cursor: mouse::Cursor,
+    ) {
+        self.content.as_widget().draw(
+            self.tree,
+            renderer,
+            theme,
+            style,
+            layout,
+            cursor,
+            &layout.bounds(),
+        );
+    }
+
+    fn mouse_interaction(
+        &self,
+        layout: Layout<'_>,
+        cursor: mouse::Cursor,
+        renderer: &Renderer,
+    ) -> mouse::Interaction {
+        if !cursor.is_over(layout.bounds()) {
+            return mouse::Interaction::None;
+        }
+        self.content
+            .as_widget()
+            .mouse_interaction(self.tree, layout, cursor, &layout.bounds(), renderer)
+            .max(mouse::Interaction::Idle)
+    }
+}
+
+impl ChatOwner<'_> {
+    fn key(&self) -> (Option<String>, usize, usize) {
         (self.app.active_session_id.clone(), self.message_idx, self.text_idx)
+    }
+
+    fn has_selection(&self) -> bool {
+        self.app.chat_markdown_selection.as_ref().is_some_and(|selection| {
+            selection.message_idx == self.message_idx
+                && selection.text_idx == self.text_idx
+                && self.app.active_session_id.as_deref() == Some(selection.session_id.as_str())
+        })
     }
 
     fn publish_selection(&self, shell: &mut Shell<'_, Message>, text: Option<String>) {

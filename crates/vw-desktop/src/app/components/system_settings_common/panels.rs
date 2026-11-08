@@ -125,8 +125,20 @@ pub(crate) fn settings_flexible_row<'a>(
     max_control_width: f32,
     control: impl Into<Element<'a, Message>>,
 ) -> iced::widget::Container<'a, Message> {
+    settings_flexible_row_with_label(
+        settings_row_labels(label, description).width(Length::Fill),
+        max_control_width,
+        control,
+    )
+}
+
+pub(in crate::app::components) fn settings_flexible_row_with_label<'a>(
+    label: impl Into<Element<'a, Message>>,
+    max_control_width: f32,
+    control: impl Into<Element<'a, Message>>,
+) -> iced::widget::Container<'a, Message> {
     let control = container(control.into()).align_right(Length::Fill).max_width(max_control_width);
-    settings_row_layout(label, description, container(control).align_right(Length::Fill))
+    settings_row_with_label(label, container(control).align_right(Length::Fill))
 }
 
 pub(crate) fn settings_row_layout<'a>(
@@ -134,19 +146,22 @@ pub(crate) fn settings_row_layout<'a>(
     description: &'a str,
     control: impl Into<Element<'a, Message>>,
 ) -> iced::widget::Container<'a, Message> {
-    container(
-        row![
-            settings_row_labels(label, description).width(Length::Fill),
-            control.into(),
-        ]
-        .spacing(24)
-        .align_y(Alignment::Center),
-    )
-    .padding([20, 0])
-    .width(Length::Fill)
+    settings_row_with_label(settings_row_labels(label, description).width(Length::Fill), control)
 }
 
-fn settings_row_labels<'a>(label: &'a str, description: &'a str) -> iced::widget::Column<'a, Message> {
+fn settings_row_with_label<'a>(
+    label: impl Into<Element<'a, Message>>,
+    control: impl Into<Element<'a, Message>>,
+) -> iced::widget::Container<'a, Message> {
+    container(row![label.into(), control.into()].spacing(24).align_y(Alignment::Center))
+        .padding([20, 0])
+        .width(Length::Fill)
+}
+
+fn settings_row_labels<'a>(
+    label: &'a str,
+    description: &'a str,
+) -> iced::widget::Column<'a, Message> {
     let labels = column![settings_field_label(label)].spacing(6);
     if description.is_empty() {
         labels

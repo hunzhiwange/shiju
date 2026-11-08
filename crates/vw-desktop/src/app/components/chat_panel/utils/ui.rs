@@ -4,6 +4,7 @@
 
 /// 重新导出 use crate::app::Message，让上层模块通过稳定路径访问。
 use crate::app::Message;
+use crate::app::components::text_editor_context_menu::TextContextAction;
 /// 重新导出 use crate::app::message::ChatMessage，让上层模块通过稳定路径访问。
 use crate::app::message::ChatMessage;
 use iced::widget::{button, column, container, text};
@@ -99,7 +100,22 @@ pub fn chat_context_menu<'a>(
         return None;
     }
 
-    let menu_item = |label: &'static str, message: Message| {
+    Some(text_context_menu(i18n, |action| {
+        Message::Chat(match action {
+            TextContextAction::Copy => ChatMessage::CopyContextMenuText,
+            TextContextAction::Append => ChatMessage::AppendContextMenuText,
+            TextContextAction::Baidu => ChatMessage::SearchContextMenuWithBaidu,
+            TextContextAction::Google => ChatMessage::SearchContextMenuWithGoogle,
+            TextContextAction::Bing => ChatMessage::SearchContextMenuWithBing,
+        })
+    }))
+}
+
+pub(crate) fn text_context_menu<'a, MenuMessage: Clone + 'a>(
+    i18n: crate::app::i18n::I18n,
+    message: impl Fn(TextContextAction) -> MenuMessage,
+) -> Element<'a, MenuMessage> {
+    let menu_item = |label: &'static str, action| {
         button(
             container(text(label).size(12))
                 .width(Length::Fill)
@@ -109,27 +125,23 @@ pub fn chat_context_menu<'a>(
         .width(Length::Fill)
         .padding(0)
         .style(chat_context_menu_button_style)
-        .on_press(message)
+        .on_press(message(action))
     };
 
-    let menu = container(
+    container(
         column![
-            menu_item(i18n.__("复制"), Message::Chat(ChatMessage::CopyContextMenuText)),
-            menu_item(i18n.__("添加到对话"), Message::Chat(ChatMessage::AppendContextMenuText)),
-            menu_item(i18n.__("百度搜索"), Message::Chat(ChatMessage::SearchContextMenuWithBaidu)),
-            menu_item(
-                i18n.__("Google 搜索"),
-                Message::Chat(ChatMessage::SearchContextMenuWithGoogle)
-            ),
-            menu_item(i18n.__("Bing 搜索"), Message::Chat(ChatMessage::SearchContextMenuWithBing)),
+            menu_item(i18n.__("复制"), TextContextAction::Copy),
+            menu_item(i18n.__("添加到对话"), TextContextAction::Append),
+            menu_item(i18n.__("百度搜索"), TextContextAction::Baidu),
+            menu_item(i18n.__("Google 搜索"), TextContextAction::Google),
+            menu_item(i18n.__("Bing 搜索"), TextContextAction::Bing),
         ]
         .spacing(0)
         .width(Length::Fixed(134.0)),
     )
     .padding([3, 3])
-    .style(chat_context_menu_style);
-
-    Some(menu.into())
+    .style(chat_context_menu_style)
+    .into()
 }
 
 pub(super) fn chat_context_menu_button_style(

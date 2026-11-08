@@ -4,15 +4,21 @@
 //! 注释聚焦调用边界、返回值和错误传播方式，便于后续维护设置页与工具栏行为时快速定位职责。
 
 use crate::app::assets::Icon;
-use crate::app::components::system_settings_common::icons::{icon_btn, icon_svg};
+use crate::app::components::chat_panel::message_view::selectable_titled_text;
+use crate::app::components::overlays::side::SideOverlay;
+use crate::app::components::system_settings_common::icons::{
+    icon_btn, icon_btn_tooltip_style, icon_svg,
+};
 use crate::app::components::system_settings_common::panels::{
     settings_modal_header, settings_modal_layout, settings_modal_overlay,
 };
 use crate::app::components::system_settings_common::styles::settings_muted_text_style;
 use crate::app::components::system_settings_common::theme::is_dark_theme;
+use crate::app::i18n::I18n;
 use crate::app::{App, Message};
-use iced::widget::{button, container, row, svg, text};
-use iced::{Alignment, Border, Color, Element, Length};
+use iced::widget::{Row, Text, button, container, mouse_area, row, svg, text};
+use iced::{Alignment, Border, Color, Element, Length, Shadow, Vector, mouse};
+use std::borrow::Cow;
 use std::hash::{Hash, Hasher};
 
 /// 构建或处理 `settings_close_button` 对应的界面片段与交互数据。
@@ -100,6 +106,36 @@ pub fn settings_help_button_with_locale(
     on_press: Message,
 ) -> Element<'static, Message> {
     icon_btn(Icon::QuestionCircle, crate::app::i18n::I18n::new(locale).__("帮助"), Some(on_press))
+}
+
+pub(in crate::app::components) fn settings_hover_help_label<'a>(
+    app: &App,
+    title: &'a str,
+    label: Text<'a>,
+    description: impl Into<Cow<'a, str>>,
+) -> Row<'a, Message> {
+    let i18n = I18n::new(app.desktop_locale);
+    let icon = mouse_area(
+        container(icon_svg(Icon::QuestionCircle, 14.0).style(settings_close_icon_style))
+            .center_x(22)
+            .center_y(22),
+    )
+    .interaction(mouse::Interaction::Pointer);
+    let card =
+        container(selectable_titled_text(title, description, app.app_theme.palette().text, i18n))
+            .width(300)
+            .padding([10, 12])
+            .style(|theme| container::Style {
+                shadow: Shadow {
+                    color: Color::BLACK.scale_alpha(0.22),
+                    offset: Vector::new(0.0, 4.0),
+                    blur_radius: 12.0,
+                },
+                ..icon_btn_tooltip_style(theme)
+            });
+    row![label, SideOverlay::new(icon, card).hover_and_click().gap(4.0).min_y(8.0)]
+        .spacing(4)
+        .align_y(Alignment::Center)
 }
 
 /// 构建或处理 `with_settings_help_modal` 对应的界面片段与交互数据。

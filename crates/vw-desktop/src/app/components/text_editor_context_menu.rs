@@ -38,6 +38,42 @@ pub struct CopyTextContextMenuMessages<Message> {
     pub copy: Message,
 }
 
+#[derive(Clone, Copy)]
+pub(crate) enum TextContextAction {
+    Copy,
+    Append,
+    Baidu,
+    Google,
+    Bing,
+}
+
+impl TextContextAction {
+    pub(crate) fn message(self, text: String) -> Option<crate::app::Message> {
+        use crate::app::{
+            Message,
+            message::{ChatMessage, ViewMessage},
+        };
+
+        if text.is_empty() {
+            return None;
+        }
+        let base_url = match self {
+            Self::Copy => return Some(Message::CopyCode(text)),
+            Self::Append => return Some(Message::Chat(ChatMessage::AppendText(text))),
+            Self::Baidu => "https://www.baidu.com/s?wd=",
+            Self::Google => "https://www.google.com/search?q=",
+            Self::Bing => "https://www.bing.com/search?q=",
+        };
+        let query = text.trim();
+        (!query.is_empty()).then(|| {
+            Message::View(ViewMessage::OpenUrlExternal(format!(
+                "{base_url}{}",
+                urlencoding::encode(query),
+            )))
+        })
+    }
+}
+
 #[derive(Debug, Clone, PartialEq, Eq)]
 /// `SelectionActionOutcome` 枚举，用于表达本模块对该领域对象的建模。
 ///

@@ -36,6 +36,7 @@ mod theme_tests;
 #[path = "utils_tests.rs"]
 mod utils_tests;
 
+pub(super) use help::settings_hover_help_label;
 pub use help::{
     settings_close_button, settings_help_button, settings_help_button_with_locale,
     settings_help_copy_state, with_settings_help_modal,
@@ -50,8 +51,8 @@ pub use panels::{
     settings_value_badge,
 };
 pub(super) use panels::{
-    settings_flexible_row, settings_responsive_row, settings_row_layout,
-    settings_row_with_flexible_control,
+    settings_flexible_row, settings_flexible_row_with_label, settings_responsive_row,
+    settings_row_layout, settings_row_with_flexible_control,
 };
 pub(crate) use panels::{
     settings_modal_layout_with_scroll_id, settings_modal_overlay_with_backdrop_dismiss,

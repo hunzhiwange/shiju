@@ -5,10 +5,11 @@
 
 use super::shared::is_dark_theme;
 use crate::app::components::system_settings_common::{
-    rounded_action_btn_style, settings_group_heading, settings_muted_text_style,
-    settings_panel_style, settings_segment_button_style, settings_value_badge,
+    rounded_action_btn_style, settings_group_heading, settings_group_heading_with_help,
+    settings_hover_help_label, settings_muted_text_style, settings_panel_style,
+    settings_segment_button_style, settings_value_badge,
 };
-use crate::app::i18n::settings_extensions::text as tr;
+use crate::app::i18n::{I18n, settings_extensions::text as tr};
 use crate::app::message::settings::{AgentsMessage, SettingsMessage};
 use crate::app::state::{
     AGENT_TOOLS_BUILTIN_TAB, AGENT_TOOLS_OPTIONAL_TAB, DelegateAgentSettingsEntry,
@@ -653,6 +654,7 @@ pub(super) fn view<'a>(
     entry: &'a DelegateAgentSettingsEntry,
 ) -> Element<'a, Message> {
     let settings = &app.agents_settings;
+    let i18n = I18n::new(app.desktop_locale);
     let active_tab = settings.active_tools_list_tab.as_str();
     let is_builtin_tab = active_tab == AGENT_TOOLS_BUILTIN_TAB;
     let visible_tool_ids = tools_for_list_tab(&settings.available_tools, active_tab);
@@ -783,24 +785,20 @@ pub(super) fn view<'a>(
                 if cards.is_empty() {
                     None
                 } else {
+                    let title = tr(app.desktop_locale, group_meta.label);
+                    let count =
+                        crate::__!(i18n, "%u 项", cards.len()).expect("valid tool count template");
                     Some(
                         column![
-                            row![
-                                text(tr(app.desktop_locale, group_meta.label)).size(14),
-                                settings_value_badge(
-                                    crate::__!(
-                                        crate::app::i18n::I18n::new(app.desktop_locale),
-                                        "%u 项",
-                                        cards.len()
-                                    )
-                                    .expect("valid tool count template")
-                                ),
-                            ]
-                            .spacing(8)
-                            .align_y(Alignment::Center),
-                            text(tr(app.desktop_locale, group_meta.description))
-                                .size(12)
-                                .style(settings_muted_text_style),
+                            settings_hover_help_label(
+                                i18n,
+                                &app.app_theme,
+                                title,
+                                text(title).size(14),
+                                tr(app.desktop_locale, group_meta.description),
+                            )
+                            .push(settings_value_badge(count))
+                            .wrap(),
                             row(cards).spacing(12).wrap(),
                         ]
                         .spacing(10)
@@ -892,7 +890,9 @@ pub(super) fn view<'a>(
                 .spacing(10)
                 .align_y(Alignment::Center)
                 .wrap(),
-                settings_group_heading(
+                settings_group_heading_with_help(
+                    i18n,
+                    &app.app_theme,
                     tr(app.desktop_locale, "快捷预选"),
                     tr(app.desktop_locale, "按当前可用工具自动套用常见权限组合。")
                 ),

@@ -6,10 +6,11 @@
 use super::shared::{agent_tab_button, editor_style};
 use crate::app::components::system_settings_common::{
     SETTINGS_CONTROL_PADDING, SETTINGS_CONTROL_TEXT_SIZE, rounded_action_btn_style,
-    settings_checkbox_style, settings_field_label, settings_group_card, settings_group_heading,
-    settings_muted_text_style, settings_tab_row,
+    settings_checkbox_style, settings_field_label, settings_group_card,
+    settings_group_heading_with_help, settings_hover_help_label, settings_muted_text_style,
+    settings_tab_row,
 };
-use crate::app::i18n::settings_extensions::text as tr;
+use crate::app::i18n::{I18n, settings_extensions::text as tr};
 use crate::app::message::settings::{AgentsMessage, SettingsMessage};
 use crate::app::state::{
     AGENT_PROMPT_SYSTEM_TAB, DelegateAgentSettingsEntry, WORKSPACE_IDENTITY_FILES,
@@ -98,6 +99,8 @@ pub(super) fn view<'a>(
     entry: &'a DelegateAgentSettingsEntry,
 ) -> Element<'a, Message> {
     let settings = &app.agents_settings;
+    let i18n = I18n::new(app.desktop_locale);
+    let system_prompt_title = tr(app.desktop_locale, "系统提示词");
     let system_prompt_editor = text_editor(&entry.system_prompt_editor)
         .placeholder(tr(app.desktop_locale, "为该代理定义专用系统提示词 ..."))
         .on_action({
@@ -134,10 +137,14 @@ pub(super) fn view<'a>(
     let prompt_panel: Element<'_, Message> =
         if settings.active_prompt_tab == AGENT_PROMPT_SYSTEM_TAB {
             column![
-                settings_field_label(tr(app.desktop_locale, "系统提示词")),
-                text(tr(app.desktop_locale, "多行系统提示，将作为该 Agent 的专用角色提示。"))
-                    .size(12)
-                    .style(settings_muted_text_style),
+                settings_hover_help_label(
+                    i18n,
+                    &app.app_theme,
+                    system_prompt_title,
+                    settings_field_label(system_prompt_title),
+                    tr(app.desktop_locale, "多行系统提示，将作为该 Agent 的专用角色提示。"),
+                )
+                .wrap(),
                 container(system_prompt_editor).width(Length::Fill),
             ]
             .spacing(8)
@@ -229,7 +236,9 @@ pub(super) fn view<'a>(
         };
 
     column![
-        settings_group_heading(
+        settings_group_heading_with_help(
+            i18n,
+            &app.app_theme,
             tr(app.desktop_locale, "身份与提示词"),
             tr(app.desktop_locale, "管理当前 Agent 的系统提示词，以及独立工作区身份文件。"),
         ),

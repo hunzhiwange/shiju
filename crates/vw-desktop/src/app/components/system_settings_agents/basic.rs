@@ -6,10 +6,11 @@
 use super::shared::section_card;
 use crate::app::components::number_input::NumberInput;
 use crate::app::components::system_settings_common::{
-    settings_checkbox_style, settings_divider, settings_flexible_row, settings_group_card,
-    settings_group_heading, settings_text_input,
+    settings_checkbox_style, settings_divider, settings_flexible_row,
+    settings_flexible_row_with_help, settings_group_card, settings_group_heading,
+    settings_group_heading_with_help, settings_text_input,
 };
-use crate::app::i18n::settings_extensions::text as tr;
+use crate::app::i18n::{I18n, settings_extensions::text as tr};
 use crate::app::message::settings::{AgentsMessage, SettingsMessage};
 use crate::app::state::DelegateAgentSettingsEntry;
 use crate::app::{App, Message};
@@ -54,7 +55,12 @@ pub(super) fn view<'a>(
         vw_config_types::agent::AgentRuntime::Native => true,
         vw_config_types::agent::AgentRuntime::Acp { .. } => false,
     };
-    let api_key_row = field_row(
+    let i18n = I18n::new(app.desktop_locale);
+    let field_with_help = |label, description, control: Element<'a, Message>| {
+        settings_flexible_row_with_help(i18n, &app.app_theme, label, description, 320.0, control)
+            .padding([6, 0])
+    };
+    let api_key_row = field_with_help(
         tr(app.desktop_locale, "API 密钥"),
         tr(app.desktop_locale, "可选覆盖该代理的提供商凭证。"),
         settings_text_input(tr(app.desktop_locale, "可选"), &entry.api_key_input)
@@ -68,7 +74,8 @@ pub(super) fn view<'a>(
                     )))
                 }
             })
-            .width(Length::Fill),
+            .width(Length::Fill)
+            .into(),
     );
 
     let temperature_slider = slider(0.0..=2.0, entry.temperature, {
@@ -113,7 +120,9 @@ pub(super) fn view<'a>(
 
     let registration_section = shows_registration_controls(entry).then(|| {
         column![
-            settings_group_heading(
+            settings_group_heading_with_help(
+                i18n,
+                &app.app_theme,
                 tr(app.desktop_locale, "可用性"),
                 tr(app.desktop_locale, "控制该智能体是否作为可用 Agent 暴露。")
             ),
@@ -138,7 +147,7 @@ pub(super) fn view<'a>(
             .style(settings_checkbox_style),
     );
 
-    let max_parallel_subagents_row = field_row(
+    let max_parallel_subagents_row = field_with_help(
         tr(app.desktop_locale, "子智能体数量"),
         tr(app.desktop_locale, "该 Agent 每轮最多同时启动的子智能体数量。"),
         NumberInput::new(entry.max_parallel_subagents as f32, 1.0, 32.0, 1.0, 0, 1.0, {
@@ -149,10 +158,11 @@ pub(super) fn view<'a>(
                 ))
             }
         })
-        .settings_style(),
+        .settings_style()
+        .into(),
     );
 
-    let max_depth_row = field_row(
+    let max_depth_row = field_with_help(
         tr(app.desktop_locale, "最大深度"),
         tr(app.desktop_locale, "委托嵌套深度上限，防止无限递归。"),
         NumberInput::new(entry.max_depth as f32, 1.0, 32.0, 1.0, 0, 1.0, {
@@ -164,10 +174,11 @@ pub(super) fn view<'a>(
                 )))
             }
         })
-        .settings_style(),
+        .settings_style()
+        .into(),
     );
 
-    let compact_context_row = field_row(
+    let compact_context_row = field_with_help(
         tr(app.desktop_locale, "上下文压缩"),
         tr(app.desktop_locale, "适合小模型，压缩该智能体的上下文体积。"),
         checkbox(entry.compact_context)
@@ -180,10 +191,11 @@ pub(super) fn view<'a>(
                     ))
                 }
             })
-            .style(settings_checkbox_style),
+            .style(settings_checkbox_style)
+            .into(),
     );
 
-    let max_history_messages_row = field_row(
+    let max_history_messages_row = field_with_help(
         tr(app.desktop_locale, "历史消息上限"),
         tr(app.desktop_locale, "该智能体保留给模型的会话历史消息上限。"),
         NumberInput::new(entry.max_history_messages as f32, 1.0, 1000.0, 1.0, 0, 1.0, {
@@ -194,7 +206,8 @@ pub(super) fn view<'a>(
                 ))
             }
         })
-        .settings_style(),
+        .settings_style()
+        .into(),
     );
 
     let parallel_tools_row = field_row(
@@ -214,7 +227,7 @@ pub(super) fn view<'a>(
             .style(settings_checkbox_style),
     );
 
-    let max_iterations_row = field_row(
+    let max_iterations_row = field_with_help(
         tr(app.desktop_locale, "最大迭代次数"),
         tr(app.desktop_locale, "智能体模式下最多运行多少轮工具循环。"),
         NumberInput::new(entry.max_iterations as f32, 1.0, u32::MAX as f32, 1.0, 0, 1.0, {
@@ -226,7 +239,8 @@ pub(super) fn view<'a>(
                 )))
             }
         })
-        .settings_style(),
+        .settings_style()
+        .into(),
     );
 
     let agentic_row = field_row(

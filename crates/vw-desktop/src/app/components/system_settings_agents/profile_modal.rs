@@ -1,6 +1,6 @@
 //! 智能体资料草稿弹窗；持久化成功前不修改列表快照。
 use crate::app::components::system_settings_common::*;
-use crate::app::i18n::settings_extensions::text as tr;
+use crate::app::i18n::{I18n, settings_extensions::text as tr};
 use crate::app::{
     App, Message,
     message::settings::{AgentsMessage, SettingsMessage},
@@ -59,9 +59,17 @@ pub(super) fn overlay<'a>(app: &'a App, base: Element<'a, Message>) -> Element<'
             .padding([8, 14])
             .style(primary_action_btn_style),
     );
+    let title = label("智能体配置");
     let header = column![
         settings_modal_header(
-            text(label("智能体配置")).size(20),
+            settings_hover_help_label(
+                I18n::new(app.desktop_locale),
+                &app.app_theme,
+                title,
+                text(title).size(20),
+                label(super::AGENT_CONFIGURATION_HELP),
+            )
+            .wrap(),
             settings_close_button(message(AgentsMessage::ProfileCancel)),
         ),
         tabs,

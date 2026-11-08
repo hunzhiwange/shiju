@@ -566,13 +566,11 @@ async fn ui_refresh_16_preserves_values_and_disabled_states() {
         let mut scene = Scene::new(super::view(&app, draft, vec![]), &mut renderer, 640, 1850);
         let geometry = scene.geometry(&renderer);
         let label = geometry.label("API 密钥");
-        let help = geometry.label("可选覆盖该代理的提供商凭证。");
-        let label_center = (label.y + help.y + help.height) / 2.0;
         let (masked, api_key) = geometry
             .inputs
             .iter()
-            .find(|(_, input)| (label_center - input.center().y).abs() < 0.5)
-            .expect("API key input aligned with its label and hint");
+            .find(|(_, input)| (label.center().y - input.center().y).abs() < 0.5)
+            .expect("API key input aligned with its label");
         assert_ne!(masked, &draft.api_key_input);
         assert_eq!(masked.chars().count(), draft.api_key_input.len());
         let right_edge = api_key.x + api_key.width;
@@ -645,4 +643,227 @@ async fn ui_refresh_16_preserves_values_and_disabled_states() {
         [Message::Settings(S::Agents(A::SkillCatalogRefresh))]
     ));
     scene.screenshot(&mut renderer, &Theme::Dark, mouse::Cursor::Unavailable, "skills-empty");
+}
+
+fn assert_contextual_help(
+    scene: &mut Scene<'_>,
+    renderer: &mut Renderer,
+    theme: &Theme,
+    locale: DesktopLocale,
+    title: &'static str,
+    description: &'static str,
+) -> Rectangle {
+    let geometry = scene.geometry(renderer);
+    let label = geometry
+        .labels
+        .iter()
+        .rev()
+        .find(|(value, _)| value == tr(locale, title))
+        .unwrap_or_else(|| panic!("missing help label {title}"))
+        .1;
+    let frame = |scene: &mut Scene<'_>, renderer: &mut Renderer, suffix: &str| {
+        scene.screenshot(
+            renderer,
+            theme,
+            mouse::Cursor::Unavailable,
+            &format!("help-08-{locale:?}-{theme:?}-{}-{title}-{suffix}", scene.size.height),
+        )
+    };
+    let idle = frame(scene, renderer, "idle");
+    assert!(
+        !geometry.labels.iter().any(|(text, _)| text == tr(locale, description)),
+        "{title}: explanation is still visible while idle"
+    );
+    let icon = Rectangle::new(
+        Point::new(label.x + label.width + 4.0, label.center().y - 11.0),
+        Size::new(22.0, 22.0),
+    );
+    let viewport =
+        Rectangle::with_size(Size::new(scene.size.width as f32, scene.size.height as f32));
+    assert!(viewport.contains(icon.center()), "{title}: help icon is outside the viewport");
+    assert!(scene.click(renderer, icon.center()).is_empty(), "{title}");
+    assert!(idle != frame(scene, renderer, "open"), "{title}: click must pin a help card");
+    icon
+}
+
+fn assert_help_dismissed(scene: &mut Scene<'_>, renderer: &mut Renderer, theme: &Theme) {
+    let open =
+        scene.screenshot(renderer, theme, mouse::Cursor::Unavailable, "help-08-before-escape");
+    assert!(scene.key(renderer, Named::Escape).is_empty());
+    let closed =
+        scene.screenshot(renderer, theme, mouse::Cursor::Unavailable, "help-08-after-escape");
+    assert_ne!(open, closed);
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn help_rollout_08_renders_contextual_help() {
+    if !isolated("help_rollout_08_renders_contextual_help") {
+        return;
+    }
+    let mut app = fixture();
+    let mut renderer = renderer().await;
+    let overview = "全局管理内建与自定义智能体的模型、身份文件、工具、技能和运行参数。";
+    for (locale, theme, width) in [
+        (DesktopLocale::English, Theme::Light, 420),
+        (DesktopLocale::SimplifiedChinese, Theme::Dark, 640),
+        (DesktopLocale::TraditionalChinese, Theme::Light, 520),
+    ] {
+        app.desktop_locale = locale;
+        app.app_theme = theme.clone();
+        let draft = app.agents_settings.profile_modal.take();
+        let mut page = Scene::new(super::super::view(&app), &mut renderer, width, 840);
+        assert_contextual_help(&mut page, &mut renderer, &theme, locale, "智能体配置", overview);
+        assert_help_dismissed(&mut page, &mut renderer, &theme);
+
+        drop(page);
+        app.agents_settings.profile_modal = draft;
+        let mut modal = Scene::new(profile(&app), &mut renderer, width, 820);
+        modal
+            .geometry(&renderer)
+            .label(tr(locale, "身份文件正文即时保存；其余配置点击保存后生效。"));
+        assert_contextual_help(&mut modal, &mut renderer, &theme, locale, "智能体配置", overview);
+        assert_help_dismissed(&mut modal, &mut renderer, &theme);
+        assert!(matches!(
+            modal.click_label(&mut renderer, tr(locale, "保存配置")).as_slice(),
+            [Message::Settings(S::Agents(A::ProfileSave))]
+        ));
+        assert!(matches!(
+            modal.click_label(&mut renderer, tr(locale, "取消")).as_slice(),
+            [Message::Settings(S::Agents(A::ProfileCancel))]
+        ));
+    }
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn help_rollout_08_basic_help_uses_static_text() {
+    if !isolated("help_rollout_08_basic_help_uses_static_text") {
+        return;
+    }
+    let mut app = fixture();
+    let mut renderer = renderer().await;
+    for (locale, theme, width) in [
+        (DesktopLocale::English, Theme::Light, 420),
+        (DesktopLocale::SimplifiedChinese, Theme::Dark, 640),
+    ] {
+        app.desktop_locale = locale;
+        app.app_theme = theme.clone();
+        let draft = app.agents_settings.profile_modal.as_ref().unwrap();
+        let mut scene = Scene::new(super::view(&app, draft, vec![]), &mut renderer, width, 2200);
+        for label in [
+            "首次保存成功后，运行引擎及 ACP backend 不可修改。",
+            "完全访问权限",
+            "固定空列表表示不选择任何条目。权限始终受安全上限约束。",
+            "关闭后保留配置，但该智能体不会作为可用项参与注册。",
+            "控制生成发散度，范围 0.0 - 2.0。",
+        ] {
+            scene.geometry(&renderer).label(tr(locale, label));
+        }
+        let description = "可选覆盖该代理的提供商凭证。";
+        let icon = assert_contextual_help(
+            &mut scene,
+            &mut renderer,
+            &theme,
+            locale,
+            "API 密钥",
+            description,
+        );
+        let card_text = Point::new(icon.x + icon.width + 22.0, icon.y + 16.0);
+        let description = tr(locale, description);
+        let url = format!("https://www.google.com/search?q={}", urlencoding::encode(description));
+        let item_height =
+            f32::from(iced::advanced::text::LineHeight::default().to_absolute(12.0.into())) + 10.0;
+        for index in [0.0, 3.0] {
+            assert!(
+                scene
+                    .events(
+                        &mut renderer,
+                        &[Event::Mouse(mouse::Event::ButtonPressed(mouse::Button::Right))],
+                        mouse::Cursor::Available(card_text),
+                    )
+                    .is_empty()
+            );
+            let item =
+                Point::new(card_text.x + 24.0, card_text.y + 3.0 + item_height * (index + 0.5));
+            let messages = scene.click(&mut renderer, item);
+            assert!(
+                match messages.as_slice() {
+                    [Message::CopyCode(text)] if index == 0.0 => text == description,
+                    [Message::View(crate::app::message::ViewMessage::OpenUrlExternal(actual))]
+                        if index == 3.0 =>
+                        actual == &url,
+                    _ => false,
+                },
+                "{messages:?}"
+            );
+        }
+        assert_help_dismissed(&mut scene, &mut renderer, &theme);
+        for (title, description) in [
+            ("可用性", "控制该智能体是否作为可用 Agent 暴露。"),
+            ("子智能体数量", "该 Agent 每轮最多同时启动的子智能体数量。"),
+            ("最大深度", "委托嵌套深度上限，防止无限递归。"),
+            ("上下文压缩", "适合小模型，压缩该智能体的上下文体积。"),
+            ("历史消息上限", "该智能体保留给模型的会话历史消息上限。"),
+            ("最大迭代次数", "智能体模式下最多运行多少轮工具循环。"),
+        ] {
+            assert_contextual_help(&mut scene, &mut renderer, &theme, locale, title, description);
+            assert_help_dismissed(&mut scene, &mut renderer, &theme);
+        }
+    }
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn help_rollout_08_identity_and_tools_keep_controls_visible() {
+    if !isolated("help_rollout_08_identity_and_tools_keep_controls_visible") {
+        return;
+    }
+    let mut app = fixture();
+    app.agents_settings.active_detail_tab = AGENT_DETAIL_IDENTITY_TAB.into();
+    app.agents_settings.available_tools.push("git_operations".into());
+    let mut renderer = renderer().await;
+    for (locale, theme, width) in [
+        (DesktopLocale::English, Theme::Dark, 420),
+        (DesktopLocale::SimplifiedChinese, Theme::Light, 640),
+    ] {
+        app.desktop_locale = locale;
+        app.app_theme = theme.clone();
+        let draft = app.agents_settings.profile_modal.as_ref().unwrap();
+        let mut identity = Scene::new(profile(&app), &mut renderer, width, 840);
+        for (title, description) in [
+            ("身份与提示词", "管理当前 Agent 的系统提示词，以及独立工作区身份文件。"),
+            ("系统提示词", "多行系统提示，将作为该 Agent 的专用角色提示。"),
+        ] {
+            assert_contextual_help(
+                &mut identity,
+                &mut renderer,
+                &theme,
+                locale,
+                title,
+                description,
+            );
+            assert_help_dismissed(&mut identity, &mut renderer, &theme);
+        }
+        let mut tools = Scene::new(tools::view(&app, draft), &mut renderer, width, 1000);
+        tools
+            .geometry(&renderer)
+            .label(tr(locale, "选择在对话开始时注册给模型的工具。未选择的工具不可调用。"));
+        assert_contextual_help(
+            &mut tools,
+            &mut renderer,
+            &theme,
+            locale,
+            "快捷预选",
+            "按当前可用工具自动套用常见权限组合。",
+        );
+        assert_help_dismissed(&mut tools, &mut renderer, &theme);
+        for (title, description) in
+            [("执行", "运行命令、补丁和版本控制操作。"), ("联网", "浏览页面、联网请求与外部检索。")]
+        {
+            assert_contextual_help(&mut tools, &mut renderer, &theme, locale, title, description);
+            assert_help_dismissed(&mut tools, &mut renderer, &theme);
+        }
+        assert!(matches!(
+            tools.click_label(&mut renderer, tr(locale, "全选")).as_slice(),
+            [Message::Settings(S::Agents(A::AllowedToolsSelectAll(key)))] if key == AGENT
+        ));
+    }
 }

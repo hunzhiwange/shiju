@@ -40,10 +40,10 @@ mod tools_tests;
 use crate::app::components::system_settings_common::{
     SETTINGS_CONTROL_TEXT_SIZE, primary_action_btn_style, rounded_action_btn_style,
     settings_error_banner, settings_group_card, settings_group_heading, settings_muted_text_style,
-    settings_page_heading, settings_tab_row, settings_text_input,
+    settings_page_heading_with_help, settings_tab_row, settings_text_input,
 };
 use crate::app::components::system_settings_search::SettingsTabDescriptor;
-use crate::app::i18n::settings_extensions::text as tr;
+use crate::app::i18n::{I18n, settings_extensions::text as tr};
 use crate::app::message::settings::{AgentConfigTabMessage, AgentsMessage, SettingsMessage};
 use crate::app::state::AgentConfigTab;
 use crate::app::{App, Message};
@@ -274,14 +274,16 @@ fn active_tab_save_error(app: &App) -> Option<&str> {
     }
 }
 
+const AGENT_CONFIGURATION_HELP: &str =
+    "全局管理内建与自定义智能体的模型、身份文件、工具、技能和运行参数。";
+
 fn agents_view(app: &App) -> Element<'_, Message> {
     let settings = &app.agents_settings;
-    let title = settings_page_heading(
+    let title = settings_page_heading_with_help(
+        I18n::new(app.desktop_locale),
+        &app.app_theme,
         tr(app.desktop_locale, "智能体配置"),
-        tr(
-            app.desktop_locale,
-            "全局管理内建与自定义智能体的模型、身份文件、工具、技能和运行参数。",
-        ),
+        tr(app.desktop_locale, AGENT_CONFIGURATION_HELP),
     );
     if !settings.config_ready {
         return column![

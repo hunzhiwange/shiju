@@ -1173,3 +1173,14 @@ POST 返回 202 与排队快照。任务依次进入发现、解析及终态，�
 | 深色，使用 OpenCode CLI 发现 | 真实网关经受信定位器运行隔离主机上的固定输出 CLI 进程。窗口显示 `fixture/CLI-Model`、中文完成状态和重试入口；已保存目录仍为空。正式 OpenCode/AGY CLI 及真实账号未验证：本机未找到对应安装，也未使用生产账号。 |
 
 Codex 同部署 `GET /v1/model-catalog` 原始回读 SHA-256：开始前、取消后、重试后均为 `95689b2326ba476e35fa6a2713b2500b4edff9a27aa868a5bc5494fa6c400049`；显式保存后为 `1a8c5fadb226924e419c50a652b4c4a4910bea08265ebaff3a7b8bb84ce6d5da`。
+
+## 任务 43　验收 macOS 完整模型链路
+
+2026-11-08，macOS 27.0（26A428），arm64，识矩 0.6.0。批次 42 由 `0aee99a3a` 交付。验证命令、退出码、有效测试数量、槽位、14 个应用的回读条数及真窗口记录见 [macOS 验收报告](macos-acceptance.md)。
+
+| 固定来源与行为 | Rust → 网关 → SDK → 桌面 |
+| --- | --- |
+| `presetFamilies.ts`、`presetSearchAliases.ts` 和七组预设投影 | `vw-agent-apps/src/models/{preset_catalog,preset_search,metadata}.rs` → `vw-agent/src/gateway/api/handlers/model_catalog.rs` 的目录、预设、模板和能力读取 → `vw-gateway-client/src/client/model_catalog_api.rs` → `vw-desktop/src/app/components/system_settings_providers/catalog.rs`。 |
+| `fetch_models_for_config`、`get_opencode_models`、`get_agy_models` | `vw-agent-apps/src/models/discovery_{http,opencode,agy}.rs` → `vw-agent/src/gateway/api/handlers/model_discovery.rs` → `vw-gateway-client/src/client/model_discovery_api.rs` → 目录的发现卡片与轮询处理。正式 CLI 从受信路径启动，发现结果只作为选择草稿。 |
+| `resolveModelMetadata`、`useModelMetadataFill` 和六类原生补空规则 | `vw-provider-resolver/src/models_cache.rs` 与 `vw-agent-apps/src/models/{metadata,fill_service}.rs` → `vw-agent/src/gateway/api/handlers/model_catalog_edits.rs` → `vw-gateway-client/src/client/model_catalog_edits_api.rs` → `vw-desktop/src/app/components/system_settings_providers/catalog/metadata_fill.rs`。 |
+| 原始请求 ID、默认模型、能力边界 | `vw-agent/src/app_providers/model_edits.rs` 落盘；`vw-agent/src/provider/model_catalog.rs` 投影同部署能力；`vw-agent/src/gateway/api/handlers/session/stream.rs` 与 `vw-agent/src/session/llm/aisdk/stream.rs` 在上游调用前执行校验。新增 `vw-agent/src/gateway/api/handlers/model_catalog_acceptance_tests.rs` 经 SDK 贯通保存、重开和执行。 |

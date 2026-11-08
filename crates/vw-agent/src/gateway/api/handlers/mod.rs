@@ -259,6 +259,8 @@ pub(crate) mod app_providers;
 mod app_providers_tests;
 
 pub(crate) mod model_catalog;
+#[cfg(all(test, target_os = "macos"))]
+mod model_catalog_acceptance_tests;
 mod model_catalog_edits;
 #[cfg(all(test, target_os = "macos"))]
 mod model_catalog_tests;

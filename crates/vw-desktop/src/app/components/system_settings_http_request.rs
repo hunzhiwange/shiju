@@ -6,10 +6,12 @@
 use crate::app::components::number_input::NumberInput;
 use crate::app::components::system_settings_common::{
     SETTINGS_CONTROL_TEXT_SIZE, primary_action_btn_style, rounded_action_btn_style,
-    settings_checkbox_style, settings_control_with_hint, settings_divider, settings_group_card,
-    settings_group_heading, settings_muted_text_style, settings_page_heading,
-    settings_row_with_flexible_control, settings_text_input, settings_value_badge,
+    settings_checkbox_style, settings_control_with_hint, settings_divider,
+    settings_flexible_row_with_help, settings_group_card, settings_group_heading,
+    settings_group_heading_with_help, settings_muted_text_style, settings_page_heading_with_help,
+    settings_text_input, settings_value_badge,
 };
+use crate::app::i18n::I18n;
 use crate::app::i18n::settings_extensions::{domain_label, text as tr};
 use crate::app::message::settings::{HttpRequestMessage, SettingsMessage};
 use crate::app::{App, Message};
@@ -17,14 +19,24 @@ use iced::widget::{button, checkbox, column, container, row, text, text::Wrappin
 use iced::{Alignment, Element, Length};
 
 fn field_row<'a>(
+    app: &'a App,
     label: &'static str,
     description: &'static str,
     control: impl Into<Element<'a, Message>>,
 ) -> Element<'a, Message> {
-    settings_row_with_flexible_control(label, description, 360.0, control)
+    settings_flexible_row_with_help(
+        I18n::new(app.desktop_locale),
+        &app.app_theme,
+        label,
+        description,
+        360.0,
+        control,
+    )
+    .into()
 }
 
 fn text_row<'a>(
+    app: &'a App,
     label: &'static str,
     description: &'static str,
     placeholder: &'static str,
@@ -32,6 +44,7 @@ fn text_row<'a>(
     on_input: impl Fn(String) -> Message + 'a,
 ) -> Element<'a, Message> {
     field_row(
+        app,
         label,
         description,
         settings_text_input(placeholder, value).on_input(on_input).width(Length::Fill),
@@ -39,6 +52,7 @@ fn text_row<'a>(
 }
 
 fn bool_row<'a>(
+    app: &'a App,
     label: &'static str,
     description: &'static str,
     checked: bool,
@@ -46,6 +60,7 @@ fn bool_row<'a>(
     on_toggle: impl Fn(bool) -> Message + 'a,
 ) -> Element<'a, Message> {
     field_row(
+        app,
         label,
         description,
         checkbox(checked).label(checkbox_label).on_toggle(on_toggle).style(settings_checkbox_style),
@@ -61,6 +76,7 @@ fn normalize_number_value(raw: f32, min: u32, max: u32) -> u32 {
 }
 
 fn number_row<'a>(
+    app: &'a App,
     label: &'static str,
     description: &'static str,
     value: u32,
@@ -86,7 +102,7 @@ fn number_row<'a>(
         control.into()
     };
 
-    field_row(label, description, control)
+    field_row(app, label, description, control)
 }
 
 /// 构建或处理 `view` 对应的界面片段与交互数据。
@@ -103,8 +119,11 @@ fn number_row<'a>(
 ///
 /// 本函数不直接返回错误；无法交互或缺省状态会在控件状态中显式表达。
 pub fn view(app: &App) -> Element<'_, Message> {
+    let i18n = I18n::new(app.desktop_locale);
     column![
-        settings_page_heading(
+        settings_page_heading_with_help(
+            i18n,
+            &app.app_theme,
             tr(app.desktop_locale, "网络请求配置"),
             tr(app.desktop_locale, "配置网络请求工具的开关、超时、响应大小限制和域名白名单。"),
         ),
@@ -116,9 +135,11 @@ pub fn view(app: &App) -> Element<'_, Message> {
 }
 
 pub(super) fn content(app: &App) -> Element<'_, Message> {
+    let i18n = I18n::new(app.desktop_locale);
     let s = &app.http_request_settings;
 
     let enabled_row = bool_row(
+        app,
         tr(app.desktop_locale, "启用"),
         tr(app.desktop_locale, "控制是否启用网络请求工具。"),
         s.enabled,
@@ -131,6 +152,7 @@ pub(super) fn content(app: &App) -> Element<'_, Message> {
     );
 
     let max_response_size_row = number_row(
+        app,
         tr(app.desktop_locale, "响应大小上限"),
         tr(app.desktop_locale, "限制单次请求可读取的最大响应体大小。"),
         s.max_response_size,
@@ -149,6 +171,7 @@ pub(super) fn content(app: &App) -> Element<'_, Message> {
     );
 
     let timeout_secs_row = number_row(
+        app,
         tr(app.desktop_locale, "超时时间"),
         tr(app.desktop_locale, "单次请求的超时时间。"),
         s.timeout_secs,
@@ -164,6 +187,7 @@ pub(super) fn content(app: &App) -> Element<'_, Message> {
     );
 
     let user_agent_row = text_row(
+        app,
         "User-Agent",
         tr(app.desktop_locale, "请求默认携带的 User-Agent。"),
         vw_config_types::tools::DEFAULT_USER_AGENT,
@@ -176,6 +200,7 @@ pub(super) fn content(app: &App) -> Element<'_, Message> {
     );
 
     let add_domain_row = field_row(
+        app,
         tr(app.desktop_locale, "新增域名"),
         tr(app.desktop_locale, "支持精确域名、子域模式或 *。"),
         settings_control_with_hint(
@@ -246,7 +271,9 @@ pub(super) fn content(app: &App) -> Element<'_, Message> {
     }
 
     let content = column![
-        settings_group_heading(
+        settings_group_heading_with_help(
+            i18n,
+            &app.app_theme,
             tr(app.desktop_locale, "基础行为"),
             tr(
                 app.desktop_locale,

@@ -61,20 +61,22 @@ fn generic_api_key_and_url_visibility_stay_in_lockstep() {
 
 #[test]
 fn row_helpers_build_empty_and_populated_controls() {
-    keep_element(field_row("", "", text("")));
-    keep_element(field_row("标签", "说明", text("control")));
+    let app = test_app();
+    keep_element(field_row(&app, "", "", text("")));
+    keep_element(field_row(&app, "标签", "说明", text("control")));
 
     for checked in [false, true] {
-        keep_element(bool_row("启用", "说明", checked, "启用搜索", |value| {
+        keep_element(bool_row(&app, "启用", "说明", checked, "启用搜索", |value| {
             Message::Settings(SettingsMessage::WebSearch(WebSearchMessage::EnabledToggled(value)))
         }));
     }
 
     for value in ["", "key"] {
-        keep_element(text_row("密钥", "说明", "placeholder", value, |value| {
+        keep_element(text_row(&app, "密钥", "说明", "placeholder", value, |value| {
             Message::Settings(SettingsMessage::WebSearch(WebSearchMessage::ApiKeyChanged(value)))
         }));
         keep_element(text_row_with_hint(
+            &app,
             "密钥",
             "说明",
             "placeholder",

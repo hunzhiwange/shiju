@@ -4,10 +4,12 @@
 //! 注释聚焦调用边界、返回值和错误传播方式，便于后续维护设置页与工具栏行为时快速定位职责。
 
 use crate::app::components::system_settings_common::{
-    settings_checkbox_style, settings_control_with_hint, settings_divider, settings_group_card,
-    settings_group_heading, settings_muted_text_style, settings_page_heading,
-    settings_row_with_flexible_control, settings_select, settings_text_input,
+    settings_checkbox_style, settings_control_with_hint, settings_divider,
+    settings_flexible_row_with_help, settings_group_card, settings_group_heading_with_help,
+    settings_muted_text_style, settings_page_heading_with_help, settings_select,
+    settings_text_input,
 };
+use crate::app::i18n::I18n;
 use crate::app::i18n::settings_extensions::text as tr;
 use crate::app::message::settings::{SettingsMessage, WebSearchMessage};
 use crate::app::{App, Message};
@@ -15,14 +17,24 @@ use iced::widget::{checkbox, column, container, text};
 use iced::{Element, Length};
 
 fn field_row<'a>(
+    app: &'a App,
     label: &'static str,
     description: &'static str,
     control: impl Into<Element<'a, Message>>,
 ) -> Element<'a, Message> {
-    settings_row_with_flexible_control(label, description, 360.0, control)
+    settings_flexible_row_with_help(
+        I18n::new(app.desktop_locale),
+        &app.app_theme,
+        label,
+        description,
+        360.0,
+        control,
+    )
+    .into()
 }
 
 fn bool_row<'a>(
+    app: &'a App,
     label: &'static str,
     description: &'static str,
     checked: bool,
@@ -30,6 +42,7 @@ fn bool_row<'a>(
     on_toggle: impl Fn(bool) -> Message + 'a,
 ) -> Element<'a, Message> {
     field_row(
+        app,
         label,
         description,
         checkbox(checked).label(checkbox_label).on_toggle(on_toggle).style(settings_checkbox_style),
@@ -37,6 +50,7 @@ fn bool_row<'a>(
 }
 
 fn text_row<'a>(
+    app: &'a App,
     label: &'static str,
     description: &'static str,
     placeholder: &'static str,
@@ -44,6 +58,7 @@ fn text_row<'a>(
     on_input: impl Fn(String) -> Message + 'a,
 ) -> Element<'a, Message> {
     field_row(
+        app,
         label,
         description,
         settings_text_input(placeholder, value).on_input(on_input).width(Length::Fill),
@@ -51,6 +66,7 @@ fn text_row<'a>(
 }
 
 fn text_row_with_hint<'a>(
+    app: &'a App,
     label: &'static str,
     description: &'static str,
     placeholder: &'static str,
@@ -59,6 +75,7 @@ fn text_row_with_hint<'a>(
     on_input: impl Fn(String) -> Message + 'a,
 ) -> Element<'a, Message> {
     field_row(
+        app,
         label,
         description,
         settings_control_with_hint(
@@ -94,8 +111,11 @@ fn shows_brave_api_key(provider: &str) -> bool {
 ///
 /// 本函数不直接返回错误；无法交互或缺省状态会在控件状态中显式表达。
 pub fn view(app: &App) -> Element<'_, Message> {
+    let i18n = I18n::new(app.desktop_locale);
     column![
-        settings_page_heading(
+        settings_page_heading_with_help(
+            i18n,
+            &app.app_theme,
             tr(app.desktop_locale, "网页搜索配置"),
             tr(app.desktop_locale, "配置网页搜索工具的提供方、鉴权信息和请求参数。"),
         ),
@@ -107,9 +127,11 @@ pub fn view(app: &App) -> Element<'_, Message> {
 }
 
 pub(super) fn content(app: &App) -> Element<'_, Message> {
+    let i18n = I18n::new(app.desktop_locale);
     let s = &app.web_search_settings;
 
     let enabled_row = bool_row(
+        app,
         tr(app.desktop_locale, "启用"),
         tr(app.desktop_locale, "控制是否启用网页搜索工具。"),
         s.enabled,
@@ -135,6 +157,7 @@ pub(super) fn content(app: &App) -> Element<'_, Message> {
     .width(Length::Fixed(220.0));
 
     let provider_row = field_row(
+        app,
         tr(app.desktop_locale, "搜索后端"),
         tr(app.desktop_locale, "选择网页搜索使用的后端。"),
         provider_pick,
@@ -142,7 +165,9 @@ pub(super) fn content(app: &App) -> Element<'_, Message> {
 
     let provider_section: Element<'_, Message> = if s.provider == "duckduckgo" {
         column![
-            settings_group_heading(
+            settings_group_heading_with_help(
+                i18n,
+                &app.app_theme,
                 "DuckDuckGo",
                 tr(app.desktop_locale, "公开搜索页面模式，无需额外鉴权配置。"),
             ),
@@ -178,40 +203,47 @@ pub(super) fn content(app: &App) -> Element<'_, Message> {
 
         if shows_brave_api_key(&s.provider) {
             fields = fields
-                .push(text_row_with_hint(
+                .push(field_row(
+                    app,
                     tr(app.desktop_locale, "Brave 密钥"),
                     tr(app.desktop_locale, "仅 provider=brave 时生效。"),
-                    "Brave Search API Key",
-                    &s.brave_api_key_input,
-                    tr(
-                        app.desktop_locale,
-                        "Brave 优先使用 `brave_api_key`；留空时会回退到 `api_key`。",
+                    settings_control_with_hint(
+                        settings_text_input("Brave Search API Key", &s.brave_api_key_input)
+                            .secure(true)
+                            .on_input(|value| {
+                                Message::Settings(SettingsMessage::WebSearch(
+                                    WebSearchMessage::BraveApiKeyChanged(value),
+                                ))
+                            })
+                            .width(Length::Fill),
+                        tr(
+                            app.desktop_locale,
+                            "Brave 优先使用 `brave_api_key`；留空时会回退到 `api_key`。",
+                        ),
                     ),
-                    |value| {
-                        Message::Settings(SettingsMessage::WebSearch(
-                            WebSearchMessage::BraveApiKeyChanged(value),
-                        ))
-                    },
                 ))
                 .push(settings_divider());
         }
 
         if shows_api_key(&s.provider) {
-            fields = fields.push(text_row(
+            fields = fields.push(field_row(
+                app,
                 tr(app.desktop_locale, "API 密钥"),
                 tr(app.desktop_locale, "搜索服务请求所需的认证密钥。"),
-                placeholder,
-                &s.api_key_input,
-                |value| {
-                    Message::Settings(SettingsMessage::WebSearch(WebSearchMessage::ApiKeyChanged(
-                        value,
-                    )))
-                },
+                settings_text_input(placeholder, &s.api_key_input)
+                    .secure(true)
+                    .on_input(|value| {
+                        Message::Settings(SettingsMessage::WebSearch(
+                            WebSearchMessage::ApiKeyChanged(value),
+                        ))
+                    })
+                    .width(Length::Fill),
             ));
         }
 
         if shows_api_url(&s.provider) {
             fields = fields.push(settings_divider()).push(text_row_with_hint(
+                app,
                 tr(app.desktop_locale, "接口地址"),
                 tr(app.desktop_locale, "可选，自定义兼容接口地址。"),
                 tr(app.desktop_locale, "可选，自定义搜索服务接口地址"),
@@ -225,13 +257,18 @@ pub(super) fn content(app: &App) -> Element<'_, Message> {
             ));
         }
 
-        column![settings_group_heading(title, description), settings_group_card(fields.spacing(0))]
-            .spacing(16)
-            .into()
+        column![
+            settings_group_heading_with_help(i18n, &app.app_theme, title, description),
+            settings_group_card(fields.spacing(0))
+        ]
+        .spacing(16)
+        .into()
     };
 
     let content = column![
-        settings_group_heading(
+        settings_group_heading_with_help(
+            i18n,
+            &app.app_theme,
             tr(app.desktop_locale, "基础行为"),
             tr(app.desktop_locale, "控制开关与默认搜索后端。")
         ),
@@ -240,13 +277,16 @@ pub(super) fn content(app: &App) -> Element<'_, Message> {
     ]
     .spacing(16)
     .width(Length::Fill)
-    .push(settings_group_heading(
+    .push(settings_group_heading_with_help(
+        i18n,
+        &app.app_theme,
         tr(app.desktop_locale, "请求参数"),
         tr(app.desktop_locale, "控制返回数量、超时和请求头。"),
     ))
     .push(settings_group_card(
         column![
             text_row_with_hint(
+                app,
                 tr(app.desktop_locale, "结果数量"),
                 tr(app.desktop_locale, "最终会限制在 1-10 之间。"),
                 "1-10",
@@ -260,6 +300,7 @@ pub(super) fn content(app: &App) -> Element<'_, Message> {
             ),
             settings_divider(),
             text_row_with_hint(
+                app,
                 tr(app.desktop_locale, "超时时间"),
                 tr(app.desktop_locale, "留空时回退到默认值 15 秒。"),
                 "15",
@@ -273,6 +314,7 @@ pub(super) fn content(app: &App) -> Element<'_, Message> {
             ),
             settings_divider(),
             text_row(
+                app,
                 "User-Agent",
                 tr(app.desktop_locale, "搜索请求携带的 User-Agent。"),
                 vw_config_types::tools::DEFAULT_USER_AGENT,

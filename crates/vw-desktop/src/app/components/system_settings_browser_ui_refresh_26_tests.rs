@@ -180,18 +180,14 @@ async fn ui_refresh_26_layout_and_interaction() {
             let t = |source| tr(locale, source);
             let positions = geometry(&mut ui, &renderer);
             match tab {
-                SystemTab::Browser => assert_input_center(
-                    &positions,
-                    WEBDRIVER,
-                    t("WebDriver 地址"),
-                    t("连接本地或远程 WebDriver 服务。"),
-                    size,
-                ),
+                SystemTab::Browser => {
+                    assert_input_center(&positions, WEBDRIVER, t("WebDriver 地址"), None, size)
+                }
                 SystemTab::Proxy => assert_input_center(
                     &positions,
                     SCOPE,
                     t("服务选择器"),
-                    t("仅在范围为指定服务时生效。"),
+                    Some(t("仅在范围为指定服务时生效。")),
                     size,
                 ),
                 SystemTab::Tunnel => {
@@ -452,16 +448,21 @@ fn assert_input_center(
     positions: &Geometry,
     value: &str,
     label: &str,
-    hint: &str,
+    hint: Option<&str>,
     size: Size<u32>,
 ) {
     let input = positions.input(value);
     let label = positions.label(label);
-    let hint = positions.label(hint);
     assert_fits(input, size);
-    assert_fits(hint, size);
     assert!(label.x + label.width < input.x);
-    assert!((input.center_y() - (label.y + hint.y + hint.height) / 2.0).abs() < 0.5);
+    let center = if let Some(hint) = hint {
+        let hint = positions.label(hint);
+        assert_fits(hint, size);
+        (label.y + hint.y + hint.height) / 2.0
+    } else {
+        label.center_y()
+    };
+    assert!((input.center_y() - center).abs() < 0.5);
 }
 
 #[tokio::test(flavor = "multi_thread")]
@@ -528,7 +529,7 @@ async fn ui_refresh_26_preserves_values_and_disabled_states() {
     let mut ui = scene(page(&app), &mut renderer, size);
     let positions = geometry(&mut ui, &renderer);
     assert!(!positions.inputs.iter().any(|(value, _)| value == WEBDRIVER));
-    assert_fits(positions.input(TOKEN), size);
+    assert_fits(positions.input(&"•".repeat(TOKEN.len())), size);
     let error = app
         .browser_settings
         .save_error_translation

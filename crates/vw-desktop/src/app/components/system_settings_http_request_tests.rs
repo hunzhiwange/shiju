@@ -34,19 +34,21 @@ fn normalize_number_value_rounds_then_clamps_to_bounds() {
 
 #[test]
 fn row_helpers_build_each_http_request_control() {
-    keep_element(field_row("标签", "说明", text("control")));
-    keep_element(text_row("User-Agent", "说明", "placeholder", "agent", |value| {
+    let app = test_app();
+    keep_element(field_row(&app, "标签", "说明", text("control")));
+    keep_element(text_row(&app, "User-Agent", "说明", "placeholder", "agent", |value| {
         Message::Settings(SettingsMessage::HttpRequest(HttpRequestMessage::UserAgentChanged(value)))
     }));
-    keep_element(bool_row("启用", "说明", true, "启用网络请求工具", |value| {
+    keep_element(bool_row(&app, "启用", "说明", true, "启用网络请求工具", |value| {
         Message::Settings(SettingsMessage::HttpRequest(HttpRequestMessage::EnabledToggled(value)))
     }));
-    keep_element(number_row("无限制", "说明", 0, 0, u32::MAX, "", None, |value| {
+    keep_element(number_row(&app, "无限制", "说明", 0, 0, u32::MAX, "", None, |value| {
         Message::Settings(SettingsMessage::HttpRequest(HttpRequestMessage::MaxResponseSizeChanged(
             value,
         )))
     }));
     keep_element(number_row(
+        &app,
         "超时",
         "说明",
         30,

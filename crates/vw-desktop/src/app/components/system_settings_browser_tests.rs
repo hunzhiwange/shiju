@@ -50,11 +50,12 @@ fn backend_options_keep_stable_config_values_and_labels() {
 
 #[test]
 fn row_helpers_build_text_and_boolean_controls() {
-    keep_element(field_row("标签", "说明", text("control")));
-    keep_element(text_row("会话", "说明", "placeholder", "session", |value| {
+    let app = test_app();
+    keep_element(field_row(&app, "标签", "说明", text("control")));
+    keep_element(text_row(&app, "会话", "说明", "placeholder", "session", |value| {
         Message::Settings(SettingsMessage::Browser(BrowserMessage::SessionNameChanged(value)))
     }));
-    keep_element(bool_row("启用", "说明", true, "启用浏览器", |value| {
+    keep_element(bool_row(&app, "启用", "说明", true, "启用浏览器", |value| {
         Message::Settings(SettingsMessage::Browser(BrowserMessage::EnabledToggled(value)))
     }));
 }

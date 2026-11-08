@@ -2,13 +2,16 @@
 
 use crate::app::components::system_settings::SystemTab;
 use crate::app::components::system_settings_common::{
-    settings_error_banner, settings_page_heading, settings_tab_button, settings_tab_row,
+    settings_error_banner, settings_page_heading_with_help, settings_tab_button, settings_tab_row,
 };
 use crate::app::components::system_settings_search::SettingsTabDescriptor;
+use crate::app::i18n::I18n;
 use crate::app::i18n::settings_models::connection_text::text as connection_text;
 use crate::app::{App, Message, message};
-use iced::widget::column;
-use iced::{Element, Length};
+use iced::advanced::widget::{Operation, Tree, tree};
+use iced::advanced::{Clipboard, Layout, Shell, Widget, layout, overlay, renderer};
+use iced::widget::{Column, column};
+use iced::{Element, Event, Length, Rectangle, Renderer, Size, Theme, Vector, mouse};
 
 pub(super) const NETWORK_TABS: &[SettingsTabDescriptor<SystemTab>] = &[
     SettingsTabDescriptor::new(
@@ -116,7 +119,9 @@ pub fn view(app: &App) -> Element<'_, Message> {
     };
 
     let mut sections = column![
-        settings_page_heading(
+        settings_page_heading_with_help(
+            I18n::new(app.desktop_locale),
+            &app.app_theme,
             connection_text(app.desktop_locale, "网络配置"),
             connection_text(
                 app.desktop_locale,
@@ -146,7 +151,114 @@ pub fn view(app: &App) -> Element<'_, Message> {
         ));
     }
 
-    sections.push(content).into()
+    Element::new(NetworkTabView { tab: active_tab, content: sections.push(content) })
+}
+
+// Settings search can switch tabs without a click to dismiss the current help card.
+struct NetworkTabView<'a> {
+    tab: SystemTab,
+    content: Column<'a, Message>,
+}
+
+impl Widget<Message, Theme, Renderer> for NetworkTabView<'_> {
+    fn tag(&self) -> tree::Tag {
+        struct NetworkTabTag;
+        tree::Tag::of::<NetworkTabTag>()
+    }
+
+    fn state(&self) -> tree::State {
+        tree::State::new(self.tab)
+    }
+
+    fn children(&self) -> Vec<Tree> {
+        self.content.children()
+    }
+
+    fn diff(&self, tree: &mut Tree) {
+        let tab = tree.state.downcast_mut::<SystemTab>();
+        if *tab == self.tab {
+            self.content.diff(tree);
+        } else {
+            *tab = self.tab;
+            tree.children = self.content.children();
+        }
+    }
+
+    fn size(&self) -> Size<Length> {
+        self.content.size()
+    }
+
+    fn size_hint(&self) -> Size<Length> {
+        self.content.size_hint()
+    }
+
+    fn layout(
+        &mut self,
+        tree: &mut Tree,
+        renderer: &Renderer,
+        limits: &layout::Limits,
+    ) -> layout::Node {
+        self.content.layout(tree, renderer, limits)
+    }
+
+    fn draw(
+        &self,
+        tree: &Tree,
+        renderer: &mut Renderer,
+        theme: &Theme,
+        style: &renderer::Style,
+        layout: Layout<'_>,
+        cursor: mouse::Cursor,
+        viewport: &Rectangle,
+    ) {
+        self.content.draw(tree, renderer, theme, style, layout, cursor, viewport);
+    }
+
+    fn operate(
+        &mut self,
+        tree: &mut Tree,
+        layout: Layout<'_>,
+        renderer: &Renderer,
+        operation: &mut dyn Operation,
+    ) {
+        self.content.operate(tree, layout, renderer, operation);
+    }
+
+    fn update(
+        &mut self,
+        tree: &mut Tree,
+        event: &Event,
+        layout: Layout<'_>,
+        cursor: mouse::Cursor,
+        renderer: &Renderer,
+        clipboard: &mut dyn Clipboard,
+        shell: &mut Shell<'_, Message>,
+        viewport: &Rectangle,
+    ) {
+        self.content.update(tree, event, layout, cursor, renderer, clipboard, shell, viewport);
+    }
+
+    fn mouse_interaction(
+        &self,
+        tree: &Tree,
+        layout: Layout<'_>,
+        cursor: mouse::Cursor,
+        viewport: &Rectangle,
+        renderer: &Renderer,
+    ) -> mouse::Interaction {
+        self.content.mouse_interaction(tree, layout, cursor, viewport, renderer)
+    }
+
+    fn overlay<'a>(
+        &'a mut self,
+        tree: &'a mut Tree,
+        layout: Layout<'a>,
+        renderer: &Renderer,
+        viewport: &Rectangle,
+        translation: Vector,
+    ) -> Option<overlay::Element<'a, Message, Theme, Renderer>> {
+        self.content.overlay(tree, layout, renderer, viewport, translation)
+    }
 }
 
 fn active_save_error(app: &App) -> Option<&str> {

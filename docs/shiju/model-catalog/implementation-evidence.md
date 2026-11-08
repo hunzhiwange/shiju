@@ -712,3 +712,26 @@ Pi 供应商表单的现有网关入口为 `vw-agent/src/gateway/api/handlers/ap
 | `cargo clippy --all-targets --all-features -- -D warnings` | 0 | 全工作区、全目标及 features 通过 |
 
 审查后差异限于 OpenCode 补空投影、独立测试、模块注册和本记录。`git diff --cached --check` 通过。两个阶段的占用锁已释放，编译缓存已保留。
+
+## 任务 28　迁移 Kimi 补空投影
+
+2026-11-08，macOS 27.0（26A428），arm64。批次 27 由 `5213b4e59` 交付。已核对 `TenantScope`、`LocalReadEnvironment`、应用注册与可信 CLI 定位、可取消的 `ProviderOperation` 及 `ProviderTransactions::commit_checked`。
+
+| 固定来源 `ca58c0313360eae7c851fbd7553c1614c7af03e7` | 实际路径 |
+| --- | --- |
+| `src/components/providers/forms/modelMetadataFill.ts::fillKimiModel` | `crates/vw-agent-apps/src/models/fill_kimi.rs::fill_kimi_model` 接收 `KimiProfile::declaration.models` 的原生对象行和为该部署及模型解析的 `ModelMetadataDto`。缺失、null、纯空白或调用方明确标记为新行占位的窗口可补入 TOML 可表示的正整数。已有窗口数值本身不作为占位标记。依据确认的图片输入和推理能力分别追加缺失的 `image_in` 和 `thinking`，保留用户条目、顺序、重复项、`overrides` 和扩展字段。返回内存差异及实际贡献字段的来源和抓取时间。 |
+| `tests/components/modelMetadataFill.test.ts` 的 Kimi 场景 | `crates/vw-agent-apps/src/models/fill_kimi_tests.rs` 验证窗口保护、能力合并和幂等性、原生数值边界、未知和异常字段及逐字段来源。合并用例通过真实 `providers::kimi::patch` 和 `declarations` 往返验证原生 TOML，使用内存字节。 |
+| `KimiProviderForm.tsx` 的补全调用者 | 原生档案表单由 `crates/vw-agent-apps/src/providers/kimi_form.rs::view` 和 `prepare` 处理，发布由 `providers/kimi.rs::KimiFiles` 处理。已有档案网关、SDK 和 Iced 表单分别为 `crates/vw-agent/src/gateway/api/handlers/app_providers/kimi.rs`、`crates/vw-gateway-client/src/client/app_providers/kimi.rs` 和 `crates/vw-desktop/src/app/components/app_providers/kimi.rs`。目录预览 DTO 位于 `crates/vw-api-types/src/model_catalog.rs`。预览与修订提交由任务 32 组装，网关与 SDK 由任务 38 接线，Iced 来源展示由任务 41 接线。本批次验证原生内存投影。 |
+
+### 验证
+
+红灯与绿灯均动态领取槽位 **1**，`CARGO_TARGET_DIR=/Users/xiangmin/worker/code/shiju/target/rust-slot-1`。Cargo 中间目录使用同一槽位。格式化在 Git 源码快照中执行，只回写本项 Rust 文件。测试和 Clippy 在实际工作区执行。
+
+| 命令 | 退出码 | 证据 |
+| --- | ---: | --- |
+| `cargo fmt --all`（红灯、绿灯） | 0、0 | 两阶段格式化完成 |
+| `cargo test -p vw-agent-apps catalog_fill_kimi_ -- --nocapture`（红灯） | 101 | 6 条有效用例，2 项通过、4 项失败、674 项过滤。指定用例保留原能力列表 `["tool_use", "future", "tool_use"]`，预期在其后追加 `image_in` 和 `thinking`。首次编译尝试因测试时间戳构造方式错误退出 101，修正后获得上述断言失败。 |
+| `cargo test -p vw-agent-apps catalog_fill_kimi_ -- --nocapture`（绿灯） | 0 | 6 项通过、674 项过滤，覆盖原生 TOML 往返。 |
+| `cargo clippy --all-targets --all-features -- -D warnings` | 0 | 全工作区、全目标及 features 通过 |
+
+审查后差异限于 Kimi 投影、独立测试、模块注册和本记录。`git diff --cached --check` 通过。槽位锁已释放，编译缓存已保留。

@@ -13,6 +13,7 @@ mod discovery_process;
 pub mod discovery_url;
 pub mod fill_codex;
 pub mod fill_hermes;
+pub mod fill_kimi;
 pub mod fill_openclaw;
 pub mod fill_opencode;
 pub mod identity;
@@ -47,6 +48,8 @@ mod discovery_url_tests;
 mod fill_codex_tests;
 #[cfg(test)]
 mod fill_hermes_tests;
+#[cfg(test)]
+mod fill_kimi_tests;
 #[cfg(test)]
 mod fill_openclaw_tests;
 #[cfg(test)]

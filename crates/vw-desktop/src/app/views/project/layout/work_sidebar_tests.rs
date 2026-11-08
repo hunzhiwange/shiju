@@ -208,7 +208,6 @@ fn work_sidebar_builds_workbuddy_sections_from_real_projects() {
     );
     assert!(model.spaces[0].hovered);
     assert!(model.spaces[0].tools_open);
-    assert!(!model.spaces[0].creating);
     assert!(!model.spaces[1].expanded);
     assert!(model.spaces[1].sessions.is_empty());
     assert!(!model.spaces[1].hovered);
@@ -236,30 +235,12 @@ fn work_sidebar_builds_workbuddy_sections_from_real_projects() {
     assert_eq!(directory, "/workspace/alpha");
     assert_eq!(id, "newest");
 
-    let Message::Project(ProjectMessage::ProjectCreateSession(path)) =
-        model.spaces[0].create_message.clone()
-    else {
-        panic!("space add action should create a task in that space");
-    };
-    assert_eq!(path, "/workspace/alpha");
-
     let Message::Project(ProjectMessage::ProjectToolsMenuToggled(path)) =
         model.spaces[0].tools_message.clone()
     else {
         panic!("space tools action should toggle that space menu");
     };
     assert_eq!(path, "/workspace/alpha");
-}
-
-#[test]
-fn work_sidebar_marks_space_creation_action_disabled_while_session_is_creating() {
-    let mut app = App::new().0;
-    app.recent_projects = vec!["/workspace/alpha".into()];
-    app.new_session_creating = true;
-
-    let model = work_sidebar::model(&app);
-
-    assert!(model.spaces[0].creating);
 }
 
 #[test]
@@ -776,15 +757,15 @@ async fn work_sidebar_replaces_search_row_with_compact_header() {
     let limits = layout::Limits::new(Size::ZERO, VIEWPORT);
     let mut tree = Tree::new(sidebar.as_widget());
     let node = sidebar.as_widget_mut().layout(&mut tree, &renderer, &limits);
-    let column =
-        Layout::new(&node).children().next().expect("sidebar container should contain a column");
+    let column = Layout::new(&node).child(1).child(0);
 
     assert_eq!(app.work_sidebar_tab, WorkSidebarTab::Tasks);
     assert_eq!(
         column.children().count(),
-        4,
-        "header, navigation and tabs should stay outside the scrolling list"
+        3,
+        "navigation and tabs should stay outside the scrolling list"
     );
+    assert_eq!(column.child(0).children().count(), 2, "expanded navigation keeps its header");
 }
 
 #[tokio::test(flavor = "multi_thread")]
@@ -804,20 +785,95 @@ async fn work_sidebar_uses_resizable_width_from_app_state() {
 }
 
 #[tokio::test(flavor = "multi_thread")]
-async fn work_sidebar_collapsed_state_keeps_compact_controls_visible() {
-    let renderer =
+async fn work_sidebar_collapsed_keeps_session_list_and_one_new_task() {
+    let mut renderer =
         <iced::Renderer as Headless>::new(Font::DEFAULT, Pixels(16.0), Some("tiny-skia"))
             .await
             .expect("tiny-skia headless renderer should be available");
     let mut app = App::new().0;
     app.work_sidebar_collapsed = true;
-    app.work_sidebar_width = 54.0;
+    app.desktop_locale = vw_config_types::ui::DesktopLocale::SimplifiedChinese;
+    let project_path = "/workspace/project";
+    app.project_path = Some(project_path.into());
+    app.recent_projects = vec![project_path.into()];
+    app.project_sessions
+        .insert(project_path.into(), vec![session("existing", "现有任务", project_path, 30)]);
     let mut sidebar = work_sidebar::view(&app);
-    let limits = layout::Limits::new(Size::ZERO, VIEWPORT);
+    let size = Size::new(680.0, 800.0);
+    let limits = layout::Limits::new(Size::ZERO, size);
     let mut tree = Tree::new(sidebar.as_widget());
     let node = sidebar.as_widget_mut().layout(&mut tree, &renderer, &limits);
 
-    assert_eq!(node.bounds().width, 54.0);
+    let root = Layout::new(&node);
+    let rail = root.child(0).child(0);
+    let sessions = root.child(1).child(0);
+    assert_eq!(root.child(1).bounds().width, app.work_sidebar_width);
+    assert_eq!(sessions.children().count(), 3, "new task, tabs, and session list");
+    let controls = rail.children();
+    let mut actions = controls.map(|control| {
+        click_at(&mut sidebar, &mut tree, &renderer, root, control.bounds().center())
+    });
+    assert!(matches!(
+        actions.next().unwrap().as_slice(),
+        [Message::View(ViewMessage::WorkProjectHome)]
+    ));
+    let remaining: Vec<_> = actions.flatten().collect();
+    assert!(
+        !remaining
+            .iter()
+            .any(|message| matches!(message, Message::View(ViewMessage::ProjectFileNewSession)))
+    );
+    assert!(
+        remaining
+            .iter()
+            .any(|message| matches!(message, Message::View(ViewMessage::WorkSidebarMoreToggled)))
+    );
+    let click = |sidebar: &mut iced::Element<'_, Message>, tree: &mut Tree, target: Layout<'_>| {
+        click_at(sidebar, tree, &renderer, root, target.bounds().center())
+    };
+    assert!(matches!(
+        click(&mut sidebar, &mut tree, sessions.child(0)).as_slice(),
+        [Message::View(ViewMessage::ProjectFileNewSession)]
+    ));
+    assert!(matches!(
+        click(&mut sidebar, &mut tree, sessions.child(1).child(1)).as_slice(),
+        [Message::View(ViewMessage::WorkSidebarTabSelected(WorkSidebarTab::Spaces))]
+    ));
+    let task = sessions.child(2).child(0).child(0).child(0);
+    assert!(click(&mut sidebar, &mut tree, task).iter().any(|message| matches!(
+        message,
+        Message::Project(ProjectMessage::OpenProjectSessionPressed(path, id))
+            if path == project_path && id == "existing"
+    )));
+    drop(sidebar);
+
+    app.new_session_creating = true;
+    app.work_sidebar_more_open = true;
+    let mut sidebar = work_sidebar::view(&app);
+    let mut tree = Tree::new(sidebar.as_widget());
+    let node = sidebar.as_widget_mut().layout(&mut tree, &renderer, &limits);
+    let root = Layout::new(&node);
+    let new_task = root.child(1).child(0).child(0).bounds().center();
+
+    let viewport = Rectangle::with_size(size);
+    let mut overlay = sidebar
+        .as_widget_mut()
+        .overlay(&mut tree, root, &renderer, &viewport, Vector::ZERO)
+        .unwrap();
+    let menu = overlay.as_overlay_mut();
+    let menu_node = menu.layout(&renderer, size);
+    let menu_layout = Layout::new(&menu_node);
+    for theme in [Theme::Light, Theme::Dark] {
+        menu.draw(
+            &mut renderer,
+            &theme,
+            &renderer::Style::default(),
+            menu_layout,
+            mouse::Cursor::Unavailable,
+        );
+    }
+    drop(overlay);
+    assert!(click_at(&mut sidebar, &mut tree, &renderer, root, new_task).is_empty());
 }
 
 #[tokio::test(flavor = "multi_thread")]

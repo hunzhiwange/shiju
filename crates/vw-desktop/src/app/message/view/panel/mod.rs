@@ -46,6 +46,7 @@ pub fn update(app: &mut App, message: ViewMessage) -> Task<Message> {
         | ViewMessage::WorkSpaceToggled(_) => work_workspace::update(app, message),
 
         ViewMessage::WorkSidebarToggled
+        | ViewMessage::WorkProjectHome
         | ViewMessage::WorkSidebarFilterToggled
         | ViewMessage::WorkSidebarFilterClosed
         | ViewMessage::WorkSidebarMoreToggled

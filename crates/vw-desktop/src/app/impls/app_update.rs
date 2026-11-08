@@ -284,6 +284,9 @@ impl App {
         {
             self.workspace_mode = workspace_mode;
         }
+        if let Some(collapsed) = cfg.get("work_sidebar_collapsed").and_then(|v| v.as_bool()) {
+            self.work_sidebar_collapsed = collapsed;
+        }
         self.show_settings =
             cfg.get("show_settings").and_then(|v| v.as_bool()).unwrap_or(self.show_settings);
         self.show_file_manager = cfg

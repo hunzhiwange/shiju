@@ -187,6 +187,7 @@ fn startup_agent_config_reload_rehydrates_gateway_backed_settings() {
 #[test]
 fn bootstrap_app_config_updates_known_fields_and_clamps_file_manager_width() {
     let mut app = test_app();
+    app.work_sidebar_collapsed = true;
 
     let _ = app.update(Message::BootstrapAppConfig(Ok(json!({
         "model": "gpt-next",
@@ -194,6 +195,7 @@ fn bootstrap_app_config_updates_known_fields_and_clamps_file_manager_width() {
         "acp_agent": "codex",
         "show_settings": true,
         "workspace_mode": "work",
+        "work_sidebar_collapsed": false,
         "show_file_manager": true,
         "file_manager_width": 9999.0,
         "open_external_app": "cursor",
@@ -205,6 +207,7 @@ fn bootstrap_app_config_updates_known_fields_and_clamps_file_manager_width() {
     assert_eq!(app.acp_agent.as_deref(), Some("codex"));
     assert!(app.show_settings);
     assert_eq!(app.workspace_mode, crate::app::state::WorkspaceMode::Work);
+    assert!(!app.work_sidebar_collapsed);
     assert!(app.show_file_manager);
     assert_eq!(app.file_manager_width, 600.0);
     assert_eq!(app.open_external_app, ExternalOpenApp::Cursor);
@@ -238,16 +241,19 @@ fn workspace_mode_bootstrap_accepts_work_mode() {
 #[test]
 fn startup_app_config_loaded_uses_same_bootstrap_path() {
     let mut app = test_app();
+    app.work_sidebar_collapsed = false;
 
     let _ = app.update(Message::StartupAppConfigLoaded(Ok(json!({
         "model": "startup-model",
         "auto_model": true,
+        "work_sidebar_collapsed": true,
         "file_manager_width": 200.0,
         "open_external_app": "zed"
     }))));
 
     assert_eq!(app.model, "startup-model");
     assert!(app.auto_model);
+    assert!(app.work_sidebar_collapsed);
     assert_eq!(app.file_manager_width, 200.0);
     assert_eq!(app.file_manager_start_width, 200.0);
     assert_eq!(app.open_external_app, ExternalOpenApp::Zed);

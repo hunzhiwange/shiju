@@ -62,19 +62,15 @@ pub fn build_work_layout(
     let right_column = right_column_chrome(right_column.into(), corner_radius);
 
     let _ = (settings_panel_width, left_rail_width, session_panel_width_scale);
-    let workspace: Element<'_, Message> =
-        if app.work_chat_fullscreen || app.work_resource_fullscreen {
-            return right_column;
-        } else if app.work_sidebar_collapsed {
-            iced::widget::row![left_sidebar, right_column].spacing(spacing).into()
-        } else {
-            let sidebar_divider = mouse_area(HResizeHandle)
-                .on_press(Message::View(ViewMessage::WorkSidebarDragStarted));
-            iced::widget::row![left_sidebar, sidebar_divider, right_column].spacing(spacing).into()
-        };
+    if app.work_chat_fullscreen || app.work_resource_fullscreen {
+        return right_column;
+    }
+    let sidebar_divider =
+        mouse_area(HResizeHandle).on_press(Message::View(ViewMessage::WorkSidebarDragStarted));
+    let workspace = row![left_sidebar, sidebar_divider, right_column].spacing(spacing);
 
     if !app.terminal.is_visible {
-        workspace
+        workspace.into()
     } else {
         iced::widget::column![
             container(workspace)

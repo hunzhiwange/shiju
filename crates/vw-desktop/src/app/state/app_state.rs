@@ -106,9 +106,7 @@ pub struct App {
     pub(crate) work_split_ratio: f32,
     /// 工作模式左栏宽度
     pub(crate) work_sidebar_width: f32,
-    /// 工作模式左栏展开时恢复的宽度
-    pub(crate) work_sidebar_expanded_width: f32,
-    /// 工作模式左栏是否收起为紧凑工具栏
+    /// 工作模式的导航是否收进图标栏
     pub(crate) work_sidebar_collapsed: bool,
     /// 工作模式左栏过滤弹层是否打开
     pub(crate) work_sidebar_filter_open: bool,

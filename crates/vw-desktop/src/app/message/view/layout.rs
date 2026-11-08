@@ -95,9 +95,6 @@ pub fn update(app: &mut App, message: ViewMessage) -> Task<Message> {
             Task::none()
         }
         ViewMessage::WorkSidebarDragStarted => {
-            if app.work_sidebar_collapsed {
-                return Task::none();
-            }
             app.dragging_work_sidebar = true;
             app.work_sidebar_drag_anchor_x = None;
             app.work_sidebar_drag_start_width = app.work_sidebar_width;
@@ -170,7 +167,13 @@ pub fn update(app: &mut App, message: ViewMessage) -> Task<Message> {
                     return Task::none();
                 }
                 let anchor = app.work_split_drag_anchor_x.unwrap_or(x);
-                let available_width = (app.window_size.0 - app.work_sidebar_width).max(1.0);
+                let rail_width = if app.work_sidebar_collapsed {
+                    crate::app::state::WORK_SIDEBAR_RAIL_WIDTH
+                } else {
+                    0.0
+                };
+                let available_width =
+                    (app.window_size.0 - app.work_sidebar_width - rail_width).max(1.0);
                 let delta = x - anchor;
                 app.work_split_ratio = (app.work_split_drag_start_ratio + delta / available_width)
                     .clamp(MIN_WORK_SPLIT_RATIO, MAX_WORK_SPLIT_RATIO);
@@ -305,7 +308,6 @@ pub fn update(app: &mut App, message: ViewMessage) -> Task<Message> {
             if app.dragging_work_sidebar {
                 app.dragging_work_sidebar = false;
                 app.work_sidebar_drag_anchor_x = None;
-                app.work_sidebar_expanded_width = app.work_sidebar_width;
             }
             if app.dragging_work_split {
                 app.dragging_work_split = false;

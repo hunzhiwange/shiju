@@ -60,6 +60,7 @@ pub enum WorkSidebarFilterTime {
     LastThirtyDays,
 }
 
+pub(crate) const WORK_SIDEBAR_RAIL_WIDTH: f32 = 54.0;
 pub const WORK_SIDEBAR_INITIAL_VISIBLE_ITEMS: usize = 10;
 pub const WORK_SIDEBAR_LOAD_MORE_STEP: usize = 5;
 /// 工作模式空间展开后默认展示的任务条数。

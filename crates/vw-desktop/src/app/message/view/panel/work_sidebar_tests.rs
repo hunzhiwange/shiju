@@ -2,27 +2,60 @@
 //! 各标签和弹出层应保持独立，切换视图时不得串用可见数量或悬停状态。
 
 use super::super::{ViewMessage, update as update_panel};
-use super::WORK_SIDEBAR_COLLAPSED_WIDTH;
-use crate::app::App;
+use crate::app::models::{ChatMessage, ChatRole};
 use crate::app::state::{
     WORK_SIDEBAR_INITIAL_VISIBLE_ITEMS, WORK_SIDEBAR_LOAD_MORE_STEP,
     WORK_SIDEBAR_SPACE_TASKS_INITIAL_VISIBLE, WORK_SIDEBAR_SPACE_TASKS_LOAD_MORE_STEP,
     WorkSidebarFilterScope, WorkSidebarFilterStatus, WorkSidebarFilterTime, WorkSidebarTab,
 };
+use crate::app::{App, Screen};
 
 #[test]
-fn work_sidebar_toggle_preserves_expanded_width() {
+fn work_sidebar_toggle_preserves_session_list_width() {
     let mut app = App::new().0;
     app.work_sidebar_width = 360.0;
 
     let _task = update_panel(&mut app, ViewMessage::WorkSidebarToggled);
     assert!(app.work_sidebar_collapsed);
-    assert_eq!(app.work_sidebar_width, WORK_SIDEBAR_COLLAPSED_WIDTH);
-    assert_eq!(app.work_sidebar_expanded_width, 360.0);
+    assert_eq!(app.work_sidebar_width, 360.0);
 
+    let _task = update_panel(&mut app, ViewMessage::WorkSidebarMoreToggled);
+    assert!(app.work_sidebar_more_open);
     let _task = update_panel(&mut app, ViewMessage::WorkSidebarToggled);
     assert!(!app.work_sidebar_collapsed);
+    assert!(!app.work_sidebar_more_open);
     assert_eq!(app.work_sidebar_width, 360.0);
+}
+
+#[test]
+fn work_sidebar_project_home_leaves_the_session_without_leaving_the_project() {
+    let mut app = App::new().0;
+    app.screen = Screen::Project;
+    app.project_path = Some("/workspace/project".into());
+    app.active_tab_id = Some("project_/workspace/project".into());
+    app.active_session_id = Some("session-1".into());
+    app.work_sidebar_collapsed = true;
+    app.work_sidebar_tab = WorkSidebarTab::Spaces;
+    app.work_resource_half_fullscreen = true;
+    app.chat.push(ChatMessage {
+        role: ChatRole::User,
+        content: "Existing conversation".into(),
+        model: None,
+        think_timing: Vec::new(),
+        processing_timing: None,
+    });
+
+    let _task = crate::app::message::view::update(&mut app, ViewMessage::WorkProjectHome);
+
+    assert_eq!(app.screen, Screen::Project);
+    assert_eq!(app.project_path.as_deref(), Some("/workspace/project"));
+    assert_eq!(app.active_tab_id.as_deref(), Some("project_/workspace/project"));
+    assert!(app.active_session_id.is_none());
+    assert!(app.chat.is_empty());
+    assert!(app.session_view_cache.contains("session-1"));
+    assert!(app.work_sidebar_collapsed);
+    assert!(!app.work_resource_half_fullscreen);
+    assert_eq!(app.work_sidebar_tab, WorkSidebarTab::Spaces);
 }
 
 #[test]

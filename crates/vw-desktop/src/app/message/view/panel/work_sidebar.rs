@@ -6,12 +6,8 @@ use crate::app::state::{
     WORK_SIDEBAR_SPACE_TASKS_INITIAL_VISIBLE, WORK_SIDEBAR_SPACE_TASKS_LOAD_MORE_STEP,
     WorkSidebarFilterScope, WorkSidebarFilterStatus, WorkSidebarFilterTime, WorkSidebarTab,
 };
-use crate::app::{App, Message};
+use crate::app::{App, Message, Screen};
 use iced::Task;
-
-pub(crate) const WORK_SIDEBAR_COLLAPSED_WIDTH: f32 = 54.0;
-const MIN_WORK_SIDEBAR_WIDTH: f32 = 220.0;
-const MAX_WORK_SIDEBAR_WIDTH: f32 = 520.0;
 
 fn reset_visible_items(app: &mut App) {
     app.work_sidebar_visible_tasks = WORK_SIDEBAR_INITIAL_VISIBLE_ITEMS;
@@ -22,19 +18,37 @@ fn reset_visible_items(app: &mut App) {
 pub(super) fn update(app: &mut App, message: ViewMessage) -> Task<Message> {
     match message {
         ViewMessage::WorkSidebarToggled => {
-            if app.work_sidebar_collapsed {
-                app.work_sidebar_width = app
-                    .work_sidebar_expanded_width
-                    .clamp(MIN_WORK_SIDEBAR_WIDTH, MAX_WORK_SIDEBAR_WIDTH);
-            } else {
-                app.work_sidebar_expanded_width =
-                    app.work_sidebar_width.clamp(MIN_WORK_SIDEBAR_WIDTH, MAX_WORK_SIDEBAR_WIDTH);
-                app.work_sidebar_width = WORK_SIDEBAR_COLLAPSED_WIDTH;
-                app.work_sidebar_filter_open = false;
-                app.work_sidebar_more_open = false;
-                app.work_sidebar_project_nav_hovered = false;
-            }
+            app.work_sidebar_project_nav_hovered = false;
+            app.work_sidebar_filter_open = false;
+            app.work_sidebar_more_open = false;
             app.work_sidebar_collapsed = !app.work_sidebar_collapsed;
+            let patch = serde_json::json!({
+                "work_sidebar_collapsed": app.work_sidebar_collapsed,
+            });
+            #[cfg(not(target_arch = "wasm32"))]
+            crate::app::config::save_app_config(&patch);
+            #[cfg(target_arch = "wasm32")]
+            return crate::app::config::spawn_gateway_task(
+                "work_sidebar_collapsed",
+                crate::app::config::save_app_config_async(patch),
+            );
+        }
+        ViewMessage::WorkProjectHome => {
+            if !matches!(app.screen, Screen::Project) || app.project_path.is_none() {
+                return Task::none();
+            }
+            app.work_resource_half_fullscreen = false;
+            if app.active_session_id.is_some() {
+                app.stash_active_session_view();
+                app.active_session_id = None;
+                // The stash may retain the view in place when it exceeds cache capacity.
+                app.chat.clear();
+                app.chat_message_ids.clear();
+                app.usage = Default::default();
+                app.active_session_view_state = Default::default();
+                app.chat_panel_mode = Default::default();
+                app.invalidate_chat_ui_state();
+            }
         }
         ViewMessage::WorkSidebarFilterToggled => {
             app.work_sidebar_filter_open = !app.work_sidebar_filter_open;

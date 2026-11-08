@@ -343,8 +343,10 @@ impl App {
             work_resources_visible: false,
             work_split_ratio: 0.6,
             work_sidebar_width: 292.0,
-            work_sidebar_expanded_width: 292.0,
-            work_sidebar_collapsed: false,
+            work_sidebar_collapsed: cfg
+                .get("work_sidebar_collapsed")
+                .and_then(serde_json::Value::as_bool)
+                .unwrap_or(false),
             work_sidebar_filter_open: false,
             work_sidebar_more_open: false,
             work_sidebar_project_nav_hovered: false,

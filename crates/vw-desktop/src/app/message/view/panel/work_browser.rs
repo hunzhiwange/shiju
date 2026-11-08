@@ -311,8 +311,9 @@ fn sync_lifecycle_result(app: &mut App) -> Result<bool, String> {
         return Ok(false);
     }
 
-    let work_sidebar_width = app.work_sidebar_width
-        + if app.work_sidebar_collapsed { 0.0 } else { WORK_RESIZE_HANDLE_WIDTH };
+    let rail_width =
+        if app.work_sidebar_collapsed { crate::app::state::WORK_SIDEBAR_RAIL_WIDTH } else { 0.0 };
+    let work_sidebar_width = app.work_sidebar_width + rail_width + WORK_RESIZE_HANDLE_WIDTH;
     let bounds = work_browser_bounds(WorkBrowserLayout {
         window_x: app.window_position.0,
         window_y: app.window_position.1,

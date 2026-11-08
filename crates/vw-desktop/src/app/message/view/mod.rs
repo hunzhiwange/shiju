@@ -262,6 +262,8 @@ pub enum ViewMessage {
     WorkResourcesToggled,
     /// 收起或展开工作模式左栏
     WorkSidebarToggled,
+    /// 返回当前项目的工作模式起始页。
+    WorkProjectHome,
     /// 打开或关闭工作模式左栏过滤弹层
     WorkSidebarFilterToggled,
     /// 关闭工作模式左栏过滤弹层
@@ -674,6 +676,7 @@ pub fn update(app: &mut App, message: ViewMessage) -> Task<Message> {
             | ViewMessage::WorkResourceModeSelected(_)
             | ViewMessage::WorkResourcesToggled
             | ViewMessage::WorkSidebarToggled
+            | ViewMessage::WorkProjectHome
             | ViewMessage::WorkSplitRatioChanged(_)
             | ViewMessage::WorkResourceFullscreenToggled
             | ViewMessage::WorkResourceHalfFullscreenToggled
@@ -875,6 +878,7 @@ pub fn update(app: &mut App, message: ViewMessage) -> Task<Message> {
         | ViewMessage::WorkResourceModeSelected(_)
         | ViewMessage::WorkResourcesToggled
         | ViewMessage::WorkSidebarToggled
+        | ViewMessage::WorkProjectHome
         | ViewMessage::WorkSidebarFilterToggled
         | ViewMessage::WorkSidebarFilterClosed
         | ViewMessage::WorkSidebarMoreToggled

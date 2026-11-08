@@ -27,6 +27,8 @@ use super::super::components::{
     SessionRowDetails, SessionRowStatus as WorkTaskStatus, build_session_menu, session_row,
 };
 
+mod rail;
+
 pub(super) const WORK_SIDEBAR_SCROLLBAR_WIDTH: u32 = 4;
 pub(super) const WORK_SIDEBAR_SCROLLBAR_GUTTER: f32 = 8.0;
 const WORK_NAVIGATION_ICON_COLUMN_WIDTH: f32 = 22.0;
@@ -49,12 +51,10 @@ pub(super) struct WorkSpaceItem {
     pub(super) expanded: bool,
     pub(super) hovered: bool,
     pub(super) tools_open: bool,
-    pub(super) creating: bool,
     pub(super) sessions: Vec<WorkTaskItem>,
     pub(super) session_total: usize,
     pub(super) message: Message,
     pub(super) toggle_message: Message,
-    pub(super) create_message: Message,
     pub(super) tools_message: Message,
 }
 
@@ -312,14 +312,10 @@ pub(super) fn model(app: &App) -> WorkSidebarModel {
                 expanded,
                 hovered: app.hovered_recent_project.as_deref() == Some(path.as_str()),
                 tools_open: app.project_tools_menu_path.as_deref() == Some(path.as_str()),
-                creating: app.new_session_creating,
                 sessions,
                 session_total,
                 message: Message::Project(ProjectMessage::SwitchWorkSpacePressed(path.clone())),
                 toggle_message: Message::View(ViewMessage::WorkSpaceToggled(path.clone())),
-                create_message: Message::Project(ProjectMessage::ProjectCreateSession(
-                    path.clone(),
-                )),
                 tools_message: Message::Project(ProjectMessage::ProjectToolsMenuToggled(
                     path.clone(),
                 )),
@@ -399,15 +395,11 @@ fn navigation_button_style(theme: &Theme, status: button::Status) -> button::Sty
 }
 
 fn header_icon(icon: Icon) -> svg::Svg<'static> {
-    header_icon_enabled(icon, true)
-}
-
-fn header_icon_enabled(icon: Icon, enabled: bool) -> svg::Svg<'static> {
     svg::Svg::new(assets::get_icon(icon))
         .width(Length::Fixed(WORK_HEADER_ICON_SIZE))
         .height(Length::Fixed(WORK_HEADER_ICON_SIZE))
         .style(move |theme: &Theme, _status| svg::Style {
-            color: Some(theme.palette().text.scale_alpha(if enabled { 0.82 } else { 0.32 })),
+            color: Some(theme.palette().text.scale_alpha(0.82)),
         })
 }
 
@@ -448,20 +440,24 @@ fn header_icon_button_sized(
     active: bool,
     control_size: f32,
 ) -> Element<'static, Message> {
-    header_icon_button_sized_maybe(i18n, icon, label, Some(message), active, control_size)
+    let control = icon_control(header_icon(icon), Some(message), active, control_size);
+    Tooltip::new(
+        control,
+        container(text(i18n.__(label)).size(12)).padding([6, 8]).style(tooltip_dark_style),
+        TooltipPosition::Bottom,
+    )
+    .gap(6)
+    .into()
 }
 
-fn header_icon_button_sized_maybe(
-    i18n: crate::app::i18n::I18n,
-    icon: Icon,
-    label: &'static str,
+fn icon_control(
+    icon: svg::Svg<'static>,
     message: Option<Message>,
     active: bool,
     control_size: f32,
-) -> Element<'static, Message> {
-    let enabled = message.is_some();
+) -> button::Button<'static, Message> {
     let mut control = button(
-        container(header_icon_enabled(icon, enabled))
+        container(icon)
             .width(Length::Fixed(control_size))
             .height(Length::Fixed(control_size))
             .align_x(iced::alignment::Horizontal::Center)
@@ -473,13 +469,7 @@ fn header_icon_button_sized_maybe(
         control = control.on_press(message);
     }
 
-    Tooltip::new(
-        control,
-        container(text(i18n.__(label)).size(12)).padding([6, 8]).style(tooltip_dark_style),
-        TooltipPosition::Bottom,
-    )
-    .gap(6)
-    .into()
+    control
 }
 
 fn filter_active(app: &App) -> bool {
@@ -765,23 +755,6 @@ fn expanded_header(app: &App) -> Element<'static, Message> {
     .into()
 }
 
-fn collapsed_header(app: &App) -> Element<'static, Message> {
-    column![
-        container(text("V").size(20))
-            .width(Length::Fill)
-            .align_x(iced::alignment::Horizontal::Center),
-        sidebar_toggle_control(app),
-        refresh_all_control(app),
-        task_pool_control(app),
-        search_control(crate::app::i18n::I18n::new(app.desktop_locale)),
-        filter_control(app),
-    ]
-    .spacing(6)
-    .align_x(iced::Alignment::Center)
-    .width(Length::Fill)
-    .into()
-}
-
 fn navigation_icon(icon: Icon) -> svg::Svg<'static> {
     navigation_icon_enabled(icon, true)
 }
@@ -901,13 +874,13 @@ fn more_menu_action(
     .into()
 }
 
-fn more_menu(i18n: crate::app::i18n::I18n) -> Element<'static, Message> {
+fn more_menu_items(i18n: crate::app::i18n::I18n) -> iced::widget::Column<'static, Message> {
     let specs = more_menu_item_specs();
     let add_url = Message::Batch(vec![
         Message::View(ViewMessage::OpenApps),
         Message::View(ViewMessage::ToggleWebLinksMenu),
     ]);
-    let content = column![
+    column![
         more_menu_action(i18n, specs[0].0, specs[0].1, add_url),
         more_menu_divider(),
         more_menu_action(i18n, specs[1].0, specs[1].1, Message::View(ViewMessage::OpenKnowledge),),
@@ -920,13 +893,12 @@ fn more_menu(i18n: crate::app::i18n::I18n) -> Element<'static, Message> {
         more_menu_divider(),
         more_menu_action(i18n, specs[3].0, specs[3].1, Message::View(ViewMessage::OpenApps),),
     ]
-    .spacing(3);
-
-    container(content).padding([12, 14]).width(Length::Fixed(252.0)).style(more_menu_style).into()
+    .spacing(3)
 }
 
 fn more_control(app: &App) -> Element<'static, Message> {
     let (_, icon, trailing) = navigation_specs()[8];
+    let i18n = crate::app::i18n::I18n::new(app.desktop_locale);
     let trigger = navigation_button(
         crate::app::i18n::I18n::new(app.desktop_locale),
         crate::app::i18n::I18n::new(app.desktop_locale).__("更多"),
@@ -936,7 +908,11 @@ fn more_control(app: &App) -> Element<'static, Message> {
     );
     let hover_trigger =
         mouse_area(trigger).on_enter(Message::View(ViewMessage::WorkSidebarMoreOpened));
-    SideOverlay::new(hover_trigger, more_menu(crate::app::i18n::I18n::new(app.desktop_locale)))
+    let menu = container(more_menu_items(i18n))
+        .padding([12, 14])
+        .width(Length::Fixed(252.0))
+        .style(more_menu_style);
+    SideOverlay::new(hover_trigger, menu)
         .show(app.work_sidebar_more_open)
         .gap(8.0)
         .on_close(Message::View(ViewMessage::WorkSidebarMoreClosed))
@@ -1103,41 +1079,13 @@ fn space_button(i18n: crate::app::i18n::I18n, space: &WorkSpaceItem) -> Element<
             space.tools_open,
             30.0,
         );
-        let tools: Element<'static, Message> =
-            BelowOverlay::new(tools_trigger, space_tools_menu(i18n, space.path.clone()))
-                .show(space.tools_open)
-                .gap(6.0)
-                .on_close(Message::Project(ProjectMessage::ProjectToolsMenuClosed))
-                .into();
-        let create = if space.creating {
-            header_icon_button_sized_maybe(
-                i18n,
-                Icon::Plus,
-                i18n.__("任务创建中"),
-                None,
-                false,
-                30.0,
-            )
-        } else {
-            header_icon_button_sized(
-                i18n,
-                Icon::Plus,
-                i18n.__("新建任务"),
-                Message::Batch(vec![
-                    Message::Project(ProjectMessage::ProjectToolsMenuClosed),
-                    space.create_message.clone(),
-                ]),
-                false,
-                30.0,
-            )
-        };
-        row![tools, create]
-            .spacing(3)
-            .align_y(iced::Alignment::Center)
-            .width(Length::Fixed(63.0))
+        BelowOverlay::new(tools_trigger, space_tools_menu(i18n, space.path.clone()))
+            .show(space.tools_open)
+            .gap(6.0)
+            .on_close(Message::Project(ProjectMessage::ProjectToolsMenuClosed))
             .into()
     } else {
-        Space::new().width(Length::Fixed(63.0)).into()
+        Space::new().width(Length::Fixed(30.0)).into()
     };
 
     let path = space.path.clone();
@@ -1156,26 +1104,20 @@ fn space_button(i18n: crate::app::i18n::I18n, space: &WorkSpaceItem) -> Element<
     .into()
 }
 
+fn new_task_button(app: &App) -> Element<'static, Message> {
+    let (label, icon, _) = navigation_specs()[0];
+    navigation_button_maybe(
+        crate::app::i18n::I18n::new(app.desktop_locale),
+        if app.new_session_creating { "创建中..." } else { label },
+        icon,
+        (!app.new_session_creating).then_some(Message::View(ViewMessage::ProjectFileNewSession)),
+        None,
+    )
+}
+
 fn navigation_section(app: &App) -> Element<'static, Message> {
     let specs = navigation_specs();
-    let create_task_button = if app.new_session_creating {
-        navigation_button_maybe(
-            crate::app::i18n::I18n::new(app.desktop_locale),
-            crate::app::i18n::I18n::new(app.desktop_locale).__("创建中..."),
-            specs[0].1,
-            None,
-            specs[0].2,
-        )
-    } else {
-        navigation_button(
-            crate::app::i18n::I18n::new(app.desktop_locale),
-            specs[0].0,
-            specs[0].1,
-            Message::View(ViewMessage::ProjectFileNewSession),
-            specs[0].2,
-        )
-    };
-    let navigation = column![create_task_button].spacing(2);
+    let navigation = column![new_task_button(app)].spacing(2);
 
     #[cfg(not(target_arch = "wasm32"))]
     let navigation = navigation
@@ -1424,17 +1366,7 @@ fn tabs(
 }
 
 pub(super) fn view(app: &App) -> Element<'_, Message> {
-    if app.work_sidebar_collapsed {
-        return container(collapsed_header(app))
-            .width(Length::Fixed(app.work_sidebar_width))
-            .height(Length::Fill)
-            .padding([10, 9])
-            .style(sidebar_style)
-            .into();
-    }
-
     let model = cached_model(app);
-    let header = expanded_header(app);
 
     let active_list = match app.work_sidebar_tab {
         WorkSidebarTab::Tasks => tasks_section(app, &model),
@@ -1453,10 +1385,14 @@ pub(super) fn view(app: &App) -> Element<'_, Message> {
     .width(Length::Fill)
     .height(Length::Fill);
 
-    container(
+    let navigation = if app.work_sidebar_collapsed {
+        new_task_button(app)
+    } else {
+        column![expanded_header(app), navigation_section(app)].spacing(9).into()
+    };
+    let sidebar = container(
         column![
-            header,
-            navigation_section(app),
+            navigation,
             tabs(crate::app::i18n::I18n::new(app.desktop_locale), &model, app.work_sidebar_tab),
             scroll,
         ]
@@ -1467,6 +1403,8 @@ pub(super) fn view(app: &App) -> Element<'_, Message> {
     .width(Length::Fixed(app.work_sidebar_width))
     .height(Length::Fill)
     .padding([10, 10])
-    .style(sidebar_style)
-    .into()
+    .style(sidebar_style);
+
+    let rail = if app.work_sidebar_collapsed { rail::view(app) } else { Space::new().into() };
+    row![rail, sidebar].into()
 }

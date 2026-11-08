@@ -5,10 +5,10 @@
 use crate::app::components::system_settings_common::{
     SETTINGS_CONTROL_PADDING, SETTINGS_CONTROL_TEXT_SIZE, danger_action_btn_style,
     primary_action_btn_style, rounded_action_btn_style, settings_checkbox_style,
-    settings_close_button, settings_divider, settings_error_banner, settings_field_label,
+    settings_close_button, settings_divider, settings_error_banner, settings_flexible_row,
     settings_flexible_row_with_help, settings_group_card, settings_group_heading_with_help,
-    settings_help_button_with_locale as settings_help_button, settings_hover_help_label,
-    settings_modal_card, settings_modal_card_style, settings_modal_header, settings_modal_layout,
+    settings_help_button_with_locale as settings_help_button, settings_modal_card,
+    settings_modal_card_style, settings_modal_header, settings_modal_layout,
     settings_modal_overlay, settings_muted_text_style, settings_page_heading_with_help,
     settings_panel, settings_segment_button_style, settings_select, settings_success_banner,
     settings_tab_button, settings_tab_row, settings_text_editor, settings_text_editor_style,
@@ -27,6 +27,7 @@ mod schedule;
 
 const NO_ACP_AGENT_LABEL: &str = "不使用 ACP";
 const RUN_HISTORY_PREVIEW_LINES: usize = 3;
+const CRON_FORM_CONTROL_WIDTH: f32 = 460.0;
 
 pub(super) const CRON_TABS: &[SettingsTabDescriptor<CronSettingsTab>] = &[
     SettingsTabDescriptor::new(
@@ -60,18 +61,9 @@ fn field_row<'a>(
     description: &'static str,
     control: impl Into<Element<'a, Message>>,
 ) -> Element<'a, Message> {
-    container(
-        column![
-            settings_field_label(label),
-            text(description).size(13).style(settings_muted_text_style),
-            control.into(),
-        ]
-        .spacing(6)
-        .width(Length::Fill),
-    )
-    .padding([14, 0])
-    .width(Length::Fill)
-    .into()
+    settings_flexible_row(label, description, CRON_FORM_CONTROL_WIDTH, control)
+        .padding([14, 0])
+        .into()
 }
 
 fn field_row_with_help<'a>(
@@ -81,23 +73,15 @@ fn field_row_with_help<'a>(
     control: impl Into<Element<'a, Message>>,
 ) -> Element<'a, Message> {
     let i18n = I18n::new(app.desktop_locale);
-    let label = i18n.__(label);
-    container(
-        column![
-            settings_hover_help_label(
-                i18n,
-                &app.app_theme,
-                label,
-                settings_field_label(label),
-                i18n.__(description),
-            )
-            .wrap(),
-            control.into(),
-        ]
-        .spacing(6),
+    settings_flexible_row_with_help(
+        i18n,
+        &app.app_theme,
+        i18n.__(label),
+        i18n.__(description),
+        CRON_FORM_CONTROL_WIDTH,
+        control,
     )
     .padding([14, 0])
-    .width(Length::Fill)
     .into()
 }
 
@@ -551,7 +535,8 @@ fn edit_form(app: &App) -> Element<'_, Message> {
                     ))
                 )
             ]
-            .spacing(8),
+            .spacing(8)
+            .wrap(),
         ),
         field_row_with_help(
             app,
@@ -580,7 +565,8 @@ fn edit_form(app: &App) -> Element<'_, Message> {
                     ))
                 )
             ]
-            .spacing(8),
+            .spacing(8)
+            .wrap(),
         ),
         schedule_row,
         field_row(
@@ -1026,7 +1012,8 @@ fn add_tab(app: &App) -> Element<'_, Message> {
                 ))
             )
         ]
-        .spacing(8),
+        .spacing(8)
+        .wrap(),
     );
     let schedule_kind_row = field_row_with_help(
         app,
@@ -1055,7 +1042,8 @@ fn add_tab(app: &App) -> Element<'_, Message> {
                 ))
             )
         ]
-        .spacing(8),
+        .spacing(8)
+        .wrap(),
     );
     let schedule_row = match draft.schedule_kind {
         CronAddScheduleKind::Cron => schedule::frequency_form(app, draft, false),

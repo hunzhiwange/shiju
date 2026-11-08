@@ -405,8 +405,13 @@ async fn ui_refresh_27_preserves_values_and_disabled_states() {
         let size = Size::new(width, 2100);
         let mut ui = scene(frame(view(&app)), &mut renderer, size);
         let positions = geometry(&mut ui, &renderer);
-        assert!(positions.input(PROJECT).width > 0.0);
-        assert_fits(positions.input("telegram"), size);
+        let project = positions.input(PROJECT);
+        let target = positions.input("telegram");
+        assert_fits(project, size);
+        assert_fits(target, size);
+        assert!(project.x >= positions.label(tr.__("项目路径")).x + 24.0);
+        assert!(target.x >= positions.label(tr.__("投递通道")).x + 24.0);
+        assert!((project.x - target.x).abs() < 1.0);
         capture(
             &mut ui,
             &mut renderer,
@@ -415,7 +420,6 @@ async fn ui_refresh_27_preserves_values_and_disabled_states() {
             &format!("add-{tag}"),
             mouse::Cursor::Unavailable,
         );
-        let target = positions.input("telegram");
         assert!(click(&mut ui, &mut renderer, target.center()).is_empty());
         assert!(key_at(&mut ui, &mut renderer, Named::End).is_empty());
         assert!(matches!(key_at(&mut ui, &mut renderer, Named::Backspace).as_slice(),

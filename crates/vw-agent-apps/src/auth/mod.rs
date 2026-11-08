@@ -47,7 +47,11 @@ mod flow_tests;
 #[cfg(target_os = "macos")]
 pub mod claude_keychain;
 #[cfg(target_os = "macos")]
+pub mod claude_login;
+#[cfg(target_os = "macos")]
 pub(crate) mod claude_login_files;
+#[cfg(all(test, target_os = "macos"))]
+mod claude_login_tests;
 
 #[cfg(target_os = "macos")]
 mod keychain;

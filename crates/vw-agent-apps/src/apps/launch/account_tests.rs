@@ -74,7 +74,7 @@ fn executable(path: &std::path::Path, body: &str) {
 }
 fn codex_auth() -> AccountCredential {
     AccountCredential::CodexAuth(
-        serde_json::json!({"auth_mode":"chatgpt", "tokens":{"access_token":"fixture-access", "refresh_token":"fixture-refresh", "id_token":"fixture-id", "account_id":"fixture-account"}}),
+        serde_json::json!({"auth_mode":"chatgpt", "last_refresh":"2026-01-01T00:00:00Z", "tokens":{"access_token":"fixture-access", "refresh_token":"fixture-refresh", "id_token":"eyJhbGciOiJSUzI1NiJ9.eyJzdWIiOiJmaXh0dXJlLXVzZXIifQ.fixture", "account_id":"fixture-account"}}),
     )
 }
 #[test]
@@ -320,7 +320,7 @@ fn cc_apps_account_launch_isolation_rotated_codex_auth_reaches_owner_on_nonzero_
     let root = tempfile::tempdir().unwrap();
     executable(
         &root.path().join("codex"),
-        "#!/bin/sh\ncat > \"$CODEX_HOME/auth.json\" <<'AUTH'\n{\"auth_mode\":\"chatgpt\",\"tokens\":{\"access_token\":\"fixture-rotated-access\",\"refresh_token\":\"fixture-rotated-refresh\",\"id_token\":\"fixture-id\",\"account_id\":\"fixture-account\"}}\nAUTH\nprintf '%s' \"$CODEX_HOME\" > private-path\nexit 7\n",
+        "#!/bin/sh\ncat > \"$CODEX_HOME/auth.json\" <<'AUTH'\n{\"auth_mode\":\"chatgpt\",\"last_refresh\":\"2026-01-02T00:00:00Z\",\"tokens\":{\"access_token\":\"fixture-rotated-access\",\"refresh_token\":\"fixture-rotated-refresh\",\"id_token\":\"eyJhbGciOiJSUzI1NiJ9.eyJzdWIiOiJmaXh0dXJlLXVzZXIifQ.fixture\",\"account_id\":\"fixture-account\"}}\nAUTH\nprintf '%s' \"$CODEX_HOME\" > private-path\nexit 7\n",
     );
     let mut rotated = None;
     let result = prepare_account_launch(

@@ -21,7 +21,7 @@ fn executable(path: &std::path::Path, body: &str) {
 }
 fn auth() -> AccountCredential {
     AccountCredential::CodexAuth(
-        serde_json::json!({"auth_mode":"chatgpt", "tokens":{"access_token":"fixture-access", "refresh_token":"fixture-refresh", "id_token":"fixture-id", "account_id":"fixture-account"}}),
+        serde_json::json!({"auth_mode":"chatgpt", "last_refresh":"2026-01-01T00:00:00Z", "tokens":{"access_token":"fixture-access", "refresh_token":"fixture-refresh", "id_token":"eyJhbGciOiJSUzI1NiJ9.eyJzdWIiOiJmaXh0dXJlLXVzZXIifQ.fixture", "account_id":"fixture-account"}}),
     )
 }
 
@@ -105,7 +105,10 @@ fn cc_apps_account_launch_isolation_codex_rejects_identity_change_and_cleans_on_
             "#!/bin/sh\ncat > \"$CODEX_HOME/auth.json\" <<'AUTH'\n{\"tokens\":{\"access_token\":\"fixture-access\",\"refresh_token\":\"fixture-refresh\",\"id_token\":\"fixture-id\",\"account_id\":\"different-account\"}}\nAUTH\nprintf '%s' \"$CODEX_HOME\" > private-path\n",
             0,
         ),
-        ("#!/bin/sh\nprintf '%s' \"$CODEX_HOME\" > private-path\n", 1),
+        (
+            "#!/bin/sh\nsed 's/2026-01-01/2026-01-02/;s/fixture-refresh/fixture-rotated-refresh/' \"$CODEX_HOME/auth.json\" > rotated\ncat rotated > \"$CODEX_HOME/auth.json\"\nprintf '%s' \"$CODEX_HOME\" > private-path\n",
+            1,
+        ),
         (
             "#!/bin/sh\nprintf 'invalid' > \"$CODEX_HOME/auth.json\"\nprintf '%s' \"$CODEX_HOME\" > private-path\n",
             0,

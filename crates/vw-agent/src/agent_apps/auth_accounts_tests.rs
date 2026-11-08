@@ -289,7 +289,7 @@ fn host_fixture(
 }
 fn codex_auth() -> AccountCredential {
     AccountCredential::CodexAuth(
-        serde_json::json!({"tokens":{"access_token":"fixture-access", "refresh_token":"fixture-refresh", "id_token":"fixture-id", "account_id":"fixture-account"}}),
+        serde_json::json!({"last_refresh":"2026-01-01T00:00:00Z", "tokens":{"access_token":"fixture-access", "refresh_token":"fixture-refresh", "id_token":"eyJhbGciOiJSUzI1NiJ9.eyJzdWIiOiJmaXh0dXJlLXVzZXIifQ.fixture", "account_id":"fixture-account"}}),
     )
 }
 
@@ -297,7 +297,7 @@ fn codex_auth() -> AccountCredential {
 fn cc_apps_account_launch_isolation_owner_persists_rotation_and_holds_lease_until_reaped() {
     let (root, store, tenant, request, installation) = host_fixture(
         AppId::Codex,
-        "#!/bin/sh\ncat > \"$CODEX_HOME/auth.json\" <<'AUTH'\n{\"tokens\":{\"access_token\":\"fixture-access-new\",\"refresh_token\":\"fixture-refresh-new\",\"id_token\":\"fixture-id\",\"account_id\":\"fixture-account\"}}\nAUTH\nprintf '%s' \"$CODEX_HOME\" > private-path\nexit 7\n",
+        "#!/bin/sh\ncat > \"$CODEX_HOME/auth.json\" <<'AUTH'\n{\"last_refresh\":\"2026-01-02T00:00:00Z\",\"tokens\":{\"access_token\":\"fixture-access-new\",\"refresh_token\":\"fixture-refresh-new\",\"id_token\":\"eyJhbGciOiJSUzI1NiJ9.eyJzdWIiOiJmaXh0dXJlLXVzZXIifQ.fixture\",\"account_id\":\"fixture-account\"}}\nAUTH\nprintf '%s' \"$CODEX_HOME\" > private-path\nexit 7\n",
     );
     store.save(&tenant, "host", AppId::Codex, "selected", &codex_auth()).unwrap();
     let launch = store

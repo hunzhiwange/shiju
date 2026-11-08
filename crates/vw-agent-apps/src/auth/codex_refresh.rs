@@ -3,6 +3,7 @@ use super::{
     codex_device::{CLIENT_ID, TOKEN_URL, oauth_client, send, token_subject, workspace_id},
     copilot::{read_json, utc_now, valid_token},
     credential_file::{AccountCredential, CredentialFileStore},
+    credential_lease::CREDENTIAL_GENERATION_CHANGED,
     flow::AuthAccountScope,
 };
 use crate::providers::{codex_login_material::parse_codex_jwt_claims, validate_identity};
@@ -152,11 +153,17 @@ impl CodexRefresh {
         let received_at = utc_now()?.0;
         let expires_at = expires_at(&refreshed, received_at)?;
         let refresh_at = expires_at - REFRESH_BUFFER_MS.min((expires_at - received_at) / 2);
-        let updated = refreshed_credential(current, &refreshed, subject, received_at)?;
+        let updated = refreshed_credential(current.clone(), &refreshed, subject, received_at)?;
         let digest = generation_digest(&updated);
         let updated = AccountCredential::CodexAuth(updated);
         updated.validate(AppId::Codex).map_err(|_| AuthErrorCode::UpstreamFailure)?;
-        lease.save(&updated).map_err(|_| AuthErrorCode::StorageUnavailable)?;
+        lease.save_codex_generation(&current, &updated).map_err(|error| {
+            if error == CREDENTIAL_GENERATION_CHANGED {
+                AuthErrorCode::Conflict
+            } else {
+                AuthErrorCode::StorageUnavailable
+            }
+        })?;
         *cached = Some(CachedGeneration { digest, state: RefreshState::Ready { refresh_at } });
         Ok(refreshed.access_token)
     }
@@ -188,6 +195,43 @@ impl CodexRefresh {
         }
         Err(AuthErrorCode::UpstreamFailure)
     }
+}
+
+/// Both bundles have already passed the private credential file schema check.
+pub(crate) fn should_adopt_cli_rotation(managed: &Value, live: &Value) -> Result<bool, String> {
+    let last_refresh = |auth: &Value| {
+        let date = auth["last_refresh"].as_str()?;
+        let millis = chrono::DateTime::parse_from_rfc3339(date).ok()?.timestamp_millis();
+        (millis > 0).then_some(millis)
+    };
+    let old_date = last_refresh(managed);
+    let live_date = last_refresh(live);
+    let same_tokens = managed["tokens"] == live["tokens"];
+    // Unchanged material can establish a date for a legacy bundle.
+    if same_tokens && live_date <= old_date {
+        return Ok(false);
+    }
+
+    let identity = |auth: &Value| {
+        let tokens = &auth["tokens"];
+        let workspace = tokens["account_id"].as_str()?;
+        let claims = parse_codex_jwt_claims(tokens["id_token"].as_str()?)?;
+        let subject = token_subject(&claims)?;
+        let access_claims = parse_codex_jwt_claims(tokens["access_token"].as_str()?);
+        if workspace_id(&claims).is_some_and(|id| id != workspace)
+            || access_claims.as_ref().and_then(workspace_id).is_some_and(|id| id != workspace)
+        {
+            return None;
+        }
+        Some((workspace.to_owned(), subject.to_owned()))
+    };
+    if !identity(managed).is_some_and(|expected| identity(live).as_ref() == Some(&expected)) {
+        return Err("rotated official account identity changed".into());
+    }
+    if !same_tokens && (old_date.is_none() || live_date <= old_date) {
+        return Err("rotated official account generation is stale or ambiguous".into());
+    }
+    Ok(true)
 }
 
 fn permanent_rejection(body: &Value) -> bool {

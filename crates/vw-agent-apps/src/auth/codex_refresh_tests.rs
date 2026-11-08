@@ -280,3 +280,205 @@ async fn auth6_codex_refresh_rejects_invalid_or_stale_input() {
         auth.access_token_with(&store, scope, "alpha", |_| panic!("replacement sent HTTP")).await;
     assert_eq!(resolved, Ok(access));
 }
+
+fn launch_rotation(
+    root: &std::path::Path,
+    lease: &super::credential_lease::CredentialLease,
+    original: &Value,
+    live: &Value,
+    exit_code: u8,
+) -> Result<(), String> {
+    use crate::apps::launch::{account::prepare_account_launch, request::LaunchMaterial};
+    use std::fs;
+
+    let program = root.join("codex-fixture");
+    fs::write(root.join("next-auth"), live.to_string()).unwrap();
+    fs::write(
+        &program,
+        format!(
+            "#!/bin/sh\ncat next-auth > \"$CODEX_HOME/auth.json\" || exit 1\nprintf '%s' \"$CODEX_HOME\" > cli-home\nexit {exit_code}\n"
+        ),
+    )
+    .unwrap();
+    fs::set_permissions(&program, fs::Permissions::from_mode(0o700)).unwrap();
+    let launch = prepare_account_launch(
+        AppId::Codex,
+        AccountCredential::CodexAuth(original.clone()),
+        LaunchMaterial { program, cwd: root.into(), args: vec![], skip_permissions: false },
+        root,
+    )
+    .unwrap();
+    let result = launch.run_with_lease_using(lease, |command| command.status());
+    let cli_home = fs::read_to_string(root.join("cli-home")).unwrap();
+    assert!(!std::path::Path::new(&cli_home).exists(), "CLI home must be cleaned");
+    result
+}
+
+#[tokio::test]
+async fn auth6_codex_rotation_commits_expected_scoped_result() {
+    let root = tempfile::tempdir().unwrap();
+    std::fs::set_permissions(root.path(), std::fs::Permissions::from_mode(0o700)).unwrap();
+    let store = CredentialFileStore::new(root.path()).unwrap();
+    let tenant = TenantScope::new("platform", "company").unwrap();
+    let scope = scope(&tenant);
+    let other = AuthAccountScope { principal: "oidc:other", ..scope };
+    let other_before = seed(&store, other, "alpha");
+    let owner = store.for_owner(scope.principal).unwrap();
+    let mut original = seed(&store, scope, "alpha");
+    original["last_refresh"] = "2026-01-01T00:00:00Z".into();
+    owner
+        .save(
+            scope.tenant,
+            scope.host,
+            AppId::Codex,
+            "alpha",
+            &AccountCredential::CodexAuth(original.clone()),
+        )
+        .unwrap();
+    let lease = owner.lease(scope.tenant, scope.host, AppId::Codex, "alpha", false).unwrap();
+    let mut live = original.clone();
+    let access = jwt(json!({"exp":4102444800_i64,"chatgpt_account_id":"workspace-alpha"}));
+    live["tokens"]["access_token"] = access.clone().into();
+    live["tokens"]["refresh_token"] = "rotated-alpha".into();
+    live["tokens"]["id_token"] =
+        jwt(json!({"sub":"user-alpha","chatgpt_account_id":"workspace-alpha"})).into();
+    live["last_refresh"] = "2026-01-02T00:00:00Z".into();
+    assert_eq!(
+        launch_rotation(root.path(), &lease, &original, &live, 7).unwrap_err(),
+        "official account process exited unsuccessfully"
+    );
+    drop(lease);
+
+    assert_eq!(saved(&store, scope, "alpha"), live);
+    assert_eq!(saved(&store, other, "alpha"), other_before);
+    let actual = CodexRefresh::new()
+        .unwrap()
+        .access_token_with(&store, scope, "alpha", |_| panic!("rotated access should be usable"))
+        .await
+        .unwrap();
+    assert_eq!(actual, access);
+}
+
+#[tokio::test]
+async fn auth6_codex_rotation_rejects_invalid_or_stale_input() {
+    let root = tempfile::tempdir().unwrap();
+    std::fs::set_permissions(root.path(), std::fs::Permissions::from_mode(0o700)).unwrap();
+    let store = CredentialFileStore::new(root.path()).unwrap();
+    let tenant = TenantScope::new("platform", "company").unwrap();
+    let scope = scope(&tenant);
+    let owner = store.for_owner(scope.principal).unwrap();
+    let mut original = seed(&store, scope, "alpha");
+    original["last_refresh"] = "2026-01-02T00:00:00Z".into();
+    let mut next = original.clone();
+    next["last_refresh"] = "2026-01-03T00:00:00Z".into();
+    next["tokens"]["refresh_token"] = "rotated-alpha".into();
+
+    let mut wrong_user = next.clone();
+    wrong_user["tokens"]["id_token"] =
+        jwt(json!({"sub":"different-user","chatgpt_account_id":"workspace-alpha"})).into();
+    let mut wrong_workspace = next.clone();
+    wrong_workspace["tokens"]["id_token"] =
+        jwt(json!({"sub":"user-alpha","chatgpt_account_id":"other-workspace"})).into();
+    let mut old = next.clone();
+    old["last_refresh"] = "2026-01-01T00:00:00Z".into();
+    let mut equal = next.clone();
+    equal["last_refresh"] = "2026-01-02T08:00:00+08:00".into();
+    let mut undated = next.clone();
+    undated["last_refresh"] = Value::Null;
+    let mut undated_original = original.clone();
+    undated_original["last_refresh"] = Value::Null;
+    let mut superseded = original.clone();
+    superseded["tokens"]["refresh_token"] = "independently-rotated".into();
+    superseded["last_refresh"] = "2026-01-02T12:00:00Z".into();
+
+    for (label, stored, live, expected) in [
+        (
+            "same workspace, other user",
+            &original,
+            &wrong_user,
+            "rotated official account identity changed",
+        ),
+        (
+            "conflicting workspace claim",
+            &original,
+            &wrong_workspace,
+            "rotated official account identity changed",
+        ),
+        ("old", &original, &old, "rotated official account generation is stale or ambiguous"),
+        ("equal", &original, &equal, "rotated official account generation is stale or ambiguous"),
+        (
+            "undated",
+            &original,
+            &undated,
+            "rotated official account generation is stale or ambiguous",
+        ),
+        (
+            "undated baseline",
+            &undated_original,
+            &next,
+            "rotated official account generation is stale or ambiguous",
+        ),
+        ("superseded launch", &superseded, &next, "official credential changed before publication"),
+    ] {
+        owner
+            .save(
+                scope.tenant,
+                scope.host,
+                AppId::Codex,
+                "alpha",
+                &AccountCredential::CodexAuth(stored.clone()),
+            )
+            .unwrap();
+        let lease = owner.lease(scope.tenant, scope.host, AppId::Codex, "alpha", false).unwrap();
+        let launch_auth = if label == "superseded launch" { &original } else { stored };
+        let result = launch_rotation(root.path(), &lease, launch_auth, live, 0);
+        assert_eq!(result.as_ref().err().map(String::as_str), Some(expected), "{label}");
+        drop(lease);
+        assert_eq!(&saved(&store, scope, "alpha"), stored, "{label}");
+    }
+
+    owner
+        .save(
+            scope.tenant,
+            scope.host,
+            AppId::Codex,
+            "alpha",
+            &AccountCredential::CodexAuth(original),
+        )
+        .unwrap();
+    let (server, seen, release, server_task) = gated_refresh(json!({
+        "access_token":"late-access",
+        "refresh_token":"late-refresh",
+    }))
+    .await;
+    let adapter = CodexRefresh::new().unwrap();
+    let refresh =
+        adapter.access_token_with(&store, scope, "alpha", |request| route(request, &server));
+    let rotate_during_exchange = async {
+        seen.await.unwrap();
+        let fixture = root.path().join("outside-rotation");
+        std::fs::write(&fixture, next.to_string()).unwrap();
+        // Emulate a process that already has access to the file and ignores the advisory lease.
+        assert!(
+            std::process::Command::new("find")
+                .arg(root.path().join(".managed-v1"))
+                .args(["-type", "f", "!", "-name", "*.session-lock", "-exec", "/bin/sh", "-c"])
+                .arg(r#"cat "$1" > "$2""#)
+                .arg("fixture-writer")
+                .arg(fixture)
+                .args(["{}", ";"])
+                .status()
+                .unwrap()
+                .success()
+        );
+        release.send(()).unwrap();
+    };
+    let (result, ()) =
+        timeout(Duration::from_secs(5), async { tokio::join!(refresh, rotate_during_exchange) })
+            .await
+            .expect("the delayed exchange should complete");
+    assert_eq!(result.unwrap_err(), AuthErrorCode::Conflict);
+    assert_eq!(saved(&store, scope, "alpha"), next);
+    server_task.abort();
+    assert!(server_task.await.unwrap_err().is_cancelled());
+}

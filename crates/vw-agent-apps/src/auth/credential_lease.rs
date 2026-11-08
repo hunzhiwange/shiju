@@ -10,6 +10,9 @@ use std::{fs::File, os::fd::AsRawFd, sync::Mutex};
 #[cfg(unix)]
 use vw_api_types::agent_apps::AppId;
 
+pub(super) const CREDENTIAL_GENERATION_CHANGED: &str =
+    "official credential changed before publication";
+
 #[cfg(unix)]
 pub struct CredentialLease {
     location: ScopedCredentialPath,
@@ -68,6 +71,23 @@ impl CredentialLease {
         write_to(&self.directory, &self.location.path, self.kind, credential, || self.check())
     }
 
+    /// Compare the generation used by the caller again at publication, under this lease.
+    pub(crate) fn save_codex_generation(
+        &self,
+        expected: &serde_json::Value,
+        next: &AccountCredential,
+    ) -> Result<(), String> {
+        if !matches!(self.kind, CredentialKind::App(AppId::Codex)) {
+            return Err("official credential service mismatch".into());
+        }
+        let _write = self.write.lock().map_err(|_| "official account lock unavailable")?;
+        self.check()?;
+        write_to(&self.directory, &self.location.path, self.kind, next, || match self.read()? {
+            AccountCredential::CodexAuth(current) if &current == expected => Ok(()),
+            _ => Err(CREDENTIAL_GENERATION_CHANGED.into()),
+        })
+    }
+
     /// Roll back an unpublished OAuth credential under this account's lease.
     pub fn remove_unpublished_oauth(&self) -> Result<(), String> {
         if !matches!(self.kind, CredentialKind::Copilot | CredentialKind::App(AppId::Codex)) {
@@ -95,6 +115,14 @@ impl CredentialLease {
     }
 
     pub fn save(&self, _credential: &AccountCredential) -> Result<(), String> {
+        Err("official account locking requires a reviewed host adapter".into())
+    }
+
+    pub(crate) fn save_codex_generation(
+        &self,
+        _expected: &serde_json::Value,
+        _next: &AccountCredential,
+    ) -> Result<(), String> {
         Err("official account locking requires a reviewed host adapter".into())
     }
 

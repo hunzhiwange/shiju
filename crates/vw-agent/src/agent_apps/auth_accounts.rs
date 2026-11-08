@@ -90,7 +90,7 @@ impl AuthAccountLaunch {
         execute: impl FnOnce(&mut std::process::Command) -> std::io::Result<std::process::ExitStatus>,
     ) -> Result<(), String> {
         let Self { launch, lease } = self;
-        let result = launch.run_with_refresh_using(|credential| lease.save(&credential), execute);
+        let result = launch.run_with_lease_using(&lease, execute);
         drop(lease);
         result
     }

@@ -1,6 +1,7 @@
 //! Official account process material. Credential ownership remains in auth.
 use super::request::LaunchMaterial;
-use crate::auth::credential_file::AccountCredential;
+use crate::auth::{credential_file::AccountCredential, credential_lease::CredentialLease};
+use serde_json::Value;
 use std::{
     fs,
     io::Write,
@@ -13,9 +14,23 @@ use vw_api_types::agent_apps::AppId;
 pub struct AccountLaunch {
     command: Command,
     private: tempfile::TempDir,
-    codex_account_id: Option<String>,
+    codex_auth: Option<Value>,
 }
 impl AccountLaunch {
+    /// Run with the scoped lease retained by the authorized account owner.
+    pub fn run_with_lease_using(
+        self,
+        lease: &CredentialLease,
+        execute: impl FnOnce(&mut Command) -> std::io::Result<std::process::ExitStatus>,
+    ) -> Result<(), String> {
+        self.run_with_rotation_using(
+            |expected, next| {
+                lease.save_codex_generation(expected, &AccountCredential::CodexAuth(next))
+            },
+            execute,
+        )
+    }
+
     /// Process-only convenience for independent process-boundary tests.
     #[cfg(test)]
     pub(super) fn run(self) -> Result<(), String> {
@@ -33,31 +48,42 @@ impl AccountLaunch {
     }
     /// The transport must reap the real CLI before returning, including on disconnect.
     pub fn run_with_refresh_using(
-        mut self,
+        self,
         persist: impl FnOnce(AccountCredential) -> Result<(), String>,
         execute: impl FnOnce(&mut Command) -> std::io::Result<std::process::ExitStatus>,
     ) -> Result<(), String> {
+        self.run_with_rotation_using(|_, next| persist(AccountCredential::CodexAuth(next)), execute)
+    }
+
+    fn run_with_rotation_using(
+        mut self,
+        persist: impl FnOnce(&Value, Value) -> Result<(), String>,
+        execute: impl FnOnce(&mut Command) -> std::io::Result<std::process::ExitStatus>,
+    ) -> Result<(), String> {
         let result = execute(&mut self.command);
-        let rotation = if result.is_ok() {
-            if let Some(expected) = &self.codex_account_id {
-                crate::auth::credential_file::read_credential(
-                    &self.private.path().join("auth.json"),
-                    AppId::Codex,
-                )
-                .and_then(|credential| {
-                    let AccountCredential::CodexAuth(auth) = &credential else {
-                        return Err("invalid rotated official account material".into());
-                    };
-                    if auth["tokens"]["account_id"].as_str() != Some(expected.as_str()) {
-                        return Err("rotated official account identity changed".into());
+        let rotation = match (&result, &self.codex_auth) {
+            (Ok(_), Some(expected)) => crate::auth::credential_file::read_credential(
+                &self.private.path().join("auth.json"),
+                AppId::Codex,
+            )
+            .and_then(|credential| {
+                let AccountCredential::CodexAuth(auth) = credential else {
+                    return Err("invalid rotated official account material".into());
+                };
+                #[cfg(not(target_arch = "wasm32"))]
+                {
+                    if crate::auth::codex_refresh::should_adopt_cli_rotation(expected, &auth)? {
+                        return persist(expected, auth);
                     }
-                    persist(credential)
-                })
-            } else {
-                Ok(())
-            }
-        } else {
-            Ok(())
+                    Ok(())
+                }
+                #[cfg(target_arch = "wasm32")]
+                {
+                    let _ = (expected, auth, persist);
+                    Err("official account launch requires a reviewed host ACL adapter".into())
+                }
+            }),
+            _ => Ok(()),
         };
         let cleanup = self.private.close().map_err(|_| "official account temporary cleanup failed");
         cleanup?;
@@ -168,7 +194,7 @@ pub fn prepare_account_launch(
             command.env(name, value);
         }
     }
-    let mut codex_account_id = None;
+    let mut codex_auth = None;
     match credential {
         AccountCredential::CopilotToken(_) => {
             return Err("Copilot authorization has no launch application".into());
@@ -183,8 +209,8 @@ pub fn prepare_account_launch(
             command.env("CLAUDE_CONFIG_DIR", directory.path()).args(["--settings-sources", ""]);
         }
         AccountCredential::CodexAuth(auth) => {
-            codex_account_id = auth["tokens"]["account_id"].as_str().map(str::to_owned);
             write_private(&private.path().join("auth.json"), auth.to_string().as_bytes())?;
+            codex_auth = Some(auth);
             write_private(
                 &private.path().join("config.toml"),
                 b"model_provider = \"openai\"\ncli_auth_credentials_store = \"file\"\n",
@@ -193,7 +219,7 @@ pub fn prepare_account_launch(
         }
     }
     command.args(material.args);
-    Ok(AccountLaunch { command, private, codex_account_id })
+    Ok(AccountLaunch { command, private, codex_auth })
 }
 fn write_private(path: &Path, bytes: &[u8]) -> Result<(), String> {
     let mut options = fs::OpenOptions::new();

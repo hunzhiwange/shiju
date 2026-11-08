@@ -85,14 +85,11 @@ pub(super) fn icon_toggle_button_style(
 
 /// 生成工具栏图标提示框样式。
 pub(super) fn icon_tooltip_style(theme: &Theme) -> iced::widget::container::Style {
+    let background = theme.extended_palette().background;
     iced::widget::container::Style {
-        text_color: Some(theme.palette().text),
-        background: Some(iced::Background::Color(theme.palette().background)),
-        border: iced::Border {
-            width: 1.0,
-            color: theme.extended_palette().background.strong.color,
-            radius: 8.0.into(),
-        },
+        text_color: Some(background.base.text),
+        background: Some(iced::Background::Color(background.base.color)),
+        border: iced::Border { width: 1.0, color: background.strong.color, radius: 8.0.into() },
         shadow: iced::Shadow::default(),
         snap: false,
     }

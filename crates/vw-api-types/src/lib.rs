@@ -38,6 +38,7 @@
 pub mod acp_model_source;
 pub mod acp_session;
 pub mod agent_apps;
+pub mod agent_apps_auth;
 pub mod agent_scheduler;
 pub mod chat;
 pub mod common;
@@ -128,6 +129,8 @@ mod acp_model_source_tests;
 #[cfg(test)]
 mod dynamic_tools_tests;
 
+#[cfg(test)]
+mod agent_apps_auth_tests;
 #[cfg(test)]
 mod agent_apps_tests;
 

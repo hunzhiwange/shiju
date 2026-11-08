@@ -1,12 +1,9 @@
 //! 只读识矩知识库入口；目录与文档分别保留服务端搜索和分页状态。
-use crate::app::components::system_settings_common::{
-    SETTINGS_CONTROL_PADDING, SETTINGS_CONTROL_TEXT_SIZE, settings_pick_list_menu_style,
-    settings_pick_list_style,
-};
+use crate::app::components::system_settings_common::settings_select;
 use crate::app::message::skill_hub::knowledge::{KnowledgeMessage, message};
 use crate::app::skill_hub::knowledge::KnowledgeSearchMode;
 use crate::app::{App, Message, i18n::I18n, skill_hub::LoadState};
-use iced::widget::{column, container, pick_list, row, text};
+use iced::widget::{column, container, row, text};
 use iced::{Element, Length};
 mod catalog;
 mod reader;
@@ -22,7 +19,7 @@ pub(super) fn view(app: &App) -> Element<'_, Message> {
     }
     let catalog_label = i18n.__("检索知识库");
     let content_label = i18n.__("召回正文");
-    let mode = pick_list(
+    let mode = settings_select(
         [catalog_label, content_label],
         Some(match state.search_mode {
             KnowledgeSearchMode::Catalog => catalog_label,
@@ -36,10 +33,7 @@ pub(super) fn view(app: &App) -> Element<'_, Message> {
             }))
         },
     )
-    .padding(SETTINGS_CONTROL_PADDING)
-    .text_size(SETTINGS_CONTROL_TEXT_SIZE)
-    .style(settings_pick_list_style)
-    .menu_style(settings_pick_list_menu_style);
+    .width(160);
     let results = match state.search_mode {
         KnowledgeSearchMode::Catalog => catalog::documents(app),
         KnowledgeSearchMode::Content => search::view(app),

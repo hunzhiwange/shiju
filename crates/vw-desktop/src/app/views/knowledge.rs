@@ -8,9 +8,8 @@ use crate::app::components::system_settings_common::{
     danger_action_btn_style, icon_svg, primary_action_btn_style, round_icon_btn_style,
     rounded_action_btn_style, settings_checkbox_style, settings_close_button,
     settings_error_banner, settings_modal_card, settings_modal_overlay, settings_muted_text_style,
-    settings_panel, settings_pick_list_menu_style, settings_pick_list_style,
-    settings_success_banner, settings_text_editor_style, settings_text_input_style,
-    settings_value_badge,
+    settings_panel, settings_select, settings_success_banner, settings_text_editor_style,
+    settings_text_input, settings_text_input_style, settings_value_badge,
 };
 use crate::app::message::{KnowledgeToolMessage, ViewMessage};
 use crate::app::state::{
@@ -21,8 +20,8 @@ use crate::app::{App, Message};
 use iced::widget::scrollable::{Direction, Scrollbar};
 use iced::widget::tooltip::{Position as TooltipPosition, Tooltip};
 use iced::widget::{
-    Space, button, checkbox, column, container, mouse_area, pick_list, responsive, row, scrollable,
-    text, text_editor, text_input,
+    Space, button, checkbox, column, container, mouse_area, responsive, row, scrollable, text,
+    text_editor, text_input,
 };
 use iced::{
     Alignment, Background, Border, Color, Element, Length, Point, Shadow, Size, Theme, Vector,
@@ -433,25 +432,19 @@ fn build_create_dataset_basic_tab(app: &App) -> Element<'_, Message> {
                 .__("名称用于识别知识库，描述用于说明内容范围。")
         ),
         text(crate::app::i18n::I18n::new(app.desktop_locale).__("名称")).size(12),
-        text_input(
+        settings_text_input(
             crate::app::i18n::I18n::new(app.desktop_locale).__("例如：产品文档"),
             &app.knowledge.dataset_name_input
         )
-        .on_input(|value| Message::Knowledge(KnowledgeToolMessage::DatasetNameChanged(value)))
-        .padding([11, 12])
-        .size(13)
-        .style(settings_text_input_style),
+        .on_input(|value| Message::Knowledge(KnowledgeToolMessage::DatasetNameChanged(value))),
         text(crate::app::i18n::I18n::new(app.desktop_locale).__("描述")).size(12),
-        text_input(
+        settings_text_input(
             crate::app::i18n::I18n::new(app.desktop_locale).__("简要说明知识库包含的内容"),
             &app.knowledge.dataset_description_input
         )
         .on_input(|value| {
             Message::Knowledge(KnowledgeToolMessage::DatasetDescriptionChanged(value))
-        })
-        .padding([11, 12])
-        .size(13)
-        .style(settings_text_input_style),
+        }),
     ]
     .spacing(10)
     .width(Length::Fill);
@@ -817,16 +810,13 @@ fn build_dataset_param_section(app: &App) -> Element<'_, Message> {
     content = content.push(build_rerank_toggle(app));
     if app.knowledge.dataset_rerank_enabled {
         content = content.push(
-            text_input(
+            settings_text_input(
                 crate::app::i18n::I18n::new(app.desktop_locale).__("rerank 模型"),
                 &app.knowledge.dataset_rerank_model_input,
             )
             .on_input(|value| {
                 Message::Knowledge(KnowledgeToolMessage::DatasetRerankModelChanged(value))
-            })
-            .padding([9, 10])
-            .size(13)
-            .style(settings_text_input_style),
+            }),
         );
     }
     content.into()
@@ -867,12 +857,7 @@ fn compact_input_row<'a>(
 ) -> Element<'a, Message> {
     row![
         text(label).size(12).style(settings_muted_text_style).width(Length::Fixed(82.0)),
-        text_input("", value)
-            .on_input(on_input)
-            .padding([8, 9])
-            .size(13)
-            .style(settings_text_input_style)
-            .width(Length::Fill),
+        settings_text_input("", value).on_input(on_input).width(Length::Fill),
     ]
     .spacing(8)
     .align_y(Alignment::Center)
@@ -2106,26 +2091,22 @@ fn build_document_pagination(
             ]
             .spacing(8)
             .align_y(Alignment::Center)
-            .width(Length::Fill),
-            pages,
+            .wrap(),
+            pages.wrap(),
         ]
         .spacing(12)
-        .align_y(Alignment::Center),
+        .align_y(Alignment::Center)
+        .wrap(),
     )
     .padding([8, 0])
     .width(Length::Fill)
-    .height(Length::Fixed(50.0))
     .into()
 }
 
 fn document_page_size_selector(page_size: usize) -> Element<'static, Message> {
-    pick_list(DOCUMENT_PAGE_SIZE_OPTIONS, Some(page_size), |size| {
+    settings_select(DOCUMENT_PAGE_SIZE_OPTIONS, Some(page_size), |size| {
         Message::Knowledge(KnowledgeToolMessage::DocumentPageSizeChanged(size))
     })
-    .padding([5, 10])
-    .text_size(12)
-    .style(settings_pick_list_style)
-    .menu_style(settings_pick_list_menu_style)
     .width(Length::Fixed(86.0))
     .into()
 }
@@ -3544,13 +3525,9 @@ fn build_embedding_model_picker(app: &App) -> Element<'_, Message> {
         .cloned()
         .or_else(|| options.first().cloned());
 
-    pick_list(options, selected, |option| {
+    settings_select(options, selected, |option| {
         Message::Knowledge(KnowledgeToolMessage::DatasetEmbeddingSelectionChanged(option.selection))
     })
-    .padding([9, 11])
-    .text_size(12)
-    .style(settings_pick_list_style)
-    .menu_style(settings_pick_list_menu_style)
     .width(Length::Fill)
     .into()
 }

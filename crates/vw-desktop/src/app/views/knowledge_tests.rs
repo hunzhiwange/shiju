@@ -1,11 +1,22 @@
 //! 知识库视图测试，覆盖数据集、文档、分块、检索配置和各类弹窗组件。
 //! 标签格式、分页边界与明暗主题状态需同时反映网关能力和当前编辑草稿。
 
-use crate::app::state::KnowledgeFileImportDraft;
+use crate::app::message::{KnowledgeToolMessage, knowledge_tool};
+use crate::app::state::{
+    KnowledgeCreateDatasetTab, KnowledgeDatasetEmbeddingSelection, KnowledgeFileImportDraft,
+};
 use crate::app::{App, Message};
+use iced::advanced::widget::operation::{Focusable, Operation, Scrollable, TextInput};
+use iced::advanced::{
+    Layout, clipboard, layout, mouse, renderer,
+    widget::{Id, Tree},
+};
+use iced::keyboard::{self, Key, key::Named};
 use iced::widget::button;
-use iced::{Element, Size, Theme};
+use iced::{Element, Event, Point, Rectangle, Renderer, Size, Theme, Vector};
+use iced_runtime::user_interface::{Cache, UserInterface};
 use std::collections::BTreeMap;
+use vw_config_types::ui::DesktopLocale;
 
 use super::{
     DocumentPageItem, KNOWLEDGE_SCROLLBAR_GUTTER, KNOWLEDGE_SCROLLBAR_WIDTH,
@@ -1194,4 +1205,351 @@ fn small_element_helpers_build_without_panicking() {
     ));
     keep_element(icon_badge(crate::app::assets::Icon::Journals, true));
     keep_element(empty_hint("暂无文档"));
+}
+
+const FORM_LOCALES: [DesktopLocale; 3] =
+    [DesktopLocale::SimplifiedChinese, DesktopLocale::TraditionalChinese, DesktopLocale::English];
+// Centered layer → card → column, for the modal without its optional backdrop view.
+const MODAL_CONTENT: &[usize] = &[1, 0, 0];
+
+struct FormUi<'a> {
+    ui: UserInterface<'a, Message, Theme, Renderer>,
+    node: layout::Node,
+    size: Size<u32>,
+}
+
+impl<'a> FormUi<'a> {
+    fn new(mut view: Element<'a, Message>, renderer: &mut Renderer, width: u32) -> Self {
+        let size = Size::new(width, 720);
+        let bounds = Size::new(width as f32, size.height as f32);
+        let mut tree = Tree::new(view.as_widget());
+        let node = view.as_widget_mut().layout(
+            &mut tree,
+            renderer,
+            &layout::Limits::new(Size::ZERO, bounds),
+        );
+        let ui = UserInterface::build(view, bounds, Cache::new(), renderer);
+        Self { ui, node, size }
+    }
+
+    fn bounds(&self, path: &[usize]) -> Rectangle {
+        path.iter()
+            .fold(Layout::new(&self.node), |layout, &index| {
+                layout.children().nth(index).unwrap_or_else(|| panic!("missing layout {path:?}"))
+            })
+            .bounds()
+    }
+
+    fn send(
+        &mut self,
+        renderer: &mut Renderer,
+        events: &[Event],
+        cursor: mouse::Cursor,
+    ) -> Vec<Message> {
+        let mut messages = Vec::new();
+        self.ui.update(events, cursor, renderer, &mut clipboard::Null, &mut messages);
+        messages
+    }
+
+    fn key(&mut self, renderer: &mut Renderer, key: Named) -> Vec<Message> {
+        self.send(renderer, &[form_key(Key::Named(key), None)], mouse::Cursor::Unavailable)
+    }
+
+    fn click(&mut self, renderer: &mut Renderer, point: Point) -> Vec<Message> {
+        self.send(
+            renderer,
+            &[
+                Event::Mouse(mouse::Event::ButtonPressed(mouse::Button::Left)),
+                Event::Mouse(mouse::Event::ButtonReleased(mouse::Button::Left)),
+            ],
+            mouse::Cursor::Available(point),
+        )
+    }
+
+    fn draw(&mut self, renderer: &mut Renderer, theme: &Theme) -> Vec<u8> {
+        use renderer::Headless;
+        let cursor = mouse::Cursor::Unavailable;
+        self.send(
+            renderer,
+            &[Event::Window(iced::window::Event::RedrawRequested(iced::time::Instant::now()))],
+            cursor,
+        );
+        self.ui.draw(
+            renderer,
+            theme,
+            &renderer::Style { text_color: theme.palette().text },
+            cursor,
+        );
+        renderer.screenshot(self.size, 1.0, theme.palette().background)
+    }
+
+    fn probe(&mut self, renderer: &Renderer) -> FormProbe {
+        let mut probe = FormProbe::default();
+        self.ui.operate(renderer, &mut probe);
+        probe
+    }
+
+    fn check_select(
+        &mut self,
+        renderer: &mut Renderer,
+        theme: &Theme,
+        trigger: Rectangle,
+        selected_index: usize,
+        move_to: Named,
+    ) -> Vec<Message> {
+        assert_eq!(trigger.height, 38.0);
+        self.ui.operate(renderer, &mut FormProbe { trigger: Some(trigger), ..Default::default() });
+        assert!(self.key(renderer, Named::Enter).is_empty());
+        let pixels = self.draw(renderer, theme);
+        let menu = self.probe(renderer).menu.expect("Enter should open the shared menu");
+        assert!(menu.x >= 0.0 && menu.x + menu.width <= self.size.width as f32);
+        assert!(menu.y >= 0.0 && menu.y + menu.height <= self.size.height as f32);
+
+        // The checkmark occupies the trailing 16px slot of the selected 36px row.
+        let mark_x = (menu.x + menu.width) as usize - 25;
+        let mark_y = menu.y as usize + 18 + selected_index * 38;
+        let pixel = |x: usize, y: usize| {
+            let start = (y * self.size.width as usize + x) * 4;
+            &pixels[start..start + 4]
+        };
+        let background = pixel(mark_x, mark_y - 9);
+        let mark_pixels = (mark_y - 6..=mark_y + 6)
+            .flat_map(|y| (mark_x - 7..=mark_x + 7).map(move |x| (x, y)))
+            .filter(|&(x, y)| pixel(x, y) != background)
+            .count();
+        assert!(mark_pixels > 10, "selected option should draw a checkmark");
+
+        assert!(self.key(renderer, Named::Escape).is_empty());
+        assert!(self.probe(renderer).menu.is_none());
+        assert!(self.key(renderer, Named::Space).is_empty());
+        assert!(self.key(renderer, move_to).is_empty());
+        let messages = self.key(renderer, Named::Enter);
+        assert!(self.probe(renderer).menu.is_none());
+        messages
+    }
+}
+
+#[derive(Default)]
+struct FormProbe {
+    trigger: Option<Rectangle>,
+    menu: Option<Rectangle>,
+    inputs: Vec<(String, Rectangle)>,
+}
+
+impl Operation for FormProbe {
+    fn traverse(&mut self, visit: &mut dyn FnMut(&mut dyn Operation)) {
+        visit(self);
+    }
+
+    fn focusable(&mut self, _id: Option<&Id>, bounds: Rectangle, state: &mut dyn Focusable) {
+        if self.trigger == Some(bounds) {
+            state.focus();
+        }
+    }
+
+    fn scrollable(
+        &mut self,
+        id: Option<&Id>,
+        bounds: Rectangle,
+        _content_bounds: Rectangle,
+        _translation: Vector,
+        _state: &mut dyn Scrollable,
+    ) {
+        if id == Some(&Id::from("settings-select-menu")) {
+            self.menu = Some(bounds);
+        }
+    }
+
+    fn text_input(&mut self, _id: Option<&Id>, bounds: Rectangle, state: &mut dyn TextInput) {
+        self.inputs.push((state.text().to_owned(), bounds));
+    }
+}
+
+fn form_key(key: Key, text: Option<&str>) -> Event {
+    use keyboard::key;
+    Event::Keyboard(keyboard::Event::KeyPressed {
+        modified_key: key.clone(),
+        key,
+        physical_key: key::Physical::Unidentified(key::NativeCode::Unidentified),
+        location: keyboard::Location::Standard,
+        modifiers: keyboard::Modifiers::empty(),
+        text: text.map(Into::into),
+        repeat: false,
+    })
+}
+
+async fn form_renderer() -> Renderer {
+    use renderer::Headless;
+    {
+        let mut fonts = iced::advanced::graphics::text::font_system().write().unwrap();
+        for font in crate::fonts::load_all() {
+            fonts.load_font(font);
+        }
+    }
+    Renderer::new(iced::Font::with_name("Noto Sans CJK SC"), iced::Pixels(14.0), Some("tiny-skia"))
+        .await
+        .expect("headless renderer")
+}
+
+fn form_test_app() -> App {
+    let root = tempfile::tempdir().unwrap();
+    crate::app::theme_catalog::set_test_themes_root(Some(root.path().to_path_buf()));
+    let app = test_app();
+    crate::app::theme_catalog::set_test_themes_root(None);
+    app
+}
+
+#[tokio::test]
+async fn knowledge_form_controls_use_shared_embedding_and_page_size_select() {
+    let mut renderer = form_renderer().await;
+    let mut app = form_test_app();
+    app.knowledge.create_dataset_tab = KnowledgeCreateDatasetTab::Indexing;
+    app.knowledge.dataset_embedding_selection = KnowledgeDatasetEmbeddingSelection::LockCurrent;
+    app.knowledge.embedding_status = Some(KnowledgeEmbeddingStatusDto {
+        provider_id: "fixture".into(),
+        route_hint: None,
+        model: "用于测试的长标签與繁體文字 /fixtures/models/long-name".repeat(6),
+        dimensions: 768,
+        api_key_configured: false,
+        vector_available: true,
+        hybrid_available: false,
+        retrieval_modes: vec![],
+        notes: BTreeMap::new(),
+    });
+
+    for locale in FORM_LOCALES {
+        app.desktop_locale = locale;
+        let i18n = crate::app::i18n::I18n::new(locale);
+        for theme in [Theme::Light, Theme::Dark] {
+            for width in [420, 960] {
+                let mut modal =
+                    FormUi::new(build_create_dataset_modal(&app, None), &mut renderer, width);
+                // Panel → scrollable → indexing row → right column → embedding section → picker.
+                let trigger = modal.bounds(&[MODAL_CONTENT, &[1, 1, 0, 1, 1, 0, 1]].concat());
+                assert!(matches!(
+                    modal
+                        .check_select(&mut renderer, &theme, trigger, 1, Named::ArrowUp)
+                        .as_slice(),
+                    [Message::Knowledge(KnowledgeToolMessage::DatasetEmbeddingSelectionChanged(
+                        KnowledgeDatasetEmbeddingSelection::FollowGlobal
+                    ))]
+                ));
+
+                let pagination = build_document_pagination(i18n, 6, 15, 150, 10);
+                let mut pagination = FormUi::new(pagination, &mut renderer, width);
+                let footer = pagination.bounds(&[]);
+                let trigger = pagination.bounds(&[0, 0, 2]);
+                let pages = pagination.bounds(&[0, 1]);
+                for child in [trigger, pages] {
+                    assert!(
+                        child.x >= footer.x && child.x + child.width <= footer.x + footer.width
+                    );
+                    assert!(
+                        child.y >= footer.y && child.y + child.height <= footer.y + footer.height
+                    );
+                }
+                assert_eq!(pages.y >= trigger.y + trigger.height, width == 420);
+                assert!(matches!(
+                    pagination
+                        .check_select(&mut renderer, &theme, trigger, 0, Named::ArrowDown)
+                        .as_slice(),
+                    [Message::Knowledge(KnowledgeToolMessage::DocumentPageSizeChanged(20))]
+                ));
+            }
+        }
+    }
+}
+
+#[tokio::test]
+async fn knowledge_form_controls_preserve_dataset_input_messages() {
+    let mut renderer = form_renderer().await;
+
+    for (locale, title) in FORM_LOCALES.into_iter().zip(["测试资料", "測試資料", "Sample dataset"])
+    {
+        for theme in [Theme::Light, Theme::Dark] {
+            for width in [420, 960] {
+                let mut app = form_test_app();
+                app.desktop_locale = locale;
+                app.knowledge.dataset_name_input = title.into();
+                app.knowledge.dataset_description_input = format!("{title} docs");
+                app.knowledge.dataset_indexing_mode = KnowledgeIndexingMode::Economy;
+                app.knowledge.dataset_keyword_count_input = "12".into();
+                app.knowledge.dataset_top_k_input = "6".into();
+                app.knowledge.dataset_score_threshold_input = "0.2".into();
+                app.knowledge.dataset_rerank_model_input = "fixture-rerank".into();
+                app.knowledge.dataset_rerank_enabled = true;
+                app.knowledge.runtime_status = Some(runtime_status(true, true));
+
+                for (tab, expected) in [
+                    (
+                        KnowledgeCreateDatasetTab::Basic,
+                        vec![title.to_owned(), format!("{title} docs")],
+                    ),
+                    (
+                        KnowledgeCreateDatasetTab::Retrieval,
+                        ["12", "6", "0.2", "fixture-rerank"].map(str::to_owned).to_vec(),
+                    ),
+                ] {
+                    let _ = knowledge_tool::update(
+                        &mut app,
+                        KnowledgeToolMessage::SelectCreateDatasetTab(tab),
+                    );
+                    let changes = {
+                        let mut ui = FormUi::new(
+                            build_create_dataset_modal(&app, None),
+                            &mut renderer,
+                            width,
+                        );
+                        ui.draw(&mut renderer, &theme);
+                        let fields = ui.probe(&renderer).inputs;
+                        let mut changes = Vec::new();
+                        assert_eq!(fields.len(), expected.len());
+                        for ((value, bounds), expected_value) in fields.into_iter().zip(expected) {
+                            assert_eq!(value, expected_value);
+                            assert!(bounds.width > 0.0 && bounds.x + bounds.width <= width as f32);
+                            assert!(ui.click(&mut renderer, bounds.center()).is_empty());
+                            assert!(ui.key(&mut renderer, Named::End).is_empty());
+                            let events = [form_key(Key::Character("1".into()), Some("1"))];
+                            let messages =
+                                ui.send(&mut renderer, &events, mouse::Cursor::Unavailable);
+                            let [Message::Knowledge(change)] = messages.as_slice() else {
+                                panic!("expected exactly one input update for {value}");
+                            };
+                            changes.push(change.clone());
+                        }
+                        changes
+                    };
+                    for change in changes {
+                        let _ = knowledge_tool::update(&mut app, change);
+                    }
+                }
+
+                assert_eq!(app.knowledge.dataset_name_input, format!("{title}1"));
+                assert_eq!(app.knowledge.dataset_description_input, format!("{title} docs1"));
+                assert_eq!(app.knowledge.dataset_keyword_count_input, "121");
+                assert_eq!(app.knowledge.dataset_top_k_input, "61");
+                assert_eq!(app.knowledge.dataset_score_threshold_input, "0.21");
+                assert_eq!(app.knowledge.dataset_rerank_model_input, "fixture-rerank1");
+
+                let _ = knowledge_tool::update(
+                    &mut app,
+                    KnowledgeToolMessage::SelectCreateDatasetTab(KnowledgeCreateDatasetTab::Basic),
+                );
+                let mut modal =
+                    FormUi::new(build_create_dataset_modal(&app, None), &mut renderer, width);
+                modal.draw(&mut renderer, &theme);
+                assert_eq!(modal.probe(&renderer).inputs[0].0, format!("{title}1"));
+                let cancel = modal.bounds(&[MODAL_CONTENT, &[2, 1]].concat()).center();
+                let submit = modal.bounds(&[MODAL_CONTENT, &[2, 2]].concat()).center();
+                assert!(matches!(
+                    modal.click(&mut renderer, cancel).as_slice(),
+                    [Message::Knowledge(KnowledgeToolMessage::CloseCreateDatasetModal)]
+                ));
+                assert!(matches!(
+                    modal.click(&mut renderer, submit).as_slice(),
+                    [Message::Knowledge(KnowledgeToolMessage::CreateDataset)]
+                ));
+            }
+        }
+    }
 }

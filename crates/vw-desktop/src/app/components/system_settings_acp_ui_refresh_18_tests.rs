@@ -594,3 +594,256 @@ async fn ui_refresh_18_preserves_values_and_disabled_states() {
         [Message::Settings(SettingsMessage::Mcp(McpMessage::NewServerPanelToggled))]
     ));
 }
+
+fn assert_help_card(
+    ui: &mut Ui<'_>,
+    renderer: &mut Renderer,
+    (size, theme, locale): (Size<u32>, &Theme, DesktopLocale),
+    title: &'static str,
+    description: &'static str,
+) -> iced::Point {
+    use iced::keyboard::key::Named;
+    let i18n = I18n::new(locale);
+    let positions = geometry(ui, renderer);
+    let label = positions
+        .labels
+        .iter()
+        .rev()
+        .find(|(label, _)| label == i18n.__(title))
+        .unwrap_or_else(|| panic!("missing help label {title}"))
+        .1;
+    let icon = iced::Point::new(label.x + label.width + 15.0, label.center_y());
+    let frame = |ui: &mut Ui<'_>, renderer: &mut Renderer, suffix: &str, cursor| {
+        capture(ui, renderer, theme, size, &format!("help-09-{locale:?}-{title}-{suffix}"), cursor)
+    };
+    assert!(
+        iced::Rectangle::with_size(Size::new(size.width as f32, size.height as f32)).contains(icon)
+    );
+    let idle = frame(ui, renderer, "idle", mouse::Cursor::Unavailable);
+    let cursor = mouse::Cursor::Available(icon);
+    assert!(
+        send(ui, renderer, cursor, &[Event::Mouse(mouse::Event::CursorMoved { position: icon })])
+            .is_empty()
+    );
+    assert!(idle != frame(ui, renderer, "hover", cursor), "{title}: hovering must preview help");
+    assert!(click(ui, renderer, icon).is_empty());
+    let open = frame(ui, renderer, "open", mouse::Cursor::Unavailable);
+    assert!(idle != open, "{title}: clicking the question mark must pin the help card");
+    assert!(!positions.labels.iter().any(|(label, _)| label == i18n.__(description)));
+    assert!(send(ui, renderer, mouse::Cursor::Unavailable, &[key(Named::Escape)]).is_empty());
+    assert!(
+        idle == frame(ui, renderer, "closed", mouse::Cursor::Unavailable),
+        "{title}: Escape must dismiss the help card"
+    );
+    icon
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn help_rollout_09_renders_contextual_help() {
+    if !isolated("help_rollout_09_renders_contextual_help") {
+        return;
+    }
+    let mut app = fixture();
+    let mut renderer = renderer().await;
+    for (locale, theme, width) in [
+        (DesktopLocale::SimplifiedChinese, Theme::Dark, 420),
+        (DesktopLocale::English, Theme::Light, 640),
+    ] {
+        app.desktop_locale = locale;
+        app.app_theme = theme.clone();
+        let i18n = I18n::new(locale);
+        let size = Size::new(width, 660);
+        let context = (size, &theme, locale);
+        app.acp_settings.new_agent_expanded = true;
+        let mut form = scene(view(&app), &mut renderer, size);
+        let positions = geometry(&mut form, &renderer);
+        positions.label(i18n.__("诊断使用当前草稿，在网关主机执行，不发送消息或自动认证"));
+        positions.input("/示例路徑/bin/fixture-agent");
+        let description = "每项独立保存，保留空格与逗号。";
+        let icon = assert_help_card(&mut form, &mut renderer, context, "参数", description);
+        assert!(click(&mut form, &mut renderer, icon).is_empty());
+        if locale == DesktopLocale::English {
+            // Open the real text menu and check the messages at the OS integration boundary.
+            let menu = iced::Point::new(icon.x + 29.0, icon.y + 5.0);
+            let item_height =
+                f32::from(iced::advanced::text::LineHeight::default().to_absolute(12.0.into()))
+                    + 10.0;
+            let description = i18n.__(description);
+            let url =
+                format!("https://www.google.com/search?q={}", urlencoding::encode(description));
+            for index in [0.0, 3.0] {
+                assert!(
+                    send(
+                        &mut form,
+                        &mut renderer,
+                        mouse::Cursor::Available(menu),
+                        &[Event::Mouse(mouse::Event::ButtonPressed(mouse::Button::Right))],
+                    )
+                    .is_empty()
+                );
+                let point =
+                    iced::Point::new(menu.x + 24.0, menu.y + 3.0 + item_height * (index + 0.5));
+                let messages = click(&mut form, &mut renderer, point);
+                assert!(
+                    match messages.as_slice() {
+                        [Message::CopyCode(text)] if index == 0.0 => text == description,
+                        [
+                            Message::View(crate::app::message::ViewMessage::OpenUrlExternal(
+                                actual,
+                            )),
+                        ] if index == 3.0 => actual == &url,
+                        _ => false,
+                    },
+                    "{messages:?}"
+                );
+            }
+        }
+        assert!(
+            send(
+                &mut form,
+                &mut renderer,
+                mouse::Cursor::Unavailable,
+                &[key(iced::keyboard::key::Named::Escape)],
+            )
+            .is_empty()
+        );
+        assert!(matches!(
+            click(&mut form, &mut renderer, positions.label(i18n.__("取消")).center()).as_slice(),
+            [Message::Settings(SettingsMessage::Acp(AcpMessage::CancelEditor))]
+        ));
+        drop(form);
+        app.acp_settings.new_agent_expanded = false;
+        app.acp_settings
+            .diagnostic_results
+            .insert("fixture-agent".into(), AcpDiagnosticStatus::AuthenticationRequired);
+        let mut catalog = scene(view(&app), &mut renderer, size);
+        for (title, description) in [
+            ("ACP 配置", "查看可用 ACP 智能体，按需初始化本机环境，并通过网关更新启用状态。"),
+            ("可用 ACP", "启用后会出现在聊天、任务和设计生成的 ACP 后端选择中。"),
+            ("自定义 ACP", acp_description("fixture-agent")),
+        ] {
+            assert_help_card(&mut catalog, &mut renderer, context, title, description);
+        }
+        let positions = geometry(&mut catalog, &renderer);
+        positions.label(i18n.__(setup_hint("fixture-agent")));
+        positions.label(i18n.__(AcpDiagnosticStatus::AuthenticationRequired.description()));
+        positions.label("/示例路徑/bin/fixture-agent");
+        drop(catalog);
+    }
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn help_rollout_09_mcp_server_and_policy_help() {
+    if !isolated("help_rollout_09_mcp_server_and_policy_help") {
+        return;
+    }
+    use crate::app::components::system_settings_agents;
+    use crate::app::message::settings::McpMessage;
+    use crate::app::state::{AGENT_DETAIL_MCP_TAB, AgentConfigTab, DelegateAgentSettingsEntry};
+    let mut app = fixture();
+    let mut renderer = renderer().await;
+    for (locale, theme, width) in [
+        (DesktopLocale::English, Theme::Dark, 420),
+        (DesktopLocale::SimplifiedChinese, Theme::Light, 640),
+        (DesktopLocale::TraditionalChinese, Theme::Dark, 520),
+    ] {
+        app.desktop_locale = locale;
+        app.app_theme = theme.clone();
+        let tr = |label| crate::app::i18n::settings_extensions::text(locale, label);
+        let size = Size::new(width, 660);
+        let context = (size, &theme, locale);
+        app.mcp_settings.active_tab = McpSettingsTab::Servers;
+        app.mcp_settings.new_server_expanded = true;
+        app.mcp_settings.editing_server_index = Some(0);
+        let mut edit = scene(mcp::view_overlays(&app, mcp::view(&app)), &mut renderer, size);
+        assert_help_card(
+            &mut edit,
+            &mut renderer,
+            context,
+            "类型",
+            "stdio · 命令 / 参数\nHTTP / SSE · URL",
+        );
+        let positions = geometry(&mut edit, &renderer);
+        positions.input("fixture-bin");
+        positions.label(tr("修改当前服务器；高级 JSON 字段会在传输类型不变时保留。"));
+        assert!(matches!(
+            click(&mut edit, &mut renderer, positions.label(tr("保存修改")).center()).as_slice(),
+            [Message::Settings(SettingsMessage::Mcp(McpMessage::SaveServerEdit))]
+        ));
+        drop(edit);
+        app.mcp_settings.editing_server_index = None;
+        let mut add = scene(mcp::view_overlays(&app, mcp::view(&app)), &mut renderer, size);
+        assert_help_card(
+            &mut add,
+            &mut renderer,
+            context,
+            "新增 MCP 服务器",
+            "按服务器逐项添加；复杂字段可继续在高级 JSON 中编辑。",
+        );
+        assert_help_card(
+            &mut add,
+            &mut renderer,
+            context,
+            "类型",
+            "stdio · 命令 / 参数\nHTTP / SSE · URL",
+        );
+        drop(add);
+
+        app.mcp_settings.new_server_expanded = false;
+        for (tab, title, description) in [
+            (McpSettingsTab::Servers, "全局 MCP 服务器", "逐条启用、禁用和预览全局 mcpServers。"),
+            (
+                McpSettingsTab::Runtime,
+                "运行时 MCP",
+                "展示项目配置和插件声明合并后的 MCP 连接、工具、资源与 prompts。",
+            ),
+            (
+                McpSettingsTab::Json,
+                "高级 JSON",
+                "支持 type=stdio/http/sse；可配置 headers、env、enabled、required、timeout、allowedTools、deniedTools。",
+            ),
+        ] {
+            app.mcp_settings.active_tab = tab;
+            let mut page = scene(mcp::view(&app), &mut renderer, size);
+            if tab == McpSettingsTab::Servers {
+                assert_help_card(
+                    &mut page,
+                    &mut renderer,
+                    context,
+                    "MCP 配置",
+                    "配置全局 mcpServers；插件声明的 MCP 会随插件启用状态在运行时合并。",
+                );
+            }
+            assert_help_card(&mut page, &mut renderer, context, title, description);
+        }
+        app.agents_settings.config_ready = true;
+        app.agents_settings.active_config_tab = AgentConfigTab::Agents;
+        app.agents_settings.selected_agent = "fixture-agent".into();
+        app.agents_settings.profile_modal =
+            Some(DelegateAgentSettingsEntry::from_config("fixture-agent", None));
+        app.agents_settings.active_detail_tab = AGENT_DETAIL_MCP_TAB.into();
+        app.mcp_settings.inspect_loading = true;
+        let mut policy = scene(system_settings_agents::view(&app), &mut renderer, size);
+        assert_help_card(
+            &mut policy,
+            &mut renderer,
+            context,
+            "默认 MCP",
+            "继承当前会话工作区启用的服务；固定空列表不启用默认 MCP。这里只选择服务，不配置连接或凭据。",
+        );
+        let positions = geometry(&mut policy, &renderer);
+        let title = positions.label(tr("默认 MCP"));
+        scroll(&mut policy, &mut renderer, title.center(), -300.0);
+        let positions = geometry(&mut policy, &renderer);
+        positions.label(tr("正在加载服务目录；保留已有选择。"));
+        let refresh = positions.label(tr("刷新服务目录")).center() - positions.scroll_offset;
+        let messages = click(&mut policy, &mut renderer, refresh);
+        assert!(
+            matches!(
+                messages.as_slice(),
+                [Message::Settings(SettingsMessage::Mcp(McpMessage::InspectRefresh))]
+            ),
+            "{locale:?}: {messages:?}"
+        );
+    }
+}

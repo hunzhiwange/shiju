@@ -1,6 +1,6 @@
 //! 智能体的新会话 MCP 选择；连接与凭据仍由外层 MCP 页面管理。
 use crate::app::components::system_settings_common::*;
-use crate::app::i18n::settings_extensions::text as tr;
+use crate::app::i18n::{I18n, settings_extensions::text as tr};
 use crate::app::message::settings::{
     AgentConfigTabMessage, AgentsMessage, McpMessage, SettingsMessage,
 };
@@ -61,7 +61,7 @@ pub(super) fn view<'a>(
         next.mcp = if fixed { AgentDefault::Fixed(vec![]) } else { AgentDefault::Inherit };
         Message::Settings(SettingsMessage::Agents(AgentsMessage::ProfileDefaultsChanged(next)))
     });
-    let i18n = crate::app::i18n::I18n::new(locale);
+    let i18n = I18n::new(locale);
     let count = if fixed {
         crate::__!(i18n, "已选 %u 个服务", selected.len())
     } else {
@@ -136,7 +136,9 @@ pub(super) fn view<'a>(
         );
     }
     column![
-        settings_group_heading(
+        settings_group_heading_with_help(
+            i18n,
+            &app.app_theme,
             label("默认 MCP"),
             label("继承当前会话工作区启用的服务；固定空列表不启用默认 MCP。这里只选择服务，不配置连接或凭据。"),
         ),

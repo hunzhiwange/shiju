@@ -327,10 +327,7 @@ fn server_panels_build_configured_runtime_and_new_server_states() {
         [McpNewServerTransport::Stdio, McpNewServerTransport::Http, McpNewServerTransport::Sse]
     {
         app.mcp_settings.new_server.transport = transport;
-        let _: iced::Element<'_, Message> = new_server_panel(
-            vw_config_types::ui::DesktopLocale::SimplifiedChinese,
-            &app.mcp_settings,
-        );
+        let _: iced::Element<'_, Message> = new_server_panel(&app);
     }
 }
 

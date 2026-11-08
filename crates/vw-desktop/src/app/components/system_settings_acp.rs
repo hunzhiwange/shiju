@@ -2,9 +2,10 @@
 
 use crate::app::components::system_settings_common::{
     primary_action_btn_style, rounded_action_btn_style, settings_close_button,
-    settings_error_banner, settings_field_label, settings_group_heading, settings_modal_card_style,
+    settings_error_banner, settings_field_label, settings_group_card,
+    settings_group_heading_with_help, settings_hover_help_label, settings_modal_card_style,
     settings_modal_header, settings_modal_layout, settings_modal_overlay,
-    settings_muted_text_style, settings_page_heading, settings_panel, settings_section_card,
+    settings_muted_text_style, settings_page_heading_with_help, settings_panel,
     settings_success_banner, settings_text_input, settings_value_badge,
 };
 use crate::app::i18n::I18n;
@@ -148,18 +149,22 @@ fn acp_card<'a>(app: &'a App, agent: String, config: &'a AcpAgentConfig) -> Elem
 
     let locale = app.desktop_locale;
     let tr = |label: &'static str| I18n::new(locale).__(label);
-    let header = column![
-        row![
-            text(tr(acp_title(&agent))).size(16),
-            settings_value_badge(tr(if enabled { "已启用" } else { "未启用" })),
-        ]
-        .spacing(8)
-        .align_y(Alignment::Center)
+    let title = tr(acp_title(&agent));
+    let header = row![
+        settings_hover_help_label(
+            I18n::new(locale),
+            &app.app_theme,
+            title,
+            text(title).size(16),
+            tr(acp_description(&agent)),
+        )
         .wrap(),
-        text(tr(acp_description(&agent))).size(13).style(settings_muted_text_style),
+        settings_value_badge(tr(if enabled { "已启用" } else { "未启用" })),
     ]
-    .spacing(6)
-    .width(Length::Fill);
+    .spacing(8)
+    .align_y(Alignment::Center)
+    .width(Length::Fill)
+    .wrap();
 
     let toggle_message = if saving {
         None
@@ -300,9 +305,13 @@ fn new_agent_form(app: &App) -> Element<'_, Message> {
         .on_input(|v| acp_message(AcpMessage::NewAgentCommandChanged(v)));
     let can_restore = !state.adding_agent
         && state.editing_agent.as_ref().is_some_and(|agent| state.defaults.contains_key(agent));
-    let mut arguments =
-        column![settings_group_heading(tr("参数"), tr("每项独立保存，保留空格与逗号。"))]
-            .spacing(10);
+    let mut arguments = column![settings_group_heading_with_help(
+        I18n::new(locale),
+        &app.app_theme,
+        tr("参数"),
+        tr("每项独立保存，保留空格与逗号。"),
+    )]
+    .spacing(10);
     for (i, arg) in state.editor_args.iter().enumerate() {
         arguments = arguments.push(
             row![
@@ -468,18 +477,27 @@ pub fn view(app: &App) -> Element<'_, Message> {
     .on_press(Message::Settings(SettingsMessage::Acp(AcpMessage::NewAgentPanelToggled)))
     .style(rounded_action_btn_style);
 
+    let i18n = I18n::new(app.desktop_locale);
+    let title = i18n.__("可用 ACP");
     let mut content = column![
-        settings_page_heading(
-            I18n::new(app.desktop_locale).__("ACP 配置"),
-            I18n::new(app.desktop_locale)
-                .__("查看可用 ACP 智能体，按需初始化本机环境，并通过网关更新启用状态。"),
+        settings_page_heading_with_help(
+            i18n,
+            &app.app_theme,
+            i18n.__("ACP 配置"),
+            i18n.__("查看可用 ACP 智能体，按需初始化本机环境，并通过网关更新启用状态。"),
         ),
         row![add_btn, refresh_btn].spacing(8).align_y(Alignment::Center).wrap(),
-        settings_section_card(
-            I18n::new(app.desktop_locale).__("可用 ACP"),
-            I18n::new(app.desktop_locale)
-                .__("启用后会出现在聊天、任务和设计生成的 ACP 后端选择中。")
-        ),
+        settings_group_card(
+            settings_hover_help_label(
+                i18n,
+                &app.app_theme,
+                title,
+                text(title).size(14),
+                i18n.__("启用后会出现在聊天、任务和设计生成的 ACP 后端选择中。"),
+            )
+            .wrap(),
+        )
+        .padding([14, 16]),
     ]
     .spacing(16)
     .width(Length::Fill);

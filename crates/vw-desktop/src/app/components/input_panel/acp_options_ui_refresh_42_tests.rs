@@ -630,3 +630,84 @@ async fn ui_refresh_42_preserves_values_and_disabled_states() {
     assert!(runtime.acp_options_open && runtime.acp_options_pending);
     assert_eq!(runtime.acp_options.options[0].current, "fixture/backend-value-1");
 }
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn help_rollout_09_session_model_source_keeps_status_visible() {
+    if !isolated("help_rollout_09_session_model_source_keeps_status_visible") {
+        return;
+    }
+    let mut app = fixture();
+    let mut renderer = renderer().await;
+    let size = Size::new(420, 600);
+    for (locale, theme) in
+        [(DesktopLocale::English, Theme::Dark), (DesktopLocale::SimplifiedChinese, Theme::Light)]
+    {
+        app.desktop_locale = locale;
+        app.app_theme = theme.clone();
+        let runtime = app.current_session_runtime_mut();
+        runtime.acp_options_open = true;
+        runtime.acp_model_source = AcpModelSource::SessionModel;
+        let base = container(Space::new()).width(Length::Fill).height(Length::Fill).into();
+        let mut ui = scene(with_modal(&app, base), &mut renderer, size);
+        let layout = bounds(&mut ui, &renderer);
+        label(&layout, "完全访问授权：已关闭");
+        label(&layout, "请先配置供应商凭据");
+        label(&layout, "切换来源将创建新的 ACP 会话；原生上下文不继承");
+        label(
+            &layout,
+            &format!("当前客户端 Provider/model：{}", app.current_session_runtime().model),
+        );
+        let heading = label(&layout, "模型来源");
+        let icon = Point::new(heading.x + heading.width + 15.0, heading.center_y());
+        let frame = |ui: &mut Ui<'_>, renderer: &mut Renderer, suffix: &str| {
+            capture(
+                ui,
+                renderer,
+                &theme,
+                size,
+                &format!("help-09-{locale:?}-model-source-{suffix}"),
+                Point::ORIGIN,
+            )
+        };
+        let idle = frame(&mut ui, &mut renderer, "idle");
+        assert!(click(&mut ui, &mut renderer, icon).is_empty());
+        assert!(idle != frame(&mut ui, &mut renderer, "open"), "model source help must open");
+        assert!(!layout.labels.iter().any(|(text, _)| text == "使用执行主机上的配置与登录状态"));
+        assert!(
+            key(&mut ui, &mut renderer, Point::ORIGIN, Key::Named(Named::Escape), None).is_empty()
+        );
+        assert!(
+            idle == frame(&mut ui, &mut renderer, "closed"),
+            "Escape must dismiss model source help"
+        );
+        assert!(
+            click(&mut ui, &mut renderer, label(&layout, "智能体原生模型").center()).is_empty()
+        );
+        assert!(matches!(
+            click(&mut ui, &mut renderer, label(&layout, "关闭").center()).as_slice(),
+            [Message::Chat(ChatMessage::AcpOptionsClose)]
+        ));
+        drop(ui);
+
+        app.current_session_runtime_mut().acp_model_source = AcpModelSource::CliLocal;
+        let mut popover = scene(model_overlay(&app), &mut renderer, size);
+        let layout = bounds(&mut popover, &renderer);
+        let heading = label(&layout, "模型来源");
+        let icon = Point::new(heading.x + heading.width + 15.0, heading.center_y());
+        let idle = frame(&mut popover, &mut renderer, "popover-idle");
+        assert!(click(&mut popover, &mut renderer, icon).is_empty());
+        assert!(
+            idle != frame(&mut popover, &mut renderer, "popover-open"),
+            "model popover help must open"
+        );
+        assert!(
+            key(&mut popover, &mut renderer, Point::ORIGIN, Key::Named(Named::Escape), None)
+                .is_empty()
+        );
+        assert!(idle == frame(&mut popover, &mut renderer, "popover-closed"));
+        assert!(matches!(
+            click(&mut popover, &mut renderer, label(&layout, "客户端模型").center()).as_slice(),
+            [Message::Chat(ChatMessage::AcpModelSourceSelected(AcpModelSource::SessionModel))]
+        ));
+    }
+}

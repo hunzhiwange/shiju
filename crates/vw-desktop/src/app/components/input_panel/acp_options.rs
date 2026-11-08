@@ -1,9 +1,10 @@
 //! Backend-advertised session options, using the shared settings modal controls.
 use crate::app::components::system_settings_common::{
-    rounded_action_btn_style, settings_close_button, settings_field_label, settings_modal_header,
-    settings_modal_layout, settings_modal_overlay, settings_muted_text_style, settings_panel_style,
+    rounded_action_btn_style, settings_close_button, settings_field_label,
+    settings_hover_help_label, settings_modal_header, settings_modal_layout,
+    settings_modal_overlay, settings_muted_text_style, settings_panel_style,
 };
-use crate::app::{App, Message, message::ChatMessage};
+use crate::app::{App, Message, i18n::I18n, message::ChatMessage};
 use iced::widget::{Space, button as action, column, container, row, text};
 use iced::{Alignment, Element, Length, Theme};
 
@@ -96,11 +97,26 @@ pub(super) fn source_controls(app: &App) -> Element<'_, Message> {
         AcpModelSource, AcpModelSourceCapability, AcpModelSourceRejectionReason,
     };
     let runtime = app.current_session_runtime();
-    let mut controls = column![settings_field_label("模型来源")].spacing(6);
-    for (source, label, description) in [
-        (AcpModelSource::SessionModel, "客户端模型", "使用当前供应商与模型，无需重复填写密钥"),
-        (AcpModelSource::CliLocal, "智能体原生模型", "使用执行主机上的配置与登录状态"),
-    ] {
+    let client = "客户端模型";
+    let native = "智能体原生模型";
+    let description = format!(
+        "{client}：使用当前供应商与模型，无需重复填写密钥\n{native}：使用执行主机上的配置与登录状态"
+    );
+    let title = "模型来源";
+    let mut controls = column![
+        settings_hover_help_label(
+            I18n::new(app.desktop_locale),
+            &app.app_theme,
+            title,
+            settings_field_label(title),
+            description,
+        )
+        .wrap()
+    ]
+    .spacing(6);
+    for (source, label) in
+        [(AcpModelSource::SessionModel, client), (AcpModelSource::CliLocal, native)]
+    {
         let capability =
             runtime.acp_options.model_source_capabilities.iter().find(
                 |capability| match capability {
@@ -124,30 +140,24 @@ pub(super) fn source_controls(app: &App) -> Element<'_, Message> {
         };
         let selected = runtime.acp_model_source == source;
         controls = controls.push(
-            action(
-                column![
-                    text(format!("{}{}", if selected { "✓ " } else { "" }, label)).size(13),
-                    text(description).size(12),
-                ]
-                .spacing(4),
-            )
-            .width(Length::Fill)
-            .padding([8, 10])
-            .style(move |theme: &Theme, status| {
-                if selected {
-                    selectable_list_button_style(theme, status, true)
-                } else {
-                    rounded_action_btn_style(theme, status)
-                }
-            })
-            .on_press_maybe(
-                (matches!(capability, Some(AcpModelSourceCapability::Supported { .. }))
-                    && !selected
-                    && !runtime.is_requesting
-                    && !runtime.acp_options_pending
-                    && runtime.acp_source_pending.is_none())
-                .then_some(Message::Chat(ChatMessage::AcpModelSourceSelected(source))),
-            ),
+            action(text(format!("{}{}", if selected { "✓ " } else { "" }, label)).size(13))
+                .width(Length::Fill)
+                .padding([8, 10])
+                .style(move |theme: &Theme, status| {
+                    if selected {
+                        selectable_list_button_style(theme, status, true)
+                    } else {
+                        rounded_action_btn_style(theme, status)
+                    }
+                })
+                .on_press_maybe(
+                    (matches!(capability, Some(AcpModelSourceCapability::Supported { .. }))
+                        && !selected
+                        && !runtime.is_requesting
+                        && !runtime.acp_options_pending
+                        && runtime.acp_source_pending.is_none())
+                    .then_some(Message::Chat(ChatMessage::AcpModelSourceSelected(source))),
+                ),
         );
         if let Some(reason) = reason {
             controls = controls.push(text(reason).size(12).style(settings_muted_text_style));

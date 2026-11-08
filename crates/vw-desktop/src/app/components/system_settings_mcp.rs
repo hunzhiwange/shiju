@@ -3,14 +3,14 @@
 use crate::app::components::system_settings_common::{
     SETTINGS_CONTROL_PADDING, SETTINGS_CONTROL_TEXT_SIZE, primary_action_btn_style,
     rounded_action_btn_style, settings_checkbox_style, settings_close_button, settings_divider,
-    settings_error_banner, settings_field_label, settings_modal_card_style, settings_modal_header,
-    settings_modal_layout, settings_modal_overlay, settings_muted_text_style,
-    settings_page_heading, settings_panel, settings_section_card, settings_select,
-    settings_success_banner, settings_tab_button, settings_tab_row, settings_text_editor_style,
-    settings_text_input, settings_value_badge,
+    settings_error_banner, settings_field_label, settings_group_card, settings_hover_help_label,
+    settings_modal_card_style, settings_modal_header, settings_modal_layout,
+    settings_modal_overlay, settings_muted_text_style, settings_page_heading_with_help,
+    settings_panel, settings_select, settings_success_banner, settings_tab_button,
+    settings_tab_row, settings_text_editor_style, settings_text_input, settings_value_badge,
 };
 use crate::app::components::system_settings_search::SettingsTabDescriptor;
-use crate::app::i18n::settings_extensions::text as tr;
+use crate::app::i18n::{I18n, settings_extensions::text as tr};
 use crate::app::message::settings::{McpMessage, SettingsMessage};
 use crate::app::state::{McpNewServerTransport, McpSettingsState, McpSettingsTab};
 use crate::app::{App, Message};
@@ -556,7 +556,10 @@ fn server_form_toggle() -> Message {
     Message::Settings(SettingsMessage::Mcp(McpMessage::NewServerPanelToggled))
 }
 
-fn new_server_panel(locale: DesktopLocale, s: &McpSettingsState) -> Element<'_, Message> {
+fn new_server_panel(app: &App) -> Element<'_, Message> {
+    let locale = app.desktop_locale;
+    let i18n = I18n::new(locale);
+    let s = &app.mcp_settings;
     let editing = s.editing_server_index.is_some();
     let (title, description) = server_form_heading(locale, editing);
     let controls_enabled = !s.loading && !s.saving;
@@ -577,11 +580,22 @@ fn new_server_panel(locale: DesktopLocale, s: &McpSettingsState) -> Element<'_, 
             Message::Settings(SettingsMessage::Mcp(McpMessage::NewServerTransportChanged(value)))
         })
         .width(Length::Fill);
-    let mut fields = column![
-        form_field(tr(locale, "名称"), name_input),
-        form_field(tr(locale, "类型"), transport),
+    let transport_label = tr(locale, "类型");
+    let transport_field = column![
+        settings_hover_help_label(
+            i18n,
+            &app.app_theme,
+            transport_label,
+            settings_field_label(transport_label),
+            format!("stdio · {} / {}\nHTTP / SSE · URL", tr(locale, "命令"), tr(locale, "参数")),
+        )
+        .wrap(),
+        transport,
     ]
-    .spacing(12);
+    .spacing(6)
+    .width(Length::Fill);
+    let mut fields =
+        column![form_field(tr(locale, "名称"), name_input), transport_field].spacing(12);
     match s.new_server.transport {
         McpNewServerTransport::Stdio => {
             fields = fields
@@ -642,11 +656,16 @@ fn new_server_panel(locale: DesktopLocale, s: &McpSettingsState) -> Element<'_, 
     }
     body = body.push(settings_panel(fields));
 
-    let header = settings_modal_header(
+    let heading: Element<'_, Message> = if editing {
         column![text(title).size(20), text(description).size(13).style(settings_muted_text_style)]
-            .spacing(4),
-        settings_close_button(server_form_toggle()),
-    );
+            .spacing(4)
+            .into()
+    } else {
+        settings_hover_help_label(i18n, &app.app_theme, title, text(title).size(20), description)
+            .wrap()
+            .into()
+    };
+    let header = settings_modal_header(heading, settings_close_button(server_form_toggle()));
     let submit_label =
         if editing { tr(locale, "保存修改") } else { tr(locale, "新增服务器") };
     let submit_message = if editing { McpMessage::SaveServerEdit } else { McpMessage::AddServer };
@@ -796,6 +815,20 @@ fn server_save_error(locale: DesktopLocale, s: &McpSettingsState) -> Option<Stri
 pub fn view(app: &App) -> Element<'_, Message> {
     let locale = app.desktop_locale;
     let s = &app.mcp_settings;
+    let i18n = I18n::new(locale);
+    let section = |title, description| {
+        settings_group_card(
+            settings_hover_help_label(
+                i18n,
+                &app.app_theme,
+                title,
+                text(title).size(14),
+                description,
+            )
+            .wrap(),
+        )
+        .padding([14, 16])
+    };
     let refresh_label = if s.loading { tr(locale, "刷新中...") } else { tr(locale, "刷新") };
     let inspect_label =
         if s.inspect_loading { tr(locale, "预览中...") } else { tr(locale, "刷新预览") };
@@ -832,7 +865,9 @@ pub fn view(app: &App) -> Element<'_, Message> {
     action_row = action_row.push(save_button);
 
     let mut content = column![
-        settings_page_heading(
+        settings_page_heading_with_help(
+            i18n,
+            &app.app_theme,
             tr(locale, "MCP 配置"),
             tr(locale, "配置全局 mcpServers；插件声明的 MCP 会随插件启用状态在运行时合并。"),
         ),
@@ -890,7 +925,7 @@ pub fn view(app: &App) -> Element<'_, Message> {
     let configured_rows = configured_mcp_server_rows(locale, &s.editor.text()).unwrap_or_default();
     match s.active_tab {
         McpSettingsTab::Servers => {
-            content = content.push(settings_section_card(
+            content = content.push(section(
                 tr(locale, "全局 MCP 服务器"),
                 tr(locale, "逐条启用、禁用和预览全局 mcpServers。"),
             ));
@@ -924,7 +959,7 @@ pub fn view(app: &App) -> Element<'_, Message> {
             }
         }
         McpSettingsTab::Runtime => {
-            content = content.push(settings_section_card(
+            content = content.push(section(
                 tr(locale, "运行时 MCP"),
                 tr(locale, "展示项目配置和插件声明合并后的 MCP 连接、工具、资源与 prompts。"),
             ));
@@ -961,39 +996,29 @@ pub fn view(app: &App) -> Element<'_, Message> {
             }
         }
         McpSettingsTab::Json => {
-            content = content.push(settings_section_card(
+            content = content.push(section(
                 tr(locale, "高级 JSON"),
-                tr(locale, "新增服务器或编辑 headers、env、allowedTools、deniedTools 等字段。"),
+                tr(locale, "支持 type=stdio/http/sse；可配置 headers、env、enabled、required、timeout、allowedTools、deniedTools。"),
             ));
             content = content.push(settings_panel(
-                column![
-                    text_editor(&s.editor)
-                        .placeholder(
-                            r#"[
+                text_editor(&s.editor)
+                    .placeholder(
+                        r#"[
   {
     "name": "local-demo",
     "type": "stdio",
     "command": "npx",
     "args": ["-y", "@modelcontextprotocol/server-filesystem", "/tmp"]
   }
-]"#
-                        )
-                        .on_action(|action| {
-                            Message::Settings(SettingsMessage::Mcp(McpMessage::EditorAction(
-                                action,
-                            )))
-                        })
-                        .padding(SETTINGS_CONTROL_PADDING)
-                        .size(SETTINGS_CONTROL_TEXT_SIZE)
-                        .height(Length::Fixed(360.0))
-                        .style(settings_text_editor_style),
-                    text(
-                        tr(locale, "支持 type=stdio/http/sse；可配置 headers、env、enabled、required、timeout、allowedTools、deniedTools。")
+]"#,
                     )
-                    .size(11)
-                    .style(settings_muted_text_style),
-                ]
-                .spacing(10),
+                    .on_action(|action| {
+                        Message::Settings(SettingsMessage::Mcp(McpMessage::EditorAction(action)))
+                    })
+                    .padding(SETTINGS_CONTROL_PADDING)
+                    .size(SETTINGS_CONTROL_TEXT_SIZE)
+                    .height(Length::Fixed(360.0))
+                    .style(settings_text_editor_style),
             ));
         }
     }
@@ -1014,7 +1039,7 @@ pub fn view_overlays<'a>(app: &'a App, dialog: Element<'a, Message>) -> Element<
             settings_modal_overlay(
                 Some(container(dialog).width(Length::Fill).height(Length::Fill).into()),
                 server_form_toggle(),
-                container(new_server_panel(locale, s)).padding(12),
+                container(new_server_panel(app)).padding(12),
             )
         } else {
             dialog

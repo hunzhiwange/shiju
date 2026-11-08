@@ -69,13 +69,16 @@ pub(super) struct CallbackChallenge {
     pub challenge: String,
 }
 
-impl LoopbackCallback {
-    pub(super) fn bind(
-        port: u16,
-        path: &'static str,
-        worker_name: &'static str,
-        deadline: Instant,
-    ) -> Result<(Self, CallbackChallenge), AuthErrorCode> {
+/// Reserve the port before registering it with the issuer. The worker starts
+/// after the issuer supplies the final expiry.
+pub(super) struct PreparedCallback {
+    listener: TcpListener,
+    state: String,
+    verifier: String,
+}
+
+impl PreparedCallback {
+    pub(super) fn bind(port: u16) -> Result<(Self, CallbackChallenge), AuthErrorCode> {
         let listener = TcpListener::bind((Ipv4Addr::LOCALHOST, port)).map_err(|error| {
             if error.kind() == ErrorKind::AddrInUse {
                 AuthErrorCode::Conflict
@@ -90,6 +93,21 @@ impl LoopbackCallback {
         let verifier = random_secret();
         let challenge = URL_SAFE_NO_PAD.encode(Sha256::digest(verifier.as_bytes()));
         let parameters = CallbackChallenge { port, state: state.clone(), challenge };
+        Ok((Self { listener, state, verifier }, parameters))
+    }
+
+    #[cfg(target_os = "macos")]
+    pub(super) fn verifier(&self) -> &str {
+        &self.verifier
+    }
+
+    pub(super) fn start(
+        self,
+        path: &'static str,
+        worker_name: &'static str,
+        deadline: Instant,
+    ) -> Result<LoopbackCallback, AuthErrorCode> {
+        let Self { listener, state, verifier } = self;
         let grant = Arc::new(Mutex::new(Some(BrowserGrant { verifier, result: None })));
         let stop = Arc::new(AtomicBool::new(false));
         let worker_stop = Arc::clone(&stop);
@@ -106,7 +124,19 @@ impl LoopbackCallback {
             })
             .map_err(|_| AuthErrorCode::ExecutionHostUnavailable)?;
         let worker = Arc::new(Mutex::new(CallbackWorker { stop, join: Some(join) }));
-        Ok((Self { grant, worker }, parameters))
+        Ok(LoopbackCallback { grant, worker })
+    }
+}
+
+impl LoopbackCallback {
+    pub(super) fn bind(
+        port: u16,
+        path: &'static str,
+        worker_name: &'static str,
+        deadline: Instant,
+    ) -> Result<(Self, CallbackChallenge), AuthErrorCode> {
+        let (prepared, challenge) = PreparedCallback::bind(port)?;
+        Ok((prepared.start(path, worker_name, deadline)?, challenge))
     }
 
     pub(super) fn cleanup(&self) -> impl FnMut() -> Result<(), AuthErrorCode> + Send + 'static {

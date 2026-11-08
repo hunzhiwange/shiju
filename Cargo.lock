@@ -12237,6 +12237,7 @@ name = "vw-agent-apps"
 version = "0.6.0"
 dependencies = [
  "base64 0.23.1",
+ "chrono",
  "libc",
  "png 0.18.1",
  "reqwest 0.13.4",

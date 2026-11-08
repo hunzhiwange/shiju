@@ -12,7 +12,7 @@ use host::open_root;
 #[cfg(unix)]
 pub(super) use host::{
     PrivateDirectory, ScopedCredentialPath, check_private, child_name, read_from,
-    register_claude_directory, remove_copilot, same_file, write_to,
+    register_claude_directory, remove_credential_file, same_file, write_to,
 };
 #[cfg(unix)]
 use std::{path::Component, sync::Arc};

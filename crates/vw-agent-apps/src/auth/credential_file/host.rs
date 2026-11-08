@@ -260,7 +260,7 @@ fn validate_kind(kind: CredentialKind, credential: &AccountCredential) -> Result
     }
 }
 
-pub(in crate::auth) fn remove_copilot(
+pub(in crate::auth) fn remove_credential_file(
     directory: &PrivateDirectory,
     path: &Path,
 ) -> Result<(), String> {

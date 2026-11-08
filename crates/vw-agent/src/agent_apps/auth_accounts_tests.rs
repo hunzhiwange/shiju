@@ -667,3 +667,102 @@ fn auth6_copilot_session_scope_postgres() {
     assert_copilot_session_requires_scoped_metadata(fixture.reopen().unwrap());
     fixture.cleanup().unwrap();
 }
+
+#[cfg(unix)]
+fn assert_codex_device_commit(open: impl Fn() -> GlobalDatabase) {
+    let root = private_credentials_root();
+    let tenant = TenantScope::new("platform", "company").unwrap();
+    let scope = AuthAccountScope { service: AuthService::CodexOauth, ..account_scope(&tenant) };
+    let account = AuthAccount {
+        service: scope.service,
+        label: "ChatGPT".into(),
+        github_domain: None,
+        ..copilot_account()
+    };
+    let identity = r#"["fixture-account","fixture-subject"]"#;
+    let credential = codex_auth();
+    let store = AuthAccountStore::new(open(), root.path()).unwrap();
+    store.store_codex_device(scope, &account, identity, &credential).unwrap();
+    drop(store);
+
+    let store = AuthAccountStore::new(open(), root.path()).unwrap();
+    let mut expected = AuthAccountMetadata::new(identity, TimestampMs(1)).unwrap();
+    expected.label = Some("ChatGPT".into());
+    assert_eq!(store.read_metadata(&scope, ACCOUNT_ID), Ok(expected));
+
+    let replacement = AccountCredential::CodexAuth(
+        serde_json::json!({"tokens":{"access_token":"replacement-access", "refresh_token":"replacement-refresh", "id_token":"replacement-id", "account_id":"fixture-account"}}),
+    );
+    assert_eq!(
+        store.store_codex_device(scope, &account, identity, &replacement),
+        Err(AuthErrorCode::CodexOauthDuplicateAccount)
+    );
+    let owner = store.credentials.for_owner(scope.principal).unwrap();
+    let saved = owner.read(&tenant, scope.host, AppId::Codex, ACCOUNT_ID).unwrap();
+    assert!(matches!((saved, credential),
+        (AccountCredential::CodexAuth(saved), AccountCredential::CodexAuth(expected)) if saved == expected));
+
+    for foreign in [
+        AuthAccountScope { principal: "other", ..scope },
+        AuthAccountScope { host: "other", ..scope },
+    ] {
+        assert_eq!(store.read_metadata(&foreign, ACCOUNT_ID), Err(AuthErrorCode::NotFound));
+        let foreign_owner = store.credentials.for_owner(foreign.principal).unwrap();
+        assert!(foreign_owner.read(&tenant, foreign.host, AppId::Codex, ACCOUNT_ID).is_err());
+    }
+    let rows = store.metadata.list(&tenant, MANAGED_ACCOUNT_NAMESPACE).unwrap();
+    assert_eq!(rows.len(), 1);
+    assert!(!rows[0].payload_json.contains("fixture-"));
+    assert!(store.metadata.list(&tenant, "agent_apps.auth_defaults").unwrap().is_empty());
+}
+
+#[cfg(unix)]
+#[test]
+fn auth6_codex_device_store_sqlite() {
+    let home = tempfile::tempdir().unwrap();
+    assert_codex_device_commit(|| GlobalDatabase::for_home(home.path()).unwrap());
+}
+
+#[cfg(unix)]
+#[test]
+fn auth6_codex_device_store_postgres() {
+    let fixture = PostgresTestDatabase::from_environment().unwrap();
+    assert_codex_device_commit(|| fixture.reopen().unwrap());
+    fixture.cleanup().unwrap();
+}
+
+#[cfg(unix)]
+#[test]
+fn auth6_codex_device_store_rolls_back_failed_metadata_insert() {
+    let home = tempfile::tempdir().unwrap();
+    let root = private_credentials_root();
+    let database = GlobalDatabase::for_home(home.path()).unwrap();
+    let store = AuthAccountStore::new(database.clone(), root.path()).unwrap();
+    let connection = database.connect_sqlite().unwrap();
+    connection
+        .execute_batch(
+            "CREATE TRIGGER reject_auth_insert BEFORE INSERT ON gateway_settings
+         BEGIN SELECT RAISE(ABORT, 'fixture metadata write failure'); END;",
+        )
+        .unwrap();
+    let tenant = TenantScope::new("platform", "company").unwrap();
+    let scope = AuthAccountScope { service: AuthService::CodexOauth, ..account_scope(&tenant) };
+    let account = AuthAccount {
+        service: scope.service,
+        label: "ChatGPT".into(),
+        github_domain: None,
+        ..copilot_account()
+    };
+    let credential = codex_auth();
+    assert_eq!(
+        store.store_codex_device(scope, &account, "fixture-identity", &credential),
+        Err(AuthErrorCode::StorageUnavailable)
+    );
+    assert_eq!(store.read_metadata(&scope, ACCOUNT_ID), Err(AuthErrorCode::NotFound));
+    let owner = store.credentials.for_owner(scope.principal).unwrap();
+    assert!(
+        matches!(owner.read(&tenant, scope.host, AppId::Codex, ACCOUNT_ID), Err(error) if error == "official account not found")
+    );
+    connection.execute_batch("DROP TRIGGER reject_auth_insert;").unwrap();
+    store.store_codex_device(scope, &account, "fixture-identity", &credential).unwrap();
+}

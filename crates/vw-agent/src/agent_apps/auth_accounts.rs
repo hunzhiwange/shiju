@@ -6,6 +6,7 @@ use std::path::{Path, PathBuf};
 pub use vw_agent_apps::auth::flow::AuthAccountScope;
 #[cfg(not(target_arch = "wasm32"))]
 use vw_agent_apps::auth::{
+    codex_device::{CodexDeviceAuth, CodexDeviceStart},
     copilot::{CopilotAuth, CopilotDeviceStart},
     copilot_token::CopilotSession,
     flow::AuthFlows,
@@ -155,6 +156,54 @@ impl AuthAccountStore {
         adapter.session(&self.credentials, scope, account_id, &authority).await
     }
 
+    /// Advance a due Codex attempt and publish its token bundle on the execution host.
+    #[cfg(not(target_arch = "wasm32"))]
+    pub async fn poll_codex_device(
+        &self,
+        adapter: &CodexDeviceAuth,
+        flows: &AuthFlows,
+        scope: AuthAccountScope<'_>,
+        started: &CodexDeviceStart,
+    ) -> Result<AuthFlow, AuthErrorCode> {
+        adapter
+            .poll(flows, scope, started, |bound, account, identity, credential| {
+                crate::global_database::run_sync_database(|| {
+                    Ok(self.store_codex_device(bound, account, identity, credential))
+                })
+                .map_err(|_| AuthErrorCode::StorageUnavailable)?
+            })
+            .await
+    }
+
+    #[cfg(not(target_arch = "wasm32"))]
+    fn store_codex_device(
+        &self,
+        scope: AuthAccountScope<'_>,
+        account: &AuthAccount,
+        identity: &str,
+        credential: &AccountCredential,
+    ) -> Result<(), AuthErrorCode> {
+        let authenticated_at = account.authenticated_at.ok_or(AuthErrorCode::InvalidInput)?;
+        let mut metadata = AuthAccountMetadata::new(identity, authenticated_at)?;
+        metadata.label = Some(account.label.clone());
+        let id = &account.account_id;
+        let lease = self
+            .credentials
+            .for_owner(scope.principal)
+            .and_then(|owner| owner.lease(scope.tenant, scope.host, AppId::Codex, id, true))
+            .map_err(|_| AuthErrorCode::StorageUnavailable)?;
+        match self.read_metadata(&scope, id) {
+            Ok(saved) if saved.external_identity_sha256 == metadata.external_identity_sha256 => {
+                return Err(AuthErrorCode::CodexOauthDuplicateAccount);
+            }
+            Ok(_) => return Err(AuthErrorCode::IdentityMismatch),
+            Err(AuthErrorCode::NotFound) => {}
+            Err(error) => return Err(error),
+        }
+
+        self.publish_oauth_credential(&scope, id, &metadata, &lease, credential)
+    }
+
     /// Advance a due Copilot attempt on the authorized execution host.
     #[cfg(not(target_arch = "wasm32"))]
     pub async fn poll_copilot(
@@ -212,16 +261,31 @@ impl AuthAccountStore {
             Err(error) => return Err(error),
         };
 
-        lease
-            .save(&AccountCredential::CopilotToken(token.to_owned()))
-            .map_err(|_| AuthErrorCode::StorageUnavailable)?;
-        if !existing && let Err(error) = self.insert_metadata(&scope, id, &metadata) {
+        let credential = AccountCredential::CopilotToken(token.to_owned());
+        if existing {
+            lease.save(&credential).map_err(|_| AuthErrorCode::StorageUnavailable)
+        } else {
+            self.publish_oauth_credential(&scope, id, &metadata, &lease, &credential)
+        }
+    }
+
+    #[cfg(not(target_arch = "wasm32"))]
+    fn publish_oauth_credential(
+        &self,
+        scope: &AuthAccountScope<'_>,
+        id: &str,
+        metadata: &AuthAccountMetadata,
+        lease: &CredentialLease,
+        credential: &AccountCredential,
+    ) -> Result<(), AuthErrorCode> {
+        lease.save(credential).map_err(|_| AuthErrorCode::StorageUnavailable)?;
+        if let Err(error) = self.insert_metadata(scope, id, metadata) {
             // Confirm ambiguous database errors before removing a published credential.
-            match self.read_metadata(&scope, id) {
-                Ok(saved) if saved == metadata => return Ok(()),
-                Ok(_) | Err(AuthErrorCode::NotFound) => {
-                    lease.remove_copilot().map_err(|_| AuthErrorCode::StorageUnavailable)?
-                }
+            match self.read_metadata(scope, id) {
+                Ok(saved) if saved == *metadata => return Ok(()),
+                Ok(_) | Err(AuthErrorCode::NotFound) => lease
+                    .remove_unpublished_oauth()
+                    .map_err(|_| AuthErrorCode::StorageUnavailable)?,
                 Err(_) => {
                     // Preserve the private file if the database cannot tell us whether
                     // it committed. A later attempt checks the same account under its lease.

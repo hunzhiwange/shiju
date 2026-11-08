@@ -39,6 +39,8 @@ mod vendor_fallback;
 
 #[cfg(test)]
 mod codex_template_tests;
+#[cfg(test)]
+mod defaults_tests;
 #[cfg(all(test, target_os = "macos"))]
 mod discovery_agy_tests;
 #[cfg(all(test, not(target_arch = "wasm32")))]

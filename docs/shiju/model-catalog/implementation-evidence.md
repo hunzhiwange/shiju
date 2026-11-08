@@ -786,3 +786,31 @@ Pi 供应商表单的现有网关入口为 `vw-agent/src/gateway/api/handlers/ap
 | `cargo test -p vw-agent --lib catalog_edits_provider_transaction_ -- --nocapture` | 0 | 2 项通过、11682 项过滤。实际 SQLite 验证重开、租户隔离、非法批次无写入，以及同一修订的两个竞争提交仅一个成功。macOS 链接器输出既有 `__eh_frame` 体积警告。 |
 
 审查后的差异包括业务校验与事务准备、供应商存储接线、独立测试及本记录。`git diff --cached --check` 通过。各阶段的锁均已释放，编译缓存已保留。
+
+## 任务 31　实现默认模型与展示别名
+
+2026-11-08，macOS 27.0（26A428），arm64。批次 30 由 `0f85fa430` 交付。沿用现有 `models/edits.rs` 和 `AppProviderStore` 条件写入契约，默认值和别名在一次提交内生效。
+
+| 来源与接点 | 实际路径 |
+| --- | --- |
+| 固定来源 `ca58c0313360eae7c851fbd7553c1614c7af03e7` 的 `src/components/providers/forms/CodexFormFields.tsx::withDefaultModelFirst`、`autoReviewChoices` | `crates/vw-agent-apps/src/models/edits.rs::edit` 在模型增删结束后按原样 ID 检查显式默认值。删除原默认项需要同一批次设置有效替代项或清空。展示别名独立于模型 ID 保存。 |
+| `crates/vw-api-types/src/model_catalog.rs::ModelCatalogEditRequest`、`ModelCatalogDefaultChange` 和 `ModelCatalogEdit::Upsert` | 省略别名字段保留原值，空白字符串清空，非空值去除两端空白。控制字符或超过 1024 字节的值导致整批拒绝。按当前修订提交相同状态时保留修订。 |
+| `crates/vw-agent/src/app_providers/model_edits.rs::AppProviderStore` | SQLite 适配器在租户、应用和供应商记录内按主机、端点隔离。重开验证修订、默认值及中文别名，跨租户重放被拒绝。 |
+| 下游 resolver、HTTP、SDK 与 Iced | 本批次验证持久化与现有 `crates/vw-agent-apps/src/providers/codex.rs::project` 的请求配置。resolver 目录接入在任务 34，HTTP 和 SDK 编辑在任务 38，桌面编辑在任务 40。 |
+
+### 验证
+
+各阶段动态领取槽位 **1**，`CARGO_TARGET_DIR=/Users/xiangmin/worker/code/shiju/target/rust-slot-1`。中间目录使用同一槽位。格式化在 Git 源码快照运行，仅回写本任务的 Rust 文件，避免覆盖工作区中的其他改动。
+
+| 命令 | 退出码 | 证据 |
+| --- | ---: | --- |
+| `cargo fmt --all` | 0 | 红灯、绿灯与复验阶段均格式化成功。 |
+| `cargo test -p vw-agent-apps catalog_defaults_ -- --nocapture`（红灯） | 101 | 6 项有效失败，696 项过滤。首个指定用例在设置默认值时收到 `default model edits are unsupported`。非法别名断言收到 `display alias edits are unsupported`，预期为 `invalid display alias`。 |
+| `cargo test -p vw-agent-apps catalog_defaults_ -- --nocapture`（绿灯及复验） | 0 | 6 项通过，696 项过滤。覆盖默认值与别名重开、原样执行配置 ID、主机与端点隔离、同部署 ID 精确匹配、删除时替换或清空、别名清空及非法别名拒绝。 |
+| `cargo test -p vw-agent-apps catalog_edits_ -- --nocapture` | 0 | 7 项通过，695 项过滤。 |
+| `cargo test -p vw-agent --lib catalog_defaults_provider_transaction_ -- --nocapture` | 0 | 1 项通过，11684 项过滤。复用真实 SQLite 条件写入并重开验证，链接器输出既有 `__eh_frame` 体积警告。 |
+| `cargo clippy --all-targets --all-features -- -D warnings` | 0 | 全工作区、全目标与全 features 通过。 |
+
+任务差异集中在目录编辑、DTO 字段说明、独立测试和本记录。本批次验收到请求配置。
+
+`git diff --cached --check` 通过。各阶段已释放槽位锁，保留编译缓存。

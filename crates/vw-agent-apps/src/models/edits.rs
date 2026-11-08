@@ -8,9 +8,9 @@ use std::collections::HashMap;
 use vw_api_types::{
     id::{ModelId, TenantScope},
     model_catalog::{
-        ModelCatalogEdit, ModelCatalogEditRequest, ModelCatalogEntry, ModelCatalogIdentity,
-        ModelCatalogReadResponse, ModelCatalogWriteResponse, ModelMetadataDto,
-        ScopedModelCatalogIdentity,
+        ModelCatalogDefaultChange, ModelCatalogEdit, ModelCatalogEditRequest, ModelCatalogEntry,
+        ModelCatalogIdentity, ModelCatalogReadResponse, ModelCatalogWriteResponse,
+        ModelMetadataDto, ScopedModelCatalogIdentity,
     },
 };
 
@@ -111,10 +111,6 @@ pub fn edit(
     if request.expected_revision != saved.revision {
         return Err("model catalog changed".into());
     }
-    if request.default_change.is_some() {
-        return Err("default model edits are unsupported".into());
-    }
-
     let mut unique = HashMap::new();
     let mut changed = false;
     for edit in &request.edits {
@@ -132,11 +128,23 @@ pub fn edit(
         }
         match edit {
             ModelCatalogEdit::Upsert { display_alias, metadata, .. } => {
-                if display_alias.is_some() {
-                    return Err("display alias edits are unsupported".into());
+                if display_alias
+                    .as_ref()
+                    .is_some_and(|alias| alias.len() > 1024 || alias.chars().any(char::is_control))
+                {
+                    return Err("invalid display alias".into());
                 }
+                let alias = display_alias
+                    .as_deref()
+                    .map(str::trim)
+                    .filter(|alias| !alias.is_empty())
+                    .map(str::to_owned);
                 validate_metadata(metadata)?;
                 if let Some(row) = saved.models.iter_mut().find(|row| row.id == *id) {
+                    if display_alias.is_some() && row.display_alias != alias {
+                        row.display_alias = alias;
+                        changed = true;
+                    }
                     // A selection containing only the model ID leaves saved metadata alone.
                     if **metadata != ModelMetadataDto::default() && row.metadata != **metadata {
                         row.metadata = (**metadata).clone();
@@ -145,14 +153,14 @@ pub fn edit(
                 } else {
                     saved.models.push(SavedModel {
                         id: id.clone(),
-                        display_alias: None,
+                        display_alias: alias,
                         metadata: (**metadata).clone(),
                     });
                     changed = true;
                 }
             }
             ModelCatalogEdit::Remove { .. } => {
-                if saved.default_model_id.as_ref() == Some(id) {
+                if saved.default_model_id.as_ref() == Some(id) && request.default_change.is_none() {
                     return Err("cannot remove default model".into());
                 }
                 if let Some(index) = saved.models.iter().position(|row| row.id == *id) {
@@ -160,6 +168,23 @@ pub fn edit(
                     changed = true;
                 }
             }
+        }
+    }
+
+    if let Some(default_change) = &request.default_change {
+        let default_model_id = match default_change {
+            ModelCatalogDefaultChange::Set { model_id } => {
+                validate_model_id(model_id)?;
+                if !saved.models.iter().any(|row| row.id == *model_id) {
+                    return Err("default model not found in deployment".into());
+                }
+                Some(model_id.clone())
+            }
+            ModelCatalogDefaultChange::Clear => None,
+        };
+        if default_model_id != saved.default_model_id {
+            saved.default_model_id = default_model_id;
+            changed = true;
         }
     }
 

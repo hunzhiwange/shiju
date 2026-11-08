@@ -172,6 +172,7 @@ pub struct ModelCatalogEditRequest {
 pub enum ModelCatalogEdit {
     Upsert {
         model_id: ModelId,
+        /// Omit to preserve the alias. A blank string clears it.
         #[serde(default, skip_serializing_if = "Option::is_none")]
         display_alias: Option<String>,
         metadata: Box<ModelMetadataDto>,

@@ -10,7 +10,7 @@ impl AppProviderStore {
             .map(|s| serde_json::from_str(&s).map_err(|_| "invalid provider record".into()))
             .transpose()
     }
-    #[cfg(test)]
+    #[cfg(any(test, target_os = "macos"))]
     pub(crate) fn agy_profile(&self, t: &TenantScope, id: &str) -> Result<AgyProfile, String> {
         let row = self.agy_record(t, id)?.ok_or("application provider not found")?;
         profile_from_record(&row)

@@ -169,6 +169,30 @@ pub(super) fn provider_config_home(
     access::authorize_provider_config(path, headers, tenant, target).map(|host| host.home)
 }
 
+/// Resolve discovery's local execution environment and task owner from the same grant.
+#[cfg(target_os = "macos")]
+pub(super) fn provider_discovery_host(
+    path: Option<&std::path::Path>,
+    headers: &axum::http::HeaderMap,
+    tenant: &TenantScope,
+    target: &str,
+) -> Result<
+    (vw_agent_apps::apps::discovery::read::LocalReadEnvironment, String),
+    axum::http::StatusCode,
+> {
+    use vw_agent_apps::apps::discovery::read::LocalReadEnvironment;
+    let (host, principal) = access::authorize_provider_discovery(path, headers, tenant, target)?;
+    Ok((
+        LocalReadEnvironment {
+            host_id: host.id,
+            home: host.home,
+            search_paths: host.search_paths,
+            applications: host.applications,
+        },
+        principal,
+    ))
+}
+
 /// Runs before the gateway accepts requests, without depending on a desktop page.
 #[cfg(target_os = "macos")]
 pub(crate) fn recover_providers_on_startup() -> Result<(), String> {

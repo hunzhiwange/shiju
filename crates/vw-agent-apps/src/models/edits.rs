@@ -209,7 +209,7 @@ pub(super) fn save(
     Ok(())
 }
 
-fn validate_model_id(id: &ModelId) -> Result<(), String> {
+pub fn validate_model_id(id: &ModelId) -> Result<(), String> {
     let id = id.as_ref();
     if id.is_empty()
         || id.len() > 256

@@ -296,3 +296,7 @@ mod agent_apps_settings_api_tests;
 mod model_catalog_api;
 #[cfg(all(test, not(target_arch = "wasm32")))]
 mod model_catalog_api_tests;
+
+mod model_discovery_api;
+#[cfg(all(test, not(target_arch = "wasm32")))]
+mod model_discovery_api_tests;

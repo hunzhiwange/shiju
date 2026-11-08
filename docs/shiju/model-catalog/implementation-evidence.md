@@ -947,3 +947,32 @@ SDK 传递已注册项目 ID、工作目录和目标主机，应用凭据通过�
 | `cargo clippy --all-targets --all-features -- -D warnings` | 0 | 全工作区、全目标、全 features 通过。 |
 
 聚焦测试仍报告既有 macOS 链接器 `__eh_frame` 大小警告。暂存差异通过 `git diff --cached --check`。各阶段已释放本任务的槽位锁并保留编译缓存。
+
+## 任务 37　发现任务 API 与 SDK
+
+2026-11-08，macOS 27.0（26A428），arm64。依赖批次 36 的 `e570718cc`，沿用既有 `ModelDiscoveryRequest`、`ModelDiscoveryStatus` 和项目、目标主机授权契约。
+
+| 固定来源 `ca58c0313360eae7c851fbd7553c1614c7af03e7` | 实际接点 |
+| --- | --- |
+| `src-tauri/src/commands/model_fetch.rs::fetch_models_for_config` 与 `src-tauri/src/services/model_fetch.rs::fetch_models` | `crates/vw-agent-apps/src/models/discovery_http.rs::discover` 使用当前租户保存的供应商凭据及精确端点。网关读取既有记录和请求选项。模型 URL 覆写受同源约束。 |
+| `src-tauri/src/commands/model_fetch.rs::get_opencode_models` | `crates/vw-agent-apps/src/models/discovery_opencode.rs::discover` 在授权主机定位可信 CLI 并执行固定 `models` 命令。响应使用完整 `provider/model` ID，保留嵌套命名空间和大小写。 |
+| `src-tauri/src/commands/model_fetch.rs::get_agy_models` | `crates/vw-agent-apps/src/models/discovery_agy.rs::discover` 使用保存的密钥配置或授权主机现有登录，返回原生配置使用的显示名。独立账号 ID 请求返回 422，现有 CLI 接口只支持主机登录或保存的密钥配置。 |
+| 网关与 SDK | `crates/vw-agent/src/gateway/api/handlers/model_discovery.rs` 通过已有目录路由在 macOS 注册 POST `/v1/model-catalog/discoveries` 和 GET、DELETE `/v1/model-catalog/discoveries/{id}`。`crates/vw-gateway-client/src/client/model_discovery_api.rs` 提供 `start_model_discovery`、`model_discovery`、`cancel_model_discovery`。桌面接入归后续批次。 |
+
+POST 返回 202 与排队快照。任务依次进入发现、解析及终态，失败仅返回固定分类。任务状态驻留网关内存。读与取消重新核对租户、应用凭据主体、目标主机和注册项目目录。底层复用 `apps::lifecycle::operations::Operation` 管理工作与终态等待。取消令牌向 HTTP 和 CLI 传播，DELETE 在清理完成后应答。取消与终态发布共用状态锁，取消生效后晚到结果无法发布。发现结果为候选项，保存仍走独立目录写入链路。
+
+### 验证
+
+各阶段动态领取槽位 **1**，`CARGO_TARGET_DIR=/Users/xiangmin/worker/code/shiju/target/rust-slot-1`，Cargo 中间目录同槽。格式化在源码快照执行并仅回写本批次文件。聚焦测试、读取回归和 Clippy 在实际工作区执行。各阶段均已释放锁并保留编译缓存。
+
+| 命令 | 退出码 | 证据 |
+| --- | ---: | --- |
+| `cargo fmt --all`（红灯、绿灯） | 0 | 两阶段格式化完成，红灯修正后复验格式化。 |
+| `cargo test -p vw-agent catalog_api_discovery_ -- --nocapture`（红灯） | 101 | 首轮测试误用 `ModelId::to_string` 导致编译失败。改用原样 ID 后，8 项按预期失败。首例 `catalog_api_discovery_cancel_prevents_result_publication` 的创建返回 501。未授权端点断言实际为 501，预期为 403。 |
+| `cargo test -p vw-gateway-client catalog_api_discovery_ -- --nocapture`（红灯） | 101 | 1 项通过、1 项失败。请求缺少 `projectId` 和 `directory`。 |
+| `cargo test -p vw-agent catalog_api_discovery_ -- --nocapture`（绿灯） | 0 | 10 项通过、11708 项过滤。临时 SQLite、真实 Gateway 与 SDK、受控 HTTP 及 CLI 覆盖排队、发现、取消、晚到结果、进程退出、成功、脱敏失败、精确端点及任务归属隔离。 |
+| `cargo test -p vw-gateway-client catalog_api_discovery_ -- --nocapture`（绿灯） | 0 | 2 项通过、360 项过滤。核对三种 HTTP 方法、请求作用域、公开状态及错误正文脱敏。 |
+| `cargo clippy --all-targets --all-features -- -D warnings` | 0 | 全工作区、全目标、全 features 通过。 |
+| `cargo test -p vw-agent catalog_api_read_ -- --nocapture` | 0 | 批次 36 的目录读取回归 6 项通过。 |
+
+差异限于发现任务路由、授权及原生接线、SDK、独立测试和本记录。暂存差异通过 `git diff --cached --check`。聚焦测试仍报告既有 macOS 链接器 `__eh_frame` 大小警告。

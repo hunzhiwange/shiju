@@ -60,12 +60,15 @@ pub(crate) fn router() -> Router {
 }
 
 pub(super) fn router_with_policy(path: Option<PathBuf>) -> Router {
-    Router::new()
+    let router = Router::new()
         .route("/model-catalog", get(read).layer(Extension(View::Models)))
         .route("/model-catalog/presets", get(read).layer(Extension(View::Presets)))
         .route("/model-catalog/templates", get(read).layer(Extension(View::Templates)))
         .route("/model-catalog/capabilities", get(read).layer(Extension(View::Capabilities)))
-        .layer(Extension(Policy(path)))
+        .layer(Extension(Policy(path.clone())));
+    #[cfg(target_os = "macos")]
+    let router = router.merge(super::model_discovery::router_with_policy(path));
+    router
 }
 
 async fn read(
@@ -91,23 +94,25 @@ async fn read(
                 project::runtime_store().map_err(|_| StatusCode::SERVICE_UNAVAILABLE)?,
             ),
         };
-        let context = registered_instance(&projects, &tenant, &params)?;
+        let context =
+            registered_instance(&projects, &tenant, &params.project_id, &params.directory)?;
         instance::provide_context_sync(context, || read_view(view, params, &tenant, database))
     })
     .await
     .map_err(|_| StatusCode::SERVICE_UNAVAILABLE)?
 }
 
-fn registered_instance(
+pub(super) fn registered_instance(
     projects: &ProjectStore,
     tenant: &TenantScope,
-    params: &Params,
+    project_id: &ProjectId,
+    directory: &str,
 ) -> Result<instance::Context, StatusCode> {
-    let directory = Path::new(&params.directory);
+    let directory = Path::new(directory);
     if !directory.is_absolute() || directory == Path::new("/") {
         return Err(StatusCode::BAD_REQUEST);
     }
-    let scope = ProjectScope::new(tenant.clone(), params.project_id.clone())
+    let scope = ProjectScope::new(tenant.clone(), project_id.clone())
         .map_err(|_| StatusCode::BAD_REQUEST)?;
     let project = projects
         .get(&scope)

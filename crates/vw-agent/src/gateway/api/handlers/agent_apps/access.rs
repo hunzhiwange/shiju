@@ -337,6 +337,17 @@ pub(super) fn authorize_provider_config(
         .map(|a| a.host)
 }
 
+#[cfg(target_os = "macos")]
+pub(super) fn authorize_provider_discovery(
+    path: Option<&Path>,
+    headers: &HeaderMap,
+    tenant: &TenantScope,
+    target: &str,
+) -> Result<(Host, String), StatusCode> {
+    authorize_scoped(path, headers, tenant, target, None, Capability::ProviderConfigRead)
+        .map(|a| (a.host, a.principal))
+}
+
 /// Startup consumes the same administrator-owned host identities and private
 /// roots as account execution. No request path, token or ambient HOME fallback.
 #[cfg(target_os = "macos")]

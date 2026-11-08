@@ -1042,3 +1042,46 @@ POST 返回 202 与排队快照。任务依次进入发现、解析及终态，�
 | 中文别名「月之暗面」 | 服务返回 Kimi、Kimi Global、Kimi For Coding、Kimi For Coding Global 共 4 个部署，窗口分别显示国内和海外地址。 |
 | 浅色窗口勾选国内端点的两条模型并保存 | Toast 显示「已添加 2 个模型」。相同项目、主机、应用和供应商的 `GET /v1/model-catalog` 返回 `https://api.moonshot.cn/v1` 的 `kimi-k3`、`kimi-k2.7-code`，`https://api.moonshot.ai/v1` 返回空列表。 |
 | 暗色窗口无匹配时手工添加 | Toast 显示「已添加 1 个模型」。回读在 `https://fixture.example.test/v1` 保留 `Fixture/Manual[1m]` 的大小写、命名空间和后缀。 |
+
+## 任务 40　桌面接入手工默认与别名编辑
+
+2026-11-08，macOS 27.0（26A428），arm64，识矩桌面 0.6.0。批次 39 由 `2ce911e64` 交付。
+
+| 来源与接点 | 实际实现 |
+| --- | --- |
+| 固定来源 `ca58c0313360eae7c851fbd7553c1614c7af03e7` 的 `src/components/providers/forms/CodexFormFields.tsx::createCatalogRow`、`withDefaultModelFirst` 和目录行的 `displayName` 输入 | 批次 39 的应用供应商入口继续使用 `crates/vw-desktop/src/app/components/system_settings_providers/catalog.rs::deployments`。表单沿用自定义模型弹窗的样式，按部署显示已保存模型、别名、原始请求 ID 与默认标记。 |
+| 手工模型、别名和默认值草稿 | `crates/vw-desktop/src/app/state/app_providers/model_catalog.rs::CatalogForm` 保存当前部署的显示快照和草稿。显式刷新可保留已编辑的字段，并回读其他字段。切换端点清除上一个部署的草稿。 |
+| 修订与写入 | `crates/vw-desktop/src/app/message/settings/providers/catalog_api.rs` 通过 `vw-gateway-client/src/client/model_catalog_api.rs::model_catalog` 读取精确部署，通过 `model_catalog_edits_api.rs::edit_model_catalog` 保存模型及别名，可在同一事务中设置默认。单改默认通过 `set_model_catalog_default`。两个写入路由沿用 `vw-agent/src/gateway/api/handlers/model_catalog_edits.rs` 的授权、修订检查与网关存储。写入失败保留草稿并显示 toast，成功后重新读取服务目录。 |
+
+### 命令与槽位
+
+| 槽位 | `CARGO_TARGET_DIR` | 阶段 |
+| --- | --- | --- |
+| 1 | `/Users/xiangmin/worker/code/shiju/target/rust-slot-1` | 红灯、隔离 Gateway（复用已构建的 `debug/shiju`） |
+| 2 | `/Users/xiangmin/worker/code/shiju/target/rust-slot-2` | 缓存中的批次 39 旧版窗口、当前构建与 macOS 窗口 |
+| 3 | `/Users/xiangmin/worker/code/shiju/target/rust-slot-3` | 格式化、聚焦测试、搜索回归与 Clippy |
+
+| 命令 | 退出码 | 证据 |
+| --- | ---: | --- |
+| `cargo fmt --all`（红灯、首次实现、最终复验） | 0、0、0 | 在源代码快照中执行，只回写本任务 Rust 文件。 |
+| `cargo test -p vw-desktop catalog_desktop_edits_ -- --nocapture`（红灯） | 101 | 1 项按预期失败，8868 项过滤。真实 SDK 保存请求断开后，模型 ID 草稿仍在，指定用例断言失败 `SDK save error must show a toast`。 |
+| `cargo test -p vw-desktop catalog_desktop_edits_ -- --nocapture`（首次实现） | 101 | 编译发现 UI 将 `ModelId` 直接用作显示参数。改为渲染 `as_ref()` 后复验。 |
+| `cargo test -p vw-desktop catalog_desktop_edits_ -- --nocapture`（最终复验） | 0 | 6 项通过，8868 项过滤。真实 SDK 经受控 HTTP 验证错误 toast 与草稿、未知模型和默认原子保存、清除别名而保留元数据、默认专用路由、刷新保留编辑字段及切换部署。成功场景验证自动读回和无桌面设置写请求。 |
+| `cargo test -p vw-desktop catalog_desktop_search_ -- --nocapture` | 0 | 批次 39 搜索回归 4 项通过，8870 项过滤。 |
+| `cargo clippy --all-targets --all-features -- -D warnings` | 0 | 全工作区、全目标和全 features 通过。 |
+| `cargo run -p vw-desktop --bin shi-ju` | 0 | 通过临时 app bundle 启动当前构建，完成操作后正常退出。 |
+
+聚焦测试和桌面链接报告既有 macOS `__eh_frame` 大小警告。暂存差异通过 `git diff --cached --check`。所有阶段的槽位锁已释放，缓存保留。
+
+### macOS 窗口与网关回读日志
+
+临时项目、应用配置与 Gateway SQLite 均在隔离目录。路径为「设置 → 应用列表 → Codex → 供应商 → 模型目录」。旧窗口只有手工 ID 与批量添加。当前窗口的 Light、Dark 主题均实际渲染了中英文混排、原始 ID、复选框和 toast。滚动预设时，标题、搜索框和底部操作保持固定。内容区使用 4px 滚动条及左右 7px 留白。
+
+同一个项目、租户、执行主机、应用和供应商通过 `GET /v1/model-catalog` 回读 `https://fixture.example.test/v1`。下表所有回读的 `identity.modelId` 均为 `Vendor/Manual[1m]`。
+
+| 实际窗口操作 | 网关回读与窗口反馈 |
+| --- | --- |
+| 浅色窗口保存目录中原先没有的模型，填写「手工模型 Alpha」并勾选默认 | 成功 toast 和「默认」标记出现。回读别名为「手工模型 Alpha」，默认值为 `Vendor/Manual[1m]`。 |
+| 编辑别名为「窗口草稿 Beta」，第二客户端先保存「并发更新」，再在窗口保存 | 窗口保留「窗口草稿 Beta」，显示冲突横幅和错误 toast。拒绝前后网关回读字节相同，保留「并发更新」与其修订号。以过期修订重放请求，HTTP 409，回读保持一致。 |
+| 刷新已保存模型、重试、关闭并重开弹窗 | 刷新保留编辑草稿。重试后重新输入同一端点并刷新，模型卡显示「窗口草稿 Beta」、请求 ID 与默认标记。 |
+| 暗色窗口清除默认后重新设置 | 清除后「默认」标记消失，回读无默认值。重新设置后标记恢复，回读默认值为 `Vendor/Manual[1m]`，别名仍为「窗口草稿 Beta」。 |

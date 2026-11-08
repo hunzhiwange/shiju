@@ -1,8 +1,12 @@
 //! State for selecting exact model deployments returned by the gateway.
 
 use super::list::Scope;
-use vw_gateway_client::vw_api_types::model_catalog::{
-    ModelCatalogIdentity, ModelCatalogPreset, ModelCatalogProject, ScopedModelCatalogIdentity,
+use vw_gateway_client::vw_api_types::{
+    id::ModelId,
+    model_catalog::{
+        ModelCatalogIdentity, ModelCatalogPreset, ModelCatalogProject, ModelCatalogReadResponse,
+        ScopedModelCatalogIdentity,
+    },
 };
 
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -21,6 +25,12 @@ pub(crate) struct CatalogForm {
     pub selected: Vec<ScopedModelCatalogIdentity>,
     pub endpoint: String,
     pub manual_id: String,
+    pub edit_id: Option<ModelId>,
+    pub alias: String,
+    pub alias_dirty: bool,
+    pub default_override: Option<bool>,
+    pub catalog: Option<ModelCatalogReadResponse>,
+    pub catalog_loading: bool,
     pub loading: bool,
     pub searched: bool,
     pub saving: bool,
@@ -37,6 +47,12 @@ impl CatalogForm {
             selected: vec![],
             endpoint: String::new(),
             manual_id: String::new(),
+            edit_id: None,
+            alias: String::new(),
+            alias_dirty: false,
+            default_override: None,
+            catalog: None,
+            catalog_loading: false,
             loading: false,
             searched: false,
             saving: false,
@@ -59,10 +75,56 @@ impl CatalogForm {
     }
 
     pub fn set_endpoint(&mut self, endpoint: String) {
-        if self.endpoint != endpoint {
-            self.endpoint = endpoint;
+        if self.endpoint.trim() != endpoint.trim() {
             self.selected.clear();
+            self.clear_model_draft();
+            self.catalog = None;
+            self.notice = None;
         }
+        self.endpoint = endpoint;
+    }
+
+    pub fn edit_model(&mut self, model_id: ModelId) {
+        let Some(catalog) = &self.catalog else { return };
+        let Some(entry) = catalog.items.iter().find(|entry| entry.identity.model_id == model_id)
+        else {
+            return;
+        };
+        let alias = entry.display_alias.clone().unwrap_or_default();
+        self.clear_model_draft();
+        self.alias = alias;
+        self.edit_id = Some(model_id);
+    }
+
+    pub fn clear_model_draft(&mut self) {
+        self.manual_id.clear();
+        self.edit_id = None;
+        self.alias.clear();
+        self.alias_dirty = false;
+        self.default_override = None;
+    }
+
+    pub fn apply_catalog(&mut self, catalog: ModelCatalogReadResponse) {
+        if !self.alias_dirty
+            && let Some(id) = &self.edit_id
+            && let Some(entry) = catalog.items.iter().find(|row| &row.identity.model_id == id)
+        {
+            self.alias = entry.display_alias.clone().unwrap_or_default();
+        }
+        self.catalog = Some(catalog);
+    }
+
+    pub fn make_default(&self) -> bool {
+        self.default_override.unwrap_or_else(|| {
+            self.edit_id.as_ref().is_some_and(|id| {
+                self.catalog.as_ref().and_then(|catalog| catalog.default_model_id.as_ref())
+                    == Some(id)
+            })
+        })
+    }
+
+    pub fn busy(&self) -> bool {
+        self.saving || self.catalog_loading
     }
 
     pub fn deployment(&self) -> ModelCatalogIdentity {

@@ -27,3 +27,6 @@ mod tests;
 
 #[cfg(test)]
 mod catalog_api_tests;
+
+#[cfg(test)]
+mod model_edits_api_tests;

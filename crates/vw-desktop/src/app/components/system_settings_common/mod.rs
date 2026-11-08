@@ -40,15 +40,16 @@ pub use help::{
     settings_help_copy_state, with_settings_help_modal,
 };
 pub use icons::{icon_btn, icon_svg, provider_logo_svg};
-pub(super) use panels::{
-    settings_flexible_row, settings_row_layout, settings_row_with_flexible_control,
-};
 pub use panels::{
     settings_control_with_hint, settings_divider, settings_error_banner, settings_group_card,
     settings_group_heading, settings_modal_card, settings_modal_header, settings_modal_layout,
     settings_modal_overlay, settings_page_heading, settings_page_intro, settings_panel,
     settings_row, settings_section_card, settings_section_content, settings_success_banner,
     settings_value_badge,
+};
+pub(super) use panels::{
+    settings_flexible_row, settings_responsive_row, settings_row_layout,
+    settings_row_with_flexible_control,
 };
 pub(crate) use panels::{
     settings_modal_layout_with_scroll_id, settings_modal_overlay_with_backdrop_dismiss,

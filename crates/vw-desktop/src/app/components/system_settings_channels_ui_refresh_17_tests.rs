@@ -292,7 +292,8 @@ async fn ui_refresh_17_layout_and_interaction() {
     );
     let size = Size::new(420.0, 200.0);
     let node = layout(&mut field, &renderer, size);
-    let trigger = iced::advanced::Layout::new(&node).children().nth(1).unwrap();
+    let field_layout = iced::advanced::Layout::new(&node).children().next().unwrap();
+    let trigger = field_layout.children().nth(1).unwrap();
     for item in trigger.children().next().unwrap().children() {
         assert!((item.bounds().center_y() - trigger.bounds().center_y()).abs() < 0.5);
     }
@@ -444,12 +445,33 @@ async fn ui_refresh_17_preserves_values_and_disabled_states() {
     app.desktop_locale = DesktopLocale::English;
     app.channels_settings.active_tab = ChannelsSettingsTab::Webhook;
     app.channels_settings.webhook.as_mut().unwrap().secret = Some("fixture-webhook-key".into());
+    let masked_secret = "•".repeat("fixture-webhook-key".len());
+    {
+        let size = Size::new(900, 1200);
+        let mut ui = scene(basic_channels::webhook_panel(&app), &mut renderer, size);
+        let geometry = geometry(&mut ui, &renderer);
+        let label = geometry.label("Shared secret");
+        let control = geometry.input(&masked_secret);
+        assert!(label.x + label.width < control.x);
+        assert!((label.center_y() - control.center_y()).abs() < 0.5);
+        screenshot(
+            &mut ui,
+            &mut renderer,
+            &Theme::Dark,
+            size,
+            "webhook-form-900",
+            mouse::Cursor::Unavailable,
+        );
+    }
 
     let size = Size::new(640, 1200);
     let messages = {
         let mut ui = scene(view(&app), &mut renderer, size);
         let initial = geometry(&mut ui, &renderer);
-        assert!(initial.input(&"•".repeat("fixture-webhook-key".len())).width >= 500.0);
+        let control = initial.input(&masked_secret);
+        let label = initial.label("Shared secret");
+        assert!(control.width >= 500.0);
+        assert!(label.y + label.height < control.y);
         let email = initial.label("Email").center();
         click(&mut ui, &mut renderer, email)
     };
@@ -587,7 +609,8 @@ async fn ui_refresh_17_edits_long_inputs_and_number_controls() {
     let mut field = number_row(DesktopLocale::English, "Port", 8787, 1, 65535, "", "webhook.port");
     let limits = Size::new(420.0, 140.0);
     let node = layout(&mut field, &renderer, limits);
-    let row = Layout::new(&node).children().nth(1).unwrap();
+    let fields = Layout::new(&node).children().next().unwrap();
+    let row = fields.children().nth(1).unwrap();
     let [input, badge]: [_; 2] =
         row.children().map(|node| node.bounds()).collect::<Vec<_>>().try_into().unwrap();
     assert!((input.center_y() - badge.center_y()).abs() < 0.5);
@@ -683,8 +706,9 @@ async fn ui_refresh_17_preserves_project_binding_and_qr_actions() {
         let mut field = common::default_project_selector(&app, instance.into());
         let bounds = Size::new(420.0, 400.0);
         let node = layout(&mut field, &renderer, bounds);
-        let field_layout = Layout::new(&node).children().next().unwrap();
-        let picker = field_layout.children().nth(1).unwrap().children().next().unwrap().bounds();
+        let responsive_row = Layout::new(&node).children().next().unwrap();
+        let field_layout = responsive_row.children().next().unwrap();
+        let picker = field_layout.children().nth(1).unwrap().bounds();
         let mut ui = UserInterface::build(field, bounds, Cache::new(), &mut renderer);
         let messages = click(&mut ui, &mut renderer, picker.center());
         assert!(

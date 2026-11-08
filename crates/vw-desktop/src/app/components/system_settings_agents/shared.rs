@@ -4,13 +4,13 @@
 //! 注释聚焦调用边界、返回值和错误传播方式，便于后续维护设置页与工具栏行为时快速定位职责。
 
 use crate::app::components::system_settings_common::{
-    settings_muted_text_style, settings_section_card as shared_settings_section_card,
-    settings_tab_button, settings_text_editor_style,
+    settings_section_card as shared_settings_section_card, settings_tab_button,
+    settings_text_editor_style,
 };
 use crate::app::message::settings::{AgentsMessage, SettingsMessage};
 use crate::app::state::{AgentSettingsEntryKind, DelegateAgentSettingsEntry};
 use crate::app::{App, Message};
-use iced::widget::{Button, column, text, text_editor};
+use iced::widget::{Button, text_editor};
 use iced::{Background, Border, Color, Element, Theme};
 
 /// 构建或处理 `section_card` 对应的界面片段与交互数据。
@@ -31,23 +31,6 @@ pub(super) fn section_card<'a>(
     description: &'a str,
 ) -> iced::widget::Container<'a, Message> {
     shared_settings_section_card(title, description)
-}
-
-/// 构建或处理 `label_col` 对应的界面片段与交互数据。
-///
-/// # 参数
-///
-/// 参数来自调用方持有的应用状态、配置快照或控件输入，用于保持渲染结果与当前状态同步。
-///
-/// # 返回值
-///
-/// 返回本函数生成的状态、样式或辅助值，供同一流程继续组合使用。
-///
-/// # 错误处理
-///
-/// 本函数不直接返回错误；无法交互或缺省状态会在控件状态中显式表达。
-pub(super) fn label_col<'a>(title: &'a str, hint: &'a str) -> iced::widget::Column<'a, Message> {
-    column![text(title), text(hint).size(12).style(settings_muted_text_style),].spacing(4)
 }
 
 /// 构建或处理 `editor_style` 对应的界面片段与交互数据。

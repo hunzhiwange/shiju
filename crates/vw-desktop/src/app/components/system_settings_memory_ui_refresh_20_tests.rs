@@ -312,6 +312,8 @@ async fn ui_refresh_20_layout_and_interaction() {
     let trigger = positions.focusable[0];
     let label = positions.label("存储后端");
     let hint = positions.label("选择记忆系统使用的持久化后端。");
+    let auto_save = positions.label("自动保存用户输入到记忆");
+    assert!((auto_save.x + auto_save.width - trigger.x - trigger.width).abs() < 0.5);
     assert!((trigger.center_y() - (label.y + hint.y + hint.height) / 2.0).abs() < 0.5);
     assert!((trigger.height - 38.0).abs() < 0.5);
     assert!(click(&mut ui, &mut renderer, trigger.center()).is_empty());

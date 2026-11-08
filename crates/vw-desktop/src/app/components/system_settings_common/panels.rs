@@ -12,7 +12,9 @@ use crate::app::components::system_settings_common::styles::{
 use crate::app::components::system_settings_common::theme::is_dark_theme;
 use iced::advanced::{Layout, Widget, layout, renderer, widget::Tree};
 use iced::widget::scrollable::{Direction, Scrollbar};
-use iced::widget::{Space, column, container, mouse_area, opaque, row, scrollable, stack, text};
+use iced::widget::{
+    Space, column, container, mouse_area, opaque, responsive, row, scrollable, stack, text,
+};
 use iced::{
     Alignment, Background, Border, Color, Element, Length, Padding, Rectangle, Renderer, Size,
     Theme, mouse,
@@ -134,12 +136,7 @@ pub(crate) fn settings_row_layout<'a>(
 ) -> iced::widget::Container<'a, Message> {
     container(
         row![
-            column![
-                settings_field_label(label),
-                text(description).size(13).style(settings_muted_text_style),
-            ]
-            .spacing(6)
-            .width(Length::Fill),
+            settings_row_labels(label, description).width(Length::Fill),
             control.into(),
         ]
         .spacing(24)
@@ -147,6 +144,38 @@ pub(crate) fn settings_row_layout<'a>(
     )
     .padding([20, 0])
     .width(Length::Fill)
+}
+
+fn settings_row_labels<'a>(label: &'a str, description: &'a str) -> iced::widget::Column<'a, Message> {
+    let labels = column![settings_field_label(label)].spacing(6);
+    if description.is_empty() {
+        labels
+    } else {
+        labels.push(text(description).size(13).style(settings_muted_text_style))
+    }
+}
+
+/// 窄表单中为单行控件保留全宽，空间足够时采用常规设置的左右布局。
+pub(crate) fn settings_responsive_row<'a, Control>(
+    label: &'a str,
+    description: &'a str,
+    control: impl Fn() -> Control + 'a,
+) -> Element<'a, Message>
+where
+    Control: Into<Element<'a, Message>>,
+{
+    responsive(move |size| {
+        if size.width >= 600.0 {
+            settings_flexible_row(label, description, 460.0, control()).padding([6, 0]).into()
+        } else {
+            column![settings_row_labels(label, description), control().into()]
+                .spacing(6)
+                .width(Length::Fill)
+                .into()
+        }
+    })
+    .height(Length::Shrink)
+    .into()
 }
 
 /// 弹窗标题占用可用宽度，操作区和关闭按钮固定在右侧。

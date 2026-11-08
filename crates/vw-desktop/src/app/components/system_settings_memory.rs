@@ -71,7 +71,7 @@ fn aligned_field_row<'a>(
     container(
         row![
             labels.width(Length::FillPortion(2)),
-            container(control.into()).width(Length::FillPortion(3)),
+            container(control.into()).align_right(Length::FillPortion(3)),
         ]
         .spacing(24)
         .align_y(Alignment::Center),

@@ -5,7 +5,7 @@ use crate::app::message::settings::{AgentsMessage, SettingsMessage};
 use crate::app::{App, Message, state::DelegateAgentSettingsEntry};
 use iced::{
     Element, Length,
-    widget::{checkbox, column, text},
+    widget::{checkbox, column},
 };
 use std::fmt;
 use vw_config_types::agent::{AgentDefault, AgentDefaults, AgentModelReference, AgentRuntime};
@@ -191,18 +191,25 @@ pub(super) fn view<'a>(
         AgentDefault::Inherit => inherit.clone(),
         AgentDefault::Fixed(model) => ModelChoice::Fixed(model.clone()),
     };
-    let options = std::iter::once(inherit).chain(models.into_iter().map(ModelChoice::Fixed));
-    let mut model_controls = column![
-        settings_field_label(label("模型")),
-        settings_select(options, Some(selected), |value| {
+    let acp_hint = if matches!(draft.runtime, AgentRuntime::Acp { .. }) {
+        label(
+            "会话模型来源下，显式选择优先于智能体默认；继承会话模型在无选择时使用环境默认。CLI 本地配置是独立来源，由会话单独选择。仅已声明会话模型能力的引擎可固定模型。",
+        )
+    } else {
+        ""
+    };
+    let model = settings_responsive_row(label("模型"), acp_hint, move || {
+        let options =
+            std::iter::once(inherit.clone()).chain(models.iter().cloned().map(ModelChoice::Fixed));
+        let select = settings_select(options, Some(selected.clone()), |value| {
             let model = match value {
                 ModelChoice::Inherit(_) => AgentDefault::Inherit,
                 ModelChoice::Fixed(model) => AgentDefault::Fixed(model),
             };
             Message::Settings(SettingsMessage::Agents(AgentsMessage::ProfileModelChanged(model)))
         })
-        .width(Length::Fill),
-        checkbox(draft.force_model_selection)
+        .width(Length::Fill);
+        let force_model = checkbox(draft.force_model_selection)
             .label(label("强制使用所选模型"))
             .on_toggle_maybe(matches!(defaults.model, AgentDefault::Fixed(_)).then(|| {
                 let key = draft.key.clone();
@@ -212,36 +219,25 @@ pub(super) fn view<'a>(
                     ))
                 }
             }))
-            .style(settings_checkbox_style),
-    ]
-    .spacing(8)
-    .width(Length::Fill);
-    if matches!(draft.runtime, AgentRuntime::Acp { .. }) {
-        model_controls = model_controls.push(
-            text(label("会话模型来源下，显式选择优先于智能体默认；继承会话模型在无选择时使用环境默认。CLI 本地配置是独立来源，由会话单独选择。仅已声明会话模型能力的引擎可固定模型。"))
-                .size(12)
-                .style(settings_muted_text_style),
-        );
-    }
-    let original = defaults.clone();
-    let permission = column![
-        settings_field_label(label("权限")),
+            .style(settings_checkbox_style);
+        column![select, force_model].spacing(8).width(Length::Fill)
+    });
+    let permission = settings_responsive_row(label("权限"), "", move || {
         checkbox(defaults.full_access)
             .label(label("完全访问权限"))
             .on_toggle(move |enabled| {
-                let mut next = original.clone();
+                let mut next = defaults.clone();
                 next.full_access = enabled;
                 changed(next)
             })
-            .style(settings_checkbox_style),
-    ]
-    .spacing(8);
+            .style(settings_checkbox_style)
+    });
     column![
         settings_group_heading(
             label("默认配置"),
             label("固定空列表表示不选择任何条目。权限始终受安全上限约束。"),
         ),
-        settings_group_card(column![model_controls, settings_divider(), permission].spacing(12))
+        settings_group_card(column![model, settings_divider(), permission].spacing(12))
             .padding([14, 16]),
         validation_error(app, draft).map(settings_error_banner),
     ]

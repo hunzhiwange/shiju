@@ -3,7 +3,7 @@
 
 use super::shared::{
     agent_sidebar_button_style, detail_tab_button, editor_style, entry_kind_label, is_dark_theme,
-    label_col, section_card, selected_entry,
+    section_card, selected_entry,
 };
 use crate::app::state::{AgentSettingsEntryKind, DelegateAgentSettingsEntry};
 use iced::widget::{button, text_editor};
@@ -164,13 +164,11 @@ fn editor_style_preserves_shared_editor_shape_across_themes() {
 }
 
 #[test]
-fn section_card_and_label_column_keep_expected_widget_shape() {
+fn section_card_keeps_expected_widget_shape() {
     let card: Element<'_, crate::app::Message> = section_card("Title", "Description").into();
-    let labels: Element<'_, crate::app::Message> = label_col("Label", "Hint").into();
 
     assert_eq!(card.as_widget().size().width, Length::Fill);
     assert_eq!(card.as_widget().children().len(), 2);
-    assert_eq!(labels.as_widget().children().len(), 2);
 }
 
 #[test]

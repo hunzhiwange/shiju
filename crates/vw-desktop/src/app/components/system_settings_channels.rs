@@ -20,8 +20,8 @@ mod extended_channels_tests;
 use crate::app::components::system_settings_common::{
     SETTINGS_CONTROL_PADDING, SETTINGS_CONTROL_TEXT_SIZE, settings_checkbox_style,
     settings_divider, settings_error_banner, settings_group_card, settings_muted_text_style,
-    settings_page_intro, settings_section_card, settings_section_content, settings_tab_style,
-    settings_text_input_style,
+    settings_page_intro, settings_responsive_row, settings_section_card, settings_section_content,
+    settings_tab_style, settings_text_input_style,
 };
 use crate::app::components::system_settings_search::SettingsTabDescriptor;
 use crate::app::i18n::settings_extensions::text as tr;
@@ -32,7 +32,7 @@ use iced::widget::{button, checkbox, column, container, row, svg, text, text_inp
 use iced::{Alignment, Background, Border, Color, Element, Length};
 use vw_config_types::ui::DesktopLocale;
 
-use self::common::{enabled_channels, field_row, number_row};
+use self::common::{enabled_channels, number_row};
 
 const CHANNEL_TAB_COLUMNS: usize = 5;
 const CHINA_CHANNEL_CARD_COLUMNS: usize = 3;
@@ -98,19 +98,17 @@ fn global_settings_content(app: &App) -> Element<'_, Message> {
     let s = &app.channels_settings;
 
     let content = column![
-        field_row(
-            tr(app.desktop_locale, "CLI 通道"),
+        settings_responsive_row(tr(app.desktop_locale, "CLI 通道"), "", || {
             checkbox(s.cli)
                 .label(tr(app.desktop_locale, "启用 CLI 通道"))
                 .text_size(SETTINGS_CONTROL_TEXT_SIZE)
                 .on_toggle(|next| {
                     Message::Settings(SettingsMessage::Channels(ChannelsMessage::CliToggled(next)))
                 })
-                .style(settings_checkbox_style),
-        ),
+                .style(settings_checkbox_style)
+        }),
         settings_divider(),
-        field_row(
-            tr(app.desktop_locale, "项目目录"),
+        settings_responsive_row(tr(app.desktop_locale, "项目目录"), "", || {
             text_input(tr(app.desktop_locale, "留空时按 workspace 推断"), &s.project_dir_input)
                 .on_input(|next| {
                     Message::Settings(SettingsMessage::Channels(
@@ -120,8 +118,8 @@ fn global_settings_content(app: &App) -> Element<'_, Message> {
                 .padding(SETTINGS_CONTROL_PADDING)
                 .size(SETTINGS_CONTROL_TEXT_SIZE)
                 .style(settings_text_input_style)
-                .width(Length::Fill),
-        ),
+                .width(Length::Fill)
+        }),
         settings_divider(),
         number_row(
             app.desktop_locale,

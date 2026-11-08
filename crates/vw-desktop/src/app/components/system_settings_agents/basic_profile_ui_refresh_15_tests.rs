@@ -407,8 +407,12 @@ async fn ui_refresh_15_preserves_values_and_disabled_states() {
         assert_eq!(geometry.inputs[0].1.width, geometry.inputs[1].1.width);
         assert!(up.y > geometry.inputs[1].1.y + geometry.inputs[1].1.height);
         assert!((up.center().y - down.center().y).abs() < 0.5);
-        let mut wide = Scene::new(super::view(&app, &draft), &mut renderer, 640, 760);
+        let mut wide = Scene::new(super::view(&app, &draft), &mut renderer, 740, 760);
         let wide = wide.geometry(&renderer);
+        let name_label = wide.label("Name");
+        let name_input = wide.inputs[0].1;
+        assert!(name_label.x + name_label.width < name_input.x);
+        assert!((name_label.center_y() - name_input.center_y()).abs() < 0.5);
         for label in ["Move up", "Move down"] {
             assert!((wide.label(label).center().y - wide.inputs[1].1.center().y).abs() < 0.5);
         }
@@ -553,8 +557,8 @@ async fn ui_refresh_15_preserves_values_and_disabled_states() {
     app.agents_settings.profile_modal = Some(builtin.clone());
     let mut fixed = Scene::new(super::view(&app, &builtin), &mut renderer, 420, 760);
     let geometry = fixed.geometry(&renderer);
-    geometry.label("Fixed runtime: fixture-backend");
-    assert!(!geometry.focusable.iter().any(|bounds| bounds.height == 38.0));
+    let runtime = geometry.label("Fixed runtime: fixture-backend");
+    assert!(geometry.focusable.iter().all(|bounds| bounds.y + bounds.height <= runtime.y));
     fixed.screenshot(&mut renderer, &Theme::Light, mouse::Cursor::Unavailable, "profile-fixed");
     drop(fixed);
 

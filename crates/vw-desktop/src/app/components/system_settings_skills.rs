@@ -7,10 +7,10 @@ mod plugin_install_modal;
 pub(crate) mod plugins;
 
 use crate::app::components::system_settings_common::{
-    SETTINGS_CONTROL_TEXT_SIZE, settings_checkbox_style, settings_control_with_hint,
-    settings_divider, settings_error_banner, settings_field_label, settings_group_card,
-    settings_group_heading, settings_help_button, settings_modal_card_style, settings_page_heading,
-    settings_select, settings_tab_button, settings_tab_row,
+    SETTINGS_CONTROL_TEXT_SIZE, settings_checkbox_style, settings_divider, settings_error_banner,
+    settings_group_card, settings_group_heading, settings_help_button, settings_modal_card_style,
+    settings_page_heading, settings_row_with_flexible_control, settings_select,
+    settings_tab_button, settings_tab_row,
 };
 use crate::app::components::system_settings_search::SettingsTabDescriptor;
 use crate::app::i18n::settings_extensions::text as tr;
@@ -25,13 +25,7 @@ fn field_row<'a>(
     description: &'static str,
     control: impl Into<Element<'a, Message>>,
 ) -> Element<'a, Message> {
-    container(
-        column![settings_field_label(label), settings_control_with_hint(control, description)]
-            .spacing(6),
-    )
-    .padding([14, 0])
-    .width(Length::Fill)
-    .into()
+    settings_row_with_flexible_control(label, description, 330.0, control)
 }
 
 fn skills_tab_button(

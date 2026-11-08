@@ -20,8 +20,9 @@ use crate::app::components::system_settings_common::{
     SETTINGS_CONTROL_PADDING, SETTINGS_CONTROL_TEXT_SIZE, icon_btn, primary_action_btn_style,
     rounded_action_btn_style, settings_close_button, settings_divider, settings_error_banner,
     settings_group_card, settings_group_heading, settings_modal_header, settings_modal_layout,
-    settings_modal_overlay, settings_muted_text_style, settings_tab_button, settings_tab_row,
-    settings_text_input_style, settings_toggle, settings_value_badge,
+    settings_modal_overlay, settings_muted_text_style, settings_responsive_row,
+    settings_tab_button, settings_tab_row, settings_text_input_style, settings_toggle,
+    settings_value_badge,
 };
 use crate::app::i18n::settings_models::connection_text::text as connection_text;
 use crate::app::i18n::settings_models::messages::render as owned_text;
@@ -36,19 +37,17 @@ pub(super) fn secure_text_row<'a>(
     description: &'a str,
     placeholder: &'a str,
     value: &'a str,
-    on_input: impl Fn(String) -> Message + 'a,
+    on_input: impl Fn(String) -> Message + Clone + 'a,
 ) -> Element<'a, Message> {
-    field_row(
-        label,
-        description,
+    settings_responsive_row(label, description, move || {
         text_input(placeholder, value)
             .secure(true)
-            .on_input(on_input)
+            .on_input(on_input.clone())
             .padding(SETTINGS_CONTROL_PADDING)
             .size(SETTINGS_CONTROL_TEXT_SIZE)
             .style(settings_text_input_style)
-            .width(Length::Fill),
-    )
+            .width(Length::Fill)
+    })
 }
 
 fn provider_tab_button(
@@ -142,10 +141,13 @@ pub fn view_overlays<'a>(app: &'a App, dialog: Element<'a, Message>) -> Element<
         );
 
         let provider_id_row = if is_editing {
-            field_row(
+            settings_responsive_row(
                 connection_text(app.desktop_locale, "提供商 ID"),
                 connection_text(app.desktop_locale, "作为配置中的稳定标识，编辑模式下保持只读。"),
-                container(settings_value_badge(s.custom.provider_id.as_str())).width(Length::Fill),
+                || {
+                    container(settings_value_badge(s.custom.provider_id.as_str()))
+                        .width(Length::Fill)
+                },
             )
         } else {
             text_row(
@@ -181,14 +183,16 @@ pub fn view_overlays<'a>(app: &'a App, dialog: Element<'a, Message>) -> Element<
 
         let api_key_row = if crate::app::state::is_shiju_official_provider_id(&s.custom.provider_id)
         {
-            field_row(
+            settings_responsive_row(
                 connection_text(app.desktop_locale, "账户自动授权"),
                 connection_text(
                     app.desktop_locale,
                     "登录识矩账户后自动配置模型，无需填写模型密钥。",
                 ),
-                text(connection_text(app.desktop_locale, "密钥由账户管理，不显示明文"))
-                    .style(settings_muted_text_style),
+                || {
+                    text(connection_text(app.desktop_locale, "密钥由账户管理，不显示明文"))
+                        .style(settings_muted_text_style)
+                },
             )
         } else {
             secure_text_row(

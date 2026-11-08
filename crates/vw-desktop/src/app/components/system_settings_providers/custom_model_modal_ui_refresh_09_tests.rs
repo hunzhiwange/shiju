@@ -189,8 +189,8 @@ async fn ui_refresh_09_layout_and_interaction() {
     app.desktop_locale = DesktopLocale::English;
     app.provider_settings.custom_provider_tab = CustomProviderTab::Authentication;
     let mut scene = narrow(&app, &mut renderer);
-    let api_key = scene.bounds(&control(0, &[]));
-    let value = scene.bounds(&control(0, &[0]));
+    let api_key = scene.bounds(&scalar_control(0, &[]));
+    let value = scene.bounds(&scalar_control(0, &[0]));
     assert!(api_key.width >= 280.0, "the input needs the full field width at 420 px");
     assert!((api_key.center().y - value.center().y).abs() < 0.5);
     assert!(matches!(
@@ -249,7 +249,7 @@ async fn ui_refresh_09_layout_and_interaction() {
 
     app.provider_settings.custom_provider_tab = CustomProviderTab::Basic;
     let mut scene = narrow(&app, &mut renderer);
-    let id = scene.bounds(&control(0, &[]));
+    let id = scene.bounds(&scalar_control(0, &[]));
     assert!(matches!(
         scene.edit(&mut renderer, id, "-new").as_slice(),
         [Message::Settings(SettingsMessage::CustomProviderIdChanged(id))] if id == "fixture-new"
@@ -258,7 +258,7 @@ async fn ui_refresh_09_layout_and_interaction() {
 
     app.provider_settings.custom_editing_provider_id = Some("fixture".into());
     let mut scene = narrow(&app, &mut renderer);
-    let id = scene.bounds(&control(0, &[]));
+    let id = scene.bounds(&scalar_control(0, &[]));
     assert!(scene.edit(&mut renderer, id, "-ignored").is_empty());
     scene.capture(
         &mut renderer,
@@ -348,7 +348,7 @@ async fn ui_refresh_09_preserves_values_and_disabled_states() {
     apply(&mut app, add_messages);
     let mut scene = narrow(&app, &mut renderer);
     let save = scene.bounds(&modal(&[2, 2]));
-    let id = scene.bounds(&control(0, &[]));
+    let id = scene.bounds(&scalar_control(0, &[]));
     assert!(scene.click(&mut renderer, id.center()).is_empty());
     assert!(
         scene.send(&mut renderer, &[key(Named::Enter), key(Named::Escape)], cursor(id)).is_empty()
@@ -360,7 +360,7 @@ async fn ui_refresh_09_preserves_values_and_disabled_states() {
     assert!(app.provider_settings.save_error.is_some());
     let mut scene = narrow(&app, &mut renderer);
     scene.capture(&mut renderer, &Theme::Light, mouse::Cursor::Unavailable, "model-required-id");
-    let id = scene.bounds(&control(0, &[]));
+    let id = scene.bounds(&scalar_control(0, &[]));
     let id_messages = scene.edit(&mut renderer, id, "fixture-added");
     assert!(matches!(
         id_messages.as_slice(),
@@ -411,7 +411,7 @@ async fn ui_refresh_09_preserves_values_and_disabled_states() {
     apply(&mut app, tab_messages);
 
     let mut scene = narrow(&app, &mut renderer);
-    let limit = scene.bounds(&control(0, &[]));
+    let limit = scene.bounds(&scalar_control(0, &[]));
     let messages = scene.edit(&mut renderer, limit, "32768");
     assert!(matches!(
         messages.as_slice(),
@@ -503,6 +503,10 @@ fn group(path: &[usize]) -> Vec<usize> {
 
 fn control(field: usize, path: &[usize]) -> Vec<usize> {
     group(&[&[field, 0, 1, 0][..], path].concat())
+}
+
+fn scalar_control(field: usize, path: &[usize]) -> Vec<usize> {
+    group(&[&[field, 0, 1][..], path].concat())
 }
 
 fn cursor(bounds: Rectangle) -> mouse::Cursor {

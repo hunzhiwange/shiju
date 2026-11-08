@@ -208,7 +208,8 @@ pub(crate) fn deployments<'a>(
     base: Element<'a, Message>,
 ) -> Element<'a, Message> {
     use crate::app::components::system_settings_common::{
-        settings_checkbox_style, settings_field_label, settings_modal_layout, settings_value_badge,
+        settings_checkbox_style, settings_field_label, settings_modal_layout,
+        settings_responsive_row, settings_value_badge,
     };
     use crate::app::message::settings::providers::catalog_api::{Event, message};
 
@@ -252,22 +253,34 @@ pub(crate) fn deployments<'a>(
         .padding(SETTINGS_CONTROL_PADDING)
         .size(SETTINGS_CONTROL_TEXT_SIZE)
         .style(settings_text_input_style);
-    let id: Element<'a, Message> = if let Some(id) = &form.edit_id {
-        text(id.as_ref()).wrapping(Wrapping::WordOrGlyph).into()
-    } else {
-        text_input("填写供应商使用的原始模型 ID", &form.manual_id)
-            .on_input_maybe(editable.then_some(|value| message(Event::ManualId(value))))
-            .padding(SETTINGS_CONTROL_PADDING)
-            .size(SETTINGS_CONTROL_TEXT_SIZE)
-            .style(settings_text_input_style)
-            .into()
-    };
+    let id_label =
+        if form.edit_id.is_some() { "编辑模型 · 请求 ID" } else { "手工添加模型" };
+    let id = settings_responsive_row(id_label, "", move || -> Element<'a, Message> {
+        if let Some(id) = &form.edit_id {
+            text(id.as_ref()).wrapping(Wrapping::WordOrGlyph).into()
+        } else {
+            text_input("填写供应商使用的原始模型 ID", &form.manual_id)
+                .on_input_maybe(editable.then_some(|value| message(Event::ManualId(value))))
+                .padding(SETTINGS_CONTROL_PADDING)
+                .size(SETTINGS_CONTROL_TEXT_SIZE)
+                .style(settings_text_input_style)
+                .into()
+        }
+    });
     let has_model = form.edit_id.is_some() || !form.manual_id.trim().is_empty();
-    let alias = text_input("可留空", &form.alias)
-        .on_input_maybe((editable && has_model).then_some(|value| message(Event::Alias(value))))
-        .padding(SETTINGS_CONTROL_PADDING)
-        .size(SETTINGS_CONTROL_TEXT_SIZE)
-        .style(settings_text_input_style);
+    let alias = settings_responsive_row(
+        "显示别名",
+        "别名仅用于显示，发送请求时使用原始模型 ID。",
+        move || {
+            text_input("可留空", &form.alias)
+                .on_input_maybe(
+                    (editable && has_model).then_some(|value| message(Event::Alias(value))),
+                )
+                .padding(SETTINGS_CONTROL_PADDING)
+                .size(SETTINGS_CONTROL_TEXT_SIZE)
+                .style(settings_text_input_style)
+        },
+    );
     let mut fields = column![
         settings_field_label("目标部署端点"),
         settings_control_with_hint(
@@ -289,20 +302,16 @@ pub(crate) fn deployments<'a>(
             .spacing(8),
             "选择下方预设端点，也可以直接输入。切换端点会清空当前草稿与已选模型。"
         ),
-        settings_field_label(if form.edit_id.is_some() {
-            "编辑模型 · 请求 ID"
-        } else {
-            "手工添加模型"
-        }),
         id,
-        settings_field_label("显示别名"),
-        settings_control_with_hint(alias, "别名仅用于显示，发送请求时使用原始模型 ID。"),
-        checkbox(form.make_default())
-            .label("设为此部署的默认模型")
-            .on_toggle_maybe(
-                (editable && has_model).then_some(|value| message(Event::MakeDefault(value)))
-            )
-            .style(settings_checkbox_style),
+        alias,
+        settings_responsive_row("默认模型", "", move || {
+            checkbox(form.make_default())
+                .label("设为此部署的默认模型")
+                .on_toggle_maybe(
+                    (editable && has_model).then_some(|value| message(Event::MakeDefault(value))),
+                )
+                .style(settings_checkbox_style)
+        }),
     ]
     .spacing(8);
     if form.edit_id.is_some() {

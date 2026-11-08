@@ -3,18 +3,19 @@
 //! 本模块主要负责把应用状态转换为桌面端可渲染的 Iced 控件，并把用户操作映射回上层消息。
 //! 注释聚焦调用边界、返回值和错误传播方式，便于后续维护设置页与工具栏行为时快速定位职责。
 
-use super::shared::{label_col, section_card};
+use super::shared::section_card;
 use crate::app::components::number_input::NumberInput;
 use crate::app::components::system_settings_common::{
     SETTINGS_CONTROL_PADDING, SETTINGS_CONTROL_TEXT_SIZE, settings_checkbox_style,
-    settings_divider, settings_group_card, settings_group_heading, settings_text_input_style,
+    settings_divider, settings_flexible_row, settings_group_card, settings_group_heading,
+    settings_text_input_style,
 };
 use crate::app::i18n::settings_extensions::text as tr;
 use crate::app::message::settings::{AgentsMessage, SettingsMessage};
 use crate::app::state::DelegateAgentSettingsEntry;
 use crate::app::{App, Message};
-use iced::widget::{checkbox, column, row, slider, text, text_input};
-use iced::{Alignment, Element, Length, Theme};
+use iced::widget::{checkbox, column, slider, text, text_input};
+use iced::{Element, Length, Theme};
 
 pub(super) fn shows_registration_controls(entry: &DelegateAgentSettingsEntry) -> bool {
     entry.can_disable
@@ -22,6 +23,14 @@ pub(super) fn shows_registration_controls(entry: &DelegateAgentSettingsEntry) ->
 
 pub(super) fn shows_delegation_controls(entry: &DelegateAgentSettingsEntry) -> bool {
     !entry.role_controls_locked
+}
+
+fn field_row<'a>(
+    label: &'a str,
+    description: &'a str,
+    control: impl Into<Element<'a, Message>>,
+) -> Element<'a, Message> {
+    settings_flexible_row(label, description, 320.0, control).padding([6, 0]).into()
 }
 
 /// 构建或处理 `view` 对应的界面片段与交互数据。
@@ -46,12 +55,9 @@ pub(super) fn view<'a>(
         vw_config_types::agent::AgentRuntime::Native => true,
         vw_config_types::agent::AgentRuntime::Acp { .. } => false,
     };
-    let api_key_row = row![
-        label_col(
-            tr(app.desktop_locale, "API 密钥"),
-            tr(app.desktop_locale, "可选覆盖该代理的提供商凭证。")
-        )
-        .width(Length::Fill),
+    let api_key_row = field_row(
+        tr(app.desktop_locale, "API 密钥"),
+        tr(app.desktop_locale, "可选覆盖该代理的提供商凭证。"),
         text_input(tr(app.desktop_locale, "可选"), &entry.api_key_input)
             .secure(true)
             .on_input({
@@ -67,9 +73,7 @@ pub(super) fn view<'a>(
             .size(SETTINGS_CONTROL_TEXT_SIZE)
             .style(settings_text_input_style)
             .width(Length::Fill),
-    ]
-    .spacing(16)
-    .align_y(Alignment::Center);
+    );
 
     let temperature_slider = slider(0.0..=2.0, entry.temperature, {
         let key = entry.key.clone();
@@ -81,12 +85,9 @@ pub(super) fn view<'a>(
         }
     });
 
-    let temperature_row = row![
-        label_col(
-            tr(app.desktop_locale, "温度"),
-            tr(app.desktop_locale, "控制生成发散度，范围 0.0 - 2.0。")
-        )
-        .width(Length::Fill),
+    let temperature_row = field_row(
+        tr(app.desktop_locale, "温度"),
+        tr(app.desktop_locale, "控制生成发散度，范围 0.0 - 2.0。"),
         column![
             temperature_slider,
             text(format!("{:.2}", entry.temperature)).size(12).style(|theme: &Theme| {
@@ -95,15 +96,11 @@ pub(super) fn view<'a>(
         ]
         .spacing(8)
         .width(Length::Fill),
-    ]
-    .spacing(16)
-    .align_y(Alignment::Center);
+    );
 
-    let enabled_row = row![
-        label_col(
-            tr(app.desktop_locale, "启用"),
-            tr(app.desktop_locale, "关闭后保留配置，但该智能体不会作为可用项参与注册。")
-        ),
+    let enabled_row = field_row(
+        tr(app.desktop_locale, "启用"),
+        tr(app.desktop_locale, "关闭后保留配置，但该智能体不会作为可用项参与注册。"),
         checkbox(entry.enabled)
             .label(tr(app.desktop_locale, "启用该智能体"))
             .on_toggle({
@@ -116,9 +113,7 @@ pub(super) fn view<'a>(
                 }
             })
             .style(settings_checkbox_style),
-    ]
-    .spacing(16)
-    .align_y(Alignment::Center);
+    );
 
     let registration_section = shows_registration_controls(entry).then(|| {
         column![
@@ -131,11 +126,9 @@ pub(super) fn view<'a>(
         .spacing(8)
     });
 
-    let allow_as_subagent_row = row![
-        label_col(
-            tr(app.desktop_locale, "作为子智能体"),
-            tr(app.desktop_locale, "只有开启后，该 Agent 才会出现在 AgentTool 的可选列表中。")
-        ),
+    let allow_as_subagent_row = field_row(
+        tr(app.desktop_locale, "作为子智能体"),
+        tr(app.desktop_locale, "只有开启后，该 Agent 才会出现在 AgentTool 的可选列表中。"),
         checkbox(entry.allow_as_subagent)
             .label(tr(app.desktop_locale, "允许作为子智能体"))
             .on_toggle({
@@ -147,16 +140,11 @@ pub(super) fn view<'a>(
                 }
             })
             .style(settings_checkbox_style),
-    ]
-    .spacing(16)
-    .align_y(Alignment::Center);
+    );
 
-    let max_parallel_subagents_row = row![
-        label_col(
-            tr(app.desktop_locale, "子智能体数量"),
-            tr(app.desktop_locale, "该 Agent 每轮最多同时启动的子智能体数量。")
-        )
-        .width(Length::Fill),
+    let max_parallel_subagents_row = field_row(
+        tr(app.desktop_locale, "子智能体数量"),
+        tr(app.desktop_locale, "该 Agent 每轮最多同时启动的子智能体数量。"),
         NumberInput::new(entry.max_parallel_subagents as f32, 1.0, 32.0, 1.0, 0, 1.0, {
             let key = entry.key.clone();
             move |value| {
@@ -164,18 +152,13 @@ pub(super) fn view<'a>(
                     AgentsMessage::MaxParallelSubagentsChanged(key.clone(), value.round() as u32),
                 ))
             }
-        },)
+        })
         .settings_style(),
-    ]
-    .spacing(16)
-    .align_y(Alignment::Center);
+    );
 
-    let max_depth_row = row![
-        label_col(
-            tr(app.desktop_locale, "最大深度"),
-            tr(app.desktop_locale, "委托嵌套深度上限，防止无限递归。")
-        )
-        .width(Length::Fill),
+    let max_depth_row = field_row(
+        tr(app.desktop_locale, "最大深度"),
+        tr(app.desktop_locale, "委托嵌套深度上限，防止无限递归。"),
         NumberInput::new(entry.max_depth as f32, 1.0, 32.0, 1.0, 0, 1.0, {
             let key = entry.key.clone();
             move |value| {
@@ -186,15 +169,11 @@ pub(super) fn view<'a>(
             }
         })
         .settings_style(),
-    ]
-    .spacing(16)
-    .align_y(Alignment::Center);
+    );
 
-    let compact_context_row = row![
-        label_col(
-            tr(app.desktop_locale, "上下文压缩"),
-            tr(app.desktop_locale, "适合小模型，压缩该智能体的上下文体积。")
-        ),
+    let compact_context_row = field_row(
+        tr(app.desktop_locale, "上下文压缩"),
+        tr(app.desktop_locale, "适合小模型，压缩该智能体的上下文体积。"),
         checkbox(entry.compact_context)
             .label(tr(app.desktop_locale, "启用上下文压缩"))
             .on_toggle({
@@ -206,16 +185,11 @@ pub(super) fn view<'a>(
                 }
             })
             .style(settings_checkbox_style),
-    ]
-    .spacing(16)
-    .align_y(Alignment::Center);
+    );
 
-    let max_history_messages_row = row![
-        label_col(
-            tr(app.desktop_locale, "历史消息上限"),
-            tr(app.desktop_locale, "该智能体保留给模型的会话历史消息上限。")
-        )
-        .width(Length::Fill),
+    let max_history_messages_row = field_row(
+        tr(app.desktop_locale, "历史消息上限"),
+        tr(app.desktop_locale, "该智能体保留给模型的会话历史消息上限。"),
         NumberInput::new(entry.max_history_messages as f32, 1.0, 1000.0, 1.0, 0, 1.0, {
             let key = entry.key.clone();
             move |value| {
@@ -225,15 +199,11 @@ pub(super) fn view<'a>(
             }
         })
         .settings_style(),
-    ]
-    .spacing(16)
-    .align_y(Alignment::Center);
+    );
 
-    let parallel_tools_row = row![
-        label_col(
-            tr(app.desktop_locale, "并行工具"),
-            tr(app.desktop_locale, "该智能体是否允许同一轮并行执行多个工具。")
-        ),
+    let parallel_tools_row = field_row(
+        tr(app.desktop_locale, "并行工具"),
+        tr(app.desktop_locale, "该智能体是否允许同一轮并行执行多个工具。"),
         checkbox(entry.parallel_tools)
             .label(tr(app.desktop_locale, "启用并行工具执行"))
             .on_toggle({
@@ -246,16 +216,11 @@ pub(super) fn view<'a>(
                 }
             })
             .style(settings_checkbox_style),
-    ]
-    .spacing(16)
-    .align_y(Alignment::Center);
+    );
 
-    let max_iterations_row = row![
-        label_col(
-            tr(app.desktop_locale, "最大迭代次数"),
-            tr(app.desktop_locale, "智能体模式下最多运行多少轮工具循环。")
-        )
-        .width(Length::Fill),
+    let max_iterations_row = field_row(
+        tr(app.desktop_locale, "最大迭代次数"),
+        tr(app.desktop_locale, "智能体模式下最多运行多少轮工具循环。"),
         NumberInput::new(entry.max_iterations as f32, 1.0, u32::MAX as f32, 1.0, 0, 1.0, {
             let key = entry.key.clone();
             move |value| {
@@ -266,15 +231,11 @@ pub(super) fn view<'a>(
             }
         })
         .settings_style(),
-    ]
-    .spacing(16)
-    .align_y(Alignment::Center);
+    );
 
-    let agentic_row = row![
-        label_col(
-            tr(app.desktop_locale, "智能体模式"),
-            tr(app.desktop_locale, "启用后允许该代理进入多轮工具调用循环。")
-        ),
+    let agentic_row = field_row(
+        tr(app.desktop_locale, "智能体模式"),
+        tr(app.desktop_locale, "启用后允许该代理进入多轮工具调用循环。"),
         checkbox(entry.agentic)
             .label(tr(app.desktop_locale, "启用智能体模式"))
             .on_toggle({
@@ -287,9 +248,7 @@ pub(super) fn view<'a>(
                 }
             })
             .style(settings_checkbox_style),
-    ]
-    .spacing(16)
-    .align_y(Alignment::Center);
+    );
 
     let delegation_section: Element<'_, Message> = if shows_delegation_controls(entry) {
         column![

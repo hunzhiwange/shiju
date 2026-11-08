@@ -9,7 +9,7 @@ use crate::app::components::system_settings_common::{
     settings_control_with_hint, settings_divider, settings_error_banner, settings_field_label,
     settings_group_card, settings_group_heading, settings_modal_card_style, settings_modal_header,
     settings_modal_layout, settings_modal_overlay, settings_muted_text_style,
-    settings_segment_button_style, settings_tab_button, settings_tab_row,
+    settings_responsive_row, settings_segment_button_style, settings_tab_button, settings_tab_row,
     settings_text_input_style,
 };
 use crate::app::i18n::settings_models::connection_text::text as connection_text;
@@ -69,18 +69,16 @@ pub(super) fn text_row<'a>(
     description: &'a str,
     placeholder: &'a str,
     value: &'a str,
-    on_input: impl Fn(String) -> Message + 'a,
+    on_input: impl Fn(String) -> Message + Clone + 'a,
 ) -> Element<'a, Message> {
-    field_row(
-        label,
-        description,
+    settings_responsive_row(label, description, move || {
         text_input(placeholder, value)
-            .on_input(on_input)
+            .on_input(on_input.clone())
             .padding(SETTINGS_CONTROL_PADDING)
             .size(SETTINGS_CONTROL_TEXT_SIZE)
             .style(settings_text_input_style)
-            .width(Length::Fill),
-    )
+            .width(Length::Fill)
+    })
 }
 
 fn modality_checked(values: Option<&Vec<String>>, modality: &str) -> bool {

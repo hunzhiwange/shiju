@@ -32,12 +32,10 @@ pub(super) fn view<'a>(
             .size(SETTINGS_CONTROL_TEXT_SIZE)
             .style(settings_text_input_style)
     };
-    let name = column![
-        settings_field_label(label("名称")),
+    let name = settings_responsive_row(label("名称"), "", move || {
         input(label("智能体名称"), &draft.label, AgentsMessage::ProfileNameChanged)
-            .width(Length::Fill),
-    ]
-    .spacing(6);
+            .width(Length::Fill)
+    });
     let description = column![
         settings_field_label(label("描述")),
         text_editor(&draft.description_editor)
@@ -94,62 +92,62 @@ pub(super) fn view<'a>(
         AgentRuntime::Native => "native".to_string(),
         AgentRuntime::Acp { backend } => backend.clone(),
     };
-    let runtime_control: Element<'_, Message> = if fixed {
-        text(
-            crate::__!(I18n::new(app.desktop_locale), "固定运行引擎：%s", runtime.as_str())
-                .expect("valid fixed agent runtime template"),
-        )
-        .size(SETTINGS_CONTROL_TEXT_SIZE)
-        .wrapping(text::Wrapping::WordOrGlyph)
-        .into()
-    } else {
-        let mut options = vec!["native".to_string()];
-        options.extend(app.acp_agents.clone());
-        let busy = app.agents_settings.profile_saving;
-        let picker = settings_select(options, Some(runtime), |value| {
-            message(AgentsMessage::ProfileRuntimeChanged(value))
-        })
-        .width(Length::Fill);
-        let mut controls = column![picker].spacing(8);
-        if app.acp_agents.is_empty() {
-            controls = controls.push(
-                text(label(if app.acp_settings.loading {
-                    "正在加载 ACP 引擎目录…"
-                } else {
-                    "暂无可用 ACP 引擎，可刷新目录或在 ACP 设置中启用。"
-                }))
-                .size(12)
-                .style(settings_muted_text_style),
-            );
-        }
-        if let Some(error) = &app.acp_settings.save_error {
-            controls = controls.push(settings_error_banner(error.clone()));
-        }
-        controls = controls.push(
-            button(
-                text(label(if app.acp_settings.loading {
-                    "加载中…"
-                } else {
-                    "刷新引擎目录"
-                }))
-                .size(SETTINGS_CONTROL_TEXT_SIZE),
-            )
-            .on_press_maybe((!busy && !app.acp_settings.loading).then_some(Message::Settings(
-                SettingsMessage::Acp(crate::app::message::settings::AcpMessage::Refresh),
-            )))
-            .padding([8, 14])
-            .style(rounded_action_btn_style),
-        );
-        controls.into()
-    };
-    let runtime = column![
-        settings_field_label(label("运行智能体")),
-        settings_control_with_hint(
-            runtime_control,
-            label("首次保存成功后，运行引擎及 ACP backend 不可修改。")
-        ),
-    ]
-    .spacing(6);
+    let runtime = settings_responsive_row(
+        label("运行智能体"),
+        label("首次保存成功后，运行引擎及 ACP backend 不可修改。"),
+        move || -> Element<'_, Message> {
+            if fixed {
+                text(
+                    crate::__!(I18n::new(app.desktop_locale), "固定运行引擎：%s", runtime.as_str())
+                        .expect("valid fixed agent runtime template"),
+                )
+                .size(SETTINGS_CONTROL_TEXT_SIZE)
+                .wrapping(text::Wrapping::WordOrGlyph)
+                .into()
+            } else {
+                let mut options = vec!["native".to_string()];
+                options.extend(app.acp_agents.clone());
+                let busy = app.agents_settings.profile_saving;
+                let picker = settings_select(options, Some(runtime.clone()), |value| {
+                    message(AgentsMessage::ProfileRuntimeChanged(value))
+                })
+                .width(Length::Fill);
+                let mut controls = column![picker].spacing(8);
+                if app.acp_agents.is_empty() {
+                    controls = controls.push(
+                        text(label(if app.acp_settings.loading {
+                            "正在加载 ACP 引擎目录…"
+                        } else {
+                            "暂无可用 ACP 引擎，可刷新目录或在 ACP 设置中启用。"
+                        }))
+                        .size(12)
+                        .style(settings_muted_text_style),
+                    );
+                }
+                if let Some(error) = &app.acp_settings.save_error {
+                    controls = controls.push(settings_error_banner(error.clone()));
+                }
+                controls = controls.push(
+                    button(
+                        text(label(if app.acp_settings.loading {
+                            "加载中…"
+                        } else {
+                            "刷新引擎目录"
+                        }))
+                        .size(SETTINGS_CONTROL_TEXT_SIZE),
+                    )
+                    .on_press_maybe((!busy && !app.acp_settings.loading).then_some(
+                        Message::Settings(SettingsMessage::Acp(
+                            crate::app::message::settings::AcpMessage::Refresh,
+                        )),
+                    ))
+                    .padding([8, 14])
+                    .style(rounded_action_btn_style),
+                );
+                controls.into()
+            }
+        },
+    );
     settings_group_card(
         container(column![name, description, prompts, settings_divider(), runtime].spacing(14))
             .padding([14, 0]),

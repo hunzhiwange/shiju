@@ -575,6 +575,27 @@ async fn ui_refresh_16_preserves_values_and_disabled_states() {
             .expect("API key input aligned with its label and hint");
         assert_ne!(masked, &draft.api_key_input);
         assert_eq!(masked.chars().count(), draft.api_key_input.len());
+        let right_edge = api_key.x + api_key.width;
+        for label in [
+            "启用智能体模式",
+            "启用上下文压缩",
+            "启用并行工具执行",
+            "启用该智能体",
+            "允许作为子智能体",
+        ] {
+            let control = geometry.label(label);
+            assert!((control.x + control.width - right_edge).abs() < 0.5, "{label}: {control:?}");
+        }
+        assert!(matches!(
+            scene.click_label(&mut renderer, "启用智能体模式").as_slice(),
+            [Message::Settings(S::Agents(A::AgenticToggled(id, next)))]
+                if id == AGENT && *next != draft.agentic
+        ));
+        assert!(matches!(
+            scene.click_label(&mut renderer, "启用上下文压缩").as_slice(),
+            [Message::Settings(S::Agents(A::CompactContextToggled(id, next)))]
+                if id == AGENT && *next != draft.compact_context
+        ));
         assert!(scene.click(&mut renderer, api_key.center()).is_empty());
         assert!(scene.key(&mut renderer, Named::End).is_empty());
         assert!(matches!(scene.events(&mut renderer, &[Event::InputMethod(

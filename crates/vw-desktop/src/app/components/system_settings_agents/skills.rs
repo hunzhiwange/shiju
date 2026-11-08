@@ -4,8 +4,8 @@
 
 use super::shared::is_dark_theme;
 use crate::app::components::system_settings_common::{
-    rounded_action_btn_style, settings_error_banner, settings_field_label, settings_group_card,
-    settings_group_heading, settings_muted_text_style, settings_panel_style,
+    rounded_action_btn_style, settings_error_banner, settings_field_label, settings_flexible_row,
+    settings_group_card, settings_group_heading, settings_muted_text_style, settings_panel_style,
     settings_segment_button_style, settings_select, settings_value_badge,
 };
 use crate::app::i18n::settings_extensions::text as tr;
@@ -448,11 +448,13 @@ pub(super) fn view<'a>(
         settings_group_card(
             column![
                 mode,
-                settings_field_label(tr(app.desktop_locale, "技能访问策略")),
-                text(tr(app.desktop_locale, "严格限制保留原有允许范围；不限制允许会话临时选择。"))
-                    .size(12)
-                    .style(settings_muted_text_style),
-                policy_controls,
+                settings_flexible_row(
+                    tr(app.desktop_locale, "技能访问策略"),
+                    tr(app.desktop_locale, "严格限制保留原有允许范围；不限制允许会话临时选择。"),
+                    320.0,
+                    policy_controls,
+                )
+                .padding([6, 0]),
                 button(text(tr(app.desktop_locale, "前往技能库管理")).size(12))
                     .padding([8, 14])
                     .style(rounded_action_btn_style)

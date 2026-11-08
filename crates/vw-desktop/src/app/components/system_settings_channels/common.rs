@@ -7,8 +7,9 @@ use crate::app::components::number_input::NumberInput;
 use crate::app::components::system_settings_common::{
     SETTINGS_CONTROL_PADDING, SETTINGS_CONTROL_TEXT_SIZE, rounded_action_btn_style,
     settings_checkbox_style, settings_control_with_hint, settings_divider, settings_field_label,
-    settings_group_card, settings_group_heading, settings_muted_text_style, settings_select,
-    settings_text_editor_style, settings_text_input_style, settings_value_badge,
+    settings_group_card, settings_group_heading, settings_muted_text_style,
+    settings_responsive_row, settings_select, settings_text_editor_style,
+    settings_text_input_style, settings_value_badge,
 };
 use crate::app::i18n::settings_extensions::text as tr;
 use crate::app::message::settings::{ChannelsMessage, SettingsMessage};
@@ -245,13 +246,6 @@ pub(super) fn multiline_placeholder(placeholder: &'static str) -> &'static str {
     }
 }
 
-pub(super) fn field_row<'a>(
-    label: &'a str,
-    control: impl Into<Element<'a, Message>>,
-) -> Element<'a, Message> {
-    column![settings_field_label(label), control.into()].spacing(6).width(Length::Fill).into()
-}
-
 /// 构建或处理 `text_row` 对应的界面片段与交互数据。
 ///
 /// # 参数
@@ -313,12 +307,15 @@ pub(super) fn text_row_with_key<'a>(
         } else {
             editor.into()
         };
-        return field_row(display_label, editor);
+        return column![settings_field_label(display_label), editor]
+            .spacing(6)
+            .width(Length::Fill)
+            .into();
     }
 
     let value = input_value(app, &key, value);
-    field_row(
-        display_label,
+    settings_responsive_row(display_label, "", move || {
+        let key = key.clone();
         text_input(tr(app.desktop_locale, placeholder), value)
             .on_input(move |next| {
                 Message::Settings(SettingsMessage::Channels(ChannelsMessage::TextChanged(
@@ -330,8 +327,8 @@ pub(super) fn text_row_with_key<'a>(
             .size(SETTINGS_CONTROL_TEXT_SIZE)
             .style(settings_text_input_style)
             .width(Length::Fill)
-            .secure(secure),
-    )
+            .secure(secure)
+    })
 }
 
 /// 构建或处理 `bool_row` 对应的界面片段与交互数据。
@@ -364,8 +361,8 @@ pub(super) fn bool_row_with_key<'a>(
     description: &'static str,
     key: String,
 ) -> Element<'a, Message> {
-    field_row(
-        tr(locale, localized_label(label)),
+    settings_responsive_row(tr(locale, localized_label(label)), "", move || {
+        let key = key.clone();
         checkbox(checked)
             .label(description)
             .text_size(SETTINGS_CONTROL_TEXT_SIZE)
@@ -375,8 +372,8 @@ pub(super) fn bool_row_with_key<'a>(
                     next,
                 )))
             })
-            .style(settings_checkbox_style),
-    )
+            .style(settings_checkbox_style)
+    })
 }
 
 /// 构建或处理 `number_row` 对应的界面片段与交互数据。
@@ -414,10 +411,9 @@ pub(super) fn number_row_with_hint<'a>(
     key: &'static str,
     hint: &'static str,
 ) -> Element<'a, Message> {
-    field_row(
-        tr(locale, localized_label(label)),
-        settings_control_with_hint(number_control(value, min, max, suffix, key.to_string()), hint),
-    )
+    settings_responsive_row(tr(locale, localized_label(label)), hint, move || {
+        number_control(value, min, max, suffix, key.to_string())
+    })
 }
 
 pub(super) fn number_row_with_key<'a>(
@@ -429,7 +425,9 @@ pub(super) fn number_row_with_key<'a>(
     suffix: &'static str,
     key: String,
 ) -> Element<'a, Message> {
-    field_row(tr(locale, localized_label(label)), number_control(value, min, max, suffix, key))
+    settings_responsive_row(tr(locale, localized_label(label)), "", move || {
+        number_control(value, min, max, suffix, key.clone())
+    })
 }
 
 fn number_control(
@@ -490,16 +488,16 @@ pub(super) fn pick_row_with_key<'a>(
         .map(|option| LabeledOption { label: tr(locale, option.label), ..*option })
         .collect();
     let selected = options.iter().find(|option| option.value == selected).copied();
-    field_row(
-        tr(locale, localized_label(label)),
-        settings_select(options, selected, move |next| {
+    settings_responsive_row(tr(locale, localized_label(label)), "", move || {
+        let key = key.clone();
+        settings_select(options.iter().copied(), selected, move |next| {
             Message::Settings(SettingsMessage::Channels(ChannelsMessage::ReceiveModeChanged(
                 key.clone(),
                 next.value.to_string(),
             )))
         })
-        .width(Length::Fill),
-    )
+        .width(Length::Fill)
+    })
 }
 
 pub(super) fn instance_title_row<'a>(
@@ -739,26 +737,29 @@ pub(super) fn default_project_selector(app: &App, key: String) -> Element<'_, Me
             .expect("valid project template"),
         },
     };
-    let instance = key.clone();
-    let picker = settings_select(options, Some(selected), move |option| {
-        Message::Settings(SettingsMessage::Channels(ChannelsMessage::DefaultProjectSelected {
-            instance: instance.clone(),
-            project: option.id,
-        }))
-    })
-    .width(Length::Fill)
-    .reload_on_open(
-        key.clone(),
-        Message::Settings(SettingsMessage::Channels(ChannelsMessage::ProjectChoicesRequested(key))),
-    );
-    let mut content = column![field_row(
+    let project = settings_responsive_row(
         tr(app.desktop_locale, "工作项目"),
-        settings_control_with_hint(
-            picker,
-            tr(app.desktop_locale, "从系统项目列表选择，该连接的聊天将在所选项目下工作；可不选。"),
-        ),
-    ),]
-    .spacing(8);
+        tr(app.desktop_locale, "从系统项目列表选择，该连接的聊天将在所选项目下工作；可不选。"),
+        move || {
+            let instance = key.clone();
+            settings_select(options.iter().cloned(), Some(selected.clone()), move |option| {
+                Message::Settings(SettingsMessage::Channels(
+                    ChannelsMessage::DefaultProjectSelected {
+                        instance: instance.clone(),
+                        project: option.id,
+                    },
+                ))
+            })
+            .width(Length::Fill)
+            .reload_on_open(
+                key.clone(),
+                Message::Settings(SettingsMessage::Channels(
+                    ChannelsMessage::ProjectChoicesRequested(key.clone()),
+                )),
+            )
+        },
+    );
+    let mut content = column![project].spacing(8);
     if active && s.project_choices_loading {
         content = content.push(hint_row(tr(app.desktop_locale, "正在加载项目…")));
     } else if active && s.project_choices_error.is_some() {

@@ -36,6 +36,11 @@ use vw_api_types::{
     id::TenantScope,
 };
 
+#[cfg(not(target_arch = "wasm32"))]
+mod defaults;
+#[cfg(not(target_arch = "wasm32"))]
+pub use defaults::NativeAccountDefault;
+
 // Launch-only rows lack a principal and are never read as managed accounts.
 const MANAGED_ACCOUNT_NAMESPACE: &str = "agent_apps.auth_accounts.v2";
 

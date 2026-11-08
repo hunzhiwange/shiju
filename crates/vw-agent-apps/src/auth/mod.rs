@@ -1,4 +1,8 @@
 //! Host-owned account authorization flows and credentials.
+
+pub mod accounts;
+#[cfg(all(test, target_os = "macos"))]
+mod accounts_tests;
 #[cfg(not(target_arch = "wasm32"))]
 mod browser_callback;
 

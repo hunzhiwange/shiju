@@ -1169,3 +1169,123 @@ fn auth6_kimi_device_store_postgres() {
     assert_kimi_device_commit(|| fixture.reopen().unwrap());
     fixture.cleanup().unwrap();
 }
+
+#[cfg(unix)]
+#[test]
+fn auth6_default_store_publishes_only_the_selected_scope_sqlite() {
+    let home = tempfile::tempdir().unwrap();
+    let open = || GlobalDatabase::for_home(home.path()).unwrap();
+    assert_scoped_defaults_persist(open);
+}
+
+#[cfg(unix)]
+#[test]
+fn auth6_default_store_publishes_only_the_selected_scope_postgres() {
+    let fixture = PostgresTestDatabase::from_environment().unwrap();
+    assert_scoped_defaults_persist(|| fixture.reopen().unwrap());
+}
+
+#[cfg(unix)]
+fn assert_scoped_defaults_persist(open: impl Fn() -> GlobalDatabase) {
+    let credentials = private_credentials_root();
+    let tenant = TenantScope::new("platform", "company").unwrap();
+    let other_company = TenantScope::new("platform", "other-company").unwrap();
+    let other_platform = TenantScope::new("other-platform", "company").unwrap();
+    let scope = AuthAccountScope { service: AuthService::GithubCopilot, ..account_scope(&tenant) };
+    let scopes = [
+        scope,
+        AuthAccountScope { tenant: &other_company, ..scope },
+        AuthAccountScope { tenant: &other_platform, ..scope },
+        AuthAccountScope { host: "other-host", ..scope },
+        AuthAccountScope { principal: "other-principal", ..scope },
+        AuthAccountScope { service: AuthService::XaiOauth, ..scope },
+        AuthAccountScope { service: AuthService::CodexOauth, ..scope },
+    ];
+    let store = AuthAccountStore::new(open(), credentials.path()).unwrap();
+    let runtime = tokio::runtime::Builder::new_current_thread().build().unwrap();
+    let default = |scope, id| runtime.block_on(store.set_default_account(scope, id, None));
+    for scope in scopes {
+        assert_eq!(store.managed_default_account(scope), Ok(None));
+        insert_default_fixture(&store, scope, "original");
+        assert_eq!(default(scope, "original"), Ok(()));
+    }
+    insert_default_fixture(&store, scope, "replacement");
+    assert_eq!(default(scopes[1], "replacement"), Err(AuthErrorCode::NotFound));
+    assert_eq!(default(scope, "../invalid"), Err(AuthErrorCode::InvalidInput));
+    assert_eq!(default(scope, "replacement"), Ok(()));
+    drop(store);
+
+    let store = AuthAccountStore::new(open(), credentials.path()).unwrap();
+    assert_eq!(store.managed_default_account(scope).unwrap().as_deref(), Some("replacement"));
+    for neighbor in &scopes[1..] {
+        assert_eq!(store.managed_default_account(*neighbor).unwrap().as_deref(), Some("original"));
+    }
+}
+
+#[cfg(unix)]
+#[test]
+fn auth6_default_store_preserves_old_default_when_publication_fails() {
+    let home = tempfile::tempdir().unwrap();
+    let database = GlobalDatabase::for_home(home.path()).unwrap();
+    let credentials = private_credentials_root();
+    let tenant = TenantScope::new("platform", "company").unwrap();
+    let scope = AuthAccountScope { service: AuthService::GithubCopilot, ..account_scope(&tenant) };
+    let store = AuthAccountStore::new(database.clone(), credentials.path()).unwrap();
+    insert_default_fixture(&store, scope, "original");
+    insert_default_fixture(&store, scope, "replacement");
+    store.set_managed_default_account(scope, "original").unwrap();
+    database
+        .connect_sqlite()
+        .unwrap()
+        .execute_batch(
+            "CREATE TRIGGER fixture_reject_default BEFORE UPDATE ON gateway_settings
+             WHEN NEW.namespace = 'agent_apps.auth_defaults.v2'
+             BEGIN SELECT RAISE(ABORT, 'fixture default write failure'); END;",
+        )
+        .unwrap();
+    assert_eq!(
+        store.set_managed_default_account(scope, "replacement"),
+        Err(AuthErrorCode::StorageUnavailable)
+    );
+    assert_eq!(store.managed_default_account(scope).unwrap().as_deref(), Some("original"));
+}
+
+#[cfg(unix)]
+fn insert_default_fixture(store: &AuthAccountStore, scope: AuthAccountScope<'_>, id: &str) {
+    let metadata = AuthAccountMetadata::new(id, TimestampMs(1)).unwrap();
+    store.insert_metadata(&scope, id, &metadata).unwrap();
+    let (lease, credential) = match scope.service {
+        AuthService::GithubCopilot => (
+            store.credentials.lease_copilot(scope, id, true).unwrap(),
+            AccountCredential::CopilotToken("synthetic-token".into()),
+        ),
+        AuthService::XaiOauth => (
+            store.credentials.lease_xai(scope, id, true).unwrap(),
+            AccountCredential::XaiOauth(XaiCredential {
+                access_token: "synthetic-access".into(),
+                refresh_token: "synthetic-refresh".into(),
+                expires_at: TimestampMs(1),
+                requires_reauth: false,
+            }),
+        ),
+        AuthService::CodexOauth => (
+            store
+                .credentials
+                .for_owner(scope.principal)
+                .unwrap()
+                .lease(scope.tenant, scope.host, AppId::Codex, id, true)
+                .unwrap(),
+            AccountCredential::CodexAuth(serde_json::json!({
+                "auth_mode": "chatgpt",
+                "tokens": {
+                    "access_token": "synthetic-access",
+                    "refresh_token": "synthetic-refresh",
+                    "id_token": "synthetic-id",
+                    "account_id": "synthetic-account"
+                }
+            })),
+        ),
+        _ => unreachable!(),
+    };
+    lease.save(&credential).unwrap();
+}

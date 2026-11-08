@@ -141,8 +141,6 @@ pub(crate) use self::tool_summaries::explore_summary_text_blocks;
 pub(crate) use self::tool_summaries::summarize_explore_items;
 #[cfg(test)]
 pub(crate) use self::tool_summaries::tool_card_text_blocks;
-#[cfg(test)]
-pub(crate) use self::tool_summaries::trailing_tool_tail_text_source_block_idx;
 
 pub(crate) fn chat_message_action_text(
     app: &App,

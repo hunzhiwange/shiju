@@ -263,32 +263,39 @@ fn render_assistant_body_builds_api_error_card_for_special_text_block() {
 }
 
 #[test]
-fn render_assistant_body_defers_text_before_trailing_explore_tools() {
-    let app = App::new().0;
-    let blocks = vec![
-        ParsedChatBlock::Text { content: "summary".to_string() },
-        ParsedChatBlock::Tool {
-            raw:
-                "tool grep\n{\"status\":\"completed\",\"input\":\"{\\\"pattern\\\":\\\"App\\\"}\"}"
-                    .to_string(),
-        },
-        ParsedChatBlock::Text { content: "\n".to_string() },
-    ];
+fn streaming_body_keeps_text_above_explore_as_thinking_resumes() {
+    let mut app = App::new().0;
+    let text = "我先看一下项目结构和技术栈。";
+    let markdown = parse_markdown_blocks(text);
+    app.chat_markdown_blocks.insert(0, markdown.clone());
+    let text_view = super::markdown::markdown_body_view(&app, 0, 0, &markdown);
+    let text_tag = Tree::new(text_view.as_widget()).tag;
 
-    let body = render_assistant_body(
-        &app,
-        0,
-        &[],
-        vec!["summary".to_string()],
-        String::new(),
-        blocks,
-        Vec::new(),
-        true,
-        false,
-        "summary",
-    );
+    for (status, tail, expected_blocks) in
+        [("running", "", 2), ("completed", "", 2), ("completed", "<think>分析结果", 3)]
+    {
+        let raw = format!(
+            "{text}\n\ntool read\n{{\"status\":\"{status}\",\"input\":\"src/main.rs\"}}\n\n{tail}"
+        );
+        let entry = super::build_render_cache_entry(&raw, text, 0, true);
+        let body = render_assistant_body(
+            &app,
+            0,
+            &[],
+            entry.special_text_blocks,
+            entry.display_text,
+            entry.blocks,
+            entry.tool_block_metadata,
+            entry.has_special_blocks,
+            true,
+            text,
+        );
+        let element: Element<'_, Message> = body.into();
+        let tree = Tree::new(element.as_widget());
 
-    std::hint::black_box(body);
+        assert_eq!(tree.children.len(), expected_blocks, "{status} {tail}");
+        assert_eq!(tree.children[0].tag, text_tag, "{status} {tail}");
+    }
 }
 
 #[test]

@@ -6,7 +6,6 @@
 use std::collections::HashMap;
 use std::path::Path;
 
-use crate::app::models::ParsedChatBlock;
 use crate::app::state::{AdvancedToolSurfaceState, explicit_advanced_tool_surface_spec};
 
 use super::super::tools::{
@@ -344,57 +343,6 @@ pub(super) fn normalized_visible_text(content: &str) -> Option<String> {
     let cleaned = strip_internal_tool_trace(content);
     let normalized = normalize_display_text(cleaned.trim()).into_owned();
     if normalized.is_empty() { None } else { Some(normalized) }
-}
-
-pub(crate) fn trailing_tool_tail_text_source_block_idx(
-    blocks: &[ParsedChatBlock],
-) -> Option<usize> {
-    let mut trailing_end = blocks.len();
-    while trailing_end > 0 {
-        match &blocks[trailing_end - 1] {
-            ParsedChatBlock::Text { content } if normalized_visible_text(content).is_none() => {
-                trailing_end -= 1;
-            }
-            _ => break,
-        }
-    }
-
-    let mut first_trailing_tool = trailing_end;
-    let mut has_trailing_explore = false;
-    while first_trailing_tool > 0 {
-        match &blocks[first_trailing_tool - 1] {
-            ParsedChatBlock::Tool { raw } => {
-                if let Some(name) = tool_name_from_raw(raw)
-                    && is_explore_tool(&name)
-                {
-                    has_trailing_explore = true;
-                }
-                first_trailing_tool -= 1;
-            }
-            ParsedChatBlock::Text { content } if normalized_visible_text(content).is_none() => {
-                first_trailing_tool -= 1;
-            }
-            _ => break,
-        }
-    }
-
-    if !has_trailing_explore || first_trailing_tool == trailing_end {
-        return None;
-    }
-
-    let mut candidate = first_trailing_tool;
-    while candidate > 0 {
-        candidate -= 1;
-        match &blocks[candidate] {
-            ParsedChatBlock::Text { content } if normalized_visible_text(content).is_some() => {
-                return Some(candidate);
-            }
-            ParsedChatBlock::Text { .. } => continue,
-            _ => break,
-        }
-    }
-
-    None
 }
 
 fn collect_tool_texts(

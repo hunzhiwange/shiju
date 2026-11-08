@@ -8,7 +8,6 @@ use super::message_view::{
     should_highlight_pending_permission_tool, should_prefer_plain_think_body,
     should_render_think_block, should_use_user_message_editor, summarize_explore_items,
     think_block_default_expanded, think_block_resolved_expanded, tool_card_text_blocks,
-    trailing_tool_tail_text_source_block_idx,
 };
 use super::tools::{EXPLORE_GROUP_TOOL_IDX, tool_name_from_raw};
 use super::utils::strip_internal_tool_trace;
@@ -497,89 +496,6 @@ fn running_think_blocks_prefer_plain_text_body() {
     assert!(should_prefer_plain_think_body(true, false));
     assert!(should_prefer_plain_think_body(false, true));
     assert!(!should_prefer_plain_think_body(false, false));
-}
-
-#[test]
-fn trailing_tool_tail_text_source_block_idx_ignores_blank_tail_after_tools() {
-    let content = "项目概览\n\ntool read\n{\"status\":\"completed\",\"output\":\"ok\"}\n\n";
-    let render_cache = stale_plain_text_cache();
-
-    let live_cache = effective_assistant_render_cache(
-        content,
-        hash_chat_content(content),
-        &render_cache,
-        content,
-        hash_chat_content(content),
-        true,
-        true,
-    );
-
-    assert_eq!(live_cache.special_text_blocks, vec!["项目概览".to_string()]);
-    assert_eq!(trailing_tool_tail_text_source_block_idx(&live_cache.blocks), Some(0));
-}
-
-#[test]
-fn trailing_tool_tail_text_source_block_idx_skips_when_text_already_follows_tools() {
-    let content = "tool read\n{\"status\":\"completed\",\"output\":\"ok\"}\n项目概览";
-    let render_cache = stale_plain_text_cache();
-
-    let live_cache = effective_assistant_render_cache(
-        content,
-        hash_chat_content(content),
-        &render_cache,
-        content,
-        hash_chat_content(content),
-        true,
-        true,
-    );
-
-    assert_eq!(trailing_tool_tail_text_source_block_idx(&live_cache.blocks), None);
-}
-
-#[test]
-fn trailing_tool_tail_text_source_block_idx_handles_non_explore_tool_before_explore_suffix() {
-    let content = concat!(
-        "这是说明文本\n",
-        "tool skill\n",
-        "{\"status\":\"error\",\"error\":\"未找到技能 \\\"brainstorming\\\"\"}\n",
-        "tool read\n",
-        "{\"status\":\"completed\",\"output\":\"ok\"}\n"
-    );
-    let render_cache = stale_plain_text_cache();
-
-    let live_cache = effective_assistant_render_cache(
-        content,
-        hash_chat_content(content),
-        &render_cache,
-        content,
-        hash_chat_content(content),
-        true,
-        true,
-    );
-
-    assert_eq!(trailing_tool_tail_text_source_block_idx(&live_cache.blocks), Some(0));
-}
-
-#[test]
-fn trailing_tool_tail_text_source_block_idx_skips_non_explore_tool_suffix() {
-    let content = concat!(
-        "这是说明文本\n",
-        "tool skill\n",
-        "{\"status\":\"error\",\"error\":\"未找到技能 \\\"brainstorming\\\"\"}\n"
-    );
-    let render_cache = stale_plain_text_cache();
-
-    let live_cache = effective_assistant_render_cache(
-        content,
-        hash_chat_content(content),
-        &render_cache,
-        content,
-        hash_chat_content(content),
-        true,
-        true,
-    );
-
-    assert_eq!(trailing_tool_tail_text_source_block_idx(&live_cache.blocks), None);
 }
 
 #[test]

@@ -30,7 +30,6 @@ use super::think_block::{
 };
 use super::tool_summaries::{
     normalized_visible_text, should_hide_explore_link_box, should_hide_post_explore_tool_block,
-    trailing_tool_tail_text_source_block_idx,
 };
 
 pub(super) fn count_visible_non_explore_tool_cards(
@@ -358,8 +357,6 @@ where
         let total_think_blocks =
             blocks.iter().filter(|block| matches!(block, ParsedChatBlock::Think { .. })).count();
 
-        let trailing_tool_tail_text_block_idx = trailing_tool_tail_text_source_block_idx(blocks);
-
         let mut think_idx = 0usize;
         let mut tool_idx = 0usize;
         let mut text_block_idx = 0usize;
@@ -367,7 +364,6 @@ where
         let mut command_items: Vec<CommandItem> = Vec::new();
         let mut explore_group_idx = 0usize;
         let mut explore_group_force_running = false;
-        let mut deferred_text: Option<(usize, String)> = None;
 
         for (block_i, block) in blocks.iter().enumerate() {
             match block {
@@ -549,29 +545,6 @@ where
                     text_block_idx += 1;
                     let had_explore_items = !explore_items.is_empty();
 
-                    // Bug 1 fix: trailing_tool_tail_text_source_block_idx already determined
-                    // this text should be deferred regardless of pending explore items.
-                    // Flush any accumulated explore items first, then defer the text so it
-                    // appears after all trailing explore summaries.
-                    if trailing_tool_tail_text_block_idx == Some(block_i) {
-                        if had_explore_items {
-                            body = push_explore_summary(
-                                body,
-                                app,
-                                idx,
-                                explore_group_idx,
-                                &explore_items,
-                                explore_group_force_running,
-                                true,
-                            );
-                            explore_items.clear();
-                            explore_group_force_running = false;
-                            explore_group_idx = explore_group_idx.saturating_add(1);
-                        }
-                        deferred_text = Some((current_text_idx, text));
-                        continue;
-                    }
-
                     body = push_explore_summary(
                         body,
                         app,
@@ -601,7 +574,7 @@ where
         }
 
         body = flush_command_summary(body, app, idx, &mut command_items);
-        body = push_explore_summary(
+        push_explore_summary(
             body,
             app,
             idx,
@@ -609,22 +582,7 @@ where
             &explore_items,
             explore_group_force_running,
             false,
-        );
-
-        if let Some((deferred_idx, deferred_text)) = deferred_text.take() {
-            body = push_special_text_block(
-                body,
-                app,
-                idx,
-                deferred_idx,
-                deferred_text,
-                !is_streaming_assistant
-                    || trailing_tool_tail_text_block_idx
-                        .is_some_and(|index| index + 1 < blocks.len()),
-            );
-        }
-
-        body
+        )
     } else {
         let text = display_text;
         let markdown_key = (idx as u64) << 32;

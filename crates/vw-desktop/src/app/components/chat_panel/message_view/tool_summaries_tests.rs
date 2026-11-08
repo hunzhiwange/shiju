@@ -1,13 +1,11 @@
 //! 验证工具卡片摘要的提取、归一化、去重以及内部轨迹过滤规则。
-//! 畸形原始块、隐藏跟踪文本和尾随探索工具用于验证摘要不会泄漏内部执行细节。
+//! 畸形原始块、隐藏跟踪文本和探索工具用于验证摘要不会泄漏内部执行细节。
 
 use super::tool_summaries::{
     collect_tool_card_texts, count_code_blocks, explore_summary_text_blocks,
     normalized_visible_text, should_hide_explore_link_box, should_hide_post_explore_tool_block,
     special_text_blocks, summarize_explore_items, tool_card_text_blocks,
-    trailing_tool_tail_text_source_block_idx,
 };
-use crate::app::models::ParsedChatBlock;
 
 fn tool_card(tool_name: &str, value: serde_json::Value) -> Vec<String> {
     collect_tool_card_texts(&format!("tool {tool_name}\n{value}")).expect("tool card text")
@@ -81,33 +79,6 @@ fn normalized_visible_text_strips_internal_traces() {
         normalized_visible_text("tool bash({\"command\":\"pwd\"})\nfinal"),
         Some("final".to_string())
     );
-}
-
-#[test]
-fn trailing_tool_tail_text_source_block_idx_requires_trailing_explore_tool() {
-    let blocks = vec![
-        ParsedChatBlock::Text { content: "summary".to_string() },
-        ParsedChatBlock::Tool {
-            raw: "tool read\n{\"input\":\"{\\\"filePath\\\":\\\"/tmp/a.rs\\\"}\",\"status\":\"completed\"}"
-                .to_string(),
-        },
-        ParsedChatBlock::Text { content: "\n".to_string() },
-    ];
-
-    assert_eq!(trailing_tool_tail_text_source_block_idx(&blocks), Some(0));
-
-    let no_explore = vec![
-        ParsedChatBlock::Text { content: "summary".to_string() },
-        ParsedChatBlock::Tool {
-            raw: "tool bash\n{\"input\":\"pwd\",\"status\":\"completed\"}".to_string(),
-        },
-    ];
-    assert_eq!(trailing_tool_tail_text_source_block_idx(&no_explore), None);
-
-    let no_source_text = vec![ParsedChatBlock::Tool {
-        raw: "tool read\n{\"input\":\"src/lib.rs\",\"status\":\"completed\"}".to_string(),
-    }];
-    assert_eq!(trailing_tool_tail_text_source_block_idx(&no_source_text), None);
 }
 
 #[test]

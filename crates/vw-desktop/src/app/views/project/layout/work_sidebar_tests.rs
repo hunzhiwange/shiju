@@ -2,7 +2,7 @@
 //! fixture 使用真实项目与父子会话，验证长标题和运行态投影等边界。
 use iced::advanced::renderer::Headless;
 use iced::advanced::{Layout, Shell, clipboard, layout, mouse, renderer, widget::Tree};
-use iced::{Event, Font, Pixels, Point, Rectangle, Size, Theme};
+use iced::{Event, Font, Pixels, Point, Rectangle, Size, Theme, Vector};
 use vw_shared::session::info::{Info, TimeInfo};
 
 use crate::app::assets::Icon;
@@ -213,7 +213,7 @@ fn work_sidebar_builds_workbuddy_sections_from_real_projects() {
     assert!(model.spaces[1].sessions.is_empty());
     assert!(!model.spaces[1].hovered);
     assert!(!model.spaces[1].tools_open);
-    assert_eq!(model.tasks[0].updated, 40);
+    assert_eq!(model.tasks[0].details.updated, 40);
 
     let Message::Project(ProjectMessage::SwitchWorkSpacePressed(path)) =
         model.spaces[0].message.clone()
@@ -284,25 +284,16 @@ fn work_sidebar_projects_runtime_status_for_main_tasks_only() {
         model.tasks.iter().map(|task| task.id.as_str()).collect::<Vec<_>>(),
         ["running", "idle"]
     );
-    assert_eq!(model.tasks[0].status, work_sidebar::WorkTaskStatus::Running);
-    assert_eq!(model.tasks[1].status, work_sidebar::WorkTaskStatus::Idle);
+    assert_eq!(model.tasks[0].status, super::super::components::SessionRowStatus::Running);
+    assert_eq!(model.tasks[1].status, super::super::components::SessionRowStatus::Idle);
     assert_eq!(
         model.spaces[0].sessions.iter().map(|session| session.id.as_str()).collect::<Vec<_>>(),
         ["running", "idle"]
     );
-    assert_eq!(model.spaces[0].sessions[0].status, work_sidebar::WorkTaskStatus::Running);
-}
-
-#[test]
-fn work_sidebar_truncates_long_task_titles_without_using_time_space() {
-    let long_title = "查询DHB企业证件审核任务并整理全部结果";
-    let full_width = work_sidebar::truncate_work_task_text(long_title, 280.0, false);
-    let with_time = work_sidebar::truncate_work_task_text(long_title, 280.0, true);
-
-    assert!(full_width.ends_with('…'));
-    assert!(with_time.ends_with('…'));
-    assert!(with_time.chars().count() < full_width.chars().count());
-    assert_eq!(work_sidebar::truncate_work_task_text("短任务", 280.0, true), "短任务");
+    assert_eq!(
+        model.spaces[0].sessions[0].status,
+        super::super::components::SessionRowStatus::Running
+    );
 }
 
 #[tokio::test(flavor = "multi_thread")]
@@ -321,6 +312,150 @@ async fn work_sidebar_task_context_menu_routes_session_id_and_pointer_position()
         [Message::Project(ProjectMessage::SessionRightClicked(id, x, y))]
             if id == "session-42" && *x == 19.0 && *y == 13.0
     ));
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn shared_session_row_draws_right_details_and_routes_hover_actions() {
+    use super::super::components::{SessionRowDetails, SessionRowStatus, session_row};
+    use vw_shared::session::info::Summary;
+
+    let mut renderer =
+        <iced::Renderer as Headless>::new(Font::DEFAULT, Pixels(16.0), Some("tiny-skia"))
+            .await
+            .expect("tiny-skia headless renderer should be available");
+    let app = App::new().0;
+    let mut info =
+        session("hovered", "完整中文标题\n侧栏只显示一行", "/项目/工作区", 1_790_000_000_000);
+    info.summary = Some(Summary { additions: 12, deletions: 4, files: 2, diffs: None });
+    let details = SessionRowDetails::new(&info, "示例项目".into());
+    let mut element = session_row(
+        &app,
+        &info.id,
+        &details,
+        SessionRowStatus::Running,
+        Message::Project(ProjectMessage::OpenProjectSessionPressed(
+            info.directory.clone(),
+            info.id.clone(),
+        )),
+    );
+    let mut tree = Tree::new(element.as_widget());
+    let limits = layout::Limits::new(Size::ZERO, Size::new(280.0, 400.0));
+    let node = element.as_widget_mut().layout(&mut tree, &renderer, &limits);
+    assert_eq!(node.bounds().height, 30.0);
+    let layout = Layout::new(&node);
+    let viewport = Rectangle::with_size(Size::new(900.0, 400.0));
+    let center = node.bounds().center();
+    let cursor = mouse::Cursor::Available(center);
+    let mut messages = Vec::new();
+    for event in [
+        Event::Mouse(mouse::Event::CursorMoved { position: center }),
+        Event::Window(iced::window::Event::RedrawRequested(web_time::Instant::now())),
+    ] {
+        element.as_widget_mut().update(
+            &mut tree,
+            &event,
+            layout,
+            cursor,
+            &renderer,
+            &mut clipboard::Null,
+            &mut Shell::new(&mut messages),
+            &viewport,
+        );
+        if matches!(event, Event::Mouse(_)) {
+            tokio::time::sleep(std::time::Duration::from_millis(300)).await;
+        }
+    }
+    assert!(messages.is_empty());
+
+    for theme in [Theme::Light, Theme::Dark] {
+        element.as_widget().draw(
+            &tree,
+            &mut renderer,
+            &theme,
+            &renderer::Style::default(),
+            layout,
+            cursor,
+            &viewport,
+        );
+        let mut overlay = element
+            .as_widget_mut()
+            .overlay(&mut tree, layout, &renderer, &viewport, Vector::ZERO)
+            .expect("session details should open while hovering");
+        let panel = overlay.as_overlay_mut();
+        let panel_node = panel.layout(&renderer, viewport.size());
+        assert!(panel_node.children()[0].bounds().x >= node.bounds().width);
+        panel.draw(
+            &mut renderer,
+            &theme,
+            &renderer::Style::default(),
+            Layout::new(&panel_node),
+            cursor,
+        );
+    }
+
+    let action_position = |x| Point::new(x, center.y);
+    let pin = click_at(&mut element, &mut tree, &renderer, layout, action_position(206.0));
+    assert!(matches!(
+        pin.as_slice(),
+        [Message::Project(ProjectMessage::SessionPinPressed(project, id, true))]
+            if project == &info.project_id && id == &info.id
+    ));
+    let archive = click_at(&mut element, &mut tree, &renderer, layout, action_position(229.0));
+    assert!(matches!(
+        archive.as_slice(),
+        [Message::Project(ProjectMessage::SessionArchivePressed(id))] if id == &info.id
+    ));
+    let open = click_at(&mut element, &mut tree, &renderer, layout, center);
+    assert!(matches!(
+        open.as_slice(),
+        [Message::Project(ProjectMessage::OpenProjectSessionPressed(directory, id))]
+            if directory == &info.directory && id == &info.id
+    ));
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn shared_session_row_renders_pin_without_hover_in_both_themes() {
+    use super::super::components::{SessionRowDetails, SessionRowStatus, session_row};
+    use iced::advanced::Renderer as _;
+
+    let mut renderer = iced::Renderer::new(Font::DEFAULT, Pixels(16.0), Some("tiny-skia"))
+        .await
+        .expect("tiny-skia headless renderer should be available");
+    let mut app = App::new().0;
+    // Leading spaces keep the title out of the pixel sampled for the pin.
+    let info = session("pin-render", "        中文会话标题", "/workspace/project", 10);
+    let key = (info.project_id.clone(), info.id.clone());
+    app.session_ui_projection.pinned.remove(&key);
+    let details = SessionRowDetails::new(&info, "示例项目".into());
+    let open = Message::Project(ProjectMessage::OpenProjectSessionPressed(
+        info.directory.clone(),
+        info.id.clone(),
+    ));
+    let viewport = Rectangle::with_size(Size::new(240.0, 30.0));
+    let limits = layout::Limits::new(Size::ZERO, viewport.size());
+    for pinned in [false, true] {
+        if pinned {
+            app.session_ui_projection.pinned.insert(key.clone());
+        }
+        let mut row = session_row(&app, &info.id, &details, SessionRowStatus::Idle, open.clone());
+        let mut tree = Tree::new(row.as_widget());
+        let node = row.as_widget_mut().layout(&mut tree, &renderer, &limits);
+        for theme in [Theme::Light, Theme::Dark] {
+            renderer.reset(viewport);
+            row.as_widget().draw(
+                &tree,
+                &mut renderer,
+                &theme,
+                &renderer::Style::default(),
+                Layout::new(&node),
+                mouse::Cursor::Unavailable,
+                &viewport,
+            );
+            let pixels = renderer.screenshot(Size::new(240, 30), 1.0, theme.palette().background);
+            let pin_pixel = (14 * 240 + 14) * 4;
+            assert_eq!(&pixels[pin_pixel..pin_pixel + 4] != &pixels[..4], pinned);
+        }
+    }
 }
 
 #[test]
@@ -696,7 +831,7 @@ async fn work_sidebar_draws_dark_chinese_without_monospace_panic() {
     app.recent_projects_edits = vec!["中文空间".into()];
     app.project_sessions.insert(
         "/workspace/chinese".into(),
-        vec![session("cn", "中文任务标题", "/workspace/chinese", 30)],
+        vec![session("cn", "中文任务标题\r\n下一步", "/workspace/chinese", 30)],
     );
     app.get_session_runtime_mut("cn").is_requesting = true;
     app.work_sidebar_more_open = true;
@@ -725,8 +860,17 @@ fn click(element: &mut iced::Element<'_, Message>, renderer: &iced::Renderer) ->
     let limits = layout::Limits::new(Size::ZERO, Size::new(280.0, 48.0));
     let mut tree = Tree::new(element.as_widget());
     let node = element.as_widget_mut().layout(&mut tree, renderer, &limits);
-    let cursor =
-        mouse::Cursor::Available(Point::new(node.bounds().center_x(), node.bounds().center_y()));
+    click_at(element, &mut tree, renderer, Layout::new(&node), node.bounds().center())
+}
+
+fn click_at(
+    element: &mut iced::Element<'_, Message>,
+    tree: &mut Tree,
+    renderer: &iced::Renderer,
+    layout: Layout<'_>,
+    point: Point,
+) -> Vec<Message> {
+    let cursor = mouse::Cursor::Available(point);
     let mut clipboard = clipboard::Null;
     let mut messages = Vec::new();
 
@@ -736,9 +880,9 @@ fn click(element: &mut iced::Element<'_, Message>, renderer: &iced::Renderer) ->
     ] {
         let mut shell = Shell::new(&mut messages);
         element.as_widget_mut().update(
-            &mut tree,
+            tree,
             &event,
-            Layout::new(&node),
+            layout,
             cursor,
             renderer,
             &mut clipboard,
@@ -965,7 +1109,7 @@ fn browser_and_request_polling_reuse_sidebar_without_hiding_metadata_updates() {
     let _ = crate::app::message::project::update(&mut app, event);
     let changed = work_sidebar::cached_model(&app);
     assert!(!std::sync::Arc::ptr_eq(&snapshot, &changed));
-    assert_eq!(changed.tasks[0].updated, 2);
+    assert_eq!(changed.tasks[0].details.updated, 2);
 }
 
 #[test]

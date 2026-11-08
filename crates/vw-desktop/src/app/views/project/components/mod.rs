@@ -4,6 +4,7 @@
 
 mod new_session;
 mod projects_list;
+mod session_row;
 mod sessions_panel;
 
 /// 重新导出 new_session::new_session_picker_layer，作为上层模块访问该视图能力的稳定入口。
@@ -12,6 +13,6 @@ pub use new_session::new_session_picker_layer;
 pub(crate) use projects_list::project_list_action_order;
 /// 重新导出 projects_list::projects_list，作为上层模块访问该视图能力的稳定入口。
 pub use projects_list::projects_list;
-pub(super) use sessions_panel::session_status_icon;
+pub(super) use session_row::{SessionRowDetails, SessionRowStatus, session_row};
 /// 重新导出会话列表与菜单构建器，供项目视图内的不同布局复用同一套交互。
 pub use sessions_panel::{build_session_menu, project_sessions_panel};

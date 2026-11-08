@@ -15,6 +15,7 @@ pub(crate) struct SessionUiProjection {
     pub(crate) agent_session_key: RefCell<(Option<String>, usize)>,
     pub(crate) sidebar: RefCell<Option<Arc<crate::app::views::project::WorkSidebarModel>>>,
     pub(crate) pinned: HashSet<(String, String)>,
+    pending_pins: HashSet<(String, String)>,
     pins_generation: u64,
 }
 
@@ -98,6 +99,61 @@ fn preserves_projection(message: &Message) -> bool {
 }
 
 impl App {
+    pub(crate) fn set_session_pin(
+        &mut self,
+        project_id: String,
+        id: String,
+        pinned: bool,
+    ) -> Task<Message> {
+        let key = (project_id, id);
+        if !self.session_ui_projection.pending_pins.insert(key.clone()) {
+            return Task::none();
+        }
+        let (project_id, id) = key.clone();
+        Task::perform(
+            async move {
+                crate::app::message::spawn_blocking_opt(move || {
+                    Some((|| {
+                        let data_dir = pins_data_dir()?;
+                        let scope = pins_scope(&project_id);
+                        vw_shared::session::ui_store::set_thread_pinned(
+                            &data_dir, &scope, &id, pinned,
+                        )
+                        .map_err(|error| error.to_string())?;
+                        Ok(pinned)
+                    })())
+                })
+                .await
+                .unwrap_or_else(|| Err("pin write task failed".to_owned()))
+            },
+            move |result| Message::Project(ProjectMessage::SessionPinSaved(key.clone(), result)),
+        )
+    }
+
+    pub(crate) fn apply_session_pin(
+        &mut self,
+        key: (String, String),
+        result: Result<bool, String>,
+    ) -> Task<Message> {
+        self.session_ui_projection.pending_pins.remove(&key);
+        match result {
+            Ok(pinned) => {
+                if pinned {
+                    self.session_ui_projection.pinned.insert(key);
+                } else {
+                    self.session_ui_projection.pinned.remove(&key);
+                }
+                self.session_ui_projection.sidebar.get_mut().take();
+                self.refresh_session_pins_task()
+            }
+            Err(error) => self.show_localized_toast(
+                crate::app::state::ToastKind::Error,
+                "保存会话置顶状态失败：%s",
+                vec![error.into()],
+            ),
+        }
+    }
+
     pub(crate) fn prepare_session_ui_projection(&mut self, message: &Message) -> bool {
         if !preserves_projection(message) {
             self.session_ui_projection.agent_sessions.get_mut().take();
@@ -183,17 +239,25 @@ impl App {
     }
 }
 
-fn load_pins(projects: HashSet<String>) -> Result<HashSet<(String, String)>, String> {
+fn pins_data_dir() -> Result<std::path::PathBuf, String> {
     let home = directories::BaseDirs::new().ok_or_else(|| "无法定位置顶会话目录".to_string())?;
-    let data_dir = vw_config_types::paths::home_config_dir(home.home_dir());
+    Ok(vw_config_types::paths::home_config_dir(home.home_dir()))
+}
+
+fn pins_scope(project: &str) -> String {
     let tenant = vw_gateway_client::vw_api_types::id::TenantScope::default();
+    vw_shared::session::ui_store::pinned_threads_scope(
+        tenant.platform_id().as_ref(),
+        tenant.company_id().as_ref(),
+        project,
+    )
+}
+
+fn load_pins(projects: HashSet<String>) -> Result<HashSet<(String, String)>, String> {
+    let data_dir = pins_data_dir()?;
     let mut pinned = HashSet::new();
     for project in projects {
-        let scope = vw_shared::session::ui_store::pinned_threads_scope(
-            tenant.platform_id().as_ref(),
-            tenant.company_id().as_ref(),
-            &project,
-        );
+        let scope = pins_scope(&project);
         let ids = vw_shared::session::ui_store::load_pinned_threads(&data_dir, &scope)
             .map_err(|error| error.to_string())?;
         pinned.extend(ids.into_iter().map(|id| (project.clone(), id)));

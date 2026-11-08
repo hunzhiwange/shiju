@@ -11,7 +11,6 @@ use iced::{Background, Color, Element, Length, Point, Theme};
 use crate::app::assets::Icon;
 use crate::app::components::input_panel::icons::icon_svg;
 use crate::app::components::overlays::PointBelowOverlay;
-use crate::app::components::status_animation::spinner_frame;
 use crate::app::components::system_settings_common::{
     round_icon_btn_style, rounded_action_btn_style, settings_muted_text_style, settings_panel_style,
 };
@@ -20,10 +19,11 @@ use crate::app::message::TaskBoardMessage;
 use crate::app::{Message, message};
 use vw_shared::session::info as session;
 
-use super::super::styles::{is_dark_theme, session_row_highlight_color, tooltip_bubble};
-use super::super::utils::{mix_color, session_title_max_chars, truncate_display_width};
+use super::super::styles::{is_dark_theme, tooltip_bubble};
+use super::super::utils::mix_color;
 use super::new_session::new_session_button;
 use super::projects_list::title_tooltip;
+use super::session_row::{SessionRowDetails, SessionRowStatus, session_row};
 
 fn icon_action_button_style(
     theme: &Theme,
@@ -126,37 +126,6 @@ fn outline_panel_button_style(
     }
 }
 
-fn session_row_button_style(
-    theme: &Theme,
-    active: bool,
-    status: iced::widget::button::Status,
-) -> iced::widget::button::Style {
-    let palette = theme.extended_palette();
-    let is_dark = is_dark_theme(theme);
-    let highlight_bg =
-        session_row_highlight_color(theme).scale_alpha(if is_dark { 0.72 } else { 0.58 });
-    let background = match status {
-        iced::widget::button::Status::Hovered => highlight_bg,
-        iced::widget::button::Status::Pressed => {
-            palette.background.strong.color.scale_alpha(if is_dark { 0.42 } else { 0.22 })
-        }
-        _ => {
-            if active {
-                highlight_bg
-            } else {
-                Color::TRANSPARENT
-            }
-        }
-    };
-    iced::widget::button::Style {
-        background: Some(Background::Color(background)),
-        text_color: theme.palette().text,
-        border: iced::Border { radius: 16.0.into(), width: 0.0, color: Color::TRANSPARENT },
-        shadow: iced::Shadow::default(),
-        ..Default::default()
-    }
-}
-
 fn session_menu_button_style(
     theme: &Theme,
     status: iced::widget::button::Status,
@@ -199,66 +168,6 @@ fn floating_menu_panel_style(theme: &Theme) -> container::Style {
     style
 }
 
-fn status_text_style(color: Color) -> text::Style {
-    text::Style { color: Some(color) }
-}
-
-fn muted_status_icon_style(theme: &Theme) -> text::Style {
-    text::Style { color: Some(theme.palette().text.scale_alpha(0.3)) }
-}
-
-fn running_status_color(breathe: f32) -> Color {
-    mix_color(Color::from_rgb8(245, 158, 11), Color::from_rgb8(239, 68, 68), breathe)
-}
-
-fn queued_status_color(breathe: f32) -> Color {
-    mix_color(Color::from_rgb8(245, 158, 11), Color::from_rgb8(239, 68, 68), breathe * 0.75)
-}
-
-pub(in crate::app::views::project) fn session_status_icon(
-    session_id: &str,
-    is_running: bool,
-    queued: usize,
-    has_unseen_success: bool,
-    now_s: f64,
-) -> Element<'static, Message> {
-    let session_phase = session_id
-        .bytes()
-        .fold(0u32, |acc, byte| acc.wrapping_mul(16777619).wrapping_add(byte as u32));
-    let phase = ((now_s / 1.8) + (session_phase as f64 / u32::MAX as f64)) * std::f64::consts::TAU;
-    let breathe = ((phase.sin() + 1.0) * 0.5) as f32;
-    let icon = if is_running {
-        let running_color = running_status_color(breathe);
-        text("●").size(12.0).style(move |_: &Theme| status_text_style(running_color))
-    } else if queued > 0 {
-        let queued_color = queued_status_color(breathe);
-        text("●").size(8.5).style(move |_: &Theme| status_text_style(queued_color))
-    } else if has_unseen_success {
-        text("●").size(11).style(|_: &Theme| status_text_style(Color::from_rgb8(46, 184, 114)))
-    } else {
-        text("–").size(11).style(muted_status_icon_style)
-    };
-
-    container(icon).width(Length::Fixed(14.0)).align_x(iced::alignment::Horizontal::Center).into()
-}
-
-fn status_badge_style(color: Color) -> container::Style {
-    container::Style {
-        background: Some(Background::Color(color.scale_alpha(0.16))),
-        border: iced::Border { width: 0.0, color: Color::TRANSPARENT, radius: 999.0.into() },
-        text_color: Some(color),
-        ..Default::default()
-    }
-}
-
-fn additions_text_style(_: &Theme) -> text::Style {
-    status_text_style(Color::from_rgb8(46, 184, 114))
-}
-
-fn deletions_text_style(_: &Theme) -> text::Style {
-    status_text_style(Color::from_rgb8(239, 68, 68))
-}
-
 fn task_pool_icon_style(
     theme: &Theme,
     _status: iced::widget::svg::Status,
@@ -296,19 +205,6 @@ fn project_panel_title(
         .and_then(|i| recent_project_edits.get(i).cloned())
         .filter(|name| !name.trim().is_empty())
         .unwrap_or_else(|| path.to_string())
-}
-
-fn session_workspace_label(session_directory: &str, project_path: &str) -> String {
-    if session_directory == project_path {
-        "主工作区".to_string()
-    } else {
-        std::path::Path::new(session_directory)
-            .file_name()
-            .and_then(|name| name.to_str())
-            .map(|name| name.to_string())
-            .filter(|name| !name.is_empty())
-            .unwrap_or_else(|| "工作区".to_string())
-    }
 }
 
 /// 构建菜单界面。
@@ -551,9 +447,12 @@ struct SessionTreeProjection<'a> {
 fn compare_session_recency(
     left: &&session::Info,
     right: &&session::Info,
-    pinned: &HashSet<String>,
+    pinned: &HashSet<(String, String)>,
 ) -> std::cmp::Ordering {
-    pinned.contains(&right.id).cmp(&pinned.contains(&left.id)).then_with(|| {
+    let is_pinned = |session: &session::Info| {
+        pinned.contains(&(session.project_id.clone(), session.id.clone()))
+    };
+    is_pinned(right).cmp(&is_pinned(left)).then_with(|| {
         right
             .time
             .updated
@@ -563,26 +462,10 @@ fn compare_session_recency(
     })
 }
 
-fn project_pinned_threads(project_id: &str) -> HashSet<String> {
-    let Some(home) = directories::BaseDirs::new() else {
-        return HashSet::new();
-    };
-    let tenant = vw_gateway_client::vw_api_types::id::TenantScope::default();
-    let scope = vw_shared::session::ui_store::pinned_threads_scope(
-        tenant.platform_id().as_ref(),
-        tenant.company_id().as_ref(),
-        project_id,
-    );
-    vw_shared::session::ui_store::load_pinned_threads(
-        &vw_config_types::paths::home_config_dir(home.home_dir()),
-        &scope,
-    )
-    .unwrap_or_default()
-}
-
 fn session_tree_projection<'a>(
     sessions: &'a [session::Info],
     load_count: usize,
+    pinned: &HashSet<(String, String)>,
 ) -> SessionTreeProjection<'a> {
     let mut seen_ids = HashSet::new();
     let mut roots = sessions
@@ -595,11 +478,7 @@ fn session_tree_projection<'a>(
                 && seen_ids.insert(session.id.as_str())
         })
         .collect::<Vec<_>>();
-    let pinned = sessions
-        .first()
-        .map(|session| project_pinned_threads(&session.project_id))
-        .unwrap_or_default();
-    roots.sort_by(|left, right| compare_session_recency(left, right, &pinned));
+    roots.sort_by(|left, right| compare_session_recency(left, right, pinned));
     let total_roots = roots.len();
     let rows =
         roots.into_iter().take(load_count).map(|session| SessionTreeRow { session }).collect();
@@ -607,141 +486,24 @@ fn session_tree_projection<'a>(
     SessionTreeProjection { rows, total_roots }
 }
 
-fn session_tree_row<'a>(
-    app: &'a crate::app::App,
-    path: &str,
-    tree_row: SessionTreeRow<'a>,
-    title_max_chars: usize,
-    now_s: f64,
-) -> Element<'a, Message> {
+fn session_tree_row(
+    app: &crate::app::App,
+    tree_row: SessionTreeRow<'_>,
+    project_title: &str,
+) -> Element<'static, Message> {
     let s = tree_row.session;
     let id = s.id.clone();
-    let session_title = crate::app::i18n::other::session_title(app, &s.id, &s.title);
-    let active = app.active_session_id.as_ref() == Some(&id);
-    let runtime = app.session_runtime_states.get(&id);
-    let is_running = runtime.map(|r| r.is_requesting).unwrap_or(false);
-    let queued = runtime.map(|r| r.queue.len()).unwrap_or(0);
-    let has_unseen_success = runtime.map(|r| r.has_unseen_success).unwrap_or(false);
-    let status_icon = session_status_icon(&id, is_running, queued, has_unseen_success, now_s);
-
-    let (adds, dels) =
-        if let Some(sum) = &s.summary { (sum.additions, sum.deletions) } else { (0, 0) };
-
-    let mut status_badges = row![].spacing(4);
-    if is_running {
-        let running_badge_color = Color::from_rgb8(239, 68, 68);
-        status_badges = status_badges.push(
-            container(
-                row![
-                    container(
-                        text(spinner_frame(app.status_animation_frame))
-                            .size(11)
-                            .line_height(iced::widget::text::LineHeight::Relative(1.0))
-                            .style(move |_: &Theme| status_text_style(running_badge_color)),
-                    )
-                    .height(Length::Fixed(13.0))
-                    .align_y(iced::alignment::Vertical::Center),
-                    container(
-                        text(crate::app::i18n::I18n::new(app.desktop_locale).__("运行中"))
-                            .size(11)
-                            .line_height(iced::widget::text::LineHeight::Relative(1.0)),
-                    )
-                    .height(Length::Fixed(13.0))
-                    .align_y(iced::alignment::Vertical::Center)
-                ]
-                .spacing(4)
-                .align_y(iced::alignment::Vertical::Center),
-            )
-            .padding([1, 6])
-            .style(move |_: &Theme| status_badge_style(running_badge_color)),
-        );
-    }
-    if queued > 0 {
-        status_badges = status_badges.push(
-            container(
-                text(
-                    crate::__!(
-                        crate::app::i18n::I18n::new(app.desktop_locale),
-                        "排队 %s",
-                        format!("{}", queued)
-                    )
-                    .expect("valid input display template"),
-                )
-                .size(11),
-            )
-            .padding([1, 6])
-            .style(|_: &Theme| status_badge_style(Color::from_rgb8(245, 158, 11))),
-        );
-    }
-    if has_unseen_success && !is_running && queued == 0 {
-        status_badges = status_badges.push(
-            container(text(crate::app::i18n::I18n::new(app.desktop_locale).__("有更新")).size(11))
-                .padding([1, 6])
-                .style(|_: &Theme| status_badge_style(Color::from_rgb8(46, 184, 114))),
-        );
-    }
-    let dynamic_title_max_chars = title_max_chars.saturating_add(6).max(14);
-
-    let workspace_label = if s.directory == path {
-        crate::app::i18n::I18n::new(app.desktop_locale).__("主工作区").to_owned()
-    } else {
-        session_workspace_label(&s.directory, path)
-    };
-    let workspace_meta = truncate_display_width(&workspace_label, dynamic_title_max_chars / 2 + 8);
-    let change_stats = row![
-        text(format!("+{}", adds)).size(11).style(additions_text_style),
-        text(format!("-{}", dels)).size(11).style(deletions_text_style),
-    ]
-    .spacing(4)
-    .align_y(iced::alignment::Vertical::Center);
-
-    let header_row = row![
-        status_icon,
-        text(truncate_display_width(&session_title, dynamic_title_max_chars))
-            .size(13)
-            .font(iced::Font {
-                weight: if active { iced::font::Weight::Bold } else { iced::font::Weight::Medium },
-                ..Default::default()
-            })
-            .wrapping(iced::widget::text::Wrapping::None)
-            .width(Length::Fill),
-    ]
-    .spacing(6)
-    .align_y(iced::alignment::Vertical::Center)
-    .width(Length::Fill);
-
-    let mut footer_row = row![
-        text(workspace_meta).size(11).style(settings_muted_text_style),
-        text("·").size(11).style(settings_muted_text_style),
-        change_stats,
-    ]
-    .align_y(iced::alignment::Vertical::Center)
-    .spacing(5);
-    if is_running || queued > 0 || has_unseen_success {
-        footer_row = footer_row.push(status_badges);
-    }
-
-    let row_content = column![header_row, footer_row]
-        .spacing(3)
-        .align_x(iced::alignment::Horizontal::Left)
-        .width(Length::Fill);
-
-    let hover_tip = session_title.clone();
-    let session_directory = s.directory.clone();
-    let session_button = button(container(row_content).padding([3, 6]))
-        .on_press(Message::Project(message::ProjectMessage::OpenProjectSessionPressed(
-            session_directory,
+    let status = SessionRowStatus::for_session(app, &id);
+    let session_button = session_row(
+        app,
+        &id,
+        &SessionRowDetails::new(s, project_title.to_owned()),
+        status,
+        Message::Project(message::ProjectMessage::OpenProjectSessionPressed(
+            s.directory.clone(),
             id.clone(),
-        )))
-        .width(Length::Fill)
-        .style(move |theme: &Theme, status| session_row_button_style(theme, active, status));
-    let session_button: Element<'a, Message> = iced::widget::tooltip::Tooltip::new(
-        session_button,
-        tooltip_bubble(hover_tip),
-        iced::widget::tooltip::Position::Top,
-    )
-    .gap(8)
-    .into();
+        )),
+    );
     let id_for_right_click = std::rc::Rc::new(id.clone());
     let right_click = Element::new(RightClickArea::new(
         session_button,
@@ -761,7 +523,7 @@ fn session_tree_row<'a>(
                 crate::app::i18n::I18n::new(app.desktop_locale),
                 id,
                 s.directory.clone(),
-                is_running || s.time.compacting.is_some(),
+                status == SessionRowStatus::Running || s.time.compacting.is_some(),
             ),
         )
         .show(true)
@@ -779,7 +541,7 @@ fn session_tree_row<'a>(
 /// - `app`: 当前视图构建所需的状态、配置或消息。
 /// - `path`: 当前视图构建所需的状态、配置或消息。
 /// - `sessions`: 当前视图构建所需的状态、配置或消息。
-/// - `title_max_chars`: 当前视图构建所需的状态、配置或消息。
+/// - `project_title`: 详情卡展示的项目名称。
 /// - `load_count`: 当前视图构建所需的状态、配置或消息。
 /// - `is_loading`: 当前视图构建所需的状态、配置或消息。
 ///
@@ -792,12 +554,11 @@ pub fn session_items_list<'a>(
     app: &'a crate::app::App,
     path: &str,
     sessions: Option<&'a Vec<session::Info>>,
-    title_max_chars: usize,
+    project_title: &str,
     load_count: usize,
     is_loading: bool,
 ) -> Element<'a, Message> {
     let mut session_items = column![].spacing(5);
-    let now_s = crate::app::time::now_ms() as f64 / 1000.0;
 
     if is_loading {
         session_items = session_items.push(
@@ -808,11 +569,11 @@ pub fn session_items_list<'a>(
             .width(Length::Fill),
         );
     } else if let Some(sessions) = sessions {
-        let projection = session_tree_projection(sessions, load_count);
+        let projection = session_tree_projection(sessions, load_count, &app.session_ui_projection.pinned);
         let total_visible = projection.total_roots;
         for tree_row in projection.rows {
             session_items =
-                session_items.push(session_tree_row(app, path, tree_row, title_max_chars, now_s));
+                session_items.push(session_tree_row(app, tree_row, project_title));
         }
 
         if total_visible == 0 {
@@ -872,9 +633,6 @@ pub fn session_items_list<'a>(
 ///
 /// # 参数
 /// - `app`: 当前视图构建所需的状态、配置或消息。
-/// - `settings_panel_width`: 当前视图构建所需的状态、配置或消息。
-/// - `left_rail_width`: 当前视图构建所需的状态、配置或消息。
-/// - `session_panel_width_scale`: 当前视图构建所需的状态、配置或消息。
 /// - `target_path`: 当前视图构建所需的状态、配置或消息。
 ///
 /// # 返回
@@ -884,13 +642,8 @@ pub fn session_items_list<'a>(
 /// 此函数不返回 `Result`；不可用状态会通过空视图、禁用控件或回退文案表达。
 pub fn project_sessions_panel(
     app: &crate::app::App,
-    settings_panel_width: f32,
-    left_rail_width: f32,
-    session_panel_width_scale: f32,
     target_path: Option<String>,
 ) -> Element<'_, Message> {
-    let panel_w = ((settings_panel_width - left_rail_width) * session_panel_width_scale).max(0.0);
-
     if let Some(path) = target_path {
         let horizontal_padding = 14.0;
         let title = project_panel_title(&path, &app.recent_projects, &app.recent_projects_edits);
@@ -899,21 +652,18 @@ pub fn project_sessions_panel(
         let load_count = app.project_session_load_counts.get(&path).copied().unwrap_or(10);
         let has_vertical_scrollbar =
             app.project_session_has_vertical_scrollbar.get(&path).copied().unwrap_or(false);
-        let session_list_width_reduction = if has_vertical_scrollbar { 5.0 } else { 0.0 };
+        let session_list_width_reduction = if has_vertical_scrollbar { 8.0 } else { 7.0 };
         let sessions = app.project_sessions.get(&path);
-        let inner_w = (panel_w - horizontal_padding * 2.0).max(0.0);
-        let title_max_chars =
-            session_title_max_chars((inner_w - session_list_width_reduction).max(0.0));
         let header = project_sessions_header(
             crate::app::i18n::I18n::new(app.desktop_locale),
-            title,
+            title.clone(),
             path.clone(),
             false,
             app.project_tools_menu_path.as_ref() == Some(&path),
         );
         let new_session_btn = new_session_button(app, path.clone());
         let session_items =
-            session_items_list(app, &path, sessions, title_max_chars, load_count, is_loading);
+            session_items_list(app, &path, sessions, &title, load_count, is_loading);
         let task_pool_btn = button(
             container(
                 row![

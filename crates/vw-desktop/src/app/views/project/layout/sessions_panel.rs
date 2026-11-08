@@ -53,18 +53,12 @@ pub fn project_sessions_panel_container(
         left_rail_width,
         session_panel_width_scale,
     );
-    container(project_sessions_panel(
-        app,
-        settings_panel_width,
-        left_rail_width,
-        session_panel_width_scale,
-        target_path,
-    ))
-    .width(Length::Fixed(panel_width))
-    .height(Length::Fill)
-    .clip(true)
-    .style(move |theme: &Theme| project_sessions_panel_container_style(theme, corner_radius))
-    .into()
+    container(project_sessions_panel(app, target_path))
+        .width(Length::Fixed(panel_width))
+        .height(Length::Fill)
+        .clip(true)
+        .style(move |theme: &Theme| project_sessions_panel_container_style(theme, corner_radius))
+        .into()
 }
 #[cfg(test)]
 #[path = "sessions_panel_tests.rs"]

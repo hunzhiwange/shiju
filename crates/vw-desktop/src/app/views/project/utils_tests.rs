@@ -4,7 +4,7 @@ use iced::Color;
 
 use super::{
     contrast_text_color, lighten_color, mix_color, project_accent_color, project_badge_label,
-    session_title_max_chars, stable_hash32, truncate_display_width, workspace_path_for_tooltip,
+    stable_hash32, truncate_display_width, workspace_path_for_tooltip,
 };
 
 #[test]
@@ -116,27 +116,6 @@ fn lighten_color_returns_an_opaque_color() {
 #[test]
 fn contrast_text_color_uses_dark_text_for_bright_background() {
     assert_eq!(contrast_text_color(Color::from_rgb(0.8, 0.8, 0.8)), Color::from_rgb8(18, 18, 18));
-}
-
-#[test]
-fn session_title_max_chars_uses_minimum_available_width_for_narrow_panel() {
-    assert_eq!(session_title_max_chars(100.0), 18);
-}
-
-#[test]
-fn session_title_max_chars_uses_panel_width_after_reserved_space() {
-    assert_eq!(session_title_max_chars(300.0), 34);
-}
-
-#[test]
-fn session_title_max_chars_keeps_minimum_available_width_at_boundary() {
-    assert_eq!(session_title_max_chars(220.0), 18);
-    assert_eq!(session_title_max_chars(225.0), 19);
-}
-
-#[test]
-fn session_title_max_chars_scales_with_very_wide_panel() {
-    assert_eq!(session_title_max_chars(2000.0), 367);
 }
 
 #[test]

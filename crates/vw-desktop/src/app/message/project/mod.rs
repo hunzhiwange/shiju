@@ -235,6 +235,8 @@ pub enum ProjectMessage {
     SessionRightClicked(String, f32, f32),
     SessionMenuClose,
     SessionTreeToggled(String),
+    SessionPinPressed(String, String, bool),
+    SessionPinSaved((String, String), Result<bool, String>),
     SessionArchivePressed(String),
     SessionDeletePressed(String),
     SessionRenamePressed(String),

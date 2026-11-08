@@ -767,6 +767,10 @@ pub(crate) fn handle(app: &mut App, message: ProjectMessage) -> Option<iced::Tas
             app.session_menu_anchor = None;
             Some(iced::Task::none())
         }
+        ProjectMessage::SessionPinPressed(project_id, id, pinned) => {
+            Some(app.set_session_pin(project_id, id, pinned))
+        }
+        ProjectMessage::SessionPinSaved(key, result) => Some(app.apply_session_pin(key, result)),
         ProjectMessage::SessionTreeToggled(id) => {
             if !app.session_tree_expanded.remove(&id) {
                 app.session_tree_expanded.insert(id);

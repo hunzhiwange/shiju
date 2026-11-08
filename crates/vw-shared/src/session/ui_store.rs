@@ -47,14 +47,26 @@ pub fn set_thread_pinned(
     thread_id: &str,
     pinned: bool,
 ) -> std::io::Result<()> {
+    let path = pinned_threads_path(data_dir, scope);
+    std::fs::create_dir_all(path.parent().expect("pinned threads directory"))?;
+    // Desktop and agent processes share this store. Keep the read-modify-write
+    // locked on a separate file because the data file is replaced by rename.
+    #[cfg(not(target_arch = "wasm32"))]
+    let _lock = {
+        let file = std::fs::OpenOptions::new()
+            .write(true)
+            .create(true)
+            .truncate(false)
+            .open(path.with_extension("lock"))?;
+        file.lock()?;
+        file
+    };
     let mut ids = load_pinned_threads(data_dir, scope)?;
     if pinned {
         ids.insert(thread_id.to_string());
     } else {
         ids.remove(thread_id);
     }
-    let path = pinned_threads_path(data_dir, scope);
-    std::fs::create_dir_all(path.parent().expect("pinned threads directory"))?;
     let temporary = path.with_extension(format!("{}.tmp", std::process::id()));
     std::fs::write(&temporary, serde_json::to_vec(&ids).map_err(std::io::Error::other)?)?;
     std::fs::rename(temporary, path)

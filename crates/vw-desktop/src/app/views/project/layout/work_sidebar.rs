@@ -5,12 +5,11 @@ use iced::widget::tooltip::{Position as TooltipPosition, Tooltip};
 use iced::widget::{
     Space, Stack, button, column, container, mouse_area, row, scrollable, svg, text,
 };
-use iced::{Background, Border, Color, Element, Length, Point, Shadow, Theme, Vector};
+use iced::{Background, Border, Element, Length, Point, Shadow, Theme, Vector};
 
 use crate::app::assets::{self, Icon};
 use crate::app::components::input_panel::styles::tooltip_dark_style;
 use crate::app::components::overlays::{BelowOverlay, PointBelowOverlay, SideOverlay};
-use crate::app::components::status_animation::spinner_frame;
 use crate::app::components::system_settings::SystemTab;
 use crate::app::components::widgets::RightClickArea;
 use crate::app::message::{ProjectMessage, SearchMessage, TaskBoardMessage, ViewMessage};
@@ -24,42 +23,21 @@ use crate::app::state::{
 };
 use crate::app::{App, Message};
 
-use super::super::components::{build_session_menu, session_status_icon};
-use super::super::utils::truncate_display_width;
+use super::super::components::{
+    SessionRowDetails, SessionRowStatus as WorkTaskStatus, build_session_menu, session_row,
+};
 
 pub(super) const WORK_SIDEBAR_SCROLLBAR_WIDTH: u32 = 4;
 pub(super) const WORK_SIDEBAR_SCROLLBAR_GUTTER: f32 = 8.0;
-const WORK_TASK_ROW_FIXED_WIDTH: f32 = 46.0;
-const WORK_TASK_TITLE_END_GUTTER_WIDTH: f32 = 18.0;
-const WORK_TASK_TIME_RESERVED_WIDTH: f32 = 62.0;
-const WORK_TASK_DISPLAY_UNIT_WIDTH: f32 = 6.5;
 const WORK_NAVIGATION_ICON_COLUMN_WIDTH: f32 = 22.0;
 const WORK_HEADER_ICON_SIZE: f32 = 16.0;
 const WORK_HEADER_CONTROL_SIZE: f32 = 32.0;
 const WORK_FILTER_CONTROL_SIZE: f32 = 30.0;
 const MILLIS_PER_DAY: u64 = 24 * 60 * 60 * 1_000;
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub(super) enum WorkTaskStatus {
-    Idle,
-    Running,
-    Queued(usize),
-    Updated,
-}
-
 pub(super) struct WorkTaskItem {
     pub(super) id: String,
-    title: String,
-    project_label: String,
-    pub(super) updated: u64,
-    pub(super) status: WorkTaskStatus,
-    pub(super) message: Message,
-}
-
-pub(super) struct WorkSpaceSession {
-    pub(super) id: String,
-    title: String,
-    updated: u64,
+    pub(super) details: SessionRowDetails,
     pub(super) status: WorkTaskStatus,
     pub(super) message: Message,
 }
@@ -72,7 +50,7 @@ pub(super) struct WorkSpaceItem {
     pub(super) hovered: bool,
     pub(super) tools_open: bool,
     pub(super) creating: bool,
-    pub(super) sessions: Vec<WorkSpaceSession>,
+    pub(super) sessions: Vec<WorkTaskItem>,
     pub(super) session_total: usize,
     pub(super) message: Message,
     pub(super) toggle_message: Message,
@@ -244,21 +222,6 @@ fn session_matches_status_filter(app: &App, session_id: &str) -> bool {
     }
 }
 
-fn task_status(app: &App, session_id: &str) -> WorkTaskStatus {
-    let Some(runtime) = app.session_runtime_states.get(session_id) else {
-        return WorkTaskStatus::Idle;
-    };
-    if runtime.is_requesting {
-        WorkTaskStatus::Running
-    } else if !runtime.queue.is_empty() {
-        WorkTaskStatus::Queued(runtime.queue.len())
-    } else if runtime.has_unseen_success {
-        WorkTaskStatus::Updated
-    } else {
-        WorkTaskStatus::Idle
-    }
-}
-
 pub(super) fn cached_model(app: &App) -> std::sync::Arc<WorkSidebarModel> {
     let mut cached = app.session_ui_projection.sidebar.borrow_mut();
     cached.get_or_insert_with(|| std::sync::Arc::new(model(app))).clone()
@@ -293,10 +256,8 @@ pub(super) fn model(app: &App) -> WorkSidebarModel {
         .into_iter()
         .map(|(path, session)| WorkTaskItem {
             id: session.id.clone(),
-            title: session.title.clone(),
-            project_label: project_label(app, path),
-            updated: session.time.updated,
-            status: task_status(app, &session.id),
+            details: SessionRowDetails::new(session, project_label(app, path)),
+            status: WorkTaskStatus::for_session(app, &session.id),
             message: Message::Project(ProjectMessage::OpenProjectSessionPressed(
                 session.directory.clone(),
                 session.id.clone(),
@@ -318,6 +279,7 @@ pub(super) fn model(app: &App) -> WorkSidebarModel {
                 return None;
             }
 
+            let label = project_label(app, path);
             let expanded = app.work_expanded_spaces.contains(path);
             let session_total = filtered_sessions.len();
             let sessions = if expanded {
@@ -329,11 +291,10 @@ pub(super) fn model(app: &App) -> WorkSidebarModel {
                 sort_and_truncate_sessions(&mut filtered_sessions, visible, pinned);
                 filtered_sessions
                     .into_iter()
-                    .map(|(_, session)| WorkSpaceSession {
+                    .map(|(_, session)| WorkTaskItem {
                         id: session.id.clone(),
-                        title: session.title.clone(),
-                        updated: session.time.updated,
-                        status: task_status(app, &session.id),
+                        details: SessionRowDetails::new(session, label.clone()),
+                        status: WorkTaskStatus::for_session(app, &session.id),
                         message: Message::Project(ProjectMessage::OpenProjectSessionPressed(
                             session.directory.clone(),
                             session.id.clone(),
@@ -346,7 +307,7 @@ pub(super) fn model(app: &App) -> WorkSidebarModel {
 
             Some(WorkSpaceItem {
                 path: path.clone(),
-                label: project_label(app, path),
+                label,
                 selected: app.project_path.as_deref() == Some(path.as_str()),
                 expanded,
                 hovered: app.hovered_recent_project.as_deref() == Some(path.as_str()),
@@ -1030,121 +991,8 @@ pub(super) fn task_session_context_menu(
 }
 
 fn task_button(app: &App, task: &WorkTaskItem) -> Element<'static, Message> {
-    let raw_title = if task.title.trim().is_empty() {
-        crate::app::i18n::I18n::new(app.desktop_locale).__("未命名任务").to_string()
-    } else {
-        task.title.clone()
-    };
-    let title = truncate_work_task_text(&raw_title, app.work_sidebar_width, false);
-    let project_label = truncate_work_task_text(&task.project_label, app.work_sidebar_width, true);
-    let updated = crate::app::i18n::chat::relative_time(
-        crate::app::i18n::I18n::new(app.desktop_locale),
-        crate::app::components::chat_panel::utils::relative_time_bucket(
-            task.updated,
-            crate::app::time::now_ms(),
-        ),
-    );
-    let mut meta = row![
-        text(project_label)
-            .size(11)
-            .wrapping(text::Wrapping::None)
-            .style(muted_task_text_style)
-            .width(Length::Fill),
-    ]
-    .spacing(8)
-    .align_y(iced::Alignment::Center)
-    .width(Length::Fill);
-    if let Some(status) = task_status_badge(
-        crate::app::i18n::I18n::new(app.desktop_locale),
-        task.status,
-        app.status_animation_frame,
-    ) {
-        meta = meta.push(status);
-    }
-    meta = meta.push(text(updated).size(11).style(muted_task_text_style));
-    let title_row = row![
-        work_task_status_icon(&task.id, task.status),
-        text(title).size(13).wrapping(text::Wrapping::None).width(Length::Fill),
-    ]
-    .spacing(6)
-    .align_y(iced::Alignment::Center)
-    .width(Length::Fill);
-    let content = button(column![title_row, meta].spacing(2))
-        .on_press(task.message.clone())
-        .padding([7, 9])
-        .width(Length::Fill)
-        .style(navigation_button_style)
-        .into();
+    let content = session_row(app, &task.id, &task.details, task.status, task.message.clone());
     task_session_context_menu(app, task.id.clone(), content)
-}
-
-fn muted_task_text_style(theme: &Theme) -> text::Style {
-    text::Style { color: Some(theme.palette().text.scale_alpha(0.52)) }
-}
-
-fn work_task_status_icon(id: &str, status: WorkTaskStatus) -> Element<'static, Message> {
-    let (is_running, queued, has_unseen_success) = match status {
-        WorkTaskStatus::Idle => (false, 0, false),
-        WorkTaskStatus::Running => (true, 0, false),
-        WorkTaskStatus::Queued(count) => (false, count, false),
-        WorkTaskStatus::Updated => (false, 0, true),
-    };
-    let now_s = crate::app::time::now_ms() as f64 / 1000.0;
-    session_status_icon(id, is_running, queued, has_unseen_success, now_s)
-}
-
-fn task_status_badge(
-    i18n: crate::app::i18n::I18n,
-    status: WorkTaskStatus,
-    animation_frame: usize,
-) -> Option<Element<'static, Message>> {
-    let (content, color): (Element<'static, Message>, Color) = match status {
-        WorkTaskStatus::Idle => return None,
-        WorkTaskStatus::Running => (
-            row![
-                text(spinner_frame(animation_frame))
-                    .size(10)
-                    .line_height(text::LineHeight::Relative(1.0)),
-                text(i18n.__("运行中")).size(10),
-            ]
-            .spacing(3)
-            .align_y(iced::Alignment::Center)
-            .into(),
-            Color::from_rgb8(239, 68, 68),
-        ),
-        WorkTaskStatus::Queued(count) => (
-            text(i18n.format("排队 %u", &[count.into()]).expect("valid queue template"))
-                .size(10)
-                .into(),
-            Color::from_rgb8(245, 158, 11),
-        ),
-        WorkTaskStatus::Updated => {
-            (text(i18n.__("有更新")).size(10).into(), Color::from_rgb8(46, 184, 114))
-        }
-    };
-    Some(
-        container(content)
-            .padding([1, 5])
-            .style(move |_: &Theme| container::Style {
-                background: Some(Background::Color(color.scale_alpha(0.16))),
-                border: Border { radius: 999.0.into(), ..Default::default() },
-                text_color: Some(color),
-                ..Default::default()
-            })
-            .into(),
-    )
-}
-
-pub(super) fn truncate_work_task_text(
-    value: &str,
-    sidebar_width: f32,
-    reserve_time: bool,
-) -> String {
-    let trailing_width =
-        if reserve_time { WORK_TASK_TIME_RESERVED_WIDTH } else { WORK_TASK_TITLE_END_GUTTER_WIDTH };
-    let available_width = (sidebar_width - WORK_TASK_ROW_FIXED_WIDTH - trailing_width).max(65.0);
-    let max_display_width = (available_width / WORK_TASK_DISPLAY_UNIT_WIDTH).max(10.0) as usize;
-    truncate_display_width(value, max_display_width)
 }
 
 fn space_tools_menu_action(
@@ -1306,37 +1154,6 @@ fn space_button(i18n: crate::app::i18n::I18n, space: &WorkSpaceItem) -> Element<
     .on_enter(Message::Project(ProjectMessage::RecentHovered(Some(path))))
     .on_exit(Message::Project(ProjectMessage::RecentHovered(None)))
     .into()
-}
-
-fn space_session_button(app: &App, session: &WorkSpaceSession) -> Element<'static, Message> {
-    let raw_title = if session.title.trim().is_empty() {
-        crate::app::i18n::I18n::new(app.desktop_locale).__("未命名任务").to_string()
-    } else {
-        session.title.clone()
-    };
-    let title = truncate_work_task_text(&raw_title, app.work_sidebar_width, true);
-    let content_row = row![
-        work_task_status_icon(&session.id, session.status),
-        text(title).size(12).wrapping(text::Wrapping::None).width(Length::Fill),
-        text(crate::app::i18n::chat::relative_time(
-            crate::app::i18n::I18n::new(app.desktop_locale),
-            crate::app::components::chat_panel::utils::relative_time_bucket(
-                session.updated,
-                crate::app::time::now_ms()
-            )
-        ))
-        .size(11)
-        .style(muted_task_text_style),
-    ]
-    .spacing(8)
-    .align_y(iced::Alignment::Center);
-    let content = button(content_row)
-        .on_press(session.message.clone())
-        .padding([7, 9])
-        .width(Length::Fill)
-        .style(navigation_button_style)
-        .into();
-    task_session_context_menu(app, session.id.clone(), content)
 }
 
 fn navigation_section(app: &App) -> Element<'static, Message> {
@@ -1515,7 +1332,7 @@ fn spaces_section(app: &App, model: &WorkSidebarModel) -> Element<'static, Messa
             spaces =
                 spaces.push(space_button(crate::app::i18n::I18n::new(app.desktop_locale), space));
             for session in &space.sessions {
-                spaces = spaces.push(space_session_button(app, session));
+                spaces = spaces.push(task_button(app, session));
             }
             if space.expanded && space.sessions.len() < space.session_total {
                 spaces = spaces.push(load_more_button(

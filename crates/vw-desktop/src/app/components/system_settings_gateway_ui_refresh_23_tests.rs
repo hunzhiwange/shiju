@@ -623,3 +623,146 @@ async fn ui_refresh_23_scrolls_skeys_and_keeps_row_indices() {
         )
     );
 }
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn help_rollout_18_renders_contextual_help() {
+    use crate::app::components::system_settings::{self, SystemTab};
+    use crate::app::components::system_settings_proxy::system_settings_proxy_tests::rollout::{
+        MODES, Scene,
+    };
+
+    if !isolated("help_rollout_18_renders_contextual_help") {
+        return;
+    }
+    let mut renderer = renderer().await;
+    let mut app = fixture();
+    app.show_system_settings = true;
+    app.system_settings_tab = SystemTab::Gateway;
+    app.gateway_settings.save_error = Some(SAVE_ERROR.into());
+    app.gateway_settings.service_action_output = Some("Fixture: service status".into());
+
+    for (locale, theme) in MODES {
+        app.desktop_locale = locale;
+        app.app_theme = theme;
+        let t = |key| connection_text(locale, key);
+        app.gateway_settings.active_tab = GatewaySettingsTab::Config;
+
+        let mut settings = Scene::new(&app, &mut renderer, "gateway-settings", view(&app));
+        settings.label(SAVE_ERROR);
+        settings.label("Fixture: service status");
+        settings.label(t("若 host 非本地地址，建议仅在可信反向代理或隧道环境下使用。"));
+        for (title, description) in [
+            (
+                "服务端网关配置",
+                "配置 Gateway 的监听地址、skey 鉴权、限流和实验性 node-control 行为。",
+            ),
+            ("服务管理", "通过本机 gateway 调用 shiju service 管理 OS 服务生命周期。"),
+            ("主机地址", "控制服务端 Gateway 的监听地址。"),
+            ("安全开关", "控制 skey 鉴权、公网绑定与反向代理头信任策略。"),
+        ] {
+            settings.help(t(title), t(description));
+        }
+        let port_help = t("控制服务端 Gateway 的监听端口。");
+        let port_icon = settings.help(t("端口"), port_help);
+        settings.actions(port_icon, port_help);
+        assert!(matches!(
+            settings.edit(&app.gateway_settings.host_input).as_slice(),
+            [Message::Settings(SettingsMessage::Gateway(GatewayMessage::HostChanged(value)))]
+                if Some(value.as_str()) == app.gateway_settings.host_input.strip_suffix('d')
+        ));
+        drop(settings);
+
+        let size = Size::new(640, 1700);
+        let mut shell = scene(system_settings::view(&app), &mut renderer, size);
+        for (index, (title, description)) in [
+            ("速率限制", "限制 /webhook 请求频率，并约束网关内部 key map 规模。"),
+            ("Webhook速率限制/分钟", "限制 /webhook 每分钟可接受的请求数。"),
+            ("速率限制最大键数", "约束网关内部 key map 规模。"),
+            ("幂等性", "控制 webhook 幂等 key 的存活时间与内存上限。"),
+            ("幂等性TTL(秒)", "控制 webhook 幂等 key 的存活时间。"),
+            ("幂等性最大键数", "控制幂等缓存允许保留的 key 数量。"),
+            ("Node Control", "配置实验性的 node-control 协议，包括额外鉴权和允许的远端节点 ID。"),
+        ]
+        .into_iter()
+        .enumerate()
+        {
+            assert_help_frames(
+                &mut shell,
+                &mut renderer,
+                &app.app_theme,
+                size,
+                &format!("gateway-shell-{locale:?}-{index}"),
+                t(title),
+                t(description),
+            );
+        }
+        let skey_tab = geometry(&mut shell, &renderer).label(t("skey 管理")).center();
+        assert!(matches!(
+            click(&mut shell, &mut renderer, skey_tab).as_slice(),
+            [Message::Settings(SettingsMessage::Gateway(GatewayMessage::TabSelected(
+                GatewaySettingsTab::Skeys
+            )))]
+        ));
+        drop(shell);
+
+        app.gateway_settings.active_tab = GatewaySettingsTab::Skeys;
+        let mut skeys = Scene::new(&app, &mut renderer, "gateway-skey", view(&app));
+        skeys.help(t("skey 名称"), t("用于列表展示和识别该 skey。"));
+        skeys.label(t("可手写 YYYY-MM-DD，也可点日历选择；为空表示永不过期。"));
+        let generate = skeys.label(t("生成 skey")).center();
+        assert!(matches!(
+            skeys.click(generate).as_slice(),
+            [Message::Settings(SettingsMessage::Gateway(GatewayMessage::AddSkey))]
+        ));
+    }
+}
+
+fn assert_help_frames(
+    ui: &mut Ui<'_>,
+    renderer: &mut Renderer,
+    theme: &Theme,
+    size: Size<u32>,
+    name: &str,
+    title: &str,
+    description: &str,
+) {
+    let positions = geometry(ui, renderer);
+    assert!(
+        positions.labels.iter().all(|(text, _)| text != description),
+        "{title}: static explanation is still inline"
+    );
+    let label = positions.label(title);
+    let away = mouse::Cursor::Unavailable;
+    let idle = capture(ui, renderer, theme, size, &format!("{name}-idle"), away);
+    let icon = [
+        iced::Point::new(label.x + label.width + 15.0, label.center_y()),
+        iced::Point::new(label.x + 11.0, label.y + label.height + 15.0),
+    ]
+    .into_iter()
+    .filter(|point| {
+        iced::Rectangle::with_size(Size::new(size.width as f32, size.height as f32))
+            .contains(*point)
+    })
+    .find(|&position| {
+        let cursor = mouse::Cursor::Available(position);
+        assert!(
+            send(ui, renderer, cursor, &[Event::Mouse(mouse::Event::CursorMoved { position })])
+                .is_empty()
+        );
+        capture(ui, renderer, theme, size, &format!("{name}-hover"), cursor) != idle
+    })
+    .unwrap_or_else(|| panic!("{title}: hovering beside the label must open help"));
+    assert!(click(ui, renderer, icon).is_empty());
+    assert!(
+        capture(ui, renderer, theme, size, &format!("{name}-open"), away) != idle,
+        "{title}: clicking must keep help open when the pointer leaves"
+    );
+    assert!(
+        send(ui, renderer, away, &[key(iced::keyboard::key::Named::Escape)]).is_empty(),
+        "{title}: Escape must be consumed by the help card"
+    );
+    assert!(
+        capture(ui, renderer, theme, size, &format!("{name}-closed"), away) == idle,
+        "{title}: Escape must restore the initial frame"
+    );
+}

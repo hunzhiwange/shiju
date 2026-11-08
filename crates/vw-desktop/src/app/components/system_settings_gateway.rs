@@ -9,13 +9,15 @@ use crate::app::components::overlays::BelowOverlay;
 use crate::app::components::system_settings_common::{
     danger_action_btn_style, icon_svg, primary_action_btn_style, rounded_action_btn_style,
     settings_checkbox_style, settings_close_button, settings_control_with_hint, settings_divider,
-    settings_error_banner, settings_field_label, settings_group_card, settings_group_heading,
-    settings_help_button_with_locale, settings_modal_card_style, settings_modal_header,
-    settings_modal_layout, settings_modal_overlay, settings_muted_text_style,
-    settings_page_heading, settings_row_with_flexible_control, settings_tab_button,
-    settings_tab_row, settings_text_input, settings_value_badge,
+    settings_error_banner, settings_field_label, settings_flexible_row_with_help,
+    settings_group_card, settings_group_heading, settings_group_heading_with_help,
+    settings_help_button_with_locale, settings_hover_help_label, settings_modal_card_style,
+    settings_modal_header, settings_modal_layout, settings_modal_overlay,
+    settings_muted_text_style, settings_page_heading_with_help, settings_row_with_flexible_control,
+    settings_tab_button, settings_tab_row, settings_text_input, settings_value_badge,
 };
 use crate::app::components::system_settings_search::SettingsTabDescriptor;
+use crate::app::i18n::I18n;
 use crate::app::i18n::settings_models::connection_text::text as connection_text;
 use crate::app::i18n::settings_models::messages::render as owned_text;
 use crate::app::message::settings::{GatewayMessage, SettingsMessage};
@@ -49,17 +51,14 @@ fn field_row<'a>(
 }
 
 fn skey_field<'a>(
-    label: &'static str,
+    label: impl Into<Element<'a, Message>>,
     description: &'static str,
     control: impl Into<Element<'a, Message>>,
 ) -> Element<'a, Message> {
-    container(
-        column![settings_field_label(label), settings_control_with_hint(control, description)]
-            .spacing(6),
-    )
-    .padding([16, 0])
-    .width(Length::Fill)
-    .into()
+    container(column![label.into(), settings_control_with_hint(control, description)].spacing(6))
+        .padding([16, 0])
+        .width(Length::Fill)
+        .into()
 }
 
 fn text_row_with_hint<'a>(
@@ -130,29 +129,39 @@ fn bool_row_with_hint<'a>(
 }
 
 fn number_row<'a>(
+    app: &App,
     label: &'static str,
     description: &'static str,
     value: u32,
-    min: u32,
-    max: u32,
+    range: std::ops::RangeInclusive<u32>,
     suffix: &'static str,
     on_change: impl Fn(u32) -> Message + 'a,
 ) -> Element<'a, Message> {
     let display = if suffix.is_empty() { value.to_string() } else { format!("{value} {suffix}") };
 
-    field_row(
+    settings_flexible_row_with_help(
+        I18n::new(app.desktop_locale),
+        &app.app_theme,
         label,
         description,
+        460.0,
         row![
-            NumberInput::new(value as f32, min as f32, max as f32, 1.0, 0, 0.15, move |raw| {
-                on_change(raw.round() as u32)
-            })
+            NumberInput::new(
+                value as f32,
+                *range.start() as f32,
+                *range.end() as f32,
+                1.0,
+                0,
+                0.15,
+                move |raw| on_change(raw.round() as u32),
+            )
             .settings_style(),
             settings_value_badge(display),
         ]
         .spacing(16)
         .align_y(Alignment::Center),
     )
+    .into()
 }
 
 const GATEWAY_TAB_LABELS: &[(&str, GatewaySettingsTab)] =
@@ -541,6 +550,8 @@ fn skey_date_picker(app: &App) -> Element<'_, Message> {
 /// 本函数不直接返回错误；无法交互或缺省状态会在控件状态中显式表达。
 pub fn view(app: &App) -> Element<'_, Message> {
     let s = &app.gateway_settings;
+    let i18n = I18n::new(app.desktop_locale);
+    let theme = &app.app_theme;
 
     let help_btn = settings_help_button_with_locale(
         app.desktop_locale,
@@ -548,26 +559,33 @@ pub fn view(app: &App) -> Element<'_, Message> {
     );
 
     let port_row = number_row(
+        app,
         connection_text(app.desktop_locale, "端口"),
         connection_text(app.desktop_locale, "控制服务端 Gateway 的监听端口。"),
         s.port as u32,
-        1,
-        u16::MAX as u32,
+        1..=u16::MAX as u32,
         "",
         |value| {
             Message::Settings(SettingsMessage::Gateway(GatewayMessage::PortChanged(value as u16)))
         },
     );
-    let host_row = text_row_with_hint(
+    let host_row = settings_flexible_row_with_help(
+        i18n,
+        theme,
         connection_text(app.desktop_locale, "主机地址"),
         connection_text(app.desktop_locale, "控制服务端 Gateway 的监听地址。"),
-        "127.0.0.1",
-        &s.host_input,
-        connection_text(
-            app.desktop_locale,
-            "若 host 非本地地址，建议仅在可信反向代理或隧道环境下使用。",
+        460.0,
+        settings_control_with_hint(
+            settings_text_input("127.0.0.1", &s.host_input)
+                .on_input(|value| {
+                    Message::Settings(SettingsMessage::Gateway(GatewayMessage::HostChanged(value)))
+                })
+                .width(Length::Fill),
+            connection_text(
+                app.desktop_locale,
+                "若 host 非本地地址，建议仅在可信反向代理或隧道环境下使用。",
+            ),
         ),
-        |value| Message::Settings(SettingsMessage::Gateway(GatewayMessage::HostChanged(value))),
     );
 
     let auth_enabled_row = bool_row(
@@ -584,7 +602,7 @@ pub fn view(app: &App) -> Element<'_, Message> {
     );
     let allow_public_bind_row = bool_row(
         connection_text(app.desktop_locale, "允许公网绑定"),
-        connection_text(app.desktop_locale, "允许绑定到非本地地址。"),
+        "",
         s.allow_public_bind,
         connection_text(app.desktop_locale, "允许绑定到非本地地址"),
         |value| {
@@ -595,7 +613,7 @@ pub fn view(app: &App) -> Element<'_, Message> {
     );
     let trust_forwarded_headers_row = bool_row_with_hint(
         connection_text(app.desktop_locale, "信任转发头"),
-        connection_text(app.desktop_locale, "仅在可信反向代理后开启。"),
+        "",
         s.trust_forwarded_headers,
         connection_text(app.desktop_locale, "信任 X-Forwarded-For / X-Real-IP"),
         connection_text(app.desktop_locale, "仅在你完全信任前置代理时开启 forwarded headers。"),
@@ -609,8 +627,15 @@ pub fn view(app: &App) -> Element<'_, Message> {
     let skeys_section = settings_group_card(
         column![
             skey_field(
-                connection_text(app.desktop_locale, "skey 名称"),
-                connection_text(app.desktop_locale, "用于列表展示和识别该 skey。"),
+                settings_hover_help_label(
+                    i18n,
+                    theme,
+                    connection_text(app.desktop_locale, "skey 名称"),
+                    settings_field_label(connection_text(app.desktop_locale, "skey 名称")),
+                    connection_text(app.desktop_locale, "用于列表展示和识别该 skey。"),
+                )
+                .wrap(),
+                "",
                 row![
                     settings_text_input(
                         connection_text(app.desktop_locale, "例如 iPhone / CI Runner"),
@@ -632,7 +657,7 @@ pub fn view(app: &App) -> Element<'_, Message> {
             ),
             settings_divider(),
             skey_field(
-                connection_text(app.desktop_locale, "过期日期"),
+                settings_field_label(connection_text(app.desktop_locale, "过期日期")),
                 connection_text(
                     app.desktop_locale,
                     "可手写 YYYY-MM-DD，也可点日历选择；为空表示永不过期。"
@@ -650,7 +675,7 @@ pub fn view(app: &App) -> Element<'_, Message> {
             connection_text(app.desktop_locale, "复制")
         };
         settings_group_card(skey_field(
-            connection_text(app.desktop_locale, "原始 skey"),
+            settings_field_label(connection_text(app.desktop_locale, "原始 skey")),
             connection_text(app.desktop_locale, "仅展示一次，请立即复制。"),
             row![
                 text(raw_skey.as_str())
@@ -758,11 +783,11 @@ pub fn view(app: &App) -> Element<'_, Message> {
     };
 
     let webhook_rate_row = number_row(
+        app,
         connection_text(app.desktop_locale, "Webhook速率限制/分钟"),
         connection_text(app.desktop_locale, "限制 /webhook 每分钟可接受的请求数。"),
         s.webhook_rate_limit_per_minute,
-        1,
-        100_000,
+        1..=100_000,
         connection_text(app.desktop_locale, "次/分钟"),
         |value| {
             Message::Settings(SettingsMessage::Gateway(
@@ -771,11 +796,11 @@ pub fn view(app: &App) -> Element<'_, Message> {
         },
     );
     let rate_limit_max_keys_row = number_row(
+        app,
         connection_text(app.desktop_locale, "速率限制最大键数"),
         connection_text(app.desktop_locale, "约束网关内部 key map 规模。"),
         s.rate_limit_max_keys,
-        1,
-        100_000,
+        1..=100_000,
         connection_text(app.desktop_locale, "个键"),
         |value| {
             Message::Settings(SettingsMessage::Gateway(GatewayMessage::RateLimitMaxKeysChanged(
@@ -785,11 +810,11 @@ pub fn view(app: &App) -> Element<'_, Message> {
     );
 
     let idempotency_ttl_row = number_row(
+        app,
         connection_text(app.desktop_locale, "幂等性TTL(秒)"),
         connection_text(app.desktop_locale, "控制 webhook 幂等 key 的存活时间。"),
         s.idempotency_ttl_secs,
-        1,
-        86_400,
+        1..=86_400,
         connection_text(app.desktop_locale, "秒"),
         |value| {
             Message::Settings(SettingsMessage::Gateway(GatewayMessage::IdempotencyTtlSecsChanged(
@@ -798,11 +823,11 @@ pub fn view(app: &App) -> Element<'_, Message> {
         },
     );
     let idempotency_max_keys_row = number_row(
+        app,
         connection_text(app.desktop_locale, "幂等性最大键数"),
         connection_text(app.desktop_locale, "控制幂等缓存允许保留的 key 数量。"),
         s.idempotency_max_keys,
-        1,
-        100_000,
+        1..=100_000,
         connection_text(app.desktop_locale, "个键"),
         |value| {
             Message::Settings(SettingsMessage::Gateway(GatewayMessage::IdempotencyMaxKeysChanged(
@@ -813,7 +838,7 @@ pub fn view(app: &App) -> Element<'_, Message> {
 
     let node_control_enabled_row = bool_row(
         connection_text(app.desktop_locale, "节点控制.已启用"),
-        connection_text(app.desktop_locale, "启用实验性的 node-control API。"),
+        "",
         s.node_control_enabled,
         connection_text(app.desktop_locale, "启用实验性的 node-control API"),
         |value| {
@@ -838,10 +863,7 @@ pub fn view(app: &App) -> Element<'_, Message> {
     );
     let node_control_allowed_ids_row = text_row_with_hint(
         connection_text(app.desktop_locale, "节点控制.允许的节点ID"),
-        connection_text(
-            app.desktop_locale,
-            "留空表示不设置显式 allowlist；可使用 * 允许所有节点。",
-        ),
+        "",
         connection_text(app.desktop_locale, "逗号或换行分隔，支持 *"),
         &s.node_control_allowed_node_ids_input,
         connection_text(
@@ -872,7 +894,9 @@ pub fn view(app: &App) -> Element<'_, Message> {
     .wrap();
 
     let config_content: Element<'_, Message> = column![
-        settings_group_heading(
+        settings_group_heading_with_help(
+            i18n,
+            theme,
             connection_text(app.desktop_locale, "服务管理"),
             connection_text(
                 app.desktop_locale,
@@ -888,7 +912,9 @@ pub fn view(app: &App) -> Element<'_, Message> {
             )
         ),
         settings_group_card(column![port_row, settings_divider(), host_row,].spacing(0)),
-        settings_group_heading(
+        settings_group_heading_with_help(
+            i18n,
+            theme,
             connection_text(app.desktop_locale, "安全开关"),
             connection_text(app.desktop_locale, "控制 skey 鉴权、公网绑定与反向代理头信任策略。")
         ),
@@ -902,7 +928,9 @@ pub fn view(app: &App) -> Element<'_, Message> {
             ]
             .spacing(0),
         ),
-        settings_group_heading(
+        settings_group_heading_with_help(
+            i18n,
+            theme,
             connection_text(app.desktop_locale, "速率限制"),
             connection_text(
                 app.desktop_locale,
@@ -912,14 +940,18 @@ pub fn view(app: &App) -> Element<'_, Message> {
         settings_group_card(
             column![webhook_rate_row, settings_divider(), rate_limit_max_keys_row].spacing(0),
         ),
-        settings_group_heading(
+        settings_group_heading_with_help(
+            i18n,
+            theme,
             connection_text(app.desktop_locale, "幂等性"),
             connection_text(app.desktop_locale, "控制 webhook 幂等 key 的存活时间与内存上限。")
         ),
         settings_group_card(
             column![idempotency_ttl_row, settings_divider(), idempotency_max_keys_row].spacing(0)
         ),
-        settings_group_heading(
+        settings_group_heading_with_help(
+            i18n,
+            theme,
             "Node Control",
             connection_text(
                 app.desktop_locale,
@@ -962,7 +994,9 @@ pub fn view(app: &App) -> Element<'_, Message> {
 
     let mut content = column![
         row![
-            container(settings_page_heading(
+            container(settings_page_heading_with_help(
+                i18n,
+                theme,
                 connection_text(app.desktop_locale, "服务端网关配置"),
                 connection_text(
                     app.desktop_locale,

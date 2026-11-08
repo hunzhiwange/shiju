@@ -1,6 +1,7 @@
 //! Sole native saved-model projection owner. No provider-owned catalog persistence.
 use vw_api_types::model_catalog::*;
 
+pub mod codex_template;
 pub mod identity;
 pub mod pi_thinking;
 pub mod preset_catalog;
@@ -14,6 +15,8 @@ pub mod preset_opencode_openclaw;
 pub mod preset_pi;
 pub mod preset_search;
 
+#[cfg(test)]
+mod codex_template_tests;
 #[cfg(test)]
 mod identity_tests;
 #[cfg(test)]

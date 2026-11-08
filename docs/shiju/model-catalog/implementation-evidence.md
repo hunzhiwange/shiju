@@ -363,3 +363,28 @@ Pi 供应商表单的现有网关入口为 `vw-agent/src/gateway/api/handlers/ap
 | `cargo clippy --all-targets --all-features -- -D warnings` | 0 | 全 workspace、全目标及 features 通过 |
 
 差异限于 Pi 目录入口、类型、数据、独立测试和本证据。`git diff --cached --check` 通过。各阶段的槽位锁均已释放，编译缓存已保留。
+
+## 任务 14　Codex 自定义模板
+
+2026-11-08，macOS 27.0（26A428），arm64。批次 13 由 `b16af1bde` 交付。此次迁移了 1 份新建草稿。每次读取都返回独立的 TOML 字符串与只含空 `OPENAI_API_KEY` 占位的映射。读取无需账号、网络或文件。草稿不预设端点或 Goal 模式。
+
+| 固定来源 `ca58c0313360eae7c851fbd7553c1614c7af03e7` | 实际实现 |
+| --- | --- |
+| `src/config/codexTemplates.ts::getCodexCustomTemplate` | `crates/vw-agent-apps/src/models/codex_template.rs::codex_custom_template` 返回 `CodexTemplate`。逐字节对照确认 TOML 一致，默认模型为 `gpt-5.6-sol`，推理档位为 `high`，使用 Responses，禁用响应存储，保留 `requires_openai_auth = true` |
+| `tests/config/codexTemplates.test.ts` | `models/codex_template_tests.rs` 解析真实 TOML 并验证 Goal 模式缺省、空密钥和副本隔离。通过 `providers/codex_catalog/form.rs::prepare` 验证该路由要求端点及密钥，补齐测试值后保留模型和协议 |
+
+模板读取 API 与 SDK 归任务 36。现有保存路径为 `vw-agent/src/gateway/api/handlers/app_providers/codex_catalog.rs` 的 `POST /v1/app-providers/codex/{id}/form`，经授权主机上下文、表单校验及供应商事务。SDK 为 `vw-gateway-client/src/client/app_providers/codex_catalog.rs::codex_form_create`。Iced 新建草稿目前由 `vw-desktop/src/app/state/app_providers/codex.rs::Draft::new` 构造，表单保存在 `vw-desktop/src/app/message/app_providers/codex.rs::save`。本项仅验收原生读取与表单校验，未修改网关、SDK 或界面。来源许可见 `crates/vw-agent-apps/upstream/LICENSE`（MIT，Copyright (c) 2025 Jason Young）。
+
+### 验证
+
+各阶段动态领取槽位 **1**，`CARGO_TARGET_DIR=/Users/xiangmin/worker/code/shiju/target/rust-slot-1`。Cargo 中间目录使用同一槽位。格式化在 Git 源码快照执行，只回写本项三个 Rust 文件。聚焦测试和 Clippy 在实际工作区执行。
+
+| 命令 | 退出码 | 证据 |
+| --- | ---: | --- |
+| `cargo fmt --all`（红灯及两次复验） | 0、0、0 | 格式化完成 |
+| `cargo test -p vw-agent-apps catalog_codex_template_ -- --nocapture`（红灯） | 101 | 3 条有效测试按预期失败，567 条过滤。首个指定用例的认证映射实际为 `{}`，预期为 `{"OPENAI_API_KEY": ""}` |
+| `cargo test -p vw-agent-apps catalog_codex_template_ -- --nocapture`（首次复验） | 101 | 2 条通过，1 条失败。首次表单用例错误预期启用 OpenAI 认证的第三方路由可以不填密钥。修正用例以验证现有拒绝规则及补齐后通过 |
+| `cargo test -p vw-agent-apps catalog_codex_template_ -- --nocapture`（绿灯） | 0 | 3 条有效测试通过，567 条过滤 |
+| `cargo clippy --all-targets --all-features -- -D warnings` | 0 | 全 workspace、全目标及 features 通过 |
+
+`git diff --cached --check` 通过。提交范围为模板、模块注册、独立测试和本记录。各阶段的槽位锁均已释放，编译缓存已保留。

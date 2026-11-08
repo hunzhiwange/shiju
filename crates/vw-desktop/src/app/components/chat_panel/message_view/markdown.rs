@@ -623,7 +623,7 @@ fn markdown_block_view<'a>(
         spans,
         FragmentStyle {
             size,
-            color: body_color,
+            color: Some(body_color),
             font,
             width: Length::Fill,
             align: iced::widget::text::Alignment::Default,

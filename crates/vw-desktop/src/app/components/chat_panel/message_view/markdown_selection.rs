@@ -85,7 +85,7 @@ pub(super) fn area<'a>(
 pub(in crate::app::components) fn selectable_titled_text<'a>(
     title: &'a str,
     body: impl Into<std::borrow::Cow<'a, str>>,
-    color: Color,
+    color: Option<Color>,
     i18n: I18n,
 ) -> Element<'a, Message> {
     let selection = Selection::default();
@@ -653,7 +653,7 @@ fn fragment_range(geometry: &Geometry, start: Position, end: Position) -> Option
 
 pub(super) struct FragmentStyle {
     pub size: f32,
-    pub color: iced::Color,
+    pub color: Option<Color>,
     pub font: Font,
     pub width: Length,
     pub align: text::Alignment,
@@ -669,7 +669,7 @@ pub(super) fn fragment<'a>(
     let content = iced::widget::rich_text(spans.clone())
         .size(style.size)
         .font(style.font)
-        .color(style.color)
+        .color_maybe(style.color)
         .width(style.width)
         .align_x(style.align)
         .line_height(text::LineHeight::Relative(1.6))

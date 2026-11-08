@@ -2,7 +2,8 @@
 
 use super::*;
 use crate::app::components::system_settings_common::{
-    settings_group_card, settings_group_heading, settings_toggle,
+    settings_field_label, settings_group_card, settings_group_heading_with_help,
+    settings_hover_help_label, settings_toggle,
 };
 use iced::widget::{column, row};
 
@@ -36,8 +37,7 @@ pub(super) fn build_app_editor_modal(
 
     let close = Message::WorkflowTool(WorkflowMessage::CloseAppEditor);
     let header = settings_modal_header(
-        column![text(title).size(20), text(subtitle).size(13).style(settings_muted_text_style)]
-            .spacing(4),
+        settings_hover_help_label(i18n, None, title, text(title).size(20), subtitle).wrap(),
         settings_close_button(close.clone()),
     );
 
@@ -71,22 +71,25 @@ pub(super) fn build_app_editor_modal(
                 |value| Message::WorkflowTool(WorkflowMessage::AppEditorDescriptionChanged(value)),
             ),
         ))
-        .push(build_editor_field(
-            i18n.__("使用 web app 图标替换 🤖"),
-            row![
+        .push({
+            let label = i18n.__("使用 web app 图标替换 🤖");
+            column![
+                settings_hover_help_label(
+                    i18n,
+                    None,
+                    label,
+                    settings_field_label(label),
+                    i18n.__("在分享和 Explore 场景里用应用图标替换默认机器人图标"),
+                )
+                .wrap(),
                 settings_toggle(editor.use_icon_as_answer_icon).on_toggle(|value| {
                     Message::WorkflowTool(WorkflowMessage::AppEditorUseIconAsAnswerIconChanged(
                         value,
                     ))
                 }),
-                text(i18n.__("在分享和 Explore 场景里用应用图标替换默认机器人图标"))
-                    .size(12)
-                    .style(settings_muted_text_style),
             ]
-            .spacing(10)
-            .align_y(Alignment::Center)
-            .into(),
-        ))
+            .spacing(6)
+        })
         .push(build_editor_field(
             i18n.__("最大活跃请求数"),
             workflow_text_input(
@@ -112,7 +115,9 @@ pub(super) fn build_app_editor_modal(
     .spacing(10);
 
     let body = column![
-        settings_group_heading(
+        settings_group_heading_with_help(
+            i18n,
+            None,
             i18n.__("应用基础信息"),
             i18n.__("表单结构参考 Dify 应用设置页，先整理名称、图标和描述。"),
         ),

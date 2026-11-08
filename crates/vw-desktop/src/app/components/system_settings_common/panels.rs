@@ -92,9 +92,9 @@ pub(crate) fn settings_page_heading_with_help<'a>(
 }
 
 /// 分组说明在问号卡片内显示，保留分组标题的字号。
-pub(crate) fn settings_group_heading_with_help<'a>(
+pub(crate) fn settings_group_heading_with_help<'a, 'theme>(
     i18n: I18n,
-    theme: &Theme,
+    theme: impl Into<Option<&'theme Theme>>,
     title: &'a str,
     description: impl Into<Cow<'a, str>>,
 ) -> Element<'a, Message> {

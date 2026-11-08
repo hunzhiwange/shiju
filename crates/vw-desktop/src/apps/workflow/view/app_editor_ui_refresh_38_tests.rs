@@ -583,3 +583,252 @@ workflow:
     assert_eq!(&*error, "显示名称不能为空");
     assert!(state.node_editor.as_ref().unwrap().start_variable_editor.is_some());
 }
+
+fn check_workflow_help(
+    ui: &mut Ui<'_>,
+    renderer: &mut Renderer,
+    theme: &Theme,
+    size: Size<u32>,
+    title: &str,
+    description: &str,
+    artifact: &str,
+) -> Point {
+    let labels = bounds(ui, renderer).labels;
+    assert!(
+        labels.iter().all(|(label, _)| label != description),
+        "{title}: static explanation still visible inline: {description}"
+    );
+    let label = position(&labels, title);
+    let icon = Point::new(label.x + label.width + 15.0, label.center_y());
+    assert!(Rectangle::with_size(Size::new(size.width as f32, size.height as f32)).contains(icon));
+    let idle = capture(ui, renderer, theme, size, &format!("{artifact}-idle"), Point::ORIGIN);
+    assert!(
+        send(ui, renderer, icon, &[Event::Mouse(mouse::Event::CursorMoved { position: icon })])
+            .is_empty()
+    );
+    let hovered = capture(ui, renderer, theme, size, &format!("{artifact}-hover"), icon);
+    assert!(idle != hovered, "{title}: hover must open the help card");
+    assert!(click(ui, renderer, icon).is_empty());
+    let pinned = capture(ui, renderer, theme, size, &format!("{artifact}-open"), Point::ORIGIN);
+    assert!(idle != pinned, "{title}: click must pin the help card");
+    assert!(key(ui, renderer, Key::Named(Named::Escape), None).is_empty());
+    let closed = capture(ui, renderer, theme, size, &format!("{artifact}-closed"), Point::ORIGIN);
+    assert!(idle == closed, "{title}: Escape must close only the help card");
+    icon
+}
+
+#[tokio::test]
+async fn help_rollout_25_renders_contextual_help() {
+    let mut renderer = renderer().await;
+    let mut state = WorkflowState::default();
+    state.open_create_editor();
+    let draft = state.app_editor.as_mut().unwrap();
+    draft.name = "Fixture app".into();
+    draft.description = "Fixture draft text".into();
+    draft.max_active_requests_input = "42".into();
+    for (locale, theme, width) in [
+        (DesktopLocale::SimplifiedChinese, Theme::Dark, 420),
+        (DesktopLocale::English, Theme::Light, 420),
+        (DesktopLocale::TraditionalChinese, Theme::Dark, 640),
+    ] {
+        let i18n = I18n::new(locale);
+        let size = Size::new(width, 680);
+        for (mode, title, intro) in [
+            (
+                state::WorkflowAppEditorMode::Create,
+                "新增应用",
+                "创建一个新的 workflow 应用，后续可以单独保存成 yml 文件。",
+            ),
+            (
+                state::WorkflowAppEditorMode::Edit("fixture-app".into()),
+                "编辑应用信息",
+                "修改应用元数据，不会丢失原始 Dify yml 里的节点业务字段。",
+            ),
+        ] {
+            state.app_editor.as_mut().unwrap().mode = mode;
+            let mut ui = scene(build_app_editor_modal(i18n, &state), &mut renderer, size);
+            for (label, description, name) in [
+                (title, intro, "title"),
+                ("应用基础信息", "表单结构参考 Dify 应用设置页，先整理名称、图标和描述。", "group"),
+                (
+                    "使用 web app 图标替换 🤖",
+                    "在分享和 Explore 场景里用应用图标替换默认机器人图标",
+                    "icon",
+                ),
+            ] {
+                check_workflow_help(
+                    &mut ui,
+                    &mut renderer,
+                    &theme,
+                    size,
+                    i18n.__(label),
+                    i18n.__(description),
+                    &format!("app-{locale:?}-{title}-{name}"),
+                );
+            }
+            let geometry = bounds(&mut ui, &renderer);
+            assert!(position(&geometry.inputs, "42").y < size.height as f32);
+            let icon_field = position(&geometry.labels, i18n.__("使用 web app 图标替换 🤖"));
+            let toggle = Point::new(icon_field.x + 22.0, icon_field.center_y() + 28.0);
+            assert!(matches!(
+                click(&mut ui, &mut renderer, toggle).as_slice(),
+                [Message::WorkflowTool(WorkflowMessage::AppEditorUseIconAsAnswerIconChanged(true))]
+            ));
+            let input = position(&geometry.inputs, "Fixture app").center();
+            assert!(click(&mut ui, &mut renderer, input).is_empty());
+            assert!(key(&mut ui, &mut renderer, Key::Named(Named::End), None).is_empty());
+            assert!(matches!(
+                key(&mut ui, &mut renderer, Key::Character("A".into()), Some("A")).as_slice(),
+                [Message::WorkflowTool(WorkflowMessage::AppEditorNameChanged(value))]
+                    if value == "Fixture appA"
+            ));
+            assert!(matches!(
+                click(&mut ui, &mut renderer, position(&geometry.labels, i18n.__("取消")).center())
+                    .as_slice(),
+                [Message::WorkflowTool(WorkflowMessage::CloseAppEditor)]
+            ));
+            assert!(matches!(
+                click(
+                    &mut ui,
+                    &mut renderer,
+                    position(&geometry.labels, i18n.__("保存应用信息")).center()
+                )
+                .as_slice(),
+                [Message::WorkflowTool(WorkflowMessage::SubmitAppEditor)]
+            ));
+            if title == "编辑应用信息" {
+                assert!(
+                    click(
+                        &mut ui,
+                        &mut renderer,
+                        position(&geometry.labels, i18n.__("未生成")).center()
+                    )
+                    .is_empty()
+                );
+            }
+        }
+    }
+}
+
+#[tokio::test]
+async fn help_rollout_25_menu_uses_static_explanation() {
+    let mut state = WorkflowState::default();
+    state.open_create_editor();
+    state.app_editor.as_mut().unwrap().name = "Private fixture value".into();
+    let i18n = I18n::new(DesktopLocale::English);
+    let theme = Theme::Light;
+    let size = Size::new(960, 680);
+    let mut renderer = renderer().await;
+    let mut ui = scene(build_app_editor_modal(i18n, &state), &mut renderer, size);
+    let title = i18n.__("新增应用");
+    let description = i18n.__("创建一个新的 workflow 应用，后续可以单独保存成 yml 文件。");
+    let icon =
+        check_workflow_help(&mut ui, &mut renderer, &theme, size, title, description, "app-menu");
+    assert!(click(&mut ui, &mut renderer, icon).is_empty());
+    let card_text = Point::new(icon.x + 29.0, icon.y + 8.0);
+    let line_height = iced::advanced::text::LineHeight::default().to_absolute(12.0.into());
+    let item_height = f32::from(line_height) + 10.0;
+    for index in [0, 3] {
+        assert!(
+            send(
+                &mut ui,
+                &mut renderer,
+                card_text,
+                &[Event::Mouse(mouse::Event::ButtonPressed(mouse::Button::Right))]
+            )
+            .is_empty()
+        );
+        let item =
+            Point::new(card_text.x + 24.0, card_text.y + 3.0 + item_height * (index as f32 + 0.5));
+        let messages = click(&mut ui, &mut renderer, item);
+        match (index, messages.as_slice()) {
+            (0, [Message::CopyCode(value)]) => assert_eq!(value, description),
+            (3, [Message::View(crate::app::message::ViewMessage::OpenUrlExternal(url))]) => {
+                assert_eq!(
+                    url,
+                    &format!(
+                        "https://www.google.com/search?q={}",
+                        urlencoding::encode(description)
+                    )
+                );
+            }
+            _ => panic!("unexpected help action: {messages:?}"),
+        }
+    }
+}
+
+#[tokio::test]
+async fn help_rollout_25_renders_start_node_help_and_retains_status() {
+    let mut renderer = renderer().await;
+    for (locale, theme, mode) in [
+        (DesktopLocale::SimplifiedChinese, Theme::Dark, "advanced-chat"),
+        (DesktopLocale::English, Theme::Light, "workflow"),
+        (DesktopLocale::TraditionalChinese, Theme::Dark, "advanced-chat"),
+    ] {
+        let mut state = WorkflowState::default();
+        let loaded = crate::apps::workflow::model::load_document_from_value(
+            None,
+            serde_yaml::from_str(&format!(
+                r#"
+app:
+  name: Fixture workflow
+  mode: {mode}
+workflow:
+  graph:
+    nodes:
+      - id: start
+        position: {{x: 100, y: 100}}
+        data:
+          type: start
+          title: Fixture start
+          variables: []
+    edges: []
+"#,
+            ))
+            .unwrap(),
+        )
+        .unwrap();
+        state.apply_loaded(loaded, (800.0, 600.0));
+        state.open_edit_node_editor(Some("start")).unwrap();
+        let i18n = I18n::new(locale);
+        let size = Size::new(800, 600);
+        let mut ui = scene(build_node_editor_modal(i18n, &state), &mut renderer, size);
+        if mode == "advanced-chat" {
+            check_workflow_help(
+                &mut ui,
+                &mut renderer,
+                &theme,
+                size,
+                "userinput.query",
+                i18n.__("用户当前这一轮输入的问题文本。"),
+                &format!("start-{locale:?}-query"),
+            );
+        }
+        check_workflow_help(
+            &mut ui,
+            &mut renderer,
+            &theme,
+            size,
+            "userinput.files",
+            i18n.__("用户上传的文件列表，可作为文件型输入或后续节点的附件来源。"),
+            &format!("start-{locale:?}-files"),
+        );
+        let geometry = bounds(&mut ui, &renderer);
+        position(&geometry.labels, "Array[File]");
+        position(&geometry.labels, i18n.__("当前没有输入变量。新增后会写入 start.variables。"));
+        if mode == "workflow" {
+            position(&geometry.labels, i18n.__("兼容字段"));
+            assert!(geometry.labels.iter().all(|(value, _)| value != "userinput.query"));
+        }
+        assert!(matches!(
+            click(&mut ui, &mut renderer, position(&geometry.labels, i18n.__("新增变量")).center())
+                .as_slice(),
+            [Message::WorkflowTool(WorkflowMessage::NodeEditorStartAddVariable)]
+        ));
+        assert!(matches!(
+            click(&mut ui, &mut renderer, position(&geometry.labels, i18n.__("保存")).center())
+                .as_slice(),
+            [Message::WorkflowTool(WorkflowMessage::SubmitNodeEditor)]
+        ));
+    }
+}

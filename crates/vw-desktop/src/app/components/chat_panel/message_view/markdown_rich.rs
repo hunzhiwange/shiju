@@ -374,7 +374,7 @@ pub(super) fn table_view<'a>(
                         spans,
                         FragmentStyle {
                             size: MESSAGE_TEXT_SIZE,
-                            color: body_color,
+                            color: Some(body_color),
                             font,
                             width: cell_width,
                             align: alignment.into(),

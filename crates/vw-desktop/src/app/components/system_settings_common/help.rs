@@ -109,9 +109,9 @@ pub fn settings_help_button_with_locale(
 }
 
 /// 将已本地化的静态说明放进可悬停、可固定的问号卡片。
-pub(crate) fn settings_hover_help_label<'a>(
+pub(crate) fn settings_hover_help_label<'a, 'theme>(
     i18n: I18n,
-    theme: &iced::Theme,
+    theme: impl Into<Option<&'theme iced::Theme>>,
     title: &'a str,
     label: Text<'a>,
     description: impl Into<Cow<'a, str>>,
@@ -122,7 +122,8 @@ pub(crate) fn settings_hover_help_label<'a>(
             .center_y(22),
     )
     .interaction(mouse::Interaction::Pointer);
-    let card = container(selectable_titled_text(title, description, theme.palette().text, i18n))
+    let color = theme.into().map(|theme| theme.palette().text);
+    let card = container(selectable_titled_text(title, description, color, i18n))
         .width(300)
         .padding([10, 12])
         .style(|theme| container::Style {

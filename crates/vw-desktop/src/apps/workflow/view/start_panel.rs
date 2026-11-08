@@ -1,6 +1,7 @@
 //! 工作流起始节点面板模块，负责渲染起始输入变量列表、编辑弹窗和内置变量区。
 
 use super::*;
+use crate::app::components::system_settings_common::settings_hover_help_label;
 use iced::widget::{column, row};
 
 /// 构建 start visual section 对应的界面元素。
@@ -239,27 +240,22 @@ pub(super) fn build_start_builtin_variable_item(
     i18n: crate::app::i18n::I18n,
     item: StartBuiltinVariableItem,
 ) -> Element<'static, Message> {
+    let mut label = row![settings_hover_help_label(
+        i18n,
+        None,
+        item.name,
+        text(item.name).size(13),
+        item.description,
+    )]
+    .spacing(6)
+    .align_y(Alignment::Center);
+    if item.legacy {
+        label = label.push(start_variable_badge(i18n.__("兼容字段")));
+    }
     container(
-        row![
-            column![
-                row![
-                    text(item.name).size(13),
-                    if item.legacy {
-                        start_variable_badge(i18n.__("兼容字段"))
-                    } else {
-                        container(Space::new().width(1).height(1)).into()
-                    },
-                ]
-                .spacing(6)
-                .align_y(Alignment::Center),
-                text(item.description).size(12).style(settings_muted_text_style),
-            ]
-            .spacing(4)
-            .width(Length::Fill),
-            start_variable_badge(item.value_type),
-        ]
-        .spacing(12)
-        .align_y(Alignment::Center),
+        row![container(label.wrap()).width(Length::Fill), start_variable_badge(item.value_type),]
+            .spacing(12)
+            .align_y(Alignment::Center),
     )
     .width(Length::Fill)
     .padding([12, 14])

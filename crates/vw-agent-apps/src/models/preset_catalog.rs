@@ -55,7 +55,12 @@ struct PiPresets {
 }
 
 static PI_PRESETS: LazyLock<PiPresets> = LazyLock::new(|| {
-    serde_json::from_str(include_str!("presets/pi.json")).expect("valid built-in Pi presets")
+    let mut catalog: PiPresets =
+        serde_json::from_str(include_str!("presets/pi.json")).expect("valid built-in Pi presets");
+    for preset in &mut catalog.presets {
+        preset.settings_config.apply_thinking_profiles();
+    }
+    catalog
 });
 
 static OMP_PRESETS: LazyLock<Vec<OmpPreset>> =

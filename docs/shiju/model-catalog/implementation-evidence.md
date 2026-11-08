@@ -333,3 +333,33 @@ Pi 供应商表单的现有网关入口为 `vw-agent/src/gateway/api/handlers/ap
 | `cargo clippy --all-targets --all-features -- -D warnings` | 0 | 全 workspace、全目标及 features 通过 |
 
 `git diff --cached --check` 通过。差异限于 OMP 离线目录入口、派生类型、Pi 兼容字段的读取、独立测试及本证据。各阶段的槽位锁均已释放，编译缓存已保留。
+
+## 任务 13　Pi 推理档位绑定
+
+2026-11-08，macOS 27.0（26A428），arm64。批次 12 由 `9754a8983` 交付。Pi 预设加载时解析模型目录键和原生协议。模型局部档位随所选预设、端点、协议和原始模型 ID 查询。Anthropic 通用绑定自动带上 `forceAdaptiveThinking: true`。模型级兼容设置优先于供应商级设置，有效设置显式冲突时省略该绑定。
+
+| 固定来源 `ca58c0313360eae7c851fbd7553c1614c7af03e7` | 实际实现 |
+| --- | --- |
+| `src/config/piThinkingProfiles.ts::PI_THINKING_LEVELS`、`piThinkingProfiles`、`piThinkingBindings` | `models/presets/pi_thinking.json` 保留 16 组非空映射和 30 条显式绑定。`models/pi_thinking.rs::PiThinkingLevel` 覆盖 7 个档位，包括来源的 `max`。映射区分 `null` 和缺失键，保留原生字符串及大小写 |
+| `src/config/piThinkingProfiles.ts::resolvePiThinkingProfile`、`clonePiThinkingLevelMap` | `models/pi_thinking.rs::resolve` 按目录键、协议和自适应兼容设置筛选。`models/preset_pi.rs::PiPresetModel::thinking_level_map` 返回副本 |
+| `src/config/piModelCatalog.ts::getPiModelCatalogReference`、`src/config/piProviderPresets.ts::materializeVerifiedThinkingProfiles` | `models/presets/pi.json` 记录 159 条候选模型的内部引用。`models/preset_catalog.rs::{pi_presets,pi_preset}` 提供展开后的模型，序列化仅输出选中的映射和兼容字段。按本项验收规则，无绑定的模型省略字段，来源的空映射回退不进入 Rust 预设 |
+| `tests/config/piThinkingProfiles.test.ts` | `models/pi_thinking_tests.rs` 验证协议、目录键、兼容冲突、部署覆盖、档位空值、映射副本和 OMP 隔离 |
+
+执行固定 Git 对象中的 TypeScript，通过当前槽位构建 Rust 探针，对照真实目录查询返回的全部 115 个预设、416 个模型。132 个模型拥有映射，其中 48 个由预设局部指定，84 个来自通用绑定。64 个模型带派生的自适应兼容字段，284 个模型省略映射。来源中 271 个空映射按上述规则省略，其余投影字段逐条一致。来源许可见 `crates/vw-agent-apps/upstream/LICENSE`（MIT，Copyright (c) 2025 Jason Young）。
+
+现有配置入口为 `vw-agent/src/gateway/api/handlers/app_providers/pi.rs` 的 `/v1/app-providers/pi/{id}/form` 和 `/form/read`。SDK 为 `vw-gateway-client/src/client/app_providers/pi.rs::pi_form_{read,create,update}`，Iced 由 `vw-desktop/src/app/components/app_providers/pi.rs::fields` 渲染。目录 API 和 SDK 由任务 36 接入，Iced 搜索由任务 39 接入。本项验收 Rust 离线查询，无窗口、账号或网络调用。
+
+### 验证
+
+各阶段动态领取槽位 **1**，`CARGO_TARGET_DIR=/Users/xiangmin/worker/code/shiju/target/rust-slot-1`。Cargo 中间目录使用同一槽位。格式化在 Git 源码快照执行，只回写本项 Rust 文件。聚焦测试、目录测试、探针对照和 Clippy 在实际工作区执行。
+
+| 命令 | 退出码 | 证据 |
+| --- | ---: | --- |
+| `cargo fmt --all`（红灯、绿灯） | 0、0 | 格式化完成 |
+| `cargo test -p vw-agent-apps catalog_pi_thinking_ -- --nocapture`（红灯） | 101 | 5 条有效测试按预期失败，559 条过滤。首个指定用例中 Completions 和 Responses 的 GPT-6.1 Sol 查询均省略档位，预期只有 Responses 返回 7 档映射 |
+| `cargo test -p vw-agent-apps catalog_pi_thinking_ -- --nocapture`（绿灯） | 0 | 8 条有效测试通过，559 条过滤 |
+| `cargo test -p vw-agent-apps models:: -- --nocapture` | 0 | 66 条有效测试通过，501 条过滤，包括 Pi 和 OMP 既有用例 |
+| `cargo build -p vw-agent-apps --message-format=json` | 0 | 构建当前 Rust 库，随后通过 `rustc` 链接临时探针，固定来源对照逐条通过 |
+| `cargo clippy --all-targets --all-features -- -D warnings` | 0 | 全 workspace、全目标及 features 通过 |
+
+差异限于 Pi 目录入口、类型、数据、独立测试和本证据。`git diff --cached --check` 通过。各阶段的槽位锁均已释放，编译缓存已保留。

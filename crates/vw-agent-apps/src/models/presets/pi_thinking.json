@@ -1,0 +1,299 @@
+{
+  "profiles": {
+    "xhighAndMax": {
+      "xhigh": "xhigh",
+      "max": "max"
+    },
+    "deepseekV4": {
+      "minimal": null,
+      "low": null,
+      "medium": null,
+      "high": "high",
+      "max": "max"
+    },
+    "offUnsupported": {
+      "off": null
+    },
+    "kimi3": {
+      "off": null,
+      "minimal": null,
+      "low": "low",
+      "medium": null,
+      "high": "high",
+      "xhigh": null,
+      "max": "max"
+    },
+    "openCodeGoGlm52": {
+      "off": null,
+      "minimal": null,
+      "low": null,
+      "medium": null,
+      "high": "high",
+      "xhigh": null,
+      "max": "max"
+    },
+    "offUnsupportedXhighAndMax": {
+      "off": null,
+      "xhigh": "xhigh",
+      "max": "max"
+    },
+    "maxOnly": {
+      "max": "max"
+    },
+    "lowMediumHighOnly": {
+      "off": null,
+      "minimal": null,
+      "low": "low",
+      "medium": "medium",
+      "high": "high",
+      "xhigh": null,
+      "max": null
+    },
+    "openaiResponsesGpt5": {
+      "off": null,
+      "minimal": "minimal",
+      "low": "low",
+      "medium": "medium",
+      "high": "high",
+      "xhigh": null,
+      "max": null
+    },
+    "openaiResponsesGpt51": {
+      "off": "none",
+      "minimal": null,
+      "low": "low",
+      "medium": "medium",
+      "high": "high",
+      "xhigh": null,
+      "max": null
+    },
+    "openaiResponsesGpt52To55": {
+      "off": "none",
+      "minimal": null,
+      "low": "low",
+      "medium": "medium",
+      "high": "high",
+      "xhigh": "xhigh",
+      "max": null
+    },
+    "openaiResponsesGpt53CodexSpark": {
+      "off": null,
+      "minimal": null,
+      "low": "low",
+      "medium": "medium",
+      "high": "high",
+      "xhigh": "xhigh",
+      "max": null
+    },
+    "openaiResponsesGpt56": {
+      "off": "none",
+      "minimal": null,
+      "low": "low",
+      "medium": "medium",
+      "high": "high",
+      "xhigh": "xhigh",
+      "max": "max"
+    },
+    "openaiResponsesGpt6Astra": {
+      "off": null,
+      "minimal": null,
+      "low": "low",
+      "medium": "medium",
+      "high": "high",
+      "xhigh": "xhigh",
+      "max": "max"
+    },
+    "minimaxM31": {
+      "off": null,
+      "minimal": null,
+      "low": "low",
+      "medium": "medium",
+      "high": "high",
+      "xhigh": "xhigh",
+      "max": "max"
+    },
+    "geminiLowHigh": {
+      "off": null,
+      "minimal": null,
+      "low": "LOW",
+      "medium": null,
+      "high": "HIGH"
+    }
+  },
+  "bindings": [
+    {
+      "catalogKey": "anthropic/claude-opus-5.5",
+      "api": "anthropic-messages",
+      "profileId": "offUnsupportedXhighAndMax",
+      "modelCompat": {
+        "forceAdaptiveThinking": true
+      }
+    },
+    {
+      "catalogKey": "anthropic/claude-fable-5.1",
+      "api": "anthropic-messages",
+      "profileId": "offUnsupportedXhighAndMax",
+      "modelCompat": {
+        "forceAdaptiveThinking": true
+      }
+    },
+    {
+      "catalogKey": "anthropic/claude-fable-5",
+      "api": "anthropic-messages",
+      "profileId": "offUnsupportedXhighAndMax",
+      "modelCompat": {
+        "forceAdaptiveThinking": true
+      }
+    },
+    {
+      "catalogKey": "anthropic/claude-opus-4.6",
+      "api": "anthropic-messages",
+      "profileId": "maxOnly",
+      "modelCompat": {
+        "forceAdaptiveThinking": true
+      }
+    },
+    {
+      "catalogKey": "anthropic/claude-opus-4.7",
+      "api": "anthropic-messages",
+      "profileId": "xhighAndMax",
+      "modelCompat": {
+        "forceAdaptiveThinking": true
+      }
+    },
+    {
+      "catalogKey": "anthropic/claude-opus-4.8",
+      "api": "anthropic-messages",
+      "profileId": "xhighAndMax",
+      "modelCompat": {
+        "forceAdaptiveThinking": true
+      }
+    },
+    {
+      "catalogKey": "anthropic/claude-opus-5",
+      "api": "anthropic-messages",
+      "profileId": "xhighAndMax",
+      "modelCompat": {
+        "forceAdaptiveThinking": true
+      }
+    },
+    {
+      "catalogKey": "anthropic/claude-sonnet-5",
+      "api": "anthropic-messages",
+      "profileId": "xhighAndMax",
+      "modelCompat": {
+        "forceAdaptiveThinking": true
+      }
+    },
+    {
+      "catalogKey": "google/gemini-3.1-pro-preview",
+      "api": "google-generative-ai",
+      "profileId": "geminiLowHigh"
+    },
+    {
+      "catalogKey": "google/gemini-3.5-flash",
+      "api": "google-generative-ai",
+      "profileId": "offUnsupported"
+    },
+    {
+      "catalogKey": "google/gemini-3.6-flash",
+      "api": "google-generative-ai",
+      "profileId": "offUnsupported"
+    },
+    {
+      "catalogKey": "openai/gpt-5",
+      "api": "openai-responses",
+      "profileId": "openaiResponsesGpt5"
+    },
+    {
+      "catalogKey": "openai/gpt-5-mini",
+      "api": "openai-responses",
+      "profileId": "openaiResponsesGpt5"
+    },
+    {
+      "catalogKey": "openai/gpt-5.1",
+      "api": "openai-responses",
+      "profileId": "openaiResponsesGpt51"
+    },
+    {
+      "catalogKey": "openai/gpt-5.2",
+      "api": "openai-responses",
+      "profileId": "openaiResponsesGpt52To55"
+    },
+    {
+      "catalogKey": "openai/gpt-5.3-codex",
+      "api": "openai-responses",
+      "profileId": "openaiResponsesGpt52To55"
+    },
+    {
+      "catalogKey": "openai/gpt-5.3-codex-spark",
+      "api": "openai-responses",
+      "profileId": "openaiResponsesGpt53CodexSpark"
+    },
+    {
+      "catalogKey": "openai/gpt-5.4",
+      "api": "openai-responses",
+      "profileId": "openaiResponsesGpt52To55"
+    },
+    {
+      "catalogKey": "openai/gpt-5.4-mini",
+      "api": "openai-responses",
+      "profileId": "openaiResponsesGpt52To55"
+    },
+    {
+      "catalogKey": "openai/gpt-5.5",
+      "api": "openai-responses",
+      "profileId": "openaiResponsesGpt52To55"
+    },
+    {
+      "catalogKey": "openai/gpt-5.6-luna",
+      "api": "openai-responses",
+      "profileId": "openaiResponsesGpt56"
+    },
+    {
+      "catalogKey": "openai/gpt-5.6-sol",
+      "api": "openai-responses",
+      "profileId": "openaiResponsesGpt56"
+    },
+    {
+      "catalogKey": "openai/gpt-5.6-terra",
+      "api": "openai-responses",
+      "profileId": "openaiResponsesGpt56"
+    },
+    {
+      "catalogKey": "openai/gpt-6-astra",
+      "api": "openai-responses",
+      "profileId": "openaiResponsesGpt6Astra"
+    },
+    {
+      "catalogKey": "openai/gpt-6.1-sol",
+      "api": "openai-responses",
+      "profileId": "openaiResponsesGpt56"
+    },
+    {
+      "catalogKey": "openai/gpt-6-sol",
+      "api": "openai-responses",
+      "profileId": "openaiResponsesGpt56"
+    },
+    {
+      "catalogKey": "openai/gpt-6-luna",
+      "api": "openai-responses",
+      "profileId": "openaiResponsesGpt56"
+    },
+    {
+      "catalogKey": "openai/o3",
+      "api": "openai-responses",
+      "profileId": "lowMediumHighOnly"
+    },
+    {
+      "catalogKey": "openai/o4-mini",
+      "api": "openai-responses",
+      "profileId": "lowMediumHighOnly"
+    },
+    {
+      "catalogKey": "xai/grok-4.5",
+      "api": "openai-responses",
+      "profileId": "lowMediumHighOnly"
+    }
+  ]
+}

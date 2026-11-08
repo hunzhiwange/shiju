@@ -1,6 +1,9 @@
 //! Offline Pi provider presets and their reviewed base capabilities.
 
-use super::preset_search::{PresetPlan, PresetRegion};
+use super::{
+    pi_thinking::{self, FORCE_ADAPTIVE_THINKING, PiThinkingLevelMap, ResolvedPiThinkingProfile},
+    preset_search::{PresetPlan, PresetRegion},
+};
 use serde::{Deserialize, Serialize};
 use std::collections::BTreeMap;
 
@@ -33,6 +36,14 @@ pub struct PiPresetConfig {
 }
 
 impl PiPresetConfig {
+    pub(super) fn apply_thinking_profiles(&mut self) {
+        let adaptive_compat =
+            self.compat.as_ref().and_then(|compat| compat.get(FORCE_ADAPTIVE_THINKING));
+        for model in &mut self.models {
+            model.apply_thinking_profile(self.api, adaptive_compat);
+        }
+    }
+
     /// The native model ID is scoped to the preset's exact endpoint and wire protocol.
     pub fn model_at_deployment(
         &self,
@@ -75,12 +86,67 @@ pub struct PiModelCapabilities {
 }
 
 #[derive(Debug, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct PiPresetModel {
     pub id: String,
     #[serde(flatten)]
     pub capabilities: PiModelCapabilities,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub compat: Option<BTreeMap<String, PiPresetCompatValue>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    thinking_level_map: Option<PiThinkingLevelMap>,
+    #[serde(skip_serializing)]
+    thinking_reference: Option<PiThinkingReference>,
+}
+
+impl PiPresetModel {
+    /// Copy the reviewed mapping so callers can edit their own draft.
+    pub fn thinking_level_map(&self) -> Option<PiThinkingLevelMap> {
+        self.thinking_level_map.clone()
+    }
+
+    fn apply_thinking_profile(
+        &mut self,
+        api: PiPresetProtocol,
+        provider_adaptive_compat: Option<&PiPresetCompatValue>,
+    ) {
+        let Some(reference) = self.thinking_reference.take() else {
+            return;
+        };
+        if !self.capabilities.reasoning {
+            return;
+        }
+        // Local profiles belong to this preset's deployment and take precedence.
+        let resolved = match reference.preset_thinking_profile_id {
+            Some(profile_id) => Some(ResolvedPiThinkingProfile {
+                map: pi_thinking::profile_map(&profile_id),
+                force_adaptive_thinking: false,
+            }),
+            None => {
+                let adaptive_compat = self
+                    .compat
+                    .as_ref()
+                    .and_then(|compat| compat.get(FORCE_ADAPTIVE_THINKING))
+                    .or(provider_adaptive_compat);
+                pi_thinking::resolve(&reference.catalog_key, api, adaptive_compat)
+            }
+        };
+        if let Some(profile) = resolved {
+            self.thinking_level_map = Some(profile.map);
+            if profile.force_adaptive_thinking {
+                self.compat
+                    .get_or_insert_with(BTreeMap::new)
+                    .insert(FORCE_ADAPTIVE_THINKING.into(), PiPresetCompatValue::Flag(true));
+            }
+        }
+    }
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+struct PiThinkingReference {
+    catalog_key: String,
+    preset_thinking_profile_id: Option<String>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]

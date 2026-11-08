@@ -292,3 +292,7 @@ mod agent_apps_settings_api;
 pub use agent_apps_settings_api::AgentAppsSettingsError;
 #[cfg(test)]
 mod agent_apps_settings_api_tests;
+
+mod model_catalog_api;
+#[cfg(all(test, not(target_arch = "wasm32")))]
+mod model_catalog_api_tests;

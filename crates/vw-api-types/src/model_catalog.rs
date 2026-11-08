@@ -278,3 +278,40 @@ pub enum ModelDiscoveryFailure {
     TimedOut,
     InvalidResponse,
 }
+
+/// A registered worktree or sandbox within the authenticated tenant's project.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct ModelCatalogProject {
+    pub project_id: crate::id::ProjectId,
+    pub directory: String,
+}
+
+/// Public preset metadata. Native configuration and credential fields are kept private.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct ModelCatalogPreset {
+    pub app_id: AppId,
+    pub key: String,
+    pub name: String,
+    pub name_key: Option<String>,
+    pub website_url: Option<String>,
+    pub family: Option<String>,
+    pub endpoint: Option<String>,
+    pub model_ids: Vec<ModelId>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct ModelCatalogTemplates {
+    pub codex_config: Option<String>,
+    pub user_agents: Vec<String>,
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct ModelCatalogCapabilities {
+    pub model: ModelCatalogEntry,
+    pub image_input: ModelCapabilityState,
+    pub text_only: bool,
+}

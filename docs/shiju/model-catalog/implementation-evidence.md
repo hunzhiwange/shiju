@@ -919,3 +919,31 @@ Pi 供应商表单的现有网关入口为 `vw-agent/src/gateway/api/handlers/ap
 | `cargo test -p vw-agent --lib catalog_resolver_projection_ -- --nocapture` | 0 | 6 项通过。 |
 
 聚焦测试仍报告既有 macOS 链接器 `__eh_frame` 大小警告。差异经审查，集中在目录投影、运行校验、OCR 边界、独立测试和共享类型初始化。ACP 路由与公共模型 relay 的代码位于本次差异之外。
+
+## 任务 36　目录读取 API 与 SDK
+
+2026-11-08，macOS 27.0（26A428），arm64。批次 35 的 `07b2f0f86` 已交付并验证。已核对母任务 1–4 交付的 `vw-agent-apps`、主机授权、可取消任务设施、应用注册、可信 CLI 定位和供应商修订事务。本批次的读取无需启动任务或 CLI。
+
+| 来源与接点 | 实际实现 |
+| --- | --- |
+| `src/config/presetFamilies.ts::PRESET_FAMILIES`、`presetSearchAliases.ts::PRESET_SEARCH_ALIASES`（固定来源 `ca58c0313360eae7c851fbd7553c1614c7af03e7`） | `vw-agent-apps/src/models/preset_search.rs::search_presets` 与 `preset_catalog.rs` 经 `vw-agent/src/gateway/api/handlers/model_catalog/presets.rs` 投影为公开预设。保留应用、搜索分组、端点提示及模型 ID。通用预设依其启用应用投影，AGY 保持空列表。 |
+| `src/config/codexTemplates.ts::getCodexCustomTemplate`、`userAgentPresets.ts::USER_AGENT_PRESETS` | `vw-agent-apps/src/models/codex_template.rs` 和 `user_agent_presets.rs` 提供 1 份 Codex TOML 草稿和 5 个 UA 预设。响应只包含 TOML 和 UA 列表。 |
+| `src-tauri/src/model_capabilities.rs::resolve_image_input_capability`、原生模型目录与字段来源 | `AppProviderStore::read_model_catalog` 读取批次 30–32 的修订、默认值和带来源模型。能力查询要求相同部署与原样模型 ID，调用 `vw-agent-apps/src/models/capabilities.rs::resolve_model_capabilities`，沿用运行时目录投影的声明判定策略。 |
+| Gateway 与 SDK | `vw-agent/src/gateway/api/handlers/model_catalog.rs` 注册 GET `/v1/model-catalog` 及 `/presets`、`/templates`、`/capabilities`。`gateway/router.rs` 和 `gateway/bootstrap.rs` 注册路由。`vw-api-types/src/model_catalog.rs` 提供类型。`vw-gateway-client/src/client/model_catalog_api.rs` 提供对应四个客户端方法。桌面接入归批次 39–41。 |
+
+SDK 传递已注册项目 ID、工作目录和目标主机，应用凭据通过敏感请求头发送。服务先查独立主机配置读取授权，再在租户项目注册表核对工作树或 sandbox。项目实例使用已有的 `project::instance::provide_context_sync` 绑定已验证快照。常规 `with_instance` 会按默认租户发现目录并可能初始化服务，故读取路径直接使用既有的已注册实例入口。目录按租户、主机、应用、供应商和端点读取。搜索限 256 字节，分页默认 50 条且最多 100 条。网关响应和 SDK 错误仅携带公开字段或状态。
+
+### 验证
+
+红灯、绿灯动态领取槽位 **1**，`CARGO_TARGET_DIR=/Users/xiangmin/worker/code/shiju/target/rust-slot-1`，Cargo 中间目录同槽。格式化在源码快照运行，只回写本项 Rust 文件。聚焦测试及 Clippy 在实际工作区运行。
+
+| 命令 | 退出码 | 证据 |
+| --- | ---: | --- |
+| `cargo fmt --all`（红灯、绿灯） | 0、0 | 格式化完成。 |
+| `cargo test -p vw-gateway-client catalog_api_read_ -- --nocapture`（红灯） | 101 | 1 项通过、1 项失败。请求路径缺少 `projectId` 和 `directory`。 |
+| `cargo test -p vw-agent catalog_api_read_ -- --nocapture`（红灯） | 101 | 6 项失败。首例 `catalog_api_read_denies_other_host` 实际 501，预期 403。 |
+| `cargo test -p vw-gateway-client catalog_api_read_ -- --nocapture`（绿灯） | 0 | 2 项通过、358 项过滤。核对项目、主机、租户、分页参数和错误正文脱敏。 |
+| `cargo test -p vw-agent catalog_api_read_ -- --nocapture`（绿灯） | 0 | 6 项通过、11702 项过滤。临时 SQLite 与本机 HTTP 经真实 SDK 验证主机、租户及项目隔离、来源、分页、参数边界、预设、模板和精确能力读取。 |
+| `cargo clippy --all-targets --all-features -- -D warnings` | 0 | 全工作区、全目标、全 features 通过。 |
+
+聚焦测试仍报告既有 macOS 链接器 `__eh_frame` 大小警告。暂存差异通过 `git diff --cached --check`。各阶段已释放本任务的槽位锁并保留编译缓存。

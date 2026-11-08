@@ -132,6 +132,7 @@ pub(crate) fn handler_router() -> Router {
         .merge(handlers::global::router())
         .merge(handlers::agent_apps::router())
         .merge(handlers::app_providers::router())
+        .merge(handlers::model_catalog::router())
         .merge(handlers::dynamic_tools::router())
         // 认证路由：登录、令牌管理等
         .merge(handlers::auth::router())

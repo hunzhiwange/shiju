@@ -1,6 +1,10 @@
 //! Login transaction coordinated with the Claude file transaction, never an account database.
 use super::live::{commit::ProviderTransactions, write_guard::WriteError};
-use crate::auth::{claude_keychain::ClaudeKeychain, claude_login_files::Directory};
+use crate::auth::{
+    claude_keychain::ClaudeKeychain,
+    claude_login_files::{CliLock, Directory},
+    claude_rotation::check_generation,
+};
 use serde::{Deserialize, Serialize};
 use serde_json::{Value, json};
 use std::{fs::File, path::Path};
@@ -87,8 +91,8 @@ pub struct LoginHost {
     default: Directory,
     _lock: File,
     home_path: std::path::PathBuf,
-    _cli_locks: Vec<crate::auth::claude_login_files::CliLock>,
-    target_locks: std::sync::Mutex<Vec<crate::auth::claude_login_files::CliLock>>,
+    _cli_locks: Vec<CliLock>,
+    target_locks: std::sync::Mutex<Vec<CliLock>>,
 }
 impl LoginHost {
     /// The administrator-authorized HOME, never a request path. Lock covers login and file commit.
@@ -114,7 +118,10 @@ impl LoginHost {
     pub fn has_journal(&self) -> Result<bool, WriteError> {
         Ok(self.default.read(JOURNAL)?.is_some())
     }
-    fn material(&self, keychain: &dyn ClaudeKeychain) -> Result<LoginMaterial, WriteError> {
+    pub(crate) fn material(
+        &self,
+        keychain: &dyn ClaudeKeychain,
+    ) -> Result<LoginMaterial, WriteError> {
         keychain.authorize_home(&self.home_path).map_err(|_| WriteError::InvalidResource)?;
         LoginMaterial::read(&self.default, &self.home, None, keychain)
     }
@@ -242,18 +249,7 @@ impl LoginHost {
         if self.has_journal()? || tx.pending(AppId::Claude)?.is_some() {
             return Err(WriteError::Conflict);
         }
-        let dir = Directory::open(target)?;
-        let parent = Directory::open(target.parent().ok_or(WriteError::InvalidResource)?)?;
-        let legacy = format!(
-            "{}.lock",
-            target.file_name().and_then(|n| n.to_str()).ok_or(WriteError::InvalidResource)?
-        );
-        let locks = vec![
-            dir.cli_lock(".oauth_refresh.lock")?,
-            dir.cli_lock(".storage-write.lock")?,
-            dir.cli_lock(".claude.json.lock")?,
-            parent.cli_lock(&legacy)?,
-        ];
+        let (dir, locks) = lock_account(target)?;
         *self.target_locks.lock().map_err(|_| WriteError::Conflict)? = locks;
         let before = self.material(keychain)?;
         let read_target = || LoginMaterial::read(&dir, &dir, Some(target), keychain);
@@ -313,24 +309,20 @@ impl LoginHost {
     }
 }
 impl LoginMaterial {
+    pub(crate) fn oauth(&self) -> Option<&Value> {
+        self.secret.as_ref()?.get("claudeAiOauth")
+    }
+
     pub fn identity(&self) -> Result<Option<String>, WriteError> {
-        if !self.secret.as_ref().is_some_and(|v| {
-            v.pointer("/claudeAiOauth/refreshToken")
-                .and_then(Value::as_str)
-                .is_some_and(|t| !t.is_empty())
-        }) {
+        if !self
+            .oauth()
+            .and_then(|oauth| oauth.get("refreshToken"))
+            .and_then(Value::as_str)
+            .is_some_and(|token| !token.is_empty())
+        {
             return Ok(None);
         }
-        let profile: Value =
-            serde_json::from_slice(self.profile.as_deref().ok_or(WriteError::InvalidResource)?)
-                .map_err(|_| WriteError::InvalidResource)?;
-        let account = profile.get("oauthAccount").ok_or(WriteError::InvalidResource)?;
-        let id = account
-            .get("accountUuid")
-            .and_then(Value::as_str)
-            .filter(|s| !s.is_empty())
-            .ok_or(WriteError::InvalidResource)?;
-        let org = account.get("organizationUuid").and_then(Value::as_str).unwrap_or("");
+        let (id, org) = self.profile_identity()?.ok_or(WriteError::InvalidResource)?;
         if self
             .secret
             .as_ref()
@@ -341,6 +333,27 @@ impl LoginMaterial {
             return Err(WriteError::InvalidResource);
         }
         Ok(Some(format!("{id}:{org}")))
+    }
+    fn profile_identity(&self) -> Result<Option<(String, String)>, WriteError> {
+        let Some(profile) = self.profile.as_deref() else { return Ok(None) };
+        let profile: Value =
+            serde_json::from_slice(profile).map_err(|_| WriteError::InvalidResource)?;
+        let Some(account) =
+            profile.as_object().ok_or(WriteError::InvalidResource)?.get("oauthAccount")
+        else {
+            return Ok(None);
+        };
+        let valid = |id: &str| !id.contains(':') && !id.chars().any(char::is_control);
+        let id = account
+            .get("accountUuid")
+            .and_then(Value::as_str)
+            .filter(|id| !id.is_empty() && valid(id))
+            .ok_or(WriteError::InvalidResource)?;
+        let org = account.get("organizationUuid").and_then(Value::as_str).unwrap_or("");
+        if !valid(org) {
+            return Err(WriteError::InvalidResource);
+        }
+        Ok(Some((id.to_owned(), org.to_owned())))
     }
     pub fn from_account(path: &Path, keychain: &dyn ClaudeKeychain) -> Result<Self, WriteError> {
         let dir = Directory::open(path)?;
@@ -365,14 +378,55 @@ impl LoginMaterial {
         }
         Ok(Self { secret, keychain: native, profile: profile.read(".claude.json")?, fallback })
     }
+    /// The caller holds the scoped account lease. Recheck the destination after
+    /// taking Claude's locks because its CLI can change the directory independently.
     pub fn archive(&self, path: &Path, keychain: &dyn ClaudeKeychain) -> Result<(), WriteError> {
-        let directory = Directory::open(path)?;
-        let before = Self::from_account(path, keychain)?;
+        let owner = self.identity()?.ok_or(WriteError::InvalidResource)?;
+        let (directory, _locks) = lock_account(path)?;
+        let before = Self::read(&directory, &directory, Some(path), keychain)?;
+        let existing = match before.identity()? {
+            Some(identity) => Some(identity),
+            None => before.profile_identity()?.map(|(id, org)| format!("{id}:{org}")),
+        };
+        if existing.as_ref().is_some_and(|identity| identity != &owner) {
+            return Err(WriteError::Conflict);
+        }
+        check_generation(before.oauth(), self.oauth())?;
         let after = merge(&before, self)?;
-        keychain.write(Some(path), after.secret.as_ref()).map_err(|_| WriteError::Io)?;
-        directory.write(".credentials.json", None)?;
-        directory.write(".claude.json", after.profile.as_deref())
+        if Self::read(&directory, &directory, Some(path), keychain)? != before {
+            return Err(WriteError::Conflict);
+        }
+        if existing.is_none() {
+            // Establish ownership before publishing credentials so an interrupted
+            // first archive can be retried against a recognizable destination.
+            directory.write(".claude.json", after.profile.as_deref())?;
+        }
+        if before.keychain != after.secret {
+            keychain.write(Some(path), after.secret.as_ref()).map_err(|_| WriteError::Io)?;
+            if keychain.read(Some(path)).map_err(|_| WriteError::Io)? != after.secret {
+                return Err(WriteError::Io);
+            }
+        }
+        if before.fallback.is_some() {
+            directory.write(".credentials.json", None)?;
+        }
+        Ok(())
     }
+}
+fn lock_account(path: &Path) -> Result<(Directory, Vec<CliLock>), WriteError> {
+    let directory = Directory::open(path)?;
+    let parent = Directory::open(path.parent().ok_or(WriteError::InvalidResource)?)?;
+    let legacy = format!(
+        "{}.lock",
+        path.file_name().and_then(|name| name.to_str()).ok_or(WriteError::InvalidResource)?
+    );
+    let locks = vec![
+        directory.cli_lock(".oauth_refresh.lock")?,
+        directory.cli_lock(".storage-write.lock")?,
+        directory.cli_lock(".claude.json.lock")?,
+        parent.cli_lock(&legacy)?,
+    ];
+    Ok((directory, locks))
 }
 fn merge(base: &LoginMaterial, account: &LoginMaterial) -> Result<LoginMaterial, WriteError> {
     let mut secret = base.secret.clone().unwrap_or(json!({}));

@@ -54,6 +54,10 @@ pub(crate) mod claude_login_files;
 mod claude_login_tests;
 #[cfg(all(test, target_os = "macos"))]
 mod claude_recover_tests;
+#[cfg(target_os = "macos")]
+pub mod claude_rotation;
+#[cfg(all(test, target_os = "macos"))]
+mod claude_rotation_tests;
 
 #[cfg(target_os = "macos")]
 mod keychain;

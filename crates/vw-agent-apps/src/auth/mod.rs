@@ -5,6 +5,12 @@ pub mod copilot;
 #[cfg(all(test, not(target_arch = "wasm32")))]
 mod copilot_tests;
 
+#[cfg(not(target_arch = "wasm32"))]
+pub mod copilot_token;
+
+#[cfg(all(test, unix, not(target_arch = "wasm32")))]
+mod copilot_token_tests;
+
 pub mod credential_file;
 
 #[cfg(all(test, unix))]

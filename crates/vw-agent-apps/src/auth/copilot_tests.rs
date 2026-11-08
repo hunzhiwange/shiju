@@ -32,7 +32,7 @@ fn request(domain: Option<&str>) -> AuthStartRequest {
     }
 }
 
-async fn oauth_server(
+pub(super) async fn oauth_server(
     status: &str,
     headers: &str,
     body: serde_json::Value,

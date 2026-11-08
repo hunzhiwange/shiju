@@ -617,3 +617,53 @@ fn auth6_copilot_store_rolls_back_on_metadata_failure() {
     connection.execute_batch("DROP TRIGGER reject_auth_insert;").unwrap();
     store.commit_copilot(owner, &account, "github.com/42", "fixture-token").unwrap();
 }
+
+#[cfg(unix)]
+fn assert_copilot_session_requires_scoped_metadata(database: GlobalDatabase) {
+    let root = private_credentials_root();
+    let store = AuthAccountStore::new(database, root.path()).unwrap();
+    let tenant = TenantScope::new("platform", "company").unwrap();
+    let owner = AuthAccountScope { service: AuthService::GithubCopilot, ..account_scope(&tenant) };
+    let foreign = AuthAccountScope { principal: "oidc:other", ..owner };
+    let adapter = CopilotAuth::new().unwrap();
+    let runtime = tokio::runtime::Builder::new_current_thread().enable_all().build().unwrap();
+    let session = |scope, account_id| {
+        runtime.block_on(store.copilot_session(&adapter, scope, account_id)).err()
+    };
+
+    // A host file alone must never authorize an account, even if its OAuth token is readable.
+    store
+        .credentials
+        .lease_copilot(owner, ACCOUNT_ID, true)
+        .unwrap()
+        .save(&AccountCredential::CopilotToken("fixture-oauth".to_owned()))
+        .unwrap();
+    assert_eq!(session(owner, ACCOUNT_ID), Some(AuthErrorCode::NotFound),);
+    let metadata = AuthAccountMetadata::new("fixture", TimestampMs(1)).unwrap();
+    store.insert_metadata(&owner, ACCOUNT_ID, &metadata).unwrap();
+    assert_eq!(session(foreign, ACCOUNT_ID), Some(AuthErrorCode::NotFound),);
+    assert_eq!(session(owner, ACCOUNT_ID), Some(AuthErrorCode::StorageUnavailable),);
+
+    let metadata = AuthAccountMetadata {
+        github_domain: Some("github.com@foreign.example".to_owned()),
+        ..metadata
+    };
+    store.insert_metadata(&owner, "invalid-domain", &metadata).unwrap();
+    assert_eq!(session(owner, "invalid-domain"), Some(AuthErrorCode::InvalidInput),);
+}
+
+#[cfg(unix)]
+#[test]
+fn auth6_copilot_session_scope_sqlite() {
+    let home = tempfile::tempdir().unwrap();
+    let database = GlobalDatabase::for_home(home.path()).unwrap();
+    assert_copilot_session_requires_scoped_metadata(database);
+}
+
+#[cfg(unix)]
+#[test]
+fn auth6_copilot_session_scope_postgres() {
+    let fixture = PostgresTestDatabase::from_environment().unwrap();
+    assert_copilot_session_requires_scoped_metadata(fixture.reopen().unwrap());
+    fixture.cleanup().unwrap();
+}

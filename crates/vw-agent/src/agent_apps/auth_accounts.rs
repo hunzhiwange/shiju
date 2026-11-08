@@ -7,6 +7,7 @@ pub use vw_agent_apps::auth::flow::AuthAccountScope;
 #[cfg(not(target_arch = "wasm32"))]
 use vw_agent_apps::auth::{
     copilot::{CopilotAuth, CopilotDeviceStart},
+    copilot_token::CopilotSession,
     flow::AuthFlows,
 };
 use vw_agent_apps::{
@@ -20,7 +21,7 @@ use vw_agent_apps::{
     },
 };
 #[cfg(not(target_arch = "wasm32"))]
-use vw_api_types::agent_apps_auth::{AuthAccount, AuthFlow};
+use vw_api_types::agent_apps_auth::{AuthAccount, AuthFlow, AuthService};
 use vw_api_types::{
     TimestampMs,
     agent_apps::{AppId, AppInstallation, LaunchRequest},
@@ -132,6 +133,26 @@ impl AuthAccountStore {
             .map_err(|_| AuthErrorCode::StorageUnavailable)?
             .ok_or(AuthErrorCode::NotFound)?;
         serde_json::from_str(&payload).map_err(|_| AuthErrorCode::StorageUnavailable)
+    }
+
+    /// Resolve a managed Copilot account for host-internal requests.
+    #[cfg(not(target_arch = "wasm32"))]
+    pub async fn copilot_session(
+        &self,
+        adapter: &CopilotAuth,
+        scope: AuthAccountScope<'_>,
+        account_id: &str,
+    ) -> Result<CopilotSession, AuthErrorCode> {
+        if scope.service != AuthService::GithubCopilot {
+            return Err(AuthErrorCode::Unsupported);
+        }
+        let metadata =
+            crate::global_database::run_sync_database(
+                || Ok(self.read_metadata(&scope, account_id)),
+            )
+            .map_err(|_| AuthErrorCode::StorageUnavailable)??;
+        let authority = metadata.github_domain.ok_or(AuthErrorCode::StorageUnavailable)?;
+        adapter.session(&self.credentials, scope, account_id, &authority).await
     }
 
     /// Advance a due Copilot attempt on the authorized execution host.

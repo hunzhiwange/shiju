@@ -1,6 +1,9 @@
 //! Execution-host adapter for GitHub Copilot device authorization.
 
-use super::flow::{AuthAccountScope, AuthDevicePoll, AuthFlowTiming, AuthFlows};
+use super::{
+    copilot_token::{CopilotSessions, CopilotSubscription},
+    flow::{AuthAccountScope, AuthDevicePoll, AuthFlowTiming, AuthFlows},
+};
 use base64::{Engine as _, engine::general_purpose::URL_SAFE_NO_PAD};
 use reqwest::{Client, Request, Response, StatusCode, Url, header};
 use serde::{Deserialize, de::DeserializeOwned};
@@ -17,7 +20,7 @@ use vw_api_types::{
     },
 };
 
-const PUBLIC_AUTHORITY: &str = "github.com";
+pub(super) const PUBLIC_AUTHORITY: &str = "github.com";
 const PUBLIC_CLIENT_ID: &str = "Iv1.b507a08c87ecfe98";
 const ENTERPRISE_CLIENT_ID: &str = "Ov23li8tweQw6odWQebz";
 const USER_AGENT: &str = "GitHubCopilotChat/0.38.2";
@@ -26,7 +29,8 @@ const PLUGIN_VERSION: &str = "copilot-chat/0.38.2";
 const MAX_RESPONSE_BYTES: usize = 16 * 1024;
 
 pub struct CopilotAuth {
-    client: Client,
+    pub(super) client: Client,
+    pub(super) sessions: CopilotSessions,
 }
 
 /// Only the response is intended for the Gateway. The grant stays on the execution host.
@@ -64,12 +68,6 @@ struct GithubUser {
     login: String,
 }
 
-#[derive(Deserialize)]
-struct CopilotSubscription {
-    token: String,
-    expires_at: i64,
-}
-
 enum Exchange {
     Pending,
     SlowDown,
@@ -84,7 +82,7 @@ impl CopilotAuth {
             .timeout(Duration::from_secs(30))
             .build()
             .map_err(|_| AuthErrorCode::ExecutionHostUnavailable)?;
-        Ok(Self { client })
+        Ok(Self { client, sessions: CopilotSessions::default() })
     }
 
     /// The caller supplies an authorized host scope and a host-owned list of canonical
@@ -261,12 +259,21 @@ impl CopilotAuth {
         token: &str,
         route: &mut impl FnMut(&mut Request),
     ) -> Result<T, AuthErrorCode> {
-        let failed = |_| AuthErrorCode::UpstreamFailure;
+        let mut outbound = self.github_request(url, token)?;
+        route(&mut outbound);
+        let response =
+            self.client.execute(outbound).await.map_err(|_| AuthErrorCode::UpstreamFailure)?;
+        if !response.status().is_success() {
+            return Err(AuthErrorCode::UpstreamFailure);
+        }
+        read_json(response).await
+    }
+
+    pub(super) fn github_request(&self, url: &str, token: &str) -> Result<Request, AuthErrorCode> {
         let mut auth = header::HeaderValue::from_str(&format!("token {token}"))
             .map_err(|_| AuthErrorCode::UpstreamFailure)?;
         auth.set_sensitive(true);
-        let mut outbound = self
-            .client
+        self.client
             .get(url)
             .header(header::AUTHORIZATION, auth)
             .header(header::ACCEPT, "application/json")
@@ -274,13 +281,7 @@ impl CopilotAuth {
             .header("Editor-Version", EDITOR_VERSION)
             .header("Editor-Plugin-Version", PLUGIN_VERSION)
             .build()
-            .map_err(failed)?;
-        route(&mut outbound);
-        let response = self.client.execute(outbound).await.map_err(failed)?;
-        if !response.status().is_success() {
-            return Err(AuthErrorCode::UpstreamFailure);
-        }
-        read_json(response).await
+            .map_err(|_| AuthErrorCode::UpstreamFailure)
     }
 
     pub(super) async fn start_with(
@@ -381,7 +382,9 @@ impl CopilotAuth {
     }
 }
 
-async fn read_json<T: DeserializeOwned>(mut response: Response) -> Result<T, AuthErrorCode> {
+pub(super) async fn read_json<T: DeserializeOwned>(
+    mut response: Response,
+) -> Result<T, AuthErrorCode> {
     let mut body = Vec::new();
     while let Some(chunk) = response.chunk().await.map_err(|_| AuthErrorCode::UpstreamFailure)? {
         if chunk.len() > MAX_RESPONSE_BYTES - body.len() {
@@ -392,13 +395,13 @@ async fn read_json<T: DeserializeOwned>(mut response: Response) -> Result<T, Aut
     serde_json::from_slice(&body).map_err(|_| AuthErrorCode::UpstreamFailure)
 }
 
-fn valid_token(value: &str) -> bool {
+pub(super) fn valid_token(value: &str) -> bool {
     !value.is_empty()
         && value.len() <= MAX_RESPONSE_BYTES
         && value.bytes().all(|byte| byte.is_ascii_graphic())
 }
 
-fn utc_now() -> Result<TimestampMs, AuthErrorCode> {
+pub(super) fn utc_now() -> Result<TimestampMs, AuthErrorCode> {
     SystemTime::now()
         .duration_since(UNIX_EPOCH)
         .ok()
@@ -436,7 +439,7 @@ fn copilot_account(
     })
 }
 
-fn canonical_authority(input: Option<&str>) -> Result<String, AuthErrorCode> {
+pub(super) fn canonical_authority(input: Option<&str>) -> Result<String, AuthErrorCode> {
     let input = input.unwrap_or(PUBLIC_AUTHORITY).trim();
     let (host, port) = input.split_once(':').unwrap_or((input, "443"));
     if !port.bytes().all(|byte| byte.is_ascii_digit()) {

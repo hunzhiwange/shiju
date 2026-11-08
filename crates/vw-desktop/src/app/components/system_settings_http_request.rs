@@ -206,7 +206,7 @@ pub(super) fn content(app: &App) -> Element<'_, Message> {
             ]
             .spacing(10)
             .align_y(Alignment::Center),
-            tr(app.desktop_locale, "支持精确域名、子域模式或 `*`；建议只放行业务 API 域名。"),
+            tr(app.desktop_locale, "支持精确域名和子域模式。默认的 `*` 允许所有公网域名。"),
         ),
     );
     let mut allowed_domains = column![add_domain_row, settings_divider()];

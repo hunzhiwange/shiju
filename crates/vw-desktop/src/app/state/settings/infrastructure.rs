@@ -38,13 +38,14 @@ pub(crate) struct HttpRequestSettingsState {
 
 impl Default for HttpRequestSettingsState {
     fn default() -> Self {
+        let config = HttpRequestConfig::default();
         Self {
-            enabled: false,
-            allowed_domains: Vec::new(),
+            enabled: config.enabled,
+            allowed_domains: config.allowed_domains,
             new_allowed_domain_input: String::new(),
             max_response_size: 1_000_000,
             timeout_secs: 30,
-            user_agent: HttpRequestConfig::default().user_agent,
+            user_agent: config.user_agent,
             save_error: None,
         }
     }

@@ -145,11 +145,11 @@ impl Default for BrowserComputerUseConfig {
 /// 用于控制 `browser_open` 工具及浏览器自动化后端。
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 pub struct BrowserConfig {
-    /// 是否启用 `browser_open` 工具，可在系统浏览器中打开 URL 而不抓取内容。
-    #[serde(default)]
+    /// 是否启用浏览器工具，默认启用。
+    #[serde(default = "default_true")]
     pub enabled: bool,
-    /// `browser_open` 允许访问的域名，支持精确匹配或子域匹配。
-    #[serde(default)]
+    /// 浏览器工具允许访问的域名，默认 `["*"]` 表示允许所有公网域名。
+    #[serde(default = "default_public_domains")]
     pub allowed_domains: Vec<String>,
     /// `browser_open` 工具使用的打开模式或浏览器。
     ///
@@ -195,11 +195,15 @@ fn default_true() -> bool {
     true
 }
 
+fn default_public_domains() -> Vec<String> {
+    vec!["*".into()]
+}
+
 impl Default for BrowserConfig {
     fn default() -> Self {
         Self {
-            enabled: false,
-            allowed_domains: Vec::new(),
+            enabled: default_true(),
+            allowed_domains: default_public_domains(),
             browser_open: default_browser_open(),
             session_name: None,
             backend: default_browser_backend(),
@@ -213,14 +217,14 @@ impl Default for BrowserConfig {
 
 /// HTTP 请求工具配置（`[http_request]` 配置段）。
 ///
-/// 默认拒绝策略：若 `allowed_domains` 为空，则拒绝所有 HTTP 请求。
+/// 若显式将 `allowed_domains` 设为空列表，则拒绝所有 HTTP 请求。
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 pub struct HttpRequestConfig {
-    /// 是否启用 `http_request` 工具以进行 API 交互。
-    #[serde(default)]
+    /// 是否启用 `http_request` 工具以进行 API 交互，默认启用。
+    #[serde(default = "default_true")]
     pub enabled: bool,
-    /// HTTP 请求允许访问的域名，支持精确匹配或子域匹配。
-    #[serde(default)]
+    /// HTTP 请求允许访问的域名，默认 `["*"]` 表示允许所有公网域名。
+    #[serde(default = "default_public_domains")]
     pub allowed_domains: Vec<String>,
     /// 最大响应体大小，单位为字节；默认值为 `1MB`，`0` 表示不限制。
     #[serde(default = "default_http_max_response_size")]
@@ -236,8 +240,8 @@ pub struct HttpRequestConfig {
 impl Default for HttpRequestConfig {
     fn default() -> Self {
         Self {
-            enabled: false,
-            allowed_domains: vec![],
+            enabled: default_true(),
+            allowed_domains: default_public_domains(),
             max_response_size: default_http_max_response_size(),
             timeout_secs: default_http_timeout_secs(),
             user_agent: default_user_agent(),
@@ -322,8 +326,8 @@ impl Default for WebFetchConfig {
 /// 网页搜索工具配置（`[web_search]` 配置段）。
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 pub struct WebSearchConfig {
-    /// 是否启用 `web_search_tool` 进行网页搜索。
-    #[serde(default)]
+    /// 是否启用 `web_search_tool` 进行网页搜索，默认启用。
+    #[serde(default = "default_true")]
     pub enabled: bool,
     /// 搜索提供方：`duckduckgo`（免费且无需 API Key）、`brave`、`serper`、`google`、
     /// `bing`、`firecrawl` 或 `tavily`。
@@ -366,7 +370,7 @@ fn default_web_search_timeout_secs() -> u64 {
 impl Default for WebSearchConfig {
     fn default() -> Self {
         Self {
-            enabled: false,
+            enabled: default_true(),
             provider: default_web_search_provider(),
             api_key: None,
             api_url: None,

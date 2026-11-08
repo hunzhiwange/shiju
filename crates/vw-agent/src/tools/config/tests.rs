@@ -293,7 +293,7 @@ async fn config_reads_supported_setting() {
     assert!(result.success);
     assert_eq!(output["operation"].as_str(), Some("get"));
     assert_eq!(output["setting"].as_str(), Some("browser.enabled"));
-    assert_eq!(output["value"], json!(false));
+    assert_eq!(output["value"], json!(true));
 }
 
 #[tokio::test]
@@ -304,7 +304,7 @@ async fn config_sets_supported_setting_and_persists() {
     let result = tool
         .execute(json!({
             "setting": "browser.enabled",
-            "value": true
+            "value": false
         }))
         .await
         .expect("config set should succeed");
@@ -316,9 +316,9 @@ async fn config_sets_supported_setting_and_persists() {
     assert!(result.success);
     assert_eq!(output["operation"].as_str(), Some("set"));
     assert_eq!(output["setting"].as_str(), Some("browser.enabled"));
-    assert_eq!(output["previousValue"], json!(false));
-    assert_eq!(output["newValue"], json!(true));
-    assert!(saved.browser.enabled);
+    assert_eq!(output["previousValue"], json!(true));
+    assert_eq!(output["newValue"], json!(false));
+    assert!(!saved.browser.enabled);
 }
 
 #[tokio::test]
@@ -372,7 +372,7 @@ async fn config_canonicalizes_alias_reads_and_reports_unknown_settings() {
     let alias_output = parse_output(&alias_result);
     assert!(alias_result.success);
     assert_eq!(alias_output["setting"], json!("browser.enabled"));
-    assert_eq!(alias_output["value"], json!(false));
+    assert_eq!(alias_output["value"], json!(true));
 
     let unknown_result = tool
         .execute(json!({ "setting": " browser.missing " }))

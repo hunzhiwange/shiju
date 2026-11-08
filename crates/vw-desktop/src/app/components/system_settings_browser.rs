@@ -141,7 +141,7 @@ pub(super) fn content(app: &App) -> Element<'_, Message> {
                 .height(Length::Fixed(96.0))
                 .style(settings_text_editor_style),
             crate::app::i18n::I18n::new(app.desktop_locale)
-                .__("为空时将拒绝所有站点；可使用 `*` 允许全部公网域名。"),
+                .__("默认的 `*` 允许所有公网域名。列表为空时拒绝所有站点。"),
         ),
     );
 

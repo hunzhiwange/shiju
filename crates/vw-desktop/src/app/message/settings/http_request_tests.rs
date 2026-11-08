@@ -20,6 +20,7 @@ fn http_request_normalizes_domains_and_handles_duplicates() {
     assert_eq!(normalize_domain(" Example.COM "), "example.com");
 
     let mut app = app();
+    app.http_request_settings = Default::default();
     let _ = update(
         &mut app,
         SettingsMessage::HttpRequest(HttpRequestMessage::NewAllowedDomainChanged(
@@ -27,10 +28,7 @@ fn http_request_normalizes_domains_and_handles_duplicates() {
         )),
     );
     let _ = update(&mut app, SettingsMessage::HttpRequest(HttpRequestMessage::AddAllowedDomain));
-    assert_eq!(
-        app.http_request_settings.allowed_domains,
-        vec!["example.com".to_string(), "api.example.com".to_string()]
-    );
+    assert_eq!(app.http_request_settings.allowed_domains, ["*", "example.com", "api.example.com"]);
     assert!(app.http_request_settings.new_allowed_domain_input.is_empty());
 
     let _ = update(

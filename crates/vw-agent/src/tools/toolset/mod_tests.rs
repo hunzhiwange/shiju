@@ -519,26 +519,21 @@ fn all_tools_with_runtime_respects_optional_tool_configurations() {
 }
 
 #[test]
-fn all_tools_wrapper_uses_native_runtime_and_browser_open_default_mode() {
+fn all_tools_wrapper_registers_default_network_tools() {
     let dir = tempfile::tempdir().unwrap();
     let workspace = dir.path().join("workspace");
     std::fs::create_dir_all(&workspace).unwrap();
     let memory = test_memory(&workspace);
     let root_config = test_config(&workspace);
-    let browser = BrowserConfig {
-        enabled: true,
-        allowed_domains: vec!["example.com".into()],
-        ..BrowserConfig::default()
-    };
     let security = Arc::new(SecurityPolicy::default());
 
     let tools = all_tools(
         Arc::new(root_config.clone()),
         &security,
         memory,
-        &browser,
-        &HttpRequestConfig::default(),
-        &WebFetchConfig::default(),
+        &root_config.browser,
+        &root_config.http_request,
+        &root_config.web_fetch,
         &workspace,
         &HashMap::new(),
         None,
@@ -549,6 +544,9 @@ fn all_tools_wrapper_uses_native_runtime_and_browser_open_default_mode() {
 
     assert!(names.contains(&"browser_open"));
     assert!(names.contains(&"browser"));
+    assert!(names.contains(&"http_request"));
+    assert!(names.contains(&"web_search_tool"));
+    assert!(!names.contains(&"web_fetch"));
     assert!(names.contains(&"batch"));
 }
 

@@ -265,15 +265,16 @@ pub(crate) struct WebSearchSettingsState {
 
 impl Default for WebSearchSettingsState {
     fn default() -> Self {
+        let config = vw_config_types::tools::WebSearchConfig::default();
         Self {
-            enabled: false,
-            provider: "duckduckgo".to_string(),
+            enabled: config.enabled,
+            provider: config.provider,
             api_key_input: String::new(),
             api_url_input: String::new(),
             brave_api_key_input: String::new(),
-            max_results_input: "5".to_string(),
-            timeout_secs_input: "15".to_string(),
-            user_agent: vw_config_types::tools::DEFAULT_USER_AGENT.to_string(),
+            max_results_input: config.max_results.to_string(),
+            timeout_secs_input: config.timeout_secs.to_string(),
+            user_agent: config.user_agent,
             show_help_modal: false,
             save_error: None,
         }
@@ -304,10 +305,12 @@ pub(crate) struct BrowserSettingsState {
 
 impl Default for BrowserSettingsState {
     fn default() -> Self {
+        let config = vw_config_types::tools::BrowserConfig::default();
+        let allowed_domains_input = config.allowed_domains.join("\n");
         Self {
-            enabled: false,
-            allowed_domains_input: String::new(),
-            allowed_domains_editor: text_editor::Content::new(),
+            enabled: config.enabled,
+            allowed_domains_editor: text_editor::Content::with_text(&allowed_domains_input),
+            allowed_domains_input,
             browser_open: "new_tab".to_string(),
             session_name_input: String::new(),
             backend: "agent_browser".to_string(),

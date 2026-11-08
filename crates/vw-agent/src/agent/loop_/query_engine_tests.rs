@@ -984,7 +984,9 @@ fn build_tool_descriptions_tracks_optional_tools() {
     let mut config = Config::default();
     let base = build_tool_descriptions(&config);
     assert!(base.iter().any(|(name, _)| *name == "bash"));
-    assert!(!base.iter().any(|(name, _)| *name == "Browser"));
+    assert!(base.iter().any(|(name, _)| *name == "Browser"));
+    assert!(base.iter().any(|(name, _)| *name == "BrowserOpen"));
+    assert!(base.iter().any(|(name, _)| *name == "WebSearch"));
     let agent_tool = base
         .iter()
         .find_map(|(name, description)| (*name == "AgentTool").then_some(*description))
@@ -1003,10 +1005,8 @@ fn build_tool_descriptions_tracks_optional_tools() {
         assert!(agent_tool.contains(expected), "missing '{expected}': {agent_tool}");
     }
 
-    config.browser.enabled = true;
     config.browser.browser_open = "disable".to_string();
     config.web_fetch.enabled = true;
-    config.web_search.enabled = true;
 
     let descriptions = build_tool_descriptions(&config);
     assert!(descriptions.iter().any(|(name, _)| *name == "Browser"));

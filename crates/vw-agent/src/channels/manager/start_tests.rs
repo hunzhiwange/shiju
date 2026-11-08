@@ -123,13 +123,13 @@ fn channel_tool_descriptions_track_optional_tools_and_exclusions() {
 
     assert!(base_names.contains(&"shell"));
     assert!(!base_names.contains(&"schedule"));
-    assert!(!base_names.contains(&"Browser"));
+    assert!(base_names.contains(&"Browser"));
+    assert!(base_names.contains(&"BrowserOpen"));
+    assert!(base_names.contains(&"WebSearch"));
     assert!(!base_names.contains(&"AgentTool"));
 
-    config.browser.enabled = true;
     config.browser.browser_open = "disable".to_string();
     config.web_fetch.enabled = true;
-    config.web_search.enabled = true;
     config.autonomy.non_cli_excluded_tools =
         vec!["shell".to_string(), "WebSearch".to_string(), "AgentTool".to_string()];
 

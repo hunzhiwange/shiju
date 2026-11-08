@@ -161,7 +161,7 @@ fn skills_catalog_models_preserve_metadata_and_support_every_kind() {
 #[test]
 fn web_search_browser_and_gateway_defaults_are_ready_for_empty_config() {
     let web = WebSearchSettingsState::default();
-    assert!(!web.enabled);
+    assert!(web.enabled);
     assert_eq!(web.provider, "duckduckgo");
     assert!(web.api_key_input.is_empty());
     assert!(web.api_url_input.is_empty());
@@ -173,9 +173,9 @@ fn web_search_browser_and_gateway_defaults_are_ready_for_empty_config() {
     assert!(web.save_error.is_none());
 
     let browser = BrowserSettingsState::default();
-    assert!(!browser.enabled);
-    assert!(browser.allowed_domains_input.is_empty());
-    assert!(browser.allowed_domains_editor.text().is_empty());
+    assert!(browser.enabled);
+    assert_eq!(browser.allowed_domains_input, "*");
+    assert_eq!(browser.allowed_domains_editor.text(), "*");
     assert_eq!(browser.browser_open, "new_tab");
     assert!(browser.session_name_input.is_empty());
     assert_eq!(browser.backend, "agent_browser");

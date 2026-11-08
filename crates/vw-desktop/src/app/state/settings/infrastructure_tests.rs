@@ -22,8 +22,8 @@ fn multimodal_and_http_request_defaults_match_config_ui() {
     assert!(multimodal.save_error.is_none());
 
     let http = HttpRequestSettingsState::default();
-    assert!(!http.enabled);
-    assert!(http.allowed_domains.is_empty());
+    assert!(http.enabled);
+    assert_eq!(http.allowed_domains, ["*"]);
     assert!(http.new_allowed_domain_input.is_empty());
     assert_eq!(http.max_response_size, 1_000_000);
     assert_eq!(http.timeout_secs, 30);

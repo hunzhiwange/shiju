@@ -1,4 +1,5 @@
 use super::super::system_settings_common::*;
+use super::list::Help;
 use crate::app::{
     Message,
     message::app_providers::{
@@ -16,16 +17,18 @@ use iced::{
 };
 use vw_gateway_client::vw_api_types::app_providers::opencode::OpenCodeFormat;
 
-pub(super) fn fields<'a>(form: &'a EditForm, draft: &'a Draft) -> Element<'a, Message> {
+pub(super) fn fields<'a>(
+    form: &'a EditForm,
+    draft: &'a Draft,
+    help: Help<'_>,
+) -> Element<'a, Message> {
     let enabled = !form.saving;
     let create = matches!(form.mode, Mode::Create);
     let event = |field| message(EditMessage::OpenCode(field));
     let hint = |value| text(value).size(12).style(settings_muted_text_style);
     let v2 = draft.format == OpenCodeFormat::V2;
-    let heading = settings_group_heading(
-        "OpenCode 原生供应商节点",
-        "仅编辑单个节点的 JSON，可用注释。保存时由执行端校验。官方授权和模型发现暂不可用。",
-    );
+    let heading = help
+        .group("OpenCode 原生供应商节点", "仅编辑单个节点的 JSON，可用注释。保存时由执行端校验。");
     let mut fields = column![].spacing(10);
     if create {
         fields = fields.push(settings_control_with_hint(
@@ -92,5 +95,11 @@ pub(super) fn fields<'a>(form: &'a EditForm, draft: &'a Draft) -> Element<'a, Me
             .style(settings_checkbox_style)
             .on_toggle_maybe(enabled.then_some(move |value| event(Field::Apply(value)))),
     );
-    column![heading, settings_panel(fields)].spacing(12).width(Length::Fill).into()
+    column![
+        column![heading, hint("官方授权和模型发现暂不可用。")].spacing(6),
+        settings_panel(fields),
+    ]
+    .spacing(12)
+    .width(Length::Fill)
+    .into()
 }

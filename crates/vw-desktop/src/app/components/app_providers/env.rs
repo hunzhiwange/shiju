@@ -1,4 +1,5 @@
 use super::super::system_settings_common::*;
+use super::list::Help;
 use crate::app::{
     Message,
     message::app_providers::env::{Event, message},
@@ -14,18 +15,21 @@ use vw_gateway_client::vw_api_types::app_providers::{
     env_diagnose::EnvSource, env_restore::EnvRestoreStatus,
 };
 
-pub(super) fn overlay<'a>(form: &'a Form, base: Element<'a, Message>) -> Element<'a, Message> {
+pub(super) fn overlay<'a>(
+    form: &'a Form,
+    help: Help<'_>,
+    base: Element<'a, Message>,
+) -> Element<'a, Message> {
     let ready = form.busy.is_none() && form.confirmation.is_none();
     let close = if form.writing() { Message::None } else { message(Event::Close) };
     let header = settings_modal_header(
-        settings_page_intro(
-            "环境诊断",
-            "检查执行主机上的静态 Shell 定义和继承环境。清理前会创建备份。",
-        ),
+        help.heading("环境诊断", "检查执行主机上的静态 Shell 定义和继承环境。", 28),
         settings_close_button(close.clone()),
     );
 
-    let mut body = column![].spacing(12).width(Length::Fill);
+    let mut body = column![text("清理前会创建备份。").size(13).style(settings_muted_text_style)]
+        .spacing(12)
+        .width(Length::Fill);
     if let Some(error) = form.error {
         body = body.push(settings_error_banner(error));
     }
@@ -46,10 +50,7 @@ pub(super) fn overlay<'a>(form: &'a Form, base: Element<'a, Message>) -> Element
     }
 
     let mut backup = column![
-        settings_field_label("备份编号"),
-        text("清理后会自动填入编号。可保留编号供日后恢复。")
-            .size(13)
-            .style(settings_muted_text_style),
+        help.field("备份编号", "清理后会自动填入编号。可保留编号供日后恢复。"),
         text_input("输入备份编号", &form.backup_id)
             .padding(SETTINGS_CONTROL_PADDING)
             .size(SETTINGS_CONTROL_TEXT_SIZE)

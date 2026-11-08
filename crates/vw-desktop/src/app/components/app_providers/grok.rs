@@ -1,4 +1,5 @@
 use super::super::system_settings_common::*;
+use super::list::Help;
 use crate::app::{
     Message,
     message::app_providers::{
@@ -15,7 +16,11 @@ use iced::{
     widget::{checkbox, column, text, text_editor, text_input},
 };
 
-pub(super) fn fields<'a>(form: &'a EditForm, draft: &'a Draft) -> Element<'a, Message> {
+pub(super) fn fields<'a>(
+    form: &'a EditForm,
+    draft: &'a Draft,
+    help: Help<'_>,
+) -> Element<'a, Message> {
     let enabled = !form.saving;
     let event = |field| message(EditMessage::Grok(field));
     let hint = |value| text(value).size(12).style(settings_muted_text_style);
@@ -27,9 +32,9 @@ pub(super) fn fields<'a>(form: &'a EditForm, draft: &'a Draft) -> Element<'a, Me
     if enabled {
         editor = editor.on_action(move |action| event(Field::Toml(action)));
     }
-    let heading = settings_group_heading(
+    let heading = help.group(
         "Grok Build 配置 · config.toml",
-        "编辑 models.default 和它指向的模型表。保存时由执行端校验。官方授权和模型发现暂不可用。",
+        "编辑 models.default 和它指向的模型表。保存时由执行端校验。",
     );
     let mut fields = column![editor].spacing(10);
     if draft.has_saved_key {
@@ -81,5 +86,11 @@ pub(super) fn fields<'a>(form: &'a EditForm, draft: &'a Draft) -> Element<'a, Me
             .style(settings_checkbox_style)
             .on_toggle_maybe(enabled.then_some(move |v| event(Field::Apply(v)))),
     );
-    column![heading, settings_panel(fields)].spacing(12).width(Length::Fill).into()
+    column![
+        column![heading, hint("官方授权和模型发现暂不可用。")].spacing(6),
+        settings_panel(fields),
+    ]
+    .spacing(12)
+    .width(Length::Fill)
+    .into()
 }

@@ -1,4 +1,5 @@
 use super::super::system_settings_common::*;
+use super::list::Help;
 use crate::app::{
     Message,
     message::app_providers::snippets::{Event, message},
@@ -42,13 +43,14 @@ pub(super) fn overlay<'a>(
     state: &'a ListState,
     form: &'a Form,
     app: AppId,
+    help: Help<'_>,
     base: Element<'a, Message>,
 ) -> Element<'a, Message> {
     let ready = form.pending.is_none();
     let can_close = form.pending != Some(Operation::Save);
     let close = if can_close { message(Event::Close) } else { Message::None };
     let header = settings_modal_header(
-        settings_page_intro("公共配置片段", "保存后更新应用的公共片段。"),
+        help.heading("公共配置片段", "保存后更新应用的公共片段。", 28),
         settings_close_button(close.clone()),
     );
     let mut body = column![].spacing(12);
@@ -89,19 +91,12 @@ pub(super) fn overlay<'a>(
             editor = editor.on_action(|action| message(Event::Edit(action)));
         }
         body = body
-            .push(
-                text(if app == AppId::Codex {
-                    "片段草稿 · TOML"
-                } else {
-                    "片段草稿 · JSON"
-                })
-                .size(16),
-            )
-            .push(
-                text("留空可清除已保存的片段。预览展示服务端校验和规范化后的内容。")
-                    .size(13)
-                    .style(settings_muted_text_style),
-            )
+            .push(help.heading(
+                if app == AppId::Codex { "片段草稿 · TOML" } else { "片段草稿 · JSON" },
+                "预览展示服务端校验和规范化后的内容。",
+                16,
+            ))
+            .push(text("留空可清除已保存的片段。").size(13).style(settings_muted_text_style))
             .push(editor);
     } else if ready {
         body = body.push(action("重试读取", Event::RetryRead, true, false));

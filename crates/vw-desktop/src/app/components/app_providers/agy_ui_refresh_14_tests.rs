@@ -1,3 +1,4 @@
+use super::super::list::Help;
 use super::super::{agy, dsh, edit, hermes, kimi, mcode, omp, openclaw, pi};
 use crate::app::{
     App, Message,
@@ -101,21 +102,21 @@ fn fixture(provider: &str, create: bool, locale: &str) -> EditForm {
 
 fn fields(form: &EditForm) -> Element<'_, Message> {
     if let Some(draft) = &form.agy {
-        agy::fields(form, draft)
+        agy::fields(form, draft, Help::test())
     } else if let Some(draft) = &form.dsh {
-        dsh::fields(form, draft)
+        dsh::fields(form, draft, Help::test())
     } else if let Some(draft) = &form.hermes {
-        hermes::fields(form, draft)
+        hermes::fields(form, draft, Help::test())
     } else if let Some(draft) = &form.kimi {
-        kimi::fields(form, draft)
+        kimi::fields(form, draft, Help::test())
     } else if let Some(draft) = &form.mcode {
-        mcode::fields(form, draft)
+        mcode::fields(form, draft, Help::test())
     } else if let Some(draft) = &form.omp {
-        omp::fields(form, draft)
+        omp::fields(form, draft, Help::test())
     } else if let Some(draft) = &form.openclaw {
-        openclaw::fields(form, draft)
+        openclaw::fields(form, draft, Help::test())
     } else {
-        pi::fields(form, form.pi.as_ref().unwrap())
+        pi::fields(form, form.pi.as_ref().unwrap(), Help::test())
     }
 }
 
@@ -124,7 +125,7 @@ fn base() -> Element<'static, Message> {
 }
 
 fn overlay(form: &EditForm) -> Element<'_, Message> {
-    edit::overlay(form, base())
+    edit::overlay(form, Help::test(), base())
 }
 
 struct Scene<'a> {
@@ -422,8 +423,8 @@ fn key_input<'a>(scene: &'a Scene<'_>, provider: &str) -> Layout<'a> {
 
 fn declaration_editor(scene: &Scene<'_>, provider: &str, create: bool) -> Rectangle {
     let index = match provider {
-        "openclaw" => 5,
-        "hermes" => 3,
+        "openclaw" => 4,
+        "hermes" => 2,
         _ => 3 + usize::from(create),
     };
     scene.node(&[1, 0, index]).bounds()
@@ -536,7 +537,7 @@ async fn ui_refresh_14_preserves_values_and_disabled_states() {
                 if provider == "openclaw" {
                     let form = app.app_providers.form.as_ref().unwrap();
                     let mut scene = Scene::new(fields(form), &mut renderer, size);
-                    let point = scene.node(&[1, 0, 4]).bounds().center();
+                    let point = scene.node(&[1, 0, 3]).bounds().center();
                     let edits = scene.click(&mut renderer, point);
                     assert!(matches!(
                         edits.as_slice(),
@@ -674,7 +675,11 @@ async fn ui_refresh_14_renders_loading_error_and_empty_catalog() {
     let generation = state.begin(scope.clone());
     let size = Size::new(420, 690);
     let mut check = |state: &ListState, expected, name: &str| {
-        let mut scene = Scene::new(super::super::list::overlay(state, base()), &mut renderer, size);
+        let mut scene = Scene::new(
+            super::super::list::overlay(state, Help::test(), base()),
+            &mut renderer,
+            size,
+        );
         let mut text = VisibleText { expected, found: false };
         scene.ui.operate(&renderer, &mut text);
         assert!(text.found, "{name}");
@@ -711,4 +716,28 @@ async fn ui_refresh_14_renders_loading_error_and_empty_catalog() {
         })
     ));
     check(&state, "没有已保存的供应商", "empty");
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 1)]
+async fn help_rollout_06_renders_declaration_adapters() {
+    use super::super::desktop::ui_refresh_12_tests::assert_contextual_help;
+    use crate::app::i18n::I18n;
+    use vw_config_types::ui::DesktopLocale;
+
+    let mut renderer = renderer().await;
+    let theme = Theme::Light;
+    let help = Help::new(I18n::new(DesktopLocale::SimplifiedChinese), &theme);
+    for provider in PROVIDERS {
+        let form = fixture(provider, false, "虚构配置");
+        let expected = if provider == "agy" { 2 } else { 3 };
+        let name = provider;
+        assert_contextual_help(
+            edit::overlay(&form, help, base()),
+            &mut renderer,
+            &theme,
+            Size::new(420, 760),
+            &format!("declaration_adapters-{name}"),
+            expected,
+        );
+    }
 }

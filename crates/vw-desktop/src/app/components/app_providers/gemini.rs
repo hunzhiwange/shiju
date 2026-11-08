@@ -1,4 +1,5 @@
 use super::super::system_settings_common::*;
+use super::list::Help;
 use crate::app::{
     Message,
     message::app_providers::{
@@ -15,7 +16,11 @@ use iced::{
     widget::{button, checkbox, column, row, text, text_input},
 };
 
-pub(super) fn fields<'a>(form: &'a EditForm, draft: &'a Draft) -> Element<'a, Message> {
+pub(super) fn fields<'a>(
+    form: &'a EditForm,
+    draft: &'a Draft,
+    help: Help<'_>,
+) -> Element<'a, Message> {
     if draft.kind == Kind::Unsupported {
         return settings_panel(
             text("此档案使用其它配置类型。此表单仅可编辑基础资料，不会更改应用配置。")
@@ -90,11 +95,9 @@ pub(super) fn fields<'a>(form: &'a EditForm, draft: &'a Draft) -> Element<'a, Me
     let fields = fields
         .push(
             column![
-                settings_field_label("主模型 · settings.json / model.name"),
-                settings_control_with_hint(
-                    input("可留空", &draft.model, Field::Model),
-                    "模型发现与推荐暂不可用，可手动填写模型标识。",
-                ),
+                help.field("主模型 · settings.json / model.name", "可手动填写模型标识。"),
+                input("可留空", &draft.model, Field::Model),
+                hint("模型发现与推荐暂不可用。"),
             ]
             .spacing(6),
         )

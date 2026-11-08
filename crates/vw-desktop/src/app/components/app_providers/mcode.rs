@@ -1,4 +1,5 @@
 use super::super::system_settings_common::*;
+use super::list::Help;
 use crate::app::{
     Message,
     message::app_providers::{
@@ -15,17 +16,21 @@ use iced::{
     widget::{checkbox, column, text, text_editor, text_input},
 };
 
-pub(super) fn fields<'a>(form: &'a EditForm, draft: &'a Draft) -> Element<'a, Message> {
+pub(super) fn fields<'a>(
+    form: &'a EditForm,
+    draft: &'a Draft,
+    help: Help<'_>,
+) -> Element<'a, Message> {
     let enabled = !form.saving;
     let create = matches!(form.mode, Mode::Create);
     let event = |field| message(EditMessage::Mcode(field));
     let hint = |value| text(value).size(12).style(settings_muted_text_style);
-    let mut fields =
-        column![settings_field_label("供应商声明"), hint("官方授权和模型发现暂不可用。"),]
-            .spacing(8);
-    fields = fields.push(hint(
-        "可编辑 api、options.baseURL 和 models。保留执行端值标记代表隐藏字段；API 密钥请在下方填写。",
-    ));
+    let mut fields = column![
+        help.field("供应商声明", "可编辑 api、options.baseURL 和 models。API 密钥请在下方填写。"),
+        hint("官方授权和模型发现暂不可用。"),
+    ]
+    .spacing(8)
+    .push(hint("保留执行端值标记代表隐藏字段。"));
     if create {
         fields = fields.push(hint("models 使用模型标识作为键；新增供应商需要 API 密钥。"));
     }
@@ -84,7 +89,7 @@ pub(super) fn fields<'a>(form: &'a EditForm, draft: &'a Draft) -> Element<'a, Me
             .on_toggle_maybe(enabled.then_some(move |value| event(Field::Apply(value)))),
     );
     column![
-        settings_group_heading(
+        help.group(
             "Mcode 原生供应商节点",
             "编辑 config.yaml 中单个 custom_provider 节点的 YAML，保存时由执行端校验。"
         ),

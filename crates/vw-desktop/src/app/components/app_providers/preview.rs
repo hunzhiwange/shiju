@@ -1,4 +1,5 @@
 use super::super::system_settings_common::*;
+use super::list::Help;
 use crate::app::{
     Message,
     message::app_providers::preview::{Event, message},
@@ -25,13 +26,17 @@ fn action(
         .into()
 }
 
-pub(super) fn overlay<'a>(form: &'a Form, base: Element<'a, Message>) -> Element<'a, Message> {
+pub(super) fn overlay<'a>(
+    form: &'a Form,
+    help: Help<'_>,
+    base: Element<'a, Message>,
+) -> Element<'a, Message> {
     let ready = form.reading.is_none() && form.save.is_none();
     let can_close = form.save.is_none();
     let close = if can_close { message(Event::Close) } else { Message::None };
     let header = settings_modal_header(
         column![
-            settings_page_intro("配置预览与冲突确认", "预览由执行主机生成，显示内容已脱敏。"),
+            help.heading("配置预览与冲突确认", "预览由执行主机生成，显示内容已脱敏。", 28),
             text(&form.name).size(14).style(settings_muted_text_style),
         ]
         .spacing(4),

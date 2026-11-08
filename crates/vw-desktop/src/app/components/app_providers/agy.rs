@@ -1,4 +1,5 @@
 use super::super::system_settings_common::*;
+use super::list::Help;
 use crate::app::{
     Message,
     message::app_providers::{
@@ -11,7 +12,11 @@ use iced::{
     Element, Length,
     widget::{checkbox, column, text, text_input},
 };
-pub(super) fn fields<'a>(form: &'a EditForm, draft: &'a Draft) -> Element<'a, Message> {
+pub(super) fn fields<'a>(
+    form: &'a EditForm,
+    draft: &'a Draft,
+    help: Help<'_>,
+) -> Element<'a, Message> {
     let enabled = !form.saving;
     let input = |hint, value, event: fn(String) -> Field| {
         text_input(hint, value)
@@ -74,10 +79,7 @@ pub(super) fn fields<'a>(form: &'a EditForm, draft: &'a Draft) -> Element<'a, Me
             .style(settings_muted_text_style),
     );
     column![
-        settings_group_heading(
-            "Agy 终端档案",
-            "保存到目录，下次授权终端启动时生效；现有会话保持不变。"
-        ),
+        help.group("Agy 终端档案", "保存到目录，下次授权终端启动时生效；现有会话保持不变。"),
         settings_panel(fields),
     ]
     .spacing(12)

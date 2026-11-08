@@ -1,4 +1,5 @@
 use super::super::system_settings_common::*;
+use super::list::Help;
 use crate::app::{
     Message,
     message::app_providers::desktop::{Event, message},
@@ -9,7 +10,11 @@ use iced::{
     widget::{button, checkbox, column, container, row, text, text_input},
 };
 use vw_gateway_client::vw_api_types::app_providers::desktop_mapping::DesktopMappingMode;
-pub(crate) fn overlay<'a>(form: &'a Form, base: Element<'a, Message>) -> Element<'a, Message> {
+pub(crate) fn overlay<'a>(
+    form: &'a Form,
+    help: Help<'_>,
+    base: Element<'a, Message>,
+) -> Element<'a, Message> {
     let active = !form.busy;
     let input = |label, value, event: fn(String) -> Event| {
         text_input(label, value)
@@ -105,11 +110,8 @@ pub(crate) fn overlay<'a>(form: &'a Form, base: Element<'a, Message>) -> Element
                         .size(13)
                         .style(settings_muted_text_style),
                     action("载入默认路由", Event::Defaults, active),
-                    settings_field_label("添加模型路由"),
-                    settings_control_with_hint(
-                        input("claude-sonnet-…", &form.new_route, Event::NewRoute),
-                        "由执行端校验标识兼容性",
-                    ),
+                    help.field("添加模型路由", "由执行端校验标识兼容性"),
+                    input("claude-sonnet-…", &form.new_route, Event::NewRoute),
                     action("添加模型", Event::AddRoute, active && !form.new_route.is_empty()),
                 ]
                 .spacing(8),
@@ -188,4 +190,4 @@ pub(crate) fn overlay<'a>(form: &'a Form, base: Element<'a, Message>) -> Element
 
 #[cfg(test)]
 #[path = "desktop_ui_refresh_12_tests.rs"]
-mod ui_refresh_12_tests;
+pub(super) mod ui_refresh_12_tests;

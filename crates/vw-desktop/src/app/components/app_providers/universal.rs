@@ -1,4 +1,5 @@
 use super::super::system_settings_common::*;
+use super::list::Help;
 use crate::app::{
     Message,
     message::app_providers::universal::{Event, message},
@@ -61,7 +62,11 @@ fn action(
         .into()
 }
 
-pub(super) fn overlay<'a>(form: &'a Form, base: Element<'a, Message>) -> Element<'a, Message> {
+pub(super) fn overlay<'a>(
+    form: &'a Form,
+    help: Help<'_>,
+    base: Element<'a, Message>,
+) -> Element<'a, Message> {
     let mut fields = column![].spacing(12);
     if let Some(records) = &form.records {
         if records.is_empty() {
@@ -151,11 +156,11 @@ pub(super) fn overlay<'a>(form: &'a Form, base: Element<'a, Message>) -> Element
     let card = settings_modal_card(
         column![
             row![
-                text("统一供应商投影").size(22).width(Length::Fill),
+                container(help.heading("统一供应商投影", "将已保存的记录投影到所选应用目录。", 22))
+                    .width(Length::Fill),
                 settings_close_button(close.clone())
             ]
             .align_y(Alignment::Center),
-            text("将已保存的记录投影到所选应用目录。").size(13).style(settings_muted_text_style),
             scrollable(container(fields).padding([0, 7]))
                 .direction(scrollable::Direction::Vertical(
                     scrollable::Scrollbar::new().width(4).scroller_width(4)

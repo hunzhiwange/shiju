@@ -1,4 +1,5 @@
 use super::super::system_settings_common::*;
+use super::list::Help;
 use crate::app::{
     Message,
     message::app_providers::edit::{EditMessage, message},
@@ -8,7 +9,11 @@ use iced::{
     Alignment, Element, Length,
     widget::{button, checkbox, column, container, row, text, text_input},
 };
-pub(crate) fn overlay<'a>(form: &'a EditForm, base: Element<'a, Message>) -> Element<'a, Message> {
+pub(crate) fn overlay<'a>(
+    form: &'a EditForm,
+    help: Help<'_>,
+    base: Element<'a, Message>,
+) -> Element<'a, Message> {
     let title = match form.mode {
         Mode::Create => "新增供应商",
         Mode::Update => "编辑供应商",
@@ -52,77 +57,74 @@ pub(crate) fn overlay<'a>(form: &'a EditForm, base: Element<'a, Message>) -> Ele
         basic = basic
             .push(settings_field_label("备注"))
             .push(input("备注", form.fields.notes.as_deref().unwrap_or(""), EditMessage::Notes))
-            .push(settings_field_label("网址"))
-            .push(settings_control_with_hint(
-                input(
-                    "https://…",
-                    form.fields.website_url.as_deref().unwrap_or(""),
-                    EditMessage::Website,
-                ),
-                "展示网址，与 API 地址分开保存",
+            .push(help.field("网址", "展示网址，与 API 地址分开保存"))
+            .push(input(
+                "https://…",
+                form.fields.website_url.as_deref().unwrap_or(""),
+                EditMessage::Website,
             ));
         fields = fields.push(text("基础资料").size(17)).push(settings_panel(basic));
         if let Some(draft) = &form.claude {
-            fields = fields.push(super::claude::fields(form, draft));
+            fields = fields.push(super::claude::fields(form, draft, help));
         } else if let Some(draft) = &form.codex {
-            fields = fields.push(super::codex::fields(form, draft));
+            fields = fields.push(super::codex::fields(form, draft, help));
         } else if let Some(draft) = &form.gemini {
-            fields = fields.push(super::gemini::fields(form, draft));
+            fields = fields.push(super::gemini::fields(form, draft, help));
         } else if let Some(draft) = &form.grok {
-            fields = fields.push(super::grok::fields(form, draft));
+            fields = fields.push(super::grok::fields(form, draft, help));
         } else if let Some(draft) = &form.hermes {
-            fields = fields.push(super::hermes::fields(form, draft));
+            fields = fields.push(super::hermes::fields(form, draft, help));
         } else if form.hermes_config_unavailable {
             fields = fields.push(
                 text("此档案的 Hermes 节点不可编辑，可修改基础资料。官方授权暂不可用。")
                     .style(settings_muted_text_style),
             );
         } else if let Some(draft) = &form.pi {
-            fields = fields.push(super::pi::fields(form, draft));
+            fields = fields.push(super::pi::fields(form, draft, help));
         } else if form.pi_config_unavailable {
             fields = fields.push(
                 text("此档案的 Pi 节点不可编辑，可修改基础资料。官方授权暂不可用。")
                     .style(settings_muted_text_style),
             );
         } else if let Some(draft) = &form.kimi {
-            fields = fields.push(super::kimi::fields(form, draft));
+            fields = fields.push(super::kimi::fields(form, draft, help));
         } else if form.kimi_config_unavailable {
             fields = fields.push(
                 text("此档案的 Kimi 节点不可编辑，可修改基础资料。官方授权暂不可用。")
                     .style(settings_muted_text_style),
             );
         } else if let Some(draft) = &form.mcode {
-            fields = fields.push(super::mcode::fields(form, draft));
+            fields = fields.push(super::mcode::fields(form, draft, help));
         } else if form.mcode_config_unavailable {
             fields = fields.push(
                 text("此档案的 Mcode 节点不可编辑，可修改基础资料。官方授权暂不可用。")
                     .style(settings_muted_text_style),
             );
         } else if let Some(draft) = &form.agy {
-            fields = fields.push(super::agy::fields(form, draft));
+            fields = fields.push(super::agy::fields(form, draft, help));
         } else if let Some(draft) = &form.dsh {
-            fields = fields.push(super::dsh::fields(form, draft));
+            fields = fields.push(super::dsh::fields(form, draft, help));
         } else if form.dsh_config_unavailable {
             fields = fields.push(
                 text("此档案的 Dsh 节点不可编辑，可修改基础资料。官方授权暂不可用。")
                     .style(settings_muted_text_style),
             );
         } else if let Some(draft) = &form.omp {
-            fields = fields.push(super::omp::fields(form, draft));
+            fields = fields.push(super::omp::fields(form, draft, help));
         } else if form.omp_config_unavailable {
             fields = fields.push(
                 text("此档案的 OMP 节点不可编辑，可修改基础资料。官方授权暂不可用。")
                     .style(settings_muted_text_style),
             );
         } else if let Some(draft) = &form.openclaw {
-            fields = fields.push(super::openclaw::fields(form, draft));
+            fields = fields.push(super::openclaw::fields(form, draft, help));
         } else if form.openclaw_config_unavailable {
             fields = fields.push(
                 text("此档案的 OpenClaw 节点不可编辑，可修改基础资料。官方授权暂不可用。")
                     .style(settings_muted_text_style),
             );
         } else if let Some(draft) = &form.opencode {
-            fields = fields.push(super::opencode::fields(form, draft));
+            fields = fields.push(super::opencode::fields(form, draft, help));
         } else if form.opencode_config_unavailable {
             fields = fields.push(
                 text("此档案的 OpenCode 节点不可编辑，可修改基础资料。官方授权暂不可用。")

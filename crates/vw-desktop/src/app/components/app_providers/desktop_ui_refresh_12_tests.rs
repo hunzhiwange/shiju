@@ -1,3 +1,4 @@
+use super::super::list::Help;
 use super::super::{edit, list};
 use super::Form;
 use crate::app::message::{
@@ -10,6 +11,7 @@ use crate::app::message::{
 };
 use crate::app::{
     Message,
+    i18n::I18n,
     state::{
         AgentAppsContext,
         app_providers::{
@@ -25,6 +27,7 @@ use iced::keyboard::{self, Key, key::Named};
 use iced::widget::Space;
 use iced::{Element, Event, Font, Point, Rectangle, Renderer, Size, Theme, Vector, mouse};
 use iced_runtime::user_interface::{Cache, UserInterface};
+use vw_config_types::ui::DesktopLocale;
 use vw_gateway_client::vw_api_types::{
     agent_apps::AppId,
     app_providers::{
@@ -115,7 +118,7 @@ impl<'a> Scene<'a> {
         theme: &Theme,
         cursor: mouse::Cursor,
         name: &str,
-    ) {
+    ) -> Vec<u8> {
         assert!(
             self.send(
                 renderer,
@@ -136,6 +139,7 @@ impl<'a> Scene<'a> {
             )
             .expect("save screenshot");
         }
+        pixels
     }
 }
 
@@ -284,9 +288,9 @@ async fn ui_refresh_12_layout_and_interaction() {
         (Theme::Dark, 960, "dark-960"),
     ] {
         for (view, page, buttons) in [
-            (list::overlay(&list, base()), "list", 5),
-            (edit::overlay(&edit, base()), "edit", 2),
-            (super::overlay(&desktop, base()), "desktop", 4),
+            (list::overlay(&list, Help::test(), base()), "list", 5),
+            (edit::overlay(&edit, Help::test(), base()), "edit", 2),
+            (super::overlay(&desktop, Help::test(), base()), "desktop", 4),
         ] {
             let mut scene = Scene::new(view, &mut renderer, Size::new(width, 760));
             assert_centered(scene.modal(&[0, 0]), scene.modal(&[0, 1]));
@@ -300,7 +304,8 @@ async fn ui_refresh_12_layout_and_interaction() {
         }
     }
 
-    let mut scene = Scene::new(list::overlay(&list, base()), &mut renderer, Size::new(420, 760));
+    let mut scene =
+        Scene::new(list::overlay(&list, Help::test(), base()), &mut renderer, Size::new(420, 760));
     let actions = [1, 0, 0, 1, 0, 2];
     for (index, copy, delete) in [(0, false, false), (1, true, false), (2, false, true)] {
         let path = [&actions[..], &[index]].concat();
@@ -344,8 +349,11 @@ async fn ui_refresh_12_layout_and_interaction() {
         [Message::Settings(SettingsMessage::AppProviders(ListMessage::Refresh))]
     ));
 
-    let mut scene =
-        Scene::new(super::overlay(&desktop, base()), &mut renderer, Size::new(420, 760));
+    let mut scene = Scene::new(
+        super::overlay(&desktop, Help::test(), base()),
+        &mut renderer,
+        Size::new(420, 760),
+    );
     let mut scroll = FormScroll::default();
     scene.ui.operate(&renderer, &mut scroll);
     let (body, offset) = scroll.0.expect("desktop form has one scroll viewport");
@@ -415,7 +423,7 @@ async fn ui_refresh_12_preserves_values_and_disabled_states() {
     app.app_providers.desktop = Some(original.clone());
     for official in [true, false] {
         let form = app.app_providers.desktop.as_ref().unwrap();
-        let mut scene = Scene::new(super::overlay(form, base()), &mut renderer, size);
+        let mut scene = Scene::new(super::overlay(form, Help::test(), base()), &mut renderer, size);
         let events = scene.press(&mut renderer, &[1, 0, 0, 3, 0, 2]);
         assert!(matches!(&events[..],
             [Message::Settings(SettingsMessage::AppProviders(ListMessage::Desktop(DesktopEvent::Official(value))))]
@@ -440,7 +448,8 @@ async fn ui_refresh_12_preserves_values_and_disabled_states() {
         form.direct_editable = busy;
         form.mapping_editable = busy;
         form.notice = Some("映射兼容校验失败／映射相容驗證失敗".into());
-        let mut scene = Scene::new(super::overlay(&form, base()), &mut renderer, size);
+        let mut scene =
+            Scene::new(super::overlay(&form, Help::test(), base()), &mut renderer, size);
         for index in [1, 2] {
             assert!(scene.press(&mut renderer, &[2, index]).is_empty());
         }
@@ -460,7 +469,7 @@ async fn ui_refresh_12_preserves_values_and_disabled_states() {
         list.loading = name == "loading";
         list.error = (name == "failure").then(|| "读取失败／讀取失敗 · Request failed".into());
         list.snapshot.as_mut().unwrap().catalog.rows.clear();
-        let mut scene = Scene::new(list::overlay(&list, base()), &mut renderer, size);
+        let mut scene = Scene::new(list::overlay(&list, Help::test(), base()), &mut renderer, size);
         let events = scene.press(&mut renderer, &[2, 0]);
         if list.loading {
             assert!(events.is_empty());
@@ -485,7 +494,7 @@ async fn ui_refresh_12_preserves_values_and_disabled_states() {
         notes: "Fixture notes".into(),
         saving: false,
     });
-    let mut scene = Scene::new(list::overlay(&list, base()), &mut renderer, size);
+    let mut scene = Scene::new(list::overlay(&list, Help::test(), base()), &mut renderer, size);
     assert!(matches!(
         scene.press(&mut renderer, &[2, 0]).as_slice(),
         [Message::Settings(SettingsMessage::AppProviders(ListMessage::Cancel))]
@@ -493,7 +502,7 @@ async fn ui_refresh_12_preserves_values_and_disabled_states() {
     scene.capture(&mut renderer, &Theme::Dark, mouse::Cursor::Unavailable, "list-presentation");
 
     let form = edit_fixture(Mode::Delete);
-    let mut scene = Scene::new(edit::overlay(&form, base()), &mut renderer, size);
+    let mut scene = Scene::new(edit::overlay(&form, Help::test(), base()), &mut renderer, size);
     assert!(matches!(
         scene.press(&mut renderer, &[2, 0]).as_slice(),
         [Message::Settings(SettingsMessage::AppProviderEdit(EditMessage::Cancel))]
@@ -505,8 +514,287 @@ async fn ui_refresh_12_preserves_values_and_disabled_states() {
     scene.capture(&mut renderer, &Theme::Dark, mouse::Cursor::Unavailable, "edit-delete");
     let mut form = edit_fixture(Mode::Copy { source_id: "fixture-id".into() });
     form.saving = true;
-    let mut scene = Scene::new(edit::overlay(&form, base()), &mut renderer, size);
+    let mut scene = Scene::new(edit::overlay(&form, Help::test(), base()), &mut renderer, size);
     assert!(scene.press(&mut renderer, &[2, 1]).is_empty());
     assert!(scene.press(&mut renderer, &[2, 0]).is_empty());
     scene.capture(&mut renderer, &Theme::Light, mouse::Cursor::Unavailable, "edit-saving");
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 1)]
+async fn help_rollout_06_renders_contextual_help() {
+    let mut renderer = renderer().await;
+    let mut claude = edit_fixture(Mode::Update);
+    claude.claude = Some(crate::app::state::app_providers::claude::Draft::new());
+    let mut agy = edit_fixture(Mode::Update);
+    agy.agy = Some(crate::app::state::app_providers::agy::Draft::new());
+    let desktop = desktop_fixture();
+    for (locale, theme, width) in [
+        (DesktopLocale::SimplifiedChinese, Theme::Light, 420),
+        (DesktopLocale::English, Theme::Dark, 620),
+        (DesktopLocale::TraditionalChinese, Theme::Light, 420),
+    ] {
+        let help = Help::new(I18n::new(locale), &theme);
+        for (name, element, expected) in [
+            ("claude", edit::overlay(&claude, help, base()), 2),
+            ("desktop", super::overlay(&desktop, help, base()), 1),
+            ("agy", edit::overlay(&agy, help, base()), 2),
+        ] {
+            assert_contextual_help(
+                element,
+                &mut renderer,
+                &theme,
+                Size::new(width, 760),
+                &format!("{name}-{locale:?}"),
+                expected,
+            );
+        }
+    }
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 1)]
+async fn help_rollout_06_renders_utility_overlays() {
+    use crate::app::state::app_providers::{env, mode, paths, preview, snippets, universal};
+
+    let mut renderer = renderer().await;
+    let theme = Theme::Dark;
+    let help = Help::new(I18n::new(DesktopLocale::English), &theme);
+    for name in ["paths", "env", "snippets", "preview", "mode", "universal"] {
+        let mut state = list_fixture(AppId::Claude);
+        let expected = match name {
+            "paths" => {
+                state.paths = Some(paths::Form {
+                    draft: "/fixture/private-path".into(),
+                    error: Some("无法确认执行主机的配置目录。请重新读取。"),
+                    ..Default::default()
+                });
+                1
+            }
+            "env" => {
+                state.env =
+                    Some(env::Form { backup_id: "fixture-backup-id".into(), ..Default::default() });
+                2
+            }
+            "snippets" => {
+                state.snippets = Some(snippets::Form { loaded: true, ..Default::default() });
+                2
+            }
+            "preview" => {
+                state.preview = Some(preview::Form::new("fixture-id".into(), provider_name()));
+                1
+            }
+            "mode" => {
+                state.mode = Some(mode::Form::default());
+                1
+            }
+            "universal" => {
+                state.universal = Some(universal::Form::default());
+                1
+            }
+            _ => unreachable!(),
+        };
+        assert_contextual_help(
+            list::overlay(&state, help, base()),
+            &mut renderer,
+            &theme,
+            Size::new(420, 760),
+            name,
+            expected,
+        );
+    }
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 1)]
+async fn help_rollout_06_keeps_values_outside_help_actions() {
+    use crate::app::message::{ChatMessage, ViewMessage};
+    let mut renderer = renderer().await;
+    let theme = Theme::Dark;
+    let i18n = I18n::new(DesktopLocale::English);
+    let mut form = edit_fixture(Mode::Update);
+    form.key = "fixture-private-key".into();
+    form.replace_key = true;
+    let view = edit::overlay(&form, Help::new(i18n, &theme), base());
+    let mut scene = Scene::new(view, &mut renderer, Size::new(850, 760));
+
+    let mut icons = Vec::new();
+    help_icons(Layout::new(&scene.layout), &mut icons);
+    let [icon] = icons.as_slice() else { panic!("website help target: {icons:?}") };
+    assert!(scene.click(&mut renderer, icon.center()).is_empty());
+    let card = Point::new(icon.x + icon.width + 4.0 + 12.5, icon.y + 16.0);
+    let row_height =
+        f32::from(iced::advanced::text::LineHeight::default().to_absolute(12.0.into())) + 10.0;
+    let description = i18n.__("展示网址，与 API 地址分开保存");
+    let menu_item = |row: f32| Point::new(card.x + 24.0, card.y + 3.0 + row_height * (row + 0.5));
+    let send_mouse = |scene: &mut Scene<'_>, renderer: &mut Renderer, point, event| {
+        scene.send(renderer, &[Event::Mouse(event)], mouse::Cursor::Available(point))
+    };
+    let right = mouse::Event::ButtonPressed(mouse::Button::Right);
+
+    for (row, prefix) in [
+        (0, ""),
+        (1, ""),
+        (2, "https://www.baidu.com/s?wd="),
+        (3, "https://www.google.com/search?q="),
+        (4, "https://www.bing.com/search?q="),
+    ] {
+        assert!(
+            send_mouse(&mut scene, &mut renderer, card, right).is_empty(),
+            "opening the menu does not publish an action",
+        );
+        let messages = scene.click(&mut renderer, menu_item(row as f32));
+        assert!(
+            match (row, messages.as_slice()) {
+                (0, [Message::CopyCode(text)]) => text == description,
+                (1, [Message::Chat(ChatMessage::AppendText(text))]) => text == description,
+                (2..=4, [Message::View(ViewMessage::OpenUrlExternal(url))]) => {
+                    url == &format!("{prefix}{}", urlencoding::encode(description))
+                }
+                _ => false,
+            },
+            "{messages:?}"
+        );
+    }
+
+    let end = Point::new(card.x + 240.0, card.y + 100.0);
+    for (point, event) in [
+        (card, mouse::Event::ButtonPressed(mouse::Button::Left)),
+        (end, mouse::Event::CursorMoved { position: end }),
+        (end, mouse::Event::ButtonReleased(mouse::Button::Left)),
+    ] {
+        assert!(send_mouse(&mut scene, &mut renderer, point, event).is_empty());
+    }
+    assert!(send_mouse(&mut scene, &mut renderer, card, right).is_empty());
+    let expected = format!("{}\n{description}", i18n.__("网址"));
+    assert!(matches!(
+        scene.click(&mut renderer, menu_item(0.0)).as_slice(),
+        [Message::CopyCode(text)] if text == &expected
+    ));
+    assert!(
+        scene.send(&mut renderer, &[key(Named::Escape)], mouse::Cursor::Unavailable).is_empty()
+    );
+    assert!(matches!(
+        scene.press(&mut renderer, &[2, 1]).as_slice(),
+        [Message::Settings(SettingsMessage::AppProviderEdit(EditMessage::Save))]
+    ));
+    assert!(matches!(
+        scene.press(&mut renderer, &[2, 0]).as_slice(),
+        [Message::Settings(SettingsMessage::AppProviderEdit(EditMessage::Cancel))]
+    ));
+}
+
+pub(in crate::app::components::app_providers) fn assert_contextual_help(
+    element: Element<'_, Message>,
+    renderer: &mut Renderer,
+    theme: &Theme,
+    size: Size<u32>,
+    name: &str,
+    expected: usize,
+) {
+    let mut scene = Scene::new(element, renderer, size);
+    let mut icons = Vec::new();
+    help_icons(Layout::new(&scene.layout), &mut icons);
+    assert_eq!(icons.len(), expected, "{name} contextual help targets");
+    for (index, icon) in icons.into_iter().enumerate() {
+        let name = format!("help-06-{name}-{index}");
+        let point = visible_icon(&mut scene, renderer, icon);
+        let idle =
+            scene.capture(renderer, theme, mouse::Cursor::Unavailable, &format!("{name}-idle"));
+        assert!(
+            scene
+                .send(
+                    renderer,
+                    &[Event::Mouse(mouse::Event::CursorMoved { position: point })],
+                    mouse::Cursor::Available(point),
+                )
+                .is_empty()
+        );
+        let hover = scene.capture(
+            renderer,
+            theme,
+            mouse::Cursor::Available(point),
+            &format!("{name}-hover"),
+        );
+        assert!(idle != hover, "{name} previews a rendered help card");
+        assert!(scene.click(renderer, point).is_empty());
+        assert!(
+            scene
+                .send(
+                    renderer,
+                    &[Event::Mouse(mouse::Event::CursorLeft)],
+                    mouse::Cursor::Unavailable,
+                )
+                .is_empty()
+        );
+        let pinned =
+            scene.capture(renderer, theme, mouse::Cursor::Unavailable, &format!("{name}-pinned"));
+        assert!(idle != pinned, "{name} keeps the card open away from the target");
+        assert!(scene.send(renderer, &[key(Named::Escape)], mouse::Cursor::Unavailable).is_empty());
+        assert!(
+            idle == scene.capture(
+                renderer,
+                theme,
+                mouse::Cursor::Unavailable,
+                &format!("{name}-dismissed")
+            ),
+            "{name} dismisses without changing the parent",
+        );
+    }
+}
+
+fn visible_icon(scene: &mut Scene<'_>, renderer: &mut Renderer, icon: Rectangle) -> Point {
+    let mut scroll = BodyViewport::default();
+    scene.ui.operate(renderer, &mut scroll);
+    let Some((bounds, offset)) = scroll.0 else { return icon.center() };
+    if icon.y < bounds.y {
+        return icon.center();
+    }
+    let point = icon.center() - offset;
+    if bounds.contains(point) {
+        return point;
+    }
+    assert!(
+        scene
+            .send(
+                renderer,
+                &[Event::Mouse(mouse::Event::WheelScrolled {
+                    delta: mouse::ScrollDelta::Pixels { x: 0.0, y: bounds.center().y - point.y },
+                })],
+                mouse::Cursor::Available(bounds.center()),
+            )
+            .is_empty()
+    );
+    scroll.0 = None;
+    scene.ui.operate(renderer, &mut scroll);
+    let point = icon.center() - scroll.0.unwrap().1;
+    assert!(bounds.contains(point), "{icon:?} stays reachable after scrolling {bounds:?}");
+    point
+}
+
+#[derive(Default)]
+struct BodyViewport(Option<(Rectangle, Vector)>);
+
+impl Operation for BodyViewport {
+    fn traverse(&mut self, operate: &mut dyn FnMut(&mut dyn Operation)) {
+        operate(self);
+    }
+
+    fn scrollable(
+        &mut self,
+        _id: Option<&iced::advanced::widget::Id>,
+        bounds: Rectangle,
+        _content: Rectangle,
+        translation: Vector,
+        _state: &mut dyn Scrollable,
+    ) {
+        self.0.get_or_insert((bounds, translation));
+    }
+}
+
+fn help_icons(layout: Layout<'_>, icons: &mut Vec<Rectangle>) {
+    let bounds = layout.bounds();
+    if bounds.size() == Size::new(22.0, 22.0) && !icons.contains(&bounds) {
+        icons.push(bounds);
+    }
+    for child in layout.children() {
+        help_icons(child, icons);
+    }
 }

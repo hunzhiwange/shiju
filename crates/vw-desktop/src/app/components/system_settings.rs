@@ -607,7 +607,14 @@ pub fn view(app: &App) -> Element<'_, Message> {
             &app.app_theme,
             dialog,
         );
-        dialog = super::app_providers::list::overlay(&app.app_providers, dialog);
+        dialog = super::app_providers::list::overlay(
+            &app.app_providers,
+            super::app_providers::list::Help::new(
+                crate::app::i18n::I18n::new(app.desktop_locale),
+                &app.app_theme,
+            ),
+            dialog,
+        );
     }
     if app.system_settings_tab == SystemTab::GatewayClient {
         dialog = crate::app::components::system_settings_gateway_client::view_overlays(app, dialog);

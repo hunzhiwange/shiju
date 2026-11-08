@@ -8,15 +8,80 @@ use crate::app::message::app_providers::{
     snippets::Event as SnippetEvent,
     universal::Event as UniversalEvent,
 };
-use crate::app::{Message, state::app_providers::list::ListState};
+use crate::app::{Message, i18n::I18n, state::app_providers::list::ListState};
 use iced::{
-    Alignment, Element, Length,
+    Alignment, Element, Length, Theme,
     widget::{button, column, container, row, text, text_input},
 };
 use vw_gateway_client::vw_api_types::{
     agent_apps::AppId,
     app_providers::catalog::{ProviderMembership, ProviderSelection},
 };
+#[derive(Clone, Copy)]
+pub(crate) struct Help<'a> {
+    i18n: I18n,
+    theme: &'a Theme,
+}
+
+impl<'a> Help<'a> {
+    pub(crate) fn new(i18n: I18n, theme: &'a Theme) -> Self {
+        Self { i18n, theme }
+    }
+
+    #[cfg(test)]
+    pub(super) fn test() -> Help<'static> {
+        Help::new(I18n::new(vw_config_types::ui::DesktopLocale::SimplifiedChinese), &Theme::Light)
+    }
+
+    pub(super) fn field(
+        self,
+        title: &'static str,
+        description: &'static str,
+    ) -> Element<'static, Message> {
+        let title = self.i18n.__(title);
+        settings_hover_help_label(
+            self.i18n,
+            self.theme,
+            title,
+            settings_field_label(title),
+            self.i18n.__(description),
+        )
+        .wrap()
+        .into()
+    }
+
+    pub(super) fn heading(
+        self,
+        title: &'static str,
+        description: &'static str,
+        size: u32,
+    ) -> Element<'static, Message> {
+        let title = self.i18n.__(title);
+        settings_hover_help_label(
+            self.i18n,
+            self.theme,
+            title,
+            text(title).size(size),
+            self.i18n.__(description),
+        )
+        .wrap()
+        .into()
+    }
+
+    pub(super) fn group(
+        self,
+        title: &'static str,
+        description: &'static str,
+    ) -> Element<'static, Message> {
+        settings_group_heading_with_help(
+            self.i18n,
+            self.theme,
+            self.i18n.__(title),
+            self.i18n.__(description),
+        )
+    }
+}
+
 fn selection(value: &ProviderSelection) -> String {
     match value {
         ProviderSelection::Selected { id } => id.clone(),
@@ -55,6 +120,7 @@ fn edit_action<'a>(
 }
 pub(crate) fn overlay<'a>(
     state: &'a ListState,
+    help: Help<'_>,
     base: Element<'a, Message>,
 ) -> Element<'a, Message> {
     let Some(scope) = &state.scope else {
@@ -298,22 +364,22 @@ pub(crate) fn overlay<'a>(
         );
     }
     if let Some(form) = &state.paths {
-        return super::paths::overlay(form, list);
+        return super::paths::overlay(form, help, list);
     }
     if let Some(form) = &state.mode {
-        return super::mode::overlay(state, form, list);
+        return super::mode::overlay(state, form, help, list);
     }
     if let Some(form) = &state.env {
-        return super::env::overlay(form, list);
+        return super::env::overlay(form, help, list);
     }
     if let Some(form) = &state.preview {
-        return super::preview::overlay(form, list);
+        return super::preview::overlay(form, help, list);
     }
     if let Some(form) = &state.snippets {
-        return super::snippets::overlay(state, form, scope.app, list);
+        return super::snippets::overlay(state, form, scope.app, help, list);
     }
     if let Some(form) = &state.universal {
-        return super::universal::overlay(form, list);
+        return super::universal::overlay(form, help, list);
     }
     if let Some(form) = &state.icons {
         return super::icons::overlay(form, list);
@@ -322,10 +388,10 @@ pub(crate) fn overlay<'a>(
         return super::endpoints::overlay(form, scope.app, list);
     }
     if let Some(form) = &state.desktop {
-        return super::desktop::overlay(form, list);
+        return super::desktop::overlay(form, help, list);
     }
     if let Some(form) = &state.form {
-        return super::edit::overlay(form, list);
+        return super::edit::overlay(form, help, list);
     }
     let Some(form) = &state.editor else {
         return list;

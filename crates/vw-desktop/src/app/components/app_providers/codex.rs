@@ -1,4 +1,5 @@
 use super::super::system_settings_common::*;
+use super::list::Help;
 use crate::app::{
     Message,
     message::app_providers::{
@@ -15,7 +16,11 @@ use iced::{
     widget::{button, checkbox, column, row, text, text_editor, text_input},
 };
 
-pub(super) fn fields<'a>(form: &'a EditForm, draft: &'a Draft) -> Element<'a, Message> {
+pub(super) fn fields<'a>(
+    form: &'a EditForm,
+    draft: &'a Draft,
+    help: Help<'_>,
+) -> Element<'a, Message> {
     let enabled = !form.saving;
     let event = |field| message(EditMessage::Codex(field));
     let hint = |value| text(value).size(12).style(settings_muted_text_style);
@@ -27,10 +32,7 @@ pub(super) fn fields<'a>(form: &'a EditForm, draft: &'a Draft) -> Element<'a, Me
     if enabled {
         editor = editor.on_action(move |action| event(Field::Toml(action)));
     }
-    let heading = settings_group_heading(
-        "Codex 配置 · config.toml",
-        "编辑供应商选路与模型字段。密钥请在下方单独输入。官方账号授权暂不可用。",
-    );
+    let heading = help.group("Codex 配置 · config.toml", "编辑供应商选路与模型字段。");
     let mut fields = column![editor].spacing(10);
     if draft.has_saved_key {
         fields = fields
@@ -58,9 +60,11 @@ pub(super) fn fields<'a>(form: &'a EditForm, draft: &'a Draft) -> Element<'a, Me
                 .on_input_maybe(enabled.then_some(|v| message(EditMessage::Key(v)))),
         );
     }
-    fields = fields.push(settings_divider()).push(settings_field_label("模型映射"));
+    fields = fields.push(settings_divider());
     if let Some(models) = &draft.models {
-        fields = fields.push(hint("填写 Codex 菜单显示名和实际请求模型。模型发现与推荐暂不可用。"));
+        fields = fields
+            .push(help.field("模型映射", "填写 Codex 菜单显示名和实际请求模型。"))
+            .push(hint("模型发现与推荐暂不可用。"));
         for (i, model) in models.iter().enumerate() {
             fields = fields.push(
                 row![
@@ -90,7 +94,9 @@ pub(super) fn fields<'a>(form: &'a EditForm, draft: &'a Draft) -> Element<'a, Me
                 .on_press_maybe(enabled.then_some(event(Field::AddModel))),
         );
     } else {
-        fields = fields.push(hint("此档案使用外部模型目录，目录内容暂不可编辑。"));
+        fields = fields
+            .push(settings_field_label("模型映射"))
+            .push(hint("此档案使用外部模型目录，目录内容暂不可编辑。"));
     }
 
     if !draft.inactive.is_empty() {
@@ -116,5 +122,11 @@ pub(super) fn fields<'a>(form: &'a EditForm, draft: &'a Draft) -> Element<'a, Me
             .style(settings_checkbox_style)
             .on_toggle_maybe(enabled.then_some(move |v| event(Field::Apply(v)))),
     );
-    column![heading, settings_panel(fields)].spacing(12).width(Length::Fill).into()
+    column![
+        column![heading, hint("密钥请在下方单独输入。官方账号授权暂不可用。")].spacing(6),
+        settings_panel(fields),
+    ]
+    .spacing(12)
+    .width(Length::Fill)
+    .into()
 }

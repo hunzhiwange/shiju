@@ -1,3 +1,4 @@
+use super::super::list::Help;
 use super::super::{claude, codex, edit, gemini, grok, opencode};
 use crate::app::{
     App, Message,
@@ -228,11 +229,11 @@ fn fixture(provider: AppId, mode: Mode) -> EditForm {
 
 fn fields(form: &EditForm, provider: AppId) -> Element<'_, Message> {
     match provider {
-        AppId::Claude => claude::fields(form, form.claude.as_ref().unwrap()),
-        AppId::Codex => codex::fields(form, form.codex.as_ref().unwrap()),
-        AppId::Gemini => gemini::fields(form, form.gemini.as_ref().unwrap()),
-        AppId::GrokBuild => grok::fields(form, form.grok.as_ref().unwrap()),
-        AppId::OpenCode => opencode::fields(form, form.opencode.as_ref().unwrap()),
+        AppId::Claude => claude::fields(form, form.claude.as_ref().unwrap(), Help::test()),
+        AppId::Codex => codex::fields(form, form.codex.as_ref().unwrap(), Help::test()),
+        AppId::Gemini => gemini::fields(form, form.gemini.as_ref().unwrap(), Help::test()),
+        AppId::GrokBuild => grok::fields(form, form.grok.as_ref().unwrap(), Help::test()),
+        AppId::OpenCode => opencode::fields(form, form.opencode.as_ref().unwrap(), Help::test()),
         _ => unreachable!(),
     }
 }
@@ -295,8 +296,11 @@ async fn ui_refresh_13_layout_and_interaction() {
                     &format!("{name}-{phase}-{theme_name}-{width}"),
                 );
             }
-            let mut scene =
-                Scene::new(edit::overlay(&form, base()), &mut renderer, Size::new(420, 760));
+            let mut scene = Scene::new(
+                edit::overlay(&form, Help::test(), base()),
+                &mut renderer,
+                Size::new(420, 760),
+            );
             assert_centered(scene.modal(&[0, 0]), scene.modal(&[0, 1]));
             assert!(scene.modal(&[1]).y + scene.modal(&[1]).height < scene.modal(&[2]).y);
             for index in 0..2 {
@@ -480,7 +484,7 @@ async fn ui_refresh_13_preserves_values_and_disabled_states() {
 
                 match provider {
                     AppId::Claude | AppId::Gemini => {
-                        let model_path = [1, 0, key_path[2] + 1, 1, 0];
+                        let model_path = [1, 0, key_path[2] + 1, 1];
                         let expected_model =
                             if create { "-updated".into() } else { format!("{MODEL}-updated") };
                         let messages =
@@ -563,8 +567,11 @@ async fn ui_refresh_13_preserves_values_and_disabled_states() {
                 let mut form = app.app_providers.form.take().unwrap();
                 form.saving = true;
                 assert!(type_in(&form, provider, &mut renderer, key_path, "-discard").is_empty());
-                let mut scene =
-                    Scene::new(edit::overlay(&form, base()), &mut renderer, Size::new(420, 760));
+                let mut scene = Scene::new(
+                    edit::overlay(&form, Help::test(), base()),
+                    &mut renderer,
+                    Size::new(420, 760),
+                );
                 assert!(scene.click(&mut renderer, scene.modal(&[2, 0]).center()).is_empty());
                 assert!(scene.click(&mut renderer, scene.modal(&[2, 1]).center()).is_empty());
                 scene.capture(&mut renderer, &Theme::Dark, &format!("{name}-busy"));
@@ -572,8 +579,11 @@ async fn ui_refresh_13_preserves_values_and_disabled_states() {
 
                 form.saving = false;
                 form.fields.name.clear();
-                let mut scene =
-                    Scene::new(edit::overlay(&form, base()), &mut renderer, Size::new(420, 760));
+                let mut scene = Scene::new(
+                    edit::overlay(&form, Help::test(), base()),
+                    &mut renderer,
+                    Size::new(420, 760),
+                );
                 assert!(scene.click(&mut renderer, scene.modal(&[2, 1]).center()).is_empty());
                 let cancel = scene.click(&mut renderer, scene.modal(&[2, 0]).center());
                 assert!(matches!(
@@ -587,4 +597,27 @@ async fn ui_refresh_13_preserves_values_and_disabled_states() {
             }
         }
     });
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 1)]
+async fn help_rollout_06_renders_claude_family() {
+    use super::super::desktop::ui_refresh_12_tests::assert_contextual_help;
+    use crate::app::i18n::I18n;
+    use vw_config_types::ui::DesktopLocale;
+
+    let mut renderer = renderer().await;
+    let theme = Theme::Dark;
+    let help = Help::new(I18n::new(DesktopLocale::English), &theme);
+    for (provider, name) in PROVIDERS {
+        let form = fixture(provider, Mode::Update);
+        let expected = if provider == AppId::Codex { 3 } else { 2 };
+        assert_contextual_help(
+            edit::overlay(&form, help, base()),
+            &mut renderer,
+            &theme,
+            Size::new(420, 760),
+            &format!("claude_family-{name}"),
+            expected,
+        );
+    }
 }

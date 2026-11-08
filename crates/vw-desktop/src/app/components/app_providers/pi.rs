@@ -1,4 +1,5 @@
 use super::super::system_settings_common::*;
+use super::list::Help;
 use crate::app::{
     Message,
     message::app_providers::{
@@ -15,17 +16,21 @@ use iced::{
     widget::{checkbox, column, text, text_editor, text_input},
 };
 
-pub(super) fn fields<'a>(form: &'a EditForm, draft: &'a Draft) -> Element<'a, Message> {
+pub(super) fn fields<'a>(
+    form: &'a EditForm,
+    draft: &'a Draft,
+    help: Help<'_>,
+) -> Element<'a, Message> {
     let enabled = !form.saving;
     let create = matches!(form.mode, Mode::Create);
     let event = |field| message(EditMessage::Pi(field));
     let hint = |value| text(value).size(12).style(settings_muted_text_style);
-    let mut fields =
-        column![settings_field_label("供应商声明"), hint("官方授权和模型发现暂不可用。"),]
-            .spacing(8);
-    fields = fields.push(hint(
-        "可编辑 baseUrl、api 和 models。请求头和兼容选项由执行端保留，API 密钥请在下方填写。",
-    ));
+    let mut fields = column![
+        help.field("供应商声明", "可编辑 baseUrl、api 和 models。API 密钥请在下方填写。"),
+        hint("官方授权和模型发现暂不可用。"),
+    ]
+    .spacing(8)
+    .push(hint("请求头和兼容选项由执行端保留。"));
     if create {
         fields = fields.push(hint("新节点需要 API 地址、协议及至少一个模型。请填写模型的 id、name、contextWindow 和 maxTokens。"));
     }
@@ -80,7 +85,7 @@ pub(super) fn fields<'a>(form: &'a EditForm, draft: &'a Draft) -> Element<'a, Me
             .on_toggle_maybe(enabled.then_some(move |value| event(Field::Apply(value)))),
     );
     column![
-        settings_group_heading(
+        help.group(
             "Pi 原生供应商节点",
             "编辑 models.json 的 providers 中的单个 JSON 节点，保存时由执行端校验。"
         ),

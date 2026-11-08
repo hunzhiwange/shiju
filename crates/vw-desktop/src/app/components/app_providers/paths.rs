@@ -1,4 +1,5 @@
 use super::super::system_settings_common::*;
+use super::list::Help;
 use crate::app::{
     Message,
     message::app_providers::paths::{Event, message},
@@ -10,10 +11,14 @@ use iced::{
 };
 use vw_gateway_client::vw_api_types::app_providers::paths::ConfigPathState;
 
-pub(super) fn overlay<'a>(form: &'a Form, base: Element<'a, Message>) -> Element<'a, Message> {
+pub(super) fn overlay<'a>(
+    form: &'a Form,
+    help: Help<'_>,
+    base: Element<'a, Message>,
+) -> Element<'a, Message> {
     let close = if form.saving { Message::None } else { message(Event::Close) };
     let header = settings_modal_header(
-        settings_page_intro("配置目录", "查看 Claude Code 在执行主机上的配置文件。"),
+        help.heading("配置目录", "查看 Claude Code 在执行主机上的配置文件。", 28),
         settings_close_button(close.clone()),
     );
     let ready = form.pending.is_none();

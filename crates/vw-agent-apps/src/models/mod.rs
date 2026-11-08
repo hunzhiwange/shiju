@@ -9,6 +9,7 @@ pub mod preset_gemini_grok;
 pub mod preset_hermes_mcode;
 pub mod preset_kimi_dsh;
 pub mod preset_opencode_openclaw;
+pub mod preset_pi;
 pub mod preset_search;
 
 #[cfg(test)]
@@ -27,6 +28,8 @@ mod preset_hermes_mcode_tests;
 mod preset_kimi_dsh_tests;
 #[cfg(test)]
 mod preset_opencode_openclaw_tests;
+#[cfg(test)]
+mod preset_pi_tests;
 #[cfg(test)]
 mod preset_search_tests;
 

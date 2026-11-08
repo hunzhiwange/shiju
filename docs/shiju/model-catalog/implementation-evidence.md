@@ -278,3 +278,30 @@
 | `cargo clippy --all-targets --all-features -- -D warnings`（最终复验） | 0 | 同期会话模块引用已修正，实际工作区全部目标及 features 通过 |
 
 `git diff --cached --check` 通过。差异包含原生目录入口、类型、数据、独立测试和本证据。各阶段的槽位锁已释放，编译缓存已保留。
+
+## 任务 11　Pi 基础模型目录
+
+2026-11-08，macOS 27.0（26A428），arm64。批次 10 由 `4a8bf34c4` 交付。Pi 预设沿用任务 4 的内嵌 JSON 读取入口，按应用和供应商键查找。选中供应商预设后，模型查询要求端点、Pi 原生协议和模型 ID 精确匹配。
+
+| 固定来源 `ca58c0313360eae7c851fbd7553c1614c7af03e7` | 实际实现 |
+| --- | --- |
+| `src/config/piModelCatalog.ts::piModelCatalog` | `crates/vw-agent-apps/src/models/presets/pi.json` 的 `baseModels` 收录 96 条基础能力。通过 `models/preset_catalog.rs::pi_model_capabilities` 以来源键离线查询 |
+| `src/config/piModelCatalog.ts::piModel`、`src/config/piProviderPresets.ts::piProviderPresetDefinitions` | 在迁移时运行固定来源的构造逻辑，将 115 个供应商预设的 416 条部署模型展开成原生字段。通过 `models/preset_catalog.rs::{pi_presets,pi_preset}` 按来源顺序枚举并按键选择。部署查询由 `models/preset_pi.rs::PiPresetConfig::model_at_deployment` 提供 |
+| `tests/config/piProviderPresets.test.ts` | `models/preset_pi_tests.rs` 验证 TokenFactory 覆盖值、端点与协议隔离、Volcengine 套餐端点、Pi 原生协议、Kimi 兼容字段、DeepSeek 图片能力、管理键及全量条数 |
+
+逐条对照固定来源执行结果，核对 96 条基础能力和 416 条部署模型的顺序、ID、名称、推理标记、模态、窗口及输出上限。55 条模型存在基础能力字段的本地覆盖，51 条模型包含预设直接声明的兼容字段，1 个供应商预设含静态 User-Agent。JSON 只保存展开后的模型字段。API 密钥空占位、展示链接的查询参数和片段、推广及主题字段在导入时移除。推理档位及其派生兼容字段由任务 13 处理。来源许可见 `crates/vw-agent-apps/upstream/LICENSE`（MIT，Copyright (c) 2025 Jason Young）。
+
+Pi 供应商表单的现有网关入口为 `vw-agent/src/gateway/api/handlers/app_providers/pi.rs` 中的 `/v1/app-providers/pi/{id}/form` 和 `/form/read`，SDK 为 `vw-gateway-client/src/client/app_providers/pi.rs` 中的 `pi_form_{read,create,update}`，Iced 表单为 `vw-desktop/src/app/components/app_providers/pi.rs::fields`。离线目录 API 和 SDK 由任务 36 接入，Iced 搜索由任务 39 接入。本项验证 Rust 离线目录。
+
+### 验证
+
+各阶段动态领取槽位 **1**，`CARGO_TARGET_DIR=/Users/xiangmin/worker/code/shiju/target/rust-slot-1`。在 Git 源码快照执行格式化，仅回写本项四个 Rust 文件。测试和 Clippy 在实际工作区执行。
+
+| 命令 | 退出码 | 证据 |
+| --- | ---: | --- |
+| `cargo fmt --all`（红灯、绿灯） | 0、0 | 格式化完成 |
+| `cargo test -p vw-agent-apps catalog_presets_pi_ -- --nocapture`（红灯） | 101 | 5 条有效测试失败，550 条过滤。首个指定用例的 TokenFactory 查询返回 `None`，预期为含图片输入、1,048,576 上下文及 384,000 输出上限的部署模型 |
+| `cargo test -p vw-agent-apps catalog_presets_pi_ -- --nocapture`（绿灯） | 0 | 5 条有效测试通过，550 条过滤 |
+| `cargo clippy --all-targets --all-features -- -D warnings` | 0 | 全 workspace、全目标及 features 通过 |
+
+`git diff --cached --check` 通过。差异仅包含 Pi 目录的入口、类型、数据、独立测试和本证据。各阶段的槽位锁均已释放，编译缓存已保留。

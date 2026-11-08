@@ -1,5 +1,6 @@
 //! Built-in provider presets for the native model catalog.
 
+use super::preset_pi::{PiModelCapabilities, PiPreset};
 use super::{
     preset_claude::ClaudePreset, preset_codex::CodexPreset, preset_gemini_grok::GeminiGrokPreset,
     preset_hermes_mcode::HermesMcodePreset, preset_kimi_dsh::KimiDshPreset,
@@ -7,7 +8,7 @@ use super::{
 };
 use crate::providers::{universal_sync::projected_endpoint, validation::endpoint};
 use serde::Deserialize;
-use std::sync::LazyLock;
+use std::{collections::BTreeMap, sync::LazyLock};
 use vw_api_types::{
     agent_apps::AppId,
     app_providers::{
@@ -44,6 +45,17 @@ static KIMI_DSH_PRESETS: LazyLock<Vec<KimiDshPreset>> = LazyLock::new(|| {
 static OPENCODE_OPENCLAW_PRESETS: LazyLock<Vec<OpenCodeOpenClawPreset>> = LazyLock::new(|| {
     serde_json::from_str(include_str!("presets/opencode_openclaw.json"))
         .expect("valid built-in OpenCode and OpenClaw presets")
+});
+
+#[derive(Deserialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+struct PiPresets {
+    base_models: BTreeMap<String, PiModelCapabilities>,
+    presets: Vec<PiPreset>,
+}
+
+static PI_PRESETS: LazyLock<PiPresets> = LazyLock::new(|| {
+    serde_json::from_str(include_str!("presets/pi.json")).expect("valid built-in Pi presets")
 });
 
 static UNIVERSAL_PRESETS: LazyLock<Vec<UniversalPreset>> = LazyLock::new(|| {
@@ -164,4 +176,23 @@ pub fn kimi_dsh_presets(app: AppId) -> impl Iterator<Item = &'static KimiDshPres
 /// Find a preset by its exact source key within one application.
 pub fn kimi_dsh_preset(app: AppId, provider_key: &str) -> Option<&'static KimiDshPreset> {
     kimi_dsh_presets(app).find(|preset| preset.provider_key == provider_key)
+}
+
+/// List Pi presets in source order.
+pub fn pi_presets(app: AppId) -> impl Iterator<Item = &'static PiPreset> {
+    let presets: &[PiPreset] = match app {
+        AppId::Pi => &PI_PRESETS.presets,
+        _ => &[],
+    };
+    presets.iter()
+}
+
+/// Find a preset by its exact managed provider key within Pi.
+pub fn pi_preset(app: AppId, provider_key: &str) -> Option<&'static PiPreset> {
+    pi_presets(app).find(|preset| preset.provider_key == provider_key)
+}
+
+/// Look up reviewed base capabilities by source catalog key.
+pub fn pi_model_capabilities(catalog_key: &str) -> Option<&'static PiModelCapabilities> {
+    PI_PRESETS.base_models.get(catalog_key)
 }

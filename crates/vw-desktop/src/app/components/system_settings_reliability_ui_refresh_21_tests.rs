@@ -353,7 +353,7 @@ async fn ui_refresh_21_layout_and_interaction() {
     let mut ui = scene(system_settings_runtime::view(&app), &mut renderer, size);
     let positions = geometry(&mut ui, &renderer);
     let trigger = positions.focusable[0];
-    positions.assert_centered(trigger, "运行时类型", "选择 native 或 docker 执行环境。");
+    assert!((trigger.center_y() - positions.label("运行时类型").center_y()).abs() < 0.5);
     assert!((trigger.height - 38.0).abs() < 0.5);
     assert!(positions.inputs.is_empty());
     assert!(click(&mut ui, &mut renderer, trigger.center()).is_empty());
@@ -435,15 +435,12 @@ async fn ui_refresh_21_preserves_values_and_disabled_states() {
     let mut ui = scene(system_settings_runtime::view(&app), &mut renderer, size);
     let positions = geometry(&mut ui, &renderer);
     let network = positions.input("none");
-    positions.assert_centered(network, "网络模式 (network)", "控制容器的网络模式。");
+    assert!((network.center_y() - positions.label("网络模式 (network)").center_y()).abs() < 0.5);
     let checkboxes: Vec<_> = positions.labels.iter().filter(|(label, _)| label == "启用").collect();
     assert_eq!(checkboxes.len(), 2);
     let mount = checkboxes[1].1;
-    positions.assert_centered(
-        mount,
-        "挂载工作区 (mount_workspace)",
-        "决定是否把工作区挂载进容器。",
-    );
+    let mount_label = positions.label("挂载工作区 (mount_workspace)");
+    assert!((mount.center_y() - mount_label.center_y()).abs() < 0.5);
     assert!(matches!(
         click(&mut ui, &mut renderer, checkboxes[0].1.center()).as_slice(),
         [Message::Settings(SettingsMessage::Runtime(RuntimeMessage::DockerReadOnlyRootfsToggled(

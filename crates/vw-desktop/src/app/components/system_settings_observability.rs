@@ -22,10 +22,12 @@
 //! - `runtime_trace_max_entries`：rolling 模式下保留的最大条目数
 
 use crate::app::components::system_settings_common::{
-    settings_divider, settings_group_card, settings_group_heading,
-    settings_help_button_with_locale, settings_page_heading, settings_row_with_flexible_control,
-    settings_select, settings_text_input, settings_value_badge,
+    settings_divider, settings_flexible_row_with_help, settings_group_card,
+    settings_group_heading_with_help, settings_help_button_with_locale,
+    settings_page_heading_with_help, settings_row_with_flexible_control, settings_select,
+    settings_text_input, settings_value_badge,
 };
+use crate::app::i18n::I18n;
 use crate::app::i18n::settings_runtime::text as runtime_text;
 use crate::app::{App, Message, message};
 use iced::widget::{column, container, row, slider};
@@ -43,12 +45,14 @@ impl std::fmt::Display for LabeledOption {
     }
 }
 
+const CONTROL_WIDTH: f32 = 320.0;
+
 fn field_row<'a>(
     label: &'static str,
     description: &'static str,
     control: impl Into<Element<'a, Message>>,
 ) -> Element<'a, Message> {
-    settings_row_with_flexible_control(label, description, 320.0, control)
+    settings_row_with_flexible_control(label, description, CONTROL_WIDTH, control)
 }
 
 fn text_row<'a>(
@@ -69,6 +73,8 @@ fn text_row<'a>(
 pub fn view(app: &App) -> Element<'_, Message> {
     let locale = app.desktop_locale;
     let s = &app.observability_settings;
+    let i18n = I18n::new(locale);
+    let theme = &app.app_theme;
     let help_btn = settings_help_button_with_locale(
         locale,
         Message::Settings(message::SettingsMessage::ObservabilityHelpOpen),
@@ -81,9 +87,12 @@ pub fn view(app: &App) -> Element<'_, Message> {
         LabeledOption { value: "otel", label: "OTel" },
     ];
     let selected_backend = backend_options.iter().find(|option| option.value == s.backend).cloned();
-    let backend_row = field_row(
+    let backend_row = settings_flexible_row_with_help(
+        i18n,
+        theme,
         runtime_text(locale, "后端"),
         runtime_text(locale, "选择运行时观测后端。"),
+        CONTROL_WIDTH,
         settings_select(backend_options, selected_backend, |option| {
             Message::Settings(message::SettingsMessage::ObservabilityBackendChanged(
                 option.value.to_string(),
@@ -100,12 +109,19 @@ pub fn view(app: &App) -> Element<'_, Message> {
         |v| Message::Settings(message::SettingsMessage::ObservabilityOtelEndpointChanged(v)),
     );
 
-    let otel_service_row = text_row(
+    let otel_service_row = settings_flexible_row_with_help(
+        i18n,
+        theme,
         runtime_text(locale, "OTEL 服务名"),
         runtime_text(locale, "OTel 上报时使用的 service.name。"),
-        "vibewindow",
-        &s.otel_service_name_input,
-        |v| Message::Settings(message::SettingsMessage::ObservabilityOtelServiceNameChanged(v)),
+        CONTROL_WIDTH,
+        settings_text_input("vibewindow", &s.otel_service_name_input)
+            .on_input(|value| {
+                Message::Settings(message::SettingsMessage::ObservabilityOtelServiceNameChanged(
+                    value,
+                ))
+            })
+            .width(Length::Fill),
     );
 
     let trace_options = [
@@ -115,9 +131,12 @@ pub fn view(app: &App) -> Element<'_, Message> {
     ];
     let selected_trace =
         trace_options.iter().find(|option| option.value == s.runtime_trace_mode).cloned();
-    let trace_mode_row = field_row(
+    let trace_mode_row = settings_flexible_row_with_help(
+        i18n,
+        theme,
         runtime_text(locale, "运行时追踪"),
         runtime_text(locale, "选择 none、rolling 或 full 模式。"),
+        CONTROL_WIDTH,
         settings_select(trace_options, selected_trace, |option| {
             Message::Settings(message::SettingsMessage::ObservabilityRuntimeTraceModeChanged(
                 option.value.to_string(),
@@ -126,12 +145,19 @@ pub fn view(app: &App) -> Element<'_, Message> {
         .width(Length::Fill),
     );
 
-    let trace_path_row = text_row(
+    let trace_path_row = settings_flexible_row_with_help(
+        i18n,
+        theme,
         runtime_text(locale, "追踪文件"),
         runtime_text(locale, "运行时追踪文件路径。"),
-        "state/runtime-trace.jsonl",
-        &s.runtime_trace_path_input,
-        |v| Message::Settings(message::SettingsMessage::ObservabilityRuntimeTracePathChanged(v)),
+        CONTROL_WIDTH,
+        settings_text_input("state/runtime-trace.jsonl", &s.runtime_trace_path_input)
+            .on_input(|value| {
+                Message::Settings(message::SettingsMessage::ObservabilityRuntimeTracePathChanged(
+                    value,
+                ))
+            })
+            .width(Length::Fill),
     );
 
     let max_entries_slider = slider(1.0..=100_000.0, s.runtime_trace_max_entries as f32, |v| {
@@ -151,7 +177,9 @@ pub fn view(app: &App) -> Element<'_, Message> {
 
     let col = column![
         row![
-            container(settings_page_heading(
+            container(settings_page_heading_with_help(
+                i18n,
+                theme,
                 runtime_text(locale, "可观测性配置"),
                 runtime_text(locale, "配置运行时观测后端、OTEL 上报和追踪存储策略。")
             ))
@@ -159,7 +187,9 @@ pub fn view(app: &App) -> Element<'_, Message> {
             help_btn
         ]
         .align_y(Alignment::Start),
-        settings_group_heading(
+        settings_group_heading_with_help(
+            i18n,
+            theme,
             runtime_text(locale, "观测后端"),
             runtime_text(locale, "选择观测后端并配置 OTel 端点。")
         ),
@@ -173,7 +203,9 @@ pub fn view(app: &App) -> Element<'_, Message> {
             ]
             .spacing(0),
         ),
-        settings_group_heading(
+        settings_group_heading_with_help(
+            i18n,
+            theme,
             runtime_text(locale, "运行时追踪"),
             runtime_text(locale, "控制 trace 模式、文件路径和 rolling 保留量。")
         ),

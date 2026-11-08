@@ -306,14 +306,14 @@ async fn ui_refresh_28_layout_and_interaction() {
         .filter(|bounds| !positions.inputs.iter().any(|(_, input)| input == bounds));
     let backend = selectors.next().expect("the backend selector must be keyboard focusable");
     assert_fits(backend, size);
-    for (control, label, hint) in [
-        (backend, "Backend", "Choose the runtime observability backend."),
-        (endpoint, "OTEL endpoint", "Applies only when backend=otel."),
-    ] {
-        let label = positions.label(label);
-        let hint = positions.label(hint);
-        assert!((control.center_y() - (label.y + hint.y + hint.height) / 2.0).abs() < 0.5);
-    }
+    assert!((backend.center_y() - positions.label("Backend").center_y()).abs() < 0.5);
+    let endpoint_label = positions.label("OTEL endpoint");
+    let endpoint_hint = positions.label("Applies only when backend=otel.");
+    assert!(
+        (endpoint.center_y() - (endpoint_label.y + endpoint_hint.y + endpoint_hint.height) / 2.0)
+            .abs()
+            < 0.5
+    );
     assert!(click(&mut ui, &mut renderer, backend.center()).is_empty());
     let menu = geometry(&mut ui, &renderer).scroll.unwrap().0;
     assert_fits(menu, size);

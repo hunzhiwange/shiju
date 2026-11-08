@@ -6,9 +6,11 @@
 use super::system_settings::SELECT_FOCUS_SCOPE;
 use crate::app::components::system_settings_common::{
     SETTINGS_CONTROL_TEXT_SIZE, settings_checkbox_style, settings_divider, settings_field_label,
-    settings_group_card, settings_group_heading, settings_muted_text_style, settings_page_heading,
-    settings_row, settings_select, settings_text_input,
+    settings_flexible_row_with_help, settings_group_card, settings_group_heading,
+    settings_group_heading_with_help, settings_muted_text_style, settings_page_heading_with_help,
+    settings_row_with_flexible_control, settings_select, settings_text_input,
 };
+use crate::app::i18n::I18n;
 use crate::app::i18n::settings_runtime::text as runtime_text;
 use crate::app::message::settings::{RuntimeMessage, SettingsMessage};
 use crate::app::{App, Message};
@@ -36,7 +38,7 @@ fn text_row<'a>(
     value: &'a str,
     on_input: impl Fn(String) -> Message + 'a,
 ) -> Element<'a, Message> {
-    settings_row(
+    settings_row_with_flexible_control(
         label,
         description,
         CONTROL_WIDTH,
@@ -48,6 +50,8 @@ fn text_row<'a>(
 pub fn view(app: &App) -> Element<'_, Message> {
     let s = &app.runtime_settings;
     let locale = app.desktop_locale;
+    let i18n = I18n::new(locale);
+    let theme = &app.app_theme;
 
     let kind_pick = settings_select(
         ["native".to_string(), "docker".to_string()],
@@ -56,7 +60,9 @@ pub fn view(app: &App) -> Element<'_, Message> {
     )
     .width(Length::Fill);
 
-    let kind_row = settings_row(
+    let kind_row = settings_flexible_row_with_help(
+        i18n,
+        theme,
         runtime_text(locale, "运行时类型"),
         runtime_text(locale, "选择 native 或 docker 执行环境。"),
         CONTROL_WIDTH,
@@ -81,7 +87,9 @@ pub fn view(app: &App) -> Element<'_, Message> {
         })
         .width(Length::Fill);
 
-    let reasoning_enabled_row = settings_row(
+    let reasoning_enabled_row = settings_flexible_row_with_help(
+        i18n,
+        theme,
         runtime_text(locale, "启用推理"),
         runtime_text(locale, "覆盖 runtime.reasoning_enabled 的兼容配置。"),
         CONTROL_WIDTH,
@@ -109,7 +117,9 @@ pub fn view(app: &App) -> Element<'_, Message> {
         })
         .width(Length::Fill);
 
-    let reasoning_level_row = settings_row(
+    let reasoning_level_row = settings_flexible_row_with_help(
+        i18n,
+        theme,
         runtime_text(locale, "推理级别"),
         runtime_text(locale, "兼容别名 runtime.reasoning_level。"),
         CONTROL_WIDTH,
@@ -123,28 +133,34 @@ pub fn view(app: &App) -> Element<'_, Message> {
         ),
         settings_group_card(
             column![
-                text_row(
+                settings_flexible_row_with_help(
+                    i18n,
+                    theme,
                     runtime_text(locale, "镜像 (image)"),
                     runtime_text(locale, "默认执行镜像。"),
-                    "alpine:3.20",
-                    &s.docker_image,
-                    |value| {
-                        Message::Settings(SettingsMessage::Runtime(
-                            RuntimeMessage::DockerImageChanged(value),
-                        ))
-                    }
+                    CONTROL_WIDTH,
+                    settings_text_input("alpine:3.20", &s.docker_image)
+                        .on_input(|value| {
+                            Message::Settings(SettingsMessage::Runtime(
+                                RuntimeMessage::DockerImageChanged(value),
+                            ))
+                        })
+                        .width(Length::Fill),
                 ),
                 settings_divider(),
-                text_row(
+                settings_flexible_row_with_help(
+                    i18n,
+                    theme,
                     runtime_text(locale, "网络模式 (network)"),
                     runtime_text(locale, "控制容器的网络模式。"),
-                    "none / bridge / host",
-                    &s.docker_network,
-                    |value| {
-                        Message::Settings(SettingsMessage::Runtime(
-                            RuntimeMessage::DockerNetworkChanged(value),
-                        ))
-                    }
+                    CONTROL_WIDTH,
+                    settings_text_input("none / bridge / host", &s.docker_network)
+                        .on_input(|value| {
+                            Message::Settings(SettingsMessage::Runtime(
+                                RuntimeMessage::DockerNetworkChanged(value),
+                            ))
+                        })
+                        .width(Length::Fill),
                 ),
                 settings_divider(),
                 text_row(
@@ -171,7 +187,9 @@ pub fn view(app: &App) -> Element<'_, Message> {
                     }
                 ),
                 settings_divider(),
-                settings_row(
+                settings_flexible_row_with_help(
+                    i18n,
+                    theme,
                     runtime_text(locale, "只读根文件系统 (read_only_rootfs)"),
                     runtime_text(locale, "限制容器根文件系统为只读。"),
                     CONTROL_WIDTH,
@@ -186,7 +204,9 @@ pub fn view(app: &App) -> Element<'_, Message> {
                         .style(settings_checkbox_style),
                 ),
                 settings_divider(),
-                settings_row(
+                settings_flexible_row_with_help(
+                    i18n,
+                    theme,
                     runtime_text(locale, "挂载工作区 (mount_workspace)"),
                     runtime_text(locale, "决定是否把工作区挂载进容器。"),
                     CONTROL_WIDTH,
@@ -229,16 +249,22 @@ pub fn view(app: &App) -> Element<'_, Message> {
     .spacing(16);
 
     let mut content = column![
-        settings_page_heading(
+        settings_page_heading_with_help(
+            i18n,
+            theme,
             runtime_text(locale, "运行时配置"),
             runtime_text(locale, "配置 native、docker 执行环境及推理覆盖项。")
         ),
-        settings_group_heading(
+        settings_group_heading_with_help(
+            i18n,
+            theme,
             runtime_text(locale, "基础行为"),
             runtime_text(locale, "运行时类型。")
         ),
         settings_group_card(kind_row),
-        settings_group_heading(
+        settings_group_heading_with_help(
+            i18n,
+            theme,
             runtime_text(locale, "推理覆盖"),
             runtime_text(
                 locale,

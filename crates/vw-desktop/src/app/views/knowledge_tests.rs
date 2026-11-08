@@ -1267,8 +1267,16 @@ impl<'a> FormUi<'a> {
     }
 
     fn draw(&mut self, renderer: &mut Renderer, theme: &Theme) -> Vec<u8> {
+        self.draw_at(renderer, theme, mouse::Cursor::Unavailable)
+    }
+
+    fn draw_at(
+        &mut self,
+        renderer: &mut Renderer,
+        theme: &Theme,
+        cursor: mouse::Cursor,
+    ) -> Vec<u8> {
         use renderer::Headless;
-        let cursor = mouse::Cursor::Unavailable;
         self.send(
             renderer,
             &[Event::Window(iced::window::Event::RedrawRequested(iced::time::Instant::now()))],
@@ -1334,6 +1342,18 @@ struct FormProbe {
     trigger: Option<Rectangle>,
     menu: Option<Rectangle>,
     inputs: Vec<(String, Rectangle)>,
+    labels: Vec<(String, Rectangle)>,
+}
+
+impl FormProbe {
+    fn label(&self, value: &str, index: usize) -> Rectangle {
+        self.labels
+            .iter()
+            .filter(|(label, _)| label == value)
+            .nth(index)
+            .unwrap_or_else(|| panic!("missing label {value:?} at index {index}"))
+            .1
+    }
 }
 
 impl Operation for FormProbe {
@@ -1362,6 +1382,10 @@ impl Operation for FormProbe {
 
     fn text_input(&mut self, _id: Option<&Id>, bounds: Rectangle, state: &mut dyn TextInput) {
         self.inputs.push((state.text().to_owned(), bounds));
+    }
+
+    fn text(&mut self, _id: Option<&Id>, bounds: Rectangle, value: &str) {
+        self.labels.push((value.into(), bounds));
     }
 }
 
@@ -1551,5 +1575,325 @@ async fn knowledge_form_controls_preserve_dataset_input_messages() {
                 ));
             }
         }
+    }
+}
+
+fn isolated_help_test(test: &str) -> bool {
+    const CHILD: &str = "SHIJU_HELP_ROLLOUT_22_CHILD";
+    if std::env::var_os(CHILD).is_some() {
+        return true;
+    }
+    let root = tempfile::tempdir().unwrap();
+    std::fs::write(
+        root.path().join("gateway-client-bootstrap.json"),
+        br#"{"host":"[","servers":[]}"#,
+    )
+    .unwrap();
+    let module = module_path!().split_once("::").unwrap().1;
+    let output = std::process::Command::new(std::env::current_exe().unwrap())
+        .args(["--exact", &format!("{module}::{test}")])
+        .env(CHILD, "1")
+        .env("HOME", root.path())
+        .env("VIBEWINDOW_CONFIG_DIR", root.path())
+        .env("VIBEWINDOW_WORKSPACE", root.path())
+        .current_dir(root.path())
+        .output()
+        .unwrap();
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    assert!(
+        output.status.success() && stdout.contains("1 passed; 0 failed"),
+        "{stdout}\n{}",
+        String::from_utf8_lossy(&output.stderr)
+    );
+    false
+}
+
+const HELP_LAYOUTS: [(DesktopLocale, Theme, u32); 3] = [
+    (DesktopLocale::SimplifiedChinese, Theme::Light, 420),
+    (DesktopLocale::English, Theme::Dark, 420),
+    (DesktopLocale::TraditionalChinese, Theme::Dark, 640),
+];
+
+fn check_form_help(
+    ui: &mut FormUi<'_>,
+    renderer: &mut Renderer,
+    app: &App,
+    title: &str,
+    description: &str,
+    index: usize,
+) -> Point {
+    let i18n = crate::app::i18n::I18n::new(app.desktop_locale);
+    let title = i18n.__(title);
+    let description = i18n.__(description);
+    let probe = ui.probe(renderer);
+    assert!(
+        probe.labels.iter().all(|(label, _)| label != description),
+        "{title}: static explanation is still inline: {description}"
+    );
+    let label = probe.label(title, index);
+    let icon = Point::new(label.x + label.width + 15.0, label.center_y());
+    assert!(
+        Rectangle::with_size(Size::new(ui.size.width as f32, ui.size.height as f32)).contains(icon)
+    );
+    let idle = ui.draw(renderer, &app.app_theme);
+    let cursor = mouse::Cursor::Available(icon);
+    let messages =
+        ui.send(renderer, &[Event::Mouse(mouse::Event::CursorMoved { position: icon })], cursor);
+    assert!(form_actions(messages).is_empty(), "{title}: hovering help emitted a form action");
+    let hover = ui.draw_at(renderer, &app.app_theme, cursor);
+    assert!(idle != hover, "{title}: hovering over the question mark must open help");
+    assert!(
+        form_actions(ui.click(renderer, icon)).is_empty(),
+        "{title}: pinning help emitted a form action"
+    );
+    let pinned = ui.draw(renderer, &app.app_theme);
+    assert!(idle != pinned, "{title}: help must stay open after clicking");
+    assert!(ui.key(renderer, Named::Escape).is_empty());
+    assert!(ui.draw(renderer, &app.app_theme) == idle, "{title}: Escape must close only help");
+
+    if let Some(directory) = std::env::var_os("SHIJU_KNOWLEDGE_HELP_PREVIEWS") {
+        let directory = std::path::PathBuf::from(directory);
+        let source = format!(
+            "{:?}-{:?}-{:?}-{title}",
+            app.desktop_locale, app.knowledge.create_dataset_tab, app.knowledge.active_tab
+        );
+        for (phase, pixels) in [("idle", idle), ("hover", hover), ("pinned", pinned)] {
+            image::save_buffer(
+                directory.join(format!("{source}-{phase}.png")),
+                &pixels,
+                ui.size.width,
+                ui.size.height,
+                image::ColorType::Rgba8,
+            )
+            .unwrap();
+        }
+    }
+    icon
+}
+
+fn form_actions(mut messages: Vec<Message>) -> Vec<Message> {
+    // The existing drop area reports pointer exits even when no file is being dragged.
+    messages.retain(|message| {
+        !matches!(message, Message::Knowledge(KnowledgeToolMessage::ImportDropHoverChanged(false)))
+    });
+    messages
+}
+
+fn check_help_menu(ui: &mut FormUi<'_>, renderer: &mut Renderer, icon: Point, description: &str) {
+    use crate::app::message::ViewMessage;
+
+    assert!(ui.click(renderer, icon).is_empty());
+    let body = Point::new(icon.x + 29.0, icon.y + 5.0);
+    let line_height = iced::advanced::text::LineHeight::default().to_absolute(12.0.into());
+    let item_height = f32::from(line_height) + 10.0;
+    for index in [0, 3] {
+        assert!(
+            ui.send(
+                renderer,
+                &[Event::Mouse(mouse::Event::ButtonPressed(mouse::Button::Right))],
+                mouse::Cursor::Available(body),
+            )
+            .is_empty()
+        );
+        let item = Point::new(body.x + 24.0, body.y + 3.0 + item_height * (index as f32 + 0.5));
+        let messages = ui.click(renderer, item);
+        match (index, messages.as_slice()) {
+            (0, [Message::CopyCode(value)]) => assert_eq!(value, description),
+            (3, [Message::View(ViewMessage::OpenUrlExternal(url))]) => {
+                assert_eq!(
+                    url,
+                    &format!(
+                        "https://www.google.com/search?q={}",
+                        urlencoding::encode(description)
+                    )
+                );
+            }
+            _ => panic!("unexpected help action: {messages:?}"),
+        }
+    }
+    assert!(ui.key(renderer, Named::Escape).is_empty());
+}
+
+#[tokio::test]
+async fn help_rollout_22_renders_contextual_help() {
+    if !isolated_help_test("help_rollout_22_renders_contextual_help") {
+        return;
+    }
+    let mut renderer = form_renderer().await;
+    let mut app = form_test_app();
+    app.knowledge.create_dataset_modal_open = true;
+    app.knowledge.dataset_name_input = "fixture-dataset".into();
+    app.knowledge.dataset_indexing_mode = KnowledgeIndexingMode::Economy;
+    app.knowledge.dataset_keyword_count_input = "17".into();
+
+    for (locale, theme, width) in HELP_LAYOUTS {
+        app.desktop_locale = locale;
+        app.app_theme = theme;
+        let i18n = crate::app::i18n::I18n::new(locale);
+
+        app.knowledge.create_dataset_tab = KnowledgeCreateDatasetTab::Basic;
+        let mut ui = FormUi::new(super::view(&app), &mut renderer, width);
+        let intro = "按模块完成基础信息、索引与检索配置。";
+        let icon = check_form_help(&mut ui, &mut renderer, &app, "创建知识库", intro, 0);
+        if width == 640 {
+            check_help_menu(&mut ui, &mut renderer, icon, i18n.__(intro));
+        }
+        check_form_help(
+            &mut ui,
+            &mut renderer,
+            &app,
+            "基础信息",
+            "名称用于识别知识库，描述用于说明内容范围。",
+            usize::from(i18n.__("基础信息") == "基础信息"),
+        );
+        let probe = ui.probe(&renderer);
+        assert_eq!(probe.inputs[0].0, "fixture-dataset");
+        probe.label(i18n.__("填写名称与用途"), 0);
+        assert!(matches!(
+            ui.click(&mut renderer, probe.label(i18n.__("取消"), 0).center()).as_slice(),
+            [Message::Knowledge(KnowledgeToolMessage::CloseCreateDatasetModal)]
+        ));
+        assert!(matches!(
+            ui.click(&mut renderer, probe.label(i18n.__("创建知识库"), 1).center()).as_slice(),
+            [Message::Knowledge(KnowledgeToolMessage::CreateDataset)]
+        ));
+        drop(ui);
+        app.knowledge.creating_dataset = true;
+        let mut ui = FormUi::new(super::view(&app), &mut renderer, width);
+        let busy = ui.probe(&renderer).label(i18n.__("创建中"), 0).center();
+        assert!(ui.click(&mut renderer, busy).is_empty());
+        drop(ui);
+        app.knowledge.creating_dataset = false;
+
+        app.knowledge.create_dataset_tab = KnowledgeCreateDatasetTab::Indexing;
+        let mut ui = FormUi::new(super::view(&app), &mut renderer, width);
+        check_form_help(&mut ui, &mut renderer, &app, "分段模式", "选择文档入库结构。", 0);
+        check_form_help(
+            &mut ui,
+            &mut renderer,
+            &app,
+            "嵌入模型",
+            "跟随全局配置，或锁定当前已生效模型。",
+            0,
+        );
+        let probe = ui.probe(&renderer);
+        probe.label(i18n.__("高质量需要嵌入能力。"), 0);
+        let disabled = probe.label(i18n.__("高质量"), 0).center();
+        assert!(ui.click(&mut renderer, disabled).is_empty());
+        assert!(matches!(
+            ui.click(&mut renderer, probe.label("Parent-Child", 0).center()).as_slice(),
+            [Message::Knowledge(KnowledgeToolMessage::DatasetChunkingModeChanged(
+                KnowledgeChunkingMode::ParentChild
+            ))]
+        ));
+        drop(ui);
+
+        app.knowledge.create_dataset_tab = KnowledgeCreateDatasetTab::Retrieval;
+        let mut ui = FormUi::new(super::view(&app), &mut renderer, width);
+        check_form_help(
+            &mut ui,
+            &mut renderer,
+            &app,
+            "检索设置",
+            "选择召回策略。",
+            usize::from(i18n.__("检索设置") == "检索设置"),
+        );
+        check_form_help(&mut ui, &mut renderer, &app, "参数", "默认召回参数。", 0);
+        assert_eq!(ui.probe(&renderer).inputs[0].0, "17");
+    }
+}
+
+#[tokio::test]
+async fn help_rollout_22_document_forms_render_contextual_help() {
+    use crate::app::state::{KnowledgeDetailTab, KnowledgeDocumentInputTab};
+
+    if !isolated_help_test("help_rollout_22_document_forms_render_contextual_help") {
+        return;
+    }
+    let mut renderer = form_renderer().await;
+    let mut app = form_test_app();
+    app.knowledge.showing_dataset_list = false;
+    app.knowledge.datasets = vec![dataset("fixture-dataset")];
+    app.knowledge.selected_dataset_id = Some("fixture-dataset".into());
+    app.knowledge.notification = Some("fixture-save-feedback".into());
+    app.knowledge.document_name_input = "fixture-document".into();
+    app.knowledge.embedding_status = Some(KnowledgeEmbeddingStatusDto {
+        provider_id: "fixture-provider".into(),
+        model: "fixture-embed".into(),
+        dimensions: 768,
+        route_hint: None,
+        api_key_configured: false,
+        vector_available: true,
+        hybrid_available: false,
+        retrieval_modes: vec![],
+        notes: BTreeMap::new(),
+    });
+
+    for (locale, theme, width) in HELP_LAYOUTS {
+        app.desktop_locale = locale;
+        app.app_theme = theme;
+        app.knowledge.notification_is_error = locale == DesktopLocale::English;
+        let i18n = crate::app::i18n::I18n::new(locale);
+        app.knowledge.active_tab = KnowledgeDetailTab::AddDocument;
+        app.knowledge.document_input_tab = KnowledgeDocumentInputTab::Files;
+        let mut ui = FormUi::new(super::view(&app), &mut renderer, width);
+        check_form_help(
+            &mut ui,
+            &mut renderer,
+            &app,
+            "添加文档",
+            "支持拖拽文件上传，或直接粘贴长文本入库。",
+            usize::from(i18n.__("添加文档") == "添加文档"),
+        );
+        check_form_help(
+            &mut ui,
+            &mut renderer,
+            &app,
+            "文件入库",
+            "可以手动选择文件，也可以拖到下方区域。",
+            0,
+        );
+        let probe = ui.probe(&renderer);
+        probe.label("fixture-save-feedback", 0);
+        let pick = probe.label(i18n.__("手动选择文件"), 0).center();
+        assert!(matches!(
+            form_actions(ui.click(&mut renderer, pick)).as_slice(),
+            [Message::Knowledge(KnowledgeToolMessage::PickImportFile)]
+        ));
+        drop(ui);
+        app.knowledge.document_input_tab = KnowledgeDocumentInputTab::Text;
+        let mut ui = FormUi::new(super::view(&app), &mut renderer, width);
+        check_form_help(
+            &mut ui,
+            &mut renderer,
+            &app,
+            "文本入库",
+            "适合长说明、Markdown、提示词、知识笔记直接粘贴入库。",
+            0,
+        );
+        let probe = ui.probe(&renderer);
+        assert_eq!(probe.inputs[0].0, "fixture-document");
+        probe.label(i18n.__("内容输入区"), 0);
+        drop(ui);
+
+        app.knowledge.active_tab = KnowledgeDetailTab::Settings;
+        let mut ui = FormUi::new(super::view(&app), &mut renderer, width);
+        check_form_help(
+            &mut ui,
+            &mut renderer,
+            &app,
+            "嵌入模型",
+            "跟随全局配置，或锁定当前已生效模型。",
+            0,
+        );
+        let probe = ui.probe(&renderer);
+        probe.label("fixture-dataset", 0);
+        probe.label("fixture-embed", 0);
+        probe.label("General", 1);
+        let test = probe.label(i18n.__("测试连接"), 0).center();
+        assert!(matches!(
+            ui.click(&mut renderer, test).as_slice(),
+            [Message::Knowledge(KnowledgeToolMessage::RunEmbeddingTest)]
+        ));
     }
 }

@@ -7,10 +7,12 @@ use crate::app::components::system_settings::SystemTab;
 use crate::app::components::system_settings_common::{
     danger_action_btn_style, icon_svg, primary_action_btn_style, round_icon_btn_style,
     rounded_action_btn_style, settings_checkbox_style, settings_close_button,
-    settings_error_banner, settings_modal_card, settings_modal_overlay, settings_muted_text_style,
-    settings_panel, settings_select, settings_success_banner, settings_text_editor_style,
-    settings_text_input, settings_text_input_style, settings_value_badge,
+    settings_error_banner, settings_hover_help_label, settings_modal_card, settings_modal_overlay,
+    settings_muted_text_style, settings_panel, settings_select, settings_success_banner,
+    settings_text_editor_style, settings_text_input, settings_text_input_style,
+    settings_value_badge,
 };
+use crate::app::i18n::I18n;
 use crate::app::message::{KnowledgeToolMessage, ViewMessage};
 use crate::app::state::{
     KnowledgeCreateDatasetTab, KnowledgeDatasetEmbeddingSelection, KnowledgeDetailTab,
@@ -346,18 +348,18 @@ fn build_create_dataset_modal<'a>(
     app: &'a App,
     base: Option<Element<'a, Message>>,
 ) -> Element<'a, Message> {
+    let i18n = I18n::new(app.desktop_locale);
+    let heading = i18n.__("创建知识库");
     let title = row![
-        column![
-            text(crate::app::i18n::I18n::new(app.desktop_locale).__("创建知识库")).size(24),
-            text(
-                crate::app::i18n::I18n::new(app.desktop_locale)
-                    .__("按模块完成基础信息、索引与检索配置。")
-            )
-            .size(12)
-            .style(settings_muted_text_style),
-        ]
-        .spacing(4)
-        .width(Length::Fill),
+        settings_hover_help_label(
+            i18n,
+            &app.app_theme,
+            heading,
+            text(heading).size(24),
+            i18n.__("按模块完成基础信息、索引与检索配置。"),
+        )
+        .width(Length::Fill)
+        .wrap(),
         settings_close_button(Message::Knowledge(KnowledgeToolMessage::CloseCreateDatasetModal)),
     ]
     .spacing(12)
@@ -426,11 +428,7 @@ fn build_create_dataset_panel(app: &App) -> Element<'_, Message> {
 
 fn build_create_dataset_basic_tab(app: &App) -> Element<'_, Message> {
     let fields = column![
-        section_header(
-            crate::app::i18n::I18n::new(app.desktop_locale).__("基础信息"),
-            crate::app::i18n::I18n::new(app.desktop_locale)
-                .__("名称用于识别知识库，描述用于说明内容范围。")
-        ),
+        section_help(app, "基础信息", "名称用于识别知识库，描述用于说明内容范围。"),
         text(crate::app::i18n::I18n::new(app.desktop_locale).__("名称")).size(12),
         settings_text_input(
             crate::app::i18n::I18n::new(app.desktop_locale).__("例如：产品文档"),
@@ -537,10 +535,7 @@ fn build_create_dataset_retrieval_tab(app: &App) -> Element<'_, Message> {
 fn build_chunking_mode_section(app: &App) -> Element<'_, Message> {
     let i18n = crate::app::i18n::I18n::new(app.desktop_locale);
     column![
-        section_header(
-            crate::app::i18n::I18n::new(app.desktop_locale).__("分段模式"),
-            crate::app::i18n::I18n::new(app.desktop_locale).__("选择文档入库结构。")
-        ),
+        section_help(app, "分段模式", "选择文档入库结构。"),
         option_card(
             i18n,
             "General",
@@ -648,11 +643,7 @@ fn build_embedding_model_section(app: &App) -> Element<'_, Message> {
     .width(Length::Fill);
 
     let mut content = column![
-        section_header(
-            crate::app::i18n::I18n::new(app.desktop_locale).__("嵌入模型"),
-            crate::app::i18n::I18n::new(app.desktop_locale)
-                .__("跟随全局配置，或锁定当前已生效模型。")
-        ),
+        section_help(app, "嵌入模型", "跟随全局配置，或锁定当前已生效模型。"),
         build_embedding_model_picker(app),
         summary,
         row![
@@ -732,10 +723,7 @@ fn build_retrieval_mode_section(app: &App) -> Element<'_, Message> {
     let vector_available = embedding_vector_available(app);
     let hybrid_available = embedding_hybrid_available(app);
     column![
-        section_header(
-            crate::app::i18n::I18n::new(app.desktop_locale).__("检索设置"),
-            crate::app::i18n::I18n::new(app.desktop_locale).__("选择召回策略。")
-        ),
+        section_help(app, "检索设置", "选择召回策略。"),
         option_card(
             i18n,
             crate::app::i18n::I18n::new(app.desktop_locale).__("向量检索"),
@@ -778,11 +766,7 @@ fn build_retrieval_mode_section(app: &App) -> Element<'_, Message> {
 }
 
 fn build_dataset_param_section(app: &App) -> Element<'_, Message> {
-    let mut content = column![section_header(
-        crate::app::i18n::I18n::new(app.desktop_locale).__("参数"),
-        crate::app::i18n::I18n::new(app.desktop_locale).__("默认召回参数。")
-    )]
-    .spacing(8);
+    let mut content = column![section_help(app, "参数", "默认召回参数。")].spacing(8);
     if app.knowledge.dataset_indexing_mode == KnowledgeIndexingMode::Economy {
         content = content.push(compact_input_row(
             crate::app::i18n::I18n::new(app.desktop_locale).__("关键词数量"),
@@ -848,6 +832,20 @@ fn section_header<'a>(title: &'a str, description: &'a str) -> Element<'a, Messa
     column![text(title).size(12), text(description).size(11).style(settings_muted_text_style),]
         .spacing(2)
         .into()
+}
+
+fn section_help<'a>(app: &'a App, title: &'a str, description: &'a str) -> Element<'a, Message> {
+    let i18n = I18n::new(app.desktop_locale);
+    let title = i18n.__(title);
+    settings_hover_help_label(
+        i18n,
+        &app.app_theme,
+        title,
+        text(title).size(12),
+        i18n.__(description),
+    )
+    .wrap()
+    .into()
 }
 
 fn compact_input_row<'a>(
@@ -1294,32 +1292,43 @@ fn build_upload_panel(app: &App) -> Element<'_, Message> {
 
     settings_panel(
         knowledge_scrollable(
-            column![
-                row![
-                    text(crate::app::i18n::I18n::new(app.desktop_locale).__("添加文档"))
-                        .size(14)
-                        .width(Length::Fill),
-                    settings_value_badge("TXT"),
-                    settings_value_badge("MD"),
-                    settings_value_badge("MDX"),
-                    settings_value_badge("PDF"),
-                ]
-                .spacing(6)
-                .align_y(Alignment::Center),
-                text(
-                    crate::app::i18n::I18n::new(app.desktop_locale)
-                        .__("支持拖拽文件上传，或直接粘贴长文本入库。")
-                )
-                .size(12)
-                .style(settings_muted_text_style),
-                build_document_input_tabs(app),
-                body,
-            ]
-            .spacing(14)
-            .width(Length::Fill),
+            column![build_upload_heading(app), build_document_input_tabs(app), body,]
+                .spacing(14)
+                .width(Length::Fill),
         )
         .height(Length::Fill),
     )
+    .into()
+}
+
+fn build_upload_heading(app: &App) -> Element<'_, Message> {
+    let i18n = I18n::new(app.desktop_locale);
+    let title = i18n.__("添加文档");
+    responsive(move |size| {
+        let heading = settings_hover_help_label(
+            i18n,
+            &app.app_theme,
+            title,
+            text(title).size(14),
+            i18n.__("支持拖拽文件上传，或直接粘贴长文本入库。"),
+        );
+        let formats = row![
+            settings_value_badge("TXT"),
+            settings_value_badge("MD"),
+            settings_value_badge("MDX"),
+            settings_value_badge("PDF"),
+        ]
+        .spacing(6);
+        if size.width < 360.0 {
+            column![heading.wrap(), formats.wrap()].spacing(6).into()
+        } else {
+            row![heading.width(Length::Fill).wrap(), formats]
+                .spacing(6)
+                .align_y(Alignment::Center)
+                .into()
+        }
+    })
+    .height(Length::Shrink)
     .into()
 }
 
@@ -1463,26 +1472,28 @@ fn build_file_import_panel(app: &App) -> Element<'_, Message> {
         true,
     ));
 
-    let import_header = row![
-        container(section_header(
-            crate::app::i18n::I18n::new(app.desktop_locale).__("文件入库"),
-            crate::app::i18n::I18n::new(app.desktop_locale)
-                .__("可以手动选择文件，也可以拖到下方区域。")
-        ))
-        .width(Length::Fill),
-        button(
+    let import_header = responsive(move |size| {
+        let heading = section_help(app, "文件入库", "可以手动选择文件，也可以拖到下方区域。");
+        let pick = button(
             row![primary_action_icon(Icon::FileText, 14.0), text(manual_pick_label).size(13)]
                 .spacing(8)
                 .align_y(Alignment::Center),
         )
         .on_press_maybe(
-            can_pick.then_some(Message::Knowledge(KnowledgeToolMessage::PickImportFile))
+            can_pick.then_some(Message::Knowledge(KnowledgeToolMessage::PickImportFile)),
         )
         .padding([9, 12])
-        .style(primary_action_btn_style),
-    ]
-    .spacing(10)
-    .align_y(Alignment::Center);
+        .style(primary_action_btn_style);
+        if size.width < 300.0 {
+            column![heading, pick].spacing(8).into()
+        } else {
+            row![container(heading).width(Length::Fill), pick]
+                .spacing(10)
+                .align_y(Alignment::Center)
+                .into()
+        }
+    })
+    .height(Length::Shrink);
 
     let mut content = column![import_header, drop_zone].spacing(14);
 
@@ -1596,11 +1607,7 @@ fn build_text_document_panel(app: &App) -> Element<'_, Message> {
 
     container(
         column![
-            section_header(
-                crate::app::i18n::I18n::new(app.desktop_locale).__("文本入库"),
-                crate::app::i18n::I18n::new(app.desktop_locale)
-                    .__("适合长说明、Markdown、提示词、知识笔记直接粘贴入库。")
-            ),
+            section_help(app, "文本入库", "适合长说明、Markdown、提示词、知识笔记直接粘贴入库。"),
             text_input(
                 crate::app::i18n::I18n::new(app.desktop_locale).__("文档名称"),
                 &app.knowledge.document_name_input
@@ -2779,48 +2786,46 @@ fn build_settings_tab<'a>(app: &'a App, dataset: &'a KnowledgeDatasetDto) -> Ele
         ));
     }
 
-    settings_panel(
-        column![
-            build_embedding_model_section(app),
-            kv_row(crate::app::i18n::I18n::new(app.desktop_locale).__("知识库 ID"), &dataset.id),
-            kv_row(
-                crate::app::i18n::I18n::new(app.desktop_locale).__("分段模式"),
-                chunking_label(&dataset.chunking_mode)
-            ),
-            kv_row(
-                crate::app::i18n::I18n::new(app.desktop_locale).__("索引模式"),
-                indexing_label(i18n, &dataset.indexing_mode)
-            ),
-            kv_row(
-                crate::app::i18n::I18n::new(app.desktop_locale).__("检索模式"),
-                retrieval_label(i18n, &dataset.retrieval_mode)
-            ),
-            kv_row(
-                crate::app::i18n::I18n::new(app.desktop_locale).__("关键词数量"),
-                dataset.keyword_count.to_string()
-            ),
-            kv_row("Top K", dataset.top_k.to_string()),
-            kv_row(
-                crate::app::i18n::I18n::new(app.desktop_locale).__("Score 阈值"),
-                score_threshold_label(i18n, dataset)
-            ),
-            kv_row(
-                crate::app::i18n::I18n::new(app.desktop_locale).__("Rerank 开关"),
-                enabled_label(i18n, dataset.rerank_enabled)
-            ),
-            kv_row("Embedding", dataset_embedding_model_label(app, dataset)),
-            kv_row(
-                "Rerank",
-                dataset
-                    .rerank_model
-                    .as_deref()
-                    .unwrap_or(crate::app::i18n::I18n::new(app.desktop_locale).__("未启用"))
-            ),
-            container(status_items).padding([8, 0]),
-        ]
-        .spacing(12),
-    )
-    .into()
+    let content = column![
+        build_embedding_model_section(app),
+        kv_row(crate::app::i18n::I18n::new(app.desktop_locale).__("知识库 ID"), &dataset.id),
+        kv_row(
+            crate::app::i18n::I18n::new(app.desktop_locale).__("分段模式"),
+            chunking_label(&dataset.chunking_mode)
+        ),
+        kv_row(
+            crate::app::i18n::I18n::new(app.desktop_locale).__("索引模式"),
+            indexing_label(i18n, &dataset.indexing_mode)
+        ),
+        kv_row(
+            crate::app::i18n::I18n::new(app.desktop_locale).__("检索模式"),
+            retrieval_label(i18n, &dataset.retrieval_mode)
+        ),
+        kv_row(
+            crate::app::i18n::I18n::new(app.desktop_locale).__("关键词数量"),
+            dataset.keyword_count.to_string()
+        ),
+        kv_row("Top K", dataset.top_k.to_string()),
+        kv_row(
+            crate::app::i18n::I18n::new(app.desktop_locale).__("Score 阈值"),
+            score_threshold_label(i18n, dataset)
+        ),
+        kv_row(
+            crate::app::i18n::I18n::new(app.desktop_locale).__("Rerank 开关"),
+            enabled_label(i18n, dataset.rerank_enabled)
+        ),
+        kv_row("Embedding", dataset_embedding_model_label(app, dataset)),
+        kv_row(
+            "Rerank",
+            dataset
+                .rerank_model
+                .as_deref()
+                .unwrap_or(crate::app::i18n::I18n::new(app.desktop_locale).__("未启用"))
+        ),
+        container(status_items).padding([8, 0]),
+    ]
+    .spacing(12);
+    settings_panel(knowledge_scrollable(content).height(Length::Fill)).into()
 }
 
 fn chunk_card(i18n: crate::app::i18n::I18n, chunk: &KnowledgeChunkDto) -> Element<'_, Message> {

@@ -3,7 +3,7 @@
 use super::preset_pi::{PiModelCapabilities, PiPreset};
 use super::{
     preset_claude::ClaudePreset, preset_codex::CodexPreset, preset_gemini_grok::GeminiGrokPreset,
-    preset_hermes_mcode::HermesMcodePreset, preset_kimi_dsh::KimiDshPreset,
+    preset_hermes_mcode::HermesMcodePreset, preset_kimi_dsh::KimiDshPreset, preset_omp::OmpPreset,
     preset_opencode_openclaw::OpenCodeOpenClawPreset,
 };
 use crate::providers::{universal_sync::projected_endpoint, validation::endpoint};
@@ -57,6 +57,9 @@ struct PiPresets {
 static PI_PRESETS: LazyLock<PiPresets> = LazyLock::new(|| {
     serde_json::from_str(include_str!("presets/pi.json")).expect("valid built-in Pi presets")
 });
+
+static OMP_PRESETS: LazyLock<Vec<OmpPreset>> =
+    LazyLock::new(|| pi_presets(AppId::Pi).map(OmpPreset::from_pi).collect());
 
 static UNIVERSAL_PRESETS: LazyLock<Vec<UniversalPreset>> = LazyLock::new(|| {
     serde_json::from_str(include_str!("presets/universal.json"))
@@ -195,4 +198,18 @@ pub fn pi_preset(app: AppId, provider_key: &str) -> Option<&'static PiPreset> {
 /// Look up reviewed base capabilities by source catalog key.
 pub fn pi_model_capabilities(catalog_key: &str) -> Option<&'static PiModelCapabilities> {
     PI_PRESETS.base_models.get(catalog_key)
+}
+
+/// List OMP presets in source order.
+pub fn omp_presets(app: AppId) -> impl Iterator<Item = &'static OmpPreset> {
+    let presets: &[OmpPreset] = match app {
+        AppId::Omp => &OMP_PRESETS,
+        _ => &[],
+    };
+    presets.iter()
+}
+
+/// Find a preset by its exact managed provider key within OMP.
+pub fn omp_preset(app: AppId, provider_key: &str) -> Option<&'static OmpPreset> {
+    omp_presets(app).find(|preset| preset.provider_key == provider_key)
 }

@@ -305,3 +305,31 @@ Pi 供应商表单的现有网关入口为 `vw-agent/src/gateway/api/handlers/ap
 | `cargo clippy --all-targets --all-features -- -D warnings` | 0 | 全 workspace、全目标及 features 通过 |
 
 `git diff --cached --check` 通过。差异仅包含 Pi 目录的入口、类型、数据、独立测试和本证据。各阶段的槽位锁均已释放，编译缓存已保留。
+
+## 任务 12　OMP 派生模型目录
+
+2026-11-08，macOS 27.0（26A428），arm64。批次 11 由 `576be8c3a` 交付。OMP 目录通过任务 4 的 `models/preset_catalog.rs` 入口，从已嵌入的 `presets/pi.json` 延迟派生。方案省去了计划所列的 `omp.json`，共享不可变的来源标识、端点、协议、请求头与模型能力，兼容性转换只作用于 OMP 的映射。目录查找限定应用，模型查找限定供应商预设、端点、协议和原始模型 ID。
+
+| 固定来源 `ca58c0313360eae7c851fbd7553c1614c7af03e7` | 实际实现 |
+| --- | --- |
+| `src/config/ompProviderPresets.ts::ompProviderPresets`、`toOmpPreset` | `models/preset_catalog.rs::{omp_presets,omp_preset}` 按来源顺序枚举并按键选择。 `models/preset_omp.rs::OmpPreset::from_pi` 生成不含 Pi 配置名称的 OMP 声明 |
+| 同文件的 `toOmpModel`、`toOmpCompat` | `models/preset_omp.rs::OmpPresetModel::from_pi` 与 `project_compat` 排除 Pi 专用字段，把 DeepSeek 推理格式转成 `zai`，并在来源显式要求回放时映射为四项 OMP 控制。模型查询由 `OmpPresetConfig::model_at_deployment` 提供 |
+| `tests/config/ompProviderPresets.test.ts` | `models/preset_omp_tests.rs` 验证 PPIO 模型和 Pi 原值、Kimi 与腾讯的不同回放行为、部署隔离，并用原生 OMP 验证器检查全部声明 |
+
+从固定 Git 对象执行来源 TypeScript，并与 Rust 查询结果逐条对比。115 个预设、416 条模型记录的顺序、标识、部署、模型字段及 51 份模型兼容映射一致，其中 25 条采用 `zai`，13 条声明推理回放。比较沿用 Pi 导入规则，移除空密钥占位、推广与主题字段，以及展示 URL 的查询参数和片段。来源没有供应商级兼容映射。来源许可见 `crates/vw-agent-apps/upstream/LICENSE`（MIT，Copyright (c) 2025 Jason Young）。
+
+现有配置入口由 `vw-agent/src/gateway/api/handlers/app_providers/omp.rs` 提供，路由为 `/v1/app-providers/omp/{id}/form` 和 `/form/read`。SDK 对应 `vw-gateway-client/src/client/app_providers/omp.rs::omp_form_{read,create,update}`，Iced 表单对应 `vw-desktop/src/app/components/app_providers/omp.rs::fields`。这些路径操作带授权主机和修订的供应商配置。目录 API 和 SDK 由任务 36 接入，Iced 搜索由任务 39 接入。本项验收原生离线查询，未涉及桌面窗口。
+
+### 验证
+
+各阶段均动态领取共享槽位 **1**，`CARGO_TARGET_DIR=/Users/xiangmin/worker/code/shiju/target/rust-slot-1`。格式化在 Git 源码快照执行，只回写本任务的 Rust 文件。Cargo 构建、测试和 Clippy 在实际工作区执行。
+
+| 命令 | 退出码 | 证据 |
+| --- | ---: | --- |
+| `cargo fmt --all`（红灯、绿灯） | 0、0 | 格式化完成 |
+| `cargo test -p vw-agent-apps catalog_presets_omp_ -- --nocapture`（红灯） | 101 | 4 条有效测试按预期失败，555 条过滤。首个指定用例查询 PPIO 时返回 `None`，预期为含 1,048,576 上下文、393,216 输出上限及 OMP 回放控制的模型 |
+| `cargo test -p vw-agent-apps catalog_presets_omp_ -- --nocapture`（绿灯） | 0 | 4 条有效测试全部通过，555 条过滤 |
+| `cargo build -p vw-agent-apps --message-format=json`（逐条核对） | 0 | 以本槽位的 Rust 库导出目录。首轮辅助比较脚本因本机 Python 不接受 `zip(strict=True)` 退出 1，改为先断言两侧长度再遍历，复验退出 0 |
+| `cargo clippy --all-targets --all-features -- -D warnings` | 0 | 全 workspace、全目标及 features 通过 |
+
+`git diff --cached --check` 通过。差异限于 OMP 离线目录入口、派生类型、Pi 兼容字段的读取、独立测试及本证据。各阶段的槽位锁均已释放，编译缓存已保留。

@@ -28,6 +28,7 @@ pub struct PiPresetConfig {
     pub base_url: String,
     pub api: PiPresetProtocol,
     pub headers: Option<BTreeMap<String, String>>,
+    pub compat: Option<BTreeMap<String, PiPresetCompatValue>>,
     pub models: Vec<PiPresetModel>,
 }
 
@@ -82,7 +83,7 @@ pub struct PiPresetModel {
     pub compat: Option<BTreeMap<String, PiPresetCompatValue>>,
 }
 
-#[derive(Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(untagged)]
 pub enum PiPresetCompatValue {
     Flag(bool),

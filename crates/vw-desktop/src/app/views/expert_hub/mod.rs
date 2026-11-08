@@ -1,9 +1,11 @@
 //! 组合专家、连接器、技能与资料知识库的专家中心桌面视图。
 
+use crate::app::components::system_settings_common::{settings_tab_button, settings_tab_row};
+use crate::app::i18n::I18n;
 use crate::app::message::{ShijuAppsMessage, SkillHubMessage};
 use crate::app::skill_hub::ExpertHubSection;
 use crate::app::{App, Message, Screen};
-use iced::widget::{button, column, container, row, text};
+use iced::widget::{column, container};
 use iced::{Element, Length};
 
 mod connectors;
@@ -18,48 +20,32 @@ mod public_skills;
 pub(crate) mod shiju_apps;
 mod styles;
 
-fn section_button(
-    label: &'static str,
-    message: Message,
-    selected: bool,
-) -> Element<'static, Message> {
-    button(text(label).size(15))
-        .on_press(message)
-        .padding([8, 14])
-        .style(move |theme, status| styles::selected_tab_style(theme, status, selected))
-        .into()
-}
-
 /// 在专家中心各分区、识矩技能和识矩应用之间提供一致的顶部导航。
 fn section_tabs(app: &App) -> Element<'static, Message> {
-    let mut tabs = row![].spacing(8);
-    for (label, section) in [
-        (crate::app::i18n::I18n::new(app.desktop_locale).__("专家"), ExpertHubSection::Experts),
-        (
-            crate::app::i18n::I18n::new(app.desktop_locale).__("连接器"),
-            ExpertHubSection::Connectors,
-        ),
-        (crate::app::i18n::I18n::new(app.desktop_locale).__("技能"), ExpertHubSection::Skills),
-        (
-            crate::app::i18n::I18n::new(app.desktop_locale).__("识矩知识库"),
-            ExpertHubSection::Knowledge,
-        ),
-    ] {
-        tabs = tabs.push(section_button(
-            crate::app::i18n::I18n::new(app.desktop_locale).__(label),
-            Message::SkillHub(SkillHubMessage::SelectSection(section)),
+    let i18n = I18n::new(app.desktop_locale);
+    let sections = [
+        (i18n.__("专家"), ExpertHubSection::Experts),
+        (i18n.__("连接器"), ExpertHubSection::Connectors),
+        (i18n.__("技能"), ExpertHubSection::Skills),
+        (i18n.__("识矩知识库"), ExpertHubSection::Knowledge),
+    ];
+    settings_tab_row(sections.into_iter().map(|(label, section)| {
+        settings_tab_button(
+            label,
             app.screen == Screen::ExpertHub && app.expert_hub.section == section,
-        ));
-    }
-    tabs.push(section_button(
-        crate::app::i18n::I18n::new(app.desktop_locale).__("识矩技能"),
-        Message::SkillHub(SkillHubMessage::OpenShijuSkills),
+            Some(Message::SkillHub(SkillHubMessage::SelectSection(section))),
+        )
+        .into()
+    }))
+    .push(settings_tab_button(
+        i18n.__("识矩技能"),
         app.screen == Screen::ShijuSkills,
+        Some(Message::SkillHub(SkillHubMessage::OpenShijuSkills)),
     ))
-    .push(section_button(
-        crate::app::i18n::I18n::new(app.desktop_locale).__("识矩应用"),
-        Message::ShijuApps(ShijuAppsMessage::Open),
+    .push(settings_tab_button(
+        i18n.__("识矩应用"),
         app.screen == Screen::ShijuApps,
+        Some(Message::ShijuApps(ShijuAppsMessage::Open)),
     ))
     .wrap()
     .into()

@@ -10,10 +10,10 @@
 
 use crate::app::components::system_settings::general_fields::{self, GeneralSettingField};
 use crate::app::components::system_settings_common::{
-    rounded_action_btn_style, settings_divider, settings_field_label, settings_flexible_row,
-    settings_flexible_row_with_label, settings_group_card, settings_group_heading,
-    settings_hover_help_label, settings_select, settings_tab_button, settings_tab_row,
-    settings_toggle, settings_value_badge,
+    rounded_action_btn_style, settings_divider, settings_flexible_row,
+    settings_flexible_row_with_help, settings_group_card, settings_group_heading,
+    settings_group_heading_with_help, settings_page_heading_with_help, settings_select,
+    settings_tab_button, settings_tab_row, settings_toggle, settings_value_badge,
 };
 use crate::app::components::system_settings_search::SettingsTabDescriptor;
 use crate::app::i18n::I18n;
@@ -54,12 +54,18 @@ fn interface_field_row<'a>(
     description: impl Into<Cow<'a, str>>,
     control: impl Into<Element<'a, Message>>,
 ) -> Element<'a, Message> {
-    let title = I18n::new(app.desktop_locale).__(field.label);
-    let label = settings_hover_help_label(app, title, settings_field_label(title), description);
-    settings_flexible_row_with_label(label.width(Length::Fill), GENERAL_CONTROL_WIDTH, control)
-        .padding([12, 0])
-        .id(field.id)
-        .into()
+    let i18n = I18n::new(app.desktop_locale);
+    settings_flexible_row_with_help(
+        i18n,
+        &app.app_theme,
+        i18n.__(field.label),
+        description,
+        GENERAL_CONTROL_WIDTH,
+        control,
+    )
+    .padding([12, 0])
+    .id(field.id)
+    .into()
 }
 
 fn app_theme_selected(theme: iced::Theme) -> Message {
@@ -245,10 +251,10 @@ pub fn view(app: &App) -> Element<'_, Message> {
 
     let content: Element<'_, Message> = match active_tab {
         GeneralSettingsTab::Interface => column![
-            settings_hover_help_label(
-                app,
+            settings_group_heading_with_help(
+                i18n,
+                &app.app_theme,
                 i18n.__("界面"),
-                text(i18n.__("界面")).size(17),
                 i18n.__("应用外观与预览行为。"),
             ),
             settings_group_card(
@@ -390,10 +396,10 @@ pub fn view(app: &App) -> Element<'_, Message> {
     };
 
     column![
-        settings_hover_help_label(
-            app,
+        settings_page_heading_with_help(
+            i18n,
+            &app.app_theme,
             i18n.__("常规"),
-            text(i18n.__("常规")).size(28),
             i18n.__("通过标签切换界面、终端、编辑器与主题配置。"),
         ),
         tabs,

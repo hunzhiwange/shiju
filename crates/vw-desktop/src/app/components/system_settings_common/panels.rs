@@ -3,13 +3,14 @@
 //! 本模块主要负责把应用状态转换为桌面端可渲染的 Iced 控件，并把用户操作映射回上层消息。
 //! 注释聚焦调用边界、返回值和错误传播方式，便于后续维护设置页与工具栏行为时快速定位职责。
 
-use super::settings_field_label;
+use super::{settings_field_label, settings_hover_help_label};
 use crate::app::Message;
 use crate::app::components::system_settings_common::styles::{
     settings_modal_backdrop_style, settings_modal_card_style, settings_muted_text_style,
     settings_panel_style,
 };
 use crate::app::components::system_settings_common::theme::is_dark_theme;
+use crate::app::i18n::I18n;
 use iced::advanced::{Layout, Widget, layout, renderer, widget::Tree};
 use iced::widget::scrollable::{Direction, Scrollbar};
 use iced::widget::{
@@ -19,6 +20,8 @@ use iced::{
     Alignment, Background, Border, Color, Element, Length, Padding, Rectangle, Renderer, Size,
     Theme, mouse,
 };
+
+use std::borrow::Cow;
 
 pub(super) const SETTINGS_SECTION_CONTENT_PADDING: Padding = Padding::ZERO;
 
@@ -78,6 +81,26 @@ pub fn settings_group_heading<'a>(title: &'a str, description: &'a str) -> Eleme
         .into()
 }
 
+/// 页面说明在问号卡片内显示，保留页面标题的字号。
+pub(crate) fn settings_page_heading_with_help<'a>(
+    i18n: I18n,
+    theme: &Theme,
+    title: &'a str,
+    description: impl Into<Cow<'a, str>>,
+) -> Element<'a, Message> {
+    settings_hover_help_label(i18n, theme, title, text(title).size(28), description).wrap().into()
+}
+
+/// 分组说明在问号卡片内显示，保留分组标题的字号。
+pub(crate) fn settings_group_heading_with_help<'a>(
+    i18n: I18n,
+    theme: &Theme,
+    title: &'a str,
+    description: impl Into<Cow<'a, str>>,
+) -> Element<'a, Message> {
+    settings_hover_help_label(i18n, theme, title, text(title).size(17), description).wrap().into()
+}
+
 /// 承载带分隔线的设置行，横向留白与行内间距独立。
 pub fn settings_group_card<'a>(
     content: impl Into<Element<'a, Message>>,
@@ -132,7 +155,23 @@ pub(crate) fn settings_flexible_row<'a>(
     )
 }
 
-pub(in crate::app::components) fn settings_flexible_row_with_label<'a>(
+/// 字段说明使用问号，控件可继续显示错误和其它常驻提示。
+pub(crate) fn settings_flexible_row_with_help<'a>(
+    i18n: I18n,
+    theme: &Theme,
+    label: &'a str,
+    description: impl Into<Cow<'a, str>>,
+    max_control_width: f32,
+    control: impl Into<Element<'a, Message>>,
+) -> iced::widget::Container<'a, Message> {
+    let label =
+        settings_hover_help_label(i18n, theme, label, settings_field_label(label), description)
+            .width(Length::Fill)
+            .wrap();
+    settings_flexible_row_with_label(label, max_control_width, control)
+}
+
+fn settings_flexible_row_with_label<'a>(
     label: impl Into<Element<'a, Message>>,
     max_control_width: f32,
     control: impl Into<Element<'a, Message>>,

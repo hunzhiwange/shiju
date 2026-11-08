@@ -292,6 +292,125 @@ fn crop(image: &image::RgbaImage, bounds: Rectangle) -> image::RgbaImage {
     .to_image()
 }
 
+#[derive(Default)]
+struct FormContents {
+    labels: Vec<String>,
+    field: Option<Rectangle>,
+}
+
+impl widget::Operation for FormContents {
+    fn traverse(&mut self, children: &mut dyn FnMut(&mut dyn widget::Operation)) {
+        children(self);
+    }
+
+    fn text(&mut self, _: Option<&widget::Id>, _: Rectangle, value: &str) {
+        self.labels.push(value.to_owned());
+    }
+
+    fn container(&mut self, id: Option<&widget::Id>, bounds: Rectangle) {
+        if id == Some(&widget::Id::from("fixture-timezone")) {
+            self.field = Some(bounds);
+        }
+    }
+}
+
+#[tokio::test]
+async fn help_rollout_01_renders_contextual_help() {
+    use super::super::{settings_flexible_row_with_help, settings_group_heading_with_help};
+    use crate::app::i18n::I18n;
+    use vw_config_types::ui::DesktopLocale;
+
+    {
+        let mut fonts = iced::advanced::graphics::text::font_system().write().unwrap();
+        for font in crate::fonts::load_all() {
+            fonts.load_font(font);
+        }
+    }
+
+    for (locale, width, theme) in [
+        (DesktopLocale::English, 720.0, Theme::Light),
+        (DesktopLocale::SimplifiedChinese, 320.0, Theme::Dark),
+        (DesktopLocale::TraditionalChinese, 320.0, Theme::Light),
+    ] {
+        let i18n = I18n::new(locale);
+        let title = i18n.__("界面");
+        let intro = i18n.__("应用外观与预览行为。");
+        let field = i18n.__("聊天时区");
+        let description = i18n.__("用于模型时间上下文，新会话生效。");
+        let error = "Fixture error";
+        let select =
+            settings_select(["UTC", "Asia/Tokyo"], Some("UTC"), |value| selection(value.into()));
+        let control = column![select, settings_error_banner(error)].spacing(6);
+        let form = column![
+            settings_group_heading_with_help(i18n, &theme, title, intro),
+            settings_flexible_row_with_help(i18n, &theme, field, description, 280.0, control)
+                .id("fixture-timezone"),
+        ]
+        .spacing(12);
+        let mut scene = Scene::new(form.into(), width, 320.0).await;
+        let mut contents = FormContents::default();
+        scene.element.as_widget_mut().operate(
+            &mut scene.tree,
+            Layout::new(&scene.node),
+            &scene.renderer,
+            &mut contents,
+        );
+        assert!(contents.labels.iter().any(|value| value == error));
+        let field_bounds = contents.field.expect("field id for search navigation");
+        let prefix = format!("form-help-{locale:?}-{width}");
+        let idle =
+            scene.snapshot(&theme, mouse::Cursor::Unavailable, &format!("{prefix}-idle.png"));
+        assert!(
+            !contents.labels.iter().any(|value| value == intro || value == description),
+            "optional explanations must only appear inside help cards: {:?}",
+            contents.labels
+        );
+
+        let root = Layout::new(&scene.node);
+        let heading = root.children().next().unwrap();
+        let fields = root.children().nth(1).unwrap().children().next().unwrap();
+        assert_eq!(field_bounds, root.children().nth(1).unwrap().bounds());
+        let field_label = fields.children().next().unwrap();
+        let control = fields.children().nth(1).unwrap();
+        let select = control
+            .children()
+            .next()
+            .unwrap()
+            .children()
+            .next()
+            .unwrap()
+            .children()
+            .next()
+            .unwrap();
+        let select_point = select.bounds().center();
+        let help_points = [heading, field_label].map(|label| {
+            let bounds = label.children().nth(1).expect("independent help target").bounds();
+            assert_eq!(bounds.size(), Size::new(22.0, 22.0));
+            assert!(bounds.x + bounds.width <= scene.viewport.width);
+            bounds.center()
+        });
+        for (index, point) in help_points.into_iter().enumerate() {
+            let cursor = mouse::Cursor::Available(point);
+            scene.dispatch(Event::Mouse(mouse::Event::CursorMoved { position: point }), cursor);
+            assert!(scene.overlay().is_some(), "hover opens the help overlay");
+            let opened = scene.snapshot(&theme, cursor, &format!("{prefix}-open-{index}.png"));
+            assert_ne!(opened, idle, "opening help paints a card");
+            scene.dispatch(Event::Mouse(mouse::Event::CursorLeft), mouse::Cursor::Unavailable);
+            assert!(scene.overlay().is_none());
+            assert!(scene.messages.is_empty());
+        }
+        scene.click(select_point);
+        assert!(scene.overlay().is_some(), "the original selector still opens");
+        scene.key(Named::ArrowDown);
+        scene.key(Named::Enter);
+        assert!(matches!(
+            scene.messages.as_slice(),
+            [Message::Settings(SettingsMessage::General(GeneralSettingsMessage::TimezoneSelected(value)))]
+                if value == "Asia/Tokyo"
+        ));
+    }
+}
+
 #[tokio::test]
 async fn ui_refresh_03_layout_and_interaction_keeps_actions_fixed() {
     let options = (0..12).map(|i| format!("时区选项 {i} / Test timezone")).collect::<Vec<_>>();
@@ -547,8 +666,10 @@ fn ui_refresh_03_renders_model_draft_and_error_with_original_actions() {
                 460.0,
             )
             .await;
-            let card = modal_card(&scene.node);
-            let footer = card.children().next().unwrap().children().last().unwrap();
+            let inset = modal_card(&scene.node);
+            let card = inset.children().next().expect("inset model card");
+            let contents = card.children().next().expect("model card contents");
+            let footer = contents.children().last().expect("model card actions");
             let cancel_point = footer.children().nth(1).unwrap().bounds().center();
             let save_point = footer.children().nth(2).unwrap().bounds().center();
             scene.snapshot(

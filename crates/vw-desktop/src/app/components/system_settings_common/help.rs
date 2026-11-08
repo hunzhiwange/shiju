@@ -108,31 +108,31 @@ pub fn settings_help_button_with_locale(
     icon_btn(Icon::QuestionCircle, crate::app::i18n::I18n::new(locale).__("帮助"), Some(on_press))
 }
 
-pub(in crate::app::components) fn settings_hover_help_label<'a>(
-    app: &App,
+/// 将已本地化的静态说明放进可悬停、可固定的问号卡片。
+pub(crate) fn settings_hover_help_label<'a>(
+    i18n: I18n,
+    theme: &iced::Theme,
     title: &'a str,
     label: Text<'a>,
     description: impl Into<Cow<'a, str>>,
 ) -> Row<'a, Message> {
-    let i18n = I18n::new(app.desktop_locale);
     let icon = mouse_area(
         container(icon_svg(Icon::QuestionCircle, 14.0).style(settings_close_icon_style))
             .center_x(22)
             .center_y(22),
     )
     .interaction(mouse::Interaction::Pointer);
-    let card =
-        container(selectable_titled_text(title, description, app.app_theme.palette().text, i18n))
-            .width(300)
-            .padding([10, 12])
-            .style(|theme| container::Style {
-                shadow: Shadow {
-                    color: Color::BLACK.scale_alpha(0.22),
-                    offset: Vector::new(0.0, 4.0),
-                    blur_radius: 12.0,
-                },
-                ..icon_btn_tooltip_style(theme)
-            });
+    let card = container(selectable_titled_text(title, description, theme.palette().text, i18n))
+        .width(300)
+        .padding([10, 12])
+        .style(|theme| container::Style {
+            shadow: Shadow {
+                color: Color::BLACK.scale_alpha(0.22),
+                offset: Vector::new(0.0, 4.0),
+                blur_radius: 12.0,
+            },
+            ..icon_btn_tooltip_style(theme)
+        });
     row![label, SideOverlay::new(icon, card).hover_and_click().gap(4.0).min_y(8.0)]
         .spacing(4)
         .align_y(Alignment::Center)

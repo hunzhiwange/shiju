@@ -22,9 +22,10 @@ fn system_settings_heartbeat_tests_are_wired() {
 
 #[test]
 fn building_blocks_return_elements() {
-    keep_element(field_row("标签", "说明", text("control")));
-    keep_element(text_row("消息", "兜底说明", "可选", "", |_| Message::None));
-    keep_element(text_row("目标", "投递通道", "telegram", "tg", |_| Message::None));
+    let app = test_app();
+    keep_element(field_row(&app, "标签", "说明", text("control")));
+    keep_element(text_row(&app, "消息", "兜底说明", "可选", "", |_| Message::None));
+    keep_element(text_row(&app, "目标", "投递通道", "telegram", "tg", |_| Message::None));
 }
 
 #[test]

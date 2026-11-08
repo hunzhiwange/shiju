@@ -17,23 +17,36 @@
 //! 用户的配置会通过 Gateway 保存到共享数据库的 `heartbeat` 字段中。
 
 use crate::app::components::system_settings_common::{
-    settings_checkbox_style, settings_divider, settings_group_card, settings_group_heading,
-    settings_help_button_with_locale as settings_help_button, settings_page_heading,
-    settings_row_with_flexible_control, settings_text_input, settings_value_badge,
+    settings_checkbox_style, settings_divider, settings_flexible_row_with_help,
+    settings_group_card, settings_group_heading_with_help,
+    settings_help_button_with_locale as settings_help_button, settings_page_heading_with_help,
+    settings_text_input, settings_value_badge,
 };
+use crate::app::i18n::I18n;
 use crate::app::{App, Message, message};
 use iced::widget::{checkbox, column, container, row, slider};
 use iced::{Alignment, Element, Length};
 
 fn field_row<'a>(
+    app: &App,
     label: &'static str,
     description: &'static str,
     control: impl Into<Element<'a, Message>>,
 ) -> Element<'a, Message> {
-    settings_row_with_flexible_control(label, description, 320.0, control)
+    let i18n = I18n::new(app.desktop_locale);
+    settings_flexible_row_with_help(
+        i18n,
+        &app.app_theme,
+        i18n.__(label),
+        i18n.__(description),
+        320.0,
+        control,
+    )
+    .into()
 }
 
 fn text_row<'a>(
+    app: &App,
     label: &'static str,
     description: &'static str,
     placeholder: &'static str,
@@ -41,6 +54,7 @@ fn text_row<'a>(
     on_input: impl Fn(String) -> Message + 'a,
 ) -> Element<'a, Message> {
     field_row(
+        app,
         label,
         description,
         settings_text_input(placeholder, value).on_input(on_input).width(Length::Fill),
@@ -82,6 +96,7 @@ fn text_row<'a>(
 /// 8. 错误提示（如果有）
 /// 9. 帮助模态框（如果启用）
 pub fn view(app: &App) -> Element<'_, Message> {
+    let i18n = I18n::new(app.desktop_locale);
     let s = &app.heartbeat_settings;
     let help_btn = settings_help_button(
         app.desktop_locale,
@@ -89,10 +104,11 @@ pub fn view(app: &App) -> Element<'_, Message> {
     );
 
     let enabled_row = field_row(
-        crate::app::i18n::I18n::new(app.desktop_locale).__("启用"),
-        crate::app::i18n::I18n::new(app.desktop_locale).__("控制是否开启周期心跳。"),
+        app,
+        "启用",
+        "控制是否开启周期心跳。",
         checkbox(s.enabled)
-            .label(crate::app::i18n::I18n::new(app.desktop_locale).__("开启周期心跳"))
+            .label(i18n.__("开启周期心跳"))
             .on_toggle(|v| Message::Settings(message::SettingsMessage::HeartbeatEnabledToggled(v)))
             .style(settings_checkbox_style),
     );
@@ -103,17 +119,14 @@ pub fn view(app: &App) -> Element<'_, Message> {
     .width(Length::Fill);
 
     let interval_row = field_row(
-        crate::app::i18n::I18n::new(app.desktop_locale).__("间隔分钟"),
-        crate::app::i18n::I18n::new(app.desktop_locale).__("周期性触发心跳的时间间隔。"),
+        app,
+        "间隔分钟",
+        "周期性触发心跳的时间间隔。",
         row![
             interval_slider,
             container(settings_value_badge(
-                crate::__!(
-                    crate::app::i18n::I18n::new(app.desktop_locale),
-                    "%u 分钟",
-                    s.interval_minutes
-                )
-                .expect("valid heartbeat interval template")
+                crate::__!(i18n, "%u 分钟", s.interval_minutes)
+                    .expect("valid heartbeat interval template")
             ))
             .align_right(104.0),
         ]
@@ -122,48 +135,56 @@ pub fn view(app: &App) -> Element<'_, Message> {
     );
 
     let message_row = text_row(
-        crate::app::i18n::I18n::new(app.desktop_locale).__("消息"),
-        crate::app::i18n::I18n::new(app.desktop_locale).__("没有 HEARTBEAT.md 任务时的兜底说明。"),
-        crate::app::i18n::I18n::new(app.desktop_locale).__("可选"),
+        app,
+        "消息",
+        "没有 HEARTBEAT.md 任务时的兜底说明。",
+        i18n.__("可选"),
         &s.message_input,
         |v| Message::Settings(message::SettingsMessage::HeartbeatMessageChanged(v)),
     );
 
     let target_row = text_row(
-        crate::app::i18n::I18n::new(app.desktop_locale).__("目标通道"),
-        crate::app::i18n::I18n::new(app.desktop_locale).__("可选的心跳结果投递通道。"),
-        crate::app::i18n::I18n::new(app.desktop_locale).__("可选，例如 telegram"),
+        app,
+        "目标通道",
+        "可选的心跳结果投递通道。",
+        i18n.__("可选，例如 telegram"),
         &s.target_input,
         |v| Message::Settings(message::SettingsMessage::HeartbeatTargetChanged(v)),
     );
 
     let to_row = text_row(
-        crate::app::i18n::I18n::new(app.desktop_locale).__("接收者"),
-        crate::app::i18n::I18n::new(app.desktop_locale).__("目标通道对应的接收者标识。"),
-        crate::app::i18n::I18n::new(app.desktop_locale).__("可选"),
+        app,
+        "接收者",
+        "目标通道对应的接收者标识。",
+        i18n.__("可选"),
         &s.to_input,
         |v| Message::Settings(message::SettingsMessage::HeartbeatToChanged(v)),
     );
 
     let col = column![
         row![
-            container(settings_page_heading(
-                crate::app::i18n::I18n::new(app.desktop_locale).__("心跳配置"),
-                crate::app::i18n::I18n::new(app.desktop_locale)
-                    .__("配置心跳任务的间隔、兜底消息与投递目标。")
+            container(settings_page_heading_with_help(
+                i18n,
+                &app.app_theme,
+                i18n.__("心跳配置"),
+                i18n.__("配置心跳任务的间隔、兜底消息与投递目标。")
             ))
             .width(Length::Fill),
             help_btn
         ]
         .align_y(Alignment::Start),
-        settings_group_heading(
-            crate::app::i18n::I18n::new(app.desktop_locale).__("基础行为"),
-            crate::app::i18n::I18n::new(app.desktop_locale).__("控制心跳开关与执行间隔。")
+        settings_group_heading_with_help(
+            i18n,
+            &app.app_theme,
+            i18n.__("基础行为"),
+            i18n.__("控制心跳开关与执行间隔。")
         ),
         settings_group_card(column![enabled_row, settings_divider(), interval_row].spacing(0)),
-        settings_group_heading(
-            crate::app::i18n::I18n::new(app.desktop_locale).__("投递内容"),
-            crate::app::i18n::I18n::new(app.desktop_locale).__("配置兜底消息、目标通道和接收者。")
+        settings_group_heading_with_help(
+            i18n,
+            &app.app_theme,
+            i18n.__("投递内容"),
+            i18n.__("配置兜底消息、目标通道和接收者。")
         ),
         settings_group_card(
             column![message_row, settings_divider(), target_row, settings_divider(), to_row]

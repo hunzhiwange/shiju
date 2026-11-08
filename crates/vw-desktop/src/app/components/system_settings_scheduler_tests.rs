@@ -24,7 +24,8 @@ fn settings_message(message: Message) -> message::SettingsMessage {
 
 #[test]
 fn field_row_accepts_scheduler_control() {
-    keep_element(field_row("最大任务", "单次轮询最多处理的任务数量。", text("64")));
+    let app = test_app();
+    keep_element(field_row(&app, "最大任务", "单次轮询最多处理的任务数量。", text("64")));
 }
 
 #[test]

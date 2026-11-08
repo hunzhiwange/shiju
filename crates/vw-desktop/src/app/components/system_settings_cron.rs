@@ -6,15 +6,16 @@ use crate::app::components::system_settings_common::{
     SETTINGS_CONTROL_PADDING, SETTINGS_CONTROL_TEXT_SIZE, danger_action_btn_style,
     primary_action_btn_style, rounded_action_btn_style, settings_checkbox_style,
     settings_close_button, settings_divider, settings_error_banner, settings_field_label,
-    settings_group_card, settings_group_heading,
-    settings_help_button_with_locale as settings_help_button, settings_modal_card,
-    settings_modal_card_style, settings_modal_header, settings_modal_layout,
-    settings_modal_overlay, settings_muted_text_style, settings_page_heading, settings_panel,
-    settings_row_with_flexible_control, settings_segment_button_style, settings_select,
-    settings_success_banner, settings_tab_button, settings_tab_row, settings_text_editor,
-    settings_text_editor_style, settings_text_input, settings_value_badge,
+    settings_flexible_row_with_help, settings_group_card, settings_group_heading_with_help,
+    settings_help_button_with_locale as settings_help_button, settings_hover_help_label,
+    settings_modal_card, settings_modal_card_style, settings_modal_header, settings_modal_layout,
+    settings_modal_overlay, settings_muted_text_style, settings_page_heading_with_help,
+    settings_panel, settings_segment_button_style, settings_select, settings_success_banner,
+    settings_tab_button, settings_tab_row, settings_text_editor, settings_text_editor_style,
+    settings_text_input, settings_value_badge,
 };
 use crate::app::components::system_settings_search::SettingsTabDescriptor;
+use crate::app::i18n::I18n;
 use crate::app::state::{CronAddJobType, CronAddScheduleKind, CronSettingsTab};
 use crate::app::{App, Message, message};
 use chrono::{DateTime, Local};
@@ -67,6 +68,33 @@ fn field_row<'a>(
         ]
         .spacing(6)
         .width(Length::Fill),
+    )
+    .padding([14, 0])
+    .width(Length::Fill)
+    .into()
+}
+
+fn field_row_with_help<'a>(
+    app: &App,
+    label: &'static str,
+    description: &'static str,
+    control: impl Into<Element<'a, Message>>,
+) -> Element<'a, Message> {
+    let i18n = I18n::new(app.desktop_locale);
+    let label = i18n.__(label);
+    container(
+        column![
+            settings_hover_help_label(
+                i18n,
+                &app.app_theme,
+                label,
+                settings_field_label(label),
+                i18n.__(description),
+            )
+            .wrap(),
+            control.into(),
+        ]
+        .spacing(6),
     )
     .padding([14, 0])
     .width(Length::Fill)
@@ -470,7 +498,7 @@ fn edit_form(app: &App) -> Element<'_, Message> {
     let project_options = project_options(app, &draft.project_path);
 
     let schedule_row = match draft.schedule_kind {
-        CronAddScheduleKind::Cron => schedule::frequency_form(app.desktop_locale, draft, true),
+        CronAddScheduleKind::Cron => schedule::frequency_form(app, draft, true),
         CronAddScheduleKind::At => field_row(
             crate::app::i18n::I18n::new(app.desktop_locale).__("指定时间"),
             crate::app::i18n::I18n::new(app.desktop_locale)
@@ -481,9 +509,10 @@ fn edit_form(app: &App) -> Element<'_, Message> {
                 |v| Message::Settings(message::SettingsMessage::CronJobEditAtChanged(v)),
             ),
         ),
-        CronAddScheduleKind::Every => field_row(
-            crate::app::i18n::I18n::new(app.desktop_locale).__("固定间隔"),
-            crate::app::i18n::I18n::new(app.desktop_locale).__("按毫秒数循环触发。"),
+        CronAddScheduleKind::Every => field_row_with_help(
+            app,
+            "固定间隔",
+            "按毫秒数循环触发。",
             text_field(
                 crate::app::i18n::I18n::new(app.desktop_locale).__("例如 60000"),
                 &draft.every_ms,
@@ -524,10 +553,10 @@ fn edit_form(app: &App) -> Element<'_, Message> {
             ]
             .spacing(8),
         ),
-        field_row(
-            crate::app::i18n::I18n::new(app.desktop_locale).__("调度类型"),
-            crate::app::i18n::I18n::new(app.desktop_locale)
-                .__("常用周期可直接选择时间，高级模式支持 Cron。"),
+        field_row_with_help(
+            app,
+            "调度类型",
+            "常用周期可直接选择时间，高级模式支持 Cron。",
             row![
                 segment_button(
                     crate::app::i18n::I18n::new(app.desktop_locale).__("周期执行"),
@@ -786,6 +815,7 @@ fn edit_form(app: &App) -> Element<'_, Message> {
 }
 
 fn jobs_tab(app: &App) -> Element<'_, Message> {
+    let i18n = I18n::new(app.desktop_locale);
     let s = &app.cron_settings;
     let all_selected = !s.jobs.is_empty() && s.selected_job_ids.len() == s.jobs.len();
     let selected_count = s.selected_job_ids.len();
@@ -869,10 +899,11 @@ fn jobs_tab(app: &App) -> Element<'_, Message> {
     }
 
     column![
-        settings_group_heading(
-            crate::app::i18n::I18n::new(app.desktop_locale).__("当前任务"),
-            crate::app::i18n::I18n::new(app.desktop_locale)
-                .__("默认展示已配置的定时任务，并支持单项或批量管理。")
+        settings_group_heading_with_help(
+            i18n,
+            &app.app_theme,
+            i18n.__("当前任务"),
+            i18n.__("默认展示已配置的定时任务，并支持单项或批量管理。")
         ),
         settings_panel(list),
     ]
@@ -881,10 +912,13 @@ fn jobs_tab(app: &App) -> Element<'_, Message> {
 }
 
 fn config_tab(app: &App) -> Element<'_, Message> {
+    let i18n = I18n::new(app.desktop_locale);
     let s = &app.cron_settings;
-    let enabled_row = settings_row_with_flexible_control(
-        crate::app::i18n::I18n::new(app.desktop_locale).__("启用"),
-        crate::app::i18n::I18n::new(app.desktop_locale).__("控制是否启用 Cron 子系统。"),
+    let enabled_row = settings_flexible_row_with_help(
+        i18n,
+        &app.app_theme,
+        i18n.__("启用"),
+        i18n.__("控制是否启用 Cron 子系统。"),
         320.0,
         checkbox(s.enabled)
             .label(crate::app::i18n::I18n::new(app.desktop_locale).__("开启 Cron 子系统"))
@@ -897,10 +931,11 @@ fn config_tab(app: &App) -> Element<'_, Message> {
     })
     .width(Length::Fill);
 
-    let history_row = settings_row_with_flexible_control(
-        crate::app::i18n::I18n::new(app.desktop_locale).__("历史保留"),
-        crate::app::i18n::I18n::new(app.desktop_locale)
-            .__("每个任务保留的执行历史记录数量，建议 20-200。"),
+    let history_row = settings_flexible_row_with_help(
+        i18n,
+        &app.app_theme,
+        i18n.__("历史保留"),
+        i18n.__("每个任务保留的执行历史记录数量，建议 20-200。"),
         320.0,
         row![
             history_slider,
@@ -919,10 +954,11 @@ fn config_tab(app: &App) -> Element<'_, Message> {
     );
 
     column![
-        settings_group_heading(
-            crate::app::i18n::I18n::new(app.desktop_locale).__("基础行为"),
-            crate::app::i18n::I18n::new(app.desktop_locale)
-                .__("控制 Cron 子系统是否运行与历史留存数量。")
+        settings_group_heading_with_help(
+            i18n,
+            &app.app_theme,
+            i18n.__("基础行为"),
+            i18n.__("控制 Cron 子系统是否运行与历史留存数量。")
         ),
         settings_group_card(column![enabled_row, settings_divider(), history_row]),
     ]
@@ -931,6 +967,7 @@ fn config_tab(app: &App) -> Element<'_, Message> {
 }
 
 fn add_tab(app: &App) -> Element<'_, Message> {
+    let i18n = I18n::new(app.desktop_locale);
     let draft = &app.cron_settings.add_draft;
     let agent_options = with_selected_option(
         app.agents_settings
@@ -991,10 +1028,10 @@ fn add_tab(app: &App) -> Element<'_, Message> {
         ]
         .spacing(8),
     );
-    let schedule_kind_row = field_row(
-        crate::app::i18n::I18n::new(app.desktop_locale).__("调度类型"),
-        crate::app::i18n::I18n::new(app.desktop_locale)
-            .__("常用周期可直接选择时间，高级模式支持 Cron。"),
+    let schedule_kind_row = field_row_with_help(
+        app,
+        "调度类型",
+        "常用周期可直接选择时间，高级模式支持 Cron。",
         row![
             segment_button(
                 crate::app::i18n::I18n::new(app.desktop_locale).__("周期执行"),
@@ -1021,7 +1058,7 @@ fn add_tab(app: &App) -> Element<'_, Message> {
         .spacing(8),
     );
     let schedule_row = match draft.schedule_kind {
-        CronAddScheduleKind::Cron => schedule::frequency_form(app.desktop_locale, draft, false),
+        CronAddScheduleKind::Cron => schedule::frequency_form(app, draft, false),
         CronAddScheduleKind::At => field_row(
             crate::app::i18n::I18n::new(app.desktop_locale).__("指定时间"),
             crate::app::i18n::I18n::new(app.desktop_locale)
@@ -1032,9 +1069,10 @@ fn add_tab(app: &App) -> Element<'_, Message> {
                 |v| Message::Settings(message::SettingsMessage::CronAddAtChanged(v)),
             ),
         ),
-        CronAddScheduleKind::Every => field_row(
-            crate::app::i18n::I18n::new(app.desktop_locale).__("固定间隔"),
-            crate::app::i18n::I18n::new(app.desktop_locale).__("按毫秒数循环触发。"),
+        CronAddScheduleKind::Every => field_row_with_help(
+            app,
+            "固定间隔",
+            "按毫秒数循环触发。",
             text_field(
                 crate::app::i18n::I18n::new(app.desktop_locale).__("例如 60000"),
                 &draft.every_ms,
@@ -1268,10 +1306,11 @@ fn add_tab(app: &App) -> Element<'_, Message> {
     }
 
     column![
-        settings_group_heading(
-            crate::app::i18n::I18n::new(app.desktop_locale).__("添加任务"),
-            crate::app::i18n::I18n::new(app.desktop_locale)
-                .__("创建 Shell 或 Agent 定时任务，支持 Cron、指定时间和固定间隔。")
+        settings_group_heading_with_help(
+            i18n,
+            &app.app_theme,
+            i18n.__("添加任务"),
+            i18n.__("创建 Shell 或 Agent 定时任务，支持 Cron、指定时间和固定间隔。")
         ),
         settings_group_card(form),
         container(primary_button(
@@ -1309,10 +1348,11 @@ pub fn view(app: &App) -> Element<'_, Message> {
 
     let mut col = column![
         row![
-            container(settings_page_heading(
-                crate::app::i18n::I18n::new(app.desktop_locale).__("定时任务配置"),
-                crate::app::i18n::I18n::new(app.desktop_locale)
-                    .__("配置 Cron 子系统的开关与历史保留策略。")
+            container(settings_page_heading_with_help(
+                i18n,
+                &app.app_theme,
+                i18n.__("定时任务配置"),
+                i18n.__("配置 Cron 子系统的开关与历史保留策略。")
             ))
             .width(Length::Fill),
             help_btn

@@ -437,10 +437,9 @@ async fn ui_refresh_27_preserves_values_and_disabled_states() {
             let bounds = positions.label(tr.__(key));
             if name == "heartbeat" {
                 let label = positions.label(tr.__("目标通道"));
-                let hint = positions.label(tr.__("可选的心跳结果投递通道。"));
                 let field = positions.input("telegram");
                 assert_fits(field, size);
-                assert!((field.center_y() - (label.y + hint.y + hint.height) / 2.0).abs() < 0.5);
+                assert!((field.center_y() - label.center_y()).abs() < 0.5);
             }
             assert_fits(bounds, size);
             let messages = click(&mut ui, &mut renderer, bounds.center());
@@ -670,4 +669,278 @@ async fn settings_tabs_core_appearance_cron() {
         },
     )
     .await;
+}
+
+fn assert_schedule_help(
+    app: &App,
+    ui: &mut Ui<'_>,
+    renderer: &mut Renderer,
+    size: Size<u32>,
+    entry: &str,
+    keys: (&str, &str),
+) {
+    let tr = I18n::new(app.desktop_locale);
+    let (title, explanation) = (tr.__(keys.0), tr.__(keys.1));
+    let positions = geometry(ui, renderer);
+    assert!(
+        positions.labels.iter().all(|(label, _)| label != explanation),
+        "{entry}: {title} still shows its static explanation in the initial layout"
+    );
+    let bounds = positions.labels.iter().rfind(|(label, _)| label == title).unwrap().1;
+    let icon = Point::new(bounds.x + bounds.width + 15.0, bounds.center_y());
+    let icon = if let Some((viewport, mut translation)) = positions.scroll {
+        if !viewport.contains(icon - translation) {
+            let offset = icon.y - translation.y - viewport.center_y();
+            assert!(
+                send(
+                    ui,
+                    renderer,
+                    at(viewport.center()),
+                    &[Event::Mouse(mouse::Event::WheelScrolled {
+                        delta: mouse::ScrollDelta::Pixels { x: 0.0, y: -offset },
+                    })],
+                )
+                .is_empty()
+            );
+            translation = geometry(ui, renderer).scroll.unwrap().1;
+        }
+        let visible_icon = icon - translation;
+        assert!(viewport.contains(visible_icon), "{entry}: {title} is clipped at {visible_icon:?}");
+        visible_icon
+    } else {
+        icon
+    };
+    let prefix = format!("rollout-15-{entry}-{:?}-{title}", app.desktop_locale);
+    let theme = &app.app_theme;
+    let away = mouse::Cursor::Unavailable;
+    let idle = capture(ui, renderer, theme, size, &format!("{prefix}-idle"), away);
+    assert!(
+        send(ui, renderer, at(icon), &[Event::Mouse(mouse::Event::CursorMoved { position: icon })])
+            .is_empty()
+    );
+    let hover = capture(ui, renderer, theme, size, &format!("{prefix}-hover"), at(icon));
+    assert!(idle != hover, "{entry}: {title} hover preview must render");
+    assert!(click(ui, renderer, icon).is_empty());
+    let open = capture(ui, renderer, theme, size, &format!("{prefix}-open"), away);
+    assert!(idle != open, "{entry}: {title} pinned help must render");
+
+    if entry == "heartbeat" && keys.0 == "间隔分钟" && app.desktop_locale == DesktopLocale::English
+    {
+        assert_interval_help_actions(ui, renderer, icon, explanation);
+    }
+
+    assert!(key_at(ui, renderer, Named::Escape).is_empty(), "{entry}: Escape closed the parent");
+    let closed = capture(ui, renderer, theme, size, &format!("{prefix}-closed"), away);
+    assert!(idle == closed, "{entry}: {title} Escape must restore the initial frame");
+}
+
+fn assert_interval_help_actions(
+    ui: &mut Ui<'_>,
+    renderer: &mut Renderer,
+    icon: Point,
+    explanation: &str,
+) {
+    let body = Point::new(icon.x + 29.0, icon.y + 5.0);
+    let line_height = iced::advanced::text::LineHeight::default().to_absolute(12.0.into());
+    let item_height = f32::from(line_height) + 10.0;
+    let search = format!("https://www.google.com/search?q={}", urlencoding::encode(explanation));
+    for index in [0, 3] {
+        assert!(
+            send(
+                ui,
+                renderer,
+                at(body),
+                &[Event::Mouse(mouse::Event::ButtonPressed(mouse::Button::Right))],
+            )
+            .is_empty()
+        );
+        let item = Point::new(body.x + 24.0, body.y + 3.0 + item_height * (index as f32 + 0.5));
+        let messages = click(ui, renderer, item);
+        assert!(
+            match (index, messages.as_slice()) {
+                (0, [Message::CopyCode(value)]) => value == explanation,
+                (3, [Message::View(crate::app::message::ViewMessage::OpenUrlExternal(url))]) => {
+                    url == &search
+                }
+                _ => false,
+            },
+            "unexpected contextual help action: {messages:?}"
+        );
+    }
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn help_rollout_15_renders_contextual_help() {
+    if !isolated("help_rollout_15_renders_contextual_help") {
+        return;
+    }
+    let mut renderer = renderer().await;
+    let mut app = fixture();
+    let error = "fixture invalid Cron expression";
+    let expression = "fixture invalid schedule";
+    let mut job = super::system_settings_cron_tests::job(JOB_ID);
+    job.enabled = false;
+    let next_run = format_cron_datetime(&job.next_run);
+    let current_expression = job.expression.clone();
+    app.cron_settings.active_tab = CronSettingsTab::Jobs;
+    app.cron_settings.jobs_loading = false;
+    app.cron_settings.jobs = vec![job];
+    app.cron_settings.expanded_job_ids = vec![JOB_ID.into()];
+    app.cron_settings.save_error = Some(error.into());
+    app.cron_settings.edit_draft.schedule = expression.into();
+    app.cron_settings.edit_draft.frequency = crate::app::state::CronFrequency::Advanced;
+
+    for (locale, theme) in [
+        (DesktopLocale::SimplifiedChinese, Theme::Light),
+        (DesktopLocale::English, Theme::Dark),
+        (DesktopLocale::TraditionalChinese, Theme::Dark),
+    ] {
+        app.desktop_locale = locale;
+        app.app_theme = theme;
+        let tr = I18n::new(locale);
+        let size = Size::new(480, 680);
+        app.cron_settings.editing_job_id = None;
+        let mut ui = scene(frame(view(&app)), &mut renderer, size);
+        let positions = geometry(&mut ui, &renderer);
+        for label in [tr.__("下次运行"), tr.__("禁用"), &next_run, &current_expression, error]
+        {
+            assert_fits(positions.label(label), size);
+        }
+        for help in [
+            ("定时任务配置", "配置 Cron 子系统的开关与历史保留策略。"),
+            ("当前任务", "默认展示已配置的定时任务，并支持单项或批量管理。"),
+        ] {
+            assert_schedule_help(&app, &mut ui, &mut renderer, size, "cron-jobs", help);
+        }
+        drop(ui);
+
+        app.cron_settings.editing_job_id = Some(JOB_ID.into());
+        let mut ui = scene(view_overlays(&app, frame(view(&app))), &mut renderer, size);
+        let positions = geometry(&mut ui, &renderer);
+        assert_fits(positions.label(error), size);
+        assert!(positions.input(expression).width > 0.0);
+        positions.label(tr.__("示例：0 9 * * MON-FRI 表示工作日 UTC 09:00 执行。"));
+        assert_schedule_help(
+            &app,
+            &mut ui,
+            &mut renderer,
+            size,
+            "cron-edit",
+            (
+                "Cron 表达式",
+                "按 UTC 执行。5 字段依次为分、时、日、月、星期；6 字段在最前面增加秒。",
+            ),
+        );
+        for (label, expected) in [
+            ("保存", SettingsMessage::CronJobEditSave),
+            ("取消", SettingsMessage::CronJobEditCanceled),
+        ] {
+            let bounds = geometry(&mut ui, &renderer).label(tr.__(label));
+            assert!(matches!(
+                click(&mut ui, &mut renderer, bounds.center()).as_slice(),
+                [Message::Settings(action)] if std::mem::discriminant(action) == std::mem::discriminant(&expected)
+            ));
+        }
+    }
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn help_rollout_15_heartbeat_preserves_status_and_actions() {
+    use crate::app::components::system_settings_agents;
+    use crate::app::state::AgentConfigTab;
+
+    if !isolated("help_rollout_15_heartbeat_preserves_status_and_actions") {
+        return;
+    }
+    let mut renderer = renderer().await;
+    let mut app = fixture();
+    let error = "fixture heartbeat validation failed";
+    app.agents_settings.active_config_tab = AgentConfigTab::Heartbeat;
+    app.heartbeat_settings.enabled = false;
+    app.heartbeat_settings.interval_minutes = 37;
+    app.heartbeat_settings.save_error = Some(error.into());
+    app.heartbeat_settings.to_input = "fixture-recipient".into();
+    for (locale, theme) in [
+        (DesktopLocale::SimplifiedChinese, Theme::Light),
+        (DesktopLocale::English, Theme::Dark),
+        (DesktopLocale::TraditionalChinese, Theme::Dark),
+    ] {
+        app.desktop_locale = locale;
+        app.app_theme = theme;
+        let tr = I18n::new(locale);
+        let size = Size::new(480, 860);
+        let mut ui = scene(frame(system_settings_agents::view(&app)), &mut renderer, size);
+        let positions = geometry(&mut ui, &renderer);
+        let interval = crate::__!(tr, "%u 分钟", app.heartbeat_settings.interval_minutes).unwrap();
+        assert_fits(positions.label(&interval), size);
+        assert_fits(positions.label(error), size);
+        assert_fits(positions.input("fixture-recipient"), size);
+        assert_schedule_help(
+            &app,
+            &mut ui,
+            &mut renderer,
+            size,
+            "heartbeat",
+            ("间隔分钟", "周期性触发心跳的时间间隔。"),
+        );
+        assert!(matches!(
+            click(&mut ui, &mut renderer, positions.label(tr.__("开启周期心跳")).center())
+                .as_slice(),
+            [Message::Settings(SettingsMessage::HeartbeatEnabledToggled(true))]
+        ));
+    }
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn help_rollout_15_cron_add_config_and_scheduler_render_help() {
+    if !isolated("help_rollout_15_cron_add_config_and_scheduler_render_help") {
+        return;
+    }
+    let mut renderer = renderer().await;
+    let mut app = fixture();
+    app.cron_settings.add_draft.schedule_kind = CronAddScheduleKind::Every;
+    app.cron_settings.add_draft.every_ms = "71000".into();
+    app.scheduler_settings.enabled = false;
+    app.scheduler_settings.max_tasks = 63;
+    for (locale, theme) in [
+        (DesktopLocale::SimplifiedChinese, Theme::Light),
+        (DesktopLocale::English, Theme::Dark),
+        (DesktopLocale::TraditionalChinese, Theme::Dark),
+    ] {
+        app.desktop_locale = locale;
+        app.app_theme = theme;
+        let size = Size::new(480, 940);
+        let tr = I18n::new(locale);
+        for (tab, entry, help) in [
+            (CronSettingsTab::Add, "cron-add", ("固定间隔", "按毫秒数循环触发。")),
+            (
+                CronSettingsTab::Config,
+                "cron-config",
+                ("基础行为", "控制 Cron 子系统是否运行与历史留存数量。"),
+            ),
+            (CronSettingsTab::Scheduler, "scheduler", ("最大任务", "单次轮询最多处理的任务数量。")),
+        ] {
+            app.cron_settings.active_tab = tab;
+            let mut ui = scene(frame(view(&app)), &mut renderer, size);
+            let positions = geometry(&mut ui, &renderer);
+            if tab == CronSettingsTab::Add {
+                assert_fits(positions.input("71000"), size);
+            }
+            if tab == CronSettingsTab::Scheduler {
+                assert_fits(positions.label("63"), size);
+            }
+            assert_schedule_help(&app, &mut ui, &mut renderer, size, entry, help);
+            if tab == CronSettingsTab::Scheduler {
+                assert!(matches!(
+                    click(
+                        &mut ui,
+                        &mut renderer,
+                        positions.label(tr.__("开启内置调度器")).center()
+                    )
+                    .as_slice(),
+                    [Message::Settings(SettingsMessage::SchedulerEnabledToggled(true))]
+                ));
+            }
+        }
+    }
 }

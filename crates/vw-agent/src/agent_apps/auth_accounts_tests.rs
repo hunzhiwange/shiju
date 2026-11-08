@@ -1,5 +1,123 @@
 use super::*;
+use crate::global_database::test_support::PostgresTestDatabase;
 use vw_api_types::agent_apps::*;
+
+const ACCOUNT_ID: &str = "managed-account";
+const EXTERNAL_IDENTITY: &str = "fixture-external-identity";
+
+#[test]
+fn auth6_store_commits_expected_scoped_result() {
+    let home = tempfile::tempdir().unwrap();
+    assert_scoped_metadata_persists(|| GlobalDatabase::for_home(home.path()).unwrap());
+}
+
+#[test]
+fn auth6_store_commits_expected_scoped_result_postgres() {
+    let fixture = PostgresTestDatabase::from_environment().unwrap();
+    assert_scoped_metadata_persists(|| fixture.reopen().unwrap());
+}
+
+#[test]
+fn auth6_store_rejects_invalid_or_stale_input() {
+    let home = tempfile::tempdir().unwrap();
+    assert_invalid_or_stale_metadata_rejected(GlobalDatabase::for_home(home.path()).unwrap());
+}
+
+#[test]
+fn auth6_store_rejects_invalid_or_stale_input_postgres() {
+    let fixture = PostgresTestDatabase::from_environment().unwrap();
+    assert_invalid_or_stale_metadata_rejected(fixture.database().clone());
+}
+
+fn assert_scoped_metadata_persists(open: impl Fn() -> GlobalDatabase) {
+    let credentials = private_credentials_root();
+    let tenant = TenantScope::new("platform", "company").unwrap();
+    let other_company = TenantScope::new("platform", "other-company").unwrap();
+    let other_platform = TenantScope::new("other-platform", "company").unwrap();
+    let scopes = [
+        account_scope(&tenant),
+        AuthAccountScope { tenant: &other_company, ..account_scope(&tenant) },
+        AuthAccountScope { host: "other-host", ..account_scope(&tenant) },
+        AuthAccountScope { principal: "oidc:other-principal", ..account_scope(&tenant) },
+        AuthAccountScope { service: AuthService::CodexOauth, ..account_scope(&tenant) },
+        AuthAccountScope { tenant: &other_platform, ..account_scope(&tenant) },
+    ];
+    let store = AuthAccountStore::new(open(), credentials.path()).unwrap();
+    let expected: Vec<_> = (1..=6)
+        .map(|time| AuthAccountMetadata::new(EXTERNAL_IDENTITY, TimestampMs(time)).unwrap())
+        .collect();
+    for (scope, metadata) in scopes.iter().zip(&expected) {
+        assert_eq!(store.insert_metadata(scope, ACCOUNT_ID, metadata), Ok(()));
+    }
+    drop(store);
+
+    let store = AuthAccountStore::new(open(), credentials.path()).unwrap();
+    for (scope, metadata) in scopes.iter().zip(expected) {
+        assert_eq!(store.read_metadata(scope, ACCOUNT_ID), Ok(metadata));
+    }
+    for tenant in [&tenant, &other_company, &other_platform] {
+        for entry in store.metadata.list(tenant, MANAGED_ACCOUNT_NAMESPACE).unwrap() {
+            assert!(!entry.payload_json.contains(EXTERNAL_IDENTITY));
+        }
+    }
+    assert!(std::fs::read_dir(credentials.path()).unwrap().next().is_none());
+}
+
+fn assert_invalid_or_stale_metadata_rejected(database: GlobalDatabase) {
+    let credentials = private_credentials_root();
+    let tenant = TenantScope::new("platform", "company").unwrap();
+    let scope = account_scope(&tenant);
+    let store = AuthAccountStore::new(database, credentials.path()).unwrap();
+    let original = AuthAccountMetadata::new(EXTERNAL_IDENTITY, TimestampMs(1)).unwrap();
+    assert_eq!(
+        store.insert_metadata(&scope, "../invalid", &original),
+        Err(AuthErrorCode::InvalidInput)
+    );
+    assert_eq!(
+        store.insert_metadata(&AuthAccountScope { principal: "", ..scope }, ACCOUNT_ID, &original),
+        Err(AuthErrorCode::InvalidInput)
+    );
+
+    let fixture_token = "fixture-private-legacy-token";
+    store
+        .save(
+            &tenant,
+            scope.host,
+            AppId::Claude,
+            ACCOUNT_ID,
+            &AccountCredential::ClaudeToken(fixture_token.into()),
+        )
+        .unwrap();
+    assert_eq!(store.read_metadata(&scope, ACCOUNT_ID), Err(AuthErrorCode::NotFound));
+    store.insert_metadata(&scope, ACCOUNT_ID, &original).unwrap();
+    let stale = AuthAccountMetadata::new("different-external-identity", TimestampMs(2)).unwrap();
+    assert_eq!(store.insert_metadata(&scope, ACCOUNT_ID, &stale), Err(AuthErrorCode::Conflict));
+    assert_eq!(store.read_metadata(&scope, ACCOUNT_ID), Ok(original));
+    assert_eq!(store.read_metadata(&scope, "other-account"), Err(AuthErrorCode::NotFound));
+    assert_eq!(store.list(&tenant, scope.host, AppId::Claude).unwrap(), [ACCOUNT_ID]);
+    let managed = store.metadata.list(&tenant, MANAGED_ACCOUNT_NAMESPACE).unwrap();
+    assert_eq!(managed.len(), 1);
+    assert!(!managed[0].payload_json.contains(fixture_token));
+}
+
+fn account_scope(tenant: &TenantScope) -> AuthAccountScope<'_> {
+    AuthAccountScope {
+        tenant,
+        principal: "principal",
+        host: "host",
+        service: AuthService::ClaudeOfficial,
+    }
+}
+
+fn private_credentials_root() -> tempfile::TempDir {
+    let root = tempfile::tempdir().unwrap();
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::PermissionsExt;
+        std::fs::set_permissions(root.path(), std::fs::Permissions::from_mode(0o700)).unwrap();
+    }
+    root
+}
 
 #[test]
 fn cc_apps_account_launch_isolation_database_owner_reopen_and_cross_scope_refusal() {

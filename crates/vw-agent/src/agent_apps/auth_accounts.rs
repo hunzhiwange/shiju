@@ -1,5 +1,7 @@
 //! Official account owner: metadata in shared tenant storage, secrets in private host files.
 use crate::{gateway::settings_store::GatewaySettingsStore, global_database::GlobalDatabase};
+use serde::{Deserialize, Serialize};
+use sha2::{Digest, Sha256};
 use std::path::{Path, PathBuf};
 use vw_agent_apps::{
     apps::launch::{
@@ -12,9 +14,47 @@ use vw_agent_apps::{
     },
 };
 use vw_api_types::{
+    TimestampMs,
     agent_apps::{AppId, AppInstallation, LaunchRequest},
+    agent_apps_auth::{AuthErrorCode, AuthService},
     id::TenantScope,
 };
+
+// Launch-only rows lack a principal and are never read as managed accounts.
+const MANAGED_ACCOUNT_NAMESPACE: &str = "agent_apps.auth_accounts.v2";
+
+/// Ownership resolved by the caller from trusted tenant membership and host policy.
+/// Construct only after authorizing the selected service and execution host.
+pub struct AuthAccountScope<'a> {
+    pub tenant: &'a TenantScope,
+    pub principal: &'a str,
+    pub host: &'a str,
+    pub service: AuthService,
+}
+
+/// Persisted account identity from a verified upstream login, without credential material.
+#[derive(Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct AuthAccountMetadata {
+    pub external_identity_sha256: [u8; 32],
+    pub authenticated_at: TimestampMs,
+}
+
+impl AuthAccountMetadata {
+    /// Hash the service's verified, canonical identity, including issuer or region if applicable.
+    pub fn new(
+        external_identity: &str,
+        authenticated_at: TimestampMs,
+    ) -> Result<Self, AuthErrorCode> {
+        if external_identity.trim().is_empty() || external_identity.chars().any(char::is_control) {
+            return Err(AuthErrorCode::InvalidInput);
+        }
+        Ok(Self {
+            external_identity_sha256: Sha256::digest(external_identity).into(),
+            authenticated_at,
+        })
+    }
+}
 
 /// Internal authorized-host service. Not a client-selected directory or account discovery API.
 pub struct AuthAccountStore {
@@ -54,6 +94,56 @@ impl AuthAccountStore {
             credentials: CredentialFileStore::new(credential_root)?,
         })
     }
+    /// Publish metadata after the authorized login verifies the service identity.
+    pub fn insert_metadata(
+        &self,
+        scope: &AuthAccountScope<'_>,
+        account_id: &str,
+        metadata: &AuthAccountMetadata,
+    ) -> Result<(), AuthErrorCode> {
+        let key = Self::managed_key(scope, account_id)?;
+        let payload =
+            serde_json::to_string(metadata).map_err(|_| AuthErrorCode::StorageUnavailable)?;
+        let inserted = self
+            .metadata
+            .insert_if_absent(scope.tenant, MANAGED_ACCOUNT_NAMESPACE, &key, &payload)
+            .map_err(|_| AuthErrorCode::StorageUnavailable)?;
+        if !inserted {
+            return Err(AuthErrorCode::Conflict);
+        }
+        Ok(())
+    }
+
+    /// Read a managed account in the authorized scope.
+    pub fn read_metadata(
+        &self,
+        scope: &AuthAccountScope<'_>,
+        account_id: &str,
+    ) -> Result<AuthAccountMetadata, AuthErrorCode> {
+        let key = Self::managed_key(scope, account_id)?;
+        let payload = self
+            .metadata
+            .get(scope.tenant, MANAGED_ACCOUNT_NAMESPACE, &key)
+            .map_err(|_| AuthErrorCode::StorageUnavailable)?
+            .ok_or(AuthErrorCode::NotFound)?;
+        serde_json::from_str(&payload).map_err(|_| AuthErrorCode::StorageUnavailable)
+    }
+
+    fn managed_key(
+        scope: &AuthAccountScope<'_>,
+        account_id: &str,
+    ) -> Result<String, AuthErrorCode> {
+        if scope.principal.trim().is_empty() || scope.principal.chars().any(char::is_control) {
+            return Err(AuthErrorCode::InvalidInput);
+        }
+        for value in [scope.host, account_id] {
+            vw_agent_apps::providers::validate_identity(value)
+                .map_err(|_| AuthErrorCode::InvalidInput)?;
+        }
+        serde_json::to_string(&(scope.principal, scope.host, scope.service, account_id))
+            .map_err(|_| AuthErrorCode::InvalidInput)
+    }
+
     fn key(host: &str, app: AppId, account_id: &str) -> Result<String, String> {
         for value in [host, account_id] {
             vw_agent_apps::providers::validate_identity(value)
@@ -253,7 +343,6 @@ impl AuthAccountStore {
         material: &vw_agent_apps::providers::claude_login::LoginMaterial,
         keychain: &dyn vw_agent_apps::auth::claude_keychain::ClaudeKeychain,
     ) -> Result<(), vw_agent_apps::providers::live::write_guard::WriteError> {
-        use sha2::{Digest, Sha256};
         use vw_agent_apps::providers::{
             claude_login::LoginMaterial, live::write_guard::WriteError,
         };

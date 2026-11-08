@@ -19,34 +19,26 @@ fn field_row<'a>(
     description: &'static str,
     control: impl Into<Element<'a, Message>>,
 ) -> Element<'a, Message> {
-    settings_row_with_flexible_control(label, description, 310.0, control)
+    settings_row_with_flexible_control(label, description, 110.0, control)
 }
 
 fn current_project_worktree(app: &App, i18n: I18n) -> Element<'_, Message> {
-    if let Some(path) = &app.project_path {
+    let control: Element<'_, Message> = if let Some(path) = &app.project_path {
         let checked = app.project_worktree_enabled.get(path).copied().unwrap_or(false);
-        field_row(
-            i18n.__("启用 Worktree"),
-            i18n.__("当前项目新建会话时允许选择/创建工作区。"),
-            checkbox(checked)
-                .label(i18n.__("当前项目新建会话时允许选择/创建工作区"))
-                .on_toggle(move |value| {
-                    Message::Settings(SettingsMessage::ProjectEnableWorktreeToggled(
-                        path.clone(),
-                        value,
-                    ))
-                })
-                .style(settings_checkbox_style),
-        )
+        checkbox(checked)
+            .label(i18n.__("启用"))
+            .on_toggle(move |value| {
+                Message::Settings(SettingsMessage::ProjectEnableWorktreeToggled(
+                    path.clone(),
+                    value,
+                ))
+            })
+            .style(settings_checkbox_style)
+            .into()
     } else {
-        field_row(
-            i18n.__("启用 Worktree"),
-            i18n.__("仅在打开一个项目后才能配置该开关。"),
-            text(i18n.__("请先打开一个项目，再配置该项目的 Worktree 开关"))
-                .size(12)
-                .style(settings_muted_text_style),
-        )
-    }
+        text(i18n.__("请先打开项目")).size(12).style(settings_muted_text_style).into()
+    };
+    field_row(i18n.__("启用 Worktree"), i18n.__("新建会话时可选工作区。"), control)
 }
 
 fn quiet_button_style(theme: &Theme, status: button::Status) -> button::Style {

@@ -506,17 +506,21 @@ async fn ui_refresh_30_preserves_values_and_disabled_states() {
     let size = Size::new(640, 630);
     let mut renderer = renderer().await;
     app.project_path = Some(PATH.into());
-    let mut wide = scene(view(&app), &mut renderer, Size::new(960, 630));
+    let narrow_size = Size::new(420, 630);
+    let mut narrow = scene(view(&app), &mut renderer, narrow_size);
+    let toggle = geometry(&mut narrow, &renderer).label(i18n.__("启用"));
+    assert_fits(toggle, narrow_size);
+    assert!(toggle.height < 22.0);
     assert!(matches!(
-        label_click(&mut wide, &mut renderer, i18n.__("当前项目新建会话时允许选择/创建工作区")).as_slice(),
+        click(&mut narrow, &mut renderer, toggle.center()).as_slice(),
         [Message::Settings(SettingsMessage::ProjectEnableWorktreeToggled(path, true))] if path == PATH
     ));
-    redraw_project(&mut wide, &mut renderer, &Theme::Light, Size::new(960, 630), "projects-960");
-    drop(wide);
+    redraw_project(&mut narrow, &mut renderer, &Theme::Light, narrow_size, "projects-420");
+    drop(narrow);
     app.project_path = None;
     let mut ui = scene(view(&app), &mut renderer, size);
     let positions = geometry(&mut ui, &renderer);
-    let disabled = positions.label(i18n.__("请先打开一个项目，再配置该项目的 Worktree 开关"));
+    let disabled = positions.label(i18n.__("请先打开项目"));
     assert!(click(&mut ui, &mut renderer, disabled.center()).is_empty());
     assert_fits(positions.input(i18n.__("搜索项目")), size);
     let open = positions.label(NAME).center();

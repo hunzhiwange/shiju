@@ -1003,3 +1003,42 @@ POST 返回 202 与排队快照。任务依次进入发现、解析及终态，�
 | `cargo clippy --all-targets --all-features -- -D warnings` | 0 | 全工作区、全目标、全 features 通过。 |
 
 两阶段槽位锁已释放，编译缓存保留。聚焦测试报告既有 macOS 链接器 `__eh_frame` 大小警告。暂存差异通过 `git diff --cached --check`，限于编辑与补全路由、存储接线、授权复用、SDK、独立测试及本记录。
+
+## 任务 39　桌面接入服务目录搜索
+
+2026-11-08，macOS 27.0（26A428），arm64，识矩桌面 0.6.0。批次 38 由 `660057a0c` 交付。
+
+| 来源与接点 | 实际实现 |
+| --- | --- |
+| 固定来源 `ca58c0313360eae7c851fbd7553c1614c7af03e7` 的 `src/config/presetFamilies.ts`、`src/config/presetSearchAliases.ts` | `vw-agent-apps/src/models/preset_search.rs::search_presets` 由 `vw-agent/src/gateway/api/handlers/model_catalog/presets.rs` 提供服务端搜索、分组和顺序。桌面使用 `vw-gateway-client/src/client/model_catalog_api.rs::model_catalog_presets` 逐页读取，按响应顺序显示分组与精确端点。 |
+| `src/components/providers/forms/FetchedModelPicker.tsx` 的模型选择，以及本仓库原 `components/system_settings_providers/catalog.rs` 弹窗 | 原弹窗的全局供应商连接仍使用 resolver 目录。项目作用域的 SDK 入口接在 `vw-desktop/src/app/components/app_providers/list.rs` 的已保存应用供应商行，弹窗由 `components/system_settings_providers/catalog.rs::deployments` 渲染。 |
+| 批量模型身份与保存 | `state/app_providers/model_catalog.rs::CatalogForm` 跟踪项目、租户、主机、应用与选择。`message/settings/providers/catalog_api.rs` 校验活动作用域和请求代次，通过 `model_catalog` 读取目标部署修订和已有条目，通过 `edit_model_catalog` 提交去重后的新增 ID。手工输入沿用同一部署事务，别名和默认模型编辑留给批次 40。 |
+
+### 命令与槽位
+
+| 槽位 | `CARGO_TARGET_DIR` | 阶段 |
+| --- | --- | --- |
+| 1 | `/Users/xiangmin/worker/code/shiju/target/rust-slot-1` | 红灯、首次格式化及编译尝试、网关构建、隔离网关和旧版桌面 |
+| 2 | `/Users/xiangmin/worker/code/shiju/target/rust-slot-2` | 绿灯、首次和最终 macOS 窗口 |
+| 3 | `/Users/xiangmin/worker/code/shiju/target/rust-slot-3` | Clippy、最终格式化及聚焦复验 |
+
+| 命令 | 退出码 | 有效证据 |
+| --- | ---: | --- |
+| `cargo test -p vw-desktop catalog_desktop_search_ -- --nocapture`（红灯） | 101 | 4 项触发断言，8862 项过滤。指定用例收到旧主机响应时返回已应用，预期拒绝且保留当前条目和选择。 |
+| `cargo fmt --all` | 0 | 在源代码快照中格式化，只回写本项 Rust 文件。首轮编译发现两处本项导入错误，修复后重跑。 |
+| `cargo test -p vw-desktop catalog_desktop_search_ -- --nocapture`（绿灯、最终复验） | 0、0 | 每轮 4 项通过，分别过滤 8863、8864 项。覆盖旧主机响应、同名不同端点与原始模型 ID、跨应用响应及目录为空和无匹配的区别。 |
+| `cargo clippy --all-targets --all-features -- -D warnings`（初次、最终复验） | 0、0 | 全工作区全目标和全 features。 |
+| `cargo build -p vw-cli --bin shiju` | 0 | 构建用于隔离验收的真实 Gateway。 |
+| `cargo run -p vw-desktop --bin shi-ju`（两轮） | 0、143 | 临时 app bundle 启动正常。首轮从窗口退出，最终窗口完成复验后由验收脚本发送 SIGTERM。 |
+
+链接时出现既有 macOS `__eh_frame` 大小警告。暂存差异通过 `git diff --cached --check`。各阶段的槽位锁已释放，缓存保留。
+
+### macOS 窗口与网关回读日志
+
+隔离配置、授权和 SQLite 均位于临时目录。打开已注册的临时 Git 项目，经「设置 → 应用列表 → Codex → 供应商」进入。旧缓存构建可打开隔离供应商卡片，卡片无目录入口。当前构建实际打开服务目录弹窗，确认浅色和暗色中中文查询、端点、复选框和提示均可读，滚动仅移动内容，标题、搜索框和底部操作保持固定。复用 4px 滚动条及左右 7px 留白。最终两种主题均复验了不透明弹窗。超长搜索由服务返回 HTTP 400，窗口展示错误与重试操作。不存在的中文搜索显示「未找到匹配的预设」。
+
+| 操作 | 观测及回读 |
+| --- | --- |
+| 中文别名「月之暗面」 | 服务返回 Kimi、Kimi Global、Kimi For Coding、Kimi For Coding Global 共 4 个部署，窗口分别显示国内和海外地址。 |
+| 浅色窗口勾选国内端点的两条模型并保存 | Toast 显示「已添加 2 个模型」。相同项目、主机、应用和供应商的 `GET /v1/model-catalog` 返回 `https://api.moonshot.cn/v1` 的 `kimi-k3`、`kimi-k2.7-code`，`https://api.moonshot.ai/v1` 返回空列表。 |
+| 暗色窗口无匹配时手工添加 | Toast 显示「已添加 1 个模型」。回读在 `https://fixture.example.test/v1` 保留 `Fixture/Manual[1m]` 的大小写、命名空间和后缀。 |

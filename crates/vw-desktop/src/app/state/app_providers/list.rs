@@ -33,6 +33,7 @@ pub(crate) struct ListState {
     pub paths: Option<super::paths::Form>,
     pub preview: Option<super::preview::Form>,
     pub endpoints: Option<super::endpoints::Form>,
+    pub model_catalog: Option<super::model_catalog::CatalogForm>,
     pub desktop: Option<super::desktop::Form>,
     pub new_draft:
         Option<vw_gateway_client::vw_api_types::app_providers::create::AppProviderCreate>,
@@ -58,6 +59,7 @@ impl ListState {
         self.form = None;
         self.desktop = None;
         self.endpoints = None;
+        self.model_catalog = None;
         self.icons = None;
         self.universal = None;
         self.snippets = None;

@@ -1,5 +1,6 @@
 //! 处理模型提供商设置子模块的目录、认证和连接状态。
 
+pub(crate) mod catalog_api;
 mod helpers;
 pub(crate) mod managed_shiju;
 mod models;
@@ -23,3 +24,6 @@ pub fn update(app: &mut App, message: SettingsMessage) -> Task<Message> {
 
 #[cfg(test)]
 mod tests;
+
+#[cfg(test)]
+mod catalog_api_tests;

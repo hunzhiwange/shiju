@@ -46,6 +46,7 @@ pub enum ListMessage {
     Preview(super::preview::Event),
     Env(super::env::Event),
     Mode(super::mode::Event),
+    ModelCatalog(crate::app::message::settings::providers::catalog_api::Event),
     Paths(super::paths::Event),
     Open(AppId),
     Close,
@@ -169,6 +170,9 @@ pub(crate) fn update(app: &mut App, value: ListMessage) -> Task<Message> {
         ListMessage::Universal(event) => return super::universal::update(app, event),
         ListMessage::Env(event) => return super::env::update(app, event),
         ListMessage::Mode(event) => return super::mode::update(app, event),
+        ListMessage::ModelCatalog(event) => {
+            return crate::app::message::settings::providers::catalog_api::update(app, event);
+        }
         ListMessage::Paths(event) => return super::paths::update(app, event),
         ListMessage::Preview(event) => return super::preview::update(app, event),
         ListMessage::Snippets(event) => return super::snippets::update(app, event),

@@ -211,7 +211,16 @@ pub(crate) fn overlay<'a>(
                     )),
                     enabled,
                 ))
-                .push(action("排序与备注", ListMessage::Edit(id.clone()), enabled));
+                .push(action("排序与备注", ListMessage::Edit(id.clone()), enabled))
+                .push(action(
+                    "模型目录",
+                    ListMessage::ModelCatalog(
+                        crate::app::message::settings::providers::catalog_api::Event::Open(
+                            id.clone(),
+                        ),
+                    ),
+                    enabled,
+                ));
             let mut details = column![
                 text(&entry.provider.name).size(17),
                 row![
@@ -281,6 +290,13 @@ pub(crate) fn overlay<'a>(
         .wrap();
     let card = settings_modal_layout(header, body, Some(actions.into())).width(800).height(650);
     let list = settings_modal_overlay(Some(base), close, container(card).padding(12));
+    if let Some(form) = &state.model_catalog {
+        return crate::app::components::system_settings_providers::catalog::deployments(
+            form,
+            state.generation,
+            list,
+        );
+    }
     if let Some(form) = &state.paths {
         return super::paths::overlay(form, list);
     }

@@ -202,6 +202,9 @@ pub fn prepare_account_launch(
         AccountCredential::XaiOauth(_) => {
             return Err("xAI authorization has no launch application".into());
         }
+        AccountCredential::KimiOauth(_) => {
+            return Err("Kimi authorization requires a reviewed native account adapter".into());
+        }
         AccountCredential::ClaudeToken(token) => {
             command
                 .env("CLAUDE_CONFIG_DIR", private.path())

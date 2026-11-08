@@ -1056,3 +1056,116 @@ fn auth6_xai_device_store_postgres() {
     assert_xai_device_commit(|| fixture.reopen().unwrap());
     fixture.cleanup().unwrap();
 }
+
+#[cfg(unix)]
+fn assert_kimi_device_commit(open: impl Fn() -> GlobalDatabase) {
+    let root = private_credentials_root();
+    let tenant = TenantScope::new("platform", "company").unwrap();
+    let scope = AuthAccountScope {
+        tenant: &tenant,
+        principal: "oidc:owner",
+        host: "mac",
+        service: AuthService::KimiOauth,
+    };
+    let store = AuthAccountStore::new(open(), root.path()).unwrap();
+    let device_id = uuid::Uuid::new_v4().to_string();
+    let account = AuthAccount {
+        account_id: ACCOUNT_ID.into(),
+        service: scope.service,
+        label: "Kimi User".into(),
+        credential_state: vw_api_types::agent_apps_auth::AuthCredentialState::Ready,
+        is_default: false,
+        authenticated_at: Some(TimestampMs(100)),
+        login_expires_at: None,
+        github_domain: None,
+        region: Some(AuthRegion::Global),
+    };
+    let credential = |token: &str| KimiCredential {
+        access_token: token.into(),
+        refresh_token: "private-kimi-refresh".into(),
+        expires_at: TimestampMs(3_600_100),
+        region: AuthRegion::Global,
+        device_id: device_id.clone(),
+    };
+    assert_eq!(
+        store.store_kimi_device_account(
+            scope,
+            Some(ACCOUNT_ID),
+            &account,
+            "global:42",
+            credential("private-access"),
+        ),
+        Err(AuthErrorCode::NotFound)
+    );
+    store
+        .store_kimi_device_account(scope, None, &account, "global:42", credential("private-access"))
+        .unwrap();
+    drop(store);
+
+    let store = AuthAccountStore::new(open(), root.path()).unwrap();
+    let metadata = store.read_metadata(&scope, ACCOUNT_ID).unwrap();
+    assert_eq!(metadata.region, Some(AuthRegion::Global));
+    assert_eq!(metadata.label.as_deref(), Some("Kimi User"));
+    let json = serde_json::to_string(&metadata).unwrap();
+    for secret in ["private-access", "private-kimi-refresh", &device_id, "global:42"] {
+        assert!(!json.contains(secret));
+    }
+    let target = store.kimi_login_target(scope, ACCOUNT_ID).unwrap();
+    assert_eq!(target.region, AuthRegion::Global);
+    assert_eq!(target.device_id, device_id);
+    assert_eq!(
+        store
+            .kimi_login_target(AuthAccountScope { principal: "oidc:other", ..scope }, ACCOUNT_ID)
+            .err(),
+        Some(AuthErrorCode::NotFound)
+    );
+    let later = AuthAccount { authenticated_at: Some(TimestampMs(200)), ..account.clone() };
+    assert_eq!(
+        store.store_kimi_device_account(
+            scope,
+            Some(ACCOUNT_ID),
+            &later,
+            "global:43",
+            credential("foreign")
+        ),
+        Err(AuthErrorCode::IdentityMismatch)
+    );
+    store
+        .store_kimi_device_account(
+            scope,
+            Some(ACCOUNT_ID),
+            &later,
+            "global:42",
+            credential("updated"),
+        )
+        .unwrap();
+    assert_eq!(
+        store.store_kimi_device_account(
+            scope,
+            Some(ACCOUNT_ID),
+            &account,
+            "global:42",
+            credential("stale")
+        ),
+        Err(AuthErrorCode::Conflict)
+    );
+    let saved = store.credentials.lease_kimi(scope, ACCOUNT_ID, false).unwrap().read().unwrap();
+    assert!(
+        matches!(saved, AccountCredential::KimiOauth(saved) if saved.access_token == "updated")
+    );
+}
+
+#[cfg(unix)]
+#[test]
+fn auth6_kimi_device_store_sqlite() {
+    let home = tempfile::tempdir().unwrap();
+    assert_kimi_device_commit(|| GlobalDatabase::for_home(home.path()).unwrap());
+}
+
+#[cfg(unix)]
+#[test]
+fn auth6_kimi_device_store_postgres() {
+    let fixture = PostgresTestDatabase::from_environment().unwrap();
+    assert_kimi_device_commit(|| fixture.reopen().unwrap());
+    fixture.cleanup().unwrap();
+}

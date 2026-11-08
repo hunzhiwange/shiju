@@ -92,7 +92,10 @@ impl CredentialLease {
     pub fn remove_unpublished_oauth(&self) -> Result<(), String> {
         if !matches!(
             self.kind,
-            CredentialKind::Copilot | CredentialKind::Xai | CredentialKind::App(AppId::Codex)
+            CredentialKind::Copilot
+                | CredentialKind::Xai
+                | CredentialKind::Kimi
+                | CredentialKind::App(AppId::Codex)
         ) {
             return Err("official credential service mismatch".into());
         }

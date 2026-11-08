@@ -4,7 +4,12 @@ use base64::{Engine as _, engine::general_purpose::URL_SAFE_NO_PAD};
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
 use std::path::{Path, PathBuf};
-use vw_api_types::{TimestampMs, agent_apps::AppId, agent_apps_auth::AuthService, id::TenantScope};
+use vw_api_types::{
+    TimestampMs,
+    agent_apps::AppId,
+    agent_apps_auth::{AuthRegion, AuthService},
+    id::TenantScope,
+};
 
 #[cfg(unix)]
 mod host;
@@ -42,12 +47,24 @@ pub struct XaiCredential {
     pub requires_reauth: bool,
 }
 
+/// Host-private Kimi tokens and the device identity used to obtain them.
+#[derive(Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct KimiCredential {
+    pub access_token: String,
+    pub refresh_token: String,
+    pub expires_at: TimestampMs,
+    pub region: AuthRegion,
+    pub device_id: String,
+}
+
 pub enum AccountCredential {
     ClaudeToken(String),
     ClaudeDirectory(ClaudeAccountDirectory),
     CodexAuth(serde_json::Value),
     CopilotToken(String),
     XaiOauth(XaiCredential),
+    KimiOauth(KimiCredential),
 }
 
 #[cfg(unix)]
@@ -56,6 +73,7 @@ pub(super) enum CredentialKind {
     App(AppId),
     Copilot,
     Xai,
+    Kimi,
 }
 impl AccountCredential {
     pub fn validate(&self, app: AppId) -> Result<(), String> {
@@ -135,6 +153,10 @@ impl AccountCredential {
             Self::ClaudeDirectory(_) => DIRECTORY_MARKER.to_vec(),
             Self::CodexAuth(v) => v.to_string().into_bytes(),
             Self::XaiOauth(tokens) => serde_json::to_vec(tokens)
+                .ok()
+                .filter(|bytes| bytes.len() <= MAX_BYTES)
+                .ok_or(INVALID_MATERIAL)?,
+            Self::KimiOauth(tokens) => serde_json::to_vec(tokens)
                 .ok()
                 .filter(|bytes| bytes.len() <= MAX_BYTES)
                 .ok_or(INVALID_MATERIAL)?,
@@ -339,6 +361,30 @@ impl CredentialFileStore {
         #[cfg(unix)]
         {
             CredentialLease::new(owner.scoped_path(path), CredentialKind::Xai, create)
+        }
+        #[cfg(not(unix))]
+        {
+            let _ = (path, create);
+            Err(UNSUPPORTED.into())
+        }
+    }
+
+    /// Lease Kimi OAuth credentials in the authenticated execution-host scope.
+    pub fn lease_kimi(
+        &self,
+        scope: AuthAccountScope<'_>,
+        id: &str,
+        create: bool,
+    ) -> Result<CredentialLease, String> {
+        if scope.service != AuthService::KimiOauth {
+            return Err("official credential service mismatch".into());
+        }
+        validate_account_location(scope.host, id)?;
+        let owner = self.for_owner(scope.principal)?;
+        let path = owner.service_location(scope.tenant, scope.host, "kimi_oauth", id)?;
+        #[cfg(unix)]
+        {
+            CredentialLease::new(owner.scoped_path(path), CredentialKind::Kimi, create)
         }
         #[cfg(not(unix))]
         {

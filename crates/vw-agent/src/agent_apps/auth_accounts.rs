@@ -11,8 +11,9 @@ use vw_agent_apps::auth::{
     codex_refresh::CodexRefresh,
     copilot::{CopilotAuth, CopilotDeviceStart},
     copilot_token::CopilotSession,
-    credential_file::XaiCredential,
+    credential_file::{KimiCredential, XaiCredential},
     flow::AuthFlows,
+    kimi::{KimiDeviceAuth, KimiDeviceStart, KimiLoginTarget},
     xai::{XaiDeviceAuth, XaiDeviceStart},
     xai_refresh::XaiRefresh,
 };
@@ -27,11 +28,11 @@ use vw_agent_apps::{
     },
 };
 #[cfg(not(target_arch = "wasm32"))]
-use vw_api_types::agent_apps_auth::{AuthAccount, AuthFlow, AuthService};
+use vw_api_types::agent_apps_auth::{AuthAccount, AuthFlow, AuthService, AuthStartRequest};
 use vw_api_types::{
     TimestampMs,
     agent_apps::{AppId, AppInstallation, LaunchRequest},
-    agent_apps_auth::AuthErrorCode,
+    agent_apps_auth::{AuthErrorCode, AuthRegion},
     id::TenantScope,
 };
 
@@ -46,6 +47,8 @@ pub struct AuthAccountMetadata {
     pub authenticated_at: TimestampMs,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub github_domain: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub region: Option<AuthRegion>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub label: Option<String>,
 }
@@ -63,6 +66,7 @@ impl AuthAccountMetadata {
             external_identity_sha256: Sha256::digest(external_identity).into(),
             authenticated_at,
             github_domain: None,
+            region: None,
             label: None,
         })
     }
@@ -469,6 +473,97 @@ impl AuthAccountStore {
             .await
     }
 
+    /// Resolve a targeted re-login only from the same authorized host account.
+    #[cfg(not(target_arch = "wasm32"))]
+    pub async fn start_kimi_device(
+        &self,
+        adapter: &KimiDeviceAuth,
+        flows: &AuthFlows,
+        scope: AuthAccountScope<'_>,
+        request: AuthStartRequest,
+    ) -> Result<KimiDeviceStart, AuthErrorCode> {
+        adapter
+            .start(flows, scope, request, |id| {
+                crate::global_database::run_sync_database(|| Ok(self.kimi_login_target(scope, id)))
+                    .map_err(|_| AuthErrorCode::StorageUnavailable)?
+            })
+            .await
+    }
+
+    #[cfg(not(target_arch = "wasm32"))]
+    fn kimi_login_target(
+        &self,
+        scope: AuthAccountScope<'_>,
+        id: &str,
+    ) -> Result<KimiLoginTarget, AuthErrorCode> {
+        let metadata = self.read_metadata(&scope, id)?;
+        let lease = self
+            .credentials
+            .lease_kimi(scope, id, false)
+            .map_err(|_| AuthErrorCode::StorageUnavailable)?;
+        let AccountCredential::KimiOauth(saved) =
+            lease.read().map_err(|_| AuthErrorCode::StorageUnavailable)?
+        else {
+            return Err(AuthErrorCode::StorageUnavailable);
+        };
+        if metadata.region != Some(saved.region) {
+            return Err(AuthErrorCode::IdentityMismatch);
+        }
+        Ok(KimiLoginTarget { region: saved.region, device_id: saved.device_id })
+    }
+
+    /// Advance the device exchange and publish the authorized account and private tokens.
+    #[cfg(not(target_arch = "wasm32"))]
+    pub async fn poll_kimi_device(
+        &self,
+        adapter: &KimiDeviceAuth,
+        flows: &AuthFlows,
+        scope: AuthAccountScope<'_>,
+        started: &KimiDeviceStart,
+    ) -> Result<AuthFlow, AuthErrorCode> {
+        adapter
+            .poll(flows, scope, started, |bound, target, account, identity, credential| {
+                crate::global_database::run_sync_database(|| {
+                    Ok(self.store_kimi_device_account(bound, target, account, identity, credential))
+                })
+                .map_err(|_| AuthErrorCode::StorageUnavailable)?
+            })
+            .await
+    }
+
+    #[cfg(not(target_arch = "wasm32"))]
+    fn store_kimi_device_account(
+        &self,
+        scope: AuthAccountScope<'_>,
+        target: Option<&str>,
+        account: &AuthAccount,
+        identity: &str,
+        credential: KimiCredential,
+    ) -> Result<(), AuthErrorCode> {
+        let authenticated_at = account.authenticated_at.ok_or(AuthErrorCode::InvalidInput)?;
+        if account.region != Some(credential.region)
+            || target.is_some_and(|target| target != account.account_id)
+        {
+            return Err(AuthErrorCode::IdentityMismatch);
+        }
+        let mut metadata = AuthAccountMetadata::new(identity, authenticated_at)?;
+        metadata.label = Some(account.label.clone());
+        metadata.region = account.region;
+        let id = &account.account_id;
+        let lease = self
+            .credentials
+            .lease_kimi(scope, id, true)
+            .map_err(|_| AuthErrorCode::StorageUnavailable)?;
+        self.store_device_credential(
+            &scope,
+            id,
+            &metadata,
+            &lease,
+            &AccountCredential::KimiOauth(credential),
+            target.is_some(),
+        )
+    }
+
     #[cfg(not(target_arch = "wasm32"))]
     fn store_xai_device_account(
         &self,
@@ -481,12 +576,31 @@ impl AuthAccountStore {
         let mut metadata = AuthAccountMetadata::new(identity, authenticated_at)?;
         metadata.label = Some(account.label.clone());
         let id = &account.account_id;
-        let key = Self::managed_key(&scope, id)?;
         let lease = self
             .credentials
             .lease_xai(scope, id, true)
             .map_err(|_| AuthErrorCode::StorageUnavailable)?;
-        let credential = AccountCredential::XaiOauth(credential);
+        self.store_device_credential(
+            &scope,
+            id,
+            &metadata,
+            &lease,
+            &AccountCredential::XaiOauth(credential),
+            false,
+        )
+    }
+
+    #[cfg(not(target_arch = "wasm32"))]
+    fn store_device_credential(
+        &self,
+        scope: &AuthAccountScope<'_>,
+        id: &str,
+        metadata: &AuthAccountMetadata,
+        lease: &CredentialLease,
+        credential: &AccountCredential,
+        require_existing: bool,
+    ) -> Result<(), AuthErrorCode> {
+        let key = Self::managed_key(scope, id)?;
         if let Some(previous) = self
             .metadata
             .get(scope.tenant, MANAGED_ACCOUNT_NAMESPACE, &key)
@@ -494,24 +608,29 @@ impl AuthAccountStore {
         {
             let saved: AuthAccountMetadata =
                 serde_json::from_str(&previous).map_err(|_| AuthErrorCode::StorageUnavailable)?;
-            if saved.external_identity_sha256 != metadata.external_identity_sha256 {
+            if saved.external_identity_sha256 != metadata.external_identity_sha256
+                || saved.region != metadata.region
+            {
                 return Err(AuthErrorCode::IdentityMismatch);
             }
-            if saved.authenticated_at > authenticated_at {
+            if saved.authenticated_at > metadata.authenticated_at {
                 return Err(AuthErrorCode::Conflict);
             }
             let updated =
-                serde_json::to_string(&metadata).map_err(|_| AuthErrorCode::StorageUnavailable)?;
+                serde_json::to_string(metadata).map_err(|_| AuthErrorCode::StorageUnavailable)?;
             return self.replace_oauth_credential(
                 scope.tenant,
                 &key,
                 &previous,
                 &updated,
-                &lease,
-                &credential,
+                lease,
+                credential,
             );
         }
-        self.publish_oauth_credential(&scope, id, &metadata, &lease, &credential)
+        if require_existing {
+            return Err(AuthErrorCode::NotFound);
+        }
+        self.publish_oauth_credential(scope, id, metadata, lease, credential)
     }
 
     #[cfg(not(target_arch = "wasm32"))]

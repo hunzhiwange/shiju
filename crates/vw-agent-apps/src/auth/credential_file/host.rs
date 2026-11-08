@@ -243,6 +243,9 @@ fn decode(
         CredentialKind::Xai => AccountCredential::XaiOauth(
             serde_json::from_slice(&bytes).map_err(|_| INVALID_MATERIAL)?,
         ),
+        CredentialKind::Kimi => AccountCredential::KimiOauth(
+            serde_json::from_slice(&bytes).map_err(|_| INVALID_MATERIAL)?,
+        ),
         _ => return Err("official account service is not implemented".into()),
     };
     validate_kind(kind, &credential)?;
@@ -267,7 +270,18 @@ fn validate_kind(kind: CredentialKind, credential: &AccountCredential) -> Result
         {
             Ok(())
         }
-        (CredentialKind::Copilot | CredentialKind::Xai, _) => Err(INVALID_MATERIAL.into()),
+        (CredentialKind::Kimi, AccountCredential::KimiOauth(tokens))
+            if tokens.expires_at.0 > 0
+                && uuid::Uuid::parse_str(&tokens.device_id).is_ok()
+                && [&tokens.access_token, &tokens.refresh_token].into_iter().all(|token| {
+                    !token.is_empty() && token.bytes().all(|byte| byte.is_ascii_graphic())
+                }) =>
+        {
+            Ok(())
+        }
+        (CredentialKind::Copilot | CredentialKind::Xai | CredentialKind::Kimi, _) => {
+            Err(INVALID_MATERIAL.into())
+        }
     }
 }
 
@@ -311,6 +325,8 @@ pub(in crate::auth) fn write_to(
             | (AccountCredential::CopilotToken(_), AccountCredential::CopilotToken(_))
             | (AccountCredential::XaiOauth(_), AccountCredential::XaiOauth(_))
             | (AccountCredential::ClaudeDirectory(_), AccountCredential::ClaudeDirectory(_)) => {}
+            (AccountCredential::KimiOauth(before), AccountCredential::KimiOauth(after))
+                if before.region == after.region => {}
             (AccountCredential::CodexAuth(before), AccountCredential::CodexAuth(after))
                 if before["tokens"]["account_id"] == after["tokens"]["account_id"] => {}
             _ => return Err("official account identity or representation changed".into()),

@@ -4,15 +4,15 @@
 //! 注释聚焦调用边界、返回值和错误传播方式，便于后续维护设置页与工具栏行为时快速定位职责。
 
 use crate::app::components::system_settings_common::{
-    SETTINGS_CONTROL_PADDING, SETTINGS_CONTROL_TEXT_SIZE, danger_action_btn_style,
-    primary_action_btn_style, rounded_action_btn_style, settings_error_banner, settings_group_card,
-    settings_group_heading, settings_muted_text_style, settings_panel, settings_row,
-    settings_section_content, settings_success_banner, settings_text_input_style,
+    danger_action_btn_style, primary_action_btn_style, rounded_action_btn_style,
+    settings_error_banner, settings_group_card, settings_group_heading, settings_muted_text_style,
+    settings_panel, settings_row, settings_section_content, settings_success_banner,
+    settings_text_input,
 };
 use crate::app::i18n::settings_models::connection_text::text as connection_text;
 use crate::app::message::settings::EmbeddingRoutesMessage;
 use crate::app::{App, Message, message};
-use iced::widget::{button, column, container, row, text, text_input};
+use iced::widget::{button, column, container, row, text};
 use iced::{Alignment, Element, Length};
 
 fn field_row<'a>(
@@ -26,12 +26,7 @@ fn field_row<'a>(
         label,
         description,
         220.0,
-        text_input(placeholder, value)
-            .on_input(on_input)
-            .padding(SETTINGS_CONTROL_PADDING)
-            .size(SETTINGS_CONTROL_TEXT_SIZE)
-            .style(settings_text_input_style)
-            .width(Length::Fill),
+        settings_text_input(placeholder, value).on_input(on_input).width(Length::Fill),
     )
 }
 
@@ -46,13 +41,7 @@ fn secure_field_row<'a>(
         label,
         description,
         220.0,
-        text_input(placeholder, value)
-            .secure(true)
-            .on_input(on_input)
-            .padding(SETTINGS_CONTROL_PADDING)
-            .size(SETTINGS_CONTROL_TEXT_SIZE)
-            .style(settings_text_input_style)
-            .width(Length::Fill),
+        settings_text_input(placeholder, value).secure(true).on_input(on_input).width(Length::Fill),
     )
 }
 

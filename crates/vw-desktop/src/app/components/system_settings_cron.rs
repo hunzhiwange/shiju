@@ -11,16 +11,14 @@ use crate::app::components::system_settings_common::{
     settings_modal_card_style, settings_modal_header, settings_modal_layout,
     settings_modal_overlay, settings_muted_text_style, settings_page_heading, settings_panel,
     settings_row_with_flexible_control, settings_segment_button_style, settings_select,
-    settings_success_banner, settings_tab_button, settings_tab_row, settings_text_editor_style,
-    settings_text_input_style, settings_value_badge,
+    settings_success_banner, settings_tab_button, settings_tab_row, settings_text_editor,
+    settings_text_editor_style, settings_text_input, settings_value_badge,
 };
 use crate::app::components::system_settings_search::SettingsTabDescriptor;
 use crate::app::state::{CronAddJobType, CronAddScheduleKind, CronSettingsTab};
 use crate::app::{App, Message, message};
 use chrono::{DateTime, Local};
-use iced::widget::{
-    button, checkbox, column, container, row, slider, text, text_editor, text_input,
-};
+use iced::widget::{button, checkbox, column, container, row, slider, text, text_editor};
 use iced::{Alignment, Background, Element, Length, Theme};
 use vw_gateway_client::CronJobDto;
 
@@ -143,12 +141,7 @@ fn text_field<'a>(
     value: &'a str,
     on_input: impl Fn(String) -> Message + 'a,
 ) -> Element<'a, Message> {
-    text_input(placeholder, value)
-        .on_input(on_input)
-        .size(SETTINGS_CONTROL_TEXT_SIZE)
-        .padding(SETTINGS_CONTROL_PADDING)
-        .style(settings_text_input_style)
-        .into()
+    settings_text_input(placeholder, value).on_input(on_input).into()
 }
 
 fn with_selected_option(mut options: Vec<String>, selected: &str) -> Vec<String> {
@@ -630,7 +623,7 @@ fn edit_form(app: &App) -> Element<'_, Message> {
             .push(field_row(
                 crate::app::i18n::I18n::new(app.desktop_locale).__("Agent 提示词"),
                 crate::app::i18n::I18n::new(app.desktop_locale).__("创建 Agent 类型定时任务。"),
-                text_editor(&draft.prompt_editor)
+                settings_text_editor(&draft.prompt_editor)
                     .placeholder(
                         crate::app::i18n::I18n::new(app.desktop_locale).__("要让 Agent 执行的任务"),
                     )
@@ -639,10 +632,7 @@ fn edit_form(app: &App) -> Element<'_, Message> {
                             action,
                         ))
                     })
-                    .size(SETTINGS_CONTROL_TEXT_SIZE)
-                    .padding(SETTINGS_CONTROL_PADDING)
-                    .height(Length::Fixed(140.0))
-                    .style(settings_text_editor_style),
+                    .height(Length::Fixed(140.0)),
             ))
             .push(field_row(
                 crate::app::i18n::I18n::new(app.desktop_locale).__("模型提供商"),
@@ -1125,7 +1115,7 @@ fn add_tab(app: &App) -> Element<'_, Message> {
             .push(field_row(
                 crate::app::i18n::I18n::new(app.desktop_locale).__("Agent 提示词"),
                 crate::app::i18n::I18n::new(app.desktop_locale).__("创建 Agent 类型定时任务。"),
-                text_editor(&draft.prompt_editor)
+                settings_text_editor(&draft.prompt_editor)
                     .placeholder(
                         crate::app::i18n::I18n::new(app.desktop_locale).__("要让 Agent 执行的任务"),
                     )
@@ -1134,10 +1124,7 @@ fn add_tab(app: &App) -> Element<'_, Message> {
                             action,
                         ))
                     })
-                    .size(SETTINGS_CONTROL_TEXT_SIZE)
-                    .padding(SETTINGS_CONTROL_PADDING)
-                    .height(Length::Fixed(140.0))
-                    .style(settings_text_editor_style),
+                    .height(Length::Fixed(140.0)),
             ))
             .push(field_row(
                 crate::app::i18n::I18n::new(app.desktop_locale).__("模型提供商"),

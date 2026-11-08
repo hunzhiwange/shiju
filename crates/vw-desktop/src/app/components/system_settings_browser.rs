@@ -4,14 +4,13 @@
 //! 注释聚焦调用边界、返回值和错误传播方式，便于后续维护设置页与工具栏行为时快速定位职责。
 
 use crate::app::components::system_settings_common::{
-    SETTINGS_CONTROL_PADDING, SETTINGS_CONTROL_TEXT_SIZE, settings_checkbox_style,
-    settings_control_with_hint, settings_divider, settings_group_card, settings_group_heading,
-    settings_page_heading, settings_row_with_flexible_control, settings_select,
-    settings_text_editor_style, settings_text_input_style,
+    settings_checkbox_style, settings_control_with_hint, settings_divider, settings_group_card,
+    settings_group_heading, settings_page_heading, settings_row_with_flexible_control,
+    settings_select, settings_text_editor, settings_text_input,
 };
 use crate::app::message::settings::{BrowserMessage, SettingsMessage};
 use crate::app::{App, Message};
-use iced::widget::{checkbox, column, container, text_editor, text_input};
+use iced::widget::{checkbox, column, container};
 use iced::{Element, Length};
 
 #[derive(Clone, PartialEq)]
@@ -61,12 +60,7 @@ fn text_row<'a>(
     field_row(
         label,
         description,
-        text_input(placeholder, value)
-            .on_input(on_input)
-            .padding(SETTINGS_CONTROL_PADDING)
-            .size(SETTINGS_CONTROL_TEXT_SIZE)
-            .style(settings_text_input_style)
-            .width(Length::Fill),
+        settings_text_input(placeholder, value).on_input(on_input).width(Length::Fill),
     )
 }
 
@@ -126,7 +120,7 @@ pub(super) fn content(app: &App) -> Element<'_, Message> {
         crate::app::i18n::I18n::new(app.desktop_locale).__("允许域名"),
         crate::app::i18n::I18n::new(app.desktop_locale).__("限定浏览器工具可以访问的站点范围。"),
         settings_control_with_hint(
-            text_editor(&s.allowed_domains_editor)
+            settings_text_editor(&s.allowed_domains_editor)
                 .placeholder(
                     crate::app::i18n::I18n::new(app.desktop_locale)
                         .__("每行一个域名，或使用逗号分隔，例: example.com\n*.example.org"),
@@ -136,10 +130,7 @@ pub(super) fn content(app: &App) -> Element<'_, Message> {
                         BrowserMessage::AllowedDomainsEditorAction(action),
                     ))
                 })
-                .padding(SETTINGS_CONTROL_PADDING)
-                .size(SETTINGS_CONTROL_TEXT_SIZE)
-                .height(Length::Fixed(96.0))
-                .style(settings_text_editor_style),
+                .height(Length::Fixed(96.0)),
             crate::app::i18n::I18n::new(app.desktop_locale)
                 .__("默认的 `*` 允许所有公网域名。列表为空时拒绝所有站点。"),
         ),

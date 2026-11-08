@@ -5,15 +5,14 @@
 
 use super::system_settings::SELECT_FOCUS_SCOPE;
 use crate::app::components::system_settings_common::{
-    SETTINGS_CONTROL_PADDING, SETTINGS_CONTROL_TEXT_SIZE, settings_checkbox_style,
-    settings_divider, settings_field_label, settings_group_card, settings_group_heading,
-    settings_muted_text_style, settings_page_heading, settings_row, settings_select,
-    settings_text_input_style,
+    SETTINGS_CONTROL_TEXT_SIZE, settings_checkbox_style, settings_divider, settings_field_label,
+    settings_group_card, settings_group_heading, settings_muted_text_style, settings_page_heading,
+    settings_row, settings_select, settings_text_input,
 };
 use crate::app::i18n::settings_runtime::text as runtime_text;
 use crate::app::message::settings::{RuntimeMessage, SettingsMessage};
 use crate::app::{App, Message};
-use iced::widget::{checkbox, column, container, text, text_input};
+use iced::widget::{checkbox, column, container, text};
 use iced::{Element, Length};
 
 #[derive(Clone, PartialEq)]
@@ -41,12 +40,7 @@ fn text_row<'a>(
         label,
         description,
         CONTROL_WIDTH,
-        text_input(placeholder, value)
-            .on_input(on_input)
-            .padding(SETTINGS_CONTROL_PADDING)
-            .size(SETTINGS_CONTROL_TEXT_SIZE)
-            .style(settings_text_input_style)
-            .width(Length::Fill),
+        settings_text_input(placeholder, value).on_input(on_input).width(Length::Fill),
     )
 }
 
@@ -216,16 +210,13 @@ pub fn view(app: &App) -> Element<'_, Message> {
                         text(runtime_text(locale, "仅放行明确需要挂载的根目录。"))
                             .size(13)
                             .style(settings_muted_text_style),
-                        text_input(
+                        settings_text_input(
                             runtime_text(locale, "逗号或换行分隔路径"),
                             &s.docker_allowed_workspace_roots_input,
                         )
                         .on_input(|value| Message::Settings(SettingsMessage::Runtime(
                             RuntimeMessage::DockerAllowedWorkspaceRootsChanged(value),
                         )))
-                        .padding(SETTINGS_CONTROL_PADDING)
-                        .size(SETTINGS_CONTROL_TEXT_SIZE)
-                        .style(settings_text_input_style)
                         .width(Length::Fill),
                     ]
                     .spacing(6),

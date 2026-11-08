@@ -1,17 +1,16 @@
 //! 系统设置中 ACP 配置页面的界面拼装与交互消息转换。
 
 use crate::app::components::system_settings_common::{
-    SETTINGS_CONTROL_PADDING, SETTINGS_CONTROL_TEXT_SIZE, primary_action_btn_style,
-    rounded_action_btn_style, settings_close_button, settings_error_banner, settings_field_label,
-    settings_group_heading, settings_modal_card_style, settings_modal_header,
-    settings_modal_layout, settings_modal_overlay, settings_muted_text_style,
-    settings_page_heading, settings_panel, settings_section_card, settings_success_banner,
-    settings_text_input_style, settings_value_badge,
+    primary_action_btn_style, rounded_action_btn_style, settings_close_button,
+    settings_error_banner, settings_field_label, settings_group_heading, settings_modal_card_style,
+    settings_modal_header, settings_modal_layout, settings_modal_overlay,
+    settings_muted_text_style, settings_page_heading, settings_panel, settings_section_card,
+    settings_success_banner, settings_text_input, settings_value_badge,
 };
 use crate::app::i18n::I18n;
 use crate::app::message::settings::{AcpMessage, SettingsMessage};
 use crate::app::{App, Message};
-use iced::widget::{Space, button, column, container, row, scrollable, text, text_input};
+use iced::widget::{Space, button, column, container, row, scrollable, text};
 use iced::{Alignment, Element, Length};
 use vw_config_types::config::AcpAgentConfig;
 
@@ -293,17 +292,11 @@ fn new_agent_form(app: &App) -> Element<'_, Message> {
     let state = &app.acp_settings;
     let locale = app.desktop_locale;
     let tr = |label: &'static str| I18n::new(locale).__(label);
-    let mut name = text_input(tr("名称"), &state.new_agent_name_input)
-        .padding(SETTINGS_CONTROL_PADDING)
-        .size(SETTINGS_CONTROL_TEXT_SIZE)
-        .style(settings_text_input_style);
+    let mut name = settings_text_input(tr("名称"), &state.new_agent_name_input);
     if state.editing_agent.is_none() && !state.adding_agent {
         name = name.on_input(|v| acp_message(AcpMessage::NewAgentNameChanged(v)));
     }
-    let command = text_input(tr("启动命令"), &state.new_agent_command_input)
-        .padding(SETTINGS_CONTROL_PADDING)
-        .size(SETTINGS_CONTROL_TEXT_SIZE)
-        .style(settings_text_input_style)
+    let command = settings_text_input(tr("启动命令"), &state.new_agent_command_input)
         .on_input(|v| acp_message(AcpMessage::NewAgentCommandChanged(v)));
     let can_restore = !state.adding_agent
         && state.editing_agent.as_ref().is_some_and(|agent| state.defaults.contains_key(agent));
@@ -313,10 +306,7 @@ fn new_agent_form(app: &App) -> Element<'_, Message> {
     for (i, arg) in state.editor_args.iter().enumerate() {
         arguments = arguments.push(
             row![
-                text_input(tr("参数"), arg)
-                    .padding(SETTINGS_CONTROL_PADDING)
-                    .size(SETTINGS_CONTROL_TEXT_SIZE)
-                    .style(settings_text_input_style)
+                settings_text_input(tr("参数"), arg)
                     .on_input(move |v| acp_message(AcpMessage::ArgumentChanged(i, v))),
                 button(text(tr("删除")).size(13))
                     .padding([8, 12])
@@ -347,16 +337,10 @@ fn new_agent_form(app: &App) -> Element<'_, Message> {
     for (i, (key, value)) in state.editor_env.iter().enumerate() {
         environment = environment.push(
             row![
-                text_input(tr("名称"), key)
-                    .padding(SETTINGS_CONTROL_PADDING)
-                    .size(SETTINGS_CONTROL_TEXT_SIZE)
-                    .style(settings_text_input_style)
+                settings_text_input(tr("名称"), key)
                     .on_input(move |v| acp_message(AcpMessage::EnvironmentChanged(i, true, v))),
-                text_input(tr("值"), value)
+                settings_text_input(tr("值"), value)
                     .secure(true)
-                    .padding(SETTINGS_CONTROL_PADDING)
-                    .size(SETTINGS_CONTROL_TEXT_SIZE)
-                    .style(settings_text_input_style)
                     .on_input(move |v| acp_message(AcpMessage::EnvironmentChanged(i, false, v))),
                 button(text(tr("删除")).size(13))
                     .padding([8, 12])

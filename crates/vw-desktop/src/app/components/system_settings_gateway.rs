@@ -7,14 +7,13 @@ use crate::app::assets::Icon;
 use crate::app::components::number_input::NumberInput;
 use crate::app::components::overlays::BelowOverlay;
 use crate::app::components::system_settings_common::{
-    SETTINGS_CONTROL_PADDING, SETTINGS_CONTROL_TEXT_SIZE, danger_action_btn_style, icon_svg,
-    primary_action_btn_style, rounded_action_btn_style, settings_checkbox_style,
-    settings_close_button, settings_control_with_hint, settings_divider, settings_error_banner,
-    settings_field_label, settings_group_card, settings_group_heading,
+    danger_action_btn_style, icon_svg, primary_action_btn_style, rounded_action_btn_style,
+    settings_checkbox_style, settings_close_button, settings_control_with_hint, settings_divider,
+    settings_error_banner, settings_field_label, settings_group_card, settings_group_heading,
     settings_help_button_with_locale, settings_modal_card_style, settings_modal_header,
     settings_modal_layout, settings_modal_overlay, settings_muted_text_style,
     settings_page_heading, settings_row_with_flexible_control, settings_tab_button,
-    settings_tab_row, settings_text_input_style, settings_value_badge,
+    settings_tab_row, settings_text_input, settings_value_badge,
 };
 use crate::app::components::system_settings_search::SettingsTabDescriptor;
 use crate::app::i18n::settings_models::connection_text::text as connection_text;
@@ -24,7 +23,7 @@ use crate::app::state::{GatewaySettingsState, GatewaySettingsTab};
 use crate::app::{App, Message};
 use chrono::{Datelike, NaiveDate, Utc};
 use iced::widget::scrollable::{Direction, Scrollbar};
-use iced::widget::{Space, button, checkbox, column, container, row, scrollable, text, text_input};
+use iced::widget::{Space, button, checkbox, column, container, row, scrollable, text};
 use iced::{Alignment, Element, Length};
 
 pub(super) const GATEWAY_PAIRED_TOKEN_VISIBLE_ROWS: usize = 10;
@@ -75,12 +74,7 @@ fn text_row_with_hint<'a>(
         label,
         description,
         settings_control_with_hint(
-            text_input(placeholder, value)
-                .on_input(on_input)
-                .padding(SETTINGS_CONTROL_PADDING)
-                .size(SETTINGS_CONTROL_TEXT_SIZE)
-                .style(settings_text_input_style)
-                .width(Length::Fill),
+            settings_text_input(placeholder, value).on_input(on_input).width(Length::Fill),
             hint,
         ),
     )
@@ -96,13 +90,7 @@ fn secure_text_row<'a>(
     field_row(
         label,
         description,
-        text_input(placeholder, value)
-            .secure(true)
-            .on_input(on_input)
-            .padding(SETTINGS_CONTROL_PADDING)
-            .size(SETTINGS_CONTROL_TEXT_SIZE)
-            .style(settings_text_input_style)
-            .width(Length::Fill),
+        settings_text_input(placeholder, value).secure(true).on_input(on_input).width(Length::Fill),
     )
 }
 
@@ -501,16 +489,13 @@ fn skey_date_picker(app: &App) -> Element<'_, Message> {
     };
 
     let mut trigger = row![
-        text_input(
+        settings_text_input(
             connection_text(app.desktop_locale, "YYYY-MM-DD，可手写"),
             &s.new_skey_expires_at_input
         )
         .on_input(|value| Message::Settings(SettingsMessage::Gateway(
             GatewayMessage::NewSkeyExpiresAtChanged(value)
         )))
-        .padding(SETTINGS_CONTROL_PADDING)
-        .size(SETTINGS_CONTROL_TEXT_SIZE)
-        .style(settings_text_input_style)
         .width(Length::Fill),
         button(text(action_label).size(13))
             .padding([10, 12])
@@ -627,16 +612,13 @@ pub fn view(app: &App) -> Element<'_, Message> {
                 connection_text(app.desktop_locale, "skey 名称"),
                 connection_text(app.desktop_locale, "用于列表展示和识别该 skey。"),
                 row![
-                    text_input(
+                    settings_text_input(
                         connection_text(app.desktop_locale, "例如 iPhone / CI Runner"),
                         &s.new_skey_name_input
                     )
                     .on_input(|value| Message::Settings(SettingsMessage::Gateway(
                         GatewayMessage::NewSkeyNameChanged(value)
                     )))
-                    .padding(SETTINGS_CONTROL_PADDING)
-                    .size(SETTINGS_CONTROL_TEXT_SIZE)
-                    .style(settings_text_input_style)
                     .width(Length::Fill),
                     button(text(connection_text(app.desktop_locale, "生成 skey")).size(13))
                         .padding([10, 14])

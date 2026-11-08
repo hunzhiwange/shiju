@@ -18,21 +18,19 @@
 //! 通过 [`view`] 函数创建安全设置界面的 UI 元素，该函数返回一个 Iced 框架的 `Element`。
 
 use crate::app::components::system_settings_common::{
-    SETTINGS_CONTROL_PADDING, SETTINGS_CONTROL_TEXT_SIZE, danger_action_btn_style,
-    primary_action_btn_style, rounded_action_btn_style, settings_checkbox_style, settings_divider,
-    settings_error_banner, settings_field_label, settings_group_card, settings_group_heading,
+    danger_action_btn_style, primary_action_btn_style, rounded_action_btn_style,
+    settings_checkbox_style, settings_divider, settings_error_banner, settings_field_label,
+    settings_group_card, settings_group_heading,
     settings_help_button_with_locale as settings_help_button, settings_muted_text_style,
     settings_page_heading, settings_row_with_flexible_control, settings_select,
-    settings_tab_button, settings_tab_row, settings_text_input_style, settings_value_badge,
+    settings_tab_button, settings_tab_row, settings_text_input, settings_value_badge,
 };
 use crate::app::components::system_settings_search::SettingsTabDescriptor;
 use crate::app::i18n::settings_security::text as security_text;
 use crate::app::state::{SecurityListKind, SecuritySettingsTab};
 use crate::app::{App, Message, message};
 use iced::widget::scrollable::{Direction, Scrollbar};
-use iced::widget::{
-    button, checkbox, column, container, row, scrollable, slider, text, text_input,
-};
+use iced::widget::{button, checkbox, column, container, row, scrollable, slider, text};
 use iced::{Alignment, Element, Length};
 use vw_config_types::ui::DesktopLocale;
 
@@ -94,12 +92,7 @@ fn text_row<'a>(
     field_row(
         label,
         description,
-        text_input(placeholder, value)
-            .on_input(on_input)
-            .padding(SETTINGS_CONTROL_PADDING)
-            .size(SETTINGS_CONTROL_TEXT_SIZE)
-            .style(settings_text_input_style)
-            .width(Length::Fill),
+        settings_text_input(placeholder, value).on_input(on_input).width(Length::Fill),
     )
 }
 
@@ -180,12 +173,9 @@ fn list_editor<'a>(
         ]
         .spacing(6),
         row![
-            text_input(placeholder, draft)
+            settings_text_input(placeholder, draft)
                 .on_input(draft_changed)
                 .on_submit(add_message)
-                .padding(SETTINGS_CONTROL_PADDING)
-                .size(SETTINGS_CONTROL_TEXT_SIZE)
-                .style(settings_text_input_style)
                 .width(Length::Fill),
             add_button,
         ]

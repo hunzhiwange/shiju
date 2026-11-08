@@ -3,7 +3,7 @@ use crate::app::components::system_settings_common::*;
 use crate::app::{Message, state::AppsCatalogState};
 use iced::{
     Alignment, Element, Length,
-    widget::{Space, button, checkbox, column, container, row, text, text_input},
+    widget::{Space, button, checkbox, column, container, row, text},
 };
 use vw_gateway_client::vw_api_types::agent_apps::*;
 
@@ -137,24 +137,18 @@ pub(crate) fn overlay<'a>(
                             .spacing(4),
                             column![
                                 settings_field_label("Shell"),
-                                text_input("自动或主机支持的 shell", shell)
+                                settings_text_input("自动或主机支持的 shell", shell)
                                     .on_input_maybe(editable.then_some(move |v| {
                                         event(PreferencesMessage::Shell(id, v))
-                                    }))
-                                    .style(settings_text_input_style)
-                                    .padding(SETTINGS_CONTROL_PADDING)
-                                    .size(SETTINGS_CONTROL_TEXT_SIZE),
+                                    })),
                             ]
                             .spacing(6),
                             column![
                                 settings_field_label("Flag"),
-                                text_input("自动或 -c / -ic / -lc / -lic", flag)
+                                settings_text_input("自动或 -c / -ic / -lc / -lic", flag)
                                     .on_input_maybe(editable.then_some(move |v| {
                                         event(PreferencesMessage::Flag(id, v))
-                                    }))
-                                    .style(settings_text_input_style)
-                                    .padding(SETTINGS_CONTROL_PADDING)
-                                    .size(SETTINGS_CONTROL_TEXT_SIZE),
+                                    })),
                             ]
                             .spacing(6),
                         ]

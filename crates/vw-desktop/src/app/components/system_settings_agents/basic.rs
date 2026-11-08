@@ -6,15 +6,14 @@
 use super::shared::section_card;
 use crate::app::components::number_input::NumberInput;
 use crate::app::components::system_settings_common::{
-    SETTINGS_CONTROL_PADDING, SETTINGS_CONTROL_TEXT_SIZE, settings_checkbox_style,
-    settings_divider, settings_flexible_row, settings_group_card, settings_group_heading,
-    settings_text_input_style,
+    settings_checkbox_style, settings_divider, settings_flexible_row, settings_group_card,
+    settings_group_heading, settings_text_input,
 };
 use crate::app::i18n::settings_extensions::text as tr;
 use crate::app::message::settings::{AgentsMessage, SettingsMessage};
 use crate::app::state::DelegateAgentSettingsEntry;
 use crate::app::{App, Message};
-use iced::widget::{checkbox, column, slider, text, text_input};
+use iced::widget::{checkbox, column, slider, text};
 use iced::{Element, Length, Theme};
 
 pub(super) fn shows_registration_controls(entry: &DelegateAgentSettingsEntry) -> bool {
@@ -58,7 +57,7 @@ pub(super) fn view<'a>(
     let api_key_row = field_row(
         tr(app.desktop_locale, "API 密钥"),
         tr(app.desktop_locale, "可选覆盖该代理的提供商凭证。"),
-        text_input(tr(app.desktop_locale, "可选"), &entry.api_key_input)
+        settings_text_input(tr(app.desktop_locale, "可选"), &entry.api_key_input)
             .secure(true)
             .on_input({
                 let key = entry.key.clone();
@@ -69,9 +68,6 @@ pub(super) fn view<'a>(
                     )))
                 }
             })
-            .padding(SETTINGS_CONTROL_PADDING)
-            .size(SETTINGS_CONTROL_TEXT_SIZE)
-            .style(settings_text_input_style)
             .width(Length::Fill),
     );
 

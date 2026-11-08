@@ -6,7 +6,7 @@ use crate::app::{
     message::settings::{AgentsMessage, SettingsMessage},
     state::DelegateAgentSettingsEntry,
 };
-use iced::widget::{button, column, container, responsive, row, text, text_editor, text_input};
+use iced::widget::{button, column, container, responsive, row, text};
 use iced::{Alignment, Element, Length};
 use vw_config_types::agent::{AgentRuntime, builtin_agent_spec};
 
@@ -26,11 +26,7 @@ pub(super) fn view<'a>(
         || draft.key.starts_with("acp-")
         || app.agents_settings.entries.iter().any(|entry| entry.key == draft.key);
     let input = |placeholder, value, callback: fn(String) -> AgentsMessage| {
-        text_input(placeholder, value)
-            .on_input(move |value| message(callback(value)))
-            .padding(SETTINGS_CONTROL_PADDING)
-            .size(SETTINGS_CONTROL_TEXT_SIZE)
-            .style(settings_text_input_style)
+        settings_text_input(placeholder, value).on_input(move |value| message(callback(value)))
     };
     let name = settings_responsive_row(label("名称"), "", move || {
         input(label("智能体名称"), &draft.label, AgentsMessage::ProfileNameChanged)
@@ -38,13 +34,10 @@ pub(super) fn view<'a>(
     });
     let description = column![
         settings_field_label(label("描述")),
-        text_editor(&draft.description_editor)
+        settings_text_editor(&draft.description_editor)
             .on_action(|action| message(AgentsMessage::ProfileDescriptionAction(action)))
             .font(iced::Font::DEFAULT)
-            .padding(SETTINGS_CONTROL_PADDING)
-            .size(SETTINGS_CONTROL_TEXT_SIZE)
-            .height(120)
-            .style(settings_text_editor_style),
+            .height(120),
     ]
     .spacing(6);
     let mut prompts =
@@ -54,13 +47,10 @@ pub(super) fn view<'a>(
     for (index, prompt) in draft.recommended_prompts.iter().enumerate() {
         prompts = prompts.push(
             responsive(move |size| {
-                let input = text_input(tr(locale, "推荐提示词"), prompt)
+                let input = settings_text_input(tr(locale, "推荐提示词"), prompt)
                     .on_input(move |value| {
                         message(AgentsMessage::ProfilePromptChanged(index, value))
                     })
-                    .padding(SETTINGS_CONTROL_PADDING)
-                    .size(SETTINGS_CONTROL_TEXT_SIZE)
-                    .style(settings_text_input_style)
                     .width(Length::Fill);
                 let actions = row![
                     action(

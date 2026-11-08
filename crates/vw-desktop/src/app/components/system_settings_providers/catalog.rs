@@ -7,7 +7,7 @@ use crate::app::components::system_settings_common::{
     SETTINGS_CONTROL_PADDING, SETTINGS_CONTROL_TEXT_SIZE, primary_action_btn_style,
     provider_logo_svg, rounded_action_btn_style, settings_close_button, settings_control_with_hint,
     settings_divider, settings_error_banner, settings_group_card, settings_modal_card,
-    settings_modal_header, settings_modal_overlay, settings_muted_text_style,
+    settings_modal_header, settings_modal_overlay, settings_muted_text_style, settings_text_input,
     settings_text_input_style,
 };
 use crate::app::i18n::settings_models::connection_text::text as connection_text;
@@ -245,25 +245,19 @@ pub(crate) fn deployments<'a>(
     ]
     .spacing(12);
 
-    let endpoint = text_input("例如 https://api.example.com/v1", &form.endpoint)
+    let endpoint = settings_text_input("例如 https://api.example.com/v1", &form.endpoint)
         .on_input_maybe(editable.then_some(|value| message(Event::Endpoint(value))))
         .on_submit_maybe(
             (editable && !deployment.endpoint.is_empty()).then(|| message(Event::LoadCatalog)),
-        )
-        .padding(SETTINGS_CONTROL_PADDING)
-        .size(SETTINGS_CONTROL_TEXT_SIZE)
-        .style(settings_text_input_style);
+        );
     let id_label =
         if form.edit_id.is_some() { "编辑模型 · 请求 ID" } else { "手工添加模型" };
     let id = settings_responsive_row(id_label, "", move || -> Element<'a, Message> {
         if let Some(id) = &form.edit_id {
             text(id.as_ref()).wrapping(Wrapping::WordOrGlyph).into()
         } else {
-            text_input("填写供应商使用的原始模型 ID", &form.manual_id)
+            settings_text_input("填写供应商使用的原始模型 ID", &form.manual_id)
                 .on_input_maybe(editable.then_some(|value| message(Event::ManualId(value))))
-                .padding(SETTINGS_CONTROL_PADDING)
-                .size(SETTINGS_CONTROL_TEXT_SIZE)
-                .style(settings_text_input_style)
                 .into()
         }
     });
@@ -272,13 +266,9 @@ pub(crate) fn deployments<'a>(
         "显示别名",
         "别名仅用于显示，发送请求时使用原始模型 ID。",
         move || {
-            text_input("可留空", &form.alias)
-                .on_input_maybe(
-                    (editable && has_model).then_some(|value| message(Event::Alias(value))),
-                )
-                .padding(SETTINGS_CONTROL_PADDING)
-                .size(SETTINGS_CONTROL_TEXT_SIZE)
-                .style(settings_text_input_style)
+            settings_text_input("可留空", &form.alias).on_input_maybe(
+                (editable && has_model).then_some(|value| message(Event::Alias(value))),
+            )
         },
     );
     let mut fields = column![

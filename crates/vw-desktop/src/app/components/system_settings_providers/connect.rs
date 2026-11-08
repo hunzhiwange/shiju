@@ -1,16 +1,16 @@
 //! API 密钥连接弹窗；使用现有供应商消息保存或放弃草稿。
 
 use crate::app::components::system_settings_common::{
-    SETTINGS_CONTROL_PADDING, SETTINGS_CONTROL_TEXT_SIZE, primary_action_btn_style,
-    rounded_action_btn_style, settings_close_button, settings_error_banner, settings_field_label,
-    settings_modal_header, settings_modal_layout, settings_modal_overlay,
-    settings_muted_text_style, settings_panel, settings_text_input_style,
+    SETTINGS_CONTROL_TEXT_SIZE, primary_action_btn_style, rounded_action_btn_style,
+    settings_close_button, settings_error_banner, settings_field_label, settings_modal_header,
+    settings_modal_layout, settings_modal_overlay, settings_muted_text_style, settings_panel,
+    settings_text_input,
 };
 use crate::app::i18n::settings_models::connection_text::text as connection_text;
 use crate::app::i18n::settings_models::messages::render as owned_text;
 use crate::app::message::SettingsMessage;
 use crate::app::{App, Message};
-use iced::widget::{button, column, container, row, text, text_input};
+use iced::widget::{button, column, container, row, text};
 use iced::{Alignment, Element, Length, widget::text::Wrapping};
 
 pub fn view_overlays<'a>(app: &'a App, dialog: Element<'a, Message>) -> Element<'a, Message> {
@@ -40,14 +40,11 @@ pub fn view_overlays<'a>(app: &'a App, dialog: Element<'a, Message>) -> Element<
 
     let mut field = column![
         settings_field_label(connection_text(locale, "API 密钥")),
-        text_input(connection_text(locale, "输入 API 密钥"), &modal.api_key)
+        settings_text_input(connection_text(locale, "输入 API 密钥"), &modal.api_key)
             .secure(true)
             .on_input(|value| Message::Settings(SettingsMessage::ProviderConnectApiKeyChanged(
                 value
-            )))
-            .padding(SETTINGS_CONTROL_PADDING)
-            .size(SETTINGS_CONTROL_TEXT_SIZE)
-            .style(settings_text_input_style),
+            ))),
     ]
     .spacing(8);
     if let Some(error) = &s.connect_error {

@@ -22,14 +22,13 @@
 //! - `runtime_trace_max_entries`：rolling 模式下保留的最大条目数
 
 use crate::app::components::system_settings_common::{
-    SETTINGS_CONTROL_PADDING, SETTINGS_CONTROL_TEXT_SIZE, settings_divider, settings_group_card,
-    settings_group_heading, settings_help_button_with_locale, settings_page_heading,
-    settings_row_with_flexible_control, settings_select, settings_text_input_style,
-    settings_value_badge,
+    settings_divider, settings_group_card, settings_group_heading,
+    settings_help_button_with_locale, settings_page_heading, settings_row_with_flexible_control,
+    settings_select, settings_text_input, settings_value_badge,
 };
 use crate::app::i18n::settings_runtime::text as runtime_text;
 use crate::app::{App, Message, message};
-use iced::widget::{column, container, row, slider, text_input};
+use iced::widget::{column, container, row, slider};
 use iced::{Alignment, Element, Length};
 
 #[derive(Clone, PartialEq)]
@@ -62,12 +61,7 @@ fn text_row<'a>(
     field_row(
         label,
         description,
-        text_input(placeholder, value)
-            .on_input(on_input)
-            .padding(SETTINGS_CONTROL_PADDING)
-            .size(SETTINGS_CONTROL_TEXT_SIZE)
-            .style(settings_text_input_style)
-            .width(Length::Fill),
+        settings_text_input(placeholder, value).on_input(on_input).width(Length::Fill),
     )
 }
 

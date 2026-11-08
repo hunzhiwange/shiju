@@ -7,16 +7,14 @@ use crate::app::components::system_settings_common::{
     settings_modal_layout, settings_modal_overlay, settings_muted_text_style,
     settings_page_heading, settings_panel, settings_section_card, settings_select,
     settings_success_banner, settings_tab_button, settings_tab_row, settings_text_editor_style,
-    settings_text_input_style, settings_value_badge,
+    settings_text_input, settings_value_badge,
 };
 use crate::app::components::system_settings_search::SettingsTabDescriptor;
 use crate::app::i18n::settings_extensions::text as tr;
 use crate::app::message::settings::{McpMessage, SettingsMessage};
 use crate::app::state::{McpNewServerTransport, McpSettingsState, McpSettingsTab};
 use crate::app::{App, Message};
-use iced::widget::{
-    Space, button, checkbox, column, container, row, text, text_editor, text_input,
-};
+use iced::widget::{Space, button, checkbox, column, container, row, text, text_editor};
 use iced::{Alignment, Background, Border, Color, Element, Length};
 use serde_json::Value;
 use vw_config_types::ui::DesktopLocale;
@@ -563,11 +561,8 @@ fn new_server_panel(locale: DesktopLocale, s: &McpSettingsState) -> Element<'_, 
     let (title, description) = server_form_heading(locale, editing);
     let controls_enabled = !s.loading && !s.saving;
     let input = |placeholder, value: &str, on_input: fn(String) -> McpMessage| {
-        text_input(placeholder, value)
+        settings_text_input(placeholder, value)
             .on_input(move |next| Message::Settings(SettingsMessage::Mcp(on_input(next))))
-            .padding(SETTINGS_CONTROL_PADDING)
-            .size(SETTINGS_CONTROL_TEXT_SIZE)
-            .style(settings_text_input_style)
     };
 
     let name_input = input(

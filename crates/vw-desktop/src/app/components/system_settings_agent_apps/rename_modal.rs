@@ -1,16 +1,15 @@
 //! 图标改名只维护输入和提交状态，最终名称校验由网关负责。
 use crate::app::components::system_settings_common::{
-    SETTINGS_CONTROL_PADDING, SETTINGS_CONTROL_TEXT_SIZE, primary_action_btn_style,
-    rounded_action_btn_style, settings_close_button, settings_control_with_hint,
-    settings_error_banner, settings_field_label, settings_modal_header, settings_modal_layout,
-    settings_modal_overlay, settings_muted_text_style, settings_text_input_style,
+    primary_action_btn_style, rounded_action_btn_style, settings_close_button,
+    settings_control_with_hint, settings_error_banner, settings_field_label, settings_modal_header,
+    settings_modal_layout, settings_modal_overlay, settings_muted_text_style, settings_text_input,
 };
 use crate::app::{
     Message,
     message::{SettingsMessage, settings::AgentAppsMessage},
     state::IconRenameState,
 };
-use iced::widget::{Space, button, column, container, row, text, text_input};
+use iced::widget::{Space, button, column, container, row, text};
 use iced::{Alignment, Element, Length};
 
 fn message(value: AgentAppsMessage) -> Message {
@@ -22,11 +21,7 @@ pub(super) fn view<'a>(
     base: Element<'a, Message>,
 ) -> Element<'a, Message> {
     let close = message(AgentAppsMessage::RenameClose);
-    let mut input = text_input("请输入图标名称", &form.name)
-        .id("custom-icon-rename")
-        .padding(SETTINGS_CONTROL_PADDING)
-        .size(SETTINGS_CONTROL_TEXT_SIZE)
-        .style(settings_text_input_style);
+    let mut input = settings_text_input("请输入图标名称", &form.name).id("custom-icon-rename");
     if !form.saving {
         input = input
             .on_input(|name| message(AgentAppsMessage::RenameInput(name)))

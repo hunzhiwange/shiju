@@ -5,14 +5,14 @@
 
 use crate::app::assets::Icon;
 use crate::app::components::system_settings_common::{
-    SETTINGS_CONTROL_PADDING, SETTINGS_CONTROL_TEXT_SIZE, icon_btn, primary_action_btn_style,
-    settings_group_card, settings_group_heading, settings_muted_text_style, settings_page_heading,
-    settings_panel, settings_row, settings_section_content, settings_text_input_style,
+    icon_btn, primary_action_btn_style, settings_group_card, settings_group_heading,
+    settings_muted_text_style, settings_page_heading, settings_panel, settings_row,
+    settings_section_content, settings_text_input,
 };
 use crate::app::i18n::settings_models::{self, text as model_text};
 use crate::app::message::settings::{ModelRoutesMessage, SettingsMessage};
 use crate::app::{App, Message};
-use iced::widget::{button, column, container, row, text, text_input};
+use iced::widget::{button, column, container, row, text};
 use iced::{Alignment, Element, Length};
 
 fn field_row<'a>(
@@ -105,46 +105,38 @@ pub fn view(app: &App) -> Element<'_, Message> {
                                 app.desktop_locale,
                                 "定义命中的任务场景，例如 reasoning / fast / code。"
                             ),
-                            text_input(
+                            settings_text_input(
                                 model_text(app.desktop_locale, "如：reasoning / fast / code"),
                                 &route.pattern
                             )
                             .on_input(move |value| Message::Settings(SettingsMessage::ModelRoutes(
                                 ModelRoutesMessage::PatternChanged(idx, value),
                             )))
-                            .padding(SETTINGS_CONTROL_PADDING)
-                            .size(SETTINGS_CONTROL_TEXT_SIZE)
-                            .style(settings_text_input_style)
                             .width(Length::Fill),
                         ),
                         field_row(
                             model_text(app.desktop_locale, "提供商"),
                             model_text(app.desktop_locale, "命中后要切换到的 provider。"),
-                            text_input(
+                            settings_text_input(
                                 model_text(app.desktop_locale, "如：openai"),
                                 &route.provider
                             )
                             .on_input(move |value| Message::Settings(SettingsMessage::ModelRoutes(
                                 ModelRoutesMessage::ProviderChanged(idx, value),
                             )))
-                            .padding(SETTINGS_CONTROL_PADDING)
-                            .size(SETTINGS_CONTROL_TEXT_SIZE)
-                            .style(settings_text_input_style)
                             .width(Length::Fill),
                         ),
                         field_row(
                             model_text(app.desktop_locale, "模型"),
                             model_text(app.desktop_locale, "命中后优先使用的模型。"),
-                            text_input(model_text(app.desktop_locale, "如：gpt-5"), &route.model)
-                                .on_input(move |value| Message::Settings(
-                                    SettingsMessage::ModelRoutes(ModelRoutesMessage::ModelChanged(
-                                        idx, value
-                                    ),)
-                                ))
-                                .padding(SETTINGS_CONTROL_PADDING)
-                                .size(SETTINGS_CONTROL_TEXT_SIZE)
-                                .style(settings_text_input_style)
-                                .width(Length::Fill),
+                            settings_text_input(
+                                model_text(app.desktop_locale, "如：gpt-5"),
+                                &route.model
+                            )
+                            .on_input(move |value| Message::Settings(SettingsMessage::ModelRoutes(
+                                ModelRoutesMessage::ModelChanged(idx, value),
+                            )))
+                            .width(Length::Fill),
                         ),
                         field_row(
                             model_text(app.desktop_locale, "优先级"),
@@ -152,15 +144,12 @@ pub fn view(app: &App) -> Element<'_, Message> {
                                 app.desktop_locale,
                                 "越大优先级越高；保存时同步生成 query_classification 规则。"
                             ),
-                            text_input("0", &route.priority_input)
+                            settings_text_input("0", &route.priority_input)
                                 .on_input(move |value| Message::Settings(
                                     SettingsMessage::ModelRoutes(
                                         ModelRoutesMessage::PriorityChanged(idx, value),
                                     )
                                 ))
-                                .padding(SETTINGS_CONTROL_PADDING)
-                                .size(SETTINGS_CONTROL_TEXT_SIZE)
-                                .style(settings_text_input_style)
                                 .width(Length::Fill),
                         ),
                     ]

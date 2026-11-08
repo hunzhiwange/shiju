@@ -18,18 +18,18 @@
 
 use crate::app::components::number_input::NumberInput;
 use crate::app::components::system_settings_common::{
-    SETTINGS_CONTROL_PADDING, SETTINGS_CONTROL_TEXT_SIZE, danger_action_btn_style,
-    primary_action_btn_style, rounded_action_btn_style, settings_checkbox_style, settings_divider,
-    settings_error_banner, settings_field_label, settings_group_card, settings_group_heading,
+    danger_action_btn_style, primary_action_btn_style, rounded_action_btn_style,
+    settings_checkbox_style, settings_divider, settings_error_banner, settings_field_label,
+    settings_group_card, settings_group_heading,
     settings_help_button_with_locale as settings_help_button, settings_muted_text_style,
     settings_page_heading, settings_row_with_flexible_control, settings_segment_button_style,
-    settings_select, settings_tab_button, settings_tab_row, settings_text_input_style,
+    settings_select, settings_tab_button, settings_tab_row, settings_text_input,
 };
 use crate::app::components::system_settings_search::SettingsTabDescriptor;
 use crate::app::state::{AutonomyListKind, AutonomySettingsTab};
 use crate::app::{App, Message, message};
 use iced::widget::scrollable::{Direction, Scrollbar};
-use iced::widget::{button, checkbox, column, container, row, scrollable, text, text_input};
+use iced::widget::{button, checkbox, column, container, row, scrollable, text};
 use iced::{Alignment, Element, Length};
 use vw_config_types::security::NonCliNaturalLanguageApprovalMode;
 use vw_config_types::security::{AutonomyLevel, ShellRedirectPolicy};
@@ -89,12 +89,7 @@ fn text_row<'a>(
     field_row(
         label,
         description,
-        text_input(placeholder, value)
-            .on_input(on_input)
-            .padding(SETTINGS_CONTROL_PADDING)
-            .size(SETTINGS_CONTROL_TEXT_SIZE)
-            .style(settings_text_input_style)
-            .width(Length::Fill),
+        settings_text_input(placeholder, value).on_input(on_input).width(Length::Fill),
     )
 }
 
@@ -136,12 +131,9 @@ fn list_editor<'a>(
         .into()
     } else {
         row![
-            text_input(crate::app::i18n::I18n::new(locale).__("输入单个列表项"), draft)
+            settings_text_input(crate::app::i18n::I18n::new(locale).__("输入单个列表项"), draft)
                 .on_input(draft_changed)
                 .on_submit(add_message)
-                .padding(SETTINGS_CONTROL_PADDING)
-                .size(SETTINGS_CONTROL_TEXT_SIZE)
-                .style(settings_text_input_style)
                 .width(Length::Fill),
             add_button,
         ]

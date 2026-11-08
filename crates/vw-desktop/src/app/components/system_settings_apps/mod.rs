@@ -24,7 +24,7 @@ use crate::app::{
     message::{SettingsMessage, settings::AppsCatalogMessage},
     state::AppsCatalogState,
 };
-use iced::widget::{button, column, container, row, text, text_input};
+use iced::widget::{button, column, container, row, text};
 use iced::{Element, Length};
 
 fn message(value: AppsCatalogMessage) -> Message {
@@ -46,16 +46,10 @@ pub(crate) fn view_overlays<'a>(
         );
     }
     let close = message(AppsCatalogMessage::ConnectionClose);
-    let host = text_input("管理员登记的主机 ID", &state.host)
-        .padding(SETTINGS_CONTROL_PADDING)
-        .size(SETTINGS_CONTROL_TEXT_SIZE)
-        .style(settings_text_input_style)
+    let host = settings_text_input("管理员登记的主机 ID", &state.host)
         .on_input(|value| message(AppsCatalogMessage::HostInput(value)));
-    let token = text_input("应用管理令牌", &state.token)
+    let token = settings_text_input("应用管理令牌", &state.token)
         .secure(true)
-        .padding(SETTINGS_CONTROL_PADDING)
-        .size(SETTINGS_CONTROL_TEXT_SIZE)
-        .style(settings_text_input_style)
         .on_input(|value| message(AppsCatalogMessage::TokenInput(value)));
     let connect = button(text("加载应用").size(SETTINGS_CONTROL_TEXT_SIZE))
         .padding([8, 16])

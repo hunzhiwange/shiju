@@ -435,6 +435,78 @@ fn enter_text(
 }
 
 #[tokio::test(flavor = "multi_thread")]
+async fn ui_refresh_17_gateway_client_edits_host_and_masked_key() {
+    use crate::app::components::system_settings_gateway_client;
+    use settings::GatewayClientMessage;
+
+    if !isolated("ui_refresh_17_gateway_client_edits_host_and_masked_key") {
+        return;
+    }
+    let mut renderer = renderer().await;
+    let mut app = App::new().0;
+    app.gateway_client_settings.name_input = "Fixture gateway".into();
+    app.gateway_client_settings.host_input = "gateway.example.invalid".into();
+    app.gateway_client_settings.platform_id_input = "10000".into();
+    app.gateway_client_settings.company_id_input = "100000000".into();
+    app.gateway_client_settings.skey_input = "test-key".into();
+
+    for (width, theme, locale) in [
+        (420, Theme::Light, DesktopLocale::SimplifiedChinese),
+        (960, Theme::Dark, DesktopLocale::TraditionalChinese),
+        (420, Theme::Dark, DesktopLocale::English),
+    ] {
+        app.desktop_locale = locale;
+        let size = Size::new(width, 1100);
+        let mut ui = scene(system_settings_gateway_client::view(&app), &mut renderer, size);
+        let fields = geometry(&mut ui, &renderer);
+        let host = fields.input("gateway.example.invalid");
+        let secret = fields.input(&"•".repeat("test-key".len()));
+        for bounds in [host, secret] {
+            assert!(bounds.x >= 0.0 && bounds.x + bounds.width <= width as f32);
+        }
+        screenshot(
+            &mut ui,
+            &mut renderer,
+            &theme,
+            size,
+            &format!("gateway-client-{locale:?}-{width}"),
+            mouse::Cursor::Unavailable,
+        );
+        assert!(matches!(
+            enter_text(&mut ui, &mut renderer, host, "x").as_slice(),
+            [Message::Settings(SettingsMessage::GatewayClient(GatewayClientMessage::HostChanged(value)))]
+                if value == "gateway.example.invalidx"
+        ));
+        assert!(matches!(
+            enter_text(&mut ui, &mut renderer, secret, "x").as_slice(),
+            [Message::Settings(SettingsMessage::GatewayClient(GatewayClientMessage::SkeyChanged(value)))]
+                if value == "test-keyx"
+        ));
+    }
+
+    let size = Size::new(420, 1100);
+    let secret = {
+        let mut ui = scene(system_settings_gateway_client::view(&app), &mut renderer, size);
+        geometry(&mut ui, &renderer).input(&"•".repeat("test-key".len()))
+    };
+    app.gateway_client_settings.skey_input.clear();
+    let mut ui = scene(system_settings_gateway_client::view(&app), &mut renderer, size);
+    screenshot(
+        &mut ui,
+        &mut renderer,
+        &Theme::Dark,
+        size,
+        "gateway-client-empty-key",
+        mouse::Cursor::Unavailable,
+    );
+    assert!(matches!(
+        enter_text(&mut ui, &mut renderer, secret, "new-key").as_slice(),
+        [Message::Settings(SettingsMessage::GatewayClient(GatewayClientMessage::SkeyChanged(value)))]
+            if value == "new-key"
+    ));
+}
+
+#[tokio::test(flavor = "multi_thread")]
 async fn ui_refresh_17_preserves_values_and_disabled_states() {
     if !isolated("ui_refresh_17_preserves_values_and_disabled_states") {
         return;

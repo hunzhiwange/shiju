@@ -4,15 +4,14 @@
 //! 注释聚焦调用边界、返回值和错误传播方式，便于后续维护设置页与工具栏行为时快速定位职责。
 
 use crate::app::components::system_settings_common::{
-    SETTINGS_CONTROL_PADDING, SETTINGS_CONTROL_TEXT_SIZE, settings_checkbox_style,
-    settings_divider, settings_group_card, settings_group_heading, settings_muted_text_style,
-    settings_page_heading, settings_row_with_flexible_control, settings_select,
-    settings_text_input_style,
+    settings_checkbox_style, settings_divider, settings_group_card, settings_group_heading,
+    settings_muted_text_style, settings_page_heading, settings_row_with_flexible_control,
+    settings_select, settings_text_input,
 };
 use crate::app::i18n::settings_extensions::text as tr;
 use crate::app::message::settings::{SettingsMessage, TunnelMessage};
 use crate::app::{App, Message};
-use iced::widget::{checkbox, column, container, text, text_input};
+use iced::widget::{checkbox, column, container, text};
 use iced::{Element, Length};
 
 #[derive(Clone, Copy, PartialEq, Eq)]
@@ -101,12 +100,7 @@ fn text_row<'a>(
     field_row(
         label,
         description,
-        text_input(placeholder, value)
-            .on_input(on_input)
-            .padding(SETTINGS_CONTROL_PADDING)
-            .size(SETTINGS_CONTROL_TEXT_SIZE)
-            .style(settings_text_input_style)
-            .width(Length::Fill),
+        settings_text_input(placeholder, value).on_input(on_input).width(Length::Fill),
     )
 }
 

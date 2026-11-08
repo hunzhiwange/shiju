@@ -1,14 +1,14 @@
 //! 系统设置中的聊天快捷消息配置面板。
 
 use crate::app::components::system_settings_common::{
-    SETTINGS_CONTROL_PADDING, SETTINGS_CONTROL_TEXT_SIZE, primary_action_btn_style,
-    rounded_action_btn_style, settings_group_card, settings_muted_text_style,
-    settings_page_heading, settings_section_content, settings_select, settings_text_input_style,
+    SETTINGS_CONTROL_TEXT_SIZE, primary_action_btn_style, rounded_action_btn_style,
+    settings_group_card, settings_muted_text_style, settings_page_heading,
+    settings_section_content, settings_select, settings_text_input,
 };
 use crate::app::message::SettingsMessage;
 use crate::app::message::settings::QuickMessagesMessage;
 use crate::app::{App, Message, i18n::I18n};
-use iced::widget::{button, column, container, row, text, text_input};
+use iced::widget::{button, column, container, row, text};
 use iced::{Alignment, Element, Length};
 use std::{borrow::Cow, cell::RefCell, rc::Rc};
 use vw_config_types::ui::{QuickMessageGroup, QuickMessageKind};
@@ -51,13 +51,7 @@ fn text_fields<'a>(
     value: &'a str,
     placeholder: &'static str,
 ) -> Element<'a, Message> {
-    let field = |line: &str| {
-        text_input(placeholder, line)
-            .padding(SETTINGS_CONTROL_PADDING)
-            .size(SETTINGS_CONTROL_TEXT_SIZE)
-            .style(settings_text_input_style)
-            .width(Length::Fill)
-    };
+    let field = |line: &str| settings_text_input(placeholder, line).width(Length::Fill);
     if !value.contains(['\r', '\n']) {
         return field(value)
             .on_input(move |edit| settings_message(QuickMessagesMessage::TextChanged(index, edit)))

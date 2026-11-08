@@ -5,16 +5,16 @@
 
 use crate::app::components::number_input::NumberInput;
 use crate::app::components::system_settings_common::{
-    SETTINGS_CONTROL_PADDING, SETTINGS_CONTROL_TEXT_SIZE, primary_action_btn_style,
-    rounded_action_btn_style, settings_divider, settings_group_card, settings_group_heading,
-    settings_help_button_with_locale, settings_muted_text_style, settings_page_heading,
-    settings_row_with_flexible_control, settings_text_input_style, with_settings_help_modal,
+    primary_action_btn_style, rounded_action_btn_style, settings_divider, settings_group_card,
+    settings_group_heading, settings_help_button_with_locale, settings_muted_text_style,
+    settings_page_heading, settings_row_with_flexible_control, settings_text_input,
+    with_settings_help_modal,
 };
 use crate::app::i18n::settings_models::connection_text::text as connection_text;
 use crate::app::i18n::settings_models::messages::render as owned_text;
 use crate::app::message::settings::{GatewayClientMessage, SettingsMessage};
 use crate::app::{App, Message};
-use iced::widget::{Space, button, column, container, row, text, text::Wrapping, text_input};
+use iced::widget::{Space, button, column, container, row, text, text::Wrapping};
 use iced::{Alignment, Color, Element, Length, Theme};
 
 fn field_row<'a>(
@@ -35,12 +35,7 @@ fn text_row<'a>(
     field_row(
         label,
         description,
-        text_input(placeholder, value)
-            .on_input(on_input)
-            .padding(SETTINGS_CONTROL_PADDING)
-            .size(SETTINGS_CONTROL_TEXT_SIZE)
-            .style(settings_text_input_style)
-            .width(Length::Fill),
+        settings_text_input(placeholder, value).on_input(on_input).width(Length::Fill),
     )
 }
 
@@ -54,13 +49,7 @@ fn secure_text_row<'a>(
     field_row(
         label,
         description,
-        text_input(placeholder, value)
-            .secure(true)
-            .on_input(on_input)
-            .padding(SETTINGS_CONTROL_PADDING)
-            .size(SETTINGS_CONTROL_TEXT_SIZE)
-            .style(settings_text_input_style)
-            .width(Length::Fill),
+        settings_text_input(placeholder, value).secure(true).on_input(on_input).width(Length::Fill),
     )
 }
 

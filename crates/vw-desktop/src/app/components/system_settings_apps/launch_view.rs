@@ -3,7 +3,7 @@ use crate::app::components::system_settings_common::*;
 use crate::app::{Message, state::AppsCatalogState};
 use iced::{
     Alignment, Element, Length,
-    widget::{Space, button, column, container, row, text, text_input},
+    widget::{Space, button, column, container, row, text},
 };
 use vw_gateway_client::vw_api_types::agent_apps::{LaunchIdentityKind, LaunchSessionPhase};
 
@@ -75,13 +75,9 @@ pub(crate) fn overlay<'a>(
     for (index, value) in state.args.iter().enumerate() {
         args = args.push(
             row![
-                text_input("参数内容", value)
-                    .on_input_maybe(
-                        editable.then_some(move |v| event(LaunchMessage::Args(index, v)))
-                    )
-                    .padding(SETTINGS_CONTROL_PADDING)
-                    .size(SETTINGS_CONTROL_TEXT_SIZE)
-                    .style(settings_text_input_style),
+                settings_text_input("参数内容", value).on_input_maybe(
+                    editable.then_some(move |v| event(LaunchMessage::Args(index, v)))
+                ),
                 button(text("移除").size(SETTINGS_CONTROL_TEXT_SIZE))
                     .padding([8, 12])
                     .style(rounded_action_btn_style)
@@ -99,11 +95,8 @@ pub(crate) fn overlay<'a>(
     );
     let cwd = column![
         settings_field_label("工作目录（由执行主机验证）"),
-        text_input("所选主机上的绝对目录", &request.cwd)
-            .on_input_maybe(editable.then_some(|v| event(LaunchMessage::Cwd(v))))
-            .padding(SETTINGS_CONTROL_PADDING)
-            .size(SETTINGS_CONTROL_TEXT_SIZE)
-            .style(settings_text_input_style),
+        settings_text_input("所选主机上的绝对目录", &request.cwd)
+            .on_input_maybe(editable.then_some(|v| event(LaunchMessage::Cwd(v)))),
     ]
     .spacing(6);
     let body = body.push(identities).push(cwd).push(settings_divider()).push(args);

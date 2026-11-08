@@ -1,10 +1,9 @@
 //! Shared settings modal controls; only the explicit confirmation message activates a token.
 use crate::app::components::system_settings_common::{
-    SETTINGS_CONTROL_PADDING, SETTINGS_CONTROL_TEXT_SIZE, primary_action_btn_style,
-    rounded_action_btn_style, settings_close_button, settings_control_with_hint,
-    settings_error_banner, settings_field_label, settings_group_card, settings_group_heading,
-    settings_modal_header, settings_modal_layout, settings_modal_overlay,
-    settings_muted_text_style, settings_text_input_style,
+    primary_action_btn_style, rounded_action_btn_style, settings_close_button,
+    settings_control_with_hint, settings_error_banner, settings_field_label, settings_group_card,
+    settings_group_heading, settings_modal_header, settings_modal_layout, settings_modal_overlay,
+    settings_muted_text_style, settings_text_input,
 };
 use crate::app::i18n::settings_extensions::text as tr;
 use crate::app::{
@@ -12,7 +11,7 @@ use crate::app::{
     message::SettingsMessage,
     state::{PluginInstallForm, PluginInstallPhase},
 };
-use iced::widget::{button, column, container, row, text, text_input};
+use iced::widget::{button, column, container, row, text};
 use iced::{Alignment, Element};
 use vw_config_types::ui::DesktopLocale;
 fn event(message: SettingsMessage) -> Message {
@@ -29,15 +28,14 @@ pub(super) fn view<'a>(
     } else {
         tr(locale, "安装插件")
     };
-    let input =
-        text_input(tr(locale, "本地路径、git+URL#版本、npm:包@版本、插件@市场"), &form.source)
-            .padding(SETTINGS_CONTROL_PADDING)
-            .size(SETTINGS_CONTROL_TEXT_SIZE)
-            .style(settings_text_input_style)
-            .on_input_maybe(
-                (!form.busy())
-                    .then_some(|value| event(SettingsMessage::PluginsInstallSourceChanged(value))),
-            );
+    let input = settings_text_input(
+        tr(locale, "本地路径、git+URL#版本、npm:包@版本、插件@市场"),
+        &form.source,
+    )
+    .on_input_maybe(
+        (!form.busy())
+            .then_some(|value| event(SettingsMessage::PluginsInstallSourceChanged(value))),
+    );
     let hint = if form.update_id.is_some() {
         tr(locale, "更新来源可留空以使用已登记市场；本地插件请提供新包路径。")
     } else {

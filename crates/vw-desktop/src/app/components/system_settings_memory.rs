@@ -5,17 +5,17 @@
 
 use crate::app::components::number_input::NumberInput;
 use crate::app::components::system_settings_common::{
-    SETTINGS_CONTROL_PADDING, SETTINGS_CONTROL_TEXT_SIZE, rounded_action_btn_style,
-    settings_checkbox_style, settings_divider, settings_error_banner, settings_field_label,
-    settings_group_card, settings_group_heading, settings_muted_text_style, settings_page_heading,
-    settings_select, settings_tab_button, settings_tab_row, settings_text_input_style,
+    SETTINGS_CONTROL_TEXT_SIZE, rounded_action_btn_style, settings_checkbox_style,
+    settings_divider, settings_error_banner, settings_field_label, settings_group_card,
+    settings_group_heading, settings_muted_text_style, settings_page_heading, settings_select,
+    settings_tab_button, settings_tab_row, settings_text_input,
 };
 use crate::app::components::system_settings_search::SettingsTabDescriptor;
 use crate::app::i18n::settings_runtime::text as runtime_text;
 use crate::app::message::settings::{MemoryMessage, SettingsMessage};
 use crate::app::state::MemorySettingsTab;
 use crate::app::{App, Message};
-use iced::widget::{button, checkbox, column, container, row, text, text_input};
+use iced::widget::{button, checkbox, column, container, row, text};
 use iced::{Alignment, Element, Length};
 
 pub(super) const MEMORY_TABS: &[SettingsTabDescriptor<MemorySettingsTab>] = &[
@@ -91,12 +91,7 @@ pub(super) fn text_row<'a>(
     field_row(
         label,
         description,
-        text_input(placeholder, value)
-            .on_input(on_input)
-            .padding(SETTINGS_CONTROL_PADDING)
-            .size(SETTINGS_CONTROL_TEXT_SIZE)
-            .style(settings_text_input_style)
-            .width(Length::Fill),
+        settings_text_input(placeholder, value).on_input(on_input).width(Length::Fill),
     )
 }
 
@@ -452,15 +447,12 @@ pub fn view(app: &App) -> Element<'_, Message> {
                         .wrap(),
                     ]
                     .spacing(6),
-                    text_input("text-embedding-v4", &s.embedding_model)
+                    settings_text_input("text-embedding-v4", &s.embedding_model)
                         .on_input(|value| {
                             Message::Settings(SettingsMessage::Memory(
                                 MemoryMessage::EmbeddingModelChanged(value),
                             ))
                         })
-                        .padding(SETTINGS_CONTROL_PADDING)
-                        .size(SETTINGS_CONTROL_TEXT_SIZE)
-                        .style(settings_text_input_style)
                         .width(Length::Fill),
                 ),
                 settings_divider(),

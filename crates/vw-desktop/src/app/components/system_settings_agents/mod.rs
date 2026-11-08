@@ -38,9 +38,9 @@ mod tests;
 mod tools_tests;
 
 use crate::app::components::system_settings_common::{
-    SETTINGS_CONTROL_PADDING, SETTINGS_CONTROL_TEXT_SIZE, primary_action_btn_style,
-    rounded_action_btn_style, settings_error_banner, settings_group_card, settings_group_heading,
-    settings_muted_text_style, settings_page_heading, settings_tab_row, settings_text_input_style,
+    SETTINGS_CONTROL_TEXT_SIZE, primary_action_btn_style, rounded_action_btn_style,
+    settings_error_banner, settings_group_card, settings_group_heading, settings_muted_text_style,
+    settings_page_heading, settings_tab_row, settings_text_input,
 };
 use crate::app::components::system_settings_search::SettingsTabDescriptor;
 use crate::app::i18n::settings_extensions::text as tr;
@@ -50,7 +50,7 @@ use crate::app::{App, Message};
 use iced::widget::{
     button, column, container, row, scrollable,
     scrollable::{Direction, Scrollbar},
-    text, text_input,
+    text,
 };
 use iced::{Alignment, Element, Length};
 
@@ -318,14 +318,14 @@ fn agents_view(app: &App) -> Element<'_, Message> {
     }
 
     let add_agent_bar = row![
-        text_input(tr(app.desktop_locale, "新增智能体 key"), &settings.new_agent_key_input)
-            .on_input(|value| {
-                Message::Settings(SettingsMessage::Agents(AgentsMessage::AddAgentKeyChanged(value)))
-            })
-            .padding(SETTINGS_CONTROL_PADDING)
-            .size(SETTINGS_CONTROL_TEXT_SIZE)
-            .style(settings_text_input_style)
-            .width(Length::Fill),
+        settings_text_input(
+            tr(app.desktop_locale, "新增智能体 key"),
+            &settings.new_agent_key_input
+        )
+        .on_input(|value| {
+            Message::Settings(SettingsMessage::Agents(AgentsMessage::AddAgentKeyChanged(value)))
+        })
+        .width(Length::Fill),
         button(text(tr(app.desktop_locale, "新建智能体")).size(SETTINGS_CONTROL_TEXT_SIZE))
             .padding([8, 14])
             .on_press(Message::Settings(SettingsMessage::Agents(AgentsMessage::AddAgentRequested,)))

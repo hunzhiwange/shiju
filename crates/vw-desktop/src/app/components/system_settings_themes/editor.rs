@@ -3,11 +3,10 @@
 use crate::app::components::color_picker::{parse_color, render_color_picker};
 use crate::app::components::overlays::BelowOverlay;
 use crate::app::components::system_settings_common::{
-    SETTINGS_CONTROL_PADDING, SETTINGS_CONTROL_TEXT_SIZE, primary_action_btn_style,
-    rounded_action_btn_style, settings_close_button, settings_divider, settings_error_banner,
-    settings_group_card, settings_group_heading, settings_modal_header, settings_modal_layout,
-    settings_muted_text_style, settings_panel_style, settings_row, settings_select,
-    settings_tab_button, settings_tab_row, settings_text_input_style,
+    primary_action_btn_style, rounded_action_btn_style, settings_close_button, settings_divider,
+    settings_error_banner, settings_group_card, settings_group_heading, settings_modal_header,
+    settings_modal_layout, settings_muted_text_style, settings_panel_style, settings_row,
+    settings_select, settings_tab_button, settings_tab_row, settings_text_input,
 };
 use crate::app::components::system_settings_themes::preview::theme_preview_panel;
 use crate::app::i18n::I18n;
@@ -19,7 +18,7 @@ use crate::app::theme_catalog::{
     PanelImageFit, ThemeAssets, ThemeChrome, ThemeDefinition, ThemePaletteHex, is_bundled_preset_id,
 };
 use crate::app::{App, Message};
-use iced::widget::{Space, button, column, container, row, text, text_input};
+use iced::widget::{Space, button, column, container, row, text};
 use iced::{Alignment, Background, Color, Element, Length, Theme};
 
 /// 将显示名 slug 化为合法主题 id 基底。
@@ -328,12 +327,7 @@ fn text_row<'a>(
     value: &'a str,
     on_input: impl Fn(String) -> Message + 'a,
 ) -> Element<'a, Message> {
-    let input = text_input(placeholder, value)
-        .on_input(on_input)
-        .padding(SETTINGS_CONTROL_PADDING)
-        .size(SETTINGS_CONTROL_TEXT_SIZE)
-        .style(settings_text_input_style)
-        .width(Length::Fill);
+    let input = settings_text_input(placeholder, value).on_input(on_input).width(Length::Fill);
     field_row(label, description, input)
 }
 
@@ -464,11 +458,8 @@ fn color_field_row<'a>(
         .gap(6.0)
         .on_close(Message::Settings(SettingsMessage::Themes(ThemesMessage::ColorPickerClosed)));
 
-    let input = text_input(placeholder, value)
+    let input = settings_text_input(placeholder, value)
         .on_input(move |value| Message::Settings(SettingsMessage::Themes(on_manual(value))))
-        .padding(SETTINGS_CONTROL_PADDING)
-        .size(SETTINGS_CONTROL_TEXT_SIZE)
-        .style(settings_text_input_style)
         .width(Length::Fill);
 
     let control = row![swatch, input].spacing(8).align_y(Alignment::Center);
@@ -722,11 +713,7 @@ fn basics_tab(
             field_row(
                 i18n.__("标识"),
                 id_hint,
-                text_input("", &draft.id)
-                    .padding(SETTINGS_CONTROL_PADDING)
-                    .size(SETTINGS_CONTROL_TEXT_SIZE)
-                    .style(settings_text_input_style)
-                    .width(Length::Fill),
+                settings_text_input("", &draft.id).width(Length::Fill),
             ),
             text_row(
                 i18n.__("名称"),

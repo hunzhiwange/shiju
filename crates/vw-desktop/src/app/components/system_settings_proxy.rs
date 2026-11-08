@@ -18,13 +18,12 @@
 //! - `services`: 仅对指定服务选择器生效
 
 use crate::app::components::system_settings_common::{
-    SETTINGS_CONTROL_PADDING, SETTINGS_CONTROL_TEXT_SIZE, settings_checkbox_style,
-    settings_divider, settings_group_card, settings_group_heading,
+    settings_checkbox_style, settings_divider, settings_group_card, settings_group_heading,
     settings_help_button_with_locale as settings_help_button, settings_page_heading,
-    settings_row_with_flexible_control, settings_select, settings_text_input_style,
+    settings_row_with_flexible_control, settings_select, settings_text_input,
 };
 use crate::app::{App, Message, message};
-use iced::widget::{checkbox, column, container, row, text, text_input};
+use iced::widget::{checkbox, column, container, row, text};
 use iced::{Alignment, Element, Length};
 use vw_config_types::proxy::ProxyScope;
 
@@ -102,22 +101,16 @@ pub(super) fn content(app: &App) -> Element<'_, Message> {
     let http_row = field_row(
         crate::app::i18n::I18n::new(app.desktop_locale).__("HTTP 代理"),
         crate::app::i18n::I18n::new(app.desktop_locale).__("HTTP 请求代理地址。"),
-        text_input("http://127.0.0.1:7890", &s.http_proxy)
+        settings_text_input("http://127.0.0.1:7890", &s.http_proxy)
             .on_input(|v| Message::Settings(message::SettingsMessage::ProxyHttpChanged(v)))
-            .padding(SETTINGS_CONTROL_PADDING)
-            .size(SETTINGS_CONTROL_TEXT_SIZE)
-            .style(settings_text_input_style)
             .width(Length::Fill),
     );
 
     let https_row = field_row(
         crate::app::i18n::I18n::new(app.desktop_locale).__("HTTPS 代理"),
         crate::app::i18n::I18n::new(app.desktop_locale).__("HTTPS 请求代理地址。"),
-        text_input("http://127.0.0.1:7890", &s.https_proxy)
+        settings_text_input("http://127.0.0.1:7890", &s.https_proxy)
             .on_input(|v| Message::Settings(message::SettingsMessage::ProxyHttpsChanged(v)))
-            .padding(SETTINGS_CONTROL_PADDING)
-            .size(SETTINGS_CONTROL_TEXT_SIZE)
-            .style(settings_text_input_style)
             .width(Length::Fill),
     );
 
@@ -125,11 +118,8 @@ pub(super) fn content(app: &App) -> Element<'_, Message> {
         crate::app::i18n::I18n::new(app.desktop_locale).__("ALL 代理"),
         crate::app::i18n::I18n::new(app.desktop_locale)
             .__("当未命中 HTTP/HTTPS 时使用的兜底代理。"),
-        text_input("socks5://127.0.0.1:7891", &s.all_proxy)
+        settings_text_input("socks5://127.0.0.1:7891", &s.all_proxy)
             .on_input(|v| Message::Settings(message::SettingsMessage::ProxyAllChanged(v)))
-            .padding(SETTINGS_CONTROL_PADDING)
-            .size(SETTINGS_CONTROL_TEXT_SIZE)
-            .style(settings_text_input_style)
             .width(Length::Fill),
     );
 
@@ -137,22 +127,16 @@ pub(super) fn content(app: &App) -> Element<'_, Message> {
         crate::app::i18n::I18n::new(app.desktop_locale).__("排除列表"),
         crate::app::i18n::I18n::new(app.desktop_locale)
             .__("支持逗号或换行分隔，格式与 NO_PROXY 一致。"),
-        text_input("localhost, 127.0.0.1, *.internal", &s.no_proxy_input)
+        settings_text_input("localhost, 127.0.0.1, *.internal", &s.no_proxy_input)
             .on_input(|v| Message::Settings(message::SettingsMessage::ProxyNoProxyChanged(v)))
-            .padding(SETTINGS_CONTROL_PADDING)
-            .size(SETTINGS_CONTROL_TEXT_SIZE)
-            .style(settings_text_input_style)
             .width(Length::Fill),
     );
 
     let services_row = field_row(
         crate::app::i18n::I18n::new(app.desktop_locale).__("服务选择器"),
         crate::app::i18n::I18n::new(app.desktop_locale).__("仅在范围为指定服务时生效。"),
-        text_input("provider.openai, tool.http_request", &s.services_input)
+        settings_text_input("provider.openai, tool.http_request", &s.services_input)
             .on_input(|v| Message::Settings(message::SettingsMessage::ProxyServicesChanged(v)))
-            .padding(SETTINGS_CONTROL_PADDING)
-            .size(SETTINGS_CONTROL_TEXT_SIZE)
-            .style(settings_text_input_style)
             .width(Length::Fill),
     );
 

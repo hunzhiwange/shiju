@@ -18,17 +18,17 @@ mod enterprise_channels_tests;
 mod extended_channels_tests;
 
 use crate::app::components::system_settings_common::{
-    SETTINGS_CONTROL_PADDING, SETTINGS_CONTROL_TEXT_SIZE, settings_checkbox_style,
-    settings_compact_tab_button, settings_divider, settings_error_banner, settings_group_card,
-    settings_muted_text_style, settings_page_intro, settings_responsive_row, settings_section_card,
-    settings_section_content, settings_text_input_style,
+    SETTINGS_CONTROL_TEXT_SIZE, settings_checkbox_style, settings_compact_tab_button,
+    settings_divider, settings_error_banner, settings_group_card, settings_muted_text_style,
+    settings_page_intro, settings_responsive_row, settings_section_card, settings_section_content,
+    settings_text_input,
 };
 use crate::app::components::system_settings_search::SettingsTabDescriptor;
 use crate::app::i18n::settings_extensions::text as tr;
 use crate::app::message::settings::{ChannelsMessage, SettingsMessage};
 use crate::app::state::ChannelsSettingsTab;
 use crate::app::{App, Message};
-use iced::widget::{button, checkbox, column, container, row, svg, text, text_input};
+use iced::widget::{button, checkbox, column, container, row, svg, text};
 use iced::{Alignment, Background, Border, Color, Element, Length};
 use vw_config_types::ui::DesktopLocale;
 
@@ -109,16 +109,16 @@ fn global_settings_content(app: &App) -> Element<'_, Message> {
         }),
         settings_divider(),
         settings_responsive_row(tr(app.desktop_locale, "项目目录"), "", || {
-            text_input(tr(app.desktop_locale, "留空时按 workspace 推断"), &s.project_dir_input)
-                .on_input(|next| {
-                    Message::Settings(SettingsMessage::Channels(
-                        ChannelsMessage::ProjectDirChanged(next),
-                    ))
-                })
-                .padding(SETTINGS_CONTROL_PADDING)
-                .size(SETTINGS_CONTROL_TEXT_SIZE)
-                .style(settings_text_input_style)
-                .width(Length::Fill)
+            settings_text_input(
+                tr(app.desktop_locale, "留空时按 workspace 推断"),
+                &s.project_dir_input,
+            )
+            .on_input(|next| {
+                Message::Settings(SettingsMessage::Channels(ChannelsMessage::ProjectDirChanged(
+                    next,
+                )))
+            })
+            .width(Length::Fill)
         }),
         settings_divider(),
         number_row(

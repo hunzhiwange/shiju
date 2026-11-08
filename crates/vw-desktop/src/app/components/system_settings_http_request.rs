@@ -5,16 +5,15 @@
 
 use crate::app::components::number_input::NumberInput;
 use crate::app::components::system_settings_common::{
-    SETTINGS_CONTROL_PADDING, SETTINGS_CONTROL_TEXT_SIZE, primary_action_btn_style,
-    rounded_action_btn_style, settings_checkbox_style, settings_control_with_hint,
-    settings_divider, settings_group_card, settings_group_heading, settings_muted_text_style,
-    settings_page_heading, settings_row_with_flexible_control, settings_text_input_style,
-    settings_value_badge,
+    SETTINGS_CONTROL_TEXT_SIZE, primary_action_btn_style, rounded_action_btn_style,
+    settings_checkbox_style, settings_control_with_hint, settings_divider, settings_group_card,
+    settings_group_heading, settings_muted_text_style, settings_page_heading,
+    settings_row_with_flexible_control, settings_text_input, settings_value_badge,
 };
 use crate::app::i18n::settings_extensions::{domain_label, text as tr};
 use crate::app::message::settings::{HttpRequestMessage, SettingsMessage};
 use crate::app::{App, Message};
-use iced::widget::{button, checkbox, column, container, row, text, text::Wrapping, text_input};
+use iced::widget::{button, checkbox, column, container, row, text, text::Wrapping};
 use iced::{Alignment, Element, Length};
 
 fn field_row<'a>(
@@ -35,12 +34,7 @@ fn text_row<'a>(
     field_row(
         label,
         description,
-        text_input(placeholder, value)
-            .on_input(on_input)
-            .padding(SETTINGS_CONTROL_PADDING)
-            .size(SETTINGS_CONTROL_TEXT_SIZE)
-            .style(settings_text_input_style)
-            .width(Length::Fill),
+        settings_text_input(placeholder, value).on_input(on_input).width(Length::Fill),
     )
 }
 
@@ -186,16 +180,13 @@ pub(super) fn content(app: &App) -> Element<'_, Message> {
         tr(app.desktop_locale, "支持精确域名、子域模式或 *。"),
         settings_control_with_hint(
             row![
-                text_input(
+                settings_text_input(
                     tr(app.desktop_locale, "例如：example.com 或 *.example.org 或 *"),
                     &s.new_allowed_domain_input
                 )
                 .on_input(|value| Message::Settings(SettingsMessage::HttpRequest(
                     HttpRequestMessage::NewAllowedDomainChanged(value),
                 )))
-                .padding(SETTINGS_CONTROL_PADDING)
-                .size(SETTINGS_CONTROL_TEXT_SIZE)
-                .style(settings_text_input_style)
                 .width(Length::Fill),
                 button(text(tr(app.desktop_locale, "添加")).size(SETTINGS_CONTROL_TEXT_SIZE))
                     .padding([8, 14])

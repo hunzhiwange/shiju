@@ -5,17 +5,17 @@
 
 use crate::app::assets::Icon;
 use crate::app::components::system_settings_common::{
-    SETTINGS_CONTROL_PADDING, SETTINGS_CONTROL_TEXT_SIZE, icon_btn, primary_action_btn_style,
-    rounded_action_btn_style, settings_checkbox_style, settings_group_card, settings_group_heading,
+    SETTINGS_CONTROL_TEXT_SIZE, icon_btn, primary_action_btn_style, rounded_action_btn_style,
+    settings_checkbox_style, settings_group_card, settings_group_heading,
     settings_muted_text_style, settings_page_heading, settings_panel, settings_row,
-    settings_section_content, settings_select, settings_text_input_style,
+    settings_section_content, settings_select, settings_text_input,
 };
 use crate::app::message::settings::{
     ModelConfigTabMessage, QueryClassificationMessage, SettingsMessage,
 };
 use crate::app::state::ModelConfigTab;
 use crate::app::{App, Message};
-use iced::widget::{button, checkbox, column, container, row, text, text_input};
+use iced::widget::{button, checkbox, column, container, row, text};
 use iced::{Alignment, Element, Length};
 
 fn field_row<'a>(
@@ -169,7 +169,7 @@ pub fn view(app: &App) -> Element<'_, Message> {
                             "pattern",
                             crate::app::i18n::I18n::new(app.desktop_locale)
                                 .__("匹配关键字或模式，例如 bug / test / code。"),
-                            text_input(
+                            settings_text_input(
                                 crate::app::i18n::I18n::new(app.desktop_locale)
                                     .__("例如 bug / test / code"),
                                 &rule.pattern
@@ -179,9 +179,6 @@ pub fn view(app: &App) -> Element<'_, Message> {
                                     QueryClassificationMessage::PatternChanged(idx, value),
                                 )
                             ))
-                            .padding(SETTINGS_CONTROL_PADDING)
-                            .size(SETTINGS_CONTROL_TEXT_SIZE)
-                            .style(settings_text_input_style)
                             .width(Length::Fill),
                         ),
                         field_row(
@@ -194,15 +191,12 @@ pub fn view(app: &App) -> Element<'_, Message> {
                             "priority",
                             crate::app::i18n::I18n::new(app.desktop_locale)
                                 .__("越大优先级越高；匹配成功后使用所选模型分类对应的路由。"),
-                            text_input("0", &rule.priority_input)
+                            settings_text_input("0", &rule.priority_input)
                                 .on_input(move |value| Message::Settings(
                                     SettingsMessage::QueryClassification(
                                         QueryClassificationMessage::PriorityChanged(idx, value),
                                     )
                                 ))
-                                .padding(SETTINGS_CONTROL_PADDING)
-                                .size(SETTINGS_CONTROL_TEXT_SIZE)
-                                .style(settings_text_input_style)
                                 .width(Length::Fill),
                         ),
                     ]

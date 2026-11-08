@@ -5,16 +5,15 @@
 
 use crate::app::components::number_input::NumberInput;
 use crate::app::components::system_settings_common::{
-    SETTINGS_CONTROL_PADDING, SETTINGS_CONTROL_TEXT_SIZE, rounded_action_btn_style,
-    settings_checkbox_style, settings_control_with_hint, settings_divider, settings_field_label,
-    settings_group_card, settings_group_heading, settings_muted_text_style,
-    settings_responsive_row, settings_select, settings_text_editor_style,
-    settings_text_input_style, settings_value_badge,
+    SETTINGS_CONTROL_TEXT_SIZE, rounded_action_btn_style, settings_checkbox_style,
+    settings_control_with_hint, settings_divider, settings_field_label, settings_group_card,
+    settings_group_heading, settings_muted_text_style, settings_responsive_row, settings_select,
+    settings_text_editor, settings_text_input, settings_value_badge,
 };
 use crate::app::i18n::settings_extensions::text as tr;
 use crate::app::message::settings::{ChannelsMessage, SettingsMessage};
 use crate::app::{App, Message};
-use iced::widget::{button, checkbox, column, container, row, text, text_editor, text_input};
+use iced::widget::{button, checkbox, column, container, row, text};
 use iced::{Alignment, Element, Length};
 use vw_config_types::channels::{GroupReplyConfig, LarkReceiveMode, QQReceiveMode};
 use vw_config_types::ui::DesktopLocale;
@@ -285,7 +284,7 @@ pub(super) fn text_row_with_key<'a>(
             .text_editors
             .get(&key)
             .expect("multiline channel editor should be initialized");
-        let editor = text_editor(editor)
+        let editor = settings_text_editor(editor)
             .placeholder(tr(app.desktop_locale, multiline_placeholder(placeholder)))
             .on_action(move |action| {
                 Message::Settings(SettingsMessage::Channels(ChannelsMessage::TextEditorAction(
@@ -293,10 +292,7 @@ pub(super) fn text_row_with_key<'a>(
                     action,
                 )))
             })
-            .padding(SETTINGS_CONTROL_PADDING)
-            .size(SETTINGS_CONTROL_TEXT_SIZE)
-            .height(Length::Fixed(MULTILINE_EDITOR_HEIGHT))
-            .style(settings_text_editor_style);
+            .height(Length::Fixed(MULTILINE_EDITOR_HEIGHT));
         let editor: Element<'a, Message> = if placeholder == "逗号或换行分隔，支持 *" {
             let hint = if label == "group_reply.allowed_sender_ids" {
                 "填写 * 表示允许所有发送者，推荐使用。"
@@ -316,16 +312,13 @@ pub(super) fn text_row_with_key<'a>(
     let value = input_value(app, &key, value);
     settings_responsive_row(display_label, "", move || {
         let key = key.clone();
-        text_input(tr(app.desktop_locale, placeholder), value)
+        settings_text_input(tr(app.desktop_locale, placeholder), value)
             .on_input(move |next| {
                 Message::Settings(SettingsMessage::Channels(ChannelsMessage::TextChanged(
                     key.clone(),
                     next,
                 )))
             })
-            .padding(SETTINGS_CONTROL_PADDING)
-            .size(SETTINGS_CONTROL_TEXT_SIZE)
-            .style(settings_text_input_style)
             .width(Length::Fill)
             .secure(secure)
     })

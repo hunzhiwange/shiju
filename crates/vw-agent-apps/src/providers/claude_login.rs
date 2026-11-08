@@ -43,7 +43,7 @@ const ACCOUNT_KEYS: &[&str] = &[
     "cloudSessionsOauth",
 ];
 /// Secret material stays on the execution host, without Debug or wire serialization.
-#[derive(Clone, Serialize, Deserialize)]
+#[derive(Clone, PartialEq, Serialize, Deserialize)]
 pub struct LoginMaterial {
     secret: Option<Value>,
     keychain: Option<Value>,
@@ -57,6 +57,11 @@ struct Journal {
     operation: String,
     before: LoginMaterial,
     after: LoginMaterial,
+}
+#[derive(Clone, Copy, PartialEq, Eq)]
+enum SnapshotAction {
+    CheckOut,
+    ReplaceLive,
 }
 pub struct LoginHost {
     home: Directory,
@@ -92,24 +97,7 @@ impl LoginHost {
     }
     fn material(&self, keychain: &dyn ClaudeKeychain) -> Result<LoginMaterial, WriteError> {
         keychain.authorize_home(&self.home_path).map_err(|_| WriteError::InvalidResource)?;
-        let fallback = self.default.read(".credentials.json")?;
-        let native = keychain.read(None).map_err(|_| WriteError::Io)?;
-        let file_secret = fallback
-            .as_deref()
-            .map(serde_json::from_slice)
-            .transpose()
-            .map_err(|_| WriteError::InvalidResource)?;
-        let secret = native.clone().or(file_secret);
-
-        if secret.as_ref().is_some_and(|v| !v.is_object()) {
-            return Err(WriteError::InvalidResource);
-        }
-        Ok(LoginMaterial {
-            secret,
-            keychain: native,
-            profile: self.home.read(".claude.json")?,
-            fallback,
-        })
+        LoginMaterial::read(&self.default, &self.home, None, keychain)
     }
     fn install(
         &self,
@@ -118,6 +106,9 @@ impl LoginHost {
     ) -> Result<(), WriteError> {
         keychain.authorize_home(&self.home_path).map_err(|_| WriteError::InvalidResource)?;
         keychain.write(None, material.keychain.as_ref()).map_err(|_| WriteError::Io)?;
+        if keychain.read(None).map_err(|_| WriteError::Io)? != material.keychain {
+            return Err(WriteError::Io);
+        }
         self.default.write(".credentials.json", material.fallback.as_deref())?;
         self.home.write(".claude.json", material.profile.as_deref())
     }
@@ -190,6 +181,36 @@ impl LoginHost {
         keychain: &dyn ClaudeKeychain,
         archive: impl FnOnce(&LoginMaterial) -> Result<(), WriteError>,
     ) -> Result<Option<String>, WriteError> {
+        self.begin_snapshot(tx, tenant, target, keychain, SnapshotAction::CheckOut, archive)
+    }
+    /// Install new sign-in material only if this managed account already owns the live slot.
+    /// The caller holds the account lease, as for a provider-bound checkout.
+    pub fn replace_live(
+        &self,
+        tx: &ProviderTransactions,
+        tenant: &TenantScope,
+        target: &Path,
+        keychain: &dyn ClaudeKeychain,
+    ) -> Result<bool, WriteError> {
+        if self
+            .begin_snapshot(tx, tenant, target, keychain, SnapshotAction::ReplaceLive, |_| Ok(()))?
+            .is_none()
+        {
+            return Ok(false);
+        }
+        // The snapshot is complete. Unlike checkout, no provider publication is required.
+        self.default.write(JOURNAL, None)?;
+        Ok(true)
+    }
+    fn begin_snapshot(
+        &self,
+        tx: &ProviderTransactions,
+        tenant: &TenantScope,
+        target: &Path,
+        keychain: &dyn ClaudeKeychain,
+        action: SnapshotAction,
+        archive: impl FnOnce(&LoginMaterial) -> Result<(), WriteError>,
+    ) -> Result<Option<String>, WriteError> {
         if self.has_journal()? || tx.pending(AppId::Claude)?.is_some() {
             return Err(WriteError::Conflict);
         }
@@ -207,20 +228,21 @@ impl LoginHost {
         ];
         *self.target_locks.lock().map_err(|_| WriteError::Conflict)? = locks;
         let before = self.material(keychain)?;
-        let account = LoginMaterial::from_account(target, keychain)?;
+        let read_target = || LoginMaterial::read(&dir, &dir, Some(target), keychain);
+        let account = read_target()?;
         let Some(identity) = account.identity()? else {
             return Err(WriteError::InvalidResource);
         };
-        if before.identity()?.as_ref() == Some(&identity) {
+        let same_account = before.identity()?.as_ref() == Some(&identity);
+        if same_account != (action == SnapshotAction::ReplaceLive) {
             return Ok(None);
         }
         let after = merge(&before, &account)?;
-        archive(&before)?;
+        if action == SnapshotAction::CheckOut {
+            archive(&before)?;
+        }
         // Archival can wait for the OS. Never overwrite a login rotated in that interval.
-        let current = self.material(keychain)?;
-        if serde_json::to_vec(&current).map_err(|_| WriteError::Io)?
-            != serde_json::to_vec(&before).map_err(|_| WriteError::Io)?
-        {
+        if self.material(keychain)? != before || read_target()? != account {
             return Err(WriteError::Conflict);
         }
         let operation = format!(
@@ -241,7 +263,13 @@ impl LoginHost {
         self.default
             .write(JOURNAL, Some(&serde_json::to_vec(&journal).map_err(|_| WriteError::Io)?))?;
         if let Err(error) = self.install(keychain, &journal.after) {
-            let _ = self.recover(tx, keychain);
+            // A rejected keychain write can leave everything intact. Avoid a second
+            // write to the rejected destination when no rollback is needed.
+            if self.material(keychain).is_ok_and(|current| current == journal.before) {
+                let _ = self.default.write(JOURNAL, None);
+            } else {
+                let _ = self.recover(tx, keychain);
+            }
             return Err(error);
         }
         Ok(Some(operation))
@@ -286,15 +314,26 @@ impl LoginMaterial {
     }
     pub fn from_account(path: &Path, keychain: &dyn ClaudeKeychain) -> Result<Self, WriteError> {
         let dir = Directory::open(path)?;
-        let fallback = dir.read(".credentials.json")?;
-        let native = keychain.read(Some(path)).map_err(|_| WriteError::Io)?;
+        Self::read(&dir, &dir, Some(path), keychain)
+    }
+    fn read(
+        credentials: &Directory,
+        profile: &Directory,
+        keychain_path: Option<&Path>,
+        keychain: &dyn ClaudeKeychain,
+    ) -> Result<Self, WriteError> {
+        let fallback = credentials.read(".credentials.json")?;
+        let native = keychain.read(keychain_path).map_err(|_| WriteError::Io)?;
         let file_secret = fallback
             .as_deref()
             .map(serde_json::from_slice)
             .transpose()
             .map_err(|_| WriteError::InvalidResource)?;
         let secret = native.clone().or(file_secret);
-        Ok(Self { secret, keychain: native, profile: dir.read(".claude.json")?, fallback })
+        if secret.as_ref().is_some_and(|value| !value.is_object()) {
+            return Err(WriteError::InvalidResource);
+        }
+        Ok(Self { secret, keychain: native, profile: profile.read(".claude.json")?, fallback })
     }
     pub fn archive(&self, path: &Path, keychain: &dyn ClaudeKeychain) -> Result<(), WriteError> {
         let directory = Directory::open(path)?;

@@ -198,13 +198,13 @@ pub fn view(app: &App) -> Element<'_, Message> {
             i18n,
             theme,
             i18n.__("多模态配置"),
-            i18n.__("配置本地图片附件的数量与大小上限，并决定是否允许抓取远程图片 URL。"),
+            i18n.__("设置图片附件上限和远程图片抓取权限。"),
         ),
         settings_group_heading_with_help(
             i18n,
             theme,
             i18n.__("图像输入限制"),
-            i18n.__("输入框附件优先使用本地文件；这里控制单次请求最多允许的图片数量、每张图片大小上限，以及是否允许抓取远程图片 URL。"),
+            i18n.__("优先使用本地附件。可限制每次请求的图片数量和单张大小，并选择是否允许抓取远程图片。"),
         ),
         settings_group_card(
             column![
@@ -229,17 +229,13 @@ pub fn view(app: &App) -> Element<'_, Message> {
                 ),
                 settings_divider(),
                 field_row(
-                    i18n.__("允许远程抓取"),
-                    i18n.__("本地附件始终可用；开启后才允许抓取 http/https 远程图片 URL。"),
-                    bool_control(
-                        s.allow_remote_fetch,
-                        i18n.__("允许抓取 http/https 远程图片 URL"),
-                        |value| {
-                            Message::Settings(SettingsMessage::Multimodal(
-                                MultimodalMessage::AllowRemoteFetchToggled(value),
-                            ))
-                        },
-                    ),
+                    i18n.__("远程图片"),
+                    i18n.__("本地附件始终可用。"),
+                    bool_control(s.allow_remote_fetch, i18n.__("允许抓取远程图片"), |value| {
+                        Message::Settings(SettingsMessage::Multimodal(
+                            MultimodalMessage::AllowRemoteFetchToggled(value),
+                        ))
+                    }),
                 ),
             ]
             .spacing(0),

@@ -681,7 +681,7 @@ async fn help_rollout_27_multimodal_renders_contextual_help() {
     assert_contextual_help(
         Some(ModelConfigTab::Multimodal),
         6,
-        "配置本地图片附件的数量与大小上限，并决定是否允许抓取远程图片 URL。",
+        "设置图片附件上限和远程图片抓取权限。",
     )
     .await;
 }

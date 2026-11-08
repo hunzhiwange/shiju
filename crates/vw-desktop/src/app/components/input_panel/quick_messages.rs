@@ -784,13 +784,14 @@ fn workspace_menu_view(app: &App) -> Element<'_, Message> {
         );
     }
 
-    let items = scrollable(items).height(menu_height(app.recent_projects.len())).direction(
-        Direction::Vertical(
+    let items = scrollable(items)
+        .height(menu_height(app.recent_projects.len()))
+        .direction(Direction::Vertical(
             Scrollbar::new()
                 .width(QUICK_MESSAGE_MENU_SCROLLBAR_WIDTH)
-                .scroller_width(QUICK_MESSAGE_MENU_SCROLLBAR_WIDTH),
-        ),
-    );
+                .scroller_width(QUICK_MESSAGE_MENU_SCROLLBAR_WIDTH)
+                .spacing(QUICK_MESSAGE_MENU_SCROLLBAR_GAP),
+        ));
     container(
         column![
             items,

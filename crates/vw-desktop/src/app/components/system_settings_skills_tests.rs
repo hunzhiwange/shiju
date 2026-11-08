@@ -35,7 +35,7 @@ fn skills_tab_labels_keep_expected_order_and_unique_tabs() {
 
 #[test]
 fn field_row_and_tab_buttons_build_active_and_inactive_states() {
-    keep_element(field_row("字段", "字段说明", text("字段值")));
+    keep_element(field_row(&test_app(), "字段", "字段说明", text("字段值")));
 
     for (label, tab) in skills_tab_labels() {
         let inactive_tab = if *tab == SkillsSettingsTab::SystemConfig {
@@ -144,10 +144,7 @@ async fn settings_tabs_capabilities_appearance_skills() {
             let _ = app.update(Message::Settings(tab));
             assert_eq!(app.skills_settings.directory_scope, SkillsDirectoryScope::Global);
             let labels = scene.labels(view(app));
-            assert!(labels.contains(tr(
-                locale,
-                "同名技能只展示最先命中的目录，保持项目优先，避免列表重复。"
-            )));
+            assert!(labels.contains(tr(locale, "发现顺序")));
             assert!(labels.contains("fixture skills error"));
         },
     )

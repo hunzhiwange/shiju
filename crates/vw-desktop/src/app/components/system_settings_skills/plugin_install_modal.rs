@@ -2,37 +2,33 @@
 use crate::app::components::system_settings_common::{
     primary_action_btn_style, rounded_action_btn_style, settings_close_button,
     settings_control_with_hint, settings_error_banner, settings_field_label, settings_group_card,
-    settings_group_heading, settings_modal_header, settings_modal_layout, settings_modal_overlay,
-    settings_muted_text_style, settings_text_input,
+    settings_group_heading_with_help, settings_modal_header, settings_modal_layout,
+    settings_modal_overlay, settings_muted_text_style, settings_text_input,
 };
-use crate::app::i18n::settings_extensions::text as tr;
+use crate::app::i18n::{I18n, settings_extensions::text as tr};
 use crate::app::{
-    Message,
+    App, Message,
     message::SettingsMessage,
     state::{PluginInstallForm, PluginInstallPhase},
 };
 use iced::widget::{button, column, container, row, text};
 use iced::{Alignment, Element};
-use vw_config_types::ui::DesktopLocale;
 fn event(message: SettingsMessage) -> Message {
     Message::Settings(message)
 }
 pub(super) fn view<'a>(
-    locale: DesktopLocale,
+    app: &App,
     base: Element<'a, Message>,
     form: &'a PluginInstallForm,
 ) -> Element<'a, Message> {
+    let locale = app.desktop_locale;
     let close = event(SettingsMessage::PluginsInstallClose);
     let title = if form.update_id.is_some() {
         tr(locale, "更新插件")
     } else {
         tr(locale, "安装插件")
     };
-    let input = settings_text_input(
-        tr(locale, "本地路径、git+URL#版本、npm:包@版本、插件@市场"),
-        &form.source,
-    )
-    .on_input_maybe(
+    let input = settings_text_input("", &form.source).on_input_maybe(
         (!form.busy())
             .then_some(|value| event(SettingsMessage::PluginsInstallSourceChanged(value))),
     );
@@ -163,7 +159,12 @@ pub(super) fn view<'a>(
     .style(primary_action_btn_style)
     .on_press_maybe(form.can_confirm().then_some(event(SettingsMessage::PluginsInstallConfirm)));
     let header = settings_modal_header(
-        settings_group_heading(title, tr(locale, "本地路径、git+URL#版本、npm:包@版本、插件@市场")),
+        settings_group_heading_with_help(
+            I18n::new(locale),
+            &app.app_theme,
+            title,
+            tr(locale, "本地路径、git+URL#版本、npm:包@版本、插件@市场"),
+        ),
         settings_close_button(close.clone()),
     );
     let actions = row![prepare, cancel, confirm].spacing(8).align_y(Alignment::Center).wrap();

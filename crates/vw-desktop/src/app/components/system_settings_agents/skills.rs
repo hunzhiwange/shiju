@@ -4,11 +4,12 @@
 
 use super::shared::is_dark_theme;
 use crate::app::components::system_settings_common::{
-    rounded_action_btn_style, settings_error_banner, settings_field_label, settings_flexible_row,
-    settings_group_card, settings_group_heading, settings_muted_text_style, settings_panel_style,
+    rounded_action_btn_style, settings_error_banner, settings_field_label,
+    settings_flexible_row_with_help, settings_group_card, settings_group_heading_with_help,
+    settings_hover_help_label, settings_muted_text_style, settings_panel_style,
     settings_segment_button_style, settings_select, settings_value_badge,
 };
-use crate::app::i18n::settings_extensions::text as tr;
+use crate::app::i18n::{I18n, settings_extensions::text as tr};
 use crate::app::message::settings::{AgentsMessage, SettingsMessage};
 use crate::app::state::{DelegateAgentSettingsEntry, SkillsCatalogItem, SkillsDirectoryScope};
 use crate::app::{App, Message};
@@ -285,6 +286,7 @@ pub(super) fn view<'a>(
     app: &'a App,
     entry: &'a DelegateAgentSettingsEntry,
 ) -> Element<'a, Message> {
+    let i18n = I18n::new(app.desktop_locale);
     let active_scope = agent_skills_scope(app.agents_settings.skill_directory_scope);
     let skills = app
         .agents_settings
@@ -322,8 +324,16 @@ pub(super) fn view<'a>(
         Message::Settings(SettingsMessage::Agents(AgentsMessage::SkillDirectorySelected(path)))
     })
     .width(Length::Fill);
+    let directory_label = tr(app.desktop_locale, "技能目录");
     let scope_filter = column![
-        settings_field_label(tr(app.desktop_locale, "技能目录")),
+        settings_hover_help_label(
+            i18n,
+            &app.app_theme,
+            directory_label,
+            settings_field_label(directory_label),
+            tr(app.desktop_locale, scope_description(active_scope)),
+        )
+        .wrap(),
         directory_picker,
         app.agents_settings.skill_catalog_error.as_ref().map(settings_error_banner),
         row![
@@ -354,9 +364,6 @@ pub(super) fn view<'a>(
         ]
         .spacing(8)
         .wrap(),
-        text(tr(app.desktop_locale, scope_description(active_scope)))
-            .size(12)
-            .style(settings_muted_text_style),
         text(discovery_order_text(app))
             .size(11)
             .width(Length::Fill)
@@ -438,7 +445,9 @@ pub(super) fn view<'a>(
     .wrap();
 
     column![
-        settings_group_heading(
+        settings_group_heading_with_help(
+            i18n,
+            &app.app_theme,
             tr(app.desktop_locale, "默认技能"),
             tr(
                 app.desktop_locale,
@@ -448,7 +457,9 @@ pub(super) fn view<'a>(
         settings_group_card(
             column![
                 mode,
-                settings_flexible_row(
+                settings_flexible_row_with_help(
+                    i18n,
+                    &app.app_theme,
                     tr(app.desktop_locale, "技能访问策略"),
                     tr(app.desktop_locale, "严格限制保留原有允许范围；不限制允许会话临时选择。"),
                     320.0,

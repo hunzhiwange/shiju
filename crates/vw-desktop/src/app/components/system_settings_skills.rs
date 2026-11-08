@@ -8,12 +8,12 @@ pub(crate) mod plugins;
 
 use crate::app::components::system_settings_common::{
     SETTINGS_CONTROL_TEXT_SIZE, settings_checkbox_style, settings_divider, settings_error_banner,
-    settings_group_card, settings_group_heading, settings_help_button, settings_modal_card_style,
-    settings_page_heading, settings_row_with_flexible_control, settings_select,
-    settings_tab_button, settings_tab_row,
+    settings_flexible_row_with_help, settings_group_card, settings_group_heading_with_help,
+    settings_help_button_with_locale, settings_modal_card_style, settings_page_heading_with_help,
+    settings_select, settings_tab_button, settings_tab_row,
 };
 use crate::app::components::system_settings_search::SettingsTabDescriptor;
-use crate::app::i18n::settings_extensions::text as tr;
+use crate::app::i18n::{I18n, settings_extensions::text as tr};
 use crate::app::state::SkillsSettingsTab;
 use crate::app::{App, Message, message};
 use iced::widget::{checkbox, column, container, row};
@@ -21,11 +21,20 @@ use iced::{Alignment, Element, Length};
 use vw_config_types::skills::{SkillsDirectoryProvider, SkillsPromptInjectionMode};
 
 fn field_row<'a>(
+    app: &App,
     label: &'static str,
     description: &'static str,
     control: impl Into<Element<'a, Message>>,
 ) -> Element<'a, Message> {
-    settings_row_with_flexible_control(label, description, 330.0, control)
+    settings_flexible_row_with_help(
+        I18n::new(app.desktop_locale),
+        &app.app_theme,
+        label,
+        description,
+        330.0,
+        control,
+    )
+    .into()
 }
 
 fn skills_tab_button(
@@ -79,12 +88,14 @@ fn system_config_view(app: &App) -> Element<'_, Message> {
         .width(Length::Fill);
 
     let provider_row = field_row(
+        app,
         tr(app.desktop_locale, "技能目录提供者"),
         tr(app.desktop_locale, "切换技能目录兼容模式；配置缺失时使用 ShiJu。"),
         provider_pick,
     );
 
     let project_auto_load_row = field_row(
+        app,
         tr(app.desktop_locale, "项目技能"),
         tr(
             app.desktop_locale,
@@ -101,6 +112,7 @@ fn system_config_view(app: &App) -> Element<'_, Message> {
 
     let mode_full = matches!(s.prompt_injection_mode, SkillsPromptInjectionMode::Full);
     let mode_row = field_row(
+        app,
         tr(app.desktop_locale, "提示注入模式"),
         tr(app.desktop_locale, "compact 更省上下文，full 会注入完整技能内容。"),
         checkbox(mode_full)
@@ -119,7 +131,9 @@ fn system_config_view(app: &App) -> Element<'_, Message> {
     );
 
     let config_card = column![
-        settings_group_heading(
+        settings_group_heading_with_help(
+            I18n::new(app.desktop_locale),
+            &app.app_theme,
             tr(app.desktop_locale, "系统配置"),
             tr(
                 app.desktop_locale,
@@ -142,8 +156,10 @@ fn system_config_view(app: &App) -> Element<'_, Message> {
 
 pub fn view(app: &App) -> Element<'_, Message> {
     let s = &app.skills_settings;
-    let help_btn =
-        settings_help_button(Message::Settings(message::SettingsMessage::SkillsHelpOpen));
+    let help_btn = settings_help_button_with_locale(
+        app.desktop_locale,
+        Message::Settings(message::SettingsMessage::SkillsHelpOpen),
+    );
 
     let content = match s.active_tab {
         SkillsSettingsTab::Skills => browser::view(app),
@@ -153,7 +169,9 @@ pub fn view(app: &App) -> Element<'_, Message> {
 
     let mut page = column![
         row![
-            container(settings_page_heading(
+            container(settings_page_heading_with_help(
+                I18n::new(app.desktop_locale),
+                &app.app_theme,
                 tr(app.desktop_locale, "技能配置"),
                 tr(
                     app.desktop_locale,
@@ -239,7 +257,7 @@ pub(crate) fn with_plugin_install<'a>(
     base: Element<'a, Message>,
 ) -> Element<'a, Message> {
     match app.skills_settings.plugin_install.as_ref() {
-        Some(form) => plugin_install_modal::view(app.desktop_locale, base, form),
+        Some(form) => plugin_install_modal::view(app, base, form),
         None => base,
     }
 }

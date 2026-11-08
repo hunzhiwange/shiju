@@ -10,12 +10,12 @@ use crate::app::assets::Icon;
 use crate::app::components::system_settings_common::{
     SETTINGS_CONTROL_PADDING, SETTINGS_CONTROL_TEXT_SIZE, danger_action_btn_style,
     primary_action_btn_style, rounded_action_btn_style, settings_close_button,
-    settings_error_banner, settings_field_label, settings_group_heading, settings_modal_card,
-    settings_modal_header, settings_modal_overlay, settings_muted_text_style, settings_panel_style,
-    settings_segment_button_style, settings_select, settings_success_banner,
+    settings_error_banner, settings_field_label, settings_group_heading, settings_hover_help_label,
+    settings_modal_card, settings_modal_header, settings_modal_overlay, settings_muted_text_style,
+    settings_panel_style, settings_segment_button_style, settings_select, settings_success_banner,
     settings_text_input_style, settings_value_badge,
 };
-use crate::app::i18n::settings_extensions::text as tr;
+use crate::app::i18n::{I18n, settings_extensions::text as tr};
 use crate::app::state::{SkillsCatalogKind as CatalogSkillKind, SkillsDirectoryScope};
 use crate::app::{App, Message, message};
 use iced::widget::scrollable::{Direction, Scrollbar};
@@ -280,25 +280,20 @@ pub(super) fn discovery_order_view<'a>(app: &'a App) -> Element<'a, Message> {
         )
     });
 
+    let title = tr(locale, "发现顺序");
     column![
         container(
             column![
                 row![
-                    column![
-                        text(tr(locale, "发现顺序")).size(22),
-                        text(tr(
-                            locale,
-                            "同名技能只展示最先命中的目录，保持项目优先，避免列表重复。"
-                        ))
-                        .size(13)
-                        .style(|theme: &iced::Theme| {
-                            iced::widget::text::Style {
-                                color: Some(theme.palette().text.scale_alpha(0.68)),
-                            }
-                        }),
-                    ]
-                    .spacing(6)
-                    .width(Length::Fill),
+                    settings_hover_help_label(
+                        I18n::new(locale),
+                        &app.app_theme,
+                        title,
+                        text(title).size(22),
+                        tr(locale, "同名技能只展示最先命中的目录，保持项目优先，避免列表重复。",),
+                    )
+                    .width(Length::Fill)
+                    .wrap(),
                     settings_value_badge(if project_open {
                         tr(locale, "项目已打开")
                     } else {

@@ -443,14 +443,15 @@ async fn ui_refresh_19_layout_and_interaction() {
     let size = Size::new(640, 820);
     let mut ui = scene(view(&app), &mut renderer, size);
     let positions = geometry(&mut ui, &renderer);
+    let search = positions.input("Fixture");
     let project_trigger = *positions
         .focusable
         .iter()
-        .find(|bounds| (bounds.height - 38.0).abs() < 0.5)
+        .find(|bounds| **bounds != search && (bounds.height - 38.0).abs() < 0.5)
         .expect("project selector trigger");
     assert!((project_trigger.center_y() - positions.label("技能作用域").center_y()).abs() < 0.5);
     assert!(matches!(
-        edit(&mut ui, &mut renderer, positions.input("Fixture").center(), "示例").as_slice(),
+        edit(&mut ui, &mut renderer, search.center(), "示例").as_slice(),
         [Message::Settings(SkillsQueryChanged(query))] if query == "Fixture示例"
     ));
     assert!(matches!(
@@ -680,5 +681,249 @@ async fn ui_refresh_19_preserves_values_and_disabled_states() {
     assert!(edit(&mut ui, &mut renderer, source, "-blocked").is_empty());
     for action in ["审计预览", "确认更新", "取消"] {
         assert!(press_label(&mut ui, &mut renderer, action).is_empty(), "{action}");
+    }
+}
+
+fn assert_contextual_help(
+    ui: &mut Ui<'_>,
+    renderer: &mut Renderer,
+    (size, theme, locale): (Size<u32>, &Theme, DesktopLocale),
+    title: &'static str,
+    description: &'static str,
+) -> iced::Point {
+    let positions = geometry(ui, renderer);
+    let label = positions
+        .labels
+        .iter()
+        .rev()
+        .find(|(label, _)| label == tr(locale, title))
+        .unwrap_or_else(|| panic!("missing title {title}"))
+        .1;
+    let icon = iced::Point::new(label.x + label.width + 15.0, label.center_y());
+    let frame = |ui: &mut Ui<'_>, renderer: &mut Renderer, suffix: &str, cursor| {
+        capture(ui, renderer, theme, size, &format!("help-10-{locale:?}-{title}-{suffix}"), cursor)
+    };
+    let idle = frame(ui, renderer, "idle", mouse::Cursor::Unavailable);
+    assert!(
+        !positions.labels.iter().any(|(label, _)| label == tr(locale, description)),
+        "{title}: explanation must be absent from the idle view"
+    );
+    let cursor = mouse::Cursor::Available(icon);
+    assert!(
+        send(ui, renderer, cursor, &[Event::Mouse(mouse::Event::CursorMoved { position: icon })])
+            .is_empty()
+    );
+    assert!(idle != frame(ui, renderer, "hover", cursor), "{title}: expected a hover preview");
+    assert!(click(ui, renderer, icon).is_empty());
+    assert!(
+        idle != frame(ui, renderer, "open", mouse::Cursor::Unavailable),
+        "{title}: expected a pinned help card"
+    );
+    assert!(
+        send(ui, renderer, mouse::Cursor::Unavailable, &[key(iced::keyboard::key::Named::Escape)])
+            .is_empty()
+    );
+    assert!(
+        idle == frame(ui, renderer, "closed", mouse::Cursor::Unavailable),
+        "{title}: Escape must close only the help card"
+    );
+    icon
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn help_rollout_10_renders_contextual_help() {
+    if !isolated("help_rollout_10_renders_contextual_help") {
+        return;
+    }
+    let mut app = fixture();
+    let mut renderer = renderer().await;
+    for (locale, theme, width) in [
+        (DesktopLocale::SimplifiedChinese, Theme::Dark, 420),
+        (DesktopLocale::English, Theme::Light, 640),
+        (DesktopLocale::TraditionalChinese, Theme::Dark, 520),
+    ] {
+        app.desktop_locale = locale;
+        app.app_theme = theme.clone();
+        let size = Size::new(width, 660);
+        let context = (size, &theme, locale);
+        app.skills_settings.active_tab = SkillsSettingsTab::SystemConfig;
+        let mut ui = scene(view(&app), &mut renderer, size);
+        for (title, description) in [
+            ("技能配置", "技能、发现顺序与系统配置分开展示；技能页只保留浏览和搜索。"),
+            ("系统配置", "这里配置项目技能默认加载与 prompt injection；目录顺序单独展示。"),
+            ("技能目录提供者", "切换技能目录兼容模式；配置缺失时使用 ShiJu。"),
+            ("项目技能", "自动向委托代理提供项目及父级 skills、.agents/skills；无需逐项选择。"),
+            ("提示注入模式", "compact 更省上下文，full 会注入完整技能内容。"),
+        ] {
+            assert_contextual_help(&mut ui, &mut renderer, context, title, description);
+        }
+        assert!(matches!(
+            press_label(&mut ui, &mut renderer, tr(locale, "默认加载项目技能")).as_slice(),
+            [Message::Settings(message::SettingsMessage::SkillsProjectAutoLoadToggled(_))]
+        ));
+        drop(ui);
+        app.skills_settings.active_tab = SkillsSettingsTab::DiscoveryOrder;
+        let mut ui = scene(view(&app), &mut renderer, size);
+        assert_contextual_help(
+            &mut ui,
+            &mut renderer,
+            context,
+            "发现顺序",
+            "同名技能只展示最先命中的目录，保持项目优先，避免列表重复。",
+        );
+        geometry(&mut ui, &renderer).label(tr(locale, "项目已打开"));
+    }
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn help_rollout_10_agent_policy_and_scope() {
+    if !isolated("help_rollout_10_agent_policy_and_scope") {
+        return;
+    }
+    use crate::app::components::system_settings_agents;
+    use crate::app::message::settings::{AgentsMessage, SettingsMessage};
+    use crate::app::state::{AGENT_DETAIL_SKILLS_TAB, AgentConfigTab, DelegateAgentSettingsEntry};
+
+    let mut app = fixture();
+    let mut renderer = renderer().await;
+    app.agents_settings.config_ready = true;
+    app.agents_settings.active_config_tab = AgentConfigTab::Agents;
+    app.agents_settings.selected_agent = "fixture-agent".into();
+    app.agents_settings.profile_modal =
+        Some(DelegateAgentSettingsEntry::from_config("fixture-agent", None));
+    app.agents_settings.active_detail_tab = AGENT_DETAIL_SKILLS_TAB.into();
+    app.agents_settings.skill_directory = Some(PATH.into());
+    app.agents_settings.skill_directory_scope = SkillsDirectoryScope::All;
+    for (locale, theme, width) in [
+        (DesktopLocale::SimplifiedChinese, Theme::Dark, 420),
+        (DesktopLocale::English, Theme::Light, 640),
+    ] {
+        app.desktop_locale = locale;
+        app.app_theme = theme.clone();
+        let size = Size::new(width, 800);
+        let mut ui = scene(system_settings_agents::view(&app), &mut renderer, size);
+        for (title, description) in [
+            (
+                "默认技能",
+                "继承预览原有允许技能；固定空列表不预选技能。默认选择不会扩大严格访问范围。",
+            ),
+            ("技能访问策略", "严格限制保留原有允许范围；不限制允许会话临时选择。"),
+            ("技能目录", "按加载顺序汇总全部技能来源。"),
+        ] {
+            assert_contextual_help(
+                &mut ui,
+                &mut renderer,
+                (size, &theme, locale),
+                title,
+                description,
+            );
+        }
+        assert!(geometry(&mut ui, &renderer).labels.iter().any(|(label, _)| label.contains(PATH)));
+        assert!(matches!(
+            press_label(&mut ui, &mut renderer, tr(locale, "严格限制")).as_slice(),
+            [Message::Settings(SettingsMessage::Agents(AgentsMessage::SkillPolicyChanged(..)))]
+        ));
+        assert!(matches!(
+            press_label(&mut ui, &mut renderer, tr(locale, "保存配置")).as_slice(),
+            [Message::Settings(SettingsMessage::Agents(AgentsMessage::ProfileSave))]
+        ));
+    }
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn help_rollout_10_plugin_formats_keep_audit_visible() {
+    if !isolated("help_rollout_10_plugin_formats_keep_audit_visible") {
+        return;
+    }
+    use crate::app::message::settings::SettingsMessage;
+    const FORMATS: &str = "本地路径、git+URL#版本、npm:包@版本、插件@市场";
+    let mut app = fixture();
+    let mut renderer = renderer().await;
+    for (locale, theme, width) in [
+        (DesktopLocale::SimplifiedChinese, Theme::Dark, 420),
+        (DesktopLocale::English, Theme::Light, 760),
+    ] {
+        app.desktop_locale = locale;
+        app.app_theme = theme.clone();
+        let size = Size::new(width, 660);
+        let context = (size, &theme, locale);
+        let mut form = PluginInstallForm::new(7, None);
+        form.source = URL.into();
+        app.skills_settings.plugin_install = Some(form);
+        let mut ui = scene(with_plugin_install(&app, plugins::view(&app)), &mut renderer, size);
+        assert_contextual_help(&mut ui, &mut renderer, context, "安装插件", FORMATS);
+        let positions = geometry(&mut ui, &renderer);
+        positions.input(URL);
+        positions.label(tr(locale, "只通过网关审计和安装，不在界面中拷贝文件。"));
+        assert!(matches!(
+            press_label(&mut ui, &mut renderer, tr(locale, "审计预览")).as_slice(),
+            [Message::Settings(SettingsMessage::PluginsInstallPrepare)]
+        ));
+        assert!(press_label(&mut ui, &mut renderer, tr(locale, "确认安装")).is_empty());
+        drop(ui);
+
+        let form = app.skills_settings.plugin_install.as_mut().unwrap();
+        form.update_id = Some("fixture-plugin".into());
+        let audit = preview();
+        let source = audit.source.clone();
+        form.phase = PluginInstallPhase::Review(audit);
+        let mut ui = scene(with_plugin_install(&app, plugins::view(&app)), &mut renderer, size);
+        let icon = assert_contextual_help(&mut ui, &mut renderer, context, "更新插件", FORMATS);
+        if locale == DesktopLocale::English {
+            assert!(click(&mut ui, &mut renderer, icon).is_empty());
+            let menu = iced::Point::new(icon.x + 29.0, icon.y + 5.0);
+            let item_height =
+                f32::from(iced::advanced::text::LineHeight::default().to_absolute(12.0.into()))
+                    + 10.0;
+            let description = tr(locale, FORMATS);
+            let search =
+                format!("https://www.google.com/search?q={}", urlencoding::encode(description));
+            for index in [0.0, 3.0] {
+                assert!(
+                    send(
+                        &mut ui,
+                        &mut renderer,
+                        mouse::Cursor::Available(menu),
+                        &[Event::Mouse(mouse::Event::ButtonPressed(mouse::Button::Right))],
+                    )
+                    .is_empty()
+                );
+                let point =
+                    iced::Point::new(menu.x + 24.0, menu.y + 3.0 + item_height * (index + 0.5));
+                let messages = click(&mut ui, &mut renderer, point);
+                assert!(
+                    match messages.as_slice() {
+                        [Message::CopyCode(text)] if index == 0.0 => text == description,
+                        [Message::View(crate::app::message::ViewMessage::OpenUrlExternal(url))]
+                            if index == 3.0 =>
+                            url == &search,
+                        _ => false,
+                    },
+                    "{messages:?}"
+                );
+            }
+            assert!(
+                send(
+                    &mut ui,
+                    &mut renderer,
+                    mouse::Cursor::Unavailable,
+                    &[key(iced::keyboard::key::Named::Escape)]
+                )
+                .is_empty()
+            );
+        }
+        let positions = geometry(&mut ui, &renderer);
+        positions.label(tr(locale, "更新来源可留空以使用已登记市场；本地插件请提供新包路径。"));
+        positions.label(tr(locale, "权限变化：安装/升级不授予新的执行权限；MCP、钩子和引导技能不会由安装动作自动运行。声明变化仍受宿主审批，内容信任须重新核对。"));
+        positions.label(tr(locale, "缺少运行依赖"));
+        assert!(positions.labels.iter().any(|(label, _)| label.contains(&source)));
+        assert!(matches!(
+            press_label(&mut ui, &mut renderer, tr(locale, "确认更新")).as_slice(),
+            [Message::Settings(SettingsMessage::PluginsInstallConfirm)]
+        ));
+        assert!(matches!(
+            press_label(&mut ui, &mut renderer, tr(locale, "取消")).as_slice(),
+            [Message::Settings(SettingsMessage::PluginsInstallClose)]
+        ));
     }
 }

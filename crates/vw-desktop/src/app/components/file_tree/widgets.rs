@@ -6,7 +6,7 @@
 //! - 鼠标事件转发
 
 use iced::advanced::{Clipboard, Layout, Shell, Widget, mouse, widget};
-use iced::{Element, Event, Length, Point, Rectangle, Theme};
+use iced::{Element, Event, Length, Point, Rectangle, Theme, Vector};
 
 /// 右键点击区域组件
 ///
@@ -41,6 +41,8 @@ pub struct RightClickArea<'a, Message, ThemeT = Theme, RendererT = iced::Rendere
     on_left_release: Option<Message>,
     drop_messages: Option<(Message, Message)>,
     surface_messages: Option<(Message, Message)>,
+    tracks_window_cursor: bool,
+    row_identity: Option<(&'static str, String)>,
     on_external_drop: Option<Box<dyn Fn(std::path::PathBuf) -> Message + 'a>>,
     on_cancel: Option<Message>,
 }
@@ -51,11 +53,10 @@ pub struct RightClickArea<'a, Message, ThemeT = Theme, RendererT = iced::Rendere
 /// 拖拽阈值设置为 3 像素（移动距离的平方 >= 9）。
 #[derive(Default)]
 struct RightClickAreaState {
-    /// 左键是否在组件内部按下
-    left_downinside: bool,
-    /// 左键按下时的鼠标位置（用于计算拖拽距离）
+    row_identity: Option<(&'static str, String)>,
+    /// 左键按下时相对于滚动视口的鼠标位置
     press_pos: Option<Point>,
-    /// Iced may pass the final cursor for a whole batch; retain event-order positions.
+    /// Only the surface outside the scrollable stores a window position.
     event_position: Option<Point>,
     /// 是否已经开始拖拽（移动距离超过阈值）
     dragging_started: bool,
@@ -99,6 +100,8 @@ impl<'a, Message, ThemeT, RendererT> RightClickArea<'a, Message, ThemeT, Rendere
             on_left_release,
             drop_messages: None,
             surface_messages: None,
+            tracks_window_cursor: false,
+            row_identity: None,
             on_external_drop: None,
             on_cancel: None,
         }
@@ -121,6 +124,17 @@ impl<'a, Message, ThemeT, RendererT> RightClickArea<'a, Message, ThemeT, Rendere
     /// 文件树外围在子行命中前清空旧落点；取消覆盖窗口失焦和 Escape。
     pub fn file_tree_surface(mut self, clear: Message, cancel: Message) -> Self {
         self.surface_messages = Some((clear, cancel));
+        self
+    }
+
+    /// Resolve batched mouse events before Scrollable translates and clips the cursor.
+    pub(super) fn track_window_cursor(mut self) -> Self {
+        self.tracks_window_cursor = true;
+        self
+    }
+
+    pub(super) fn for_row(mut self, kind: &'static str, path: String) -> Self {
+        self.row_identity = Some((kind, path));
         self
     }
 
@@ -147,7 +161,10 @@ where
 
     /// 创建组件状态实例
     fn state(&self) -> widget::tree::State {
-        widget::tree::State::new(RightClickAreaState::default())
+        widget::tree::State::new(RightClickAreaState {
+            row_identity: self.row_identity.clone(),
+            ..RightClickAreaState::default()
+        })
     }
 
     /// 返回子组件树，包含内部 content 元素
@@ -157,6 +174,11 @@ where
 
     /// 对比并更新子组件树的差异
     fn diff(&self, tree: &mut widget::Tree) {
+        // A refresh can put another row at the same index while the button is down.
+        if tree.state.downcast_ref::<RightClickAreaState>().row_identity != self.row_identity {
+            *tree = widget::Tree::new(self as &dyn Widget<Message, ThemeT, RendererT>);
+            return;
+        }
         tree.diff_children(&[&self.content]);
     }
 
@@ -183,6 +205,16 @@ where
         limits: &iced::advanced::layout::Limits,
     ) -> iced::advanced::layout::Node {
         self.content.as_widget_mut().layout(&mut tree.children[0], renderer, limits)
+    }
+
+    fn operate(
+        &mut self,
+        tree: &mut widget::Tree,
+        layout: Layout<'_>,
+        renderer: &RendererT,
+        operation: &mut dyn widget::Operation,
+    ) {
+        self.content.as_widget_mut().operate(&mut tree.children[0], layout, renderer, operation);
     }
 
     /// 绘制组件
@@ -268,30 +300,54 @@ where
             {
                 shell.publish(message.clone());
             }
-            *state = RightClickAreaState::default();
-            // Reset a pressed source button without generating a click.
-            tree.children[0] = widget::Tree::new(&self.content);
+            if !self.tracks_window_cursor {
+                // Reset the pressed button without resetting the scrollable's state.
+                tree.children[0] = widget::Tree::new(&self.content);
+            }
+            state.press_pos = None;
+            state.dragging_started = false;
+            state.event_position = None;
+            state.drop_consumed = false;
         }
         if self.drop_messages.is_none()
             || matches!(event, Event::Mouse(mouse::Event::ButtonPressed(mouse::Button::Left)))
         {
             state.drop_consumed = false;
         }
-        // Button events do not carry coordinates. The cursor argument may already
-        // point at a later event in this batch, so use the preceding move event.
-        let cursor = match event {
-            Event::Mouse(mouse::Event::CursorMoved { position }) => {
-                state.event_position = Some(*position);
-                mouse::Cursor::Available(*position)
+        let cursor = if self.tracks_window_cursor {
+            match event {
+                Event::Mouse(mouse::Event::CursorMoved { position }) => {
+                    state.event_position = Some(*position);
+                    match cursor {
+                        mouse::Cursor::Available(_) => mouse::Cursor::Available(*position),
+                        mouse::Cursor::Levitating(_) => mouse::Cursor::Levitating(*position),
+                        mouse::Cursor::Unavailable => cursor,
+                    }
+                }
+                Event::Mouse(mouse::Event::CursorLeft) => {
+                    state.event_position = None;
+                    mouse::Cursor::Unavailable
+                }
+                Event::Mouse(mouse::Event::CursorEntered)
+                | Event::Window(iced::window::Event::Focused) => {
+                    state.event_position = None;
+                    cursor
+                }
+                Event::Window(iced::window::Event::RedrawRequested(_)) => {
+                    state.event_position = cursor.position();
+                    cursor
+                }
+                Event::Mouse(
+                    mouse::Event::ButtonPressed(_)
+                    | mouse::Event::ButtonReleased(_)
+                    | mouse::Event::WheelScrolled { .. },
+                ) if cursor.position().is_some() => {
+                    state.event_position.map(mouse::Cursor::Available).unwrap_or(cursor)
+                }
+                _ => cursor,
             }
-            Event::Mouse(mouse::Event::CursorLeft) => {
-                state.event_position = None;
-                mouse::Cursor::Unavailable
-            }
-            Event::Mouse(mouse::Event::ButtonPressed(_) | mouse::Event::ButtonReleased(_)) => {
-                state.event_position.map(mouse::Cursor::Available).unwrap_or(cursor)
-            }
-            _ => cursor,
+        } else {
+            cursor
         };
         #[cfg(target_os = "macos")]
         // Resolve once at the tree surface, then pass the same native position
@@ -310,39 +366,44 @@ where
             .position()
             .is_some_and(|point| visible.is_some_and(|bounds| bounds.contains(point)));
 
-        // 处理左键按下：记录初始位置
+        // Measure motion relative to the viewport so scrolling itself cannot start a drag.
+        let viewport_origin = if viewport.x.is_finite() && viewport.y.is_finite() {
+            Vector::new(viewport.x, viewport.y)
+        } else {
+            Vector::ZERO
+        };
         if let Event::Mouse(mouse::Event::ButtonPressed(button)) = event
             && matches!(button, mouse::Button::Left)
+            && self.on_left_press.is_some()
+            && !shell.is_event_captured()
             && let Some(pos) = cursor.position()
             && hit
         {
-            state.left_downinside = true;
-            state.press_pos = Some(pos);
+            state.press_pos = Some(pos - viewport_origin);
             state.dragging_started = false;
         }
 
         // 处理鼠标移动：检测是否开始拖拽
         // 拖拽阈值：移动距离 >= 3 像素（距离平方 >= 9）
-        if let Event::Mouse(mouse::Event::CursorMoved { position }) = event
-            && state.left_downinside
+        if matches!(event, Event::Mouse(mouse::Event::CursorMoved { .. }))
             && !state.dragging_started
             && let Some(anchor) = state.press_pos
+            && let Some(position) = cursor.land().position()
+            && let Some(msg) = &self.on_left_press
         {
+            let position = position - viewport_origin;
             let dx = position.x - anchor.x;
             let dy = position.y - anchor.y;
-            let moved_enough = (dx * dx + dy * dy) >= 9.0;
-            if moved_enough && self.on_left_press.is_some() {
+            if (dx * dx + dy * dy) >= 9.0 {
                 state.dragging_started = true;
-                // 首次识别为拖拽时，发送左键按下消息
-                if let Some(msg) = &self.on_left_press {
-                    shell.publish(msg.clone());
-                }
+                shell.publish(msg.clone());
             }
         }
 
         // 处理右键点击：计算相对于组件边界的本地坐标
         if let Event::Mouse(mouse::Event::ButtonPressed(button)) = event
             && matches!(button, mouse::Button::Right)
+            && !self.tracks_window_cursor
             && let Some(pos) = cursor.position()
             && hit
         {
@@ -352,20 +413,18 @@ where
             shell.publish((self.on_right_click)(local));
         }
 
-        let suppress_release = state.dragging_started
-            && matches!(event, Event::Mouse(mouse::Event::ButtonReleased(mouse::Button::Left)));
+        let mut suppress_release = false;
         // 处理左键释放：如果之前开始了拖拽，发送释放消息
         if let Event::Mouse(mouse::Event::ButtonReleased(button)) = event
             && matches!(button, mouse::Button::Left)
         {
+            suppress_release = state.press_pos.take().is_some()
+                && (state.dragging_started || !hit || shell.is_event_captured());
             if state.dragging_started
                 && let Some(msg) = &self.on_left_release
             {
                 shell.publish(msg.clone());
             }
-            // 重置所有状态
-            state.left_downinside = false;
-            state.press_pos = None;
             state.dragging_started = false;
         }
 

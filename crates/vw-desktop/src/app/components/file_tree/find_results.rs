@@ -403,10 +403,12 @@ pub(super) fn build_find_results_tabs(app: &App) -> Element<'_, Message> {
     .style(find_tab_close_button_style);
     tabs = tabs.push(add_tab);
 
-    scrollable(container(tabs).width(Length::Fill).padding([0, 2]))
-        .direction(Direction::Horizontal(Scrollbar::new().width(4).scroller_width(4)))
-        .height(Length::Fixed(FIND_RESULTS_TAB_HEIGHT))
-        .into()
+    super::scroll_surface(
+        scrollable(container(tabs).width(Length::Fill).padding([0, 2]))
+            .direction(Direction::Horizontal(Scrollbar::new().width(4).scroller_width(4)))
+            .height(Length::Fixed(FIND_RESULTS_TAB_HEIGHT)),
+        false,
+    )
 }
 
 pub(super) fn find_run_button_style(
@@ -996,14 +998,18 @@ pub fn build_find_results_list(app: &App) -> Element<'_, Message> {
     column![
         controls,
         results_status,
-        scrollable(container(results).width(Length::Fill).padding(iced::Padding {
-            top: 4.0,
-            right: FIND_RESULTS_SCROLLBAR_GUTTER,
-            bottom: 4.0,
-            left: 0.0,
-        }))
-        .direction(Direction::Vertical(Scrollbar::new().width(4).scroller_width(4)))
-        .height(Length::Fill)
+        super::scroll_tree(
+            container(results)
+                .width(Length::Fill)
+                .padding(iced::Padding {
+                    top: 4.0,
+                    right: FIND_RESULTS_SCROLLBAR_GUTTER,
+                    bottom: 4.0,
+                    left: 0.0,
+                })
+                .into(),
+            false,
+        )
     ]
     .spacing(8)
     .padding([8, 12])

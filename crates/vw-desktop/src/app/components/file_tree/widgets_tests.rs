@@ -511,7 +511,7 @@ fn file_tree_drop_drag_release_does_not_reach_source_button() {
         &mut area,
         &mut tree,
         Event::Mouse(mouse::Event::CursorMoved { position: Point::new(15.0, 22.0) }),
-        cursor,
+        mouse::Cursor::Available(Point::new(15.0, 22.0)),
     );
     assert_eq!(
         update_area(
@@ -675,7 +675,7 @@ fn file_tree_drop_unfocus_cancels_drag_without_later_release() {
         &mut area,
         &mut tree,
         Event::Mouse(mouse::Event::CursorMoved { position: Point::new(15.0, 22.0) }),
-        cursor,
+        mouse::Cursor::Available(Point::new(15.0, 22.0)),
     );
     assert_eq!(
         update_area(&mut area, &mut tree, Event::Window(iced::window::Event::Unfocused), cursor),
@@ -708,7 +708,7 @@ fn file_tree_drop_three_pixel_threshold_preserves_ordinary_click() {
             &mut area,
             &mut tree,
             Event::Mouse(mouse::Event::CursorMoved { position: Point::new(14.9, 22.0) }),
-            cursor
+            mouse::Cursor::Available(Point::new(14.9, 22.0))
         ),
         vec![TestMessage::ChildUpdated]
     );
@@ -738,7 +738,7 @@ fn file_tree_drop_three_pixel_threshold_preserves_ordinary_click() {
             &mut area,
             &mut tree,
             Event::Mouse(mouse::Event::CursorMoved { position: Point::new(15.0, 22.0) }),
-            cursor
+            mouse::Cursor::Available(Point::new(15.0, 22.0))
         )
         .contains(&TestMessage::DragStarted)
     );
@@ -854,7 +854,9 @@ fn file_tree_external_drop_nested_target_consumes_once() {
 
 #[test]
 fn file_tree_drop_batched_events_use_press_position_before_final_cursor() {
-    let mut area = area();
+    let mut area =
+        RightClickArea::new(Element::new(area()), Box::new(TestMessage::RightClicked), None, None)
+            .track_window_cursor();
     let mut tree = tree_for_area(&area);
     let start = Point::new(20.0, 30.0);
     let end = Point::new(200.0, 90.0);
@@ -885,4 +887,76 @@ fn file_tree_drop_batched_events_use_press_position_before_final_cursor() {
         cursor,
     );
     assert!(released.contains(&TestMessage::DragEnded));
+}
+
+#[test]
+fn file_tree_click_after_scrolling_hits_the_visible_directory() {
+    use iced::widget::{Space, button, column, scrollable};
+
+    let clickable_row = |id| {
+        Element::new(RightClickArea::new(
+            button(Space::new().width(120).height(20))
+                .padding(0)
+                .on_press(TestMessage::Requested(id))
+                .into(),
+            Box::new(TestMessage::RightClicked),
+            Some(TestMessage::DragStarted),
+            Some(TestMessage::DragEnded),
+        ))
+    };
+    let rows = column![clickable_row(1), clickable_row(2), clickable_row(3), clickable_row(4)];
+    let scroll = scrollable(rows).height(40).anchor_bottom();
+    let mut surface =
+        RightClickArea::new(scroll.into(), Box::new(TestMessage::RightClicked), None, None)
+            .track_window_cursor();
+    let renderer = ();
+    let mut tree = widget::Tree::new(&surface as &dyn Widget<TestMessage, Theme, ()>);
+    let node = surface.layout(
+        &mut tree,
+        &renderer,
+        &layout::Limits::new(Size::ZERO, Size::new(120.0, 40.0)),
+    );
+    let mut clipboard = iced::advanced::clipboard::Null;
+    let mut messages = Vec::new();
+    // Only rows 3 (directory) and 4 are visible. The final cursor is over row 4.
+    for event in [
+        mouse::Event::CursorMoved { position: Point::new(10.0, 10.0) },
+        mouse::Event::ButtonPressed(mouse::Button::Left),
+        mouse::Event::ButtonReleased(mouse::Button::Left),
+        mouse::Event::CursorMoved { position: Point::new(10.0, 30.0) },
+    ] {
+        surface.update(
+            &mut tree,
+            &Event::Mouse(event),
+            Layout::new(&node),
+            mouse::Cursor::Available(Point::new(10.0, 30.0)),
+            &renderer,
+            &mut clipboard,
+            &mut Shell::new(&mut messages),
+            &Rectangle::INFINITE,
+        );
+    }
+    assert_eq!(messages, vec![TestMessage::Requested(3)]);
+}
+
+#[test]
+fn file_tree_refresh_discards_the_replaced_rows_press() {
+    let mut old_row = area().for_row("tree-dir", "/project/old".into());
+    let mut tree = tree_for_area(&old_row);
+    update_area(
+        &mut old_row,
+        &mut tree,
+        Event::Mouse(mouse::Event::ButtonPressed(mouse::Button::Left)),
+        mouse::Cursor::Available(Point::new(12.0, 22.0)),
+    );
+
+    let mut new_row = area().for_row("tree-file", "/project/new".into());
+    tree.diff(&new_row as &dyn Widget<TestMessage, Theme, RecordingRenderer>);
+    let moved = update_area(
+        &mut new_row,
+        &mut tree,
+        Event::Mouse(mouse::Event::CursorMoved { position: Point::new(20.0, 22.0) }),
+        mouse::Cursor::Available(Point::new(20.0, 22.0)),
+    );
+    assert_eq!(moved, vec![TestMessage::ChildUpdated]);
 }

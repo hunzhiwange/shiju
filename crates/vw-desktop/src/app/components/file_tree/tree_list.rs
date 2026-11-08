@@ -293,6 +293,7 @@ pub fn build_file_tree_list(app: &App) -> Element<'_, Message> {
                     })),
                     Some(Message::Project(ProjectMessage::FileTreeDragEnd)),
                 )
+                .for_row("tree-dir", abs_path.clone())
                 .on_drag_cancel(Message::Project(ProjectMessage::FileTreeDragCancel)),
             );
 
@@ -366,6 +367,7 @@ pub fn build_file_tree_list(app: &App) -> Element<'_, Message> {
                     })),
                     Some(Message::Project(ProjectMessage::FileTreeDragEnd)),
                 )
+                .for_row("tree-file", abs.clone())
                 .on_drag_cancel(Message::Project(ProjectMessage::FileTreeDragCancel)),
             );
 
@@ -422,18 +424,7 @@ pub fn build_file_tree_list(app: &App) -> Element<'_, Message> {
         .width(Length::Fill)
         .style(move |theme, status| file_tree_drop_directory_style(theme, status, targeted));
     let root_target = directory_drop_area(app, root_row.into(), root.to_string());
-    Element::new(
-        RightClickArea::new(
-            column![root_target, contents].width(Length::Fill).into(),
-            Box::new(|_| Message::None),
-            None,
-            None,
-        )
-        .file_tree_surface(
-            Message::Project(ProjectMessage::FileTreeDropTargetChanged(None)),
-            Message::Project(ProjectMessage::FileTreeDragCancel),
-        ),
-    )
+    column![root_target, contents].width(Length::Fill).into()
 }
 
 /// 构建 Git 变更文件列表
@@ -529,19 +520,25 @@ pub fn build_changes_list(app: &App) -> Element<'_, Message> {
                 std::path::Path::new(project_root).join(&full).to_string_lossy().to_string();
             let abs_path_for_click = abs_path.clone();
             // 包装为支持右键菜单和拖拽的区域
-            let right_click = Element::new(RightClickArea::new(
-                header_btn.into(),
-                Box::new(move |pos| {
-                    Message::Project(ProjectMessage::FileTreeRightClicked(
-                        abs_path_for_click.clone(),
-                        "changes-dir".to_string(),
-                        pos.x,
-                        pos.y,
-                    ))
-                }),
-                Some(Message::Project(ProjectMessage::FileTreeDragStart(abs_path.clone(), None))),
-                Some(Message::Project(ProjectMessage::FileTreeDragEnd)),
-            ));
+            let right_click = Element::new(
+                RightClickArea::new(
+                    header_btn.into(),
+                    Box::new(move |pos| {
+                        Message::Project(ProjectMessage::FileTreeRightClicked(
+                            abs_path_for_click.clone(),
+                            "changes-dir".to_string(),
+                            pos.x,
+                            pos.y,
+                        ))
+                    }),
+                    Some(Message::Project(ProjectMessage::FileTreeDragStart(
+                        abs_path.clone(),
+                        None,
+                    ))),
+                    Some(Message::Project(ProjectMessage::FileTreeDragEnd)),
+                )
+                .for_row("changes-dir", abs_path.clone()),
+            );
 
             // 检查是否需要显示右键菜单（当前路径与菜单路径匹配）
             let item = if app.file_tree_menu_path.as_deref() == Some(&abs_path)
@@ -592,19 +589,22 @@ pub fn build_changes_list(app: &App) -> Element<'_, Message> {
 
             let abs_for_click = abs.clone();
             // 包装为支持右键菜单和拖拽的区域
-            let right_click = Element::new(RightClickArea::new(
-                btn.into(),
-                Box::new(move |pos| {
-                    Message::Project(ProjectMessage::FileTreeRightClicked(
-                        abs_for_click.clone(),
-                        "changes-file".to_string(),
-                        pos.x,
-                        pos.y,
-                    ))
-                }),
-                Some(Message::Project(ProjectMessage::FileTreeDragStart(abs.clone(), None))),
-                Some(Message::Project(ProjectMessage::FileTreeDragEnd)),
-            ));
+            let right_click = Element::new(
+                RightClickArea::new(
+                    btn.into(),
+                    Box::new(move |pos| {
+                        Message::Project(ProjectMessage::FileTreeRightClicked(
+                            abs_for_click.clone(),
+                            "changes-file".to_string(),
+                            pos.x,
+                            pos.y,
+                        ))
+                    }),
+                    Some(Message::Project(ProjectMessage::FileTreeDragStart(abs.clone(), None))),
+                    Some(Message::Project(ProjectMessage::FileTreeDragEnd)),
+                )
+                .for_row("changes-file", abs.clone()),
+            );
 
             // 检查是否需要显示右键菜单
             let item = if app.file_tree_menu_path.as_deref() == Some(&abs)

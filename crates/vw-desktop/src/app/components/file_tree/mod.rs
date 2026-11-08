@@ -26,7 +26,7 @@
 
 use iced::widget::scrollable::{Direction, Scrollbar};
 use iced::widget::tooltip::{Position as TooltipPosition, Tooltip};
-use iced::widget::{Space, button, column, container, row, scrollable, text};
+use iced::widget::{Scrollable, Space, button, column, container, row, scrollable, text};
 use iced::{Background, Color, Element, Length, Theme};
 
 use crate::app::components::status_animation::spinner_frame;
@@ -35,6 +35,7 @@ use crate::app::{
     assets::Icon,
     message::{self},
 };
+use widgets::RightClickArea;
 
 mod find_results;
 mod icons;
@@ -101,11 +102,29 @@ pub fn view(app: &App) -> Element<'_, Message> {
     } else {
         let list_content = tree_list::build_file_tree_list(app);
         let list = column![list_content].spacing(2).width(Length::Fill);
-        scrollable(container(list).padding([0, 7]).width(Length::Fill))
-            .direction(Direction::Vertical(Scrollbar::new().width(4).scroller_width(4)))
-            .height(Length::Fill)
-            .into()
+        scroll_tree(container(list).padding([0, 7]).width(Length::Fill).into(), true)
     }
+}
+
+fn scroll_tree(content: Element<'_, Message>, file_tree: bool) -> Element<'_, Message> {
+    scroll_surface(
+        scrollable(content)
+            .direction(Direction::Vertical(Scrollbar::new().width(4).scroller_width(4)))
+            .height(Length::Fill),
+        file_tree,
+    )
+}
+
+fn scroll_surface(scroll: Scrollable<'_, Message>, drag_targets: bool) -> Element<'_, Message> {
+    let mut surface = RightClickArea::new(scroll.into(), Box::new(|_| Message::None), None, None)
+        .track_window_cursor();
+    if drag_targets {
+        surface = surface.file_tree_surface(
+            Message::Project(message::ProjectMessage::FileTreeDropTargetChanged(None)),
+            Message::Project(message::ProjectMessage::FileTreeDragCancel),
+        );
+    }
+    Element::new(surface)
 }
 
 /// 渲染文件管理器视图
@@ -305,18 +324,16 @@ pub fn view_file_manager(app: &App) -> Element<'_, Message> {
         find_results::build_find_results_list(app)
     } else if app.file_manager_show_changes {
         // 如果启用了"显示更改"，显示 Git 更改的文件列表
-        scrollable(container(tree_list::build_changes_list(app)).width(Length::Fill))
-            .direction(Direction::Vertical(Scrollbar::new().width(4).scroller_width(4)))
-            .height(Length::Fill)
-            .into()
+        scroll_tree(container(tree_list::build_changes_list(app)).width(Length::Fill).into(), false)
     } else {
         // 否则显示完整的文件树
-        scrollable(
-            container(tree_list::build_file_tree_list(app)).padding([0, 7]).width(Length::Fill),
+        scroll_tree(
+            container(tree_list::build_file_tree_list(app))
+                .padding([0, 7])
+                .width(Length::Fill)
+                .into(),
+            true,
         )
-        .direction(Direction::Vertical(Scrollbar::new().width(4).scroller_width(4)))
-        .height(Length::Fill)
-        .into()
     };
 
     let content = container(list_content).width(Length::Fill).height(Length::Fill);

@@ -840,3 +840,27 @@ Pi 供应商表单的现有网关入口为 `vw-agent/src/gateway/api/handlers/ap
 | `cargo clippy --all-targets --all-features -- -D warnings`（绿灯及复核） | 0、0 | 全工作区、全目标和全 features 通过。 |
 
 审查后的差异仅包含补全服务、共享目录写入和校验逻辑、独立测试、模块注册及本记录。`git diff --cached --check` 通过。槽位锁已释放，编译缓存已保留。
+
+## 任务 33　统一能力三态判定
+
+2026-11-08，macOS 27.0（26A428），arm64。批次 32 由 `d8d58ae27` 交付，已核对补全预览、修订提交和独立测试。外部前置复用现有 `TenantScope`、网关供应商读写授权、可取消 `ProviderOperation`、应用注册与可信 CLI 定位、供应商 DTO 及 `ProviderTransactions::commit_checked`。本项的判定函数只读取调用方为同一部署提供的设置和目录元数据。
+
+| 来源与接点 | 实际路径 |
+| --- | --- |
+| `src-tauri/src/model_capabilities.rs::image_input_capability_from_settings`、`is_text_only_model_from_settings` | `crates/vw-agent-apps/src/models/capabilities.rs::resolve_model_capabilities` 依次读取 `modelCatalog.models`、`modelCatalog`、`models` 的数组或映射行。布尔声明优先于同一行的模态列表。禁用图片只判定图片不受支持，只有纯文本列表或注册表命中才确认仅接收文本。设置按完整模型 ID 匹配，避免跨命名空间或按显示别名串用声明。 |
+| `image_input_capability_from_modalities`、`is_confirmed_text_only_model` | 复用 `crates/vw-api-types/src/model_catalog.rs` 的 `ModelCapabilityState` 和 `ModelMetadataDto`。已保存的模态声明优先于可选注册表，工具与推理状态及档位直接取自目录元数据。来源提交 `ca58c0313360eae7c851fbd7553c1614c7af03e7` 的 28 个注册项逐项一致。命名空间和 Claude 1M 标记只在注册表匹配时归一化。新 vision/vl 后缀、旧路由别名和缺少声明的未知项保留 `Unknown`。 |
+| 上游调用者 `codex_config.rs::codex_catalog_input_modalities`、`proxy/media_sanitizer.rs::replace_images_for_text_only_model` | 本项交付原生能力判定。解析器投影和服务端执行校验分别由批次 34、35 接线。现有 Codex 目录的 Gateway、SDK 和 Iced 路径分别为 `crates/vw-agent/src/gateway/api/handlers/app_providers/codex_catalog.rs`、`crates/vw-gateway-client/src/client/app_providers/codex_catalog.rs`、`crates/vw-desktop/src/app/components/app_providers/codex.rs`，本批次无需修改这些路径。未知证据保留为 `Unknown`，供要求能力声明的执行入口判定。 |
+| 来源模块内测试 | `crates/vw-agent-apps/src/models/capabilities_tests.rs` 注册 9 项独立业务用例。设置和类型化目录使用内存数据，直接验证原生解析，无网络、账号或本地配置副作用。 |
+
+### 验证
+
+红灯及绿灯阶段均动态领取槽位 **1**，`CARGO_TARGET_DIR=/Users/xiangmin/worker/code/shiju/target/rust-slot-1`，Cargo 中间目录同槽。格式化使用 Git 源码快照，只回写本任务的三个 Rust 文件。测试和 Clippy 在实际工作区运行。
+
+| 命令 | 退出码 | 证据 |
+| --- | ---: | --- |
+| `cargo fmt --all`（红灯、绿灯） | 0、0 | 格式化成功。 |
+| `cargo test -p vw-agent-apps catalog_capabilities_ -- --nocapture`（红灯） | 101 | 共运行 11 项，4 项通过，7 项因断言失败，708 项过滤。首个指定用例得到 `Unknown`，期望 `Supported`。另外两项为过滤表达式匹配到的现有应用注册测试。 |
+| `cargo test -p vw-agent-apps catalog_capabilities_ -- --nocapture`（绿灯） | 0 | 11 项通过，其中 9 项为本批次新增能力测试，708 项过滤。 |
+| `cargo clippy --all-targets --all-features -- -D warnings` | 0 | 全工作区、全目标和全 features 通过。 |
+
+审查后的差异仅包含能力判定、独立测试、模块注册及本记录。暂存差异通过 `git diff --cached --check`。两个阶段结束后均释放槽位锁并保留缓存。

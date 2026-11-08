@@ -1,6 +1,7 @@
 //! Native model catalog logic. Storage and native publication are owned by callers.
 use vw_api_types::model_catalog::*;
 
+pub mod capabilities;
 pub mod codex_template;
 #[cfg(target_os = "macos")]
 pub mod discovery_agy;
@@ -39,6 +40,8 @@ pub mod user_agent_presets;
 #[cfg(not(target_arch = "wasm32"))]
 mod vendor_fallback;
 
+#[cfg(test)]
+mod capabilities_tests;
 #[cfg(test)]
 mod codex_template_tests;
 #[cfg(test)]

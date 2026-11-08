@@ -400,6 +400,20 @@ impl overlay::Overlay<Message, Theme, Renderer> for TextMenuOverlay<'_> {
         clipboard: &mut dyn Clipboard,
         shell: &mut Shell<'_, Message>,
     ) {
+        if matches!(
+            event,
+            Event::Keyboard(keyboard::Event::KeyPressed {
+                key: keyboard::Key::Named(keyboard::key::Named::Escape),
+                ..
+            })
+        ) {
+            *self.request = None;
+            shell.invalidate_layout();
+            shell.request_redraw();
+            shell.capture_event();
+            return;
+        }
+
         let bounds = layout.bounds();
         let mut actions = Vec::new();
         let mut menu_shell = Shell::new(&mut actions);

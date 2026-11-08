@@ -6,15 +6,18 @@
 use crate::app::components::system_settings_common::{
     primary_action_btn_style, rounded_action_btn_style, settings_checkbox_style,
     settings_close_button, settings_control_with_hint, settings_divider, settings_error_banner,
-    settings_field_label, settings_group_card, settings_group_heading, settings_modal_card_style,
-    settings_modal_header, settings_modal_layout, settings_modal_overlay,
-    settings_muted_text_style, settings_responsive_row, settings_segment_button_style,
-    settings_tab_button, settings_tab_row, settings_text_input,
+    settings_field_label, settings_flexible_row_with_help, settings_group_card,
+    settings_group_heading, settings_group_heading_with_help, settings_hover_help_label,
+    settings_modal_card_style, settings_modal_header, settings_modal_layout,
+    settings_modal_overlay, settings_muted_text_style, settings_responsive_row,
+    settings_segment_button_style, settings_tab_button, settings_tab_row, settings_text_input,
 };
+use crate::app::i18n::I18n;
 use crate::app::i18n::settings_models::connection_text::text as connection_text;
+use crate::app::message::SettingsMessage;
 use crate::app::state::CustomProviderModelTab;
 use crate::app::{App, Message, message};
-use iced::widget::{Space, button, checkbox, column, container, row, text};
+use iced::widget::{Space, button, checkbox, column, container, responsive, row, text};
 use iced::{Alignment, Background, Element, Length, Theme};
 
 const MODALITIES: [&str; 5] = ["text", "image", "audio", "video", "pdf"];
@@ -54,13 +57,17 @@ pub(super) fn field_row<'a>(
     description: &'a str,
     control: impl Into<Element<'a, Message>>,
 ) -> Element<'a, Message> {
-    container(
-        column![settings_field_label(label), settings_control_with_hint(control, description)]
-            .spacing(6),
-    )
-    .padding([14, 0])
-    .width(Length::Fill)
-    .into()
+    stacked_field_row(settings_field_label(label), settings_control_with_hint(control, description))
+}
+
+fn stacked_field_row<'a>(
+    label: impl Into<Element<'a, Message>>,
+    control: impl Into<Element<'a, Message>>,
+) -> Element<'a, Message> {
+    container(column![label.into(), control.into()].spacing(6))
+        .padding([14, 0])
+        .width(Length::Fill)
+        .into()
 }
 
 pub(super) fn text_row<'a>(
@@ -73,6 +80,45 @@ pub(super) fn text_row<'a>(
     settings_responsive_row(label, description, move || {
         settings_text_input(placeholder, value).on_input(on_input.clone()).width(Length::Fill)
     })
+}
+
+fn text_row_with_help<'a>(
+    app: &'a App,
+    label: &'a str,
+    description: &'a str,
+    placeholder: &'a str,
+    value: &'a str,
+    on_input: fn(String) -> SettingsMessage,
+) -> Element<'a, Message> {
+    let i18n = I18n::new(app.desktop_locale);
+    let theme = &app.app_theme;
+    responsive(move |size| {
+        let control = settings_text_input(placeholder, value)
+            .on_input(move |value| Message::Settings(on_input(value)))
+            .width(Length::Fill);
+        if size.width >= 600.0 {
+            settings_flexible_row_with_help(i18n, theme, label, description, 460.0, control)
+                .padding([6, 0])
+                .into()
+        } else {
+            column![
+                settings_hover_help_label(
+                    i18n,
+                    theme,
+                    label,
+                    settings_field_label(label),
+                    description
+                )
+                .wrap(),
+                control,
+            ]
+            .spacing(6)
+            .width(Length::Fill)
+            .into()
+        }
+    })
+    .height(Length::Shrink)
+    .into()
 }
 
 fn modality_checked(values: Option<&Vec<String>>, modality: &str) -> bool {
@@ -136,32 +182,33 @@ pub fn view_overlays<'a>(app: &'a App, dialog: Element<'a, Message>) -> Element<
             connection_text(app.desktop_locale, "添加模型")
         };
 
-        let id_row = text_row(
+        let i18n = I18n::new(app.desktop_locale);
+        let theme = &app.app_theme;
+        let id_row = text_row_with_help(
+            app,
             connection_text(app.desktop_locale, "模型 ID"),
             connection_text(app.desktop_locale, "用于请求 provider 的真实 model_id。"),
             connection_text(app.desktop_locale, "例如 gpt-4o-mini"),
             &mm.model_id,
-            |v| Message::Settings(message::SettingsMessage::CustomProviderModelModalIdChanged(v)),
+            SettingsMessage::CustomProviderModelModalIdChanged,
         );
 
-        let name_row = text_row(
+        let name_row = text_row_with_help(
+            app,
             connection_text(app.desktop_locale, "显示名称"),
             connection_text(app.desktop_locale, "仅影响 UI 展示，可留空回退为 model_id。"),
             connection_text(app.desktop_locale, "可选"),
             &mm.display_name,
-            |v| Message::Settings(message::SettingsMessage::CustomProviderModelModalNameChanged(v)),
+            SettingsMessage::CustomProviderModelModalNameChanged,
         );
 
-        let family_row = text_row(
+        let family_row = text_row_with_help(
+            app,
             connection_text(app.desktop_locale, "模型家族"),
             connection_text(app.desktop_locale, "可选 family 元数据，用于区分同一厂商的模型系列。"),
             connection_text(app.desktop_locale, "例如 qwen、gpt、claude"),
             &mm.family,
-            |v| {
-                Message::Settings(message::SettingsMessage::CustomProviderModelModalFamilyChanged(
-                    v,
-                ))
-            },
+            SettingsMessage::CustomProviderModelModalFamilyChanged,
         );
 
         let context_limit_row = text_row(
@@ -268,12 +315,19 @@ pub fn view_overlays<'a>(app: &'a App, dialog: Element<'a, Message>) -> Element<
                 )
             },
         );
-        let capabilities_row = field_row(
-            connection_text(app.desktop_locale, "能力"),
-            connection_text(
-                app.desktop_locale,
-                "未显式设置时沿用基线；新模型默认支持文本和工具调用。",
-            ),
+        let capabilities_label = connection_text(app.desktop_locale, "能力");
+        let capabilities_row = stacked_field_row(
+            settings_hover_help_label(
+                i18n,
+                theme,
+                capabilities_label,
+                settings_field_label(capabilities_label),
+                connection_text(
+                    app.desktop_locale,
+                    "未显式设置时沿用基线；新模型默认支持文本和工具调用。",
+                ),
+            )
+            .wrap(),
             row![reasoning, tool_call, temperature, attachment, interleaved]
                 .spacing(14)
                 .align_y(Alignment::Center)
@@ -354,7 +408,9 @@ pub fn view_overlays<'a>(app: &'a App, dialog: Element<'a, Message>) -> Element<
         .spacing(0);
 
         let info_tab = column![
-            settings_group_heading(
+            settings_group_heading_with_help(
+                i18n,
+                theme,
                 connection_text(app.desktop_locale, "模型信息"),
                 connection_text(
                     app.desktop_locale,
@@ -388,7 +444,9 @@ pub fn view_overlays<'a>(app: &'a App, dialog: Element<'a, Message>) -> Element<
         ]
         .spacing(16);
         let capabilities_tab = column![
-            settings_group_heading(
+            settings_group_heading_with_help(
+                i18n,
+                theme,
                 connection_text(app.desktop_locale, "能力与模态"),
                 connection_text(
                     app.desktop_locale,
@@ -428,10 +486,14 @@ pub fn view_overlays<'a>(app: &'a App, dialog: Element<'a, Message>) -> Element<
 
         let mut header = column![
             settings_modal_header(
-                custom_modal_heading(
+                settings_hover_help_label(
+                    i18n,
+                    theme,
                     title,
+                    text(title).size(20),
                     connection_text(app.desktop_locale, "填写模型 ID 和展示名称。"),
-                ),
+                )
+                .wrap(),
                 close_btn,
             ),
             tabs,

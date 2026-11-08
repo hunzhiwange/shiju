@@ -225,8 +225,8 @@ async fn auth6_logout_rejects_invalid_or_stale_input() {
     assert!(fixture.read()["records"].get(GRANT).is_none());
 }
 
-#[test]
-fn auth6_logout_agy_keychain_clears_owned_credentials_and_default() {
+#[tokio::test]
+async fn auth6_logout_agy_keychain_clears_owned_credentials_and_default() {
     use super::{
         agy_account::logout_accounts_in,
         agy_account_tests::{Fixture, credential, scope},
@@ -248,7 +248,20 @@ fn auth6_logout_agy_keychain_clears_owned_credentials_and_default() {
     );
     assert!(entry.read().unwrap().is_some());
     let target = fixture.target(Some(scope));
-    assert_eq!(logout_accounts_in(&flows, scope, default, target, &entry), Ok(()));
+    let (mut server, request) =
+        oauth_server("200 OK", "", json!({"access_token": "late-agy-access", "expires_in": 3600}))
+            .await;
+    let client = reqwest::Client::builder().no_proxy().build().unwrap();
+    let refresh = super::agy_refresh::refresh_with(scope, &first, &client, |outbound| {
+        assert_eq!(outbound.url().as_str(), "https://oauth2.googleapis.com/token");
+        // The adapter has captured its keychain generation and dropped the lock.
+        assert_eq!(logout_accounts_in(&flows, scope, default, target, &entry), Ok(()));
+        server.set_path(outbound.url().path());
+        *outbound.url_mut() = server;
+    })
+    .await;
+    assert_eq!(refresh.as_ref().err(), Some(&AuthErrorCode::Conflict));
+    assert!(request.await.unwrap().starts_with("POST /token HTTP/1.1"));
     assert!(entry.read().unwrap().is_none());
     let record = fixture.record(&first);
     assert_eq!(record["account"]["credential_state"], "signed_out");
@@ -301,4 +314,159 @@ async fn auth6_logout_kimi_only_clears_the_matching_native_grant() {
     assert!(!fixture.credential().exists());
     assert_eq!(std::fs::read_to_string(fixture.config()).unwrap(), config);
     assert!(matches!(lease.read().unwrap(), AccountCredential::KimiOauth(_)));
+}
+
+#[tokio::test]
+async fn auth6_revoke_race_commits_expected_scoped_result() {
+    use super::codex_refresh_tests as codex;
+    use vw_api_types::agent_apps::AppId;
+
+    let tenant = vw_api_types::id::TenantScope::new("platform", "company").unwrap();
+    let scope = codex::scope(&tenant);
+    if let Some((root, action)) = revoke_race_child() {
+        let store = super::credential_file::CredentialFileStore::new(&root).unwrap();
+        if action == "invalidate" {
+            super::logout::clear_managed_credentials(&store, scope, "alpha", [0; 32], None, || {
+                Ok(())
+            })
+            .expect("logout should commit while the response is pending");
+        } else {
+            let server = reqwest::Url::parse(&action).unwrap();
+            let refresh = super::codex_refresh::CodexRefresh::new().unwrap();
+            assert_eq!(
+                refresh
+                    .access_token_with(&store, scope, "alpha", |request| {
+                        codex::route(request, &server);
+                    })
+                    .await
+                    .as_ref()
+                    .err(),
+                Some(&AuthErrorCode::Conflict),
+                "a successful OAuth response for a signed-out account must be discarded"
+            );
+        }
+        return;
+    }
+
+    let (root, store) = super::xai_refresh_tests::store();
+    codex::seed(&store, scope, "alpha");
+    let other = AuthAccountScope { principal: "oidc:other", ..scope };
+    let untouched = codex::seed(&store, other, "alpha");
+    let (server, seen, release, server_task) = codex::gated_refresh(json!({
+        "access_token": "late-access", "refresh_token": "late-refresh", "expires_in": 3600
+    }))
+    .await;
+    let mut refresh = spawn_revoke_race_child(
+        "auth6_revoke_race_commits_expected_scoped_result",
+        root.path(),
+        server.as_str(),
+    );
+    tokio::time::timeout(Duration::from_secs(10), seen).await.unwrap().unwrap();
+    let mut logout = spawn_revoke_race_child(
+        "auth6_revoke_race_commits_expected_scoped_result",
+        root.path(),
+        "invalidate",
+    );
+    let status = wait_revoke_race_child(&mut logout).await;
+    release.send(()).unwrap();
+    let refreshed = wait_revoke_race_child(&mut refresh).await;
+    server_task.abort();
+    assert!(status.success(), "logout subprocess must commit");
+    assert!(refreshed.success(), "refresh subprocess must reject its late response");
+    assert_eq!(
+        store
+            .for_owner(scope.principal)
+            .unwrap()
+            .read(scope.tenant, scope.host, AppId::Codex, "alpha")
+            .err()
+            .as_deref(),
+        Some("official account not found"),
+    );
+    assert_eq!(codex::saved(&store, other, "alpha"), untouched);
+}
+
+#[tokio::test]
+async fn auth6_revoke_race_rejects_invalid_or_stale_input() {
+    use super::xai_refresh_tests as xai;
+    use tokio::io::AsyncWriteExt;
+
+    let tenant = vw_api_types::id::TenantScope::new("platform", "company").unwrap();
+    let scope = xai::scope(&tenant);
+    if let Some((root, action)) = revoke_race_child() {
+        let store = super::credential_file::CredentialFileStore::new(&root).unwrap();
+        if action == "invalidate" {
+            let lease = store
+                .lease_xai(scope, xai::ACCOUNT, false)
+                .expect("deletion should acquire the account while OAuth is pending");
+            super::accounts::remove_managed_oauth_file(&lease).unwrap();
+            assert_eq!(lease.read().err().as_deref(), Some("official account not found"));
+            drop(lease);
+            // Recreating the same account with identical bytes must not validate the old response.
+            xai::seed(&store, scope, xai::ACCOUNT, 1);
+        } else {
+            let token = reqwest::Url::parse(&action).unwrap();
+            let (discover, discovery) = xai::discovery().await;
+            let result = super::xai_refresh::XaiRefresh::new()
+                .unwrap()
+                .access_token_with(&store, scope, xai::ACCOUNT, |request| {
+                    xai::route(request, &discover, &token);
+                })
+                .await;
+            assert!(discovery.await.unwrap().starts_with("GET /.well-known/openid-configuration "));
+            assert_eq!(result.as_ref().err(), Some(&AuthErrorCode::Conflict));
+        }
+        return;
+    }
+
+    let (root, store) = xai::store();
+    xai::seed(&store, scope, xai::ACCOUNT, 1);
+    let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
+    let url = format!("http://{}", listener.local_addr().unwrap());
+    let test = "auth6_revoke_race_rejects_invalid_or_stale_input";
+    let mut refresh = spawn_revoke_race_child(test, root.path(), &url);
+    let (mut stream, _) =
+        tokio::time::timeout(Duration::from_secs(10), listener.accept()).await.unwrap().unwrap();
+    let request = tokio::time::timeout(
+        Duration::from_secs(5),
+        super::copilot_tests::read_request(&mut stream),
+    )
+    .await
+    .unwrap();
+    assert!(request.starts_with("POST /oauth2/token HTTP/1.1\r\n"));
+    assert!(request.ends_with("grant_type=refresh_token&client_id=b1a00492-073a-47ea-816f-4c329264a828&refresh_token=refresh-fixture-account&scope=openid+profile+email+offline_access+grok-cli%3Aaccess+api%3Aaccess"));
+    let mut delete = spawn_revoke_race_child(test, root.path(), "invalidate");
+    let deleted = wait_revoke_race_child(&mut delete).await;
+    let reply = r#"{"error":"invalid_grant"}"#;
+    stream.write_all(format!(
+        "HTTP/1.1 400 Bad Request\r\nContent-Type: application/json\r\nContent-Length: {}\r\nConnection: close\r\n\r\n{reply}", reply.len(),
+    ).as_bytes()).await.unwrap();
+    let refreshed = wait_revoke_race_child(&mut refresh).await;
+    assert!(deleted.success(), "deletion subprocess must commit");
+    assert!(refreshed.success(), "refresh subprocess must reject its late response");
+    let replacement = xai::saved(&store, scope, xai::ACCOUNT);
+    assert_eq!(replacement.expires_at.0, 1);
+    assert!(!replacement.requires_reauth);
+}
+
+fn revoke_race_child() -> Option<(std::path::PathBuf, String)> {
+    let root = std::env::var_os("SHIJU_REVOKE_RACE_ROOT")?;
+    Some((root.into(), std::env::var("SHIJU_REVOKE_RACE_ACTION").unwrap()))
+}
+
+fn spawn_revoke_race_child(
+    test: &str,
+    root: &std::path::Path,
+    action: &str,
+) -> tokio::process::Child {
+    tokio::process::Command::new(std::env::current_exe().unwrap())
+        .args(["--exact", &format!("auth::logout_tests::{test}"), "--nocapture"])
+        .env("SHIJU_REVOKE_RACE_ROOT", root)
+        .env("SHIJU_REVOKE_RACE_ACTION", action)
+        .kill_on_drop(true)
+        .spawn()
+        .unwrap()
+}
+
+async fn wait_revoke_race_child(child: &mut tokio::process::Child) -> std::process::ExitStatus {
+    tokio::time::timeout(Duration::from_secs(10), child.wait()).await.unwrap().unwrap()
 }

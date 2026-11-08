@@ -23,6 +23,7 @@ impl AccountLaunch {
         lease: &CredentialLease,
         execute: impl FnOnce(&mut Command) -> std::io::Result<std::process::ExitStatus>,
     ) -> Result<(), String> {
+        let _refresh = self.codex_auth.as_ref().map(|_| lease.lock_refresh()).transpose()?;
         self.run_with_rotation_using(
             |expected, next| {
                 lease.save_codex_generation(expected, &AccountCredential::CodexAuth(next))

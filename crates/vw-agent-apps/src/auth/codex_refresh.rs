@@ -3,7 +3,7 @@ use super::{
     codex_device::{CLIENT_ID, TOKEN_URL, oauth_client, send, token_subject, workspace_id},
     copilot::{read_json, utc_now, valid_token},
     credential_file::{AccountCredential, CredentialFileStore},
-    credential_lease::CREDENTIAL_GENERATION_CHANGED,
+    credential_lease::{refresh_publication_error, refresh_publication_lease},
     flow::AuthAccountScope,
 };
 use crate::providers::{codex_login_material::parse_codex_jwt_claims, validate_identity};
@@ -97,19 +97,17 @@ impl CodexRefresh {
             Arc::clone(slots.entry(key).or_default())
         };
         let mut cached = slot.lock().await;
-        // Reread after acquiring the account mutex. The file lease excludes other
-        // managed writers through the upstream exchange and atomic publication.
-        let lease = credentials
-            .for_owner(scope.principal)
-            .and_then(|owner| {
+        let open = || {
+            credentials.for_owner(scope.principal).and_then(|owner| {
                 owner.lease(scope.tenant, scope.host, AppId::Codex, account_id, false)
             })
-            .map_err(|_| AuthErrorCode::StorageUnavailable)?;
-        let read = || match lease.read() {
-            Ok(AccountCredential::CodexAuth(value)) => Ok(value),
-            _ => Err(AuthErrorCode::StorageUnavailable),
         };
-        let current = read()?;
+        let lease = open().map_err(|_| AuthErrorCode::StorageUnavailable)?;
+        let (credential, generation) =
+            lease.read_for_refresh().map_err(|_| AuthErrorCode::StorageUnavailable)?;
+        let AccountCredential::CodexAuth(current) = credential else {
+            return Err(AuthErrorCode::StorageUnavailable);
+        };
         let digest = generation_digest(&current);
         let tokens = &current["tokens"];
         let access = tokens["access_token"].as_str().ok_or(AuthErrorCode::StorageUnavailable)?;
@@ -139,10 +137,10 @@ impl CodexRefresh {
             .and_then(parse_codex_jwt_claims)
             .ok_or(AuthErrorCode::ReauthRequired)?;
         let subject = token_subject(&old_claims).ok_or(AuthErrorCode::ReauthRequired)?;
+        drop(lease);
         let result = self.exchange(refresh, &mut route).await;
-        if read()? != current {
-            return Err(AuthErrorCode::Conflict);
-        }
+        let lease = refresh_publication_lease(open).await?;
+        lease.check_refresh_generation(&generation).map_err(refresh_publication_error)?;
         let refreshed = match result {
             Err(AuthErrorCode::ReauthRequired) => {
                 *cached = Some(CachedGeneration { digest, state: RefreshState::ReauthRequired });
@@ -157,13 +155,7 @@ impl CodexRefresh {
         let digest = generation_digest(&updated);
         let updated = AccountCredential::CodexAuth(updated);
         updated.validate(AppId::Codex).map_err(|_| AuthErrorCode::UpstreamFailure)?;
-        lease.save_codex_generation(&current, &updated).map_err(|error| {
-            if error == CREDENTIAL_GENERATION_CHANGED {
-                AuthErrorCode::Conflict
-            } else {
-                AuthErrorCode::StorageUnavailable
-            }
-        })?;
+        lease.save_refreshed(&generation, &updated).map_err(refresh_publication_error)?;
         *cached = Some(CachedGeneration { digest, state: RefreshState::Ready { refresh_at } });
         Ok(refreshed.access_token)
     }

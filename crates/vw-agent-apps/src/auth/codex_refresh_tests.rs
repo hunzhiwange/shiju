@@ -21,7 +21,7 @@ use vw_api_types::{
     id::TenantScope,
 };
 
-fn scope(tenant: &TenantScope) -> AuthAccountScope<'_> {
+pub(super) fn scope(tenant: &TenantScope) -> AuthAccountScope<'_> {
     AuthAccountScope {
         tenant,
         principal: "oidc:owner",
@@ -38,7 +38,11 @@ fn jwt(claims: Value) -> String {
     )
 }
 
-fn seed(store: &CredentialFileStore, scope: AuthAccountScope<'_>, account_id: &str) -> Value {
+pub(super) fn seed(
+    store: &CredentialFileStore,
+    scope: AuthAccountScope<'_>,
+    account_id: &str,
+) -> Value {
     let credential = json!({
         "auth_mode": "chatgpt",
         "tokens": {
@@ -62,7 +66,7 @@ fn seed(store: &CredentialFileStore, scope: AuthAccountScope<'_>, account_id: &s
     credential
 }
 
-fn saved(store: &CredentialFileStore, scope: AuthAccountScope<'_>, id: &str) -> Value {
+pub(super) fn saved(store: &CredentialFileStore, scope: AuthAccountScope<'_>, id: &str) -> Value {
     let AccountCredential::CodexAuth(value) = store
         .for_owner(scope.principal)
         .unwrap()
@@ -76,7 +80,7 @@ fn saved(store: &CredentialFileStore, scope: AuthAccountScope<'_>, id: &str) -> 
     value
 }
 
-fn route(request: &mut Request, server: &Url) {
+pub(super) fn route(request: &mut Request, server: &Url) {
     assert_eq!(request.url().as_str(), "https://auth.openai.com/oauth/token");
     let mut url = server.clone();
     url.set_path("/oauth/token");
@@ -96,7 +100,7 @@ fn assert_form(request: &str, id: &str) {
     );
 }
 
-async fn gated_refresh(
+pub(super) async fn gated_refresh(
     reply: Value,
 ) -> (Url, oneshot::Receiver<()>, oneshot::Sender<()>, JoinHandle<()>) {
     let listener = TcpListener::bind("127.0.0.1:0").await.unwrap();

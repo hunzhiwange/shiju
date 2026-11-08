@@ -4,6 +4,7 @@ use super::{
     codex_device::send,
     copilot::{read_body_limited, utc_now},
     credential_file::{AccountCredential, CredentialFileStore, XaiCredential},
+    credential_lease::{refresh_publication_error, refresh_publication_lease},
     flow::AuthAccountScope,
     xai::{CLIENT_ID, MAX_RESPONSE_BYTES, SCOPE, discover, oauth_client, valid_token},
 };
@@ -57,14 +58,11 @@ impl XaiRefresh {
             return Err(AuthErrorCode::Unsupported);
         }
         validate_identity(account_id).map_err(|_| AuthErrorCode::InvalidInput)?;
-        // Login and refresh share this lease. Read and publish the same generation
-        // while excluding other managed writers, including those in another process.
-        let lease = credentials
-            .lease_xai(scope, account_id, false)
-            .map_err(|_| AuthErrorCode::StorageUnavailable)?;
-        let AccountCredential::XaiOauth(mut current) =
-            lease.read().map_err(|_| AuthErrorCode::StorageUnavailable)?
-        else {
+        let open = || credentials.lease_xai(scope, account_id, false);
+        let lease = open().map_err(|_| AuthErrorCode::StorageUnavailable)?;
+        let (credential, generation) =
+            lease.read_for_refresh().map_err(|_| AuthErrorCode::StorageUnavailable)?;
+        let AccountCredential::XaiOauth(mut current) = credential else {
             return Err(AuthErrorCode::StorageUnavailable);
         };
         if current.requires_reauth {
@@ -74,6 +72,7 @@ impl XaiRefresh {
             return Ok(current.access_token);
         }
 
+        drop(lease);
         let result = match self.exchange(&current.refresh_token, &mut route).await {
             Ok(refreshed) => {
                 current.apply_refresh(refreshed)?;
@@ -85,9 +84,10 @@ impl XaiRefresh {
             }
             Err(error) => return Err(error),
         };
-        lease
-            .save(&AccountCredential::XaiOauth(current))
-            .map_err(|_| AuthErrorCode::StorageUnavailable)?;
+        refresh_publication_lease(open)
+            .await?
+            .save_refreshed(&generation, &AccountCredential::XaiOauth(current))
+            .map_err(refresh_publication_error)?;
         result
     }
 

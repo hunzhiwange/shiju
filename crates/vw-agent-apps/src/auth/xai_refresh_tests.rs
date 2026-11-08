@@ -14,10 +14,10 @@ use vw_api_types::{
     id::TenantScope,
 };
 
-const ACCOUNT: &str = "fixture-account";
+pub(super) const ACCOUNT: &str = "fixture-account";
 const OTHER_ACCOUNT: &str = "other-account";
 
-fn scope(tenant: &TenantScope) -> AuthAccountScope<'_> {
+pub(super) fn scope(tenant: &TenantScope) -> AuthAccountScope<'_> {
     AuthAccountScope {
         tenant,
         principal: "oidc:owner",
@@ -26,14 +26,19 @@ fn scope(tenant: &TenantScope) -> AuthAccountScope<'_> {
     }
 }
 
-fn store() -> (tempfile::TempDir, CredentialFileStore) {
+pub(super) fn store() -> (tempfile::TempDir, CredentialFileStore) {
     let root = tempfile::tempdir().unwrap();
     std::fs::set_permissions(root.path(), std::fs::Permissions::from_mode(0o700)).unwrap();
     let store = CredentialFileStore::new(root.path()).unwrap();
     (root, store)
 }
 
-fn seed(store: &CredentialFileStore, scope: AuthAccountScope<'_>, id: &str, expires_at: i64) {
+pub(super) fn seed(
+    store: &CredentialFileStore,
+    scope: AuthAccountScope<'_>,
+    id: &str,
+    expires_at: i64,
+) {
     // The batch 19 credential shape, also used for an already installed account.
     let credential = serde_json::from_value(json!({
         "access_token": format!("access-{id}"),
@@ -48,7 +53,11 @@ fn seed(store: &CredentialFileStore, scope: AuthAccountScope<'_>, id: &str, expi
         .unwrap();
 }
 
-fn saved(store: &CredentialFileStore, scope: AuthAccountScope<'_>, id: &str) -> XaiCredential {
+pub(super) fn saved(
+    store: &CredentialFileStore,
+    scope: AuthAccountScope<'_>,
+    id: &str,
+) -> XaiCredential {
     let AccountCredential::XaiOauth(tokens) =
         store.lease_xai(scope, id, false).unwrap().read().unwrap()
     else {
@@ -57,7 +66,7 @@ fn saved(store: &CredentialFileStore, scope: AuthAccountScope<'_>, id: &str) -> 
     tokens
 }
 
-async fn discovery() -> (Url, tokio::task::JoinHandle<String>) {
+pub(super) async fn discovery() -> (Url, tokio::task::JoinHandle<String>) {
     oauth_server(
         "200 OK",
         "",
@@ -70,7 +79,7 @@ async fn discovery() -> (Url, tokio::task::JoinHandle<String>) {
     .await
 }
 
-fn route(request: &mut Request, discovery: &Url, token: &Url) {
+pub(super) fn route(request: &mut Request, discovery: &Url, token: &Url) {
     let base = match request.url().as_str() {
         "https://auth.x.ai/.well-known/openid-configuration" => discovery,
         "https://auth.x.ai/oauth2/token" => token,
@@ -92,7 +101,8 @@ async fn exchange(
     let (token, posted) = oauth_server(status, "", body).await;
     let result = refresh
         .access_token_with(store, scope, ACCOUNT, |outbound| {
-            assert!(store.lease_xai(scope, ACCOUNT, false).is_err());
+            let lease = store.lease_xai(scope, ACCOUNT, false).unwrap();
+            assert!(lease.lock_refresh().is_err());
             route(outbound, &discover, &token);
         })
         .await;

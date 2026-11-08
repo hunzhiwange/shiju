@@ -122,7 +122,7 @@ impl PrivateDirectory {
         Ok(file)
     }
 
-    fn file(&self, name: &CStr) -> Result<Option<File>, String> {
+    pub(in crate::auth) fn file(&self, name: &CStr) -> Result<Option<File>, String> {
         match self.open_child(name, libc::O_RDONLY, 0) {
             Ok(file) => {
                 check_private(&file, 0o600)?;
@@ -220,11 +220,24 @@ fn decode(
     kind: CredentialKind,
     file: &File,
 ) -> Result<AccountCredential, String> {
+    decode_credential(directory, path, kind, credential_bytes(file)?)
+}
+
+pub(in crate::auth) fn credential_bytes(file: &File) -> Result<Vec<u8>, String> {
     let mut bytes = Vec::new();
     file.take((MAX_BYTES + 1) as u64).read_to_end(&mut bytes).map_err(|_| UNAVAILABLE)?;
     if bytes.len() > MAX_BYTES {
         return Err(INVALID_MATERIAL.into());
     }
+    Ok(bytes)
+}
+
+pub(in crate::auth) fn decode_credential(
+    directory: &PrivateDirectory,
+    path: &Path,
+    kind: CredentialKind,
+    bytes: Vec<u8>,
+) -> Result<AccountCredential, String> {
     let credential = match kind {
         CredentialKind::App(AppId::Claude) if bytes == DIRECTORY_MARKER => {
             let path = managed_config_path(path);

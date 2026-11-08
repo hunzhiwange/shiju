@@ -2,23 +2,27 @@
 use super::credential_file::AccountCredential;
 #[cfg(unix)]
 use super::credential_file::{
-    CredentialKind, PrivateDirectory, ScopedCredentialPath, check_private, child_name, read_from,
-    register_claude_directory, remove_credential_file, same_file, write_to,
+    CredentialKind, PrivateDirectory, ScopedCredentialPath, check_private, child_name,
+    credential_bytes, decode_credential, read_from, register_claude_directory,
+    remove_credential_file, same_file, write_to,
 };
 #[cfg(unix)]
-use std::{fs::File, os::fd::AsRawFd, sync::Mutex};
+use sha2::{Digest, Sha256};
+#[cfg(unix)]
+use std::{ffi::CStr, fs::File, os::fd::AsRawFd, sync::Mutex};
 #[cfg(unix)]
 use vw_api_types::agent_apps::AppId;
+#[cfg(not(target_arch = "wasm32"))]
+use vw_api_types::agent_apps_auth::AuthErrorCode;
 
-pub(super) const CREDENTIAL_GENERATION_CHANGED: &str =
-    "official credential changed before publication";
+const CREDENTIAL_GENERATION_CHANGED: &str = "official credential changed before publication";
 
 #[cfg(unix)]
 pub struct CredentialLease {
     location: ScopedCredentialPath,
     directory: PrivateDirectory,
     kind: CredentialKind,
-    lock: File,
+    lock: CredentialLock,
     write: Mutex<()>,
 }
 
@@ -31,14 +35,7 @@ impl CredentialLease {
     ) -> Result<Self, String> {
         let directory = location.directory(create)?;
         let name = child_name(&location.path.with_extension("session-lock"))?;
-        let lock = directory
-            .open_child(&name, libc::O_RDWR | libc::O_CREAT, 0o600)
-            .map_err(|_| "official account lock unavailable")?;
-        check_private(&lock, 0o600)?;
-        // SAFETY: lock owns the live descriptor. flock does not retain pointers.
-        if unsafe { libc::flock(lock.as_raw_fd(), libc::LOCK_EX | libc::LOCK_NB) } != 0 {
-            return Err("official account is in use".into());
-        }
+        let lock = CredentialLock::acquire(&directory, &name)?;
         let lease = Self { location, directory, kind, lock, write: Mutex::new(()) };
         lease.check()?;
         Ok(lease)
@@ -50,14 +47,61 @@ impl CredentialLease {
             return Err("official credential directory changed during lease".into());
         }
         let name = child_name(&self.location.path.with_extension("session-lock"))?;
-        let lock = directory
-            .open_child(&name, libc::O_RDONLY, 0)
-            .map_err(|_| "official account lock unavailable")?;
-        check_private(&lock, 0o600)?;
-        if !same_file(&lock, &self.lock)? {
-            return Err("official credential lock changed during lease".into());
+        self.lock.check(&directory, &name)
+    }
+
+    /// Serialize upstream exchanges and Codex CLI rotation without holding
+    /// the credential publication lock across network I/O.
+    pub(crate) fn lock_refresh(&self) -> Result<CredentialLock, String> {
+        self.check()?;
+        let name = child_name(&self.location.path.with_extension("refresh-lock"))?;
+        CredentialLock::acquire(&self.directory, &name)
+    }
+
+    pub(super) fn read_for_refresh(
+        &self,
+    ) -> Result<(AccountCredential, RefreshGeneration), String> {
+        let lock = self.lock_refresh()?;
+        let file = self
+            .directory
+            .file(&child_name(&self.location.path)?)?
+            .ok_or("official account not found")?;
+        let bytes = credential_bytes(&file)?;
+        let digest = Sha256::digest(&bytes).into();
+        let credential = decode_credential(&self.directory, &self.location.path, self.kind, bytes)?;
+        Ok((credential, RefreshGeneration { file, digest, lock }))
+    }
+
+    pub(super) fn check_refresh_generation(
+        &self,
+        expected: &RefreshGeneration,
+    ) -> Result<(), String> {
+        self.check()?;
+        let name = child_name(&self.location.path.with_extension("refresh-lock"))?;
+        expected.lock.check(&self.directory, &name)?;
+        let file = self
+            .directory
+            .file(&child_name(&self.location.path)?)?
+            .ok_or(CREDENTIAL_GENERATION_CHANGED)?;
+        // Keep the old descriptor alive across OAuth so unlink and recreation
+        // cannot recycle its inode, even if the replacement has identical bytes.
+        let digest: [u8; 32] = Sha256::digest(credential_bytes(&file)?).into();
+        if !same_file(&file, &expected.file)? || digest != expected.digest {
+            return Err(CREDENTIAL_GENERATION_CHANGED.into());
         }
         Ok(())
+    }
+
+    pub(super) fn save_refreshed(
+        &self,
+        expected: &RefreshGeneration,
+        next: &AccountCredential,
+    ) -> Result<(), String> {
+        let _write = self.write.lock().map_err(|_| "official account lock unavailable")?;
+        self.check_refresh_generation(expected)?;
+        write_to(&self.directory, &self.location.path, self.kind, next, || {
+            self.check_refresh_generation(expected)
+        })
     }
 
     pub fn read(&self) -> Result<AccountCredential, String> {
@@ -190,6 +234,78 @@ impl CredentialLease {
     }
 }
 
+#[cfg(unix)]
+pub(crate) struct CredentialLock(File);
+
+#[cfg(unix)]
+impl CredentialLock {
+    fn acquire(directory: &PrivateDirectory, name: &CStr) -> Result<Self, String> {
+        let file = directory
+            .open_child(name, libc::O_RDWR | libc::O_CREAT, 0o600)
+            .map_err(|_| "official account lock unavailable")?;
+        check_private(&file, 0o600)?;
+        // SAFETY: file owns the live descriptor. flock does not retain pointers.
+        if unsafe { libc::flock(file.as_raw_fd(), libc::LOCK_EX | libc::LOCK_NB) } != 0 {
+            return Err("official account is in use".into());
+        }
+        Ok(Self(file))
+    }
+
+    fn check(&self, directory: &PrivateDirectory, name: &CStr) -> Result<(), String> {
+        let lock = directory
+            .open_child(name, libc::O_RDONLY, 0)
+            .map_err(|_| "official account lock unavailable")?;
+        check_private(&lock, 0o600)?;
+        if !same_file(&lock, &self.0)? {
+            return Err("official credential lock changed during lease".into());
+        }
+        Ok(())
+    }
+}
+
+#[cfg(unix)]
+pub(super) struct RefreshGeneration {
+    file: File,
+    digest: [u8; 32],
+    lock: CredentialLock,
+}
+
+#[cfg(not(unix))]
+pub(crate) struct CredentialLock;
+
+#[cfg(all(not(unix), not(target_arch = "wasm32")))]
+pub(super) struct RefreshGeneration;
+
+#[cfg(not(target_arch = "wasm32"))]
+pub(super) async fn refresh_publication_lease(
+    open: impl Fn() -> Result<CredentialLease, String>,
+) -> Result<CredentialLease, AuthErrorCode> {
+    use std::time::Duration;
+    use tokio::time::{Instant, sleep};
+
+    let deadline = Instant::now() + Duration::from_secs(2);
+    loop {
+        match open() {
+            Err(error) if error == "official account is in use" && Instant::now() < deadline => {
+                // Let a short metadata operation finish before deciding whether its
+                // publication superseded the generation already exchanged upstream.
+                sleep(Duration::from_millis(10)).await;
+            }
+            result => return result.map_err(refresh_publication_error),
+        }
+    }
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+pub(super) fn refresh_publication_error(error: String) -> AuthErrorCode {
+    match error.as_str() {
+        CREDENTIAL_GENERATION_CHANGED
+        | "official account not found"
+        | "official account is in use" => AuthErrorCode::Conflict,
+        _ => AuthErrorCode::StorageUnavailable,
+    }
+}
+
 #[cfg(not(unix))]
 pub struct CredentialLease {
     _unsupported: (),
@@ -202,6 +318,34 @@ impl CredentialLease {
     }
 
     pub fn save(&self, _credential: &AccountCredential) -> Result<(), String> {
+        Err("official account locking requires a reviewed host adapter".into())
+    }
+
+    pub(crate) fn lock_refresh(&self) -> Result<CredentialLock, String> {
+        Err("official account locking requires a reviewed host adapter".into())
+    }
+
+    #[cfg(not(target_arch = "wasm32"))]
+    pub(super) fn read_for_refresh(
+        &self,
+    ) -> Result<(AccountCredential, RefreshGeneration), String> {
+        Err("official account locking requires a reviewed host adapter".into())
+    }
+
+    #[cfg(not(target_arch = "wasm32"))]
+    pub(super) fn check_refresh_generation(
+        &self,
+        _expected: &RefreshGeneration,
+    ) -> Result<(), String> {
+        Err("official account locking requires a reviewed host adapter".into())
+    }
+
+    #[cfg(not(target_arch = "wasm32"))]
+    pub(super) fn save_refreshed(
+        &self,
+        _expected: &RefreshGeneration,
+        _next: &AccountCredential,
+    ) -> Result<(), String> {
         Err("official account locking requires a reviewed host adapter".into())
     }
 
@@ -227,13 +371,13 @@ impl CredentialLease {
 }
 
 #[cfg(unix)]
-impl Drop for CredentialLease {
+impl Drop for CredentialLock {
     fn drop(&mut self) {
         // A concurrent fork can retain a CLOEXEC descriptor until exec. Unlock at the
         // owner's lifetime boundary rather than extending the lease until that copy closes.
         loop {
             // SAFETY: the lock descriptor remains live through Drop.
-            if unsafe { libc::flock(self.lock.as_raw_fd(), libc::LOCK_UN) } == 0
+            if unsafe { libc::flock(self.0.as_raw_fd(), libc::LOCK_UN) } == 0
                 || std::io::Error::last_os_error().kind() != std::io::ErrorKind::Interrupted
             {
                 break;

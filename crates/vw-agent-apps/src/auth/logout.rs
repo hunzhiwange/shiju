@@ -36,7 +36,8 @@ pub fn check_revocation_support(scope: AuthAccountScope<'_>) -> Result<(), AuthE
 }
 
 /// Invalidate private material while holding the existing account lease.
-/// The host must have already verified the metadata for this scope and account.
+/// Managed HTTP refreshes take this lease again before publication, so a late
+/// response cannot replace the removed generation. The host verifies metadata first.
 pub fn clear_managed_credentials(
     credentials: &CredentialFileStore,
     scope: AuthAccountScope<'_>,

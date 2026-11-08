@@ -19,8 +19,9 @@ use host::open_root;
 pub(super) use host::remove_account_directory;
 #[cfg(unix)]
 pub(super) use host::{
-    PrivateDirectory, ScopedCredentialPath, check_private, child_name, read_from,
-    register_claude_directory, remove_credential_file, same_file, write_to,
+    PrivateDirectory, ScopedCredentialPath, check_private, child_name, credential_bytes,
+    decode_credential, read_from, register_claude_directory, remove_credential_file, same_file,
+    write_to,
 };
 #[cfg(unix)]
 use std::{path::Component, sync::Arc};

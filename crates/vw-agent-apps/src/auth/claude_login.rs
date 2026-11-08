@@ -7,17 +7,19 @@ use super::{
 };
 use reqwest::Url;
 use std::{
+    borrow::Cow,
     fs,
     io::{self, Write},
+    net::{Ipv4Addr, Ipv6Addr},
     os::unix::fs::OpenOptionsExt,
     path::Path,
     process::{Command, Stdio},
     time::Duration,
 };
 use tokio::{
-    io::{AsyncBufReadExt, AsyncRead, BufReader},
-    process::Child,
-    sync::oneshot,
+    io::{AsyncBufReadExt, AsyncRead, AsyncWriteExt, BufReader},
+    process::{Child, ChildStdin},
+    sync::{mpsc, oneshot},
     time::{self, Instant},
 };
 
@@ -27,6 +29,7 @@ const LINK_WAIT: Duration = Duration::from_secs(30);
 const BROWSER_GRACE: Duration = Duration::from_secs(3);
 const CHECK_INTERVAL: Duration = Duration::from_millis(50);
 const OUTPUT_LINE_LIMIT: usize = 16 * 1024;
+const PASTE_LIMIT: usize = 16 * 1024;
 const CAPTURE_FILE: &str = "opened-url";
 const OPENER: &[u8] = br#"#!/bin/sh
 set -eu
@@ -44,12 +47,15 @@ pub enum ClaudeLoginError {
     LinkUnavailable,
     TimedOut,
     Cancelled,
+    InvalidPaste,
+    Inactive,
 }
 
 /// A host-private process handle. Dropping it requests cancellation.
 pub struct ClaudeLogin {
     url: String,
     stop: oneshot::Sender<()>,
+    paste: mpsc::Sender<PasteCommand>,
     done: oneshot::Receiver<Result<(), ClaudeLoginError>>,
 }
 
@@ -139,10 +145,11 @@ impl ClaudeLogin {
 
         let (link, ready) = oneshot::channel();
         let (stop, cancelled) = oneshot::channel();
+        let (paste, submissions) = mpsc::channel(1);
         let (finished, mut done) = oneshot::channel();
         tokio::spawn(async move {
             let mut process = LoginProcess(child);
-            let result = watch(&mut process, capture, link, cancelled, deadline).await;
+            let result = watch(&mut process, capture, link, cancelled, deadline, submissions).await;
             let status = process.reap().await;
             let cleanup = scratch.close();
             drop(lease);
@@ -158,7 +165,7 @@ impl ClaudeLogin {
         });
 
         match ready.await {
-            Ok(url) => Ok(Self { url, stop, done }),
+            Ok(url) => Ok(Self { url, stop, paste, done }),
             Err(_) => {
                 let result = (&mut done).await.map_err(|_| ClaudeLoginError::Unavailable)?;
                 Err(result.err().unwrap_or(ClaudeLoginError::LinkUnavailable))
@@ -170,10 +177,21 @@ impl ClaudeLogin {
         &self.url
     }
 
+    /// Deliver sensitive input to this login's CLI. Success acknowledges delivery.
+    pub async fn submit_paste(&self, raw: &str) -> Result<(), ClaudeLoginError> {
+        let input = Paste::parse(raw, &self.url).ok_or(ClaudeLoginError::InvalidPaste)?;
+        let (reply, delivered) = oneshot::channel();
+        self.paste
+            .send(PasteCommand { input, reply })
+            .await
+            .map_err(|_| ClaudeLoginError::Inactive)?;
+        delivered.await.map_err(|_| ClaudeLoginError::Inactive)?
+    }
+
     /// Wait until the CLI exits and its process and transient files have been cleaned up.
     pub async fn wait(self) -> Result<(), ClaudeLoginError> {
-        // Keep the cancellation sender alive while waiting.
-        let Self { stop: _stop, done, .. } = self;
+        // Keep both supervisor channels open while waiting.
+        let Self { stop: _stop, paste: _paste, done, .. } = self;
         done.await.map_err(|_| ClaudeLoginError::Unavailable)?
     }
 
@@ -224,15 +242,121 @@ impl Drop for LoginProcess {
     }
 }
 
+struct PasteCommand {
+    input: Paste,
+    reply: oneshot::Sender<Result<(), ClaudeLoginError>>,
+}
+
+enum Paste {
+    Code(String),
+    Callback(Url),
+}
+
+impl Paste {
+    fn parse(raw: &str, authorization: &str) -> Option<Self> {
+        if raw.len() > PASTE_LIMIT {
+            return None;
+        }
+        let raw = raw.trim();
+        if raw.chars().any(|ch| ch.is_control() || ch.is_whitespace()) {
+            return None;
+        }
+        let authorization = Url::parse(authorization).ok()?;
+        let state = query_value(&authorization, "state")?;
+        if let Ok(url) = Url::parse(raw) {
+            let mut redirect = Url::parse(&query_value(&authorization, "redirect_uri")?).ok()?;
+            if redirect.scheme() != "http"
+                || !loopback_host(&redirect)
+                || !matches!(url.scheme(), "http" | "https")
+                || !loopback_host(&url)
+                || !url.username().is_empty()
+                || url.password().is_some()
+                || url.fragment().is_some()
+                || redirect.port()? != url.port()?
+                || redirect.path() != url.path()
+                || query_value(&url, "state")? != state
+            {
+                return None;
+            }
+            query_value(&url, "code")?;
+            // Use the CLI's original address even when the browser used a loopback alias.
+            redirect.set_query(url.query());
+            return Some(Self::Callback(redirect));
+        }
+        let (code, pasted_state) = raw.split_once('#')?;
+        (!code.is_empty() && pasted_state == state).then(|| Self::Code(format!("{raw}\n")))
+    }
+
+    async fn deliver(self, stdin: &mut ChildStdin) -> Result<(), ClaudeLoginError> {
+        match self {
+            Self::Code(line) => {
+                stdin
+                    .write_all(line.as_bytes())
+                    .await
+                    .map_err(|_| ClaudeLoginError::Unavailable)?;
+                stdin.flush().await.map_err(|_| ClaudeLoginError::Unavailable)?;
+            }
+            Self::Callback(url) => {
+                reqwest::Client::builder()
+                    .no_proxy()
+                    .resolve_to_addrs(
+                        "localhost",
+                        &[(Ipv4Addr::LOCALHOST, 0).into(), (Ipv6Addr::LOCALHOST, 0).into()],
+                    )
+                    .redirect(reqwest::redirect::Policy::none())
+                    .retry(reqwest::retry::never())
+                    .timeout(Duration::from_secs(30))
+                    .build()
+                    .map_err(|_| ClaudeLoginError::Unavailable)?
+                    .get(url)
+                    .send()
+                    .await
+                    .map_err(|_| ClaudeLoginError::Unavailable)?;
+            }
+        }
+        Ok(())
+    }
+}
+
+fn query_value<'a>(url: &'a Url, name: &str) -> Option<Cow<'a, str>> {
+    let mut values = url.query_pairs().filter_map(|(key, value)| (key == name).then_some(value));
+    let value = values.next()?;
+    (!value.is_empty() && values.next().is_none()).then_some(value)
+}
+
+async fn deliver_pastes(
+    process: &LoginProcess,
+    mut stdin: ChildStdin,
+    mut submissions: mpsc::Receiver<PasteCommand>,
+    deadline: Instant,
+) {
+    while let Some(PasteCommand { input, reply }) = submissions.recv().await {
+        if reply.is_closed() {
+            continue;
+        }
+        // Once dispatched, only the CLI supervisor can interrupt a partial pipe write.
+        let result = match process.exited() {
+            Ok(false) if Instant::now() < deadline => input.deliver(&mut stdin).await,
+            Ok(_) => Err(ClaudeLoginError::Inactive),
+            Err(_) => Err(ClaudeLoginError::Unavailable),
+        };
+        let _ = reply.send(result);
+    }
+}
+
 async fn watch(
     process: &mut LoginProcess,
     capture: Directory,
     link: oneshot::Sender<String>,
     mut cancelled: oneshot::Receiver<()>,
     deadline: Instant,
+    submissions: mpsc::Receiver<PasteCommand>,
 ) -> Result<(), ClaudeLoginError> {
     let stdout = process.0.stdout.take().ok_or(ClaudeLoginError::Unavailable)?;
     let stderr = process.0.stderr.take().ok_or(ClaudeLoginError::Unavailable)?;
+    let stdin = process.0.stdin.take().ok_or(ClaudeLoginError::Unavailable)?;
+    let pastes = deliver_pastes(process, stdin, submissions, deadline);
+    tokio::pin!(pastes);
     let mut stdout = Output::new(stdout);
     let mut stderr = Output::new(stderr);
     let mut tick = time::interval(CHECK_INTERVAL);
@@ -244,6 +368,7 @@ async fn watch(
             biased;
             _ = &mut cancelled => return Err(ClaudeLoginError::Cancelled),
             () = time::sleep_until(deadline) => return Err(ClaudeLoginError::TimedOut),
+            () = &mut pastes => return Err(ClaudeLoginError::Cancelled),
             _ = tick.tick() => {
                 if process.exited().map_err(|_| ClaudeLoginError::Unavailable)? {
                     return if link.is_none() { Ok(()) } else { Err(ClaudeLoginError::Exited) };
@@ -385,10 +510,14 @@ fn trusted_redirect(text: &str) -> bool {
         return false;
     }
     match (url.scheme(), url.host_str(), url.port()) {
-        ("http", Some("localhost" | "127.0.0.1" | "[::1]"), Some(port)) => port != 0,
+        ("http", _, Some(port)) => loopback_host(&url) && port != 0,
         ("https", Some("platform.claude.com" | "console.anthropic.com"), None) => {
             url.path() == "/oauth/code/callback" && url.query().is_none()
         }
         _ => false,
     }
+}
+
+fn loopback_host(url: &Url) -> bool {
+    matches!(url.host_str(), Some("localhost" | "127.0.0.1" | "[::1]"))
 }

@@ -254,3 +254,136 @@ wait
     assert_processes_stopped(&fixture.account).await;
     assert!(fixture.lease().is_ok());
 }
+
+async fn callback(listener: &tokio::net::TcpListener) -> (String, tokio::net::TcpStream) {
+    use tokio::io::AsyncBufReadExt;
+
+    tokio::time::timeout(Duration::from_secs(3), async {
+        let (socket, _) = listener.accept().await.unwrap();
+        let mut reader = tokio::io::BufReader::new(socket);
+        let mut request = String::new();
+        reader.read_line(&mut request).await.unwrap();
+        loop {
+            let mut header = String::new();
+            assert_ne!(reader.read_line(&mut header).await.unwrap(), 0);
+            if header == "\r\n" {
+                break;
+            }
+        }
+        (request, reader.into_inner())
+    })
+    .await
+    .expect("callback received on the expected listener")
+}
+
+fn callback_url(port: u16, suffix: &str) -> String {
+    format!("http://127.0.0.1:{port}/callback?{suffix}")
+}
+
+fn loopback_program(fixture: &Fixture, port: u16) -> PathBuf {
+    fixture.program(&format!(
+        r#"
+"$BROWSER" 'https://claude.com/cai/oauth/authorize?redirect_uri=http%3A%2F%2Flocalhost%3A{port}%2Fcallback&state=fixture'
+while [ ! -f finish ]; do /bin/sleep 0.05; done
+"#
+    ))
+}
+
+#[tokio::test]
+async fn auth6_claude_paste_commits_expected_scoped_result() {
+    use tokio::io::AsyncWriteExt;
+
+    let fixture = Fixture::new();
+    let program = fixture.program(&format!(
+        r#"
+"$BROWSER" '{TRUSTED_URL}'
+IFS= read -r line
+test "$line" = 'fixture-code#fixture'
+printf '%s' accepted > received
+"#
+    ));
+    let login = fixture.start(&program, TIMEOUT).await.unwrap();
+    assert_eq!(login.submit_paste(" fixture-code#fixture\n").await, Ok(()));
+    assert_eq!(login.wait().await, Ok(()));
+    assert_eq!(read(&fixture.account, "received"), "accepted");
+    assert!(!fixture.other.join("received").exists());
+
+    let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
+    let port = listener.local_addr().unwrap().port();
+    let redirect = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
+    let redirect_port = redirect.local_addr().unwrap().port();
+    let program = loopback_program(&fixture, port);
+    let login = fixture.start(&program, TIMEOUT).await.unwrap();
+    let target = callback_url(port, "code=fixture-code&state=fixture");
+    let respond = async {
+        let (request, mut socket) = callback(&listener).await;
+        assert!(request == "GET /callback?code=fixture-code&state=fixture HTTP/1.1\r\n");
+        socket
+            .write_all(
+                format!(
+                    "HTTP/1.1 302 Found\r\nLocation: http://127.0.0.1:{redirect_port}/\r\nContent-Length: 0\r\n\r\n"
+                )
+                .as_bytes(),
+            )
+            .await
+            .unwrap();
+    };
+    let (result, ()) = tokio::join!(login.submit_paste(&target), respond);
+    assert_eq!(result, Ok(()));
+    assert!(tokio::time::timeout(Duration::from_millis(100), redirect.accept()).await.is_err());
+    fs::write(fixture.account.join("finish"), "").unwrap();
+    assert_eq!(login.wait().await, Ok(()));
+}
+
+#[tokio::test]
+async fn auth6_claude_paste_rejects_invalid_or_stale_input() {
+    use tokio::io::AsyncReadExt;
+
+    let fixture = Fixture::new();
+    let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
+    let port = listener.local_addr().unwrap().port();
+    let unrelated = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
+    let other_port = unrelated.local_addr().unwrap().port();
+    let program = loopback_program(&fixture, port);
+    let login = fixture.start(&program, TIMEOUT).await.unwrap();
+    for invalid in [
+        "plain".to_owned(),
+        "fixture-code#other-state".to_owned(),
+        "first\nsecond#fixture".to_owned(),
+        "bad\u{1b}code#fixture".to_owned(),
+        format!("{}fixture-code#fixture", " ".repeat(16 * 1024)),
+        "https://example.com/callback?code=fixture-code&state=fixture".to_owned(),
+        callback_url(other_port, "code=fixture-code&state=fixture"),
+        callback_url(port, "code=fixture-code&state=other-state"),
+        callback_url(port, "code=fixture-code&code=duplicate&state=fixture"),
+        format!("http://127.0.0.1:{port}/other?code=fixture-code&state=fixture"),
+    ] {
+        assert_eq!(login.submit_paste(&invalid).await, Err(ClaudeLoginError::InvalidPaste));
+    }
+    assert!(tokio::time::timeout(Duration::from_millis(100), listener.accept()).await.is_err());
+    assert!(tokio::time::timeout(Duration::from_millis(100), unrelated.accept()).await.is_err());
+
+    let target = callback_url(port, "code=fixture-code&state=fixture");
+    let mut socket = {
+        let submit = login.submit_paste(&target);
+        tokio::pin!(submit);
+        tokio::select! {
+            (_, socket) = callback(&listener) => socket,
+            _ = &mut submit => panic!("callback completed before it received a response"),
+        }
+    };
+    assert_eq!(login.cancel().await, Ok(()));
+    let mut buffer = [0; 1];
+    let closed = tokio::time::timeout(Duration::from_secs(2), socket.read(&mut buffer))
+        .await
+        .expect("cancellation closes the in-flight callback");
+    assert_eq!(closed.unwrap(), 0);
+    assert!(fixture.lease().is_ok());
+
+    let login = fixture.start(&program, Duration::from_secs(1)).await.unwrap();
+    tokio::time::sleep(Duration::from_secs(1)).await;
+    assert_eq!(login.submit_paste(&target).await, Err(ClaudeLoginError::Inactive));
+    assert_eq!(login.wait().await, Err(ClaudeLoginError::TimedOut));
+    assert!(tokio::time::timeout(Duration::from_millis(100), listener.accept()).await.is_err());
+    assert!(fixture.lease().is_ok());
+}

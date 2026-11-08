@@ -29,6 +29,61 @@ impl Operation for FocusControl {
     }
 }
 
+#[tokio::test]
+async fn help_rollout_27_lifecycle_route_renders_contextual_help() {
+    struct RouteLabel {
+        explanation: &'static str,
+    }
+
+    impl Operation for RouteLabel {
+        fn traverse(&mut self, children: &mut dyn FnMut(&mut dyn Operation)) {
+            children(self);
+        }
+
+        fn text(&mut self, _: Option<&iced::advanced::widget::Id>, _: Rectangle, value: &str) {
+            assert_ne!(value, self.explanation, "optional copy is hidden while idle");
+        }
+    }
+
+    let mut renderer = Renderer::new(Font::DEFAULT, 14.0.into(), Some("tiny-skia")).await.unwrap();
+    let i18n = I18n::new(DesktopLocale::English);
+    let mut draft = WorkflowDraft::empty();
+    let mut status = WorkflowDraftStatus::new("review", "Review", StatusRole::Queued);
+    status.routes.clear();
+    status.add_route();
+    draft.statuses = vec![status];
+    let mut scene = EditorScene::new(build_draft_editor(i18n, &draft), &mut renderer, 456);
+    let mut label = RouteLabel { explanation: i18n.__("给人看的名称") };
+    scene.ui.operate(&renderer, &mut label);
+    fn help_bounds(layout: Layout<'_>) -> Option<Rectangle> {
+        let bounds = layout.bounds();
+        if bounds.size() == Size::new(22.0, 22.0) {
+            return Some(bounds);
+        }
+        layout.children().find_map(help_bounds)
+    }
+    let route_name = [0, 4, 0, 0, 0, 0, 5, 0, 0, 0]
+        .into_iter()
+        .fold(Layout::new(&scene.layout), |node, index| node.children().nth(index).unwrap());
+    let trigger = help_bounds(route_name).expect("workflow route help icon").center();
+    let idle = scene.capture(&mut renderer, &Theme::Dark);
+    let mut messages = Vec::new();
+    scene.ui.update(
+        &[
+            Event::Mouse(mouse::Event::ButtonPressed(mouse::Button::Left)),
+            Event::Mouse(mouse::Event::ButtonReleased(mouse::Button::Left)),
+        ],
+        mouse::Cursor::Available(trigger),
+        &mut renderer,
+        &mut clipboard::Null,
+        &mut messages,
+    );
+    assert!(messages.is_empty());
+    assert!(scene.capture(&mut renderer, &Theme::Dark) != idle);
+    assert!(scene.key(&mut renderer, Key::Named(Named::Escape), None).is_empty());
+    assert!(scene.capture(&mut renderer, &Theme::Dark) == idle);
+}
+
 struct EditorScene<'a> {
     ui: UserInterface<'a, Message, Theme, Renderer>,
     layout: layout::Node,
@@ -172,8 +227,8 @@ async fn workflow_form_controls_open_shared_role_and_route_menus() {
                 };
                 let role = field(&scene, &[3, 1]);
                 let route = field(&scene, &[5, 1, 2]);
-                let route_name = field(&scene, &[5, 1, 0, 2]);
-                let route_key = field(&scene, &[5, 1, 1, 2]);
+                let route_name = field(&scene, &[5, 1, 0, 1]);
+                let route_key = field(&scene, &[5, 1, 1, 1]);
                 let remove = field(&scene, &[5, 1, 3]);
                 for (left, right) in [(route_name, route_key), (route_key, route), (route, remove)]
                 {

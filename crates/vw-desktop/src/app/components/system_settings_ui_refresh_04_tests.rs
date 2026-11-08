@@ -469,7 +469,8 @@ async fn ui_refresh_04_search_opens_the_language_control_row() {
     let task = message::settings::update(&mut app, selected);
     assert_eq!(app.general_settings_tab, GeneralSettingsTab::Interface);
 
-    let mut scene = Scene::new(&app, 420, 400).await;
+    // The help card leaves the language row higher on the page.
+    let mut scene = Scene::new(&app, 420, 260).await;
     let row_path = &[0, 0, 0, 0, 0, 2, 1, 0, 4];
     let field = scene.bounds(PANEL, row_path);
     let trigger = scene.bounds(PANEL, &[0, 0, 0, 0, 0, 2, 1, 0, 4, 0, 1, 0, 0]).center();
@@ -495,4 +496,71 @@ async fn ui_refresh_04_search_opens_the_language_control_row() {
     let visible_trigger = Point::new(trigger.x, scroll_top + 12.0 + trigger.y - field.y);
     assert!(scene.click(visible_trigger).is_empty());
     assert!(scene.overlay_bounds().is_some(), "the revealed language picker opens");
+}
+
+#[tokio::test]
+async fn help_rollout_27_quick_messages_renders_contextual_help() {
+    use iced::advanced::widget::{Id, Operation};
+
+    struct Heading {
+        title: &'static str,
+        description: &'static str,
+        bounds: Option<Rectangle>,
+    }
+
+    impl Operation for Heading {
+        fn traverse(&mut self, children: &mut dyn FnMut(&mut dyn Operation)) {
+            children(self);
+        }
+
+        fn text(&mut self, _: Option<&Id>, bounds: Rectangle, value: &str) {
+            assert_ne!(value, self.description, "optional copy is hidden while idle");
+            if value == self.title && bounds.height > 24.0 {
+                self.bounds = Some(bounds);
+            }
+        }
+    }
+
+    let mut app = fixture();
+    app.system_settings_tab = SystemTab::Agents;
+    app.agents_settings.active_config_tab = crate::app::state::AgentConfigTab::QuickMessages;
+    app.quick_messages.clear();
+    for (locale, theme) in [
+        (DesktopLocale::SimplifiedChinese, Theme::Dark),
+        (DesktopLocale::TraditionalChinese, Theme::Light),
+        (DesktopLocale::English, Theme::Dark),
+    ] {
+        app.desktop_locale = locale;
+        app.app_theme = theme.clone();
+        let i18n = crate::app::i18n::I18n::new(locale);
+        let mut scene = Scene::new(&app, 560, 480).await;
+        let mut heading = Heading {
+            title: i18n.__("快捷消息"),
+            description: i18n.__("配置聊天输入框上方的常用消息、摘要接力与 Git 动作。"),
+            bounds: None,
+        };
+        scene.element.as_widget_mut().operate(
+            &mut scene.tree,
+            Layout::new(&scene.node),
+            &scene.renderer,
+            &mut heading,
+        );
+        let bounds = heading.bounds.expect("quick messages page heading");
+        let trigger = Point::new(bounds.x + bounds.width + 15.0, bounds.center_y());
+        let idle = scene.snapshot(
+            &theme,
+            mouse::Cursor::Unavailable,
+            &format!("quick-messages-help-{locale:?}-idle"),
+        );
+        assert!(scene.click(trigger).is_empty());
+        assert!(scene.overlay_bounds().is_some(), "click pins the help card");
+        let pinned = scene.snapshot(
+            &theme,
+            mouse::Cursor::Unavailable,
+            &format!("quick-messages-help-{locale:?}-pinned"),
+        );
+        assert!(pinned != idle);
+        assert!(scene.key(Key::Named(Named::Escape), None).is_empty());
+        assert!(scene.overlay_bounds().is_none());
+    }
 }

@@ -13,8 +13,8 @@ use iced::{Alignment, Element, Length, Task, Theme};
 
 use crate::app::components::system_settings_common::{
     danger_action_btn_style, primary_action_btn_style, rounded_action_btn_style,
-    settings_muted_text_style, settings_panel, settings_select, settings_text_input,
-    settings_value_badge,
+    settings_hover_help_label, settings_muted_text_style, settings_panel, settings_select,
+    settings_text_input, settings_value_badge,
 };
 use crate::app::components::toast::confirm_dialog;
 use crate::app::task::workflow::TaskWorkflowRegistry;
@@ -1444,13 +1444,14 @@ pub fn view(app: &App) -> Element<'_, Message> {
         settings_panel(
             column![
                 row![
-                    column![
+                    settings_hover_help_label(
+                        i18n,
+                        &app.app_theme,
+                        i18n.__("任务编排"),
                         text(i18n.__("任务编排")).size(20),
-                        text(i18n.__("生命周期定义负责状态与流向。"))
-                            .size(12)
-                            .style(settings_muted_text_style),
-                    ]
-                    .spacing(4),
+                        i18n.__("生命周期定义负责状态与流向。"),
+                    )
+                    .wrap(),
                     Space::new().width(Length::Fill),
                     header_actions,
                 ]
@@ -2005,8 +2006,13 @@ fn build_draft_editor(i18n: crate::app::i18n::I18n, draft: &WorkflowDraft) -> El
         .align_y(Alignment::Center)
         .spacing(10),
         input_row(
-            "ID",
-            i18n.__("小写字母、数字、下划线或连字符。"),
+            column![
+                text("ID").size(13),
+                text(i18n.__("小写字母、数字、下划线或连字符。"))
+                    .size(11)
+                    .style(settings_muted_text_style),
+            ]
+            .spacing(4),
             settings_text_input("handoff_flow", &draft.id)
                 .on_input(|value| {
                     Message::WorkflowManager(WorkflowManagerMessage::DraftIdChanged(value))
@@ -2014,8 +2020,7 @@ fn build_draft_editor(i18n: crate::app::i18n::I18n, draft: &WorkflowDraft) -> El
                 .width(Length::Fill),
         ),
         input_row(
-            i18n.__("名称"),
-            i18n.__("显示在项目工作流选择和管理列表中。"),
+            field_help(i18n, i18n.__("名称"), i18n.__("显示在项目工作流选择和管理列表中。"), 13),
             settings_text_input("Handoff Flow", &draft.label)
                 .on_input(|value| {
                     Message::WorkflowManager(WorkflowManagerMessage::DraftLabelChanged(value))
@@ -2045,19 +2050,24 @@ fn build_draft_editor(i18n: crate::app::i18n::I18n, draft: &WorkflowDraft) -> El
 }
 
 fn input_row<'a>(
-    label: &'a str,
-    help: &'a str,
+    label: impl Into<Element<'a, Message>>,
     control: impl Into<Element<'a, Message>>,
 ) -> Element<'a, Message> {
-    row![
-        column![text(label).size(13), text(help).size(11).style(settings_muted_text_style)]
-            .spacing(4)
-            .width(Length::Fixed(180.0)),
-        control.into(),
-    ]
-    .spacing(14)
-    .align_y(Alignment::Center)
-    .into()
+    row![container(label).width(Length::Fixed(180.0)), control.into()]
+        .spacing(14)
+        .align_y(Alignment::Center)
+        .into()
+}
+
+fn field_help(
+    i18n: crate::app::i18n::I18n,
+    label: &'static str,
+    description: &'static str,
+    size: u16,
+) -> Element<'static, Message> {
+    settings_hover_help_label(i18n, None, label, text(label).size(size as f32), description)
+        .wrap()
+        .into()
 }
 
 fn build_status_row<'a>(
@@ -2134,8 +2144,7 @@ fn build_status_row<'a>(
             .spacing(8)
             .align_y(Alignment::Center),
             input_row(
-                i18n.__("状态 key"),
-                i18n.__("自定义状态会按 key 持久化。"),
+                field_help(i18n, i18n.__("状态 key"), i18n.__("自定义状态会按 key 持久化。"), 13),
                 settings_text_input("ready_for_qa", &status.key)
                     .on_input(move |key| {
                         Message::WorkflowManager(WorkflowManagerMessage::DraftStatusKeyChanged {
@@ -2146,8 +2155,7 @@ fn build_status_row<'a>(
                     .width(Length::Fill),
             ),
             input_row(
-                i18n.__("标签"),
-                i18n.__("用于看板列和状态展示。"),
+                field_help(i18n, i18n.__("标签"), i18n.__("用于看板列和状态展示。"), 13),
                 settings_text_input("Ready for QA", &status.label)
                     .on_input(move |label| {
                         Message::WorkflowManager(WorkflowManagerMessage::DraftStatusLabelChanged {
@@ -2157,7 +2165,10 @@ fn build_status_row<'a>(
                     })
                     .width(Length::Fill),
             ),
-            input_row(i18n.__("语义角色"), i18n.__("调度和执行只依赖角色语义。"), role_pick),
+            input_row(
+                field_help(i18n, i18n.__("语义角色"), i18n.__("调度和执行只依赖角色语义。"), 13),
+                role_pick,
+            ),
             row![
                 column![
                     text(i18n.__("结果去向")).size(13),
@@ -2242,20 +2253,12 @@ fn build_route_row<'a>(
     };
 
     row![
-        column![
-            text(i18n.__("结果名字")).size(12),
-            text(i18n.__("给人看的名称")).size(11).style(settings_muted_text_style),
-            name_control,
-        ]
-        .spacing(3)
-        .width(Length::Fill),
-        column![
-            text(i18n.__("结果 key")).size(12),
-            text(i18n.__("程序匹配用")).size(11).style(settings_muted_text_style),
-            key_control,
-        ]
-        .spacing(3)
-        .width(Length::Fill),
+        column![field_help(i18n, i18n.__("结果名字"), i18n.__("给人看的名称"), 12), name_control,]
+            .spacing(3)
+            .width(Length::Fill),
+        column![field_help(i18n, i18n.__("结果 key"), i18n.__("程序匹配用"), 12), key_control,]
+            .spacing(3)
+            .width(Length::Fill),
         route_picker(i18n, status_index, route_index, options, selected_key),
         remove,
     ]

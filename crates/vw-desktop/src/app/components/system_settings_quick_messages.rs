@@ -2,7 +2,7 @@
 
 use crate::app::components::system_settings_common::{
     SETTINGS_CONTROL_TEXT_SIZE, primary_action_btn_style, rounded_action_btn_style,
-    settings_group_card, settings_muted_text_style, settings_page_heading,
+    settings_group_card, settings_muted_text_style, settings_page_heading_with_help,
     settings_section_content, settings_select, settings_text_input,
 };
 use crate::app::message::SettingsMessage;
@@ -194,7 +194,9 @@ pub fn view(app: &App) -> Element<'_, Message> {
     .width(Length::Fill);
 
     column![
-        settings_page_heading(
+        settings_page_heading_with_help(
+            i18n,
+            &app.app_theme,
             i18n.__("快捷消息"),
             i18n.__("配置聊天输入框上方的常用消息、摘要接力与 Git 动作。")
         ),

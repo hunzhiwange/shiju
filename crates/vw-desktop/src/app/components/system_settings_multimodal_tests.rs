@@ -79,11 +79,11 @@ fn field_row_builds_with_empty_and_populated_copy() {
 }
 
 #[test]
-fn number_row_builds_plain_and_suffixed_boundary_values() {
-    keep_element(number_row("最小值", "无单位", 0, 0, 0, "", |value| {
+fn number_control_builds_plain_and_suffixed_boundary_values() {
+    keep_element(number_control(0, 0, 0, "", |value| {
         Message::Settings(SettingsMessage::Multimodal(MultimodalMessage::MaxImagesChanged(value)))
     }));
-    keep_element(number_row("最大值", "带单位", u32::MAX, 0, u32::MAX, "MB", |value| {
+    keep_element(number_control(u32::MAX, 0, u32::MAX, "MB", |value| {
         Message::Settings(SettingsMessage::Multimodal(MultimodalMessage::MaxImageSizeMbChanged(
             value,
         )))
@@ -91,19 +91,13 @@ fn number_row_builds_plain_and_suffixed_boundary_values() {
 }
 
 #[test]
-fn bool_row_builds_disabled_and_enabled_remote_fetch_controls() {
+fn bool_control_builds_disabled_and_enabled_remote_fetch_controls() {
     for checked in [false, true] {
-        keep_element(bool_row(
-            "允许远程抓取",
-            "仅允许 http/https。",
-            checked,
-            "允许抓取",
-            |value| {
-                Message::Settings(SettingsMessage::Multimodal(
-                    MultimodalMessage::AllowRemoteFetchToggled(value),
-                ))
-            },
-        ));
+        keep_element(bool_control(checked, "允许抓取", |value| {
+            Message::Settings(SettingsMessage::Multimodal(
+                MultimodalMessage::AllowRemoteFetchToggled(value),
+            ))
+        }));
     }
 }
 

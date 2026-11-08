@@ -23,7 +23,7 @@ use iced_runtime::user_interface::{Cache, UserInterface};
 use serde_json::json;
 use vw_config_types::ui::DesktopLocale;
 
-const OCR_PICKER: &[usize] = &[4, 0, 4, 0, 1, 0, 0];
+const OCR_PICKER: &[usize] = &[4, 0, 4, 0, 1, 0, 0, 0];
 const CATEGORY_ROW: &[usize] = &[4, 0, 1, 0, 1, 0];
 const EMBEDDING_DIMENSIONS: &[usize] = &[0, 3, 0, 1, 0, 3, 0];
 const MODEL_PRIORITY: &[usize] = &[3, 0, 1, 0, 3, 0];
@@ -241,12 +241,7 @@ async fn ui_refresh_11_layout_and_interaction() {
                 &mut renderer,
                 Size::new(width, if width == 420 { 1500 } else { 1300 }),
             );
-            assert_row(
-                &scene,
-                field,
-                width,
-                if page == "multimodal" { &[1, 0] } else { &[1, 0, 0] },
-            );
+            assert_row(&scene, field, width, &[1, 0, 0]);
             if page == "multimodal" {
                 let picker = scene.bounds(OCR_PICKER);
                 assert_centered(picker, scene.bounds(&child(OCR_PICKER, &[0, 0])));
@@ -600,7 +595,8 @@ async fn assert_contextual_help(tab: Option<ModelConfigTab>, count: usize, descr
             embedded_view(&app)
         };
         let name = format!("help-07-{tab:?}-{locale:?}");
-        let size = Size::new(width, 940);
+        let height = if tab == Some(ModelConfigTab::Multimodal) { 1320 } else { 940 };
+        let size = Size::new(width, height);
         let mut scene = Scene::new(element, &mut renderer, size);
         let mut explanation =
             InlineExplanation { description: I18n::new(locale).__(description), visible: false };
@@ -608,14 +604,14 @@ async fn assert_contextual_help(tab: Option<ModelConfigTab>, count: usize, descr
         assert!(!explanation.visible, "{name}: explanation must be hidden while idle");
         let mut icons = Vec::new();
         collect_icons(Layout::new(&scene.layout), &mut icons);
-        assert_eq!(icons.len(), count, "{name}: each explanation has a question mark");
         let frame = |scene: &mut Scene<'_>, renderer: &mut Renderer, suffix: &str| {
             scene.capture(renderer, &theme, mouse::Cursor::Unavailable, &format!("{name}-{suffix}"))
         };
         let idle = frame(&mut scene, &mut renderer, "idle");
+        assert_eq!(icons.len(), count, "{name}: each explanation has a question mark {icons:?}");
         for (index, icon) in icons.into_iter().enumerate() {
             let point = icon.center();
-            assert!(Rectangle::with_size(Size::new(width as f32, 940.0)).contains(point));
+            assert!(Rectangle::with_size(Size::new(width as f32, height as f32)).contains(point));
             assert!(scene.click(&mut renderer, point).is_empty());
             assert!(
                 scene
@@ -676,6 +672,16 @@ async fn help_rollout_07_embedding_route_renders_contextual_help() {
         None,
         9,
         "按场景配置嵌入提供商、模型、维度和 API Key；在“嵌入与检索”中用 hint:模式名 引用。",
+    )
+    .await;
+}
+
+#[tokio::test]
+async fn help_rollout_27_multimodal_renders_contextual_help() {
+    assert_contextual_help(
+        Some(ModelConfigTab::Multimodal),
+        6,
+        "配置本地图片附件的数量与大小上限，并决定是否允许抓取远程图片 URL。",
     )
     .await;
 }

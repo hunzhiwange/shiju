@@ -103,8 +103,8 @@ class WebViewPopups(unittest.TestCase):
             text=True, timeout=5,
         ).splitlines()[-1]
         subprocess.run(
-            ["xdotool", "windowraise", window, "mousemove", "--window", window, "100", "100",
-             "click", "1"],
+            ["xdotool", "windowraise", window, "windowfocus", "--sync", window, "mousemove",
+             "--window", window, "100", "100", "sleep", "0.1", "click", "1"],
             check=True, timeout=5,
         )
 
@@ -285,13 +285,16 @@ class WebViewPopups(unittest.TestCase):
         self.action_page("/toolbar", "", "")
         process = self.launch("/toolbar", mode="window")
         window = self.visible_window(self.window_title)
+        # Send punctuation as keysyms so xdotool does not drop the scheme colon.
+        punctuation = {"-": "minus", ":": "colon", "/": "slash", "?": "question", "=": "equal"}
+        address_keys = [punctuation.get(char, char) for char in target]
         for keys in [("Return",), ("Tab", "Tab", "Return")]:
             subprocess.run(
                 ["xdotool", "windowfocus", window, "mousemove", "--window", window, "180", "20",
-                 "click", "1", "key", "ctrl+a", "type", "--clearmodifiers", target],
+                 "click", "1", "sleep", "0.2", "key", "--clearmodifiers", "--delay", "40",
+                 "End", "shift+Home", *address_keys, *keys],
                 check=True, timeout=5,
             )
-            subprocess.run(["xdotool", "key", *keys], check=True, timeout=5)
             dialog = confirmation(self.window_title)
             self.send_keys(dialog, "Escape")
             deadline = time.monotonic() + 3

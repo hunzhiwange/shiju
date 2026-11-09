@@ -128,6 +128,10 @@ fn update_config_panel(
 pub fn update(app: &mut App, message: SettingsMessage) -> Task<Message> {
     match message {
         SettingsMessage::AppsCatalog(message) => apps_catalog::update(app, message),
+        #[cfg(not(target_arch = "wasm32"))]
+        SettingsMessage::AgentAppsAuth(event) => {
+            crate::app::message::agent_apps_auth::update(app, event)
+        }
         SettingsMessage::AppProviderEdit(message) => {
             crate::app::message::app_providers::edit::update(app, message)
         }

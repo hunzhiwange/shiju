@@ -22,7 +22,16 @@ use iced::{Alignment, Border, Element, Font, Length, Padding, Theme, font};
 pub(super) const GROUPS: &[(&str, &[SystemTab])] = {
     use SystemTab::*;
     &[
-        ("应用与项目", &[General, Apps, Projects]),
+        (
+            "应用与项目",
+            &[
+                General,
+                Apps,
+                #[cfg(not(target_arch = "wasm32"))]
+                Auth,
+                Projects,
+            ],
+        ),
         ("模型与智能体", &[Providers, Models, Agents, Memory]),
         ("网络与集成", &[GatewayClient, Gateway, WebSearch]),
         ("运行与安全", &[Cron, Security, Autonomy, Hooks, Observability]),
@@ -199,6 +208,8 @@ fn tab_icon(tab: SystemTab) -> Icon {
         SystemTab::Themes => Icon::Palette,
         SystemTab::Editor => Icon::Code,
         SystemTab::Apps => Icon::Grid1x2,
+        #[cfg(not(target_arch = "wasm32"))]
+        SystemTab::Auth => Icon::ShieldLock,
         SystemTab::Projects => Icon::FolderOpen,
         SystemTab::Providers => Icon::Box,
         SystemTab::Models => Icon::Hexagon,

@@ -725,6 +725,8 @@ pub enum GeneralSettingsMessage {
 #[derive(Debug, Clone)]
 pub enum SettingsMessage {
     AppsCatalog(super::AppsCatalogMessage),
+    #[cfg(not(target_arch = "wasm32"))]
+    AgentAppsAuth(crate::app::message::agent_apps_auth::Event),
     AppProviders(crate::app::message::app_providers::list::ListMessage),
     AppProviderEdit(crate::app::message::app_providers::edit::EditMessage),
     TabSelected(SettingsTab),

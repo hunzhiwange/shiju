@@ -41,6 +41,8 @@ impl App {
         config: GatewayClientSystemSettingsConfig,
     ) -> (GatewayEndpoint, Task<Message>) {
         let endpoint = gateway_client_endpoint_from_config(&config);
+        #[cfg(not(target_arch = "wasm32"))]
+        self.agent_apps_auth.select_endpoint(&endpoint);
         let mut snapshot = serde_json::json!(config);
         // The Gateway merges objects. Explicitly remove cleared or migrated credentials.
         for key in ["skey", "bearer_token", "username", "password"] {

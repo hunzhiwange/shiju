@@ -23,6 +23,8 @@
 
 #[cfg(not(target_arch = "wasm32"))]
 pub mod account;
+#[cfg(not(target_arch = "wasm32"))]
+pub(crate) mod agent_apps_auth;
 pub mod chat;
 pub mod editor;
 pub mod gateway_health;

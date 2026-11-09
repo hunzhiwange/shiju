@@ -424,5 +424,9 @@ mod widgets_tests;
 pub mod mcp_app_panel;
 
 pub(crate) mod system_settings_apps;
+#[cfg(not(target_arch = "wasm32"))]
+pub(crate) mod system_settings_auth;
+#[cfg(all(test, not(target_arch = "wasm32")))]
+mod system_settings_auth_tests;
 
 pub(crate) mod app_providers;

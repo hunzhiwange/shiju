@@ -52,6 +52,13 @@ pub fn update(app: &mut App, message: SettingsMessage) -> Task<Message> {
                 _ => tab,
             };
             app.system_settings_help_tab = None;
+            #[cfg(not(target_arch = "wasm32"))]
+            {
+                app.agent_apps_auth.form = None;
+                if tab == SystemTab::Auth {
+                    app.agent_apps_auth.select_endpoint(&crate::app::gateway_client_endpoint());
+                }
+            }
             if tab == SystemTab::Apps {
                 super::apps_catalog::update(app, super::AppsCatalogMessage::Refresh)
             } else if tab == SystemTab::Themes {

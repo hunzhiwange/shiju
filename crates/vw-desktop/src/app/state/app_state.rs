@@ -888,6 +888,8 @@ pub struct App {
     /// 网关设置状态
     pub(crate) gateway_settings: GatewaySettingsState,
     pub(crate) apps_catalog: AppsCatalogState,
+    #[cfg(not(target_arch = "wasm32"))]
+    pub(crate) agent_apps_auth: super::agent_apps_auth::State,
     pub(crate) app_providers: super::app_providers::list::ListState,
     /// 客户端网关连接设置状态
     pub(crate) gateway_client_settings: GatewayClientSettingsState,

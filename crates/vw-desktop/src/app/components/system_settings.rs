@@ -60,6 +60,9 @@ pub(crate) use navigation::SETTINGS_NAVIGATION_SCROLL;
 pub enum SystemTab {
     /// 应用目录与安装诊断
     Apps,
+    /// 授权中心的只读账号列表
+    #[cfg(not(target_arch = "wasm32"))]
+    Auth,
     /// 常规设置标签页
     General,
     /// 兼容旧主题入口，选择时转入常规设置的主题标签
@@ -110,6 +113,8 @@ impl SystemTab {
     pub(super) fn label(self) -> &'static str {
         match self {
             SystemTab::Apps => "应用列表",
+            #[cfg(not(target_arch = "wasm32"))]
+            SystemTab::Auth => "授权中心",
             SystemTab::General => "常规设置",
             SystemTab::Themes => "主题",
             SystemTab::Editor => "编辑器",
@@ -172,6 +177,8 @@ impl std::fmt::Display for SystemTab {
 pub(super) fn system_tab_keywords(tab: SystemTab) -> &'static [&'static str] {
     match tab {
         SystemTab::Apps => &["apps", "应用", "安装", "catalog"],
+        #[cfg(not(target_arch = "wasm32"))]
+        SystemTab::Auth => &["auth", "accounts", "账号", "授权", "凭据"],
         SystemTab::General => &["general", "app", "basic", "基础", "themes", "主题"],
         SystemTab::Themes => {
             &["themes", "gallery", "palette", "custom", "builtin", "画廊", "配色", "色板"]
@@ -357,6 +364,8 @@ pub(super) fn active_tab_save_error(app: &App, active_tab: SystemTab) -> Option<
         SystemTab::WebSearch => app.web_search_settings.save_error.as_deref(),
         SystemTab::HttpRequest => app.http_request_settings.save_error.as_deref(),
         SystemTab::Browser => app.browser_settings.save_error.as_deref(),
+        #[cfg(not(target_arch = "wasm32"))]
+        SystemTab::Auth => None,
         SystemTab::Apps
         | SystemTab::Editor
         | SystemTab::General
@@ -391,6 +400,8 @@ pub(crate) const SETTINGS_CONTENT_SCROLL: &str = "system-settings-content-scroll
 fn settings_content(app: &App, active_tab: SystemTab) -> Element<'_, Message> {
     let content: Element<'_, Message> = match active_tab {
         SystemTab::Apps => super::system_settings_apps::view(&app.apps_catalog),
+        #[cfg(not(target_arch = "wasm32"))]
+        SystemTab::Auth => super::system_settings_auth::view(&app.agent_apps_auth),
         SystemTab::General => crate::app::components::system_settings_general::view(app),
         SystemTab::Themes => crate::app::components::system_settings_themes::view(app),
         SystemTab::Editor => crate::app::components::system_settings_editor::view(app),
@@ -444,16 +455,18 @@ fn settings_content(app: &App, active_tab: SystemTab) -> Element<'_, Message> {
         content_column = content_column.push(settings_error_banner(localized));
     }
     let content_column = content_column.push(content);
-    let page: Element<'_, Message> =
-        if active_tab == SystemTab::Agents || active_tab_help_modal_open(app, active_tab) {
-            centered_content(content_column.height(Length::Fill)).height(Length::Fill).into()
-        } else {
-            scrollable(centered_content(content_column))
-                .id(SETTINGS_CONTENT_SCROLL)
-                .direction(Direction::Vertical(Scrollbar::new().width(4).scroller_width(4)))
-                .height(Length::Fill)
-                .into()
-        };
+    let owns_scroll = active_tab == SystemTab::Agents;
+    #[cfg(not(target_arch = "wasm32"))]
+    let owns_scroll = owns_scroll || active_tab == SystemTab::Auth;
+    let page: Element<'_, Message> = if owns_scroll || active_tab_help_modal_open(app, active_tab) {
+        centered_content(content_column.height(Length::Fill)).height(Length::Fill).into()
+    } else {
+        scrollable(centered_content(content_column))
+            .id(SETTINGS_CONTENT_SCROLL)
+            .direction(Direction::Vertical(Scrollbar::new().width(4).scroller_width(4)))
+            .height(Length::Fill)
+            .into()
+    };
 
     container(page).width(Length::Fill).height(Length::Fill).clip(true).into()
 }
@@ -591,6 +604,11 @@ pub fn view(app: &App) -> Element<'_, Message> {
 
     if app.system_settings_tab == SystemTab::Security {
         dialog = crate::app::components::system_settings_security::view_overlays(app, dialog);
+    }
+
+    #[cfg(not(target_arch = "wasm32"))]
+    if active_tab == SystemTab::Auth {
+        dialog = super::system_settings_auth::overlay(&app.agent_apps_auth, dialog);
     }
 
     if app.system_settings_tab == SystemTab::Apps {

@@ -1097,6 +1097,8 @@ impl App {
             },
 
             apps_catalog: super::state::AppsCatalogState::default(),
+            #[cfg(not(target_arch = "wasm32"))]
+            agent_apps_auth: Default::default(),
             app_providers: Default::default(),
             gateway_client_settings: super::state::GatewayClientSettingsState {
                 selected_server_id: gateway_client_cfg.active_server().id.clone(),

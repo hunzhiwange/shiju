@@ -91,6 +91,8 @@ pub struct AgentAppsContext {
 }
 
 mod agent_apps;
+#[cfg(not(target_arch = "wasm32"))]
+pub(crate) mod agent_apps_auth;
 pub(crate) use agent_apps::AppsCatalogState;
 
 pub(crate) mod app_providers;

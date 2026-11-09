@@ -2,9 +2,13 @@
 
 pub mod claude;
 pub mod codex;
+pub mod gemini;
 
 #[cfg(test)]
 mod claude_tests;
 
 #[cfg(test)]
 mod codex_tests;
+
+#[cfg(test)]
+mod gemini_tests;

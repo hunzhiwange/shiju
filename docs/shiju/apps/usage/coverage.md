@@ -430,3 +430,21 @@
 | 隔离复核 | `cargo clippy --all-targets --all-features -- -D warnings` | 退出 0。基于批次 26 提交 `aa1dff319`、本任务三个 Rust 文件和工作区已有的 `postgres_tests.rs` 第三参数修正。 |
 
 本机 HTTP 夹具核对两种凭据来源的请求方法、路径、Bearer、工作区和 beta 头，覆盖重置过期边界、缺少绑定凭据、输入拒绝及主请求与附带请求的错误隔离。差异检查通过，槽位锁已释放，缓存已保留。真实账号与系统钥匙串留待任务 57 验收。 [测试](../../../../crates/vw-agent-apps/src/usage/subscriptions/codex_tests.rs#L187)
+
+## 任务 28 Gemini 官方额度
+
+`query_gemini` 由执行端在确认独占本机 CLI 登录槽后调用。适配器只读授权 HOME 下的默认凭据槽。当前进程 HOME 匹配时优先读取 macOS 钥匙串，条目缺失时读取 `.gemini/oauth_creds.json`。兼容嵌套及扁平格式。访问令牌到期时，从进程环境变量 `SHIJU_GEMINI_OAUTH_CLIENT_ID` 和 `SHIJU_GEMINI_OAUTH_CLIENT_SECRET` 读取与该登录匹配的 Gemini CLI OAuth 客户端配置，只为本次查询续期。配置缺失时返回待刷新，有效访问令牌可直接用于查询。 [上游凭据读取](../../../../crates/vw-agent-apps/upstream/src-tauri/src/services/subscription.rs#L1138) · [上游续期](../../../../crates/vw-agent-apps/upstream/src-tauri/src/services/subscription.rs#L1321) · [Gemini CLI OAuth 客户端](https://github.com/google-gemini/gemini-cli/blob/main/packages/core/src/code_assist/oauth2.ts) · [本地入口](../../../../crates/vw-agent-apps/src/usage/subscriptions/gemini.rs)
+
+查询依次向固定 Code Assist 端点发送 `loadCodeAssist` 和 `retrieveUserQuota`，沿用 Pro、Flash、Flash Lite 分档及卡片顺序。每档返回已报告的最高用量及该模型的重置时间，缺失字段保留为空。缺凭据、凭据解析失败、上游响应无法解析和显式用尽均有独立结果。 [上游官方卡片条件](../../../../crates/vw-agent-apps/upstream/src/components/providers/ProviderCard.tsx#L148) · [上游协议](../../../../crates/vw-agent-apps/upstream/src-tauri/src/services/subscription.rs#L1406) · [上游分档标签](../../../../crates/vw-agent-apps/upstream/src/components/SubscriptionQuotaFooter.tsx#L56) · [本地分档](../../../../crates/vw-agent-apps/src/usage/subscriptions/gemini.rs#L285)
+
+验证环境为 macOS 27.0 (26A428)、arm64，`vw-agent-apps` 0.6.0。实现前后聚焦测试、格式化及共享工作区 Clippy 动态领取槽位 1，`CARGO_TARGET_DIR` 和 `CARGO_BUILD_BUILD_DIR` 均为 `/Users/xiangmin/worker/code/shiju/target/rust-slot-1`。隔离 Clippy 动态领取槽位 2，两项变量均为 `/Users/xiangmin/worker/code/shiju/target/rust-slot-2`。全仓格式化在源码副本执行，仅同步本任务 Rust 文件。
+
+| 阶段 | 命令 | 结果 |
+| --- | --- | --- |
+| 实现前 | `cargo test -p vw-agent-apps usage_subscriptions_gemini_ -- --nocapture` | 退出 101，执行 0 项。包含 `usage_subscriptions_gemini_returns_expected_result` 和 `usage_subscriptions_gemini_rejects_invalid_input` 的模块报 E0432，缺少 `super::gemini`。 |
+| 格式化 | `cargo fmt --all` | 退出 0。 |
+| 实现后 | `cargo test -p vw-agent-apps usage_subscriptions_gemini_ -- --nocapture` | 退出 0，5 项通过，0 项失败。 |
+| 共享工作区 | `cargo clippy --all-targets --all-features -- -D warnings` | 退出 101。并行的 ACP 权限改动在 `vw-agent/src/session/llm/acp/approval.rs` 缺少 `PermissionConfirmation`，在 `vw-desktop/src/app/message/chat/stream/permissions.rs` 缺少 `session_set_full_access`，多处缺少 `GatewaySessionUiSummary.full_access`。 |
+| 隔离复核 | `cargo clippy --all-targets --all-features -- -D warnings` | 退出 0。源码基于批次 27 提交 `2105e1089`、本任务的三个 Rust 文件及工作区已有的 `postgres_tests.rs` 第三参数修正。 |
+
+本机 HTTP 夹具核对续期表单、两步 POST 的请求体和 Bearer，覆盖已用尽的零剩余值、缺失比例、重置时间、缺少凭据、解析失败和上游拒绝。差异检查通过，两个槽位锁已释放，缓存已保留。真实账号与系统钥匙串留待任务 57 验收。 [聚焦测试](../../../../crates/vw-agent-apps/src/usage/subscriptions/gemini_tests.rs#L144)

@@ -1,5 +1,10 @@
 //! Authorization center requests through the scoped management SDK.
 
+#[path = "agent_apps_auth_actions.rs"]
+pub(in crate::app) mod actions;
+#[cfg(test)]
+#[path = "agent_apps_auth_actions_tests.rs"]
+mod actions_tests;
 pub(in crate::app) mod binding;
 #[path = "agent_apps_auth_browser.rs"]
 pub(in crate::app) mod browser;
@@ -33,6 +38,7 @@ pub(crate) const SERVICES: [AuthService; 7] = [
 
 #[derive(Clone)]
 pub enum Event {
+    AccountAction(actions::ActionEvent),
     OpenBinding { provider_id: String, provider_generation: u64 },
     LoadBinding(u64),
     BindingLoaded(u64, Result<Vec<AuthAccount>, &'static str>),
@@ -85,6 +91,10 @@ pub(in crate::app) fn update_at(
     let state = &mut app.agent_apps_auth;
     state.select_endpoint(&endpoint);
 
+    if let Event::AccountAction(action) = event {
+        return actions::update(app, action, endpoint, scope, visible);
+    }
+
     if matches!(
         event,
         Event::OpenBinding { .. }
@@ -95,6 +105,9 @@ pub(in crate::app) fn update_at(
             | Event::BindingSaved(..)
             | Event::CloseBinding(_)
     ) {
+        if state.account_action.is_some() {
+            return Task::none();
+        }
         return binding::update(app, event, endpoint);
     }
 
@@ -122,6 +135,7 @@ pub(in crate::app) fn update_at(
     }
 
     match event {
+        Event::AccountAction(_) => unreachable!("account action events handled above"),
         Event::OpenBinding { .. }
         | Event::LoadBinding(_)
         | Event::BindingLoaded(..)
@@ -134,6 +148,7 @@ pub(in crate::app) fn update_at(
                 && (state.pending.is_none() || state.binding.is_some())
                 && state.form.is_none()
                 && state.login.is_none()
+                && state.account_action.is_none()
             {
                 let mut form = state.connection.clone().unwrap_or_else(|| Connection {
                     username: "vibewindow".into(),
@@ -181,7 +196,7 @@ pub(in crate::app) fn update_at(
             }
         }
         Event::Connect | Event::Refresh => {
-            if !visible {
+            if !visible || state.account_action.is_some() {
                 return Task::none();
             }
             if let Some(binding) = &state.binding {
@@ -233,6 +248,7 @@ pub(in crate::app) fn update_at(
                 || state.form.is_some()
                 || state.pending.is_some()
                 || state.binding.is_some()
+                || state.account_action.is_some()
             {
                 return Task::none();
             }
@@ -343,25 +359,34 @@ pub(crate) async fn load(
     host: &str,
     credentials: &AgentAppsAuthCredentials<'_>,
 ) -> Vec<ServiceAccounts> {
-    iced::futures::future::join_all(SERVICES.map(|service| async move {
-        let accounts = if client.endpoint().is_loopback() {
-            client
-                .agent_apps_auth_accounts(host, service, credentials)
-                .await
-                .map_err(read_error_label)
-                .and_then(|accounts| {
-                    if accounts.iter().any(|account| account.service != service) {
-                        Err("授权账号响应与所选服务不符")
-                    } else {
-                        Ok(accounts)
-                    }
-                })
-        } else {
-            Err("授权中心需要本机回环管理连接")
-        };
-        ServiceAccounts { service, accounts }
-    }))
+    iced::futures::future::join_all(
+        SERVICES.map(|service| load_service(client, host, credentials, service)),
+    )
     .await
+}
+
+async fn load_service(
+    client: &GatewayClient,
+    host: &str,
+    credentials: &AgentAppsAuthCredentials<'_>,
+    service: AuthService,
+) -> ServiceAccounts {
+    let accounts = if client.endpoint().is_loopback() {
+        client
+            .agent_apps_auth_accounts(host, service, credentials)
+            .await
+            .map_err(read_error_label)
+            .and_then(|accounts| {
+                if accounts.iter().any(|account| account.service != service) {
+                    Err("授权账号响应与所选服务不符")
+                } else {
+                    Ok(accounts)
+                }
+            })
+    } else {
+        Err("授权中心需要本机回环管理连接")
+    };
+    ServiceAccounts { service, accounts }
 }
 
 fn read_error_label(error: AgentAppsAuthReadError) -> &'static str {

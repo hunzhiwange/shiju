@@ -1,5 +1,6 @@
 //! Scoped authorization center and temporary management connection form.
 
+mod account_action_modal;
 mod binding_modal;
 #[cfg(test)]
 mod binding_modal_tests;
@@ -15,13 +16,13 @@ use super::system_settings_common::{
 };
 use crate::app::{
     Message,
-    message::agent_apps_auth::{Event, message},
-    state::agent_apps_auth::{LoginTarget, ServiceAccounts, State},
+    message::agent_apps_auth::{Event, actions::ActionEvent, message},
+    state::agent_apps_auth::{AccountOperation, LoginTarget, ServiceAccounts, State},
 };
 use iced::widget::{button, checkbox, column, container, row, scrollable, text};
 use iced::{Alignment, Element, Length};
 use vw_gateway_client::vw_api_types::agent_apps_auth::{
-    AuthCredentialState, AuthRegion, AuthService,
+    AuthAccount, AuthCredentialState, AuthRegion, AuthService,
 };
 
 pub(crate) fn view(state: &State) -> Element<'_, Message> {
@@ -36,6 +37,7 @@ pub(crate) fn view(state: &State) -> Element<'_, Message> {
         .into();
     }
     let configured = state.connection.is_some();
+    let idle = state.pending.is_none() && state.account_action.is_none();
     let refresh_label =
         if state.rows.as_ref().is_some_and(|rows| rows.iter().any(|row| row.accounts.is_err())) {
             "重试"
@@ -43,15 +45,14 @@ pub(crate) fn view(state: &State) -> Element<'_, Message> {
             "刷新"
         };
     let actions = row![
-        button(text("管理连接")).style(rounded_action_btn_style).padding([6, 12]).on_press_maybe(
-            (state.loopback && state.pending.is_none()).then(|| message(Event::Open))
-        ),
+        button(text("管理连接"))
+            .style(rounded_action_btn_style)
+            .padding([6, 12])
+            .on_press_maybe((state.loopback && idle).then(|| message(Event::Open))),
         button(text(refresh_label))
             .style(rounded_action_btn_style)
             .padding([6, 12])
-            .on_press_maybe(
-                (configured && state.pending.is_none()).then(|| message(Event::Refresh))
-            ),
+            .on_press_maybe((configured && idle).then(|| message(Event::Refresh))),
     ]
     .spacing(8);
 
@@ -97,7 +98,7 @@ pub(crate) fn view(state: &State) -> Element<'_, Message> {
                     rows.iter()
                         .filter(|row| Some(row.service) == state.focused_service)
                         .chain(rows.iter().filter(|row| Some(row.service) != state.focused_service))
-                        .map(|row| service_card(row, configured)),
+                        .map(|row| service_card(row, configured, state.rows_generation())),
                 )
                 .spacing(10),
             )
@@ -134,7 +135,11 @@ fn service_name(service: AuthService) -> &'static str {
     }
 }
 
-fn service_card(row: &ServiceAccounts, configured: bool) -> Element<'_, Message> {
+fn service_card(
+    row: &ServiceAccounts,
+    configured: bool,
+    rows_generation: u64,
+) -> Element<'_, Message> {
     let mut card = column![text(service_name(row.service)).size(17)].spacing(6);
     match &row.accounts {
         Ok(accounts) if accounts.is_empty() => {
@@ -152,13 +157,15 @@ fn service_card(row: &ServiceAccounts, configured: bool) -> Element<'_, Message>
                 } else {
                     validity.to_owned()
                 };
-                card = card.push(
-                    column![
-                        text(&account.label).size(14),
-                        text(status).size(12).style(settings_muted_text_style),
-                    ]
-                    .spacing(3),
-                );
+                let mut summary = column![
+                    text(&account.label).size(14).wrapping(text::Wrapping::WordOrGlyph),
+                    text(status).size(12).style(settings_muted_text_style),
+                ]
+                .spacing(5);
+                if configured {
+                    summary = summary.push(account_actions(account, rows_generation));
+                }
+                card = card.push(summary);
             }
         }
         Err(reason) => {
@@ -197,7 +204,43 @@ fn service_card(row: &ServiceAccounts, configured: bool) -> Element<'_, Message>
     settings_group_card(container(card).padding([10, 0])).into()
 }
 
+fn account_actions(account: &AuthAccount, rows_generation: u64) -> Element<'_, Message> {
+    use AccountOperation::*;
+    let signed_out = account.credential_state == AuthCredentialState::SignedOut;
+    let can_offer_default = account.credential_state == AuthCredentialState::Ready
+        && !account.is_default
+        && !matches!(account.service, AuthService::ClaudeOfficial | AuthService::DshAccount);
+    iced::widget::row(
+        [
+            (SetDefault, can_offer_default),
+            (Logout, !signed_out),
+            (Revoke, !signed_out),
+            (Delete, true),
+        ]
+        .into_iter()
+        .filter(|(_, show)| *show)
+        .map(|(operation, _)| {
+            button(text(operation.label()).size(13))
+                .style(rounded_action_btn_style)
+                .padding([6, 10])
+                .on_press(message(Event::AccountAction(ActionEvent::Open {
+                    rows_generation,
+                    operation,
+                    service: account.service,
+                    account_id: account.account_id.clone(),
+                })))
+                .into()
+        }),
+    )
+    .spacing(6)
+    .wrap()
+    .into()
+}
+
 pub(crate) fn overlay<'a>(state: &'a State, base: Element<'a, Message>) -> Element<'a, Message> {
+    if let Some(action) = &state.account_action {
+        return account_action_modal::overlay(action, base);
+    }
     if let Some(login) = &state.login {
         return login_modal::overlay(login, base);
     }

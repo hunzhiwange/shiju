@@ -1173,6 +1173,11 @@ impl App {
         {
             self.agent_apps_auth.login = None;
             self.agent_apps_auth.binding = None;
+            if self.agent_apps_auth.account_action.as_ref().is_some_and(|action| {
+                !matches!(action.phase, crate::app::state::agent_apps_auth::ActionPhase::Saving)
+            }) {
+                self.agent_apps_auth.account_action = None;
+            }
             self.agent_apps_auth.focused_service = None;
         }
         if refresh_pins { Task::batch([task, self.refresh_session_pins_task()]) } else { task }

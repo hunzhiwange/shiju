@@ -64,6 +64,8 @@ pub(crate) struct State {
     pub connection: Option<Connection>,
     pub login: Option<Login>,
     pub binding: Option<Binding>,
+    pub account_action: Option<AccountAction>,
+    pub action_generation: u64,
     pub focused_service: Option<AuthService>,
     pub binding_generation: u64,
     pub copy_login_link: bool,
@@ -90,8 +92,13 @@ impl State {
             self.connection = None;
             self.login = None;
             self.binding = None;
+            self.account_action = None;
             self.focused_service = None;
         }
+    }
+
+    pub fn rows_generation(&self) -> u64 {
+        self.generation
     }
 
     pub fn begin(&mut self) -> u64 {
@@ -240,4 +247,41 @@ pub(crate) struct Binding {
     pub loading: bool,
     pub saving: bool,
     pub error: Option<&'static str>,
+}
+
+#[derive(Clone, Copy, PartialEq, Eq)]
+pub enum AccountOperation {
+    SetDefault,
+    Delete,
+    Logout,
+    Revoke,
+}
+
+pub(crate) struct AccountAction {
+    pub generation: u64,
+    pub operation: AccountOperation,
+    pub account: AuthAccount,
+    pub phase: ActionPhase,
+}
+
+#[derive(Clone)]
+pub enum ActionPhase {
+    Checking,
+    Ready(Vec<String>),
+    Blocked(&'static str),
+    CheckFailed(&'static str),
+    Saving,
+    SaveFailed(&'static str),
+}
+
+impl ActionPhase {
+    pub fn can_review(&self) -> bool {
+        matches!(self, Self::CheckFailed(_))
+            || matches!(self, Self::Ready(users) if !users.is_empty())
+    }
+
+    pub fn can_confirm(&self) -> bool {
+        matches!(self, Self::SaveFailed(_))
+            || matches!(self, Self::Ready(users) if users.is_empty())
+    }
 }

@@ -14,15 +14,19 @@
 //! ```
 
 use crate::app::components::system_settings::general_fields::{self, GeneralSettingField};
+#[cfg(not(target_arch = "wasm32"))]
+use crate::app::components::system_settings_common::settings_control_with_hint;
 use crate::app::components::system_settings_common::{
     settings_checkbox_style, settings_divider, settings_flexible_row_with_help,
     settings_group_card, settings_group_heading_with_help, settings_page_heading_with_help,
-    settings_row_layout, settings_select, settings_value_badge,
+    settings_select, settings_value_badge,
 };
 use crate::app::i18n::I18n;
 use crate::app::message::editor::{EditorMessage, metrics};
 use crate::app::{App, Message, message};
-use iced::widget::{Slider, checkbox, column, container, responsive, row, slider};
+#[cfg(not(target_arch = "wasm32"))]
+use iced::widget::container;
+use iced::widget::{Slider, checkbox, column, responsive, row, slider};
 use iced::{Alignment, Element, Length};
 use std::ops::RangeInclusive;
 
@@ -113,12 +117,11 @@ fn editor_fields(app: &App, control_width: f32) -> Element<'_, Message> {
             .into(),
     );
 
-    let editor_theme_row = settings_row_layout(
-        i18n.__(general_fields::EDITOR_THEME.label),
+    let editor_theme_row = field_row(
+        &general_fields::EDITOR_THEME,
         i18n.__("关闭跟随系统主题时使用的编辑器配色。"),
-        container(theme_pick).align_right(control_width),
-    )
-    .id(general_fields::EDITOR_THEME.id);
+        theme_pick.into(),
+    );
 
     let displayed = metrics::displayed(app);
     let size_slider = row![
@@ -164,20 +167,22 @@ fn editor_fields(app: &App, control_width: f32) -> Element<'_, Message> {
     );
 
     #[cfg(not(target_arch = "wasm32"))]
-    let lsp_enabled = settings_row_layout(
-        i18n.__(general_fields::EDITOR_LSP.label),
-        i18n.__("启用代码补全、悬停提示与跳转定义；需要对应语言服务器可用。"),
-        container(
-            checkbox(!app.lsp_disabled)
-                .label(i18n.__("启用"))
-                .on_toggle(|enabled| {
-                    Message::Preview(message::PreviewMessage::LspToggleDisabled(!enabled))
-                })
-                .style(settings_checkbox_style),
-        )
-        .align_right(control_width),
-    )
-    .id(general_fields::EDITOR_LSP.id);
+    let lsp_enabled = field_row(
+        &general_fields::EDITOR_LSP,
+        i18n.__("启用代码补全、悬停提示与跳转定义。"),
+        settings_control_with_hint(
+            container(
+                checkbox(!app.lsp_disabled)
+                    .label(i18n.__("启用"))
+                    .on_toggle(|enabled| {
+                        Message::Preview(message::PreviewMessage::LspToggleDisabled(!enabled))
+                    })
+                    .style(settings_checkbox_style),
+            )
+            .align_right(Length::Fill),
+            i18n.__("需要对应语言服务器可用。"),
+        ),
+    );
 
     let mut fields = column![
         follow_system_theme,

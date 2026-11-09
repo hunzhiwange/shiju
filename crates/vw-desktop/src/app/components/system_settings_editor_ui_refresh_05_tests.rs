@@ -219,7 +219,7 @@ impl<'a> Scene<'a> {
     }
 }
 
-const TRIGGER: &[usize] = &[0, 2, 0, 1, 0];
+const TRIGGER: &[usize] = &[0, 2, 0, 1, 0, 0];
 const FONT_SLIDER: &[usize] = &[0, 4, 0, 1, 0, 0, 0];
 const HEIGHT_SLIDER: &[usize] = &[0, 6, 0, 1, 0, 0, 0];
 
@@ -284,7 +284,7 @@ async fn ui_refresh_05_preserves_values_and_disabled_states() {
     assert!((trigger.center_y() - label_column.center_y()).abs() < 0.5);
     assert_eq!(trigger.height, 38.0);
     for index in [0, 1] {
-        let center = scene.bounds(&[0, 2, 0, 1, 0, 0, index]).center_y();
+        let center = scene.bounds(&[0, 2, 0, 1, 0, 0, 0, index]).center_y();
         assert!((center - trigger.center_y()).abs() < 0.5);
     }
 

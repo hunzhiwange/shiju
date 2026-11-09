@@ -51,8 +51,7 @@ pub use panels::{
     settings_value_badge,
 };
 pub(super) use panels::{
-    settings_flexible_row, settings_responsive_row, settings_row_layout,
-    settings_row_with_flexible_control,
+    settings_flexible_row, settings_responsive_row, settings_row_with_flexible_control,
 };
 pub(crate) use panels::{
     settings_flexible_row_with_help, settings_group_heading_with_help,

@@ -180,7 +180,7 @@ fn settings_flexible_row_with_label<'a>(
     settings_row_with_label(label, container(control).align_right(Length::Fill))
 }
 
-pub(crate) fn settings_row_layout<'a>(
+fn settings_row_layout<'a>(
     label: &'a str,
     description: &'a str,
     control: impl Into<Element<'a, Message>>,

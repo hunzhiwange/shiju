@@ -10,10 +10,9 @@
 
 use crate::app::components::system_settings::general_fields::{self, GeneralSettingField};
 use crate::app::components::system_settings_common::{
-    rounded_action_btn_style, settings_divider, settings_flexible_row,
-    settings_flexible_row_with_help, settings_group_card, settings_group_heading_with_help,
-    settings_page_heading_with_help, settings_select, settings_tab_button, settings_tab_row,
-    settings_toggle, settings_value_badge,
+    rounded_action_btn_style, settings_divider, settings_flexible_row_with_help,
+    settings_group_card, settings_group_heading_with_help, settings_page_heading_with_help,
+    settings_select, settings_tab_button, settings_tab_row, settings_toggle, settings_value_badge,
 };
 use crate::app::components::system_settings_search::SettingsTabDescriptor;
 use crate::app::i18n::I18n;
@@ -36,17 +35,6 @@ pub(super) const GENERAL_TABS: &[SettingsTabDescriptor<GeneralSettingsTab>] = &[
         &["themes", "gallery", "palette", "custom", "builtin", "画廊", "配色", "色板"],
     ),
 ];
-
-fn general_field_row<'a>(
-    i18n: I18n,
-    field: &GeneralSettingField,
-    description: &'a str,
-    control: impl Into<Element<'a, Message>>,
-) -> Element<'a, Message> {
-    settings_flexible_row(i18n.__(field.label), description, GENERAL_CONTROL_WIDTH, control)
-        .id(field.id)
-        .into()
-}
 
 fn general_field_with_help<'a>(
     app: &App,
@@ -368,8 +356,8 @@ pub fn view(app: &App) -> Element<'_, Message> {
                         shell_pick
                     ),
                     settings_divider(),
-                    general_field_row(
-                        i18n,
+                    general_field_with_help(
+                        app,
                         &general_fields::TERMINAL_THEME,
                         i18n.__("当前仅跟随系统主题。"),
                         term_theme_pick

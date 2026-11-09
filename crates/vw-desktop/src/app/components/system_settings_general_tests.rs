@@ -27,12 +27,10 @@ fn system_settings_general_tests_are_wired() {
 #[test]
 fn setting_row_builds_text_and_control_columns() {
     let app = test_app();
-    keep_element(general_field_row(
-        I18n::new(app.desktop_locale),
-        &general_fields::LANGUAGE,
-        "设置说明",
-        text("control"),
-    ));
+    keep_element(
+        general_field_with_help(&app, &general_fields::LANGUAGE, "设置说明", text("control"))
+            .into(),
+    );
 }
 
 #[test]
@@ -826,7 +824,7 @@ mod tab_appearance {
             "editor-tab-zh-dark",
             "主题与显示",
             "统一编辑器主题来源及排版参数。",
-            "启用代码补全、悬停提示与跳转定义；需要对应语言服务器可用。",
+            "需要对应语言服务器可用。",
         )
         .await;
     }

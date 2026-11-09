@@ -151,6 +151,7 @@ struct UsageRefreshPermit {
     provider_id: String,
     origin: String,
     account_id: Option<String>,
+    kind: Option<vw_api_types::apps_usage::UsageQueryKind>,
 }
 
 #[cfg(target_os = "macos")]
@@ -165,6 +166,7 @@ pub(super) struct UsageRefreshTarget {
     pub origin: reqwest::Url,
     pub batch: bool,
     pub codex: Option<ManagedCodexTarget>,
+    pub kind: vw_api_types::apps_usage::UsageQueryKind,
 }
 
 #[cfg(target_os = "macos")]
@@ -177,18 +179,14 @@ pub(super) struct ManagedCodexTarget {
 #[cfg(target_os = "macos")]
 impl UsageRefreshTarget {
     pub(super) fn selector(&self) -> vw_api_types::apps_usage::UsageSnapshotQuery {
-        use vw_api_types::apps_usage::{UsageQueryKind, UsageSnapshotQuery};
+        use vw_api_types::apps_usage::UsageSnapshotQuery;
         UsageSnapshotQuery {
             project_id: self.project.project_id().clone(),
             target_host_id: self.host.clone(),
             app_id: self.app,
             provider_id: self.provider.clone(),
             account_id: self.codex.as_ref().map(|codex| codex.account.clone()),
-            kind: Some(if self.codex.is_some() {
-                UsageQueryKind::OfficialSubscription
-            } else {
-                UsageQueryKind::CustomScript
-            }),
+            kind: Some(self.kind),
         }
     }
 }
@@ -200,7 +198,7 @@ pub(super) fn usage_refresh_targets(path: &Path) -> Vec<UsageRefreshTarget> {
     usage_targets(path, false)
         .unwrap_or_default()
         .into_iter()
-        .filter(|target| target.codex.is_none())
+        .filter(|target| target.kind == vw_api_types::apps_usage::UsageQueryKind::CustomScript)
         .collect()
 }
 
@@ -209,6 +207,8 @@ pub(super) fn usage_targets(
     path: &Path,
     batch: bool,
 ) -> Result<Vec<UsageRefreshTarget>, StatusCode> {
+    use vw_api_types::apps_usage::UsageQueryKind::*;
+
     let policy = load(path).map_err(|_| StatusCode::SERVICE_UNAVAILABLE)?;
     let mut targets = Vec::new();
     let mut seen = HashSet::new();
@@ -239,19 +239,30 @@ pub(super) fn usage_targets(
                 {
                     continue;
                 }
-                let codex = if let Some(account) = permit.account_id {
+                let (codex, kind) = if let Some(account) = permit.account_id {
                     use vw_agent_apps::usage::subscriptions::codex::CODEX_USAGE_ORIGIN;
                     use vw_api_types::agent_apps::AppId;
                     let Some(credential_root) = &host.credential_root else { continue };
-                    if permit.app_id != AppId::Codex
+                    if permit.kind.is_some_and(|kind| kind != OfficialSubscription)
+                        || permit.app_id != AppId::Codex
                         || origin.as_str().trim_end_matches('/') != CODEX_USAGE_ORIGIN
                         || validate_identity(&account).is_err()
                     {
                         continue;
                     }
-                    Some(ManagedCodexTarget { account, credential_root: credential_root.clone() })
+                    (
+                        Some(ManagedCodexTarget {
+                            account,
+                            credential_root: credential_root.clone(),
+                        }),
+                        OfficialSubscription,
+                    )
                 } else {
-                    None
+                    let kind = permit.kind.unwrap_or(CustomScript);
+                    if kind == OfficialSubscription {
+                        continue;
+                    }
+                    (None, kind)
                 };
                 let target = UsageRefreshTarget {
                     policy: path.to_owned(),
@@ -263,6 +274,7 @@ pub(super) fn usage_targets(
                     origin,
                     batch,
                     codex,
+                    kind,
                 };
                 if seen.insert(target.clone()) {
                     targets.push(target);

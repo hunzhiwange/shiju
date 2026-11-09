@@ -34,6 +34,19 @@ pub async fn query_kimi(
     query_at(client_builder(), api_root(region), api_key, queried_at, correlation_id).await
 }
 
+/// Uses the same fixed regional endpoint with the execution host's transport settings.
+pub async fn query_kimi_with_transport(
+    transport: ClientBuilder,
+    region: AuthRegion,
+    api_key: &str,
+    queried_at: TimestampMs,
+    correlation_id: &str,
+) -> UsageQueryResult {
+    let transport =
+        transport.https_only(true).redirect(Policy::none()).timeout(Duration::from_secs(15));
+    query_at(transport, api_root(region), api_key, queried_at, correlation_id).await
+}
+
 fn api_root(region: AuthRegion) -> &'static str {
     match region {
         AuthRegion::MainlandCn => "https://api.kimi.com/coding/v1",

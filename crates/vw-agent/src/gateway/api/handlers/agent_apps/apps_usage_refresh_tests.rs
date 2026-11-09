@@ -14,7 +14,8 @@ use sha2::{Digest, Sha256};
 use tower::ServiceExt;
 
 use super::{
-    apps_usage_refresh, lifecycle, usage_read, usage_refresh::UsageRefresh,
+    apps_usage_refresh, lifecycle, usage_read,
+    usage_refresh::{NativeTransport, UsageRefresh},
     usage_refresh_tests::Fixture,
 };
 use crate::gateway::middleware::tenant_scope_middleware;
@@ -33,6 +34,14 @@ fn router(fixture: &mut Fixture) -> Router {
 }
 
 fn router_with_codex(fixture: &mut Fixture, codex: Option<reqwest::ClientBuilder>) -> Router {
+    router_with_transports(fixture, codex, None).0
+}
+
+fn router_with_transports(
+    fixture: &mut Fixture,
+    codex: Option<reqwest::ClientBuilder>,
+    native: Option<NativeTransport>,
+) -> (Router, Arc<UsageRefresh>) {
     let principal = &mut fixture.policy["principals"][0];
     principal["token_sha256"] = json!(hex::encode(Sha256::digest(TOKEN)));
     let grant = &mut principal["grants"][0];
@@ -65,15 +74,17 @@ fn router_with_codex(fixture: &mut Fixture, codex: Option<reqwest::ClientBuilder
             vw_agent_apps::usage::subscriptions::codex::ManagedCodexUsage::new(codex).unwrap(),
         );
     }
-    Router::new()
+    Arc::get_mut(&mut service).unwrap().native_transport = native;
+    let router = Router::new()
         .nest(
             "/v1",
             apps_usage_refresh::router_with_policy(policy.clone())
                 .merge(lifecycle::router_with_policy(policy.clone()))
                 .merge(usage_read::router_with_policy(policy)),
         )
-        .layer(Extension(service))
-        .layer(middleware::from_fn(tenant_scope_middleware))
+        .layer(Extension(service.clone()))
+        .layer(middleware::from_fn(tenant_scope_middleware));
+    (router, service)
 }
 
 async fn request(
@@ -234,8 +245,7 @@ async fn usage_usage_refresh_rechecks_read_permission_before_event_delivery() {
     assert_eq!(fixture.hits.load(Ordering::SeqCst), 1);
 }
 
-#[tokio::test]
-async fn usage_usage_refresh_publishes_only_current_managed_codex_credentials() {
+fn managed_codex_fixture(fixture: &mut Fixture) -> impl Fn(&str) + use<> {
     use std::os::unix::fs::DirBuilderExt;
 
     use crate::{
@@ -251,7 +261,6 @@ async fn usage_usage_refresh_publishes_only_current_managed_codex_credentials() 
         TimestampMs, agent_apps::AppId, agent_apps_auth::AuthService, id::TenantScope,
     };
 
-    let mut fixture = Fixture::new().await;
     let root = fixture.path.with_file_name("credentials");
     std::fs::DirBuilder::new().mode(0o700).create(&root).unwrap();
     fixture.policy["hosts"][0]["credential_root"] = json!(root);
@@ -271,10 +280,11 @@ async fn usage_usage_refresh_publishes_only_current_managed_codex_credentials() 
         URL_SAFE_NO_PAD.encode(br#"{"sub":"subject","chatgpt_account_id":"workspace"}"#)
     );
     let credentials = CredentialFileStore::new(&root).unwrap().for_owner("owner").unwrap();
-    let save = |token: &str| {
+    let credential_tenant = tenant.clone();
+    let save = move |token: &str| {
         credentials
             .save(
-                &tenant,
+                &credential_tenant,
                 "local",
                 AppId::Codex,
                 "managed",
@@ -294,7 +304,13 @@ async fn usage_usage_refresh_publishes_only_current_managed_codex_credentials() 
     .unwrap();
     providers.codex_save(&tenant, "official", &profile, None, None).unwrap();
     providers.bind_codex_account(scope, &root, "official", None, Some("managed")).unwrap();
+    save
+}
 
+#[tokio::test]
+async fn usage_usage_refresh_publishes_only_current_managed_codex_credentials() {
+    let mut fixture = Fixture::new().await;
+    let save = managed_codex_fixture(&mut fixture);
     let (seen, mut requests) = tokio::sync::mpsc::unbounded_channel();
     let permits = Arc::new(tokio::sync::Semaphore::new(1));
     let router =
@@ -459,3 +475,6 @@ const FIXTURE_KEY: &str = concat!(
     "CfChRANCAAS8zL+7KRFpSYtMT6IQL9Yi+AFZHfXu5TqugxB4GXL1rq0+WtzvsZONx30BcCn6MeNJNnwElkKtsvt5",
     "Ow2K4OnZ",
 );
+
+#[path = "../apps_usage_acceptance_tests.rs"]
+mod acceptance;

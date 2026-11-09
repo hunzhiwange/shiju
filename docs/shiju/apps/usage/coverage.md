@@ -916,3 +916,22 @@ Rust 验证在隔离源码副本执行。网关测试与 Clippy 的副本带上�
 | 提交差异 | `git diff --cached --check` | 退出 0。 |
 
 验证在隔离源码副本执行，沿用共享工作区已有的 `postgres_tests.rs` 参数修正。链接时有 macOS DWARF unwind 大小告警。验证使用本机 HTTP 夹具，真实账号及实际窗口由后续任务验收。槽位锁已释放，编译缓存保留。
+
+## 任务 54 macOS 无窗口链路
+
+真实 SDK 通过本机监听的网关 Router 查询四种数据。验收选用 DeepSeek 钱包余额、Kimi Coding Plan、托管 Codex 官方订阅和 General 脚本。用例使用隔离 SQLite、本机 HTTP/TLS 响应和真实适配器与 QuickJS。原生响应核对实际 GET 路径、主机、鉴权和内容，测试使用夹具账号。 [上游查询命令](../../../../crates/vw-agent-apps/upstream/src/lib/api/subscription.ts#L8-L48) · [DeepSeek](../../../../crates/vw-agent-apps/upstream/src-tauri/src/services/balance.rs#L75-L115) · [Kimi](../../../../crates/vw-agent-apps/upstream/src-tauri/src/services/coding_plan.rs#L154-L228) · [验收测试](../../../../crates/vw-agent/src/gateway/api/handlers/apps_usage_acceptance_tests.rs)
+
+管理员在现有 `usage_refresh` 授权条目中用 `kind: "balance"` 或 `kind: "coding_plan"` 授权相应原生刷新。缺省继续映射到 General 脚本或托管 Codex。原生刷新核对供应商记录的 HTTPS 源与授权，按已检测的能力选择固定上游和供应商凭据，复用缓存键、授权重检和取消。明确授权的原生项可单次刷新，也可纳入已授权的批量刷新。定时刷新继续使用现有 General 配置。验收覆盖旧权限拒绝、在途取消、跨主体操作和快照隔离，以及 HTTP 429 后保留原结果并在十分钟后显示失败。 [授权](../../../../crates/vw-agent/src/gateway/api/handlers/agent_apps/access.rs) · [原生查询接线](../../../../crates/vw-agent/src/gateway/api/handlers/agent_apps/usage_native.rs) · [刷新和缓存](../../../../crates/vw-agent/src/gateway/api/handlers/agent_apps/usage_refresh.rs)
+
+验证环境为 macOS 27.0（26A428）、arm64，`vw-agent` 0.6.0。红测与复验均动态领取槽位 1，`CARGO_TARGET_DIR` 和 `CARGO_BUILD_BUILD_DIR` 均为 `/Users/xiangmin/worker/code/shiju/target/rust-slot-1`。源码副本以 `0a24a7fcb` 为基线，带入共享工作区已有的 `postgres_tests.rs` 参数修正。槽位锁已释放，缓存保留。
+
+| 阶段 | 命令 | 结果 |
+| --- | --- | --- |
+| 接线前 | `cargo test -p vw-agent usage_macos_api_ -- --nocapture` | 退出 101。两条有效测试中拒绝用例通过，成功用例复现 DeepSeek 与 Kimi 均返回 HTTP 501 `Unsupported`。 |
+| 格式化 | `cargo fmt --all` | 退出 0，仅同步本任务文件。 |
+| 接线后 | `cargo test -p vw-agent usage_macos_api_ -- --nocapture` | 退出 0，`usage_macos_api_returns_expected_result` 和 `usage_macos_api_rejects_invalid_input` 共 2 条通过。 |
+| 相邻回归 | `cargo test -p vw-agent usage_usage_refresh_ -- --nocapture` | 退出 0，4 条通过。 |
+| 全量 Clippy | `cargo clippy --all-targets --all-features -- -D warnings` | 退出 0。 |
+| 差异审查 | `git diff --check` | 退出 0，核对生产传输保持固定地址、HTTPS 和无重定向，验收传输仅测试编译启用。 |
+
+macOS 测试链接时出现既有的 `__eh_frame` 大小提示。原生 TLS 夹具仅信任本机测试 CA，固定域名映射到环回地址。实际账号验收留待后续批次。

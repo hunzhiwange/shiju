@@ -513,6 +513,8 @@ mod apps_usage_refresh;
 mod apps_usage_refresh_tests;
 #[cfg(target_os = "macos")]
 mod usage_codex;
+#[cfg(target_os = "macos")]
+mod usage_native;
 
 #[cfg(target_os = "macos")]
 mod apps_usage_script;

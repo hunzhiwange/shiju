@@ -42,6 +42,7 @@ use vw_api_types::{
 use super::{
     access::{UsageRefreshTarget, usage_refresh_targets, usage_targets},
     usage_codex::CodexScope,
+    usage_native::NativeQuery,
 };
 use crate::{
     agent_apps::usage_settings::{UsageCredentialRefs, UsageSettingsScope, UsageSettingsStore},
@@ -54,6 +55,8 @@ const POLL: Duration = Duration::from_secs(60);
 pub(super) const CONCURRENCY: usize = 4;
 type RefreshResult = Arc<Result<Publication, RefreshError>>;
 type RefreshFuture = BoxFuture<'static, RefreshResult>;
+#[cfg(test)]
+pub(super) type NativeTransport = Arc<dyn Fn() -> reqwest::ClientBuilder + Send + Sync>;
 
 #[derive(Debug, PartialEq)]
 pub(super) struct Publication {
@@ -90,6 +93,7 @@ pub(super) struct Query {
 enum QuerySource {
     General { origin: Url, base_url: String, api_key: String },
     Codex(serde_json::Value),
+    Native { query: NativeQuery, api_key: String },
 }
 
 #[derive(Default)]
@@ -110,6 +114,8 @@ pub(crate) struct UsageRefresh {
     pub(super) query_slots: tokio::sync::Semaphore,
     #[cfg(test)]
     pub(super) codex_client: Option<ManagedCodexUsage>,
+    #[cfg(test)]
+    pub(super) native_transport: Option<NativeTransport>,
 }
 
 impl UsageRefresh {
@@ -125,6 +131,8 @@ impl UsageRefresh {
             query_slots: tokio::sync::Semaphore::new(CONCURRENCY),
             #[cfg(test)]
             codex_client: None,
+            #[cfg(test)]
+            native_transport: None,
         }))
     }
 
@@ -222,18 +230,23 @@ impl UsageRefresh {
             provider: &target.provider,
             account: None,
         };
-        let Some(settings) = self.settings.get(scope).map_err(|_| RefreshError::Unavailable)?
-        else {
-            return Ok(None);
+        let settings = if target.kind == UsageQueryKind::CustomScript {
+            let Some(settings) = self.settings.get(scope).map_err(|_| RefreshError::Unavailable)?
+            else {
+                return Ok(None);
+            };
+            if !settings.enabled {
+                return Ok(None);
+            }
+            if settings.template != UsageTemplate::General
+                || settings.credentials != UsageCredentialRefs::default()
+            {
+                return Err(RefreshError::InvalidConfiguration);
+            }
+            Some(settings)
+        } else {
+            None
         };
-        if !settings.enabled {
-            return Ok(None);
-        }
-        if settings.template != UsageTemplate::General
-            || settings.credentials != UsageCredentialRefs::default()
-        {
-            return Err(RefreshError::InvalidConfiguration);
-        }
         let record = AppProviderStore::usage_record(
             &self.database,
             target.project.tenant_scope(),
@@ -250,7 +263,17 @@ impl UsageRefresh {
         if base.origin() != target.origin.origin() {
             return Err(RefreshError::InvalidConfiguration);
         }
-        let key = self.general_key(scope, &profile, settings.refresh_interval_minutes);
+        let Some(settings) = settings else {
+            let query = NativeQuery::select(&base, target.kind)
+                .ok_or(RefreshError::Account(AuthErrorCode::Unsupported))?;
+            return Ok(Some(Query {
+                key: self.provider_key(scope, &profile, target.kind, 0),
+                source: QuerySource::Native { query, api_key: profile.api_key },
+                interval: None,
+            }));
+        };
+        let key =
+            self.provider_key(scope, &profile, target.kind, settings.refresh_interval_minutes);
         let interval = (settings.refresh_interval_minutes > 0)
             .then(|| Duration::from_secs(u64::from(settings.refresh_interval_minutes) * 60));
         Ok(Some(Query {
@@ -264,10 +287,11 @@ impl UsageRefresh {
         }))
     }
 
-    fn general_key(
+    fn provider_key(
         &self,
         scope: UsageSettingsScope<'_>,
         profile: &AppProviderWrite,
+        kind: UsageQueryKind,
         interval: u16,
     ) -> UsageCacheKey {
         UsageCacheKey {
@@ -276,7 +300,7 @@ impl UsageRefresh {
             host: scope.target_host.to_owned(),
             app: scope.app,
             provider: scope.provider.to_owned(),
-            kind: UsageQueryKind::CustomScript,
+            kind,
             account: None,
             credential_version: self.generations.hash_one(&profile.api_key),
             configuration_version: self.generations.hash_one((&profile.base_url, interval)),
@@ -301,10 +325,19 @@ impl UsageRefresh {
             if let Ok(Some(capability)) =
                 detect_native_usage(&profile.base_url, ZhipuPlanSelection::Auto)
             {
-                capabilities.push(match capability {
+                let native_kind = match capability {
                     NativeUsageCapability::Balance(_) => UsageQueryKind::Balance,
                     NativeUsageCapability::CodingPlan(_) => UsageQueryKind::CodingPlan,
-                });
+                };
+                capabilities.push(native_kind);
+                if kind.is_none_or(|kind| kind == native_kind)
+                    && validate_profile(scope.app, &profile).is_ok()
+                    && Url::parse(&profile.base_url)
+                        .is_ok_and(|base| NativeQuery::select(&base, native_kind).is_some())
+                {
+                    let key = self.provider_key(scope, &profile, native_kind, 0);
+                    snapshot = self.snapshot(&key, now);
+                }
             }
             let settings =
                 self.settings.get(scope).map_err(|_| AuthErrorCode::StorageUnavailable)?;
@@ -316,8 +349,13 @@ impl UsageRefresh {
             {
                 capabilities.push(UsageQueryKind::CustomScript);
                 if kind.is_none_or(|kind| kind == UsageQueryKind::CustomScript) {
-                    let key = self.general_key(scope, &profile, settings.refresh_interval_minutes);
-                    snapshot = self.snapshot(&key, now);
+                    let key = self.provider_key(
+                        scope,
+                        &profile,
+                        UsageQueryKind::CustomScript,
+                        settings.refresh_interval_minutes,
+                    );
+                    snapshot = self.snapshot(&key, now).or(snapshot);
                 }
             }
         }
@@ -498,6 +536,20 @@ impl UsageRefresh {
         let correlation_id = uuid::Uuid::new_v4().to_string();
         let (origin, base_url, api_key) = match source {
             QuerySource::General { origin, base_url, api_key } => (origin, base_url, api_key),
+            QuerySource::Native { query, api_key } => {
+                #[cfg(test)]
+                let transport = self
+                    .native_transport
+                    .as_ref()
+                    .map_or_else(reqwest::Client::builder, |fixture| fixture());
+                #[cfg(not(test))]
+                let transport = reqwest::Client::builder();
+                return tokio::select! {
+                    biased;
+                    _ = operation.cancelled() => Err(RefreshError::Revoked),
+                    result = query.run(transport.no_proxy(), &api_key, now, &correlation_id) => Ok(result),
+                };
+            }
             QuerySource::Codex(auth) => {
                 #[cfg(test)]
                 let fixture = self.codex_client.as_ref();

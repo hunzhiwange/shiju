@@ -30,6 +30,20 @@ pub async fn query_deepseek(api_key: &str) -> Result<DeepSeekBalance, UsageQuery
     query_at(&client, ORIGIN, api_key).await
 }
 
+/// Uses the same fixed endpoint with the execution host's transport settings.
+pub async fn query_deepseek_with_transport(
+    transport: ClientBuilder,
+    api_key: &str,
+) -> Result<DeepSeekBalance, UsageQueryErrorCode> {
+    let client = transport
+        .https_only(true)
+        .redirect(Policy::none())
+        .timeout(Duration::from_secs(15))
+        .build()
+        .map_err(transport_error)?;
+    query_at(&client, ORIGIN, api_key).await
+}
+
 fn client_builder() -> ClientBuilder {
     Client::builder().redirect(Policy::none()).timeout(Duration::from_secs(15))
 }

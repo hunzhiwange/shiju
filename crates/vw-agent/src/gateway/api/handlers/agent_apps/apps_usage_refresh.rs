@@ -119,7 +119,7 @@ async fn submit(
                             .kind
                             .is_none_or(|kind| kind == UsageQueryKind::OfficialSubscription)
                 } else {
-                    query.kind.is_none_or(|kind| kind == UsageQueryKind::CustomScript)
+                    query.kind != Some(UsageQueryKind::OfficialSubscription)
                 };
                 if !supported {
                     return Err(AuthErrorCode::Unsupported.into());
@@ -136,6 +136,12 @@ async fn submit(
                             && target.provider == query.provider_id
                             && target.codex.as_ref().map(|codex| &codex.account)
                                 == query.account_id.as_ref()
+                            && target.kind
+                                == query.kind.unwrap_or(if query.account_id.is_some() {
+                                    UsageQueryKind::OfficialSubscription
+                                } else {
+                                    UsageQueryKind::CustomScript
+                                })
                     })
             }) {
                 let prepared = match service.prepare(&target) {
@@ -154,6 +160,7 @@ async fn submit(
                     existing.app == target.app
                         && existing.provider == target.provider
                         && existing.codex == target.codex
+                        && existing.kind == target.kind
                 }) {
                     if existing.1.is_err() && prepared.is_ok() {
                         *existing = (target, prepared);
@@ -292,7 +299,7 @@ impl RefreshOperation {
                         app_id: target.app,
                         provider_id: selector.provider_id,
                         account_id: selector.account_id,
-                        kind: selector.kind.expect("refresh target always selects one query kind"),
+                        kind: target.kind,
                         status: TaskStatus::Failed,
                         snapshot_version: None,
                         error_code: None,

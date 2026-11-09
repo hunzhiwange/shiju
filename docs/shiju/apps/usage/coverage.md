@@ -211,3 +211,23 @@
 | 全仓检查 | `cargo clippy --all-targets --all-features -- -D warnings` | 共享工作区退出 0。 |
 
 限定提交范围的 `git diff --cached --check` 退出 0。槽位锁已释放，编译缓存保留。真实账号验收见任务 55 和 56。
+
+## 任务 17 Kimi 编程套餐
+
+| 来源 | 实现和测试 |
+| --- | --- |
+| [TS 套餐检测](../../../../crates/vw-agent-apps/upstream/src/config/codingPlanProviders.ts#L32-L34) · [Rust 套餐分派](../../../../crates/vw-agent-apps/upstream/src-tauri/src/services/coding_plan.rs#L1902-L1907) · [区域套餐查询](../../../../crates/vw-agent-apps/upstream/src-tauri/src/services/coding_plan.rs#L152-L266) | `query_kimi` 接收执行主机已授权的凭据、区域、查询时间和关联 ID。只请求对应官方站点的 `GET /coding/v1/usages`，使用 Bearer 鉴权、JSON Accept、15 秒超时和禁用重定向。HTTP 401/403 标记凭据过期，空窗口列表表示查询成功但无窗口。状态码、传输及响应格式失败分别归类，错误文本不包含凭据或响应。 |
+| [上游时间及数字解析](../../../../crates/vw-agent-apps/upstream/src-tauri/src/services/coding_plan.rs#L95-L119) · [每周额度夹具](../../../../crates/vw-agent-apps/upstream/src-tauri/src/services/kimi_oauth/mod.rs#L1212-L1214) | 保留 `limits[].detail` 的 5 小时窗口顺序，再附上 `usage` 的每周窗口。接受 JSON 数字和数字字符串，已用量取总量减剩余量并以零为下限。缺失值保持为空，零上限保留零利用率。重置时间接受 RFC 3339、正整数 Unix 秒或毫秒，非正时间戳表示无重置时间。无效的已知字段返回格式错误。 |
+
+[适配器](../../../../crates/vw-agent-apps/src/usage/coding/kimi.rs) · [独立行为测试](../../../../crates/vw-agent-apps/src/usage/coding/kimi_tests.rs)
+
+验证环境为 macOS 27.0 (26A428)、arm64，`vw-agent-apps` 0.6.0。实现前后动态领取槽位 1。`CARGO_TARGET_DIR` 和 `CARGO_BUILD_BUILD_DIR` 均为 `/Users/xiangmin/worker/code/shiju/target/rust-slot-1`。
+
+| 阶段 | 命令 | 结果 |
+| --- | --- | --- |
+| 实现前 | `cargo test -p vw-agent-apps usage_coding_kimi_ -- --nocapture` | 退出 101，执行 0 项。`usage_coding_kimi_returns_expected_result` 和 `usage_coding_kimi_rejects_invalid_input` 所在测试模块引用尚未实现的 `api_root`、`client_builder`、`query_at` 和 `query_kimi`，编译报 E0432。 |
+| 格式化 | `cargo fmt --all` | 在 `07cbda65b` 和 `534765738` 的隔离源码副本各运行一次，均退出 0。只同步本任务的 Rust 文件。 |
+| 实现后 | `cargo test -p vw-agent-apps usage_coding_kimi_ -- --nocapture` | 退出 0，5 项通过，0 项失败。本地 HTTP 夹具核对实际请求并重放额度、空套餐、凭据过期、格式错误和传输失败响应。 |
+| 全仓检查 | `cargo clippy --all-targets --all-features -- -D warnings` | 退出 0。 |
+
+限定提交范围的 `git diff --cached --check` 退出 0。槽位锁已释放，编译缓存保留。真实账号验收见任务 56。

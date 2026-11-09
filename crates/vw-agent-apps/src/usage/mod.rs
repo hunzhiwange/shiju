@@ -3,6 +3,8 @@
 #[cfg(not(target_arch = "wasm32"))]
 pub mod balances;
 pub mod binding;
+#[cfg(not(target_arch = "wasm32"))]
+pub mod coding;
 pub mod detect;
 
 #[cfg(test)]

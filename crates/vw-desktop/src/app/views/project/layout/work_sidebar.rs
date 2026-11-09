@@ -442,18 +442,25 @@ fn header_icon_button(
     message: Message,
     active: bool,
 ) -> Element<'static, Message> {
-    header_icon_button_sized(i18n, icon, label, message, active, WORK_HEADER_CONTROL_SIZE)
+    header_icon_button_sized(
+        i18n,
+        header_icon(icon),
+        label,
+        message,
+        active,
+        WORK_HEADER_CONTROL_SIZE,
+    )
 }
 
 fn header_icon_button_sized(
     i18n: crate::app::i18n::I18n,
-    icon: Icon,
+    icon: svg::Svg<'static>,
     label: &'static str,
     message: Message,
     active: bool,
     control_size: f32,
 ) -> Element<'static, Message> {
-    let control = icon_control(header_icon(icon), Some(message), active, control_size);
+    let control = icon_control(icon, Some(message), active, control_size);
     Tooltip::new(
         control,
         container(text(i18n.__(label)).size(12)).padding([6, 8]).style(tooltip_dark_style),
@@ -676,7 +683,7 @@ fn filter_control(app: &App) -> Element<'static, Message> {
     let (icon, label) = header_icon_specs(app.work_sidebar_collapsed)[4];
     let trigger = header_icon_button_sized(
         crate::app::i18n::I18n::new(app.desktop_locale),
-        icon,
+        header_icon(icon),
         label,
         Message::View(ViewMessage::WorkSidebarFilterToggled),
         app.work_sidebar_filter_open || filter_active(app),
@@ -993,9 +1000,15 @@ fn space_tools_menu_action(
     icon: Icon,
     message: Message,
 ) -> Element<'static, Message> {
+    const MENU_ICON_SIZE: f32 = 15.0;
     button(
         row![
-            container(navigation_icon(icon)).width(Length::Fixed(28.0)),
+            container(
+                navigation_icon(icon)
+                    .width(Length::Fixed(MENU_ICON_SIZE))
+                    .height(Length::Fixed(MENU_ICON_SIZE)),
+            )
+            .width(Length::Fixed(28.0)),
             text(i18n.__(label)).size(15),
             Space::new().width(Length::Fill),
         ]
@@ -1062,6 +1075,13 @@ fn space_row_style(selected: bool) -> impl Fn(&Theme) -> container::Style + Copy
 
 fn space_button(i18n: crate::app::i18n::I18n, space: &WorkSpaceItem) -> Element<'static, Message> {
     const SPACE_FOLDER_ICON_SIZE: f32 = 16.0;
+    const SPACE_ACTION_ICON_SIZE: f32 = 14.0;
+    let action_icon = |icon| {
+        header_icon(icon)
+            .width(Length::Fixed(SPACE_ACTION_ICON_SIZE))
+            .height(Length::Fixed(SPACE_ACTION_ICON_SIZE))
+    };
+
     let switch = button(
         row![
             navigation_icon(Icon::FolderOpen)
@@ -1079,7 +1099,7 @@ fn space_button(i18n: crate::app::i18n::I18n, space: &WorkSpaceItem) -> Element<
 
     let toggle = header_icon_button_sized(
         i18n,
-        if space.expanded { Icon::ChevronUp } else { Icon::ChevronDown },
+        action_icon(if space.expanded { Icon::ChevronUp } else { Icon::ChevronDown }),
         if space.expanded { i18n.__("收起任务") } else { i18n.__("展开任务") },
         space.toggle_message.clone(),
         false,
@@ -1089,7 +1109,7 @@ fn space_button(i18n: crate::app::i18n::I18n, space: &WorkSpaceItem) -> Element<
     let actions: Element<'static, Message> = if space.hovered || space.tools_open {
         let tools_trigger = header_icon_button_sized(
             i18n,
-            Icon::DotsThreeVertical,
+            action_icon(Icon::DotsThreeVertical),
             i18n.__("空间操作"),
             space.tools_message.clone(),
             space.tools_open,
@@ -1199,7 +1219,7 @@ fn project_navigation_control(app: &App) -> Element<'static, Message> {
 
     let create = header_icon_button_sized(
         crate::app::i18n::I18n::new(app.desktop_locale),
-        Icon::Plus,
+        header_icon(Icon::Plus),
         crate::app::i18n::I18n::new(app.desktop_locale).__("新建项目"),
         project_create_message(),
         false,

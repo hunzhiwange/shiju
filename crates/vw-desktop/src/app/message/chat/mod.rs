@@ -302,7 +302,6 @@ pub enum ChatMessage {
         request_id: u64,
         project_path: Option<String>,
         update: vw_gateway_client::vw_api_types::acp_model_source::AcpModelSourceUpdate,
-        created: Option<vw_shared::session::info::Info>,
         result: Result<vw_gateway_client::vw_api_types::acp_session::AcpSessionOptions, String>,
     },
     AcpModelInputDraftChanged(String),
@@ -696,10 +695,20 @@ pub enum ChatMessage {
     /// Agent 响应过程中发生错误
     AgentStreamError(u64, String),
 
-    /// 会话标题生成完成
-    ///
-    /// 自动生成的会话标题已就绪
-    SessionTitleGenerated(String, String),
+    DraftResponseReloaded {
+        id: u64,
+        usage: models::TokenUsage,
+        assistant_message_id: Option<String>,
+        parent_message_id: Option<String>,
+        publication: Option<Box<stream::draft::DraftPublication>>,
+    },
+
+    DraftReplayChecked {
+        id: u64,
+        error: String,
+        recovered: Option<Box<stream::draft::RecoveredDraft>>,
+    },
+    PublishedSessionTitleLoaded(vw_shared::session::info::Info),
 
     /// 问题轮询时钟滴答
     ///
@@ -1372,7 +1381,9 @@ pub fn update(app: &mut App, message: ChatMessage) -> Task<Message> {
         | ChatMessage::AgentStreamCancelled(_)
         | ChatMessage::AgentStreamStopFinished(_, _)
         | ChatMessage::AgentStreamError(_, _)
-        | ChatMessage::SessionTitleGenerated(_, _)
+        | ChatMessage::DraftResponseReloaded { .. }
+        | ChatMessage::DraftReplayChecked { .. }
+        | ChatMessage::PublishedSessionTitleLoaded(_)
         | ChatMessage::QuestionPollTick
         | ChatMessage::PermissionPollTick
         | ChatMessage::LoadInputPanelTodos

@@ -9,7 +9,7 @@ use crate::app::message::TaskBoardMessage;
 use crate::app::message::chat::stream;
 use crate::app::state::{
     ChatSendBehavior, MAIN_AGENT_KEY, QuickMessageGitCommitAction, QuickMessageHandoffState,
-    SessionToolSelectorTab,
+    SessionDraft, SessionToolSelectorTab,
 };
 use crate::app::{AgentRequest, App, Message, QueueItem, message, models};
 use iced::Task;
@@ -21,7 +21,6 @@ use vw_gateway_client::vw_api_types::acp_model_source::AcpModelSource;
 use vw_shared::id;
 use vw_shared::message::types as agent_message;
 use vw_shared::session::info as session;
-use vw_shared::session::session_utils::create_slug;
 
 /// 项目身份解析期间保留的首次发送内容。
 #[derive(Debug, Clone)]
@@ -87,9 +86,7 @@ fn gateway_endpoint(app: &App) -> (String, u16) {
 }
 
 fn current_session_directory(app: &App) -> Option<String> {
-    app.active_session_id
-        .as_ref()
-        .and_then(|id| app.sessions.iter().find(|s| &s.id == id).map(|s| s.directory.clone()))
+    app.active_session_id.as_deref().and_then(|id| app.known_session_directory(id))
 }
 
 fn normalize_delegate_agent(selected: Option<String>) -> Option<String> {
@@ -157,6 +154,15 @@ fn dispatch_queue_item(app: &mut App, item: QueueItem) -> Task<Message> {
     let is_requesting = app.current_session_is_requesting();
     match item.send_behavior {
         ChatSendBehavior::StopAndSend => {
+            if is_requesting
+                && let Some(session_id) = app.active_session_id.clone()
+                && app.current_session_runtime().draft.is_some()
+            {
+                let runtime = app.get_session_runtime_mut(&session_id);
+                runtime.queue.insert(0, item);
+                runtime.input_editor = iced::widget::text_editor::Content::new();
+                return stream::stop_agent_stream(app, &session_id);
+            }
             if let Some(session_id) = app.active_session_id.clone() {
                 let request_id = app
                     .get_session_runtime(&session_id)
@@ -188,6 +194,7 @@ fn dispatch_queue_item(app: &mut App, item: QueueItem) -> Task<Message> {
                 .active_agent_request
                 .as_ref()
                 .map(|request| request.id)
+                && app.current_session_runtime_ref().is_none_or(|runtime| runtime.draft.is_none())
             {
                 crate::app::state::mark_pending_guide_handoff(request_id);
             }
@@ -404,6 +411,11 @@ fn reset_session_locally(app: &mut App, session_id: String, msg_idx: usize) -> T
         app.chat_message_ids.clone(),
     );
     app.sync_active_session_from_chat();
+    let history_len = app.chat.len();
+    if let Some(draft) = app.get_session_runtime_mut(&session_id).draft.as_mut() {
+        draft.history_len = draft.history_len.min(history_len);
+        return Task::none();
+    }
 
     let now =
         crate::app::time::now_ms().max(app.active_session_view_state.updated_ms.saturating_add(1));
@@ -880,11 +892,7 @@ fn send_current_session_input_checked(app: &mut App) -> Task<Message> {
         }));
     }
     let runtime = app.current_session_runtime();
-    let root = app
-        .active_session_id
-        .as_ref()
-        .and_then(|id| app.sessions.iter().find(|s| &s.id == id).map(|s| s.directory.clone()))
-        .or_else(|| app.project_path.clone());
+    let root = current_session_directory(app).or_else(|| app.project_path.clone());
     let acp_model_source = runtime.acp_model_source;
     let model = if runtime.auto_model
         || (runtime.acp_agent.is_some() && acp_model_source == AcpModelSource::CliLocal)
@@ -1019,6 +1027,9 @@ pub fn update(app: &mut App, message: ChatMessage) -> Task<Message> {
                 clear_quick_message_handoff_for_request(app, request_id);
             }
             let stop_task = stream::stop_agent_stream(app, &session_id);
+            if app.current_session_runtime().draft.is_some() {
+                return stop_task;
+            }
             let completed_ms = crate::app::time::now_ms();
             let elapsed = {
                 let runtime = app.get_session_runtime_mut(&session_id);
@@ -1663,6 +1674,14 @@ pub fn update(app: &mut App, message: ChatMessage) -> Task<Message> {
             let Some(session_id) = app.active_session_id.clone() else {
                 return Task::none();
             };
+            let runtime = app.current_session_runtime();
+            if runtime.draft.is_some() {
+                return if runtime.is_requesting {
+                    Task::none()
+                } else {
+                    reset_session_locally(app, session_id, msg_idx)
+                };
+            }
             let Some(message_id) = message_id_for_index(app, msg_idx) else {
                 let root = current_session_directory(app).or_else(|| app.project_path.clone());
                 return recover_reset_message_ids_task(
@@ -1772,47 +1791,36 @@ pub fn update(app: &mut App, message: ChatMessage) -> Task<Message> {
     }
 }
 
-pub(super) fn initial_session_title_for_input(input: &str) -> String {
-    input
-        .trim()
-        .lines()
-        .next()
-        .map(str::trim)
-        .filter(|line| !line.is_empty())
-        .unwrap_or("新会话")
-        .to_string()
-}
-
 /// 模块内可见函数，执行 start 对应的应用流程。
 /// 返回值表达处理结果；失败通过错误值、日志或任务消息显式传递。
-pub(super) fn start(app: &mut App, item: QueueItem, keep: bool) -> Task<Message> {
+pub(super) fn start(app: &mut App, mut item: QueueItem, keep: bool) -> Task<Message> {
     app.agent_stream_id = app.agent_stream_id.wrapping_add(1);
     let stream_id = app.agent_stream_id;
     let mut save_tasks = Vec::new();
     let mut initial_save = Task::none();
-    let pending_runtime = app.current_session_runtime();
-
     app.cache_active_session_chat();
 
     if app.active_session_id.is_none() {
         app.invalidate_project_chat_preferences_read();
         let id = id::descending(id::Prefix::Session, None)
             .unwrap_or_else(|_| format!("ses_{}", stream_id));
-        let title = initial_session_title_for_input(&item.query);
-        let directory = app.project_path.clone().unwrap_or_default();
+        let project_path = app.project_path.clone().unwrap_or_default();
         let inferred_project_id = app
             .project_id
             .clone()
             .or_else(|| {
                 app.project_sessions
-                    .get(&directory)
+                    .get(&project_path)
                     .and_then(|sessions| sessions.first().map(|s| s.project_id.clone()))
             })
             .or_else(|| {
-                app.sessions.iter().find(|s| s.directory == directory).map(|s| s.project_id.clone())
+                app.sessions
+                    .iter()
+                    .find(|s| s.directory == project_path)
+                    .map(|s| s.project_id.clone())
             });
-        let Some(inferred_project_id) = inferred_project_id else {
-            if directory.trim().is_empty() {
+        if inferred_project_id.is_none() {
+            if project_path.trim().is_empty() {
                 app.set_localized_input_error(
                     crate::app::i18n::input::ErrorField::General,
                     "未选择项目，无法创建会话",
@@ -1821,7 +1829,7 @@ pub(super) fn start(app: &mut App, item: QueueItem, keep: bool) -> Task<Message>
                 return Task::none();
             }
             // 项目页面已打开时，元数据可能尚未返回；由网关解析真实身份后继续发送。
-            let project_path = directory.clone();
+            let directory = project_path.clone();
             return Task::perform(
                 async move {
                     crate::app::message::project::helpers::resolve_gateway_project(&directory)
@@ -1837,49 +1845,30 @@ pub(super) fn start(app: &mut App, item: QueueItem, keep: bool) -> Task<Message>
                     })
                 },
             );
-        };
-        let now = crate::app::time::now_ms();
-
-        let info = session::Info {
-            id: id.clone(),
-            slug: create_slug(),
-            project_id: inferred_project_id,
-            directory,
-            parent_id: None,
-            summary: None,
-            share: None,
-            title: title.clone(),
-            version: "0.0.0".to_string(),
-            time: session::TimeInfo {
-                created: now,
-                updated: now,
-                compacting: None,
-                archived: None,
-            },
-            permission: None,
-            revert: None,
-        };
-
-        app.sessions.insert(0, info);
-        let info = app.sessions[0].clone();
-        if let Some(list) = app.project_sessions.get_mut(&info.directory) {
-            if !list.iter().any(|s| s.id == info.id) {
-                list.insert(0, info.clone());
-            }
-        } else {
-            app.project_sessions.insert(info.directory.clone(), vec![info.clone()]);
-            app.project_session_load_counts.insert(info.directory.clone(), 10);
         }
-        app.active_session_id = Some(id.clone());
-        let runtime = app.get_session_runtime_mut(&id);
-        runtime.acp_model_source = item.acp_model_source;
-        runtime.full_access_enabled = pending_runtime.full_access_enabled;
-        runtime.full_access_overridden = pending_runtime.full_access_overridden;
-        runtime.full_access_initialized = true;
-        runtime.reasoning_effort = pending_runtime.reasoning_effort;
+        let mut runtime = app.current_session_runtime();
+        let directory = runtime
+            .draft
+            .as_ref()
+            .filter(|draft| draft.project_path == project_path)
+            .map_or_else(|| project_path.clone(), |draft| draft.directory.clone());
+        runtime.draft = Some(SessionDraft { project_path, directory, history_len: app.chat.len() });
+        app.session_runtime_states.insert(id.clone(), runtime);
+        app.active_session_id = Some(id);
         save_tasks.push(persist_session_reasoning_effort(app));
     }
 
+    let draft = app.current_session_runtime_ref().and_then(|runtime| runtime.draft.clone());
+    let is_draft = draft.is_some();
+    if let Some(draft) = draft {
+        item.root = Some(draft.directory);
+        if app.chat.len() > draft.history_len {
+            app.chat.truncate(draft.history_len);
+            app.chat_message_ids.truncate(draft.history_len);
+            app.active_session_view_state.steps.clear();
+            app.invalidate_chat_ui_state();
+        }
+    }
     let request_history = item.request_history_override.clone().unwrap_or_else(|| app.chat.clone());
     let request_query = if item.resume_history_only {
         String::new()
@@ -1996,10 +1985,11 @@ pub(super) fn start(app: &mut App, item: QueueItem, keep: bool) -> Task<Message>
             goal_mode_enabled: item.goal_mode_enabled,
             history: request_history,
         }));
-        if runtime
-            .queue
-            .first()
-            .is_some_and(|queued| queued.send_behavior == ChatSendBehavior::Guide)
+        if !is_draft
+            && runtime
+                .queue
+                .first()
+                .is_some_and(|queued| queued.send_behavior == ChatSendBehavior::Guide)
         {
             crate::app::state::mark_pending_guide_handoff(stream_id);
         } else {
@@ -2012,51 +2002,53 @@ pub(super) fn start(app: &mut App, item: QueueItem, keep: bool) -> Task<Message>
             runtime.active_agent_request.as_ref().and_then(|request| request.acp_agent.clone());
         app.sync_task_pet_from_runtime();
 
-        let now = crate::app::time::now_ms();
-        let title = app
-            .sessions
-            .iter()
-            .find(|s| s.id == session_id)
-            .map(|s| s.title.clone())
-            .unwrap_or_else(|| "新会话".to_string());
-        let mut local = models::ChatSession {
-            id: session_id.clone(),
-            title,
-            messages: vec![],
-            message_ids: vec![],
-            calls: vec![],
-            steps: vec![],
-            created_ms: now,
-            updated_ms: now,
-        };
-        local.messages = app.chat.clone();
-        local.message_ids = app.chat_message_ids.clone();
-        local.updated_ms = now;
-        let session_directory = current_session_directory(app).or_else(|| app.project_path.clone());
-        // A bounded history page is not a complete replacement snapshot.
-        if app
-            .session_runtime_states
-            .get(&session_id)
-            .is_none_or(|runtime| runtime.stream_save_seq_base == 0)
-        {
-            // Persist the initial rows before starting deltas, title generation or the stream.
-            initial_save = save_session_task(local, session_directory);
+        if !is_draft {
+            let now = crate::app::time::now_ms();
+            let title = app
+                .sessions
+                .iter()
+                .find(|s| s.id == session_id)
+                .map(|s| s.title.clone())
+                .unwrap_or_else(|| "新会话".to_string());
+            let mut local = models::ChatSession {
+                id: session_id.clone(),
+                title,
+                messages: vec![],
+                message_ids: vec![],
+                calls: vec![],
+                steps: vec![],
+                created_ms: now,
+                updated_ms: now,
+            };
+            local.messages = app.chat.clone();
+            local.message_ids = app.chat_message_ids.clone();
+            local.updated_ms = now;
+            let session_directory =
+                current_session_directory(app).or_else(|| app.project_path.clone());
+            // A bounded history page is not a complete replacement snapshot.
+            if app
+                .session_runtime_states
+                .get(&session_id)
+                .is_none_or(|runtime| runtime.stream_save_seq_base == 0)
+            {
+                // Persist the initial rows of a registered session before starting deltas.
+                initial_save = save_session_task(local, session_directory);
+            }
+            // The snapshot writer can fail or be coalesced independently. Include the
+            // user row and assistant placeholder in the acknowledged delta queue too.
+            app.get_session_runtime_mut(&session_id).stream_save_failures = 0;
+            save_tasks.push(stream::register_stream_session_messages(
+                app,
+                &session_id,
+                appended_start_idx,
+                app.chat.len(),
+                now,
+            ));
         }
-        // The snapshot writer can fail or be coalesced independently. Include the
-        // user row and assistant placeholder in the acknowledged delta queue too.
-        app.get_session_runtime_mut(&session_id).stream_save_failures = 0;
-        save_tasks.push(stream::register_stream_session_messages(
-            app,
-            &session_id,
-            appended_start_idx,
-            app.chat.len(),
-            now,
-        ));
     }
 
     app.sync_active_session_from_chat();
     let submit = message::after(Duration::from_millis(200), Message::Chat(ChatMessage::SubmitTick));
-    let title_task = stream::maybe_generate_session_title(app);
     save_tasks.push(submit);
     save_tasks.push(Task::done(Message::Chat(ChatMessage::LoadInputPanelTodos)));
     if let Some(user_idx) = appended_user_idx {
@@ -2067,11 +2059,8 @@ pub(super) fn start(app: &mut App, item: QueueItem, keep: bool) -> Task<Message>
         } else {
             save_tasks.push(super::scroll_chat_to_turn_top_task(app, user_idx));
         }
-        save_tasks.push(title_task);
     } else if app.chat_auto_scroll {
-        save_tasks.push(super::scroll_chat_to_bottom_task(app).chain(title_task));
-    } else {
-        save_tasks.push(title_task);
+        save_tasks.push(super::scroll_chat_to_bottom_task(app));
     }
     initial_save.chain(Task::batch(save_tasks))
 }

@@ -1232,10 +1232,12 @@ pub(crate) fn handle(app: &mut App, message: ProjectMessage) -> Option<iced::Tas
                 ) {
                     summary.emit();
                 }
-                return Some(crate::app::message::chat::refresh_active_trajectory_raw_task(
+                let trajectory = crate::app::message::chat::refresh_active_trajectory_raw_task(
                     app,
                     &target_session_id,
-                ));
+                );
+                let queued = crate::app::message::chat::stream::start_next(app, &target_session_id);
+                return Some(iced::Task::batch([trajectory, queued]));
             }
 
             let commit_started_at = Instant::now();
@@ -1272,7 +1274,8 @@ pub(crate) fn handle(app: &mut App, message: ProjectMessage) -> Option<iced::Tas
                     trajectory_refresh_task,
                 ]));
             }
-            Some(trajectory_refresh_task)
+            let queued = crate::app::message::chat::stream::start_next(app, &target_session_id);
+            Some(iced::Task::batch([trajectory_refresh_task, queued]))
         }
         ProjectMessage::SessionHistoryPageLoaded {
             session_id,

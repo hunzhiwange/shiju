@@ -210,6 +210,7 @@ impl GatewayReconnectState {
                 GatewayStreamNext::Cancelled
             }
             Ok(vw_gateway_client::GatewayStreamAttemptResult::Incomplete) => {
+                self.last_event_id.get_or_insert(0);
                 GatewayStreamNext::Retry(self.take_retry_delay())
             }
             Err(error) if gateway_stream_error_is_retryable(&error) => {
@@ -2476,6 +2477,11 @@ fn gateway_agent_stream(req: AgentRequest) -> AgentBoxStream<Message> {
                                         message_id,
                                         parent_message_id,
                                     )))
+                                }
+                                vw_gateway_client::GatewayChatStreamEvent::Error(error)
+                                    if error == "cancelled" =>
+                                {
+                                    Some(Message::Chat(message::ChatMessage::AgentStreamCancelled(req.id)))
                                 }
                                 vw_gateway_client::GatewayChatStreamEvent::Error(error) => {
                                     info!(

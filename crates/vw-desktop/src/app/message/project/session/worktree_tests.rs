@@ -124,8 +124,9 @@ fn picker_close_and_name_change_update_state() {
 }
 
 #[test]
-fn picking_existing_workspace_remembers_directory_and_resets_picker_state() {
+fn desktop_first_response_picking_existing_workspace_opens_a_scoped_draft() {
     let mut app = app();
+    app.project_path = Some("/tmp/project".to_string());
     app.new_session_picker_project = Some("/tmp/project".to_string());
     app.new_session_picker_options =
         vec![("/tmp/project-wt".to_string(), "功能工作区".to_string())];
@@ -144,7 +145,12 @@ fn picking_existing_workspace_remembers_directory_and_resets_picker_state() {
     assert!(app.new_session_picker_project.is_none());
     assert!(app.new_session_picker_options.is_empty());
     assert!(app.new_session_worktree_name.is_empty());
-    assert!(app.new_session_creating);
+    assert!(!app.new_session_creating);
+    assert!(app.active_session_id.is_none());
+    assert!(app.sessions.is_empty());
+    let draft = app.current_session_runtime().draft.unwrap();
+    assert_eq!(draft.directory, "/tmp/project-wt");
+    assert_eq!(draft.project_path, "/tmp/project");
 }
 
 // 失败与边界：覆盖非法、缺失、过期或冲突场景的既定处理规则。

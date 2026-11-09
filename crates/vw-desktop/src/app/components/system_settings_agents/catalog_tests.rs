@@ -182,7 +182,7 @@ async fn agent_catalog_view_renders_long_chinese_cards_in_both_themes() {
 }
 
 #[test]
-fn agent_catalog_view_launch_preserves_selected_stable_identity_without_acp_picker() {
+fn desktop_first_response_catalog_launch_preserves_profile_in_a_draft() {
     use crate::app::message::settings::AgentsMessage;
     let mut app = crate::app::App::new().0;
     app.agents_settings.config_ready = true;
@@ -192,18 +192,8 @@ fn agent_catalog_view_launch_preserves_selected_stable_identity_without_acp_pick
     app.agents_settings.project_path = app.project_path.clone();
     app.acp_agent = None;
     dispatch(&mut app, AgentsMessage::CatalogLaunch("acp-codex".into()));
-    assert!(app.agents_settings.catalog_busy);
-    let info = serde_json::from_value(serde_json::json!({
-        "id":"catalog-session", "slug":"catalog-session", "projectID":"project",
-        "directory":"/tmp/catalog-project", "title":"Catalog", "version":"1",
-        "time":{"created":1,"updated":1}
-    }))
-    .unwrap();
-    dispatch(
-        &mut app,
-        AgentsMessage::CatalogSessionCreated { key: "acp-codex".into(), result: Ok(info) },
-    );
-    assert_eq!(app.active_session_id.as_deref(), Some("catalog-session"));
+    assert!(app.active_session_id.is_none());
+    assert!(app.sessions.is_empty());
     assert_eq!(app.current_session_runtime().agent.as_deref(), Some("acp-codex"));
     assert!(!app.show_settings);
     assert!(!app.agents_settings.catalog_busy);

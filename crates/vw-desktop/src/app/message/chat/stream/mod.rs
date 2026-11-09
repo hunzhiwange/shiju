@@ -4,6 +4,7 @@
 // 任务 11 接入现有流消费路径前，调度器先作为独立状态机由行为测试验证。
 #[allow(dead_code)]
 pub(crate) mod delta_scheduler;
+pub(super) mod draft;
 mod permissions;
 mod questions;
 mod steps;
@@ -37,7 +38,6 @@ use std::collections::{HashMap, HashSet};
 use std::sync::Arc;
 #[cfg(not(target_arch = "wasm32"))]
 use std::sync::{LazyLock, Mutex};
-use vw_shared::session::session_utils::is_default_title;
 
 #[cfg(all(test, not(target_arch = "wasm32")))]
 type SaveSessionHook = Arc<
@@ -350,8 +350,14 @@ pub(super) fn register_stream_session_messages(
 }
 
 /// 启动队列中的下一个请求。
-pub(super) fn start_next(app: &mut App, session_id: &str) -> Task<Message> {
+pub(crate) fn start_next(app: &mut App, session_id: &str) -> Task<Message> {
+    if app.active_session_id.as_deref() != Some(session_id) {
+        return Task::none();
+    }
     let runtime = app.get_session_runtime(session_id);
+    if runtime.is_requesting {
+        return Task::none();
+    }
     let Some(item) = runtime.queue.first().cloned() else {
         return Task::none();
     };
@@ -580,6 +586,7 @@ pub fn update(app: &mut App, message: ChatMessage) -> Task<Message> {
         ChatMessage::SessionSummaryReloaded(result) => {
             match result {
                 Ok(info) => {
+                    draft::apply_published_title(app, &info);
                     for session in
                         app.sessions.iter_mut().chain(app.project_sessions.values_mut().flatten())
                     {
@@ -618,6 +625,24 @@ pub fn update(app: &mut App, message: ChatMessage) -> Task<Message> {
                 parent_message_id,
             )
         }
+        ChatMessage::DraftResponseReloaded {
+            id,
+            usage,
+            assistant_message_id,
+            parent_message_id,
+            publication,
+        } => stream_events::complete_agent_stream(
+            app,
+            id,
+            usage,
+            assistant_message_id,
+            parent_message_id,
+            publication.map(|value| *value),
+        ),
+        ChatMessage::PublishedSessionTitleLoaded(info) => {
+            draft::apply_published_title(app, &info);
+            Task::none()
+        }
         ChatMessage::AgentStreamCancelled(id) => handle_agent_stream_cancelled(app, id),
         ChatMessage::AgentStreamStopFinished(_, result) => match result {
             Ok(_) => Task::none(),
@@ -628,8 +653,26 @@ pub fn update(app: &mut App, message: ChatMessage) -> Task<Message> {
             ),
         },
         ChatMessage::AgentStreamError(id, err) => {
+            if err.starts_with("gateway stream failed: 410 ")
+                && let Some(session_id) = app.find_session_by_request_id(id)
+                && let Some(runtime) = app.session_runtime_states.get(&session_id)
+                && let (Some(draft), Some(request)) =
+                    (&runtime.draft, &runtime.active_agent_request)
+            {
+                return draft::recover_expired_replay(
+                    id,
+                    err,
+                    session_id,
+                    draft.directory.clone(),
+                    request.query.clone(),
+                );
+            }
             stream_events::handle_agent_stream_error(app, id, err)
         }
+        ChatMessage::DraftReplayChecked { id, error, recovered } => match recovered {
+            Some(recovered) => draft::complete_recovered(app, id, *recovered),
+            None => stream_events::handle_agent_stream_error(app, id, error),
+        },
         ChatMessage::QuestionPollTick => questions::handle_question_poll_tick(),
         ChatMessage::PermissionPollTick => permissions::handle_permission_poll_tick(app),
         ChatMessage::LoadInputPanelTodos => todos::handle_load_input_panel_todos(app),
@@ -665,38 +708,6 @@ pub fn update(app: &mut App, message: ChatMessage) -> Task<Message> {
         }
         ChatMessage::PermissionReplySubmitted(res) => {
             permissions::handle_permission_reply_submitted(app, res)
-        }
-        ChatMessage::SessionTitleGenerated(session_id, new_title) => {
-            if new_title.is_empty() {
-                return Task::none();
-            }
-            if let Some(s) = app.sessions.iter_mut().find(|s| s.id == session_id) {
-                s.title = new_title.clone();
-            }
-            for sessions in app.project_sessions.values_mut() {
-                if let Some(s) = sessions.iter_mut().find(|s| s.id == session_id) {
-                    s.title = new_title.clone();
-                }
-            }
-            app.refresh_task_pet_session_title(&session_id, &new_title);
-            let session_id_clone = session_id.clone();
-            Task::perform(
-                async move {
-                    if let Ok(client) = crate::app::gateway_client() {
-                        let _ = client
-                            .session_update::<vw_shared::session::info::Info>(
-                                &session_id_clone,
-                                None,
-                                &vw_gateway_client::GatewaySessionPatchBody {
-                                    title: Some(new_title),
-                                    time: None,
-                                },
-                            )
-                            .await;
-                    }
-                },
-                |_| Message::None,
-            )
         }
         _ => Task::none(),
     }
@@ -765,92 +776,11 @@ fn handle_agent_stream_cancelled(app: &mut App, id: u64) -> Task<Message> {
         runtime.active_agent_request = None;
     }
     app.sync_task_pet_from_runtime();
-    app.show_send_mode_popover = false;
     if is_active_session {
+        app.show_send_mode_popover = false;
         app.sync_active_session_from_chat();
     }
     save_task.chain(start_next(app, &session_id))
-}
-
-/// 模块内可见函数，执行 maybe_generate_session_title 对应的应用流程。
-/// 返回值表达处理结果；失败通过错误值、日志或任务消息显式传递。
-pub(super) fn maybe_generate_session_title(app: &App) -> Task<Message> {
-    let Some(session_id) = app.active_session_id.clone() else {
-        return Task::none();
-    };
-
-    let Some(current_session) = app.sessions.iter().find(|s| s.id == session_id) else {
-        return Task::none();
-    };
-
-    let user_messages: Vec<&models::ChatMessage> =
-        app.chat.iter().filter(|m| m.role == models::ChatRole::User).collect();
-
-    if user_messages.len() != 1 {
-        return Task::none();
-    }
-
-    let first_user_content = user_messages[0].content.clone();
-
-    let title = current_session.title.trim();
-    let first_user_trimmed = first_user_content.trim();
-    let initial_title = super::session::initial_session_title_for_input(&first_user_content);
-    let should_generate = is_default_title(title)
-        || title.is_empty()
-        || title == "新会话"
-        || (!first_user_trimmed.is_empty() && title == initial_title);
-
-    if !should_generate {
-        return Task::none();
-    }
-
-    let preferred_model = app
-        .current_session_runtime_ref()
-        .map(|r| if r.auto_model { None } else { Some(r.model.clone()) })
-        .unwrap_or_else(|| if app.auto_model { None } else { Some(app.model.clone()) });
-    let title_acp_agent = app.current_session_runtime_ref().and_then(|runtime| {
-        runtime
-            .acp_agent
-            .clone()
-            .filter(|value| app.acp_agents.iter().any(|agent| agent == value))
-            .or_else(|| {
-                app.acp_agent
-                    .clone()
-                    .filter(|value| app.acp_agents.iter().any(|agent| agent == value))
-            })
-    });
-    tracing::info!(
-        target: "vw_desktop",
-        session_id = %session_id,
-        preferred_model = ?preferred_model,
-        acp_test = title_acp_agent.is_some(),
-        acp_agent = ?title_acp_agent,
-        "starting session title generation task"
-    );
-
-    let session_id_for_result = session_id.clone();
-    Task::perform(
-        async move {
-            let client = crate::app::config::gateway_client()?;
-            client
-                .session_title_generate(
-                    &session_id,
-                    &vw_gateway_client::GatewaySessionTitleGenerateBody {
-                        content: first_user_content,
-                        preferred_model,
-                        acp_agent: title_acp_agent,
-                    },
-                )
-                .await
-                .map(|r| r.title)
-        },
-        move |result| match result {
-            Ok(title) => {
-                Message::Chat(ChatMessage::SessionTitleGenerated(session_id_for_result, title))
-            }
-            Err(_) => Message::None,
-        },
-    )
 }
 
 /// 清除重试提示并显式停止对应的可恢复流，不能仅取消本地订阅。

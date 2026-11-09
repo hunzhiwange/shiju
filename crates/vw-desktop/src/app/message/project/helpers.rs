@@ -707,29 +707,14 @@ pub(crate) async fn load_project_worktree_picker_options(
     Ok(options)
 }
 
-/// create_gateway_session_in_directory 处理当前模块对应的消息或状态转换。
+/// create_gateway_session_worktree 处理当前模块对应的消息或状态转换。
 ///
 /// 参数由调用方提供应用状态、用户输入或后台任务结果；返回值会交给上层消息循环继续处理。
 /// 变更范围限制在当前消息处理路径内，不引入额外的流程分支。
-pub(crate) async fn create_gateway_session_in_directory(
-    directory: String,
-) -> Result<vw_shared::session::info::Info, String> {
-    gateway_client()?
-        .session_create::<vw_shared::session::info::Info>(
-            &directory,
-            &Some(vw_gateway_client::GatewaySessionCreateBody { parent_id: None, title: None }),
-        )
-        .await
-}
-
-/// create_gateway_worktree_session 处理当前模块对应的消息或状态转换。
-///
-/// 参数由调用方提供应用状态、用户输入或后台任务结果；返回值会交给上层消息循环继续处理。
-/// 变更范围限制在当前消息处理路径内，不引入额外的流程分支。
-pub(crate) async fn create_gateway_worktree_session(
+pub(crate) async fn create_gateway_session_worktree(
     project_path: String,
     requested_name: String,
-) -> Result<vw_shared::session::info::Info, String> {
+) -> Result<String, String> {
     let client = gateway_client()?;
     let project = resolve_gateway_project(&project_path).await?;
     let project_scope = crate::app::session_gateway::active_project_scope(project.id.clone())?;
@@ -745,7 +730,7 @@ pub(crate) async fn create_gateway_worktree_session(
         )
         .await?
         .worktree;
-    create_gateway_session_in_directory(worktree.directory).await
+    Ok(worktree.directory)
 }
 
 async fn find_gateway_worktree(project_path: &str, directory: &str) -> Result<WorktreeDto, String> {

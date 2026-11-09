@@ -5,8 +5,8 @@
 use super::common::{clear_new_session_picker_messages, reset_new_session_picker_state};
 use crate::app::message::project::ProjectMessage;
 use crate::app::message::project::helpers::{
-    create_gateway_session_in_directory, load_prepared_session_open_from_gateway_task,
-    load_project_worktree_picker_options, prepare_session_ui_task,
+    load_prepared_session_open_from_gateway_task, load_project_worktree_picker_options,
+    prepare_session_ui_task,
 };
 use crate::app::projects::save_recent_projects_meta_background;
 use crate::app::{App, Message, models};
@@ -31,12 +31,45 @@ fn merge_project_sessions(
     merged
 }
 
+pub(crate) fn open_session_draft(
+    app: &mut App,
+    project_path: String,
+    directory: String,
+) -> iced::Task<Message> {
+    app.cache_active_session_chat();
+    app.agent_stream_id = app.agent_stream_id.wrapping_add(1);
+    app.active_session_id = None;
+    app.chat_scroll_id = iced::widget::Id::unique();
+    app.chat.clear();
+    app.chat_message_ids.clear();
+    app.files.clear();
+    app.usage = models::TokenUsage::default();
+    app.active_session_view_state = Default::default();
+    app.invalidate_chat_ui_state();
+    app.show_recommended_prompt_menu = false;
+    app.show_agent_sessions_popover = false;
+    app.input_editor = iced::widget::text_editor::Content::new();
+    let runtime = app.current_session_runtime_mut();
+    runtime.input_editor = iced::widget::text_editor::Content::new();
+    runtime.acp_source_pending = None;
+    runtime.acp_source_request_id = None;
+    runtime.draft = Some(crate::app::state::SessionDraft {
+        project_path,
+        directory: directory.clone(),
+        history_len: 0,
+    });
+    app.sync_active_session_preferences();
+    app.new_session_last_directory = Some(directory.clone());
+    app.save_desktop_preference("new_session_last_directory", serde_json::Value::String(directory))
+}
+
 pub(crate) fn open_project_session(
     app: &mut App,
     path: String,
     id: String,
     prepared: Option<crate::app::session::PreparedSessionOpen>,
 ) -> iced::Task<Message> {
+    app.agent_stream_id = app.agent_stream_id.wrapping_add(1);
     app.show_recommended_prompt_menu = false;
     app.show_agent_sessions_popover = false;
     let resolved_path = app
@@ -105,9 +138,11 @@ pub(crate) fn open_project_session(
             iced::widget::scrollable::RelativeOffset { x: Some(0.0), y: Some(scroll_offset_y) },
         )
         .map(|_: ()| Message::CopyDone);
+        let queued = crate::app::message::chat::stream::start_next(app, &id);
         return iced::Task::batch(vec![
             open_task,
             restore_scroll_task,
+            queued,
             iced::Task::done(Message::Chat(crate::app::message::ChatMessage::LoadInputPanelTodos)),
         ]);
     }
@@ -373,21 +408,9 @@ pub(crate) fn handle(app: &mut App, message: ProjectMessage) -> Option<iced::Tas
             let project_worktree_enabled =
                 app.project_worktree_enabled.get(&project_path).copied().unwrap_or(false);
             if !project_worktree_enabled {
-                app.new_session_creating = true;
                 reset_new_session_picker_state(app);
-                let project_path_clone = project_path.clone();
-                return Some(iced::Task::batch(vec![
-                    project_switch_task,
-                    iced::Task::perform(
-                        async move { create_gateway_session_in_directory(project_path_clone).await },
-                        |res| match res {
-                            Ok(info) => Message::Project(ProjectMessage::SessionCreated(info)),
-                            Err(error) => {
-                                Message::Project(ProjectMessage::SessionCreateFailed(error))
-                            }
-                        },
-                    ),
-                ]));
+                let draft = open_session_draft(app, project_path.clone(), project_path);
+                return Some(iced::Task::batch([project_switch_task, draft]));
             }
             app.new_session_picker_project = Some(project_path.clone());
             app.new_session_picker_options.clear();

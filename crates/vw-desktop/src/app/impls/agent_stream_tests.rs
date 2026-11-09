@@ -1365,8 +1365,20 @@ fn spawn_workflow_stream_response(
                 break;
             }
             request.extend_from_slice(&chunk[..read]);
-            if request.windows(4).any(|window| window == b"\r\n\r\n") {
-                break;
+            if let Some(headers_end) = request.windows(4).position(|window| window == b"\r\n\r\n") {
+                let headers = String::from_utf8_lossy(&request[..headers_end]);
+                let content_length = headers
+                    .lines()
+                    .find_map(|line| {
+                        let (name, value) = line.split_once(':')?;
+                        name.eq_ignore_ascii_case("content-length")
+                            .then(|| value.trim().parse::<usize>().ok())
+                            .flatten()
+                    })
+                    .unwrap_or(0);
+                if request.len() >= headers_end + 4 + content_length {
+                    break;
+                }
             }
         }
         let response = format!(
@@ -2484,4 +2496,70 @@ fn recovery_notice_gateway_payload_keeps_request_and_rejects_other_session() {
     assert_eq!(event.reason, "配置暂时不可读");
     assert!(super::chat_model_recovery_message(42, "other", &payload).is_none());
     assert!(super::chat_model_recovery_message(42, "notice", &serde_json::json!({})).is_none());
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+#[tokio::test]
+async fn desktop_first_response_disconnect_replays_the_same_request_and_session() {
+    use vw_gateway_client::{GatewayChatStreamEvent, GatewayChatStreamRequest, GatewayClient};
+
+    let body = GatewayChatStreamRequest {
+        session_id: Some("draft-id".to_string().into()),
+        messages: vec![serde_json::json!({"role": "user", "content": "first"})],
+        ..Default::default()
+    };
+    let mut reconnect = super::GatewayReconnectState::new("draft-turn".to_string());
+    let (endpoint, first_request) = spawn_workflow_stream_response(
+        "200 OK",
+        "id: 1\ndata: {\"type\":\"chat.delta\",\"delta\":\"partial\"}\n\n".into(),
+    );
+    let mut cursor = None;
+    let result = GatewayClient::stream_chat_resumable(
+        &endpoint,
+        Some("/project/worktree"),
+        &body,
+        &reconnect.resume(),
+        |event| {
+            cursor = Some(event.id);
+            true
+        },
+    )
+    .await;
+    assert!(matches!(
+        reconnect.finish_attempt(result, cursor.is_some(), cursor, None),
+        super::GatewayStreamNext::Retry(_)
+    ));
+    assert_eq!(cursor, Some(1));
+
+    let (endpoint, replay_request) = spawn_workflow_stream_response(
+        "200 OK",
+        "id: 2\ndata: {\"type\":\"chat.done\",\"message_id\":\"assistant-id\"}\n\n".into(),
+    );
+    let mut done = false;
+    let result = GatewayClient::stream_chat_resumable(
+        &endpoint,
+        Some("/project/worktree"),
+        &body,
+        &reconnect.resume(),
+        |event| {
+            done = matches!(event.event, GatewayChatStreamEvent::Done { .. });
+            true
+        },
+    )
+    .await;
+    assert_eq!(
+        reconnect.finish_attempt(result, done, Some(2), None),
+        super::GatewayStreamNext::Terminal
+    );
+    assert!(done);
+
+    let first = first_request.join().unwrap().to_ascii_lowercase();
+    let replay = replay_request.join().unwrap().to_ascii_lowercase();
+    assert!(first.contains("x-vw-stream-request-id: draft-turn"));
+    assert!(replay.contains("x-vw-stream-request-id: draft-turn"));
+    assert!(!first.contains("last-event-id:"));
+    assert!(replay.contains("last-event-id: 1"));
+    assert!(first.contains(r#""session_id":"draft-id""#));
+    assert!(replay.contains(r#""session_id":"draft-id""#));
+    assert_eq!(first.split_once("\r\n\r\n").unwrap().1, replay.split_once("\r\n\r\n").unwrap().1);
 }

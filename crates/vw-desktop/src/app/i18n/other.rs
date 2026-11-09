@@ -24,6 +24,13 @@ pub(crate) fn tab_label(i18n: I18n, id: &str, raw: &str) -> String {
 }
 
 pub(crate) fn session_title(app: &crate::app::App, id: &str, raw: &str) -> String {
+    if raw.trim().is_empty() {
+        return app
+            .session_previews
+            .get(id)
+            .cloned()
+            .unwrap_or_else(|| I18n::new(app.desktop_locale).__("新会话").to_owned());
+    }
     app.generated_session_titles
         .get(id)
         .map(|feedback| feedback.render(I18n::new(app.desktop_locale), raw))

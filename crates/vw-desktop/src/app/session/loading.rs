@@ -266,8 +266,11 @@ impl App {
         self.archived_session_ids.clear();
         self.sessions.clear();
         self.show_recommended_prompt_menu = false;
+        self.cache_active_session_chat();
         self.active_session_id = None;
+        self.current_session_runtime_mut().draft = None;
         self.chat.clear();
+        self.chat_message_ids.clear();
         self.usage = TokenUsage::default();
         self.invalidate_chat_ui_state();
 

@@ -27,14 +27,19 @@ pub(super) fn update(app: &mut App, message: ChatMessage) -> Task<Message> {
                 return Task::none();
             }
             runtime.acp_options_pending = true;
+            let draft_options = (session_id == "__empty__" || runtime.draft.is_some())
+                .then(|| runtime.acp_options.clone());
             Task::perform(
                 async move {
                     let result = async {
                         let client = crate::app::gateway_client()?;
-                        let mut options = if session_id == "__empty__" {
-                            Default::default()
-                        } else {
-                            client.acp_session_options(&session_id, directory.as_deref()).await?
+                        let mut options = match draft_options {
+                            Some(options) => options,
+                            None => {
+                                client
+                                    .acp_session_options(&session_id, directory.as_deref())
+                                    .await?
+                            }
                         };
                         if options.model_source_capabilities.is_empty() {
                             let capabilities = client.acp_model_source_capabilities(&agent).await?;
@@ -93,7 +98,6 @@ pub(super) fn update(app: &mut App, message: ChatMessage) -> Task<Message> {
             request_id,
             project_path,
             update,
-            created,
             result,
         } => {
             if session_id == "__empty__" && app.project_path != project_path {
@@ -139,15 +143,6 @@ pub(super) fn update(app: &mut App, message: ChatMessage) -> Task<Message> {
                     runtime.acp_model_input_draft = None;
                     runtime.acp_rebuild_required = true;
                     runtime.restore_model_from_history = false;
-                    if let Some(info) = created {
-                        let runtime = runtime.clone();
-                        app.session_runtime_states.insert(info.id.clone(), runtime);
-                        if app.active_session_id.is_none() {
-                            app.active_session_id = Some(info.id.clone());
-                        }
-                        app.sessions.push(info);
-                        app.session_runtime_states.remove("__empty__");
-                    }
                     app.sync_active_session_preferences();
                     if boundary && active {
                         app.show_info_toast(
@@ -253,7 +248,7 @@ pub(super) fn select_source(
     model: Option<String>,
 ) -> Task<Message> {
     use vw_gateway_client::vw_api_types::acp_model_source::{
-        AcpModelSource, AcpModelSourceUpdate, AcpSessionModelSelection,
+        AcpModelSource, AcpModelSourceCapability, AcpModelSourceUpdate, AcpSessionModelSelection,
     };
     let session_id = app.active_session_id.clone().unwrap_or_else(|| "__empty__".into());
     let directory = super::stream::session_directory_for_save(app, &session_id);
@@ -285,30 +280,31 @@ pub(super) fn select_source(
     };
     runtime.acp_source_pending = Some(update.clone());
     runtime.acp_source_request_id = Some(request_id);
+    let draft_options =
+        (session_id == "__empty__" || runtime.draft.is_some()).then(|| runtime.acp_options.clone());
     app.invalidate_project_chat_preferences_read();
-    let new_session = app.active_session_id.is_none();
     Task::perform(
         async move {
-            let mut created = None;
             let result = async {
                 let client = crate::app::gateway_client()?;
                 let directory = directory.as_deref().ok_or("请先选择项目目录")?;
-                let target = if new_session {
-                    let info: vw_shared::session::info::Info =
-                        client.session_create(directory, &None).await?;
-                    let id = info.id.clone();
-                    created = Some(info);
-                    id
-                } else {
-                    session_id.clone()
-                };
-                let result =
-                    client.acp_session_model_source(&target, Some(directory), &update).await;
-                if result.is_err() && new_session {
-                    let _ = client.session_delete(&target, Some(directory)).await;
-                    created = None;
+                if let Some(mut options) = draft_options {
+                    if options.model_source_capabilities.is_empty() {
+                        let capabilities = client.acp_model_source_capabilities(&update.agent).await?;
+                        options.model_source_capabilities = capabilities.model_source_capabilities;
+                        options.verified_cli_release = capabilities.verified_cli_release;
+                        options.verified_platform = capabilities.verified_platform;
+                    }
+                    if !options.model_source_capabilities.iter().any(|capability| {
+                        matches!(capability, AcpModelSourceCapability::Supported { source: supported } if *supported == source)
+                    }) {
+                        return Err("此智能体不支持所选模型来源".to_string());
+                    }
+                    options.acp_model_source = source;
+                    options.selected_model = Some(update.selection.clone());
+                    return Ok(options);
                 }
-                result
+                client.acp_session_model_source(&session_id, Some(directory), &update).await
             }
             .await;
             ChatMessage::AcpModelSourceSaved {
@@ -316,7 +312,6 @@ pub(super) fn select_source(
                 request_id,
                 project_path,
                 update,
-                created,
                 result,
             }
         },

@@ -254,7 +254,7 @@ pub(in crate::app::views::project) fn session_row(
 ) -> Element<'static, Message> {
     let i18n = I18n::new(app.desktop_locale);
     let active = app.active_session_id.as_deref() == Some(id);
-    let title = if details.title.trim().is_empty() {
+    let title = if details.title.trim().is_empty() && !app.session_previews.contains_key(id) {
         i18n.__("未命名任务").to_owned()
     } else {
         crate::app::i18n::other::session_title(app, id, &details.title)
@@ -318,3 +318,7 @@ pub(in crate::app::views::project) fn session_row(
         .gap(14)
         .into()
 }
+
+#[cfg(test)]
+#[path = "session_row_tests.rs"]
+mod session_row_tests;

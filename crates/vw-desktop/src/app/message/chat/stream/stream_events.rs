@@ -536,6 +536,9 @@ pub(super) fn mark_agent_stream_session_dirty(
     updated_ms: u64,
     previous_content_len: Option<usize>,
 ) {
+    if app.session_runtime_states.get(session_id).is_some_and(|runtime| runtime.draft.is_some()) {
+        return;
+    }
     let is_active = app.active_session_id.as_deref() == Some(session_id);
     let seq_no = app
         .session_runtime_states
@@ -1359,6 +1362,46 @@ pub(super) fn handle_agent_stream_done(
     assistant_message_id: Option<String>,
     parent_message_id: Option<String>,
 ) -> Task<Message> {
+    if let Some(session_id) = app.find_session_by_request_id(id)
+        && let Some(draft) = app.get_session_runtime(&session_id).draft
+    {
+        if app.get_session_runtime(&session_id).active_agent_request.as_ref().is_some_and(
+            |request| {
+                crate::app::impls::task_plan_run_active(
+                    request.workflow_mode_enabled,
+                    request.resume_history_only,
+                )
+            },
+        ) {
+            return complete_agent_stream(
+                app,
+                id,
+                usage,
+                assistant_message_id,
+                parent_message_id,
+                None,
+            );
+        }
+        return super::draft::reload_after_response(
+            session_id,
+            draft.directory,
+            id,
+            usage,
+            assistant_message_id,
+            parent_message_id,
+        );
+    }
+    complete_agent_stream(app, id, usage, assistant_message_id, parent_message_id, None)
+}
+
+pub(super) fn complete_agent_stream(
+    app: &mut App,
+    id: u64,
+    usage: models::TokenUsage,
+    assistant_message_id: Option<String>,
+    parent_message_id: Option<String>,
+    publication: Option<super::draft::DraftPublication>,
+) -> Task<Message> {
     let Some(session_id) = app.find_session_by_request_id(id) else {
         return Task::none();
     };
@@ -1465,10 +1508,28 @@ pub(super) fn handle_agent_stream_done(
     );
     let terminal_idx =
         app.cached_chat_messages(&session_id).and_then(|messages| messages.len().checked_sub(1));
+    if let Some(last) = terminal_idx
+        && let Some(runtime) = app.session_runtime_states.get_mut(&session_id)
+        && runtime.active_agent_request.as_ref().is_some_and(|request| {
+            crate::app::impls::task_plan_run_active(
+                request.workflow_mode_enabled,
+                request.resume_history_only,
+            )
+        })
+        && let Some(draft) = runtime.draft.as_mut()
+    {
+        // Plan-run persists its execution sessions separately. Keep the parent's
+        // completed transcript available in the current desktop draft.
+        draft.history_len = last + 1;
+    }
     if let Some(terminal_idx) = terminal_idx {
         mark_agent_stream_session_dirty(app, &session_id, terminal_idx, completed_ms, None);
     }
     let save_task = force_save_agent_stream_session(app, &session_id);
+    let is_draft = app.get_session_runtime(&session_id).draft.is_some();
+    let refresh_title = publication.map_or_else(Task::none, |publication| {
+        super::draft::publish(app, &session_id, publication)
+    });
     info!(
         target: "vw_desktop",
         request_id = id,
@@ -1488,9 +1549,9 @@ pub(super) fn handle_agent_stream_done(
         runtime.active_agent_request = None;
     }
     app.sync_task_pet_from_runtime();
-    app.show_send_mode_popover = false;
 
     if is_active_session {
+        app.show_send_mode_popover = false;
         app.finalize_stream_text();
         app.sync_active_session_from_chat();
     }
@@ -1505,54 +1566,55 @@ pub(super) fn handle_agent_stream_done(
         Task::none()
     };
     let next = if handoff_task.is_some() { Task::none() } else { start_next(app, &session_id) };
-    let refresh_message_ids = if is_active_session && !has_pending_queue && !resume_history_only {
-        app.sessions
-            .iter()
-            .find(|entry| entry.id == session_id)
-            .map(|entry| entry.directory.clone())
-            .or_else(|| app.project_path.clone())
-            .map(|project_path| {
-                let session_id = session_id.clone();
-                Task::perform(
-                    async move {
-                        let client = match crate::app::gateway_client() {
-                            Ok(client) => client,
-                            Err(err) => return Err(err),
-                        };
-                        let msgs = client
-                            .session_messages::<Vec<message::WithParts>>(
-                                &session_id,
-                                Some(&project_path),
-                            )
-                            .await;
-                        let info = client
-                            .session_get::<session_info::Info>(&session_id, Some(&project_path))
-                            .await;
-                        match (msgs, info) {
-                            (Ok(msgs), Ok(_)) => {
-                                let mut usage = crate::app::models::TokenUsage::default();
-                                for message in &msgs {
-                                    if let message::Info::Assistant(assistant) = &message.info {
-                                        usage.input_tokens += assistant.tokens.input;
-                                        usage.output_tokens += assistant.tokens.output;
-                                        usage.cached_tokens += assistant.tokens.cache.read
-                                            + assistant.tokens.cache.write;
-                                        usage.reasoning_tokens += assistant.tokens.reasoning;
+    let refresh_message_ids =
+        if is_active_session && !has_pending_queue && !resume_history_only && !is_draft {
+            app.sessions
+                .iter()
+                .find(|entry| entry.id == session_id)
+                .map(|entry| entry.directory.clone())
+                .or_else(|| app.project_path.clone())
+                .map(|project_path| {
+                    let session_id = session_id.clone();
+                    Task::perform(
+                        async move {
+                            let client = match crate::app::gateway_client() {
+                                Ok(client) => client,
+                                Err(err) => return Err(err),
+                            };
+                            let msgs = client
+                                .session_messages::<Vec<message::WithParts>>(
+                                    &session_id,
+                                    Some(&project_path),
+                                )
+                                .await;
+                            let info = client
+                                .session_get::<session_info::Info>(&session_id, Some(&project_path))
+                                .await;
+                            match (msgs, info) {
+                                (Ok(msgs), Ok(_)) => {
+                                    let mut usage = crate::app::models::TokenUsage::default();
+                                    for message in &msgs {
+                                        if let message::Info::Assistant(assistant) = &message.info {
+                                            usage.input_tokens += assistant.tokens.input;
+                                            usage.output_tokens += assistant.tokens.output;
+                                            usage.cached_tokens += assistant.tokens.cache.read
+                                                + assistant.tokens.cache.write;
+                                            usage.reasoning_tokens += assistant.tokens.reasoning;
+                                        }
                                     }
+                                    Ok((session_id, msgs, usage))
                                 }
-                                Ok((session_id, msgs, usage))
+                                (Err(err), _) => Err(err),
+                                (_, Err(err)) => Err(err),
                             }
-                            (Err(err), _) => Err(err),
-                            (_, Err(err)) => Err(err),
-                        }
-                    },
-                    |res| Message::Project(ProjectMessage::SessionMessagesLoaded(res)),
-                )
-            })
-            .unwrap_or_else(Task::none)
-    } else {
-        Task::none()
-    };
+                        },
+                        |res| Message::Project(ProjectMessage::SessionMessagesLoaded(res)),
+                    )
+                })
+                .unwrap_or_else(Task::none)
+        } else {
+            Task::none()
+        };
     let session_todos_task = if is_active_session {
         let directory = app
             .sessions
@@ -1592,7 +1654,7 @@ pub(super) fn handle_agent_stream_done(
     .chain(trajectory_raw_task)
     .chain(next)
     .chain(handoff_task.unwrap_or_else(Task::none));
-    Task::batch([completion, notification])
+    Task::batch([completion, notification, refresh_title])
 }
 
 /// 模块内可见函数，执行 handle_agent_post_tool_round 对应的应用流程。
@@ -1614,6 +1676,9 @@ pub(super) fn handle_agent_post_tool_round(
     clear_agent_stream_session_save_flush(app, &session_id);
 
     let runtime = app.get_session_runtime(&session_id);
+    if runtime.draft.is_some() {
+        return Task::none();
+    }
     let Some(active_request) = runtime.active_agent_request.as_ref().map(Arc::clone) else {
         return Task::none();
     };
@@ -1769,7 +1834,9 @@ pub(super) fn handle_agent_stream_error(app: &mut App, id: u64, err: String) -> 
         elapsed
     };
     app.sync_task_pet_from_runtime();
-    app.show_send_mode_popover = false;
+    if is_active_session {
+        app.show_send_mode_popover = false;
+    }
 
     let toast_task = app.show_error_toast(display_err.clone());
 

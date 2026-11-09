@@ -134,16 +134,6 @@ fn queue_item(
     }
 }
 
-#[test]
-fn initial_session_title_uses_only_trimmed_first_line() {
-    assert_eq!(
-        super::initial_session_title_for_input("  第一行标题  \n第二行内容\n第三行内容  "),
-        "第一行标题"
-    );
-    assert_eq!(super::initial_session_title_for_input("\r\n  首行  \r\n次行"), "首行");
-    assert_eq!(super::initial_session_title_for_input(" \n\t "), "新会话");
-}
-
 fn agent_request(id: u64, session: &str) -> std::sync::Arc<crate::app::AgentRequest> {
     std::sync::Arc::new(crate::app::AgentRequest {
         id,
@@ -1384,7 +1374,7 @@ fn send_starts_turn_focused_on_new_user_message() {
 }
 
 #[test]
-fn start_new_session_appends_user_message_before_background_gateway_save() {
+fn start_new_session_appends_user_message_without_a_gateway_snapshot() {
     let (mut app, _task) = crate::app::App::new();
     app.project_id = Some("project-1".to_string());
     app.project_path = Some("/repo".to_string());
@@ -1401,7 +1391,8 @@ fn start_new_session_appends_user_message_before_background_gateway_save() {
     assert_eq!(app.chat[0].content, "first question");
     assert_eq!(app.chat[1].role, crate::app::models::ChatRole::Assistant);
     assert!(app.current_session_is_requesting());
-    assert!(task.units() >= 4, "gateway persistence must remain a background task");
+    assert!(app.current_session_runtime().stream_save_dirty_records.is_empty());
+    assert!(task.units() >= 2);
 }
 
 #[test]
@@ -1444,7 +1435,9 @@ fn send_current_session_input_starts_existing_session_with_selected_context_and_
     let (mut app, _task) = crate::app::App::new();
     app.active_session_id = Some("s1".to_string());
     app.sessions = vec![session_info("s1", "Session", "/repo")];
+    app.acp_recent_count = 99;
     app.chat_send_behavior = crate::app::state::ChatSendBehavior::Queue;
+    app.agents_settings.entries.clear();
     app.agents_settings.available_tools = vec!["shell".to_string(), "write".to_string()];
     {
         let runtime = app.get_session_runtime_mut("s1");
@@ -1453,7 +1446,6 @@ fn send_current_session_input_starts_existing_session_with_selected_context_and_
         runtime.model = "gpt-test".to_string();
         runtime.reasoning_effort = Some(vw_gateway_client::vw_api_types::ReasoningEffortDto::High);
         runtime.acp_agent = Some("codex".to_string());
-        runtime.acp_recent_count = 99;
         runtime.tool_selector.toggle_manual_tool("shell");
         runtime.tool_selector.toggle_manual_skill("rust");
         runtime.tool_selector.toggle_shiju_skill(crate::app::state::ShijuSkillSelection::new(
@@ -1464,7 +1456,17 @@ fn send_current_session_input_starts_existing_session_with_selected_context_and_
     }
     app.files = vec!["/tmp/diagram.PNG".to_string(), "/tmp/notes.md".to_string()];
 
-    let _ = super::send_current_session_input(&mut app);
+    let _ = super::update(&mut app, super::ChatMessage::SendPressed);
+    let _ = super::update(
+        &mut app,
+        super::ChatMessage::AgentInstallationChecked {
+            session_id: Some("s1".into()),
+            agent: None,
+            backend: "codex".into(),
+            query: Some("inspect".into()),
+            result: Ok(std::collections::BTreeMap::from([("codex".into(), true)])),
+        },
+    );
 
     assert!(app.files.is_empty());
     assert_eq!(app.chat.len(), 2);
@@ -1867,7 +1869,8 @@ fn new_session_project_resolution_continues_first_send() {
             result: Ok("resolved-project".to_string()),
         },
     );
-    assert_eq!(app.sessions[0].project_id, "resolved-project");
+    assert_eq!(app.project_id.as_deref(), Some("resolved-project"));
+    assert!(app.sessions.is_empty());
     assert_eq!(app.chat[0].content, "first question");
     assert!(app.current_session_is_requesting());
 }
@@ -2121,7 +2124,6 @@ fn confirm_pending_model_source(app: &mut crate::app::App) {
             request_id: runtime.acp_source_request_id.unwrap(),
             project_path: app.project_path.clone(),
             update,
-            created: None,
             result: Ok(options),
         },
     );
@@ -2141,4 +2143,67 @@ fn session_entry_recommendations_select_original_index() {
     super::update(&mut app, super::ChatMessage::AgentRecommendedPromptSelected(0));
     assert_eq!(app.current_session_runtime().input_editor.text(), "原始索引对应中文草稿");
     assert!(!app.show_recommended_prompt_menu);
+}
+
+#[test]
+fn desktop_first_response_keeps_unanswered_session_out_of_history() {
+    let (mut app, _task) = crate::app::App::new();
+    app.project_id = Some("project-1".to_string());
+    app.project_path = Some("/repo".to_string());
+
+    super::start(
+        &mut app,
+        queue_item("首轮问题", crate::app::state::ChatSendBehavior::Queue),
+        false,
+    );
+
+    let id = app.active_session_id.as_deref().expect("the draft needs a stable ID");
+    assert!(app.sessions.iter().all(|session| session.id != id));
+    assert!(app.project_sessions.values().flatten().all(|session| session.id != id));
+    assert_eq!(app.chat[0].content, "首轮问题");
+}
+
+#[test]
+fn desktop_first_response_failure_and_cancel_reuse_the_id_with_clean_history() {
+    use crate::app::state::ChatSendBehavior::Queue;
+
+    let (mut app, _) = crate::app::App::new();
+    app.project_id = Some("project-1".into());
+    app.project_path = Some("/repo".into());
+
+    super::start(&mut app, queue_item("first attempt", Queue), false);
+    let session_id = app.active_session_id.clone().unwrap();
+    let first_request = app.agent_stream_id;
+    super::stream::update(
+        &mut app,
+        super::ChatMessage::AgentStreamDelta(first_request, "incomplete".into()),
+    );
+    super::stream::update(
+        &mut app,
+        super::ChatMessage::AgentStreamError(first_request, "model error".into()),
+    );
+    assert!(!app.current_session_is_requesting());
+    assert!(app.chat.iter().any(|message| message.content == "model error"));
+    assert!(app.current_session_runtime().stream_save_dirty_records.is_empty());
+    assert!(app.sessions.is_empty());
+
+    super::start(&mut app, queue_item("second attempt", Queue), false);
+    let second_request = app.agent_stream_id;
+    assert_ne!(first_request, second_request);
+    assert_eq!(app.active_session_id.as_deref(), Some(session_id.as_str()));
+    assert!(app.current_session_runtime().active_agent_request.unwrap().history.is_empty());
+    assert_eq!(app.chat[0].content, "second attempt");
+
+    super::update(&mut app, super::ChatMessage::CancelPressed);
+    assert!(app.current_session_is_requesting(), "wait for the original request's terminal");
+    super::stream::update(&mut app, super::ChatMessage::AgentStreamCancelled(second_request));
+    assert!(!app.current_session_is_requesting());
+    assert!(app.sessions.is_empty());
+    assert!(app.current_session_runtime().stream_save_dirty_records.is_empty());
+
+    super::start(&mut app, queue_item("third attempt", Queue), false);
+    let request = app.current_session_runtime().active_agent_request.unwrap();
+    assert_eq!(request.session, session_id);
+    assert!(request.history.is_empty());
+    assert_eq!(app.chat[0].content, "third attempt");
 }

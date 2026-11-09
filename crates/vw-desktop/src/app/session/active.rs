@@ -463,6 +463,13 @@ impl App {
                     .find(|session| session.id == session_id)
                     .map(|session| session.directory.clone())
             })
+            .or_else(|| {
+                self.session_runtime_states
+                    .get(session_id)?
+                    .draft
+                    .as_ref()
+                    .map(|draft| draft.directory.clone())
+            })
     }
 
     /// 执行 cached_chat_messages 对应的领域操作。

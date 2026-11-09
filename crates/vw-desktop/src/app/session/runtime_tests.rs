@@ -735,7 +735,6 @@ fn acp_model_source_ui_round_trip_preserves_model_and_open_popover() {
                 request_id,
                 project_path: None,
                 update: update.clone(),
-                created: None,
                 result: Ok(AcpSessionOptions {
                     acp_model_source: source,
                     selected_model: Some(update.selection),
@@ -830,7 +829,6 @@ fn acp_model_source_ui_failure_preserves_confirmed_model_and_other_session() {
             request_id: 12,
             project_path: None,
             update: source_ui_update(),
-            created: None,
             result: Err("credential revoked".into()),
         },
     );
@@ -865,7 +863,6 @@ fn acp_model_source_ui_confirmation_updates_only_originating_session() {
             request_id: 11,
             project_path: None,
             update: source_ui_update(),
-            created: None,
             result: Ok(options.clone()),
         },
     );
@@ -877,7 +874,6 @@ fn acp_model_source_ui_confirmation_updates_only_originating_session() {
             request_id: 12,
             project_path: None,
             update: source_ui_update(),
-            created: None,
             result: Ok(options),
         },
     );
@@ -937,7 +933,6 @@ fn acp_model_source_ui_new_project_ignores_previous_project_confirmation() {
             request_id: 12,
             project_path: Some("/old-project".into()),
             update: source_ui_update(),
-            created: None,
             result: Ok(AcpSessionOptions {
                 acp_model_source: AcpModelSource::CliLocal,
                 ..Default::default()

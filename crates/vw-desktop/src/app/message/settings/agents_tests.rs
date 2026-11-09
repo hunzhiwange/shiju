@@ -1718,7 +1718,7 @@ fn saved_config_stays_clean_after_discard_refresh_in_either_response_order() {
 #[test]
 fn agent_unified_selection_catalog_launch_selects_profile_runtime() {
     let (mut app, _) = crate::app::App::new();
-    app.agents_settings.catalog_busy = true;
+    app.project_path = Some("/tmp/unified-agent-fixture".into());
     app.agents_settings.entries.push(crate::app::state::DelegateAgentSettingsEntry::from_config(
         "acp-codex",
         Some(vw_config_types::agent::AgentDefinitionConfig {
@@ -1726,17 +1726,10 @@ fn agent_unified_selection_catalog_launch_selects_profile_runtime() {
             ..Default::default()
         }),
     ));
-    let info = serde_json::from_value(serde_json::json!({
-        "id":"catalog-launch-session", "slug":"fixture", "projectID":"fixture-project", "directory":"/tmp/unified-agent-fixture", "title":"New session", "version":"1", "time":{"created":1,"updated":1}
-    })).unwrap();
-    let _ = update(
-        &mut app,
-        SettingsMessage::Agents(AgentsMessage::CatalogSessionCreated {
-            key: "acp-codex".into(),
-            result: Ok(info),
-        }),
-    );
-    assert_eq!(app.active_session_id.as_deref(), Some("catalog-launch-session"));
+    let _ =
+        update(&mut app, SettingsMessage::Agents(AgentsMessage::CatalogLaunch("acp-codex".into())));
+    assert!(app.active_session_id.is_none());
+    assert!(app.sessions.is_empty());
     assert_eq!(app.current_session_runtime().agent.as_deref(), Some("acp-codex"));
     assert_eq!(app.current_session_runtime().acp_agent.as_deref(), Some("codex"));
 }
@@ -2160,30 +2153,18 @@ fn session_entry_catalog_launch_preserves_profile_runtime() {
         );
         assert!(!app.agents_settings.catalog_busy);
         assert!(app.active_toast.as_ref().unwrap().message.contains("请先打开项目"));
-        app.agents_settings.catalog_busy = true;
-        let _ = update(
-            &mut app,
-            SettingsMessage::Agents(AgentsMessage::CatalogSessionCreated {
-                key: "fixture-profile".into(),
-                result: Err("fixture failure".into()),
-            }),
-        );
-        assert!(app.active_toast.as_ref().unwrap().message.contains("fixture failure"));
         assert!(app.show_settings);
         assert!(app.show_system_settings);
         assert_eq!(app.screen, crate::app::Screen::Usage);
         assert_eq!(app.active_session_id, old_id);
         assert_eq!(app.current_session_runtime().agent, old_runtime.agent);
-        app.agents_settings.catalog_busy = true;
-        let info = serde_json::from_value(serde_json::json!({"id":"catalog-fixture-new", "slug":"fixture", "projectID":"fixture-project", "directory":"/tmp/catalog-fixture", "title":"New session", "version":"1", "time":{"created":1,"updated":1}})).unwrap();
+        app.project_path = Some("/tmp/catalog-fixture".into());
         let _ = update(
             &mut app,
-            SettingsMessage::Agents(AgentsMessage::CatalogSessionCreated {
-                key: "fixture-profile".into(),
-                result: Ok(info),
-            }),
+            SettingsMessage::Agents(AgentsMessage::CatalogLaunch("fixture-profile".into())),
         );
-        assert_eq!(app.active_session_id.as_deref(), Some("catalog-fixture-new"));
+        assert!(app.active_session_id.is_none());
+        assert!(app.sessions.is_empty());
         assert_eq!(app.current_session_runtime().agent.as_deref(), Some("fixture-profile"));
         assert_eq!(
             app.current_session_runtime().acp_agent.as_deref(),

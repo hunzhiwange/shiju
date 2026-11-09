@@ -26,9 +26,7 @@ pub fn get_session_title(app: &App) -> String {
             .sessions
             .iter()
             .chain(app.project_sessions.values().flat_map(|sessions| sessions.iter()));
-        if let Some(session) =
-            sessions.find(|session| &session.id == session_id && !session.title.trim().is_empty())
-        {
+        if let Some(session) = sessions.find(|session| &session.id == session_id) {
             return crate::app::i18n::other::session_title(app, &session.id, &session.title);
         }
     }

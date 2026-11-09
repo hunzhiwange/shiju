@@ -733,9 +733,7 @@ pub fn update(app: &mut App, message: SettingsMessage) -> Task<Message> {
     if app.agents_settings.catalog_busy
         && !matches!(
             message,
-            AgentsMessage::CatalogToggled { .. }
-                | AgentsMessage::CatalogCopied(_)
-                | AgentsMessage::CatalogSessionCreated { .. }
+            AgentsMessage::CatalogToggled { .. } | AgentsMessage::CatalogCopied(_)
         )
     {
         return Task::none();
@@ -856,39 +854,16 @@ pub fn update(app: &mut App, message: SettingsMessage) -> Task<Message> {
             else {
                 return catalog_error(app, "请先打开项目，再创建新会话".into());
             };
-            app.agents_settings.catalog_busy = true;
-            Task::perform(
-                crate::app::message::project::helpers::create_gateway_session_in_directory(project),
-                move |result| {
-                    Message::Settings(SettingsMessage::Agents(
-                        AgentsMessage::CatalogSessionCreated { key: key.clone(), result },
-                    ))
-                },
-            )
-        }
-        AgentsMessage::CatalogSessionCreated { key, result } => {
-            if !app.agents_settings.catalog_busy {
-                return Task::none();
-            }
-            app.agents_settings.catalog_busy = false;
-            match result {
-                Ok(info) => {
-                    let task = crate::app::message::project::update(
-                        app,
-                        crate::app::message::project::ProjectMessage::SessionCreated(info),
-                    );
-                    let selection = crate::app::message::chat::session::update(
-                        app,
-                        crate::app::message::chat::ChatMessage::SessionAgentSelected(Some(key)),
-                    );
-                    let task = Task::batch([task, selection]);
-                    app.show_system_settings = false;
-                    app.show_settings = false;
-                    app.screen = crate::app::Screen::Project;
-                    task
-                }
-                Err(error) => catalog_error(app, error),
-            }
+            let draft =
+                crate::app::message::project::open_session_draft(app, project.clone(), project);
+            let selection = crate::app::message::chat::session::update(
+                app,
+                crate::app::message::chat::ChatMessage::SessionAgentSelected(Some(key)),
+            );
+            app.show_system_settings = false;
+            app.show_settings = false;
+            app.screen = crate::app::Screen::Project;
+            Task::batch([draft, selection])
         }
         AgentsMessage::Save => persist_agents_settings(app),
         AgentsMessage::DiscardChanges => {

@@ -1121,7 +1121,7 @@ fn project_create_session_opens_picker_when_worktree_enabled() {
 }
 
 #[test]
-fn project_create_session_without_worktree_resets_picker_before_scheduling_creation() {
+fn desktop_first_response_project_create_session_opens_a_blank_draft() {
     let mut app = app();
     let path = "/tmp/project".to_string();
     app.project_path = Some("/tmp/other-project".to_string());
@@ -1142,7 +1142,10 @@ fn project_create_session_without_worktree_resets_picker_before_scheduling_creat
     assert!(app.new_session_picker_options.is_empty());
     assert!(app.new_session_worktree_name.is_empty());
     assert!(app.new_session_reset_error.is_none());
-    assert!(app.new_session_creating);
+    assert!(!app.new_session_creating);
+    assert!(app.active_session_id.is_none());
+    assert!(app.sessions.is_empty());
+    assert!(app.chat.is_empty());
 }
 
 #[test]

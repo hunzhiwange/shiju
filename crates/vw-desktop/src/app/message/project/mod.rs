@@ -22,7 +22,7 @@ pub(crate) use helpers::refresh_file_index;
 pub(crate) use helpers::{
     prepare_session_ui_chunks_task, prepare_session_ui_task, prepare_stream_message_ui_task,
 };
-pub(crate) use session::{cache_external_session, open_project_session};
+pub(crate) use session::{cache_external_session, open_project_session, open_session_draft};
 
 #[derive(Debug, Clone)]
 /// LoadedProjectInfo 保存该流程中跨函数传递的结构化数据。
@@ -263,6 +263,11 @@ pub enum ProjectMessage {
     ProjectLoadMoreSessions(String),
     ProjectCreateSession(String),
     SessionCreateFailed(String),
+    SessionWorktreeCreated {
+        project_path: String,
+        generation: u64,
+        result: Result<String, String>,
+    },
     ProjectCreateSessionPicked {
         project_path: String,
         directory: String,

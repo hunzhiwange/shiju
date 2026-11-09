@@ -5,8 +5,7 @@
 use super::common::{clear_new_session_picker_messages, reset_new_session_picker_state};
 use crate::app::message::project::ProjectMessage;
 use crate::app::message::project::helpers::{
-    create_gateway_session_in_directory, create_gateway_worktree_session, delete_gateway_worktree,
-    reset_gateway_worktree,
+    create_gateway_session_worktree, delete_gateway_worktree, reset_gateway_worktree,
 };
 use crate::app::{App, Message};
 
@@ -55,27 +54,14 @@ pub(crate) fn handle(app: &mut App, message: ProjectMessage) -> Option<iced::Tas
             app.new_session_worktree_name = v;
             Some(iced::Task::none())
         }
-        ProjectMessage::ProjectCreateSessionPicked { project_path: _, directory } => {
-            if app.new_session_creating {
+        ProjectMessage::ProjectCreateSessionPicked { project_path, directory } => {
+            if app.new_session_creating
+                || app.project_path.as_deref() != Some(project_path.as_str())
+            {
                 return Some(iced::Task::none());
             }
-            app.new_session_creating = true;
-            app.new_session_last_directory = Some(directory.clone());
-            let save_last_directory_task = app.save_desktop_preference(
-                "new_session_last_directory",
-                serde_json::Value::String(directory.clone()),
-            );
             reset_new_session_picker_state(app);
-            Some(iced::Task::batch(vec![
-                save_last_directory_task,
-                iced::Task::perform(
-                    async move { create_gateway_session_in_directory(directory).await },
-                    |res| match res {
-                        Ok(info) => Message::Project(ProjectMessage::SessionCreated(info)),
-                        Err(error) => Message::Project(ProjectMessage::SessionCreateFailed(error)),
-                    },
-                ),
-            ]))
+            Some(super::open::open_session_draft(app, project_path, directory))
         }
         ProjectMessage::ProjectCreateSessionWorktree(project_path) => {
             if app.new_session_creating {
@@ -104,13 +90,31 @@ pub(crate) fn handle(app: &mut App, message: ProjectMessage) -> Option<iced::Tas
             app.new_session_creating = true;
             reset_new_session_picker_state(app);
             let project_path_clone = project_path.clone();
+            let generation = app.agent_stream_id;
             Some(iced::Task::perform(
-                async move { create_gateway_worktree_session(project_path_clone, requested_name).await },
-                |res| match res {
-                    Ok(info) => Message::Project(ProjectMessage::SessionCreated(info)),
-                    Err(error) => Message::Project(ProjectMessage::SessionCreateFailed(error)),
+                async move { create_gateway_session_worktree(project_path_clone, requested_name).await },
+                move |result| {
+                    Message::Project(ProjectMessage::SessionWorktreeCreated {
+                        project_path,
+                        generation,
+                        result,
+                    })
                 },
             ))
+        }
+        ProjectMessage::SessionWorktreeCreated { project_path, generation, result } => {
+            app.new_session_creating = false;
+            if app.project_path.as_deref() != Some(project_path.as_str())
+                || app.agent_stream_id != generation
+            {
+                return Some(iced::Task::none());
+            }
+            Some(match result {
+                Ok(directory) => super::open::open_session_draft(app, project_path, directory),
+                Err(error) => {
+                    iced::Task::done(Message::Project(ProjectMessage::SessionCreateFailed(error)))
+                }
+            })
         }
         ProjectMessage::ProjectCreateSessionDeleteWorktree(directory) => {
             let is_primary = app

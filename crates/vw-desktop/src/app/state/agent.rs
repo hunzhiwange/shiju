@@ -429,12 +429,20 @@ fn trailing_chars(value: &str, max_chars: usize) -> &str {
         .map_or(value, |(start, _)| &value[start..])
 }
 
+#[derive(Debug, Clone)]
+pub(crate) struct SessionDraft {
+    pub(crate) project_path: String,
+    pub(crate) directory: String,
+    pub(crate) history_len: usize,
+}
+
 /// 会话运行时状态
 ///
 /// 管理单个会话的运行时状态，包括请求状态、输入编辑器、
 /// 模型配置、任务模式等会话特定的信息。
 #[derive(Debug, Clone)]
 pub(crate) struct SessionRuntimeState {
+    pub(crate) draft: Option<SessionDraft>,
     #[cfg(not(target_arch = "wasm32"))]
     pub(crate) mcp_app_panels: Vec<crate::app::components::mcp_app_panel::McpAppPanel>,
     /// 是否正在处理请求
@@ -680,6 +688,7 @@ impl SessionRuntimeState {
             task_mode_subtasks.iter().map(|value| text_editor::Content::with_text(value)).collect();
         let task_mode_model = model.clone();
         Self {
+            draft: None,
             #[cfg(not(target_arch = "wasm32"))]
             mcp_app_panels: Vec::new(),
             is_requesting: false,

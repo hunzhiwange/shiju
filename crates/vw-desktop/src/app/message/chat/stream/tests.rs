@@ -354,46 +354,33 @@ fn save_session_hook_observes_arguments_and_is_cleared_after_scope() {
 }
 
 #[test]
-fn update_rejects_empty_generated_title_without_mutating_sessions() {
+fn desktop_first_response_title_updates_only_untitled_copies_for_its_project() {
     let (mut app, _task) = crate::app::App::new();
-    app.sessions = vec![session_info("session-1", "Original", "/project")];
-    app.project_sessions.insert(
-        "project-1".to_string(),
-        vec![session_info("session-1", "Project original", "/project")],
-    );
+    let mut foreign = session_info("session-1", "", "/other");
+    foreign.project_id = "foreign-project".to_string();
+    app.active_session_id = Some("session-2".to_string());
+    app.sessions = vec![
+        session_info("session-1", "手工改名", "/project"),
+        session_info("session-2", "当前会话", "/project"),
+    ];
+    app.project_sessions
+        .insert("/project".to_string(), vec![session_info("session-1", "", "/project")]);
+    app.project_sessions.insert("/other".to_string(), vec![foreign]);
 
-    let _task = super::update(
+    let task = super::update(
         &mut app,
-        super::ChatMessage::SessionTitleGenerated("session-1".to_string(), String::new()),
+        super::ChatMessage::PublishedSessionTitleLoaded(session_info(
+            "session-1",
+            "服务端标题",
+            "/project",
+        )),
     );
 
-    assert_eq!(app.sessions[0].title, "Original");
-    assert_eq!(app.project_sessions["project-1"][0].title, "Project original");
-}
-
-#[test]
-fn update_generated_title_updates_loaded_and_project_session_copies() {
-    let (mut app, _task) = crate::app::App::new();
-    app.sessions = vec![session_info("session-1", "Original", "/project")];
-    app.project_sessions.insert(
-        "project-1".to_string(),
-        vec![
-            session_info("session-1", "Project original", "/project"),
-            session_info("session-2", "Other", "/project"),
-        ],
-    );
-
-    let _task = super::update(
-        &mut app,
-        super::ChatMessage::SessionTitleGenerated(
-            "session-1".to_string(),
-            "Generated title".to_string(),
-        ),
-    );
-
-    assert_eq!(app.sessions[0].title, "Generated title");
-    assert_eq!(app.project_sessions["project-1"][0].title, "Generated title");
-    assert_eq!(app.project_sessions["project-1"][1].title, "Other");
+    assert_eq!(task.units(), 0);
+    assert_eq!(app.sessions[0].title, "手工改名");
+    assert_eq!(app.sessions[1].title, "当前会话");
+    assert_eq!(app.project_sessions["/project"][0].title, "服务端标题");
+    assert!(app.project_sessions["/other"][0].title.is_empty());
 }
 
 #[test]
@@ -436,43 +423,6 @@ fn update_unhandled_message_leaves_chat_state_unchanged() {
 
     assert_eq!(app.chat.len(), 1);
     assert_eq!(app.chat[0].content, "existing");
-}
-
-#[test]
-// 自动标题只针对默认标题且存在首条用户输入的活动会话安排生成任务。
-fn maybe_generate_session_title_returns_none_without_active_default_session() {
-    let (mut app, _task) = crate::app::App::new();
-
-    let no_active = super::maybe_generate_session_title(&app);
-    assert_eq!(no_active.units(), 0);
-
-    app.active_session_id = Some("session-1".to_string());
-    let missing_session = super::maybe_generate_session_title(&app);
-    assert_eq!(missing_session.units(), 0);
-
-    app.sessions = vec![session_info("session-1", "Named session", "/project")];
-    app.chat = vec![chat_message(ChatRole::User, "first question")];
-    let named_session = super::maybe_generate_session_title(&app);
-    assert_eq!(named_session.units(), 0);
-
-    app.sessions[0].title = "新会话".to_string();
-    app.chat.push(chat_message(ChatRole::User, "second question"));
-    let multiple_user_messages = super::maybe_generate_session_title(&app);
-    assert_eq!(multiple_user_messages.units(), 0);
-}
-
-#[test]
-fn maybe_generate_session_title_schedules_task_for_single_user_default_title() {
-    let (mut app, _task) = crate::app::App::new();
-    app.active_session_id = Some("session-1".to_string());
-    app.sessions = vec![session_info("session-1", "新会话", "/project")];
-    app.chat = vec![chat_message(ChatRole::User, "first question")];
-    app.auto_model = false;
-    app.model = "openai/gpt-5".to_string();
-
-    let task = super::maybe_generate_session_title(&app);
-
-    assert!(iced_runtime::task::into_stream(task.collect()).is_some());
 }
 
 #[test]
@@ -680,13 +630,60 @@ fn stream_session_save_stops_retries_after_payload_too_large() {
 }
 
 #[test]
-fn maybe_generate_session_title_accepts_multiline_initial_input_title() {
-    let (mut app, _task) = crate::app::App::new();
-    app.active_session_id = Some("session-1".to_string());
-    app.sessions = vec![session_info("session-1", "first line", "/project")];
-    app.chat = vec![chat_message(ChatRole::User, "first line\nsecond line")];
+fn desktop_first_response_late_success_publishes_to_the_original_project_once() {
+    let (mut app, _) = crate::app::App::new();
+    app.project_path = Some("/other".into());
+    app.active_session_id = Some("current".into());
+    app.sessions = vec![session_info("current", "Current", "/other")];
+    app.chat = vec![chat_message(ChatRole::User, "current chat")];
 
-    let task = super::maybe_generate_session_title(&app);
+    let runtime = app.get_session_runtime_mut("draft");
+    runtime.draft = Some(crate::app::state::SessionDraft {
+        directory: "/project/worktree".into(),
+        project_path: "/project".into(),
+        history_len: 0,
+    });
+    runtime.active_agent_request = Some(agent_request(7, "draft"));
+    runtime.is_requesting = true;
+    app.store_session_chat_snapshot(
+        "draft".into(),
+        crate::app::session::shared_chat_messages(vec![
+            chat_message(ChatRole::User, "首轮问题"),
+            chat_message(ChatRole::Assistant, "首轮回复"),
+        ]),
+        vec![None, None],
+    );
 
-    assert!(iced_runtime::task::into_stream(task.collect()).is_some());
+    let publish = super::ChatMessage::DraftResponseReloaded {
+        id: 7,
+        usage: Default::default(),
+        assistant_message_id: Some("assistant-id".into()),
+        parent_message_id: Some("user-id".into()),
+        publication: Some(Box::new(super::draft::DraftPublication {
+            info: session_info("draft", "", "/project/worktree"),
+            preview: Some(vw_shared::session::ui_types::ChatSessionMeta {
+                id: "draft".into(),
+                title: String::new(),
+                updated_ms: 20,
+                message_count: 2,
+                call_count: 0,
+                last_content: Some("首轮问题".into()),
+            }),
+        })),
+    };
+    let _ = super::update(&mut app, publish.clone());
+    let _ = super::update(&mut app, publish);
+
+    assert_eq!(app.active_session_id.as_deref(), Some("current"));
+    assert_eq!(app.sessions.len(), 1);
+    assert_eq!(app.chat[0].content, "current chat");
+    let published = &app.project_sessions["/project"];
+    assert_eq!(published.len(), 1);
+    assert_eq!(published[0].id, "draft");
+    assert!(published[0].title.is_empty());
+    assert_eq!(crate::app::i18n::other::session_title(&app, "draft", ""), "首轮问题");
+    assert_eq!(
+        app.cached_chat_message_ids("draft").unwrap(),
+        vec![Some("user-id".into()), Some("assistant-id".into())],
+    );
 }

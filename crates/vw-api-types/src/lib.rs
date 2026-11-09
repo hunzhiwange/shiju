@@ -9,6 +9,7 @@
 //! # 模块概览
 //!
 //! - [`agent_scheduler`][]: Agent Scheduler 任务、Worker、Team、lease、事件与 outbox DTO
+//! - [`apps_usage`][]: 应用余额、订阅额度、编程套餐和自定义脚本查询结果
 //! - [`chat`][]: 聊天消息、流式事件与聊天请求体
 //! - [`session`][]: 会话详情、列表、归档、分叉与网关会话操作
 //! - [`project`][]: 项目实体、项目列表与项目级变更记录
@@ -40,6 +41,7 @@ pub mod acp_session;
 pub mod agent_apps;
 pub mod agent_apps_auth;
 pub mod agent_scheduler;
+pub mod apps_usage;
 pub mod chat;
 pub mod common;
 pub mod error;
@@ -64,6 +66,8 @@ pub mod worktree;
 #[cfg(test)]
 #[path = "agent_scheduler_tests.rs"]
 mod agent_scheduler_tests;
+#[cfg(test)]
+mod apps_usage_tests;
 #[cfg(test)]
 #[path = "chat_tests.rs"]
 mod chat_tests;

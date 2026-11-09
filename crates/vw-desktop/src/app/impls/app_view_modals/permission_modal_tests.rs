@@ -233,11 +233,85 @@ fn permission_modal_queue_uses_first_position_when_current_request_is_missing() 
     assert_eq!(queue.next_request_id.as_deref(), Some("perm-2"));
 }
 
-#[test]
-fn with_permission_modal_returns_root_when_request_is_absent() {
-    let app = App::new().0;
+#[tokio::test]
+async fn permission_modal_open_and_close_preserve_scroll_position() {
+    use iced::advanced::renderer::Headless;
+    use iced::advanced::widget::{Operation, operation};
+    use iced::widget::{Id, Space, scrollable};
+    use iced::{Font, Pixels, Rectangle, Size, Vector};
+    use iced_runtime::user_interface::{Cache, UserInterface};
 
-    let _element: iced::Element<'_, Message> = with_permission_modal(&app, root());
+    struct ScrollPosition<'a> {
+        id: &'a Id,
+        y: Option<f32>,
+    }
+
+    impl Operation for ScrollPosition<'_> {
+        fn traverse(&mut self, operate: &mut dyn FnMut(&mut dyn Operation)) {
+            operate(self);
+        }
+
+        fn scrollable(
+            &mut self,
+            id: Option<&Id>,
+            _: Rectangle,
+            _: Rectangle,
+            translation: Vector,
+            _: &mut dyn operation::Scrollable,
+        ) {
+            if id == Some(self.id) {
+                self.y = Some(translation.y);
+            }
+        }
+    }
+
+    let mut app = App::new().0;
+    let id = Id::unique();
+    let base = || {
+        scrollable(Space::new().width(Length::Fill).height(1600)).id(id.clone()).into()
+    };
+    let bounds = Size::new(1000.0, 700.0);
+    let mut renderer =
+        <iced::Renderer as Headless>::new(Font::DEFAULT, Pixels(16.0), Some("tiny-skia"))
+            .await
+            .expect("headless renderer");
+    let mut ui = UserInterface::build(
+        with_permission_modal(&app, base()),
+        bounds,
+        Cache::new(),
+        &mut renderer,
+    );
+    ui.operate(
+        &mut renderer,
+        &mut operation::scrollable::scroll_to(
+            id.clone(),
+            operation::scrollable::AbsoluteOffset { x: None, y: Some(200.0) },
+        ),
+    );
+    let mut position = ScrollPosition { id: &id, y: None };
+    ui.operate(&mut renderer, &mut position);
+    assert_eq!(position.y, Some(200.0));
+
+    app.permission_modal_request = Some(request("perm-1"));
+    let mut ui = UserInterface::build(
+        with_permission_modal(&app, base()),
+        bounds,
+        ui.into_cache(),
+        &mut renderer,
+    );
+    position.y = None;
+    ui.operate(&mut renderer, &mut position);
+    assert_eq!(position.y, None, "the modal isolates the background");
+
+    app.permission_modal_request = None;
+    let mut ui = UserInterface::build(
+        with_permission_modal(&app, base()),
+        bounds,
+        ui.into_cache(),
+        &mut renderer,
+    );
+    ui.operate(&mut renderer, &mut position);
+    assert_eq!(position.y, Some(200.0));
 }
 
 #[test]

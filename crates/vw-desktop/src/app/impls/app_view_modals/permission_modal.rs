@@ -43,7 +43,8 @@ pub(crate) fn with_permission_modal<'a>(
     let Some(req): Option<vw_gateway_client::PendingPermissionRequestDto> =
         app.permission_modal_request.clone()
     else {
-        return root_content;
+        // Keep the base at the same widget-tree position as in settings_modal_overlay.
+        return iced::widget::stack![root_content].into();
     };
 
     use crate::app::components::system_settings_common::{

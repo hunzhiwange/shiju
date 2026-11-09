@@ -717,23 +717,18 @@ fn editor_tab_button(
 
 fn basics_tab<'a>(app: &App, draft: &'a ThemeEditorDraft) -> Element<'a, Message> {
     let i18n = I18n::new(app.desktop_locale);
-    let id_hint = if draft.builtin_base.is_some() {
-        i18n.__("内置覆盖层标识由主题名派生，只读")
-    } else if draft.id_readonly {
-        i18n.__("编辑已有主题时标识只读")
+    let id_label = i18n.__("标识");
+    let id_input = settings_text_input("", &draft.id).width(Length::Fill);
+    let identifier = if draft.id_readonly {
+        settings_row(id_label, i18n.__("标识只读"), 156.0, id_input)
     } else {
-        i18n.__("由名称自动生成；冲突时追加后缀")
+        field_row_with_help(app, id_label, i18n.__("由名称自动生成；冲突时追加后缀"), id_input)
     };
 
     theme_form_group(
-        settings_group_heading(i18n.__("基本信息"), i18n.__("名称必填；新建时标识由名称生成。")),
+        settings_group_heading(i18n.__("基本信息"), i18n.__("名称必填。")),
         [
-            settings_row(
-                i18n.__("标识"),
-                id_hint,
-                156.0,
-                settings_text_input("", &draft.id).width(Length::Fill),
-            ),
+            identifier,
             text_row_with_help(
                 app,
                 i18n.__("名称"),
@@ -896,7 +891,17 @@ fn assets_tab<'a>(app: &App, draft: &'a ThemeEditorDraft) -> Element<'a, Message
 fn chrome_tab<'a>(app: &'a App, draft: &'a ThemeEditorDraft) -> Element<'a, Message> {
     let i18n = I18n::new(app.desktop_locale);
     theme_form_group(
-        settings_group_heading(i18n.__("控件皮肤"), i18n.__("可选覆盖；非法 hex 会阻止保存。")),
+        column![
+            settings_group_heading_with_help(
+                i18n,
+                &app.app_theme,
+                i18n.__("控件皮肤"),
+                i18n.__("可选覆盖。"),
+            ),
+            text(i18n.__("非法 hex 会阻止保存。")).size(13).style(settings_muted_text_style),
+        ]
+        .spacing(6)
+        .into(),
         [
             chrome_color_row(
                 app,
@@ -1063,20 +1068,25 @@ pub(crate) fn view(app: &App) -> Element<'_, Message> {
         );
     }
 
-    let heading = if draft.builtin_base.is_some() {
-        settings_group_heading(
-            title,
+    let description: std::borrow::Cow<'_, str> = if draft.builtin_base.is_some() {
+        format!(
+            "{}\n{}",
             i18n.__("修改将保存为本地覆盖层，可随时恢复 Iced 内置默认值。"),
+            i18n.__("内置覆盖层标识由主题名派生。"),
         )
+        .into()
     } else if is_bundled_preset {
-        settings_group_heading(title, i18n.__("此预设可编辑并随时恢复嵌入默认值，但不可删除。"))
+        i18n.__("此预设可编辑并随时恢复嵌入默认值。").into()
     } else {
-        settings_group_heading_with_help(
-            i18n,
-            &app.app_theme,
-            title,
-            i18n.__("按 Tab 分段编辑命名、配色、资源与控件皮肤，预览后保存到本地仓库。"),
-        )
+        i18n.__("按 Tab 分段编辑命名、配色、资源与控件皮肤，预览后保存到本地仓库。").into()
+    };
+    let heading = settings_group_heading_with_help(i18n, &app.app_theme, title, description);
+    let heading = if is_bundled_preset {
+        column![heading, text(i18n.__("预设不可删除。")).size(13).style(settings_muted_text_style),]
+            .spacing(6)
+            .into()
+    } else {
+        heading
     };
 
     let tabs = settings_tab_row(editor_tab_labels().iter().map(|(label, tab)| {

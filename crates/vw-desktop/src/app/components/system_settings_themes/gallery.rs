@@ -2,7 +2,7 @@
 
 use crate::app::components::system_settings_common::{
     danger_action_btn_style, primary_action_btn_style, rounded_action_btn_style,
-    settings_error_banner, settings_group_heading, settings_muted_text_style,
+    settings_error_banner, settings_group_heading_with_help, settings_muted_text_style,
     settings_page_heading_with_help, settings_panel_style, settings_value_badge,
 };
 use crate::app::message::settings::{SettingsMessage, ThemesMessage};
@@ -252,49 +252,34 @@ fn gallery_card_style(theme: &Theme) -> iced::widget::container::Style {
 
 fn gallery_card<'a>(app: &'a App, entry: &'a ThemeGalleryEntry) -> Element<'a, Message> {
     let is_active = entry_is_active(app, entry);
+    let i18n = crate::app::i18n::I18n::new(app.desktop_locale);
     let source_label = match entry.source {
-        ThemeGallerySource::Builtin => {
-            if entry.modified {
-                crate::app::i18n::I18n::new(app.desktop_locale).__("已修改")
-            } else {
-                crate::app::i18n::I18n::new(app.desktop_locale).__("内置")
-            }
-        }
-        ThemeGallerySource::Preset => crate::app::i18n::I18n::new(app.desktop_locale).__("预设"),
-        ThemeGallerySource::Custom => crate::app::i18n::I18n::new(app.desktop_locale).__("自定义"),
+        ThemeGallerySource::Builtin => i18n.__("内置"),
+        ThemeGallerySource::Preset => i18n.__("预设"),
+        ThemeGallerySource::Custom => i18n.__("自定义"),
     };
 
     let mut badges = row![settings_value_badge(source_label)].spacing(6);
+    if entry.modified {
+        badges = badges.push(settings_value_badge(i18n.__("已修改")));
+    }
     if is_active {
-        badges = badges.push(settings_value_badge(
-            crate::app::i18n::I18n::new(app.desktop_locale).__("当前应用"),
-        ));
+        badges = badges.push(settings_value_badge(i18n.__("当前应用")));
     }
 
-    let header = column![
-        text(entry.name.as_str()).size(14).wrapping(text::Wrapping::WordOrGlyph),
-        text(entry.tagline.clone().unwrap_or_else(|| match entry.source {
-            ThemeGallerySource::Builtin => {
-                if entry.modified {
-                    crate::app::i18n::I18n::new(app.desktop_locale)
-                        .__("本地覆盖的内置主题")
-                        .to_string()
-                } else {
-                    crate::app::i18n::I18n::new(app.desktop_locale).__("Iced 内置主题").to_string()
-                }
-            }
-            ThemeGallerySource::Preset =>
-                crate::app::i18n::I18n::new(app.desktop_locale).__("内置预设主题").to_string(),
-            ThemeGallerySource::Custom =>
-                crate::app::i18n::I18n::new(app.desktop_locale).__("本地自定义主题").to_string(),
-        }))
-        .size(12)
-        .wrapping(text::Wrapping::WordOrGlyph)
-        .style(settings_muted_text_style),
-        badges.wrap(),
-    ]
-    .spacing(6)
-    .width(Length::Fill);
+    let mut header =
+        column![text(entry.name.as_str()).size(14).wrapping(text::Wrapping::WordOrGlyph)]
+            .spacing(6)
+            .width(Length::Fill);
+    if let Some(tagline) = entry.tagline.as_deref() {
+        header = header.push(
+            text(tagline)
+                .size(12)
+                .wrapping(text::Wrapping::WordOrGlyph)
+                .style(settings_muted_text_style),
+        );
+    }
+    let header = header.push(badges.wrap());
 
     let apply_msg = match entry.source {
         ThemeGallerySource::Builtin => Message::Settings(SettingsMessage::Themes(
@@ -501,10 +486,16 @@ pub fn view(app: &App) -> Element<'_, Message> {
             i18n.__("主题"),
             i18n.__("浏览内置、预设与自定义主题，应用或管理本地主题包。"),
         ),
-        settings_group_heading(
-            crate::app::i18n::I18n::new(app.desktop_locale).__("主题画廊"),
-            crate::app::i18n::I18n::new(app.desktop_locale).__(
-                "所有主题均可导出；预设主题可编辑并恢复默认、不可删除，自定义主题可编辑或删除。"
+        settings_group_heading_with_help(
+            i18n,
+            &app.app_theme,
+            i18n.__("主题画廊"),
+            format!(
+                "{}\n{}",
+                i18n.__(
+                    "所有主题均可导出；预设主题可编辑并恢复默认、不可删除，自定义主题可编辑或删除。"
+                ),
+                i18n.__("内置主题的编辑保存为本地覆盖，可恢复默认。"),
             ),
         ),
         toolbar,

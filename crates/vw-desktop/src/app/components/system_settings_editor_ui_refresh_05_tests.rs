@@ -511,7 +511,7 @@ async fn ui_refresh_05_theme_name_and_color_picker_keep_original_messages() {
     let input = scene.bounds(&[0, 1, 0, 0, 1, 0, 2, 0, 1, 0, 0]);
     let text = scene.bounds(&[0, 1, 0, 0, 1, 0, 2, 0, 1, 0, 0, 0]);
     assert!((input.center_y() - text.center_y()).abs() < 0.5);
-    let id = scene.bounds(&[0, 1, 0, 0, 1, 0, 0, 0, 1, 0]);
+    let id = scene.bounds(&[0, 1, 0, 0, 1, 0, 0, 0, 1, 0, 0]);
     let ime_commit = Event::InputMethod(iced::advanced::input_method::Event::Commit("示例".into()));
     assert!(scene.click(id.center()).is_empty());
     assert!(scene.dispatch(ime_commit.clone(), mouse::Cursor::Unavailable).is_empty());
@@ -548,4 +548,379 @@ async fn ui_refresh_05_theme_name_and_color_picker_keep_original_messages() {
         scene.click(save).as_slice(),
         [Message::Settings(SettingsMessage::Themes(ThemesMessage::ColorPickerClosed))]
     ));
+}
+
+#[derive(Default)]
+struct ThemeText(Vec<(String, Rectangle)>);
+
+impl Operation for ThemeText {
+    fn traverse(&mut self, children: &mut dyn FnMut(&mut dyn Operation)) {
+        children(self);
+    }
+
+    fn text(&mut self, _: Option<&iced::advanced::widget::Id>, bounds: Rectangle, value: &str) {
+        self.0.push((value.to_owned(), bounds));
+    }
+}
+
+impl Scene<'_> {
+    fn theme_text(&mut self) -> ThemeText {
+        let mut text = ThemeText::default();
+        self.element.as_widget_mut().operate(
+            &mut self.tree,
+            Layout::new(&self.node),
+            &self.renderer,
+            &mut text,
+        );
+        text
+    }
+
+    fn text_bounds(&mut self, expected: &str) -> Rectangle {
+        self.theme_text()
+            .0
+            .into_iter()
+            .find_map(|(value, bounds)| (value == expected).then_some(bounds))
+            .unwrap_or_else(|| panic!("missing text: {expected}"))
+    }
+
+    fn assert_hidden(&mut self, expected: &str) {
+        assert!(
+            !self.theme_text().0.iter().any(|(value, _)| value.contains(expected)),
+            "static help is still in the body: {expected}"
+        );
+    }
+
+    fn assert_theme_help(&mut self, theme: &Theme, title: Rectangle, expected: &[&str]) {
+        for text in expected {
+            self.assert_hidden(text);
+        }
+        let point = Point::new(title.x + title.width + 15.0, title.center_y());
+        let cursor = mouse::Cursor::Available(point);
+        let idle = self.snapshot(theme, cursor, "");
+        assert!(self.hover(point).is_empty());
+        let card = self.overlay_bounds().expect("hover opens the help card");
+        assert!(card.x >= 0.0 && card.y >= 0.0);
+        assert!(card.x + card.width <= self.viewport.width);
+        assert!(card.y + card.height <= self.viewport.height);
+        assert!(self.snapshot(theme, cursor, "") != idle);
+        assert!(
+            self.dispatch(Event::Mouse(mouse::Event::CursorLeft), mouse::Cursor::Unavailable)
+                .is_empty()
+        );
+        assert!(self.overlay_bounds().is_none());
+
+        assert!(self.click(point).is_empty());
+        assert!(
+            self.dispatch(Event::Mouse(mouse::Event::CursorLeft), mouse::Cursor::Unavailable)
+                .is_empty()
+        );
+        let card = self.overlay_bounds().expect("click pins the help card");
+        let start = Point::new(card.x + 12.5, card.y + 15.0);
+        let end = Point::new(card.x + card.width - 1.0, card.y + card.height - 1.0);
+        for (position, event) in [
+            (start, mouse::Event::ButtonPressed(mouse::Button::Left)),
+            (end, mouse::Event::CursorMoved { position: end }),
+            (end, mouse::Event::ButtonReleased(mouse::Button::Left)),
+        ] {
+            assert!(
+                self.dispatch(Event::Mouse(event), mouse::Cursor::Available(position)).is_empty()
+            );
+        }
+        let copy = Key::Character("c".into());
+        let copied = self.dispatch(
+            Event::Keyboard(keyboard::Event::KeyPressed {
+                key: copy.clone(),
+                modified_key: copy,
+                physical_key: keyboard::key::Physical::Code(keyboard::key::Code::KeyC),
+                location: keyboard::Location::Standard,
+                modifiers: if cfg!(target_os = "macos") {
+                    keyboard::Modifiers::LOGO
+                } else {
+                    keyboard::Modifiers::CTRL
+                },
+                text: None,
+                repeat: false,
+            }),
+            mouse::Cursor::Unavailable,
+        );
+        assert!(
+            matches!(copied.as_slice(), [Message::CopyCode(value)] if expected.iter().all(|text| value.contains(text))),
+            "the card contains selectable localized help: {copied:?}"
+        );
+        assert!(self.key(Named::Escape).is_empty());
+        assert!(self.overlay_bounds().is_none(), "Escape closes the pinned help");
+    }
+}
+
+struct TestThemesRoot(tempfile::TempDir);
+
+impl TestThemesRoot {
+    fn new() -> Self {
+        use crate::app::theme_catalog::{ensure_bundled_presets, set_test_themes_root};
+        let dir = tempfile::tempdir().unwrap();
+        ensure_bundled_presets(dir.path()).unwrap();
+        set_test_themes_root(Some(dir.path().to_path_buf()));
+        Self(dir)
+    }
+}
+
+impl Drop for TestThemesRoot {
+    fn drop(&mut self) {
+        crate::app::theme_catalog::set_test_themes_root(None);
+    }
+}
+
+fn handle_theme_message(app: &mut App, messages: Vec<Message>) {
+    let [Message::Settings(message @ SettingsMessage::Themes(_))] = messages.as_slice() else {
+        panic!("expected a theme action, got {messages:?}");
+    };
+    let _ = crate::app::message::settings::update(app, message.clone());
+}
+
+const GALLERY_RULE: &str =
+    "所有主题均可导出；预设主题可编辑并恢复默认、不可删除，自定义主题可编辑或删除。";
+const BUILTIN_RULE: &str = "修改将保存为本地覆盖层，可随时恢复 Iced 内置默认值。";
+const PRESET_RULE: &str = "此预设可编辑并随时恢复嵌入默认值，但不可删除。";
+const ID_RULE: &str = "由名称自动生成；冲突时追加后缀";
+const THEME_HELP_LAYOUTS: [(Theme, u32); 4] =
+    [(Theme::Light, 960), (Theme::Dark, 960), (Theme::Light, 420), (Theme::Dark, 420)];
+
+#[tokio::test]
+async fn settings_help_gap_02_gallery_rules_and_card_status() {
+    use crate::app::i18n::I18n;
+    use gallery::{ThemeGalleryEntry, ThemeGallerySource};
+
+    let mut app = fixture();
+    app.themes_settings.entries = vec![
+        ThemeGalleryEntry {
+            id: "Light".into(),
+            name: "Light".into(),
+            tagline: None,
+            source: ThemeGallerySource::Builtin,
+            palette: gallery::palette_hex_from_theme(&Theme::Light),
+            cover_path: None,
+            modified: true,
+        },
+        ThemeGalleryEntry {
+            id: "custom-fixture".into(),
+            name: "Custom fixture".into(),
+            tagline: Some("Fixture tagline".into()),
+            source: ThemeGallerySource::Custom,
+            palette: gallery::palette_hex_from_theme(&Theme::Light),
+            cover_path: None,
+            modified: false,
+        },
+    ];
+    app.active_custom_theme_id = Some("custom-fixture".into());
+    for locale in [
+        DesktopLocale::SimplifiedChinese,
+        DesktopLocale::TraditionalChinese,
+        DesktopLocale::English,
+    ] {
+        let i18n = I18n::new(locale);
+        app.desktop_locale = locale;
+        for (theme, width) in THEME_HELP_LAYOUTS {
+            app.app_theme = theme.clone();
+            let mut scene = Scene::new(system_settings_themes::view(&app), width, 880).await;
+            scene.assert_hidden(i18n.__(GALLERY_RULE));
+            scene.assert_hidden(i18n.__("本地覆盖的内置主题"));
+            for status in
+                [i18n.__("内置"), i18n.__("已修改"), i18n.__("当前应用"), "Fixture tagline"]
+            {
+                scene.text_bounds(status);
+            }
+            let title = scene.text_bounds(i18n.__("主题画廊"));
+            scene.assert_theme_help(
+                &theme,
+                title,
+                &[i18n.__(GALLERY_RULE), i18n.__("内置主题的编辑保存为本地覆盖，可恢复默认。")],
+            );
+            let export = scene.bounds(&[3, 0, 0, 2, 1]).center();
+            assert!(matches!(
+                scene.click(export).as_slice(),
+                [Message::Settings(SettingsMessage::Themes(ThemesMessage::ExportPack(id)))] if id == "Light"
+            ));
+        }
+    }
+}
+
+#[tokio::test]
+async fn settings_help_gap_02_gallery_opens_builtin_and_preset_editors() {
+    use crate::app::i18n::I18n;
+    use crate::app::theme_catalog::{ThemeStore, list_bundled_preset_ids};
+    use gallery::ThemeGallerySource;
+
+    let mut app = fixture();
+    let root = TestThemesRoot::new();
+    let store = ThemeStore::new(root.0.path());
+    let entries = gallery::build_gallery_entries(Some(&store)).unwrap();
+    let preset_id = list_bundled_preset_ids().remove(0);
+    let builtin = entries
+        .iter()
+        .find(|entry| entry.id == "Dark" && entry.source == ThemeGallerySource::Builtin)
+        .unwrap();
+    let preset = entries.iter().find(|entry| entry.id == preset_id).unwrap();
+
+    for (entry, title, rule) in
+        [(builtin, "编辑内置主题", BUILTIN_RULE), (preset, "编辑主题", PRESET_RULE)]
+    {
+        for locale in [
+            DesktopLocale::SimplifiedChinese,
+            DesktopLocale::TraditionalChinese,
+            DesktopLocale::English,
+        ] {
+            let i18n = I18n::new(locale);
+            app.desktop_locale = locale;
+            for (theme, width) in THEME_HELP_LAYOUTS {
+                app.app_theme = theme.clone();
+                app.themes_settings.entries = vec![entry.clone()];
+                let mut scene = Scene::new(system_settings_themes::view(&app), width, 800).await;
+                let edit = scene.text_bounds(i18n.__("编辑")).center();
+                let messages = scene.click(edit);
+                drop(scene);
+                handle_theme_message(&mut app, messages);
+                assert_eq!(app.themes_settings.mode, ThemesSettingsMode::Edit);
+
+                let gallery = system_settings_themes::view(&app);
+                let mut scene =
+                    Scene::new(system_settings_themes::editor_overlay(&app, gallery), width, 800)
+                        .await;
+                scene.assert_hidden(i18n.__(rule));
+                scene.text_bounds(i18n.__("标识只读"));
+                if entry.source == ThemeGallerySource::Preset {
+                    scene.text_bounds(i18n.__("预设不可删除。"));
+                    assert!(
+                        !scene.theme_text().0.iter().any(|(value, _)| value == i18n.__("删除"))
+                    );
+                }
+                let title = scene.text_bounds(i18n.__(title));
+                if entry.source == ThemeGallerySource::Preset {
+                    scene.assert_theme_help(
+                        &theme,
+                        title,
+                        &[i18n.__("此预设可编辑并随时恢复嵌入默认值。")],
+                    );
+                } else {
+                    let derivation = i18n.__("内置覆盖层标识由主题名派生。");
+                    scene.assert_hidden(derivation);
+                    scene.assert_theme_help(&theme, title, &[i18n.__(rule), derivation]);
+                }
+                let restore = scene.text_bounds(i18n.__("恢复默认")).center();
+                let messages = scene.click(restore);
+                match (entry.source, messages.as_slice()) {
+                    (
+                        ThemeGallerySource::Builtin,
+                        [
+                            Message::Settings(SettingsMessage::Themes(
+                                ThemesMessage::RestoreBuiltinDefault(id),
+                            )),
+                        ],
+                    )
+                    | (
+                        ThemeGallerySource::Preset,
+                        [
+                            Message::Settings(SettingsMessage::Themes(
+                                ThemesMessage::RestorePresetDefault(id),
+                            )),
+                        ],
+                    ) => assert_eq!(id, &entry.id),
+                    _ => panic!("unexpected restore action: {messages:?}"),
+                }
+                drop(scene);
+                handle_theme_message(&mut app, messages);
+                assert_eq!(app.themes_settings.mode, ThemesSettingsMode::List);
+            }
+        }
+    }
+}
+
+#[tokio::test]
+async fn settings_help_gap_02_creation_help_keeps_validation_and_picker() {
+    use crate::app::i18n::I18n;
+
+    let mut app = fixture();
+    let _root = TestThemesRoot::new();
+    let i18n = I18n::new(DesktopLocale::SimplifiedChinese);
+    app.desktop_locale = DesktopLocale::SimplifiedChinese;
+    app.app_theme = Theme::Dark;
+    let mut scene = Scene::new(system_settings_themes::view(&app), 420, 800).await;
+    let new = scene.text_bounds(i18n.__("新建主题")).center();
+    let messages = scene.click(new);
+    drop(scene);
+    handle_theme_message(&mut app, messages);
+
+    let mut scene = Scene::new(editor::view(&app), 420, 680).await;
+    scene.assert_hidden(i18n.__(ID_RULE));
+    scene.assert_hidden(i18n.__("名称必填；新建时标识由名称生成。"));
+    scene.text_bounds(i18n.__("名称必填。"));
+    let id = scene.text_bounds(i18n.__("标识"));
+    scene.assert_theme_help(&Theme::Dark, id, &[i18n.__(ID_RULE)]);
+    let chrome = scene.text_bounds(i18n.__("控件皮肤")).center();
+    let messages = scene.click(chrome);
+    drop(scene);
+    handle_theme_message(&mut app, messages);
+
+    let mut scene = Scene::new(editor::view(&app), 420, 680).await;
+    scene.assert_hidden(i18n.__("可选覆盖；非法 hex 会阻止保存。"));
+    scene.text_bounds(i18n.__("非法 hex 会阻止保存。"));
+    let heading = scene.bounds(&[0, 1, 0, 0, 0, 0, 0]);
+    scene.assert_theme_help(&Theme::Dark, heading, &[i18n.__("可选覆盖。")]);
+    let palette = scene.text_bounds(i18n.__("调色板")).center();
+    let messages = scene.click(palette);
+    drop(scene);
+    handle_theme_message(&mut app, messages);
+
+    let target = ThemeColorPickerTarget::Palette(ThemePaletteField::Background);
+    let mut scene = Scene::new(editor::view(&app), 420, 680).await;
+    scene.text_bounds(i18n.__("仅支持 #rrggbb 十六进制颜色。"));
+    let swatch = scene.bounds(&[0, 1, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0]).center();
+    let messages = scene.click(swatch);
+    assert!(matches!(messages.as_slice(),
+        [Message::Settings(SettingsMessage::Themes(ThemesMessage::ColorPickerToggled(value)))] if *value == target));
+    drop(scene);
+    handle_theme_message(&mut app, messages);
+
+    let mut scene = Scene::new(editor::view(&app), 420, 680).await;
+    let scroll = scene.bounds(&[0, 1]);
+    scene.overlay_bounds_inside(scroll).expect("color picker popover");
+    scene.snapshot(&Theme::Dark, mouse::Cursor::Unavailable, "theme-help-gap-picker");
+    let cancel = scene.text_bounds(i18n.__("取消")).center();
+    let messages = scene.click(cancel);
+    assert!(matches!(
+        messages.as_slice(),
+        [Message::Settings(SettingsMessage::Themes(ThemesMessage::ColorPickerClosed))]
+    ));
+    drop(scene);
+    handle_theme_message(&mut app, messages);
+
+    handle_theme_message(
+        &mut app,
+        vec![Message::Settings(SettingsMessage::Themes(ThemesMessage::DraftPaletteChanged(
+            ThemePaletteField::Background,
+            "invalid-color".into(),
+        )))],
+    );
+    handle_theme_message(
+        &mut app,
+        vec![Message::Settings(SettingsMessage::Themes(ThemesMessage::DraftNameChanged(
+            "Fixture theme".into(),
+        )))],
+    );
+    let mut scene = Scene::new(editor::view(&app), 420, 680).await;
+    let save = scene.text_bounds(i18n.__("保存")).center();
+    let messages = scene.click(save);
+    drop(scene);
+    handle_theme_message(&mut app, messages);
+    let error = app.themes_settings.error.as_deref().expect("invalid color rejected");
+    let mut scene = Scene::new(editor::view(&app), 420, 680).await;
+    scene.text_bounds(error);
+    scene.snapshot(&Theme::Dark, mouse::Cursor::Unavailable, "");
+    let cancel = scene.text_bounds(i18n.__("取消")).center();
+    let messages = scene.click(cancel);
+    drop(scene);
+    handle_theme_message(&mut app, messages);
+    assert!(app.themes_settings.draft.is_none());
+
+    let mut empty = Scene::new(editor::view(&app), 420, 680).await;
+    empty.text_bounds(i18n.__("当前没有可编辑的草稿。"));
 }

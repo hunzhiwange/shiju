@@ -247,13 +247,23 @@ async fn run(mode: &str) {
             "messages" => ("/v1/messages", "anthropic"),
             _ => panic!("unsupported fixture protocol"),
         };
+    let opencode_effort = agent == "opencode" && input["effort_check"] == true;
+    let mut primary = json!({
+        "id":"acp-fixture-primary","status":"active","tool_call":true,
+        "temperature":true,"reasoning":agent == "copilot"
+    });
+    if opencode_effort {
+        primary["id"] = json!("gpt-5.1");
+        primary["reasoning"] = json!(true);
+        primary["reasoning_options"] = json!([{"type":"effort","values":["low","high","unknown"]}]);
+    }
     crate::config::update_project_for_tenant(&tenant, root, json!({
         "acp": {agent: config},
         "providers": {"acp-offline-acceptance": {
             "api": format!("{}{upstream_path}", input["fixture"].as_str().unwrap()),
             "adapter":upstream_adapter, "env":["VW_ACP_OFFLINE_FIXTURE_KEY"],
             "models": {
-                "acp-fixture-primary":{"id":"acp-fixture-primary","status":"active","tool_call":true,"temperature":true,"reasoning":agent == "copilot"},
+                "acp-fixture-primary":primary,
                 "acp-fixture-switched":{"id":"acp-fixture-switched","status":"active","tool_call":true,"temperature":true,"reasoning":agent == "copilot"}
             }
         }}
@@ -273,6 +283,10 @@ async fn run(mode: &str) {
         assert!(resolved_launch.command == expected_launch.command
             && resolved_launch.args == expected_launch.args,
             "production did not select the pinned real CLI override");
+        if opencode_effort {
+            opencode_effort_run(&input, &model, &info).await;
+            return;
+        }
         let mut flow = json!({"isolated":true});
         checkpoint(&flow);
         let prompt = "Read challenge.txt twice using your file read tool, then reply.";
@@ -371,6 +385,83 @@ async fn run(mode: &str) {
         assert!(accepted(&observed, mode), "actual model observations did not satisfy acceptance");
     })
     .await;
+}
+
+async fn opencode_effort_run(input: &Value, model: &provider::Model, info: &provider::Info) {
+    use super::super::{controls, lifecycle};
+    use vw_api_types::acp_session::{AcpOptionKind, AcpSessionSelection};
+
+    let directory = input["root"].as_str().unwrap();
+    let session = format!("real-cli-offline-{}", input["challenge"].as_str().unwrap());
+    let mut flow = json!({});
+    let mut check = |key: &str, passed: bool| {
+        flow[key] = json!(passed);
+        checkpoint(&flow);
+        assert!(passed, "OpenCode effort checkpoint failed: {key}");
+    };
+    check("isolated", true);
+    check("default_turn", request(input, model, info, "ACP_EFFORT_DEFAULT", false).await);
+    let store = lifecycle::Store::open(&session, directory).unwrap();
+    let anchor = store.read().unwrap().unwrap();
+    let original = vw_acp::resolve_session_record(&anchor.record_id).await.unwrap();
+    let options = controls::read(&session, directory).await.unwrap();
+    check(
+        "managed_model",
+        anchor.agent == "opencode"
+            && anchor.model.model.as_deref() == Some("acp-fixture-primary")
+            && anchor.model.source == vw_api_types::acp_model_source::AcpModelSource::SessionModel,
+    );
+    let kind = AcpOptionKind::Config { id: "effort".into() };
+    let effort = options.options.iter().find(|option| option.kind == kind);
+    check(
+        "advertised",
+        effort.is_some_and(|option| {
+            let variants: std::collections::BTreeSet<_> = option
+                .choices
+                .iter()
+                .map(|choice| choice.id.as_str())
+                .filter(|id| *id != "default")
+                .collect();
+            variants == ["high", "low"].into_iter().collect()
+        }),
+    );
+    let select = |value: &str| {
+        controls::select(
+            &session,
+            directory,
+            AcpSessionSelection { kind: kind.clone(), value: value.into() },
+        )
+    };
+    for (value, prompt, key) in
+        [("low", "ACP_EFFORT_A", "low_turn"), ("high", "ACP_EFFORT_B", "high_turn")]
+    {
+        let options = select(value).await.expect("select advertised OpenCode effort");
+        assert!(
+            options.options.iter().any(|option| option.kind == kind && option.current == value)
+        );
+        check(key, request(input, model, info, prompt, false).await);
+    }
+    let rejected = select("medium").await.is_err();
+    let options = controls::read(&session, directory).await.unwrap();
+    check(
+        "invalid_rejected",
+        rejected
+            && options.options.iter().any(|option| option.kind == kind && option.current == "high"),
+    );
+    let latest = store.read().unwrap().unwrap();
+    let record = vw_acp::resolve_session_record(&latest.record_id).await.unwrap();
+    check(
+        "same_session",
+        latest.record_id == anchor.record_id
+            && !original.acp_session_id.is_empty()
+            && record.acp_session_id == original.acp_session_id,
+    );
+}
+
+#[tokio::test]
+#[ignore = "requires the pinned OpenCode CLI and an owned offline Chat fixture"]
+async fn acp_model_source_opencode_effort_real_cli() {
+    run("session-model").await;
 }
 
 #[tokio::test]

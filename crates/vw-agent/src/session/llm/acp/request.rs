@@ -767,12 +767,12 @@ pub(crate) async fn do_stream_request_acp(
         }
 
         let now = vw_acp::iso_now();
-        if acp_agent_name == "codex"
-            && let Some(profile) = launch_profile.as_ref()
-            && profile
-                .model_api
-                .as_ref()
-                .is_some_and(super::model_source::drivers::codex::uses_native_responses)
+        if let Some(profile) = launch_profile.as_ref()
+            && profile.model_api.as_ref().is_some_and(|api| match acp_agent_name.as_str() {
+                "codex" => super::model_source::drivers::codex::uses_native_responses(api),
+                "opencode" => crate::model_relay::chat_url(api).is_ok(),
+                _ => false,
+            })
         {
             let options = cached_client
                 .client
@@ -783,7 +783,7 @@ pub(crate) async fn do_stream_request_acp(
                 .into_iter()
                 .filter(|option| {
                     profile.model_supports_reasoning
-                        && super::controls::is_codex_effort_config(option)
+                        && super::controls::is_managed_effort_config(&acp_agent_name, option)
                 })
                 .collect();
             vw_acp::sync_config_options(&mut record, Some(effort));

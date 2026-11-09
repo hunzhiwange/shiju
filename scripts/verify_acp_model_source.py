@@ -20,7 +20,32 @@ from acp_model_source_pi import PiIdentityError, pi_identity
 ROOT = Path(__file__).resolve().parents[1]
 TESTS = {"session-model": "acp_model_source_real_cli_session_model",
          "cli-local": "acp_model_source_real_cli_cli_local"}
-EFFORT_CHECKS = {}
+
+
+def configure_opencode_effort_fixture(fixture):
+    fixture.models = ("gpt-5.1",)
+    fixture.chat_effort_probe = True
+
+
+def opencode_effort_successful(evidence, flow):
+    requests = evidence["requests"]
+    return (all(flow[key] for key in OPENCODE_EFFORT_CHECKPOINTS)
+            and evidence["errors"] == 0
+            and all(row["authenticated"] and row["route"] == "/v1/chat/completions"
+                    and row["model"] == "gpt-5.1" for row in requests)
+            and all([row["reasoning_effort"] for row in requests if row["turn"] == turn] == [effort]
+                    for turn, effort in (("DEFAULT", None), ("A", "low"), ("B", "high"))))
+
+
+OPENCODE_EFFORT_CHECKPOINTS = ("isolated", "default_turn", "managed_model", "advertised",
+                             "low_turn", "high_turn", "invalid_rejected", "same_session")
+EFFORT_CHECKS = {("opencode", "session-model"): {
+    "test": "acp_model_source_opencode_effort_real_cli",
+    "configure_fixture": configure_opencode_effort_fixture,
+    "identity": lambda: {"engine": "1.19.5", "openai_compatible_sdk": "2.0.41"},
+    "checkpoints": OPENCODE_EFFORT_CHECKPOINTS,
+    "successful": opencode_effort_successful,
+}}
 
 
 class Unavailable(Exception):
@@ -328,13 +353,16 @@ def run(args):
         if len(entries) != 1:
             raise Unavailable("manifest must identify exactly one agent")
         entry = entries[0]
+        opencode_effort = args.agent == "opencode" and effort_check is not None
+        if opencode_effort and entry["distribution"]["release"] != "1.19.5":
+            raise VersionMismatch("OpenCode effort check requires the reviewed 1.19.5 release")
         upstream_protocol = entry.get("offline_acceptance", {}).get(args.mode, {}).get("upstream_protocol", "chat")
         if upstream_protocol not in ("chat", "messages"):
             raise Unavailable("unsupported offline fixture protocol")
         with tempfile.TemporaryDirectory(prefix="acp-model-acceptance-") as temp, ModelFixture() as fixture, ExitStack() as owned:
             if effort_check:
                 effort_check["configure_fixture"](fixture)
-            root = Path(temp)
+            root = Path(temp).resolve() if opencode_effort else Path(temp)
             os.chmod(root, 0o700)
             native = root / "native"
             native.mkdir(mode=0o700)
@@ -344,6 +372,15 @@ def run(args):
             env.update(CARGO_TARGET_DIR=slot, CARGO_BUILD_BUILD_DIR=slot,
                        VIBEWINDOW_CONFIG_DIR=str(root / "config"))
             native_env = isolated_environment(entry, native, fixture, args.mode)
+            if opencode_effort:
+                for key in ("XDG_CONFIG_HOME", "XDG_DATA_HOME", "XDG_STATE_HOME",
+                            "XDG_CACHE_HOME", "OPENCODE_TEST_HOME"):
+                    path = native / key.lower()
+                    path.mkdir(mode=0o700)
+                    native_env[key] = str(path)
+                (root / "opencode.json").write_text(json.dumps({
+                    "model": "forbidden/local", "small_model": "forbidden/small",
+                    "agent": {"build": {"model": "forbidden/main"}}}))
             env.update(native_env)
             if args.agent == "claude" and args.mode == "session-model":
                 project_settings = root / ".claude/settings.local.json"
@@ -402,7 +439,8 @@ def run(args):
             runtime.write_text(json.dumps({"agent": args.agent, "mode": args.mode, "upstream_protocol": upstream_protocol,
                                           "config": config, "isolation_env": native_env, "root": str(root),
                                           "fixture": fixture.url, "key": fixture.key,
-                                          "control": fixture.control, "challenge": fixture.challenge}))
+                                          "control": fixture.control, "challenge": fixture.challenge,
+                                          "effort_check": bool(effort_check)}))
             os.chmod(runtime, 0o600)
             flow_path = root / "flow.json"
             env.update(VW_ACP_ACCEPTANCE_MANIFEST=str(runtime), VW_ACP_ACCEPTANCE_FLOW=str(flow_path))

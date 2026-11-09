@@ -1,6 +1,7 @@
 use super::AcpLaunchProfile;
 use serde_json::json;
 use std::{collections::HashMap, path::Path};
+use vw_shared::provider::reasoning::{ReasoningFormat, reasoning_levels, reasoning_profile};
 
 /// OpenCode 1.19.5 merges inline configuration after project and home agents.
 /// Isolate both XDG state and its dedicated home lookup; never change the tool HOME.
@@ -80,15 +81,41 @@ pub(super) fn configure(profile: &mut AcpLaunchProfile, endpoint: &str) -> anyho
             .into_iter()
             .map(|name| (name.into(), json!({"model": model})))
             .collect();
+    // The relay authenticates the catalog key and substitutes the upstream API ID.
+    let mut model_config = json!({
+        "name": "Session model", "id": profile.model_alias,
+        "limit": {"context": profile.model_context_limit.max(1), "output": profile.model_output_limit.max(1)},
+        "tool_call": profile.model_supports_tool_call, "temperature": profile.model_supports_temperature,
+        "reasoning": profile.model_supports_reasoning,
+    });
+    if npm == "@ai-sdk/openai-compatible" && crate::model_relay::chat_url(api).is_ok() {
+        // A reasoning boolean would otherwise make OpenCode infer Chat variants.
+        model_config["reasoning_options"] = json!([]);
+        let provider = &profile.binding.identity.provider;
+        if profile.model_supports_reasoning
+            && let Some(declared) = profile.model_reasoning_options.as_deref()
+            && reasoning_profile(&api.id, &api.adapter, provider, &api.url).format
+                == ReasoningFormat::OpenAi
+        {
+            let levels =
+                reasoning_levels(&api.id, &api.adapter, provider, &api.url, Some(declared));
+            if !levels.is_empty() {
+                // The native ACP selects the first variant unless "default" exists.
+                let mut variants = serde_json::Map::from_iter([("default".into(), json!({}))]);
+                variants.extend(levels.into_iter().map(|level| {
+                    let settings = json!({"reasoningEffort": level});
+                    (level, settings)
+                }));
+                model_config["variants"] = variants.into();
+            }
+        }
+    }
     let config = json!({
         "model": model, "small_model": model, "enabled_providers": ["session-provider"],
         "agent": agents, "autoupdate": false, "share": "disabled",
         "provider": {"session-provider": {"npm": npm, "env": [], "whitelist": [profile.model_alias],
             "options": {"baseURL": format!("{endpoint}{suffix}"), "apiKey": "{env:VW_OPENCODE_RELAY_TOKEN}"},
-            "models": {profile.model_alias.clone(): {"name": "Session model", "id": profile.model_alias,
-                "limit": {"context": profile.model_context_limit.max(1), "output": profile.model_output_limit.max(1)},
-                "tool_call": profile.model_supports_tool_call, "temperature": profile.model_supports_temperature,
-                "reasoning": profile.model_supports_reasoning}}
+            "models": {profile.model_alias.clone(): model_config}
         }}
     });
     let mut env = HashMap::from([

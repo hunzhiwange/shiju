@@ -12,8 +12,19 @@ pub(super) fn is_model_config(option: &agent_client_protocol::SessionConfigOptio
     option.category == Some(SessionConfigOptionCategory::Model) || option.id.0.as_ref() == "model"
 }
 
-pub(super) fn is_codex_effort_config(option: &agent_client_protocol::SessionConfigOption) -> bool {
-    option.id.0.as_ref() == "reasoning_effort"
+fn managed_effort_id(agent: &str) -> Option<&'static str> {
+    match agent {
+        "codex" => Some("reasoning_effort"),
+        "opencode" => Some("effort"),
+        _ => None,
+    }
+}
+
+pub(super) fn is_managed_effort_config(
+    agent: &str,
+    option: &agent_client_protocol::SessionConfigOption,
+) -> bool {
+    managed_effort_id(agent) == Some(option.id.0.as_ref())
         && option.category == Some(SessionConfigOptionCategory::ThoughtLevel)
 }
 
@@ -283,20 +294,18 @@ async fn connected(
     Ok(None)
 }
 
-// A managed Codex Responses launch releases its process and relay at turn end.
+// Managed launches release their process and relay at turn end.
 // The request stores only its advertised effort control for use between turns.
-async fn parked_codex_record(
-    saved: Option<&super::lifecycle::Selection>,
+async fn parked_effort_record(
+    saved: &super::lifecycle::Selection,
     directory: &str,
 ) -> Result<Option<vw_acp::SessionRecord>, String> {
-    let Some(saved) = saved.filter(|selection| {
-        selection.has_started()
-            && selection.agent == "codex"
-            && selection.model.source
-                == vw_api_types::acp_model_source::AcpModelSource::SessionModel
-    }) else {
+    if !saved.has_started()
+        || managed_effort_id(&saved.agent).is_none()
+        || saved.model.source != vw_api_types::acp_model_source::AcpModelSource::SessionModel
+    {
         return Ok(None);
-    };
+    }
     let record = vw_acp::resolve_session_record(&saved.record_id)
         .await
         .map_err(|error| error.to_string())?;
@@ -307,19 +316,20 @@ async fn parked_codex_record(
     .then_some(record))
 }
 
-fn stored_codex_effort(
-    state: &vw_acp::SessionAcpxState,
-) -> Option<&agent_client_protocol::SessionConfigOption> {
-    state.config_options.iter().flatten().find(|option| is_codex_effort_config(option))
+fn stored_effort<'a>(
+    agent: &str,
+    state: &'a vw_acp::SessionAcpxState,
+) -> Option<&'a agent_client_protocol::SessionConfigOption> {
+    state.config_options.iter().flatten().find(|option| is_managed_effort_config(agent, option))
 }
 
-fn parked_codex_options(
-    saved: Option<&super::lifecycle::Selection>,
+fn parked_effort_options(
+    saved: &super::lifecycle::Selection,
     record: &vw_acp::SessionRecord,
 ) -> AcpSessionOptions {
-    let mut projected = project_options(None, saved);
+    let mut projected = project_options(None, Some(saved));
     let Some(state) = &record.vwacp else { return projected };
-    let Some(option) = stored_codex_effort(state) else { return projected };
+    let Some(option) = stored_effort(&saved.agent, state) else { return projected };
     let mut options = native_advertised(vw_acp::SessionCapabilities {
         session_id: record.acp_session_id.clone(),
         models: None,
@@ -351,8 +361,10 @@ pub(crate) async fn read(session_id: &str, directory: &str) -> Result<AcpSession
     let mut options = project_options(info, selection.as_ref());
     if let Some((record, client)) = connection.as_ref() {
         annotate_access(&mut options, &client.client, record);
-    } else if let Some(record) = parked_codex_record(selection.as_ref(), directory).await? {
-        options = parked_codex_options(selection.as_ref(), &record);
+    } else if let Some(saved) = selection.as_ref()
+        && let Some(record) = parked_effort_record(saved, directory).await?
+    {
+        options = parked_effort_options(saved, &record);
     }
     Ok(options)
 }
@@ -371,13 +383,13 @@ pub(crate) async fn select(
         let AcpOptionKind::Config { id } = &selection.kind else {
             return Err("ACP session is not connected".into());
         };
-        let mut record = parked_codex_record(saved.as_ref(), directory)
-            .await?
-            .ok_or("ACP session is not connected")?;
+        let saved = saved.as_ref().ok_or("ACP session is not connected")?;
+        let mut record =
+            parked_effort_record(saved, directory).await?.ok_or("ACP session is not connected")?;
         let option = record
             .vwacp
             .as_ref()
-            .and_then(stored_codex_effort)
+            .and_then(|state| stored_effort(&saved.agent, state))
             .filter(|option| option.id.0.as_ref() == id)
             .ok_or("ACP option is unavailable for the current model source")?;
         let id =
@@ -392,7 +404,7 @@ pub(crate) async fn select(
             }
             return Err(format!("Failed to save ACP selection: {error}"));
         }
-        return Ok(parked_codex_options(saved.as_ref(), &record));
+        return Ok(parked_effort_options(saved, &record));
     };
     let _guard = client
         .prompt_lock

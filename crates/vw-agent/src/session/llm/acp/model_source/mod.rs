@@ -53,6 +53,7 @@ pub(super) async fn prepare(
     profile.model_context_limit = resolved.limit.context;
     profile.model_supports_temperature = resolved.capabilities.temperature;
     profile.model_supports_reasoning = resolved.capabilities.reasoning;
+    profile.model_reasoning_options = resolved.capabilities.reasoning_options.clone();
     profile.model_supports_tool_call = resolved.capabilities.toolcall;
     profile.model_api = Some(resolved.api.clone());
     let server = RelayServer::start(

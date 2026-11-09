@@ -30,6 +30,7 @@ class ModelFixture:
         self.auxiliary_profile = "general-purpose"
         self.auxiliary_model = "haiku"
         self.delay_next_request = False
+        self.chat_effort_probe = False
         self.models = ("acp-fixture-primary", "acp-fixture-switched")
         fixture = self
 
@@ -180,10 +181,19 @@ class ModelFixture:
                     with fixture.lock:
                         delay_next_request = fixture.delay_next_request
                         fixture.delay_next_request = False
-                        fixture.records.append({"model": model, "authenticated": True,
-                                                "route": self.path, "tool_results": len(tool_results),
-                                                "auxiliary": pi_summary or any("AUXILIARY_CHILD" in json.dumps(m.get("content")) for m in messages if m.get("role") == "user")
-                                                and (fixture.auxiliary_profile != "openclaw" or not any("AUXILIARY_PROBE" in json.dumps(m.get("content")) for m in messages if m.get("role") == "user"))})
+                        record = {"model": model, "authenticated": True,
+                                  "route": self.path, "tool_results": len(tool_results),
+                                  "auxiliary": pi_summary or any("AUXILIARY_CHILD" in json.dumps(m.get("content")) for m in messages if m.get("role") == "user")
+                                  and (fixture.auxiliary_profile != "openclaw" or not any("AUXILIARY_PROBE" in json.dumps(m.get("content")) for m in messages if m.get("role") == "user"))}
+                        if fixture.chat_effort_probe:
+                            user = next(m for m in reversed(messages) if m.get("role") == "user")
+                            content = json.dumps(user.get("content"))
+                            record["turn"] = next((tag for tag in ("DEFAULT", "A", "B")
+                                                   if tools and json.dumps("ACP_EFFORT_" + tag) in content), "auxiliary")
+                            effort = body.get("reasoning_effort")
+                            record["reasoning_effort"] = (effort if effort in ("low", "high")
+                                                          else "other" if "reasoning_effort" in body else None)
+                        fixture.records.append(record)
                     if delay_next_request or "CANCEL_PROBE" in json.dumps(next((m for m in reversed(messages) if m.get("role") == "user"), {})):
                         time.sleep(5)
                     # Use the real agent's declared read tool; an actual file must be read.
@@ -205,7 +215,7 @@ class ModelFixture:
                                 "function": {"name": auxiliary["name"], "arguments": json.dumps(auxiliary["input"])}}
                         message = {"role": "assistant", "content": None, "tool_calls": [call]}
                         finish = "tool_calls"
-                    elif len(tool_results) < 2 and read_tool and not (delegated and tool_results):
+                    elif not fixture.chat_effort_probe and len(tool_results) < 2 and read_tool and not (delegated and tool_results):
                         props = read_tool.get("parameters", {}).get("properties", {})
                         name = next((k for k in ("absolute_path", "file_path", "path", "filePath") if k in props), None)
                         if name is None:

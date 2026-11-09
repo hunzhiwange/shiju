@@ -28,6 +28,54 @@ fn profile() -> AcpLaunchProfile {
 }
 
 #[test]
+fn acp_model_source_opencode_variants_follow_selected_model() {
+    use vw_shared::provider::reasoning::ReasoningOption;
+
+    for (api_id, adapter, reasoning, declared, expected) in [
+        ("gpt-5.1", "openai-compatible", true, Some(vec!["low", "high", "unknown"]), true),
+        ("gpt-5.1", "openai-compatible", true, None, false),
+        ("gpt-5.1", "openai-compatible", true, Some(vec![]), false),
+        ("gpt-5.1", "openai-compatible", false, Some(vec!["low", "high"]), false),
+        ("deepseek-v4-pro", "openai-compatible", true, Some(vec!["low", "high"]), false),
+        ("gpt-5.1", "openai-responses", true, Some(vec!["low", "high"]), false),
+    ] {
+        let mut profile = profile();
+        let api = profile.model_api.as_mut().unwrap();
+        api.id = api_id.into();
+        api.adapter = adapter.into();
+        profile.model_supports_reasoning = reasoning;
+        profile.model_reasoning_options = declared.map(|values| {
+            vec![ReasoningOption::Effort {
+                values: values.into_iter().map(str::to_owned).collect(),
+            }]
+        });
+        configure(&mut profile, "http://127.0.0.1:12345").unwrap();
+        let settings: serde_json::Value =
+            serde_json::from_str(&profile.config().env["OPENCODE_CONFIG_CONTENT"]).unwrap();
+        let model = &settings["provider"]["session-provider"]["models"]["selected-model"];
+        assert_eq!(model["id"], "selected-model");
+        assert_eq!(model["reasoning"], reasoning);
+        if adapter == "openai-compatible" {
+            assert_eq!(model["reasoning_options"], json!([]));
+        } else {
+            assert!(model.get("reasoning_options").is_none());
+        }
+        if expected {
+            assert_eq!(
+                model["variants"],
+                json!({
+                    "default": {},
+                    "low": {"reasoningEffort": "low"},
+                    "high": {"reasoningEffort": "high"}
+                })
+            );
+        } else {
+            assert!(model.get("variants").is_none());
+        }
+    }
+}
+
+#[test]
 fn acp_model_source_opencode_child_reads_isolated_primary_and_auxiliary_routes() {
     let mut profile = profile();
     configure(&mut profile, "http://127.0.0.1:12345").unwrap();
@@ -37,7 +85,8 @@ c=json.loads(os.environ['OPENCODE_CONFIG_CONTENT'])
 assert c['model']==c['small_model']=='session-provider/selected-model'
 assert c['enabled_providers']==['session-provider']
 assert c['provider']['session-provider']['whitelist']==['selected-model']
-assert c['agent']['compaction']['model']==c['model']
+assert set(c['agent'])=={'build','plan','general','explore','title','summary','compaction'}
+assert all(agent['model']==c['model'] for agent in c['agent'].values())
 assert c['provider']['session-provider']['options']['baseURL']=='http://127.0.0.1:12345/v1'
 assert c['provider']['session-provider']['options']['apiKey']=='{env:VW_OPENCODE_RELAY_TOKEN}'
 for key in ['XDG_CONFIG_HOME','XDG_DATA_HOME','XDG_STATE_HOME','XDG_CACHE_HOME','OPENCODE_CONFIG_DIR','OPENCODE_TEST_HOME']:
@@ -148,10 +197,24 @@ async fn acp_model_source_opencode_missing_credentials_and_disabled_model_never_
         worktree: project.worktree.clone(),
         project,
     };
+    let relay_context = context.clone();
     crate::project::instance::provide_context(context, async {
         let config = AcpAgentConfig { command:"opencode".into(), args:vec!["acp".into()], ..Default::default() };
         let active = crate::provider::provider::get_model("opencode-offline-no-account", "active-model").await.unwrap();
-        let profile = crate::session::llm::acp::model_source::prepare("opencode", &config, &active, "missing-key").await.unwrap();
+        // Exercise the real relay without requiring a CLI installation in the unit suite.
+        let identity = crate::session::llm::acp::model_source::launch_identity(
+            relay_context.project.id.clone(), "opencode", &active, "missing-key",
+        );
+        let mut profile = AcpLaunchProfile::new(&config, identity).unwrap();
+        profile.model_api = Some(active.api.clone());
+        let server = crate::model_relay::RelayServer::start(
+            profile.binding.clone(),
+            std::sync::Arc::new(crate::model_relay::ProviderRelayBackend::new().unwrap()),
+            relay_context,
+        ).await.unwrap();
+        let relay_endpoint = format!("http://{}", server.address());
+        profile.attach_server(server);
+        configure(&mut profile, &relay_endpoint).unwrap();
         let settings: serde_json::Value = serde_json::from_str(&profile.config().env["OPENCODE_CONFIG_CONTENT"]).unwrap();
         let endpoint = settings["provider"]["session-provider"]["options"]["baseURL"].as_str().unwrap();
         let response = crate::model_relay::upstream_http_client().unwrap()

@@ -398,17 +398,7 @@ fn read_bindings(
             providers.list(scope.tenant, app).map_err(|_| AuthErrorCode::StorageUnavailable)?
         {
             let id = &provider.id;
-            let result = match (app, transactions.as_ref()) {
-                (AppId::Codex, _) => providers.codex_account_binding(scope, id),
-                (AppId::Claude, _) => providers.claude_account_binding(scope, id),
-                (AppId::Agy, _) => providers.agy_account_binding(scope, id),
-                (AppId::Kimi, Some(transactions)) => providers.kimi_account_binding(
-                    scope,
-                    &host.credential_root,
-                    &KimiNativeTarget { home: &host.home, transactions, provider_id: id },
-                ),
-                _ => return Err(AuthErrorCode::Unsupported),
-            };
+            let result = provider_binding(&providers, host, scope, app, id, transactions.as_ref());
             match result {
                 Ok(Some(account_id))
                     if account_filter.is_none_or(|filter| filter == account_id) =>
@@ -432,6 +422,57 @@ fn read_bindings(
     {
         let _ = (host, app, database, account_filter);
         Err(AuthErrorCode::Unsupported)
+    }
+}
+
+#[cfg(target_os = "macos")]
+pub(super) fn require_provider_account(
+    database: GlobalDatabase,
+    host: &AuthAccountHost,
+    scope: AuthAccountScope<'_>,
+    app: AppId,
+    provider: &str,
+    account: &str,
+) -> Result<(), AuthErrorCode> {
+    let providers =
+        AppProviderStore::new(database.clone()).map_err(|_| AuthErrorCode::StorageUnavailable)?;
+    let transactions = if app == AppId::Kimi {
+        Some(native_transactions(host)?.ok_or(AuthErrorCode::NotFound)?)
+    } else {
+        None
+    };
+    let bound = provider_binding(&providers, host, scope, app, provider, transactions.as_ref())?;
+    if bound.as_deref() != Some(account) {
+        return Err(AuthErrorCode::NotFound);
+    }
+    let accounts = AuthAccountStore::new(database, &host.credential_root)
+        .map_err(|_| AuthErrorCode::StorageUnavailable)?;
+    require_binding_account(&accounts, host, scope, account)
+}
+
+#[cfg(target_os = "macos")]
+fn provider_binding(
+    providers: &AppProviderStore,
+    host: &AuthAccountHost,
+    scope: AuthAccountScope<'_>,
+    app: AppId,
+    provider: &str,
+    transactions: Option<&Arc<ProviderTransactions>>,
+) -> Result<Option<String>, AuthErrorCode> {
+    match app {
+        AppId::Codex => providers.codex_account_binding(scope, provider),
+        AppId::Claude => providers.claude_account_binding(scope, provider),
+        AppId::Agy => providers.agy_account_binding(scope, provider),
+        AppId::Kimi => providers.kimi_account_binding(
+            scope,
+            &host.credential_root,
+            &KimiNativeTarget {
+                home: &host.home,
+                transactions: transactions.ok_or(AuthErrorCode::Unsupported)?,
+                provider_id: provider,
+            },
+        ),
+        _ => Err(AuthErrorCode::Unsupported),
     }
 }
 

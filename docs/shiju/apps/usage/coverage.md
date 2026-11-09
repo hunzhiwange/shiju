@@ -715,3 +715,23 @@ macOS 网关在配置了 `SHIJU_AGENT_APPS_ACCESS_FILE` 时运行刷新循环。
 | 共享工作区 | `cargo clippy --all-targets --all-features -- -D warnings` | 退出 0。 |
 
 独立用例使用脱敏合同数据，覆盖范围为纯投影。限定提交范围的差异检查退出 0。槽位锁已释放，编译缓存已保留。 [独立行为测试](../../../../crates/vw-agent-apps/src/usage/presentation/balance_tests.rs)
+
+## 任务 44 提供查询快照 API
+
+`GET /v1/apps/usage/snapshot` 使用 `UsageSnapshotQuery` 接收 `projectId`、`targetHostId`、`appId`、`providerId` 和可选的 `accountId`、`kind`。网关从租户中间件取得平台和公司，从应用授权令牌取得主体。主机策略的 `usage_read` 授权精确匹配项目、应用、供应商及可选账号，省略账号的授权仅适用于供应商凭据。网关在读取前验证项目、主机状态及所选资源。指定账号时复核当前供应商绑定和作用域内的账号记录。 [上游查询包装](../../../../crates/vw-agent-apps/upstream/src/lib/api/subscription.ts#L8-L48) · [上游账号切换规则](../../../../crates/vw-agent-apps/upstream/src/lib/query/subscription.ts#L45-L86) · [授权](../../../../crates/vw-agent/src/gateway/api/handlers/agent_apps/access.rs) · [快照路由](../../../../crates/vw-agent/src/gateway/api/handlers/agent_apps/usage_read.rs)
+
+`UsageSnapshotResponse` 返回可识别的查询类别和可空的脱敏快照。GET 只读取已有发布结果，后台刷新由原服务执行。General 查询复用同一服务实例和完整缓存键，配置或凭据版本变化时不会命中旧快照。`UsageCache::snapshot` 保留陈旧结果的原查询时间与本次失败，十分钟窗口到期后仅返回本次失败。当前发布源为供应商凭据的 General 查询。已绑定账号可读取官方订阅能力，托管账号的快照读写需随刷新入口接入。 [上游快照发布](../../../../crates/vw-agent-apps/upstream/src-tauri/src/commands/subscription.rs#L8-L43) · [共享缓存](../../../../crates/vw-agent-apps/src/usage/cache.rs) · [公开 DTO](../../../../crates/vw-api-types/src/apps_usage.rs) · [行为测试](../../../../crates/vw-agent/src/gateway/api/handlers/agent_apps/usage_read_tests.rs)
+
+验证环境为 macOS 27.0 (26A428)、arm64，`vw-agent` 0.6.0。动态领取的槽位及其 `CARGO_TARGET_DIR` 分别为 1（`/Users/xiangmin/worker/code/shiju/target/rust-slot-1`）和 2（`/Users/xiangmin/worker/code/shiju/target/rust-slot-2`）。`CARGO_BUILD_BUILD_DIR` 与各阶段槽位一致。
+
+| 阶段 | 命令 | 结果 |
+| --- | --- | --- |
+| 实现前，槽位 1 | `cargo test -p vw-agent usage_usage_read_ -- --nocapture` | 退出 101，执行 0 项。包含 `usage_usage_read_returns_expected_result` 和 `usage_usage_read_rejects_invalid_input` 的模块缺少 `super::usage_read`，按预期报 E0432。 |
+| 格式化，槽位 1、2 | `cargo fmt --all` | 退出 0。在隔离源码副本运行，仅同步本任务文件。 |
+| 修正中，槽位 1 | `cargo test -p vw-agent usage_usage_read_ -- --nocapture` | 退出 101，执行 0 项。Kimi 绑定读取需传入 `&Arc<ProviderTransactions>`，已修正。 |
+| 修正中，槽位 2 | `cargo test -p vw-agent usage_usage_read_ -- --nocapture` | 退出 101，1 项通过、2 项失败。两项断言已按共享错误 DTO 字段和余额浮点值修正。 |
+| 实现后，槽位 1 | `cargo test -p vw-agent usage_usage_read_ -- --nocapture` | 退出 0，3 项通过，0 项失败。覆盖空快照、缓存读取、配置变化、伪造选择器、绑定账号与解绑，以及读取全程无出站请求。 |
+| 缓存回归，槽位 1 | `cargo test -p vw-agent-apps usage_cache_ -- --nocapture` | 退出 0，3 项通过，0 项失败。覆盖陈旧回退到期、确定性失败和缓存键隔离。 |
+| 静态检查，槽位 1 | `cargo clippy --all-targets --all-features -- -D warnings` | 退出 0。 |
+
+验收使用隔离 SQLite、真实 Router 和本机受控 HTTP 夹具。真实上游账号留待后续验收。macOS 调试链接报告 `__eh_frame` 大小提示，聚焦测试正常执行。限定提交范围的差异检查退出 0，槽位锁已释放并保留缓存。

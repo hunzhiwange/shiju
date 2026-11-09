@@ -49,6 +49,7 @@ pub enum UsageCacheResult {
 #[derive(Default)]
 pub struct UsageCache {
     last_successes: HashMap<UsageCacheKey, (Instant, Arc<UsageQueryResult>)>,
+    latest: HashMap<UsageCacheKey, Arc<UsageQueryResult>>,
 }
 
 impl UsageCache {
@@ -63,13 +64,15 @@ impl UsageCache {
     ) -> UsageCacheResult {
         use UsageQueryErrorCode::{Timeout, Transport, UpstreamRateLimited, UpstreamUnavailable};
 
+        let latest = Arc::new(result.clone());
+        self.latest.insert(key.clone(), Arc::clone(&latest));
         match (&result.credential_state, &result.outcome) {
             (UsageCredentialState::Valid, UsageQueryOutcome::Success { .. })
                 if result.queried_at.is_some() =>
             {
                 self.last_successes
                     .retain(|_, (at, _)| now.saturating_duration_since(*at) < SUCCESS_TTL);
-                self.last_successes.insert(key.clone(), (now, Arc::new(result.clone())));
+                self.last_successes.insert(key.clone(), (now, latest));
             }
             (UsageCredentialState::Valid, UsageQueryOutcome::Failure { error, .. })
                 if matches!(
@@ -85,15 +88,33 @@ impl UsageCache {
                         failure: result,
                     };
                 }
-                self.invalidate(key);
+                self.last_successes.remove(key);
             }
-            _ => self.invalidate(key),
+            _ => {
+                self.last_successes.remove(key);
+            }
         }
         UsageCacheResult::Current(result)
+    }
+
+    /// Read the last publication without extending the fallback window.
+    pub fn snapshot(&self, key: &UsageCacheKey, now: Instant) -> Option<UsageCacheResult> {
+        let latest = self.latest.get(key)?;
+        if matches!(latest.outcome, UsageQueryOutcome::Failure { .. })
+            && let Some((at, success)) = self.last_successes.get(key)
+            && now.checked_duration_since(*at).is_some_and(|age| age < SUCCESS_TTL)
+        {
+            return Some(UsageCacheResult::Stale {
+                last_success: Arc::clone(success),
+                failure: latest.as_ref().clone(),
+            });
+        }
+        Some(UsageCacheResult::Current(latest.as_ref().clone()))
     }
 
     /// Drop the previous key when a binding, credential or query setting changes.
     pub fn invalidate(&mut self, key: &UsageCacheKey) {
         self.last_successes.remove(key);
+        self.latest.remove(key);
     }
 }

@@ -37,6 +37,8 @@ struct Grant {
     #[serde(default)]
     usage_refresh: Vec<UsageRefreshPermit>,
     #[serde(default)]
+    usage_read: Vec<UsageReadPermit>,
+    #[serde(default)]
     auth_account_read: Vec<AuthService>,
     #[serde(default)]
     auth_binding_write: Vec<AuthService>,
@@ -61,6 +63,15 @@ struct Grant {
     company_id: String,
     host_id: String,
 }
+#[derive(Deserialize)]
+#[serde(deny_unknown_fields)]
+struct UsageReadPermit {
+    project_id: vw_api_types::id::ProjectId,
+    app_id: vw_api_types::agent_apps::AppId,
+    provider_id: String,
+    account_id: Option<String>,
+}
+
 #[cfg(target_os = "macos")]
 #[derive(Deserialize)]
 #[serde(deny_unknown_fields)]
@@ -263,7 +274,8 @@ pub(super) fn authorize_identity_launch(
 }
 
 #[derive(Clone, Copy)]
-enum Capability {
+enum Capability<'a> {
+    UsageRead(&'a vw_api_types::apps_usage::UsageSnapshotQuery),
     Read,
     PreferencesWrite,
     Launch,
@@ -275,6 +287,22 @@ enum Capability {
     AuthAccountDelete(AuthService),
     AuthAccountTerminate(AuthService, AccountTermination),
     AuthFlowStart(AuthService),
+}
+
+pub(super) fn authorize_usage_read(
+    path: Option<&Path>,
+    headers: &HeaderMap,
+    tenant: &TenantScope,
+    query: &vw_api_types::apps_usage::UsageSnapshotQuery,
+) -> Result<Authorization, StatusCode> {
+    authorize_scoped(
+        path,
+        headers,
+        tenant,
+        &query.target_host_id,
+        None,
+        Capability::UsageRead(query),
+    )
 }
 
 pub(super) fn authorize_auth_account_read(
@@ -365,7 +393,7 @@ fn authorize_scoped(
     tenant: &TenantScope,
     target: &str,
     action: Option<vw_api_types::agent_apps::AppLifecycleAction>,
-    capability: Capability,
+    capability: Capability<'_>,
 ) -> Result<Authorization, StatusCode> {
     let mut values = headers.get_all("x-agent-apps-token").iter();
     let token = values
@@ -408,6 +436,12 @@ fn authorize_scoped(
         .filter(|g| {
             action.is_none_or(|a| g.actions.contains(&a))
                 && match capability {
+                    Capability::UsageRead(query) => g.usage_read.iter().any(|permit| {
+                        permit.project_id == query.project_id
+                            && permit.app_id == query.app_id
+                            && permit.provider_id == query.provider_id
+                            && permit.account_id == query.account_id
+                    }),
                     Capability::Read => true,
                     Capability::PreferencesWrite => g.preferences_write,
                     Capability::Launch => g.launch,

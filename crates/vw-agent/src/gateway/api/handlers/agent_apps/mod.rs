@@ -20,6 +20,9 @@ pub(crate) fn router() -> Router {
         .merge(lifecycle::router())
         .merge(preferences::router())
         .merge(launch::router())
+        .merge(usage_read::router_with_policy(
+            std::env::var_os("SHIJU_AGENT_APPS_ACCESS_FILE").map(std::path::PathBuf::from),
+        ))
         .route(
             "/agent-apps/custom-icons",
             get(read_icons).post(add_icon).layer(DefaultBodyLimit::max(128 * 1024)),
@@ -482,7 +485,12 @@ mod import_tests;
 #[cfg(target_os = "macos")]
 mod usage_refresh;
 #[cfg(target_os = "macos")]
-pub(crate) use usage_refresh::run as run_usage_refresh;
+pub(crate) use usage_refresh::{init as init_usage_refresh, run as run_usage_refresh};
+
+mod usage_read;
 
 #[cfg(all(test, target_os = "macos"))]
 mod usage_refresh_tests;
+
+#[cfg(all(test, target_os = "macos"))]
+mod usage_read_tests;

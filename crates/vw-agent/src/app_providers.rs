@@ -350,6 +350,21 @@ impl AppProviderStore {
                 .ok_or("application provider not found")?;
         serde_json::from_str(&raw).map_err(|_| "invalid stored application provider profile".into())
     }
+    /// Read the executor record with a typed missing/storage boundary for usage reads.
+    #[cfg(target_os = "macos")]
+    pub(crate) fn usage_record(
+        database: &GlobalDatabase,
+        tenant: &TenantScope,
+        app: AppId,
+        id: &str,
+    ) -> Result<serde_json::Value, vw_api_types::agent_apps_auth::AuthErrorCode> {
+        use vw_api_types::agent_apps_auth::AuthErrorCode;
+        let key = Self::key(app, id).map_err(|_| AuthErrorCode::InvalidInput)?;
+        let raw = GatewaySettingsStore::read_existing(database, tenant, NAMESPACE, &key)
+            .map_err(|_| AuthErrorCode::StorageUnavailable)?
+            .ok_or(AuthErrorCode::NotFound)?;
+        serde_json::from_str(&raw).map_err(|_| AuthErrorCode::StorageUnavailable)
+    }
     fn read(&self, tenant: &TenantScope, app: AppId, id: &str) -> Result<AppProviderWrite, String> {
         let key = Self::key(app, id)?;
         let value = self

@@ -77,6 +77,17 @@ async fn usage_cache_returns_expected_result() {
         );
     }
     assert_eq!(
+        cache.snapshot(&key, start + Duration::from_millis(599_999)),
+        Some(UsageCacheResult::Stale {
+            last_success: Arc::new(good),
+            failure: unavailable.clone(),
+        })
+    );
+    assert_eq!(
+        cache.snapshot(&key, start + Duration::from_secs(600)),
+        Some(UsageCacheResult::Current(unavailable.clone()))
+    );
+    assert_eq!(
         cache.record(&key, unavailable.clone(), start + Duration::from_secs(600)),
         UsageCacheResult::Current(unavailable)
     );

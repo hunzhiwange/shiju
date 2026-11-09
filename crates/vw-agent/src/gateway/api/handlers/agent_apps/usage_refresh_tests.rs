@@ -32,13 +32,13 @@ use crate::{
     project::{Info, TimeInfo, store::ProjectStore},
 };
 
-struct Fixture {
+pub(super) struct Fixture {
     _home: tempfile::TempDir,
-    database: GlobalDatabase,
+    pub(super) database: GlobalDatabase,
     project: ProjectScope,
-    path: PathBuf,
-    policy: Value,
-    hits: Arc<AtomicUsize>,
+    pub(super) path: PathBuf,
+    pub(super) policy: Value,
+    pub(super) hits: Arc<AtomicUsize>,
     upstream: tokio::task::JoinHandle<()>,
     started: Arc<Notify>,
     release: Arc<Semaphore>,
@@ -51,7 +51,7 @@ impl Drop for Fixture {
 }
 
 impl Fixture {
-    async fn new() -> Self {
+    pub(super) async fn new() -> Self {
         let home = tempfile::tempdir().unwrap();
         let database = GlobalDatabase::for_home(home.path()).unwrap();
         let tenant = TenantScope::new("test-platform", "test-company").unwrap();
@@ -147,12 +147,12 @@ impl Fixture {
         fixture
     }
 
-    fn write_policy(&self) {
+    pub(super) fn write_policy(&self) {
         std::fs::write(&self.path, self.policy.to_string()).unwrap();
         std::fs::set_permissions(&self.path, std::fs::Permissions::from_mode(0o600)).unwrap();
     }
 
-    fn save(&self, provider: &str, enabled: bool, minutes: u16) {
+    pub(super) fn save(&self, provider: &str, enabled: bool, minutes: u16) {
         UsageSettingsStore::new(self.database.clone())
             .unwrap()
             .save(

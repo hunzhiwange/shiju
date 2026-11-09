@@ -53,6 +53,33 @@ pub enum UsageQueryKind {
     CustomScript,
 }
 
+/// Select one authorized usage resource. The tenant and principal come from the gateway.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct UsageSnapshotQuery {
+    pub project_id: crate::id::ProjectId,
+    pub target_host_id: String,
+    pub app_id: crate::agent_apps::AppId,
+    pub provider_id: String,
+    pub account_id: Option<String>,
+    pub kind: Option<UsageQueryKind>,
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct UsageSnapshotResponse {
+    pub capabilities: Vec<UsageQueryKind>,
+    pub snapshot: Option<UsageSnapshot>,
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct UsageSnapshot {
+    pub result: UsageQueryResult,
+    pub stale: bool,
+    pub refresh_failure: Option<UsageQueryResult>,
+}
+
 /// 结果来源及其脱敏标识，由执行端根据实际适配器或数据源填写。
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(tag = "kind", content = "id", rename_all = "snake_case")]

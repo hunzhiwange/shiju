@@ -20,6 +20,7 @@ use vw_agent_apps::{
     providers::{update::profile, validate_profile},
     usage::{
         cache::{UsageCache, UsageCacheKey, UsageCacheResult},
+        detect::{NativeUsageCapability, ZhipuPlanSelection, detect_native_usage},
         scripts::{
             config::{PreparedUsage, ProviderDefaults, ScriptParameters, UsageTemplate},
             network::NetworkError,
@@ -29,9 +30,11 @@ use vw_agent_apps::{
 };
 use vw_api_types::{
     TimestampMs,
+    agent_apps_auth::AuthErrorCode,
+    app_providers::AppProviderWrite,
     apps_usage::{
         UsageCredentialState, UsageQueryData, UsageQueryError, UsageQueryErrorCode, UsageQueryKind,
-        UsageQueryOutcome, UsageQueryResult, UsageSource,
+        UsageQueryOutcome, UsageQueryResult, UsageSnapshot, UsageSnapshotResponse, UsageSource,
     },
 };
 
@@ -75,10 +78,10 @@ struct State {
     cache: UsageCache,
 }
 
-pub(super) struct UsageRefresh {
-    database: GlobalDatabase,
+pub(crate) struct UsageRefresh {
+    pub(super) database: GlobalDatabase,
     settings: UsageSettingsStore,
-    projects: ProjectStore,
+    pub(super) projects: ProjectStore,
     // Process-local, keyed generations. Never store raw credentials in cache keys.
     generations: RandomState,
     state: Mutex<State>,
@@ -188,19 +191,7 @@ impl UsageRefresh {
         if base.origin() != target.origin.origin() {
             return Err(RefreshError::InvalidConfiguration);
         }
-        let key = UsageCacheKey {
-            project: target.project.clone(),
-            principal: target.principal.clone(),
-            host: target.host.clone(),
-            app: target.app,
-            provider: target.provider.clone(),
-            kind: UsageQueryKind::CustomScript,
-            account: None,
-            credential_version: self.generations.hash_one(&profile.api_key),
-            configuration_version: self
-                .generations
-                .hash_one((&profile.base_url, settings.refresh_interval_minutes)),
-        };
+        let key = self.general_key(scope, &profile, settings.refresh_interval_minutes);
         let interval = (settings.refresh_interval_minutes > 0)
             .then(|| Duration::from_secs(u64::from(settings.refresh_interval_minutes) * 60));
         Ok(Some(Query {
@@ -210,6 +201,76 @@ impl UsageRefresh {
             api_key: profile.api_key,
             interval,
         }))
+    }
+
+    fn general_key(
+        &self,
+        scope: UsageSettingsScope<'_>,
+        profile: &AppProviderWrite,
+        interval: u16,
+    ) -> UsageCacheKey {
+        UsageCacheKey {
+            project: scope.project.clone(),
+            principal: scope.principal.to_owned(),
+            host: scope.target_host.to_owned(),
+            app: scope.app,
+            provider: scope.provider.to_owned(),
+            kind: UsageQueryKind::CustomScript,
+            account: None,
+            credential_version: self.generations.hash_one(&profile.api_key),
+            configuration_version: self.generations.hash_one((&profile.base_url, interval)),
+        }
+    }
+
+    pub(super) fn provider_snapshot(
+        &self,
+        scope: UsageSettingsScope<'_>,
+        kind: Option<UsageQueryKind>,
+        now: Instant,
+    ) -> Result<UsageSnapshotResponse, AuthErrorCode> {
+        let record = AppProviderStore::usage_record(
+            &self.database,
+            scope.project.tenant_scope(),
+            scope.app,
+            scope.provider,
+        )?;
+        let mut capabilities = Vec::new();
+        let mut snapshot = None;
+        if let Ok(profile) = profile(&record) {
+            if let Ok(Some(capability)) =
+                detect_native_usage(&profile.base_url, ZhipuPlanSelection::Auto)
+            {
+                capabilities.push(match capability {
+                    NativeUsageCapability::Balance(_) => UsageQueryKind::Balance,
+                    NativeUsageCapability::CodingPlan(_) => UsageQueryKind::CodingPlan,
+                });
+            }
+            let settings =
+                self.settings.get(scope).map_err(|_| AuthErrorCode::StorageUnavailable)?;
+            if let Some(settings) = settings
+                && settings.enabled
+                && settings.template == UsageTemplate::General
+                && settings.credentials == UsageCredentialRefs::default()
+                && validate_profile(scope.app, &profile).is_ok()
+            {
+                capabilities.push(UsageQueryKind::CustomScript);
+                if kind.is_none_or(|kind| kind == UsageQueryKind::CustomScript) {
+                    let key = self.general_key(scope, &profile, settings.refresh_interval_minutes);
+                    snapshot =
+                        self.state.lock().cache.snapshot(&key, now).map(|result| match result {
+                            UsageCacheResult::Current(result) => {
+                                UsageSnapshot { result, stale: false, refresh_failure: None }
+                            }
+                            UsageCacheResult::Stale { last_success, failure } => UsageSnapshot {
+                                result: last_success.as_ref().clone(),
+                                stale: true,
+                                refresh_failure: Some(failure),
+                            },
+                        });
+                }
+            }
+        }
+        Ok(UsageSnapshotResponse { capabilities, snapshot })
     }
 
     async fn refresh(
@@ -356,7 +417,7 @@ impl UsageRefresh {
     }
 }
 
-pub(crate) async fn run(policy: PathBuf) {
+pub(crate) async fn init() -> Option<Arc<UsageRefresh>> {
     let refresh = tokio::task::spawn_blocking(|| {
         let database = GlobalDatabase::for_home(&crate::global::paths().home)
             .map_err(|_| RefreshError::Unavailable)?;
@@ -365,8 +426,12 @@ pub(crate) async fn run(policy: PathBuf) {
     .await;
     let Ok(Ok(refresh)) = refresh else {
         tracing::warn!("Gateway usage refresh storage unavailable");
-        return;
+        return None;
     };
+    Some(refresh)
+}
+
+pub(crate) async fn run(refresh: Arc<UsageRefresh>, policy: PathBuf) {
     let mut ticks = tokio::time::interval(POLL);
     ticks.set_missed_tick_behavior(tokio::time::MissedTickBehavior::Skip);
     loop {

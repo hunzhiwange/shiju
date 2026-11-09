@@ -258,10 +258,21 @@ pub async fn run_gateway(host: &str, port: u16, mut config: Config) -> Result<()
         .merge(super::router::management_auth_router())
         .layer(cors);
 
+    #[cfg(target_os = "macos")]
+    let refresh_service = api::handlers::agent_apps::init_usage_refresh().await;
+    #[cfg(target_os = "macos")]
+    let app = if let Some(refresh) = &refresh_service {
+        app.layer(axum::Extension(Arc::clone(refresh)))
+    } else {
+        app
+    };
+
     let usage_refresh = async {
         #[cfg(target_os = "macos")]
-        if let Some(policy) = std::env::var_os("SHIJU_AGENT_APPS_ACCESS_FILE") {
-            api::handlers::agent_apps::run_usage_refresh(policy.into()).await;
+        if let (Some(refresh), Some(policy)) =
+            (refresh_service, std::env::var_os("SHIJU_AGENT_APPS_ACCESS_FILE"))
+        {
+            api::handlers::agent_apps::run_usage_refresh(refresh, policy.into()).await;
         }
         std::future::pending::<()>().await;
     };

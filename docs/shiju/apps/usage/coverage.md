@@ -526,3 +526,22 @@ HTTP 与 CLI 夹具核对请求、来源分离、额度归并、重置时间、�
 | 隔离复核 | `cargo clippy --all-targets --all-features -- -D warnings` | 退出 0。使用批次 31 提交 `2a4a62c36`，叠加本任务 Rust 文件及共享工作区已有的 `postgres_tests.rs` 第三参数修正。 |
 
 `usage_subscriptions_kimi_returns_expected_result` 验证续期锁、区域请求、共享凭据写回及两档额度。`usage_subscriptions_kimi_rejects_invalid_input` 验证区域不符和锁冲突。`usage_subscriptions_kimi_queries_valid_managed_account_directly` 验证有效令牌直接查询、上游拒绝及脱敏。差异检查通过，槽位锁已释放，缓存已保留。HTTP 夹具验收覆盖上述契约，真实账号留待任务 57。 [独立行为测试](../../../../crates/vw-agent-apps/src/usage/subscriptions/kimi_tests.rs#L28)
+
+## 任务 33 脚本模板与参数
+
+`UsageTemplate::select` 保留上游模板标识，优先处理受信账号的原生查询，再选择已保存模板、旧版 New API 参数和已检测的原生能力。Copilot、官方订阅、余额及 Coding Plan 返回 `PreparedUsage::Native`，该分支不读取脚本源码或凭据。 [模板选择](../../../../crates/vw-agent-apps/src/usage/scripts/config.rs#L113) · [上游选择](../../../../crates/vw-agent-apps/upstream/src/components/UsageScriptModal.tsx#L493-L533) · [上游原生分流](../../../../crates/vw-agent-apps/upstream/src-tauri/src/commands/provider.rs#L658-L710)
+
+`UsageTemplate::prepare` 提供 Custom、General、New API 和 Sub2API 预设，并接受已保存的脚本代码。主机解析的非空参数覆盖供应商默认值，基础 URL 去除尾部斜杠。四种占位符只展开一次，值按 UTF-16 代码单元写成 JavaScript 转义，保留引号、反引号及字面占位符。缺少被引用的参数时返回类型化错误。预设内的后备套餐名和错误文案沿用上游英文文本。 [脚本准备](../../../../crates/vw-agent-apps/src/usage/scripts/config.rs#L139) · [上游预设](../../../../crates/vw-agent-apps/upstream/src/components/UsageScriptModal.tsx#L60-L169) · [上游参数优先级](../../../../crates/vw-agent-apps/upstream/src-tauri/src/services/provider/usage.rs#L96-L125) · [上游变量替换](../../../../crates/vw-agent-apps/upstream/src-tauri/src/usage_script.rs#L425-L444)
+
+验证环境为 macOS 27.0 (26A428)、arm64，`vw-agent-apps` 0.6.0。
+各阶段动态领取槽位 1，`CARGO_TARGET_DIR` 和 `CARGO_BUILD_BUILD_DIR` 均为 `/Users/xiangmin/worker/code/shiju/target/rust-slot-1`。
+
+| 阶段 | 命令 | 结果 |
+| --- | --- | --- |
+| 实现前 | `cargo test -p vw-agent-apps usage_scripts_config_ -- --nocapture` | 退出 101，执行 0 项。测试模块按预期报 E0432，缺少 `super::config` 中的配置符号。 |
+| 格式化 | `cargo fmt --all` | 退出 0。在源码副本运行，仅同步本任务 Rust 文件。 |
+| 实现后 | `cargo test -p vw-agent-apps usage_scripts_config_ -- --nocapture` | 退出 0，3 项通过，0 项失败。 |
+| 共享工作区 | `cargo clippy --all-targets --all-features -- -D warnings` | 退出 101。既有 ACP 改动在 `vw-agent/src/session/llm/acp` 缺少 `PermissionConfirmation` 和 `with_permission_confirmation`。网关会话与桌面代码还缺少客户端的 `session_set_full_access` 和 `GatewaySessionUiSummary.full_access`。 |
+| 隔离复核 | `cargo clippy --all-targets --all-features -- -D warnings` | 退出 0。基于批次 32 提交 `043277e99`，叠加本任务 Rust 文件及共享工作区已有的 `postgres_tests.rs` 第三个参数修正。 |
+
+`usage_scripts_config_returns_expected_result` 核对模板标识、参数优先级、URL 规范化及特殊字符还原。`usage_scripts_config_rejects_invalid_input` 核对缺参、空源码及未知模板。`usage_scripts_config_keeps_native_templates_out_of_javascript` 核对原生查询选择与脚本隔离。另以本机 Node 运行四个预设的请求和提取夹具。差异检查通过，槽位锁已释放，编译缓存已保留。QuickJS 和出站行为分别由任务 34、35 验证。 [独立行为测试](../../../../crates/vw-agent-apps/src/usage/scripts/config_tests.rs#L8)

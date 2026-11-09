@@ -9,7 +9,6 @@ use iced::Element;
 use iced::Length;
 use iced::advanced::renderer::Headless;
 use iced::advanced::widget::Tree;
-use iced::widget::text;
 use iced::{Color, Font, Pixels, Theme};
 use serde_json::json;
 
@@ -22,7 +21,11 @@ fn keep_element(element: Element<'_, Message>) {
     std::hint::black_box(element);
 }
 
-fn model(id: &str, enabled: bool, image_input: serde_json::Value) -> ModelSummary {
+pub(in crate::app::components) fn model(
+    id: &str,
+    enabled: bool,
+    image_input: serde_json::Value,
+) -> ModelSummary {
     ModelSummary {
         id: id.to_string(),
         name: format!("动态模型 {id}"),
@@ -40,7 +43,10 @@ fn model(id: &str, enabled: bool, image_input: serde_json::Value) -> ModelSummar
     }
 }
 
-fn provider(id: &str, models: Vec<ModelSummary>) -> ProviderModelsSummary {
+pub(in crate::app::components) fn provider(
+    id: &str,
+    models: Vec<ModelSummary>,
+) -> ProviderModelsSummary {
     ProviderModelsSummary { id: id.to_string(), name: format!("提供者 {id}"), models }
 }
 
@@ -70,12 +76,6 @@ fn image_model_options_only_include_active_image_input_models() {
             "google/gemini-vision".to_string(),
         ]
     );
-}
-
-#[test]
-fn field_row_builds_with_empty_and_populated_copy() {
-    keep_element(field_row("", "", text("")));
-    keep_element(field_row("最大图片数量", "单次请求最多允许上传的图片数。", text("4 张")));
 }
 
 #[test]

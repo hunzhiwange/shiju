@@ -24,6 +24,7 @@ use serde_json::json;
 use vw_config_types::ui::DesktopLocale;
 
 const OCR_PICKER: &[usize] = &[4, 0, 4, 0, 1, 0, 0, 0];
+const REMOTE_FETCH: &[usize] = &[2, 0, 4, 0, 1, 0, 0];
 const CATEGORY_ROW: &[usize] = &[4, 0, 1, 0, 1, 0];
 const EMBEDDING_DIMENSIONS: &[usize] = &[0, 3, 0, 1, 0, 3, 0];
 const MODEL_PRIORITY: &[usize] = &[3, 0, 1, 0, 3, 0];
@@ -505,7 +506,7 @@ async fn ui_refresh_11_empty_catalog_and_numeric_limits_keep_existing_actions() 
         multimodal.edit(&mut renderer, &max_images, "99").as_slice(),
         [Message::Settings(SettingsMessage::Multimodal(MultimodalMessage::MaxImagesChanged(16)))]
     ));
-    let remote = multimodal.bounds(&[2, 0, 4, 0, 1, 0]).center();
+    let remote = multimodal.bounds(REMOTE_FETCH).center();
     let current = app.multimodal_settings.allow_remote_fetch;
     assert!(matches!(
         multimodal.click(&mut renderer, remote).as_slice(),
@@ -527,6 +528,24 @@ impl Operation for InlineExplanation<'_> {
 
     fn text(&mut self, _: Option<&iced::advanced::widget::Id>, _: Rectangle, value: &str) {
         self.visible |= value == self.description;
+    }
+}
+
+impl Scene<'_> {
+    fn assert_text(&mut self, renderer: &Renderer, description: &str, visible: bool) {
+        let mut text = InlineExplanation { description, visible: false };
+        self.ui.operate(renderer, &mut text);
+        assert_eq!(text.visible, visible, "body text visibility for {description:?}");
+    }
+}
+
+fn collect_icons(layout: Layout<'_>, icons: &mut Vec<Rectangle>) {
+    let bounds = layout.bounds();
+    if bounds.size() == Size::new(22.0, 22.0) && !icons.contains(&bounds) {
+        icons.push(bounds);
+    }
+    for child in layout.children() {
+        collect_icons(child, icons);
     }
 }
 
@@ -568,16 +587,6 @@ fn assert_api_key_help_actions(scene: &mut Scene<'_>, renderer: &mut Renderer, i
 }
 
 async fn assert_contextual_help(tab: Option<ModelConfigTab>, count: usize, description: &str) {
-    fn collect_icons(layout: Layout<'_>, icons: &mut Vec<Rectangle>) {
-        let bounds = layout.bounds();
-        if bounds.size() == Size::new(22.0, 22.0) && !icons.contains(&bounds) {
-            icons.push(bounds);
-        }
-        for child in layout.children() {
-            collect_icons(child, icons);
-        }
-    }
-
     let mut renderer = renderer().await;
     let mut app = fixture();
     app.model_routes_settings.routes.truncate(1);
@@ -680,8 +689,233 @@ async fn help_rollout_07_embedding_route_renders_contextual_help() {
 async fn help_rollout_27_multimodal_renders_contextual_help() {
     assert_contextual_help(
         Some(ModelConfigTab::Multimodal),
-        6,
+        9,
         "设置图片附件上限和远程图片抓取权限。",
     )
     .await;
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 1)]
+async fn settings_help_gap_04_preserves_multimodal_controls_and_catalog_feedback() {
+    use system_settings_multimodal::system_settings_multimodal_tests::{model, provider};
+
+    let mut app = fixture();
+    app.desktop_locale = DesktopLocale::English;
+    app.app_theme = Theme::Dark;
+    app.model_settings.active_tab = ModelConfigTab::Multimodal;
+    app.model_settings.providers = vec![provider(
+        "fixture",
+        vec![
+            model("视觉", true, json!(true)),
+            model("disabled", false, json!(true)),
+            model("text", true, json!(false)),
+        ],
+    )];
+    app.multimodal_settings.ocr_model = "fixture/disabled".into();
+    app.multimodal_settings.allow_remote_fetch = false;
+    app.multimodal_settings.model_supports_images = false;
+    app.multimodal_settings.ocr_enabled = false;
+    let mut renderer = renderer().await;
+    let size = Size::new(420, 1320);
+    let view = crate::app::components::system_settings_models::view;
+    let cursor = mouse::Cursor::Unavailable;
+    let mut scene = Scene::new(view(&app), &mut renderer, size);
+    scene.assert_text(
+        &renderer,
+        "Current configuration: fixture/disabled (model disabled or image input unsupported)",
+        true,
+    );
+    scene.capture(&mut renderer, &Theme::Dark, cursor, "multimodal-catalog-mismatch");
+
+    let remote = scene.bounds(&child(&[1], REMOTE_FETCH)).center();
+    let direct = scene.bounds(&[1, 4, 0, 0, 0, 1, 0, 0]).center();
+    let fallback = scene.bounds(&[1, 4, 0, 2, 0, 1, 0, 0, 0]).center();
+    assert!(matches!(
+        scene.click(&mut renderer, remote).as_slice(),
+        [Message::Settings(SettingsMessage::Multimodal(
+            MultimodalMessage::AllowRemoteFetchToggled(true)
+        ))]
+    ));
+    assert!(matches!(
+        scene.click(&mut renderer, direct).as_slice(),
+        [Message::Settings(SettingsMessage::Multimodal(
+            MultimodalMessage::ModelSupportsImagesToggled(true)
+        ))]
+    ));
+    assert!(matches!(
+        scene.click(&mut renderer, fallback).as_slice(),
+        [Message::Settings(SettingsMessage::Multimodal(MultimodalMessage::OcrEnabledToggled(
+            true
+        )))]
+    ));
+
+    let picker = scene.bounds(&child(&[1], OCR_PICKER)).center();
+    assert!(scene.click(&mut renderer, picker).is_empty());
+    assert!(scene.send(&mut renderer, &[key(Named::End)], cursor).is_empty());
+    assert!(matches!(
+        scene.send(&mut renderer, &[key(Named::Enter)], cursor).as_slice(),
+        [Message::Settings(SettingsMessage::Multimodal(MultimodalMessage::OcrModelChanged(value)))]
+            if value == "fixture/视觉"
+    ));
+    drop(scene);
+
+    app.multimodal_settings.ocr_model = "fixture/视觉".into();
+    let mut matched = Scene::new(view(&app), &mut renderer, size);
+    matched.assert_text(&renderer, "No enabled models explicitly support image input.", false);
+    matched.capture(&mut renderer, &Theme::Dark, cursor, "multimodal-catalog-selected");
+    drop(matched);
+
+    app.model_settings.providers.clear();
+    app.model_settings.loading = true;
+    let mut loading = Scene::new(view(&app), &mut renderer, size);
+    loading.assert_text(&renderer, "Refreshing model catalog…", true);
+    loading.assert_text(
+        &renderer,
+        "Current configuration: fixture/视觉 (no available match in the catalog)",
+        true,
+    );
+    loading.capture(&mut renderer, &Theme::Dark, cursor, "multimodal-catalog-loading");
+    drop(loading);
+
+    app.multimodal_settings.ocr_model.clear();
+    app.model_settings.loading = false;
+    app.model_settings.save_error = Some("fixture unavailable".to_owned().into());
+    let mut empty = Scene::new(view(&app), &mut renderer, size);
+    empty.assert_text(&renderer, "Failed to refresh model catalog: fixture unavailable", true);
+    empty.assert_text(&renderer, "No enabled models explicitly support image input.", true);
+    empty.capture(&mut renderer, &Theme::Dark, cursor, "multimodal-catalog-empty");
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 1)]
+async fn settings_help_gap_04_migrates_only_static_multimodal_copy() {
+    let mut renderer = renderer().await;
+    let mut app = fixture();
+    app.model_settings.active_tab = ModelConfigTab::Multimodal;
+    for locale in [
+        DesktopLocale::SimplifiedChinese,
+        DesktopLocale::TraditionalChinese,
+        DesktopLocale::English,
+    ] {
+        app.desktop_locale = locale;
+        for theme in [Theme::Light, Theme::Dark] {
+            app.app_theme = theme.clone();
+            for width in [420, 960] {
+                let i18n = I18n::new(locale);
+                let mut scene = Scene::new(
+                    crate::app::components::system_settings_models::view(&app),
+                    &mut renderer,
+                    Size::new(width, 1320),
+                );
+                for old_inline in [
+                    "使用多模态大模型识别图片文字并生成视觉摘要，再交给主模型处理。分析结果为有界、不可信的附件数据，可能省略图片细节。",
+                    "关闭“模型支持图片”后，使用下方多模态大模型识别文字并理解图片，无需本地 Python OCR 库。",
+                ] {
+                    scene.assert_text(&renderer, i18n.__(old_inline), false);
+                }
+                let mut icons = Vec::new();
+                collect_icons(Layout::new(&scene.layout), &mut icons);
+                assert_eq!(icons.len(), 9, "{locale:?} {theme:?} {width}");
+                for (index, description) in [
+                    (4, "本地附件始终可用。"),
+                    (5, "使用多模态大模型识别图片文字并生成视觉摘要，再交给主模型处理。"),
+                    (7, "无需本地 Python OCR 库。"),
+                ] {
+                    let description = i18n.__(description);
+                    scene.assert_text(&renderer, description, false);
+                    assert_multimodal_help(
+                        &mut scene,
+                        &mut renderer,
+                        &theme,
+                        icons[index],
+                        description,
+                    );
+                }
+                for warning in [
+                    "分析结果为有界、不可信的附件数据，可能省略图片细节。",
+                    "关闭“模型支持图片”时使用下方图片模型。",
+                ] {
+                    scene.assert_text(&renderer, i18n.__(warning), true);
+                }
+            }
+        }
+    }
+}
+
+fn assert_multimodal_help(
+    scene: &mut Scene<'_>,
+    renderer: &mut Renderer,
+    theme: &Theme,
+    icon: Rectangle,
+    description: &str,
+) {
+    let away = mouse::Cursor::Unavailable;
+    let point = icon.center();
+    let cursor = mouse::Cursor::Available(point);
+    let idle = scene.capture(renderer, theme, away, "multimodal-help-idle");
+    assert!(
+        scene
+            .send(renderer, &[Event::Mouse(mouse::Event::CursorMoved { position: point })], cursor,)
+            .is_empty()
+    );
+    assert!(idle != scene.capture(renderer, theme, cursor, "multimodal-help-hover"));
+    assert!(scene.click(renderer, point).is_empty());
+    assert!(scene.send(renderer, &[Event::Mouse(mouse::Event::CursorLeft)], away).is_empty());
+    assert!(idle != scene.capture(renderer, theme, away, "multimodal-help-pinned"));
+
+    // Select the help text and verify the localized content from its copy message.
+    let right = icon.x + icon.width + 4.0;
+    let left_space = icon.x - 4.0;
+    let right_space = scene.size.width as f32 - right;
+    let width = 300.0_f32.min(left_space.max(right_space));
+    let x = if right_space >= width { right } else { left_space - width };
+    let start = Point::new(x + 12.5, icon.y + 15.0);
+    let end = Point::new(x + width - 1.0, icon.y + 200.0);
+    for (point, event) in [
+        (start, mouse::Event::ButtonPressed(mouse::Button::Left)),
+        (end, mouse::Event::CursorMoved { position: end }),
+        (end, mouse::Event::ButtonReleased(mouse::Button::Left)),
+    ] {
+        assert!(
+            scene
+                .send(renderer, &[Event::Mouse(event)], mouse::Cursor::Available(point))
+                .is_empty()
+        );
+    }
+    let copy = Key::Character("c".into());
+    let messages = scene.send(
+        renderer,
+        &[Event::Keyboard(keyboard::Event::KeyPressed {
+            key: copy.clone(),
+            modified_key: copy,
+            physical_key: keyboard::key::Physical::Code(keyboard::key::Code::KeyC),
+            location: keyboard::Location::Standard,
+            modifiers: if cfg!(target_os = "macos") {
+                keyboard::Modifiers::LOGO
+            } else {
+                keyboard::Modifiers::CTRL
+            },
+            text: None,
+            repeat: false,
+        })],
+        away,
+    );
+    assert!(
+        matches!(messages.as_slice(), [Message::CopyCode(value)] if value.contains(description)),
+        "{description:?} missing from selectable help: {messages:?}"
+    );
+    let selected = scene.capture(renderer, theme, away, "multimodal-help-selected");
+    assert!(
+        scene
+            .send(
+                renderer,
+                &[Event::Mouse(mouse::Event::ButtonPressed(mouse::Button::Right))],
+                mouse::Cursor::Available(start),
+            )
+            .is_empty()
+    );
+    assert!(selected != scene.capture(renderer, theme, away, "multimodal-help-menu"));
+    assert!(scene.send(renderer, &[key(Named::Escape)], away).is_empty());
+    assert!(selected == scene.capture(renderer, theme, away, "multimodal-help-menu-dismissed"));
+    assert!(scene.send(renderer, &[key(Named::Escape)], away).is_empty());
+    assert!(idle == scene.capture(renderer, theme, away, "multimodal-help-dismissed"));
 }

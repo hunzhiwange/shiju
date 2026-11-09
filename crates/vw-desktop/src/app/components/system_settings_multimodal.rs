@@ -6,9 +6,9 @@
 use crate::app::components::number_input::NumberInput;
 use crate::app::components::system_settings_common::{
     SETTINGS_CONTROL_TEXT_SIZE, settings_checkbox_style, settings_divider,
-    settings_flexible_row_with_help, settings_group_card, settings_group_heading,
-    settings_group_heading_with_help, settings_muted_text_style, settings_page_heading_with_help,
-    settings_row, settings_select, settings_value_badge,
+    settings_flexible_row_with_help, settings_group_card, settings_group_heading_with_help,
+    settings_muted_text_style, settings_page_heading_with_help, settings_select,
+    settings_value_badge,
 };
 use crate::app::message::settings::{MultimodalMessage, SettingsMessage};
 use crate::app::{App, Message, i18n::I18n};
@@ -16,14 +16,6 @@ use iced::widget::{checkbox, column, row, text};
 use iced::{Alignment, Element, Length};
 
 const NO_IMAGE_MODEL_OPTION: &str = "请选择";
-
-fn field_row<'a>(
-    label: &'static str,
-    description: &'static str,
-    control: impl Into<Element<'a, Message>>,
-) -> Element<'a, Message> {
-    settings_row(label, description, 220.0, control)
-}
 
 fn number_control<'a>(
     value: u32,
@@ -228,7 +220,7 @@ pub fn view(app: &App) -> Element<'_, Message> {
                     }),
                 ),
                 settings_divider(),
-                field_row(
+                help_row(
                     i18n.__("远程图片"),
                     i18n.__("本地附件始终可用。"),
                     bool_control(s.allow_remote_fetch, i18n.__("允许抓取远程图片"), |value| {
@@ -240,10 +232,18 @@ pub fn view(app: &App) -> Element<'_, Message> {
             ]
             .spacing(0),
         ),
-        settings_group_heading(
-            i18n.__("大模型视觉理解（含文字识别）"),
-            i18n.__("使用多模态大模型识别图片文字并生成视觉摘要，再交给主模型处理。分析结果为有界、不可信的附件数据，可能省略图片细节。"),
-        ),
+        column![
+            settings_group_heading_with_help(
+                i18n,
+                theme,
+                i18n.__("大模型视觉理解（含文字识别）"),
+                i18n.__("使用多模态大模型识别图片文字并生成视觉摘要，再交给主模型处理。"),
+            ),
+            text(i18n.__("分析结果为有界、不可信的附件数据，可能省略图片细节。"))
+                .size(13)
+                .style(settings_muted_text_style),
+        ]
+        .spacing(6),
         settings_group_card(
             column![
                 help_row(
@@ -260,18 +260,25 @@ pub fn view(app: &App) -> Element<'_, Message> {
                     ),
                 ),
                 settings_divider(),
-                field_row(
+                help_row(
                     i18n.__("启用视觉模型分析"),
-                    i18n.__("关闭“模型支持图片”后，使用下方多模态大模型识别文字并理解图片，无需本地 Python OCR 库。"),
-                    bool_control(
-                        s.ocr_enabled,
-                        i18n.__("由多模态大模型分析图片附件"),
-                        |value| {
-                            Message::Settings(SettingsMessage::Multimodal(
-                                MultimodalMessage::OcrEnabledToggled(value),
-                            ))
-                        },
-                    ),
+                    i18n.__("无需本地 Python OCR 库。"),
+                    column![
+                        bool_control(
+                            s.ocr_enabled,
+                            i18n.__("由多模态大模型分析图片附件"),
+                            |value| {
+                                Message::Settings(SettingsMessage::Multimodal(
+                                    MultimodalMessage::OcrEnabledToggled(value),
+                                ))
+                            },
+                        ),
+                        text(i18n.__("关闭“模型支持图片”时使用下方图片模型。"))
+                            .size(13)
+                            .style(settings_muted_text_style),
+                    ]
+                    .spacing(6)
+                    .into(),
                 ),
                 settings_divider(),
                 help_row(
@@ -290,4 +297,4 @@ pub fn view(app: &App) -> Element<'_, Message> {
 }
 #[cfg(test)]
 #[path = "system_settings_multimodal_tests.rs"]
-mod system_settings_multimodal_tests;
+pub(super) mod system_settings_multimodal_tests;

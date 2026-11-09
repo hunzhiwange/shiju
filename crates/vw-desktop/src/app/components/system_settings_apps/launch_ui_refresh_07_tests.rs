@@ -547,6 +547,10 @@ async fn ui_refresh_07_preserves_preferences_and_disabled_states() {
         size,
     );
     let select_path = &[0, 1, 0, 0, 3, 1, 1];
+    let label = scene.bounds(&[0, 1, 0, 0, 3, 1, 0]);
+    let select_bounds = scene.bounds(select_path);
+    assert!(label.x + label.width < select_bounds.x);
+    assert!((label.center_y() - select_bounds.center_y()).abs() < 0.5);
     assert!(scene.click(&mut renderer, select_path).is_empty());
     let select = scene.bounds(select_path).center();
     assert!(matches!(

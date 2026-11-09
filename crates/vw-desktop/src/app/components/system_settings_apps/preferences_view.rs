@@ -89,15 +89,16 @@ pub(crate) fn overlay<'a>(
             let selected =
                 TerminalChoice(draft.host.preferred_terminal.clone().unwrap_or_default());
             host = host.push(
-                column![
-                    settings_field_label("首选终端"),
+                row![
+                    settings_field_label("首选终端").width(Length::Fill),
                     settings_select(options, Some(selected), |v| event(
                         PreferencesMessage::Terminal(v.0)
                     ))
                     .disabled(!state.host_editable())
-                    .width(Length::Fill),
+                    .width(Length::FillPortion(2)),
                 ]
-                .spacing(6),
+                .align_y(Alignment::Center)
+                .spacing(24),
             );
             if capabilities.wsl_preferences {
                 host = host.push(group_heading(

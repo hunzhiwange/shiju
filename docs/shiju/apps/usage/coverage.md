@@ -109,3 +109,23 @@
 | 工作区检查 | `cargo clippy --all-targets --all-features -- -D warnings` | 退出 0。 |
 
 限定提交范围的 `git diff --cached --check` 退出 0。槽位锁已释放，编译缓存保留。真实账号验收见任务 55。
+
+## 任务 12 StepFun 余额
+
+| 来源 | 实现和测试 |
+| --- | --- |
+| [StepFun 余额查询](../../../../crates/vw-agent-apps/upstream/src-tauri/src/services/balance.rs#L153-L209) · [金额解析与余额分派](../../../../crates/vw-agent-apps/upstream/src-tauri/src/services/balance.rs#L534-L572) | `query_stepfun` 使用固定的 `GET https://api.stepfun.com/v1/accounts` 和已授权的 Bearer 凭据。将数字或字符串形式的有限 `balance` 映射为 CNY 钱包余额，保留零值和负值。缺失或非法金额返回 `InvalidResponse`。空密钥在发请求前返回 `CredentialUnavailable`。 |
+| [余额模板检测](../../../../crates/vw-agent-apps/upstream/src/components/UsageScriptModal.tsx#L184-L200) · [余额模板调用](../../../../crates/vw-agent-apps/upstream/src/components/UsageScriptModal.tsx#L622-L627) | 已有 `detect_native_usage` 识别 StepFun 主机。本机 HTTP 夹具验证请求方法、路径、请求头和余额映射，以及无效密钥、无效响应、鉴权拒绝、限流、服务不可用及重定向。 |
+
+[适配器](../../../../crates/vw-agent-apps/src/usage/balances/stepfun.rs) · [独立行为测试](../../../../crates/vw-agent-apps/src/usage/balances/stepfun_tests.rs)
+
+验证环境为 macOS 27.0 (26A428)、arm64，`vw-agent-apps` 0.6.0。两阶段均领取槽位 1，`CARGO_TARGET_DIR` 和 `CARGO_BUILD_BUILD_DIR` 均为 `/Users/xiangmin/worker/code/shiju/target/rust-slot-1`。
+
+| 阶段 | 命令 | 结果 |
+| --- | --- | --- |
+| 实现前 | `cargo test -p vw-agent-apps usage_balances_stepfun_ -- --nocapture` | 退出 101。`usage_balances_stepfun_returns_expected_result`、`usage_balances_stepfun_rejects_invalid_input` 等用例导入未实现的 `client_builder`、`query_at`、`query_stepfun` 时触发 E0432，执行 0 项。 |
+| 格式化 | `cargo fmt --all` | 退出 0，在独立源码副本执行，仅同步任务 12 的三个 Rust 文件。 |
+| 实现后 | `cargo test -p vw-agent-apps usage_balances_stepfun_ -- --nocapture` | 退出 0，4 项通过，0 项失败。 |
+| 工作区检查 | `cargo clippy --all-targets --all-features -- -D warnings` | 退出 0。 |
+
+限定提交范围的 `git diff --cached --check` 退出 0。槽位锁已释放，编译缓存保留。真实账号验收见任务 55。

@@ -448,3 +448,23 @@
 | 隔离复核 | `cargo clippy --all-targets --all-features -- -D warnings` | 退出 0。源码基于批次 27 提交 `2105e1089`、本任务的三个 Rust 文件及工作区已有的 `postgres_tests.rs` 第三参数修正。 |
 
 本机 HTTP 夹具核对续期表单、两步 POST 的请求体和 Bearer，覆盖已用尽的零剩余值、缺失比例、重置时间、缺少凭据、解析失败和上游拒绝。差异检查通过，两个槽位锁已释放，缓存已保留。真实账号与系统钥匙串留待任务 57 验收。 [聚焦测试](../../../../crates/vw-agent-apps/src/usage/subscriptions/gemini_tests.rs#L144)
+
+## 任务 29 Grok 与 xAI 官方额度
+
+`query_grok` 使用执行端已授权的账号引用。本机入口从授权 HOME 下的 `.grok/auth.json` 读取 OIDC 或旧版登录凭据。已到期且仍可由 CLI 刷新的凭据返回待刷新。托管入口用现有 `XaiRefresh` 为已选账号取短期令牌。两个入口复用固定账单地址及解析。 [本地入口](../../../../crates/vw-agent-apps/src/usage/subscriptions/grok.rs#L51) · [Grok CLI 来源](../../../../crates/vw-agent-apps/upstream/src-tauri/src/services/subscription_grok.rs#L702) · [xAI 托管来源](../../../../crates/vw-agent-apps/upstream/src-tauri/src/commands/xai_oauth.rs#L29) · [TS 绑定与查询规则](../../../../crates/vw-agent-apps/upstream/src/lib/query/subscription.ts#L186)
+
+固定来源的 Grok Web gRPC 查询提供一个用量窗口。Grok CLI 官方账单 JSON 补充当前周期、旧版月度额度、预付钱包及按需用量。当前周期与不同的月度窗口分别保留。钱包和按需金额按美分转换为 USD，保留显式零值。钱包复用 `UsageWallet`，与官方订阅结果分开。 [固定来源 RPC](../../../../crates/vw-agent-apps/upstream/src-tauri/src/services/subscription_grok.rs#L570) · [xAI CLI 账单字段与请求](https://github.com/xai-org/grok-build/blob/2bdd1d6a6369de0e8c68132ea4539e9abd9e14a8/crates/codegen/xai-grok-shell/src/extensions/billing.rs#L60) · [本地投影](../../../../crates/vw-agent-apps/src/usage/subscriptions/grok.rs#L357)
+
+两个账单接口各自返回类型化错误。单路失败时保留另一路已取得的数据和失败接口的安全说明。gRPC 状态码来自响应头或 trailer，响应正文及错误消息原文不进入结果。 [本地查询](../../../../crates/vw-agent-apps/src/usage/subscriptions/grok.rs#L113) · [gRPC 状态与帧解析](../../../../crates/vw-agent-apps/src/usage/subscriptions/grok/grpc.rs#L25)
+
+验证环境为 macOS 27.0 (26A428)、arm64，`vw-agent-apps` 0.6.0。实现前后的聚焦测试、格式化及共享工作区 Clippy 动态领取槽位 1，`CARGO_TARGET_DIR` 为 `/Users/xiangmin/worker/code/shiju/target/rust-slot-1`。隔离 Clippy 动态领取槽位 2，`CARGO_TARGET_DIR` 为 `/Users/xiangmin/worker/code/shiju/target/rust-slot-2`。各阶段的 `CARGO_BUILD_BUILD_DIR` 与相应槽位一致。
+
+| 阶段 | 命令 | 结果 |
+| --- | --- | --- |
+| 实现前 | `cargo test -p vw-agent-apps usage_subscriptions_grok_ -- --nocapture` | 退出 101，执行 0 项。包含 `usage_subscriptions_grok_returns_expected_result` 和 `usage_subscriptions_grok_rejects_invalid_input` 的测试模块报 E0432，缺少 `super::grok`。 |
+| 格式化 | `cargo fmt --all` | 退出 0。在源码副本运行，仅同步本任务 Rust 文件。 |
+| 实现后 | `cargo test -p vw-agent-apps usage_subscriptions_grok_ -- --nocapture` | 退出 0，4 项通过，0 项失败。 |
+| 共享工作区 | `cargo clippy --all-targets --all-features -- -D warnings` | 退出 101。已有 ACP 权限改动引用缺失的 `PermissionConfirmation`、`GatewayClient::session_set_full_access` 和 `GatewaySessionUiSummary.full_access`。 |
+| 隔离复核 | `cargo clippy --all-targets --all-features -- -D warnings` | 退出 0。源码基于批次 28 提交 `518e91821`，叠加本任务 Rust 文件和工作区已有的 `postgres_tests.rs` 第三参数修正。 |
+
+本机 HTTP 夹具核对 CLI 与托管令牌、请求方法、路径、请求头及 gRPC 空帧。测试覆盖双窗口、预付钱包零值、按需金额、无效或到期凭据、双向部分失败及完全拒绝。差异检查通过，槽位锁已释放并保留缓存。真实账号留待任务 57 验收。 [聚焦测试](../../../../crates/vw-agent-apps/src/usage/subscriptions/grok_tests.rs#L205)

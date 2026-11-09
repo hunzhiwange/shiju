@@ -12,6 +12,8 @@ mod external_protocol;
 mod macos_downloads;
 #[cfg(not(target_arch = "wasm32"))]
 mod mcp_app;
+#[cfg(all(not(any(target_arch = "wasm32", coverage)), unix, not(target_os = "macos")))]
+mod media_permissions;
 #[cfg(not(any(target_arch = "wasm32", coverage)))]
 mod popup;
 #[cfg(not(target_arch = "wasm32"))]
@@ -1038,6 +1040,9 @@ fn main() {
         show_error_dialog("VibeWindow WebView", "无法安装外部协议保护。");
         return;
     }
+
+    #[cfg(all(unix, not(target_os = "macos")))]
+    media_permissions::install(&webview, window.gtk_window().upcast_ref());
 
     #[cfg(target_os = "macos")]
     let attachment_delegate = macos_downloads::enable_attachments(&webview);

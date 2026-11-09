@@ -23,6 +23,7 @@ impl Host {
             host.0.set_transient_for(Some(&parent));
         }
         let webview = builder.with_related_view(opener).build_gtk(&host.0)?;
+        crate::media_permissions::install(&webview, &host.0);
         // Wry destroys the native widget on window.close(). GTK also destroys
         // that widget when its containing window closes.
         let native = webview.webview();

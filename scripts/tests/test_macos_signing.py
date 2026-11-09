@@ -3,6 +3,7 @@
 import json
 import os
 from pathlib import Path
+import plistlib
 import subprocess
 import tempfile
 import unittest
@@ -12,6 +13,7 @@ SCRIPT = Path(__file__).resolve().parents[1] / "bundle_macos.sh"
 IDENTITY = "Developer ID Application: Fixture (TEAM123456)"
 MOCK = r'''#!/usr/bin/env python3
 import json, os, pathlib, sys
+import plistlib
 name = pathlib.Path(sys.argv[0]).name
 args = sys.argv[1:]
 with open(os.environ['CALL_LOG'], 'a') as log:
@@ -52,6 +54,17 @@ if name == 'cargo':
         (root / args[args.index('--bin') + 1]).write_text('fixture')
 if name in ('ditto', 'hdiutil'):
     pathlib.Path(args[-1]).touch()
+if name == 'codesign' and '--sign' in args:
+    target = pathlib.Path(args[-1])
+    if target.suffix == '.app' or target.name == 'vw-webview':
+        contents = target / 'Contents' if target.suffix == '.app' else target.parent.parent
+        info = plistlib.loads((contents / 'Info.plist').read_bytes())
+        keys = ['NSCameraUsageDescription', 'NSMicrophoneUsageDescription']
+        entitlements = {}
+        if '--entitlements' in args:
+            entitlements = plistlib.loads(pathlib.Path(args[args.index('--entitlements') + 1]).read_bytes())
+        with open(os.environ['CALL_LOG'], 'a') as log:
+            log.write(json.dumps(['media-signing', target.name, [info.get(key) for key in keys], entitlements]) + '\n')
 '''
 
 
@@ -145,6 +158,37 @@ class MacosSigningTests(unittest.TestCase):
             self.assertEqual((bundled / name).read_bytes(), (root / name).read_bytes())
         self.assertTrue(list(Path(self.env["OUT_DIR"]).glob("*.dmg")))
         self.assertTrue(list(Path(self.env["OUT_DIR"]).glob("*.zip")))
+
+    @unittest.skipUnless(os.path.exists("/usr/libexec/PlistBuddy"), "Requires macOS plist tools")
+    def test_packaged_webview_declares_media_privacy(self):
+        self.env.update(CREATE_DMG="0", MACOS_NOTARIZE="0", INCLUDE_CLI_IN_APP="0")
+        media_entitlements = {
+            "com.apple.security.device.camera": True,
+            "com.apple.security.device.audio-input": True,
+        }
+        for mode in ("developer-id", "adhoc"):
+            with self.subTest(mode=mode):
+                self.env.update(MACOS_SIGN_MODE=mode, PROFILE=mode)
+                self.log.unlink(missing_ok=True)
+                result, calls = self.run_bundle()
+                self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+                bundle = Path(self.env["CARGO_TARGET_DIR"]) / mode / "bundle/osx/ShiJu.app"
+                with (bundle / "Contents/Info.plist").open("rb") as stream:
+                    info = plistlib.load(stream)
+                descriptions = [
+                    info.get("NSCameraUsageDescription"),
+                    info.get("NSMicrophoneUsageDescription"),
+                ]
+                for description in descriptions:
+                    self.assertIsInstance(description, str)
+                    self.assertTrue(description.strip())
+                signatures = [c[1:] for c in calls if c[0] == "media-signing"]
+                expected = (
+                    [["vw-webview", descriptions, media_entitlements],
+                     ["ShiJu.app", descriptions, {}]]
+                    if mode == "developer-id" else [["ShiJu.app", descriptions, {}]]
+                )
+                self.assertEqual(signatures, expected)
 
     def test_missing_prebuilt_binary_fails_without_compiling(self):
         root = self.prepare_prebuilt_binaries()

@@ -64,6 +64,15 @@ impl PopupWindows {
     ) -> WebViewBuilder<'a> {
         let navigation_windows = Rc::downgrade(self);
         let popup_windows = Rc::downgrade(self);
+        // Wry otherwise grants WKWebView media requests. WebKit's prompt uses
+        // the requesting site's security context and preserves system consent.
+        #[cfg(target_os = "macos")]
+        let builder = builder.with_permission_handler(|kind| match kind {
+            wry::PermissionKind::Camera | wry::PermissionKind::Microphone => {
+                wry::PermissionResponse::Default
+            }
+            _ => wry::PermissionResponse::Deny,
+        });
         builder
             .with_navigation_handler(move |url| match navigation(&url, local_site) {
                 Navigation::InWebView => true,

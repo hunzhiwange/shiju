@@ -369,8 +369,14 @@ if [ ! -d "$APP_BUNDLE" ]; then
 fi
 
 if [ -x /usr/libexec/PlistBuddy ]; then
+  APP_INFO_PLIST="$APP_BUNDLE/Contents/Info.plist"
   /usr/libexec/PlistBuddy -c "Set :CFBundleExecutable $DESKTOP_BIN_NAME" \
-    "$APP_BUNDLE/Contents/Info.plist"
+    "$APP_INFO_PLIST"
+  # macOS attributes access by the embedded browser helper to the launching app.
+  /usr/libexec/PlistBuddy -c "Set :NSCameraUsageDescription ShiJu lets websites you allow use your camera." "$APP_INFO_PLIST" 2>/dev/null \
+    || /usr/libexec/PlistBuddy -c "Add :NSCameraUsageDescription string ShiJu lets websites you allow use your camera." "$APP_INFO_PLIST"
+  /usr/libexec/PlistBuddy -c "Set :NSMicrophoneUsageDescription ShiJu lets websites you allow use your microphone." "$APP_INFO_PLIST" 2>/dev/null \
+    || /usr/libexec/PlistBuddy -c "Add :NSMicrophoneUsageDescription string ShiJu lets websites you allow use your microphone." "$APP_INFO_PLIST"
 fi
 
 echo "Copying helper binary to bundle..."
@@ -395,7 +401,13 @@ ensure_app_icon
 if [ "$MACOS_SIGN_MODE" = "developer-id" ]; then
   prepare_signing_keychain
   echo "Signing embedded binaries with Developer ID..."
-  for binary_name in vw-webview "$CLI_BIN_NAME" "$CLI_COMPAT_BIN_NAME" "$ACP_BIN_NAME"; do
+  codesign_with_identity \
+    --force \
+    --timestamp \
+    --options runtime \
+    --entitlements "$(dirname "$0")/macos_webview_entitlements.plist" \
+    "$DEST_DIR/vw-webview"
+  for binary_name in "$CLI_BIN_NAME" "$CLI_COMPAT_BIN_NAME" "$ACP_BIN_NAME"; do
     binary_path="$DEST_DIR/$binary_name"
     if [ -f "$binary_path" ]; then
       codesign_with_identity \

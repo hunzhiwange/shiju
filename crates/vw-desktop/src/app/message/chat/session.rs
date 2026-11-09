@@ -100,10 +100,11 @@ fn request_delegate_agent(selected: Option<String>) -> Option<String> {
     normalize_delegate_agent(selected).or_else(|| Some(MAIN_AGENT_KEY.to_string()))
 }
 
-fn base_tools_without_delegate_agent(app: &App) -> Vec<String> {
-    let mut runtime = app.current_session_runtime();
-    runtime.agent = None;
-    app.session_tool_inventory(&runtime).base_tools
+fn base_tools_for_selection(app: &mut App) -> Vec<String> {
+    if !app.current_session_has_started() {
+        app.current_session_runtime_mut().agent = None;
+    }
+    app.session_tool_inventory(&app.current_session_runtime()).base_tools
 }
 
 fn compose_query_with_session_context(
@@ -954,6 +955,20 @@ fn send_current_session_input_checked(app: &mut App) -> Task<Message> {
 /// 公开函数，执行 update 对应的应用流程。
 /// 返回值表达处理结果；失败通过错误值、日志或任务消息显式传递。
 pub fn update(app: &mut App, message: ChatMessage) -> Task<Message> {
+    if matches!(
+        message,
+        ChatMessage::AutoModelToggled(_)
+            | ChatMessage::ModelSelected(_)
+            | ChatMessage::ModelInputChanged(_)
+            | ChatMessage::AcpModelSourceSelected(_)
+    ) && app.current_session_has_started()
+    {
+        return app.show_localized_toast(
+            crate::app::state::ToastKind::Warning,
+            "会话开始后不能切换模型",
+            vec![],
+        );
+    }
     match message {
         ChatMessage::SendPressed => {
             if app.current_session_runtime().acp_source_pending.is_some()
@@ -1328,9 +1343,8 @@ pub fn update(app: &mut App, message: ChatMessage) -> Task<Message> {
             Task::batch([reasoning_task, app.save_chat_model_preferences(model, auto_model)])
         }
         ChatMessage::SessionToolBucketToggled(bucket) => {
-            let base_tools = base_tools_without_delegate_agent(app);
+            let base_tools = base_tools_for_selection(app);
             let runtime = app.current_session_runtime_mut();
-            runtime.agent = None;
             if !runtime.tool_selector.toggle_bucket(bucket) {
                 app.push_localized_notification("至少保留一个工具分桶", vec![]);
             } else {
@@ -1432,34 +1446,30 @@ pub fn update(app: &mut App, message: ChatMessage) -> Task<Message> {
             Task::none()
         }
         ChatMessage::SessionToolGroupToolsToggled(group) => {
-            let base_tools = base_tools_without_delegate_agent(app);
+            let base_tools = base_tools_for_selection(app);
             let runtime = app.current_session_runtime_mut();
-            runtime.agent = None;
             if !runtime.tool_selector.toggle_group_tools(&base_tools, group) {
                 app.push_localized_notification("至少保留一个会话工具", vec![]);
             }
             Task::none()
         }
         ChatMessage::SessionToolSelectorSelectAll => {
-            let base_tools = base_tools_without_delegate_agent(app);
+            let base_tools = base_tools_for_selection(app);
             let runtime = app.current_session_runtime_mut();
-            runtime.agent = None;
             runtime.tool_selector.select_all_tools(&base_tools);
             Task::none()
         }
         ChatMessage::SessionToolSelectorInvert => {
-            let base_tools = base_tools_without_delegate_agent(app);
+            let base_tools = base_tools_for_selection(app);
             let runtime = app.current_session_runtime_mut();
-            runtime.agent = None;
             if !runtime.tool_selector.invert_tools(&base_tools) {
                 app.push_localized_notification("当前工具范围无法直接反选", vec![]);
             }
             Task::none()
         }
         ChatMessage::SessionToolToggled(tool_id) => {
-            let base_tools = base_tools_without_delegate_agent(app);
+            let base_tools = base_tools_for_selection(app);
             let runtime = app.current_session_runtime_mut();
-            runtime.agent = None;
             if !runtime.tool_selector.toggle_tool(&base_tools, &tool_id) {
                 app.push_localized_notification("至少保留一个会话工具", vec![]);
             }
@@ -1484,9 +1494,8 @@ pub fn update(app: &mut App, message: ChatMessage) -> Task<Message> {
             Task::none()
         }
         ChatMessage::SessionToolSelectorReset => {
-            let base_tools = base_tools_without_delegate_agent(app);
+            let base_tools = base_tools_for_selection(app);
             let runtime = app.current_session_runtime_mut();
-            runtime.agent = None;
             runtime.tool_selector.reset();
             runtime.tool_selector.reconcile_tools(&base_tools);
             Task::none()

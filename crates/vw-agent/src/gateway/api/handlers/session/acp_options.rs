@@ -49,6 +49,9 @@ pub(super) async fn set_source(
     Json(update): Json<vw_api_types::acp_model_source::AcpModelSourceUpdate>,
 ) -> Result<Json<AcpSessionOptions>, ApiError> {
     let session = super::session_ops::ui_session_get(path, query, headers).await?.0;
+    if !session.is_first_response_pending() {
+        return Err(ApiError::bad_request("changing a session model requires a new session"));
+    }
     if let Some(binding) =
         crate::session::agent_binding::load_scoped(&session.project_id, &session.id)
             .await

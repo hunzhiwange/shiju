@@ -9,10 +9,10 @@ use iced::{Alignment, Background, Border, Color, Element, Length, Theme};
 
 use super::utils::icon_svg;
 use crate::app::assets::Icon;
-use crate::app::components::input_panel::icons::acp_agent_icon;
 use crate::app::components::input_panel::styles::{
     popover_style, selectable_list_button_style, tooltip_dark_style,
 };
+use crate::app::components::input_panel::{icons::acp_agent_icon, session_lock_tooltip};
 use crate::app::components::system_settings::SystemTab;
 use crate::app::components::system_settings_common::rounded_action_btn_style;
 use crate::app::state::{
@@ -357,6 +357,7 @@ pub(crate) fn session_tool_selector_popover(app: &App) -> Element<'_, Message> {
         SessionToolSelectorTab::Agent => {
             let mut list = column![].spacing(6);
             let mut has_agents = false;
+            let started = app.current_session_has_started();
             for entry in available_agents {
                 has_agents = true;
                 let selected = selected_agent_key == entry.key;
@@ -407,36 +408,33 @@ pub(crate) fn session_tool_selector_popover(app: &App) -> Element<'_, Message> {
                 };
                 let agent_for_press =
                     if entry.key == MAIN_AGENT_KEY { None } else { Some(entry.key.clone()) };
-                list = list.push(
-                    button(
-                        row![
-                            identity_icon,
-                            column![
-                                text(entry.label.clone()).size(13),
-                                text(subtitle).size(11).style(|theme: &Theme| {
-                                    iced::widget::text::Style {
-                                        color: Some(theme.palette().text.scale_alpha(0.62)),
-                                    }
-                                })
-                            ]
-                            .spacing(3)
-                            .width(Length::Fill),
-                            check
+                let control = button(
+                    row![
+                        identity_icon,
+                        column![
+                            text(entry.label.clone()).size(13),
+                            text(subtitle).size(11).style(|theme: &Theme| {
+                                iced::widget::text::Style {
+                                    color: Some(theme.palette().text.scale_alpha(0.62)),
+                                }
+                            })
                         ]
-                        .spacing(10)
-                        .align_y(Alignment::Center),
-                    )
-                    .padding([8, 10])
-                    .width(Length::Fill)
-                    .style(move |theme: &Theme, status| {
-                        selectable_list_button_style(theme, status, selected)
-                    })
-                    .on_press_maybe(
-                        (!app.current_session_has_started()).then_some(Message::Chat(
-                            message::ChatMessage::SessionAgentSelected(agent_for_press),
-                        )),
-                    ),
-                );
+                        .spacing(3)
+                        .width(Length::Fill),
+                        check
+                    ]
+                    .spacing(10)
+                    .align_y(Alignment::Center),
+                )
+                .padding([8, 10])
+                .width(Length::Fill)
+                .style(move |theme: &Theme, status| {
+                    selectable_list_button_style(theme, status, selected)
+                })
+                .on_press_maybe((!started).then_some(Message::Chat(
+                    message::ChatMessage::SessionAgentSelected(agent_for_press),
+                )));
+                list = list.push(session_lock_tooltip(control, i18n, started));
             }
             if !has_agents {
                 let empty_message = if query.trim().is_empty() {

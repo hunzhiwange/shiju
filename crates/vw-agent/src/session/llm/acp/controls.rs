@@ -8,13 +8,17 @@ use vw_api_types::acp_session::{
     AcpChoice, AcpOptionKind, AcpSessionOption, AcpSessionOptions, AcpSessionSelection,
 };
 
+pub(super) fn is_model_config(option: &agent_client_protocol::SessionConfigOption) -> bool {
+    option.category == Some(SessionConfigOptionCategory::Model) || option.id.0.as_ref() == "model"
+}
+
 fn native_advertised(info: vw_acp::SessionCapabilities) -> AcpSessionOptions {
     let mut options = Vec::new();
     let config_options = info.config_options.unwrap_or_default();
     let has_category =
         |category| config_options.iter().any(|option| option.category.as_ref() == Some(&category));
     if let Some(models) = info.models
-        && !has_category(SessionConfigOptionCategory::Model)
+        && !config_options.iter().any(is_model_config)
     {
         options.push(AcpSessionOption {
             kind: AcpOptionKind::Model,
@@ -64,11 +68,33 @@ fn native_advertised(info: vw_acp::SessionCapabilities) -> AcpSessionOptions {
     AcpSessionOptions { connected: true, options, ..Default::default() }
 }
 
+fn native_read_only(info: vw_acp::SessionCapabilities) -> AcpSessionOptions {
+    let model_options = info
+        .config_options
+        .iter()
+        .flatten()
+        .filter(|option| is_model_config(option))
+        .map(|option| option.id.to_string())
+        .collect::<Vec<_>>();
+    let mut options = native_advertised(info);
+    for option in &mut options.options {
+        let locked = match &option.kind {
+            AcpOptionKind::Model => true,
+            AcpOptionKind::Config { id } => model_options.contains(id),
+            AcpOptionKind::Mode => false,
+        };
+        if locked {
+            option.kind = AcpOptionKind::Model;
+            option.choices.retain(|choice| choice.id == option.current);
+        }
+    }
+    options
+}
+
 fn advertised(mut info: vw_acp::SessionCapabilities) -> AcpSessionOptions {
     info.models = None;
     if let Some(options) = info.config_options.as_mut() {
-        options
-            .retain(|option| option.category.as_ref() != Some(&SessionConfigOptionCategory::Model));
+        options.retain(|option| !is_model_config(option));
     }
     native_advertised(info)
 }
@@ -87,12 +113,20 @@ fn project_options(
             if source == AcpModelSource::SessionModel {
                 advertised(info)
             } else {
-                native_advertised(info)
+                native_read_only(info)
             }
         })
         .unwrap_or_default();
     options.acp_model_source = source;
-    options.selected_model = selection.map(|value| value.model.clone());
+    options.selected_model = selection.map(|value| {
+        let mut model = value.model.clone();
+        if value.has_started()
+            && let Some((provider, id)) = model.provider_id.as_ref().zip(model.model.as_mut())
+        {
+            *id = format!("{provider}/{id}");
+        }
+        model
+    });
     if let Some(selection) = selection {
         annotate_model_source(&mut options, &selection.agent);
     }
@@ -229,8 +263,21 @@ pub(crate) async fn select(
         vw_acp::resolve_session_record(&record.vwacp_record_id).await.map_err(|e| e.to_string())?;
     prepare_access_restore(&client.client, &mut record);
     let original_record = record.clone();
-    let visible =
-        project_options(client.client.session_capabilities(&record.acp_session_id), saved.as_ref());
+    let capabilities = client.client.session_capabilities(&record.acp_session_id);
+    let is_model = match &selection.kind {
+        AcpOptionKind::Model => true,
+        AcpOptionKind::Config { id } => capabilities
+            .as_ref()
+            .and_then(|info| info.config_options.as_ref())
+            .is_some_and(|options| {
+                options.iter().any(|option| option.id.0.as_ref() == id && is_model_config(option))
+            }),
+        AcpOptionKind::Mode => false,
+    };
+    if is_model {
+        return Err("changing a session model requires a new session".into());
+    }
+    let visible = project_options(capabilities, saved.as_ref());
     if !visible.options.iter().any(|option| {
         option.kind == selection.kind
             && option.choices.iter().any(|choice| choice.id == selection.value)

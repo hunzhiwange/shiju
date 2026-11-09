@@ -258,6 +258,24 @@ pub(super) fn dark_tooltip_content<'a>(label: impl Into<String>) -> Element<'a, 
     .into()
 }
 
+pub(super) fn session_lock_tooltip<'a>(
+    content: impl Into<Element<'a, Message>>,
+    i18n: crate::app::i18n::I18n,
+    locked: bool,
+) -> Element<'a, Message> {
+    if locked {
+        Tooltip::new(
+            content,
+            dark_tooltip_content(i18n.__("会话开始后无法更改。如需更换，请新建会话。")),
+            TooltipPosition::Top,
+        )
+        .gap(6)
+        .into()
+    } else {
+        content.into()
+    }
+}
+
 pub(super) fn skill_title(app: &App, skill_id: &str) -> String {
     app.skills_settings
         .catalog

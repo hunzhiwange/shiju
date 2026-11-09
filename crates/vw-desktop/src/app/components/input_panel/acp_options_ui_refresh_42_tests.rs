@@ -69,6 +69,11 @@ fn fixture() -> App {
     let mut app = App::new().0;
     app.active_session_id = Some("fixture-a".into());
     let runtime = app.current_session_runtime_mut();
+    runtime.draft = Some(crate::app::state::SessionDraft {
+        project_path: "/workspace".into(),
+        directory: "/workspace".into(),
+        history_len: 0,
+    });
     runtime.acp_agent = Some("codex".into());
     runtime.acp_model_source = AcpModelSource::SessionModel;
     runtime.acp_options.connected = true;
@@ -709,5 +714,28 @@ async fn help_rollout_09_session_model_source_keeps_status_visible() {
             click(&mut popover, &mut renderer, label(&layout, "客户端模型").center()).as_slice(),
             [Message::Chat(ChatMessage::AcpModelSourceSelected(AcpModelSource::SessionModel))]
         ));
+        drop(popover);
+
+        let draft = app.current_session_runtime_mut().draft.take();
+        let mut locked = scene(model_overlay(&app), &mut renderer, size);
+        let layout = bounds(&mut locked, &renderer);
+        label(&layout, "会话开始后不能切换模型");
+        let locked_choice = label(&layout, "客户端模型").center();
+        let idle = frame(&mut locked, &mut renderer, "locked-idle");
+        hover(&mut locked, &mut renderer, locked_choice);
+        let hovered = capture(
+            &mut locked,
+            &mut renderer,
+            &theme,
+            size,
+            &format!("help-09-{locale:?}-model-source-locked-hover"),
+            locked_choice,
+        );
+        assert!(idle != hovered, "locked model source must show a tooltip on hover");
+        assert!(click(&mut locked, &mut renderer, locked_choice).is_empty());
+        hover(&mut locked, &mut renderer, Point::ORIGIN);
+        assert!(idle == frame(&mut locked, &mut renderer, "locked-leave"));
+        drop(locked);
+        app.current_session_runtime_mut().draft = draft;
     }
 }

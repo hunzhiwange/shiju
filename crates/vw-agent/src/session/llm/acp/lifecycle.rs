@@ -49,6 +49,23 @@ pub(super) struct Selection {
     pub record_id: String,
 }
 
+impl Selection {
+    pub fn has_started(&self) -> bool {
+        !self.record_id.is_empty()
+    }
+}
+
+pub(crate) fn locked_model(
+    session: &str,
+    directory: &str,
+) -> Result<Option<AcpSessionModelSelection>, String> {
+    Ok(Store::open(session, directory)
+        .and_then(|store| store.read())
+        .map_err(|error| error.to_string())?
+        .filter(Selection::has_started)
+        .map(|selection| selection.model))
+}
+
 pub(super) struct Store {
     store: GatewaySettingsStore,
     tenant: TenantScope,

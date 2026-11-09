@@ -12,7 +12,7 @@ pub enum AcpModelSource {
 }
 
 /// Persist only model identity; credentials remain in the existing Provider store.
-/// Source changes require a new ACP session; same-source model changes require an idle rebuild.
+/// Changing the source or model after the first turn requires a new conversation.
 #[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct AcpSessionModelSelection {

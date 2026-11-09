@@ -250,7 +250,10 @@ pub fn model_popover_content<'a>(
         .max_height(420)
         .into();
     }
-    let can_select = !runtime.is_requesting
+    let i18n = crate::app::i18n::I18n::new(app.desktop_locale);
+    let started = app.current_session_has_started();
+    let can_select = !started
+        && !runtime.is_requesting
         && !runtime.acp_options_pending
         && runtime.acp_source_pending.is_none()
         && (runtime.acp_agent.is_none() || runtime.acp_options.model_source_capabilities.iter().any(|capability| {
@@ -361,6 +364,7 @@ pub fn model_popover_content<'a>(
                     ),
                 ));
 
+                let select_btn = super::session_lock_tooltip(select_btn, i18n, started);
                 model_list = model_list
                     .push(row![select_btn, detail_btn].spacing(4).align_y(Alignment::Center));
                 any_models = true;
@@ -414,7 +418,6 @@ pub fn model_popover_content<'a>(
         btn.into()
     };
 
-    let i18n = crate::app::i18n::I18n::new(app.desktop_locale);
     let auto = row![
         themed_svg_handle(auto_icon(), 18.0),
         settings_field_label(i18n.__("自动模型")),
@@ -426,23 +429,26 @@ pub fn model_popover_content<'a>(
     .spacing(8)
     .align_y(Alignment::Center);
 
+    let manual_input = text_input(i18n.__("auto / provider/model / 自定义模型"), &input_model)
+        .on_input_maybe(can_select.then_some(move |value: String| {
+            Message::Chat(if is_acp {
+                message::ChatMessage::AcpModelInputDraftChanged(value)
+            } else {
+                message::ChatMessage::ModelInputChanged(normalize_model_input(&value))
+            })
+        }))
+        .on_submit_maybe(can_select.then_some(Message::Chat(message::ChatMessage::ModelSelected(
+            normalize_model_input(&input_model),
+        ))))
+        .padding(SETTINGS_CONTROL_PADDING)
+        .size(SETTINGS_CONTROL_TEXT_SIZE)
+        .style(settings_text_input_style);
     let manual = column![
         settings_field_label(i18n.__("手工填写模型")),
-        text_input(i18n.__("auto / provider/model / 自定义模型"), &input_model)
-            .on_input_maybe(can_select.then_some(move |value: String| {
-                Message::Chat(if is_acp {
-                    message::ChatMessage::AcpModelInputDraftChanged(value)
-                } else {
-                    message::ChatMessage::ModelInputChanged(normalize_model_input(&value))
-                })
-            }))
-            .on_submit_maybe(can_select.then_some(Message::Chat(
-                message::ChatMessage::ModelSelected(normalize_model_input(&input_model)),
-            )))
-            .padding(SETTINGS_CONTROL_PADDING)
-            .size(SETTINGS_CONTROL_TEXT_SIZE)
-            .style(settings_text_input_style),
-        text(if is_acp {
+        super::session_lock_tooltip(manual_input, i18n, started),
+        text(if started && !is_acp {
+            i18n.__("会话开始后不能切换模型")
+        } else if is_acp {
             "输入 Provider/model 后按回车确认"
         } else {
             i18n.__("兼容特殊调度器或未出现在列表中的模型 ID")
@@ -452,6 +458,7 @@ pub fn model_popover_content<'a>(
     ]
     .spacing(6);
 
+    let auto = super::session_lock_tooltip(auto, i18n, started);
     let mut controls = column![auto, manual].spacing(10);
     if is_acp {
         controls = controls.push(settings_divider()).push(super::acp_options::source_controls(app));

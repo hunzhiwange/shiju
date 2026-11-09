@@ -102,6 +102,12 @@ pub(crate) async fn do_stream_request_acp(
         model: (source == vw_api_types::acp_model_source::AcpModelSource::SessionModel)
             .then(|| model.id.clone()),
     };
+    let locked_selection = previous_selection.as_ref().filter(|selection| selection.has_started());
+    if locked_selection
+        .is_some_and(|old| old.agent != acp_agent_name || old.model != selected_model)
+    {
+        return Err(to_api_error("changing a session agent or model requires a new session"));
+    }
     let source_changed = previous_selection
         .as_ref()
         .is_some_and(|old| old.model.source != source || old.agent != acp_agent_name);
@@ -153,6 +159,18 @@ pub(crate) async fn do_stream_request_acp(
     }
     super::skill_mounts::prepare_supplier(&acp_agent_name, parsed_options.skill_view.as_ref())?;
     super::skill_mounts::validate(&acp_agent_name, !parsed_options.skill_mounts.is_empty())?;
+
+    let previous_native = if source == vw_api_types::acp_model_source::AcpModelSource::CliLocal
+        && let Some(previous) = locked_selection
+    {
+        let record =
+            vw_acp::resolve_session_record(&previous.record_id).await.map_err(to_api_error)?;
+        let model = vw_acp::get_desired_model_id(record.vwacp.as_ref());
+        parsed_options.session_options.get_or_insert_with(Default::default).model = model;
+        record.vwacp
+    } else {
+        None
+    };
 
     // The profile owns the relay, token and private files for this request only.
     // CLI-local execution preserves the user's original configuration.
@@ -366,6 +384,11 @@ pub(crate) async fn do_stream_request_acp(
                         .as_ref()
                         .and_then(|options| options.model.clone())
                 })
+            && !cached_client
+                .client
+                .session_capabilities(&acp_session_id)
+                .and_then(|info| info.models)
+                .is_some_and(|models| models.current_model_id.0.as_ref() == model_id)
         {
             if let Err(err) = cached_client
                 .client
@@ -392,24 +415,48 @@ pub(crate) async fn do_stream_request_acp(
                 !matches!(id.as_str(), "reasoning_effort" | "thought_level" | "effort")
             });
         }
+        let info = cached_client.client.session_capabilities(&acp_session_id);
+        let native_config = |id: &str| {
+            info.as_ref().and_then(|info| info.config_options.as_ref()).and_then(|options| {
+                options.iter().find(|option| {
+                    option.id.0.as_ref() == id && super::controls::is_model_config(option)
+                })
+            })
+        };
+        if locked_selection.is_some() {
+            config_options.retain(|id, _| id != "model" && native_config(id).is_none());
+        }
         config_options.extend(vw_acp::get_desired_config_options(record.vwacp.as_ref()));
+        if let Some(state) = previous_native.as_ref() {
+            for option in state
+                .config_options
+                .iter()
+                .flatten()
+                .filter(|option| super::controls::is_model_config(option))
+            {
+                let agent_client_protocol::SessionConfigKind::Select(select) = &option.kind else {
+                    continue;
+                };
+                let id = option.id.to_string();
+                let value = state
+                    .desired_config_options
+                    .as_ref()
+                    .and_then(|values| values.get(&id))
+                    .cloned()
+                    .unwrap_or_else(|| select.current_value.to_string());
+                config_options.insert(id, value);
+            }
+        }
         if launch_profile.is_some() {
-            let info = cached_client.client.session_capabilities(&acp_session_id);
-            config_options.retain(|id, _| {
-                !info.as_ref().and_then(|info| info.config_options.as_ref()).is_some_and(
-                    |options| {
-                        options.iter().any(|option| {
-                            option.id.0.as_ref() == id
-                                && option.category.as_ref()
-                                    == Some(
-                                        &agent_client_protocol::SessionConfigOptionCategory::Model,
-                                    )
-                        })
-                    },
-                )
-            });
+            config_options.retain(|id, _| id != "model" && native_config(id).is_none());
         }
         for (config_id, value) in config_options {
+            if let Some(option) = native_config(&config_id)
+                && let agent_client_protocol::SessionConfigKind::Select(select) = &option.kind
+                && select.current_value.0.as_ref() == value
+            {
+                continue;
+            }
             let value =
                 cached_client.client.restored_permission_value(&config_id, &value).to_owned();
             if let Err(err) = cached_client
@@ -428,6 +475,31 @@ pub(crate) async fn do_stream_request_acp(
             }
         }
 
+        if launch_profile.is_none()
+            && let Some(info) = cached_client.client.session_capabilities(&acp_session_id)
+        {
+            if vw_acp::get_desired_model_id(record.vwacp.as_ref()).is_none()
+                && let Some(models) = info.models.as_ref()
+                && !info.config_options.iter().flatten().any(super::controls::is_model_config)
+            {
+                vw_acp::set_desired_model_id(&mut record, Some(models.current_model_id.0.as_ref()));
+            }
+            for option in info
+                .config_options
+                .iter()
+                .flatten()
+                .filter(|option| super::controls::is_model_config(option))
+            {
+                if let agent_client_protocol::SessionConfigKind::Select(select) = &option.kind {
+                    vw_acp::set_desired_config_option(
+                        &mut record,
+                        option.id.0.as_ref(),
+                        select.current_value.0.as_ref(),
+                    );
+                }
+            }
+            vw_acp::sync_config_options(&mut record, info.config_options);
+        }
         apply_lifecycle_snapshot_to_record(
             &mut record,
             &cached_client.client.get_agent_lifecycle_snapshot(),

@@ -274,6 +274,10 @@ pub(crate) fn collect_slash_palette_candidates(app: &App) -> SlashPaletteCandida
         .map(|(_, _, candidate)| candidate)
         .collect();
 
+    if app.current_session_has_started() {
+        return SlashPaletteCandidates { skills, tools, mcps, ..Default::default() };
+    }
+
     let mut models = vec![SlashPaletteCandidate {
         id: "auto".to_string(),
         label: "Auto".to_string(),

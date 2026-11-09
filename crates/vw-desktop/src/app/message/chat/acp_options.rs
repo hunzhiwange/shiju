@@ -6,6 +6,9 @@ use iced::Task;
 pub(super) fn update(app: &mut App, message: ChatMessage) -> Task<Message> {
     match message {
         ChatMessage::AcpModelInputDraftChanged(value) => {
+            if app.current_session_has_started() {
+                return Task::none();
+            }
             let runtime = app.current_session_runtime_mut();
             if !runtime.is_requesting && runtime.acp_source_pending.is_none() {
                 runtime.acp_model_input_draft = Some(value);
@@ -195,6 +198,16 @@ pub(super) fn update(app: &mut App, message: ChatMessage) -> Task<Message> {
             }
             let selection = match message {
                 ChatMessage::AcpOptionSelected(selection) => {
+                    use vw_gateway_client::vw_api_types::acp_session::AcpOptionKind;
+                    if matches!(&selection.kind, AcpOptionKind::Model)
+                        || matches!(&selection.kind, AcpOptionKind::Config { id } if id == "model")
+                    {
+                        return app.show_localized_toast(
+                            crate::app::state::ToastKind::Warning,
+                            "会话开始后不能切换模型",
+                            vec![],
+                        );
+                    }
                     if runtime.is_requesting
                         || !runtime.acp_options.connected
                         || !runtime.acp_options.options.iter().any(|option| {

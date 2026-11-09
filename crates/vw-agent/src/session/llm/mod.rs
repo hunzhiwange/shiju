@@ -74,7 +74,10 @@ pub(crate) use types::{catalog_error_string, prevent_error_replay};
 #[cfg(test)]
 pub(crate) mod recovery_test_support;
 
-pub(crate) use acp::source_selection::select as select_acp_model_source;
+pub(crate) use acp::{
+    lifecycle::locked_model as locked_acp_model,
+    source_selection::select as select_acp_model_source,
+};
 
 #[cfg(all(test, not(target_arch = "wasm32")))]
 mod native_tools_tests;

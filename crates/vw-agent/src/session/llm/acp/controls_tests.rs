@@ -188,15 +188,20 @@ fn acp_model_source_session_controls_managed_models_are_not_native_choices() {
 }
 
 #[test]
-fn acp_model_source_session_controls_model_config_is_hidden_but_mode_survives() {
+fn acp_model_source_session_controls_model_config_is_read_only_but_mode_survives() {
     let info = vw_acp::SessionCapabilities {
         session_id: "managed".into(), models: None, modes: None,
         config_options: Some(serde_json::from_value(json!([
-            {"id":"llm","name":"Model","category":"model","type":"select","currentValue":"native","options":[{"value":"native","name":"Native"}]},
-            {"id":"mode","name":"Mode","category":"mode","type":"select","currentValue":"ask","options":[{"value":"ask","name":"Ask"}]}
+            {"id":"llm","name":"Model","category":"model","type":"select","currentValue":"native","options":[{"value":"native","name":"Native"},{"value":"other","name":"Other"}]},
+            {"id":"mode","name":"Mode","category":"mode","type":"select","currentValue":"ask","options":[{"value":"ask","name":"Ask"},{"value":"plan","name":"Plan"}]}
         ])).unwrap()),
     };
     assert_eq!(native_advertised(info.clone()).options.len(), 2);
+    let native = project_options(Some(info.clone()), None);
+    assert_eq!(native.options[0].kind, AcpOptionKind::Model);
+    assert_eq!(native.options[0].choices.len(), 1);
+    assert_eq!(native.options[0].choices[0].id, "native");
+    assert_eq!(native.options[1].choices.len(), 2);
     let managed = advertised(info);
     assert_eq!(managed.options.len(), 1);
     assert_eq!(managed.options[0].kind, AcpOptionKind::Config { id: "mode".into() });
@@ -228,14 +233,17 @@ fn acp_model_source_session_controls_disconnected_keeps_provider_identity() {
         model: AcpSessionModelSelection {
             source: AcpModelSource::SessionModel,
             provider_id: Some("provider".into()),
-            model: Some("nested/model".into()),
+            model: Some("provider/nested/model".into()),
         },
         generation: 2,
         record_id: "recoverable-record".into(),
     };
     let options = project_options(None, Some(&selection));
     assert!(!options.connected);
-    assert_eq!(options.selected_model, Some(selection.model));
+    assert_eq!(
+        options.selected_model.and_then(|selection| selection.model).as_deref(),
+        Some("provider/provider/nested/model")
+    );
     assert!(matches!(
         options.model_source_capabilities[0],
         vw_api_types::acp_model_source::AcpModelSourceCapability::Unsupported { .. }

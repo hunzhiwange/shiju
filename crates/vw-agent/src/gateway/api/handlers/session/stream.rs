@@ -1144,6 +1144,7 @@ async fn prepare_gateway_agent_request(
             body.acp_agent = Some(backend.clone())
         }
     }
+    let model = session_model(&body, &binding, session).await?;
     let explicit_full_access = options
         .and_then(|options| options.get("full_access"))
         .map(|value| {
@@ -1174,9 +1175,87 @@ async fn prepare_gateway_agent_request(
         definition,
         &config,
         body.allowed_tools.clone().map(|tools| normalize_tool_ids(tools).unwrap_or_default()),
-        body.model.clone(),
+        model,
     )
     .await
+}
+
+async fn session_model(
+    body: &GatewayChatStreamRequest,
+    binding: &agent_session::agent_binding::AgentBinding,
+    session: &str,
+) -> Result<Option<String>, ApiError> {
+    if session.is_empty() {
+        return Ok(body.model.clone());
+    }
+    let acp = body.acp_agent.is_some();
+    let locked = if acp
+        && let Some(locked) = agent_session::llm::locked_acp_model(session, &instance::directory())
+            .map_err(ApiError::bad_request)?
+    {
+        validate_session_model_source(body.acp_model_source, locked.source)?;
+        locked.provider_id.zip(locked.model).map(|(provider, model)| format!("{provider}/{model}"))
+    } else {
+        let history = agent_session::message::messages(session, Some(2))
+            .await
+            .map_err(|error| ApiError::internal(error.to_string()))?;
+        let previous = history.iter().find_map(|entry| {
+            let (provider, model) = match &entry.info {
+                agent_session::message::Info::Assistant(assistant) => {
+                    (&assistant.provider_id, &assistant.model_id)
+                }
+                agent_session::message::Info::User(user) => {
+                    (&user.model.provider_id, &user.model.model_id)
+                }
+            };
+            (!provider.is_empty() && !model.is_empty()).then_some((provider, model))
+        });
+        match previous {
+            Some((provider, _)) if acp && provider == "acp" => {
+                validate_session_model_source(
+                    body.acp_model_source,
+                    vw_api_types::acp_model_source::AcpModelSource::CliLocal,
+                )?;
+                None
+            }
+            Some((provider, model)) => {
+                if acp {
+                    validate_session_model_source(
+                        body.acp_model_source,
+                        vw_api_types::acp_model_source::AcpModelSource::SessionModel,
+                    )?;
+                }
+                Some(format!("{provider}/{model}"))
+            }
+            None if acp => return Ok(body.model.clone()),
+            None => match &binding.defaults.model {
+                vw_config_types::agent::AgentDefault::Fixed(model) => {
+                    Some(format!("{}/{}", model.provider, model.model))
+                }
+                vw_config_types::agent::AgentDefault::Inherit => None,
+            },
+        }
+    };
+    if let Some(locked) = &locked
+        && body.model.as_deref().map(str::trim).is_some_and(|model| {
+            !model.is_empty() && !model.eq_ignore_ascii_case("auto") && model != locked
+        })
+    {
+        return Err(ApiError::bad_request("changing a session model requires a new session"));
+    }
+    Ok(locked)
+}
+
+fn validate_session_model_source(
+    requested: vw_api_types::acp_model_source::AcpModelSource,
+    locked: vw_api_types::acp_model_source::AcpModelSource,
+) -> Result<(), ApiError> {
+    if requested != locked {
+        return Err(ApiError::bad_request(
+            "changing a session model source requires a new session",
+        ));
+    }
+    Ok(())
 }
 
 type SharedPromptCancel = Arc<Mutex<Option<agent_session::runtime::PromptCancelHandle>>>;

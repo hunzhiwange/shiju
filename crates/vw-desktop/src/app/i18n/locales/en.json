@@ -2749,6 +2749,7 @@
   "Git 提交正在进行中": "Git commit in progress",
   "会话压缩完成": "Session compacted",
   "会话压缩正在进行中": "Session compaction in progress",
+  "会话开始后无法更改。如需更换，请新建会话。": "This session has started. Start a new session to make changes.",
   "会话开始后不能切换 ACP 后端": "Cannot change the ACP backend after the session starts",
   "另一个快捷动作正在进行中": "Another quick action is in progress",
   "已请求停止，正在等待运行状态收敛": "Stop requested; waiting for the run to settle",

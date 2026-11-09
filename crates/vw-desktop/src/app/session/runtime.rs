@@ -168,8 +168,14 @@ impl App {
     }
 
     pub(crate) fn current_session_has_started(&self) -> bool {
-        let runtime = self.current_session_runtime();
-        !self.chat.is_empty() || runtime.active_agent_request.is_some() || !runtime.queue.is_empty()
+        let runtime = self.current_session_runtime_ref();
+        (self.active_session_id.is_some() && runtime.is_none_or(|runtime| runtime.draft.is_none()))
+            || !self.chat.is_empty()
+            || runtime.is_some_and(|runtime| {
+                runtime.is_requesting
+                    || runtime.active_agent_request.is_some()
+                    || !runtime.queue.is_empty()
+            })
     }
 
     /// 执行 mark_session_viewed 对应的领域操作。

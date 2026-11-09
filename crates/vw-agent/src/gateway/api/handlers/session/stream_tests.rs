@@ -2557,6 +2557,10 @@ fn agent_session_identity_survives_profile_edits() {
                 };
                 let overrides = prepare_gateway_agent_request(&mut resumed).await.unwrap();
                 assert_eq!(overrides.chat_system_prompt.as_deref(), Some("ORIGINAL_BINDING_RULE"));
+                let mut switched = resumed.clone();
+                switched.model = Some("model-recovery/different".into());
+                let error = prepare_gateway_agent_request(&mut switched).await.err().unwrap();
+                assert!(error.message.contains("changing a session model requires a new session"));
                 let mut config = crate::config::get_current().await.unwrap();
                 crate::session::agent_binding::apply_to_config(&session_id, &mut config)
                     .await

@@ -36,7 +36,7 @@ use super::types::{Error, StreamEvent, ToolCall};
 mod config;
 mod content;
 pub(crate) mod controls;
-mod lifecycle;
+pub(super) mod lifecycle;
 mod model_source;
 mod replay;
 pub(super) mod request;

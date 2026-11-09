@@ -1145,15 +1145,24 @@ fn preference_messages_update_runtime_and_global_chat_defaults() {
 
 #[test]
 fn agent_unified_selection_locks_chat_queue_and_active_request() {
-    let cases = ["chat", "active_request", "queue"];
+    let cases = ["persisted", "chat", "active_request", "queue"];
 
     for case in cases {
         let (mut app, _task) = crate::app::App::new();
         app.active_session_id = Some("session-1".to_string());
         app.acp_agent = Some("original-agent".to_string());
         app.current_session_runtime_mut().acp_agent = Some("original-agent".to_string());
+        app.current_session_runtime_mut().agent = Some("original-profile".into());
 
+        if case != "persisted" {
+            app.current_session_runtime_mut().draft = Some(crate::app::state::SessionDraft {
+                project_path: "/repo".into(),
+                directory: "/repo".into(),
+                history_len: 0,
+            });
+        }
         match case {
+            "persisted" => {}
             "chat" => app.chat.push(chat_message(crate::app::models::ChatRole::User, "started")),
             "active_request" => {
                 app.current_session_runtime_mut().active_agent_request =
@@ -1171,6 +1180,9 @@ fn agent_unified_selection_locks_chat_queue_and_active_request() {
             super::ChatMessage::SessionAgentSelected(Some("replacement-agent".to_string())),
         );
 
+        super::update(&mut app, super::ChatMessage::SessionToolSelectorReset);
+        assert_eq!(app.current_session_runtime().agent.as_deref(), Some("original-profile"));
+
         assert_eq!(app.acp_agent.as_deref(), Some("original-agent"), "case: {case}");
         assert_eq!(
             app.current_session_runtime().acp_agent.as_deref(),
@@ -1187,7 +1199,7 @@ fn agent_unified_selection_locks_chat_queue_and_active_request() {
 }
 
 #[test]
-fn explicit_model_selection_cancels_pending_history_restore() {
+fn existing_session_model_selection_preserves_pending_history_restore() {
     let (mut app, _task) = crate::app::App::new();
     app.prepare_historical_session_model("history");
     app.active_session_id = Some("history".to_string());
@@ -1197,13 +1209,12 @@ fn explicit_model_selection_cancels_pending_history_restore() {
         super::ChatMessage::ModelSelected("provider/user-selection".to_string()),
     );
 
-    assert!(!app.restore_session_model_from_history("history", "provider/history-model"));
-    assert_eq!(app.model, "provider/user-selection");
-    assert_eq!(app.get_session_runtime("history").model, "provider/user-selection");
+    assert!(app.restore_session_model_from_history("history", "provider/history-model"));
+    assert_eq!(app.get_session_runtime("history").model, "provider/history-model");
 }
 
 #[test]
-fn model_selection_does_not_modify_historical_message_models() {
+fn historical_session_keeps_its_model_when_switches_are_requested() {
     let (mut app, _task) = crate::app::App::new();
     app.active_session_id = Some("history".to_string());
     app.chat = vec![
@@ -1223,13 +1234,23 @@ fn model_selection_does_not_modify_historical_message_models() {
         },
     ];
 
-    super::update(&mut app, super::ChatMessage::ModelSelected("provider/new-model".to_string()));
+    let runtime = app.current_session_runtime_mut();
+    runtime.model = "provider/history-model".into();
+    runtime.auto_model = false;
+    for message in [
+        super::ChatMessage::ModelSelected("provider/new-model".into()),
+        super::ChatMessage::ModelInputChanged("provider/new-model".into()),
+        super::ChatMessage::AutoModelToggled(true),
+    ] {
+        super::update(&mut app, message);
+    }
 
     assert_eq!(
         app.chat.iter().map(|message| message.model.as_deref()).collect::<Vec<_>>(),
         vec![Some("provider/history-model"), Some("provider/history-model")]
     );
-    assert_eq!(app.model, "provider/new-model");
+    assert_eq!(app.current_session_runtime().model, "provider/history-model");
+    assert!(!app.current_session_runtime().auto_model);
 }
 
 #[test]
@@ -2014,9 +2035,8 @@ fn agent_unified_selection_ignores_install_result_from_another_session() {
 fn acp_model_source_ui_selection_preserves_native_and_provider_request_identity() {
     use vw_gateway_client::vw_api_types::acp_model_source::AcpModelSource;
     let (mut app, _) = crate::app::App::new();
-    app.active_session_id = Some("source-session".into());
     app.project_path = Some("/workspace".into());
-    app.sessions = vec![session_info("source-session", "Source", "/workspace")];
+    app.project_id = Some("workspace".into());
     let runtime = app.current_session_runtime_mut();
     runtime.acp_agent = Some("claude".into());
     runtime.model = "provider/custom-model".into();
@@ -2035,16 +2055,15 @@ fn acp_model_source_ui_selection_preserves_native_and_provider_request_identity(
     assert!(request.acp_force_new_session);
 
     app.current_session_runtime_mut().is_requesting = false;
+    super::update(
+        &mut app,
+        super::ChatMessage::AcpModelSourceSelected(AcpModelSource::SessionModel),
+    );
     super::update(&mut app, super::ChatMessage::ModelSelected("provider/other-model".into()));
-    confirm_pending_model_source(&mut app);
-    app.current_session_runtime_mut().input_editor =
-        iced::widget::text_editor::Content::with_text("next");
-    super::send_current_session_input_checked(&mut app);
     let runtime = app.current_session_runtime();
-    let request = runtime.active_agent_request.as_ref().unwrap();
-    assert_eq!(request.acp_model_source, AcpModelSource::SessionModel);
-    assert_eq!(request.model.as_deref(), Some("provider/other-model"));
-    assert!(request.acp_force_new_session);
+    assert_eq!(runtime.acp_model_source, AcpModelSource::CliLocal);
+    assert_eq!(runtime.model, "provider/custom-model");
+    assert!(runtime.acp_source_pending.is_none());
 }
 
 #[test]
@@ -2121,7 +2140,7 @@ fn confirm_pending_model_source(app: &mut crate::app::App) {
     let _ = crate::app::message::chat::update(
         app,
         super::ChatMessage::AcpModelSourceSaved {
-            session_id: app.active_session_id.clone().unwrap(),
+            session_id: app.active_session_id.clone().unwrap_or_else(|| "__empty__".into()),
             request_id: runtime.acp_source_request_id.unwrap(),
             project_path: app.project_path.clone(),
             update,

@@ -9,7 +9,7 @@ use iced::widget::{Space, button as action, column, container, row, text};
 use iced::{Alignment, Element, Length, Theme};
 
 use super::styles::selectable_list_button_style;
-use vw_gateway_client::vw_api_types::acp_session::AcpSessionSelection;
+use vw_gateway_client::vw_api_types::acp_session::{AcpOptionKind, AcpSessionSelection};
 
 pub(crate) fn with_modal<'a>(app: &'a App, base: Element<'a, Message>) -> Element<'a, Message> {
     let Some(runtime) =
@@ -17,6 +17,7 @@ pub(crate) fn with_modal<'a>(app: &'a App, base: Element<'a, Message>) -> Elemen
     else {
         return base;
     };
+    let i18n = I18n::new(app.desktop_locale);
     let close = Message::Chat(ChatMessage::AcpOptionsClose);
     let mut fields = column![
         container(access_status(app)).padding(12).width(Length::Fill).style(settings_panel_style),
@@ -31,6 +32,8 @@ pub(crate) fn with_modal<'a>(app: &'a App, base: Element<'a, Message>) -> Elemen
             .push(text("后端未提供可调整的会话选项").size(13).style(settings_muted_text_style));
     }
     for option in &runtime.acp_options.options {
+        let model_locked = option.kind == AcpOptionKind::Model
+            || matches!(&option.kind, AcpOptionKind::Config { id } if id == "model");
         let mut choices = column![settings_field_label(&option.name)].spacing(6);
         for choice in &option.choices {
             let selected = option.current == choice.id;
@@ -47,14 +50,18 @@ pub(crate) fn with_modal<'a>(app: &'a App, base: Element<'a, Message>) -> Elemen
                 style
             })
             .on_press_maybe(
-                (!selected && !runtime.acp_options_pending && !runtime.is_requesting).then(|| {
-                    Message::Chat(ChatMessage::AcpOptionSelected(AcpSessionSelection {
-                        kind: option.kind.clone(),
-                        value: choice.id.clone(),
-                    }))
-                }),
+                (!model_locked
+                    && !selected
+                    && !runtime.acp_options_pending
+                    && !runtime.is_requesting)
+                    .then(|| {
+                        Message::Chat(ChatMessage::AcpOptionSelected(AcpSessionSelection {
+                            kind: option.kind.clone(),
+                            value: choice.id.clone(),
+                        }))
+                    }),
             );
-            choices = choices.push(control);
+            choices = choices.push(super::session_lock_tooltip(control, i18n, model_locked));
         }
         fields = fields
             .push(container(choices).padding(12).width(Length::Fill).style(settings_panel_style));
@@ -97,6 +104,8 @@ pub(super) fn source_controls(app: &App) -> Element<'_, Message> {
         AcpModelSource, AcpModelSourceCapability, AcpModelSourceRejectionReason,
     };
     let runtime = app.current_session_runtime();
+    let started = app.current_session_has_started();
+    let i18n = I18n::new(app.desktop_locale);
     let client = "客户端模型";
     let native = "智能体原生模型";
     let description = format!(
@@ -105,7 +114,7 @@ pub(super) fn source_controls(app: &App) -> Element<'_, Message> {
     let title = "模型来源";
     let mut controls = column![
         settings_hover_help_label(
-            I18n::new(app.desktop_locale),
+            i18n,
             &app.app_theme,
             title,
             settings_field_label(title),
@@ -139,7 +148,7 @@ pub(super) fn source_controls(app: &App) -> Element<'_, Message> {
             _ => None,
         };
         let selected = runtime.acp_model_source == source;
-        controls = controls.push(
+        let control =
             action(text(format!("{}{}", if selected { "✓ " } else { "" }, label)).size(13))
                 .width(Length::Fill)
                 .padding([8, 10])
@@ -153,12 +162,13 @@ pub(super) fn source_controls(app: &App) -> Element<'_, Message> {
                 .on_press_maybe(
                     (matches!(capability, Some(AcpModelSourceCapability::Supported { .. }))
                         && !selected
+                        && !started
                         && !runtime.is_requesting
                         && !runtime.acp_options_pending
                         && runtime.acp_source_pending.is_none())
                     .then_some(Message::Chat(ChatMessage::AcpModelSourceSelected(source))),
-                ),
-        );
+                );
+        controls = controls.push(super::session_lock_tooltip(control, i18n, started));
         if let Some(reason) = reason {
             controls = controls.push(text(reason).size(12).style(settings_muted_text_style));
         }
@@ -173,7 +183,9 @@ pub(super) fn source_controls(app: &App) -> Element<'_, Message> {
         );
     }
     controls = controls.push(
-        text(if runtime.acp_source_pending.is_some() {
+        text(if started {
+            "会话开始后不能切换模型"
+        } else if runtime.acp_source_pending.is_some() {
             "正在等待执行主机确认并保存…"
         } else {
             "切换来源将创建新的 ACP 会话；原生上下文不继承"

@@ -10,6 +10,11 @@ pub(crate) async fn select(
     update: AcpModelSourceUpdate,
 ) -> Result<AcpSessionOptions, String> {
     let _guard = super::lifecycle::try_lock(session, directory)?;
+    let store = super::lifecycle::Store::open(session, directory).map_err(|e| e.to_string())?;
+    let previous = store.read().map_err(|e| e.to_string())?;
+    if previous.as_ref().is_some_and(super::lifecycle::Selection::has_started) {
+        return Err("changing a session model requires a new session".into());
+    }
     let config = crate::config::get_current().await.map_err(|e| e.to_string())?;
     if vw_acp::resolve_agent_spec(&update.agent).is_none()
         && !config.acp.contains_key(&update.agent)
@@ -62,8 +67,6 @@ pub(crate) async fn select(
             }
         }
     }
-    let store = super::lifecycle::Store::open(session, directory).map_err(|e| e.to_string())?;
-    let previous = store.read().map_err(|e| e.to_string())?;
     let changed =
         previous.as_ref().is_none_or(|old| old.agent != update.agent || old.model != model);
     let generation = previous

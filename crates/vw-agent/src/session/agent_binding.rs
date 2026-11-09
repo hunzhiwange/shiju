@@ -304,9 +304,20 @@ pub(crate) async fn prepare(
         config.agents.insert(binding.agent.clone(), definition);
         return Ok((binding, config));
     }
-    let agent = selected_agent
-        .map(str::trim)
-        .filter(|key| !key.is_empty())
+    let history = if session.is_empty() {
+        Vec::new()
+    } else {
+        super::message::messages(session, Some(1)).await?
+    };
+    let recorded_agent = history.first().and_then(|entry| {
+        let agent = match &entry.info {
+            super::message::Info::Assistant(assistant) => &assistant.agent,
+            super::message::Info::User(user) => &user.agent,
+        };
+        (!agent.is_empty() && agent != "gateway").then_some(agent.as_str())
+    });
+    let agent = recorded_agent
+        .or_else(|| selected_agent.map(str::trim).filter(|key| !key.is_empty()))
         .map(ToOwned::to_owned)
         .unwrap_or_else(|| {
             backend.map(|backend| format!("acp-{backend}")).unwrap_or_else(|| "main".into())
@@ -315,7 +326,7 @@ pub(crate) async fn prepare(
         .await
         .ok_or_else(|| anyhow::anyhow!("unknown or disabled agent: {agent}"))?;
     let provisional = AgentBinding::from_definition(agent.clone(), &definition);
-    provisional.validate_selection(Some(&agent), backend)?;
+    provisional.validate_selection(selected_agent, backend)?;
     let mcp = crate::tools::mcp_common::load_resolved_acp_config_from(workspace).await?;
     let context = DefaultsContext {
         skills: crate::skills::load_skills_with_config(workspace, &config)

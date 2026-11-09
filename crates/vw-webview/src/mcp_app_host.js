@@ -6,6 +6,15 @@ let pendingBytes = 0;
 const pending = new Map();
 const reported = new Set();
 const encoder = new TextEncoder();
+const linkStatus = document.querySelector("#link-status");
+let noticeTimer;
+function showNotice(text) {
+    linkStatus.textContent = text;
+    linkStatus.hidden = false;
+    clearTimeout(noticeTimer);
+    noticeTimer = setTimeout(() => { linkStatus.hidden = true; }, 4500);
+}
+window.__mcpPopupBlocked = () => showNotice("MCP 应用无法打开此弹窗，请使用外部链接。");
 
 window.addEventListener("message", event => {
     if (event.source !== frame.contentWindow || event.origin !== "null") return;
@@ -19,6 +28,15 @@ window.addEventListener("message", event => {
                 port = undefined;
                 pending.clear();
                 pendingBytes = 0;
+                window.ipc.postMessage(JSON.stringify({nonce: hostNonce, closed: true}));
+                return;
+            }
+            if (data.notice === "popupBlocked") {
+                window.__mcpPopupBlocked();
+                return;
+            }
+            if (data.notice === "linkDenied") {
+                showNotice("未打开外部链接。");
                 return;
             }
             if (data.blocked) {

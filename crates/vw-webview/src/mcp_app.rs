@@ -17,6 +17,18 @@ use wry::{WebViewBuilder, http};
 #[path = "mcp_app_form.rs"]
 mod form;
 
+enum AppEvent {
+    Deliver(Value),
+    PopupBlocked,
+    Close,
+}
+
+// A line distinct from the page's RPC envelope, emitted only by trusted helper code.
+pub(super) fn revoke_document() {
+    let mut stdout = io::stdout().lock();
+    let _ = writeln!(stdout, "mcp-app-closed").and_then(|_| stdout.flush());
+}
+
 const MAX_MESSAGE_BYTES: usize = 1024 * 1024;
 const WRAPPER_URL: &str = "mcp-app://localhost/index.html";
 const APP_URL: &str = "mcp-app://localhost/app.html";
@@ -61,8 +73,9 @@ pub fn run() -> Result<(), Box<dyn std::error::Error>> {
         }})();",
         include_str!("mcp_app_document.js"),
     );
-    let event_loop = EventLoopBuilder::<Option<Value>>::with_user_event().build();
+    let event_loop = EventLoopBuilder::<AppEvent>::with_user_event().build();
     let proxy = event_loop.create_proxy();
+    let popup_proxy = proxy.clone();
     let active = Arc::new(AtomicBool::new(true));
     let pipe_active = active.clone();
     std::thread::spawn(move || {
@@ -81,11 +94,11 @@ pub fn run() -> Result<(), Box<dyn std::error::Error>> {
                 break;
             }
             if let Ok(value) = serde_json::from_str(line) {
-                let _ = proxy.send_event(Some(value));
+                let _ = proxy.send_event(AppEvent::Deliver(value));
             }
         }
         pipe_active.store(false, Ordering::Release);
-        let _ = proxy.send_event(None);
+        let _ = proxy.send_event(AppEvent::Close);
     });
     let window = WindowBuilder::new().with_title("ShiJu MCP App").build(&event_loop)?;
     let submitted = Rc::new(Cell::new(false));
@@ -124,7 +137,10 @@ pub fn run() -> Result<(), Box<dyn std::error::Error>> {
         .with_incognito(true)
         .with_devtools(false)
         .with_clipboard(false)
-        .with_new_window_req_handler(|_, _| wry::NewWindowResponse::Deny)
+        .with_new_window_req_handler(move |_, _| {
+            let _ = popup_proxy.send_event(AppEvent::PopupBlocked);
+            wry::NewWindowResponse::Deny
+        })
         .with_ipc_handler(move |request| {
             if !ipc_active.load(Ordering::Acquire)
                 || ipc_submitted.get()
@@ -137,6 +153,10 @@ pub fn run() -> Result<(), Box<dyn std::error::Error>> {
                 return;
             };
             if envelope["nonce"].as_str() != Some(nonce.as_str()) {
+                return;
+            }
+            if envelope["closed"] == true {
+                revoke_document();
                 return;
             }
             if let Some(directive) = envelope["blocked"].as_str() {
@@ -208,14 +228,19 @@ pub fn run() -> Result<(), Box<dyn std::error::Error>> {
         let _ = &_form_delegate;
         *flow = ControlFlow::Wait;
         match event {
-            Event::UserEvent(Some(value)) if active.load(Ordering::Acquire) && !submitted.get() => {
+            Event::UserEvent(AppEvent::Deliver(value))
+                if active.load(Ordering::Acquire) && !submitted.get() =>
+            {
                 // JSON is encoded as a JS string, then parsed: no page text becomes source.
                 if let Ok(encoded) = serde_json::to_string(&value.to_string()) {
                     let _ = webview
                         .evaluate_script(&format!("window.__mcpDeliver?.(JSON.parse({encoded}))"));
                 }
             }
-            Event::UserEvent(None)
+            Event::UserEvent(AppEvent::PopupBlocked) => {
+                let _ = webview.evaluate_script("window.__mcpPopupBlocked?.()");
+            }
+            Event::UserEvent(AppEvent::Close)
             | Event::WindowEvent { event: WindowEvent::CloseRequested, .. } => {
                 active.store(false, Ordering::Release);
                 *flow = ControlFlow::Exit
@@ -233,8 +258,12 @@ fn render_wrapper(host_nonce: &str, document_nonce: &str, form_enabled: bool) ->
 <style>
 html, body, iframe {{ margin: 0; width: 100%; height: 100%; border: 0; }}
 ::-webkit-scrollbar {{ width: 4px; }}
+:root {{ color-scheme: light dark; }}
+#link-status {{ position: fixed; inset: auto 12px 12px; padding: 8px 12px; border-radius: 8px;
+    color: CanvasText; background: Canvas; border: 1px solid GrayText; font: menu; pointer-events: none; }}
 </style>
 <iframe sandbox="allow-scripts{forms}"></iframe>
+<div id="link-status" role="status" hidden></div>
 <script>
 (() => {{
     const hostNonce = "{host_nonce}";

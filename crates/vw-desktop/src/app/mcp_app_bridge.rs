@@ -1,7 +1,14 @@
 //! MCP Apps RPC admission. Identity comes from the host, never from page parameters.
 use anyhow::{Result, bail};
 use serde_json::{Value, json};
-use std::collections::BTreeSet;
+use std::{
+    collections::{BTreeSet, VecDeque},
+    sync::{
+        Arc,
+        atomic::{AtomicBool, Ordering},
+    },
+    time::Duration,
+};
 use vw_gateway_client::vw_api_types::mcp_app_network::McpAppNetworkPolicy;
 
 pub struct McpAppBridge {
@@ -9,9 +16,63 @@ pub struct McpAppBridge {
     server: String,
     origin: String,
     tools: BTreeSet<String>,
+    redirect_domains: Vec<String>,
+    recent_links: VecDeque<Value>,
     initialized: bool,
     ready: bool,
     closed: bool,
+}
+
+enum Admission {
+    Reply(Value),
+    OpenLink { id: Value, url: reqwest::Url },
+}
+
+fn link_error(id: Value, message: &str) -> Value {
+    json!({"jsonrpc":"2.0","id":id,"error":{"code":-32000,"message":message}})
+}
+
+fn resolve_link(
+    id: Value,
+    url: &str,
+    deadline: tokio::time::Instant,
+    approved: Option<bool>,
+    open: impl FnOnce(&str) -> bool,
+) -> Value {
+    // Check the clock even if a late approval won the timeout's final poll.
+    if tokio::time::Instant::now() >= deadline || approved.is_none() {
+        return link_error(id, "External link confirmation expired");
+    }
+    if approved == Some(false) {
+        return link_error(id, "External link opening denied by user");
+    }
+    if open(url) {
+        json!({"jsonrpc":"2.0","id":id,"result":{}})
+    } else {
+        link_error(id, "System browser could not open external link")
+    }
+}
+
+fn parse_link(raw: &str) -> Option<reqwest::Url> {
+    // A URL parser can normalize input such as backslashes and stripped controls.
+    let authority = raw.strip_prefix("https://")?.split(['/', '?', '#']).next()?;
+    if raw.len() > 8192
+        || authority.is_empty()
+        || authority.contains(['@', '%'])
+        || raw.chars().any(|ch| ch.is_control() || ch.is_whitespace() || ch == '\\')
+    {
+        return None;
+    }
+    for (index, byte) in raw.bytes().enumerate() {
+        if byte == b'%'
+            && u8::from_str_radix(raw.get(index + 1..index + 3)?, 16).ok()?.is_ascii_control()
+        {
+            return None;
+        }
+    }
+    let url = reqwest::Url::parse(raw).ok()?;
+    url.host_str()?;
+    Some(url)
 }
 
 impl McpAppBridge {
@@ -24,7 +85,17 @@ impl McpAppBridge {
         if session.is_empty() || server.is_empty() || origin.is_empty() {
             bail!("missing host identity");
         }
-        Ok(Self { session, server, origin, tools, initialized: false, ready: false, closed: false })
+        Ok(Self {
+            session,
+            server,
+            origin,
+            tools,
+            redirect_domains: Vec::new(),
+            recent_links: VecDeque::new(),
+            initialized: false,
+            ready: false,
+            closed: false,
+        })
     }
 
     /// The caller must resolve permission and execution using the bound session/server.
@@ -34,8 +105,26 @@ impl McpAppBridge {
         server: &str,
         origin: &str,
         message: &str,
-        mut execute: F,
+        execute: F,
     ) -> Result<Value>
+    where
+        F: FnMut(&str, &str, &str, &Value) -> Result<Value>,
+    {
+        match self.admit(session, server, origin, message, false, execute)? {
+            Admission::Reply(response) => Ok(response),
+            Admission::OpenLink { .. } => unreachable!("no link handler"),
+        }
+    }
+
+    fn admit<F>(
+        &mut self,
+        session: &str,
+        server: &str,
+        origin: &str,
+        message: &str,
+        handles_links: bool,
+        mut execute: F,
+    ) -> Result<Admission>
     where
         F: FnMut(&str, &str, &str, &Value) -> Result<Value>,
     {
@@ -56,7 +145,7 @@ impl McpAppBridge {
                 bail!("invalid initialized notification");
             }
             self.ready = true;
-            return Ok(Value::Null);
+            return Ok(Admission::Reply(Value::Null));
         }
         let id = request
             .get("id")
@@ -69,7 +158,33 @@ impl McpAppBridge {
                     bail!("app already initialized");
                 }
                 self.initialized = true;
-                json!({"protocolVersion":"2026-01-26","hostInfo":{"name":"ShiJu","version":env!("CARGO_PKG_VERSION")},"hostCapabilities":{},"hostContext":{"platform":"desktop"}})
+                let capabilities = if handles_links && !self.redirect_domains.is_empty() {
+                    json!({"openLinks":{}})
+                } else {
+                    json!({})
+                };
+                json!({"protocolVersion":"2026-01-26","hostInfo":{"name":"ShiJu","version":env!("CARGO_PKG_VERSION")},"hostCapabilities":capabilities,"hostContext":{"platform":"desktop"}})
+            }
+            "ui/open-link" if handles_links => {
+                let denied = |id, reason| Ok(Admission::Reply(link_error(id, reason)));
+                if !self.ready {
+                    return denied(id, "MCP app is not ready");
+                }
+                let Some(url) = request["params"]["url"].as_str().and_then(parse_link) else {
+                    return denied(id, "Invalid external link URL");
+                };
+                if !self.redirect_domains.contains(&url.origin().ascii_serialization()) {
+                    return denied(id, "External link origin is not allowed");
+                }
+                if self.recent_links.contains(&id) {
+                    return denied(id, "Duplicate external link request");
+                }
+                // Bound replay tracking for a long-running app.
+                if self.recent_links.len() == 32 {
+                    self.recent_links.pop_front();
+                }
+                self.recent_links.push_back(id.clone());
+                return Ok(Admission::OpenLink { id, url });
             }
             "tools/call" => {
                 if !self.ready {
@@ -85,12 +200,13 @@ impl McpAppBridge {
             }
             _ => bail!("unsupported MCP app method"),
         };
-        Ok(json!({"jsonrpc":"2.0","id":id,"result":result}))
+        Ok(Admission::Reply(json!({"jsonrpc":"2.0","id":id,"result":result})))
     }
 
     pub fn close(&mut self) {
         self.closed = true;
         self.tools.clear();
+        self.recent_links.clear();
     }
 }
 
@@ -99,6 +215,7 @@ pub struct McpAppProcess {
     child: std::process::Child,
     input: std::process::ChildStdin,
     events: std::sync::mpsc::Receiver<String>,
+    document_active: Arc<AtomicBool>,
     bridge: McpAppBridge,
     session: String,
     server: String,
@@ -140,7 +257,8 @@ impl McpAppProcess {
         if html.len() > 4 * 1024 * 1024 {
             bail!("MCP app HTML too large");
         }
-        let bridge = McpAppBridge::new(session.clone(), server.clone(), "null".into(), tools)?;
+        let mut bridge = McpAppBridge::new(session.clone(), server.clone(), "null".into(), tools)?;
+        bridge.redirect_domains.clone_from(&csp.redirect_domains);
         let mut child = std::process::Command::new(helper)
             .arg("--mcp-app-stdin")
             .stdin(std::process::Stdio::piped())
@@ -160,6 +278,8 @@ impl McpAppProcess {
             return Err(error.into());
         }
         let (send, events) = std::sync::mpsc::sync_channel(32);
+        let document_active = Arc::new(AtomicBool::new(true));
+        let reader_active = document_active.clone();
         std::thread::spawn(move || {
             let mut output = std::io::BufReader::new(output);
             loop {
@@ -171,6 +291,9 @@ impl McpAppProcess {
                 if line.len() > 1024 * 1024 {
                     break;
                 }
+                if line.trim_end() == "mcp-app-closed" {
+                    break;
+                }
                 if let Some(message) = line.strip_prefix("mcp-app ") {
                     // Never block the child pipe on an unresponsive UI consumer.
                     if send.try_send(message.to_owned()).is_err() {
@@ -178,8 +301,9 @@ impl McpAppProcess {
                     }
                 }
             }
+            reader_active.store(false, Ordering::Release);
         });
-        Ok(Self { child, input, events, bridge, session, server })
+        Ok(Self { child, input, events, document_active, bridge, session, server })
     }
 
     /// Execution is supplied by the owning session's existing approval path, never the page.
@@ -216,32 +340,42 @@ impl McpAppProcess {
         Ok(count)
     }
 
-    /// Run admitted requests via authenticated Gateway session bindings. No approval callback is supplied by the page.
-    pub async fn poll_gateway(
+    /// Route tool calls through the session binding and external links through host confirmation.
+    pub async fn poll_gateway<F>(
         &mut self,
         client: &vw_gateway_client::GatewayClient,
         binding: &str,
-    ) -> Result<usize> {
+        mut confirm: impl FnMut(String) -> F,
+        mut open: impl FnMut(&str) -> bool,
+        cancelled: impl Fn() -> bool,
+    ) -> Result<usize>
+    where
+        F: std::future::Future<Output = bool>,
+    {
         use std::io::Write;
         let mut count = 0;
-        for raw in self.events.try_iter() {
+        while let Ok(raw) = self.events.try_recv() {
+            if !self.document_active.load(Ordering::Acquire) || cancelled() {
+                break;
+            }
             let envelope: Value = serde_json::from_str(&raw)?;
             let origin =
                 envelope["origin"].as_str().ok_or_else(|| anyhow::anyhow!("missing origin"))?;
             let request = &envelope["message"];
             let mut call = None;
-            let admitted = self.bridge.receive(
+            let admitted = self.bridge.admit(
                 &self.session,
                 &self.server,
                 origin,
                 &request.to_string(),
+                true,
                 |_, _, name, args| {
                     call = Some((name.to_owned(), args.clone()));
                     Ok(Value::Null)
                 },
             );
             let response = match (admitted, call) {
-                (Ok(mut response), Some((name, arguments))) => {
+                (Ok(Admission::Reply(mut response)), Some((name, arguments))) => {
                     match client
                         .mcp_app_call(&self.session, &self.server, binding, &name, &arguments)
                         .await
@@ -255,7 +389,22 @@ impl McpAppProcess {
                         }
                     }
                 }
-                (Ok(response), None) => response,
+                (Ok(Admission::Reply(response)), None) => response,
+                (Ok(Admission::OpenLink { id, url }), _) => {
+                    let deadline = tokio::time::Instant::now() + Duration::from_secs(60);
+                    let decision = tokio::time::timeout_at(
+                        deadline,
+                        confirm(url.origin().ascii_serialization()),
+                    )
+                    .await;
+                    if !self.is_running()
+                        || !self.document_active.load(Ordering::Acquire)
+                        || cancelled()
+                    {
+                        break;
+                    }
+                    resolve_link(id, url.as_str(), deadline, decision.ok(), &mut open)
+                }
                 (Err(_), _) => {
                     json!({"jsonrpc":"2.0","id":request["id"],"error":{"code":-32600,"message":"MCP app request denied"}})
                 }
@@ -288,6 +437,7 @@ impl McpAppProcess {
     pub fn close(&mut self) -> Result<()> {
         use std::io::Write;
         self.bridge.close();
+        self.document_active.store(false, Ordering::Release);
         if self.child.try_wait()?.is_none() {
             // Give the page a bounded opportunity to release its resources; never execute new calls during teardown.
             let _ = writeln!(self.input, "{}", json!({"jsonrpc":"2.0","id":"host-teardown","method":"ui/resource-teardown","params":{}})).and_then(|_| self.input.flush());
@@ -315,3 +465,7 @@ impl Drop for McpAppProcess {
         let _ = self.close();
     }
 }
+
+#[cfg(test)]
+#[path = "mcp_app_bridge_tests.rs"]
+mod tests;

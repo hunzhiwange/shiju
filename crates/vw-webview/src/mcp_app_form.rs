@@ -97,7 +97,9 @@ mod supported {
                 pending.set(false);
                 let approved = approved && active.load(Ordering::Acquire);
                 submitted.set(approved);
-                if !approved {
+                if approved {
+                    crate::mcp_app::revoke_document();
+                } else {
                     eprintln!("MCP app form submission cancelled");
                 }
                 decide(approved);

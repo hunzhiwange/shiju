@@ -98,7 +98,23 @@ impl McpAppPanel {
                             }
                             break;
                         }
-                        let poll = process.poll_gateway(&client, &binding);
+                        let poll = process.poll_gateway(
+                            &client,
+                            &binding,
+                            |origin| async move {
+                                rfd::AsyncMessageDialog::new()
+                                    .set_title("打开 MCP 外部链接")
+                                    .set_description(format!(
+                                        "是否使用系统浏览器打开此来源的链接？\n{origin}"
+                                    ))
+                                    .set_buttons(rfd::MessageButtons::YesNo)
+                                    .show()
+                                    .await
+                                    == rfd::MessageDialogResult::Yes
+                            },
+                            open_system_browser,
+                            || cancelled.load(Ordering::Acquire),
+                        );
                         let stop = async {
                             while !cancelled.load(Ordering::Acquire) {
                                 tokio::time::sleep(std::time::Duration::from_millis(25)).await;
@@ -144,5 +160,18 @@ impl McpAppPanel {
     }
     pub fn cancel(&self) {
         self.0.cancelled.store(true, Ordering::Release);
+    }
+}
+
+// On Windows, open::that uses cmd in the pinned version. Use ShellExecute
+// so the confirmed URL is passed as data, without shell expansion.
+fn open_system_browser(url: &str) -> bool {
+    #[cfg(windows)]
+    {
+        open::that_detached(url).is_ok()
+    }
+    #[cfg(not(windows))]
+    {
+        open::that(url).is_ok()
     }
 }

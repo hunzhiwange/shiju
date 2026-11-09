@@ -115,6 +115,7 @@ objc2 = "0.6"
 objc2-app-kit = { version = "0.3", default-features = false, features = ["std", "NSApplication", "NSEvent", "NSWindow", "NSView"] }
 
 [target.'cfg(windows)'.dependencies]
+open = { version = "5", features = ["shellexecute-on-windows"] }
 notify-rust = { version = "4.18.2", default-features = false }
 winreg = "0.55"
 dunce = "1.0.5"

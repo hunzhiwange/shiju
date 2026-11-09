@@ -231,3 +231,25 @@
 | 全仓检查 | `cargo clippy --all-targets --all-features -- -D warnings` | 退出 0。 |
 
 限定提交范围的 `git diff --cached --check` 退出 0。槽位锁已释放，编译缓存保留。真实账号验收见任务 56。
+
+## 任务 18 智谱个人套餐
+
+| 来源 | 实现和测试 |
+| --- | --- |
+| [TS 个人版检测](../../../../crates/vw-agent-apps/upstream/src/config/codingPlanProviders.ts#L35-L50) · [Rust 套餐查询](../../../../crates/vw-agent-apps/upstream/src-tauri/src/services/coding_plan.rs#L368-L436) | `query_zhipu` 只接受国内或国际个人版供应商类型，向对应官方站点发送 GET 请求，使用原样鉴权头、15 秒超时和禁用重定向。HTTP、传输和响应错误返回稳定错误码及脱敏说明。 |
+| [窗口分类与档位](../../../../crates/vw-agent-apps/upstream/src-tauri/src/services/coding_plan.rs#L274-L367) · [档位字段](../../../../crates/vw-agent-apps/upstream/src-tauri/src/services/coding_plan.rs#L515-L533) · [窗口夹具](../../../../crates/vw-agent-apps/upstream/src-tauri/src/services/coding_plan.rs#L2444-L2661) | 按 `unit` 优先识别 5 小时和每周窗口。旧数据先放无重置时间的窗口，再按重置时间升序填空位。识别 `TOKENS_LIMIT` 和 `CREDIT_LIMIT`，保留套餐档位、有限百分比和毫秒级重置时间。缺失的用量保留为空，畸形用量字段返回 `InvalidResponse`。 |
+| [余额回落调用方](../../../../crates/vw-agent-apps/upstream/src-tauri/src/commands/provider.rs#L713-L751) · [无套餐夹具](../../../../crates/vw-agent-apps/upstream/src-tauri/src/services/coding_plan.rs#L3371-L3458) | 套餐查询和任务 16 的余额回落共用原有 HTTP 和无套餐判定。明确无套餐返回 `None`，有效套餐可返回空窗口，鉴权和业务失败保留为类型化错误。 |
+
+[适配器](../../../../crates/vw-agent-apps/src/usage/coding/zhipu.rs) · [独立行为测试](../../../../crates/vw-agent-apps/src/usage/coding/zhipu_tests.rs)
+
+验证环境为 macOS 27.0 (26A428)、arm64，`vw-agent-apps` 0.6.0。动态领取槽位 2，`CARGO_TARGET_DIR` 和 `CARGO_BUILD_BUILD_DIR` 均为 `/Users/xiangmin/worker/code/shiju/target/rust-slot-2`。
+
+| 阶段 | 命令 | 结果 |
+| --- | --- | --- |
+| 实现前 | `cargo test -p vw-agent-apps usage_coding_zhipu_ -- --nocapture` | 退出 101，执行 0 项。`usage_coding_zhipu_returns_expected_result` 和 `usage_coding_zhipu_rejects_invalid_input` 所在测试模块因适配器尚未实现报 E0432。 |
+| 格式化 | `cargo fmt --all` | 在隔离源码副本执行，退出 0。仅同步本任务 Rust 文件。 |
+| 实现后 | `cargo test -p vw-agent-apps usage_coding_zhipu_ -- --nocapture` | 退出 0，4 项通过，0 项失败。本地 HTTP 夹具核对请求方法、路径和请求头，并验证窗口顺序、重置时间、无套餐与失败的区别。 |
+| 余额回归 | `cargo test -p vw-agent-apps usage_balances_zhipu_ -- --nocapture` | 退出 0，4 项通过，0 项失败。 |
+| 全仓检查 | `cargo clippy --all-targets --all-features -- -D warnings` | 退出 0。 |
+
+限定提交范围的 `git diff --cached --check` 退出 0。槽位锁已释放，编译缓存保留。真实账号验收见任务 56。

@@ -6,6 +6,8 @@
 
 #[cfg(all(not(target_arch = "wasm32"), target_os = "macos"))]
 mod edit_menu;
+#[cfg(all(not(any(target_arch = "wasm32", coverage)), target_os = "macos"))]
+mod macos_downloads;
 #[cfg(not(target_arch = "wasm32"))]
 mod mcp_app;
 #[cfg(not(target_arch = "wasm32"))]
@@ -42,6 +44,7 @@ enum UserEvent {
     Resize(u32, u32),
     Move(i32, i32),
     OpenUrl(String),
+    OpenPageLink(String),
     OpenExternal(String),
     NavigationChanged(String),
     ToolbarReady,
@@ -408,6 +411,16 @@ fn is_safe_navigation_url(url: &str) -> bool {
     let authority =
         remainder.split_once(['/', '?', '#']).map_or(remainder, |(authority, _)| authority);
     authority.rsplit('@').next().is_some_and(|host| !host.is_empty())
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+fn is_page_link_url(url: &str) -> bool {
+    is_safe_navigation_url(url)
+        || (!url.chars().any(char::is_control)
+            && url.split_once(':').is_some_and(|(scheme, value)| {
+                !value.is_empty()
+                    && (scheme.eq_ignore_ascii_case("blob") || scheme.eq_ignore_ascii_case("data"))
+            }))
 }
 
 #[cfg(not(target_arch = "wasm32"))]
@@ -918,13 +931,11 @@ fn main() {
 
     let initial_url = shiju_app_set_cookie.as_ref().map_or(url.as_str(), |_| DEFAULT_TARGET);
 
-    #[cfg(target_os = "macos")]
     let mut builder = {
         let page_load_proxy = proxy.clone();
         let navigation_proxy = proxy.clone();
         WebViewBuilder::new_with_web_context(&mut web_context)
             .with_url(initial_url)
-            .with_user_agent(SAFARI_USER_AGENT)
             .with_devtools(true)
             .with_clipboard(true)
             .with_accept_first_mouse(true)
@@ -935,43 +946,31 @@ fn main() {
             .with_ipc_handler(move |request| {
                 if let Some(url) = parse_navigation_ipc_message(request.body()) {
                     let _ = navigation_proxy.send_event(UserEvent::NavigationChanged(url));
-                }
-            })
-            .with_new_window_req_handler({
-                let newwin_proxy = proxy.clone();
-                move |req_url, _features| {
-                    let _ = newwin_proxy.send_event(UserEvent::OpenUrl(req_url.to_string()));
-                    NewWindowResponse::Deny
                 }
             })
     };
 
-    #[cfg(not(target_os = "macos"))]
-    let mut builder = {
-        let page_load_proxy = proxy.clone();
-        let navigation_proxy = proxy.clone();
-        WebViewBuilder::new_with_web_context(&mut web_context)
-            .with_url(initial_url)
-            .with_devtools(true)
-            .with_clipboard(true)
-            .with_accept_first_mouse(true)
-            .with_initialization_script(&init_script)
-            .with_on_page_load_handler(move |_event, url| {
-                let _ = page_load_proxy.send_event(UserEvent::NavigationChanged(url));
-            })
-            .with_ipc_handler(move |request| {
-                if let Some(url) = parse_navigation_ipc_message(request.body()) {
-                    let _ = navigation_proxy.send_event(UserEvent::NavigationChanged(url));
+    #[cfg(target_os = "macos")]
+    {
+        let download_log_path = log_path.clone();
+        builder = builder.with_user_agent(SAFARI_USER_AGENT).with_download_completed_handler(
+            move |_, _, success| {
+                if !success {
+                    append_log(&download_log_path, "WebView download failed.");
                 }
-            })
-            .with_new_window_req_handler({
-                let newwin_proxy = proxy.clone();
-                move |req_url, _features| {
-                    let _ = newwin_proxy.send_event(UserEvent::OpenUrl(req_url.to_string()));
-                    NewWindowResponse::Deny
-                }
-            })
-    };
+            },
+        );
+    }
+
+    builder = builder.with_new_window_req_handler({
+        let new_window_proxy = proxy.clone();
+        move |url, _features| {
+            if is_page_link_url(&url) {
+                let _ = new_window_proxy.send_event(UserEvent::OpenPageLink(url));
+            }
+            NewWindowResponse::Deny
+        }
+    });
 
     if let Some(root) = local_root.clone() {
         builder = builder.with_custom_protocol("vibe".into(), move |_webview_id, request| {
@@ -996,6 +995,9 @@ fn main() {
             return;
         }
     };
+
+    #[cfg(target_os = "macos")]
+    let attachment_delegate = macos_downloads::enable_attachments(&webview);
 
     if let Some(set_cookie) = shiju_app_set_cookie.as_deref() {
         let cookie = match runtime_cookie(set_cookie) {
@@ -1029,6 +1031,9 @@ fn main() {
     let mut current_url = url;
     let mut browser_cleared = false;
     event_loop.run(move |event, _, control_flow| {
+        // Keep the weakly referenced WebKit delegate alive for the event loop.
+        #[cfg(target_os = "macos")]
+        let _attachment_delegate = &attachment_delegate;
         if *control_flow != ControlFlow::Exit {
             *control_flow = ControlFlow::Wait;
         }
@@ -1044,6 +1049,12 @@ fn main() {
                 if is_safe_navigation_url(&u) {
                     browser_cleared = false;
                     let _ = webview.load_url(&u);
+                }
+            }
+            Event::UserEvent(UserEvent::OpenPageLink(u)) => {
+                browser_cleared = false;
+                if webview.load_url(&u).is_err() {
+                    append_log(&log_path, "WebView could not open a page link.");
                 }
             }
             Event::UserEvent(UserEvent::OpenExternal(u)) => {

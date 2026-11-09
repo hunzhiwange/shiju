@@ -55,6 +55,18 @@ fn normalize_url_keeps_unbalanced_quotes() {
 }
 
 #[test]
+fn page_link_allows_generated_urls_only_inside_the_webview() {
+    for url in ["blob:https://example.com/id", "data:text/plain,download%20content"] {
+        assert!(is_page_link_url(url));
+        assert!(!is_safe_navigation_url(url));
+    }
+    assert!(is_page_link_url("https://example.com/download"));
+    for url in ["file:///tmp/example", "javascript:alert(1)", "data:", "blob:https://a/\nx"] {
+        assert!(!is_page_link_url(url));
+    }
+}
+
+#[test]
 fn percent_encode_url_path_keeps_unreserved_and_slash() {
     assert_eq!(percent_encode_url_path("/a b/中文/file.js"), "/a%20b/%E4%B8%AD%E6%96%87/file.js");
 }

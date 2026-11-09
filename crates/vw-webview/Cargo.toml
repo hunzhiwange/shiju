@@ -26,6 +26,7 @@ tao = { version = "0.34" }
 wry = { version = "0.54" }
 
 [target.'cfg(target_os = "macos")'.dependencies]
+block2 = "0.6"
 objc2 = { version = "0.6", features = ["exception", "disable-encoding-assertions"] }
 objc2-app-kit = { version = "0.3.0", default-features = false, features = [
     "std",
@@ -41,6 +42,15 @@ objc2-foundation = { version = "0.3.0", default-features = false, features = [
     "std",
     "NSString",
     "NSObject",
+    "NSURLResponse",
+] }
+objc2-web-kit = { version = "0.3", default-features = false, features = [
+    "std",
+    "block2",
+    "objc2-app-kit",
+    "WKNavigationDelegate",
+    "WKNavigationResponse",
+    "WKWebView",
 ] }
 
 [target.'cfg(target_os = "windows")'.dependencies]

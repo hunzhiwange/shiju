@@ -11,6 +11,7 @@ use crate::app::message::project::helpers::{
 use crate::app::projects::save_recent_projects_meta_background;
 use crate::app::{App, Message, models};
 use std::collections::HashSet;
+use vw_shared::session::info::Info;
 use web_time::Instant;
 
 fn merge_project_sessions(
@@ -36,6 +37,7 @@ pub(crate) fn open_session_draft(
     project_path: String,
     directory: String,
 ) -> iced::Task<Message> {
+    app.session_view_cache.navigation_generation += 1;
     app.cache_active_session_chat();
     app.agent_stream_id = app.agent_stream_id.wrapping_add(1);
     app.active_session_id = None;
@@ -65,24 +67,14 @@ pub(crate) fn open_session_draft(
 
 pub(crate) fn open_project_session(
     app: &mut App,
-    path: String,
+    resolved_path: String,
     id: String,
     prepared: Option<crate::app::session::PreparedSessionOpen>,
 ) -> iced::Task<Message> {
+    app.session_view_cache.navigation_generation += 1;
     app.agent_stream_id = app.agent_stream_id.wrapping_add(1);
     app.show_recommended_prompt_menu = false;
     app.show_agent_sessions_popover = false;
-    let resolved_path = app
-        .known_session_directory(&id)
-        .filter(|directory| !directory.trim().is_empty())
-        .unwrap_or_else(|| path.clone());
-    if resolved_path != path {
-        tracing::warn!(
-            target: "vw_desktop",
-            session_directory_corrected = true,
-            "corrected project session open path"
-        );
-    }
     app.hovered_recent_project = None;
     app.session_menu_id = None;
     app.session_menu_anchor = None;
@@ -99,24 +91,6 @@ pub(crate) fn open_project_session(
     app.active_session_id = Some(id.clone());
     let open_generation = app.session_view_cache.begin_open(&id);
     app.mark_active_session_viewed();
-    // plan-run 子会话进入后关闭 workflow_mode，避免续聊误触发 plan-run。
-    let is_plan_run_child = app
-        .sessions
-        .iter()
-        .find(|session| session.id == id)
-        .and_then(|session| session.parent_id.as_deref())
-        .or_else(|| {
-            app.project_sessions
-                .values()
-                .flat_map(|sessions| sessions.iter())
-                .find(|session| session.id == id)
-                .and_then(|session| session.parent_id.as_deref())
-        })
-        .is_some_and(|parent_id| !parent_id.trim().is_empty());
-    if is_plan_run_child {
-        app.get_session_runtime_mut(&id).workflow_mode_enabled = false;
-        app.get_session_runtime_mut(&id).goal_mode_enabled = false;
-    }
     if let Some(snapshot) = app.session_view_cache.take(&id) {
         let commit_started_at = Instant::now();
         snapshot.restore_into(app);
@@ -206,6 +180,49 @@ pub(crate) fn open_project_session(
     ])
 }
 
+fn request_session_navigation(app: &mut App, path: String, id: String) -> iced::Task<Message> {
+    app.session_view_cache.navigation_generation += 1;
+    let generation = app.session_view_cache.navigation_generation;
+    let id = id.trim().to_owned();
+    if id.is_empty() {
+        return iced::Task::none();
+    }
+
+    if let Some(info) = app
+        .sessions
+        .iter()
+        .chain(app.project_sessions.values().flatten())
+        .find(|info| info.id == id)
+    {
+        if !info.is_user_navigable() {
+            return iced::Task::none();
+        }
+        if !info.directory.trim().is_empty() {
+            return open_project_session(app, info.directory.clone(), id, None);
+        }
+    }
+
+    let from_project = app.project_path.clone();
+    let from_session = app.active_session_id.clone();
+    iced::Task::perform(
+        async move {
+            let client = crate::app::gateway_client().ok()?;
+            let directory = (!path.trim().is_empty()).then_some(path.as_str());
+            let info = client.session_get::<Info>(&id, directory).await.ok()?;
+            (info.id == id && info.is_user_navigable() && !info.directory.trim().is_empty())
+                .then(|| Box::new(info))
+        },
+        move |info| {
+            Message::Project(ProjectMessage::SessionNavigationResolved {
+                generation,
+                from_project: from_project.clone(),
+                from_session: from_session.clone(),
+                info,
+            })
+        },
+    )
+}
+
 /// handle 处理当前模块对应的消息或状态转换。
 ///
 /// 参数由调用方提供应用状态、用户输入或后台任务结果；返回值会交给上层消息循环继续处理。
@@ -229,7 +246,28 @@ pub(crate) fn handle(app: &mut App, message: ProjectMessage) -> Option<iced::Tas
             Some(app.switch_work_space_preserving_chat(path))
         }
         ProjectMessage::OpenProjectSessionPressed(path, id) => {
-            Some(open_project_session(app, path, id, None))
+            Some(request_session_navigation(app, path, id))
+        }
+        ProjectMessage::SessionNavigationResolved {
+            generation,
+            from_project,
+            from_session,
+            info,
+        } => {
+            let task = if let Some(info) = info
+                && generation == app.session_view_cache.navigation_generation
+                && from_project == app.project_path
+                && from_session == app.active_session_id
+                && info.is_user_navigable()
+                && !info.directory.trim().is_empty()
+            {
+                let task = open_project_session(app, info.directory.clone(), info.id.clone(), None);
+                super::lifecycle::cache_external_session(app, *info);
+                task
+            } else {
+                iced::Task::none()
+            };
+            Some(task)
         }
         ProjectMessage::CodeProjectsMenuChanged(open) => {
             app.code_projects_menu_open = open;

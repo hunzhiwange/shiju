@@ -123,6 +123,11 @@ impl Info {
         self.source_slug().starts_with(PLAN_RUN_SLUG_PREFIX)
     }
 
+    /// Whether interactive clients can open this session from history or a direct UI action.
+    pub fn is_user_navigable(&self) -> bool {
+        !self.is_first_response_pending() && !self.is_agent_tool() && !self.is_plan_run()
+    }
+
     /// 将普通 slug 编码为可持久化的可见任务会话标记。
     pub fn visible_task_slug(slug: &str) -> String {
         if let Some(source) = slug.strip_prefix(PENDING_FIRST_RESPONSE_SLUG_PREFIX) {

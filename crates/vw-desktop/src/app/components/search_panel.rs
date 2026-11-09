@@ -96,6 +96,7 @@ pub(super) fn matching_sessions(app: &App, query: &str) -> Vec<SessionSearchMatc
 
     app.sessions
         .iter()
+        .filter(|session| session.is_user_navigable())
         .filter(|session| {
             let preview =
                 app.session_previews.get(&session.id).map(String::as_str).unwrap_or_default();

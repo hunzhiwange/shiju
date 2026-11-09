@@ -3,9 +3,9 @@
 
 use super::advanced_view::{
     advanced_base_title, advanced_fallback_body, advanced_metadata_text, advanced_success_body,
-    advanced_summary, agent_tool_detail_message, agent_tool_primary_message, agent_tool_session_id,
-    compact_browser_success_summary, format_browser_success_body, is_advanced_surface_tool,
-    nested_string, result_data_message, tool_advanced_view,
+    advanced_summary, agent_tool_detail_message, compact_browser_success_summary,
+    format_browser_success_body, is_advanced_surface_tool, nested_string, result_data_message,
+    tool_advanced_view,
 };
 use super::apply_patch_view::tool_apply_patch_view;
 use super::git_diff_view::tool_git_diff_view;
@@ -559,51 +559,109 @@ fn advanced_view_renders_empty_body_context_menu_and_browser_open() {
     );
 }
 
-#[test]
-fn agent_tool_session_id_supports_running_and_completed_payloads() {
-    assert_eq!(
-        agent_tool_session_id(&json!({
-            "status": "running",
-            "metadata": {"child_session_id": " child-running "}
-        }))
-        .as_deref(),
-        Some("child-running")
-    );
-    assert_eq!(
-        agent_tool_session_id(&json!({
-            "status": "completed",
-            "result": {"data": {"session_id": " child-done "}}
-        }))
-        .as_deref(),
-        Some("child-done")
-    );
-    assert_eq!(agent_tool_session_id(&json!({})), None);
-}
+#[tokio::test]
+async fn child_session_navigation_chinese_cards_render_and_only_open_details() {
+    use iced::advanced::clipboard;
+    use iced::advanced::widget::operation;
+    use iced::keyboard::{self, Key, key::Named};
+    use iced::{Event, Point};
+    use iced_runtime::user_interface::{Cache, UserInterface};
 
-#[test]
-fn agent_tool_primary_click_opens_child_and_safely_falls_back_to_detail() {
-    let visible = "tool AgentTool\n{\"status\":\"running\"}";
-    let value = json!({
-        "status": "running",
-        "metadata": {"child_session_id": "child-1"}
+    let mut app = App::new().0;
+    app.desktop_locale = vw_config_types::ui::DesktopLocale::SimplifiedChinese;
+    app.project_path = Some("/work/project".into());
+    {
+        let mut fonts = iced::advanced::graphics::text::font_system().write().unwrap();
+        for font in crate::fonts::load_all() {
+            fonts.load_font(font);
+        }
+    }
+    let mut renderer =
+        iced::Renderer::new(Font::DEFAULT, Pixels(16.0), Some("tiny-skia")).await.unwrap();
+    let cursor = mouse::Cursor::Available(Point::new(24.0, 10.0));
+    let enter = Event::Keyboard(keyboard::Event::KeyPressed {
+        key: Key::Named(Named::Enter),
+        modified_key: Key::Named(Named::Enter),
+        physical_key: keyboard::key::Physical::Code(keyboard::key::Code::Enter),
+        location: keyboard::Location::Standard,
+        modifiers: keyboard::Modifiers::empty(),
+        text: None,
+        repeat: false,
     });
 
-    let message = agent_tool_primary_message(Some("/work/project"), &value, 2, 3, visible);
-    assert!(matches!(
-        message,
-        Message::Chat(message::ChatMessage::OpenAgentSession {
-            ref project_path,
-            ref session_id,
-        }) if project_path == "/work/project" && session_id == "child-1"
-    ));
+    for theme in [Theme::Light, Theme::Dark] {
+        for status in ["running", "completed", "error"] {
+            let value = json!({
+                "status": status,
+                "input": "{\"agent\":\"reviewer\",\"task\":\"检查中文文本\"}",
+                "output": "子会话结果",
+                "error": "执行失败",
+                "metadata": {
+                    "title": "执行工作流节点",
+                    "child_session_id": "agent-child",
+                    "session_id": "workflow-child",
+                    "session_directory": "/work/other-project"
+                }
+            });
+            let agent = format!("tool AgentTool\n{value}");
+            let workflow = format!("tool workflow_node\n{value}");
+            for (element, visible) in [
+                (tool_advanced_view(&app, 2, 3, &agent), &agent),
+                (tool_workflow_view(&app, 2, 3, &workflow), &workflow),
+            ] {
+                let mut ui = UserInterface::build(
+                    element.expect("render tool card"),
+                    Size::new(480.0, 120.0),
+                    Cache::new(),
+                    &mut renderer,
+                );
+                ui.draw(&mut renderer, &theme, &renderer::Style::default(), cursor);
 
-    for project_path in [None, Some(""), Some("   ")] {
-        let message = agent_tool_primary_message(project_path, &value, 2, 3, visible);
-        assert!(matches!(
-            message,
-            Message::Chat(message::ChatMessage::OpenToolDetail(2, 3, ref raw))
-                if raw == visible
-        ));
+                let mut messages = Vec::new();
+                ui.update(
+                    &[
+                        Event::Mouse(mouse::Event::ButtonPressed(mouse::Button::Left)),
+                        Event::Mouse(mouse::Event::ButtonReleased(mouse::Button::Left)),
+                    ],
+                    cursor,
+                    &mut renderer,
+                    &mut clipboard::Null,
+                    &mut messages,
+                );
+                messages.retain(|message| {
+                    !matches!(message, Message::Chat(message::ChatMessage::ToolHover(..)))
+                });
+                assert!(
+                    matches!(
+                        messages.as_slice(),
+                        [Message::Chat(message::ChatMessage::OpenToolDetail(2, 3, raw))]
+                            if raw == visible
+                    ),
+                    "{status}: {messages:?}"
+                );
+
+                messages.clear();
+                ui.operate(&renderer, &mut operation::focusable::focus_next::<()>());
+                ui.update(
+                    std::slice::from_ref(&enter),
+                    mouse::Cursor::Unavailable,
+                    &mut renderer,
+                    &mut clipboard::Null,
+                    &mut messages,
+                );
+                assert!(
+                    messages.iter().all(|message| matches!(
+                        message,
+                        Message::Chat(message::ChatMessage::OpenToolDetail(2, 3, raw))
+                            if raw == visible
+                    ) || matches!(
+                        message,
+                        Message::Chat(message::ChatMessage::ToolHoverLeave)
+                    )),
+                    "{status}: {messages:?}"
+                );
+            }
+        }
     }
 }
 
@@ -745,27 +803,6 @@ fn specialized_tool_headers_use_shared_lifecycle_contract() {
     for (index, element) in fixtures.into_iter().enumerate() {
         assert!(element.is_some(), "specialized fixture {index} must render");
     }
-}
-
-#[test]
-fn specialized_tool_actions_survive_header_migration() {
-    let agent_visible = "tool AgentTool\n{\"status\":\"running\"}";
-    let agent_value = json!({
-        "status": "running",
-        "metadata": {"child_session_id": "child-activity-row"}
-    });
-    assert!(matches!(
-        agent_tool_primary_message(Some("/work/project"), &agent_value, 3, 4, agent_visible),
-        Message::Chat(message::ChatMessage::OpenAgentSession {
-            ref project_path,
-            ref session_id,
-        }) if project_path == "/work/project" && session_id == "child-activity-row"
-    ));
-    assert!(matches!(
-        agent_tool_detail_message(3, 4, agent_visible),
-        Message::Chat(message::ChatMessage::OpenToolDetail(3, 4, ref raw))
-            if raw == agent_visible
-    ));
 }
 
 #[test]

@@ -537,8 +537,11 @@ fn tui_explicit_resume_restores_gateway_session_title_history_and_identity() {
         created_ms: 10,
         updated_ms: 20,
     };
-    let (endpoint, requests, server) =
-        gateway_fixture(vec![serde_json::to_value(&snapshot).expect("snapshot JSON"), json!(true)]);
+    let (endpoint, requests, server) = gateway_fixture(vec![
+        super::session_restore_tests::navigation_info("session-restored", "ordinary", None),
+        serde_json::to_value(&snapshot).expect("snapshot JSON"),
+        json!(true),
+    ]);
     let client = GatewayClient::new(endpoint).expect("test gateway client");
     let runtime = GatewayUiRuntime::new(
         client,
@@ -576,8 +579,12 @@ fn tui_explicit_resume_restores_gateway_session_title_history_and_identity() {
     app.persist_session_snapshot().expect("persist restored session");
 
     assert_eq!(
+        requests.recv().expect("scoped session source").path,
+        "/v1/session/session-restored?directory=%2Fworkspace"
+    );
+    assert_eq!(
         requests.recv().expect("snapshot request").path,
-        "/v1/session/session-restored/ui?directory=%2Fworkspace"
+        "/v1/session/session-restored/ui/without-raw?directory=%2Fworkspace"
     );
     let persisted_after_ms = app.state().session.updated_ms;
     assert!(persisted_after_ms > snapshot.updated_ms);

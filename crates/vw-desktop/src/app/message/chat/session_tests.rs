@@ -1539,6 +1539,7 @@ fn expert_package_selection_does_not_leak_between_sessions() {
 fn send_current_session_input_disables_workflow_mode_for_plan_run_child_session() {
     let (mut app, _task) = crate::app::App::new();
     let mut child = session_info("child", "Child", "/repo");
+    child.slug = vw_shared::session::info::Info::plan_run_slug(&child.slug);
     child.parent_id = Some("parent".to_string());
     app.active_session_id = Some("child".to_string());
     app.sessions = vec![child];
@@ -1740,7 +1741,7 @@ fn request_does_not_add_unregistered_agent_tool() {
 }
 
 #[test]
-fn active_session_is_plan_run_child_detects_parent_id() {
+fn active_session_is_plan_run_child_uses_persisted_source() {
     let (mut app, _task) = crate::app::App::new();
     assert!(!super::active_session_is_plan_run_child(&app));
 
@@ -1748,10 +1749,10 @@ fn active_session_is_plan_run_child_detects_parent_id() {
     let mut child = session_info("child", "Child", "/repo");
     child.parent_id = Some("parent".to_string());
     app.sessions = vec![child];
-    assert!(super::active_session_is_plan_run_child(&app));
-
-    app.sessions[0].parent_id = Some("   ".to_string());
     assert!(!super::active_session_is_plan_run_child(&app));
+
+    app.sessions[0].slug = vw_shared::session::info::Info::plan_run_slug(&app.sessions[0].slug);
+    assert!(super::active_session_is_plan_run_child(&app));
 }
 
 #[test]
@@ -2164,7 +2165,7 @@ fn desktop_first_response_keeps_unanswered_session_out_of_history() {
 }
 
 #[test]
-fn desktop_first_response_failure_and_cancel_reuse_the_id_with_clean_history() {
+fn desktop_first_response_failure_and_cancel_retry_on_the_same_id_until_success() {
     use crate::app::state::ChatSendBehavior::Queue;
 
     let (mut app, _) = crate::app::App::new();
@@ -2206,4 +2207,36 @@ fn desktop_first_response_failure_and_cancel_reuse_the_id_with_clean_history() {
     assert_eq!(request.session, session_id);
     assert!(request.history.is_empty());
     assert_eq!(app.chat[0].content, "third attempt");
+
+    super::stream::update(
+        &mut app,
+        super::ChatMessage::AgentStreamDelta(request.id, "successful answer".into()),
+    );
+    super::stream::update(
+        &mut app,
+        super::ChatMessage::DraftResponseReloaded {
+            id: request.id,
+            usage: Default::default(),
+            assistant_message_id: Some("assistant-id".into()),
+            parent_message_id: Some("user-id".into()),
+            publication: Some(Box::new(super::stream::draft::DraftPublication::fixture(
+                session_info(&session_id, "", "/repo"),
+                vw_shared::session::ui_types::ChatSessionMeta {
+                    id: session_id.clone(),
+                    title: String::new(),
+                    updated_ms: 20,
+                    message_count: 2,
+                    call_count: 0,
+                    last_content: Some("third attempt".into()),
+                },
+            ))),
+        },
+    );
+    assert!(!app.current_session_is_requesting());
+    assert_eq!(app.active_session_id.as_deref(), Some(session_id.as_str()));
+    assert_eq!(app.sessions.len(), 1);
+    assert_eq!(app.sessions[0].id, session_id);
+    assert!(app.sessions[0].title.is_empty());
+    assert_eq!(app.session_previews[&session_id], "third attempt");
+    assert_eq!(app.chat.last().unwrap().content, "successful answer");
 }

@@ -358,6 +358,7 @@ pub(crate) struct SessionViewCache {
     estimated_bytes: usize,
     active_open: Option<ActiveSessionOpen>,
     next_open_generation: u64,
+    pub(crate) navigation_generation: u64,
     pending_eviction_reason: SessionViewCacheEvictionReason,
 }
 
@@ -369,6 +370,7 @@ impl SessionViewCache {
             estimated_bytes: 0,
             active_open: None,
             next_open_generation: 0,
+            navigation_generation: 0,
             pending_eviction_reason: SessionViewCacheEvictionReason::None,
         }
     }

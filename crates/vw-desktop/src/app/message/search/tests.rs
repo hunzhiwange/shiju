@@ -132,39 +132,6 @@ fn select_file_sets_file_input_and_hides_overlay() {
     assert!(!app.show_search_overlay);
 }
 
-#[test]
-fn select_session_without_known_project_prepares_active_session_state() {
-    let mut app = app();
-    app.show_search_overlay = true;
-    app.active_session_view_state.updated_ms = 123;
-    app.active_session_view_state.base_ready = true;
-    app.active_session_view_state.ui_preparing = false;
-    app.active_session_id = Some("session-1".to_string());
-    app.get_session_runtime_mut("session-1").is_requesting = true;
-    app.chat = vec![chat_message("cached message")];
-    app.cache_active_session_chat();
-    app.active_session_id = Some("previous-session".to_string());
-    app.get_session_runtime_mut("previous-session").is_requesting = true;
-    app.chat = vec![chat_message("previous message")];
-
-    update(&mut app, SearchMessage::SelectSession("session-1".to_string()));
-
-    assert!(!app.show_search_overlay);
-    assert_eq!(app.active_session_id.as_deref(), Some("session-1"));
-    assert_eq!(app.usage, crate::app::models::TokenUsage::default());
-    assert_eq!(app.active_session_view_state.updated_ms, 0);
-    assert!(app.active_session_view_state.ui_preparing);
-    assert!(!app.active_session_view_state.base_ready);
-    assert_eq!(app.chat.len(), 1);
-    assert_eq!(app.chat[0].content, "cached message");
-    assert_eq!(
-        app.cached_chat_messages("previous-session").unwrap()[0].content,
-        "previous message"
-    );
-    assert!(!app.active_session_view_state.preparing_chat_ui_chunks.is_empty());
-    assert!(app.active_session_view_state.pinned_chat_ui_chunk_start.is_some());
-}
-
 #[tokio::test(flavor = "multi_thread")]
 async fn select_session_with_known_directory_routes_to_project_session() {
     let mut app = app();
@@ -189,30 +156,26 @@ async fn select_session_with_known_directory_routes_to_project_session() {
 
 // 失败与边界：覆盖非法、缺失、过期或冲突场景的既定处理规则。
 // 重点确认现有状态与错误反馈不会被意外的部分更新污染。
-#[test]
-fn select_session_rejects_blank_known_directory_and_uses_direct_load() {
+#[tokio::test(flavor = "multi_thread")]
+async fn child_session_navigation_search_without_directory_defers_to_project_route() {
     let mut app = app();
-    app.sessions = vec![session_info("session-1", " \t ")];
+    app.active_session_id = Some("previous-session".into());
+    app.chat = vec![chat_message("parent content")];
 
-    update(&mut app, SearchMessage::SelectSession("session-1".to_string()));
+    let messages = collect_task_messages(update(
+        &mut app,
+        SearchMessage::SelectSession("uncached-child".into()),
+    ))
+    .await;
 
-    assert_eq!(app.active_session_id.as_deref(), Some("session-1"));
-    assert!(app.active_session_view_state.ui_preparing);
-}
-
-#[test]
-fn select_session_without_cached_chat_skips_chunk_prewarm_state() {
-    let mut app = app();
-    app.active_session_id = Some("previous-session".to_string());
-    app.chat.clear();
-
-    update(&mut app, SearchMessage::SelectSession("empty-session".to_string()));
-
-    assert_eq!(app.active_session_id.as_deref(), Some("empty-session"));
-    assert!(app.chat.is_empty());
-    assert!(app.active_session_view_state.ui_preparing);
-    assert!(app.active_session_view_state.preparing_chat_ui_chunks.is_empty());
-    assert!(app.active_session_view_state.pinned_chat_ui_chunk_start.is_none());
+    assert_eq!(app.active_session_id.as_deref(), Some("previous-session"));
+    assert_eq!(app.chat[0].content, "parent content");
+    assert!(matches!(
+        messages.as_slice(),
+        [Message::Project(
+            crate::app::message::project::ProjectMessage::OpenProjectSessionPressed(path, id)
+        )] if path.is_empty() && id == "uncached-child"
+    ));
 }
 
 // 任务与结果：覆盖任务构造、调度或结果回写对公开状态的影响。

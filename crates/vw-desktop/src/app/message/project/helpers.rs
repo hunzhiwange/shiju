@@ -23,7 +23,6 @@ use vw_gateway_client::vw_api_types::project::{
 use vw_gateway_client::vw_api_types::worktree::{
     CreateWorktreeRequest, DeleteWorktreeRequest, ResetMode, ResetWorktreeRequest, WorktreeDto,
 };
-use vw_shared::message::types as agent_message;
 
 /// is_supported_image_attachment 处理当前模块对应的消息或状态转换。
 ///
@@ -1251,78 +1250,6 @@ pub(crate) fn load_session_history_page_task(
                 result,
             })
         },
-    )
-}
-
-/// load_session_messages_task_scoped 处理当前模块对应的消息或状态转换。
-///
-/// 参数由调用方提供应用状态、用户输入或后台任务结果；返回值会交给上层消息循环继续处理。
-/// 变更范围限制在当前消息处理路径内，不引入额外的流程分支。
-pub(crate) fn load_session_messages_task_scoped(
-    project_path: Option<String>,
-    id: String,
-) -> Task<Message> {
-    Task::perform(
-        async move {
-            tracing::info!(
-                target: "vw_desktop",
-                session_id = %id,
-                project_path = project_path.as_deref().unwrap_or("<none>"),
-                "loading session messages from gateway"
-            );
-            let client = match crate::app::gateway_client() {
-                Ok(client) => client,
-                Err(err) => return Err(err),
-            };
-            let msgs = client
-                .session_messages::<Vec<agent_message::WithParts>>(&id, project_path.as_deref())
-                .await;
-            let info = client
-                .session_get::<vw_shared::session::info::Info>(&id, project_path.as_deref())
-                .await;
-            match (msgs, info) {
-                (Ok(msgs), Ok(_info)) => {
-                    tracing::info!(
-                        target: "vw_desktop",
-                        session_id = %id,
-                        project_path = project_path.as_deref().unwrap_or("<none>"),
-                        message_count = msgs.len(),
-                        "loaded session messages from gateway"
-                    );
-                    let mut usage = crate::app::models::TokenUsage::default();
-                    for m in &msgs {
-                        if let agent_message::Info::Assistant(a) = &m.info {
-                            usage.input_tokens += a.tokens.input;
-                            usage.output_tokens += a.tokens.output;
-                            usage.cached_tokens += a.tokens.cache.read + a.tokens.cache.write;
-                            usage.reasoning_tokens += a.tokens.reasoning;
-                        }
-                    }
-                    Ok((id, msgs, usage))
-                }
-                (Err(e), _) => {
-                    tracing::warn!(
-                        target: "vw_desktop",
-                        session_id = %id,
-                        project_path = project_path.as_deref().unwrap_or("<none>"),
-                        error = %e,
-                        "failed to load session messages from gateway"
-                    );
-                    Err(e)
-                }
-                (_, Err(e)) => {
-                    tracing::warn!(
-                        target: "vw_desktop",
-                        session_id = %id,
-                        project_path = project_path.as_deref().unwrap_or("<none>"),
-                        error = %e,
-                        "failed to load session info while loading messages"
-                    );
-                    Err(e)
-                }
-            }
-        },
-        |res| Message::Project(ProjectMessage::SessionMessagesLoaded(res)),
     )
 }
 

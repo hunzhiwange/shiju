@@ -472,7 +472,7 @@ fn session_tree_projection<'a>(
         .iter()
         .filter(|session| {
             session.time.archived.is_none()
-                && !session.is_plan_run()
+                && session.is_user_navigable()
                 && (session.parent_id.as_deref().is_none_or(|id| id.trim().is_empty())
                     || session.is_visible_task())
                 && seen_ids.insert(session.id.as_str())

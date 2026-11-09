@@ -1,9 +1,8 @@
 //! 渲染高级工具结果视图。
 //! 该视图把复杂工具输出折叠成摘要、元数据和可展开正文，保持聊天流可扫描。
 
-use iced::widget::tooltip::{Position as TooltipPosition, Tooltip};
-use iced::widget::{Space, button, column, container, mouse_area, row, scrollable, text};
-use iced::{Alignment, Background, Border, Element, Length, Padding, Theme};
+use iced::widget::{Space, button, column, container, mouse_area, scrollable, text};
+use iced::{Background, Border, Element, Length, Padding, Theme};
 use serde_json::{Map, Value};
 
 use crate::app::assets::Icon;
@@ -24,8 +23,8 @@ use super::{
 };
 use crate::app::components::chat_panel::utils::{
     chat_context_target_key, chat_scroll_direction, chat_secondary_muted_text_color,
-    copy_tooltip_content, eye_icon_button_style, eye_icon_svg_style, icon_svg,
-    simplified_block_style, simplified_code_block_style, truncate_chars, truncate_lines_middle,
+    eye_icon_button_style, eye_icon_svg_style, icon_svg, simplified_block_style,
+    simplified_code_block_style, truncate_chars, truncate_lines_middle,
 };
 
 pub(super) fn is_advanced_surface_tool(tool_name: &str) -> bool {
@@ -60,73 +59,8 @@ fn agent_tool_card_state(status: &str) -> AgentToolCardState {
     }
 }
 
-fn session_id_from_object(object: Option<&Map<String, Value>>) -> Option<String> {
-    object.and_then(|object| {
-        ["child_session_id", "session_id"]
-            .into_iter()
-            .find_map(|key| string_from_map(Some(object), key))
-    })
-}
-
-pub(super) fn agent_tool_session_id(value: &Value) -> Option<String> {
-    if let Some(session_id) =
-        session_id_from_object(value.get("metadata").and_then(Value::as_object))
-            .or_else(|| session_id_from_object(tool_render_hint_metadata(value)))
-            .or_else(|| session_id_from_object(tool_result_data(value).and_then(Value::as_object)))
-    {
-        return Some(session_id);
-    }
-
-    [
-        value.get("output").and_then(Value::as_str),
-        tool_result_data(value).and_then(|data| data.get("output")).and_then(Value::as_str),
-    ]
-    .into_iter()
-    .flatten()
-    .filter_map(|raw| serde_json::from_str::<Value>(raw.trim()).ok())
-    .find_map(|payload| session_id_from_object(payload.as_object()))
-}
-
 pub(super) fn agent_tool_detail_message(msg_idx: usize, tool_idx: usize, visible: &str) -> Message {
     Message::Chat(message::ChatMessage::OpenToolDetail(msg_idx, tool_idx, visible.to_string()))
-}
-
-pub(super) fn agent_tool_primary_message(
-    project_path: Option<&str>,
-    value: &Value,
-    msg_idx: usize,
-    tool_idx: usize,
-    visible: &str,
-) -> Message {
-    if let Some(project_path) =
-        project_path.map(str::trim).filter(|project_path| !project_path.is_empty())
-        && let Some(session_id) = agent_tool_session_id(value)
-    {
-        return Message::Chat(message::ChatMessage::OpenAgentSession {
-            project_path: project_path.to_string(),
-            session_id,
-        });
-    }
-
-    agent_tool_detail_message(msg_idx, tool_idx, visible)
-}
-
-fn agent_tool_icon_button<'a>(
-    icon: Icon,
-    label: &'static str,
-    message: Message,
-) -> Element<'a, Message> {
-    let button = button(
-        icon_svg(icon)
-            .width(Length::Fixed(11.0))
-            .height(Length::Fixed(11.0))
-            .style(eye_icon_svg_style),
-    )
-    .padding([2, 4])
-    .style(|theme: &Theme, status| eye_icon_button_style(theme, status))
-    .on_press(message);
-
-    Tooltip::new(button, copy_tooltip_content(label), TooltipPosition::Top).gap(6).into()
 }
 
 pub(super) fn nested_string<'a>(value: &'a Value, path: &[&str]) -> Option<&'a str> {
@@ -531,38 +465,20 @@ pub fn tool_advanced_view<'a>(
             };
         }
 
-        let primary_message = agent_tool_primary_message(
-            app.project_path.as_deref(),
-            &value,
-            msg_idx,
-            tool_idx,
-            visible,
-        );
         let detail_message = agent_tool_detail_message(msg_idx, tool_idx, visible);
-        let open_session_button = matches!(
-            &primary_message,
-            Message::Chat(message::ChatMessage::OpenAgentSession { .. })
-        )
-        .then(|| {
-            agent_tool_icon_button(
-                Icon::ChatTextFill,
-                crate::app::i18n::I18n::new(app.desktop_locale).__("打开子会话"),
-                primary_message.clone(),
-            )
-        });
-
-        let mut actions = row![].spacing(4).align_y(Alignment::Center);
-        if let Some(open_session_button) = open_session_button {
-            actions = actions.push(open_session_button);
-        }
-        actions = actions.push(detail_btn);
 
         let card: Element<'a, Message> = mouse_area(
-            container(tool_activity_header(tool_name, base_title, summary, visual, actions.into()))
-                .padding(Padding { top: 4.0, right: 6.0, bottom: 4.0, left: 0.0 })
-                .width(Length::Fill),
+            container(tool_activity_header(
+                tool_name,
+                base_title,
+                summary,
+                visual,
+                detail_btn.into(),
+            ))
+            .padding(Padding { top: 4.0, right: 6.0, bottom: 4.0, left: 0.0 })
+            .width(Length::Fill),
         )
-        .on_press(primary_message)
+        .on_press(detail_message.clone())
         .on_enter(Message::Chat(message::ChatMessage::ToolHover(msg_idx, tool_idx)))
         .on_exit(Message::Chat(message::ChatMessage::ToolHoverLeave))
         .into();

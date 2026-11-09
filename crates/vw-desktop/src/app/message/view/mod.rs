@@ -51,49 +51,10 @@ fn open_task_pet_session(app: &mut App, session_id: String) -> Task<Message> {
         return Task::none();
     }
 
-    if let Some(project_path) =
-        app.known_session_directory(&session_id).filter(|directory| !directory.trim().is_empty())
-    {
-        return Task::done(Message::Project(
-            crate::app::message::project::ProjectMessage::OpenProjectSessionPressed(
-                project_path,
-                session_id,
-            ),
-        ));
-    }
-
-    app.cache_active_session_chat();
-    app.active_session_id = Some(session_id.clone());
-    app.mark_active_session_viewed();
-    app.restore_chat_for_session(&session_id);
-    app.usage = crate::app::models::TokenUsage::default();
-    app.active_session_view_state.updated_ms = 0;
-    app.clear_active_session_steps();
-    app.active_session_view_state.ui_preparing = true;
-    app.active_session_view_state.base_ready = false;
-    app.invalidate_chat_ui_state();
-    app.sync_active_session_preferences();
-
-    let base_chunk_start = app.preferred_base_chat_ui_chunk_start();
-    let initial_prewarm_task = if app.chat.is_empty() {
-        Task::none()
-    } else {
-        app.mark_chat_ui_chunks_preparing(&[base_chunk_start]);
-        app.pin_chat_ui_chunk(Some(base_chunk_start));
-        crate::app::message::project::prepare_session_ui_task(
-            session_id.clone(),
-            app.active_shared_chat_messages(),
-            base_chunk_start,
-            true,
-            app.dialogue_flow_show_reasoning_summary,
-        )
-    };
-
-    Task::batch([
-        initial_prewarm_task,
-        crate::app::message::project::helpers::load_session_messages_task_scoped(None, session_id),
-        Task::done(Message::Chat(crate::app::message::ChatMessage::LoadInputPanelTodos)),
-    ])
+    let path = app.known_session_directory(&session_id).unwrap_or_default();
+    Task::done(Message::Project(
+        crate::app::message::project::ProjectMessage::OpenProjectSessionPressed(path, session_id),
+    ))
 }
 
 /// 菜单类型枚举

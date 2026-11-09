@@ -564,6 +564,7 @@ impl App {
     ///
     /// - `Task<Message>` - 包含会话重载与项目信息加载的批处理任务
     pub fn open_project(&mut self, path: String) -> Task<Message> {
+        self.session_view_cache.navigation_generation += 1;
         // 如果 Apps 中间页标签存在，则移除
         if let Some(pos) = self.open_tabs.iter().position(|t| t.id == "apps") {
             self.open_tabs.remove(pos);

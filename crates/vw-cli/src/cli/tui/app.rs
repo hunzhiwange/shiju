@@ -2394,7 +2394,7 @@ impl V3GatewayApp {
 
     /// 在完整快照加载成功后一次性切换状态、界面与 runtime seed。
     pub(crate) fn resume_session(&mut self, session_id: &str) -> Result<(), String> {
-        let snapshot = self.runtime.session_ui_load_blocking(session_id)?;
+        let snapshot = self.runtime.session_ui_resume_blocking(session_id)?;
         self.commit_session_switch(snapshot);
         Ok(())
     }
@@ -3665,7 +3665,7 @@ pub(crate) fn restore_or_create_session_state(
         return Ok(initial_tui_state(runtime));
     };
     let scope = runtime.scope().map(ToOwned::to_owned);
-    let snapshot = runtime.session_ui_load_blocking(session_id)?;
+    let snapshot = runtime.session_ui_resume_blocking(session_id)?;
 
     let mut state = TuiState::from_chat_session(&snapshot);
     state.session.scope = scope;

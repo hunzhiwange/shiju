@@ -860,28 +860,98 @@ fn open_project_session_uses_global_model_until_its_history_is_restored() {
 }
 
 #[test]
-fn open_project_session_clears_workflow_mode_for_plan_run_child() {
-    let mut app = app();
-    let mut child = session_info("child", 0, 0);
-    child.parent_id = Some("parent".to_string());
-    child.directory = "/tmp/known-project".to_string();
-    app.sessions = vec![child];
-    app.project_path = Some("/tmp/known-project".to_string());
-    app.get_session_runtime_mut("child").workflow_mode_enabled = true;
-    app.get_session_runtime_mut("child").goal_mode_enabled = true;
+fn child_session_navigation_project_route_checks_persisted_source() {
+    use crate::app::message::project::ProjectMessage;
 
-    let task = super::handle(
+    for (source, opens) in [
+        ("agent-tool:run", false),
+        ("plan-run:run", false),
+        ("ordinary-fork", true),
+        ("visible-task:run", true),
+    ] {
+        let mut app = app();
+        let path = "/tmp/known-project";
+        app.project_path = Some(path.into());
+        app.show_recommended_prompt_menu = true;
+        app.active_session_id = Some("parent".into());
+        let mut target = session_info("target", 0, 0);
+        target.parent_id = Some("nested-parent".into());
+        target.directory = path.into();
+        target.slug = source.into();
+        app.sessions = vec![target];
+        app.get_session_runtime_mut("target").workflow_mode_enabled = true;
+
+        let _ = super::handle(
+            &mut app,
+            ProjectMessage::OpenProjectSessionPressed(path.into(), "target".into()),
+        );
+        assert_eq!(
+            app.active_session_id.as_deref(),
+            Some(if opens { "target" } else { "parent" }),
+            "{source}"
+        );
+        assert_eq!(app.show_recommended_prompt_menu, !opens);
+        assert!(app.get_session_runtime("target").workflow_mode_enabled);
+    }
+}
+
+#[test]
+fn child_session_navigation_missing_metadata_keeps_the_current_session() {
+    use crate::app::message::project::ProjectMessage;
+
+    let mut app = app();
+    app.project_path = Some("/tmp/known-project".into());
+    app.active_session_id = Some("parent".into());
+    app.chat = vec![chat_message("父会话内容")];
+
+    let _ = super::handle(
         &mut app,
-        crate::app::message::project::ProjectMessage::OpenProjectSessionPressed(
-            "/tmp/known-project".to_string(),
-            "child".to_string(),
+        ProjectMessage::OpenProjectSessionPressed(
+            "/tmp/known-project".into(),
+            "uncached-child".into(),
         ),
     );
+    assert_eq!(app.active_session_id.as_deref(), Some("parent"));
+    assert_eq!(app.chat[0].content, "父会话内容");
+}
 
-    assert!(task.is_some());
-    assert_eq!(app.active_session_id.as_deref(), Some("child"));
-    assert!(!app.get_session_runtime("child").workflow_mode_enabled);
-    assert!(!app.get_session_runtime("child").goal_mode_enabled);
+#[test]
+fn child_session_navigation_resolution_rejects_internal_and_stale_results() {
+    use crate::app::message::project::ProjectMessage;
+
+    let mut app = app();
+    let path = "/tmp/known-project";
+    app.project_path = Some(path.into());
+    app.active_session_id = Some("parent".into());
+    let _ = super::handle(
+        &mut app,
+        ProjectMessage::OpenProjectSessionPressed(path.into(), "uncached".into()),
+    );
+    let generation = app.session_view_cache.navigation_generation;
+    let mut info = session_info("uncached", 0, 0);
+    info.directory = path.into();
+    info.mark_agent_tool();
+    let reply = |info, generation| ProjectMessage::SessionNavigationResolved {
+        generation,
+        from_project: Some(path.into()),
+        from_session: Some("parent".into()),
+        info: Some(Box::new(info)),
+    };
+
+    let _ = super::handle(&mut app, reply(info.clone(), generation));
+    assert_eq!(app.active_session_id.as_deref(), Some("parent"));
+
+    info.slug = "visible-task:run".into();
+    let _ = super::handle(&mut app, reply(info.clone(), generation - 1));
+    assert_eq!(app.active_session_id.as_deref(), Some("parent"));
+
+    app.project_path = Some("/tmp/other-project".into());
+    let _ = super::handle(&mut app, reply(info.clone(), generation));
+    assert_eq!(app.active_session_id.as_deref(), Some("parent"));
+
+    app.project_path = Some(path.into());
+    let _ = super::handle(&mut app, reply(info, generation));
+    assert_eq!(app.active_session_id.as_deref(), Some("uncached"));
 }
 
 #[test]

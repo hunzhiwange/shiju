@@ -5,10 +5,8 @@ use super::{
     PLAN_RUN_CARD_MAX_WIDTH, WorkflowNodeState, chat_summary_text, elapsed_label, metadata_string,
     metadata_value, node_meta_label, output_preview_text, output_value, plan_run_card_display,
     plan_run_tooltip_content, status_text, token_value, tool_workflow_view, usage_label,
-    usage_value, workflow_node_detail_body, workflow_node_primary_message, workflow_node_state,
-    workflow_preview_message,
+    usage_value, workflow_node_detail_body, workflow_node_state, workflow_preview_message,
 };
-use crate::app::message;
 use crate::app::{App, Message};
 use iced::advanced::renderer::Headless;
 use iced::advanced::{Layout, layout, mouse, renderer, widget::Tree};
@@ -667,108 +665,7 @@ async fn plan_run_planning_card_caps_width_in_wide_viewport() {
 }
 
 #[test]
-fn plan_run_node_click_opens_session_when_session_id_present() {
-    let visible = "tool workflow_node\n{\"status\":\"completed\"}";
-    let value = json!({
-        "status": "completed",
-        "metadata": {
-            "plan_run": true,
-            "session_id": " task-1-plan "
-        }
-    });
-
-    let message = workflow_node_primary_message(Some("/work/proj"), &value, 1, 2, visible);
-    match message {
-        Message::Project(message::ProjectMessage::OpenProjectSessionPressed(path, id)) => {
-            assert_eq!(path, "/work/proj");
-            assert_eq!(id, "task-1-plan");
-        }
-        other => panic!("expected OpenProjectSessionPressed, got {other:?}"),
-    }
-}
-
-#[test]
-fn plan_run_completed_node_uses_event_directory_to_open_session() {
-    let visible = "tool workflow_node\n{\"status\":\"completed\"}";
-    let value = json!({
-        "status": "completed",
-        "metadata": {
-            "plan_run": true,
-            "session_id": " task-1-sub ",
-            "session_directory": " /work/event-project "
-        }
-    });
-
-    for project_path in [None, Some("/work/other-project")] {
-        let message = workflow_node_primary_message(project_path, &value, 1, 2, visible);
-        match message {
-            Message::Project(message::ProjectMessage::OpenProjectSessionPressed(path, id)) => {
-                assert_eq!(path, "/work/event-project");
-                assert_eq!(id, "task-1-sub");
-            }
-            other => panic!("expected event directory navigation, got {other:?}"),
-        }
-    }
-}
-
-#[test]
-fn plan_run_running_node_click_opens_session_with_session_id() {
-    let visible = "tool workflow_node\n{\"status\":\"running\"}";
-    let value = json!({
-        "status": "running",
-        "metadata": {
-            "plan_run": true,
-            "session_id": "task-1-plan"
-        }
-    });
-
-    let message = workflow_node_primary_message(Some("/work/proj"), &value, 1, 2, visible);
-    match message {
-        Message::Project(message::ProjectMessage::OpenProjectSessionPressed(path, id)) => {
-            assert_eq!(path, "/work/proj");
-            assert_eq!(id, "task-1-plan");
-        }
-        other => panic!("expected OpenProjectSessionPressed, got {other:?}"),
-    }
-}
-
-#[test]
-fn plan_run_node_click_keeps_detail_without_session_id() {
-    let visible = "tool workflow_node\n{\"status\":\"completed\"}";
-    let value = json!({
-        "status": "completed",
-        "metadata": {"plan_run": true, "title": "Plan"}
-    });
-
-    let message = workflow_node_primary_message(Some("/work/proj"), &value, 3, 4, visible);
-    assert!(matches!(
-        message,
-        Message::Chat(message::ChatMessage::OpenToolDetail(3, 4, ref raw)) if raw == visible
-    ));
-}
-
-#[test]
-fn plan_run_node_click_falls_back_to_detail_without_project_path() {
-    let visible = "tool workflow_node\n{\"status\":\"completed\"}";
-    let value = json!({
-        "metadata": {"session_id": "task-1-sub"}
-    });
-
-    for project_path in [None, Some(""), Some("   ")] {
-        let message = workflow_node_primary_message(project_path, &value, 5, 6, visible);
-        assert!(
-            matches!(
-                message,
-                Message::Chat(message::ChatMessage::OpenToolDetail(5, 6, ref raw)) if raw == visible
-            ),
-            "expected detail fallback for project_path={project_path:?}"
-        );
-    }
-}
-
-#[test]
-fn specialized_tool_actions_survive_header_migration() {
-    let visible = "tool workflow_node\n{\"status\":\"completed\"}";
+fn workflow_preview_remains_available_for_nodes_with_child_session_ids() {
     let value = json!({
         "status": "completed",
         "metadata": {
@@ -778,11 +675,6 @@ fn specialized_tool_actions_survive_header_migration() {
         }
     });
 
-    assert!(matches!(
-        workflow_node_primary_message(Some("/work/project"), &value, 5, 6, visible),
-        Message::Project(message::ProjectMessage::OpenProjectSessionPressed(ref path, ref id))
-            if path == "/work/project" && id == "task-activity-row"
-    ));
     assert!(matches!(
         workflow_preview_message(&value),
         Some(Message::WorkflowTool(crate::apps::workflow::WorkflowMessage::OpenInlineYaml { .. }))

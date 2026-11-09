@@ -28,7 +28,8 @@ pub fn update(app: &mut App, message: SettingsMessage) -> Task<Message> {
 
             let mut switch_task = Task::none();
             if app.active_session_id.as_ref() == Some(&id) {
-                let next = app.sessions.first().map(|s| s.id.clone());
+                let next =
+                    app.sessions.iter().find(|s| s.is_user_navigable()).map(|s| s.id.clone());
                 if let Some(next_id) = next {
                     app.active_session_id = Some(next_id.clone());
                     app.mark_active_session_viewed();

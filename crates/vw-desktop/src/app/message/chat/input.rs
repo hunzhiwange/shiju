@@ -279,17 +279,6 @@ pub fn update(app: &mut App, message: ChatMessage) -> Task<Message> {
             app.show_agent_sessions_popover = false;
             Task::none()
         }
-        ChatMessage::OpenAgentSession { project_path, session_id } => {
-            app.show_agent_sessions_popover = false;
-            if project_path.trim().is_empty() || session_id.trim().is_empty() {
-                Task::none()
-            } else {
-                Task::done(Message::Project(message::ProjectMessage::OpenProjectSessionPressed(
-                    project_path,
-                    session_id,
-                )))
-            }
-        }
         ChatMessage::StopPlanRun(task_id) => {
             let task_id = task_id.trim().to_string();
             if task_id.is_empty() {

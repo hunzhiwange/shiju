@@ -800,24 +800,18 @@ fn generate_git_commit_message(
     task
 }
 
-/// 当前活动会话是否为 plan-run 子会话（Info 带非空 parent_id）。
+/// 当前活动会话是否由 plan-run 创建。
 fn active_session_is_plan_run_child(app: &App) -> bool {
     let Some(session_id) = app.active_session_id.as_deref() else {
         return false;
     };
-    let parent_id = app
-        .sessions
-        .iter()
-        .find(|session| session.id == session_id)
-        .and_then(|session| session.parent_id.as_deref())
-        .or_else(|| {
-            app.project_sessions
-                .values()
-                .flat_map(|sessions| sessions.iter())
-                .find(|session| session.id == session_id)
-                .and_then(|session| session.parent_id.as_deref())
-        });
-    parent_id.is_some_and(|parent_id| !parent_id.trim().is_empty())
+    app.get_session_runtime(session_id).is_plan_run_session
+        || app
+            .sessions
+            .iter()
+            .chain(app.project_sessions.values().flatten())
+            .find(|session| session.id == session_id)
+            .is_some_and(vw_shared::session::info::Info::is_plan_run)
 }
 
 fn check_agent_installation(app: &App, backend: String, query: Option<String>) -> Task<Message> {

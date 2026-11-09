@@ -885,7 +885,7 @@ pub(crate) fn handle(app: &mut App, message: ProjectMessage) -> Option<iced::Tas
                 let next = app
                     .sessions
                     .iter()
-                    .find(|s| s.time.archived.is_none() && s.id != id)
+                    .find(|s| s.time.archived.is_none() && s.id != id && s.is_user_navigable())
                     .map(|s| s.id.clone());
 
                 if let Some(next_id) = next {
@@ -991,8 +991,11 @@ pub(crate) fn handle(app: &mut App, message: ProjectMessage) -> Option<iced::Tas
             let mut switch_task = iced::Task::none();
 
             if app.active_session_id.as_ref() == Some(&id) {
-                let next =
-                    app.sessions.iter().find(|s| s.time.archived.is_none()).map(|s| s.id.clone());
+                let next = app
+                    .sessions
+                    .iter()
+                    .find(|s| s.time.archived.is_none() && s.is_user_navigable())
+                    .map(|s| s.id.clone());
 
                 if let Some(next_id) = next {
                     app.prepare_historical_session_model(&next_id);

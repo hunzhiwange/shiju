@@ -371,30 +371,6 @@ fn workflow_tool_detail_message(msg_idx: usize, tool_idx: usize, visible: &str) 
     Message::Chat(message::ChatMessage::OpenToolDetail(msg_idx, tool_idx, visible.to_string()))
 }
 
-/// 节点主点击：只要会话已登记且项目路径可用，即可进入对应子会话。
-/// 独立详情按钮始终保留，供用户查看原始节点信息。
-fn workflow_node_primary_message(
-    project_path: Option<&str>,
-    value: &Value,
-    msg_idx: usize,
-    tool_idx: usize,
-    visible: &str,
-) -> Message {
-    let session_id = metadata_string(value, "session_id");
-    let session_directory = metadata_string(value, "session_directory");
-    let session_directory = (!session_directory.is_empty()).then_some(session_directory.as_str());
-    if !session_id.is_empty()
-        && let Some(path) = session_directory
-            .or_else(|| project_path.map(str::trim).filter(|path| !path.is_empty()))
-    {
-        return Message::Project(message::ProjectMessage::OpenProjectSessionPressed(
-            path.to_string(),
-            session_id,
-        ));
-    }
-    workflow_tool_detail_message(msg_idx, tool_idx, visible)
-}
-
 /// 渲染聊天中的工作流节点执行卡片（单行摘要 + 详情弹窗入口）。
 pub fn tool_workflow_view<'a>(
     app: &'a App,
@@ -428,13 +404,6 @@ pub fn tool_workflow_view<'a>(
         };
         (title, chat_summary_text(i18n, &value, state))
     };
-    let primary_message = workflow_node_primary_message(
-        app.project_path.as_deref(),
-        &value,
-        msg_idx,
-        tool_idx,
-        visible,
-    );
     let detail_message = workflow_tool_detail_message(msg_idx, tool_idx, visible);
 
     let detail_btn = button(
@@ -445,7 +414,7 @@ pub fn tool_workflow_view<'a>(
     )
     .padding([2, 4])
     .style(|theme: &Theme, status| eye_icon_button_style(theme, status))
-    .on_press(detail_message);
+    .on_press(detail_message.clone());
 
     let preview_btn = workflow_preview_message(&value).map(|message| {
         icon_button(
@@ -454,24 +423,9 @@ pub fn tool_workflow_view<'a>(
             message,
         )
     });
-    let open_session_btn = matches!(
-        &primary_message,
-        Message::Project(message::ProjectMessage::OpenProjectSessionPressed(..))
-    )
-    .then(|| {
-        icon_button(
-            Icon::ChatTextFill,
-            crate::app::i18n::I18n::new(app.desktop_locale).__("打开子会话"),
-            primary_message.clone(),
-        )
-    });
-
     let mut actions = row![].spacing(4).align_y(Alignment::Center);
     if let Some(preview_btn) = preview_btn {
         actions = actions.push(preview_btn);
-    }
-    if let Some(open_session_btn) = open_session_btn {
-        actions = actions.push(open_session_btn);
     }
     actions = actions.push(detail_btn);
 
@@ -484,7 +438,7 @@ pub fn tool_workflow_view<'a>(
         card.width(Length::Fill)
     };
     let card: Element<'a, Message> = mouse_area(card)
-        .on_press(primary_message)
+        .on_press(detail_message)
         .on_enter(Message::Chat(message::ChatMessage::ToolHover(msg_idx, tool_idx)))
         .on_exit(Message::Chat(message::ChatMessage::ToolHoverLeave))
         .into();

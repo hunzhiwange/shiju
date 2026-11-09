@@ -1112,7 +1112,8 @@ fn tui_first_response_failure_keeps_the_draft_and_replay_publishes_one_session()
         let mut published = false;
         let mut preview_reads = 0;
         let mut history_reads = 0;
-        while history_reads < 2 || preview_reads < 2 {
+        let mut source_read = false;
+        while history_reads < 2 || preview_reads < 2 || !source_read {
             let (mut stream, _) = listener.accept().expect("fixture request");
             let request = read_request(&mut stream);
             match request.path.as_str() {
@@ -1152,6 +1153,20 @@ fn tui_first_response_failure_keeps_the_draft_and_replay_publishes_one_session()
                         serde_json::json!([])
                     };
                     write_response(&mut stream, "application/json", &history.to_string());
+                }
+                "/v1/session?directory=%2Fworkspace" => {
+                    assert!(published, "only published history requires a source lookup");
+                    source_read = true;
+                    let info = super::session_restore_tests::navigation_info(
+                        session_id.as_deref().unwrap(),
+                        "ordinary",
+                        None,
+                    );
+                    write_response(
+                        &mut stream,
+                        "application/json",
+                        &serde_json::json!([info]).to_string(),
+                    );
                 }
                 "/v1/session/archived?directory=%2Fworkspace" => {
                     history_reads += 1;

@@ -14,6 +14,13 @@ pub struct DraftPublication {
     pub(super) preview: Option<ChatSessionMeta>,
 }
 
+#[cfg(test)]
+impl DraftPublication {
+    pub(in crate::app::message::chat) fn fixture(info: Info, preview: ChatSessionMeta) -> Self {
+        Self { info, preview: Some(preview) }
+    }
+}
+
 pub(super) fn reload_after_response(
     session_id: String,
     directory: String,

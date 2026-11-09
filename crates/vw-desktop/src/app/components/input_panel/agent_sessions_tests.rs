@@ -2,7 +2,7 @@
 //! 通过计划子树和实时工具事件覆盖徽标刷新、终止所有者与弹窗关闭流程。
 
 use super::agent_sessions::{
-    agent_session_open_message, agent_session_status_label, agent_session_stop_message,
+    agent_session_row, agent_session_status_label, agent_session_stop_message,
     agent_session_tooltip_text, agent_sessions_badge_label, agent_sessions_badge_style,
     agent_sessions_entry, agent_sessions_popover, agent_sessions_popover_style,
     agent_sessions_row_style, agent_sessions_stop_style, running_agent_sessions,
@@ -13,21 +13,6 @@ use crate::app::state::{AcpHistoryReplayMode, AgentRequest};
 use crate::app::{Message, message};
 use iced::Theme;
 use vw_shared::session::info::{Info, TimeInfo};
-
-// 将异步任务收集为消息序列，便于断言生命周期事件的顺序而非调度时机。
-async fn collect_task_messages(task: iced::Task<Message>) -> Vec<Message> {
-    use iced_runtime::futures::futures::StreamExt;
-
-    let Some(mut stream) = iced_runtime::task::into_stream(task.collect()) else {
-        return Vec::new();
-    };
-    while let Some(action) = stream.next().await {
-        if let iced_runtime::Action::Output(messages) = action {
-            return messages;
-        }
-    }
-    Vec::new()
-}
 
 // 会话与工具事件 fixture 只填充层级展示所需字段，避免无关运行时状态干扰断言。
 fn session(id: &str, parent_id: Option<&str>, title: &str, directory: &str) -> Info {
@@ -147,7 +132,7 @@ fn agent_sessions_popover_hides_without_running_children_and_counts_visible_item
 }
 
 #[test]
-fn agent_sessions_popover_lists_running_children_and_opens_selected_session() {
+fn agent_sessions_popover_lists_running_children() {
     let mut app = crate::app::App::new().0;
     app.show_agent_sessions_popover = true;
     let children = vec![
@@ -165,24 +150,6 @@ fn agent_sessions_popover_lists_running_children_and_opens_selected_session() {
 
     let popover = agent_sessions_popover(&app, &children);
     assert!(!popover.as_widget().children().is_empty());
-
-    match agent_session_open_message(&children[1]) {
-        Some(Message::Chat(message::ChatMessage::OpenAgentSession {
-            project_path,
-            session_id,
-        })) => {
-            assert_eq!(project_path, "/workspace/project");
-            assert_eq!(session_id, "child-reviewer");
-        }
-        other => panic!("expected child session open message, got {other:?}"),
-    }
-
-    let mut invalid = children[0].clone();
-    invalid.session_id = " ".to_string();
-    assert!(agent_session_open_message(&invalid).is_none());
-    invalid.session_id = "child".to_string();
-    invalid.directory.clear();
-    assert!(agent_session_open_message(&invalid).is_none());
 }
 
 #[test]
@@ -190,7 +157,7 @@ fn agent_sessions_popover_styles_support_light_and_dark_themes() {
     for theme in [Theme::Light, Theme::Dark] {
         let badge = agent_sessions_badge_style(&theme, iced::widget::button::Status::Hovered);
         let popover = agent_sessions_popover_style(&theme);
-        let row = agent_sessions_row_style(&theme, iced::widget::button::Status::Active);
+        let row = agent_sessions_row_style(&theme);
         let stop = agent_sessions_stop_style(&theme, iced::widget::button::Status::Hovered);
 
         assert!(badge.background.is_some());
@@ -198,7 +165,7 @@ fn agent_sessions_popover_styles_support_light_and_dark_themes() {
         assert!(popover.background.is_some());
         assert!(popover.text_color.is_some());
         assert!(row.background.is_some());
-        assert!(row.text_color.a > 0.0);
+        assert!(row.text_color.is_some_and(|color| color.a > 0.0));
         assert!(stop.background.is_some());
         assert!(stop.text_color.a > 0.0);
     }
@@ -237,6 +204,52 @@ async fn agent_sessions_popover_layouts_nested_non_ascii_text_in_light_and_dark_
         let node = element.as_widget_mut().layout(&mut tree, &renderer, &limits);
         assert!(node.bounds().width > 0.0);
         assert!(node.bounds().height > 0.0);
+    }
+}
+
+#[tokio::test]
+async fn child_session_navigation_input_row_keeps_stop_separate_from_status() {
+    use iced::advanced::{clipboard, renderer::Headless};
+    use iced::{Event, Font, Pixels, Point, Size, mouse};
+    use iced_runtime::user_interface::{Cache, UserInterface};
+
+    let mut app = crate::app::App::new().0;
+    app.desktop_locale = vw_config_types::ui::DesktopLocale::SimplifiedChinese;
+    let mut child = child("nested-child", "审查", "检查中文状态", "工作流执行");
+    child.depth = 1;
+    child.kind = AgentChildSessionKind::WorkflowExecution;
+    child.plan_run_task_id = Some("owning-plan".into());
+    let mut renderer =
+        iced::Renderer::new(Font::DEFAULT, Pixels(16.0), Some("tiny-skia")).await.unwrap();
+    let viewport = Size::new(340.0, 100.0);
+
+    for theme in [Theme::Light, Theme::Dark] {
+        let mut ui = UserInterface::build(
+            agent_session_row(&app, &child),
+            viewport,
+            Cache::new(),
+            &mut renderer,
+        );
+        ui.draw(&mut renderer, &theme, &Default::default(), mouse::Cursor::Unavailable);
+        let mut click = |position| {
+            let mut messages = Vec::new();
+            ui.update(
+                &[
+                    Event::Mouse(mouse::Event::ButtonPressed(mouse::Button::Left)),
+                    Event::Mouse(mouse::Event::ButtonReleased(mouse::Button::Left)),
+                ],
+                mouse::Cursor::Available(position),
+                &mut renderer,
+                &mut clipboard::Null,
+                &mut messages,
+            );
+            messages
+        };
+        assert!(click(Point::new(50.0, 18.0)).is_empty());
+        assert!(matches!(
+            click(Point::new(325.0, 22.0)).as_slice(),
+            [Message::Chat(message::ChatMessage::StopPlanRun(id))] if id == "owning-plan"
+        ));
     }
 }
 
@@ -340,16 +353,7 @@ fn workflow_planning_child_uses_compact_label_and_task_path_tooltip() {
     );
     assert_eq!(children[0].kind, AgentChildSessionKind::WorkflowPlanning);
     assert_eq!(children[0].status, AgentChildSessionStatus::Waiting);
-    match agent_session_open_message(&children[0]) {
-        Some(Message::Chat(message::ChatMessage::OpenAgentSession {
-            project_path,
-            session_id,
-        })) => {
-            assert_eq!(project_path, DIRECTORY);
-            assert_eq!(session_id, SESSION_ID);
-        }
-        other => panic!("expected planning session open message, got {other:?}"),
-    }
+
     assert!(!agent_sessions_popover(&app, &children).as_widget().children().is_empty());
 }
 
@@ -428,12 +432,7 @@ fn agent_sessions_popover_lists_nested_plan_run_descendants_and_stops_owner() {
     assert_eq!(children[1].depth, 1);
     assert_eq!(children[1].status, AgentChildSessionStatus::Waiting);
     assert_eq!(agent_session_status_label(children[1].kind, children[1].status), "等待中");
-    match agent_session_open_message(&children[1]) {
-        Some(Message::Chat(message::ChatMessage::OpenAgentSession { session_id, .. })) => {
-            assert_eq!(session_id, AGENT_SESSION_ID);
-        }
-        other => panic!("expected nested child session open message, got {other:?}"),
-    }
+
     assert!(agent_session_stop_message(&children[1]).is_none());
     assert!(matches!(
         agent_session_stop_message(&children[0]),
@@ -563,18 +562,7 @@ async fn agent_tool_live_child_integrates_with_input_session_list() {
         message::ChatMessage::ToggleAgentSessionsPopover,
     );
     assert!(app.show_agent_sessions_popover);
-    let open_message =
-        agent_session_open_message(&children[0]).expect("running child should be openable");
-    let Message::Chat(open_message) = open_message else {
-        panic!("expected chat open message");
-    };
-    let open_task = crate::app::message::chat::update(&mut app, open_message);
-    assert!(!app.show_agent_sessions_popover);
-    assert!(matches!(
-        collect_task_messages(open_task).await.as_slice(),
-        [Message::Project(message::ProjectMessage::OpenProjectSessionPressed(path, id))]
-            if path == DIRECTORY && id == SUCCESS_CHILD_ID
-    ));
+    assert_eq!(app.active_session_id.as_deref(), Some(PARENT_ID));
 
     release_success_tx.send(()).expect("release successful child executor");
     let completed_delta = delta_rx.recv().await.expect("successful terminal event");

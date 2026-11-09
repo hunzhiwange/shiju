@@ -335,11 +335,6 @@ pub enum ChatMessage {
     ToggleAgentSessionsPopover,
     /// 关闭当前父会话的 AgentTool 子会话弹层。
     CloseAgentSessionsPopover,
-    /// 关闭弹层并打开真实持久化子会话。
-    OpenAgentSession {
-        project_path: String,
-        session_id: String,
-    },
     /// 请求停止子会话所属的真实 plan-run。
     StopPlanRun(String),
     /// plan-run 停止请求完成；实时状态仍由 SSE cancelled 事件收敛。
@@ -1328,7 +1323,6 @@ pub fn update(app: &mut App, message: ChatMessage) -> Task<Message> {
         | ChatMessage::SetTodoPanelPlacement(_)
         | ChatMessage::ToggleAgentSessionsPopover
         | ChatMessage::CloseAgentSessionsPopover
-        | ChatMessage::OpenAgentSession { .. }
         | ChatMessage::StopPlanRun(_)
         | ChatMessage::StopPlanRunFinished { .. } => input::update(app, message),
 

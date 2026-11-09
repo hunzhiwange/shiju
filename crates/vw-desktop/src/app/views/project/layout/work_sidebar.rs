@@ -133,7 +133,7 @@ fn collect_top_level_sessions<'a>(
         .iter()
         .copied()
         .filter(|(path, session)| {
-            if session.time.archived.is_some() {
+            if session.time.archived.is_some() || !session.is_user_navigable() {
                 return false;
             }
             let Some(parent_id) = session.parent_id.as_deref().filter(|id| !id.trim().is_empty())

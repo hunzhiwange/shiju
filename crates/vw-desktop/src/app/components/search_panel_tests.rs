@@ -117,6 +117,24 @@ fn matching_sessions_uses_title_preview_and_directory() {
 }
 
 #[test]
+fn child_session_navigation_search_hides_internal_sources() {
+    let mut app = App::new().0;
+    let mut agent = session("agent", "任务", "/workspace");
+    agent.mark_agent_tool();
+    let mut workflow = session("workflow", "任务", "/workspace");
+    workflow.slug = vw_shared::session::info::Info::plan_run_slug(&workflow.slug);
+    let mut fork = session("fork", "任务", "/workspace");
+    fork.parent_id = Some("parent".into());
+    let mut task = session("task", "任务", "/workspace");
+    task.parent_id = Some("parent".into());
+    task.slug = vw_shared::session::info::Info::visible_task_slug(&task.slug);
+    app.sessions = vec![agent, workflow, fork, task];
+
+    let matches = matching_sessions(&app, "任务");
+    assert_eq!(matches.iter().map(|row| row.id.as_str()).collect::<Vec<_>>(), ["fork", "task"]);
+}
+
+#[test]
 fn matching_sessions_rejects_blank_queries() {
     let mut app = App::new().0;
     app.sessions = vec![session("session-1", "Alpha", "/workspace/alpha")];

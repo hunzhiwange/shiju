@@ -298,27 +298,15 @@ pub(super) fn agent_sessions_popover_style(theme: &Theme) -> iced::widget::conta
     }
 }
 
-pub(super) fn agent_sessions_row_style(
-    theme: &Theme,
-    status: iced::widget::button::Status,
-) -> iced::widget::button::Style {
+pub(super) fn agent_sessions_row_style(theme: &Theme) -> iced::widget::container::Style {
     let dark = theme_is_dark(theme);
-    let primary = theme.extended_palette().primary.base.color;
-    let background = match status {
-        iced::widget::button::Status::Hovered | iced::widget::button::Status::Pressed => {
-            primary.scale_alpha(if dark { 0.18 } else { 0.10 })
-        }
-        iced::widget::button::Status::Disabled => {
-            theme.palette().text.scale_alpha(if dark { 0.035 } else { 0.025 })
-        }
-        iced::widget::button::Status::Active => {
-            theme.palette().text.scale_alpha(if dark { 0.055 } else { 0.035 })
-        }
-    };
-
-    iced::widget::button::Style {
-        background: Some(Background::Color(background)),
-        text_color: theme.palette().text.scale_alpha(0.94),
+    iced::widget::container::Style {
+        background: Some(Background::Color(theme.palette().text.scale_alpha(if dark {
+            0.055
+        } else {
+            0.035
+        }))),
+        text_color: Some(theme.palette().text.scale_alpha(0.94)),
         border: Border {
             width: 1.0,
             color: theme.palette().text.scale_alpha(if dark { 0.11 } else { 0.08 }),
@@ -349,20 +337,6 @@ pub(super) fn agent_sessions_stop_style(
     }
 }
 
-/// 为可打开的子会话生成导航消息；缺少路径时不提供操作。
-pub(super) fn agent_session_open_message(child: &AgentChildSession) -> Option<Message> {
-    let project_path = child.directory.trim();
-    let session_id = child.session_id.trim();
-    if project_path.is_empty() || session_id.is_empty() {
-        return None;
-    }
-
-    Some(Message::Chat(message::ChatMessage::OpenAgentSession {
-        project_path: project_path.to_string(),
-        session_id: session_id.to_string(),
-    }))
-}
-
 /// 仅为仍在运行的会话生成停止消息。
 pub(super) fn agent_session_stop_message(child: &AgentChildSession) -> Option<Message> {
     if !matches!(
@@ -383,7 +357,7 @@ pub(super) fn agent_session_tooltip_text(child: &AgentChildSession) -> Option<&s
     })
 }
 
-fn agent_session_row<'a>(app: &App, child: &AgentChildSession) -> Element<'a, Message> {
+pub(super) fn agent_session_row<'a>(app: &App, child: &AgentChildSession) -> Element<'a, Message> {
     let running_color = Color::from_rgb8(96, 165, 250);
     let content: Element<'a, Message> = if child.kind == AgentChildSessionKind::WorkflowPlanning {
         text(
@@ -450,15 +424,10 @@ fn agent_session_row<'a>(app: &App, child: &AgentChildSession) -> Element<'a, Me
         .align_y(Alignment::Center);
         column![title_line, running].spacing(4).width(Length::Fill).into()
     };
-    let row_button =
-        button(content).width(Length::Fill).padding([9, 10]).style(agent_sessions_row_style);
-
-    let row_button: Element<'a, Message> = match agent_session_open_message(child) {
-        Some(message) => row_button.on_press(message).into(),
-        None => row_button.into(),
-    };
+    let status_card =
+        container(content).width(Length::Fill).padding([9, 10]).style(agent_sessions_row_style);
     let mut session_row =
-        row![Space::new().width(Length::Fixed((child.depth as f32) * 14.0)), row_button,]
+        row![Space::new().width(Length::Fixed((child.depth as f32) * 14.0)), status_card]
             .spacing(6)
             .align_y(Alignment::Center)
             .width(Length::Fill);

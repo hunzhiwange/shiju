@@ -51,7 +51,7 @@ pub enum SearchMessage {
     /// 选择会话
     ///
     /// 当用户从搜索结果中选择一个历史会话时触发。
-    /// 会优先复用项目会话打开链路，否则直接按会话 ID 拉取完整消息。
+    /// 通过项目导航入口验证来源后再打开会话。
     SelectSession(String),
 }
 
@@ -119,55 +119,10 @@ pub fn update(app: &mut App, message: SearchMessage) -> Task<Message> {
         // 加载历史会话数据，汇总 Token 使用量，并恢复会话状态
         SearchMessage::SelectSession(id) => {
             app.show_search_overlay = false;
-            let project_path =
-                app.known_session_directory(&id).filter(|directory| !directory.trim().is_empty());
-
-            if let Some(project_path) = project_path {
-                Task::done(Message::Project(
-                    crate::app::message::project::ProjectMessage::OpenProjectSessionPressed(
-                        project_path,
-                        id,
-                    ),
-                ))
-            } else {
-                app.cache_active_session_chat();
-                app.prepare_historical_session_model(&id);
-                app.active_session_id = Some(id.clone());
-                app.mark_active_session_viewed();
-                app.restore_chat_for_session(&id);
-                app.usage = crate::app::models::TokenUsage::default();
-                app.active_session_view_state.updated_ms = 0;
-                app.clear_active_session_steps();
-                app.active_session_view_state.ui_preparing = true;
-                app.active_session_view_state.base_ready = false;
-                app.invalidate_chat_ui_state();
-                app.sync_active_session_preferences();
-
-                let base_chunk_start = app.preferred_base_chat_ui_chunk_start();
-                let initial_prewarm_task = if app.chat.is_empty() {
-                    Task::none()
-                } else {
-                    app.mark_chat_ui_chunks_preparing(&[base_chunk_start]);
-                    app.pin_chat_ui_chunk(Some(base_chunk_start));
-                    crate::app::message::project::prepare_session_ui_task(
-                        id.clone(),
-                        app.active_shared_chat_messages(),
-                        base_chunk_start,
-                        true,
-                        app.dialogue_flow_show_reasoning_summary,
-                    )
-                };
-
-                Task::batch([
-                    initial_prewarm_task,
-                    crate::app::message::project::helpers::load_session_messages_task_scoped(
-                        None, id,
-                    ),
-                    Task::done(Message::Chat(
-                        crate::app::message::ChatMessage::LoadInputPanelTodos,
-                    )),
-                ])
-            }
+            let path = app.known_session_directory(&id).unwrap_or_default();
+            Task::done(Message::Project(
+                crate::app::message::project::ProjectMessage::OpenProjectSessionPressed(path, id),
+            ))
         }
     }
 }

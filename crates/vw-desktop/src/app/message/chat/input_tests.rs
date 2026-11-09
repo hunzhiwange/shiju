@@ -153,28 +153,6 @@ fn agent_sessions_popover_closes_when_parent_session_changes() {
     assert!(!app.show_agent_sessions_popover);
 }
 
-#[tokio::test(flavor = "multi_thread")]
-async fn agent_sessions_popover_open_selected_closes_and_emits_real_session_target() {
-    let (mut app, _) = crate::app::App::new();
-    app.show_agent_sessions_popover = true;
-
-    let task = super::update(
-        &mut app,
-        ChatMessage::OpenAgentSession {
-            project_path: "/workspace/project".to_string(),
-            session_id: "child-session".to_string(),
-        },
-    );
-
-    assert!(!app.show_agent_sessions_popover);
-    let messages = collect_task_messages(task).await;
-    assert!(matches!(
-        messages.as_slice(),
-        [Message::Project(message::ProjectMessage::OpenProjectSessionPressed(path, id))]
-            if path == "/workspace/project" && id == "child-session"
-    ));
-}
-
 #[test]
 fn agent_sessions_popover_stop_rejects_missing_and_mismatched_plan_run_targets() {
     let (mut app, _) = crate::app::App::new();
@@ -1036,7 +1014,7 @@ fn upward_scroll_near_tail_cancels_stream_follow_and_pending_followups() {
 }
 
 #[test]
-fn session_entry_recommendations_close_and_switch() {
+fn session_entry_recommendations_close_for_other_input_menus() {
     let mut app = crate::app::App::new().0;
     let _ = super::update(&mut app, ChatMessage::RecommendedPromptMenuChanged(true));
     assert!(app.show_recommended_prompt_menu);
@@ -1055,17 +1033,5 @@ fn session_entry_recommendations_close_and_switch() {
     assert!(!app.show_recommended_prompt_menu);
     let _ = super::update(&mut app, ChatMessage::RecommendedPromptMenuChanged(true));
     let _ = super::update(&mut app, ChatMessage::SessionAgentSelected(None));
-    assert!(!app.show_recommended_prompt_menu);
-    app.show_recommended_prompt_menu = true;
-    app.active_session_id = Some("previous-recommendation-session".into());
-    app.project_path = Some("/tmp/recommendation-fixture".into());
-    let _ = crate::app::message::project::update(
-        &mut app,
-        crate::app::message::project::ProjectMessage::OpenProjectSessionPressed(
-            "/tmp/recommendation-fixture".into(),
-            "next-recommendation-session".into(),
-        ),
-    );
-    assert_eq!(app.active_session_id.as_deref(), Some("next-recommendation-session"));
     assert!(!app.show_recommended_prompt_menu);
 }

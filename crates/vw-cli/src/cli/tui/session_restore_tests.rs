@@ -46,6 +46,10 @@ fn resume_candidates_exclude_archived_and_sort_latest_first() {
             }
         ])),
         GatewayResponse::ok(json!(["archived"])),
+        GatewayResponse::ok(json!([
+            navigation_info("older", "ordinary", None),
+            navigation_info("newer", "ordinary", None)
+        ])),
     ]);
     let runtime = test_runtime(endpoint, "current");
 
@@ -64,7 +68,77 @@ fn resume_candidates_exclude_archived_and_sort_latest_first() {
         requests.recv().expect("archived request"),
         "/v1/session/archived?directory=%2Fworkspace"
     );
+    assert_eq!(
+        requests.recv().expect("scoped session source list"),
+        "/v1/session?directory=%2Fworkspace"
+    );
     server.join().expect("resume candidate fixture");
+}
+
+#[test]
+fn child_session_navigation_resume_picker_keeps_only_user_sessions() {
+    let (endpoint, requests, server) = gateway_fixture_for_paths(3, |path| match path {
+        "/v1/session/ui-previews?directory=%2Fworkspace" => GatewayResponse::ok(json!([
+            {"id":"root", "title":"根会话", "updated_ms":1, "message_count":2, "call_count":0},
+            {"id":"agent", "title":"子智能体", "updated_ms":7, "message_count":2, "call_count":0},
+            {"id":"workflow", "title":"工作流", "updated_ms":6, "message_count":2, "call_count":0},
+            {"id":"fork", "title":"分叉", "updated_ms":2, "message_count":2, "call_count":0},
+            {"id":"task", "title":"可见任务", "updated_ms":3, "message_count":2, "call_count":0},
+            {"id":"missing", "title":"缺少来源", "updated_ms":8, "message_count":2, "call_count":0}
+        ])),
+        "/v1/session/archived?directory=%2Fworkspace" => GatewayResponse::ok(json!([])),
+        "/v1/session?directory=%2Fworkspace" => GatewayResponse::ok(json!([
+            navigation_info("root", "ordinary", None),
+            navigation_info("agent", "agent-tool:delegate", Some("root")),
+            navigation_info("workflow", "plan-run:stage", Some("agent")),
+            navigation_info("fork", "ordinary", Some("root")),
+            navigation_info("task", "visible-task:task", Some("root"))
+        ])),
+        other => panic!("unexpected navigation request {other}"),
+    });
+    let runtime = test_runtime(endpoint, "current");
+
+    let candidates = runtime.session_resume_candidates_blocking().expect("load candidates");
+    let ids = candidates.iter().map(|candidate| candidate.id.as_str()).collect::<Vec<_>>();
+
+    assert_eq!(ids, ["task", "fork", "root"]);
+    server.join().expect("resume candidate fixture");
+    assert_eq!(requests.try_iter().count(), 3);
+}
+
+pub(super) fn navigation_info(id: &str, slug: &str, parent: Option<&str>) -> serde_json::Value {
+    json!({
+        "id": id,
+        "slug": slug,
+        "projectID": "workspace",
+        "directory": "/workspace",
+        "parentID": parent,
+        "title": "",
+        "version": "test",
+        "time": {"created": 1, "updated": 1}
+    })
+}
+
+#[test]
+fn child_session_navigation_direct_resume_rejects_internal_metadata_without_loading_chat() {
+    let (endpoint, requests, server) = gateway_fixture(vec![GatewayResponse::ok(navigation_info(
+        "nested-child",
+        "plan-run:stage",
+        Some("agent"),
+    ))]);
+    let runtime = test_runtime(endpoint, "current");
+    let state = TuiState::from_chat_session(&snapshot("current", "Current", "keep me"));
+    let mut app = V3GatewayApp::new(runtime, state);
+    let before = app.state().clone();
+
+    let error = app.resume_session("nested-child").expect_err("internal session cannot be resumed");
+
+    assert!(error.contains("cannot be opened"));
+    assert_eq!(app.state(), &before);
+    assert_eq!(app.runtime().session_id(), Some("current"));
+    assert_eq!(requests.recv().unwrap(), "/v1/session/nested-child?directory=%2Fworkspace");
+    server.join().unwrap();
+    assert!(requests.try_recv().is_err());
 }
 
 #[test]
@@ -102,9 +176,10 @@ fn tui_first_response_bootstrap_keeps_an_unbound_draft() {
 #[test]
 fn background_bootstrap_restores_explicit_session_in_current_workspace() {
     let restored = snapshot("explicit", "Recovered", "latest answer");
-    let (endpoint, requests, server) = gateway_fixture(vec![GatewayResponse::ok(
-        serde_json::to_value(restored).expect("snapshot"),
-    )]);
+    let (endpoint, requests, server) = gateway_fixture(vec![
+        GatewayResponse::ok(navigation_info("explicit", "ordinary", None)),
+        GatewayResponse::ok(serde_json::to_value(restored).expect("snapshot")),
+    ]);
     let mut runtime = test_runtime(endpoint, "explicit");
 
     let state = restore_or_create_session_state(&mut runtime).expect("restore explicit session");
@@ -113,6 +188,10 @@ fn background_bootstrap_restores_explicit_session_in_current_workspace() {
     assert_eq!(
         state.to_chat_session().messages.last().map(|message| message.content.as_str()),
         Some("latest answer")
+    );
+    assert_eq!(
+        requests.recv().expect("scoped session source"),
+        "/v1/session/explicit?directory=%2Fworkspace"
     );
     assert_eq!(
         requests.recv().expect("scoped snapshot request"),
@@ -193,10 +272,13 @@ fn resume_selection_uses_the_gateway_session_id() {
 
 #[test]
 fn resume_switch_is_transactional() {
-    let (endpoint, requests, server) = gateway_fixture(vec![GatewayResponse {
-        status: "500 Internal Server Error",
-        body: json!({"error": "forced load failure"}),
-    }]);
+    let (endpoint, requests, server) = gateway_fixture(vec![
+        GatewayResponse::ok(navigation_info("target", "ordinary", None)),
+        GatewayResponse {
+            status: "500 Internal Server Error",
+            body: json!({"error": "forced load failure"}),
+        },
+    ]);
     let runtime = test_runtime(endpoint, "current");
     let mut state = TuiState::from_chat_session(&snapshot("current", "Current", "keep me"));
     state.session.scope = Some("workspace-write".to_string());
@@ -211,6 +293,7 @@ fn resume_switch_is_transactional() {
     assert_eq!(app.state(), &before);
     assert_eq!(app.widget().draft(), "unfinished draft");
     assert_eq!(app.runtime().session_id(), Some("current"));
+    assert_eq!(requests.recv().unwrap(), "/v1/session/target?directory=%2Fworkspace");
     assert_eq!(
         requests.recv().expect("snapshot request"),
         "/v1/session/target/ui/without-raw?directory=%2Fworkspace"
@@ -221,8 +304,10 @@ fn resume_switch_is_transactional() {
 #[test]
 fn resume_switch_commits_state_display_and_runtime_together() {
     let target = snapshot("target", "Recovered", "restored answer");
-    let (endpoint, requests, server) =
-        gateway_fixture(vec![GatewayResponse::ok(serde_json::to_value(target).expect("snapshot"))]);
+    let (endpoint, requests, server) = gateway_fixture(vec![
+        GatewayResponse::ok(navigation_info("target", "visible-task:run", Some("parent"))),
+        GatewayResponse::ok(serde_json::to_value(target).expect("snapshot")),
+    ]);
     let runtime = test_runtime(endpoint, "current");
     let mut state = TuiState::from_chat_session(&snapshot("current", "Current", "old answer"));
     state.session.scope = Some("workspace-write".to_string());
@@ -230,7 +315,7 @@ fn resume_switch_commits_state_display_and_runtime_together() {
     let mut app = V3GatewayApp::new(runtime, state);
     app.widget_mut().replace_draft("draft survives success");
 
-    app.resume_session("target").expect("resume target session");
+    app.resume_session(" target ").expect("resume target session");
 
     let display = GatewayV3Bridge::session_display_data(app.runtime(), app.state());
     assert_eq!(app.state().session.session_id.as_deref(), Some("target"));
@@ -248,6 +333,7 @@ fn resume_switch_commits_state_display_and_runtime_together() {
     assert!(rendered.contains("Recovered"));
     assert!(rendered.contains("restored answer"));
     assert!(!rendered.contains("old answer"));
+    assert_eq!(requests.recv().unwrap(), "/v1/session/target?directory=%2Fworkspace");
     assert_eq!(
         requests.recv().expect("snapshot request"),
         "/v1/session/target/ui/without-raw?directory=%2Fworkspace"

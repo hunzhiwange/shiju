@@ -10,6 +10,7 @@ use vw_gateway_client::{
     GatewaySessionForkBody, GatewaySessionPatchBody, GatewaySessionResetBody,
     GatewaySessionSummarizeBody,
 };
+use vw_shared::session::info::Info;
 use vw_shared::session::ui_types::{ChatSession, ChatSessionMeta};
 
 use super::gateway::{GatewayUiRuntime, block_on_gateway, normalize_optional_str_ref};
@@ -39,6 +40,18 @@ impl GatewayUiRuntime {
         Ok(snapshot)
     }
 
+    async fn session_ui_resume(&self, session_id: &str) -> Result<ChatSession, String> {
+        let session_id = normalize_optional_str_ref(Some(session_id))
+            .ok_or_else(|| "session restore requires a non-empty session id".to_string())?;
+        let directory = self.directory_value();
+        let info: Info = self.client().session_get(session_id, directory.as_deref()).await?;
+        ensure_mutation_session_id("resume", session_id, &info.id)?;
+        if !info.is_user_navigable() {
+            return Err(format!("session {session_id} cannot be opened in the TUI"));
+        }
+        self.session_ui_load(session_id).await
+    }
+
     async fn session_ui_save(&self, session: &ChatSession) -> Result<(), String> {
         let session_id = normalize_optional_str_ref(Some(session.id.as_str()))
             .ok_or_else(|| "session_ui save requires a non-empty session id".to_string())?;
@@ -57,6 +70,15 @@ impl GatewayUiRuntime {
         let archived = self.client().session_archived_get(directory.as_deref()).await?;
         let archived = archived.into_iter().collect::<HashSet<_>>();
         previews.retain(|preview| !archived.contains(preview.id.as_str()));
+        if !previews.is_empty() {
+            let sessions: Vec<Info> = self.client().session_list(directory.as_deref()).await?;
+            let navigable: HashSet<_> = sessions
+                .iter()
+                .filter(|session| session.is_user_navigable())
+                .map(|session| session.id.as_str())
+                .collect();
+            previews.retain(|preview| navigable.contains(preview.id.as_str()));
+        }
         previews.sort_by(|left, right| {
             right
                 .updated_ms
@@ -143,6 +165,14 @@ impl GatewayUiRuntime {
     /// 在当前目录约束下加载完整会话快照，并拒绝空 ID、缺失快照或响应 ID 失配。
     pub(crate) fn session_ui_load_blocking(&self, session_id: &str) -> Result<ChatSession, String> {
         block_on_gateway(self.session_ui_load(session_id))
+    }
+
+    /// Restore a user-selected session after verifying its persisted source.
+    pub(crate) fn session_ui_resume_blocking(
+        &self,
+        session_id: &str,
+    ) -> Result<ChatSession, String> {
+        block_on_gateway(self.session_ui_resume(session_id))
     }
 
     /// 将完整 UI 会话快照同步保存到 Gateway。

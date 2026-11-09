@@ -1,37 +1,27 @@
-//! plan-run 确定性会话 Info 绑定与可渲染历史落盘。
-//!
-//! 使用固定 session id 写入 `Info`（可选 `parent_id`），并保证 ChatSession
-//! 至少有可被桌面聊天面板渲染的 user/assistant messages。
+//! plan-run 确定性会话预留与首次成功回复提交。
 
 use crate::installation;
 use crate::project;
 use crate::session::session::{self, Info, TimeInfo};
+use crate::session::store::FirstResponseCommit;
 use crate::session::ui_store;
 use crate::session::ui_types::{ChatMessage, ChatRole, ChatSession};
 use std::path::Path;
 use vw_api_types::id::TenantScope;
 
-/// 确保 plan-run 子会话写入指定 id 的 `Info`（含可选 `parent_id`）。
-///
-/// 不调用 `create_next`（会生成新 id）；通过 `ui_store` 直接 upsert 指定 id。
-/// 无 `parent_id` 时仍创建独立 Info（`parent_id=None`）。
+/// 按固定 ID 预留 plan-run 会话，重试复用原会话及其提交状态。
 pub(crate) async fn ensure_plan_run_session_info(
     session_id: &str,
     parent_id: Option<&str>,
     root: &str,
-    title: &str,
 ) -> Result<(), String> {
     let session_id = session_id.trim();
     let root = root.trim();
-    let title = title.trim();
     if session_id.is_empty() {
         return Err("plan-run session id 不能为空".to_string());
     }
     if root.is_empty() {
         return Err("plan-run session root 不能为空".to_string());
-    }
-    if title.is_empty() {
-        return Err("plan-run session title 不能为空".to_string());
     }
 
     let tenant = ui_store::current_tenant_scope();
@@ -40,43 +30,34 @@ pub(crate) async fn ensure_plan_run_session_info(
     let parent_id = parent_id.map(str::trim).filter(|value| !value.is_empty()).map(str::to_string);
     let session_id = session_id.to_string();
     let root = root.to_string();
-    let title = title.to_string();
 
     crate::global_database::run_isolated(move || {
-        let existing =
-            ui_store::load_agent_session_scoped_for_tenant(&tenant, &session_id, Some(&project_id));
-        let (created, slug) = match existing {
-            Some(info) => (info.time.created, info.slug),
-            None => (now, session::create_slug()),
-        };
-        let slug = Info::plan_run_slug(&slug);
-
         let info = Info {
-            id: session_id.clone(),
-            slug,
-            project_id: project_id.clone(),
+            id: session_id,
+            slug: Info::plan_run_slug(&session::create_slug()),
+            project_id,
             directory: root,
             parent_id,
             summary: None,
             share: None,
-            title,
+            title: String::new(),
             version: installation::version(),
-            time: TimeInfo { created, updated: now, compacting: None, archived: None },
+            time: TimeInfo { created: now, updated: now, compacting: None, archived: None },
             permission: None,
             revert: None,
         };
-
-        ui_store::save_agent_session_scoped_for_tenant(&tenant, &info, Some(&project_id))
-            .ok_or_else(|| {
-                format!("写入 plan-run Info 失败: session={session_id} project={project_id}")
-            })?;
+        let reserved = ui_store::reserve_pending_session(&tenant, &info)
+            .map_err(|error| format!("预留 plan-run Info 失败: {error}"))?;
+        if !reserved.is_plan_run() || reserved.parent_id != info.parent_id {
+            return Err(format!("plan-run 会话来源或父会话不匹配: {}", info.id));
+        }
         Ok(())
     })
     .await
     .map_err(|error| format!("plan-run Info 存储线程异常: {error}"))?
 }
 
-/// 将最小可渲染 user/assistant 历史写入 ChatSession（messages 为空时补齐）。
+/// 原子提交本次成功的 user/assistant 历史和阶段标题。
 pub(crate) async fn persist_plan_run_session_history(
     session_id: &str,
     root: &str,
@@ -94,6 +75,10 @@ pub(crate) async fn persist_plan_run_session_history(
         return Err("plan-run session root 不能为空".to_string());
     }
 
+    if assistant_content.trim().is_empty() {
+        return Err("plan-run session 缺少有效回复".to_string());
+    }
+
     let tenant = ui_store::current_tenant_scope();
     let project_id = resolve_project_id(&tenant, root).await?;
     let now = session::now_ms();
@@ -103,61 +88,90 @@ pub(crate) async fn persist_plan_run_session_history(
     let assistant_content = assistant_content.to_string();
 
     crate::global_database::run_isolated(move || {
+        let scope = Some(project_id.as_str());
+        let info = ui_store::load_agent_session_scoped_for_tenant(&tenant, &session_id, scope)
+            .filter(Info::is_plan_run)
+            .ok_or_else(|| format!("缺少 plan-run 会话预留: {session_id}"))?;
         let mut chat =
-            ui_store::load_session_scoped_for_tenant(&tenant, &session_id, Some(&project_id))
-                .unwrap_or(ChatSession {
-                    id: session_id.clone(),
-                    title: if title.is_empty() { "plan-run".to_string() } else { title.clone() },
+            ui_store::load_session_scoped_for_tenant_fallible(&tenant, &session_id, scope)
+                .map_err(|error| error.to_string())?
+                .unwrap_or_else(|| ChatSession {
+                    id: info.id.clone(),
+                    title: info.title.clone(),
                     messages: Vec::new(),
                     message_ids: Vec::new(),
                     calls: Vec::new(),
                     steps: Vec::new(),
-                    created_ms: now,
-                    updated_ms: 0,
+                    created_ms: info.time.created,
+                    updated_ms: info.time.updated,
                 });
-
-        if !title.is_empty() {
-            chat.title = title;
+        let pending = info.is_first_response_pending();
+        if !pending {
+            let replace_legacy =
+                chat.messages.is_empty() || is_legacy_failure_history(&chat.messages);
+            if !replace_legacy
+                || ui_store::has_committed_first_response(&tenant, &project_id, &session_id)
+                    .map_err(|error| error.to_string())?
+            {
+                return Ok(());
+            }
         }
 
-        if chat.messages.is_empty() {
-            let user = if user_content.trim().is_empty() {
-                "(空提示)".to_string()
-            } else {
-                user_content
-            };
-            let assistant = if assistant_content.trim().is_empty() {
-                "(空输出)".to_string()
-            } else {
-                assistant_content
-            };
-            chat.messages = vec![
-                ChatMessage {
-                    role: ChatRole::User,
-                    content: user,
-                    model: None,
-                    think_timing: Vec::new(),
-                    processing_timing: None,
+        chat.messages = vec![
+            ChatMessage {
+                role: ChatRole::User,
+                content: user_content,
+                model: None,
+                think_timing: Vec::new(),
+                processing_timing: None,
+            },
+            ChatMessage {
+                role: ChatRole::Assistant,
+                content: assistant_content,
+                model: None,
+                think_timing: Vec::new(),
+                processing_timing: None,
+            },
+        ];
+        chat.message_ids = vec![None, None];
+        chat.updated_ms = chat.updated_ms.max(now);
+        chat.title = info.title;
+        if pending {
+            let published = ui_store::commit_first_response(
+                &tenant,
+                &project_id,
+                FirstResponseCommit {
+                    preview: Some(&chat.messages[0].content),
+                    snapshot: &chat,
+                    raw_artifacts: &[],
+                    expected_finished_steps: &[],
+                    task_title: Some(&title),
                 },
-                ChatMessage {
-                    role: ChatRole::Assistant,
-                    content: assistant,
-                    model: None,
-                    think_timing: Vec::new(),
-                    processing_timing: None,
-                },
-            ];
-            chat.message_ids = vec![None, None];
+            )
+            .map_err(|error| error.to_string())?;
+            if !published
+                && !ui_store::has_committed_first_response(&tenant, &project_id, &session_id)
+                    .map_err(|error| error.to_string())?
+            {
+                return Err(format!("plan-run 会话预留已失效: {session_id}"));
+            }
+        } else {
+            ui_store::save_session_ui_scoped_for_tenant(&tenant, &chat, scope, true)
+                .map_err(|error| error.to_string())?;
         }
-
-        chat.updated_ms = now;
-        ui_store::save_session_scoped_for_tenant(&tenant, &chat, Some(&project_id)).ok_or_else(
-            || format!("写入 plan-run ChatSession 失败: session={session_id} project={project_id}"),
-        )?;
         Ok(())
     })
     .await
     .map_err(|error| format!("plan-run ChatSession 存储线程异常: {error}"))?
+}
+
+// 旧版会把失败摘要当作两条聊天消息写入，重跑成功后需要替换占位。
+fn is_legacy_failure_history(messages: &[ChatMessage]) -> bool {
+    matches!(messages, [user, assistant]
+        if user.role == ChatRole::User && assistant.role == ChatRole::Assistant
+            && ["规划会话失败: ", "子任务失败: ", "目标续轮失败: "]
+                .iter()
+                .any(|prefix| assistant.content.starts_with(prefix)))
 }
 
 async fn resolve_project_id(tenant: &TenantScope, root: &str) -> Result<String, String> {

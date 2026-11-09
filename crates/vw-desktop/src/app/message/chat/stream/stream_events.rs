@@ -505,7 +505,8 @@ fn refresh_stream_replacement_projection(app: &mut App, session_id: &str, messag
 pub(super) fn schedule_agent_stream_session_save(app: &mut App, session_id: &str) -> Task<Message> {
     let schedule_flush = {
         let runtime = app.get_session_runtime_mut(session_id);
-        if runtime.stream_save_flush_scheduled
+        if runtime.is_plan_run_session
+            || runtime.stream_save_flush_scheduled
             || runtime.stream_save_failures >= STREAM_SESSION_SAVE_MAX_FAILURES
         {
             false
@@ -536,7 +537,11 @@ pub(super) fn mark_agent_stream_session_dirty(
     updated_ms: u64,
     previous_content_len: Option<usize>,
 ) {
-    if app.session_runtime_states.get(session_id).is_some_and(|runtime| runtime.draft.is_some()) {
+    if app
+        .session_runtime_states
+        .get(session_id)
+        .is_some_and(|runtime| runtime.draft.is_some() || runtime.is_plan_run_session)
+    {
         return;
     }
     let is_active = app.active_session_id.as_deref() == Some(session_id);
@@ -638,7 +643,8 @@ fn clear_agent_stream_session_save_flush(app: &mut App, session_id: &str) {
 fn save_latest_agent_stream_session(app: &mut App, session_id: &str) -> Task<Message> {
     let directory = session_directory_for_save(app, session_id);
     let runtime = app.get_session_runtime_mut(session_id);
-    if runtime.stream_save_in_flight.is_some()
+    if runtime.is_plan_run_session
+        || runtime.stream_save_in_flight.is_some()
         || runtime.stream_save_failures >= STREAM_SESSION_SAVE_MAX_FAILURES
     {
         return Task::none();
@@ -1138,7 +1144,7 @@ pub(super) fn handle_plan_run_session_started(
     parent_request_id: u64,
     parent_session_id: String,
     session_id: String,
-    title: String,
+    _title: String,
     directory: String,
     query: String,
 ) -> Task<Message> {
@@ -1151,48 +1157,6 @@ pub(super) fn handle_plan_run_session_started(
         || app.find_session_by_request_id(parent_request_id).as_deref() != Some(parent_session_id)
     {
         return Task::none();
-    }
-
-    let parent_info = app
-        .sessions
-        .iter()
-        .find(|session| session.id == parent_session_id)
-        .or_else(|| {
-            app.project_sessions
-                .values()
-                .flat_map(|sessions| sessions.iter())
-                .find(|session| session.id == parent_session_id)
-        })
-        .cloned();
-    let Some(mut child_info) = parent_info else {
-        return Task::none();
-    };
-
-    let now = now_ms();
-    child_info.id = session_id.to_string();
-    child_info.slug = session_info::Info::plan_run_slug(session_id);
-    child_info.directory = directory.to_string();
-    child_info.parent_id = Some(parent_session_id.to_string());
-    child_info.title = if title.trim().is_empty() {
-        format!("子会话 · {session_id}")
-    } else {
-        title.trim().to_string()
-    };
-    child_info.time.created = now;
-    child_info.time.updated = now;
-    child_info.time.compacting = None;
-    child_info.time.archived = None;
-
-    if let Some(existing) = app.sessions.iter_mut().find(|session| session.id == session_id) {
-        *existing = child_info.clone();
-    } else {
-        app.sessions.insert(0, child_info.clone());
-    }
-    let project_sessions = app.project_sessions.entry(directory.to_string()).or_default();
-    if let Some(existing) = project_sessions.iter_mut().find(|session| session.id == session_id) {
-        *existing = child_info;
-    } else {
-        project_sessions.insert(0, child_info);
     }
 
     if !app.session_chat_cache.contains_key(session_id) {
@@ -1214,11 +1178,10 @@ pub(super) fn handle_plan_run_session_started(
         );
     }
     let runtime = app.get_session_runtime_mut(session_id);
+    runtime.is_plan_run_session = true;
     runtime.is_requesting = true;
-    runtime.stream_save_failures = 0;
     app.sync_task_pet_from_runtime();
-    let count = app.cached_chat_messages(session_id).map_or(0, |messages| messages.len());
-    super::register_stream_session_messages(app, session_id, 0, count, now)
+    Task::none()
 }
 
 pub(super) fn handle_plan_run_session_finished(app: &mut App, session_id: String) -> Task<Message> {

@@ -506,15 +506,14 @@ fn plan_run_live_children_integrate_with_session_visibility() {
     assert_eq!(app.active_session_id.as_deref(), Some(MAIN_ID));
     assert_eq!(app.chat.len(), 1);
     assert_eq!(app.chat[0].content, "主会话任务");
-    for (session_id, expected_title) in
-        [(PLANNING_ID, "规划 · task-1"), (BATCH_ONE_ID, "实现入口"), (BATCH_TWO_ID, "回归验证")]
-    {
-        let child =
-            app.sessions.iter().find(|session| session.id == session_id).expect("plan-run child");
-        assert_eq!(child.parent_id.as_deref(), Some(MAIN_ID));
-        assert_eq!(child.title, expected_title);
-        assert!(child.is_plan_run());
+    for session_id in [PLANNING_ID, BATCH_ONE_ID, BATCH_TWO_ID] {
+        assert!(!app.sessions.iter().any(|session| session.id == session_id));
+        assert!(app.get_session_runtime(session_id).is_plan_run_session);
         assert!(app.get_session_runtime(session_id).is_requesting);
+        let _ = crate::app::message::chat::update(
+            &mut app,
+            message::ChatMessage::AgentStreamDeltaFlush(session_id.to_string()),
+        );
         assert_eq!(
             app.cached_chat_messages(session_id)
                 .expect("live child chat cache")

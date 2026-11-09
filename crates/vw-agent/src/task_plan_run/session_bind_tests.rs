@@ -105,7 +105,7 @@ async fn plan_run_binds_child_session_info_with_parent() {
     let session_id = "bind-demo-plan";
     let parent_id = "main-chat-session";
 
-    ensure_plan_run_session_info(session_id, Some(parent_id), &root, "规划 · bind-demo")
+    ensure_plan_run_session_info(session_id, Some(parent_id), &root)
         .await
         .expect("ensure info should succeed");
 
@@ -114,12 +114,13 @@ async fn plan_run_binds_child_session_info_with_parent() {
     assert_eq!(info.id, session_id);
     assert_eq!(info.parent_id.as_deref(), Some(parent_id));
     assert_eq!(info.directory, root);
-    assert!(info.title.contains("规划"), "title should mention 规划: {}", info.title);
+    assert!(info.is_first_response_pending());
+    assert!(info.title.is_empty());
     assert!(info.is_plan_run());
     let created = info.time.created;
     let slug = info.slug.clone();
 
-    ensure_plan_run_session_info(session_id, Some(parent_id), &root, "规划 · bind-demo")
+    ensure_plan_run_session_info(session_id, Some(parent_id), &root)
         .await
         .expect("repeated ensure info should succeed");
 
@@ -128,7 +129,7 @@ async fn plan_run_binds_child_session_info_with_parent() {
     assert_eq!(rebound.time.created, created);
     assert_eq!(rebound.slug, slug);
     assert_eq!(rebound.parent_id.as_deref(), Some(parent_id));
-    assert_eq!(rebound.title, "规划 · bind-demo");
+    assert!(rebound.title.is_empty());
     assert!(rebound.is_plan_run());
 
     persist_plan_run_session_history(
@@ -154,6 +155,10 @@ async fn plan_run_binds_child_session_info_with_parent() {
     );
     assert_eq!(chat.messages[0].content, "user prompt");
     assert_eq!(chat.messages[1].content, "assistant reply");
+    assert_eq!(chat.title, "规划 · bind-demo");
+    let committed = crate::session::ui_store::load_agent_session_any(session_id).unwrap();
+    assert_eq!(committed.title, chat.title);
+    assert!(!committed.is_first_response_pending());
 }
 
 #[tokio::test]
@@ -162,7 +167,7 @@ async fn plan_run_binds_session_info_without_parent() {
     let root = temp.path().to_string_lossy().to_string();
     let session_id = "bind-orphan-plan";
 
-    ensure_plan_run_session_info(session_id, None, &root, "规划 · orphan")
+    ensure_plan_run_session_info(session_id, None, &root)
         .await
         .expect("ensure info without parent should still create Info");
 
@@ -170,7 +175,8 @@ async fn plan_run_binds_session_info_without_parent() {
         .expect("Info should exist even without parent_session_id");
     assert_eq!(info.id, session_id);
     assert_eq!(info.parent_id, None);
-    assert!(info.title.contains("规划"));
+    assert!(info.is_first_response_pending());
+    assert!(info.title.is_empty());
 }
 
 #[tokio::test]
@@ -229,7 +235,7 @@ async fn plan_run_binds_and_persists_history_through_run_task_plan() {
 }
 
 #[tokio::test]
-async fn run_plan_persists_clickable_subtask_session_before_finished_event() {
+async fn run_plan_persists_subtask_details_before_finished_event() {
     let temp = tempfile::tempdir().expect("tempdir");
     let root = temp.path().join("project");
     std::fs::create_dir_all(&root).expect("create project root");
@@ -336,4 +342,71 @@ async fn run_plan_does_not_report_subtask_success_when_session_persistence_fails
         error.as_deref().is_some_and(|error| error.contains("plan-run root 不是目录")),
         "storage failure should be visible in SubtaskFinished: {error:?}"
     );
+}
+
+#[tokio::test]
+async fn plan_run_retry_replaces_legacy_failure_history_and_preserves_title() {
+    use crate::session::{
+        ui_store,
+        ui_types::{ChatMessage, ChatRole},
+    };
+
+    let temp = tempfile::tempdir().unwrap();
+    let root = temp.path().to_str().unwrap();
+    let tenant = ui_store::current_tenant_scope();
+    let project_id = crate::project::from_directory(&tenant, temp.path()).await.unwrap().0.id;
+    let scope = Some(project_id.as_str());
+    let session_id = "legacy-subtask";
+    let info = crate::session::session::Info {
+        id: session_id.into(),
+        slug: crate::session::session::Info::plan_run_slug("legacy"),
+        project_id: project_id.clone(),
+        directory: root.into(),
+        parent_id: Some("parent-chat".into()),
+        summary: None,
+        share: None,
+        title: "Renamed".into(),
+        version: crate::installation::version(),
+        time: crate::session::session::TimeInfo {
+            created: 1,
+            updated: 1,
+            compacting: None,
+            archived: None,
+        },
+        permission: None,
+        revert: None,
+    };
+    ui_store::save_agent_session_scoped_for_tenant(&tenant, &info, scope).unwrap();
+    let mut legacy = crate::session::ui_types::ChatSession {
+        id: session_id.into(),
+        title: info.title.clone(),
+        messages: Vec::new(),
+        message_ids: vec![None, None],
+        calls: Vec::new(),
+        steps: Vec::new(),
+        created_ms: 1,
+        updated_ms: 1,
+    };
+    for (role, content) in
+        [(ChatRole::User, "failed prompt"), (ChatRole::Assistant, "子任务失败: old error")]
+    {
+        legacy.messages.push(ChatMessage {
+            role,
+            content: content.into(),
+            model: None,
+            think_timing: Vec::new(),
+            processing_timing: None,
+        });
+    }
+    ui_store::save_session_scoped(&legacy, scope).unwrap();
+
+    ensure_plan_run_session_info(session_id, Some("parent-chat"), root).await.unwrap();
+    persist_plan_run_session_history(session_id, root, "Stage label", "retry prompt", "new answer")
+        .await
+        .unwrap();
+
+    let chat = ui_store::load_session_scoped(session_id, scope).unwrap();
+    assert_eq!(chat.title, "Renamed");
+    assert_eq!(chat.messages[0].content, "retry prompt");
+    assert_eq!(chat.messages[1].content, "new answer");
 }

@@ -1661,3 +1661,130 @@ fn gateway_plan_run_preallocates_assistant_message_id() {
     assert!(!second.trim().is_empty());
     assert_ne!(first, second);
 }
+
+#[tokio::test]
+async fn plan_run_first_response_publishes_only_successful_stage_history() {
+    use crate::session::ui_store;
+
+    struct StageRunner {
+        fixture: PlanFixture,
+        project_id: String,
+        calls: Mutex<Vec<String>>,
+    }
+
+    #[async_trait]
+    impl SessionRunner for StageRunner {
+        async fn run_session(
+            &self,
+            request: SessionRunRequest,
+            _delta_tx: Option<tokio::sync::mpsc::Sender<String>>,
+        ) -> Result<String, String> {
+            let id = &request.session_id;
+            let scope = Some(self.project_id.as_str());
+            let info = ui_store::load_agent_session_scoped(id, scope).expect("reserved stage");
+            assert_eq!(info.parent_id.as_deref(), Some("parent-chat"));
+            assert!(info.is_plan_run());
+            assert!(info.title.is_empty(), "{id} has a title before responding");
+            assert!(info.is_first_response_pending());
+            assert!(!ui_store::load_agent_sessions_scoped(scope).iter().any(|info| info.id == *id));
+            let chat = ui_store::load_session_scoped(id, scope).expect("pending history index");
+            assert!(chat.title.is_empty());
+            assert!(chat.messages.is_empty());
+            assert!(!ui_store::load_sessions_scoped(scope).iter().any(|meta| meta.id == *id));
+
+            let mut calls = self.calls.lock().unwrap();
+            calls.push(id.clone());
+            match calls.len() {
+                1 => Err("planning failure".into()),
+                2 => {
+                    write_plan_fixture(&request.root, &self.fixture)?;
+                    Ok("plan ready".into())
+                }
+                3 => Err("execution failure".into()),
+                4 => Ok("execution ready".into()),
+                5 => Err("evaluation failure".into()),
+                6 => {
+                    std::fs::write(
+                        self.fixture.plan_dir.join(&self.fixture.tasks[0].file),
+                        "# 任务\n\n状态：已完成\n\n完成条件：子任务已实现\n\n验证命令：cargo test -p vw-agent --lib\n\n验证结果：退出码：0；通过\n",
+                    )
+                    .unwrap();
+                    Ok("evaluation ready".into())
+                }
+                _ => panic!("unexpected stage: {id}"),
+            }
+        }
+    }
+
+    let temp = tempfile::tempdir().unwrap();
+    let task_id = "first-response";
+    let tenant = ui_store::current_tenant_scope();
+    let project_id = crate::project::from_directory(&tenant, temp.path()).await.unwrap().0.id;
+    let runner = StageRunner {
+        fixture: plan_fixture(
+            temp.path(),
+            task_id,
+            vec![entry("1", "执行标签", "1-stage.md", 1, vec![])],
+        ),
+        project_id: project_id.clone(),
+        calls: Mutex::new(Vec::new()),
+    };
+    let request = TaskPlanRunRequest {
+        query: "run plan".into(),
+        root: temp.path().to_string_lossy().into_owned(),
+        model: None,
+        agent: None,
+        acp_agent: None,
+        parent_session_id: Some("parent-chat".into()),
+    };
+    let first =
+        super::runner::run_task_plan_in_home(task_id, &request, &runner, temp.path(), |_| true)
+            .await
+            .unwrap_err();
+    assert!(first.contains("planning failure"));
+
+    let mut events = Vec::new();
+    super::runner::run_task_plan_in_home(task_id, &request, &runner, temp.path(), |event| {
+        events.push(event);
+        true
+    })
+    .await
+    .unwrap();
+
+    let planning = format!("{task_id}-plan");
+    let execution = format!("{task_id}-1");
+    let failed_evaluation = super::goal::goal_turn_session_id(task_id, 2);
+    let successful_evaluation = super::goal::goal_turn_session_id(task_id, 3);
+    assert_eq!(
+        *runner.calls.lock().unwrap(),
+        [
+            planning.clone(),
+            planning.clone(),
+            execution.clone(),
+            execution.clone(),
+            failed_evaluation.clone(),
+            successful_evaluation.clone()
+        ],
+    );
+    let scope = Some(project_id.as_str());
+    for (id, title, output) in [
+        (planning, "规划 · first-response", "plan ready"),
+        (execution, "执行标签", "execution ready"),
+        (successful_evaluation, "目标续轮 · 第 3 轮", "evaluation ready"),
+    ] {
+        let info = ui_store::load_agent_session_scoped(&id, scope).expect("committed Info");
+        assert!(!info.is_first_response_pending());
+        assert_eq!(info.title, title);
+        let chat = ui_store::load_session_scoped(&id, scope).expect("committed history");
+        assert_eq!(chat.messages[1].content, output);
+    }
+    let failed = ui_store::load_agent_session_scoped(&failed_evaluation, scope).unwrap();
+    assert!(failed.is_first_response_pending());
+    assert!(failed.title.is_empty());
+    let chat = ui_store::load_session_scoped(&failed_evaluation, scope).unwrap();
+    assert!(chat.title.is_empty());
+    assert!(chat.messages.is_empty());
+    assert!(!ui_store::load_sessions_scoped(scope).iter().any(|meta| meta.id == failed_evaluation));
+    assert!(matches!(events.last(), Some(TaskPlanRunStreamEventDto::Finished { output, .. })
+        if output.contains("evaluation failure") && output.contains("evaluation ready")));
+}

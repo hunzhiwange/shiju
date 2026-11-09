@@ -443,6 +443,8 @@ pub(crate) struct SessionDraft {
 #[derive(Debug, Clone)]
 pub(crate) struct SessionRuntimeState {
     pub(crate) draft: Option<SessionDraft>,
+    /// 计划运行子会话由网关提交历史，桌面仅维护实时投影。
+    pub(crate) is_plan_run_session: bool,
     #[cfg(not(target_arch = "wasm32"))]
     pub(crate) mcp_app_panels: Vec<crate::app::components::mcp_app_panel::McpAppPanel>,
     /// 是否正在处理请求
@@ -689,6 +691,7 @@ impl SessionRuntimeState {
         let task_mode_model = model.clone();
         Self {
             draft: None,
+            is_plan_run_session: false,
             #[cfg(not(target_arch = "wasm32"))]
             mcp_app_panels: Vec::new(),
             is_requesting: false,

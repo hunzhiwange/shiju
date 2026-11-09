@@ -687,3 +687,48 @@ fn desktop_first_response_late_success_publishes_to_the_original_project_once() 
         vec![Some("user-id".into()), Some("assistant-id".into())],
     );
 }
+
+#[test]
+fn plan_run_first_response_start_updates_only_the_runtime_projection() {
+    let (mut app, _) = crate::app::App::new();
+    let parent = session_info("parent", "Main", "/project");
+    app.sessions = vec![parent.clone()];
+    app.project_sessions.insert("/project".into(), vec![parent]);
+    app.get_session_runtime_mut("parent").active_agent_request = Some(agent_request(42, "parent"));
+
+    let _ = super::update(
+        &mut app,
+        super::ChatMessage::PlanRunSessionStarted {
+            title_feedback: None,
+            parent_request_id: 42,
+            parent_session_id: "parent".into(),
+            session_id: "plan-child".into(),
+            title: "Planning label".into(),
+            directory: "/project".into(),
+            query: "plan this".into(),
+        },
+    );
+
+    assert_eq!(app.sessions.len(), 1);
+    assert_eq!(app.project_sessions["/project"].len(), 1);
+    assert!(app.get_session_runtime("plan-child").is_requesting);
+    let chat = app.cached_chat_messages("plan-child").unwrap();
+    assert_eq!(chat[0].content, "plan this");
+
+    let _ = super::update(
+        &mut app,
+        super::ChatMessage::PlanRunSessionDelta {
+            session_id: "plan-child".into(),
+            delta: "partial output".into(),
+        },
+    );
+    let _ =
+        super::update(&mut app, super::ChatMessage::PlanRunSessionCancelled("plan-child".into()));
+    let runtime = app.get_session_runtime("plan-child");
+    assert!(!runtime.is_requesting);
+    assert!(!runtime.stream_save_flush_scheduled);
+    assert!(runtime.stream_save_in_flight.is_none());
+    assert!(runtime.stream_save_dirty_records.is_empty());
+    let chat = app.cached_chat_messages("plan-child").unwrap();
+    assert_eq!(chat[1].content, "partial output");
+}

@@ -239,11 +239,8 @@ where
         return Err(message);
     }
 
-    // Info 绑定失败不应中断规划：会话目录/历史仍可由 run_session 落盘，
-    // 否则桌面侧只看到 PlanningStarted 后流就断，表现为「一发起就挂」。
     if let Err(error) =
-        ensure_plan_run_session_info(&planning_session, parent_session_id, root, &planning_title)
-            .await
+        ensure_plan_run_session_info(&planning_session, parent_session_id, root).await
     {
         tracing::warn!(
             target: "vw_agent::task_plan_run",
@@ -322,29 +319,24 @@ where
     else {
         return Ok(());
     };
-    let planning_output = match planning_result {
+    let planning_output = match planning_result.and_then(require_stage_response) {
         Ok(mut output) => {
             append_descendant_evidence(&mut output, &planning_descendants);
-            let _ = persist_plan_run_session_history(
+            if let Err(error) = persist_plan_run_session_history(
                 &planning_session,
                 root,
                 &planning_title,
                 &planning_prompt,
                 &output,
             )
-            .await;
+            .await
+            {
+                tracing::warn!(session_id = %planning_session, %error, "提交规划会话历史失败");
+            }
             output
         }
         Err(mut error) => {
             append_descendant_evidence(&mut error, &planning_descendants);
-            let _ = persist_plan_run_session_history(
-                &planning_session,
-                root,
-                &planning_title,
-                &planning_prompt,
-                &format!("规划会话失败: {error}"),
-            )
-            .await;
             let message = format!("规划会话失败: {error}");
             let _ = on_event(TaskPlanRunStreamEventDto::Error {
                 task_id: Some(task_id.to_string()),
@@ -430,8 +422,7 @@ where
             let session_id = subtask_session_id(task_id, &task.id);
             let subtask_title = task.title.clone();
             if let Err(error) =
-                ensure_plan_run_session_info(&session_id, parent_session_id, root, &subtask_title)
-                    .await
+                ensure_plan_run_session_info(&session_id, parent_session_id, root).await
             {
                 tracing::warn!(
                     target: "vw_agent::task_plan_run",
@@ -665,6 +656,19 @@ where
 
         turn = turn.saturating_add(1);
         let continuation_session_id = goal_turn_session_id(task_id, turn);
+        let continuation_title = format!("目标续轮 · 第 {turn} 轮");
+        if let Err(error) =
+            ensure_plan_run_session_info(&continuation_session_id, parent_session_id, root).await
+        {
+            tracing::warn!(
+                target: "vw_agent::task_plan_run",
+                task_id = %task_id,
+                session_id = %continuation_session_id,
+                error = %error,
+                "绑定目标续轮会话 Info 失败，继续执行"
+            );
+        }
+
         if !emit(
             on_event,
             TaskPlanRunStreamEventDto::GoalTurnStarted {
@@ -677,7 +681,6 @@ where
             return Ok(());
         }
 
-        let continuation_title = format!("目标续轮 · 第 {turn} 轮");
         let continuation_prompt = build_goal_continuation_prompt(
             &request.query,
             plan_abs,
@@ -687,23 +690,6 @@ where
             &task_files_state,
             &execution_evidence,
         );
-        if let Err(error) = ensure_plan_run_session_info(
-            &continuation_session_id,
-            parent_session_id,
-            root,
-            &continuation_title,
-        )
-        .await
-        {
-            tracing::warn!(
-                target: "vw_agent::task_plan_run",
-                task_id = %task_id,
-                session_id = %continuation_session_id,
-                error = %error,
-                "绑定目标续轮会话 Info 失败，继续执行"
-            );
-        }
-
         let continuation_result = runner
             .run_session(
                 SessionRunRequest {
@@ -726,17 +712,20 @@ where
             return Ok(());
         };
 
-        match continuation_result {
+        match continuation_result.and_then(require_stage_response) {
             Ok(mut output) => {
                 append_descendant_evidence(&mut output, &continuation_descendants);
-                let _ = persist_plan_run_session_history(
+                if let Err(error) = persist_plan_run_session_history(
                     &continuation_session_id,
                     root,
                     &continuation_title,
                     &continuation_prompt,
                     &output,
                 )
-                .await;
+                .await
+                {
+                    tracing::warn!(session_id = %continuation_session_id, %error, "提交目标续轮会话历史失败");
+                }
                 if !execution_evidence.is_empty() {
                     execution_evidence.push_str("\n\n");
                 }
@@ -744,14 +733,6 @@ where
             }
             Err(mut error) => {
                 append_descendant_evidence(&mut error, &continuation_descendants);
-                let _ = persist_plan_run_session_history(
-                    &continuation_session_id,
-                    root,
-                    &continuation_title,
-                    &continuation_prompt,
-                    &format!("目标续轮失败: {error}"),
-                )
-                .await;
                 if !execution_evidence.is_empty() {
                     execution_evidence.push_str("\n\n");
                 }
@@ -759,6 +740,13 @@ where
             }
         }
     }
+}
+
+fn require_stage_response(output: String) -> Result<String, String> {
+    if crate::session::child_agent::visible_answer_from_execution_output(&output).is_empty() {
+        return Err("计划会话未返回有效回复".to_string());
+    }
+    Ok(output)
 }
 
 async fn wait_for_session_descendants<F, Fut>(
@@ -908,6 +896,7 @@ where
             }
         };
         let result = result
+            .and_then(require_stage_response)
             .map(|mut output| {
                 append_descendant_evidence(&mut output, &descendants);
                 output
@@ -917,33 +906,14 @@ where
                 error
             });
 
-        let persistence_result = match &result {
-            Ok(output) => {
-                persist_plan_run_session_history(&session_id, &root, &title, &query, output).await
-            }
-            Err(error) => {
-                persist_plan_run_session_history(
-                    &session_id,
-                    &root,
-                    &title,
-                    &query,
-                    &format!("子任务失败: {error}"),
-                )
-                .await
-            }
-        };
-        if let Err(error) = persistence_result {
-            return (
-                launch.index,
-                launch.task,
-                launch.task_file_display,
-                Err(format!("子任务会话持久化失败: {error}")),
-            );
-        }
-
         match result {
             Ok(output) => {
-                return (launch.index, launch.task, launch.task_file_display, Ok(output));
+                let result =
+                    persist_plan_run_session_history(&session_id, &root, &title, &query, &output)
+                        .await
+                        .map(|()| output)
+                        .map_err(|error| format!("子任务会话持久化失败: {error}"));
+                return (launch.index, launch.task, launch.task_file_display, result);
             }
             Err(error) if retry_attempt < SUBTASK_RETRY_MAX_ATTEMPTS => {
                 retry_attempt += 1;

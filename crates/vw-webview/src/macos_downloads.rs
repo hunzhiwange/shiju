@@ -36,7 +36,7 @@ define_class!(
             response: &WKNavigationResponse,
             decision: &Block<dyn Fn(WKNavigationResponsePolicy)>,
         ) {
-            // Wry 0.54 only checks the MIME type here. PDFs and images can still
+            // Wry's default policy only checks the MIME type. PDFs and images can still
             // be explicit attachments. Let Wry handle the resulting WKDownload.
             let attachment = unsafe { response.response() }
                 .downcast::<NSHTTPURLResponse>()

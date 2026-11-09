@@ -10,6 +10,8 @@ mod edit_menu;
 mod macos_downloads;
 #[cfg(not(target_arch = "wasm32"))]
 mod mcp_app;
+#[cfg(not(any(target_arch = "wasm32", coverage)))]
+mod popup;
 #[cfg(not(target_arch = "wasm32"))]
 mod toolbar;
 
@@ -44,7 +46,7 @@ enum UserEvent {
     Resize(u32, u32),
     Move(i32, i32),
     OpenUrl(String),
-    OpenPageLink(String),
+    PopupClosed(u64),
     OpenExternal(String),
     NavigationChanged(String),
     ToolbarReady,
@@ -763,7 +765,7 @@ fn main() {
     use tao::event::{Event, WindowEvent};
     use tao::event_loop::{ControlFlow, EventLoopBuilder};
     use tao::window::WindowBuilder;
-    use wry::{NewWindowResponse, WebContext, WebViewBuilder};
+    use wry::{WebContext, WebViewBuilder};
 
     use crate::toolbar::{
         ToolbarAction, parse_toolbar_ipc_message, toolbar_address_script, toolbar_html,
@@ -952,25 +954,21 @@ fn main() {
 
     #[cfg(target_os = "macos")]
     {
-        let download_log_path = log_path.clone();
-        builder = builder.with_user_agent(SAFARI_USER_AGENT).with_download_completed_handler(
-            move |_, _, success| {
-                if !success {
-                    append_log(&download_log_path, "WebView download failed.");
-                }
-            },
-        );
+        builder = builder.with_user_agent(SAFARI_USER_AGENT);
+    }
+    #[cfg(unix)]
+    {
+        // WebKitGTK shares this download handler with related popup views.
+        builder = popup::with_downloads(builder, &log_path);
     }
 
-    builder = builder.with_new_window_req_handler({
-        let new_window_proxy = proxy.clone();
-        move |url, _features| {
-            if is_page_link_url(&url) {
-                let _ = new_window_proxy.send_event(UserEvent::OpenPageLink(url));
-            }
-            NewWindowResponse::Deny
-        }
-    });
+    let popups = popup::PopupWindows::new(
+        proxy,
+        log_path.clone(),
+        #[cfg(windows)]
+        &window,
+    );
+    builder = popups.with_handler(builder);
 
     if let Some(root) = local_root.clone() {
         builder = builder.with_custom_protocol("vibe".into(), move |_webview_id, request| {
@@ -1051,12 +1049,7 @@ fn main() {
                     let _ = webview.load_url(&u);
                 }
             }
-            Event::UserEvent(UserEvent::OpenPageLink(u)) => {
-                browser_cleared = false;
-                if webview.load_url(&u).is_err() {
-                    append_log(&log_path, "WebView could not open a page link.");
-                }
-            }
+            Event::UserEvent(UserEvent::PopupClosed(id)) => popups.close(id),
             Event::UserEvent(UserEvent::OpenExternal(u)) => {
                 if is_safe_navigation_url(&u) {
                     let _ = open::that(u);
@@ -1125,7 +1118,9 @@ fn main() {
                     let _ = toolbar.evaluate_script(&script);
                 }
             }
-            Event::WindowEvent { event: WindowEvent::Resized(size), .. } if independent_mode => {
+            Event::WindowEvent { window_id, event: WindowEvent::Resized(size), .. }
+                if window_id == window.id() && independent_mode =>
+            {
                 let size = size.to_logical::<u32>(window.scale_factor());
                 let (toolbar_region, content_region) =
                     window_regions(size.width, size.height, true);
@@ -1136,7 +1131,9 @@ fn main() {
                 }
                 let _ = webview.set_bounds(content_region.to_wry_rect());
             }
-            Event::WindowEvent { event: WindowEvent::CloseRequested, .. } => {
+            Event::WindowEvent { window_id, event: WindowEvent::CloseRequested, .. }
+                if window_id == window.id() =>
+            {
                 *control_flow = ControlFlow::Exit;
             }
             _ => (),

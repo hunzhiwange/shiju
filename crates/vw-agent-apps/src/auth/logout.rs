@@ -43,7 +43,7 @@ pub fn clear_managed_credentials(
     scope: AuthAccountScope<'_>,
     account_id: &str,
     identity_sha256: [u8; 32],
-    kimi: Option<(&KimiNativeTarget<'_>, AuthRegion)>,
+    kimi: Option<(&[KimiNativeTarget<'_>], AuthRegion)>,
     clear_default: impl FnOnce() -> Result<(), AuthErrorCode>,
 ) -> Result<(), AuthErrorCode> {
     scope.validate()?;
@@ -69,8 +69,10 @@ pub fn clear_managed_credentials(
         }
         Err(_) => return Err(AuthErrorCode::StorageUnavailable),
     };
-    if let Some((target, region)) = kimi {
-        target.clear_matching_grant(scope, account_id, region, &lease)?;
+    if let Some((targets, region)) = kimi {
+        for target in targets {
+            target.clear_matching_grant(scope, account_id, region, &lease)?;
+        }
     }
     match scope.service {
         AuthService::ClaudeOfficial => remove_managed_claude(&lease, identity_sha256)?,

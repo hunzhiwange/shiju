@@ -139,6 +139,7 @@ mod read;
 mod read_tests;
 
 mod access;
+pub(super) use access::AccountTermination;
 
 pub(super) struct AuthAccountHost {
     pub id: String,
@@ -147,6 +148,7 @@ pub(super) struct AuthAccountHost {
     pub principal: String,
     pub owns_native_slot: bool,
     pub can_set_default: bool,
+    pub can_revoke: bool,
 }
 
 pub(super) fn authorize_auth_account_read(
@@ -216,6 +218,29 @@ pub(super) fn authorize_auth_account_delete(
     account_host(authorized, owns_native_slot)
 }
 
+pub(super) fn authorize_auth_account_termination(
+    path: Option<&std::path::Path>,
+    headers: &axum::http::HeaderMap,
+    tenant: &TenantScope,
+    target: &str,
+    service: vw_api_types::agent_apps_auth::AuthService,
+    action: AccountTermination,
+) -> Result<AuthAccountHost, axum::http::StatusCode> {
+    use axum::http::StatusCode;
+    use vw_api_types::agent_apps_auth::AuthService;
+
+    let authorized =
+        access::authorize_auth_account_termination(path, headers, tenant, target, service, action)?;
+    let owns_native_slot = path.is_some() && authorized.native_login_owner(service) == Some(true);
+    if (service == AuthService::DshAccount
+        || service == AuthService::AgyOauth && matches!(action, AccountTermination::Logout))
+        && !owns_native_slot
+    {
+        return Err(StatusCode::FORBIDDEN);
+    }
+    account_host(authorized, owns_native_slot)
+}
+
 fn account_host(
     authorized: access::Authorization,
     owns_native_slot: bool,
@@ -228,6 +253,7 @@ fn account_host(
         principal: authorized.principal,
         owns_native_slot,
         can_set_default: authorized.can_set_default,
+        can_revoke: authorized.can_revoke,
     })
 }
 

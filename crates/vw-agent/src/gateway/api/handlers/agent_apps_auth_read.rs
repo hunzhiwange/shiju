@@ -88,7 +88,8 @@ pub(super) fn router_with_runtime(
     runtime: Arc<Runtime>,
 ) -> Router {
     Router::new()
-        .merge(routes(runtime))
+        .merge(routes(runtime.clone()))
+        .merge(super::agent_apps_auth_logout::routes(runtime))
         .route("/v1/agent-apps/auth/accounts", get(read).layer(Extension(Resource::Accounts)))
         .route("/v1/agent-apps/auth/status", get(read).layer(Extension(Resource::Status)))
         .route("/v1/agent-apps/auth/bindings", get(read).layer(Extension(Resource::Bindings)))
@@ -229,7 +230,10 @@ fn query_resource(
                     host.owns_native_slot,
                 ),
             can_bind: false,
-            can_revoke: false,
+            can_revoke: cfg!(target_os = "macos")
+                && scope.service == AuthService::DshAccount
+                && host.owns_native_slot
+                && host.can_revoke,
         },
     }))
 }

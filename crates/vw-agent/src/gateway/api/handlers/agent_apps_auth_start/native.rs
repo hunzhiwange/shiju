@@ -57,6 +57,30 @@ impl ClaudeAttempts {
 }
 
 impl Runtime {
+    /// Wait for Claude attempts whose scoped cancellation has already started.
+    pub(in crate::gateway::api::handlers) async fn wait_for_claude_logout(
+        &self,
+        scope: AuthAccountScope<'_>,
+    ) -> Result<(), AuthErrorCode> {
+        let ids = self
+            .claude
+            .0
+            .lock()
+            .map_err(|_| AuthErrorCode::ExecutionHostUnavailable)?
+            .keys()
+            .cloned()
+            .map(AuthFlowId)
+            .collect::<Vec<_>>();
+        for id in ids {
+            match self.flows.require_pending(scope, &id, Instant::now) {
+                Err(AuthErrorCode::Conflict) => self.wait_for_claude_cleanup(&id).await?,
+                Ok(()) | Err(AuthErrorCode::NotFound) => {}
+                Err(error) => return Err(error),
+            }
+        }
+        Ok(())
+    }
+
     pub(in crate::gateway::api::handlers) async fn wait_for_claude_cleanup(
         &self,
         id: &AuthFlowId,

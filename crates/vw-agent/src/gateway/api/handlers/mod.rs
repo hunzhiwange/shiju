@@ -257,6 +257,10 @@ mod agent_apps_auth_default;
 #[cfg(all(test, target_os = "macos"))]
 mod agent_apps_auth_default_tests;
 
+mod agent_apps_auth_logout;
+#[cfg(all(test, target_os = "macos"))]
+mod agent_apps_auth_logout_tests;
+
 mod agent_apps_auth_poll;
 #[cfg(all(test, target_os = "macos"))]
 mod agent_apps_auth_poll_tests;

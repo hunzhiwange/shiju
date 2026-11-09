@@ -16,7 +16,7 @@ use vw_agent_apps::auth::{
 pub enum NativeAccountLogout<'a> {
     Agy(AgyNativeTarget<'a>),
     Dsh(DshAccount<'a>),
-    Kimi { target: KimiNativeTarget<'a>, exclusive_owner: AuthAccountScope<'a> },
+    Kimi { targets: &'a [KimiNativeTarget<'a>], exclusive_owner: AuthAccountScope<'a> },
 }
 
 impl AuthAccountStore {
@@ -39,13 +39,15 @@ impl AuthAccountStore {
             }
             (
                 AuthService::KimiOauth,
-                Some(NativeAccountLogout::Kimi { target, exclusive_owner }),
+                Some(NativeAccountLogout::Kimi { targets, exclusive_owner }),
             ) => {
                 if exclusive_owner != scope {
                     return Err(AuthErrorCode::Forbidden);
                 }
-                target.check_scope(scope)?;
-                Some(target)
+                for target in targets {
+                    target.check_scope(scope)?;
+                }
+                Some(targets)
             }
             (AuthService::AgyOauth | AuthService::DshAccount, None) => {
                 return Err(AuthErrorCode::Forbidden);
@@ -57,27 +59,33 @@ impl AuthAccountStore {
             LogoutSelection::Account(id) => {
                 self.read_metadata(&scope, id)?;
                 flows.cancel_for_logout(scope, Some(id))?;
-                self.logout_managed_account(scope, id, kimi.as_ref())
+                self.logout_managed_account(scope, id, kimi)
             }
             LogoutSelection::Default => {
                 let id = if scope.service == AuthService::KimiOauth {
-                    let kimi = kimi.as_ref().ok_or(AuthErrorCode::Forbidden)?;
-                    kimi.default_managed_account(
-                        &self.credentials,
-                        scope,
-                        &self.scoped_account_ids(scope)?,
-                    )?
+                    let targets = kimi.ok_or(AuthErrorCode::Forbidden)?;
+                    let ids = self.scoped_account_ids(scope)?;
+                    let mut selected = None;
+                    for target in targets {
+                        match target.default_managed_account(&self.credentials, scope, &ids) {
+                            Ok(id) if selected.is_none() => selected = Some(id),
+                            Ok(_) => return Err(AuthErrorCode::Conflict),
+                            Err(AuthErrorCode::NotFound) => {}
+                            Err(error) => return Err(error),
+                        }
+                    }
+                    selected.ok_or(AuthErrorCode::NotFound)?
                 } else {
                     self.managed_default_account(scope)?.ok_or(AuthErrorCode::NotFound)?
                 };
                 self.read_metadata(&scope, &id)?;
                 flows.cancel_for_logout(scope, Some(&id))?;
-                self.logout_managed_account(scope, &id, kimi.as_ref())
+                self.logout_managed_account(scope, &id, kimi)
             }
             LogoutSelection::All => {
                 flows.cancel_for_logout(scope, None)?;
                 for id in self.scoped_account_ids(scope)? {
-                    self.logout_managed_account(scope, &id, kimi.as_ref())?;
+                    self.logout_managed_account(scope, &id, kimi)?;
                 }
                 Ok(())
             }
@@ -112,12 +120,13 @@ impl AuthAccountStore {
         &self,
         scope: AuthAccountScope<'_>,
         account_id: &str,
-        kimi: Option<&KimiNativeTarget<'_>>,
+        kimi: Option<&[KimiNativeTarget<'_>]>,
     ) -> Result<(), AuthErrorCode> {
         let metadata = self.read_metadata(&scope, account_id)?;
         let kimi = kimi
-            .map(|target| {
-                metadata.region.map(|region| (target, region)).ok_or(AuthErrorCode::Conflict)
+            .filter(|targets| !targets.is_empty())
+            .map(|targets| {
+                metadata.region.map(|region| (targets, region)).ok_or(AuthErrorCode::Conflict)
             })
             .transpose()?;
         clear_managed_credentials(

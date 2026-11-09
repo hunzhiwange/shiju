@@ -382,6 +382,10 @@ impl IntoResponse for FlowError {
             StorageUnavailable | ExecutionHostUnavailable | KeychainUnavailable => {
                 (StatusCode::SERVICE_UNAVAILABLE, "Authorization host resource unavailable")
             }
+            RemoteRevocationUnconfirmed => (
+                StatusCode::BAD_GATEWAY,
+                "Local sign-out completed but remote revocation could not be confirmed",
+            ),
             UpstreamFailure => (StatusCode::BAD_GATEWAY, "Authorization provider unavailable"),
             _ => (StatusCode::CONFLICT, "Authorization state changed or is unavailable"),
         };

@@ -10,7 +10,7 @@ use std::{
 use vw_api_types::{agent_apps_auth::AuthService, id::TenantScope};
 #[cfg(target_os = "macos")]
 use {
-    crate::agent_apps::usage_settings::UsageCredentialId,
+    crate::agent_apps::usage_settings::{UsageCredentialId, UsageSigningCredentialRefs},
     vw_api_types::apps_usage::UsageSnapshotQuery,
 };
 
@@ -98,12 +98,20 @@ struct UsageReadPermit {
 struct UsageSettingsWritePermit {
     resource: UsageReadPermit,
     api_key_ref: Option<UsageCredentialId>,
+    signing: Option<UsageSigningCredentialRefs>,
 }
 
 #[cfg(target_os = "macos")]
 impl UsageSettingsWritePermit {
-    fn matches(&self, query: &UsageSnapshotQuery, key: Option<UsageCredentialId>) -> bool {
-        self.resource.matches(query) && (key.is_none() || self.api_key_ref == key)
+    fn matches(
+        &self,
+        query: &UsageSnapshotQuery,
+        key: Option<UsageCredentialId>,
+        signing: Option<UsageSigningCredentialRefs>,
+    ) -> bool {
+        self.resource.matches(query)
+            && (key.is_none() || self.api_key_ref == key)
+            && (signing.is_none() || self.signing == signing)
     }
 }
 
@@ -423,7 +431,7 @@ enum Capability<'a> {
 pub(super) enum UsageScriptAction {
     Templates,
     SettingsRead,
-    SettingsWrite(Option<UsageCredentialId>),
+    SettingsWrite { key: Option<UsageCredentialId>, signing: Option<UsageSigningCredentialRefs> },
     Test(Option<UsageCredentialId>),
 }
 
@@ -652,9 +660,13 @@ fn authorize_scoped(
                         g.usage_settings_read.iter().any(|permit| permit.matches(query))
                     }
                     #[cfg(target_os = "macos")]
-                    Capability::UsageScript(query, UsageScriptAction::SettingsWrite(key)) => {
-                        g.usage_settings_write.iter().any(|permit| permit.matches(query, key))
-                    }
+                    Capability::UsageScript(
+                        query,
+                        UsageScriptAction::SettingsWrite { key, signing },
+                    ) => g
+                        .usage_settings_write
+                        .iter()
+                        .any(|permit| permit.matches(query, key, signing)),
                     #[cfg(target_os = "macos")]
                     Capability::UsageScript(query, UsageScriptAction::Test(key)) => {
                         g.usage_script_test.iter().any(|permit| permit.origin(query, key).is_some())

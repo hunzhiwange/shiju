@@ -39,20 +39,20 @@ impl Operation for Texts {
     }
 }
 
-struct Scene<'a> {
+pub(super) struct Scene<'a> {
     ui: UserInterface<'a, Message, iced::Theme, Renderer>,
     texts: Texts,
 }
 
 impl<'a> Scene<'a> {
-    fn new(element: Element<'a, Message>, renderer: &mut Renderer) -> Self {
+    pub(super) fn new(element: Element<'a, Message>, renderer: &mut Renderer) -> Self {
         let mut ui = UserInterface::build(element, Size::new(640.0, 700.0), Cache::new(), renderer);
         let mut texts = Texts::default();
         ui.operate(renderer, &mut texts);
         Self { ui, texts }
     }
 
-    fn bounds(&self, label: &str) -> Option<Rectangle> {
+    pub(super) fn bounds(&self, label: &str) -> Option<Rectangle> {
         self.texts.0.iter().find(|(value, _)| value == label).map(|(_, bounds)| *bounds)
     }
 
@@ -60,7 +60,12 @@ impl<'a> Scene<'a> {
         self.texts.0.iter().any(|(value, _)| value.contains(fragment))
     }
 
-    fn send(&mut self, renderer: &mut Renderer, label: &str, events: &[Event]) -> Vec<Message> {
+    pub(super) fn send(
+        &mut self,
+        renderer: &mut Renderer,
+        label: &str,
+        events: &[Event],
+    ) -> Vec<Message> {
         let point = self.bounds(label).expect(label).center();
         let mut messages = Vec::new();
         self.ui.update(
@@ -75,7 +80,7 @@ impl<'a> Scene<'a> {
     }
 }
 
-async fn renderer() -> Renderer {
+pub(super) async fn renderer() -> Renderer {
     static FONTS: std::sync::Once = std::sync::Once::new();
     FONTS.call_once(|| {
         let mut fonts = iced::advanced::graphics::text::font_system().write().unwrap();

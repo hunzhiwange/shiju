@@ -54,6 +54,18 @@ fn view<'a>(scope: Option<&Scope>, cards: &'a Cards, target: Target) -> Element<
         header =
             header.push(request("刷新额度", Event::Refresh(target.clone(), id.clone()), !busy));
     }
+    if let Target::Provider(app, id) = &target {
+        header = header.push(
+            button(text("查询设置").size(13))
+                .padding([6, 10])
+                .style(rounded_action_btn_style)
+                .on_press_maybe(scope.is_some().then(|| {
+                    message(ListMessage::UsageSettings(
+                        crate::app::components::apps_usage_settings::Event::Open(*app, id.clone()),
+                    ))
+                })),
+        );
+    }
     let mut body = column![header].spacing(5);
     if entry.is_some_and(|entry| entry.pending.is_some()) {
         body =

@@ -46,8 +46,8 @@ pub enum Event {
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct Scope {
     endpoint: AuthScope,
-    project: ProjectId,
-    host: String,
+    pub(super) project: ProjectId,
+    pub(super) host: String,
     provider_generation: u64,
     catalog_generation: u64,
     auth_generation: u64,
@@ -109,6 +109,7 @@ struct Entry {
 pub(crate) struct Cards {
     scope: Option<Scope>,
     entries: HashMap<Target, Entry>,
+    pub(super) settings: super::apps_usage_settings::Editor,
     sequence: u64,
 }
 
@@ -116,6 +117,7 @@ impl Cards {
     pub(crate) fn clear(&mut self) {
         self.scope = None;
         self.entries.clear();
+        self.settings.clear();
     }
 
     fn begin(&mut self, target: Target) -> u64 {
@@ -329,7 +331,7 @@ async fn refresh_snapshot(
     .map_err(|_| Failure::RefreshFailed)?
 }
 
-fn scope(app: &App, endpoint: &GatewayEndpoint, account: bool) -> Option<Scope> {
+pub(super) fn scope(app: &App, endpoint: &GatewayEndpoint, account: bool) -> Option<Scope> {
     let endpoint = AuthScope::from(endpoint);
     let project = app.project_id.as_deref().filter(|id| !id.trim().is_empty())?.into();
     let host = if account {

@@ -17,17 +17,24 @@ use serde::{Deserialize, Serialize};
 use vw_agent_apps::{
     apps::lifecycle::operations::Operation,
     providers::{update::profile, validate_identity, validate_profile},
-    usage::scripts::{
-        config::{PreparedUsage, ProviderDefaults, ScriptParameters, UsageTemplate},
-        extract::ExtractError,
-        network::NetworkError,
-        run::RunError,
-        runtime::RuntimeError,
+    usage::{
+        detect::{
+            CodingPlanProvider, NativeUsageCapability, ZhipuPlanSelection, detect_native_usage,
+        },
+        scripts::{
+            config::{PreparedUsage, ProviderDefaults, ScriptParameters, UsageTemplate},
+            extract::ExtractError,
+            network::NetworkError,
+            run::RunError,
+            runtime::RuntimeError,
+        },
     },
 };
 use vw_api_types::{
     agent_apps_auth::AuthErrorCode,
-    apps_usage::{UsageQueryError, UsageQueryErrorCode, UsageSnapshotQuery},
+    apps_usage::{
+        UsageQueryError, UsageQueryErrorCode, UsageSnapshotQuery, settings::UsageCodingPlan,
+    },
     id::{ProjectScope, TenantScope},
 };
 
@@ -265,8 +272,14 @@ async fn save_settings(
     let Json(request) = request.map_err(|_| AuthErrorCode::InvalidInput)?;
     let selection = context.select(request.selection)?;
     tokio::task::spawn_blocking(move || {
-        let key = provider_key_ref(&request.settings.credentials)?;
-        let authorization = selection.authorize(UsageScriptAction::SettingsWrite(key))?;
+        let credentials = &request.settings.credentials;
+        if credentials.access_token_ref.is_some() {
+            return Err(AuthErrorCode::Forbidden.into());
+        }
+        let key = credentials.api_key_ref;
+        let signing = credentials.signing;
+        let authorization =
+            selection.authorize(UsageScriptAction::SettingsWrite { key, signing })?;
         if key.is_some()
             && (selection.query.account_id.is_some()
                 || !matches!(
@@ -276,7 +289,13 @@ async fn save_settings(
         {
             return Err(AuthErrorCode::InvalidInput.into());
         }
+        if signing.is_some()
+            && !matches!(request.settings.coding_plan, Some(UsageCodingPlan::Volcengine))
+        {
+            return Err(AuthErrorCode::InvalidInput.into());
+        }
         selection.require_resource(&authorization)?;
+        validate_native_settings(&selection, &request.settings)?;
         selection
             .service()?
             .settings
@@ -288,11 +307,43 @@ async fn save_settings(
     .map_err(|_| AuthErrorCode::StorageUnavailable)?
 }
 
+fn validate_native_settings(
+    selection: &Selection,
+    settings: &UsageSettings,
+) -> Result<(), ReadError> {
+    if settings.template != UsageTemplate::CodingPlan && settings.coding_plan.is_none() {
+        return Ok(());
+    }
+    if selection.query.account_id.is_some() {
+        return Err(AuthErrorCode::InvalidInput.into());
+    }
+    let record = selection.provider_record()?;
+    let profile = profile(&record).map_err(|_| AuthErrorCode::InvalidInput)?;
+    let team = matches!(settings.coding_plan, Some(UsageCodingPlan::ZhipuTeam { .. }));
+    let detected = detect_native_usage(
+        &profile.base_url,
+        if team { ZhipuPlanSelection::Team } else { ZhipuPlanSelection::Auto },
+    )
+    .map_err(|_| AuthErrorCode::InvalidInput)?;
+    let Some(NativeUsageCapability::CodingPlan(provider)) = detected else {
+        return Err(AuthErrorCode::InvalidInput.into());
+    };
+    let expected = match settings.coding_plan {
+        Some(UsageCodingPlan::ZhipuTeam { .. }) => provider == CodingPlanProvider::ZhipuTeam,
+        Some(UsageCodingPlan::Volcengine) => provider == CodingPlanProvider::Volcengine,
+        None => provider.enabled_by_default(),
+    };
+    if !expected {
+        return Err(AuthErrorCode::InvalidInput.into());
+    }
+    Ok(())
+}
+
 fn settings_error(error: UsageSettingsError) -> ReadError {
     match error {
         UsageSettingsError::StorageUnavailable => AuthErrorCode::StorageUnavailable,
         UsageSettingsError::InvalidScope
-        | UsageSettingsError::InvalidCredentialRef
+        | UsageSettingsError::InvalidCodingPlan
         | UsageSettingsError::InvalidRefreshInterval => AuthErrorCode::InvalidInput,
     }
     .into()

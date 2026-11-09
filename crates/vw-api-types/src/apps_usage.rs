@@ -6,6 +6,7 @@ use std::fmt;
 use url::Url;
 
 pub mod presentation;
+pub mod settings;
 
 /// 查询值允许负数和零；缺失值由外层 Option 表达。
 #[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]

@@ -29,6 +29,7 @@ fn selection() -> UsageSnapshotQuery {
 
 fn settings(interval: u16) -> AppsUsageSettings {
     AppsUsageSettings {
+        coding_plan: None,
         template: "general".into(),
         enabled: true,
         refresh_interval_minutes: interval,

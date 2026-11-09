@@ -235,3 +235,91 @@ async fn usage_usage_script_revokes_in_flight_trial_without_revoking_settings_re
     assert_eq!(status, StatusCode::OK);
     assert_eq!(saved["refreshIntervalMinutes"], 1);
 }
+
+async fn set_native_provider(fixture: &Fixture, base_url: &str) {
+    let providers = crate::gateway::api::handlers::app_providers::router()
+        .layer(Extension(fixture.database.clone()))
+        .layer(middleware::from_fn(tenant_scope_middleware));
+    let request = Request::builder()
+        .method("PUT")
+        .uri("/app-providers/codex/ok")
+        .header("content-type", "application/json")
+        .header("x-platform-id", "test-platform")
+        .header("x-company-id", "test-company")
+        .body(Body::from(
+            json!({
+                "name": "Native fixture",
+                "protocol": "openai_responses",
+                "apiKey": "fixture-only-key",
+                "baseUrl": base_url,
+                "model": "fixture-model",
+            })
+            .to_string(),
+        ))
+        .unwrap();
+    assert_eq!(providers.oneshot(request).await.unwrap().status(), StatusCode::OK);
+}
+
+#[tokio::test]
+async fn usage_usage_script_round_trips_native_settings_with_scoped_signing_refs() {
+    let mut fixture = Fixture::new().await;
+    let router = router(&mut fixture);
+    let settings_path = format!("settings?{SELECTOR}");
+    set_native_provider(&fixture, "https://open.bigmodel.cn/api/paas/v4").await;
+    let mut team = json!({"selection": selection(), "settings": {
+        "template": "token_plan",
+        "enabled": true,
+        "refreshIntervalMinutes": 15,
+        "display": "used",
+        "credentials": {},
+        "codingPlan": {"kind": "zhipu_team", "organizationId": "org-a", "projectId": ""}
+    }});
+    assert_eq!(owner(&router, "PUT", "settings", team.clone()).await.0, StatusCode::BAD_REQUEST);
+    team["settings"]["codingPlan"]["projectId"] = json!("project-team");
+    assert_eq!(owner(&router, "PUT", "settings", team.clone()).await.0, StatusCode::NO_CONTENT);
+    assert_eq!(owner(&router, "GET", &settings_path, Value::Null).await.1, team["settings"]);
+
+    set_native_provider(&fixture, "https://ark.cn-beijing.volces.com/api/plan/v3").await;
+    let mut volcengine = json!({"selection": selection(), "settings": {
+        "template": "token_plan",
+        "enabled": true,
+        "refreshIntervalMinutes": 0,
+        "display": "left",
+        "credentials": {},
+        "codingPlan": {"kind": "volcengine"}
+    }});
+    assert_eq!(
+        owner(&router, "PUT", "settings", volcengine.clone()).await.0,
+        StatusCode::BAD_REQUEST
+    );
+    volcengine["settings"]["enabled"] = json!(false);
+    assert_eq!(
+        owner(&router, "PUT", "settings", volcengine.clone()).await.0,
+        StatusCode::NO_CONTENT
+    );
+
+    let signing = json!({
+        "accessKeyIdRef": "a0a0a0a0-0000-4000-8000-000000000001",
+        "secretAccessKeyRef": "a0a0a0a0-0000-4000-8000-000000000002"
+    });
+    volcengine["settings"]["credentials"]["signing"] = signing.clone();
+    volcengine["settings"]["enabled"] = json!(true);
+    assert_eq!(
+        owner(&router, "PUT", "settings", volcengine.clone()).await.0,
+        StatusCode::FORBIDDEN
+    );
+
+    let permit = &mut fixture.policy["principals"][0]["grants"][0]["usage_settings_write"][0];
+    permit["signing"] = signing;
+    fixture.write_policy();
+    let mut mixed = volcengine.clone();
+    mixed["settings"]["credentials"]["signing"]["secretAccessKeyRef"] =
+        json!("a0a0a0a0-0000-4000-8000-000000000003");
+    assert_eq!(owner(&router, "PUT", "settings", mixed).await.0, StatusCode::FORBIDDEN);
+    assert_eq!(
+        owner(&router, "PUT", "settings", volcengine.clone()).await.0,
+        StatusCode::NO_CONTENT
+    );
+    assert_eq!(owner(&router, "GET", &settings_path, Value::Null).await.1, volcengine["settings"]);
+    assert_eq!(fixture.hits.load(Ordering::SeqCst), 0);
+}

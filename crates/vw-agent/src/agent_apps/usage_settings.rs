@@ -1,14 +1,17 @@
 //! Query settings persisted in the gateway database, scoped to the authorized execution target.
 
 use serde::{Deserialize, Serialize};
-use uuid::{Uuid, Variant, Version};
 use vw_agent_apps::{providers::validate_identity, usage::scripts::config::UsageTemplate};
-use vw_api_types::{agent_apps::AppId, id::ProjectScope};
+pub use vw_api_types::apps_usage::settings::UsageCredentialId;
+use vw_api_types::{
+    agent_apps::AppId,
+    apps_usage::settings::{MAX_REFRESH_INTERVAL_MINUTES, UsageCodingPlan, valid_usage_team_id},
+    id::ProjectScope,
+};
 
 use crate::{gateway::settings_store::GatewaySettingsStore, global_database::GlobalDatabase};
 
 const NAMESPACE: &str = "agent_apps.usage_settings.v1";
-const MAX_REFRESH_INTERVAL_MINUTES: u16 = 24 * 60;
 
 /// The caller supplies these identities after authorizing the project, host and resources.
 #[derive(Clone, Copy)]
@@ -29,31 +32,7 @@ pub enum UsageDisplay {
     Used,
 }
 
-/// An opaque ID issued for a host-managed credential. The caller must verify
-/// the reference belongs to the authorized scope before saving or resolving it.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
-#[serde(try_from = "String", into = "String")]
-pub struct UsageCredentialId(Uuid);
-
-impl TryFrom<String> for UsageCredentialId {
-    type Error = UsageSettingsError;
-
-    fn try_from(value: String) -> Result<Self, Self::Error> {
-        let id = Uuid::parse_str(&value).map_err(|_| UsageSettingsError::InvalidCredentialRef)?;
-        if id.get_version() != Some(Version::Random) || id.get_variant() != Variant::RFC4122 {
-            return Err(UsageSettingsError::InvalidCredentialRef);
-        }
-        Ok(Self(id))
-    }
-}
-
-impl From<UsageCredentialId> for String {
-    fn from(value: UsageCredentialId) -> Self {
-        value.0.to_string()
-    }
-}
-
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
 pub struct UsageSigningCredentialRefs {
     pub access_key_id_ref: UsageCredentialId,
@@ -84,14 +63,16 @@ pub struct UsageSettings {
     pub display: UsageDisplay,
     #[serde(default)]
     pub credentials: UsageCredentialRefs,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub coding_plan: Option<UsageCodingPlan>,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, thiserror::Error)]
 pub enum UsageSettingsError {
     #[error("invalid usage settings scope")]
     InvalidScope,
-    #[error("invalid usage credential reference")]
-    InvalidCredentialRef,
+    #[error("invalid native usage configuration")]
+    InvalidCodingPlan,
     #[error("usage refresh interval must be between 0 and 1440 minutes")]
     InvalidRefreshInterval,
     #[error("usage settings storage is unavailable")]
@@ -147,6 +128,29 @@ impl UsageSettings {
     fn validate(&self) -> Result<(), UsageSettingsError> {
         if self.refresh_interval_minutes > MAX_REFRESH_INTERVAL_MINUTES {
             return Err(UsageSettingsError::InvalidRefreshInterval);
+        }
+        if let Some(plan) = &self.coding_plan {
+            if self.template != UsageTemplate::CodingPlan
+                || self.credentials.api_key_ref.is_some()
+                || self.credentials.access_token_ref.is_some()
+            {
+                return Err(UsageSettingsError::InvalidCodingPlan);
+            }
+            let valid = match plan {
+                UsageCodingPlan::ZhipuTeam { organization_id, project_id } => {
+                    valid_usage_team_id(organization_id)
+                        && valid_usage_team_id(project_id)
+                        && self.credentials.signing.is_none()
+                }
+                UsageCodingPlan::Volcengine => {
+                    self.credentials.signing.map_or(!self.enabled, |refs| {
+                        refs.access_key_id_ref != refs.secret_access_key_ref
+                    })
+                }
+            };
+            if !valid {
+                return Err(UsageSettingsError::InvalidCodingPlan);
+            }
         }
         Ok(())
     }

@@ -55,6 +55,8 @@ pub struct AppsUsageSettings {
     pub display: AppsUsageDisplay,
     #[serde(default)]
     pub credentials: AppsUsageCredentialRefs,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub coding_plan: Option<vw_api_types::apps_usage::settings::UsageCodingPlan>,
 }
 
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Deserialize, Serialize)]

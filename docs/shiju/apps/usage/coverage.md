@@ -857,3 +857,23 @@ macOS 网关在配置了 `SHIJU_AGENT_APPS_ACCESS_FILE` 时运行刷新循环。
 | 提交差异 | `git diff --cached --check` | 退出 0，仅暂存任务 50 变更。 |
 
 桌面测试链接器报告紧凑展开表的 `__eh_frame` 大小告警，测试照常完成。 [独立行为测试](../../../../crates/vw-desktop/src/app/components/apps_usage_details_tests.rs)
+
+## 任务 51 编辑原生查询配置
+
+供应商额度卡片的「查询设置」打开 Iced 弹窗，通过已有 SDK 读取并保存当前项目、执行主机和供应商的配置。可选余额、自动识别的编程套餐、智谱团队、火山引擎及官方订阅。表单保存查询开关、0–1440 分钟的刷新间隔及剩余或已用显示方式。智谱团队必须填写组织和项目 ID。火山首次选择时关闭，启用时须填写两个独立的 UUID v4 凭据引用。关闭时可保存无引用配置。缺少必填字段时禁用保存。 [上游原生模板选择](../../../../crates/vw-agent-apps/upstream/src/components/UsageScriptModal.tsx#L852-L878) · [上游火山启用规则](../../../../crates/vw-agent-apps/upstream/src/config/codingPlanProviders.ts#L103-L113) · [桌面表单](../../../../crates/vw-desktop/src/app/components/apps_usage_settings.rs)
+
+设置 API 的可选 `codingPlan` 保留显式选择。未指定该字段的编程套餐沿用自动识别。网关按可信供应商地址校验套餐类型。火山引用必须与同一个 `usage_settings_write` 资源授权条目的 `signing` 对象完全匹配，对象使用 `accessKeyIdRef` 和 `secretAccessKeyRef` 字段。该授权允许在对应作用域保存引用。真实凭据仍由执行主机持有，引用解析及原生刷新执行接入另行验收。 [网关设置接口](../../../../crates/vw-agent/src/gateway/api/handlers/agent_apps/apps_usage_script.rs) · [网关策略](../../../../crates/vw-agent/src/gateway/api/handlers/agent_apps/access.rs) · [设置合同类型](../../../../crates/vw-api-types/src/apps_usage/settings.rs)
+
+验证环境为 macOS 27.0（26A428）、arm64，`vw-desktop` 0.6.0。动态领取槽位 1 和 2，`CARGO_TARGET_DIR` 分别为 `/Users/xiangmin/worker/code/shiju/target/rust-slot-1` 和 `/Users/xiangmin/worker/code/shiju/target/rust-slot-2`，`CARGO_BUILD_BUILD_DIR` 同路径。
+
+| 阶段 | 槽位 | 确切命令 | 结果 |
+| --- | --- | --- | --- |
+| 实现前 | 1 | `cargo test -p vw-desktop usage_usage_settings_ -- --nocapture` | 退出 101，有效测试 0。两项预先注册的用例按预期因缺少 `apps_usage_settings` 报 E0432。 |
+| 格式化 | 1、2 | `cargo fmt --all` | 退出 0。只从格式化副本同步任务文件。 |
+| 桌面聚焦 | 1 | `cargo test -p vw-desktop usage_usage_settings_ -- --nocapture` | 退出 0，3 项通过。覆盖配置保存载荷、缺项拒绝、火山默认关闭及 Iced 保存按钮。 |
+| 网关设置 | 2 | `cargo test -p vw-agent usage_usage_script_ -- --nocapture` | 退出 0，5 项通过。用真实 Router 和隔离 SQLite 验证团队字段回读、缺项拒绝、未授权或混配引用拒绝及授权整对回读。 |
+| SDK 回归 | 1 | `cargo test -p vw-gateway-client usage_usage_ -- --nocapture` | 退出 0，4 项通过。 |
+| 全特性静态检查 | 2 | `cargo clippy --all-targets --all-features -- -D warnings` | 退出 0。 |
+| 提交差异 | — | `git diff --cached --check` | 退出 0，仅暂存任务 51 的代码、测试及文档。 |
+
+Rust 验证在隔离源码副本执行。网关测试与 Clippy 的副本带上共享工作区已存在的 `postgres_tests.rs` 参数修正。桌面点击用例使用完整视口和 tiny-skia，无窗口布局验证覆盖中文表单及保存动作。真实账号和 macOS 窗口留待后续验收。动态槽位锁已释放，编译缓存保留。 [桌面行为测试](../../../../crates/vw-desktop/src/app/components/apps_usage_settings_tests.rs) · [网关行为测试](../../../../crates/vw-agent/src/gateway/api/handlers/agent_apps/apps_usage_script_tests.rs)

@@ -15,3 +15,7 @@ mod postgres_tests;
 mod postgres;
 
 pub mod auth_accounts;
+pub mod usage_settings;
+
+#[cfg(test)]
+mod usage_settings_tests;

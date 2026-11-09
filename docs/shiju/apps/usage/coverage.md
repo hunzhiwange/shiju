@@ -615,3 +615,19 @@ HTTP 与 CLI 夹具核对请求、来源分离、额度归并、重置时间、�
 | 隔离复核 | `cargo clippy --all-targets --all-features -- -D warnings` | 退出 0。基于批次 36 提交 `54919a7c5`，叠加本任务 Rust 文件和共享工作区已有的 `postgres_tests.rs` 参数修正。 |
 
 真实 QuickJS 和本机 HTTP 夹具核对成功结果、预先取消、请求构造循环、提取循环及响应体停滞。并发夹具验证取消后连接关闭，同源另一笔查询正常返回。差异检查通过，槽位锁已释放，缓存已保留。真实账号由后续任务验收。 [独立行为测试](../../../../crates/vw-agent-apps/src/usage/scripts/run_tests.rs#L69)
+
+## 任务 38 保存查询设置
+
+`UsageSettingsStore::{get,save}` 复用 `GatewaySettingsStore` 的 SQLite/PostgreSQL 后端，在独立命名空间原子替换整条设置。平台与公司由底座隔离，配置键再区分项目、主体、目标主机、应用、供应商和可选账号。保存模板、查询开关、0–1440 分钟刷新间隔及剩余/已用显示方式。0 表示关闭自动刷新，缺省显示剩余。API key、访问令牌和成对的 AK/SK 使用 UUID v4 引用。脚本源码与凭据原值留在执行侧，后续设置 API 在调用存储前校验作用域和引用使用权。 [上游保存模板](../../../../crates/vw-agent-apps/upstream/src/components/UsageScriptModal.tsx#L559-L577) · [刷新间隔规则](../../../../crates/vw-agent-apps/upstream/src/components/UsageScriptModal.tsx#L467-L491) · [显示规则](../../../../crates/vw-agent-apps/upstream/src/components/quota/useQuotaDisplay.ts#L1-L8) · [实现](../../../../crates/vw-agent/src/agent_apps/usage_settings.rs)
+
+验证环境为 macOS 27.0 (26A428)、arm64，`vw-agent` 0.6.0，本机 PostgreSQL 18.4。两个阶段均动态领取槽位 1，`CARGO_TARGET_DIR` 和 `CARGO_BUILD_BUILD_DIR` 均为 `/Users/xiangmin/worker/code/shiju/target/rust-slot-1`。
+
+| 阶段 | 命令 | 结果 |
+| --- | --- | --- |
+| 实现前 | `cargo test -p vw-agent usage_usage_settings_ -- --nocapture` | 退出 101，执行 0 项。`usage_usage_settings_returns_expected_result` 和 `usage_usage_settings_rejects_invalid_input` 等用例按预期因缺少 `usage_settings` 模块而失败（E0432）。 |
+| 格式化 | `cargo fmt --all` | 退出 0。仅将第 38 项的三个 Rust 文件从源码副本同步回共享工作区。 |
+| 实现后 | `cargo test -p vw-agent usage_usage_settings_ -- --nocapture` | 退出 0，3 项通过，0 项失败。 |
+| 共享工作区 | `cargo clippy --all-targets --all-features -- -D warnings` | 退出 101。现有 ACP 改动引用缺失的 `PermissionConfirmation` 和 `with_permission_confirmation`，桌面与网关会话改动引用缺失的 `session_set_full_access` 与 `GatewaySessionUiSummary.full_access`。 |
+| 隔离复核 | `cargo clippy --all-targets --all-features -- -D warnings` | 退出 0。基于批次 37 提交 `02377910a`，叠加本任务 Rust 文件和共享工作区已有的 `session/store/postgres_tests.rs` 参数修正。 |
+
+SQLite 和 PostgreSQL 夹具实际保存并重读设置，验证各作用域维度的读取隔离、不同主机的独立更新、0 分钟与默认显示。拒绝测试检查越界间隔、非法主机、原始密钥字段及非法引用格式，并确认失败后原设置完整。差异审查通过，槽位锁已释放，编译缓存已保留。 [独立行为测试](../../../../crates/vw-agent/src/agent_apps/usage_settings_tests.rs#L89)

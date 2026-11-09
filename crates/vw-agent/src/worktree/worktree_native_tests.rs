@@ -160,7 +160,7 @@ async fn candidate_uses_requested_base_when_directory_and_branch_are_available()
     .expect("candidate");
 
     assert_eq!(info.name, "feature");
-    assert_eq!(info.branch, "vibewindow/feature");
+    assert_eq!(info.branch, "shiju/feature");
     assert_eq!(PathBuf::from(info.directory), root.path().join("feature"));
 }
 
@@ -181,7 +181,7 @@ async fn candidate_skips_existing_directory_for_requested_base() {
 
     assert_ne!(info.name, "feature");
     assert!(info.name.starts_with("feature-"));
-    assert_eq!(info.branch, format!("vibewindow/{}", info.name));
+    assert_eq!(info.branch, format!("shiju/{}", info.name));
     assert_eq!(PathBuf::from(info.directory), root.path().join(&info.name));
 }
 
@@ -189,7 +189,7 @@ async fn candidate_skips_existing_directory_for_requested_base() {
 async fn candidate_skips_existing_branch_for_requested_base() {
     let repo = tempfile::tempdir().expect("temp repo");
     init_repo(repo.path());
-    run(Command::new("git").arg("-C").arg(repo.path()).args(["branch", "vibewindow/feature"]));
+    run(Command::new("git").arg("-C").arg(repo.path()).args(["branch", "shiju/feature"]));
     let root = tempfile::tempdir().expect("worktree root");
     let primary = repo.path().to_path_buf();
     let root_path = root.path().to_path_buf();
@@ -202,7 +202,7 @@ async fn candidate_skips_existing_branch_for_requested_base() {
 
     assert_ne!(info.name, "feature");
     assert!(info.name.starts_with("feature-"));
-    assert_eq!(info.branch, format!("vibewindow/{}", info.name));
+    assert_eq!(info.branch, format!("shiju/{}", info.name));
 }
 
 #[tokio::test]
@@ -219,7 +219,7 @@ async fn candidate_generates_random_name_without_base() {
             .expect("candidate");
 
     assert!(!info.name.is_empty());
-    assert_eq!(info.branch, format!("vibewindow/{}", info.name));
+    assert_eq!(info.branch, format!("shiju/{}", info.name));
     assert_eq!(PathBuf::from(info.directory), root.path().join(&info.name));
 }
 

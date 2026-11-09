@@ -722,7 +722,7 @@ pub(crate) async fn create_gateway_session_worktree(
             &project_scope,
             &CreateWorktreeRequest {
                 name: requested_name.clone(),
-                branch: format!("vibewindow/{requested_name}"),
+                branch: format!("shiju/{requested_name}"),
                 from_ref: None,
                 checkout: true,
             },

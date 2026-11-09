@@ -180,7 +180,7 @@ async fn remove_registered_worktree_deletes_directory_and_branch() {
     let branch = Command::new("git")
         .arg("-C")
         .arg(&fixture.primary)
-        .args(["show-ref", "--verify", "refs/heads/vibewindow/ops-test"])
+        .args(["show-ref", "--verify", "refs/heads/shiju/ops-test"])
         .output()
         .expect("inspect removed branch");
     assert!(!branch.status.success());
@@ -219,7 +219,7 @@ impl GitWorktreeFixture {
         run(Command::new("git")
             .arg("-C")
             .arg(&primary)
-            .args(["worktree", "add", "-b", "vibewindow/ops-test"])
+            .args(["worktree", "add", "-b", "shiju/ops-test"])
             .arg(&secondary));
         Self { _root: root, primary, secondary }
     }

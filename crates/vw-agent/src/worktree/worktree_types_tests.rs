@@ -53,7 +53,7 @@ fn error_trait_exposes_no_nested_source() {
 fn info_roundtrip_preserves_all_metadata() {
     let info = Info {
         name: "brave-eagle".to_string(),
-        branch: "vibewindow/brave-eagle".to_string(),
+        branch: "shiju/brave-eagle".to_string(),
         directory: "/workspace/brave-eagle".to_string(),
     };
 
@@ -62,7 +62,7 @@ fn info_roundtrip_preserves_all_metadata() {
         encoded,
         serde_json::json!({
             "name": "brave-eagle",
-            "branch": "vibewindow/brave-eagle",
+            "branch": "shiju/brave-eagle",
             "directory": "/workspace/brave-eagle"
         })
     );
@@ -148,7 +148,7 @@ fn required_fields_and_invalid_types_are_rejected() {
     assert!(
         serde_json::from_value::<Info>(serde_json::json!({
             "name": "demo",
-            "branch": "vibewindow/demo"
+            "branch": "shiju/demo"
         }))
         .is_err()
     );

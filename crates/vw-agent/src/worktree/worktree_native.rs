@@ -52,7 +52,7 @@ pub(super) struct WorktreeEntry {
     /// Worktree 的文件系统路径
     pub(super) path: String,
 
-    /// 关联的分支引用（如 `refs/heads/vibewindow/brave-eagle`）
+    /// 关联的分支引用（如 `refs/heads/shiju/brave-eagle`）
     pub(super) branch: Option<String>,
 }
 
@@ -99,7 +99,7 @@ pub(super) async fn candidate(root: &Path, base: Option<&str>) -> Result<Info, E
         } else {
             random_name()
         };
-        let branch = format!("vibewindow/{}", name);
+        let branch = format!("shiju/{name}");
         let directory = root.join(&name);
 
         if path_exists(&directory).await {

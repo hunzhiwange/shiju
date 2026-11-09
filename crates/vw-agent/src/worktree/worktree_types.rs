@@ -68,7 +68,7 @@ pub struct Info {
     /// Worktree 名称（同时也是目录名和分支后缀）
     pub name: String,
 
-    /// Git 分支名（完整格式，如 `vibewindow/brave-eagle`）
+    /// Git 分支名（完整格式，如 `shiju/brave-eagle`）
     pub branch: String,
 
     /// Worktree 目录的绝对路径

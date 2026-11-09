@@ -2,7 +2,7 @@
 
 批次：【批次 2】依赖批次 1
 
-状态：未开始
+状态：已阻塞
 
 目的：逐项实现并证明已注册 ACP 后端遵守两档权限契约，记录可验证的回退和无法验证的边界。
 
@@ -61,3 +61,34 @@
 ## 完成
 
 仅在全部完成证据齐全时标记为 `已完成`。遇到未获授权的真实运行时或其他实质阻塞，记录具体后端、平台、版本、已尝试命令和缺失证据。实际变更按 `$git-commit` 提交，排除其他会话变更。
+
+## 实施记录
+
+批次 1 的宿主写入边界和 Claude 安全回退由 `42689b4a0`、`640bceea0` 交付。批次 2 提交为 `9f932a8c1`、`e7a454ef3`、`7a4398a24`。实机网关使用本工作区已有的桌面单次审批桥接。
+
+- 宿主工具和终端要求当前显式完全访问授权。无授权的 `ApproveAll` 回落到审批档。红测在 Auggie 收到 `AllowOnce` 时失败。Codex 审批档确认 `read-only`，兼容名称使用同一权限守卫。
+- 固定版 OpenCode 两种来源均复现审批档的原生 Bash 直接创建和删除文件。原生代理专属规则可以覆盖全局规则，桌面审批档改为在启动前拒绝该路径。两种来源均实测显式完全访问可完成五项原生操作，撤销后在模型请求前拒绝。Rust 启动守卫先红后绿。
+- [逐后端覆盖](../../docs/shiju/acp-model-source/approval-coverage.md)列出全部 22 个后端的固定版本和模型来源。Darwin-arm64 的真实网关矩阵在 `target/acp-approval-evidence/matrix.json`。
+- Claude 0.26.0 两种来源均验证两次原生编辑在单次批准后落盘、敏感操作拒绝和撤销后重新拒绝。Codex 2.5.0 两种来源均验证只读回退。Copilot 1.0.105 两种来源均验证单次审批与实际命令副作用。Gemini 0.66.0 两种来源均验证确认后覆盖写入、敏感操作拒绝与撤销。Gemini 保持原生工作区限制，完全访问仍拒绝越界 Write。客户端模型使用原生 Google 中继，Chat 转换的写入轮次曾返回 400，未计为独立验收路径。
+- 同名 Codex 替换夹具证明结构化宿主创建和编辑无需批准，完全访问可越界写入，撤销并加载后重新拒绝。两个并行工作区同时等待审批，六次跨工作区答复、六次重复答复均被拒绝。真实供应商审批事件也检查了跨工作区答复、永久批准和重复答复。
+- 44 条矩阵行中 10 条真实通过、5 条为生产不支持的客户端模型路径、29 条阻塞。27 条缺已安装固定版，Pi 的两条路径缺通过摘要核验的补丁适配器与 0.73.1 引擎。已检查 PATH、管理运行时目录与已展开的本地缓存。Gemini 以已有本地包复制到临时目录，应用仓库已审核补丁并校验前后摘要。后续补齐获授权的固定运行时及所需隔离模型配置，再重跑同一矩阵。
+
+### 验证记录
+
+- 槽位 1 使用 `CARGO_TARGET_DIR=/Users/xiangmin/worker/code/shiju/target/rust-slot-1`，用于通过测试、网关构建与真实矩阵。
+- 槽位 2 使用 `CARGO_TARGET_DIR=/Users/xiangmin/worker/code/shiju/target/rust-slot-2`，用于前一阶段的复验、提交格式核对和定向 Clippy。
+- 槽位 3 使用 `CARGO_TARGET_DIR=/Users/xiangmin/worker/code/shiju/target/rust-slot-3`，用于 OpenCode 启动守卫红测。
+- `CARGO_BUILD_BUILD_DIR` 与对应槽位绝对路径一致。格式化在隔离源码快照运行。
+
+| 命令 | 退出码 | 有效证据 |
+| --- | --- | --- |
+| `cargo fmt --all` | 0 | 本任务 Rust 文件与格式化输出一致 |
+| `cargo test -p vw-acp --lib acp_desktop_approval_backend_matrix -- --test-threads=1` | 红测 101，修复后 0 | 1 项通过，含 22 个注册 key 与兼容及覆盖场景 |
+| `cargo test -p vw-acp --lib acp_full_access_opencode_desktop_requires_current_grant -- --test-threads=1` | 红测 101，修复后 0 | 1 项通过 |
+| `cargo test -p vw-acp --lib acp_full_access_ -- --test-threads=1` | 0 | 84 项通过，含 OpenCode 启动守卫 |
+| `cargo test -p vw-acp --lib acp_desktop_approval_policy_real_claude_falls_back -- --ignored --test-threads=1` | 0 | 前一阶段固定版 Claude 回退 1 项通过 |
+| `cargo build -p vw-cli --bin shiju` | 0 | 默认 features 网关构建成功 |
+| `python3 -m unittest discover -s scripts -p acp_approval_model_tests.py` | 0 | 3 项通过 |
+| `python3 scripts/verify_acp_approval.py --gateway "$CARGO_TARGET_DIR/debug/shiju" --output target/acp-approval-evidence/matrix.json` | 1 | 10 条真实通过，29 条缺固定运行时，5 条生产不支持。并行宿主夹具通过 |
+| `cargo clippy -p vw-acp --all-targets --all-features -- -D warnings` | 0 | ACP 定向检查通过 |
+| `cargo clippy --all-targets --all-features -- -D warnings` | 101 | 无关的 `vw-desktop/src/app/message/project/helpers.rs:668` 调用 `session_list_for_project` 触发 E0599 |

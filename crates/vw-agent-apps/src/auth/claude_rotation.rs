@@ -33,14 +33,7 @@ pub fn get_claude_login_switch(
 ) -> Result<ClaudeLoginSwitchStatus, WriteError> {
     let _directory_lock = tx.lock_claude_directory()?;
     let state = tx.state(AppId::Claude)?;
-    if state.pointer.as_ref().is_some_and(|p| &p.tenant != tenant)
-        || state.mode_tenant.as_ref().is_some_and(|owner| owner != tenant)
-        || state.stack_tenant.as_ref().is_some_and(|owner| owner != tenant)
-        || tx.pending(AppId::Claude)?.is_some()
-    {
-        return Err(WriteError::Conflict);
-    }
-    if tx.claude_directory(tenant)?.is_some() || std::env::var_os("CLAUDE_CONFIG_DIR").is_some() {
+    if !default_login_available(tx, tenant, &state)? {
         return Ok(ClaudeLoginSwitchStatus::OverrideDir);
     }
     keychain.authorize_home(home).map_err(|_| WriteError::InvalidResource)?;
@@ -68,6 +61,22 @@ pub fn get_claude_login_switch(
     }))
 }
 
+/// Check the default slot's scope while holding the Claude directory lock.
+pub(crate) fn default_login_available(
+    tx: &ProviderTransactions,
+    tenant: &TenantScope,
+    state: &crate::providers::live::commit::AppState,
+) -> Result<bool, WriteError> {
+    if state.pointer.as_ref().is_some_and(|p| &p.tenant != tenant)
+        || state.mode_tenant.as_ref().is_some_and(|owner| owner != tenant)
+        || state.stack_tenant.as_ref().is_some_and(|owner| owner != tenant)
+        || tx.pending(AppId::Claude)?.is_some()
+    {
+        return Err(WriteError::Conflict);
+    }
+    Ok(tx.claude_directory(tenant)?.is_none() && std::env::var_os("CLAUDE_CONFIG_DIR").is_none())
+}
+
 pub(crate) fn check_generation(
     before: Option<&Value>,
     incoming: Option<&Value>,
@@ -91,7 +100,7 @@ pub(crate) fn check_generation(
     Ok(())
 }
 
-fn expiry(value: Option<&Value>) -> Result<Option<TimestampMs>, WriteError> {
+pub(crate) fn expiry(value: Option<&Value>) -> Result<Option<TimestampMs>, WriteError> {
     let Some(value) = value else { return Ok(None) };
     let at = value
         .as_i64()

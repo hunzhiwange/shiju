@@ -394,3 +394,21 @@
 | 隔离复核 | `cargo clippy --all-targets --all-features -- -D warnings` | 退出 0。基于批次 24 提交 `f853e61b1`、本次三个 Rust 文件及批次 24 已记录的 PostgreSQL 测试第三参数修正。 |
 
 七项测试核对两类入口、Bearer GET 请求顺序、组织和周期参数、按量余额、部分错误和迟发 401。真实账号验收留待任务 56。提交范围差异检查通过，各阶段均释放自己的锁并保留缓存。
+
+## 任务 26 Claude 官方额度
+
+`query_claude` 从已授权的账号引用读取登录快照。绑定账号默认读取受管目录，仅当执行主机、租户、主体和账号都匹配活跃槽位记录时读取默认槽位，并核对外部身份摘要。未绑定的 CLI 默认查询按授权 HOME 读取；已有目录覆盖时返回不支持。读取使用现有账号租约与登录锁。令牌和套餐取自同一份凭据，钥匙串条目仅含 MCP 凭据时读取该槽位的文件。 [上游绑定查询](../../../../crates/vw-agent-apps/upstream/src-tauri/src/services/subscription.rs#L1621) · [上游默认套餐](../../../../crates/vw-agent-apps/upstream/src-tauri/src/services/subscription.rs#L203) · [上游按账号查询键](../../../../crates/vw-agent-apps/upstream/src/lib/query/subscription.ts#L283) · [上游卡片](../../../../crates/vw-agent-apps/upstream/src/components/ClaudeAccountQuotaFooter.tsx#L29) · [适配器](../../../../crates/vw-agent-apps/src/usage/subscriptions/claude.rs#L57)
+
+查询使用固定的 Anthropic OAuth 端点、Bearer 与 OAuth beta 头，共用禁用重定向及限制响应大小的客户端。保留旧额度窗口、模型专属周限额、零值、重置时间、超额用量及凭据里的套餐。已知过期的令牌在请求前返回失效或待刷新状态，401 和 403 返回上游鉴权拒绝。授权服务负责刷新，查询器只返回凭据状态。 [上游 HTTP 查询](../../../../crates/vw-agent-apps/upstream/src-tauri/src/services/subscription.rs#L445) · [上游额度解析](../../../../crates/vw-agent-apps/upstream/src-tauri/src/services/subscription.rs#L502) · [本地解析](../../../../crates/vw-agent-apps/src/usage/subscriptions/claude.rs#L299)
+
+环境为 macOS 27.0 (26A428)、arm64，`vw-agent-apps` 0.6.0。实现前后测试、格式化与共享工作区 Clippy 动态领取槽位 1，`CARGO_TARGET_DIR` 与 `CARGO_BUILD_BUILD_DIR` 均为 `/Users/xiangmin/worker/code/shiju/target/rust-slot-1`。隔离 Clippy 动态领取槽位 2，两项变量均为 `/Users/xiangmin/worker/code/shiju/target/rust-slot-2`。全仓格式化在源码副本执行，只同步本任务的 Rust 文件。
+
+| 阶段 | 命令 | 结果 |
+| --- | --- | --- |
+| 实现前 | `cargo test -p vw-agent-apps usage_subscriptions_claude_ -- --nocapture` | 退出 101，执行 0 项。`usage_subscriptions_claude_returns_expected_result` 和 `usage_subscriptions_claude_rejects_invalid_input` 所在模块报 E0432，缺少 `super::claude`。 |
+| 格式化 | `cargo fmt --all` | 退出 0。 |
+| 实现后 | `cargo test -p vw-agent-apps usage_subscriptions_claude_ -- --nocapture` | 退出 0，5 项通过，0 项失败。 |
+| 共享工作区 | `cargo clippy --all-targets --all-features -- -D warnings` | 退出 101，其他工作区变更缺少 `vw_acp::PermissionConfirmation`、`GatewayClient::session_set_full_access` 及 `GatewaySessionUiSummary.full_access`（E0432、E0599、E0609）。 |
+| 隔离复核 | `cargo clippy --all-targets --all-features -- -D warnings` | 退出 0。基于批次 25 提交 `ab57e81bf`、本任务 Rust 文件及工作区已有的 `postgres_tests.rs` 第三参数修正。 |
+
+本机 HTTP 夹具核对实际请求方法、路径与请求头，覆盖绑定账号和 CLI 默认账号、活跃账号令牌轮换、身份不匹配、钥匙串与文件选取、过期时阻止出站请求及 401/403。真实账号验收留待任务 56。任务差异检查通过，各阶段均释放槽位锁并保留缓存。 [测试](../../../../crates/vw-agent-apps/src/usage/subscriptions/claude_tests.rs#L258)

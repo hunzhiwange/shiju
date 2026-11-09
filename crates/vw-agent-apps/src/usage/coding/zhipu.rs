@@ -267,7 +267,7 @@ pub(super) async fn read_json<T: DeserializeOwned>(
     read_json_response(response).await
 }
 
-pub(super) async fn read_json_response<T: DeserializeOwned>(
+pub(in crate::usage) async fn read_json_response<T: DeserializeOwned>(
     mut response: Response,
 ) -> Result<T, UsageQueryErrorCode> {
     use UsageQueryErrorCode::*;

@@ -355,6 +355,29 @@ impl LoginMaterial {
         self.secret.as_ref()?.get("claudeAiOauth")
     }
 
+    pub(crate) fn usage_oauth(&self) -> Option<&Value> {
+        self.oauth().or_else(|| self.secret.as_ref()?.get("claude.ai_oauth"))
+    }
+
+    /// An MCP-only keychain item does not represent the Claude login in this slot.
+    pub(crate) fn with_usage_fallback(mut self) -> Self {
+        if self.keychain.is_some() && self.usage_oauth().is_none() {
+            // read already validated the file; select the token and plan together.
+            self.secret =
+                self.fallback.as_deref().and_then(|bytes| serde_json::from_slice(bytes).ok());
+        }
+        self
+    }
+
+    /// Snapshot the parked login under the same CLI locks as account checkout.
+    pub(crate) fn locked_account(
+        path: &Path,
+        keychain: &dyn ClaudeKeychain,
+    ) -> Result<Self, WriteError> {
+        let (dir, _locks) = lock_account(path)?;
+        Self::read(&dir, &dir, Some(path), keychain)
+    }
+
     pub fn identity(&self) -> Result<Option<String>, WriteError> {
         if !self
             .oauth()

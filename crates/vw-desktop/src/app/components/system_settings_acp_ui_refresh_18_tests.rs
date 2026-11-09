@@ -657,7 +657,7 @@ async fn help_rollout_09_renders_contextual_help() {
         app.acp_settings.new_agent_expanded = true;
         let mut form = scene(view(&app), &mut renderer, size);
         let positions = geometry(&mut form, &renderer);
-        positions.label(i18n.__("诊断使用当前草稿，在网关主机执行，不发送消息或自动认证"));
+        positions.label(i18n.__("诊断在网关主机执行。"));
         positions.input("/示例路徑/bin/fixture-agent");
         let description = "每项独立保存，保留空格与逗号。";
         let icon = assert_help_card(&mut form, &mut renderer, context, "参数", description);
@@ -765,7 +765,7 @@ async fn help_rollout_09_mcp_server_and_policy_help() {
         );
         let positions = geometry(&mut edit, &renderer);
         positions.input("fixture-bin");
-        positions.label(tr("修改当前服务器；高级 JSON 字段会在传输类型不变时保留。"));
+        positions.label(tr("更改类型并保存会清除原有的 env 或 headers。"));
         assert!(matches!(
             click(&mut edit, &mut renderer, positions.label(tr("保存修改")).center()).as_slice(),
             [Message::Settings(SettingsMessage::Mcp(McpMessage::SaveServerEdit))]
@@ -845,5 +845,302 @@ async fn help_rollout_09_mcp_server_and_policy_help() {
             ),
             "{locale:?}: {messages:?}"
         );
+    }
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn settings_help_gap_13_mcp_edit_heading_moves_preservation_rule() {
+    if !isolated("settings_help_gap_13_mcp_edit_heading_moves_preservation_rule") {
+        return;
+    }
+    let mut app = fixture();
+    let mut renderer = renderer().await;
+    let size = Size::new(420, 660);
+    let locale = DesktopLocale::SimplifiedChinese;
+    app.desktop_locale = locale;
+    app.app_theme = Theme::Dark;
+    app.mcp_settings.active_tab = McpSettingsTab::Servers;
+    app.mcp_settings.new_server_expanded = true;
+    app.mcp_settings.editing_server_index = Some(0);
+    let mut ui = scene(mcp::view_overlays(&app, mcp::view(&app)), &mut renderer, size);
+    let rule = "修改当前服务器；高级 JSON 字段会在传输类型不变时保留。";
+    assert!(
+        !geometry(&mut ui, &renderer).labels.iter().any(|(label, _)| label == rule),
+        "advanced JSON preservation belongs in MCP edit title help"
+    );
+    assert_help_card(
+        &mut ui,
+        &mut renderer,
+        (size, &app.app_theme, locale),
+        "编辑 MCP 服务器",
+        rule,
+    );
+}
+
+fn assert_gap_13_help(
+    ui: &mut Ui<'_>,
+    renderer: &mut Renderer,
+    context: (Size<u32>, &Theme, DesktopLocale),
+    title: &'static str,
+    source: &'static str,
+    expected: &str,
+) {
+    let icon = assert_help_card(ui, renderer, context, title, source);
+    assert!(click(ui, renderer, icon).is_empty());
+    let (size, theme, _) = context;
+    let idle = mouse::Cursor::Unavailable;
+    capture(ui, renderer, theme, size, "help-13-pinned", idle);
+    let side = if icon.x < size.width as f32 / 2.0 { 29.0 } else { -29.0 };
+    let point = iced::Point::new(icon.x + side, icon.y + 5.0);
+    assert!(
+        send(
+            ui,
+            renderer,
+            mouse::Cursor::Available(point),
+            &[Event::Mouse(mouse::Event::ButtonPressed(mouse::Button::Right))],
+        )
+        .is_empty()
+    );
+    let line_height = iced::advanced::text::LineHeight::default().to_absolute(12.0.into());
+    let item_height = f32::from(line_height) + 10.0;
+    let item = iced::Point::new(
+        point.x.min(size.width as f32 - 140.0) + 24.0,
+        point.y + 3.0 + item_height * 0.5,
+    );
+    let messages = click(ui, renderer, item);
+    assert!(
+        matches!(messages.as_slice(), [Message::CopyCode(value)] if value == expected),
+        "{title}: unexpected help text: {messages:?}"
+    );
+    assert!(send(ui, renderer, idle, &[key(iced::keyboard::key::Named::Escape)]).is_empty());
+}
+
+const HELP_GAP_13_CONTEXTS: [(DesktopLocale, Theme, u32); 3] = [
+    (DesktopLocale::SimplifiedChinese, Theme::Dark, 420),
+    (DesktopLocale::TraditionalChinese, Theme::Light, 640),
+    (DesktopLocale::English, Theme::Light, 420),
+];
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn settings_help_gap_13_mcp_add_and_edit_transport_fields() {
+    if !isolated("settings_help_gap_13_mcp_add_and_edit_transport_fields") {
+        return;
+    }
+    use crate::app::message::settings::{self, McpMessage};
+    use iced::keyboard::key::Named;
+
+    let mut app = fixture();
+    let mut renderer = renderer().await;
+    for (locale, theme, width) in HELP_GAP_13_CONTEXTS {
+        app.desktop_locale = locale;
+        app.app_theme = theme.clone();
+        let tr = |source| I18n::new(locale).__(source);
+        let size = Size::new(width, 660);
+        let context = (size, &theme, locale);
+        app.mcp_settings.active_tab = McpSettingsTab::Servers;
+        app.mcp_settings.new_server_expanded = true;
+
+        for editing in [false, true] {
+            app.mcp_settings.editing_server_index = editing.then_some(0);
+            app.mcp_settings.new_server.transport = McpNewServerTransport::Stdio;
+            for transport in McpNewServerTransport::ALL {
+                assert_eq!(app.mcp_settings.new_server.transport, transport);
+                let mut ui = scene(mcp::view_overlays(&app, mcp::view(&app)), &mut renderer, size);
+                let positions = geometry(&mut ui, &renderer);
+                let (title, explanation) = if editing {
+                    ("编辑 MCP 服务器", "修改当前服务器；高级 JSON 字段会在传输类型不变时保留。")
+                } else {
+                    ("新增 MCP 服务器", "按服务器逐项添加；复杂字段可继续在高级 JSON 中编辑。")
+                };
+                let warning = tr("更改类型并保存会清除原有的 env 或 headers。");
+                assert_eq!(positions.labels.iter().any(|(label, _)| label == warning), editing);
+                if transport == McpNewServerTransport::Stdio {
+                    assert_gap_13_help(
+                        &mut ui,
+                        &mut renderer,
+                        context,
+                        title,
+                        explanation,
+                        tr(explanation),
+                    );
+                    positions.label(tr("命令"));
+                    positions.label(tr("参数"));
+                    positions.input("fixture-bin");
+                    positions.input("--label, /示例路徑");
+                    assert!(!positions.labels.iter().any(|(label, _)| label == "URL"));
+                } else {
+                    positions.label("URL");
+                    assert!(!positions.labels.iter().any(|(label, _)| label == tr("命令")));
+                    assert!(!positions.labels.iter().any(|(label, _)| label == tr("参数")));
+                }
+                assert_gap_13_help(
+                    &mut ui,
+                    &mut renderer,
+                    context,
+                    "类型",
+                    "stdio · 命令 / 参数\nHTTP / SSE · URL",
+                    &format!("stdio · {} / {}\nHTTP / SSE · URL", tr("命令"), tr("参数")),
+                );
+                // Exercise input after the help screenshots so caret blinking cannot affect them.
+                if transport != McpNewServerTransport::Stdio {
+                    let url = &app.mcp_settings.new_server.url_input;
+                    assert!(
+                        matches!(edit(&mut ui, &mut renderer, positions.input(url).center(), "tail").as_slice(),
+                            [Message::Settings(SettingsMessage::Mcp(McpMessage::NewServerUrlChanged(value)))]
+                            if value == &format!("{url}tail"))
+                    );
+                }
+                let (submit, cancel) = if editing {
+                    ("保存修改", "取消编辑")
+                } else {
+                    ("新增服务器", "收起")
+                };
+                let messages = click(&mut ui, &mut renderer, positions.label(tr(submit)).center());
+                assert!(match messages.as_slice() {
+                    [Message::Settings(SettingsMessage::Mcp(McpMessage::SaveServerEdit))] =>
+                        editing,
+                    [Message::Settings(SettingsMessage::Mcp(McpMessage::AddServer))] => !editing,
+                    _ => false,
+                });
+                let messages = click(&mut ui, &mut renderer, positions.label(tr(cancel)).center());
+                assert!(match messages.as_slice() {
+                    [Message::Settings(SettingsMessage::Mcp(McpMessage::ServerEditCanceled))] =>
+                        editing,
+                    [
+                        Message::Settings(SettingsMessage::Mcp(McpMessage::NewServerPanelToggled)),
+                    ] => !editing,
+                    _ => false,
+                });
+
+                if transport != McpNewServerTransport::Sse {
+                    let label = positions.label(tr("类型"));
+                    let trigger = positions
+                        .focusable
+                        .iter()
+                        .find(|bounds| {
+                            bounds.y >= label.y + label.height
+                                && bounds.y - (label.y + label.height) < 12.0
+                        })
+                        .expect("transport select");
+                    let cursor = mouse::Cursor::Unavailable;
+                    assert!(click(&mut ui, &mut renderer, trigger.center()).is_empty());
+                    assert!(send(&mut ui, &mut renderer, cursor, &[key(Named::Escape)]).is_empty());
+                    assert!(send(&mut ui, &mut renderer, cursor, &[key(Named::Enter)]).is_empty());
+                    assert!(
+                        send(&mut ui, &mut renderer, cursor, &[key(Named::ArrowDown)]).is_empty()
+                    );
+                    let messages = send(&mut ui, &mut renderer, cursor, &[key(Named::Enter)]);
+                    let [
+                        Message::Settings(SettingsMessage::Mcp(
+                            message @ McpMessage::NewServerTransportChanged(_),
+                        )),
+                    ] = messages.as_slice()
+                    else {
+                        panic!("expected transport selection, got {messages:?}");
+                    };
+                    drop(ui);
+                    drop(settings::update(&mut app, SettingsMessage::Mcp(message.clone())));
+                }
+            }
+        }
+    }
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn settings_help_gap_13_acp_diagnostic_draft_and_install_help() {
+    if !isolated("settings_help_gap_13_acp_diagnostic_draft_and_install_help") {
+        return;
+    }
+    let mut app = fixture();
+    let mut renderer = renderer().await;
+    let diagnostic = "诊断使用当前草稿进行连接测试，不发送消息或自动认证。";
+    let installation = "网关按操作系统选择并执行安装程序，无需复制命令。";
+
+    for (locale, theme, width) in HELP_GAP_13_CONTEXTS {
+        app.desktop_locale = locale;
+        app.app_theme = theme.clone();
+        let tr = |source| I18n::new(locale).__(source);
+        let size = Size::new(width, 660);
+        let context = (size, &theme, locale);
+        app.acp_settings.new_agent_expanded = true;
+        for editing in [false, true] {
+            app.acp_settings.editing_agent = editing.then(|| "fixture-agent".into());
+            app.acp_settings.diagnostic_status = Some(if editing {
+                AcpDiagnosticStatus::StartupFailed
+            } else {
+                AcpDiagnosticStatus::Running
+            });
+            app.acp_settings.diagnostic_id = (!editing).then(|| "fixture-test".into());
+            let mut form = scene(view(&app), &mut renderer, size);
+            let positions = geometry(&mut form, &renderer);
+            positions.label(tr("诊断在网关主机执行。"));
+            positions.label(tr(app.acp_settings.diagnostic_status.unwrap().description()));
+            positions.input("/示例路徑/bin/fixture-agent");
+            assert_gap_13_help(
+                &mut form,
+                &mut renderer,
+                context,
+                if editing { "编辑 ACP" } else { "新增 ACP" },
+                diagnostic,
+                tr(diagnostic),
+            );
+            let action =
+                positions.label(tr(if editing { "测试连接 / 重试" } else { "取消诊断" }));
+            let messages = click(&mut form, &mut renderer, action.center());
+            assert!(match messages.as_slice() {
+                [Message::Settings(SettingsMessage::Acp(AcpMessage::StartDiagnostic))] => editing,
+                [Message::Settings(SettingsMessage::Acp(AcpMessage::CancelDiagnostic))] => !editing,
+                _ => false,
+            });
+            assert!(matches!(
+                click(&mut form, &mut renderer, positions.label(tr("保存")).center()).as_slice(),
+                [Message::Settings(SettingsMessage::Acp(AcpMessage::AddAgent))]
+            ));
+            assert!(matches!(
+                click(&mut form, &mut renderer, positions.label(tr("取消")).center()).as_slice(),
+                [Message::Settings(SettingsMessage::Acp(AcpMessage::CancelEditor))]
+            ));
+        }
+
+        app.acp_settings.new_agent_expanded = false;
+        app.acp_settings.catalog.remove("codex");
+        let mut catalog = scene(view(&app), &mut renderer, size);
+        geometry(&mut catalog, &renderer).label(tr("请自行安装自定义 ACP。"));
+        drop(catalog);
+
+        app.acp_settings.catalog.insert(
+            "codex".into(),
+            AcpAgentConfig { command: "/示例路徑/bin/codex-acp".into(), ..Default::default() },
+        );
+        app.acp_settings
+            .diagnostic_results
+            .insert("codex".into(), AcpDiagnosticStatus::AuthenticationRequired);
+        for installing in [false, true] {
+            app.acp_settings.installing_agent = installing.then(|| "codex".into());
+            let mut catalog = scene(view(&app), &mut renderer, size);
+            let positions = geometry(&mut catalog, &renderer);
+            positions.label(tr("在网关主机安装，安装后仍需完成认证。"));
+            positions.label(tr(AcpDiagnosticStatus::AuthenticationRequired.description()));
+            if !installing {
+                assert_gap_13_help(
+                    &mut catalog,
+                    &mut renderer,
+                    context,
+                    "官方安装包 / 安装器",
+                    installation,
+                    tr(installation),
+                );
+            }
+            let action =
+                positions.label(tr(if installing { "安装中…" } else { "一键安装" }));
+            let messages = click(&mut catalog, &mut renderer, action.center());
+            if installing {
+                assert!(messages.is_empty());
+            } else {
+                assert!(
+                    matches!(messages.as_slice(), [Message::Settings(SettingsMessage::Acp(AcpMessage::InstallAgent(agent)))] if agent == "codex")
+                );
+            }
+        }
     }
 }

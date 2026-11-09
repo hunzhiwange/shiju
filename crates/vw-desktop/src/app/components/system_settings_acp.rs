@@ -204,10 +204,18 @@ fn acp_card<'a>(app: &'a App, agent: String, config: &'a AcpAgentConfig) -> Elem
     let installation: Element<'_, Message> =
         if vw_config_types::acp_install::acp_install_command(&agent).is_some() {
             let installing = app.acp_settings.installing_agent.as_deref() == Some(agent.as_str());
+            let title = tr("官方安装包 / 安装器");
             row![
                 column![
-                    text(tr("官方安装包 / 安装器")).size(12),
-                    text(tr("网关自动选择系统并执行安装，无需复制命令；安装后仍需完成认证"))
+                    settings_hover_help_label(
+                        I18n::new(locale),
+                        &app.app_theme,
+                        title,
+                        text(title).size(12),
+                        tr("网关按操作系统选择并执行安装程序，无需复制命令。"),
+                    )
+                    .wrap(),
+                    text(tr("在网关主机安装，安装后仍需完成认证。"))
                         .size(12)
                         .style(settings_muted_text_style),
                 ]
@@ -227,10 +235,7 @@ fn acp_card<'a>(app: &'a App, agent: String, config: &'a AcpAgentConfig) -> Elem
             .align_y(Alignment::Center)
             .into()
         } else {
-            text(tr("自定义 ACP 请自行配置安装方式；内置 ACP 均可由网关一键安装"))
-                .size(12)
-                .style(settings_muted_text_style)
-                .into()
+            text(tr("请自行安装自定义 ACP。")).size(12).style(settings_muted_text_style).into()
         };
 
     let mut content = column![
@@ -396,10 +401,15 @@ fn new_agent_form(app: &App) -> Element<'_, Message> {
     let title = tr(if state.editing_agent.is_some() { "编辑 ACP" } else { "新增 ACP" });
     let header = settings_modal_header(
         column![
-            text(title).size(20),
-            text(tr("诊断使用当前草稿，在网关主机执行，不发送消息或自动认证"))
-                .size(13)
-                .style(settings_muted_text_style),
+            settings_hover_help_label(
+                I18n::new(locale),
+                &app.app_theme,
+                title,
+                text(title).size(20),
+                tr("诊断使用当前草稿进行连接测试，不发送消息或自动认证。"),
+            )
+            .wrap(),
+            text(tr("诊断在网关主机执行。")).size(13).style(settings_muted_text_style),
         ]
         .spacing(4),
         settings_close_button(acp_message(AcpMessage::CancelEditor)),

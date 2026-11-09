@@ -581,7 +581,7 @@ fn new_server_panel(app: &App) -> Element<'_, Message> {
         })
         .width(Length::Fill);
     let transport_label = tr(locale, "类型");
-    let transport_field = column![
+    let mut transport_field = column![
         settings_hover_help_label(
             i18n,
             &app.app_theme,
@@ -594,6 +594,13 @@ fn new_server_panel(app: &App) -> Element<'_, Message> {
     ]
     .spacing(6)
     .width(Length::Fill);
+    if editing {
+        transport_field = transport_field.push(
+            text(tr(locale, "更改类型并保存会清除原有的 env 或 headers。"))
+                .size(12)
+                .style(settings_muted_text_style),
+        );
+    }
     let mut fields =
         column![form_field(tr(locale, "名称"), name_input), transport_field].spacing(12);
     match s.new_server.transport {
@@ -656,15 +663,9 @@ fn new_server_panel(app: &App) -> Element<'_, Message> {
     }
     body = body.push(settings_panel(fields));
 
-    let heading: Element<'_, Message> = if editing {
-        column![text(title).size(20), text(description).size(13).style(settings_muted_text_style)]
-            .spacing(4)
-            .into()
-    } else {
+    let heading =
         settings_hover_help_label(i18n, &app.app_theme, title, text(title).size(20), description)
-            .wrap()
-            .into()
-    };
+            .wrap();
     let header = settings_modal_header(heading, settings_close_button(server_form_toggle()));
     let submit_label =
         if editing { tr(locale, "保存修改") } else { tr(locale, "新增服务器") };

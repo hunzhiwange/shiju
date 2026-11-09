@@ -129,3 +129,24 @@
 | 工作区检查 | `cargo clippy --all-targets --all-features -- -D warnings` | 退出 0。 |
 
 限定提交范围的 `git diff --cached --check` 退出 0。槽位锁已释放，编译缓存保留。真实账号验收见任务 55。
+
+## 任务 13 SiliconFlow 余额
+
+| 来源 | 实现和测试 |
+| --- | --- |
+| [SiliconFlow 余额查询](../../../../crates/vw-agent-apps/upstream/src-tauri/src/services/balance.rs#L211-L285) · [余额分派](../../../../crates/vw-agent-apps/upstream/src-tauri/src/services/balance.rs#L550-L572) · [官方响应示例](https://siliconflow.readme.io/reference/user-info) | `query_siliconflow` 使用已识别的地区选择固定的 `GET https://api.siliconflow.cn/v1/user/info`（CNY）或 `GET https://api.siliconflow.com/v1/user/info`（USD）。只向选定端点发送经授权的 Bearer 凭据，拒绝所有重定向。 |
+| [余额模板检测](../../../../crates/vw-agent-apps/upstream/src/components/UsageScriptModal.tsx#L184-L200) · [余额模板调用](../../../../crates/vw-agent-apps/upstream/src/components/UsageScriptModal.tsx#L622-L627) | `totalBalance` 是当前合计余额。按官方示例的分项关系，将 `balance` 和 `chargeBalance` 分别保留为赠金余额和充值余额。接受有限数字及数字字符串，区分缺失、零和负值。夹具检查真实 HTTP 请求以及无效凭据、上游拒绝、无效响应和跨域重定向。 |
+
+[适配器](../../../../crates/vw-agent-apps/src/usage/balances/siliconflow.rs) · [独立行为测试](../../../../crates/vw-agent-apps/src/usage/balances/siliconflow_tests.rs)
+
+验证环境为 macOS 27.0 (26A428)、arm64，`vw-agent-apps` 0.6.0。各阶段均领取槽位 1，`CARGO_TARGET_DIR` 和 `CARGO_BUILD_BUILD_DIR` 均为 `/Users/xiangmin/worker/code/shiju/target/rust-slot-1`。共享工作区首次测试遇到其他改动中的 `vw-acp/src/access_policy/claude.rs` E0277（`Sha256` 未实现 `std::io::Write`）。随后在批次 12 提交 `c9eff0088` 的独立源码副本上验证。
+
+| 阶段 | 命令 | 结果 |
+| --- | --- | --- |
+| 实现前 | `cargo test -p vw-agent-apps usage_balances_siliconflow_ -- --nocapture` | 退出 101，执行 0 项。独立用例 `usage_balances_siliconflow_returns_expected_result` 和 `usage_balances_siliconflow_rejects_invalid_input` 等引用尚未实现的 `client_builder`、`endpoint`、`query_at`、`query_siliconflow`，触发 E0432。 |
+| 格式化 | `cargo fmt --all` | 退出 0，在源码副本执行，仅将本任务三个 Rust 文件同步到共享工作区。 |
+| 实现后 | `cargo test -p vw-agent-apps usage_balances_siliconflow_ -- --nocapture` | 退出 0，4 项通过，0 项失败。 |
+| 本包检查 | `cargo clippy -p vw-agent-apps --all-targets --all-features -- -D warnings` | 共享工作区退出 0。 |
+| 全仓检查 | `cargo clippy --all-targets --all-features -- -D warnings` | 源码副本退出 101，`vw-agent/src/session/store/postgres_tests.rs:81` 的 `load_session_meta` 缺少 `include_pending` 参数（E0061）。共享工作区重跑退出 101，`vw-desktop/src/app/message/chat/stream/permissions.rs:240` 缺少 `session_set_full_access` 方法，`vw-agent/src/gateway/api/handlers/session/ui_ops.rs:110` 等调用处缺少 `GatewaySessionUiSummary.full_access` 字段（E0599、E0609、E0560）。 |
+
+限定提交范围的 `git diff --cached --check` 退出 0。槽位锁已释放，编译缓存保留。真实账号验收见任务 55。

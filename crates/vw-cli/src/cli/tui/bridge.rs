@@ -53,7 +53,9 @@ impl GatewayV3Bridge {
             .unwrap_or_else(|| "default".to_string());
         let permissions = permission_display(state);
         let session_title = summary.title.trim();
-        let session_title = (!session_title.is_empty()).then(|| session_title.to_string());
+        let session_title = (!session_title.is_empty())
+            .then(|| session_title.to_string())
+            .or_else(|| state.session.first_response_preview.clone());
         let token_usage = summary.token_usage;
 
         V3SessionDisplayData {

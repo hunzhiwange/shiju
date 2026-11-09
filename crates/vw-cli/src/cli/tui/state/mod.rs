@@ -377,6 +377,7 @@ impl TuiSessionPreview {
 pub(crate) struct TuiSessionState {
     pub(crate) session_id: Option<String>,
     pub(crate) title: String,
+    pub(crate) first_response_preview: Option<String>,
     pub(crate) created_ms: u64,
     pub(crate) updated_ms: u64,
     pub(crate) scope: Option<String>,

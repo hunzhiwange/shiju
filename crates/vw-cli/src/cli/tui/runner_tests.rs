@@ -15,7 +15,7 @@ use vw_tui::V3Action;
 
 use super::app::{
     ActiveRunner, STREAM_EVENT_BUDGET, TERMINAL_EVENT_BUDGET, V3GatewayApp,
-    apply_ready_terminal_events,
+    apply_ready_terminal_events, initial_tui_state,
 };
 use super::commands::{
     SCHEDULE_SELECTION_SURFACE, TASK_SELECTION_SURFACE, WORKSPACE_FILES_SURFACE,
@@ -658,21 +658,15 @@ fn two_turn_gateway_fixture() -> (GatewayEndpoint, mpsc::Receiver<String>, threa
     let port = listener.local_addr().expect("gateway fixture address").port();
     let (sender, receiver) = mpsc::channel();
     let handle = thread::spawn(move || {
-        let mut stream_count = 0;
-        let mut save_count = 0;
-        while stream_count < 2 || save_count < 2 {
+        for stream_count in 1..=2 {
             let (mut stream, _) = listener.accept().expect("accept gateway request");
             let request = read_request(&mut stream);
             sender.send(request.path.clone()).expect("record gateway request");
             if request.path == "/v1/chat/stream?directory=%2Fworkspace" {
-                stream_count += 1;
                 let body = format!(
                     "id: {stream_count}\ndata: {{\"type\":\"chat.done\",\"finish_reason\":\"stop\"}}\n\n"
                 );
                 write_response(&mut stream, "text/event-stream", body.as_str());
-            } else if request.path.starts_with("/v1/session/runner-session/ui") {
-                save_count += 1;
-                write_response(&mut stream, "application/json", "true");
             } else {
                 panic!("unexpected gateway request: {}", request.path);
             }
@@ -714,11 +708,6 @@ fn interrupt_gateway_fixture()
             .send(InterruptRequests { stream_request_id, stop_path: stop.path })
             .expect("record stop request");
         drop(stream);
-
-        let (mut save_stream, _) = listener.accept().expect("accept snapshot request");
-        let save = read_request(&mut save_stream);
-        assert!(save.path.starts_with("/v1/session/runner-session/ui"));
-        write_response(&mut save_stream, "application/json", "true");
     });
     (GatewayEndpoint::new("127.0.0.1", port), receiver, handle)
 }
@@ -1106,46 +1095,112 @@ fn write_status_response(stream: &mut TcpStream, status: &str, content_type: &st
 }
 
 #[test]
-fn first_turn_generates_and_persists_session_title() {
-    let listener = TcpListener::bind("127.0.0.1:0").expect("title fixture");
-    let port = listener.local_addr().unwrap().port();
-    let (sender, receiver) = mpsc::channel();
+fn tui_first_response_failure_keeps_the_draft_and_replay_publishes_one_session() {
+    let listener = TcpListener::bind("127.0.0.1:0").expect("first response fixture");
+    let endpoint = GatewayEndpoint::new("127.0.0.1", listener.local_addr().unwrap().port());
+    let runtime = GatewayUiRuntime::new(
+        GatewayClient::new(endpoint).unwrap(),
+        GatewaySessionSeed::new(PathBuf::from("/workspace")),
+    );
+    let state = initial_tui_state(&runtime);
+    let mut app = V3GatewayApp::new(runtime, state);
+    let mut runner = ActiveRunner::new_with_editor(Arc::new(|_| Ok(None)));
     let server = thread::spawn(move || {
-        for _ in 0..5 {
-            let (mut stream, _) = listener.accept().unwrap();
+        let mut first_request_id = None;
+        let mut retry_request_id = None;
+        let mut session_id = None;
+        let mut published = false;
+        let mut preview_reads = 0;
+        let mut history_reads = 0;
+        while history_reads < 2 || preview_reads < 2 {
+            let (mut stream, _) = listener.accept().expect("fixture request");
             let request = read_request(&mut stream);
-            if request.path.starts_with("/v1/chat/stream") {
-                write_response(
-                    &mut stream,
-                    "text/event-stream",
-                    "data: {\"type\":\"chat.done\",\"finish_reason\":\"stop\"}\n\n",
-                );
-            } else if request.path.ends_with("/title") {
-                write_response(&mut stream, "application/json", r#"{"title":"修复终端标题"}"#);
-            } else if request.path.starts_with("/v1/session/runner-session/ui") {
-                write_response(&mut stream, "application/json", "true");
-            } else if request.path.starts_with("/v1/session/runner-session?") {
-                write_response(&mut stream, "application/json", r#"{"id":"runner-session"}"#);
-            } else {
-                panic!("unexpected title request: {}", request.path);
+            match request.path.as_str() {
+                "/v1/chat/stream?directory=%2Fworkspace" => {
+                    let body: serde_json::Value = serde_json::from_str(&request.body).unwrap();
+                    let id = body["session_id"].as_str().expect("draft id");
+                    let key = request.header("x-vw-stream-request-id").unwrap();
+                    let messages = body["messages"].as_array().unwrap();
+                    assert_eq!(messages.len(), 1, "failed turns stay in the local transcript");
+                    assert_eq!(messages[0]["content"], "修复终端标题");
+                    let sse = if let Some(session_id) = session_id.as_deref() {
+                        assert_eq!(session_id, id, "all attempts use the original draft id");
+                        assert_ne!(first_request_id.as_deref(), Some(key));
+                        if let Some(retry) = retry_request_id.as_deref() {
+                            assert_eq!(retry, key, "replay must use the original retry request");
+                            assert_eq!(request.header("last-event-id"), Some("1"));
+                            published = true;
+                            "id: 2\ndata: {\"type\":\"chat.done\",\"finish_reason\":\"stop\"}\n\n"
+                        } else {
+                            retry_request_id = Some(key.to_string());
+                            "id: 1\ndata: {\"type\":\"chat.delta\",\"delta\":\"recovered answer\"}\n\n"
+                        }
+                    } else {
+                        session_id = Some(id.to_string());
+                        first_request_id = Some(key.to_string());
+                        "id: 1\ndata: {\"type\":\"chat.error\",\"error\":\"first response failed\"}\n\n"
+                    };
+                    write_response(&mut stream, "text/event-stream", sse);
+                }
+                "/v1/session/ui-previews?directory=%2Fworkspace" => {
+                    let history = if published {
+                        serde_json::json!([{
+                            "id": session_id, "title": "修复终端标题", "last_content": "修复终端标题",
+                            "updated_ms": 1, "message_count": 2, "call_count": 0
+                        }])
+                    } else {
+                        serde_json::json!([])
+                    };
+                    write_response(&mut stream, "application/json", &history.to_string());
+                }
+                "/v1/session/archived?directory=%2Fworkspace" => {
+                    history_reads += 1;
+                    write_response(&mut stream, "application/json", "[]");
+                }
+                path if path
+                    == format!(
+                        "/v1/session/{}/preview?directory=%2Fworkspace",
+                        session_id.as_deref().unwrap()
+                    ) =>
+                {
+                    assert!(published, "no title or preview requests during a failed turn");
+                    preview_reads += 1;
+                    let title = if preview_reads == 1 { "" } else { "修复终端标题" };
+                    let preview = serde_json::json!({
+                        "id": session_id, "title": title, "last_content": "修复终端标题",
+                        "updated_ms": 1, "message_count": 2, "call_count": 0
+                    });
+                    write_response(&mut stream, "application/json", &preview.to_string());
+                }
+                path => panic!("unexpected request: {path}"),
             }
-            sender.send(request).unwrap();
         }
     });
-    let mut app = test_app(GatewayEndpoint::new("127.0.0.1", port));
-    app.state_mut().session.title = "TUI workspace".to_string();
-    let mut runner = ActiveRunner::new_with_editor(Arc::new(|_| Ok(None)));
+
+    runner.request_session_bootstrap(&mut app);
     runner.execute_action(
         &mut app,
-        V3Action::Submit { text: "修复标题".to_string(), attachments: Vec::new() },
+        V3Action::Submit { text: "修复终端标题".into(), attachments: Vec::new() },
     );
-    drain_until(&mut runner, &mut app, |_, app| app.state().session.title == "修复终端标题");
+    drain_until(&mut runner, &mut app, |runner, _| !runner.has_active_stream());
+    let id = app.runtime().session_id().expect("bound draft id").to_owned();
+    assert_eq!(app.widget().draft(), "修复终端标题");
+    assert_eq!(app.state().session.title, "");
+    assert!(transcript_text(&app).contains("first response failed"));
+    assert!(app.runtime().session_resume_candidates_blocking().unwrap().is_empty());
+
+    let retry = app.widget().draft().to_owned();
+    app.widget_mut().replace_draft("");
+    runner.execute_action(&mut app, V3Action::Submit { text: retry, attachments: Vec::new() });
+    drain_until(&mut runner, &mut app, |runner, _| !runner.has_active_stream());
+    assert_eq!(app.runtime().session_id(), Some(id.as_str()));
+    assert!(app.state().session.title.is_empty(), "preview is display-only");
+    assert_eq!(app.state().session.first_response_preview.as_deref(), Some("修复终端标题"));
+    assert_eq!(transcript_text(&app).matches("recovered answer").count(), 1);
+    drain_until(&mut runner, &mut app, |_, app| app.runtime().title() == Some("修复终端标题"));
+    let candidates = app.runtime().session_resume_candidates_blocking().unwrap();
+    assert_eq!(candidates.len(), 1);
+    assert_eq!(candidates[0].id, id);
+    assert_eq!(candidates[0].title, "修复终端标题");
     server.join().unwrap();
-    let requests = receiver.try_iter().collect::<Vec<_>>();
-    let generate = requests.iter().find(|request| request.path.ends_with("/title")).unwrap();
-    let body: serde_json::Value = serde_json::from_str(&generate.body).unwrap();
-    assert_eq!(body["content"], "修复标题");
-    let snapshot: serde_json::Value = serde_json::from_str(&requests.last().unwrap().body).unwrap();
-    assert_eq!(snapshot["title"], "修复终端标题");
-    assert_eq!(app.runtime().title(), Some("修复终端标题"));
 }

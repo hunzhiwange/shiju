@@ -1,10 +1,8 @@
-//! CLI 会话标题与工作区摘要的测试。
-//! 标题场景覆盖空白归一化、Unicode 安全截断与长度临界值。
-//! Git 场景则约束 porcelain 路径解析、重命名目标选择和非仓库目录的降级结果。
+//! CLI 工作区摘要与 Git porcelain 解析测试。
 
 use super::session::{
     GitWorkspaceStatus, build_project_info, collect_git_workspace_status, collect_modified_files,
-    initial_cli_session_title_for_input, parse_git_status_porcelain_path,
+    parse_git_status_porcelain_path,
 };
 
 struct TestDir {
@@ -28,56 +26,6 @@ impl Drop for TestDir {
     fn drop(&mut self) {
         let _ = std::fs::remove_dir_all(&self.path);
     }
-}
-
-#[test]
-fn initial_title_defaults_for_empty_or_whitespace_input() {
-    assert_eq!(initial_cli_session_title_for_input(""), "CLI session");
-    assert_eq!(initial_cli_session_title_for_input(" \t\n\r"), "CLI session");
-}
-
-#[test]
-fn initial_title_collapses_mixed_whitespace() {
-    assert_eq!(
-        initial_cli_session_title_for_input("  inspect\tthis\n\nproject  "),
-        "inspect this project"
-    );
-}
-
-#[test]
-fn initial_title_preserves_unicode_content_within_limit() {
-    assert_eq!(
-        initial_cli_session_title_for_input("  分析\u{3000}这个 Rust 项目  "),
-        "分析 这个 Rust 项目"
-    );
-}
-
-#[test]
-fn initial_title_keeps_exactly_fifty_characters_without_ellipsis() {
-    let input = "界".repeat(50);
-
-    assert_eq!(initial_cli_session_title_for_input(&input), input);
-}
-
-#[test]
-fn initial_title_truncates_by_character_and_appends_ellipsis() {
-    let input = format!("{}尾", "界".repeat(50));
-
-    assert_eq!(initial_cli_session_title_for_input(&input), format!("{}...", "界".repeat(50)));
-}
-
-#[test]
-fn initial_title_removes_trailing_separator_at_truncation_boundary() {
-    let input = format!("{} remaining", "a".repeat(49));
-
-    assert_eq!(initial_cli_session_title_for_input(&input), format!("{}...", "a".repeat(49)));
-}
-
-#[test]
-fn initial_title_applies_limit_after_whitespace_normalization() {
-    let input = format!("  {}\n\t尾  ", "a".repeat(49));
-
-    assert_eq!(initial_cli_session_title_for_input(&input), format!("{}...", "a".repeat(49)));
 }
 
 #[test]

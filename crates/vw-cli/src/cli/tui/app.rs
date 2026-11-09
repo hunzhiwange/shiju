@@ -28,7 +28,7 @@ use vw_gateway_client::{
     GatewayChatStreamEvent, GatewayChatStreamRequest, GatewayStreamAttemptResult,
     GatewayWorkflowStreamEvent, PendingPermissionReplyDto,
 };
-use vw_shared::session::ui_types::{ChatMessage, ChatRole, ChatSession};
+use vw_shared::session::ui_types::{ChatMessage, ChatRole, ChatSession, ChatSessionMeta};
 use vw_tui::{
     ChatWidget, ChatWidgetConfig, CustomTerminal, TerminalMode, TranscriptPager,
     TranscriptReflowState, V3Action, V3Attachment, V3AttachmentKind, V3DisplayEvent, V3Event,
@@ -100,6 +100,7 @@ pub(crate) const TERMINAL_EVENT_BUDGET: usize = 64;
 
 enum StreamMessage {
     ChatEvent(GatewayChatStreamEvent),
+    ChatPublished { preview: ChatSessionMeta, recovered: Option<Box<ChatSession>> },
     WorkflowEvent(GatewayWorkflowStreamEvent),
     RuntimeEvent(UiRuntimeEvent),
     Finished(Result<GatewayStreamAttemptResult, String>),
@@ -130,11 +131,11 @@ struct ActiveHookMutation {
 pub(crate) type EditorAction = dyn Fn(&str) -> Result<Option<String>, String> + Send + Sync;
 
 enum HostMessage {
-    SessionTitleGenerated {
+    SessionTitleLoaded {
         directory: PathBuf,
         session_id: String,
-        previous_title: String,
-        result: Result<String, String>,
+        request_id: String,
+        title: String,
     },
     SessionBootstrapFinished(Result<Box<TuiState>, String>),
     DirectorySwitchFinished {
@@ -249,6 +250,8 @@ pub(crate) enum RunnerControl {
 /// 在渲染 crate 之外统一管理活跃流、transcript 和本地副作生命周期。
 pub(crate) struct ActiveRunner {
     active_stream: Option<ActiveStream>,
+    chat_submission: Option<(String, Vec<V3Attachment>)>,
+    title_request_id: Option<String>,
     workflow_run: Option<WorkflowRunOwnership>,
     transcript_pager: Option<TranscriptPager>,
     session_bootstrap_in_flight: bool,
@@ -288,6 +291,8 @@ impl ActiveRunner {
         let (host_sender, host_receiver) = mpsc::channel();
         Self {
             active_stream: None,
+            chat_submission: None,
+            title_request_id: None,
             workflow_run: None,
             transcript_pager: None,
             session_bootstrap_in_flight: false,
@@ -328,7 +333,7 @@ impl ActiveRunner {
             }
             _ => None,
         };
-        if app.state().session.session_id.is_none()
+        if self.session_bootstrap_in_flight
             && matches!(action, V3Action::Submit { .. } | V3Action::Queue { .. })
         {
             if let Some((text, attachments)) = recovery {
@@ -367,13 +372,14 @@ impl ActiveRunner {
                 return RunnerControl::Continue;
             }
         };
-        self.execute_command(app, command)
+        self.execute_command(app, command, recovery)
     }
 
     fn execute_command(
         &mut self,
         app: &mut V3GatewayApp,
         command: TuiControllerCommand,
+        recovery: Option<(String, Vec<V3Attachment>)>,
     ) -> RunnerControl {
         match command {
             TuiControllerCommand::Continue => RunnerControl::Continue,
@@ -387,8 +393,10 @@ impl ActiveRunner {
                     match stream.kind {
                         ActiveStreamKind::Chat => {
                             stream.cancel.store(true, Ordering::Release);
-                            app.accept_gateway_event(GatewayChatStreamEvent::Error(
-                                "cancelled by user".to_string(),
+                            app.accept_runtime_event(UiRuntimeEvent::Terminal(
+                                UiRuntimeTerminalEvent::from_error_message(
+                                    "cancelled by user".to_string(),
+                                ),
                             ));
                             spawn_stop(
                                 app.runtime().clone(),
@@ -711,7 +719,7 @@ impl ActiveRunner {
                 self.execute_overlay_command(app, command);
                 RunnerControl::Continue
             }
-            command @ TuiControllerCommand::SubmitPrompt(_) => {
+            TuiControllerCommand::SubmitPrompt(ref submission) => {
                 if self.active_stream.is_some() {
                     push_runner_error(
                         app,
@@ -719,15 +727,24 @@ impl ActiveRunner {
                     );
                     return RunnerControl::Continue;
                 }
-                let Some(request) = app.request_for_command(&command) else {
+                let Some(mut request) = app.request_for_command(&command) else {
                     push_runner_error(app, "TUI submission did not produce a request");
                     return RunnerControl::Continue;
                 };
-                if let TuiControllerCommand::SubmitPrompt(submission) = &command {
-                    app.record_submission_attachments(submission);
+                app.record_submission_attachments(submission);
+                if app.pending_first_response
+                    && let Some(current_prompt) = request.messages.pop()
+                {
+                    request.messages = vec![current_prompt];
                 }
                 let request_id = next_stream_request_id();
-                self.active_stream = Some(spawn_stream(app.runtime().clone(), request, request_id));
+                self.chat_submission = recovery;
+                self.active_stream = Some(spawn_stream(
+                    app.runtime().clone(),
+                    request,
+                    request_id,
+                    app.pending_first_response.then(|| submission.text.clone()),
+                ));
                 RunnerControl::Continue
             }
         }
@@ -770,9 +787,10 @@ impl ActiveRunner {
             push_runner_error(app, "a gateway stream is already active");
             return RunnerControl::Continue;
         }
+        let session_id = app.state().session.session_id.clone().unwrap_or_else(new_draft_id);
         let request = match workflow_run_request(
             &app.state().orchestration,
-            app.state().session.session_id.as_deref(),
+            Some(&session_id),
             uuid.as_str(),
             query.as_str(),
         ) {
@@ -783,13 +801,10 @@ impl ActiveRunner {
             }
         };
         let request_id = next_workflow_run_request_id();
+        if app.state().session.session_id.is_none() {
+            app.bind_draft(session_id.clone());
+        }
         app.begin_workflow_run(request_id.as_str(), query.as_str());
-        let session_id = app
-            .state()
-            .session
-            .session_id
-            .clone()
-            .expect("workflow request validated a stable session id");
         self.workflow_run = Some(WorkflowRunOwnership::new_for_session(
             request_id.clone(),
             request.uuid.clone(),
@@ -808,6 +823,8 @@ impl ActiveRunner {
         let had_workflow_question = app.state().tasks.workflow_pause_request_id.is_some();
         let result = if self.hook_mutation.is_some() {
             Err("cannot switch directories while a Hook mutation is active".to_string())
+        } else if self.session_bootstrap_in_flight {
+            Err("session history is still loading; retry in a moment".to_string())
         } else if self.directory_switch_source.is_some() {
             Err("cannot switch sessions while a directory switch is active".to_string())
         } else if self.active_stream.is_some() {
@@ -838,6 +855,8 @@ impl ActiveRunner {
         }
         let result = if self.directory_switch_source.is_some() {
             Err("a directory switch is already in progress".to_string())
+        } else if self.session_bootstrap_in_flight {
+            Err("session history is still loading; retry in a moment".to_string())
         } else if self.active_stream.is_some() {
             Err("cannot switch directories while a gateway stream is active".to_string())
         } else if app.widget().queued_input_count() > 0 {
@@ -1325,14 +1344,14 @@ impl ActiveRunner {
         host_work_remaining || stream_work_remaining
     }
 
-    /// 在终端首帧可绘制后，后台恢复最近会话并转换完整状态。
+    /// 在终端首帧可绘制后，后台加载显式指定的会话。
     pub(crate) fn request_session_bootstrap(&mut self, app: &mut V3GatewayApp) {
-        if self.session_bootstrap_in_flight {
+        if self.session_bootstrap_in_flight || app.runtime().session_id().is_none() {
             return;
         }
         self.session_bootstrap_in_flight = true;
         app.widget_mut().push_history(V3DisplayEvent::System {
-            text: "正在加载最近会话…".to_string(),
+            text: "正在加载指定会话…".to_string(),
         });
         spawn_session_bootstrap(app.runtime().clone(), self.host_sender.clone());
     }
@@ -1344,7 +1363,6 @@ impl ActiveRunner {
             return;
         }
         let Some(session_id) = app.state().session.session_id.clone() else {
-            app.record_interaction_error("cannot refresh interactions without a session id");
             return;
         };
         self.interaction_in_flight = true;
@@ -1354,39 +1372,18 @@ impl ActiveRunner {
     fn drain_host_messages(&mut self, app: &mut V3GatewayApp) -> bool {
         for _ in 0..HOST_MESSAGE_BUDGET {
             match self.host_receiver.try_recv() {
-                Ok(HostMessage::SessionTitleGenerated {
+                Ok(HostMessage::SessionTitleLoaded {
                     directory,
                     session_id,
-                    previous_title,
-                    result,
+                    request_id,
+                    title,
                 }) => {
-                    if app.runtime().directory() != directory
-                        || app.state.session.session_id.as_deref() != Some(session_id.as_str())
-                        || app.state.session.title != previous_title
+                    if self.title_request_id.as_deref() == Some(request_id.as_str())
+                        && app.runtime().directory() == directory
+                        && app.runtime().session_id() == Some(session_id.as_str())
+                        && app.state.session.title.trim().is_empty()
                     {
-                        continue;
-                    }
-                    match result {
-                        Ok(title) if !title.trim().is_empty() => {
-                            if let Err(error) = app.runtime.session_rename_blocking(&title) {
-                                push_runner_error(
-                                    app,
-                                    format!("session title save failed: {error}"),
-                                );
-                                continue;
-                            }
-                            reduce_tui_state(&mut app.state, TuiAction::SessionTitleSet(title));
-                            app.sync_runtime_session_seed();
-                            app.widget.set_session_header(GatewayV3Bridge::session_display_data(
-                                &app.runtime,
-                                &app.state,
-                            ));
-                            if let Err(error) = app.persist_session_snapshot() {
-                                push_runner_error(app, format!("session save failed: {error}"));
-                            }
-                        }
-                        Ok(_) => {}
-                        Err(error) => tracing::warn!(%error, "TUI session title generation failed"),
+                        app.set_server_title(title);
                     }
                 }
                 Ok(HostMessage::SessionBootstrapFinished(result)) => {
@@ -1871,7 +1868,28 @@ impl ActiveRunner {
             match stream.receiver.try_recv() {
                 Ok(StreamMessage::ChatEvent(event)) => {
                     processed += 1;
-                    app.accept_gateway_event(event);
+                    if !stream.cancel.load(Ordering::Acquire) {
+                        app.accept_gateway_event(event);
+                    }
+                }
+                Ok(StreamMessage::ChatPublished { preview, recovered }) => {
+                    processed += 1;
+                    if stream.cancel.load(Ordering::Acquire)
+                        || app.runtime().session_id() != Some(preview.id.as_str())
+                    {
+                        continue;
+                    }
+                    if let Some(snapshot) = recovered {
+                        app.restore_recovered_chat(&snapshot);
+                    }
+                    if app.apply_chat_publication(preview) {
+                        self.title_request_id = Some(stream.request_id.clone());
+                        spawn_session_title_read(
+                            app.runtime().clone(),
+                            stream.request_id.clone(),
+                            self.host_sender.clone(),
+                        );
+                    }
                 }
                 Ok(StreamMessage::WorkflowEvent(event)) => {
                     processed += 1;
@@ -1920,14 +1938,23 @@ impl ActiveRunner {
             && self.workflow_run.as_ref().is_some_and(|ownership| {
                 ownership.request_id() == stream.request_id && ownership.terminal_events() == 0
             });
-        match result {
+        let stream_error = match result {
             Ok(
                 GatewayStreamAttemptResult::Terminated | GatewayStreamAttemptResult::CallerStopped,
-            ) => {}
+            ) => None,
             Ok(GatewayStreamAttemptResult::Incomplete) => {
-                push_runner_error(app, "gateway stream ended before a terminal event");
+                Some("gateway stream ended before a terminal event".to_string())
             }
-            Err(error) => push_runner_error(app, format!("gateway stream failed: {error}")),
+            Err(error) => Some(format!("gateway stream failed: {error}")),
+        };
+        if let Some(error) = stream_error {
+            if kind == ActiveStreamKind::Chat {
+                app.accept_runtime_event(UiRuntimeEvent::Terminal(
+                    UiRuntimeTerminalEvent::from_error_message(error),
+                ));
+            } else {
+                push_runner_error(app, error);
+            }
         }
         if needs_plan_terminal {
             app.accept_runtime_event(UiRuntimeEvent::Terminal(UiRuntimeTerminalEvent::Error(
@@ -1942,28 +1969,19 @@ impl ActiveRunner {
         {
             app.accept_runtime_event(terminal);
         }
-        if let Err(error) = app.persist_session_snapshot() {
+        if kind == ActiveStreamKind::Chat {
+            if let Some((text, attachments)) = self.chat_submission.take()
+                && app.pending_first_response
+                && !matches!(app.state.status.turn_terminal, UiTurnTerminal::Done { .. })
+                && app.widget().draft().is_empty()
+                && app.widget().attachments().is_empty()
+            {
+                app.widget_mut().restore_submission(&text, attachments);
+            }
+        } else if let Err(error) = app.persist_session_snapshot() {
             push_runner_error(app, format!("session save failed: {error}"));
         }
         self.active_stream = None;
-        if let Some(body) = session_title_request(&app.state, app.runtime.directory()) {
-            let runtime = app.runtime.clone();
-            let session_id = app.state.session.session_id.clone().expect("title request session");
-            let previous_title = app.state.session.title.clone();
-            let sender = self.host_sender.clone();
-            std::thread::spawn(move || {
-                let result = super::runtime::gateway::block_on_gateway(
-                    runtime.client().session_title_generate(&session_id, &body),
-                )
-                .map(|response| response.title);
-                let _ = sender.send(HostMessage::SessionTitleGenerated {
-                    directory: runtime.directory().to_path_buf(),
-                    session_id,
-                    previous_title,
-                    result,
-                });
-            });
-        }
         self.start_next_queued_prompt(app);
         false
     }
@@ -2112,6 +2130,7 @@ pub(crate) struct V3GatewayApp {
     terminal_mode: TerminalMode,
     transcript_reflow: TranscriptReflowState,
     interaction_refresh_requested: bool,
+    pending_first_response: bool,
 }
 
 impl V3GatewayApp {
@@ -2133,6 +2152,7 @@ impl V3GatewayApp {
         for warning in &state.settings_warnings {
             widget.push_history(V3DisplayEvent::System { text: warning.clone() });
         }
+        let pending_first_response = state.session.session_id.is_none();
         Self {
             runtime,
             state,
@@ -2142,6 +2162,7 @@ impl V3GatewayApp {
             terminal_mode,
             transcript_reflow: TranscriptReflowState::default(),
             interaction_refresh_requested: false,
+            pending_first_response,
         }
     }
 
@@ -2331,6 +2352,9 @@ impl V3GatewayApp {
 
     /// 将当前视图状态转换为会话快照并同步保存。
     pub(crate) fn persist_session_snapshot(&mut self) -> Result<(), String> {
+        if self.pending_first_response || self.state.session.session_id.is_none() {
+            return Ok(());
+        }
         self.sync_runtime_session_seed();
         let observed_now_ms = SystemTime::now()
             .duration_since(UNIX_EPOCH)
@@ -2375,13 +2399,9 @@ impl V3GatewayApp {
         Ok(())
     }
 
-    /// 在 Gateway 创建成功后切换到新的空会话。
+    /// 切换到空白草稿，保留当前目录和会话设置。
     pub(crate) fn create_new_session(&mut self) -> Result<(), String> {
-        let title = default_session_title(self.runtime.directory());
-        let created = self.runtime.session_create_blocking(Some(title.as_str()))?;
-        let mut snapshot = empty_session_snapshot(created.id.as_str());
-        snapshot.title = created.title;
-        self.commit_session_switch(snapshot);
+        self.commit_initial_session_state(initial_tui_state(&self.runtime));
         Ok(())
     }
 
@@ -2902,9 +2922,18 @@ impl V3GatewayApp {
             V3Action::Submit { attachments, .. } => attachments.clone(),
             _ => Vec::new(),
         };
-        let command =
+        let mut command =
             self.bridge.controller_command(&mut self.state, &mut self.controller, action)?;
-        if let TuiControllerCommand::SubmitPrompt(submission) = &command {
+        if let TuiControllerCommand::SubmitPrompt(submission) = &mut command {
+            if self.state.session.session_id.is_none() {
+                let id = new_draft_id();
+                self.bind_draft(id.clone());
+                submission.session_id = Some(id.clone());
+                self.state.prompt.active_submission = Some(submission.clone());
+                if let Some(UiMessage::User(user)) = self.state.messages.last_mut() {
+                    user.base.session_id = Some(id);
+                }
+            }
             self.widget.push_history(vw_tui::V3DisplayEvent::User {
                 text: submission.text.clone(),
                 attachments: visible_attachments,
@@ -3383,6 +3412,47 @@ impl V3GatewayApp {
         }
     }
 
+    fn bind_draft(&mut self, session_id: String) {
+        self.state.session.session_id = Some(session_id);
+        self.sync_runtime_session_seed();
+        self.widget
+            .set_session_header(GatewayV3Bridge::session_display_data(&self.runtime, &self.state));
+    }
+
+    fn restore_recovered_chat(&mut self, snapshot: &ChatSession) {
+        let draft = self.widget.draft().to_string();
+        let attachments = self.widget.attachments().to_vec();
+        let mut queued = Vec::new();
+        while let Some(prompt) = self.widget.pop_queued_input() {
+            queued.push(prompt);
+        }
+        let mut state = TuiState::from_chat_session(snapshot);
+        state.session.scope.clone_from(&self.state.session.scope);
+        self.commit_initial_session_state(state);
+        self.widget.restore_submission(&draft, attachments);
+        for (text, attachments) in queued {
+            self.widget.queue_input(text, attachments);
+        }
+    }
+
+    fn apply_chat_publication(&mut self, preview: ChatSessionMeta) -> bool {
+        self.pending_first_response = false;
+        self.state.session.first_response_preview = preview.last_content;
+        let updated_ms = self.state.session.updated_ms.max(preview.updated_ms);
+        reduce_tui_state(&mut self.state, TuiAction::SessionUpdatedMsSet(updated_ms));
+        if self.state.session.title.trim().is_empty() {
+            self.set_server_title(preview.title);
+        }
+        self.state.session.title.trim().is_empty()
+    }
+
+    fn set_server_title(&mut self, title: String) {
+        reduce_tui_state(&mut self.state, TuiAction::SessionTitleSet(title));
+        self.sync_runtime_session_seed();
+        self.widget
+            .set_session_header(GatewayV3Bridge::session_display_data(&self.runtime, &self.state));
+    }
+
     fn sync_runtime_session_seed(&mut self) {
         let title =
             (!self.state.session.title.trim().is_empty()).then(|| self.state.session.title.clone());
@@ -3417,6 +3487,7 @@ impl V3GatewayApp {
         let next_widget = build_session_widget(&next_runtime, &next_state, Some(draft.as_str()));
 
         self.runtime = next_runtime;
+        self.pending_first_response = false;
         self.state = next_state;
         self.widget = next_widget;
         self.bridge = GatewayV3Bridge::default();
@@ -3448,6 +3519,7 @@ impl V3GatewayApp {
         );
         let draft = self.widget.draft().to_string();
         self.widget = build_session_widget(&self.runtime, &next_state, Some(draft.as_str()));
+        self.pending_first_response = next_state.session.session_id.is_none();
         self.state = next_state;
         self.bridge = GatewayV3Bridge::default();
         self.transcript_reflow = TranscriptReflowState::default();
@@ -3467,6 +3539,7 @@ impl V3GatewayApp {
         let draft = self.widget.draft().to_string();
         let widget = build_session_widget(&runtime, &state, Some(draft.as_str()));
         self.runtime = runtime;
+        self.pending_first_response = state.session.session_id.is_none();
         self.state = state;
         self.widget = widget;
         self.bridge = GatewayV3Bridge::default();
@@ -3584,23 +3657,15 @@ pub(crate) fn initial_tui_state(runtime: &GatewayUiRuntime) -> TuiState {
     state
 }
 
-/// 恢复显式指定的会话；普通启动始终创建新会话。
+/// 恢复显式指定的会话；普通启动保留空白草稿。
 pub(crate) fn restore_or_create_session_state(
     runtime: &mut GatewayUiRuntime,
 ) -> Result<TuiState, String> {
-    let explicit_session_id =
-        normalize_optional_str_ref(runtime.session_id()).map(ToOwned::to_owned);
-    let scope = runtime.scope().map(ToOwned::to_owned);
-    let snapshot = match explicit_session_id {
-        Some(session_id) => runtime.session_ui_load_blocking(session_id.as_str())?,
-        None => {
-            let title = default_session_title(runtime.directory());
-            let created = runtime.session_create_blocking(Some(title.as_str()))?;
-            let mut snapshot = empty_session_snapshot(created.id.as_str());
-            snapshot.title = created.title;
-            snapshot
-        }
+    let Some(session_id) = runtime.session_id() else {
+        return Ok(initial_tui_state(runtime));
     };
+    let scope = runtime.scope().map(ToOwned::to_owned);
+    let snapshot = runtime.session_ui_load_blocking(session_id)?;
 
     let mut state = TuiState::from_chat_session(&snapshot);
     state.session.scope = scope;
@@ -3623,7 +3688,7 @@ pub(crate) fn bootstrap_directory_switch(
     let project = runtime.resolve_project_directory_blocking(requested_path.as_path(), false)?;
     runtime.rebind_validated_directory(Path::new(project.directory.as_str()))?;
 
-    let mut state = restore_or_create_session_state(&mut runtime)?;
+    let mut state = initial_tui_state(&runtime);
     let capabilities = load_session_capabilities_blocking(&runtime);
     if !capabilities.warnings.is_empty() {
         return Err(format!(
@@ -3658,54 +3723,11 @@ pub(crate) fn bootstrap_directory_switch(
     Ok(DirectorySwitchBootstrap::new(runtime, state))
 }
 
-fn empty_session_snapshot(session_id: &str) -> ChatSession {
-    ChatSession {
-        id: session_id.to_string(),
-        title: String::new(),
-        messages: Vec::new(),
-        message_ids: Vec::new(),
-        calls: Vec::new(),
-        steps: Vec::new(),
-        created_ms: 0,
-        updated_ms: 0,
-    }
-}
+fn new_draft_id() -> String {
+    use vw_shared::id::{Prefix, descending};
 
-pub(crate) fn session_title_request(
-    state: &TuiState,
-    directory: &Path,
-) -> Option<vw_gateway_client::GatewaySessionTitleGenerateBody> {
-    state.session.session_id.as_deref().filter(|id| !id.trim().is_empty())?;
-    let title = state.session.title.trim();
-    if !title.is_empty()
-        && title != "新会话"
-        && title != default_session_title(directory)
-        && !vw_shared::session::session_utils::is_default_title(title)
-    {
-        return None;
-    }
-    let mut users = state.messages.iter().filter_map(|message| match message {
-        UiMessage::User(user) => Some(user.text.as_str()),
-        _ => None,
-    });
-    let content = users.next()?;
-    if content.trim().is_empty() || users.next().is_some() {
-        return None;
-    }
-    Some(vw_gateway_client::GatewaySessionTitleGenerateBody {
-        content: content.to_string(),
-        preferred_model: state.session_options.model.clone(),
-        acp_agent: state.session_options.acp_backend.clone(),
-    })
-}
-
-fn default_session_title(directory: &Path) -> String {
-    directory
-        .file_name()
-        .and_then(|name| name.to_str())
-        .filter(|name| !name.trim().is_empty())
-        .map(|name| format!("TUI {}", name.trim()))
-        .unwrap_or_else(|| "TUI 会话".to_string())
+    descending(Prefix::Session, None)
+        .unwrap_or_else(|_| format!("ses_{}", next_stream_request_id()))
 }
 
 /// 根据当前状态和提交快照构造 Gateway 请求，并在此收紧工具与权限选项。
@@ -4067,25 +4089,90 @@ fn spawn_stream(
     runtime: GatewayUiRuntime,
     request: GatewayChatStreamRequest,
     request_id: String,
+    draft_prompt: Option<String>,
 ) -> ActiveStream {
     let (sender, receiver) = mpsc::channel();
     let cancel = Arc::new(AtomicBool::new(false));
     let stream_cancel = Arc::clone(&cancel);
     let worker_request_id = request_id.clone();
     std::thread::spawn(move || {
-        let result =
-            runtime.stream_chat_resumable_blocking(&request, worker_request_id.as_str(), |event| {
-                !stream_cancel.load(Ordering::Acquire)
-                    && sender.send(StreamMessage::ChatEvent(event)).is_ok()
-            });
-        let result = if stream_cancel.load(Ordering::Acquire) {
+        let mut done = false;
+        let result = runtime.stream_chat_resumable_blocking(
+            &request,
+            &worker_request_id,
+            &stream_cancel,
+            |event| {
+                if matches!(&event, GatewayChatStreamEvent::Done { .. }) {
+                    done = matches!(
+                        super::runtime::stream_adapter::adapt_gateway_stream_event(event.clone()),
+                        UiRuntimeEvent::Terminal(UiRuntimeTerminalEvent::Done { .. })
+                    );
+                }
+                sender.send(StreamMessage::ChatEvent(event)).is_ok()
+            },
+        );
+        let mut result = if stream_cancel.load(Ordering::Acquire) {
             Ok(GatewayStreamAttemptResult::CallerStopped)
         } else {
             result
         };
+        if let Some(prompt) = draft_prompt {
+            let needs_reconciliation =
+                matches!(result, Ok(GatewayStreamAttemptResult::Incomplete) | Err(_));
+            if !stream_cancel.load(Ordering::Acquire)
+                && (done || needs_reconciliation)
+                && let Ok(Some(preview)) = runtime.session_publication_blocking()
+            {
+                if done {
+                    let _ = sender.send(StreamMessage::ChatPublished { preview, recovered: None });
+                } else if let Ok(snapshot) = runtime.session_ui_load_blocking(&preview.id)
+                    && is_recovered_draft_turn(&snapshot, &prompt)
+                    && !stream_cancel.load(Ordering::Acquire)
+                {
+                    let _ = sender.send(StreamMessage::ChatPublished {
+                        preview,
+                        recovered: Some(Box::new(snapshot)),
+                    });
+                    result = Ok(GatewayStreamAttemptResult::Terminated);
+                }
+            }
+        }
         let _ = sender.send(StreamMessage::Finished(result));
     });
     ActiveStream { kind: ActiveStreamKind::Chat, request_id, receiver, cancel }
+}
+
+fn is_recovered_draft_turn(snapshot: &ChatSession, prompt: &str) -> bool {
+    matches!(snapshot.messages.as_slice(), [.., user, assistant]
+        if user.role == ChatRole::User && user.content == prompt
+            && assistant.role == ChatRole::Assistant && !assistant.content.trim().is_empty())
+        && snapshot.messages.len() == snapshot.message_ids.len()
+        && matches!(snapshot.message_ids.as_slice(), [.., Some(_), Some(_)])
+}
+
+fn spawn_session_title_read(
+    runtime: GatewayUiRuntime,
+    request_id: String,
+    sender: mpsc::Sender<HostMessage>,
+) {
+    std::thread::spawn(move || {
+        for delay in [1, 2, 4, 8, 16, 16, 16] {
+            std::thread::sleep(Duration::from_secs(delay));
+            match runtime.session_publication_blocking() {
+                Ok(Some(preview)) if !preview.title.trim().is_empty() => {
+                    let _ = sender.send(HostMessage::SessionTitleLoaded {
+                        directory: runtime.directory().to_path_buf(),
+                        session_id: preview.id,
+                        request_id,
+                        title: preview.title,
+                    });
+                    break;
+                }
+                Ok(None) => break,
+                Ok(Some(_)) | Err(_) => {}
+            }
+        }
+    });
 }
 
 fn spawn_file_search(
@@ -4468,3 +4555,7 @@ fn draw(
         }
     })
 }
+
+#[cfg(test)]
+#[path = "session_title_tests.rs"]
+mod session_title_tests;

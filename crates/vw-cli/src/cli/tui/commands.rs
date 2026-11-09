@@ -318,9 +318,15 @@ pub(crate) fn session_resume_items(previews: &[ChatSessionMeta]) -> Vec<V3Select
         .iter()
         .map(|preview| {
             let title = preview.title.trim();
-            let label = if title.is_empty() { preview.id.clone() } else { title.to_string() };
             let last_content = preview.last_content.as_deref().unwrap_or_default().trim();
-            let description = if last_content.is_empty() {
+            let label = if !title.is_empty() {
+                title.to_string()
+            } else if !last_content.is_empty() {
+                last_content.to_string()
+            } else {
+                preview.id.clone()
+            };
+            let description = if last_content.is_empty() || label == last_content {
                 format!("{} 条消息", preview.message_count)
             } else {
                 format!("{} 条消息 · {last_content}", preview.message_count)

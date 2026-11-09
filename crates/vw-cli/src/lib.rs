@@ -109,12 +109,12 @@ pub(crate) mod session {
 pub(crate) mod app {
     pub(crate) mod agent {
         pub(crate) use vw_agent::{
-            approval, channels, config, id, memory, observability, project, providers, runtime,
-            security, shell, skills, tools,
+            approval, channels, config, memory, observability, providers, runtime, security, shell,
+            skills, tools,
         };
 
         pub(crate) mod session {
-            pub(crate) use vw_agent::session::{processor, session, title};
+            pub(crate) use vw_agent::session::processor;
         }
 
         #[allow(clippy::module_inception)]

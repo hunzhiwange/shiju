@@ -1,49 +1,51 @@
-use std::path::Path;
-
-use super::app::session_title_request;
-use super::model::{UiMessage, UiMessageBase, UiMessageId, UiUserMessage};
-use super::state::TuiState;
-
-fn state(title: &str, prompts: &[&str]) -> TuiState {
-    let mut state = TuiState::default();
-    state.session.session_id = Some("session-one".to_string());
-    state.session.title = title.to_string();
-    state.session_options.model = Some("model-one".to_string());
-    state.session_options.acp_backend = Some("backend-one".to_string());
-    for (index, prompt) in prompts.iter().enumerate() {
-        state.append_message(UiMessage::User(UiUserMessage {
-            base: UiMessageBase::new(UiMessageId::local(format!("user-{index}"))),
-            text: prompt.to_string(),
-        }));
-    }
-    state
-}
+use super::*;
 
 #[test]
-fn first_message_generates_title_with_current_model_and_backend() {
-    let state = state("TUI vibe-window", &["修复终端标题"]);
-    let request = session_title_request(&state, Path::new("/workspace/vibe-window"))
-        .expect("default TUI title should be generated");
-    assert_eq!(request.content, "修复终端标题");
-    assert_eq!(request.preferred_model.as_deref(), Some("model-one"));
-    assert_eq!(request.acp_agent.as_deref(), Some("backend-one"));
-}
+fn tui_first_response_title_applies_only_to_the_matching_request_and_unnamed_session() {
+    let directory = PathBuf::from("/workspace");
+    let runtime = GatewayUiRuntime::new(
+        vw_gateway_client::GatewayClient::new(vw_gateway_client::GatewayEndpoint::new(
+            "127.0.0.1",
+            9,
+        ))
+        .unwrap(),
+        super::super::runtime::gateway::GatewaySessionSeed::new(directory.clone()),
+    );
+    let state = initial_tui_state(&runtime);
+    let mut app = V3GatewayApp::new(runtime, state);
+    app.bind_draft("first-session".into());
+    let mut runner = ActiveRunner::new();
+    runner.title_request_id = Some("first-request".into());
 
-#[test]
-fn custom_title_and_later_turns_skip_title_generation() {
-    let directory = Path::new("/workspace/vibe-window");
-    for state in [
-        state("手动标题", &["修复标题"]),
-        state("TUI vibe-window", &["第一条", "第二条"]),
-        state("TUI vibe-window", &[]),
-        state("TUI vibe-window", &["  "]),
+    for (other_directory, session_id, request_id) in [
+        (PathBuf::from("/old-directory"), "first-session", "first-request"),
+        (directory.clone(), "old-session", "first-request"),
+        (directory.clone(), "first-session", "old-request"),
     ] {
-        assert!(session_title_request(&state, directory).is_none());
+        runner
+            .host_sender
+            .send(HostMessage::SessionTitleLoaded {
+                directory: other_directory,
+                session_id: session_id.into(),
+                request_id: request_id.into(),
+                title: "迟到标题".into(),
+            })
+            .unwrap();
     }
-}
+    runner.drain_host_messages(&mut app);
+    assert_eq!(app.state.session.title, "");
 
-#[test]
-fn ordinary_default_title_also_generates_title() {
-    let state = state("New session - 2026-10-25T00:00:00.000Z", &["修复标题"]);
-    assert!(session_title_request(&state, Path::new("/workspace/vibe-window")).is_some());
+    app.set_server_title("手工标题".into());
+    runner
+        .host_sender
+        .send(HostMessage::SessionTitleLoaded {
+            directory,
+            session_id: "first-session".into(),
+            request_id: "first-request".into(),
+            title: "迟到标题".into(),
+        })
+        .unwrap();
+    runner.drain_host_messages(&mut app);
+    assert_eq!(app.state.session.title, "手工标题");
+    assert_eq!(app.runtime().title(), Some("手工标题"));
 }

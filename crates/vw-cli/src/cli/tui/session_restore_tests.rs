@@ -68,7 +68,7 @@ fn resume_candidates_exclude_archived_and_sort_latest_first() {
 }
 
 #[test]
-fn startup_state_is_empty_before_background_session_create() {
+fn startup_state_is_empty_before_explicit_session_restore() {
     let runtime = test_runtime(GatewayEndpoint::new("127.0.0.1", 9), "previous");
 
     let state = initial_tui_state(&runtime);
@@ -80,11 +80,8 @@ fn startup_state_is_empty_before_background_session_create() {
 }
 
 #[test]
-fn background_bootstrap_creates_new_session_without_loading_history() {
-    let (endpoint, requests, server) = gateway_fixture(vec![GatewayResponse::ok(json!({
-        "id": "created",
-        "title": "Fresh session"
-    }))]);
+fn tui_first_response_bootstrap_keeps_an_unbound_draft() {
+    let (endpoint, requests, server) = gateway_fixture(Vec::new());
     let client = GatewayClient::new(endpoint).expect("test gateway client");
     let mut runtime = GatewayUiRuntime::new(
         client,
@@ -92,13 +89,14 @@ fn background_bootstrap_creates_new_session_without_loading_history() {
             .with_scope(Some("workspace-write".to_string())),
     );
 
-    let state = restore_or_create_session_state(&mut runtime).expect("create session in worker");
+    let state = restore_or_create_session_state(&mut runtime).expect("initialize draft");
 
-    assert_eq!(state.session.session_id.as_deref(), Some("created"));
+    assert_eq!(state.session.session_id, None);
+    assert_eq!(state.session.title, "");
+    assert_eq!(runtime.session_id(), None);
     assert_eq!(state.messages, Vec::new());
-    assert_eq!(requests.recv().expect("create request"), "/v1/session?directory=%2Fworkspace");
-    server.join().expect("background create fixture");
-    assert!(requests.try_recv().is_err(), "startup must not request session history");
+    assert!(requests.try_recv().is_err(), "startup must not send a session request");
+    server.join().unwrap();
 }
 
 #[test]
@@ -258,29 +256,30 @@ fn resume_switch_commits_state_display_and_runtime_together() {
 }
 
 #[test]
-fn new_session_rebinds_runtime_after_create() {
-    let (endpoint, requests, server) = gateway_fixture(vec![GatewayResponse::ok(json!({
-        "id": "created",
-        "title": "Fresh session"
-    }))]);
+fn tui_first_response_new_command_keeps_an_unbound_draft() {
+    let (endpoint, requests, server) = gateway_fixture(Vec::new());
     let runtime = test_runtime(endpoint, "current");
     let mut state = TuiState::from_chat_session(&snapshot("current", "Current", "old answer"));
     state.session.scope = Some("workspace-write".to_string());
     state.project.workspace_root = Some(PathBuf::from("/workspace"));
     let mut app = V3GatewayApp::new(runtime, state);
 
-    app.create_new_session().expect("create and switch session");
+    let mut runner = ActiveRunner::new_with_editor(Arc::new(|_| Ok(None)));
+    runner.execute_action(
+        &mut app,
+        V3Action::Submit { text: "/new".to_string(), attachments: Vec::new() },
+    );
 
     let display = GatewayV3Bridge::session_display_data(app.runtime(), app.state());
-    assert_eq!(app.state().session.session_id.as_deref(), Some("created"));
-    assert_eq!(display.session_id.as_deref(), Some("created"));
-    assert_eq!(app.runtime().session_id(), Some("created"));
-    assert_eq!(app.state().session.title, "Fresh session");
+    assert_eq!(app.state().session.session_id, None);
+    assert_eq!(display.session_id, None);
+    assert_eq!(app.runtime().session_id(), None);
+    assert_eq!(app.state().session.title, "");
     assert_eq!(app.state().messages, Vec::new());
     assert_eq!(app.state().session.scope.as_deref(), Some("workspace-write"));
     assert_eq!(app.state().project.workspace_root.as_deref(), Some(Path::new("/workspace")));
-    assert_eq!(requests.recv().expect("create request"), "/v1/session?directory=%2Fworkspace");
-    server.join().expect("new session fixture");
+    assert!(requests.try_recv().is_err(), "/new must not send a session request");
+    server.join().unwrap();
 }
 
 #[test]
@@ -387,29 +386,8 @@ fn cd_bootstrap_failure_keeps_original_runtime_and_draft() {
     let target = workspace.path().join("target");
     std::fs::create_dir_all(&original).expect("original directory");
     std::fs::create_dir_all(&target).expect("target directory");
-    let project = json!({
-        "project": {
-            "id": "target-project",
-            "name": "target",
-            "directory": target.to_string_lossy(),
-            "display_path": target.to_string_lossy(),
-            "status": "ready",
-            "created_at_ms": 1,
-            "updated_at_ms": 2,
-            "default_branch": null,
-            "current_branch": null,
-            "git": {
-                "is_repo": false,
-                "has_uncommitted_changes": false,
-                "ahead": null,
-                "behind": null
-            },
-            "active_worktree_id": null,
-            "session_count": 0
-        }
-    });
     let (endpoint, requests, server) = gateway_fixture(vec![
-        GatewayResponse::ok(project),
+        GatewayResponse::ok(resolved_project(&target)),
         GatewayResponse {
             status: "500 Internal Server Error",
             body: json!({"message": "forced target bootstrap failure"}),
@@ -449,10 +427,102 @@ fn cd_bootstrap_failure_keeps_original_runtime_and_draft() {
         .join("\n");
     assert!(rendered.contains("failed to switch working directory"));
     assert_eq!(requests.recv().expect("project resolve"), "/v1/projects/resolve");
-    let create_request = requests.recv().expect("target session create");
-    assert!(create_request.starts_with("/v1/session?directory="));
-    assert!(create_request.contains("target"));
+    let capability_request = requests.recv().expect("target provider capabilities");
+    assert!(capability_request.contains("/provider"), "{capability_request}");
+    assert!(!capability_request.starts_with("/v1/session"));
     server.join().expect("failed target bootstrap fixture");
+}
+
+#[test]
+fn tui_first_response_cd_switch_opens_a_draft_without_session_requests() {
+    let workspace = tempfile::tempdir().expect("workspace");
+    let target = workspace.path().canonicalize().unwrap();
+    let expected_target = target.clone();
+    let (endpoint, requests, server) = gateway_fixture_for_paths(13, move |path| {
+        let route = path.split('?').next().unwrap();
+        let body = match route {
+            "/v1/projects/resolve" => resolved_project(&expected_target),
+            "/v1/provider" => json!({
+                "all": [{
+                    "id": "fixture", "name": "Fixture", "source": "config", "env": [],
+                    "models": { "example": {
+                        "id": "example", "providerID": "fixture", "name": "Example",
+                        "api": {"id": "example", "url": "http://127.0.0.1", "adapter": "openai-compatible"},
+                        "capabilities": {
+                            "temperature": true, "reasoning": false, "attachment": false,
+                            "toolcall": true, "interleaved": false,
+                            "input": {"text": true, "audio": false, "image": false, "video": false, "pdf": false},
+                            "output": {"text": true, "audio": false, "image": false, "video": false, "pdf": false}
+                        },
+                        "cost": {"input": 0, "output": 0, "cache": {"read": 0, "write": 0}},
+                        "limit": {"context": 1000, "output": 1000},
+                        "status": "active", "release_date": ""
+                    }}
+                }],
+                "connected": ["fixture"],
+                "default": {"fixture": "example"}
+            }),
+            "/v1/config" | "/v1/global/config" | "/v1/global/config/acp" => json!({}),
+            "/v1/skills" | "/v1/plugins" | "/v1/memory" | "/v1/workflow/applications" => json!([]),
+            "/v1/mcp/inspect" => json!({"servers": []}),
+            "/v1/cron" => json!({"jobs": []}),
+            "/v1/agent-scheduler/projects/target-project/tasks" => {
+                json!({"project_id": "target-project", "tasks": []})
+            }
+            _ => panic!("unexpected directory bootstrap request: {path}"),
+        };
+        GatewayResponse::ok(body)
+    });
+    let runtime = test_runtime(endpoint, "previous");
+    let mut app = V3GatewayApp::new(
+        runtime,
+        TuiState::from_chat_session(&snapshot("previous", "Previous", "previous answer")),
+    );
+    let mut runner = ActiveRunner::new_with_editor(Arc::new(|_| Ok(None)));
+    app.widget_mut().replace_draft("unsent text");
+    runner.execute_action(
+        &mut app,
+        V3Action::Submit { text: format!("/cd {}", target.display()), attachments: Vec::new() },
+    );
+
+    let deadline = Instant::now() + Duration::from_secs(3);
+    while runner.directory_switch_in_flight() {
+        runner.drain(&mut app);
+        assert!(Instant::now() < deadline, "directory switch did not settle");
+        thread::sleep(Duration::from_millis(10));
+    }
+
+    assert_eq!(app.runtime().directory(), target);
+    assert_eq!(app.runtime().session_id(), None);
+    assert_eq!(app.state().session.title, "");
+    assert_eq!(app.state().messages, Vec::new());
+    assert_eq!(app.widget().draft(), "unsent text");
+    server.join().unwrap();
+    assert!(requests.try_iter().all(|path| !path.starts_with("/v1/session")));
+}
+
+fn resolved_project(target: &Path) -> serde_json::Value {
+    json!({
+        "project": {
+            "id": "target-project",
+            "name": "target",
+            "directory": target.to_string_lossy(),
+            "display_path": target.to_string_lossy(),
+            "status": "ready",
+            "created_at_ms": 1,
+            "updated_at_ms": 2,
+            "default_branch": null,
+            "current_branch": null,
+            "git": {
+                "is_repo": false,
+                "has_uncommitted_changes": false,
+                "ahead": null,
+                "behind": null
+            },
+            "active_worktree_id": null,
+            "session_count": 0
+        }
+    })
 }
 
 fn test_runtime(endpoint: GatewayEndpoint, session_id: &str) -> GatewayUiRuntime {
@@ -497,13 +567,24 @@ impl GatewayResponse {
 fn gateway_fixture(
     responses: Vec<GatewayResponse>,
 ) -> (GatewayEndpoint, mpsc::Receiver<String>, thread::JoinHandle<()>) {
+    let count = responses.len();
+    let mut responses = responses.into_iter();
+    gateway_fixture_for_paths(count, move |_| responses.next().expect("fixture response"))
+}
+
+fn gateway_fixture_for_paths(
+    count: usize,
+    mut respond: impl FnMut(&str) -> GatewayResponse + Send + 'static,
+) -> (GatewayEndpoint, mpsc::Receiver<String>, thread::JoinHandle<()>) {
     let listener = TcpListener::bind("127.0.0.1:0").expect("bind session gateway fixture");
     let port = listener.local_addr().expect("session gateway fixture address").port();
     let (sender, receiver) = mpsc::channel();
     let handle = thread::spawn(move || {
-        for response in responses {
+        for _ in 0..count {
             let (mut stream, _) = listener.accept().expect("accept session gateway request");
-            sender.send(read_request_path(&mut stream)).expect("record session gateway request");
+            let path = read_request_path(&mut stream);
+            let response = respond(&path);
+            sender.send(path).expect("record session gateway request");
             let body = response.body.to_string();
             let response = format!(
                 "HTTP/1.1 {}\r\ncontent-type: application/json\r\ncontent-length: {}\r\nconnection: close\r\n\r\n{body}",

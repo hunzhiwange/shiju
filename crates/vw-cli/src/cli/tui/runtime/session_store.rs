@@ -1,4 +1,4 @@
-//! 活动 TUI 宿主需要的 Gateway 会话创建、恢复与快照保存操作。
+//! 活动 TUI 宿主需要的 Gateway 会话恢复、发布读取与快照保存操作。
 //!
 //! 异步方法集中处理传输错误和会话 ID 校验；同步包装仅供当前终端宿主
 //! 在非异步事件循环边界调用，不向状态模型泄漏 Gateway 客户端。
@@ -7,22 +7,12 @@ use std::collections::HashSet;
 
 use serde::Deserialize;
 use vw_gateway_client::{
-    GatewaySessionCreateBody, GatewaySessionForkBody, GatewaySessionPatchBody,
-    GatewaySessionResetBody, GatewaySessionSummarizeBody,
+    GatewaySessionForkBody, GatewaySessionPatchBody, GatewaySessionResetBody,
+    GatewaySessionSummarizeBody,
 };
 use vw_shared::session::ui_types::{ChatSession, ChatSessionMeta};
 
-use super::gateway::{
-    GatewayUiRuntime, annotate_gateway_transport_error, block_on_gateway,
-    normalize_optional_str_ref,
-};
-
-/// Gateway 创建会话后，TUI 初始化所需的最小返回值。
-#[derive(Debug, Clone, PartialEq, Eq, Deserialize)]
-pub(crate) struct UiSessionCreateInfo {
-    pub(crate) id: String,
-    pub(crate) title: String,
-}
+use super::gateway::{GatewayUiRuntime, block_on_gateway, normalize_optional_str_ref};
 
 #[derive(Debug, Clone, PartialEq, Eq, Deserialize)]
 struct UiSessionMutationInfo {
@@ -30,20 +20,6 @@ struct UiSessionMutationInfo {
 }
 
 impl GatewayUiRuntime {
-    async fn session_create(&self, title: Option<&str>) -> Result<UiSessionCreateInfo, String> {
-        let directory = self
-            .directory_value()
-            .unwrap_or_else(|| self.directory().to_string_lossy().to_string());
-        let body = Some(GatewaySessionCreateBody {
-            parent_id: None,
-            title: normalize_optional_str_ref(title).map(ToOwned::to_owned),
-        });
-        self.client()
-            .session_create(directory.as_str(), &body)
-            .await
-            .map_err(|error| annotate_gateway_transport_error(error, self.endpoint()))
-    }
-
     async fn session_ui_load(&self, session_id: &str) -> Result<ChatSession, String> {
         let session_id = normalize_optional_str_ref(Some(session_id))
             .ok_or_else(|| "session restore requires a non-empty session id".to_string())?;
@@ -151,12 +127,17 @@ impl GatewayUiRuntime {
         Ok(())
     }
 
-    /// 同步创建会话，传入空白标题时交由 Gateway 选择默认值。
-    pub(crate) fn session_create_blocking(
-        &self,
-        title: Option<&str>,
-    ) -> Result<UiSessionCreateInfo, String> {
-        block_on_gateway(self.session_create(title))
+    /// Read the published preview in this directory; pending sessions have no public preview.
+    pub(crate) fn session_publication_blocking(&self) -> Result<Option<ChatSessionMeta>, String> {
+        let session_id = self.resolve_session_id(None)?;
+        let directory = self.directory_value();
+        let preview = block_on_gateway(
+            self.client().session_preview_meta_get(session_id, directory.as_deref()),
+        )?;
+        if let Some(preview) = preview.as_ref() {
+            ensure_mutation_session_id("preview", session_id, &preview.id)?;
+        }
+        Ok(preview)
     }
 
     /// 在当前目录约束下加载完整会话快照，并拒绝空 ID、缺失快照或响应 ID 失配。

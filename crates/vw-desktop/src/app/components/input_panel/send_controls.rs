@@ -22,9 +22,10 @@ use crate::app::components::input_panel::styles::{
     selector_label_font, selector_text_color, square_icon_button_style, tooltip_dark_style,
 };
 use crate::app::components::overlays::AboveOverlay;
+use crate::app::components::system_settings_common::settings_segment_button_style;
 use crate::app::state::ChatSendBehavior;
 use crate::app::task::TaskSplitMode;
-use crate::app::{Message, message};
+use crate::app::{App, Message, message};
 use vw_gateway_client::vw_api_types::ReasoningEffortDto;
 
 const MAIN_SEND_BUTTON_SIZE: f32 = BOTTOM_BAR_ICON_BUTTON_SIZE;
@@ -361,6 +362,42 @@ pub fn pool_button(
 
     // 返回带工具提示的按钮
     tooltip(pool_btn, pool_tip, Position::Top).into()
+}
+
+pub(super) fn has_permission_context(app: &App) -> bool {
+    app.active_session_id
+        .as_deref()
+        .and_then(|session_id| app.known_session_directory(session_id))
+        .is_some_and(|directory| !directory.trim().is_empty())
+        || app.project_path.as_deref().is_some_and(|directory| !directory.trim().is_empty())
+}
+
+pub(super) fn acp_permission_modes(
+    full_access: bool,
+    can_change: bool,
+) -> Element<'static, Message> {
+    let choice = |mode, label| {
+        let selected = full_access == mode;
+        button(
+            text(if selected { format!("✓ {label}") } else { String::from(label) })
+                .size(13)
+                .width(Length::Fill)
+                .align_x(Alignment::Center),
+        )
+        .padding([8, 12])
+        .width(Length::Fill)
+        .style(move |theme, status| {
+            let mut style = settings_segment_button_style(theme, status, selected);
+            style.text_color =
+                theme.palette().text.scale_alpha(if selected || can_change { 1.0 } else { 0.55 });
+            style
+        })
+        .on_press_maybe(
+            (can_change && !selected)
+                .then_some(Message::Chat(message::ChatMessage::ToggleFullAccessPermission)),
+        )
+    };
+    row![choice(false, "审批模式"), choice(true, "完全访问权限")].spacing(8).into()
 }
 
 pub fn full_access_button(

@@ -1065,6 +1065,24 @@ async fn start_gateway_chat_stream(
     Ok(rx)
 }
 
+fn validate_public_acp_chat_options(options: Option<&Value>) -> Result<(), ApiError> {
+    let Some(options) = options else { return Ok(()) };
+    if options.get("acp_session_mode").is_some() {
+        return Err(ApiError::bad_request("acp_session_mode is private; use full_access"));
+    }
+    // On the first request even a custom permission config ID may not be known.
+    // Only the session options endpoint can validate an ID against live capabilities.
+    if options
+        .get("acp_session_config")
+        .is_some_and(|value| !value.as_object().is_some_and(Map::is_empty))
+    {
+        return Err(ApiError::bad_request(
+            "acp_session_config is private; use the session ACP options endpoint for non-permission settings",
+        ));
+    }
+    Ok(())
+}
+
 /// Carry the public model source into the processor's ACP runtime options.
 /// Older clients supplied the source only in options; keep that explicit choice.
 fn merge_acp_model_source(body: &mut GatewayChatStreamRequest) -> Result<(), ApiError> {
@@ -1963,6 +1981,7 @@ pub(super) async fn chat_stream(
     headers: HeaderMap,
     Json(mut body): Json<GatewayChatStreamRequest>,
 ) -> Result<impl IntoResponse, ApiError> {
+    validate_public_acp_chat_options(body.options.as_ref())?;
     let tenant = crate::session::ui_store::current_tenant_scope();
     let dir = resolve_directory(&query, &headers);
     #[cfg(not(target_arch = "wasm32"))]

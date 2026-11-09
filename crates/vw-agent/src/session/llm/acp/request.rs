@@ -468,6 +468,23 @@ pub(crate) async fn do_stream_request_acp(
             });
         }
         let info = cached_client.client.session_capabilities(&acp_session_id);
+        // Typed reasoning options can map to a vendor config ID. Do not let a
+        // desktop request write that ID if the adapter advertises it as a permission control.
+        if parsed_options.desktop_workspace.is_some()
+            && info.as_ref().and_then(|info| info.config_options.as_ref()).is_some_and(|options| {
+                options.iter().any(|option| {
+                    config_options.contains_key(option.id.0.as_ref())
+                        && super::controls::is_permission_config(option)
+                })
+            })
+        {
+            close_client_after_request_if_needed(close_client_after_request, &cached_client_entry)
+                .await;
+            drop(prompt_guard);
+            return Err(super::acp_option_error(
+                "ACP request options cannot change native permissions",
+            ));
+        }
         let native_config = |id: &str| {
             info.as_ref().and_then(|info| info.config_options.as_ref()).and_then(|options| {
                 options.iter().find(|option| {

@@ -12,6 +12,47 @@ pub(super) fn is_model_config(option: &agent_client_protocol::SessionConfigOptio
     option.category == Some(SessionConfigOptionCategory::Model) || option.id.0.as_ref() == "model"
 }
 
+fn is_permission_config_id(id: &str) -> bool {
+    // Protocol mode and the separate Hermes control found in the fixed-runtime matrix.
+    matches!(id, "mode" | "edit_approval_policy")
+}
+
+pub(super) fn is_permission_config(option: &agent_client_protocol::SessionConfigOption) -> bool {
+    is_permission_config_id(option.id.0.as_ref())
+        || match &option.category {
+            Some(SessionConfigOptionCategory::Mode) => true,
+            Some(SessionConfigOptionCategory::Other(category)) => {
+                matches!(category.as_str(), "permission" | "permissions" | "approval" | "sandbox")
+            }
+            _ => false,
+        }
+}
+
+fn reject_public_permission_selection(
+    kind: &AcpOptionKind,
+    info: Option<&vw_acp::SessionCapabilities>,
+) -> Result<(), String> {
+    let permission = match kind {
+        AcpOptionKind::Mode => true,
+        AcpOptionKind::Config { id } => {
+            is_permission_config_id(id)
+                || info.and_then(|info| info.config_options.as_ref()).is_some_and(|options| {
+                    options
+                        .iter()
+                        .any(|option| option.id.0.as_ref() == id && is_permission_config(option))
+                })
+        }
+        AcpOptionKind::Model => false,
+    };
+    if permission {
+        return Err(
+            "Native ACP permission controls are private; use the session full_access setting"
+                .into(),
+        );
+    }
+    Ok(())
+}
+
 fn native_advertised(info: vw_acp::SessionCapabilities) -> AcpSessionOptions {
     let mut options = Vec::new();
     let config_options = info.config_options.unwrap_or_default();
@@ -68,6 +109,14 @@ fn native_advertised(info: vw_acp::SessionCapabilities) -> AcpSessionOptions {
     AcpSessionOptions { connected: true, options, ..Default::default() }
 }
 
+fn public_advertised(mut info: vw_acp::SessionCapabilities) -> AcpSessionOptions {
+    info.modes = None;
+    if let Some(options) = info.config_options.as_mut() {
+        options.retain(|option| !is_permission_config(option));
+    }
+    native_advertised(info)
+}
+
 fn native_read_only(info: vw_acp::SessionCapabilities) -> AcpSessionOptions {
     let model_options = info
         .config_options
@@ -76,7 +125,7 @@ fn native_read_only(info: vw_acp::SessionCapabilities) -> AcpSessionOptions {
         .filter(|option| is_model_config(option))
         .map(|option| option.id.to_string())
         .collect::<Vec<_>>();
-    let mut options = native_advertised(info);
+    let mut options = public_advertised(info);
     for option in &mut options.options {
         let locked = match &option.kind {
             AcpOptionKind::Model => true,
@@ -96,7 +145,7 @@ fn advertised(mut info: vw_acp::SessionCapabilities) -> AcpSessionOptions {
     if let Some(options) = info.config_options.as_mut() {
         options.retain(|option| !is_model_config(option));
     }
-    native_advertised(info)
+    public_advertised(info)
 }
 
 fn project_options(
@@ -161,37 +210,39 @@ fn annotate_access(
 ) {
     use vw_acp::{AccessPolicyReason, FullAccessSupport};
     use vw_api_types::acp_session::{AcpAccessStatus, AcpAccessSupport};
-    let info = client.session_capabilities(&record.acp_session_id);
-    let policy = client.access_policy(
-        info.as_ref().and_then(|i| i.modes.as_ref()),
-        info.as_ref().and_then(|i| i.config_options.as_deref()),
-    );
-    let (support, explanation) = if client.session_access_policy(&record.acp_session_id).is_err() {
-        (AcpAccessSupport::Failed, "权限同步尚未确认或会话已断开；请刷新或重试，不能视为原生免审批")
-    } else {
-        match policy.support {
-            FullAccessSupport::Native => {
-                (AcpAccessSupport::Native, "当前原生权限控制已确认；仍受后端与组织策略约束")
+    let (requested, support, explanation) =
+        match client.session_access_policy(&record.acp_session_id) {
+            Err(_) => (
+                client.access_policy(None, None).full_access_requested,
+                AcpAccessSupport::Failed,
+                "权限同步尚未确认或会话已断开；请刷新或重试",
+            ),
+            Ok(policy) => {
+                let (support, explanation) = match policy.support {
+                    FullAccessSupport::Native => {
+                        (AcpAccessSupport::Native, "当前原生权限控制已确认；仍受后端与组织策略约束")
+                    }
+                    FullAccessSupport::Partial => (
+                        AcpAccessSupport::Partial,
+                        "仅部分权限生效；原生工具与客户端权限边界不同，仍可能要求审批",
+                    ),
+                    FullAccessSupport::ClientOnly => (
+                        AcpAccessSupport::ClientOnly,
+                        "仅客户端工具审批自动批准；后端原生免审批未验证，仍可能要求确认",
+                    ),
+                    FullAccessSupport::Unavailable => (
+                        AcpAccessSupport::Unavailable,
+                        match policy.reason {
+                            AccessPolicyReason::DeniedByHost => "执行主机策略拒绝工具权限",
+                            _ => "按工作区安全边界审批；后端原生工具可能有额外限制",
+                        },
+                    ),
+                };
+                (policy.full_access_requested, support, explanation)
             }
-            FullAccessSupport::Partial => (
-                AcpAccessSupport::Partial,
-                "仅部分权限生效；原生工具与客户端权限边界不同，仍可能要求审批",
-            ),
-            FullAccessSupport::ClientOnly => (
-                AcpAccessSupport::ClientOnly,
-                "仅客户端工具审批自动批准；后端原生免审批未验证，仍可能要求确认",
-            ),
-            FullAccessSupport::Unavailable => (
-                AcpAccessSupport::Unavailable,
-                match policy.reason {
-                    AccessPolicyReason::DeniedByHost => "执行主机策略拒绝完全访问",
-                    _ => "当前未授权完全访问，沿用普通工具审批",
-                },
-            ),
-        }
-    };
+        };
     options.access_status = Some(AcpAccessStatus {
-        requested: policy.full_access_requested,
+        requested,
         backend: client.agent_name().into(),
         version: client.agent_version(),
         support,
@@ -247,6 +298,7 @@ pub(crate) async fn select(
     directory: &str,
     selection: AcpSessionSelection,
 ) -> Result<AcpSessionOptions, String> {
+    reject_public_permission_selection(&selection.kind, None)?;
     let _session_guard = super::lifecycle::try_lock(session_id, directory)?;
     let saved = super::lifecycle::Store::open(session_id, directory)
         .and_then(|store| store.read())
@@ -261,9 +313,10 @@ pub(crate) async fn select(
     // Reload under the prompt lock so this write cannot overwrite a completed prompt's record.
     let mut record =
         vw_acp::resolve_session_record(&record.vwacp_record_id).await.map_err(|e| e.to_string())?;
+    let capabilities = client.client.session_capabilities(&record.acp_session_id);
+    reject_public_permission_selection(&selection.kind, capabilities.as_ref())?;
     prepare_access_restore(&client.client, &mut record);
     let original_record = record.clone();
-    let capabilities = client.client.session_capabilities(&record.acp_session_id);
     let is_model = match &selection.kind {
         AcpOptionKind::Model => true,
         AcpOptionKind::Config { id } => capabilities
@@ -284,55 +337,19 @@ pub(crate) async fn select(
     }) {
         return Err("ACP option is unavailable for the current model source".into());
     }
-    let previous = client
-        .client
-        .session_capabilities(&record.acp_session_id)
-        .map(native_advertised)
-        .and_then(|options| {
-            options.options.into_iter().find(|option| option.kind == selection.kind)
-        })
+    let previous = visible
+        .options
+        .into_iter()
+        .find(|option| option.kind == selection.kind)
         .map(|option| AcpSessionSelection { kind: option.kind, value: option.current });
-    let permission_id = match &selection.kind {
-        AcpOptionKind::Mode => "mode",
-        AcpOptionKind::Config { id } => id,
-        AcpOptionKind::Model => "model",
-    };
-    let restricted = client.client.restricted_permission_value(permission_id, &selection.value);
-    let baseline = (restricted != selection.value).then(|| {
-        let value = match &selection.kind {
-            AcpOptionKind::Mode => vw_acp::get_desired_mode_id(original_record.vwacp.as_ref()),
-            AcpOptionKind::Config { id } => {
-                vw_acp::get_desired_config_options(original_record.vwacp.as_ref()).remove(id)
-            }
-            AcpOptionKind::Model => None,
-        };
-        (selection.kind.clone(), value.unwrap_or_else(|| restricted.to_owned()))
-    });
     apply_selection(&client.client, &mut record, selection).await?;
-    // A temporary elevated selection changes readback, not the revocation baseline.
-    if let Some((kind, value)) = baseline {
-        match kind {
-            AcpOptionKind::Mode => vw_acp::set_desired_mode_id(&mut record, Some(&value)),
-            AcpOptionKind::Config { id } => {
-                vw_acp::set_desired_config_option(&mut record, &id, &value)
-            }
-            AcpOptionKind::Model => {}
-        }
-    }
     if let Err(error) = vw_acp::write_session_record(&record).await {
-        if let Some(mut previous) = previous {
-            let id = match &previous.kind {
-                AcpOptionKind::Mode => "mode",
-                AcpOptionKind::Config { id } => id,
-                AcpOptionKind::Model => "model",
-            };
-            previous.value =
-                client.client.restored_permission_value(id, &previous.value).to_owned();
-            if let Err(rollback) = apply_selection(&client.client, &mut record, previous).await {
-                return Err(format!(
-                    "Failed to save ACP selection: {error}; backend rollback also failed: {rollback}. Refresh the session options."
-                ));
-            }
+        if let Some(previous) = previous
+            && let Err(rollback) = apply_selection(&client.client, &mut record, previous).await
+        {
+            return Err(format!(
+                "Failed to save ACP selection: {error}; backend rollback also failed: {rollback}. Refresh the session options."
+            ));
         }
         // The repository may have replaced the record before its index write failed.
         if let Err(restore) = vw_acp::write_session_record(&original_record).await {

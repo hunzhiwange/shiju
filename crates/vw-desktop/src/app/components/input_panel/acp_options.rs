@@ -24,14 +24,19 @@ pub(crate) fn with_modal<'a>(app: &'a App, base: Element<'a, Message>) -> Elemen
         container(source_controls(app)).padding(12).width(Length::Fill).style(settings_panel_style),
     ]
     .spacing(12);
+    let options = runtime
+        .acp_options
+        .options
+        .iter()
+        .filter(|option| runtime.acp_options.connected && option.kind != AcpOptionKind::Mode);
     if !runtime.acp_options.connected {
         fields = fields
             .push(text("连接会话后可读取后端支持的选项").size(13).style(settings_muted_text_style));
-    } else if runtime.acp_options.options.is_empty() {
+    } else if options.clone().next().is_none() {
         fields = fields
             .push(text("后端未提供可调整的会话选项").size(13).style(settings_muted_text_style));
     }
-    for option in &runtime.acp_options.options {
+    for option in options {
         let model_locked = option.kind == AcpOptionKind::Model
             || matches!(&option.kind, AcpOptionKind::Config { id } if id == "model");
         let mut choices = column![settings_field_label(&option.name)].spacing(6);
@@ -69,7 +74,7 @@ pub(crate) fn with_modal<'a>(app: &'a App, base: Element<'a, Message>) -> Elemen
     let header = settings_modal_header(
         column![
             text("ACP 会话选项").size(20),
-            text("选择后即时保存；失败时保留原值").size(13).style(settings_muted_text_style),
+            text("查看权限状态，调整模型来源和会话选项").size(13).style(settings_muted_text_style),
         ]
         .spacing(4),
         settings_close_button(close.clone()),
@@ -95,7 +100,7 @@ pub(crate) fn with_modal<'a>(app: &'a App, base: Element<'a, Message>) -> Elemen
         .height(Length::Fill)
         .max_width(520)
         .max_height(560);
-    let card = container(card).padding(12);
+    let card = container(card).padding(12).center_x(Length::Fill).center_y(Length::Fill);
     settings_modal_overlay(Some(base), close, card)
 }
 
@@ -199,8 +204,18 @@ pub(super) fn source_controls(app: &App) -> Element<'_, Message> {
 fn access_status(app: &App) -> Element<'_, Message> {
     use vw_gateway_client::vw_api_types::acp_session::AcpAccessSupport;
     let runtime = app.current_session_runtime();
-    let requested = if runtime.full_access_enabled { "已开启" } else { "已关闭" };
-    let mut status = column![text(format!("完全访问授权：{requested}")).size(14)].spacing(6);
+    let can_change = super::send_controls::has_permission_context(app)
+        && !runtime.is_requesting
+        && !runtime.acp_options_pending
+        && runtime.acp_source_pending.is_none();
+    let mut status = column![
+        settings_field_label("工具权限"),
+        super::send_controls::acp_permission_modes(runtime.full_access_enabled, can_change),
+        text("审批模式自动允许符合工作区安全边界的普通文件编辑；其他操作仍可能要求审批或被拒绝。")
+            .size(12)
+            .style(settings_muted_text_style),
+    ]
+    .spacing(6);
     let observed = runtime.acp_options.access_status.as_ref();
     if runtime.acp_rebuild_required
         || observed.is_some_and(|s| s.requested != runtime.full_access_enabled)
@@ -212,7 +227,8 @@ fn access_status(app: &App) -> Element<'_, Message> {
             AcpAccessSupport::ClientOnly => "仅客户端",
             AcpAccessSupport::Partial => "部分支持",
             AcpAccessSupport::Unverified => "未验证",
-            AcpAccessSupport::Unavailable => "未启用或不可用",
+            AcpAccessSupport::Unavailable if !observed.requested => "按审批规则执行",
+            AcpAccessSupport::Unavailable => "完全访问不可用",
             AcpAccessSupport::Failed => "同步失败或未确认",
         };
         status = status
@@ -227,7 +243,7 @@ fn access_status(app: &App) -> Element<'_, Message> {
             )
             .push(text(observed.explanation.clone()).size(12));
     } else {
-        status = status.push(text("生效能力：未验证；连接后刷新查看，读取不会启动后端").size(13));
+        status = status.push(text("生效能力：未验证；后端未连接，连接后可刷新查看").size(13));
     }
     status
         .push(

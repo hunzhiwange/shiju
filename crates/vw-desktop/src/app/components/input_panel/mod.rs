@@ -501,13 +501,7 @@ pub fn view<'a>(app: &'a App) -> Element<'a, Message> {
     let task_mode_executor = runtime.and_then(|r| r.task_mode_executor.clone());
     let task_mode_reasoning_effort = runtime.and_then(|r| r.task_mode_reasoning_effort);
     let task_mode_subtasks = runtime.map(|r| r.task_mode_subtasks.clone()).unwrap_or_default();
-    let has_permission_context = app
-        .active_session_id
-        .as_deref()
-        .and_then(|session_id| app.known_session_directory(session_id))
-        .filter(|directory| !directory.trim().is_empty())
-        .or_else(|| app.project_path.clone().filter(|directory| !directory.trim().is_empty()))
-        .is_some();
+    let has_permission_context = send_controls::has_permission_context(app);
 
     // ========== 构建模型选择按钮和弹出框 ==========
     let model_toggle =

@@ -430,11 +430,15 @@ def session_turns(binary, backend, source, row, entry=None):
                         if failures:
                             observed["gateway_failures"] = sorted(set(failures))
                         controls = json.loads(request(url, f"/session/{session}/acp-options" + query))
-                        observed["native_mode"] = next((
-                            option["current"] for option in controls["options"]
-                            if option["kind"] in ({"kind": "mode"}, {"kind": "config", "id": "mode"})
-                        ), None)
+                        observed["public_permission_options"] = [
+                            option["kind"] for option in controls["options"]
+                            if option["kind"] == {"kind": "mode"}
+                            or option["kind"].get("id") in ("mode", "edit_approval_policy")
+                        ]
+                        observed["connected"] = controls["connected"]
                         observed["access_status"] = controls.get("access_status")
+                        require(not observed["public_permission_options"],
+                                "gateway exposed a native permission control")
                     phases.append(observed)
                 if entry is None:
                     require(all(p["turn_completed"] and p["second_edit"] and p["permission_outcomes"]
@@ -459,13 +463,21 @@ def session_turns(binary, backend, source, row, entry=None):
                     require(full["second_edit"] and not full["approvals"],
                             "native full access did not complete its tools")
                     if source == "cli_local":
-                        require([p["native_mode"] for p in phases] == [
-                            "default", "bypassPermissions", "default"
-                        ], "Claude mode readback did not match the grant")
+                        verify_public_access(phases, backend, "native")
                     row["status"] = "passed"
                     row["fallback"] = "native edits require one-time confirmation"
                 else:
                     verify_native_phases(backend, source, row, phases)
+
+
+def verify_public_access(phases, backend, full_support):
+    for observed, (_, granted) in zip(phases, PHASES):
+        expected = full_support if granted else "unavailable"
+        access = observed.get("access_status") or {}
+        require(observed["connected"] and access.get("backend") == backend
+                and access.get("requested") is granted and access.get("support") == expected,
+                f"{backend} public permission status did not match {observed['phase']}: "
+                f"expected {expected}, got {access.get('support')}")
 
 
 def verify_native_phases(backend, source, row, phases):
@@ -499,9 +511,7 @@ def verify_native_phases(backend, source, row, phases):
         require(all(len(p["model_tool_results"]) == 5 for p in (restricted, revoked)),
                 "Codex read-only commands did not return results")
         if source == "cli_local":
-            require([p["native_mode"] for p in phases] == [
-                "read-only", "agent-full-access", "read-only"
-            ], "Codex mode readback did not match the grant")
+            verify_public_access(phases, backend, "native")
         row["fallback"] = "native read-only; structured host writes tested separately"
     else:
         require(restricted["second_edit"], "restricted workspace edits did not complete")
@@ -512,8 +522,7 @@ def verify_native_phases(backend, source, row, phases):
         row["fallback"] = "transient host approvals for requested native operations"
         if backend == "gemini":
             if source == "cli_local":
-                require(all(p["native_mode"] == "default" for p in phases),
-                        "Gemini changed native mode instead of using client approvals")
+                verify_public_access(phases, backend, "client_only")
             row["fallback"] = "client approvals; Gemini keeps native mode and file boundaries"
     row["status"] = "passed"
 

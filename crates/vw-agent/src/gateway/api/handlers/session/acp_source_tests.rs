@@ -111,3 +111,69 @@ async fn acp_model_source_ui_http_persists_and_rejects_without_local_fallback() 
     server.abort();
     let _ = server.await;
 }
+
+#[tokio::test]
+async fn acp_public_permission_options_reject_direct_put_and_chat_over_http() {
+    let _env = crate::test_support::global_async_env_lock().lock().await;
+    let _fixture = crate::session::llm::recovery_test_support::RecoveryConfig::new(
+        "https://example.test/v1",
+        Some("fixture-key"),
+    )
+    .await;
+    let workspace = tempfile::tempdir().unwrap();
+    let router = Router::new()
+        .route("/session", post(super::session_ops::ui_session_create))
+        .route("/session/{session_id}/acp-options", put(super::acp_options::set))
+        .route("/chat/stream", post(super::stream::chat_stream));
+    let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
+    let address = listener.local_addr().unwrap();
+    let server = tokio::spawn(async move { axum::serve(listener, router).await.unwrap() });
+    let http = reqwest::Client::new();
+    let dir = [("directory", workspace.path().to_str().unwrap())];
+    let session: serde_json::Value = http
+        .post(format!("http://{address}/session"))
+        .query(&dir)
+        .json(&json!({}))
+        .send()
+        .await
+        .unwrap()
+        .error_for_status()
+        .unwrap()
+        .json()
+        .await
+        .unwrap();
+    let id = session["id"].as_str().unwrap();
+    for selection in [
+        json!({"kind":{"kind":"mode"}, "value":"bypassPermissions"}),
+        json!({"kind":{"kind":"config","id":"edit_approval_policy"}, "value":"never"}),
+    ] {
+        let response = http
+            .put(format!("http://{address}/session/{id}/acp-options"))
+            .query(&dir)
+            .json(&selection)
+            .send()
+            .await
+            .unwrap();
+        assert_eq!(response.status(), reqwest::StatusCode::BAD_REQUEST);
+        assert!(response.text().await.unwrap().contains("full_access"));
+    }
+    for (options, expected) in [
+        (json!({"acp_session_mode":"bypassPermissions"}), "acp_session_mode"),
+        (json!({"acp_session_config":{"edit_approval_policy":"never"}}), "acp_session_config"),
+        (json!({"acp_session_config":{"custom-control":"bypass"}}), "acp_session_config"),
+    ] {
+        let response = http
+            .post(format!("http://{address}/chat/stream"))
+            .query(&dir)
+            .json(&json!({
+                "session_id": id, "acp_agent":"claude", "messages":[],
+                "reasoning_effort":"high", "options":options
+            }))
+            .send()
+            .await
+            .unwrap();
+        assert_eq!(response.status(), reqwest::StatusCode::BAD_REQUEST);
+        assert!(response.text().await.unwrap().contains(expected));
+    }
+    server.abort();
+}

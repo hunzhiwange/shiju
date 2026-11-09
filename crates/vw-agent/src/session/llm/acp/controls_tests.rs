@@ -188,7 +188,7 @@ fn acp_model_source_session_controls_managed_models_are_not_native_choices() {
 }
 
 #[test]
-fn acp_model_source_session_controls_model_config_is_read_only_but_mode_survives() {
+fn acp_model_source_session_controls_model_config_is_read_only_and_mode_is_private() {
     let info = vw_acp::SessionCapabilities {
         session_id: "managed".into(), models: None, modes: None,
         config_options: Some(serde_json::from_value(json!([
@@ -201,10 +201,8 @@ fn acp_model_source_session_controls_model_config_is_read_only_but_mode_survives
     assert_eq!(native.options[0].kind, AcpOptionKind::Model);
     assert_eq!(native.options[0].choices.len(), 1);
     assert_eq!(native.options[0].choices[0].id, "native");
-    assert_eq!(native.options[1].choices.len(), 2);
-    let managed = advertised(info);
-    assert_eq!(managed.options.len(), 1);
-    assert_eq!(managed.options[0].kind, AcpOptionKind::Config { id: "mode".into() });
+    assert_eq!(native.options.len(), 1);
+    assert!(advertised(info).options.is_empty());
 }
 
 #[tokio::test]
@@ -248,4 +246,46 @@ fn acp_model_source_session_controls_disconnected_keeps_provider_identity() {
         options.model_source_capabilities[0],
         vw_api_types::acp_model_source::AcpModelSourceCapability::Unsupported { .. }
     ));
+}
+
+#[test]
+fn acp_public_permission_options_only_expose_host_modes() {
+    let mut info = vw_acp::SessionCapabilities {
+        session_id: "public-controls".into(),
+        modes: serde_json::from_value(json!({
+            "currentModeId":"ask",
+            "availableModes":[{"id":"ask","name":"Ask"},{"id":"bypass","name":"Bypass"}]
+        })).unwrap(),
+        models: serde_json::from_value(json!({
+            "currentModelId":"small",
+            "availableModels":[{"modelId":"small","name":"Small"}]
+        })).unwrap(),
+        config_options: Some(serde_json::from_value(json!([
+            {"id":"custom-control","name":"Custom","category":"mode","type":"select","currentValue":"ask","options":[{"value":"ask","name":"Ask"}]},
+            {"id":"edit_approval_policy","name":"Edit","type":"select","currentValue":"ask","options":[{"value":"ask","name":"Ask"}]},
+            {"id":"another-control","name":"Permission","category":"permission","type":"select","currentValue":"ask","options":[{"value":"ask","name":"Ask"}]},
+            {"id":"effort","name":"Thought","category":"thought_level","type":"select","currentValue":"low","options":[{"value":"low","name":"Low"}]}
+        ])).unwrap()),
+    };
+    for kind in [
+        AcpOptionKind::Mode,
+        AcpOptionKind::Config { id: "mode".into() },
+        AcpOptionKind::Config { id: "edit_approval_policy".into() },
+        AcpOptionKind::Config { id: "custom-control".into() },
+        AcpOptionKind::Config { id: "another-control".into() },
+    ] {
+        assert!(reject_public_permission_selection(&kind, Some(&info)).is_err());
+    }
+    let model = AcpOptionKind::Model;
+    let effort = AcpOptionKind::Config { id: "effort".into() };
+    assert!(reject_public_permission_selection(&effort, Some(&info)).is_ok());
+    let kinds = |options: AcpSessionOptions| {
+        options.options.into_iter().map(|option| option.kind).collect::<Vec<_>>()
+    };
+    let projected = project_options(Some(info.clone()), None);
+    assert_eq!(kinds(projected), [model.clone(), effort.clone()]);
+    assert_eq!(kinds(advertised(info.clone())), [effort.clone()]);
+    assert!(project_options(None, None).options.is_empty());
+    info.config_options.as_mut().unwrap().remove(0);
+    assert_eq!(kinds(project_options(Some(info), None)), [model, effort]);
 }

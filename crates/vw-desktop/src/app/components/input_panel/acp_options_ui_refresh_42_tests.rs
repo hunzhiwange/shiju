@@ -637,6 +637,64 @@ async fn ui_refresh_42_preserves_values_and_disabled_states() {
 }
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn ui_refresh_42_acp_permission_modes_reflect_grant_and_readback() {
+    if !isolated("ui_refresh_42_acp_permission_modes_reflect_grant_and_readback") {
+        return;
+    }
+    let mut app = fixture();
+    app.project_path = Some("/workspace".into());
+    let mut renderer = renderer().await;
+    let size = Size::new(520, 560);
+    for (full, busy, support, theme, expected) in [
+        (false, false, AcpAccessSupport::Failed, Theme::Light, "同步失败或未确认"),
+        (true, false, AcpAccessSupport::Partial, Theme::Dark, "部分支持"),
+        (true, true, AcpAccessSupport::Native, Theme::Light, "原生权限已确认"),
+    ] {
+        let runtime = app.current_session_runtime_mut();
+        runtime.acp_options_open = true;
+        runtime.is_requesting = busy;
+        runtime.full_access_enabled = full;
+        runtime.acp_options.access_status = Some(AcpAccessStatus {
+            requested: full,
+            backend: "fixture".into(),
+            version: Some("1.0".into()),
+            support,
+            explanation: "后端权限实测状态".into(),
+        });
+        runtime.acp_options.options.truncate(1);
+        runtime.acp_options.options.push(AcpSessionOption {
+            kind: AcpOptionKind::Mode,
+            name: "供应商原生模式".into(),
+            current: "bypass".into(),
+            choices: vec![AcpChoice { id: "bypass".into(), name: "绕过审批".into() }],
+        });
+        let base = container(Space::new()).width(Length::Fill).height(Length::Fill).into();
+        let mut ui = scene(with_modal(&app, base), &mut renderer, size);
+        let layout = bounds(&mut ui, &renderer);
+        let (selected, other) = if full {
+            ("✓ 完全访问权限", "审批模式")
+        } else {
+            ("✓ 审批模式", "完全访问权限")
+        };
+        let selected = label(&layout, selected).center();
+        let other = label(&layout, other).center();
+        label(&layout, &format!("生效能力：{expected}"));
+        assert!(!layout.labels.iter().any(|(value, _)| value == "供应商原生模式"));
+        capture(&mut ui, &mut renderer, &theme, size, &format!("permission-{full}-{busy}"), other);
+        assert!(click(&mut ui, &mut renderer, selected).is_empty());
+        let actions = click(&mut ui, &mut renderer, other);
+        if busy {
+            assert!(actions.is_empty());
+        } else {
+            assert!(matches!(
+                actions.as_slice(),
+                [Message::Chat(ChatMessage::ToggleFullAccessPermission)]
+            ));
+        }
+    }
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn help_rollout_09_session_model_source_keeps_status_visible() {
     if !isolated("help_rollout_09_session_model_source_keeps_status_visible") {
         return;
@@ -655,7 +713,7 @@ async fn help_rollout_09_session_model_source_keeps_status_visible() {
         let base = container(Space::new()).width(Length::Fill).height(Length::Fill).into();
         let mut ui = scene(with_modal(&app, base), &mut renderer, size);
         let layout = bounds(&mut ui, &renderer);
-        label(&layout, "完全访问授权：已关闭");
+        label(&layout, "✓ 审批模式");
         label(&layout, "请先配置供应商凭据");
         label(&layout, "切换来源将创建新的 ACP 会话；原生上下文不继承");
         label(

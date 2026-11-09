@@ -5,6 +5,8 @@ mod prompt;
 mod types;
 
 pub(crate) use lifecycle::fork_visible_task_session;
+#[cfg(not(target_arch = "wasm32"))]
+pub(crate) use lifecycle::reserve_session;
 pub(crate) use lifecycle::visible_tasks_for_parent;
 pub use lifecycle::{create_session, create_visible_task_session, load_session};
 pub use prompt::start_prompt;

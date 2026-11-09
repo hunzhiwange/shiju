@@ -16,7 +16,7 @@ use vw_api_types::session::{
     GatewaySessionScopeBody, GatewaySessionUiSummary,
 };
 
-use super::shared::resolve_scope_from_query;
+use super::shared::{has_explicit_directory, lifecycle_api_error, resolve_scope_from_query};
 use crate::app::agent::gateway::ApiError;
 use crate::app::agent::gateway::instance::InstanceQuery;
 use crate::app::agent::gateway::instance::resolve_directory;
@@ -96,7 +96,7 @@ pub(super) async fn session_ui_summary(
     let tenant_for_load = tenant.clone();
     let binding_scope = scope.clone();
     let meta = crate::global_database::run_isolated(move || {
-        ui_store::load_session_meta_scoped_for_tenant(&tenant_for_load, &id, Some(&scope))
+        ui_store::load_session_ui_meta_scoped_for_tenant(&tenant_for_load, &id, &scope)
     })
     .await
     .map_err(|error| ApiError::internal(error.to_string()))?
@@ -173,7 +173,7 @@ pub(super) async fn session_ui_messages(
     let meta_scope = scope.clone();
     let meta_id = session_id.clone();
     let total_count = crate::global_database::run_isolated(move || {
-        ui_store::load_session_meta_scoped_for_tenant(&meta_tenant, &meta_id, Some(&meta_scope))
+        ui_store::load_session_ui_meta_scoped_for_tenant(&meta_tenant, &meta_id, &meta_scope)
     })
     .await
     .map_err(|error| ApiError::internal(error.to_string()))?
@@ -415,7 +415,11 @@ pub(super) async fn session_ui_save(
     }
 
     let directory = resolve_directory(&query, &headers);
-    let scope = ui_store::resolve_session_scope_id_for_tenant(&tenant, Some(&directory), None);
+    let validated = crate::session::runtime::SessionScope::new(tenant.clone(), &directory)
+        .map_err(lifecycle_api_error)?;
+    let directory = validated.directory().to_string_lossy().into_owned();
+    let scope = ui_store::resolve_session_scope_id_for_tenant(&tenant, Some(&directory), None)
+        .ok_or_else(|| ApiError::bad_request("session project scope is required"))?;
     tracing::debug!(
         target: "vw_agent",
         session_id = %body.id,
@@ -428,7 +432,19 @@ pub(super) async fn session_ui_save(
     );
     // calls、steps 与 Raw 由会话运行时统一持久化；UI 接口只保存消息和元数据。
     let path = crate::global_database::run_isolated(move || {
-        ui_store::save_session_ui_content_scoped_for_tenant(&tenant, &body, scope.as_deref())
+        // Preserve legacy UI snapshots. A new UI-only ID can store a draft but
+        // must pass the same publication boundary as a chat-created ID.
+        if ui_store::load_session_meta_scoped_for_tenant(&tenant, &body.id, Some(&scope))?.is_none()
+        {
+            super::stream::reserve_stream_agent_session(
+                &tenant,
+                &scope,
+                &body.id,
+                &directory,
+                body.created_ms,
+            )?;
+        }
+        ui_store::save_session_ui_content_scoped_for_tenant(&tenant, &body, Some(&scope))
     })
     .await
     .map_err(|e| ApiError::internal(e.to_string()))?;
@@ -459,13 +475,26 @@ pub(super) async fn session_ui_previews(
 
 pub(super) async fn session_ui_preview_meta(
     Path(session_id): Path<String>,
+    Query(query): Query<InstanceQuery>,
+    headers: HeaderMap,
 ) -> Result<Json<Option<ui_models::ChatSessionMeta>>, ApiError> {
     let tenant = ui_store::current_tenant_scope();
-    let id = session_id.clone();
-    let meta = crate::global_database::run_isolated(move || {
-        ui_store::session_preview_meta_for_tenant(&tenant, &id)
+    let scope = if has_explicit_directory(&query, &headers) {
+        Some(
+            resolve_scope_from_query(&tenant, &query, &headers)
+                .ok_or_else(|| ApiError::bad_request("session project scope is required"))?,
+        )
+    } else {
+        None
+    };
+    let meta = crate::global_database::run_isolated(move || match scope {
+        Some(scope) => {
+            ui_store::load_session_meta_scoped_for_tenant(&tenant, &session_id, Some(&scope))
+        }
+        None => Ok(ui_store::session_preview_meta_for_tenant(&tenant, &session_id)),
     })
     .await
+    .map_err(|e| ApiError::internal(e.to_string()))?
     .map_err(|e| ApiError::internal(e.to_string()))?;
     Ok(Json(meta))
 }

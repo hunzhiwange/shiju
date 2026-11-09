@@ -169,7 +169,10 @@ pub struct GatewayChatStreamRequest {
     /// ACP model origin; missing values select the client session model.
     #[serde(default)]
     pub acp_model_source: crate::acp_model_source::AcpModelSource,
-    /// 可选会话 ID。
+    /// Stable session ID. When omitted, chat streams return the assigned ID in
+    /// `x-vw-session-id` and the replay key in `x-vw-stream-request-id`.
+    /// Reuse the original request body and key with `Last-Event-ID` (0 before
+    /// the first event). HTTP 410 means the original stream can no longer be replayed.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub session_id: Option<SessionId>,
     /// 网关格式消息列表。

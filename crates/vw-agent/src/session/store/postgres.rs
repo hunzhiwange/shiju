@@ -535,6 +535,7 @@ impl PostgresSessionStore {
         &self,
         scope: &ProjectScope,
         session_id: &str,
+        include_pending: bool,
     ) -> Result<Option<ChatSessionMeta>> {
         let mut connection = self.database.connect_postgres()?;
         connection
@@ -545,8 +546,15 @@ impl PostgresSessionStore {
                  LEFT JOIN session_first_response USING (platform_id, company_id, project_id, session_id)
                  WHERE platform_id = $1 AND company_id = $2 AND project_id = $3
                    AND session_id = $4
-                   AND COALESCE(first_response_state, 'committed') = 'committed'",
-                scoped_id_params!(scope, session_id),
+                   AND (COALESCE(first_response_state, 'committed') = 'committed'
+                        OR ($5 AND first_response_state = 'pending'))",
+                &[
+                    &scope.platform_id().as_ref(),
+                    &scope.company_id().as_ref(),
+                    &scope.project_id().as_ref(),
+                    &session_id,
+                    &include_pending,
+                ],
             )
             .context("load scoped PostgreSQL session metadata")?
             .as_ref()
@@ -962,7 +970,9 @@ impl PostgresSessionStore {
         transaction.execute(
             "INSERT INTO session_index (platform_id, company_id, project_id, session_id,
                title, created_ms, updated_ms, message_count, call_count)
-             VALUES ($1, $2, $3, $4, '', $5, $6, 0, 0)",
+             VALUES ($1, $2, $3, $4, '', $5, $6, 0, 0)
+             ON CONFLICT (platform_id, company_id, project_id, session_id)
+             DO UPDATE SET title = ''",
             &[
                 &scope.platform_id().as_ref(),
                 &scope.company_id().as_ref(),
@@ -975,6 +985,16 @@ impl PostgresSessionStore {
         write_agent_info(&mut transaction, scope, &pending)?;
         transaction.commit()?;
         Ok(pending)
+    }
+
+    pub(super) fn has_committed_first_response(
+        &self,
+        scope: &ProjectScope,
+        session_id: &str,
+    ) -> Result<bool> {
+        let mut connection = self.database.connect_postgres()?;
+        Ok(first_response_state(&mut *connection, scope, session_id)?.as_deref()
+            == Some("committed"))
     }
 
     pub(super) fn commit_first_response(

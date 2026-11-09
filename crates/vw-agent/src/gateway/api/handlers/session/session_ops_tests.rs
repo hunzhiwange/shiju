@@ -190,7 +190,8 @@ async fn refresh_task_session_summaries_preserves_summary_when_refresh_fails() {
 }
 
 #[tokio::test]
-async fn ui_session_create_accepts_absent_body_and_generates_default_title() {
+async fn gateway_first_response_create_without_title_reserves_an_unpublished_session() {
+    let _env = crate::test_support::global_async_env_lock().lock().await;
     let _guard = SESSION_OPS_TEST_LOCK.lock().await;
     ensure_test_home();
     project::instance::dispose_all().await;
@@ -205,8 +206,41 @@ async fn ui_session_create_accepts_absent_body_and_generates_default_title() {
             .expect("session should be created from absent body");
 
     assert_eq!(created.parent_id, None);
-    assert_eq!(created.directory, project_path.to_string_lossy());
-    assert!(created.title.starts_with("New session - "));
+    assert_eq!(created.directory, project_path.canonicalize().unwrap().to_string_lossy());
+    assert!(created.title.is_empty());
+    assert!(created.is_first_response_pending());
+    let Json(loaded) =
+        ui_session_get(Path(created.id.clone()), Query(query_for(project_path)), HeaderMap::new())
+            .await
+            .unwrap();
+    assert_eq!(loaded.id, created.id);
+    let Json(sessions) = ui_session_list(
+        Query(UiSessionListQuery {
+            directory: Some(created.directory.clone()),
+            roots: None,
+            start: None,
+            search: None,
+            limit: None,
+        }),
+        HeaderMap::new(),
+    )
+    .await
+    .unwrap();
+    assert!(sessions.iter().all(|session| session.id != created.id));
+    let error = session_title_generate(
+        Path(created.id),
+        Query(query_for(project_path)),
+        HeaderMap::new(),
+        Json(GatewaySessionTitleGenerateBody {
+            content: "must not be sent to a model".into(),
+            preferred_model: Some("missing-provider/missing-model".into()),
+            acp_agent: None,
+        }),
+    )
+    .await
+    .err()
+    .unwrap();
+    assert_eq!(error.status, axum::http::StatusCode::CONFLICT);
 }
 
 #[tokio::test]
@@ -704,6 +738,8 @@ async fn session_ops_cover_diff_summary_reset_and_title_errors() {
 
     let title_result = session_title_generate(
         Path(info.id),
+        Query(query_for(project_path)),
+        HeaderMap::new(),
         Json(GatewaySessionTitleGenerateBody {
             content: "".to_string(),
             preferred_model: None,

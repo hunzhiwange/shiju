@@ -259,6 +259,79 @@ async fn session_ui_summary_omits_message_payload() {
 }
 
 #[tokio::test(flavor = "multi_thread")]
+async fn session_ui_summary_refreshes_a_stale_delta_before_first_response() {
+    let _env = crate::test_support::global_async_env_lock().lock().await;
+    let _guard = UI_OPS_TEST_LOCK.lock().await;
+    ensure_test_home();
+    let project = TempDir::new().unwrap();
+    let body = scoped_session("pending-stale-delta", "Draft", "first message", 20);
+    let session_id = body.id.clone();
+    let query = || Query(query_for(project.path()));
+    let Json(saved) =
+        session_ui_save(Path(session_id.clone()), query(), HeaderMap::new(), Json(body))
+            .await
+            .unwrap();
+    assert!(saved);
+
+    let mut delta = ui_models::SessionMessageDelta {
+        session_id: session_id.clone(),
+        expected_updated_ms: 19,
+        updated_ms: 21,
+        upserts: vec![ui_models::SessionMessageRecord {
+            seq_no: 1,
+            message_id: Some("pending-assistant".to_owned()),
+            message: ui_models::ChatMessage {
+                role: ui_models::ChatRole::Assistant,
+                content: "partial answer".to_owned(),
+                model: None,
+                think_timing: Vec::new(),
+                processing_timing: None,
+            },
+        }],
+        truncate_after: None,
+    };
+    let error = session_ui_message_delta(
+        Path(session_id.clone()),
+        query(),
+        HeaderMap::new(),
+        Json(delta.clone()),
+    )
+    .await
+    .expect_err("the initial write must have advanced the session version");
+    assert_eq!(error.status, axum::http::StatusCode::CONFLICT);
+
+    let Json(summary) =
+        session_ui_summary(Path(session_id.clone()), query(), HeaderMap::new()).await.unwrap();
+    assert_eq!(summary.updated_ms, 20);
+    assert_eq!(summary.message_count, 1);
+    assert!(summary.last_content.is_none());
+    delta.expected_updated_ms = summary.updated_ms;
+    let Json(retry) =
+        session_ui_message_delta(Path(session_id.clone()), query(), HeaderMap::new(), Json(delta))
+            .await
+            .unwrap();
+    assert_eq!(retry.upserted_rows, 1);
+
+    let Json(page) = session_ui_messages(
+        Path(session_id.clone()),
+        Query(GatewaySessionMessagePageQuery {
+            directory: Some(project.path().to_string_lossy().into_owned()),
+            cursor: None,
+            limit: None,
+            direction: Default::default(),
+        }),
+        HeaderMap::new(),
+    )
+    .await
+    .unwrap();
+    assert_eq!(page.total_count, 2);
+    assert_eq!(page.items[1].message.content, "partial answer");
+    let Json(preview) =
+        session_ui_preview_meta(Path(session_id), query(), HeaderMap::new()).await.unwrap();
+    assert!(preview.is_none());
+}
+
+#[tokio::test(flavor = "multi_thread")]
 async fn session_ui_messages_enforces_page_limit() {
     let _guard = UI_OPS_TEST_LOCK.lock().await;
     ensure_test_home();
@@ -1104,8 +1177,13 @@ async fn ui_snapshot_handlers_round_trip_scoped_sessions_and_metadata() {
     );
     ui_store::set_session_scope(Some(&scope_b));
 
-    let Json(meta) =
-        session_ui_preview_meta(Path(body_b.id.clone())).await.expect("preview meta should load");
+    let Json(meta) = session_ui_preview_meta(
+        Path(body_b.id.clone()),
+        Query(InstanceQuery { directory: None }),
+        HeaderMap::new(),
+    )
+    .await
+    .expect("preview meta should load");
     assert_eq!(meta.expect("preview meta").title, body_b.title);
 
     let Json(path) =
@@ -1275,9 +1353,13 @@ async fn ui_snapshot_handlers_return_empty_results_for_unknown_session() {
         .expect("project directory should resolve to a scope");
     ui_store::set_session_scope(Some(&scope));
 
-    let Json(meta) = session_ui_preview_meta(Path(session_id.clone()))
-        .await
-        .expect("unknown preview metadata should be handled");
+    let Json(meta) = session_ui_preview_meta(
+        Path(session_id.clone()),
+        Query(InstanceQuery { directory: None }),
+        HeaderMap::new(),
+    )
+    .await
+    .expect("unknown preview metadata should be handled");
     assert!(meta.is_none());
 
     let Json(any_session) = session_ui_get_any(Path(session_id))
@@ -1511,4 +1593,33 @@ async fn agent_unified_selection_summary_projects_server_owned_identity() {
     assert_eq!(encoded["agent_binding"]["label"], "已固化的名称");
     assert!(!encoded.to_string().contains("DO_NOT_PROJECT_RULES"));
     assert!(encoded.get("messages").is_none());
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn gateway_first_response_ui_save_cannot_publish_a_new_session() {
+    let _env = crate::test_support::global_async_env_lock().lock().await;
+    let _guard = UI_OPS_TEST_LOCK.lock().await;
+    ensure_test_home();
+    let project = TempDir::new().unwrap();
+    let session_id = format!("unpublished-ui-{}", uuid::Uuid::new_v4());
+    let mut snapshot = scoped_session(&session_id, "Draft title", "draft text", 20);
+    snapshot.messages.push(ui_models::ChatMessage {
+        role: ui_models::ChatRole::Assistant,
+        content: "client-supplied answer".into(),
+        model: None,
+        think_timing: Vec::new(),
+        processing_timing: None,
+    });
+    let query = || Query(query_for(project.path()));
+    let Json(saved) =
+        session_ui_save(Path(session_id.clone()), query(), HeaderMap::new(), Json(snapshot))
+            .await
+            .unwrap();
+    assert!(saved);
+    let Json(stored) =
+        session_ui_get(Path(session_id.clone()), query(), HeaderMap::new()).await.unwrap();
+    assert!(stored.unwrap().title.is_empty());
+    let Json(preview) =
+        session_ui_preview_meta(Path(session_id), query(), HeaderMap::new()).await.unwrap();
+    assert!(preview.is_none());
 }

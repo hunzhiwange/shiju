@@ -22,9 +22,14 @@ pub(crate) async fn lock_history(session_id: &str) -> tokio::sync::OwnedMutexGua
     lock_history_key(session_id).await
 }
 
-/// Order branch prompts through their terminal persistence, independently of short history writes.
-pub(crate) async fn lock_fork_prompt(session_id: &str) -> tokio::sync::OwnedMutexGuard<()> {
-    lock_history_key(&format!("turn-fork-prompt/{session_id}")).await
+/// Order gateway turns through terminal persistence in their tenant and project.
+pub(crate) async fn lock_stream_prompt(
+    tenant: &vw_api_types::id::TenantScope,
+    project_id: &str,
+    session_id: &str,
+) -> tokio::sync::OwnedMutexGuard<()> {
+    let scope = json!([tenant, project_id, session_id]);
+    lock_history_key(&format!("stream-prompt/{scope}")).await
 }
 
 async fn lock_history_key(session_id: &str) -> tokio::sync::OwnedMutexGuard<()> {

@@ -653,6 +653,24 @@ impl SessionStore {
         scope: &ProjectScope,
         session_id: &str,
     ) -> Result<Option<ChatSessionMeta>> {
+        self.load_session_meta_with_pending(scope, session_id, false)
+    }
+
+    /// Read the index for a known session ID, including an unpublished first response.
+    pub(crate) fn load_session_ui_meta(
+        &self,
+        scope: &ProjectScope,
+        session_id: &str,
+    ) -> Result<Option<ChatSessionMeta>> {
+        self.load_session_meta_with_pending(scope, session_id, true)
+    }
+
+    fn load_session_meta_with_pending(
+        &self,
+        scope: &ProjectScope,
+        session_id: &str,
+        include_pending: bool,
+    ) -> Result<Option<ChatSessionMeta>> {
         validate_id("session id", session_id)?;
         match &self.provider {
             SessionStoreProvider::Sqlite(database) => {
@@ -665,8 +683,15 @@ impl SessionStore {
                          LEFT JOIN session_first_response USING (platform_id, company_id, project_id, session_id)
                          WHERE platform_id = ?1 AND company_id = ?2 AND project_id = ?3
                            AND session_id = ?4
-                           AND COALESCE(first_response_state, 'committed') = 'committed'",
-                        scoped_id_params(scope, session_id),
+                           AND (COALESCE(first_response_state, 'committed') = 'committed'
+                                OR (?5 AND first_response_state = 'pending'))",
+                        params![
+                            scope.platform_id().as_ref(),
+                            scope.company_id().as_ref(),
+                            scope.project_id().as_ref(),
+                            session_id,
+                            include_pending,
+                        ],
                         |row| {
                             Ok((
                                 row.get::<_, String>(0)?,
@@ -691,7 +716,7 @@ impl SessionStore {
                 .transpose()
             }
             SessionStoreProvider::Postgres(store) => {
-                run_sync_database(|| store.load_session_meta(scope, session_id))
+                run_sync_database(|| store.load_session_meta(scope, session_id, include_pending))
             }
         }
     }
@@ -1084,7 +1109,9 @@ impl SessionStore {
                     transaction.execute(
                         "INSERT INTO session_index (platform_id, company_id, project_id, session_id,
                            title, created_ms, updated_ms, message_count, call_count)
-                         VALUES (?1, ?2, ?3, ?4, '', ?5, ?6, 0, 0)",
+                         VALUES (?1, ?2, ?3, ?4, '', ?5, ?6, 0, 0)
+                         ON CONFLICT (platform_id, company_id, project_id, session_id)
+                         DO UPDATE SET title = ''",
                         params![scope.platform_id().as_ref(), scope.company_id().as_ref(),
                             scope.project_id().as_ref(), pending.id,
                             to_i64(pending.time.created, "session created_ms")?,
@@ -1096,6 +1123,23 @@ impl SessionStore {
             }
             SessionStoreProvider::Postgres(store) => {
                 run_sync_database(|| store.reserve_pending_session(scope, info))
+            }
+        }
+    }
+
+    pub fn has_committed_first_response(
+        &self,
+        scope: &ProjectScope,
+        session_id: &str,
+    ) -> Result<bool> {
+        validate_id("session id", session_id)?;
+        match &self.provider {
+            SessionStoreProvider::Sqlite(database) => {
+                Ok(first_response_state(&database.connect_sqlite()?, scope, session_id)?.as_deref()
+                    == Some("committed"))
+            }
+            SessionStoreProvider::Postgres(store) => {
+                run_sync_database(|| store.has_committed_first_response(scope, session_id))
             }
         }
     }
@@ -1502,7 +1546,11 @@ fn reuse_session(
     existing: AgentSessionInfo,
     requested: &AgentSessionInfo,
 ) -> Result<AgentSessionInfo> {
-    if existing.directory != requested.directory {
+    if existing.directory != requested.directory
+        && !std::fs::canonicalize(&existing.directory).is_ok_and(|existing| {
+            std::fs::canonicalize(&requested.directory).is_ok_and(|requested| existing == requested)
+        })
+    {
         bail!("session directory does not match its reservation");
     }
     Ok(existing)

@@ -18,8 +18,6 @@ use super::models::{
 use super::store;
 #[cfg(not(target_arch = "wasm32"))]
 use vw_shared::session::session_utils::is_default_title;
-#[cfg(not(target_arch = "wasm32"))]
-use vw_shared::session::ui_types::ChatRole;
 use vw_shared::shell::{resolve_executable, shell_profile_env_var, std_command};
 
 mod backend_output;
@@ -147,74 +145,11 @@ where
 }
 
 #[cfg(not(target_arch = "wasm32"))]
-fn persist_task_session_title(session_id: &str, title: &str) {
-    if let Ok(client) = crate::app::config::gateway_client() {
-        let _ = block_on_gateway(client.session_update::<()>(
-            session_id,
-            None,
-            &vw_gateway_client::GatewaySessionPatchBody {
-                title: Some(title.to_string()),
-                time: None,
-            },
-        ));
-    }
-}
-
-#[cfg(not(target_arch = "wasm32"))]
-fn generate_task_session_title_from_content(session_id: &str, content: &str) -> Option<String> {
-    let client = crate::app::config::gateway_client().ok()?;
-    let generated = block_on_gateway(client.session_title_generate(
-        session_id,
-        &vw_gateway_client::GatewaySessionTitleGenerateBody {
-            content: content.to_string(),
-            preferred_model: None,
-            acp_agent: None,
-        },
-    ))
-    .ok()?
-    .title;
-    let title = normalize_non_default_commit_title(&generated)
-        .or_else(|| normalize_commit_title(content))?;
-    persist_task_session_title(session_id, &title);
-    Some(title)
-}
-
-#[cfg(not(target_arch = "wasm32"))]
-/// 执行 load_task_session_title 对应的领域操作。
-///
-/// 参数由调用方提供，函数在当前模块的状态边界内完成处理。
-/// 返回值表达处理结果；失败时保留错误信息给上层界面或调度逻辑。
 pub(super) fn load_task_session_title(task: &Task) -> Option<String> {
     let session_id = task_session_id(&task.id);
-
-    if let Some(title) = crate::app::session_gateway::gateway_session_preview_meta(&session_id)
-        .and_then(|meta| normalize_non_default_commit_title(&meta.title))
-    {
-        return Some(title);
-    }
-
-    let session = crate::app::session_gateway::gateway_load_session_any(&session_id);
-    if let Some(title) =
-        session.as_ref().and_then(|session| normalize_non_default_commit_title(&session.title))
-    {
-        return Some(title);
-    }
-
-    let first_user_content = session.as_ref().and_then(|session| {
-        session.messages.iter().find_map(|message| {
-            (message.role == ChatRole::User)
-                .then_some(message.content.trim())
-                .filter(|content| !content.is_empty())
-                .map(str::to_string)
-        })
-    });
-
-    let fallback_content = first_user_content
-        .as_deref()
-        .or_else(|| Some(task.prompt.trim()).filter(|content| !content.is_empty()))?;
-
-    generate_task_session_title_from_content(&session_id, fallback_content)
-        .or_else(|| normalize_commit_title(fallback_content))
+    let preview = crate::app::session_gateway::gateway_session_preview_meta(&session_id)?;
+    normalize_non_default_commit_title(&preview.title)
+        .or_else(|| preview.last_content.as_deref().and_then(normalize_commit_title))
 }
 
 #[cfg(target_arch = "wasm32")]

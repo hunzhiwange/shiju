@@ -22,8 +22,8 @@ use vw_api_types::id::TenantScope;
 use super::raw_commit;
 use super::shared::with_tenant_instance;
 use crate::app::agent::gateway::api::handlers::resumable_stream::{
-    StreamKind, StreamOpenError, global_stream_store, last_event_id, request_signature,
-    sse_response, stream_request_id,
+    STREAM_REQUEST_ID_HEADER, StreamKind, StreamOpenError, global_stream_store, last_event_id,
+    request_signature, sse_response, stream_request_id,
 };
 
 use crate::app::agent::agent;
@@ -75,11 +75,18 @@ struct StreamTrajectoryRecorder {
     steps: Vec<ui_models::ChatSessionStep>,
     tool_results: Vec<agent_session::processor::ToolEvent>,
     response_text: String,
+    final_step_has_text: bool,
 }
 
 impl StreamTrajectoryRecorder {
     fn new(turn_id: String) -> Self {
-        Self { turn_id, steps: Vec::new(), tool_results: Vec::new(), response_text: String::new() }
+        Self {
+            turn_id,
+            steps: Vec::new(),
+            tool_results: Vec::new(),
+            response_text: String::new(),
+            final_step_has_text: false,
+        }
     }
 
     fn step_mut(&mut self, step_index: u32, occurred_ms: u64) -> &mut ui_models::ChatSessionStep {
@@ -105,6 +112,7 @@ impl StreamTrajectoryRecorder {
     fn record(&mut self, event: &agent_session::processor::StreamEvent) {
         match event {
             agent_session::processor::StreamEvent::StepStart { step_index, created_ms, model } => {
+                self.final_step_has_text = false;
                 let step = self.step_mut(*step_index, *created_ms);
                 step.started_ms = *created_ms;
                 if model.is_some() {
@@ -113,6 +121,7 @@ impl StreamTrajectoryRecorder {
             }
             agent_session::processor::StreamEvent::Delta(text) => {
                 self.response_text.push_str(text);
+                self.final_step_has_text |= !text.trim().is_empty();
             }
             agent_session::processor::StreamEvent::Tool(event) => {
                 let step_index = event_step_index(self.steps.as_slice());
@@ -538,6 +547,7 @@ struct DelegateRequestOverrides {
 struct PreparedStreamHistory {
     history: Vec<ui_models::ChatMessage>,
     query: String,
+    preview: String,
 }
 
 #[derive(Debug, Clone)]
@@ -567,19 +577,20 @@ fn prepare_stream_history(
     let total_messages = history_messages.len();
     let mut history = Vec::new();
     let mut query = String::new();
+    let mut preview = String::new();
+    let mut prior_user_content = None;
 
-    for (idx, message) in history_messages.into_iter().enumerate() {
+    for (idx, message) in history_messages.iter().enumerate() {
         let role = message.get("role").and_then(Value::as_str).unwrap_or("user");
-        let content = gateway_content_to_prompt_text(
-            message.get("content").unwrap_or(&Value::Null),
-            preserve_structured_prompt,
-        );
+        let source = message.get("content").unwrap_or(&Value::Null);
+        let content = gateway_content_to_prompt_text(source, preserve_structured_prompt);
 
         let normalized_content =
             if role == "tool" { tool_content_to_session_text(&content) } else { content };
 
         if idx + 1 == total_messages && role == "user" {
             query = normalized_content;
+            preview = gateway_content_to_title_source(source);
             continue;
         }
 
@@ -591,6 +602,9 @@ fn prepare_stream_history(
             _ => ui_models::ChatRole::User,
         };
 
+        if mapped_role == ui_models::ChatRole::User {
+            prior_user_content = message.get("content");
+        }
         history.push(ui_models::ChatMessage {
             role: mapped_role,
             content: normalized_content,
@@ -606,9 +620,28 @@ fn prepare_stream_history(
             history.iter().rposition(|message| matches!(message.role, ui_models::ChatRole::User))
     {
         query = history.remove(last_user_idx).content;
+        if let Some(content) = prior_user_content {
+            preview = gateway_content_to_title_source(content);
+        }
     }
 
-    PreparedStreamHistory { history, query }
+    PreparedStreamHistory { history, query, preview }
+}
+
+fn gateway_content_to_title_source(content: &Value) -> String {
+    let text = match content {
+        Value::String(text) => std::borrow::Cow::Borrowed(text.as_str()),
+        Value::Array(blocks) => std::borrow::Cow::Owned(
+            blocks
+                .iter()
+                .filter(|block| block["type"] == "text")
+                .filter_map(|block| block["text"].as_str())
+                .collect::<Vec<_>>()
+                .join("\n"),
+        ),
+        _ => return String::new(),
+    };
+    agent_session::title::first_response_source(&text)
 }
 
 fn gateway_content_to_prompt_text(content: &Value, preserve_structured: bool) -> String {
@@ -714,6 +747,7 @@ fn stream_payload_for_non_done_event(
         }
         agent_session::processor::StreamEvent::StepStart { step_index, created_ms, model } => {
             *current_step_index = Some(step_index);
+            *assistant_finish_reason = None;
             Some(serde_json::json!({
                 "type": "chat.step_start",
                 "step_index": step_index,
@@ -1153,9 +1187,13 @@ async fn start_gateway_chat_producer(
             .map_err(|error| ApiError::internal(error.to_string()))?,
         None => None,
     };
-    let fork_guard = match &fork {
-        Some(info) => Some(agent_session::message::lock_fork_prompt(&info.id).await),
-        None => None,
+    let project = instance::project()
+        .ok_or_else(|| ApiError::internal("chat stream is missing project context"))?;
+    let prompt_guard = match body.session_id.as_ref().map(|id| id.0.trim()) {
+        Some(session_id) if !session_id.is_empty() => {
+            Some(agent_session::message::lock_stream_prompt(&tenant, &project.id, session_id).await)
+        }
+        _ => None,
     };
     let (dir, fork_history) = match fork {
         Some(info) => {
@@ -1228,8 +1266,7 @@ async fn start_gateway_chat_producer(
     let project_context = instance::Context {
         directory: instance::directory(),
         worktree: instance::worktree(),
-        project: instance::project()
-            .ok_or_else(|| ApiError::internal("chat stream is missing project context"))?,
+        project,
     };
     let goal_evaluation = options.get("goal_evaluation").and_then(Value::as_bool).unwrap_or(false);
     let stream_session_id =
@@ -1246,44 +1283,51 @@ async fn start_gateway_chat_producer(
     } else {
         Some(preallocate_stream_turn_message_ids()?)
     };
-    let (history, query, persisted_history) = match fork_history {
+    let (history, query, preview, persisted_history) = match fork_history {
         Some((history, persisted)) => {
-            let query = if resume_history_only {
-                String::new()
+            let (query, preview) = if resume_history_only {
+                (String::new(), String::new())
             } else {
                 let message =
                     messages.last().filter(|msg| msg["role"] == "user").ok_or_else(|| {
                         ApiError::bad_request("fork continuation requires a new user message")
                     })?;
-                gateway_content_to_prompt_text(&message["content"], preserve_structured_prompt)
+                (
+                    gateway_content_to_prompt_text(&message["content"], preserve_structured_prompt),
+                    gateway_content_to_title_source(&message["content"]),
+                )
             };
-            (history, query, Some(persisted))
+            (history, query, preview, Some(persisted))
         }
         None => {
-            let PreparedStreamHistory { history, query } =
+            let PreparedStreamHistory { history, query, preview } =
                 prepare_stream_history(messages, resume_history_only, preserve_structured_prompt);
-            (history, query, None)
+            (history, query, preview, None)
         }
     };
     if should_persist_app_session_artifacts {
-        let title = initial_stream_session_title(&query);
-        let created_ms = agent_session::session::now_ms();
-        ensure_stream_agent_session(
-            &tenant,
-            app_session_scope.as_deref(),
-            &stream_session_id,
-            &root_dir,
-            &title,
-            created_ms,
-            created_ms,
-        )
-        .map_err(|error| ApiError::internal(error.to_string()))?;
+        let reservation_tenant = tenant.clone();
+        let project_id = app_session_scope.clone().expect("persistent stream has project scope");
+        let session_id = stream_session_id.clone();
+        let directory = root_dir.clone();
+        crate::global_database::run_isolated(move || {
+            reserve_stream_agent_session(
+                &reservation_tenant,
+                &project_id,
+                &session_id,
+                &directory,
+                agent_session::session::now_ms(),
+            )
+        })
+        .await
+        .map_err(|error| ApiError::internal(error.to_string()))?
+        .map_err(|error| ApiError::bad_request(error.to_string()))?;
     }
     let runtime_handle = tokio::runtime::Handle::current();
     let delegated_context = crate::tools::current_tool_use_context();
 
     std::thread::spawn(move || {
-        let _fork_guard = fork_guard;
+        let _prompt_guard = prompt_guard;
         struct Sink<F> {
             send: F,
             sent_terminal: bool,
@@ -1505,7 +1549,14 @@ async fn start_gateway_chat_producer(
                             if let Err(error) = trajectory_recorder
                                 .append_tool_parts(&stream_session_id, &mut patch_parts)
                             {
-                                tracing::warn!(%error, "failed to allocate a stream tool part");
+                                let mut sink = sink_for_run
+                                    .lock()
+                                    .unwrap_or_else(std::sync::PoisonError::into_inner);
+                                sink.sent_terminal = (sink.send)(
+                                    serde_json::json!({"type": "chat.error", "error": error.to_string()}),
+                                    true,
+                                );
+                                break;
                             }
                             let native_text = if trajectory_recorder.tool_results.is_empty() {
                                 &assistant_text
@@ -1543,11 +1594,21 @@ async fn start_gateway_chat_producer(
                                     let ids = stream_message_ids
                                         .as_ref()
                                         .expect("persistent streams preallocate message ids");
-                                    if let Err(error) = commit_stream_session_trajectory(
+                                    let eligible = !resume_history_only
+                                        && !query.trim().is_empty()
+                                        && trajectory_recorder.final_step_has_text
+                                        && trajectory_recorder.steps.iter().all(|step| {
+                                            step.tool_timings
+                                                .iter()
+                                                .all(|tool| tool.finished_ms.is_some())
+                                        })
+                                        && is_successful_finish_reason(
+                                            assistant_finish_reason.as_deref(),
+                                        );
+                                    match commit_stream_session_trajectory(
                                         &tenant,
                                         app_session_scope.as_deref(),
                                         &stream_session_id,
-                                        &root_dir,
                                         &query,
                                         &assistant_text,
                                         assistant_model.as_deref(),
@@ -1555,16 +1616,35 @@ async fn start_gateway_chat_producer(
                                         &trajectory_recorder,
                                         processing_started_ms,
                                         processing_completed_ms,
+                                        eligible.then_some(preview.as_str()),
                                     ) {
-                                        tracing::error!(
-                                            target: "vw_agent",
-                                            session_id = %stream_session_id,
-                                            error = %error,
-                                            "failed to commit streamed session trajectory"
-                                        );
-                                        Err(error.to_string())
-                                    } else {
-                                        Ok((Some(assistant_id), Some(user_id)))
+                                        Ok(first_preview) => {
+                                            if let Some(preview) = first_preview {
+                                                let title_model = if preserve_structured_prompt {
+                                                    None
+                                                } else {
+                                                    assistant_model.clone()
+                                                };
+                                                super::session_ops::spawn_first_response_title(
+                                                    &runtime_handle,
+                                                    tenant.clone(),
+                                                    project_context.clone(),
+                                                    stream_session_id.clone(),
+                                                    preview,
+                                                    title_model,
+                                                );
+                                            }
+                                            Ok((Some(assistant_id), Some(user_id)))
+                                        }
+                                        Err(error) => {
+                                            tracing::error!(
+                                                target: "vw_agent",
+                                                session_id = %stream_session_id,
+                                                error = %error,
+                                                "failed to commit streamed session trajectory"
+                                            );
+                                            Err(error.to_string())
+                                        }
                                     }
                                 }
                                 Err(error) => {
@@ -1589,7 +1669,7 @@ async fn start_gateway_chat_producer(
                                 "parent_message_id": parent_message_id
                             }),
                             Err(error) => {
-                                serde_json::json!({ "type": "chat.error", "error": error })
+                                serde_json::json!({ "type": "chat.error", "session_id": stream_session_id, "error": error })
                             }
                         }
                     }
@@ -1642,7 +1722,7 @@ async fn start_gateway_chat_producer(
                                 summary_update = summary;
                             }
                         }
-                        serde_json::json!({ "type": "chat.error", "error": error })
+                        serde_json::json!({ "type": "chat.error", "session_id": stream_session_id, "error": error })
                     }
                     other => match stream_payload_for_non_done_event(
                         other,
@@ -1784,32 +1864,60 @@ async fn collect_gateway_chat_stream_payloads(
 pub(super) async fn chat_stream(
     Query(query): Query<InstanceQuery>,
     headers: HeaderMap,
-    Json(body): Json<GatewayChatStreamRequest>,
+    Json(mut body): Json<GatewayChatStreamRequest>,
 ) -> Result<impl IntoResponse, ApiError> {
     let tenant = crate::session::ui_store::current_tenant_scope();
     let dir = resolve_directory(&query, &headers);
+    #[cfg(not(target_arch = "wasm32"))]
+    let dir =
+        tokio::fs::canonicalize(&dir).await.map_or(dir, |path| path.to_string_lossy().into_owned());
     let request_id = stream_request_id(&headers)?;
     let after_event_id = last_event_id(&headers)?;
-    let serialized_request = serde_json::to_vec(&body)
-        .map_err(|error| ApiError::internal(format!("chat stream 请求签名失败: {error}")))?;
-    let signature = request_signature(&serialized_request);
+    let resume_after = headers.contains_key("last-event-id").then_some(after_event_id);
+    if resume_after.is_some() && !headers.contains_key(STREAM_REQUEST_ID_HEADER) {
+        return Err(ApiError::bad_request("Last-Event-ID requires x-vw-stream-request-id"));
+    }
     let tenant_for_stream = tenant.clone();
     let sse = with_tenant_instance(tenant, dir.clone(), move || {
         Box::pin(async move {
+            let project = instance::project()
+                .ok_or_else(|| ApiError::internal("chat stream is missing project context"))?;
+            let serialized = serde_json::to_vec(&(&project.id, &dir, &body))
+                .map_err(|error| ApiError::internal(format!("chat stream 请求签名失败: {error}")))?;
+            let signature = request_signature(&serialized);
+            let session_id = body.session_id.as_ref().map(|id| id.0.trim())
+                .filter(|id| !id.is_empty()).map(str::to_owned);
+            let goal_evaluation = body.options.as_ref().and_then(|options| {
+                options.get("goal_evaluation").and_then(Value::as_bool)
+            }) == Some(true);
+            let session_id = match session_id {
+                None if !goal_evaluation => Some(id::ascending(id::Prefix::Session, None)
+                    .map_err(|error| ApiError::internal(error.to_string()))?),
+                session_id => session_id,
+            };
+            if let Some(session_id) = &session_id {
+                axum::http::HeaderValue::from_str(session_id)
+                    .map_err(|_| ApiError::bad_request("invalid session id"))?;
+            }
             let mut opened = global_stream_store()
-                .open(
+                .open_chat(
                     tenant_for_stream.clone(),
-                    StreamKind::Chat,
-                    request_id,
+                    request_id.clone(),
                     signature,
-                    after_event_id,
+                    resume_after,
+                    session_id,
                 )
                 .map_err(|error| match error {
                     StreamOpenError::RequestConflict => ApiError {
                         status: StatusCode::CONFLICT,
                         message: "相同流请求标识对应了不同 chat 请求".to_string(),
                     },
+                    StreamOpenError::ResumeUnavailable => ApiError {
+                        status: StatusCode::GONE,
+                        message: "chat replay is unavailable; read the original session before sending again".to_string(),
+                    },
                 })?;
+            body.session_id = opened.chat_session_id.clone().map(Into::into);
             if let Some(producer) = opened.producer.take() {
                 let cancellation = tokio_util::sync::CancellationToken::new();
                 let cancellation_for_stop = cancellation.clone();
@@ -1836,7 +1944,20 @@ pub(super) async fn chat_stream(
                 )
                 .await?;
             }
-            Ok(sse_response(opened.subscription))
+            let mut response = sse_response(opened.subscription);
+            response.headers_mut().insert(
+                STREAM_REQUEST_ID_HEADER,
+                axum::http::HeaderValue::from_str(&request_id)
+                    .map_err(|_| ApiError::bad_request("invalid stream request id"))?,
+            );
+            if let Some(session_id) = opened.chat_session_id {
+                response.headers_mut().insert(
+                    "x-vw-session-id",
+                    axum::http::HeaderValue::from_str(&session_id)
+                        .map_err(|_| ApiError::internal("invalid replay session id"))?,
+                );
+            }
+            Ok(response)
         })
     })
     .await?;
@@ -2117,15 +2238,23 @@ fn preallocate_stream_turn_message_ids() -> Result<StreamTurnMessageIds, ApiErro
     Ok(StreamTurnMessageIds { assistant_id, user_id })
 }
 
-fn initial_stream_session_title(query: &str) -> String {
-    query
-        .trim()
-        .lines()
-        .next()
-        .map(str::trim)
-        .filter(|line| !line.is_empty())
-        .unwrap_or("新会话")
-        .to_string()
+pub(super) fn is_successful_finish_reason(reason: Option<&str>) -> bool {
+    !matches!(
+        reason,
+        Some(
+            "tool_calls"
+                | "tool_use"
+                | "content_filter"
+                | "error"
+                | "cancelled"
+                | "waiting_for_input"
+                | "requires_action"
+                | "refusal"
+                | "max_turn_requests"
+                | "length"
+                | "max_tokens"
+        )
+    )
 }
 
 fn upsert_stream_ui_message(
@@ -2191,7 +2320,6 @@ fn commit_stream_session_trajectory(
     tenant: &TenantScope,
     scope: Option<&str>,
     session_id: &str,
-    directory: &str,
     query: &str,
     assistant_text: &str,
     model: Option<&str>,
@@ -2199,7 +2327,8 @@ fn commit_stream_session_trajectory(
     recorder: &StreamTrajectoryRecorder,
     created_ms: u64,
     completed_ms: u64,
-) -> anyhow::Result<()> {
+    first_response_preview: Option<&str>,
+) -> anyhow::Result<Option<String>> {
     let finished_steps = recorder
         .steps
         .iter()
@@ -2223,7 +2352,7 @@ fn commit_stream_session_trajectory(
     )?
     .unwrap_or_else(|| ui_models::ChatSession {
         id: session_id.to_string(),
-        title: initial_stream_session_title(query),
+        title: String::new(),
         messages: Vec::new(),
         message_ids: Vec::new(),
         calls: Vec::new(),
@@ -2277,16 +2406,36 @@ fn commit_stream_session_trajectory(
     }
     session.updated_ms = session.updated_ms.max(completed_ms);
 
-    ensure_stream_agent_session(
-        tenant,
-        scope,
-        session_id,
-        directory,
-        &session.title,
-        session.created_ms,
-        session.updated_ms,
-    )?;
+    let project_id =
+        scope.ok_or_else(|| anyhow::anyhow!("stream session is missing project scope"))?;
+    let mut info =
+        crate::session::ui_store::load_agent_session_scoped_for_tenant(tenant, session_id, scope)
+            .ok_or_else(|| anyhow::anyhow!("stream session reservation is missing"))?;
+    if info.is_first_response_pending()
+        && let Some(preview) = first_response_preview
+    {
+        let published = crate::session::ui_store::commit_first_response(
+            tenant,
+            project_id,
+            crate::session::store::FirstResponseCommit {
+                snapshot: &session,
+                raw_artifacts: claims.raw_artifacts(),
+                expected_finished_steps: claims.expected_steps(),
+                preview: Some(preview),
+                task_title: None,
+            },
+        )?;
+        if !published {
+            anyhow::bail!("session changed while committing its first response");
+        }
+        raw_commit::acknowledge(&claims);
+        return Ok((!preview.is_empty()).then(|| preview.to_owned()));
+    }
 
+    info.time.updated = info.time.updated.max(session.updated_ms);
+    session.title.clone_from(&info.title);
+    crate::session::ui_store::save_agent_session_scoped_for_tenant(tenant, &info, scope)
+        .ok_or_else(|| anyhow::anyhow!("failed to update stream session metadata"))?;
     if claims.is_empty() {
         crate::session::ui_store::save_session_ui_scoped_for_tenant(tenant, &session, scope, true)?;
     } else {
@@ -2299,54 +2448,36 @@ fn commit_stream_session_trajectory(
         )?;
     }
     raw_commit::acknowledge(&claims);
-    Ok(())
+    Ok(None)
 }
 
-fn ensure_stream_agent_session(
+pub(super) fn reserve_stream_agent_session(
     tenant: &TenantScope,
-    scope: Option<&str>,
+    project_id: &str,
     session_id: &str,
     directory: &str,
-    title: &str,
     created_ms: u64,
-    updated_ms: u64,
 ) -> anyhow::Result<()> {
-    let project_id = scope
-        .map(str::trim)
-        .filter(|value| !value.is_empty())
-        .ok_or_else(|| anyhow::anyhow!("stream session is missing project scope"))?;
-    let existing = crate::session::ui_store::load_agent_session_scoped_for_tenant(
-        tenant,
-        session_id,
-        Some(project_id),
-    );
-    let info = if let Some(mut info) = existing {
-        info.time.created = info.time.created.min(created_ms);
-        info.time.updated = info.time.updated.max(updated_ms);
-        info
-    } else {
-        agent_session::session::Info {
-            id: session_id.to_string(),
-            slug: agent_session::session::create_slug(),
-            project_id: project_id.to_string(),
-            directory: directory.to_string(),
-            parent_id: None,
-            summary: None,
-            share: None,
-            title: title.to_string(),
-            version: crate::app::agent::installation::version(),
-            time: agent_session::session::TimeInfo {
-                created: created_ms,
-                updated: updated_ms,
-                compacting: None,
-                archived: None,
-            },
-            permission: None,
-            revert: None,
-        }
+    let info = agent_session::session::Info {
+        id: session_id.to_string(),
+        slug: agent_session::session::create_slug(),
+        project_id: project_id.to_string(),
+        directory: directory.to_string(),
+        parent_id: None,
+        summary: None,
+        share: None,
+        title: String::new(),
+        version: crate::app::agent::installation::version(),
+        time: agent_session::session::TimeInfo {
+            created: created_ms,
+            updated: created_ms,
+            compacting: None,
+            archived: None,
+        },
+        permission: None,
+        revert: None,
     };
-    crate::session::ui_store::save_agent_session_scoped_for_tenant(tenant, &info, Some(project_id))
-        .ok_or_else(|| anyhow::anyhow!("failed to persist stream session metadata"))?;
+    crate::session::ui_store::reserve_pending_session(tenant, &info)?;
     Ok(())
 }
 

@@ -390,6 +390,16 @@ pub async fn create_next(input: CreateInput) -> Result<Info, Error> {
     get(&info.id).await
 }
 
+#[cfg(not(target_arch = "wasm32"))]
+pub(crate) async fn reserve_next(input: CreateInput) -> Result<Info, Error> {
+    let info = new_info(input)?;
+    let tenant = crate::session::ui_store::current_tenant_scope();
+    Ok(crate::global_database::run_isolated(move || {
+        crate::session::ui_store::reserve_pending_session(&tenant, &info)
+    })
+    .await??)
+}
+
 fn new_info(input: CreateInput) -> Result<Info, Error> {
     let now = now_ms();
     let project_id = project_id()?;

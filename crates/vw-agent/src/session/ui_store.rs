@@ -903,6 +903,20 @@ pub(crate) fn load_session_meta_scoped_for_tenant(
     )
 }
 
+#[cfg(not(target_arch = "wasm32"))]
+pub(crate) fn load_session_ui_meta_scoped_for_tenant(
+    tenant: &TenantScope,
+    id: &str,
+    scope: &str,
+) -> anyhow::Result<Option<ChatSessionMeta>> {
+    run_project_operation_fallible(
+        "load session UI metadata",
+        tenant,
+        Some(scope),
+        |store, project_scope| store.load_session_ui_meta(project_scope, id),
+    )
+}
+
 /// 按稳定序号读取固定大小的会话消息页；`before_seq_no` 为排他上界。
 #[cfg(not(target_arch = "wasm32"))]
 pub fn load_session_message_page_scoped_for_tenant(
@@ -1114,6 +1128,21 @@ pub fn reserve_pending_session(
     run_project_operation_fallible("reserve pending session", tenant, scope, |store, scope| {
         store.reserve_pending_session(scope, info)
     })
+}
+
+/// Check whether the runtime published this session's first response.
+#[cfg(not(target_arch = "wasm32"))]
+pub(crate) fn has_committed_first_response(
+    tenant: &TenantScope,
+    project_id: &str,
+    session_id: &str,
+) -> anyhow::Result<bool> {
+    run_project_operation_fallible(
+        "check first response publication",
+        tenant,
+        Some(project_id),
+        |store, scope| store.has_committed_first_response(scope, session_id),
+    )
 }
 
 /// Publish the first successful turn after native history is durable.

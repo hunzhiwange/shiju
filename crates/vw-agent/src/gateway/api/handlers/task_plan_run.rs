@@ -114,6 +114,10 @@ fn task_plan_run_streaming_response(
                 status: StatusCode::CONFLICT,
                 message: "相同流请求标识对应了不同 task-plan-run 请求".to_string(),
             },
+            StreamOpenError::ResumeUnavailable => ApiError {
+                status: StatusCode::GONE,
+                message: "task-plan-run replay is unavailable".to_string(),
+            },
         })?;
     let task_id = uuid::Uuid::new_v4().to_string();
     if let Some(producer) = opened.producer.take() {

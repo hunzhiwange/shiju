@@ -1409,7 +1409,6 @@ fn stream_trajectory_commit_rejects_llm_without_raw_artifacts() {
             &tenant,
             Some(&scope),
             &session_id,
-            &directory,
             "inspect",
             "answer",
             Some("fixture/model"),
@@ -1417,6 +1416,7 @@ fn stream_trajectory_commit_rejects_llm_without_raw_artifacts() {
             &recorder,
             10,
             20,
+            Some("inspect"),
         )
         .unwrap_err();
         assert!(error.to_string().contains("missing raw LLM artifacts"));
@@ -1548,11 +1548,11 @@ fn stream_trajectory_commit_persists_steps_tools_and_raw_without_ui_save() {
         model: Some("provider/model".to_string()),
     });
 
+    reserve_stream_agent_session(&tenant, &scope, &session_id, &project_path, 5).unwrap();
     commit_stream_session_trajectory(
         &tenant,
         Some(&scope),
         &session_id,
-        &project_path,
         "inspect",
         "done",
         Some("provider/model"),
@@ -1560,6 +1560,7 @@ fn stream_trajectory_commit_persists_steps_tools_and_raw_without_ui_save() {
         &recorder,
         5,
         25,
+        Some("inspect"),
     )
     .expect("stream endpoint should commit trajectory");
 
@@ -1579,7 +1580,16 @@ fn stream_trajectory_commit_persists_steps_tools_and_raw_without_ui_save() {
     )
     .expect("stored session metadata");
     assert_eq!(stored_info.directory, project_path);
-    assert_eq!(stored_info.title, "inspect");
+    assert!(!stored_info.is_first_response_pending());
+    assert!(stored_info.title.is_empty());
+    let preview = crate::session::ui_store::load_session_meta_scoped_for_tenant(
+        &tenant,
+        &session_id,
+        Some(&scope),
+    )
+    .unwrap()
+    .unwrap();
+    assert_eq!(preview.last_content.as_deref(), Some("inspect"));
     let stored_raw = crate::session::ui_store::load_llm_raw_turn_step_scoped_for_tenant(
         &tenant,
         &session_id,
@@ -2823,4 +2833,297 @@ async fn agent_model_inheritance_acp_new_and_reopened_sessions_preserve_priority
     )
     .await
     .unwrap();
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn gateway_first_response_replays_the_same_session_and_rejects_other_directories() {
+    use crate::app::agent::gateway::api::handlers::resumable_stream::STREAM_REQUEST_ID_HEADER;
+    use crate::session::ui_store;
+
+    let _env = crate::test_support::global_async_env_lock().lock().await;
+    let _fixture = crate::session::llm::recovery_test_support::RecoveryConfig::new(
+        "http://127.0.0.1:1/v1",
+        None,
+    )
+    .await;
+    let workspace = make_docs_workspace();
+    let unrelated = make_docs_workspace();
+    let directory = workspace.path().canonicalize().unwrap().to_string_lossy().into_owned();
+    let query = || Query(InstanceQuery { directory: Some(directory.clone()) });
+    let request_id = uuid::Uuid::new_v4().to_string();
+    let mut headers = HeaderMap::new();
+    headers.insert(STREAM_REQUEST_ID_HEADER, request_id.parse().unwrap());
+    let mut request = docs_stream_request(None);
+    request.model = Some("model-recovery/original".into());
+    let response =
+        chat_stream(query(), headers.clone(), Json(request.clone())).await.unwrap().into_response();
+    let session_id = response.headers()["x-vw-session-id"].to_str().unwrap().to_string();
+    // Drop the response before consuming Done. The resumable producer owns the turn.
+    drop(response);
+
+    let unrelated =
+        Query(InstanceQuery { directory: Some(unrelated.path().to_string_lossy().into_owned()) });
+    let conflict = chat_stream(unrelated, headers.clone(), Json(request.clone())).await;
+    assert_eq!(conflict.err().unwrap().status, StatusCode::CONFLICT);
+
+    let response =
+        chat_stream(query(), headers.clone(), Json(request.clone())).await.unwrap().into_response();
+    assert_eq!(response.headers()["x-vw-session-id"].to_str().unwrap(), session_id);
+    let bytes = axum::body::to_bytes(response.into_body(), usize::MAX).await.unwrap();
+    let body = std::str::from_utf8(&bytes).unwrap();
+    let done: Vec<Value> = body
+        .lines()
+        .filter_map(|line| line.strip_prefix("data:"))
+        .filter_map(|line| serde_json::from_str::<Value>(line.trim()).ok())
+        .filter(|event| event["type"] == "chat.done")
+        .collect();
+    assert_eq!(done.len(), 1, "{body}");
+    assert_eq!(done[0]["session_id"], session_id);
+
+    let response = chat_stream(query(), headers, Json(request)).await.unwrap().into_response();
+    let replay = axum::body::to_bytes(response.into_body(), usize::MAX).await.unwrap();
+    assert_eq!(replay, bytes);
+
+    let tenant = ui_store::current_tenant_scope();
+    let scope =
+        ui_store::resolve_session_scope_id_for_tenant(&tenant, Some(&directory), None).unwrap();
+    let snapshot =
+        ui_store::load_session_scoped_for_tenant(&tenant, &session_id, Some(&scope)).unwrap();
+    assert_eq!(snapshot.messages.len(), 2);
+    let previews = ui_store::load_sessions_scoped_for_tenant(&tenant, Some(&scope));
+    let matching: Vec<_> = previews.iter().filter(|preview| preview.id == session_id).collect();
+    assert_eq!(matching.len(), 1);
+    assert_eq!(matching[0].last_content.as_deref(), Some("请列出 docs 文件列表"));
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn gateway_first_response_failure_stays_hidden_until_same_session_retries() {
+    use crate::session::llm::StreamEvent;
+    use crate::session::ui_store;
+
+    let _env = crate::test_support::global_async_env_lock().lock().await;
+    struct RestoreTitleFixtureKey(Option<String>);
+    impl Drop for RestoreTitleFixtureKey {
+        fn drop(&mut self) {
+            match self.0.take() {
+                Some(key) => crate::env::set("VW_MODEL_RECOVERY_TEST_KEY", key),
+                None => crate::env::remove("VW_MODEL_RECOVERY_TEST_KEY"),
+            }
+        }
+    }
+    let _key = RestoreTitleFixtureKey(crate::env::get("VW_MODEL_RECOVERY_TEST_KEY"));
+    crate::env::set("VW_MODEL_RECOVERY_TEST_KEY", "fixture-key");
+    let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
+    let endpoint = format!("http://{}/v1", listener.local_addr().unwrap());
+    let (title_tx, mut title_requests) = tokio::sync::mpsc::unbounded_channel();
+    let provider = axum::Router::new()
+        .route(
+            "/v1/models",
+            axum::routing::get(|| async {
+                Json(serde_json::json!({"data": [{"id": "original"}]}))
+            }),
+        )
+        .fallback(move |Json(request): Json<Value>| {
+            let title_tx = title_tx.clone();
+            async move {
+                let _ = title_tx.send(request);
+                (
+                    StatusCode::BAD_REQUEST,
+                    Json(serde_json::json!({"error": {
+                        "message": "title provider rejected the request"
+                    }})),
+                )
+            }
+        });
+    let provider = tokio::spawn(async move { axum::serve(listener, provider).await });
+    let _fixture = crate::session::llm::recovery_test_support::RecoveryConfig::new(
+        &endpoint,
+        Some("fixture-key"),
+    )
+    .await;
+    let _streams = agent_session::processor::test_llm_stream_guard();
+    let workspace = tempfile::tempdir().unwrap();
+    let directory = workspace.path().canonicalize().unwrap().to_string_lossy().into_owned();
+    let tenant = ui_store::current_tenant_scope();
+    let scope =
+        ui_store::resolve_session_scope_id_for_tenant(&tenant, Some(&directory), None).unwrap();
+    let session_id = format!("ses_retry_{}", uuid::Uuid::new_v4());
+    let request = |content: &str| GatewayChatStreamRequest {
+        session_id: Some(session_id.clone().into()),
+        messages: vec![serde_json::json!({"role": "user", "content": content})],
+        model: Some("model-recovery/original".into()),
+        ..Default::default()
+    };
+    let query = || Query(InstanceQuery { directory: Some(directory.clone()) });
+    agent_session::processor::enqueue_test_llm_stream(vec![StreamEvent::Error(
+        agent_session::message::AssistantError::Unknown { message: "fixture failure".into() },
+    )]);
+    let response = chat_stream(query(), HeaderMap::new(), Json(request("failed prompt")))
+        .await
+        .unwrap()
+        .into_response();
+    let body = axum::body::to_bytes(response.into_body(), usize::MAX).await.unwrap();
+    assert!(std::str::from_utf8(&body).unwrap().contains("chat.error"));
+    let info =
+        ui_store::load_agent_session_scoped_for_tenant(&tenant, &session_id, Some(&scope)).unwrap();
+    assert!(info.is_first_response_pending());
+    assert!(info.title.is_empty());
+    assert!(
+        ui_store::load_session_meta_scoped_for_tenant(&tenant, &session_id, Some(&scope))
+            .unwrap()
+            .is_none()
+    );
+
+    assert!(title_requests.try_recv().is_err());
+
+    agent_session::processor::enqueue_test_llm_stream(vec![
+        StreamEvent::Delta("successful answer".into()),
+        StreamEvent::Done { usage: Default::default(), finish_reason: Some("stop".into()) },
+    ]);
+    let response = chat_stream(query(), HeaderMap::new(), Json(request("successful retry")))
+        .await
+        .unwrap()
+        .into_response();
+    let body = axum::body::to_bytes(response.into_body(), usize::MAX).await.unwrap();
+    assert!(std::str::from_utf8(&body).unwrap().contains("chat.done"), "{body:?}");
+    let info =
+        ui_store::load_agent_session_scoped_for_tenant(&tenant, &session_id, Some(&scope)).unwrap();
+    assert!(!info.is_first_response_pending());
+    assert!(info.title.is_empty());
+    let preview = ui_store::load_session_meta_scoped_for_tenant(&tenant, &session_id, Some(&scope))
+        .unwrap()
+        .unwrap();
+    assert_eq!(preview.last_content.as_deref(), Some("successful retry"));
+    let title_request =
+        tokio::time::timeout(std::time::Duration::from_secs(10), title_requests.recv())
+            .await
+            .expect("the first committed turn should trigger title generation")
+            .unwrap();
+    let title_prompt = title_request.to_string();
+    assert!(title_prompt.contains("successful retry"));
+    assert!(!title_prompt.contains("failed prompt"));
+    assert!(title_request["tools"].as_array().is_none_or(Vec::is_empty));
+    provider.abort();
+    let _ = provider.await;
+}
+
+#[tokio::test]
+async fn gateway_first_response_missing_replay_does_not_start_a_new_turn() {
+    let _env = crate::test_support::global_async_env_lock().lock().await;
+    let workspace = make_docs_workspace();
+    let mut headers = HeaderMap::new();
+    headers.insert(STREAM_REQUEST_ID_HEADER, uuid::Uuid::new_v4().to_string().parse().unwrap());
+    headers.insert("last-event-id", "0".parse().unwrap());
+    let result = chat_stream(
+        Query(InstanceQuery { directory: Some(workspace.path().to_string_lossy().into_owned()) }),
+        headers,
+        Json(docs_stream_request(None)),
+    )
+    .await;
+    assert_eq!(result.err().unwrap().status, StatusCode::GONE);
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn gateway_first_response_disconnect_after_tool_start_replays_cancellation_without_publishing()
+ {
+    use crate::session::llm::{StreamEvent, ToolCall};
+    use crate::session::ui_store;
+    use futures_util::StreamExt as _;
+
+    let _env = crate::test_support::global_async_env_lock().lock().await;
+    let _fixture = crate::session::llm::recovery_test_support::RecoveryConfig::new(
+        "http://127.0.0.1:1/v1",
+        None,
+    )
+    .await;
+    let _streams = agent_session::processor::test_llm_stream_guard();
+    let workspace = tempfile::tempdir().unwrap();
+    let directory = workspace.path().canonicalize().unwrap().to_string_lossy().into_owned();
+    crate::config::update(serde_json::json!({
+        "agents": {
+            "main": {
+                "provider": "model-recovery", "model": "original", "allowed_tools": ["bash"]
+            }
+        }
+    }))
+    .await
+    .unwrap();
+    agent_session::processor::enqueue_test_llm_stream(vec![
+        StreamEvent::ToolCalls(vec![ToolCall {
+            kind: Default::default(),
+            namespace: None,
+            id: "first-response-tool".into(),
+            name: "bash".into(),
+            arguments: serde_json::json!({
+                "command": "sleep 30",
+                "description": "wait for stream cancellation",
+                "yield_time_ms": 10000
+            })
+            .to_string(),
+        }]),
+        StreamEvent::Done { usage: Default::default(), finish_reason: Some("tool_calls".into()) },
+    ]);
+
+    let request_id = uuid::Uuid::new_v4().to_string();
+    let mut headers = HeaderMap::new();
+    headers.insert(STREAM_REQUEST_ID_HEADER, request_id.parse().unwrap());
+    let request = GatewayChatStreamRequest {
+        messages: vec![serde_json::json!({"role": "user", "content": "Run a tool"})],
+        model: Some("model-recovery/original".into()),
+        allowed_tools: Some(vec!["bash".into()]),
+        options: Some(serde_json::json!({"full_access": true})),
+        ..Default::default()
+    };
+    let query = || Query(InstanceQuery { directory: Some(directory.clone()) });
+    let response =
+        chat_stream(query(), headers.clone(), Json(request.clone())).await.unwrap().into_response();
+    let session_id = response.headers()["x-vw-session-id"].to_str().unwrap().to_string();
+    let mut stream = response.into_body().into_data_stream();
+    let cursor = tokio::time::timeout(std::time::Duration::from_secs(15), async {
+        let mut body = String::new();
+        while let Some(chunk) = stream.next().await {
+            body.push_str(std::str::from_utf8(&chunk.unwrap()).unwrap());
+            if let Some(event) = body.split("\n\n").find(|event| {
+                event.contains(r#""type":"chat.tool""#) && event.contains(r#""kind":"start""#)
+            }) {
+                return event
+                    .lines()
+                    .find_map(|line| line.strip_prefix("id:").map(str::trim))
+                    .unwrap()
+                    .to_string();
+            }
+        }
+        panic!("tool start not observed: {body}");
+    })
+    .await
+    .unwrap();
+    drop(stream);
+
+    let tenant = ui_store::current_tenant_scope();
+    let Json(stop) =
+        chat_stream_stop(Extension(tenant.clone()), axum::extract::Path(request_id)).await;
+    assert_eq!(stop["cancelled"], true);
+    headers.insert("last-event-id", cursor.parse().unwrap());
+    let resumed = chat_stream(query(), headers, Json(request)).await.unwrap().into_response();
+    let body = tokio::time::timeout(
+        std::time::Duration::from_secs(15),
+        axum::body::to_bytes(resumed.into_body(), usize::MAX),
+    )
+    .await
+    .unwrap()
+    .unwrap();
+    let body = std::str::from_utf8(&body).unwrap();
+    assert!(body.contains(r#""error":"cancelled""#), "{body}");
+    assert!(!body.contains(r#""type":"chat.done""#), "{body}");
+    let scope =
+        ui_store::resolve_session_scope_id_for_tenant(&tenant, Some(&directory), None).unwrap();
+    let info =
+        ui_store::load_agent_session_scoped_for_tenant(&tenant, &session_id, Some(&scope)).unwrap();
+    assert!(info.is_first_response_pending());
+    assert!(info.title.is_empty());
+    assert!(
+        ui_store::load_session_meta_scoped_for_tenant(&tenant, &session_id, Some(&scope))
+            .unwrap()
+            .is_none()
+    );
 }

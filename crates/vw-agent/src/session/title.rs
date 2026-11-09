@@ -46,6 +46,41 @@ fn truncate_title_source(content: String) -> String {
     }
 }
 
+/// Extract display text from a successful user turn without exposing attachment payloads.
+pub(crate) fn first_response_source(content: &str) -> String {
+    use vw_shared::session::session_utils::strip_task_session_source_marker;
+
+    let content = strip_task_session_source_marker(content);
+    let text = match serde_json::from_str::<Vec<Value>>(&content) {
+        Ok(blocks)
+            if !blocks.is_empty()
+                && blocks.iter().all(|block| {
+                    matches!(
+                        block["type"].as_str(),
+                        Some(
+                            "text" | "image" | "image_url" | "resource" | "resource_link" | "audio"
+                        )
+                    )
+                }) =>
+        {
+            blocks
+                .iter()
+                .filter(|block| block["type"] == "text")
+                .filter_map(|block| block["text"].as_str())
+                .collect::<Vec<_>>()
+                .join("\n")
+        }
+        _ => content.into_owned(),
+    };
+    let (text, _) = crate::multimodal::parse_image_markers(&text);
+    let text = text
+        .lines()
+        .filter(|line| !line.trim().starts_with("[Resource: "))
+        .collect::<Vec<_>>()
+        .join("\n");
+    truncate_title_source(strip_task_session_source_marker(&text).trim().to_owned())
+}
+
 fn build_title_prompt(content: &str) -> String {
     format!(
         "Generate a concise title (max 50 characters) for this conversation. Only output the title, nothing else.\n\nUser message:\n{}",
@@ -80,7 +115,7 @@ fn internal_title_profile(acp_agent: Option<&str>) -> crate::app::agent::session
 
 async fn stream_title(
     session_id: String,
-    user: crate::app::agent::session::message::UserInfo,
+    mut user: crate::app::agent::session::message::UserInfo,
     model: provider::Model,
     prompt: String,
     acp_agent: Option<&str>,
@@ -89,7 +124,7 @@ async fn stream_title(
 
     let output = Arc::new(Mutex::new(String::new()));
     let output_clone = Arc::clone(&output);
-    let profile = internal_title_profile(acp_agent);
+    let mut profile = internal_title_profile(acp_agent);
 
     tracing::info!(
         target: "vw_agent",
@@ -102,7 +137,21 @@ async fn stream_title(
         "starting internal session title generation"
     );
 
-    crate::app::agent::session::llm::stream(
+    if acp_agent.is_some() {
+        let directory = crate::project::instance::directory();
+        profile.options.extend([
+            ("cwd".into(), Value::String(directory)),
+            ("full_access".into(), Value::Bool(false)),
+            ("acp_permission_mode".into(), serde_json::json!("deny-all")),
+            ("acp_force_new_session".into(), Value::Bool(true)),
+            ("acp_close_client_after_request".into(), Value::Bool(true)),
+        ]);
+    }
+    // Keep auxiliary model usage and ACP state separate from the conversation.
+    let session_id = format!("session-title:{}", uuid::Uuid::new_v4());
+    user.session_id.clone_from(&session_id);
+
+    Box::pin(crate::app::agent::session::llm::stream(
         crate::app::agent::session::llm::StreamInput {
             agent: profile,
             user,
@@ -123,7 +172,7 @@ async fn stream_title(
                 output.push_str(&d);
             }
         },
-    )
+    ))
     .await?;
 
     Ok(output.lock().unwrap_or_else(|e| e.into_inner()).clone())

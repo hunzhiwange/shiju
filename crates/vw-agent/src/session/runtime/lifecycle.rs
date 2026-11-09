@@ -51,6 +51,23 @@ async fn resolve_project(scope: &SessionScope) -> Result<(project::Info, String)
 
 /// 创建并持久化一个属于已验证作用域的原生会话。
 pub async fn create_session(input: CreateSessionInput) -> Result<SessionSnapshot, LifecycleError> {
+    create_session_with(input, session::create_next).await
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+pub(crate) async fn reserve_session(
+    input: CreateSessionInput,
+) -> Result<SessionSnapshot, LifecycleError> {
+    create_session_with(input, session::reserve_next).await
+}
+
+async fn create_session_with<Fut>(
+    input: CreateSessionInput,
+    create: impl FnOnce(session::CreateInput) -> Fut + Send + 'static,
+) -> Result<SessionSnapshot, LifecycleError>
+where
+    Fut: std::future::Future<Output = Result<session::Info, session::Error>> + Send + 'static,
+{
     let CreateSessionInput { scope, parent_id, title, permission } = input;
     let (project, _) = resolve_project(&scope).await?;
     let expected_project_id = project.id;
@@ -66,7 +83,7 @@ pub async fn create_session(input: CreateSessionInput) -> Result<SessionSnapshot
                     load_info_for_scope(&scope_for_operation, &expected_project_id, parent_id)
                         .await?;
                 }
-                let info = session::create_next(session::CreateInput {
+                let info = create(session::CreateInput {
                     parent_id,
                     title,
                     directory: directory_string,

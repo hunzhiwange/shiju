@@ -41,6 +41,7 @@ struct StreamKey {
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub(super) enum StreamOpenError {
     RequestConflict,
+    ResumeUnavailable,
 }
 
 #[derive(Clone, Debug)]
@@ -78,6 +79,7 @@ impl StreamCancellation {
 struct StreamRun {
     key: StreamKey,
     request_signature: String,
+    chat_session_id: Option<String>,
     state: Mutex<RunState>,
     changes: watch::Sender<u64>,
 }
@@ -97,6 +99,7 @@ pub(super) struct ResumableStreamStore {
 
 #[derive(Debug)]
 pub(super) struct OpenedStream {
+    pub(super) chat_session_id: Option<String>,
     pub(super) subscription: ResumableSubscription,
     pub(super) producer: Option<ResumableProducer>,
 }
@@ -127,7 +130,37 @@ impl ResumableStreamStore {
         request_signature: String,
         after_event_id: u64,
     ) -> Result<OpenedStream, StreamOpenError> {
-        let key = StreamKey { tenant, kind, request_id: request_id.into() };
+        self.open_run(tenant, kind, request_id.into(), request_signature, after_event_id, None)
+    }
+
+    pub(super) fn open_chat(
+        &self,
+        tenant: TenantScope,
+        request_id: String,
+        request_signature: String,
+        resume_after: Option<u64>,
+        session_id: Option<String>,
+    ) -> Result<OpenedStream, StreamOpenError> {
+        self.open_run(
+            tenant,
+            StreamKind::Chat,
+            request_id,
+            request_signature,
+            resume_after.unwrap_or_default(),
+            Some((session_id, resume_after.is_some())),
+        )
+    }
+
+    fn open_run(
+        &self,
+        tenant: TenantScope,
+        kind: StreamKind,
+        request_id: String,
+        request_signature: String,
+        after_event_id: u64,
+        chat: Option<(Option<String>, bool)>,
+    ) -> Result<OpenedStream, StreamOpenError> {
+        let key = StreamKey { tenant, kind, request_id };
         let mut state = lock_or_recover(&self.state);
         self.prune_locked(&mut state, Instant::now());
 
@@ -136,6 +169,7 @@ impl ResumableStreamStore {
                 return Err(StreamOpenError::RequestConflict);
             }
             return Ok(OpenedStream {
+                chat_session_id: run.chat_session_id.clone(),
                 subscription: ResumableSubscription {
                     run: Arc::clone(run),
                     cursor: after_event_id,
@@ -145,10 +179,15 @@ impl ResumableStreamStore {
             });
         }
 
+        let (chat_session_id, resume_only) = chat.unwrap_or_default();
+        if resume_only {
+            return Err(StreamOpenError::ResumeUnavailable);
+        }
         let (changes, _) = watch::channel(0);
         let run = Arc::new(StreamRun {
             key: key.clone(),
             request_signature,
+            chat_session_id: chat_session_id.clone(),
             state: Mutex::new(RunState {
                 events: Vec::new(),
                 terminal: false,
@@ -162,6 +201,7 @@ impl ResumableStreamStore {
         state.runs.insert(key, Arc::clone(&run));
 
         Ok(OpenedStream {
+            chat_session_id,
             subscription: ResumableSubscription {
                 run: Arc::clone(&run),
                 cursor: after_event_id,

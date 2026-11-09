@@ -190,9 +190,15 @@ pub(super) async fn ui_session_create(
     let vw_api_types::session::GatewaySessionCreateBody { parent_id, title } = session;
 
     let scope = SessionScope::new(tenant, dir).map_err(lifecycle_api_error)?;
-    let created = create_session(CreateSessionInput { scope, parent_id, title, permission })
-        .await
-        .map_err(lifecycle_api_error)?;
+    let title = title.filter(|title| !title.trim().is_empty());
+    let named = title.is_some();
+    let input = CreateSessionInput { scope, parent_id, title, permission };
+    let created = if named {
+        create_session(input).await
+    } else {
+        crate::session::runtime::reserve_session(input).await
+    }
+    .map_err(lifecycle_api_error)?;
     Ok(Json(created.info))
 }
 
@@ -543,24 +549,131 @@ pub(super) async fn session_summarize(
 /// # 参数
 ///
 /// * `session_id` - 目标会话 id。
-/// * `body` - 待摘要内容及可选模型信息。
+/// * `body` - 旧客户端的兼容请求及可选模型信息。
 ///
 /// # 返回值
 ///
 /// 返回生成的标题。
 pub(super) async fn session_title_generate(
     Path(session_id): Path<String>,
+    Query(query): Query<InstanceQuery>,
+    headers: HeaderMap,
     Json(body): Json<GatewaySessionTitleGenerateBody>,
 ) -> Result<Json<GatewaySessionTitleGenerateResponse>, ApiError> {
-    let title = agent_session::title::generate_from_content(
-        session_id,
-        body.content,
-        body.preferred_model,
-        body.acp_agent,
-    )
+    let tenant = ui_store::current_tenant_scope();
+    let directory = if has_explicit_directory(&query, &headers) {
+        resolve_directory(&query, &headers)
+    } else {
+        agent_session::session::get_any(&session_id).await.map_err(session_api_error)?.directory
+    };
+    let scope = SessionScope::new(tenant.clone(), directory).map_err(lifecycle_api_error)?;
+    let directory = scope.directory().to_string_lossy().into_owned();
+    with_tenant_instance(tenant.clone(), directory, move || {
+        Box::pin(async move {
+            let info = agent_session::session::get(&session_id).await.map_err(session_api_error)?;
+            let recorded_directory = std::fs::canonicalize(&info.directory)
+                .map_err(|_| ApiError::not_found("session directory is unavailable"))?;
+            if recorded_directory != scope.directory() {
+                return Err(ApiError::not_found("session is outside the title directory"));
+            }
+            if info.is_first_response_pending() {
+                return Err(ApiError::conflict("session has no committed first response"));
+            }
+
+            let committed = crate::global_database::run_isolated(move || {
+                ui_store::has_committed_first_response(&tenant, &info.project_id, &info.id)
+                    .map(|committed| committed.then_some(info.title))
+            })
+            .await
+            .map_err(|error| ApiError::internal(error.to_string()))?
+            .map_err(|error| ApiError::internal(error.to_string()))?;
+            if let Some(title) = committed {
+                if title.is_empty() {
+                    return Err(ApiError::conflict("the committed session has no generated title"));
+                }
+                return Ok(Json(GatewaySessionTitleGenerateResponse { title }));
+            }
+
+            // Legacy sessions must prove a successful native turn before invoking a model.
+            let history = agent_session::message::messages(&session_id, None)
+                .await
+                .map_err(|error| ApiError::internal(error.to_string()))?;
+            let content = legacy_successful_title_source(&history)
+                .ok_or_else(|| ApiError::conflict("session has no successful turn with text"))?;
+            let title = agent_session::title::generate_from_content(
+                session_id,
+                content,
+                body.preferred_model,
+                body.acp_agent,
+            )
+            .await
+            .map_err(ApiError::bad_request)?;
+            Ok(Json(GatewaySessionTitleGenerateResponse { title }))
+        })
+    })
     .await
-    .map_err(ApiError::bad_request)?;
-    Ok(Json(GatewaySessionTitleGenerateResponse { title }))
+}
+
+fn legacy_successful_title_source(history: &[agent_session::message::WithParts]) -> Option<String> {
+    use agent_session::message::{Info, Part};
+
+    let text = |entry: &agent_session::message::WithParts| {
+        entry.parts.iter().find_map(|part| match part {
+            Part::Text(part) if part.synthetic != Some(true) && part.ignored != Some(true) => {
+                let text = agent_session::title::first_response_source(&part.text);
+                (!text.is_empty()).then_some(text)
+            }
+            _ => None,
+        })
+    };
+    history.iter().find_map(|entry| {
+        let Info::Assistant(assistant) = &entry.info else { return None };
+        if assistant.error.is_some()
+            || assistant.time.completed.is_none()
+            || !super::stream::is_successful_finish_reason(assistant.finish.as_deref())
+        {
+            return None;
+        }
+        text(entry)?;
+        history.iter().find_map(|user| match &user.info {
+            Info::User(info) if info.id == assistant.parent_id => text(user),
+            _ => None,
+        })
+    })
+}
+
+pub(super) fn spawn_first_response_title(
+    runtime: &tokio::runtime::Handle,
+    tenant: vw_api_types::id::TenantScope,
+    context: instance::Context,
+    session_id: String,
+    preview: String,
+    preferred_model: Option<String>,
+) {
+    runtime.spawn(ui_store::with_tenant_scope(tenant.clone(), async move {
+        let project_id = context.project.id.clone();
+        let generate = instance::provide_context(
+            context,
+            Box::pin(agent_session::title::generate_from_content(
+                session_id.clone(),
+                preview,
+                preferred_model,
+                None,
+            )),
+        );
+        // The native, tool-free title prompt also serves conversations run through ACP.
+        if let Ok(Ok(title)) =
+            tokio::time::timeout(std::time::Duration::from_secs(30), generate).await
+        {
+            let result = crate::global_database::run_isolated(move || {
+                ui_store::set_first_response_title(&tenant, &project_id, &session_id, &title)
+            })
+            .await;
+            if let Err(error) = result.and_then(|result| result) {
+                tracing::warn!(%error, "failed to persist first response title");
+            }
+        }
+    }));
 }
 
 async fn fork_before_turn(

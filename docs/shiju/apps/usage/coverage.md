@@ -545,3 +545,21 @@ HTTP 与 CLI 夹具核对请求、来源分离、额度归并、重置时间、�
 | 隔离复核 | `cargo clippy --all-targets --all-features -- -D warnings` | 退出 0。基于批次 32 提交 `043277e99`，叠加本任务 Rust 文件及共享工作区已有的 `postgres_tests.rs` 第三个参数修正。 |
 
 `usage_scripts_config_returns_expected_result` 核对模板标识、参数优先级、URL 规范化及特殊字符还原。`usage_scripts_config_rejects_invalid_input` 核对缺参、空源码及未知模板。`usage_scripts_config_keeps_native_templates_out_of_javascript` 核对原生查询选择与脚本隔离。另以本机 Node 运行四个预设的请求和提取夹具。差异检查通过，槽位锁已释放，编译缓存已保留。QuickJS 和出站行为分别由任务 34、35 验证。 [独立行为测试](../../../../crates/vw-agent-apps/src/usage/scripts/config_tests.rs#L8)
+
+## 任务 34 QuickJS 执行资源
+
+`PreparedUsageScript::build_request` 与 `PreparedUsageScript::extract` 各自在 Tokio 阻塞线程上创建独立 QuickJS 实例，使用 5 秒线程 CPU 时间、16 MiB QuickJS 堆和 256 KiB QuickJS 栈。解释器轮询时中断超时，原生引擎调用返回后复核 CPU 用量。运行时仅返回待宿主处理的 JSON，错误保留类型且不携带异常文本、凭据或响应原文。网络请求与套餐校验由后续任务处理。 [运行时](../../../../crates/vw-agent-apps/src/usage/scripts/runtime.rs#L44) · [上游限额](../../../../crates/vw-agent-apps/upstream/src-tauri/src/usage_script.rs#L31) · [上游无限循环用例](../../../../crates/vw-agent-apps/upstream/src-tauri/src/usage_script.rs#L692)
+
+来源 Cargo.lock 使用 rquickjs 0.8.1。本任务为 macOS 接入 rquickjs 0.14.0（内置 QuickJS-NG 0.16.2），仅启用 `std`。 [上游依赖](../../../../crates/vw-agent-apps/upstream/src-tauri/Cargo.toml#L70) · [本仓库依赖](../../../../crates/vw-agent-apps/Cargo.toml#L33) · [rquickjs 0.14.0](https://github.com/DelSkayn/rquickjs/releases/tag/v0.14.0)
+
+验证环境为 macOS 27.0 (26A428)、arm64，`vw-agent-apps` 0.6.0。各阶段动态领取槽位 1，`CARGO_TARGET_DIR` 和 `CARGO_BUILD_BUILD_DIR` 均为 `/Users/xiangmin/worker/code/shiju/target/rust-slot-1`。
+
+| 阶段 | 命令 | 结果 |
+| --- | --- | --- |
+| 实现前 | `cargo test -p vw-agent-apps usage_scripts_runtime_ -- --nocapture` | 退出 101，执行 0 项。`usage_scripts_runtime_returns_expected_result` 和 `usage_scripts_runtime_rejects_invalid_input` 等用例按预期报 E0432/E0599，缺少运行时模块及两个入口。 |
+| 格式化 | `cargo fmt --all` | 退出 0。仅同步源码副本中属于本任务的文件。 |
+| 实现后 | `cargo test -p vw-agent-apps usage_scripts_runtime_ -- --nocapture` | 退出 0，6 项通过，0 项失败，耗时 5.01 秒。 |
+| 共享工作区 | `cargo clippy --all-targets --all-features -- -D warnings` | 退出 101。既有 ACP 改动引用了缺少的 `PermissionConfirmation` 和 `with_permission_confirmation`。桌面与网关会话代码还引用了缺少的 `session_set_full_access` 和 `GatewaySessionUiSummary.full_access`。 |
+| 隔离复核 | `cargo clippy --all-targets --all-features -- -D warnings` | 退出 0。基于批次 33 提交 `3507c1106`，叠加本任务变更和共享工作区已有的 `postgres_tests.rs` 第三个参数修正。 |
+
+成功夹具验证 General 模板构造请求和解析响应。拒绝夹具覆盖脚本异常脱敏、无效响应 JSON、两阶段无限循环、17 MiB 分配和深递归。请求循环用例还验证同一 Tokio 单线程执行器上的定时器可在脚本运行时推进。夹具使用真实 QuickJS 和合成输入，验证范围为运行时行为。差异审查通过，共享槽位锁已释放，编译缓存已保留。 [独立行为测试](../../../../crates/vw-agent-apps/src/usage/scripts/runtime_tests.rs#L30)

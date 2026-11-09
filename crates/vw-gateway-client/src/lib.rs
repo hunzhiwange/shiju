@@ -37,7 +37,8 @@ pub use client::GatewayChatWebSocket;
 pub use client::SessionUiLoadResult;
 #[cfg(not(target_arch = "wasm32"))]
 pub use client::{
-    AgentAppsAuthBinding, AgentAppsAuthCredentials, AgentAppsAuthFlowError, AgentAppsAuthReadError,
+    AgentAppsAuthBinding, AgentAppsAuthCredentials, AgentAppsAuthError, AgentAppsAuthFlowError,
+    AgentAppsAuthLogout, AgentAppsAuthReadError,
 };
 /// 网关 HTTP 与流式接口的统一客户端入口。
 ///

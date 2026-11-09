@@ -31,11 +31,6 @@ mod stream;
 #[cfg(test)]
 mod tests;
 
-#[cfg(not(target_arch = "wasm32"))]
-pub use client::{
-    AppsUsageCredentialRefs, AppsUsageDisplay, AppsUsageReadError, AppsUsageSettings,
-    AppsUsageSigningCredentialRefs, AppsUsageTemplate, GatewayChatWebSocket,
-};
 /// 保留每步原始 LLM 载荷的会话 UI 批量加载结果。
 pub use client::SessionUiLoadResult;
 #[cfg(not(target_arch = "wasm32"))]
@@ -48,6 +43,12 @@ pub use client::{
 /// 调用方通常只需要持有这个类型，即可访问本 crate 暴露的大部分能力。
 pub use client::{
     AgentAppsLifecycleError, AgentAppsReadError, AgentAppsSettingsError, GatewayClient,
+};
+#[cfg(not(target_arch = "wasm32"))]
+pub use client::{
+    AppsUsageCredentialRefs, AppsUsageDisplay, AppsUsageOperation, AppsUsageOperationItem,
+    AppsUsageReadError, AppsUsageScriptTrial, AppsUsageSettings, AppsUsageSigningCredentialRefs,
+    AppsUsageTemplate, AppsUsageWriteError, GatewayChatWebSocket,
 };
 /// Channel QR-code authorization transport contract.
 pub use client::{ChannelQrFetchResponseDto, ChannelQrStatusDto, ChannelQrStatusResponseDto};

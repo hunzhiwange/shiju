@@ -57,6 +57,14 @@ pub use apps_usage_read_api::{
 };
 #[cfg(all(test, not(target_arch = "wasm32")))]
 mod apps_usage_read_api_tests;
+#[cfg(not(target_arch = "wasm32"))]
+mod apps_usage_write_api;
+#[cfg(not(target_arch = "wasm32"))]
+pub use apps_usage_write_api::{
+    AppsUsageOperation, AppsUsageOperationItem, AppsUsageScriptTrial, AppsUsageWriteError,
+};
+#[cfg(all(test, not(target_arch = "wasm32")))]
+mod apps_usage_write_api_tests;
 mod channel_qr_api;
 #[cfg(test)]
 #[path = "channel_qr_api_tests.rs"]

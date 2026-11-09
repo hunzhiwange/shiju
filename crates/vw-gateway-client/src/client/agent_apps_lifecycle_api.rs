@@ -230,7 +230,7 @@ impl GatewayClient {
         }
     }
 }
-fn operation_path(id: &TaskId, events: bool) -> String {
+pub(super) fn operation_path(id: &TaskId, events: bool) -> String {
     let mut encoded = String::new();
     for byte in id.0.bytes() {
         match byte {

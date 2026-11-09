@@ -796,3 +796,24 @@ macOS 网关在配置了 `SHIJU_AGENT_APPS_ACCESS_FILE` 时运行刷新循环。
 | 实现后 | `cargo test -p vw-gateway-client usage_usage_read_api_ -- --nocapture` | 退出 0，`usage_usage_read_api_returns_expected_result` 和 `usage_usage_read_api_rejects_invalid_input` 均通过。 |
 | 全特性静态检查 | `cargo clippy --all-targets --all-features -- -D warnings` | 退出 0。 |
 | 差异检查 | `git diff --cached --check`（限定任务文件） | 退出 0。 |
+
+## 任务 48 提供刷新配置 SDK
+
+`GatewayClient::apps_usage_refresh` 和 `apps_usage_refresh_all` 通过 JSON 提交单项选择或项目与主机范围，返回网关分配的操作 ID。`apps_usage_operation`、`apps_usage_operation_events` 和 `apps_usage_operation_cancel` 复用生命周期路由的路径段编码，分别读取进度、长轮询和取消。SDK 拒绝空 ID 和路径点段，核对响应的操作 ID 和目标主机，并保留项目、取消状态、逐项结果和快照版本。断线后可以读取进度与快照。 [上游订阅刷新](../../../../crates/vw-agent-apps/upstream/src/lib/api/subscription.ts#L8-L48) · [上游批量刷新](../../../../crates/vw-agent-apps/upstream/src/components/settings/auth/RefreshAllQuotaButton.tsx#L36) · [SDK](../../../../crates/vw-gateway-client/src/client/apps_usage_write_api.rs)
+
+`apps_usage_save_settings` 复用读取 SDK 的设置类型，以 JSON PUT 保存并接受 204。`apps_usage_script_test` 通过 JSON POST 提交临时草稿，返回套餐或类型化试运行失败。凭据引用和草稿只进入请求体，应用主体令牌放在独立的敏感请求头。请求沿用租户上下文和禁用重定向及重试的宿主传输。错误保留状态与受控错误类型，丢弃未识别的响应体。 [上游保存规则](../../../../crates/vw-agent-apps/upstream/src/components/UsageScriptModal.tsx#L448-L577) · [上游试运行](../../../../crates/vw-agent-apps/upstream/src/components/UsageScriptModal.tsx#L736-L770) · [网关设置和试运行](../../../../crates/vw-agent/src/gateway/api/handlers/agent_apps/apps_usage_script.rs)
+
+本机 HTTP 测试核对七个入口的实际方法、路径、租户头、认证头和请求体，覆盖路径及查询参数编码、按批量返回的 ID 取消、拒绝错误的操作响应、无效令牌和不透明错误响应。真实上游账号留待 macOS 实机验收。 [独立行为测试](../../../../crates/vw-gateway-client/src/client/apps_usage_write_api_tests.rs)
+
+验证环境为 macOS 27.0（26A428）、arm64，`vw-gateway-client` 0.6.0。各阶段动态领取槽位 1，`CARGO_TARGET_DIR=/Users/xiangmin/worker/code/shiju/target/rust-slot-1`，`CARGO_BUILD_BUILD_DIR` 与其一致。
+
+| 阶段 | 确切命令 | 结果 |
+| --- | --- | --- |
+| 实现前 | `cargo test -p vw-gateway-client usage_usage_write_api_ -- --nocapture` | 退出 101，执行 0 项。两项预先注册的测试因缺少刷新和配置 SDK 的类型及入口报 E0432、E0599。 |
+| 格式化 | `cargo fmt --all` | 退出 0。在隔离源码副本运行，仅同步任务文件。 |
+| 实现后 | `cargo test -p vw-gateway-client usage_usage_write_api_ -- --nocapture` | 退出 0，`usage_usage_write_api_returns_expected_result` 和 `usage_usage_write_api_rejects_invalid_input` 均通过。 |
+| 读取回归 | `cargo test -p vw-gateway-client usage_usage_read_api_ -- --nocapture` | 退出 0，2 项通过，0 项失败。 |
+| 全特性静态检查 | `cargo clippy --all-targets --all-features -- -D warnings` | 退出 0。 |
+| 差异检查 | `git diff --cached --check`（限定任务文件） | 退出 0。 |
+
+各阶段结束后释放本任务的槽位锁，保留构建缓存。

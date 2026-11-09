@@ -3,7 +3,7 @@
 use super::GatewayClient;
 use crate::http::apply_request_context;
 use reqwest::header::{CACHE_CONTROL, HeaderValue};
-use serde::{Deserialize, de::DeserializeOwned};
+use serde::{Deserialize, Serialize, de::DeserializeOwned};
 use vw_api_types::{
     agent_apps_auth::AuthError,
     apps_usage::{UsageSnapshotQuery, UsageSnapshotResponse},
@@ -44,7 +44,7 @@ pub struct AppsUsageTemplate {
 }
 
 /// Saved query settings returned by the gateway.
-#[derive(Debug, Clone, PartialEq, Eq, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
 pub struct AppsUsageSettings {
     pub template: String,
@@ -57,7 +57,7 @@ pub struct AppsUsageSettings {
     pub credentials: AppsUsageCredentialRefs,
 }
 
-#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Deserialize)]
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Deserialize, Serialize)]
 #[serde(rename_all = "snake_case")]
 pub enum AppsUsageDisplay {
     #[default]
@@ -66,15 +66,18 @@ pub enum AppsUsageDisplay {
 }
 
 /// Opaque references to credentials managed by the execution host.
-#[derive(Debug, Clone, Default, PartialEq, Eq, Deserialize)]
+#[derive(Debug, Clone, Default, PartialEq, Eq, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
 pub struct AppsUsageCredentialRefs {
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub api_key_ref: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub access_token_ref: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub signing: Option<AppsUsageSigningCredentialRefs>,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
 pub struct AppsUsageSigningCredentialRefs {
     pub access_key_id_ref: String,

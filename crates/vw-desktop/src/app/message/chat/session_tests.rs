@@ -1008,7 +1008,7 @@ fn fork_desktop_missing_second_user_id_cannot_borrow_an_earlier_id() {
     let anchor = ForkSessionAnchor::from_user_row(&app, 2);
     assert!(anchor.is_none());
     crate::app::message::chat::update(&mut app, super::ChatMessage::OpenForkSessionDialog(anchor));
-    assert!(app.chat_fork_anchor.is_none());
+    assert!(app.chat_fork_dialog.is_none());
     assert_eq!(
         app.active_toast.as_ref().map(|toast| toast.message.as_str()),
         Some("无法确认此消息的轮次，请重新打开源会话后再试")
@@ -1030,7 +1030,10 @@ fn fork_desktop_ignores_confirmation_after_switching_sessions() {
     app.chat = vec![chat_message(User, "same")];
     app.chat_message_ids = vec![Some("first-turn".into())];
     let anchor = ForkSessionAnchor::from_user_row(&app, 0).unwrap();
-    app.chat_fork_anchor = Some(anchor.clone());
+    let _ = crate::app::message::chat::update(
+        &mut app,
+        super::ChatMessage::OpenForkSessionDialog(Some(anchor.clone())),
+    );
 
     app.active_session_id = Some("other".into());
     let task = super::update(

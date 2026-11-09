@@ -245,20 +245,27 @@ fn message_context_menu_close_and_reset_dialog_state_are_local() {
         user_message_id: "user-3".into(),
         open_generation: 0,
     };
-    app.chat_fork_anchor = Some(anchor.clone());
-    assert_eq!(app.chat_fork_anchor, Some(anchor.clone()));
+    app.chat_fork_dialog = Some(crate::app::message::chat::ForkSessionDialog {
+        anchor: anchor.clone(),
+        prompt: String::new(),
+        in_progress: false,
+    });
     assert_eq!(app.chat_reset_menu_idx, None);
 
     handle_toggle_reset_menu(&mut app, 4);
-    assert_eq!(app.chat_fork_anchor, None);
+    assert!(app.chat_fork_dialog.is_none());
     assert_eq!(app.chat_reset_menu_idx, Some(4));
 
     handle_toggle_reset_menu(&mut app, 4);
     assert_eq!(app.chat_reset_menu_idx, None);
 
-    app.chat_fork_anchor = Some(anchor);
+    app.chat_fork_dialog = Some(crate::app::message::chat::ForkSessionDialog {
+        anchor,
+        prompt: String::new(),
+        in_progress: false,
+    });
     handle_close_fork_session_dialog(&mut app);
-    assert_eq!(app.chat_fork_anchor, None);
+    assert!(app.chat_fork_dialog.is_none());
 
     app.chat_reset_menu_idx = Some(9);
     handle_close_reset_menu(&mut app);

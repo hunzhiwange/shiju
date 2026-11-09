@@ -87,7 +87,7 @@ pub(crate) fn open_project_session(
     };
 
     app.prepare_historical_session_model(&id);
-    app.chat_fork_anchor = None;
+    app.chat_fork_dialog = None;
     app.active_session_id = Some(id.clone());
     let open_generation = app.session_view_cache.begin_open(&id);
     app.mark_active_session_viewed();

@@ -209,7 +209,7 @@ impl App {
         self.chat_context_menu_pos = None;
         self.chat_context_menu_text.clear();
         self.chat_reset_menu_idx = None;
-        self.chat_fork_anchor = None;
+        self.chat_fork_dialog = None;
         self.show_agent_sessions_popover = false;
         self.show_session_tool_selector_popover = false;
         self.show_session_actions_popover = false;

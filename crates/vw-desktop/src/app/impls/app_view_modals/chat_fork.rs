@@ -6,7 +6,8 @@ use super::message::chat::ForkSessionTarget;
 use super::{App, Message, message};
 use crate::app::components::system_settings_common::{
     primary_action_btn_style, rounded_action_btn_style, settings_close_button, settings_modal_card,
-    settings_modal_header, settings_modal_overlay_with_escape, settings_muted_text_style,
+    settings_modal_header, settings_modal_overlay, settings_modal_overlay_with_escape,
+    settings_muted_text_style,
 };
 use crate::app::i18n::I18n;
 use iced::widget::{Space, button, column, container, row, text};
@@ -16,28 +17,41 @@ pub(crate) fn with_chat_fork_dialog<'a>(
     app: &App,
     root_content: Element<'a, Message>,
 ) -> Element<'a, Message> {
-    let Some(anchor) = app.chat_fork_anchor.as_ref().filter(|anchor| anchor.is_current(app)) else {
+    let Some(dialog) = app.chat_fork_dialog.as_ref().filter(|dialog| dialog.anchor.is_current(app))
+    else {
         return root_content;
     };
 
     let close_message = Message::Chat(message::ChatMessage::CloseForkSessionDialog);
+    let i18n = I18n::new(app.desktop_locale);
+    if dialog.in_progress {
+        let card = settings_modal_card(
+            text(i18n.__("正在分叉会话…")).size(16).align_x(Alignment::Center).width(Length::Fill),
+        )
+        .width(Length::Fixed(460.0));
+        return settings_modal_overlay(
+            Some(root_content),
+            close_message,
+            container(card).padding(12),
+        );
+    }
+
     let local_message = Message::Chat(message::ChatMessage::ForkSessionAt {
-        anchor: anchor.clone(),
+        anchor: dialog.anchor.clone(),
         target: ForkSessionTarget::Local,
     });
     let worktree_message = Message::Chat(message::ChatMessage::ForkSessionAt {
-        anchor: anchor.clone(),
+        anchor: dialog.anchor.clone(),
         target: ForkSessionTarget::NewWorktree,
     });
 
-    let i18n = I18n::new(app.desktop_locale);
     let card = settings_modal_card(
         column![
             settings_modal_header(
                 text(i18n.__("分叉到新会话")).size(20),
                 settings_close_button(close_message.clone()),
             ),
-            text(i18n.__("新会话保留所选轮次之前的历史。"))
+            text(i18n.__("新会话保留所选轮次之前的历史，并将所选消息填入输入框。"))
                 .size(13)
                 .style(settings_muted_text_style),
             button(

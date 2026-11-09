@@ -272,7 +272,8 @@ fn prepare_chat(app: &mut App) {
         .collect();
     app.chat_message_ids =
         vec![Some("first-turn".into()), Some("tool-row".into()), Some("second-turn".into())];
-    app.chat_fork_anchor = ForkSessionAnchor::from_user_row(app, 2);
+    let anchor = ForkSessionAnchor::from_user_row(app, 2);
+    let _ = crate::app::message::chat::update(app, ChatMessage::OpenForkSessionDialog(anchor));
     app.chat_reset_menu_idx = Some(1);
 }
 
@@ -429,6 +430,13 @@ async fn serve_fork_gateway(
             ("POST", "/v1/session/source/fork") => {
                 ("200 OK", serde_json::to_value(session_info(branch_id, branch_directory)).unwrap())
             }
+            ("GET", "/v1/session/first/ui/summary") => (
+                "200 OK",
+                json!({"id": "first", "title": "Fork", "updated_ms": 2, "message_count": 0, "call_count": 0}),
+            ),
+            ("GET", "/v1/session/first/ui/messages") => {
+                ("200 OK", json!({"items": [], "total_count": 0}))
+            }
             ("GET", route) if route == format!("/v1/session/{branch_id}/ui/summary") => (
                 "200 OK",
                 json!({
@@ -484,6 +492,14 @@ async fn fork_desktop_clicks_send_frozen_turn_and_open_gateway_history() {
     for (target, id, directory, target_body, reject, switch_while_pending) in [
         (
             ForkSessionTarget::Local,
+            "first",
+            "/fixture/source",
+            json!({"type": "sameDirectory"}),
+            false,
+            false,
+        ),
+        (
+            ForkSessionTarget::Local,
             "local",
             "/fixture/source",
             json!({"type": "sameDirectory"}),
@@ -527,7 +543,8 @@ async fn fork_desktop_clicks_send_frozen_turn_and_open_gateway_history() {
         let (tx, mut requests) = tokio::sync::mpsc::unbounded_channel();
         let server = tokio::spawn(serve_fork_gateway(listener, id, directory, reject, tx));
         prepare_chat(&mut app);
-        app.chat_fork_anchor = None;
+        app.chat_fork_dialog = None;
+        app.current_session_runtime_mut().input_editor = iced::widget::text_editor::Content::new();
         app.chat = [
             (ChatRole::User, FORK_USER.to_owned()),
             (ChatRole::Assistant, fork_tool_block()),
@@ -560,19 +577,43 @@ async fn fork_desktop_clicks_send_frozen_turn_and_open_gateway_history() {
         app.chat_message_ids[2] = None;
         let open = click_user_fork(&mut app, &mut renderer, 2);
         let _ = chat::update(&mut app, open);
-        assert!(app.chat_fork_anchor.is_none());
+        assert!(app.chat_fork_dialog.is_none());
         assert!(requests.try_recv().is_err());
         app.chat_message_ids[2] = Some("second-turn".into());
 
-        let open = click_user_fork(&mut app, &mut renderer, 2);
+        let (row, turn_id, prompt) = if id == "first" {
+            (0, "retained-user", FORK_USER)
+        } else {
+            (2, "second-turn", FORK_SECOND)
+        };
+        let open = click_user_fork(&mut app, &mut renderer, row);
         let _ = chat::update(&mut app, open);
-        assert_eq!(app.chat_fork_anchor.as_ref().unwrap().user_message_id, "second-turn");
+        assert_eq!(app.chat_fork_dialog.as_ref().unwrap().anchor.user_message_id, turn_id);
 
         // Paging can change the rows while the modal is open.
         app.chat.remove(0);
         app.chat_message_ids.remove(0);
         let confirm = click_fork_target(&app, &mut renderer, target);
-        let task = chat::update(&mut app, confirm);
+        let task = chat::update(&mut app, confirm.clone());
+        assert_eq!(app.active_session_id.as_deref(), Some("source"));
+        assert!(iced_runtime::task::into_stream(chat::update(&mut app, confirm)).is_none());
+        if id == "first" {
+            let mut progress = scene(with_chat_fork_dialog(&app, root()), &mut renderer, VIEW_SIZE);
+            let bounds = geometry(&mut progress, &renderer);
+            let i18n = I18n::new(app.desktop_locale);
+            label(&bounds, i18n.__("正在分叉会话…"));
+            assert!(key(&mut progress, &mut renderer, Key::Named(Named::Escape), None).is_empty());
+            for (theme, mode) in [(Theme::Light, "light"), (Theme::Dark, "dark")] {
+                capture(
+                    &mut progress,
+                    &mut renderer,
+                    &theme,
+                    VIEW_SIZE,
+                    &format!("fork-pending-{mode}"),
+                    mouse::Cursor::Unavailable,
+                );
+            }
+        }
         let Message::Chat(finished @ ChatMessage::ForkSessionFinished { .. }) =
             next_output(task, |_| true).await
         else {
@@ -583,7 +624,7 @@ async fn fork_desktop_clicks_send_frozen_turn_and_open_gateway_history() {
         assert_eq!(post.path, "/v1/session/source/fork?directory=/fixture/source");
         assert_eq!(
             serde_json::from_slice::<serde_json::Value>(&post.body).unwrap(),
-            json!({"beforeTurnId": "second-turn", "target": target_body})
+            json!({"beforeTurnId": turn_id, "target": target_body})
         );
 
         if !reject {
@@ -594,6 +635,7 @@ async fn fork_desktop_clicks_send_frozen_turn_and_open_gateway_history() {
             app.active_session_id = Some("other".into());
         }
         let _ = chat::update(&mut app, finished);
+        assert!(app.chat_fork_dialog.is_none());
 
         if switch_while_pending {
             assert_eq!(app.active_session_id.as_deref(), Some("other"));
@@ -609,7 +651,12 @@ async fn fork_desktop_clicks_send_frozen_turn_and_open_gateway_history() {
             assert_eq!(app.project_path.as_deref(), Some(directory));
             assert!(app.sessions.iter().any(|info| info.id == id));
             assert!(app.project_sessions[directory].iter().any(|info| info.id == id));
-            assert_projected_fork(&app);
+            assert_eq!(app.current_session_runtime().input_editor.text(), prompt);
+            if id == "first" {
+                assert!(app.chat.is_empty());
+            } else {
+                assert_projected_fork(&app);
+            }
             assert_eq!(
                 app.active_toast.as_ref().unwrap().kind,
                 crate::app::state::ToastKind::Success
@@ -633,7 +680,11 @@ async fn fork_desktop_clicks_send_frozen_turn_and_open_gateway_history() {
             };
             let _ = project::update(&mut app, loaded);
             assert_fork_readback(&mut requests, id, directory);
-            assert_projected_fork(&app);
+            if id == "first" {
+                assert!(app.chat.is_empty());
+            } else {
+                assert_projected_fork(&app);
+            }
         }
         server.abort();
         let _ = server.await;

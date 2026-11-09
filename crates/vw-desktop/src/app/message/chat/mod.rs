@@ -212,6 +212,12 @@ impl ForkSessionAnchor {
     }
 }
 
+pub(crate) struct ForkSessionDialog {
+    pub(crate) anchor: ForkSessionAnchor,
+    pub(crate) prompt: String,
+    pub(crate) in_progress: bool,
+}
+
 #[derive(Debug, Clone)]
 pub struct ForkSessionLoaded {
     pub(crate) info: vw_shared::session::info::Info,

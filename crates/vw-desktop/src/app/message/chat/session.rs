@@ -395,7 +395,7 @@ fn reset_session_locally(app: &mut App, session_id: String, msg_idx: usize) -> T
         .unwrap_or_else(|| "重置会话".to_string());
 
     app.chat_reset_menu_idx = None;
-    app.chat_fork_anchor = None;
+    app.chat_fork_dialog = None;
     app.mark_session_acp_rebuild_required(&session_id);
     app.active_session_id = Some(session_id.clone());
     app.chat = retained_chat;
@@ -1573,10 +1573,17 @@ pub fn update(app: &mut App, message: ChatMessage) -> Task<Message> {
             message::after(Duration::from_millis(200), Message::Chat(ChatMessage::SubmitTick))
         }
         ChatMessage::ForkSessionAt { anchor, target } => {
-            if app.chat_fork_anchor.as_ref() != Some(&anchor) || !anchor.is_current(app) {
+            if !anchor.is_current(app) {
                 return Task::none();
             }
-            app.chat_fork_anchor = None;
+            let Some(dialog) = app
+                .chat_fork_dialog
+                .as_mut()
+                .filter(|dialog| !dialog.in_progress && dialog.anchor == anchor)
+            else {
+                return Task::none();
+            };
+            dialog.in_progress = true;
             let endpoint = crate::app::gateway_client_endpoint();
             let show_reasoning_summary = app.dialogue_flow_show_reasoning_summary;
             Task::perform(
@@ -1621,6 +1628,12 @@ pub fn update(app: &mut App, message: ChatMessage) -> Task<Message> {
             )
         }
         ChatMessage::ForkSessionFinished { anchor, target, result } => {
+            let Some(dialog) = app
+                .chat_fork_dialog
+                .take_if(|dialog| dialog.in_progress && dialog.anchor == anchor)
+            else {
+                return Task::none();
+            };
             if !anchor.is_current(app) {
                 return Task::none();
             }
@@ -1645,6 +1658,9 @@ pub fn update(app: &mut App, message: ChatMessage) -> Task<Message> {
             );
             // Opening a different directory clears the current session list.
             crate::app::message::project::cache_external_session(app, info);
+            app.current_session_runtime_mut().input_editor =
+                iced::widget::text_editor::Content::with_text(&dialog.prompt);
+            app.input_text = dialog.prompt;
             let toast = app.show_localized_toast(
                 ToastKind::Success,
                 match target {
@@ -1653,7 +1669,7 @@ pub fn update(app: &mut App, message: ChatMessage) -> Task<Message> {
                 },
                 vec![],
             );
-            Task::batch([open, toast])
+            Task::batch([open, toast, iced::widget::operation::focus(app.input_editor_id.clone())])
         }
         ChatMessage::ResetMessageIdsRecovered { session_id, msg_idx, result } => {
             if app.active_session_id.as_deref() != Some(session_id.as_str()) {

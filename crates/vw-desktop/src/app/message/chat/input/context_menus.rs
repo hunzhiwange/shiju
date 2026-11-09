@@ -167,9 +167,21 @@ pub(super) fn handle_open_fork_session_dialog(
     app: &mut App,
     anchor: Option<crate::app::message::chat::ForkSessionAnchor>,
 ) -> Task<Message> {
+    if app.chat_fork_dialog.as_ref().is_some_and(|dialog| dialog.in_progress) {
+        return Task::none();
+    }
     app.chat_reset_menu_idx = None;
-    app.chat_fork_anchor = anchor.filter(|anchor| anchor.is_current(app));
-    if app.chat_fork_anchor.is_some() {
+    app.chat_fork_dialog = anchor.filter(|anchor| anchor.is_current(app)).and_then(|anchor| {
+        let index = app
+            .chat_message_ids
+            .iter()
+            .position(|id| id.as_deref() == Some(anchor.user_message_id.as_str()))?;
+        let prompt = crate::app::components::chat_panel::message_view::chat_message_action_text(
+            app, index, false,
+        )?;
+        Some(crate::app::message::chat::ForkSessionDialog { anchor, prompt, in_progress: false })
+    });
+    if app.chat_fork_dialog.is_some() {
         Task::none()
     } else {
         app.show_localized_toast(
@@ -183,14 +195,19 @@ pub(super) fn handle_open_fork_session_dialog(
 /// 模块内可见函数，执行 handle_close_fork_session_dialog 对应的应用流程。
 /// 返回值表达处理结果；失败通过错误值、日志或任务消息显式传递。
 pub(super) fn handle_close_fork_session_dialog(app: &mut App) -> Task<Message> {
-    app.chat_fork_anchor = None;
+    if !app.chat_fork_dialog.as_ref().is_some_and(|dialog| dialog.in_progress) {
+        app.chat_fork_dialog = None;
+    }
     Task::none()
 }
 
 /// 模块内可见函数，执行 handle_toggle_reset_menu 对应的应用流程。
 /// 返回值表达处理结果；失败通过错误值、日志或任务消息显式传递。
 pub(super) fn handle_toggle_reset_menu(app: &mut App, msg_idx: usize) -> Task<Message> {
-    app.chat_fork_anchor = None;
+    if app.chat_fork_dialog.as_ref().is_some_and(|dialog| dialog.in_progress) {
+        return Task::none();
+    }
+    app.chat_fork_dialog = None;
     app.chat_reset_menu_idx =
         if app.chat_reset_menu_idx == Some(msg_idx) { None } else { Some(msg_idx) };
     Task::none()

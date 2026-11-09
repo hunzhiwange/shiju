@@ -392,7 +392,7 @@ impl App {
             input_context_menu_open: false,
             input_context_menu_pos: None,
             chat_reset_menu_idx: None,
-            chat_fork_anchor: None,
+            chat_fork_dialog: None,
             chat_todo_expanded: true,
             chat_todo_anim: 1.0,
             chat_todo_placement: TodoPanelPlacement::ChatTopRight,

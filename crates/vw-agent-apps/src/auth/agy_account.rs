@@ -18,6 +18,41 @@ pub struct AgyNativeTarget<'a> {
     pub exclusive_owner: Option<AuthAccountScope<'a>>,
 }
 
+/// Read only the selected managed account's unexpired access token.
+#[cfg(target_os = "macos")]
+pub(crate) fn query_access_token(
+    scope: AuthAccountScope<'_>,
+    account_id: &str,
+    now: vw_api_types::TimestampMs,
+) -> Result<Option<String>, AuthErrorCode> {
+    validate_scope(scope)?;
+    validate_account_id(account_id)?;
+    let home = execution_home()?;
+    let (_lock, keychain) = macos::read_keychain(&home)?;
+    let (record, _, _) = managed(&keychain, scope, account_id)?;
+    let token = record
+        .credential
+        .pointer("/token/access_token")
+        .and_then(serde_json::Value::as_str)
+        .filter(|token| super::copilot::valid_token(token));
+    Ok(token
+        .filter(|_| {
+            macos::expiry(&record.credential)
+                .is_some_and(|expiry| expiry.timestamp_millis() > now.0)
+        })
+        .map(str::to_owned))
+}
+
+/// Reserve the authorized native login for a read-only CLI query.
+#[cfg(target_os = "macos")]
+pub(crate) fn lock_native_usage(
+    scope: AuthAccountScope<'_>,
+    native: AgyNativeTarget<'_>,
+) -> Result<std::fs::File, AuthErrorCode> {
+    let home = native_home(scope, native)?;
+    macos::lock_keychain_directory(&home, libc::LOCK_SH | libc::LOCK_NB)
+}
+
 /// Activate the managed account in the authorized execution user's native AGY slot.
 /// The host adapter must resolve the account ID and slot owner from scoped policy.
 /// Run this blocking operation off the async runtime.
@@ -336,7 +371,10 @@ mod macos {
         Ok((lock, keychain))
     }
 
-    fn lock_keychain_directory(home: &Path, operation: libc::c_int) -> Result<File, AuthErrorCode> {
+    pub(super) fn lock_keychain_directory(
+        home: &Path,
+        operation: libc::c_int,
+    ) -> Result<File, AuthErrorCode> {
         let directory = open_beneath(home, &home.join("Library/Keychains"), true)
             .map_err(|_| AuthErrorCode::KeychainUnavailable)?;
         let metadata = directory.metadata().map_err(|_| AuthErrorCode::KeychainUnavailable)?;
@@ -453,7 +491,7 @@ mod macos {
         left.pointer("/token/refresh_token") == right.pointer("/token/refresh_token")
     }
 
-    fn expiry(value: &Value) -> Option<DateTime<FixedOffset>> {
+    pub(super) fn expiry(value: &Value) -> Option<DateTime<FixedOffset>> {
         DateTime::parse_from_rfc3339(value.pointer("/token/expiry")?.as_str()?).ok()
     }
 

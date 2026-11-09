@@ -468,3 +468,21 @@
 | 隔离复核 | `cargo clippy --all-targets --all-features -- -D warnings` | 退出 0。源码基于批次 28 提交 `518e91821`，叠加本任务 Rust 文件和工作区已有的 `postgres_tests.rs` 第三参数修正。 |
 
 本机 HTTP 夹具核对 CLI 与托管令牌、请求方法、路径、请求头及 gRPC 空帧。测试覆盖双窗口、预付钱包零值、按需金额、无效或到期凭据、双向部分失败及完全拒绝。差异检查通过，槽位锁已释放并保留缓存。真实账号留待任务 57 验收。 [聚焦测试](../../../../crates/vw-agent-apps/src/usage/subscriptions/grok_tests.rs#L205)
+
+## 任务 30 AGY 官方额度
+
+`query_agy_account` 使用调用方已授权的明确账号及其作用域。供应商调用先解析保存的绑定。托管入口从钥匙串读取该账号的有效令牌并直接 POST `retrieveUserQuotaSummary`。令牌过期时复用已有刷新流程，HTTP 401 时强制刷新一次再试。查询接受已探测的 CLI 版本，缺失时使用来源快照的 1.4.6。托管查询失败也保留其来源。 [账号入口](../../../../crates/vw-agent-apps/src/usage/subscriptions/agy.rs#L48) · [账号查询来源](../../../../crates/vw-agent-apps/upstream/src-tauri/src/services/agy_account/mod.rs#L389) · [HTTP 来源](../../../../crates/vw-agent-apps/upstream/src-tauri/src/services/agy_account/quota.rs#L149) · [TS 账号规则](../../../../crates/vw-agent-apps/upstream/src/lib/query/subscription.ts#L217)
+
+`query_agy_cli` 使用目标主机独占的原生登录槽，持有读锁并执行固定的 `agy --print /usage --output-format json`。进程环境由主机提供，排除外部 API Key 及自定义地址。令牌刷新在阻塞线程等待同一物理锁。两种响应共享 Gemini、Claude/GPT 两组各自的五小时和每周窗口。同一窗口重复时取较高用量及对应重置时间。未知桶跳过。HTTP 403 通过 `loadCodeAssist` 区分资格限制和其他访问拒绝，返回固定安全说明。 [CLI 入口](../../../../crates/vw-agent-apps/src/usage/subscriptions/agy.rs#L74) · [刷新锁](../../../../crates/vw-agent-apps/src/auth/agy_refresh.rs#L111) · [窗口投影](../../../../crates/vw-agent-apps/src/usage/subscriptions/agy.rs#L327) · [CLI 来源](../../../../crates/vw-agent-apps/upstream/src-tauri/src/services/subscription_agy.rs#L115) · [资格检查来源](../../../../crates/vw-agent-apps/upstream/src-tauri/src/services/agy_account/quota.rs#L169)
+
+验证环境为 macOS 27.0 (26A428)、arm64，`vw-agent-apps` 0.6.0。各阶段动态领取槽位 1，`CARGO_TARGET_DIR` 和隔离验证的 `CARGO_BUILD_BUILD_DIR` 均为 `/Users/xiangmin/worker/code/shiju/target/rust-slot-1`。隔离验证基于批次 29 提交 `58e9143ae`，叠加本任务 Rust 文件和工作区已有的 `postgres_tests.rs` 第三参数修正。格式化后仅同步本任务文件。
+
+| 阶段 | 命令 | 结果 |
+| --- | --- | --- |
+| 实现前 | `cargo test -p vw-agent-apps usage_subscriptions_agy_ -- --nocapture` | 退出 101，执行 0 项。包含 `usage_subscriptions_agy_returns_expected_result` 和 `usage_subscriptions_agy_rejects_invalid_input` 的模块报 E0432，缺少 `super::agy`。 |
+| 格式化 | `cargo fmt --all` | 退出 0。 |
+| 实现后 | `cargo test -p vw-agent-apps usage_subscriptions_agy_ -- --nocapture` | 退出 0，4 项通过，0 项失败。 |
+| 授权刷新 | `cargo test -p vw-agent-apps auth6_agy_refresh_ -- --nocapture --test-threads=1` | 退出 0，2 项通过，0 项失败。 |
+| 隔离复核 | `cargo clippy --all-targets --all-features -- -D warnings` | 退出 0。 |
+
+HTTP 与 CLI 夹具核对请求、来源分离、额度归并、重置时间、拒绝和脱敏。差异检查通过，槽位锁已释放，缓存已保留。真实账号留待任务 57 验收。 [聚焦测试](../../../../crates/vw-agent-apps/src/usage/subscriptions/agy_tests.rs#L126)

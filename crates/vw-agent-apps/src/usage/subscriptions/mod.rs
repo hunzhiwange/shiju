@@ -1,9 +1,13 @@
 //! Official subscription queries on the authorized execution host.
 
+pub mod agy;
 pub mod claude;
 pub mod codex;
 pub mod gemini;
 pub mod grok;
+
+#[cfg(test)]
+mod agy_tests;
 
 #[cfg(test)]
 mod claude_tests;

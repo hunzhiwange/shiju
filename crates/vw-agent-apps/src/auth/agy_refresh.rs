@@ -12,7 +12,9 @@ use super::{
     keychain::KeychainEntry,
 };
 use reqwest::{Client, Request};
+use security_framework::os::macos::keychain::SecKeychain;
 use serde_json::{Value, json};
+use std::{fs::File, path::Path};
 use vw_api_types::agent_apps_auth::{AuthCredentialState, AuthErrorCode};
 
 /// Refresh a managed AGY account on its authorized macOS execution host.
@@ -34,7 +36,7 @@ pub(super) async fn refresh_with(
     validate_account_id(account_id)?;
     let home = execution_home()?;
     let (refresh_token, version) = {
-        let (_lock, keychain) = locked_keychain(&home)?;
+        let (_lock, keychain) = lock_for_refresh(&home).await?;
         let (record, _, version) = managed(&keychain, scope, account_id)?;
         let refresh_token = record
             .credential
@@ -55,7 +57,7 @@ pub(super) async fn refresh_with(
         Err(error) => return Err(error),
     };
 
-    let (_lock, keychain) = locked_keychain(&home)?;
+    let (_lock, keychain) = lock_for_refresh(&home).await?;
     let (mut record, item, current) =
         managed(&keychain, scope, account_id).map_err(|error| match error {
             AuthErrorCode::NotFound | AuthErrorCode::ReauthRequired => AuthErrorCode::Conflict,
@@ -103,6 +105,14 @@ pub(super) async fn refresh_with(
     }
     save_managed(&keychain, record, item)?;
     Ok(tokens.access_token)
+}
+
+// The native quota subprocess can hold a shared lock across an await.
+async fn lock_for_refresh(home: &Path) -> Result<(File, SecKeychain), AuthErrorCode> {
+    let home = home.to_path_buf();
+    tokio::task::spawn_blocking(move || locked_keychain(&home))
+        .await
+        .map_err(|_| AuthErrorCode::StorageUnavailable)?
 }
 
 /// Absorb a newer native credential for the account already bound by host policy.

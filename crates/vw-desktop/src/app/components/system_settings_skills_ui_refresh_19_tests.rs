@@ -927,3 +927,112 @@ async fn help_rollout_10_plugin_formats_keep_audit_visible() {
         ));
     }
 }
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn settings_help_gap_14_plugin_catalog() {
+    if !isolated("settings_help_gap_14_plugin_catalog") {
+        return;
+    }
+    use crate::app::message::settings::SettingsMessage;
+
+    let mut app = fixture();
+    let mut renderer = renderer().await;
+    for (locale, theme, width) in [
+        (DesktopLocale::SimplifiedChinese, Theme::Dark, 420),
+        (DesktopLocale::English, Theme::Light, 760),
+        (DesktopLocale::TraditionalChinese, Theme::Dark, 760),
+    ] {
+        app.desktop_locale = locale;
+        app.app_theme = theme.clone();
+        app.skills_settings.plugin_install = None;
+        let size = Size::new(width, 880);
+        let mut ui = scene(plugins::view(&app), &mut renderer, size);
+        let explanation = "原包来源、依赖观察与信任状态；文件存在不代表运行兼容。";
+        let icon = assert_contextual_help(
+            &mut ui,
+            &mut renderer,
+            (size, &theme, locale),
+            "插件",
+            explanation,
+        );
+        assert!(click(&mut ui, &mut renderer, icon).is_empty());
+        let menu = iced::Point::new(icon.x + 29.0, icon.y + 5.0);
+        assert!(
+            send(
+                &mut ui,
+                &mut renderer,
+                mouse::Cursor::Available(menu),
+                &[Event::Mouse(mouse::Event::ButtonPressed(mouse::Button::Right))],
+            )
+            .is_empty()
+        );
+        let item_height =
+            f32::from(iced::advanced::text::LineHeight::default().to_absolute(12.0.into())) + 10.0;
+        let copy = iced::Point::new(menu.x + 24.0, menu.y + 3.0 + item_height * 0.5);
+        assert!(matches!(
+            click(&mut ui, &mut renderer, copy).as_slice(),
+            [Message::CopyCode(value)] if value == tr(locale, explanation)
+        ));
+        assert!(
+            send(
+                &mut ui,
+                &mut renderer,
+                mouse::Cursor::Unavailable,
+                &[key(iced::keyboard::key::Named::Escape)],
+            )
+            .is_empty()
+        );
+        let positions = geometry(&mut ui, &renderer);
+        positions.label(tr(locale, "缺少运行依赖"));
+        positions.label(tr(locale, "钩子待信任；审核前不会执行"));
+        assert!(positions.labels.iter().any(|(label, _)| label.contains(PATH)));
+        assert!(matches!(
+            press_label(&mut ui, &mut renderer, tr(locale, "安装插件")).as_slice(),
+            [Message::Settings(SettingsMessage::PluginsInstallOpen)]
+        ));
+        drop(ui);
+
+        let mut form = PluginInstallForm::new(7, None);
+        form.source = URL.into();
+        for phase in [
+            PluginInstallPhase::Review(preview()),
+            PluginInstallPhase::Committing(preview()),
+            PluginInstallPhase::Failed("Fixture audit failed".into()),
+        ] {
+            form.phase = phase;
+            app.skills_settings.plugin_install = Some(form.clone());
+            let mut ui = scene(with_plugin_install(&app, plugins::view(&app)), &mut renderer, size);
+            capture(
+                &mut ui,
+                &mut renderer,
+                &theme,
+                size,
+                &format!("help-14-{locale:?}-install"),
+                mouse::Cursor::Unavailable,
+            );
+            let positions = geometry(&mut ui, &renderer);
+            match &form.phase {
+                PluginInstallPhase::Review(_) => {
+                    positions.label(tr(locale, "权限变化：安装/升级不授予新的执行权限；MCP、钩子和引导技能不会由安装动作自动运行。声明变化仍受宿主审批，内容信任须重新核对。"));
+                    positions.label(tr(locale, "缺少运行依赖"));
+                    assert!(matches!(
+                        press_label(&mut ui, &mut renderer, tr(locale, "确认安装")).as_slice(),
+                        [Message::Settings(SettingsMessage::PluginsInstallConfirm)]
+                    ));
+                }
+                PluginInstallPhase::Committing(_) => {
+                    positions.label(tr(locale, "正在提交；请等待完成…"));
+                    assert!(press_label(&mut ui, &mut renderer, tr(locale, "确认安装")).is_empty());
+                }
+                PluginInstallPhase::Failed(error) => {
+                    positions.label(error);
+                    assert!(matches!(
+                        press_label(&mut ui, &mut renderer, tr(locale, "重试审计")).as_slice(),
+                        [Message::Settings(SettingsMessage::PluginsInstallPrepare)]
+                    ));
+                }
+                _ => unreachable!(),
+            }
+        }
+    }
+}

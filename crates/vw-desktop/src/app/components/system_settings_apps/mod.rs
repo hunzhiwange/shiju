@@ -32,9 +32,7 @@ fn message(value: AppsCatalogMessage) -> Message {
     Message::Settings(SettingsMessage::AppsCatalog(value))
 }
 
-pub(crate) fn view(state: &AppsCatalogState) -> Element<'_, Message> {
-    list::view(state)
-}
+pub(crate) use list::view;
 
 pub(crate) fn view_overlays<'a>(
     state: &'a AppsCatalogState,

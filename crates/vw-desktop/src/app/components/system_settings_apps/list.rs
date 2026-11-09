@@ -9,6 +9,7 @@ use crate::app::components::system_settings_common::*;
 use crate::app::{
     Message,
     assets::{self, Icon},
+    i18n::I18n,
     message::settings::AppsCatalogMessage,
     state::AppsCatalogState,
 };
@@ -46,7 +47,7 @@ fn action<'a>(
     .into()
 }
 
-pub(super) fn view(state: &AppsCatalogState) -> Element<'_, Message> {
+pub(crate) fn view(state: &AppsCatalogState, i18n: I18n) -> Element<'_, Message> {
     let visible = preferences::visible_rows(state);
     let installed =
         visible.iter().filter(|a| presentation::presence(a) == Presence::Installed).count();
@@ -131,11 +132,7 @@ pub(super) fn view(state: &AppsCatalogState) -> Element<'_, Message> {
         content = content.push(panel);
     } else {
         let mut found = 0;
-        for (presence, title, note) in [
-            (Presence::Installed, "已安装", "拖动左侧手柄可调整顺序"),
-            (Presence::Missing, "待安装", "发现更多适合你的工具"),
-            (Presence::Unverified, "待确认", "打开详情查看检测结果"),
-        ] {
+        for presence in [Presence::Installed, Presence::Missing, Presence::Unverified] {
             let apps: Vec<_> = visible
                 .iter()
                 .copied()
@@ -148,19 +145,41 @@ pub(super) fn view(state: &AppsCatalogState) -> Element<'_, Message> {
                 continue;
             }
             found += apps.len();
-            let description = if state.drag.source.is_some() && presence == Presence::Installed {
-                "松开鼠标完成排序 · Esc 取消"
-            } else if state.preferences.busy && presence == Presence::Installed {
-                "正在同步设置…"
-            } else {
-                note
+            let heading = match presence {
+                Presence::Installed => {
+                    let title = settings_group_heading_with_help(
+                        i18n,
+                        None,
+                        i18n.__("已安装"),
+                        i18n.__("拖动左侧手柄可调整顺序"),
+                    );
+                    let notice = if state.drag.source.is_some() {
+                        Some("松开鼠标完成排序 · Esc 取消")
+                    } else if state.preferences.busy {
+                        Some("正在同步设置…")
+                    } else {
+                        None
+                    };
+                    if let Some(notice) = notice {
+                        column![title, text(notice).size(13).style(settings_muted_text_style)]
+                            .spacing(6)
+                            .into()
+                    } else {
+                        title
+                    }
+                }
+                Presence::Missing => settings_group_heading_with_help(
+                    i18n,
+                    None,
+                    i18n.__("待安装"),
+                    i18n.__("发现更多适合你的工具"),
+                ),
+                Presence::Unverified => settings_group_heading("待确认", "打开详情查看检测结果"),
             };
-            let section_title = row![
-                container(settings_group_heading(title, description)).width(Length::Fill),
-                settings_value_badge(apps.len()),
-            ]
-            .spacing(8)
-            .align_y(Alignment::Center);
+            let section_title =
+                row![container(heading).width(Length::Fill), settings_value_badge(apps.len()),]
+                    .spacing(8)
+                    .align_y(Alignment::Center);
             let mut cards = column![].spacing(8);
             for app in apps {
                 cards = cards.push(card(state, app));

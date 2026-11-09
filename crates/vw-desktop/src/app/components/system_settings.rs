@@ -399,7 +399,10 @@ pub(crate) const SETTINGS_CONTENT_SCROLL: &str = "system-settings-content-scroll
 
 fn settings_content(app: &App, active_tab: SystemTab) -> Element<'_, Message> {
     let content: Element<'_, Message> = match active_tab {
-        SystemTab::Apps => super::system_settings_apps::view(&app.apps_catalog),
+        SystemTab::Apps => super::system_settings_apps::view(
+            &app.apps_catalog,
+            crate::app::i18n::I18n::new(app.desktop_locale),
+        ),
         #[cfg(not(target_arch = "wasm32"))]
         SystemTab::Auth => super::system_settings_auth::view(&app.agent_apps_auth),
         SystemTab::General => crate::app::components::system_settings_general::view(app),

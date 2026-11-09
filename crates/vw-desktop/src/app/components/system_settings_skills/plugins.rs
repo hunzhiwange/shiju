@@ -7,10 +7,10 @@ use super::browser::{
 use super::catalog::{catalog_item_button_style, icon_svg, section_card_style, skill_badge};
 use crate::app::assets::Icon;
 use crate::app::components::system_settings_common::{
-    SETTINGS_CONTROL_PADDING, SETTINGS_CONTROL_TEXT_SIZE, settings_group_heading,
+    SETTINGS_CONTROL_PADDING, SETTINGS_CONTROL_TEXT_SIZE, settings_group_heading_with_help,
     settings_muted_text_style, settings_text_input_style, settings_value_badge,
 };
-use crate::app::i18n::settings_extensions::text as tr;
+use crate::app::i18n::{I18n, settings_extensions::text as tr};
 use crate::app::state::PluginCatalogItem;
 use crate::app::{App, Message, message};
 use iced::alignment::{Horizontal, Vertical};
@@ -299,7 +299,9 @@ pub(crate) fn view<'a>(app: &'a App) -> Element<'a, Message> {
 
     let header = container(
         column![
-            settings_group_heading(
+            settings_group_heading_with_help(
+                I18n::new(locale),
+                &app.app_theme,
                 tr(locale, "插件"),
                 tr(locale, "原包来源、依赖观察与信任状态；文件存在不代表运行兼容。"),
             ),

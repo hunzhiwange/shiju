@@ -1,4 +1,4 @@
-use super::super::{drag, launch, view, view_overlays};
+use super::super::{drag, launch, view as localized_view, view_overlays};
 use super::CatalogRow;
 use crate::app::i18n::I18n;
 use crate::app::{
@@ -18,6 +18,10 @@ use iced::keyboard::{self, Key, key::Named};
 use iced::{Element, Event, Font, Point, Rectangle, Renderer, Size, Theme, Vector, mouse};
 use iced_runtime::user_interface::{Cache, UserInterface};
 use vw_gateway_client::{AgentAppsReadError, vw_api_types::agent_apps::*};
+
+fn view(state: &AppsCatalogState) -> Element<'_, Message> {
+    localized_view(state, I18n::new(Default::default()))
+}
 
 fn catalog_row(id: AppId, name: String, command: &str) -> CatalogRow {
     CatalogRow {
@@ -521,4 +525,112 @@ async fn ui_refresh_06_preserves_values_and_disabled_states() {
         catalog_messages(scene.click(&mut renderer, confirm)).as_slice(),
         [AppsCatalogMessage::Refresh]
     ));
+}
+
+#[derive(Default)]
+struct CatalogLabels(Vec<(String, Rectangle)>);
+
+impl Operation for CatalogLabels {
+    fn traverse(&mut self, children: &mut dyn FnMut(&mut dyn Operation)) {
+        children(self);
+    }
+
+    fn text(&mut self, _: Option<&iced::advanced::widget::Id>, bounds: Rectangle, value: &str) {
+        self.0.push((value.into(), bounds));
+    }
+}
+
+#[tokio::test]
+async fn settings_help_gap_14_app_catalog() {
+    use vw_config_types::ui::DesktopLocale;
+
+    let mut renderer = renderer().await;
+    let mut state = fixture();
+    state.expanded = None;
+    for (locale, theme, width) in [
+        (DesktopLocale::SimplifiedChinese, Theme::Dark, 420),
+        (DesktopLocale::English, Theme::Light, 760),
+        (DesktopLocale::TraditionalChinese, Theme::Dark, 760),
+    ] {
+        let i18n = I18n::new(locale);
+        for (dragging, syncing, notice) in [
+            (false, false, None),
+            (true, false, Some("松开鼠标完成排序 · Esc 取消")),
+            (false, true, Some("正在同步设置…")),
+        ] {
+            state.drag.source = dragging.then_some(AppId::Codex);
+            state.preferences.busy = syncing;
+            let size = Size::new(width, 960);
+            let mut scene = Scene::new(
+                localized_view(&state, i18n),
+                &mut renderer,
+                Size::new(size.width as f32, size.height as f32),
+            );
+            scene.draw(&mut renderer, &theme, None);
+            let mut labels = CatalogLabels::default();
+            scene.ui.operate(&renderer, &mut labels);
+            assert!(labels.0.iter().any(|(value, _)| value == "打开详情查看检测结果"));
+            assert_eq!(labels.0.iter().filter(|(value, _)| value == "1").count(), 3);
+            if let Some(text) = notice {
+                assert!(labels.0.iter().any(|(value, _)| value == text));
+            }
+            for (title, explanation) in
+                [("已安装", "拖动左侧手柄可调整顺序"), ("待安装", "发现更多适合你的工具")]
+            {
+                let title = i18n.__(title);
+                let translated = i18n.__(explanation);
+                if locale != DesktopLocale::SimplifiedChinese {
+                    assert_ne!(translated, explanation, "{locale:?}: missing help translation");
+                }
+                assert!(
+                    !labels.0.iter().any(|(value, _)| value == explanation || value == translated),
+                    "{title}: explanation must be absent from the idle view"
+                );
+                let bounds = labels.0.iter().find(|(label, _)| label == title).unwrap().1;
+                if dragging {
+                    continue;
+                }
+                let icon = Point::new(bounds.x + bounds.width + 15.0, bounds.center_y());
+                scene.draw(&mut renderer, &theme, None);
+                let idle = renderer.screenshot(size, 1.0, theme.palette().background);
+                assert!(scene.hover(&mut renderer, icon).is_empty());
+                scene.draw(&mut renderer, &theme, Some(icon));
+                assert!(idle != renderer.screenshot(size, 1.0, theme.palette().background));
+                assert!(scene.click(&mut renderer, icon).is_empty());
+                scene.draw(&mut renderer, &theme, None);
+                assert!(idle != renderer.screenshot(size, 1.0, theme.palette().background));
+
+                if notice.is_none() {
+                    let menu = Point::new(icon.x + 29.0, icon.y + 5.0);
+                    assert!(
+                        scene
+                            .send(
+                                &mut renderer,
+                                &[Event::Mouse(mouse::Event::ButtonPressed(mouse::Button::Right))],
+                                Some(menu),
+                            )
+                            .is_empty()
+                    );
+                    let item_height = f32::from(
+                        iced::advanced::text::LineHeight::default().to_absolute(12.0.into()),
+                    ) + 10.0;
+                    let copy = Point::new(menu.x + 24.0, menu.y + 3.0 + item_height * 0.5);
+                    assert!(matches!(
+                        scene.click(&mut renderer, copy).as_slice(),
+                        [Message::CopyCode(value)] if value == translated
+                    ));
+                }
+                assert!(scene.send(&mut renderer, &[key(Named::Escape)], None).is_empty());
+                scene.draw(&mut renderer, &theme, None);
+                assert!(idle == renderer.screenshot(size, 1.0, theme.palette().background));
+            }
+            if notice.is_none() {
+                assert!(matches!(
+                    catalog_messages(scene.click(&mut renderer, scene.bounds(REFRESH).center()))
+                        .as_slice(),
+                    [AppsCatalogMessage::Refresh]
+                ));
+            }
+        }
+    }
 }

@@ -336,7 +336,7 @@ async fn help_rollout_04_renders_contextual_help() {
                 &state,
                 I18n::new(mode.0),
                 &mode.1,
-                iced::widget::container(system_settings_apps::view(&state))
+                iced::widget::container(system_settings_apps::view(&state, I18n::new(mode.0)))
                     .width(Length::Fill)
                     .height(Length::Fill)
                     .into(),

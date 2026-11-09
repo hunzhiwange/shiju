@@ -141,11 +141,13 @@ impl Harness {
 
     fn view(&self, _: window::Id) -> Element<'_, Message> {
         let content = iced::widget::container(
-            iced::widget::scrollable(system_settings_apps::view(&self.state)).direction(
-                iced::widget::scrollable::Direction::Vertical(
-                    iced::widget::scrollable::Scrollbar::new().width(4).scroller_width(4),
-                ),
-            ),
+            iced::widget::scrollable(system_settings_apps::view(
+                &self.state,
+                I18n::new(Default::default()),
+            ))
+            .direction(iced::widget::scrollable::Direction::Vertical(
+                iced::widget::scrollable::Scrollbar::new().width(4).scroller_width(4),
+            )),
         )
         .padding(16)
         .width(iced::Length::Fill)

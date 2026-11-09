@@ -6,9 +6,9 @@
 use crate::app::components::system_settings_common::{
     primary_action_btn_style, rounded_action_btn_style, settings_checkbox_style,
     settings_control_with_hint, settings_error_banner, settings_flexible_row_with_help,
-    settings_group_card, settings_group_heading, settings_group_heading_with_help,
-    settings_muted_text_style, settings_page_heading_with_help, settings_panel,
-    settings_row_with_flexible_control, settings_value_badge,
+    settings_group_card, settings_group_heading_with_help, settings_muted_text_style,
+    settings_page_heading_with_help, settings_panel, settings_row_with_flexible_control,
+    settings_value_badge,
 };
 use crate::app::i18n::settings_extensions::text as tr;
 use crate::app::message::settings::HooksMessage;
@@ -212,14 +212,25 @@ pub fn view(app: &App) -> Element<'_, Message> {
         i18n,
         theme,
         tr(locale, "启用"),
-        tr(locale, "控制是否开启运行时 hooks 执行。"),
+        format!(
+            "{}\n{}",
+            tr(locale, "控制是否开启运行时 hooks 执行。"),
+            tr(locale, "暂停执行时会保留内置钩子的启用状态。"),
+        ),
         320.0,
         settings_control_with_hint(
             checkbox(s.enabled)
                 .label(tr(locale, "开启运行时 hooks 执行"))
                 .on_toggle(enabled_toggled)
                 .style(settings_checkbox_style),
-            tr(locale, "关闭总开关后将暂停 hooks 执行，但会保留内置钩子的具体启用状态。"),
+            tr(
+                locale,
+                if s.enabled {
+                    "关闭总开关后将暂停 hooks 执行。"
+                } else {
+                    "hooks 执行已暂停。"
+                },
+            ),
         ),
     );
 
@@ -289,10 +300,7 @@ pub fn view(app: &App) -> Element<'_, Message> {
             tr(locale, "钩子配置"),
             tr(locale, "配置运行时 hooks 总开关与内置钩子的启用状态。")
         ),
-        settings_group_heading(
-            tr(locale, "基础行为"),
-            tr(locale, "关闭总开关后将暂停 hooks 执行。")
-        ),
+        text(tr(locale, "基础行为")).size(17),
         settings_group_card(enabled_row),
         builtin_header,
         settings_group_card(command_logger_row),

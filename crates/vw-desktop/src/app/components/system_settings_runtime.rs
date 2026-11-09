@@ -6,9 +6,9 @@
 use super::system_settings::SELECT_FOCUS_SCOPE;
 use crate::app::components::system_settings_common::{
     SETTINGS_CONTROL_TEXT_SIZE, settings_checkbox_style, settings_divider, settings_field_label,
-    settings_flexible_row_with_help, settings_group_card, settings_group_heading,
-    settings_group_heading_with_help, settings_muted_text_style, settings_page_heading_with_help,
-    settings_row_with_flexible_control, settings_select, settings_text_input,
+    settings_flexible_row_with_help, settings_group_card, settings_group_heading_with_help,
+    settings_muted_text_style, settings_page_heading_with_help, settings_row_with_flexible_control,
+    settings_select, settings_text_input,
 };
 use crate::app::i18n::I18n;
 use crate::app::i18n::settings_runtime::text as runtime_text;
@@ -127,7 +127,9 @@ pub fn view(app: &App) -> Element<'_, Message> {
     );
 
     let docker_section = column![
-        settings_group_heading(
+        settings_group_heading_with_help(
+            i18n,
+            theme,
             runtime_text(locale, "Docker 配置"),
             runtime_text(locale, "当 kind=docker 时生效，用于控制镜像、资源限制和工作区挂载。"),
         ),

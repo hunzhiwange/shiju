@@ -3,9 +3,8 @@
 //! 夹具组合默认值、极值、空输入与未知值，并同时检查控件结构和回调消息。
 
 use super::*;
-use crate::app::message;
 use crate::app::{App, Message};
-use iced::widget::{container, text, text_input};
+use iced::widget::{container, text};
 use iced::{Element, Length};
 
 const SOURCE: &str = include_str!("system_settings_observability.rs");
@@ -168,47 +167,11 @@ fn overlays_preserve_base_dimensions_when_help_modal_is_closed() {
     assert_eq!(element.as_widget().size().height, Length::Fixed(217.0));
 }
 
-// 字段行：通过 `super::*` 直接检查私有布局辅助函数。
-
-#[test]
-fn field_row_builds_label_description_and_control() {
-    let el: Element<'_, Message> = field_row("我的标签", "这是描述", text("控件"));
-    keep_element(el);
-}
-
-#[test]
-fn field_row_with_empty_label_and_description() {
-    let el: Element<'_, Message> = field_row("", "", text_input("", "").width(Length::Fill));
-    keep_element(el);
-}
-
-// 文本行：覆盖空值、普通值与 Unicode 输入的控件结构。
-
-#[test]
-fn text_row_builds_label_placeholder_and_value() {
-    let el: Element<'_, Message> = text_row(
-        "端点",
-        "输入 OTLP 端点",
-        "http://localhost:4318",
-        "http://collector:4318",
-        |v| Message::Settings(message::SettingsMessage::ObservabilityOtelEndpointChanged(v)),
-    );
-    keep_element(el);
-}
-
-#[test]
-fn text_row_with_empty_strings() {
-    let el: Element<'_, Message> = text_row("", "", "", "", |v| {
-        Message::Settings(message::SettingsMessage::ObservabilityOtelEndpointChanged(v))
-    });
-    keep_element(el);
-}
-
 // 元检查：防止计划要求覆盖的私有符号在重构时静默消失。
 
 #[test]
 fn system_settings_observability_tests_keeps_planned_coverage_targets() {
-    for name in ["field_row", "text_row", "view", "view_overlays"] {
+    for name in ["view", "view_overlays"] {
         assert!(source_declares_symbol(name), "expected source to declare coverage target {name}");
     }
 }

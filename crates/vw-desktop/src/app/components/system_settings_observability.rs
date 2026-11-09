@@ -22,10 +22,9 @@
 //! - `runtime_trace_max_entries`：rolling 模式下保留的最大条目数
 
 use crate::app::components::system_settings_common::{
-    settings_divider, settings_flexible_row_with_help, settings_group_card,
-    settings_group_heading_with_help, settings_help_button_with_locale,
-    settings_page_heading_with_help, settings_row_with_flexible_control, settings_select,
-    settings_text_input, settings_value_badge,
+    settings_control_with_hint, settings_divider, settings_flexible_row_with_help,
+    settings_group_card, settings_group_heading_with_help, settings_help_button_with_locale,
+    settings_page_heading_with_help, settings_select, settings_text_input, settings_value_badge,
 };
 use crate::app::i18n::I18n;
 use crate::app::i18n::settings_runtime::text as runtime_text;
@@ -46,28 +45,6 @@ impl std::fmt::Display for LabeledOption {
 }
 
 const CONTROL_WIDTH: f32 = 320.0;
-
-fn field_row<'a>(
-    label: &'static str,
-    description: &'static str,
-    control: impl Into<Element<'a, Message>>,
-) -> Element<'a, Message> {
-    settings_row_with_flexible_control(label, description, CONTROL_WIDTH, control)
-}
-
-fn text_row<'a>(
-    label: &'static str,
-    description: &'static str,
-    placeholder: &'static str,
-    value: &'a str,
-    on_input: impl Fn(String) -> Message + 'a,
-) -> Element<'a, Message> {
-    field_row(
-        label,
-        description,
-        settings_text_input(placeholder, value).on_input(on_input).width(Length::Fill),
-    )
-}
 
 /// 渲染观测后端、OTel 连接与运行时追踪设置。
 pub fn view(app: &App) -> Element<'_, Message> {
@@ -101,12 +78,23 @@ pub fn view(app: &App) -> Element<'_, Message> {
         .width(Length::Fill),
     );
 
-    let otel_endpoint_row = text_row(
+    let inactive = runtime_text(locale, "当前模式下不生效。");
+    let otel_endpoint = settings_text_input("http://localhost:4318", &s.otel_endpoint_input)
+        .on_input(|value| {
+            Message::Settings(message::SettingsMessage::ObservabilityOtelEndpointChanged(value))
+        })
+        .width(Length::Fill);
+    let otel_endpoint_row = settings_flexible_row_with_help(
+        i18n,
+        theme,
         runtime_text(locale, "OTEL 端点"),
         runtime_text(locale, "仅 backend=otel 时生效。"),
-        "http://localhost:4318",
-        &s.otel_endpoint_input,
-        |v| Message::Settings(message::SettingsMessage::ObservabilityOtelEndpointChanged(v)),
+        CONTROL_WIDTH,
+        if s.backend == "otel" {
+            otel_endpoint.into()
+        } else {
+            settings_control_with_hint(otel_endpoint, inactive)
+        },
     );
 
     let otel_service_row = settings_flexible_row_with_help(
@@ -167,12 +155,21 @@ pub fn view(app: &App) -> Element<'_, Message> {
     })
     .width(Length::Fill);
 
-    let max_entries_row = field_row(
-        runtime_text(locale, "rolling 条数"),
-        runtime_text(locale, "rolling 模式下保留的最大条目数。"),
+    let max_entries =
         row![max_entries_slider, settings_value_badge(s.runtime_trace_max_entries.to_string())]
             .spacing(16)
-            .align_y(Alignment::Center),
+            .align_y(Alignment::Center);
+    let max_entries_row = settings_flexible_row_with_help(
+        i18n,
+        theme,
+        runtime_text(locale, "rolling 条数"),
+        runtime_text(locale, "rolling 模式下保留的最大条目数。"),
+        CONTROL_WIDTH,
+        if s.runtime_trace_mode == "rolling" {
+            max_entries.into()
+        } else {
+            settings_control_with_hint(max_entries, inactive)
+        },
     );
 
     let col = column![

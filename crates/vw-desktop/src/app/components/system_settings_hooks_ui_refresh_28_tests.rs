@@ -308,9 +308,10 @@ async fn ui_refresh_28_layout_and_interaction() {
     assert_fits(backend, size);
     assert!((backend.center_y() - positions.label("Backend").center_y()).abs() < 0.5);
     let endpoint_label = positions.label("OTEL endpoint");
-    let endpoint_hint = positions.label("Applies only when backend=otel.");
+    let endpoint_hint = positions.label("Inactive in the current mode.");
+    assert!(endpoint_hint.y >= endpoint.y + endpoint.height);
     assert!(
-        (endpoint.center_y() - (endpoint_label.y + endpoint_hint.y + endpoint_hint.height) / 2.0)
+        (endpoint_label.center_y() - (endpoint.y + endpoint_hint.y + endpoint_hint.height) / 2.0)
             .abs()
             < 0.5
     );
@@ -583,7 +584,7 @@ async fn help_rollout_20_renders_contextual_help() {
             settings.label(value);
         }
         for value in [
-            "关闭总开关后将暂停 hooks 执行，但会保留内置钩子的具体启用状态。",
+            "关闭总开关后将暂停 hooks 执行。",
             "仅加载已发现且已信任的插件 hook 声明。",
             "待审核声明不会执行；信任与撤销均由服务端按当前稳定哈希校验。",
             "待审核",
@@ -591,7 +592,6 @@ async fn help_rollout_20_renders_contextual_help() {
             settings.label(tr(locale, value));
         }
         for (title, description) in [
-            ("启用", "控制是否开启运行时 hooks 执行。"),
             ("钩子配置", "配置运行时 hooks 总开关与内置钩子的启用状态。"),
             ("内置钩子", "当前提供审计类内置 hooks。后续新增内置项时会继续在这里扩展。"),
             ("插件 hooks", "控制可信插件 hooks 的执行并审核当前声明。"),
@@ -600,6 +600,14 @@ async fn help_rollout_20_renders_contextual_help() {
         ] {
             settings.help(tr(locale, title), tr(locale, description));
         }
+        settings.help(
+            tr(locale, "启用"),
+            &format!(
+                "{}\n{}",
+                tr(locale, "控制是否开启运行时 hooks 执行。"),
+                tr(locale, "暂停执行时会保留内置钩子的启用状态。"),
+            ),
+        );
         let description = tr(locale, "记录命令调用信息，便于审计与问题回溯。");
         let icon = settings.help("command_logger", description);
         settings.actions(icon, description);

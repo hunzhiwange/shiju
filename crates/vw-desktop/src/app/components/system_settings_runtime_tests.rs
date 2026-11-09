@@ -54,7 +54,12 @@ fn view_builds_docker_runtime_settings() {
 #[cfg(not(target_arch = "wasm32"))]
 mod rollout {
     use super::*;
-    use crate::app::components::system_settings_observability;
+    use crate::app::components::{
+        system_settings::{self, SystemTab},
+        system_settings_observability, system_settings_scheduler,
+    };
+    use crate::app::message::settings::HooksMessage;
+    use crate::app::state::CronSettingsTab;
     use iced::advanced::{
         clipboard,
         renderer::{Headless, Style},
@@ -210,8 +215,22 @@ mod rollout {
         (title, explanation): (&'static str, &'static str),
         check_menu: bool,
     ) {
-        let title = runtime_text(locale, title);
-        let explanation = runtime_text(locale, explanation);
+        assert_localized_help(
+            ui,
+            renderer,
+            (locale, theme, size),
+            (runtime_text(locale, title), runtime_text(locale, explanation)),
+            check_menu,
+        );
+    }
+
+    fn assert_localized_help(
+        ui: &mut Ui<'_>,
+        renderer: &mut Renderer,
+        (locale, theme, size): (DesktopLocale, &Theme, Size<u32>),
+        (title, explanation): (&str, &str),
+        check_menu: bool,
+    ) {
         let label = geometry(ui, renderer).label(title);
         let frame = |ui: &mut Ui<'_>, renderer: &mut Renderer, suffix, cursor| {
             let redraw =
@@ -237,18 +256,32 @@ mod rollout {
             geometry(ui, renderer).labels.iter().all(|(label, _)| label != explanation),
             "{title}: static explanation is visible before opening help"
         );
-        let icon = Point::new(label.x + label.width + 15.0, label.center_y());
-        let cursor = mouse::Cursor::Available(icon);
-        let hover = Event::Mouse(mouse::Event::CursorMoved { position: icon });
-        assert!(send(ui, renderer, cursor, &[hover]).is_empty());
-        assert!(idle != frame(ui, renderer, "hover", cursor), "{title}: hover preview");
+        let icon = [
+            Point::new(label.x + label.width + 15.0, label.center_y()),
+            Point::new(label.x + 11.0, label.y + label.height + 15.0),
+        ]
+        .into_iter()
+        .find(|&position| {
+            let cursor = mouse::Cursor::Available(position);
+            let hover = Event::Mouse(mouse::Event::CursorMoved { position });
+            assert!(send(ui, renderer, cursor, &[hover]).is_empty());
+            idle != frame(ui, renderer, "hover", cursor)
+        })
+        .unwrap_or_else(|| panic!("{title}: hover preview at {label:?}"));
         assert!(click(ui, renderer, icon).is_empty());
         assert!(
             idle != frame(ui, renderer, "open", mouse::Cursor::Unavailable),
             "{title}: pinned help card"
         );
         if check_menu {
-            let body = Point::new(icon.x + 29.0, icon.y + 5.0);
+            let left = icon.x - 15.0;
+            let right = size.width as f32 - icon.x - 15.0;
+            let x = if right >= 300.0 || right >= left {
+                icon.x + 15.0
+            } else {
+                left - left.min(300.0)
+            };
+            let body = Point::new(x + 14.0, icon.y + 5.0);
             let item_height =
                 f32::from(iced::advanced::text::LineHeight::default().to_absolute(12.0.into()))
                     + 10.0;
@@ -309,14 +342,11 @@ mod rollout {
             for field in [
                 ("运行时类型", "选择 native 或 docker 执行环境。"),
                 ("镜像 (image)", "默认执行镜像。"),
+                ("Docker 配置", "当 kind=docker 时生效，用于控制镜像、资源限制和工作区挂载。"),
             ] {
                 assert_help(&mut ui, &mut renderer, context, field, false);
             }
             let positions = geometry(&mut ui, &renderer);
-            positions.label(runtime_text(
-                locale,
-                "当 kind=docker 时生效，用于控制镜像、资源限制和工作区挂载。",
-            ));
             assert!(positions.inputs.iter().any(|(value, _)| value == "fixture/image:1.0"));
             let toggle = positions.label(runtime_text(locale, "启用")).center();
             assert!(matches!(
@@ -355,7 +385,13 @@ mod rollout {
             );
             assert_help(&mut ui, &mut renderer, context, ("后端", "选择运行时观测后端。"), false);
             let positions = geometry(&mut ui, &renderer);
-            positions.label(runtime_text(locale, "仅 backend=otel 时生效。"));
+            assert_help(
+                &mut ui,
+                &mut renderer,
+                context,
+                ("OTEL 端点", "仅 backend=otel 时生效。"),
+                false,
+            );
             assert!(positions.inputs.iter().any(|(value, _)| value == ENDPOINT));
             let badge = positions.label("25000");
             let slider = Point::new(badge.x - 30.0, badge.center_y());
@@ -367,6 +403,249 @@ mod rollout {
                 click(&mut ui, &mut renderer, Point::new(width as f32 - 16.0, 16.0)).as_slice(),
                 [Message::Settings(SettingsMessage::ObservabilityHelpOpen)]
             ));
+        }
+    }
+    #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+    async fn settings_help_gap_07_docker_help_follows_runtime_kind() {
+        if !isolated("settings_help_gap_07_docker_help_follows_runtime_kind") {
+            return;
+        }
+        let mut renderer = renderer().await;
+        let mut app = App::new().0;
+        app.show_system_settings = true;
+        app.system_settings_tab = SystemTab::Runtime;
+        app.runtime_settings.docker_image = "fixture/image:1.0".into();
+        app.runtime_settings.docker_read_only_rootfs = true;
+        app.runtime_settings.save_error = Some("fixture runtime error".into());
+        for (locale, theme, width) in SCENES {
+            app.desktop_locale = locale;
+            app.app_theme = theme.clone();
+            let size = Size::new(width, 1180);
+            for kind in ["docker", "native"] {
+                app.runtime_settings.kind = kind.into();
+                let mut ui = scene(system_settings::view(&app), &mut renderer, size);
+                let positions = geometry(&mut ui, &renderer);
+                positions.label("fixture runtime error");
+                assert_eq!(
+                    positions.inputs.iter().any(|(value, _)| value == "fixture/image:1.0"),
+                    kind == "docker"
+                );
+                if kind == "native" {
+                    assert!(
+                        positions
+                            .labels
+                            .iter()
+                            .all(|(label, _)| { label != runtime_text(locale, "Docker 配置") })
+                    );
+                    continue;
+                }
+                assert_help(
+                    &mut ui,
+                    &mut renderer,
+                    (locale, &theme, size),
+                    ("Docker 配置", "当 kind=docker 时生效，用于控制镜像、资源限制和工作区挂载。"),
+                    locale == DesktopLocale::English,
+                );
+                let toggle = positions.label(runtime_text(locale, "启用")).center();
+                assert!(matches!(
+                    click(&mut ui, &mut renderer, toggle).as_slice(),
+                    [Message::Settings(SettingsMessage::Runtime(
+                        RuntimeMessage::DockerReadOnlyRootfsToggled(false)
+                    ))]
+                ));
+            }
+        }
+    }
+
+    #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+    async fn settings_help_gap_07_observability_keeps_mode_and_field_state() {
+        if !isolated("settings_help_gap_07_observability_keeps_mode_and_field_state") {
+            return;
+        }
+        let mut renderer = renderer().await;
+        let mut app = App::new().0;
+        app.show_system_settings = true;
+        app.system_settings_tab = SystemTab::Observability;
+        const ENDPOINT: &str = "https://collector.invalid/otlp";
+        app.observability_settings.otel_endpoint_input = ENDPOINT.into();
+        app.observability_settings.runtime_trace_max_entries = 25_000;
+        for (locale, theme, width) in SCENES {
+            app.desktop_locale = locale;
+            app.app_theme = theme.clone();
+            let size = Size::new(width, 1000);
+            for (backend, trace, inactive) in [
+                ("otel", "rolling", 0),
+                ("log", "rolling", 1),
+                ("otel", "full", 1),
+                ("log", "none", 2),
+            ] {
+                app.observability_settings.backend = backend.into();
+                app.observability_settings.runtime_trace_mode = trace.into();
+                let mut ui = scene(system_settings::view(&app), &mut renderer, size);
+                for field in [
+                    ("OTEL 端点", "仅 backend=otel 时生效。"),
+                    ("rolling 条数", "rolling 模式下保留的最大条目数。"),
+                ] {
+                    assert_help(
+                        &mut ui,
+                        &mut renderer,
+                        (locale, &theme, size),
+                        field,
+                        inactive == 0 && locale == DesktopLocale::English,
+                    );
+                }
+                let positions = geometry(&mut ui, &renderer);
+                assert_eq!(
+                    positions
+                        .labels
+                        .iter()
+                        .filter(|(label, _)| {
+                            label == runtime_text(locale, "当前模式下不生效。")
+                        })
+                        .count(),
+                    inactive
+                );
+                assert!(positions.inputs.iter().any(|(value, _)| value == ENDPOINT));
+                let badge = positions.label("25000");
+                let slider = Point::new(badge.x - 30.0, badge.center_y());
+                assert!(matches!(
+                    click(&mut ui, &mut renderer, slider).as_slice(),
+                    [Message::Settings(SettingsMessage::ObservabilityRuntimeTraceMaxEntriesChanged(value))]
+                    if (1..=100_000).contains(value)
+                ));
+            }
+        }
+    }
+
+    #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+    async fn settings_help_gap_07_scheduler_help_works_in_cron_and_standalone() {
+        if !isolated("settings_help_gap_07_scheduler_help_works_in_cron_and_standalone") {
+            return;
+        }
+        let mut renderer = renderer().await;
+        let mut app = App::new().0;
+        app.show_system_settings = true;
+        app.system_settings_tab = SystemTab::Cron;
+        app.cron_settings.active_tab = CronSettingsTab::Scheduler;
+        app.scheduler_settings.enabled = false;
+        app.scheduler_settings.max_tasks = 63;
+        app.scheduler_settings.max_concurrent = 7;
+        for (locale, theme, width) in SCENES {
+            app.desktop_locale = locale;
+            app.app_theme = theme.clone();
+            let size = Size::new(width, 980);
+            let mut ui = scene(system_settings::view(&app), &mut renderer, size);
+            let positions = geometry(&mut ui, &renderer);
+            let recommendation = runtime_text(
+                locale,
+                "建议 max_tasks=64、max_concurrent=4；高并发场景可按资源逐步上调。",
+            );
+            assert!(
+                positions.labels.iter().all(|(label, _)| label != recommendation),
+                "Scheduler recommendation is visible before opening help"
+            );
+            positions.label(runtime_text(locale, "调度器"));
+            positions.label("63");
+            let badge = positions.label("7");
+            let explanation = format!(
+                "{}\n{recommendation}",
+                runtime_text(locale, "允许并行执行的任务数量上限。"),
+            );
+            assert_localized_help(
+                &mut ui,
+                &mut renderer,
+                (locale, &theme, size),
+                (runtime_text(locale, "并发上限"), &explanation),
+                locale == DesktopLocale::English,
+            );
+            assert!(matches!(
+                click(&mut ui, &mut renderer, Point::new(badge.x - 78.0, badge.center_y())).as_slice(),
+                [Message::Settings(SettingsMessage::SchedulerMaxConcurrentChanged(value))]
+                if (1..=100).contains(value)
+            ));
+            let toggle = positions.label(runtime_text(locale, "开启内置调度器")).center();
+            assert!(matches!(
+                click(&mut ui, &mut renderer, toggle).as_slice(),
+                [Message::Settings(SettingsMessage::SchedulerEnabledToggled(true))]
+            ));
+
+            let mut standalone = scene(system_settings_scheduler::view(&app), &mut renderer, size);
+            assert_help(
+                &mut standalone,
+                &mut renderer,
+                (locale, &theme, size),
+                ("调度配置", "配置内置调度器的开关、吞吐和并发能力。"),
+                locale == DesktopLocale::English,
+            );
+        }
+    }
+    #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+    async fn settings_help_gap_07_hooks_keep_execution_and_review_state() {
+        if !isolated("settings_help_gap_07_hooks_keep_execution_and_review_state") {
+            return;
+        }
+        let mut renderer = renderer().await;
+        let mut app = App::new().0;
+        app.show_system_settings = true;
+        app.system_settings_tab = SystemTab::Hooks;
+        app.hooks_settings.command_logger = true;
+        app.hooks_settings.catalog_error = Some("fixture catalog error".into());
+        app.hooks_settings.catalog = vec![vw_gateway_client::HookCatalogEntryDto {
+            plugin_id: "fixture".into(),
+            event: "before_tool_call".into(),
+            command: "fixture-command".into(),
+            args: Vec::new(),
+            working_dir: "/fixture".into(),
+            mode: "blocking".into(),
+            hook_hash: "fixture-hash".into(),
+            trusted: false,
+        }];
+        for (locale, theme, width) in SCENES {
+            app.desktop_locale = locale;
+            app.app_theme = theme.clone();
+            let size = Size::new(width, 1800);
+            for enabled in [true, false] {
+                app.hooks_settings.enabled = enabled;
+                let mut ui = scene(system_settings::view(&app), &mut renderer, size);
+                let positions = geometry(&mut ui, &renderer);
+                let tr = |source| runtime_text(locale, source);
+                let retention = tr("暂停执行时会保留内置钩子的启用状态。");
+                assert!(positions.labels.iter().all(|(label, _)| {
+                    label != retention
+                        && label
+                            != tr("关闭总开关后将暂停 hooks 执行，但会保留内置钩子的具体启用状态。")
+                }));
+                let pause = tr(if enabled {
+                    "关闭总开关后将暂停 hooks 执行。"
+                } else {
+                    "hooks 执行已暂停。"
+                });
+                assert_eq!(positions.labels.iter().filter(|(label, _)| label == pause).count(), 1);
+                for label in [
+                    tr("仅加载已发现且已信任的插件 hook 声明。"),
+                    tr("待审核声明不会执行；信任与撤销均由服务端按当前稳定哈希校验。"),
+                    tr("待审核"),
+                    "fixture catalog error",
+                ] {
+                    positions.label(label);
+                }
+
+                let explanation =
+                    format!("{}\n{retention}", tr("控制是否开启运行时 hooks 执行。"),);
+                assert_localized_help(
+                    &mut ui,
+                    &mut renderer,
+                    (locale, &theme, size),
+                    (tr("启用"), &explanation),
+                    enabled && locale == DesktopLocale::English,
+                );
+                let toggle = positions.label(tr("开启运行时 hooks 执行")).center();
+                assert!(matches!(
+                    click(&mut ui, &mut renderer, toggle).as_slice(),
+                    [Message::Settings(SettingsMessage::Hooks(HooksMessage::EnabledToggled(value)))]
+                    if *value != enabled
+                ));
+            }
         }
     }
 }

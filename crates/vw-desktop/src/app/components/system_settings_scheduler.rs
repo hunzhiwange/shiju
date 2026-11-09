@@ -15,11 +15,11 @@
 //! 影响定时任务的拉取数量与并发执行能力。
 
 use crate::app::components::system_settings_common::{
-    icon_btn, settings_checkbox_style, settings_close_button, settings_control_with_hint,
-    settings_divider, settings_flexible_row_with_help, settings_group_card,
-    settings_group_heading_with_help, settings_help_button_with_locale as settings_help_button,
-    settings_help_copy_state, settings_modal_header, settings_muted_text_style,
-    settings_page_heading, settings_panel, settings_value_badge,
+    icon_btn, settings_checkbox_style, settings_close_button, settings_divider,
+    settings_flexible_row_with_help, settings_group_card, settings_group_heading_with_help,
+    settings_help_button_with_locale as settings_help_button, settings_help_copy_state,
+    settings_modal_header, settings_muted_text_style, settings_page_heading_with_help,
+    settings_panel, settings_value_badge,
 };
 use crate::app::i18n::I18n;
 use crate::app::{App, Message, message};
@@ -154,19 +154,22 @@ pub(crate) fn embedded_view(app: &App) -> Element<'_, Message> {
     let max_concurrent_slider =
         slider(1.0..=100.0, s.max_concurrent as f32, max_concurrent_changed).width(Length::Fill);
 
-    let max_concurrent_row = field_row(
-        app,
-        "并发上限",
-        "允许并行执行的任务数量上限。",
-        settings_control_with_hint(
-            row![
-                max_concurrent_slider,
-                container(settings_value_badge(s.max_concurrent)).align_right(72.0)
-            ]
-            .spacing(12)
-            .align_y(Alignment::Center),
+    let max_concurrent_row = settings_flexible_row_with_help(
+        i18n,
+        &app.app_theme,
+        i18n.__("并发上限"),
+        format!(
+            "{}\n{}",
+            i18n.__("允许并行执行的任务数量上限。"),
             i18n.__("建议 max_tasks=64、max_concurrent=4；高并发场景可按资源逐步上调。"),
         ),
+        320.0,
+        row![
+            max_concurrent_slider,
+            container(settings_value_badge(s.max_concurrent)).align_right(72.0)
+        ]
+        .spacing(12)
+        .align_y(Alignment::Center),
     );
 
     let mut col = column![
@@ -202,11 +205,13 @@ pub(crate) fn embedded_view(app: &App) -> Element<'_, Message> {
 ///
 /// 保留该入口供组件测试和嵌入前的调用方使用；系统设置导航会将内容展示在定时任务配置中。
 pub fn view(app: &App) -> Element<'_, Message> {
+    let i18n = I18n::new(app.desktop_locale);
     column![
-        settings_page_heading(
-            crate::app::i18n::I18n::new(app.desktop_locale).__("调度配置"),
-            crate::app::i18n::I18n::new(app.desktop_locale)
-                .__("配置内置调度器的开关、吞吐和并发能力。")
+        settings_page_heading_with_help(
+            i18n,
+            &app.app_theme,
+            i18n.__("调度配置"),
+            i18n.__("配置内置调度器的开关、吞吐和并发能力。")
         ),
         embedded_view(app),
     ]

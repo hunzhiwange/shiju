@@ -3,10 +3,13 @@
 
 use crate::app::components::color_picker::parse_color;
 use crate::app::components::system_settings_common::{
-    rounded_action_btn_style, settings_field_label, settings_group_heading_with_help,
-    settings_muted_text_style, settings_panel, settings_text_input,
+    rounded_action_btn_style, settings_divider, settings_field_label,
+    settings_flexible_row_with_help, settings_group_heading_with_help, settings_hover_help_label,
+    settings_muted_text_style, settings_panel, settings_responsive_row, settings_text_input,
 };
-use iced::widget::{Image, Space, button, column, container, mouse_area, row, text};
+use crate::app::i18n::I18n;
+use crate::app::message::ProjectMessage;
+use iced::widget::{Image, Space, button, column, container, mouse_area, responsive, row, text};
 use iced::{Background, Color, Element, Length, Theme};
 
 use super::common::{icon_image_handle, parse_hex_color};
@@ -46,22 +49,8 @@ fn icon_preview_press_message(has_preview_image: bool, hovered: bool) -> Message
     }
 }
 
-/// 模块内可见函数，执行 general_tab 对应的应用流程。
-/// 返回值表达处理结果；失败通过错误值、日志或任务消息显式传递。
-pub(super) fn general_tab<'a>(app: &'a App, path: &'a str) -> Element<'a, Message> {
-    let i18n = crate::app::i18n::I18n::new(app.desktop_locale);
-    let name_input =
-        settings_text_input(i18n.__("项目名称"), &app.project_edit_name).on_input(|value| {
-            Message::Project(crate::app::message::project::ProjectMessage::ProjectEditNameChanged(
-                value,
-            ))
-        });
-    let icon_input = settings_text_input("", &app.project_edit_icon).on_input(|value| {
-        Message::Project(crate::app::message::project::ProjectMessage::ProjectEditIconChanged(
-            value,
-        ))
-    });
-
+fn icon_color_controls(app: &App) -> Element<'_, Message> {
+    let i18n = I18n::new(app.desktop_locale);
     let icon_color_presets = [
         "#60a5fa", "#34d399", "#f59e0b", "#f97316", "#ef4444", "#ec4899", "#8b5cf6", "#6366f1",
         "#22d3ee", "#14b8a6", "#a3e635", "#94a3b8",
@@ -194,6 +183,49 @@ pub(super) fn general_tab<'a>(app: &'a App, path: &'a str) -> Element<'a, Messag
         ))
         .on_press(icon_preview_press_message(has_preview_image, app.project_edit_icon_hovered));
 
+    row![icon_preview, column![icon_color_presets_row, color_preview_btn].spacing(10)]
+        .spacing(16)
+        .align_y(iced::Alignment::Center)
+        .width(Length::Fill)
+        .into()
+}
+
+pub(super) fn general_tab<'a>(app: &'a App, path: &'a str) -> Element<'a, Message> {
+    let i18n = I18n::new(app.desktop_locale);
+    let name_label = i18n.__("项目名称");
+    let icon_label = i18n.__("图标文本或图片路径");
+    let icon_help = i18n.__("支持 file:/// 或本地绝对路径。");
+    let icon_row = responsive(move |size| {
+        let input = settings_text_input("", &app.project_edit_icon)
+            .on_input(|value| Message::Project(ProjectMessage::ProjectEditIconChanged(value)));
+        if size.width >= 600.0 {
+            settings_flexible_row_with_help(
+                i18n,
+                &app.app_theme,
+                icon_label,
+                icon_help,
+                460.0,
+                input,
+            )
+            .padding([6, 0])
+            .into()
+        } else {
+            column![
+                settings_hover_help_label(
+                    i18n,
+                    &app.app_theme,
+                    icon_label,
+                    settings_field_label(icon_label),
+                    icon_help,
+                )
+                .wrap(),
+                input,
+            ]
+            .spacing(6)
+            .into()
+        }
+    })
+    .height(Length::Shrink);
     column![
         settings_group_heading_with_help(
             i18n,
@@ -203,32 +235,30 @@ pub(super) fn general_tab<'a>(app: &'a App, path: &'a str) -> Element<'a, Messag
         ),
         settings_panel(
             column![
-                column![settings_field_label(i18n.__("项目名称")), name_input].spacing(8),
-                column![
-                    settings_field_label(
-                        i18n.__("图标文本或图片路径（支持 file:/// 或本地绝对路径）")
-                    ),
-                    icon_input,
-                ]
-                .spacing(8),
-                row![icon_preview, column![icon_color_presets_row, color_preview_btn].spacing(10),]
-                    .spacing(16)
-                    .align_y(iced::Alignment::Center),
+                settings_responsive_row(name_label, "", move || {
+                    settings_text_input(name_label, &app.project_edit_name).on_input(|value| {
+                        Message::Project(ProjectMessage::ProjectEditNameChanged(value))
+                    })
+                }),
+                settings_divider(),
+                icon_row,
+                settings_divider(),
+                settings_responsive_row(i18n.__("图标颜色"), "", move || icon_color_controls(
+                    app
+                )),
             ]
-            .spacing(14)
+            .spacing(8)
         ),
-        settings_panel(
-            column![
-                settings_field_label(i18n.__("项目地址")),
-                text(i18n.__("项目根目录的路径，仅供查看。"))
-                    .size(12)
-                    .style(settings_muted_text_style),
+        settings_panel(settings_responsive_row(
+            i18n.__("项目地址"),
+            i18n.__("项目根目录的路径，仅供查看。"),
+            move || {
                 text(path)
                     .size(13)
-                    .wrapping(iced::widget::text::Wrapping::WordOrGlyph),
-            ]
-            .spacing(6)
-        ),
+                    .width(Length::Fill)
+                    .wrapping(iced::widget::text::Wrapping::WordOrGlyph)
+            },
+        )),
     ]
     .spacing(12)
     .into()

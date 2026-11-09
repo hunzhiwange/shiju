@@ -366,9 +366,30 @@ async fn ui_refresh_30_layout_and_interaction() {
                 let path = positions.label(PATH);
                 assert!(path.x >= viewport.x + 7.0);
                 assert!(path.x + path.width <= viewport.x + viewport.width - 7.0);
-                assert!(positions.label(path_label).y < positions.label(path_description).y);
-                assert!(positions.label(path_description).y < path.y);
                 let name = positions.input(NAME);
+                let icon = positions.input(ICON);
+                let name_label = positions.label(i18n.__("项目名称"));
+                let icon_label = positions.label(i18n.__("图标文本或图片路径"));
+                let address_label = positions.label(path_label);
+                let description = positions.label(path_description);
+                assert!(address_label.y < description.y);
+                if width == 960 {
+                    assert!(name_label.x + name_label.width < name.x);
+                    assert!(icon_label.x + icon_label.width < icon.x);
+                    assert!(description.x + description.width < path.x);
+                    assert_eq!(name.x, icon.x);
+                    assert_eq!(name.x, path.x);
+                    assert_centered(name_label, name);
+                    assert_centered(icon_label, icon);
+                    let color_label = positions.label(i18n.__("图标颜色"));
+                    assert!(
+                        color_label.x + color_label.width < positions.label(i18n.__("预设颜色")).x
+                    );
+                } else {
+                    assert!(name_label.y < name.y);
+                    assert!(icon_label.y < icon.y);
+                    assert!(description.y < path.y);
+                }
                 assert_visible_in_project_body(&mut ui, &mut renderer, viewport, name);
             }
             redraw_project(
@@ -789,7 +810,7 @@ async fn help_rollout_21_renders_contextual_help() {
     set_project_draft(&mut app);
     let mut renderer = renderer().await;
     for (locale, size, theme) in [
-        (DesktopLocale::SimplifiedChinese, Size::new(640, 580), Theme::Light),
+        (DesktopLocale::SimplifiedChinese, Size::new(960, 720), Theme::Light),
         (DesktopLocale::English, Size::new(420, 450), Theme::Dark),
         (DesktopLocale::TraditionalChinese, Size::new(420, 480), Theme::Dark),
     ] {
@@ -815,7 +836,9 @@ async fn help_rollout_21_renders_contextual_help() {
             let positions = geometry(&mut ui, &renderer);
             let viewport = positions.scroll[0].0;
             let mut targets = vec![(title, description)];
-            if tab == ProjectEditTab::Launch {
+            if tab == ProjectEditTab::General {
+                targets.push(("图标文本或图片路径", "支持 file:/// 或本地绝对路径。"));
+            } else if tab == ProjectEditTab::Launch {
                 targets.push(("工作区启动脚本", "在创建工作区后执行，可填写多行命令。"));
             }
 
@@ -860,7 +883,6 @@ async fn help_rollout_21_renders_contextual_help() {
 
             if tab == ProjectEditTab::General {
                 positions.input(NAME);
-                positions.label(i18n.__("图标文本或图片路径（支持 file:/// 或本地绝对路径）"));
                 let color = positions.label(i18n.__("选择颜色"));
                 assert_visible_in_project_body(&mut ui, &mut renderer, viewport, color);
                 let offset = geometry(&mut ui, &renderer).scroll[0].1.y.round();

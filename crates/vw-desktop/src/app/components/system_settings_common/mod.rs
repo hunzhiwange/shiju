@@ -50,13 +50,11 @@ pub use panels::{
     settings_row, settings_section_card, settings_section_content, settings_success_banner,
     settings_value_badge,
 };
-pub(super) use panels::{
-    settings_flexible_row, settings_responsive_row, settings_row_with_flexible_control,
-};
+pub(super) use panels::{settings_flexible_row, settings_row_with_flexible_control};
 pub(crate) use panels::{
     settings_flexible_row_with_help, settings_group_heading_with_help,
     settings_modal_layout_with_scroll_id, settings_modal_overlay_with_backdrop_dismiss,
-    settings_modal_overlay_with_escape, settings_page_heading_with_help,
+    settings_modal_overlay_with_escape, settings_page_heading_with_help, settings_responsive_row,
 };
 pub(crate) use select::SettingsSelectLabel;
 pub use select::settings_select;

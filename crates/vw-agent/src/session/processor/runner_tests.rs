@@ -109,7 +109,7 @@ fn session_protocol_initial_step_contains_explicit_workspace_agents() {
 }
 
 #[test]
-fn agents_referenced_skill_is_preloaded_before_first_user_request() {
+fn workspace_skill_preload_is_native_only() {
     let workspace = tempfile::tempdir().expect("skill workspace");
     let skill_path = workspace.path().join("rustcodegraph/SKILL.md");
     std::fs::create_dir_all(skill_path.parent().expect("skill parent")).expect("skill dir");
@@ -130,7 +130,7 @@ fn agents_referenced_skill_is_preloaded_before_first_user_request() {
         &skills,
         instructions.iter().map(|instruction| instruction.content.as_str()),
     );
-    let mut protocol = super::DesktopSessionProtocol::new(skills, "main", 20_000);
+    let mut protocol = super::DesktopSessionProtocol::new(skills.clone(), "main", 20_000);
 
     protocol.preload_skills(&referenced).expect("preload AGENTS skill");
     let history = vec![serde_json::json!({"role": "user", "content": "inspect callers"})];
@@ -142,6 +142,24 @@ fn agents_referenced_skill_is_preloaded_before_first_user_request() {
             .is_some_and(|content| { content.contains("USE_RUSTCODEGRAPH_FIRST") })
     );
     assert_eq!(messages[messages.len() - 2]["role"], "system");
+    assert_eq!(messages.last(), history.last());
+
+    let mut req = request_with_session("claude-acp-workspace-instructions");
+    req.options = serde_json::json!({
+        "acp_agent": "claude",
+        "delegate_default_allowed_skills": ["rustcodegraph"],
+    });
+    let mut protocol = super::DesktopSessionProtocol::new(skills, "main", 20_000);
+    protocol
+        .prepare_native_skill_context(&req, &history, None, &referenced, &referenced)
+        .expect("ACP must leave skill loading to the adapter");
+    let messages = protocol.assemble(&history, &instructions, false).expect("ACP protocol");
+    assert_eq!(messages.len(), 2);
+    assert!(
+        messages[0]["content"]
+            .as_str()
+            .is_some_and(|content| content.contains("Use rustcodegraph for code navigation."))
+    );
     assert_eq!(messages.last(), history.last());
 }
 

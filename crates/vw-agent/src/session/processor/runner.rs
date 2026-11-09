@@ -23,7 +23,7 @@ use crate::session::prompt;
 use crate::session::session::{Message, Role, Session};
 use crate::session::ui_types as models;
 use serde_json::{Value, json};
-use std::collections::HashSet;
+use std::collections::{BTreeSet, HashSet};
 use std::path::PathBuf;
 
 const EMPTY_RESPONSE_ERR: &str = "模型未返回内容";
@@ -105,10 +105,41 @@ impl DesktopSessionProtocol {
         ))
     }
 
-    fn preload_skills(
+    fn prepare_native_skill_context(
         &mut self,
-        skill_names: &std::collections::BTreeSet<String>,
+        req: &Request,
+        history: &[Value],
+        skill_policy: Option<&crate::session::capability_policy::CapabilityPolicyResolution>,
+        agents_referenced_skills: &BTreeSet<String>,
+        user_referenced_skills: &BTreeSet<String>,
     ) -> Result<(), String> {
+        // 验证原始默认 ID，不能先与已发现项求交而把丢失/禁用项静默丢弃。
+        let default_skills = option_string_values(&req.options, "delegate_default_allowed_skills")
+            .into_iter()
+            .map(|name| name.to_lowercase())
+            .collect::<BTreeSet<_>>();
+        if let Some(resolution) = skill_policy
+            && let Some(missing) =
+                default_skills.difference(&resolution.default_injected_ids).next()
+        {
+            return Err(format!("默认技能不存在、已禁用或不在当前权限范围内：{missing}"));
+        }
+        // Outbound ACP resolves directory mounts at the adapter boundary. Native
+        // preloads and checkpoint replay would send expanded skill bodies instead.
+        if is_acp_request(&req.options) {
+            return Ok(());
+        }
+
+        self.restore_checkpoint(&req.session, history)?;
+        let default_skills = skill_policy
+            .map(|resolution| &resolution.default_injected_ids)
+            .unwrap_or(&default_skills);
+        self.preload_skills(default_skills)?;
+        self.preload_skills(agents_referenced_skills)?;
+        self.skill_state.preload_explicit(&self.agent_id, &self.skills, user_referenced_skills)
+    }
+
+    fn preload_skills(&mut self, skill_names: &BTreeSet<String>) -> Result<(), String> {
         self.skill_state.preload_defaults(&self.agent_id, &self.skills, skill_names)
     }
 
@@ -847,38 +878,13 @@ fn run_in_project(
     {
         return;
     }
-    if let Err(error) = session_protocol.restore_checkpoint(&req.session, &checkpoint_source) {
-        on_event(StreamEvent::Error(error));
-        return;
-    }
-    // 验证原始默认 ID，不能先与已发现项求交而把丢失/禁用项静默丢弃。
-    let default_skills = option_string_values(&req.options, "delegate_default_allowed_skills")
-        .into_iter()
-        .map(|name| name.to_lowercase())
-        .collect::<std::collections::BTreeSet<_>>();
-    if let Some(resolution) = &skill_policy_resolution
-        && let Some(missing) = default_skills.difference(&resolution.default_injected_ids).next()
-    {
-        on_event(StreamEvent::Error(format!(
-            "默认技能不存在、已禁用或不在当前权限范围内：{missing}"
-        )));
-        return;
-    }
-    let default_skills = skill_policy_resolution
-        .as_ref()
-        .map(|resolution| &resolution.default_injected_ids)
-        .unwrap_or(&default_skills);
-    if let Err(message) = session_protocol
-        .preload_skills(default_skills)
-        .and_then(|()| session_protocol.preload_skills(&agents_referenced_skills))
-        .and_then(|()| {
-            session_protocol.skill_state.preload_explicit(
-                &session_protocol.agent_id,
-                &session_protocol.skills,
-                &user_referenced_skills,
-            )
-        })
-    {
+    if let Err(message) = session_protocol.prepare_native_skill_context(
+        &req,
+        &checkpoint_source,
+        skill_policy_resolution.as_ref(),
+        &agents_referenced_skills,
+        &user_referenced_skills,
+    ) {
         on_event(StreamEvent::Error(message));
         return;
     }
@@ -1183,7 +1189,7 @@ fn run_in_project(
         let assembled_messages = match session_protocol.assemble(
             &llm_messages,
             base_system.instruction_context(),
-            tools_for_step.contains("skill"),
+            !is_acp && tools_for_step.contains("skill"),
         ) {
             Ok(messages) => messages,
             Err(message) => {

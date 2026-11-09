@@ -4,6 +4,9 @@ use agent_client_protocol::{SessionConfigKind, SessionConfigOption};
 pub(crate) const FULL_MODE: &str = "bypassPermissions";
 pub(crate) const RESTRICTED_MODE: &str = "default";
 
+// This SDK mode includes filesystem shell commands and may skip canUseTool.
+pub(crate) const ACCEPT_EDITS_MODE: &str = "acceptEdits";
+
 pub(crate) fn current_mode(options: Option<&[SessionConfigOption]>) -> Option<&str> {
     options?.iter().find_map(|option| match &option.kind {
         SessionConfigKind::Select(select) if option.id.0.as_ref() == "mode" => {

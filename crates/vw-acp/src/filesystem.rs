@@ -6,6 +6,8 @@
 //! 这里重点处理路径边界、写入前确认、返回值转换等胶水工作，
 //! 以确保上层运行时不需要直接依赖具体的文件系统细节。
 
+mod workspace_write;
+
 use std::future::Future;
 use std::path::{Component, Path, PathBuf};
 use std::pin::Pin;
@@ -129,7 +131,44 @@ impl FileSystemHandlers {
         &self,
         params: &WriteTextFileRequest,
     ) -> Result<WriteTextFileResponse, ErrorSource> {
-        let file_path = self.resolve_path_within_root(&params.path)?;
+        self.write_text_file_with_policy(params, None).await
+    }
+
+    pub(crate) async fn write_text_file_with_policy(
+        &self,
+        params: &WriteTextFileRequest,
+        workspace: Option<&Path>,
+    ) -> Result<WriteTextFileResponse, ErrorSource> {
+        let workspace = workspace
+            .filter(|_| !(self.full_access && self.permission_mode == PermissionMode::ApproveAll));
+        if workspace.is_some() && params.path.components().any(|part| part == Component::ParentDir)
+        {
+            return Err(Box::new(permission_denied_error(
+                "ACP workspace writes require a path without parent traversal",
+            )));
+        }
+        let file_path = if workspace
+            .is_some_and(|root| params.path.is_absolute() && params.path.starts_with(root))
+        {
+            normalize_absolute_path(&params.path)
+        } else {
+            self.resolve_path_within_root(&params.path)?
+        };
+        let scoped_write = if let Some(workspace) = workspace {
+            let relative = file_path
+                .strip_prefix(workspace)
+                .or_else(|_| file_path.strip_prefix(&self.root_dir))
+                .ok()
+                .filter(|path| workspace_write::ordinary_path(path))
+                .ok_or_else(|| {
+                    permission_denied_error(
+                        "ACP write target is outside the ordinary workspace files",
+                    )
+                })?;
+            Some((workspace, relative))
+        } else {
+            None
+        };
         let preview = to_write_preview(&params.content);
         let summary = format!("write_text_file: {}", file_path.display());
         self.emit_operation(ClientOperation {
@@ -147,6 +186,14 @@ impl FileSystemHandlers {
                 )) as ErrorSource);
             }
 
+            if let Some((workspace, relative)) = scoped_write {
+                workspace_write::write(workspace, relative, params.content.as_bytes()).map_err(
+                    |error| {
+                        permission_denied_error(format!("ACP workspace write rejected: {error}"))
+                    },
+                )?;
+                return Ok(write_text_file_response());
+            }
             if let Some(parent) = file_path.parent() {
                 tokio::fs::create_dir_all(parent).await?;
             }

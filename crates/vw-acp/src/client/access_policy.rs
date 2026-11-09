@@ -169,12 +169,13 @@ impl AcpClient {
         }
         if self.agent_name == "claude" {
             self.actor_state.lock().claude_confirmed_session = None;
-            if mode_id == crate::access_policy::claude::FULL_MODE
+            if (mode_id == crate::access_policy::claude::FULL_MODE
+                || (self.desktop_workspace.is_some()
+                    && mode_id == crate::access_policy::claude::ACCEPT_EDITS_MODE))
                 && !(self.full_access && self.permission_mode == PermissionMode::ApproveAll)
             {
                 return Err(AcpError::Prompt(
-                    "Claude bypass requires the current host grant; host deny cannot be overridden"
-                        .into(),
+                    "Claude native auto-approval requires the current full access grant".into(),
                 ));
             }
             if self.has_active_prompt() {
@@ -323,7 +324,12 @@ impl AcpClient {
         conn: &acp::ClientSideConnection,
         session_id: &str,
     ) -> Result<(), AcpError> {
-        use crate::access_policy::claude::{FULL_MODE, RESTRICTED_MODE, advertises_mode};
+        use crate::access_policy::claude::{
+            ACCEPT_EDITS_MODE, FULL_MODE, RESTRICTED_MODE, advertises_mode,
+        };
+        let elevated_mode = |mode: &str| {
+            mode == FULL_MODE || (self.desktop_workspace.is_some() && mode == ACCEPT_EDITS_MODE)
+        };
         let capabilities = {
             let mut state = self.actor_state.lock();
             if !state.claude_runtime_verified {
@@ -331,11 +337,11 @@ impl AcpClient {
                     info.session_id == session_id
                         && (crate::access_policy::claude::current_mode(
                             info.config_options.as_deref(),
-                        ) == Some(FULL_MODE)
-                            || info
-                                .modes
-                                .as_ref()
-                                .is_some_and(|modes| modes.current_mode_id.0.as_ref() == FULL_MODE))
+                        )
+                        .is_some_and(elevated_mode)
+                            || info.modes.as_ref().is_some_and(|modes| {
+                                elevated_mode(modes.current_mode_id.0.as_ref())
+                            }))
                 });
                 if self.agent_name == "claude"
                     && elevated
@@ -345,7 +351,7 @@ impl AcpClient {
                     state
                         .pending_controls
                         .insert((session_id.into(), "mode".into()), RESTRICTED_MODE.into());
-                    return Err(AcpError::Prompt("Cannot revoke full access from an unverified Claude runtime; use a reviewed runtime before prompting".into()));
+                    return Err(AcpError::Prompt("Cannot revoke native auto-approval from an unverified Claude runtime; use a reviewed runtime before prompting".into()));
                 }
                 return Ok(());
             }
@@ -368,11 +374,13 @@ impl AcpClient {
         }
         let desired = if self.full_access && self.permission_mode == PermissionMode::ApproveAll {
             FULL_MODE
+        } else if self.desktop_workspace.is_some() {
+            RESTRICTED_MODE
         } else {
             crate::access_policy::claude::current_mode(
                 capabilities.as_ref().and_then(|info| info.config_options.as_deref()),
             )
-            .filter(|mode| matches!(*mode, "default" | "acceptEdits"))
+            .filter(|mode| matches!(*mode, RESTRICTED_MODE | ACCEPT_EDITS_MODE))
             .unwrap_or(RESTRICTED_MODE)
         };
         if !advertises_mode(

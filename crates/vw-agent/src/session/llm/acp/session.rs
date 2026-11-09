@@ -53,6 +53,43 @@ pub(crate) fn acp_session_name(session_id: &str) -> Option<String> {
     (!trimmed.is_empty()).then(|| format!("vw-session:{trimmed}"))
 }
 
+/// Use the server's spelling for recovery keys even when the caller uses a cwd alias.
+pub(super) fn desktop_workspace(
+    context: &crate::tools::ToolUseContext,
+    session: &str,
+    requested_cwd: Option<&Path>,
+) -> Result<(PathBuf, PathBuf), Error> {
+    if session.is_empty() || context.session() != session {
+        return Err(to_api_error("ACP desktop permissions require the current host session"));
+    }
+    let cwd = context
+        .workspace_root()
+        .ok_or_else(|| to_api_error("ACP desktop permissions require a host workspace"))?;
+    let root = cwd.canonicalize().map_err(to_api_error)?;
+    if !root.is_dir()
+        || requested_cwd.is_some_and(|path| path.canonicalize().ok().as_ref() != Some(&root))
+    {
+        return Err(to_api_error("ACP cwd does not match the host session workspace"));
+    }
+    Ok((cwd, root))
+}
+
+pub(super) fn bind_desktop_access(
+    options: &mut ParsedAcpOptions,
+    workspace: PathBuf,
+    current_full_grant: bool,
+) {
+    options.desktop_workspace = Some(workspace);
+    let mode = match options.permission_mode {
+        Some(PermissionMode::DenyAll) => PermissionMode::DenyAll,
+        Some(PermissionMode::ApproveReads) => PermissionMode::ApproveReads,
+        _ if options.full_access && current_full_grant => PermissionMode::ApproveAll,
+        _ => PermissionMode::ApproveReads,
+    };
+    options.permission_mode = Some(mode);
+    options.full_access = mode == PermissionMode::ApproveAll;
+}
+
 /// 生成 ACP 客户端缓存键。
 ///
 /// 缓存键包含命令、参数、环境、cwd 和会话权限选项；这些值任一变化都可能改变代理行为，
@@ -76,6 +113,7 @@ fn acp_client_cache_key(
         "args": acp_cfg.args,
         "env": env.into_iter().map(|(key, value)| json!([key, value])).collect::<Vec<_>>(),
         "cwd": cwd,
+        "desktopWorkspace": parsed_options.desktop_workspace,
         "mcpServers": parsed_options.mcp_servers,
         "sessionMode": parsed_options.session_mode,
         "sessionConfigOptions": parsed_options.session_config_options,
@@ -154,6 +192,7 @@ fn build_cached_acp_client(
             .as_ref()
             .map(|view| view.0.clone() as Arc<dyn std::any::Any + Send + Sync>),
     )
+    .with_desktop_workspace(parsed_options.desktop_workspace.clone())
     .with_mcp_servers(parsed_options.mcp_servers.clone())
     .with_permission_mode(parsed_options.permission_mode.unwrap_or(if parsed_options.full_access {
         PermissionMode::ApproveAll

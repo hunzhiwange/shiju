@@ -424,3 +424,31 @@ async fn acp_full_access_claude_plan_confirmation_is_not_automatic_tool_approval
         assert!(event_client.request_permission(args).await.is_err(), "plan confirmation needs explicit interaction even with full access");
     }).await;
 }
+
+#[tokio::test]
+async fn acp_full_access_claude_desktop_restores_default_instead_of_accept_edits() {
+    let agent = TestAgent::default();
+    agent.state.lock().claude_controls = true;
+    with_fixture(agent.clone(), async |fixture| {
+        prepare_claude(fixture);
+        fixture.client.desktop_workspace = Some(PathBuf::from("/tmp/vw-acp-session-control"));
+        fixture.client.permission_mode = PermissionMode::ApproveReads;
+        fixture.client.actor_state.lock().session_capabilities.as_mut().unwrap().config_options =
+            Some(options("acceptEdits"));
+        let conn = &fixture.runtime.as_ref().unwrap().conn;
+        assert_eq!(fixture.client.restored_permission_value("mode", "acceptEdits"), "default");
+        assert!(
+            fixture
+                .client
+                .confirmed_config_control(conn, "session", "mode", "acceptEdits")
+                .await
+                .is_err()
+        );
+        assert!(agent.calls().is_empty());
+        fixture.client.sync_claude_access(conn, "session").await.unwrap();
+        let state = fixture.client.actor_state.lock();
+        let options = state.session_capabilities.as_ref().unwrap().config_options.as_deref();
+        assert_eq!(crate::access_policy::claude::current_mode(options), Some("default"));
+    })
+    .await;
+}

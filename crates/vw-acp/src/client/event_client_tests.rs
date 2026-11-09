@@ -34,6 +34,8 @@ fn event_client(
         reject_untyped_workflow_permissions: false,
         expected_session_id: Arc::new(Mutex::new(expected_session_id)),
         event_tx,
+        desktop_workspace: None,
+        active_prompt: Arc::new(Mutex::new(None)),
         filesystem: FileSystemHandlers::new(FileSystemHandlersOptions {
             cwd: std::env::temp_dir(),
             ..FileSystemHandlersOptions::default()
@@ -62,6 +64,8 @@ fn event_client_with_cwd(
         reject_untyped_workflow_permissions: false,
         expected_session_id: Arc::new(Mutex::new(None)),
         event_tx,
+        desktop_workspace: None,
+        active_prompt: Arc::new(Mutex::new(None)),
         filesystem: FileSystemHandlers::new(FileSystemHandlersOptions {
             cwd: cwd.clone(),
             permission_mode: PermissionMode::ApproveAll,
@@ -833,4 +837,258 @@ async fn acp_skill_mount_kiro_scoped_sources_allow_reads_but_not_writes_or_unsel
         );
     }
     assert_eq!(fs::read_to_string(attachment).unwrap(), "selected attachment");
+}
+
+#[cfg(unix)]
+async fn with_workspace_rpc(
+    client: &super::AcpClient,
+    root: &std::path::Path,
+    run: impl AsyncFnOnce(tokio::io::DuplexStream),
+) {
+    use tokio_util::compat::TokioAsyncReadCompatExt;
+
+    tokio::task::LocalSet::new()
+        .run_until(async {
+            let (client_io, agent_io) = tokio::io::duplex(8192);
+            let (reader, writer) = tokio::io::split(client_io);
+            let (event_tx, _) = mpsc::unbounded_channel();
+            let (cancel_tx, _) = tokio::sync::watch::channel(false);
+            let (_completed_tx, completed_rx) = tokio::sync::watch::channel(false);
+            client.register_active_prompt("workspace".into(), cancel_tx, completed_rx);
+            let events = client.build_event_client(
+                root,
+                Arc::new(Mutex::new(Some("workspace".into()))),
+                event_tx,
+            );
+            let (_conn, io_task) = acp::ClientSideConnection::new(
+                events,
+                tokio_util::compat::TokioAsyncWriteCompatExt::compat_write(writer),
+                reader.compat(),
+                |fut| {
+                    tokio::task::spawn_local(fut);
+                },
+            );
+            tokio::task::spawn_local(io_task);
+            run(agent_io).await;
+        })
+        .await;
+}
+
+#[cfg(unix)]
+async fn workspace_rpc(
+    io: &mut tokio::io::BufReader<tokio::io::DuplexStream>,
+    method: &str,
+    params: serde_json::Value,
+) -> serde_json::Value {
+    use tokio::io::{AsyncBufReadExt, AsyncWriteExt};
+
+    let request =
+        serde_json::json!({"jsonrpc": "2.0", "id": 1, "method": method, "params": params});
+    io.write_all(format!("{request}\n").as_bytes()).await.unwrap();
+    let mut response = String::new();
+    tokio::time::timeout(std::time::Duration::from_secs(2), io.read_line(&mut response))
+        .await
+        .unwrap()
+        .unwrap();
+    serde_json::from_str(&response).unwrap()
+}
+
+#[cfg(unix)]
+#[tokio::test]
+async fn acp_desktop_approval_policy_allows_workspace_edits() {
+    let root = tempfile::tempdir().unwrap();
+    let outside = tempfile::tempdir().unwrap();
+    let file = root.path().join("new/note.txt");
+    let escaped = outside.path().join("escaped");
+    let existing = outside.path().join("existing");
+    fs::write(&existing, "original").unwrap();
+    fs::hard_link(&existing, root.path().join("hardlink")).unwrap();
+    std::os::unix::fs::symlink(outside.path(), root.path().join("link")).unwrap();
+    let client = super::AcpClient::new("claude", AcpAgentConfig::default())
+        .with_desktop_workspace(Some(root.path().canonicalize().unwrap()))
+        .with_permission_mode(PermissionMode::ApproveReads)
+        .with_non_interactive_permissions(Some(NonInteractivePermissionPolicy::Fail));
+
+    with_workspace_rpc(&client, root.path(), async |io| {
+        let mut io = tokio::io::BufReader::new(io);
+        for content in ["first", "second"] {
+            let response = workspace_rpc(
+                &mut io,
+                "fs/write_text_file",
+                serde_json::json!({
+                    "sessionId": "workspace", "path": file, "content": content,
+                }),
+            )
+            .await;
+            assert!(response.get("result").is_some(), "{response}");
+            assert_eq!(fs::read_to_string(&file).unwrap(), content);
+        }
+        for (session, path) in [
+            ("foreign", root.path().join("foreign.txt")),
+            ("workspace", escaped.clone()),
+            ("workspace", root.path().join("link/escaped")),
+            ("workspace", root.path().join(".git/config")),
+            ("workspace", root.path().join(".mcp.json")),
+            ("workspace", root.path().join("hardlink")),
+        ] {
+            let response = workspace_rpc(
+                &mut io,
+                "fs/write_text_file",
+                serde_json::json!({
+                    "sessionId": session, "path": path, "content": "denied",
+                }),
+            )
+            .await;
+            assert!(response.get("error").is_some(), "{path:?}: {response}");
+        }
+        assert!(!root.path().join("foreign.txt").exists());
+        assert!(!root.path().join(".git").exists());
+        assert!(!escaped.exists());
+        assert_eq!(fs::read_to_string(&existing).unwrap(), "original");
+        assert_eq!(client.permission_stats.lock().requested, 0);
+    })
+    .await;
+}
+
+#[cfg(unix)]
+#[tokio::test]
+async fn acp_desktop_approval_policy_keeps_generic_approvals_and_terminal_restricted() {
+    let root = tempfile::tempdir().unwrap();
+    let target = root.path().join("note.txt");
+    let client = super::AcpClient::new("claude", AcpAgentConfig::default())
+        .with_desktop_workspace(Some(root.path().canonicalize().unwrap()))
+        .with_permission_mode(PermissionMode::ApproveReads)
+        .with_non_interactive_permissions(Some(NonInteractivePermissionPolicy::Fail));
+
+    with_workspace_rpc(&client, root.path(), async |io| {
+        let mut io = tokio::io::BufReader::new(io);
+        for kind in [
+            None,
+            Some(acp::ToolKind::Edit),
+            Some(acp::ToolKind::Delete),
+            Some(acp::ToolKind::Execute),
+        ] {
+            let mut request = permission_request("workspace");
+            request.tool_call.fields.kind = kind;
+            request.tool_call.fields.title = Some("Read a note".into());
+            request.tool_call.fields.raw_input = Some(serde_json::json!({"file_path": target}));
+            let response = workspace_rpc(
+                &mut io,
+                "session/request_permission",
+                serde_json::to_value(request).unwrap(),
+            )
+            .await;
+            assert!(response.get("error").is_some(), "{response}");
+        }
+        let terminal_file = root.path().join("terminal.txt");
+        let response = workspace_rpc(
+            &mut io,
+            "terminal/create",
+            serde_json::json!({
+                "sessionId": "workspace", "command": "touch", "args": [terminal_file],
+            }),
+        )
+        .await;
+        assert!(response.get("error").is_some(), "{response}");
+        assert!(!terminal_file.exists());
+        assert!(!target.exists());
+    })
+    .await;
+}
+
+#[cfg(unix)]
+#[tokio::test]
+async fn acp_desktop_approval_policy_checks_replaced_parent_at_write() {
+    let root = tempfile::tempdir().unwrap();
+    let outside = tempfile::tempdir().unwrap();
+    let parent = root.path().join("subdir");
+    let file = parent.join("note.txt");
+    fs::create_dir(&parent).unwrap();
+    let attacker_parent = parent.clone();
+    let attacker_outside = outside.path().to_path_buf();
+    let client = super::AcpClient::new("claude", AcpAgentConfig::default())
+        .with_desktop_workspace(Some(root.path().canonicalize().unwrap()))
+        .with_permission_mode(PermissionMode::ApproveReads)
+        .with_client_operation_callback(Some(Arc::new(move |operation| {
+            if operation.status == crate::types::ClientOperationStatus::Running {
+                fs::rename(&attacker_parent, attacker_parent.with_extension("old")).unwrap();
+                std::os::unix::fs::symlink(&attacker_outside, &attacker_parent).unwrap();
+            }
+        })));
+
+    with_workspace_rpc(&client, root.path(), async |io| {
+        let response = workspace_rpc(
+            &mut tokio::io::BufReader::new(io),
+            "fs/write_text_file",
+            serde_json::json!({
+                "sessionId": "workspace", "path": file, "content": "denied",
+            }),
+        )
+        .await;
+        assert!(response.get("error").is_some(), "{response}");
+        assert!(!outside.path().join("note.txt").exists());
+        assert!(!parent.with_extension("old").join("note.txt").exists());
+    })
+    .await;
+}
+
+#[cfg(unix)]
+#[tokio::test]
+async fn acp_desktop_approval_policy_only_current_full_grant_allows_external_writes() {
+    let root = tempfile::tempdir().unwrap();
+    let outside = tempfile::tempdir().unwrap();
+    let file = outside.path().join("note.txt");
+    for (mode, full, expected) in [
+        (PermissionMode::ApproveReads, false, false),
+        (PermissionMode::ApproveAll, true, true),
+        (PermissionMode::ApproveReads, false, false),
+        (PermissionMode::DenyAll, true, false),
+    ] {
+        let client = super::AcpClient::new("claude", AcpAgentConfig::default())
+            .with_desktop_workspace(Some(root.path().canonicalize().unwrap()))
+            .with_permission_mode(mode)
+            .with_full_access(full);
+        with_workspace_rpc(&client, root.path(), async |io| {
+            let mut io = tokio::io::BufReader::new(io);
+            let response = workspace_rpc(
+                &mut io,
+                "fs/write_text_file",
+                serde_json::json!({
+                    "sessionId": "foreign", "path": file, "content": "foreign",
+                }),
+            )
+            .await;
+            assert!(response.get("error").is_some(), "{response}");
+            let response = workspace_rpc(
+                &mut io,
+                "fs/write_text_file",
+                serde_json::json!({
+                    "sessionId": "workspace", "path": file, "content": "current",
+                }),
+            )
+            .await;
+            assert_eq!(response.get("result").is_some(), expected, "{response}");
+            assert_eq!(file.exists(), expected);
+            if expected {
+                let foreign_read = workspace_rpc(
+                    &mut io,
+                    "fs/read_text_file",
+                    serde_json::json!({"sessionId": "foreign", "path": file}),
+                )
+                .await;
+                assert!(foreign_read.get("error").is_some(), "{foreign_read}");
+                client.clear_active_prompt("workspace");
+                let idle_read = workspace_rpc(
+                    &mut io,
+                    "fs/read_text_file",
+                    serde_json::json!({"sessionId": "workspace", "path": file}),
+                )
+                .await;
+                assert!(idle_read.get("error").is_some(), "{idle_read}");
+                assert_eq!(fs::read_to_string(&file).unwrap(), "current");
+                fs::remove_file(&file).unwrap();
+            }
+        })
+        .await;
+    }
 }

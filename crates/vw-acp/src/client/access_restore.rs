@@ -24,7 +24,12 @@ impl AcpClient {
         }
         match self.agent_name.as_str() {
             "codex" if value == codex::FULL_MODE => codex::RESTRICTED_MODE,
-            "claude" if value == claude::FULL_MODE => claude::RESTRICTED_MODE,
+            "claude"
+                if value == claude::FULL_MODE
+                    || (self.desktop_workspace.is_some() && value == claude::ACCEPT_EDITS_MODE) =>
+            {
+                claude::RESTRICTED_MODE
+            }
             "qwen" if value == qwen::FULL_MODE => qwen::RESTRICTED_MODE,
             "hermes" if value != hermes::RESTRICTED_MODE => hermes::RESTRICTED_MODE,
             "iflow" if !iflow::restricted_mode(value) => iflow::RESTRICTED_MODE,

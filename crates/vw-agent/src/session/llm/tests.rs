@@ -130,6 +130,7 @@ fn parse_acp_options_maps_cli_style_runtime_overrides() {
         parsed,
         ParsedAcpOptions {
             runtime_identity: None,
+            desktop_workspace: None,
             skill_mounts: Vec::new(),
             skill_view: None,
             mcp_servers: Vec::new(),

@@ -3,6 +3,12 @@
 use super::*;
 
 impl AcpClient {
+    /// Bind desktop permissions to a server-authorized canonical workspace directory.
+    pub fn with_desktop_workspace(mut self, workspace: Option<PathBuf>) -> Self {
+        self.desktop_workspace = workspace;
+        self
+    }
+
     /// 创建一个新的 ACP 客户端。
     ///
     /// `agent_name` 用于日志和生命周期标识，`config` 描述实际启动命令。
@@ -17,6 +23,7 @@ impl AcpClient {
             permission_mode: PermissionMode::ApproveAll,
             full_access: false,
             non_interactive_permissions: None,
+            desktop_workspace: None,
             auth_credentials: HashMap::new(),
             auth_policy: AuthPolicy::Skip,
             session_options: None,

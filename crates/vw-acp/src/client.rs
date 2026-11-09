@@ -202,6 +202,7 @@ pub struct AcpClient {
     on_client_operation: Option<ClientOperationCallback>,
     permission_stats: Arc<Mutex<PermissionStats>>,
     active_prompt: Arc<Mutex<Option<ActivePromptControl>>>,
+    desktop_workspace: Option<PathBuf>,
     cancelling_session_ids: Arc<Mutex<HashSet<String>>>,
     actor_state: Arc<Mutex<AcpClientActorState>>,
     actor_idle_timeout: Duration,

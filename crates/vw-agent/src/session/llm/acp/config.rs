@@ -321,6 +321,7 @@ pub(crate) fn parse_acp_options(
 
     Ok(ParsedAcpOptions {
         runtime_identity: None,
+        desktop_workspace: None,
         skill_mounts: Vec::new(),
         skill_view: None,
         mcp_servers: Vec::new(),

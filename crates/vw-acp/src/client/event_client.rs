@@ -63,6 +63,8 @@ impl AcpClient {
                 "gemini" | "qwen"
             ),
             expected_session_id,
+            desktop_workspace: self.desktop_workspace.clone(),
+            active_prompt: self.active_prompt.clone(),
             event_tx,
             filesystem: FileSystemHandlers::new(FileSystemHandlersOptions {
                 cwd: cwd.to_path_buf(),
@@ -94,7 +96,8 @@ impl AcpClient {
                 on_operation,
                 confirm_execute: None,
                 kill_grace_ms: None,
-            }),
+            })
+            .with_workspace_auto_execute(self.desktop_workspace.is_none()),
             permission_mode: self.permission_mode,
             non_interactive_permissions: self.non_interactive_permissions,
             on_session_update: Some(on_session_update),
@@ -108,9 +111,13 @@ impl AcpClient {
 impl acp::Client for AcpEventClient {
     async fn request_permission(
         &self,
-        args: acp::RequestPermissionRequest,
+        mut args: acp::RequestPermissionRequest,
     ) -> acp::Result<acp::RequestPermissionResponse> {
         if self.cancelling_session_ids.lock().contains(args.session_id.0.as_ref()) {
+            self.permission_stats.lock().cancelled += 1;
+            return Ok(cancelled_permission_response());
+        }
+        if self.desktop_workspace.is_some() && !self.owns_active_prompt(&args.session_id) {
             self.permission_stats.lock().cancelled += 1;
             return Ok(cancelled_permission_response());
         }
@@ -142,7 +149,13 @@ impl acp::Client for AcpEventClient {
             return Err(acp::Error::invalid_params().data("CodeBuddy question or plan confirmation requires explicit user interaction; tool approval cannot answer it"));
         }
 
-        let resolve = if self.transient_permissions {
+        // Keep explicit read permissions, but a title cannot turn an untyped
+        // desktop tool into a read. A generic approval cannot constrain the
+        // agent's subsequent local write, even when it describes a valid path.
+        if self.desktop_workspace.is_some() && args.tool_call.fields.kind.is_none() {
+            args.tool_call.fields.kind = Some(acp::ToolKind::Other);
+        }
+        let resolve = if self.transient_permissions || self.desktop_workspace.is_some() {
             crate::access_policy::opencode::resolve_permission_request
         } else {
             resolve_permission_request
@@ -161,8 +174,12 @@ impl acp::Client for AcpEventClient {
         &self,
         args: acp::WriteTextFileRequest,
     ) -> acp::Result<acp::WriteTextFileResponse> {
+        if self.desktop_workspace.is_some() && !self.owns_active_prompt(&args.session_id) {
+            return Err(acp::Error::invalid_params()
+                .data("Write request has no matching active host session"));
+        }
         self.filesystem
-            .write_text_file(&args)
+            .write_text_file_with_policy(&args, self.desktop_workspace.as_deref())
             .await
             .map_err(|err| map_client_error(err, &self.permission_stats))
     }
@@ -171,6 +188,14 @@ impl acp::Client for AcpEventClient {
         &self,
         args: acp::ReadTextFileRequest,
     ) -> acp::Result<acp::ReadTextFileResponse> {
+        self.ensure_desktop_session(&args.session_id)?;
+        if self.desktop_workspace.is_some()
+            && self.permission_mode == PermissionMode::ApproveAll
+            && !self.owns_active_prompt(&args.session_id)
+        {
+            return Err(acp::Error::invalid_params()
+                .data("Full-access read requires an active host session"));
+        }
         self.filesystem
             .read_text_file(&args)
             .await
@@ -181,6 +206,11 @@ impl acp::Client for AcpEventClient {
         &self,
         args: acp::CreateTerminalRequest,
     ) -> acp::Result<acp::CreateTerminalResponse> {
+        if self.desktop_workspace.is_some() && !self.owns_active_prompt(&args.session_id) {
+            return Err(
+                acp::Error::invalid_params().data("Terminal request has no matching host session")
+            );
+        }
         self.terminal_manager
             .create_terminal(&args)
             .await
@@ -191,6 +221,7 @@ impl acp::Client for AcpEventClient {
         &self,
         args: acp::TerminalOutputRequest,
     ) -> acp::Result<acp::TerminalOutputResponse> {
+        self.ensure_desktop_session(&args.session_id)?;
         self.terminal_manager
             .terminal_output(&args)
             .await
@@ -201,6 +232,7 @@ impl acp::Client for AcpEventClient {
         &self,
         args: acp::ReleaseTerminalRequest,
     ) -> acp::Result<acp::ReleaseTerminalResponse> {
+        self.ensure_desktop_session(&args.session_id)?;
         self.terminal_manager
             .release_terminal(&args)
             .await
@@ -211,6 +243,7 @@ impl acp::Client for AcpEventClient {
         &self,
         args: acp::WaitForTerminalExitRequest,
     ) -> acp::Result<acp::WaitForTerminalExitResponse> {
+        self.ensure_desktop_session(&args.session_id)?;
         self.terminal_manager
             .wait_for_terminal_exit(&args)
             .await
@@ -221,6 +254,7 @@ impl acp::Client for AcpEventClient {
         &self,
         args: acp::KillTerminalRequest,
     ) -> acp::Result<acp::KillTerminalResponse> {
+        self.ensure_desktop_session(&args.session_id)?;
         self.terminal_manager
             .kill_terminal(&args)
             .await
@@ -228,6 +262,15 @@ impl acp::Client for AcpEventClient {
     }
 
     async fn session_notification(&self, args: acp::SessionNotification) -> acp::Result<()> {
+        if self.desktop_workspace.is_some()
+            && self
+                .expected_session_id
+                .lock()
+                .as_deref()
+                .is_some_and(|id| id != args.session_id.0.as_ref())
+        {
+            return Ok(());
+        }
         // A delayed control notification from another session must not retarget
         // the active prompt or reach consumers as current session state.
         if matches!(
@@ -288,5 +331,25 @@ impl acp::Client for AcpEventClient {
 
     async fn ext_notification(&self, _args: acp::ExtNotification) -> acp::Result<()> {
         Err(acp::Error::method_not_found())
+    }
+}
+
+impl AcpEventClient {
+    fn ensure_desktop_session(&self, session_id: &acp::SessionId) -> acp::Result<()> {
+        if self.desktop_workspace.is_some()
+            && self.expected_session_id.lock().as_deref() != Some(session_id.0.as_ref())
+        {
+            return Err(acp::Error::invalid_params().data("Request has no matching host session"));
+        }
+        Ok(())
+    }
+
+    fn owns_active_prompt(&self, session_id: &acp::SessionId) -> bool {
+        let session_id = session_id.0.as_ref();
+        self.expected_session_id.lock().as_deref() == Some(session_id)
+            && self.active_prompt.lock().as_ref().is_some_and(|prompt| {
+                prompt.session_id == session_id && !*prompt.cancel_tx.borrow()
+            })
+            && !self.cancelling_session_ids.lock().contains(session_id)
     }
 }

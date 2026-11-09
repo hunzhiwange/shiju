@@ -32,6 +32,8 @@ pub(super) struct AcpEventClient {
     pub(super) expected_session_id: Arc<Mutex<Option<String>>>,
     pub(super) event_tx: mpsc::UnboundedSender<InternalEvent>,
     pub(super) filesystem: FileSystemHandlers,
+    pub(super) desktop_workspace: Option<PathBuf>,
+    pub(super) active_prompt: Arc<Mutex<Option<ActivePromptControl>>>,
     pub(super) terminal_manager: TerminalManager,
     pub(super) permission_mode: PermissionMode,
     pub(super) non_interactive_permissions: Option<NonInteractivePermissionPolicy>,

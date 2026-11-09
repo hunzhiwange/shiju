@@ -61,13 +61,24 @@ pub(crate) async fn do_stream_request_acp(
         return Err(Error::Aborted);
     }
 
-    let cwd = merged_options
+    let tool_context = crate::tools::current_tool_use_context();
+    let desktop_context =
+        tool_context.as_deref().filter(|context| context.channel() == Some("desktop"));
+    let requested_cwd = merged_options
         .get("cwd")
         .and_then(Value::as_str)
         .filter(|value| !value.trim().is_empty())
-        .map(std::path::PathBuf::from)
-        .or_else(|| std::env::current_dir().ok())
-        .ok_or_else(|| to_api_error("failed to resolve cwd for acp session"))?;
+        .map(std::path::PathBuf::from);
+    let (cwd, desktop_access) = if let Some(context) = desktop_context {
+        let (cwd, root) =
+            super::session::desktop_workspace(context, session_id, requested_cwd.as_deref())?;
+        (cwd, Some((root, context.full_access_enabled())))
+    } else {
+        let cwd = requested_cwd
+            .or_else(|| std::env::current_dir().ok())
+            .ok_or_else(|| to_api_error("failed to resolve cwd for acp session"))?;
+        (cwd, None)
+    };
     let cwd_text = cwd.to_string_lossy().into_owned();
     let _session_guard = super::lifecycle::try_lock(session_id, &cwd_text).map_err(to_api_error)?;
     let selection_store =
@@ -164,6 +175,9 @@ pub(crate) async fn do_stream_request_acp(
         chat_messages,
     )
     .await?;
+    if let Some((root, full_grant)) = desktop_access {
+        super::session::bind_desktop_access(&mut parsed_options, root, full_grant);
+    }
     parsed_options.runtime_identity = Some(scoped_session.clone());
     parsed_options.skill_view = super::skill_mounts::MountedSkills::prepare(
         &parsed_options.skill_mounts,

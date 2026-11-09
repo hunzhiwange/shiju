@@ -76,6 +76,8 @@ struct CachedAcpClientEntry {
 pub(super) struct ParsedAcpOptions {
     /// 已在网关按作用域解析的 MCP 配置，不接受请求中的原始凭据。
     pub(super) runtime_identity: Option<String>,
+    /// Canonical workspace bound by the desktop turn context.
+    pub(super) desktop_workspace: Option<std::path::PathBuf>,
     pub(super) skill_mounts: Vec<vw_acp::SessionSkillMount>,
     pub(super) skill_view: Option<skill_mounts::MountedSkills>,
     pub(super) mcp_servers: Vec<agent_client_protocol::McpServer>,

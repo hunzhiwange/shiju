@@ -70,6 +70,7 @@ pub struct TerminalManager {
     non_interactive_permissions: NonInteractivePermissionPolicy,
     on_operation: Option<TerminalOperationCallback>,
     uses_default_confirm_execute: bool,
+    workspace_auto_execute: bool,
     confirm_execute: TerminalConfirmExecuteFn,
     kill_grace_ms: u64,
     terminals: Mutex<HashMap<String, Arc<ManagedTerminal>>>,
@@ -109,12 +110,18 @@ impl TerminalManager {
                 .unwrap_or(NonInteractivePermissionPolicy::Deny),
             on_operation: options.on_operation,
             uses_default_confirm_execute,
+            workspace_auto_execute: true,
             confirm_execute: options
                 .confirm_execute
                 .unwrap_or_else(|| Arc::new(default_confirm_execute)),
             kill_grace_ms: options.kill_grace_ms.unwrap_or(DEFAULT_KILL_GRACE_MS),
             terminals: Mutex::new(HashMap::new()),
         }
+    }
+
+    pub(crate) fn with_workspace_auto_execute(mut self, enabled: bool) -> Self {
+        self.workspace_auto_execute = enabled;
+        self
     }
 
     pub fn update_permission_policy(
@@ -364,7 +371,10 @@ impl TerminalManager {
             PermissionMode::ApproveAll => Ok(true),
             PermissionMode::DenyAll => Ok(false),
             PermissionMode::ApproveReads => {
-                if self.uses_default_confirm_execute && is_within_root(&self.cwd, cwd) {
+                if self.workspace_auto_execute
+                    && self.uses_default_confirm_execute
+                    && is_within_root(&self.cwd, cwd)
+                {
                     return Ok(true);
                 }
                 if self.uses_default_confirm_execute

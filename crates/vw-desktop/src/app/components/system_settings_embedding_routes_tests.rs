@@ -49,15 +49,14 @@ fn field_rows_build_label_description_and_input_structure() {
 }
 
 #[test]
-fn template_button_builds_two_line_action_content() {
+fn template_button_builds_name_only_action_content() {
     let tree = element_tree(template_button(
         "阿里 DashScope",
-        "alibaba-cn / text-embedding-v4 / 1024",
         EmbeddingRoutesMessage::InsertAlibabaTemplate,
     ));
 
     assert_eq!(tree.children.len(), 1);
-    assert_eq!(tree.children[0].children.len(), 2);
+    assert!(tree.children[0].children.is_empty());
 }
 
 #[test]

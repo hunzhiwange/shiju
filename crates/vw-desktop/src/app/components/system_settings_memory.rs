@@ -7,9 +7,9 @@ use crate::app::components::number_input::NumberInput;
 use crate::app::components::system_settings_common::{
     SETTINGS_CONTROL_TEXT_SIZE, rounded_action_btn_style, settings_checkbox_style,
     settings_divider, settings_error_banner, settings_field_label, settings_group_card,
-    settings_group_heading, settings_group_heading_with_help, settings_hover_help_label,
-    settings_muted_text_style, settings_page_heading_with_help, settings_select,
-    settings_tab_button, settings_tab_row, settings_text_input,
+    settings_group_heading_with_help, settings_hover_help_label, settings_muted_text_style,
+    settings_page_heading_with_help, settings_select, settings_tab_button, settings_tab_row,
+    settings_text_input,
 };
 use crate::app::components::system_settings_search::SettingsTabDescriptor;
 use crate::app::i18n::{I18n, settings_runtime::text as runtime_text};
@@ -53,26 +53,14 @@ pub(super) const QDRANT_TAB: &[SettingsTabDescriptor<MemorySettingsTab>] =
         &["qdrant", "向量数据库", "collection", "API Key"],
     )];
 
-pub(super) fn field_row<'a>(
-    label: &'static str,
-    description: &'static str,
-    control: impl Into<Element<'a, Message>>,
-) -> Element<'a, Message> {
-    let mut labels = column![settings_field_label(label)].spacing(6);
-    if !description.is_empty() {
-        labels = labels.push(text(description).size(13).style(settings_muted_text_style));
-    }
-    aligned_field_row(labels, control)
-}
-
-fn field_row_with_help<'a>(
+pub(super) fn field_row_with_help<'a>(
     app: &App,
     label: &'static str,
     description: &'static str,
     control: impl Into<Element<'a, Message>>,
 ) -> Element<'a, Message> {
     if description.is_empty() {
-        return field_row(label, description, control);
+        return aligned_field_row(column![settings_field_label(label)], control);
     }
     let heading = settings_hover_help_label(
         I18n::new(app.desktop_locale),
@@ -102,21 +90,7 @@ fn aligned_field_row<'a>(
     .into()
 }
 
-pub(super) fn text_row<'a>(
-    label: &'static str,
-    description: &'static str,
-    placeholder: &'static str,
-    value: &'a str,
-    on_input: impl Fn(String) -> Message + 'a,
-) -> Element<'a, Message> {
-    field_row(
-        label,
-        description,
-        settings_text_input(placeholder, value).on_input(on_input).width(Length::Fill),
-    )
-}
-
-fn text_row_with_help<'a>(
+pub(super) fn text_row_with_help<'a>(
     app: &App,
     label: &'static str,
     description: &'static str,
@@ -166,9 +140,8 @@ fn number_row<'a>(
     precision: u8,
     on_change: impl Fn(f32) -> Message + 'a,
 ) -> Element<'a, Message> {
-    field_row(
-        label,
-        "",
+    aligned_field_row(
+        column![settings_field_label(label)],
         row![
             container(
                 NumberInput::new(
@@ -482,24 +455,20 @@ pub fn view(app: &App) -> Element<'_, Message> {
                 settings_divider(),
                 aligned_field_row(
                     column![
-                        settings_field_label(runtime_text(locale, "嵌入模型")),
-                        row![
-                            text(runtime_text(locale, "模型名称，可用"))
-                                .size(13)
-                                .style(settings_muted_text_style),
-                            button(text(runtime_text(locale, "hint:模式名")).size(13))
-                                .on_press(Message::Settings(SettingsMessage::Memory(
-                                    MemoryMessage::TabSelected(MemorySettingsTab::EmbeddingRoutes),
-                                )))
-                                .padding([3, 6])
-                                .style(rounded_action_btn_style),
-                            text(runtime_text(locale, "引用路由。"))
-                                .size(13)
-                                .style(settings_muted_text_style),
-                        ]
-                        .spacing(4)
-                        .align_y(Alignment::Center)
+                        settings_hover_help_label(
+                            i18n,
+                            theme,
+                            runtime_text(locale, "嵌入模型"),
+                            settings_field_label(runtime_text(locale, "嵌入模型")),
+                            runtime_text(locale, "填写模型名称，或用 hint:模式名 引用嵌入路由。"),
+                        )
                         .wrap(),
+                        button(text(runtime_text(locale, "hint:模式名")).size(13))
+                            .on_press(Message::Settings(SettingsMessage::Memory(
+                                MemoryMessage::TabSelected(MemorySettingsTab::EmbeddingRoutes),
+                            )))
+                            .padding([3, 6])
+                            .style(rounded_action_btn_style),
                     ]
                     .spacing(6),
                     settings_text_input("text-embedding-v4", &s.embedding_model)
@@ -579,7 +548,9 @@ pub fn view(app: &App) -> Element<'_, Message> {
     let qdrant_section = if s.backend == "qdrant" {
         Some(
             column![
-                settings_group_heading(
+                settings_group_heading_with_help(
+                    i18n,
+                    theme,
                     runtime_text(locale, "Qdrant 连接"),
                     runtime_text(
                         locale,

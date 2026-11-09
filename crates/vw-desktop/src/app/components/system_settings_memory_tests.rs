@@ -40,16 +40,18 @@ fn parse_bounded_number_clamps_infinite_values_and_preserves_bounds() {
 
 #[test]
 fn row_helpers_build_expected_control_structure() {
-    let field = element_tree(field_row("标签", "说明", text("control")));
+    let app = test_app();
+    let field = element_tree(field_row_with_help(&app, "标签", "说明", text("control")));
     assert_eq!(field.children.len(), 2);
-    assert_eq!(field.children[0].children.len(), 2);
+    assert_eq!(field.children[0].children[0].children.len(), 2);
     assert!(field.children[1].children.is_empty());
 
-    let text = element_tree(text_row("地址", "说明", "placeholder", "value", |_| {
-        Message::Settings(SettingsMessage::Memory(MemoryMessage::QdrantUrlChanged(
-            "changed".to_string(),
-        )))
-    }));
+    let text =
+        element_tree(text_row_with_help(&app, "地址", "说明", "placeholder", "value", |_| {
+            Message::Settings(SettingsMessage::Memory(MemoryMessage::QdrantUrlChanged(
+                "changed".to_string(),
+            )))
+        }));
     assert!(text.children[1].children.is_empty());
 
     let boolean =

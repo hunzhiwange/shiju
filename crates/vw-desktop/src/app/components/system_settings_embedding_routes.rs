@@ -55,26 +55,16 @@ fn secure_field_row<'a>(
     .into()
 }
 
-fn template_button<'a>(
+fn template_button(
     label: &'static str,
-    description: &'static str,
     message: EmbeddingRoutesMessage,
-) -> Element<'a, Message> {
-    button(
-        column![
-            text(label).size(13),
-            text(description)
-                .size(12)
-                .wrapping(iced::widget::text::Wrapping::WordOrGlyph)
-                .style(settings_muted_text_style),
-        ]
-        .spacing(4),
-    )
-    .on_press(Message::Settings(message::SettingsMessage::EmbeddingRoutes(message)))
-    .padding([10, 12])
-    .width(Length::Fill)
-    .style(rounded_action_btn_style)
-    .into()
+) -> Element<'static, Message> {
+    button(text(label).size(13))
+        .on_press(Message::Settings(message::SettingsMessage::EmbeddingRoutes(message)))
+        .padding([10, 12])
+        .width(Length::Fill)
+        .style(rounded_action_btn_style)
+        .into()
 }
 
 /// 构建记忆配置中嵌入路由页签的界面片段与交互数据。
@@ -115,36 +105,40 @@ pub fn embedded_view(app: &App) -> Element<'_, Message> {
     .spacing(8)
     .align_y(Alignment::Start);
 
+    let alibaba = connection_text(app.desktop_locale, "阿里 DashScope");
+    let doubao = connection_text(app.desktop_locale, "豆包 Vision 250615");
+    let shiju = "识矩";
+    let template_intro = connection_text(
+        app.desktop_locale,
+        "一键插入常用配置，插入后仍可按需改 provider、模型、维度和 API Key。",
+    );
     let templates_panel = settings_panel(
         column![
             settings_group_heading_with_help(
                 i18n,
                 &app.app_theme,
                 connection_text(app.desktop_locale, "快捷模板"),
-                connection_text(
-                    app.desktop_locale,
-                    "一键插入常用配置，插入后仍可按需改 provider、模型、维度和 API Key。"
+                format!(
+                    "{template_intro}\n\n\
+                     {alibaba} · alibaba-cn / text-embedding-v4 / 1024\n\
+                     {doubao} · custom:Volcengine Ark / doubao-embedding-vision-250615\n\
+                     {shiju} · custom:router.shiju.cloud/v1 / text-embedding-v4 / 1024"
                 ),
             ),
             row![
-                template_button(
-                    connection_text(app.desktop_locale, "阿里 DashScope"),
-                    "alibaba-cn / text-embedding-v4 / 1024",
-                    EmbeddingRoutesMessage::InsertAlibabaTemplate,
-                ),
-                template_button(
-                    connection_text(app.desktop_locale, "豆包 Vision 250615"),
-                    "custom:Volcengine Ark / doubao-embedding-vision-250615",
-                    EmbeddingRoutesMessage::InsertDoubaoTemplate,
-                ),
-                template_button(
-                    "识矩",
-                    "custom:router.shiju.cloud/v1 / text-embedding-v4 / 1024",
-                    EmbeddingRoutesMessage::InsertShijuTemplate,
-                ),
+                template_button(alibaba, EmbeddingRoutesMessage::InsertAlibabaTemplate),
+                template_button(doubao, EmbeddingRoutesMessage::InsertDoubaoTemplate),
+                template_button(shiju, EmbeddingRoutesMessage::InsertShijuTemplate),
             ]
             .spacing(8)
-            .align_y(Alignment::Start),
+            .align_y(Alignment::Start)
+            .wrap(),
+            text(connection_text(
+                app.desktop_locale,
+                "使用模板时，请确认已配置对应服务的 API Key。"
+            ))
+            .size(12)
+            .style(settings_muted_text_style),
         ]
         .spacing(12),
     );

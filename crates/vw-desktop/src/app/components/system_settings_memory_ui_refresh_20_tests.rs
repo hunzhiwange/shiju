@@ -654,3 +654,349 @@ async fn help_rollout_13_renders_contextual_help() {
         }
     }
 }
+
+fn check_gap_help(
+    app: &App,
+    renderer: &mut Renderer,
+    size: Size<u32>,
+    title: &str,
+    old: &str,
+    description: &str,
+) {
+    use iced::keyboard::key::Named;
+    let mut ui = scene(view(app), renderer, size);
+    let positions = geometry(&mut ui, renderer);
+    assert!(
+        positions.labels.iter().all(|(label, _)| label != old && label != description),
+        "{title}: static explanation is visible before opening help"
+    );
+    let label = positions.labels.iter().rfind(|(label, _)| label == title).unwrap().1;
+    let prefix = format!("gap-09-{:?}-{}-{title}", app.desktop_locale, size.width);
+    let away = mouse::Cursor::Unavailable;
+    let idle = capture(&mut ui, renderer, &app.app_theme, size, &format!("{prefix}-idle"), away);
+    let icon = [
+        iced::Point::new(label.x + label.width + 15.0, label.center_y()),
+        iced::Point::new(label.x + 11.0, label.y + label.height + 15.0),
+    ]
+    .into_iter()
+    .find(|&icon| {
+        let cursor = mouse::Cursor::Available(icon);
+        assert!(
+            send(
+                &mut ui,
+                renderer,
+                cursor,
+                &[Event::Mouse(mouse::Event::CursorMoved { position: icon })]
+            )
+            .is_empty()
+        );
+        idle != capture(&mut ui, renderer, &app.app_theme, size, &format!("{prefix}-hover"), cursor)
+    })
+    .unwrap_or_else(|| panic!("{title}: hovering must render help"));
+    assert!(click(&mut ui, renderer, icon).is_empty());
+    let open = capture(&mut ui, renderer, &app.app_theme, size, &format!("{prefix}-open"), away);
+    assert!(idle != open, "{title}: pinned help must remain visible");
+    if size.width == 960 {
+        // At this width the card fits to the right of the trigger. Copy the
+        // rendered card text through its menu without touching the system clipboard.
+        let body = iced::Point::new(icon.x + 29.0, icon.y + 5.0);
+        assert!(
+            send(
+                &mut ui,
+                renderer,
+                mouse::Cursor::Available(body),
+                &[Event::Mouse(mouse::Event::ButtonPressed(mouse::Button::Right))],
+            )
+            .is_empty()
+        );
+        let item = iced::Point::new(body.x + 24.0, body.y + 14.0);
+        assert!(
+            matches!(click(&mut ui, renderer, item).as_slice(), [Message::CopyCode(value)] if value == description),
+            "{title}: help should contain the localized static explanation"
+        );
+    }
+    assert!(send(&mut ui, renderer, away, &[key(Named::Escape)]).is_empty());
+    let closed =
+        capture(&mut ui, renderer, &app.app_theme, size, &format!("{prefix}-closed"), away);
+    assert!(idle == closed, "{title}: Escape must restore the original form");
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn settings_help_gap_09_storage_fields_and_sections() {
+    if !isolated("settings_help_gap_09_storage_fields_and_sections") {
+        return;
+    }
+    let mut renderer = renderer().await;
+    let mut app = fixture();
+    app.memory_settings.active_tab = MemorySettingsTab::Storage;
+    for locale in [
+        DesktopLocale::SimplifiedChinese,
+        DesktopLocale::TraditionalChinese,
+        DesktopLocale::English,
+    ] {
+        app.desktop_locale = locale;
+        let t = |source| runtime_text(locale, source);
+        for (theme, width) in [(Theme::Light, 420), (Theme::Dark, 960)] {
+            app.app_theme = theme;
+            let size = Size::new(width, 1024);
+            for (title, old, help) in [
+                ("存储类型", "选择后端数据库类型。", "选择用于保存记忆的数据库后端。"),
+                (
+                    "连接参数",
+                    "选择数据库类型并配置基础连接信息。",
+                    "选择数据库类型并配置基础连接信息。",
+                ),
+                (
+                    "数据库地址",
+                    "远程 SQL 存储使用连接串；留空时不写入数据库地址。",
+                    "远程 SQL 存储使用连接串，例如 postgres://user:pass@db.example:5432/memory。留空时不写入数据库地址。",
+                ),
+                ("命名与超时", "配置 schema、表名和连接超时。", "配置 schema、表名和连接超时。"),
+                ("Schema 名称", "数据库 schema 名称。", "存储表所在的数据库 schema，例如 public。"),
+                ("数据表", "保存记录所使用的数据表名。", "保存记忆记录的表名，例如 memories。"),
+                (
+                    "连接超时",
+                    "仅接受整数秒；留空会写入 None。",
+                    "留空时不保存连接超时，由存储后端使用默认值。",
+                ),
+                ("安全", "配置与远程存储的加密连接策略。", "配置与远程存储的加密连接策略。"),
+                ("TLS 加密", "控制远程存储连接是否启用 TLS。", "控制远程存储连接是否启用 TLS。"),
+            ] {
+                check_gap_help(&app, &mut renderer, size, t(title), t(old), t(help));
+            }
+        }
+    }
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn settings_help_gap_09_memory_sections() {
+    if !isolated("settings_help_gap_09_memory_sections") {
+        return;
+    }
+    let mut renderer = renderer().await;
+    let mut app = fixture();
+    for (locale, theme, width) in [
+        (DesktopLocale::SimplifiedChinese, Theme::Light, 960),
+        (DesktopLocale::TraditionalChinese, Theme::Dark, 420),
+        (DesktopLocale::English, Theme::Dark, 960),
+    ] {
+        app.desktop_locale = locale;
+        app.app_theme = theme;
+        let t = |source| runtime_text(locale, source);
+        let size = Size::new(width, 1024);
+        for (tab, title, old, help) in [
+            (
+                MemorySettingsTab::Embedding,
+                "嵌入模型",
+                "模型名称，可用",
+                "填写模型名称，或用 hint:模式名 引用嵌入路由。",
+            ),
+            (
+                MemorySettingsTab::EmbeddingRoutes,
+                "快捷模板",
+                "alibaba-cn / text-embedding-v4 / 1024",
+                "一键插入常用配置，插入后仍可按需改 provider、模型、维度和 API Key。",
+            ),
+            (
+                MemorySettingsTab::Qdrant,
+                "Qdrant 连接",
+                "仅在 backend=qdrant 时显示，用于配置向量数据库地址、集合和 API Key。",
+                "仅在 backend=qdrant 时显示，用于配置向量数据库地址、集合和 API Key。",
+            ),
+        ] {
+            app.memory_settings.active_tab = tab;
+            if tab == MemorySettingsTab::EmbeddingRoutes {
+                let mut ui = scene(view(&app), &mut renderer, size);
+                let positions = geometry(&mut ui, &renderer);
+                let intro = t(help);
+                let alibaba = t("阿里 DashScope");
+                let doubao = t("豆包 Vision 250615");
+                let details = [
+                    old,
+                    "custom:Volcengine Ark / doubao-embedding-vision-250615",
+                    "custom:router.shiju.cloud/v1 / text-embedding-v4 / 1024",
+                ];
+                for detail in details {
+                    assert!(
+                        !positions.labels.iter().any(|(label, _)| label == detail),
+                        "{title}: template details are visible before opening help"
+                    );
+                }
+                let expected = format!(
+                    "{intro}\n\n{alibaba} · {}\n{doubao} · {}\n识矩 · {}",
+                    details[0], details[1], details[2]
+                );
+                check_gap_help(&app, &mut renderer, size, t(title), intro, &expected);
+            } else {
+                check_gap_help(&app, &mut renderer, size, t(title), t(old), t(help));
+            }
+        }
+    }
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn settings_help_gap_09_storage_controls_and_validation() {
+    if !isolated("settings_help_gap_09_storage_controls_and_validation") {
+        return;
+    }
+    use crate::app::message::settings::{StorageMessage, update};
+    use iced::keyboard::key::Named;
+    let mut renderer = renderer().await;
+    let mut app = fixture();
+    app.desktop_locale = DesktopLocale::English;
+    app.memory_settings.active_tab = MemorySettingsTab::Storage;
+    app.memory_settings.save_error = Some("fixture memory failure".into());
+    let size = Size::new(420, 1024);
+    let away = mouse::Cursor::Unavailable;
+
+    for (arrows, expected) in [
+        (vec![key(Named::ArrowDown)], "mariadb"),
+        (vec![key(Named::ArrowDown)], "sqlite"),
+        (vec![key(Named::ArrowUp), key(Named::ArrowUp)], "postgres"),
+    ] {
+        let mut ui = scene(view(&app), &mut renderer, size);
+        let positions = geometry(&mut ui, &renderer);
+        let trigger = positions.focusable[0].center();
+        assert!(click(&mut ui, &mut renderer, trigger).is_empty());
+        assert!(send(&mut ui, &mut renderer, away, &arrows).is_empty());
+        let messages = send(&mut ui, &mut renderer, away, &[key(Named::Enter)]);
+        let [
+            Message::Settings(
+                settings @ SettingsMessage::Storage(StorageMessage::ProviderChanged(value)),
+            ),
+        ] = messages.as_slice()
+        else {
+            panic!("expected storage provider change");
+        };
+        assert_eq!(value, expected);
+        drop(ui);
+        drop(update(&mut app, settings.clone()));
+        assert_eq!(app.storage_settings.provider, expected);
+    }
+
+    let mut ui = scene(view(&app), &mut renderer, size);
+    let positions = geometry(&mut ui, &renderer);
+    let locale = app.desktop_locale;
+    for input in [DB_URL, "fixture_schema", "fixture_memories"] {
+        positions.input(input);
+    }
+    let timeout = positions.input("30").center();
+    let messages = edit(&mut ui, &mut renderer, timeout, "x");
+    let [
+        Message::Settings(
+            settings @ SettingsMessage::Storage(StorageMessage::ConnectTimeoutSecsChanged(value)),
+        ),
+    ] = messages.as_slice()
+    else {
+        panic!("expected storage timeout edit");
+    };
+    assert_eq!(value, "30x");
+    drop(ui);
+    drop(update(&mut app, settings.clone()));
+
+    let mut ui = scene(view(&app), &mut renderer, size);
+    let positions = geometry(&mut ui, &renderer);
+    positions.label("connect_timeout_secs must be whole seconds or blank");
+    assert!(!positions.labels.iter().any(|(label, _)| label == "fixture memory failure"));
+    let timeout = positions.input("30x").center();
+    assert!(click(&mut ui, &mut renderer, timeout).is_empty());
+    let messages = send(
+        &mut ui,
+        &mut renderer,
+        away,
+        &[key(Named::End), key(Named::Backspace), key(Named::Backspace), key(Named::Backspace)],
+    );
+    let Some(Message::Settings(
+        settings @ SettingsMessage::Storage(StorageMessage::ConnectTimeoutSecsChanged(value)),
+    )) = messages.last()
+    else {
+        panic!("expected clearing the storage timeout to emit an edit");
+    };
+    assert!(value.is_empty());
+    drop(ui);
+    drop(update(&mut app, settings.clone()));
+    assert!(app.storage_settings.save_error.is_none());
+    assert!(app.storage_settings.connect_timeout_secs_input.is_empty());
+
+    let mut ui = scene(view(&app), &mut renderer, size);
+    let positions = geometry(&mut ui, &renderer);
+    positions.label(runtime_text(locale, "整数秒，留空使用默认值"));
+    positions.label(runtime_text(locale, "关闭后允许未加密的远程连接。"));
+    let tls = positions.label(runtime_text(locale, "启用存储连接 TLS")).center();
+    let messages = click(&mut ui, &mut renderer, tls);
+    let [Message::Settings(settings @ SettingsMessage::Storage(StorageMessage::TlsToggled(true)))] =
+        messages.as_slice()
+    else {
+        panic!("expected enabling TLS to emit a storage toggle");
+    };
+    drop(ui);
+    drop(update(&mut app, settings.clone()));
+    assert!(app.storage_settings.tls);
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn settings_help_gap_09_memory_navigation_and_templates() {
+    if !isolated("settings_help_gap_09_memory_navigation_and_templates") {
+        return;
+    }
+    use crate::app::message::settings::{EmbeddingRoutesMessage, update};
+    let mut renderer = renderer().await;
+    let mut app = fixture();
+    app.desktop_locale = DesktopLocale::SimplifiedChinese;
+    app.memory_settings.active_tab = MemorySettingsTab::Embedding;
+    app.embedding_routes_settings.routes.clear();
+    let size = Size::new(420, 1024);
+    let mut ui = scene(view(&app), &mut renderer, size);
+    let positions = geometry(&mut ui, &renderer);
+    assert!(!positions.labels.iter().any(|(label, _)| label == "引用路由。"));
+    let messages = click(&mut ui, &mut renderer, positions.label("hint:模式名").center());
+    let [
+        Message::Settings(
+            settings @ SettingsMessage::Memory(MemoryMessage::TabSelected(
+                MemorySettingsTab::EmbeddingRoutes,
+            )),
+        ),
+    ] = messages.as_slice()
+    else {
+        panic!("expected the embedding model button to open embedding routes");
+    };
+    drop(ui);
+    drop(update(&mut app, settings.clone()));
+    assert_eq!(app.memory_settings.active_tab, MemorySettingsTab::EmbeddingRoutes);
+
+    let mut ui = scene(view(&app), &mut renderer, size);
+    let positions = geometry(&mut ui, &renderer);
+    positions.label("使用模板时，请确认已配置对应服务的 API Key。");
+    for (label, expected) in [
+        ("阿里 DashScope", EmbeddingRoutesMessage::InsertAlibabaTemplate),
+        ("豆包 Vision 250615", EmbeddingRoutesMessage::InsertDoubaoTemplate),
+        ("识矩", EmbeddingRoutesMessage::InsertShijuTemplate),
+        ("添加路由", EmbeddingRoutesMessage::AddRoute),
+        ("保存", EmbeddingRoutesMessage::Save),
+    ] {
+        let point = positions.label(label).center();
+        assert!(
+            matches!(click(&mut ui, &mut renderer, point).as_slice(),
+                [Message::Settings(SettingsMessage::EmbeddingRoutes(value))]
+                if std::mem::discriminant(value) == std::mem::discriminant(&expected)),
+            "{label}: expected the original route action"
+        );
+    }
+    drop(ui);
+
+    drop(update(
+        &mut app,
+        SettingsMessage::Memory(MemoryMessage::TabSelected(MemorySettingsTab::Qdrant)),
+    ));
+    let mut ui = scene(view(&app), &mut renderer, size);
+    let positions = geometry(&mut ui, &renderer);
+    positions.input(QDRANT_URL);
+    positions.input(QDRANT_KEY);
+    drop(ui);
+    drop(update(&mut app, SettingsMessage::Memory(MemoryMessage::BackendChanged("sqlite".into()))));
+    assert_eq!(app.memory_settings.active_tab, MemorySettingsTab::General);
+    let mut ui = scene(view(&app), &mut renderer, size);
+    let positions = geometry(&mut ui, &renderer);
+    assert!(!positions.labels.iter().any(|(label, _)| label == "Qdrant 连接"));
+    assert!(positions.inputs.is_empty());
+}

@@ -3,15 +3,16 @@
 //! 本模块主要负责把应用状态转换为桌面端可渲染的 Iced 控件，并把用户操作映射回上层消息。
 //! 注释聚焦调用边界、返回值和错误传播方式，便于后续维护设置页与工具栏行为时快速定位职责。
 
-use super::system_settings_memory::{field_row, text_row};
+use super::system_settings_memory::{field_row_with_help, text_row_with_help};
 use crate::app::components::system_settings_common::{
     SETTINGS_CONTROL_TEXT_SIZE, settings_checkbox_style, settings_divider, settings_group_card,
-    settings_group_heading, settings_select,
+    settings_group_heading_with_help, settings_muted_text_style, settings_select,
+    settings_text_input,
 };
-use crate::app::i18n::settings_runtime::text as runtime_text;
+use crate::app::i18n::{I18n, settings_runtime::text as runtime_text};
 use crate::app::message::settings::StorageMessage;
 use crate::app::{App, Message, message};
-use iced::widget::{checkbox, column};
+use iced::widget::{checkbox, column, text};
 use iced::{Element, Length};
 
 const STORAGE_PROVIDER_OPTIONS: [&str; 3] = ["postgres", "mariadb", "sqlite"];
@@ -31,6 +32,8 @@ const STORAGE_PROVIDER_OPTIONS: [&str; 3] = ["postgres", "mariadb", "sqlite"];
 /// 本函数不直接返回错误；无法交互或缺省状态会在控件状态中显式表达。
 pub fn embedded_view(app: &App) -> Element<'_, Message> {
     let locale = app.desktop_locale;
+    let i18n = I18n::new(locale);
+    let theme = &app.app_theme;
     let s = &app.storage_settings;
 
     let provider_pick = settings_select(
@@ -44,16 +47,21 @@ pub fn embedded_view(app: &App) -> Element<'_, Message> {
     )
     .width(Length::Fill);
 
-    let provider_row = field_row(
+    let provider_row = field_row_with_help(
+        app,
         runtime_text(locale, "存储类型"),
-        runtime_text(locale, "选择后端数据库类型。"),
+        runtime_text(locale, "选择用于保存记忆的数据库后端。"),
         provider_pick,
     );
 
-    let db_url_row = text_row(
+    let db_url_row = text_row_with_help(
+        app,
         runtime_text(locale, "数据库地址"),
-        runtime_text(locale, "远程 SQL 存储使用连接串；留空时不写入数据库地址。"),
-        "postgres://user:pass@host:5432/db",
+        runtime_text(
+            locale,
+            "远程 SQL 存储使用连接串，例如 postgres://user:pass@db.example:5432/memory。留空时不写入数据库地址。",
+        ),
+        "",
         &s.db_url_input,
         |value| {
             Message::Settings(message::SettingsMessage::Storage(StorageMessage::DbUrlChanged(
@@ -62,10 +70,11 @@ pub fn embedded_view(app: &App) -> Element<'_, Message> {
         },
     );
 
-    let schema_row = text_row(
+    let schema_row = text_row_with_help(
+        app,
         runtime_text(locale, "Schema 名称"),
-        runtime_text(locale, "数据库 schema 名称。"),
-        "public",
+        runtime_text(locale, "存储表所在的数据库 schema，例如 public。"),
+        "",
         &s.schema,
         |value| {
             Message::Settings(message::SettingsMessage::Storage(StorageMessage::SchemaChanged(
@@ -74,10 +83,11 @@ pub fn embedded_view(app: &App) -> Element<'_, Message> {
         },
     );
 
-    let table_row = text_row(
+    let table_row = text_row_with_help(
+        app,
         runtime_text(locale, "数据表"),
-        runtime_text(locale, "保存记录所使用的数据表名。"),
-        "memories",
+        runtime_text(locale, "保存记忆记录的表名，例如 memories。"),
+        "",
         &s.table,
         |value| {
             Message::Settings(message::SettingsMessage::Storage(StorageMessage::TableChanged(
@@ -86,39 +96,57 @@ pub fn embedded_view(app: &App) -> Element<'_, Message> {
         },
     );
 
-    let timeout_row = text_row(
+    let timeout_row = field_row_with_help(
+        app,
         runtime_text(locale, "连接超时"),
-        runtime_text(locale, "仅接受整数秒；留空会写入 None。"),
-        runtime_text(locale, "秒；留空表示使用默认"),
-        &s.connect_timeout_secs_input,
-        |value| {
-            Message::Settings(message::SettingsMessage::Storage(
-                StorageMessage::ConnectTimeoutSecsChanged(value),
-            ))
-        },
+        runtime_text(locale, "留空时不保存连接超时，由存储后端使用默认值。"),
+        column![
+            settings_text_input("", &s.connect_timeout_secs_input)
+                .on_input(|value| {
+                    Message::Settings(message::SettingsMessage::Storage(
+                        StorageMessage::ConnectTimeoutSecsChanged(value),
+                    ))
+                })
+                .width(Length::Fill),
+            text(runtime_text(locale, "整数秒，留空使用默认值"))
+                .size(13)
+                .style(settings_muted_text_style),
+        ]
+        .spacing(6),
     );
 
-    let tls_row = field_row(
+    let tls_row = field_row_with_help(
+        app,
         runtime_text(locale, "TLS 加密"),
         runtime_text(locale, "控制远程存储连接是否启用 TLS。"),
-        checkbox(s.tls)
-            .label(runtime_text(locale, "启用存储连接 TLS"))
-            .text_size(SETTINGS_CONTROL_TEXT_SIZE)
-            .on_toggle(|value| {
-                Message::Settings(message::SettingsMessage::Storage(StorageMessage::TlsToggled(
-                    value,
-                )))
-            })
-            .style(settings_checkbox_style),
+        column![
+            checkbox(s.tls)
+                .label(runtime_text(locale, "启用存储连接 TLS"))
+                .text_size(SETTINGS_CONTROL_TEXT_SIZE)
+                .on_toggle(|value| {
+                    Message::Settings(message::SettingsMessage::Storage(
+                        StorageMessage::TlsToggled(value),
+                    ))
+                })
+                .style(settings_checkbox_style),
+            text(runtime_text(locale, "关闭后允许未加密的远程连接。"))
+                .size(13)
+                .style(settings_muted_text_style),
+        ]
+        .spacing(6),
     );
 
     let content = column![
-        settings_group_heading(
+        settings_group_heading_with_help(
+            i18n,
+            theme,
             runtime_text(locale, "连接参数"),
             runtime_text(locale, "选择数据库类型并配置基础连接信息。")
         ),
         settings_group_card(column![provider_row, settings_divider(), db_url_row].spacing(0)),
-        settings_group_heading(
+        settings_group_heading_with_help(
+            i18n,
+            theme,
             runtime_text(locale, "命名与超时"),
             runtime_text(locale, "配置 schema、表名和连接超时。")
         ),
@@ -126,7 +154,9 @@ pub fn embedded_view(app: &App) -> Element<'_, Message> {
             column![schema_row, settings_divider(), table_row, settings_divider(), timeout_row]
                 .spacing(0),
         ),
-        settings_group_heading(
+        settings_group_heading_with_help(
+            i18n,
+            theme,
             runtime_text(locale, "安全"),
             runtime_text(locale, "配置与远程存储的加密连接策略。")
         ),

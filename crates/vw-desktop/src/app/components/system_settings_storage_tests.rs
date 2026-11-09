@@ -22,29 +22,29 @@ fn storage_provider_options_keep_supported_order() {
 }
 
 #[test]
-fn field_row_builds_label_description_and_control_columns() {
-    let tree = element_tree(field_row("标签", "说明", text("control")));
+fn field_row_builds_help_label_and_control_columns() {
+    let app = test_app();
+    let tree = element_tree(field_row_with_help(&app, "标签", "说明", text("control")));
 
     assert_eq!(tree.children.len(), 2);
-    assert_eq!(tree.children[0].children.len(), 2);
+    assert_eq!(tree.children[0].children[0].children.len(), 2);
     assert!(tree.children[1].children.is_empty());
 }
 
 #[test]
-fn text_row_places_one_text_input_in_control_column() {
-    let tree =
-        element_tree(text_row("地址", "说明", "placeholder", "value", |_| Message::None));
+fn text_row_accepts_empty_unicode_and_multiline_connection_values() {
+    let app = test_app();
+    for value in ["", "数据库.example/记忆", "第一行\n第二行", "🔒 postgres"] {
+        let tree = element_tree(text_row_with_help(
+            &app,
+            "地址",
+            "说明",
+            "placeholder",
+            value,
+            |_| Message::None,
+        ));
 
-    assert_eq!(tree.children.len(), 2);
-    assert!(tree.children[1].children.is_empty());
-}
-
-#[test]
-fn text_row_accepts_unicode_and_multiline_connection_values() {
-    for value in ["数据库.example/记忆", "第一行\n第二行", "🔒 postgres"] {
-        let tree =
-            element_tree(text_row("地址", "说明", "placeholder", value, |_| Message::None));
-
+        assert_eq!(tree.children.len(), 2);
         assert!(tree.children[1].children.is_empty());
     }
 }
@@ -54,23 +54,21 @@ fn embedded_view_builds_all_storage_sections_and_field_rows() {
     let tree = element_tree(embedded_view(&test_app()));
 
     assert_eq!(tree.children.len(), 6);
-    assert_eq!(tree.children[0].children.len(), 2);
-
     for section_index in [0, 2, 4] {
-        let section = &tree.children[section_index];
-        assert_eq!(section.children.len(), 2);
+        let heading = &tree.children[section_index];
+        assert_eq!(heading.children.len(), 2);
     }
 
-    let connection_panel = &tree.children[1];
-    assert_eq!(connection_panel.children.len(), 3);
-    assert_eq!(connection_panel.children[2].children[0].children.len(), 2);
-
-    let naming_panel = &tree.children[3];
-    assert_eq!(naming_panel.children.len(), 5);
-    assert_eq!(naming_panel.children[4].children[0].children.len(), 2);
-
-    let security_panel = &tree.children[5];
-    assert_eq!(security_panel.children.len(), 1);
+    for (panel_index, field_count) in [(1, 2), (3, 3), (5, 1)] {
+        let panel = &tree.children[panel_index];
+        assert_eq!(panel.children.len(), 2 * field_count - 1);
+        for field in panel.children.iter().step_by(2) {
+            assert_eq!(field.children.len(), 2);
+            let labels = &field.children[0];
+            assert_eq!(labels.children.len(), 1);
+            assert_eq!(labels.children[0].children.len(), 2);
+        }
+    }
 }
 
 #[test]

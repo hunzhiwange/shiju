@@ -296,3 +296,25 @@
 | 全仓检查 | `cargo clippy --all-targets --all-features -- -D warnings` | 退出 0。 |
 
 首次试跑设置了目标目录，随后发现仓库另设中间产物目录。表内采用两个目录均指向槽位的复跑结果。限定提交范围的 `git diff --cached --check` 退出 0。槽位锁已释放，编译缓存保留。HTTP 证据来自本机夹具，真实账号验收见任务 56。
+
+## 任务 21 ZenMux 套餐
+
+| 来源 | 实现和测试 |
+| --- | --- |
+| [TS 套餐识别](../../../../crates/vw-agent-apps/upstream/src/config/codingPlanProviders.ts#L58-L62) · [凭据选择](../../../../crates/vw-agent-apps/upstream/src-tauri/src/commands/provider.rs#L622-L654) · [Rust 请求](../../../../crates/vw-agent-apps/upstream/src-tauri/src/services/coding_plan.rs#L630-L679) | `query_zenmux` 由执行端授权并提供完整查询地址和已解析的凭据。依照已有检测范围，只向 `zenmux.ai` 默认 HTTPS 端口发送请求，拒绝嵌入的凭据和片段，保留路径和查询参数。GET 使用 Bearer 鉴权、JSON Accept 和 15 秒超时，禁用重定向。 |
+| [窗口解析](../../../../crates/vw-agent-apps/upstream/src-tauri/src/services/coding_plan.rs#L681-L767) · [用量投影](../../../../crates/vw-agent-apps/upstream/src-tauri/src/commands/provider.rs#L758-L796) | 依序保留五小时和七天窗口。数字及数字字符串均可解析，使用率由比例乘以 100 得到，已用额与总额保留 USD，两者齐备时计算剩余金额。保留原样 RFC 3339 重置时间、套餐档位和账号状态。缺失字段保留为空，没有可识别的窗口、窗口字段畸形或数值非有限时返回 `InvalidResponse`。 |
+| [瞬时及确定性失败夹具](../../../../crates/vw-agent-apps/upstream/src-tauri/src/services/coding_plan.rs#L3052-L3190) | 本机 HTTP 夹具核对方法、地址和请求头，并验证鉴权拒绝、限流、服务不可用、重定向、传输中断、业务拒绝和未知结构分别归类。对外错误携带稳定码及关联 ID。 |
+
+[ZenMux 适配器](../../../../crates/vw-agent-apps/src/usage/coding/zenmux.rs#L24) · [独立行为测试](../../../../crates/vw-agent-apps/src/usage/coding/zenmux_tests.rs)
+
+验证环境为 macOS 27.0 (26A428)、arm64，`vw-agent-apps` 0.6.0。在批次 20 提交 `4199e2867` 的隔离源码副本中叠加本任务文件执行验证。实现前动态领取槽位 1，`CARGO_TARGET_DIR` 为 `/Users/xiangmin/worker/code/shiju/target/rust-slot-1`。实现后领取槽位 2，目录为 `/Users/xiangmin/worker/code/shiju/target/rust-slot-2`。各阶段的 `CARGO_BUILD_BUILD_DIR` 与目标目录一致。
+
+| 阶段 | 命令 | 结果 |
+| --- | --- | --- |
+| 实现前 | `cargo test -p vw-agent-apps usage_coding_zenmux_ -- --nocapture` | 退出 101，执行 0 项。`usage_coding_zenmux_returns_expected_result`、`usage_coding_zenmux_rejects_invalid_input` 和 `usage_coding_zenmux_classifies_http_and_transport_failures` 所在模块报 E0432，缺少 `query_zenmux` 和 `query_at`。 |
+| 格式化 | `cargo fmt --all` | 退出 0，只同步本任务的三个 Rust 文件。 |
+| 实现后 | `cargo test -p vw-agent-apps usage_coding_zenmux_ -- --nocapture` | 退出 0，3 项通过，0 项失败。 |
+| 全仓检查 | `cargo clippy --all-targets --all-features -- -D warnings` | 首轮退出 101。基线的 `vw-agent/src/session/store/postgres_tests.rs:81` 缺少 `load_session_meta` 的第三个参数，报 E0061。将共享工作区已有的一行修正同步到隔离副本后，在槽位 2 复跑退出 0。 |
+| 本包检查 | `cargo clippy -p vw-agent-apps --all-targets --all-features -- -D warnings` | 槽位 2 退出 0。 |
+
+仅审查并暂存本任务的适配器、模块注册、独立测试和覆盖记录，`git diff --cached --check` 退出 0。各阶段均释放所持槽位锁，保留编译缓存。HTTP 证据来自本机夹具，真实账号验收见任务 56。

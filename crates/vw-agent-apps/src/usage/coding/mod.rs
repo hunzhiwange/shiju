@@ -2,5 +2,6 @@
 
 pub mod kimi;
 pub mod minimax;
+pub mod zenmux;
 pub mod zhipu;
 pub mod zhipu_team;

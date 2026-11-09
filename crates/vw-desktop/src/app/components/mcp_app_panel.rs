@@ -102,17 +102,7 @@ impl McpAppPanel {
                         let poll = process.poll_gateway(
                             &client,
                             &binding,
-                            |origin| async move {
-                                rfd::AsyncMessageDialog::new()
-                                    .set_title("打开 MCP 外部链接")
-                                    .set_description(format!(
-                                        "是否使用系统浏览器打开此来源的链接？\n{origin}"
-                                    ))
-                                    .set_buttons(rfd::MessageButtons::YesNo)
-                                    .show()
-                                    .await
-                                    == rfd::MessageDialogResult::Yes
-                            },
+                            confirm_external_link,
                             open_system_browser,
                             select_destination,
                             || cancelled.load(Ordering::Acquire),
@@ -163,6 +153,44 @@ impl McpAppPanel {
     pub fn cancel(&self) {
         self.0.cancelled.store(true, Ordering::Release);
     }
+}
+
+#[cfg(target_os = "macos")]
+async fn confirm_external_link(origin: String) -> bool {
+    use objc2::MainThreadMarker;
+    use objc2_app_kit::{NSAlert, NSAlertSecondButtonReturn};
+    use objc2_foundation::NSString;
+
+    let (decision, response) = tokio::sync::oneshot::channel();
+    dispatch2::DispatchQueue::main().exec_async(move || {
+        if decision.is_closed() {
+            return;
+        }
+        let mtm = MainThreadMarker::new().expect("confirmation runs on the main thread");
+        // Use an app-owned alert so a system notification's default response cannot approve.
+        let alert = NSAlert::new(mtm);
+        alert.setMessageText(&NSString::from_str("打开 MCP 外部链接"));
+        alert.setInformativeText(&NSString::from_str(&format!(
+            "是否使用系统浏览器打开此来源的链接？\n{origin}"
+        )));
+        let cancel = alert.addButtonWithTitle(&NSString::from_str("取消"));
+        cancel.setKeyEquivalent(&NSString::from_str("\u{1b}"));
+        let open = alert.addButtonWithTitle(&NSString::from_str("打开"));
+        open.setKeyEquivalent(&NSString::from_str(""));
+        let _ = decision.send(alert.runModal() == NSAlertSecondButtonReturn);
+    });
+    response.await.unwrap_or(false)
+}
+
+#[cfg(not(target_os = "macos"))]
+async fn confirm_external_link(origin: String) -> bool {
+    rfd::AsyncMessageDialog::new()
+        .set_title("打开 MCP 外部链接")
+        .set_description(format!("是否使用系统浏览器打开此来源的链接？\n{origin}"))
+        .set_buttons(rfd::MessageButtons::YesNo)
+        .show()
+        .await
+        == rfd::MessageDialogResult::Yes
 }
 
 // On Windows, open::that uses cmd in the pinned version. Use ShellExecute

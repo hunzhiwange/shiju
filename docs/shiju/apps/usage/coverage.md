@@ -171,3 +171,23 @@
 | 全仓检查 | `cargo clippy --all-targets --all-features -- -D warnings` | 共享工作区退出 0。 |
 
 限定提交范围的 `git diff --cached --check` 退出 0。槽位锁已释放，编译缓存保留。真实账号验收见任务 55。
+
+## 任务 15 Novita 余额
+
+| 来源 | 实现和测试 |
+| --- | --- |
+| [余额查询与解析](../../../../crates/vw-agent-apps/upstream/src-tauri/src/services/balance.rs#L364-L433) · [余额分派](../../../../crates/vw-agent-apps/upstream/src-tauri/src/services/balance.rs#L565-L572) · [Novita 余额 API](https://docs.novita.ai/api-reference/basic-get-user-balance) | `query_novita` 使用经执行主机授权的 API 密钥请求 Novita 当前文档中的 `GET https://api.novita.ai/openapi/v1/billing/balance/detail`，禁用重定向。 |
+| [上游行为测试](../../../../crates/vw-agent-apps/upstream/src-tauri/src/services/balance.rs#L691-L721) · [余额模板识别](../../../../crates/vw-agent-apps/upstream/src/components/UsageScriptModal.tsx#L184-L199) · [余额模板调用](../../../../crates/vw-agent-apps/upstream/src/components/UsageScriptModal.tsx#L622-L627) | 将 `availableBalance` 和可选的 `cashBalance` 按万分之一美元换算，分别保留为可用余额和充值剩余。保留零、负数和缺失的区别。上游缺少独立赠金字段，因此赠金为未知。授信上限表示可欠款额度。通过本地 HTTP 服务核对请求方法、路径和头部，并区分非法 JSON、截断响应和鉴权拒绝。 |
+
+[适配器](../../../../crates/vw-agent-apps/src/usage/balances/novita.rs) · [独立行为测试](../../../../crates/vw-agent-apps/src/usage/balances/novita_tests.rs)
+
+验证环境为 macOS 27.0 (26A428)、arm64，`vw-agent-apps` 0.6.0。各阶段的 `CARGO_BUILD_BUILD_DIR` 与 `CARGO_TARGET_DIR` 相同。实现前使用槽位 2，路径为 `/Users/xiangmin/worker/code/shiju/target/rust-slot-2`。实现后使用槽位 1，路径为 `/Users/xiangmin/worker/code/shiju/target/rust-slot-1`。
+
+| 阶段 | 命令 | 结果 |
+| --- | --- | --- |
+| 实现前 | `cargo test -p vw-agent-apps usage_balances_novita_ -- --nocapture` | 退出 101，执行 0 项。独立用例 `usage_balances_novita_returns_expected_result`、`usage_balances_novita_rejects_invalid_input` 和 `usage_balances_novita_distinguishes_transport_and_upstream_status` 引用待实现符号，触发 E0432。 |
+| 格式化 | `cargo fmt --all` | 在批次 14 提交 `4dc0cf131` 的隔离源码副本运行两次，均退出 0。只将任务 15 的三个 Rust 文件同步到共享工作区。 |
+| 实现后 | `cargo test -p vw-agent-apps usage_balances_novita_ -- --nocapture` | 共享工作区退出 0，3 项通过，0 项失败。 |
+| 全仓检查 | `cargo clippy --all-targets --all-features -- -D warnings` | 共享工作区退出 0。 |
+
+限定提交范围的 `git diff --cached --check` 退出 0。槽位锁已释放，编译缓存保留。真实账号验收见任务 55。

@@ -19,7 +19,7 @@ fn work_sidebar_toggle_preserves_session_list_width() {
     assert!(app.work_sidebar_collapsed);
     assert_eq!(app.work_sidebar_width, 360.0);
 
-    let _task = update_panel(&mut app, ViewMessage::WorkSidebarMoreToggled);
+    let _task = update_panel(&mut app, ViewMessage::WorkSidebarMoreOpened);
     assert!(app.work_sidebar_more_open);
     let _task = update_panel(&mut app, ViewMessage::WorkSidebarToggled);
     assert!(!app.work_sidebar_collapsed);

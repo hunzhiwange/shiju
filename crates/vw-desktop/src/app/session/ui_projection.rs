@@ -63,7 +63,6 @@ fn preserves_projection(message: &Message) -> bool {
             | ViewMessage::WorkSidebarProjectNavHovered(_)
             | ViewMessage::WorkSidebarFilterToggled
             | ViewMessage::WorkSidebarFilterClosed
-            | ViewMessage::WorkSidebarMoreToggled
             | ViewMessage::WorkSidebarMoreOpened
             | ViewMessage::WorkSidebarMoreClosed,
         ) => true,

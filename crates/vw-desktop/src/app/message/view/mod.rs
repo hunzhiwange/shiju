@@ -229,9 +229,7 @@ pub enum ViewMessage {
     WorkSidebarFilterToggled,
     /// 关闭工作模式左栏过滤弹层
     WorkSidebarFilterClosed,
-    /// 打开或关闭工作模式左栏“更多”应用菜单
-    WorkSidebarMoreToggled,
-    /// 悬停时打开工作模式左栏“更多”应用菜单
+    /// 打开工作模式左栏“更多”应用菜单
     WorkSidebarMoreOpened,
     /// 关闭工作模式左栏“更多”应用菜单
     WorkSidebarMoreClosed,
@@ -852,7 +850,6 @@ pub fn update(app: &mut App, message: ViewMessage) -> Task<Message> {
         | ViewMessage::WorkProjectHome
         | ViewMessage::WorkSidebarFilterToggled
         | ViewMessage::WorkSidebarFilterClosed
-        | ViewMessage::WorkSidebarMoreToggled
         | ViewMessage::WorkSidebarMoreOpened
         | ViewMessage::WorkSidebarMoreClosed
         | ViewMessage::WorkSidebarProjectNavHovered(_)

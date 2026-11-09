@@ -51,10 +51,6 @@ pub(super) fn update(app: &mut App, message: ViewMessage) -> Task<Message> {
         ViewMessage::WorkSidebarFilterClosed => {
             app.work_sidebar_filter_open = false;
         }
-        ViewMessage::WorkSidebarMoreToggled => {
-            app.work_sidebar_more_open = !app.work_sidebar_more_open;
-            app.work_sidebar_filter_open = false;
-        }
         ViewMessage::WorkSidebarMoreOpened => {
             app.work_sidebar_more_open = true;
             app.work_sidebar_filter_open = false;

@@ -2,7 +2,7 @@
 
 use iced::widget::scrollable::{Direction, Scrollbar};
 use iced::widget::tooltip::{Position, Tooltip};
-use iced::widget::{column, container, scrollable, svg, text};
+use iced::widget::{column, container, mouse_area, scrollable, text};
 use iced::{Element, Length, Radians};
 
 use crate::app::assets::Icon;
@@ -28,6 +28,7 @@ use super::{
 };
 
 const CONTROL_SIZE: f32 = 36.0;
+const MORE_MENU_WIDTH: f32 = 336.0;
 
 pub(super) fn view(app: &App) -> Element<'static, Message> {
     let i18n = I18n::new(app.desktop_locale);
@@ -37,12 +38,11 @@ pub(super) fn view(app: &App) -> Element<'static, Message> {
         Icon::Home,
         Some(Message::View(ViewMessage::WorkProjectHome)),
     )];
-    #[cfg(not(target_arch = "wasm32"))]
     let navigation = navigation.push(control(
         i18n,
-        "助手",
+        "智能体",
         Icon::Robot,
-        Some(expert_hub_message(ExpertHubSection::Experts)),
+        Some(Message::View(ViewMessage::OpenSystemSettingsTab(SystemTab::Agents))),
     ));
     let controls = navigation
         .push(control(
@@ -76,20 +76,7 @@ fn control(
     message: Option<Message>,
 ) -> Element<'static, Message> {
     let icon = navigation_icon_enabled(icon, message.is_some());
-    with_tooltip(i18n, label, icon, message, false)
-}
-
-fn with_tooltip(
-    i18n: I18n,
-    label: &'static str,
-    icon: svg::Svg<'static>,
-    message: Option<Message>,
-    active: bool,
-) -> Element<'static, Message> {
-    let button = icon_control(icon, message, active, CONTROL_SIZE);
-    if active {
-        return button.into();
-    }
+    let button = icon_control(icon, message, false, CONTROL_SIZE);
     Tooltip::new(
         button,
         container(text(i18n.__(label)).size(12)).padding([6, 8]).style(tooltip_dark_style),
@@ -102,17 +89,20 @@ fn with_tooltip(
 fn more_control(app: &App, i18n: I18n) -> Element<'static, Message> {
     let icon = navigation_icon_enabled(Icon::DotsThreeVertical, true)
         .rotation(Radians(std::f32::consts::FRAC_PI_2));
-    let trigger = with_tooltip(
-        i18n,
-        "更多",
+    let open = Message::View(ViewMessage::WorkSidebarMoreOpened);
+    let close = Message::View(ViewMessage::WorkSidebarMoreClosed);
+    let trigger = mouse_area(icon_control(
         icon,
-        Some(Message::View(ViewMessage::WorkSidebarMoreToggled)),
+        Some(open.clone()),
         app.work_sidebar_more_open,
-    );
+        CONTROL_SIZE,
+    ))
+    .on_enter(open);
     SideOverlay::new(trigger, more_menu(i18n))
         .show(app.work_sidebar_more_open)
         .gap(12.0)
-        .on_close(Message::View(ViewMessage::WorkSidebarMoreClosed))
+        .on_close(close.clone())
+        .on_mouse_exit(close)
         .into()
 }
 
@@ -159,5 +149,9 @@ fn more_menu(i18n: I18n) -> Element<'static, Message> {
             .scroller_width(WORK_SIDEBAR_SCROLLBAR_WIDTH),
     ));
 
-    container(scroll).padding([12, 14]).width(Length::Fixed(252.0)).style(more_menu_style).into()
+    container(scroll)
+        .padding([12, 14])
+        .width(Length::Fixed(MORE_MENU_WIDTH))
+        .style(more_menu_style)
+        .into()
 }

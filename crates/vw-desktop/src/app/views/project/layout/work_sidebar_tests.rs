@@ -863,6 +863,12 @@ async fn work_sidebar_collapsed_keeps_session_list_and_one_new_task() {
         actions.next().unwrap().as_slice(),
         [Message::View(ViewMessage::WorkProjectHome)]
     ));
+    assert!(matches!(
+        actions.next().unwrap().as_slice(),
+        [Message::View(ViewMessage::OpenSystemSettingsTab(
+            crate::app::components::system_settings::SystemTab::Agents
+        ))]
+    ));
     let remaining: Vec<_> = actions.flatten().collect();
     assert!(
         !remaining
@@ -872,7 +878,7 @@ async fn work_sidebar_collapsed_keeps_session_list_and_one_new_task() {
     assert!(
         remaining
             .iter()
-            .any(|message| matches!(message, Message::View(ViewMessage::WorkSidebarMoreToggled)))
+            .any(|message| matches!(message, Message::View(ViewMessage::WorkSidebarMoreOpened)))
     );
     let click = |sidebar: &mut iced::Element<'_, Message>, tree: &mut Tree, target: Layout<'_>| {
         click_at(sidebar, tree, &renderer, root, target.bounds().center())
@@ -891,17 +897,34 @@ async fn work_sidebar_collapsed_keeps_session_list_and_one_new_task() {
         Message::Project(ProjectMessage::OpenProjectSessionPressed(path, id))
             if path == project_path && id == "existing"
     )));
+    let trigger = rail.child(3).bounds();
+    let position = trigger.center();
+    let viewport = Rectangle::with_size(size);
+    let mut clipboard = clipboard::Null;
+    let mut messages = Vec::new();
+    sidebar.as_widget_mut().update(
+        &mut tree,
+        &Event::Mouse(mouse::Event::CursorMoved { position }),
+        root,
+        mouse::Cursor::Available(position),
+        &renderer,
+        &mut clipboard,
+        &mut Shell::new(&mut messages),
+        &viewport,
+    );
+    let [Message::View(message @ ViewMessage::WorkSidebarMoreOpened)] = messages.as_slice() else {
+        panic!("hovering the collapsed More control should open its menu");
+    };
     drop(sidebar);
+    let _ = crate::app::message::view::update(&mut app, message.clone());
 
     app.new_session_creating = true;
-    app.work_sidebar_more_open = true;
     let mut sidebar = work_sidebar::view(&app);
     let mut tree = Tree::new(sidebar.as_widget());
     let node = sidebar.as_widget_mut().layout(&mut tree, &renderer, &limits);
     let root = Layout::new(&node);
     let new_task = root.child(1).child(0).child(0).bounds().center();
 
-    let viewport = Rectangle::with_size(size);
     let mut overlay = sidebar
         .as_widget_mut()
         .overlay(&mut tree, root, &renderer, &viewport, Vector::ZERO)
@@ -909,6 +932,13 @@ async fn work_sidebar_collapsed_keeps_session_list_and_one_new_task() {
     let menu = overlay.as_overlay_mut();
     let menu_node = menu.layout(&renderer, size);
     let menu_layout = Layout::new(&menu_node);
+    let mut panel = menu_layout;
+    // The row, rail, and trigger wrap the menu in viewport-sized overlay groups.
+    while panel.bounds().width == size.width {
+        panel = panel.child(0);
+    }
+    let bounds = panel.bounds();
+    assert_eq!(bounds.width, 336.0);
     for theme in [Theme::Light, Theme::Dark] {
         menu.draw(
             &mut renderer,
@@ -918,6 +948,25 @@ async fn work_sidebar_collapsed_keeps_session_list_and_one_new_task() {
             mouse::Cursor::Unavailable,
         );
     }
+    let gap = Point::new((trigger.x + trigger.width + bounds.x) / 2.0, trigger.center().y);
+    let mut move_over_menu = |position| {
+        let mut messages = Vec::new();
+        menu.update(
+            &Event::Mouse(mouse::Event::CursorMoved { position }),
+            menu_layout,
+            mouse::Cursor::Available(position),
+            &renderer,
+            &mut clipboard,
+            &mut Shell::new(&mut messages),
+        );
+        messages
+    };
+    assert!(move_over_menu(gap).is_empty());
+    assert!(move_over_menu(bounds.center()).is_empty());
+    assert!(matches!(
+        move_over_menu(Point::new(0.0, 0.0)).as_slice(),
+        [Message::View(ViewMessage::WorkSidebarMoreClosed)]
+    ));
     drop(overlay);
     assert!(click_at(&mut sidebar, &mut tree, &renderer, root, new_task).is_empty());
 }
@@ -1223,7 +1272,6 @@ fn sidebar_navigation_hover_and_menus_reuse_session_projection() {
         ViewMessage::WorkSidebarProjectNavHovered(false),
         ViewMessage::WorkSidebarFilterToggled,
         ViewMessage::WorkSidebarFilterClosed,
-        ViewMessage::WorkSidebarMoreToggled,
         ViewMessage::WorkSidebarMoreOpened,
         ViewMessage::WorkSidebarMoreClosed,
     ] {

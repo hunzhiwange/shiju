@@ -452,3 +452,49 @@ async fn acp_full_access_claude_desktop_restores_default_instead_of_accept_edits
     })
     .await;
 }
+
+#[tokio::test]
+async fn acp_full_access_claude_desktop_unverified_mode_fails_closed() {
+    let agent = TestAgent::default();
+    with_fixture(agent.clone(), async |fixture| {
+        prepare_claude(fixture);
+        fixture.client.desktop_workspace = Some(PathBuf::from("/tmp/vw-acp-session-control"));
+        fixture.client.permission_mode = PermissionMode::ApproveReads;
+        let conn = &fixture.runtime.as_ref().unwrap().conn;
+        for mode in [Some("default"), Some("plan"), Some("auto"), Some("unknown"), None] {
+            {
+                let mut state = fixture.client.actor_state.lock();
+                state.claude_runtime_verified = false;
+                state.pending_controls.clear();
+                state.session_capabilities.as_mut().unwrap().config_options = mode.map(options);
+            }
+            let result = fixture.client.sync_claude_access(conn, "session").await;
+            let restricted = matches!(mode, Some("default" | "plan"));
+            assert_eq!(result.is_ok(), restricted, "mode {mode:?}");
+            assert_eq!(
+                fixture.client.ensure_session_controls_ready("session").is_ok(),
+                restricted,
+            );
+        }
+        assert!(agent.calls().is_empty());
+    })
+    .await;
+}
+
+#[tokio::test]
+async fn acp_full_access_claude_desktop_unknown_mode_cannot_be_set_or_restored() {
+    let agent = TestAgent::default();
+    with_fixture(agent.clone(), async |fixture| {
+        prepare_claude(fixture);
+        fixture.client.desktop_workspace = Some(PathBuf::from("/tmp/vw-acp-session-control"));
+        fixture.client.permission_mode = PermissionMode::ApproveReads;
+        let conn = &fixture.runtime.as_ref().unwrap().conn;
+        assert_eq!(fixture.client.restored_permission_value("mode", "auto"), "default");
+        assert_eq!(fixture.client.restored_permission_value("mode", "plan"), "plan");
+        assert!(
+            fixture.client.confirmed_config_control(conn, "session", "mode", "auto").await.is_err()
+        );
+        assert!(agent.calls().is_empty());
+    })
+    .await;
+}

@@ -7,6 +7,10 @@ pub(crate) const RESTRICTED_MODE: &str = "default";
 // This SDK mode includes filesystem shell commands and may skip canUseTool.
 pub(crate) const ACCEPT_EDITS_MODE: &str = "acceptEdits";
 
+pub(crate) fn desktop_restricted_mode(value: &str) -> bool {
+    matches!(value, RESTRICTED_MODE | "plan")
+}
+
 pub(crate) fn current_mode(options: Option<&[SessionConfigOption]>) -> Option<&str> {
     options?.iter().find_map(|option| match &option.kind {
         SessionConfigKind::Select(select) if option.id.0.as_ref() == "mode" => {
@@ -83,3 +87,7 @@ pub(crate) fn verified_entry(command: &str, args: &[String]) -> bool {
         std::fs::read(sdk.join(name)).is_ok_and(|bytes| hex::encode(Sha256::digest(bytes)) == *hash)
     })
 }
+
+#[cfg(all(test, target_os = "macos", target_arch = "aarch64"))]
+#[path = "claude_fallback_acceptance.rs"]
+mod fallback_acceptance;

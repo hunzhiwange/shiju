@@ -26,7 +26,8 @@ impl AcpClient {
             "codex" if value == codex::FULL_MODE => codex::RESTRICTED_MODE,
             "claude"
                 if value == claude::FULL_MODE
-                    || (self.desktop_workspace.is_some() && value == claude::ACCEPT_EDITS_MODE) =>
+                    || (self.desktop_workspace.is_some()
+                        && !claude::desktop_restricted_mode(value)) =>
             {
                 claude::RESTRICTED_MODE
             }

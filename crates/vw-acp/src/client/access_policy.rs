@@ -168,10 +168,10 @@ impl AcpClient {
             }
         }
         if self.agent_name == "claude" {
+            use crate::access_policy::claude::{FULL_MODE, desktop_restricted_mode};
             self.actor_state.lock().claude_confirmed_session = None;
-            if (mode_id == crate::access_policy::claude::FULL_MODE
-                || (self.desktop_workspace.is_some()
-                    && mode_id == crate::access_policy::claude::ACCEPT_EDITS_MODE))
+            if (mode_id == FULL_MODE
+                || (self.desktop_workspace.is_some() && !desktop_restricted_mode(mode_id)))
                 && !(self.full_access && self.permission_mode == PermissionMode::ApproveAll)
             {
                 return Err(AcpError::Prompt(
@@ -325,33 +325,36 @@ impl AcpClient {
         session_id: &str,
     ) -> Result<(), AcpError> {
         use crate::access_policy::claude::{
-            ACCEPT_EDITS_MODE, FULL_MODE, RESTRICTED_MODE, advertises_mode,
-        };
-        let elevated_mode = |mode: &str| {
-            mode == FULL_MODE || (self.desktop_workspace.is_some() && mode == ACCEPT_EDITS_MODE)
+            ACCEPT_EDITS_MODE, FULL_MODE, RESTRICTED_MODE, advertises_mode, current_mode,
+            desktop_restricted_mode,
         };
         let capabilities = {
             let mut state = self.actor_state.lock();
             if !state.claude_runtime_verified {
-                let elevated = state.session_capabilities.as_ref().is_some_and(|info| {
-                    info.session_id == session_id
-                        && (crate::access_policy::claude::current_mode(
-                            info.config_options.as_deref(),
-                        )
-                        .is_some_and(elevated_mode)
-                            || info.modes.as_ref().is_some_and(|modes| {
-                                elevated_mode(modes.current_mode_id.0.as_ref())
-                            }))
-                });
+                let info = state
+                    .session_capabilities
+                    .as_ref()
+                    .filter(|info| info.session_id == session_id);
+                let config = current_mode(info.and_then(|info| info.config_options.as_deref()));
+                let legacy = info
+                    .and_then(|info| info.modes.as_ref())
+                    .map(|modes| modes.current_mode_id.0.as_ref());
+                let modes = [config, legacy];
+                let unsafe_mode = if self.desktop_workspace.is_some() {
+                    (config.is_none() && legacy.is_none())
+                        || modes.into_iter().flatten().any(|mode| !desktop_restricted_mode(mode))
+                } else {
+                    modes.into_iter().flatten().any(|mode| mode == FULL_MODE)
+                };
                 if self.agent_name == "claude"
-                    && elevated
+                    && unsafe_mode
                     && !(self.full_access && self.permission_mode == PermissionMode::ApproveAll)
                 {
                     state.claude_confirmed_session = None;
                     state
                         .pending_controls
                         .insert((session_id.into(), "mode".into()), RESTRICTED_MODE.into());
-                    return Err(AcpError::Prompt("Cannot revoke native auto-approval from an unverified Claude runtime; use a reviewed runtime before prompting".into()));
+                    return Err(AcpError::Prompt("Cannot confirm restricted permissions for an unverified Claude runtime; use a reviewed runtime before prompting".into()));
                 }
                 return Ok(());
             }

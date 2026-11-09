@@ -32,7 +32,10 @@ mod stream;
 mod tests;
 
 #[cfg(not(target_arch = "wasm32"))]
-pub use client::GatewayChatWebSocket;
+pub use client::{
+    AppsUsageCredentialRefs, AppsUsageDisplay, AppsUsageReadError, AppsUsageSettings,
+    AppsUsageSigningCredentialRefs, AppsUsageTemplate, GatewayChatWebSocket,
+};
 /// 保留每步原始 LLM 载荷的会话 UI 批量加载结果。
 pub use client::SessionUiLoadResult;
 #[cfg(not(target_arch = "wasm32"))]

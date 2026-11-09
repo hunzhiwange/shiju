@@ -780,3 +780,19 @@ macOS 网关在配置了 `SHIJU_AGENT_APPS_ACCESS_FILE` 时运行刷新循环。
 | 相邻回归 | 1 | `cargo test -p vw-agent usage_usage_ -- --nocapture` | 退出 0，有效测试 13 项、0 项失败。测试框架报告 14 项通过，其中 PostgreSQL 用例因未配置连接环境变量提前返回。 |
 
 测试使用真实 Router、隔离 SQLite、QuickJS 和本机 HTTP，核对请求方法、路径、请求头和结果脱敏，覆盖凭据引用校验、跨资源拒绝、在途撤权和正式快照隔离。真实上游账号待 macOS 实机验收。macOS 调试链接提示 `__eh_frame` 大小，行为测试正常执行。限定任务差异检查退出 0，槽位锁已释放，缓存保留。
+
+## 任务 47 提供查询读取 SDK
+
+`GatewayClient::apps_usage_snapshot`、`apps_usage_templates` 和 `apps_usage_settings` 分别调用固定的快照、模板和设置 GET 路由。三者共用 `UsageSnapshotQuery` 和端点租户上下文，并在独立请求头携带应用主体令牌。快照可选查询种类，模板和设置读取须留空。SDK 保留未展开的模板源码、脱敏凭据引用和无设置时的 `null`。错误区分无效请求头、传输失败、响应解码失败和 HTTP 失败。HTTP 失败保留状态及可解码的 `AuthError`，其余错误响应体丢弃。设置和模板采用 SDK 读取 DTO，模板标识保持为网关提供的字符串。 [上游订阅查询包装](../../../../crates/vw-agent-apps/upstream/src/lib/api/subscription.ts#L8-L48) · [上游已保存模板选择](../../../../crates/vw-agent-apps/upstream/src/components/UsageScriptModal.tsx#L493-L533) · [SDK](../../../../crates/vw-gateway-client/src/client/apps_usage_read_api.rs)
+
+本机 HTTP 夹具核对实际 GET 路径、租户与鉴权头、作用域编码和空请求体，覆盖账号及查询种类的可选性、空设置、结构化 400/403、非 JSON 的 401、响应解码失败和无效令牌。真实上游账号留待 macOS 实机验收。 [独立行为测试](../../../../crates/vw-gateway-client/src/client/apps_usage_read_api_tests.rs)
+
+验证环境为 macOS 27.0（26A428）、arm64，`vw-gateway-client` 0.6.0。各阶段动态领取槽位 1，`CARGO_TARGET_DIR=/Users/xiangmin/worker/code/shiju/target/rust-slot-1`，`CARGO_BUILD_BUILD_DIR` 与其一致。阶段结束后锁已释放，缓存保留。
+
+| 阶段 | 确切命令 | 结果 |
+| --- | --- | --- |
+| 实现前 | `cargo test -p vw-gateway-client usage_usage_read_api_ -- --nocapture` | 退出 101，执行 0 项。两个预先注册的用例因缺少 SDK 类型和方法报 E0432、E0599。 |
+| 格式化 | `cargo fmt --all` | 退出 0。在隔离源码副本运行，仅同步本任务新增文件。 |
+| 实现后 | `cargo test -p vw-gateway-client usage_usage_read_api_ -- --nocapture` | 退出 0，`usage_usage_read_api_returns_expected_result` 和 `usage_usage_read_api_rejects_invalid_input` 均通过。 |
+| 全特性静态检查 | `cargo clippy --all-targets --all-features -- -D warnings` | 退出 0。 |
+| 差异检查 | `git diff --cached --check`（限定任务文件） | 退出 0。 |

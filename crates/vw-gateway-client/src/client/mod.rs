@@ -48,6 +48,15 @@ mod agent_scheduler_api;
 #[cfg(test)]
 #[path = "agent_scheduler_api_tests.rs"]
 mod agent_scheduler_api_tests;
+#[cfg(not(target_arch = "wasm32"))]
+mod apps_usage_read_api;
+#[cfg(not(target_arch = "wasm32"))]
+pub use apps_usage_read_api::{
+    AppsUsageCredentialRefs, AppsUsageDisplay, AppsUsageReadError, AppsUsageSettings,
+    AppsUsageSigningCredentialRefs, AppsUsageTemplate,
+};
+#[cfg(all(test, not(target_arch = "wasm32")))]
+mod apps_usage_read_api_tests;
 mod channel_qr_api;
 #[cfg(test)]
 #[path = "channel_qr_api_tests.rs"]

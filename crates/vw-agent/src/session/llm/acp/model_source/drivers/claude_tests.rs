@@ -217,10 +217,18 @@ fn acp_model_source_claude_chat_reasoning_model_disables_signed_thinking() {
 }
 
 #[test]
-fn acp_model_source_claude_verified_npx_arguments_are_preserved() {
+fn acp_model_source_claude_verified_effort_runtime_is_scoped() {
+    let directory = tempfile::tempdir().unwrap();
+    let entry = directory.path().join("claude-agent-acp");
+    std::fs::write(&entry, b"unreviewed adapter").unwrap();
+    let command = entry.to_str().unwrap();
+    let error = vw_acp::verify_reviewed_agent_executable("claude", command).unwrap_err();
+    assert!(error.contains("installed verified ACP adapter"));
     for package in [
+        "claude-agent-acp@0.31.0",
+        "@agentclientprotocol/claude-agent-acp@0.31.1",
+        "@agentclientprotocol/claude-agent-acp@0.31.0",
         "@agentclientprotocol/claude-agent-acp@^0.26.0",
-        "@agentclientprotocol/claude-agent-acp@0.26.0",
     ] {
         let config = AcpAgentConfig {
             command: "npx".into(),
@@ -228,9 +236,17 @@ fn acp_model_source_claude_verified_npx_arguments_are_preserved() {
             ..Default::default()
         };
         let mut launch = profile(&config);
-        configure(&mut launch, "http://127.0.0.1:12345").unwrap();
-        assert_eq!(launch.config().args, config.args);
+        let error = configure(&mut launch, "http://127.0.0.1:12345").unwrap_err();
+        assert!(error.to_string().contains("verified ACP adapter"));
     }
+    let config = AcpAgentConfig {
+        command: "claude-agent-acp".into(),
+        args: vec!["--dangerously-skip-permissions".into()],
+        ..Default::default()
+    };
+    let mut launch = profile(&config);
+    let error = configure(&mut launch, "http://127.0.0.1:12345").unwrap_err();
+    assert!(error.to_string().contains("verified ACP adapter"));
 }
 
 #[test]

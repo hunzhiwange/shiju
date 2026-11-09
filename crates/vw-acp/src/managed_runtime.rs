@@ -153,6 +153,17 @@ pub fn reviewed_agent_command(agent: &str) -> Result<Option<(String, Vec<String>
 
 /// Validate explicit overrides too; a familiar executable name is never proof of a patch.
 pub fn verify_reviewed_agent_executable(agent: &str, command: &str) -> Result<(), String> {
+    if agent == "claude" {
+        let command = command.trim();
+        return if Path::new(command).is_absolute()
+            && (crate::access_policy::claude::verified_entry(command, &[])
+                || crate::access_policy::claude::verified_effort_entry(command))
+        {
+            Ok(())
+        } else {
+            Err("Claude managed launch requires an installed verified ACP adapter".into())
+        };
+    }
     let Some(contract) = contract(agent) else { return Ok(()) };
     let executable = Path::new(command)
         .canonicalize()

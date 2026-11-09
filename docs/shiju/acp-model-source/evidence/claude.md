@@ -70,3 +70,38 @@ python3 scripts/verify_acp_model_source.py --agent claude --mode session-model -
 可审查的脱敏原始报告：[Messages session-model](claude/session-model.json)、[原生 cli-local](claude/cli-local.json)、[Chat session-model](claude/chat-upstream.json)。报告仅包含版本、闭合诊断类别、请求路由/模型/认证布尔值/工具计数/生命周期，不包含令牌、挑战值、原始请求或供应商日志。
 
 最终状态：本机 Darwin-arm64 通过；Windows 的私有目录 ACL 未验收，保持显式拒绝；Linux 仅有 Unix 代码路径，不宣称真实 CLI 通过。建议任务 33 按既定范围集成能力发布并统一回归，其它驱动不由本任务开启。
+
+## 动态 effort 运行时（Darwin arm64）
+
+- 已固定 `@agentclientprotocol/claude-agent-acp@0.31.0`（提交 `84e05eecc51f354a35205f7b3f9ab6caf0699927`）、`@anthropic-ai/claude-agent-sdk@0.2.119` 和 Claude Code `2.1.119`。引擎由 SDK 的 `@anthropic-ai/claude-agent-sdk-darwin-arm64@0.2.119` 提供。三包 npm 完整性摘要见清单的 `claude.effort_runtime`。实际引擎 SHA-256 为 `31db3444309d5d0f8b85e8782e2dcd86f31f7e48c1a1e83d69b09268c7b4f9a2`，执行 `claude --version` 确认 `2.1.119`。官方变更记录 [v0.31.0](https://github.com/agentclientprotocol/claude-agent-acp/releases/tag/v0.31.0)。
+- 相同隔离探针中，0.26.0 对 `claude-opus-4-6` 和 `acp-fixture-primary` 均只公布 `mode`、`model`。0.31.0 公布的选项 ID 和 category 均为 `effort`。前者公布 `low`、`medium`、`high`、`max`，后者另有 `xhigh`，两次均确认动态切到 `low`。任务 4 应读取实际模型公布的档位，并在同一会话对照两次出站 `output_config.effort`。
+- 使用项目外的临时 npm 前缀安装固定版，向网关提供该前缀中 `node_modules/.bin/claude-agent-acp` 的绝对路径，参数为空。托管模型启动校验实际适配器、Node 解析到的 SDK 和原生引擎。0.31.0 只用于原生 Messages。该版本即使禁用 thinking 仍发送原生 `output_config`，所以 Messages→Chat 继续使用已审查的 0.26.0。权限绕过的身份门槛仍使用原有 0.26.0 证明。托管会话跳过 ACP 原生认证协商，新增的 `auto` 权限模式要求当前全权授权。
+- 红灯验证中，原清单以 `version-mismatch` 拒绝候选版（退出 1，有效 Rust 用例 0）。新增身份用例在旧入口实际失败（槽位 2，退出 101，12 通过、1 失败）。首次生产 Messages 获得 5 次认证请求和辅助调用，随后暴露验收断言仍读取旧的裸模型 ID。已对齐公开的 `provider/model`，并独立断言持久化锚点仍保存裸模型 ID。
+- 旧验收还尝试在已开始的会话内切换客户端模型，候选版和 0.26.0 均在触达上游前被现有会话锁定规则拒绝。更新后的验收先确认拒绝期间上游观测完全相同，再确认新会话实际使用新模型。现有生产锁定规则保持原样。
+
+| 验收 | 退出码 | 有效用例 | 脱敏观测 |
+| --- | ---: | ---: | --- |
+| 0.31.0 托管模型 | 0 | 1 | 11 次认证 `/v1/messages`，3 次辅助模型请求，错误 0。新建、续聊、取消、重启、隔离、握手及新会话切模全部通过，公布 `effort` 五档。 |
+| 0.31.0 原生模型 | 0 | 1 | 9 次认证 `/v1/messages`，3 次辅助模型请求，错误 0。仅使用原生配置中的模型，未注入托管 SDK settings。 |
+| 0.26.0 托管 Chat 转换 | 0 | 1 | 11 次认证 `/v1/chat/completions`，3 次辅助模型请求，错误 0。生命周期全部通过。 |
+| vw-agent Claude 回归 | 0 | 12 | 包括工作区既有 DeepSeek 用例。该用例及其实现未纳入本任务提交。 |
+| vw-acp 模型来源 / 权限 | 0 | 5 / 17 | 验证新建、恢复元数据和托管 `auto` 授权门槛。 |
+| Python 夹具回归 | 0 | 28 | 夹具与验收脚本回归。 |
+
+确切命令如下。候选版的两次验收通过 PATH 选择临时安装目录，Chat 基线使用已安装的 0.26.0，临时清单仅切换夹具协议。三次运行均通过 `sandbox-exec` 限制出站网络至回环。
+
+```sh
+cargo fmt --all
+cargo test -p vw-agent --lib --all-features acp_model_source_claude -- --nocapture
+cargo test -p vw-acp --lib acp_model_source_claude -- --nocapture
+cargo test -p vw-acp --lib acp_full_access_claude -- --nocapture
+python3 scripts/acp_model_source_fixture_tests.py
+python3 scripts/verify_acp_model_source.py --agent claude --mode session-model --manifest docs/shiju/acp-model-source/cli-versions.json --output target/acp-effort-evidence/claude-runtime.json --offline-fixture
+python3 scripts/verify_acp_model_source.py --agent claude --mode cli-local --manifest docs/shiju/acp-model-source/cli-versions.json --output target/acp-effort-evidence/claude-cli-local.json --offline-fixture
+python3 scripts/verify_acp_model_source.py --agent claude --mode session-model --manifest target/acp-effort-evidence/claude-baseline-chat-manifest.json --output target/acp-effort-evidence/claude-baseline-chat.json --offline-fixture
+cargo clippy --all-targets --all-features -- -D warnings
+```
+
+最终真实验收和 vw-agent 回归使用动态槽位 1，`CARGO_TARGET_DIR=/Users/xiangmin/worker/code/shiju/target/rust-slot-1`。vw-acp 补充回归使用槽位 3，`CARGO_TARGET_DIR=/Users/xiangmin/worker/code/shiju/target/rust-slot-3`。红灯 Rust 回归使用槽位 2，`CARGO_TARGET_DIR=/Users/xiangmin/worker/code/shiju/target/rust-slot-2`。格式化在隔离源码快照执行，只带回本任务文件的差异。完整脱敏投影位于 `target/acp-effort-evidence/` 下的 `claude-runtime.json`、`claude-cli-local.json`、`claude-baseline-chat.json` 与 `claude-options.json`。macOS 测试链接报告既有的大型 `__eh_frame` 警告，聚焦测试正常执行。
+
+最终 Clippy 退出 0，使用同一槽位 1，计为静态检查。

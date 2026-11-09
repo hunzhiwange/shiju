@@ -40,8 +40,12 @@ pub(super) async fn prepare(
         resolved.status == "active" && !super::super::prompt::is_acp_model(&resolved),
         "ACP launch requires an active non-ACP model"
     );
-    // Catalog rejection must remain authoritative even when the runtime is absent.
-    vw_acp::verify_reviewed_agent_executable(agent, &config.command).map_err(anyhow::Error::msg)?;
+    // Claude verifies its native engine when spawning, so reused sessions do
+    // not hash the same running executable on every turn.
+    if agent != "claude" {
+        vw_acp::verify_reviewed_agent_executable(agent, &config.command)
+            .map_err(anyhow::Error::msg)?;
+    }
     let identity = launch_identity(context.project.id.clone(), agent, model, session);
     let mut profile = AcpLaunchProfile::new(config, identity)?;
     profile.state_root = Some(

@@ -73,6 +73,25 @@ impl AcpClient {
             );
         }
         let managed_claude = managed_claude_settings(&self.config).is_some();
+        if managed_claude && self.agent_name == "claude" {
+            if !args.is_empty() {
+                return Err(AcpError::Initialize(
+                    "Claude managed launch requires verified ACP adapter arguments".into(),
+                ));
+            }
+            let command = self.config.command.trim();
+            if env.get("VW_ACP_CLAUDE_NATIVE_MESSAGES").is_some_and(|value| value == "1") {
+                crate::verify_reviewed_agent_executable("claude", command)
+                    .map_err(AcpError::Initialize)?;
+            } else if !Path::new(command).is_absolute()
+                || !crate::access_policy::claude::verified_entry(command, &args)
+            {
+                // The effort runtime sends native output_config even with thinking disabled.
+                return Err(AcpError::Initialize(
+                    "Claude Chat conversion requires the reviewed 0.26.0 adapter".into(),
+                ));
+            }
+        }
         if !managed_claude {
             for (key, value) in build_agent_environment(&self.auth_credentials) {
                 insert_auth_env_if_missing(&mut env, key, value);

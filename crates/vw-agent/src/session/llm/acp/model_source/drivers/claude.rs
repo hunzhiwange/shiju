@@ -18,17 +18,8 @@ pub(super) fn configure(profile: &mut AcpLaunchProfile, endpoint: &str) -> anyho
     let config = profile.config();
     let program =
         std::path::Path::new(config.command.trim()).file_name().and_then(|name| name.to_str());
-    let valid_arguments = match program {
-        Some("claude-agent-acp" | "claude-agent-acp.cmd" | "claude-agent-acp.exe") => {
-            config.args.is_empty()
-        }
-        Some("npx" | "npx.cmd" | "npx.exe") => matches!(config.args.as_slice(), [flag, package]
-            if matches!(flag.as_str(), "-y" | "--yes") && matches!(package.as_str(),
-                "@agentclientprotocol/claude-agent-acp@^0.26.0" | "@agentclientprotocol/claude-agent-acp@0.26.0")),
-        _ => false,
-    };
     anyhow::ensure!(
-        valid_arguments,
+        program == Some("claude-agent-acp") && config.args.is_empty(),
         "Claude managed launch requires verified ACP adapter arguments"
     );
     let api = profile
@@ -55,7 +46,7 @@ pub(super) fn configure(profile: &mut AcpLaunchProfile, endpoint: &str) -> anyho
     );
     let model = profile.model_alias.clone();
     let mut env = HashMap::from([
-        // SDK 0.2.96 filters provider/model settings overrides while preserving
+        // The reviewed SDKs filter provider/model settings overrides while preserving
         // project permissions and instructions when the host owns the provider.
         ("CLAUDE_CODE_PROVIDER_MANAGED_BY_HOST".into(), "1".into()),
         ("ANTHROPIC_BASE_URL".into(), endpoint.trim_end_matches('/').into()),
@@ -118,6 +109,8 @@ pub(super) fn configure(profile: &mut AcpLaunchProfile, endpoint: &str) -> anyho
                 "GOOGLE_",
                 "AZURE_",
                 "NODE_",
+                "DYLD_",
+                "LD_",
                 "HTTP_PROXY",
                 "HTTPS_PROXY",
                 "ALL_PROXY",
@@ -125,6 +118,7 @@ pub(super) fn configure(profile: &mut AcpLaunchProfile, endpoint: &str) -> anyho
             ]
             .into_iter()
             .any(|prefix| key.starts_with(prefix))
+                || key == "PATH"
         }),
         "conflicting Claude model or authentication environment"
     );
@@ -137,6 +131,10 @@ pub(super) fn configure(profile: &mut AcpLaunchProfile, endpoint: &str) -> anyho
     env.insert(
         "VW_ACP_CLAUDE_SETTINGS".into(),
         profile.directory().join("settings.json").to_string_lossy().into_owned(),
+    );
+    env.insert(
+        "VW_ACP_CLAUDE_NATIVE_MESSAGES".into(),
+        if native_messages { "1" } else { "0" }.into(),
     );
     // Validate all explicit overrides before publishing private launch material.
     profile.overlay_environment(env)?;

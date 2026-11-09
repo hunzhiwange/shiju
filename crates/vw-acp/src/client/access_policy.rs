@@ -168,9 +168,10 @@ impl AcpClient {
             }
         }
         if self.agent_name == "claude" {
-            use crate::access_policy::claude::{FULL_MODE, desktop_restricted_mode};
+            use crate::access_policy::claude::{AUTO_MODE, FULL_MODE, desktop_restricted_mode};
             self.actor_state.lock().claude_confirmed_session = None;
             if (mode_id == FULL_MODE
+                || (mode_id == AUTO_MODE && managed_claude_settings(&self.config).is_some())
                 || (self.desktop_workspace.is_some() && !desktop_restricted_mode(mode_id)))
                 && !(self.full_access && self.permission_mode == PermissionMode::ApproveAll)
             {
@@ -331,8 +332,8 @@ impl AcpClient {
         session_id: &str,
     ) -> Result<(), AcpError> {
         use crate::access_policy::claude::{
-            ACCEPT_EDITS_MODE, FULL_MODE, RESTRICTED_MODE, advertises_mode, current_mode,
-            desktop_restricted_mode,
+            ACCEPT_EDITS_MODE, AUTO_MODE, FULL_MODE, RESTRICTED_MODE, advertises_mode,
+            current_mode, desktop_restricted_mode,
         };
         let capabilities = {
             let mut state = self.actor_state.lock();
@@ -350,7 +351,11 @@ impl AcpClient {
                     (config.is_none() && legacy.is_none())
                         || modes.into_iter().flatten().any(|mode| !desktop_restricted_mode(mode))
                 } else {
-                    modes.into_iter().flatten().any(|mode| mode == FULL_MODE)
+                    modes.into_iter().flatten().any(|mode| {
+                        mode == FULL_MODE
+                            || (mode == AUTO_MODE
+                                && managed_claude_settings(&self.config).is_some())
+                    })
                 };
                 if self.agent_name == "claude"
                     && unsafe_mode

@@ -377,6 +377,32 @@ async fn acp_full_access_claude_unverified_elevated_restore_refuses_to_continue(
 }
 
 #[tokio::test]
+async fn acp_model_source_claude_managed_auto_requires_current_host_grant() {
+    let agent = TestAgent::default();
+    with_fixture(agent.clone(), async |fixture| {
+        prepare_claude(fixture);
+        fixture.client.permission_mode = PermissionMode::ApproveReads;
+        fixture.client.config.env.extend([
+            ("VW_ACP_LAUNCH_REFERENCE".into(), "vw-session-model:opaque".into()),
+            ("VW_ACP_CLAUDE_SETTINGS".into(), "/private/settings.json".into()),
+        ]);
+        let conn = &fixture.runtime.as_ref().unwrap().conn;
+        assert!(
+            fixture.client.confirmed_config_control(conn, "session", "mode", "auto").await.is_err()
+        );
+        {
+            let mut state = fixture.client.actor_state.lock();
+            state.claude_runtime_verified = false;
+            state.session_capabilities.as_mut().unwrap().config_options = Some(options("auto"));
+        }
+        assert!(fixture.client.sync_claude_access(conn, "session").await.is_err());
+        assert!(fixture.client.ensure_session_controls_ready("session").is_err());
+        assert!(agent.calls().is_empty());
+    })
+    .await;
+}
+
+#[tokio::test]
 async fn acp_full_access_claude_plan_is_not_replaced_by_permission_sync() {
     let agent = TestAgent::default();
     agent.state.lock().claude_controls = true;

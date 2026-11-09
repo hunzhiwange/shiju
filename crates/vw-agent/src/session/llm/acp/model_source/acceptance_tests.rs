@@ -93,6 +93,18 @@ async fn request(
     prompt: &str,
     cancel: bool,
 ) -> bool {
+    let session = format!("real-cli-offline-{}", input["challenge"].as_str().unwrap());
+    request_in_session(input, model, info, &session, prompt, cancel).await
+}
+
+async fn request_in_session(
+    input: &Value,
+    model: &provider::Model,
+    info: &provider::Info,
+    session: &str,
+    prompt: &str,
+    cancel: bool,
+) -> bool {
     let (tx, rx) = tokio::sync::watch::channel(false);
     if cancel && (input["agent"] == "openclaw" || input["agent"] == "pi") {
         // Native completion events may follow the user's prompt in model input.
@@ -116,10 +128,8 @@ async fn request(
             for _ in 0..1800 {
                 let count = evidence(&fixture).await["requests"].as_array().unwrap().len();
                 if count > before {
-                    let session =
-                        format!("real-cli-offline-{}", fixture["challenge"].as_str().unwrap());
                     let busy = super::super::controls::select(
-                        &session,
+                        session,
                         fixture["root"].as_str().unwrap(),
                         vw_api_types::acp_session::AcpSessionSelection {
                             kind: vw_api_types::acp_session::AcpOptionKind::Model,
@@ -151,14 +161,13 @@ async fn request(
         StreamEvent::Done { .. } => done = true,
         _ => {}
     };
-    let session = format!("real-cli-offline-{}", input["challenge"].as_str().unwrap());
     let production = super::super::do_stream_request_acp(
         model,
         info,
         None,
         &options,
         &messages,
-        &session,
+        session,
         Some(&rx),
         &mut on_event,
     );
@@ -303,12 +312,14 @@ async fn run(mode: &str) {
         assert_eq!(selected.source, if mode == "session-model" { vw_api_types::acp_model_source::AcpModelSource::SessionModel } else { vw_api_types::acp_model_source::AcpModelSource::CliLocal });
         if mode == "session-model" {
             assert_eq!(selected.provider_id.as_deref(), Some("acp-offline-acceptance"));
-            assert_eq!(selected.model.as_deref(), Some("acp-fixture-primary"));
+            assert_eq!(selected.model.as_deref(), Some("acp-offline-acceptance/acp-fixture-primary"));
             let store = super::super::lifecycle::Store::open(
                 &format!("real-cli-offline-{}", input["challenge"].as_str().unwrap()),
                 &root.to_string_lossy(),
             ).unwrap();
-            let saved = serde_json::to_value(store.read().unwrap().unwrap()).unwrap();
+            let anchor = store.read().unwrap().unwrap();
+            assert_eq!(anchor.model.model.as_deref(), Some("acp-fixture-primary"));
+            let saved = serde_json::to_value(anchor).unwrap();
             let mut invalid = model.clone();
             invalid.status = "disabled".into();
             assert!(!request(&input, &invalid, &info, prompt, false).await,
@@ -337,10 +348,20 @@ async fn run(mode: &str) {
         checkpoint(&flow);
         flow["restart"] = json!(request(&input, &model, &info, prompt, false).await);
         checkpoint(&flow);
-        flow["switch"] = json!(request(&input, &switched, &info, prompt, false).await);
+        let challenge = input["challenge"].as_str().unwrap();
+        let switched_session = if mode == "session-model" {
+            let before = evidence(&input).await;
+            assert!(!request(&input, &switched, &info, prompt, false).await,
+                "a started session must reject replacing its selected model");
+            assert_eq!(evidence(&input).await, before, "rejection must leave the upstream untouched");
+            format!("real-cli-offline-{challenge}-switch")
+        } else {
+            format!("real-cli-offline-{challenge}")
+        };
+        flow["switch"] = json!(request_in_session(&input, &switched, &info, &switched_session, prompt, false).await);
         checkpoint(&flow);
         if agent == "pi" {
-            flow["auxiliary_switched"] = json!(request(&input, &switched, &info,
+            flow["auxiliary_switched"] = json!(request_in_session(&input, &switched, &info, &switched_session,
                 "/compact preserve the challenge", false).await);
             checkpoint(&flow);
         }
@@ -523,6 +544,25 @@ pub(in crate::session::llm::acp) fn observe_rpc(
         stats["initialize_returned"] = json!(true);
     }
     if !outbound && value["result"].get("sessionId").is_some() {
+        if stats["new_returned"] != true
+            && let Some(option) = value["result"]["configOptions"].as_array().and_then(|options| {
+                options
+                    .iter()
+                    .find(|option| option["id"] == "effort" && option["category"] == "effort")
+            })
+            && let Some(options) = option["options"].as_array()
+        {
+            let levels = ["low", "medium", "high", "xhigh", "max"];
+            let values: Vec<&str> = options
+                .iter()
+                .filter_map(|option| {
+                    option["value"].as_str().filter(|value| levels.contains(value))
+                })
+                .collect();
+            if values.len() == options.len() {
+                stats["claude_effort"] = json!({"id":"effort","category":"effort","values":values});
+            }
+        }
         stats["new_returned"] = json!(true);
     }
     if value.get("error").is_some_and(|error| !error.is_null()) {

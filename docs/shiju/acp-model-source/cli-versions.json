@@ -155,6 +155,38 @@
         "reason": "Published SDK declares bundled engine 2.1.96; installed ACP engine path and model request remain unverified",
         "identity_evidence": "Official SDK archive package/package.json::claudeCodeVersion"
       },
+      "effort_runtime": {
+        "distribution": {
+          "package": "@agentclientprotocol/claude-agent-acp",
+          "release": "0.31.0",
+          "source_url": "https://registry.npmjs.org/%40agentclientprotocol%2Fclaude-agent-acp/0.31.0",
+          "git_commit": "84e05eecc51f354a35205f7b3f9ab6caf0699927",
+          "integrity": "sha512-AHyMSwBWg5MOmsN3UZSsw2kEG7HEkFMSWtSGgw20UyTFv9nbM14YtR3ABpXLICKzw+SkZbN/Zlz6vBE8Sk8n+w=="
+        },
+        "underlying": {
+          "package": "@anthropic-ai/claude-agent-sdk",
+          "declared_version": "0.2.119",
+          "embedded_cli_release": "2.1.119",
+          "integrity": "sha512-6AvthpsaOTlkn514brSGOcCSLHDXODnU+ExN1O3CJCjxr5RBcmzR057C9EIM0G7IchnXsRfMZgRO1QKsjTXdbA==",
+          "native_engine": {
+            "package": "@anthropic-ai/claude-agent-sdk-darwin-arm64",
+            "release": "0.2.119",
+            "integrity": "sha512-kxnG37SZqUata2Jcp/YQ0n9Y7o/sinE/8LdG4ltM1gePh+z+0Mfa4vBUUTEBMBFth9PTovKoesIuVuyFpvO/Cw==",
+            "sha256": "31db3444309d5d0f8b85e8782e2dcd86f31f7e48c1a1e83d69b09268c7b4f9a2"
+          }
+        },
+        "fixture_effort": {
+          "id": "effort",
+          "category": "effort",
+          "values": [
+            "low",
+            "medium",
+            "high",
+            "xhigh",
+            "max"
+          ]
+        }
+      },
       "license": {
         "declared": "Apache-2.0",
         "source_url": "https://registry.npmjs.org/%40agentclientprotocol%2Fclaude-agent-acp/0.26.0",

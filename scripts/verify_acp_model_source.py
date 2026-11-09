@@ -2,6 +2,7 @@
 """Run a fixed production ACP acceptance entry against an owned loopback fixture."""
 import argparse
 from contextlib import ExitStack, contextmanager
+import hashlib
 import socket
 import time
 import json
@@ -82,8 +83,12 @@ def claude_sdk_identity(executable, entry, env):
     if package is None:
         raise Unavailable("Claude adapter package identity is unavailable")
     metadata = json.loads((package / "package.json").read_text())
+    distribution, underlying = entry["distribution"], entry["underlying"]
+    effort_runtime = entry.get("effort_runtime")
+    if effort_runtime and metadata.get("version") == effort_runtime["distribution"]["release"]:
+        distribution, underlying = effort_runtime["distribution"], effort_runtime["underlying"]
     if (metadata.get("name") != "@agentclientprotocol/claude-agent-acp"
-            or metadata.get("version") != entry["distribution"]["release"]
+            or metadata.get("version") != distribution["release"]
             or path != package / "dist/index.js"):
         raise VersionMismatch("installed Claude adapter identity differs from manifest")
     node = shutil.which("node", path=env.get("PATH"))
@@ -96,17 +101,36 @@ def claude_sdk_identity(executable, entry, env):
         raise Unavailable("Claude adapter SDK resolution failed")
     sdk = Path(result.stdout.decode().strip()).resolve().parent
     metadata = json.loads((sdk / "package.json").read_text())
-    underlying = entry["underlying"]
     if (metadata.get("name") != underlying.get("package")
             or metadata.get("version") != underlying.get("declared_version")
             or metadata.get("claudeCodeVersion") != underlying.get("embedded_cli_release")):
         raise VersionMismatch("installed Claude SDK identity differs from manifest")
-    engine = sdk / "cli.js"
-    result = subprocess.run([node, str(engine), "--version"], env=env, capture_output=True, timeout=20)
+    engine_command = [node, str(sdk / "cli.js")]
+    if "native_engine" in underlying:
+        native = underlying["native_engine"]
+        if (platform.system(), platform.machine()) != ("Darwin", "arm64"):
+            raise Unavailable("Claude native engine identity is unverified on this platform")
+        probe = "const {createRequire}=require('node:module'); console.log(createRequire(process.argv[1]).resolve(process.argv[2]));"
+        result = subprocess.run([node, "-e", probe, str(sdk / "sdk.mjs"), native["package"] + "/claude"],
+                                env=env, capture_output=True, timeout=20)
+        if result.returncode:
+            raise Unavailable("Claude native engine resolution failed")
+        engine = Path(result.stdout.decode().strip()).resolve()
+        metadata_native = json.loads((engine.parent / "package.json").read_text())
+        if (metadata_native.get("name"), metadata_native.get("version")) != (native["package"], native["release"]):
+            raise VersionMismatch("installed Claude native engine package differs from manifest")
+        digest = hashlib.sha256()
+        with engine.open("rb") as stream:
+            for block in iter(lambda: stream.read(1024 * 1024), b""):
+                digest.update(block)
+        if digest.hexdigest() != native["sha256"]:
+            raise VersionMismatch("installed Claude native engine digest differs from manifest")
+        engine_command = [str(engine)]
+    result = subprocess.run([*engine_command, "--version"], env=env, capture_output=True, timeout=20)
     expected = re.escape(underlying["embedded_cli_release"])
     if result.returncode or not re.search(r"(?<![\w.])" + expected + r"(?![\w.])", result.stdout.decode(errors="replace")):
         raise VersionMismatch("installed Claude engine differs from manifest")
-    return {"adapter": entry["distribution"]["release"], "sdk": metadata["version"],
+    return {"adapter": distribution["release"], "sdk": metadata["version"],
             "engine": underlying["embedded_cli_release"]}
 
 
@@ -174,7 +198,6 @@ def locate(entry, env):
     if entry.get("key") == "claude" and entry.get("distribution", {}).get("package") == "@agentclientprotocol/claude-agent-acp":
         if entry.get("acp_launch") != ["claude-agent-acp"]:
             raise Unavailable("Claude manifest must identify the pinned adapter launch")
-        claude_sdk_identity(executable, entry, env)
         return {"command": str(Path(executable).absolute()), "args": [], "env": {}}
     if entry.get("key") == "pi":
         try:
@@ -344,6 +367,7 @@ def run(args):
     try:
         slot = cargo_slot(os.environ)
         effort_check = None
+        expected_claude_effort = None
         if getattr(args, "effort_check", False):
             effort_check = EFFORT_CHECKS.get((args.agent, args.mode))
             if effort_check is None:
@@ -410,6 +434,9 @@ def run(args):
                 os.chmod(project_settings, 0o600)
             if args.agent == "claude":
                 report["identity"] = claude_sdk_identity(config["command"], entry, env)
+                contract = entry.get("effort_runtime")
+                if contract and report["identity"]["adapter"] == contract["distribution"]["release"]:
+                    expected_claude_effort = contract["fixture_effort"]
             if args.agent == "openclaw" and args.mode == "cli-local":
                 owned.enter_context(openclaw_native_gateway(config, env, native))
             config["env"] = native_env if args.mode == "cli-local" else {}
@@ -467,6 +494,8 @@ def run(args):
                            "out_set_model", "out_model_primary", "out_model_switched", "out_model_other"}
                 report["diagnostics"] = {key: value for key, value in diagnostics.items()
                                          if key in allowed and isinstance(value, (bool, int))}
+                if expected_claude_effort and diagnostics.get("claude_effort") == expected_claude_effort:
+                    report["claude_effort"] = expected_claude_effort
             relay_diagnostics = diagnostic_path.with_suffix(".relay.json")
             if relay_diagnostics.exists():
                 observations = json.loads(relay_diagnostics.read_text())
@@ -488,6 +517,8 @@ def run(args):
             flow["mode"] = args.mode
             predicate = effort_check["successful"] if effort_check else successful
             passed = result.returncode == 0 and exactly_one and predicate(evidence, flow)
+            if expected_claude_effort:
+                passed = passed and "claude_effort" in report
             report.update(status="passed" if passed else ("handshake-only" if flow.get("handshake") and not evidence["requests"] else "failed"), passed=passed,
                           cargo_exit_code=result.returncode, effective_tests=1 if re.search(r"running 1 test\b", text) else 0,
                           failure_locations=sorted(set(re.findall(

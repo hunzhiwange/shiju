@@ -107,7 +107,10 @@ impl AcpClient {
             })
             && crate::access_policy::qwen::verified_entry(&self.config.command, &self.config.args);
         self.actor_state.lock().qwen_confirmed_session = None;
-        self.authenticate_if_required(conn, &response.auth_methods).await?;
+        // Managed Claude authenticates exclusively through its request-owned relay.
+        if managed_claude_settings(&self.config).is_none() {
+            self.authenticate_if_required(conn, &response.auth_methods).await?;
+        }
         Ok(())
     }
 

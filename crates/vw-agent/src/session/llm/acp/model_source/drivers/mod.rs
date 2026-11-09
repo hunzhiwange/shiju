@@ -83,7 +83,9 @@ pub(in crate::session::llm::acp) fn capabilities(
 /// These are evidence bounds, never a compatibility claim for a newer release.
 pub(in crate::session::llm::acp) fn verified_release(agent: &str) -> Option<&'static str> {
     Some(match agent {
-        "claude" => "0.26.0 (SDK 0.2.96 / Claude Code 2.1.96)",
+        "claude" => {
+            "0.26.0 (SDK 0.2.96 / Claude Code 2.1.96); 0.31.0 (SDK 0.2.119 / Claude Code 2.1.119)"
+        }
         "codex" => "2.5.0 (Codex 0.165.0)",
         "gemini" => "0.66.0",
         "iflow" => "0.5.19",

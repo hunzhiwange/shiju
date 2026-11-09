@@ -4,7 +4,7 @@ Set VW_WEBVIEW_HELPER to the built helper (or the one inside ShiJu.app).
 Set VW_WEBVIEW_MEDIA_EXPECT to allow, deny, or missing for this run. Respond to
 the native prompts accordingly. In missing mode, disconnect both input devices
 first. Only track kinds/states and DOMException names are sent to the server.
-Linux requires X11 and xdotool for the popup-opening user gesture.
+Linux requires X11 and xdotool to focus the window and click the test buttons.
 """
 
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
@@ -47,8 +47,19 @@ async function testMedia() {
     }
     if (window.opener) window.close();
 }
-testMedia();
+MEDIA_START
 </script>
+"""
+LINUX_MEDIA_START = """
+const start = document.createElement('button');
+start.textContent = 'Start media test';
+start.style.cssText = 'position:fixed;inset:0;width:100%;height:100%';
+start.onclick = () => {
+    start.remove();
+    testMedia();
+};
+document.body.append(start);
+fetch('/media-ready', {method: 'POST'});
 """
 POPUP_PAGE = """
 <button style="position:fixed;inset:0;width:100%;height:100%">Open media popup</button>
@@ -85,12 +96,16 @@ class WebViewMediaTests(unittest.TestCase):
                 pass
 
             def do_GET(self):
+                linux = sys.platform.startswith("linux")
                 popup_start = (
-                    "fetch('/ready', {method: 'POST'});"
-                    if sys.platform.startswith("linux") else "openPopup();"
+                    "fetch('/ready', {method: 'POST'});" if linux else "openPopup();"
                 )
-                pages = {"/media": MEDIA_PAGE,
-                         "/popup": POPUP_PAGE.replace("POPUP_START", popup_start)}
+                pages = {
+                    "/media": MEDIA_PAGE.replace(
+                        "MEDIA_START", LINUX_MEDIA_START if linux else "testMedia();"
+                    ),
+                    "/popup": POPUP_PAGE.replace("POPUP_START", popup_start),
+                }
                 if self.path not in pages:
                     self.send_error(404)
                     return
@@ -152,21 +167,31 @@ class WebViewMediaTests(unittest.TestCase):
         self.assertEqual(path, expected)
         return result
 
-    def open_popup(self):
-        if not sys.platform.startswith("linux"):
-            return
-        self.event("/ready")
+    def open_popup(self, process):
+        if sys.platform.startswith("linux"):
+            self.event("/ready")
+            self.click_page(process, self.title)
+
+    def start_media(self, process, title):
+        if sys.platform.startswith("linux"):
+            self.event("/media-ready")
+            self.click_page(process, title)
+
+    def click_page(self, process, title):
         deadline = time.monotonic() + 8
         while time.monotonic() < deadline:
             search = subprocess.run(
-                ["xdotool", "search", "--onlyvisible", "--name", f"^{self.title}$"],
+                ["xdotool", "search", "--all", "--onlyvisible", "--pid", str(process.pid),
+                 "--name", f"^{title}$"],
                 text=True, capture_output=True, timeout=2,
             )
             if search.returncode == 0:
                 window = search.stdout.splitlines()[-1]
                 subprocess.run(
-                    ["xdotool", "windowraise", window, "mousemove", "--window", window,
-                     "100", "100", "click", "1"], check=True, timeout=5,
+                    ["xdotool", "windowraise", window, "windowfocus", "--sync", window,
+                     "mousemove", "--window", window, "100", "100", "sleep", "0.1",
+                     "click", "1"],
+                    check=True, timeout=5,
                 )
                 return
             time.sleep(0.05)
@@ -193,6 +218,7 @@ class WebViewMediaTests(unittest.TestCase):
 
     def test_main_view(self):
         process = self.launch("/media")
+        self.start_media(process, self.title)
         self.assert_results()
         # Require a clean exit with the final stream still active.
         process.stdin.write("close\n")
@@ -201,7 +227,8 @@ class WebViewMediaTests(unittest.TestCase):
 
     def test_related_popup(self):
         process = self.launch("/popup")
-        self.open_popup()
+        self.open_popup(process)
+        self.start_media(process, "Vibe Window WebView")
         self.assert_results()
         self.event("/popup-closed")
         self.assertIsNone(process.poll())

@@ -463,29 +463,6 @@ pub(crate) fn missing_session_error(
 #[path = "session_tests.rs"]
 mod session_tests;
 
-/// Stop the previous process before opening a replacement. Saved anchors remain recoverable.
-pub(super) async fn stop_record_client(record_id: &str) -> Result<(), Error> {
-    let record = vw_acp::resolve_session_record(record_id).await.map_err(to_api_error)?;
-    let clients: Vec<_> = {
-        let mut cache = ACP_CLIENT_CACHE.lock();
-        let keys: Vec<_> = cache
-            .iter()
-            .filter(|(_, client)| {
-                client.tenant == crate::session::ui_store::current_tenant_scope()
-                    && record.pid.is_some()
-                    && client.client.get_agent_lifecycle_snapshot().pid == record.pid
-                    && client.client.session_capabilities(&record.acp_session_id).is_some()
-            })
-            .map(|(key, _)| key.clone())
-            .collect();
-        keys.into_iter().filter_map(|key| cache.remove(&key)).collect()
-    };
-    for client in clients {
-        client.client.close().await.map_err(to_api_error)?;
-    }
-    Ok(())
-}
-
 /// Cancelling the owning future must also retire a managed process/cache entry.
 pub(super) struct RequestClientCleanup {
     key: String,

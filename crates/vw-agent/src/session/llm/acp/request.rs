@@ -111,16 +111,44 @@ pub(crate) async fn do_stream_request_acp(
     let source_changed = previous_selection
         .as_ref()
         .is_some_and(|old| old.model.source != source || old.agent != acp_agent_name);
-    let generation = previous_selection
+    let selected_generation = previous_selection
         .as_ref()
         .map_or(0, |old| old.generation)
         .checked_add(u64::from(source_changed))
         .ok_or_else(|| to_api_error("ACP source generation exhausted"))?;
-    let scoped_session = format!(
-        "{session_id}:acp-source-{generation}:{}",
-        super::lifecycle::session_identity(session_id, &cwd_text)
-    );
+    let identity = super::lifecycle::session_identity(session_id, &cwd_text);
     let mut normalized_acp_cfg = normalize_acp_agent_config(&acp_agent_name, &acp_cfg);
+    // Older model selection writes could clear the anchor of a running session.
+    let recovered = if previous_selection.is_some() && locked_selection.is_none() {
+        let launch = match source {
+            vw_api_types::acp_model_source::AcpModelSource::CliLocal => {
+                super::recovery::Launch::Local { agent: &acp_agent_name, config: &normalized_acp_cfg }
+            }
+            vw_api_types::acp_model_source::AcpModelSource::SessionModel => {
+                let project = crate::project::instance::project()
+                    .ok_or_else(|| to_api_error("ACP launch requires project context"))?;
+                super::recovery::Launch::Managed(super::model_source::launch_identity(
+                    project.id,
+                    &acp_agent_name,
+                    model,
+                    "",
+                ))
+            }
+        };
+        super::recovery::recover_session(
+            session_id,
+            &identity,
+            &cwd_text,
+            selected_generation,
+            &launch,
+        )
+        .await
+        .map_err(to_api_error)?
+    } else {
+        None
+    };
+    let generation = recovered.as_ref().map_or(selected_generation, |session| session.generation);
+    let scoped_session = format!("{session_id}:acp-source-{generation}:{identity}");
     let mut parsed_options =
         parse_acp_options(merged_options, &acp_agent_name, &normalized_acp_cfg)?;
     let mut cfg = cfg;
@@ -161,13 +189,18 @@ pub(crate) async fn do_stream_request_acp(
     super::skill_mounts::validate(&acp_agent_name, !parsed_options.skill_mounts.is_empty())?;
 
     let previous_native = if source == vw_api_types::acp_model_source::AcpModelSource::CliLocal
-        && let Some(previous) = locked_selection
+        && (recovered.is_some() || locked_selection.is_some())
     {
-        let record =
-            vw_acp::resolve_session_record(&previous.record_id).await.map_err(to_api_error)?;
-        let model = vw_acp::get_desired_model_id(record.vwacp.as_ref());
+        let state = if let Some(recovered) = &recovered {
+            recovered.record.vwacp.clone()
+        } else if let Some(previous) = locked_selection {
+            vw_acp::resolve_session_record(&previous.record_id).await.map_err(to_api_error)?.vwacp
+        } else {
+            None
+        };
+        let model = vw_acp::get_desired_model_id(state.as_ref());
         parsed_options.session_options.get_or_insert_with(Default::default).model = model;
-        record.vwacp
+        state
     } else {
         None
     };
@@ -218,8 +251,9 @@ pub(crate) async fn do_stream_request_acp(
         }));
     }
 
-    let requested_force_new_session =
-        merged_options.get("acp_force_new_session").and_then(Value::as_bool).unwrap_or(false);
+    // A desktop rebuild request must not replace the history we just recovered.
+    let requested_force_new_session = recovered.is_none()
+        && merged_options.get("acp_force_new_session").and_then(Value::as_bool).unwrap_or(false);
     let replay_strategy = parse_replay_strategy(merged_options);
     let replay_recent_count = parse_recent_count(merged_options);
     let initial_prompt_len = build_request_prompt(
@@ -253,11 +287,6 @@ pub(crate) async fn do_stream_request_acp(
         .map(|path| path.to_string_lossy().into_owned())
         .unwrap_or_else(|| cwd_text.clone());
     let session_name = acp_session_name(&scoped_session);
-    if let Some(previous) = previous_selection.as_ref()
-        && (previous.model != selected_model || previous.agent != acp_agent_name)
-    {
-        super::session::stop_record_client(&previous.record_id).await?;
-    }
     // Managed launches must never replay an advertised native model/config over the Provider.
     if source == vw_api_types::acp_model_source::AcpModelSource::SessionModel {
         if let Some(options) = parsed_options.session_options.as_mut() {
@@ -303,18 +332,22 @@ pub(crate) async fn do_stream_request_acp(
         // 同一个 ACP 客户端可能被多个本地请求复用；串行化 prompt 可以避免代理端
         // 把并发输入混到同一会话流里。
         let prompt_guard = cached_client.prompt_lock.lock().await;
-        let mut record = match find_or_create_cached_session_record(
-            cached_client.as_ref(),
-            &acp_agent_name,
-            &normalized_acp_cfg,
-            &cwd,
-            &walk_boundary,
-            session_name.clone(),
-            &parsed_options,
-            force_new_session,
-        )
-        .await
-        {
+        let record = if let Some(recovered) = &recovered {
+            Ok(recovered.record.clone())
+        } else {
+            find_or_create_cached_session_record(
+                cached_client.as_ref(),
+                &acp_agent_name,
+                &normalized_acp_cfg,
+                &cwd,
+                &walk_boundary,
+                session_name.clone(),
+                &parsed_options,
+                force_new_session,
+            )
+            .await
+        };
+        let mut record = match record {
             Ok(record) => record,
             Err(err) => {
                 close_client_after_request_if_needed(
@@ -423,7 +456,7 @@ pub(crate) async fn do_stream_request_acp(
                 })
             })
         };
-        if locked_selection.is_some() {
+        if locked_selection.is_some() || recovered.is_some() {
             config_options.retain(|id, _| id != "model" && native_config(id).is_none());
         }
         config_options.extend(vw_acp::get_desired_config_options(record.vwacp.as_ref()));
@@ -511,12 +544,15 @@ pub(crate) async fn do_stream_request_acp(
             return Err(err);
         }
 
-        if let Err(error) = selection_store.commit(&super::lifecycle::Selection {
+        let selection = super::lifecycle::Selection {
             agent: acp_agent_name.clone(),
             model: selected_model.clone(),
             generation,
             record_id: record.vwacp_record_id.clone(),
-        }) {
+        };
+        if recovered.is_none()
+            && let Err(error) = selection_store.commit(&selection)
+        {
             close_client_after_request_if_needed(true, &cached_client_entry).await;
             return Err(to_api_error(error));
         }
@@ -707,6 +743,15 @@ pub(crate) async fn do_stream_request_acp(
                 .await;
             drop(prompt_guard);
             return Err(err);
+        }
+
+        // Keep the original recovery path available if the CLI refuses to load
+        // the saved session or the user cancels the first recovery attempt.
+        if recovered.is_some()
+            && let Err(error) = selection_store.commit(&selection)
+        {
+            close_client_after_request_if_needed(true, &cached_client_entry).await;
+            return Err(to_api_error(error));
         }
 
         on_event(StreamEvent::Done { finish_reason, usage: latest_usage });

@@ -51,7 +51,7 @@ pub(super) struct Selection {
 
 impl Selection {
     pub fn has_started(&self) -> bool {
-        !self.record_id.is_empty()
+        !self.record_id.trim().is_empty()
     }
 }
 

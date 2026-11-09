@@ -78,6 +78,130 @@ fn test_provider(key: Option<&str>) -> provider::Info {
     }
 }
 
+#[cfg(unix)]
+#[tokio::test]
+async fn acp_local_blank_anchor_resumes_existing_session() {
+    use vw_api_types::acp_model_source::AcpModelSource;
+
+    let Some(root) = std::env::var_os("SHIJU_ACP_LOCAL_RECOVERY_FIXTURE") else {
+        let root = tempfile::tempdir().unwrap();
+        let name = format!(
+            "{}::acp_local_blank_anchor_resumes_existing_session",
+            module_path!().split_once("::").unwrap().1
+        );
+        let status = std::process::Command::new(std::env::current_exe().unwrap())
+            .args(["--exact", &name, "--nocapture"])
+            .env("SHIJU_ACP_LOCAL_RECOVERY_FIXTURE", root.path())
+            .env("VW_MODEL_RECOVERY_TEST_ROOT", root.path())
+            .env("VIBEWINDOW_CONFIG_DIR", root.path())
+            .env("HOME", root.path())
+            .status()
+            .unwrap();
+        assert!(status.success());
+        assert!(root.path().join("calls").is_file(), "the isolated ACP fixture did not run");
+        return;
+    };
+    let root = std::path::PathBuf::from(root);
+    let workspace = root.join("workspace");
+    std::fs::create_dir(&workspace).unwrap();
+    let script = root.join("peer.py");
+    let calls = root.join("calls");
+    let reject = root.join("reject-resume");
+    std::fs::write(
+        &script,
+        r#"
+import json, pathlib, sys
+for line in sys.stdin:
+    request = json.loads(line)
+    if 'id' not in request or 'method' not in request:
+        continue
+    method = request['method']
+    session = request.get('params', {}).get('sessionId', '')
+    with open(sys.argv[1], 'a') as calls:
+        calls.write(method + ' ' + session + '\n')
+    response = {'jsonrpc': '2.0', 'id': request['id']}
+    if method == 'initialize':
+        response['result'] = {'protocolVersion': 1, 'agentCapabilities': {'loadSession': True, 'sessionCapabilities': {'resume': {}}}, 'authMethods': []}
+    elif method == 'session/new':
+        response['result'] = {'sessionId': 'original-native-session'}
+    elif method in ('session/resume', 'session/load') and pathlib.Path(sys.argv[2]).exists():
+        response['error'] = {'code': -32602, 'message': 'fixture refused old session'}
+    elif method == 'session/prompt':
+        response['result'] = {'stopReason': 'end_turn'}
+    else:
+        response['result'] = {}
+    print(json.dumps(response), flush=True)
+"#,
+    )
+    .unwrap();
+    let agent = "local-fixture";
+    let tenant = crate::session::ui_store::current_tenant_scope();
+    let (project, _) = crate::project::from_directory(&tenant, &workspace).await.unwrap();
+    crate::config::update_project_for_tenant(
+        &tenant,
+        &workspace,
+        json!({"acp": {agent: {"command": "python3", "args": [&script, &calls, &reject]}}}),
+    )
+    .await
+    .unwrap();
+    let context = crate::project::instance::Context {
+        directory: workspace.to_string_lossy().into(),
+        worktree: project.worktree.clone(),
+        project,
+    };
+    crate::project::instance::provide_context(context, async {
+        let session = "local-recovery-chat";
+        let mut options = json!({
+            "cwd": workspace, "acp_agent": agent, "acp_model_source": "cli_local",
+            "acp_close_client_after_request": true
+        });
+        let model = test_model("unused-provider");
+        let provider = test_provider(None);
+        let messages = json!([{"role": "user", "content": "continue"}]);
+        let request = async |options: serde_json::Value| {
+            do_stream_request_acp(
+                &model,
+                &provider,
+                None,
+                &options,
+                &messages,
+                session,
+                None,
+                &mut |_| {},
+            )
+            .await
+        };
+        request(options.clone()).await.unwrap();
+        let store =
+            super::super::lifecycle::Store::open(session, workspace.to_str().unwrap()).unwrap();
+        let mut saved = store.read().unwrap().unwrap();
+        assert_eq!(saved.model.source, AcpModelSource::CliLocal);
+        assert_eq!(saved.record_id, "original-native-session");
+        saved.record_id = " ".into();
+        saved.generation = 1;
+        store.commit(&saved).unwrap();
+
+        options["acp_force_new_session"] = json!(true);
+        std::fs::write(&reject, "").unwrap();
+        assert!(request(options.clone()).await.is_err());
+        assert_eq!(store.read().unwrap().unwrap().record_id, " ");
+        std::fs::remove_file(&reject).unwrap();
+        request(options).await.unwrap();
+
+        let restored = store.read().unwrap().unwrap();
+        assert_eq!(restored.generation, 0);
+        assert_eq!(restored.record_id, "original-native-session");
+        let calls = std::fs::read_to_string(calls).unwrap();
+        assert_eq!(calls.lines().filter(|line| line.starts_with("session/new ")).count(), 1);
+        assert!(calls.lines().any(|line| line == "session/resume original-native-session"));
+        assert_eq!(
+            calls.lines().filter(|line| *line == "session/prompt original-native-session").count(),
+            2
+        );
+    })
+    .await;
+}
+
 #[test]
 fn close_client_after_request_option_defaults_to_false() {
     assert!(!parse_close_client_after_request(&json!({})).expect("missing option should parse"));

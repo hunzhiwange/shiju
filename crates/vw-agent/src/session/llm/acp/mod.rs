@@ -38,6 +38,7 @@ mod content;
 pub(crate) mod controls;
 pub(super) mod lifecycle;
 mod model_source;
+mod recovery;
 mod replay;
 pub(super) mod request;
 mod session;

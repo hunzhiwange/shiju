@@ -42,14 +42,7 @@ pub(super) async fn prepare(
     );
     // Catalog rejection must remain authoritative even when the runtime is absent.
     vw_acp::verify_reviewed_agent_executable(agent, &config.command).map_err(anyhow::Error::msg)?;
-    let identity = RelayIdentity {
-        tenant: crate::session::ui_store::current_tenant_scope(),
-        project: context.project.id.clone(),
-        session: format!("{session}:{agent}"),
-        provider: model.provider_id.clone(),
-        model: model.id.clone(),
-        generation: 0,
-    };
+    let identity = launch_identity(context.project.id.clone(), agent, model, session);
     let mut profile = AcpLaunchProfile::new(config, identity)?;
     profile.state_root = Some(
         std::env::var_os("VIBEWINDOW_CONFIG_DIR")
@@ -75,6 +68,22 @@ pub(super) async fn prepare(
         gateway.start().await?;
     }
     Ok(profile)
+}
+
+pub(super) fn launch_identity(
+    project: String,
+    agent: &str,
+    model: &provider::Model,
+    session: &str,
+) -> RelayIdentity {
+    RelayIdentity {
+        tenant: crate::session::ui_store::current_tenant_scope(),
+        project,
+        session: format!("{session}:{agent}"),
+        provider: model.provider_id.clone(),
+        model: model.id.clone(),
+        generation: 0,
+    }
 }
 
 #[cfg(all(test, unix))]

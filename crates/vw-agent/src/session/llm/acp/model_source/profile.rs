@@ -15,6 +15,19 @@ use std::{
 
 pub(in crate::session::llm::acp) const REFERENCE_ENV: &str = "VW_ACP_LAUNCH_REFERENCE";
 
+pub(in crate::session::llm::acp) fn launch_reference(
+    identity: &RelayIdentity,
+) -> anyhow::Result<String> {
+    use sha2::Digest;
+    Ok(format!(
+        "vw-session-model:{}",
+        hex::encode(sha2::Sha256::digest(serde_json::to_vec(&serde_json::json!({
+            "tenant": identity.tenant, "project": identity.project, "session": identity.session,
+            "provider": identity.provider, "model": identity.model, "generation": identity.generation,
+        }))?))
+    ))
+}
+
 /// Only the request owner may expose this configuration to the child process.
 /// Dropping the profile revokes HTTP access before removing its private files.
 pub(crate) struct AcpLaunchProfile {
@@ -57,14 +70,7 @@ impl AcpLaunchProfile {
                 directory.path().symlink_metadata()?.permissions().mode() & 0o777 == 0o700,
                 "insecure ACP launch directory"
             );
-            use sha2::Digest;
-            let reference = format!(
-                "vw-session-model:{}",
-                hex::encode(sha2::Sha256::digest(serde_json::to_vec(&serde_json::json!({
-                    "tenant": identity.tenant, "project": identity.project, "session": identity.session,
-                    "provider": identity.provider, "model": identity.model, "generation": identity.generation,
-                }))?))
-            );
+            let reference = launch_reference(&identity)?;
             let model_alias = identity.model.clone();
             let binding = RelayBinding::new(identity, Duration::from_secs(900))?;
             let mut config = config.clone();

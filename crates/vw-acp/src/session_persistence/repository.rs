@@ -237,6 +237,9 @@ pub async fn write_session_record(record: &SessionRecord) -> SessionRepositoryRe
 }
 
 pub async fn resolve_session_record(session_id: &str) -> SessionRepositoryResult<SessionRecord> {
+    if session_id.trim().is_empty() {
+        return Err(SessionResolutionError::new("Session id must not be empty").into());
+    }
     let session_dir = ensure_session_dir().await?;
 
     let direct_path = session_file_path(&session_dir, session_id);

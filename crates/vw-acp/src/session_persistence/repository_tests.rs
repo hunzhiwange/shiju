@@ -338,6 +338,10 @@ async fn resolve_session_record_reports_ambiguous_suffix_and_missing_id() {
 
     assert!(matches!(ambiguous, SessionRepositoryError::SessionResolution(_)));
     assert!(matches!(missing, SessionRepositoryError::SessionNotFound(_)));
+    for blank in ["", " \t"] {
+        let error = resolve_session_record(blank).await.expect_err("blank id");
+        assert_eq!(error.to_string(), "Session id must not be empty");
+    }
     let _ = tokio::fs::remove_dir_all(&home_dir).await;
 }
 

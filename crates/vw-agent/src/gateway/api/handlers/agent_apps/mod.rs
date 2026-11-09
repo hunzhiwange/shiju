@@ -198,6 +198,24 @@ pub(super) fn authorize_auth_default(
     account_host(authorized, owns_native_slot)
 }
 
+pub(super) fn authorize_auth_account_delete(
+    path: Option<&std::path::Path>,
+    headers: &axum::http::HeaderMap,
+    tenant: &TenantScope,
+    target: &str,
+    service: vw_api_types::agent_apps_auth::AuthService,
+) -> Result<AuthAccountHost, axum::http::StatusCode> {
+    use axum::http::StatusCode;
+    use vw_api_types::agent_apps_auth::AuthService;
+
+    let authorized = access::authorize_auth_account_delete(path, headers, tenant, target, service)?;
+    let owns_native_slot = path.is_some() && authorized.native_login_owner(service) == Some(true);
+    if matches!(service, AuthService::AgyOauth | AuthService::DshAccount) && !owns_native_slot {
+        return Err(StatusCode::FORBIDDEN);
+    }
+    account_host(authorized, owns_native_slot)
+}
+
 fn account_host(
     authorized: access::Authorization,
     owns_native_slot: bool,

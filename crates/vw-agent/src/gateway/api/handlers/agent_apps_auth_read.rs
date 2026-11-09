@@ -16,7 +16,7 @@ use axum::{
     http::{HeaderMap, HeaderValue, StatusCode, header},
     middleware::{self, Next},
     response::{IntoResponse, Response},
-    routing::{get, put},
+    routing::{delete, get, put},
 };
 use serde::{Deserialize, Serialize};
 use std::{path::PathBuf, sync::Arc};
@@ -99,6 +99,10 @@ pub(super) fn router_with_runtime(
         .route(
             "/v1/agent-apps/auth/accounts/{account_id}/default",
             put(super::agent_apps_auth_default::put),
+        )
+        .route(
+            "/v1/agent-apps/auth/accounts/{account_id}",
+            delete(super::agent_apps_auth_remove::delete),
         )
         .layer(Extension(PolicyFile(policy)))
         .layer(middleware::from_fn(crate::gateway::middleware::tenant_scope_middleware))

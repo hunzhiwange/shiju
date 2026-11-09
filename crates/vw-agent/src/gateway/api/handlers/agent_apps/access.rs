@@ -40,6 +40,8 @@ struct Grant {
     #[serde(default)]
     auth_default_write: Vec<AuthService>,
     #[serde(default)]
+    auth_account_delete: Vec<AuthService>,
+    #[serde(default)]
     auth_flow_start: Vec<AuthService>,
     /// Explicit deployment assertion for direct, same-host browser clients.
     #[serde(default)]
@@ -188,6 +190,7 @@ enum Capability {
     AuthAccountRead { service: AuthService, bindings: bool },
     AuthBindingWrite(AuthService),
     AuthDefaultWrite(AuthService),
+    AuthAccountDelete(AuthService),
     AuthFlowStart(AuthService),
 }
 
@@ -227,6 +230,16 @@ pub(super) fn authorize_auth_default(
     service: AuthService,
 ) -> Result<Authorization, StatusCode> {
     authorize_scoped(path, headers, tenant, target, None, Capability::AuthDefaultWrite(service))
+}
+
+pub(super) fn authorize_auth_account_delete(
+    path: Option<&Path>,
+    headers: &HeaderMap,
+    tenant: &TenantScope,
+    target: &str,
+    service: AuthService,
+) -> Result<Authorization, StatusCode> {
+    authorize_scoped(path, headers, tenant, target, None, Capability::AuthAccountDelete(service))
 }
 
 pub(super) fn authorize_auth_flow_start(
@@ -298,6 +311,9 @@ fn authorize_scoped(
                     }
                     Capability::AuthDefaultWrite(service) => {
                         g.auth_default_write.contains(&service)
+                    }
+                    Capability::AuthAccountDelete(service) => {
+                        g.auth_account_delete.contains(&service)
                     }
                     Capability::AuthFlowStart(service) => g.auth_flow_start.contains(&service),
                     Capability::AuthAccountRead { service, bindings } => {

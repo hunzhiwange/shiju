@@ -276,3 +276,23 @@
 | 全仓检查 | `cargo clippy --all-targets --all-features -- -D warnings` | 退出 0。 |
 
 限定提交范围的 `git diff --cached --check` 退出 0。槽位锁已释放，编译缓存保留。HTTP 证据来自本地夹具，真实账号验收见任务 56。
+
+## 任务 20 MiniMax 套餐
+
+| 来源 | 实现和测试 |
+| --- | --- |
+| [TS 套餐检测](../../../../crates/vw-agent-apps/upstream/src/config/codingPlanProviders.ts#L51-L57) · [Rust 套餐分派](../../../../crates/vw-agent-apps/upstream/src-tauri/src/services/coding_plan.rs#L1907-L1908) · [区域请求](../../../../crates/vw-agent-apps/upstream/src-tauri/src/services/coding_plan.rs#L539-L612) | `query_minimax` 复用区域检测，将两个国内推理域名映射到 `api.minimaxi.com`，国际入口映射到 `api.minimax.io`。本机 HTTP 夹具核对 GET 路径、Bearer 鉴权和 JSON Content-Type。请求限时 15 秒并禁止重定向。HTTP 401/403 标记凭据过期，业务拒绝与响应格式错误分别返回稳定错误码。 |
+| [窗口解析](../../../../crates/vw-agent-apps/upstream/src-tauri/src/services/coding_plan.rs#L770-L839) · [上游夹具](../../../../crates/vw-agent-apps/upstream/src-tauri/src/services/coding_plan.rs#L2661-L2832) · [上游计数语义与字段切换](https://github.com/farion1231/cc-switch/commit/43ae1e5f2c808a28d55815a5da877afd9acaa6bb) | 读取 `general`，使用 100 减剩余百分比得到已用比例，保留超界的有限百分比与毫秒重置时间。周状态 1 和 2 表示有效窗口，状态 3 不展示周窗口。上游同时提供正总量和剩余计数时，按总量减 `usage_count` 得到已用请求数，零占位和缺失计数不填为额度。缺失百分比的窗口跳过，整份响应没有可用窗口时返回 `InvalidResponse`。 |
+
+[MiniMax 适配器](../../../../crates/vw-agent-apps/src/usage/coding/minimax.rs#L26) · [独立行为测试](../../../../crates/vw-agent-apps/src/usage/coding/minimax_tests.rs#L83)
+
+验证环境为 macOS 27.0 (26A428)、arm64，`vw-agent-apps` 0.6.0。实现前后分别动态领取槽位 2，`CARGO_TARGET_DIR` 和 `CARGO_BUILD_BUILD_DIR` 均为 `/Users/xiangmin/worker/code/shiju/target/rust-slot-2`。
+
+| 阶段 | 命令 | 结果 |
+| --- | --- | --- |
+| 实现前 | `cargo test -p vw-agent-apps usage_coding_minimax_ -- --nocapture` | 退出 101，执行 0 项。测试模块报 E0432 和 E0425，缺少 `query_minimax`、`minimax_origin`、`query_at` 和 HTTP 客户端构造入口。 |
+| 格式化 | `cargo fmt --all` | 在隔离源码副本执行，退出 0。仅同步任务范围内的 Rust 文件。 |
+| 实现后 | `cargo test -p vw-agent-apps usage_coding_minimax_ -- --nocapture` | 退出 0，3 项通过，0 项失败。覆盖双窗口、缺失字段、无周限额和错误分类。 |
+| 全仓检查 | `cargo clippy --all-targets --all-features -- -D warnings` | 退出 0。 |
+
+首次试跑设置了目标目录，随后发现仓库另设中间产物目录。表内采用两个目录均指向槽位的复跑结果。限定提交范围的 `git diff --cached --check` 退出 0。槽位锁已释放，编译缓存保留。HTTP 证据来自本机夹具，真实账号验收见任务 56。

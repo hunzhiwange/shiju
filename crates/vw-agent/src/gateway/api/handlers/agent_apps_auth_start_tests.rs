@@ -1,4 +1,4 @@
-use super::agent_apps_auth_read;
+use super::{agent_apps_auth_read, agent_apps_auth_start::Runtime};
 use crate::{
     agent_apps::auth_accounts::{AuthAccountMetadata, AuthAccountScope, AuthAccountStore},
     global_database::{GlobalDatabase, run_sync_database, test_support::PostgresTestDatabase},
@@ -9,28 +9,36 @@ use axum::{
 };
 use serde_json::{Value, json};
 use sha2::{Digest, Sha256};
-use std::{fs, net::SocketAddr, os::unix::fs::PermissionsExt, path::Path};
+use std::{fs, net::SocketAddr, os::unix::fs::PermissionsExt, path::Path, sync::Arc};
 use tokio::{net::TcpListener, task::JoinHandle};
 use vw_api_types::{TimestampMs, agent_apps_auth::AuthService, id::TenantScope};
 
-const OWNER: &str = "fixture-owner-token-aaaaaaaaaaaa";
-const OTHER: &str = "fixture-other-token-bbbbbbbbbbbb";
-const READER: &str = "fixture-reader-token-cccccccccccc";
-const BASIC: &str = "Basic dGVzdDpzZWNyZXQ=";
-const FLOWS: &str = "/v1/agent-apps/auth/flows";
-const CLAUDE: &str = "host_id=host&service=claude_official";
-const CODEX: &str = "host_id=host&service=codex_oauth";
+pub(super) const OWNER: &str = "fixture-owner-token-aaaaaaaaaaaa";
+pub(super) const OTHER: &str = "fixture-other-token-bbbbbbbbbbbb";
+pub(super) const READER: &str = "fixture-reader-token-cccccccccccc";
+pub(super) const BASIC: &str = "Basic dGVzdDpzZWNyZXQ=";
+pub(super) const FLOWS: &str = "/v1/agent-apps/auth/flows";
+pub(super) const CLAUDE: &str = "host_id=host&service=claude_official";
+pub(super) const CODEX: &str = "host_id=host&service=codex_oauth";
 const LINK: &str = "https://claude.com/cai/oauth/authorize?code=true&state=fixture";
-const PASTE: &str = "fixture_valid_code#fixture";
+pub(super) const PASTE: &str = "fixture_valid_code#fixture";
 
-struct Gateway {
-    addr: SocketAddr,
-    client: reqwest::Client,
+pub(super) struct Gateway {
+    pub(super) addr: SocketAddr,
+    pub(super) client: reqwest::Client,
     server: JoinHandle<()>,
 }
 
 impl Gateway {
     async fn start(home: &Path, database: GlobalDatabase) -> anyhow::Result<Self> {
+        Self::start_with_runtime(home, database, Arc::new(Runtime::default())).await
+    }
+
+    pub(super) async fn start_with_runtime(
+        home: &Path,
+        database: GlobalDatabase,
+        runtime: Arc<Runtime>,
+    ) -> anyhow::Result<Self> {
         let root = home.join("credentials");
         fs::create_dir(&root)?;
         fs::set_permissions(&root, fs::Permissions::from_mode(0o700))?;
@@ -128,7 +136,12 @@ printf delivered > '{}'
 
         let router = crate::gateway::router::build_router_with_auth(
             vec![],
-            agent_apps_auth_read::router(Some("secret"), "test", Some(policy)),
+            agent_apps_auth_read::router_with_runtime(
+                Some("secret"),
+                "test",
+                Some(policy),
+                runtime,
+            ),
         )
         .layer(Extension(database));
         let listener = TcpListener::bind(("127.0.0.1", 0)).await?;
@@ -145,7 +158,7 @@ printf delivered > '{}'
         Ok(Self { addr, client, server })
     }
 
-    async fn post(
+    pub(super) async fn post(
         &self,
         path: &str,
         query: &str,

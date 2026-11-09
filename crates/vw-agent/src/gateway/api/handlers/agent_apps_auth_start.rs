@@ -15,7 +15,7 @@ use axum::{
     },
     http::{HeaderMap, StatusCode, header},
     response::{IntoResponse, Response},
-    routing::post,
+    routing::{get, post},
 };
 use serde::Deserialize;
 use std::{
@@ -44,8 +44,8 @@ use vw_api_types::{
 mod native;
 
 #[derive(Default)]
-struct Runtime {
-    flows: AuthFlows,
+pub(super) struct Runtime {
+    pub(super) flows: AuthFlows,
     kimi: OnceLock<Result<KimiDeviceAuth, AuthErrorCode>>,
     #[cfg(target_os = "macos")]
     claude: native::ClaudePastes,
@@ -53,19 +53,19 @@ struct Runtime {
 
 #[derive(Deserialize)]
 #[serde(deny_unknown_fields)]
-struct ScopeQuery {
+pub(super) struct ScopeQuery {
     host_id: String,
     service: AuthService,
 }
 
-struct Execution {
+pub(super) struct Execution {
     tenant: TenantScope,
     host: AuthStartHost,
     service: AuthService,
 }
 
 impl Execution {
-    fn scope(&self) -> AuthAccountScope<'_> {
+    pub(super) fn scope(&self) -> AuthAccountScope<'_> {
         AuthAccountScope {
             tenant: &self.tenant,
             principal: &self.host.principal,
@@ -88,20 +88,21 @@ impl Execution {
     }
 }
 
-pub(super) fn routes() -> Router {
+pub(super) fn routes(runtime: Arc<Runtime>) -> Router {
     Router::new()
         .route("/v1/agent-apps/auth/flows", post(start))
+        .route("/v1/agent-apps/auth/flows/{flow_id}", get(super::agent_apps_auth_poll::poll))
         .route("/v1/agent-apps/auth/flows/{flow_id}/paste", post(paste))
         .layer(DefaultBodyLimit::max(32 * 1024))
-        .layer(Extension(Arc::new(Runtime::default())))
+        .layer(Extension(runtime))
 }
 
-async fn authorize(
+pub(super) async fn authorize(
     policy: PolicyFile,
     tenant: TenantScope,
     headers: HeaderMap,
     query: Result<Query<ScopeQuery>, QueryRejection>,
-) -> Result<Execution, StartError> {
+) -> Result<Execution, FlowError> {
     let Query(query) = query.map_err(|_| AuthErrorCode::InvalidInput)?;
     validate_identity(&query.host_id).map_err(|_| AuthErrorCode::InvalidInput)?;
     tokio::task::spawn_blocking(move || {
@@ -112,7 +113,7 @@ async fn authorize(
             &query.host_id,
             query.service,
         )
-        .map_err(StartError::access)?;
+        .map_err(FlowError::access)?;
         Ok(Execution { tenant, host, service: query.service })
     })
     .await
@@ -126,7 +127,7 @@ async fn start(
     database: Option<Extension<GlobalDatabase>>,
     query: Result<Query<ScopeQuery>, QueryRejection>,
     request: Request,
-) -> Result<(StatusCode, Json<AuthStartResponse>), StartError> {
+) -> Result<(StatusCode, Json<AuthStartResponse>), FlowError> {
     let browser_peer = local_browser_peer(&request);
     let execution = authorize(policy, tenant, request.headers().clone(), query).await?;
     let Json(input) = Json::<AuthStartRequest>::from_request(request, &())
@@ -315,7 +316,7 @@ async fn paste(
     id: Result<Path<String>, axum::extract::rejection::PathRejection>,
     query: Result<Query<ScopeQuery>, QueryRejection>,
     request: Request,
-) -> Result<StatusCode, StartError> {
+) -> Result<StatusCode, FlowError> {
     let execution = authorize(policy, tenant, request.headers().clone(), query).await?;
     if execution.service != AuthService::ClaudeOfficial {
         return Err(AuthErrorCode::Unsupported.into());
@@ -340,15 +341,15 @@ async fn paste(
     }
 }
 
-struct StartError(AuthErrorCode);
+pub(super) struct FlowError(AuthErrorCode);
 
-impl From<AuthErrorCode> for StartError {
+impl From<AuthErrorCode> for FlowError {
     fn from(code: AuthErrorCode) -> Self {
         Self(code)
     }
 }
 
-impl StartError {
+impl FlowError {
     fn access(status: StatusCode) -> Self {
         use AuthErrorCode::*;
         Self(match status {
@@ -361,7 +362,7 @@ impl StartError {
     }
 }
 
-impl IntoResponse for StartError {
+impl IntoResponse for FlowError {
     fn into_response(self) -> Response {
         use AuthErrorCode::*;
         let (status, message) = match self.0 {

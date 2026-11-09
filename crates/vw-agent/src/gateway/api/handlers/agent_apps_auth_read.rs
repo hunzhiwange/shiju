@@ -1,6 +1,9 @@
 //! The versioned, management-only view of scoped authorization accounts.
 
-use super::agent_apps::{AuthReadHost, authorize_auth_account_read};
+use super::{
+    agent_apps::{AuthReadHost, authorize_auth_account_read},
+    agent_apps_auth_start::{Runtime, routes},
+};
 #[cfg(target_os = "macos")]
 use crate::app_providers::AppProviderStore;
 use crate::{
@@ -16,7 +19,7 @@ use axum::{
     routing::get,
 };
 use serde::{Deserialize, Serialize};
-use std::path::PathBuf;
+use std::{path::PathBuf, sync::Arc};
 #[cfg(target_os = "macos")]
 use vw_agent_apps::{
     auth::{
@@ -75,8 +78,17 @@ pub(crate) fn router(
     username: &'static str,
     policy: Option<PathBuf>,
 ) -> Router {
+    router_with_runtime(password, username, policy, Arc::new(Runtime::default()))
+}
+
+pub(super) fn router_with_runtime(
+    password: Option<&'static str>,
+    username: &'static str,
+    policy: Option<PathBuf>,
+    runtime: Arc<Runtime>,
+) -> Router {
     Router::new()
-        .merge(super::agent_apps_auth_start::routes())
+        .merge(routes(runtime))
         .route("/v1/agent-apps/auth/accounts", get(read).layer(Extension(Resource::Accounts)))
         .route("/v1/agent-apps/auth/status", get(read).layer(Extension(Resource::Status)))
         .route("/v1/agent-apps/auth/bindings", get(read).layer(Extension(Resource::Bindings)))

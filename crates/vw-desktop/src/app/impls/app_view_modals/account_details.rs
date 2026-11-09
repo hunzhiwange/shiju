@@ -158,6 +158,7 @@ fn modal_card<'a>(
             .max_width(960.0)
             .height(height),
     )
+    .center_x(Length::Fill)
     .padding(12)
     .into()
 }

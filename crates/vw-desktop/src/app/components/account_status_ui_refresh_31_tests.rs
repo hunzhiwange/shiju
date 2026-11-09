@@ -307,7 +307,7 @@ async fn ui_refresh_31_layout_and_interaction() {
     let mut app = fixture();
     let mut renderer = renderer().await;
     for (locale, width, height, theme, language) in [
-        (DesktopLocale::SimplifiedChinese, 960, 700, Theme::Light, "zh-cn"),
+        (DesktopLocale::SimplifiedChinese, 1280, 700, Theme::Light, "zh-cn"),
         (DesktopLocale::TraditionalChinese, 640, 600, Theme::Dark, "zh-tw"),
         (DesktopLocale::English, 420, 450, Theme::Dark, "en"),
     ] {
@@ -361,6 +361,7 @@ async fn ui_refresh_31_layout_and_interaction() {
             assert_fits(header, size);
             assert_fits(footer, size);
             let viewport = positions.scroll[0].0;
+            assert!((viewport.center_x() - width as f32 / 2.0).abs() < 0.5, "{name}: {viewport:?}");
             assert!(header.y + header.height <= viewport.y);
             assert!(viewport.y + viewport.height <= footer.y);
             if name == "details" && width == 420 {

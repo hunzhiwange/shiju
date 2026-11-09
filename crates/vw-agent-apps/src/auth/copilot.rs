@@ -29,7 +29,7 @@ const PLUGIN_VERSION: &str = "copilot-chat/0.38.2";
 const MAX_RESPONSE_BYTES: usize = 16 * 1024;
 
 pub struct CopilotAuth {
-    pub(super) client: Client,
+    pub(crate) client: Client,
     pub(super) sessions: CopilotSessions,
 }
 
@@ -284,6 +284,28 @@ impl CopilotAuth {
             .map_err(|_| AuthErrorCode::UpstreamFailure)
     }
 
+    /// Build the GitHub user request used for endpoint discovery and quota.
+    pub(crate) fn copilot_user_request(
+        &self,
+        authority: &str,
+        token: &str,
+    ) -> Result<Request, AuthErrorCode> {
+        let authority = canonical_authority(Some(authority))?;
+        let api = if authority == PUBLIC_AUTHORITY {
+            "https://api.github.com".to_owned()
+        } else {
+            format!("https://{authority}/api/v3")
+        };
+        let mut request = self.github_request(&format!("{api}/copilot_internal/user"), token)?;
+        request
+            .headers_mut()
+            .insert(header::CONTENT_TYPE, header::HeaderValue::from_static("application/json"));
+        request
+            .headers_mut()
+            .insert("x-github-api-version", header::HeaderValue::from_static("2025-10-01"));
+        Ok(request)
+    }
+
     pub(super) async fn start_with(
         &self,
         flows: &AuthFlows,
@@ -408,7 +430,7 @@ pub(super) async fn read_body_limited(
     Ok(body)
 }
 
-pub(super) fn valid_token(value: &str) -> bool {
+pub(crate) fn valid_token(value: &str) -> bool {
     !value.is_empty()
         && value.len() <= MAX_RESPONSE_BYTES
         && value.bytes().all(|byte| byte.is_ascii_graphic())

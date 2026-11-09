@@ -28,7 +28,7 @@ mod codex_refresh_tests;
 pub mod copilot;
 
 #[cfg(all(test, not(target_arch = "wasm32")))]
-mod copilot_tests;
+pub(crate) mod copilot_tests;
 
 #[cfg(not(target_arch = "wasm32"))]
 pub mod copilot_token;

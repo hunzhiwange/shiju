@@ -135,14 +135,9 @@ impl CopilotAuth {
         *cached = None;
 
         let public = authority == PUBLIC_AUTHORITY;
-        let api = if public {
-            "https://api.github.com".to_owned()
-        } else {
-            format!("https://{authority}/api/v3")
-        };
         let (token, expires_at) = if public {
             let request =
-                self.github_request(&format!("{api}/copilot_internal/v2/token"), &oauth)?;
+                self.github_request("https://api.github.com/copilot_internal/v2/token", &oauth)?;
             let subscription: CopilotSubscription =
                 read_json(self.session_request(request, &mut route).await?).await?;
             if !valid_token(&subscription.token)
@@ -157,13 +152,7 @@ impl CopilotAuth {
             (oauth.clone(), None)
         };
 
-        let mut request = self.github_request(&format!("{api}/copilot_internal/user"), &oauth)?;
-        request
-            .headers_mut()
-            .insert(header::CONTENT_TYPE, header::HeaderValue::from_static("application/json"));
-        request
-            .headers_mut()
-            .insert("x-github-api-version", header::HeaderValue::from_static("2025-10-01"));
+        let request = self.copilot_user_request(&authority, &oauth)?;
         let discovery: Discovery =
             read_json(self.session_request(request, &mut route).await?).await?;
         let endpoint = session_endpoint(&authority, discovery.endpoints)?;

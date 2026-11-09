@@ -486,3 +486,22 @@
 | 隔离复核 | `cargo clippy --all-targets --all-features -- -D warnings` | 退出 0。 |
 
 HTTP 与 CLI 夹具核对请求、来源分离、额度归并、重置时间、拒绝和脱敏。差异检查通过，槽位锁已释放，缓存已保留。真实账号留待任务 57 验收。 [聚焦测试](../../../../crates/vw-agent-apps/src/usage/subscriptions/agy_tests.rs#L126)
+
+## 任务 31 Copilot 额度
+
+`query_copilot` 查询额度解析器选中的显式、绑定或托管默认账号。默认账号由同一租户、主体、主机和服务范围内的已保存选择提供。找不到所选账号或它的凭据时直接失败。执行主机从所选账号的授权记录读取 GitHub 域名，并在授权后使用该账号的 OAuth 凭据向 GitHub 或企业实例发送固定的 `GET /copilot_internal/user` 请求。请求沿用母任务 6 的请求头及禁止重定向策略。 [账号解析](../../../../crates/vw-agent-apps/src/usage/binding.rs#L49) · [额度入口](../../../../crates/vw-agent-apps/src/usage/subscriptions/copilot.rs#L29) · [请求构造](../../../../crates/vw-agent-apps/src/auth/copilot.rs#L288) · [上游命令](../../../../crates/vw-agent-apps/upstream/src-tauri/src/commands/copilot.rs#L201-L221) · [上游 HTTP](../../../../crates/vw-agent-apps/upstream/src-tauri/src/proxy/providers/copilot_auth.rs#L1107)
+
+结果保留套餐、Premium 请求数和原始重置日期。总量大于零时以已用量除以总量计算百分比，总量不大于零时返回零。HTTP 401 表示登录过期，HTTP 403 表示上游拒绝。额度查询只读凭据，失败说明不包含上游响应或凭据。未设置托管默认号时返回未找到。 [额度转换](../../../../crates/vw-agent-apps/src/usage/subscriptions/copilot.rs#L145) · [TS 查询规则](../../../../crates/vw-agent-apps/upstream/src/lib/query/copilot.ts#L28) · [页脚账号选择](../../../../crates/vw-agent-apps/upstream/src/components/CopilotQuotaFooter.tsx#L25)
+
+验证环境为 macOS 27.0 (26A428)、arm64，`vw-agent-apps` 0.6.0。各阶段动态领取槽位 1，`CARGO_TARGET_DIR` 为 `/Users/xiangmin/worker/code/shiju/target/rust-slot-1`。实现后验证的 `CARGO_BUILD_BUILD_DIR` 使用同一路径。
+
+| 阶段 | 命令 | 结果 |
+| --- | --- | --- |
+| 实现前 | `cargo test -p vw-agent-apps usage_subscriptions_copilot_ -- --nocapture` | 退出 101，执行 0 项。包含两个计划测试的模块报 E0432，缺少 `super::copilot`。 |
+| 格式化 | `cargo fmt --all` | 退出 0。在源码副本运行，仅同步本任务 Rust 文件。 |
+| 实现后 | `cargo test -p vw-agent-apps usage_subscriptions_copilot_ -- --nocapture` | 退出 0，2 项通过，0 项失败。 |
+| 授权回归 | `cargo test -p vw-agent-apps auth6_copilot_token_ -- --nocapture` | 退出 0，2 项通过，0 项失败。 |
+| 共享工作区 | `cargo clippy --all-targets --all-features -- -D warnings` | 退出 101。现有 ACP 改动缺少 `vw-acp` 的 `PermissionConfirmation` 和 `with_permission_confirmation`，以及网关客户端的 `session_set_full_access` 和 `GatewaySessionUiSummary.full_access`。 |
+| 隔离复核 | `cargo clippy --all-targets --all-features -- -D warnings` | 退出 0。基于批次 30 提交 `c3b018399`，叠加本任务 Rust 文件和共享工作区已有的 `postgres_tests.rs` 第三参数修正。 |
+
+`usage_subscriptions_copilot_returns_expected_result` 和 `usage_subscriptions_copilot_rejects_invalid_input` 使用本机 HTTP 夹具核对两种账号选择、企业域名、请求头、重置日期、缺失凭据、拒绝及脱敏。差异检查通过，槽位锁已释放，编译缓存已保留。真实账号留待任务 57 验收。 [聚焦测试](../../../../crates/vw-agent-apps/src/usage/subscriptions/copilot_tests.rs#L97)

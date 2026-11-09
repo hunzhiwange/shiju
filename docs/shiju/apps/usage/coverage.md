@@ -67,3 +67,25 @@
 | 工作区检查 | `cargo clippy --all-targets --all-features -- -D warnings` | 退出 0。 |
 
 限定提交范围的 `git diff --cached --check` 退出 0。槽位锁已释放，编译缓存保留。真实账号验收见任务 55–57。
+
+## 任务 10 原生查询能力识别
+
+| 来源 | 实现和测试 |
+| --- | --- |
+| [余额模板检测](../../../../crates/vw-agent-apps/upstream/src/components/UsageScriptModal.tsx#L184-L200) · [余额分派](../../../../crates/vw-agent-apps/upstream/src-tauri/src/services/balance.rs#L27-L44) | `detect_native_usage` 用解析后的主机识别五家余额供应商，保留 SiliconFlow 境内与国际分支。 |
+| [套餐检测与启用规则](../../../../crates/vw-agent-apps/upstream/src/config/codingPlanProviders.ts#L25-L113) · [套餐分派](../../../../crates/vw-agent-apps/upstream/src-tauri/src/services/coding_plan.rs#L12-L82) · [Kimi 预设](../../../../crates/vw-agent-apps/upstream/src/config/claudeProviderPresets.ts#L173-L181) | 依实际主机和大小写敏感的完整路径段识别套餐。MiniMax 保留真实子域匹配，Kimi 同时识别 `api.kimi.com` 与已交付预设使用的 `api.kimi.ai`。火山仅识别方舟地区主机的两类套餐入口，`enabled_by_default` 返回关闭。 |
+| [智谱团队显式分派](../../../../crates/vw-agent-apps/upstream/src-tauri/src/services/coding_plan.rs#L1858-L1877) · [上游检测测试](../../../../crates/vw-agent-apps/upstream/src/config/codingPlanProviders.test.ts#L20-L62) | `ZhipuPlanSelection::Team` 要求显式选择及 `open.bigmodel.cn` 主机。伪造主机、出现在 URL 其他部位的域名、路径前缀混淆及按量入口均有拒绝用例。 |
+
+识别结果由 `NativeUsageCapability` 区分余额与套餐。无匹配能力、非法地址与团队配置冲突分别返回无结果或类型化错误。验证覆盖纯识别逻辑，真实账号查询验收见任务 55–57。[识别实现](../../../../crates/vw-agent-apps/src/usage/detect.rs) · [独立行为测试](../../../../crates/vw-agent-apps/src/usage/detect_tests.rs)
+
+验证环境为 macOS 27.0 (26A428)、arm64，`vw-agent-apps` 0.6.0。
+两阶段均领取槽位 3，`CARGO_TARGET_DIR` 与 `CARGO_BUILD_BUILD_DIR` 均为 `/Users/xiangmin/worker/code/shiju/target/rust-slot-3`。
+
+| 阶段 | 命令 | 结果 |
+| --- | --- | --- |
+| 实现前 | `cargo test -p vw-agent-apps usage_detect_ -- --nocapture` | 退出 101，测试导入未实现的 `super::detect` 时遇到 E0432，执行 0 项。 |
+| 格式化 | `cargo fmt --all` | 退出 0，在独立源码副本执行，仅同步本任务的三个 Rust 文件。 |
+| 实现后 | `cargo test -p vw-agent-apps usage_detect_ -- --nocapture` | 退出 0，3 项通过，0 项失败。 |
+| 工作区检查 | `cargo clippy --all-targets --all-features -- -D warnings` | 退出 0。 |
+
+三项用例分别为 `usage_detect_returns_expected_result`、`usage_detect_rejects_invalid_input`、`usage_detect_requires_explicit_team_selection_and_disables_volcengine_by_default`。限定提交范围的 `git diff --cached --check` 退出 0。槽位锁已释放，编译缓存保留。

@@ -1,4 +1,8 @@
-//! Read-only account list and temporary management connection form.
+//! Scoped authorization center and temporary management connection form.
+
+mod login_modal;
+#[cfg(test)]
+mod login_modal_tests;
 
 use super::system_settings_common::{
     primary_action_btn_style, rounded_action_btn_style, settings_close_button,
@@ -9,11 +13,13 @@ use super::system_settings_common::{
 use crate::app::{
     Message,
     message::agent_apps_auth::{Event, message},
-    state::agent_apps_auth::{ServiceAccounts, State},
+    state::agent_apps_auth::{DeviceTarget, ServiceAccounts, State},
 };
 use iced::widget::{button, column, container, row, scrollable, text};
 use iced::{Alignment, Element, Length};
-use vw_gateway_client::vw_api_types::agent_apps_auth::{AuthCredentialState, AuthService};
+use vw_gateway_client::vw_api_types::agent_apps_auth::{
+    AuthCredentialState, AuthRegion, AuthService,
+};
 
 pub(crate) fn view(state: &State) -> Element<'_, Message> {
     let configured = state.connection.is_some();
@@ -66,7 +72,7 @@ pub(crate) fn view(state: &State) -> Element<'_, Message> {
         text("正在读取授权账号…").style(settings_muted_text_style).into()
     } else if let Some(rows) = &state.rows {
         scrollable(
-            container(column(rows.iter().map(service_card)).spacing(10))
+            container(column(rows.iter().map(|row| service_card(row, configured))).spacing(10))
                 .padding([0, 7])
                 .width(Length::Fill),
         )
@@ -88,8 +94,8 @@ pub(crate) fn view(state: &State) -> Element<'_, Message> {
         .into()
 }
 
-fn service_card(row: &ServiceAccounts) -> Element<'_, Message> {
-    let name = match row.service {
+fn service_name(service: AuthService) -> &'static str {
+    match service {
         AuthService::ClaudeOfficial => "Claude 官方账号",
         AuthService::CodexOauth => "Codex / ChatGPT",
         AuthService::GithubCopilot => "GitHub Copilot",
@@ -97,8 +103,11 @@ fn service_card(row: &ServiceAccounts) -> Element<'_, Message> {
         AuthService::KimiOauth => "Kimi Code",
         AuthService::AgyOauth => "Antigravity",
         AuthService::DshAccount => "DeepSeek Harness",
-    };
-    let mut card = column![text(name).size(17)].spacing(6);
+    }
+}
+
+fn service_card(row: &ServiceAccounts, configured: bool) -> Element<'_, Message> {
+    let mut card = column![text(service_name(row.service)).size(17)].spacing(6);
     match &row.accounts {
         Ok(accounts) if accounts.is_empty() => {
             card = card.push(text("暂无授权账号").size(13).style(settings_muted_text_style));
@@ -128,10 +137,38 @@ fn service_card(row: &ServiceAccounts) -> Element<'_, Message> {
             card = card.push(text(*reason).size(13).style(settings_muted_text_style));
         }
     }
+    if configured {
+        let targets: &[(&str, DeviceTarget)] = match row.service {
+            AuthService::GithubCopilot => &[("设备码登录", DeviceTarget::Copilot)],
+            AuthService::CodexOauth => &[("设备码登录", DeviceTarget::Codex)],
+            AuthService::XaiOauth => &[("设备码登录", DeviceTarget::Xai)],
+            AuthService::KimiOauth => &[
+                ("中国大陆登录", DeviceTarget::Kimi(AuthRegion::MainlandCn)),
+                ("国际登录", DeviceTarget::Kimi(AuthRegion::Global)),
+            ],
+            _ => &[],
+        };
+        if !targets.is_empty() {
+            card = card.push(
+                iced::widget::row(targets.iter().map(|&(label, target)| {
+                    button(text(label))
+                        .style(rounded_action_btn_style)
+                        .padding([6, 12])
+                        .on_press(message(Event::StartDevice(target)))
+                        .into()
+                }))
+                .spacing(8)
+                .wrap(),
+            );
+        }
+    }
     settings_group_card(container(card).padding([10, 0])).into()
 }
 
 pub(crate) fn overlay<'a>(state: &'a State, base: Element<'a, Message>) -> Element<'a, Message> {
+    if let Some(login) = &state.login {
+        return login_modal::overlay(login, base);
+    }
     let Some(form) = &state.form else { return base };
     let close = message(Event::Close);
     let Some(scope) = &state.scope else { return base };
@@ -153,7 +190,7 @@ pub(crate) fn overlay<'a>(state: &'a State, base: Element<'a, Message>) -> Eleme
             .secure(true)
             .on_input(|value| message(Event::Password(value))),
         settings_field_label("主体令牌"),
-        settings_text_input("具备账号读取权限的主机主体令牌", &form.token)
+        settings_text_input("具备所需授权权限的主机主体令牌", &form.token)
             .secure(true)
             .on_input(|value| message(Event::Token(value))),
     ]

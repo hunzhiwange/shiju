@@ -773,6 +773,15 @@ impl App {
     /// ]));
     /// ```
     pub fn update(&mut self, message: Message) -> Task<Message> {
+        #[cfg(not(target_arch = "wasm32"))]
+        if matches!(
+            message,
+            Message::Settings(message::SettingsMessage::AgentAppsAuth(
+                message::agent_apps_auth::Event::DeviceTick
+            ))
+        ) {
+            return Task::none();
+        }
         let refresh_pins = self.prepare_session_ui_projection(&message);
         let task = match message {
             Message::SessionPinsLoaded(generation, result) => {
@@ -1158,6 +1167,12 @@ impl App {
             );
         }
 
+        #[cfg(not(target_arch = "wasm32"))]
+        if !self.show_system_settings
+            || self.system_settings_tab != crate::app::components::system_settings::SystemTab::Auth
+        {
+            self.agent_apps_auth.login = None;
+        }
         if refresh_pins { Task::batch([task, self.refresh_session_pins_task()]) } else { task }
     }
 }

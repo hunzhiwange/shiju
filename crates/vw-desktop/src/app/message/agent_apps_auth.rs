@@ -1,9 +1,12 @@
 //! Authorization center requests through the scoped management SDK.
 
+pub(in crate::app) mod device;
+
 use crate::app::{
     App, Message,
+    components::system_settings::SystemTab,
     message::SettingsMessage,
-    state::agent_apps_auth::{Connection, Scope, ServiceAccounts},
+    state::agent_apps_auth::{Connection, DevicePhase, DeviceTarget, Scope, ServiceAccounts},
 };
 use iced::Task;
 use vw_gateway_client::{
@@ -31,6 +34,11 @@ pub enum Event {
     Token(String),
     Connect,
     Refresh,
+    StartDevice(DeviceTarget),
+    RetryDevice,
+    CloseDevice,
+    DeviceTick,
+    DeviceUpdated { scope: Scope, generation: u64, update: device::Update },
     Loaded { scope: Scope, generation: u64, rows: Vec<ServiceAccounts> },
 }
 
@@ -47,16 +55,13 @@ pub(crate) fn message(event: Event) -> Message {
 pub(crate) fn update(app: &mut App, event: Event) -> Task<Message> {
     let endpoint = crate::app::gateway_client_endpoint();
     let scope = Scope::from(&endpoint);
+    let visible = app.show_system_settings && app.system_settings_tab == SystemTab::Auth;
     let state = &mut app.agent_apps_auth;
     state.select_endpoint(&endpoint);
 
     if let Event::Loaded { scope: loaded_scope, generation, rows } = event {
         let failed = rows.iter().all(|row| row.accounts.is_err());
-        if state.finish(&loaded_scope, generation, rows)
-            && failed
-            && app.show_system_settings
-            && app.system_settings_tab == crate::app::components::system_settings::SystemTab::Auth
-        {
+        if state.finish(&loaded_scope, generation, rows) && failed && visible {
             return app.show_error_toast("授权账号读取失败，请检查各服务的提示");
         }
         return Task::none();
@@ -69,7 +74,7 @@ pub(crate) fn update(app: &mut App, event: Event) -> Task<Message> {
 
     match event {
         Event::Open => {
-            if state.pending.is_none() && state.form.is_none() {
+            if state.pending.is_none() && state.form.is_none() && state.login.is_none() {
                 let mut form = state.connection.clone().unwrap_or_else(|| Connection {
                     username: "vibewindow".into(),
                     ..Connection::default()
@@ -135,6 +140,56 @@ pub(crate) fn update(app: &mut App, event: Event) -> Task<Message> {
                 },
                 move |rows| message(Event::Loaded { scope, generation, rows }),
             );
+        }
+        Event::StartDevice(_) | Event::RetryDevice => {
+            if !visible || state.form.is_some() || state.pending.is_some() {
+                return Task::none();
+            }
+            let target = match (&state.login, event) {
+                (None, Event::StartDevice(target)) => target,
+                (Some(login), Event::RetryDevice)
+                    if matches!(login.phase, DevicePhase::Failed(_)) =>
+                {
+                    login.target
+                }
+                _ => return Task::none(),
+            };
+            let Some(connection) = state.connection.clone() else { return Task::none() };
+            let Ok(client) = GatewayClient::new(endpoint) else {
+                return app.show_error_toast("无法建立管理连接，请重试");
+            };
+            return device::start(state, scope, client, connection, target);
+        }
+        Event::CloseDevice => state.login = None,
+        Event::DeviceTick => {}
+        Event::DeviceUpdated { scope, generation, update } => {
+            if !visible || !state.is_latest_device_update(&scope, generation) {
+                return Task::none();
+            }
+            if matches!(update, device::Update::CancelFailed) {
+                return app.show_error_toast("执行主机未确认取消设备码登录");
+            }
+            let Some(login) = state.device_login_mut(generation) else { return Task::none() };
+            match update {
+                device::Update::Started(challenge) => login.phase = DevicePhase::Pending(challenge),
+                device::Update::Pending(expires_at) => {
+                    if let DevicePhase::Pending(challenge) = &mut login.phase {
+                        challenge.expires_at = expires_at;
+                    }
+                }
+                device::Update::Approved => {
+                    state.login = None;
+                    return Task::batch([
+                        app.show_success_toast("设备码登录成功"),
+                        Task::done(message(Event::Refresh)),
+                    ]);
+                }
+                device::Update::Failed(reason) => {
+                    login.phase = DevicePhase::Failed(reason);
+                    return app.show_error_toast(reason);
+                }
+                device::Update::CancelFailed => unreachable!("cancellation errors handled above"),
+            }
         }
         Event::Loaded { .. } => unreachable!("loaded results handled above"),
     }

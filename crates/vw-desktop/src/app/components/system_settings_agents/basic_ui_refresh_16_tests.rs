@@ -752,9 +752,9 @@ async fn help_rollout_08_basic_help_uses_static_text() {
         for label in [
             "首次保存成功后，运行引擎及 ACP backend 不可修改。",
             "完全访问权限",
-            "固定空列表表示不选择任何条目。权限始终受安全上限约束。",
-            "关闭后保留配置，但该智能体不会作为可用项参与注册。",
-            "控制生成发散度，范围 0.0 - 2.0。",
+            "权限始终受安全上限约束。",
+            "关闭后不参与注册。",
+            "范围 0.0–2.0",
         ] {
             scene.geometry(&renderer).label(tr(locale, label));
         }
@@ -843,9 +843,7 @@ async fn help_rollout_08_identity_and_tools_keep_controls_visible() {
             assert_help_dismissed(&mut identity, &mut renderer, &theme);
         }
         let mut tools = Scene::new(tools::view(&app, draft), &mut renderer, width, 1000);
-        tools
-            .geometry(&renderer)
-            .label(tr(locale, "选择在对话开始时注册给模型的工具。未选择的工具不可调用。"));
+        tools.geometry(&renderer).label(tr(locale, "未选择的工具不可调用。"));
         assert_contextual_help(
             &mut tools,
             &mut renderer,
@@ -866,4 +864,308 @@ async fn help_rollout_08_identity_and_tools_keep_controls_visible() {
             [Message::Settings(S::Agents(A::AllowedToolsSelectAll(key)))] if key == AGENT
         ));
     }
+}
+
+fn scroll_to(scene: &mut Scene<'_>, renderer: &mut Renderer, bounds: Rectangle) -> Rectangle {
+    let (viewport, _, offset) = scene.geometry(renderer).scrolls[0];
+    let y = bounds.center().y - offset.y;
+    let target = viewport.y + 90.0;
+    assert!(
+        scene
+            .events(
+                renderer,
+                &[Event::Mouse(mouse::Event::WheelScrolled {
+                    delta: mouse::ScrollDelta::Pixels { x: 0.0, y: target - y },
+                })],
+                mouse::Cursor::Available(viewport.center()),
+            )
+            .is_empty()
+    );
+    let (_, _, offset) = scene.geometry(renderer).scrolls[0];
+    let bounds = bounds - offset;
+    assert!(viewport.contains(bounds.center()), "{bounds:?} outside {viewport:?}");
+    bounds
+}
+
+fn assert_modal_help(
+    scene: &mut Scene<'_>,
+    renderer: &mut Renderer,
+    theme: &Theme,
+    locale: DesktopLocale,
+    title: &'static str,
+    description: &'static str,
+) {
+    let geometry = scene.geometry(renderer);
+    let description = tr(locale, description);
+    assert!(!geometry.labels.iter().any(|(value, _)| value == description), "{title}");
+    let label = scroll_to(scene, renderer, geometry.label(tr(locale, title)));
+    let icon = Point::new(label.x + label.width + 15.0, label.center().y);
+    let cursor = mouse::Cursor::Available(icon);
+    let away = mouse::Cursor::Unavailable;
+    let idle = scene.screenshot(renderer, theme, away, "agent-help-idle");
+    assert!(
+        scene
+            .events(renderer, &[Event::Mouse(mouse::Event::CursorMoved { position: icon })], cursor)
+            .is_empty()
+    );
+    assert!(idle != scene.screenshot(renderer, theme, cursor, "agent-help-hover"), "{title}");
+    assert!(scene.click(renderer, icon).is_empty());
+    assert!(scene.events(renderer, &[Event::Mouse(mouse::Event::CursorLeft)], away).is_empty());
+    let pinned = scene.screenshot(renderer, theme, away, "agent-help-pinned");
+    assert!(idle != pinned, "{title}");
+
+    let left = icon.x - 15.0;
+    let right = icon.x + 15.0;
+    let right_space = scene.size.width as f32 - right;
+    let width = 300.0_f32.min(left.max(right_space));
+    let x = if right_space >= width { right } else { left - width };
+    let card = Point::new(x + 22.0, icon.y + 5.0);
+    assert!(
+        scene
+            .events(
+                renderer,
+                &[Event::Mouse(mouse::Event::ButtonPressed(mouse::Button::Right))],
+                mouse::Cursor::Available(card),
+            )
+            .is_empty()
+    );
+    let menu = scene.screenshot(renderer, theme, away, "agent-help-menu");
+    assert!(pinned != menu, "{title}");
+    assert!(scene.key(renderer, Named::Escape).is_empty());
+    assert!(
+        pinned == scene.screenshot(renderer, theme, away, "agent-help-menu-dismissed"),
+        "{title}"
+    );
+    assert!(
+        scene
+            .events(
+                renderer,
+                &[Event::Mouse(mouse::Event::ButtonPressed(mouse::Button::Right))],
+                mouse::Cursor::Available(card),
+            )
+            .is_empty()
+    );
+    let item_height =
+        f32::from(iced::advanced::text::LineHeight::default().to_absolute(12.0.into())) + 10.0;
+    let menu_height = 5.0 * item_height + 6.0;
+    let menu_y = if card.y + menu_height <= scene.size.height as f32 {
+        card.y
+    } else {
+        (card.y - menu_height).max(0.0)
+    };
+    let menu_x = card.x.min(scene.size.width as f32 - 140.0);
+    let messages =
+        scene.click(renderer, Point::new(menu_x + 25.0, menu_y + 3.0 + item_height / 2.0));
+    assert!(
+        matches!(messages.as_slice(), [Message::CopyCode(value)] if value == description),
+        "{locale:?} {title}: missing localized help copy, got {messages:?}"
+    );
+    assert!(scene.key(renderer, Named::Escape).is_empty());
+    assert!(idle == scene.screenshot(renderer, theme, away, "agent-help-dismissed"), "{title}");
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn settings_help_gap_05_native_modal_moves_explanations_into_help() {
+    if !isolated("settings_help_gap_05_native_modal_moves_explanations_into_help") {
+        return;
+    }
+    let mut app = fixture();
+    app.agents_settings.active_detail_tab = AGENT_DETAIL_BASIC_TAB.into();
+    let mut renderer = renderer().await;
+    for (locale, theme, width) in [
+        (DesktopLocale::English, Theme::Light, 420),
+        (DesktopLocale::TraditionalChinese, Theme::Dark, 420),
+        (DesktopLocale::SimplifiedChinese, Theme::Light, 960),
+        (DesktopLocale::English, Theme::Dark, 960),
+    ] {
+        app.desktop_locale = locale;
+        app.app_theme = theme.clone();
+        let mut scene = Scene::new(profile(&app), &mut renderer, width, 820);
+        let geometry = scene.geometry(&renderer);
+        for description in [
+            "控制生成发散度，范围 0.0 - 2.0。",
+            "该智能体是否允许同一轮并行执行多个工具。",
+            "启用后允许该代理进入多轮工具调用循环。",
+            "控制该 Agent 是否可被平台委托；原生引擎还可配置发起委托的并发上限。",
+            "固定空列表表示不选择任何条目。权限始终受安全上限约束。",
+        ] {
+            assert!(
+                !geometry.labels.iter().any(|(value, _)| value == tr(locale, description)),
+                "{description}: explanation is still visible while idle"
+            );
+        }
+        for (title, description) in [
+            ("默认配置", "固定空列表表示不选择任何条目。"),
+            ("启用", "关闭后保留配置。"),
+            ("子智能体委托", "控制该 Agent 是否可被平台委托；原生引擎还可配置发起委托的并发上限。"),
+            ("作为子智能体", "只有开启后，该 Agent 才会出现在 AgentTool 的可选列表中。"),
+            ("温度", "控制生成发散度。"),
+            ("智能体模式", "启用后允许该代理进入多轮工具调用循环。"),
+            ("并行工具", "该智能体是否允许同一轮并行执行多个工具。"),
+        ] {
+            assert_modal_help(&mut scene, &mut renderer, &theme, locale, title, description);
+        }
+        for text in [
+            "首次保存成功后，运行引擎及 ACP backend 不可修改。",
+            "身份文件正文即时保存；其余配置点击保存后生效。",
+            "关闭后不参与注册。",
+            "关闭后不可被委托。",
+            "权限始终受安全上限约束。",
+            "范围 0.0–2.0",
+        ] {
+            geometry.label(tr(locale, text));
+        }
+
+        let value = scroll_to(&mut scene, &mut renderer, geometry.label("0.70"));
+        let slider = Point::new(value.x + 3.0, value.y - 16.0);
+        assert!(matches!(scene.click(&mut renderer, slider).as_slice(),
+            [Message::Settings(S::Agents(A::TemperatureChanged(id, value)))]
+            if id == AGENT && (0.0..0.7).contains(value)));
+
+        let delegation =
+            scroll_to(&mut scene, &mut renderer, geometry.label(tr(locale, "允许作为子智能体")));
+        let draft = app.agents_settings.profile_modal.as_ref().unwrap();
+        assert!(matches!(scene.click(&mut renderer, delegation.center()).as_slice(),
+            [Message::Settings(S::Agents(A::AllowAsSubagentToggled(id, enabled)))]
+            if id == AGENT && *enabled != draft.allow_as_subagent));
+        assert!(matches!(
+            scene.click_label(&mut renderer, tr(locale, "保存配置")).as_slice(),
+            [Message::Settings(S::Agents(A::ProfileSave))]
+        ));
+    }
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn settings_help_gap_05_acp_model_capability_controls_choices() {
+    use vw_config_types::agent::AgentRuntime;
+    use vw_gateway_client::vw_api_types::acp_model_source::{
+        AcpModelSource, AcpModelSourceCapability,
+    };
+
+    if !isolated("settings_help_gap_05_acp_model_capability_controls_choices") {
+        return;
+    }
+    let mut app = fixture();
+    app.desktop_locale = DesktopLocale::SimplifiedChinese;
+    app.app_theme = Theme::Dark;
+    app.agents_settings.active_detail_tab = AGENT_DETAIL_BASIC_TAB.into();
+    let mut draft = DelegateAgentSettingsEntry::from_config("acp-fixture", None);
+    draft.runtime = AgentRuntime::Acp { backend: "fixture".into() };
+    draft.defaults.model =
+        AgentDefault::Fixed(AgentModelReference { provider: PROVIDER.into(), model: MODEL.into() });
+    app.agents_settings.profile_modal = Some(draft);
+    let mut renderer = renderer().await;
+    for (supported, width) in [(false, 420), (true, 960)] {
+        if supported {
+            let session = app.get_session_runtime_mut("fixture-session");
+            session.acp_agent = Some("fixture".into());
+            session.acp_options.model_source_capabilities =
+                vec![AcpModelSourceCapability::Supported { source: AcpModelSource::SessionModel }];
+        }
+        let mut scene = Scene::new(profile(&app), &mut renderer, width, 820);
+        let geometry = scene.geometry(&renderer);
+        for absent in [
+            "首次保存成功后，运行引擎及 ACP backend 不可修改。",
+            "工具",
+            "温度",
+            "并行工具",
+            "智能体模式",
+            "子智能体数量",
+            "最大深度",
+            "会话模型来源下，显式选择优先于智能体默认；继承会话模型在无选择时使用环境默认。CLI 本地配置是独立来源，由会话单独选择。仅已声明会话模型能力的引擎可固定模型。",
+        ] {
+            assert!(!geometry.labels.iter().any(|(value, _)| value == absent), "{absent}");
+        }
+        geometry.label("固定运行引擎：fixture");
+        geometry.label("允许作为子智能体");
+        for hint in [
+            "仅已声明会话模型能力的引擎可固定模型。",
+            "模型不可用，或当前引擎尚未提供此模型来源能力，请重新选择或继承。",
+        ] {
+            assert_eq!(
+                geometry.labels.iter().any(|(value, _)| value == hint),
+                !supported,
+                "{hint}"
+            );
+        }
+        assert_modal_help(
+            &mut scene,
+            &mut renderer,
+            &app.app_theme,
+            app.desktop_locale,
+            "模型",
+            "会话模型来源下，显式选择优先于智能体默认；继承会话模型在无选择时使用环境默认。CLI 本地配置是独立来源，由会话单独选择。",
+        );
+        let force = geometry.label("强制使用所选模型");
+        let picker = *geometry
+            .focusable
+            .iter()
+            .rfind(|bounds| bounds.y < force.y && force.y - (bounds.y + bounds.height) <= 10.0)
+            .expect("model picker above the force model switch");
+        let picker = scroll_to(&mut scene, &mut renderer, picker);
+        assert!(scene.click(&mut renderer, picker.center()).is_empty());
+        assert!(scene.key(&mut renderer, Named::End).is_empty());
+        let messages = scene.key(&mut renderer, Named::Enter);
+        if supported {
+            assert!(matches!(messages.as_slice(),
+                [Message::Settings(S::Agents(A::ProfileModelChanged(AgentDefault::Fixed(model))))]
+                if model.provider == PROVIDER && model.model == "model-19"));
+        } else {
+            assert!(matches!(
+                messages.as_slice(),
+                [Message::Settings(S::Agents(A::ProfileModelChanged(AgentDefault::Inherit)))]
+            ));
+        }
+    }
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn settings_help_gap_05_fixed_role_and_tool_controls_remain_visible() {
+    if !isolated("settings_help_gap_05_fixed_role_and_tool_controls_remain_visible") {
+        return;
+    }
+    let mut app = fixture();
+    let mut renderer = renderer().await;
+    app.agents_settings.active_detail_tab = AGENT_DETAIL_BASIC_TAB.into();
+    app.agents_settings.profile_modal = Some(DelegateAgentSettingsEntry::from_config("main", None));
+    {
+        let mut scene = Scene::new(profile(&app), &mut renderer, 420, 820);
+        let geometry = scene.geometry(&renderer);
+        for label in [
+            "固定运行引擎：native",
+            "角色边界",
+            "委托资格、并发上限和递归深度由内置角色目录固定，不能在此放宽。",
+        ] {
+            geometry.label(label);
+        }
+        for label in
+            ["删除智能体", "允许作为子智能体", "首次保存成功后，运行引擎及 ACP backend 不可修改。"]
+        {
+            assert!(!geometry.labels.iter().any(|(value, _)| value == label), "{label}");
+        }
+        scene.screenshot(
+            &mut renderer,
+            &Theme::Light,
+            mouse::Cursor::Unavailable,
+            "agent-fixed-role",
+        );
+    }
+
+    let mut app = fixture();
+    app.agents_settings.active_detail_tab = AGENT_DETAIL_TOOLS_TAB.into();
+    let mut scene = Scene::new(profile(&app), &mut renderer, 420, 820);
+    let geometry = scene.geometry(&renderer);
+    geometry.label("未选择的工具不可调用。");
+    assert_modal_help(
+        &mut scene,
+        &mut renderer,
+        &app.app_theme,
+        app.desktop_locale,
+        "注册工具",
+        "选择在对话开始时注册给模型的工具。",
+    );
+    let toggle = scroll_to(&mut scene, &mut renderer, geometry.label("screenshot"));
+    assert!(matches!(scene.click(&mut renderer, toggle.center()).as_slice(),
+        [Message::Settings(S::Agents(A::AllowedToolToggled(id, tool, true)))]
+        if id == AGENT && tool == "screenshot"));
 }

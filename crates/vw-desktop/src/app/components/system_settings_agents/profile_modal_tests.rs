@@ -540,7 +540,7 @@ async fn agent_runtime_creation_controls_render_in_both_themes() {
             }
             let mut labels = Labels::default();
             element.as_widget_mut().operate(&mut tree, Layout::new(&node), &renderer, &mut labels);
-            assert!(labels.0.iter().any(|s| s.contains("首次保存成功后")));
+            assert_eq!(labels.0.iter().any(|s| s.contains("首次保存成功后")), state != "saved");
             if state == "saved" {
                 assert!(labels.0.iter().any(|s| s == "固定运行引擎：codex"));
                 assert!(!labels.0.iter().any(|s| s == "刷新引擎目录"));

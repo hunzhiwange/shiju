@@ -6,16 +6,16 @@
 use super::shared::section_card;
 use crate::app::components::number_input::NumberInput;
 use crate::app::components::system_settings_common::{
-    settings_checkbox_style, settings_divider, settings_flexible_row,
-    settings_flexible_row_with_help, settings_group_card, settings_group_heading,
-    settings_group_heading_with_help, settings_text_input,
+    settings_checkbox_style, settings_divider, settings_flexible_row_with_help,
+    settings_group_card, settings_group_heading_with_help, settings_muted_text_style,
+    settings_text_input,
 };
 use crate::app::i18n::{I18n, settings_extensions::text as tr};
 use crate::app::message::settings::{AgentsMessage, SettingsMessage};
 use crate::app::state::DelegateAgentSettingsEntry;
 use crate::app::{App, Message};
-use iced::widget::{checkbox, column, slider, text};
-use iced::{Element, Length, Theme};
+use iced::widget::{checkbox, column, row, slider, text};
+use iced::{Alignment, Element, Length};
 
 pub(super) fn shows_registration_controls(entry: &DelegateAgentSettingsEntry) -> bool {
     entry.can_disable
@@ -23,14 +23,6 @@ pub(super) fn shows_registration_controls(entry: &DelegateAgentSettingsEntry) ->
 
 pub(super) fn shows_delegation_controls(entry: &DelegateAgentSettingsEntry) -> bool {
     !entry.role_controls_locked
-}
-
-fn field_row<'a>(
-    label: &'a str,
-    description: &'a str,
-    control: impl Into<Element<'a, Message>>,
-) -> Element<'a, Message> {
-    settings_flexible_row(label, description, 320.0, control).padding([6, 0]).into()
 }
 
 /// 构建或处理 `view` 对应的界面片段与交互数据。
@@ -88,34 +80,48 @@ pub(super) fn view<'a>(
         }
     });
 
-    let temperature_row = field_row(
+    let temperature_row = field_with_help(
         tr(app.desktop_locale, "温度"),
-        tr(app.desktop_locale, "控制生成发散度，范围 0.0 - 2.0。"),
+        tr(app.desktop_locale, "控制生成发散度。"),
         column![
             temperature_slider,
-            text(format!("{:.2}", entry.temperature)).size(12).style(|theme: &Theme| {
-                iced::widget::text::Style { color: Some(theme.palette().text.scale_alpha(0.65)) }
-            }),
+            row![
+                text(format!("{:.2}", entry.temperature)).size(12).style(settings_muted_text_style),
+                text(tr(app.desktop_locale, "范围 0.0–2.0"))
+                    .size(12)
+                    .style(settings_muted_text_style),
+            ]
+            .spacing(8)
+            .wrap(),
         ]
         .spacing(8)
-        .width(Length::Fill),
+        .width(Length::Fill)
+        .into(),
     );
 
-    let enabled_row = field_row(
+    let enabled_row = field_with_help(
         tr(app.desktop_locale, "启用"),
-        tr(app.desktop_locale, "关闭后保留配置，但该智能体不会作为可用项参与注册。"),
-        checkbox(entry.enabled)
-            .label(tr(app.desktop_locale, "启用该智能体"))
-            .on_toggle({
-                let key = entry.key.clone();
-                move |value| {
-                    Message::Settings(SettingsMessage::Agents(AgentsMessage::CatalogToggle(
-                        key.clone(),
-                        value,
-                    )))
-                }
-            })
-            .style(settings_checkbox_style),
+        tr(app.desktop_locale, "关闭后保留配置。"),
+        column![
+            checkbox(entry.enabled)
+                .label(tr(app.desktop_locale, "启用该智能体"))
+                .on_toggle({
+                    let key = entry.key.clone();
+                    move |value| {
+                        Message::Settings(SettingsMessage::Agents(AgentsMessage::CatalogToggle(
+                            key.clone(),
+                            value,
+                        )))
+                    }
+                })
+                .style(settings_checkbox_style),
+            text(tr(app.desktop_locale, "关闭后不参与注册。"))
+                .size(12)
+                .style(settings_muted_text_style),
+        ]
+        .spacing(6)
+        .align_x(Alignment::End)
+        .into(),
     );
 
     let registration_section = shows_registration_controls(entry).then(|| {
@@ -131,20 +137,28 @@ pub(super) fn view<'a>(
         .spacing(8)
     });
 
-    let allow_as_subagent_row = field_row(
+    let allow_as_subagent_row = field_with_help(
         tr(app.desktop_locale, "作为子智能体"),
         tr(app.desktop_locale, "只有开启后，该 Agent 才会出现在 AgentTool 的可选列表中。"),
-        checkbox(entry.allow_as_subagent)
-            .label(tr(app.desktop_locale, "允许作为子智能体"))
-            .on_toggle({
-                let key = entry.key.clone();
-                move |value| {
-                    Message::Settings(SettingsMessage::Agents(
-                        AgentsMessage::AllowAsSubagentToggled(key.clone(), value),
-                    ))
-                }
-            })
-            .style(settings_checkbox_style),
+        column![
+            checkbox(entry.allow_as_subagent)
+                .label(tr(app.desktop_locale, "允许作为子智能体"))
+                .on_toggle({
+                    let key = entry.key.clone();
+                    move |value| {
+                        Message::Settings(SettingsMessage::Agents(
+                            AgentsMessage::AllowAsSubagentToggled(key.clone(), value),
+                        ))
+                    }
+                })
+                .style(settings_checkbox_style),
+            text(tr(app.desktop_locale, "关闭后不可被委托。"))
+                .size(12)
+                .style(settings_muted_text_style),
+        ]
+        .spacing(6)
+        .align_x(Alignment::End)
+        .into(),
     );
 
     let max_parallel_subagents_row = field_with_help(
@@ -210,7 +224,7 @@ pub(super) fn view<'a>(
         .into(),
     );
 
-    let parallel_tools_row = field_row(
+    let parallel_tools_row = field_with_help(
         tr(app.desktop_locale, "并行工具"),
         tr(app.desktop_locale, "该智能体是否允许同一轮并行执行多个工具。"),
         checkbox(entry.parallel_tools)
@@ -224,7 +238,8 @@ pub(super) fn view<'a>(
                     )))
                 }
             })
-            .style(settings_checkbox_style),
+            .style(settings_checkbox_style)
+            .into(),
     );
 
     let max_iterations_row = field_with_help(
@@ -243,7 +258,7 @@ pub(super) fn view<'a>(
         .into(),
     );
 
-    let agentic_row = field_row(
+    let agentic_row = field_with_help(
         tr(app.desktop_locale, "智能体模式"),
         tr(app.desktop_locale, "启用后允许该代理进入多轮工具调用循环。"),
         checkbox(entry.agentic)
@@ -257,12 +272,15 @@ pub(super) fn view<'a>(
                     )))
                 }
             })
-            .style(settings_checkbox_style),
+            .style(settings_checkbox_style)
+            .into(),
     );
 
     let delegation_section: Element<'_, Message> = if shows_delegation_controls(entry) {
         column![
-            settings_group_heading(
+            settings_group_heading_with_help(
+                i18n,
+                &app.app_theme,
                 tr(app.desktop_locale, "子智能体委托"),
                 tr(
                     app.desktop_locale,

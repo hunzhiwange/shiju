@@ -221,8 +221,9 @@ async fn agent_model_inheritance_renders_chinese_in_both_themes() {
         let mut labels = Labels::default();
         element.as_widget_mut().operate(&mut tree, Layout::new(&node), &renderer, &mut labels);
         assert!(!labels.0.iter().any(|text| text == "默认权限"));
-        assert!(labels.0.iter().any(|text| text.contains("CLI 本地配置")));
-        assert!(labels.0.iter().any(|text| text.contains("继承会话模型")));
+        assert!(!labels.0.iter().any(|text| text.contains("CLI 本地配置")));
+        assert!(labels.0.iter().any(|text| text == "仅已声明会话模型能力的引擎可固定模型。"));
+        assert!(labels.0.iter().any(|text| text == "强制使用所选模型"));
         element.as_widget().draw(
             &tree,
             &mut renderer,

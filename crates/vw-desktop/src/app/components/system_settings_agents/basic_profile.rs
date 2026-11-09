@@ -84,7 +84,11 @@ pub(super) fn view<'a>(
     };
     let runtime = settings_responsive_row(
         label("运行智能体"),
-        label("首次保存成功后，运行引擎及 ACP backend 不可修改。"),
+        if fixed {
+            ""
+        } else {
+            label("首次保存成功后，运行引擎及 ACP backend 不可修改。")
+        },
         move || -> Element<'_, Message> {
             if fixed {
                 text(

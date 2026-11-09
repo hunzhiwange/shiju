@@ -5,9 +5,9 @@
 
 use super::shared::is_dark_theme;
 use crate::app::components::system_settings_common::{
-    rounded_action_btn_style, settings_group_heading, settings_group_heading_with_help,
-    settings_hover_help_label, settings_muted_text_style, settings_panel_style,
-    settings_segment_button_style, settings_value_badge,
+    rounded_action_btn_style, settings_group_heading_with_help, settings_hover_help_label,
+    settings_muted_text_style, settings_panel_style, settings_segment_button_style,
+    settings_value_badge,
 };
 use crate::app::i18n::{I18n, settings_extensions::text as tr};
 use crate::app::message::settings::{AgentsMessage, SettingsMessage};
@@ -905,10 +905,18 @@ pub(super) fn view<'a>(
     };
 
     column![
-        settings_group_heading(
-            tr(app.desktop_locale, "注册工具"),
-            tr(app.desktop_locale, "选择在对话开始时注册给模型的工具。未选择的工具不可调用。")
-        ),
+        column![
+            settings_group_heading_with_help(
+                I18n::new(app.desktop_locale),
+                &app.app_theme,
+                tr(app.desktop_locale, "注册工具"),
+                tr(app.desktop_locale, "选择在对话开始时注册给模型的工具。"),
+            ),
+            text(tr(app.desktop_locale, "未选择的工具不可调用。"))
+                .size(13)
+                .style(settings_muted_text_style),
+        ]
+        .spacing(6),
         tools_list,
     ]
     .spacing(14)

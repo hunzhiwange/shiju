@@ -437,6 +437,26 @@ fn collect_stream_emits_late_reasoning_after_text() {
 }
 
 #[test]
+fn collect_stream_emits_late_reasoning_without_repeating_early_reasoning() {
+    let (result, deltas) = collect_events([
+        llm::StreamEvent::ReasoningDelta("先检查。".to_string()),
+        llm::StreamEvent::Delta("answer".to_string()),
+        llm::StreamEvent::ReasoningDelta("late plan".to_string()),
+        llm::StreamEvent::Done {
+            usage: models::TokenUsage::default(),
+            finish_reason: Some("stop".to_string()),
+        },
+    ]);
+
+    let step = result.expect("text should make the step valid");
+    assert_eq!(step.reasoning_content, "先检查。late plan");
+    assert_eq!(
+        deltas,
+        vec!["<think>先检查。", "</think>\n\n", "answer", "\n\n<think>late plan</think>\n\n"]
+    );
+}
+
+#[test]
 fn collect_stream_rejects_done_without_text_or_tools() {
     let (result, deltas) = collect_events([llm::StreamEvent::Done {
         usage: models::TokenUsage::default(),

@@ -79,11 +79,17 @@ async fn acp_model_source_relay_responses_http_roundtrip_stream_errors_cancel_an
                 tools.iter().any(|tool| tool["function"]["name"] == "apply_patch")
             }) {
                 let frames = [
-                    json!({"choices":[{"index":0,"delta":{"role":"assistant","reasoning_content":"Inspect the file."}}]}),
+                    json!({"choices":[{"index":0,"delta":{"role":"assistant","reasoning_content":"Inspect "}}]}),
+                    json!({"choices":[{"index":0,"delta":{"reasoning_content":"the file."}}]}),
+                    json!({"choices":[{"index":0,"delta":{"content":"I found it."}}]}),
+                    json!({"choices":[{"index":0,"delta":{"reasoning_content":" Apply the patch."}}]}),
                     json!({"choices":[{"index":0,"delta":{"tool_calls":[{"index":0,"id":"patch-1","type":"function","function":{"name":"apply_patch","arguments":"{\"input\":"}}]}}]}),
                     json!({"choices":[{"index":0,"delta":{"tool_calls":[{"index":0,"function":{"arguments":"\"*** Begin Patch\\n*** End Patch\"}"}}]},"finish_reason":"tool_calls"}]}),
                     json!({"choices":[],"usage":{"prompt_tokens":8,"completion_tokens":5}})
                 ];
+                if prompt == "wait for reasoning" {
+                    return sse(format!("data: {}\n\n", frames[0]), true);
+                }
                 let mut wire = frames.iter().map(|frame| format!("data: {frame}\n\n")).collect::<String>();
                 wire.push_str("data: [DONE]\n\n");
                 return sse(wire, false);
@@ -272,6 +278,37 @@ async fn acp_model_source_relay_responses_http_roundtrip_stream_errors_cancel_an
     ],"reasoning":{"effort":"medium","summary":"auto"},
     "include":["reasoning.encrypted_content"],"client_metadata":{"client":"private"},
     "prompt_cache_key":"private-session"});
+    let mut waiting_request = request.clone();
+    waiting_request["input"][1]["content"] = "wait for reasoning".into();
+    let mut pending = client
+        .post(&codex_url)
+        .bearer_auth(codex.bearer_token())
+        .json(&waiting_request)
+        .send()
+        .await
+        .unwrap()
+        .error_for_status()
+        .unwrap()
+        .bytes_stream();
+    tokio::time::timeout(Duration::from_secs(2), async {
+        let mut wire = String::new();
+        while let Some(chunk) = pending.next().await {
+            wire.push_str(std::str::from_utf8(&chunk.unwrap()).unwrap());
+            let Some((complete, _)) = wire.rsplit_once("\n\n") else {
+                continue;
+            };
+            if parse_events(complete).iter().any(|event| {
+                event["type"] == "response.reasoning_summary_text.delta"
+                    && event["delta"] == "Inspect "
+            }) {
+                return;
+            }
+        }
+        panic!("stream ended before emitting a reasoning delta");
+    })
+    .await
+    .expect("reasoning delta must arrive while the upstream stream is open");
+    drop(pending);
     let wire = client
         .post(&codex_url)
         .bearer_auth(codex.bearer_token())
@@ -285,19 +322,48 @@ async fn acp_model_source_relay_responses_http_roundtrip_stream_errors_cancel_an
         .await
         .unwrap();
     let events = parse_events(&wire);
+    let item_events = events
+        .iter()
+        .filter(|event| {
+            matches!(
+                event["type"].as_str(),
+                Some("response.output_item.added" | "response.output_item.done")
+            )
+        })
+        .map(|event| (event["output_index"].as_u64().unwrap(), event["type"].as_str().unwrap()))
+        .collect::<Vec<_>>();
+    assert_eq!(
+        item_events,
+        (0..4)
+            .flat_map(|index| {
+                [(index, "response.output_item.added"), (index, "response.output_item.done")]
+            })
+            .collect::<Vec<_>>()
+    );
+    let deltas = events
+        .iter()
+        .filter(|event| event["type"] == "response.reasoning_summary_text.delta")
+        .map(|event| {
+            assert_eq!(event["summary_index"], 0);
+            (event["output_index"].as_u64().unwrap(), event["delta"].as_str().unwrap())
+        })
+        .collect::<Vec<_>>();
+    assert_eq!(deltas, [(0, "Inspect "), (0, "the file."), (2, " Apply the patch.")]);
     assert!(events.iter().any(|event| event["type"] == "response.custom_tool_call_input.delta"
         && event["delta"] == "*** Begin Patch\n*** End Patch"));
     let result = &events.last().unwrap()["response"];
     assert_eq!(result["status"], "completed");
     assert_eq!(result["output"][0]["type"], "reasoning");
-    assert_eq!(result["output"][1]["call_id"], "patch-1");
+    assert_eq!(result["output"][1]["content"][0]["text"], "I found it.");
+    assert_eq!(result["output"][2]["summary"][0]["text"], " Apply the patch.");
+    assert_eq!(result["output"][3]["call_id"], "patch-1");
     let mut replay = request.clone();
     let items = replay["input"].as_array_mut().unwrap();
     let mut reasoning = result["output"][0].clone();
     reasoning["content"] = Value::Null;
     reasoning["encrypted_content"] = Value::Null;
     items.push(reasoning);
-    items.push(result["output"][1].clone());
+    items.extend(result["output"].as_array().unwrap()[1..].iter().cloned());
     items.push(json!({"type":"custom_tool_call_output","call_id":"patch-1","output":"done"}));
     client
         .post(&codex_url)
@@ -317,7 +383,8 @@ async fn acp_model_source_relay_responses_http_roundtrip_stream_errors_cancel_an
         assert!(sent.get("prompt_cache_key").is_none());
         assert!(sent.get("client_metadata").is_none());
         assert_eq!(sent["messages"][0]["role"], "system");
-        assert_eq!(sent["messages"][2]["reasoning_content"], "Inspect the file.");
+        assert_eq!(sent["messages"][2]["reasoning_content"], "Inspect the file. Apply the patch.");
+        assert_eq!(sent["messages"][2]["content"], "I found it.");
         assert_eq!(sent["messages"][2]["tool_calls"][0]["id"], "patch-1");
         assert_eq!(sent["messages"][3]["tool_call_id"], "patch-1");
     }

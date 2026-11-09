@@ -327,7 +327,7 @@ fn collect_llm_step_from_stream(
     let mut text_delta_emitted = false; // 标记是否已立即输出首个普通文本增量
     let mut reasoning_delta_emitted = false; // 标记是否已立即输出首个推理增量
     let mut thinking_open = false; // 标记 thinking 标签是否已打开
-    let mut thinking_emitted = false; // 标记是否已输出推理内容
+    let mut streamed_reasoning_len = 0;
 
     // 短轮询只用于取消；模型空闲超时仍按最后一条事件计时。
     let mut last_event = Instant::now();
@@ -422,11 +422,11 @@ fn collect_llm_step_from_stream(
                 reasoning_content.push_str(&delta);
                 // 如果还未开始接收普通内容，则流式输出推理内容
                 if !content_started {
+                    streamed_reasoning_len = reasoning_content.len();
                     // 如果 thinking 标签未打开，则打开它
                     if !thinking_open {
                         pending_reasoning.push_str("<think>");
                         thinking_open = true;
-                        thinking_emitted = true;
                     }
                     pending_reasoning.push_str(&delta);
                     // 首个非空推理增量不等待合并窗口；后续才按长度或时间节流。
@@ -543,13 +543,13 @@ fn collect_llm_step_from_stream(
         emit_stream_event(on_event, abort_tx, StreamEvent::Delta("</think>\n\n".to_string()))?;
     }
 
-    // 如果推理内容未在流中输出，则在此处统一输出
-    // 这种情况发生在推理内容在普通内容开始后才到达
-    if !thinking_emitted && !reasoning_content.trim().is_empty() {
+    // 普通内容开始后到达的推理片段在流结束时补发。
+    let late_reasoning = &reasoning_content[streamed_reasoning_len..];
+    if !late_reasoning.trim().is_empty() {
         emit_stream_event(
             on_event,
             abort_tx,
-            StreamEvent::Delta(format!("\n\n<think>{}</think>\n\n", reasoning_content.trim_end())),
+            StreamEvent::Delta(format!("\n\n<think>{}</think>\n\n", late_reasoning.trim_end())),
         )?;
     }
 
@@ -603,7 +603,7 @@ fn collect_llm_step_from_stream(
 /// 1. 在推理内容前添加 `<think>` 开始标签
 /// 2. 流式输出推理过程
 /// 3. 在开始返回普通内容时添加 `</think>` 结束标签
-/// 4. 如果推理内容未流式输出，则在最后统一输出
+/// 4. 正文开始后收到的推理片段在最后补发
 ///
 /// UI 侧同时兼容部分 API 返回的 `<thinking>...</thinking>` 别名标签。
 ///

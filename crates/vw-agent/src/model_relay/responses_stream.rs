@@ -29,6 +29,7 @@ struct Decoder {
     codex_chat: bool,
     tool_names: ChatTools,
     reasoning: String,
+    late_reasoning: String,
     upstream_id: Option<String>,
     store: bool,
     references: Arc<References>,
@@ -54,36 +55,68 @@ impl Decoder {
         response["error"] = json!({"code":"relay_error","message":"Unsupported or invalid upstream Responses conversion"});
         self.emit(json!({"type":"response.failed","response":response}))
     }
+    fn emit_reasoning_delta(
+        &mut self,
+        out: &mut String,
+        item_id: &str,
+        index: usize,
+        delta: &str,
+        first: bool,
+    ) {
+        if first {
+            out.push_str(&self.emit(json!({"type":"response.output_item.added","output_index":index,"item":{"type":"reasoning","id":item_id,"summary":[]}})));
+            out.push_str(&self.emit(json!({"type":"response.reasoning_summary_part.added","item_id":item_id,"output_index":index,"summary_index":0,"part":{"type":"summary_text","text":""}})));
+        }
+        out.push_str(&self.emit(json!({"type":"response.reasoning_summary_text.delta","item_id":item_id,"output_index":index,"summary_index":0,"delta":delta})));
+    }
+    fn finish_reasoning(&mut self, out: &mut String, index: usize, item: &Value) {
+        let item_id = &item["id"];
+        let part = &item["summary"][0];
+        out.push_str(&self.emit(json!({"type":"response.reasoning_summary_text.done","item_id":item_id,"output_index":index,"summary_index":0,"text":part["text"]})));
+        out.push_str(&self.emit(json!({"type":"response.reasoning_summary_part.done","item_id":item_id,"output_index":index,"summary_index":0,"part":part})));
+        out.push_str(
+            &self
+                .emit(json!({"type":"response.output_item.done","output_index":index,"item":item})),
+        );
+    }
     fn finish(&mut self) -> Result<String, StatusCode> {
         if !self.started || self.reason.is_null() {
             return Err(StatusCode::BAD_GATEWAY);
         }
         let calls = self.tools.values().cloned().collect::<Vec<_>>();
-        let mut body = json!({"id":self.id,"choices":[{"message":{"role":"assistant","content":if self.text_open{json!(self.text)}else{Value::Null},"tool_calls":calls},"finish_reason":self.reason}],"usage":self.usage});
-        if !self.reasoning.is_empty() {
-            body["choices"][0]["message"]["reasoning_content"] = self.reasoning.as_str().into();
-        }
-        let response = responses::from_chat(
+        let body = json!({"id":self.id,"choices":[{"message":{"role":"assistant","content":if self.text_open{json!(self.text)}else{Value::Null},"tool_calls":calls},"finish_reason":self.reason}],"usage":self.usage});
+        let mut response = responses::from_chat(
             &body,
             &self.identity.model,
             &self.id,
             &self.tool_names,
             self.codex_chat,
         )?;
+        let items = response["output"].as_array_mut().ok_or(StatusCode::BAD_GATEWAY)?;
+        let reasoning_id = format!("{}_rs", self.id);
+        if !self.reasoning.is_empty() {
+            items.insert(0, responses::reasoning_item(&reasoning_id, &self.reasoning));
+        }
+        let late_id = format!("{}_rs_late", self.id);
+        let late_reasoning = std::mem::take(&mut self.late_reasoning);
+        if !late_reasoning.is_empty() {
+            let index = usize::from(!self.reasoning.is_empty()) + usize::from(self.text_open);
+            items.insert(index, responses::reasoning_item(&late_id, &late_reasoning));
+        }
         let mut out = String::new();
-        for (index, item) in
-            response["output"].as_array().ok_or(StatusCode::BAD_GATEWAY)?.iter().enumerate()
-        {
+        for (index, item) in items.iter().enumerate() {
             let item_id = &item["id"];
             if item["type"] == "message" {
                 out.push_str(&self.emit(json!({"type":"response.output_text.done","item_id":item_id,"output_index":index,"content_index":0,"text":self.text,"logprobs":[]})));
                 out.push_str(&self.emit(json!({"type":"response.content_part.done","item_id":item_id,"output_index":index,"content_index":0,"part":item["content"][0]})));
             } else if item["type"] == "reasoning" {
-                let mut start = item.clone();
-                start["summary"] = json!([]);
-                out.push_str(&self.emit(
-                    json!({"type":"response.output_item.added","output_index":index,"item":start}),
-                ));
+                if item_id == &late_id {
+                    self.emit_reasoning_delta(&mut out, &late_id, index, &late_reasoning, true);
+                    self.finish_reasoning(&mut out, index, item);
+                } else if !self.text_open {
+                    self.finish_reasoning(&mut out, index, item);
+                }
+                continue;
             } else {
                 let mut start = item.clone();
                 let (field, delta_event, done_event) = if item["type"] == "custom_tool_call" {
@@ -208,7 +241,23 @@ impl Decoder {
                 if let Some(reasoning) =
                     delta.get("reasoning_content").filter(|value| !value.is_null())
                 {
-                    self.reasoning.push_str(reasoning.as_str().ok_or(StatusCode::BAD_GATEWAY)?);
+                    let reasoning = reasoning.as_str().ok_or(StatusCode::BAD_GATEWAY)?;
+                    if !reasoning.is_empty() {
+                        if self.text_open {
+                            // Codex tracks one active item. Defer late reasoning until text closes.
+                            self.late_reasoning.push_str(reasoning);
+                        } else {
+                            let item_id = format!("{}_rs", self.id);
+                            self.emit_reasoning_delta(
+                                &mut out,
+                                &item_id,
+                                0,
+                                reasoning,
+                                self.reasoning.is_empty(),
+                            );
+                            self.reasoning.push_str(reasoning);
+                        }
+                    }
                 }
             } else {
                 super::messages::object_keys(delta, &["role", "content", "tool_calls", "refusal"])?;
@@ -219,13 +268,21 @@ impl Decoder {
             if let Some(text) = delta["content"].as_str() {
                 if !text.is_empty() {
                     let item_id = format!("{}_msg_0", self.id);
+                    let index = usize::from(!self.reasoning.is_empty());
                     if !self.text_open {
-                        out.push_str(&self.emit(json!({"type":"response.output_item.added","output_index":0,"item":{"id":item_id,"type":"message","role":"assistant","status":"in_progress","content":[]}})));
-                        out.push_str(&self.emit(json!({"type":"response.content_part.added","item_id":item_id,"output_index":0,"content_index":0,"part":{"type":"output_text","text":"","annotations":[],"logprobs":[]}})));
+                        if index == 1 {
+                            let item = responses::reasoning_item(
+                                &format!("{}_rs", self.id),
+                                &self.reasoning,
+                            );
+                            self.finish_reasoning(&mut out, 0, &item);
+                        }
+                        out.push_str(&self.emit(json!({"type":"response.output_item.added","output_index":index,"item":{"id":item_id,"type":"message","role":"assistant","status":"in_progress","content":[]}})));
+                        out.push_str(&self.emit(json!({"type":"response.content_part.added","item_id":item_id,"output_index":index,"content_index":0,"part":{"type":"output_text","text":"","annotations":[],"logprobs":[]}})));
                         self.text_open = true;
                     }
                     self.text.push_str(text);
-                    out.push_str(&self.emit(json!({"type":"response.output_text.delta","item_id":item_id,"output_index":0,"content_index":0,"delta":text,"logprobs":[]})));
+                    out.push_str(&self.emit(json!({"type":"response.output_text.delta","item_id":item_id,"output_index":index,"content_index":0,"delta":text,"logprobs":[]})));
                 }
             } else if !delta["content"].is_null() {
                 return Err(StatusCode::UNPROCESSABLE_ENTITY);
@@ -361,6 +418,7 @@ pub(super) async fn response(
         codex_chat: output.codex_chat,
         tool_names: output.tool_names,
         reasoning: String::new(),
+        late_reasoning: String::new(),
         upstream_id: None,
         store: output.store,
         references: output.references,

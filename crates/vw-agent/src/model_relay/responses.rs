@@ -281,10 +281,12 @@ pub(super) fn to_chat(body: &Value, codex: bool) -> Result<(Value, ChatTools), S
                         reasoning.push_str(string(part, "text")?);
                     }
                     if let Some(last) = messages.last_mut().filter(|m| m["role"] == "assistant") {
-                        if last.get("reasoning_content").is_some() {
-                            return Err(UNSUPPORTED);
+                        if let Some(Value::String(previous)) = last.get_mut("reasoning_content") {
+                            // The Responses stream can split reasoning around the assistant text.
+                            previous.push_str(&reasoning);
+                        } else {
+                            last["reasoning_content"] = reasoning.into();
                         }
-                        last["reasoning_content"] = reasoning.into();
                     } else {
                         messages.push(json!({"role":"assistant","content":null,"reasoning_content":reasoning}));
                     }
@@ -391,11 +393,7 @@ pub(super) fn from_chat(
     }
     if let Some(reasoning) = reasoning.filter(|text| !text.is_empty()) {
         let index = usize::from(output.first().is_some_and(|item| item["type"] == "message"));
-        output.insert(
-            index,
-            json!({"type":"reasoning","id":format!("{id}_rs"),
-            "summary":[{"type":"summary_text","text":reasoning}]}),
-        );
+        output.insert(index, reasoning_item(&format!("{id}_rs"), reasoning));
     }
     let input = message["usage"]["input_tokens"].as_u64().ok_or(StatusCode::BAD_GATEWAY)?;
     let tokens = message["usage"]["output_tokens"].as_u64().ok_or(StatusCode::BAD_GATEWAY)?;
@@ -411,6 +409,10 @@ pub(super) fn from_chat(
     Ok(
         json!({"id":id,"object":"response","created_at":chrono::Utc::now().timestamp(),"model":model,"status":status,"output":output,"error":null,"incomplete_details":if status=="incomplete" {json!({"reason":"max_output_tokens"})}else{Value::Null},"usage":usage,"store":false}),
     )
+}
+
+pub(super) fn reasoning_item(id: &str, text: &str) -> Value {
+    json!({"type":"reasoning","id":id,"summary":[{"type":"summary_text","text":text}]})
 }
 
 pub(super) fn is_native(model: &crate::provider::provider::Model) -> bool {

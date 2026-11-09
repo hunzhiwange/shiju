@@ -265,6 +265,9 @@ mod agent_apps_auth_poll;
 #[cfg(all(test, target_os = "macos"))]
 mod agent_apps_auth_poll_tests;
 
+#[cfg(all(test, target_os = "macos"))]
+mod agent_apps_auth_redaction_tests;
+
 mod agent_apps_auth_remove;
 #[cfg(all(test, target_os = "macos"))]
 mod agent_apps_auth_remove_tests;

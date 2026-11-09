@@ -154,6 +154,7 @@ async fn start(
     ) {
         return Err(AuthErrorCode::Unsupported.into());
     }
+    let execution_service = execution.service;
     let (send, receive) = oneshot::channel();
     tokio::spawn(async move {
         let mut response = Some(send);
@@ -171,7 +172,10 @@ async fn start(
                 response.send(Err(result.err().unwrap_or(AuthErrorCode::ExecutionHostUnavailable)));
         }
     });
-    let started = receive.await.map_err(|_| AuthErrorCode::ExecutionHostUnavailable)??;
+    let started = receive
+        .await
+        .unwrap_or(Err(AuthErrorCode::ExecutionHostUnavailable))
+        .map_err(|code| FlowError { code, start_service: Some(execution_service) })?;
     Ok((StatusCode::CREATED, Json(started)))
 }
 
@@ -344,18 +348,21 @@ async fn paste(
     }
 }
 
-pub(super) struct FlowError(AuthErrorCode);
+pub(super) struct FlowError {
+    code: AuthErrorCode,
+    start_service: Option<AuthService>,
+}
 
 impl From<AuthErrorCode> for FlowError {
     fn from(code: AuthErrorCode) -> Self {
-        Self(code)
+        Self { code, start_service: None }
     }
 }
 
 impl FlowError {
     pub(super) fn access(status: StatusCode) -> Self {
         use AuthErrorCode::*;
-        Self(match status {
+        Self::from(match status {
             StatusCode::UNAUTHORIZED => Unauthenticated,
             StatusCode::FORBIDDEN => Forbidden,
             StatusCode::NOT_FOUND => NotFound,
@@ -368,7 +375,7 @@ impl FlowError {
 impl IntoResponse for FlowError {
     fn into_response(self) -> Response {
         use AuthErrorCode::*;
-        let (status, message) = match self.0 {
+        let (status, message) = match self.code {
             InvalidInput => (StatusCode::BAD_REQUEST, "Invalid authorization request"),
             Unauthenticated => (StatusCode::UNAUTHORIZED, "Authentication required"),
             Forbidden => (StatusCode::FORBIDDEN, "Authorization operation forbidden"),
@@ -389,14 +396,20 @@ impl IntoResponse for FlowError {
             UpstreamFailure => (StatusCode::BAD_GATEWAY, "Authorization provider unavailable"),
             _ => (StatusCode::CONFLICT, "Authorization state changed or is unavailable"),
         };
+        let correlation_id = uuid::Uuid::new_v4().to_string();
+        if let Some(service) = self.start_service {
+            tracing::warn!(
+                operation = "start",
+                ?service,
+                code = ?self.code,
+                %correlation_id,
+                "Authorization request failed"
+            );
+        }
         (
             status,
             [(header::CACHE_CONTROL, "no-store")],
-            Json(AuthError {
-                code: self.0,
-                message: message.into(),
-                correlation_id: uuid::Uuid::new_v4().to_string(),
-            }),
+            Json(AuthError { code: self.code, message: message.into(), correlation_id }),
         )
             .into_response()
     }

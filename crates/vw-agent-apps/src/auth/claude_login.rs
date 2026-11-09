@@ -8,6 +8,7 @@ use super::{
 use reqwest::Url;
 use std::{
     borrow::Cow,
+    collections::HashSet,
     fs,
     io::{self, Write},
     net::{Ipv4Addr, Ipv6Addr},
@@ -516,17 +517,31 @@ fn trusted_url(bytes: &[u8]) -> Option<String> {
         return None;
     }
 
-    let mut has_redirect = false;
+    let mut seen = HashSet::new();
     for (key, value) in url.query_pairs() {
-        match key.as_ref() {
-            "redirect_uri" if !has_redirect && trusted_redirect(&value) => has_redirect = true,
-            "code" if value == "true" => {}
-            "redirect_uri" | "code" | "access_token" | "refresh_token" | "id_token"
-            | "code_verifier" | "client_secret" => {
-                return None;
+        // Only the official CLI's browser challenge fields may leave the host.
+        let allowed = match key.as_ref() {
+            "redirect_uri" => trusted_redirect(&value),
+            "code" => value == "true",
+            "response_type" => value == "code",
+            "code_challenge" => {
+                value.len() == 43
+                    && value
+                        .bytes()
+                        .all(|byte| byte.is_ascii_alphanumeric() || b"-_".contains(&byte))
             }
-            _ => {}
+            "code_challenge_method" => value == "S256",
+            "orgUUID" => uuid::Uuid::parse_str(&value).is_ok(),
+            "client_id" | "scope" | "state" => !value.is_empty(),
+            _ => false,
+        };
+        if !allowed || !seen.insert(key) {
+            return None;
         }
+    }
+    // Without S256, the challenge can be the verifier itself.
+    if seen.contains("code_challenge") != seen.contains("code_challenge_method") {
+        return None;
     }
     Some(url.into())
 }
@@ -536,13 +551,17 @@ fn trusted_redirect(text: &str) -> bool {
         return false;
     }
     let Ok(url) = Url::parse(text) else { return false };
-    if !url.username().is_empty() || url.password().is_some() || url.fragment().is_some() {
+    if !url.username().is_empty()
+        || url.password().is_some()
+        || url.fragment().is_some()
+        || url.query().is_some()
+    {
         return false;
     }
     match (url.scheme(), url.host_str(), url.port()) {
         ("http", _, Some(port)) => loopback_host(&url) && port != 0,
         ("https", Some("platform.claude.com" | "console.anthropic.com"), None) => {
-            url.path() == "/oauth/code/callback" && url.query().is_none()
+            url.path() == "/oauth/code/callback"
         }
         _ => false,
     }

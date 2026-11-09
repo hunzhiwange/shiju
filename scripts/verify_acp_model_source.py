@@ -30,7 +30,7 @@ def configure_opencode_effort_fixture(fixture):
 
 def opencode_effort_successful(evidence, flow):
     requests = evidence["requests"]
-    return (all(flow[key] for key in OPENCODE_EFFORT_CHECKPOINTS)
+    return (all(flow[key] for key in EFFORT_CHECKPOINTS)
             and evidence["errors"] == 0
             and all(row["authenticated"] and row["route"] == "/v1/chat/completions"
                     and row["model"] == "gpt-5.1" for row in requests)
@@ -38,14 +38,35 @@ def opencode_effort_successful(evidence, flow):
                     for turn, effort in (("DEFAULT", None), ("A", "low"), ("B", "high"))))
 
 
-OPENCODE_EFFORT_CHECKPOINTS = ("isolated", "default_turn", "managed_model", "advertised",
-                             "low_turn", "high_turn", "invalid_rejected", "same_session")
+def configure_claude_effort_fixture(fixture):
+    fixture.models = ("claude-opus-4-6",)
+    fixture.messages_effort_probe = True
+
+
+def claude_effort_successful(evidence, flow):
+    requests = evidence["requests"]
+    return (all(flow[key] for key in EFFORT_CHECKPOINTS)
+            and evidence["errors"] == 0
+            and all(row["authenticated"] and row["route"] == "/v1/messages"
+                    and row["model"] == "claude-opus-4-6" for row in requests)
+            and all([(row["effort"], row["thinking"]) for row in requests if row["turn"] == turn]
+                    == [(effort, "adaptive")]
+                    for turn, effort in (("DEFAULT", "high"), ("A", "low"), ("B", "high"))))
+
+
+EFFORT_CHECKPOINTS = ("isolated", "default_turn", "managed_model", "advertised",
+                      "low_turn", "high_turn", "invalid_rejected", "same_session")
 EFFORT_CHECKS = {("opencode", "session-model"): {
     "test": "acp_model_source_opencode_effort_real_cli",
     "configure_fixture": configure_opencode_effort_fixture,
     "identity": lambda: {"engine": "1.19.5", "openai_compatible_sdk": "2.0.41"},
-    "checkpoints": OPENCODE_EFFORT_CHECKPOINTS,
+    "checkpoints": EFFORT_CHECKPOINTS,
     "successful": opencode_effort_successful,
+}, ("claude", "session-model"): {
+    "test": "acp_model_source_claude_effort_real_cli",
+    "configure_fixture": configure_claude_effort_fixture,
+    "checkpoints": EFFORT_CHECKPOINTS,
+    "successful": claude_effort_successful,
 }}
 
 
@@ -378,10 +399,11 @@ def run(args):
             raise Unavailable("manifest must identify exactly one agent")
         entry = entries[0]
         opencode_effort = args.agent == "opencode" and effort_check is not None
+        claude_effort = args.agent == "claude" and effort_check is not None
         if opencode_effort and entry["distribution"]["release"] != "1.19.5":
             raise VersionMismatch("OpenCode effort check requires the reviewed 1.19.5 release")
         upstream_protocol = entry.get("offline_acceptance", {}).get(args.mode, {}).get("upstream_protocol", "chat")
-        if upstream_protocol not in ("chat", "messages"):
+        if upstream_protocol not in ("chat", "messages") or (claude_effort and upstream_protocol != "messages"):
             raise Unavailable("unsupported offline fixture protocol")
         with tempfile.TemporaryDirectory(prefix="acp-model-acceptance-") as temp, ModelFixture() as fixture, ExitStack() as owned:
             if effort_check:
@@ -420,7 +442,7 @@ def run(args):
                     "refreshToken": "offline-native-refresh-must-not-be-used", "expiresAt": 4102444800000}}))
                 os.chmod(credentials, 0o600)
             config = locate(entry, env)
-            if effort_check:
+            if opencode_effort:
                 report["identity"] = effort_check["identity"]()
             if args.agent == "pi":
                 fixture.pi_compaction = True
@@ -435,7 +457,10 @@ def run(args):
             if args.agent == "claude":
                 report["identity"] = claude_sdk_identity(config["command"], entry, env)
                 contract = entry.get("effort_runtime")
-                if contract and report["identity"]["adapter"] == contract["distribution"]["release"]:
+                qualified = contract and report["identity"]["adapter"] == contract["distribution"]["release"]
+                if claude_effort and not qualified:
+                    raise VersionMismatch("Claude effort check requires the reviewed effort runtime")
+                if qualified and not claude_effort:
                     expected_claude_effort = contract["fixture_effort"]
             if args.agent == "openclaw" and args.mode == "cli-local":
                 owned.enter_context(openclaw_native_gateway(config, env, native))
@@ -445,7 +470,7 @@ def run(args):
             if args.agent == "claude":
                 (root / "challenge-second.txt").write_text(fixture.challenge)
                 fixture.second_read_path = str(root / "challenge-second.txt")
-                fixture.probe_auxiliary = True
+                fixture.probe_auxiliary = not claude_effort
             if args.agent == "kimi":
                 fixture.probe_auxiliary = True
                 fixture.auxiliary_profile = "coder"

@@ -771,6 +771,7 @@ pub(crate) async fn do_stream_request_acp(
             && profile.model_api.as_ref().is_some_and(|api| match acp_agent_name.as_str() {
                 "codex" => super::model_source::drivers::codex::uses_native_responses(api),
                 "opencode" => crate::model_relay::chat_url(api).is_ok(),
+                "claude" => api.adapter == "anthropic",
                 _ => false,
             })
         {

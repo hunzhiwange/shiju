@@ -31,6 +31,7 @@ class ModelFixture:
         self.auxiliary_model = "haiku"
         self.delay_next_request = False
         self.chat_effort_probe = False
+        self.messages_effort_probe = False
         self.models = ("acp-fixture-primary", "acp-fixture-switched")
         fixture = self
 
@@ -273,9 +274,21 @@ class ModelFixture:
                            for block in (message.get("content") if isinstance(message.get("content"), list) else [])
                            if block.get("type") == "tool_result" and fixture.challenge in json.dumps(block.get("content"))]
                 with fixture.lock:
-                    fixture.records.append({"model": body["model"], "authenticated": True,
-                                            "route": route, "tool_results": len(results),
-                                            "auxiliary": any("AUXILIARY_CHILD" in json.dumps(m.get("content")) for m in messages if m.get("role") == "user")})
+                    record = {"model": body["model"], "authenticated": True,
+                              "route": route, "tool_results": len(results),
+                              "auxiliary": any("AUXILIARY_CHILD" in json.dumps(m.get("content")) for m in messages if m.get("role") == "user")}
+                    if fixture.messages_effort_probe:
+                        user = next(m for m in reversed(messages) if m.get("role") == "user")
+                        content = json.dumps(user.get("content"))
+                        record["turn"] = next((tag for tag in ("DEFAULT", "A", "B")
+                                               if body.get("tools") and json.dumps("ACP_EFFORT_" + tag) in content), "auxiliary")
+                        effort = body.get("output_config", {}).get("effort")
+                        record["effort"] = (effort if effort in ("low", "medium", "high", "xhigh", "max")
+                                            else "other" if effort is not None else None)
+                        thinking = body.get("thinking", {}).get("type")
+                        record["thinking"] = (thinking if thinking in ("adaptive", "enabled", "disabled")
+                                              else "other" if "thinking" in body else None)
+                    fixture.records.append(record)
                 if "CANCEL_PROBE" in json.dumps(next((m for m in reversed(messages) if m.get("role") == "user"), {})):
                     time.sleep(5)
                 tool = next((tool for tool in body.get("tools", [])
@@ -285,7 +298,7 @@ class ModelFixture:
                 if auxiliary:
                     block = {"type": "tool_use", "id": "fixture-agent-" + str(len(fixture.records)), **auxiliary}
                     reason = "tool_use"
-                elif len(results) < 2 and tool and not (delegated and results):
+                elif not fixture.messages_effort_probe and len(results) < 2 and tool and not (delegated and results):
                     properties = tool.get("input_schema", {}).get("properties", {})
                     name = next((name for name in ("file_path", "path", "filePath") if name in properties), None)
                     if name is None:

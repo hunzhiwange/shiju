@@ -15,7 +15,7 @@ pub(super) fn is_model_config(option: &agent_client_protocol::SessionConfigOptio
 fn managed_effort_id(agent: &str) -> Option<&'static str> {
     match agent {
         "codex" => Some("reasoning_effort"),
-        "opencode" => Some("effort"),
+        "opencode" | "claude" => Some("effort"),
         _ => None,
     }
 }
@@ -25,7 +25,13 @@ pub(super) fn is_managed_effort_config(
     option: &agent_client_protocol::SessionConfigOption,
 ) -> bool {
     managed_effort_id(agent) == Some(option.id.0.as_ref())
-        && option.category == Some(SessionConfigOptionCategory::ThoughtLevel)
+        && match agent {
+            "claude" => matches!(
+                option.category.as_ref(),
+                Some(SessionConfigOptionCategory::Other(category)) if category == "effort"
+            ),
+            _ => option.category == Some(SessionConfigOptionCategory::ThoughtLevel),
+        }
 }
 
 fn is_permission_config_id(id: &str) -> bool {

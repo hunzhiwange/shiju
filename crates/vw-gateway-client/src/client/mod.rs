@@ -13,6 +13,12 @@
 //! - 复用的 `reqwest::Client`，宿主请求额外禁用重定向与重试
 
 #[cfg(not(target_arch = "wasm32"))]
+mod agent_apps_auth_flow;
+#[cfg(not(target_arch = "wasm32"))]
+pub use agent_apps_auth_flow::AgentAppsAuthFlowError;
+#[cfg(all(test, not(target_arch = "wasm32")))]
+mod agent_apps_auth_flow_tests;
+#[cfg(not(target_arch = "wasm32"))]
 mod agent_apps_auth_read;
 #[cfg(not(target_arch = "wasm32"))]
 pub use agent_apps_auth_read::{

@@ -36,7 +36,9 @@ pub use client::GatewayChatWebSocket;
 /// 保留每步原始 LLM 载荷的会话 UI 批量加载结果。
 pub use client::SessionUiLoadResult;
 #[cfg(not(target_arch = "wasm32"))]
-pub use client::{AgentAppsAuthBinding, AgentAppsAuthCredentials, AgentAppsAuthReadError};
+pub use client::{
+    AgentAppsAuthBinding, AgentAppsAuthCredentials, AgentAppsAuthFlowError, AgentAppsAuthReadError,
+};
 /// 网关 HTTP 与流式接口的统一客户端入口。
 ///
 /// 调用方通常只需要持有这个类型，即可访问本 crate 暴露的大部分能力。
@@ -152,6 +154,11 @@ pub use stream::{
 ///
 /// 方便上层从单一依赖入口访问完整的接口类型集合。
 pub use vw_api_types;
+#[cfg(not(target_arch = "wasm32"))]
+pub use vw_api_types::agent_apps_auth::{
+    AuthErrorCode, AuthFlow, AuthFlowId, AuthLoginMethod, AuthPasteRequest, AuthRegion,
+    AuthService, AuthStartRequest, AuthStartResponse,
+};
 pub use vw_api_types::knowledge::{
     KnowledgeCapabilitiesDto, KnowledgeChunkDto, KnowledgeChunkType, KnowledgeChunkingMode,
     KnowledgeDatasetCreateRequest, KnowledgeDatasetDto, KnowledgeDocumentCreateRequest,

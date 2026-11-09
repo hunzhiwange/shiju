@@ -54,6 +54,18 @@
 - Droid 1.3.0 的 Darwin arm64 二进制与官方摘要及既有记录一致。隔离探针的 `initialize` 成功，`session/new` 返回登录错误 `-32000`，回环模型收到 0 次请求。 [Droid 固定包](https://downloads.factory.ai/factory-cli/releases/1.3.0/darwin/arm64/droid) · [登录门槛探针](evidence/probe_upstream_35.py)
 - Cursor 固定版 CDN 的 GET 返回 403，既有可执行文件摘要无法用于本轮新下载。Trae 0.121.3 固定包 HEAD 返回 200，仓库尚无该包的核验摘要和离线配置配方。 [Cursor 固定包](https://downloads.cursor.com/lab/2026.10.22-27dcf5f/darwin/arm64/agent-cli-package.tar.gz) · [Trae 固定包](https://lf-cdn.trae.com.cn/obj/trae-com-cn/trae-cli/trae-cli_0.121.3_darwin_arm64.tar.gz)
 
+共享工作区回归重新检查了以下外部前提。探针使用临时目录和隔离配置，未使用真实凭据，结果不计入权限通过数。
+
+| 后端 | 本轮探针 | 补验所需条件 |
+| --- | --- | --- |
+| Auggie 0.36.0 | npm 包及入口摘要匹配。禁网运行确认固定版拒绝 `--extension` | 上游提供与固定版本匹配的 ACP 离线模型注入，或提供经授权的隔离测试账号及可控模型 |
+| Cursor 2026.10.22-27dcf5f | 固定包 GET 仍为 403 | 可下载且能匹配已审查摘要的固定包，以及经核验的隔离模型配方或获授权的测试登录与可控模型 |
+| Droid 1.3.0 | 官方 SHA-256 和仓库摘要均匹配。回环 BYOK 配置下 `initialize` 成功，`session/new` 要求认证，模型请求为 0 | 允许使用专用 Factory 测试账号，并准许回环自定义模型 |
+| Qoder 1.1.82 | npm 包摘要匹配。禁网执行 `--acp` 时 `initialize` 成功，`session/new` 返回认证错误 `-32000` | 具备 CLI 自定义模型权限的专用测试账号，以及账号允许的可控模型配置 |
+| Trae 0.121.3 | 固定包 HEAD 为 200，响应无可核验摘要，`.sha256` 和 `.sha256sum` 均为 404 | 可核验的 0.121.3 产物摘要，以及与该版本匹配的隔离 ACP 登录与可控模型配置 |
+
+当前官方文档为后续配置提供入口，Trae 的现行 2.0 文档与验收固定版存在代际差异。 [Auggie CLI](https://docs.augmentcode.com/cli/reference) · [Cursor ACP](https://prod.cursor.com/docs/cli/acp) · [Droid 自定义模型](https://docs.factory.com/model-independence/byok) · [Qoder ACP](https://docs.qoder.com/cli/acp) · [Qoder 自定义模型](https://docs.qoder.com/cli/custom-models) · [Trae 配置](https://docs.trae.cn/cli_config-file)
+
 Claude 通过桌面网关先后接收两次工作区写入、越界写入、命令和删除。审批档只对两次工作区写入答复单次允许，两次均落盘。完全访问期间五项操作均生效。撤销后的五次新请求均被拒绝。原生模型路径的模式回读为 `default → bypassPermissions → default`。客户端模型在轮次结束后释放进程，证据来自审批事件与实际文件状态。固定版 ACP 回退测试另行核对原生工具请求和组织拒绝规则。
 
 Codex 的 `agent` 与 `workspace-write` 可绕过宿主文件回调写入系统临时目录。桌面审批档改用 `read-only`，恢复和显式设置也遵守这一限制。两种模型来源都观测到原生审批档拒绝五项操作、完全访问允许操作、撤销后再次拒绝。原生模型路径回读为 `read-only → agent-full-access → read-only`。
@@ -99,4 +111,4 @@ python3 scripts/verify_acp_background.py --gateway "$CARGO_TARGET_DIR/debug/shij
 
 `VIBE_RUNTIME` 指向已核验的 Vibe 3.0.4 运行时目录。
 
-JSON 分别记录宿主夹具与真实适配器结果。Darwin arm64 完整矩阵共 44 条，34 条真实路径通过，5 条客户端模型路径为生产不支持，Auggie、Cursor、Droid、Qoder 和 Trae 的 5 条原生路径受上述外部条件阻塞。宿主并行夹具通过。全矩阵因 5 条外部阻塞返回 1。使用 `--agent <key>` 可单独重跑某个供应商，该运行不作为完整矩阵。
+JSON 分别记录宿主夹具与真实适配器结果。Darwin arm64 共享工作区回归仍为 44 条，34 条真实路径通过，5 条客户端模型路径为生产不支持，Auggie、Cursor、Droid、Qoder 和 Trae 的 5 条原生路径受上述外部条件阻塞。宿主并行夹具通过。全矩阵因 5 条外部阻塞返回 1。使用 `--agent <key>` 可单独重跑某个供应商，该运行不作为完整矩阵。

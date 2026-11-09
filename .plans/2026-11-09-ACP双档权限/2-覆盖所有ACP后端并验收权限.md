@@ -2,7 +2,7 @@
 
 批次：【批次 2】依赖批次 1
 
-状态：已完成，待回归
+状态：已阻塞
 
 目的：逐项实现并证明已注册 ACP 后端遵守两档权限契约，记录可验证的回退和无法验证的边界。
 
@@ -116,3 +116,20 @@
 | `python3 scripts/verify_acp_approval.py --gateway "$CARGO_TARGET_DIR/debug/shiju" --output target/acp-approval-evidence/round3-goose-exact.json --agent goose` | 1 | 1 | 收紧固定版版本比较后 Goose 两条来源再次通过。定向模式不计为全矩阵通过 |
 
 完整证据核对后已归档至 `target/acp-approval-evidence/matrix.json`。本会话的槽位锁均已释放。待上述五条路径具备外部条件后补跑。
+
+### 共享工作区回归
+
+2026-11-09 使用当前共享源码和已核验固定运行时复跑 Darwin arm64 完整矩阵。44 条供应商路径中 34 条通过、5 条生产不支持、5 条受外部条件阻塞，失败为 0。宿主夹具通过，拒绝六次跨工作区答复及六次重复答复。证据在 `target/acp-approval-evidence/matrix-regression.json` 和 `target/acp-approval-evidence/upstream-regression.json`。
+
+| 命令 | 槽位 | 退出码 | 有效证据 |
+| --- | --- | --- | --- |
+| `cargo build -p vw-cli --bin shiju` | 3 | 0 | 当前共享源码的默认网关构建成功 |
+| `python3 scripts/verify_acp_approval.py --gateway "$CARGO_TARGET_DIR/debug/shiju" --output target/acp-approval-evidence/matrix-regression.json` | 3 | 1 | 34 条通过，5 条生产不支持，5 条外部阻塞，宿主夹具通过 |
+| `cargo test -p vw-acp --lib acp_full_access_ -- --test-threads=1` | 4 | 0 | 86 项通过 |
+| `cargo test -p vw-acp --lib acp_desktop_approval_backend_matrix -- --test-threads=1` | 4 | 0 | 1 项通过，覆盖全部 22 个注册后端 |
+| `cargo clippy --all-targets --all-features -- -D warnings` | 4 | 0 | 全量 Clippy 通过 |
+| `python3 -m unittest discover -s scripts -p acp_approval_model_tests.py` | — | 0 | 6 项通过 |
+
+两个 Cargo 目录变量使用对应的 `/Users/xiangmin/worker/code/shiju/target/rust-slot-3` 和 `/Users/xiangmin/worker/code/shiju/target/rust-slot-4`，本轮槽位锁已释放。
+
+Auggie 固定版仍缺离线注入，Cursor 仍缺可下载的固定包及隔离模型路径，Droid 和 Qoder 的实机探针均在创建会话时要求平台认证，Trae 缺固定包核验摘要及同版本 ACP 配方。具体探针及补验前提见[逐后端覆盖](../../docs/shiju/acp-model-source/approval-coverage.md)。这些行仍缺实际工具权限证据，保留本任务待补验。

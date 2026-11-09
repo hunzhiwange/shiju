@@ -8,6 +8,7 @@ use rquickjs::{
 use serde_json::Value;
 
 use super::config::PreparedUsageScript;
+use crate::apps::lifecycle::operations::Operation;
 
 const CPU_BUDGET: Duration = Duration::from_secs(5);
 pub(super) const MEMORY_LIMIT: usize = 16 * 1024 * 1024;
@@ -17,6 +18,7 @@ const STACK_LIMIT: usize = 256 * 1024;
 /// response payloads can contain credentials.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum RuntimeError {
+    Cancelled,
     Unavailable,
     TimedOut,
     SourceTooLarge,
@@ -29,6 +31,7 @@ pub enum RuntimeError {
 impl fmt::Display for RuntimeError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.write_str(match self {
+            Self::Cancelled => "usage script cancelled",
             Self::Unavailable => "usage script runtime unavailable",
             Self::TimedOut => "usage script exceeded its CPU budget",
             Self::SourceTooLarge => "usage script source exceeds the memory budget",
@@ -45,9 +48,17 @@ impl std::error::Error for RuntimeError {}
 impl PreparedUsageScript<'_> {
     /// Produce a request candidate for host-side authorization and validation.
     pub async fn build_request(&self) -> Result<Value, RuntimeError> {
+        self.build_request_for(None).await
+    }
+
+    pub(super) async fn build_request_for(
+        &self,
+        operation: Option<&Operation>,
+    ) -> Result<Value, RuntimeError> {
         let source = bounded_source(self.source())?;
+        let operation = operation.cloned();
         tokio::task::spawn_blocking(move || {
-            run_stage(&source, |ctx, config| {
+            run_stage(&source, operation, |ctx, config| {
                 let request: Object =
                     config.get("request").map_err(|_| RuntimeError::InvalidRequest)?;
                 to_json(ctx.json_stringify(request), RuntimeError::InvalidRequest)
@@ -58,14 +69,24 @@ impl PreparedUsageScript<'_> {
     }
 
     /// Extract a JSON candidate from the response received by the host.
+    #[cfg(test)]
     pub(super) async fn extract(&self, response: &str) -> Result<Value, RuntimeError> {
+        self.extract_for(response, None).await
+    }
+
+    pub(super) async fn extract_for(
+        &self,
+        response: &str,
+        operation: Option<&Operation>,
+    ) -> Result<Value, RuntimeError> {
         if response.len() >= MEMORY_LIMIT {
             return Err(RuntimeError::InvalidResponse);
         }
         let source = bounded_source(self.source())?;
         let response = response.to_owned();
+        let operation = operation.cloned();
         tokio::task::spawn_blocking(move || {
-            run_stage(&source, |ctx, config| {
+            run_stage(&source, operation, |ctx, config| {
                 let extractor: Function =
                     config.get("extractor").map_err(|_| RuntimeError::InvalidResult)?;
                 let response =
@@ -93,13 +114,18 @@ fn bounded_source(source: &str) -> Result<String, RuntimeError> {
 
 fn run_stage(
     source: &str,
+    operation: Option<Operation>,
     execute: impl for<'js> FnOnce(Ctx<'js>, Object<'js>) -> Result<Value, RuntimeError>,
 ) -> Result<Value, RuntimeError> {
     let started = thread_cpu_time()?;
+    check_stage_budget(started, operation.as_ref())?;
     let runtime = Runtime::new().map_err(|_| RuntimeError::Unavailable)?;
     runtime.set_memory_limit(MEMORY_LIMIT);
     runtime.set_max_stack_size(STACK_LIMIT);
-    runtime.set_interrupt_handler(Some(Box::new(move || check_cpu_budget(started).is_err())));
+    let interrupt_operation = operation.clone();
+    runtime.set_interrupt_handler(Some(Box::new(move || {
+        check_stage_budget(started, interrupt_operation.as_ref()).is_err()
+    })));
 
     let context = Context::full(&runtime).map_err(|_| RuntimeError::Unavailable)?;
     let result = context.with(|ctx| {
@@ -108,7 +134,7 @@ fn run_stage(
     });
     // Check after native engine operations as well, since they may not poll the
     // interrupt handler before returning.
-    check_cpu_budget(started)?;
+    check_stage_budget(started, operation.as_ref())?;
     result
 }
 
@@ -132,7 +158,13 @@ fn to_json(
     serde_json::from_str(&json).map_err(|_| error)
 }
 
-fn check_cpu_budget(started: Duration) -> Result<(), RuntimeError> {
+fn check_stage_budget(
+    started: Duration,
+    operation: Option<&Operation>,
+) -> Result<(), RuntimeError> {
+    if operation.is_some_and(Operation::is_cancelled) {
+        return Err(RuntimeError::Cancelled);
+    }
     if thread_cpu_time()?.saturating_sub(started) >= CPU_BUDGET {
         return Err(RuntimeError::TimedOut);
     }

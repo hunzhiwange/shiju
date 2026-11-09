@@ -1,9 +1,5 @@
 //! Host-owned operation progress. Callers retain handles in their authorized task
 //! store; neither this module nor an operation ID grants execution permission.
-use std::sync::{
-    Arc,
-    atomic::{AtomicBool, Ordering},
-};
 use tokio::sync::watch;
 use vw_api_types::{agent_apps::AppId, task::TaskStatus};
 
@@ -22,7 +18,7 @@ pub struct Progress {
 }
 #[derive(Clone)]
 pub struct Operation {
-    cancel: Arc<AtomicBool>,
+    cancel: watch::Sender<bool>,
     progress: watch::Sender<Progress>,
 }
 impl Default for Operation {
@@ -34,7 +30,7 @@ impl Operation {
     pub fn new() -> Self {
         let (progress, _) =
             watch::channel(Progress { phase: Phase::Queued, status: TaskStatus::Queued });
-        Self { cancel: Arc::new(AtomicBool::new(false)), progress }
+        Self { cancel: watch::Sender::new(false), progress }
     }
     pub fn snapshot(&self) -> Progress {
         self.progress.borrow().clone()
@@ -43,7 +39,7 @@ impl Operation {
         self.progress.subscribe()
     }
     pub fn cancel(&self) {
-        self.cancel.store(true, Ordering::SeqCst);
+        self.cancel.send_replace(true);
     }
     /// Cancellation is acknowledged only after the worker and its children finish.
     pub async fn cancel_and_wait(&self) -> Progress {
@@ -63,7 +59,13 @@ impl Operation {
         }
     }
     pub fn is_cancelled(&self) -> bool {
-        self.cancel.load(Ordering::SeqCst)
+        *self.cancel.borrow()
+    }
+    /// Wait until cancellation is requested, including requests made before subscribing.
+    #[cfg(target_os = "macos")]
+    pub(crate) async fn cancelled(&self) {
+        let mut signal = self.cancel.subscribe();
+        let _ = signal.wait_for(|&cancelled| cancelled).await;
     }
     fn set(&self, phase: Phase, status: TaskStatus) {
         self.progress.send_replace(Progress { phase, status });

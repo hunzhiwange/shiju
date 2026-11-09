@@ -6,6 +6,7 @@ use serde_json::Value;
 use vw_api_types::apps_usage::UsageScriptPackage;
 
 use super::{config::PreparedUsageScript, runtime::RuntimeError};
+use crate::apps::lifecycle::operations::Operation;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum ExtractError {
@@ -36,7 +37,15 @@ impl PreparedUsageScript<'_> {
         &self,
         response: &str,
     ) -> Result<Vec<UsageScriptPackage>, ExtractError> {
-        let result = self.extract(response).await.map_err(ExtractError::Runtime)?;
+        self.extract_packages_for(response, None).await
+    }
+
+    pub(super) async fn extract_packages_for(
+        &self,
+        response: &str,
+        operation: Option<&Operation>,
+    ) -> Result<Vec<UsageScriptPackage>, ExtractError> {
+        let result = self.extract_for(response, operation).await.map_err(ExtractError::Runtime)?;
         let packages = match result {
             Value::Array(items) if items.is_empty() => return Err(ExtractError::EmptyResult),
             Value::Array(items) => items,

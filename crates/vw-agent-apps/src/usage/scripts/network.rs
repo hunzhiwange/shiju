@@ -56,6 +56,15 @@ impl PreparedUsageScript<'_> {
         authorized_origins: &[Url],
     ) -> Result<String, NetworkError> {
         let candidate = self.build_request().await.map_err(NetworkError::Runtime)?;
+        self.send_candidate(candidate, timeout_secs, authorized_origins).await
+    }
+
+    pub(super) async fn send_candidate(
+        &self,
+        candidate: Value,
+        timeout_secs: u64,
+        authorized_origins: &[Url],
+    ) -> Result<String, NetworkError> {
         let client = Client::builder()
             .no_proxy()
             .redirect(Policy::none())

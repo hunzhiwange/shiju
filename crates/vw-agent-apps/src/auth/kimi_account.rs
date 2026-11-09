@@ -3,11 +3,13 @@
 mod binding;
 mod logout;
 mod native;
+mod usage;
 
 use super::{
     codex_device::send,
     copilot::{read_json_limited, utc_now},
     credential_file::{AccountCredential, CredentialFileStore, KimiCredential},
+    credential_lease::CredentialLease,
     flow::AuthAccountScope,
     kimi::{
         CLIENT_ID, KimiDeviceAuth, MAX_RESPONSE_BYTES, MAX_TOKEN_LIFETIME, endpoints, identify,
@@ -246,22 +248,7 @@ impl KimiDeviceAuth {
                 return Err(AuthErrorCode::Conflict);
             }
             if rotated {
-                // Only synchronize a rotation from a slot that started with the
-                // managed grant. A separately signed-in CLI account stays separate.
-                let expires_at = expiry(&current)?
-                    .checked_mul(1_000)
-                    .ok_or(AuthErrorCode::StorageUnavailable)?;
-                if slot.read()? != current {
-                    return Err(AuthErrorCode::Conflict);
-                }
-                lease
-                    .save(&AccountCredential::KimiOauth(KimiCredential {
-                        access_token: token(&current, "access_token")?.to_owned(),
-                        refresh_token: token(&current, "refresh_token")?.to_owned(),
-                        expires_at: TimestampMs(expires_at),
-                        ..saved
-                    }))
-                    .map_err(|_| AuthErrorCode::StorageUnavailable)?;
+                save_rotated_grant(&lease, &slot, saved, &current)?;
             }
             let _lease = lease;
             let expires_at = expiry(&current)?;
@@ -443,6 +430,29 @@ impl KimiDeviceAuth {
 fn shares_grant(native: &Value, saved: &KimiCredential) -> bool {
     native["access_token"] == saved.access_token.as_str()
         && native["refresh_token"] == saved.refresh_token.as_str()
+}
+
+// Only synchronize rotations of the shared grant. Separate CLI grants have
+// their own credential owner.
+fn save_rotated_grant(
+    lease: &CredentialLease,
+    slot: &NativeSlot,
+    saved: KimiCredential,
+    current: &Value,
+) -> Result<(), AuthErrorCode> {
+    let expires_at =
+        expiry(current)?.checked_mul(1_000).ok_or(AuthErrorCode::StorageUnavailable)?;
+    if slot.read()? != *current {
+        return Err(AuthErrorCode::Conflict);
+    }
+    lease
+        .save(&AccountCredential::KimiOauth(KimiCredential {
+            access_token: token(current, "access_token")?.to_owned(),
+            refresh_token: token(current, "refresh_token")?.to_owned(),
+            expires_at: TimestampMs(expires_at),
+            ..saved
+        }))
+        .map_err(|_| AuthErrorCode::StorageUnavailable)
 }
 
 fn expiry(tokens: &Value) -> Result<i64, AuthErrorCode> {

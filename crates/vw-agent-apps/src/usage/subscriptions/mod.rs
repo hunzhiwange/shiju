@@ -6,6 +6,7 @@ pub mod codex;
 pub mod copilot;
 pub mod gemini;
 pub mod grok;
+pub mod kimi;
 
 #[cfg(test)]
 mod agy_tests;
@@ -24,3 +25,6 @@ mod gemini_tests;
 
 #[cfg(test)]
 mod grok_tests;
+
+#[cfg(test)]
+mod kimi_tests;

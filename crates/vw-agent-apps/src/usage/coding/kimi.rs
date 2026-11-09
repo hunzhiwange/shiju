@@ -4,7 +4,7 @@ use std::time::Duration;
 
 use chrono::DateTime;
 use reqwest::{
-    Client, ClientBuilder, RequestBuilder, StatusCode,
+    Client, ClientBuilder, Request, RequestBuilder, StatusCode,
     header::{ACCEPT, AUTHORIZATION},
     redirect::Policy,
 };
@@ -56,7 +56,7 @@ async fn query_at(
     use UsageQueryErrorCode::*;
 
     let (queried_at, result) = match usage_request(builder, api_root, api_key) {
-        Ok(request) => (Some(queried_at), fetch_windows(request).await),
+        Ok(request) => (Some(queried_at), fetch_windows(request, |_| {}).await),
         Err(code) => (None, Err(code)),
     };
     let (credential_state, credential_message, outcome) = match result {
@@ -110,12 +110,26 @@ fn usage_request(
         .header(ACCEPT, "application/json"))
 }
 
+#[cfg(target_os = "macos")]
+pub(in crate::usage) async fn query_windows(
+    region: AuthRegion,
+    access_token: &str,
+    route: impl FnOnce(&mut Request),
+) -> Result<Vec<UsageQuotaWindow>, UsageQueryErrorCode> {
+    let request = usage_request(client_builder(), api_root(region), access_token)?;
+    fetch_windows(request, route).await
+}
+
 async fn fetch_windows(
     request: RequestBuilder,
+    route: impl FnOnce(&mut Request),
 ) -> Result<Vec<UsageQuotaWindow>, UsageQueryErrorCode> {
     use UsageQueryErrorCode::*;
 
-    let mut response = request.send().await.map_err(transport_error)?;
+    let (client, request) = request.build_split();
+    let mut request = request.map_err(transport_error)?;
+    route(&mut request);
+    let mut response = client.execute(request).await.map_err(transport_error)?;
     match response.status() {
         status if status.is_success() => {}
         StatusCode::UNAUTHORIZED | StatusCode::FORBIDDEN => return Err(UpstreamUnauthorized),

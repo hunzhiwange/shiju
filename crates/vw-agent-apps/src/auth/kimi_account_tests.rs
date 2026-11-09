@@ -16,7 +16,7 @@ use vw_api_types::{
     id::TenantScope,
 };
 
-pub(super) const CONFIG: &str = r#"# Kimi configuration
+pub(crate) const CONFIG: &str = r#"# Kimi configuration
 default_model = "original" # user comment
 
 [providers.other]
@@ -41,18 +41,18 @@ model = "kimi-for-coding"
 const DEVICE: &str = "d8c8a37b-175c-4e59-9501-07351b0da278";
 const HOST: &str = "fixture-host";
 const SLOT: &str = "kimi-code-fixture";
-pub(super) const ACCOUNT: &str = "managed-account";
+pub(crate) const ACCOUNT: &str = "managed-account";
 const FUTURE: i64 = 4_102_444_800;
 
-pub(super) struct Fixture {
+pub(crate) struct Fixture {
     home: TempDir,
-    pub(super) credentials: CredentialFileStore,
+    pub(crate) credentials: CredentialFileStore,
     transactions: Arc<ProviderTransactions>,
     tenant: TenantScope,
 }
 
 impl Fixture {
-    pub(super) fn new() -> Self {
+    pub(crate) fn new() -> Self {
         let home = tempfile::tempdir().unwrap();
         let native = home.path().join(".kimi-code");
         for path in ["credentials", "oauth"] {
@@ -84,7 +84,7 @@ impl Fixture {
         fixture
     }
 
-    pub(super) fn target(&self, region: AuthRegion) -> KimiAccountTarget<'_> {
+    pub(crate) fn target(&self, region: AuthRegion) -> KimiAccountTarget<'_> {
         KimiAccountTarget {
             scope: AuthAccountScope {
                 tenant: &self.tenant,
@@ -98,7 +98,7 @@ impl Fixture {
         }
     }
 
-    pub(super) fn native(&self) -> KimiNativeTarget<'_> {
+    pub(crate) fn native(&self) -> KimiNativeTarget<'_> {
         KimiNativeTarget {
             home: self.home.path(),
             transactions: &self.transactions,
@@ -106,19 +106,19 @@ impl Fixture {
         }
     }
 
-    pub(super) fn config(&self) -> PathBuf {
+    pub(crate) fn config(&self) -> PathBuf {
         self.home.path().join(".kimi-code/config.toml")
     }
 
-    pub(super) fn credential(&self) -> PathBuf {
+    pub(crate) fn credential(&self) -> PathBuf {
         self.home.path().join(format!(".kimi-code/credentials/{SLOT}.json"))
     }
 
-    fn lock(&self) -> PathBuf {
+    pub(crate) fn lock(&self) -> PathBuf {
         self.home.path().join(format!(".kimi-code/oauth/{SLOT}.lock"))
     }
 
-    pub(super) fn write_native(&self, tokens: &Value) {
+    pub(crate) fn write_native(&self, tokens: &Value) {
         fs::write(self.credential(), tokens.to_string()).unwrap();
         fs::set_permissions(self.credential(), fs::Permissions::from_mode(0o600)).unwrap();
     }

@@ -93,7 +93,7 @@ mod kimi_tests;
 pub mod kimi_account;
 
 #[cfg(all(test, target_os = "macos"))]
-mod kimi_account_tests;
+pub(crate) mod kimi_account_tests;
 
 #[cfg(all(test, target_os = "macos"))]
 mod claude_snapshot_tests;

@@ -505,3 +505,24 @@ HTTP 与 CLI 夹具核对请求、来源分离、额度归并、重置时间、�
 | 隔离复核 | `cargo clippy --all-targets --all-features -- -D warnings` | 退出 0。基于批次 30 提交 `c3b018399`，叠加本任务 Rust 文件和共享工作区已有的 `postgres_tests.rs` 第三参数修正。 |
 
 `usage_subscriptions_copilot_returns_expected_result` 和 `usage_subscriptions_copilot_rejects_invalid_input` 使用本机 HTTP 夹具核对两种账号选择、企业域名、请求头、重置日期、缺失凭据、拒绝及脱敏。差异检查通过，槽位锁已释放，编译缓存已保留。真实账号留待任务 57 验收。 [聚焦测试](../../../../crates/vw-agent-apps/src/usage/subscriptions/copilot_tests.rs#L97)
+
+## 任务 32 Kimi 账号额度
+
+`query_kimi_account` 使用主机已核验的账号、区域及授权范围。有效令牌直接请求该区域的 `GET /coding/v1/usages`，复用 Kimi Coding Plan 的限长响应解析。官方订阅结果保留五小时和周窗口的额度、比例及重置时间。HTTP 401 或 403 返回已过期状态，错误说明不包含上游响应。 [查询入口](../../../../crates/vw-agent-apps/src/usage/subscriptions/kimi.rs#L24) · [用量解析](../../../../crates/vw-agent-apps/src/usage/coding/kimi.rs#L114) · [上游账号查询](../../../../crates/vw-agent-apps/upstream/src-tauri/src/services/kimi_oauth/account.rs#L379-L440) · [页脚账号选择](../../../../crates/vw-agent-apps/upstream/src/components/KimiAccountQuotaFooter.tsx#L32-L39) · [按账号查询键](../../../../crates/vw-agent-apps/upstream/src/lib/query/subscription.ts#L252-L277)
+
+令牌过期时由执行主机提供已授权的原生配置。授权模块在托管账号租约和 Kimi 原生文件锁下核验账号绑定或共享令牌，再复用既有刷新与身份校验。共享令牌轮换后同步托管凭据，查询不会改写默认模型。没有获准的原生配置或锁已被占用时返回待续期。 [授权续期](../../../../crates/vw-agent-apps/src/auth/kimi_account/usage.rs#L12) · [共享凭据保存](../../../../crates/vw-agent-apps/src/auth/kimi_account.rs#L437) · [上游文件锁续期](../../../../crates/vw-agent-apps/upstream/src-tauri/src/services/kimi_oauth/account.rs#L246-L322)
+
+验证环境为 macOS 27.0 (26A428)、arm64，`vw-agent-apps` 0.6.0。
+各阶段动态领取槽位 1，`CARGO_TARGET_DIR` 和 `CARGO_BUILD_BUILD_DIR` 均为 `/Users/xiangmin/worker/code/shiju/target/rust-slot-1`。
+
+| 阶段 | 命令 | 结果 |
+| --- | --- | --- |
+| 实现前 | `cargo test -p vw-agent-apps usage_subscriptions_kimi_ -- --nocapture` | 退出 101，执行 0 项。测试模块报 E0432，缺少 `super::kimi`。 |
+| 格式化 | `cargo fmt --all` | 退出 0。在源码副本运行，仅同步本任务 Rust 文件。 |
+| 实现后 | `cargo test -p vw-agent-apps usage_subscriptions_kimi_ -- --nocapture` | 退出 0，3 项通过，0 项失败。 |
+| 套餐回归 | `cargo test -p vw-agent-apps usage_coding_kimi_ -- --nocapture` | 退出 0，5 项通过，0 项失败。 |
+| 授权回归 | `cargo test -p vw-agent-apps auth6_kimi_account_ -- --nocapture` | 退出 0，2 项通过，0 项失败。 |
+| 共享工作区 | `cargo clippy --all-targets --all-features -- -D warnings` | 退出 101。现有 `vw-agent` ACP 改动缺少 `PermissionConfirmation` 和 `with_permission_confirmation`，`vw-agent` 与 `vw-desktop` 的会话改动缺少网关客户端 `full_access` 和 `session_set_full_access`。 |
+| 隔离复核 | `cargo clippy --all-targets --all-features -- -D warnings` | 退出 0。使用批次 31 提交 `2a4a62c36`，叠加本任务 Rust 文件及共享工作区已有的 `postgres_tests.rs` 第三参数修正。 |
+
+`usage_subscriptions_kimi_returns_expected_result` 验证续期锁、区域请求、共享凭据写回及两档额度。`usage_subscriptions_kimi_rejects_invalid_input` 验证区域不符和锁冲突。`usage_subscriptions_kimi_queries_valid_managed_account_directly` 验证有效令牌直接查询、上游拒绝及脱敏。差异检查通过，槽位锁已释放，缓存已保留。HTTP 夹具验收覆盖上述契约，真实账号留待任务 57。 [独立行为测试](../../../../crates/vw-agent-apps/src/usage/subscriptions/kimi_tests.rs#L28)

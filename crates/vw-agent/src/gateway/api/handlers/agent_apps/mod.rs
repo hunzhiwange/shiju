@@ -478,3 +478,11 @@ fn startup_provider_policy(path: &std::path::Path) -> Result<(), String> {
 
 #[cfg(all(test, target_os = "macos"))]
 mod import_tests;
+
+#[cfg(target_os = "macos")]
+mod usage_refresh;
+#[cfg(target_os = "macos")]
+pub(crate) use usage_refresh::run as run_usage_refresh;
+
+#[cfg(all(test, target_os = "macos"))]
+mod usage_refresh_tests;

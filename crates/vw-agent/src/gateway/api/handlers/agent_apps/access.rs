@@ -33,6 +33,9 @@ struct Grant {
     provider_config_read: bool,
     #[serde(default)]
     provider_config_write: bool,
+    #[cfg(target_os = "macos")]
+    #[serde(default)]
+    usage_refresh: Vec<UsageRefreshPermit>,
     #[serde(default)]
     auth_account_read: Vec<AuthService>,
     #[serde(default)]
@@ -57,6 +60,80 @@ struct Grant {
     platform_id: String,
     company_id: String,
     host_id: String,
+}
+#[cfg(target_os = "macos")]
+#[derive(Deserialize)]
+#[serde(deny_unknown_fields)]
+struct UsageRefreshPermit {
+    project_id: String,
+    app_id: vw_api_types::agent_apps::AppId,
+    provider_id: String,
+    origin: String,
+}
+
+#[cfg(target_os = "macos")]
+#[derive(Clone, PartialEq, Eq, Hash)]
+pub(super) struct UsageRefreshTarget {
+    pub policy: PathBuf,
+    pub project: vw_api_types::id::ProjectScope,
+    pub principal: String,
+    pub host: String,
+    pub app: vw_api_types::agent_apps::AppId,
+    pub provider: String,
+    pub origin: reqwest::Url,
+}
+
+/// The administrator's explicit background grants authorize this entry point.
+/// This is independent of request authentication and never uses a client token.
+#[cfg(target_os = "macos")]
+pub(super) fn usage_refresh_targets(path: &Path) -> Vec<UsageRefreshTarget> {
+    let Ok(policy) = load(path) else {
+        return Vec::new();
+    };
+    let mut targets = Vec::new();
+    let mut seen = HashSet::new();
+    for principal in policy.principals {
+        for grant in principal.grants {
+            if !policy.hosts.iter().any(|host| {
+                host.id == grant.host_id && host.online && matches!(host.binding, Binding::Local)
+            }) {
+                continue;
+            }
+            let Ok(tenant) = TenantScope::new(&grant.platform_id, &grant.company_id) else {
+                continue;
+            };
+            for permit in grant.usage_refresh {
+                use vw_agent_apps::providers::{validate_identity, validation::endpoint};
+                use vw_api_types::id::ProjectScope;
+
+                let (Ok(project), Ok(origin)) = (
+                    ProjectScope::new(tenant.clone(), permit.project_id.into()),
+                    reqwest::Url::parse(&permit.origin),
+                ) else {
+                    continue;
+                };
+                if validate_identity(&permit.provider_id).is_err()
+                    || endpoint(&permit.origin).is_err()
+                    || origin.path() != "/"
+                {
+                    continue;
+                }
+                let target = UsageRefreshTarget {
+                    policy: path.to_owned(),
+                    project,
+                    principal: principal.id.clone(),
+                    host: grant.host_id.clone(),
+                    app: permit.app_id,
+                    provider: permit.provider_id,
+                    origin,
+                };
+                if seen.insert(target.clone()) {
+                    targets.push(target);
+                }
+            }
+        }
+    }
+    targets
 }
 #[derive(Clone, Deserialize)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]

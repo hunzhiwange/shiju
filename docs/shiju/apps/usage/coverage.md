@@ -647,3 +647,20 @@ SQLite 和 PostgreSQL 夹具实际保存并重读设置，验证各作用域维�
 | 共享工作区 | `cargo clippy --all-targets --all-features -- -D warnings` | 退出 0。 |
 
 本机 HTTP 夹具运行真实 Codex 查询并核对请求方法、路径及头。三个用例 `usage_cache_returns_expected_result`、`usage_cache_rejects_invalid_input` 和 `usage_cache_isolates_accounts_and_versions` 分别核对断连、429、503、连续失败不续期及十分钟边界，401 与解析失败后旧值无法复活，以及账号、凭据版本、配置版本和显式失效的隔离。结果来自脱敏夹具，真实账号验收见任务 56。限定提交范围的差异检查退出 0，槽位锁已释放，编译缓存已保留。 [独立行为测试](../../../../crates/vw-agent-apps/src/usage/cache_tests.rs)
+
+## 任务 40 调度自动额度刷新
+
+macOS 网关在配置了 `SHIJU_AGENT_APPS_ACCESS_FILE` 时运行刷新循环。管理员在现有主机策略的主体授权下添加 `usage_refresh` 条目，每项由 `project_id`、`app_id`、`provider_id` 和 `origin` 组成。缺少条目时默认拒绝。后台执行只从策略读取主体和授权，不使用客户端令牌。网关要求项目存在、主机为本地且在线、供应商记录属于同一租户，并核对出站源与授权完全匹配。 [授权](../../../../crates/vw-agent/src/gateway/api/handlers/agent_apps/access.rs#L64) · [网关启动](../../../../crates/vw-agent/src/gateway/bootstrap.rs#L261)
+
+本次生产连线使用已有 General 模板和供应商自带凭据。它读取已保存的启用设置，间隔为 0 时关闭自动刷新，正值最小为 1 分钟。定时和服务内部批量入口对相同完整身份及版本共享进行中的查询，批量结果逐项保留成功和失败。网关在开始和发布前复核授权及当前设置，查询进行时按秒复核，撤销或配置变化时取消查询并清理旧缓存。QuickJS、HTTP 和短期成功缓存均复用既有实现。此路径的身份使用供应商凭据，没有托管 OAuth 账号。托管账号适配器、公开额度 API 和事件留在后续批次。 [上游轮询](../../../../crates/vw-agent-apps/upstream/src/lib/query/subscription.ts#L88) · [上游批量刷新](../../../../crates/vw-agent-apps/upstream/src/components/settings/auth/RefreshAllQuotaButton.tsx#L36) · [刷新服务](../../../../crates/vw-agent/src/gateway/api/handlers/agent_apps/usage_refresh.rs) · [行为测试](../../../../crates/vw-agent/src/gateway/api/handlers/agent_apps/usage_refresh_tests.rs)
+
+验证环境为 macOS 27.0 (26A428)、arm64，`vw-agent` 0.6.0。各阶段动态领取槽位 1，`CARGO_TARGET_DIR` 和 `CARGO_BUILD_BUILD_DIR` 均为 `/Users/xiangmin/worker/code/shiju/target/rust-slot-1`。槽位锁已释放，编译缓存已保留。
+
+| 阶段 | 命令 | 结果 |
+| --- | --- | --- |
+| 实现前 | `cargo test -p vw-agent usage_refresh_ -- --nocapture` | 退出 101，执行 0 项。包含成功及拒绝用例的模块按预期报 E0432，缺少 `super::usage_refresh`。 |
+| 格式化 | `cargo fmt --all` | 退出 0。在隔离源码副本运行，仅同步本任务文件。 |
+| 实现后 | `cargo test -p vw-agent usage_refresh_ -- --nocapture` | 退出 0，3 项通过，0 项失败。macOS 链接器报告调试构建的 `__eh_frame` 大小提示。 |
+| 共享工作区 | `cargo clippy --all-targets --all-features -- -D warnings` | 退出 0。 |
+
+测试通过真实供应商 Router 和租户中间件写入隔离 SQLite，使用真实 QuickJS 和本机 HTTP Router 核对 GET 路径、Bearer、成功解析和 429。用例验证 59 秒与 60 秒边界、定时与批量共用在途查询、逐项失败、禁用、间隔为零和撤销。撤销测试在上游等待响应时改写管理员策略，验证网关取消执行并丢弃结果。真实账号验收留待后续批次。限定提交范围的差异检查退出 0。

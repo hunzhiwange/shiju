@@ -258,9 +258,17 @@ pub async fn run_gateway(host: &str, port: u16, mut config: Config) -> Result<()
         .merge(super::router::management_auth_router())
         .layer(cors);
 
+    let usage_refresh = async {
+        #[cfg(target_os = "macos")]
+        if let Some(policy) = std::env::var_os("SHIJU_AGENT_APPS_ACCESS_FILE") {
+            api::handlers::agent_apps::run_usage_refresh(policy.into()).await;
+        }
+        std::future::pending::<()>().await;
+    };
     tokio::select! {
         result = axum::serve(listener, app.into_make_service_with_connect_info::<SocketAddr>()) => result?,
         result = super::channel_reload::watch_gateway_channels(state, config) => result?,
+        () = usage_refresh => {}
     }
 
     Ok(())

@@ -1,5 +1,7 @@
-//! Account, credential, and capability selection for usage queries.
+//! Native usage queries and their account, credential, and capability selection.
 
+#[cfg(not(target_arch = "wasm32"))]
+pub mod balances;
 pub mod binding;
 pub mod detect;
 

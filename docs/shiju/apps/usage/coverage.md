@@ -89,3 +89,23 @@
 | 工作区检查 | `cargo clippy --all-targets --all-features -- -D warnings` | 退出 0。 |
 
 三项用例分别为 `usage_detect_returns_expected_result`、`usage_detect_rejects_invalid_input`、`usage_detect_requires_explicit_team_selection_and_disables_volcengine_by_default`。限定提交范围的 `git diff --cached --check` 退出 0。槽位锁已释放，编译缓存保留。
+
+## 任务 11 DeepSeek 钱包赠金
+
+| 来源 | 实现和测试 |
+| --- | --- |
+| [余额模板检测](../../../../crates/vw-agent-apps/upstream/src/components/UsageScriptModal.tsx#L184-L200) · [DeepSeek 余额查询](../../../../crates/vw-agent-apps/upstream/src-tauri/src/services/balance.rs#L71-L151) | `query_deepseek` 使用固定的 `GET https://api.deepseek.com/user/balance` 和已授权的 Bearer 凭据。保留所有币种，包括余额为零和欠费的钱包。`total_balance` 是当前合计余额，映射到 `UsageWallet.remaining`，赠金和充值余额分别保留。 |
+| [上游钱包与可用性测试](../../../../crates/vw-agent-apps/upstream/src-tauri/src/services/balance.rs#L642-L693) | `DeepSeekBalance` 单独保留 `is_available`。HTTP 401/403 返回 `UpstreamUnauthorized`。本机 HTTP 夹具核对方法、路径、请求头，并覆盖多币种、鉴权拒绝、无效响应及重定向。 |
+
+[适配器](../../../../crates/vw-agent-apps/src/usage/balances/deepseek.rs) · [独立行为测试](../../../../crates/vw-agent-apps/src/usage/balances/deepseek_tests.rs)
+
+验证环境为 macOS 27.0 (26A428)、arm64，`vw-agent-apps` 0.6.0。两阶段均领取槽位 2，`CARGO_TARGET_DIR` 和 `CARGO_BUILD_BUILD_DIR` 均为 `/Users/xiangmin/worker/code/shiju/target/rust-slot-2`。
+
+| 阶段 | 命令 | 结果 |
+| --- | --- | --- |
+| 实现前 | `cargo test -p vw-agent-apps usage_balances_deepseek_ -- --nocapture` | 退出 101。`usage_balances_deepseek_returns_expected_result`、`usage_balances_deepseek_rejects_invalid_input` 等用例引用尚未实现的 `client_builder`、`query_at`，触发 E0432，执行 0 项。 |
+| 格式化 | `cargo fmt --all` | 退出 0，在独立源码副本执行，仅同步任务 11 的 Rust 文件。 |
+| 实现后 | `cargo test -p vw-agent-apps usage_balances_deepseek_ -- --nocapture` | 退出 0，4 项通过，0 项失败。 |
+| 工作区检查 | `cargo clippy --all-targets --all-features -- -D warnings` | 退出 0。 |
+
+限定提交范围的 `git diff --cached --check` 退出 0。槽位锁已释放，编译缓存保留。真实账号验收见任务 55。

@@ -12,6 +12,14 @@
 //! - 目标网关端点配置
 //! - 复用的 `reqwest::Client`，宿主请求额外禁用重定向与重试
 
+#[cfg(not(target_arch = "wasm32"))]
+mod agent_apps_auth_read;
+#[cfg(not(target_arch = "wasm32"))]
+pub use agent_apps_auth_read::{
+    AgentAppsAuthBinding, AgentAppsAuthCredentials, AgentAppsAuthReadError,
+};
+#[cfg(all(test, not(target_arch = "wasm32")))]
+mod agent_apps_auth_read_tests;
 mod agent_apps_lifecycle_api;
 pub use agent_apps_lifecycle_api::AgentAppsLifecycleError;
 #[cfg(test)]

@@ -248,59 +248,51 @@ pub(super) async fn load_config_for_tenant_from_store(
     vibewindow_dir: &Path,
     workspace_dir: PathBuf,
     resolution_source: ConfigResolutionSource,
-    apply_environment: impl Fn(&mut Config),
+    apply_environment: impl Fn(&mut Config) + Send + 'static,
 ) -> Result<Config> {
-    let config_path = config_json_path(vibewindow_dir);
+    let vibewindow_dir = vibewindow_dir.to_path_buf();
     let project_key = project_root
         .map(|root| root.to_str().map(str::to_owned).context("Project root must be valid UTF-8"))
         .transpose()?;
-    let blocking_store = store.clone();
-    let blocking_tenant = tenant.clone();
-    let (stored_payload, project_payload) = tokio::task::spawn_blocking(move || {
-        let system_payload = blocking_store.get(&blocking_tenant)?;
+    let store = store.clone();
+    let tenant = tenant.clone();
+    // Keep the synchronous config decode off the nested async request stack.
+    // Box the result so creating the blocking task does not reserve a Config on that stack.
+    let (config, initialized) = tokio::task::spawn_blocking(move || {
+        let config_path = config_json_path(&vibewindow_dir);
+        let stored_payload = store.get(&tenant)?;
         let project_payload = project_key
             .as_deref()
-            .map(|key| blocking_store.get_project(&blocking_tenant, key))
+            .map(|key| store.get_project(&tenant, key))
             .transpose()?
             .flatten();
-        Ok::<_, anyhow::Error>((system_payload, project_payload))
+        let decode = |payload: &str| {
+            decode_tenant_config(
+                payload,
+                project_payload.as_deref(),
+                &config_path,
+                workspace_dir.clone(),
+                &vibewindow_dir,
+                &apply_environment,
+            )
+            .map(Box::new)
+        };
+        if let Some(payload) = stored_payload {
+            return Ok((decode(&payload)?, false));
+        }
+
+        let payload = default_tenant_payload(&config_path, &workspace_dir)?;
+        let config = decode(&payload)?;
+        if store.compare_and_swap(&tenant, None, &payload, None)? {
+            return Ok((config, true));
+        }
+        let winner = store.get(&tenant)?.context("tenant system config disappeared")?;
+        Ok::<_, anyhow::Error>((decode(&winner)?, false))
     })
     .await
     .context("join system config load task")??;
-    let decode = |payload: &str| {
-        decode_tenant_config(
-            payload,
-            project_payload.as_deref(),
-            &config_path,
-            workspace_dir.clone(),
-            vibewindow_dir,
-            &apply_environment,
-        )
-    };
-    let (config, initialized) = match stored_payload {
-        Some(payload) => (decode(&payload)?, false),
-        None => {
-            let payload = default_tenant_payload(&config_path, &workspace_dir)?;
-            let config = decode(&payload)?;
-            let store = store.clone();
-            let tenant = tenant.clone();
-            let winner = tokio::task::spawn_blocking(move || {
-                if store.compare_and_swap(&tenant, None, &payload, None)? {
-                    Ok(None)
-                } else {
-                    store.get(&tenant)?.context("tenant system config disappeared").map(Some)
-                }
-            })
-            .await
-            .context("join system config initialization task")??;
-            match winner {
-                Some(payload) => (decode(&payload)?, false),
-                None => (config, true),
-            }
-        }
-    };
     log_loaded_config(&config, resolution_source, initialized);
-    Ok(config)
+    Ok(*config)
 }
 
 /// The same resolved store and paths are used for reads and optimistic updates.
@@ -389,7 +381,7 @@ impl TenantConfigSource {
 async fn load_or_init_config_for_tenant_with_environment(
     tenant: &TenantScope,
     project_root: Option<&Path>,
-    apply_environment: impl Fn(&mut Config),
+    apply_environment: impl Fn(&mut Config) + Send + 'static,
 ) -> Result<Config> {
     let source = TenantConfigSource::open(tenant, project_root).await?;
     load_config_for_tenant_from_store(

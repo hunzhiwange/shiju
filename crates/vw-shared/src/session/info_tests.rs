@@ -113,3 +113,36 @@ fn visible_task_info_round_trip_preserves_parent() {
     assert_eq!(restored.slug, info.slug);
     assert_eq!(restored.parent_id, Some("parent-1".to_string()));
 }
+
+#[test]
+fn first_response_lifecycle_pending_marker_preserves_source() {
+    for (slug, plan_run, visible_task) in
+        [("plan-run:slug", true, false), ("visible-task:slug", false, true), ("slug", false, false)]
+    {
+        let mut info: super::Info = serde_json::from_value(serde_json::json!({
+            "id": "session-1",
+            "slug": format!("pending-first-response:{slug}"),
+            "projectID": "project-1",
+            "directory": "/work",
+            "title": "",
+            "version": "1",
+            "time": { "created": 1, "updated": 1 }
+        }))
+        .unwrap();
+        assert_eq!(info.is_plan_run(), plan_run);
+        assert_eq!(info.is_visible_task(), visible_task);
+        assert_eq!(info.source_slug(), slug);
+        let serialized = serde_json::to_string(&info).unwrap();
+        info.mark_first_response_pending();
+        assert_eq!(serde_json::to_string(&info).unwrap(), serialized);
+        if plan_run {
+            assert_eq!(super::Info::plan_run_slug(&info.slug), info.slug);
+        }
+        if visible_task {
+            assert_eq!(super::Info::visible_task_slug(&info.slug), info.slug);
+        }
+        info.clear_first_response_pending();
+        assert_eq!(info.slug, slug);
+        assert!(!info.is_first_response_pending());
+    }
+}

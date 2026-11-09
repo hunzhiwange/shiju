@@ -3,7 +3,7 @@
 use crate::project;
 use crate::session::session as agent_session;
 #[cfg(not(target_arch = "wasm32"))]
-use crate::session::store::{SessionMessageDeltaResult, SessionStore};
+use crate::session::store::{FirstResponseCommit, SessionMessageDeltaResult, SessionStore};
 use crate::session::ui_config::{
     load_app_config, load_app_config_result, set_config_field, set_config_field_result,
 };
@@ -1100,6 +1100,125 @@ pub fn session_preview_meta_for_tenant(tenant: &TenantScope, id: &str) -> Option
     #[cfg(target_arch = "wasm32")]
     {
         ui_store::session_preview_meta(data_dir(), id, scope.as_deref())
+    }
+}
+
+/// Reserve the caller's stable session ID in its validated project.
+#[cfg(not(target_arch = "wasm32"))]
+pub fn reserve_pending_session(
+    tenant: &TenantScope,
+    info: &agent_session::Info,
+) -> anyhow::Result<agent_session::Info> {
+    let scope = Some(info.project_id.as_str());
+    ensure_scope_project_metadata(scope);
+    run_project_operation_fallible("reserve pending session", tenant, scope, |store, scope| {
+        store.reserve_pending_session(scope, info)
+    })
+}
+
+/// Publish the first successful turn after native history is durable.
+#[cfg(not(target_arch = "wasm32"))]
+pub fn commit_first_response(
+    tenant: &TenantScope,
+    project_id: &str,
+    commit: FirstResponseCommit<'_>,
+) -> anyhow::Result<bool> {
+    run_project_operation_fallible(
+        "commit first response",
+        tenant,
+        Some(project_id),
+        |store, scope| store.commit_first_response(scope, commit),
+    )
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+pub fn set_first_response_title(
+    tenant: &TenantScope,
+    project_id: &str,
+    session_id: &str,
+    title: &str,
+) -> anyhow::Result<bool> {
+    run_project_operation_fallible(
+        "set first response title",
+        tenant,
+        Some(project_id),
+        |store, scope| store.set_first_response_title(scope, session_id, title),
+    )
+}
+
+/// Call after stopping in-flight work for an explicitly abandoned reservation.
+#[cfg(not(target_arch = "wasm32"))]
+pub fn discard_pending_session(
+    tenant: &TenantScope,
+    project_id: &str,
+    session_id: &str,
+) -> anyhow::Result<bool> {
+    run_project_operation_fallible(
+        "discard pending session",
+        tenant,
+        Some(project_id),
+        |store, scope| store.discard_pending_session(scope, session_id),
+    )
+}
+
+pub(super) fn load_agent_children(
+    tenant: &TenantScope,
+    project_id: &str,
+    parent_id: &str,
+) -> anyhow::Result<Vec<agent_session::Info>> {
+    #[cfg(not(target_arch = "wasm32"))]
+    {
+        run_project_operation_fallible(
+            "load agent children",
+            tenant,
+            Some(project_id),
+            |store, scope| store.load_agent_children(scope, parent_id),
+        )
+    }
+
+    #[cfg(target_arch = "wasm32")]
+    {
+        Ok(load_agent_sessions_scoped_for_tenant(tenant, Some(project_id))
+            .into_iter()
+            .filter(|info| info.parent_id.as_deref() == Some(parent_id))
+            .collect())
+    }
+}
+
+pub(super) fn update_agent_session(
+    tenant: &TenantScope,
+    info: agent_session::Info,
+    explicit_title: bool,
+) -> anyhow::Result<Option<agent_session::Info>> {
+    #[cfg(not(target_arch = "wasm32"))]
+    {
+        let mut info = info;
+        let project_id = info.project_id.clone();
+        let session_id = info.id.clone();
+        run_project_operation_fallible(
+            "update agent session",
+            tenant,
+            Some(&project_id),
+            |store, scope| {
+                store.update_agent_session(scope, &session_id, move |current| {
+                    if !explicit_title {
+                        info.title.clone_from(&current.title);
+                    }
+                    if info.is_first_response_pending() != current.is_first_response_pending() {
+                        info.slug.clone_from(&current.slug);
+                    }
+                    info.time.updated = info.time.updated.max(current.time.updated);
+                    *current = info;
+                })
+            },
+        )
+    }
+
+    #[cfg(target_arch = "wasm32")]
+    {
+        let _ = explicit_title;
+        Ok(save_agent_session_scoped_for_tenant(tenant, &info, Some(&info.project_id))
+            .map(|_| info))
     }
 }
 

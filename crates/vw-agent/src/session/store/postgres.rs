@@ -15,10 +15,12 @@ use vw_shared::session::ui_types::{
 };
 
 use super::{
-    LlmRawArtifact, LlmRawRound, LlmRawTurnContext, SessionMessageDeltaError,
-    SessionMessageDeltaResult, from_i64, from_i64_usize, message_processing_values,
-    parse_agent_info, resulting_message_count, role_from_db, role_to_db, session_last_content,
-    to_i64, usize_to_i64, validate_session_message_delta,
+    FIRST_RESPONSE_SCHEMA, FirstResponseCommit, LlmRawArtifact, LlmRawRound, LlmRawTurnContext,
+    SessionMessageDeltaError, SessionMessageDeltaResult, complete_first_response,
+    first_response_preview, from_i64, from_i64_usize, message_processing_values, parse_agent_info,
+    pending_agent_info, protect_agent_snapshot, resulting_message_count, reuse_session,
+    role_from_db, role_to_db, session_last_content, to_i64, update_existing_info, usize_to_i64,
+    validate_session_message_delta,
 };
 use crate::global_database::GlobalDatabase;
 
@@ -294,13 +296,20 @@ impl PostgresSessionStore {
         scope: &ProjectScope,
         info: &AgentSessionInfo,
     ) -> Result<()> {
-        self.database.connect_postgres()?.execute(
+        let mut connection = self.database.connect_postgres()?;
+        let mut transaction = connection.transaction()?;
+        lock_session_scope(&mut transaction, scope)?;
+        if first_response_state(&mut transaction, scope, &info.id)?.as_deref() == Some("deleted") {
+            bail!("session was deleted");
+        }
+        transaction.execute(
             "INSERT INTO session_index (platform_id, company_id, project_id, session_id, title, created_ms, updated_ms, message_count, call_count, last_content)
              VALUES ($1, $2, $3, $4, $5, $6, $7, 0, 0, '')
              ON CONFLICT (platform_id, company_id, project_id, session_id) DO NOTHING",
             &[&scope.platform_id().as_ref(), &scope.company_id().as_ref(), &scope.project_id().as_ref(), &info.id, &info.title,
                 &to_i64(info.time.created, "agent session created_ms")?, &to_i64(info.time.updated, "agent session updated_ms")?],
         )?;
+        transaction.commit()?;
         Ok(())
     }
 
@@ -347,6 +356,7 @@ impl PostgresSessionStore {
                 .batch_execute(SESSION_SCHEMA)
                 .context("initialize PostgreSQL session schema")?;
             transaction.batch_execute(crate::session::dynamic_tool_store::SCHEMA)?;
+            transaction.batch_execute(FIRST_RESPONSE_SCHEMA)?;
             Ok(())
         })?;
         Ok(Self { database })
@@ -356,6 +366,7 @@ impl PostgresSessionStore {
     pub(super) fn save_session(&self, scope: &ProjectScope, session: &ChatSession) -> Result<()> {
         let mut connection = self.database.connect_postgres()?;
         let mut transaction = connection.transaction().context("begin PostgreSQL session save")?;
+        lock_session_scope(&mut transaction, scope)?;
         upsert_session_header(&mut transaction, scope, session, session.calls.len())?;
         replace_session_messages(&mut transaction, scope, session)?;
         replace_session_calls(&mut transaction, scope, session)?;
@@ -373,6 +384,7 @@ impl PostgresSessionStore {
         let mut connection = self.database.connect_postgres()?;
         let mut transaction =
             connection.transaction().context("begin PostgreSQL session UI snapshot save")?;
+        lock_session_scope(&mut transaction, scope)?;
         let call_count = transaction
             .query_opt(
                 "SELECT call_count FROM session_index
@@ -398,6 +410,7 @@ impl PostgresSessionStore {
         let mut connection = self.database.connect_postgres()?;
         let mut transaction =
             connection.transaction().context("begin PostgreSQL session UI content save")?;
+        lock_session_scope(&mut transaction, scope)?;
         reject_stale_session_ui_content(&mut transaction, scope, session)?;
         let call_count = transaction
             .query_opt(
@@ -424,19 +437,8 @@ impl PostgresSessionStore {
         let mut connection = self.database.connect_postgres()?;
         let mut transaction =
             connection.transaction().context("begin PostgreSQL session UI raw commit")?;
-        let call_count = transaction
-            .query_opt(
-                "SELECT call_count FROM session_index
-                 WHERE platform_id = $1 AND company_id = $2 AND project_id = $3 AND session_id = $4",
-                scoped_id_params!(scope, &session.id),
-            )?
-            .map(|row| from_i64_usize(row.get(0), "session call_count"))
-            .transpose()?
-            .unwrap_or(session.calls.len());
-        upsert_session_header(&mut transaction, scope, session, call_count)?;
-        replace_session_messages(&mut transaction, scope, session)?;
-        replace_session_steps(&mut transaction, scope, session)?;
-        upsert_session_llm_raw_artifacts(&mut transaction, scope, raw_artifacts)?;
+        lock_session_scope(&mut transaction, scope)?;
+        commit_ui_snapshot(&mut transaction, scope, session, raw_artifacts)?;
         transaction.commit().context("commit PostgreSQL session UI raw commit")?;
         Ok(())
     }
@@ -512,9 +514,12 @@ impl PostgresSessionStore {
         let mut connection = self.database.connect_postgres()?;
         connection
             .query(
-                "SELECT session_id, title, updated_ms, message_count, call_count, last_content
+                "SELECT session_id, title, updated_ms, message_count, call_count,
+                   CASE WHEN first_response_state IS NULL THEN last_content ELSE first_response_preview END
                  FROM session_index
+                 LEFT JOIN session_first_response USING (platform_id, company_id, project_id, session_id)
                  WHERE platform_id = $1 AND company_id = $2 AND project_id = $3
+                   AND COALESCE(first_response_state, 'committed') = 'committed'
                  ORDER BY updated_ms DESC, session_id DESC
                  LIMIT 50",
                 scope_params!(scope),
@@ -534,10 +539,13 @@ impl PostgresSessionStore {
         let mut connection = self.database.connect_postgres()?;
         connection
             .query_opt(
-                "SELECT session_id, title, updated_ms, message_count, call_count, last_content
+                "SELECT session_id, title, updated_ms, message_count, call_count,
+                   CASE WHEN first_response_state IS NULL THEN last_content ELSE first_response_preview END
                  FROM session_index
+                 LEFT JOIN session_first_response USING (platform_id, company_id, project_id, session_id)
                  WHERE platform_id = $1 AND company_id = $2 AND project_id = $3
-                   AND session_id = $4",
+                   AND session_id = $4
+                   AND COALESCE(first_response_state, 'committed') = 'committed'",
                 scoped_id_params!(scope, session_id),
             )
             .context("load scoped PostgreSQL session metadata")?
@@ -555,14 +563,23 @@ impl PostgresSessionStore {
         let mut connection = self.database.connect_postgres()?;
         let mut transaction =
             connection.transaction().context("begin PostgreSQL session index replacement")?;
+        lock_session_scope(&mut transaction, scope)?;
         transaction
             .execute(
                 "DELETE FROM session_index
-                 WHERE platform_id = $1 AND company_id = $2 AND project_id = $3",
+                 WHERE platform_id = $1 AND company_id = $2 AND project_id = $3
+                   AND NOT EXISTS (
+                       SELECT 1 FROM session_first_response
+                       WHERE platform_id = $1 AND company_id = $2 AND project_id = $3
+                         AND session_id = session_index.session_id
+                   )",
                 scope_params!(scope),
             )
             .context("delete scoped PostgreSQL session index")?;
         for session in sessions {
+            if first_response_state(&mut transaction, scope, &session.id)?.is_some() {
+                continue;
+            }
             let updated_ms = to_i64(session.updated_ms, "session updated_ms")?;
             let message_count = usize_to_i64(session.message_count, "session message_count")?;
             let call_count = usize_to_i64(session.call_count, "session call_count")?;
@@ -593,21 +610,24 @@ impl PostgresSessionStore {
 
     /// 删除项目作用域内的会话及级联子记录。
     pub(super) fn delete_session(&self, scope: &ProjectScope, session_id: &str) -> Result<bool> {
-        let changed = self
-            .database
-            .connect_postgres()?
-            .execute(
-                "DELETE FROM session_index
-                 WHERE platform_id = $1 AND company_id = $2 AND project_id = $3
-                   AND session_id = $4",
-                &[
-                    &scope.platform_id().as_ref(),
-                    &scope.company_id().as_ref(),
-                    &scope.project_id().as_ref(),
-                    &session_id,
-                ],
-            )
-            .context("delete scoped PostgreSQL session")?;
+        let mut connection = self.database.connect_postgres()?;
+        let mut transaction = connection.transaction()?;
+        lock_session_scope(&mut transaction, scope)?;
+        if let Some(state) = first_response_state(&mut transaction, scope, session_id)? {
+            if state == "deleted" {
+                return Ok(false);
+            }
+            delete_managed_session(&mut transaction, scope, session_id)?;
+            transaction.commit()?;
+            return Ok(true);
+        }
+        let changed = transaction.execute(
+            "DELETE FROM session_index
+             WHERE platform_id = $1 AND company_id = $2 AND project_id = $3
+               AND session_id = $4",
+            scoped_id_params!(scope, session_id),
+        )?;
+        transaction.commit()?;
         Ok(changed == 1)
     }
 
@@ -878,32 +898,162 @@ impl PostgresSessionStore {
         &self,
         scope: &ProjectScope,
         info: &AgentSessionInfo,
-        info_json: &str,
     ) -> Result<()> {
-        let updated_ms = to_i64(info.time.updated, "agent session updated_ms")?;
-        self.database
-            .connect_postgres()?
-            .execute(
-                "INSERT INTO session_agent_sessions (
-                     platform_id, company_id, project_id, session_id, parent_id, updated_ms,
-                     info_json
-                 ) VALUES ($1, $2, $3, $4, $5, $6, $7)
-                 ON CONFLICT (platform_id, company_id, project_id, session_id) DO UPDATE SET
-                     parent_id = excluded.parent_id,
-                     updated_ms = excluded.updated_ms,
-                     info_json = excluded.info_json",
-                &[
-                    &scope.platform_id().as_ref(),
-                    &scope.company_id().as_ref(),
-                    &scope.project_id().as_ref(),
-                    &info.id,
-                    &info.parent_id,
-                    &updated_ms,
-                    &info_json,
-                ],
-            )
-            .context("save scoped PostgreSQL agent session")?;
+        let mut connection = self.database.connect_postgres()?;
+        let mut transaction = connection.transaction()?;
+        lock_session_scope(&mut transaction, scope)?;
+        let state = first_response_state(&mut transaction, scope, &info.id)?;
+        let mut info = info.clone();
+        let current = if state.is_some() {
+            load_agent_info(&mut transaction, scope, &info.id)?
+        } else {
+            None
+        };
+        protect_agent_snapshot(state.as_deref(), current.as_ref(), &mut info)?;
+        write_agent_info(&mut transaction, scope, &info)?;
+        transaction.commit()?;
         Ok(())
+    }
+
+    pub(super) fn update_agent_session(
+        &self,
+        scope: &ProjectScope,
+        session_id: &str,
+        update: impl FnOnce(&mut AgentSessionInfo),
+    ) -> Result<Option<AgentSessionInfo>> {
+        let mut connection = self.database.connect_postgres()?;
+        let mut transaction = connection.transaction()?;
+        lock_session_scope(&mut transaction, scope)?;
+        let Some(mut info) = load_agent_info(&mut transaction, scope, session_id)? else {
+            return Ok(None);
+        };
+        let state = first_response_state(&mut transaction, scope, session_id)?;
+        update_existing_info(scope, session_id, state.as_deref(), &mut info, update)?;
+        write_agent_info(&mut transaction, scope, &info)?;
+        if state.as_deref() == Some("committed") {
+            write_index_title(&mut transaction, scope, session_id, &info.title)?;
+        }
+        transaction.commit()?;
+        Ok(Some(info))
+    }
+
+    pub(super) fn reserve_pending_session(
+        &self,
+        scope: &ProjectScope,
+        info: &AgentSessionInfo,
+    ) -> Result<AgentSessionInfo> {
+        let mut connection = self.database.connect_postgres()?;
+        let mut transaction = connection.transaction()?;
+        lock_session_scope(&mut transaction, scope)?;
+        if let Some(existing) = load_agent_info(&mut transaction, scope, &info.id)? {
+            return reuse_session(existing, info);
+        }
+        let changed = transaction.execute(
+            "INSERT INTO session_first_response
+               (platform_id, company_id, project_id, session_id, first_response_state)
+             VALUES ($1, $2, $3, $4, 'pending')
+             ON CONFLICT DO NOTHING",
+            scoped_id_params!(scope, &info.id),
+        )?;
+        if changed != 1 {
+            bail!("session reservation is no longer available");
+        }
+        let pending = pending_agent_info(info);
+        transaction.execute(
+            "INSERT INTO session_index (platform_id, company_id, project_id, session_id,
+               title, created_ms, updated_ms, message_count, call_count)
+             VALUES ($1, $2, $3, $4, '', $5, $6, 0, 0)",
+            &[
+                &scope.platform_id().as_ref(),
+                &scope.company_id().as_ref(),
+                &scope.project_id().as_ref(),
+                &pending.id,
+                &to_i64(pending.time.created, "session created_ms")?,
+                &to_i64(pending.time.updated, "session updated_ms")?,
+            ],
+        )?;
+        write_agent_info(&mut transaction, scope, &pending)?;
+        transaction.commit()?;
+        Ok(pending)
+    }
+
+    pub(super) fn commit_first_response(
+        &self,
+        scope: &ProjectScope,
+        commit: FirstResponseCommit<'_>,
+    ) -> Result<bool> {
+        let mut connection = self.database.connect_postgres()?;
+        let mut transaction = connection.transaction()?;
+        lock_session_scope(&mut transaction, scope)?;
+        let session = commit.snapshot;
+        if first_response_state(&mut transaction, scope, &session.id)?.as_deref() != Some("pending")
+        {
+            return Ok(false);
+        }
+        let mut info = load_agent_info(&mut transaction, scope, &session.id)?
+            .context("missing pending session metadata")?;
+        complete_first_response(&mut info, &commit)?;
+        commit_ui_snapshot(&mut transaction, scope, session, commit.raw_artifacts)?;
+        write_agent_info(&mut transaction, scope, &info)?;
+        write_index_title(&mut transaction, scope, &session.id, &info.title)?;
+        transaction.execute(
+            "UPDATE session_first_response SET first_response_state = 'committed',
+               first_response_preview = $5
+             WHERE platform_id = $1 AND company_id = $2 AND project_id = $3 AND session_id = $4",
+            &[
+                &scope.platform_id().as_ref(),
+                &scope.company_id().as_ref(),
+                &scope.project_id().as_ref(),
+                &session.id,
+                &first_response_preview(commit.preview),
+            ],
+        )?;
+        transaction.commit()?;
+        Ok(true)
+    }
+
+    pub(super) fn set_first_response_title(
+        &self,
+        scope: &ProjectScope,
+        session_id: &str,
+        title: &str,
+    ) -> Result<bool> {
+        let mut connection = self.database.connect_postgres()?;
+        let mut transaction = connection.transaction()?;
+        lock_session_scope(&mut transaction, scope)?;
+        if first_response_state(&mut transaction, scope, session_id)?.as_deref()
+            != Some("committed")
+        {
+            return Ok(false);
+        }
+        let Some(mut info) = load_agent_info(&mut transaction, scope, session_id)? else {
+            return Ok(false);
+        };
+        if !info.title.is_empty() {
+            return Ok(false);
+        }
+        info.title = title.to_owned();
+        write_agent_info(&mut transaction, scope, &info)?;
+        write_index_title(&mut transaction, scope, session_id, title)?;
+        transaction.commit()?;
+        Ok(true)
+    }
+
+    pub(super) fn discard_pending_session(
+        &self,
+        scope: &ProjectScope,
+        session_id: &str,
+    ) -> Result<bool> {
+        let mut connection = self.database.connect_postgres()?;
+        let mut transaction = connection.transaction()?;
+        lock_session_scope(&mut transaction, scope)?;
+        if first_response_state(&mut transaction, scope, session_id)?.as_deref() != Some("pending")
+        {
+            return Ok(false);
+        }
+        delete_managed_session(&mut transaction, scope, session_id)?;
+        transaction.commit()?;
+        Ok(true)
     }
 
     /// 按完整项目作用域读取代理会话。
@@ -912,21 +1062,7 @@ impl PostgresSessionStore {
         scope: &ProjectScope,
         session_id: &str,
     ) -> Result<Option<AgentSessionInfo>> {
-        let row = self
-            .database
-            .connect_postgres()?
-            .query_opt(
-                "SELECT info_json FROM session_agent_sessions
-                 WHERE platform_id = $1 AND company_id = $2 AND project_id = $3
-                   AND session_id = $4",
-                scoped_id_params!(scope, session_id),
-            )
-            .context("load scoped PostgreSQL agent session")?;
-        row.map(|row| {
-            let info_json: String = row.try_get(0)?;
-            parse_agent_info(&info_json, scope.project_id().as_ref(), session_id)
-        })
-        .transpose()
+        load_agent_info(&mut *self.database.connect_postgres()?, scope, session_id)
     }
 
     /// 列出项目中的全部代理会话。
@@ -938,11 +1074,31 @@ impl PostgresSessionStore {
         connection
             .query(
                 "SELECT session_id, info_json FROM session_agent_sessions
+                 LEFT JOIN session_first_response USING (platform_id, company_id, project_id, session_id)
                  WHERE platform_id = $1 AND company_id = $2 AND project_id = $3
+                   AND COALESCE(first_response_state, 'committed') = 'committed'
                  ORDER BY updated_ms DESC, session_id DESC",
                 scope_params!(scope),
             )
             .context("list scoped PostgreSQL agent sessions")?
+            .iter()
+            .map(|row| parse_agent_row(row, scope.project_id().as_ref()))
+            .collect()
+    }
+
+    pub(super) fn load_agent_children(
+        &self,
+        scope: &ProjectScope,
+        parent_id: &str,
+    ) -> Result<Vec<AgentSessionInfo>> {
+        self.database
+            .connect_postgres()?
+            .query(
+                "SELECT session_id, info_json FROM session_agent_sessions
+             WHERE platform_id = $1 AND company_id = $2 AND project_id = $3 AND parent_id = $4
+             ORDER BY updated_ms DESC, session_id DESC",
+                scoped_id_params!(scope, parent_id),
+            )?
             .iter()
             .map(|row| parse_agent_row(row, scope.project_id().as_ref()))
             .collect()
@@ -957,7 +1113,9 @@ impl PostgresSessionStore {
         let rows = connection
             .query(
                 "SELECT project_id, session_id, info_json FROM session_agent_sessions
+                 LEFT JOIN session_first_response USING (platform_id, company_id, project_id, session_id)
                  WHERE platform_id = $1 AND company_id = $2
+                   AND COALESCE(first_response_state, 'committed') = 'committed'
                  ORDER BY updated_ms DESC, session_id DESC, project_id",
                 &[&tenant.platform_id().as_ref(), &tenant.company_id().as_ref()],
             )
@@ -1006,18 +1164,169 @@ impl PostgresSessionStore {
         scope: &ProjectScope,
         session_id: &str,
     ) -> Result<bool> {
-        let changed = self
-            .database
-            .connect_postgres()?
-            .execute(
-                "DELETE FROM session_agent_sessions
-                 WHERE platform_id = $1 AND company_id = $2 AND project_id = $3
-                   AND session_id = $4",
-                scoped_id_params!(scope, session_id),
-            )
-            .context("delete scoped PostgreSQL agent session")?;
+        let mut connection = self.database.connect_postgres()?;
+        let mut transaction = connection.transaction()?;
+        lock_session_scope(&mut transaction, scope)?;
+        if let Some(state) = first_response_state(&mut transaction, scope, session_id)? {
+            if state == "deleted" {
+                return Ok(false);
+            }
+            delete_managed_session(&mut transaction, scope, session_id)?;
+            transaction.commit()?;
+            return Ok(true);
+        }
+        let changed = transaction.execute(
+            "DELETE FROM session_agent_sessions
+             WHERE platform_id = $1 AND company_id = $2 AND project_id = $3
+               AND session_id = $4",
+            scoped_id_params!(scope, session_id),
+        )?;
+        transaction.commit()?;
         Ok(changed == 1)
     }
+}
+
+// Serialize mutations that span the history index and native metadata, including
+// index replacement. The project row lock allows foreign-key key-share locks.
+fn lock_session_scope(
+    client: &mut ::postgres::Transaction<'_>,
+    scope: &ProjectScope,
+) -> Result<()> {
+    client.query_opt(
+        "SELECT 1 FROM projects WHERE platform_id = $1 AND company_id = $2 AND project_id = $3
+         FOR NO KEY UPDATE",
+        scope_params!(scope),
+    )?;
+    Ok(())
+}
+
+fn first_response_state(
+    client: &mut impl GenericClient,
+    scope: &ProjectScope,
+    session_id: &str,
+) -> Result<Option<String>> {
+    Ok(client
+        .query_opt(
+            "SELECT first_response_state FROM session_first_response
+         WHERE platform_id = $1 AND company_id = $2 AND project_id = $3 AND session_id = $4",
+            scoped_id_params!(scope, session_id),
+        )?
+        .map(|row| row.get(0)))
+}
+
+fn load_agent_info(
+    client: &mut impl GenericClient,
+    scope: &ProjectScope,
+    session_id: &str,
+) -> Result<Option<AgentSessionInfo>> {
+    let row = client
+        .query_opt(
+            "SELECT info_json FROM session_agent_sessions
+                 WHERE platform_id = $1 AND company_id = $2 AND project_id = $3
+                   AND session_id = $4",
+            scoped_id_params!(scope, session_id),
+        )
+        .context("load scoped PostgreSQL agent session")?;
+    row.map(|row| {
+        let info_json: String = row.try_get(0)?;
+        parse_agent_info(&info_json, scope.project_id().as_ref(), session_id)
+    })
+    .transpose()
+}
+
+fn write_agent_info(
+    client: &mut impl GenericClient,
+    scope: &ProjectScope,
+    info: &AgentSessionInfo,
+) -> Result<()> {
+    client.execute(
+        "INSERT INTO session_agent_sessions (
+             platform_id, company_id, project_id, session_id, parent_id, updated_ms, info_json
+         ) VALUES ($1, $2, $3, $4, $5, $6, $7)
+         ON CONFLICT (platform_id, company_id, project_id, session_id) DO UPDATE SET
+             parent_id = excluded.parent_id,
+             updated_ms = excluded.updated_ms,
+             info_json = excluded.info_json",
+        &[
+            &scope.platform_id().as_ref(),
+            &scope.company_id().as_ref(),
+            &scope.project_id().as_ref(),
+            &info.id,
+            &info.parent_id,
+            &to_i64(info.time.updated, "agent session updated_ms")?,
+            &serde_json::to_string(info)?,
+        ],
+    )?;
+    Ok(())
+}
+
+fn write_index_title(
+    client: &mut impl GenericClient,
+    scope: &ProjectScope,
+    session_id: &str,
+    title: &str,
+) -> Result<()> {
+    let changed = client.execute(
+        "UPDATE session_index SET title = $5
+         WHERE platform_id = $1 AND company_id = $2 AND project_id = $3 AND session_id = $4",
+        &[
+            &scope.platform_id().as_ref(),
+            &scope.company_id().as_ref(),
+            &scope.project_id().as_ref(),
+            &session_id,
+            &title,
+        ],
+    )?;
+    if changed != 1 {
+        bail!("missing UI index for session {session_id}");
+    }
+    Ok(())
+}
+
+fn delete_managed_session(
+    client: &mut impl GenericClient,
+    scope: &ProjectScope,
+    session_id: &str,
+) -> Result<()> {
+    client.execute(
+        "UPDATE session_first_response SET first_response_state = 'deleted',
+           first_response_preview = NULL
+         WHERE platform_id = $1 AND company_id = $2 AND project_id = $3 AND session_id = $4",
+        scoped_id_params!(scope, session_id),
+    )?;
+    client.execute(
+        "DELETE FROM session_index
+         WHERE platform_id = $1 AND company_id = $2 AND project_id = $3 AND session_id = $4",
+        scoped_id_params!(scope, session_id),
+    )?;
+    client.execute(
+        "DELETE FROM session_agent_sessions
+         WHERE platform_id = $1 AND company_id = $2 AND project_id = $3 AND session_id = $4",
+        scoped_id_params!(scope, session_id),
+    )?;
+    Ok(())
+}
+
+fn commit_ui_snapshot(
+    transaction: &mut ::postgres::Transaction<'_>,
+    scope: &ProjectScope,
+    session: &ChatSession,
+    raw_artifacts: &[LlmRawArtifact],
+) -> Result<()> {
+    let call_count = transaction
+            .query_opt(
+                "SELECT call_count FROM session_index
+                 WHERE platform_id = $1 AND company_id = $2 AND project_id = $3 AND session_id = $4",
+                scoped_id_params!(scope, &session.id),
+            )?
+            .map(|row| from_i64_usize(row.get(0), "session call_count"))
+            .transpose()?
+            .unwrap_or(session.calls.len());
+    upsert_session_header(transaction, scope, session, call_count)?;
+    replace_session_messages(transaction, scope, session)?;
+    replace_session_steps(transaction, scope, session)?;
+    upsert_session_llm_raw_artifacts(transaction, scope, raw_artifacts)?;
+    Ok(())
 }
 
 fn load_session_message_page_postgres(
@@ -1264,6 +1573,10 @@ fn upsert_session_header(
     session: &ChatSession,
     call_count: usize,
 ) -> Result<()> {
+    let state = first_response_state(client, scope, &session.id)?;
+    if state.as_deref() == Some("deleted") {
+        bail!("session was deleted");
+    }
     let created_ms = to_i64(session.created_ms, "session created_ms")?;
     let updated_ms = to_i64(session.updated_ms, "session updated_ms")?;
     let message_count = usize_to_i64(session.messages.len(), "session message_count")?;
@@ -1276,7 +1589,7 @@ fn upsert_session_header(
                  message_count, call_count, last_content
              ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
              ON CONFLICT (platform_id, company_id, project_id, session_id) DO UPDATE SET
-                 title = excluded.title,
+                 title = CASE WHEN $11 THEN session_index.title ELSE excluded.title END,
                  created_ms = excluded.created_ms,
                  updated_ms = excluded.updated_ms,
                  message_count = excluded.message_count,
@@ -1293,6 +1606,7 @@ fn upsert_session_header(
                 &message_count,
                 &call_count,
                 &last_content,
+                &state.is_some(),
             ],
         )
         .context("upsert scoped PostgreSQL session header")?;

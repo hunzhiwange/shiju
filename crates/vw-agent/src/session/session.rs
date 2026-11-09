@@ -501,7 +501,7 @@ pub async fn update(session_id: &str, f: impl FnOnce(&mut Info)) -> Result<Info,
     let project_id = project_id()?;
     let tenant = crate::session::ui_store::current_tenant_scope();
     let session_id = session_id.to_string();
-    let mut result = crate::global_database::run_isolated({
+    let result = crate::global_database::run_isolated({
         let tenant = tenant.clone();
         let project_id = project_id.clone();
         let session_id = session_id.clone();
@@ -519,47 +519,7 @@ pub async fn update(session_id: &str, f: impl FnOnce(&mut Info)) -> Result<Info,
             message: format!("session not found: {}", session_id),
         }))
     })?;
-    f(&mut result);
-    result.time.updated = now_ms();
-    let save_result = result.clone();
-    crate::global_database::run_isolated({
-        let tenant = tenant.clone();
-        let project_id = project_id.clone();
-        let session_id = session_id.clone();
-        move || {
-            crate::session::ui_store::save_agent_session_scoped_for_tenant(
-                &tenant,
-                &save_result,
-                Some(&project_id),
-            )
-            .ok_or_else(|| {
-                Error::Storage(storage::Error::NotFound(storage::NotFoundError {
-                    message: format!("failed to persist session: {}", session_id),
-                }))
-            })
-        }
-    })
-    .await??;
-    if result.time.archived.is_some() {
-        crate::plugins::hook_session::close(&result.id, std::path::Path::new(&result.directory))
-            .await;
-        crate::plugins::close_session_mcp_connections(
-            &result.id,
-            std::path::Path::new(&result.directory),
-        );
-    }
-    // 记录更新日志
-    LOGGER.info(
-        "updated",
-        Some(extra([
-            ("id", Value::String(result.id.clone())),
-            ("projectID", Value::String(result.project_id.clone())),
-        ])),
-    );
-    // 发布更新事件
-    let _ =
-        bus::publish(event::UPDATED, json!({ "info": result.clone() }), instance_directory_opt());
-    Ok(result)
+    apply_update(tenant, result, f).await
 }
 
 /// 列出当前项目的所有会话
@@ -594,9 +554,20 @@ pub async fn list() -> Result<Vec<Info>, Error> {
 /// - `Ok(Vec<Info>)`: 成功返回子会话列表
 /// - `Err(Error)`: 读取失败
 pub async fn children(parent_id: &str) -> Result<Vec<Info>, Error> {
-    let all = list().await?;
-    // 过滤出匹配父会话 ID 的子会话
-    Ok(all.into_iter().filter(|s| s.parent_id.as_deref() == Some(parent_id)).collect())
+    let mut children = children_including_pending(parent_id).await?;
+    children.retain(|info| !info.is_first_response_pending());
+    Ok(children)
+}
+
+/// Internal parent lookup includes reservations still running their first turn.
+pub(super) async fn children_including_pending(parent_id: &str) -> Result<Vec<Info>, Error> {
+    let project_id = project_id()?;
+    let tenant = crate::session::ui_store::current_tenant_scope();
+    let parent_id = parent_id.to_owned();
+    Ok(crate::global_database::run_isolated(move || {
+        crate::session::ui_store::load_agent_children(&tenant, &project_id, &parent_id)
+    })
+    .await??)
 }
 
 /// 列出所有项目的所有会话
@@ -662,7 +633,7 @@ pub async fn get_any(session_id: &str) -> Result<Info, Error> {
 pub async fn update_any(session_id: &str, f: impl FnOnce(&mut Info)) -> Result<Info, Error> {
     let tenant = crate::session::ui_store::current_tenant_scope();
     let session_id = session_id.to_string();
-    let Some(mut result) = crate::global_database::run_isolated({
+    let Some(result) = crate::global_database::run_isolated({
         let tenant = tenant.clone();
         let session_id = session_id.clone();
         move || crate::session::ui_store::load_agent_session_any_for_tenant(&tenant, &session_id)
@@ -673,28 +644,32 @@ pub async fn update_any(session_id: &str, f: impl FnOnce(&mut Info)) -> Result<I
             message: format!("session not found: {}", session_id),
         })));
     };
-    let project_id = result.project_id.clone();
-    f(&mut result);
-    result.time.updated = now_ms();
-    let save_result = result.clone();
-    crate::global_database::run_isolated({
-        let tenant = tenant.clone();
-        let project_id = project_id.clone();
-        let session_id = session_id.clone();
-        move || {
-            crate::session::ui_store::save_agent_session_scoped_for_tenant(
-                &tenant,
-                &save_result,
-                Some(&project_id),
-            )
-            .ok_or_else(|| {
-                Error::Storage(storage::Error::NotFound(storage::NotFoundError {
-                    message: format!("failed to persist session: {}", session_id),
-                }))
-            })
-        }
+    apply_update(tenant, result, f).await
+}
+
+async fn apply_update(
+    tenant: vw_api_types::id::TenantScope,
+    mut info: Info,
+    update: impl FnOnce(&mut Info),
+) -> Result<Info, Error> {
+    let session_id = info.id.clone();
+    let project_id = info.project_id.clone();
+    let previous_title = info.title.clone();
+    update(&mut info);
+    if info.id != session_id || info.project_id != project_id {
+        return Err(anyhow::anyhow!("session identity cannot change during an update").into());
+    }
+    let explicit_title = info.title != previous_title;
+    info.time.updated = now_ms();
+    let result = crate::global_database::run_isolated(move || {
+        crate::session::ui_store::update_agent_session(&tenant, info, explicit_title)
     })
-    .await??;
+    .await??
+    .ok_or_else(|| {
+        Error::Storage(storage::Error::NotFound(storage::NotFoundError {
+            message: format!("session not found: {session_id}"),
+        }))
+    })?;
     if result.time.archived.is_some() {
         crate::plugins::hook_session::close(&result.id, std::path::Path::new(&result.directory))
             .await;
@@ -712,8 +687,13 @@ pub async fn update_any(session_id: &str, f: impl FnOnce(&mut Info)) -> Result<I
         ])),
     );
     // 发布更新事件
-    let _ =
-        bus::publish(event::UPDATED, json!({ "info": result.clone() }), instance_directory_opt());
+    if !result.is_first_response_pending() {
+        let _ = bus::publish(
+            event::UPDATED,
+            json!({ "info": result.clone() }),
+            instance_directory_opt(),
+        );
+    }
     Ok(result)
 }
 

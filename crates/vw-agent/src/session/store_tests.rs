@@ -15,7 +15,7 @@ use vw_shared::session::ui_types::{
     ToolTiming,
 };
 
-use super::store::{LlmRawStepKey, SessionStore};
+use super::store::{FirstResponseCommit, LlmRawStepKey, SessionStore};
 use crate::global_database::GlobalDatabase;
 use crate::global_database::config::DatabaseProvider;
 use crate::global_database::test_support::PostgresTestDatabase;
@@ -28,10 +28,11 @@ macro_rules! assert_json_eq {
     };
 }
 
-const SESSION_TABLES: [&str; 10] = [
+const SESSION_TABLES: [&str; 11] = [
     "session_agent_sessions",
     "session_calls",
     "session_dynamic_tools",
+    "session_first_response",
     "session_index",
     "session_llm_raw_rounds",
     "session_llm_raw_turns",
@@ -265,7 +266,8 @@ fn session_store_schema_uses_project_scoped_session_tables() -> Result<()> {
 
     for table in SESSION_TABLES {
         assert_scope_columns(&connection, table)?;
-        assert_project_foreign_key(&connection, table)?;
+        let on_delete = if table == "session_first_response" { "CASCADE" } else { "RESTRICT" };
+        assert_project_foreign_key(&connection, table, on_delete)?;
     }
     for table in [
         "session_messages",
@@ -1157,14 +1159,14 @@ fn assert_scope_columns(connection: &Connection, table: &str) -> Result<()> {
     Ok(())
 }
 
-fn assert_project_foreign_key(connection: &Connection, table: &str) -> Result<()> {
+fn assert_project_foreign_key(connection: &Connection, table: &str, on_delete: &str) -> Result<()> {
     let mappings = foreign_key_mappings(connection, table, "projects")?;
     assert_eq!(
         mappings,
         vec![
-            ("company_id".to_owned(), "company_id".to_owned(), "RESTRICT".to_owned()),
-            ("platform_id".to_owned(), "platform_id".to_owned(), "RESTRICT".to_owned()),
-            ("project_id".to_owned(), "project_id".to_owned(), "RESTRICT".to_owned()),
+            ("company_id".to_owned(), "company_id".to_owned(), on_delete.to_owned()),
+            ("platform_id".to_owned(), "platform_id".to_owned(), on_delete.to_owned()),
+            ("project_id".to_owned(), "project_id".to_owned(), on_delete.to_owned()),
         ],
         "incomplete projects foreign key for {table}"
     );
@@ -1278,6 +1280,194 @@ fn ordinary_reply_delta_persists_after_version_conflict() -> Result<()> {
         assert_eq!(saved.messages[1].content, "普通回复完整内容");
         assert_eq!(saved.message_ids[1].as_deref(), Some("reply-id"));
         assert_json_eq!(&saved.messages[0], &session.messages[0]);
+        Ok(())
+    })
+}
+
+#[test]
+fn first_response_lifecycle_snapshot_does_not_publish_pending_session() -> Result<()> {
+    for_each_session_store_provider(|fixture| {
+        let scope = fixture.create_project(&fixture.tenant_a, "project-a")?;
+        let store = &fixture.store;
+        let mut info = sample_agent_info("first-response", "project-a", 100);
+        info.slug = AgentSessionInfo::visible_task_slug(&info.slug);
+        let pending = store.reserve_pending_session(&scope, &info)?;
+        assert!(pending.is_visible_task());
+        assert!(pending.is_first_response_pending());
+        assert!(pending.title.is_empty());
+        let mut retry = info.clone();
+        retry.time.created = 99;
+        assert_json_eq!(store.reserve_pending_session(&scope, &retry)?, &pending);
+        assert_json_eq!(store.load_agent_session(&scope, &info.id)?, Some(&pending));
+        assert_eq!(store.load_agent_children(&scope, "parent-session")?[0].id, info.id);
+        assert!(!store.set_first_response_title(&scope, &info.id, "Early name")?);
+
+        let snapshot = sample_session(&info.id, "Early title", 101);
+        store.save_session_ui_snapshot(&scope, &snapshot)?;
+        store.save_agent_session(&scope, &info)?;
+        store.replace_session_index(
+            &scope,
+            &[ChatSessionMeta {
+                id: info.id.clone(),
+                title: "Injected title".to_owned(),
+                updated_ms: 200,
+                message_count: 0,
+                call_count: 0,
+                last_content: Some("Hidden content".to_owned()),
+            }],
+        )?;
+        assert!(store.load_agent_sessions(&scope)?.is_empty());
+        assert!(store.load_agent_sessions_all(&fixture.tenant_a)?.is_empty());
+        assert!(store.list_sessions(&scope)?.is_empty());
+        assert!(store.load_session_meta(&scope, &info.id)?.is_none());
+        let saved = store.load_session(&scope, &info.id)?.unwrap();
+        assert!(saved.title.is_empty());
+        assert_eq!(saved.messages.len(), 2);
+
+        let mut forged = info;
+        forged.id = "forged".to_owned();
+        forged.mark_first_response_pending();
+        assert!(store.save_agent_session(&scope, &forged).is_err());
+        assert!(store.load_agent_session(&scope, &forged.id)?.is_none());
+        Ok(())
+    })
+}
+
+#[test]
+fn first_response_lifecycle_publishes_only_after_snapshot_and_raw_commit() -> Result<()> {
+    for_each_session_store_provider(|fixture| {
+        let scope = fixture.create_project(&fixture.tenant_a, "project-a")?;
+        let store = &fixture.store;
+        let info = sample_agent_info("first-response", "project-a", 10);
+        let pending = store.reserve_pending_session(&scope, &info)?;
+        let (snapshot, raw_rounds) = session_with_raw_rounds(&info.id);
+        let artifacts = [LlmRawArtifact::from_full_raw_rounds("turn-raw", &raw_rounds)?];
+        let expected_steps =
+            [LlmRawStepKey::new("turn-raw", 0)?, LlmRawStepKey::new("turn-raw", 1)?];
+        let incomplete = FirstResponseCommit {
+            snapshot: &snapshot,
+            raw_artifacts: &[],
+            expected_finished_steps: &expected_steps,
+            preview: Some("successful prompt"),
+            task_title: None,
+        };
+        assert!(store.commit_first_response(&scope, incomplete).is_err());
+
+        let mut invalid_snapshot = snapshot.clone();
+        invalid_snapshot.steps[1].started_ms = u64::MAX;
+        let commit = |snapshot, preview| FirstResponseCommit {
+            snapshot,
+            raw_artifacts: &artifacts,
+            expected_finished_steps: &expected_steps,
+            preview: Some(preview),
+            task_title: None,
+        };
+        assert!(
+            store
+                .commit_first_response(&scope, commit(&invalid_snapshot, "successful prompt"))
+                .is_err()
+        );
+        assert!(store.load_session(&scope, &info.id)?.unwrap().messages.is_empty());
+        assert!(store.load_session_turn_step_llm_raw(&scope, &info.id, "turn-raw", 0)?.is_none());
+        assert!(store.load_session_meta(&scope, &info.id)?.is_none());
+        assert!(store.load_agent_sessions(&scope)?.is_empty());
+
+        assert!(store.commit_first_response(&scope, commit(&snapshot, "successful prompt"))?);
+        assert!(!store.commit_first_response(&scope, commit(&snapshot, "duplicate prompt"))?);
+        let listed = store.load_agent_sessions(&scope)?;
+        assert_eq!(listed.len(), 1);
+        assert_eq!(listed[0].slug, pending.source_slug());
+        assert_eq!(listed[0].slug, info.slug);
+        assert!(listed[0].title.is_empty());
+        let meta = store.load_session_meta(&scope, &info.id)?.unwrap();
+        assert_eq!(meta.id, listed[0].id);
+        assert!(meta.title.is_empty());
+        assert_eq!(meta.last_content.as_deref(), Some("successful prompt"));
+        assert_json_eq!(store.list_sessions(&scope)?, vec![meta]);
+        assert_json_eq!(
+            store.load_session_turn_step_llm_raw(&scope, &info.id, "turn-raw", 0)?,
+            Some(&raw_rounds[0])
+        );
+        assert!(store.set_first_response_title(&scope, &info.id, "  ").is_err());
+        assert!(store.load_agent_session(&scope, &info.id)?.unwrap().title.is_empty());
+        assert!(!store.discard_pending_session(&scope, &info.id)?);
+        Ok(())
+    })
+}
+
+#[test]
+fn first_response_lifecycle_scopes_rename_and_discard() -> Result<()> {
+    for_each_session_store_provider(|fixture| {
+        let scope = fixture.create_project(&fixture.tenant_a, "project-a")?;
+        let other_project = fixture.create_project(&fixture.tenant_a, "project-b")?;
+        let other_tenant = fixture.create_project(&fixture.tenant_b, "project-a")?;
+        let store = &fixture.store;
+        let info = sample_agent_info("same-id", "project-a", 10);
+        let pending = store.reserve_pending_session(&scope, &info)?;
+        store.reserve_pending_session(
+            &other_project,
+            &sample_agent_info(&info.id, "project-b", 500),
+        )?;
+        store.reserve_pending_session(&other_tenant, &info)?;
+        let mut snapshot = sample_session(&info.id, "Client title", 200);
+        snapshot.steps.clear();
+        let commit = || FirstResponseCommit {
+            snapshot: &snapshot,
+            raw_artifacts: &[],
+            expected_finished_steps: &[],
+            preview: None,
+            task_title: None,
+        };
+        assert!(store.commit_first_response(&scope, commit())?);
+        assert!(!store.set_first_response_title(&other_project, &info.id, "Wrong project")?);
+        assert!(!store.set_first_response_title(&other_tenant, &info.id, "Wrong tenant")?);
+        assert_eq!(store.load_agent_sessions_all(&fixture.tenant_a)?[0].project_id, "project-a");
+        assert!(store.list_sessions(&other_project)?.is_empty());
+        assert!(store.list_sessions(&other_tenant)?.is_empty());
+
+        std::thread::scope(|threads| -> Result<()> {
+            let model = threads.spawn(|| store.set_first_response_title(&scope, &info.id, "Model"));
+            store
+                .update_agent_session(&scope, &info.id, |info| info.title = "Manual".to_owned())?;
+            model.join().unwrap()?;
+            Ok(())
+        })?;
+        assert!(!store.set_first_response_title(&scope, &info.id, "Late model")?);
+        store.save_session_ui_snapshot(&scope, &snapshot)?;
+        store.save_agent_session(&scope, &pending)?;
+        assert_eq!(store.load_agent_session(&scope, &info.id)?.unwrap().title, "Manual");
+        assert_eq!(store.load_session_meta(&scope, &info.id)?.unwrap().title, "Manual");
+
+        assert!(store.discard_pending_session(&other_tenant, &info.id)?);
+        assert!(!store.commit_first_response(&other_tenant, commit())?);
+        assert!(!store.set_first_response_title(&other_tenant, &info.id, "Late model")?);
+        assert!(store.save_session_ui_snapshot(&other_tenant, &snapshot).is_err());
+        assert!(store.save_agent_session(&other_tenant, &info).is_err());
+        assert!(store.reserve_pending_session(&other_tenant, &info).is_err());
+        assert!(store.load_session(&other_tenant, &info.id)?.is_none());
+        assert!(store.load_agent_session(&other_tenant, &info.id)?.is_none());
+        assert!(
+            store
+                .load_agent_session(&other_project, &info.id)?
+                .unwrap()
+                .is_first_response_pending()
+        );
+
+        assert!(store.commit_first_response(
+            &other_project,
+            FirstResponseCommit { task_title: Some("Provided task name"), ..commit() }
+        )?);
+        assert_eq!(
+            store.load_agent_session(&other_project, &info.id)?.unwrap().title,
+            "Provided task name"
+        );
+        assert_eq!(
+            store.load_session_meta(&other_project, &info.id)?.unwrap().title,
+            "Provided task name"
+        );
+        assert!(store.delete_agent_session(&scope, &info.id)?);
+        assert!(!store.set_first_response_title(&scope, &info.id, "After deletion")?);
+        assert!(store.load_session_meta(&scope, &info.id)?.is_none());
         Ok(())
     })
 }

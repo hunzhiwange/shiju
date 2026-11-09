@@ -172,7 +172,9 @@ pub(crate) async fn visible_tasks_for_parent(
         Box::pin(async move {
             ui_store::with_tenant_scope(tenant, async move {
                 load_info_for_scope(&scope, &expected_project_id, &parent_id).await?;
-                let children = session::children(&parent_id).await.map_err(LifecycleError::from)?;
+                let children = session::children_including_pending(&parent_id)
+                    .await
+                    .map_err(LifecycleError::from)?;
                 Ok(children
                     .into_iter()
                     .filter(|info| {

@@ -19,6 +19,20 @@ mod postgres;
 
 use postgres::PostgresSessionStore;
 
+const FIRST_RESPONSE_SCHEMA: &str = "
+CREATE TABLE IF NOT EXISTS session_first_response (
+    platform_id TEXT NOT NULL,
+    company_id TEXT NOT NULL,
+    project_id TEXT NOT NULL,
+    session_id TEXT NOT NULL,
+    first_response_state TEXT NOT NULL CHECK (first_response_state IN ('pending', 'committed', 'deleted')),
+    first_response_preview TEXT,
+    PRIMARY KEY (platform_id, company_id, project_id, session_id),
+    FOREIGN KEY (platform_id, company_id, project_id)
+        REFERENCES projects(platform_id, company_id, project_id) ON DELETE CASCADE
+);
+";
+
 const SESSION_SCHEMA: &str = r#"
 BEGIN IMMEDIATE;
 
@@ -237,6 +251,15 @@ pub struct SessionStore {
     provider: SessionStoreProvider,
 }
 
+/// Projection and raw artifacts of the first successful turn.
+pub struct FirstResponseCommit<'a> {
+    pub snapshot: &'a ChatSession,
+    pub raw_artifacts: &'a [LlmRawArtifact],
+    pub expected_finished_steps: &'a [LlmRawStepKey],
+    pub preview: Option<&'a str>,
+    pub task_title: Option<&'a str>,
+}
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct SessionMessageDeltaResult {
     pub upserted_rows: usize,
@@ -297,14 +320,19 @@ impl SessionStore {
         }
         match &self.provider {
             SessionStoreProvider::Sqlite(database) => {
-                database.connect_sqlite()?.execute(
+                database.with_sqlite_transaction(TransactionBehavior::Immediate, |transaction| {
+                    if first_response_state(transaction, scope, &info.id)?.as_deref() == Some("deleted") {
+                        bail!("session was deleted");
+                    }
+                    transaction.execute(
                     "INSERT INTO session_index (platform_id, company_id, project_id, session_id, title, created_ms, updated_ms, message_count, call_count, last_content)
                      VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, 0, 0, '')
                      ON CONFLICT (platform_id, company_id, project_id, session_id) DO NOTHING",
                     params![scope.platform_id().as_ref(), scope.company_id().as_ref(), scope.project_id().as_ref(), info.id, info.title,
                         to_i64(info.time.created, "agent session created_ms")?, to_i64(info.time.updated, "agent session updated_ms")?],
                 )?;
-                Ok(())
+                    Ok(())
+                })
             }
             SessionStoreProvider::Postgres(store) => {
                 run_sync_database(|| store.ensure_native_session_index(scope, info))
@@ -372,6 +400,7 @@ impl SessionStore {
                         .execute_batch(SESSION_SCHEMA)
                         .context("initialize SQLite session schema")?;
                     connection.execute_batch(super::dynamic_tool_store::SCHEMA)?;
+                    connection.execute_batch(FIRST_RESPONSE_SCHEMA)?;
                     ensure_sqlite_message_model_column(connection)?;
                     ensure_sqlite_message_processing_timing_columns(connection)?;
                     ensure_sqlite_step_tool_timings_column(connection)?;
@@ -479,21 +508,10 @@ impl SessionStore {
         validate_id("session id", &session.id)?;
         validate_raw_commit(session, raw_artifacts, expected_finished_steps)?;
         match &self.provider {
-            SessionStoreProvider::Sqlite(database) => {
-                database.with_sqlite_transaction(TransactionBehavior::Immediate, |transaction| {
-                    let call_count = existing_session_call_count(
-                        transaction,
-                        scope,
-                        &session.id,
-                        session.calls.len(),
-                    )?;
-                    upsert_session_header(transaction, scope, session, call_count)?;
-                    replace_session_messages(transaction, scope, session)?;
-                    replace_session_steps(transaction, scope, session)?;
-                    upsert_session_llm_raw_artifacts(transaction, scope, raw_artifacts)?;
-                    Ok(())
-                })
-            }
+            SessionStoreProvider::Sqlite(database) => database
+                .with_sqlite_transaction(TransactionBehavior::Immediate, |transaction| {
+                    commit_ui_snapshot_sqlite(transaction, scope, session, raw_artifacts)
+                }),
             SessionStoreProvider::Postgres(store) => run_sync_database(|| {
                 store.commit_session_ui_snapshot(scope, session, raw_artifacts)
             }),
@@ -601,9 +619,12 @@ impl SessionStore {
             SessionStoreProvider::Sqlite(database) => {
                 let connection = database.connect_sqlite()?;
                 let mut statement = connection.prepare(
-                    "SELECT session_id, title, updated_ms, message_count, call_count, last_content
+                    "SELECT session_id, title, updated_ms, message_count, call_count,
+                           CASE WHEN first_response_state IS NULL THEN last_content ELSE first_response_preview END
                      FROM session_index
+                         LEFT JOIN session_first_response USING (platform_id, company_id, project_id, session_id)
                      WHERE platform_id = ?1 AND company_id = ?2 AND project_id = ?3
+                       AND COALESCE(first_response_state, 'committed') = 'committed'
                      ORDER BY updated_ms DESC, session_id DESC
                      LIMIT 50",
                 )?;
@@ -638,10 +659,13 @@ impl SessionStore {
                 let connection = database.connect_sqlite()?;
                 let row = connection
                     .query_row(
-                        "SELECT title, updated_ms, message_count, call_count, last_content
+                        "SELECT title, updated_ms, message_count, call_count,
+                           CASE WHEN first_response_state IS NULL THEN last_content ELSE first_response_preview END
                          FROM session_index
+                         LEFT JOIN session_first_response USING (platform_id, company_id, project_id, session_id)
                          WHERE platform_id = ?1 AND company_id = ?2 AND project_id = ?3
-                           AND session_id = ?4",
+                           AND session_id = ?4
+                           AND COALESCE(first_response_state, 'committed') = 'committed'",
                         scoped_id_params(scope, session_id),
                         |row| {
                             Ok((
@@ -689,10 +713,18 @@ impl SessionStore {
                 database.with_sqlite_transaction(TransactionBehavior::Immediate, |transaction| {
                     transaction.execute(
                         "DELETE FROM session_index
-                         WHERE platform_id = ?1 AND company_id = ?2 AND project_id = ?3",
+                         WHERE platform_id = ?1 AND company_id = ?2 AND project_id = ?3
+                           AND NOT EXISTS (
+                               SELECT 1 FROM session_first_response
+                               WHERE platform_id = ?1 AND company_id = ?2 AND project_id = ?3
+                                 AND session_id = session_index.session_id
+                           )",
                         scope_params(scope),
                     )?;
                     for session in sessions {
+                        if first_response_state(transaction, scope, &session.id)?.is_some() {
+                            continue;
+                        }
                         transaction.execute(
                             "INSERT INTO session_index (
                                  platform_id, company_id, project_id, session_id, title, created_ms,
@@ -725,13 +757,22 @@ impl SessionStore {
         validate_id("session id", session_id)?;
         match &self.provider {
             SessionStoreProvider::Sqlite(database) => {
-                let changed = database.connect_sqlite()?.execute(
-                    "DELETE FROM session_index
-                     WHERE platform_id = ?1 AND company_id = ?2 AND project_id = ?3
-                       AND session_id = ?4",
-                    scoped_id_params(scope, session_id),
-                )?;
-                Ok(changed == 1)
+                database.with_sqlite_transaction(TransactionBehavior::Immediate, |transaction| {
+                    if let Some(state) = first_response_state(transaction, scope, session_id)? {
+                        if state == "deleted" {
+                            return Ok(false);
+                        }
+                        delete_managed_session(transaction, scope, session_id)?;
+                        return Ok(true);
+                    }
+                    let changed = transaction.execute(
+                        "DELETE FROM session_index
+                         WHERE platform_id = ?1 AND company_id = ?2 AND project_id = ?3
+                           AND session_id = ?4",
+                        scoped_id_params(scope, session_id),
+                    )?;
+                    Ok(changed == 1)
+                })
             }
             SessionStoreProvider::Postgres(store) => {
                 run_sync_database(|| store.delete_session(scope, session_id))
@@ -966,36 +1007,199 @@ impl SessionStore {
     }
 
     pub fn save_agent_session(&self, scope: &ProjectScope, info: &AgentSessionInfo) -> Result<()> {
-        validate_id("agent session id", &info.id)?;
-        if info.project_id != scope.project_id().as_ref() {
-            bail!("agent session project id must match project scope");
-        }
-        let info_json = serde_json::to_string(info).context("serialize agent session info JSON")?;
+        validate_agent_scope(scope, info)?;
         match &self.provider {
             SessionStoreProvider::Sqlite(database) => {
-                database.connect_sqlite()?.execute(
-                    "INSERT INTO session_agent_sessions (
-                         platform_id, company_id, project_id, session_id, parent_id, updated_ms,
-                         info_json
-                     ) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7)
-                     ON CONFLICT (platform_id, company_id, project_id, session_id) DO UPDATE SET
-                         parent_id = excluded.parent_id,
-                         updated_ms = excluded.updated_ms,
-                         info_json = excluded.info_json",
-                    params![
-                        scope.platform_id().as_ref(),
-                        scope.company_id().as_ref(),
-                        scope.project_id().as_ref(),
-                        info.id,
-                        info.parent_id,
-                        to_i64(info.time.updated, "agent session updated_ms")?,
-                        info_json,
-                    ],
-                )?;
-                Ok(())
+                database.with_sqlite_transaction(TransactionBehavior::Immediate, |transaction| {
+                    let state = first_response_state(transaction, scope, &info.id)?;
+                    let mut info = info.clone();
+                    let current = if state.is_some() {
+                        load_agent_info(transaction, scope, &info.id)?
+                    } else {
+                        None
+                    };
+                    protect_agent_snapshot(state.as_deref(), current.as_ref(), &mut info)?;
+                    write_agent_info(transaction, scope, &info)
+                })
             }
             SessionStoreProvider::Postgres(store) => {
-                run_sync_database(|| store.save_agent_session(scope, info, &info_json))
+                run_sync_database(|| store.save_agent_session(scope, info))
+            }
+        }
+    }
+
+    /// Update a record in place, with explicit titles taking precedence over auto naming.
+    pub fn update_agent_session(
+        &self,
+        scope: &ProjectScope,
+        session_id: &str,
+        update: impl FnOnce(&mut AgentSessionInfo) + Send,
+    ) -> Result<Option<AgentSessionInfo>> {
+        validate_id("agent session id", session_id)?;
+        match &self.provider {
+            SessionStoreProvider::Sqlite(database) => {
+                database.with_sqlite_transaction(TransactionBehavior::Immediate, |transaction| {
+                    let Some(mut info) = load_agent_info(transaction, scope, session_id)? else {
+                        return Ok(None);
+                    };
+                    let state = first_response_state(transaction, scope, session_id)?;
+                    update_existing_info(scope, session_id, state.as_deref(), &mut info, update)?;
+                    write_agent_info(transaction, scope, &info)?;
+                    if state.as_deref() == Some("committed") {
+                        write_index_title(transaction, scope, session_id, &info.title)?;
+                    }
+                    Ok(Some(info))
+                })
+            }
+            SessionStoreProvider::Postgres(store) => {
+                run_sync_database(|| store.update_agent_session(scope, session_id, update))
+            }
+        }
+    }
+
+    /// Reuse the scoped ID if it already exists. A reservation itself publishes no history.
+    pub fn reserve_pending_session(
+        &self,
+        scope: &ProjectScope,
+        info: &AgentSessionInfo,
+    ) -> Result<AgentSessionInfo> {
+        validate_agent_scope(scope, info)?;
+        match &self.provider {
+            SessionStoreProvider::Sqlite(database) => {
+                database.with_sqlite_transaction(TransactionBehavior::Immediate, |transaction| {
+                    if let Some(existing) = load_agent_info(transaction, scope, &info.id)? {
+                        return reuse_session(existing, info);
+                    }
+                    let changed = transaction.execute(
+                        "INSERT INTO session_first_response
+                           (platform_id, company_id, project_id, session_id, first_response_state)
+                         VALUES (?1, ?2, ?3, ?4, 'pending')
+                         ON CONFLICT DO NOTHING",
+                        scoped_id_params(scope, &info.id),
+                    )?;
+                    if changed != 1 {
+                        bail!("session reservation is no longer available");
+                    }
+                    let pending = pending_agent_info(info);
+                    transaction.execute(
+                        "INSERT INTO session_index (platform_id, company_id, project_id, session_id,
+                           title, created_ms, updated_ms, message_count, call_count)
+                         VALUES (?1, ?2, ?3, ?4, '', ?5, ?6, 0, 0)",
+                        params![scope.platform_id().as_ref(), scope.company_id().as_ref(),
+                            scope.project_id().as_ref(), pending.id,
+                            to_i64(pending.time.created, "session created_ms")?,
+                            to_i64(pending.time.updated, "session updated_ms")?],
+                    )?;
+                    write_agent_info(transaction, scope, &pending)?;
+                    Ok(pending)
+                })
+            }
+            SessionStoreProvider::Postgres(store) => {
+                run_sync_database(|| store.reserve_pending_session(scope, info))
+            }
+        }
+    }
+
+    /// Publish only after the caller has persisted a successful native turn.
+    /// The UI snapshot, required raw artifacts and publication are atomic.
+    pub fn commit_first_response(
+        &self,
+        scope: &ProjectScope,
+        commit: FirstResponseCommit<'_>,
+    ) -> Result<bool> {
+        validate_id("session id", &commit.snapshot.id)?;
+        match &self.provider {
+            SessionStoreProvider::Sqlite(database) => {
+                database.with_sqlite_transaction(TransactionBehavior::Immediate, |transaction| {
+                    let session = commit.snapshot;
+                    if first_response_state(transaction, scope, &session.id)?.as_deref()
+                        != Some("pending")
+                    {
+                        return Ok(false);
+                    }
+                    let mut info = load_agent_info(transaction, scope, &session.id)?
+                        .context("missing pending session metadata")?;
+                    complete_first_response(&mut info, &commit)?;
+                    commit_ui_snapshot_sqlite(transaction, scope, session, commit.raw_artifacts)?;
+                    write_agent_info(transaction, scope, &info)?;
+                    write_index_title(transaction, scope, &session.id, &info.title)?;
+                    transaction.execute(
+                        "UPDATE session_first_response SET first_response_state = 'committed',
+                           first_response_preview = ?5
+                         WHERE platform_id = ?1 AND company_id = ?2 AND project_id = ?3
+                           AND session_id = ?4",
+                        params![
+                            scope.platform_id().as_ref(),
+                            scope.company_id().as_ref(),
+                            scope.project_id().as_ref(),
+                            session.id,
+                            first_response_preview(commit.preview)
+                        ],
+                    )?;
+                    Ok(true)
+                })
+            }
+            SessionStoreProvider::Postgres(store) => {
+                run_sync_database(|| store.commit_first_response(scope, commit))
+            }
+        }
+    }
+
+    /// Set the title only for an existing, newly committed and still unnamed session.
+    pub fn set_first_response_title(
+        &self,
+        scope: &ProjectScope,
+        session_id: &str,
+        title: &str,
+    ) -> Result<bool> {
+        validate_id("session id", session_id)?;
+        let title = title.trim();
+        if title.is_empty() {
+            bail!("session title must not be empty");
+        }
+        match &self.provider {
+            SessionStoreProvider::Sqlite(database) => {
+                database.with_sqlite_transaction(TransactionBehavior::Immediate, |transaction| {
+                    if first_response_state(transaction, scope, session_id)?.as_deref()
+                        != Some("committed")
+                    {
+                        return Ok(false);
+                    }
+                    let Some(mut info) = load_agent_info(transaction, scope, session_id)? else {
+                        return Ok(false);
+                    };
+                    if !info.title.is_empty() {
+                        return Ok(false);
+                    }
+                    info.title = title.to_owned();
+                    write_agent_info(transaction, scope, &info)?;
+                    write_index_title(transaction, scope, session_id, title)?;
+                    Ok(true)
+                })
+            }
+            SessionStoreProvider::Postgres(store) => {
+                run_sync_database(|| store.set_first_response_title(scope, session_id, title))
+            }
+        }
+    }
+
+    /// Discard an abandoned reservation after the caller has stopped its in-flight work.
+    pub fn discard_pending_session(&self, scope: &ProjectScope, session_id: &str) -> Result<bool> {
+        validate_id("session id", session_id)?;
+        match &self.provider {
+            SessionStoreProvider::Sqlite(database) => {
+                database.with_sqlite_transaction(TransactionBehavior::Immediate, |transaction| {
+                    if first_response_state(transaction, scope, session_id)?.as_deref()
+                        != Some("pending")
+                    {
+                        return Ok(false);
+                    }
+                    delete_managed_session(transaction, scope, session_id)?;
+                    Ok(true)
+                })
+            }
+            SessionStoreProvider::Postgres(store) => {
+                run_sync_database(|| store.discard_pending_session(scope, session_id))
             }
         }
     }
@@ -1008,19 +1212,7 @@ impl SessionStore {
         validate_id("agent session id", session_id)?;
         match &self.provider {
             SessionStoreProvider::Sqlite(database) => {
-                let info_json = database
-                    .connect_sqlite()?
-                    .query_row(
-                        "SELECT info_json FROM session_agent_sessions
-                         WHERE platform_id = ?1 AND company_id = ?2 AND project_id = ?3
-                           AND session_id = ?4",
-                        scoped_id_params(scope, session_id),
-                        |row| row.get::<_, String>(0),
-                    )
-                    .optional()?;
-                info_json
-                    .map(|json| parse_agent_info(&json, scope.project_id().as_ref(), session_id))
-                    .transpose()
+                load_agent_info(&database.connect_sqlite()?, scope, session_id)
             }
             SessionStoreProvider::Postgres(store) => {
                 run_sync_database(|| store.load_agent_session(scope, session_id))
@@ -1034,7 +1226,9 @@ impl SessionStore {
                 let connection = database.connect_sqlite()?;
                 let mut statement = connection.prepare(
                     "SELECT session_id, info_json FROM session_agent_sessions
+                         LEFT JOIN session_first_response USING (platform_id, company_id, project_id, session_id)
                      WHERE platform_id = ?1 AND company_id = ?2 AND project_id = ?3
+                       AND COALESCE(first_response_state, 'committed') = 'committed'
                      ORDER BY updated_ms DESC, session_id DESC",
                 )?;
                 let mut rows = statement.query(scope_params(scope))?;
@@ -1056,13 +1250,45 @@ impl SessionStore {
         }
     }
 
+    pub fn load_agent_children(
+        &self,
+        scope: &ProjectScope,
+        parent_id: &str,
+    ) -> Result<Vec<AgentSessionInfo>> {
+        validate_id("parent session id", parent_id)?;
+        match &self.provider {
+            SessionStoreProvider::Sqlite(database) => {
+                let connection = database.connect_sqlite()?;
+                let mut statement = connection.prepare(
+                    "SELECT session_id, info_json FROM session_agent_sessions
+                     WHERE platform_id = ?1 AND company_id = ?2 AND project_id = ?3
+                       AND parent_id = ?4
+                     ORDER BY updated_ms DESC, session_id DESC",
+                )?;
+                let mut rows = statement.query(scoped_id_params(scope, parent_id))?;
+                let mut children = Vec::new();
+                while let Some(row) = rows.next()? {
+                    let id: String = row.get(0)?;
+                    let json: String = row.get(1)?;
+                    children.push(parse_agent_info(&json, scope.project_id().as_ref(), &id)?);
+                }
+                Ok(children)
+            }
+            SessionStoreProvider::Postgres(store) => {
+                run_sync_database(|| store.load_agent_children(scope, parent_id))
+            }
+        }
+    }
+
     pub fn load_agent_sessions_all(&self, tenant: &TenantScope) -> Result<Vec<AgentSessionInfo>> {
         match &self.provider {
             SessionStoreProvider::Sqlite(database) => {
                 let connection = database.connect_sqlite()?;
                 let mut statement = connection.prepare(
                     "SELECT project_id, session_id, info_json FROM session_agent_sessions
+                         LEFT JOIN session_first_response USING (platform_id, company_id, project_id, session_id)
                      WHERE platform_id = ?1 AND company_id = ?2
+                       AND COALESCE(first_response_state, 'committed') = 'committed'
                      ORDER BY updated_ms DESC, session_id DESC, project_id",
                 )?;
                 let mut rows = statement
@@ -1123,19 +1349,255 @@ impl SessionStore {
         validate_id("agent session id", session_id)?;
         match &self.provider {
             SessionStoreProvider::Sqlite(database) => {
-                let changed = database.connect_sqlite()?.execute(
-                    "DELETE FROM session_agent_sessions
-                     WHERE platform_id = ?1 AND company_id = ?2 AND project_id = ?3
-                       AND session_id = ?4",
-                    scoped_id_params(scope, session_id),
-                )?;
-                Ok(changed == 1)
+                database.with_sqlite_transaction(TransactionBehavior::Immediate, |transaction| {
+                    if let Some(state) = first_response_state(transaction, scope, session_id)? {
+                        if state == "deleted" {
+                            return Ok(false);
+                        }
+                        delete_managed_session(transaction, scope, session_id)?;
+                        return Ok(true);
+                    }
+                    let changed = transaction.execute(
+                        "DELETE FROM session_agent_sessions
+                         WHERE platform_id = ?1 AND company_id = ?2 AND project_id = ?3
+                           AND session_id = ?4",
+                        scoped_id_params(scope, session_id),
+                    )?;
+                    Ok(changed == 1)
+                })
             }
             SessionStoreProvider::Postgres(store) => {
                 run_sync_database(|| store.delete_agent_session(scope, session_id))
             }
         }
     }
+}
+
+fn first_response_state(
+    connection: &Connection,
+    scope: &ProjectScope,
+    session_id: &str,
+) -> Result<Option<String>> {
+    Ok(connection
+        .query_row(
+            "SELECT first_response_state FROM session_first_response
+         WHERE platform_id = ?1 AND company_id = ?2 AND project_id = ?3 AND session_id = ?4",
+            scoped_id_params(scope, session_id),
+            |row| row.get(0),
+        )
+        .optional()?)
+}
+
+fn load_agent_info(
+    connection: &Connection,
+    scope: &ProjectScope,
+    session_id: &str,
+) -> Result<Option<AgentSessionInfo>> {
+    let json: Option<String> = connection
+        .query_row(
+            "SELECT info_json FROM session_agent_sessions
+         WHERE platform_id = ?1 AND company_id = ?2 AND project_id = ?3 AND session_id = ?4",
+            scoped_id_params(scope, session_id),
+            |row| row.get(0),
+        )
+        .optional()?;
+    json.map(|json| parse_agent_info(&json, scope.project_id().as_ref(), session_id)).transpose()
+}
+
+fn write_agent_info(
+    transaction: &Transaction<'_>,
+    scope: &ProjectScope,
+    info: &AgentSessionInfo,
+) -> Result<()> {
+    transaction.execute(
+        "INSERT INTO session_agent_sessions (
+             platform_id, company_id, project_id, session_id, parent_id, updated_ms, info_json
+         ) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7)
+         ON CONFLICT (platform_id, company_id, project_id, session_id) DO UPDATE SET
+             parent_id = excluded.parent_id,
+             updated_ms = excluded.updated_ms,
+             info_json = excluded.info_json",
+        params![
+            scope.platform_id().as_ref(),
+            scope.company_id().as_ref(),
+            scope.project_id().as_ref(),
+            info.id,
+            info.parent_id,
+            to_i64(info.time.updated, "agent session updated_ms")?,
+            serde_json::to_string(info)?
+        ],
+    )?;
+    Ok(())
+}
+
+fn write_index_title(
+    transaction: &Transaction<'_>,
+    scope: &ProjectScope,
+    session_id: &str,
+    title: &str,
+) -> Result<()> {
+    let changed = transaction.execute(
+        "UPDATE session_index SET title = ?5
+         WHERE platform_id = ?1 AND company_id = ?2 AND project_id = ?3 AND session_id = ?4",
+        params![
+            scope.platform_id().as_ref(),
+            scope.company_id().as_ref(),
+            scope.project_id().as_ref(),
+            session_id,
+            title
+        ],
+    )?;
+    if changed != 1 {
+        bail!("missing UI index for session {session_id}");
+    }
+    Ok(())
+}
+
+fn delete_managed_session(
+    transaction: &Transaction<'_>,
+    scope: &ProjectScope,
+    session_id: &str,
+) -> Result<()> {
+    let key = scoped_id_params(scope, session_id);
+    transaction.execute(
+        "UPDATE session_first_response SET first_response_state = 'deleted',
+           first_response_preview = NULL
+         WHERE platform_id = ?1 AND company_id = ?2 AND project_id = ?3 AND session_id = ?4",
+        key,
+    )?;
+    transaction.execute(
+        "DELETE FROM session_index
+         WHERE platform_id = ?1 AND company_id = ?2 AND project_id = ?3 AND session_id = ?4",
+        key,
+    )?;
+    transaction.execute(
+        "DELETE FROM session_agent_sessions
+         WHERE platform_id = ?1 AND company_id = ?2 AND project_id = ?3 AND session_id = ?4",
+        key,
+    )?;
+    Ok(())
+}
+
+fn validate_agent_scope(scope: &ProjectScope, info: &AgentSessionInfo) -> Result<()> {
+    validate_id("agent session id", &info.id)?;
+    if info.project_id != scope.project_id().as_ref() {
+        bail!("agent session project id must match project scope");
+    }
+    Ok(())
+}
+
+fn pending_agent_info(info: &AgentSessionInfo) -> AgentSessionInfo {
+    let mut pending = info.clone();
+    pending.mark_first_response_pending();
+    pending.title.clear();
+    pending.summary = None;
+    pending.share = None;
+    pending.revert = None;
+    pending.time.compacting = None;
+    pending.time.archived = None;
+    pending
+}
+
+fn reuse_session(
+    existing: AgentSessionInfo,
+    requested: &AgentSessionInfo,
+) -> Result<AgentSessionInfo> {
+    if existing.directory != requested.directory {
+        bail!("session directory does not match its reservation");
+    }
+    Ok(existing)
+}
+
+fn protect_agent_snapshot(
+    state: Option<&str>,
+    current: Option<&AgentSessionInfo>,
+    info: &mut AgentSessionInfo,
+) -> Result<()> {
+    match state {
+        Some("deleted") => bail!("session was deleted"),
+        Some("pending") => {
+            info.mark_first_response_pending();
+            info.title.clear();
+        }
+        Some("committed") => {
+            let current = current.context("missing committed session metadata")?;
+            if info.is_first_response_pending() {
+                info.slug.clone_from(&current.slug);
+            }
+            info.title.clone_from(&current.title);
+        }
+        _ if info.is_first_response_pending() => bail!("pending sessions must be reserved"),
+        _ => {}
+    }
+    if let Some(current) = current {
+        if current.directory != info.directory {
+            bail!("session directory does not match its reservation");
+        }
+    }
+    Ok(())
+}
+
+fn update_existing_info(
+    scope: &ProjectScope,
+    session_id: &str,
+    state: Option<&str>,
+    info: &mut AgentSessionInfo,
+    update: impl FnOnce(&mut AgentSessionInfo),
+) -> Result<()> {
+    let directory = info.directory.clone();
+    update(info);
+    validate_agent_scope(scope, info)?;
+    if info.id != session_id {
+        bail!("session id cannot change during an update");
+    }
+    if state.is_some() && info.directory != directory {
+        bail!("session directory cannot change after reservation");
+    }
+    if state == Some("pending") {
+        info.mark_first_response_pending();
+        info.title.clear();
+    } else if info.is_first_response_pending() {
+        bail!("pending sessions must be reserved");
+    }
+    Ok(())
+}
+
+fn complete_first_response(
+    info: &mut AgentSessionInfo,
+    commit: &FirstResponseCommit<'_>,
+) -> Result<()> {
+    if !commit.snapshot.messages.iter().any(|message| {
+        matches!(message.role, ChatRole::Assistant) && !message.content.trim().is_empty()
+    }) {
+        bail!("first response has no assistant content");
+    }
+    validate_raw_commit(commit.snapshot, commit.raw_artifacts, commit.expected_finished_steps)?;
+    info.clear_first_response_pending();
+    info.time.updated = info.time.updated.max(commit.snapshot.updated_ms);
+    info.title = commit.task_title.map(str::trim).unwrap_or_default().to_owned();
+    Ok(())
+}
+
+fn first_response_preview(preview: Option<&str>) -> Option<String> {
+    const MAX_PREVIEW_CHARS: usize = 160;
+    preview
+        .map(str::trim)
+        .filter(|text| !text.is_empty())
+        .map(|text| text.chars().take(MAX_PREVIEW_CHARS).collect())
+}
+
+fn commit_ui_snapshot_sqlite(
+    transaction: &Transaction<'_>,
+    scope: &ProjectScope,
+    session: &ChatSession,
+    raw_artifacts: &[LlmRawArtifact],
+) -> Result<()> {
+    let call_count =
+        existing_session_call_count(transaction, scope, &session.id, session.calls.len())?;
+    upsert_session_header(transaction, scope, session, call_count)?;
+    replace_session_messages(transaction, scope, session)?;
+    replace_session_steps(transaction, scope, session)?;
+    upsert_session_llm_raw_artifacts(transaction, scope, raw_artifacts)
 }
 
 fn sqlite_session_step_turn_id(
@@ -1354,13 +1816,17 @@ fn upsert_session_header(
     session: &ChatSession,
     call_count: usize,
 ) -> Result<()> {
+    let state = first_response_state(transaction, scope, &session.id)?;
+    if state.as_deref() == Some("deleted") {
+        bail!("session was deleted");
+    }
     transaction.execute(
         "INSERT INTO session_index (
              platform_id, company_id, project_id, session_id, title, created_ms, updated_ms,
              message_count, call_count, last_content
          ) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10)
          ON CONFLICT (platform_id, company_id, project_id, session_id) DO UPDATE SET
-             title = excluded.title,
+             title = CASE WHEN ?11 THEN session_index.title ELSE excluded.title END,
              created_ms = excluded.created_ms,
              updated_ms = excluded.updated_ms,
              message_count = excluded.message_count,
@@ -1377,6 +1843,7 @@ fn upsert_session_header(
             usize_to_i64(session.messages.len(), "session message_count")?,
             usize_to_i64(call_count, "session call_count")?,
             session_last_content(&session.messages),
+            state.is_some(),
         ],
     )?;
     Ok(())

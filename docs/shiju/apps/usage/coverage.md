@@ -735,3 +735,28 @@ macOS 网关在配置了 `SHIJU_AGENT_APPS_ACCESS_FILE` 时运行刷新循环。
 | 静态检查，槽位 1 | `cargo clippy --all-targets --all-features -- -D warnings` | 退出 0。 |
 
 验收使用隔离 SQLite、真实 Router 和本机受控 HTTP 夹具。真实上游账号留待后续验收。macOS 调试链接报告 `__eh_frame` 大小提示，聚焦测试正常执行。限定提交范围的差异检查退出 0，槽位锁已释放并保留缓存。
+
+## 任务 45 提供刷新取消 API
+
+`POST /v1/apps/usage/refresh` 接受快照选择器，返回 202 和不透明操作 ID。`POST /v1/apps/usage/refresh-all` 接受项目与目标主机，逐项核对授权，最多 32 项，查询并发上限为 4。两个入口复用 General 脚本执行链，并接通合同示例的托管 Codex 官方额度。General 使用供应商凭据，托管 Codex 必须显式选择当前绑定账号。其他原生类别的网关执行接入仍需各自的凭据和出站授权。 [上游订阅刷新](../../../../crates/vw-agent-apps/upstream/src-tauri/src/commands/subscription.rs#L8-L43) · [上游批量刷新](../../../../crates/vw-agent-apps/upstream/src/components/settings/auth/RefreshAllQuotaButton.tsx#L36) · [路由](../../../../crates/vw-agent/src/gateway/api/handlers/agent_apps/apps_usage_refresh.rs)
+
+单项使用 `usage_refresh`。批量还要求同一授权条目含当前项目的 `usage_refresh_all`。托管 Codex 条目必须含 `account_id`，出站源固定为 `https://chatgpt.com`。网关验证供应商绑定与账号身份，凭据和版本从同一个受保护的文件读取取得。开始出站前、执行中和发布前核对授权、绑定及版本。快照只用内部版本定位已有缓存，无出站请求。轮换后的选择不会命中旧快照，迟到结果会被丢弃。 [策略](../../../../crates/vw-agent/src/gateway/api/handlers/agent_apps/access.rs) · [托管凭据与缓存键](../../../../crates/vw-agent/src/gateway/api/handlers/agent_apps/usage_codex.rs) · [刷新服务](../../../../crates/vw-agent/src/gateway/api/handlers/agent_apps/usage_refresh.rs)
+
+沿用 `/v1/agent-apps/operations/{id}` 和 `/events`。进度及事件要求 `usage_read`，取消还需要逐项 `usage_cancel`。长轮询返回前重新鉴权，并仅传输资源标识、操作 ID、关联 ID、逐项状态与发布版本。取消请求可在进度中看到，DELETE 等待清理终态。重复取消返回既有终态，已发布快照保留。若另有调用方共享执行，取消仅解除当前操作的等待。终态在进程内最多保留 10 分钟，容量不足时可提前回收。重启会中断执行，旧 ID 返回 404。断线后先读取操作与快照，漏收事件时重读快照。 [上游缓存事件](../../../../crates/vw-agent-apps/upstream/src/hooks/useUsageCacheBridge.ts#L23-L43) · [操作路由](../../../../crates/vw-agent/src/gateway/api/handlers/agent_apps/lifecycle.rs) · [独立行为测试](../../../../crates/vw-agent/src/gateway/api/handlers/agent_apps/apps_usage_refresh_tests.rs)
+
+验证环境为 macOS 27.0（26A428）、arm64，`vw-agent` 0.6.0。动态领取槽位 1，`CARGO_TARGET_DIR=/Users/xiangmin/worker/code/shiju/target/rust-slot-1`，`CARGO_BUILD_BUILD_DIR` 与其一致。
+
+| 阶段 | 确切命令 | 结果 |
+| --- | --- | --- |
+| 通用实现前 | `cargo test -p vw-agent usage_usage_refresh_ -- --nocapture` | 退出 101，有效测试 0。`usage_usage_refresh_returns_expected_result` 和 `usage_usage_refresh_rejects_invalid_input` 因入口缺失报 E0432，夹具可见性 E0616 随后修正。 |
+| 托管实现前 | `cargo test -p vw-agent usage_usage_refresh_ -- --nocapture` | 退出 101，有效测试 0。`usage_usage_refresh_publishes_only_current_managed_codex_credentials` 所需的受控客户端接入缺失，报 E0609。 |
+| 格式化 | `cargo fmt --all` | 退出 0。在隔离源码副本运行，仅同步任务文件。 |
+| 托管夹具首轮 | `cargo test -p vw-agent usage_usage_refresh_ -- --nocapture` | 退出 101，3 项通过，1 项失败。macOS 系统证书验证拒绝本机夹具证书。独立 HTTPS 探针验证后，改由测试客户端只信任夹具 CA。 |
+| 实现后 | `cargo test -p vw-agent usage_usage_refresh_ -- --nocapture` | 退出 0，4 项通过，0 项失败。覆盖 General、托管 Codex、逐项结果、跨租户及主体拒绝、重复取消和投递前重新鉴权。 |
+| 全特性静态检查 | `cargo clippy --all-targets --all-features -- -D warnings` | 退出 0。 |
+| 刷新调度回归 | `cargo test -p vw-agent usage_refresh_ -- --nocapture` | 退出 0，7 项通过，0 项失败，含上述 4 项。 |
+| 查询快照回归 | `cargo test -p vw-agent usage_usage_read_ -- --nocapture` | 退出 0，3 项通过，0 项失败。 |
+| 生命周期回归 | `cargo test -p vw-agent cc_apps_lifecycle_api_scope_ -- --nocapture` | 退出 0，5 项通过，0 项失败。 |
+| Codex 适配器回归 | `cargo test -p vw-agent-apps usage_subscriptions_codex_ -- --nocapture` | 退出 0，5 项通过，0 项失败。 |
+
+测试使用真实 Router、隔离 SQLite、QuickJS、本机 HTTP 和托管 Codex 的本机 HTTPS 夹具。托管用例验证实际请求头、轮换后旧快照失效、丢弃在途旧版本、取消及混合批量刷新。真实上游账号待 macOS 实机验收。macOS 调试链接提示 `__eh_frame` 大小，行为测试正常执行。限定任务范围的差异检查退出 0，槽位锁已释放，缓存保留。

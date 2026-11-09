@@ -436,6 +436,78 @@ impl CredentialFileStore {
         lease.remove_claude(keychain, hash)
     }
 
+    /// Read only a host-private generation for a scoped Codex usage cache lookup.
+    #[cfg(target_os = "macos")]
+    pub fn codex_usage_version(
+        &self,
+        scope: AuthAccountScope<'_>,
+        id: &str,
+    ) -> Result<Option<[u8; 32]>, vw_api_types::agent_apps_auth::AuthErrorCode> {
+        self.codex_usage_file(scope, id, |_, _, _, version| Ok(version))
+    }
+
+    /// Load the exact credential bundle associated with the generation used by a query.
+    #[cfg(target_os = "macos")]
+    pub fn codex_usage_snapshot(
+        &self,
+        scope: AuthAccountScope<'_>,
+        id: &str,
+    ) -> Result<Option<(serde_json::Value, [u8; 32])>, vw_api_types::agent_apps_auth::AuthErrorCode>
+    {
+        use vw_api_types::agent_apps_auth::AuthErrorCode;
+        self.codex_usage_file(scope, id, |directory, path, bytes, version| {
+            let AccountCredential::CodexAuth(auth) =
+                decode_credential(directory, path, CredentialKind::App(AppId::Codex), bytes)
+                    .map_err(|_| AuthErrorCode::ReauthRequired)?
+            else {
+                return Err(AuthErrorCode::ReauthRequired);
+            };
+            Ok((auth, version))
+        })
+    }
+
+    #[cfg(target_os = "macos")]
+    fn codex_usage_file<T>(
+        &self,
+        scope: AuthAccountScope<'_>,
+        id: &str,
+        project: impl FnOnce(
+            &PrivateDirectory,
+            &Path,
+            Vec<u8>,
+            [u8; 32],
+        ) -> Result<T, vw_api_types::agent_apps_auth::AuthErrorCode>,
+    ) -> Result<Option<T>, vw_api_types::agent_apps_auth::AuthErrorCode> {
+        use std::os::unix::fs::MetadataExt;
+        use vw_api_types::agent_apps_auth::AuthErrorCode;
+
+        scope.validate()?;
+        if scope.service != AuthService::CodexOauth {
+            return Err(AuthErrorCode::Unsupported);
+        }
+        validate_account_location(scope.host, id).map_err(|_| AuthErrorCode::InvalidInput)?;
+        let owner = self.for_owner(scope.principal).map_err(|_| AuthErrorCode::InvalidInput)?;
+        let path = owner
+            .service_location(scope.tenant, scope.host, "codex", id)
+            .map_err(|_| AuthErrorCode::InvalidInput)?;
+        let location = owner.scoped_path(path);
+        let name = child_name(&location.path).map_err(|_| AuthErrorCode::InvalidInput)?;
+        let directory = location.directory(false).map_err(|_| AuthErrorCode::StorageUnavailable)?;
+        let Some(file) = directory.file(&name).map_err(|_| AuthErrorCode::StorageUnavailable)?
+        else {
+            return Ok(None);
+        };
+        let stat = file.metadata().map_err(|_| AuthErrorCode::StorageUnavailable)?;
+        let bytes = credential_bytes(&file).map_err(|_| AuthErrorCode::StorageUnavailable)?;
+        let mut generation = Sha256::new();
+        generation.update(stat.dev().to_le_bytes());
+        generation.update(stat.ino().to_le_bytes());
+        generation.update(stat.ctime().to_le_bytes());
+        generation.update(stat.ctime_nsec().to_le_bytes());
+        generation.update(&bytes);
+        project(&directory, &location.path, bytes, generation.finalize().into()).map(Some)
+    }
+
     /// Observe managed material without acquiring a write lease or adopting a native login.
     pub fn read_managed_account(
         &self,

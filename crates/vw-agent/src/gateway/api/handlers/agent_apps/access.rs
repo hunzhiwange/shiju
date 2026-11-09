@@ -38,6 +38,12 @@ struct Grant {
     usage_refresh: Vec<UsageRefreshPermit>,
     #[serde(default)]
     usage_read: Vec<UsageReadPermit>,
+    #[cfg(target_os = "macos")]
+    #[serde(default)]
+    usage_cancel: Vec<UsageReadPermit>,
+    #[cfg(target_os = "macos")]
+    #[serde(default)]
+    usage_refresh_all: Vec<vw_api_types::id::ProjectId>,
     #[serde(default)]
     auth_account_read: Vec<AuthService>,
     #[serde(default)]
@@ -80,6 +86,7 @@ struct UsageRefreshPermit {
     app_id: vw_api_types::agent_apps::AppId,
     provider_id: String,
     origin: String,
+    account_id: Option<String>,
 }
 
 #[cfg(target_os = "macos")]
@@ -92,24 +99,62 @@ pub(super) struct UsageRefreshTarget {
     pub app: vw_api_types::agent_apps::AppId,
     pub provider: String,
     pub origin: reqwest::Url,
+    pub batch: bool,
+    pub codex: Option<ManagedCodexTarget>,
+}
+
+#[cfg(target_os = "macos")]
+#[derive(Clone, PartialEq, Eq, Hash)]
+pub(super) struct ManagedCodexTarget {
+    pub account: String,
+    pub credential_root: PathBuf,
+}
+
+#[cfg(target_os = "macos")]
+impl UsageRefreshTarget {
+    pub(super) fn selector(&self) -> vw_api_types::apps_usage::UsageSnapshotQuery {
+        use vw_api_types::apps_usage::{UsageQueryKind, UsageSnapshotQuery};
+        UsageSnapshotQuery {
+            project_id: self.project.project_id().clone(),
+            target_host_id: self.host.clone(),
+            app_id: self.app,
+            provider_id: self.provider.clone(),
+            account_id: self.codex.as_ref().map(|codex| codex.account.clone()),
+            kind: Some(if self.codex.is_some() {
+                UsageQueryKind::OfficialSubscription
+            } else {
+                UsageQueryKind::CustomScript
+            }),
+        }
+    }
 }
 
 /// The administrator's explicit background grants authorize this entry point.
 /// This is independent of request authentication and never uses a client token.
 #[cfg(target_os = "macos")]
 pub(super) fn usage_refresh_targets(path: &Path) -> Vec<UsageRefreshTarget> {
-    let Ok(policy) = load(path) else {
-        return Vec::new();
-    };
+    usage_targets(path, false)
+        .unwrap_or_default()
+        .into_iter()
+        .filter(|target| target.codex.is_none())
+        .collect()
+}
+
+#[cfg(target_os = "macos")]
+pub(super) fn usage_targets(
+    path: &Path,
+    batch: bool,
+) -> Result<Vec<UsageRefreshTarget>, StatusCode> {
+    let policy = load(path).map_err(|_| StatusCode::SERVICE_UNAVAILABLE)?;
     let mut targets = Vec::new();
     let mut seen = HashSet::new();
     for principal in policy.principals {
         for grant in principal.grants {
-            if !policy.hosts.iter().any(|host| {
+            let Some(host) = policy.hosts.iter().find(|host| {
                 host.id == grant.host_id && host.online && matches!(host.binding, Binding::Local)
-            }) {
+            }) else {
                 continue;
-            }
+            };
             let Ok(tenant) = TenantScope::new(&grant.platform_id, &grant.company_id) else {
                 continue;
             };
@@ -123,12 +168,27 @@ pub(super) fn usage_refresh_targets(path: &Path) -> Vec<UsageRefreshTarget> {
                 ) else {
                     continue;
                 };
-                if validate_identity(&permit.provider_id).is_err()
+                if batch && !grant.usage_refresh_all.contains(project.project_id())
+                    || validate_identity(&permit.provider_id).is_err()
                     || endpoint(&permit.origin).is_err()
                     || origin.path() != "/"
                 {
                     continue;
                 }
+                let codex = if let Some(account) = permit.account_id {
+                    use vw_agent_apps::usage::subscriptions::codex::CODEX_USAGE_ORIGIN;
+                    use vw_api_types::agent_apps::AppId;
+                    let Some(credential_root) = &host.credential_root else { continue };
+                    if permit.app_id != AppId::Codex
+                        || origin.as_str().trim_end_matches('/') != CODEX_USAGE_ORIGIN
+                        || validate_identity(&account).is_err()
+                    {
+                        continue;
+                    }
+                    Some(ManagedCodexTarget { account, credential_root: credential_root.clone() })
+                } else {
+                    None
+                };
                 let target = UsageRefreshTarget {
                     policy: path.to_owned(),
                     project,
@@ -137,6 +197,8 @@ pub(super) fn usage_refresh_targets(path: &Path) -> Vec<UsageRefreshTarget> {
                     app: permit.app_id,
                     provider: permit.provider_id,
                     origin,
+                    batch,
+                    codex,
                 };
                 if seen.insert(target.clone()) {
                     targets.push(target);
@@ -144,7 +206,7 @@ pub(super) fn usage_refresh_targets(path: &Path) -> Vec<UsageRefreshTarget> {
             }
         }
     }
-    targets
+    Ok(targets)
 }
 #[derive(Clone, Deserialize)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
@@ -276,12 +338,19 @@ pub(super) fn authorize_identity_launch(
 #[derive(Clone, Copy)]
 enum Capability<'a> {
     UsageRead(&'a vw_api_types::apps_usage::UsageSnapshotQuery),
+    #[cfg(target_os = "macos")]
+    UsageCancel(&'a vw_api_types::apps_usage::UsageSnapshotQuery),
+    #[cfg(target_os = "macos")]
+    UsageBatch(&'a vw_api_types::id::ProjectId),
     Read,
     PreferencesWrite,
     Launch,
     ProviderConfigRead,
     ProviderConfigWrite,
-    AuthAccountRead { service: AuthService, bindings: bool },
+    AuthAccountRead {
+        service: AuthService,
+        bindings: bool,
+    },
     AuthBindingWrite(AuthService),
     AuthDefaultWrite(AuthService),
     AuthAccountDelete(AuthService),
@@ -303,6 +372,50 @@ pub(super) fn authorize_usage_read(
         None,
         Capability::UsageRead(query),
     )
+}
+
+#[cfg(target_os = "macos")]
+pub(super) fn authorize_usage_refresh(
+    path: &Path,
+    headers: &HeaderMap,
+    project: &vw_api_types::id::ProjectScope,
+    host: &str,
+    batch: bool,
+) -> Result<Authorization, StatusCode> {
+    authorize_scoped(
+        Some(path),
+        headers,
+        project.tenant_scope(),
+        host,
+        None,
+        if batch { Capability::UsageBatch(project.project_id()) } else { Capability::Read },
+    )
+}
+
+#[cfg(target_os = "macos")]
+pub(super) fn authorize_usage_cancel(
+    path: &Path,
+    headers: &HeaderMap,
+    tenant: &TenantScope,
+    query: &vw_api_types::apps_usage::UsageSnapshotQuery,
+) -> Result<Authorization, StatusCode> {
+    authorize_scoped(
+        Some(path),
+        headers,
+        tenant,
+        &query.target_host_id,
+        None,
+        Capability::UsageCancel(query),
+    )
+}
+
+impl UsageReadPermit {
+    fn matches(&self, query: &vw_api_types::apps_usage::UsageSnapshotQuery) -> bool {
+        self.project_id == query.project_id
+            && self.app_id == query.app_id
+            && self.provider_id == query.provider_id
+            && self.account_id == query.account_id
+    }
 }
 
 pub(super) fn authorize_auth_account_read(
@@ -387,6 +500,14 @@ pub(super) fn authorize_auth_flow_start(
     authorize_scoped(path, headers, tenant, target, None, Capability::AuthFlowStart(service))
 }
 
+pub(super) fn tenant_policy_path(tenant: &TenantScope) -> PathBuf {
+    vw_shared::local_apps::policy_path(
+        &crate::global::paths().home,
+        tenant.platform_id().as_ref(),
+        tenant.company_id().as_ref(),
+    )
+}
+
 fn authorize_scoped(
     path: Option<&Path>,
     headers: &HeaderMap,
@@ -408,11 +529,7 @@ fn authorize_scoped(
     let path = match path {
         Some(path) => path,
         None => {
-            local_path = vw_shared::local_apps::policy_path(
-                &crate::global::paths().home,
-                tenant.platform_id().as_ref(),
-                tenant.company_id().as_ref(),
-            );
+            local_path = tenant_policy_path(tenant);
             &local_path
         }
     };
@@ -436,12 +553,15 @@ fn authorize_scoped(
         .filter(|g| {
             action.is_none_or(|a| g.actions.contains(&a))
                 && match capability {
-                    Capability::UsageRead(query) => g.usage_read.iter().any(|permit| {
-                        permit.project_id == query.project_id
-                            && permit.app_id == query.app_id
-                            && permit.provider_id == query.provider_id
-                            && permit.account_id == query.account_id
-                    }),
+                    Capability::UsageRead(query) => {
+                        g.usage_read.iter().any(|permit| permit.matches(query))
+                    }
+                    #[cfg(target_os = "macos")]
+                    Capability::UsageCancel(query) => {
+                        g.usage_cancel.iter().any(|permit| permit.matches(query))
+                    }
+                    #[cfg(target_os = "macos")]
+                    Capability::UsageBatch(project) => g.usage_refresh_all.contains(project),
                     Capability::Read => true,
                     Capability::PreferencesWrite => g.preferences_write,
                     Capability::Launch => g.launch,

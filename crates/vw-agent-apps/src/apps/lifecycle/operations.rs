@@ -16,6 +16,11 @@ pub struct Progress {
     pub phase: Phase,
     pub status: TaskStatus,
 }
+pub enum OperationFailure {
+    Cancelled,
+    Failed,
+}
+
 #[derive(Clone)]
 pub struct Operation {
     cancel: watch::Sender<bool>,
@@ -63,7 +68,7 @@ impl Operation {
     }
     /// Wait until cancellation is requested, including requests made before subscribing.
     #[cfg(target_os = "macos")]
-    pub(crate) async fn cancelled(&self) {
+    pub async fn cancelled(&self) {
         let mut signal = self.cancel.subscribe();
         let _ = signal.wait_for(|&cancelled| cancelled).await;
     }
@@ -76,11 +81,42 @@ impl Operation {
     where
         F: std::future::Future<Output = Result<(), String>> + Send + 'static,
     {
+        self.spawn(async move {
+            action.await.map_err(|error| {
+                if error == "operation cancelled" {
+                    OperationFailure::Cancelled
+                } else {
+                    OperationFailure::Failed
+                }
+            })
+        })
+    }
+
+    /// Run an asynchronous task that reports a typed terminal outcome.
+    pub fn start_task<F>(&self, task: F) -> Result<(), String>
+    where
+        F: std::future::Future<Output = Result<(), OperationFailure>> + Send + 'static,
+    {
+        let operation = self.clone();
+        self.spawn(async move {
+            operation.set(Phase::Executing, TaskStatus::Running);
+            task.await
+        })
+    }
+
+    fn spawn<F>(&self, task: F) -> Result<(), String>
+    where
+        F: std::future::Future<Output = Result<(), OperationFailure>> + Send + 'static,
+    {
         self.claim()?;
         let operation = self.clone();
         tokio::spawn(async move {
-            let result = ACTIVE.scope(operation.clone(), action).await;
-            operation.finish(&result);
+            let status = match ACTIVE.scope(operation.clone(), task).await {
+                Ok(()) => TaskStatus::Completed,
+                Err(OperationFailure::Cancelled) => TaskStatus::Cancelled,
+                Err(OperationFailure::Failed) => TaskStatus::Failed,
+            };
+            operation.set(Phase::Terminal, status);
         });
         Ok(())
     }
@@ -95,16 +131,6 @@ impl Operation {
             })
             .then_some(())
             .ok_or_else(|| "operation already submitted".into())
-    }
-    fn finish(&self, result: &Result<(), String>) {
-        let status = if result.is_ok() {
-            TaskStatus::Completed
-        } else if result.as_ref().err().map(String::as_str) == Some("operation cancelled") {
-            TaskStatus::Cancelled
-        } else {
-            TaskStatus::Failed
-        };
-        self.set(Phase::Terminal, status);
     }
     /// Begin exactly once, before returning the handle to an HTTP subscriber.
     /// The owned task survives subscribers dropping and never resubmits a write.

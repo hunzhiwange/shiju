@@ -15,7 +15,7 @@ use vw_api_types::{
 };
 
 pub(crate) fn router() -> Router {
-    Router::new()
+    let router = Router::new()
         .merge(read::router())
         .merge(lifecycle::router())
         .merge(preferences::router())
@@ -30,7 +30,12 @@ pub(crate) fn router() -> Router {
         .route(
             "/agent-apps/custom-icons/{id}",
             patch(rename_icon).delete(delete_icon).layer(DefaultBodyLimit::max(128 * 1024)),
-        )
+        );
+    #[cfg(target_os = "macos")]
+    let router = router.merge(apps_usage_refresh::router_with_policy(
+        std::env::var_os("SHIJU_AGENT_APPS_ACCESS_FILE").map(std::path::PathBuf::from),
+    ));
+    router
 }
 
 async fn read_icons(
@@ -494,3 +499,10 @@ mod usage_refresh_tests;
 
 #[cfg(all(test, target_os = "macos"))]
 mod usage_read_tests;
+
+#[cfg(target_os = "macos")]
+mod apps_usage_refresh;
+#[cfg(all(test, target_os = "macos"))]
+mod apps_usage_refresh_tests;
+#[cfg(target_os = "macos")]
+mod usage_codex;

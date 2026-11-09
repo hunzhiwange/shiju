@@ -40,8 +40,8 @@ pub(super) struct Fixture {
     pub(super) policy: Value,
     pub(super) hits: Arc<AtomicUsize>,
     upstream: tokio::task::JoinHandle<()>,
-    started: Arc<Notify>,
-    release: Arc<Semaphore>,
+    pub(super) started: Arc<Notify>,
+    pub(super) release: Arc<Semaphore>,
 }
 
 impl Drop for Fixture {
@@ -182,11 +182,13 @@ async fn usage_refresh_returns_expected_result() {
         tokio::join!(refresh.tick(&fixture.path, now), refresh.refresh_all(&fixture.path, None),);
     assert_eq!(automatic, batch);
     assert_eq!(automatic.len(), 2);
-    assert!(automatic.iter().any(|item| matches!(item.result.as_ref(),
+    assert!(automatic.iter().any(
+        |item| matches!(item.result.as_ref().as_ref().map(|publication| &publication.snapshot),
         Ok(UsageCacheResult::Current(result)) if matches!(&result.outcome,
             UsageQueryOutcome::Success { data: UsageQueryData::CustomScript(packages) }
-            if f64::from(packages[0].remaining.unwrap()) == 17.0))));
-    assert!(automatic.iter().any(|item| matches!(item.result.as_ref(),
+            if f64::from(packages[0].remaining.unwrap()) == 17.0))
+    ));
+    assert!(automatic.iter().any(|item| matches!(item.result.as_ref().as_ref().map(|publication| &publication.snapshot),
         Ok(UsageCacheResult::Current(result)) if matches!(&result.outcome,
             UsageQueryOutcome::Failure { error, .. } if error.code == UsageQueryErrorCode::UpstreamRateLimited))));
     assert_eq!(fixture.hits.load(Ordering::SeqCst), 2);

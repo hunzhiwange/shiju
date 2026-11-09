@@ -4,7 +4,7 @@ use std::{io::Read, path::Path, time::Duration};
 
 use chrono::{DateTime, SecondsFormat, Utc};
 use reqwest::{
-    ClientBuilder, RequestBuilder,
+    Client, ClientBuilder, RequestBuilder,
     header::{ACCEPT, AUTHORIZATION, HeaderValue, USER_AGENT},
 };
 use security_framework::passwords::{PasswordOptions, generic_password};
@@ -31,6 +31,41 @@ use crate::{
     },
 };
 
+pub const CODEX_USAGE_ORIGIN: &str = "https://chatgpt.com";
+
+/// The managed gateway query consumes a previously checked credential snapshot.
+pub struct ManagedCodexUsage(Client);
+
+impl ManagedCodexUsage {
+    pub fn new(builder: ClientBuilder) -> Result<Self, AuthErrorCode> {
+        builder
+            .https_only(true)
+            .redirect(reqwest::redirect::Policy::none())
+            .no_proxy()
+            .timeout(Duration::from_secs(15))
+            .build()
+            .map(Self)
+            .map_err(|_| AuthErrorCode::ExecutionHostUnavailable)
+    }
+
+    pub async fn query(
+        &self,
+        auth: &Value,
+        now: TimestampMs,
+        correlation_id: &str,
+    ) -> UsageQueryResult {
+        query_headers(
+            "codex_oauth",
+            headers(auth, true),
+            Ok(self.0.clone()),
+            CODEX_USAGE_ORIGIN,
+            now,
+            correlation_id,
+        )
+        .await
+    }
+}
+
 const MAX_NATIVE_FILE_BYTES: u64 = 256 * 1024;
 
 /// The caller must authorize the resolved account, the execution host's HOME
@@ -47,7 +82,7 @@ pub async fn query_codex(
         home,
         managed_store,
         client_builder(),
-        "https://chatgpt.com",
+        CODEX_USAGE_ORIGIN,
         now,
         correlation_id,
     )
@@ -63,8 +98,7 @@ pub(super) async fn query_at(
     now: TimestampMs,
     correlation_id: &str,
 ) -> Result<UsageQueryResult, AuthErrorCode> {
-    use UsageCredentialState::*;
-    use UsageQueryErrorCode::*;
+    use UsageCredentialState::{NotFound, ParseError};
 
     let scope = credential.scope();
     if scope.service != AuthService::CodexOauth {
@@ -85,8 +119,31 @@ pub(super) async fn query_at(
         }
     };
 
+    Ok(query_headers(
+        source,
+        headers,
+        builder.build().map_err(transport_error),
+        origin,
+        now,
+        correlation_id,
+    )
+    .await)
+}
+
+type CodexHeaders = (HeaderValue, Option<HeaderValue>);
+
+async fn query_headers(
+    source: &str,
+    headers: Result<CodexHeaders, UsageCredentialState>,
+    client: Result<Client, UsageQueryErrorCode>,
+    origin: &str,
+    now: TimestampMs,
+    correlation_id: &str,
+) -> UsageQueryResult {
+    use UsageCredentialState::*;
+    use UsageQueryErrorCode::*;
     let (queried_at, credential_state, result) = match headers {
-        Ok((bearer, workspace)) => match builder.build().map_err(transport_error) {
+        Ok((bearer, workspace)) => match client {
             Ok(client) => {
                 let request = |path| {
                     let request = client
@@ -135,13 +192,13 @@ pub(super) async fn query_at(
             },
         },
     };
-    Ok(UsageQueryResult {
+    UsageQueryResult {
         source: UsageSource::Official(source.into()),
         queried_at,
         credential_state,
         credential_message,
         outcome,
-    })
+    }
 }
 
 fn read_native(home: &Path) -> Result<Value, UsageCredentialState> {

@@ -4,6 +4,7 @@ use axum::{
     Extension, Json, Router,
     extract::{DefaultBodyLimit, Path, Query},
     http::{HeaderMap, StatusCode},
+    response::{IntoResponse, Response},
     routing::{get, post},
 };
 use serde::Deserialize;
@@ -54,7 +55,7 @@ struct Running {
 struct Target {
     target_host_id: String,
 }
-fn status(id: String, op: &Operation) -> AppOperationStatus {
+pub(super) fn status(id: String, op: &Operation) -> AppOperationStatus {
     let p = op.snapshot();
     AppOperationStatus {
         operation_id: TaskId::from(id),
@@ -254,15 +255,79 @@ async fn owned(
     authorize(state, headers, tenant, host, action).await?;
     Ok(operation)
 }
+enum OwnedOperation {
+    Lifecycle(Operation),
+    #[cfg(target_os = "macos")]
+    Usage(Arc<super::apps_usage_refresh::RefreshOperation>),
+}
+
+impl OwnedOperation {
+    fn operation(&self) -> &Operation {
+        match self {
+            Self::Lifecycle(operation) => operation,
+            #[cfg(target_os = "macos")]
+            Self::Usage(entry) => &entry.operation,
+        }
+    }
+
+    fn response(&self, id: String) -> Response {
+        match self {
+            Self::Lifecycle(operation) => Json(status(id, operation)).into_response(),
+            #[cfg(target_os = "macos")]
+            Self::Usage(entry) => entry.response(),
+        }
+    }
+}
+
+#[cfg(target_os = "macos")]
+type UsageService = Option<Extension<Arc<super::usage_refresh::UsageRefresh>>>;
+
+async fn resolve_operation(
+    state: &State,
+    tenant: TenantScope,
+    headers: HeaderMap,
+    host: &str,
+    id: &str,
+    #[cfg(target_os = "macos")] usage: UsageService,
+    #[cfg(target_os = "macos")] cancel: bool,
+) -> Result<OwnedOperation, Response> {
+    #[cfg(target_os = "macos")]
+    if let Some(Extension(service)) = usage
+        && let Some(entry) = service.operations.get(id)
+    {
+        entry
+            .authorize(tenant, host, headers, service, cancel)
+            .await
+            .map_err(super::usage_read::ReadError::operation_response)?;
+        return Ok(OwnedOperation::Usage(entry));
+    }
+    owned(state, tenant, headers, host.to_owned(), id)
+        .await
+        .map(OwnedOperation::Lifecycle)
+        .map_err(IntoResponse::into_response)
+}
+
 async fn read(
     Extension(state): Extension<State>,
     Extension(tenant): Extension<TenantScope>,
     headers: HeaderMap,
     Query(target): Query<Target>,
     Path(id): Path<String>,
-) -> Result<Json<AppOperationStatus>, StatusCode> {
-    let op = owned(&state, tenant, headers, target.target_host_id, &id).await?;
-    Ok(Json(status(id, &op)))
+    #[cfg(target_os = "macos")] usage: UsageService,
+) -> Result<Response, Response> {
+    let entry = resolve_operation(
+        &state,
+        tenant,
+        headers,
+        &target.target_host_id,
+        &id,
+        #[cfg(target_os = "macos")]
+        usage,
+        #[cfg(target_os = "macos")]
+        false,
+    )
+    .await?;
+    Ok(entry.response(id))
 }
 async fn events(
     Extension(state): Extension<State>,
@@ -270,16 +335,39 @@ async fn events(
     headers: HeaderMap,
     Query(target): Query<Target>,
     Path(id): Path<String>,
-) -> Result<Json<AppOperationStatus>, StatusCode> {
-    let op =
-        owned(&state, tenant.clone(), headers.clone(), target.target_host_id.clone(), &id).await?;
+    #[cfg(target_os = "macos")] usage: UsageService,
+) -> Result<Response, Response> {
+    let entry = resolve_operation(
+        &state,
+        tenant.clone(),
+        headers.clone(),
+        &target.target_host_id,
+        &id,
+        #[cfg(target_os = "macos")]
+        usage.clone(),
+        #[cfg(target_os = "macos")]
+        false,
+    )
+    .await?;
+    let op = entry.operation();
     let mut receiver = op.subscribe();
     if op.snapshot().phase != Phase::Terminal {
         let _ = tokio::time::timeout(Duration::from_secs(25), receiver.changed()).await;
     }
-    owned(&state, tenant, headers, target.target_host_id, &id).await?;
     // Long polling resumes from current durable-in-process state, never restarts writes.
-    Ok(Json(status(id, &op)))
+    let entry = resolve_operation(
+        &state,
+        tenant,
+        headers,
+        &target.target_host_id,
+        &id,
+        #[cfg(target_os = "macos")]
+        usage,
+        #[cfg(target_os = "macos")]
+        false,
+    )
+    .await?;
+    Ok(entry.response(id))
 }
 async fn cancel(
     Extension(state): Extension<State>,
@@ -287,8 +375,26 @@ async fn cancel(
     headers: HeaderMap,
     Query(target): Query<Target>,
     Path(id): Path<String>,
-) -> Result<Json<AppOperationStatus>, StatusCode> {
-    let op = owned(&state, tenant, headers, target.target_host_id, &id).await?;
-    op.cancel_and_wait().await;
-    Ok(Json(status(id, &op)))
+    #[cfg(target_os = "macos")] usage: UsageService,
+) -> Result<Response, Response> {
+    let entry = resolve_operation(
+        &state,
+        tenant.clone(),
+        headers.clone(),
+        &target.target_host_id,
+        &id,
+        #[cfg(target_os = "macos")]
+        usage.clone(),
+        #[cfg(target_os = "macos")]
+        true,
+    )
+    .await?;
+    entry.operation().cancel_and_wait().await;
+    #[cfg(target_os = "macos")]
+    let entry = if matches!(entry, OwnedOperation::Usage(_)) {
+        resolve_operation(&state, tenant, headers, &target.target_host_id, &id, usage, true).await?
+    } else {
+        entry
+    };
+    Ok(entry.response(id))
 }

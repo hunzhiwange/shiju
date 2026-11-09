@@ -131,6 +131,26 @@ fn account_snapshot(
     }
     let host = super::account_host(authorization, owns_native_slot)
         .map_err(|_| AuthErrorCode::ExecutionHostUnavailable)?;
+    if query.app_id == AppId::Codex {
+        let scope = super::usage_codex::CodexScope {
+            selection: crate::agent_apps::usage_settings::UsageSettingsScope {
+                project,
+                principal: &host.principal,
+                target_host: &host.id,
+                app: query.app_id,
+                provider: &query.provider_id,
+                account: Some(account),
+            },
+            credential_root: &host.credential_root,
+            account,
+        };
+        let snapshot =
+            scope.current_key(service)?.and_then(|key| service.snapshot(&key, Instant::now()));
+        return Ok(UsageSnapshotResponse {
+            capabilities: vec![UsageQueryKind::OfficialSubscription],
+            snapshot,
+        });
+    }
     let scope = crate::agent_apps::auth_accounts::AuthAccountScope {
         tenant: project.tenant_scope(),
         principal: &host.principal,
@@ -145,17 +165,25 @@ fn account_snapshot(
         &query.provider_id,
         account,
     )?;
-    // The scheduler currently publishes only provider-credential snapshots.
     Ok(UsageSnapshotResponse {
         capabilities: vec![UsageQueryKind::OfficialSubscription],
         snapshot: None,
     })
 }
 
-struct ReadError(AuthErrorCode);
+pub(super) struct ReadError(AuthErrorCode);
 
 impl ReadError {
-    fn access(status: StatusCode) -> Self {
+    #[cfg(target_os = "macos")]
+    pub(super) fn operation_response(self) -> Response {
+        if self.0 == AuthErrorCode::NotFound {
+            StatusCode::NOT_FOUND.into_response()
+        } else {
+            self.into_response()
+        }
+    }
+
+    pub(super) fn access(status: StatusCode) -> Self {
         Self(match status {
             StatusCode::UNAUTHORIZED => AuthErrorCode::Unauthenticated,
             StatusCode::FORBIDDEN => AuthErrorCode::Forbidden,
@@ -178,7 +206,7 @@ impl IntoResponse for ReadError {
         let (status, message) = match self.0 {
             InvalidInput => (StatusCode::BAD_REQUEST, "Invalid usage selector"),
             Unauthenticated => (StatusCode::UNAUTHORIZED, "Authentication required"),
-            Forbidden => (StatusCode::FORBIDDEN, "Usage read forbidden"),
+            Forbidden => (StatusCode::FORBIDDEN, "Usage action forbidden"),
             NotFound => (StatusCode::NOT_FOUND, "Usage resource not found"),
             Unsupported | ExecutionChannelUnavailable => {
                 (StatusCode::NOT_IMPLEMENTED, "Usage query unavailable on this host")

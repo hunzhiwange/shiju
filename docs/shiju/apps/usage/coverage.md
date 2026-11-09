@@ -412,3 +412,21 @@
 | 隔离复核 | `cargo clippy --all-targets --all-features -- -D warnings` | 退出 0。基于批次 25 提交 `ab57e81bf`、本任务 Rust 文件及工作区已有的 `postgres_tests.rs` 第三参数修正。 |
 
 本机 HTTP 夹具核对实际请求方法、路径与请求头，覆盖绑定账号和 CLI 默认账号、活跃账号令牌轮换、身份不匹配、钥匙串与文件选取、过期时阻止出站请求及 401/403。真实账号验收留待任务 56。任务差异检查通过，各阶段均释放槽位锁并保留缓存。 [测试](../../../../crates/vw-agent-apps/src/usage/subscriptions/claude_tests.rs#L258)
+
+## 任务 27 Codex 官方额度
+
+`query_codex` 消费已授权的账号引用。CLI 分支读取授权 HOME 的默认 `.codex` 登录槽，按配置选择文件或 macOS 钥匙串。托管分支按租户、主体、主机及绑定账号读取现有凭据存储。访问令牌和 ChatGPT 工作区 ID 取自同一份凭据快照。凭据续期由授权流程处理。 [上游 CLI 查询](../../../../crates/vw-agent-apps/upstream/src-tauri/src/services/subscription.rs#L1745) · [上游托管查询](../../../../crates/vw-agent-apps/upstream/src-tauri/src/commands/codex_oauth.rs#L28) · [上游账号选择](../../../../crates/vw-agent-apps/upstream/src/utils/providerCapabilities.ts#L46) · [适配器](../../../../crates/vw-agent-apps/src/usage/subscriptions/codex.rs#L38)
+
+两种来源共用固定 ChatGPT 端点和解析器。主查询保留 5 小时、周及其他窗口，省略零用量的占位重置时间，并保留正数 Credits。附带查询按状态和到期时间筛选可用重置次数，最早到期的排在前面。附带查询失败时仍保留主额度；主请求的 401 和 403 标为凭据过期。查询禁用重定向，限制响应体大小，错误只返回类型与脱敏说明。 [上游协议](../../../../crates/vw-agent-apps/upstream/src-tauri/src/services/subscription.rs#L972) · [本地解析](../../../../crates/vw-agent-apps/src/usage/subscriptions/codex.rs#L272)
+
+验证环境为 macOS 27.0 (26A428)、arm64，`vw-agent-apps` 0.6.0。实现前后测试、格式化和共享工作区 Clippy 动态领取槽位 1，`CARGO_TARGET_DIR` 与 `CARGO_BUILD_BUILD_DIR` 均为 `/Users/xiangmin/worker/code/shiju/target/rust-slot-1`。全仓格式化在批次 26 提交 `aa1dff319` 的源码副本执行，只同步本任务 Rust 文件。隔离 Clippy 动态领取槽位 2，两项变量均为 `/Users/xiangmin/worker/code/shiju/target/rust-slot-2`。
+
+| 阶段 | 命令 | 结果 |
+| --- | --- | --- |
+| 实现前 | `cargo test -p vw-agent-apps usage_subscriptions_codex_ -- --nocapture` | 退出 101，执行 0 项。包含 `usage_subscriptions_codex_returns_expected_result` 和 `usage_subscriptions_codex_rejects_invalid_input` 的模块报 E0432，缺少 `super::codex`。 |
+| 格式化 | `cargo fmt --all` | 退出 0。 |
+| 实现后 | `cargo test -p vw-agent-apps usage_subscriptions_codex_ -- --nocapture` | 退出 0，5 项通过，0 项失败。 |
+| 共享工作区 | `cargo clippy --all-targets --all-features -- -D warnings` | 退出 101。并行改动中的 `vw-agent/src/session/llm/acp/approval.rs` 缺少 `PermissionConfirmation`，`vw-desktop/src/app/message/chat/stream/permissions.rs` 缺少 `session_set_full_access`，多处缺少 `GatewaySessionUiSummary.full_access`。 |
+| 隔离复核 | `cargo clippy --all-targets --all-features -- -D warnings` | 退出 0。基于批次 26 提交 `aa1dff319`、本任务三个 Rust 文件和工作区已有的 `postgres_tests.rs` 第三参数修正。 |
+
+本机 HTTP 夹具核对两种凭据来源的请求方法、路径、Bearer、工作区和 beta 头，覆盖重置过期边界、缺少绑定凭据、输入拒绝及主请求与附带请求的错误隔离。差异检查通过，槽位锁已释放，缓存已保留。真实账号与系统钥匙串留待任务 57 验收。 [测试](../../../../crates/vw-agent-apps/src/usage/subscriptions/codex_tests.rs#L187)

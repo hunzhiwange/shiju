@@ -112,15 +112,16 @@ if contract.get('layout') == 'native':
 packages = [contract['package'] + '@' + contract['version']]
 if 'engine' in contract:
     packages.append(contract['engine'] + '@' + contract['engine_version'])
+runtime.mkdir()
 if agent == 'iflow':
-    runtime.mkdir()
     lock_input = json.loads((assets / 'iflow-lock.json').read_text())
     (runtime / 'package.json').write_text(json.dumps({'private': True, 'dependencies': lock_input['packages']['']['dependencies']}))
     shutil.copy2(assets / 'iflow-lock.json', runtime / 'package-lock.json')
-    run(['npm', 'ci', '--prefix', str(runtime), '--registry=https://registry.npmjs.org', '--ignore-scripts', '--prefer-offline', '--no-audit', '--no-fund', '--fetch-timeout=20000', '--fetch-retries=2'])
+    run(['npm', 'ci', '--registry=https://registry.npmjs.org', '--ignore-scripts', '--prefer-offline', '--no-audit', '--no-fund', '--fetch-timeout=20000', '--fetch-retries=2'], cwd=runtime)
 else:
-    run(['npm', 'install', '--prefix', str(runtime), '--registry=https://registry.npmjs.org',
-         '--ignore-scripts', '--prefer-offline', '--fetch-timeout=20000', '--fetch-retries=2', '--fetch-retry-mintimeout=1000', '--fetch-retry-maxtimeout=5000', '--no-audit', '--no-fund', '--save-exact', *packages])
+    # Run npm in the stage itself so lockfile keys stay package-relative.
+    run(['npm', 'install', '--registry=https://registry.npmjs.org',
+         '--ignore-scripts', '--prefer-offline', '--fetch-timeout=20000', '--fetch-retries=2', '--fetch-retry-mintimeout=1000', '--fetch-retry-maxtimeout=5000', '--no-audit', '--no-fund', '--save-exact', *packages], cwd=runtime)
 lock = json.loads((runtime / 'package-lock.json').read_text())['packages']
 if lock['node_modules/' + contract['package']]['integrity'] != contract['integrity']:
     raise RuntimeError('Supplier archive integrity mismatch')

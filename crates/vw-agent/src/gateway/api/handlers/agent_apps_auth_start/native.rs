@@ -6,13 +6,10 @@ use crate::{
 use std::{
     collections::HashMap,
     path::{Path, PathBuf},
-    sync::{
-        Arc, Mutex,
-        atomic::{AtomicBool, Ordering},
-    },
+    sync::Mutex,
     time::{Duration, Instant, SystemTime, UNIX_EPOCH},
 };
-use tokio::sync::oneshot;
+use tokio::sync::{oneshot, watch};
 use vw_agent_apps::{
     apps::discovery::read::locate_cli,
     auth::{
@@ -40,17 +37,46 @@ use vw_api_types::{
 
 const CLAUDE_LIFETIME: Duration = Duration::from_secs(600);
 
-#[derive(Default)]
-pub(super) struct ClaudePastes(Mutex<HashMap<String, ClaudePaste>>);
+struct ClaudeAttempt {
+    paste: ClaudePaste,
+    cleaned: watch::Receiver<Option<Result<(), AuthErrorCode>>>,
+}
 
-impl ClaudePastes {
-    pub(super) fn get(&self, id: &AuthFlowId) -> Result<ClaudePaste, AuthErrorCode> {
+#[derive(Default)]
+pub(super) struct ClaudeAttempts(Mutex<HashMap<String, ClaudeAttempt>>);
+
+impl ClaudeAttempts {
+    pub(super) fn paste(&self, id: &AuthFlowId) -> Result<ClaudePaste, AuthErrorCode> {
         self.0
             .lock()
             .map_err(|_| AuthErrorCode::ExecutionHostUnavailable)?
             .get(&id.0)
-            .cloned()
+            .map(|attempt| attempt.paste.clone())
             .ok_or(AuthErrorCode::Conflict)
+    }
+}
+
+impl Runtime {
+    pub(in crate::gateway::api::handlers) async fn wait_for_claude_cleanup(
+        &self,
+        id: &AuthFlowId,
+    ) -> Result<(), AuthErrorCode> {
+        let cleaned = self
+            .claude
+            .0
+            .lock()
+            .map_err(|_| AuthErrorCode::ExecutionHostUnavailable)?
+            .get(&id.0)
+            .map(|attempt| attempt.cleaned.clone());
+        let Some(mut cleaned) = cleaned else {
+            // The worker published the cleanup result before removing the handle.
+            return Ok(());
+        };
+        let result = cleaned
+            .wait_for(Option::is_some)
+            .await
+            .map_err(|_| AuthErrorCode::ExecutionHostUnavailable)?;
+        result.expect("cleanup result was published")
     }
 }
 
@@ -124,8 +150,8 @@ pub(super) async fn start_claude(
 
     let (cancel, cancelled) = oneshot::channel();
     let mut cancel = Some(cancel);
-    let stopped = Arc::new(AtomicBool::new(false));
-    let cleanup_stopped = Arc::clone(&stopped);
+    let (cleaned, cleanup) = watch::channel(None);
+    let cleanup_status = cleanup.clone();
     let flows = &runtime.flows;
     let pending = flows.start_with_cleanup(
         scope,
@@ -135,11 +161,7 @@ pub(super) async fn start_claude(
             if let Some(cancel) = cancel.take() {
                 let _ = cancel.send(());
             }
-            if cleanup_stopped.load(Ordering::Acquire) {
-                Ok(())
-            } else {
-                Err(AuthErrorCode::ExecutionHostUnavailable)
-            }
+            (*cleanup_status.borrow()).unwrap_or(Err(AuthErrorCode::ExecutionHostUnavailable))
         },
     );
     let flow_id = match pending {
@@ -167,20 +189,27 @@ pub(super) async fn start_claude(
         .0
         .lock()
         .map(|mut handles| {
-            handles.insert(flow_id.0.clone(), login.paste_handle());
+            handles.insert(
+                flow_id.0.clone(),
+                ClaudeAttempt { paste: login.paste_handle(), cleaned: cleanup },
+            );
         })
         .is_ok();
 
     let result = if registered && started(reply, response) {
-        login.wait_until_cancelled(cancelled).await.map_err(paste_error)
+        login.wait_until_cancelled(cancelled).await
     } else {
         let _ = login.cancel().await;
-        Err(AuthErrorCode::ExecutionHostUnavailable)
+        Err(ClaudeLoginError::Unavailable)
     };
-    if let Ok(mut handles) = runtime.claude.0.lock() {
-        handles.remove(&flow_id.0);
-    }
-    let result = result.and_then(|()| blocking(|| verified_claude(&directory, &account_id)));
+    let process_cleanup = if matches!(result, Err(ClaudeLoginError::Unavailable)) {
+        Err(AuthErrorCode::ExecutionHostUnavailable)
+    } else {
+        Ok(())
+    };
+    let result = result
+        .map_err(paste_error)
+        .and_then(|()| blocking(|| verified_claude(&directory, &account_id)));
     let (result, metadata) = match result {
         Ok((account, metadata)) => (Ok(account), Some(metadata)),
         Err(error) => (Err(error), None),
@@ -203,8 +232,9 @@ pub(super) async fn start_claude(
         }
         Ok(())
     });
-    if finished.is_ok() {
-        stopped.store(true, Ordering::Release);
+    cleaned.send_replace(Some(finished.and(process_cleanup)));
+    if let Ok(mut handles) = runtime.claude.0.lock() {
+        handles.remove(&flow_id.0);
     }
     let _ = blocking(|| flows.reap_expired(Instant::now()));
     if !registered {

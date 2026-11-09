@@ -48,7 +48,7 @@ pub(super) struct Runtime {
     pub(super) flows: AuthFlows,
     kimi: OnceLock<Result<KimiDeviceAuth, AuthErrorCode>>,
     #[cfg(target_os = "macos")]
-    claude: native::ClaudePastes,
+    claude: native::ClaudeAttempts,
 }
 
 #[derive(Deserialize)]
@@ -91,7 +91,10 @@ impl Execution {
 pub(super) fn routes(runtime: Arc<Runtime>) -> Router {
     Router::new()
         .route("/v1/agent-apps/auth/flows", post(start))
-        .route("/v1/agent-apps/auth/flows/{flow_id}", get(super::agent_apps_auth_poll::poll))
+        .route(
+            "/v1/agent-apps/auth/flows/{flow_id}",
+            get(super::agent_apps_auth_poll::poll).delete(super::agent_apps_auth_cancel::cancel),
+        )
         .route("/v1/agent-apps/auth/flows/{flow_id}/paste", post(paste))
         .layer(DefaultBodyLimit::max(32 * 1024))
         .layer(Extension(runtime))
@@ -330,7 +333,7 @@ async fn paste(
     runtime.flows.require_pending(execution.scope(), &id, Instant::now)?;
     #[cfg(target_os = "macos")]
     {
-        let paste = runtime.claude.get(&id)?;
+        let paste = runtime.claude.paste(&id)?;
         paste.submit(&input.pasted).await.map_err(native::paste_error)?;
         Ok(StatusCode::ACCEPTED)
     }

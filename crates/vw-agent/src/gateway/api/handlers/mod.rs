@@ -245,6 +245,10 @@ pub(crate) mod agent_apps_auth_read;
 #[cfg(all(test, target_os = "macos"))]
 mod agent_apps_auth_read_tests;
 
+mod agent_apps_auth_cancel;
+#[cfg(all(test, target_os = "macos"))]
+mod agent_apps_auth_cancel_tests;
+
 mod agent_apps_auth_poll;
 #[cfg(all(test, target_os = "macos"))]
 mod agent_apps_auth_poll_tests;
